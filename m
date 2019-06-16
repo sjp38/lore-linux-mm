@@ -2,167 +2,182 @@ Return-Path: <SRS0=z6ed=UP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
+	SPF_HELO_NONE,SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6FEBEC31E49
-	for <linux-mm@archiver.kernel.org>; Sun, 16 Jun 2019 08:58:53 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 258B4C31E54
+	for <linux-mm@archiver.kernel.org>; Sun, 16 Jun 2019 10:12:51 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3F54721473
-	for <linux-mm@archiver.kernel.org>; Sun, 16 Jun 2019 08:58:51 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3F54721473
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id AD9E8216FD
+	for <linux-mm@archiver.kernel.org>; Sun, 16 Jun 2019 10:12:50 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="Sp0zNssZ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AD9E8216FD
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4DDDF8E0006; Sun, 16 Jun 2019 04:58:47 -0400 (EDT)
+	id 05C1C6B0005; Sun, 16 Jun 2019 06:12:50 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 419E28E0001; Sun, 16 Jun 2019 04:58:47 -0400 (EDT)
+	id 00D908E0002; Sun, 16 Jun 2019 06:12:49 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 309EF8E0006; Sun, 16 Jun 2019 04:58:47 -0400 (EDT)
+	id E64FC8E0001; Sun, 16 Jun 2019 06:12:49 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
-	by kanga.kvack.org (Postfix) with ESMTP id CD0078E0001
-	for <linux-mm@kvack.org>; Sun, 16 Jun 2019 04:58:46 -0400 (EDT)
-Received: by mail-wr1-f72.google.com with SMTP id c6so2742842wrp.11
-        for <linux-mm@kvack.org>; Sun, 16 Jun 2019 01:58:46 -0700 (PDT)
+Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
+	by kanga.kvack.org (Postfix) with ESMTP id C79806B0005
+	for <linux-mm@kvack.org>; Sun, 16 Jun 2019 06:12:49 -0400 (EDT)
+Received: by mail-io1-f69.google.com with SMTP id m1so8658303iop.1
+        for <linux-mm@kvack.org>; Sun, 16 Jun 2019 03:12:49 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=hjjZi7hVawe1O5sE3agHwwCxgHKG18ng7v/8qT0V/18=;
-        b=Sk5qT5OQ7s/NSNnyb1d9KqKvDCjfSm2GktRY/lsWjREE+VFcAk2PICxoE6fXmJF4TW
-         4bW+J76PFpLNi9KI4wBOBgm33n80czOQT6BxBfgwa9el2+KRCjF+U11N322KbMxr0Nsw
-         hRs8rH4/zptkBlCklWBZpridqTEzqatCeF/cmCcXtTJGjf6UZF1VgBfokr99TG/sz30r
-         hwOyX2dUNdqb8TXSEQyycpd9Sh2V9WHPTdvKaKjiRGTn5bEKJeNUasUQKqwM2BCELxmG
-         YJNExiul3OazN37D7DJk/BcqkobncLx0JG4W4KZIKcTlw46IgR8qD5nVmJ02qVdx5MTz
-         8s7g==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of oleksandr@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=oleksandr@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAU9YWfyemQc0cr1zoibJesORYP3l+4Csrp9iQgQQVKxN7+U9DAy
-	rWTm5kboCsXnHnVIrgeK8VjdpWDXfbgfHuPM9LSUsH5GDd2c4PHGTswxR2JWWmYwhVaoUsU6wbo
-	1SsKmT2WRLVqgdA+3zdFUijs4x/HcJM2jJG5y6DAM/Zv1PQPp9XqMucqtC/hczCP5lg==
-X-Received: by 2002:a5d:5607:: with SMTP id l7mr41766102wrv.228.1560675526279;
-        Sun, 16 Jun 2019 01:58:46 -0700 (PDT)
-X-Received: by 2002:a5d:5607:: with SMTP id l7mr41766049wrv.228.1560675525426;
-        Sun, 16 Jun 2019 01:58:45 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560675525; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=dXi83X39sc+SHqsRQb9qWakQ658qfuo/1ekg8hliBD0=;
+        b=poVPjHpVyOcgyH085DqBQ7Wic/dgmEO/PC65gVLrEVDgbO/vRpUtKyFqqQvuokWYpF
+         2mEj1NopRc/vrHyLdyRCP7Lek2mKKIVNTGSrOEORijWrLR6M2xvyFFshBfok4w0Y7bBL
+         qfsC2l3Rr/QeMmORr5MDUeYSMJd4spAnF2mVljdLIJgImEI9VmYiU1JGu7Glisvs5NYT
+         VCn7bu67ILli4wOELM8+6qkMbHTCPYpJQnpkxyJAzFb5lsWEzdCIAQ20QxKMeIU00Irz
+         h4qpv8asSh9XoqH5qqdRwPnnkjh7ier8eO1soLEhEMsUMaA1J2mOkaqKQ7lm40DcyjHZ
+         GujQ==
+X-Gm-Message-State: APjAAAXzQMgZT7FFcx3FsI0zWYvO2K4uPuvvg0qsGD4bfq0rhfpp1nmh
+	sinDcilLI5fdFiYUtcaOkzMCmTbadlYXxMuFwjCQA0+eSP0vJdQ0nmwP7Xy8Pd7fBixnvz/obCl
+	Rqjwv2WoI3LuXRy9KYfpSVFYn8BNmyCAo3C3221hr855ZKlM9KcooWMaqAQp2TFSUOA==
+X-Received: by 2002:a02:234b:: with SMTP id u72mr78123376jau.4.1560679969433;
+        Sun, 16 Jun 2019 03:12:49 -0700 (PDT)
+X-Received: by 2002:a02:234b:: with SMTP id u72mr78123316jau.4.1560679968552;
+        Sun, 16 Jun 2019 03:12:48 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560679968; cv=none;
         d=google.com; s=arc-20160816;
-        b=QGgji84SD9lYttE0JVCL0lw++1APtNjgArkslrp1g7cXHWB4Ildji7F/qgA9aZ+deu
-         uzkFtUoFbM50/b2pKUSm4DL3yNSWzWt0AKlVUFIIcG+kjbhzfJs7Q8YeuPEVa6ve0p9U
-         uhyTiG/5E7zy2UADX7Orhi5XtT6JS+lFGLPF9g2u35gHUOAKCN2WdSvad5iPsWiMAjJL
-         ftEnZloa5L7/D96L04vWfWURnwEEVdTn6QtofIU0zVny67Qg5X77P6lRKK8s/6Ifj4ny
-         GoLX6+9HcTix42aKT6BZ9y2itOOZvSE1CjUrFhTIigse90W00LmXs7tSU5d81NpiCzkz
-         77Vg==
+        b=P98dSba4VN1abgBHsIbuhS3+AnyTmT/dr7uoMgkjXbTbfRPD7XUbZLf2vPmw83bCTP
+         wBjI+g7jfAdY/sv16ks0tWRf7VF9/Vn+AP96rep06mn6VEqwTzX48yd6XBwThd+niIoM
+         Pt4UZOPigh7LDtQkjgtg7/FCXXx35ofhY9V2W+ZtBepo6MfrwmLBEXyHQP9O+tFx21/Y
+         iG2bU0NIfLXeyyuzthTG6KhkEd+gzwZL6vJWRpwl+1ywWxP3zZgbM/q1nc7Toj3QzQVZ
+         3jMl52+GQV6nnIdXhqvYr1WJ/HVQojwiZi4dgwS3G0Di/SUxwc17HnTF+vV9s8ZYv7QT
+         v5Tw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from;
-        bh=hjjZi7hVawe1O5sE3agHwwCxgHKG18ng7v/8qT0V/18=;
-        b=eU/ZOWVI8ZKvgMQbgfs/BF6PFt7+PLs2Bf7QI+aPQKaLoELsRG84f3xdXA+VfZ95jG
-         HTYATxYnFbG0yuchdJoN4jI0ObQXkzZFmlZUl5ttdXZESZULYoYEXv4FggvNH4LsuP19
-         s/BakEAek7pyHqDmktswOGopUUHm6KXZ9HXtSKCA1nTohXPigCa0J5JI//m3IJ66/RUT
-         tTRiyu/IVW1dGB2jOdAYOq87YiquZTP0j7Jfid9QqInjOG9hErmTdklWgs5UeUBB1Rum
-         6/jYq+ouCzGqXBPQu8Ca2+LXF1jkLeTbh9HepYr0h6R8trny9nlI+M/1Vpjh3Y6a3yyq
-         dFYQ==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=dXi83X39sc+SHqsRQb9qWakQ658qfuo/1ekg8hliBD0=;
+        b=t1Pe2oBVT/1A8SqNOOwcRgxDgdXNXszmjBSMFarwBfWEuQrAYzxHVVxuAzBdlT0X8k
+         ZcCxFr5bJTSLAFa623nfK1NCPAmM0Y5dcuFeQJlVCtUFielnQPb7cu8eXd9X6aEu5ZwJ
+         yhmn1cL+y2ozmP+IuZwKhYMU3huxCyL8Pya/H4EKBLoFgeNDXZhLTs+0byPfTop5syTS
+         48LlRcIL+cvGnIRWB4sTCY95y6we+5MuNeztSZYSH+8APZ7PPsvarTFpYmKv+WmeQUJ2
+         fbqzuxW80UO96Jg8xKFuJjR1KITL17jjwhio88aTs558wIEN58tJtAfrtEGX9WHVZmvK
+         O/Kw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of oleksandr@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=oleksandr@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Sp0zNssZ;
+       spf=pass (google.com: domain of mikhail.v.gavrilov@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mikhail.v.gavrilov@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y9sor1776615wrs.31.2019.06.16.01.58.45
+        by mx.google.com with SMTPS id i26sor20766384jaf.1.2019.06.16.03.12.48
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sun, 16 Jun 2019 01:58:45 -0700 (PDT)
-Received-SPF: pass (google.com: domain of oleksandr@redhat.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Sun, 16 Jun 2019 03:12:48 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mikhail.v.gavrilov@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of oleksandr@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=oleksandr@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Google-Smtp-Source: APXvYqwgBJiVgM4KiEAb/iF54vFPB8O+3Ztpe60o0gwS8ulqjH0TmG0LsqfT6UfUPJQvqxzCje57FA==
-X-Received: by 2002:a5d:56c1:: with SMTP id m1mr56928115wrw.26.1560675525088;
-        Sun, 16 Jun 2019 01:58:45 -0700 (PDT)
-Received: from localhost (nat-pool-brq-t.redhat.com. [213.175.37.10])
-        by smtp.gmail.com with ESMTPSA id c4sm3173448wrb.68.2019.06.16.01.58.44
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Sun, 16 Jun 2019 01:58:44 -0700 (PDT)
-From: Oleksandr Natalenko <oleksandr@redhat.com>
-To: Minchan Kim <minchan@kernel.org>
-Cc: linux-kernel@vger.kernel.org,
-	linux-mm@kvack.org,
-	linux-api@vger.kernel.org
-Subject: [PATCH NOTFORMERGE 5/5] mm/madvise: allow KSM hints for remote API
-Date: Sun, 16 Jun 2019 10:58:35 +0200
-Message-Id: <20190616085835.953-6-oleksandr@redhat.com>
-X-Mailer: git-send-email 2.22.0
-In-Reply-To: <20190616085835.953-1-oleksandr@redhat.com>
-References: <20190616085835.953-1-oleksandr@redhat.com>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Sp0zNssZ;
+       spf=pass (google.com: domain of mikhail.v.gavrilov@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mikhail.v.gavrilov@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=dXi83X39sc+SHqsRQb9qWakQ658qfuo/1ekg8hliBD0=;
+        b=Sp0zNssZ3yGsTgfmNa9NkVGcWT/8Bn/SQOq3LUSy7KJSExWEAP4Qte5nb4jT/waLpA
+         fx7Qiv9/fF+EuODR9/itkek4S1+dEGfgVBOpDm2wGAUXcueWeHHHgPI4wt0FQR5VbGM3
+         AyMwUJQNqwZiviyReqLSvHBVMV1mh/d5rdKdeisQRDZUSdZ4rFT/LW2qAhZvHXEwpw56
+         s+EyglpJMgN2kuq6581xB/X5hMUB6T61S385mK7WaOnmn8+oXbr+Xm7wGXu3S+gcCYpo
+         VkTGDhLKQfwOkEo2pwG/g42CgANc4AAV4Oh+lIF1BMZ8YpnXxtsvU4mppO9esDH4g/1a
+         HRzQ==
+X-Google-Smtp-Source: APXvYqyUrK+C6uFyPu/mN+CP7kqloxH5tDYqAI6TJES117YkgWE/uPQUS7hB4tpeYLyAnmqD+FGwYyPPoXuvWiRvuYI=
+X-Received: by 2002:a02:16c5:: with SMTP id a188mr78260707jaa.86.1560679967918;
+ Sun, 16 Jun 2019 03:12:47 -0700 (PDT)
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+References: <CABXGCsN9mYmBD-4GaaeW_NrDu+FDXLzr_6x+XNxfmFV6QkYCDg@mail.gmail.com>
+ <CABXGCsNq4xTFeeLeUXBj7vXBz55aVu31W9q74r+pGM83DrPjfA@mail.gmail.com>
+ <20190529180931.GI18589@dhcp22.suse.cz> <CABXGCsPrk=WJzms_H+-KuwSRqWReRTCSs-GLMDsjUG_-neYP0w@mail.gmail.com>
+In-Reply-To: <CABXGCsPrk=WJzms_H+-KuwSRqWReRTCSs-GLMDsjUG_-neYP0w@mail.gmail.com>
+From: Mikhail Gavrilov <mikhail.v.gavrilov@gmail.com>
+Date: Sun, 16 Jun 2019 15:12:37 +0500
+Message-ID: <CABXGCsMjDn0VT0DmP6qeuiytce9cNBx8PywpqejiFNVhwd0UGg@mail.gmail.com>
+Subject: Re: kernel BUG at mm/swap_state.c:170!
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Linux List Kernel Mailing <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-It all began with the fact that KSM works only on memory that is marked
-by madvise(). And the only way to get around that is to either:
+Hi,
+I finished today bisecting kernel.
+And first bad commit for me was cd736d8b67fb22a85a68c1ee8020eb0d660615ec
 
-  * use LD_PRELOAD; or
-  * patch the kernel with something like UKSM or PKSM.
+Can you look into this?
 
-(i skip ptrace can of worms here intentionally)
 
-To overcome this restriction, lets employ a new remote madvise API. This
-can be used by some small userspace helper daemon that will do auto-KSM
-job for us.
+$ git bisect log
+git bisect start
+# good: [a188339ca5a396acc588e5851ed7e19f66b0ebd9] Linux 5.2-rc1
+git bisect good a188339ca5a396acc588e5851ed7e19f66b0ebd9
+# good: [a188339ca5a396acc588e5851ed7e19f66b0ebd9] Linux 5.2-rc1
+git bisect good a188339ca5a396acc588e5851ed7e19f66b0ebd9
+# bad: [cd6c84d8f0cdc911df435bb075ba22ce3c605b07] Linux 5.2-rc2
+git bisect bad cd6c84d8f0cdc911df435bb075ba22ce3c605b07
+# bad: [060358de993f24562e884e265c4c57864a3a4141] treewide: Replace
+GPLv2 boilerplate/reference with SPDX - rule 125
+git bisect bad 060358de993f24562e884e265c4c57864a3a4141
+# bad: [d53e860fd46f3d95c437bb67518f7374500de467] Merge branch 'linus'
+of git://git.kernel.org/pub/scm/linux/kernel/git/herbert/crypto-2.6
+git bisect bad d53e860fd46f3d95c437bb67518f7374500de467
+# bad: [34dcf6a1902ac214149a2742250ff03aa5346f3e] net: caif: fix the
+value of size argument of snprintf
+git bisect bad 34dcf6a1902ac214149a2742250ff03aa5346f3e
+# bad: [c7d5ec26ea4adf450d9ab2b794e7735761a93af1] Merge
+git://git.kernel.org/pub/scm/linux/kernel/git/bpf/bpf
+git bisect bad c7d5ec26ea4adf450d9ab2b794e7735761a93af1
+# good: [3d21b6525caeae45f08e2d3a07ddfdef64882b8b] selftests/bpf: add
+prog detach to flow_dissector test
+git bisect good 3d21b6525caeae45f08e2d3a07ddfdef64882b8b
+# bad: [3ebe1bca58c85325c97a22d4fc3f5b5420752e6f] ppp: deflate: Fix
+possible crash in deflate_init
+git bisect bad 3ebe1bca58c85325c97a22d4fc3f5b5420752e6f
+# bad: [d0a7e8cb3c9d7d4fa2bcdd557be19f0841e2a3be] NFC: Orphan the subsystem
+git bisect bad d0a7e8cb3c9d7d4fa2bcdd557be19f0841e2a3be
+# bad: [0fe9f173d6cda95874edeb413b1fa9907b5ae830] net: Always descend into dsa/
+git bisect bad 0fe9f173d6cda95874edeb413b1fa9907b5ae830
+# bad: [cd736d8b67fb22a85a68c1ee8020eb0d660615ec] tcp: fix retrans
+timestamp on passive Fast Open
+git bisect bad cd736d8b67fb22a85a68c1ee8020eb0d660615ec
+# first bad commit: [cd736d8b67fb22a85a68c1ee8020eb0d660615ec] tcp:
+fix retrans timestamp on passive Fast Open
 
-I think of two major consumers of remote KSM hints:
 
-  * hosts, that run containers, especially similar ones and especially in
-    a trusted environment, sharing the same runtime like Node.js;
 
-  * heavy applications, that can be run in multiple instances, not
-    limited to opensource ones like Firefox, but also those that cannot be
-    modified since they are binary-only and, maybe, statically linked.
+--
+Best Regards,
+Mike Gavrilov.
 
-Speaking of statistics, more numbers can be found in the very first
-submission, that is related to this one [1]. For my current setup with
-two Firefox instances I get 100 to 200 MiB saved for the second instance
-depending on the amount of tabs.
-
-1 FF instance with 15 tabs:
-
-   $ echo "$(cat /sys/kernel/mm/ksm/pages_sharing) * 4 / 1024" | bc
-   410
-
-2 FF instances, second one has 12 tabs (all the tabs are different):
-
-   $ echo "$(cat /sys/kernel/mm/ksm/pages_sharing) * 4 / 1024" | bc
-   592
-
-At the very moment I do not have specific numbers for containerised
-workload, but those should be comparable in case the containers share
-similar/same runtime.
-
-[1] https://lore.kernel.org/patchwork/patch/1012142/
-
-Signed-off-by: Oleksandr Natalenko <oleksandr@redhat.com>
----
- mm/madvise.c | 2 ++
- 1 file changed, 2 insertions(+)
-
-diff --git a/mm/madvise.c b/mm/madvise.c
-index 84f899b1b6da..e8f9c49794a3 100644
---- a/mm/madvise.c
-+++ b/mm/madvise.c
-@@ -991,6 +991,8 @@ process_madvise_behavior_valid(int behavior)
- 	switch (behavior) {
- 	case MADV_COLD:
- 	case MADV_PAGEOUT:
-+	case MADV_MERGEABLE:
-+	case MADV_UNMERGEABLE:
- 		return true;
- 
- 	default:
--- 
-2.22.0
+On Tue, 11 Jun 2019 at 08:59, Mikhail Gavrilov
+<mikhail.v.gavrilov@gmail.com> wrote:
+>
+> On Wed, 29 May 2019 at 23:09, Michal Hocko <mhocko@kernel.org> wrote:
+> >
+> >
+> > Do you see the same with 5.2-rc1 resp. 5.1?
+>
+> I can say with 100% certainty that kernel tag 5.1 is not affected by this bug.
+>
+> Say anything about 5.2 rc1 is very difficult because occurs another
+> problem due to which all file systems are switched to read only mode.
+>
+> And I am sure that since 5.2 rc2 this issue is begin occurring.
+>
+> I also able recorded much more kernel logs with netconsole and option
+> memblock=debug. (attached as file here)
+>
+> Please help me.
 
