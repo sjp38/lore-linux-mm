@@ -2,182 +2,163 @@ Return-Path: <SRS0=z6ed=UP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
-	SPF_HELO_NONE,SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 258B4C31E54
-	for <linux-mm@archiver.kernel.org>; Sun, 16 Jun 2019 10:12:51 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 63122C31E49
+	for <linux-mm@archiver.kernel.org>; Sun, 16 Jun 2019 10:37:51 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id AD9E8216FD
-	for <linux-mm@archiver.kernel.org>; Sun, 16 Jun 2019 10:12:50 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 18E342133D
+	for <linux-mm@archiver.kernel.org>; Sun, 16 Jun 2019 10:37:51 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="Sp0zNssZ"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AD9E8216FD
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (1024-bit key) header.d=chrisdown.name header.i=@chrisdown.name header.b="kgrOCNDV"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 18E342133D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chrisdown.name
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 05C1C6B0005; Sun, 16 Jun 2019 06:12:50 -0400 (EDT)
+	id A32C16B0007; Sun, 16 Jun 2019 06:37:50 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 00D908E0002; Sun, 16 Jun 2019 06:12:49 -0400 (EDT)
+	id 9E3B08E0002; Sun, 16 Jun 2019 06:37:50 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E64FC8E0001; Sun, 16 Jun 2019 06:12:49 -0400 (EDT)
+	id 8AA6D8E0001; Sun, 16 Jun 2019 06:37:50 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C79806B0005
-	for <linux-mm@kvack.org>; Sun, 16 Jun 2019 06:12:49 -0400 (EDT)
-Received: by mail-io1-f69.google.com with SMTP id m1so8658303iop.1
-        for <linux-mm@kvack.org>; Sun, 16 Jun 2019 03:12:49 -0700 (PDT)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 5172B6B0007
+	for <linux-mm@kvack.org>; Sun, 16 Jun 2019 06:37:50 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id x3so5486911pgp.8
+        for <linux-mm@kvack.org>; Sun, 16 Jun 2019 03:37:50 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=dXi83X39sc+SHqsRQb9qWakQ658qfuo/1ekg8hliBD0=;
-        b=poVPjHpVyOcgyH085DqBQ7Wic/dgmEO/PC65gVLrEVDgbO/vRpUtKyFqqQvuokWYpF
-         2mEj1NopRc/vrHyLdyRCP7Lek2mKKIVNTGSrOEORijWrLR6M2xvyFFshBfok4w0Y7bBL
-         qfsC2l3Rr/QeMmORr5MDUeYSMJd4spAnF2mVljdLIJgImEI9VmYiU1JGu7Glisvs5NYT
-         VCn7bu67ILli4wOELM8+6qkMbHTCPYpJQnpkxyJAzFb5lsWEzdCIAQ20QxKMeIU00Irz
-         h4qpv8asSh9XoqH5qqdRwPnnkjh7ier8eO1soLEhEMsUMaA1J2mOkaqKQ7lm40DcyjHZ
-         GujQ==
-X-Gm-Message-State: APjAAAXzQMgZT7FFcx3FsI0zWYvO2K4uPuvvg0qsGD4bfq0rhfpp1nmh
-	sinDcilLI5fdFiYUtcaOkzMCmTbadlYXxMuFwjCQA0+eSP0vJdQ0nmwP7Xy8Pd7fBixnvz/obCl
-	Rqjwv2WoI3LuXRy9KYfpSVFYn8BNmyCAo3C3221hr855ZKlM9KcooWMaqAQp2TFSUOA==
-X-Received: by 2002:a02:234b:: with SMTP id u72mr78123376jau.4.1560679969433;
-        Sun, 16 Jun 2019 03:12:49 -0700 (PDT)
-X-Received: by 2002:a02:234b:: with SMTP id u72mr78123316jau.4.1560679968552;
-        Sun, 16 Jun 2019 03:12:48 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560679968; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=D66IwRD66+bBr49h113lbcClZo8OrbEzuxhoETswyAA=;
+        b=S2M7gBFiWXYFI0h1T6sEQ+MLoNAwQJ299c63t03a5oRH0bFW05QpBsZa14nKfhMLLW
+         d5VtZUU+1Oup0iOUJLunFjnAb0xwpyh6xpTapDXGQb60Yvhmkc1PmBeRuS8Y6W6CTmNB
+         q2nTyhPHyXWGAzyWf+FYofh3WQx/G0VOF0S4022BQ4ASwoCVzIDYxwRcQpWVcBqDjpth
+         x/hDxmXeE1ZG9U3pK71B+YNsWuyZ7/pR95+eX8vFL3F5Jv+OFSx51p1IiXfjUIqUpwdm
+         wFP7VnIsH9/R6d8+BS10VoHN+JWuRubPhLDWZONjgLm2TqqBNpf2/ripwvhoB4EOF3wE
+         gbAw==
+X-Gm-Message-State: APjAAAWplyhSjcEGp5y/hIFhoXJMnhF3Urx7iyQQRsE8NIiHhcZwEjdC
+	8/p6fi+wIjf9l/09ULTVNXckUUHQ42GVwzZH2/4ymz/UZWBv+0MinRp62YCddHZSWPncteNWuwJ
+	+KWFgkoAJTJGdJ0SetE0656IxwVKR4aBFRCluioIgzRyDmxtogv3B95RA4CqZiaPC0w==
+X-Received: by 2002:a17:902:ba8b:: with SMTP id k11mr1001682pls.107.1560681469926;
+        Sun, 16 Jun 2019 03:37:49 -0700 (PDT)
+X-Received: by 2002:a17:902:ba8b:: with SMTP id k11mr1001645pls.107.1560681469032;
+        Sun, 16 Jun 2019 03:37:49 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560681469; cv=none;
         d=google.com; s=arc-20160816;
-        b=P98dSba4VN1abgBHsIbuhS3+AnyTmT/dr7uoMgkjXbTbfRPD7XUbZLf2vPmw83bCTP
-         wBjI+g7jfAdY/sv16ks0tWRf7VF9/Vn+AP96rep06mn6VEqwTzX48yd6XBwThd+niIoM
-         Pt4UZOPigh7LDtQkjgtg7/FCXXx35ofhY9V2W+ZtBepo6MfrwmLBEXyHQP9O+tFx21/Y
-         iG2bU0NIfLXeyyuzthTG6KhkEd+gzwZL6vJWRpwl+1ywWxP3zZgbM/q1nc7Toj3QzQVZ
-         3jMl52+GQV6nnIdXhqvYr1WJ/HVQojwiZi4dgwS3G0Di/SUxwc17HnTF+vV9s8ZYv7QT
-         v5Tw==
+        b=sbh3eeh6WlRdkDhuz0K4Y7XrNQXBnih2yzXC79KLoO69l+pS01duFMtEX6W/ME1F8D
+         k8rTOzi/Gqa0rFjnHeyLsXhLH4yaodSopeotx3+OB+L0cLA5JiFyqsGBZERPQwj/Bu2c
+         zTWOcfB1SCqpanfcSDetnNLKTioe+koQNmbtLVk3TL43HK8ML4lxwuoZh0QMqhyBqhq9
+         1tZTUx9+Qp25XbxTHOnQy2CspwufeVD6uXUuS2y+ZkpZHJqU0k1JDCsN3KpPOR4zml+B
+         LFio4oJvMIgES1I0o3T9lp3Tn6ZW5SwpbsQw4ZJG22cI/Cy6VWEzCWkD4v1XQKWVD+AQ
+         d1LA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=dXi83X39sc+SHqsRQb9qWakQ658qfuo/1ekg8hliBD0=;
-        b=t1Pe2oBVT/1A8SqNOOwcRgxDgdXNXszmjBSMFarwBfWEuQrAYzxHVVxuAzBdlT0X8k
-         ZcCxFr5bJTSLAFa623nfK1NCPAmM0Y5dcuFeQJlVCtUFielnQPb7cu8eXd9X6aEu5ZwJ
-         yhmn1cL+y2ozmP+IuZwKhYMU3huxCyL8Pya/H4EKBLoFgeNDXZhLTs+0byPfTop5syTS
-         48LlRcIL+cvGnIRWB4sTCY95y6we+5MuNeztSZYSH+8APZ7PPsvarTFpYmKv+WmeQUJ2
-         fbqzuxW80UO96Jg8xKFuJjR1KITL17jjwhio88aTs558wIEN58tJtAfrtEGX9WHVZmvK
-         O/Kw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=D66IwRD66+bBr49h113lbcClZo8OrbEzuxhoETswyAA=;
+        b=Z5Cp3t0CDTEEhzqH9cnH7iyfJsX0UTH9tdoGvcDRcB9OYIj5Z0b+K23jzN8Mhb0mDw
+         NuUjZKX8HrqI3LI1saV2dSNplqDIuPeeWJDngeh0tXzN2LAoNZ7xiCMhG615fmiFCx3Q
+         6g80g07PHFiLBpoy5+h9iof9RYSf2EVzP4I3EKNpY5mapghkRSWnYfKxd74K5oK1i0hO
+         dmw2QY7CneDDCQoMI/6Va3EuJGEXErCuaZMyyZjswg/SdFtITKM+Lz8MO3Peqk2s87cg
+         2KWAW/n+3PNL6+F70BjYMyh0YJMbj+IB2+fhBjBnr1Dhvudcf1pj7B4z6w5aokSpO81G
+         +9aQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Sp0zNssZ;
-       spf=pass (google.com: domain of mikhail.v.gavrilov@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mikhail.v.gavrilov@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+       dkim=pass header.i=@chrisdown.name header.s=google header.b=kgrOCNDV;
+       spf=pass (google.com: domain of chris@chrisdown.name designates 209.85.220.65 as permitted sender) smtp.mailfrom=chris@chrisdown.name;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chrisdown.name
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i26sor20766384jaf.1.2019.06.16.03.12.48
+        by mx.google.com with SMTPS id t1sor9573801pjo.17.2019.06.16.03.37.48
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sun, 16 Jun 2019 03:12:48 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mikhail.v.gavrilov@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Sun, 16 Jun 2019 03:37:48 -0700 (PDT)
+Received-SPF: pass (google.com: domain of chris@chrisdown.name designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Sp0zNssZ;
-       spf=pass (google.com: domain of mikhail.v.gavrilov@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mikhail.v.gavrilov@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+       dkim=pass header.i=@chrisdown.name header.s=google header.b=kgrOCNDV;
+       spf=pass (google.com: domain of chris@chrisdown.name designates 209.85.220.65 as permitted sender) smtp.mailfrom=chris@chrisdown.name;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chrisdown.name
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=dXi83X39sc+SHqsRQb9qWakQ658qfuo/1ekg8hliBD0=;
-        b=Sp0zNssZ3yGsTgfmNa9NkVGcWT/8Bn/SQOq3LUSy7KJSExWEAP4Qte5nb4jT/waLpA
-         fx7Qiv9/fF+EuODR9/itkek4S1+dEGfgVBOpDm2wGAUXcueWeHHHgPI4wt0FQR5VbGM3
-         AyMwUJQNqwZiviyReqLSvHBVMV1mh/d5rdKdeisQRDZUSdZ4rFT/LW2qAhZvHXEwpw56
-         s+EyglpJMgN2kuq6581xB/X5hMUB6T61S385mK7WaOnmn8+oXbr+Xm7wGXu3S+gcCYpo
-         VkTGDhLKQfwOkEo2pwG/g42CgANc4AAV4Oh+lIF1BMZ8YpnXxtsvU4mppO9esDH4g/1a
-         HRzQ==
-X-Google-Smtp-Source: APXvYqyUrK+C6uFyPu/mN+CP7kqloxH5tDYqAI6TJES117YkgWE/uPQUS7hB4tpeYLyAnmqD+FGwYyPPoXuvWiRvuYI=
-X-Received: by 2002:a02:16c5:: with SMTP id a188mr78260707jaa.86.1560679967918;
- Sun, 16 Jun 2019 03:12:47 -0700 (PDT)
+        d=chrisdown.name; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=D66IwRD66+bBr49h113lbcClZo8OrbEzuxhoETswyAA=;
+        b=kgrOCNDV3slPKYPtT/XUkerWgc9N6kmRSVG8nhJbBPj7PsOQxHbX7sRVeKyB4adSbG
+         X7fAr8BFsvhhdJFjJQq8cqqa1pm7ssLdmRZi0Pjeq1tdaHh5DNhEfm/KHevQMnlnek9+
+         wFq8e/uowrLJk81/22wplVkQzIPQqnvvx6Aes=
+X-Google-Smtp-Source: APXvYqzuJgQl+102uUA83U5N3hshdRoQSBwu1PZlD2FrUikMytjIFjhKAz6HFlQnXa6TUYRoI/Xy6A==
+X-Received: by 2002:a17:90a:7f93:: with SMTP id m19mr21160942pjl.73.1560681468335;
+        Sun, 16 Jun 2019 03:37:48 -0700 (PDT)
+Received: from localhost ([61.6.140.222])
+        by smtp.gmail.com with ESMTPSA id h11sm8294436pfn.170.2019.06.16.03.37.46
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Sun, 16 Jun 2019 03:37:47 -0700 (PDT)
+Date: Sun, 16 Jun 2019 18:37:45 +0800
+From: Chris Down <chris@chrisdown.name>
+To: Xunlei Pang <xlpang@linux.alibaba.com>
+Cc: Roman Gushchin <guro@fb.com>, Michal Hocko <mhocko@kernel.org>,
+	Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org,
+	linux-mm@kvack.org
+Subject: Re: [PATCH] memcg: Ignore unprotected parent in
+ mem_cgroup_protected()
+Message-ID: <20190616103745.GA2117@chrisdown.name>
+References: <20190615111704.63901-1-xlpang@linux.alibaba.com>
+ <20190615160820.GB1307@chrisdown.name>
+ <711f086e-a2e5-bccd-72b6-b314c4461686@linux.alibaba.com>
 MIME-Version: 1.0
-References: <CABXGCsN9mYmBD-4GaaeW_NrDu+FDXLzr_6x+XNxfmFV6QkYCDg@mail.gmail.com>
- <CABXGCsNq4xTFeeLeUXBj7vXBz55aVu31W9q74r+pGM83DrPjfA@mail.gmail.com>
- <20190529180931.GI18589@dhcp22.suse.cz> <CABXGCsPrk=WJzms_H+-KuwSRqWReRTCSs-GLMDsjUG_-neYP0w@mail.gmail.com>
-In-Reply-To: <CABXGCsPrk=WJzms_H+-KuwSRqWReRTCSs-GLMDsjUG_-neYP0w@mail.gmail.com>
-From: Mikhail Gavrilov <mikhail.v.gavrilov@gmail.com>
-Date: Sun, 16 Jun 2019 15:12:37 +0500
-Message-ID: <CABXGCsMjDn0VT0DmP6qeuiytce9cNBx8PywpqejiFNVhwd0UGg@mail.gmail.com>
-Subject: Re: kernel BUG at mm/swap_state.c:170!
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Linux List Kernel Mailing <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Disposition: inline
+In-Reply-To: <711f086e-a2e5-bccd-72b6-b314c4461686@linux.alibaba.com>
+User-Agent: Mutt/1.12.0 (2019-05-25)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
-I finished today bisecting kernel.
-And first bad commit for me was cd736d8b67fb22a85a68c1ee8020eb0d660615ec
+Hi Xunlei,
 
-Can you look into this?
+Xunlei Pang writes:
+>docker and various types(different memory capacity) of containers
+>are managed by k8s, it's a burden for k8s to maintain those dynamic
+>figures, simply set "max" to key containers is always welcome.
 
+Right, setting "max" is generally a fine way of going about it.
 
-$ git bisect log
-git bisect start
-# good: [a188339ca5a396acc588e5851ed7e19f66b0ebd9] Linux 5.2-rc1
-git bisect good a188339ca5a396acc588e5851ed7e19f66b0ebd9
-# good: [a188339ca5a396acc588e5851ed7e19f66b0ebd9] Linux 5.2-rc1
-git bisect good a188339ca5a396acc588e5851ed7e19f66b0ebd9
-# bad: [cd6c84d8f0cdc911df435bb075ba22ce3c605b07] Linux 5.2-rc2
-git bisect bad cd6c84d8f0cdc911df435bb075ba22ce3c605b07
-# bad: [060358de993f24562e884e265c4c57864a3a4141] treewide: Replace
-GPLv2 boilerplate/reference with SPDX - rule 125
-git bisect bad 060358de993f24562e884e265c4c57864a3a4141
-# bad: [d53e860fd46f3d95c437bb67518f7374500de467] Merge branch 'linus'
-of git://git.kernel.org/pub/scm/linux/kernel/git/herbert/crypto-2.6
-git bisect bad d53e860fd46f3d95c437bb67518f7374500de467
-# bad: [34dcf6a1902ac214149a2742250ff03aa5346f3e] net: caif: fix the
-value of size argument of snprintf
-git bisect bad 34dcf6a1902ac214149a2742250ff03aa5346f3e
-# bad: [c7d5ec26ea4adf450d9ab2b794e7735761a93af1] Merge
-git://git.kernel.org/pub/scm/linux/kernel/git/bpf/bpf
-git bisect bad c7d5ec26ea4adf450d9ab2b794e7735761a93af1
-# good: [3d21b6525caeae45f08e2d3a07ddfdef64882b8b] selftests/bpf: add
-prog detach to flow_dissector test
-git bisect good 3d21b6525caeae45f08e2d3a07ddfdef64882b8b
-# bad: [3ebe1bca58c85325c97a22d4fc3f5b5420752e6f] ppp: deflate: Fix
-possible crash in deflate_init
-git bisect bad 3ebe1bca58c85325c97a22d4fc3f5b5420752e6f
-# bad: [d0a7e8cb3c9d7d4fa2bcdd557be19f0841e2a3be] NFC: Orphan the subsystem
-git bisect bad d0a7e8cb3c9d7d4fa2bcdd557be19f0841e2a3be
-# bad: [0fe9f173d6cda95874edeb413b1fa9907b5ae830] net: Always descend into dsa/
-git bisect bad 0fe9f173d6cda95874edeb413b1fa9907b5ae830
-# bad: [cd736d8b67fb22a85a68c1ee8020eb0d660615ec] tcp: fix retrans
-timestamp on passive Fast Open
-git bisect bad cd736d8b67fb22a85a68c1ee8020eb0d660615ec
-# first bad commit: [cd736d8b67fb22a85a68c1ee8020eb0d660615ec] tcp:
-fix retrans timestamp on passive Fast Open
+>Set "max" to docker also protects docker cgroup memory(as docker
+>itself has tasks) unnecessarily.
 
+That's not correct -- leaf memcgs have to _explicitly_ request memory 
+protection. From the documentation:
 
+    memory.low
 
---
-Best Regards,
-Mike Gavrilov.
+    [...]
 
-On Tue, 11 Jun 2019 at 08:59, Mikhail Gavrilov
-<mikhail.v.gavrilov@gmail.com> wrote:
+    Best-effort memory protection.  If the memory usages of a
+    cgroup and all its ancestors are below their low boundaries,
+    the cgroup's memory won't be reclaimed unless memory can be
+    reclaimed from unprotected cgroups.
+
+Note the part that the cgroup itself also must be within its low boundary, 
+which is not implied simply by having ancestors that would permit propagation 
+of protections.
+
+In this case, Docker just shouldn't request it for those Docker-related tasks, 
+and they won't get any. That seems a lot simpler and more intuitive than 
+special casing "0" in ancestors.
+
+>This patch doesn't take effect on any intermediate layer with
+>positive memory.min set, it requires all the ancestors having
+>0 memory.min to work.
 >
-> On Wed, 29 May 2019 at 23:09, Michal Hocko <mhocko@kernel.org> wrote:
-> >
-> >
-> > Do you see the same with 5.2-rc1 resp. 5.1?
->
-> I can say with 100% certainty that kernel tag 5.1 is not affected by this bug.
->
-> Say anything about 5.2 rc1 is very difficult because occurs another
-> problem due to which all file systems are switched to read only mode.
->
-> And I am sure that since 5.2 rc2 this issue is begin occurring.
->
-> I also able recorded much more kernel logs with netconsole and option
-> memblock=debug. (attached as file here)
->
-> Please help me.
+>Nothing special change, but more flexible to business deployment...
+
+Not so, this change is extremely "special". It violates the basic expectation 
+that 0 means no possibility of propagation of protection, and I still don't see 
+a compelling argument why Docker can't just set "max" in the intermediate 
+cgroup and not accept any protection in leaf memcgs that it doesn't want 
+protection for.
 
