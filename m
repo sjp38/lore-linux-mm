@@ -2,162 +2,154 @@ Return-Path: <SRS0=z6ed=UP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8E58AC31E49
-	for <linux-mm@archiver.kernel.org>; Sun, 16 Jun 2019 06:30:21 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 41A80C31E49
+	for <linux-mm@archiver.kernel.org>; Sun, 16 Jun 2019 07:38:46 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2B6D4216C8
-	for <linux-mm@archiver.kernel.org>; Sun, 16 Jun 2019 06:30:21 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2B6D4216C8
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
+	by mail.kernel.org (Postfix) with ESMTP id D1A032133D
+	for <linux-mm@archiver.kernel.org>; Sun, 16 Jun 2019 07:38:45 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D1A032133D
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=i-love.sakura.ne.jp
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A2ADC6B0005; Sun, 16 Jun 2019 02:30:20 -0400 (EDT)
+	id 3B8BE6B0005; Sun, 16 Jun 2019 03:38:45 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9DC836B0006; Sun, 16 Jun 2019 02:30:20 -0400 (EDT)
+	id 369538E0002; Sun, 16 Jun 2019 03:38:45 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8CABB8E0001; Sun, 16 Jun 2019 02:30:20 -0400 (EDT)
+	id 258428E0001; Sun, 16 Jun 2019 03:38:45 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 58E9F6B0005
-	for <linux-mm@kvack.org>; Sun, 16 Jun 2019 02:30:20 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id a21so5215531pgh.11
-        for <linux-mm@kvack.org>; Sat, 15 Jun 2019 23:30:20 -0700 (PDT)
+Received: from mail-oi1-f198.google.com (mail-oi1-f198.google.com [209.85.167.198])
+	by kanga.kvack.org (Postfix) with ESMTP id EFCAA6B0005
+	for <linux-mm@kvack.org>; Sun, 16 Jun 2019 03:38:44 -0400 (EDT)
+Received: by mail-oi1-f198.google.com with SMTP id i16so2509721oie.1
+        for <linux-mm@kvack.org>; Sun, 16 Jun 2019 00:38:44 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:reply-to
-         :subject:to:cc:references:from:message-id:date:user-agent
-         :mime-version:in-reply-to:content-transfer-encoding;
-        bh=fFEA8zdSlEnQuWcdFSG3Cpntvj8uFz7RX2klKKQGmWI=;
-        b=eyQ8JtpeGrb11d6GeHujfNh1Ds/orsmQy/+JJpm/FiuIg+dDCFDUF3TWitpSocl7Ve
-         7NkcUSOJ84CjVNTrPOFIvTZf9GD8S9CzH22M1whw4TonzM7OqmEp2v6NawWZafqWF5Tq
-         qPzkvCyc/2yLxbPzJpG3ozpAaPaeJupLTRH/5w9yKPBf6sVdQEjtlJEmhxOWiYBd2UpW
-         lNCSBTnq2/sSV12Rz4esH4W4iPNprbkk84D5K4DcB4ES2Xw7l/SeSEJ2DVUroiVZNMnw
-         g7ZFza2XiXWgIrR6m7bdaNeK2xxCNK1a5hBtGfvE2aORQVueC5Rzj9rwkoRemBowezX8
-         P1sw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of xlpang@linux.alibaba.com designates 47.88.44.36 as permitted sender) smtp.mailfrom=xlpang@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Gm-Message-State: APjAAAUuueJLaIPn+YpB8UE9qk+FhAIJj5oryk0sNhkMecuRw87NLZBd
-	f6BEZaBwngT8RppNFZ2+lhJH6eRNK8lfeXczWwnrJPLunt1lKk231aQaOnkl70Irt7/8gcmySN9
-	2kVylrO81xPt2MPXE+HBNAtlAx8Lpw+uo0jlpCviN1SC7/LbK94OkVSFgRPjE3TFfgA==
-X-Received: by 2002:a63:6a47:: with SMTP id f68mr24930119pgc.230.1560666619810;
-        Sat, 15 Jun 2019 23:30:19 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyEfxVZkQr+KGxWotEu9f6Zs+u1raIXpodJXg6GhC+1dC7VI+CrcFneIvDhqJbG+PELWbwU
-X-Received: by 2002:a63:6a47:: with SMTP id f68mr24930044pgc.230.1560666618795;
-        Sat, 15 Jun 2019 23:30:18 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560666618; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:from
+         :to:cc:references:message-id:date:user-agent:mime-version
+         :in-reply-to:content-language:content-transfer-encoding;
+        bh=wmP7cfILR/PPevPT+j1b6ha+Bwoun8R2YbTlFnrgACo=;
+        b=LavDXg1q4GTJ41qxeUgqtRQ7IvSYZZ+Xnudb3zBs0VbxmEaTgX0HBZn5lvnCn0C9nU
+         mKM30WEmqz6ggks/PgUh+k4ocSDuauFMSr58HcgupxDCsnfkSYgg5VMKY6sP5FoWikBn
+         VA8798UvBbvzFYPxY4ncKvkxfl/iQnSdsOAVT7AOdOU4DU9Fty355Z9EnjwlZ0abQUhb
+         CUk5nnMh5MUA9Ej+pX66PG4mvs38wPeOOAcoE73MCbHCJ7rucy0tDl2e0/84hAaIuqii
+         QtVgIdjEWE8ZSvTX69k7RQ+CGTGSzLCJ63NhoxT5DWjOV2aE2NdyyEYuPGe4GgQiLnPZ
+         3SlA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
+X-Gm-Message-State: APjAAAXnpnlJ6JVV/rfEsLp9QN23aGq+f/qL/Rlfvf1kRKqmi5hpVBDe
+	PqiHD7LDul7ydKs1J3w+a5fGKFChJps0D0F87UAWRqbk/RmWHDEclFJp5pELhm9SZXKDnTiTfjg
+	3IH8PhwMMTwdpjQDvl0jUnCW8zMFi9Lolct4AUMMPS7y1q57e4u7enCijLFVnBB49KA==
+X-Received: by 2002:aca:c715:: with SMTP id x21mr7344860oif.142.1560670724607;
+        Sun, 16 Jun 2019 00:38:44 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqy+/5l/+zd5CFiiV0r1VGlVmplSvlBNz2AEC808F3H310TGNAuG4D5055A4W74CCPYPC4UK
+X-Received: by 2002:aca:c715:: with SMTP id x21mr7344838oif.142.1560670723929;
+        Sun, 16 Jun 2019 00:38:43 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560670723; cv=none;
         d=google.com; s=arc-20160816;
-        b=afCy+svh/bYQA1vD9EchSBPwb13kDN5Cs81i2h9umZutMqN3Kr+uMr+tUGJ+6esjZT
-         VL8Cmy7npkOLHmP5cGVCfHWRh0hyZFkSjtCCk28kue1OTwkjM4vHN2TYk02fSbW6QyYv
-         GQjrJXGYHokT4Y2kPy1wMdKB5YaWa7oJALIDoz28y8p7HnPb76BTiAtvWiUQ9ET8kND8
-         yfY/sohuAHhiGmQP8XHvfYYGsj3QMb+BzW+uXWq031oBNC0x7XVHqflCuvMgtP4HMAlB
-         D3BJTQQEAHS7YzI5z1/cUChrJwNT+kDYte+g+wMy/EIRerp3aEEL3iJJVPH3z9PYSrWJ
-         D6QQ==
+        b=QKWHYr84a0so/sNqsydISBbhO+2pN9/gWBQ/90/KpXdTxUJTDQ/FTOpOB7R6fYaH/w
+         6nXug9lKgsWGQkvjyJUwvWJ4VptdHjsMje0TamdELG/LIx4jZW7IDLlhGeGevNWfeFEB
+         T5IXJZ8wvU74INI4NoC5EwyNHZBYB/NwwfMMQpm3vc1WO+QoD0KmBJmgp9P3qRgZhnI3
+         LiTXk1+8EPLGHCGRALXdEEQtA5HucgHVl0q0y4h8oyDhfesPv055zbsoMSTP3m/5scSv
+         duMwlIcjcJs7Ie/BIrhDitFuBFDDcZsWGNDmK3VB57tz1nsx8BSwshBlqa3dLPBB2xmm
+         uqXA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:in-reply-to:mime-version:user-agent:date
-         :message-id:from:references:cc:to:subject:reply-to;
-        bh=fFEA8zdSlEnQuWcdFSG3Cpntvj8uFz7RX2klKKQGmWI=;
-        b=nTQAXnpca9FEKGCTI7CMjmlL/lnCgU4SyzyTDdgKq/z3BoQpfklVV7KhZCx1sWIAi3
-         rIxEYyVRKOmo5qIBZYaSE7Jv/RUPn/w1ao6ofAVVtDo8KrJLE58jkd0nCQmOGHfUPMB4
-         GnZHZEHhTm98Xb9SQ+xiGRdq22MEJITqSE+KkLzYiqZxZ/99kheDKZDlY11KbHtV+dGt
-         kM8uiJsqrh82Q0047Aj20RjVbeNd2Sd2J8NuSJ4s7thGgYFNmXEV1LXp665NJhGmxpRK
-         mKHLpoiOHd/xZ2UtehAdTa/v4XNLBOw0FR4UV/mtjWpcNOAujWHkQuWazE0+GIbhuuhU
-         rPIw==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:references:cc:to:from:subject;
+        bh=wmP7cfILR/PPevPT+j1b6ha+Bwoun8R2YbTlFnrgACo=;
+        b=zu+MKL26NQWpiKfYa8UNngLum+n5/CSzOa32f1j+FH4s62OeVxUd+Xpp0GE6U/xGkQ
+         r1dgt91Xwol3isz2o+ZFBXAWKzlZg8d8eq52oPNW1bdAvxnXXLeZyEFugTmvXEuOxa+3
+         uvaVjW8qwaRO49vXPfkvh4p2a+PtppJv93sYC4PJifA1A1lsiKqYwv7SMaRCm8zXEhbC
+         jYzinLgm1pNv/T38trBvZUHflbAKzt0Bdvg31wewKESoiwABPwMZK2UckePeVjDSt2fb
+         tKKF1TNNNrhwG+xjp3iFxrj3Ap83ln4VOlRzFcKRyzUyep1I3QNtN+tS0q57xc6XicgS
+         3pcQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of xlpang@linux.alibaba.com designates 47.88.44.36 as permitted sender) smtp.mailfrom=xlpang@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-Received: from out4436.biz.mail.alibaba.com (out4436.biz.mail.alibaba.com. [47.88.44.36])
-        by mx.google.com with ESMTPS id s3si7242827pgm.208.2019.06.15.23.30.17
+       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id 5si5134405oto.141.2019.06.16.00.38.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 15 Jun 2019 23:30:18 -0700 (PDT)
-Received-SPF: pass (google.com: domain of xlpang@linux.alibaba.com designates 47.88.44.36 as permitted sender) client-ip=47.88.44.36;
+        Sun, 16 Jun 2019 00:38:43 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) client-ip=202.181.97.72;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of xlpang@linux.alibaba.com designates 47.88.44.36 as permitted sender) smtp.mailfrom=xlpang@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R141e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01f04446;MF=xlpang@linux.alibaba.com;NM=1;PH=DS;RN=6;SR=0;TI=SMTPD_---0TUIXG5o_1560666600;
-Received: from xunleideMacBook-Pro.local(mailfrom:xlpang@linux.alibaba.com fp:SMTPD_---0TUIXG5o_1560666600)
-          by smtp.aliyun-inc.com(127.0.0.1);
-          Sun, 16 Jun 2019 14:30:01 +0800
-Reply-To: xlpang@linux.alibaba.com
-Subject: Re: [PATCH] memcg: Ignore unprotected parent in
- mem_cgroup_protected()
-To: Chris Down <chris@chrisdown.name>
-Cc: Roman Gushchin <guro@fb.com>, Michal Hocko <mhocko@kernel.org>,
- Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org,
- linux-mm@kvack.org
-References: <20190615111704.63901-1-xlpang@linux.alibaba.com>
- <20190615160820.GB1307@chrisdown.name>
-From: Xunlei Pang <xlpang@linux.alibaba.com>
-Message-ID: <711f086e-a2e5-bccd-72b6-b314c4461686@linux.alibaba.com>
-Date: Sun, 16 Jun 2019 14:30:00 +0800
-User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:60.0)
- Gecko/20100101 Thunderbird/60.7.1
+       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
+Received: from fsav402.sakura.ne.jp (fsav402.sakura.ne.jp [133.242.250.101])
+	by www262.sakura.ne.jp (8.15.2/8.15.2) with ESMTP id x5G7bvkZ065479;
+	Sun, 16 Jun 2019 16:37:57 +0900 (JST)
+	(envelope-from penguin-kernel@i-love.sakura.ne.jp)
+Received: from www262.sakura.ne.jp (202.181.97.72)
+ by fsav402.sakura.ne.jp (F-Secure/fsigk_smtp/530/fsav402.sakura.ne.jp);
+ Sun, 16 Jun 2019 16:37:57 +0900 (JST)
+X-Virus-Status: clean(F-Secure/fsigk_smtp/530/fsav402.sakura.ne.jp)
+Received: from [192.168.1.8] (softbank126012062002.bbtec.net [126.12.62.2])
+	(authenticated bits=0)
+	by www262.sakura.ne.jp (8.15.2/8.15.2) with ESMTPSA id x5G7bv3f065476
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NO);
+	Sun, 16 Jun 2019 16:37:57 +0900 (JST)
+	(envelope-from penguin-kernel@i-love.sakura.ne.jp)
+Subject: Re: general protection fault in oom_unkillable_task
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+To: Shakeel Butt <shakeelb@google.com>
+Cc: Michal Hocko <mhocko@kernel.org>,
+        syzbot <syzbot+d0fc9d3c166bc5e4a94b@syzkaller.appspotmail.com>,
+        Andrew Morton <akpm@linux-foundation.org>,
+        "Eric W. Biederman" <ebiederm@xmission.com>,
+        Roman Gushchin <guro@fb.com>, Johannes Weiner <hannes@cmpxchg.org>,
+        =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?=
+ <jglisse@redhat.com>,
+        LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>,
+        syzkaller-bugs <syzkaller-bugs@googlegroups.com>,
+        yuzhoujian@didichuxing.com
+References: <0000000000004143a5058b526503@google.com>
+ <CALvZod72=KuBZkSd0ey5orJFGFpwx462XY=cZvO3NOXC0MogFw@mail.gmail.com>
+ <20190615134955.GA28441@dhcp22.suse.cz>
+ <CALvZod4hT39PfGt9Ohj+g77om5=G0coHK=+G1=GKcm-PowkXsw@mail.gmail.com>
+ <5bb1fe5d-f0e1-678b-4f64-82c8d5d81f61@i-love.sakura.ne.jp>
+ <CALvZod4etSv9Hv4UD=E6D7U4vyjCqhxQgq61AoTUCd+VubofFg@mail.gmail.com>
+ <791594c6-45a3-d78a-70b5-901aa580ed9f@i-love.sakura.ne.jp>
+Message-ID: <840fa9f1-07e2-e206-2fc0-725392f96baf@i-love.sakura.ne.jp>
+Date: Sun, 16 Jun 2019 16:37:56 +0900
+User-Agent: Mozilla/5.0 (Windows NT 6.3; WOW64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.1
 MIME-Version: 1.0
-In-Reply-To: <20190615160820.GB1307@chrisdown.name>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.001028, version=1.2.4
+In-Reply-To: <791594c6-45a3-d78a-70b5-901aa580ed9f@i-love.sakura.ne.jp>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Chirs,
-
-On 2019/6/16 AM 12:08, Chris Down wrote:
-> Hi Xunlei,
-> 
-> Xunlei Pang writes:
->> Currently memory.min|low implementation requires the whole
->> hierarchy has the settings, otherwise the protection will
->> be broken.
+On 2019/06/16 6:33, Tetsuo Handa wrote:
+> On 2019/06/16 3:50, Shakeel Butt wrote:
+>>> While dump_tasks() traverses only each thread group, mem_cgroup_scan_tasks()
+>>> traverses each thread.
 >>
->> Our hierarchy is kind of like(memory.min value in brackets),
->>
->>               root
->>                |
->>             docker(0)
->>              /    \
->>         c1(max)   c2(0)
->>
->> Note that "docker" doesn't set memory.min. When kswapd runs,
->> mem_cgroup_protected() returns "0" emin for "c1" due to "0"
->> @parent_emin of "docker", as a result "c1" gets reclaimed.
->>
->> But it's hard to maintain parent's "memory.min" when there're
->> uncertain protected children because only some important types
->> of containers need the protection.  Further, control tasks
->> belonging to parent constantly reproduce trivial memory which
->> should not be protected at all.  It makes sense to ignore
->> unprotected parent in this scenario to achieve the flexibility.
+>> I think mem_cgroup_scan_tasks() traversing threads is not intentional
+>> and css_task_iter_start in it should use CSS_TASK_ITER_PROCS as the
+>> oom killer only cares about the processes or more specifically
+>> mm_struct (though two different thread groups can have same mm_struct
+>> but that is fine).
 > 
-> I'm really confused by this, why don't you just set memory.{min,low} in
-> the docker cgroup and only propagate it to the children that want it?
-> 
-> If you only want some children to have the protection, only request it
-> in those children, or create an additional intermediate layer of the
-> cgroup hierarchy with protections further limited if you don't trust the
-> task to request the right amount.
-> 
-> Breaking the requirement for hierarchical propagation of protections
-> seems like a really questionable API change, not least because it makes
-> it harder to set systemwide policies about the constraints of
-> protections within a subtree.
+> We can't use CSS_TASK_ITER_PROCS from mem_cgroup_scan_tasks(). I've tried
+> CSS_TASK_ITER_PROCS in an attempt to evaluate only one thread from each
+> thread group, but I found that CSS_TASK_ITER_PROCS causes skipping whole
+> threads in a thread group (and trivially allowing "Out of memory and no
+> killable processes...\n" flood) if thread group leader has already exited.
 
-docker and various types(different memory capacity) of containers
-are managed by k8s, it's a burden for k8s to maintain those dynamic
-figures, simply set "max" to key containers is always welcome.
+Seems that CSS_TASK_ITER_PROCS from mem_cgroup_scan_tasks() is now working.
+Maybe I was confused due to without commit 7775face207922ea ("memcg: killed
+threads should not invoke memcg OOM killer"). We can scan one thread from
+each thread group, and remove
 
-Set "max" to docker also protects docker cgroup memory(as docker
-itself has tasks) unnecessarily.
+	/* Prefer thread group leaders for display purposes */
+	if (points == oc->chosen_points && thread_group_leader(oc->chosen))
+		goto next;
 
-This patch doesn't take effect on any intermediate layer with
-positive memory.min set, it requires all the ancestors having
-0 memory.min to work.
-
-Nothing special change, but more flexible to business deployment...
+check.
 
