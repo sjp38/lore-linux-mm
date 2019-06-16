@@ -2,208 +2,183 @@ Return-Path: <SRS0=z6ed=UP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.0 required=3.0 tests=FREEMAIL_FORGED_FROMDOMAIN,
-	FREEMAIL_FROM,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-6.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B1599C31E49
-	for <linux-mm@archiver.kernel.org>; Sun, 16 Jun 2019 05:49:08 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id F302AC31E49
+	for <linux-mm@archiver.kernel.org>; Sun, 16 Jun 2019 06:07:13 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 276D3216C8
-	for <linux-mm@archiver.kernel.org>; Sun, 16 Jun 2019 05:49:07 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 276D3216C8
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=sina.com
+	by mail.kernel.org (Postfix) with ESMTP id B1F792133D
+	for <linux-mm@archiver.kernel.org>; Sun, 16 Jun 2019 06:07:13 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B1F792133D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4CB7E6B0005; Sun, 16 Jun 2019 01:49:07 -0400 (EDT)
+	id 497236B0007; Sun, 16 Jun 2019 02:07:13 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 455026B0006; Sun, 16 Jun 2019 01:49:07 -0400 (EDT)
+	id 4214B6B0008; Sun, 16 Jun 2019 02:07:13 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2F53C8E0001; Sun, 16 Jun 2019 01:49:07 -0400 (EDT)
+	id 2C1EE8E0001; Sun, 16 Jun 2019 02:07:13 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id E8D3B6B0005
-	for <linux-mm@kvack.org>; Sun, 16 Jun 2019 01:49:06 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id b10so5150982pgb.22
-        for <linux-mm@kvack.org>; Sat, 15 Jun 2019 22:49:06 -0700 (PDT)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E89366B0007
+	for <linux-mm@kvack.org>; Sun, 16 Jun 2019 02:07:12 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id x3so5197248pgp.8
+        for <linux-mm@kvack.org>; Sat, 15 Jun 2019 23:07:12 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:in-reply-to:references:mime-version
-         :content-disposition:user-agent:sender:precedence:list-id
-         :archived-at:list-archive:list-post:content-transfer-encoding;
-        bh=rjh6z4h5mztLn1TiTyDYmIudpuMlJTjkI61g9gpOqm8=;
-        b=B8QboeOh+vmpjafhQfiFOQpbE3rU6fmEqGY3WLICNLwjXB5j1O2w1IzMCx7p99nvhY
-         P2gcRo+jbC9a+UkJlBcs2eybLZKXxf8vcoxQpRfiE27SovKAAGTrd65mdcZFphMmZlos
-         opK9Ia4hZbwf+72tCTFC/7X+TTxLpaNUuKN9nZuOfNYmyNwhEQ1P/xxTVwwkWsKjrj18
-         kRViY/ObGhs6UgazXi6QnFOEGXvjCz/QKTDUIZFnliLw9ygyEpe715mCNL2fn6QwLhZE
-         Z67y47GwfdG2ckdo2ay/F6g/r4WuipVJpO6aAkdN0NJEN11vun9FewhFWs8T4qbLISD5
-         PYaQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of hdanton@sina.com designates 202.108.7.215 as permitted sender) smtp.mailfrom=hdanton@sina.com
-X-Gm-Message-State: APjAAAUmU8RZaIFpBklAjm87o0F1m/k5z48IXhFuWNa8mJ/nvX6TexTr
-	IUqmq8vvhyhsei5gRhurLY04P602DTRNXSHd5iA0pbKoPWaBsQsuYcypwI6HcHKHN1nf8jOzVXf
-	Pmv7LE6UvAhWknpzIyJ+qvTJAQc6rd3BFfYsRZZwoP26Kiwxbkc60oBYlYZEQevL/gg==
-X-Received: by 2002:a17:90a:3ae8:: with SMTP id b95mr19190977pjc.68.1560664146509;
-        Sat, 15 Jun 2019 22:49:06 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqx//LuM4CAHlocH2BbGe8AFS9g1iewP1wKkr2ZSsJ5Oj5aH6fa0xrR9J+imwtreFMzCFpn6
-X-Received: by 2002:a17:90a:3ae8:: with SMTP id b95mr19190935pjc.68.1560664145653;
-        Sat, 15 Jun 2019 22:49:05 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560664145; cv=none;
+         :subject:in-reply-to:references:date:mime-version:message-id;
+        bh=dGjhz4aQzyD59eRLNizOYahJSu+PAkI6ueO7uaOQLME=;
+        b=npwrQKx7VyitbdGEWkGiryFHf7WHwAXKHdDy4EI8mCEGAKIvsWE7uMcgWBx1950zNt
+         I14RztnNNhZo7ByNNa6ZHqSnr4x9TceiVF/xjGA8MOPbCjZOfUFgc2ZUThx56Xmb9WLl
+         ue64DcY8P3L/iK4Rf3aW632sPzM+nZxB//krdXHXru0FS8f+jm2KhDVyxDPfUhnADK4j
+         il0dJLXxo6d+mToKGG1WEJ7j2ZOstxDF6xxYpjKWB4CyIrFmJgbq3aT2tEP7yLXAYiJv
+         +y8whs+62dTtTaEmQ/76daEF4zS3vjOECH2Y+iW7IOfvSfaJ/X2u5KlUNs5x1DtOKBWt
+         M6JA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: APjAAAXE4d4v703heZ5dodJHc59fGltyWi0XnH+BvFEJW1mWxGpPGpvi
+	C/tnTBQfk8Cs/z7gYng6aenvWEYSzenrvqxIpnFUOVNsBdKMotDISOvyseBeser9so+23AJaDiz
+	YHx+P0pSFmSmSRIaruJt0mLBoAuGorexNdP3Isfx33ZgYB6y9Z5tncnyyQJDRi3paJQ==
+X-Received: by 2002:a17:90a:af8b:: with SMTP id w11mr19675434pjq.135.1560665232627;
+        Sat, 15 Jun 2019 23:07:12 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxT5qA6INXS0XrZ72J3rEXxtwjPaBU6fZ+uMt3XXLycEV9GvownggnHxoFpBYGEXDIIkl5u
+X-Received: by 2002:a17:90a:af8b:: with SMTP id w11mr19675394pjq.135.1560665231823;
+        Sat, 15 Jun 2019 23:07:11 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560665231; cv=none;
         d=google.com; s=arc-20160816;
-        b=R+zKZTjQGM0u2hFgNHpwpPesBxyvfHJmwBe9rVkF6f+evjrzRPK/ysTu7ZqsizfYtO
-         01lrFSVGIsFeOawoG2RDmcedg+CTyk1B92gvEClMommB0c+7V/8xVxN2TgX4MQUBlmbu
-         cz2hurD9hfWj2eIGVyvJZNXNFpjQy76hm9YV3/B+3svuk0uc9bIiaOj33gbQuBFcfq2n
-         pD0+54gJb1dUEB6bkQmQ/xg7uDY07YVnISm8oaANd6x1yNrNdaK98s7kVST1xzwvQ8CC
-         r5+8ofVWDQM6UOctgvdu56emrrXC6KVxb0aghjHV9h5LfgVMQSW9iHoU0TRx0m8PEX+I
-         8yTQ==
+        b=btqj3blLXsXzgFYQeQhvgdmqce66dX2H7iKWE52loTbvV06MjI21wl21UxATwQXB4n
+         jtZb2HvRbO0MY0NdvuR9drbGZB7j4HPaLtenbzHpytyY4SE7DEWgTeMkrleLGKe/DbSY
+         vbPaJl0gcVagsw5lEvBjMlrLtZ8lceuGc+dnzw+mGBBcoAgOV1oXyNC/nVbejbtF88ag
+         sAEHeyci67IpcTmZwuHBf3oCvnEDqiNwmIhaTBMu7XbLeTRp7Qpni7SJIPUSLydybwus
+         kMgBt3kOnxXlZFV70v2qKA1V2yVur/3chjFHL1/EkcQsruw9Yvw19Ue3e+AFieMs2gDv
+         YM2w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:list-post:list-archive:archived-at
-         :list-id:precedence:sender:user-agent:content-disposition
-         :mime-version:references:in-reply-to:message-id:date:subject:cc:to
+        h=message-id:mime-version:date:references:in-reply-to:subject:cc:to
          :from;
-        bh=rjh6z4h5mztLn1TiTyDYmIudpuMlJTjkI61g9gpOqm8=;
-        b=tfOTGcmmbU7KKpVK8kguzCPa5RO2cr9kdlfA24ClsbwqI5CVHae2hU8M/Fdo2g0kRA
-         nseyfCwu+9iVZA5vr6DhlUxQd50A8APHq4u9Pw0oo537NXHQ/TiTjs8j5VOn3PF6cCj3
-         biitOXF8zaYKPL9IrjpmQVAD2hQzqHiEnOR+dQG4Zl9EiT9lIBXb7iWxY7YY984QFfqJ
-         FNFaO9dp6OgvN9BgdUZrTB1jWUJKGnCGsTFSIEfx5vA+gk5eyC4uIbssWIX5DtOKvN7o
-         5gvOW8UXpaQ+be0B9kNz4C/oHssdifOTr72IXx6qkGJpG+AMB57QBPmgd8HHwJOo01D8
-         jTdQ==
+        bh=dGjhz4aQzyD59eRLNizOYahJSu+PAkI6ueO7uaOQLME=;
+        b=FP7XviXJEvK1xhoHzQKYyi8ky6NV+uCSZDGa0dOyxphxOd0iI4LUc6iEyEb/vgOQnp
+         yvBLFePjNYaN596C/wod3tfk7f7mhnsfplOJiT7t8CvlZorutLgp0YTucAAwBLhHSkAz
+         Oa2fkPAok7QWDAajYVB9d2L9d/h33V0x0McUwrklLzRycPs004iw9euaAvuIbZYKZ2FO
+         uQEae6sc6Rd4JRWuyjF/qua6yZPMw9XtuH00moJEra5jQ1Q/Y3d67fln6FvcA6BXptEf
+         QBJxI1CY2S+vACbR0bHlMtYt2DPl93NyfTrBQHGoLisWrwpHmUMSJR5HBKMOTaLvUWlK
+         hoUg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of hdanton@sina.com designates 202.108.7.215 as permitted sender) smtp.mailfrom=hdanton@sina.com
-Received: from mail7-215.sinamail.sina.com.cn (mail7-215.sinamail.sina.com.cn. [202.108.7.215])
-        by mx.google.com with SMTP id j14si6899042pfe.183.2019.06.15.22.49.04
-        for <linux-mm@kvack.org>;
-        Sat, 15 Jun 2019 22:49:05 -0700 (PDT)
-Received-SPF: pass (google.com: domain of hdanton@sina.com designates 202.108.7.215 as permitted sender) client-ip=202.108.7.215;
+       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id w11si6518547pjq.17.2019.06.15.23.07.11
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 15 Jun 2019 23:07:11 -0700 (PDT)
+Received-SPF: pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of hdanton@sina.com designates 202.108.7.215 as permitted sender) smtp.mailfrom=hdanton@sina.com
-Received: from unknown (HELO localhost.localdomain)([123.112.52.116])
-	by sina.com with ESMTP
-	id 5D05D84B0000018D; Sun, 16 Jun 2019 13:49:03 +0800 (CST)
-X-Sender: hdanton@sina.com
-X-Auth-ID: hdanton@sina.com
-X-SMAIL-MID: 470228395869
-From: Hillf Danton <hdanton@sina.com>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Shakeel Butt <shakeelb@google.com>,
-	syzbot <syzbot+d0fc9d3c166bc5e4a94b@syzkaller.appspotmail.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	"Eric W. Biederman" <ebiederm@xmission.com>,
-	Roman Gushchin <guro@fb.com>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	jglisse@redhat.com,
-	LKML <linux-kernel@vger.kernel.org>,
-	Linux MM <linux-mm@kvack.org>,
-	Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>,
-	syzkaller-bugs <syzkaller-bugs@googlegroups.com>,
-	yuzhoujian@didichuxing.com
-Subject: Re: general protection fault in oom_unkillable_task
-Date: Sun, 16 Jun 2019 13:48:51 +0800
-Message-Id: <20190615134955.GA28441@dhcp22.suse.cz>
-In-Reply-To: <CALvZod72=KuBZkSd0ey5orJFGFpwx462XY=cZvO3NOXC0MogFw@mail.gmail.com>
-References: 
+       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x5G679O0127136
+	for <linux-mm@kvack.org>; Sun, 16 Jun 2019 02:07:11 -0400
+Received: from e06smtp02.uk.ibm.com (e06smtp02.uk.ibm.com [195.75.94.98])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2t5e6wjvue-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Sun, 16 Jun 2019 02:07:10 -0400
+Received: from localhost
+	by e06smtp02.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
+	Sun, 16 Jun 2019 07:06:56 +0100
+Received: from b06cxnps4074.portsmouth.uk.ibm.com (9.149.109.196)
+	by e06smtp02.uk.ibm.com (192.168.101.132) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Sun, 16 Jun 2019 07:06:53 +0100
+Received: from d06av26.portsmouth.uk.ibm.com (d06av26.portsmouth.uk.ibm.com [9.149.105.62])
+	by b06cxnps4074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x5G66qk146596116
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Sun, 16 Jun 2019 06:06:52 GMT
+Received: from d06av26.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 6DDACAE04D;
+	Sun, 16 Jun 2019 06:06:52 +0000 (GMT)
+Received: from d06av26.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 12D30AE045;
+	Sun, 16 Jun 2019 06:06:50 +0000 (GMT)
+Received: from skywalker.linux.ibm.com (unknown [9.85.86.48])
+	by d06av26.portsmouth.uk.ibm.com (Postfix) with ESMTP;
+	Sun, 16 Jun 2019 06:06:49 +0000 (GMT)
+X-Mailer: emacs 26.2 (via feedmail 11-beta-1 I)
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+To: Dan Williams <dan.j.williams@intel.com>, akpm@linux-foundation.org
+Cc: Michal Hocko <mhocko@suse.com>, David Hildenbrand <david@redhat.com>,
+        Logan Gunthorpe <logang@deltatee.com>,
+        Oscar Salvador <osalvador@suse.de>,
+        Pavel Tatashin <pasha.tatashin@soleen.com>, linux-mm@kvack.org,
+        linux-nvdimm@lists.01.org, linux-kernel@vger.kernel.org,
+        osalvador@suse.de, mhocko@suse.com
+Subject: Re: [PATCH v9 04/12] mm/sparsemem: Convert kmalloc_section_memmap() to populate_section_memmap()
+In-Reply-To: <155977189139.2443951.460884430946346998.stgit@dwillia2-desk3.amr.corp.intel.com>
+References: <155977186863.2443951.9036044808311959913.stgit@dwillia2-desk3.amr.corp.intel.com> <155977189139.2443951.460884430946346998.stgit@dwillia2-desk3.amr.corp.intel.com>
+Date: Sun, 16 Jun 2019 11:36:47 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset="UTF-8"
-Content-Disposition: inline
-User-Agent: Mutt/1.10.1 (2018-07-13)
-List-ID: <linux-kernel.vger.kernel.org>
-X-Mailing-List: linux-kernel@vger.kernel.org
-Archived-At: <https://lore.kernel.org/lkml/20190615134955.GA28441@dhcp22.suse.cz/>
-List-Archive: <https://lore.kernel.org/lkml/>
-List-Post: <mailto:linux-kernel@vger.kernel.org>
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain
+X-TM-AS-GCONF: 00
+x-cbid: 19061606-0008-0000-0000-000002F42096
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19061606-0009-0000-0000-000022612EA1
+Message-Id: <8736kahxmw.fsf@linux.ibm.com>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-06-16_02:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1906160060
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190616054851.XS-MCkU6KtmEMDze8SQKKfnRjNXDGpLc1YJ_xWpWTbI@z>
 
+Dan Williams <dan.j.williams@intel.com> writes:
 
-Hello Michal
-
-On Sat, 15 Jun 2019 13:49:57 +0000 (UTC) Michal Hocko wrote:
-> On Fri 14-06-19 20:15:31, Shakeel Butt wrote:
-> > On Fri, Jun 14, 2019 at 6:08 PM syzbot
-> > <syzbot+d0fc9d3c166bc5e4a94b@syzkaller.appspotmail.com> wrote:
-> > >
-> > > Hello,
-> > >
-> > > syzbot found the following crash on:
-> > >
-> > > HEAD commit:    3f310e51 Add linux-next specific files for 20190607
-> > > git tree:       linux-next
-> > > console output: https://syzkaller.appspot.com/x/log.txt?x=15ab8771a00000
-> > > kernel config:  https://syzkaller.appspot.com/x/.config?x=5d176e1849bbc45
-> > > dashboard link: https://syzkaller.appspot.com/bug?extid=d0fc9d3c166bc5e4a94b
-> > > compiler:       gcc (GCC) 9.0.0 20181231 (experimental)
-> > >
-> > > Unfortunately, I don't have any reproducer for this crash yet.
-> > >
-> > > IMPORTANT: if you fix the bug, please add the following tag to the commit:
-> > > Reported-by: syzbot+d0fc9d3c166bc5e4a94b@syzkaller.appspotmail.com
-> > >
-> > > kasan: CONFIG_KASAN_INLINE enabled
-> > > kasan: GPF could be caused by NULL-ptr deref or user memory access
-> > > general protection fault: 0000 [#1] PREEMPT SMP KASAN
-> > > CPU: 0 PID: 28426 Comm: syz-executor.5 Not tainted 5.2.0-rc3-next-20190607
-> > > #11
-> > > Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS
-> > > Google 01/01/2011
-> > > RIP: 0010:__read_once_size include/linux/compiler.h:194 [inline]
-> > > RIP: 0010:has_intersects_mems_allowed mm/oom_kill.c:84 [inline]
-> > 
-> > It seems like oom_unkillable_task() is broken for memcg OOMs. It
-> > should not be calling has_intersects_mems_allowed() for memcg OOMs.
-> 
-> You are right. It doesn't really make much sense to check for the NUMA
-> policy/cpusets when the memcg oom is NUMA agnostic. Now that I am
-> looking at the code then I am really wondering why do we even call
-> oom_unkillable_task from oom_badness. proc_oom_score shouldn't care
-> about NUMA either.
-> 
-> In other words the following should fix this unless I am missing
-> something (task_in_mem_cgroup seems to be a relict from before the group
-> oom handling). But please note that I am still not fully operation and
-> laying in the bed.
-> 
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index 5a58778c91d4..43eb479a5dc7 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -161,8 +161,8 @@ static bool oom_unkillable_task(struct task_struct *p,
->  		return true;
->  
->  	/* When mem_cgroup_out_of_memory() and p is not member of the group */
-> -	if (memcg && !task_in_mem_cgroup(p, memcg))
-> -		return true;
-> +	if (memcg)
-> +		return false;
+> Allow sub-section sized ranges to be added to the memmap.
+> populate_section_memmap() takes an explict pfn range rather than
+> assuming a full section, and those parameters are plumbed all the way
+> through to vmmemap_populate(). There should be no sub-section usage in
+> current deployments. New warnings are added to clarify which memmap
+> allocation paths are sub-section capable.
 >
-Given the members of the memcg:
-1> tasks with flags having PF_EXITING set.
-2> tasks without memory footprints on numa node-A-B.
-3> tasks with memory footprint on numa node-A-B-C.
-
-We'd try much to avoid killing 1> and 2> tasks imo to meet the current memory
-allocation that only wants pages from node-A.
-
---
-Hillf
->  	/* p may not have freeable memory in nodemask */
->  	if (!has_intersects_mems_allowed(p, nodemask))
-> @@ -318,7 +318,7 @@ static int oom_evaluate_task(struct task_struct *task, void *arg)
->  	struct oom_control *oc = arg;
->  	unsigned long points;
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: David Hildenbrand <david@redhat.com>
+> Cc: Logan Gunthorpe <logang@deltatee.com>
+> Cc: Oscar Salvador <osalvador@suse.de>
+> Reviewed-by: Pavel Tatashin <pasha.tatashin@soleen.com>
+> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+> ---
+>  arch/x86/mm/init_64.c |    4 ++-
+>  include/linux/mm.h    |    4 ++-
+>  mm/sparse-vmemmap.c   |   21 +++++++++++------
+>  mm/sparse.c           |   61 +++++++++++++++++++++++++++++++------------------
+>  4 files changed, 57 insertions(+), 33 deletions(-)
+>
+> diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
+> index 8335ac6e1112..688fb0687e55 100644
+> --- a/arch/x86/mm/init_64.c
+> +++ b/arch/x86/mm/init_64.c
+> @@ -1520,7 +1520,9 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
+>  {
+>  	int err;
 >  
-> -	if (oom_unkillable_task(task, NULL, oc->nodemask))
-> +	if (oom_unkillable_task(task, oc->memcg, oc->nodemask))
->  		goto next;
->  
-> -- 
-> Michal Hocko
-> SUSE Labs
-> 
+> -	if (boot_cpu_has(X86_FEATURE_PSE))
+> +	if (end - start < PAGES_PER_SECTION * sizeof(struct page))
+> +		err = vmemmap_populate_basepages(start, end, node);
+> +	else if (boot_cpu_has(X86_FEATURE_PSE))
+>  		err = vmemmap_populate_hugepages(start, end, node, altmap);
+>  	else if (altmap) {
+>  		pr_err_once("%s: no cpu support for altmap allocations\n",
+
+Can we move this to another patch? I am wondering what the x86 behaviour
+here is? If the range is less that PAGES_PER_SECTION we don't allow to
+use pmem as the map device? We sliently use memory range?
+
+-aneesh
 
