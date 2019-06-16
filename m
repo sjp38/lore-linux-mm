@@ -2,154 +2,198 @@ Return-Path: <SRS0=z6ed=UP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-6.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 41A80C31E49
-	for <linux-mm@archiver.kernel.org>; Sun, 16 Jun 2019 07:38:46 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CAB47C31E49
+	for <linux-mm@archiver.kernel.org>; Sun, 16 Jun 2019 07:49:49 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D1A032133D
-	for <linux-mm@archiver.kernel.org>; Sun, 16 Jun 2019 07:38:45 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D1A032133D
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=i-love.sakura.ne.jp
+	by mail.kernel.org (Postfix) with ESMTP id 744AD2133D
+	for <linux-mm@archiver.kernel.org>; Sun, 16 Jun 2019 07:49:49 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 744AD2133D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3B8BE6B0005; Sun, 16 Jun 2019 03:38:45 -0400 (EDT)
+	id DC2F88E0002; Sun, 16 Jun 2019 03:49:48 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 369538E0002; Sun, 16 Jun 2019 03:38:45 -0400 (EDT)
+	id D277F8E0001; Sun, 16 Jun 2019 03:49:48 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 258428E0001; Sun, 16 Jun 2019 03:38:45 -0400 (EDT)
+	id BEC978E0002; Sun, 16 Jun 2019 03:49:48 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-oi1-f198.google.com (mail-oi1-f198.google.com [209.85.167.198])
-	by kanga.kvack.org (Postfix) with ESMTP id EFCAA6B0005
-	for <linux-mm@kvack.org>; Sun, 16 Jun 2019 03:38:44 -0400 (EDT)
-Received: by mail-oi1-f198.google.com with SMTP id i16so2509721oie.1
-        for <linux-mm@kvack.org>; Sun, 16 Jun 2019 00:38:44 -0700 (PDT)
+Received: from mail-yw1-f69.google.com (mail-yw1-f69.google.com [209.85.161.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 934AC8E0001
+	for <linux-mm@kvack.org>; Sun, 16 Jun 2019 03:49:48 -0400 (EDT)
+Received: by mail-yw1-f69.google.com with SMTP id b75so8340454ywh.8
+        for <linux-mm@kvack.org>; Sun, 16 Jun 2019 00:49:48 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:from
-         :to:cc:references:message-id:date:user-agent:mime-version
-         :in-reply-to:content-language:content-transfer-encoding;
-        bh=wmP7cfILR/PPevPT+j1b6ha+Bwoun8R2YbTlFnrgACo=;
-        b=LavDXg1q4GTJ41qxeUgqtRQ7IvSYZZ+Xnudb3zBs0VbxmEaTgX0HBZn5lvnCn0C9nU
-         mKM30WEmqz6ggks/PgUh+k4ocSDuauFMSr58HcgupxDCsnfkSYgg5VMKY6sP5FoWikBn
-         VA8798UvBbvzFYPxY4ncKvkxfl/iQnSdsOAVT7AOdOU4DU9Fty355Z9EnjwlZ0abQUhb
-         CUk5nnMh5MUA9Ej+pX66PG4mvs38wPeOOAcoE73MCbHCJ7rucy0tDl2e0/84hAaIuqii
-         QtVgIdjEWE8ZSvTX69k7RQ+CGTGSzLCJ63NhoxT5DWjOV2aE2NdyyEYuPGe4GgQiLnPZ
-         3SlA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
-X-Gm-Message-State: APjAAAXnpnlJ6JVV/rfEsLp9QN23aGq+f/qL/Rlfvf1kRKqmi5hpVBDe
-	PqiHD7LDul7ydKs1J3w+a5fGKFChJps0D0F87UAWRqbk/RmWHDEclFJp5pELhm9SZXKDnTiTfjg
-	3IH8PhwMMTwdpjQDvl0jUnCW8zMFi9Lolct4AUMMPS7y1q57e4u7enCijLFVnBB49KA==
-X-Received: by 2002:aca:c715:: with SMTP id x21mr7344860oif.142.1560670724607;
-        Sun, 16 Jun 2019 00:38:44 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy+/5l/+zd5CFiiV0r1VGlVmplSvlBNz2AEC808F3H310TGNAuG4D5055A4W74CCPYPC4UK
-X-Received: by 2002:aca:c715:: with SMTP id x21mr7344838oif.142.1560670723929;
-        Sun, 16 Jun 2019 00:38:43 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560670723; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:in-reply-to:references:date:mime-version
+         :content-transfer-encoding:message-id;
+        bh=s8EIb+SBgo+u5tnpcL0LRXguJHl3+T8lXUG9FR3Aha4=;
+        b=O/e7meElHOoPcRIE/XeW1tUAsdsdquOtVqLHYjfViGgjI8Hx46MW9w2LzErFQ3JyJ7
+         zcar85Js5VtrjL2IxwaNO8yHBNvw3UT4KqBpdf1ygFN4MO7g/14Hx5bvphK0PPVtDeZs
+         U8w+0UXjE0MeX9GZQrir1f6gM6JP8NbSWu6v1ozcucW+BA1b/Js9xMw5IDMJNeXX76aw
+         6n9s5D12XLyAicxmqi9GiFIwIXuY0YzOF7ksbZnyM+SZFpjC8PVZqH9sKnopDa5CsawK
+         9xF7e76WTwTwizavtp1HXIVvHuShJQuTrhYsxGg0jXN47up9zGKcmY+QWIY+i0wrO3mP
+         xHOw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: APjAAAW8Yw9V2UhZuq+3Me/JijOosVdGPECJ3QlTwWgF1OQxYrZDyyuG
+	yt2FDRRHcZbMeadRwX1UToLez+/1xJ432h9D5YKAEkI+cieDZevJ11oeg9EqVzONFo/yktqEcOl
+	yJKq/NZdFChQbE3sf1Fnr8d0oQbweiwvCDXJhuEYce1mRBmnuXsThVQ2fPendhTfXcQ==
+X-Received: by 2002:a25:458:: with SMTP id 85mr51771991ybe.167.1560671388353;
+        Sun, 16 Jun 2019 00:49:48 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxxH6pt3FkPrAmrxXpj3y/TRz6T4gLPRXkpl5229eW12B52xpWVO2CunkyJIoulxAmG1+oV
+X-Received: by 2002:a25:458:: with SMTP id 85mr51771981ybe.167.1560671387545;
+        Sun, 16 Jun 2019 00:49:47 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560671387; cv=none;
         d=google.com; s=arc-20160816;
-        b=QKWHYr84a0so/sNqsydISBbhO+2pN9/gWBQ/90/KpXdTxUJTDQ/FTOpOB7R6fYaH/w
-         6nXug9lKgsWGQkvjyJUwvWJ4VptdHjsMje0TamdELG/LIx4jZW7IDLlhGeGevNWfeFEB
-         T5IXJZ8wvU74INI4NoC5EwyNHZBYB/NwwfMMQpm3vc1WO+QoD0KmBJmgp9P3qRgZhnI3
-         LiTXk1+8EPLGHCGRALXdEEQtA5HucgHVl0q0y4h8oyDhfesPv055zbsoMSTP3m/5scSv
-         duMwlIcjcJs7Ie/BIrhDitFuBFDDcZsWGNDmK3VB57tz1nsx8BSwshBlqa3dLPBB2xmm
-         uqXA==
+        b=ID2TS3lozOkgfhULb/+dVP8rQUZgXZfAMvHuosPU72GKG0/dWOlFniYUv2nRW0f0Vw
+         JKO+0KuJ6DQYjUvIoca8T8XbZDRL8YcuS2VpP4UWPv6ik6nN+4rkJJ76xi/nbK50Ujrg
+         QHipWNWmCUAKlLe0GlVDEXZRnXuLKpV8CdxoZy/uzSMLM0LLeu9AcRhoKZ4vquAsGast
+         IeBxk+CpxlUu3wLlVBrlRtSu/RtVlEXA7VmjqykmH9CHLfNOqqcP9nuPrv7DvR/mQoy/
+         LbZ0wAZsG0bb8FwhwYcCRYzPLvf/H+Kny4bx/FfeQ6IPRLPH5byORAGcfUC8USXbQRu/
+         dWZg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:references:cc:to:from:subject;
-        bh=wmP7cfILR/PPevPT+j1b6ha+Bwoun8R2YbTlFnrgACo=;
-        b=zu+MKL26NQWpiKfYa8UNngLum+n5/CSzOa32f1j+FH4s62OeVxUd+Xpp0GE6U/xGkQ
-         r1dgt91Xwol3isz2o+ZFBXAWKzlZg8d8eq52oPNW1bdAvxnXXLeZyEFugTmvXEuOxa+3
-         uvaVjW8qwaRO49vXPfkvh4p2a+PtppJv93sYC4PJifA1A1lsiKqYwv7SMaRCm8zXEhbC
-         jYzinLgm1pNv/T38trBvZUHflbAKzt0Bdvg31wewKESoiwABPwMZK2UckePeVjDSt2fb
-         tKKF1TNNNrhwG+xjp3iFxrj3Ap83ln4VOlRzFcKRyzUyep1I3QNtN+tS0q57xc6XicgS
-         3pcQ==
+        h=message-id:content-transfer-encoding:mime-version:date:references
+         :in-reply-to:subject:cc:to:from;
+        bh=s8EIb+SBgo+u5tnpcL0LRXguJHl3+T8lXUG9FR3Aha4=;
+        b=YZOUgKRetKdFmeSFXZR1xpkE59XGPQ9fGYdpT4sc6CGykLr9A62qqiTIBgHAThY49s
+         DAnXsH1vme9HweaGY4fQVRJYTHNj+cWrAISm3EU5Lw5NCjPf5Gk579u70bxwNNrfmwP6
+         kjZDF5oCnyvUaY1aQ9zpRz5Y1RxPPoJaQoLRDtwWtzXpcjw+Jws3iavUN2ZrauuFTTNQ
+         6C/xCwouvc6yFy4tCsrTT2rdt1aACvl1f57ky7+VYI2vyATCanrU7oFEcNyhgkFKk7wL
+         YZmtJPqdMgll2kBUiJlZ9L6Ec1WEvbP9SC5D4ZY6WOD7cErMY9ruuMmgeedP+Qmhk4kC
+         qWkA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id 5si5134405oto.141.2019.06.16.00.38.43
+       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id a130si2854083ybb.140.2019.06.16.00.49.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 16 Jun 2019 00:38:43 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) client-ip=202.181.97.72;
+        Sun, 16 Jun 2019 00:49:47 -0700 (PDT)
+Received-SPF: pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
-Received: from fsav402.sakura.ne.jp (fsav402.sakura.ne.jp [133.242.250.101])
-	by www262.sakura.ne.jp (8.15.2/8.15.2) with ESMTP id x5G7bvkZ065479;
-	Sun, 16 Jun 2019 16:37:57 +0900 (JST)
-	(envelope-from penguin-kernel@i-love.sakura.ne.jp)
-Received: from www262.sakura.ne.jp (202.181.97.72)
- by fsav402.sakura.ne.jp (F-Secure/fsigk_smtp/530/fsav402.sakura.ne.jp);
- Sun, 16 Jun 2019 16:37:57 +0900 (JST)
-X-Virus-Status: clean(F-Secure/fsigk_smtp/530/fsav402.sakura.ne.jp)
-Received: from [192.168.1.8] (softbank126012062002.bbtec.net [126.12.62.2])
-	(authenticated bits=0)
-	by www262.sakura.ne.jp (8.15.2/8.15.2) with ESMTPSA id x5G7bv3f065476
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NO);
-	Sun, 16 Jun 2019 16:37:57 +0900 (JST)
-	(envelope-from penguin-kernel@i-love.sakura.ne.jp)
-Subject: Re: general protection fault in oom_unkillable_task
-From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-To: Shakeel Butt <shakeelb@google.com>
-Cc: Michal Hocko <mhocko@kernel.org>,
-        syzbot <syzbot+d0fc9d3c166bc5e4a94b@syzkaller.appspotmail.com>,
-        Andrew Morton <akpm@linux-foundation.org>,
-        "Eric W. Biederman" <ebiederm@xmission.com>,
-        Roman Gushchin <guro@fb.com>, Johannes Weiner <hannes@cmpxchg.org>,
-        =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?=
- <jglisse@redhat.com>,
-        LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>,
-        syzkaller-bugs <syzkaller-bugs@googlegroups.com>,
-        yuzhoujian@didichuxing.com
-References: <0000000000004143a5058b526503@google.com>
- <CALvZod72=KuBZkSd0ey5orJFGFpwx462XY=cZvO3NOXC0MogFw@mail.gmail.com>
- <20190615134955.GA28441@dhcp22.suse.cz>
- <CALvZod4hT39PfGt9Ohj+g77om5=G0coHK=+G1=GKcm-PowkXsw@mail.gmail.com>
- <5bb1fe5d-f0e1-678b-4f64-82c8d5d81f61@i-love.sakura.ne.jp>
- <CALvZod4etSv9Hv4UD=E6D7U4vyjCqhxQgq61AoTUCd+VubofFg@mail.gmail.com>
- <791594c6-45a3-d78a-70b5-901aa580ed9f@i-love.sakura.ne.jp>
-Message-ID: <840fa9f1-07e2-e206-2fc0-725392f96baf@i-love.sakura.ne.jp>
-Date: Sun, 16 Jun 2019 16:37:56 +0900
-User-Agent: Mozilla/5.0 (Windows NT 6.3; WOW64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.1
+       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x5G7l1Cw127851
+	for <linux-mm@kvack.org>; Sun, 16 Jun 2019 03:49:47 -0400
+Received: from e06smtp05.uk.ibm.com (e06smtp05.uk.ibm.com [195.75.94.101])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2t5dwxdgrx-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Sun, 16 Jun 2019 03:49:46 -0400
+Received: from localhost
+	by e06smtp05.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
+	Sun, 16 Jun 2019 08:49:45 +0100
+Received: from b06cxnps4074.portsmouth.uk.ibm.com (9.149.109.196)
+	by e06smtp05.uk.ibm.com (192.168.101.135) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Sun, 16 Jun 2019 08:49:41 +0100
+Received: from d06av22.portsmouth.uk.ibm.com (d06av22.portsmouth.uk.ibm.com [9.149.105.58])
+	by b06cxnps4074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x5G7nerW29622376
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Sun, 16 Jun 2019 07:49:40 GMT
+Received: from d06av22.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 8D64F4C04E;
+	Sun, 16 Jun 2019 07:49:40 +0000 (GMT)
+Received: from d06av22.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 6FD194C046;
+	Sun, 16 Jun 2019 07:49:38 +0000 (GMT)
+Received: from skywalker.linux.ibm.com (unknown [9.85.86.48])
+	by d06av22.portsmouth.uk.ibm.com (Postfix) with ESMTP;
+	Sun, 16 Jun 2019 07:49:38 +0000 (GMT)
+X-Mailer: emacs 26.2 (via feedmail 11-beta-1 I)
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+To: Dan Williams <dan.j.williams@intel.com>, akpm@linux-foundation.org
+Cc: mhocko@suse.com, Pavel Tatashin <pasha.tatashin@soleen.com>,
+        linux-nvdimm@lists.01.org, linux-kernel@vger.kernel.org,
+        linux-mm@kvack.org,
+        =?utf-8?B?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>,
+        osalvador@suse.de
+Subject: Re: [PATCH v9 10/12] mm/devm_memremap_pages: Enable sub-section remap
+In-Reply-To: <155977193326.2443951.14201009973429527491.stgit@dwillia2-desk3.amr.corp.intel.com>
+References: <155977186863.2443951.9036044808311959913.stgit@dwillia2-desk3.amr.corp.intel.com> <155977193326.2443951.14201009973429527491.stgit@dwillia2-desk3.amr.corp.intel.com>
+Date: Sun, 16 Jun 2019 13:19:36 +0530
 MIME-Version: 1.0
-In-Reply-To: <791594c6-45a3-d78a-70b5-901aa580ed9f@i-love.sakura.ne.jp>
 Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: quoted-printable
+X-TM-AS-GCONF: 00
+x-cbid: 19061607-0020-0000-0000-0000034A7E9E
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19061607-0021-0000-0000-0000219DBFAE
+Message-Id: <87zhmigeb3.fsf@linux.ibm.com>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-06-16_03:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1906160076
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 2019/06/16 6:33, Tetsuo Handa wrote:
-> On 2019/06/16 3:50, Shakeel Butt wrote:
->>> While dump_tasks() traverses only each thread group, mem_cgroup_scan_tasks()
->>> traverses each thread.
->>
->> I think mem_cgroup_scan_tasks() traversing threads is not intentional
->> and css_task_iter_start in it should use CSS_TASK_ITER_PROCS as the
->> oom killer only cares about the processes or more specifically
->> mm_struct (though two different thread groups can have same mm_struct
->> but that is fine).
-> 
-> We can't use CSS_TASK_ITER_PROCS from mem_cgroup_scan_tasks(). I've tried
-> CSS_TASK_ITER_PROCS in an attempt to evaluate only one thread from each
-> thread group, but I found that CSS_TASK_ITER_PROCS causes skipping whole
-> threads in a thread group (and trivially allowing "Out of memory and no
-> killable processes...\n" flood) if thread group leader has already exited.
+Dan Williams <dan.j.williams@intel.com> writes:
 
-Seems that CSS_TASK_ITER_PROCS from mem_cgroup_scan_tasks() is now working.
-Maybe I was confused due to without commit 7775face207922ea ("memcg: killed
-threads should not invoke memcg OOM killer"). We can scan one thread from
-each thread group, and remove
+> Teach devm_memremap_pages() about the new sub-section capabilities of
+> arch_{add,remove}_memory(). Effectively, just replace all usage of
+> align_start, align_end, and align_size with res->start, res->end, and
+> resource_size(res). The existing sanity check will still make sure that
+> the two separate remap attempts do not collide within a sub-section (2MB
+> on x86).
+>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: Toshi Kani <toshi.kani@hpe.com>
+> Cc: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
+> Cc: Logan Gunthorpe <logang@deltatee.com>
+> Cc: Oscar Salvador <osalvador@suse.de>
+> Cc: Pavel Tatashin <pasha.tatashin@soleen.com>
+> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+> ---
+>  kernel/memremap.c |   61 +++++++++++++++++++++--------------------------=
+------
+>  1 file changed, 24 insertions(+), 37 deletions(-)
+>
+> diff --git a/kernel/memremap.c b/kernel/memremap.c
+> index 57980ed4e571..a0e5f6b91b04 100644
+> --- a/kernel/memremap.c
+> +++ b/kernel/memremap.c
+> @@ -58,7 +58,7 @@ static unsigned long pfn_first(struct dev_pagemap *pgma=
+p)
+>  	struct vmem_altmap *altmap =3D &pgmap->altmap;
+>  	unsigned long pfn;
+>=20=20
+> -	pfn =3D res->start >> PAGE_SHIFT;
+> +	pfn =3D PHYS_PFN(res->start);
+>  	if (pgmap->altmap_valid)
+>  		pfn +=3D vmem_altmap_offset(altmap);
+>  	return pfn;
+> @@ -86,7 +86,6 @@ static void devm_memremap_pages_release(void *data)
+>  	struct dev_pagemap *pgmap =3D data;
+>  	struct device *dev =3D pgmap->dev;
+>  	struct resource *res =3D &pgmap->res;
+> -	resource_size_t align_start, align_size;
+>  	unsigned long pfn;
+>  	int nid;
+>=20=20
+> @@ -96,25 +95,21 @@ static void devm_memremap_pages_release(void *data)
+>  	pgmap->cleanup(pgmap->ref);
+>=20=20
+>  	/* pages are dead and unused, undo the arch mapping */
+> -	align_start =3D res->start & ~(PA_SECTION_SIZE - 1);
+> -	align_size =3D ALIGN(res->start + resource_size(res), PA_SECTION_SIZE)
+> -		- align_start;
+> -
+> -	nid =3D page_to_nid(pfn_to_page(align_start >> PAGE_SHIFT));
+> +	nid =3D page_to_nid(pfn_to_page(PHYS_PFN(res->start)));
 
-	/* Prefer thread group leaders for display purposes */
-	if (points == oc->chosen_points && thread_group_leader(oc->chosen))
-		goto next;
+Why do we not require to align things to subsection size now?=20
 
-check.
+-aneesh
 
