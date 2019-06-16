@@ -7,98 +7,98 @@ X-Spam-Status: No, score=-3.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
 	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 76257C31E50
-	for <linux-mm@archiver.kernel.org>; Sun, 16 Jun 2019 16:26:51 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A477BC31E50
+	for <linux-mm@archiver.kernel.org>; Sun, 16 Jun 2019 16:27:20 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0B82620679
-	for <linux-mm@archiver.kernel.org>; Sun, 16 Jun 2019 16:26:50 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 69A6820679
+	for <linux-mm@archiver.kernel.org>; Sun, 16 Jun 2019 16:27:20 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="ijVry35i"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0B82620679
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="ritRXhRU"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 69A6820679
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 538B06B0005; Sun, 16 Jun 2019 12:26:50 -0400 (EDT)
+	id 07DA08E0002; Sun, 16 Jun 2019 12:27:20 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4E9D88E0002; Sun, 16 Jun 2019 12:26:50 -0400 (EDT)
+	id 02EBD8E0001; Sun, 16 Jun 2019 12:27:19 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 365508E0001; Sun, 16 Jun 2019 12:26:50 -0400 (EDT)
+	id E86C88E0002; Sun, 16 Jun 2019 12:27:19 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lf1-f69.google.com (mail-lf1-f69.google.com [209.85.167.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C94E26B0005
-	for <linux-mm@kvack.org>; Sun, 16 Jun 2019 12:26:49 -0400 (EDT)
-Received: by mail-lf1-f69.google.com with SMTP id e13so660773lfb.18
-        for <linux-mm@kvack.org>; Sun, 16 Jun 2019 09:26:49 -0700 (PDT)
+Received: from mail-lj1-f199.google.com (mail-lj1-f199.google.com [209.85.208.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 83C3D8E0001
+	for <linux-mm@kvack.org>; Sun, 16 Jun 2019 12:27:19 -0400 (EDT)
+Received: by mail-lj1-f199.google.com with SMTP id e16so1534683lja.23
+        for <linux-mm@kvack.org>; Sun, 16 Jun 2019 09:27:19 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
          :message-id:references:mime-version:content-disposition:in-reply-to;
-        bh=S2vKWdD0glGLsN86+msjXTlKQT0jYdW+WcffeWNC3YE=;
-        b=SGV06ArpBb0rorKwfOGoLQ/q2Xy5/Rnzkg2ksJJHUMlKbKAdxw+Y8rBeu29vMzvS7D
-         u3iFd6kJt2gvSFdIniorZKvTyO8vEXFBSljDZROyJC97t2mMMXBVFV6btyL34oUkxYaN
-         QJBEpQ42jzXB9djMXCLIp+lgCuK+PtVHMrR0FgPCuMRl8R1h1UrqayunAOnAFYZzxTBC
-         WunmCQJYp/mp/nQeAoRbPJWSFou1QZ5dydX58XahEpz6iHEroEkMziXVZv+dvn7Z5dSe
-         J8inZwN5H8vNt3y+2awtGahQ4o4ZbEyGTPbdUYCfiEl9T6NA0zR+K51mJoPNC0yeE/K5
-         9qpQ==
-X-Gm-Message-State: APjAAAVJLMGQqe6P/pk3yCF6VMcz6IfbQEq6s3UMRiQK/T+30Fl399cg
-	8BBR324l0vP1TgdD03H2KnKFbOz7uJsIJzJ8Gmev7ymXwxkkaiU9AVqZhiocYpluaSDVQp2MQ2L
-	Uy+dXD7KdXbaxEV726QbVhh2A25Y7Wv4kAD8X72Hjl97PeOSvFlDvxJGId1P2Lw8AOQ==
-X-Received: by 2002:a2e:900c:: with SMTP id h12mr29126625ljg.197.1560702408994;
-        Sun, 16 Jun 2019 09:26:48 -0700 (PDT)
-X-Received: by 2002:a2e:900c:: with SMTP id h12mr29126613ljg.197.1560702408280;
-        Sun, 16 Jun 2019 09:26:48 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560702408; cv=none;
+        bh=cVuvolx0crP2RdRYi3l8AqoSD+eqXL2UwZAQBs6f87k=;
+        b=ex6gBds2pqOHRfPAH4z1y+r7c99905v2WlRaVWyx2zujML1Jhta52mjP6rwqidNedL
+         Ea+KIyrTdXNTdRECMEnI7GzPg3Ju6JXtpohyO15403G+CzHK9UHz/+omH4uVvaszKsjZ
+         61aK7Kuk43aC9lWT5921xAxdsSVGpBxoy9u2uECN3a7k8ZlqLxHHmhiZWDbvVRHz7eGO
+         XcfoHDyYB/v03G0XbNfTehBhGfjjPr+QVNLPYoooF3szrU7E8jQD7oOuVSSddJcms4+A
+         weATfBxs2A8sSHWUEN3lSQDjLVUWRnRxKC0BXIEcPnerWE7aYWGC8MaLLCEj6Tqr2Mzm
+         QYUw==
+X-Gm-Message-State: APjAAAUB8hLKbwON+r2QWnpihiUbCqYI1DF62OukVLZBluySnpEihrHQ
+	aePaaUaLOfQ/0yiM44OdvB2Orm27/R2hU21Ze7cbt495GV5Mnc+5rmADcLXnPW/tmXuqrwsEHpK
+	JxNkoL1iBcxhe/AYhU7eTpCZKLGtg5blgUe54eB+DSrMVK73Pn3wP2ETaOk0kOW0Cag==
+X-Received: by 2002:ac2:5ec6:: with SMTP id d6mr7972404lfq.131.1560702438839;
+        Sun, 16 Jun 2019 09:27:18 -0700 (PDT)
+X-Received: by 2002:ac2:5ec6:: with SMTP id d6mr7972380lfq.131.1560702438150;
+        Sun, 16 Jun 2019 09:27:18 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560702438; cv=none;
         d=google.com; s=arc-20160816;
-        b=ReyrRwn6OQUd4dbEBnoH3JfcLq0u9XcfFUqDrFZztYUP9/Af6PRgMjGU4GpMvf272B
-         J716n4l4DfwGRgAOemSV6gwIyQZOvPVGktAQGLHo3McUseo8scAehumhtXAFEsblxxZF
-         7AyM0l8R5AiRwtNV0Ix4oXScla6oDPTSpf8erOKPPXByhmX4hsxwvNqrlz6dQA+wOGi2
-         bJpWwvFvIqKWmZZBPjnpgSa7xwG7D4+hc87mOBA1mEdrGwJ3JnBzOSCOHmq+YLXxgi4a
-         XR4QqAbe+71uQIZ8bAzo0j8FLX/YTo6+Ff9yQAoMNNrNRkTATfk+CTE2IggnpEzM+gl3
-         FyNQ==
+        b=o0M7I6iT+jUAvYVSIdi9h6noW91ASU8/2y0uRkTRvYhNrIjPWXsP0VmI5Z7cOuu7If
+         izYwpkBpBrsvykowC35kdJZGzvU0iO5zbuoD5ZGXE8stUXKL+HpGJAGCFUr4TE7uAi4r
+         Rv+uMSspOyw3tEj+by42XM1x93eVGIfFuXoAtZVBjwZNDnqq8Yxllg9upvm07m8U5XnN
+         jNWoRlqZUv0SfxA4wNSdh08cpzkslL9OsSe50GSJrgUu+V//s+8DB08nkkbh5Pxih90h
+         RO27Z4EwHjA9rpyGk+SJBwtoz9yWQklc2ekMiP6lkqu0NXgXO3baj7M9FvvccvB1cipl
+         izpw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=in-reply-to:content-disposition:mime-version:references:message-id
          :subject:cc:to:from:date:dkim-signature;
-        bh=S2vKWdD0glGLsN86+msjXTlKQT0jYdW+WcffeWNC3YE=;
-        b=UpNOZ6blL9dY0Uyp/oYKm6Y1Vk0HEk8AMQtzBuWyC88IBY4CIfzfqHNHCJSlqhPExW
-         FY2jte/jtvCPEloxiheumXh6uE0Knpm7zkz/Fkyp2TQjUhfXiCC7hJzaZJlNBAahz6sp
-         nUWfKPmlvCg/T3ZzT0Lkqb7qFoHPC69TKLIbm2kgq3LR1masX0Bb2XeM5StsXocWDfGb
-         L1PKnURPPecvZCMl0zqR/A3V/DO30+w5R+Arm0wK0j1t8mTuQaBESBHr1B6opb/ks/Av
-         DI5Vh01XMIWk0mcnYTdipxXkOyRcEJGHAOVNZeSqBHFiYVfbE9hxELWBeY9VJIuPZRcb
-         wKqg==
+        bh=cVuvolx0crP2RdRYi3l8AqoSD+eqXL2UwZAQBs6f87k=;
+        b=U5BmykQbYdUZ1SOzj6xTFpZa/+NccRMRugofqPB5gRNgoAv3B4xm7utw25kKBiACqG
+         1bfYWbcl9NiVEXiFsKiAf3R14FO/ijlb+AVtizUu3vumyyLCABWMy00c7nylfiCWiF+m
+         yiTMeFPyqy3Z2ikkRRH+dYkcM+/u2PRaGf2HhcF1IyWoIN7CAfNBCWiLYkMUCnP3OCnv
+         ZUS+qHZK0BEzy9LKy+Fg7a5V+5gbizGZyzWRIaOERkikFu4JRqufmVEnC09tgom35nmJ
+         ixFBca/mskkIhu0KLda76f1zGTmi1TpEaDj57qJt14+HEg5hl3FGCzUL4SVv7KRZDfBR
+         YpDQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=ijVry35i;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=ritRXhRU;
        spf=pass (google.com: domain of vdavydov.dev@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=vdavydov.dev@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id o142sor2101409lff.32.2019.06.16.09.26.48
+        by mx.google.com with SMTPS id d26sor2009267lfj.65.2019.06.16.09.27.18
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sun, 16 Jun 2019 09:26:48 -0700 (PDT)
+        Sun, 16 Jun 2019 09:27:18 -0700 (PDT)
 Received-SPF: pass (google.com: domain of vdavydov.dev@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=ijVry35i;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=ritRXhRU;
        spf=pass (google.com: domain of vdavydov.dev@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=vdavydov.dev@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
         h=date:from:to:cc:subject:message-id:references:mime-version
          :content-disposition:in-reply-to;
-        bh=S2vKWdD0glGLsN86+msjXTlKQT0jYdW+WcffeWNC3YE=;
-        b=ijVry35ioGnqrLNPwg7Qdc3soSdUviCs43Ws+b7WZQpWZkrkjFpcNPtaadd05zyV27
-         eye1hNuVhPV0MdxY7n2cpTXpeBkrfTNXznuKI56iCV2VGMgcpznyH5UW3813WhJToN6a
-         zRVPg/Xc383rOwzNidEZMCeLIjPRu2BSu1gEuPuaOLuVC14it8GWaZjxANZYjVq6SCiM
-         yJ68jKLTUFLa6LKVMJLyZ6zGrg+qG/qlLsv29fZuMKd+2n37E5swqhwh4p0U8pcRXBx4
-         3qSawWU1Gj44vHvR4YtddyQ5m0ky31amOC/9CeXrdZFVMcrSZDBbxp8suFhXjS68oxfX
-         GngQ==
-X-Google-Smtp-Source: APXvYqwHsK9HmYkoBRaV5mX53vBWNhfqHOKQbpGSHLmmMgtNh9X4TDiaBlD50tp2dD18uvyneP0SXw==
-X-Received: by 2002:ac2:528e:: with SMTP id q14mr24437296lfm.17.1560702407939;
-        Sun, 16 Jun 2019 09:26:47 -0700 (PDT)
+        bh=cVuvolx0crP2RdRYi3l8AqoSD+eqXL2UwZAQBs6f87k=;
+        b=ritRXhRUWri2ajUBEJqAb8sN7dg1so0SakcFYpITeSodyL6ROwOWOP1wruSQb7gM0E
+         7v6zL7TWZjx4HEyzGcit1ShuLzToPmJWmc/hJw4+7X4KIKNjf/3eK0QhqY9G7X78+6wb
+         WeCCIKjMV9ERdSda39uHxZxuuViTUcjDR+nV24QFyTAcEGCqwf/MhFotRPdDxhkjO03g
+         2xJvt6erCxUEWOuNvuvY5gK21c7TMNkQXwrI4on+F8rb/hL0v12NyL01o04WyE41x1lq
+         foRlj2rPRgZ8U+Bggen1bNvqHkRLmKP7qNpb97M9YOVxRGp3JN/CZP9OEG7AReKQC/Q7
+         Rorw==
+X-Google-Smtp-Source: APXvYqzy25joefgU8Dw0kC+dz7ltpG9ilwsoYNoU+2LxGFnAeuLIcpR8rTBaAdSrO6lhpOx8cDgMDA==
+X-Received: by 2002:ac2:47fa:: with SMTP id b26mr18365774lfp.82.1560702437898;
+        Sun, 16 Jun 2019 09:27:17 -0700 (PDT)
 Received: from esperanza ([176.120.239.149])
-        by smtp.gmail.com with ESMTPSA id y12sm1482549lfy.36.2019.06.16.09.26.46
+        by smtp.gmail.com with ESMTPSA id q4sm1844099lje.99.2019.06.16.09.27.17
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Sun, 16 Jun 2019 09:26:47 -0700 (PDT)
-Date: Sun, 16 Jun 2019 19:26:45 +0300
+        Sun, 16 Jun 2019 09:27:17 -0700 (PDT)
+Date: Sun, 16 Jun 2019 19:27:16 +0300
 From: Vladimir Davydov <vdavydov.dev@gmail.com>
 To: Roman Gushchin <guro@fb.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
@@ -106,29 +106,32 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
 	Johannes Weiner <hannes@cmpxchg.org>,
 	Shakeel Butt <shakeelb@google.com>,
 	Waiman Long <longman@redhat.com>
-Subject: Re: [PATCH v7 06/10] mm: don't check the dying flag on kmem_cache
- creation
-Message-ID: <20190616162645.rbcjhqjceuuxgvgr@esperanza>
+Subject: Re: [PATCH v7 07/10] mm: synchronize access to kmem_cache dying flag
+ using a spinlock
+Message-ID: <20190616162716.broxurphhmvdzy5s@esperanza>
 References: <20190611231813.3148843-1-guro@fb.com>
- <20190611231813.3148843-7-guro@fb.com>
+ <20190611231813.3148843-8-guro@fb.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190611231813.3148843-7-guro@fb.com>
+In-Reply-To: <20190611231813.3148843-8-guro@fb.com>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jun 11, 2019 at 04:18:09PM -0700, Roman Gushchin wrote:
-> There is no point in checking the root_cache->memcg_params.dying
-> flag on kmem_cache creation path. New allocations shouldn't be
-> performed using a dead root kmem_cache, so no new memcg kmem_cache
-> creation can be scheduled after the flag is set. And if it was
-> scheduled before, flush_memcg_workqueue() will wait for it anyway.
+On Tue, Jun 11, 2019 at 04:18:10PM -0700, Roman Gushchin wrote:
+> Currently the memcg_params.dying flag and the corresponding
+> workqueue used for the asynchronous deactivation of kmem_caches
+> is synchronized using the slab_mutex.
 > 
-> So let's drop this check to simplify the code.
+> It makes impossible to check this flag from the irq context,
+> which will be required in order to implement asynchronous release
+> of kmem_caches.
+> 
+> So let's switch over to the irq-save flavor of the spinlock-based
+> synchronization.
 > 
 > Signed-off-by: Roman Gushchin <guro@fb.com>
 
