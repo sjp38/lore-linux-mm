@@ -2,229 +2,135 @@ Return-Path: <SRS0=z6ed=UP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.7 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
+	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0826DC31E50
-	for <linux-mm@archiver.kernel.org>; Sun, 16 Jun 2019 15:42:38 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 76257C31E50
+	for <linux-mm@archiver.kernel.org>; Sun, 16 Jun 2019 16:26:51 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id AF7C72063F
-	for <linux-mm@archiver.kernel.org>; Sun, 16 Jun 2019 15:42:37 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 0B82620679
+	for <linux-mm@archiver.kernel.org>; Sun, 16 Jun 2019 16:26:50 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="LQ8Jjksf"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AF7C72063F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="ijVry35i"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0B82620679
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4BE2B6B0005; Sun, 16 Jun 2019 11:42:37 -0400 (EDT)
+	id 538B06B0005; Sun, 16 Jun 2019 12:26:50 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 46F078E0002; Sun, 16 Jun 2019 11:42:37 -0400 (EDT)
+	id 4E9D88E0002; Sun, 16 Jun 2019 12:26:50 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 35DFD8E0001; Sun, 16 Jun 2019 11:42:37 -0400 (EDT)
+	id 365508E0001; Sun, 16 Jun 2019 12:26:50 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 0777D6B0005
-	for <linux-mm@kvack.org>; Sun, 16 Jun 2019 11:42:37 -0400 (EDT)
-Received: by mail-ot1-f70.google.com with SMTP id x27so3708992ote.6
-        for <linux-mm@kvack.org>; Sun, 16 Jun 2019 08:42:36 -0700 (PDT)
+Received: from mail-lf1-f69.google.com (mail-lf1-f69.google.com [209.85.167.69])
+	by kanga.kvack.org (Postfix) with ESMTP id C94E26B0005
+	for <linux-mm@kvack.org>; Sun, 16 Jun 2019 12:26:49 -0400 (EDT)
+Received: by mail-lf1-f69.google.com with SMTP id e13so660773lfb.18
+        for <linux-mm@kvack.org>; Sun, 16 Jun 2019 09:26:49 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=RUNNGKFAqP73eQ+vhxZTGCl7HcRBhNddyWHG8nJUMUI=;
-        b=JFfVhB31G/a0ujgXlBilvYW35LaZuH6m06ocR7BAuPXII0hUFb5LOFS9FWa5Nsqjm8
-         1p9caN7KfhLNn72Nh16bFeMxsnMiSnhHeymNtnyIvyDNYbeqOnFyYzylOAdrMNQbbcYe
-         6Gf2IVix3ndeNzrms39wCjba7ceK/oftEJIdA/LHS8o+EsSH+YR++N9wAjHSCs+vYbXt
-         +7Eu32mvwv5E26Zw2MYWSwohuEVuzvpzPRqAXZJc2sUhK5VEFLDaenOO6IxOcxoN0eRU
-         Gln8u8oUuG/uXP/kL+OCQ5X3+Vcki/iwzTSReL8AXUDgQEAwAHvljAuIPLio86Xs0Ei4
-         W1Tw==
-X-Gm-Message-State: APjAAAUa2fChmB8nMvtM982su/APqnEhHu5C3xqrNhAvk/uTtfu2rb0L
-	rb9t4D51zgwzmotNf6ZcidTTAR13vqCZjzp7LyhU1r1vk/nz1XK4tQB8U30JbSaZ2Dob8m9Wv7z
-	bO0ypMTPOtjCOkocJDlXfCjoAKI03N35zMLVjjYOh8qNcYuEM4Qd9SR2VaQnt34407w==
-X-Received: by 2002:aca:3a04:: with SMTP id h4mr7508788oia.90.1560699756584;
-        Sun, 16 Jun 2019 08:42:36 -0700 (PDT)
-X-Received: by 2002:aca:3a04:: with SMTP id h4mr7508760oia.90.1560699755662;
-        Sun, 16 Jun 2019 08:42:35 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560699755; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to;
+        bh=S2vKWdD0glGLsN86+msjXTlKQT0jYdW+WcffeWNC3YE=;
+        b=SGV06ArpBb0rorKwfOGoLQ/q2Xy5/Rnzkg2ksJJHUMlKbKAdxw+Y8rBeu29vMzvS7D
+         u3iFd6kJt2gvSFdIniorZKvTyO8vEXFBSljDZROyJC97t2mMMXBVFV6btyL34oUkxYaN
+         QJBEpQ42jzXB9djMXCLIp+lgCuK+PtVHMrR0FgPCuMRl8R1h1UrqayunAOnAFYZzxTBC
+         WunmCQJYp/mp/nQeAoRbPJWSFou1QZ5dydX58XahEpz6iHEroEkMziXVZv+dvn7Z5dSe
+         J8inZwN5H8vNt3y+2awtGahQ4o4ZbEyGTPbdUYCfiEl9T6NA0zR+K51mJoPNC0yeE/K5
+         9qpQ==
+X-Gm-Message-State: APjAAAVJLMGQqe6P/pk3yCF6VMcz6IfbQEq6s3UMRiQK/T+30Fl399cg
+	8BBR324l0vP1TgdD03H2KnKFbOz7uJsIJzJ8Gmev7ymXwxkkaiU9AVqZhiocYpluaSDVQp2MQ2L
+	Uy+dXD7KdXbaxEV726QbVhh2A25Y7Wv4kAD8X72Hjl97PeOSvFlDvxJGId1P2Lw8AOQ==
+X-Received: by 2002:a2e:900c:: with SMTP id h12mr29126625ljg.197.1560702408994;
+        Sun, 16 Jun 2019 09:26:48 -0700 (PDT)
+X-Received: by 2002:a2e:900c:: with SMTP id h12mr29126613ljg.197.1560702408280;
+        Sun, 16 Jun 2019 09:26:48 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560702408; cv=none;
         d=google.com; s=arc-20160816;
-        b=yvWDSjkKV2bIWRhwC/IWmhah9IB1yXtuwR5Bpx/TtVcdDd13A83vhxvZSPXpVUbewp
-         VhXcvTDlWQDQM9dhduEQ0+qb49r9HV6sx5FbxwaaDQl2rTGzMYmU/LSdpL0D1bEIqzHR
-         +vZoKDtNAQRYdsSDX+fcH5sh+we3LHoDu3eG0wAZ3YVTdQhYX+MRVqWGroiTyVMT5a2g
-         F1FTK/CG4CV61TJlPbu+BuFFhC6M7yi1JNDksC78nQEtufkwtlXpFpy75oVzmw/tw/dn
-         xcEWNzKlpO+NuWCmUPDQYE82AiMCvPA0M2kpx5VkrfVkrzeJ2wJkNZvDdJxHd3ubLGUX
-         2Sjw==
+        b=ReyrRwn6OQUd4dbEBnoH3JfcLq0u9XcfFUqDrFZztYUP9/Af6PRgMjGU4GpMvf272B
+         J716n4l4DfwGRgAOemSV6gwIyQZOvPVGktAQGLHo3McUseo8scAehumhtXAFEsblxxZF
+         7AyM0l8R5AiRwtNV0Ix4oXScla6oDPTSpf8erOKPPXByhmX4hsxwvNqrlz6dQA+wOGi2
+         bJpWwvFvIqKWmZZBPjnpgSa7xwG7D4+hc87mOBA1mEdrGwJ3JnBzOSCOHmq+YLXxgi4a
+         XR4QqAbe+71uQIZ8bAzo0j8FLX/YTo6+Ff9yQAoMNNrNRkTATfk+CTE2IggnpEzM+gl3
+         FyNQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=RUNNGKFAqP73eQ+vhxZTGCl7HcRBhNddyWHG8nJUMUI=;
-        b=nZkdQ0805BKTYMB03raKDhjsfO6xolbrrfNdOnD8bfFMisLjNRZRSkJ8vAEB7Jxjmr
-         1cL3K8Ka4C4YFKCH89TAo3jIkdbeQSww+4dS4x50TRkw1h69Ukvaxgq0r8U63JqncxWB
-         QEMyT3lxa6DgWjRYkV+7t8/TAHTUXuVN/htTpvgB4OHaPyqcHTgwaqKG7ZZ2fk4gjfOI
-         V0v5ZP/xly2z79BbtVwdB3pwfJRbeEr3JTv84i7v9ZoM4YrhelYpeiLvD0fxEkgGYbCb
-         WxIyVUOlsAsOKpkUuIHSRSKfvavxIvnfvCvTEWEWD2geSI1vYN4/+oegqyHcC+4BcAme
-         9MFQ==
+        h=in-reply-to:content-disposition:mime-version:references:message-id
+         :subject:cc:to:from:date:dkim-signature;
+        bh=S2vKWdD0glGLsN86+msjXTlKQT0jYdW+WcffeWNC3YE=;
+        b=UpNOZ6blL9dY0Uyp/oYKm6Y1Vk0HEk8AMQtzBuWyC88IBY4CIfzfqHNHCJSlqhPExW
+         FY2jte/jtvCPEloxiheumXh6uE0Knpm7zkz/Fkyp2TQjUhfXiCC7hJzaZJlNBAahz6sp
+         nUWfKPmlvCg/T3ZzT0Lkqb7qFoHPC69TKLIbm2kgq3LR1masX0Bb2XeM5StsXocWDfGb
+         L1PKnURPPecvZCMl0zqR/A3V/DO30+w5R+Arm0wK0j1t8mTuQaBESBHr1B6opb/ks/Av
+         DI5Vh01XMIWk0mcnYTdipxXkOyRcEJGHAOVNZeSqBHFiYVfbE9hxELWBeY9VJIuPZRcb
+         wKqg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=LQ8Jjksf;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=ijVry35i;
+       spf=pass (google.com: domain of vdavydov.dev@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=vdavydov.dev@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id c126sor3608342oif.122.2019.06.16.08.42.35
+        by mx.google.com with SMTPS id o142sor2101409lff.32.2019.06.16.09.26.48
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sun, 16 Jun 2019 08:42:35 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Sun, 16 Jun 2019 09:26:48 -0700 (PDT)
+Received-SPF: pass (google.com: domain of vdavydov.dev@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=LQ8Jjksf;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=ijVry35i;
+       spf=pass (google.com: domain of vdavydov.dev@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=vdavydov.dev@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=intel-com.20150623.gappssmtp.com; s=20150623;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=RUNNGKFAqP73eQ+vhxZTGCl7HcRBhNddyWHG8nJUMUI=;
-        b=LQ8JjksfqkPqT+AF46Yc03Ej6i8p1rWl1/IVeA7w3nWMjVEJZM5leo0PwrZJmp9Juw
-         98lmube2TqS7nKbeNulDuInyvRZ4nnLdljkF61bbMmvpUcvGspoD8rzE0JccY7/bsJdQ
-         mqR3NPbUDWb0qbRRzpRStr/hW3YkYGeItzZC8yMruQdUuXGQe5MRt5ZUypkYKYcTVqu5
-         VdsHWP2INuUo5oxMOCbePF3tNSNrvuZzG9YGmd+9UnPr01GAvr3drZrffStG1vXLoWnA
-         grB8f6fSEPqp4+LiumsBCQJEyT4len2EriwA8MAdla3jvUIL4926+VnZsJChR4/qW+5E
-         2uXg==
-X-Google-Smtp-Source: APXvYqz5ThqlZvek/o7JX8YjwJYFis1l8vaDPT5C2EIAlKdd8IIFq/qRIv6mpTv47DqSx/ZSvypWcoDwPeSeqggWVXk=
-X-Received: by 2002:aca:fc50:: with SMTP id a77mr8120678oii.0.1560699755129;
- Sun, 16 Jun 2019 08:42:35 -0700 (PDT)
+        d=gmail.com; s=20161025;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to;
+        bh=S2vKWdD0glGLsN86+msjXTlKQT0jYdW+WcffeWNC3YE=;
+        b=ijVry35ioGnqrLNPwg7Qdc3soSdUviCs43Ws+b7WZQpWZkrkjFpcNPtaadd05zyV27
+         eye1hNuVhPV0MdxY7n2cpTXpeBkrfTNXznuKI56iCV2VGMgcpznyH5UW3813WhJToN6a
+         zRVPg/Xc383rOwzNidEZMCeLIjPRu2BSu1gEuPuaOLuVC14it8GWaZjxANZYjVq6SCiM
+         yJ68jKLTUFLa6LKVMJLyZ6zGrg+qG/qlLsv29fZuMKd+2n37E5swqhwh4p0U8pcRXBx4
+         3qSawWU1Gj44vHvR4YtddyQ5m0ky31amOC/9CeXrdZFVMcrSZDBbxp8suFhXjS68oxfX
+         GngQ==
+X-Google-Smtp-Source: APXvYqwHsK9HmYkoBRaV5mX53vBWNhfqHOKQbpGSHLmmMgtNh9X4TDiaBlD50tp2dD18uvyneP0SXw==
+X-Received: by 2002:ac2:528e:: with SMTP id q14mr24437296lfm.17.1560702407939;
+        Sun, 16 Jun 2019 09:26:47 -0700 (PDT)
+Received: from esperanza ([176.120.239.149])
+        by smtp.gmail.com with ESMTPSA id y12sm1482549lfy.36.2019.06.16.09.26.46
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Sun, 16 Jun 2019 09:26:47 -0700 (PDT)
+Date: Sun, 16 Jun 2019 19:26:45 +0300
+From: Vladimir Davydov <vdavydov.dev@gmail.com>
+To: Roman Gushchin <guro@fb.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org, kernel-team@fb.com,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	Shakeel Butt <shakeelb@google.com>,
+	Waiman Long <longman@redhat.com>
+Subject: Re: [PATCH v7 06/10] mm: don't check the dying flag on kmem_cache
+ creation
+Message-ID: <20190616162645.rbcjhqjceuuxgvgr@esperanza>
+References: <20190611231813.3148843-1-guro@fb.com>
+ <20190611231813.3148843-7-guro@fb.com>
 MIME-Version: 1.0
-References: <1560366952-10660-1-git-send-email-cai@lca.pw> <CAPcyv4hn0Vz24s5EWKr39roXORtBTevZf7dDutH+jwapgV3oSw@mail.gmail.com>
- <CAPcyv4iuNYXmF0-EMP8GF5aiPsWF+pOFMYKCnr509WoAQ0VNUA@mail.gmail.com>
- <1560376072.5154.6.camel@lca.pw> <87lfy4ilvj.fsf@linux.ibm.com>
- <1560524365.5154.21.camel@lca.pw> <CAPcyv4jAzMzFjSD22VU9Csw+kgGbf8r=XHbdJYzgL_uH_GVEvw@mail.gmail.com>
- <CAPcyv4hjvBPDYKpp2Gns3-cc2AQ0AVS1nLk-K3fwXeRUvvzQLg@mail.gmail.com>
- <1560541220.5154.23.camel@lca.pw> <CAPcyv4i5iUop_H-Ai4q_hn2-3L6aRuovY44tuV50bp1oZj29TQ@mail.gmail.com>
- <1560544982.5154.24.camel@lca.pw>
-In-Reply-To: <1560544982.5154.24.camel@lca.pw>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Sun, 16 Jun 2019 08:42:22 -0700
-Message-ID: <CAPcyv4hyQsAhw35hc4S7hJ2Mh7qwu6ANuh9Bs174okWZZwujgg@mail.gmail.com>
-Subject: Re: [PATCH -next] mm/hotplug: skip bad PFNs from pfn_to_online_page()
-To: Qian Cai <cai@lca.pw>
-Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, 
-	Oscar Salvador <osalvador@suse.de>, Linux MM <linux-mm@kvack.org>, 
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190611231813.3148843-7-guro@fb.com>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jun 14, 2019 at 1:43 PM Qian Cai <cai@lca.pw> wrote:
->
-> On Fri, 2019-06-14 at 12:48 -0700, Dan Williams wrote:
-> > On Fri, Jun 14, 2019 at 12:40 PM Qian Cai <cai@lca.pw> wrote:
-> > >
-> > > On Fri, 2019-06-14 at 11:57 -0700, Dan Williams wrote:
-> > > > On Fri, Jun 14, 2019 at 11:03 AM Dan Williams <dan.j.williams@intel.com>
-> > > > wrote:
-> > > > >
-> > > > > On Fri, Jun 14, 2019 at 7:59 AM Qian Cai <cai@lca.pw> wrote:
-> > > > > >
-> > > > > > On Fri, 2019-06-14 at 14:28 +0530, Aneesh Kumar K.V wrote:
-> > > > > > > Qian Cai <cai@lca.pw> writes:
-> > > > > > >
-> > > > > > >
-> > > > > > > > 1) offline is busted [1]. It looks like test_pages_in_a_zone()
-> > > > > > > > missed
-> > > > > > > > the
-> > > > > > > > same
-> > > > > > > > pfn_section_valid() check.
-> > > > > > > >
-> > > > > > > > 2) powerpc booting is generating endless warnings [2]. In
-> > > > > > > > vmemmap_populated() at
-> > > > > > > > arch/powerpc/mm/init_64.c, I tried to change PAGES_PER_SECTION to
-> > > > > > > > PAGES_PER_SUBSECTION, but it alone seems not enough.
-> > > > > > > >
-> > > > > > >
-> > > > > > > Can you check with this change on ppc64.  I haven't reviewed this
-> > > > > > > series
-> > > > > > > yet.
-> > > > > > > I did limited testing with change . Before merging this I need to go
-> > > > > > > through the full series again. The vmemmap poplulate on ppc64 needs
-> > > > > > > to
-> > > > > > > handle two translation mode (hash and radix). With respect to vmemap
-> > > > > > > hash doesn't setup a translation in the linux page table. Hence we
-> > > > > > > need
-> > > > > > > to make sure we don't try to setup a mapping for a range which is
-> > > > > > > arleady convered by an existing mapping.
-> > > > > >
-> > > > > > It works fine.
-> > > > >
-> > > > > Strange... it would only change behavior if valid_section() is true
-> > > > > when pfn_valid() is not or vice versa. They "should" be identical
-> > > > > because subsection-size == section-size on PowerPC, at least with the
-> > > > > current definition of SUBSECTION_SHIFT. I suspect maybe
-> > > > > free_area_init_nodes() is too late to call subsection_map_init() for
-> > > > > PowerPC.
-> > > >
-> > > > Can you give the attached incremental patch a try? This will break
-> > > > support for doing sub-section hot-add in a section that was only
-> > > > partially populated early at init, but that can be repaired later in
-> > > > the series. First things first, don't regress.
-> > > >
-> > > > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > > > index 874eb22d22e4..520c83aa0fec 100644
-> > > > --- a/mm/page_alloc.c
-> > > > +++ b/mm/page_alloc.c
-> > > > @@ -7286,12 +7286,10 @@ void __init free_area_init_nodes(unsigned long
-> > > > *max_zone_pfn)
-> > > >
-> > > >         /* Print out the early node map */
-> > > >         pr_info("Early memory node ranges\n");
-> > > > -       for_each_mem_pfn_range(i, MAX_NUMNODES, &start_pfn, &end_pfn,
-> > > > &nid) {
-> > > > +       for_each_mem_pfn_range(i, MAX_NUMNODES, &start_pfn, &end_pfn,
-> > > > &nid)
-> > > >                 pr_info("  node %3d: [mem %#018Lx-%#018Lx]\n", nid,
-> > > >                         (u64)start_pfn << PAGE_SHIFT,
-> > > >                         ((u64)end_pfn << PAGE_SHIFT) - 1);
-> > > > -               subsection_map_init(start_pfn, end_pfn - start_pfn);
-> > > > -       }
-> > > >
-> > > >         /* Initialise every node */
-> > > >         mminit_verify_pageflags_layout();
-> > > > diff --git a/mm/sparse.c b/mm/sparse.c
-> > > > index 0baa2e55cfdd..bca8e6fa72d2 100644
-> > > > --- a/mm/sparse.c
-> > > > +++ b/mm/sparse.c
-> > > > @@ -533,6 +533,7 @@ static void __init sparse_init_nid(int nid,
-> > > > unsigned long pnum_begin,
-> > > >                 }
-> > > >                 check_usemap_section_nr(nid, usage);
-> > > >                 sparse_init_one_section(__nr_to_section(pnum), pnum,
-> > > > map, usage);
-> > > > +               subsection_map_init(section_nr_to_pfn(pnum),
-> > > > PAGES_PER_SECTION);
-> > > >                 usage = (void *) usage + mem_section_usage_size();
-> > > >         }
-> > > >         sparse_buffer_fini();
-> > >
-> > > It works fine except it starts to trigger slab debugging errors during boot.
-> > > Not
-> > > sure if it is related yet.
-> >
-> > If you want you can give this branch a try if you suspect something
-> > else in -next is triggering the slab warning.
-> >
-> > https://git.kernel.org/pub/scm/linux/kernel/git/djbw/nvdimm.git/log/?h=subsect
-> > ion-v9
-> >
-> > It's the original v9 patchset + dependencies backported to v5.2-rc4.
-> >
-> > I otherwise don't see how subsections would effect slab caches.
->
-> It works fine there.
+On Tue, Jun 11, 2019 at 04:18:09PM -0700, Roman Gushchin wrote:
+> There is no point in checking the root_cache->memcg_params.dying
+> flag on kmem_cache creation path. New allocations shouldn't be
+> performed using a dead root kmem_cache, so no new memcg kmem_cache
+> creation can be scheduled after the flag is set. And if it was
+> scheduled before, flush_memcg_workqueue() will wait for it anyway.
+> 
+> So let's drop this check to simplify the code.
+> 
+> Signed-off-by: Roman Gushchin <guro@fb.com>
 
-Much appreciated Qian!
-
-Does this change modulate the x86 failures?
+Acked-by: Vladimir Davydov <vdavydov.dev@gmail.com>
 
