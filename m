@@ -2,183 +2,162 @@ Return-Path: <SRS0=z6ed=UP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id F302AC31E49
-	for <linux-mm@archiver.kernel.org>; Sun, 16 Jun 2019 06:07:13 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8E58AC31E49
+	for <linux-mm@archiver.kernel.org>; Sun, 16 Jun 2019 06:30:21 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B1F792133D
-	for <linux-mm@archiver.kernel.org>; Sun, 16 Jun 2019 06:07:13 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B1F792133D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id 2B6D4216C8
+	for <linux-mm@archiver.kernel.org>; Sun, 16 Jun 2019 06:30:21 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2B6D4216C8
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 497236B0007; Sun, 16 Jun 2019 02:07:13 -0400 (EDT)
+	id A2ADC6B0005; Sun, 16 Jun 2019 02:30:20 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4214B6B0008; Sun, 16 Jun 2019 02:07:13 -0400 (EDT)
+	id 9DC836B0006; Sun, 16 Jun 2019 02:30:20 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2C1EE8E0001; Sun, 16 Jun 2019 02:07:13 -0400 (EDT)
+	id 8CABB8E0001; Sun, 16 Jun 2019 02:30:20 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E89366B0007
-	for <linux-mm@kvack.org>; Sun, 16 Jun 2019 02:07:12 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id x3so5197248pgp.8
-        for <linux-mm@kvack.org>; Sat, 15 Jun 2019 23:07:12 -0700 (PDT)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 58E9F6B0005
+	for <linux-mm@kvack.org>; Sun, 16 Jun 2019 02:30:20 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id a21so5215531pgh.11
+        for <linux-mm@kvack.org>; Sat, 15 Jun 2019 23:30:20 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:in-reply-to:references:date:mime-version:message-id;
-        bh=dGjhz4aQzyD59eRLNizOYahJSu+PAkI6ueO7uaOQLME=;
-        b=npwrQKx7VyitbdGEWkGiryFHf7WHwAXKHdDy4EI8mCEGAKIvsWE7uMcgWBx1950zNt
-         I14RztnNNhZo7ByNNa6ZHqSnr4x9TceiVF/xjGA8MOPbCjZOfUFgc2ZUThx56Xmb9WLl
-         ue64DcY8P3L/iK4Rf3aW632sPzM+nZxB//krdXHXru0FS8f+jm2KhDVyxDPfUhnADK4j
-         il0dJLXxo6d+mToKGG1WEJ7j2ZOstxDF6xxYpjKWB4CyIrFmJgbq3aT2tEP7yLXAYiJv
-         +y8whs+62dTtTaEmQ/76daEF4zS3vjOECH2Y+iW7IOfvSfaJ/X2u5KlUNs5x1DtOKBWt
-         M6JA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: APjAAAXE4d4v703heZ5dodJHc59fGltyWi0XnH+BvFEJW1mWxGpPGpvi
-	C/tnTBQfk8Cs/z7gYng6aenvWEYSzenrvqxIpnFUOVNsBdKMotDISOvyseBeser9so+23AJaDiz
-	YHx+P0pSFmSmSRIaruJt0mLBoAuGorexNdP3Isfx33ZgYB6y9Z5tncnyyQJDRi3paJQ==
-X-Received: by 2002:a17:90a:af8b:: with SMTP id w11mr19675434pjq.135.1560665232627;
-        Sat, 15 Jun 2019 23:07:12 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxT5qA6INXS0XrZ72J3rEXxtwjPaBU6fZ+uMt3XXLycEV9GvownggnHxoFpBYGEXDIIkl5u
-X-Received: by 2002:a17:90a:af8b:: with SMTP id w11mr19675394pjq.135.1560665231823;
-        Sat, 15 Jun 2019 23:07:11 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560665231; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:reply-to
+         :subject:to:cc:references:from:message-id:date:user-agent
+         :mime-version:in-reply-to:content-transfer-encoding;
+        bh=fFEA8zdSlEnQuWcdFSG3Cpntvj8uFz7RX2klKKQGmWI=;
+        b=eyQ8JtpeGrb11d6GeHujfNh1Ds/orsmQy/+JJpm/FiuIg+dDCFDUF3TWitpSocl7Ve
+         7NkcUSOJ84CjVNTrPOFIvTZf9GD8S9CzH22M1whw4TonzM7OqmEp2v6NawWZafqWF5Tq
+         qPzkvCyc/2yLxbPzJpG3ozpAaPaeJupLTRH/5w9yKPBf6sVdQEjtlJEmhxOWiYBd2UpW
+         lNCSBTnq2/sSV12Rz4esH4W4iPNprbkk84D5K4DcB4ES2Xw7l/SeSEJ2DVUroiVZNMnw
+         g7ZFza2XiXWgIrR6m7bdaNeK2xxCNK1a5hBtGfvE2aORQVueC5Rzj9rwkoRemBowezX8
+         P1sw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of xlpang@linux.alibaba.com designates 47.88.44.36 as permitted sender) smtp.mailfrom=xlpang@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Gm-Message-State: APjAAAUuueJLaIPn+YpB8UE9qk+FhAIJj5oryk0sNhkMecuRw87NLZBd
+	f6BEZaBwngT8RppNFZ2+lhJH6eRNK8lfeXczWwnrJPLunt1lKk231aQaOnkl70Irt7/8gcmySN9
+	2kVylrO81xPt2MPXE+HBNAtlAx8Lpw+uo0jlpCviN1SC7/LbK94OkVSFgRPjE3TFfgA==
+X-Received: by 2002:a63:6a47:: with SMTP id f68mr24930119pgc.230.1560666619810;
+        Sat, 15 Jun 2019 23:30:19 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyEfxVZkQr+KGxWotEu9f6Zs+u1raIXpodJXg6GhC+1dC7VI+CrcFneIvDhqJbG+PELWbwU
+X-Received: by 2002:a63:6a47:: with SMTP id f68mr24930044pgc.230.1560666618795;
+        Sat, 15 Jun 2019 23:30:18 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560666618; cv=none;
         d=google.com; s=arc-20160816;
-        b=btqj3blLXsXzgFYQeQhvgdmqce66dX2H7iKWE52loTbvV06MjI21wl21UxATwQXB4n
-         jtZb2HvRbO0MY0NdvuR9drbGZB7j4HPaLtenbzHpytyY4SE7DEWgTeMkrleLGKe/DbSY
-         vbPaJl0gcVagsw5lEvBjMlrLtZ8lceuGc+dnzw+mGBBcoAgOV1oXyNC/nVbejbtF88ag
-         sAEHeyci67IpcTmZwuHBf3oCvnEDqiNwmIhaTBMu7XbLeTRp7Qpni7SJIPUSLydybwus
-         kMgBt3kOnxXlZFV70v2qKA1V2yVur/3chjFHL1/EkcQsruw9Yvw19Ue3e+AFieMs2gDv
-         YM2w==
+        b=afCy+svh/bYQA1vD9EchSBPwb13kDN5Cs81i2h9umZutMqN3Kr+uMr+tUGJ+6esjZT
+         VL8Cmy7npkOLHmP5cGVCfHWRh0hyZFkSjtCCk28kue1OTwkjM4vHN2TYk02fSbW6QyYv
+         GQjrJXGYHokT4Y2kPy1wMdKB5YaWa7oJALIDoz28y8p7HnPb76BTiAtvWiUQ9ET8kND8
+         yfY/sohuAHhiGmQP8XHvfYYGsj3QMb+BzW+uXWq031oBNC0x7XVHqflCuvMgtP4HMAlB
+         D3BJTQQEAHS7YzI5z1/cUChrJwNT+kDYte+g+wMy/EIRerp3aEEL3iJJVPH3z9PYSrWJ
+         D6QQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:mime-version:date:references:in-reply-to:subject:cc:to
-         :from;
-        bh=dGjhz4aQzyD59eRLNizOYahJSu+PAkI6ueO7uaOQLME=;
-        b=FP7XviXJEvK1xhoHzQKYyi8ky6NV+uCSZDGa0dOyxphxOd0iI4LUc6iEyEb/vgOQnp
-         yvBLFePjNYaN596C/wod3tfk7f7mhnsfplOJiT7t8CvlZorutLgp0YTucAAwBLhHSkAz
-         Oa2fkPAok7QWDAajYVB9d2L9d/h33V0x0McUwrklLzRycPs004iw9euaAvuIbZYKZ2FO
-         uQEae6sc6Rd4JRWuyjF/qua6yZPMw9XtuH00moJEra5jQ1Q/Y3d67fln6FvcA6BXptEf
-         QBJxI1CY2S+vACbR0bHlMtYt2DPl93NyfTrBQHGoLisWrwpHmUMSJR5HBKMOTaLvUWlK
-         hoUg==
+        h=content-transfer-encoding:in-reply-to:mime-version:user-agent:date
+         :message-id:from:references:cc:to:subject:reply-to;
+        bh=fFEA8zdSlEnQuWcdFSG3Cpntvj8uFz7RX2klKKQGmWI=;
+        b=nTQAXnpca9FEKGCTI7CMjmlL/lnCgU4SyzyTDdgKq/z3BoQpfklVV7KhZCx1sWIAi3
+         rIxEYyVRKOmo5qIBZYaSE7Jv/RUPn/w1ao6ofAVVtDo8KrJLE58jkd0nCQmOGHfUPMB4
+         GnZHZEHhTm98Xb9SQ+xiGRdq22MEJITqSE+KkLzYiqZxZ/99kheDKZDlY11KbHtV+dGt
+         kM8uiJsqrh82Q0047Aj20RjVbeNd2Sd2J8NuSJ4s7thGgYFNmXEV1LXp665NJhGmxpRK
+         mKHLpoiOHd/xZ2UtehAdTa/v4XNLBOw0FR4UV/mtjWpcNOAujWHkQuWazE0+GIbhuuhU
+         rPIw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id w11si6518547pjq.17.2019.06.15.23.07.11
+       spf=pass (google.com: domain of xlpang@linux.alibaba.com designates 47.88.44.36 as permitted sender) smtp.mailfrom=xlpang@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+Received: from out4436.biz.mail.alibaba.com (out4436.biz.mail.alibaba.com. [47.88.44.36])
+        by mx.google.com with ESMTPS id s3si7242827pgm.208.2019.06.15.23.30.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 15 Jun 2019 23:07:11 -0700 (PDT)
-Received-SPF: pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
+        Sat, 15 Jun 2019 23:30:18 -0700 (PDT)
+Received-SPF: pass (google.com: domain of xlpang@linux.alibaba.com designates 47.88.44.36 as permitted sender) client-ip=47.88.44.36;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x5G679O0127136
-	for <linux-mm@kvack.org>; Sun, 16 Jun 2019 02:07:11 -0400
-Received: from e06smtp02.uk.ibm.com (e06smtp02.uk.ibm.com [195.75.94.98])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2t5e6wjvue-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Sun, 16 Jun 2019 02:07:10 -0400
-Received: from localhost
-	by e06smtp02.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
-	Sun, 16 Jun 2019 07:06:56 +0100
-Received: from b06cxnps4074.portsmouth.uk.ibm.com (9.149.109.196)
-	by e06smtp02.uk.ibm.com (192.168.101.132) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Sun, 16 Jun 2019 07:06:53 +0100
-Received: from d06av26.portsmouth.uk.ibm.com (d06av26.portsmouth.uk.ibm.com [9.149.105.62])
-	by b06cxnps4074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x5G66qk146596116
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Sun, 16 Jun 2019 06:06:52 GMT
-Received: from d06av26.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 6DDACAE04D;
-	Sun, 16 Jun 2019 06:06:52 +0000 (GMT)
-Received: from d06av26.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 12D30AE045;
-	Sun, 16 Jun 2019 06:06:50 +0000 (GMT)
-Received: from skywalker.linux.ibm.com (unknown [9.85.86.48])
-	by d06av26.portsmouth.uk.ibm.com (Postfix) with ESMTP;
-	Sun, 16 Jun 2019 06:06:49 +0000 (GMT)
-X-Mailer: emacs 26.2 (via feedmail 11-beta-1 I)
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-To: Dan Williams <dan.j.williams@intel.com>, akpm@linux-foundation.org
-Cc: Michal Hocko <mhocko@suse.com>, David Hildenbrand <david@redhat.com>,
-        Logan Gunthorpe <logang@deltatee.com>,
-        Oscar Salvador <osalvador@suse.de>,
-        Pavel Tatashin <pasha.tatashin@soleen.com>, linux-mm@kvack.org,
-        linux-nvdimm@lists.01.org, linux-kernel@vger.kernel.org,
-        osalvador@suse.de, mhocko@suse.com
-Subject: Re: [PATCH v9 04/12] mm/sparsemem: Convert kmalloc_section_memmap() to populate_section_memmap()
-In-Reply-To: <155977189139.2443951.460884430946346998.stgit@dwillia2-desk3.amr.corp.intel.com>
-References: <155977186863.2443951.9036044808311959913.stgit@dwillia2-desk3.amr.corp.intel.com> <155977189139.2443951.460884430946346998.stgit@dwillia2-desk3.amr.corp.intel.com>
-Date: Sun, 16 Jun 2019 11:36:47 +0530
+       spf=pass (google.com: domain of xlpang@linux.alibaba.com designates 47.88.44.36 as permitted sender) smtp.mailfrom=xlpang@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R141e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01f04446;MF=xlpang@linux.alibaba.com;NM=1;PH=DS;RN=6;SR=0;TI=SMTPD_---0TUIXG5o_1560666600;
+Received: from xunleideMacBook-Pro.local(mailfrom:xlpang@linux.alibaba.com fp:SMTPD_---0TUIXG5o_1560666600)
+          by smtp.aliyun-inc.com(127.0.0.1);
+          Sun, 16 Jun 2019 14:30:01 +0800
+Reply-To: xlpang@linux.alibaba.com
+Subject: Re: [PATCH] memcg: Ignore unprotected parent in
+ mem_cgroup_protected()
+To: Chris Down <chris@chrisdown.name>
+Cc: Roman Gushchin <guro@fb.com>, Michal Hocko <mhocko@kernel.org>,
+ Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org,
+ linux-mm@kvack.org
+References: <20190615111704.63901-1-xlpang@linux.alibaba.com>
+ <20190615160820.GB1307@chrisdown.name>
+From: Xunlei Pang <xlpang@linux.alibaba.com>
+Message-ID: <711f086e-a2e5-bccd-72b6-b314c4461686@linux.alibaba.com>
+Date: Sun, 16 Jun 2019 14:30:00 +0800
+User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:60.0)
+ Gecko/20100101 Thunderbird/60.7.1
 MIME-Version: 1.0
-Content-Type: text/plain
-X-TM-AS-GCONF: 00
-x-cbid: 19061606-0008-0000-0000-000002F42096
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19061606-0009-0000-0000-000022612EA1
-Message-Id: <8736kahxmw.fsf@linux.ibm.com>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-06-16_02:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1906160060
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+In-Reply-To: <20190615160820.GB1307@chrisdown.name>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.001028, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Dan Williams <dan.j.williams@intel.com> writes:
+Hi Chirs,
 
-> Allow sub-section sized ranges to be added to the memmap.
-> populate_section_memmap() takes an explict pfn range rather than
-> assuming a full section, and those parameters are plumbed all the way
-> through to vmmemap_populate(). There should be no sub-section usage in
-> current deployments. New warnings are added to clarify which memmap
-> allocation paths are sub-section capable.
->
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: David Hildenbrand <david@redhat.com>
-> Cc: Logan Gunthorpe <logang@deltatee.com>
-> Cc: Oscar Salvador <osalvador@suse.de>
-> Reviewed-by: Pavel Tatashin <pasha.tatashin@soleen.com>
-> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
-> ---
->  arch/x86/mm/init_64.c |    4 ++-
->  include/linux/mm.h    |    4 ++-
->  mm/sparse-vmemmap.c   |   21 +++++++++++------
->  mm/sparse.c           |   61 +++++++++++++++++++++++++++++++------------------
->  4 files changed, 57 insertions(+), 33 deletions(-)
->
-> diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
-> index 8335ac6e1112..688fb0687e55 100644
-> --- a/arch/x86/mm/init_64.c
-> +++ b/arch/x86/mm/init_64.c
-> @@ -1520,7 +1520,9 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
->  {
->  	int err;
->  
-> -	if (boot_cpu_has(X86_FEATURE_PSE))
-> +	if (end - start < PAGES_PER_SECTION * sizeof(struct page))
-> +		err = vmemmap_populate_basepages(start, end, node);
-> +	else if (boot_cpu_has(X86_FEATURE_PSE))
->  		err = vmemmap_populate_hugepages(start, end, node, altmap);
->  	else if (altmap) {
->  		pr_err_once("%s: no cpu support for altmap allocations\n",
+On 2019/6/16 AM 12:08, Chris Down wrote:
+> Hi Xunlei,
+> 
+> Xunlei Pang writes:
+>> Currently memory.min|low implementation requires the whole
+>> hierarchy has the settings, otherwise the protection will
+>> be broken.
+>>
+>> Our hierarchy is kind of like(memory.min value in brackets),
+>>
+>>               root
+>>                |
+>>             docker(0)
+>>              /    \
+>>         c1(max)   c2(0)
+>>
+>> Note that "docker" doesn't set memory.min. When kswapd runs,
+>> mem_cgroup_protected() returns "0" emin for "c1" due to "0"
+>> @parent_emin of "docker", as a result "c1" gets reclaimed.
+>>
+>> But it's hard to maintain parent's "memory.min" when there're
+>> uncertain protected children because only some important types
+>> of containers need the protection.  Further, control tasks
+>> belonging to parent constantly reproduce trivial memory which
+>> should not be protected at all.  It makes sense to ignore
+>> unprotected parent in this scenario to achieve the flexibility.
+> 
+> I'm really confused by this, why don't you just set memory.{min,low} in
+> the docker cgroup and only propagate it to the children that want it?
+> 
+> If you only want some children to have the protection, only request it
+> in those children, or create an additional intermediate layer of the
+> cgroup hierarchy with protections further limited if you don't trust the
+> task to request the right amount.
+> 
+> Breaking the requirement for hierarchical propagation of protections
+> seems like a really questionable API change, not least because it makes
+> it harder to set systemwide policies about the constraints of
+> protections within a subtree.
 
-Can we move this to another patch? I am wondering what the x86 behaviour
-here is? If the range is less that PAGES_PER_SECTION we don't allow to
-use pmem as the map device? We sliently use memory range?
+docker and various types(different memory capacity) of containers
+are managed by k8s, it's a burden for k8s to maintain those dynamic
+figures, simply set "max" to key containers is always welcome.
 
--aneesh
+Set "max" to docker also protects docker cgroup memory(as docker
+itself has tasks) unnecessarily.
+
+This patch doesn't take effect on any intermediate layer with
+positive memory.min set, it requires all the ancestors having
+0 memory.min to work.
+
+Nothing special change, but more flexible to business deployment...
 
