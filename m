@@ -2,151 +2,179 @@ Return-Path: <SRS0=4FFe=UQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.0 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3A7ACC46477
-	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 13:15:24 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A46E1C31E57
+	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 13:15:51 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D9CA42082C
-	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 13:15:23 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 4E6DD2082C
+	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 13:15:51 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="Xt2zW3Cs"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D9CA42082C
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	dkim=pass (1024-bit key) header.d=mev.co.uk header.i=@mev.co.uk header.b="Nl+Gx2+K"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4E6DD2082C
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=mev.co.uk
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 44FB68E0003; Mon, 17 Jun 2019 09:15:23 -0400 (EDT)
+	id 009EF8E0004; Mon, 17 Jun 2019 09:15:51 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 401098E0001; Mon, 17 Jun 2019 09:15:23 -0400 (EDT)
+	id EFC328E0001; Mon, 17 Jun 2019 09:15:50 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2C7FF8E0003; Mon, 17 Jun 2019 09:15:23 -0400 (EDT)
+	id DC4248E0004; Mon, 17 Jun 2019 09:15:50 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E7B9C8E0001
-	for <linux-mm@kvack.org>; Mon, 17 Jun 2019 09:15:22 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id l184so7714792pgd.18
-        for <linux-mm@kvack.org>; Mon, 17 Jun 2019 06:15:22 -0700 (PDT)
+Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
+	by kanga.kvack.org (Postfix) with ESMTP id BE0058E0001
+	for <linux-mm@kvack.org>; Mon, 17 Jun 2019 09:15:50 -0400 (EDT)
+Received: by mail-io1-f70.google.com with SMTP id f22so12088199ioh.22
+        for <linux-mm@kvack.org>; Mon, 17 Jun 2019 06:15:50 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=g2RSyr1LswKR5yVaExwwUghHr8GGOtj1VRSVsfBu1GQ=;
-        b=mainoWHNQYhj7tuIUIx0qol36I2ZBp8AIu4vh2JR4sDnv8CvUfZj4pCtZQgaOY76K1
-         CT+lLqNVEGmwlAL8yJKdjpDewZLE3Ac7LNwiJTzNp3LqwSx6j8zviI3je6ujyBMlVOvB
-         p2hTe6rpzF3xq4FGaeTrzNpHhyd0bpXc/sYno053k2cwrpshNd0O73dIm235gdlVURM8
-         AZx7Elv9hjqa13Vco/fKDBTYjA77TqR6BUqUp1jTzws/HajgNAeqbIOcGUgbsYVm0K1X
-         vOl1PF695IZUcJ7MCcOWQtjh8qxkt3vqCfSasTDA6DJfmvz2tCGxao3ifJxnenuZL5bX
-         5utg==
-X-Gm-Message-State: APjAAAUbgL7CNFbjOQR9mxIMUyL7IIT8zU6F09QPA++IQSIEGtPI3XX+
-	GckLeN8LnB+JvtMPb48XL7MWDGF4wdzOQgliRbkt3CJLLSWzWpR6XrX7EJGDM/WQdNQmnqfbQt/
-	HoitPXcy5p7ua3rWrzmK4wRnbHtHOLUqr6clwFshG/ftDVCDufcKnTb+JbOaIPK2lJA==
-X-Received: by 2002:a62:82c2:: with SMTP id w185mr94198467pfd.202.1560777322573;
-        Mon, 17 Jun 2019 06:15:22 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwv939sPoxUS9mFDAMt0c5qTKDbp2UljlJKF/seclyEMh1LnVmarx22tcbfFLZxFnbZNF9N
-X-Received: by 2002:a62:82c2:: with SMTP id w185mr94198417pfd.202.1560777321962;
-        Mon, 17 Jun 2019 06:15:21 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560777321; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+         :organization:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=OAH/i0C4BitMyEnhJFmKuUQtfcBAFIUqc/xTAr0Am1U=;
+        b=Mu6pKs+O+60ir9M2CJwPwDPI+43ti+mc1GBTLkETTONuia8ifpamhB89JyQphVIzdm
+         SU9FDFRhrOgx7+6tqvxJX9IKzTpxbWsJTu3y1sW6v6Rnu0plBPgSi8olt8f76owGSy82
+         WFLWJ2ZNeeHmojhObmsBAPg1TWpd22BrahxwPXgyuSBIGzb7Ii83sPaWWlOdpqaMt7+X
+         5Jbg4MhUdGIo5gxHdYIXsrHiMJzyfb03LDGa3m/YUKNsfGllliFrzPWPHlrorohWJlDr
+         rqA1sRQ8VrwK74UoKSUfhnk6FZXz7vl3sUMjlyUKJcagpqdBEnxE/CccnIuC0NXyUEtx
+         4gYQ==
+X-Gm-Message-State: APjAAAVZF/76liaP9+ZbG5P9oyhDbsE7uiN+fKNfwUHMxW53N0O2yJ9f
+	bbhO2tPFq0KNuLJTIp3fQC+SSfSn3ab2fG1MB9kjVyvoPsn5RyX2Lc9VKwRBk05bbnasW+9/xPB
+	qgI2BezAclWrknjM1Ptc3y1aRcg1FvuP8NX89NCnUt66ebMhVvsXvR31k8wtbJ1LITQ==
+X-Received: by 2002:a5d:8252:: with SMTP id n18mr890600ioo.230.1560777350521;
+        Mon, 17 Jun 2019 06:15:50 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyt8VTRqYk4jFb127CE/rOjDDlFazPsuN/o2Ae3la3EafTyEucY09YMnUIGZrF7DRaABDG+
+X-Received: by 2002:a5d:8252:: with SMTP id n18mr890490ioo.230.1560777349297;
+        Mon, 17 Jun 2019 06:15:49 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560777349; cv=none;
         d=google.com; s=arc-20160816;
-        b=xT0zEQ080kSXJbSWYaSQaqn9gOJUUIOs+wkzyqvD/K1VFVoLCAFWkUEknsnHnmK2YZ
-         9YsLm0MzFZaVyEQkD9D59exp7RxFDjoUYzy4jQYUL6KC+Waz5K9352od5vfi4KH7eAQX
-         hJEbzO1CVxe7k5LwmbKSsdMF2tjqau1Xop0YTN2s/C5poCuyHBwodnMvOm3nvUFxJdPt
-         VPI4z1gdALqA+RXukq1HqgHSqiRqc9XfG9DiEtplJVWx00dWiZjkn021HVgA07vLh/K/
-         tpmyyz2JZJx3bczunTCAmJsI/vCGaBZjfAWuaumSTKmchFvZZWSGrDxxeDLsa6zMarJY
-         VPTw==
+        b=tw04SyunIemEFw+CIlI2aonr7QNU7Ym6vywAXf5DV++jpkzMi4sEiQ9hxqQTXCmgyF
+         SzwQqqpnT63DY6u+ZdEPRHJ3TLV4p6sx81wzoIwGCLzuXIpYxQncDd1nj9Oxa3RAmg/t
+         VPNLEi9w6ZUECsgw5j44nzHZEbpUm2o1xu5uW5M2EB/0UvB/xVilKaWSzQgGk4iR7DGP
+         PnNILb3zvZu3GpwCRGWIPDS3SBp9yxqVoJgiTycEVEYqCXEAr0HfKZ8PLC/GT9BtfIXW
+         s7t+zLVu2JU+9CR66yR1jmPr6rcBy1m+ue1ltGap8ojSojMUZlJCGr2ugNsyvekNjw34
+         2lEw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=g2RSyr1LswKR5yVaExwwUghHr8GGOtj1VRSVsfBu1GQ=;
-        b=aMS51rAhaA2owTE2L2WTDG1FiM6SbJJITexstgva2tydef8PrXRPgE7UfiZfItANqK
-         9G07T3k7yVfe3KhlhrbCenIotXHIcwdMtPxbR/zIqIKy2ixjpI5YuMNSYuZHGkmznKHc
-         j7C+GU5jCNyJ2+0shM2ONsLhIu4QZ8w1RB/UBtGtDleM//GV5oj1uIh8Je4WFt5IWeYp
-         DjLFfdYBKX48H5K8Usu0jLW7t/BwH+sVwFADgO+ACbLnul1xSWitHgyZHbXkZXLv78J9
-         W88hYs+P3aU507teD7dM5NlW1e9cpyj6JSZQrYKf0lOU9mcj8BtijnGra2z7xHLljDlw
-         Ph5w==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:organization:from:references:cc:to
+         :subject:dkim-signature;
+        bh=OAH/i0C4BitMyEnhJFmKuUQtfcBAFIUqc/xTAr0Am1U=;
+        b=kOJFfKkRCC29jpZZ/JELi2sqVKdWPAuUhgz4deq7tBUSl8txjoEkEJuZpPx0fcAZns
+         B+rlGP6VxIEHW7yct5ApwOMIhtDHn7zpmZ50JHYYJ7WbIemWkKlMWJMwV0nyX397AU+U
+         mMTZ6KTU1IZozMe65B3pux9F5jcHFpgKONgzI6Xgl/K1hsU0bgAmEuxpKYB43zPyKUsd
+         CZZGgRsmXvm1WwC53fBez3DHxk/dWxXGtjUrl6zBHcNrV0WT63/zTSXdrR48MMZoaqg0
+         R2himNyVt5bssXQVCrL7g0vydCfbvC949KCM4yw8XIplMDOOfIxj0JlLNVQG2b2CPI0p
+         IWNg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=Xt2zW3Cs;
-       spf=pass (google.com: best guess record for domain of batv+a9ecd0bfb5b639be820a+5776+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+a9ecd0bfb5b639be820a+5776+infradead.org+hch@bombadil.srs.infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id t18si10432810pfh.29.2019.06.17.06.15.21
+       dkim=pass header.i=@mev.co.uk header.s=20190130-41we5z8j header.b=Nl+Gx2+K;
+       spf=pass (google.com: domain of abbotti@mev.co.uk designates 108.166.43.116 as permitted sender) smtp.mailfrom=abbotti@mev.co.uk
+Received: from smtp116.ord1c.emailsrvr.com (smtp116.ord1c.emailsrvr.com. [108.166.43.116])
+        by mx.google.com with ESMTPS id q84si17293879jaq.79.2019.06.17.06.15.49
         for <linux-mm@kvack.org>
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Mon, 17 Jun 2019 06:15:21 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of batv+a9ecd0bfb5b639be820a+5776+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 17 Jun 2019 06:15:49 -0700 (PDT)
+Received-SPF: pass (google.com: domain of abbotti@mev.co.uk designates 108.166.43.116 as permitted sender) client-ip=108.166.43.116;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=Xt2zW3Cs;
-       spf=pass (google.com: best guess record for domain of batv+a9ecd0bfb5b639be820a+5776+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+a9ecd0bfb5b639be820a+5776+infradead.org+hch@bombadil.srs.infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=g2RSyr1LswKR5yVaExwwUghHr8GGOtj1VRSVsfBu1GQ=; b=Xt2zW3CsTdU+5dL1qgV7m+ZXj
-	9YyYU2Wk6Tm8jGRvrjoLS1or4I9L8Nqw0mQ0LRGN+KocsYE/05sPoA1/cTAa3zfdt8zIsocYAYBlg
-	FgUkxfwPxd0lS5E5WSJY35W31PExqnu6CzwadtRyYO9xC9msAFx2RSs+tbpZQ6XgdZAH0kfP2ulXj
-	nOcKt7dpG5G3pI6AqfqWoqte8gIMa4B6F0bH8LWDBzSBZ4CjeVlm38WCclwKZBMGauNqijnSWoqIs
-	Lpk4LxEgpQUm/LviWC5Z98ShD4yCngQetj2o1PDPpTuhHsae5J9s4IXxMJyukLQ+kdkej905zEcu5
-	MC33MfY3g==;
-Received: from hch by bombadil.infradead.org with local (Exim 4.92 #3 (Red Hat Linux))
-	id 1hcrTP-00014F-MJ; Mon, 17 Jun 2019 13:14:59 +0000
-Date: Mon, 17 Jun 2019 06:14:59 -0700
-From: 'Christoph Hellwig' <hch@infradead.org>
-To: Alastair D'Silva <alastair@d-silva.org>
-Cc: 'Christoph Hellwig' <hch@infradead.org>,
-	'Peter Zijlstra' <peterz@infradead.org>,
-	'Andrew Morton' <akpm@linux-foundation.org>,
-	'David Hildenbrand' <david@redhat.com>,
-	'Oscar Salvador' <osalvador@suse.com>,
-	'Michal Hocko' <mhocko@suse.com>,
-	'Pavel Tatashin' <pasha.tatashin@soleen.com>,
-	'Wei Yang' <richard.weiyang@gmail.com>,
-	'Arun KS' <arunks@codeaurora.org>, 'Qian Cai' <cai@lca.pw>,
-	'Thomas Gleixner' <tglx@linutronix.de>,
-	'Ingo Molnar' <mingo@kernel.org>,
-	'Josh Poimboeuf' <jpoimboe@redhat.com>,
-	'Jiri Kosina' <jkosina@suse.cz>,
-	'Mukesh Ojha' <mojha@codeaurora.org>,
-	'Mike Rapoport' <rppt@linux.vnet.ibm.com>,
-	'Baoquan He' <bhe@redhat.com>,
-	'Logan Gunthorpe' <logang@deltatee.com>, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org, linux-nvdimm@lists.01.org
-Subject: Re: [PATCH 5/5] mm/hotplug: export try_online_node
-Message-ID: <20190617131459.GA639@infradead.org>
-References: <20190617043635.13201-1-alastair@au1.ibm.com>
- <20190617043635.13201-6-alastair@au1.ibm.com>
- <20190617065921.GV3436@hirez.programming.kicks-ass.net>
- <f1bad6f784efdd26508b858db46f0192a349c7a1.camel@d-silva.org>
- <20190617071527.GA14003@infradead.org>
- <068d01d524e2$aa6f3000$ff4d9000$@d-silva.org>
+       dkim=pass header.i=@mev.co.uk header.s=20190130-41we5z8j header.b=Nl+Gx2+K;
+       spf=pass (google.com: domain of abbotti@mev.co.uk designates 108.166.43.116 as permitted sender) smtp.mailfrom=abbotti@mev.co.uk
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=mev.co.uk;
+	s=20190130-41we5z8j; t=1560777347;
+	bh=ZvJvYkjr7iE1RIXRXDlijzKzJL0BitvNBM9T5FqQAmw=;
+	h=Subject:To:From:Date:From;
+	b=Nl+Gx2+KTHlZUrgrlD4OPdHaDIh8UJfTuRA5MZVnySfiilIiWgnddpiJk4/aln5DA
+	 OAo8bcON3aHKJNRIUHN2qprmbAq2BRvH2IUzshdVkvRvYeZuB2iOeftPYIjVWn6ziI
+	 KuJnFj51kem220yEC5D7kahxijPjmtFu66j0THaY=
+X-Auth-ID: abbotti@mev.co.uk
+Received: by smtp7.relay.ord1c.emailsrvr.com (Authenticated sender: abbotti-AT-mev.co.uk) with ESMTPSA id D9002A01B2;
+	Mon, 17 Jun 2019 09:15:44 -0400 (EDT)
+X-Sender-Id: abbotti@mev.co.uk
+Received: from [10.0.0.62] (remote.quintadena.com [81.133.34.160])
+	(using TLSv1.2 with cipher AES128-SHA)
+	by 0.0.0.0:465 (trex/5.7.12);
+	Mon, 17 Jun 2019 09:15:47 -0400
+Subject: Re: [PATCH 12/16] staging/comedi: mark as broken
+To: Christoph Hellwig <hch@lst.de>, Greg KH <gregkh@linuxfoundation.org>
+Cc: Maarten Lankhorst <maarten.lankhorst@linux.intel.com>,
+ Maxime Ripard <maxime.ripard@bootlin.com>, Sean Paul <sean@poorly.run>,
+ David Airlie <airlied@linux.ie>, Daniel Vetter <daniel@ffwll.ch>,
+ Jani Nikula <jani.nikula@linux.intel.com>,
+ Joonas Lahtinen <joonas.lahtinen@linux.intel.com>,
+ Rodrigo Vivi <rodrigo.vivi@intel.com>,
+ H Hartley Sweeten <hsweeten@visionengravers.com>,
+ devel@driverdev.osuosl.org, linux-s390@vger.kernel.org,
+ Intel Linux Wireless <linuxwifi@intel.com>, linux-rdma@vger.kernel.org,
+ netdev@vger.kernel.org, intel-gfx@lists.freedesktop.org,
+ linux-wireless@vger.kernel.org, linux-kernel@vger.kernel.org,
+ dri-devel@lists.freedesktop.org, linux-mm@kvack.org,
+ iommu@lists.linux-foundation.org,
+ "moderated list:ARM PORT" <linux-arm-kernel@lists.infradead.org>,
+ linux-media@vger.kernel.org
+References: <20190614134726.3827-1-hch@lst.de>
+ <20190614134726.3827-13-hch@lst.de> <20190614140239.GA7234@kroah.com>
+ <20190614144857.GA9088@lst.de> <20190614153032.GD18049@kroah.com>
+ <20190614153428.GA10008@lst.de>
+From: Ian Abbott <abbotti@mev.co.uk>
+Organization: MEV Ltd.
+Message-ID: <60c6af3d-d8e4-5745-8d2b-9791a2f4ff56@mev.co.uk>
+Date: Mon, 17 Jun 2019 14:15:43 +0100
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <068d01d524e2$aa6f3000$ff4d9000$@d-silva.org>
-User-Agent: Mutt/1.11.4 (2019-03-13)
-X-SRS-Rewrite: SMTP reverse-path rewritten from <hch@infradead.org> by bombadil.infradead.org. See http://www.infradead.org/rpr.html
+In-Reply-To: <20190614153428.GA10008@lst.de>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-GB
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jun 17, 2019 at 06:00:00PM +1000, Alastair D'Silva wrote:
-> > And all that should go through our pmem APIs, not not directly poke into
-> mm
-> > internals.  And if you still need core patches send them along with the
-> actual
-> > driver.
+On 14/06/2019 16:34, Christoph Hellwig wrote:
+> On Fri, Jun 14, 2019 at 05:30:32PM +0200, Greg KH wrote:
+>> On Fri, Jun 14, 2019 at 04:48:57PM +0200, Christoph Hellwig wrote:
+>>> On Fri, Jun 14, 2019 at 04:02:39PM +0200, Greg KH wrote:
+>>>> Perhaps a hint as to how we can fix this up?  This is the first time
+>>>> I've heard of the comedi code not handling dma properly.
+>>>
+>>> It can be fixed by:
+>>>
+>>>   a) never calling virt_to_page (or vmalloc_to_page for that matter)
+>>>      on dma allocation
+>>>   b) never remapping dma allocation with conflicting cache modes
+>>>      (no remapping should be doable after a) anyway).
+>>
+>> Ok, fair enough, have any pointers of drivers/core code that does this
+>> correctly?  I can put it on my todo list, but might take a week or so...
 > 
-> I tried that, but I was getting crashes as the NUMA data structures for that
-> node were not initialised.
-> 
-> Calling this was required to prevent uninitialized accesses in the pmem
-> library.
+> Just about everyone else.  They just need to remove the vmap and
+> either do one large allocation, or live with the fact that they need
+> helpers to access multiple array elements instead of one net vmap,
+> which most of the users already seem to do anyway, with just a few
+> using the vmap (which might explain why we didn't see blowups yet).
 
-Please send your driver to the linux-nvdimm and linux-mm lists so that
-it can be carefully reviewed.
+Avoiding the vmap in comedi should be do-able as it already has other 
+means to get at the buffer pages.
+
+When comedi makes the buffer from DMA coherent memory, it currently 
+allocates it as a series of page-sized chunks.  That cannot be mmap'ed 
+in one go with dma_mmap_coherent(), so I see the following solutions.
+
+1. Change the buffer allocation to allocate a single chunk of DMA 
+coherent memory and use dma_mmap_coherent() to mmap it.
+
+2. Call dma_mmap_coherent() in a loop, adjusting vma->vm_start and 
+vma->vm_end for each iteration (vma->vm_pgoff will be 0), and restoring 
+the vma->vm_start and vma->vm_end at the end.
+
+I'm not sure if 2 is a legal option.
+
+-- 
+-=( Ian Abbott <abbotti@mev.co.uk> || Web: www.mev.co.uk )=-
+-=( MEV Ltd. is a company registered in England & Wales. )=-
+-=( Registered number: 02862268.  Registered address:    )=-
+-=( 15 West Park Road, Bramhall, STOCKPORT, SK7 3JZ, UK. )=-
 
