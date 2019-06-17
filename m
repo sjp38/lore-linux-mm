@@ -2,164 +2,204 @@ Return-Path: <SRS0=4FFe=UQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id AB2BBC31E54
-	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 03:14:36 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 59DECC31E44
+	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 04:00:26 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5A9A6216FD
-	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 03:14:36 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5A9A6216FD
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 18F3D217D4
+	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 04:00:26 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 18F3D217D4
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=mediatek.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BB7218E0003; Sun, 16 Jun 2019 23:14:35 -0400 (EDT)
+	id BE3746B0007; Mon, 17 Jun 2019 00:00:24 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B672E8E0001; Sun, 16 Jun 2019 23:14:35 -0400 (EDT)
+	id B950D8E0003; Mon, 17 Jun 2019 00:00:24 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A570A8E0003; Sun, 16 Jun 2019 23:14:35 -0400 (EDT)
+	id AAAC58E0001; Mon, 17 Jun 2019 00:00:24 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 6CDD98E0001
-	for <linux-mm@kvack.org>; Sun, 16 Jun 2019 23:14:35 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id 59so5171046plb.14
-        for <linux-mm@kvack.org>; Sun, 16 Jun 2019 20:14:35 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 7394A6B0007
+	for <linux-mm@kvack.org>; Mon, 17 Jun 2019 00:00:24 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id h15so6285840pfn.3
+        for <linux-mm@kvack.org>; Sun, 16 Jun 2019 21:00:24 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:message-id
-         :subject:from:to:cc:date:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=Mz784ipIwNxejQsE2+n+M8MeNShXZD+sx5XSxzLueo8=;
-        b=lKkP+U8T1+S99MAQ5HMp28GSdjrNpbvr9sEDcTsI0OchglEZOC+BthO6CCf+0TdDu4
-         JKJUI9F6D8USyAXRAEqq6paV8bp1B54zOjfLWd7Hymdus++Nq+PASFcCaK4h5VVYekF6
-         4ZspYIo5DgSeJRELF12XemXu5Cgk4RxAh5xwnxvjRhczbPYNQ9G10MFFnAGEv3OobpWa
-         zSLS9IueuQX0wkA2B1m7sOnO2ANwImeUfYMVjVbqrTFRNYbI70sSONPYoZ3Hey0LryDG
-         efoHksmR6AaUshi76+/Eni2XaWUV7bxcf0XdGaMLyethw+LhwwtebdAZkIVGWzeb13LZ
-         dXHg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of kai.huang@linux.intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=kai.huang@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAUev33LpJxfJ3N8iBAxjxE9GqfoWvb8OD6NG7z0PzGz/3yaN2Qk
-	9zbgOrzyLPRw2ZuhLEyNLorHgXFIgK2pDr16zQtiaQx8qwwDhb/pPoqSt0TMRUmthwjB3f50BLC
-	qJihydfZ+gvvDdsmoHoPibDTNnOXdc5KmLblLiXpOJVAG+Km6xLFg6d60I7Ig+cuakA==
-X-Received: by 2002:a17:902:7c03:: with SMTP id x3mr81189897pll.242.1560741274950;
-        Sun, 16 Jun 2019 20:14:34 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqx+DPfi12uv0yK6D2imtaXKboklGiMDesSpJf6ML3Dw4dgBt1emnmZxJmpMerJPHxK1lbYs
-X-Received: by 2002:a17:902:7c03:: with SMTP id x3mr81189847pll.242.1560741274239;
-        Sun, 16 Jun 2019 20:14:34 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560741274; cv=none;
+         :subject:from:to:cc:date:in-reply-to:references
+         :content-transfer-encoding:mime-version;
+        bh=XnEdrBkKM7udA2kzVesWGzGVoOtWxKegmT2E9+/IH6Q=;
+        b=FIS5kuO3/0eY5zUWTIEcbrgeHmrOx5Kzx9ZVIux5weAxqty95oGZW1rUKKy+KBAYjt
+         tSBpRcbTaU5O5l2CBXno7cMrgsyH9H9X/0vsF5FOcyoctBu5k/xJicV4XOzbTvFdn3w+
+         7SxiZFGhH8HyqCOgHP+Uy/wfNvhFX/zvJYZtyE/LPygbeKlg9J2SoVaLsL1IbGTaKh8O
+         Z42x0hcBnG0NEQln+QojBGqrBL4hOygvTAxbOeZp/3lG+0/bCAQvlcV3m1B9XJ+8T3nl
+         FsYeD5MzOr1Rfh6L+4J5eU4gqlJZsiaWykStGmEuIWfgsXlHiixEXkIcImuvZHr2ot6S
+         n1XQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of walter-zh.wu@mediatek.com designates 210.61.82.183 as permitted sender) smtp.mailfrom=walter-zh.wu@mediatek.com
+X-Gm-Message-State: APjAAAWX/vdGh1Sbn6eannMoq5QMo0T2NGcQjBRIexqQ49Uf2/dt9JRN
+	DRlO+PbPDW9vYfBp8xGJalFychT8m2ZIdQLbQqDT1SQ7UPTcCp679mCjY/i4ObvqJAblAYBMj+c
+	eFkS6qVNm14OjCh4ilzcr1pOboLDDy4O7MY4fnezbtpU4fp4sbBwy0DyBWYT68h0iaw==
+X-Received: by 2002:a63:c5:: with SMTP id 188mr21875367pga.108.1560744023924;
+        Sun, 16 Jun 2019 21:00:23 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyicCgcs3GruBVXyLfJpDko0Gp5bvHmx2YSmJ1MseNPwImRzXcv8nAZY70/t807eQj2OuKB
+X-Received: by 2002:a63:c5:: with SMTP id 188mr21875301pga.108.1560744023074;
+        Sun, 16 Jun 2019 21:00:23 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560744023; cv=none;
         d=google.com; s=arc-20160816;
-        b=0r9Wuzv8HwFLVp0HOTti0tSzCmxq1YuMNNAfaEe+4wPaACzhf7Hgfu449NevUo8Sqb
-         C2QFK/2NoUsOrlLiIv978PiQxshZj43WumtnjZmopOqD7wEmjZzPGzlVz3eGQa4s0wF1
-         8udCS284sZq0BALx+XhFnNEHXuOtmrUAaVN1b81Ds6DhvdZ9y/fTeiLkXWwGpzYuQLLU
-         eOLTKDCIFugprgv6BzZqZXKfaJrTorrb33fSMc/yW46aBSJ1yHoxaewtcBEaJX+nHrm/
-         VNGihe6yy+PZV/V5d5l3LLV0BzlsHEz6aRGmD7+WAV3NTOQO0ISNvVCkrZbDxC1Q2l8j
-         UqlQ==
+        b=AhCu3ZEQJD5ZF78xfB1DZw3Mx13z1SPzH1BO/lIUUOYpKalvmQNUvY1dFo6lp5uhy3
+         iRVn/ypV1bmOYglIFiNYmytyadqbn0eAdcGoRlQ8TeGd5vAgMZA97exxAIqWWEdMwLoe
+         NmX1rii4C0kgdngQTA2xsbCR+Dbtbsw06nMRwr0G6J6NOj44xz6qJgEFZeim5X0GWrla
+         1DylxhPso8C9SDnKiR28b4YSUyKWmh4o/IQd5nb/bYjSTUgBKOw0TZqUMf1xpmuIoYSE
+         lxBU1CjRbuzxQ9L+9p8LgpYKp7VyaXKdNvtvF3hp9J/jrrcWcBBstz6I9tL7OLYd6CcL
+         XFLg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to:date
+        h=mime-version:content-transfer-encoding:references:in-reply-to:date
          :cc:to:from:subject:message-id;
-        bh=Mz784ipIwNxejQsE2+n+M8MeNShXZD+sx5XSxzLueo8=;
-        b=YcrnGnNW37x8lQWwcT9UUMjTKhrfsXQniww15+hSYr20mbT3VQBdSdaHWDSj4M1sF8
-         GaduYvqAqU6Pov4WzzrN9BUegmUiIBAqrCzsVGYcZgGQCk7vlgBDhalWgXPa5A0l6h05
-         vrFev+bppfXLwx1XDjUxnPvBrvmvVi3tIiP0B6V/WdaZ2sIPB5FOzWIvCTw8eCRKbmsL
-         wFig8doP7aVwZOwJr/Q/asdb7BuHTacT/RRDzTo9FCecRVgJIGNVaNV3zW2W1pDAhQgr
-         vGfgowQvjJ1JBu0ZkdGQFCrQPrgBdBbJ1zllLVlvdsgRtaUfsw4HwRJdKs2V7gqlCRsC
-         1yHw==
+        bh=XnEdrBkKM7udA2kzVesWGzGVoOtWxKegmT2E9+/IH6Q=;
+        b=s/akx6mUlMkGLvi1/WRaxei5OmzxW7a4C5miJv6shrO08JaDzOzxtCLNXeq6oTXhVt
+         KTDyt4nBvY4i/RPNzoI5GU0kx4x44FPyrZ36pEkYe3LrBxy1fp0m0FcO+SYisiqXKpGC
+         HHA/TRRyP8nV+6YV4yvQ1pXH+q3/H5t1g7PL6eItuzrUWKAV+LgLfYrwKmGunkT4OKaE
+         Ov05lqMWXyYDQPikkgv4NcDt1iQzaQUovoIsHwsqerDGvt0U2SAP7jCdgpT/zV2B6+2v
+         RxtrZjNekAbn3Iqj82uCfgiemNq9obkP3x6dFQsqECi4lQiFwgk+4r3ZnMHCB8WWSlZ1
+         2ung==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of kai.huang@linux.intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=kai.huang@linux.intel.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
-        by mx.google.com with ESMTPS id b6si9189523pfa.36.2019.06.16.20.14.34
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 16 Jun 2019 20:14:34 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of kai.huang@linux.intel.com designates 192.55.52.151 as permitted sender) client-ip=192.55.52.151;
+       spf=pass (google.com: domain of walter-zh.wu@mediatek.com designates 210.61.82.183 as permitted sender) smtp.mailfrom=walter-zh.wu@mediatek.com
+Received: from mailgw01.mediatek.com ([210.61.82.183])
+        by mx.google.com with ESMTP id a2si9982184pgj.54.2019.06.16.21.00.22
+        for <linux-mm@kvack.org>;
+        Sun, 16 Jun 2019 21:00:23 -0700 (PDT)
+Received-SPF: pass (google.com: domain of walter-zh.wu@mediatek.com designates 210.61.82.183 as permitted sender) client-ip=210.61.82.183;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of kai.huang@linux.intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=kai.huang@linux.intel.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from fmsmga004.fm.intel.com ([10.253.24.48])
-  by fmsmga107.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 16 Jun 2019 20:14:33 -0700
-X-ExtLoop1: 1
-Received: from khuang2-desk.gar.corp.intel.com ([10.255.91.82])
-  by fmsmga004.fm.intel.com with ESMTP; 16 Jun 2019 20:14:30 -0700
-Message-ID: <1560741269.5187.7.camel@linux.intel.com>
-Subject: Re: [PATCH, RFC 49/62] mm, x86: export several MKTME variables
-From: Kai Huang <kai.huang@linux.intel.com>
-To: Peter Zijlstra <peterz@infradead.org>, "Kirill A. Shutemov"
-	 <kirill.shutemov@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas
- Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter
- Anvin" <hpa@zytor.com>, Borislav Petkov <bp@alien8.de>, Andy Lutomirski
- <luto@amacapital.net>, David Howells <dhowells@redhat.com>, Kees Cook
- <keescook@chromium.org>, Dave Hansen <dave.hansen@intel.com>, Jacob Pan
- <jacob.jun.pan@linux.intel.com>, Alison Schofield
- <alison.schofield@intel.com>,  linux-mm@kvack.org, kvm@vger.kernel.org,
- keyrings@vger.kernel.org,  linux-kernel@vger.kernel.org
-Date: Mon, 17 Jun 2019 15:14:29 +1200
-In-Reply-To: <20190614115647.GI3436@hirez.programming.kicks-ass.net>
-References: <20190508144422.13171-1-kirill.shutemov@linux.intel.com>
-	 <20190508144422.13171-50-kirill.shutemov@linux.intel.com>
-	 <20190614115647.GI3436@hirez.programming.kicks-ass.net>
+       spf=pass (google.com: domain of walter-zh.wu@mediatek.com designates 210.61.82.183 as permitted sender) smtp.mailfrom=walter-zh.wu@mediatek.com
+X-UUID: 4f8413c5163f45fab280b7f808ef34f4-20190617
+X-UUID: 4f8413c5163f45fab280b7f808ef34f4-20190617
+Received: from mtkmrs01.mediatek.inc [(172.21.131.159)] by mailgw01.mediatek.com
+	(envelope-from <walter-zh.wu@mediatek.com>)
+	(mhqrelay.mediatek.com ESMTP with TLS)
+	with ESMTP id 1298173636; Mon, 17 Jun 2019 12:00:19 +0800
+Received: from mtkcas08.mediatek.inc (172.21.101.126) by
+ mtkmbs07n1.mediatek.inc (172.21.101.16) with Microsoft SMTP Server (TLS) id
+ 15.0.1395.4; Mon, 17 Jun 2019 12:00:18 +0800
+Received: from [172.21.84.99] (172.21.84.99) by mtkcas08.mediatek.inc
+ (172.21.101.73) with Microsoft SMTP Server id 15.0.1395.4 via Frontend
+ Transport; Mon, 17 Jun 2019 12:00:17 +0800
+Message-ID: <1560744017.15814.49.camel@mtksdccf07>
+Subject: Re: [PATCH v3] kasan: add memory corruption identification for
+ software tag-based mode
+From: Walter Wu <walter-zh.wu@mediatek.com>
+To: Dmitry Vyukov <dvyukov@google.com>, Andrey Ryabinin
+	<aryabinin@virtuozzo.com>
+CC: Alexander Potapenko <glider@google.com>, Dmitry Vyukov
+	<dvyukov@google.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg
+	<penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim
+	<iamjoonsoo.kim@lge.com>, Matthias Brugger <matthias.bgg@gmail.com>, "Martin
+ Schwidefsky" <schwidefsky@de.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Vasily
+ Gorbik" <gor@linux.ibm.com>, Andrey Konovalov <andreyknvl@google.com>, "Jason
+ A . Donenfeld" <Jason@zx2c4.com>, Miles Chen <miles.chen@mediatek.com>,
+	<kasan-dev@googlegroups.com>, <linux-kernel@vger.kernel.org>,
+	<linux-mm@kvack.org>, <linux-arm-kernel@lists.infradead.org>,
+	<linux-mediatek@lists.infradead.org>, <wsd_upstream@mediatek.com>
+Date: Mon, 17 Jun 2019 12:00:17 +0800
+In-Reply-To: <1560479520.15814.34.camel@mtksdccf07>
+References: <20190613081357.1360-1-walter-zh.wu@mediatek.com>
+	 <da7591c9-660d-d380-d59e-6d70b39eaa6b@virtuozzo.com>
+	 <1560447999.15814.15.camel@mtksdccf07>
+	 <1560479520.15814.34.camel@mtksdccf07>
 Content-Type: text/plain; charset="UTF-8"
-X-Mailer: Evolution 3.24.6 (3.24.6-1.fc26) 
-Mime-Version: 1.0
+X-Mailer: Evolution 3.2.3-0ubuntu6 
 Content-Transfer-Encoding: 7bit
+MIME-Version: 1.0
+X-MTK: N
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2019-06-14 at 13:56 +0200, Peter Zijlstra wrote:
-> On Wed, May 08, 2019 at 05:44:09PM +0300, Kirill A. Shutemov wrote:
-> > From: Kai Huang <kai.huang@linux.intel.com>
+On Fri, 2019-06-14 at 10:32 +0800, Walter Wu wrote:
+> On Fri, 2019-06-14 at 01:46 +0800, Walter Wu wrote:
+> > On Thu, 2019-06-13 at 15:27 +0300, Andrey Ryabinin wrote:
+> > > 
+> > > On 6/13/19 11:13 AM, Walter Wu wrote:
+> > > > This patch adds memory corruption identification at bug report for
+> > > > software tag-based mode, the report show whether it is "use-after-free"
+> > > > or "out-of-bound" error instead of "invalid-access" error.This will make
+> > > > it easier for programmers to see the memory corruption problem.
+> > > > 
+> > > > Now we extend the quarantine to support both generic and tag-based kasan.
+> > > > For tag-based kasan, the quarantine stores only freed object information
+> > > > to check if an object is freed recently. When tag-based kasan reports an
+> > > > error, we can check if the tagged addr is in the quarantine and make a
+> > > > good guess if the object is more like "use-after-free" or "out-of-bound".
+> > > > 
+> > > 
+> > > 
+> > > We already have all the information and don't need the quarantine to make such guess.
+> > > Basically if shadow of the first byte of object has the same tag as tag in pointer than it's out-of-bounds,
+> > > otherwise it's use-after-free.
+> > > 
+> > > In pseudo-code it's something like this:
+> > > 
+> > > u8 object_tag = *(u8 *)kasan_mem_to_shadow(nearest_object(cacche, page, access_addr));
+> > > 
+> > > if (access_addr_tag == object_tag && object_tag != KASAN_TAG_INVALID)
+> > > 	// out-of-bounds
+> > > else
+> > > 	// use-after-free
 > > 
-> > KVM needs those variables to get/set memory encryption mask.
+> > Thanks your explanation.
+> > I see, we can use it to decide corruption type.
+> > But some use-after-free issues, it may not have accurate free-backtrace.
+> > Unfortunately in that situation, free-backtrace is the most important.
+> > please see below example
 > > 
-> > Signed-off-by: Kai Huang <kai.huang@linux.intel.com>
-> > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> > In generic KASAN, it gets accurate free-backrace(ptr1).
+> > In tag-based KASAN, it gets wrong free-backtrace(ptr2). It will make
+> > programmer misjudge, so they may not believe tag-based KASAN.
+> > So We provide this patch, we hope tag-based KASAN bug report is the same
+> > accurate with generic KASAN.
+> > 
 > > ---
-> >  arch/x86/mm/mktme.c | 3 +++
-> >  1 file changed, 3 insertions(+)
+> >     ptr1 = kmalloc(size, GFP_KERNEL);
+> >     ptr1_free(ptr1);
 > > 
-> > diff --git a/arch/x86/mm/mktme.c b/arch/x86/mm/mktme.c
-> > index df70651816a1..12f4266cf7ea 100644
-> > --- a/arch/x86/mm/mktme.c
-> > +++ b/arch/x86/mm/mktme.c
-> > @@ -7,13 +7,16 @@
-> >  
-> >  /* Mask to extract KeyID from physical address. */
-> >  phys_addr_t mktme_keyid_mask;
-> > +EXPORT_SYMBOL_GPL(mktme_keyid_mask);
-> >  /*
-> >   * Number of KeyIDs available for MKTME.
-> >   * Excludes KeyID-0 which used by TME. MKTME KeyIDs start from 1.
-> >   */
-> >  int mktme_nr_keyids;
-> > +EXPORT_SYMBOL_GPL(mktme_nr_keyids);
-> >  /* Shift of KeyID within physical address. */
-> >  int mktme_keyid_shift;
-> > +EXPORT_SYMBOL_GPL(mktme_keyid_shift);
-> >  
-> >  DEFINE_STATIC_KEY_FALSE(mktme_enabled_key);
-> >  EXPORT_SYMBOL_GPL(mktme_enabled_key);
+> >     ptr2 = kmalloc(size, GFP_KERNEL);
+> >     ptr2_free(ptr2);
+> > 
+> >     ptr1[size] = 'x';  //corruption here
+> > 
+> > 
+> > static noinline void ptr1_free(char* ptr)
+> > {
+> >     kfree(ptr);
+> > }
+> > static noinline void ptr2_free(char* ptr)
+> > {
+> >     kfree(ptr);
+> > }
+> > ---
+> > 
+> We think of another question about deciding by that shadow of the first
+> byte.
+> In tag-based KASAN, it is immediately released after calling kfree(), so
+> the slub is easy to be used by another pointer, then it will change
+> shadow memory to the tag of new pointer, it will not be the
+> KASAN_TAG_INVALID, so there are many false negative cases, especially in
+> small size allocation.
 > 
-> NAK, don't export variables. Who owns the values, who enforces this?
+> Our patch is to solve those problems. so please consider it, thanks.
 > 
+Hi, Andrey and Dmitry,
 
-Both KVM and IOMMU driver need page_keyid() and mktme_keyid_shift to set page's keyID to the right
-place in the PTE (of KVM EPT and VT-d DMA page table).
+I am sorry to bother you.
+Would you tell me what you think about this patch?
+We want to use tag-based KASAN, so we hope its bug report is clear and
+correct as generic KASAN.
 
-MKTME key type code need to know mktme_nr_keyids in order to alloc/free keyID.
-
-Maybe better to introduce functions instead of exposing variables directly?
-
-Or instead of introducing page_keyid(), we use page_encrypt_mask(), which essentially holds
-"page_keyid() << mktme_keyid_shift"?
-
-Thanks,
--Kai
+Thanks your review.
+Walter
 
