@@ -2,248 +2,227 @@ Return-Path: <SRS0=4FFe=UQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-16.4 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT,
-	USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id AD177C31E5B
-	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 23:12:34 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9F2F8C31E5B
+	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 23:59:28 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5EEBF20673
-	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 23:12:34 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="l+uIMTCI"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5EEBF20673
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	by mail.kernel.org (Postfix) with ESMTP id 6090E20578
+	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 23:59:28 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6090E20578
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CEEAE8E0005; Mon, 17 Jun 2019 19:12:33 -0400 (EDT)
+	id EEE9B6B0006; Mon, 17 Jun 2019 19:59:27 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C9FA48E0001; Mon, 17 Jun 2019 19:12:33 -0400 (EDT)
+	id E780F8E0004; Mon, 17 Jun 2019 19:59:27 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B678E8E0005; Mon, 17 Jun 2019 19:12:33 -0400 (EDT)
+	id D18A98E0001; Mon, 17 Jun 2019 19:59:27 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 994A28E0001
-	for <linux-mm@kvack.org>; Mon, 17 Jun 2019 19:12:33 -0400 (EDT)
-Received: by mail-qt1-f198.google.com with SMTP id r40so10769896qtk.0
-        for <linux-mm@kvack.org>; Mon, 17 Jun 2019 16:12:33 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 9389D6B0006
+	for <linux-mm@kvack.org>; Mon, 17 Jun 2019 19:59:27 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id b10so8675016pgb.22
+        for <linux-mm@kvack.org>; Mon, 17 Jun 2019 16:59:27 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:in-reply-to:message-id
-         :mime-version:references:subject:from:to:cc;
-        bh=OqXw0t9fRr/azQRpWaonaAmH3L30B0p/Fx4/9IaKmEU=;
-        b=ANnljVOC/r/8WpSP2Si+Xo6w5NeR7YMwmt27TAlXr/52SXbwr8vtHtpniyNgK/BLCe
-         +aJYoG1l56UcBLsWvg2QlIj/Nm+uXGg8L4Wa//UvY5Fzr6Afk0PDztE6xzQYDGiwJh9O
-         rbZjVnjQ8g2JDOGScVpe2BWf4upvxehK8OWlsrhfDDL0au+193Bl4pYAPR6R2d9WZAn3
-         3TMc+etvfcdKnXlXmcITMd6Lt+yuc94Pq9CkVorZblS9jRWXEKG3d30tCmftxvVDEQqQ
-         DEXuH4m83LRAm6xuXZs/+LwT3Y7zs5JJppmuVHN5UKilQmDyNiVoeqiSHyLicFbz0LhO
-         syKA==
-X-Gm-Message-State: APjAAAU6LS7lN/GA01NX8ZqLTvunXyEBbcI9HtU94zHHRt4vT3j/+thH
-	YefVwmLRLNbzNrUTecA4jfZxcSqqsIQnK/zbkz3YKHy/jXkkUN/k8CjpIEyjBGQy645SCRax7Lm
-	Efo0R03fROMT9YRrFPRu9B/ULSACtXhLy/67FwJsucoT4cOahGSkIKFjj1jsUNEkMnA==
-X-Received: by 2002:ac8:1acf:: with SMTP id h15mr96570032qtk.67.1560813153383;
-        Mon, 17 Jun 2019 16:12:33 -0700 (PDT)
-X-Received: by 2002:ac8:1acf:: with SMTP id h15mr96569982qtk.67.1560813152621;
-        Mon, 17 Jun 2019 16:12:32 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560813152; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:message-id
+         :subject:from:to:cc:date:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=fWOCouRdPcVqLU8gFsDhodOGGCKE0Cxxt20INAQ5IDE=;
+        b=CJ/9qeHgnVOt8X+2G6A+skBL8uj/TII8Q8/4hndx0Zu6kpi7aqkWYrCGf2FH4AnzEI
+         M16OW9WCjWYCNDRE/CEJbhZU9F3bbSPDA2Y0ZvDhYaaNY0yIsvxNWKA692Btdp5K7UQx
+         dFnUkzONds3V0qs5ETABofjPAtuqqsoRL2A2JgbpDlpR7JG7yJG5B639mZq//CI3jFnC
+         Bkj4yuNOSJ9ErkQou+rrXVNXTotkW4gtuaxuI8Pu5oooW2U4w9VaHHz+pqpjPe75Oq+q
+         v9YLOSF5My2GBBrnQjmLmZvj7hHlvMPb8P+fMLIEZ3XPno9ZQg97ASYH8fDmBfIx5Xrv
+         TsYA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of kai.huang@linux.intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=kai.huang@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAXRTMUrcoBoj+mfg1+Fby+hu7E0DPrpHfxuIqbby8Ldzs18HHwO
+	7d5Vm4L0LERvyu4rFPJm4p4m5rVsNoMgI7HbJkH+oltJq/gjiliUbW6OD+2pwoznv9OOQ7fgyaT
+	uKs7KNpYptXRoPrqHeBav+hCiRD/aTevE3Gj5J0bJ6dWJuzr58wfcICdl4X45d8CtRQ==
+X-Received: by 2002:a17:902:f204:: with SMTP id gn4mr92992953plb.3.1560815967144;
+        Mon, 17 Jun 2019 16:59:27 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzu2gGz3j8t9zmAppxpVVmlLA8Td6EI1s9vIrB+ea3wuEgrxUBPuJifV6COL6JOc/6yaKpW
+X-Received: by 2002:a17:902:f204:: with SMTP id gn4mr92992872plb.3.1560815966003;
+        Mon, 17 Jun 2019 16:59:26 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560815965; cv=none;
         d=google.com; s=arc-20160816;
-        b=eYeumFfixs0zyCZlGR8WHA6jSQVatD1Xn18nCATRB5ZpQQR8dRNzACRyuq1ylRz6/+
-         TfbOunDItMDekD/q4/ONyzt8WwEPnoov/BGo2vH9t0I93/WugAbcADwawkZWorVXu24Q
-         +5UarXvtRIXF+i9R1RAckkVOr0SuCx05GKw8C/WEyUpjPWLaYmqxxMzkYGhyD/g3FaAk
-         dJ9mlmCZEHenNl92QK63Ol4xU7SxmUJ4leBw0pXaheEzeCVd7IH16Lla0+A9h/r1Z5GQ
-         97yfGEyUs9mt0jkNhwqBEgNAUdEXAvP2vSlt2UEq6jPKRptc7enK3FKR8BqEQaCJJVRn
-         uQ+Q==
+        b=N2PqrRlFbnVvrm86xHM7kvQ7kXONrjEu0qsa/TDkxR5QOvEPnLesROqOD75+X5hpzn
+         1dG68nSfKQfnvAj4e/KKBFROd3+Qw8VOXeNL6kgesre1eRj/dQEkNOFgzqY87TDPcFlw
+         VpMfwMJ+1dtGAko+PHNS5+VirDcpK/Ok4TmOKCtal+TIqfmez/JAWcr8NZS0EjeDLL56
+         6boVhNtDdahvjMOI0UR8XR1j1eIDu/VU+1RB5jpJkcFS/60Bz00cg/5o668W+KtU04/2
+         +ppKet4JM8ukhBtb3KZuW5i4mVM0RRysx1WExzXPCv+WT3l09igFXQmb+OGjwRzTL3Ni
+         LLRg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:from:subject:references:mime-version:message-id:in-reply-to
-         :date:dkim-signature;
-        bh=OqXw0t9fRr/azQRpWaonaAmH3L30B0p/Fx4/9IaKmEU=;
-        b=n4mF2eB7RZNzrFMWPxPVR9C/8arHkF1WV0wzFxYHmIzmi2dyRF+UTDR1RXhBKgl9bm
-         /fQWlaHle6IQs9BzlM2MApfdqgWFnCU9N1Bxj4jxYbSg9GyhO+stQwa3pF4qfjtSL6cu
-         3BYTOOfGyDBKKJw9zJek9qP2wkOMYNjFc/6NZpJznF0CVYsSbY01vsUdnJgnGW9F6XqU
-         tmtTnZw0xdSEo8ua1M1PaQe7qcpOqiARIyRSo5YRWMVOBDXCjRJMy+PviP6s+0PgsIK1
-         Sm5z/HuqRWF3SHSH2S85Mk6j3ONo2qJ6NlOeI3FTCRn9hPNojcIuHr98lb/shO/VWz6e
-         k6Cw==
+        h=content-transfer-encoding:mime-version:references:in-reply-to:date
+         :cc:to:from:subject:message-id;
+        bh=fWOCouRdPcVqLU8gFsDhodOGGCKE0Cxxt20INAQ5IDE=;
+        b=kg/zFl5G0YKNZNWOZS7MrKEBw1W1ryM5oKfdkPoiExn+Z6ZMCcrTR3VrFYghtZJx/H
+         Tb2OjoXNhgOh6d8d6BoZNy6n794SsZGKKWBl6iMIMx6XBB7ofolsDAIX7TI4tyM2Q/u2
+         /WLTJn9eCeSug0XNF9ARPVcdHZs7U4La6RsrBlzObvjB2OgvWKKh8eUN2T9QxRwb9Ye2
+         7az3v2NO1hd7peB24OoroMuEYRjhDGFRwipEFxZW1QwjBaERtX06L5dWjMfoHjHLj5tR
+         i344cEiXAbNKVRpuivZhZsWQnB6CfJoAf3897x7IOpVmqI88nZPcP5vry842t83JhUkY
+         IEmQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=l+uIMTCI;
-       spf=pass (google.com: domain of 3yb4ixqgkcksdslvppwmrzzrwp.nzxwtyfi-xxvglnv.zcr@flex--shakeelb.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3YB4IXQgKCKsdSLVPPWMRZZRWP.NZXWTYfi-XXVgLNV.ZcR@flex--shakeelb.bounces.google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
-        by mx.google.com with SMTPS id t15sor18303653qth.2.2019.06.17.16.12.32
+       spf=pass (google.com: best guess record for domain of kai.huang@linux.intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=kai.huang@linux.intel.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id s17si12299153pfc.237.2019.06.17.16.59.25
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 17 Jun 2019 16:12:32 -0700 (PDT)
-Received-SPF: pass (google.com: domain of 3yb4ixqgkcksdslvppwmrzzrwp.nzxwtyfi-xxvglnv.zcr@flex--shakeelb.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 17 Jun 2019 16:59:25 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of kai.huang@linux.intel.com designates 134.134.136.20 as permitted sender) client-ip=134.134.136.20;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=l+uIMTCI;
-       spf=pass (google.com: domain of 3yb4ixqgkcksdslvppwmrzzrwp.nzxwtyfi-xxvglnv.zcr@flex--shakeelb.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3YB4IXQgKCKsdSLVPPWMRZZRWP.NZXWTYfi-XXVgLNV.ZcR@flex--shakeelb.bounces.google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=date:in-reply-to:message-id:mime-version:references:subject:from:to
-         :cc;
-        bh=OqXw0t9fRr/azQRpWaonaAmH3L30B0p/Fx4/9IaKmEU=;
-        b=l+uIMTCI5npW/nqR+ky6CSGLylxdHVeLxb2jOLCH1qr1XrTumE2XBxgN6ZmUkAXra1
-         ntBZBh41tlpF3BBA55+I1PGrd6z4kEdS8Uv82kOLTTVnfUrFHdX7tbZQJyF8UcROls0i
-         1c93b9o006nR8CZgd2EWyEyscBDXP8MnS+KB2Ue3lzsyD5dzhYW+nUGofuF/y74syGBs
-         PYDHmZSJAzuMLtWDAbG4Af+6ggzwaueNFoqmaDUDXSIi/Z3MtYtfRNflCgo074OpQHfj
-         EmRyhNDKDwlw3B3NOKNfeYgQU2FjysANV51nYmq0c4D+tKsQDNTP6PgD7PTxwPFDKxCU
-         /p7A==
-X-Google-Smtp-Source: APXvYqypIi8nO7ZBX6Y8v6IyGHG5MzrimR5HjvoCIsgCWDQWP5j91s5/qQKuaJpxz7EBH4UYoTFh6kJ18bE4Zw==
-X-Received: by 2002:ac8:2b01:: with SMTP id 1mr26419700qtu.177.1560813152241;
- Mon, 17 Jun 2019 16:12:32 -0700 (PDT)
-Date: Mon, 17 Jun 2019 16:12:07 -0700
-In-Reply-To: <20190617231207.160865-1-shakeelb@google.com>
-Message-Id: <20190617231207.160865-2-shakeelb@google.com>
-Mime-Version: 1.0
-References: <20190617231207.160865-1-shakeelb@google.com>
-X-Mailer: git-send-email 2.22.0.410.gd8fdbe21b5-goog
-Subject: [PATCH v2 2/2] mm, oom: fix oom_unkillable_task for memcg OOMs
-From: Shakeel Butt <shakeelb@google.com>
-To: Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, 
-	Michal Hocko <mhocko@suse.com>, Andrew Morton <akpm@linux-foundation.org>, 
-	Roman Gushchin <guro@fb.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, 
-	Shakeel Butt <shakeelb@google.com>
+       spf=pass (google.com: best guess record for domain of kai.huang@linux.intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=kai.huang@linux.intel.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga005.jf.intel.com ([10.7.209.41])
+  by orsmga101.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 17 Jun 2019 16:59:25 -0700
+X-ExtLoop1: 1
+Received: from khuang2-desk.gar.corp.intel.com ([10.255.91.82])
+  by orsmga005.jf.intel.com with ESMTP; 17 Jun 2019 16:59:20 -0700
+Message-ID: <1560815959.5187.57.camel@linux.intel.com>
+Subject: Re: [PATCH, RFC 45/62] mm: Add the encrypt_mprotect() system call
+ for MKTME
+From: Kai Huang <kai.huang@linux.intel.com>
+To: Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@kernel.org>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton
+ <akpm@linux-foundation.org>, X86 ML <x86@kernel.org>, Thomas Gleixner
+ <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin"
+ <hpa@zytor.com>, Borislav Petkov <bp@alien8.de>, Peter Zijlstra
+ <peterz@infradead.org>, David Howells <dhowells@redhat.com>, Kees Cook
+ <keescook@chromium.org>, Jacob Pan <jacob.jun.pan@linux.intel.com>, Alison
+ Schofield <alison.schofield@intel.com>, Linux-MM <linux-mm@kvack.org>, kvm
+ list <kvm@vger.kernel.org>,  keyrings@vger.kernel.org, LKML
+ <linux-kernel@vger.kernel.org>, Tom Lendacky <thomas.lendacky@amd.com>
+Date: Tue, 18 Jun 2019 11:59:19 +1200
+In-Reply-To: <5cbfa2da-ba2e-ed91-d0e8-add67753fc12@intel.com>
+References: <20190508144422.13171-1-kirill.shutemov@linux.intel.com>
+	 <20190508144422.13171-46-kirill.shutemov@linux.intel.com>
+	 <CALCETrVCdp4LyCasvGkc0+S6fvS+dna=_ytLdDPuD2xeAr5c-w@mail.gmail.com>
+	 <3c658cce-7b7e-7d45-59a0-e17dae986713@intel.com>
+	 <CALCETrUPSv4Xae3iO+2i_HecJLfx4mqFfmtfp+cwBdab8JUZrg@mail.gmail.com>
+	 <5cbfa2da-ba2e-ed91-d0e8-add67753fc12@intel.com>
 Content-Type: text/plain; charset="UTF-8"
+X-Mailer: Evolution 3.24.6 (3.24.6-1.fc26) 
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Currently oom_unkillable_task() checks mems_allowed even for memcg OOMs
-which does not make sense as memcg OOMs can not be triggered due to
-numa constraints. Fixing that.
+On Mon, 2019-06-17 at 11:27 -0700, Dave Hansen wrote:
+> Tom Lendacky, could you take a look down in the message to the talk of
+> SEV?  I want to make sure I'm not misrepresenting what it does today.
+> ...
+> 
+> 
+> > > I actually don't care all that much which one we end up with.  It's not
+> > > like the extra syscall in the second options means much.
+> > 
+> > The benefit of the second one is that, if sys_encrypt is absent, it
+> > just works.  In the first model, programs need a fallback because
+> > they'll segfault of mprotect_encrypt() gets ENOSYS.
+> 
+> Well, by the time they get here, they would have already had to allocate
+> and set up the encryption key.  I don't think this would really be the
+> "normal" malloc() path, for instance.
+> 
+> > >  How do we
+> > > eventually stack it on top of persistent memory filesystems or Device
+> > > DAX?
+> > 
+> > How do we stack anonymous memory on top of persistent memory or Device
+> > DAX?  I'm confused.
+> 
+> If our interface to MKTME is:
+> 
+> 	fd = open("/dev/mktme");
+> 	ptr = mmap(fd);
+> 
+> Then it's hard to combine with an interface which is:
+> 
+> 	fd = open("/dev/dax123");
+> 	ptr = mmap(fd);
+> 
+> Where if we have something like mprotect() (or madvise() or something
+> else taking pointer), we can just do:
+> 
+> 	fd = open("/dev/anything987");
+> 	ptr = mmap(fd);
+> 	sys_encrypt(ptr);
+> 
+> Now, we might not *do* it that way for dax, for instance, but I'm just
+> saying that if we go the /dev/mktme route, we never get a choice.
+> 
+> > I think that, in the long run, we're going to have to either expand
+> > the core mm's concept of what "memory" is or just have a whole
+> > parallel set of mechanisms for memory that doesn't work like memory.
+> 
+> ...
+> > I expect that some day normal memory will  be able to be repurposed as
+> > SGX pages on the fly, and that will also look a lot more like SEV or
+> > XPFO than like the this model of MKTME.
+> 
+> I think you're drawing the line at pages where the kernel can manage
+> contents vs. not manage contents.  I'm not sure that's the right
+> distinction to make, though.  The thing that is important is whether the
+> kernel can manage the lifetime and location of the data in the page.
+> 
+> Basically: Can the kernel choose where the page comes from and get the
+> page back when it wants?
+> 
+> I really don't like the current state of things like with SEV or with
+> KVM direct device assignment where the physical location is quite locked
+> down and the kernel really can't manage the memory.  I'm trying really
+> hard to make sure future hardware is more permissive about such things.
+>  My hope is that these are a temporary blip and not the new normal.
+> 
+> > So, if we upstream MKTME as anonymous memory with a magic config
+> > syscall, I predict that, in a few years, it will be end up inheriting
+> > all downsides of both approaches with few of the upsides.  Programs
+> > like QEMU will need to learn to manipulate pages that can't be
+> > accessed outside the VM without special VM buy-in, so the fact that
+> > MKTME pages are fully functional and can be GUP-ed won't be very
+> > useful.  And the VM will learn about all these things, but MKTME won't
+> > really fit in.
+> 
+> Kai Huang (who is on cc) has been doing the QEMU enabling and might want
+> to weigh in.  I'd also love to hear from the AMD folks in case I'm not
+> grokking some aspect of SEV.
+> 
+> But, my understanding is that, even today, neither QEMU nor the kernel
+> can see SEV-encrypted guest memory.  So QEMU should already understand
+> how to not interact with guest memory.  I _assume_ it's also already
+> doing this with anonymous memory, without needing /dev/sme or something.
 
-This commit also removed the bogus usage of oom_unkillable_task() from
-oom_badness(). Currently reading /proc/[pid]/oom_score will do a bogus
-cpuset_mems_allowed_intersects() check. Removing that.
+Correct neither Qemu nor kernel can see SEV-encrypted guest memory. Qemu requires guest's
+cooperation when it needs to interacts with guest, i.e. to support virtual DMA (of virtual devices
+in SEV-guest), qemu requires SEV-guest to setup bounce buffer (which will not be SEV-encrypted
+memory, but shared memory can be accessed from host side too), so that guest kernel can copy DMA
+data from bounce buffer to its own SEV-encrypted memory after qemu/host kernel puts DMA data to
+bounce buffer.
 
-Signed-off-by: Shakeel Butt <shakeelb@google.com>
----
-Changelog since v1:
-- Divide the patch into two patches.
+And yes from my reading (better to have AMD guys to confirm) SEV guest uses anonymous memory, but it
+also pins all guest memory (by calling GUP from KVM -- SEV specifically introduced 2 KVM ioctls for
+this purpose), since SEV architecturally cannot support swapping, migraiton of SEV-encrypted guest
+memory, because SME/SEV also uses physical address as "tweak", and there's no way that kernel can
+get or use SEV-guest's memory encryption key. In order to swap/migrate SEV-guest memory, we need SGX
+EPC eviction/reload similar thing, which SEV doesn't have today.
 
- fs/proc/base.c      |  3 +--
- include/linux/oom.h |  1 -
- mm/oom_kill.c       | 28 +++++++++++++++-------------
- 3 files changed, 16 insertions(+), 16 deletions(-)
+From this perspective, I think driver proposal kinda makes sense since we already have security
+feature which uses normal memory some kind like "device memory" (no swap, no migration, etc), so it
+makes sense that MKTME just follows that (although from HW MKTME can support swap, page migration,
+etc). The downside of driver proposal for MKTME I think is, like Dave mentioned, it's hard (or not
+sure whether it is possible) to extend to support NVDIMM (and file backed guest memory), since for
+virtual NVDIMM, Qemu needs to call mmap against fd of NVDIMM.
 
-diff --git a/fs/proc/base.c b/fs/proc/base.c
-index b8d5d100ed4a..57b7a0d75ef5 100644
---- a/fs/proc/base.c
-+++ b/fs/proc/base.c
-@@ -532,8 +532,7 @@ static int proc_oom_score(struct seq_file *m, struct pid_namespace *ns,
- 	unsigned long totalpages = totalram_pages() + total_swap_pages;
- 	unsigned long points = 0;
- 
--	points = oom_badness(task, NULL, NULL, totalpages) *
--					1000 / totalpages;
-+	points = oom_badness(task, totalpages) * 1000 / totalpages;
- 	seq_printf(m, "%lu\n", points);
- 
- 	return 0;
-diff --git a/include/linux/oom.h b/include/linux/oom.h
-index d07992009265..c696c265f019 100644
---- a/include/linux/oom.h
-+++ b/include/linux/oom.h
-@@ -108,7 +108,6 @@ static inline vm_fault_t check_stable_address_space(struct mm_struct *mm)
- bool __oom_reap_task_mm(struct mm_struct *mm);
- 
- extern unsigned long oom_badness(struct task_struct *p,
--		struct mem_cgroup *memcg, const nodemask_t *nodemask,
- 		unsigned long totalpages);
- 
- extern bool out_of_memory(struct oom_control *oc);
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index bd80997e0969..d779d9da1069 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -152,20 +152,23 @@ static inline bool is_memcg_oom(struct oom_control *oc)
- }
- 
- /* return true if the task is not adequate as candidate victim task. */
--static bool oom_unkillable_task(struct task_struct *p,
--		struct mem_cgroup *memcg, const nodemask_t *nodemask)
-+static bool oom_unkillable_task(struct task_struct *p, struct oom_control *oc)
- {
- 	if (is_global_init(p))
- 		return true;
- 	if (p->flags & PF_KTHREAD)
- 		return true;
- 
--	/* When mem_cgroup_out_of_memory() and p is not member of the group */
--	if (memcg && !task_in_mem_cgroup(p, memcg))
--		return true;
-+	/*
-+	 * For memcg OOM, we reach here through mem_cgroup_scan_tasks(), no
-+	 * need to check p's memcg membership and the checks after this
-+	 * are irrelevant for memcg OOMs.
-+	 */
-+	if (is_memcg_oom(oc))
-+		return false;
- 
- 	/* p may not have freeable memory in nodemask */
--	if (!has_intersects_mems_allowed(p, nodemask))
-+	if (!has_intersects_mems_allowed(p, oc->nodemask))
- 		return true;
- 
- 	return false;
-@@ -201,13 +204,12 @@ static bool is_dump_unreclaim_slabs(void)
-  * predictable as possible.  The goal is to return the highest value for the
-  * task consuming the most memory to avoid subsequent oom failures.
-  */
--unsigned long oom_badness(struct task_struct *p, struct mem_cgroup *memcg,
--			  const nodemask_t *nodemask, unsigned long totalpages)
-+unsigned long oom_badness(struct task_struct *p, unsigned long totalpages)
- {
- 	long points;
- 	long adj;
- 
--	if (oom_unkillable_task(p, memcg, nodemask))
-+	if (is_global_init(p) || p->flags & PF_KTHREAD)
- 		return 0;
- 
- 	p = find_lock_task_mm(p);
-@@ -318,7 +320,7 @@ static int oom_evaluate_task(struct task_struct *task, void *arg)
- 	struct oom_control *oc = arg;
- 	unsigned long points;
- 
--	if (oom_unkillable_task(task, NULL, oc->nodemask))
-+	if (oom_unkillable_task(task, oc))
- 		goto next;
- 
- 	/*
-@@ -342,7 +344,7 @@ static int oom_evaluate_task(struct task_struct *task, void *arg)
- 		goto select;
- 	}
- 
--	points = oom_badness(task, NULL, oc->nodemask, oc->totalpages);
-+	points = oom_badness(task, oc->totalpages);
- 	if (!points || points < oc->chosen_points)
- 		goto next;
- 
-@@ -390,7 +392,7 @@ static int dump_task(struct task_struct *p, void *arg)
- 	struct oom_control *oc = arg;
- 	struct task_struct *task;
- 
--	if (oom_unkillable_task(p, NULL, oc->nodemask))
-+	if (oom_unkillable_task(p, oc))
- 		return 0;
- 
- 	task = find_lock_task_mm(p);
-@@ -1090,7 +1092,7 @@ bool out_of_memory(struct oom_control *oc)
- 	check_panic_on_oom(oc, constraint);
- 
- 	if (!is_memcg_oom(oc) && sysctl_oom_kill_allocating_task &&
--	    current->mm && !oom_unkillable_task(current, NULL, oc->nodemask) &&
-+	    current->mm && !oom_unkillable_task(current, oc) &&
- 	    current->signal->oom_score_adj != OOM_SCORE_ADJ_MIN) {
- 		get_task_struct(current);
- 		oc->chosen = current;
--- 
-2.22.0.410.gd8fdbe21b5-goog
+Thanks,
+-Kai
 
