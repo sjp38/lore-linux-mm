@@ -2,229 +2,315 @@ Return-Path: <SRS0=4FFe=UQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-16.4 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_GIT,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no
+X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_MUTT autolearn=unavailable autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5A4BCC31E5B
-	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 15:11:07 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CCE93C46477
+	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 15:13:05 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 14C08208C4
-	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 15:11:07 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="p3ae0HY/"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 14C08208C4
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	by mail.kernel.org (Postfix) with ESMTP id 8152D208CB
+	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 15:13:05 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8152D208CB
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BC1B68E0006; Mon, 17 Jun 2019 11:11:06 -0400 (EDT)
+	id 35C578E0003; Mon, 17 Jun 2019 11:13:05 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B71AA8E0001; Mon, 17 Jun 2019 11:11:06 -0400 (EDT)
+	id 30C158E0001; Mon, 17 Jun 2019 11:13:05 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A60888E0006; Mon, 17 Jun 2019 11:11:06 -0400 (EDT)
+	id 1D5A28E0003; Mon, 17 Jun 2019 11:13:05 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 88DBB8E0001
-	for <linux-mm@kvack.org>; Mon, 17 Jun 2019 11:11:06 -0400 (EDT)
-Received: by mail-qk1-f197.google.com with SMTP id v4so9377482qkj.10
-        for <linux-mm@kvack.org>; Mon, 17 Jun 2019 08:11:06 -0700 (PDT)
+Received: from mail-yb1-f198.google.com (mail-yb1-f198.google.com [209.85.219.198])
+	by kanga.kvack.org (Postfix) with ESMTP id F1CCE8E0001
+	for <linux-mm@kvack.org>; Mon, 17 Jun 2019 11:13:04 -0400 (EDT)
+Received: by mail-yb1-f198.google.com with SMTP id l184so10997671ybl.3
+        for <linux-mm@kvack.org>; Mon, 17 Jun 2019 08:13:04 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:in-reply-to:message-id
-         :mime-version:references:subject:from:to:cc;
-        bh=J2xlT5BkG4PHe/4/nJk7BmFqwoJl9sRtUfXxrBXjMCQ=;
-        b=TwBcB14k4gX7Wko5OK0lAptTRKacjxj1ETsNWoatO3wZCpwjrfBjTEGKw4836RiyKJ
-         z963MrnL6L6gtNlcBdH/1J2/iVa+zhHsGbBOVkWGvO1KKjluaP/4DSsNoeZiAnyKksoz
-         anC6QVvGJQg68F6eW60cA+Iqc5Qz0eDpnis9K9l/B1fq/fkBML50mshVIA0lHgNw2X1H
-         1vX1G5mPP6dia3x2csoDy5n46g7/EhcBqd5SiIISnnf6k6dgaXd+Y1xUA/h6U8zHNa1j
-         FfHTuQBouIvOEsrW4pX4jxmD/nsmpcaGsw3fahCcTRPdLge0YhtNKNedZBD1xkPlvf2V
-         2DyA==
-X-Gm-Message-State: APjAAAWf7fQYYuzyb4x8WFTDx2ZK3jfPnsZruKR5B4QnCTvESZzIge60
-	b00Mro43GGfCY1WgPoF4WqarSNxeSbJdPA749fFccLScO4UjKI00ktiivgWcikQK+SZvzgipKJZ
-	mA3VXwNVWonwwPOCiNuLsimKIOkW5iXekATYh68uxvJJKTq5l5uiON1eNBo7LmeKRDQ==
-X-Received: by 2002:aed:21f0:: with SMTP id m45mr80645691qtc.391.1560784266313;
-        Mon, 17 Jun 2019 08:11:06 -0700 (PDT)
-X-Received: by 2002:aed:21f0:: with SMTP id m45mr80645642qtc.391.1560784265719;
-        Mon, 17 Jun 2019 08:11:05 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560784265; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent:message-id;
+        bh=EzyOWjCt1qJgV/6OLEPgVc1OgxgsIwQq21/pgzhbLt8=;
+        b=Ae6n6Jk6Dsssuf43/Lzs9Ld3Makr52d/HutLYpdWHLfl3MWV8sQepyG/M/fLH9/n1q
+         /Bt/Z51Ks1FzcwlpIOYm1V+8H08p9uNDMF+FtlQx/pV6LXVIDTwyI9cqzbTZKjXvM1VW
+         7eWe7+FIEOuYy7cqe6ypiM/cFpc6GVGq8CuYEIQxaIzvuViK+QW0CU+BXHqta58eIxWC
+         +mLXHT9cfm78bnouQdS9baGscQ+q+vYZYSoKCo7xyWIkFAxa2gbZWyBySSTXbacV0mcK
+         49W8eVKijqhOLRtzpsB1kGwOJhr2KDlvZOYzYGc84CLgt81W6ZY1lzXmPjcV36/k2R5I
+         MyMg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: APjAAAUMnOd0RoCo/SMc2MvryKeAdZLvL2cuCCvcMkmlrOQkF+DHqAMh
+	yOG3GOn6AeGvhji7FsiJjF0c2DTDmI2IBVD4qTFkWmV80IiX8bs/4j24XCgx8DoeamPb1RtsINO
+	V5jEuFM6m+3KePn9vQzlBnOIugfN9pR1Q8MgJqBam8Yb6uMh9ogAPXnGlMtpykm9TAA==
+X-Received: by 2002:a25:3490:: with SMTP id b138mr6441059yba.174.1560784383709;
+        Mon, 17 Jun 2019 08:13:03 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwjWO4xIjSrjDuXFrCqRMYw35r2SOiYnbDWCaq/db1rf+DRmf18tb9uN+MpLB2o5vkgHQli
+X-Received: by 2002:a25:3490:: with SMTP id b138mr6441004yba.174.1560784382717;
+        Mon, 17 Jun 2019 08:13:02 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560784382; cv=none;
         d=google.com; s=arc-20160816;
-        b=TEeuYZA8paTsIZhoeTavfPewSFGgNgYrQWRg3jmNz04w/Dt9mvBiyxQSjyjlP2piL6
-         6FsRTn91GPsS458mAm71YyJzroy9xPHJG9wJWsbwY/4UDRe8yJxiW2sWJsAyXWThqFC7
-         MWyX88ysT0YCFl/Kkpiq0MXgDhCJWK7hVpxeh6QipQA/wPx4zbH94ztZIv4X1bVjM0rx
-         tKXzlkv9/4ZLss8VveUKo6R65m7YKhB3Ta+i/0b5yFFfsymaRUNk03MXalELkKS8L7k/
-         zVKxJJj/K2bPHRA9TNtKQPkYhgotX+UYvBdu2K4Sth5lv+Pw3Xk7J6QFnWTiYQl5agPy
-         lYYw==
+        b=cVXWXMOuS6lhAqpT/fUwyDt1brztnvVWDvCXLEUZL0xb/8harPwW/Wf6OMh32KvN5J
+         mSCZKhknCg5SoC+cRzUNBXsNb47FxX7SwcVHixviR3wx+u8nS84hatqqjn9AphHV/IyR
+         9m/uyM7P/h/LVNaSZJ7TG/YksBM/R3NEc3bUpUfT+FrLJiSaVBLWZM2AgMtodVTcPQMB
+         FJrsCTnAw0/EVyFd6Jco96td/bPpiPll+g+xNW7ejSOlSZTnOM7L+mWFxdqfos4UxF63
+         C6l8EOe/egaJPCk89Q/BdRu3My6SETm/9KJG3jt0x67wL1c2JyH8Asjcmx2bCZM10kOC
+         IC0A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:from:subject:references:mime-version:message-id:in-reply-to
-         :date:dkim-signature;
-        bh=J2xlT5BkG4PHe/4/nJk7BmFqwoJl9sRtUfXxrBXjMCQ=;
-        b=0ker+IqWY6Vm+eY7hLROG+mlLTefSUTIubLvsgB5lYOXrUuwp5aRg5HAqFGVnqsRCW
-         Iv/p4KnYD497ZfFuZEZmxXOccjJ68DP7As7G4qoKhhR1C9XdWZE/ANG4+H7rvpPdmLCF
-         cb+PEbzrs6mrmVr8ThMu5c6+HVtzgu69CERr64RgreqZEOKC1JcyejqUTsCgC4Nm8hxi
-         S1+ohCPrlH2if11N6pW5UL57MV+7GTCu8e4qMwioJUTFqnI5ePamf4/KEbc5KV2ph6wq
-         q5n5/ltg8tBYF8vtNKB2X3oU6M7k6n5x4kcLKM19WGxX6KXlY/86Q5+wTLSyZFnL0YKl
-         TPPA==
+        h=message-id:user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:subject:cc:to:from:date;
+        bh=EzyOWjCt1qJgV/6OLEPgVc1OgxgsIwQq21/pgzhbLt8=;
+        b=NYI3ewEK2JQXNA7IskF51wI1x+h5CAiUFsfDW1Nz/14djADeh0azqXwzwFEev36GKP
+         XbT6O10Eef3jrhuxStvMpFAArSgD6x+mdQzC5wts6EAspUDIUGL7DPCBji3NnruHUaUf
+         B6ypwCCw9//AD+Eto5WdN9JH4wq0+WYK0eNHsIHAa3mzfnmR8sZLImoLfypyYNvicROr
+         EbTqLBi1aIpAgUA4m1+2Ip+qao/rwRV8QbhN90l6BzvFgDrV8UfKmLzjWqBk2fok7zXW
+         15JLCszq0Y7tuOjzXn4QJXqB5UnRhiACQK3hyWT7DLHFM2+tgYGeesVaJcCOkzi5EYM5
+         FXGA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b="p3ae0HY/";
-       spf=pass (google.com: domain of 3ia0hxqykcpaydavwjyggydw.ugedafmp-eecnsuc.gjy@flex--glider.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3ia0HXQYKCPAYdaVWjYggYdW.Ugedafmp-eecnSUc.gjY@flex--glider.bounces.google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
-        by mx.google.com with SMTPS id h58sor16483156qtc.11.2019.06.17.08.11.05
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id k185si3320890ywa.181.2019.06.17.08.13.02
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 17 Jun 2019 08:11:05 -0700 (PDT)
-Received-SPF: pass (google.com: domain of 3ia0hxqykcpaydavwjyggydw.ugedafmp-eecnsuc.gjy@flex--glider.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 17 Jun 2019 08:13:02 -0700 (PDT)
+Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b="p3ae0HY/";
-       spf=pass (google.com: domain of 3ia0hxqykcpaydavwjyggydw.ugedafmp-eecnsuc.gjy@flex--glider.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3ia0HXQYKCPAYdaVWjYggYdW.Ugedafmp-eecnSUc.gjY@flex--glider.bounces.google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=date:in-reply-to:message-id:mime-version:references:subject:from:to
-         :cc;
-        bh=J2xlT5BkG4PHe/4/nJk7BmFqwoJl9sRtUfXxrBXjMCQ=;
-        b=p3ae0HY/O3HHcM6wSMM9Tz76pUtauWYXmpaYWMuj4cFJ05HA65ucJNAlfWzvMGlmaS
-         lxOyugNBCdTPBRgvKdpVxDPPMXLwju022Pe2+adIc0cy/7WN15Piv/GRhyXgOlK1N9zO
-         Qt2SUknDwSdhIbbMc5QJx9l8NVVrJY3o1UR5JRK4IgEsJvZln9vb6KepjjdnvNbApfcs
-         9jLqp/1MVZVCrmLGqeLqmR5Z+Lsh9JlA14qkOfLbd3vfbUIUl6HfJLDZnERhBTPjT9L6
-         HBY80N8ck39V/TG1wmfxgzmwWsr1L0U03y9/v2GIsZIlHX+iQS46D3BFyn2y3Orggm40
-         ws8A==
-X-Google-Smtp-Source: APXvYqwW8bb+vtL/Lysm9EpPCmcTXzOQ2ut1uDpyQmfhMuaCptVMX9tFM6WT2buC0hsqYxHSzW//c6xIsSk=
-X-Received: by 2002:ac8:394b:: with SMTP id t11mr73550464qtb.286.1560784265391;
- Mon, 17 Jun 2019 08:11:05 -0700 (PDT)
-Date: Mon, 17 Jun 2019 17:10:50 +0200
-In-Reply-To: <20190617151050.92663-1-glider@google.com>
-Message-Id: <20190617151050.92663-3-glider@google.com>
-Mime-Version: 1.0
-References: <20190617151050.92663-1-glider@google.com>
-X-Mailer: git-send-email 2.22.0.410.gd8fdbe21b5-goog
-Subject: [PATCH v7 2/2] mm: init: report memory auto-initialization features
- at boot time
-From: Alexander Potapenko <glider@google.com>
-To: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>
-Cc: Alexander Potapenko <glider@google.com>, Kees Cook <keescook@chromium.org>, 
-	Dmitry Vyukov <dvyukov@google.com>, James Morris <jmorris@namei.org>, Jann Horn <jannh@google.com>, 
-	Kostya Serebryany <kcc@google.com>, Laura Abbott <labbott@redhat.com>, Mark Rutland <mark.rutland@arm.com>, 
-	Masahiro Yamada <yamada.masahiro@socionext.com>, Matthew Wilcox <willy@infradead.org>, 
-	Nick Desaulniers <ndesaulniers@google.com>, Randy Dunlap <rdunlap@infradead.org>, 
-	Sandeep Patil <sspatil@android.com>, "Serge E. Hallyn" <serge@hallyn.com>, 
-	Souptick Joarder <jrdr.linux@gmail.com>, Marco Elver <elver@google.com>, 
-	Kaiwan N Billimoria <kaiwan@kaiwantech.com>, kernel-hardening@lists.openwall.com, 
-	linux-mm@kvack.org, linux-security-module@vger.kernel.org
-Content-Type: text/plain; charset="UTF-8"
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x5HF84Ye046133
+	for <linux-mm@kvack.org>; Mon, 17 Jun 2019 11:13:02 -0400
+Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2t6d4y8n7w-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 17 Jun 2019 11:13:01 -0400
+Received: from localhost
+	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
+	Mon, 17 Jun 2019 16:12:59 +0100
+Received: from b06cxnps4076.portsmouth.uk.ibm.com (9.149.109.198)
+	by e06smtp07.uk.ibm.com (192.168.101.137) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Mon, 17 Jun 2019 16:12:56 +0100
+Received: from b06wcsmtp001.portsmouth.uk.ibm.com (b06wcsmtp001.portsmouth.uk.ibm.com [9.149.105.160])
+	by b06cxnps4076.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x5HFCtCS45154384
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Mon, 17 Jun 2019 15:12:55 GMT
+Received: from b06wcsmtp001.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 16452A405C;
+	Mon, 17 Jun 2019 15:12:55 +0000 (GMT)
+Received: from b06wcsmtp001.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 16509A405B;
+	Mon, 17 Jun 2019 15:12:54 +0000 (GMT)
+Received: from rapoport-lnx (unknown [9.148.8.53])
+	by b06wcsmtp001.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
+	Mon, 17 Jun 2019 15:12:53 +0000 (GMT)
+Date: Mon, 17 Jun 2019 18:12:52 +0300
+From: Mike Rapoport <rppt@linux.ibm.com>
+To: Mark Rutland <mark.rutland@arm.com>
+Cc: Qian Cai <cai@lca.pw>, Will Deacon <will.deacon@arm.com>,
+        akpm@linux-foundation.org, Roman Gushchin <guro@fb.com>,
+        catalin.marinas@arm.com, linux-kernel@vger.kernel.org,
+        mhocko@kernel.org, linux-mm@kvack.org, vdavydov.dev@gmail.com,
+        hannes@cmpxchg.org, cgroups@vger.kernel.org,
+        linux-arm-kernel@lists.infradead.org
+Subject: Re: [PATCH -next] arm64/mm: fix a bogus GFP flag in pgd_alloc()
+References: <1559656836-24940-1-git-send-email-cai@lca.pw>
+ <20190604142338.GC24467@lakrids.cambridge.arm.com>
+ <20190610114326.GF15979@fuggles.cambridge.arm.com>
+ <1560187575.6132.70.camel@lca.pw>
+ <20190611100348.GB26409@lakrids.cambridge.arm.com>
+ <20190613121100.GB25164@rapoport-lnx>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20190613121100.GB25164@rapoport-lnx>
+User-Agent: Mutt/1.5.24 (2015-08-30)
+X-TM-AS-GCONF: 00
+x-cbid: 19061715-0028-0000-0000-0000037B0CCC
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19061715-0029-0000-0000-0000243B119D
+Message-Id: <20190617151252.GF16810@rapoport-lnx>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-06-17_06:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=7 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1906170136
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Print the currently enabled stack and heap initialization modes.
+On Thu, Jun 13, 2019 at 03:11:01PM +0300, Mike Rapoport wrote:
+> On Tue, Jun 11, 2019 at 11:03:49AM +0100, Mark Rutland wrote:
+> > On Mon, Jun 10, 2019 at 01:26:15PM -0400, Qian Cai wrote:
+> > > On Mon, 2019-06-10 at 12:43 +0100, Will Deacon wrote:
+> > > > On Tue, Jun 04, 2019 at 03:23:38PM +0100, Mark Rutland wrote:
+> > > > > On Tue, Jun 04, 2019 at 10:00:36AM -0400, Qian Cai wrote:
+> > > > > > The commit "arm64: switch to generic version of pte allocation"
+> > > > > > introduced endless failures during boot like,
+> > > > > > 
+> > > > > > kobject_add_internal failed for pgd_cache(285:chronyd.service) (error:
+> > > > > > -2 parent: cgroup)
+> > > > > > 
+> > > > > > It turns out __GFP_ACCOUNT is passed to kernel page table allocations
+> > > > > > and then later memcg finds out those don't belong to any cgroup.
+> > > > > 
+> > > > > Mike, I understood from [1] that this wasn't expected to be a problem,
+> > > > > as the accounting should bypass kernel threads.
+> > > > > 
+> > > > > Was that assumption wrong, or is something different happening here?
+> > > > > 
+> > > > > > 
+> > > > > > backtrace:
+> > > > > >   kobject_add_internal
+> > > > > >   kobject_init_and_add
+> > > > > >   sysfs_slab_add+0x1a8
+> > > > > >   __kmem_cache_create
+> > > > > >   create_cache
+> > > > > >   memcg_create_kmem_cache
+> > > > > >   memcg_kmem_cache_create_func
+> > > > > >   process_one_work
+> > > > > >   worker_thread
+> > > > > >   kthread
+> > > > > > 
+> > > > > > Signed-off-by: Qian Cai <cai@lca.pw>
+> > > > > > ---
+> > > > > >  arch/arm64/mm/pgd.c | 2 +-
+> > > > > >  1 file changed, 1 insertion(+), 1 deletion(-)
+> > > > > > 
+> > > > > > diff --git a/arch/arm64/mm/pgd.c b/arch/arm64/mm/pgd.c
+> > > > > > index 769516cb6677..53c48f5c8765 100644
+> > > > > > --- a/arch/arm64/mm/pgd.c
+> > > > > > +++ b/arch/arm64/mm/pgd.c
+> > > > > > @@ -38,7 +38,7 @@ pgd_t *pgd_alloc(struct mm_struct *mm)
+> > > > > >  	if (PGD_SIZE == PAGE_SIZE)
+> > > > > >  		return (pgd_t *)__get_free_page(gfp);
+> > > > > >  	else
+> > > > > > -		return kmem_cache_alloc(pgd_cache, gfp);
+> > > > > > +		return kmem_cache_alloc(pgd_cache, GFP_PGTABLE_KERNEL);
+> > > > > 
+> > > > > This is used to allocate PGDs for both user and kernel pagetables (e.g.
+> > > > > for the efi runtime services), so while this may fix the regression, I'm
+> > > > > not sure it's the right fix.
+> > > > > 
+> > > > > Do we need a separate pgd_alloc_kernel()?
+> > > > 
+> > > > So can I take the above for -rc5, or is somebody else working on a different
+> > > > fix to implement pgd_alloc_kernel()?
+> > > 
+> > > The offensive commit "arm64: switch to generic version of pte allocation" is not
+> > > yet in the mainline, but only in the Andrew's tree and linux-next, and I doubt
+> > > Andrew will push this out any time sooner given it is broken.
+> > 
+> > I'd assumed that Mike would respin these patches to implement and use
+> > pgd_alloc_kernel() (or take gfp flags) and the updated patches would
+> > replace these in akpm's tree.
+> > 
+> > Mike, could you confirm what your plan is? I'm happy to review/test
+> > updated patches for arm64.
+> 
+> The log Qian Cai posted at [1] and partially cited below confirms that the
+> failure happens when *user* PGDs are allocated and the addition of
+> __GFP_ACCOUNT to gfp flags used by pgd_alloc() only uncovered another
+> issue.
 
-Stack initialization is enabled by a config flag, while heap
-initialization is configured at boot time with defaults being set
-in the config. It's more convenient for the user to have all information
-about these hardening measures in one place at boot, so the user can
-reason about the expected behavior of the running system.
+Indeed the accounting of the PGD memory uncovered a dangling pointer to
+pgd_cache :)
 
-The possible options for stack are:
- - "all" for CONFIG_INIT_STACK_ALL;
- - "byref_all" for CONFIG_GCC_PLUGIN_STRUCTLEAK_BYREF_ALL;
- - "byref" for CONFIG_GCC_PLUGIN_STRUCTLEAK_BYREF;
- - "__user" for CONFIG_GCC_PLUGIN_STRUCTLEAK_USER;
- - "off" otherwise.
+The pgd_cache was initialized twice and it made memcg and slub sysfs go
+nuts. To be frank, I've got lost in their cross-initialization,
+cross-referencing and update sequences, but for sure extra initialization
+of pgd_cache was bogus.
 
-Depending on the values of init_on_alloc and init_on_free boottime
-options we also report "heap alloc" and "heap free" as "on"/"off".
+I've double checked the 'if (mm == &init_mm)' and it's not needed. The EFI
+PGD is allocated before memcg is up and other kernel allocations of pgd (if
+we'll have any) would be bypassed by memcg_kmem_bypass().
 
-In the init_on_free mode initializing pages at boot time may take a
-while, so print a notice about that as well. This depends on how much
-memory is installed, the memory bandwidth, etc.
-On a relatively modern x86 system, it takes about 0.75s/GB to wipe all
-memory:
+Andrew, can you please add the patch below as an incremental fix?
 
-  [    0.418722] mem auto-init: stack:byref_all, heap alloc:off, heap free:on
-  [    0.419765] mem auto-init: clearing system memory may take some time...
-  [   12.376605] Memory: 16408564K/16776672K available (14339K kernel code, 1397K rwdata, 3756K rodata, 1636K init, 11460K bss, 368108K reserved, 0K cma-reserved)
+With this the arm64::pgd_alloc() should be in the right shape.
 
-Signed-off-by: Alexander Potapenko <glider@google.com>
-Suggested-by: Kees Cook <keescook@chromium.org>
-Acked-by: Kees Cook <keescook@chromium.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Dmitry Vyukov <dvyukov@google.com>
-Cc: James Morris <jmorris@namei.org>
-Cc: Jann Horn <jannh@google.com>
-Cc: Kostya Serebryany <kcc@google.com>
-Cc: Laura Abbott <labbott@redhat.com>
-Cc: Mark Rutland <mark.rutland@arm.com>
-Cc: Masahiro Yamada <yamada.masahiro@socionext.com>
-Cc: Matthew Wilcox <willy@infradead.org>
-Cc: Nick Desaulniers <ndesaulniers@google.com>
-Cc: Randy Dunlap <rdunlap@infradead.org>
-Cc: Sandeep Patil <sspatil@android.com>
-Cc: "Serge E. Hallyn" <serge@hallyn.com>
-Cc: Souptick Joarder <jrdr.linux@gmail.com>
-Cc: Marco Elver <elver@google.com>
-Cc: Kaiwan N Billimoria <kaiwan@kaiwantech.com>
-Cc: kernel-hardening@lists.openwall.com
-Cc: linux-mm@kvack.org
-Cc: linux-security-module@vger.kernel.org
+
+From 1c1ef0bc04c655689c6c527bd03b140251399d87 Mon Sep 17 00:00:00 2001
+From: Mike Rapoport <rppt@linux.ibm.com>
+Date: Mon, 17 Jun 2019 17:37:43 +0300
+Subject: [PATCH] arm64/mm: don't initialize pgd_cache twice
+
+When PGD_SIZE != PAGE_SIZE, arm64 uses kmem_cache for allocation of PGD
+memory. That cache was initialized twice: first through
+pgtable_cache_init() alias and then as an override for weak
+pgd_cache_init().
+
+After enabling accounting for the PGD memory, this created a confusion for
+memcg and slub sysfs code which resulted in the following errors:
+
+[   90.608597] kobject_add_internal failed for pgd_cache(13:init.scope) (error: -2 parent: cgroup)
+[   90.678007] kobject_add_internal failed for pgd_cache(13:init.scope) (error: -2 parent: cgroup)
+[   90.713260] kobject_add_internal failed for pgd_cache(21:systemd-tmpfiles-setup.service) (error: -2 parent: cgroup)
+
+Removing the alias from pgtable_cache_init() and keeping the only pgd_cache
+initialization in pgd_cache_init() resolves the problem and allows
+accounting of PGD memory.
+
+Reported-by: Qian Cai <cai@lca.pw>
+Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
 ---
- v6:
- - update patch description, fixed message about clearing memory
- v7:
- - rebase the patch, add the Acked-by: tag;
- - more description updates as suggested by Kees;
- - make report_meminit() static.
----
- init/main.c | 24 ++++++++++++++++++++++++
- 1 file changed, 24 insertions(+)
+ arch/arm64/include/asm/pgtable.h | 3 +--
+ arch/arm64/mm/pgd.c              | 5 +----
+ 2 files changed, 2 insertions(+), 6 deletions(-)
 
-diff --git a/init/main.c b/init/main.c
-index 66a196c5e4c3..ff5803b0841c 100644
---- a/init/main.c
-+++ b/init/main.c
-@@ -520,6 +520,29 @@ static inline void initcall_debug_enable(void)
- }
- #endif
+diff --git a/arch/arm64/include/asm/pgtable.h b/arch/arm64/include/asm/pgtable.h
+index 3191b9f..c7a802d 100644
+--- a/arch/arm64/include/asm/pgtable.h
++++ b/arch/arm64/include/asm/pgtable.h
+@@ -851,8 +851,7 @@ extern int kern_addr_valid(unsigned long addr);
  
-+/* Report memory auto-initialization states for this boot. */
-+static void __init report_meminit(void)
-+{
-+	const char *stack;
-+
-+	if (IS_ENABLED(CONFIG_INIT_STACK_ALL))
-+		stack = "all";
-+	else if (IS_ENABLED(CONFIG_GCC_PLUGIN_STRUCTLEAK_BYREF_ALL))
-+		stack = "byref_all";
-+	else if (IS_ENABLED(CONFIG_GCC_PLUGIN_STRUCTLEAK_BYREF))
-+		stack = "byref";
-+	else if (IS_ENABLED(CONFIG_GCC_PLUGIN_STRUCTLEAK_USER))
-+		stack = "__user";
-+	else
-+		stack = "off";
-+
-+	pr_info("mem auto-init: stack:%s, heap alloc:%s, heap free:%s\n",
-+		stack, want_init_on_alloc(GFP_KERNEL) ? "on" : "off",
-+		want_init_on_free() ? "on" : "off");
-+	if (want_init_on_free())
-+		pr_info("mem auto-init: clearing system memory may take some time...\n");
-+}
-+
+ #include <asm-generic/pgtable.h>
+ 
+-void pgd_cache_init(void);
+-#define pgtable_cache_init	pgd_cache_init
++static inline void pgtable_cache_init(void) { }
+ 
  /*
-  * Set up kernel memory allocators
-  */
-@@ -530,6 +553,7 @@ static void __init mm_init(void)
- 	 * bigger than MAX_ORDER unless SPARSEMEM.
- 	 */
- 	page_ext_init_flatmem();
-+	report_meminit();
- 	mem_init();
- 	kmem_cache_init();
- 	pgtable_init();
+  * On AArch64, the cache coherency is handled via the set_pte_at() function.
+diff --git a/arch/arm64/mm/pgd.c b/arch/arm64/mm/pgd.c
+index 53c48f5..3f0a744 100644
+--- a/arch/arm64/mm/pgd.c
++++ b/arch/arm64/mm/pgd.c
+@@ -32,13 +32,10 @@ pgd_t *pgd_alloc(struct mm_struct *mm)
+ {
+ 	gfp_t gfp = GFP_PGTABLE_USER;
+ 
+-	if (unlikely(mm == &init_mm))
+-		gfp = GFP_PGTABLE_KERNEL;
+-
+ 	if (PGD_SIZE == PAGE_SIZE)
+ 		return (pgd_t *)__get_free_page(gfp);
+ 	else
+-		return kmem_cache_alloc(pgd_cache, GFP_PGTABLE_KERNEL);
++		return kmem_cache_alloc(pgd_cache, gfp);
+ }
+ 
+ void pgd_free(struct mm_struct *mm, pgd_t *pgd)
 -- 
-2.22.0.410.gd8fdbe21b5-goog
+2.7.4
+
+
+> [1] https://cailca.github.io/files/dmesg.txt
+> 
+> -- 
+> Sincerely yours,
+> Mike.
+> 
+
+-- 
+Sincerely yours,
+Mike.
 
