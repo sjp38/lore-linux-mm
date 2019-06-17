@@ -2,268 +2,196 @@ Return-Path: <SRS0=4FFe=UQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B1D8EC31E57
-	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 12:47:18 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A37EEC31E57
+	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 13:13:40 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6549C20861
-	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 12:47:18 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6549C20861
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id 633EE2082C
+	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 13:13:40 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 633EE2082C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 130578E0006; Mon, 17 Jun 2019 08:47:18 -0400 (EDT)
+	id ED8B38E0003; Mon, 17 Jun 2019 09:13:39 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0BA7E8E0004; Mon, 17 Jun 2019 08:47:18 -0400 (EDT)
+	id E62CA8E0001; Mon, 17 Jun 2019 09:13:39 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E9E218E0006; Mon, 17 Jun 2019 08:47:17 -0400 (EDT)
+	id CB56B8E0003; Mon, 17 Jun 2019 09:13:39 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 9471F8E0004
-	for <linux-mm@kvack.org>; Mon, 17 Jun 2019 08:47:17 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id k15so16319240eda.6
-        for <linux-mm@kvack.org>; Mon, 17 Jun 2019 05:47:17 -0700 (PDT)
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A55728E0001
+	for <linux-mm@kvack.org>; Mon, 17 Jun 2019 09:13:39 -0400 (EDT)
+Received: by mail-qk1-f198.google.com with SMTP id h198so9120964qke.1
+        for <linux-mm@kvack.org>; Mon, 17 Jun 2019 06:13:39 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to
-         :references:cc:from:openpgp:autocrypt:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=VUfAioI88zmC8ZZEv4O6hEQrYwS+s94g/Fyvie6uw20=;
-        b=Z0HgkSXtIe0uPTR8YSnkeFHqmaCHfmfQS1yLcOyNjzDekbkoBhXdIwjmXIA18pB+ep
-         fdhIKVrjYbV36rzxEHKO973GDRh9tXekhg5RvGItiN3HQYosy5XywPyTO8NCAsM7XIWF
-         4LVdj5xO3VUd9TR810nlSXejYugOoUdDqBhhBInYPGCbqBkDHunebbBXrYOAL1MEIVWp
-         lLfGPIJlG2Bd8reMoFr55CH65EXHpi7+6FUq08a1t1QR/n//xZY5LxB/Dz74pvl0/S/j
-         YuJFnyQHNswVLNqK8CFH+F3lYmdBO3WX1hACuaCG7xEPOPkVzwr1JJW9yByPF1mJlnYL
-         Ostw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Gm-Message-State: APjAAAVfNt25QHXbCvfa5y/ElmthNvU5ymnvdEj/4etwycOqTOyTgIcQ
-	G33kwOMUOM88qHrbE/CJYuMvXy4Weym+NofgKuZN3z+zbw8rLa+hFB91BIg9iQsHMGfeoMnGpNn
-	E21M9mne5KMuKf7iJmz6Rl2fKOd+yb9IkrsYJ1UF/H18gtWznXtJsRXFr2dhDctVzOw==
-X-Received: by 2002:a17:906:5255:: with SMTP id y21mr21349467ejm.253.1560775637138;
-        Mon, 17 Jun 2019 05:47:17 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz1MluaxOugAnXc5pdm+hufJV4e61teOx0AAgB1yqUkpaze4Uux5JL6pAZtw/0EVBc5ZnZd
-X-Received: by 2002:a17:906:5255:: with SMTP id y21mr21349402ejm.253.1560775636165;
-        Mon, 17 Jun 2019 05:47:16 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560775636; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:organization:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding;
+        bh=PgmP5ucjDKSbzUYyZ2qdVnklw4VhCpLLHp443UNXt8o=;
+        b=WEmcWxB3b/FIM+PquGIxO9Q9rX3ieE+4kuaPlTtC1BJRg55l+/DWHIqGHQHDFf71pW
+         JSKMoL7/189UZ67sW+rsrkOQAcNXxYT6Ab1PvFMgIf1wJTXse6zpDD5FuV4bxxxydkHm
+         wHyMKMwUq7AARG87k4XkVkYt88DUazI6tzbE8+RHfpFPVLJhm9f44jNXBmot3Y9H40u7
+         vBhiGOotZfIiNr+b2VI1qAaaEKOKJWoAk3OU3qbuJdpjCBNPZ/HF11EsXf09UeA+luv4
+         4CgLoa35tw01jyY4wraYU/Vz8U19MtLaFVzazgdnRtzes+YTDhXFuQQgCTk2o2TcNGD3
+         yUVA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAU4xtAVE/0VBcG2PjkSO97tk0opPh3WSQlH2wriwPPqJu/6gXDn
+	4SW3K9fKxKJNkT/ds7feTlVJUalIN65ABSs1heOPbNaWVjEfZYr0eRBeQ5KEfGJ5rfIR05TPvjW
+	EceCReNCP4kgZyDu/S+xj7JCqfJYOkisq9/Rgv/kCw4JXZ12AN5VsSEJU77wTaUNM+w==
+X-Received: by 2002:ac8:3faa:: with SMTP id d39mr94450119qtk.240.1560777219415;
+        Mon, 17 Jun 2019 06:13:39 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqx347NUmicf2Z8rOm/np23yksrnil2rZR1/ow7qHdSXS6Oxt0Tynk7dmv5Bdfi31tLHHisj
+X-Received: by 2002:ac8:3faa:: with SMTP id d39mr94450051qtk.240.1560777218712;
+        Mon, 17 Jun 2019 06:13:38 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560777218; cv=none;
         d=google.com; s=arc-20160816;
-        b=w+rLzMXyJMTCm2rz9IOpRXmWk7BLgALSCz7k60K8i8DDvfhiEwWeFfURx0wTtt0REH
-         5AINPX51b7+OT3Y5iGKgEXmHXLY/o1t/8Eg3n82LdjzFmd/8f0z5g2RSYikEMOds7ZGU
-         PsWVbWA8NDsO2Lkxwz8qw0V/UokGCr/0XNGo29t1oeeI7BRrtfv6hL8F20NhvD4PAPjv
-         s+m0OuPSsImHIftC+meABJnMQtYB02BF3EAn/D+GmOTAuU8G9obrxlejP6BKr+MuJ4w7
-         XU3I5a7hmsTvyTIp943GSjfYRNUC6CY27Ew2GXm6rKk29ReB/0CC8enIpo0nw6vser4V
-         eZPw==
+        b=k503lTomDe8E6YUPCRWlj3pMtr+A3MgyKPRtK+oYM/CHXoK1tRisBVbpkAKEgDEPrv
+         8PFfubwXlC1J2/xeFst7TxFiNzOFMl8NtMGNRLmtjJ9YQLGVxBCM8+9J5Zjc7kdbyx9N
+         nFa63HpM4j5G/NZMknSaMGNvbPBptraWvqJ5bdaR50dapuBD5owWNf7Inis0DhCEpDdQ
+         5uVEGny3yPUp8cFV2aRYYZ2xoXRuJv4JKyi7eQSSDn0Es+QGtqsISa41yy8VUYbjsh3o
+         VhYsHepztENv7+cXj8GJup7zVpiyq14qvIxsK3Ee58VFXhsgNCxmSEIBMHEUUWWoZoPp
+         ib0A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:autocrypt:openpgp:from:cc:references:to
-         :subject;
-        bh=VUfAioI88zmC8ZZEv4O6hEQrYwS+s94g/Fyvie6uw20=;
-        b=DBcED7A23t8icCJ/CnVEEWEcyOtgOfQeBHxlBo5MeDXrAOZ3Dab8KDMY2/ig4xtRQK
-         z6NUU9ghhkpktHHKOqfjpJLUyllWEsBmD5SW8hv2SprweMa1r5AginAWnT/AMPiylS8h
-         jjACD8eN3DX9AKb/3yHFuPxJoek4Nit1H0DmkM/4cMZ2Nqdp0cSCoyYCt8VXYfnmCg5K
-         nyCpGMl8ne53RtVeeJTe78SnKG8CYEE8HQRMUGfX+xW+WKnRTBh+TtS+1W8QeDEhf8F3
-         x9rEjR4lmhUxOcYZPGgqtgXilFLYcEb3Ftblr7cDP4OYI7R8HcrQL5PP8uQfazIuW83e
-         5FLw==
+         :user-agent:date:message-id:organization:autocrypt:openpgp:from
+         :references:cc:to:subject;
+        bh=PgmP5ucjDKSbzUYyZ2qdVnklw4VhCpLLHp443UNXt8o=;
+        b=pzBRviN/36MS9wnigft/W/jU6c2yd7dot2T12EtsH4HZwio/eZx9fKDnDBxiBtOqA9
+         QfIfzqZTj03JJhIgFUrsJOP/siiDVNh+kcny9o7I8nHXkviIR3g6GUBXn0SgO9hRs037
+         CS5nZhTjmiHbnGzj0nmymhdlnnGAsXqWCxyR8sVzLIxE9LmgZCzlN1RTN49KggIA68Kx
+         uSCythmBQQzcfLNs6Xf+0QZeBT8ScqLyWF2trAu81E15Z9jZwTb3r7TPVToJVqvt0+6U
+         wXqL+c0d3/UTIWR6JWsonOI3iY+5Szt0CHrFyO21tlT2s0Hesowq7vSMZfJCuabwVPLQ
+         TQ7A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id d18si6187976ejj.245.2019.06.17.05.47.15
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id h57si7204360qvd.131.2019.06.17.06.13.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 17 Jun 2019 05:47:16 -0700 (PDT)
-Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Mon, 17 Jun 2019 06:13:38 -0700 (PDT)
+Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 66235AEF1;
-	Mon, 17 Jun 2019 12:47:15 +0000 (UTC)
-Subject: Re: kernel BUG at mm/swap_state.c:170!
-To: Mikhail Gavrilov <mikhail.v.gavrilov@gmail.com>,
- Linux List Kernel Mailing <linux-kernel@vger.kernel.org>,
- linux-mm@kvack.org, Matthew Wilcox <willy@infradead.org>
-References: <CABXGCsN9mYmBD-4GaaeW_NrDu+FDXLzr_6x+XNxfmFV6QkYCDg@mail.gmail.com>
- <CABXGCsNq4xTFeeLeUXBj7vXBz55aVu31W9q74r+pGM83DrPjfA@mail.gmail.com>
-Cc: Jan Kara <jack@suse.cz>,
- "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
- Song Liu <songliubraving@fb.com>,
- William Kucharski <william.kucharski@oracle.com>, Qian Cai <cai@lca.pw>
-From: Vlastimil Babka <vbabka@suse.cz>
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id A9E5030872E5;
+	Mon, 17 Jun 2019 13:13:37 +0000 (UTC)
+Received: from [10.36.117.132] (ovpn-117-132.ams2.redhat.com [10.36.117.132])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 6CE2C63F6B;
+	Mon, 17 Jun 2019 13:13:34 +0000 (UTC)
+Subject: Re: [PATCH] mm/sparse: set section nid for hot-add memory
+To: Wei Yang <richardw.yang@linux.intel.com>, linux-mm@kvack.org
+Cc: akpm@linux-foundation.org, pasha.tatashin@oracle.com, osalvador@suse.de
+References: <20190616023554.19316-1-richardw.yang@linux.intel.com>
+From: David Hildenbrand <david@redhat.com>
 Openpgp: preference=signencrypt
-Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
- 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
-Message-ID: <f23fe795-5023-be6a-8007-86d3141306ed@suse.cz>
-Date: Mon, 17 Jun 2019 14:47:14 +0200
+Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
+ 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
+ SE+xAvmumFBY
+Organization: Red Hat GmbH
+Message-ID: <0a1704aa-6f5b-6e0b-eb3f-4038c2523aeb@redhat.com>
+Date: Mon, 17 Jun 2019 15:13:33 +0200
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.7.0
 MIME-Version: 1.0
-In-Reply-To: <CABXGCsNq4xTFeeLeUXBj7vXBz55aVu31W9q74r+pGM83DrPjfA@mail.gmail.com>
+In-Reply-To: <20190616023554.19316-1-richardw.yang@linux.intel.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.47]); Mon, 17 Jun 2019 13:13:37 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 5/29/19 7:32 PM, Mikhail Gavrilov wrote:
-> On Wed, 29 May 2019 at 09:05, Mikhail Gavrilov
-> <mikhail.v.gavrilov@gmail.com> wrote:
->>
->> Hi folks.
->> I am observed kernel panic after update to git tag 5.2-rc2.
->> This crash happens at memory pressing when swap being used.
->>
->> Unfortunately in journalctl saved only this:
->>
+On 16.06.19 04:35, Wei Yang wrote:
+> section_to_node_table[] is used to record section's node id, which is
+> used in page_to_nid(). While for hot-add memory, this is missed.
 > 
-> Now I captured better trace.
+> BTW, current online_pages works because it leverages nid in memory_block.
+> But the granularity of node id should be mem_section wide.
 
-The VM_BUG_ON_PAGE has been touched in 5.2-rc1 by commit
-5fd4ca2d84b2 ("mm: page cache: store only head pages in i_pages")
-CCing relevant people and keeping rest of mail for reference.
+set_section_nid() is only relevant if the NID is not part of the vmemmaps.
 
-> : page:ffffd6d34dff0000 refcount:1 mapcount:1 mapping:ffff97812323a689
-> index:0xfecec363
-> : anon
-> : flags: 0x17fffe00080034(uptodate|lru|active|swapbacked)
-> : raw: 0017fffe00080034 ffffd6d34c67c508 ffffd6d3504b8d48 ffff97812323a689
-> : raw: 00000000fecec363 0000000000000000 0000000100000000 ffff978433ace000
-> : page dumped because: VM_BUG_ON_PAGE(entry != page)
-> : page->mem_cgroup:ffff978433ace000
-> : ------------[ cut here ]------------
-> : kernel BUG at mm/swap_state.c:170!
-> : invalid opcode: 0000 [#1] SMP NOPTI
-> : CPU: 1 PID: 221 Comm: kswapd0 Not tainted 5.2.0-0.rc2.git0.1.fc31.x86_64 #1
-> : Hardware name: System manufacturer System Product Name/ROG STRIX
-> X470-I GAMING, BIOS 2202 04/11/2019
-> : RIP: 0010:__delete_from_swap_cache+0x20d/0x240
-> : Code: 30 65 48 33 04 25 28 00 00 00 75 4a 48 83 c4 38 5b 5d 41 5c 41
-> 5d 41 5e 41 5f c3 48 c7 c6 2f dc 0f 8a 48 89 c7 e8 93 1b fd ff <0f> 0b
-> 48 c7 c6 a8 74 0f 8a e8 85 1b fd ff 0f 0b 48 c7 c6 a8 7d 0f
-> : RSP: 0018:ffffa982036e7980 EFLAGS: 00010046
-> : RAX: 0000000000000021 RBX: 0000000000000040 RCX: 0000000000000006
-> : RDX: 0000000000000000 RSI: 0000000000000086 RDI: ffff97843d657900
-> : RBP: 0000000000000001 R08: ffffa982036e7835 R09: 0000000000000535
-> : R10: ffff97845e21a46c R11: ffffa982036e7835 R12: ffff978426387120
-> : R13: 0000000000000000 R14: ffffd6d34dff0040 R15: ffffd6d34dff0000
-> : FS:  0000000000000000(0000) GS:ffff97843d640000(0000) knlGS:0000000000000000
-> : CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> : CR2: 00002cba88ef5000 CR3: 000000078a97c000 CR4: 00000000003406e0
-> : Call Trace:
-> :  delete_from_swap_cache+0x46/0xa0
-> :  try_to_free_swap+0xbc/0x110
-> :  swap_writepage+0x13/0x70
-> :  pageout.isra.0+0x13c/0x350
-> :  shrink_page_list+0xc14/0xdf0
-> :  shrink_inactive_list+0x1e5/0x3c0
-> :  shrink_node_memcg+0x202/0x760
-> :  ? do_shrink_slab+0x52/0x2c0
-> :  shrink_node+0xe0/0x470
-> :  balance_pgdat+0x2d1/0x510
-> :  kswapd+0x220/0x420
-> :  ? finish_wait+0x80/0x80
-> :  kthread+0xfb/0x130
-> :  ? balance_pgdat+0x510/0x510
-> :  ? kthread_park+0x90/0x90
-> :  ret_from_fork+0x22/0x40
-> : Modules linked in: uinput rfcomm fuse xt_CHECKSUM xt_MASQUERADE tun
-> bridge stp llc nf_conntrack_netbios_ns nf_conntrack_broadcast xt_CT
-> ip6t_rpfilter ip6t_REJECT nf_reject_ipv6 ipt_REJECT nf_reject_ipv4
-> xt_conntrack ebtable_nat ip6table_nat ip6table_mangle ip6table_raw
-> ip6table_security iptable_nat nf_nat iptable_mangle iptable_raw
-> iptable_security cmac nf_conntrack nf_defrag_ipv6 nf_defrag_ipv4
-> libcrc32c ip_set nfnetlink ebtable_filter ebtables ip6table_filter
-> ip6_tables iptable_filter ip_tables bnep sunrpc vfat fat edac_mce_amd
-> arc4 kvm_amd rtwpci snd_hda_codec_realtek rtw88 kvm eeepc_wmi
-> snd_hda_codec_generic asus_wmi sparse_keymap ledtrig_audio
-> snd_hda_codec_hdmi video wmi_bmof mac80211 snd_hda_intel uvcvideo
-> snd_hda_codec videobuf2_vmalloc videobuf2_memops videobuf2_v4l2
-> irqbypass snd_usb_audio videobuf2_common snd_hda_core videodev
-> snd_usbmidi_lib snd_seq snd_hwdep snd_rawmidi snd_seq_device btusb
-> snd_pcm crct10dif_pclmul btrtl crc32_pclmul btbcm btintel bluetooth
-> :  cfg80211 snd_timer ghash_clmulni_intel joydev snd k10temp soundcore
-> media sp5100_tco ccp i2c_piix4 ecdh_generic rfkill ecc gpio_amdpt
-> pcc_cpufreq gpio_generic acpi_cpufreq binfmt_misc hid_logitech_hidpp
-> hid_logitech_dj uas usb_storage hid_sony ff_memless amdgpu
-> amd_iommu_v2 gpu_sched ttm drm_kms_helper igb nvme dca drm
-> crc32c_intel i2c_algo_bit nvme_core wmi pinctrl_amd
-> : ---[ end trace 3840e49b1d8d2c24 ]---
 > 
+> Signed-off-by: Wei Yang <richardw.yang@linux.intel.com>
+> ---
+>  mm/sparse.c | 1 +
+>  1 file changed, 1 insertion(+)
 > 
-> $ /usr/src/kernels/`uname -r`/scripts/faddr2line
-> /lib/debug/lib/modules/`uname -r`/vmlinux
-> __delete_from_swap_cache+0x20d
-> __delete_from_swap_cache+0x20d/0x240:
-> __delete_from_swap_cache at mm/swap_state.c:170 (discriminator 1)
+> diff --git a/mm/sparse.c b/mm/sparse.c
+> index fd13166949b5..3ba8f843cb7a 100644
+> --- a/mm/sparse.c
+> +++ b/mm/sparse.c
+> @@ -735,6 +735,7 @@ int __meminit sparse_add_one_section(int nid, unsigned long start_pfn,
+>  	 */
+>  	page_init_poison(memmap, sizeof(struct page) * PAGES_PER_SECTION);
+>  
+> +	set_section_nid(section_nr, nid);
+>  	section_mark_present(ms);
+>  	sparse_init_one_section(ms, section_nr, memmap, usemap);
+>  
 > 
-> 
-> 
-> 
-> --
-> Best Regards,
-> Mike Gavrilov.
-> 
+
+Although I dislike basically all of the current ->nid design, this seems
+to be the right thing to do
+
+Reviewed-by: David Hildenbrand <david@redhat.com>
+
+-- 
+
+Thanks,
+
+David / dhildenb
 
