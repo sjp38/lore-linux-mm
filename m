@@ -2,175 +2,155 @@ Return-Path: <SRS0=4FFe=UQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-11.3 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_IN_DEF_DKIM_WL
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CD6EAC31E5D
-	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 21:59:43 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 84A52C31E5B
+	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 22:00:13 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 69BAA2082C
-	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 21:59:43 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="kvgoo1AW"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 69BAA2082C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	by mail.kernel.org (Postfix) with ESMTP id 4D95020673
+	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 22:00:13 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4D95020673
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=deltatee.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C894C8E0002; Mon, 17 Jun 2019 17:59:42 -0400 (EDT)
+	id DC0C98E0004; Mon, 17 Jun 2019 18:00:12 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C39AA8E0001; Mon, 17 Jun 2019 17:59:42 -0400 (EDT)
+	id D718A8E0001; Mon, 17 Jun 2019 18:00:12 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B27918E0002; Mon, 17 Jun 2019 17:59:42 -0400 (EDT)
+	id C39AD8E0004; Mon, 17 Jun 2019 18:00:12 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-vk1-f198.google.com (mail-vk1-f198.google.com [209.85.221.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 8A15C8E0001
-	for <linux-mm@kvack.org>; Mon, 17 Jun 2019 17:59:42 -0400 (EDT)
-Received: by mail-vk1-f198.google.com with SMTP id a2so5285909vkg.14
-        for <linux-mm@kvack.org>; Mon, 17 Jun 2019 14:59:42 -0700 (PDT)
+Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
+	by kanga.kvack.org (Postfix) with ESMTP id A30688E0001
+	for <linux-mm@kvack.org>; Mon, 17 Jun 2019 18:00:12 -0400 (EDT)
+Received: by mail-io1-f72.google.com with SMTP id f22so13647389ioh.22
+        for <linux-mm@kvack.org>; Mon, 17 Jun 2019 15:00:12 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=EAhatab0HAVyw+PnT7+3nUVy3uXQEI6O1vd8Cnx2LKk=;
-        b=uG/3Z5sGNhPwKHIpIYcCChnaIapXjcFvzxkEjAe9A+b4AZO7PttvXnF/iLyY8H557w
-         p6inSsUNlFPLLrRchaqNuOD9rSaZyyaVBGfUK97pp0HOOiwgks318ebeHIxJ0SPaCA16
-         NizEn1k1yU34cey/cWli4qfyD+CvhBbMQIfLuy1KLbiNXW7JXRXcWemWrhHl6W0rlWxC
-         KznEb6WqGM8VM2fzWA4PdgXLKg4QXp44px7jBwOXiFqZ5xAnVl6JWwBY1LU+Z2FOscbj
-         tg79+S9v+66uLsxbtj/ZAPxi1pkCaifUuNY5HlL+QelQYZ+em4q+LAwWBUIaVFsoQ7AT
-         eBpA==
-X-Gm-Message-State: APjAAAWdUYuzNtaR2apD0DUjm+3ZPQRIL6Cespckd3Y44di7+mRh6/jZ
-	sB7xIEovaNlI+YQsGZNCVAhXoheTl2w5RYgIhOKpOqdcbwsEF0Iao1Qfho8IvGfjmiSGNx6OgM/
-	B3AKNKyzJ4/c/siByLel9CODacfYudPrKIV7f7AZMrU+2joneFPYbiPoef71m4kAX4w==
-X-Received: by 2002:a67:fc50:: with SMTP id p16mr42361247vsq.79.1560808782286;
-        Mon, 17 Jun 2019 14:59:42 -0700 (PDT)
-X-Received: by 2002:a67:fc50:: with SMTP id p16mr42361235vsq.79.1560808781766;
-        Mon, 17 Jun 2019 14:59:41 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560808781; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding:subject;
+        bh=sycZdmOU9qTE9/EqEGohOGSK1tdA7T/UGbnjmyU5J8Y=;
+        b=h7SnOm0wftb6Q3UPv1+Kjn3lScUBg1OHiBskRUxBWkjjfMXjD0KqLpM282ocmL1Zvf
+         GfskKd6RH/Vy26umfW1lmDYujA28KCgCnhuAhi3wSq4+6usbYl//FYeDLLroAnukRxAl
+         DH+J6hsPPSxexvlinNnlAeAx1h31wGvVjr9yw3uXPSljXE9jz4gGR8QL8qQrsDTKwh0o
+         NSzMGFUzte/Vr85Dx+TKMfzj1/uMlAhxemm200IAdtw0DL9Va7sv6DkGb/Z5PiZYsciK
+         dmmRV/P5s7JBYS0p8UduRzfDdrzzvwSZd9zU6JJMa1dzTy8/Kb8U6VYfVpbDrcSwPebu
+         7vpQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of logang@deltatee.com designates 207.54.116.67 as permitted sender) smtp.mailfrom=logang@deltatee.com
+X-Gm-Message-State: APjAAAXEPf/i/ab4bEJ1PA0aS/7/xzmEhr2JjdhqxF1JTKnrKaLn5XDA
+	slnnCJk/nVwKvFYf1QBJfIjwgzitWgWQO4wMH0o1OC+28a4PDYDmv5EecPD7A26qrLP8u6aL+lM
+	YbdT0sVYF54lUQYa0csB/Vh1t3yTLBRQNuPcisYXM/I6LqOcoZle7UI5q2pSprDjz2w==
+X-Received: by 2002:a02:ce92:: with SMTP id y18mr7635jaq.40.1560808812373;
+        Mon, 17 Jun 2019 15:00:12 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwSUaXJvJMwz8I7HUA+Prl8PNnsSEYs0tFnQIiVf6HgSE7GUI2G2U45F/5WWYXugNbUobaZ
+X-Received: by 2002:a02:ce92:: with SMTP id y18mr1455844jaq.40.1560802099485;
+        Mon, 17 Jun 2019 13:08:19 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560802099; cv=none;
         d=google.com; s=arc-20160816;
-        b=xxf4ZuSGcJMY1JPXjw3bUnbrq4lyind7kE3+pu9OtEOE9WvZ8UYEI7cm31p4lK/F70
-         CG957aKapXvxEQ2M3umLdmF5GZMxLc/bbiYU52kGzSaEYK5fCvHKwjSqw5fi/QrN/WCr
-         MZpfe3qzVyfgjB3v0YLkrW86Kw5nmxH6HYXYechdtj/fZzAy7TK8gXPL1g9bs3wEsCMa
-         w2T/qorpTWJ00/I3N43UbkYQxqfTSAt7LKYmuPnGKwT+kA5onGBN4WcZoJzrxCAAeMv7
-         23WK5QMdVSei6hEJHHnKW/ReddZps/3Qzej7RAuW3EyJXsIPmd8Ctfjl5fpni8WfCGbV
-         Cncg==
+        b=mwZAmqW1q3MkrPJUOE1gPH+tPAqmgKTO8VM0CxrLTTs2XzbXNDgrCvrL8G/CP9qCOy
+         FMJXdA6Ywu/+NUDsFaWJUL/6cfiY4Z8bjciIbgbJx+B8OV6Qj07VzObiZjTQE5tVWam0
+         SnATsmHpJirQDmtR+kB2WX6yNxMiTxAspSvsrpTAbAd2h90EhL64FZqDailkAnbtGnug
+         QP+DlcH7YhgthNZ4PbuzwJ7oCR1DYOUeWPvqobHbIkxy3hGIUPrWsCfsUzDHCSbe+o/c
+         csxN+pY4zmiqcG8b56wlAhQBSAkLE2hztvcFXJJOnuxlW+TW1AOK3R+K61UJx0MFZTgH
+         9ePA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=EAhatab0HAVyw+PnT7+3nUVy3uXQEI6O1vd8Cnx2LKk=;
-        b=mWsLmQKKwA2iNeICqRlBpKnDaOD8O8M7Z2YaabsFq5YuqI5vCynMc6MzPW5iRnrTxr
-         zlKO+UoOpIr0pxulllWYnKfca0PJNtGROE9vvXzoAVBQ56i9s+lffXznitLz9RjgPeVl
-         qCFX3QvYLneXU05g0TwwIRZY92ZYatzBjF+gDOqZQqNBh6soFp9hgXGQUo1JpGbKoyS2
-         MrAOLdrbnyZ4/qbYJLUJqDHBhsohurVHLRiYCVzDox6p8z6nXlCC/u3DTz+MT+xfLV3D
-         7d0cF6bpY8M2U4CgLf1pSJD93AutzIxD7t6hfaNPi/oLVxvxwF/3lzEQj2ds3DxsngiF
-         F9IQ==
+        h=subject:content-transfer-encoding:content-language:in-reply-to
+         :mime-version:user-agent:date:message-id:from:references:cc:to;
+        bh=sycZdmOU9qTE9/EqEGohOGSK1tdA7T/UGbnjmyU5J8Y=;
+        b=ozHHBRGkrI1U2VlI5Z9cYknENYyrLZGaCsORFknDCcEcqt+dHWc/YKfE581/uGNGBa
+         2TP/c6koY6zM1pk0mjBlBdicf+J4FY+d22UuK8oUiLE9Oa3iIHWro30Erb0k7c7gscg8
+         sieNCWf+wL7Auy5wYlK6/dAq0vKsxDKeTkBMsUqdCkx5oA6jk94VnH2ZAneiei09FyWc
+         imZyiM6Qpru1s3mAZTJdgmp18ZqYX0raXm1QmK92jfALkj6lmdPSWOTvDdWq/zv8TMsv
+         iIbxlZUujOEsd1dAc4G+68B+Kqh7p+6V/3mb62e8xcWZDG99HjY5u8eICPdX/Uf0C+SO
+         OeWg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=kvgoo1AW;
-       spf=pass (google.com: domain of eugenis@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=eugenis@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d8sor5619968uam.6.2019.06.17.14.59.41
+       spf=pass (google.com: domain of logang@deltatee.com designates 207.54.116.67 as permitted sender) smtp.mailfrom=logang@deltatee.com
+Received: from ale.deltatee.com (ale.deltatee.com. [207.54.116.67])
+        by mx.google.com with ESMTPS id i26si18592589jac.14.2019.06.17.13.08.18
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 17 Jun 2019 14:59:41 -0700 (PDT)
-Received-SPF: pass (google.com: domain of eugenis@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 17 Jun 2019 13:08:19 -0700 (PDT)
+Received-SPF: pass (google.com: domain of logang@deltatee.com designates 207.54.116.67 as permitted sender) client-ip=207.54.116.67;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=kvgoo1AW;
-       spf=pass (google.com: domain of eugenis@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=eugenis@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=EAhatab0HAVyw+PnT7+3nUVy3uXQEI6O1vd8Cnx2LKk=;
-        b=kvgoo1AWJ53ectZxNh7vumo7uHVF3ezzA+dmS6OCiyHy7q38adiyo8Mt48b9s1ecuS
-         8vbgSWAHi7F66ZbJb0OnnHkka0SZfIdhx44ptJvkStf7KSPyjOUktnOEWU+P5uVTHP64
-         eN+AH0Y198g5GhXwzgWWBTwbfohtVJT/rFQhRmBXLkxVDGhPtni3s7vOLmfSoppPuiMS
-         fw+6xL0t8nIg9W/VqAlmea2Xi/QAMj43r70NCnqPKdZOQ+k2pXu+G5fUMaRe8zFdt2fk
-         JWWQc2NJ/zMPTaMg9M5+VHQpiaQGfqqosa4YWPSG3qztsQIxZrsszWUCVKNg2vbMMWht
-         a6XA==
-X-Google-Smtp-Source: APXvYqx2nWcd1UUVmxVOfqTdpy/EjWGEE63D+8CgDq6wsvkYXGUtTG/eldJ/84K4uXpb1xaJ0VQplOCTsiiUpsYmcEg=
-X-Received: by 2002:ab0:234e:: with SMTP id h14mr10788176uao.25.1560808781025;
- Mon, 17 Jun 2019 14:59:41 -0700 (PDT)
+       spf=pass (google.com: domain of logang@deltatee.com designates 207.54.116.67 as permitted sender) smtp.mailfrom=logang@deltatee.com
+Received: from guinness.priv.deltatee.com ([172.16.1.162])
+	by ale.deltatee.com with esmtp (Exim 4.89)
+	(envelope-from <logang@deltatee.com>)
+	id 1hcxvM-0004o2-QE; Mon, 17 Jun 2019 14:08:17 -0600
+To: Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>,
+ =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>,
+ Jason Gunthorpe <jgg@mellanox.com>, Ben Skeggs <bskeggs@redhat.com>
+Cc: linux-mm@kvack.org, nouveau@lists.freedesktop.org,
+ dri-devel@lists.freedesktop.org, linux-nvdimm@lists.01.org,
+ linux-pci@vger.kernel.org, linux-kernel@vger.kernel.org
+References: <20190617122733.22432-1-hch@lst.de>
+ <20190617122733.22432-9-hch@lst.de>
+From: Logan Gunthorpe <logang@deltatee.com>
+Message-ID: <d68c5e4c-b2de-95c3-0b75-1f2391b25a34@deltatee.com>
+Date: Mon, 17 Jun 2019 14:08:14 -0600
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.1
 MIME-Version: 1.0
-References: <cover.1560339705.git.andreyknvl@google.com> <a7a2933bea5fe57e504891b7eec7e9432e5e1c1a.1560339705.git.andreyknvl@google.com>
- <20190617135636.GC1367@arrakis.emea.arm.com> <CAFKCwrjJ+0ijNKa3ioOP7xa91QmZU0NhkO=tNC-Q_ThC69vTug@mail.gmail.com>
- <20190617171813.GC34565@arrakis.emea.arm.com>
-In-Reply-To: <20190617171813.GC34565@arrakis.emea.arm.com>
-From: Evgenii Stepanov <eugenis@google.com>
-Date: Mon, 17 Jun 2019 14:59:29 -0700
-Message-ID: <CAFKCwrhuQ+x-KprJV=CPCrnQR9Ky9qL=M5q_pa3fGj27oo4mng@mail.gmail.com>
-Subject: Re: [PATCH v17 03/15] arm64: Introduce prctl() options to control the
- tagged user addresses ABI
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Andrey Konovalov <andreyknvl@google.com>, Linux ARM <linux-arm-kernel@lists.infradead.org>, 
-	Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, 
-	amd-gfx@lists.freedesktop.org, dri-devel@lists.freedesktop.org, 
-	linux-rdma@vger.kernel.org, linux-media@vger.kernel.org, kvm@vger.kernel.org, 
-	"open list:KERNEL SELFTEST FRAMEWORK" <linux-kselftest@vger.kernel.org>, 
-	Vincenzo Frascino <vincenzo.frascino@arm.com>, Will Deacon <will.deacon@arm.com>, 
-	Mark Rutland <mark.rutland@arm.com>, Andrew Morton <akpm@linux-foundation.org>, 
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kees Cook <keescook@chromium.org>, 
-	Yishai Hadas <yishaih@mellanox.com>, Felix Kuehling <Felix.Kuehling@amd.com>, 
-	Alexander Deucher <Alexander.Deucher@amd.com>, Christian Koenig <Christian.Koenig@amd.com>, 
-	Mauro Carvalho Chehab <mchehab@kernel.org>, Jens Wiklander <jens.wiklander@linaro.org>, 
-	Alex Williamson <alex.williamson@redhat.com>, Leon Romanovsky <leon@kernel.org>, 
-	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>, Dave Martin <Dave.Martin@arm.com>, 
-	Khalid Aziz <khalid.aziz@oracle.com>, enh <enh@google.com>, Jason Gunthorpe <jgg@ziepe.ca>, 
-	Christoph Hellwig <hch@infradead.org>, Dmitry Vyukov <dvyukov@google.com>, 
-	Kostya Serebryany <kcc@google.com>, Lee Smith <Lee.Smith@arm.com>, 
-	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, 
-	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Robin Murphy <robin.murphy@arm.com>, 
-	Kevin Brodsky <kevin.brodsky@arm.com>, Szabolcs Nagy <Szabolcs.Nagy@arm.com>
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20190617122733.22432-9-hch@lst.de>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-CA
+Content-Transfer-Encoding: 7bit
+X-SA-Exim-Connect-IP: 172.16.1.162
+X-SA-Exim-Rcpt-To: linux-kernel@vger.kernel.org, linux-pci@vger.kernel.org, linux-nvdimm@lists.01.org, dri-devel@lists.freedesktop.org, nouveau@lists.freedesktop.org, linux-mm@kvack.org, bskeggs@redhat.com, jgg@mellanox.com, jglisse@redhat.com, dan.j.williams@intel.com, hch@lst.de
+X-SA-Exim-Mail-From: logang@deltatee.com
+Subject: Re: [PATCH 08/25] memremap: move dev_pagemap callbacks into a
+ separate structure
+X-SA-Exim-Version: 4.2.1 (built Tue, 02 Aug 2016 21:08:31 +0000)
+X-SA-Exim-Scanned: Yes (on ale.deltatee.com)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jun 17, 2019 at 10:18 AM Catalin Marinas
-<catalin.marinas@arm.com> wrote:
->
-> On Mon, Jun 17, 2019 at 09:57:36AM -0700, Evgenii Stepanov wrote:
-> > On Mon, Jun 17, 2019 at 6:56 AM Catalin Marinas <catalin.marinas@arm.com> wrote:
-> > > On Wed, Jun 12, 2019 at 01:43:20PM +0200, Andrey Konovalov wrote:
-> > > > From: Catalin Marinas <catalin.marinas@arm.com>
-> > > >
-> > > > It is not desirable to relax the ABI to allow tagged user addresses into
-> > > > the kernel indiscriminately. This patch introduces a prctl() interface
-> > > > for enabling or disabling the tagged ABI with a global sysctl control
-> > > > for preventing applications from enabling the relaxed ABI (meant for
-> > > > testing user-space prctl() return error checking without reconfiguring
-> > > > the kernel). The ABI properties are inherited by threads of the same
-> > > > application and fork()'ed children but cleared on execve().
-> > > >
-> > > > The PR_SET_TAGGED_ADDR_CTRL will be expanded in the future to handle
-> > > > MTE-specific settings like imprecise vs precise exceptions.
-> > > >
-> > > > Signed-off-by: Catalin Marinas <catalin.marinas@arm.com>
-> > >
-> > > A question for the user-space folk: if an application opts in to this
-> > > ABI, would you want the sigcontext.fault_address and/or siginfo.si_addr
-> > > to contain the tag? We currently clear it early in the arm64 entry.S but
-> > > we could find a way to pass it down if needed.
-> >
-> > For HWASan this would not be useful because we instrument memory
-> > accesses with explicit checks anyway. For MTE, on the other hand, it
-> > would be very convenient to know the fault address tag without
-> > disassembling the code.
->
-> I could as this differently: does anything break if, once the user
-> opts in to TBI, fault_address and/or si_addr have non-zero top byte?
 
-I think it would be fine.
 
-> Alternatively, we could present the original FAR_EL1 register as a
-> separate field as we do with ESR_EL1, independently of whether the user
-> opted in to TBI or not.
->
-> --
-> Catalin
+On 2019-06-17 6:27 a.m., Christoph Hellwig wrote:
+> diff --git a/drivers/pci/p2pdma.c b/drivers/pci/p2pdma.c
+> index a98126ad9c3a..e083567d26ef 100644
+> --- a/drivers/pci/p2pdma.c
+> +++ b/drivers/pci/p2pdma.c
+> @@ -100,7 +100,7 @@ static void pci_p2pdma_percpu_cleanup(struct percpu_ref *ref)
+>  	struct p2pdma_pagemap *p2p_pgmap = to_p2p_pgmap(ref);
+>  
+>  	wait_for_completion(&p2p_pgmap->ref_done);
+> -	percpu_ref_exit(&p2p_pgmap->ref);
+> +	percpu_ref_exit(ref);
+>  }
+>  
+>  static void pci_p2pdma_release(void *data)
+> @@ -152,6 +152,11 @@ static int pci_p2pdma_setup(struct pci_dev *pdev)
+>  	return error;
+>  }
+>  
+> +static const struct dev_pagemap_ops pci_p2pdma_pagemap_ops = {
+> +	.kill		= pci_p2pdma_percpu_kill,
+> +	.cleanup	= pci_p2pdma_percpu_cleanup,
+> +};
+> +
+>  /**
+>   * pci_p2pdma_add_resource - add memory for use as p2p memory
+>   * @pdev: the device to add the memory to
+> @@ -207,8 +212,6 @@ int pci_p2pdma_add_resource(struct pci_dev *pdev, int bar, size_t size,
+>  	pgmap->type = MEMORY_DEVICE_PCI_P2PDMA;
+>  	pgmap->pci_p2pdma_bus_offset = pci_bus_address(pdev, bar) -
+>  		pci_resource_start(pdev, bar);
+> -	pgmap->kill = pci_p2pdma_percpu_kill;
+> -	pgmap->cleanup = pci_p2pdma_percpu_cleanup;
+
+I just noticed this is missing a line to set pgmap->ops to
+pci_p2pdma_pagemap_ops. I must have gotten confused by the other users
+in my original review. Though I'm not sure how this compiles as the new
+struct is static and unused. However, it is rendered moot in Patch 16
+when this is all removed.
+
+Logan
 
