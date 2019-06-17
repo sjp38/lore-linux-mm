@@ -2,189 +2,175 @@ Return-Path: <SRS0=4FFe=UQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+X-Spam-Status: No, score=-11.3 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
 	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_IN_DEF_DKIM_WL
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 406E6C31E5D
-	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 21:37:51 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CD6EAC31E5D
+	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 21:59:43 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 024482082C
-	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 21:37:50 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 69BAA2082C
+	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 21:59:43 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="lljcPfBp"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 024482082C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="kvgoo1AW"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 69BAA2082C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 917126B0005; Mon, 17 Jun 2019 17:37:50 -0400 (EDT)
+	id C894C8E0002; Mon, 17 Jun 2019 17:59:42 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8C8CE8E0002; Mon, 17 Jun 2019 17:37:50 -0400 (EDT)
+	id C39AA8E0001; Mon, 17 Jun 2019 17:59:42 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7B6B18E0001; Mon, 17 Jun 2019 17:37:50 -0400 (EDT)
+	id B27918E0002; Mon, 17 Jun 2019 17:59:42 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 5BD9D6B0005
-	for <linux-mm@kvack.org>; Mon, 17 Jun 2019 17:37:50 -0400 (EDT)
-Received: by mail-io1-f71.google.com with SMTP id m26so13610156ioh.17
-        for <linux-mm@kvack.org>; Mon, 17 Jun 2019 14:37:50 -0700 (PDT)
+Received: from mail-vk1-f198.google.com (mail-vk1-f198.google.com [209.85.221.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 8A15C8E0001
+	for <linux-mm@kvack.org>; Mon, 17 Jun 2019 17:59:42 -0400 (EDT)
+Received: by mail-vk1-f198.google.com with SMTP id a2so5285909vkg.14
+        for <linux-mm@kvack.org>; Mon, 17 Jun 2019 14:59:42 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=GOIdRAMf3skF4wPK2T/7fFj0vhfi1GT6kR2ybYgOAu4=;
-        b=g9bBEzKBB8GfNUXs2TyIRL1viN4IbKg1hj1OTV/GmNzOW/1EVPDIP3BOamOFof6mcf
-         9ckMGMYkkCVV7+zmrDbd5OVDOu0H2Q6cN6qrlNFOf8ClQV2xSyWa8ZDklTG0v2/MV224
-         PMCZB2W/BZ7zItCvNQPLNHL1HwgYF7FZl34iMWDeRQ2oRAHySwfuBuuXF7urSZUa4YYf
-         0BGQSVuSJYKBHEMxFfSLVNFQUf8SnEDFeDwYvMUH9HpiIU1ZHHx87ulXtIVzt0YVfsgv
-         QCfNYqZp11vrSR+9BUmreFTDBCYhh8Kc1ByCc99HdFD6iDpg/qGAq5Tv0bj6t6xv/YPh
-         pUsQ==
-X-Gm-Message-State: APjAAAXYpNVl1qnfQO8zQW1UOM1v0JxBF9KXd7oofMsNVRIJ3K3AKutO
-	sGCvh94YPbdaCxf7cbDA4GLCcIxHwd333hApidl8N1k/XtV18KaHQLMItvIYX9Z0FqeDfNfEf8C
-	xJA1h9NQ8AmZBWvIF2mF9BF2FmVEZRWWbU+dQNQWSR1qQO3lWhlrLXobtZ1XSJ8bq1w==
-X-Received: by 2002:a05:6638:605:: with SMTP id g5mr3484jar.110.1560807470077;
-        Mon, 17 Jun 2019 14:37:50 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz1RrNrJfIXp38RwMGkfBYEWdlBj56nqI23fMvaVikuGVKZdYSjFBxFyWJ6r/sQRXYpneBR
-X-Received: by 2002:a05:6638:605:: with SMTP id g5mr963457jar.110.1560797080465;
-        Mon, 17 Jun 2019 11:44:40 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560797080; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=EAhatab0HAVyw+PnT7+3nUVy3uXQEI6O1vd8Cnx2LKk=;
+        b=uG/3Z5sGNhPwKHIpIYcCChnaIapXjcFvzxkEjAe9A+b4AZO7PttvXnF/iLyY8H557w
+         p6inSsUNlFPLLrRchaqNuOD9rSaZyyaVBGfUK97pp0HOOiwgks318ebeHIxJ0SPaCA16
+         NizEn1k1yU34cey/cWli4qfyD+CvhBbMQIfLuy1KLbiNXW7JXRXcWemWrhHl6W0rlWxC
+         KznEb6WqGM8VM2fzWA4PdgXLKg4QXp44px7jBwOXiFqZ5xAnVl6JWwBY1LU+Z2FOscbj
+         tg79+S9v+66uLsxbtj/ZAPxi1pkCaifUuNY5HlL+QelQYZ+em4q+LAwWBUIaVFsoQ7AT
+         eBpA==
+X-Gm-Message-State: APjAAAWdUYuzNtaR2apD0DUjm+3ZPQRIL6Cespckd3Y44di7+mRh6/jZ
+	sB7xIEovaNlI+YQsGZNCVAhXoheTl2w5RYgIhOKpOqdcbwsEF0Iao1Qfho8IvGfjmiSGNx6OgM/
+	B3AKNKyzJ4/c/siByLel9CODacfYudPrKIV7f7AZMrU+2joneFPYbiPoef71m4kAX4w==
+X-Received: by 2002:a67:fc50:: with SMTP id p16mr42361247vsq.79.1560808782286;
+        Mon, 17 Jun 2019 14:59:42 -0700 (PDT)
+X-Received: by 2002:a67:fc50:: with SMTP id p16mr42361235vsq.79.1560808781766;
+        Mon, 17 Jun 2019 14:59:41 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560808781; cv=none;
         d=google.com; s=arc-20160816;
-        b=LVOG8otoCTh8ayeeDxYEE42FRgBBUY5LnuSJDFKokRcE8zvDHTonkaTRLxJ7IiJFS1
-         Rv0vTx4J97HYqqvRus4BLYez9+OBRmuJSe6B3jf2C/i+GPFk6IHujP7xQffprEu2h5MC
-         IZ890ZG8e4yIhM3wefJPnx4JeB2FOgquDhL2h4ol8U6aNtd0jxwy1jNRNxDXurOniF26
-         SJQU8DVNWlTBVNFfWrqrZ810IO/Zm9/bCPM7KrDISZm2BMBFBC/hWhET76QOzp+paJ5C
-         r/Th6JZFb8n+p0IkocvjqtQzCr86280Tcm54zJFstugGglqMDh8GJQKCSDimSe+ZDllG
-         KFhA==
+        b=xxf4ZuSGcJMY1JPXjw3bUnbrq4lyind7kE3+pu9OtEOE9WvZ8UYEI7cm31p4lK/F70
+         CG957aKapXvxEQ2M3umLdmF5GZMxLc/bbiYU52kGzSaEYK5fCvHKwjSqw5fi/QrN/WCr
+         MZpfe3qzVyfgjB3v0YLkrW86Kw5nmxH6HYXYechdtj/fZzAy7TK8gXPL1g9bs3wEsCMa
+         w2T/qorpTWJ00/I3N43UbkYQxqfTSAt7LKYmuPnGKwT+kA5onGBN4WcZoJzrxCAAeMv7
+         23WK5QMdVSei6hEJHHnKW/ReddZps/3Qzej7RAuW3EyJXsIPmd8Ctfjl5fpni8WfCGbV
+         Cncg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=GOIdRAMf3skF4wPK2T/7fFj0vhfi1GT6kR2ybYgOAu4=;
-        b=VZtky4jpk7pcfOI5pzkPeFx+eHSg+aWw5m+tuR3Pu5F66Y/nObZCQ2DFo5GdE0j9M+
-         LixJGnKQ+guBab5R8/Bdo9r/xWpiy2oIQIxMgLZb2LBbBamEWyCObNBPdFNfcO6DknYr
-         vE1vSAhAcrHJsAUEeMpWVJmO1Nh0TCbedaABYpyBzvnSp9GljEvmDWMrrVT0ukRvm2xU
-         dFKdlVAih95bVa78126QP7aameNVHCUEHgbKFkb7n32ix4s0MAl0m2PJHI3WOrivc5X8
-         Snmx4q/pfBMoP7Mfo3vz0YzdSUn8ig20hEDwVM1w8eTU6VUVSwQHcGUl/9wmxnJLIl34
-         jVXQ==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=EAhatab0HAVyw+PnT7+3nUVy3uXQEI6O1vd8Cnx2LKk=;
+        b=mWsLmQKKwA2iNeICqRlBpKnDaOD8O8M7Z2YaabsFq5YuqI5vCynMc6MzPW5iRnrTxr
+         zlKO+UoOpIr0pxulllWYnKfca0PJNtGROE9vvXzoAVBQ56i9s+lffXznitLz9RjgPeVl
+         qCFX3QvYLneXU05g0TwwIRZY92ZYatzBjF+gDOqZQqNBh6soFp9hgXGQUo1JpGbKoyS2
+         MrAOLdrbnyZ4/qbYJLUJqDHBhsohurVHLRiYCVzDox6p8z6nXlCC/u3DTz+MT+xfLV3D
+         7d0cF6bpY8M2U4CgLf1pSJD93AutzIxD7t6hfaNPi/oLVxvxwF/3lzEQj2ds3DxsngiF
+         F9IQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=lljcPfBp;
-       spf=pass (google.com: domain of konrad.wilk@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=konrad.wilk@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id k17si15057532iok.52.2019.06.17.11.44.40
+       dkim=pass header.i=@google.com header.s=20161025 header.b=kvgoo1AW;
+       spf=pass (google.com: domain of eugenis@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=eugenis@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id d8sor5619968uam.6.2019.06.17.14.59.41
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 17 Jun 2019 11:44:40 -0700 (PDT)
-Received-SPF: pass (google.com: domain of konrad.wilk@oracle.com designates 156.151.31.85 as permitted sender) client-ip=156.151.31.85;
+        (Google Transport Security);
+        Mon, 17 Jun 2019 14:59:41 -0700 (PDT)
+Received-SPF: pass (google.com: domain of eugenis@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=lljcPfBp;
-       spf=pass (google.com: domain of konrad.wilk@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=konrad.wilk@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
-	by userp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x5HIhvF7186461;
-	Mon, 17 Jun 2019 18:44:20 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=date : from : to : cc
- : subject : message-id : references : mime-version : content-type :
- in-reply-to; s=corp-2018-07-02;
- bh=GOIdRAMf3skF4wPK2T/7fFj0vhfi1GT6kR2ybYgOAu4=;
- b=lljcPfBpWWXCHaf1yRMmXyfI54fHwvCFKfK5VIao6y/jBGDnvk52ml8ocSTuVDbgc2QO
- aKpxdSEeWRAAE+4oDoqRrIrhX+jfnrFlj7QNLaYUL0F/6MzY/SzEzmD1f6vEiHByXW49
- VI5gQ1ROqihrvrj4+AK0i3Ww+1kYqFVi58GQ0JM//3tp5uKq7RYNjAPJf5QPQ90/6ssZ
- kh8E6dIhQMuR1uTOnbVXsoqrYQL40V88lnlUVGONOr9O9ZVkcJjKoy+5QYdfAgjFfDej
- Jv53Hqeo8nSxxDhrbBtZbtWsG6GEfXzg37XQNCJA9pfhAEwU7SeLpbHIik7nMCKfnIBS xg== 
-Received: from userp3030.oracle.com (userp3030.oracle.com [156.151.31.80])
-	by userp2120.oracle.com with ESMTP id 2t4saq83g6-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Mon, 17 Jun 2019 18:44:19 +0000
-Received: from pps.filterd (userp3030.oracle.com [127.0.0.1])
-	by userp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x5HIhXeI066471;
-	Mon, 17 Jun 2019 18:44:19 GMT
-Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
-	by userp3030.oracle.com with ESMTP id 2t59gdcub9-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Mon, 17 Jun 2019 18:44:19 +0000
-Received: from abhmp0014.oracle.com (abhmp0014.oracle.com [141.146.116.20])
-	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x5HIiDdo015527;
-	Mon, 17 Jun 2019 18:44:14 GMT
-Received: from char.us.oracle.com (/10.152.32.25)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Mon, 17 Jun 2019 11:44:12 -0700
-Received: by char.us.oracle.com (Postfix, from userid 1000)
-	id DF1D76A0120; Mon, 17 Jun 2019 14:45:36 -0400 (EDT)
-Date: Mon, 17 Jun 2019 14:45:36 -0400
-From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: Nadav Amit <nadav.amit@gmail.com>, Andy Lutomirski <luto@kernel.org>,
-        Alexander Graf <graf@amazon.com>, Thomas Gleixner <tglx@linutronix.de>,
-        Marius Hillenbrand <mhillenb@amazon.de>,
-        kvm list <kvm@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>,
-        Kernel Hardening <kernel-hardening@lists.openwall.com>,
-        Linux-MM <linux-mm@kvack.org>, Alexander Graf <graf@amazon.de>,
-        David Woodhouse <dwmw@amazon.co.uk>,
-        the arch/x86 maintainers <x86@kernel.org>,
-        Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [RFC 00/10] Process-local memory allocations for hiding KVM
- secrets
-Message-ID: <20190617184536.GB11017@char.us.oracle.com>
-References: <eecc856f-7f3f-ed11-3457-ea832351e963@intel.com>
- <A542C98B-486C-4849-9DAC-2355F0F89A20@amacapital.net>
- <alpine.DEB.2.21.1906141618000.1722@nanos.tec.linutronix.de>
- <58788f05-04c3-e71c-12c3-0123be55012c@amazon.com>
- <63b1b249-6bc7-ffd9-99db-d36dd3f1a962@intel.com>
- <CALCETrXph3Zg907kWTn6gAsZVsPbCB3A2XuNf0hy5Ez2jm2aNQ@mail.gmail.com>
- <698ca264-123d-46ae-c165-ed62ea149896@intel.com>
- <CALCETrVt=X+FB2cM5hMN9okvbcROFfT4_KMwaKaN2YVvc7UQTw@mail.gmail.com>
- <5AA8BF10-8987-4FCB-870C-667A5228D97B@gmail.com>
- <f6f352ed-750e-d735-a1c9-7ff133ca8aea@intel.com>
+       dkim=pass header.i=@google.com header.s=20161025 header.b=kvgoo1AW;
+       spf=pass (google.com: domain of eugenis@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=eugenis@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=EAhatab0HAVyw+PnT7+3nUVy3uXQEI6O1vd8Cnx2LKk=;
+        b=kvgoo1AWJ53ectZxNh7vumo7uHVF3ezzA+dmS6OCiyHy7q38adiyo8Mt48b9s1ecuS
+         8vbgSWAHi7F66ZbJb0OnnHkka0SZfIdhx44ptJvkStf7KSPyjOUktnOEWU+P5uVTHP64
+         eN+AH0Y198g5GhXwzgWWBTwbfohtVJT/rFQhRmBXLkxVDGhPtni3s7vOLmfSoppPuiMS
+         fw+6xL0t8nIg9W/VqAlmea2Xi/QAMj43r70NCnqPKdZOQ+k2pXu+G5fUMaRe8zFdt2fk
+         JWWQc2NJ/zMPTaMg9M5+VHQpiaQGfqqosa4YWPSG3qztsQIxZrsszWUCVKNg2vbMMWht
+         a6XA==
+X-Google-Smtp-Source: APXvYqx2nWcd1UUVmxVOfqTdpy/EjWGEE63D+8CgDq6wsvkYXGUtTG/eldJ/84K4uXpb1xaJ0VQplOCTsiiUpsYmcEg=
+X-Received: by 2002:ab0:234e:: with SMTP id h14mr10788176uao.25.1560808781025;
+ Mon, 17 Jun 2019 14:59:41 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <f6f352ed-750e-d735-a1c9-7ff133ca8aea@intel.com>
-User-Agent: Mutt/1.9.1 (2017-09-22)
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9291 signatures=668687
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
- phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
- adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
- engine=8.0.1-1810050000 definitions=main-1906170165
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9291 signatures=668687
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1011
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1906170166
+References: <cover.1560339705.git.andreyknvl@google.com> <a7a2933bea5fe57e504891b7eec7e9432e5e1c1a.1560339705.git.andreyknvl@google.com>
+ <20190617135636.GC1367@arrakis.emea.arm.com> <CAFKCwrjJ+0ijNKa3ioOP7xa91QmZU0NhkO=tNC-Q_ThC69vTug@mail.gmail.com>
+ <20190617171813.GC34565@arrakis.emea.arm.com>
+In-Reply-To: <20190617171813.GC34565@arrakis.emea.arm.com>
+From: Evgenii Stepanov <eugenis@google.com>
+Date: Mon, 17 Jun 2019 14:59:29 -0700
+Message-ID: <CAFKCwrhuQ+x-KprJV=CPCrnQR9Ky9qL=M5q_pa3fGj27oo4mng@mail.gmail.com>
+Subject: Re: [PATCH v17 03/15] arm64: Introduce prctl() options to control the
+ tagged user addresses ABI
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: Andrey Konovalov <andreyknvl@google.com>, Linux ARM <linux-arm-kernel@lists.infradead.org>, 
+	Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, 
+	amd-gfx@lists.freedesktop.org, dri-devel@lists.freedesktop.org, 
+	linux-rdma@vger.kernel.org, linux-media@vger.kernel.org, kvm@vger.kernel.org, 
+	"open list:KERNEL SELFTEST FRAMEWORK" <linux-kselftest@vger.kernel.org>, 
+	Vincenzo Frascino <vincenzo.frascino@arm.com>, Will Deacon <will.deacon@arm.com>, 
+	Mark Rutland <mark.rutland@arm.com>, Andrew Morton <akpm@linux-foundation.org>, 
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kees Cook <keescook@chromium.org>, 
+	Yishai Hadas <yishaih@mellanox.com>, Felix Kuehling <Felix.Kuehling@amd.com>, 
+	Alexander Deucher <Alexander.Deucher@amd.com>, Christian Koenig <Christian.Koenig@amd.com>, 
+	Mauro Carvalho Chehab <mchehab@kernel.org>, Jens Wiklander <jens.wiklander@linaro.org>, 
+	Alex Williamson <alex.williamson@redhat.com>, Leon Romanovsky <leon@kernel.org>, 
+	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>, Dave Martin <Dave.Martin@arm.com>, 
+	Khalid Aziz <khalid.aziz@oracle.com>, enh <enh@google.com>, Jason Gunthorpe <jgg@ziepe.ca>, 
+	Christoph Hellwig <hch@infradead.org>, Dmitry Vyukov <dvyukov@google.com>, 
+	Kostya Serebryany <kcc@google.com>, Lee Smith <Lee.Smith@arm.com>, 
+	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, 
+	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Robin Murphy <robin.murphy@arm.com>, 
+	Kevin Brodsky <kevin.brodsky@arm.com>, Szabolcs Nagy <Szabolcs.Nagy@arm.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jun 17, 2019 at 11:07:45AM -0700, Dave Hansen wrote:
-> On 6/17/19 9:53 AM, Nadav Amit wrote:
-> >>> For anyone following along at home, I'm going to go off into crazy
-> >>> per-cpu-pgds speculation mode now...  Feel free to stop reading now. :)
-> >>>
-> >>> But, I was thinking we could get away with not doing this on _every_
-> >>> context switch at least.  For instance, couldn't 'struct tlb_context'
-> >>> have PGD pointer (or two with PTI) in addition to the TLB info?  That
-> >>> way we only do the copying when we change the context.  Or does that tie
-> >>> the implementation up too much with PCIDs?
-> >> Hmm, that seems entirely reasonable.  I think the nasty bit would be
-> >> figuring out all the interactions with PV TLB flushing.  PV TLB
-> >> flushes already don't play so well with PCID tracking, and this will
-> >> make it worse.  We probably need to rewrite all that code regardless.
-> > How is PCID (as you implemented) related to TLB flushing of kernel (not
-> > user) PTEs? These kernel PTEs would be global, so they would be invalidated
-> > from all the address-spaces using INVLPG, I presume. No?
-> 
-> The idea is that you have a per-cpu address space.  Certain kernel
-> virtual addresses would map to different physical address based on where
-> you are running.  Each of the physical addresses would be "owned" by a
-> single CPU and would, by convention, never use a PGD that mapped an
-> address unless that CPU that "owned" it.
-> 
-> In that case, you never really invalidate those addresses.
+On Mon, Jun 17, 2019 at 10:18 AM Catalin Marinas
+<catalin.marinas@arm.com> wrote:
+>
+> On Mon, Jun 17, 2019 at 09:57:36AM -0700, Evgenii Stepanov wrote:
+> > On Mon, Jun 17, 2019 at 6:56 AM Catalin Marinas <catalin.marinas@arm.com> wrote:
+> > > On Wed, Jun 12, 2019 at 01:43:20PM +0200, Andrey Konovalov wrote:
+> > > > From: Catalin Marinas <catalin.marinas@arm.com>
+> > > >
+> > > > It is not desirable to relax the ABI to allow tagged user addresses into
+> > > > the kernel indiscriminately. This patch introduces a prctl() interface
+> > > > for enabling or disabling the tagged ABI with a global sysctl control
+> > > > for preventing applications from enabling the relaxed ABI (meant for
+> > > > testing user-space prctl() return error checking without reconfiguring
+> > > > the kernel). The ABI properties are inherited by threads of the same
+> > > > application and fork()'ed children but cleared on execve().
+> > > >
+> > > > The PR_SET_TAGGED_ADDR_CTRL will be expanded in the future to handle
+> > > > MTE-specific settings like imprecise vs precise exceptions.
+> > > >
+> > > > Signed-off-by: Catalin Marinas <catalin.marinas@arm.com>
+> > >
+> > > A question for the user-space folk: if an application opts in to this
+> > > ABI, would you want the sigcontext.fault_address and/or siginfo.si_addr
+> > > to contain the tag? We currently clear it early in the arm64 entry.S but
+> > > we could find a way to pass it down if needed.
+> >
+> > For HWASan this would not be useful because we instrument memory
+> > accesses with explicit checks anyway. For MTE, on the other hand, it
+> > would be very convenient to know the fault address tag without
+> > disassembling the code.
+>
+> I could as this differently: does anything break if, once the user
+> opts in to TBI, fault_address and/or si_addr have non-zero top byte?
 
-But you would need to invalidate if the process moved to another CPU, correct?
+I think it would be fine.
+
+> Alternatively, we could present the original FAR_EL1 register as a
+> separate field as we do with ESR_EL1, independently of whether the user
+> opted in to TBI or not.
+>
+> --
+> Catalin
 
