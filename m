@@ -2,159 +2,154 @@ Return-Path: <SRS0=4FFe=UQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.4 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BB6B1C31E58
-	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 13:56:47 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B4015C31E50
+	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 14:00:53 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8D77C2084A
-	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 13:56:47 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8D77C2084A
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 6A5622080C
+	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 14:00:53 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="QfGwVzUy"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6A5622080C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2843D8E0004; Mon, 17 Jun 2019 09:56:47 -0400 (EDT)
+	id 16F648E0004; Mon, 17 Jun 2019 10:00:53 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 20CDC8E0001; Mon, 17 Jun 2019 09:56:47 -0400 (EDT)
+	id 1475F8E0001; Mon, 17 Jun 2019 10:00:53 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0AEB48E0004; Mon, 17 Jun 2019 09:56:47 -0400 (EDT)
+	id 00F0F8E0004; Mon, 17 Jun 2019 10:00:52 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id AED758E0001
-	for <linux-mm@kvack.org>; Mon, 17 Jun 2019 09:56:46 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id n49so16514531edd.15
-        for <linux-mm@kvack.org>; Mon, 17 Jun 2019 06:56:46 -0700 (PDT)
+Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
+	by kanga.kvack.org (Postfix) with ESMTP id CC9B48E0001
+	for <linux-mm@kvack.org>; Mon, 17 Jun 2019 10:00:52 -0400 (EDT)
+Received: by mail-ot1-f71.google.com with SMTP id b25so4913591otp.12
+        for <linux-mm@kvack.org>; Mon, 17 Jun 2019 07:00:52 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=zbagTZrPyLr6fLVky4mTwh/eJX34k6YcjR+iSHxkEqU=;
-        b=L+ehF2AM8Ry8ztV32Au+wCnNoDBKSV1ID6mjUOYXEGjUNmFfvdrj+vIsYjkY/0PQ+c
-         QfMz+R2UFBQrOsX9JozCkhFfPbyaL8MN9tARNEJ7oTOOxqPp6uR4CkHDYgtwzI9gEpmj
-         PLKMljlKfIT3KW/dIZ1Pw4hyENd2cXavZt4754WnGgVnjTHMovzNRYeOCgYlWL5SvbhK
-         B7yxYCSd/LFi093RIkSEEnG/jX3toeUdpjI+83KO1SOQJQ7J4Ok6fmQ0qAz101MjGh5f
-         3CrCCJV9fcUAgnsRDo8aZGV93SK+oSO6EdaKiGRRYfAPRfugL6Nx8U5qp7d0z5gDVuF3
-         Usxw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-X-Gm-Message-State: APjAAAV675qJF5xIC0kidrEhZLfYYSK5SpMD/rsri+FwqskqeA2qjhi7
-	zJfWGHnLXuLNQbJ8u3G6mm1wDv1vdJMqIss3v66/CviEof8sB6Rjsp2MbTUOEKWAwht+Ab55ys4
-	UECZoQ6GwIR2RJ+532SsHfp/v/5h/GOHbIYiSI/j+vcHcRfxiJkHdSwI6vg6yHxG2yw==
-X-Received: by 2002:a50:b6e6:: with SMTP id f35mr79359417ede.82.1560779806272;
-        Mon, 17 Jun 2019 06:56:46 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqw8Ed9y17RJHGXBBTyIngxLJ9sC7d69FbG4YuZn/zX4H7LKtU4J/borykWdExXWaEFoPY42
-X-Received: by 2002:a50:b6e6:: with SMTP id f35mr79359365ede.82.1560779805627;
-        Mon, 17 Jun 2019 06:56:45 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560779805; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=v/0AosDiq0XlRMBf8oBwjVIp/eynr9o30+abHU130tU=;
+        b=U3FAKH4kc+Qirpw2fdNABP3SF0alYFApuM1uOP62L2m4BfLXrMIj2yoSI5MN/VkrfS
+         n4Cg86HIbfaAw1o4p4QPdwceD9Vh2HoaoqSPFs/MRJ+Cg5ELycoPEw3RZQyzA10jRRDc
+         vKeIV0NtFtvlwlbCpYWox5347iQ7eMBu0aE1l2bkKRerZ2Hzz9PPgAwKR2leo7yhua/u
+         gKIEhhiy2LaGpEtgWIyY5aC4RWHEJFJzI1NB0Sp+Bl5Q4fWd6JuA1BZ6ShTsfJ5iHU8H
+         TwwfgCt/ZpQ6zweSUtVkysI0/QgnV+IFXGgE7s3bjPI0f1c3U23VQU8imQgyEbJSq1ZZ
+         5Uig==
+X-Gm-Message-State: APjAAAUeaS2FEVm1hZufBInLlRk6yDguIaCnjnWlKfArCT52WJjlXw5K
+	laF7XchdNuvwDy+4nLZbfBFSh083jqK59eHw5luZc5rI6/Nv28Fnc13rwN1NVgLY4zvBdcZCZlP
+	dZGlI7o4HZj26fHNwAPAIeYjvTQA3pWxTCzMTf+q1PrSsjatvcZ9GKkDMpD8XL+N+2Q==
+X-Received: by 2002:a9d:5788:: with SMTP id q8mr1576480oth.237.1560780052383;
+        Mon, 17 Jun 2019 07:00:52 -0700 (PDT)
+X-Received: by 2002:a9d:5788:: with SMTP id q8mr1576427oth.237.1560780051699;
+        Mon, 17 Jun 2019 07:00:51 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560780051; cv=none;
         d=google.com; s=arc-20160816;
-        b=zmC7e9iKfnfrB3xMUHWHpxXqbMuObFGQpRv0LRHcBrjy/QWZwqhazfTXUG8EsreL2N
-         C8xT1JdYW71VxVOoa9/34K77eYn/9B+rsnVEEdvlYyT3JUDzq9xCgJnmyFRLArPhEFWG
-         /VkIa+ZbGdCtTYFfdz8k+4Eq2kaR/a2vMn4hPKJb7xY6r4zDlacOxsR98Y00b6ApDWfj
-         mGHCbnzEBnI4DS8MYXQpsGozs1EkEn75IHhIUs2HbO3Wg05kuYbEcLNGEtruM3TKQX3X
-         b+LG0wxUXwkF6zeMuRD1RfhHbf7aiQYO2UucvFudBerdbidYMTUlCGm1XKmj4sg2gR7K
-         tmGQ==
+        b=QU2Bzu1dL5bL7/7tHSImcUGKLt+XFnl8YncxtUFwZ+kWHDPqdFdegsQUnGCTO5G72F
+         C0E6N5U434ImMPkwJ1pdF9cbClkxr1Tq6P+32FGlCsiH/RukMxHAMacpySC1GhDSlLwl
+         Ra6gxtOfUGaGEYvko758jqEkxY0h5ngYDqniyszO0HARoxqCn53vdPxqE6NAEyf6Fuqu
+         lduJvNCi4nj/YhmCGh130rKLYc0vwQdYkxtqYTWYC/5axCUf7n4OOMUhxSHFaVeKH4c+
+         RdV1Hq7adqolQ3ygMEZC6oJtoPFF13TR/53+FaeOUmLl9FLHEv1zbpjBTbCP27F4qJIG
+         w5zg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=zbagTZrPyLr6fLVky4mTwh/eJX34k6YcjR+iSHxkEqU=;
-        b=PRYNemBOlvxO5j6Il4LkZAlPvYBOz5NmeCA0YCP6pZCvuqK5IIpjKlhdtwO+/mQlT5
-         E0ZgTmd1UjX3UMxlhG+Esl3kwLTvC3nljnUTntKEWSNfOXVRq3f/AQye34DlrxlHif9s
-         gBgij7hO3IS4B3pDdAKZQNXdcLCe7jVH6UwtSNjUEMzfKcjNsqLhCMJ9u+3qc67Ouc0e
-         QqQwBbquTuHR/FvUmYlez/TKgX+95fPUPbFHgVFrTi39dynVMfB4A1YVUgU6lgx8NOp8
-         LWVGqG8p1/Kh3grQAkEJYkQhKVxpUwclWTe/uoVTl5w1Z9heBIuHb5oMr+vDW14DV0Wn
-         h6UQ==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=v/0AosDiq0XlRMBf8oBwjVIp/eynr9o30+abHU130tU=;
+        b=x2nCbsTDHR8qcljv+Y4shuxleqwtloQqfK7l3V2rpwjbvWNrFRdGFpTRjLMRugqL/c
+         j0eKsDitURCa8n4Wbo3PTa4onzaAj7060lKiipFWaUFny8o1FE5qkirE+8yBFlhkGmbv
+         VuEq7ni/5pgbSeO4BRsN4m+jSeKy2Ml4fB8OlPJO+gRpOTSjMS2Z8H+FecFWqhV3s+1c
+         +P7jUulVKId/daeWUr96r0nXQ+jUkL66/K94Dyof1S4NjuMrizjvbHjlbs8daeorg/Vp
+         8k1NYd5ZViX3HB38NOL8974qaEXRqbDre1lGk4ANsZxxJp9WCvz4SpnBOzbl9I0S9yBw
+         XEfw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
-        by mx.google.com with ESMTP id d18si6302757ejj.245.2019.06.17.06.56.45
-        for <linux-mm@kvack.org>;
-        Mon, 17 Jun 2019 06:56:45 -0700 (PDT)
-Received-SPF: pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=QfGwVzUy;
+       spf=pass (google.com: domain of elver@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=elver@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 74sor5441127otu.163.2019.06.17.07.00.51
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Mon, 17 Jun 2019 07:00:51 -0700 (PDT)
+Received-SPF: pass (google.com: domain of elver@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id BCD2D28;
-	Mon, 17 Jun 2019 06:56:44 -0700 (PDT)
-Received: from arrakis.emea.arm.com (arrakis.cambridge.arm.com [10.1.196.78])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 1625E3F246;
-	Mon, 17 Jun 2019 06:56:39 -0700 (PDT)
-Date: Mon, 17 Jun 2019 14:56:37 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-To: Andrey Konovalov <andreyknvl@google.com>
-Cc: linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org, amd-gfx@lists.freedesktop.org,
-	dri-devel@lists.freedesktop.org, linux-rdma@vger.kernel.org,
-	linux-media@vger.kernel.org, kvm@vger.kernel.org,
-	linux-kselftest@vger.kernel.org,
-	Vincenzo Frascino <vincenzo.frascino@arm.com>,
-	Will Deacon <will.deacon@arm.com>,
-	Mark Rutland <mark.rutland@arm.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	Kees Cook <keescook@chromium.org>,
-	Yishai Hadas <yishaih@mellanox.com>,
-	Felix Kuehling <Felix.Kuehling@amd.com>,
-	Alexander Deucher <Alexander.Deucher@amd.com>,
-	Christian Koenig <Christian.Koenig@amd.com>,
-	Mauro Carvalho Chehab <mchehab@kernel.org>,
-	Jens Wiklander <jens.wiklander@linaro.org>,
-	Alex Williamson <alex.williamson@redhat.com>,
-	Leon Romanovsky <leon@kernel.org>,
-	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>,
-	Dave Martin <Dave.Martin@arm.com>,
-	Khalid Aziz <khalid.aziz@oracle.com>, enh <enh@google.com>,
-	Jason Gunthorpe <jgg@ziepe.ca>,
-	Christoph Hellwig <hch@infradead.org>,
-	Dmitry Vyukov <dvyukov@google.com>,
-	Kostya Serebryany <kcc@google.com>,
-	Evgeniy Stepanov <eugenis@google.com>,
-	Lee Smith <Lee.Smith@arm.com>,
-	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
-	Jacob Bramley <Jacob.Bramley@arm.com>,
-	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
-	Robin Murphy <robin.murphy@arm.com>,
-	Kevin Brodsky <kevin.brodsky@arm.com>,
-	Szabolcs Nagy <Szabolcs.Nagy@arm.com>
-Subject: Re: [PATCH v17 03/15] arm64: Introduce prctl() options to control
- the tagged user addresses ABI
-Message-ID: <20190617135636.GC1367@arrakis.emea.arm.com>
-References: <cover.1560339705.git.andreyknvl@google.com>
- <a7a2933bea5fe57e504891b7eec7e9432e5e1c1a.1560339705.git.andreyknvl@google.com>
+       dkim=pass header.i=@google.com header.s=20161025 header.b=QfGwVzUy;
+       spf=pass (google.com: domain of elver@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=elver@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=v/0AosDiq0XlRMBf8oBwjVIp/eynr9o30+abHU130tU=;
+        b=QfGwVzUyw61eYELwxKAlY9/Qm6Aj9QSJ0n+dIVkf8/4yeJfiVbarVyCC4XbKUh7zyA
+         TB4mJQ/4WDEFdFlP9q8qfUxerum3OAS9kJIC9HkWocd6c82xelhC5lUZ8KGeL7GIc9b2
+         Vn2SIVgDQO8hQMwPHS4nOTl0lopwU7OuI/SKFbVXrGvgWTzn57ByfbFw3uFr/5eqy03z
+         O/40JUT3OWHkoJhC5IIKY/lFAiriQzdivbyM4D4bt87oTbTSaLBLA/VBa+dUA9Qn7Q8O
+         AgESDbDnLQa9ZvaNVt9qijL0DoPw8QB7RGDJ+rCIOi5DiwTJKQQpi0xCcP/5ARb5gi6O
+         48XQ==
+X-Google-Smtp-Source: APXvYqz5F9NBThJnsQ+gL+ZpGjjXfOmWdrkG2sLPN0k3OAALt6m/XyHFzA0l3LB9J01pkclLKo1k7HRwqBHaHCOQM+M=
+X-Received: by 2002:a05:6830:1688:: with SMTP id k8mr9743899otr.233.1560780051018;
+ Mon, 17 Jun 2019 07:00:51 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <a7a2933bea5fe57e504891b7eec7e9432e5e1c1a.1560339705.git.andreyknvl@google.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+References: <20190613125950.197667-1-elver@google.com>
+In-Reply-To: <20190613125950.197667-1-elver@google.com>
+From: Marco Elver <elver@google.com>
+Date: Mon, 17 Jun 2019 16:00:38 +0200
+Message-ID: <CANpmjNMCmcg8GS_pkKc2gsdtd7-A2t27mOXATY9OLb1vQW5Lsg@mail.gmail.com>
+Subject: Re: [PATCH v5 0/3] Bitops instrumentation for KASAN
+To: Peter Zijlstra <peterz@infradead.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, 
+	Dmitry Vyukov <dvyukov@google.com>, Alexander Potapenko <glider@google.com>, 
+	Andrey Konovalov <andreyknvl@google.com>, Mark Rutland <mark.rutland@arm.com>, 
+	"H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Jonathan Corbet <corbet@lwn.net>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, 
+	Borislav Petkov <bp@alien8.de>, "the arch/x86 maintainers" <x86@kernel.org>, Arnd Bergmann <arnd@arndb.de>, 
+	Josh Poimboeuf <jpoimboe@redhat.com>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, 
+	LKML <linux-kernel@vger.kernel.org>, linux-arch <linux-arch@vger.kernel.org>, 
+	kasan-dev <kasan-dev@googlegroups.com>, 
+	Linux Memory Management List <linux-mm@kvack.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jun 12, 2019 at 01:43:20PM +0200, Andrey Konovalov wrote:
-> From: Catalin Marinas <catalin.marinas@arm.com>
-> 
-> It is not desirable to relax the ABI to allow tagged user addresses into
-> the kernel indiscriminately. This patch introduces a prctl() interface
-> for enabling or disabling the tagged ABI with a global sysctl control
-> for preventing applications from enabling the relaxed ABI (meant for
-> testing user-space prctl() return error checking without reconfiguring
-> the kernel). The ABI properties are inherited by threads of the same
-> application and fork()'ed children but cleared on execve().
-> 
-> The PR_SET_TAGGED_ADDR_CTRL will be expanded in the future to handle
-> MTE-specific settings like imprecise vs precise exceptions.
-> 
-> Signed-off-by: Catalin Marinas <catalin.marinas@arm.com>
+All 3 patches have now been Acked and Reviewed. Which tree should this land in?
 
-A question for the user-space folk: if an application opts in to this
-ABI, would you want the sigcontext.fault_address and/or siginfo.si_addr
-to contain the tag? We currently clear it early in the arm64 entry.S but
-we could find a way to pass it down if needed.
+Since this is related to KASAN, would this belong into the MM tree?
 
--- 
-Catalin
+Many thanks,
+-- Marco
+
+
+
+
+On Thu, 13 Jun 2019 at 15:00, Marco Elver <elver@google.com> wrote:
+>
+> Previous version:
+> http://lkml.kernel.org/r/20190613123028.179447-1-elver@google.com
+>
+> * Only changed lib/test_kasan in this version.
+>
+> Marco Elver (3):
+>   lib/test_kasan: Add bitops tests
+>   x86: Use static_cpu_has in uaccess region to avoid instrumentation
+>   asm-generic, x86: Add bitops instrumentation for KASAN
+>
+>  Documentation/core-api/kernel-api.rst     |   2 +-
+>  arch/x86/ia32/ia32_signal.c               |   2 +-
+>  arch/x86/include/asm/bitops.h             | 189 ++++------------
+>  arch/x86/kernel/signal.c                  |   2 +-
+>  include/asm-generic/bitops-instrumented.h | 263 ++++++++++++++++++++++
+>  lib/test_kasan.c                          |  81 ++++++-
+>  6 files changed, 382 insertions(+), 157 deletions(-)
+>  create mode 100644 include/asm-generic/bitops-instrumented.h
+>
+> --
+> 2.22.0.rc2.383.gf4fbbf30c2-goog
+>
 
