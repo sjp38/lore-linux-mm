@@ -2,155 +2,137 @@ Return-Path: <SRS0=4FFe=UQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 84A52C31E5B
-	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 22:00:13 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2C65BC31E5D
+	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 22:10:31 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4D95020673
-	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 22:00:13 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4D95020673
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=deltatee.com
+	by mail.kernel.org (Postfix) with ESMTP id E478820833
+	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 22:10:30 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="H48R91d0"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E478820833
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DC0C98E0004; Mon, 17 Jun 2019 18:00:12 -0400 (EDT)
+	id 7C5BC8E0002; Mon, 17 Jun 2019 18:10:30 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D718A8E0001; Mon, 17 Jun 2019 18:00:12 -0400 (EDT)
+	id 776998E0001; Mon, 17 Jun 2019 18:10:30 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C39AD8E0004; Mon, 17 Jun 2019 18:00:12 -0400 (EDT)
+	id 63C4B8E0002; Mon, 17 Jun 2019 18:10:30 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
-	by kanga.kvack.org (Postfix) with ESMTP id A30688E0001
-	for <linux-mm@kvack.org>; Mon, 17 Jun 2019 18:00:12 -0400 (EDT)
-Received: by mail-io1-f72.google.com with SMTP id f22so13647389ioh.22
-        for <linux-mm@kvack.org>; Mon, 17 Jun 2019 15:00:12 -0700 (PDT)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 2CF188E0001
+	for <linux-mm@kvack.org>; Mon, 17 Jun 2019 18:10:30 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id v62so8592650pgb.0
+        for <linux-mm@kvack.org>; Mon, 17 Jun 2019 15:10:30 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding:subject;
-        bh=sycZdmOU9qTE9/EqEGohOGSK1tdA7T/UGbnjmyU5J8Y=;
-        b=h7SnOm0wftb6Q3UPv1+Kjn3lScUBg1OHiBskRUxBWkjjfMXjD0KqLpM282ocmL1Zvf
-         GfskKd6RH/Vy26umfW1lmDYujA28KCgCnhuAhi3wSq4+6usbYl//FYeDLLroAnukRxAl
-         DH+J6hsPPSxexvlinNnlAeAx1h31wGvVjr9yw3uXPSljXE9jz4gGR8QL8qQrsDTKwh0o
-         NSzMGFUzte/Vr85Dx+TKMfzj1/uMlAhxemm200IAdtw0DL9Va7sv6DkGb/Z5PiZYsciK
-         dmmRV/P5s7JBYS0p8UduRzfDdrzzvwSZd9zU6JJMa1dzTy8/Kb8U6VYfVpbDrcSwPebu
-         7vpQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of logang@deltatee.com designates 207.54.116.67 as permitted sender) smtp.mailfrom=logang@deltatee.com
-X-Gm-Message-State: APjAAAXEPf/i/ab4bEJ1PA0aS/7/xzmEhr2JjdhqxF1JTKnrKaLn5XDA
-	slnnCJk/nVwKvFYf1QBJfIjwgzitWgWQO4wMH0o1OC+28a4PDYDmv5EecPD7A26qrLP8u6aL+lM
-	YbdT0sVYF54lUQYa0csB/Vh1t3yTLBRQNuPcisYXM/I6LqOcoZle7UI5q2pSprDjz2w==
-X-Received: by 2002:a02:ce92:: with SMTP id y18mr7635jaq.40.1560808812373;
-        Mon, 17 Jun 2019 15:00:12 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwSUaXJvJMwz8I7HUA+Prl8PNnsSEYs0tFnQIiVf6HgSE7GUI2G2U45F/5WWYXugNbUobaZ
-X-Received: by 2002:a02:ce92:: with SMTP id y18mr1455844jaq.40.1560802099485;
-        Mon, 17 Jun 2019 13:08:19 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560802099; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=jI04jBYMNTBh5tIaHpUZSwoLLRQfG6CVjh1NE4vfmF8=;
+        b=QDAicI2jHfEKYsTJ/FjeGWL3Rzcogt01FeJHhTy7zb8W682+PCAs48D4xpyqtilpwm
+         r+7dbQPC2uFaviBEbLI5bqtd74TN8DkCZ/yZDaUj3Y91omGLl8cN0v5/empmOQM1hmOg
+         L6uCX234TkncLrsGm4gvImM5cDXL1AVGUcBSPBynnDx1AGJjssly4+r+CvmdXblpNeMt
+         eDsDs6/xleCq0w0tD+uP0rN1J2fOJkraHGNN6/5ecFU8npj0fdOmThRr/t3aORQ9r/Ev
+         GHcNIpWsbiVoNkbojuDKfmqFoUEGbwpTGW2wKmfJGoZyh6xtUPVhphPodBIYcNI5wgSj
+         UcAQ==
+X-Gm-Message-State: APjAAAU+tIH2Jcic+lnNJz4WUOFalkDTVXuxKfHyMqgSanYW5flv8lGU
+	8p7iZ1ECC0KOYo9pBfeWnLZb20LxDYtZcrhDEvmJ4Y1hOe4Ctd0fTU7iptgzapmXbdyeyFaJuJL
+	m4Ejj4FK8AcfK+hzdccQExjxcoBIBhRJrf5yTj/URXjLGf2nt6wSdWJdALxg74Qhhrw==
+X-Received: by 2002:a62:b40a:: with SMTP id h10mr117647472pfn.216.1560809429794;
+        Mon, 17 Jun 2019 15:10:29 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxJeErNu/S3cmAXbdKhP4KIW9xqVli8FMozNlIdxSkHcddJIvYFySzoMfVUgGguLI5elvNB
+X-Received: by 2002:a62:b40a:: with SMTP id h10mr117647412pfn.216.1560809429211;
+        Mon, 17 Jun 2019 15:10:29 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560809429; cv=none;
         d=google.com; s=arc-20160816;
-        b=mwZAmqW1q3MkrPJUOE1gPH+tPAqmgKTO8VM0CxrLTTs2XzbXNDgrCvrL8G/CP9qCOy
-         FMJXdA6Ywu/+NUDsFaWJUL/6cfiY4Z8bjciIbgbJx+B8OV6Qj07VzObiZjTQE5tVWam0
-         SnATsmHpJirQDmtR+kB2WX6yNxMiTxAspSvsrpTAbAd2h90EhL64FZqDailkAnbtGnug
-         QP+DlcH7YhgthNZ4PbuzwJ7oCR1DYOUeWPvqobHbIkxy3hGIUPrWsCfsUzDHCSbe+o/c
-         csxN+pY4zmiqcG8b56wlAhQBSAkLE2hztvcFXJJOnuxlW+TW1AOK3R+K61UJx0MFZTgH
-         9ePA==
+        b=fHBv1xR00Yrx0zpCSEwnm/Mv4LjrBIPagrv/oaRbl+1R3TpJEbz9xvWEy2b0fOM4/o
+         g57142bBMK2brwP3gSbM61X2W9o1U6TW/ux+vx5/lFZIPnyuJaFXlvgzLoGviR9A9S2N
+         RmfmQzCyPtqpsoGvVG39redV9rLHgigxamVNBc5TGd8rZNbqP4TZ57kFRfcCYeTFrUO5
+         bPitT4uXkdXA1s50uYEEEJ5mZTiJ61vVYUsmQaFHIhY8P4nv2ZgoB0aXI+MDCtiTEIPh
+         zulNUnwZmKQgrX9TiEBMa77ilsLspQY2PV+mRphM1z/VDgdapxZDBt5ZEzCYMZYBQhOp
+         bx+g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=subject:content-transfer-encoding:content-language:in-reply-to
-         :mime-version:user-agent:date:message-id:from:references:cc:to;
-        bh=sycZdmOU9qTE9/EqEGohOGSK1tdA7T/UGbnjmyU5J8Y=;
-        b=ozHHBRGkrI1U2VlI5Z9cYknENYyrLZGaCsORFknDCcEcqt+dHWc/YKfE581/uGNGBa
-         2TP/c6koY6zM1pk0mjBlBdicf+J4FY+d22UuK8oUiLE9Oa3iIHWro30Erb0k7c7gscg8
-         sieNCWf+wL7Auy5wYlK6/dAq0vKsxDKeTkBMsUqdCkx5oA6jk94VnH2ZAneiei09FyWc
-         imZyiM6Qpru1s3mAZTJdgmp18ZqYX0raXm1QmK92jfALkj6lmdPSWOTvDdWq/zv8TMsv
-         iIbxlZUujOEsd1dAc4G+68B+Kqh7p+6V/3mb62e8xcWZDG99HjY5u8eICPdX/Uf0C+SO
-         OeWg==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=jI04jBYMNTBh5tIaHpUZSwoLLRQfG6CVjh1NE4vfmF8=;
+        b=qvK5dj5/iLy62MWA5vAZW7hGN0/xc1rU8l39R+eGvzCHxf3qHHt2OYY7wzx7LRgKAV
+         v+BEHjJo1naclvfTD/PKYtmNn/cCrlU8/m4ULcEjtwEw+k0mnXPQOtGQXGXIt4hKPvn3
+         JTnwtPIRSR3RuO0EB+N/hPA9Z4c2HUGLkTO1Mt5PlPsqKz9kCip4w2HOdBs64RC41NiG
+         XvTc9opT5sFyN4bN3xpuZme+7rBaCKhB4iqvbAfDhkg/hZCkTpAJHvmcWoXQ7HOufUFi
+         SG3Q2SUcE1getdU69Hruhgv8aKnnSyXJG9iwvQqtC+Cojspvw8X4wHmoPEtdxGKy1cwH
+         TR/Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of logang@deltatee.com designates 207.54.116.67 as permitted sender) smtp.mailfrom=logang@deltatee.com
-Received: from ale.deltatee.com (ale.deltatee.com. [207.54.116.67])
-        by mx.google.com with ESMTPS id i26si18592589jac.14.2019.06.17.13.08.18
+       dkim=pass header.i=@kernel.org header.s=default header.b=H48R91d0;
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id u38si11807153pgm.538.2019.06.17.15.10.29
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 17 Jun 2019 13:08:19 -0700 (PDT)
-Received-SPF: pass (google.com: domain of logang@deltatee.com designates 207.54.116.67 as permitted sender) client-ip=207.54.116.67;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 17 Jun 2019 15:10:29 -0700 (PDT)
+Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of logang@deltatee.com designates 207.54.116.67 as permitted sender) smtp.mailfrom=logang@deltatee.com
-Received: from guinness.priv.deltatee.com ([172.16.1.162])
-	by ale.deltatee.com with esmtp (Exim 4.89)
-	(envelope-from <logang@deltatee.com>)
-	id 1hcxvM-0004o2-QE; Mon, 17 Jun 2019 14:08:17 -0600
-To: Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>,
- =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>,
- Jason Gunthorpe <jgg@mellanox.com>, Ben Skeggs <bskeggs@redhat.com>
-Cc: linux-mm@kvack.org, nouveau@lists.freedesktop.org,
- dri-devel@lists.freedesktop.org, linux-nvdimm@lists.01.org,
- linux-pci@vger.kernel.org, linux-kernel@vger.kernel.org
-References: <20190617122733.22432-1-hch@lst.de>
- <20190617122733.22432-9-hch@lst.de>
-From: Logan Gunthorpe <logang@deltatee.com>
-Message-ID: <d68c5e4c-b2de-95c3-0b75-1f2391b25a34@deltatee.com>
-Date: Mon, 17 Jun 2019 14:08:14 -0600
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.1
-MIME-Version: 1.0
-In-Reply-To: <20190617122733.22432-9-hch@lst.de>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-CA
+       dkim=pass header.i=@kernel.org header.s=default header.b=H48R91d0;
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from localhost.localdomain (c-73-223-200-170.hsd1.ca.comcast.net [73.223.200.170])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 1C63C2063F;
+	Mon, 17 Jun 2019 22:10:28 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1560809428;
+	bh=6hk1cXgfeLMtsbZeOg0ZmMrTcg85OizuNzmzx7hw5Qk=;
+	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
+	b=H48R91d0qMOGPYc36iLZLmJlRYEKAuboBC6PlZ9ejBJSJze08FWJ9JVor9FNIsA7u
+	 lYq2c89IGdozntcAfBaEyx4Rd8jMHeGcEzDqBs2fxtvbpqhd0ZqIb3uoby3nU4r+NA
+	 QC6TyqKkmVl9RQzC6UReWmI4QGQ4j6deJdV8sc14=
+Date: Mon, 17 Jun 2019 15:10:27 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+To: Alexander Potapenko <glider@google.com>
+Cc: Christoph Lameter <cl@linux.com>, Kees Cook <keescook@chromium.org>,
+ Masahiro Yamada <yamada.masahiro@socionext.com>, Michal Hocko
+ <mhocko@kernel.org>, James Morris <jmorris@namei.org>, "Serge E. Hallyn"
+ <serge@hallyn.com>, Nick Desaulniers <ndesaulniers@google.com>, Kostya
+ Serebryany <kcc@google.com>, Dmitry Vyukov <dvyukov@google.com>, Sandeep
+ Patil <sspatil@android.com>, Laura Abbott <labbott@redhat.com>, Randy
+ Dunlap <rdunlap@infradead.org>, Jann Horn <jannh@google.com>, Mark Rutland
+ <mark.rutland@arm.com>, Marco Elver <elver@google.com>, linux-mm@kvack.org,
+ linux-security-module@vger.kernel.org, kernel-hardening@lists.openwall.com
+Subject: Re: [PATCH v7 1/2] mm: security: introduce init_on_alloc=1 and
+ init_on_free=1 boot options
+Message-Id: <20190617151027.6422016d74a7dc4c7a562fc6@linux-foundation.org>
+In-Reply-To: <20190617151050.92663-2-glider@google.com>
+References: <20190617151050.92663-1-glider@google.com>
+	<20190617151050.92663-2-glider@google.com>
+X-Mailer: Sylpheed 3.5.1 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-X-SA-Exim-Connect-IP: 172.16.1.162
-X-SA-Exim-Rcpt-To: linux-kernel@vger.kernel.org, linux-pci@vger.kernel.org, linux-nvdimm@lists.01.org, dri-devel@lists.freedesktop.org, nouveau@lists.freedesktop.org, linux-mm@kvack.org, bskeggs@redhat.com, jgg@mellanox.com, jglisse@redhat.com, dan.j.williams@intel.com, hch@lst.de
-X-SA-Exim-Mail-From: logang@deltatee.com
-Subject: Re: [PATCH 08/25] memremap: move dev_pagemap callbacks into a
- separate structure
-X-SA-Exim-Version: 4.2.1 (built Tue, 02 Aug 2016 21:08:31 +0000)
-X-SA-Exim-Scanned: Yes (on ale.deltatee.com)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Mon, 17 Jun 2019 17:10:49 +0200 Alexander Potapenko <glider@google.com> wrote:
 
+> Slowdown for the new features compared to init_on_free=0,
+> init_on_alloc=0:
+> 
+> hackbench, init_on_free=1:  +7.62% sys time (st.err 0.74%)
+> hackbench, init_on_alloc=1: +7.75% sys time (st.err 2.14%)
 
-On 2019-06-17 6:27 a.m., Christoph Hellwig wrote:
-> diff --git a/drivers/pci/p2pdma.c b/drivers/pci/p2pdma.c
-> index a98126ad9c3a..e083567d26ef 100644
-> --- a/drivers/pci/p2pdma.c
-> +++ b/drivers/pci/p2pdma.c
-> @@ -100,7 +100,7 @@ static void pci_p2pdma_percpu_cleanup(struct percpu_ref *ref)
->  	struct p2pdma_pagemap *p2p_pgmap = to_p2p_pgmap(ref);
->  
->  	wait_for_completion(&p2p_pgmap->ref_done);
-> -	percpu_ref_exit(&p2p_pgmap->ref);
-> +	percpu_ref_exit(ref);
->  }
->  
->  static void pci_p2pdma_release(void *data)
-> @@ -152,6 +152,11 @@ static int pci_p2pdma_setup(struct pci_dev *pdev)
->  	return error;
->  }
->  
-> +static const struct dev_pagemap_ops pci_p2pdma_pagemap_ops = {
-> +	.kill		= pci_p2pdma_percpu_kill,
-> +	.cleanup	= pci_p2pdma_percpu_cleanup,
-> +};
-> +
->  /**
->   * pci_p2pdma_add_resource - add memory for use as p2p memory
->   * @pdev: the device to add the memory to
-> @@ -207,8 +212,6 @@ int pci_p2pdma_add_resource(struct pci_dev *pdev, int bar, size_t size,
->  	pgmap->type = MEMORY_DEVICE_PCI_P2PDMA;
->  	pgmap->pci_p2pdma_bus_offset = pci_bus_address(pdev, bar) -
->  		pci_resource_start(pdev, bar);
-> -	pgmap->kill = pci_p2pdma_percpu_kill;
-> -	pgmap->cleanup = pci_p2pdma_percpu_cleanup;
+Sanity check time.  Is anyone really going to use this?  Seriously,
+honestly, for real?  If "yes" then how did we determine that?
 
-I just noticed this is missing a line to set pgmap->ops to
-pci_p2pdma_pagemap_ops. I must have gotten confused by the other users
-in my original review. Though I'm not sure how this compiles as the new
-struct is static and unused. However, it is rendered moot in Patch 16
-when this is all removed.
+Also, a bit of a nit: "init_on_alloc" and "init_on_free" aren't very
+well chosen names for the boot options - they could refer to any kernel
+object at all, really.  init_pages_on_alloc would be better?  I don't think
+this matters much - the boot options are already chaotic.  But still...
 
-Logan
 
