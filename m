@@ -2,175 +2,156 @@ Return-Path: <SRS0=4FFe=UQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 715ECC46477
-	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 17:59:05 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9D385C31E5B
+	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 18:00:22 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 352AB208CB
-	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 17:59:05 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 352AB208CB
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 40EE120861
+	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 18:00:22 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="aTNnToCY"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 40EE120861
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CA31D8E0004; Mon, 17 Jun 2019 13:59:04 -0400 (EDT)
+	id CF0078E0005; Mon, 17 Jun 2019 14:00:21 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C799C8E0001; Mon, 17 Jun 2019 13:59:04 -0400 (EDT)
+	id C9F478E0001; Mon, 17 Jun 2019 14:00:21 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B8F548E0004; Mon, 17 Jun 2019 13:59:04 -0400 (EDT)
+	id BDCC58E0005; Mon, 17 Jun 2019 14:00:21 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 6E4968E0001
-	for <linux-mm@kvack.org>; Mon, 17 Jun 2019 13:59:04 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id b12so17411829eds.14
-        for <linux-mm@kvack.org>; Mon, 17 Jun 2019 10:59:04 -0700 (PDT)
+Received: from mail-oi1-f198.google.com (mail-oi1-f198.google.com [209.85.167.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 9729F8E0001
+	for <linux-mm@kvack.org>; Mon, 17 Jun 2019 14:00:21 -0400 (EDT)
+Received: by mail-oi1-f198.google.com with SMTP id h184so3828715oif.16
+        for <linux-mm@kvack.org>; Mon, 17 Jun 2019 11:00:21 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=t4Zg6P/3rcvHF/Kkh6J9Veq1cGhqPvvomS5CoeMxCEs=;
-        b=LNldXPvaJMAFbGKxRjS+aE0W8AfmFUA14Gcqkt3VHmuLSE6zmWRe5GXy6OQKxc5zpF
-         dbNJD4STeqzQ7XjnKjCerYvBZ0BQU6464Ov9nuorN3T/jUcZf6THyhawGP3+NArO08XS
-         UiT7sJmxL/nshJXrDpPVG7WlKhFXZj1mDUZ3eu5TOhNWLgpDS0ixTp1TGxBPvbDrBZFQ
-         1V+4gutIZOM8Im/7eREn9l0gf2gl8Uf3JJbIcAziZPeF2Nke/kbcl6jo6QftrnefT/tO
-         6Ucpt8DpnBZ6YfhJ9Z4oaMlobCHPFH67ULNIy1Ohc/cakP/4JiSBGNq8bL8jRcKsHLWV
-         afAg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-X-Gm-Message-State: APjAAAXAE4m1JiaAIirDtXuc1GDGSyC8Dae30PB6xJLGJx2Bk8ZIltSB
-	XWVYY/6VxVRZrh4W4G+8hO+HAyQvD0/s7W1XpfNCeOGPkkEjlsSoELZtx8fpLgRX9RldFw/R97M
-	gbR4Ex4rHouGM5Pwl1WMpB2g2s0/LEf8cds+YeorsquwN15fcnjo6fkPoJkfkdg52uw==
-X-Received: by 2002:aa7:c98c:: with SMTP id c12mr56271351edt.225.1560794343875;
-        Mon, 17 Jun 2019 10:59:03 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyFHITLLhjz/+tAtEYtIQ4OrHF3kjuVo18TjF15HaTSernzTvhGdAseHY+SB6px8f0DQNk7
-X-Received: by 2002:aa7:c98c:: with SMTP id c12mr56094644edt.225.1560791902214;
-        Mon, 17 Jun 2019 10:18:22 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560791901; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc
+         :content-transfer-encoding;
+        bh=GjmvPRW/EB2UZMiXQmlwdUn3cNZy7MEt9OXtWGJNxz0=;
+        b=th6e4myh3+wFpK2bXlNWlBmLuLA9VUSSC+B9eHQ1H5Nto134dUasuN3a6X+e/OvX7L
+         jesVD+dOmHG1LdtUT0MAfQ0pos+ljtJo2y5lYTQkHmFSFXvdA94DtKqKy/ddDoYvrwai
+         pisdHRuU84LXsECaq9r/pexlrqcYLvi6R/Y2/6XXe5gqZLxwtlHM4eUdELn2nqZYbblC
+         qjtmJ6lnMv9OKz8dbuyncjiIhGBJxEJdgoWltextvWOKlQ4ifwPMmPhAr5GZpXTN+Vjs
+         zSXfP9XFQd+lAw329Q5PGp4wbT/HJRbEa1V5PvvAee0xfOJDZ/uRpENqFioN7K74l4vu
+         SZKQ==
+X-Gm-Message-State: APjAAAUXHXsb3DuBeGygYVdE9b1YYUg+jC+barLIY5NmbpD+cm+/dBqE
+	CZz1ZuLFPY1hIdFL973705YabuN41GCnEvEiF5FuLIMMOeGD9l+RCDL71ZXTKisu5bQ54z+MV38
+	qUgVjKE3CWjue8Wc0wZiR8UzEPy6mFhvBYPgrghJbfkAelgQancukjISdGLjwCitRPQ==
+X-Received: by 2002:a9d:661:: with SMTP id 88mr57343086otn.214.1560794421185;
+        Mon, 17 Jun 2019 11:00:21 -0700 (PDT)
+X-Received: by 2002:a9d:661:: with SMTP id 88mr57343018otn.214.1560794420262;
+        Mon, 17 Jun 2019 11:00:20 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560794420; cv=none;
         d=google.com; s=arc-20160816;
-        b=nTF5/Sl9gsNaFD2luqD1b2vlj/3sZ/AjGh5w6cMmeZ+U2/wAn+m7x0jITrmb96hWNc
-         rx2He7JVfJhO942jaFBuNr9gje0ZiNl/Eez6PC0uA5wZCePvrmipIn9Okcj/qf6QtZRY
-         a9YKhIpdbUH2v+9my9FdzSYectvuDy4/50PcJuY4w8HJf7rPqfMPeN8+GuUY80dGNHTf
-         CuCIDVi85al7L0zORX19Pe1LG/f6AyCrRi4WEHFXG+IavIqydHwKrcWWVq8CanrLVIQi
-         kK+ebGUBNkCKiXtMSBM9zeRRvxUsoVvEA8dsKCC5oBAJMrQipImlx+SMdMSNXZMOclfv
-         GF/Q==
+        b=vmFt3O+DDZC36yzgX7itagLvTgIZ8sqSYa5EQ5kdafm6PsesB+2xbyqaHMACkL2yPv
+         SDT1wJV9nV1KfhzE1Zock+/Wh/krL3dn3MkdAwidKt5LumPfDCoGbe4eLotYmQQkInKO
+         EKStXqdVoaFXtvrRjU4AVkF31mtSMpI/Iu5UTP6hXYuw1Z6tGMcWbMrXyKkl4Zt6lU15
+         7dCxBu+4JLx48wmipH/Fq7frAQ+NmNJJy72OpQ6ZVtR25oG4WwvbIm6LMtcJEx34PlGE
+         NRslQPY24BhD1ifJPV2kDXjDSNRgeiC5Zc8PXiN8EyL1AaKmyv34K8XfURfHyoepHQ5M
+         2Ibw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=t4Zg6P/3rcvHF/Kkh6J9Veq1cGhqPvvomS5CoeMxCEs=;
-        b=a8J/3qxaUOmjZsScUshUn/1BcltRmaZ1nbgiVxS5AXQy0VAItLbBgXoJKYwFseqbDm
-         vFy4RkiKEXKa4hpfOuLjKO9/m1pWuAwrrgRKA+pINjYdU9nv0HS8OFf9AUtkZRrNcfgA
-         LFhONu55DMTe3JUP//rCckA8f4C8+LZFoKHCcWiYcYG56QPXlWCv6aESx+sIHGq/kzWK
-         Is0bOWQpdHF9f3Iyd5FpBD2tmiFBKp1vAgRLawHJ5cLELmv+6Z+HoVf+KlxvyjDBZpcW
-         jhw/Y5q1nrpkMaoVpLj81ccvcE2QRPCcaECGNtnKTfx0FqW++mI6GAKJbDaN9jVVV6if
-         AmMQ==
+        h=content-transfer-encoding:cc:to:subject:message-id:date:from
+         :in-reply-to:references:mime-version:dkim-signature;
+        bh=GjmvPRW/EB2UZMiXQmlwdUn3cNZy7MEt9OXtWGJNxz0=;
+        b=FMo4AuiTS6BS6F6Ts9BwbHU5dK8SIaKz5QcnrQ6P2i+DkANGLPhV3tToh6i6l6SAbM
+         pNVpJRJE7P0vwFJMIE+Eyla+Dk7jIP4/topTqK4LKfEon+Nlb9hp4oPa8Qvvf+bCURaD
+         j8pRIdpIAfUwRfTBH8s5Jts4sd4LAbz/qlK9CvdUY9dSYKhroVxjGv31V+thxqVlk4/e
+         G1V79JbxOFcYNnjKp9Qv2ATWbhEjwdG2cpAYgCjeivZgmAs6FldFwDecBEFB3tjursS+
+         6okgpl6OEjNYvxFmuSRrpE2DKRPY5P0D4a54RR90cZ2LM9fTcx60vfrgHo+ktYwiVMRy
+         50vg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
-        by mx.google.com with ESMTP id b32si8459673eda.254.2019.06.17.10.18.21
-        for <linux-mm@kvack.org>;
-        Mon, 17 Jun 2019 10:18:21 -0700 (PDT)
-Received-SPF: pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=aTNnToCY;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id g19sor5618586oti.100.2019.06.17.11.00.19
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Mon, 17 Jun 2019 11:00:19 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id A9B7128;
-	Mon, 17 Jun 2019 10:18:20 -0700 (PDT)
-Received: from arrakis.emea.arm.com (arrakis.cambridge.arm.com [10.1.196.78])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 08B543F246;
-	Mon, 17 Jun 2019 10:18:15 -0700 (PDT)
-Date: Mon, 17 Jun 2019 18:18:13 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-To: Evgenii Stepanov <eugenis@google.com>
-Cc: Andrey Konovalov <andreyknvl@google.com>,
-	Linux ARM <linux-arm-kernel@lists.infradead.org>,
-	Linux Memory Management List <linux-mm@kvack.org>,
-	LKML <linux-kernel@vger.kernel.org>, amd-gfx@lists.freedesktop.org,
-	dri-devel@lists.freedesktop.org, linux-rdma@vger.kernel.org,
-	linux-media@vger.kernel.org, kvm@vger.kernel.org,
-	"open list:KERNEL SELFTEST FRAMEWORK" <linux-kselftest@vger.kernel.org>,
-	Vincenzo Frascino <vincenzo.frascino@arm.com>,
-	Will Deacon <will.deacon@arm.com>,
-	Mark Rutland <mark.rutland@arm.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	Kees Cook <keescook@chromium.org>,
-	Yishai Hadas <yishaih@mellanox.com>,
-	Felix Kuehling <Felix.Kuehling@amd.com>,
-	Alexander Deucher <Alexander.Deucher@amd.com>,
-	Christian Koenig <Christian.Koenig@amd.com>,
-	Mauro Carvalho Chehab <mchehab@kernel.org>,
-	Jens Wiklander <jens.wiklander@linaro.org>,
-	Alex Williamson <alex.williamson@redhat.com>,
-	Leon Romanovsky <leon@kernel.org>,
-	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>,
-	Dave Martin <Dave.Martin@arm.com>,
-	Khalid Aziz <khalid.aziz@oracle.com>, enh <enh@google.com>,
-	Jason Gunthorpe <jgg@ziepe.ca>,
-	Christoph Hellwig <hch@infradead.org>,
-	Dmitry Vyukov <dvyukov@google.com>,
-	Kostya Serebryany <kcc@google.com>, Lee Smith <Lee.Smith@arm.com>,
-	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
-	Jacob Bramley <Jacob.Bramley@arm.com>,
-	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
-	Robin Murphy <robin.murphy@arm.com>,
-	Kevin Brodsky <kevin.brodsky@arm.com>,
-	Szabolcs Nagy <Szabolcs.Nagy@arm.com>
-Subject: Re: [PATCH v17 03/15] arm64: Introduce prctl() options to control
- the tagged user addresses ABI
-Message-ID: <20190617171813.GC34565@arrakis.emea.arm.com>
-References: <cover.1560339705.git.andreyknvl@google.com>
- <a7a2933bea5fe57e504891b7eec7e9432e5e1c1a.1560339705.git.andreyknvl@google.com>
- <20190617135636.GC1367@arrakis.emea.arm.com>
- <CAFKCwrjJ+0ijNKa3ioOP7xa91QmZU0NhkO=tNC-Q_ThC69vTug@mail.gmail.com>
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=aTNnToCY;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=intel-com.20150623.gappssmtp.com; s=20150623;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc:content-transfer-encoding;
+        bh=GjmvPRW/EB2UZMiXQmlwdUn3cNZy7MEt9OXtWGJNxz0=;
+        b=aTNnToCYbt/RLgFmZg1PIvrCe0JVP4C32RN5cfyMVp2zYXXYY11JnD0P5Xn5tfOK6Y
+         voW3Syk7UYIIG5SF4LSMDVtOlpmEa0YxFfvlu8+J6wAb/HPFiX2GuYxqo+V2fpMpF+jS
+         NlrpFBkRARTzBSJzVDZzE7bQS2UMHOvFRAjYRiT9xL8/lOeALYe1ebk8LfMUYkoFpZaD
+         PAFxFM2FYNf4FyGaTFye24KEnD9WdtERxcyZTxLFaidHht03PVJNbu4TuZbdbzHMaWbM
+         oEiXMcpcSzAKgjPufMTuJybkt3G4uT6kQCK3aNOgUOJV87J/VA4uKxPCVrEi1MqSqx3i
+         hB9A==
+X-Google-Smtp-Source: APXvYqyhtBEP50oerFZs8TdK9nCsvOJRWYCWzRd2vhiNPfCpga0Ba5N2yHiBCHm+W4K6XflHhEhbg4A9IXDkc+ucm/c=
+X-Received: by 2002:a9d:7a8b:: with SMTP id l11mr54836696otn.247.1560793907524;
+ Mon, 17 Jun 2019 10:51:47 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAFKCwrjJ+0ijNKa3ioOP7xa91QmZU0NhkO=tNC-Q_ThC69vTug@mail.gmail.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+References: <20190617122733.22432-1-hch@lst.de> <20190617122733.22432-9-hch@lst.de>
+In-Reply-To: <20190617122733.22432-9-hch@lst.de>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Mon, 17 Jun 2019 10:51:35 -0700
+Message-ID: <CAPcyv4i_0wUJHDqY91R=x5M2o_De+_QKZxPyob5=E9CCv8rM7A@mail.gmail.com>
+Subject: Re: [PATCH 08/25] memremap: move dev_pagemap callbacks into a
+ separate structure
+To: Christoph Hellwig <hch@lst.de>
+Cc: =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, 
+	Jason Gunthorpe <jgg@mellanox.com>, Ben Skeggs <bskeggs@redhat.com>, Linux MM <linux-mm@kvack.org>, 
+	nouveau@lists.freedesktop.org, 
+	Maling list - DRI developers <dri-devel@lists.freedesktop.org>, linux-nvdimm <linux-nvdimm@lists.01.org>, 
+	linux-pci@vger.kernel.org, 
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Logan Gunthorpe <logang@deltatee.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jun 17, 2019 at 09:57:36AM -0700, Evgenii Stepanov wrote:
-> On Mon, Jun 17, 2019 at 6:56 AM Catalin Marinas <catalin.marinas@arm.com> wrote:
-> > On Wed, Jun 12, 2019 at 01:43:20PM +0200, Andrey Konovalov wrote:
-> > > From: Catalin Marinas <catalin.marinas@arm.com>
-> > >
-> > > It is not desirable to relax the ABI to allow tagged user addresses into
-> > > the kernel indiscriminately. This patch introduces a prctl() interface
-> > > for enabling or disabling the tagged ABI with a global sysctl control
-> > > for preventing applications from enabling the relaxed ABI (meant for
-> > > testing user-space prctl() return error checking without reconfiguring
-> > > the kernel). The ABI properties are inherited by threads of the same
-> > > application and fork()'ed children but cleared on execve().
-> > >
-> > > The PR_SET_TAGGED_ADDR_CTRL will be expanded in the future to handle
-> > > MTE-specific settings like imprecise vs precise exceptions.
-> > >
-> > > Signed-off-by: Catalin Marinas <catalin.marinas@arm.com>
-> >
-> > A question for the user-space folk: if an application opts in to this
-> > ABI, would you want the sigcontext.fault_address and/or siginfo.si_addr
-> > to contain the tag? We currently clear it early in the arm64 entry.S but
-> > we could find a way to pass it down if needed.
-> 
-> For HWASan this would not be useful because we instrument memory
-> accesses with explicit checks anyway. For MTE, on the other hand, it
-> would be very convenient to know the fault address tag without
-> disassembling the code.
+On Mon, Jun 17, 2019 at 5:27 AM Christoph Hellwig <hch@lst.de> wrote:
+>
+> The dev_pagemap is a growing too many callbacks.  Move them into a
+> separate ops structure so that they are not duplicated for multiple
+> instances, and an attacker can't easily overwrite them.
+>
+> Signed-off-by: Christoph Hellwig <hch@lst.de>
+> Reviewed-by: Logan Gunthorpe <logang@deltatee.com>
+> Reviewed-by: Jason Gunthorpe <jgg@mellanox.com>
+> ---
+>  drivers/dax/device.c              | 11 ++++++----
+>  drivers/dax/pmem/core.c           |  2 +-
+>  drivers/nvdimm/pmem.c             | 19 +++++++++-------
+>  drivers/pci/p2pdma.c              |  9 +++++---
+>  include/linux/memremap.h          | 36 +++++++++++++++++--------------
+>  kernel/memremap.c                 | 18 ++++++++--------
+>  mm/hmm.c                          | 10 ++++++---
+>  tools/testing/nvdimm/test/iomap.c |  9 ++++----
+>  8 files changed, 65 insertions(+), 49 deletions(-)
+>
+[..]
+> diff --git a/tools/testing/nvdimm/test/iomap.c b/tools/testing/nvdimm/tes=
+t/iomap.c
+> index 219dd0a1cb08..a667d974155e 100644
+> --- a/tools/testing/nvdimm/test/iomap.c
+> +++ b/tools/testing/nvdimm/test/iomap.c
+> @@ -106,11 +106,10 @@ EXPORT_SYMBOL(__wrap_devm_memremap);
+>
+>  static void nfit_test_kill(void *_pgmap)
+>  {
+> -       struct dev_pagemap *pgmap =3D _pgmap;
 
-I could as this differently: does anything break if, once the user
-opts in to TBI, fault_address and/or si_addr have non-zero top byte?
+Whoops, needed to keep this line to avoid:
 
-Alternatively, we could present the original FAR_EL1 register as a
-separate field as we do with ESR_EL1, independently of whether the user
-opted in to TBI or not.
-
--- 
-Catalin
+tools/testing/nvdimm/test/iomap.c:109:11: error: =E2=80=98pgmap=E2=80=99 un=
+declared
+(first use in this function); did you mean =E2=80=98_pgmap=E2=80=99?
 
