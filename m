@@ -2,240 +2,170 @@ Return-Path: <SRS0=4FFe=UQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
-	SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.0 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BC9E3C31E44
-	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 08:51:29 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 83815C31E57
+	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 09:08:42 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7101220848
-	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 08:51:29 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 378372080C
+	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 09:08:42 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="BX24XRnD"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7101220848
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ah.jp.nec.com
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="1SzaizZl"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 378372080C
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 120D78E0005; Mon, 17 Jun 2019 04:51:29 -0400 (EDT)
+	id BE71E8E0003; Mon, 17 Jun 2019 05:08:41 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 081CD8E0001; Mon, 17 Jun 2019 04:51:29 -0400 (EDT)
+	id B701D8E0001; Mon, 17 Jun 2019 05:08:41 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E8B0D8E0005; Mon, 17 Jun 2019 04:51:28 -0400 (EDT)
+	id A114D8E0003; Mon, 17 Jun 2019 05:08:41 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B3F618E0001
-	for <linux-mm@kvack.org>; Mon, 17 Jun 2019 04:51:28 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id y7so6668627pfy.9
-        for <linux-mm@kvack.org>; Mon, 17 Jun 2019 01:51:28 -0700 (PDT)
+Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 7FEE28E0001
+	for <linux-mm@kvack.org>; Mon, 17 Jun 2019 05:08:41 -0400 (EDT)
+Received: by mail-io1-f71.google.com with SMTP id f22so11426459ioh.22
+        for <linux-mm@kvack.org>; Mon, 17 Jun 2019 02:08:41 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:sender:from:to:cc:subject:date
-         :message-id:in-reply-to:references;
-        bh=L8mWMJ9jILM0VSdVVzcyHa6WZylZDmRmVi1FUCOSEVY=;
-        b=TknkCCUMCcygScojrqxNcZatzrlU1ugJqULnOi/O3zQa8zM6RvHD3Ko4zOCfm4PhH7
-         Jl39FDJr7l8PMFN+5QYAyGhGUeXz7/Fzc2ujaMvblFstVUO9bTUnvp9N6fftw4chH8wp
-         nICylAQXOVChEy6q4eWXinF21NUi8r+sbj06xS6zV3dZytjfuoGdCHkh7+ooNSwmeEgD
-         aKCAQa/EjLSnHOIMjAwHVFqWujL6w+bq7Zn6hZiRxidz/i00DLIj+nAPZ5+2v8BYU88t
-         aeLAvOGGZEdSDILkPeHlYhGPyRHV7KSRUnQJIX4U5PAVnYasnlBySik3ukvhm2MsKVDX
-         Ru8w==
-X-Gm-Message-State: APjAAAV+ZX9KVULxVd1B3gppqd4Yih7s/sCE/8WjoNNjaM1jpNmHYfsf
-	XobI6ghdHgyaF0U0PfHUWb8HzyoidI4M9lyr87JJCnNqYUm3qicZn9Lnmg8rt7G6Th6pYJ1cRcf
-	5Mw3SXGOnxJJUACupqbFQkhZIo4+iCcrexsGbZ6Xio4o0jVuvKquGVKAHHPujMuc=
-X-Received: by 2002:a63:29c2:: with SMTP id p185mr19030032pgp.216.1560761488295;
-        Mon, 17 Jun 2019 01:51:28 -0700 (PDT)
-X-Received: by 2002:a63:29c2:: with SMTP id p185mr19029970pgp.216.1560761487006;
-        Mon, 17 Jun 2019 01:51:27 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560761486; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=wRdvOfPDETJvARv+zW+J5HAlYTlZLHmPl7FzG8lv1Ps=;
+        b=irtp3kAdFcjvKKNT4KNj6rQ0xOeMy777DpVgD4Hq90SCwlgB/wJRIJdY4L1rWxYOAS
+         CNRfHL8/7GQ4z3HDMuiLyRrouMhvb5rOQEJL3bfUx5Kq1KX7C3+6pw5oMKXjfFVYxIdJ
+         kk69A7kQfm2nfUSEaKga1MHrM401mVLPEsQEjM+aO08IntQFsiXolittkfNjTZ/MAJJt
+         pprHdHggMV68HSXT3ksL23kgnka7lZ79oHOjkD5mDYlYZ687d/m0nYaGO+HRTQv1bL0j
+         8kdFQCTGHVvAIbsTav7s02jDjLVGkMxBKqn8jItZV5CfYPBRRaals1yIiTtp/k8vDYB0
+         roWQ==
+X-Gm-Message-State: APjAAAW4Ltr9uq2J9CY/ArSoezUbkHQbKWaElE2RGlergk3PMLrrbJBl
+	KwS0ifwb3OOncUqIH5oGIKg8eFm4Lxbf1ZzJjQvrQNQVwUBKEe6cBtwEtW7dj8zhQ0dRG4XoAsF
+	m1n7OhErxcfTUXXLprtDAAJLWYcejKmoGGX2YIOiuIszOZ3MRs4NIZdeEswsguhswqQ==
+X-Received: by 2002:a02:ce52:: with SMTP id y18mr77338584jar.78.1560762521271;
+        Mon, 17 Jun 2019 02:08:41 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzl0rjS122srMzehU4afQiqLHFDAbk6fRLBKCoihlexwb//yFo3tje1V/p+bkmzCUZ6R3ZU
+X-Received: by 2002:a02:ce52:: with SMTP id y18mr77338541jar.78.1560762520646;
+        Mon, 17 Jun 2019 02:08:40 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560762520; cv=none;
         d=google.com; s=arc-20160816;
-        b=b0WCnL4LG21Qb+lBi0mhVJl9ZEcj4XO6IUbZ+iRg5cTllH3K6pvb9DeD12A5m3JuEB
-         ZT0rLW0IeABbvVZITiA3jUYwydi3KTqQ++XhHu++D3ExPKkLz+Q/F+OMoA32yH08o7X/
-         xmjD4lp4ZBwmyCIA7f1+a7qTGx2onNZc/X91TmU3u+129F2CL6XaiDyqcZp/WtU9NyiW
-         xwLYPrMXFAHG9uldu86CO9TIKajcLp4k1f0lVJhBR+L15luOS7J4vX3AE+3VXuwSKWRL
-         M01Bes66/BcXSanLpsI58lsLO+Hf0ppkQzWnP4wQ4ipaEIEA/+0RQ+RCiZeQXMQ0U0uw
-         gfxA==
+        b=deYkA2vWjq9uBvfVX1+ANORti2u0MS6JdGqVFIMsM/kye46iyFlAsKqLJCtK12DT4o
+         cXqp9vLgkJ+QTxYNqMyQiNGNiQ5WLSeBXF64MOi1UtyQGyrK1yRpVuEprG3Jxgzg6s1n
+         C8liV+yvcw56S03R8vznwgCh92zZmGr12/K6qCXBNAjsjlSkVvEz00gDKCD54Oo9rDGn
+         eRdh28i84AI/LaDIJK/EOxexTZAMZppTo7exLAO6mIHXVoakOIKegMWldNkPp5Cxxt7x
+         aajb95igE1JYnqxxuIpdLZeGXngyEibE3zl/gBGDm1nBiMWugwnU47VfgONWYof7HYsJ
+         mzzA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=references:in-reply-to:message-id:date:subject:cc:to:from:sender
-         :dkim-signature;
-        bh=L8mWMJ9jILM0VSdVVzcyHa6WZylZDmRmVi1FUCOSEVY=;
-        b=vl/ik5wziLe4QlXmHbZiARsbtMjtgVZzRVV8HvIGWH9hkg6jhdB1cis+dBk+TrKhLq
-         84t99uaQD5bLRvehHFq6sxRcHeDxaLf/NiTgaSqRrxCs+aV+JdqtpBTgTzlWLOJfBnwo
-         X7S6A8bRuAct4n+7XvemNAupm/BJNxE2tb0vQEeA/ZdUUNakncsrCmL1Bwp69DW0oyOQ
-         juSpveyrc8J2coR21RKkpDKwrD/NH3zs5gTEaBdOfb3X8lQJHcVLYJOcQIh2m1/qCChn
-         KlmvxKNok8sfGn5CnwR3+UedCx0NhnLj9Um8k5qyCKZnoBpPgutZbuHSja4YZobiNoKi
-         e2gA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=wRdvOfPDETJvARv+zW+J5HAlYTlZLHmPl7FzG8lv1Ps=;
+        b=jID0HS0aDO7l6Q4wBBZopevyVCdahqjKLicmKz+X0epnVQunAzPKKNyi08UT/VvVuy
+         8rZxyvZHF1WdD+OJrpLqtXsa6OGQHuyXp1m8CsHZ/oUeagzqrkOXQ75FDKx1DZFcmdm3
+         MuQSxmSBotYDDvuTr3G62ndmSPxfCY8UO6mGTfGK16GjbLu2x9Et0z741JH3Iih91CnW
+         fvuKm2GffpOmFf3MoboM7JFxx1Y4BcHSgff5tHYlfzEpX0e57VEgcw90US7FN7jHs85p
+         zmFmDk0Fjutgihwpv5r//GdgsU0jQl5FWtDOEKbXPfKauo9twi/VkW0n1LD2IyV32k3Y
+         IihQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=BX24XRnD;
-       spf=pass (google.com: domain of nao.horiguchi@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=nao.horiguchi@gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h63sor12791443pjb.6.2019.06.17.01.51.26
+       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=1SzaizZl;
+       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=peterz@infradead.org
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
+        by mx.google.com with ESMTPS id i10si12868947iol.68.2019.06.17.02.08.40
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 17 Jun 2019 01:51:26 -0700 (PDT)
-Received-SPF: pass (google.com: domain of nao.horiguchi@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Mon, 17 Jun 2019 02:08:40 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) client-ip=2001:8b0:10b:1231::1;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=BX24XRnD;
-       spf=pass (google.com: domain of nao.horiguchi@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=nao.horiguchi@gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=sender:from:to:cc:subject:date:message-id:in-reply-to:references;
-        bh=L8mWMJ9jILM0VSdVVzcyHa6WZylZDmRmVi1FUCOSEVY=;
-        b=BX24XRnD9mcuxU5y8Oa30zqFIc5pDvtwSfb7rZGmpl3imko20lYhU//Bls+Zloo2y5
-         nxMjyClpkK8fjDyizpK7Jvcys6+zr4O7u1rsBPeQb9aC85PkA+qGhdTvSvqQ3yTnU8NQ
-         MzDTKxJ3m5Bp4rKftQoCYUNPPoDv3hpaT5AlsaA8f6atLoo3HBA7of+OxJJj/xxTM6ii
-         hyM7jJgRct8/DwZKm7UZp4PrQ8jHR3B4qHz9cnERywIvc+poTqpaGNeGpTJXL5j9Ezro
-         MQSWz3P0qgJFYLArRvOO1ftRTcJ2sfw8G2mXj/+xgMJic0iYtQqU0Im4lg2swjBn+aRB
-         uArQ==
-X-Google-Smtp-Source: APXvYqzHCOPshltv7hAFRfCkbOCP9mHhWYQ8Pjr/OptiujEWUn1vBUKUu0mplvCVt9MCeghIvwqnsg==
-X-Received: by 2002:a17:90a:30e4:: with SMTP id h91mr24031628pjb.37.1560761486527;
-        Mon, 17 Jun 2019 01:51:26 -0700 (PDT)
-Received: from www9186uo.sakura.ne.jp (www9186uo.sakura.ne.jp. [153.121.56.200])
-        by smtp.gmail.com with ESMTPSA id d4sm9443514pju.19.2019.06.17.01.51.24
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 17 Jun 2019 01:51:26 -0700 (PDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-To: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-	Michal Hocko <mhocko@kernel.org>,
-	Mike Kravetz <mike.kravetz@oracle.com>,
-	xishi.qiuxishi@alibaba-inc.com,
-	"Chen, Jerry T" <jerry.t.chen@intel.com>,
-	"Zhuo, Qiuxu" <qiuxu.zhuo@intel.com>,
-	linux-kernel@vger.kernel.org,
-	Anshuman Khandual <anshuman.khandual@arm.com>
-Subject: [PATCH v3 2/2] mm: hugetlb: soft-offline: dissolve_free_huge_page() return zero on !PageHuge
-Date: Mon, 17 Jun 2019 17:51:16 +0900
-Message-Id: <1560761476-4651-3-git-send-email-n-horiguchi@ah.jp.nec.com>
-X-Mailer: git-send-email 2.7.0
-In-Reply-To: <1560761476-4651-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-References: <1560761476-4651-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=1SzaizZl;
+       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=peterz@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=merlin.20170209; h=In-Reply-To:Content-Type:MIME-Version:
+	References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=wRdvOfPDETJvARv+zW+J5HAlYTlZLHmPl7FzG8lv1Ps=; b=1SzaizZlFZrcso1vWkqcGDQl+
+	3GTCltkdhp6F4a07txN0iCkbOsUS3i2IcD+SBI6D6d9SwZsu4Oycx+PvZZikN/HOdKTZel19mOF2J
+	+peAXjqfCZilEMVgF0K7ZJwWBaqoYufu0uC0+iuDeKKct2mo+pCFPu/C1lPHumKWDgt7haPR9GIgQ
+	TBo8KuIZVoi+uAFMs/Z1tHQ3wg+4yhY5/sfjUYVByRFDQ9XvfpYTwgHraXRrjLA1aP+Bk0x0UN4An
+	y0z13wfIJsgXhGdYqGoUMe0nZyQTlF1QGFr2mKt6F9CN05mSKBVY3Glim/3cO/Ed3NCdpaqW/QkYQ
+	ElKV/y6YQ==;
+Received: from j217100.upc-j.chello.nl ([24.132.217.100] helo=hirez.programming.kicks-ass.net)
+	by merlin.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
+	id 1hcncs-0005vu-7b; Mon, 17 Jun 2019 09:08:30 +0000
+Received: by hirez.programming.kicks-ass.net (Postfix, from userid 1000)
+	id D430F2025A803; Mon, 17 Jun 2019 11:08:27 +0200 (CEST)
+Date: Mon, 17 Jun 2019 11:08:27 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+To: Alison Schofield <alison.schofield@intel.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
+	Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org,
+	Thomas Gleixner <tglx@linutronix.de>,
+	Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>,
+	Borislav Petkov <bp@alien8.de>,
+	Andy Lutomirski <luto@amacapital.net>,
+	David Howells <dhowells@redhat.com>,
+	Kees Cook <keescook@chromium.org>,
+	Dave Hansen <dave.hansen@intel.com>,
+	Kai Huang <kai.huang@linux.intel.com>,
+	Jacob Pan <jacob.jun.pan@linux.intel.com>, linux-mm@kvack.org,
+	kvm@vger.kernel.org, keyrings@vger.kernel.org,
+	linux-kernel@vger.kernel.org
+Subject: Re: [PATCH, RFC 45/62] mm: Add the encrypt_mprotect() system call
+ for MKTME
+Message-ID: <20190617090827.GY3436@hirez.programming.kicks-ass.net>
+References: <20190508144422.13171-1-kirill.shutemov@linux.intel.com>
+ <20190508144422.13171-46-kirill.shutemov@linux.intel.com>
+ <20190614115137.GF3436@hirez.programming.kicks-ass.net>
+ <20190615003231.GA15479@alison-desk.jf.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190615003231.GA15479@alison-desk.jf.intel.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-madvise(MADV_SOFT_OFFLINE) often returns -EBUSY when calling soft offline
-for hugepages with overcommitting enabled. That was caused by the suboptimal
-code in current soft-offline code. See the following part:
+On Fri, Jun 14, 2019 at 05:32:31PM -0700, Alison Schofield wrote:
+> On Fri, Jun 14, 2019 at 01:51:37PM +0200, Peter Zijlstra wrote:
+> > On Wed, May 08, 2019 at 05:44:05PM +0300, Kirill A. Shutemov wrote:
+> snip
+> > >  /*
+> > > - * When pkey==NO_KEY we get legacy mprotect behavior here.
+> > > + * do_mprotect_ext() supports the legacy mprotect behavior plus extensions
+> > > + * for Protection Keys and Memory Encryption Keys. These extensions are
+> > > + * mutually exclusive and the behavior is:
 
-    ret = migrate_pages(&pagelist, new_page, NULL, MPOL_MF_MOVE_ALL,
-                            MIGRATE_SYNC, MR_MEMORY_FAILURE);
-    if (ret) {
-            ...
-    } else {
-            /*
-             * We set PG_hwpoison only when the migration source hugepage
-             * was successfully dissolved, because otherwise hwpoisoned
-             * hugepage remains on free hugepage list, then userspace will
-             * find it as SIGBUS by allocation failure. That's not expected
-             * in soft-offlining.
-             */
-            ret = dissolve_free_huge_page(page);
-            if (!ret) {
-                    if (set_hwpoison_free_buddy_page(page))
-                            num_poisoned_pages_inc();
-            }
-    }
-    return ret;
+Well, here it states that the extentions are mutually exclusive.
 
-Here dissolve_free_huge_page() returns -EBUSY if the migration source page
-was freed into buddy in migrate_pages(), but even in that case we actually
-has a chance that set_hwpoison_free_buddy_page() succeeds. So that means
-current code gives up offlining too early now.
+> > > + *	(pkey==NO_KEY && keyid==NO_KEY) ==> legacy mprotect
+> > > + *	(pkey is valid)  ==> legacy mprotect plus Protection Key extensions
+> > > + *	(keyid is valid) ==> legacy mprotect plus Encryption Key extensions
+> > >   */
+> > >  static int do_mprotect_ext(unsigned long start, size_t len,
+> > > -		unsigned long prot, int pkey)
+> > > +			   unsigned long prot, int pkey, int keyid)
+> > >  {
+> 
+> snip
+> 
+> >
+> > I've missed the part where pkey && keyid results in a WARN or error or
+> > whatever.
+> > 
+> I wasn't so sure about that since do_mprotect_ext()
+> is the call 'behind' the system calls. 
+> 
+> legacy mprotect always calls with: NO_KEY, NO_KEY
+> pkey_mprotect always calls with:  pkey, NO_KEY
+> encrypt_mprotect always calls with  NO_KEY, keyid
+> 
+> Would a check on those arguments be debug only 
+> to future proof this?
 
-dissolve_free_huge_page() checks that a given hugepage is suitable for
-dissolving, where we should return success for !PageHuge() case because
-the given hugepage is considered as already dissolved.
-
-This change also affects other callers of dissolve_free_huge_page(),
-which are cleaned up together.
-
-Reported-by: Chen, Jerry T <jerry.t.chen@intel.com>
-Tested-by: Chen, Jerry T <jerry.t.chen@intel.com>
-Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Fixes: 6bc9b56433b76 ("mm: fix race on soft-offlining")
-Cc: <stable@vger.kernel.org> # v4.19+
----
-ChangeLog v2->v3:
-- add PageHuge check in dissolve_free_huge_page() outside hugetlb_lock
-- update comment on dissolve_free_huge_page() about return value
----
- mm/hugetlb.c        | 29 ++++++++++++++++++++---------
- mm/memory-failure.c |  5 +----
- 2 files changed, 21 insertions(+), 13 deletions(-)
-
-diff --git v5.2-rc4/mm/hugetlb.c v5.2-rc4_patched/mm/hugetlb.c
-index ac843d3..ede7e7f 100644
---- v5.2-rc4/mm/hugetlb.c
-+++ v5.2-rc4_patched/mm/hugetlb.c
-@@ -1510,16 +1510,29 @@ static int free_pool_huge_page(struct hstate *h, nodemask_t *nodes_allowed,
- 
- /*
-  * Dissolve a given free hugepage into free buddy pages. This function does
-- * nothing for in-use (including surplus) hugepages. Returns -EBUSY if the
-- * dissolution fails because a give page is not a free hugepage, or because
-- * free hugepages are fully reserved.
-+ * nothing for in-use hugepages and non-hugepages.
-+ * This function returns values like below:
-+ *
-+ *  -EBUSY: failed to dissolved free hugepages or the hugepage is in-use
-+ *          (allocated or reserved.)
-+ *       0: successfully dissolved free hugepages or the page is not a
-+ *          hugepage (considered as already dissolved)
-  */
- int dissolve_free_huge_page(struct page *page)
- {
- 	int rc = -EBUSY;
- 
-+	/* Not to disrupt normal path by vainly holding hugetlb_lock */
-+	if (!PageHuge(page))
-+		return 0;
-+
- 	spin_lock(&hugetlb_lock);
--	if (PageHuge(page) && !page_count(page)) {
-+	if (!PageHuge(page)) {
-+		rc = 0;
-+		goto out;
-+	}
-+
-+	if (!page_count(page)) {
- 		struct page *head = compound_head(page);
- 		struct hstate *h = page_hstate(head);
- 		int nid = page_to_nid(head);
-@@ -1564,11 +1577,9 @@ int dissolve_free_huge_pages(unsigned long start_pfn, unsigned long end_pfn)
- 
- 	for (pfn = start_pfn; pfn < end_pfn; pfn += 1 << minimum_order) {
- 		page = pfn_to_page(pfn);
--		if (PageHuge(page) && !page_count(page)) {
--			rc = dissolve_free_huge_page(page);
--			if (rc)
--				break;
--		}
-+		rc = dissolve_free_huge_page(page);
-+		if (rc)
-+			break;
- 	}
- 
- 	return rc;
-diff --git v5.2-rc4/mm/memory-failure.c v5.2-rc4_patched/mm/memory-failure.c
-index 8ee7b16..d9cc660 100644
---- v5.2-rc4/mm/memory-failure.c
-+++ v5.2-rc4_patched/mm/memory-failure.c
-@@ -1856,11 +1856,8 @@ static int soft_offline_in_use_page(struct page *page, int flags)
- 
- static int soft_offline_free_page(struct page *page)
- {
--	int rc = 0;
--	struct page *head = compound_head(page);
-+	int rc = dissolve_free_huge_page(page);
- 
--	if (PageHuge(head))
--		rc = dissolve_free_huge_page(page);
- 	if (!rc) {
- 		if (set_hwpoison_free_buddy_page(page))
- 			num_poisoned_pages_inc();
--- 
-2.7.0
+But you then don't check that, anywhere, afaict.
 
