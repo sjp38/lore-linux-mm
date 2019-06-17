@@ -2,347 +2,186 @@ Return-Path: <SRS0=4FFe=UQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-16.4 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT,
-	USER_IN_DEF_DKIM_WL autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BF178C31E5D
-	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 16:00:05 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 48E1CC31E5B
+	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 16:03:42 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7A891208CB
-	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 16:00:05 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="ob/UZNpG"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7A891208CB
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	by mail.kernel.org (Postfix) with ESMTP id 16E4D20644
+	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 16:03:42 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 16E4D20644
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0ED6A6B0007; Mon, 17 Jun 2019 12:00:05 -0400 (EDT)
+	id 99D936B0005; Mon, 17 Jun 2019 12:03:41 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 09F1A8E0002; Mon, 17 Jun 2019 12:00:05 -0400 (EDT)
+	id 976348E0002; Mon, 17 Jun 2019 12:03:41 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E80CF8E0001; Mon, 17 Jun 2019 12:00:04 -0400 (EDT)
+	id 865468E0001; Mon, 17 Jun 2019 12:03:41 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
-	by kanga.kvack.org (Postfix) with ESMTP id B44E96B0007
-	for <linux-mm@kvack.org>; Mon, 17 Jun 2019 12:00:04 -0400 (EDT)
-Received: by mail-ot1-f72.google.com with SMTP id x18so5085969otp.9
-        for <linux-mm@kvack.org>; Mon, 17 Jun 2019 09:00:04 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 4F6256B0005
+	for <linux-mm@kvack.org>; Mon, 17 Jun 2019 12:03:41 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id 5so7299333pff.11
+        for <linux-mm@kvack.org>; Mon, 17 Jun 2019 09:03:41 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:message-id:mime-version
-         :subject:from:to:cc;
-        bh=6OF/I8mViVS6VwGoK9t/TkowxaH44NQujziCKAFpMDc=;
-        b=XuyfZWUHEGtv1XUzg1BemaYKkQq2zJoKEn0jwy4tjCTyIOGVme3nbYA/JIwgoxYP9W
-         fzGQkwnXqyOSpxkHkK3MqXC7cLN+Vi/Nn1vZ1k3tnzPHfiCfGXgnPqRfuaGmZpKLMCSt
-         fk04oyA/ob6ZdSyVm/YaakHYYMX4YdXlP8KPYSW20w9vGbHzOZ4GndMGo/MawlWbOZBj
-         HUTuFL95FLpceoKKTudJgSVFCGB1tO5VYitBp72CIiSGlxzoLAYQAe6r9Xc+rC1QAl6J
-         oAppHUUxGJR+KI94PKYehjOLPg0S3Sr8HUsTCUnRZ48a2hpGB13w8HVTdVPZdIRhfli3
-         zXqA==
-X-Gm-Message-State: APjAAAWhobyk1UFs/248udXmmruZNs7ESJMCr/rnENzN8mKME+0TmOZH
-	rOTRowlSKnWPnHsn2lgr3PA/HgmB/AimujWCw/9PKGr6YCAjDwVRsag8XTOd8Zajxhq0csHdDPE
-	AWjT7vNgH6wG2AUWpmlODtw7gqa7SKnLqioMojdgLcSj4beszvu8SfkNidB4kAE1h+Q==
-X-Received: by 2002:aca:ef42:: with SMTP id n63mr10889489oih.177.1560787204190;
-        Mon, 17 Jun 2019 09:00:04 -0700 (PDT)
-X-Received: by 2002:aca:ef42:: with SMTP id n63mr10889439oih.177.1560787203258;
-        Mon, 17 Jun 2019 09:00:03 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560787203; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=5Qw1/4I1yeF10sTu7qug/VXLq9isKeSocbyAK6LJf60=;
+        b=baLAz3W1tidGiaZX66FgRhCdLt4sfF45/XEuz9UjcUBth4TGQOZmiMCdXsHDHb13wI
+         pg1m2S51STPskXI7EO3aR5e9vM7UIUAhLzkAyBW+RfCBmInKeQhUdV3VYPGUj5xsTjWS
+         gD5E04JimQ3Xtx5hv16Sd7WpsripoxB+tnlQD0A9Kuw7crie07+gQL4F7LXxBd0CfBAA
+         SeAzKoKLa+0eVrlIN7pqPKdRkjMi58I7AwrlSK4QZeW8zIrO1yxapd0NlmkYd6QgYEi1
+         /z5z21g2Ht/9sZJd2eJ8Jo+KIvxiBTE6AqqncneNb1aDWp21hg8LVY5HgqF3q3cj+5Iz
+         KJhQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAUN08Q5EwP2JrD+6XEU8608JedFa4zv4NHPzVdeKjX3iEJRezwe
+	exj00a3PBJs8N/Oce+SsUxg9Oabhr+35ZLfIlM78MhWMPHBQjPI8JTaT9ZKGsu/B/os3IfFjvvv
+	h7yhBwp/flandMq70iFmi4njmuBYRo5tW8jgiZPhi8N7FIebfOFSbMWy74rJznpprGw==
+X-Received: by 2002:a17:90a:1b0c:: with SMTP id q12mr27134031pjq.76.1560787421019;
+        Mon, 17 Jun 2019 09:03:41 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyJNwbrx4HUL2lNniOeR/oHKpjkRU5FW541rTOBmojYdS8YgQ96/HhtvNt6AYjWLxltlAUX
+X-Received: by 2002:a17:90a:1b0c:: with SMTP id q12mr27133996pjq.76.1560787420457;
+        Mon, 17 Jun 2019 09:03:40 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560787420; cv=none;
         d=google.com; s=arc-20160816;
-        b=KLft+qnwbhtNpCfsXc9EeA2nomV/IcQqjtPJjpCi+Byr6pj7GSTluGerZtOzvqqYnx
-         Vo8Emk3IxCQgfj3WrPNRxn6o90I0Ln4g+q4GlW9M91m45SdkUizWBcR4QRe2Z5reSZDj
-         cOY6zz2LbB3dGHcgvyHINlDWhvKF7LXZDMnCqGOpM+ykmO4bOJQ+CFqnX+OqfSIAUMzF
-         cT5m4LG/Z456FQNWwaDJmRljWL3rdp4ZDCb3IryiN/U3ZyFW1V2v2dlalzyk485h49W5
-         cPLpZh5x8l4z0p0T9bQB0ns5rdJ5GtKUZuTYa+tENQez+qFhp3teQpk9S+9MxjIaZjdd
-         tMEQ==
+        b=MBgf6xppgQVr4JvKRhXgEU4Q8lejRKz3mmCbey2DqulgPDW/cUVoQw0WHsXGv4Oe45
+         U5pCn2HOYmmI2z744UxNd+67I3RLhpeNKcw4nM8r61JItg0bcYrL8bpLxRMZ4WyFT/8b
+         V+gBsT/j/rKNEfuiOMhiZVRmUu4mqOeopmwlUNCQJ9RO1ZdLPjJx0Qv5hFOnYiod7cRI
+         YbTJ2dLjh6fwdPb3r/usCWc2nDznO1ftc+67mvxGuRfRF9FzjcMLBaFpXnqPcfb2qrYA
+         qShL+BjHxQHna0qVwDXsshPOrdINEaK1ONjjg+o22Knj1p2zgZPL+0jEPyEmQkWmNBbo
+         Nidw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:from:subject:mime-version:message-id:date:dkim-signature;
-        bh=6OF/I8mViVS6VwGoK9t/TkowxaH44NQujziCKAFpMDc=;
-        b=RMUywjEFPMmzG21oyWhULVGkGVXmOmu0ytaPfz0vtVRZdLDS/oEtQDL2vSqXZjsnhI
-         rtw912bZxbDylIJ3P9LdFOZbT6J6nmn0hnkfaWOO4HvCcPh6eiuxR6PTQ1AT6W+hGH9a
-         Pt1NwQMh+xnt/bbwlr2hmt1deQaX7lKaHazWjBslqn12/+Yx+JKjPbqGgXqeelysRlRK
-         o4KVtkUbFskEEBQXV+de4BHeNhjSei8REsXAtT8b/oOmOyFtf3AsTkTELIshoF8oVPpt
-         eZiWxj9c1GwH0c4NJNOYtwmKbskLvjJqb0ADKiBI4roXO2c79qVY4kJvxm1JxOeYxEry
-         7FDQ==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
+         :subject;
+        bh=5Qw1/4I1yeF10sTu7qug/VXLq9isKeSocbyAK6LJf60=;
+        b=htZUV3D11R6Q8o7dkM681QhOq2qri/6F6k1qwEYLZnfeBqIMbM8xefsljL8oWFKgkX
+         7XmSsHnbkO5dPR2w+JkyZ7PRwOoAE9MHU3HAtUR9itSkSDf016DNSQ3+zehyz+UCjp9a
+         TpsLhL4fS0OCuSsRFf+pf2KbdJMDIYx5QYYYDzIlAADDLZIbyfcKV6kbbOAkC5UI9Ega
+         rWVT5CXglqnBKXF6eqxbK5uCLO83sFwChpOyYeycazz6HLmFmFOUuaF42ptcBEdRsqAS
+         D6AzUEZFIUs/+JIz5GUwlDw0ZpeVhQI/IBDvFtKteN6PNUOq7HioV7ckFh3p8sZwP9Qa
+         WXqQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b="ob/UZNpG";
-       spf=pass (google.com: domain of 3arkhxqgkciexmfpjjqglttlqj.htrqnsz2-rrp0fhp.twl@flex--shakeelb.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3ArkHXQgKCIExmfpjjqglttlqj.htrqnsz2-rrp0fhp.twl@flex--shakeelb.bounces.google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
-        by mx.google.com with SMTPS id a131sor4488484oib.73.2019.06.17.09.00.03
+       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id y1si9936954pjr.109.2019.06.17.09.03.40
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 17 Jun 2019 09:00:03 -0700 (PDT)
-Received-SPF: pass (google.com: domain of 3arkhxqgkciexmfpjjqglttlqj.htrqnsz2-rrp0fhp.twl@flex--shakeelb.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 17 Jun 2019 09:03:40 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.20 as permitted sender) client-ip=134.134.136.20;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b="ob/UZNpG";
-       spf=pass (google.com: domain of 3arkhxqgkciexmfpjjqglttlqj.htrqnsz2-rrp0fhp.twl@flex--shakeelb.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3ArkHXQgKCIExmfpjjqglttlqj.htrqnsz2-rrp0fhp.twl@flex--shakeelb.bounces.google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=date:message-id:mime-version:subject:from:to:cc;
-        bh=6OF/I8mViVS6VwGoK9t/TkowxaH44NQujziCKAFpMDc=;
-        b=ob/UZNpGxGPuF0OzSr4yeSWfIhOdnYSQGvAhj9DxsKpWZaLHEMyF+kLANJU5hFdcvW
-         0dl8fnSbB4XcNXABqAjMH4UDEZvd/s1ql9mumUa+KVBf6QAUN7ay18H/v5sbj5OGz9Br
-         +fVmQEkyUjwCYAgpqwHLsiJB37ZJojWELK5ziJ3+1+DCvkgsq0po/LlG/rmE7BBt2SUq
-         UwqNJ/F6t0lmPzthj1U0o87GNOmVAuViobWjvZ6c7F5lJe0DjYepiF4XWlRgvm10JdBv
-         nJkd+aiEenu+daU8g5bnkoWD+JOBlJFc8bEkQAJzjZn3o0DTakI6KihKzku0iZeFKuTk
-         HM/A==
-X-Google-Smtp-Source: APXvYqw79N91taxJtuNvC4ql7FsQuNTdHnWvRgS0qX8lER0ovOxErjWwzD8UXKz0aKsJ1UGmr1SZtb87+JnEEw==
-X-Received: by 2002:aca:cc8e:: with SMTP id c136mr11155223oig.18.1560787202795;
- Mon, 17 Jun 2019 09:00:02 -0700 (PDT)
-Date: Mon, 17 Jun 2019 08:59:54 -0700
-Message-Id: <20190617155954.155791-1-shakeelb@google.com>
-Mime-Version: 1.0
-X-Mailer: git-send-email 2.22.0.410.gd8fdbe21b5-goog
-Subject: [PATCH] mm, oom: fix oom_unkillable_task for memcg OOMs
-From: Shakeel Butt <shakeelb@google.com>
-To: Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, 
-	Michal Hocko <mhocko@suse.com>, Andrew Morton <akpm@linux-foundation.org>, 
-	Roman Gushchin <guro@fb.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, 
-	Shakeel Butt <shakeelb@google.com>
-Content-Type: text/plain; charset="UTF-8"
+       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga002.jf.intel.com ([10.7.209.21])
+  by orsmga101.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 17 Jun 2019 09:03:40 -0700
+X-ExtLoop1: 1
+Received: from ray.jf.intel.com (HELO [10.7.201.126]) ([10.7.201.126])
+  by orsmga002.jf.intel.com with ESMTP; 17 Jun 2019 09:03:39 -0700
+Subject: Re: [RFC 00/10] Process-local memory allocations for hiding KVM
+ secrets
+To: Andy Lutomirski <luto@kernel.org>
+Cc: Alexander Graf <graf@amazon.com>, Thomas Gleixner <tglx@linutronix.de>,
+ Marius Hillenbrand <mhillenb@amazon.de>, kvm list <kvm@vger.kernel.org>,
+ LKML <linux-kernel@vger.kernel.org>,
+ Kernel Hardening <kernel-hardening@lists.openwall.com>,
+ Linux-MM <linux-mm@kvack.org>, Alexander Graf <graf@amazon.de>,
+ David Woodhouse <dwmw@amazon.co.uk>,
+ the arch/x86 maintainers <x86@kernel.org>,
+ Peter Zijlstra <peterz@infradead.org>
+References: <20190612170834.14855-1-mhillenb@amazon.de>
+ <eecc856f-7f3f-ed11-3457-ea832351e963@intel.com>
+ <A542C98B-486C-4849-9DAC-2355F0F89A20@amacapital.net>
+ <alpine.DEB.2.21.1906141618000.1722@nanos.tec.linutronix.de>
+ <58788f05-04c3-e71c-12c3-0123be55012c@amazon.com>
+ <63b1b249-6bc7-ffd9-99db-d36dd3f1a962@intel.com>
+ <CALCETrXph3Zg907kWTn6gAsZVsPbCB3A2XuNf0hy5Ez2jm2aNQ@mail.gmail.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=dave.hansen@intel.com; keydata=
+ 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
+Message-ID: <698ca264-123d-46ae-c165-ed62ea149896@intel.com>
+Date: Mon, 17 Jun 2019 09:03:39 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.0
+MIME-Version: 1.0
+In-Reply-To: <CALCETrXph3Zg907kWTn6gAsZVsPbCB3A2XuNf0hy5Ez2jm2aNQ@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Currently oom_unkillable_task() checks mems_allowed even for memcg OOMs
-which does not make sense as memcg OOMs can not be triggered due to
-numa constraints. Fixing that.
+On 6/17/19 8:54 AM, Andy Lutomirski wrote:
+>>> Would that mean that with Meltdown affected CPUs we open speculation
+>>> attacks against the mmlocal memory from KVM user space?
+>> Not necessarily.  There would likely be a _set_ of local PGDs.  We could
+>> still have pair of PTI PGDs just like we do know, they'd just be a local
+>> PGD pair.
+>>
+> Unfortunately, this would mean that we need to sync twice as many
+> top-level entries when we context switch.
 
-Also if memcg is given, oom_unkillable_task() will check the task's
-memcg membership as well to detect oom killability. However all the
-memcg related code paths leading to oom_unkillable_task(), other than
-dump_tasks(), come through mem_cgroup_scan_tasks() which traverses
-tasks through memcgs. Once dump_tasks() is converted to use
-mem_cgroup_scan_tasks(), there is no need to do memcg membership check
-in oom_unkillable_task().
+Yeah, PTI sucks. :)
 
-Signed-off-by: Shakeel Butt <shakeelb@google.com>
----
- fs/proc/base.c      |   3 +-
- include/linux/oom.h |   3 +-
- mm/oom_kill.c       | 100 +++++++++++++++++++++++++-------------------
- 3 files changed, 60 insertions(+), 46 deletions(-)
+For anyone following along at home, I'm going to go off into crazy
+per-cpu-pgds speculation mode now...  Feel free to stop reading now. :)
 
-diff --git a/fs/proc/base.c b/fs/proc/base.c
-index b8d5d100ed4a..69b0d1b6583d 100644
---- a/fs/proc/base.c
-+++ b/fs/proc/base.c
-@@ -532,8 +532,7 @@ static int proc_oom_score(struct seq_file *m, struct pid_namespace *ns,
- 	unsigned long totalpages = totalram_pages() + total_swap_pages;
- 	unsigned long points = 0;
- 
--	points = oom_badness(task, NULL, NULL, totalpages) *
--					1000 / totalpages;
-+	points = oom_badness(task, NULL, totalpages) * 1000 / totalpages;
- 	seq_printf(m, "%lu\n", points);
- 
- 	return 0;
-diff --git a/include/linux/oom.h b/include/linux/oom.h
-index d07992009265..39c42caa3231 100644
---- a/include/linux/oom.h
-+++ b/include/linux/oom.h
-@@ -108,8 +108,7 @@ static inline vm_fault_t check_stable_address_space(struct mm_struct *mm)
- bool __oom_reap_task_mm(struct mm_struct *mm);
- 
- extern unsigned long oom_badness(struct task_struct *p,
--		struct mem_cgroup *memcg, const nodemask_t *nodemask,
--		unsigned long totalpages);
-+		struct oom_control *oc, unsigned long totalpages);
- 
- extern bool out_of_memory(struct oom_control *oc);
- 
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 05aaa1a5920b..47ded0e07e98 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -152,20 +152,25 @@ static inline bool is_memcg_oom(struct oom_control *oc)
- }
- 
- /* return true if the task is not adequate as candidate victim task. */
--static bool oom_unkillable_task(struct task_struct *p,
--		struct mem_cgroup *memcg, const nodemask_t *nodemask)
-+static bool oom_unkillable_task(struct task_struct *p, struct oom_control *oc)
- {
- 	if (is_global_init(p))
- 		return true;
- 	if (p->flags & PF_KTHREAD)
- 		return true;
-+	if (!oc)
-+		return false;
- 
--	/* When mem_cgroup_out_of_memory() and p is not member of the group */
--	if (memcg && !task_in_mem_cgroup(p, memcg))
--		return true;
-+	/*
-+	 * For memcg OOM, we reach here through mem_cgroup_scan_tasks(), no
-+	 * need to check p's membership. Also the following checks are
-+	 * irrelevant to memcg OOMs.
-+	 */
-+	if (is_memcg_oom(oc))
-+		return false;
- 
- 	/* p may not have freeable memory in nodemask */
--	if (!has_intersects_mems_allowed(p, nodemask))
-+	if (!has_intersects_mems_allowed(p, oc->nodemask))
- 		return true;
- 
- 	return false;
-@@ -193,21 +198,20 @@ static bool is_dump_unreclaim_slabs(void)
- /**
-  * oom_badness - heuristic function to determine which candidate task to kill
-  * @p: task struct of which task we should calculate
-+ * @oc: pointer to struct oom_control
-  * @totalpages: total present RAM allowed for page allocation
-- * @memcg: task's memory controller, if constrained
-- * @nodemask: nodemask passed to page allocator for mempolicy ooms
-  *
-  * The heuristic for determining which task to kill is made to be as simple and
-  * predictable as possible.  The goal is to return the highest value for the
-  * task consuming the most memory to avoid subsequent oom failures.
-  */
--unsigned long oom_badness(struct task_struct *p, struct mem_cgroup *memcg,
--			  const nodemask_t *nodemask, unsigned long totalpages)
-+unsigned long oom_badness(struct task_struct *p, struct oom_control *oc,
-+			  unsigned long totalpages)
- {
- 	long points;
- 	long adj;
- 
--	if (oom_unkillable_task(p, memcg, nodemask))
-+	if (oom_unkillable_task(p, oc))
- 		return 0;
- 
- 	p = find_lock_task_mm(p);
-@@ -318,7 +322,7 @@ static int oom_evaluate_task(struct task_struct *task, void *arg)
- 	struct oom_control *oc = arg;
- 	unsigned long points;
- 
--	if (oom_unkillable_task(task, NULL, oc->nodemask))
-+	if (oom_unkillable_task(task, oc))
- 		goto next;
- 
- 	/*
-@@ -342,7 +346,7 @@ static int oom_evaluate_task(struct task_struct *task, void *arg)
- 		goto select;
- 	}
- 
--	points = oom_badness(task, NULL, oc->nodemask, oc->totalpages);
-+	points = oom_badness(task, oc, oc->totalpages);
- 	if (!points || points < oc->chosen_points)
- 		goto next;
- 
-@@ -385,10 +389,38 @@ static void select_bad_process(struct oom_control *oc)
- 	oc->chosen_points = oc->chosen_points * 1000 / oc->totalpages;
- }
- 
-+static int dump_task(struct task_struct *p, void *arg)
-+{
-+	struct oom_control *oc = arg;
-+	struct task_struct *task;
-+
-+	if (oom_unkillable_task(p, oc))
-+		return 0;
-+
-+	task = find_lock_task_mm(p);
-+	if (!task) {
-+		/*
-+		 * This is a kthread or all of p's threads have already
-+		 * detached their mm's.  There's no need to report
-+		 * them; they can't be oom killed anyway.
-+		 */
-+		return 0;
-+	}
-+
-+	pr_info("[%7d] %5d %5d %8lu %8lu %8ld %8lu         %5hd %s\n",
-+		task->pid, from_kuid(&init_user_ns, task_uid(task)),
-+		task->tgid, task->mm->total_vm, get_mm_rss(task->mm),
-+		mm_pgtables_bytes(task->mm),
-+		get_mm_counter(task->mm, MM_SWAPENTS),
-+		task->signal->oom_score_adj, task->comm);
-+	task_unlock(task);
-+
-+	return 0;
-+}
-+
- /**
-  * dump_tasks - dump current memory state of all system tasks
-- * @memcg: current's memory controller, if constrained
-- * @nodemask: nodemask passed to page allocator for mempolicy ooms
-+ * @oc: pointer to struct oom_control
-  *
-  * Dumps the current memory state of all eligible tasks.  Tasks not in the same
-  * memcg, not in the same cpuset, or bound to a disjoint set of mempolicy nodes
-@@ -396,37 +428,21 @@ static void select_bad_process(struct oom_control *oc)
-  * State information includes task's pid, uid, tgid, vm size, rss,
-  * pgtables_bytes, swapents, oom_score_adj value, and name.
-  */
--static void dump_tasks(struct mem_cgroup *memcg, const nodemask_t *nodemask)
-+static void dump_tasks(struct oom_control *oc)
- {
--	struct task_struct *p;
--	struct task_struct *task;
--
- 	pr_info("Tasks state (memory values in pages):\n");
- 	pr_info("[  pid  ]   uid  tgid total_vm      rss pgtables_bytes swapents oom_score_adj name\n");
--	rcu_read_lock();
--	for_each_process(p) {
--		if (oom_unkillable_task(p, memcg, nodemask))
--			continue;
- 
--		task = find_lock_task_mm(p);
--		if (!task) {
--			/*
--			 * This is a kthread or all of p's threads have already
--			 * detached their mm's.  There's no need to report
--			 * them; they can't be oom killed anyway.
--			 */
--			continue;
--		}
-+	if (is_memcg_oom(oc))
-+		mem_cgroup_scan_tasks(oc->memcg, dump_task, oc);
-+	else {
-+		struct task_struct *p;
- 
--		pr_info("[%7d] %5d %5d %8lu %8lu %8ld %8lu         %5hd %s\n",
--			task->pid, from_kuid(&init_user_ns, task_uid(task)),
--			task->tgid, task->mm->total_vm, get_mm_rss(task->mm),
--			mm_pgtables_bytes(task->mm),
--			get_mm_counter(task->mm, MM_SWAPENTS),
--			task->signal->oom_score_adj, task->comm);
--		task_unlock(task);
-+		rcu_read_lock();
-+		for_each_process(p)
-+			dump_task(p, oc);
-+		rcu_read_unlock();
- 	}
--	rcu_read_unlock();
- }
- 
- static void dump_oom_summary(struct oom_control *oc, struct task_struct *victim)
-@@ -458,7 +474,7 @@ static void dump_header(struct oom_control *oc, struct task_struct *p)
- 			dump_unreclaimable_slab();
- 	}
- 	if (sysctl_oom_dump_tasks)
--		dump_tasks(oc->memcg, oc->nodemask);
-+		dump_tasks(oc);
- 	if (p)
- 		dump_oom_summary(oc, p);
- }
-@@ -1078,7 +1094,7 @@ bool out_of_memory(struct oom_control *oc)
- 	check_panic_on_oom(oc, constraint);
- 
- 	if (!is_memcg_oom(oc) && sysctl_oom_kill_allocating_task &&
--	    current->mm && !oom_unkillable_task(current, NULL, oc->nodemask) &&
-+	    current->mm && !oom_unkillable_task(current, oc) &&
- 	    current->signal->oom_score_adj != OOM_SCORE_ADJ_MIN) {
- 		get_task_struct(current);
- 		oc->chosen = current;
--- 
-2.22.0.410.gd8fdbe21b5-goog
+But, I was thinking we could get away with not doing this on _every_
+context switch at least.  For instance, couldn't 'struct tlb_context'
+have PGD pointer (or two with PTI) in addition to the TLB info?  That
+way we only do the copying when we change the context.  Or does that tie
+the implementation up too much with PCIDs?
 
