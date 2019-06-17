@@ -2,178 +2,184 @@ Return-Path: <SRS0=4FFe=UQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY,USER_AGENT_MUTT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8C148C31E44
-	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 08:22:02 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 72809C31E44
+	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 08:22:36 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 51FBE21E6D
-	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 08:22:02 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 51FBE21E6D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 2793A20652
+	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 08:22:36 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="HoOGFZ6I"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2793A20652
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E2DDA8E0003; Mon, 17 Jun 2019 04:22:01 -0400 (EDT)
+	id C08D78E0004; Mon, 17 Jun 2019 04:22:35 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DB77D8E0001; Mon, 17 Jun 2019 04:22:01 -0400 (EDT)
+	id BB9D78E0001; Mon, 17 Jun 2019 04:22:35 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CA4A88E0003; Mon, 17 Jun 2019 04:22:01 -0400 (EDT)
+	id A81978E0004; Mon, 17 Jun 2019 04:22:35 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 7AABF8E0001
-	for <linux-mm@kvack.org>; Mon, 17 Jun 2019 04:22:01 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id y24so15365329edb.1
-        for <linux-mm@kvack.org>; Mon, 17 Jun 2019 01:22:01 -0700 (PDT)
+Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 89A128E0001
+	for <linux-mm@kvack.org>; Mon, 17 Jun 2019 04:22:35 -0400 (EDT)
+Received: by mail-io1-f70.google.com with SMTP id y13so11342648iol.6
+        for <linux-mm@kvack.org>; Mon, 17 Jun 2019 01:22:35 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=7ymvn5JUry7KtFqwp5cxRbfksIusBDKC6pSOP5eNR8Y=;
-        b=a8dOI8E7Fb4SErLyqxxtapkfT7Z1BIQDmIYz0wctQEmTn1TQpBYR1btKfIOvvuzuSu
-         1Ry/OvqwNx1d3KyPcFiuFePhCIGWiKJf4o7FojZRG5E0dVz/A/gle7wmVYzhc4GJ7z7S
-         NUjky4Bn5MJ+95pGDefMd3p9ri2FcZI+A1o5VT8FHUsKIMuz0zg2/St3xm+7YNnl12Zn
-         aTEp5rJ69xbXroIa+8FUGV9mAIKGWVjyY1LnmdKSTvo6qAoY79RaAS3kr7yLXadTEIDN
-         p10GfaZbjGXgaOSI1QVpkypWSIoldg4ZZ1fOCQG8wjpwlPuG2Wc9SxD8JX0+6sNOUyf0
-         T2tA==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAW5sbCs1UUAYb9SKaf6H+kx3h/9nECQ1XFbwIkIneamZqrO1g9k
-	IBUdXkRmp9yzJJr/MCgcyPNjKmMiS+Xw8N1FZGAtXVPw7CR9+RX6wsbra/jTtCSryhV0scGebaX
-	H2+yxsA7OSCFU4wIwhKP1JJ1o8I4F5yRXM1fji7sxFxhEYUbz89cK1gdt0SQHQBs=
-X-Received: by 2002:a17:906:a308:: with SMTP id j8mr43613100ejz.167.1560759721036;
-        Mon, 17 Jun 2019 01:22:01 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzsF2lEmT0OGg7OIEU2qoad5dXIXmKMqLAcBhq+bVz+2SLuvN7tcoN76+kWgK+3RF/bu3pm
-X-Received: by 2002:a17:906:a308:: with SMTP id j8mr43613062ejz.167.1560759720305;
-        Mon, 17 Jun 2019 01:22:00 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560759720; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=FGXkU7eOmJXcfpTdOS3rFhVnp4//dWioBuU5JvbAozk=;
+        b=IJRLMA7PAdmZYMC80n/TAqbG0mDTQUNoUm3xbJNcO1f7StdA5tjyXhKk518Laxet6f
+         sEm1FoP7JZoelfE5SY7RfecHMI4E10RVKRoPYmq8Zkawn6PI3l3efjcjRgaOtvfuTWd9
+         Nbk+AAi+7QYLNHupygdMfWRqH99385miicxiAUUzD2rfEOJrF7TgHjRu6fdt0JQ0V435
+         A8csrJNDIF5PkqzuTm5H6jxOfJhwOq2+avzPCC686rhfYsGoQCxyUzfI/UjyKqu31STS
+         bWQAsz0dTEZJmKZ6Vw8MirC5tLsNzv7dmRwt5j2Ipi/o1ewHg2/XTbf8fFI5jDOwadvs
+         eUGw==
+X-Gm-Message-State: APjAAAXYMmgSMSPG3tT769Fqiz7QdM7ROYmyJQCbroplMthaj56oSIGg
+	6bT2Bvuhvq7iraQic4njsB+DQkIuSGP18deDOO7P/r3yDA2K4kJVz86rn91OVDxuFgjZqPaqJJH
+	0NUeRiFCZ4zIfZNA3Tf+kjnEtbvYaPzZ9x2lSdltMpuiOdiPnf5A+FHUwGLFvvMs/wQ==
+X-Received: by 2002:a6b:e615:: with SMTP id g21mr16054869ioh.178.1560759755177;
+        Mon, 17 Jun 2019 01:22:35 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzjS3Z7IxUCAIXzkAc06BjH4N6VMYcPrNXq81OBUFhNszrz4V1Aa64x0/rtnKAf8rPXgz0P
+X-Received: by 2002:a6b:e615:: with SMTP id g21mr16054808ioh.178.1560759753888;
+        Mon, 17 Jun 2019 01:22:33 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560759753; cv=none;
         d=google.com; s=arc-20160816;
-        b=Kwb9ANBcvlo5i78QjrzCiFdOp93Rgb26otwiBDXrPf10b1H2XUmE6sIBjDdhZCUoNT
-         Csn4Pu4OOhaTLe1F29EcMuYkYr/gZtust/UEScl3Dt6XNhnXyU4AP+TUDS4kaLWExBWD
-         xfphPx+6FTXyKQoGndlDgeMUL57gF29mrjtmpihvwKinWDH7uJrncN40kaEbe6SSpdT4
-         qg+QwNzBzdBOnoHRmGg6AnspWnhD3BQowt9AMFFPMQCOrP6Xt3zsQZxsPOTLjafsCbag
-         j1BMVAXmq/FrP563T2YQWW3Ztnht+xJrQxu/3GDhRpginm4inpU+6wB3YT3iQlsPRzXE
-         H/ig==
+        b=CENNruZ7vgrMHwuDc6OYhY/3oggA876PXSGKAbAqPSaHdBFX34CzqXdpAOvK0jKa9K
+         4yAqhnXDzMsO9qwUS8LCWc18JU8my2d8FnPtZHz1YVw+Ohek0/Gh+Ch81cVaCW8FWCBw
+         /h7JoMmGkpi0t+P3FtIDPILFRhsx26R82ah85F7LKGgxgsjA/18Zij2Ih4BPDMNIAYlL
+         Q5qQmvlTceHw12wA6GXfPZ7FOz4PYjSZZRHO6XUlAl9rNhopznBV+yX2F6xXJ9446N1l
+         Qc4VDH3FfD/9k9xBU4HuUiMsQeriWYBqe/eMiF2vp+W2t3Xz8P33ViwZLDEjfmWE42lN
+         NhBg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=7ymvn5JUry7KtFqwp5cxRbfksIusBDKC6pSOP5eNR8Y=;
-        b=SWz3v31KjXXN+p7oAMfWzjq3CUPsyetEt7SPHpkagc17TzeMxk7qfyHeYA+DhVhUJC
-         YwSIlkAmF1T0DC4xpTFgTu6MHHcImvHXBaOJTA+5uAXV7KOw80fJZYAbdyH6WB0hJ8vO
-         uFxUNyZj7D7VNKAsn+nX5zNrb1/1uV0dUMpKw9TQNgn1fe4VsrnV5kVQDGVYqbkWB1Hw
-         ng/OXTGqi3Pd3VKgai7WERoXPPYJaVO/41g4C106Yi8HynYZO1pSam/qveVTXapsmvvb
-         yHCDZY5r6Qxsk2y0eh/8UDLPRkIcZhOYQXm+7tCMNtFQTQ5A1Yhk7PbvuzZolNMyY9Xz
-         /buw==
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=FGXkU7eOmJXcfpTdOS3rFhVnp4//dWioBuU5JvbAozk=;
+        b=1GUQ14OnlxgrcDuflW1VKqNSQLbz0IEaZ4qPWjzTv2j9VZSc0xFfM8BcqQe2Xp7QGn
+         hJYy+Ptqfa/placx/W3kWWFDY+4xZspN1WJn2op4H7kXA5IpcY33bn64/95RKVc8i70Y
+         5se2sMyilif/rMfFwwy+/ge4xdgjDKQJcdNlZrizzvo4oHSKiiSUJGCbX0XygDRM1LJ4
+         4fuuPtPyx0pIIdeiPnda4nOoY7g3je97m2+yj2QnkS7Mm7UeAM2PejHX33cm3cQ41q50
+         lNP7+FjSQhQMAHibBE0PjjMtA5HMcZ0vPLBhtsJ7V3Uvo0bCSGmcMJBnYQsusw+9yn14
+         MtKQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id d16si443017ejj.185.2019.06.17.01.22.00
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=HoOGFZ6I;
+       spf=pass (google.com: domain of dan.carpenter@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=dan.carpenter@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id y5si15265156iof.64.2019.06.17.01.22.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 17 Jun 2019 01:22:00 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Mon, 17 Jun 2019 01:22:33 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dan.carpenter@oracle.com designates 156.151.31.86 as permitted sender) client-ip=156.151.31.86;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 642EFAF4C;
-	Mon, 17 Jun 2019 08:21:59 +0000 (UTC)
-Date: Mon, 17 Jun 2019 10:21:56 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Alastair D'Silva <alastair@d-silva.org>
-Cc: 'Alastair D'Silva' <alastair@au1.ibm.com>,
-	'Arun KS' <arunks@codeaurora.org>,
-	'Mukesh Ojha' <mojha@codeaurora.org>,
-	'Logan Gunthorpe' <logang@deltatee.com>,
-	'Wei Yang' <richard.weiyang@gmail.com>,
-	'Peter Zijlstra' <peterz@infradead.org>,
-	'Ingo Molnar' <mingo@kernel.org>, linux-mm@kvack.org,
-	'Qian Cai' <cai@lca.pw>, 'Thomas Gleixner' <tglx@linutronix.de>,
-	'Andrew Morton' <akpm@linux-foundation.org>,
-	'Mike Rapoport' <rppt@linux.vnet.ibm.com>,
-	'Baoquan He' <bhe@redhat.com>,
-	'David Hildenbrand' <david@redhat.com>,
-	'Josh Poimboeuf' <jpoimboe@redhat.com>,
-	'Pavel Tatashin' <pasha.tatashin@soleen.com>,
-	'Juergen Gross' <jgross@suse.com>,
-	'Oscar Salvador' <osalvador@suse.com>,
-	'Jiri Kosina' <jkosina@suse.cz>, linux-kernel@vger.kernel.org
-Subject: Re: [PATCH 4/5] mm/hotplug: Avoid RCU stalls when removing large
- amounts of memory
-Message-ID: <20190617082156.GA1492@dhcp22.suse.cz>
-References: <20190617043635.13201-1-alastair@au1.ibm.com>
- <20190617043635.13201-5-alastair@au1.ibm.com>
- <20190617074715.GE30420@dhcp22.suse.cz>
- <068b01d524e2$4a5f5c30$df1e1490$@d-silva.org>
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=HoOGFZ6I;
+       spf=pass (google.com: domain of dan.carpenter@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=dan.carpenter@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
+	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x5H8EDPq036975;
+	Mon, 17 Jun 2019 08:22:24 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=date : from : to : cc
+ : subject : message-id : references : mime-version : content-type :
+ in-reply-to; s=corp-2018-07-02;
+ bh=FGXkU7eOmJXcfpTdOS3rFhVnp4//dWioBuU5JvbAozk=;
+ b=HoOGFZ6IDRsf/WaCfXo2ZTPgY5pwDJWXjo1xX+qTvLOMlZocWpKu1Sf00Bmkx3VFzyma
+ 10WCt0cIJkIFz7mHW+wD9GUOEQ0ivHG8jDJ0t4TRvpEWC+TsmSyquhiRY045QRVvKMqd
+ BIDabSi8xq4vX0L9MhRibAwTnUvf3DfPIk//8VY7MahBLoeLEZ2KraHUQ39ijiOHMNDT
+ 8ndBBvPX7iRqpB2l3z33gYX+RiPyyzfIf8yD1/MNNifpDFIZvAldxXl3FHTYVYXdGTMe
+ /6jx2aoi8UlUxIMQRg+jUh/JipGQ+5QpEWrsTOM8x9vyDm7cYa5WG5PQ0L40CVIPJPpn iA== 
+Received: from userp3030.oracle.com (userp3030.oracle.com [156.151.31.80])
+	by userp2130.oracle.com with ESMTP id 2t4r3td2pj-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Mon, 17 Jun 2019 08:22:24 +0000
+Received: from pps.filterd (userp3030.oracle.com [127.0.0.1])
+	by userp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x5H8LV8W126648;
+	Mon, 17 Jun 2019 08:22:24 GMT
+Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
+	by userp3030.oracle.com with ESMTP id 2t59gd3q66-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Mon, 17 Jun 2019 08:22:24 +0000
+Received: from abhmp0014.oracle.com (abhmp0014.oracle.com [141.146.116.20])
+	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x5H8M5I4026605;
+	Mon, 17 Jun 2019 08:22:05 GMT
+Received: from kadam (/41.57.98.10)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Mon, 17 Jun 2019 01:22:05 -0700
+Date: Mon, 17 Jun 2019 11:21:48 +0300
+From: Dan Carpenter <dan.carpenter@oracle.com>
+To: Christoph Hellwig <hch@lst.de>
+Cc: Maarten Lankhorst <maarten.lankhorst@linux.intel.com>,
+        Maxime Ripard <maxime.ripard@bootlin.com>, Sean Paul <sean@poorly.run>,
+        David Airlie <airlied@linux.ie>, Daniel Vetter <daniel@ffwll.ch>,
+        Jani Nikula <jani.nikula@linux.intel.com>,
+        Joonas Lahtinen <joonas.lahtinen@linux.intel.com>,
+        Rodrigo Vivi <rodrigo.vivi@intel.com>, Ian Abbott <abbotti@mev.co.uk>,
+        H Hartley Sweeten <hsweeten@visionengravers.com>,
+        devel@driverdev.osuosl.org, linux-s390@vger.kernel.org,
+        Intel Linux Wireless <linuxwifi@intel.com>, linux-rdma@vger.kernel.org,
+        netdev@vger.kernel.org, intel-gfx@lists.freedesktop.org,
+        linux-wireless@vger.kernel.org, linux-kernel@vger.kernel.org,
+        dri-devel@lists.freedesktop.org, linux-mm@kvack.org,
+        iommu@lists.linux-foundation.org,
+        "moderated list:ARM PORT" <linux-arm-kernel@lists.infradead.org>,
+        linux-media@vger.kernel.org
+Subject: Re: use exact allocation for dma coherent memory
+Message-ID: <20190617082148.GF28859@kadam>
+References: <20190614134726.3827-1-hch@lst.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <068b01d524e2$4a5f5c30$df1e1490$@d-silva.org>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190614134726.3827-1-hch@lst.de>
+User-Agent: Mutt/1.9.4 (2018-02-28)
+X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9290 signatures=668687
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
+ phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=782
+ adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
+ engine=8.0.1-1810050000 definitions=main-1906170078
+X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9290 signatures=668687
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1011
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=820 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
+ definitions=main-1906170078
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon 17-06-19 17:57:16, Alastair D'Silva wrote:
-> > -----Original Message-----
-> > From: Michal Hocko <mhocko@kernel.org>
-> > Sent: Monday, 17 June 2019 5:47 PM
-> > To: Alastair D'Silva <alastair@au1.ibm.com>
-> > Cc: alastair@d-silva.org; Arun KS <arunks@codeaurora.org>; Mukesh Ojha
-> > <mojha@codeaurora.org>; Logan Gunthorpe <logang@deltatee.com>; Wei
-> > Yang <richard.weiyang@gmail.com>; Peter Zijlstra <peterz@infradead.org>;
-> > Ingo Molnar <mingo@kernel.org>; linux-mm@kvack.org; Qian Cai
-> > <cai@lca.pw>; Thomas Gleixner <tglx@linutronix.de>; Andrew Morton
-> > <akpm@linux-foundation.org>; Mike Rapoport <rppt@linux.vnet.ibm.com>;
-> > Baoquan He <bhe@redhat.com>; David Hildenbrand <david@redhat.com>;
-> > Josh Poimboeuf <jpoimboe@redhat.com>; Pavel Tatashin
-> > <pasha.tatashin@soleen.com>; Juergen Gross <jgross@suse.com>; Oscar
-> > Salvador <osalvador@suse.com>; Jiri Kosina <jkosina@suse.cz>; linux-
-> > kernel@vger.kernel.org
-> > Subject: Re: [PATCH 4/5] mm/hotplug: Avoid RCU stalls when removing large
-> > amounts of memory
-> > 
-> > On Mon 17-06-19 14:36:30,  Alastair D'Silva  wrote:
-> > > From: Alastair D'Silva <alastair@d-silva.org>
-> > >
-> > > When removing sufficiently large amounts of memory, we trigger RCU
-> > > stall detection. By periodically calling cond_resched(), we avoid
-> > > bogus stall warnings.
-> > >
-> > > Signed-off-by: Alastair D'Silva <alastair@d-silva.org>
-> > > ---
-> > >  mm/memory_hotplug.c | 3 +++
-> > >  1 file changed, 3 insertions(+)
-> > >
-> > > diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c index
-> > > e096c987d261..382b3a0c9333 100644
-> > > --- a/mm/memory_hotplug.c
-> > > +++ b/mm/memory_hotplug.c
-> > > @@ -578,6 +578,9 @@ void __remove_pages(struct zone *zone, unsigned
-> > long phys_start_pfn,
-> > >  		__remove_section(zone, __pfn_to_section(pfn),
-> > map_offset,
-> > >  				 altmap);
-> > >  		map_offset = 0;
-> > > +
-> > > +		if (!(i & 0x0FFF))
-> > > +			cond_resched();
-> > 
-> > We already do have cond_resched before __remove_section. Why is an
-> > additional needed?
-> 
-> I was getting stalls when removing ~1TB of memory.
+I once wrote a Smatch check based on a commit message that said we can't
+pass dma_alloc_coherent() pointers to virt_to_phys().  But then I never
+felt like I understood the rules enough to actually report the warnings
+as bugs.
 
-Have debugged what is the source of the stall? We do cond_resched once a
-memory section which should be a constant unit of work regardless of the
-total amount of memory to be removed.
--- 
-Michal Hocko
-SUSE Labs
+drivers/platform/x86/dcdbas.c:108 smi_data_buf_realloc() error: 'buf' came from dma_alloc_coherent() so we can't do virt_to_phys()
+drivers/net/caif/caif_virtio.c:414 cfv_create_genpool() error: 'cfv->alloc_addr' came from dma_alloc_coherent() so we can't do virt_to_phys()
+drivers/infiniband/hw/cxgb4/qp.c:135 alloc_host_sq() error: 'sq->queue' came from dma_alloc_coherent() so we can't do virt_to_phys()
+drivers/infiniband/hw/cxgb4/qp.c:272 create_qp() error: 'wq->rq.queue' came from dma_alloc_coherent() so we can't do virt_to_phys()
+drivers/infiniband/hw/cxgb4/qp.c:2628 alloc_srq_queue() error: 'wq->queue' came from dma_alloc_coherent() so we can't do virt_to_phys()
+drivers/infiniband/hw/ocrdma/ocrdma_verbs.c:494 ocrdma_alloc_ucontext() error: 'ctx->ah_tbl.va' came from dma_alloc_coherent() so we can't do virt_to_phys()
+
+drivers/infiniband/hw/cxgb4/qp.c
+   129  static int alloc_host_sq(struct c4iw_rdev *rdev, struct t4_sq *sq)
+   130  {
+   131          sq->queue = dma_alloc_coherent(&(rdev->lldi.pdev->dev), sq->memsize,
+   132                                         &(sq->dma_addr), GFP_KERNEL);
+   133          if (!sq->queue)
+   134                  return -ENOMEM;
+   135          sq->phys_addr = virt_to_phys(sq->queue);
+   136          dma_unmap_addr_set(sq, mapping, sq->dma_addr);
+   137          return 0;
+   138  }
+
+Is this a bug?
+
+regards,
+dan carpenter
 
