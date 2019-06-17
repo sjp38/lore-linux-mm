@@ -2,142 +2,186 @@ Return-Path: <SRS0=4FFe=UQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-0.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 59972C31E59
-	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 11:01:46 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2F1B8C31E57
+	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 11:09:05 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0568F208E4
-	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 11:01:45 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0568F208E4
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
+	by mail.kernel.org (Postfix) with ESMTP id E12612084D
+	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 11:09:04 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E12612084D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6FF468E0004; Mon, 17 Jun 2019 07:01:45 -0400 (EDT)
+	id 7BBB58E0004; Mon, 17 Jun 2019 07:09:04 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 688C38E0001; Mon, 17 Jun 2019 07:01:45 -0400 (EDT)
+	id 76D238E0001; Mon, 17 Jun 2019 07:09:04 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 550BD8E0004; Mon, 17 Jun 2019 07:01:45 -0400 (EDT)
+	id 659A68E0004; Mon, 17 Jun 2019 07:09:04 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 1B9D58E0001
-	for <linux-mm@kvack.org>; Mon, 17 Jun 2019 07:01:45 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id t2so5799508plo.10
-        for <linux-mm@kvack.org>; Mon, 17 Jun 2019 04:01:45 -0700 (PDT)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 4626F8E0001
+	for <linux-mm@kvack.org>; Mon, 17 Jun 2019 07:09:04 -0400 (EDT)
+Received: by mail-qt1-f199.google.com with SMTP id q26so8955337qtr.3
+        for <linux-mm@kvack.org>; Mon, 17 Jun 2019 04:09:04 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:message-id
-         :subject:from:to:cc:date:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=Qaf+B9Yr7ALXcLt671oylbmPh3oUBy5ZfluH2fNwOPs=;
-        b=kPEcL3VfSk9NboXxC1PFR+RipFmzmJYOnut26R9aHHJABt9ZuzVZ+b5yrTw5M8XU/n
-         08lFWmxhi1GUeaybGZcfEtFU6ORE0YpkV0jEVDO6YcJtwHmITWdCi4A44K3ctNtU62Tw
-         s1kmTG7Q6/oG5e29htblYI2SeZq5+N5RRPFwFaguqyjy7aQTyHV9jVJ9lwuarpCkxv5w
-         9NJUqd8MV75O7ZW+KeBN9TRs2TWtJc7NxoOfHv9Q1JcSemz/5jF7hv84ORdfYBOG8w6H
-         K2p/ZDTtHCGjD+xqHct5Pq2O9vp2h3o3oGuZWi/RnFv9G6sY6RKRUNs4fSw9B8lv87z7
-         O0Jw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of kai.huang@linux.intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=kai.huang@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAXX6/tJiSFrQ3+8DHjNnwa3b1o8O5emMGTPmJHMNv6l76G3+Apf
-	Yugt2+G08aTLLB0/HCpvHqnDGmD4GBBk6ecs9T4TO9DMSKJU0cNkCIWYzRR3HY6PuocXTcDiZ5r
-	eTVHvppTEU/ohrEiEl236NvlkoP1o7eJVoj1Kef9W9gEneQIYwk8qeXDfaO+s6KwI7w==
-X-Received: by 2002:a17:902:4a:: with SMTP id 68mr107918542pla.235.1560769304705;
-        Mon, 17 Jun 2019 04:01:44 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz2kguIAL6mZwPwsweC3SsjpOuuzgJrgWjURU55+SBjNoxlIuY07rvYAtrrST3tKyBK/b2b
-X-Received: by 2002:a17:902:4a:: with SMTP id 68mr107918481pla.235.1560769303876;
-        Mon, 17 Jun 2019 04:01:43 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560769303; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:references:date:in-reply-to:message-id:user-agent
+         :mime-version;
+        bh=vwHKFwOFdew7kWVH8l7pV0qVg+iIeaoKVnkIvAlLtdc=;
+        b=Onr/F7S6zlDpgFWfy8TLBNMd9bC2GjcP/cWmyQtaN5MQCxsMr6hAHMVmH7bWZKzPpo
+         cvZfeJ2pDEEpNcARgnbwTv5s8NELTD+BrU8TlX+zWxmpwyFdwYiZ0lQiT9J1HBnjB+iL
+         wuGRprPP2ta9pk6tckZs2EmYh4qojjzlXAD2M4c68g0a9XHJrmFW5PDUmgJ6JQBSNh6w
+         ZkhlDACxbAQrrQLVjN3taAWMgEJi3ZJ9tBAYPiYgX/0VEY5sUNYQwkdhWrya6VjAg4zt
+         ZjGOTZccmYxVP4TFL8eHnrFAUCnCpYG1UopM4TwlLl1kfkcg9yMAEKL9iwiQjTsbrk9x
+         SFiw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of fweimer@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=fweimer@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAWNWtFbJLkFe8lQMjQ9vEiGILoVY0qcq7pi5/7wPQ9DNbXQVOa1
+	J2iQw3oBIxlLQx9a2+XNXmYxc7laPB+3qAaIvxatArhF4WuN9g+QL55THoQVpH/7suR5ENnoiW6
+	qvnEz71itEygzP4o3i5+esWlYgZo1O2FE1kLlaLA40uKz7tUOMWFgjwJLirCgPzrYhg==
+X-Received: by 2002:a05:620a:1497:: with SMTP id w23mr88982230qkj.49.1560769744027;
+        Mon, 17 Jun 2019 04:09:04 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw9wlxfFDZINK43A5RPZsEA2HUh6brjDPm0FmP9aIXM3fiIiQMalW+iLHBac4lRkluAcrIy
+X-Received: by 2002:a05:620a:1497:: with SMTP id w23mr88982189qkj.49.1560769743440;
+        Mon, 17 Jun 2019 04:09:03 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560769743; cv=none;
         d=google.com; s=arc-20160816;
-        b=ta/+62qjCcE6HdNRz2b7RAyxwkN45WF5NtAw+c5H5Oi7kFi8WNSE2i++KbQKxG5gP1
-         0h1eU/v2BFMb9T1u3ud6UHI+AP/8hah+lFWXTpNqHksuIwqFIh313KxMDDnOXRXgRCQD
-         eBWuRJ1u9doTjusJzO3itWgEgTDsLpAZPCuiGrDnlqI2lgjMxMSf2SZvSReChsImyhub
-         nRjM2MA4gQJ+5hxkYM4NCPS7D4cfLpbVw8J8gS/fH3pC3IEXZ5QDRS9q4fI4WHgrci92
-         ApVnGVTs7GpiWlgyxxndzi6r5+9iLNDjcNWaUEkKQEKcSlBE416FOJRsKNcbHDrWSHZr
-         kJoA==
+        b=S7D0xqVIngx0CTBVy20JfVdvz+9uw9x9h4MULL8IsQ6mv/JT0QwXGheD+uM56WCRev
+         PJ9D9nhdSNUA8xAxAb0cOfRXGjtZkAsINuKms7UweocK/HLyuPoUn12erLle4Ak3/HUO
+         3FlyWUHvKhIlUnvnyE6coKch0Qr8hcw9E3+Rhw5pg5OmVZxD9njhy5DOS038QisLd7zR
+         zf7/nATV74IDgn9VqcWNtiMgLJ4mqssNBEClLXaZmEf2eJ2jHmtLQmKrXhx5jXaN9qcm
+         aMYeKPg8VQVRXOsLW//WvaPz+aY6rjCTrzQzED2AyAKgw7cTJzlLCa8sx1L/ysb43et+
+         wtSQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to:date
-         :cc:to:from:subject:message-id;
-        bh=Qaf+B9Yr7ALXcLt671oylbmPh3oUBy5ZfluH2fNwOPs=;
-        b=hkUbhTuUbddOZDyPp1WkqU92pSUOub1BKt9x1yJnpsHz++eR8ov7yXq/40jy+gbw5y
-         0ghByJHH1Wrwne/gugSSRJFsYSJK30LXLwS9uTKtapz+ywidAWrvyW4HhLOdFKuI3/kC
-         BTT6zUCcr+M7l2+bWr0cyGM80Afw5WcHXIq6XvyQxez6iD6T/AtPGqBiydap6FrPZ3Dd
-         c/fdM/KhzuB2BojMeF4XazkfR5kruOi6Vz8URq155absxaN84nrf6gQcu5Yp514J1dnK
-         zSJbXLuh8xhdIVh4jivI7i+Y6MhxdHWPHUKCa9WELYMpqvH9cIeWRtDUVdm9kypYyKVy
-         WmGA==
+        h=mime-version:user-agent:message-id:in-reply-to:date:references
+         :subject:cc:to:from;
+        bh=vwHKFwOFdew7kWVH8l7pV0qVg+iIeaoKVnkIvAlLtdc=;
+        b=ZL8W9xiRedoXLHptbYmCRneE43cTlwh23hOk2uq26DkT5IeBEn5yK7K/iAg6egRdpM
+         ZzxKF8YZN5K5VZefFmuZSw4CCnJzipuzyagpAifI1HJx94klbKkif0GknG+NZ6b+QdrC
+         +wZ/yd9c2znLjJWgkX5RD1/YARJ3FYpgXHhsDx5avCNJcPNX8Qw0npORohXhYeEkRzmm
+         v+8nkbjnHRq7DQcDUdDFvJzxr/MS9zyLS5gniUguszzU9UtnWvBZ+EKquYklnVH5LPmB
+         f9yl55MV/AMoVabQKZ22cl5pBMdsEyGAjCSC7Jm9YJKt/kpPlF2MjYjzBMWvlVxJ9eCb
+         EMtQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of kai.huang@linux.intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=kai.huang@linux.intel.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
-        by mx.google.com with ESMTPS id z8si9602367pjn.51.2019.06.17.04.01.43
+       spf=pass (google.com: domain of fweimer@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=fweimer@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id a8si7104851qkn.248.2019.06.17.04.09.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 17 Jun 2019 04:01:43 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of kai.huang@linux.intel.com designates 192.55.52.136 as permitted sender) client-ip=192.55.52.136;
+        Mon, 17 Jun 2019 04:09:03 -0700 (PDT)
+Received-SPF: pass (google.com: domain of fweimer@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of kai.huang@linux.intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=kai.huang@linux.intel.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from fmsmga006.fm.intel.com ([10.253.24.20])
-  by fmsmga106.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 17 Jun 2019 04:01:43 -0700
-X-ExtLoop1: 1
-Received: from khuang2-desk.gar.corp.intel.com ([10.255.91.82])
-  by fmsmga006.fm.intel.com with ESMTP; 17 Jun 2019 04:01:39 -0700
-Message-ID: <1560769298.5187.16.camel@linux.intel.com>
-Subject: Re: [PATCH, RFC 20/62] mm/page_ext: Export lookup_page_ext() symbol
-From: Kai Huang <kai.huang@linux.intel.com>
-To: Peter Zijlstra <peterz@infradead.org>, "Kirill A. Shutemov"
-	 <kirill@shutemov.name>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton
- <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner
- <tglx@linutronix.de>,  Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin"
- <hpa@zytor.com>, Borislav Petkov <bp@alien8.de>, Andy Lutomirski
- <luto@amacapital.net>, David Howells <dhowells@redhat.com>, Kees Cook
- <keescook@chromium.org>,  Dave Hansen <dave.hansen@intel.com>, Jacob Pan
- <jacob.jun.pan@linux.intel.com>, Alison Schofield
- <alison.schofield@intel.com>, linux-mm@kvack.org, kvm@vger.kernel.org, 
- keyrings@vger.kernel.org, linux-kernel@vger.kernel.org
-Date: Mon, 17 Jun 2019 23:01:38 +1200
-In-Reply-To: <20190617093054.GB3419@hirez.programming.kicks-ass.net>
-References: <20190508144422.13171-1-kirill.shutemov@linux.intel.com>
-	 <20190508144422.13171-21-kirill.shutemov@linux.intel.com>
-	 <20190614111259.GA3436@hirez.programming.kicks-ass.net>
-	 <20190614224443.qmqolaigu5wnf75p@box>
-	 <20190617093054.GB3419@hirez.programming.kicks-ass.net>
-Content-Type: text/plain; charset="UTF-8"
-X-Mailer: Evolution 3.24.6 (3.24.6-1.fc26) 
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+       spf=pass (google.com: domain of fweimer@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=fweimer@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 206F4356E7;
+	Mon, 17 Jun 2019 11:08:32 +0000 (UTC)
+Received: from oldenburg2.str.redhat.com (dhcp-192-180.str.redhat.com [10.33.192.180])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 5EAC57BE78;
+	Mon, 17 Jun 2019 11:08:16 +0000 (UTC)
+From: Florian Weimer <fweimer@redhat.com>
+To: Dave Martin <Dave.Martin@arm.com>
+Cc: Yu-cheng Yu <yu-cheng.yu@intel.com>,  x86@kernel.org,  "H. Peter Anvin"
+ <hpa@zytor.com>,  Thomas Gleixner <tglx@linutronix.de>,  Ingo Molnar
+ <mingo@redhat.com>,  linux-kernel@vger.kernel.org,
+  linux-doc@vger.kernel.org,  linux-mm@kvack.org,
+  linux-arch@vger.kernel.org,  linux-api@vger.kernel.org,  Arnd Bergmann
+ <arnd@arndb.de>,  Andy Lutomirski <luto@amacapital.net>,  Balbir Singh
+ <bsingharora@gmail.com>,  Borislav Petkov <bp@alien8.de>,  Cyrill Gorcunov
+ <gorcunov@gmail.com>,  Dave Hansen <dave.hansen@linux.intel.com>,  Eugene
+ Syromiatnikov <esyr@redhat.com>,  "H.J. Lu" <hjl.tools@gmail.com>,  Jann
+ Horn <jannh@google.com>,  Jonathan Corbet <corbet@lwn.net>,  Kees Cook
+ <keescook@chromium.org>,  Mike Kravetz <mike.kravetz@oracle.com>,  Nadav
+ Amit <nadav.amit@gmail.com>,  Oleg Nesterov <oleg@redhat.com>,  Pavel
+ Machek <pavel@ucw.cz>,  Peter Zijlstra <peterz@infradead.org>,  Randy
+ Dunlap <rdunlap@infradead.org>,  "Ravi V. Shankar"
+ <ravi.v.shankar@intel.com>,  Vedvyas Shanbhogue
+ <vedvyas.shanbhogue@intel.com>
+Subject: Re: [PATCH v7 22/27] binfmt_elf: Extract .note.gnu.property from an ELF file
+References: <20190606200646.3951-1-yu-cheng.yu@intel.com>
+	<20190606200646.3951-23-yu-cheng.yu@intel.com>
+	<20190607180115.GJ28398@e103592.cambridge.arm.com>
+	<94b9c55b3b874825fda485af40ab2a6bc3dad171.camel@intel.com>
+	<87lfy9cq04.fsf@oldenburg2.str.redhat.com>
+	<20190611114109.GN28398@e103592.cambridge.arm.com>
+	<031bc55d8dcdcf4f031e6ff27c33fd52c61d33a5.camel@intel.com>
+	<20190612093238.GQ28398@e103592.cambridge.arm.com>
+Date: Mon, 17 Jun 2019 13:08:14 +0200
+In-Reply-To: <20190612093238.GQ28398@e103592.cambridge.arm.com> (Dave Martin's
+	message of "Wed, 12 Jun 2019 10:32:38 +0100")
+Message-ID: <87imt4jwpt.fsf@oldenburg2.str.redhat.com>
+User-Agent: Gnus/5.13 (Gnus v5.13) Emacs/26.2 (gnu/linux)
+MIME-Version: 1.0
+Content-Type: text/plain
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.30]); Mon, 17 Jun 2019 11:08:57 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2019-06-17 at 11:30 +0200, Peter Zijlstra wrote:
-> On Sat, Jun 15, 2019 at 01:44:43AM +0300, Kirill A. Shutemov wrote:
-> > On Fri, Jun 14, 2019 at 01:12:59PM +0200, Peter Zijlstra wrote:
-> > > On Wed, May 08, 2019 at 05:43:40PM +0300, Kirill A. Shutemov wrote:
-> > > > page_keyid() is inline funcation that uses lookup_page_ext(). KVM is
-> > > > going to use page_keyid() and since KVM can be built as a module
-> > > > lookup_page_ext() has to be exported.
-> > > 
-> > > I _really_ hate having to export world+dog for KVM. This one might not
-> > > be a real issue, but I itch every time I see an export for KVM these
-> > > days.
-> > 
-> > Is there any better way? Do we need to invent EXPORT_SYMBOL_KVM()? :P
-> 
-> Or disallow KVM (or parts thereof) from being a module anymore.
+* Dave Martin:
 
-For this particular symbol expose, I don't think its fair to blame KVM since the fundamental reason
-is because page_keyid() (which calls lookup_page_ext()) being implemented as static inline function
-in header file, so essentially having any other module who calls page_keyid() will trigger this
-problem -- in fact IOMMU driver calls page_keyid() too so even w/o KVM lookup_page_ext() needs to be
-exposed.
+> On Tue, Jun 11, 2019 at 12:31:34PM -0700, Yu-cheng Yu wrote:
+>> On Tue, 2019-06-11 at 12:41 +0100, Dave Martin wrote:
+>> > On Mon, Jun 10, 2019 at 07:24:43PM +0200, Florian Weimer wrote:
+>> > > * Yu-cheng Yu:
+>> > > 
+>> > > > To me, looking at PT_GNU_PROPERTY and not trying to support anything is a
+>> > > > logical choice.  And it breaks only a limited set of toolchains.
+>> > > > 
+>> > > > I will simplify the parser and leave this patch as-is for anyone who wants
+>> > > > to
+>> > > > back-port.  Are there any objections or concerns?
+>> > > 
+>> > > Red Hat Enterprise Linux 8 does not use PT_GNU_PROPERTY and is probably
+>> > > the largest collection of CET-enabled binaries that exists today.
+>> > 
+>> > For clarity, RHEL is actively parsing these properties today?
+>> > 
+>> > > My hope was that we would backport the upstream kernel patches for CET,
+>> > > port the glibc dynamic loader to the new kernel interface, and be ready
+>> > > to run with CET enabled in principle (except that porting userspace
+>> > > libraries such as OpenSSL has not really started upstream, so many
+>> > > processes where CET is particularly desirable will still run without
+>> > > it).
+>> > > 
+>> > > I'm not sure if it is a good idea to port the legacy support if it's not
+>> > > part of the mainline kernel because it comes awfully close to creating
+>> > > our own private ABI.
+>> > 
+>> > I guess we can aim to factor things so that PT_NOTE scanning is
+>> > available as a fallback on arches for which the absence of
+>> > PT_GNU_PROPERTY is not authoritative.
+>> 
+>> We can probably check PT_GNU_PROPERTY first, and fallback (based on ld-linux
+>> version?) to PT_NOTE scanning?
+>
+> For arm64, we can check for PT_GNU_PROPERTY and then give up
+> unconditionally.
+>
+> For x86, we would fall back to PT_NOTE scanning, but this will add a bit
+> of cost to binaries that don't have NT_GNU_PROPERTY_TYPE_0.  The ld.so
+> version doesn't tell you what ELF ABI a given executable conforms to.
+>
+> Since this sounds like it's largely a distro-specific issue, maybe there
+> could be a Kconfig option to turn the fallback PT_NOTE scanning on?
+
+I'm worried that this causes interop issues similarly to what we see
+with VSYSCALL today.  If we need both and a way to disable it, it should
+be something like a personality flag which can be configured for each
+process tree separately.  Ideally, we'd settle on one correct approach
+(i.e., either always process both, or only process PT_GNU_PROPERTY) and
+enforce that.
 
 Thanks,
--Kai
+Florian
 
