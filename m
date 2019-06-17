@@ -2,123 +2,166 @@ Return-Path: <SRS0=4FFe=UQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id AFDA5C31E5B
-	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 19:55:56 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 460DFC31E5B
+	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 20:09:15 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 76ECC2084B
-	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 19:55:56 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 76ECC2084B
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
+	by mail.kernel.org (Postfix) with ESMTP id E830C2085A
+	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 20:09:14 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="qf2k/45s"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E830C2085A
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0162D6B0005; Mon, 17 Jun 2019 15:55:56 -0400 (EDT)
+	id 898526B0005; Mon, 17 Jun 2019 16:09:14 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id F086F8E0004; Mon, 17 Jun 2019 15:55:55 -0400 (EDT)
+	id 847EA8E0004; Mon, 17 Jun 2019 16:09:14 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DCFEA8E0001; Mon, 17 Jun 2019 15:55:55 -0400 (EDT)
+	id 75D028E0001; Mon, 17 Jun 2019 16:09:14 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A23E46B0005
-	for <linux-mm@kvack.org>; Mon, 17 Jun 2019 15:55:55 -0400 (EDT)
-Received: by mail-wr1-f69.google.com with SMTP id w11so5087142wrl.7
-        for <linux-mm@kvack.org>; Mon, 17 Jun 2019 12:55:55 -0700 (PDT)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 54FC96B0005
+	for <linux-mm@kvack.org>; Mon, 17 Jun 2019 16:09:14 -0400 (EDT)
+Received: by mail-qt1-f198.google.com with SMTP id g56so10317703qte.4
+        for <linux-mm@kvack.org>; Mon, 17 Jun 2019 13:09:14 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=VzcQy6t66AEW47ZsnVicwrW+nbzN0qh9lPebcIPY+nQ=;
-        b=T33vZEqfPXM6U6JJmQ4S6FpC0B1OK7/xMN6q5SnZU10HaxSY7X35eKt0mONJ6XcV+3
-         l9/uIeB3YpU342oYdEdEQFvIz+fBue0iPuNL1FQ3b3YLShuGny5spnTC03X0mWuTZTPk
-         FCwtZbK404QiEitZHWfn4WIYz0aKIjy1U0MUg8Nv1+SabaIEoIk0DfsQmw0qAcwZfZv7
-         uRm/RHh8mr3gu7W4oBwe3pgSLr0ils2lZ5aS26NvdnrIh0BM9F4dfuqouCmjG49obNhm
-         89demUgsSvORo/mNs4FLRn4S7pZNvQMZF88CYazdBChgz01kQTszeUH/zFY2XKOMOjpJ
-         MKsg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
-X-Gm-Message-State: APjAAAV69TLU8yJQQtrnABzvzl+3q4ClaXqfPNanK+S5Fyx5wg85aVoZ
-	6d1VsKXlPdA0YPyEhDLkr9t8Wb3GV6zO1EDGB2OrwepfJZnlYK9AGrQGQ2iOHRk/NeUEIw1NaWJ
-	c5AwnlMRY4UJ6ED+6wWL3+/352A3g2pa3hbxd5gdWNjzLUZ8flJfV2ehxEVnyS0kh3Q==
-X-Received: by 2002:adf:df0b:: with SMTP id y11mr18059239wrl.176.1560801355260;
-        Mon, 17 Jun 2019 12:55:55 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy1NY/xYkRp0C9yIbtWAI9FYjiDAJco77ecwdRF7tAtQU/rfti08jeEPo+Zqf+Ef6rEf95B
-X-Received: by 2002:adf:df0b:: with SMTP id y11mr18059217wrl.176.1560801354676;
-        Mon, 17 Jun 2019 12:55:54 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560801354; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=Al3ctU5Ww8ocaVDWU/5q96TvOispLUizRV1CFtDfOaI=;
+        b=S83LmPsBlebLlohZv9codZfK0pV4prIj8anY2wbaKN4dJo36xf2Yssv2WXnzWCGhLY
+         A7vsfk6QkS8HknjTxSvigLeEWPqTjO9NZUC6e8aR2BysujY0gnr8LRlG8B3IwbE3hCjQ
+         mqkepyhtBLMW8y8km/z0lN98gaaWs0gsFQMq0ZAQWS86Im4bvv1xXtXSXYQ7t7kCV1Ms
+         r3AhPDmD/eo7LDpW7YpKlrOoHfCcz2t1r9C53uk9PgxplPzru6Cu3WRxCIbV4lIrlwrg
+         XhHdiI8p5oY4ap2NC0I0At60laT/ghxWkouE7Vl+Btu+A2j0n+Ay2VRocQ4uvINZXNQp
+         Te5Q==
+X-Gm-Message-State: APjAAAUB10znSz0NmKEpNlaAxlA+u5py9xkszz3IXaOV+D/Rwuxr5TcH
+	sZ2ydWpKB5IRRyFdbgXSjXxtOTYegO5Oq3vv/bd20suQOcg1R1XgezCxhDiGef4h9hLZKpDhwp6
+	EqLPjOyOlAJQ/lx4aAAfzIoO06D2O3E0SRDQqcZ7xe7N4oYIAHbvViqfM+9QQFkDsEw==
+X-Received: by 2002:ae9:f016:: with SMTP id l22mr52303095qkg.51.1560802154090;
+        Mon, 17 Jun 2019 13:09:14 -0700 (PDT)
+X-Received: by 2002:ae9:f016:: with SMTP id l22mr52303009qkg.51.1560802153128;
+        Mon, 17 Jun 2019 13:09:13 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560802153; cv=none;
         d=google.com; s=arc-20160816;
-        b=s8r0gR2XvXAC0/rAOTR1qXIXHYs5YDNiiSQpuTxDq9HBQZ55qWR+vGtTiGdaOctrqF
-         akzt11Gi2LUCA3wq3Y1Uv9MgBoiaGbtrBJ1PnNoZx9eGHb3JlgDJqWJRhGbz0oOw9kKy
-         J0MlSVbcV3HEm7NzdzfuK87WZHRFQ2b/l3MydOycYbUCnse2a2EVcmudDPefoq0q9Ub6
-         +VqZUQ2GFj1d9geT+KJ1NP4+K+blYasn7XJlESXGWJTd/3drfd2ZM8UKqLvcXsyP6FBI
-         oZp/BfcQJeE5wj6KHgp97TG8Emrrr5r/U8yddEMqbcNxXIF/4JxdUtMN6rIiZHBpp1XE
-         mINw==
+        b=jlgiY6wCtcobsTOqhdSpO8wBXzrkR7AgptjZMK2IobwW6pvpINRtwYg7Ixe1fDQpJf
+         +CaF6gqy/igvxdcJfCnDIZ4d4zVfRhxNz6hSZQ/fWtQqcQEHNde6/uVNC+U86ao9kgZA
+         jhuJ36+Amm1y5ypqo71DLht5UCAOw62fX0+q2br1Jh6anAAZDIH33Q0jmfQxc+rw2gw9
+         yMDkfTwRMmzg+d0+xhQYHAL1Qhojrjji0hqZa5oExEK4XPuZ13naQKns7H5QB9mamGcC
+         BMclNBbb8xVA0Xt/zSGtSUT8G2XF+wa7n2pDwhKf+GrmBfcWl+hJkJxmvxFA65ldJjod
+         PW0g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date;
-        bh=VzcQy6t66AEW47ZsnVicwrW+nbzN0qh9lPebcIPY+nQ=;
-        b=sitkb/xhhAqL4LM8hH4x8//MFiELkax8zLv0GmFWr9SIlaIsNJj9ElWSxUCWjy1/hF
-         m1iVFKQBfM7jdwuQRZbHGzGedzq3uCvPN4IsK9S1K3CyvwEfcVL7XdaO0zaUWb78w5Rb
-         v+uejMMqjEjUbziSSbtUdT79MBlAWMyM3tvqCFLmtTQ9twOAnQC/YOc3isrT/eUxsAn1
-         VB4ckUYR/XXWSKLegs6+cGkwjqhcXWA/DfXxjwR4AAoE12jkzCKfF9XZYi3QpQ3X8peR
-         x7MvfhNYhopyQaFrFFCw2po81sR3/+tJ8DGZUDCok32mGapgehUxSx7aDYjMkJNrVVni
-         Dmkw==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=Al3ctU5Ww8ocaVDWU/5q96TvOispLUizRV1CFtDfOaI=;
+        b=YUWlZLOlan2FYHFoO1ZhXAT2y6gsgyKQGG0Wys+u3cdjvtqfojFIey6zk7zNS8COFE
+         uVs9b5twR7QNDC88bLKkq8PYXCzu31L3Fs1VV33vasTmTMKqT8feKAuzStJYVA+gRD32
+         nGq6EKNgSvwvfDSi8W2Nh9kVhP4pNno8kzwMOen1QHnoAi4pBvIrXpstq01xCMkEI+rA
+         hIcvrBELxm5Xq35sK4Gu2t8BEKCjq5g32gIh/6aSUdGaqe4tHjjoKZCD9tuNwbOlymgL
+         rsapi/A0D0jw3C2VnFXcATyEZm/CtmJn4fjrSRPYv62gnqZTgFho32PX0Ea5Gc1s1v0Y
+         CJVA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
-Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
-        by mx.google.com with ESMTPS id k14si8285021wrl.437.2019.06.17.12.55.54
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b="qf2k/45s";
+       spf=pass (google.com: domain of mikhail.v.gavrilov@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mikhail.v.gavrilov@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id n54sor1352942qvc.31.2019.06.17.13.09.13
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 17 Jun 2019 12:55:54 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) client-ip=213.95.11.211;
+        (Google Transport Security);
+        Mon, 17 Jun 2019 13:09:13 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mikhail.v.gavrilov@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
-Received: by newverein.lst.de (Postfix, from userid 2407)
-	id 82B6768B02; Mon, 17 Jun 2019 21:55:26 +0200 (CEST)
-Date: Mon, 17 Jun 2019 21:55:26 +0200
-From: Christoph Hellwig <hch@lst.de>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Christoph Hellwig <hch@lst.de>,
-	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
-	Jason Gunthorpe <jgg@mellanox.com>, Ben Skeggs <bskeggs@redhat.com>,
-	Linux MM <linux-mm@kvack.org>, nouveau@lists.freedesktop.org,
-	Maling list - DRI developers <dri-devel@lists.freedesktop.org>,
-	linux-nvdimm <linux-nvdimm@lists.01.org>, linux-pci@vger.kernel.org,
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
-	Logan Gunthorpe <logang@deltatee.com>
-Subject: Re: [PATCH 08/25] memremap: move dev_pagemap callbacks into a
- separate structure
-Message-ID: <20190617195526.GB20275@lst.de>
-References: <20190617122733.22432-1-hch@lst.de> <20190617122733.22432-9-hch@lst.de> <CAPcyv4i_0wUJHDqY91R=x5M2o_De+_QKZxPyob5=E9CCv8rM7A@mail.gmail.com>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b="qf2k/45s";
+       spf=pass (google.com: domain of mikhail.v.gavrilov@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mikhail.v.gavrilov@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=Al3ctU5Ww8ocaVDWU/5q96TvOispLUizRV1CFtDfOaI=;
+        b=qf2k/45sE6OZ+Gh5+DRtXE3WIuJUZT2CIDmri09NlrXYO4Btj+toXNyiwRb328WTSY
+         ddqXPu9rEVhtAPxNvE0K9CDxvTTzKJ0BWWz+j79PNc/TSbO8aw+FFoHXVc4o2PKt8xNE
+         +8jsRM9cZr6cLlby+GvBWV52Ce9fzKzF9u5dyTb3FEfd/G/6GPisk3ItT0GKNsFAcRDv
+         Gh0rYMhi8yC4VqJZqJDfvJ4y48ZkB4H1RhwI7V5LywTJZQ9BlboK1qHYtO6lb+CyKD+8
+         6fQspClujju8RzhFtk3VEotj1QcxYEPM9LEK3PBmY3sBJLGUu0IjerGPEGXV8M4h1plt
+         s7yw==
+X-Google-Smtp-Source: APXvYqw0XOx8hWQvkZc6V+ztD3J86tZW+NikUxFcZSuurS8j1Clx/hKHsSn2WYyavAruZHjK33NHIYroa03/SQ/r7LY=
+X-Received: by 2002:a0c:b66f:: with SMTP id q47mr23211411qvf.102.1560802152622;
+ Mon, 17 Jun 2019 13:09:12 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CAPcyv4i_0wUJHDqY91R=x5M2o_De+_QKZxPyob5=E9CCv8rM7A@mail.gmail.com>
-User-Agent: Mutt/1.5.17 (2007-11-01)
+References: <CABXGCsN9mYmBD-4GaaeW_NrDu+FDXLzr_6x+XNxfmFV6QkYCDg@mail.gmail.com>
+ <CABXGCsNq4xTFeeLeUXBj7vXBz55aVu31W9q74r+pGM83DrPjfA@mail.gmail.com>
+ <20190529180931.GI18589@dhcp22.suse.cz> <CABXGCsPrk=WJzms_H+-KuwSRqWReRTCSs-GLMDsjUG_-neYP0w@mail.gmail.com>
+ <CABXGCsMjDn0VT0DmP6qeuiytce9cNBx8PywpqejiFNVhwd0UGg@mail.gmail.com> <ee245af2-a0ae-5c13-6f1f-2418f43d1812@suse.cz>
+In-Reply-To: <ee245af2-a0ae-5c13-6f1f-2418f43d1812@suse.cz>
+From: Mikhail Gavrilov <mikhail.v.gavrilov@gmail.com>
+Date: Tue, 18 Jun 2019 01:09:01 +0500
+Message-ID: <CABXGCsOfQjGLEN0nAt-iPo2Ay61fDY75Deq1Xn1Ymm_UsR3n_g@mail.gmail.com>
+Subject: Re: kernel BUG at mm/swap_state.c:170!
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Michal Hocko <mhocko@kernel.org>, 
+	Linux List Kernel Mailing <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jun 17, 2019 at 10:51:35AM -0700, Dan Williams wrote:
-> > -       struct dev_pagemap *pgmap = _pgmap;
-> 
-> Whoops, needed to keep this line to avoid:
-> 
-> tools/testing/nvdimm/test/iomap.c:109:11: error: ‘pgmap’ undeclared
-> (first use in this function); did you mean ‘_pgmap’?
+On Mon, 17 Jun 2019 at 17:17, Vlastimil Babka <vbabka@suse.cz> wrote:
+>
+> That's commit "tcp: fix retrans timestamp on passive Fast Open" which is
+> almost certainly not the culprit.
 
-So I really shouldn't be tripping over this anymore, but can we somehow
-this mess?
+Yes, I seen also content of this commit.
+And it looks like madness.
+But I can proving that my bisect are properly created.
+Here I saved all dmesg output from all bisecting steps:
+https://mega.nz/#F!00wFHACA!nmaLgkkbrlt46DteERjl7Q
+And only one of them ended without crash message "kernel BUG at
+mm/swap_state.c:170!"
+This is step5 with commit 3d21b6525cae.
 
- - at least add it to the normal build system and kconfig deps instead
-   of stashing it away so that things like buildbot can build it?
- - at least allow building it (under COMPILE_TEST) if needed even when
-   pmem.ko and friends are built in the kernel?
+I tried to cause kernel panic several times when kenel compiled from
+commit 3d21b6525cae would be launched and all my attempts was be
+unsuccessful.
+
+So I can say that commit 3d21b6525cae is enough stable for me and I
+now sitting on it.
+
+> You told bisect that 5.2-rc1 is good, but it probably isn't.
+> What you probably need to do is:
+> git bisect good v5.1
+> git bisect bad v5.2-rc2
+>
+> The presence of the other ext4 bug complicates the bisect, however.
+> According to tytso in the thread you linked, it should be fixed by
+> commit 0a944e8a6c66, while the bug was introduced by commit
+> 345c0dbf3a30. So in each step of bisect, before building the kernel, you
+> should cherry-pick the fix if the bug is there:
+>
+> git merge-base --is-ancestor 345c0dbf3a30 HEAD && git cherry-pick 0a944e8a6c66
+
+Oh, thanks for advise. But I am used another solution.
+(I applied the patch every time when bisect move to new step)
+
+> Also in case you see a completely different problem in some bisect step, try
+> 'git bisect skip' instead of guessing if it's good or bad.
+> Hopefully that will lead to a better result.
+
+If you take a look all my dmesg logs you can sure that all bad steps
+ended with crash "kernel BUG at mm/swap_state.c:170!".
+
+And yes, I look again at commit cd736d8b67fb still don't understand
+how it can broke my system.
+
+--
+Best Regards,
+Mike Gavrilov.
 
