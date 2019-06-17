@@ -2,127 +2,112 @@ Return-Path: <SRS0=4FFe=UQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-11.3 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_IN_DEF_DKIM_WL
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.7 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,URIBL_BLOCKED autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 18BEEC31E5D
-	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 16:57:51 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5923AC31E5B
+	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 17:35:17 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C872720652
-	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 16:57:50 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 1334F2084D
+	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 17:35:16 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="HM9XZcRH"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C872720652
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="YprNyBwc"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1334F2084D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 618AE8E0001; Mon, 17 Jun 2019 12:57:50 -0400 (EDT)
+	id 8BC958E0002; Mon, 17 Jun 2019 13:35:16 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5CA6E8E0002; Mon, 17 Jun 2019 12:57:50 -0400 (EDT)
+	id 845338E0001; Mon, 17 Jun 2019 13:35:16 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4EBCA8E0001; Mon, 17 Jun 2019 12:57:50 -0400 (EDT)
+	id 6E6198E0002; Mon, 17 Jun 2019 13:35:16 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-vs1-f69.google.com (mail-vs1-f69.google.com [209.85.217.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 28C5A8E0001
-	for <linux-mm@kvack.org>; Mon, 17 Jun 2019 12:57:50 -0400 (EDT)
-Received: by mail-vs1-f69.google.com with SMTP id y70so2426744vsc.6
-        for <linux-mm@kvack.org>; Mon, 17 Jun 2019 09:57:50 -0700 (PDT)
+Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 3CFC58E0001
+	for <linux-mm@kvack.org>; Mon, 17 Jun 2019 13:35:16 -0400 (EDT)
+Received: by mail-ot1-f72.google.com with SMTP id n19so5182751ota.14
+        for <linux-mm@kvack.org>; Mon, 17 Jun 2019 10:35:16 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=retltkRYeaxJ6adF3YGzOCqdGSJ+TnMcYlKByHm/5DU=;
-        b=C38TgKHTdu0DR7Y5qNTXcvuaciwModRjwUW2B2V1Htc155zJmwtCXWzI7r8q5+eUdy
-         W7TcUpJQMoRrjcKojZ5aJUu984gW6DLB8xT2E9JyA60+Xb2+2+/VifNPvCYWOmhQchIc
-         Bm2bCUkYv/zw0f5g55Z5D8IlIhfm22y4po5rKlU2XkEomQs9TekHKoT6siIWSub+OvS3
-         ESBMgLmXLjKKZayQBfzIOnvZiswdyc6uOOHqvBFiJXTz7QJj1npZ7EFqrlj6rteut22V
-         usCMxElIc8ikq/GjkUECpt7fzUmCZCdNGS7hjEyRaY9E4DX6yLx/otZxoiAjRNGMMNmt
-         xigg==
-X-Gm-Message-State: APjAAAWnNkUi4a0f+WunFqWp2bQxZHX17PKXt6slm/NrP/aJbdIusj4r
-	5XMHDih4FCERO5GWZpMJxTetFIpOAnEJSE0DK1xhe6WzyZ/L1qoSg8Cxwau/718RI3z8Pj8y19y
-	XP4P9DwJAah6AhiZ9CtzqRsFjnVKurMY2VPSH26/E0nCfudhU7s+7Y65clTSbvX8jMg==
-X-Received: by 2002:ab0:5973:: with SMTP id o48mr25024906uad.19.1560790669748;
-        Mon, 17 Jun 2019 09:57:49 -0700 (PDT)
-X-Received: by 2002:ab0:5973:: with SMTP id o48mr25024878uad.19.1560790669173;
-        Mon, 17 Jun 2019 09:57:49 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560790669; cv=none;
+        bh=+m6hj6kR6+t7FFgSRKaK1PbX93Vf69qhd80YwAUvJfY=;
+        b=lFvWFq/eoYiH78Sltlb7v6vyxTibmA6Ni6zQ7isuvg/xzPl6rxQp7QWWOxmRGClpCx
+         /nBJEyzD+ObV8mCnObdwfSDu7owUEmuF6XGc+z5TXRREdMX1wQPXM+5G5GMPo8kms3Yz
+         rDGJO1VrPPy5mGQ2i1yCMZGA7+Z5Z1XG7TeblyjcgUfy+8xSelXvjddr0BWsP6b/+801
+         QJs5KNCIN9+/j8pxZ50qatGOSxwvKeeBbFv5QMmEP8kf5pDFhOpAY1AUXF8Z023X7VvA
+         Fk3rUdj4Q1G3dtWNCeSYWnCh2QK0bhkx93ULEH/KJwKr5UvHrM8IKi/BKu9AXr8IZg7E
+         0Vlw==
+X-Gm-Message-State: APjAAAXtAp+CdUTUts1sKg9JsIxUav4hkCKVWtMRpYbhF6SBdBQ+2ugH
+	J0PI+vHy8zOJ5V10fKfBvUSr/JsJ8bULIYurKUtnqNaSYOcpGK0r2y7pTxufERpePtSGUF+dqkI
+	HGL6YJofpjfOIs6nMgTX0AbKXgSQWsP+5OvtWrSJ8VxTPPCBOzftAAPLogUygD2W1AA==
+X-Received: by 2002:a05:6830:1042:: with SMTP id b2mr21854274otp.345.1560792915668;
+        Mon, 17 Jun 2019 10:35:15 -0700 (PDT)
+X-Received: by 2002:a05:6830:1042:: with SMTP id b2mr21820662otp.345.1560792113315;
+        Mon, 17 Jun 2019 10:21:53 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560792113; cv=none;
         d=google.com; s=arc-20160816;
-        b=JiPdiaEWlIgeoz9ByIXbxT4s1goIzpbrcdhYI2/KUYHj0LOudCexkaeedF21oP+uid
-         n5OM3iI2i5su5B/8w8inQyg+ji36yH2L4R9qYdsXPuBdT7giLVy5Sa2AAaIyd+9leJfz
-         bD6qYUrGQ/EvEqxK8sp7viTejvwd+w2r/HASRm5R6ARJta7nhI5eLolnmataRBSHChR1
-         4ugMP41HJ4dk6q27KHfS92JmtKXe7l0Q525pIQEuMcoMCnhPQ6mU7uaUx3FchpCDdnP5
-         N2FujC46TERosaXRRAUwKEZdtEbw4Zu2ztvD3F5OLoNu0SAioo39dOk0CDVivmR6d7ky
-         QSPA==
+        b=Fq0NctD5a1uHrJXQKqzUy+7YEx/8wcQaB5mQX7cVuo+lQ5SlsHHxC4EmGEJwjq4oOF
+         gDht3XVsugwgaiRTa4GGDZ4Eb3l5xeF74zCPziInX5xG67x507mG7CTXD+a+6NGMtYA2
+         HzE+lXmxRDv70qbCkmYIpILvjxQ/s4Mg3FgGA7CURM8zSq4OyQbD58qeTAQjJGoQ3CTF
+         vAFeSv+Qg8CEurdyxqb2TZekk21P6MR0Oy1jwH3vcFlH3Snbp49FmaBXFJtkuV+WOxx5
+         0X47B71/Btdh5BI1+5jFvaDNyeCAAX+oqqNtgiu9ypFBmx29swqNo4ntcSHsg62/INb5
+         9uGA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=retltkRYeaxJ6adF3YGzOCqdGSJ+TnMcYlKByHm/5DU=;
-        b=sqc/Aq6cHuJNMojk5tbQMszWCYd4z1bT5GIDvRXTHdOSZUp73i1ZHX4gp1JIeAqH8H
-         b3b9B/iBvY18s0UHjor9X6SnLYoiMXrHEM1nV5w2SVX9CIJgFXUIPbrLwoMdEePkQDwc
-         ewA9au45yY5ScKyk70hIpZUh5D0L6aSzBfcsbFRkjMVSD3RE8xkhpR/DDkiLhTPacM9s
-         pva0vKMqRWtdHQvnNnGM7ozrKyB8ozp1UozEcHo/wmpXF8Y3I3JTVkJpU/SsJ4UErgsc
-         WCm8dTANSftF8ohi/kUsmdJ8ciyVXdr2qNw2Zdpt/wKyL+6JaCN9xCrW5Iq0wjVijsTB
-         DASw==
+        bh=+m6hj6kR6+t7FFgSRKaK1PbX93Vf69qhd80YwAUvJfY=;
+        b=JxRVMyj5hEoBNiEIimpx77ebmTrK+5F1A12xuP5NTz52YdkioiXmjFrlQ3ABqVllVL
+         nW6QmWLCiDYhElpnOAxlzir7qHSPYag/cSVx90lmnqy21/lkCtZS+cXWnsWzbxc5jN3i
+         dmNodt49rBl1y7EDNp/bna1hpVXM6UcT6q3HIsCQOznL5edIe7fOzQd1rhORbx3Eapo7
+         +Jma1/PgGT7cJ3MLZvMzFpTGSpG7piMVaOT6cGun7yJpvXBGu/CliZniDQTmVIOdvaWz
+         g+JT8qxcjnlro3FBtsIgwshX/LiUkMmQS9fBHSO/exsG9/LQEvhI0bpgTE0dxtGnFs3c
+         WmSQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=HM9XZcRH;
-       spf=pass (google.com: domain of eugenis@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=eugenis@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=YprNyBwc;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id k29sor5333945vsj.27.2019.06.17.09.57.49
+        by mx.google.com with SMTPS id h67sor4858619oia.130.2019.06.17.10.21.53
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 17 Jun 2019 09:57:49 -0700 (PDT)
-Received-SPF: pass (google.com: domain of eugenis@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Mon, 17 Jun 2019 10:21:53 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=HM9XZcRH;
-       spf=pass (google.com: domain of eugenis@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=eugenis@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=YprNyBwc;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
+        d=intel-com.20150623.gappssmtp.com; s=20150623;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=retltkRYeaxJ6adF3YGzOCqdGSJ+TnMcYlKByHm/5DU=;
-        b=HM9XZcRH7jNoUwKtDn/wkkMYYyg9wr6zjYQcvYAYvWF5M1tzrgs41DdFiwwTgvt1O5
-         KjOS0GHXaKxXHbuqb3yaHFY6s5m+GgG8jbRV5AKURRu+BUwOFgp4r3kAue00v9koQG1w
-         A3M5l+cF/ibNvE8yJCY4E6+A4Wcv9UTKgrtukbJgSFBngoBXKyC/nUsbJSqEshzxgU7v
-         OjkzG8cTM1db0z9+CHPRCzJf6yJOwQUirXZIKRWYCQ5D1XOdgX6CDWUq7ZrKtG2PzpGN
-         +3DiSEl9lQXDncbHpzuwreL+mokGyGGK7aL+x6DR/HBeGpJarIMjtc91XuMaEVI3t0qt
-         MUIA==
-X-Google-Smtp-Source: APXvYqzrhGSVJ7DV/F7d51q9N5ZE/3Gdj+PUpdVhrLQtXpA774FgTPlA9JMz0E4zBMsomoYTx9It+Pl+lwBwRCw5EpI=
-X-Received: by 2002:a67:de99:: with SMTP id r25mr60881073vsk.215.1560790668543;
- Mon, 17 Jun 2019 09:57:48 -0700 (PDT)
+        bh=+m6hj6kR6+t7FFgSRKaK1PbX93Vf69qhd80YwAUvJfY=;
+        b=YprNyBwcuU7peH69ojyfcOHSG09vpn+WCDMlzGVZX7krGOxzA38q9jGCAuVJ3u8dUl
+         ARp0m4eM7XcX/eR8V6wFea0PHqsk2ILlfA4J8C3DcOEQ3mE+O51E01kszOwKzLuws2fF
+         6Igv5nh+vDV7XP9ueQ61ixTl17AHI6MdkwZpji/iK30Tn5OzQgi5Xx2TA38yrkdJrsR1
+         odxVF85VzukYawtRFMrPqVrmXrKlQ6HrdV+m99XuDdcrRABsCDi421y5SB7YP4Kn0iqZ
+         FZRt9w+dmb+eOjEHfy4knKFlViuuM33mdh1Zzdp5EHs3I45SN1TMzM8K80BnPc4E7ZZb
+         kqCQ==
+X-Google-Smtp-Source: APXvYqwVgRIrtHtXnTOpaGBVuVulNLYZy1sN1k1Po68BpCrKXTxlXWFQxhkbz94oC9uvIpMV9vHTUh/5w12QpAh0JY0=
+X-Received: by 2002:aca:1304:: with SMTP id e4mr11244312oii.149.1560792112232;
+ Mon, 17 Jun 2019 10:21:52 -0700 (PDT)
 MIME-Version: 1.0
-References: <cover.1560339705.git.andreyknvl@google.com> <a7a2933bea5fe57e504891b7eec7e9432e5e1c1a.1560339705.git.andreyknvl@google.com>
- <20190617135636.GC1367@arrakis.emea.arm.com>
-In-Reply-To: <20190617135636.GC1367@arrakis.emea.arm.com>
-From: Evgenii Stepanov <eugenis@google.com>
-Date: Mon, 17 Jun 2019 09:57:36 -0700
-Message-ID: <CAFKCwrjJ+0ijNKa3ioOP7xa91QmZU0NhkO=tNC-Q_ThC69vTug@mail.gmail.com>
-Subject: Re: [PATCH v17 03/15] arm64: Introduce prctl() options to control the
- tagged user addresses ABI
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Andrey Konovalov <andreyknvl@google.com>, Linux ARM <linux-arm-kernel@lists.infradead.org>, 
-	Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, 
-	amd-gfx@lists.freedesktop.org, dri-devel@lists.freedesktop.org, 
-	linux-rdma@vger.kernel.org, linux-media@vger.kernel.org, kvm@vger.kernel.org, 
-	"open list:KERNEL SELFTEST FRAMEWORK" <linux-kselftest@vger.kernel.org>, 
-	Vincenzo Frascino <vincenzo.frascino@arm.com>, Will Deacon <will.deacon@arm.com>, 
-	Mark Rutland <mark.rutland@arm.com>, Andrew Morton <akpm@linux-foundation.org>, 
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kees Cook <keescook@chromium.org>, 
-	Yishai Hadas <yishaih@mellanox.com>, Felix Kuehling <Felix.Kuehling@amd.com>, 
-	Alexander Deucher <Alexander.Deucher@amd.com>, Christian Koenig <Christian.Koenig@amd.com>, 
-	Mauro Carvalho Chehab <mchehab@kernel.org>, Jens Wiklander <jens.wiklander@linaro.org>, 
-	Alex Williamson <alex.williamson@redhat.com>, Leon Romanovsky <leon@kernel.org>, 
-	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>, Dave Martin <Dave.Martin@arm.com>, 
-	Khalid Aziz <khalid.aziz@oracle.com>, enh <enh@google.com>, Jason Gunthorpe <jgg@ziepe.ca>, 
-	Christoph Hellwig <hch@infradead.org>, Dmitry Vyukov <dvyukov@google.com>, 
-	Kostya Serebryany <kcc@google.com>, Lee Smith <Lee.Smith@arm.com>, 
-	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, 
-	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Robin Murphy <robin.murphy@arm.com>, 
-	Kevin Brodsky <kevin.brodsky@arm.com>, Szabolcs Nagy <Szabolcs.Nagy@arm.com>
+References: <1560366952-10660-1-git-send-email-cai@lca.pw> <CAPcyv4hn0Vz24s5EWKr39roXORtBTevZf7dDutH+jwapgV3oSw@mail.gmail.com>
+ <CAPcyv4iuNYXmF0-EMP8GF5aiPsWF+pOFMYKCnr509WoAQ0VNUA@mail.gmail.com>
+ <1560376072.5154.6.camel@lca.pw> <87lfy4ilvj.fsf@linux.ibm.com>
+ <20190614153535.GA9900@linux> <c3f2c05d-e42f-c942-1385-664f646ddd33@linux.ibm.com>
+ <CAPcyv4j_QQB8SrhTqL2mnEEHGYCg4H7kYanChiww35k0fwNv8Q@mail.gmail.com> <87imt6i3zd.fsf@linux.ibm.com>
+In-Reply-To: <87imt6i3zd.fsf@linux.ibm.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Mon, 17 Jun 2019 10:21:40 -0700
+Message-ID: <CAPcyv4gKPBuZ_1=YRGpQb0hzgf_-PFdkgTgh1nHS_iAxbJ-MCg@mail.gmail.com>
+Subject: Re: [PATCH -next] mm/hotplug: skip bad PFNs from pfn_to_online_page()
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+Cc: Oscar Salvador <osalvador@suse.de>, Qian Cai <cai@lca.pw>, 
+	Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, 
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, jmoyer <jmoyer@redhat.com>
 Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -130,31 +115,100 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jun 17, 2019 at 6:56 AM Catalin Marinas <catalin.marinas@arm.com> wrote:
+On Sat, Jun 15, 2019 at 8:50 PM Aneesh Kumar K.V
+<aneesh.kumar@linux.ibm.com> wrote:
 >
-> On Wed, Jun 12, 2019 at 01:43:20PM +0200, Andrey Konovalov wrote:
-> > From: Catalin Marinas <catalin.marinas@arm.com>
-> >
-> > It is not desirable to relax the ABI to allow tagged user addresses into
-> > the kernel indiscriminately. This patch introduces a prctl() interface
-> > for enabling or disabling the tagged ABI with a global sysctl control
-> > for preventing applications from enabling the relaxed ABI (meant for
-> > testing user-space prctl() return error checking without reconfiguring
-> > the kernel). The ABI properties are inherited by threads of the same
-> > application and fork()'ed children but cleared on execve().
-> >
-> > The PR_SET_TAGGED_ADDR_CTRL will be expanded in the future to handle
-> > MTE-specific settings like imprecise vs precise exceptions.
-> >
-> > Signed-off-by: Catalin Marinas <catalin.marinas@arm.com>
+> Dan Williams <dan.j.williams@intel.com> writes:
 >
-> A question for the user-space folk: if an application opts in to this
-> ABI, would you want the sigcontext.fault_address and/or siginfo.si_addr
-> to contain the tag? We currently clear it early in the arm64 entry.S but
-> we could find a way to pass it down if needed.
+> > On Fri, Jun 14, 2019 at 9:18 AM Aneesh Kumar K.V
+> > <aneesh.kumar@linux.ibm.com> wrote:
+> >>
+> >> On 6/14/19 9:05 PM, Oscar Salvador wrote:
+> >> > On Fri, Jun 14, 2019 at 02:28:40PM +0530, Aneesh Kumar K.V wrote:
+> >> >> Can you check with this change on ppc64.  I haven't reviewed this series yet.
+> >> >> I did limited testing with change . Before merging this I need to go
+> >> >> through the full series again. The vmemmap poplulate on ppc64 needs to
+> >> >> handle two translation mode (hash and radix). With respect to vmemap
+> >> >> hash doesn't setup a translation in the linux page table. Hence we need
+> >> >> to make sure we don't try to setup a mapping for a range which is
+> >> >> arleady convered by an existing mapping.
+> >> >>
+> >> >> diff --git a/arch/powerpc/mm/init_64.c b/arch/powerpc/mm/init_64.c
+> >> >> index a4e17a979e45..15c342f0a543 100644
+> >> >> --- a/arch/powerpc/mm/init_64.c
+> >> >> +++ b/arch/powerpc/mm/init_64.c
+> >> >> @@ -88,16 +88,23 @@ static unsigned long __meminit vmemmap_section_start(unsigned long page)
+> >> >>    * which overlaps this vmemmap page is initialised then this page is
+> >> >>    * initialised already.
+> >> >>    */
+> >> >> -static int __meminit vmemmap_populated(unsigned long start, int page_size)
+> >> >> +static bool __meminit vmemmap_populated(unsigned long start, int page_size)
+> >> >>   {
+> >> >>      unsigned long end = start + page_size;
+> >> >>      start = (unsigned long)(pfn_to_page(vmemmap_section_start(start)));
+> >> >>
+> >> >> -    for (; start < end; start += (PAGES_PER_SECTION * sizeof(struct page)))
+> >> >> -            if (pfn_valid(page_to_pfn((struct page *)start)))
+> >> >> -                    return 1;
+> >> >> +    for (; start < end; start += (PAGES_PER_SECTION * sizeof(struct page))) {
+> >> >>
+> >> >> -    return 0;
+> >> >> +            struct mem_section *ms;
+> >> >> +            unsigned long pfn = page_to_pfn((struct page *)start);
+> >> >> +
+> >> >> +            if (pfn_to_section_nr(pfn) >= NR_MEM_SECTIONS)
+> >> >> +                    return 0;
+> >> >
+> >> > I might be missing something, but is this right?
+> >> > Having a section_nr above NR_MEM_SECTIONS is invalid, but if we return 0 here,
+> >> > vmemmap_populate will go on and populate it.
+> >>
+> >> I should drop that completely. We should not hit that condition at all.
+> >> I will send a final patch once I go through the full patch series making
+> >> sure we are not breaking any ppc64 details.
+> >>
+> >> Wondering why we did the below
+> >>
+> >> #if defined(ARCH_SUBSECTION_SHIFT)
+> >> #define SUBSECTION_SHIFT (ARCH_SUBSECTION_SHIFT)
+> >> #elif defined(PMD_SHIFT)
+> >> #define SUBSECTION_SHIFT (PMD_SHIFT)
+> >> #else
+> >> /*
+> >>   * Memory hotplug enabled platforms avoid this default because they
+> >>   * either define ARCH_SUBSECTION_SHIFT, or PMD_SHIFT is a constant, but
+> >>   * this is kept as a backstop to allow compilation on
+> >>   * !ARCH_ENABLE_MEMORY_HOTPLUG archs.
+> >>   */
+> >> #define SUBSECTION_SHIFT 21
+> >> #endif
+> >>
+> >> why not
+> >>
+> >> #if defined(ARCH_SUBSECTION_SHIFT)
+> >> #define SUBSECTION_SHIFT (ARCH_SUBSECTION_SHIFT)
+> >> #else
+> >> #define SUBSECTION_SHIFT  SECTION_SHIFT
+> >> #endif
+> >>
+> >> ie, if SUBSECTION is not supported by arch we have one sub-section per
+> >> section?
+> >
+> > A couple comments:
+> >
+> > The only reason ARCH_SUBSECTION_SHIFT exists is because PMD_SHIFT on
+> > PowerPC was a non-constant value. However, I'm planning to remove the
+> > distinction in the next rev of the patches. Jeff rightly points out
+> > that having a variable subsection size per arch will lead to
+> > situations where persistent memory namespaces are not portable across
+> > archs. So I plan to just make SUBSECTION_SHIFT 21 everywhere.
+>
+> What is the dependency between subsection and pageblock_order? Shouldn't
+> subsection size >= pageblock size?
+>
+> We do have pageblock size drived from HugeTLB size.
 
-For HWASan this would not be useful because we instrument memory
-accesses with explicit checks anyway. For MTE, on the other hand, it
-would be very convenient to know the fault address tag without
-disassembling the code.
+The pageblock size is independent of subsection-size. The pageblock
+size is a page-allocator concern, subsections only exist for pages
+that are never onlined to the page-allocator.
 
