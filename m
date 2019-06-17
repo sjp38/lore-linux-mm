@@ -2,146 +2,152 @@ Return-Path: <SRS0=4FFe=UQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.0 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9EB32C31E57
-	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 09:31:04 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8EFFBC31E57
+	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 09:57:42 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 60F1C208E3
-	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 09:31:04 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="RUBMKb3U"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 60F1C208E3
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	by mail.kernel.org (Postfix) with ESMTP id 40A1820848
+	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 09:57:42 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 40A1820848
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=i-love.sakura.ne.jp
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 016588E0006; Mon, 17 Jun 2019 05:31:04 -0400 (EDT)
+	id B74148E0003; Mon, 17 Jun 2019 05:57:41 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id F09918E0001; Mon, 17 Jun 2019 05:31:03 -0400 (EDT)
+	id B24B38E0001; Mon, 17 Jun 2019 05:57:41 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DF8AB8E0006; Mon, 17 Jun 2019 05:31:03 -0400 (EDT)
+	id 9EC3D8E0003; Mon, 17 Jun 2019 05:57:41 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A400C8E0001
-	for <linux-mm@kvack.org>; Mon, 17 Jun 2019 05:31:03 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id c4so7370292pgm.21
-        for <linux-mm@kvack.org>; Mon, 17 Jun 2019 02:31:03 -0700 (PDT)
+Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 75F718E0001
+	for <linux-mm@kvack.org>; Mon, 17 Jun 2019 05:57:41 -0400 (EDT)
+Received: by mail-ot1-f72.google.com with SMTP id a8so4671689oti.8
+        for <linux-mm@kvack.org>; Mon, 17 Jun 2019 02:57:41 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=S6Eux1+C4YWs/QuUA6SdliFdoSV6T3YyLMZZE5kCxoc=;
-        b=FPfK7zHzNqb0U0kZIOw/JO+UnrYu4PIEa0UOv/SGCdlxurfR4RoiSWAgBmhZk/b2AP
-         jT08a/apaqWwaaz8alc82nv8fTgAwaTtKHNpOUPfGQQZO9+TmrdD1tkMDIt4r1EzgEbL
-         vx1rrsOdKpOwtHz0un1lK4oQcZjNU536Ns3JRY4fQWJrROV7ciYlced1WuJ3PQB+iVdd
-         0k351uO66FSWV/D+NvzmIvzWQZwFJAupEGCoRPR5IKQzpxUJgZrdt7AK8phAK1GJFPnf
-         hW7mNo8a1w0o4pMO3EiGE47RY8ijNtio/+OzEe1H9czvDMfyrPQM/dTIEv4deaQ+EKCG
-         uvlA==
-X-Gm-Message-State: APjAAAVDJH1TKPPBmNTFt2rBp7Q2pb0EuAIim1oa2ty3tV072+99chOo
-	TM+NRwtN7peM6nV7P975PoqyYjnGZq852E/QzZwo2WUj5ul4oah+dLsF4icFfHBrqTg0E/GLKBs
-	4iRWLMfqUhcKayTw59c2IIyNgltm3eSreDQgZALPzhbVKfM+B40k6c7bkFWCXoWVt0w==
-X-Received: by 2002:a63:6507:: with SMTP id z7mr13644217pgb.186.1560763863162;
-        Mon, 17 Jun 2019 02:31:03 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxrGUCL+an/D7IntAKEFVkS55FN+EYKYmnAsKIChyLJZTWunr47stfabZGrpDz8/8kOkuWb
-X-Received: by 2002:a63:6507:: with SMTP id z7mr13644167pgb.186.1560763862567;
-        Mon, 17 Jun 2019 02:31:02 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560763862; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=8Ek60o+XUQVNLave7oemVnEx612nPoF6Ue4OUqhFnBo=;
+        b=snt9Ze3Bz9sIWEYzUY69SfbkKhxdnWH/Pp6LBlnoGLW8mfhbJlclvX14AkFmpdyoJ7
+         sKIcZU++Qgjn12xO0iWmB3Th+zXWLMnubbG+KRla4KkD+7aETkjYYFabM1OVTBDqeGL+
+         H+ETDFdCMyawpuD5pAGNpu3E5na0biP68HUc98Zqt3a2cFp1xAA79icqD4g2HNYzPuCC
+         Z409GUlTs6YhZD0zQiCKMyLrYWDkRQwk+NtcP7xCQnOxsMTsf+0Rrsc7VWEHKV9ro5fq
+         wxTw2KCRLgO4120wQuGXjWiKcOEMs5G6gGKwdTub1Uj+IPAWc1TI7o0fw5Syt/Jp6uky
+         lYuA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
+X-Gm-Message-State: APjAAAUmprV/+Q2Al+EkPemrmtHjUVmMH/2k97iAe9m95KkjcOFWr+cM
+	pbhc3OWguBxOwoSOEEqvGEe0e+o4SwLqeN9CtdWjwzt4pUanNXxVWKL8/wWUdSC6/YS26/7Uy/9
+	WZuH7N3heZZl0o2PCqIWGQ9OHivw6kqL3lrLN0nUeJApVFyvJoc+kku3zzZuW6doirQ==
+X-Received: by 2002:a9d:22e4:: with SMTP id y91mr54976016ota.40.1560765461101;
+        Mon, 17 Jun 2019 02:57:41 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqx5GmwLg14nvE5yi15u6tgdkPOTXz43+GK6YAcH1VyDv6AeB32kC2f07ZlFqD2rNJC67Rnj
+X-Received: by 2002:a9d:22e4:: with SMTP id y91mr54975981ota.40.1560765460434;
+        Mon, 17 Jun 2019 02:57:40 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560765460; cv=none;
         d=google.com; s=arc-20160816;
-        b=eNTQK4Jd8/lC36syzj1wknOF+Mxmc8NVMlO5AsrFb2ZC08Mz3zj2k994Uu7+NhXTgw
-         TRg0nVSLs31cVKfqILGaZbF0y+4tbxU4rH3aZBCBkPlIIgFCOUEIwNjDveN/5zMf+12P
-         NKHLhzsC+Z5A2koQU8DAoRev5LKEf+4CfCFCf8ytwcRqMqho219fxERYfPP4f2Mjfc7E
-         DzotS1ov85bMIpstcpGqAvfVHyfTh99athxUk6QSJ47QiBdV5LhicPD+fohVZVvdGNpm
-         xVs1FvNHCz0DFzoWJY4BoHy8s05Dq4Y9eBrDJnbdeTV0dDedVkEZft3N+whnj9JzpO4B
-         pUjg==
+        b=QAEdyYpH9zg5ilvFgD5/ZdRboezpkp06RVDZQJ3+qYEXFHse6jVXZQrBsX8pHJYF+1
+         TTBYHTo8jXtQo/NzXJ8uGcuZTxTLeWevbPmYuO3ZMTUZOoU2uxc7H1jVQTKcJbzKHMIC
+         y4sWg1rKaMSGEO5DfrAcDQ+4lb/R3IOFGhou6Wu8iX2YxnLGg3IzMmhnC96DcxC4Saad
+         YEG8lythQYhf7qwt7s0/bK7+qk7mOv11zoFH/l2d4XP6M7eg+zaj+hH1E07fxRzbq21G
+         Gax0Jk+bidSiLRpfazOlNFvipFU3BbNeL/KFekvA5dGa8468M3iPu2wfrsxSHpVLbpfk
+         sdTQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=S6Eux1+C4YWs/QuUA6SdliFdoSV6T3YyLMZZE5kCxoc=;
-        b=rlsqMnQtJRNEs0Fx7eSR5E8DDUHg4TNi93BCUvrSkDVKdCgjSyxdza7PPNSmEvPIO8
-         RKIJ7B+X7D+1KjZSuSGaBv5JYX/gH0yydMkaMu+v5FLaN4j9h6EvLnVEIdVHSk+8nRSd
-         a+u1xU7oqG9nAiWL33cE425DPgszzbROSFapp29yzM1qBoTpxVkebsXjYkC1yoscdQKv
-         9NQ2Kklgq6Fnb/kOViZaT7l6E9GTMNf/OIqoUB0iz3VX4XNCn05ni8+Rsz7lR+oO/XbI
-         mVffhxlsjZsovranwPMT/1NoqFLZ6VrANxd2tfm8AjkSiYqRVTSbnuL3LSxp1V7jy935
-         PZ2Q==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=8Ek60o+XUQVNLave7oemVnEx612nPoF6Ue4OUqhFnBo=;
+        b=R+A7+DLi0zvg/uEQSyGXTPIroXSrtWPjLo2skE1PX718zYEjaEImeT6PmUB8+r94Ed
+         apf59NuKKKSzspvrWUMb2OyeVyUaEkWMj4a/ZHTy2qqTCJgHquUSFe+q/4ukPBfOa8I5
+         0j2kj4IPr/gOg6ZONygmkbZeNYsHBbHR8RMPtGGtRnoVZKTK5xcAxKyMZdcVatUm8ryf
+         DaGQ/YFW26V1317ktXC/sEXCPL4vQ6GgOUCdoeowCSUSt5QB3b/J1Jp3Cb2ai6AATC+w
+         VOsoOYp6FR/x6mFsdf0Al9UdOIPL/WP00vEes7Ij/55J4qVTSD2iV67QM25GAyAfHfTu
+         Hrvg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=RUBMKb3U;
-       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=peterz@infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id y4si11625602pgi.556.2019.06.17.02.31.02
+       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id v23si4669942oif.133.2019.06.17.02.57.39
         for <linux-mm@kvack.org>
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Mon, 17 Jun 2019 02:31:02 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 17 Jun 2019 02:57:40 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) client-ip=202.181.97.72;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=RUBMKb3U;
-       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=peterz@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=S6Eux1+C4YWs/QuUA6SdliFdoSV6T3YyLMZZE5kCxoc=; b=RUBMKb3UfCdPutyLXQFsDEmKI
-	Re6hCejTEV4R0QEWXbWr1K++kvxXqJmFehO8gKOWiiMoNlpMiQPU+ntcT1yCXHePZ+lHyf05s/0+t
-	fKrO5mJAjcBO15sERkJaSnBM4UW4zaBb179cK8DbMSoNLkX2HexrlSQqGTuph4i1O5UO6U0qHoi9e
-	vSrciALv3UC2tHwFxGamq+atN57Vg+H1QVVTmxGbEIo5TB4/1qBj5abfZsIVz58l6JsblHdBNTn0u
-	Md3uulXM/xZzWdYAX50mjrdreT/YH0//O2BAS4Me5fkXCfird5wtoe2TiAmFC9N3ytSAqd+X7ce2n
-	zPvKrDuzg==;
-Received: from j217100.upc-j.chello.nl ([24.132.217.100] helo=hirez.programming.kicks-ass.net)
-	by bombadil.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
-	id 1hcnyZ-0005HC-RB; Mon, 17 Jun 2019 09:30:56 +0000
-Received: by hirez.programming.kicks-ass.net (Postfix, from userid 1000)
-	id 487DA20144539; Mon, 17 Jun 2019 11:30:54 +0200 (CEST)
-Date: Mon, 17 Jun 2019 11:30:54 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
-	Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org,
-	Thomas Gleixner <tglx@linutronix.de>,
-	Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>,
-	Borislav Petkov <bp@alien8.de>,
-	Andy Lutomirski <luto@amacapital.net>,
-	David Howells <dhowells@redhat.com>,
-	Kees Cook <keescook@chromium.org>,
-	Dave Hansen <dave.hansen@intel.com>,
-	Kai Huang <kai.huang@linux.intel.com>,
-	Jacob Pan <jacob.jun.pan@linux.intel.com>,
-	Alison Schofield <alison.schofield@intel.com>, linux-mm@kvack.org,
-	kvm@vger.kernel.org, keyrings@vger.kernel.org,
-	linux-kernel@vger.kernel.org
-Subject: Re: [PATCH, RFC 20/62] mm/page_ext: Export lookup_page_ext() symbol
-Message-ID: <20190617093054.GB3419@hirez.programming.kicks-ass.net>
-References: <20190508144422.13171-1-kirill.shutemov@linux.intel.com>
- <20190508144422.13171-21-kirill.shutemov@linux.intel.com>
- <20190614111259.GA3436@hirez.programming.kicks-ass.net>
- <20190614224443.qmqolaigu5wnf75p@box>
+       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
+Received: from fsav401.sakura.ne.jp (fsav401.sakura.ne.jp [133.242.250.100])
+	by www262.sakura.ne.jp (8.15.2/8.15.2) with ESMTP id x5H9upm3052739;
+	Mon, 17 Jun 2019 18:56:51 +0900 (JST)
+	(envelope-from penguin-kernel@i-love.sakura.ne.jp)
+Received: from www262.sakura.ne.jp (202.181.97.72)
+ by fsav401.sakura.ne.jp (F-Secure/fsigk_smtp/530/fsav401.sakura.ne.jp);
+ Mon, 17 Jun 2019 18:56:51 +0900 (JST)
+X-Virus-Status: clean(F-Secure/fsigk_smtp/530/fsav401.sakura.ne.jp)
+Received: from [192.168.1.8] (softbank126012062002.bbtec.net [126.12.62.2])
+	(authenticated bits=0)
+	by www262.sakura.ne.jp (8.15.2/8.15.2) with ESMTPSA id x5H9uksP052600
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NO);
+	Mon, 17 Jun 2019 18:56:50 +0900 (JST)
+	(envelope-from penguin-kernel@i-love.sakura.ne.jp)
+Subject: Re: general protection fault in oom_unkillable_task
+To: Michal Hocko <mhocko@kernel.org>, Shakeel Butt <shakeelb@google.com>
+Cc: syzbot <syzbot+d0fc9d3c166bc5e4a94b@syzkaller.appspotmail.com>,
+        Andrew Morton <akpm@linux-foundation.org>,
+        "Eric W. Biederman" <ebiederm@xmission.com>,
+        Roman Gushchin <guro@fb.com>, Johannes Weiner <hannes@cmpxchg.org>,
+        =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?=
+ <jglisse@redhat.com>,
+        LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>,
+        syzkaller-bugs <syzkaller-bugs@googlegroups.com>,
+        yuzhoujian@didichuxing.com
+References: <0000000000004143a5058b526503@google.com>
+ <CALvZod72=KuBZkSd0ey5orJFGFpwx462XY=cZvO3NOXC0MogFw@mail.gmail.com>
+ <20190615134955.GA28441@dhcp22.suse.cz>
+ <CALvZod4hT39PfGt9Ohj+g77om5=G0coHK=+G1=GKcm-PowkXsw@mail.gmail.com>
+ <20190617063319.GB30420@dhcp22.suse.cz>
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Message-ID: <268214f9-18ef-b63e-2d4f-c344a7dd5e72@i-love.sakura.ne.jp>
+Date: Mon, 17 Jun 2019 18:56:47 +0900
+User-Agent: Mozilla/5.0 (Windows NT 6.3; WOW64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190614224443.qmqolaigu5wnf75p@box>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190617063319.GB30420@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Jun 15, 2019 at 01:44:43AM +0300, Kirill A. Shutemov wrote:
-> On Fri, Jun 14, 2019 at 01:12:59PM +0200, Peter Zijlstra wrote:
-> > On Wed, May 08, 2019 at 05:43:40PM +0300, Kirill A. Shutemov wrote:
-> > > page_keyid() is inline funcation that uses lookup_page_ext(). KVM is
-> > > going to use page_keyid() and since KVM can be built as a module
-> > > lookup_page_ext() has to be exported.
-> > 
-> > I _really_ hate having to export world+dog for KVM. This one might not
-> > be a real issue, but I itch every time I see an export for KVM these
-> > days.
+On 2019/06/17 15:33, Michal Hocko wrote:
+> On Sat 15-06-19 09:11:37, Shakeel Butt wrote:
+>> On Sat, Jun 15, 2019 at 6:50 AM Michal Hocko <mhocko@kernel.org> wrote:
+> [...]
+>>> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+>>> index 5a58778c91d4..43eb479a5dc7 100644
+>>> --- a/mm/oom_kill.c
+>>> +++ b/mm/oom_kill.c
+>>> @@ -161,8 +161,8 @@ static bool oom_unkillable_task(struct task_struct *p,
+>>>                 return true;
+>>>
+>>>         /* When mem_cgroup_out_of_memory() and p is not member of the group */
+>>> -       if (memcg && !task_in_mem_cgroup(p, memcg))
+>>> -               return true;
+>>> +       if (memcg)
+>>> +               return false;
+>>
+>> This will break the dump_tasks() usage of oom_unkillable_task(). We
+>> can change dump_tasks() to traverse processes like
+>> mem_cgroup_scan_tasks() for memcg OOMs.
 > 
-> Is there any better way? Do we need to invent EXPORT_SYMBOL_KVM()? :P
+> Right you are. Doing a similar trick to the oom victim selection is
+> indeed better. We should really strive to not doing a global process
+> iteration when we can do a targeted scan. Care to send a patch?
 
-Or disallow KVM (or parts thereof) from being a module anymore.
+I posted a patch that (as a side effect) avoids oom_unkillable_task() from dump_tasks() at
+https://lore.kernel.org/linux-mm/1558519686-16057-2-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp/ .
+What do you think?
 
