@@ -2,206 +2,204 @@ Return-Path: <SRS0=4FFe=UQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.0 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 56F28C31E5B
-	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 14:51:07 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 36A56C31E5B
+	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 14:52:08 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 163442084A
-	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 14:51:07 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 163442084A
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arndb.de
+	by mail.kernel.org (Postfix) with ESMTP id EF7EE2084A
+	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 14:52:07 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="HhwqhNrM"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EF7EE2084A
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B83828E0006; Mon, 17 Jun 2019 10:51:06 -0400 (EDT)
+	id 827E88E0002; Mon, 17 Jun 2019 10:52:07 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B33438E0001; Mon, 17 Jun 2019 10:51:06 -0400 (EDT)
+	id 7D8428E0001; Mon, 17 Jun 2019 10:52:07 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A496C8E0006; Mon, 17 Jun 2019 10:51:06 -0400 (EDT)
+	id 6EE548E0002; Mon, 17 Jun 2019 10:52:07 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 7FB338E0001
-	for <linux-mm@kvack.org>; Mon, 17 Jun 2019 10:51:06 -0400 (EDT)
-Received: by mail-qt1-f198.google.com with SMTP id p43so9415717qtk.23
-        for <linux-mm@kvack.org>; Mon, 17 Jun 2019 07:51:06 -0700 (PDT)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 362A58E0001
+	for <linux-mm@kvack.org>; Mon, 17 Jun 2019 10:52:07 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id w14so6121752plp.4
+        for <linux-mm@kvack.org>; Mon, 17 Jun 2019 07:52:07 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:mime-version
-         :references:in-reply-to:from:date:message-id:subject:to:cc;
-        bh=q8FJ2kwlqp+MobuH8TFvTjKHjPn6ix+Pc/KnlT4DZoQ=;
-        b=bpLJnwiCu/ddr0km0Hd7Zd5FqWE/u+xLhUwL6/wEp7NCzF62zytEhfSI1hZfYoLGCE
-         AfDKlEsjMIJWnKT/tLJyoOB95jJaoDF2/DLEbUOjzeVHai2kdPbhZW5KQdVdzMhm8lcH
-         2hajAEoANJGGPxSSiQ+G+Xd7HYzJeqee894hGu/c47as3yfzOgbRM5DMS9JWAkpZI7aM
-         KA9vDrnUPI8gTBjBeBAs8tCIwezqzklFMJ3Jb4J655d8ifARIZlNBB4VUeuZK75zxiFK
-         jymR/UNN0uf0nPB+3oEqN4URtUQAlqMqfWXSFgsz6eh3zp/QHxplRADC1npSC8RzgMy4
-         CXGg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of arndbergmann@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=arndbergmann@gmail.com
-X-Gm-Message-State: APjAAAUCyRiizlAMJho6/VF5WG+0T0mqkeEzU4dSnfbhXJwbivqf0GA7
-	EL6NDNGL1LUUZpSPODrkGBt9fNhwn5ZSD3jFf7en0+TmIAOI1ZQwnC2itnf4JtUsYBo6K1K2MzQ
-	/41harKHqu9dz5pYrO0acp34SC2aBOaFHFnhH5TxIEdbC17S+Ea4onYNOS5ChtPA=
-X-Received: by 2002:a37:6253:: with SMTP id w80mr15693587qkb.153.1560783066268;
-        Mon, 17 Jun 2019 07:51:06 -0700 (PDT)
-X-Received: by 2002:a37:6253:: with SMTP id w80mr15693525qkb.153.1560783065692;
-        Mon, 17 Jun 2019 07:51:05 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560783065; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=CC6TusG/xvd2NrKEqztW6Q0eLvQHpCSqZ9asqvSUbGQ=;
+        b=Pw3QSNQwJzkDOgv9bj5qCPBfGhUBN74jS0XdBU3Xj1eFMcxKczOhhmlyt+ZOWRUeou
+         enfYim3JnqLGEV2fsKnP9Nkt7eMeHaachhbSuxHXGUtnpYaRbq5vRklwVeNv5PJfr4zF
+         2808suE6Sk5JqflI2Dv2ZnCdQ6+Pz+t3tExnOpazfZidDme0Ymb7iAKL9LLcUwk1XyIE
+         +dannAKEk6I1bKAJHEuYNlYczE6VCRhLSnztjPKcJGMxaQUCNGiuJ0SvQHUCKaw9JQy2
+         AqKKmp3kvcDn8rjOc0CdU3ivnE2qXARudXu4BWTnoDoIXoVkTB7QCPSpHtXFlxpZl4sd
+         bl1A==
+X-Gm-Message-State: APjAAAX0dwdHMJHESJ9Ou89voF5SMPQJ2boySfclTsn4ahqtSjgt600E
+	UJNPDy92ea2mXrGn7gDm8cC4UiO6XJsn+3tI0Y5YT20rk5aRn2YLl9/43Sb/u5KyVlF7/n4OPpd
+	l09m+DDCXDXUDyNfnnDlrr4vadYRYUQOu09cUxY7JaRO/8VCwcvyh7zzf3hQj6oFaIQ==
+X-Received: by 2002:a62:2ec4:: with SMTP id u187mr112428578pfu.84.1560783126784;
+        Mon, 17 Jun 2019 07:52:06 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwrSixbG+C8hkiS4kt1wHHbrvGo1otC9DmfiEvg80modWIcyhnD/IETUWeHYamfvL+go62N
+X-Received: by 2002:a62:2ec4:: with SMTP id u187mr112428533pfu.84.1560783126177;
+        Mon, 17 Jun 2019 07:52:06 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560783126; cv=none;
         d=google.com; s=arc-20160816;
-        b=RmIqXykEQF+O+RXNaU8V9SnrkasL0BoIHBBXJqVevIoAnB5WPJPtX0Xjy/MmLP01He
-         cvTgHdv0AyxNMMCxtInfWYSWbDpsFTPZlc/3eOV5953858NdZd9GIG2+7E/2n6maY0Lx
-         H3Usq5c96yJWyZ7W7QfyM3jGT+tXXulLKVMsDyDlHxVHHUj209EqL0OrXfVJecznTXE4
-         YxnaFTDCrmegLIEYw1D9wvHAjUMMYJFX0icMg1P+13XS01cbyGbp8MFtrLh93aVKmWR/
-         XHZTy5yrMX7iE7CG30lBVPCKpC8Ng8NNYlj9tURuKB2iDy/w6KN/vRG6j2cTO1FnsktS
-         YCVw==
+        b=R0q61xGWYAey2zaJOHA//ESO/o+/tkz5Hp3lsXZmYMvxQXC0zG+Jf3cf9kOU88OkN3
+         vyh+GFhB3izZzULminT6PlXaNVjXcaoz9joMebnqRILPHR0IPC5nqraFIDgbi1vWSITv
+         ufSkXZxGfRleAb4SotZEm6/TKRM8eCptfRoQN4zgCvL0YGchlfkucwbsMn2welJ9hTeK
+         Rlk/kgWtWU+/tWu8rVbTzKvrt8WdIDZrm4LT4C+RWiTBz8WP1F1rpsXDXf35OjNtEnu3
+         kgrVaJiCAks/xPsBDjx07KNkR3DdaJ0l/B0snq+5fp2Cne++dKw8XYSjReciGe0h1GKM
+         oAsg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version;
-        bh=q8FJ2kwlqp+MobuH8TFvTjKHjPn6ix+Pc/KnlT4DZoQ=;
-        b=wZSkc1OAtWYJpEp1l/Fi7phxC98OMgV6fS5sFjMDaXO+AAMD+iHPO5yB0E8cvq07Rj
-         jDU3FVKz82PFh5Tv/ICAVafzVzgN7qgCJ3ulOQ0zA+I8WiPVZjmwLy/VCBQNUABTAGMW
-         za4MVjwK3CCwBFnqe0VCePtSaNo0udHEC43qgKEgXPj+zumUTL5qu8i135d+QoT0Jevy
-         6CXP+pNbOvNMgUhtaKcw10fNkVg1D98CAPHwwP039aNH5MJW9tLdlYzBFQsLemo4vwl9
-         tALmNhhMaoa8CjE+3ragiEhWJzpmzpqDEKrNQAam5tP6Q+LV+Bj35vyDh2/udOk7llBS
-         Dl0w==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=CC6TusG/xvd2NrKEqztW6Q0eLvQHpCSqZ9asqvSUbGQ=;
+        b=IoUP81TvilcvTH2QKdvTo90YM5e0wb7cfWWEMNGVHHIBNgd5VdWj6rCrd8POYY6dgR
+         d5RUECS+ZV6OqftwPdiYO/xzJ31Mw7i+qXHTBY4pAnPcOhT/w48sTkPBdO/GKF0rN5SK
+         6p/s82IuLeRv/K1eYaOKuuICxen5gbd62mopUHPhXSwFCYIdBl+zqUUnGcwkPfZS8V8f
+         mFgDiTEjlXC0BQXTky2hoxUde7m8NaJ2zT5D1uHMHx9CnkpcdemMZDZHL2kmiGRchhiq
+         /CCkm5oPip2so/Bagp5bHt7YCfvyvPvb5OkCDYMh2SqT3SS5BsmzqfB9dDFQfnmuU5wT
+         FrcQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of arndbergmann@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=arndbergmann@gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id s2sor7412632qkg.82.2019.06.17.07.51.05
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=HhwqhNrM;
+       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=peterz@infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id l24si10966373pgm.248.2019.06.17.07.52.06
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 17 Jun 2019 07:51:05 -0700 (PDT)
-Received-SPF: pass (google.com: domain of arndbergmann@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Mon, 17 Jun 2019 07:52:06 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of arndbergmann@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=arndbergmann@gmail.com
-X-Google-Smtp-Source: APXvYqzGHPK0SuAOiFmF36ZCL+V6bBx3pWjrebtOkfLE1KzmEr0hyrwu/CO4hn9QYjNX0GmKoAn1mJ5RYvF4ApuHWDg=
-X-Received: by 2002:ae9:e608:: with SMTP id z8mr80517080qkf.182.1560783065346;
- Mon, 17 Jun 2019 07:51:05 -0700 (PDT)
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=HhwqhNrM;
+       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=peterz@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
+	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=CC6TusG/xvd2NrKEqztW6Q0eLvQHpCSqZ9asqvSUbGQ=; b=HhwqhNrM9xrAQOq0eNTILgTfj
+	R+0T3K6DbjbIQyqcNTefACa3jRYLYfmFr4O2DTtDoavuT0bYMdlrxcS92IvJtv2UUGOO3dBzTihLB
+	UNtKyWn6YD230yNinCi6buZ5Y1cFQrcsU3Yf0AKOWWsUOio12DIiRYw0JHoJhAFyg7pDgL7qkcSr0
+	9B1owcTUHT3GZq77EKPQ2Be6tSOdWLwu/5DQDTsaA+kc+xdgkxwwbDZqVqeemMIuiKx2sI21XYSkj
+	VNQrWUbfXOqlIDfhkhAkwTWqWnsFdYX9pzSdlvpXOVDMOmtOUK0OoVu6wc12rWnWOkLladzvUZa8S
+	/gsHPagpw==;
+Received: from j217100.upc-j.chello.nl ([24.132.217.100] helo=hirez.programming.kicks-ass.net)
+	by bombadil.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
+	id 1hcszI-0004sz-1Q; Mon, 17 Jun 2019 14:52:00 +0000
+Received: by hirez.programming.kicks-ass.net (Postfix, from userid 1000)
+	id 68240201F4619; Mon, 17 Jun 2019 16:51:58 +0200 (CEST)
+Date: Mon, 17 Jun 2019 16:51:58 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
+	Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org,
+	Thomas Gleixner <tglx@linutronix.de>,
+	Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>,
+	Borislav Petkov <bp@alien8.de>,
+	Andy Lutomirski <luto@amacapital.net>,
+	David Howells <dhowells@redhat.com>,
+	Kees Cook <keescook@chromium.org>,
+	Dave Hansen <dave.hansen@intel.com>,
+	Kai Huang <kai.huang@linux.intel.com>,
+	Jacob Pan <jacob.jun.pan@linux.intel.com>,
+	Alison Schofield <alison.schofield@intel.com>, linux-mm@kvack.org,
+	kvm@vger.kernel.org, keyrings@vger.kernel.org,
+	linux-kernel@vger.kernel.org
+Subject: Re: [PATCH, RFC 18/62] x86/mm: Implement syncing per-KeyID direct
+ mappings
+Message-ID: <20190617145158.GF3436@hirez.programming.kicks-ass.net>
+References: <20190508144422.13171-1-kirill.shutemov@linux.intel.com>
+ <20190508144422.13171-19-kirill.shutemov@linux.intel.com>
+ <20190614095131.GY3436@hirez.programming.kicks-ass.net>
+ <20190614224309.t4ce7lpx577qh2gu@box>
+ <20190617092755.GA3419@hirez.programming.kicks-ass.net>
+ <20190617144328.oqwx5rb5yfm2ziws@box>
 MIME-Version: 1.0
-References: <20190617121427.77565-1-arnd@arndb.de> <20190617141244.5x22nrylw7hodafp@pc636>
- <CAK8P3a3sjuyeQBUprGFGCXUSDAJN_+c+2z=pCR5J05rByBVByQ@mail.gmail.com>
-In-Reply-To: <CAK8P3a3sjuyeQBUprGFGCXUSDAJN_+c+2z=pCR5J05rByBVByQ@mail.gmail.com>
-From: Arnd Bergmann <arnd@arndb.de>
-Date: Mon, 17 Jun 2019 16:50:48 +0200
-Message-ID: <CAK8P3a0pnEnzfMkCi7Nb97-nG4vnAj7fOepfOaW0OtywP8TLpw@mail.gmail.com>
-Subject: Re: [BUG]: mm/vmalloc: uninitialized variable access in pcpu_get_vm_areas
-To: Uladzislau Rezki <urezki@gmail.com>
-Cc: Roman Gushchin <guro@fb.com>, Michal Hocko <mhocko@suse.com>, Matthew Wilcox <willy@infradead.org>, 
-	Thomas Garnier <thgarnie@google.com>, 
-	Oleksiy Avramchenko <oleksiy.avramchenko@sonymobile.com>, Steven Rostedt <rostedt@goodmis.org>, 
-	Joel Fernandes <joelaf@google.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, 
-	Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, 
-	Linus Torvalds <torvalds@linux-foundation.org>, Stephen Rothwell <sfr@canb.auug.org.au>, 
-	Roman Penyaev <rpenyaev@suse.de>, Rick Edgecombe <rick.p.edgecombe@intel.com>, 
-	Andrey Ryabinin <aryabinin@virtuozzo.com>, Mike Rapoport <rppt@linux.ibm.com>, 
-	Linux-MM <linux-mm@kvack.org>, 
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190617144328.oqwx5rb5yfm2ziws@box>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jun 17, 2019 at 4:44 PM Arnd Bergmann <arnd@arndb.de> wrote:
-> On Mon, Jun 17, 2019 at 4:12 PM Uladzislau Rezki <urezki@gmail.com> wrote:
-> >
-> > On Mon, Jun 17, 2019 at 02:14:11PM +0200, Arnd Bergmann wrote:
-> > > gcc points out some obviously broken code in linux-next
-> > >
-> > > mm/vmalloc.c: In function 'pcpu_get_vm_areas':
-> > > mm/vmalloc.c:991:4: error: 'lva' may be used uninitialized in this function [-Werror=maybe-uninitialized]
-> > >     insert_vmap_area_augment(lva, &va->rb_node,
-> > >     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-> > >      &free_vmap_area_root, &free_vmap_area_list);
-> > >      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-> > > mm/vmalloc.c:916:20: note: 'lva' was declared here
-> > >   struct vmap_area *lva;
-> > >                     ^~~
-> > >
-> > > Remove the obviously broken code. This is almost certainly
-> > > not the correct solution, but it's what I have applied locally
-> > > to get a clean build again.
-> > >
-> > > Please fix this properly.
-> > >
->
-> > >
-> > Please do not apply this. It will just break everything.
->
-> As I wrote in my description, this was purely meant as a bug
-> report, not a patch to be applied.
->
-> > As Roman pointed we can just set lva = NULL; in the beginning to make GCC happy.
-> > For some reason GCC decides that it can be used uninitialized, but that
-> > is not true.
->
-> I got confused by the similarly named FL_FIT_TYPE/NE_FIT_TYPE
-> constants and misread this as only getting run in the case where it is
-> not initialized, but you are right that it always is initialized here.
->
-> I see now that the actual cause of the warning is the 'while' loop in
-> augment_tree_propagate_from(). gcc is unable to keep track of
-> the state of the 'lva' variable beyond that and prints a bogus warning.
+On Mon, Jun 17, 2019 at 05:43:28PM +0300, Kirill A. Shutemov wrote:
+> On Mon, Jun 17, 2019 at 11:27:55AM +0200, Peter Zijlstra wrote:
 
-I managed to un-confuse gcc-8 by turning the if/else if/else into
-a switch statement. If you all think this is an acceptable solution,
-I'll submit that after some more testing to ensure it addresses
-all configurations:
+> > > > And yet I don't see anything in pageattr.c.
+> > > 
+> > > You're right. I've hooked up the sync in the wrong place.
 
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index a9213fc3802d..5b7e50de008b 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -915,7 +915,8 @@ adjust_va_to_fit_type(struct vmap_area *va,
- {
-        struct vmap_area *lva;
+> I think something like this should do (I'll fold it in after testing):
 
--       if (type == FL_FIT_TYPE) {
-+       switch (type) {
-+       case FL_FIT_TYPE:
-                /*
-                 * No need to split VA, it fully fits.
-                 *
-@@ -925,7 +926,8 @@ adjust_va_to_fit_type(struct vmap_area *va,
-                 */
-                unlink_va(va, &free_vmap_area_root);
-                kmem_cache_free(vmap_area_cachep, va);
--       } else if (type == LE_FIT_TYPE) {
-+               break;
-+       case LE_FIT_TYPE:
-                /*
-                 * Split left edge of fit VA.
-                 *
-@@ -934,7 +936,8 @@ adjust_va_to_fit_type(struct vmap_area *va,
-                 * |-------|-------|
-                 */
-                va->va_start += size;
--       } else if (type == RE_FIT_TYPE) {
-+               break;
-+       case RE_FIT_TYPE:
-                /*
-                 * Split right edge of fit VA.
-                 *
-@@ -943,7 +946,8 @@ adjust_va_to_fit_type(struct vmap_area *va,
-                 * |-------|-------|
-                 */
-                va->va_end = nva_start_addr;
--       } else if (type == NE_FIT_TYPE) {
-+               break;
-+       case NE_FIT_TYPE:
-                /*
-                 * Split no edge of fit VA.
-                 *
-@@ -980,7 +984,8 @@ adjust_va_to_fit_type(struct vmap_area *va,
-                 * Shrink this VA to remaining size.
-                 */
-                va->va_start = nva_start_addr + size;
--       } else {
-+               break;
-+       default:
-                return -1;
-        }
+> @@ -643,7 +641,7 @@ static int sync_direct_mapping_keyid(unsigned long keyid)
+>   *
+>   * The function is nop until MKTME is enabled.
+>   */
+> -int sync_direct_mapping(void)
+> +int sync_direct_mapping(unsigned long start, unsigned long end)
+>  {
+>  	int i, ret = 0;
+>  
+> @@ -651,7 +649,7 @@ int sync_direct_mapping(void)
+>  		return 0;
+>  
+>  	for (i = 1; !ret && i <= mktme_nr_keyids; i++)
+> -		ret = sync_direct_mapping_keyid(i);
+> +		ret = sync_direct_mapping_keyid(i, start, end);
+>  
+>  	flush_tlb_all();
+>  
+> diff --git a/arch/x86/mm/pageattr.c b/arch/x86/mm/pageattr.c
+> index 6a9a77a403c9..eafbe0d8c44f 100644
+> --- a/arch/x86/mm/pageattr.c
+> +++ b/arch/x86/mm/pageattr.c
+> @@ -347,6 +347,28 @@ static void cpa_flush(struct cpa_data *data, int cache)
+>  
+>  	BUG_ON(irqs_disabled() && !early_boot_irqs_disabled);
+>  
+> +	if (mktme_enabled()) {
+> +		unsigned long start, end;
+> +
+> +		start = *cpa->vaddr;
+> +		end = *cpa->vaddr + cpa->numpages * PAGE_SIZE;
+> +
+> +		/* Sync all direct mapping for an array */
+> +		if (cpa->flags & CPA_ARRAY) {
+> +			start = PAGE_OFFSET;
+> +			end = PAGE_OFFSET + direct_mapping_size;
+> +		}
 
-       Arnd
+Understandable but sad, IIRC that's the most used interface (at least,
+its the one the graphics people use).
+
+> +
+> +		/*
+> +		 * Sync per-KeyID direct mappings with the canonical one
+> +		 * (KeyID-0).
+> +		 *
+> +		 * sync_direct_mapping() does full TLB flush.
+> +		 */
+> +		sync_direct_mapping(start, end);
+> +		return;
+
+But it doesn't flush cache. So you can't return here.
+
+> +	}
+> +
+>  	if (cache && !static_cpu_has(X86_FEATURE_CLFLUSH)) {
+>  		cpa_flush_all(cache);
+>  		return;
+> -- 
+>  Kirill A. Shutemov
 
