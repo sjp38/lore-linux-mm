@@ -6,144 +6,143 @@ X-Spam-Status: No, score=-8.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
 	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4309AC31E44
-	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 04:38:16 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6B737C31E53
+	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 04:38:22 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 03A01218A0
-	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 04:38:16 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 03A01218A0
+	by mail.kernel.org (Postfix) with ESMTP id 2860A218A0
+	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 04:38:22 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2860A218A0
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=au1.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B09748E0006; Mon, 17 Jun 2019 00:38:15 -0400 (EDT)
+	id C162E8E0007; Mon, 17 Jun 2019 00:38:21 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A41908E0001; Mon, 17 Jun 2019 00:38:15 -0400 (EDT)
+	id BC6218E0001; Mon, 17 Jun 2019 00:38:21 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 86D438E0006; Mon, 17 Jun 2019 00:38:15 -0400 (EDT)
+	id A40F48E0007; Mon, 17 Jun 2019 00:38:21 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 636438E0001
-	for <linux-mm@kvack.org>; Mon, 17 Jun 2019 00:38:15 -0400 (EDT)
-Received: by mail-yw1-f71.google.com with SMTP id p18so11020496ywe.17
-        for <linux-mm@kvack.org>; Sun, 16 Jun 2019 21:38:15 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 6DC8D8E0001
+	for <linux-mm@kvack.org>; Mon, 17 Jun 2019 00:38:21 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id j7so6318539pfn.10
+        for <linux-mm@kvack.org>; Sun, 16 Jun 2019 21:38:21 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:in-reply-to:references:mime-version
          :content-transfer-encoding:message-id;
-        bh=JNUaZIXkWp18dhJiS+301s789BGEgEjFsfsmKAuMekU=;
-        b=lYELmUo2zX0KNTA810YPviYHr2IeR0kkf7JLOYOwzLLi/v5QygoxA9/enjFtLmZ0po
-         rGJv+ED/mGkDuf3kDnqZWIX+kD1rrm/KIQ0c0qtJFp1lvc8SrL2N4El+WGHdGMsayWzO
-         vWEVtNTHh3ufhOHO9BPUwf3+V1BkaS65M0vQZocgT3MpY3/eGeRpynYI6Sj+4xRM4jak
-         KIJ+oxbDSjsGbaygXWNGhaq6bov61CyC6R4LFpMD2w/VchZRM54RlsiJUiPue8F2sP6T
-         Ttgzgk7IFYuxcH2KJRVuawr/1wSN26TvmH6JRsNwXGHc0Mq80zCttnXVvSIQhx/Mv+7r
-         MMzQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of alastair@au1.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=alastair@au1.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: APjAAAXEDMhYmmosEBqy/VNC8rvma70SMrFI//qI1zQCjW+TrD6qEzns
-	1SphZIpXPxHAileplsAhBGozNAk3WtRLyKZbP+Siku16oEKC9O/MyK1uNZww2/DiRt+ebBdheEU
-	jRzprte1KUpBMPjdUsQwrgKYjLWLksKDPtYu2DKyQof6RlDLbkzG4NcHRj/uwiYmKIQ==
-X-Received: by 2002:a81:1c11:: with SMTP id c17mr61664580ywc.402.1560746295123;
-        Sun, 16 Jun 2019 21:38:15 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxbVZCZO38Pfm9QW/+Fiq6pQyzs3E8FkcTVBQYWLIXwWsjE+zYlZ6A8fjhW7fOzYQkxsaZy
-X-Received: by 2002:a81:1c11:: with SMTP id c17mr61664568ywc.402.1560746294622;
-        Sun, 16 Jun 2019 21:38:14 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560746294; cv=none;
+        bh=qupq6HJVpW6yR0/6vTvyHcMi1an+ZHHeFa9yUcwW2zQ=;
+        b=HqXgzIK+uNRFTMu6JCNjAzlNqPOF6zy1bCWWLJIbbZJf+zs8TaW+q9bqDPN4rOAV3K
+         q/0qIFajGi4EuSR3Q+s3LcTVg9ZjqVvQBc8uZkhooeszuPTFoz7hksyJk0r7ZnQHwXqQ
+         Ys5l+E8RAbRhMxPUFKW4iBJI2IKOaiCatAJZB8dm3CT15ivT9752bOg2dDDyhHscrrJj
+         zFzHZv5LpqlNRBbhmVbpdYHvnOYjctTiScuNJn204RI3m+tM635Hni6AcYCEkOLfAbwv
+         hAW+VJ3jpjjbuhckYwZ6JiYmomZQvLeacwyJwMGPk5jXyfOyoOiG7+1SzS5lDTK5xPYA
+         uU/Q==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of alastair@au1.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=alastair@au1.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: APjAAAUeNRfEEvjs/+iYSJ1sRQpo+fkq07/VStSE6gJqXpZRQbeeqN83
+	8salhHhcCMat4IVyV5oxxQ+huFX1rx47HJTWeNOcHFQ2SkQdcSQINnFn87R1RJ7rW8/bDGdREhf
+	wBF7S4bO/wr31kw24E1LPC/fdGmD28gXYXPcDgzR5msVblF/o1CCLxalqssEqTjOjxQ==
+X-Received: by 2002:a17:902:44a4:: with SMTP id l33mr26269070pld.174.1560746301063;
+        Sun, 16 Jun 2019 21:38:21 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqziI3ysVuXh81TR6EwJ2pXbrc8nDHZ8EZdrhAsI1701Dqc2pJ+jueINN2fAylsCGv16ivfH
+X-Received: by 2002:a17:902:44a4:: with SMTP id l33mr26269041pld.174.1560746300475;
+        Sun, 16 Jun 2019 21:38:20 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560746300; cv=none;
         d=google.com; s=arc-20160816;
-        b=dMKaAQ0yUcKo3MvAUG3WF0CbCtmhzYcKOqxFZAnh9+CAB4mSwihx4p6OJJNkK+/1Sv
-         2Z/lb+6fcLmkc1zZhObkLkv934GhNGNlyWAJBs72NLbLnrHTNgdtprjA16D7vPjUZarR
-         gMwybkoMWRGp7zXee/AunQ8IKVAiALtWb9yqwK/XWOnZxgotvHLQ0uysb/UKIOFwX55Z
-         Z/pHeMhH+6KLFZZLOGgv4bQvgnTnpkSq5nHWd0voXXfK66SrwSM+CMTX8/A+77Dj7G6A
-         sBlXdUm9MhMUvl61QNqSkA8soKCI+8WN9R1FLWqGfd6fOKJ96p86ZqBkLRdKjJpbo1Tr
-         S0Bg==
+        b=jpFuqUuBt+Rk6cdyfMxnV81qj1mqXY8TEhlA1IniqO/IXOUNvld1nTGG4a2z/H+O/g
+         CzaMRQY4yZDGMyLWsS1QarUi3XqB5Cx1BCLtb/mlVNZMjWY/xtoEXDGc3HDwrWubmYLu
+         NnVMvwXBv/vFr2LSLzVCIazTVxMvSvds8KDq+VBUJJkWHTLJGepIEFsTR5RA3TfwhG6R
+         u0v/Ht5LfQK00uqIzmMMBjAkovfNK4n9KOWq84bJkKGH0CM5K50o44Jl8ifrq9R3CMHJ
+         4qVAjHpiG3ragVmuncMjTW60KUVP5bsx+ZyV/ig1fMeMfDWLQIcWkQxbmyEhzzgCKibl
+         AV3g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=message-id:content-transfer-encoding:mime-version:references
          :in-reply-to:date:subject:cc:to:from;
-        bh=JNUaZIXkWp18dhJiS+301s789BGEgEjFsfsmKAuMekU=;
-        b=XHuzpuXKP8bAo3iFuM9LBEaPYq7+HTQc4ew3mpx5hs84MjTzBBmtVitUyNvN4t8wE1
-         5aRFNGHb9WQaQsy5lTFXaO5/6lWgMikarHN8mk2b9hb8Nk5T4XxSw58eoc5nuufFiu83
-         tgp49NkShqk/27m2V9278PmGX1P0ivi6cjQrkWGJ1fPRzjrAEi9R3EV02OnI8GVzBhv5
-         7PxJXftji0HbiH1e/L0jt8alL1159wTPtvkaJkC0FpZETj0Z7u9FVQXEes+amg8QarMo
-         2Mny/Uqxq6iSbYfMxJW9RhffIjqD8RPylOPd7K9V/TbwzoLoBbZuIfrwJUymyGXM+pn4
-         VE5A==
+        bh=qupq6HJVpW6yR0/6vTvyHcMi1an+ZHHeFa9yUcwW2zQ=;
+        b=cKZ4v1cbh4MKh/2RLvu3aklX3hdCaRfEzziyCRO1uPofishXQYP2Sv2+4vbRywdi7S
+         xlMt4jnKukYgySnRLMKIdtwjCX0WOt65yULgC09SwXEOuOkSrCTefS72U64zAVICPCGP
+         OxA4C0Cc28TYbOc4Uyo15xNX+aSJnw7Mtq7Tcz0SWYlqbmIojVzKSBkRlMaWk8iRGfMs
+         jLFmdrPVPOC05+uSM29qlcztL9A7cMARH9wjVueN7cDGECQnlLOUCzIUETx4JsDr4yfg
+         GLWvKAISrgl292mHnjQNbbPKRRap3oP6wjq78/ck5afp3XWwvOY4InlzSXt/EZUOj4a0
+         KXJg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of alastair@au1.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=alastair@au1.ibm.com;
+       spf=pass (google.com: domain of alastair@au1.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=alastair@au1.ibm.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id x11si3570580ywi.252.2019.06.16.21.38.14
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id f34si9445311plf.258.2019.06.16.21.38.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 16 Jun 2019 21:38:14 -0700 (PDT)
-Received-SPF: pass (google.com: domain of alastair@au1.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
+        Sun, 16 Jun 2019 21:38:20 -0700 (PDT)
+Received-SPF: pass (google.com: domain of alastair@au1.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of alastair@au1.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=alastair@au1.ibm.com;
+       spf=pass (google.com: domain of alastair@au1.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=alastair@au1.ibm.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x5H4c1hm087926
-	for <linux-mm@kvack.org>; Mon, 17 Jun 2019 00:38:14 -0400
-Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2t62a8juma-1
+Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x5H4bnXO085945
+	for <linux-mm@kvack.org>; Mon, 17 Jun 2019 00:38:20 -0400
+Received: from e06smtp01.uk.ibm.com (e06smtp01.uk.ibm.com [195.75.94.97])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2t5vee34dv-1
 	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 17 Jun 2019 00:38:14 -0400
+	for <linux-mm@kvack.org>; Mon, 17 Jun 2019 00:38:19 -0400
 Received: from localhost
-	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e06smtp01.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <alastair@au1.ibm.com>;
-	Mon, 17 Jun 2019 05:38:12 +0100
-Received: from b06cxnps3075.portsmouth.uk.ibm.com (9.149.109.195)
-	by e06smtp07.uk.ibm.com (192.168.101.137) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	Mon, 17 Jun 2019 05:38:17 +0100
+Received: from b06avi18878370.portsmouth.uk.ibm.com (9.149.26.194)
+	by e06smtp01.uk.ibm.com (192.168.101.131) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
 	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Mon, 17 Jun 2019 05:38:06 +0100
-Received: from d06av24.portsmouth.uk.ibm.com (d06av24.portsmouth.uk.ibm.com [9.149.105.60])
-	by b06cxnps3075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x5H4c5sM59900020
+	Mon, 17 Jun 2019 05:38:11 +0100
+Received: from d06av22.portsmouth.uk.ibm.com (d06av22.portsmouth.uk.ibm.com [9.149.105.58])
+	by b06avi18878370.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x5H4cA9P37945852
 	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Mon, 17 Jun 2019 04:38:06 GMT
-Received: from d06av24.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id DF9CC4203F;
-	Mon, 17 Jun 2019 04:38:05 +0000 (GMT)
-Received: from d06av24.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 8D7BC42042;
-	Mon, 17 Jun 2019 04:38:05 +0000 (GMT)
+	Mon, 17 Jun 2019 04:38:10 GMT
+Received: from d06av22.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 6C5354C044;
+	Mon, 17 Jun 2019 04:38:10 +0000 (GMT)
+Received: from d06av22.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 18F1D4C05A;
+	Mon, 17 Jun 2019 04:38:10 +0000 (GMT)
 Received: from ozlabs.au.ibm.com (unknown [9.192.253.14])
-	by d06av24.portsmouth.uk.ibm.com (Postfix) with ESMTP;
-	Mon, 17 Jun 2019 04:38:05 +0000 (GMT)
+	by d06av22.portsmouth.uk.ibm.com (Postfix) with ESMTP;
+	Mon, 17 Jun 2019 04:38:10 +0000 (GMT)
 Received: from adsilva.ozlabs.ibm.com (haven.au.ibm.com [9.192.254.114])
 	(using TLSv1.2 with cipher DHE-RSA-AES256-GCM-SHA384 (256/256 bits))
 	(No client certificate requested)
-	by ozlabs.au.ibm.com (Postfix) with ESMTPSA id 7B66FA0208;
-	Mon, 17 Jun 2019 14:38:04 +1000 (AEST)
+	by ozlabs.au.ibm.com (Postfix) with ESMTPSA id 071D1A0208;
+	Mon, 17 Jun 2019 14:38:09 +1000 (AEST)
 From: "Alastair D'Silva" <alastair@au1.ibm.com>
 To: alastair@d-silva.org
 Cc: Andrew Morton <akpm@linux-foundation.org>,
         David Hildenbrand <david@redhat.com>,
         Oscar Salvador <osalvador@suse.com>, Michal Hocko <mhocko@suse.com>,
         Pavel Tatashin <pasha.tatashin@soleen.com>,
-        Wei Yang <richard.weiyang@gmail.com>, Arun KS <arunks@codeaurora.org>,
+        Wei Yang <richard.weiyang@gmail.com>, Juergen Gross <jgross@suse.com>,
         Qian Cai <cai@lca.pw>, Thomas Gleixner <tglx@linutronix.de>,
         Ingo Molnar <mingo@kernel.org>, Josh Poimboeuf <jpoimboe@redhat.com>,
-        Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
-        Peter Zijlstra <peterz@infradead.org>, Jiri Kosina <jkosina@suse.cz>,
-        Mukesh Ojha <mojha@codeaurora.org>,
+        Jiri Kosina <jkosina@suse.cz>, Peter Zijlstra <peterz@infradead.org>,
+        Mukesh Ojha <mojha@codeaurora.org>, Arun KS <arunks@codeaurora.org>,
         Mike Rapoport <rppt@linux.vnet.ibm.com>, Baoquan He <bhe@redhat.com>,
         Logan Gunthorpe <logang@deltatee.com>, linux-mm@kvack.org,
         linux-kernel@vger.kernel.org
-Subject: [PATCH 3/5] mm: Don't manually decrement num_poisoned_pages
-Date: Mon, 17 Jun 2019 14:36:29 +1000
+Subject: [PATCH 4/5] mm/hotplug: Avoid RCU stalls when removing large amounts of memory
+Date: Mon, 17 Jun 2019 14:36:30 +1000
 X-Mailer: git-send-email 2.21.0
 In-Reply-To: <20190617043635.13201-1-alastair@au1.ibm.com>
 References: <20190617043635.13201-1-alastair@au1.ibm.com>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 X-TM-AS-GCONF: 00
-x-cbid: 19061704-0028-0000-0000-0000037ADD8F
+x-cbid: 19061704-4275-0000-0000-00000342E41C
 X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19061704-0029-0000-0000-0000243ADFC2
-Message-Id: <20190617043635.13201-4-alastair@au1.ibm.com>
+x-cbparentid: 19061704-4276-0000-0000-000038530560
+Message-Id: <20190617043635.13201-5-alastair@au1.ibm.com>
 X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-06-17_03:,,
  signatures=0
 X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
  malwarescore=0 suspectscore=1 phishscore=0 bulkscore=0 spamscore=0
  clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=706 adultscore=0 classifier=spam adjust=0 reason=mlx
+ mlxlogscore=928 adultscore=0 classifier=spam adjust=0 reason=mlx
  scancount=1 engine=8.0.1-1810050000 definitions=main-1906170042
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -153,35 +152,29 @@ List-ID: <linux-mm.kvack.org>
 
 From: Alastair D'Silva <alastair@d-silva.org>
 
-Use the function written to do it instead.
+When removing sufficiently large amounts of memory, we trigger RCU stall
+detection. By periodically calling cond_resched(), we avoid bogus stall
+warnings.
 
 Signed-off-by: Alastair D'Silva <alastair@d-silva.org>
 ---
- mm/sparse.c | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ mm/memory_hotplug.c | 3 +++
+ 1 file changed, 3 insertions(+)
 
-diff --git a/mm/sparse.c b/mm/sparse.c
-index 66a99da9b11b..e2402937efe4 100644
---- a/mm/sparse.c
-+++ b/mm/sparse.c
-@@ -11,6 +11,8 @@
- #include <linux/export.h>
- #include <linux/spinlock.h>
- #include <linux/vmalloc.h>
-+#include <linux/swap.h>
-+#include <linux/swapops.h>
- 
- #include "internal.h"
- #include <asm/dma.h>
-@@ -771,7 +773,7 @@ static void clear_hwpoisoned_pages(struct page *memmap,
- 
- 	for (i = map_offset; i < nr_pages; i++) {
- 		if (PageHWPoison(&memmap[i])) {
--			atomic_long_sub(1, &num_poisoned_pages);
-+			num_poisoned_pages_dec();
- 			ClearPageHWPoison(&memmap[i]);
- 		}
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index e096c987d261..382b3a0c9333 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -578,6 +578,9 @@ void __remove_pages(struct zone *zone, unsigned long phys_start_pfn,
+ 		__remove_section(zone, __pfn_to_section(pfn), map_offset,
+ 				 altmap);
+ 		map_offset = 0;
++
++		if (!(i & 0x0FFF))
++			cond_resched();
  	}
+ 
+ 	set_zone_contiguous(zone);
 -- 
 2.21.0
 
