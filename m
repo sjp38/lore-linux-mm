@@ -2,260 +2,305 @@ Return-Path: <SRS0=4FFe=UQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	UNPARSEABLE_RELAY,USER_AGENT_GIT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C9D3FC31E5B
-	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 18:29:06 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 65916C31E5B
+	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 18:48:23 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 741752084D
-	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 18:29:05 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 741752084D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id D010F2084D
+	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 18:48:22 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D010F2084D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 203CA8E0002; Mon, 17 Jun 2019 14:29:05 -0400 (EDT)
+	id 43EFF8E0002; Mon, 17 Jun 2019 14:48:22 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1B46A8E0001; Mon, 17 Jun 2019 14:29:05 -0400 (EDT)
+	id 3EEE38E0001; Mon, 17 Jun 2019 14:48:22 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 02E6A8E0002; Mon, 17 Jun 2019 14:29:04 -0400 (EDT)
+	id 2B6D98E0002; Mon, 17 Jun 2019 14:48:22 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id BBC328E0001
-	for <linux-mm@kvack.org>; Mon, 17 Jun 2019 14:29:04 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id 145so7506203pfv.18
-        for <linux-mm@kvack.org>; Mon, 17 Jun 2019 11:29:04 -0700 (PDT)
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id E73B38E0001
+	for <linux-mm@kvack.org>; Mon, 17 Jun 2019 14:48:21 -0400 (EDT)
+Received: by mail-pl1-f200.google.com with SMTP id d19so6416274pls.1
+        for <linux-mm@kvack.org>; Mon, 17 Jun 2019 11:48:21 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=6H4mkm7WLcM2yq13uqTtAXQ5LOBWBCYMF5NVMbbfEUI=;
-        b=JrruYXDaRVpoXTeoxYwvEfZOceNLDhK6YdpdDChvndDXG40SKevWX0pSPi+mrZfWcy
-         ti+FHl5IYFB4q/5NAvUS/mwA8yEzEpTMii7iRrsZ2bsA2/SAMt/uPkUaUJfJze0+K+pN
-         e8u83RrjxNeMkp0qxm1Gy51XgQH38p9zBCf4ST+rtYBe2Ur8wiIruOewGDr+QBdAwxxQ
-         JglOCFGxMOuHMokf6+p1AvYOlc8AAXD2ft6u4DP/Hr3zixowCmmrTYfQR4Rszq/bu0No
-         bJV/ka7Hxs01z71kRUSxvG/Mpqyv2OHrpr2VePm2ByetLU7I1m3NMhOXgN9OR/Ynq8n6
-         xvSg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAWYX5jH06Pl5maJSPIuMxlw8C6XkgjjH6MYc0e5k2OuoAJzUWpU
-	1GrFLqZGdl16VQ203cSCM6vDi1qCySv4s6rw4OmW088+c3iugx1C0HFys7R7fHL8FUn+bfrjTiD
-	rnzrebAMQbDUHOETL/RslCN4nloC+zG/MeNaxF5+8NJBsfvUmlBsTpz5bKcufYvZHqw==
-X-Received: by 2002:a17:902:7887:: with SMTP id q7mr23551307pll.129.1560796144423;
-        Mon, 17 Jun 2019 11:29:04 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyB9pJ62iF7Fw6AmxL+uNKrlgzHVjTONyjsz5ijX+yYBo2ezIB5SB7VbrVeDmrd6vZCtDDx
-X-Received: by 2002:a17:902:7887:: with SMTP id q7mr23551229pll.129.1560796143513;
-        Mon, 17 Jun 2019 11:29:03 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560796143; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id;
+        bh=cEa79Ing7vSKaX8MDn2jSM4PVmMjoywAZwnvPul/TVo=;
+        b=dOcWspXggsXNajqX/XBhtlfMu1+3Nf5PsGnvCLVFAyzl0wqqV24By9BpEmFMVX3i9s
+         nr1AsNmqSvrzdhJaQN/hYeGYCK3Hrk+efy4/6Rwf/nu68HRMPGTIMF539lVYXRzBVs8w
+         ZcIn3UD7WZnY2cL4zQRy0yZ/SML4zrI/As733M/7SbYXjAufGIhbg2WUbq8Z/rDZE6vI
+         WV4t9q9a/3WbAdKLLQq8JkPVxHe19dQfsim/E51fY+BMG5fzMQwpu6yj4jDo0XE2vdyn
+         A/soedznx4/vxTicLe3ktT249sk0dwq9V/KUDXzoDWp813t7Pry7sAD+fT8kbdi6CNaa
+         XZsQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.43 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Gm-Message-State: APjAAAV+d3Uttlok5x9rlaRCFglRJPNl+luDBAu7Ie672erLy8ZcKwy6
+	PtifQnSMpPoirSAQcxF0KFSpAmgn7zKWrhxunA7EgprxWVitUhhIzu1SN7rMAuJRU/LT1prFvOo
+	hjfNIKqyN5OCcfT4dV2kfH6eFGuk60wBhwycs6QH+V1y98MfLd7Xcc6gT6JQiqZpMeA==
+X-Received: by 2002:a17:90a:23ce:: with SMTP id g72mr265140pje.77.1560797301585;
+        Mon, 17 Jun 2019 11:48:21 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqz3J+d2jyk7FzJaSl95DjMMIpQ8De2R/3GF6h+HbX0JJpjE3xJMvsv82M3SM7OUL1lXp1X2
+X-Received: by 2002:a17:90a:23ce:: with SMTP id g72mr264989pje.77.1560797300016;
+        Mon, 17 Jun 2019 11:48:20 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560797300; cv=none;
         d=google.com; s=arc-20160816;
-        b=JMAvo6PAZuRQLmlY99NUyOqPVMYY5gBiBi0UHqBQQuah5a6jHVs3lfd8kBQSUqs4cH
-         nWoibry5tzy3NY+PiDB6a8KC+tOvauWZR6FUUD3fzfUSUGpZ323AdVw7tRfnJwq6QjqB
-         r5SIlHpNNWjJBy/Jeig0oBbN/q8KMrUNyMDZx31VeAlSUVZSgtd8kb1VnRbj3PCUK+AJ
-         nj2eBjkcwUJT5Vkk7aFeirxefd1GhflmwpCN4yxLjSDpdHkFUd3Xj0IooIzUSb1QTg9u
-         Y4u5WoASRm/5rGI1Yab9eI2U9mWy7sq0ri/zmP2+rbjCAVFqQWilGkNJ1xAB37FVXZR7
-         FlZQ==
+        b=pK5ZAfnBqddugkHAX292G54NKl/W4IAMHv0AvPkS8NzpmlfxA4hca8aymknsGo+PZ5
+         Pn5EeyWZJmV9vyxslWB+92JS9cC81oRJQTXa+gDjTe4GXMZEGQ6/J+WtGPR01o6W4N85
+         SUfQqJr2Z/lbGRd8Pb6k7JQs8KK6fQ6m4jhwCB3nvrn+cNP+qZo4KuP1s9K+bkosNYaE
+         ueyzElgqsw+Nkp2hpNNrG/t56Co0P9+I4z6SHU3esEarbGoBe9Bo4v9F7doUtwfuSCZO
+         ooiGJHA09X+R6eVX53IrAWfz+2wQPTPZCavkipsHogXDS8ncPeqJf6Hu7VqWB/veTbyo
+         pQ7Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
-         :subject;
-        bh=6H4mkm7WLcM2yq13uqTtAXQ5LOBWBCYMF5NVMbbfEUI=;
-        b=Bgtdsj/f53/X1LBXVVD8n0aalWoB4v+iB6l9JEOg9G1ac2GJ3vU1irK0i7798qVgS2
-         E6TXkiTtqCF2KQGVeuPoL1g9r/ff4tNIWqCQNg3zdfdODpsFldUsrfH4E6lWFiyBAIy1
-         yjQiuyJXCRZu6nth5cn9gStXNXs8p9argc/BY5rvbnQ/+2pExJWzFp5j0UUA+F8GcDQf
-         wRDHcKbbSFb9CVLhVde9s1QvdF9rlWIWdGlf3IK9uSQl3vIPWaqqcqhu3QijUlmfpD8V
-         HxOkfWXY/AgkywTEls805gUvpOYVc1XHYsaXRDg8BvVPLyuXtE4eo4ft0yYBExwCYlLG
-         5frA==
+        h=message-id:date:subject:cc:to:from;
+        bh=cEa79Ing7vSKaX8MDn2jSM4PVmMjoywAZwnvPul/TVo=;
+        b=scJ7vfdTMbUOMLzMP9l5OTHimfLO9ZZ5uznUDJXZvpdHmoLNQX2Vin+yZJ2WpCA0+X
+         uxcM8oW0omw1CtHEbbFKKIZY/y3tmf0+iZgrxxCEgGiwf2q0ItOaXY4FRNBU2qAIBPaL
+         aSHlWWlf8dBfBDx8AbN264cCS2TNsl6k4UTc6JcSdRmIcnK8qWgJAuzwoemXbIB8TqRD
+         X1IrL/Y8T/wseudQ/cK6PBNm6II+r/dicKYW6hc3XKMwLAx0a0Wt746AltBgPmQtXrhD
+         h/Z+lUEKfwKntaB+x8cVdAaLrOxGf5irLfs4osyzmncnz56sHgazsMUL2C/viZv69UIV
+         mauw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id d4si11193201plj.124.2019.06.17.11.29.03
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.43 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+Received: from out30-43.freemail.mail.aliyun.com (out30-43.freemail.mail.aliyun.com. [115.124.30.43])
+        by mx.google.com with ESMTPS id co12si693078plb.197.2019.06.17.11.48.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 17 Jun 2019 11:29:03 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.43 as permitted sender) client-ip=192.55.52.43;
+        Mon, 17 Jun 2019 11:48:19 -0700 (PDT)
+Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.43 as permitted sender) client-ip=115.124.30.43;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from orsmga002.jf.intel.com ([10.7.209.21])
-  by fmsmga105.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 17 Jun 2019 11:28:00 -0700
-X-ExtLoop1: 1
-Received: from ray.jf.intel.com (HELO [10.7.201.126]) ([10.7.201.126])
-  by orsmga002.jf.intel.com with ESMTP; 17 Jun 2019 11:27:59 -0700
-Subject: Re: [PATCH, RFC 45/62] mm: Add the encrypt_mprotect() system call for
- MKTME
-To: Andy Lutomirski <luto@kernel.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
- Andrew Morton <akpm@linux-foundation.org>, X86 ML <x86@kernel.org>,
- Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>,
- "H. Peter Anvin" <hpa@zytor.com>, Borislav Petkov <bp@alien8.de>,
- Peter Zijlstra <peterz@infradead.org>, David Howells <dhowells@redhat.com>,
- Kees Cook <keescook@chromium.org>, Kai Huang <kai.huang@linux.intel.com>,
- Jacob Pan <jacob.jun.pan@linux.intel.com>,
- Alison Schofield <alison.schofield@intel.com>, Linux-MM
- <linux-mm@kvack.org>, kvm list <kvm@vger.kernel.org>,
- keyrings@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>,
- Tom Lendacky <thomas.lendacky@amd.com>
-References: <20190508144422.13171-1-kirill.shutemov@linux.intel.com>
- <20190508144422.13171-46-kirill.shutemov@linux.intel.com>
- <CALCETrVCdp4LyCasvGkc0+S6fvS+dna=_ytLdDPuD2xeAr5c-w@mail.gmail.com>
- <3c658cce-7b7e-7d45-59a0-e17dae986713@intel.com>
- <CALCETrUPSv4Xae3iO+2i_HecJLfx4mqFfmtfp+cwBdab8JUZrg@mail.gmail.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=dave.hansen@intel.com; keydata=
- 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
-Message-ID: <5cbfa2da-ba2e-ed91-d0e8-add67753fc12@intel.com>
-Date: Mon, 17 Jun 2019 11:27:59 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.0
-MIME-Version: 1.0
-In-Reply-To: <CALCETrUPSv4Xae3iO+2i_HecJLfx4mqFfmtfp+cwBdab8JUZrg@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.43 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R101e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e04423;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=7;SR=0;TI=SMTPD_---0TURWG85_1560797291;
+Received: from e19h19392.et15sqa.tbsite.net(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TURWG85_1560797291)
+          by smtp.aliyun-inc.com(127.0.0.1);
+          Tue, 18 Jun 2019 02:48:17 +0800
+From: Yang Shi <yang.shi@linux.alibaba.com>
+To: mhocko@suse.com,
+	mgorman@techsingularity.net,
+	vbabka@suse.cz,
+	akpm@linux-foundation.org
+Cc: yang.shi@linux.alibaba.com,
+	linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Subject: [PATCH] mm: mempolicy: handle vma with unmovable pages mapped correctly in mbind
+Date: Tue, 18 Jun 2019 02:48:10 +0800
+Message-Id: <1560797290-42267-1-git-send-email-yang.shi@linux.alibaba.com>
+X-Mailer: git-send-email 1.8.3.1
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Tom Lendacky, could you take a look down in the message to the talk of
-SEV?  I want to make sure I'm not misrepresenting what it does today.
-...
+When running syzkaller internally, we ran into the below bug on 4.9.x
+kernel:
 
+kernel BUG at mm/huge_memory.c:2124!
+invalid opcode: 0000 [#1] SMP KASAN
+Dumping ftrace buffer:
+   (ftrace buffer empty)
+Modules linked in:
+CPU: 0 PID: 1518 Comm: syz-executor107 Not tainted 4.9.168+ #2
+Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 0.5.1 01/01/2011
+task: ffff880067b34900 task.stack: ffff880068998000
+RIP: 0010:[<ffffffff81895d6b>]  [<ffffffff81895d6b>] split_huge_page_to_list+0x8fb/0x1030 mm/huge_memory.c:2124
+RSP: 0018:ffff88006899f980  EFLAGS: 00010286
+RAX: 0000000000000000 RBX: ffffea00018f1700 RCX: 0000000000000000
+RDX: 1ffffd400031e2e7 RSI: 0000000000000001 RDI: ffffea00018f1738
+RBP: ffff88006899f9e8 R08: 0000000000000001 R09: 0000000000000000
+R10: 0000000000000000 R11: fffffbfff0d8b13e R12: ffffea00018f1400
+R13: ffffea00018f1400 R14: ffffea00018f1720 R15: ffffea00018f1401
+FS:  00007fa333996740(0000) GS:ffff88006c600000(0000) knlGS:0000000000000000
+CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+CR2: 0000000020000040 CR3: 0000000066b9c000 CR4: 00000000000606f0
+Stack:
+ 0000000000000246 ffff880067b34900 0000000000000000 ffff88007ffdc000
+ 0000000000000000 ffff88006899f9e8 ffffffff812b4015 ffff880064c64e18
+ ffffea00018f1401 dffffc0000000000 ffffea00018f1700 0000000020ffd000
+Call Trace:
+ [<ffffffff818490f1>] split_huge_page include/linux/huge_mm.h:100 [inline]
+ [<ffffffff818490f1>] queue_pages_pte_range+0x7e1/0x1480 mm/mempolicy.c:538
+ [<ffffffff817ed0da>] walk_pmd_range mm/pagewalk.c:50 [inline]
+ [<ffffffff817ed0da>] walk_pud_range mm/pagewalk.c:90 [inline]
+ [<ffffffff817ed0da>] walk_pgd_range mm/pagewalk.c:116 [inline]
+ [<ffffffff817ed0da>] __walk_page_range+0x44a/0xdb0 mm/pagewalk.c:208
+ [<ffffffff817edb94>] walk_page_range+0x154/0x370 mm/pagewalk.c:285
+ [<ffffffff81844515>] queue_pages_range+0x115/0x150 mm/mempolicy.c:694
+ [<ffffffff8184f493>] do_mbind mm/mempolicy.c:1241 [inline]
+ [<ffffffff8184f493>] SYSC_mbind+0x3c3/0x1030 mm/mempolicy.c:1370
+ [<ffffffff81850146>] SyS_mbind+0x46/0x60 mm/mempolicy.c:1352
+ [<ffffffff810097e2>] do_syscall_64+0x1d2/0x600 arch/x86/entry/common.c:282
+ [<ffffffff82ff6f93>] entry_SYSCALL_64_after_swapgs+0x5d/0xdb
+Code: c7 80 1c 02 00 e8 26 0a 76 01 <0f> 0b 48 c7 c7 40 46 45 84 e8 4c
+RIP  [<ffffffff81895d6b>] split_huge_page_to_list+0x8fb/0x1030 mm/huge_memory.c:2124
+ RSP <ffff88006899f980>
 
->> I actually don't care all that much which one we end up with.  It's not
->> like the extra syscall in the second options means much.
-> 
-> The benefit of the second one is that, if sys_encrypt is absent, it
-> just works.  In the first model, programs need a fallback because
-> they'll segfault of mprotect_encrypt() gets ENOSYS.
+with the below test:
 
-Well, by the time they get here, they would have already had to allocate
-and set up the encryption key.  I don't think this would really be the
-"normal" malloc() path, for instance.
+---8<---
 
->>  How do we
->> eventually stack it on top of persistent memory filesystems or Device
->> DAX?
-> 
-> How do we stack anonymous memory on top of persistent memory or Device
-> DAX?  I'm confused.
+uint64_t r[1] = {0xffffffffffffffff};
 
-If our interface to MKTME is:
+int main(void)
+{
+	syscall(__NR_mmap, 0x20000000, 0x1000000, 3, 0x32, -1, 0);
+				intptr_t res = 0;
+	res = syscall(__NR_socket, 0x11, 3, 0x300);
+	if (res != -1)
+		r[0] = res;
+*(uint32_t*)0x20000040 = 0x10000;
+*(uint32_t*)0x20000044 = 1;
+*(uint32_t*)0x20000048 = 0xc520;
+*(uint32_t*)0x2000004c = 1;
+	syscall(__NR_setsockopt, r[0], 0x107, 0xd, 0x20000040, 0x10);
+	syscall(__NR_mmap, 0x20fed000, 0x10000, 0, 0x8811, r[0], 0);
+*(uint64_t*)0x20000340 = 2;
+	syscall(__NR_mbind, 0x20ff9000, 0x4000, 0x4002, 0x20000340,
+0x45d4, 3);
+	return 0;
+}
 
-	fd = open("/dev/mktme");
-	ptr = mmap(fd);
+---8<---
 
-Then it's hard to combine with an interface which is:
+Actually the test does:
 
-	fd = open("/dev/dax123");
-	ptr = mmap(fd);
+mmap(0x20000000, 16777216, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_ANONYMOUS, -1, 0) = 0x20000000
+socket(AF_PACKET, SOCK_RAW, 768)        = 3
+setsockopt(3, SOL_PACKET, PACKET_TX_RING, {block_size=65536, block_nr=1, frame_size=50464, frame_nr=1}, 16) = 0
+mmap(0x20fed000, 65536, PROT_NONE, MAP_SHARED|MAP_FIXED|MAP_POPULATE|MAP_DENYWRITE, 3, 0) = 0x20fed000
+mbind(..., MPOL_MF_STRICT|MPOL_MF_MOVE) = 0
 
-Where if we have something like mprotect() (or madvise() or something
-else taking pointer), we can just do:
+The setsockopt() would allocate compound pages (16 pages in this test)
+for packet tx ring, then the mmap() would call packet_mmap() to map the
+pages into the user address space specifed by the mmap() call.
 
-	fd = open("/dev/anything987");
-	ptr = mmap(fd);
-	sys_encrypt(ptr);
+When calling mbind(), it would scan the vma to queue the pages for
+migration to the new node.  It would split any huge page since 4.9
+doesn't support THP migration, however, the packet tx ring compound
+pages are not THP and even not movable.  So, the above bug is triggered.
 
-Now, we might not *do* it that way for dax, for instance, but I'm just
-saying that if we go the /dev/mktme route, we never get a choice.
+However, the later kernel is not hit by this issue due to the commit
+d44d363f65780f2ac2ec672164555af54896d40d ("mm: don't assume anonymous
+pages have SwapBacked flag"), which just removes the PageSwapBacked
+check for a different reason.
 
-> I think that, in the long run, we're going to have to either expand
-> the core mm's concept of what "memory" is or just have a whole
-> parallel set of mechanisms for memory that doesn't work like memory.
-...
-> I expect that some day normal memory will  be able to be repurposed as
-> SGX pages on the fly, and that will also look a lot more like SEV or
-> XPFO than like the this model of MKTME.
+But, there is a deeper issue.  According to the semantic of mbind(), it
+should return -EIO if MPOL_MF_MOVE or MPOL_MF_MOVE_ALL was specified and
+the kernel was unable to move all existing pages in the range.  The tx ring
+of the packet socket is definitely not movable, however, mbind returns
+success for this case.
 
-I think you're drawing the line at pages where the kernel can manage
-contents vs. not manage contents.  I'm not sure that's the right
-distinction to make, though.  The thing that is important is whether the
-kernel can manage the lifetime and location of the data in the page.
+Although the most socket file associates with non-movable pages, but XDP
+may have movable pages from gup.  So, it sounds not fine to just check
+the underlying file type of vma in vma_migratable().
 
-Basically: Can the kernel choose where the page comes from and get the
-page back when it wants?
+Change migrate_page_add() to check if the page is movable or not, if it
+is unmovable, just return -EIO.  We don't have to check non-LRU movable
+pages since just zsmalloc and virtio-baloon support this.  And, they
+should be not able to reach here.
 
-I really don't like the current state of things like with SEV or with
-KVM direct device assignment where the physical location is quite locked
-down and the kernel really can't manage the memory.  I'm trying really
-hard to make sure future hardware is more permissive about such things.
- My hope is that these are a temporary blip and not the new normal.
+With this change the above test would return -EIO as expected.
 
-> So, if we upstream MKTME as anonymous memory with a magic config
-> syscall, I predict that, in a few years, it will be end up inheriting
-> all downsides of both approaches with few of the upsides.  Programs
-> like QEMU will need to learn to manipulate pages that can't be
-> accessed outside the VM without special VM buy-in, so the fact that
-> MKTME pages are fully functional and can be GUP-ed won't be very
-> useful.  And the VM will learn about all these things, but MKTME won't
-> really fit in.
+Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
+---
+ include/linux/mempolicy.h |  3 ++-
+ mm/mempolicy.c            | 22 +++++++++++++++++-----
+ 2 files changed, 19 insertions(+), 6 deletions(-)
 
-Kai Huang (who is on cc) has been doing the QEMU enabling and might want
-to weigh in.  I'd also love to hear from the AMD folks in case I'm not
-grokking some aspect of SEV.
-
-But, my understanding is that, even today, neither QEMU nor the kernel
-can see SEV-encrypted guest memory.  So QEMU should already understand
-how to not interact with guest memory.  I _assume_ it's also already
-doing this with anonymous memory, without needing /dev/sme or something.
-
-> And, one of these days, someone will come up with a version of XPFO
-> that could actually be upstreamed, and it seems entirely plausible
-> that it will be totally incompatible with MKTME-as-anonymous-memory
-> and that users of MKTME will actually get *worse* security.
-
-I'm not following here.  XPFO just means that we don't keep the direct
-map around all the time for all memory.  If XPFO and
-MKTME-as-anonymous-memory were both in play, I think we'd just be
-creating/destroying the MKTME-enlightened direct map instead of a
-vanilla one.
+diff --git a/include/linux/mempolicy.h b/include/linux/mempolicy.h
+index 5228c62..cce7ba3 100644
+--- a/include/linux/mempolicy.h
++++ b/include/linux/mempolicy.h
+@@ -198,7 +198,8 @@ static inline bool vma_migratable(struct vm_area_struct *vma)
+ 	if (vma->vm_file &&
+ 		gfp_zone(mapping_gfp_mask(vma->vm_file->f_mapping))
+ 								< policy_zone)
+-			return false;
++		return false;
++
+ 	return true;
+ }
+ 
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index 2219e74..4d9e17d 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -403,7 +403,7 @@ void mpol_rebind_mm(struct mm_struct *mm, nodemask_t *new)
+ 	},
+ };
+ 
+-static void migrate_page_add(struct page *page, struct list_head *pagelist,
++static int migrate_page_add(struct page *page, struct list_head *pagelist,
+ 				unsigned long flags);
+ 
+ struct queue_pages {
+@@ -467,7 +467,9 @@ static int queue_pages_pmd(pmd_t *pmd, spinlock_t *ptl, unsigned long addr,
+ 			goto unlock;
+ 		}
+ 
+-		migrate_page_add(page, qp->pagelist, flags);
++		ret = migrate_page_add(page, qp->pagelist, flags);
++		if (ret)
++			goto unlock;
+ 	} else
+ 		ret = -EIO;
+ unlock:
+@@ -521,7 +523,9 @@ static int queue_pages_pte_range(pmd_t *pmd, unsigned long addr,
+ 		if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL)) {
+ 			if (!vma_migratable(vma))
+ 				break;
+-			migrate_page_add(page, qp->pagelist, flags);
++			ret = migrate_page_add(page, qp->pagelist, flags);
++			if (ret)
++				break;
+ 		} else
+ 			break;
+ 	}
+@@ -940,10 +944,15 @@ static long do_get_mempolicy(int *policy, nodemask_t *nmask,
+ /*
+  * page migration, thp tail pages can be passed.
+  */
+-static void migrate_page_add(struct page *page, struct list_head *pagelist,
++static int migrate_page_add(struct page *page, struct list_head *pagelist,
+ 				unsigned long flags)
+ {
+ 	struct page *head = compound_head(page);
++
++	/* Non-movable page may reach here. */
++	if (!PageLRU(head))
++		return -EIO;
++
+ 	/*
+ 	 * Avoid migrating a page that is shared with others.
+ 	 */
+@@ -955,6 +964,8 @@ static void migrate_page_add(struct page *page, struct list_head *pagelist,
+ 				hpage_nr_pages(head));
+ 		}
+ 	}
++
++	return 0;
+ }
+ 
+ /* page allocation callback for NUMA node migration */
+@@ -1157,9 +1168,10 @@ static struct page *new_page(struct page *page, unsigned long start)
+ }
+ #else
+ 
+-static void migrate_page_add(struct page *page, struct list_head *pagelist,
++static int migrate_page_add(struct page *page, struct list_head *pagelist,
+ 				unsigned long flags)
+ {
++	return -EIO;
+ }
+ 
+ int do_migrate_pages(struct mm_struct *mm, const nodemask_t *from,
+-- 
+1.8.3.1
 
