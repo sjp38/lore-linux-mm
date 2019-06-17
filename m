@@ -2,290 +2,189 @@ Return-Path: <SRS0=4FFe=UQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY,USER_AGENT_MUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id AE045C31E5B
-	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 21:36:58 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 406E6C31E5D
+	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 21:37:51 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6D2A920657
-	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 21:36:58 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6D2A920657
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 024482082C
+	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 21:37:50 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="lljcPfBp"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 024482082C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E6EEE6B0003; Mon, 17 Jun 2019 17:36:57 -0400 (EDT)
+	id 917126B0005; Mon, 17 Jun 2019 17:37:50 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E20AB8E0002; Mon, 17 Jun 2019 17:36:57 -0400 (EDT)
+	id 8C8CE8E0002; Mon, 17 Jun 2019 17:37:50 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CE6D98E0001; Mon, 17 Jun 2019 17:36:57 -0400 (EDT)
+	id 7B6B18E0001; Mon, 17 Jun 2019 17:37:50 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 9446A6B0003
-	for <linux-mm@kvack.org>; Mon, 17 Jun 2019 17:36:57 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id l4so7808494pff.5
-        for <linux-mm@kvack.org>; Mon, 17 Jun 2019 14:36:57 -0700 (PDT)
+Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 5BD9D6B0005
+	for <linux-mm@kvack.org>; Mon, 17 Jun 2019 17:37:50 -0400 (EDT)
+Received: by mail-io1-f71.google.com with SMTP id m26so13610156ioh.17
+        for <linux-mm@kvack.org>; Mon, 17 Jun 2019 14:37:50 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=ppqVdxzcxAahABA2z+AKKdl+43Sl02TIR5zwRqkLHuo=;
-        b=pAztH8lEXWL/ifSAY0mLRuIAYxtrQBwEhLzgf2KQ/ownK+/d6A3L5XzO+J3RyacCa6
-         JBfsRfjItFHLp7UzBursOE1fvIwuivjkNgXB82FkJ3HptHJMqDC2Q6h1OQn/VGtFOc33
-         EDceXhPoIsW1uTnmCzKTbWe6mephHiinKZNuvWMFYj+JQOgrAkTgchKmj8c3wfpnRrX4
-         nAUuOsoHBchBDRVtlTtzRkA5DiWUP76iJ6n3vBC/Gs4yUQ5TqmmwfPFCXlJZj3B5FKJS
-         mCagYrSnSv6gGYMRIdJehfwm2+ptyWwAxnirWy+vOo+c/0hNjNRaAFx1DAWFph/5y25W
-         jHpA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAWH6G15TNPqRr4ZBIc+3LGvwGTrMjh6S4bb1Y7gRHc7otddb8JU
-	Gu21x8WLP5w6eJcrQWSeWzBilxCP8GzPvZPhuaMVVz3SrZqFca5UkGXTjPHiNKVRv9CHrOtA0Mi
-	jFC10He3GAIDbF4hgrkdXpn/b1NdFToAKoS1Rde1vxu8QBtpCUeOKZsZT6g5UMT6ZHw==
-X-Received: by 2002:a62:2784:: with SMTP id n126mr49706836pfn.61.1560807417236;
-        Mon, 17 Jun 2019 14:36:57 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxv0HsfB1IoUOTZ70/WfEBroMRSFXoov1aPbT22Ek/rsxKRg6u0I4CRrwVTS9Hi3DJBG2c/
-X-Received: by 2002:a62:2784:: with SMTP id n126mr49706762pfn.61.1560807416280;
-        Mon, 17 Jun 2019 14:36:56 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560807416; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=GOIdRAMf3skF4wPK2T/7fFj0vhfi1GT6kR2ybYgOAu4=;
+        b=g9bBEzKBB8GfNUXs2TyIRL1viN4IbKg1hj1OTV/GmNzOW/1EVPDIP3BOamOFof6mcf
+         9ckMGMYkkCVV7+zmrDbd5OVDOu0H2Q6cN6qrlNFOf8ClQV2xSyWa8ZDklTG0v2/MV224
+         PMCZB2W/BZ7zItCvNQPLNHL1HwgYF7FZl34iMWDeRQ2oRAHySwfuBuuXF7urSZUa4YYf
+         0BGQSVuSJYKBHEMxFfSLVNFQUf8SnEDFeDwYvMUH9HpiIU1ZHHx87ulXtIVzt0YVfsgv
+         QCfNYqZp11vrSR+9BUmreFTDBCYhh8Kc1ByCc99HdFD6iDpg/qGAq5Tv0bj6t6xv/YPh
+         pUsQ==
+X-Gm-Message-State: APjAAAXYpNVl1qnfQO8zQW1UOM1v0JxBF9KXd7oofMsNVRIJ3K3AKutO
+	sGCvh94YPbdaCxf7cbDA4GLCcIxHwd333hApidl8N1k/XtV18KaHQLMItvIYX9Z0FqeDfNfEf8C
+	xJA1h9NQ8AmZBWvIF2mF9BF2FmVEZRWWbU+dQNQWSR1qQO3lWhlrLXobtZ1XSJ8bq1w==
+X-Received: by 2002:a05:6638:605:: with SMTP id g5mr3484jar.110.1560807470077;
+        Mon, 17 Jun 2019 14:37:50 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqz1RrNrJfIXp38RwMGkfBYEWdlBj56nqI23fMvaVikuGVKZdYSjFBxFyWJ6r/sQRXYpneBR
+X-Received: by 2002:a05:6638:605:: with SMTP id g5mr963457jar.110.1560797080465;
+        Mon, 17 Jun 2019 11:44:40 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560797080; cv=none;
         d=google.com; s=arc-20160816;
-        b=JRoRlt6RoHBiD/F7rKV8r73XNtoL63VhDOtp1sfRVReWKMB1QtjccbnHUdRYXvT4zj
-         0ZgYa1rxBx9jHiX63I5mPfi2eyeTPyZCSy25KNO+pQhi1MAiTgd6JH3YPnDqLXT1a+0V
-         T/EZ6eNrVBZbVVajK5HERG7j/gAoIZMa7eh61WQuMK5ZmunJAd1YLGIuW4uQCePZoeu/
-         VZ2UT9PVqia1Ve8c1GaqigngYMnU82NCsA+/nGTgyPQh4WYhMf5gWyW5X8OZBqH/UZ81
-         tDy1a0uYLG9ZACYUShAMJswSZ6JrTYhc1izKNZaxQaBFpEr3QlJIhtNPM5Ej7NkRVOc3
-         MIlQ==
+        b=LVOG8otoCTh8ayeeDxYEE42FRgBBUY5LnuSJDFKokRcE8zvDHTonkaTRLxJ7IiJFS1
+         Rv0vTx4J97HYqqvRus4BLYez9+OBRmuJSe6B3jf2C/i+GPFk6IHujP7xQffprEu2h5MC
+         IZ890ZG8e4yIhM3wefJPnx4JeB2FOgquDhL2h4ol8U6aNtd0jxwy1jNRNxDXurOniF26
+         SJQU8DVNWlTBVNFfWrqrZ810IO/Zm9/bCPM7KrDISZm2BMBFBC/hWhET76QOzp+paJ5C
+         r/Th6JZFb8n+p0IkocvjqtQzCr86280Tcm54zJFstugGglqMDh8GJQKCSDimSe+ZDllG
+         KFhA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
-         :subject;
-        bh=ppqVdxzcxAahABA2z+AKKdl+43Sl02TIR5zwRqkLHuo=;
-        b=DKo3iOR1paTLDX7QbNdCHUuDyJB+TAOSm7wd5w2sGzcHiuP4v+WnhF5X+M96pbeIzC
-         eEe6P27OziyhbfX0feqh1pEalY4Qc942zkfsgiJaNeA2l6mZbRRM/KKR7BHd0bfzupk/
-         x7qRfcqGV8Eaa5JkcE8kWTNQpFBGkr0qoBLZk5Y+rfvjjhc/+QMzbK7FyEZrviVN5FVg
-         4rkxqJ3iB6vWiu9Cq68VzhzAfABXD7FyCWYnaJ2AX4B4eXyge6nI4a4u8M9cn+e0ffXZ
-         rI3HM8E+r4enkb6gY/PQD0JokCaF8abmr84kjYJXohcVXW0gkyN9gVTgTmNKHsvGUlHf
-         zuyg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=GOIdRAMf3skF4wPK2T/7fFj0vhfi1GT6kR2ybYgOAu4=;
+        b=VZtky4jpk7pcfOI5pzkPeFx+eHSg+aWw5m+tuR3Pu5F66Y/nObZCQ2DFo5GdE0j9M+
+         LixJGnKQ+guBab5R8/Bdo9r/xWpiy2oIQIxMgLZb2LBbBamEWyCObNBPdFNfcO6DknYr
+         vE1vSAhAcrHJsAUEeMpWVJmO1Nh0TCbedaABYpyBzvnSp9GljEvmDWMrrVT0ukRvm2xU
+         dFKdlVAih95bVa78126QP7aameNVHCUEHgbKFkb7n32ix4s0MAl0m2PJHI3WOrivc5X8
+         Snmx4q/pfBMoP7Mfo3vz0YzdSUn8ig20hEDwVM1w8eTU6VUVSwQHcGUl/9wmxnJLIl34
+         jVXQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id a6si390530pjo.91.2019.06.17.14.36.55
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=lljcPfBp;
+       spf=pass (google.com: domain of konrad.wilk@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=konrad.wilk@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id k17si15057532iok.52.2019.06.17.11.44.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 17 Jun 2019 14:36:55 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.43 as permitted sender) client-ip=192.55.52.43;
+        Mon, 17 Jun 2019 11:44:40 -0700 (PDT)
+Received-SPF: pass (google.com: domain of konrad.wilk@oracle.com designates 156.151.31.85 as permitted sender) client-ip=156.151.31.85;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from orsmga005.jf.intel.com ([10.7.209.41])
-  by fmsmga105.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 17 Jun 2019 14:36:55 -0700
-X-ExtLoop1: 1
-Received: from ray.jf.intel.com (HELO [10.7.201.126]) ([10.7.201.126])
-  by orsmga005.jf.intel.com with ESMTP; 17 Jun 2019 14:36:54 -0700
-Subject: Re: [PATCH, RFC 45/62] mm: Add the encrypt_mprotect() system call for
- MKTME
-To: Andy Lutomirski <luto@kernel.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
- Andrew Morton <akpm@linux-foundation.org>, X86 ML <x86@kernel.org>,
- Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>,
- "H. Peter Anvin" <hpa@zytor.com>, Borislav Petkov <bp@alien8.de>,
- Peter Zijlstra <peterz@infradead.org>, David Howells <dhowells@redhat.com>,
- Kees Cook <keescook@chromium.org>, Kai Huang <kai.huang@linux.intel.com>,
- Jacob Pan <jacob.jun.pan@linux.intel.com>,
- Alison Schofield <alison.schofield@intel.com>, Linux-MM
- <linux-mm@kvack.org>, kvm list <kvm@vger.kernel.org>,
- keyrings@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>,
- Tom Lendacky <thomas.lendacky@amd.com>
-References: <20190508144422.13171-1-kirill.shutemov@linux.intel.com>
- <20190508144422.13171-46-kirill.shutemov@linux.intel.com>
- <CALCETrVCdp4LyCasvGkc0+S6fvS+dna=_ytLdDPuD2xeAr5c-w@mail.gmail.com>
- <3c658cce-7b7e-7d45-59a0-e17dae986713@intel.com>
- <CALCETrUPSv4Xae3iO+2i_HecJLfx4mqFfmtfp+cwBdab8JUZrg@mail.gmail.com>
- <5cbfa2da-ba2e-ed91-d0e8-add67753fc12@intel.com>
- <CALCETrWFXSndmPH0OH4DVVrAyPEeKUUfNwo_9CxO-3xy9awq0g@mail.gmail.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=dave.hansen@intel.com; keydata=
- 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
-Message-ID: <d599b1d7-9455-3012-0115-96ddbad31833@intel.com>
-Date: Mon, 17 Jun 2019 14:36:54 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.0
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=lljcPfBp;
+       spf=pass (google.com: domain of konrad.wilk@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=konrad.wilk@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
+	by userp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x5HIhvF7186461;
+	Mon, 17 Jun 2019 18:44:20 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=date : from : to : cc
+ : subject : message-id : references : mime-version : content-type :
+ in-reply-to; s=corp-2018-07-02;
+ bh=GOIdRAMf3skF4wPK2T/7fFj0vhfi1GT6kR2ybYgOAu4=;
+ b=lljcPfBpWWXCHaf1yRMmXyfI54fHwvCFKfK5VIao6y/jBGDnvk52ml8ocSTuVDbgc2QO
+ aKpxdSEeWRAAE+4oDoqRrIrhX+jfnrFlj7QNLaYUL0F/6MzY/SzEzmD1f6vEiHByXW49
+ VI5gQ1ROqihrvrj4+AK0i3Ww+1kYqFVi58GQ0JM//3tp5uKq7RYNjAPJf5QPQ90/6ssZ
+ kh8E6dIhQMuR1uTOnbVXsoqrYQL40V88lnlUVGONOr9O9ZVkcJjKoy+5QYdfAgjFfDej
+ Jv53Hqeo8nSxxDhrbBtZbtWsG6GEfXzg37XQNCJA9pfhAEwU7SeLpbHIik7nMCKfnIBS xg== 
+Received: from userp3030.oracle.com (userp3030.oracle.com [156.151.31.80])
+	by userp2120.oracle.com with ESMTP id 2t4saq83g6-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Mon, 17 Jun 2019 18:44:19 +0000
+Received: from pps.filterd (userp3030.oracle.com [127.0.0.1])
+	by userp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x5HIhXeI066471;
+	Mon, 17 Jun 2019 18:44:19 GMT
+Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
+	by userp3030.oracle.com with ESMTP id 2t59gdcub9-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Mon, 17 Jun 2019 18:44:19 +0000
+Received: from abhmp0014.oracle.com (abhmp0014.oracle.com [141.146.116.20])
+	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x5HIiDdo015527;
+	Mon, 17 Jun 2019 18:44:14 GMT
+Received: from char.us.oracle.com (/10.152.32.25)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Mon, 17 Jun 2019 11:44:12 -0700
+Received: by char.us.oracle.com (Postfix, from userid 1000)
+	id DF1D76A0120; Mon, 17 Jun 2019 14:45:36 -0400 (EDT)
+Date: Mon, 17 Jun 2019 14:45:36 -0400
+From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: Nadav Amit <nadav.amit@gmail.com>, Andy Lutomirski <luto@kernel.org>,
+        Alexander Graf <graf@amazon.com>, Thomas Gleixner <tglx@linutronix.de>,
+        Marius Hillenbrand <mhillenb@amazon.de>,
+        kvm list <kvm@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>,
+        Kernel Hardening <kernel-hardening@lists.openwall.com>,
+        Linux-MM <linux-mm@kvack.org>, Alexander Graf <graf@amazon.de>,
+        David Woodhouse <dwmw@amazon.co.uk>,
+        the arch/x86 maintainers <x86@kernel.org>,
+        Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [RFC 00/10] Process-local memory allocations for hiding KVM
+ secrets
+Message-ID: <20190617184536.GB11017@char.us.oracle.com>
+References: <eecc856f-7f3f-ed11-3457-ea832351e963@intel.com>
+ <A542C98B-486C-4849-9DAC-2355F0F89A20@amacapital.net>
+ <alpine.DEB.2.21.1906141618000.1722@nanos.tec.linutronix.de>
+ <58788f05-04c3-e71c-12c3-0123be55012c@amazon.com>
+ <63b1b249-6bc7-ffd9-99db-d36dd3f1a962@intel.com>
+ <CALCETrXph3Zg907kWTn6gAsZVsPbCB3A2XuNf0hy5Ez2jm2aNQ@mail.gmail.com>
+ <698ca264-123d-46ae-c165-ed62ea149896@intel.com>
+ <CALCETrVt=X+FB2cM5hMN9okvbcROFfT4_KMwaKaN2YVvc7UQTw@mail.gmail.com>
+ <5AA8BF10-8987-4FCB-870C-667A5228D97B@gmail.com>
+ <f6f352ed-750e-d735-a1c9-7ff133ca8aea@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <CALCETrWFXSndmPH0OH4DVVrAyPEeKUUfNwo_9CxO-3xy9awq0g@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <f6f352ed-750e-d735-a1c9-7ff133ca8aea@intel.com>
+User-Agent: Mutt/1.9.1 (2017-09-22)
+X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9291 signatures=668687
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
+ phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
+ adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
+ engine=8.0.1-1810050000 definitions=main-1906170165
+X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9291 signatures=668687
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1011
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
+ definitions=main-1906170166
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
->> Where if we have something like mprotect() (or madvise() or something
->> else taking pointer), we can just do:
->>
->>         fd = open("/dev/anything987");
->>         ptr = mmap(fd);
->>         sys_encrypt(ptr);
+On Mon, Jun 17, 2019 at 11:07:45AM -0700, Dave Hansen wrote:
+> On 6/17/19 9:53 AM, Nadav Amit wrote:
+> >>> For anyone following along at home, I'm going to go off into crazy
+> >>> per-cpu-pgds speculation mode now...  Feel free to stop reading now. :)
+> >>>
+> >>> But, I was thinking we could get away with not doing this on _every_
+> >>> context switch at least.  For instance, couldn't 'struct tlb_context'
+> >>> have PGD pointer (or two with PTI) in addition to the TLB info?  That
+> >>> way we only do the copying when we change the context.  Or does that tie
+> >>> the implementation up too much with PCIDs?
+> >> Hmm, that seems entirely reasonable.  I think the nasty bit would be
+> >> figuring out all the interactions with PV TLB flushing.  PV TLB
+> >> flushes already don't play so well with PCID tracking, and this will
+> >> make it worse.  We probably need to rewrite all that code regardless.
+> > How is PCID (as you implemented) related to TLB flushing of kernel (not
+> > user) PTEs? These kernel PTEs would be global, so they would be invalidated
+> > from all the address-spaces using INVLPG, I presume. No?
 > 
-> I'm having a hard time imagining that ever working -- wouldn't it blow
-> up if someone did:
+> The idea is that you have a per-cpu address space.  Certain kernel
+> virtual addresses would map to different physical address based on where
+> you are running.  Each of the physical addresses would be "owned" by a
+> single CPU and would, by convention, never use a PGD that mapped an
+> address unless that CPU that "owned" it.
 > 
-> fd = open("/dev/anything987");
-> ptr1 = mmap(fd);
-> ptr2 = mmap(fd);
-> sys_encrypt(ptr1);
-> 
-> So I think it really has to be:
-> fd = open("/dev/anything987");
-> ioctl(fd, ENCRYPT_ME);
-> mmap(fd);
+> In that case, you never really invalidate those addresses.
 
-Yeah, shared mappings are annoying. :)
-
-But, let's face it, nobody is going to do what you suggest in the
-ptr1/ptr2 example.  It doesn't make any logical sense because it's
-effectively asking to read the memory with two different keys.  I
-_believe_ fscrypt has similar issues and just punts on them by saying
-"don't do that".
-
-We can also quite easily figure out what's going on.  It's a very simple
-rule to kill a process that tries to fault a page in whose KeyID doesn't
-match the VMA under which it is faulted in, and also require that no
-pages are faulted in under VMAs which have their key changed.
-
-
->> Now, we might not *do* it that way for dax, for instance, but I'm just
->> saying that if we go the /dev/mktme route, we never get a choice.
->>
->>> I think that, in the long run, we're going to have to either expand
->>> the core mm's concept of what "memory" is or just have a whole
->>> parallel set of mechanisms for memory that doesn't work like memory.
->> ...
->>> I expect that some day normal memory will  be able to be repurposed as
->>> SGX pages on the fly, and that will also look a lot more like SEV or
->>> XPFO than like the this model of MKTME.
->>
->> I think you're drawing the line at pages where the kernel can manage
->> contents vs. not manage contents.  I'm not sure that's the right
->> distinction to make, though.  The thing that is important is whether the
->> kernel can manage the lifetime and location of the data in the page.
-> 
-> The kernel can manage the location of EPC pages, for example, but only
-> under extreme constraints right now.  The draft SGX driver can and
-> does swap them out and swap them back in, potentially at a different
-> address.
-
-The kernel can't put arbitrary data in EPC pages and can't use normal
-memory for EPC.  To me, that puts them clearly on the side of being
-unmanageable by the core mm code.
-
-For instance, there's no way we could mix EPC pages in the same 'struct
-zone' with non-EPC pages.  Not only are they not in the direct map, but
-they never *can* be, even for a second.
-
->>> And, one of these days, someone will come up with a version of XPFO
->>> that could actually be upstreamed, and it seems entirely plausible
->>> that it will be totally incompatible with MKTME-as-anonymous-memory
->>> and that users of MKTME will actually get *worse* security.
->>
->> I'm not following here.  XPFO just means that we don't keep the direct
->> map around all the time for all memory.  If XPFO and
->> MKTME-as-anonymous-memory were both in play, I think we'd just be
->> creating/destroying the MKTME-enlightened direct map instead of a
->> vanilla one.
-> 
-> What I'm saying is that I can imagine XPFO also wanting to be
-> something other than anonymous memory.  I don't think we'll ever want
-> regular MAP_ANONYMOUS to enable XPFO by default because the
-> performance will suck.
-
-It will certainly suck for some things.  But, does it suck if the kernel
-never uses the direct map for the XPFO memory?  If it were for KVM guest
-memory for a guest using direct device assignment, we might not even
-ever notice.
-
-> I'm thinking that XPFO is a *lot* simpler under the hood if we just
-> straight-up don't support GUP on it.  Maybe we should call this
-> "strong XPFO".  Similarly, the kinds of things that want MKTME may
-> also want the memory to be entirely absent from the direct map.  And
-> the things that use SEV (as I understand it) *can't* usefully use the
-> memory for normal IO via GUP or copy_to/from_user(), so these things
-> all have a decent amount in common.
-
-OK, so basically, you're thinking about new memory management
-infrastructure that a memory-allocating-app can opt into where they get
-a reduced kernel feature set, but also increased security guarantees?
- The main insight thought is that some hardware features *already*
-impose (some of) this reduced feature set?
-
-FWIW, I don't think many folks will go for the no-GUP rule.  It's one
-thing to say no-GUPs for SGX pages which can't have I/O done on them in
-the first place, but it's quite another to tell folks that sendfile() no
-longer works without bounce buffers.
-
-MKTME's security guarantees are very different than something like SEV.
- Since the kernel is in the trust boundary, it *can* do fun stuff like
-RDMA which is a heck of a lot faster than bounce buffering.  Let's say a
-franken-system existed with SEV and MKTME.  It isn't even clear to me
-that *everyone* would pick SEV over MKTME.  IOW, I'm not sure the MKTME
-model necessarily goes away given the presence of SEV.
-
-> And another silly argument: if we had /dev/mktme, then we could
-> possibly get away with avoiding all the keyring stuff entirely.
-> Instead, you open /dev/mktme and you get your own key under the hook.
-> If you want two keys, you open /dev/mktme twice.  If you want some
-> other program to be able to see your memory, you pass it the fd.
-
-We still like the keyring because it's one-stop-shopping as the place
-that *owns* the hardware KeyID slots.  Those are global resources and
-scream for a single global place to allocate and manage them.  The
-hardware slots also need to be shared between any anonymous and
-file-based users, no matter what the APIs for the anonymous side.
+But you would need to invalidate if the process moved to another CPU, correct?
 
