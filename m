@@ -7,93 +7,93 @@ X-Spam-Status: No, score=-5.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	SPF_HELO_NONE,SPF_PASS,USER_AGENT_NEOMUTT autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6A38BC31E44
-	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 05:39:04 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C94A9C31E44
+	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 05:39:05 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 220C12189F
-	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 05:39:04 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 8FA65218AD
+	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 05:39:05 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=ozlabs.org header.i=@ozlabs.org header.b="eD7AWdyT"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 220C12189F
+	dkim=pass (2048-bit key) header.d=ozlabs.org header.i=@ozlabs.org header.b="q8UH+np3"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8FA65218AD
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=ozlabs.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 99EA38E0004; Mon, 17 Jun 2019 01:39:03 -0400 (EDT)
+	id CDA8E8E0001; Mon, 17 Jun 2019 01:39:03 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 928F38E0003; Mon, 17 Jun 2019 01:39:03 -0400 (EDT)
+	id A12878E0005; Mon, 17 Jun 2019 01:39:03 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7A38D8E0004; Mon, 17 Jun 2019 01:39:03 -0400 (EDT)
+	id 83DC08E0001; Mon, 17 Jun 2019 01:39:03 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D5B68E0001
+	by kanga.kvack.org (Postfix) with ESMTP id 44FF78E0003
 	for <linux-mm@kvack.org>; Mon, 17 Jun 2019 01:39:03 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id y5so6378226pfb.20
+Received: by mail-pf1-f199.google.com with SMTP id i27so1774951pfk.12
         for <linux-mm@kvack.org>; Sun, 16 Jun 2019 22:39:03 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
          :message-id:references:mime-version:content-disposition:in-reply-to
          :user-agent;
-        bh=MEuTygCJ6Xax58DR+UcV5guqG2CkKwNktr/dWSO/m8U=;
-        b=DLCtB24kiIEXCKPKd/qmJC+OEmaQMggeJXNFd/Reh3KL/SZErfEU1K5F8EcSrYIx+1
-         xF71yEyxHkALPbpG4/8BNCZD5I1mPWT/wzt/Idwt1g+KfHqQpzDeukWZyVT9z/uHHeAK
-         jU98l9F8gatgqRSjKfem73PraZqciI+jlk1Hvp+oj3UmTWTS6CN9obpOw+k1dtmQycm4
-         8Vt73AJmLYOA0azaTeuX5XW7T4jVbVlxqGlz5Wzxl7f0f/shGGj3AYRYNib4f9w7+4Vk
-         VTfD4PmVs2X6fha9wpps6yTQgoiyC6rD62Zvf0kmtjeiOrKgJVdNfmOLRzRDoQi2X7AV
-         wRcw==
-X-Gm-Message-State: APjAAAVF5WRG8nH93aWIzKzl5b5LpKpxQAbBNWuYQChMUZQCmRI8YjY8
-	VEGrJhven6V1Pplwk7VCXPwCWgsUNsIXMkSlUtqCjtuivRY4XAQ7iQfVNUFX33t+q+D/9OjmtWC
-	iAEFCZgIi0h3gysf+EWVzfIQrvnWiQvnXWWTyY8m+/4Sp3eM1rXdoiCef7VpZ3XgOuw==
-X-Received: by 2002:a17:902:bb90:: with SMTP id m16mr37754647pls.54.1560749942811;
+        bh=MfuM4fRiuyhbGnnpExOOezm72lU0uhlDwrLdkmY7OTQ=;
+        b=gW+/CBuzyJCXxqNzsOca2NCC11VcY5atYOsahz8Mgzw62MCDYI75/1jQdyIV7KemRs
+         tDUFH+4wXyjPYvoCIQqLMK5mRle+G0PTYJtSnZeLyGOdPkuzirMP4CHeTKls3v8fW4J3
+         GZwzH4ZHRyPP3AmZY05+SSAIYgJIOiZzB9mpz6pLSYnaOPSA8FoYdV1v7gbJxBVi4tLo
+         qJD6XPaXqW+IrlzFnOaBiDvUO3z9AF9KrwBtNH+DTwG07tRhOq5mTQ0BQS7q9uZ1avQ6
+         n013ajAzMmzJd2qHKOU9s0t4ELiCT4VPfQzDK0PfErrVF35kV9ACxwK75Py2j4d5wa7S
+         P0Fw==
+X-Gm-Message-State: APjAAAVga/63Xb3u7X73E8Och5tH/Di6G7Xu/4E3E/DQ4KGVidgXAEGd
+	4hIHMmykgVgy4mf5RidHmhnZpKJ3CPwE8KJirylbYJ+r26gisosUeTvzDOID7zcx6ggskkW04ph
+	AS56xGC/+w1GzaRr2GjRtcatFyD4pS+PxM4taePGEV9cJwdQYn5jI8K/ohmoKTC0Ulw==
+X-Received: by 2002:a63:8f09:: with SMTP id n9mr46879413pgd.249.1560749942844;
         Sun, 16 Jun 2019 22:39:02 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy2v2nY4uY2T/SRyK0emXSvuq2dn+Z3re550UaYa/+4bb5/K2NIBqbwhuFihzLsFZnsb9Le
-X-Received: by 2002:a17:902:bb90:: with SMTP id m16mr37754605pls.54.1560749942026;
+X-Google-Smtp-Source: APXvYqzV5s2uvVMvvfGbGNowwk+9swckrSkVfJjbotl/LTgQGD5QwrLiNrM70m0qqJwLq0KoTplO
+X-Received: by 2002:a63:8f09:: with SMTP id n9mr46879380pgd.249.1560749942085;
         Sun, 16 Jun 2019 22:39:02 -0700 (PDT)
 ARC-Seal: i=1; a=rsa-sha256; t=1560749942; cv=none;
         d=google.com; s=arc-20160816;
-        b=IlK93qaDSaQspkFu52c+uxB8HjDowoM3znoFHijIYrIdT5RT6aTdcgQcRKYwe0Iou/
-         lTyMuqacUlVLPiX+aRPcxrlCHroQnic641OtmxbR8g+6UGcJ6pf6JltmbZCIY1WxJZ5d
-         w/F7TMtMuEVN0q8m2AQIrxlolOs1yKkOJVZf4xHM9xK/JW4RbhZsDIATZJR1cG2VAg2b
-         8oLY/uHTPOB0lZNnqPGq3SJv/9K4DuzTdLvGRKh18+XiAOIfiZwsF4hC8qNpLc2j86kq
-         WkQDnTrZ9ggYGIRb/u8aUuMGMeUChit9UKvKGie19ckBa2GJtwgPhHSJ4SI4cwaxgZO9
-         6h5Q==
+        b=rC2NesGrR3S17InQHlZAHzetSFpqcMm0Z89RcgrqE/EfokZj9eOYic38gci1dkgUCR
+         qeAFWHPJx6a+j7PHnxGBEpioUzQzXQqEjDsVJHm/TGHp6NMDYP1oo75REQU9lN7otWa9
+         4XjMADg1JR6GnnxPTHRCEOOToCg5KdEhkZoJXssfj6gxMMQ/CBdeIzf1ryeUDF2lSCOK
+         dOQ9Staa1j3UG59qv9Zzuksk3lbgmHF/77CRHfhiLxtuIqo1WWtYwJ41b9txrFYXip9h
+         ACxuIYjCRwc8UkqTEg8HGdaKIHZlpEqX/OfbF5+9uaX6d7jjPznLEq6BZtaW/JpMq5J7
+         91AA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=MEuTygCJ6Xax58DR+UcV5guqG2CkKwNktr/dWSO/m8U=;
-        b=pBC6+kxghE4xcDeOpj+j3QdTBeujXjv6hboau/xLIRIi+7cYMlCNOhLV+s6fgmC7A4
-         6HBq84Ht2dsrP1Cx6fraeDdaOphQAXYo9TMgocPv266Y4o053sjJz2UOiZMm6HSY6mA2
-         vvjQAW6fL1ctRFQO3pTXS88pXnETyRkrM2KNe8FmD4hC2Lm2M7oka/TIEsWzYfEHuTRP
-         tCX2YsJT+j9FSVnpBtmC+iaidrhMxa0nEXWihkcCk64wBGzF5QzPwcR/LKCEZOjmIMbx
-         Yoe/88Mpyc0HIIANZsArT70iY9O26uQI9sfsmPKHCXoBvxJ1zBBuiBPjv99ccshVpEVK
-         qYkQ==
+        bh=MfuM4fRiuyhbGnnpExOOezm72lU0uhlDwrLdkmY7OTQ=;
+        b=AZpowksLi+8pzoW5DC99Sgd7axYsq55WBhi/pQXR3wVIr07CV5q7xy09CbZNoszSdX
+         QkXQuY+bM8yrikCtEMnAGVUbkVfsGRS4pzD7rcu1bVifEfWjZqfBp1eNhbkw0v7brGbJ
+         bBlxZXUKn/jjr6KHZ4Qw6dRinv3ewu3Z2vzICfSzxzkU59YIKRDdcw84DA0hFUVKVeyC
+         lgYlL0kN1Ba4X7C8RUyaEnKpMbOW14U/dMiROdq/Lm/n/zf11QxNp/hrHaZJ2SCmy0RE
+         s9BYvOjHb+WEun28QZZShRZGm8FuO6JIS7GPQ8V8A5N7Zc3Jczf0qVlh4C6+dqENhnS8
+         habw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@ozlabs.org header.s=201707 header.b=eD7AWdyT;
-       spf=pass (google.com: domain of paulus@ozlabs.org designates 203.11.71.1 as permitted sender) smtp.mailfrom=paulus@ozlabs.org;
+       dkim=pass header.i=@ozlabs.org header.s=201707 header.b=q8UH+np3;
+       spf=pass (google.com: domain of paulus@ozlabs.org designates 2401:3900:2:1::2 as permitted sender) smtp.mailfrom=paulus@ozlabs.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ozlabs.org
-Received: from ozlabs.org (bilbo.ozlabs.org. [203.11.71.1])
-        by mx.google.com with ESMTPS id s11si9549061pgp.326.2019.06.16.22.39.01
+Received: from ozlabs.org (bilbo.ozlabs.org. [2401:3900:2:1::2])
+        by mx.google.com with ESMTPS id z20si9353074pfa.282.2019.06.16.22.39.01
         for <linux-mm@kvack.org>
         (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
         Sun, 16 Jun 2019 22:39:02 -0700 (PDT)
-Received-SPF: pass (google.com: domain of paulus@ozlabs.org designates 203.11.71.1 as permitted sender) client-ip=203.11.71.1;
+Received-SPF: pass (google.com: domain of paulus@ozlabs.org designates 2401:3900:2:1::2 as permitted sender) client-ip=2401:3900:2:1::2;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@ozlabs.org header.s=201707 header.b=eD7AWdyT;
-       spf=pass (google.com: domain of paulus@ozlabs.org designates 203.11.71.1 as permitted sender) smtp.mailfrom=paulus@ozlabs.org;
+       dkim=pass header.i=@ozlabs.org header.s=201707 header.b=q8UH+np3;
+       spf=pass (google.com: domain of paulus@ozlabs.org designates 2401:3900:2:1::2 as permitted sender) smtp.mailfrom=paulus@ozlabs.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ozlabs.org
 Received: by ozlabs.org (Postfix, from userid 1003)
-	id 45S0Ps3h6Wz9sBr; Mon, 17 Jun 2019 15:38:57 +1000 (AEST)
+	id 45S0Ps4DC5z9s7h; Mon, 17 Jun 2019 15:38:57 +1000 (AEST)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=ozlabs.org; s=201707;
-	t=1560749937; bh=dZLUB0K5zrKTMsdEtdgkBMLfWZFYjrdP1VEZ//9dUfM=;
+	t=1560749937; bh=jR54jSADlnieO8pB4/tHH0OwHqfcoZjTjfV+h+EHZcg=;
 	h=Date:From:To:Cc:Subject:References:In-Reply-To:From;
-	b=eD7AWdyTBgymNpigRRjlwERLwtz6+5IChPlo6tHPrxOURmrv98db8J5lCApb6YzII
-	 UYl3AnywVl7MTAtOij4HF01ADdMY35yKXfvU6/8pMBTb8gXHGOf2mYLRm8HegSgQck
-	 qMHlW+/lnMQZCsSG75fQDuNcf17Izc3mLHUjShvRcjQ2B2GPTvPP19iznAPVzabihg
-	 /hQ1PUtN7jZqTYHlqJD5VQPAMRnZfXx0s4pAnM1c7kYei4KBoafU7PPaQGCcAiPqj/
-	 4CS602Ceg11qIljPAT9rsVnOXFdPBHH+ViwSOKfXAKsCJo0vHeZSFT89Vt2BkuW+p2
-	 fg4dE4xYnjfyg==
-Date: Mon, 17 Jun 2019 15:37:56 +1000
+	b=q8UH+np3k8PiZHUFh7G7kdpoPLQbqzVVldUzKvRzM9Z/EajwRjN2hZ2E6c59i+z0U
+	 xw12GhPxmJJ2LtmUd092wbw2V7mKpw/vb947ObuutVzuQX26xmCgKUi9wwW7u8aB5S
+	 dfwNpEeMUWNE8ERsyrMYTlhTtKuoZhh4NTvpFUKWB6uJqP5BhEaT+gG3Ky4VKhNUS2
+	 RDIjOe7x8YX3Tig3IxavQsVxhxPHJmU695FHZ6Ui1rwWzb2eBrAAZbz0idza3oGz1Q
+	 4I+lDT1c5EFyFGr4CnunnCKs+lknH2cmXDt1iWSy2Y22pgeO8fTSTVOmuDbcrGLSpq
+	 5VwSiRkpYsAyg==
+Date: Mon, 17 Jun 2019 15:38:54 +1000
 From: Paul Mackerras <paulus@ozlabs.org>
 To: Bharata B Rao <bharata@linux.ibm.com>
 Cc: linuxppc-dev@lists.ozlabs.org, kvm-ppc@vger.kernel.org,
@@ -101,15 +101,14 @@ Cc: linuxppc-dev@lists.ozlabs.org, kvm-ppc@vger.kernel.org,
 	aneesh.kumar@linux.vnet.ibm.com, jglisse@redhat.com,
 	linuxram@us.ibm.com, sukadev@linux.vnet.ibm.com,
 	cclaudio@linux.ibm.com
-Subject: Re: [PATCH v4 3/6] kvmppc: H_SVM_INIT_START and H_SVM_INIT_DONE
- hcalls
-Message-ID: <20190617053756.z4disbs5vncxneqj@oak.ozlabs.ibm.com>
+Subject: Re: [PATCH v4 4/6] kvmppc: Handle memory plug/unplug to secure VM
+Message-ID: <20190617053854.5niyzcrxeee7vvra@oak.ozlabs.ibm.com>
 References: <20190528064933.23119-1-bharata@linux.ibm.com>
- <20190528064933.23119-4-bharata@linux.ibm.com>
+ <20190528064933.23119-5-bharata@linux.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190528064933.23119-4-bharata@linux.ibm.com>
+In-Reply-To: <20190528064933.23119-5-bharata@linux.ibm.com>
 User-Agent: NeoMutt/20170113 (1.7.2)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -117,22 +116,10 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 28, 2019 at 12:19:30PM +0530, Bharata B Rao wrote:
-> H_SVM_INIT_START: Initiate securing a VM
-> H_SVM_INIT_DONE: Conclude securing a VM
+On Tue, May 28, 2019 at 12:19:31PM +0530, Bharata B Rao wrote:
+> Register the new memslot with UV during plug and unregister
+> the memslot during unplug.
 > 
-> As part of H_SVM_INIT_START register all existing memslots with the UV.
-> H_SVM_INIT_DONE call by UV informs HV that transition of the guest
-> to secure mode is complete.
-
-It is worth mentioning here that setting any of the flag bits in
-kvm->arch.secure_guest will cause the assembly code that enters the
-guest to call the UV_RETURN ucall instead of trying to enter the guest
-directly.  That's not necessarily obvious to the reader as this patch
-doesn't touch that assembly code.
-
-Apart from that this patch looks fine.
-
 > Signed-off-by: Bharata B Rao <bharata@linux.ibm.com>
 
 Acked-by: Paul Mackerras <paulus@ozlabs.org>
