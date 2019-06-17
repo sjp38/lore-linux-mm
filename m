@@ -2,115 +2,98 @@ Return-Path: <SRS0=4FFe=UQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.4 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-0.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B4015C31E50
-	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 14:00:53 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4DD93C31E50
+	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 14:04:34 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6A5622080C
-	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 14:00:53 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="QfGwVzUy"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6A5622080C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	by mail.kernel.org (Postfix) with ESMTP id 148B52084B
+	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 14:04:34 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 148B52084B
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arndb.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 16F648E0004; Mon, 17 Jun 2019 10:00:53 -0400 (EDT)
+	id A6D248E0004; Mon, 17 Jun 2019 10:04:33 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1475F8E0001; Mon, 17 Jun 2019 10:00:53 -0400 (EDT)
+	id A1E5A8E0001; Mon, 17 Jun 2019 10:04:33 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 00F0F8E0004; Mon, 17 Jun 2019 10:00:52 -0400 (EDT)
+	id 90B9A8E0004; Mon, 17 Jun 2019 10:04:33 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
-	by kanga.kvack.org (Postfix) with ESMTP id CC9B48E0001
-	for <linux-mm@kvack.org>; Mon, 17 Jun 2019 10:00:52 -0400 (EDT)
-Received: by mail-ot1-f71.google.com with SMTP id b25so4913591otp.12
-        for <linux-mm@kvack.org>; Mon, 17 Jun 2019 07:00:52 -0700 (PDT)
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 6FD1E8E0001
+	for <linux-mm@kvack.org>; Mon, 17 Jun 2019 10:04:33 -0400 (EDT)
+Received: by mail-qt1-f197.google.com with SMTP id k31so9338910qte.13
+        for <linux-mm@kvack.org>; Mon, 17 Jun 2019 07:04:33 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=v/0AosDiq0XlRMBf8oBwjVIp/eynr9o30+abHU130tU=;
-        b=U3FAKH4kc+Qirpw2fdNABP3SF0alYFApuM1uOP62L2m4BfLXrMIj2yoSI5MN/VkrfS
-         n4Cg86HIbfaAw1o4p4QPdwceD9Vh2HoaoqSPFs/MRJ+Cg5ELycoPEw3RZQyzA10jRRDc
-         vKeIV0NtFtvlwlbCpYWox5347iQ7eMBu0aE1l2bkKRerZ2Hzz9PPgAwKR2leo7yhua/u
-         gKIEhhiy2LaGpEtgWIyY5aC4RWHEJFJzI1NB0Sp+Bl5Q4fWd6JuA1BZ6ShTsfJ5iHU8H
-         TwwfgCt/ZpQ6zweSUtVkysI0/QgnV+IFXGgE7s3bjPI0f1c3U23VQU8imQgyEbJSq1ZZ
-         5Uig==
-X-Gm-Message-State: APjAAAUeaS2FEVm1hZufBInLlRk6yDguIaCnjnWlKfArCT52WJjlXw5K
-	laF7XchdNuvwDy+4nLZbfBFSh083jqK59eHw5luZc5rI6/Nv28Fnc13rwN1NVgLY4zvBdcZCZlP
-	dZGlI7o4HZj26fHNwAPAIeYjvTQA3pWxTCzMTf+q1PrSsjatvcZ9GKkDMpD8XL+N+2Q==
-X-Received: by 2002:a9d:5788:: with SMTP id q8mr1576480oth.237.1560780052383;
-        Mon, 17 Jun 2019 07:00:52 -0700 (PDT)
-X-Received: by 2002:a9d:5788:: with SMTP id q8mr1576427oth.237.1560780051699;
-        Mon, 17 Jun 2019 07:00:51 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560780051; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:mime-version
+         :references:in-reply-to:from:date:message-id:subject:to:cc;
+        bh=Wyv3XjYWUgnOQsz9LKXunlG3ze5V59yjJvNLNW3SDc4=;
+        b=N26+1+F+hW8vZvNs1NuZXIdSOAsDRWnuncoW+aClnlfk/lERZKmfyPlF5gnb5xOCGV
+         B443kaDY7mhvgV5gkvmW21eFqbBnK+5okUdkjsRHhnTaFdp2M7DpvWqTWiihSjksZJ60
+         J35l4CsO7UXj9e5t0Qfo/bLn28uHAN9bntPlDE8GN0RYtnxLc9Oyxew56I3mJEEBtNWj
+         lzSps3ZdnrJ9Fi5peBZj2pEXE3KF+sZdWLhBTFjrwQdngk/bk+7PNgBW+lEnDBfRdRWd
+         Ts6WnOD7FgYL06BxApW0fZyVzvCcS+KuE6l0vzIEvWXpE60U0JJDfuHdr34CRmAbJKPh
+         kHHQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of arndbergmann@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=arndbergmann@gmail.com
+X-Gm-Message-State: APjAAAXP/GvOoCuK0Fkxt6CK1ImiqW1LpF83W9G4yi8ulTUnJFdmxrw3
+	LFPvO8mP5iGHxxFZi4P91sA6gv7oGzP+ggaCGmWZ+wDt6iRencOvDx3F4m+NTg9eB2uBccV5p0A
+	46pPjjp1O6pjF0mrrP6JyEQLjvXOd4TCLigcctppnwFoKBYGtoJACS9fTw2m404s=
+X-Received: by 2002:aed:3b25:: with SMTP id p34mr93948394qte.289.1560780273201;
+        Mon, 17 Jun 2019 07:04:33 -0700 (PDT)
+X-Received: by 2002:aed:3b25:: with SMTP id p34mr93948346qte.289.1560780272642;
+        Mon, 17 Jun 2019 07:04:32 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560780272; cv=none;
         d=google.com; s=arc-20160816;
-        b=QU2Bzu1dL5bL7/7tHSImcUGKLt+XFnl8YncxtUFwZ+kWHDPqdFdegsQUnGCTO5G72F
-         C0E6N5U434ImMPkwJ1pdF9cbClkxr1Tq6P+32FGlCsiH/RukMxHAMacpySC1GhDSlLwl
-         Ra6gxtOfUGaGEYvko758jqEkxY0h5ngYDqniyszO0HARoxqCn53vdPxqE6NAEyf6Fuqu
-         lduJvNCi4nj/YhmCGh130rKLYc0vwQdYkxtqYTWYC/5axCUf7n4OOMUhxSHFaVeKH4c+
-         RdV1Hq7adqolQ3ygMEZC6oJtoPFF13TR/53+FaeOUmLl9FLHEv1zbpjBTbCP27F4qJIG
-         w5zg==
+        b=GGNzNrUO4lY9RKcr94GMsiPulQYMtyMSsd8EWlWrXDB49Y7cLGPxdwBPtJWOpjd5a3
+         V/JGzV3NQbG5aI31I/L+O/bRv3MIz/xOcqaMnXovu7k1v9Pjk2AXB/o7LeNVrH8/ETC7
+         +oYvYC8JkqU3viuD8AQqeVR0Wq8bQxTna3yK/mdFtwF99FioO6RDFZtgdgFxJ+3IKTRA
+         /TLhwirLrD4OiOWrQGUbx/a1T+UVAXBXbGSrD26vLWX3RS9kdRfHed+anR7YIZIbLa9R
+         mYvarneIiyhvuIC895E7Ef9Mfo0+hXTERtu77KbpZ/FS6xwZH9OEB9X9k66w7m/RivRA
+         /yAQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=v/0AosDiq0XlRMBf8oBwjVIp/eynr9o30+abHU130tU=;
-        b=x2nCbsTDHR8qcljv+Y4shuxleqwtloQqfK7l3V2rpwjbvWNrFRdGFpTRjLMRugqL/c
-         j0eKsDitURCa8n4Wbo3PTa4onzaAj7060lKiipFWaUFny8o1FE5qkirE+8yBFlhkGmbv
-         VuEq7ni/5pgbSeO4BRsN4m+jSeKy2Ml4fB8OlPJO+gRpOTSjMS2Z8H+FecFWqhV3s+1c
-         +P7jUulVKId/daeWUr96r0nXQ+jUkL66/K94Dyof1S4NjuMrizjvbHjlbs8daeorg/Vp
-         8k1NYd5ZViX3HB38NOL8974qaEXRqbDre1lGk4ANsZxxJp9WCvz4SpnBOzbl9I0S9yBw
-         XEfw==
+         :mime-version;
+        bh=Wyv3XjYWUgnOQsz9LKXunlG3ze5V59yjJvNLNW3SDc4=;
+        b=c0I+UqR2udUBjU6M1uoP8laG5kS9ydSnlCCKkSte14kySQJFmQB+ibGi+a3tGDODyv
+         WIHHfwwvYPyd/COJx5MDF/8i69PSSN1XV0KBlJcnlRnQcTDV2gj9bMlYhwViFK4PZXxh
+         dc3P4RXEXkQJmaWXXAiaR3bo3abWKacDWCavPxthtEfxHJzxQt5tK2e8zBwvfKFCxG7u
+         nbMLhMaWuqE54TiPHdtwEnkAfb4vBQvWIeW8icXJdC5xlOVP/MlAoFiq79OYY/ToXGvf
+         AghUPkJqGDmVi3WlRk4Esu8K10E8yfWZ2LgyvLP6NUz/cAfUsGlFILL/pTKMDtQ53cfk
+         sFSQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=QfGwVzUy;
-       spf=pass (google.com: domain of elver@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=elver@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+       spf=pass (google.com: domain of arndbergmann@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=arndbergmann@gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 74sor5441127otu.163.2019.06.17.07.00.51
+        by mx.google.com with SMTPS id n4sor7215920qke.58.2019.06.17.07.04.32
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 17 Jun 2019 07:00:51 -0700 (PDT)
-Received-SPF: pass (google.com: domain of elver@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Mon, 17 Jun 2019 07:04:32 -0700 (PDT)
+Received-SPF: pass (google.com: domain of arndbergmann@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=QfGwVzUy;
-       spf=pass (google.com: domain of elver@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=elver@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=v/0AosDiq0XlRMBf8oBwjVIp/eynr9o30+abHU130tU=;
-        b=QfGwVzUyw61eYELwxKAlY9/Qm6Aj9QSJ0n+dIVkf8/4yeJfiVbarVyCC4XbKUh7zyA
-         TB4mJQ/4WDEFdFlP9q8qfUxerum3OAS9kJIC9HkWocd6c82xelhC5lUZ8KGeL7GIc9b2
-         Vn2SIVgDQO8hQMwPHS4nOTl0lopwU7OuI/SKFbVXrGvgWTzn57ByfbFw3uFr/5eqy03z
-         O/40JUT3OWHkoJhC5IIKY/lFAiriQzdivbyM4D4bt87oTbTSaLBLA/VBa+dUA9Qn7Q8O
-         AgESDbDnLQa9ZvaNVt9qijL0DoPw8QB7RGDJ+rCIOi5DiwTJKQQpi0xCcP/5ARb5gi6O
-         48XQ==
-X-Google-Smtp-Source: APXvYqz5F9NBThJnsQ+gL+ZpGjjXfOmWdrkG2sLPN0k3OAALt6m/XyHFzA0l3LB9J01pkclLKo1k7HRwqBHaHCOQM+M=
-X-Received: by 2002:a05:6830:1688:: with SMTP id k8mr9743899otr.233.1560780051018;
- Mon, 17 Jun 2019 07:00:51 -0700 (PDT)
+       spf=pass (google.com: domain of arndbergmann@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=arndbergmann@gmail.com
+X-Google-Smtp-Source: APXvYqxfILWhAdKXQ4OWbwL16dTg8+0rppOl294W+m7hdTdNP3jcvSOtAIQCjQ3rZPM0axb4x4PZsoZRGkPIyUFm8U8=
+X-Received: by 2002:ae9:e608:: with SMTP id z8mr80292298qkf.182.1560780272294;
+ Mon, 17 Jun 2019 07:04:32 -0700 (PDT)
 MIME-Version: 1.0
-References: <20190613125950.197667-1-elver@google.com>
-In-Reply-To: <20190613125950.197667-1-elver@google.com>
-From: Marco Elver <elver@google.com>
-Date: Mon, 17 Jun 2019 16:00:38 +0200
-Message-ID: <CANpmjNMCmcg8GS_pkKc2gsdtd7-A2t27mOXATY9OLb1vQW5Lsg@mail.gmail.com>
-Subject: Re: [PATCH v5 0/3] Bitops instrumentation for KASAN
-To: Peter Zijlstra <peterz@infradead.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, 
-	Dmitry Vyukov <dvyukov@google.com>, Alexander Potapenko <glider@google.com>, 
-	Andrey Konovalov <andreyknvl@google.com>, Mark Rutland <mark.rutland@arm.com>, 
-	"H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Jonathan Corbet <corbet@lwn.net>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, 
-	Borislav Petkov <bp@alien8.de>, "the arch/x86 maintainers" <x86@kernel.org>, Arnd Bergmann <arnd@arndb.de>, 
-	Josh Poimboeuf <jpoimboe@redhat.com>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, 
-	LKML <linux-kernel@vger.kernel.org>, linux-arch <linux-arch@vger.kernel.org>, 
-	kasan-dev <kasan-dev@googlegroups.com>, 
-	Linux Memory Management List <linux-mm@kvack.org>
+References: <20190617121427.77565-1-arnd@arndb.de> <457d8e5e453a18faf358bc1360a19003@suse.de>
+In-Reply-To: <457d8e5e453a18faf358bc1360a19003@suse.de>
+From: Arnd Bergmann <arnd@arndb.de>
+Date: Mon, 17 Jun 2019 16:04:14 +0200
+Message-ID: <CAK8P3a0+jOW==OOx_CLj=TCsG5EBK2ni6kw1+PexJLAC2NEp_g@mail.gmail.com>
+Subject: Re: [BUG]: mm/vmalloc: uninitialized variable access in pcpu_get_vm_areas
+To: Roman Penyaev <rpenyaev@suse.de>
+Cc: "Uladzislau Rezki (Sony)" <urezki@gmail.com>, Roman Gushchin <guro@fb.com>, Michal Hocko <mhocko@suse.com>, 
+	Matthew Wilcox <willy@infradead.org>, Thomas Garnier <thgarnie@google.com>, 
+	Oleksiy Avramchenko <oleksiy.avramchenko@sonymobile.com>, Steven Rostedt <rostedt@goodmis.org>, 
+	Joel Fernandes <joelaf@google.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, 
+	Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, 
+	Linus Torvalds <torvalds@linux-foundation.org>, Stephen Rothwell <sfr@canb.auug.org.au>, 
+	Rick Edgecombe <rick.p.edgecombe@intel.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, 
+	Mike Rapoport <rppt@linux.ibm.com>, Linux-MM <linux-mm@kvack.org>, 
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -118,38 +101,65 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-All 3 patches have now been Acked and Reviewed. Which tree should this land in?
-
-Since this is related to KASAN, would this belong into the MM tree?
-
-Many thanks,
--- Marco
-
-
-
-
-On Thu, 13 Jun 2019 at 15:00, Marco Elver <elver@google.com> wrote:
+On Mon, Jun 17, 2019 at 3:49 PM Roman Penyaev <rpenyaev@suse.de> wrote:
+> >               augment_tree_propagate_from(va);
+> >
+> > -             if (type == NE_FIT_TYPE)
+> > -                     insert_vmap_area_augment(lva, &va->rb_node,
+> > -                             &free_vmap_area_root, &free_vmap_area_list);
+> > -     }
+> > -
+> >       return 0;
+> >  }
 >
-> Previous version:
-> http://lkml.kernel.org/r/20190613123028.179447-1-elver@google.com
 >
-> * Only changed lib/test_kasan in this version.
+> Hi Arnd,
 >
-> Marco Elver (3):
->   lib/test_kasan: Add bitops tests
->   x86: Use static_cpu_has in uaccess region to avoid instrumentation
->   asm-generic, x86: Add bitops instrumentation for KASAN
->
->  Documentation/core-api/kernel-api.rst     |   2 +-
->  arch/x86/ia32/ia32_signal.c               |   2 +-
->  arch/x86/include/asm/bitops.h             | 189 ++++------------
->  arch/x86/kernel/signal.c                  |   2 +-
->  include/asm-generic/bitops-instrumented.h | 263 ++++++++++++++++++++++
->  lib/test_kasan.c                          |  81 ++++++-
->  6 files changed, 382 insertions(+), 157 deletions(-)
->  create mode 100644 include/asm-generic/bitops-instrumented.h
->
-> --
-> 2.22.0.rc2.383.gf4fbbf30c2-goog
->
+> Seems the proper fix is just setting lva to NULL.  The only place
+> where lva is allocated and then used is when type == NE_FIT_TYPE,
+> so according to my shallow understanding of the code everything
+> should be fine.
+
+I don't see how NULL could work here. insert_vmap_area_augment()
+passes the va pointer into find_va_links() and link_va(), both of
+which dereference the pointer, see
+
+static void
+insert_vmap_area_augment(struct vmap_area *va,
+        struct rb_node *from, struct rb_root *root,
+        struct list_head *head)
+{
+        struct rb_node **link;
+        struct rb_node *parent;
+
+        if (from)
+                link = find_va_links(va, NULL, from, &parent);
+        else
+                link = find_va_links(va, root, NULL, &parent);
+
+        link_va(va, root, parent, link, head);
+        augment_tree_propagate_from(va);
+}
+
+static __always_inline struct rb_node **
+find_va_links(struct vmap_area *va,
+        struct rb_root *root, struct rb_node *from,
+        struct rb_node **parent)
+{
+       ...
+                       if (va->va_start < tmp_va->va_end &&
+                                va->va_end <= tmp_va->va_start)
+       ...
+}
+
+static __always_inline void
+link_va(struct vmap_area *va, struct rb_root *root,
+        struct rb_node *parent, struct rb_node **link, struct list_head *head)
+{
+        ...
+        rb_link_node(&va->rb_node, parent, link);
+        ...
+}
+
+       Arnd
 
