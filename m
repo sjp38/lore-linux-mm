@@ -2,131 +2,174 @@ Return-Path: <SRS0=4FFe=UQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 27092C31E5D
-	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 15:49:31 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 64D99C31E5C
+	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 15:50:38 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id ECF912133F
-	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 15:49:30 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org ECF912133F
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
+	by mail.kernel.org (Postfix) with ESMTP id 24D6C2133F
+	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 15:50:37 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 24D6C2133F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9CEB26B0003; Mon, 17 Jun 2019 11:49:30 -0400 (EDT)
+	id A43FD6B0003; Mon, 17 Jun 2019 11:50:37 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 95A0F8E0002; Mon, 17 Jun 2019 11:49:30 -0400 (EDT)
+	id 9CE1F8E0002; Mon, 17 Jun 2019 11:50:37 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7F9498E0001; Mon, 17 Jun 2019 11:49:30 -0400 (EDT)
+	id 86E8C8E0001; Mon, 17 Jun 2019 11:50:37 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 467036B0003
-	for <linux-mm@kvack.org>; Mon, 17 Jun 2019 11:49:30 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id o13so16981439edt.4
-        for <linux-mm@kvack.org>; Mon, 17 Jun 2019 08:49:30 -0700 (PDT)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 4B30E6B0003
+	for <linux-mm@kvack.org>; Mon, 17 Jun 2019 11:50:37 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id g65so6208020plb.9
+        for <linux-mm@kvack.org>; Mon, 17 Jun 2019 08:50:37 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=ag+6C2AviwT17JDwBj+yi5yKtCvwiUp9Yt5+9aMQQLo=;
-        b=uimHF+VYm89WlCcnKjAdQpw3BLQ4pv5fED/QhXYtVjc1euRwyRDL9SgO5QDIiyYD2T
-         Iqa2MrAl3G79RdzNGW8mzbIj79QKxCXkwzn/UsS2vFsFRRKtcFdFEkSxSl8gxYxmJOLy
-         7ZH35gnuvRQ73//bC5bzI69dvGQpwvLb2oIp2CA9qNiCnQBJxNiZAix2uBVCNDpJHE49
-         USgqqb4VPjsFdo4UXM1CZLcL1hokbpa0H8Kxf3DSr0kq8XlEbfIxGBwQCLOxHEJFMs10
-         rL+r09JzxSbjYaID4aCQDdYn326qiLqhLmGaas3rt/oA+A48zB9AkVc0zogNU4iCXmWb
-         YfwA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
-X-Gm-Message-State: APjAAAVykGWK9OGN/KK7RlKgnUTOiJ0ecnuczO/mGPLeKoiZd5OV6LHQ
-	Y5BXrwqfxke9f2/RjszsG9Xw9kISwN4VRlPH1CPhDn98KERxB4EtSWKEQTJYHEkrg7HXC1+Z5AQ
-	si/kATCgx9fOxjRRz4e2F+1LAaLuLj1G8V41WLWPPW65zVni0GpOT9z8LDx1ygyClPw==
-X-Received: by 2002:a17:906:2acf:: with SMTP id m15mr95999098eje.31.1560786569848;
-        Mon, 17 Jun 2019 08:49:29 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyiSiasSKOvQ9+I4KGLWrjBKagSc130D4iybGYtcOQHjOT+s4NqTXrlXcHzP3lQNbyNCnF9
-X-Received: by 2002:a17:906:2acf:: with SMTP id m15mr95999040eje.31.1560786568750;
-        Mon, 17 Jun 2019 08:49:28 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560786568; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=F+SwRlmPsMlFUH66HzREoMFXXKIByphMZp6hx2Hs38w=;
+        b=SGYbVgwTLws4t9q63V1P0yfQnIoj9ByvWuls/MZXx2eHG5O5EiAaTIWjmdtX7traZp
+         SnXTDGfd8yY4WBeUcutf6fipG9TFdaxxJMCAqHNiZbwwrrlMTYkggmJ1zcRCh/s/GGyd
+         9jZObbRY8Vp3iczIDmLsyXaMTeTquCPV1purW2yq3FKbcw9mVLbADa9eddjhJc6QwzMt
+         NmskUVmeWL0IMqUmuxmw2PcIJzwv6wX8rAXUeYZWqsPKFxQypo4DkRv98JXRY6L8ykVe
+         rhOaIeLo77cUFogOJ4rD641FH/AqWQ4U3JFtfAOIxZ7HULYB4YBR8vu8TjONhjFp3azp
+         zEfw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAVSiQI5JSgS4aiP1udTH+QGDLVwq8SWhzjujrU4xb46FOuUWgvt
+	pSxswf7bgyGAQHvW2LMHRxYDU0St4N31577/At5JnFU/0y9GXhpym+PmRomTJIn0Wzsq6OP7x4C
+	o1ZMN/1Y7qwq2SW8eI4iv52mRsZ5bNt2i7KaDCCgl1R/VW/K7Sea/Of6ECvd2Coyk9A==
+X-Received: by 2002:a17:902:6b07:: with SMTP id o7mr86226734plk.180.1560786637000;
+        Mon, 17 Jun 2019 08:50:37 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzjhBGp62FcLaDn05fAsNWf2nQ3KElu2NVm4mPxNozUF+VpvyQUnK8pc3uZPeLmKi87YCed
+X-Received: by 2002:a17:902:6b07:: with SMTP id o7mr86226684plk.180.1560786636364;
+        Mon, 17 Jun 2019 08:50:36 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560786636; cv=none;
         d=google.com; s=arc-20160816;
-        b=MwrGD/DnI5fzGsEuKZSsrG0XbOWfudvF6KitWlAZSpCOA+SXePn/GwBCmqsizkOR+X
-         4SLY1cB2JW1Qq/f6eHnTR0NXR8NzmBbklf9WzQMkgpRgGNKE2ZqJC1gmg1lQuIpOrGMp
-         FpaF3jQMzUAgK/eLSrOscz0SZdMEULe1CIQAua7zrWNNBCrBLovFGwQTDugMMJNauJHz
-         ALmJBM3/+RSapqrjY9j214KmuKC1cqfSeZ+q2NlFRsdxDII3KaLsVyk52xxGhAErvdJu
-         I9pUMt3o0kB36mvzYOtpVvurMQFghii0A3b3ysUpV5ipPxVhGmSoaJ320vrDiBao+HKm
-         IjXQ==
+        b=GH/kqf23v2VvumM5QwqAwvBOqGnH8uLpst9+6mfUABtfVB/8gLXalZznXYPFw4Vl74
+         Iee+lQ19ZDnG4G0u+OBOqSGWgWaeOd8nqIPzos29hX9SccdCvT+lzNy+uutQoNOfYtR6
+         JE8F73kUguP1x4xsAreBYazqeyMz26rxEA9aUKan8rY/oK/CtJTRVfugYfE0xea5JIVF
+         /eScUtA+DmoILd2zVtz8tsw2CGTewD8g4k+k4W6Vhm5KgQ56ndkOMZrWFaT3G2UYzzRI
+         ax6dWBJMZ0gntnkvO4BtH8YUk5UVWIKUvcm1iYEGwvgmUMoDxLfxjQr6Ntzhecz2vu39
+         bxfA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=ag+6C2AviwT17JDwBj+yi5yKtCvwiUp9Yt5+9aMQQLo=;
-        b=iN5ml5W2+Hcsc0oYDiu1aSivp9olhLLJWsYB6Y3jb01oXrFYqJWtoLPg3hyEOi8LZZ
-         Xn4OJzq4yelllsV1hEEb6Qp1RGGdk/XucLogFzUj9dwrca9Pa7B0ypzcCgRvBbCtvoyg
-         Dlq9+wPTrNryuX3CSJEp6YNak8xeq7LqY7I7zaTnCPyRSA78FTMccA7HuWQZJEXMUwG9
-         zjlYhI8ODGFPhjFrjU/0GPxcWvDnvfQAdp+/c/bUqQH22PUb3p6SlLQLqfhQ+krcO142
-         AqxXWL61r572lcM/wLHl04aGwBVgjm794pzR70XA1zqmDbP8yrfSmBBjbWYYjDkb5oHy
-         EhXg==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
+         :subject;
+        bh=F+SwRlmPsMlFUH66HzREoMFXXKIByphMZp6hx2Hs38w=;
+        b=aWdOgwZ47QdsOX7wZw7C4QBp2+cjVNdBm/nwsD39zaHxgi+fr6EzxL0w3gnNd0Rx0f
+         aki+rUqXCf8/b7qy9SCJEhxyZCrradP/Hvn8dt5w8clNMrZ4Ac44yuUShExmaWiskr/h
+         jy2B9PIpAZN2RKRluDq7w8jUejWBpnyVXcJTnfO1QKwlnaVSCSmxOaixvbvvSbs0h66Y
+         c+4fhRDiTmgTcAso7bjPcWasRb2nmgy/hI0EdjtKRdTnoSWcjBP9VH5too1HyqwxW1RG
+         EHW0mNEnaDun8zwyqrZ4QuT6+MZHjvoO+PLdXUZOGu770DgkPnlW5t0Stp4epy6YB4JD
+         hgPw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y38si7455455edd.0.2019.06.17.08.49.28
+       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id k17si10984619pfi.230.2019.06.17.08.50.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 17 Jun 2019 08:49:28 -0700 (PDT)
-Received-SPF: pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Mon, 17 Jun 2019 08:50:36 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.88 as permitted sender) client-ip=192.55.52.88;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id ADE99ADEC;
-	Mon, 17 Jun 2019 15:49:27 +0000 (UTC)
-Date: Mon, 17 Jun 2019 17:49:23 +0200
-From: Oscar Salvador <osalvador@suse.de>
-To: Alastair D'Silva <alastair@d-silva.org>
-Cc: 'Michal Hocko' <mhocko@kernel.org>,
-	'Alastair D'Silva' <alastair@au1.ibm.com>,
-	'Arun KS' <arunks@codeaurora.org>,
-	'Mukesh Ojha' <mojha@codeaurora.org>,
-	'Logan Gunthorpe' <logang@deltatee.com>,
-	'Wei Yang' <richard.weiyang@gmail.com>,
-	'Peter Zijlstra' <peterz@infradead.org>,
-	'Ingo Molnar' <mingo@kernel.org>, linux-mm@kvack.org,
-	'Qian Cai' <cai@lca.pw>, 'Thomas Gleixner' <tglx@linutronix.de>,
-	'Andrew Morton' <akpm@linux-foundation.org>,
-	'Mike Rapoport' <rppt@linux.vnet.ibm.com>,
-	'Baoquan He' <bhe@redhat.com>,
-	'David Hildenbrand' <david@redhat.com>,
-	'Josh Poimboeuf' <jpoimboe@redhat.com>,
-	'Pavel Tatashin' <pasha.tatashin@soleen.com>,
-	'Juergen Gross' <jgross@suse.com>,
-	'Oscar Salvador' <osalvador@suse.com>,
-	'Jiri Kosina' <jkosina@suse.cz>, linux-kernel@vger.kernel.org
-Subject: Re: [PATCH 4/5] mm/hotplug: Avoid RCU stalls when removing large
- amounts of memory
-Message-ID: <20190617154923.GB2407@linux>
-References: <20190617043635.13201-1-alastair@au1.ibm.com>
- <20190617043635.13201-5-alastair@au1.ibm.com>
- <20190617074715.GE30420@dhcp22.suse.cz>
- <068b01d524e2$4a5f5c30$df1e1490$@d-silva.org>
+       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga002.jf.intel.com ([10.7.209.21])
+  by fmsmga101.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 17 Jun 2019 08:50:35 -0700
+X-ExtLoop1: 1
+Received: from ray.jf.intel.com (HELO [10.7.201.126]) ([10.7.201.126])
+  by orsmga002.jf.intel.com with ESMTP; 17 Jun 2019 08:50:35 -0700
+Subject: Re: [RFC 00/10] Process-local memory allocations for hiding KVM
+ secrets
+To: Alexander Graf <graf@amazon.com>, Thomas Gleixner <tglx@linutronix.de>,
+ Andy Lutomirski <luto@amacapital.net>
+Cc: Marius Hillenbrand <mhillenb@amazon.de>, kvm@vger.kernel.org,
+ linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com,
+ linux-mm@kvack.org, Alexander Graf <graf@amazon.de>,
+ David Woodhouse <dwmw@amazon.co.uk>,
+ the arch/x86 maintainers <x86@kernel.org>, Andy Lutomirski
+ <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>
+References: <20190612170834.14855-1-mhillenb@amazon.de>
+ <eecc856f-7f3f-ed11-3457-ea832351e963@intel.com>
+ <A542C98B-486C-4849-9DAC-2355F0F89A20@amacapital.net>
+ <alpine.DEB.2.21.1906141618000.1722@nanos.tec.linutronix.de>
+ <58788f05-04c3-e71c-12c3-0123be55012c@amazon.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=dave.hansen@intel.com; keydata=
+ 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
+Message-ID: <63b1b249-6bc7-ffd9-99db-d36dd3f1a962@intel.com>
+Date: Mon, 17 Jun 2019 08:50:35 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <068b01d524e2$4a5f5c30$df1e1490$@d-silva.org>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <58788f05-04c3-e71c-12c3-0123be55012c@amazon.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jun 17, 2019 at 05:57:16PM +1000, Alastair D'Silva wrote:
-> I was getting stalls when removing ~1TB of memory.
+On 6/17/19 12:38 AM, Alexander Graf wrote:
+>> Yes I know, but as a benefit we could get rid of all the GSBASE
+>> horrors in
+>> the entry code as we could just put the percpu space into the local PGD.
+> 
+> Would that mean that with Meltdown affected CPUs we open speculation
+> attacks against the mmlocal memory from KVM user space?
 
-Would you mind sharing one of those stalls-splats?
-I am bit spectic here because as I Michal pointed out, we do cond_resched
-once per section removed.
-
--- 
-Oscar Salvador
-SUSE L3
+Not necessarily.  There would likely be a _set_ of local PGDs.  We could
+still have pair of PTI PGDs just like we do know, they'd just be a local
+PGD pair.
 
