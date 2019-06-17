@@ -2,111 +2,121 @@ Return-Path: <SRS0=4FFe=UQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 243E8C31E5E
-	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 19:02:23 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D86FDC31E5B
+	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 19:12:36 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DB78E206B7
-	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 19:02:22 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 8543320863
+	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 19:12:36 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="GQLW4HsT"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DB78E206B7
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="VWtdWxjX"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8543320863
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 769538E0005; Mon, 17 Jun 2019 15:02:22 -0400 (EDT)
+	id 1BD476B0005; Mon, 17 Jun 2019 15:12:36 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6F34F8E0001; Mon, 17 Jun 2019 15:02:22 -0400 (EDT)
+	id 16E608E0005; Mon, 17 Jun 2019 15:12:36 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5BA4F8E0005; Mon, 17 Jun 2019 15:02:22 -0400 (EDT)
+	id 00E368E0001; Mon, 17 Jun 2019 15:12:35 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E6818E0001
-	for <linux-mm@kvack.org>; Mon, 17 Jun 2019 15:02:22 -0400 (EDT)
-Received: by mail-ot1-f70.google.com with SMTP id p7so5258912otk.22
-        for <linux-mm@kvack.org>; Mon, 17 Jun 2019 12:02:22 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B7C1B6B0005
+	for <linux-mm@kvack.org>; Mon, 17 Jun 2019 15:12:35 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id j7so7599786pfn.10
+        for <linux-mm@kvack.org>; Mon, 17 Jun 2019 12:12:35 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=BlHoKzaMfcTndlIUZpaHNLrZG84G4vKyhA8APL9TYlo=;
-        b=XWYh/I8+hBD8qqzKEuZjkhfGIX9x/+5VFxxnATzByb796HmaJ44hwnCxbD0J3P4uRL
-         W6cZC343AuymN3GtWci4hCCDagkLdKpi0McZiZ/2iyZU5st4NAUs9bGabVbAwfjikHoj
-         jXm7uci1QtdO7oBlbpJy9GLfp1bWsZxJccAZdS7gqcPyKu9iJDQ3b1X4Yennob8I3O2a
-         NGIWSLVJwj/lwc/372FvgZpqjQHm8Ijeo4EOdTmflPgrJQ+kf3rTqR2RbZJqCfg/NIOP
-         N+pxJZUfD7dbUBzYtq1JHXQti07FalOJk2K1TrsBD22Caod/zBwjYSpg0l3+jnr6fkuX
-         r6Wg==
-X-Gm-Message-State: APjAAAVjTEJYYQgRCU3Y4GlLoz+ETwSMsxC206+2t52n8cZIyZJVNgUj
-	QclJzyFSJFYdoLDXtGw2WVtPWy1N3bhFYh+DdNOdjqM0rJ9u2829E5oTlNqPQIstt8k2gQZ+d0R
-	gHuZ3HSlpIjlSBStJcXUK+yVxeO96xLZ/pLQ3lohVCQ1xAyHXMhYnIx/Ufh5LRHeemA==
-X-Received: by 2002:a9d:174:: with SMTP id 107mr2234018otu.322.1560798141846;
-        Mon, 17 Jun 2019 12:02:21 -0700 (PDT)
-X-Received: by 2002:a9d:174:: with SMTP id 107mr2233958otu.322.1560798141211;
-        Mon, 17 Jun 2019 12:02:21 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560798141; cv=none;
+        bh=clU45spENyLPC9cj2oA5TWZaxvpR/nwAXcqqpB3uLuA=;
+        b=sqdusUoKx0xI2qtEISZ1kHGaW2V3ixTygzekX9bUto+agSzR1E+qrO+fiaJhrss8xa
+         aVyHyGHXn/KZGgTAQ07Q7AZH3apdkRg07A3yIxtj8Ug6QsgUaQV2rXwWk1vBpOTdaNWH
+         l+cuWpv49vdVOyDSi2o9QJqpNFx+W4R2Lh6iV5KDNBEX0/digJA507RS//WnWEz5TL7V
+         xGapx/CPsKCMIbP6NwyqGZzpGb1eXBoBad6gVHiTfi9RBnyaiugQ82zP2FIgJKfiraGm
+         IonNnLrFvSS2MVYegQozIwvweSv9wptY3htJdtQWKaJUo5ViJl+GGwpwJrnLzwFEQNe/
+         P50A==
+X-Gm-Message-State: APjAAAWEVKgL8QLHLszm2fUhYPdfUcGiJd/7UPYhejxxs0AW41M2f+yt
+	0iiGGdS0z8+W7O7LI1RrgRU5xyK7+sFqBCHS2LomAEiLW9uQ2LvDCjBLgGt3sBb0vQmc8PjsAuA
+	oNx0vc+cIDdtY0z+bSSNOxZ7TLIhIWle599lVpxazCctrc3HxJG26xYS/mKzqSGaimw==
+X-Received: by 2002:a17:90a:3210:: with SMTP id k16mr424281pjb.13.1560798755391;
+        Mon, 17 Jun 2019 12:12:35 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyXBw1QLPdyxAu6uXWZTVaiLn+r98+lHVh5LDlrCnFh+1NT2tT0Bo3IkanEv0c9MATz1weP
+X-Received: by 2002:a17:90a:3210:: with SMTP id k16mr424185pjb.13.1560798754497;
+        Mon, 17 Jun 2019 12:12:34 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560798754; cv=none;
         d=google.com; s=arc-20160816;
-        b=cr4/38H6whnGezkOobhm2h8KWVZYdk08VOII7mByU3FPYAaCxurkRwzsWygex03yRd
-         SQ9qAxF+Lp+z6/zYTCeW7uuCq8GwI/ShE+SUWldMxWv7jFs107fdVYsphjzRekDbPWgH
-         44ONtpJ+0iA8TBHAFLPZqqXTcVRE/UE1d2S4CrWkvw16+LoOrfxnaWeem50Pey/5Ew5g
-         sqomrTqTCM57Avwgpsg4x5h6eHYwsnWo1+PlTnst/PQjDhyqzVY/Jv1dehf2F3+lfBmf
-         byNApoYS1UwBU5rYOcvFAUo3Eg+1iooAieMRpCj9BM72MQFltGZ0JELdfXHoU6+D9S3R
-         50Yg==
+        b=HmPM2TD5E+pJ4/LejpFo41jhp10RyKIfbyXacxpzCWnjEby5pMvhnn2V6LG1w57hLX
+         Tp3Rtr9AgaTqzoNSlS7ymGmNzcqS4RXoxqc81mj9gL1viZU29bYRCamc59W8eaUjQsV+
+         G47tSS9OgWHyT6CrWUVeTHtJVz/On4dQoTRXM+01/ffgQavBJPLlbRPm81fZg59kDTfx
+         sLW6UuW/BiT9abk7PIWgu3Knrdz8I53fa5MjuzHVbJeJnH4X421R8JDfQUCV1apXepFb
+         st8MrTqSsDIo8hXRIdL6nN6g2uoa1kPDkoqaQfTHvyJ2PkQFd5kganPW7dbkK5mnefht
+         uw5A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=BlHoKzaMfcTndlIUZpaHNLrZG84G4vKyhA8APL9TYlo=;
-        b=iy+d7JQJuLD8edERv9iXCgMimXEJ/LyPlCC4U7K09EaxZ8EbytqpNuCcQFMx1gKsPp
-         kTdb/bwyog9ayaPaC36+xy1Xd+/ifkOEZQXo99r1FVccOM5J3UiOxjxq6uwdnMMAHBob
-         4lmNb0ueNfONmQS4h585R6jj2m5UNRONpGf6dESyA/+A3AnSq5cMD8IUQT4sgD9yxTkd
-         vyzvPj0sVvW3u3wTdNHLV260kZcTjAxsQ7dBky1mTyi9DdP0D+V+gxtXA/Onck8pmf1h
-         8vCCRBcMSpbVk4L+P8SiP5Eb+1pomZ5iwOjHvsRQrpkqi7Jdow+LTc50yfYHeepK2GpT
-         PTAw==
+        bh=clU45spENyLPC9cj2oA5TWZaxvpR/nwAXcqqpB3uLuA=;
+        b=U0ZezyjKBPeRe0sQCtjgakVeCKNqhfAl5oPsXSrLldh1t//bzdSuaoGQJErNsZDep3
+         XSgo3lEzUOpQ4LBN3q2W86tRLveTX+W0/cu1D4wAChSJ94DecrJtj/t7PYTlrcYmKTqL
+         0If+QfanFdGcf0WZmxIWvqzkXGLt9yUpTwXenV8p8elnHJuQkpYpcXGHIp7Rvtpt/s0/
+         xkz8mJJ/Pa0gk4zVKYbYvxJZtnt2xS7HyIUdZuKDm0Iik6Cn/kNADNfJahY217CCKS0K
+         YBObozEbPLlsbKqwCd5tlx5CeIAkRdvX8pM470SFnHagOs7VjQvDJugLP+eKaeNbJHAI
+         GgCw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=GQLW4HsT;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id f16sor5705944oti.56.2019.06.17.12.02.21
+       dkim=pass header.i=@kernel.org header.s=default header.b=VWtdWxjX;
+       spf=pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=luto@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id k64si5362987pgd.573.2019.06.17.12.12.34
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 17 Jun 2019 12:02:21 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 17 Jun 2019 12:12:34 -0700 (PDT)
+Received-SPF: pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=GQLW4HsT;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=intel-com.20150623.gappssmtp.com; s=20150623;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=BlHoKzaMfcTndlIUZpaHNLrZG84G4vKyhA8APL9TYlo=;
-        b=GQLW4HsTHqCZEV9mnOjnMrJWlLsdN8IhjnBoXVeTWqMkmbCxk8sZBD5lQSSBonTJIM
-         PQpLqvxmfSU97Mp7ZkXYfzmZvyaftV4da/a21l7cSiFjBd/MqoX/xe2Q1eES5mKJF5Gx
-         CjLeVsYnpL1abS+tpATrdwoL8cfv1W46T/pNOxBw8rYqsvqcySs4doJJNlylxXen8sQu
-         0tArKmv0hrkikKLc1DMK+s8fkM1rgXKen4eyLlfkzY9W6Wctk+b/3/fC7QVMsGZuOWHr
-         vLKx/QLeQzPNSvOdmqkQgk5dMQpH8k73LtoVoK1CABRsAj/MA+31rF03f1vzZFLYB6Mk
-         qStg==
-X-Google-Smtp-Source: APXvYqzJpQgCLYpd5HiWxDsy1wcz73meBykPfY3oY8gVfhGSrrrXTjfeSfxjaTy4CC9Dtjp1KjOhC26LvRkxDcN1gDI=
-X-Received: by 2002:a9d:7a9a:: with SMTP id l26mr51912079otn.71.1560798140931;
- Mon, 17 Jun 2019 12:02:20 -0700 (PDT)
+       dkim=pass header.i=@kernel.org header.s=default header.b=VWtdWxjX;
+       spf=pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=luto@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail-wr1-f50.google.com (mail-wr1-f50.google.com [209.85.221.50])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id BD0822182B
+	for <linux-mm@kvack.org>; Mon, 17 Jun 2019 19:12:33 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1560798754;
+	bh=iB5y5Zu4qbKrjb1l9NPFwndfY9Hlf8H4ea1wBhUkzvQ=;
+	h=References:In-Reply-To:From:Date:Subject:To:Cc:From;
+	b=VWtdWxjXKdd5pJ/zZFr8pi1CS++LZSE6Er4QR0FaeoW9MmBZeZgMaHUYFfFwhifcE
+	 ud+Jw1kMPltbchiC0eIOQQKrTAx6Y/f4Pa0DHuJIaa4KFFDcG5zHxjwSEwHA40BKXq
+	 Ci31dLoL0EOWz8zQ4iyk1sWcg/BwigcXyLChG7Ww=
+Received: by mail-wr1-f50.google.com with SMTP id c2so11209731wrm.8
+        for <linux-mm@kvack.org>; Mon, 17 Jun 2019 12:12:33 -0700 (PDT)
+X-Received: by 2002:adf:cc85:: with SMTP id p5mr16716016wrj.47.1560798752177;
+ Mon, 17 Jun 2019 12:12:32 -0700 (PDT)
 MIME-Version: 1.0
-References: <20190617122733.22432-1-hch@lst.de> <20190617122733.22432-8-hch@lst.de>
-In-Reply-To: <20190617122733.22432-8-hch@lst.de>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Mon, 17 Jun 2019 12:02:09 -0700
-Message-ID: <CAPcyv4hbGfOawfafqQ-L1CMr6OMFGmnDtdgLTXrgQuPxYNHA2w@mail.gmail.com>
-Subject: Re: [PATCH 07/25] memremap: validate the pagemap type passed to devm_memremap_pages
-To: Christoph Hellwig <hch@lst.de>
-Cc: =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, 
-	Jason Gunthorpe <jgg@mellanox.com>, Ben Skeggs <bskeggs@redhat.com>, Linux MM <linux-mm@kvack.org>, 
-	nouveau@lists.freedesktop.org, 
-	Maling list - DRI developers <dri-devel@lists.freedesktop.org>, linux-nvdimm <linux-nvdimm@lists.01.org>, 
-	linux-pci@vger.kernel.org, 
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+References: <20190508144422.13171-1-kirill.shutemov@linux.intel.com>
+ <20190508144422.13171-46-kirill.shutemov@linux.intel.com> <CALCETrVCdp4LyCasvGkc0+S6fvS+dna=_ytLdDPuD2xeAr5c-w@mail.gmail.com>
+ <3c658cce-7b7e-7d45-59a0-e17dae986713@intel.com> <CALCETrUPSv4Xae3iO+2i_HecJLfx4mqFfmtfp+cwBdab8JUZrg@mail.gmail.com>
+ <5cbfa2da-ba2e-ed91-d0e8-add67753fc12@intel.com>
+In-Reply-To: <5cbfa2da-ba2e-ed91-d0e8-add67753fc12@intel.com>
+From: Andy Lutomirski <luto@kernel.org>
+Date: Mon, 17 Jun 2019 12:12:20 -0700
+X-Gmail-Original-Message-ID: <CALCETrWFXSndmPH0OH4DVVrAyPEeKUUfNwo_9CxO-3xy9awq0g@mail.gmail.com>
+Message-ID: <CALCETrWFXSndmPH0OH4DVVrAyPEeKUUfNwo_9CxO-3xy9awq0g@mail.gmail.com>
+Subject: Re: [PATCH, RFC 45/62] mm: Add the encrypt_mprotect() system call for MKTME
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: Andy Lutomirski <luto@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, 
+	Andrew Morton <akpm@linux-foundation.org>, X86 ML <x86@kernel.org>, 
+	Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, 
+	Borislav Petkov <bp@alien8.de>, Peter Zijlstra <peterz@infradead.org>, David Howells <dhowells@redhat.com>, 
+	Kees Cook <keescook@chromium.org>, Kai Huang <kai.huang@linux.intel.com>, 
+	Jacob Pan <jacob.jun.pan@linux.intel.com>, 
+	Alison Schofield <alison.schofield@intel.com>, Linux-MM <linux-mm@kvack.org>, 
+	kvm list <kvm@vger.kernel.org>, keyrings@vger.kernel.org, 
+	LKML <linux-kernel@vger.kernel.org>, Tom Lendacky <thomas.lendacky@amd.com>
 Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -114,58 +124,173 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jun 17, 2019 at 5:27 AM Christoph Hellwig <hch@lst.de> wrote:
+On Mon, Jun 17, 2019 at 11:37 AM Dave Hansen <dave.hansen@intel.com> wrote:
 >
-> Most pgmap types are only supported when certain config options are
-> enabled.  Check for a type that is valid for the current configuration
-> before setting up the pagemap.
+> Tom Lendacky, could you take a look down in the message to the talk of
+> SEV?  I want to make sure I'm not misrepresenting what it does today.
+> ...
 >
-> Signed-off-by: Christoph Hellwig <hch@lst.de>
-> ---
->  kernel/memremap.c | 27 +++++++++++++++++++++++++++
->  1 file changed, 27 insertions(+)
 >
-> diff --git a/kernel/memremap.c b/kernel/memremap.c
-> index 6e1970719dc2..6a2dd31a6250 100644
-> --- a/kernel/memremap.c
-> +++ b/kernel/memremap.c
-> @@ -157,6 +157,33 @@ void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
->         pgprot_t pgprot = PAGE_KERNEL;
->         int error, nid, is_ram;
+> >> I actually don't care all that much which one we end up with.  It's not
+> >> like the extra syscall in the second options means much.
+> >
+> > The benefit of the second one is that, if sys_encrypt is absent, it
+> > just works.  In the first model, programs need a fallback because
+> > they'll segfault of mprotect_encrypt() gets ENOSYS.
 >
-> +       switch (pgmap->type) {
-> +       case MEMORY_DEVICE_PRIVATE:
-> +               if (!IS_ENABLED(CONFIG_DEVICE_PRIVATE)) {
-> +                       WARN(1, "Device private memory not supported\n");
-> +                       return ERR_PTR(-EINVAL);
-> +               }
-> +               break;
-> +       case MEMORY_DEVICE_PUBLIC:
-> +               if (!IS_ENABLED(CONFIG_DEVICE_PUBLIC)) {
-> +                       WARN(1, "Device public memory not supported\n");
-> +                       return ERR_PTR(-EINVAL);
-> +               }
-> +               break;
-> +       case MEMORY_DEVICE_FS_DAX:
-> +               if (!IS_ENABLED(CONFIG_ZONE_DEVICE) ||
-> +                   IS_ENABLED(CONFIG_FS_DAX_LIMITED)) {
-> +                       WARN(1, "File system DAX not supported\n");
-> +                       return ERR_PTR(-EINVAL);
-> +               }
-> +               break;
-> +       case MEMORY_DEVICE_PCI_P2PDMA:
+> Well, by the time they get here, they would have already had to allocate
+> and set up the encryption key.  I don't think this would really be the
+> "normal" malloc() path, for instance.
+>
+> >>  How do we
+> >> eventually stack it on top of persistent memory filesystems or Device
+> >> DAX?
+> >
+> > How do we stack anonymous memory on top of persistent memory or Device
+> > DAX?  I'm confused.
+>
+> If our interface to MKTME is:
+>
+>         fd = open("/dev/mktme");
+>         ptr = mmap(fd);
+>
+> Then it's hard to combine with an interface which is:
+>
+>         fd = open("/dev/dax123");
+>         ptr = mmap(fd);
+>
+> Where if we have something like mprotect() (or madvise() or something
+> else taking pointer), we can just do:
+>
+>         fd = open("/dev/anything987");
+>         ptr = mmap(fd);
+>         sys_encrypt(ptr);
 
-Need a lead in patch that introduces MEMORY_DEVICE_DEVDAX, otherwise:
+I'm having a hard time imagining that ever working -- wouldn't it blow
+up if someone did:
 
- Invalid pgmap type 0
- WARNING: CPU: 6 PID: 1316 at kernel/memremap.c:183
-devm_memremap_pages+0x1d8/0x700
- [..]
- RIP: 0010:devm_memremap_pages+0x1d8/0x700
- [..]
- Call Trace:
-  dev_dax_probe+0xc7/0x1e0 [device_dax]
-  really_probe+0xef/0x390
-  driver_probe_device+0xb4/0x100
-  device_driver_attach+0x4f/0x60
+fd = open("/dev/anything987");
+ptr1 = mmap(fd);
+ptr2 = mmap(fd);
+sys_encrypt(ptr1);
+
+So I think it really has to be:
+fd = open("/dev/anything987");
+ioctl(fd, ENCRYPT_ME);
+mmap(fd);
+
+But I really expect that the encryption of a DAX device will actually
+be a block device setting and won't look like this at all.  It'll be
+more like dm-crypt except without device mapper.
+
+>
+> Now, we might not *do* it that way for dax, for instance, but I'm just
+> saying that if we go the /dev/mktme route, we never get a choice.
+>
+> > I think that, in the long run, we're going to have to either expand
+> > the core mm's concept of what "memory" is or just have a whole
+> > parallel set of mechanisms for memory that doesn't work like memory.
+> ...
+> > I expect that some day normal memory will  be able to be repurposed as
+> > SGX pages on the fly, and that will also look a lot more like SEV or
+> > XPFO than like the this model of MKTME.
+>
+> I think you're drawing the line at pages where the kernel can manage
+> contents vs. not manage contents.  I'm not sure that's the right
+> distinction to make, though.  The thing that is important is whether the
+> kernel can manage the lifetime and location of the data in the page.
+
+The kernel can manage the location of EPC pages, for example, but only
+under extreme constraints right now.  The draft SGX driver can and
+does swap them out and swap them back in, potentially at a different
+address.
+
+>
+> Basically: Can the kernel choose where the page comes from and get the
+> page back when it wants?
+>
+> I really don't like the current state of things like with SEV or with
+> KVM direct device assignment where the physical location is quite locked
+> down and the kernel really can't manage the memory.  I'm trying really
+> hard to make sure future hardware is more permissive about such things.
+>  My hope is that these are a temporary blip and not the new normal.
+>
+> > So, if we upstream MKTME as anonymous memory with a magic config
+> > syscall, I predict that, in a few years, it will be end up inheriting
+> > all downsides of both approaches with few of the upsides.  Programs
+> > like QEMU will need to learn to manipulate pages that can't be
+> > accessed outside the VM without special VM buy-in, so the fact that
+> > MKTME pages are fully functional and can be GUP-ed won't be very
+> > useful.  And the VM will learn about all these things, but MKTME won't
+> > really fit in.
+>
+> Kai Huang (who is on cc) has been doing the QEMU enabling and might want
+> to weigh in.  I'd also love to hear from the AMD folks in case I'm not
+> grokking some aspect of SEV.
+>
+> But, my understanding is that, even today, neither QEMU nor the kernel
+> can see SEV-encrypted guest memory.  So QEMU should already understand
+> how to not interact with guest memory.  I _assume_ it's also already
+> doing this with anonymous memory, without needing /dev/sme or something.
+
+Let's find out!
+
+If it's using anonymous memory, it must be very strange, since it
+would more or less have to be mmapped PROT_NONE.  The thing that makes
+anonymous memory in particular seem so awkward to me is that it's
+fundamentally identified by it's *address*, which means it makes no
+sense if it's not mapped.
+
+>
+> > And, one of these days, someone will come up with a version of XPFO
+> > that could actually be upstreamed, and it seems entirely plausible
+> > that it will be totally incompatible with MKTME-as-anonymous-memory
+> > and that users of MKTME will actually get *worse* security.
+>
+> I'm not following here.  XPFO just means that we don't keep the direct
+> map around all the time for all memory.  If XPFO and
+> MKTME-as-anonymous-memory were both in play, I think we'd just be
+> creating/destroying the MKTME-enlightened direct map instead of a
+> vanilla one.
+
+What I'm saying is that I can imagine XPFO also wanting to be
+something other than anonymous memory.  I don't think we'll ever want
+regular MAP_ANONYMOUS to enable XPFO by default because the
+performance will suck.  Doing this seems odd:
+
+ptr = mmap(MAP_ANONYMOUS);
+sys_xpfo_a_pointer(ptr);
+
+So I could imagine:
+
+ptr = mmap(MAP_ANONYMOUS | MAP_XPFO);
+
+or
+
+fd = open("/dev/xpfo"); (or fd = memfd_create(..., XPFO);
+ptr = mmap(fd);
+
+I'm thinking that XPFO is a *lot* simpler under the hood if we just
+straight-up don't support GUP on it.  Maybe we should call this
+"strong XPFO".  Similarly, the kinds of things that want MKTME may
+also want the memory to be entirely absent from the direct map.  And
+the things that use SEV (as I understand it) *can't* usefully use the
+memory for normal IO via GUP or copy_to/from_user(), so these things
+all have a decent amount in common.
+
+Another down side of anonymous memory (in my head, anyway -- QEMU
+people should chime in) is that it seems awkward to use it for IO
+techniques in which the back-end isn't in the QEMU process.  If
+there's an fd involved, you can pass it around, feed it to things like
+vfio, etc.  If there's no fd, it's stuck in the creating process.
+
+And another silly argument: if we had /dev/mktme, then we could
+possibly get away with avoiding all the keyring stuff entirely.
+Instead, you open /dev/mktme and you get your own key under the hook.
+If you want two keys, you open /dev/mktme twice.  If you want some
+other program to be able to see your memory, you pass it the fd.
+
+I hope this email isn't too rambling :)
+
+--Andy
 
