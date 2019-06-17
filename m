@@ -2,154 +2,142 @@ Return-Path: <SRS0=4FFe=UQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DB1B8C31E59
-	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 10:13:16 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 59972C31E59
+	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 11:01:46 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A8F502089E
-	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 10:13:16 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A8F502089E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 0568F208E4
+	for <linux-mm@archiver.kernel.org>; Mon, 17 Jun 2019 11:01:45 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0568F208E4
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 37A0E8E0004; Mon, 17 Jun 2019 06:13:16 -0400 (EDT)
+	id 6FF468E0004; Mon, 17 Jun 2019 07:01:45 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 32AA78E0001; Mon, 17 Jun 2019 06:13:16 -0400 (EDT)
+	id 688C38E0001; Mon, 17 Jun 2019 07:01:45 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 219DE8E0004; Mon, 17 Jun 2019 06:13:16 -0400 (EDT)
+	id 550BD8E0004; Mon, 17 Jun 2019 07:01:45 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C76378E0001
-	for <linux-mm@kvack.org>; Mon, 17 Jun 2019 06:13:15 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id l53so15723849edc.7
-        for <linux-mm@kvack.org>; Mon, 17 Jun 2019 03:13:15 -0700 (PDT)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 1B9D58E0001
+	for <linux-mm@kvack.org>; Mon, 17 Jun 2019 07:01:45 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id t2so5799508plo.10
+        for <linux-mm@kvack.org>; Mon, 17 Jun 2019 04:01:45 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=dKJkAlL+oLqLuorOGCwkKbk9g+ahU1IxXGHniKoETXI=;
-        b=LcG3quRAVy0ZL4f73JHcpOUxEXYrplsga+WkIU+zVvMwMA1Wsf9RrCrqRfHAv7CTMk
-         kN5BIAFQptq0hF+it82vz8TN4p56DkNxCqAFhr2X4XWPYiSAB7vJHw1a8hrgbjp3PZbY
-         UJnka0ZYJu3ihqOxz3bxOaCd89puw74T0eMHfluIzFnahwD7JVbITkGnIQCK72/CCv+d
-         7FJQG7ZQub8V37RGJghgqVeM6Poo/P8KpSvwEL0JDzsp5LpKCkyR0ukecXPVUr/EcxSz
-         r/AwuY1o7dWrG2eihHx4RoneAButEOdUQFYvOGRfmhvbAyYVIQlJQdRkyG6IPdIstXkT
-         Rp8w==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAWK+EKBC9ZeY9x6pg18lycgAbLAzku4s4q3OMeJJG6mTtd2iCWo
-	OpZxGAqhPzhj7zxWmFqN1j6xAQqS0Sp7wyTe1WHATxB2JJ6lw6nOXXCHlO1Xd/uXjhLBPfkuFwk
-	JN41oxvwuU8GzYFeeNMz/1AEe5+d4Z9liQMkdsLrGJ1FTPVHMhrvToxg+XCIIwsY=
-X-Received: by 2002:a17:906:61c3:: with SMTP id t3mr96584219ejl.273.1560766395359;
-        Mon, 17 Jun 2019 03:13:15 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqx7yZbeNGjuCLAJ61a3VB1hIyynOK9xSM17FDT+pyYGbO6Nc6Bhp3gdgk/7ahszS6xGqv0p
-X-Received: by 2002:a17:906:61c3:: with SMTP id t3mr96584173ejl.273.1560766394558;
-        Mon, 17 Jun 2019 03:13:14 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560766394; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:message-id
+         :subject:from:to:cc:date:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=Qaf+B9Yr7ALXcLt671oylbmPh3oUBy5ZfluH2fNwOPs=;
+        b=kPEcL3VfSk9NboXxC1PFR+RipFmzmJYOnut26R9aHHJABt9ZuzVZ+b5yrTw5M8XU/n
+         08lFWmxhi1GUeaybGZcfEtFU6ORE0YpkV0jEVDO6YcJtwHmITWdCi4A44K3ctNtU62Tw
+         s1kmTG7Q6/oG5e29htblYI2SeZq5+N5RRPFwFaguqyjy7aQTyHV9jVJ9lwuarpCkxv5w
+         9NJUqd8MV75O7ZW+KeBN9TRs2TWtJc7NxoOfHv9Q1JcSemz/5jF7hv84ORdfYBOG8w6H
+         K2p/ZDTtHCGjD+xqHct5Pq2O9vp2h3o3oGuZWi/RnFv9G6sY6RKRUNs4fSw9B8lv87z7
+         O0Jw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of kai.huang@linux.intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=kai.huang@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAXX6/tJiSFrQ3+8DHjNnwa3b1o8O5emMGTPmJHMNv6l76G3+Apf
+	Yugt2+G08aTLLB0/HCpvHqnDGmD4GBBk6ecs9T4TO9DMSKJU0cNkCIWYzRR3HY6PuocXTcDiZ5r
+	eTVHvppTEU/ohrEiEl236NvlkoP1o7eJVoj1Kef9W9gEneQIYwk8qeXDfaO+s6KwI7w==
+X-Received: by 2002:a17:902:4a:: with SMTP id 68mr107918542pla.235.1560769304705;
+        Mon, 17 Jun 2019 04:01:44 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqz2kguIAL6mZwPwsweC3SsjpOuuzgJrgWjURU55+SBjNoxlIuY07rvYAtrrST3tKyBK/b2b
+X-Received: by 2002:a17:902:4a:: with SMTP id 68mr107918481pla.235.1560769303876;
+        Mon, 17 Jun 2019 04:01:43 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560769303; cv=none;
         d=google.com; s=arc-20160816;
-        b=yISEysELgRfjg1zz1/vL1WKLiezTs4kZz6PLV4jiKgi+gN+z/p53xAelKSbLSrRmhM
-         89E4HwZyMrrlBe66mqAzzQf4WZgM3H/Dy8NydT/IpBTM5Sh9gVVfX5IdQzHkZL9P0Bkh
-         3Oy6Nmvorte8p1s+VNN7gcGx6A8dQ0MBODWiOk8smqzGWIODNOQwuvffSvnKguC+1Hwh
-         uEBf0YOe43Gxd8FpgO/BHe6o3tE+ybSbzuAvsawae/1hJAYdf7WKb5+ZJSozUd75lwNB
-         BvxaANDxzw18mueK4Ffe8w/5FHgMDlqQzI7lqG6Un1g4T+Yp50qsFA0w7UUeDAox8jWW
-         R0QQ==
+        b=ta/+62qjCcE6HdNRz2b7RAyxwkN45WF5NtAw+c5H5Oi7kFi8WNSE2i++KbQKxG5gP1
+         0h1eU/v2BFMb9T1u3ud6UHI+AP/8hah+lFWXTpNqHksuIwqFIh313KxMDDnOXRXgRCQD
+         eBWuRJ1u9doTjusJzO3itWgEgTDsLpAZPCuiGrDnlqI2lgjMxMSf2SZvSReChsImyhub
+         nRjM2MA4gQJ+5hxkYM4NCPS7D4cfLpbVw8J8gS/fH3pC3IEXZ5QDRS9q4fI4WHgrci92
+         ApVnGVTs7GpiWlgyxxndzi6r5+9iLNDjcNWaUEkKQEKcSlBE416FOJRsKNcbHDrWSHZr
+         kJoA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=dKJkAlL+oLqLuorOGCwkKbk9g+ahU1IxXGHniKoETXI=;
-        b=FUhOw+czCQm4PzEDhhuXXyAv2nLpw6rL+0R92JFmR3UCoxtur8LQKTV5cBSLRRKLwQ
-         25i2uX7jn9oXY+DvtgVWBtO6tRObqaP/Pex8bQYeb7VV05QdPEUvDlq+shfk8w6y44EF
-         B2rIiPhoJTGJb1B3qUECNCYCqSWVGOhr1BP79SfJEYEoZAadURGDuNE9qTNdqfLFzVod
-         IqYKBDUFuwUkdx4wQZ6+E4wxDX+zr7ZB/DOK62zwbFvA1lToDB9YAbAY5svhKKbMU7NC
-         UzduWPXkrZVrLFSZu0C6hdYJLmq4wmoyBmrpxkPcZ7nAGUsHhvsA+A4mdk90MXql6SV6
-         a1dg==
+        h=content-transfer-encoding:mime-version:references:in-reply-to:date
+         :cc:to:from:subject:message-id;
+        bh=Qaf+B9Yr7ALXcLt671oylbmPh3oUBy5ZfluH2fNwOPs=;
+        b=hkUbhTuUbddOZDyPp1WkqU92pSUOub1BKt9x1yJnpsHz++eR8ov7yXq/40jy+gbw5y
+         0ghByJHH1Wrwne/gugSSRJFsYSJK30LXLwS9uTKtapz+ywidAWrvyW4HhLOdFKuI3/kC
+         BTT6zUCcr+M7l2+bWr0cyGM80Afw5WcHXIq6XvyQxez6iD6T/AtPGqBiydap6FrPZ3Dd
+         c/fdM/KhzuB2BojMeF4XazkfR5kruOi6Vz8URq155absxaN84nrf6gQcu5Yp514J1dnK
+         zSJbXLuh8xhdIVh4jivI7i+Y6MhxdHWPHUKCa9WELYMpqvH9cIeWRtDUVdm9kypYyKVy
+         WmGA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a41si8715892edc.273.2019.06.17.03.13.14
+       spf=pass (google.com: best guess record for domain of kai.huang@linux.intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=kai.huang@linux.intel.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
+        by mx.google.com with ESMTPS id z8si9602367pjn.51.2019.06.17.04.01.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 17 Jun 2019 03:13:14 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Mon, 17 Jun 2019 04:01:43 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of kai.huang@linux.intel.com designates 192.55.52.136 as permitted sender) client-ip=192.55.52.136;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 1D9A1AC11;
-	Mon, 17 Jun 2019 10:13:13 +0000 (UTC)
-Date: Mon, 17 Jun 2019 12:13:10 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: Shakeel Butt <shakeelb@google.com>,
-	syzbot <syzbot+d0fc9d3c166bc5e4a94b@syzkaller.appspotmail.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	"Eric W. Biederman" <ebiederm@xmission.com>,
-	Roman Gushchin <guro@fb.com>, Johannes Weiner <hannes@cmpxchg.org>,
-	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
-	LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>,
-	syzkaller-bugs <syzkaller-bugs@googlegroups.com>,
-	yuzhoujian@didichuxing.com
-Subject: Re: general protection fault in oom_unkillable_task
-Message-ID: <20190617101310.GB1492@dhcp22.suse.cz>
-References: <0000000000004143a5058b526503@google.com>
- <CALvZod72=KuBZkSd0ey5orJFGFpwx462XY=cZvO3NOXC0MogFw@mail.gmail.com>
- <20190615134955.GA28441@dhcp22.suse.cz>
- <CALvZod4hT39PfGt9Ohj+g77om5=G0coHK=+G1=GKcm-PowkXsw@mail.gmail.com>
- <20190617063319.GB30420@dhcp22.suse.cz>
- <268214f9-18ef-b63e-2d4f-c344a7dd5e72@i-love.sakura.ne.jp>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <268214f9-18ef-b63e-2d4f-c344a7dd5e72@i-love.sakura.ne.jp>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+       spf=pass (google.com: best guess record for domain of kai.huang@linux.intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=kai.huang@linux.intel.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from fmsmga006.fm.intel.com ([10.253.24.20])
+  by fmsmga106.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 17 Jun 2019 04:01:43 -0700
+X-ExtLoop1: 1
+Received: from khuang2-desk.gar.corp.intel.com ([10.255.91.82])
+  by fmsmga006.fm.intel.com with ESMTP; 17 Jun 2019 04:01:39 -0700
+Message-ID: <1560769298.5187.16.camel@linux.intel.com>
+Subject: Re: [PATCH, RFC 20/62] mm/page_ext: Export lookup_page_ext() symbol
+From: Kai Huang <kai.huang@linux.intel.com>
+To: Peter Zijlstra <peterz@infradead.org>, "Kirill A. Shutemov"
+	 <kirill@shutemov.name>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton
+ <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner
+ <tglx@linutronix.de>,  Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin"
+ <hpa@zytor.com>, Borislav Petkov <bp@alien8.de>, Andy Lutomirski
+ <luto@amacapital.net>, David Howells <dhowells@redhat.com>, Kees Cook
+ <keescook@chromium.org>,  Dave Hansen <dave.hansen@intel.com>, Jacob Pan
+ <jacob.jun.pan@linux.intel.com>, Alison Schofield
+ <alison.schofield@intel.com>, linux-mm@kvack.org, kvm@vger.kernel.org, 
+ keyrings@vger.kernel.org, linux-kernel@vger.kernel.org
+Date: Mon, 17 Jun 2019 23:01:38 +1200
+In-Reply-To: <20190617093054.GB3419@hirez.programming.kicks-ass.net>
+References: <20190508144422.13171-1-kirill.shutemov@linux.intel.com>
+	 <20190508144422.13171-21-kirill.shutemov@linux.intel.com>
+	 <20190614111259.GA3436@hirez.programming.kicks-ass.net>
+	 <20190614224443.qmqolaigu5wnf75p@box>
+	 <20190617093054.GB3419@hirez.programming.kicks-ass.net>
+Content-Type: text/plain; charset="UTF-8"
+X-Mailer: Evolution 3.24.6 (3.24.6-1.fc26) 
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon 17-06-19 18:56:47, Tetsuo Handa wrote:
-> On 2019/06/17 15:33, Michal Hocko wrote:
-> > On Sat 15-06-19 09:11:37, Shakeel Butt wrote:
-> >> On Sat, Jun 15, 2019 at 6:50 AM Michal Hocko <mhocko@kernel.org> wrote:
-> > [...]
-> >>> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> >>> index 5a58778c91d4..43eb479a5dc7 100644
-> >>> --- a/mm/oom_kill.c
-> >>> +++ b/mm/oom_kill.c
-> >>> @@ -161,8 +161,8 @@ static bool oom_unkillable_task(struct task_struct *p,
-> >>>                 return true;
-> >>>
-> >>>         /* When mem_cgroup_out_of_memory() and p is not member of the group */
-> >>> -       if (memcg && !task_in_mem_cgroup(p, memcg))
-> >>> -               return true;
-> >>> +       if (memcg)
-> >>> +               return false;
-> >>
-> >> This will break the dump_tasks() usage of oom_unkillable_task(). We
-> >> can change dump_tasks() to traverse processes like
-> >> mem_cgroup_scan_tasks() for memcg OOMs.
+On Mon, 2019-06-17 at 11:30 +0200, Peter Zijlstra wrote:
+> On Sat, Jun 15, 2019 at 01:44:43AM +0300, Kirill A. Shutemov wrote:
+> > On Fri, Jun 14, 2019 at 01:12:59PM +0200, Peter Zijlstra wrote:
+> > > On Wed, May 08, 2019 at 05:43:40PM +0300, Kirill A. Shutemov wrote:
+> > > > page_keyid() is inline funcation that uses lookup_page_ext(). KVM is
+> > > > going to use page_keyid() and since KVM can be built as a module
+> > > > lookup_page_ext() has to be exported.
+> > > 
+> > > I _really_ hate having to export world+dog for KVM. This one might not
+> > > be a real issue, but I itch every time I see an export for KVM these
+> > > days.
 > > 
-> > Right you are. Doing a similar trick to the oom victim selection is
-> > indeed better. We should really strive to not doing a global process
-> > iteration when we can do a targeted scan. Care to send a patch?
+> > Is there any better way? Do we need to invent EXPORT_SYMBOL_KVM()? :P
 > 
-> I posted a patch that (as a side effect) avoids oom_unkillable_task() from dump_tasks() at
-> https://lore.kernel.org/linux-mm/1558519686-16057-2-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp/ .
-> What do you think?
+> Or disallow KVM (or parts thereof) from being a module anymore.
 
-I am sorry but I didn't get to look at this series yet. Anyway, changing
-the dump_tasks to use a cgroup iterator for the memcg oom sounds like a
-straight forward thing to do without making much more changes around.
-Global task list iteration under a single RCU is a more complex problem
-that is not limited to the OOM path.
+For this particular symbol expose, I don't think its fair to blame KVM since the fundamental reason
+is because page_keyid() (which calls lookup_page_ext()) being implemented as static inline function
+in header file, so essentially having any other module who calls page_keyid() will trigger this
+problem -- in fact IOMMU driver calls page_keyid() too so even w/o KVM lookup_page_ext() needs to be
+exposed.
 
--- 
-Michal Hocko
-SUSE Labs
+Thanks,
+-Kai
 
