@@ -2,144 +2,141 @@ Return-Path: <SRS0=8DoX=UR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 43A21C31E51
-	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 12:14:24 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 14C52C31E51
+	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 12:17:28 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DF3F82085A
-	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 12:14:23 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DF3F82085A
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.com
+	by mail.kernel.org (Postfix) with ESMTP id DB55220873
+	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 12:17:27 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DB55220873
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ellerman.id.au
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 37A006B0003; Tue, 18 Jun 2019 08:14:23 -0400 (EDT)
+	id 749716B0003; Tue, 18 Jun 2019 08:17:27 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 32A1D8E0002; Tue, 18 Jun 2019 08:14:23 -0400 (EDT)
+	id 6F8F58E0002; Tue, 18 Jun 2019 08:17:27 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 21A538E0001; Tue, 18 Jun 2019 08:14:23 -0400 (EDT)
+	id 60EC98E0001; Tue, 18 Jun 2019 08:17:27 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C75316B0003
-	for <linux-mm@kvack.org>; Tue, 18 Jun 2019 08:14:22 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id b12so21041062eds.14
-        for <linux-mm@kvack.org>; Tue, 18 Jun 2019 05:14:22 -0700 (PDT)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 2B7706B0003
+	for <linux-mm@kvack.org>; Tue, 18 Jun 2019 08:17:27 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id n1so7698770plk.11
+        for <linux-mm@kvack.org>; Tue, 18 Jun 2019 05:17:27 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=zs0nSU0sAL9bMuLzucrALijyf19mqPFTd52Cw8w4qYY=;
-        b=bo1V9aNo9CntltkYMqFI4EDKY6s7D6wRNCCPIenghQgROcsZCejjxPIC746UrlMO9a
-         v41ipNOV8IDlIZxEeW7EKA0ST/fgLRNBdIjeuOWhw1miWNQeBU8DuM/jKoXdp+B9FD4O
-         tP7PY9f2ydcatNuMWyI1ZTv+g5tcixPyXP5aeMKn4rIApBXazv2rhnFLUMcoBbAl6O/A
-         Tr9yUSLPHc4g4xA1q99mqqGH4Bpj9fK+m13jj7QYoF39lTyMNMXXrDKZDigSjuhnueRG
-         RVgymxDJKN4gi2F++MNeh/yZSEPg9gxxijB/tdKO0aWTLKUW6C24mJdJ6GCWzPBZ0dU5
-         uMTg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mhocko@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@suse.com
-X-Gm-Message-State: APjAAAUkI5uiPTZ3Xcz5qAsyKez1CRFEEe76pKVtB7BCi4nYWcPt/bH8
-	EtQczPYe9GvNHiXMiTc4mbWgVmkynsR2IWdIzhLeusxachCTFHWEjostnOq2/ouIh1b+XJ/861i
-	PuouO4vHvqyNzJEGz48r4GM40BZ8PDUxsYpVuoZZj9iI1X+ryoGr3C4/rlYVXtczbTQ==
-X-Received: by 2002:a17:906:951:: with SMTP id j17mr74523384ejd.174.1560860062262;
-        Tue, 18 Jun 2019 05:14:22 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqx+GvtUChqTDLHVJw9NuiQjSPp+vtBXLiNB4vUzTH581B3trf+UyLw2iFUEcVrtrDpxJqkQ
-X-Received: by 2002:a17:906:951:: with SMTP id j17mr74523325ejd.174.1560860061357;
-        Tue, 18 Jun 2019 05:14:21 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560860061; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:in-reply-to:references:date:message-id:mime-version
+         :content-transfer-encoding;
+        bh=tnjzGnwe6QgwQjMSV8tVdjPgpnluZItAB104RoUOl60=;
+        b=BDEk0IkWskeJbhfevVQsy+Hcl+GYBDodYu56ibo3WMdvL4+SGD07SluZydoC8XL7BU
+         MZPlQuTyIlQ5oR4E8aurQbo8oO6HR2KgR6uqgkLx7uiPq/zCi94AoR3MzC3CE/GncpOc
+         3J8Bp2Nf2l/LnFYFoyCnQvAPtBzg1qzRAu8vXbA4V/xYaN5Fu9BlafLI+Ul0koxOkNcp
+         AUZ/o2OvrbPvT9fTnqlq+aySDPqy+CruHl+XVQjwuy8ZbXhvf3XmBML2uDH9ZCA/YCqO
+         FWt2SAeqyeW2G4QqDAWpw1CEM0kLCM+Dorr4Z1k+f9XcNQrBsyUnofavOdyCA5a2+Px9
+         8Ocw==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 203.11.71.1 is neither permitted nor denied by best guess record for domain of mpe@ellerman.id.au) smtp.mailfrom=mpe@ellerman.id.au
+X-Gm-Message-State: APjAAAWTqBKrDhvNkq1kbL82wM2nT+QCofZ9IUXRZO6w65LlpJOpdLwE
+	8Mo6ladeoOynZpoykzl3+ugAPBjgdul5RDhx+m3l+bEt9SagREmvlU+DGKO+uZIvArF+LiAQhgp
+	kXIisXmvaaDrm5LxvwP3+bsp+b3pIjNfuVOd+VPAJvSPI8u6IjngxKsuEL0hjB2g=
+X-Received: by 2002:a62:1bd1:: with SMTP id b200mr94341560pfb.210.1560860246697;
+        Tue, 18 Jun 2019 05:17:26 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxlhHmgwlLUCKQPeoK/MQ66kEGQWGm2S1i/X4X+Y9on4m/CLiH/fdYbeSJuzi0wPrhdPRrh
+X-Received: by 2002:a62:1bd1:: with SMTP id b200mr94341495pfb.210.1560860245986;
+        Tue, 18 Jun 2019 05:17:25 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560860245; cv=none;
         d=google.com; s=arc-20160816;
-        b=L5oP8r863cAIb77p+wHaWcIbP+b2rRPsnwQj4zWnoz0e9XioIrh81Ptc6ATSh5oyDR
-         i1pUlHI7OpLDjm4M2Gpurtp30sSMxCqIj0+I265hO6QWEftCAgLr3eaPT37ClCEpHmI0
-         OHmxRsljswAigacDykbiuM2XoqbHyNwsyBpznNPxYGadQYoAqPqM798TtyYsxVoD2liv
-         gOr/HnfXrZOVWfwZry33GuLUZN1aFVQWEmr+ZLTEqBOMpWhFCOglXKP+6xTxte7YkIUZ
-         BTcV42pkTjBiV78DqKI7dpcw13SLAwZR6StXxV6mbSEK/Njy7KiWrXDsxK+UPhUsq18B
-         FNhQ==
+        b=yKdJKqzgW51ohxNElLbANJiODR7Vfkl8c10WkseHEn/8CqX6o824Wzv9EZXjfA1JBL
+         cnOkT3T3CBTYnBjE1hoEqPP2zpb6g+BlMIsH7S04YBetv7/8SbScZ5WA5C2nvM3Ydy7W
+         YMtcdAVlzCaYgOBLV7AXoQlSOpKMK2dNeGQgbkdpBaPxLKFsAZYSKbEtbLSV+MdhSNGQ
+         fK5HrUuQR5aBZuKe0mleI6VojjVlhsfWUCRiOoL+LazCWAkAZwfM+bitoXBWogobHf4d
+         S95WaoRo3lxZy/UA2kpUOItCz426s7qY3wfUKuAYUU8cffGvj0qqcsZSwKmNi/s4Kixc
+         AoqA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=zs0nSU0sAL9bMuLzucrALijyf19mqPFTd52Cw8w4qYY=;
-        b=hMDY+T8AS8wI59+icAQrZSJJDz8m+vTEWl6HMOKrB7nx3UZ66h7Yx/RP5lr1Nb4HlF
-         BfrLj+BeQk3aYLCOeIKixjxL939zpR3Q9NtOWa5LCkIBDwG/og1RpIGiGGc6KqXjna4E
-         xbLKy7XBk1U9hOOyBF9AN5PYvDF94Ir+Em8hASeUeguvuACJBOhSsGuXp+wN4NEOccKC
-         f6GGjU5oKC+rWynrD6cxsPw4wc+96bITRL6b96gUR2msSja2nL5mW8zoxzzONn0uHVRr
-         BG6g8G99cvBar3+cYQpCdxcbfybk+HQxMk8knXXKDWgBRWvmAkUGYG9TZclqZdc/pvpi
-         7AqQ==
+        h=content-transfer-encoding:mime-version:message-id:date:references
+         :in-reply-to:subject:cc:to:from;
+        bh=tnjzGnwe6QgwQjMSV8tVdjPgpnluZItAB104RoUOl60=;
+        b=zzUU2d0cQq91BQd0HvfZQVZLUXnnlm1AEl96pMGkga0Za6y5wbjlArKCY6nBq2l4/T
+         bFW0qo7NsO8v+IrkhBpeX29gzV4RR78C/4h3R69ANlibyaqKXjHnhmIn75l/aGVc6p4N
+         f87ng4d4BxXRp3OpboXXzYYhwU0sboWGLwUA9oZeh2uPILecIV2PGQo3ex/3Cy0F8S84
+         PLIYdo//fpiWY+93EokXziGYdSz4TqCCceMMVYfhFPYmCV9Ehdv9EpNR7x9g/WGPh+BS
+         /fP5JnHS2WiqXR+VUtZuCnMrnYZuwFbYQilNukqx+p0vswSi5SFXnJWIZlCbTM9i/6LB
+         K+7w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of mhocko@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@suse.com
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j5si8897560eja.306.2019.06.18.05.14.21
+       spf=neutral (google.com: 203.11.71.1 is neither permitted nor denied by best guess record for domain of mpe@ellerman.id.au) smtp.mailfrom=mpe@ellerman.id.au
+Received: from ozlabs.org (ozlabs.org. [203.11.71.1])
+        by mx.google.com with ESMTPS id f17si71269pgv.338.2019.06.18.05.17.25
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 18 Jun 2019 05:14:21 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mhocko@suse.com designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Tue, 18 Jun 2019 05:17:25 -0700 (PDT)
+Received-SPF: neutral (google.com: 203.11.71.1 is neither permitted nor denied by best guess record for domain of mpe@ellerman.id.au) client-ip=203.11.71.1;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of mhocko@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@suse.com
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id AA00CAEE9;
-	Tue, 18 Jun 2019 12:14:20 +0000 (UTC)
-Date: Tue, 18 Jun 2019 14:14:18 +0200
-From: Michal Hocko <mhocko@suse.com>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
-	David Rientjes <rientjes@google.com>,
-	Greg Thelen <gthelen@google.com>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH] mm: oom: Remove thread group leader check in
- oom_evaluate_task().
-Message-ID: <20190618121418.GC3318@dhcp22.suse.cz>
-References: <1560853257-14934-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+       spf=neutral (google.com: 203.11.71.1 is neither permitted nor denied by best guess record for domain of mpe@ellerman.id.au) smtp.mailfrom=mpe@ellerman.id.au
+Received: from authenticated.ozlabs.org (localhost [127.0.0.1])
+	(using TLSv1.3 with cipher TLS_AES_256_GCM_SHA384 (256/256 bits)
+	 key-exchange ECDHE (P-256) server-signature RSA-PSS (4096 bits) server-digest SHA256)
+	(No client certificate requested)
+	by mail.ozlabs.org (Postfix) with ESMTPSA id 45SnC6001Qz9s3l;
+	Tue, 18 Jun 2019 22:17:21 +1000 (AEST)
+From: Michael Ellerman <mpe@ellerman.id.au>
+To: Andrew Morton <akpm@linux-foundation.org>, Christophe Leroy <christophe.leroy@c-s.fr>
+Cc: Stephen Rothwell <sfr@canb.auug.org.au>, Michal Hocko <mhocko@suse.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, linux-acpi@vger.kernel.org, Baoquan He <bhe@redhat.com>, David Hildenbrand <david@redhat.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Rafael J. Wysocki" <rafael@kernel.org>, linux-kernel@vger.kernel.org, Wei Yang <richard.weiyang@gmail.com>, linux-mm@kvack.org, Mike Rapoport <rppt@linux.vnet.ibm.com>, Arun KS <arunks@codeaurora.org>, Johannes Weiner <hannes@cmpxchg.org>, Dan Williams <dan.j.williams@intel.com>, linuxppc-dev@lists.ozlabs.org, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Oscar Salvador <osalvador@suse.de>
+Subject: Re: [PATCH v1 1/6] mm: Section numbers use the type "unsigned long"
+In-Reply-To: <20190617185757.b57402b465caff0cf6f85320@linux-foundation.org>
+References: <20190614100114.311-1-david@redhat.com> <20190614100114.311-2-david@redhat.com> <20190614120036.00ae392e3f210e7bc9ec6960@linux-foundation.org> <701e8feb-cbf8-04c1-758c-046da9394ac1@c-s.fr> <20190617185757.b57402b465caff0cf6f85320@linux-foundation.org>
+Date: Tue, 18 Jun 2019 22:17:19 +1000
+Message-ID: <87pnnbozow.fsf@concordia.ellerman.id.au>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1560853257-14934-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue 18-06-19 19:20:57, Tetsuo Handa wrote:
-> Since mem_cgroup_scan_tasks() uses CSS_TASK_ITER_PROCS, only thread group
-> leaders will be scanned (unless dying leaders with live threads). Thus,
-> commit d49ad9355420c743 ("mm, oom: prefer thread group leaders for display
-> purposes") makes little sense.
+Andrew Morton <akpm@linux-foundation.org> writes:
+> On Sat, 15 Jun 2019 10:06:54 +0200 Christophe Leroy <christophe.leroy@c-s=
+.fr> wrote:
+>> Le 14/06/2019 =C3=A0 21:00, Andrew Morton a =C3=A9crit=C2=A0:
+>> > On Fri, 14 Jun 2019 12:01:09 +0200 David Hildenbrand <david@redhat.com=
+> wrote:
+>> >=20
+>> >> We are using a mixture of "int" and "unsigned long". Let's make this
+>> >> consistent by using "unsigned long" everywhere. We'll do the same with
+>> >> memory block ids next.
+>> >>
+>> >> ...
+>> >>
+>> >> -	int i, ret, section_count =3D 0;
+>> >> +	unsigned long i;
+>> >>
+>> >> ...
+>> >>
+>> >> -	unsigned int i;
+>> >> +	unsigned long i;
+>> >=20
+>> > Maybe I did too much fortran back in the day, but I think the
+>> > expectation is that a variable called "i" has type "int".
+...
+>> Codying style says the following, which makes full sense in my opinion:
+>>=20
+>> LOCAL variable names should be short, and to the point.  If you have
+>> some random integer loop counter, it should probably be called ``i``.
+>> Calling it ``loop_counter`` is non-productive, if there is no chance of =
+it
+>> being mis-understood.
+>
+> Well.  It did say "integer".  Calling an unsigned long `i' is flat out
+> misleading.
 
-This can be folded into mm-memcontrol-use-css_task_iter_procs-at-mem_cgroup_scan_tasks.patch
-right?
+I always thought `i` was for loop `index` not `integer`.
 
-> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> Cc: David Rientjes <rientjes@google.com>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Michal Hocko <mhocko@suse.cz>
-> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Cc: Greg Thelen <gthelen@google.com>
-> ---
->  mm/oom_kill.c | 3 ---
->  1 file changed, 3 deletions(-)
-> 
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index 32abc7a..09a5116 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -348,9 +348,6 @@ static int oom_evaluate_task(struct task_struct *task, void *arg)
->  	if (!points || points < oc->chosen_points)
->  		goto next;
->  
-> -	/* Prefer thread group leaders for display purposes */
-> -	if (points == oc->chosen_points && thread_group_leader(oc->chosen))
-> -		goto next;
->  select:
->  	if (oc->chosen)
->  		put_task_struct(oc->chosen);
-> -- 
-> 1.8.3.1
+But I've never written any Fortran :)
 
--- 
-Michal Hocko
-SUSE Labs
+cheers
 
