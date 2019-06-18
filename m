@@ -2,144 +2,160 @@ Return-Path: <SRS0=8DoX=UR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 00F60C31E5B
-	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 20:02:58 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CD029C31E5B
+	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 20:27:30 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 94FA920679
-	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 20:02:58 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="D4LqXjau"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 94FA920679
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 9D7AB20863
+	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 20:27:30 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9D7AB20863
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=zeniv.linux.org.uk
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id EC5FA8E0005; Tue, 18 Jun 2019 16:02:57 -0400 (EDT)
+	id 2F2CC8E0006; Tue, 18 Jun 2019 16:27:30 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E751E8E0001; Tue, 18 Jun 2019 16:02:57 -0400 (EDT)
+	id 2A3498E0001; Tue, 18 Jun 2019 16:27:30 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CEFF18E0005; Tue, 18 Jun 2019 16:02:57 -0400 (EDT)
+	id 1B9EF8E0006; Tue, 18 Jun 2019 16:27:30 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lf1-f72.google.com (mail-lf1-f72.google.com [209.85.167.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 66FE18E0001
-	for <linux-mm@kvack.org>; Tue, 18 Jun 2019 16:02:57 -0400 (EDT)
-Received: by mail-lf1-f72.google.com with SMTP id e143so1719466lfd.9
-        for <linux-mm@kvack.org>; Tue, 18 Jun 2019 13:02:57 -0700 (PDT)
+Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C36D08E0001
+	for <linux-mm@kvack.org>; Tue, 18 Jun 2019 16:27:29 -0400 (EDT)
+Received: by mail-wr1-f71.google.com with SMTP id r4so316193wrt.13
+        for <linux-mm@kvack.org>; Tue, 18 Jun 2019 13:27:29 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to;
-        bh=cVl3SIklS0nHd797FYY4cxHoZEAnPslNYDQOv5OhMDM=;
-        b=WTOaqCU0lxowSqAhaWmh+4IpCpCoChJq9JsHZMpPsXBGUqk2V+I5jyzMvHwnvxSBjI
-         g4J2GqlDnlX7F2fV3Pit2psHEuSWdCvW1TuE4AeSSdoB02xZF6yjU8vXKMJptQpE+u7T
-         w12lWErXsHxaU3KXKgLqwbBohc4FXivg/ai6GY+sLYUfViIJ5RfGpllpnOD9FIatlDJX
-         /6sBIRTs78rvd5qmMbQrTqocOSZXWUZtLtZSg+76gq2/JPrhIiA8xJXxy3uJojSQtcpO
-         X/Kd8yx+4MMNKUy/IOECH2IqaJCoFyD1V4NcdmjQVkXKnrm/uhMJFsJgKP9c1BCV0hXY
-         gm1A==
-X-Gm-Message-State: APjAAAUKoJVAthXyhdmrr2LR/WCzH4E/6gBiBm/M2jY4E2IvvgyJsQbP
-	aDeL8UC8qncMyDuNW4u97Cy4sIt2w/UZlanbknTx2mDXeLdYihVUtLY8lgZiSwcmNglGqv+SRgg
-	HyqC2INk6u7DsS3bS/gUJA6WDocQ642kNNbRgYifjoFxleM5j2TLdxzddJCssId00DQ==
-X-Received: by 2002:ac2:4990:: with SMTP id f16mr2585914lfl.93.1560888176795;
-        Tue, 18 Jun 2019 13:02:56 -0700 (PDT)
-X-Received: by 2002:ac2:4990:: with SMTP id f16mr2585876lfl.93.1560888175875;
-        Tue, 18 Jun 2019 13:02:55 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560888175; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent:sender;
+        bh=9io0bp6KmQ5BOGi12+9IGNA86RrNOqaG7/eKxftayKg=;
+        b=eHAJSArbmFtyzzC15AI4rvb2Uj/cb25Y/DJCAR8irUfV3WlsXkMG9247uIQQtVIo6f
+         qBXqXRfT/gRDsYetI8gyC/URtUBfAUlJ23ef32K7QTNA0btd60XBc0lT7f5EP3BBw6dZ
+         XbBPpnf3iH/v+0CXSLyzRcTFZuYzgKASF1Y//L7wolUBX+ANj5bh3vsrc+H8f7MxUftK
+         9fBXrZWDXbDzLs1plTdKSob/iFdT4ISUuz0ECVR38hauq0L9foA0Z3OIcIds/f5F2llK
+         ABtwBgUkGR5legCZEhAjj0ttLhDuzZRBScIcqFlmt2mA6q7sZWxHjtHGm2Eop36ksnl3
+         WVng==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of viro@ftp.linux.org.uk designates 195.92.253.2 as permitted sender) smtp.mailfrom=viro@ftp.linux.org.uk
+X-Gm-Message-State: APjAAAXNgEWh/FnnncPMSrMOXE77PgYw6lCN5xIT52DIW1pJjdrOQuAq
+	bxHFfTMqM0K3jKrWpMtPtJlCkNcQZZsREXwl6VKnR+ADiaBQGqhyDnFeGAqrtX1loaol8dpdYg3
+	dOsqmIL1wg/CeigPtdBTETXUjLYxOc6xT2GuJ/nv6tbqUZtMgcfir/Ak6qujYvNStZw==
+X-Received: by 2002:a05:6000:4b:: with SMTP id k11mr4816104wrx.82.1560889649351;
+        Tue, 18 Jun 2019 13:27:29 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxg06+NVwo/paSVTmUYvzTQdwQzR3OXKBZ1Fo7Qa+w6isYXDY1oASnv2rnD75dQ+Iw1nQUk
+X-Received: by 2002:a05:6000:4b:: with SMTP id k11mr4816065wrx.82.1560889648533;
+        Tue, 18 Jun 2019 13:27:28 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560889648; cv=none;
         d=google.com; s=arc-20160816;
-        b=lYRiW2yRSD1zp5uJcrdyXzgE0di99hzp2cUDiBQM+odTFd2LMpCxnVwK9uZDIhsCa4
-         +mCCPHFRggwoFJ4ffYkfyOmQ+pEuQNFNXzxWPxD9q7bAMAxhQsAYsYxruQoToR/HQoKZ
-         xY74ZC8k3PfPqfiedozG3antQqdt+KEXJThYY/QlhaBV1kh2hQKXiSkjMlT9FqpLPbtC
-         g2VqEHrvR8hf1H/vpijShiDS/SxSmXhpiZj49jZvm/StoPjq2RP8avsy6IGi/XJdIq0L
-         N4O+rHeGZ9jkdp5NFsnptfZHm7PJt3ad4lIct309WZ0oHtAQyqAUrxTS7T3q4/x9NgpL
-         aL6Q==
+        b=jx7PGj+AKEsjYrsfReHBee5xoFHpYzGV/FmjRpF3y4JaezLcIbmoYcCIONdSAlJRxk
+         fsw1PSCbszTPNrHJyXMdfpymrO9wdqPkEsWGf7V7ffFWM+R4j6o3TfnbTEyCHs9HHI6h
+         bWTmFb0j0vLavgapTEfk+oGC0eX1kqxza8gMrrta4vkF8sQq/xTQnLdV14AK/bpdT74r
+         kqlN2DTpsFq5kvZXrwCMDfca0zpweUGvSlTY5vK/LII+9ybB30R3yWJrswZOxbu/3ZhI
+         eiRUeg8bnLcdJKZ1SOLZDcIKaz2pjDHbeZADcAKk98QjIch5ATvRTcBlkKC7LhAmZefb
+         5rrw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=in-reply-to:content-disposition:mime-version:references:message-id
-         :subject:cc:to:from:date:dkim-signature;
-        bh=cVl3SIklS0nHd797FYY4cxHoZEAnPslNYDQOv5OhMDM=;
-        b=K491YiGklXN1YA8av6v+h4e6YZPvvjYu9XzkBpnVOkn60Lrsg8v0NgUfWac7hzyEI6
-         L2REs+HVAS7MpPsFgxfc+xmTWgW83Auxm312eQ9fHuJJoKQTftqpXOomtJTudHT+utvf
-         hvs+fUSv0i2IeePlV6huUZTZdXgg4qOFUClNXQueUFmV4kVOO5enVQAo5cwcpjCtNckg
-         4AAfHF3pr3VC+4T9p9QZZAP9C61VhXl7EhsHQh/A9r07gI42uC+NpgiPsC+FsTCYSNd/
-         nzBcxUXpr40RS016jg6VRB61RzZDeZSvEFtjVq4W/lKuN3sFmRPCk9KVY2KeJeyiTGpX
-         iJjw==
+        h=sender:user-agent:in-reply-to:content-disposition:mime-version
+         :references:message-id:subject:cc:to:from:date;
+        bh=9io0bp6KmQ5BOGi12+9IGNA86RrNOqaG7/eKxftayKg=;
+        b=hSrCahCgifkXLPGIRrXvwrCUBrtKl+kqgYngSRLCK7WWtBMrFqhi/esJtchuMaiFiC
+         vsA0m+bzMxoZO/5LX6rCpNGi18KtUUfscuf3D3nJb4QbSgOlXWHDE1S4xQNFKGbFI5QX
+         S6r5zQP7E658UMzmhYc1p1aJgkQWzHNmlPNYCxxbIuv3EAqtpHeLrTHDDqZmJibP7yFy
+         Eml5xqjA8wq9K93rfOFOYtUz283oafkvDfmVLTegzSCPpUyIRt7Xa8RKUg3vNqRvZIgQ
+         UdvewcjniFkWzNP+Dbb0BwhdLWLOAwTUafaKQuPYr/VbRQx0JGBpyY2ZxYkTUil2c6L0
+         tRhQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=D4LqXjau;
-       spf=pass (google.com: domain of vdavydov.dev@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=vdavydov.dev@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id x1sor4101008lff.8.2019.06.18.13.02.55
+       spf=pass (google.com: best guess record for domain of viro@ftp.linux.org.uk designates 195.92.253.2 as permitted sender) smtp.mailfrom=viro@ftp.linux.org.uk
+Received: from ZenIV.linux.org.uk (zeniv.linux.org.uk. [195.92.253.2])
+        by mx.google.com with ESMTPS id n9si16396290wra.351.2019.06.18.13.27.28
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 18 Jun 2019 13:02:55 -0700 (PDT)
-Received-SPF: pass (google.com: domain of vdavydov.dev@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Tue, 18 Jun 2019 13:27:28 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of viro@ftp.linux.org.uk designates 195.92.253.2 as permitted sender) client-ip=195.92.253.2;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=D4LqXjau;
-       spf=pass (google.com: domain of vdavydov.dev@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=vdavydov.dev@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to;
-        bh=cVl3SIklS0nHd797FYY4cxHoZEAnPslNYDQOv5OhMDM=;
-        b=D4LqXjauq6e8L92SXdCI8dBOeZ9g3qnR+MvRfoDQP4UPl32roBpvGWprF3TjlmHSja
-         eZ/6/ZjWzgRN9htttHJTrPzVJCoFvbIqpDA3vC1Cl8utSLu6XzXuxp7AabXcEV/Om6He
-         yHiGKcbb2hB4xqghyhAsPiwk4UDzPPVak57pe2KgOS495X1pgno1vQnCtMEqE80s7SDd
-         b/xHq26uOBUeyQq+iykM4OWAPJ5VZU59856GZ2QUrHkBfHjmAmn1pe6xmy0ce97q8t4y
-         IfDjJ3INQeQbB5asZ/xxIwCfBifBBZjV8Yfyh2WDBB5G9dWZfMSeieDwA07Xq9c2du8P
-         K49g==
-X-Google-Smtp-Source: APXvYqzKO9zG2G36ym9WsDHSLpShB5YrpwSynDJM7DvNbZeZWMwp4g4634Uhi3PMXIvAfLocbMbxAg==
-X-Received: by 2002:a05:6512:29a:: with SMTP id j26mr26109062lfp.44.1560888175432;
-        Tue, 18 Jun 2019 13:02:55 -0700 (PDT)
-Received: from esperanza ([176.120.239.149])
-        by smtp.gmail.com with ESMTPSA id j23sm1621386lfb.93.2019.06.18.13.02.54
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 18 Jun 2019 13:02:54 -0700 (PDT)
-Date: Tue, 18 Jun 2019 23:02:51 +0300
-From: Vladimir Davydov <vdavydov.dev@gmail.com>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Colin King <colin.king@canonical.com>, Michal Hocko <mhocko@suse.com>,
-	Mike Rapoport <rppt@linux.vnet.ibm.com>,
-	Mel Gorman <mgorman@techsingularity.net>,
-	Stephen Rothwell <sfr@canb.auug.org.au>,
-	Andrey Ryabinin <aryabinin@virtuozzo.com>, linux-mm@kvack.org,
-	kernel-janitors@vger.kernel.org, linux-kernel@vger.kernel.org
-Subject: Re: [PATCH] mm: idle-page: fix oops because end_pfn is larger than
- max_pfn
-Message-ID: <20190618200251.hd2uk6qzyvsy55py@esperanza>
-References: <20190618124352.28307-1-colin.king@canonical.com>
- <20190618124502.7b9c32a00a54f0c618a12ca4@linux-foundation.org>
+       spf=pass (google.com: best guess record for domain of viro@ftp.linux.org.uk designates 195.92.253.2 as permitted sender) smtp.mailfrom=viro@ftp.linux.org.uk
+Received: from viro by ZenIV.linux.org.uk with local (Exim 4.92 #3 (Red Hat Linux))
+	id 1hdKhN-0003PQ-66; Tue, 18 Jun 2019 20:27:21 +0000
+Date: Tue, 18 Jun 2019 21:27:21 +0100
+From: Al Viro <viro@zeniv.linux.org.uk>
+To: Christoph Hellwig <hch@lst.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+	Sami Tolvanen <samitolvanen@google.com>,
+	Kees Cook <keescook@chromium.org>,
+	Nick Desaulniers <ndesaulniers@google.com>,
+	linux-mtd@lists.infradead.org, linux-nfs@vger.kernel.org,
+	linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Subject: Re: [PATCH 3/4] jffs2: pass the correct prototype to read_cache_page
+Message-ID: <20190618202721.GD17978@ZenIV.linux.org.uk>
+References: <20190520055731.24538-1-hch@lst.de>
+ <20190520055731.24538-4-hch@lst.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190618124502.7b9c32a00a54f0c618a12ca4@linux-foundation.org>
+In-Reply-To: <20190520055731.24538-4-hch@lst.de>
+User-Agent: Mutt/1.11.3 (2019-02-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jun 18, 2019 at 12:45:02PM -0700, Andrew Morton wrote:
-> On Tue, 18 Jun 2019 13:43:52 +0100 Colin King <colin.king@canonical.com> wrote:
-> 
-> > From: Colin Ian King <colin.king@canonical.com>
-> > 
-> > Currently the calcuation of end_pfn can round up the pfn number to
-> > more than the actual maximum number of pfns, causing an Oops. Fix
-> > this by ensuring end_pfn is never more than max_pfn.
-> > 
-> > This can be easily triggered when on systems where the end_pfn gets
-> > rounded up to more than max_pfn using the idle-page stress-ng
-> > stress test:
-> > 
-> 
-> cc Vladimir.  This seems rather obvious - I'm wondering if the code was
-> that way for some subtle reason?
+On Mon, May 20, 2019 at 07:57:30AM +0200, Christoph Hellwig wrote:
+> Fix the callback jffs2 passes to read_cache_page to actually have the
+> proper type expected.  Casting around function pointers can easily
+> hide typing bugs, and defeats control flow protection.
 
-No subtle reason at all - just a bug. The patch looks good to me,
+FWIW, this
+unsigned char *jffs2_gc_fetch_page(struct jffs2_sb_info *c,
+                                   struct jffs2_inode_info *f,
+                                   unsigned long offset,
+                                   unsigned long *priv)
+{
+        struct inode *inode = OFNI_EDONI_2SFFJ(f);
+        struct page *pg;
 
-Acked-by: Vladimir Davydov <vdavydov.dev@gmail.com>
+        pg = read_cache_page(inode->i_mapping, offset >> PAGE_SHIFT,
+                             (void *)jffs2_do_readpage_unlock, inode);
+        if (IS_ERR(pg))
+                return (void *)pg;
+
+        *priv = (unsigned long)pg;
+        return kmap(pg);
+}
+looks like crap.  And so does this:
+void jffs2_gc_release_page(struct jffs2_sb_info *c,
+                           unsigned char *ptr,
+                           unsigned long *priv)
+{
+        struct page *pg = (void *)*priv;
+
+        kunmap(pg);
+        put_page(pg);
+}
+
+	First of all, there's only one caller for each of those, and both
+are direct calls.  So passing struct page * around that way is ridiculous.
+What's more, there is no reason not to do kmap() in caller (i.e. in
+jffs2_garbage_collect_dnode()).  That way jffs2_gc_fetch_page() would
+simply be return read_cache_page(....), and in the caller we'd have
+
+        struct page *pg;
+        unsigned char *pg_ptr;
+...
+        mutex_unlock(&f->sem);
+        pg = jffs2_gc_fetch_page(c, f, start);
+        if (IS_ERR(pg)) {
+		mutex_lock(&f->sem);
+                pr_warn("read_cache_page() returned error: %ld\n", PTR_ERR(pg));
+                return PTR_ERR(pg);
+        }
+	pg_ptr = kmap(pg);
+	mutex_lock(&f->sem);
+...
+	kunmap(pg);
+	put_page(pg);
+
+and that's it, preserving the current locking and with saner types...
 
