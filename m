@@ -2,211 +2,175 @@ Return-Path: <SRS0=8DoX=UR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5A142C31E5B
-	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 00:15:20 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 443EAC31E5B
+	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 00:37:02 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E473B20861
-	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 00:15:19 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id EAFAB20873
+	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 00:37:01 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="KufUXcCH"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E473B20861
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="Br9RdI5m"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EAFAB20873
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6A6296B0006; Mon, 17 Jun 2019 20:15:19 -0400 (EDT)
+	id 694748E0006; Mon, 17 Jun 2019 20:37:01 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 656018E0005; Mon, 17 Jun 2019 20:15:19 -0400 (EDT)
+	id 646888E0005; Mon, 17 Jun 2019 20:37:01 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5448B8E0001; Mon, 17 Jun 2019 20:15:19 -0400 (EDT)
+	id 4E69F8E0006; Mon, 17 Jun 2019 20:37:01 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 1DDEC6B0006
-	for <linux-mm@kvack.org>; Mon, 17 Jun 2019 20:15:19 -0400 (EDT)
-Received: by mail-pl1-f199.google.com with SMTP id r7so6758046plo.6
-        for <linux-mm@kvack.org>; Mon, 17 Jun 2019 17:15:19 -0700 (PDT)
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 2192A8E0005
+	for <linux-mm@kvack.org>; Mon, 17 Jun 2019 20:37:01 -0400 (EDT)
+Received: by mail-qk1-f198.google.com with SMTP id d62so10740257qke.21
+        for <linux-mm@kvack.org>; Mon, 17 Jun 2019 17:37:01 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=J4ERNaAOi1Sm06NQyxiHs/joERhtwrCsfmkXb7NeUCI=;
-        b=WYpHc9eMqPe/jgfARnu5ju049haJbNqPhyZaDBJxSktrdwlXGfTNc2mxw6Uij7+anv
-         GVFR4Z6qkmXu9mNEfwZ5zEmMLRVQFJx0mIa/Fe5LAWAP5bzVp1dKeYi4+y9JwZoLeXjo
-         1Lzow2lmeBMUY/UgbS40EdK8gy5UuKlkFcJ8WHXz4ls+MmBkzDJQbX1PGgm56V6Dvx4P
-         vp5W21Mds6IKmydbBXDb2KRHcDZWFOgMwVD+FoTwci/5/45c1/lCtF61HiHLl24F9a50
-         tCbEVsp4KIsaTHh8Fo+MZvAx7rb+V+LLbHo+BOueDJiAv22c8gYG3bR25FQbKUfzV8gS
-         aTUw==
-X-Gm-Message-State: APjAAAXlQv854BwHGIFD8W4p7gLybDLTjVyeOPSZ9kOTfANYKcMAKFBI
-	Z8hkMvhdR+4f/MEOw5BQYfdzYGc9gizHCtP7zThQmkzUCVuI68zgf155qtiK0vW630ntaVsm4Fr
-	K8QbKdTo5lF7WpokV1SATZpw4x20QJ3xeJuNRotJmwZ7vYyZ4EF3zby8eM4ySR+lcWw==
-X-Received: by 2002:a17:902:9a84:: with SMTP id w4mr9208360plp.160.1560816918695;
-        Mon, 17 Jun 2019 17:15:18 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxYZ9UloD/e/8QDodlH1JmaQ57WXFakeyBeqIoLofLGWQ4xG1FL3eZ+iybNSzDbCvX8Gre4
-X-Received: by 2002:a17:902:9a84:: with SMTP id w4mr9208305plp.160.1560816917932;
-        Mon, 17 Jun 2019 17:15:17 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560816917; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=DUhdu87n/RcFK2o2RKT7Xn6jZQqeitWARb0DhK6/xFo=;
+        b=DjwbE0Pz/H6gZ1bWGJ13SncglarQ71vXixt7kMZO26qipPajwk1LCRXc0R3VvKIB2p
+         5yRFhvK8eSh/C++A3EtkVP/yqO3oX1aTR/8hm2Bxp9FJWlpB147+N0ckj7BwvsI6fuvl
+         w4f5d7DAPu6RPlfQcw2S8DGDDR6UdiU5xW7ApFlz5Sj6llI/Oax+3YbRMJWFw5hMEf6N
+         hZopzaa1ANm0KsB5gyk+bBH7ivxDeWC6W0zUy1bX6uOsk9BOoir5/SZ7MnPtP+B1fSYZ
+         xXhwEo9Gla39QFlhpfuFMXyXYkO+V0diAphuKMHem6RE/FFQN50/OZQFd3XhWsPqST09
+         Z6KQ==
+X-Gm-Message-State: APjAAAVqO9o4mH9QobjH4eWi6dfucXSmkNuktov+e1aBcN44Ko9TYERz
+	aExyUrzRZ6UAB2I8xaHIOviIWizrieEZtY8v2U1RgaiJ/foQtpt6k1+srx8OvbITzszCproUeRi
+	pOmi089SXvh0MEb105XUHnxGkufQdQvLqWDF3jlCuryoQygLJEcU7C+Vg6cskrtKNfg==
+X-Received: by 2002:ac8:1acf:: with SMTP id h15mr96849752qtk.67.1560818220845;
+        Mon, 17 Jun 2019 17:37:00 -0700 (PDT)
+X-Received: by 2002:ac8:1acf:: with SMTP id h15mr96849724qtk.67.1560818220170;
+        Mon, 17 Jun 2019 17:37:00 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560818220; cv=none;
         d=google.com; s=arc-20160816;
-        b=ahduEaaNuqjSOVEF2bqj9aBcRcnEbSpQtjqhrGUy7oWACksiEPoAauO/iEs+YkC9Dc
-         2A7cQFf+y7nfKszBewF9n53go763Ly74pqGOKdIIsnfze8wOkAoJnCPELQqejJoZs9Cr
-         qpIQY3e5mtZnIjGR2EoG2f6pmjg3r1Hkn+GjRAquV5vpSFjSLzWL5bNLID2kR9uNquB9
-         IeztLc2/n7taGUhg5bsEyNnAAixQ5hgutj+wh8BcIVPcp09Ux9RhfNEVFlbBQ1nqM7PT
-         Qi9BnxpvPma5qbyzdDOKZwyHjnuOq/M344FcwXlYOq6iMwrs/MPuRJn/jV7x+ostSe1y
-         tfXA==
+        b=GMpzYnYNiVPqzdh7CVpIrcx2LRtFMM0MJPXwkhDbI69sxFN/hWLd3Xns5xuE/kFqLx
+         JeLiHfC+fnzXkAAggTkDkJzFmKhJRTyRBhE64Rz39SgXTDST3tmQnIA2U+8StMqEOUne
+         8XZDZNooFMcfjXvtpXggRb648guiEZyaMeYBbzizCHA9eVZ7LxrakBenyd96/OSqnQBe
+         xsYOXOX638C89lbJAXlNs6kiCWhfXDi2Fiv3JXoLKSNni+PkSTPPg8hp1s1c+2zz3C4h
+         5X054uze1tMxQ/UZmRqeOf8zquY1+0aXbD+OmlttsqE9/7xCvUBli7HLE9GjYYKxAe1O
+         507Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=J4ERNaAOi1Sm06NQyxiHs/joERhtwrCsfmkXb7NeUCI=;
-        b=UKeQQ3kAWRJDGaopGmIh5KAUhZM2+j2yg6IAk01QNvRr42j3JQNqnd7RDZ9FhOoFlh
-         W0uocUUmeir9y49Oi8IeLSQicGaYeH0K/Gl786nzLYxo+8OYGRJU83xUYbHO4bxMPAsA
-         uNnzjJPBVqLxKMvlGKVNSaF5nMKcNnE4pqd6fEaEYuqCESNgEb7Ttkjw1zyCH/IRxWiY
-         /y5Zl0CXaMdmCrwBDLYaDQA1YNii7vowsyfVXEu83wXN+KnrOEZZKXz7A5O4E9KtiBNU
-         jVlCcP/5SOh0eeTiYHlBRQVGdso9Pvvu473BS5KVn+9uXa+PiALB1qdXikKz2EDmhZbP
-         temg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=DUhdu87n/RcFK2o2RKT7Xn6jZQqeitWARb0DhK6/xFo=;
+        b=CdBQsxLdwNBrLZByyJlCA4NngKWb5v0W3WrMLBQhfZSmxApk9Vyo+XpGjYlivDqKIk
+         prJUgxmlzDkXqreJh0D/PE4HoMvCtrPRXgQOd31TxB3dSNmLnd0azZ/XAxQWZx9AqEdf
+         zcj3HrH//bpDo5TioVxw0wQsAEwOZOLukfdxqtL/LmxwE6YNl0wTh1JM/LFye/t0t/EU
+         L5SPbBcRnChldJBQVJTGlqLdWe5NxA3NKLFgCxjv+O7loxmhr/kmeUA2+xkzo/k6wqDR
+         TuxxOXAxebovJDa8+adGZ2KYIsuwzFLVlMtbkcF9Rbi5u9Tl/uluHtjQNdHWNyiL7Stb
+         W29Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=KufUXcCH;
-       spf=pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=luto@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id q8si12333516pfc.155.2019.06.17.17.15.17
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=Br9RdI5m;
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id x12sor10794984qvc.50.2019.06.17.17.37.00
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 17 Jun 2019 17:15:17 -0700 (PDT)
-Received-SPF: pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        (Google Transport Security);
+        Mon, 17 Jun 2019 17:37:00 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=KufUXcCH;
-       spf=pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=luto@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail-wr1-f53.google.com (mail-wr1-f53.google.com [209.85.221.53])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 37C1E2147A
-	for <linux-mm@kvack.org>; Tue, 18 Jun 2019 00:15:17 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1560816917;
-	bh=bQszpKKtRqay8BXy5xoZqczKSmcgkXxEdS7CWQ4wvic=;
-	h=References:In-Reply-To:From:Date:Subject:To:Cc:From;
-	b=KufUXcCHguV/MZBfdJ1UgPyRTW3eCKtSrfxLxy9i+UBAiIazGMrltN+iFYxFVl62s
-	 IdEC552KDjlEdIDwV6nsWtxB0Hz2z7RrknFPD/knhdNuEJYm9q3wE83tea6VtQK6hq
-	 voYk6nrOcb65/pVTvsckV8vOkNjw4TXXRvXpe+tA=
-Received: by mail-wr1-f53.google.com with SMTP id x4so11912531wrt.6
-        for <linux-mm@kvack.org>; Mon, 17 Jun 2019 17:15:17 -0700 (PDT)
-X-Received: by 2002:adf:f28a:: with SMTP id k10mr11743806wro.343.1560816915741;
- Mon, 17 Jun 2019 17:15:15 -0700 (PDT)
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=Br9RdI5m;
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=ziepe.ca; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=DUhdu87n/RcFK2o2RKT7Xn6jZQqeitWARb0DhK6/xFo=;
+        b=Br9RdI5mPQREEmkYKTbqml22ch68dceGzZJ3NpqNGWnyOqMXHH3Vp3I8RbvWN+0dGG
+         +g1j7rLYevDrJD9u1C3ny612FtpBO3tbIePe350M5ElOwdk4pjJA8/R330jcc3+vtYpn
+         17S07MU/B/lrrFpSdr2NFsNSFXPEIP46dFGaUq3K6P/Gztn1b6znTuHTRL9kMCjl+OsE
+         E/SXSnxqH8z94kWuui++s5M1RdL+/flIEAt9fmVVYofcAVK2jbveGcEm8QPiuUNVzG1y
+         spSh4cwLvofbfJDRrinF0oVrVOFf22UKWIYy7Uyrxgd7cZ/rnvEbnjdjRkZxGdQjLAWX
+         AxQw==
+X-Google-Smtp-Source: APXvYqwNKmMPGfd11Aoys/ex+FCBBx8y28tJjyO+G3ezjcr0a4wUE2AKBOFyQh6LE7vtVp6hp3BWOw==
+X-Received: by 2002:a0c:89a5:: with SMTP id 34mr4976222qvr.110.1560818219783;
+        Mon, 17 Jun 2019 17:36:59 -0700 (PDT)
+Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
+        by smtp.gmail.com with ESMTPSA id 41sm9704086qtp.32.2019.06.17.17.36.59
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 17 Jun 2019 17:36:59 -0700 (PDT)
+Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
+	(envelope-from <jgg@ziepe.ca>)
+	id 1hd27O-0000jS-MT; Mon, 17 Jun 2019 21:36:58 -0300
+Date: Mon, 17 Jun 2019 21:36:58 -0300
+From: Jason Gunthorpe <jgg@ziepe.ca>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Jerome Glisse <jglisse@redhat.com>,
+	Ralph Campbell <rcampbell@nvidia.com>,
+	John Hubbard <jhubbard@nvidia.com>, Felix.Kuehling@amd.com,
+	linux-rdma@vger.kernel.org, linux-mm@kvack.org,
+	Andrea Arcangeli <aarcange@redhat.com>,
+	dri-devel@lists.freedesktop.org, amd-gfx@lists.freedesktop.org,
+	Ben Skeggs <bskeggs@redhat.com>, Ira Weiny <ira.weiny@intel.com>,
+	Philip Yang <Philip.Yang@amd.com>
+Subject: Re: [PATCH v3 hmm 04/12] mm/hmm: Simplify hmm_get_or_create and make
+ it reliable
+Message-ID: <20190618003658.GC30762@ziepe.ca>
+References: <20190614004450.20252-1-jgg@ziepe.ca>
+ <20190614004450.20252-5-jgg@ziepe.ca>
+ <20190615141211.GD17724@infradead.org>
 MIME-Version: 1.0
-References: <20190508144422.13171-1-kirill.shutemov@linux.intel.com>
- <20190508144422.13171-46-kirill.shutemov@linux.intel.com> <CALCETrVCdp4LyCasvGkc0+S6fvS+dna=_ytLdDPuD2xeAr5c-w@mail.gmail.com>
- <3c658cce-7b7e-7d45-59a0-e17dae986713@intel.com> <CALCETrUPSv4Xae3iO+2i_HecJLfx4mqFfmtfp+cwBdab8JUZrg@mail.gmail.com>
- <5cbfa2da-ba2e-ed91-d0e8-add67753fc12@intel.com> <CALCETrWFXSndmPH0OH4DVVrAyPEeKUUfNwo_9CxO-3xy9awq0g@mail.gmail.com>
- <1560816342.5187.63.camel@linux.intel.com>
-In-Reply-To: <1560816342.5187.63.camel@linux.intel.com>
-From: Andy Lutomirski <luto@kernel.org>
-Date: Mon, 17 Jun 2019 17:15:04 -0700
-X-Gmail-Original-Message-ID: <CALCETrVcrPYUUVdgnPZojhJLgEhKv5gNqnT6u2nFVBAZprcs5g@mail.gmail.com>
-Message-ID: <CALCETrVcrPYUUVdgnPZojhJLgEhKv5gNqnT6u2nFVBAZprcs5g@mail.gmail.com>
-Subject: Re: [PATCH, RFC 45/62] mm: Add the encrypt_mprotect() system call for MKTME
-To: Kai Huang <kai.huang@linux.intel.com>
-Cc: Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, 
-	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, 
-	X86 ML <x86@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, 
-	"H. Peter Anvin" <hpa@zytor.com>, Borislav Petkov <bp@alien8.de>, Peter Zijlstra <peterz@infradead.org>, 
-	David Howells <dhowells@redhat.com>, Kees Cook <keescook@chromium.org>, 
-	Jacob Pan <jacob.jun.pan@linux.intel.com>, 
-	Alison Schofield <alison.schofield@intel.com>, Linux-MM <linux-mm@kvack.org>, 
-	kvm list <kvm@vger.kernel.org>, keyrings@vger.kernel.org, 
-	LKML <linux-kernel@vger.kernel.org>, Tom Lendacky <thomas.lendacky@amd.com>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190615141211.GD17724@infradead.org>
+User-Agent: Mutt/1.9.4 (2018-02-28)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jun 17, 2019 at 5:05 PM Kai Huang <kai.huang@linux.intel.com> wrote:
->
-> On Mon, 2019-06-17 at 12:12 -0700, Andy Lutomirski wrote:
-> > On Mon, Jun 17, 2019 at 11:37 AM Dave Hansen <dave.hansen@intel.com> wrote:
-> > >
-> > > Tom Lendacky, could you take a look down in the message to the talk of
-> > > SEV?  I want to make sure I'm not misrepresenting what it does today.
-> > > ...
-> > >
-> > >
-> > > > > I actually don't care all that much which one we end up with.  It's not
-> > > > > like the extra syscall in the second options means much.
-> > > >
-> > > > The benefit of the second one is that, if sys_encrypt is absent, it
-> > > > just works.  In the first model, programs need a fallback because
-> > > > they'll segfault of mprotect_encrypt() gets ENOSYS.
-> > >
-> > > Well, by the time they get here, they would have already had to allocate
-> > > and set up the encryption key.  I don't think this would really be the
-> > > "normal" malloc() path, for instance.
-> > >
-> > > > >  How do we
-> > > > > eventually stack it on top of persistent memory filesystems or Device
-> > > > > DAX?
-> > > >
-> > > > How do we stack anonymous memory on top of persistent memory or Device
-> > > > DAX?  I'm confused.
-> > >
-> > > If our interface to MKTME is:
-> > >
-> > >         fd = open("/dev/mktme");
-> > >         ptr = mmap(fd);
-> > >
-> > > Then it's hard to combine with an interface which is:
-> > >
-> > >         fd = open("/dev/dax123");
-> > >         ptr = mmap(fd);
-> > >
-> > > Where if we have something like mprotect() (or madvise() or something
-> > > else taking pointer), we can just do:
-> > >
-> > >         fd = open("/dev/anything987");
-> > >         ptr = mmap(fd);
-> > >         sys_encrypt(ptr);
-> >
-> > I'm having a hard time imagining that ever working -- wouldn't it blow
-> > up if someone did:
-> >
-> > fd = open("/dev/anything987");
-> > ptr1 = mmap(fd);
-> > ptr2 = mmap(fd);
-> > sys_encrypt(ptr1);
-> >
-> > So I think it really has to be:
-> > fd = open("/dev/anything987");
-> > ioctl(fd, ENCRYPT_ME);
-> > mmap(fd);
->
-> This requires "/dev/anything987" to support ENCRYPT_ME ioctl, right?
->
-> So to support NVDIMM (DAX), we need to add ENCRYPT_ME ioctl to DAX?
+On Sat, Jun 15, 2019 at 07:12:11AM -0700, Christoph Hellwig wrote:
+> > +	spin_lock(&mm->page_table_lock);
+> > +	if (mm->hmm) {
+> > +		if (kref_get_unless_zero(&mm->hmm->kref)) {
+> > +			spin_unlock(&mm->page_table_lock);
+> > +			return mm->hmm;
+> > +		}
+> > +	}
+> > +	spin_unlock(&mm->page_table_lock);
+> 
+> This could become:
+> 
+> 	spin_lock(&mm->page_table_lock);
+> 	hmm = mm->hmm
+> 	if (hmm && kref_get_unless_zero(&hmm->kref))
+> 		goto out_unlock;
+> 	spin_unlock(&mm->page_table_lock);
+> 
+> as the last two lines of the function already drop the page_table_lock
+> and then return hmm.  Or drop the "hmm = mm->hmm" asignment above and
+> return mm->hmm as that should be always identical to hmm at the end
+> to save another line.
 
-Yes and yes, or we do it with layers -- see below.
+Yeah, I can fuss it some more.
 
-I don't see how we can credibly avoid this.  If we try to do MKTME
-behind the DAX driver's back, aren't we going to end up with cache
-coherence problems?
+> > +	/*
+> > +	 * The mm->hmm pointer is kept valid while notifier ops can be running
+> > +	 * so they don't have to deal with a NULL mm->hmm value
+> > +	 */
+> 
+> The comment confuses me.  How does the page_table_lock relate to
+> possibly running notifiers, as I can't find that we take
+> page_table_lock?  Or is it just about the fact that we only clear
+> mm->hmm in the free callback, and not in hmm_free?
 
->
-> >
-> > But I really expect that the encryption of a DAX device will actually
-> > be a block device setting and won't look like this at all.  It'll be
-> > more like dm-crypt except without device mapper.
->
-> Are you suggesting not to support MKTME for DAX, or adding MKTME support to dm-crypt?
+It was late when I wrote this fixup, the comment is faulty, and there
+is no reason to delay this until the SRCU cleanup at this point in the
+series.
 
-I'm proposing exposing it by an interface that looks somewhat like
-dm-crypt.  Either we could have a way to create a device layered on
-top of the DAX devices that exposes a decrypted view or we add a way
-to tell the DAX device to kindly use MKTME with such-and-such key.
+The ops all get their struct hmm from container_of, the only thing
+that refers to mm->hmm is hmm_get_or_create().
 
-If there is demand for a way to have an fscrypt-like thing on top of
-DAX where different files use different keys, I suppose that could be
-done too, but it will need filesystem or VFS help.
+I'll revise it tomorrow, the comment will go away and the =NULL will
+go to the release callback
+
+Jason
 
