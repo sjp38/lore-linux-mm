@@ -2,178 +2,151 @@ Return-Path: <SRS0=8DoX=UR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable autolearn_force=no
+X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B1BB7C46477
-	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 12:44:02 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 65324C31E5E
+	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 12:47:20 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8396120679
-	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 12:44:02 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8396120679
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=canonical.com
+	by mail.kernel.org (Postfix) with ESMTP id 2A58420B1F
+	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 12:47:20 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2A58420B1F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 07D808E0005; Tue, 18 Jun 2019 08:44:02 -0400 (EDT)
+	id A18498E0005; Tue, 18 Jun 2019 08:47:19 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 02E838E0001; Tue, 18 Jun 2019 08:44:01 -0400 (EDT)
+	id 9A1DB8E0001; Tue, 18 Jun 2019 08:47:19 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E87188E0005; Tue, 18 Jun 2019 08:44:01 -0400 (EDT)
+	id 842618E0005; Tue, 18 Jun 2019 08:47:19 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 91BF58E0001
-	for <linux-mm@kvack.org>; Tue, 18 Jun 2019 08:44:01 -0400 (EDT)
-Received: by mail-wm1-f70.google.com with SMTP id c190so640581wme.8
-        for <linux-mm@kvack.org>; Tue, 18 Jun 2019 05:44:01 -0700 (PDT)
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 607498E0001
+	for <linux-mm@kvack.org>; Tue, 18 Jun 2019 08:47:19 -0400 (EDT)
+Received: by mail-qk1-f197.google.com with SMTP id c1so10810130qkl.7
+        for <linux-mm@kvack.org>; Tue, 18 Jun 2019 05:47:19 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:mime-version:content-transfer-encoding;
-        bh=IKD/8en+EdSad003MzLsrHFUxGJeE6CL7eT5rxFHS78=;
-        b=Bj96k256DMzcb4dVvzIUAyEaVimOD9Cc+hyMvoF3WbEe3MlUUaLn9JOLYw5PotIYYo
-         OzLdUgVD6MQkG8Iut/w8jiO0P2pqnc0ElARciZy1Fvxtro2NLX7i+zYamDZvyuLPCj/i
-         cLQNAytYdOKVcoJnYwCJHQ/58zYeyuxrAodjSMi78y53hyUE5mihJ94k0aG2NCkDScd4
-         br/Teu0rX7b4ELbxD7DE3NimUqaX0wp68go4QPvai2tznkN1AkA81Pr0WkKx9bswopwI
-         7zeo8goEhUJZKLnKpwvwlzU9lqj2PCNmE3JrcWPi6C3yZZWQxTdKO5JCidk4VHyQZJDX
-         myTA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of colin.king@canonical.com designates 91.189.89.112 as permitted sender) smtp.mailfrom=colin.king@canonical.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=canonical.com
-X-Gm-Message-State: APjAAAV7RLQZSlkNieAcPlq8GdR3wU2VikN4ECMeK6Ngrw4YubjdHC2w
-	/zEgJ1KilyCHPq9Cs0D7OZhjhPaKWLaDSPGmrYQCvmwhDmUJdmbTqFgbOfNK0ZQfWEpo70vJy+o
-	wkD/t8TLq2LwMcPK5SQMol4WtHvQYH5WauTsv8M+Abj4f//26W67lii8aVPgYc0csug==
-X-Received: by 2002:a1c:f314:: with SMTP id q20mr3237661wmq.74.1560861841050;
-        Tue, 18 Jun 2019 05:44:01 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqw9YfE5CIrO58OFBbIWJgbXQcv7FlfRrR6asAoEHv/OG8Rlx8FCcttEl0MTrIhWUkjJwmSx
-X-Received: by 2002:a1c:f314:: with SMTP id q20mr3237589wmq.74.1560861839575;
-        Tue, 18 Jun 2019 05:43:59 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560861839; cv=none;
+         :subject:references:date:in-reply-to:message-id:user-agent
+         :mime-version;
+        bh=opsNft9+oEt1EVUpsOi8KCqXxyz7DtkrAZDDZb/KD/8=;
+        b=dVSau9go6P/a4QMDAIM1l9dHABl2JsTnip6dAE7LflbLDintji8FiqH+yab/8vIPI9
+         FzilrN4VUy+RZhG8mqGTmNhrTAaM2a+2h9obecM50eesiwvqqK5bxNFlyskAs5iXdz+e
+         4/ZhBVuGIR+URphT0ymKFbqHyYdzkn/A4LRmAEMRNavYRorxiJgxmaJBDUCRnHBWdAzJ
+         8WydsGI3oUHlOJVD2q3cg+R3pXyRMbaeULVMxFx06dLU8fOPyZO4cX4E3J1Ur1DrYoYe
+         URphQNF07TgDy3KJ7OG3EUSmAckNePk2gn0JPH+wJfnNivNMT66rGBZQfhUOsV2gvu0d
+         oBNw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of fweimer@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=fweimer@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAWsrFN5oX6msLDsa2M8iwcVQ87nErLtywx3la6QAmF0gwmeDXv9
+	uXD2VYB4uS0fAU5ynNdmxH+KAERcTuBFiA+pLohW1bht8apEGR9mtE6DKe/Dj4C5kZZpAOO2wYP
+	ULVJzmmp2aZm1zAjONSKducNADXW7COD6YeydIlhKW6SDOy+ze8H2/kCz7hTG3u5GNw==
+X-Received: by 2002:ac8:6b42:: with SMTP id x2mr94316222qts.92.1560862039199;
+        Tue, 18 Jun 2019 05:47:19 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqx8ZlbCzZ1RiiLhDraSN1urV45A4mcjT/6eWLRUeehpHy9v3FTtnFoWsHgX4UAhlEuW4m44
+X-Received: by 2002:ac8:6b42:: with SMTP id x2mr94316181qts.92.1560862038629;
+        Tue, 18 Jun 2019 05:47:18 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560862038; cv=none;
         d=google.com; s=arc-20160816;
-        b=yyRX59GA7o+94QtatLtODITEO3DgngRAPINAi5m2PPKoDhONI0v39ygp4kRSKmS/uf
-         g7WIyJxa6Griww61NdOiUvDyW27foJ89HnaXlk4jeb3QzU/0HqY3HUHkuSQbcffSU3Me
-         hJhOVoiG/hoQ23LWsC+A+umd7HPaclVLb1vlxHicnSvbJeEV6GzGho6m++aTY2FVZ5N2
-         YIW/5UbLi2BGoWROXEmHxec5+JxB8yiW5z4oTr6cDV6ZEqhdcg54jeCQl23aiU5CiQ/U
-         TpKGka9UUA90R9ELCu9kds69YckHdf3ZmCYk623xEq9hnbu4tnk1lxkxbvk/6Os9ZWzU
-         2V1g==
+        b=ryV1wtWaa7A8nUMxvlHmRMZWPCn28UIF6VDpd/FNbQoCWppp52R9ffu8sqo5zWUmT/
+         4fPY67SktCV+f+lcabMc2WKGvoHJmBuqLWlBh5E8bdxIwsKdcuTrWvW8H4L40AvJ+Ole
+         jveyAMmLGFyw/PTFb9S2aKvJKpFmMqJs1uBLPSxF7avUSN2vv6zWJxByfUuLRlYxPpRN
+         5zWVuCEJcqzhzbLnfOkzmDCf2wujshn4FH52D36710C7a5Vd0JZ/oXiQUKvxSGqS43Tr
+         7IIwX8FVbPKVnz9sg5TMOOWWizhIK4QSo/uTJ/8/obtUSXTd1+gRF3opjq8IAzzyEYDF
+         mEWQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
-         :to:from;
-        bh=IKD/8en+EdSad003MzLsrHFUxGJeE6CL7eT5rxFHS78=;
-        b=LN4RYDCPv65jXCmSv2DqPQdCNKnjVbhkYVTPYYkIpaiA+aTBm2fKSO931Y6ak87jMD
-         AyCjTnRqFE9dueqgWOi3nfjTTgALXHUzjh18eLzvfIFP7LqdrT1p+HQeBm5YXyfMv7gT
-         +eXJBQ/KMdmFM/h02CRuLdjaqwwkNIxGNeig5BMILGArLIn9indx7SRp5W1vo7+76Ck3
-         FIiV8WGdeA40MUTG/8ajNxGtISZWEFrPaEy223A5P+zhSBfgybg/S77v7pCfHEJ1otlK
-         7aOTyGLBMbttWM8ILwT2hn6YbD3zYqaVhKl67XAghZUAxgRtE5mlrv15q4tLY874V1n3
-         j8Qw==
+        h=mime-version:user-agent:message-id:in-reply-to:date:references
+         :subject:cc:to:from;
+        bh=opsNft9+oEt1EVUpsOi8KCqXxyz7DtkrAZDDZb/KD/8=;
+        b=e2b8KLKZBkMpx1xk2cjfgtGyWOB3Nm3TTfav2mNxE3km9jmwGPJnzGpzlHX+7Lgu+g
+         JaH07h0+mbFrdZZh6S+KKR1BOLvBP+HPTM3omEenIQHCdy81jWsa513R0mp1RW/yAUM1
+         4CTnj3Ozde6Wd3DU1+8C4KCBNkUItOVKHFdaN4R3s+1+APLL12CI1npyJQ75v/asgXrm
+         KU++abwYtRXLE1y4TfGhW1y7SbvpECGzb7JUhkAYcW+syTNJiJJdWaRaKa1U1v31Y+dt
+         NVgdAQKZ5hlgLhKKZufxjEdYlXbTWTNX9cu0dMJ+dZVs49HbBfiTGYwP07vEAHTAPBeJ
+         KjmA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of colin.king@canonical.com designates 91.189.89.112 as permitted sender) smtp.mailfrom=colin.king@canonical.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=canonical.com
-Received: from youngberry.canonical.com (youngberry.canonical.com. [91.189.89.112])
-        by mx.google.com with ESMTPS id z127si1880814wmb.97.2019.06.18.05.43.59
+       spf=pass (google.com: domain of fweimer@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=fweimer@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id 141si9737199qke.43.2019.06.18.05.47.18
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 18 Jun 2019 05:43:59 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of colin.king@canonical.com designates 91.189.89.112 as permitted sender) client-ip=91.189.89.112;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 18 Jun 2019 05:47:18 -0700 (PDT)
+Received-SPF: pass (google.com: domain of fweimer@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of colin.king@canonical.com designates 91.189.89.112 as permitted sender) smtp.mailfrom=colin.king@canonical.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=canonical.com
-Received: from 1.general.cking.uk.vpn ([10.172.193.212] helo=localhost)
-	by youngberry.canonical.com with esmtpsa (TLS1.0:RSA_AES_256_CBC_SHA1:32)
-	(Exim 4.76)
-	(envelope-from <colin.king@canonical.com>)
-	id 1hdDSr-000408-4h; Tue, 18 Jun 2019 12:43:53 +0000
-From: Colin King <colin.king@canonical.com>
-To: Andrew Morton <akpm@linux-foundation.org>,
-	Michal Hocko <mhocko@suse.com>,
-	Mike Rapoport <rppt@linux.vnet.ibm.com>,
-	Mel Gorman <mgorman@techsingularity.net>,
-	Stephen Rothwell <sfr@canb.auug.org.au>,
-	Andrey Ryabinin <aryabinin@virtuozzo.com>,
-	linux-mm@kvack.org
-Cc: kernel-janitors@vger.kernel.org,
-	linux-kernel@vger.kernel.org
-Subject: [PATCH] mm: idle-page: fix oops because end_pfn is larger than max_pfn
-Date: Tue, 18 Jun 2019 13:43:52 +0100
-Message-Id: <20190618124352.28307-1-colin.king@canonical.com>
-X-Mailer: git-send-email 2.20.1
+       spf=pass (google.com: domain of fweimer@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=fweimer@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 468E8C05B1CA;
+	Tue, 18 Jun 2019 12:47:17 +0000 (UTC)
+Received: from oldenburg2.str.redhat.com (dhcp-192-180.str.redhat.com [10.33.192.180])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id CFB6F36FA;
+	Tue, 18 Jun 2019 12:47:01 +0000 (UTC)
+From: Florian Weimer <fweimer@redhat.com>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Dave Martin <Dave.Martin@arm.com>,  Thomas Gleixner
+ <tglx@linutronix.de>,  Yu-cheng Yu <yu-cheng.yu@intel.com>,
+  x86@kernel.org,  "H. Peter Anvin" <hpa@zytor.com>,  Ingo Molnar
+ <mingo@redhat.com>,  linux-kernel@vger.kernel.org,
+  linux-doc@vger.kernel.org,  linux-mm@kvack.org,
+  linux-arch@vger.kernel.org,  linux-api@vger.kernel.org,  Arnd Bergmann
+ <arnd@arndb.de>,  Andy Lutomirski <luto@amacapital.net>,  Balbir Singh
+ <bsingharora@gmail.com>,  Borislav Petkov <bp@alien8.de>,  Cyrill Gorcunov
+ <gorcunov@gmail.com>,  Dave Hansen <dave.hansen@linux.intel.com>,  Eugene
+ Syromiatnikov <esyr@redhat.com>,  "H.J. Lu" <hjl.tools@gmail.com>,  Jann
+ Horn <jannh@google.com>,  Jonathan Corbet <corbet@lwn.net>,  Kees Cook
+ <keescook@chromium.org>,  Mike Kravetz <mike.kravetz@oracle.com>,  Nadav
+ Amit <nadav.amit@gmail.com>,  Oleg Nesterov <oleg@redhat.com>,  Pavel
+ Machek <pavel@ucw.cz>,  Randy Dunlap <rdunlap@infradead.org>,  "Ravi V.
+ Shankar" <ravi.v.shankar@intel.com>,  Vedvyas Shanbhogue
+ <vedvyas.shanbhogue@intel.com>
+Subject: Re: [PATCH v7 22/27] binfmt_elf: Extract .note.gnu.property from an ELF file
+References: <20190606200646.3951-23-yu-cheng.yu@intel.com>
+	<20190607180115.GJ28398@e103592.cambridge.arm.com>
+	<94b9c55b3b874825fda485af40ab2a6bc3dad171.camel@intel.com>
+	<87lfy9cq04.fsf@oldenburg2.str.redhat.com>
+	<20190611114109.GN28398@e103592.cambridge.arm.com>
+	<031bc55d8dcdcf4f031e6ff27c33fd52c61d33a5.camel@intel.com>
+	<20190612093238.GQ28398@e103592.cambridge.arm.com>
+	<87imt4jwpt.fsf@oldenburg2.str.redhat.com>
+	<alpine.DEB.2.21.1906171418220.1854@nanos.tec.linutronix.de>
+	<20190618091248.GB2790@e103592.cambridge.arm.com>
+	<20190618124122.GH3419@hirez.programming.kicks-ass.net>
+Date: Tue, 18 Jun 2019 14:47:00 +0200
+In-Reply-To: <20190618124122.GH3419@hirez.programming.kicks-ass.net> (Peter
+	Zijlstra's message of "Tue, 18 Jun 2019 14:41:22 +0200")
+Message-ID: <87ef3r9i2j.fsf@oldenburg2.str.redhat.com>
+User-Agent: Gnus/5.13 (Gnus v5.13) Emacs/26.2 (gnu/linux)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.32]); Tue, 18 Jun 2019 12:47:17 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Colin Ian King <colin.king@canonical.com>
+* Peter Zijlstra:
 
-Currently the calcuation of end_pfn can round up the pfn number to
-more than the actual maximum number of pfns, causing an Oops. Fix
-this by ensuring end_pfn is never more than max_pfn.
+> I'm not sure I read Thomas' comment like that. In my reading keeping the
+> PT_NOTE fallback is exactly one of those 'fly workarounds'. By not
+> supporting PT_NOTE only the 'fine' people already shit^Hpping this out
+> of tree are affected, and we don't have to care about them at all.
 
-This can be easily triggered when on systems where the end_pfn gets
-rounded up to more than max_pfn using the idle-page stress-ng
-stress test:
+Just to be clear here: There was an ABI document that required PT_NOTE
+parsing.  The Linux kernel does *not* define the x86-64 ABI, it only
+implements it.  The authoritative source should be the ABI document.
 
-sudo stress-ng --idle-page 0
+In this particularly case, so far anyone implementing this ABI extension
+tried to provide value by changing it, sometimes successfully.  Which
+makes me wonder why we even bother to mainatain ABI documentation.  The
+kernel is just very late to the party.
 
-[ 3812.222790] BUG: unable to handle kernel paging request at 00000000000020d8
-[ 3812.224341] #PF error: [normal kernel read fault]
-[ 3812.225144] PGD 0 P4D 0
-[ 3812.225626] Oops: 0000 [#1] SMP PTI
-[ 3812.226264] CPU: 1 PID: 11039 Comm: stress-ng-idle- Not tainted 5.0.0-5-generic #6-Ubuntu
-[ 3812.227643] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.10.2-1ubuntu1 04/01/2014
-[ 3812.229286] RIP: 0010:page_idle_get_page+0xc8/0x1a0
-[ 3812.230173] Code: 0f b1 0a 75 7d 48 8b 03 48 89 c2 48 c1 e8 33 83 e0 07 48 c1 ea 36 48 8d 0c 40 4c 8d 24 88 49 c1 e4 07 4c 03 24 d5 00 89 c3 be <49> 8b 44 24 58 48 8d b8 80 a1 02 00 e8 07 d5 77 00 48 8b 53 08 48
-[ 3812.234641] RSP: 0018:ffffafd7c672fde8 EFLAGS: 00010202
-[ 3812.235792] RAX: 0000000000000005 RBX: ffffe36341fff700 RCX: 000000000000000f
-[ 3812.237739] RDX: 0000000000000284 RSI: 0000000000000275 RDI: 0000000001fff700
-[ 3812.239225] RBP: ffffafd7c672fe00 R08: ffffa0bc34056410 R09: 0000000000000276
-[ 3812.241027] R10: ffffa0bc754e9b40 R11: ffffa0bc330f6400 R12: 0000000000002080
-[ 3812.242555] R13: ffffe36341fff700 R14: 0000000000080000 R15: ffffa0bc330f6400
-[ 3812.244073] FS: 00007f0ec1ea5740(0000) GS:ffffa0bc7db00000(0000) knlGS:0000000000000000
-[ 3812.245968] CS: 0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-[ 3812.247162] CR2: 00000000000020d8 CR3: 0000000077d68000 CR4: 00000000000006e0
-[ 3812.249045] Call Trace:
-[ 3812.249625] page_idle_bitmap_write+0x8c/0x140
-[ 3812.250567] sysfs_kf_bin_write+0x5c/0x70
-[ 3812.251406] kernfs_fop_write+0x12e/0x1b0
-[ 3812.252282] __vfs_write+0x1b/0x40
-[ 3812.253002] vfs_write+0xab/0x1b0
-[ 3812.253941] ksys_write+0x55/0xc0
-[ 3812.254660] __x64_sys_write+0x1a/0x20
-[ 3812.255446] do_syscall_64+0x5a/0x110
-[ 3812.256254] entry_SYSCALL_64_after_hwframe+0x44/0xa9
-
-Fixes: 33c3fc71c8cf ("mm: introduce idle page tracking")
-Signed-off-by: Colin Ian King <colin.king@canonical.com>
----
- mm/page_idle.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
-
-diff --git a/mm/page_idle.c b/mm/page_idle.c
-index 0b39ec0c945c..295512465065 100644
---- a/mm/page_idle.c
-+++ b/mm/page_idle.c
-@@ -136,7 +136,7 @@ static ssize_t page_idle_bitmap_read(struct file *file, struct kobject *kobj,
- 
- 	end_pfn = pfn + count * BITS_PER_BYTE;
- 	if (end_pfn > max_pfn)
--		end_pfn = ALIGN(max_pfn, BITMAP_CHUNK_BITS);
-+		end_pfn = max_pfn;
- 
- 	for (; pfn < end_pfn; pfn++) {
- 		bit = pfn % BITMAP_CHUNK_BITS;
-@@ -181,7 +181,7 @@ static ssize_t page_idle_bitmap_write(struct file *file, struct kobject *kobj,
- 
- 	end_pfn = pfn + count * BITS_PER_BYTE;
- 	if (end_pfn > max_pfn)
--		end_pfn = ALIGN(max_pfn, BITMAP_CHUNK_BITS);
-+		end_pfn = max_pfn;
- 
- 	for (; pfn < end_pfn; pfn++) {
- 		bit = pfn % BITMAP_CHUNK_BITS;
--- 
-2.20.1
+Thanks,
+Florian
 
