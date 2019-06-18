@@ -2,220 +2,154 @@ Return-Path: <SRS0=8DoX=UR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5FA7CC31E5B
-	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 21:13:45 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 805F1C31E5B
+	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 21:15:24 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1DFD720863
-	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 21:13:45 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1DFD720863
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
+	by mail.kernel.org (Postfix) with ESMTP id 2C054204FD
+	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 21:15:24 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="RMyro6uQ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2C054204FD
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B59FF6B0003; Tue, 18 Jun 2019 17:13:44 -0400 (EDT)
+	id C926B6B0003; Tue, 18 Jun 2019 17:15:23 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B0BF28E0002; Tue, 18 Jun 2019 17:13:44 -0400 (EDT)
+	id C43B28E0002; Tue, 18 Jun 2019 17:15:23 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9D3988E0001; Tue, 18 Jun 2019 17:13:44 -0400 (EDT)
+	id B31A98E0001; Tue, 18 Jun 2019 17:15:23 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-oi1-f199.google.com (mail-oi1-f199.google.com [209.85.167.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 70DED6B0003
-	for <linux-mm@kvack.org>; Tue, 18 Jun 2019 17:13:44 -0400 (EDT)
-Received: by mail-oi1-f199.google.com with SMTP id u8so5408055oie.5
-        for <linux-mm@kvack.org>; Tue, 18 Jun 2019 14:13:44 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 7C4856B0003
+	for <linux-mm@kvack.org>; Tue, 18 Jun 2019 17:15:23 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id y5so10109758pfb.20
+        for <linux-mm@kvack.org>; Tue, 18 Jun 2019 14:15:23 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-transfer-encoding:content-language;
-        bh=Wfw/Nbrsr0iA1JiYl8CvXt+P43jF1GNKGKrKiM5xVIM=;
-        b=tr++BKHbx3IsateRqlEQFEjjQGbbElmtDFQM0OT3EzGNFfreLkSfB9dUiclFxFIiBF
-         R0Tt8mXYF1gUqLfuxtPOwIsEY7z8LXv6IFBmhtrG3lOUZeb2ZPR07K4i6Rxwir8lEyaz
-         Chm8rS5Md+KOMWs0XXNb3xVOUZvvYuJjrkGY1szMbDYh3ttLTuayv6398EL9LrIyt6lJ
-         ZQvJgpqJOdfN3iq45Ic255OtxRSwxxw18w2i/QvFUKF9l7JMVMHeQ5hkSJrkudSEFj8B
-         1LLkWspVhzdijtBij/2SFkxx7F6Wlb+rIjBx5HdNijw2rOls5680zcQuMPRvzpJpqKYh
-         3iEw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.131 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Gm-Message-State: APjAAAXOYlOTpjUU62DGURs1oSQMTFLDwrfA+kNyunXda4qkpfndHw7v
-	aiViPLLpczuQyDQYeui5gZ6JenKaAmU+/a0ErTsKQl1kXpdTJcQUlFZr8NQ/5npnwtlGlQe9oFn
-	tdXKaTjiGCV29tS2JGmCUqzTtCBimz+e1w3Fivy9idtMMWq5RYFb1ivARcSU7yCCgBw==
-X-Received: by 2002:a9d:825:: with SMTP id 34mr125245oty.131.1560892424130;
-        Tue, 18 Jun 2019 14:13:44 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxLte8RkdoG7yVQ6R0+ADfdzXbfYxGNv4iHDoW2+MJMIeX5x/53GzhkZ68ATf3sSvRnV47e
-X-Received: by 2002:a9d:825:: with SMTP id 34mr125180oty.131.1560892423178;
-        Tue, 18 Jun 2019 14:13:43 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560892423; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=y0FYGQJW9l3L3zb3toiL7Z69S/obMAXLWT2LzgwCA5k=;
+        b=VCq60Yjqqs+18jZsIC35JUe3Os16ZK+ISIOXn45LHBNrccW42viTg1HTA/Ky4obj+N
+         +WEan2o33O6W8prQmxd00n9tl9DSatZZ6hD/dJPsawBt9yho5FqU6VajAOOHSK7ZzIDP
+         VOPbiWH1rmu4dkoP9oNRFMsVdMA4pSxD9hglr6pCuqKzKWtgSgKTrq+poWyrd8P+GXHH
+         5TQKoZCIQpxEtowHUlIxT0E4tqb57m4p4kVX8arwZzBKPcZmYADjQNR3iqXcG3XKeXCC
+         st3lE6+JAxTMmTPaDPl6Ogs2BmKNtKl8xUT8Qpkf9EnIZ7pBr2N5pdlZnUyvRYPKgYNj
+         h7Bw==
+X-Gm-Message-State: APjAAAW+Jw2eMqPZSda7dM5R8eZxZYYpXvxgCnOBuXD903T5bis32SX5
+	tolP6X4Ufbakw3Wxd833Bb+r3Qd5AHqqD2L4keK6NRbNomjeUuYXAib5403KDcuT1yAYUO9HK3h
+	fjpAu0/gkdCdCb13U57wV8swlH9ysCtwKwmtSl1hckSQZqXnNF2YvE8Yom+5j+bhQKQ==
+X-Received: by 2002:aa7:934f:: with SMTP id 15mr41802541pfn.238.1560892523048;
+        Tue, 18 Jun 2019 14:15:23 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwWQH8EsG/FxZm5y3vNDTW27hKSUXm5Aq1mZIv6/UdryDcV7CZrZIoBRwB8e5+oY/xxo3pK
+X-Received: by 2002:aa7:934f:: with SMTP id 15mr41790109pfn.238.1560892344667;
+        Tue, 18 Jun 2019 14:12:24 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560892344; cv=none;
         d=google.com; s=arc-20160816;
-        b=o/Y9nswvPVwx/WK+5bo3OH3rTmKFlHsRc4Mj5BzTbgoy7BxytdxFehArG7mGXOF57K
-         gf0zhygX4dtD1KwE5+w3TWgkFtp+LxgGjc6gBuh2uBLuPYhqHZOo+j++XcdG3x7JU7WS
-         KHkisLYi55wtGeqE7tPfUwr3uNjXYF6TObMEliI9MhvUCKbYHbXOvdB7IzYlO4ZSZr1J
-         f2izlmHRPRyr2/XYdgTw+3r0cWw2J85HF2rPm7KhSDo4fKA/VoLrc9/7yipLQh8q5NWR
-         +nOADOriv+ABR4HbYdXhAidI/sjFMNCYj4kBbf+LHYMG3CGAU4CIvSI8rowllSkqjJ0z
-         TrBg==
+        b=PNDAteR/frtNVV3P3IdLju2bwnQAWyeT/Cv7QlsJDvCsfOTLZbCh3ARRQbOJJqwhBx
+         gvAyKd5bcykJEQ8I8iRh4fqs5kEuFNPnFjst490qZLWMUIJQt/wNKUheXA+/CVKJzLlY
+         ns7qiz36BZrf+xdnqdmcXyfCyNm33WawtkPXjPGjJrjvdYXNRMIWyIQDodkspk1L4Q50
+         Vn9mLeXSG23cymnafDCQhTahSm6HD8Oy0O0lJ6fSC6xww9OXzmPZZeKlHY6/ACP25KtP
+         Ojg9voqNRa4Jb387ql40m2Eaod+uXrN6RQqBaWQEN1wICAb4JwrLg68lXNZK8sMDmUIt
+         o6Rg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-language:content-transfer-encoding:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=Wfw/Nbrsr0iA1JiYl8CvXt+P43jF1GNKGKrKiM5xVIM=;
-        b=ePJyYN6niCCLL4aC4729KFgTqdl28xLBWi7OdXBcgjmMOas0Z1tfQiBz+hwHxTyQP5
-         pPsIDkaPUh35RfkWtKbhpM7nnY9Q1Z/DojHw+wAwixdQqF6DH1LrqwfVvKKdxdyQzUmf
-         qDNpGazMgvKWT7lH0TGl9A+09KXCaFZNpOjDPm0A4BD/SjWFRqgl8TE9LKruiT6cTJ8R
-         YtTA/duGQhya5vgfhdrjYLsP0UJPgtez2HooEVlzaFQKtlNfCP9ME9zcUfUFSDwiXCyU
-         u3Q8m6GPQJHjVXYXyaJktI5yn0CM6IboBf1r+yYpHaF4ZbS6ntA59noAOVene5heWq8E
-         eGyQ==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=y0FYGQJW9l3L3zb3toiL7Z69S/obMAXLWT2LzgwCA5k=;
+        b=XlD9l+bFhmQSm9FzLVyC1y0LnI+WjrqM9e5ilCt6jdUjKyFk3gKuMeB9NorR/ODxjZ
+         pinSLI7Kf3SpwCLUYY13bHI56rdlwKybfSrpBPmHtBbHAJxOK+qdtP6RdxGOmbGtmp4x
+         UJywmvhxN5H1GdOqlX+VsbTacgP4IYtt6u3veY0+pNA7HkZi8suvltlTpdKg6343JgWL
+         o8tyA03xfh3/JAgtvLAkuWzhHfj+0R7bI1GWBRneZTjxPF+4pup7KwcwPOUvf3zRFIfH
+         fob2lSxQHqbI16UHPRflt7k3F9ejFVIfqG3ByCBC1O7bfgQblXhCxTNegGnLfXAd+IkP
+         n6iQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.131 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-Received: from out30-131.freemail.mail.aliyun.com (out30-131.freemail.mail.aliyun.com. [115.124.30.131])
-        by mx.google.com with ESMTPS id h190si3180168oib.29.2019.06.18.14.13.42
+       dkim=pass header.i=@kernel.org header.s=default header.b=RMyro6uQ;
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id f59si14802805plf.220.2019.06.18.14.12.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 18 Jun 2019 14:13:43 -0700 (PDT)
-Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.131 as permitted sender) client-ip=115.124.30.131;
+        Tue, 18 Jun 2019 14:12:24 -0700 (PDT)
+Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.131 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R211e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e07417;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=9;SR=0;TI=SMTPD_---0TUXsfqg_1560892397;
-Received: from US-143344MP.local(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TUXsfqg_1560892397)
-          by smtp.aliyun-inc.com(127.0.0.1);
-          Wed, 19 Jun 2019 05:13:28 +0800
-Subject: Re: [PATCH] mm: mempolicy: handle vma with unmovable pages mapped
- correctly in mbind
-To: Michal Hocko <mhocko@kernel.org>
-Cc: akpm@linux-foundation.org, vbabka@suse.cz, mgorman@techsingularity.net,
- linux-mm@kvack.org, linux-kernel@vger.kernel.org,
- Eric Dumazet <edumazet@google.com>, "David S. Miller" <davem@davemloft.net>,
- netdev@vger.kernel.org
-References: <1560797290-42267-1-git-send-email-yang.shi@linux.alibaba.com>
- <20190618130253.GH3318@dhcp22.suse.cz>
- <cf33b724-fdd5-58e3-c06a-1bc563525311@linux.alibaba.com>
- <20190618182848.GJ3318@dhcp22.suse.cz>
-From: Yang Shi <yang.shi@linux.alibaba.com>
-Message-ID: <68c2592d-b747-e6eb-329f-7a428bff1f86@linux.alibaba.com>
-Date: Tue, 18 Jun 2019 14:13:16 -0700
-User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:52.0)
- Gecko/20100101 Thunderbird/52.7.0
-MIME-Version: 1.0
-In-Reply-To: <20190618182848.GJ3318@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 8bit
-Content-Language: en-US
+       dkim=pass header.i=@kernel.org header.s=default header.b=RMyro6uQ;
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from akpm3.svl.corp.google.com (unknown [104.133.8.65])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 0D528204FD;
+	Tue, 18 Jun 2019 21:12:24 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1560892344;
+	bh=iIcWIP63goW0n8A1BUOEFoZNNlAyCWB2IcaUcVIUQbQ=;
+	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
+	b=RMyro6uQGloBw14KTG60tbBSjWQuoQCde7e29DfCpnESOu7gIBPhCwjPoTHMAWjAz
+	 zlkeZmNx5XBmY2csEkW/Q6cN4eb4EeBsiSxZwFJvxTCVu1jz9QpMMshdkLrSaI3zsk
+	 EtXXXBjQrHgdxcHvtZ8pw6+0rkXbsM5MLmNeMvOk=
+Date: Tue, 18 Jun 2019 14:12:23 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+To: Song Liu <songliubraving@fb.com>
+Cc: <linux-mm@kvack.org>, <matthew.wilcox@oracle.com>,
+ <kirill.shutemov@linux.intel.com>, <kernel-team@fb.com>,
+ <william.kucharski@oracle.com>, <chad.mynhier@oracle.com>,
+ <mike.kravetz@oracle.com>
+Subject: Re: [PATCH v2 0/3] Enable THP for text section of non-shmem files
+Message-Id: <20190618141223.4479989e18b1e1ea942b0e42@linux-foundation.org>
+In-Reply-To: <20190614182204.2673660-1-songliubraving@fb.com>
+References: <20190614182204.2673660-1-songliubraving@fb.com>
+X-Mailer: Sylpheed 3.7.0 (GTK+ 2.24.32; x86_64-pc-linux-gnu)
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Fri, 14 Jun 2019 11:22:01 -0700 Song Liu <songliubraving@fb.com> wrote:
 
+> This set follows up discussion at LSF/MM 2019. The motivation is to put
+> text section of an application in THP, and thus reduces iTLB miss rate and
+> improves performance. Both Facebook and Oracle showed strong interests to
+> this feature.
+> 
+> To make reviews easier, this set aims a mininal valid product. Current
+> version of the work does not have any changes to file system specific
+> code. This comes with some limitations (discussed later).
+> 
+> This set enables an application to "hugify" its text section by simply
+> running something like:
+> 
+>           madvise(0x600000, 0x80000, MADV_HUGEPAGE);
+> 
+> Before this call, the /proc/<pid>/maps looks like:
+> 
+>     00400000-074d0000 r-xp 00000000 00:27 2006927     app
+> 
+> After this call, part of the text section is split out and mapped to THP:
+> 
+>     00400000-00425000 r-xp 00000000 00:27 2006927     app
+>     00600000-00e00000 r-xp 00200000 00:27 2006927     app   <<< on THP
+>     00e00000-074d0000 r-xp 00a00000 00:27 2006927     app
+> 
+> Limitations:
+> 
+> 1. This only works for text section (vma with VM_DENYWRITE).
+> 2. Once the application put its own pages in THP, the file is read only.
+>    open(file, O_WRITE) will fail with -ETXTBSY. To modify/update the file,
+>    it must be removed first.
 
-On 6/18/19 11:28 AM, Michal Hocko wrote:
-> On Tue 18-06-19 10:06:54, Yang Shi wrote:
->>
->> On 6/18/19 6:02 AM, Michal Hocko wrote:
->>> [Cc networking people - see a question about setsockopt below]
->>>
->>> On Tue 18-06-19 02:48:10, Yang Shi wrote:
->>>> When running syzkaller internally, we ran into the below bug on 4.9.x
->>>> kernel:
->>>>
->>>> kernel BUG at mm/huge_memory.c:2124!
->>> What is the BUG_ON because I do not see any BUG_ON neither in v4.9 nor
->>> the latest stable/linux-4.9.y
->> The line number might be not exactly same with upstream 4.9 since there
->> might be some our internal patches.
->>
->> It is line 2096 at mm/huge_memory.c in 4.9.182.
-> So it is
-> 	VM_BUG_ON_PAGE(!PageSwapBacked(page), page);
-> that is later mentioned that has been removed. Good. Thanks for the
-> clarification!
->
->>>> invalid opcode: 0000 [#1] SMP KASAN
->>> [...]
->>>> Code: c7 80 1c 02 00 e8 26 0a 76 01 <0f> 0b 48 c7 c7 40 46 45 84 e8 4c
->>>> RIP  [<ffffffff81895d6b>] split_huge_page_to_list+0x8fb/0x1030 mm/huge_memory.c:2124
->>>>    RSP <ffff88006899f980>
->>>>
->>>> with the below test:
->>>>
->>>> ---8<---
->>>>
->>>> uint64_t r[1] = {0xffffffffffffffff};
->>>>
->>>> int main(void)
->>>> {
->>>> 	syscall(__NR_mmap, 0x20000000, 0x1000000, 3, 0x32, -1, 0);
->>>> 				intptr_t res = 0;
->>>> 	res = syscall(__NR_socket, 0x11, 3, 0x300);
->>>> 	if (res != -1)
->>>> 		r[0] = res;
->>>> *(uint32_t*)0x20000040 = 0x10000;
->>>> *(uint32_t*)0x20000044 = 1;
->>>> *(uint32_t*)0x20000048 = 0xc520;
->>>> *(uint32_t*)0x2000004c = 1;
->>>> 	syscall(__NR_setsockopt, r[0], 0x107, 0xd, 0x20000040, 0x10);
->>>> 	syscall(__NR_mmap, 0x20fed000, 0x10000, 0, 0x8811, r[0], 0);
->>>> *(uint64_t*)0x20000340 = 2;
->>>> 	syscall(__NR_mbind, 0x20ff9000, 0x4000, 0x4002, 0x20000340,
->>>> 0x45d4, 3);
->>>> 	return 0;
->>>> }
->>>>
->>>> ---8<---
->>>>
->>>> Actually the test does:
->>>>
->>>> mmap(0x20000000, 16777216, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_ANONYMOUS, -1, 0) = 0x20000000
->>>> socket(AF_PACKET, SOCK_RAW, 768)        = 3
->>>> setsockopt(3, SOL_PACKET, PACKET_TX_RING, {block_size=65536, block_nr=1, frame_size=50464, frame_nr=1}, 16) = 0
->>>> mmap(0x20fed000, 65536, PROT_NONE, MAP_SHARED|MAP_FIXED|MAP_POPULATE|MAP_DENYWRITE, 3, 0) = 0x20fed000
->>>> mbind(..., MPOL_MF_STRICT|MPOL_MF_MOVE) = 0
->>> Ughh. Do I get it right that that this setsockopt allows an arbitrary
->>> contiguous memory allocation size to be requested by a unpriviledged
->>> user? Or am I missing something that restricts there any restriction?
->> It needs CAP_NET_RAW to call socket() to set socket type to RAW. The test is
->> run by root user.
-> OK, good. That is much better. I just didn't see the capability check. I
-> can see one in packet_create but I do not see any in setsockopt. Maybe I
-> just got lost in indirection or implied security model.
->   
-> [...]
->>>> Change migrate_page_add() to check if the page is movable or not, if it
->>>> is unmovable, just return -EIO.  We don't have to check non-LRU movable
->>>> pages since just zsmalloc and virtio-baloon support this.  And, they
->>>> should be not able to reach here.
->>> You are not checking whether the page is movable, right? You only rely
->>> on PageLRU check which is not really an equivalent thing. There are
->>> movable pages which are not LRU and also pages might be off LRU
->>> temporarily for many reasons so this could lead to false positives.
->> I'm supposed non-LRU movable pages could not reach here. Since most of them
->> are not mmapable, i.e. virtio-balloon, zsmalloc. zram device is mmapable,
->> but the page fault to that vma would end up allocating user space pages
->> which are on LRU. If I miss something please let me know.
-> That might be true right now but it is a very subtle assumption that
-> might break easily in the future. The point is still that even LRU pages
-> might be isolated from the LRU list temporarily and you do not want this
-> to cause the failure easily.
+Removed?  Even if the original mmap/madvise has gone away?  hm.
 
-I used to have !__PageMovable(page), but it was removed since the 
-aforementioned reason. I could add it back.
+I'm wondering if this limitation can be abused in some fashion: mmap a
+file to which you have read permissions, run madvise(MADV_HUGEPAGE) and
+thus prevent the file's owner from being able to modify the file?  Or
+something like that.  What are the issues and protections here?
 
-For the temporary off LRU page, I did a quick search, it looks the most 
-paths have to acquire mmap_sem, so it can't race with us here. Page 
-reclaim/compaction looks like the only race. But, since the mapping 
-should be preserved even though the page is off LRU temporarily unless 
-the page is reclaimed, so we should be able to exclude temporary off LRU 
-pages by calling page_mapping() and page_anon_vma().
-
-So, the fix may look like:
-
-if (!PageLRU(head) && !__PageMovable(page)) {
-     if (!(page_mapping(page) || page_anon_vma(page)))
-         return -EIO;
-}
-
->
 
