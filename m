@@ -2,169 +2,148 @@ Return-Path: <SRS0=8DoX=UR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.1 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 74888C31E5E
-	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 09:12:59 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B8D4CC31E51
+	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 09:13:06 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 38B372084B
-	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 09:12:59 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 38B372084B
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 6DBE22085A
+	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 09:13:06 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="uDQHwhGW"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6DBE22085A
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BF25F8E0002; Tue, 18 Jun 2019 05:12:58 -0400 (EDT)
+	id 0F4CA8E0003; Tue, 18 Jun 2019 05:13:06 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BA3288E0001; Tue, 18 Jun 2019 05:12:58 -0400 (EDT)
+	id 0A4F08E0001; Tue, 18 Jun 2019 05:13:06 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A69278E0002; Tue, 18 Jun 2019 05:12:58 -0400 (EDT)
+	id EAF978E0003; Tue, 18 Jun 2019 05:13:05 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 5A0368E0001
-	for <linux-mm@kvack.org>; Tue, 18 Jun 2019 05:12:58 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id o13so20396911edt.4
-        for <linux-mm@kvack.org>; Tue, 18 Jun 2019 02:12:58 -0700 (PDT)
+Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 9DC718E0001
+	for <linux-mm@kvack.org>; Tue, 18 Jun 2019 05:13:05 -0400 (EDT)
+Received: by mail-wr1-f69.google.com with SMTP id b14so5841073wrn.8
+        for <linux-mm@kvack.org>; Tue, 18 Jun 2019 02:13:05 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=B5unngtNz5I4UQ27+8Qxx0YTxNw7SawuVoye9McdKBg=;
-        b=jLQDXW5Ts10YVutg94mSxVveVnMap6lOpgbFuS04lItHFAuw36qAgUwuMpBhSI5L5B
-         MUyxy4J7txDdM5iuAmmjP08M1DuQCJTonuI54xtIJXrAqHMvwVPsPX5Sn/O+UOgBxnfA
-         xfdwMnBcwAbfdwxlcAE0kmNig3RHuCSch2R8YrhmtBNB8Yfp7SyKHF5SxH+exV5X7HeA
-         iTx0bgFm/+NqGtytuv9Qu7+kzkmV6hxvugsWZKhBinzFrvZ1uLiboBLZJiQKItpGkHla
-         7alwkT9qjzOqeb7PL9o+DH4a5/iqi4XujEXPdLSgG7AGFSikJyNxyUO9XFJ8j6fzoWdo
-         SQHQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.martin@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=Dave.Martin@arm.com
-X-Gm-Message-State: APjAAAUO1vdDiRgXHgpijuCo5TagkuhgHvGcltVyZAmKxMWSbAgYQv93
-	Vh4xHBtpB/EpHwomb3qWMDjHhLSOdOJiNZc5P9XnTtfn1RJ7Sv0gW+ybA9wdvPiYh+eLTVJhO0d
-	Wfr9JNk6v6zDnvQH04rPbae4PTZg/Y9NeZiYWgo42f0+NRCbNFpdUcNIgNNdRk6mj4A==
-X-Received: by 2002:a17:906:2101:: with SMTP id 1mr45255180ejt.182.1560849177915;
-        Tue, 18 Jun 2019 02:12:57 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqydZFx5PHI3lhMPgJO0iyFRtuGWWa/84NDBC5nQnNox47vpkU26Z9Bv6VcVz8e35fX6uc//
-X-Received: by 2002:a17:906:2101:: with SMTP id 1mr45255130ejt.182.1560849177164;
-        Tue, 18 Jun 2019 02:12:57 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560849177; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=DWxebD/lbygK+SpH9wnfp4x77thiB2bg6Ri9elX25UY=;
+        b=Mx18WRkuUds+Q7uTov3IbNMMytXwwCfnbZev2lE/v+nR2FnnLZlKKUW4IWvbrzPdOq
+         OBzurDAWjGOAla2Rj2BYHKPvynyuJf+u8BDBMVMOSpbBoXqNQtlYpA6xj5tpUFci0vdw
+         1Ax19bOgqlAwYnrN57ejVuZ7bnibCkNm42N/5UTtvNpjV6QPm5VIv4aqAUSTRthqQK77
+         GKrgORuBVPy5HF7W37OnLxphZ60ShZSKQHZYlugmdkTemlLTkEcuU8+C2Rxl5/HoHYyE
+         TS+it9RVyknW4CuwdFzXRmClPy2Z6t6x8/sxbAe2IZxXDMf5z0uL/sJhCBT/8z4zkOo4
+         P9HQ==
+X-Gm-Message-State: APjAAAVGV8AeQkMIkDyMhdCLPP+WsTk9UK7AQHEE/6nyx2uJGuO7ELyA
+	Z6Mvpm4aNNWRHMYlbql+4ypt8YXDxjsgAIIxfm48vrq3bubyOVvHNY/Vl/SgX2bhdbM8xo2G52V
+	XbcbsoMkSb8aGx3hvfR/qe7PRgIlh+UuiD+ODKHezSSy7zMZoBUvGhoFlQyW5RnW19Q==
+X-Received: by 2002:a1c:8a:: with SMTP id 132mr2541673wma.44.1560849185107;
+        Tue, 18 Jun 2019 02:13:05 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyTiM3QLPJF8FaJuR6c6OLnQ09S79eehp4Boi4U1myzEVNTNMNy9/l7VddnIsuETd2KiGbm
+X-Received: by 2002:a1c:8a:: with SMTP id 132mr2541618wma.44.1560849184305;
+        Tue, 18 Jun 2019 02:13:04 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560849184; cv=none;
         d=google.com; s=arc-20160816;
-        b=JlZjMGgeb5Evwpv1x3AMYG3ccEerWOKHql8iEPrWoEvkXS8PV16olfyFG4vqQfW1NX
-         +Tq1ys/y0N0Rgr7iWfDvYG/XHmB1+pY2YAAKUC5FSXdw5nKXwT+X7n03YSUEIy/9or6n
-         3mfTJhpxKUlU9Gp04a+fbp6pBG2Mitx+pOLpc2aiqDUc6Ashml+zF++MWOTTR4pP1jPZ
-         L2HMDr2OVrghN4jGkYblLg3+madl6yD+5IZWXfYUe2GzwA7ZMCJ3IW4Suz0RB54I23yX
-         0YYISkqsDKsmvYCdHmPEVZL0sCRJ7Vn8vRq8PdlssY2J93OcLpxkXPSB02e4OTndDbdh
-         zvjw==
+        b=YaqS6kgquy2MnvHQiUV5Iifoo0rjKOF0gwUaFfnjgEfHQMqx4JmffqrtJ7AbY9hq1L
+         IpqdPNJF9QCghNIAvDLqn8SITHrH9d4xuxdHL9dSYqWcRW2PyzCmtT5ea4nJqampj9RV
+         Mx9wM+7f3KXVI0v8FyIsnvLnQFsNpZq74JHmffbWWhPP9GL5M8Airxl4rbNI17JT/0YY
+         56rnetuw4hVMyCabKaAsVDXvSmWhphrHvLZzHHU7ahzchmKZRj/fYcOxlm2T+gqxchuy
+         cSWzOJyDKeP1EQc2A2SAvNfMHbgPxCu5EuZ/mKMKE8Z7Kua1Cn+qSCHM3udtGeiF9Q3K
+         sU4g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=B5unngtNz5I4UQ27+8Qxx0YTxNw7SawuVoye9McdKBg=;
-        b=bLsSrCA9n6CTP3SOwGl7vli5SysUxyXbnG2tR4TDOPaA/1m+pWxhdCt+LYrrT9W1iW
-         agVVdRKF77BxEesSiNvbzQNdv/Ucjxkd75LEDy9Wzmc7WM7E5YvIndUOcJO6GVYZjvfG
-         jwLvihow054feZS+8di2oJ8IaSeSL9HBHjBL/jeQH0lT56g0ikb0AA8+7PZQSbSbbc4k
-         A/bXordmUaSuJj4OimR0AjbCKuPeXieArpSRWr/5WAAapFQT4o8mDssAXmikrc+J27Dc
-         kEKEvObvoM59qxAm1JA3GvicHQzC0J8c9vX84Do4vKwDuetdXcoevF7xX4i5zI+tIPXM
-         A4vw==
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=DWxebD/lbygK+SpH9wnfp4x77thiB2bg6Ri9elX25UY=;
+        b=z/2iLTYF/LV5yF0f17jZNjX0JOvP8X2HnE8/VxGWtHOAgZHEMSJiRci6QHgnXC8RIB
+         bsEtQe5Z8VdLHGpAxnWhe6w2EDYms1d3PFAwwyah+iCafvsQee5XbT8iE73Y5eVjHriW
+         bmJSlIaQSgMnh5HZ5+VUHuXfpxVuBpgNSMK6DWIntkG9/ZcrT8Ify48zii5/SvIYL0rM
+         HmpT/miR3WeB/xjXiTnocDjN3CGcuyYAr31vrQHQbnpa7s7I+MFPaleS0vcuxrmqpCKw
+         I86ViynSHAc2tqGFq01SsxLzSxmrhRAGGCH2twKeDo+yeXlFL8Q4F4l3Kw/TUfxD5A5S
+         zJIw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dave.martin@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=Dave.Martin@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
-        by mx.google.com with ESMTP id e44si10262217edd.352.2019.06.18.02.12.56
-        for <linux-mm@kvack.org>;
-        Tue, 18 Jun 2019 02:12:57 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dave.martin@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
+       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=uDQHwhGW;
+       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=peterz@infradead.org
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
+        by mx.google.com with ESMTPS id r76si1389167wme.40.2019.06.18.02.13.04
+        for <linux-mm@kvack.org>
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Tue, 18 Jun 2019 02:13:04 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) client-ip=2001:8b0:10b:1231::1;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dave.martin@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=Dave.Martin@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 0D7DD344;
-	Tue, 18 Jun 2019 02:12:56 -0700 (PDT)
-Received: from e103592.cambridge.arm.com (usa-sjc-imap-foss1.foss.arm.com [10.121.207.14])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 6F3EB3F246;
-	Tue, 18 Jun 2019 02:12:52 -0700 (PDT)
-Date: Tue, 18 Jun 2019 10:12:50 +0100
-From: Dave Martin <Dave.Martin@arm.com>
-To: Thomas Gleixner <tglx@linutronix.de>
-Cc: Florian Weimer <fweimer@redhat.com>,
-	Yu-cheng Yu <yu-cheng.yu@intel.com>, x86@kernel.org,
-	"H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>,
-	linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org,
-	linux-mm@kvack.org, linux-arch@vger.kernel.org,
-	linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>,
-	Andy Lutomirski <luto@amacapital.net>,
-	Balbir Singh <bsingharora@gmail.com>,
-	Borislav Petkov <bp@alien8.de>,
-	Cyrill Gorcunov <gorcunov@gmail.com>,
-	Dave Hansen <dave.hansen@linux.intel.com>,
-	Eugene Syromiatnikov <esyr@redhat.com>,
-	"H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>,
-	Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>,
-	Mike Kravetz <mike.kravetz@oracle.com>,
-	Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>,
-	Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>,
-	Randy Dunlap <rdunlap@infradead.org>,
-	"Ravi V. Shankar" <ravi.v.shankar@intel.com>,
-	Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
-Subject: Re: [PATCH v7 22/27] binfmt_elf: Extract .note.gnu.property from an
- ELF file
-Message-ID: <20190618091248.GB2790@e103592.cambridge.arm.com>
-References: <20190606200646.3951-1-yu-cheng.yu@intel.com>
- <20190606200646.3951-23-yu-cheng.yu@intel.com>
- <20190607180115.GJ28398@e103592.cambridge.arm.com>
- <94b9c55b3b874825fda485af40ab2a6bc3dad171.camel@intel.com>
- <87lfy9cq04.fsf@oldenburg2.str.redhat.com>
- <20190611114109.GN28398@e103592.cambridge.arm.com>
- <031bc55d8dcdcf4f031e6ff27c33fd52c61d33a5.camel@intel.com>
- <20190612093238.GQ28398@e103592.cambridge.arm.com>
- <87imt4jwpt.fsf@oldenburg2.str.redhat.com>
- <alpine.DEB.2.21.1906171418220.1854@nanos.tec.linutronix.de>
+       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=uDQHwhGW;
+       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=peterz@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=merlin.20170209; h=In-Reply-To:Content-Type:MIME-Version:
+	References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=DWxebD/lbygK+SpH9wnfp4x77thiB2bg6Ri9elX25UY=; b=uDQHwhGWJGqiGNlXRpc+k6mqb
+	T/OhF+fKkE9yW/1WzX5e5PKNLbvQaIEV8hjfnN19Gcy2xbw/eGs9cmZhzSw8M/dic5nZDgqvtKokl
+	Z6IMT2orRt1vL693hdvgisFLg0TYANLGdUAijz81Pu4wz3x0lSGQAtPaTZFsOA3d0MjysgSP50m5E
+	+nJQ6NHn87W710nEgSyxyCcyTiUu4cDdwAom6SIAGU5SekK6vxRPBlyjW5sJFJL7Mkjzt7B4keKc9
+	AEvw9JywQnLYrUBl+qghSJmrCZU8ZheGjH9rfN0/npezev7TcMgM94jN8FuanvHBJWWzT4IP6ikYK
+	aDaVJhvRA==;
+Received: from j217100.upc-j.chello.nl ([24.132.217.100] helo=hirez.programming.kicks-ass.net)
+	by merlin.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
+	id 1hdAAZ-0000dX-Pu; Tue, 18 Jun 2019 09:12:48 +0000
+Received: by hirez.programming.kicks-ass.net (Postfix, from userid 1000)
+	id 7778620A3C471; Tue, 18 Jun 2019 11:12:46 +0200 (CEST)
+Date: Tue, 18 Jun 2019 11:12:46 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+To: Kai Huang <kai.huang@linux.intel.com>
+Cc: Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>,
+	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
+	Andrew Morton <akpm@linux-foundation.org>, X86 ML <x86@kernel.org>,
+	Thomas Gleixner <tglx@linutronix.de>,
+	Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>,
+	Borislav Petkov <bp@alien8.de>, David Howells <dhowells@redhat.com>,
+	Kees Cook <keescook@chromium.org>,
+	Jacob Pan <jacob.jun.pan@linux.intel.com>,
+	Alison Schofield <alison.schofield@intel.com>,
+	Linux-MM <linux-mm@kvack.org>, kvm list <kvm@vger.kernel.org>,
+	keyrings@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>,
+	Tom Lendacky <thomas.lendacky@amd.com>
+Subject: Re: [PATCH, RFC 45/62] mm: Add the encrypt_mprotect() system call
+ for MKTME
+Message-ID: <20190618091246.GM3436@hirez.programming.kicks-ass.net>
+References: <CALCETrVCdp4LyCasvGkc0+S6fvS+dna=_ytLdDPuD2xeAr5c-w@mail.gmail.com>
+ <3c658cce-7b7e-7d45-59a0-e17dae986713@intel.com>
+ <CALCETrUPSv4Xae3iO+2i_HecJLfx4mqFfmtfp+cwBdab8JUZrg@mail.gmail.com>
+ <5cbfa2da-ba2e-ed91-d0e8-add67753fc12@intel.com>
+ <CALCETrWFXSndmPH0OH4DVVrAyPEeKUUfNwo_9CxO-3xy9awq0g@mail.gmail.com>
+ <1560816342.5187.63.camel@linux.intel.com>
+ <CALCETrVcrPYUUVdgnPZojhJLgEhKv5gNqnT6u2nFVBAZprcs5g@mail.gmail.com>
+ <1560821746.5187.82.camel@linux.intel.com>
+ <CALCETrUrFTFGhRMuNLxD9G9=GsR6U-THWn4AtminR_HU-nBj+Q@mail.gmail.com>
+ <1560824611.5187.100.camel@linux.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.21.1906171418220.1854@nanos.tec.linutronix.de>
-User-Agent: Mutt/1.5.23 (2014-03-12)
+In-Reply-To: <1560824611.5187.100.camel@linux.intel.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jun 17, 2019 at 02:20:40PM +0200, Thomas Gleixner wrote:
-> On Mon, 17 Jun 2019, Florian Weimer wrote:
-> > * Dave Martin:
-> > > On Tue, Jun 11, 2019 at 12:31:34PM -0700, Yu-cheng Yu wrote:
-> > >> We can probably check PT_GNU_PROPERTY first, and fallback (based on ld-linux
-> > >> version?) to PT_NOTE scanning?
-> > >
-> > > For arm64, we can check for PT_GNU_PROPERTY and then give up
-> > > unconditionally.
-> > >
-> > > For x86, we would fall back to PT_NOTE scanning, but this will add a bit
-> > > of cost to binaries that don't have NT_GNU_PROPERTY_TYPE_0.  The ld.so
-> > > version doesn't tell you what ELF ABI a given executable conforms to.
-> > >
-> > > Since this sounds like it's largely a distro-specific issue, maybe there
-> > > could be a Kconfig option to turn the fallback PT_NOTE scanning on?
-> > 
-> > I'm worried that this causes interop issues similarly to what we see
-> > with VSYSCALL today.  If we need both and a way to disable it, it should
-> > be something like a personality flag which can be configured for each
-> > process tree separately.  Ideally, we'd settle on one correct approach
-> > (i.e., either always process both, or only process PT_GNU_PROPERTY) and
-> > enforce that.
-> 
-> Chose one and only the one which makes technically sense and is not some
-> horrible vehicle.
-> 
-> Everytime we did those 'oh we need to make x fly workarounds' we regretted
-> it sooner than later.
+On Tue, Jun 18, 2019 at 02:23:31PM +1200, Kai Huang wrote:
+> Assuming I am understanding the context correctly, yes from this perspective it seems having
+> sys_encrypt is annoying, and having ENCRYPT_ME should be better. But Dave said "nobody is going to
+> do what you suggest in the ptr1/ptr2 example"? 
 
-So I guess that points to keeping PT_NOTE scanning always available as a
-fallback on x86.  This sucks a bit, but if there are binaries already in
-the wild that rely on this, I don't think we have much choice...
+You have to phrase that as: 'nobody who knows what he's doing is going
+to do that', which leaves lots of people and fuzzers.
 
-I'd still favour a Kconfig option to allow this support to be suppressed
-by arches that don't have a similar legacy to be compatible with.
-
-Cheers
----Dave
+Murphy states that if it is possible, someone _will_ do it. And this
+being something that causes severe data corruption on persistent
+storage,...
 
