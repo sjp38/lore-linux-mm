@@ -2,170 +2,156 @@ Return-Path: <SRS0=8DoX=UR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4735CC31E5B
-	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 00:45:12 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id EAC6FC31E5B
+	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 00:46:10 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 09BA520663
-	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 00:45:11 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="EbwbRCaT"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 09BA520663
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
+	by mail.kernel.org (Postfix) with ESMTP id AAB1520663
+	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 00:46:10 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AAB1520663
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9757D8E0006; Mon, 17 Jun 2019 20:45:11 -0400 (EDT)
+	id 5CC208E0007; Mon, 17 Jun 2019 20:46:10 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 925B18E0005; Mon, 17 Jun 2019 20:45:11 -0400 (EDT)
+	id 57BE08E0005; Mon, 17 Jun 2019 20:46:10 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 83CF18E0006; Mon, 17 Jun 2019 20:45:11 -0400 (EDT)
+	id 491E08E0007; Mon, 17 Jun 2019 20:46:10 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 648498E0005
-	for <linux-mm@kvack.org>; Mon, 17 Jun 2019 20:45:11 -0400 (EDT)
-Received: by mail-qt1-f199.google.com with SMTP id p34so10955555qtp.1
-        for <linux-mm@kvack.org>; Mon, 17 Jun 2019 17:45:11 -0700 (PDT)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 1294C8E0005
+	for <linux-mm@kvack.org>; Mon, 17 Jun 2019 20:46:10 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id x3so8777769pgp.8
+        for <linux-mm@kvack.org>; Mon, 17 Jun 2019 17:46:10 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=xyVcNd9oooqBQ01pz08myANSFTdx0SwnrW4fjYnawJM=;
-        b=jHGQ8QRiOGmDeSr98SlO3pQja3MLoV5N+ZqbIoJv87OgpAQbzCqlzT5VMfmw8CJHoP
-         EaHE6IE3DnBV1SI1jC63JYzREUrdSfLHE9xfG17z9Fd76h9G5RH7yx5S4vuK6BTwKffJ
-         Y9RrjVuCoBBA04U+ZeGiYr2HI/BygsRL9v2d23zfM/9p44xVUCDGMt9del9Voamz56jn
-         pWJENR/2zpCVnEqI1+71w+hviJQFSwXjgT6f/0+lA9PrwlnBqBumVCNSM3bbdNcUIpta
-         YSBXeRyLLijA/XH46ZMMI5bdE/jEJ+lA5d0oFgQ6T37a0vs9wF2E+UqbjkHeb8AvmjGN
-         i2Ig==
-X-Gm-Message-State: APjAAAWBLQXayDP9sVcfueiH94nHj2bb0GPwsgGI6XRf/6tBRDzaS6L5
-	YpqE+5qWT5AtsqAYDYvMhKMSMgArP2rFnMC4D0v2F1CQ3B09zhM4pD+lfdWkNHeE2riWO7eCH4P
-	b5l7PDCl9nf00C1uSx393ZRr+5ClDtp/vK8Mhqv9FTRm9sGn43QATQzSlc5NxfCZvJA==
-X-Received: by 2002:ac8:7c7:: with SMTP id m7mr92099834qth.28.1560818711174;
-        Mon, 17 Jun 2019 17:45:11 -0700 (PDT)
-X-Received: by 2002:ac8:7c7:: with SMTP id m7mr92099813qth.28.1560818710700;
-        Mon, 17 Jun 2019 17:45:10 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560818710; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:reply-to:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=lhzXK1WLPLGDChV0gJF3Qnp1lG8zH0cbKOjWqB1to2w=;
+        b=shSRCfWHSQatbpvHxt+BmpObaGhndyoCxSd3bDhgG2xbduZdQ1LP6ReAOMO8bWtFlb
+         B2jFeYE06i0+lFwjZlZVb3NsK2kUvVuY7y5RPxzzt/jm284RybjYviqxQwWu9k/uMMVr
+         i4UX5gfXBJGROtSiD4qrS0ncqnI7/nx11WFAOzyXYThrb/avReArLXdxaUlJPueWjJ1O
+         bwpPLprhjbmRqYt+ooiHAP9NiPAasB4q2JIzoTc6TRioL3JxUw/zgL5l/qLxmKXgtDSg
+         clVfeNn+7POydYVm7CJWjfvH8HR3ApbqYJ/PWoGhDgc27BhOsvkDPUyz/4sMoB4ANAQV
+         EF7A==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of richardw.yang@linux.intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=richardw.yang@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAWZ+q3O0hjqg93kHA41GRgujLIyPMMjU7Q/GHf1Gz/VXvnLGL3W
+	X7zZ+RYqqtaifMkTdNwQDGchIOHdrKYrj50vV/gmDuGmovp2yVOjEPBPNwHeZbXO0MnsjXQsKP+
+	8nShJ59ZCo9DUs2TghROxpI4ftpbgcIbDKlyz1X8nhEVDfvxhDbm9LTnFEn2Zou5OBA==
+X-Received: by 2002:a63:1462:: with SMTP id 34mr94923pgu.417.1560818769661;
+        Mon, 17 Jun 2019 17:46:09 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw8ROtYDzL5DAse7oaEXAjdNEDRs3joEpsjRyL+ENgxQfUNh6/1t/ewG5+TtzMiyxF5vEPJ
+X-Received: by 2002:a63:1462:: with SMTP id 34mr94884pgu.417.1560818768988;
+        Mon, 17 Jun 2019 17:46:08 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560818768; cv=none;
         d=google.com; s=arc-20160816;
-        b=b71NVaaLVyELSAUDfzzBNWDfcSFTJJW5h+05bIoYDaI+njWvgH/oRWcf2vyl5NO3G/
-         JKzompNJsIG/ZHNSacA18BbN/Xo3RiU/lNMBVxjd5cMSzErvAqvVM1qX8+wm8H6Fjicg
-         YuWPap4boWT7BGqwzjNyoH8BKxDBivoDiC9FWJTQCKBvOOjA31h3obJL3IT8b/GWWt7d
-         LEY2wlB87qOInHtURfdNfrOQGEj/Jrs3YznlyUagrlCYuT0TDYmBTLtuBhdVIzF3UET+
-         kzoiAO6br4aWUn0KZHiM4mHseehKaHqoZR9L8IGZFXhJGHOM5KQeFkToucz37H80Uh/3
-         nbAw==
+        b=fqTw6zFOTD3YFMIvV1jOUyCzJyZOqkwd4Cq1W3fO/MXE/mwuNMcIVLzbOBcx3Djj45
+         L3KfAygZz653q0SPGDgmDGN6YbS1uz1tv+UgcvYJOtrIlO+DM18nqOJk7R7cZVCzTtJw
+         zTpTZJJNvejPjl2D+2oAiJuYiKIgfC3oTj0l3H137zjQZYaGQa97NtWkUqemSvoRet2w
+         55U51341xRq9oSrX4O9rN9foGKm5h56FFRZSpKsmGWbMN3U2OWORmaVGDKMTFalo+b09
+         rogwcIVAlrTG8MFKhqSZWxadeLhmiQalmBEl3uaieawloFXqAx3Z+AU94pVz1VoEiKGf
+         1/Kw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=xyVcNd9oooqBQ01pz08myANSFTdx0SwnrW4fjYnawJM=;
-        b=J62asutl31IRr8jT73mnvmUA8GTW2ynWCihrs2HTDd2usu72qSlljTvhN0BVBPpsoh
-         Z6Xm25eXf9NneLhUXmUD2/IukwNgxLjNpaqi9y0jZ85Xvs1wFpc2TC9EtHqSsQgHVCT3
-         oF6xGDTAK9GEnfPKJp3vpO3KSVTG2YCPcnL6fB16w8u03ECHFzIenRhJmJ4MmJrVlA0I
-         UzRqlGzyGD7GlAQGODpcdA6W1z0XlbkpB32SPgMIRDo2QL3Y5BkmCdsGlbVY//RNfyVS
-         +nTKATibLPRBnK4Yxi+mXFRikl8Y4p209LdGOh4CWTHfhsUBOQKvu2E3XK3ZLBkM9fQt
-         YRtw==
+         :reply-to:message-id:subject:cc:to:from:date;
+        bh=lhzXK1WLPLGDChV0gJF3Qnp1lG8zH0cbKOjWqB1to2w=;
+        b=XuaD+RHDRCmKoQDGrTNYZ/S3gMkNToRQ08UFHhEwyf+4kztz7INH7oBm+DiC67vEu7
+         vuYNRSDBdr6B5I63lhsR6hA/mezzhLKdM0xPvk2EN479kPB52nmtxdGiZ9lHBWutjG6a
+         l/sRrRMvkWiOJ6jYpb+E+lH6eMH4TRIXKdIWxV5rC2GHktGSi3hlgMq6gS/mKKUmL0jW
+         tLMvwyM0g4uEdnZkF4VjbZookSPVFM45Iv7DYTVQhS3WH4sptV+U+2v/cXj6QI4ui8tN
+         3EfhyFHzL1zoFNTeiMkUTK5DeKyKzkmFpNIfJ91dvgUCCp3ITaVmQ6RHF6bM7hHN37Me
+         2eHA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=EbwbRCaT;
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id p58sor18609482qtb.8.2019.06.17.17.45.10
+       spf=pass (google.com: best guess record for domain of richardw.yang@linux.intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=richardw.yang@linux.intel.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id n1si8140142pfn.32.2019.06.17.17.46.08
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 17 Jun 2019 17:45:10 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 17 Jun 2019 17:46:08 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of richardw.yang@linux.intel.com designates 192.55.52.120 as permitted sender) client-ip=192.55.52.120;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=EbwbRCaT;
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=ziepe.ca; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=xyVcNd9oooqBQ01pz08myANSFTdx0SwnrW4fjYnawJM=;
-        b=EbwbRCaTtFd2OjM2jNOG+48iONnisGaulMgt8GBSlGmHHmNOKbiX/pQ5UIlGAp8yUz
-         vNA1zIvWXYK1S4TWgK+86NqYoCUVC/0ZevX6IRfWzWSNvQ8g+Og+/8wxKQstLAZ+revM
-         VL5EZh1MRj6Ew8rlA3u8Y12VqUKY0LSaNX6vUqI1xIiehSserEbesl80q+pA69T5mmHc
-         9ILTNBce92/Mo7e4Kup6uNkn8cC7R1Ht2U5myxg80c8SBX/Bf59IAzM3jiTwz6+ORmYB
-         TG1ZP8xw47a6bZF6oV577gILRTEpeuB3t1687rIrkCR/XgY0ASSrboWRYKGE3cjxdvtm
-         1zGA==
-X-Google-Smtp-Source: APXvYqwWPeoiWiUq38eemfOuoOnFZtRLG1ij33tWBeptCPrHnF05gR5s5sk1ou0VyceV16bnn7ukkQ==
-X-Received: by 2002:ac8:2763:: with SMTP id h32mr99156393qth.350.1560818710425;
-        Mon, 17 Jun 2019 17:45:10 -0700 (PDT)
-Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
-        by smtp.gmail.com with ESMTPSA id z57sm9460981qta.62.2019.06.17.17.45.09
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 17 Jun 2019 17:45:09 -0700 (PDT)
-Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
-	(envelope-from <jgg@ziepe.ca>)
-	id 1hd2FJ-0000ob-FF; Mon, 17 Jun 2019 21:45:09 -0300
-Date: Mon, 17 Jun 2019 21:45:09 -0300
-From: Jason Gunthorpe <jgg@ziepe.ca>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Jerome Glisse <jglisse@redhat.com>,
-	Ralph Campbell <rcampbell@nvidia.com>,
-	John Hubbard <jhubbard@nvidia.com>, Felix.Kuehling@amd.com,
-	linux-rdma@vger.kernel.org, linux-mm@kvack.org,
-	Andrea Arcangeli <aarcange@redhat.com>,
-	dri-devel@lists.freedesktop.org, amd-gfx@lists.freedesktop.org,
-	Ben Skeggs <bskeggs@redhat.com>, Philip Yang <Philip.Yang@amd.com>
-Subject: Re: [PATCH v3 hmm 11/12] mm/hmm: Remove confusing comment and logic
- from hmm_release
-Message-ID: <20190618004509.GE30762@ziepe.ca>
-References: <20190614004450.20252-1-jgg@ziepe.ca>
- <20190614004450.20252-12-jgg@ziepe.ca>
- <20190615142106.GK17724@infradead.org>
+       spf=pass (google.com: best guess record for domain of richardw.yang@linux.intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=richardw.yang@linux.intel.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: UNKNOWN
+X-Amp-Original-Verdict: FILE UNKNOWN
+X-Amp-File-Uploaded: False
+Received: from orsmga002.jf.intel.com ([10.7.209.21])
+  by fmsmga104.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 17 Jun 2019 17:46:08 -0700
+X-ExtLoop1: 1
+Received: from richard.sh.intel.com (HELO localhost) ([10.239.159.54])
+  by orsmga002.jf.intel.com with ESMTP; 17 Jun 2019 17:46:06 -0700
+Date: Tue, 18 Jun 2019 08:45:43 +0800
+From: Wei Yang <richardw.yang@linux.intel.com>
+To: Oscar Salvador <osalvador@suse.de>
+Cc: Wei Yang <richardw.yang@linux.intel.com>, linux-mm@kvack.org,
+	akpm@linux-foundation.org, pasha.tatashin@oracle.com
+Subject: Re: [PATCH] mm/sparse: set section nid for hot-add memory
+Message-ID: <20190618004543.GB18161@richard>
+Reply-To: Wei Yang <richardw.yang@linux.intel.com>
+References: <20190616023554.19316-1-richardw.yang@linux.intel.com>
+ <20190617154314.GA2407@linux>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190615142106.GK17724@infradead.org>
-User-Agent: Mutt/1.9.4 (2018-02-28)
+In-Reply-To: <20190617154314.GA2407@linux>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Jun 15, 2019 at 07:21:06AM -0700, Christoph Hellwig wrote:
-> On Thu, Jun 13, 2019 at 09:44:49PM -0300, Jason Gunthorpe wrote:
-> > From: Jason Gunthorpe <jgg@mellanox.com>
-> > 
-> > hmm_release() is called exactly once per hmm. ops->release() cannot
-> > accidentally trigger any action that would recurse back onto
-> > hmm->mirrors_sem.
-> 
-> In linux-next amdgpu actually calls hmm_mirror_unregister from its
-> release function.  That whole release function looks rather sketchy,
-> but we probably need to sort that out first.
+On Mon, Jun 17, 2019 at 05:43:25PM +0200, Oscar Salvador wrote:
+>On Sun, Jun 16, 2019 at 10:35:54AM +0800, Wei Yang wrote:
+>> section_to_node_table[] is used to record section's node id, which is
+>> used in page_to_nid(). While for hot-add memory, this is missed.
+>> 
+>> BTW, current online_pages works because it leverages nid in memory_block.
+>> But the granularity of node id should be mem_section wide.
+>> 
+>> Signed-off-by: Wei Yang <richardw.yang@linux.intel.com>
+>
+>While the patch is valid, I think that the changelog could be improved a bit.
+>For example, I would point out the possible problems we can face if it is not set
+>properly (e.g: page_to_nid() operations failing to give the right node) and when
+>section_to_node_table[] is used (NODE_NOT_IN_PAGE_FLAGS scenario).
+>
 
-Does it? I see this:
+Thanks, let me give more words on this.
 
-static void amdgpu_hmm_mirror_release(struct hmm_mirror *mirror)
-{
-        struct amdgpu_mn *amn = container_of(mirror, struct amdgpu_mn, mirror);
+>Reviewed-by: Oscar Salvador <osalvador@suse.de>
+>
+>> ---
+>>  mm/sparse.c | 1 +
+>>  1 file changed, 1 insertion(+)
+>> 
+>> diff --git a/mm/sparse.c b/mm/sparse.c
+>> index fd13166949b5..3ba8f843cb7a 100644
+>> --- a/mm/sparse.c
+>> +++ b/mm/sparse.c
+>> @@ -735,6 +735,7 @@ int __meminit sparse_add_one_section(int nid, unsigned long start_pfn,
+>>  	 */
+>>  	page_init_poison(memmap, sizeof(struct page) * PAGES_PER_SECTION);
+>>  
+>> +	set_section_nid(section_nr, nid);
+>>  	section_mark_present(ms);
+>>  	sparse_init_one_section(ms, section_nr, memmap, usemap);
+>>  
+>> -- 
+>> 2.19.1
+>> 
+>
+>-- 
+>Oscar Salvador
+>SUSE L3
 
-        INIT_WORK(&amn->work, amdgpu_mn_destroy);
-        schedule_work(&amn->work);
-}
-
-static struct hmm_mirror_ops amdgpu_hmm_mirror_ops[] = {
-        [AMDGPU_MN_TYPE_GFX] = {
-                .sync_cpu_device_pagetables = amdgpu_mn_sync_pagetables_gfx,
-                .release = amdgpu_hmm_mirror_release
-        },
-        [AMDGPU_MN_TYPE_HSA] = {
-                .sync_cpu_device_pagetables = amdgpu_mn_sync_pagetables_hsa,
-                .release = amdgpu_hmm_mirror_release
-        },
-};
-
-
-Am I looking at the wrong thing? Looks like it calls it through a work
-queue should should be OK..
-
-Though very strange that amdgpu only destroys the mirror via release,
-that cannot be right.
-
-Jason
+-- 
+Wei Yang
+Help you, Help me
 
