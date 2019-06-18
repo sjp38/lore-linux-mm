@@ -2,204 +2,185 @@ Return-Path: <SRS0=8DoX=UR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 994FAC31E5D
-	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 21:56:48 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B38D9C31E5B
+	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 23:05:42 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5036C20B1F
-	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 21:56:48 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=vmware.com header.i=@vmware.com header.b="2kFH24C+"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5036C20B1F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=quarantine dis=none) header.from=vmware.com
+	by mail.kernel.org (Postfix) with ESMTP id 513872080C
+	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 23:05:42 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 513872080C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BFDF26B0005; Tue, 18 Jun 2019 17:56:47 -0400 (EDT)
+	id 9F4D46B0003; Tue, 18 Jun 2019 19:05:41 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B88208E0002; Tue, 18 Jun 2019 17:56:47 -0400 (EDT)
+	id 97EBC8E0002; Tue, 18 Jun 2019 19:05:41 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A28268E0001; Tue, 18 Jun 2019 17:56:47 -0400 (EDT)
+	id 7D9A68E0001; Tue, 18 Jun 2019 19:05:41 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 522D56B0005
-	for <linux-mm@kvack.org>; Tue, 18 Jun 2019 17:56:47 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id l26so23116852eda.2
-        for <linux-mm@kvack.org>; Tue, 18 Jun 2019 14:56:47 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 406956B0003
+	for <linux-mm@kvack.org>; Tue, 18 Jun 2019 19:05:41 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id h27so3769152pfq.17
+        for <linux-mm@kvack.org>; Tue, 18 Jun 2019 16:05:41 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
-         :thread-index:date:message-id:references:in-reply-to:accept-language
-         :content-language:content-id:content-transfer-encoding:mime-version;
-        bh=gnlMSJEdso7veKqh30diH+zIt9D1j5E7I4f0b7gxMaM=;
-        b=bsebodnoG69pgeLlAkWpRixJph0TYVwYK4ttGJ2pW+D8ru7AD00iw+4AVySmT2f5O8
-         0gk3Zjn4LnuAcSNME9cJIAXl7WaQpR+40D7NcDaRkxGqKqJqMaoZkn5/4QSFpvRca7lc
-         HFs0PWczGy+e02oRucL+uEssi1oVVZ14TOAUpJJfhg4ad3RmmU1Ryp3jHtKB/JmMWRAh
-         Ka6g3GjlfeVFTU8nlMTVGtmV8riqv+fXzbfDfMdDaVMig3zlkNLVRcKrmYRQxNoDLi8/
-         aS5D/s5Xpew93GowC2FTMjjozWnf1JBWqpoBzTUMtGc6mJTodx/gQt1+GlnWNMpoUXtt
-         mZhg==
-X-Gm-Message-State: APjAAAX33re5UgbnjLuiUCeu0JkrQ2nsz+hGd3h9M7JhNByIKdCgY1mG
-	Mr9mGtjVUPuiALPI9cRckUnJXiMTbUtQ4q7ncyPm847RAKJUbA7MjQvDaTv9q5m/AxRuBC24o4N
-	pTBds6WQBfHXAvYaa8Dvjd55fzLZGsEFrAbnl7wvoEKeP2Pp+qZrbkGpcxiIooISQVQ==
-X-Received: by 2002:a50:b329:: with SMTP id q38mr127356741edd.246.1560895006908;
-        Tue, 18 Jun 2019 14:56:46 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxFbGOBznmd7zC8RKd8Hp9xh2pBsnYuz4Xw12fWq4BhuOWwXstkbzdHcuYCnc+m+P66wYTY
-X-Received: by 2002:a50:b329:: with SMTP id q38mr127356697edd.246.1560895006147;
-        Tue, 18 Jun 2019 14:56:46 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560895006; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:references
+         :user-agent:from:to:cc:subject:in-reply-to:date:mime-version
+         :message-id;
+        bh=upkLbL3DPmcdMbPg34kPtySrAjp767IbGKcKu/0c3zI=;
+        b=YJUz5HNo9xVxOKORDQvNPjkIp20qMU6601Hy4UZdCUibPYyb76IqAWoqbiIuzczpQ4
+         F/O7G+ArpX460j+APVGCnjfMg03cCwbbfdqi6IIQSodDAzycwCfCBqtZyxXq9X8KnedN
+         NUspV4/lFKXHz0JreWSGBntdDsaMAIq9wln8fQYTNcOdSCSPv75afuY/61WPSnw3AWdQ
+         9/0iNrhr4iynEnMa+nvD3RdjAHqcp9Vt+ByuhmVAc5QSNhD35c/l/ZQ57gKxlrSaK2Iw
+         zdbRy1lqZseumpvB3W+psBg+mTcmizKFow07rBtiid+7ujcRoZ1dZ+Swo2/RumoW1jNl
+         chWA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of bauerman@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=bauerman@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: APjAAAUkcrl3vv1ZpBWmRM9z+sPgzyK1676OTiqLS4/kTj52fvBiKlpn
+	R0A+nhxzm/42Fmf73lCVB7mr2nT5E7w70gexBJvyJdNSeE9cJpG9NIOXPsM2fwVYo9dUawEwE5C
+	INGQEJF38LyiN2xAuB1r5W96WCV1aEsT+jSyE0IaC3Kf7grlkwe1A4rEx9i3LQAafAQ==
+X-Received: by 2002:a17:902:3103:: with SMTP id w3mr6426424plb.84.1560899140806;
+        Tue, 18 Jun 2019 16:05:40 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxfN8E386MhJt7CTa3s0Je2/fTOYblYyVLO9fWjs5y93DjzkQFDVSrgZ7TBWpp8GwV3YqP2
+X-Received: by 2002:a17:902:3103:: with SMTP id w3mr6426359plb.84.1560899139942;
+        Tue, 18 Jun 2019 16:05:39 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560899139; cv=none;
         d=google.com; s=arc-20160816;
-        b=qNc9aXrVsRx3EkyKOxiFy4vA56A0a1joh5iQWaZkleoN0ZntLiVTxzwUxuoQlOoV6Y
-         Pjlejzr3D9C2BDRjQmWlwK4sn/nDropvoeCP1q/TjEwZh5ek1/nQtXcrsakLmhYifxPK
-         f3/fTE1K+TbtsuthBXoeV63K5lmaMXT+BDvgk6n12IJSOiiDBVfhV+Wo8oHpvlHbLO2j
-         5+X/KvifNP+xj7BnIFxSrirbvIipHbBCzgulsCEPPhKPYGxHY7sbKjJ9dDMg8UP1+SKa
-         SKWYPFs8QOrONb7kXyK+wJOuuCyDHFbyPj7QbB9UkZfnJ0wRZGjzBVqWUuvrSe72CG9e
-         +wRw==
+        b=zWxq1yZ4LpfP/Anq2LFceEsCdqXu8BvypDGVoxZsWdPE9Zlnw0Wuju3/AOteIqjiYj
+         Fz+hRkwM81npcbBXM+w17md/yp2+mXcR2yT1/GjORVui0HbLa9P8ahF2HJh96WSFbyBt
+         xgc1iGCEAE+AsIq69jcaG9h24Fha1iRQqNjaXfVrXpvYDXFKxvmpkp8dlckabGjUtA/k
+         Ow9UvfRv/TYK22KVeh+CbknkTPHHoklVMWuY6RTyTts3wUFxyfeZk68GAfnvFkbBHEDr
+         oeKjWDd6cr8blC9puHE0vHuA06OvHTx+viVPAF/lnQDE9Gcf2FIN/fVh/jpP5vHg+IXr
+         p/Ig==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from:dkim-signature;
-        bh=gnlMSJEdso7veKqh30diH+zIt9D1j5E7I4f0b7gxMaM=;
-        b=tkzQ+sJ6SG8LtYCpgHchKD/vermjW+bErfdBixEbZBQ+K4S2wFlh1ZNT4qs1G3p6lp
-         Cr78NhzlrL3dP3Bg3KACfC56RHm6J3QaGLcHNgYpkuQZSbtu9jqg33ZYC/kLP7olkTtd
-         Cfn3Gh4AJD42kC/iBD6/q1Vbo+RswlYcqXNZ5R98V7xk1TjYwTJ/M4FdCL79r548ogBr
-         OJ/ee9NHjnlP8AlkmyeRVg3EgTI3Zgtq741bAMosQcZtSjilcVixSrJvLfXnXnZUTd9m
-         PxajFDq2j7N75CCt4rkLt2EvTA2H58z+H+F8oKeUe8xFdi4ai0gj44VW9Eu+TyYW5hoU
-         0J1A==
+        h=message-id:mime-version:date:in-reply-to:subject:cc:to:from
+         :user-agent:references;
+        bh=upkLbL3DPmcdMbPg34kPtySrAjp767IbGKcKu/0c3zI=;
+        b=BSRvGU59xlv0mXMpFPi5gam2nKTkAqErpQ37nUdfGtw1SsDaRA6rm/zJPItiM56iKQ
+         7Sw3CPWREpwEQg3PXQfnzVb0h2RLxaE1ZZfJf6z/ZLgQXxS2J3Obsi4gHbAkHgPvdjGW
+         ja1yMUTEPqLeDJFk3irQHaOXj7gWHNYlQWwnOobyRiTq+99Culo1kqQJPP7yztOFv6OK
+         Ta4CpkMchXv/46M+iO3QaWmmYmTCT9SV/9FCtfFw53QB50LycqHN21fvVBgtD6WPJ6fI
+         UKi/DxXS+O/YUc9/3DfLnuQdhFF2Vgifxbrpxg4vzHAWTQRh/BbggzKWKYE4wjfn+H2/
+         E6Dg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@vmware.com header.s=selector2 header.b=2kFH24C+;
-       spf=pass (google.com: domain of namit@vmware.com designates 40.107.82.72 as permitted sender) smtp.mailfrom=namit@vmware.com;
-       dmarc=pass (p=QUARANTINE sp=NONE dis=NONE) header.from=vmware.com
-Received: from NAM01-SN1-obe.outbound.protection.outlook.com (mail-eopbgr820072.outbound.protection.outlook.com. [40.107.82.72])
-        by mx.google.com with ESMTPS id r5si12181345edm.368.2019.06.18.14.56.45
+       spf=pass (google.com: domain of bauerman@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=bauerman@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id t22si1314873pgk.507.2019.06.18.16.05.39
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 18 Jun 2019 14:56:46 -0700 (PDT)
-Received-SPF: pass (google.com: domain of namit@vmware.com designates 40.107.82.72 as permitted sender) client-ip=40.107.82.72;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 18 Jun 2019 16:05:39 -0700 (PDT)
+Received-SPF: pass (google.com: domain of bauerman@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@vmware.com header.s=selector2 header.b=2kFH24C+;
-       spf=pass (google.com: domain of namit@vmware.com designates 40.107.82.72 as permitted sender) smtp.mailfrom=namit@vmware.com;
-       dmarc=pass (p=QUARANTINE sp=NONE dis=NONE) header.from=vmware.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=vmware.com;
- s=selector2;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=gnlMSJEdso7veKqh30diH+zIt9D1j5E7I4f0b7gxMaM=;
- b=2kFH24C+nVrXf4MZLrx4udVit102FmhukadUvdXb/8x8jI5AjOiWWNCd59nsFs08QfJajGMW3Rsk44owlmFpQYxHe0Ly6Q1KtGFmgBMS2WvIzgjiAPwqpPuEYyLvZVuaWm09vw9/SWSCU1T3ywcjIAgXYQbDtFxRpiSwFLwALcg=
-Received: from BYAPR05MB4776.namprd05.prod.outlook.com (52.135.233.146) by
- BYAPR05MB4501.namprd05.prod.outlook.com (52.135.203.33) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.2008.10; Tue, 18 Jun 2019 21:56:44 +0000
-Received: from BYAPR05MB4776.namprd05.prod.outlook.com
- ([fe80::f493:3bba:aabf:dd58]) by BYAPR05MB4776.namprd05.prod.outlook.com
- ([fe80::f493:3bba:aabf:dd58%7]) with mapi id 15.20.2008.007; Tue, 18 Jun 2019
- 21:56:44 +0000
-From: Nadav Amit <namit@vmware.com>
-To: Dan Williams <dan.j.williams@intel.com>
-CC: Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List
-	<linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Borislav
- Petkov <bp@suse.de>, Toshi Kani <toshi.kani@hpe.com>, Peter Zijlstra
-	<peterz@infradead.org>, Dave Hansen <dave.hansen@linux.intel.com>, Bjorn
- Helgaas <bhelgaas@google.com>, Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH 0/3] resource: find_next_iomem_res() improvements
-Thread-Topic: [PATCH 0/3] resource: find_next_iomem_res() improvements
-Thread-Index: AQHVIaTGJ7ym4R/nDEy6A26DLGCJOaag/0oAgAC3tYCAAA1/gIAAOaaA
-Date: Tue, 18 Jun 2019 21:56:43 +0000
-Message-ID: <19C3DCA0-823E-46CB-A758-D5F82C5FA3C8@vmware.com>
-References: <20190613045903.4922-1-namit@vmware.com>
- <CAPcyv4hpWg5DWRhazS-ftyghiZP-J_M-7Vd5tiUd5UKONOib8g@mail.gmail.com>
- <9387A285-B768-4B58-B91B-61B70D964E6E@vmware.com>
- <CAPcyv4hstt+0teXPtAq2nwFQaNb9TujgetgWPVMOnYH8JwqGeA@mail.gmail.com>
-In-Reply-To:
- <CAPcyv4hstt+0teXPtAq2nwFQaNb9TujgetgWPVMOnYH8JwqGeA@mail.gmail.com>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-authentication-results: spf=none (sender IP is )
- smtp.mailfrom=namit@vmware.com; 
-x-originating-ip: [66.170.99.1]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: 0cae4390-edb5-42ed-a7e2-08d6f437da29
-x-microsoft-antispam:
- BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(2017052603328)(7193020);SRVR:BYAPR05MB4501;
-x-ms-traffictypediagnostic: BYAPR05MB4501:
-x-microsoft-antispam-prvs:
- <BYAPR05MB45019A584A4A4A95F2B3AD38D0EA0@BYAPR05MB4501.namprd05.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:9508;
-x-forefront-prvs: 007271867D
-x-forefront-antispam-report:
- SFV:NSPM;SFS:(10009020)(396003)(39860400002)(346002)(366004)(136003)(376002)(51914003)(199004)(189003)(5660300002)(4326008)(316002)(54906003)(25786009)(53936002)(6436002)(6486002)(229853002)(478600001)(6916009)(7416002)(33656002)(446003)(486006)(11346002)(476003)(6246003)(14444005)(256004)(99286004)(36756003)(7736002)(26005)(305945005)(71200400001)(6512007)(6116002)(8676002)(3846002)(81166006)(102836004)(81156014)(186003)(76176011)(6506007)(66556008)(66446008)(64756008)(2616005)(66476007)(14454004)(73956011)(53546011)(66946007)(2906002)(66066001)(68736007)(76116006)(86362001)(71190400001)(8936002);DIR:OUT;SFP:1101;SCL:1;SRVR:BYAPR05MB4501;H:BYAPR05MB4776.namprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
-received-spf: None (protection.outlook.com: vmware.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info:
- m1ZqHl5ezVkV2drGsDR7ZdwTe2D8gwFIRLLBkIRnyMonZDjzd92ZTZ5JRDWux3DJEHZDrLdq9lMwX4cLK6Ke3EBosMeXs5bLjt7zqFq2U8+3vhhXduPKludiN7lmrT6UwSu+UhROoPFZJwM7uCdZKLnebxEkscHOd0esA7aqUFR2x66eDQR80BTmoDLDn8a11eD4HgnfDjFvFzaIYq6Fi/LTLuMNmHytoMu+lQ6l7KWBXtdrWzhlnthkmVF+o9GW43vDzhfgzcZIAYBkZ4AU3PKRlpwHPiUcjoFUf2h87NUgMeu3/wGsPyHc+qNVdvd+B/177YV1FWLr/dXdxwPj3449Tu+8iNZlqcpyV8MXbGF7pR/EYA+rzocosUFZ9VbiZMTiBKx4T5Sd8P2Lk839s+FnpDMer+c98/JGVwhx4/0=
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <3646E9E76A9CEE4FB1F7E615BC67D646@namprd05.prod.outlook.com>
-Content-Transfer-Encoding: base64
+       spf=pass (google.com: domain of bauerman@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=bauerman@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x5IMvJu2087204
+	for <linux-mm@kvack.org>; Tue, 18 Jun 2019 19:05:39 -0400
+Received: from e16.ny.us.ibm.com (e16.ny.us.ibm.com [129.33.205.206])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2t77ymu6d9-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 18 Jun 2019 19:05:38 -0400
+Received: from localhost
+	by e16.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <bauerman@linux.ibm.com>;
+	Wed, 19 Jun 2019 00:05:37 +0100
+Received: from b01cxnp22036.gho.pok.ibm.com (9.57.198.26)
+	by e16.ny.us.ibm.com (146.89.104.203) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Wed, 19 Jun 2019 00:05:34 +0100
+Received: from b01ledav006.gho.pok.ibm.com (b01ledav006.gho.pok.ibm.com [9.57.199.111])
+	by b01cxnp22036.gho.pok.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x5IN5Xdc35127798
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Tue, 18 Jun 2019 23:05:33 GMT
+Received: from b01ledav006.gho.pok.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 01820AC05E;
+	Tue, 18 Jun 2019 23:05:33 +0000 (GMT)
+Received: from b01ledav006.gho.pok.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id D5F6CAC059;
+	Tue, 18 Jun 2019 23:05:30 +0000 (GMT)
+Received: from morokweng.localdomain (unknown [9.80.212.11])
+	by b01ledav006.gho.pok.ibm.com (Postfix) with ESMTPS;
+	Tue, 18 Jun 2019 23:05:30 +0000 (GMT)
+References: <20190528064933.23119-1-bharata@linux.ibm.com> <20190528064933.23119-4-bharata@linux.ibm.com>
+User-agent: mu4e 1.2.0; emacs 26.2
+From: Thiago Jung Bauermann <bauerman@linux.ibm.com>
+To: Bharata B Rao <bharata@linux.ibm.com>
+Cc: linuxppc-dev@lists.ozlabs.org, kvm-ppc@vger.kernel.org, linux-mm@kvack.org,
+        paulus@au1.ibm.com, aneesh.kumar@linux.vnet.ibm.com,
+        jglisse@redhat.com, linuxram@us.ibm.com, sukadev@linux.vnet.ibm.com,
+        cclaudio@linux.ibm.com
+Subject: Re: [PATCH v4 3/6] kvmppc: H_SVM_INIT_START and H_SVM_INIT_DONE hcalls
+In-reply-to: <20190528064933.23119-4-bharata@linux.ibm.com>
+Date: Tue, 18 Jun 2019 20:05:26 -0300
 MIME-Version: 1.0
-X-OriginatorOrg: vmware.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: 0cae4390-edb5-42ed-a7e2-08d6f437da29
-X-MS-Exchange-CrossTenant-originalarrivaltime: 18 Jun 2019 21:56:43.8396
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: b39138ca-3cee-4b4a-a4d6-cd83d9dd62f0
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-userprincipalname: namit@vmware.com
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: BYAPR05MB4501
+Content-Type: text/plain
+X-TM-AS-GCONF: 00
+x-cbid: 19061823-0072-0000-0000-0000043E34AC
+X-IBM-SpamModules-Scores: 
+X-IBM-SpamModules-Versions: BY=3.00011287; HX=3.00000242; KW=3.00000007;
+ PH=3.00000004; SC=3.00000286; SDB=6.01219945; UDB=6.00641721; IPR=6.01001087;
+ MB=3.00027366; MTD=3.00000008; XFM=3.00000015; UTC=2019-06-18 23:05:35
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19061823-0073-0000-0000-00004CAE3D5C
+Message-Id: <87y31y7avd.fsf@morokweng.localdomain>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-06-18_11:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1011 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=852 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1906180185
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-PiBPbiBKdW4gMTgsIDIwMTksIGF0IDExOjMwIEFNLCBEYW4gV2lsbGlhbXMgPGRhbi5qLndpbGxp
-YW1zQGludGVsLmNvbT4gd3JvdGU6DQo+IA0KPiBPbiBUdWUsIEp1biAxOCwgMjAxOSBhdCAxMDo0
-MiBBTSBOYWRhdiBBbWl0IDxuYW1pdEB2bXdhcmUuY29tPiB3cm90ZToNCj4+PiBPbiBKdW4gMTcs
-IDIwMTksIGF0IDExOjQ0IFBNLCBEYW4gV2lsbGlhbXMgPGRhbi5qLndpbGxpYW1zQGludGVsLmNv
-bT4gd3JvdGU6DQo+Pj4gDQo+Pj4gT24gV2VkLCBKdW4gMTIsIDIwMTkgYXQgOTo1OSBQTSBOYWRh
-diBBbWl0IDxuYW1pdEB2bXdhcmUuY29tPiB3cm90ZToNCj4+Pj4gUnVubmluZyBzb21lIG1pY3Jv
-YmVuY2htYXJrcyBvbiBkYXgga2VlcHMgc2hvd2luZyBmaW5kX25leHRfaW9tZW1fcmVzKCkNCj4+
-Pj4gYXMgYSBwbGFjZSBpbiB3aGljaCBzaWduaWZpY2FudCBhbW91bnQgb2YgdGltZSBpcyBzcGVu
-dC4gSXQgYXBwZWFycyB0aGF0DQo+Pj4+IGluIG9yZGVyIHRvIGRldGVybWluZSB0aGUgY2FjaGVh
-YmlsaXR5IHRoYXQgaXMgcmVxdWlyZWQgZm9yIHRoZSBQVEUsDQo+Pj4+IGxvb2t1cF9tZW10eXBl
-KCkgaXMgY2FsbGVkLCBhbmQgdGhpcyBvbmUgdHJhdmVyc2VzIHRoZSByZXNvdXJjZXMgbGlzdCBp
-bg0KPj4+PiBhbiBpbmVmZmljaWVudCBtYW5uZXIuIFRoaXMgcGF0Y2gtc2V0IHRyaWVzIHRvIGlt
-cHJvdmUgdGhpcyBzaXR1YXRpb24uDQo+Pj4gDQo+Pj4gTGV0J3MganVzdCBkbyB0aGlzIGxvb2t1
-cCBvbmNlIHBlciBkZXZpY2UsIGNhY2hlIHRoYXQsIGFuZCByZXBsYXkgaXQNCj4+PiB0byBtb2Rp
-ZmllZCB2bWZfaW5zZXJ0Xyogcm91dGluZXMgdGhhdCB0cnVzdCB0aGUgY2FsbGVyIHRvIGFscmVh
-ZHkNCj4+PiBrbm93IHRoZSBwZ3Byb3RfdmFsdWVzLg0KPj4gDQo+PiBJSVVDLCBvbmUgZGV2aWNl
-IGNhbiBoYXZlIG11bHRpcGxlIHJlZ2lvbnMgd2l0aCBkaWZmZXJlbnQgY2hhcmFjdGVyaXN0aWNz
-LA0KPj4gd2hpY2ggcmVxdWlyZSBkaWZmZXJlbmNlIGNhY2hhYmlsaXR5Lg0KPiANCj4gTm90IGZv
-ciBwbWVtLiBJdCB3aWxsIGFsd2F5cyBiZSBvbmUgY29tbW9uIGNhY2hlYWJpbGl0eSBzZXR0aW5n
-IGZvcg0KPiB0aGUgZW50aXJldHkgb2YgcGVyc2lzdGVudCBtZW1vcnkuDQo+IA0KPj4gQXBwYXJl
-bnRseSwgdGhhdCBpcyB0aGUgcmVhc29uIHRoZXJlDQo+PiBpcyBhIHRyZWUgb2YgcmVzb3VyY2Vz
-LiBQbGVhc2UgYmUgbW9yZSBzcGVjaWZpYyBhYm91dCB3aGVyZSB5b3Ugd2FudCB0bw0KPj4gY2Fj
-aGUgaXQsIHBsZWFzZS4NCj4gDQo+IFRoZSByZWFzb24gZm9yIGxvb2t1cF9tZW10eXBlKCkgd2Fz
-IHRvIHRyeSB0byBwcmV2ZW50IG1peGVkDQo+IGNhY2hlYWJpbGl0eSBzZXR0aW5ncyBvZiBwYWdl
-cyBhY3Jvc3MgZGlmZmVyZW50IHByb2Nlc3NlcyAuIFRoZQ0KPiBtYXBwaW5nIHR5cGUgZm9yIHBt
-ZW0vZGF4IGlzIGVzdGFibGlzaGVkIGJ5IG9uZSBvZjoNCj4gDQo+IGRyaXZlcnMvbnZkaW1tL3Bt
-ZW0uYzo0MTM6ICAgICAgICAgICAgICBhZGRyID0NCj4gZGV2bV9tZW1yZW1hcF9wYWdlcyhkZXYs
-ICZwbWVtLT5wZ21hcCk7DQo+IGRyaXZlcnMvbnZkaW1tL3BtZW0uYzo0MjU6ICAgICAgICAgICAg
-ICBhZGRyID0NCj4gZGV2bV9tZW1yZW1hcF9wYWdlcyhkZXYsICZwbWVtLT5wZ21hcCk7DQo+IGRy
-aXZlcnMvbnZkaW1tL3BtZW0uYzo0MzI6ICAgICAgICAgICAgICBhZGRyID0gZGV2bV9tZW1yZW1h
-cChkZXYsDQo+IHBtZW0tPnBoeXNfYWRkciwNCj4gZHJpdmVycy9udmRpbW0vcG1lbS5jLTQzMy0g
-ICAgICAgICAgICAgICAgICAgICAgICAgICAgICBwbWVtLT5zaXplLA0KPiBBUkNIX01FTVJFTUFQ
-X1BNRU0pOw0KPiANCj4gLi4uYW5kIGlzIGNvbnN0YW50IGZvciB0aGUgbGlmZSBvZiB0aGUgZGV2
-aWNlIGFuZCBhbGwgc3Vic2VxdWVudCBtYXBwaW5ncy4NCj4gDQo+PiBQZXJoYXBzIHlvdSB3YW50
-IHRvIGNhY2hlIHRoZSBjYWNoYWJpbGl0eS1tb2RlIGluIHZtYS0+dm1fcGFnZV9wcm90ICh3aGlj
-aCBJDQo+PiBzZWUgYmVpbmcgZG9uZSBpbiBxdWl0ZSBhIGZldyBjYXNlcyksIGJ1dCBJIGRvbuKA
-mXQga25vdyB0aGUgY29kZSB3ZWxsIGVub3VnaA0KPj4gdG8gYmUgY2VydGFpbiB0aGF0IGV2ZXJ5
-IHZtYSBzaG91bGQgaGF2ZSBhIHNpbmdsZSBwcm90ZWN0aW9uIGFuZCB0aGF0IGl0DQo+PiBzaG91
-bGQgbm90IGNoYW5nZSBhZnRlcndhcmRzLg0KPiANCj4gTm8sIEknbSB0aGlua2luZyB0aGlzIHdv
-dWxkIG5hdHVyYWxseSBmaXQgYXMgYSBwcm9wZXJ0eSBoYW5naW5nIG9mZiBhDQo+ICdzdHJ1Y3Qg
-ZGF4X2RldmljZScsIGFuZCB0aGVuIGNyZWF0ZSBhIHZlcnNpb24gb2Ygdm1mX2luc2VydF9taXhl
-ZCgpDQo+IGFuZCB2bWZfaW5zZXJ0X3Bmbl9wbWQoKSB0aGF0IGJ5cGFzcyB0cmFja19wZm5faW5z
-ZXJ0KCkgdG8gaW5zZXJ0IHRoYXQNCj4gc2F2ZWQgdmFsdWUuDQoNClRoYW5rcyBmb3IgdGhlIGRl
-dGFpbGVkIGV4cGxhbmF0aW9uLiBJ4oCZbGwgZ2l2ZSBpdCBhIHRyeSAodGhlIG1vbWVudCBJIGZp
-bmQNCnNvbWUgZnJlZSB0aW1lKS4gSSBzdGlsbCB0aGluayB0aGF0IHBhdGNoIDIvMyBpcyBiZW5l
-ZmljaWFsLCBidXQgYmFzZWQgb24NCnlvdXIgZmVlZGJhY2ssIHBhdGNoIDMvMyBzaG91bGQgYmUg
-ZHJvcHBlZC4NCg0K
+
+Hello Bharata,
+
+Bharata B Rao <bharata@linux.ibm.com> writes:
+
+> diff --git a/arch/powerpc/include/asm/kvm_book3s_hmm.h b/arch/powerpc/include/asm/kvm_book3s_hmm.h
+> index 21f3de5f2acb..3e13dab7f690 100644
+> --- a/arch/powerpc/include/asm/kvm_book3s_hmm.h
+> +++ b/arch/powerpc/include/asm/kvm_book3s_hmm.h
+> @@ -11,6 +11,8 @@ extern unsigned long kvmppc_h_svm_page_out(struct kvm *kvm,
+>  					  unsigned long gra,
+>  					  unsigned long flags,
+>  					  unsigned long page_shift);
+> +extern unsigned long kvmppc_h_svm_init_start(struct kvm *kvm);
+> +extern unsigned long kvmppc_h_svm_init_done(struct kvm *kvm);
+>  #else
+>  static inline unsigned long
+>  kvmppc_h_svm_page_in(struct kvm *kvm, unsigned long gra,
+> @@ -25,5 +27,15 @@ kvmppc_h_svm_page_out(struct kvm *kvm, unsigned long gra,
+>  {
+>  	return H_UNSUPPORTED;
+>  }
+> +
+> +static inine unsigned long kvmppc_h_svm_init_start(struct kvm *kvm)
+> +{
+> +	return H_UNSUPPORTED;
+> +}
+> +
+> +static inine unsigned long kvmppc_h_svm_init_done(struct kvm *kvm);
+> +{
+> +	return H_UNSUPPORTED;
+> +}
+>  #endif /* CONFIG_PPC_UV */
+>  #endif /* __POWERPC_KVM_PPC_HMM_H__ */
+
+This patch won't build when CONFIG_PPC_UV isn't set because of two
+typos: "inine" and the ';' at the end of kvmppc_h_svm_init_done()
+function prototype.
+
+-- 
+Thiago Jung Bauermann
+IBM Linux Technology Center
 
