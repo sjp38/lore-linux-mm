@@ -2,174 +2,155 @@ Return-Path: <SRS0=8DoX=UR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 88323C31E51
-	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 03:36:14 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DC553C31E51
+	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 04:20:06 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EEC6E2085A
-	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 03:36:13 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EEC6E2085A
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 3D11120B1F
+	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 04:20:02 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="DuLk3e8E"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3D11120B1F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4D7B98E0003; Mon, 17 Jun 2019 23:36:13 -0400 (EDT)
+	id 998928E0003; Tue, 18 Jun 2019 00:19:58 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 488068E0001; Mon, 17 Jun 2019 23:36:13 -0400 (EDT)
+	id 8FB358E0001; Tue, 18 Jun 2019 00:19:58 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 39E138E0003; Mon, 17 Jun 2019 23:36:13 -0400 (EDT)
+	id 774EC8E0003; Tue, 18 Jun 2019 00:19:58 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 041408E0001
-	for <linux-mm@kvack.org>; Mon, 17 Jun 2019 23:36:13 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id s4so9057001pgr.3
-        for <linux-mm@kvack.org>; Mon, 17 Jun 2019 20:36:12 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 397078E0001
+	for <linux-mm@kvack.org>; Tue, 18 Jun 2019 00:19:58 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id r142so8442791pfc.2
+        for <linux-mm@kvack.org>; Mon, 17 Jun 2019 21:19:58 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:reply-to:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=1fSSe8suDKjBf1vgC8h2kWPwQn0B15jZkC7bjiGIFJk=;
-        b=TcXO/Wpme/zpmS3F4XnLpmGD7RPtPucVr8niJasZAx/hCDO4fHMxVZgNnTu/BQJk0l
-         4yDRNuIRKOtYwgSsKL30WQhbKkzMu3Cc6VvDQTAGyeixDwv4qChyG2eib7sIhIhazs9Y
-         FQrgLRmBaYOWDL+720RazQhsTPCoih4NtxmZLWOVUe11KMsO6fwHG+ZcLxxGhrcWehYU
-         Bw1BH3s/TK9zHoqNKgnedKFNYZ4TBTsOG7ORAsSMHsBX+7+Avx3BVpNL0D1WKVJdeA0r
-         vd3NMUyTJx1LvRNYhFyrVcl870Bc7FetnvfxtTag65HmzPxI4ALV7yMI4zzxupZRkOpa
-         1SiQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of richardw.yang@linux.intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=richardw.yang@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAWsL1uqjla2nfJG79MiMEHE5P1UY9H36mnZTITLwB726mpkH3lp
-	Tl1twgd6Vqw7gwIfrM8htieCzMLNtkBs9guW9OEaSnYQstgPCdXIXYv36tG3UbjfEP+BtLlxV8l
-	6sdQuGKZkOxsJ3qA119gpnJ815ClwGooRUyNRuE+g19iRuGsAOL2eBJ42N2A3Axg8Hw==
-X-Received: by 2002:a17:90a:2228:: with SMTP id c37mr2742036pje.9.1560828972528;
-        Mon, 17 Jun 2019 20:36:12 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwAKcR6X9+j+tWZt1cWVQk2MA9szR85wkBcYqggN7UIIzs8JhbzzzXefwW55X56dumGwEbl
-X-Received: by 2002:a17:90a:2228:: with SMTP id c37mr2741995pje.9.1560828971772;
-        Mon, 17 Jun 2019 20:36:11 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560828971; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=U0bgcwdCYh7A9L1+kJ/BXTzLGPDAuWCyNs3vhvtV0Pk=;
+        b=bN0BWb8ypAdN3T6RFPq1WNdabilwEDfuAt0YW0j2GPoM9dcworxwxiYAgkW7T5W4He
+         it6MymPKeFgZCmuPcso0zwNVPwRHRZ26G4vzn66/zPWSKy6eaHRyW4QnawhWxcupCxe2
+         1mJcWMnXsBquUqNvEBfOq+Ug10lb5gDz9/RFD2V/oHRzeNlKW/wlNQGFlolVEzgpN6cw
+         ZPa6mgZcrbdSxTGEKW25y22M5Lf6BZUeLPpBFkuGGqryDOH5DAZHHJUbNwl5oSbAAS5I
+         swSrsznZWtnt3n7+jIkSh0KBD/A80kBusUy85V3ZFDiomq5RmGhfzj1iLTFdQTBNY7Nu
+         GINA==
+X-Gm-Message-State: APjAAAWFHGxgX8GT4t/vYzkgu0S/qq/mL95XKxc6TFQeE+STRraULrcX
+	eW1dzhMbrURClrgXjxkwIunRYAfe73TFRtySzki6Nxcothi7m3ZhGWU4l9MQaJZ60ZuWxg/S6Lj
+	iIgg92AWKgMgdf24vT18ZN2pmAwMA4mvSXteIYS6tPb2tj09qPnoYDM7p8H7uxksZOA==
+X-Received: by 2002:a17:902:a412:: with SMTP id p18mr44478021plq.105.1560831597656;
+        Mon, 17 Jun 2019 21:19:57 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw7n6e5RK1EKRxUb/kAGMSthZUvYnhVRbicEB4sPT/2ZVbodJ69pYMnji1ljeSIWN3SuVee
+X-Received: by 2002:a17:902:a412:: with SMTP id p18mr44477978plq.105.1560831596842;
+        Mon, 17 Jun 2019 21:19:56 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560831596; cv=none;
         d=google.com; s=arc-20160816;
-        b=D/Gx3l79hxUa9MX/jXb0Zo+Z0Pf3uYMFTvdbYbLdgSEpjDlBjjfLgpl1y3pOlyPqav
-         l9+a1GCTr1rCY1dNH7bWTh+9xd1RCX1FTPhFtKqdaVoSPhXOy6av6OfA2RtWks162JDW
-         FTSFFrBxAmkvkm/2q0tmmm1UPRoLrTUYq7JFhFspuWPCW2uMX5DIUbDDM6MZaRQZNINu
-         B0gWl09TdW6L/PFh1X9VnzzzfKRNLEKzT3xTgjGE0y0F/cY7QCi2ti0Sjsq2+1dfoMmX
-         bcZRKamBlnBQHRRfmn600EB2Iqk7g4RrmII/sAWFNI5h70aWxnolws00PXeh+IqME/9G
-         9ChQ==
+        b=WmmISiU0joFGS1oH1h+/KogAiYqbJ7KHQ+luhIMeXNGnwX7OtGTvMPykyqF8EyK0Xt
+         B5U0EcjBN+mWPfLzPmY0m6lQWOJW/X1DGbxMrKWi2bXMy2HO89BMALK3sBRGRip2V/ya
+         BTvmdGVhtDKFt7QOhU+4B4f3DJAsubT1DZ8rEEFzfVLbeuA3HjssnB5x6fGyMxbRn0Ee
+         BNTLgprk6oPzXOr0PjN+Rihjwvlsoh1kqoNYRcdyWUb/BKRV5PWM6wdsk4QS2p05Zu1p
+         oNy19P/dQXMTxphAVJApi2uJyBIQ9c+xC7fZQ8kVrmPd46znX3BKmoJ6b1FCB2/wsNiU
+         d0Jw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :reply-to:message-id:subject:cc:to:from:date;
-        bh=1fSSe8suDKjBf1vgC8h2kWPwQn0B15jZkC7bjiGIFJk=;
-        b=Ib8E/WqjjxjK8S3JM3NAIlCl1u/AEKQCheXffQBx7WX4blGyHsMedzAFMJ2gdUlr7L
-         fAKKhHfhxspyCiMEgXmdyit/ybIHlBvKCXIKD1SmlagPEuLl/xQuAmKMX84msHzuX8zm
-         4PU0SM4AztKq5GGMsqWhTzSoJXJxTi6ohpF9PhaIUjN7IlH8OO6o4DnxusmQ+ZMYA/6x
-         5B1+TLkda9n5SF5AXS6NyTPHpUcLKfgupz/STB9pKkxo0YByHpFjIThzZxJMDF7odFbt
-         y0H/XZaLP2Yh7rWGT8fkT/YcLuJv3/RLIgGO5uFt9o0Tb/xgqg8DKhx0Eejk6xMYsNi0
-         l1pQ==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=U0bgcwdCYh7A9L1+kJ/BXTzLGPDAuWCyNs3vhvtV0Pk=;
+        b=oI/RVasAf3xR7u3VKWdwuzW0x+qX/wIfW3EOfiwlo8Og4n/+F+uWUTc7bWmf78NKUm
+         ECMMiqXjKg+RorjVq1gjVNNv4TWq8E2GZXFP2TMER7kmzhifEG0CCUORIy1zR/9WFUrg
+         ix7Imaa2PLXuWnr6Fj9Y3UDoyYV2Epi0W5pDYRItzvUhCp0dhB+u3+S+20wgTkFZco7M
+         EE5KlZISnHPpkNQOmMAUKUOpD0KJsj8ULIkOU+84Ro+ulkqZnrfHTO/QqxvHTqga01tb
+         6CFx5gtDdIPIL+//z3w4cV1aGR+IBppygI1oBtoOqr2CHQP+NEUC1X4X9G3VJeG7WF96
+         jyeA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of richardw.yang@linux.intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=richardw.yang@linux.intel.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
-        by mx.google.com with ESMTPS id d132si12271292pfd.102.2019.06.17.20.36.11
+       dkim=pass header.i=@kernel.org header.s=default header.b=DuLk3e8E;
+       spf=pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=luto@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id b4si12778524pfg.49.2019.06.17.21.19.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 17 Jun 2019 20:36:11 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of richardw.yang@linux.intel.com designates 192.55.52.151 as permitted sender) client-ip=192.55.52.151;
+        Mon, 17 Jun 2019 21:19:56 -0700 (PDT)
+Received-SPF: pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of richardw.yang@linux.intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=richardw.yang@linux.intel.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: UNKNOWN
-X-Amp-Original-Verdict: FILE UNKNOWN
-X-Amp-File-Uploaded: False
-Received: from fmsmga001.fm.intel.com ([10.253.24.23])
-  by fmsmga107.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 17 Jun 2019 20:36:10 -0700
-X-ExtLoop1: 1
-Received: from richard.sh.intel.com (HELO localhost) ([10.239.159.54])
-  by fmsmga001.fm.intel.com with ESMTP; 17 Jun 2019 20:36:09 -0700
-Date: Tue, 18 Jun 2019 11:35:46 +0800
-From: Wei Yang <richardw.yang@linux.intel.com>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: akpm@linux-foundation.org, mhocko@suse.com,
-	Pavel Tatashin <pasha.tatashin@soleen.com>,
-	David Hildenbrand <david@redhat.com>, linux-nvdimm@lists.01.org,
-	linux-kernel@vger.kernel.org, linux-mm@kvack.org, osalvador@suse.de
-Subject: Re: [PATCH v9 06/12] mm: Kill is_dev_zone() helper
-Message-ID: <20190618033546.GE18161@richard>
-Reply-To: Wei Yang <richardw.yang@linux.intel.com>
-References: <155977186863.2443951.9036044808311959913.stgit@dwillia2-desk3.amr.corp.intel.com>
- <155977191260.2443951.15908146523735681570.stgit@dwillia2-desk3.amr.corp.intel.com>
+       dkim=pass header.i=@kernel.org header.s=default header.b=DuLk3e8E;
+       spf=pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=luto@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail-wr1-f43.google.com (mail-wr1-f43.google.com [209.85.221.43])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 1C33F21734
+	for <linux-mm@kvack.org>; Tue, 18 Jun 2019 04:19:56 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1560831596;
+	bh=51rZ9e9LkNVBLGHAIif1eIVHEBL3AZLf/1gX1DPTttU=;
+	h=References:In-Reply-To:From:Date:Subject:To:Cc:From;
+	b=DuLk3e8EkWUmqjbMfqOhBVznVeVo0ij+gX+dBj6X0D/RiqGPAyRXac3zAcRajl+NC
+	 rG8dKjmVC7cMcg+ACN+3b4bthSfnYsFrxPjfTgqhyZKFcThYwI8P3UENip/XJE3+MM
+	 sTMSBKCyqPy5UWo0Vh97re/7Sj11UC+1Gd22CCLk=
+Received: by mail-wr1-f43.google.com with SMTP id p11so12289768wre.7
+        for <linux-mm@kvack.org>; Mon, 17 Jun 2019 21:19:56 -0700 (PDT)
+X-Received: by 2002:adf:a443:: with SMTP id e3mr26082705wra.221.1560831594613;
+ Mon, 17 Jun 2019 21:19:54 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <155977191260.2443951.15908146523735681570.stgit@dwillia2-desk3.amr.corp.intel.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+References: <20190508144422.13171-1-kirill.shutemov@linux.intel.com>
+ <20190508144422.13171-46-kirill.shutemov@linux.intel.com> <CALCETrVCdp4LyCasvGkc0+S6fvS+dna=_ytLdDPuD2xeAr5c-w@mail.gmail.com>
+ <3c658cce-7b7e-7d45-59a0-e17dae986713@intel.com> <CALCETrUPSv4Xae3iO+2i_HecJLfx4mqFfmtfp+cwBdab8JUZrg@mail.gmail.com>
+ <5cbfa2da-ba2e-ed91-d0e8-add67753fc12@intel.com> <1560815959.5187.57.camel@linux.intel.com>
+ <cbbc6af7-36f8-a81f-48b1-2ad4eefc2417@amd.com> <CALCETrWq98--AgXXj=h1R70CiCWNncCThN2fEdxj2ZkedMw6=A@mail.gmail.com>
+In-Reply-To: <CALCETrWq98--AgXXj=h1R70CiCWNncCThN2fEdxj2ZkedMw6=A@mail.gmail.com>
+From: Andy Lutomirski <luto@kernel.org>
+Date: Mon, 17 Jun 2019 21:19:42 -0700
+X-Gmail-Original-Message-ID: <CALCETrWX877XD=mivftv96y00tWxT5THFD5MgoF+c_BPqc4aDQ@mail.gmail.com>
+Message-ID: <CALCETrWX877XD=mivftv96y00tWxT5THFD5MgoF+c_BPqc4aDQ@mail.gmail.com>
+Subject: Re: [PATCH, RFC 45/62] mm: Add the encrypt_mprotect() system call for MKTME
+To: Andy Lutomirski <luto@kernel.org>
+Cc: "Lendacky, Thomas" <Thomas.Lendacky@amd.com>, Kai Huang <kai.huang@linux.intel.com>, 
+	Dave Hansen <dave.hansen@intel.com>, 
+	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, 
+	X86 ML <x86@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, 
+	"H. Peter Anvin" <hpa@zytor.com>, Borislav Petkov <bp@alien8.de>, Peter Zijlstra <peterz@infradead.org>, 
+	David Howells <dhowells@redhat.com>, Kees Cook <keescook@chromium.org>, 
+	Jacob Pan <jacob.jun.pan@linux.intel.com>, 
+	Alison Schofield <alison.schofield@intel.com>, Linux-MM <linux-mm@kvack.org>, 
+	kvm list <kvm@vger.kernel.org>, "keyrings@vger.kernel.org" <keyrings@vger.kernel.org>, 
+	LKML <linux-kernel@vger.kernel.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jun 05, 2019 at 02:58:32PM -0700, Dan Williams wrote:
->Given there are no more usages of is_dev_zone() outside of 'ifdef
->CONFIG_ZONE_DEVICE' protection, kill off the compilation helper.
+On Mon, Jun 17, 2019 at 6:40 PM Andy Lutomirski <luto@kernel.org> wrote:
 >
->Cc: Michal Hocko <mhocko@suse.com>
->Cc: Logan Gunthorpe <logang@deltatee.com>
->Acked-by: David Hildenbrand <david@redhat.com>
->Reviewed-by: Oscar Salvador <osalvador@suse.de>
->Reviewed-by: Pavel Tatashin <pasha.tatashin@soleen.com>
->Signed-off-by: Dan Williams <dan.j.williams@intel.com>
-
-Reviewed-by: Wei Yang <richardw.yang@linux.intel.com>
-
->---
-> include/linux/mmzone.h |   12 ------------
-> mm/page_alloc.c        |    2 +-
-> 2 files changed, 1 insertion(+), 13 deletions(-)
+> On Mon, Jun 17, 2019 at 6:34 PM Lendacky, Thomas
+> <Thomas.Lendacky@amd.com> wrote:
+> >
+> > On 6/17/19 6:59 PM, Kai Huang wrote:
+> > > On Mon, 2019-06-17 at 11:27 -0700, Dave Hansen wrote:
 >
->diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
->index 6dd52d544857..49e7fb452dfd 100644
->--- a/include/linux/mmzone.h
->+++ b/include/linux/mmzone.h
->@@ -855,18 +855,6 @@ static inline int local_memory_node(int node_id) { return node_id; };
->  */
-> #define zone_idx(zone)		((zone) - (zone)->zone_pgdat->node_zones)
-> 
->-#ifdef CONFIG_ZONE_DEVICE
->-static inline bool is_dev_zone(const struct zone *zone)
->-{
->-	return zone_idx(zone) == ZONE_DEVICE;
->-}
->-#else
->-static inline bool is_dev_zone(const struct zone *zone)
->-{
->-	return false;
->-}
->-#endif
->-
-> /*
->  * Returns true if a zone has pages managed by the buddy allocator.
->  * All the reclaim decisions have to use this function rather than
->diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->index bd773efe5b82..5dff3f49a372 100644
->--- a/mm/page_alloc.c
->+++ b/mm/page_alloc.c
->@@ -5865,7 +5865,7 @@ void __ref memmap_init_zone_device(struct zone *zone,
-> 	unsigned long start = jiffies;
-> 	int nid = pgdat->node_id;
-> 
->-	if (WARN_ON_ONCE(!pgmap || !is_dev_zone(zone)))
->+	if (WARN_ON_ONCE(!pgmap || zone_idx(zone) != ZONE_DEVICE))
-> 		return;
-> 
-> 	/*
+> > >
+> > > And yes from my reading (better to have AMD guys to confirm) SEV guest uses anonymous memory, but it
+> > > also pins all guest memory (by calling GUP from KVM -- SEV specifically introduced 2 KVM ioctls for
+> > > this purpose), since SEV architecturally cannot support swapping, migraiton of SEV-encrypted guest
+> > > memory, because SME/SEV also uses physical address as "tweak", and there's no way that kernel can
+> > > get or use SEV-guest's memory encryption key. In order to swap/migrate SEV-guest memory, we need SGX
+> > > EPC eviction/reload similar thing, which SEV doesn't have today.
+> >
+> > Yes, all the guest memory is currently pinned by calling GUP when creating
+> > an SEV guest.
 >
->_______________________________________________
->Linux-nvdimm mailing list
->Linux-nvdimm@lists.01.org
->https://lists.01.org/mailman/listinfo/linux-nvdimm
+> Ick.
+>
+> What happens if QEMU tries to read the memory?  Does it just see
+> ciphertext?  Is cache coherency lost if QEMU writes it?
 
--- 
-Wei Yang
-Help you, Help me
+I should add: is the current interface that SEV uses actually good, or
+should the kernel try to do something differently?  I've spent exactly
+zero time looking at SEV APIs or at how QEMU manages its memory.
 
