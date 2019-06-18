@@ -2,202 +2,200 @@ Return-Path: <SRS0=8DoX=UR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-5.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 66B89C31E51
-	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 05:40:17 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C2104C31E51
+	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 06:13:13 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 07A8420863
-	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 05:40:16 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=vmware.com header.i=@vmware.com header.b="KLugPSwK"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 07A8420863
-Authentication-Results: mail.kernel.org; dmarc=fail (p=quarantine dis=none) header.from=vmware.com
+	by mail.kernel.org (Postfix) with ESMTP id 5A9C5214AF
+	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 06:13:13 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5A9C5214AF
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9ABF48E0005; Tue, 18 Jun 2019 01:40:16 -0400 (EDT)
+	id 9E1138E0002; Tue, 18 Jun 2019 02:13:12 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9353A8E0001; Tue, 18 Jun 2019 01:40:16 -0400 (EDT)
+	id 990598E0001; Tue, 18 Jun 2019 02:13:12 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 787688E0005; Tue, 18 Jun 2019 01:40:16 -0400 (EDT)
+	id 859108E0002; Tue, 18 Jun 2019 02:13:12 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 535E98E0001
-	for <linux-mm@kvack.org>; Tue, 18 Jun 2019 01:40:16 -0400 (EDT)
-Received: by mail-qk1-f200.google.com with SMTP id o4so11231406qko.8
-        for <linux-mm@kvack.org>; Mon, 17 Jun 2019 22:40:16 -0700 (PDT)
+Received: from mail-yw1-f69.google.com (mail-yw1-f69.google.com [209.85.161.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 671688E0001
+	for <linux-mm@kvack.org>; Tue, 18 Jun 2019 02:13:12 -0400 (EDT)
+Received: by mail-yw1-f69.google.com with SMTP id b63so14601244ywc.12
+        for <linux-mm@kvack.org>; Mon, 17 Jun 2019 23:13:12 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
-         :thread-index:date:message-id:references:in-reply-to:accept-language
-         :content-language:content-id:content-transfer-encoding:mime-version;
-        bh=Nv/zcxHs3P231QVvyumvym/s1YBuiRl2VWYRhjotz80=;
-        b=PX+JwVA9OfQbdO7RSgaEBc/Mtt6v47VAM0LEFTkLXcjgN+UJAyMd+kzO4RetL4UeMA
-         jxAc38MYBX1+6o8DbejSD7uIWMCOj/RWcZS7CwJx1jNUHi5i92+YHbep56/399oW+UaE
-         ay8DXGJ2XEA1lhzVXoVYxuZAmq2H76vX/gH0fLRNYekW6i4VlER62torHyRnD+M5fWW0
-         sd7z106qBy+SfqIUjcXndh166HHaxgpFO8Q49nlL0ZzXvk14XOkoLKspTWm437VOOjKT
-         6Q4FFt4i+MomBDWv7bVq8HFSDmpDu9d10XbcMEwtYCDrcF3nIH1GjOoF+bOqqosoOQvM
-         FDKw==
-X-Gm-Message-State: APjAAAX6MkA5q2+osZE3bDZLqvsR5xLNa+GjfRg7HgIsqQk3qzGFRoFR
-	SD+v7ZO7J+t5dnfDpTnzKyOy3Dy+1oVlQkDo3QSvqn9TpXsFxOp5M5CY5Rfil9lWokX2yJr3O+z
-	Em6jeZ20SJVoet4FoKNHTEaBkjuFUKVhyxHs2SyNDnFv9vFv6zI4A4YZibB8BgUfdkA==
-X-Received: by 2002:ac8:3301:: with SMTP id t1mr92960298qta.209.1560836416056;
-        Mon, 17 Jun 2019 22:40:16 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxqsN/got8QRZCs/EdB3HT6AVWuFYY+GAws4MU4KOdZrIzUhh4B5o/Yaq5XbaCLyxQS0G4m
-X-Received: by 2002:ac8:3301:: with SMTP id t1mr92960276qta.209.1560836415470;
-        Mon, 17 Jun 2019 22:40:15 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560836415; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:references:mime-version:content-disposition:in-reply-to
+         :user-agent:message-id;
+        bh=JMNoa2iPMFTBFloOwUSc7EOmzk+3UZMT3/IA/IITpLQ=;
+        b=EuyJSsbhZ/7/rLCeBLEXd2WX4Wlox0zw9PE8UhtboJ8kw4gJIM59cJ8BoQF+h8VUK8
+         P4gs8WH4dYopOqUnLMZ8Kz+GMxxtr4sOltUDd9tStufOnsZcggvEjXVwrUPu0scVZBqM
+         EMrCjIrH98PGup36jlqt+tmK5v+o9v9bARAxaz0CkHDMaEiC8qThzzU6ATpD7SSKvh/1
+         /TqZbErVuOU5kZ5FivwrWyYeF0mOpsGpOiTjV0qVxg0WaDhpbOJb1abrOSzKIg5LyWt+
+         d8ZvrXKDJtwsa0pejZmGCWLZkAzztNkiyN5iSBxax/IWrINvMj8aLVM+RYrP4qOynzzN
+         +HpQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: APjAAAUuU8X7XXiVBr3X1W1XLObPg1pQlpFk3xOhcFM1T6BDfyNeOf+W
+	bWVFw3xG3V94/y5FyFCRnGhbAbW6Q32UPemceF0l5QolEV2Ye4IL78fFvKh5dVbqc2th74PN7ze
+	BDNDX4fpl5XVZMvxb75obwWswkKlays0eim0RTJ8WmsFkaGaxxHyqtAdnTEXM8LXvgA==
+X-Received: by 2002:a81:6ad4:: with SMTP id f203mr50436691ywc.196.1560838392064;
+        Mon, 17 Jun 2019 23:13:12 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw3Ff2P5V+Sfk/UuUyOki9wpCrywz14uUuVAmoGbzYSWubRfyMUZpW4lek+Xrh9NJsdbFhD
+X-Received: by 2002:a81:6ad4:: with SMTP id f203mr50436669ywc.196.1560838391363;
+        Mon, 17 Jun 2019 23:13:11 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560838391; cv=none;
         d=google.com; s=arc-20160816;
-        b=gAGb0DcXekD5K5gawd0MTGiILk+UyggScGY8TkLrgvHC7Cc5RsdWWNSr13sWHbqVpt
-         x7/H6sTBZ3TDf6tOo21OV2Nb3GQjF76uoRkeaID/5VgrmEUA+hUIAJZYntsniSW+ho5R
-         guXRDk9EpxH84uM1+GybzK3y/k2b+7HTDxtcNVmRhCpXnuy3bKo6lzi9Mjmz36IrxN6w
-         AfgV+LKS8adxjrQmWwMKQjEXI83PW8WmtP9J8401OcdbMPssdFwC0F5q8VdDlCJs0pX/
-         KFqMa+vMKQolN2CvDk6aYlPHvgWxD2NuGsdz5GyCV1fDu5KWg/PfA7LvZXq2rF7Eztp2
-         tJ/w==
+        b=oRQXvA10/AYgxsUFCkLXOBaM/uJLIQN242zMLk3gwGxWJMtWw47CQxkKQo39+3WxuJ
+         2xOcPmMkNrd8P4+fMOAT5ce9bdkqK7t39LjHx3ZUlZt/G6fsCRKoq0EL9nQTMEvUaH8g
+         Lv4c9HLyVFY323imKUWFq74W6UIgWbSBV+poiBiEmvL0qxgNzEeBo9xGtRS+5nCzOsi4
+         bhZUp+zFOjyqQYL7B8PdCIhZnHwjAAmef3fztIN6W4sdCYXlS2lHfyOBnrMK8YMtgB7/
+         ER3un9ufZHfo81DKhUODeZT3dD1XaaX4HX9f6GTcKlIetme7V4fq0/NxNHmyt6D7rECj
+         LzTQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from:dkim-signature;
-        bh=Nv/zcxHs3P231QVvyumvym/s1YBuiRl2VWYRhjotz80=;
-        b=LUz/ZSsftuLxYKBNUs0errjAKnYb8CxJ58xinjtu+GslgawFgfsVza8bFwHwC5Mhqo
-         KY5rRj8HXA59ET6ilphhgU86LCSU+AWl3Dr+YF1Msu2Ra/mXptYQV/Hwq0jJMnz0TjCh
-         c/Mti+8CPGVzkUprloy2TOIy8lnbLs8yMQNNHae7g4Qeq5niFJ31P+szENOnokeXHFwL
-         +mMTZkzmuutkiH6AapZd76Y+f/Wn/hi/2YjsRCeiORRfVcds3BMCPcNUtiXIqw43XRZd
-         /OdRPLQeqO2/LNzC+dN4HNhY8I+SFfyjlc6vzluazv8yOqsBf/n8HxCav57+LojZrnPu
-         7eiA==
+        h=message-id:user-agent:in-reply-to:content-disposition:mime-version
+         :references:subject:cc:to:from:date;
+        bh=JMNoa2iPMFTBFloOwUSc7EOmzk+3UZMT3/IA/IITpLQ=;
+        b=VFvpbbudm/cWgQHMOIW/kzHOI0nH01XS347X+GzfjuncpOLt/asuIQNu+AwDhpRrYW
+         H1CUPThduEuweqtrlt4StQZZjMVjAW694j0naOLggbhaenPDJLvpRkdUL681O9PGr1FI
+         F0qwo5eCNX7JhYtEh6qg+gWbYR1XVEsE5fRsetCbX3pdrZPpBoTLjhxGDwb287ybT++b
+         50bvhQMH9AOySrSQ4v+mB8r15ne8KBfOutJ0Jd5yXS0hWNwMGTcAdrTNj51HEbKvbWFd
+         Lo/TTxUGb75Gij46pK6JcwkUaLpXC33dKg6xrZiK4l/IjkBMJylTQEYhiNd9ORYMORnf
+         rcuQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@vmware.com header.s=selector2 header.b=KLugPSwK;
-       spf=pass (google.com: domain of namit@vmware.com designates 40.107.79.41 as permitted sender) smtp.mailfrom=namit@vmware.com;
-       dmarc=pass (p=QUARANTINE sp=NONE dis=NONE) header.from=vmware.com
-Received: from NAM03-CO1-obe.outbound.protection.outlook.com (mail-eopbgr790041.outbound.protection.outlook.com. [40.107.79.41])
-        by mx.google.com with ESMTPS id a43si2768857qta.351.2019.06.17.22.40.15
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id l2si4263781ybm.249.2019.06.17.23.13.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 17 Jun 2019 22:40:15 -0700 (PDT)
-Received-SPF: pass (google.com: domain of namit@vmware.com designates 40.107.79.41 as permitted sender) client-ip=40.107.79.41;
+        Mon, 17 Jun 2019 23:13:11 -0700 (PDT)
+Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@vmware.com header.s=selector2 header.b=KLugPSwK;
-       spf=pass (google.com: domain of namit@vmware.com designates 40.107.79.41 as permitted sender) smtp.mailfrom=namit@vmware.com;
-       dmarc=pass (p=QUARANTINE sp=NONE dis=NONE) header.from=vmware.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=vmware.com;
- s=selector2;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=Nv/zcxHs3P231QVvyumvym/s1YBuiRl2VWYRhjotz80=;
- b=KLugPSwKSuhFecU35KbXOQJy+CyhaE/SaTkoN0ZVpY+dbULOmqr5gh46qxHYysBfcCnqQNqg/Vj3j8dvDt3WgT2LUv0pbrwHc8fVZdQPCv2DoOlIhW76+vpW3NBlO5dvPOAss5vT2o8SKjpYJKEPCQRXRkWEh+/81WMdPjX/WUA=
-Received: from BYAPR05MB4776.namprd05.prod.outlook.com (52.135.233.146) by
- BYAPR05MB5303.namprd05.prod.outlook.com (20.177.127.20) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.2008.12; Tue, 18 Jun 2019 05:40:11 +0000
-Received: from BYAPR05MB4776.namprd05.prod.outlook.com
- ([fe80::f493:3bba:aabf:dd58]) by BYAPR05MB4776.namprd05.prod.outlook.com
- ([fe80::f493:3bba:aabf:dd58%7]) with mapi id 15.20.2008.007; Tue, 18 Jun 2019
- 05:40:11 +0000
-From: Nadav Amit <namit@vmware.com>
-To: Andrew Morton <akpm@linux-foundation.org>
-CC: LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>,
-	Borislav Petkov <bp@suse.de>, Toshi Kani <toshi.kani@hpe.com>, Peter Zijlstra
-	<peterz@infradead.org>, Dave Hansen <dave.hansen@linux.intel.com>, Dan
- Williams <dan.j.williams@intel.com>, Bjorn Helgaas <bhelgaas@google.com>,
-	Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH 3/3] resource: Introduce resource cache
-Thread-Topic: [PATCH 3/3] resource: Introduce resource cache
-Thread-Index: AQHVIaTIgkJbYpRVG0mXAw73pWsOuqag4XgAgAAJ4gCAAAHyAA==
-Date: Tue, 18 Jun 2019 05:40:11 +0000
-Message-ID: <8072D878-BBF2-47E4-B4C9-190F379F6221@vmware.com>
-References: <20190613045903.4922-1-namit@vmware.com>
- <20190613045903.4922-4-namit@vmware.com>
- <20190617215750.8e46ae846c09cd5c1f22fdf9@linux-foundation.org>
- <98464609-8F5A-47B9-A64E-2F67809737AD@vmware.com>
-In-Reply-To: <98464609-8F5A-47B9-A64E-2F67809737AD@vmware.com>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-authentication-results: spf=none (sender IP is )
- smtp.mailfrom=namit@vmware.com; 
-x-originating-ip: [66.170.99.1]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: 89928f49-5134-43d9-baa0-08d6f3af6e5b
-x-microsoft-antispam:
- BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(2017052603328)(7193020);SRVR:BYAPR05MB5303;
-x-ms-traffictypediagnostic: BYAPR05MB5303:
-x-ms-exchange-purlcount: 1
-x-microsoft-antispam-prvs:
- <BYAPR05MB5303070CD5B2A73A64CBD4D2D0EA0@BYAPR05MB5303.namprd05.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:10000;
-x-forefront-prvs: 007271867D
-x-forefront-antispam-report:
- SFV:NSPM;SFS:(10009020)(376002)(136003)(396003)(39860400002)(346002)(366004)(189003)(199004)(14454004)(6512007)(8676002)(11346002)(3846002)(6306002)(81156014)(86362001)(76176011)(14444005)(446003)(53376002)(486006)(2906002)(186003)(54906003)(6506007)(26005)(2616005)(6116002)(476003)(256004)(53546011)(53936002)(25786009)(229853002)(7416002)(6246003)(7736002)(66556008)(73956011)(66446008)(33656002)(76116006)(305945005)(71190400001)(71200400001)(36756003)(6916009)(66946007)(66476007)(64756008)(66066001)(68736007)(4326008)(5660300002)(6486002)(316002)(966005)(478600001)(81166006)(102836004)(99286004)(8936002)(6436002);DIR:OUT;SFP:1101;SCL:1;SRVR:BYAPR05MB5303;H:BYAPR05MB4776.namprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
-received-spf: None (protection.outlook.com: vmware.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info:
- 0qTJE/RW3BxsCA1BFzX2wmx0pmuGX6WxVLS++EyYcaVc15USGWxFOvO5qEoFQTINrIFRLN8XJq1wNpVIBuGJD0qn3E8y++75EVkSWLG8O0Xd9Cihi46qmTNqgZxMFCTCzIm+sRB8ifEAb/za3N1P496dHtDzfviTxU1nmo4Z2INkRhQRH5A6RxU31itjO8AijlCM0ZRF8vttxFI5OZtDJLFc3IBEvyhlxjQCXKVRV8/C+S/mD3dUOtTmSWKbuwzFraMxjIl7SRjzSXMjuk/Hma6dnT9CYqHCN8kP0f0pP6Qz+TER98H5FC1KWgUVHA/NC4dR9ma1DOIDoHkyA6wYZV/NA5r7Pwf1rtwd6i1cnE9GTEzUvw9OYliCExEThmhqVi30BrFZaCy1BcsCoKbuG4st3CBZtUHSOIYdWP8Ean4=
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <32E999B6085D2041929989B8FECCAD54@namprd05.prod.outlook.com>
-Content-Transfer-Encoding: base64
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x5I67Hvn018354
+	for <linux-mm@kvack.org>; Tue, 18 Jun 2019 02:13:10 -0400
+Received: from e06smtp02.uk.ibm.com (e06smtp02.uk.ibm.com [195.75.94.98])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2t6s532mra-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 18 Jun 2019 02:13:10 -0400
+Received: from localhost
+	by e06smtp02.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
+	Tue, 18 Jun 2019 07:13:08 +0100
+Received: from b06cxnps3075.portsmouth.uk.ibm.com (9.149.109.195)
+	by e06smtp02.uk.ibm.com (192.168.101.132) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Tue, 18 Jun 2019 07:13:03 +0100
+Received: from d06av23.portsmouth.uk.ibm.com (d06av23.portsmouth.uk.ibm.com [9.149.105.59])
+	by b06cxnps3075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x5I6D2jD61210840
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Tue, 18 Jun 2019 06:13:02 GMT
+Received: from d06av23.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 79475A4040;
+	Tue, 18 Jun 2019 06:13:02 +0000 (GMT)
+Received: from d06av23.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 7A0E8A4051;
+	Tue, 18 Jun 2019 06:13:01 +0000 (GMT)
+Received: from rapoport-lnx (unknown [9.148.8.53])
+	by d06av23.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
+	Tue, 18 Jun 2019 06:13:01 +0000 (GMT)
+Date: Tue, 18 Jun 2019 09:12:59 +0300
+From: Mike Rapoport <rppt@linux.ibm.com>
+To: Will Deacon <will.deacon@arm.com>
+Cc: Mark Rutland <mark.rutland@arm.com>, Qian Cai <cai@lca.pw>,
+        akpm@linux-foundation.org, Roman Gushchin <guro@fb.com>,
+        catalin.marinas@arm.com, linux-kernel@vger.kernel.org,
+        mhocko@kernel.org, linux-mm@kvack.org, vdavydov.dev@gmail.com,
+        hannes@cmpxchg.org, cgroups@vger.kernel.org,
+        linux-arm-kernel@lists.infradead.org
+Subject: Re: [PATCH -next] arm64/mm: fix a bogus GFP flag in pgd_alloc()
+References: <1559656836-24940-1-git-send-email-cai@lca.pw>
+ <20190604142338.GC24467@lakrids.cambridge.arm.com>
+ <20190610114326.GF15979@fuggles.cambridge.arm.com>
+ <1560187575.6132.70.camel@lca.pw>
+ <20190611100348.GB26409@lakrids.cambridge.arm.com>
+ <20190613121100.GB25164@rapoport-lnx>
+ <20190617151252.GF16810@rapoport-lnx>
+ <20190617163630.GH30800@fuggles.cambridge.arm.com>
 MIME-Version: 1.0
-X-OriginatorOrg: vmware.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: 89928f49-5134-43d9-baa0-08d6f3af6e5b
-X-MS-Exchange-CrossTenant-originalarrivaltime: 18 Jun 2019 05:40:11.4316
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: b39138ca-3cee-4b4a-a4d6-cd83d9dd62f0
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-userprincipalname: namit@vmware.com
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: BYAPR05MB5303
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190617163630.GH30800@fuggles.cambridge.arm.com>
+User-Agent: Mutt/1.5.24 (2015-08-30)
+X-TM-AS-GCONF: 00
+x-cbid: 19061806-0008-0000-0000-000002F4A996
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19061806-0009-0000-0000-00002261BF41
+Message-Id: <20190618061259.GB15497@rapoport-lnx>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-06-18_03:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=27 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=947 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1906180050
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-PiBPbiBKdW4gMTcsIDIwMTksIGF0IDEwOjMzIFBNLCBOYWRhdiBBbWl0IDxuYW1pdEB2bXdhcmUu
-Y29tPiB3cm90ZToNCj4gDQo+PiBPbiBKdW4gMTcsIDIwMTksIGF0IDk6NTcgUE0sIEFuZHJldyBN
-b3J0b24gPGFrcG1AbGludXgtZm91bmRhdGlvbi5vcmc+IHdyb3RlOg0KPj4gDQo+PiBPbiBXZWQs
-IDEyIEp1biAyMDE5IDIxOjU5OjAzIC0wNzAwIE5hZGF2IEFtaXQgPG5hbWl0QHZtd2FyZS5jb20+
-IHdyb3RlOg0KPj4gDQo+Pj4gRm9yIGVmZmljaWVudCBzZWFyY2ggb2YgcmVzb3VyY2VzLCBhcyBu
-ZWVkZWQgdG8gZGV0ZXJtaW5lIHRoZSBtZW1vcnkNCj4+PiB0eXBlIGZvciBkYXggcGFnZS1mYXVs
-dHMsIGludHJvZHVjZSBhIGNhY2hlIG9mIHRoZSBtb3N0IHJlY2VudGx5IHVzZWQNCj4+PiB0b3At
-bGV2ZWwgcmVzb3VyY2UuIENhY2hpbmcgdGhlIHRvcC1sZXZlbCBzaG91bGQgYmUgc2FmZSBhcyBy
-YW5nZXMgaW4NCj4+PiB0aGF0IGxldmVsIGRvIG5vdCBvdmVybGFwICh1bmxpa2UgdGhvc2Ugb2Yg
-bG93ZXIgbGV2ZWxzKS4NCj4+PiANCj4+PiBLZWVwIHRoZSBjYWNoZSBwZXItY3B1IHRvIGF2b2lk
-IHBvc3NpYmxlIGNvbnRlbnRpb24uIFdoZW5ldmVyIGEgcmVzb3VyY2UNCj4+PiBpcyBhZGRlZCwg
-cmVtb3ZlZCBvciBjaGFuZ2VkLCBpbnZhbGlkYXRlIGFsbCB0aGUgcmVzb3VyY2VzLiBUaGUNCj4+
-PiBpbnZhbGlkYXRpb24gdGFrZXMgcGxhY2Ugd2hlbiB0aGUgcmVzb3VyY2VfbG9jayBpcyB0YWtl
-biBmb3Igd3JpdGUsDQo+Pj4gcHJldmVudGluZyBwb3NzaWJsZSByYWNlcy4NCj4+PiANCj4+PiBU
-aGlzIHBhdGNoIHByb3ZpZGVzIHJlbGF0aXZlbHkgc21hbGwgcGVyZm9ybWFuY2UgaW1wcm92ZW1l
-bnRzIG92ZXIgdGhlDQo+Pj4gcHJldmlvdXMgcGF0Y2ggKH4wLjUlIG9uIHN5c2JlbmNoKSwgYnV0
-IGNhbiBiZW5lZml0IHN5c3RlbXMgd2l0aCBtYW55DQo+Pj4gcmVzb3VyY2VzLg0KPj4gDQo+Pj4g
-LS0tIGEva2VybmVsL3Jlc291cmNlLmMNCj4+PiArKysgYi9rZXJuZWwvcmVzb3VyY2UuYw0KPj4+
-IEBAIC01Myw2ICs1MywxMiBAQCBzdHJ1Y3QgcmVzb3VyY2VfY29uc3RyYWludCB7DQo+Pj4gDQo+
-Pj4gc3RhdGljIERFRklORV9SV0xPQ0socmVzb3VyY2VfbG9jayk7DQo+Pj4gDQo+Pj4gKy8qDQo+
-Pj4gKyAqIENhY2hlIG9mIHRoZSB0b3AtbGV2ZWwgcmVzb3VyY2UgdGhhdCB3YXMgbW9zdCByZWNl
-bnRseSB1c2UgYnkNCj4+PiArICogZmluZF9uZXh0X2lvbWVtX3JlcygpLg0KPj4+ICsgKi8NCj4+
-PiArc3RhdGljIERFRklORV9QRVJfQ1BVKHN0cnVjdCByZXNvdXJjZSAqLCByZXNvdXJjZV9jYWNo
-ZSk7DQo+PiANCj4+IEEgcGVyLWNwdSBjYWNoZSB3aGljaCBpcyBhY2Nlc3NlZCB1bmRlciBhIGtl
-cm5lbC13aWRlIHJlYWRfbG9jayBsb29rcyBhDQo+PiBiaXQgb2RkIC0gdGhlIGxhdGVuY3kgZ2V0
-dGluZyBhdCB0aGF0IHJ3bG9jayB3aWxsIHN3YW1wIHRoZSBiZW5lZml0IG9mDQo+PiBpc29sYXRp
-bmcgdGhlIENQVXMgZnJvbSBlYWNoIG90aGVyIHdoZW4gYWNjZXNzaW5nIHJlc291cmNlX2NhY2hl
-Lg0KPj4gDQo+PiBPbiB0aGUgb3RoZXIgaGFuZCwgaWYgd2UgaGF2ZSBtdWx0aXBsZSBDUFVzIHJ1
-bm5pbmcNCj4+IGZpbmRfbmV4dF9pb21lbV9yZXMoKSBjb25jdXJyZW50bHkgdGhlbiB5ZXMsIEkg
-c2VlIHRoZSBiZW5lZml0LiAgSGFzDQo+PiB0aGUgYmVuZWZpdCBvZiB1c2luZyBhIHBlci1jcHUg
-Y2FjaGUgKHJhdGhlciB0aGFuIGEga2VybmVsLXdpZGUgb25lKQ0KPj4gYmVlbiBxdWFudGlmaWVk
-Pw0KPiANCj4gTm8uIEkgYW0gbm90IHN1cmUgaG93IGVhc3kgaXQgd291bGQgYmUgdG8gbWVhc3Vy
-ZSBpdC4gT24gdGhlIG90aGVyIGhhbmRlcg0KPiB0aGUgbG9jayBpcyBub3Qgc3VwcG9zZWQgdG8g
-YmUgY29udGVuZGVkIChhdCBtb3N0IGNhc2VzKS4gQXQgdGhlIHRpbWUgSSBzYXcNCj4gbnVtYmVy
-cyB0aGF0IHNob3dlZCB0aGF0IHN0b3JlcyB0byDigJxleGNsdXNpdmUiIGNhY2hlIGxpbmVzIGNh
-biBiZSBhcw0KPiBleHBlbnNpdmUgYXMgYXRvbWljIG9wZXJhdGlvbnMgWzFdLiBJIGFtIG5vdCBz
-dXJlIGhvdyB1cCB0byBkYXRlIHRoZXNlDQo+IG51bWJlcnMgYXJlIHRob3VnaC4gSW4gdGhlIGJl
-bmNobWFyayBJIHJhbiwgbXVsdGlwbGUgQ1BVcyByYW4NCj4gZmluZF9uZXh0X2lvbWVtX3Jlcygp
-IGNvbmN1cnJlbnRseS4NCj4gDQo+IFsxXSBodHRwOi8vc2lnb3BzLm9yZy9zL2NvbmZlcmVuY2Vz
-L3Nvc3AvMjAxMy9wYXBlcnMvcDMzLWRhdmlkLnBkZg0KDQpKdXN0IHRvIGNsYXJpZnkgLSB0aGUg
-bWFpbiBtb3RpdmF0aW9uIGJlaGluZCB0aGUgcGVyLWNwdSB2YXJpYWJsZSBpcyBub3QNCmFib3V0
-IGNvbnRlbnRpb24sIGJ1dCBhYm91dCB0aGUgZmFjdCB0aGUgZGlmZmVyZW50IHByb2Nlc3Nlcy90
-aHJlYWRzIHRoYXQNCnJ1biBjb25jdXJyZW50bHkgbWlnaHQgdXNlIGRpZmZlcmVudCByZXNvdXJj
-ZXMuDQoNCg==
+On Mon, Jun 17, 2019 at 05:36:30PM +0100, Will Deacon wrote:
+> Hi Mike,
+> 
+> On Mon, Jun 17, 2019 at 06:12:52PM +0300, Mike Rapoport wrote:
+> > Andrew, can you please add the patch below as an incremental fix?
+> > 
+> > With this the arm64::pgd_alloc() should be in the right shape.
+> > 
+> > 
+> > From 1c1ef0bc04c655689c6c527bd03b140251399d87 Mon Sep 17 00:00:00 2001
+> > From: Mike Rapoport <rppt@linux.ibm.com>
+> > Date: Mon, 17 Jun 2019 17:37:43 +0300
+> > Subject: [PATCH] arm64/mm: don't initialize pgd_cache twice
+> > 
+> > When PGD_SIZE != PAGE_SIZE, arm64 uses kmem_cache for allocation of PGD
+> > memory. That cache was initialized twice: first through
+> > pgtable_cache_init() alias and then as an override for weak
+> > pgd_cache_init().
+> > 
+> > After enabling accounting for the PGD memory, this created a confusion for
+> > memcg and slub sysfs code which resulted in the following errors:
+> > 
+> > [   90.608597] kobject_add_internal failed for pgd_cache(13:init.scope) (error: -2 parent: cgroup)
+> > [   90.678007] kobject_add_internal failed for pgd_cache(13:init.scope) (error: -2 parent: cgroup)
+> > [   90.713260] kobject_add_internal failed for pgd_cache(21:systemd-tmpfiles-setup.service) (error: -2 parent: cgroup)
+> > 
+> > Removing the alias from pgtable_cache_init() and keeping the only pgd_cache
+> > initialization in pgd_cache_init() resolves the problem and allows
+> > accounting of PGD memory.
+> > 
+> > Reported-by: Qian Cai <cai@lca.pw>
+> > Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
+> > ---
+> >  arch/arm64/include/asm/pgtable.h | 3 +--
+> >  arch/arm64/mm/pgd.c              | 5 +----
+> >  2 files changed, 2 insertions(+), 6 deletions(-)
+> 
+> Looks like this actually fixes caa841360134 ("x86/mm: Initialize PGD cache
+> during mm initialization") due to an unlucky naming conflict!
+> 
+> In which case, I'd actually prefer to take this fix asap via the arm64
+> tree. Is that ok?
+
+I suppose so, it just won't apply as is. Would you like a patch against the
+current upstream?
+
+> Will
+
+-- 
+Sincerely yours,
+Mike.
 
