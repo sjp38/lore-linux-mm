@@ -2,126 +2,176 @@ Return-Path: <SRS0=8DoX=UR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.6 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
+	SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6BF81C31E51
-	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 06:44:47 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3A4B5C31E51
+	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 06:54:24 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2F06A20652
-	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 06:44:47 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 0254E20673
+	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 06:54:23 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="PDyW8TAo"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2F06A20652
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="oBvX088a"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0254E20673
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B9DC98E0002; Tue, 18 Jun 2019 02:44:46 -0400 (EDT)
+	id 926296B0003; Tue, 18 Jun 2019 02:54:23 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B4E2C8E0001; Tue, 18 Jun 2019 02:44:46 -0400 (EDT)
+	id 8D9758E0003; Tue, 18 Jun 2019 02:54:23 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A158A8E0002; Tue, 18 Jun 2019 02:44:46 -0400 (EDT)
+	id 7C4F78E0001; Tue, 18 Jun 2019 02:54:23 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 784DB8E0001
-	for <linux-mm@kvack.org>; Tue, 18 Jun 2019 02:44:46 -0400 (EDT)
-Received: by mail-ot1-f71.google.com with SMTP id l7so5950389otj.16
-        for <linux-mm@kvack.org>; Mon, 17 Jun 2019 23:44:46 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 46EF66B0003
+	for <linux-mm@kvack.org>; Tue, 18 Jun 2019 02:54:23 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id y5so8645019pfb.20
+        for <linux-mm@kvack.org>; Mon, 17 Jun 2019 23:54:23 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=VK+Tna/iV8U0LWobX7frBvdux+Mmk/3A07T2dRSet2o=;
-        b=pXAE/VjFlgk6EMWy3ZJSQzl3U+qfRY0cfTG31OFtWtZsH0mpC4WBKTo2X/WwcJvBL2
-         c2aEwkIGnZLxwJoPfKqxYEQeWSJork4xc5/0CACkKTHQrhcs1jXK1j+7+kPdQRMkzeso
-         i426ULh6H9Dwck6VXj9oR7zjpvZ0KIhrqAA8fma9DyDQb5k9fb6L+noCU9WK/iix46Yz
-         FDbdlM51FLj29fLDtGZF7V7eWyOC2nde+o1kD0+PxJu7Zd9b+BxIrU2iwiFF3msLY7af
-         rRxmzZhR6l0yVwC+W7PhKlJlb9IelmfItBV4RBF8zX0iQ62oC8pSRUmXUyiHwY0P8ii0
-         C3mA==
-X-Gm-Message-State: APjAAAUU89XJXeyGYXvmq2usJUsNJNA+NLcuvQ+cYe1yBYl3Lt+Rhl42
-	xmd5BsfVVT1qTFSi/pd7OlCsyVs9dIGnxv3CMFB7/o8/L5jm7VYh141KQ+0hP7spb9GRlBGWApW
-	c8bHxcM8gSEpFc9IvutXkaxgq9PK/DFF7YFfq37VWP1wgOHTX/E2+BB3rNxMxTzHjvw==
-X-Received: by 2002:a9d:4f0f:: with SMTP id d15mr3455879otl.52.1560840286041;
-        Mon, 17 Jun 2019 23:44:46 -0700 (PDT)
-X-Received: by 2002:a9d:4f0f:: with SMTP id d15mr3455837otl.52.1560840285374;
-        Mon, 17 Jun 2019 23:44:45 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560840285; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=CJNJ5IXvAErjWakSbjVW0/qa4cRl1dbfK+XVrWxhxVw=;
+        b=Ov3jO+hWQAqsXUkXPwco0IX2ZNaklw4lOIGuoxPNpmxcW7fAzh/0xoBuv7geEnJ+fB
+         PdBlC/9DKDhHbexEwa4f8dFjhjBipWw9FLG2f1cAYBG5XfcpV6Rd5bwP2NERkMOiO5km
+         NqZzZ2cjzyC5KL4n9AZIGa0fy8MTvKT8aODsE4Prdj5GCsAMkfFH3YSFOKTPGOreWmSr
+         rE8VnFFiHz/sAV9/PoiyJp9zKElsyyWg3I9TMFV0E3Ii/uP1N+y7toLfwBe27dtOhtbz
+         1fV2zzJTVivdATg1X5nakdfGcJWoJCNHTrh7X8HLJtY7Mqtsy/Cz25AyhhB652wl6Hlg
+         r+gA==
+X-Gm-Message-State: APjAAAVVUnivuDMuGc+XR74lW4m4TdFehT/jGBXqw8aMFENIx697zMpW
+	alWJbsKWbcENJ3iJkDaDk37VQdpHZNy/11fiMgr4LSSHruxXW15KR8qnkFvIWkaZB/thfmFcs5/
+	NCETImHXsXZOLVJN5EjPTVit+9O0V6Ge4TGvUs58s3nMlbpq2Jz83NzyoPr8vGIYKrw==
+X-Received: by 2002:a17:902:b591:: with SMTP id a17mr51043408pls.96.1560840862907;
+        Mon, 17 Jun 2019 23:54:22 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwy1BAPUTqx73TQkQffpJqaqbChTr9OP8XPwUD9IKt7I/qsQZ+gWBFBTBxx6wff2zAIO1Rr
+X-Received: by 2002:a17:902:b591:: with SMTP id a17mr51043377pls.96.1560840862286;
+        Mon, 17 Jun 2019 23:54:22 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560840862; cv=none;
         d=google.com; s=arc-20160816;
-        b=DI1dAKHtvAjdfsEENs4z2DJyv7ofsQfOruD1WLEOm05O5drFBPhpqaVQO7wlKqKsss
-         o8bPOoeEvJvbNTSV+axtqY4/VBDzciy8rA6aIYWc9cIOYuWxTIfZop4a0tCKNjCrcsQg
-         jAYxahPeB09DZEoD+LzbzjLoXvNz/fGZZcod0D7IEU8+sydQaLVEEk3pVtyVGpOrbscz
-         JT7IBPZ1bTzjYIX/DPp3USpDnDMxHzWg8z8BG5W9wwc85F5OOcVxobZvD2BEqRrAmgKQ
-         G1Q3O5nSl/JRrZp6jhRB+M4aAFXynsV52mKNjL1WhvXEeYXvhQxx6iKiYu9nNOrkPDmp
-         HHyg==
+        b=tzgvc+q2pt9epdi/MkKEf6CQv8n8xW6IbK2JWsZzM/LYWoBaRelprgiCPrdt0hAWvl
+         XOgfxP4dNVxAFkq23BjwHgLLOW6jB7wt58Kwno+thY1A/vqgC/xOGbLjCVZAnTHETxa6
+         Vq77rNhC/9f9M7mgeAQgs50qbhezZyZH0F6nRpV89SmI3FTyUpRHV1kg3Fu/EwI+AoY+
+         mBiFnGeTz1Jm6mthtG9fMz5xYN4e3LzULeJhZ558l0HitKBDDE3zZpkKwhczTrtP1eq3
+         jlNaFF8mY4Z7r3UrSejMU8RPpmHQm1PiUTYtDBmdw72JsLycXs/69kqxCft+9WvpTWAA
+         XsDw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=VK+Tna/iV8U0LWobX7frBvdux+Mmk/3A07T2dRSet2o=;
-        b=PoJ44dmKMmnBsYILYlKJcRIjrNIDdYxTez+4VqbI5nRi4Q0xi1rho/0mZoBItHSQUC
-         RNZBFjGR7xjN+jz4CRfFzBBu9mLliSfrFniRyQbRVuqgdUPy+bpcvThJZnP151nt3J8A
-         BYeCxSULEYgBviNfOiX9Vfeh1QywxL6z8YcdaUUsFF1kSCpHPE6BZL8z0NXzHor/XA2g
-         V38i1Z5IA/Zvol3gVgeYwekBitlg623MKoXmHO7SGu3C+KmB764CSWilJP1oQL4ZA2q0
-         JRZXd6CdpFu8M5zCLGOLHcE+oCE4AhusTyA1ZONr6zxeMc1zkMxBuWlRlFgF6CLDV5P4
-         ZYbA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=CJNJ5IXvAErjWakSbjVW0/qa4cRl1dbfK+XVrWxhxVw=;
+        b=n02y/1GQH0vHd8soIgSsgRiFg3QQxYQ6eqUqDR7OjO/ymZvQ23zjJ3MEiKuJSzQn99
+         YYkIsQxYphX+uRvF8pONUn702TPNr1+/x3h9RC8/VcUT6Z+nnbLIRNfmZ76mSzSYr7X/
+         pc/TA+mxKyWJxOFV1oBFniwXYxOyomifaVma9sq0C59mnHt3Lj5WUwT7eFGYqlUvB8/w
+         KNwvhDIp5RciEn3iVjN7cyDAAZhW6tfVY/eQGQgE4VvCby/QjvmnkXtcP+9NpgYKA7Dp
+         cks2gbFM9ZAzaakHj3mr/hhx2TyTORmlpIWBuS9kj7SU2diQzeZhQe2FSG+VMhXeidga
+         4w5Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=PDyW8TAo;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g22sor6437193otg.158.2019.06.17.23.44.45
+       dkim=pass header.i=@kernel.org header.s=default header.b=oBvX088a;
+       spf=pass (google.com: domain of will@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=will@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id k10si13316930pgc.9.2019.06.17.23.54.22
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 17 Jun 2019 23:44:45 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 17 Jun 2019 23:54:22 -0700 (PDT)
+Received-SPF: pass (google.com: domain of will@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=PDyW8TAo;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=intel-com.20150623.gappssmtp.com; s=20150623;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=VK+Tna/iV8U0LWobX7frBvdux+Mmk/3A07T2dRSet2o=;
-        b=PDyW8TAofhvqUW/2GACnAY5YkBvkFVU1w+wB59R0SpjrzCuk/bYvX8yNt8LtLzjEsY
-         KUaeC+Fjq02TdAYL44zIwo6tZt+JNdRpWOlSZ/c0vKdSfjFJtazzXqfvqlSS3jgrw5sE
-         fTR8RMwTGWygNypc4YyM31o8c0fSxpdSdqQnxT36Xiqik7NuWvXCL/qsaKFNuvGqmOaT
-         KM4d2hz1PXB41WsBA0f0aPullp5tjm/OXKAkHS7zSO2tyAvSxoA53zEucxdlBpHh67Kc
-         P61dfDC8g2EaJmY+aCM8S6vcLFqPyumX+jYhfnDEHBsiaDR5xE406kWXsSvQj7iNEKwY
-         WD6w==
-X-Google-Smtp-Source: APXvYqyaFChW+2Y3LxLrxij/hGfBTYgPu7CeqLIDpIpJp5MqTEPAxGlNYhpNDoo6MTuAem3A7Ef0h9Bg2W4wMyFdxyk=
-X-Received: by 2002:a9d:470d:: with SMTP id a13mr28328925otf.126.1560840285119;
- Mon, 17 Jun 2019 23:44:45 -0700 (PDT)
+       dkim=pass header.i=@kernel.org header.s=default header.b=oBvX088a;
+       spf=pass (google.com: domain of will@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=will@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from brain-police (236.31.169.217.in-addr.arpa [217.169.31.236])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id AB0AB20665;
+	Tue, 18 Jun 2019 06:54:18 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1560840861;
+	bh=h6KCEecYqvEUsVXMGsOj14p5VeuD+CI26MOesVKK8tw=;
+	h=Date:From:To:Cc:Subject:References:In-Reply-To:From;
+	b=oBvX088a/fOuuObjn7+ntF6Kq5hoY2/4Hpn4C9r/FHAPQ18VfSrKIN6FL5H8J8wzc
+	 BBR26SXGwC+04hPIj6pp4cWe3SMe5tW99SFutH5DZAbPe6caLBBE0uSV5X3hETFvma
+	 RU/jAfOdqr0dwXiPJhdVASX8az+JIm0olJ4+olBE=
+Date: Tue, 18 Jun 2019 07:54:15 +0100
+From: Will Deacon <will@kernel.org>
+To: Mike Rapoport <rppt@linux.ibm.com>
+Cc: Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>,
+	Qian Cai <cai@lca.pw>, akpm@linux-foundation.org,
+	Roman Gushchin <guro@fb.com>, catalin.marinas@arm.com,
+	linux-kernel@vger.kernel.org, mhocko@kernel.org, linux-mm@kvack.org,
+	vdavydov.dev@gmail.com, hannes@cmpxchg.org, cgroups@vger.kernel.org,
+	linux-arm-kernel@lists.infradead.org
+Subject: Re: [PATCH -next] arm64/mm: fix a bogus GFP flag in pgd_alloc()
+Message-ID: <20190618065414.GA15875@brain-police>
+References: <1559656836-24940-1-git-send-email-cai@lca.pw>
+ <20190604142338.GC24467@lakrids.cambridge.arm.com>
+ <20190610114326.GF15979@fuggles.cambridge.arm.com>
+ <1560187575.6132.70.camel@lca.pw>
+ <20190611100348.GB26409@lakrids.cambridge.arm.com>
+ <20190613121100.GB25164@rapoport-lnx>
+ <20190617151252.GF16810@rapoport-lnx>
+ <20190617163630.GH30800@fuggles.cambridge.arm.com>
+ <20190618061259.GB15497@rapoport-lnx>
 MIME-Version: 1.0
-References: <20190613045903.4922-1-namit@vmware.com>
-In-Reply-To: <20190613045903.4922-1-namit@vmware.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Mon, 17 Jun 2019 23:44:34 -0700
-Message-ID: <CAPcyv4hpWg5DWRhazS-ftyghiZP-J_M-7Vd5tiUd5UKONOib8g@mail.gmail.com>
-Subject: Re: [PATCH 0/3] resource: find_next_iomem_res() improvements
-To: Nadav Amit <namit@vmware.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, 
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, 
-	Borislav Petkov <bp@suse.de>, Toshi Kani <toshi.kani@hpe.com>, Peter Zijlstra <peterz@infradead.org>, 
-	Dave Hansen <dave.hansen@linux.intel.com>, Bjorn Helgaas <bhelgaas@google.com>, 
-	Ingo Molnar <mingo@kernel.org>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190618061259.GB15497@rapoport-lnx>
+User-Agent: Mutt/1.9.4 (2018-02-28)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jun 12, 2019 at 9:59 PM Nadav Amit <namit@vmware.com> wrote:
->
-> Running some microbenchmarks on dax keeps showing find_next_iomem_res()
-> as a place in which significant amount of time is spent. It appears that
-> in order to determine the cacheability that is required for the PTE,
-> lookup_memtype() is called, and this one traverses the resources list in
-> an inefficient manner. This patch-set tries to improve this situation.
+On Tue, Jun 18, 2019 at 09:12:59AM +0300, Mike Rapoport wrote:
+> On Mon, Jun 17, 2019 at 05:36:30PM +0100, Will Deacon wrote:
+> > On Mon, Jun 17, 2019 at 06:12:52PM +0300, Mike Rapoport wrote:
+> > > Andrew, can you please add the patch below as an incremental fix?
+> > > 
+> > > With this the arm64::pgd_alloc() should be in the right shape.
+> > > 
+> > > 
+> > > From 1c1ef0bc04c655689c6c527bd03b140251399d87 Mon Sep 17 00:00:00 2001
+> > > From: Mike Rapoport <rppt@linux.ibm.com>
+> > > Date: Mon, 17 Jun 2019 17:37:43 +0300
+> > > Subject: [PATCH] arm64/mm: don't initialize pgd_cache twice
+> > > 
+> > > When PGD_SIZE != PAGE_SIZE, arm64 uses kmem_cache for allocation of PGD
+> > > memory. That cache was initialized twice: first through
+> > > pgtable_cache_init() alias and then as an override for weak
+> > > pgd_cache_init().
+> > > 
+> > > After enabling accounting for the PGD memory, this created a confusion for
+> > > memcg and slub sysfs code which resulted in the following errors:
+> > > 
+> > > [   90.608597] kobject_add_internal failed for pgd_cache(13:init.scope) (error: -2 parent: cgroup)
+> > > [   90.678007] kobject_add_internal failed for pgd_cache(13:init.scope) (error: -2 parent: cgroup)
+> > > [   90.713260] kobject_add_internal failed for pgd_cache(21:systemd-tmpfiles-setup.service) (error: -2 parent: cgroup)
+> > > 
+> > > Removing the alias from pgtable_cache_init() and keeping the only pgd_cache
+> > > initialization in pgd_cache_init() resolves the problem and allows
+> > > accounting of PGD memory.
+> > > 
+> > > Reported-by: Qian Cai <cai@lca.pw>
+> > > Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
+> > > ---
+> > >  arch/arm64/include/asm/pgtable.h | 3 +--
+> > >  arch/arm64/mm/pgd.c              | 5 +----
+> > >  2 files changed, 2 insertions(+), 6 deletions(-)
+> > 
+> > Looks like this actually fixes caa841360134 ("x86/mm: Initialize PGD cache
+> > during mm initialization") due to an unlucky naming conflict!
+> > 
+> > In which case, I'd actually prefer to take this fix asap via the arm64
+> > tree. Is that ok?
+> 
+> I suppose so, it just won't apply as is. Would you like a patch against the
+> current upstream?
 
-Let's just do this lookup once per device, cache that, and replay it
-to modified vmf_insert_* routines that trust the caller to already
-know the pgprot_values.
+Yes, please. I'm assuming it's a straightforward change (please shout if it
+isn't).
+
+Will
 
