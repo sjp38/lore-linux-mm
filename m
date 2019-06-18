@@ -2,152 +2,189 @@ Return-Path: <SRS0=8DoX=UR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D509FC46477
-	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 14:57:58 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 075DBC31E5B
+	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 15:06:50 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A7BCF21479
-	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 14:57:58 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A7BCF21479
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
+	by mail.kernel.org (Postfix) with ESMTP id C78A820873
+	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 15:06:49 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C78A820873
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1C6F36B0005; Tue, 18 Jun 2019 10:57:58 -0400 (EDT)
+	id 590766B0005; Tue, 18 Jun 2019 11:06:49 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 150798E0002; Tue, 18 Jun 2019 10:57:58 -0400 (EDT)
+	id 51A018E0002; Tue, 18 Jun 2019 11:06:49 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 016E78E0001; Tue, 18 Jun 2019 10:57:57 -0400 (EDT)
+	id 393088E0001; Tue, 18 Jun 2019 11:06:49 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id A3E5E6B0005
-	for <linux-mm@kvack.org>; Tue, 18 Jun 2019 10:57:57 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id b12so21649648eds.14
-        for <linux-mm@kvack.org>; Tue, 18 Jun 2019 07:57:57 -0700 (PDT)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id F3A706B0005
+	for <linux-mm@kvack.org>; Tue, 18 Jun 2019 11:06:48 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id 30so10089821pgk.16
+        for <linux-mm@kvack.org>; Tue, 18 Jun 2019 08:06:48 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=IrRkQLiiPOjM5QQUnELNR5Xw7wGDbfE12JYr/2t1OS0=;
-        b=nl7gsma9nAMag3G5ezBXZVizx43LQalat8lMk+H/HCdI2HaQOsTYZ5R1fN/udmwjVs
-         SCqdLKiFJs0bIHGcxoWTHqgnBYAkI+TsFLjP21Htj1egoGsMTiWJvzZmednieV0GqdIk
-         4jSGXI09Q1puArTIBoVj/IgFhas1DSy7RRfOrVeBp5FrNvF44vo3yaFxNRpiNijeHVuV
-         IpeozbVHp7Eok0PAVcVN7MEfH7rqN2pFnCBFHEGm2dnKepZXftU5PwlYrG3zkln/Wdvk
-         ARuYcrA9fB4RIdFySrOb4JcPegsJSiptNvsL9Hkrl6T8W0EBokMx9roEnskRQM7lQAJe
-         xJKw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
-X-Gm-Message-State: APjAAAWuVKUJ3S8KGBsv9uA2Jf4qc9t3MfMmI3jhqid3OmGL2orZdTUl
-	3V8/1gMeTZ+Wiou7WRFJNjOW27rUJcsymXTY+ofkmPKy1xA9tsOj4SGtL1uvmHURRzuzNilzsLL
-	aPoi2X9KulUYPgThP4RyKYef4iFa/gdHK7M2vrcU3e5baIt1Qo7FyoyRufPSfQg2Iog==
-X-Received: by 2002:a50:86dc:: with SMTP id 28mr98483968edu.132.1560869877224;
-        Tue, 18 Jun 2019 07:57:57 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxI1AD5KQ0DhAz1FYwJrfP3/VVUQuQPa35BtjJzx44xKh3WCMy3VSHvbbM0qiZXTI8VKNlk
-X-Received: by 2002:a50:86dc:: with SMTP id 28mr98483913edu.132.1560869876478;
-        Tue, 18 Jun 2019 07:57:56 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560869876; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:message-id
+         :subject:from:to:cc:date:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=h3Sefg6u6oxFoY2FeQ8eCT/Mcn2nszvs3FQjGtROTqw=;
+        b=k9h5If41xWk1SdBz21ItxixaOB0AY0K42olFfnEcKBB7khFkaYFUvhi9YNbgoNPkRz
+         9B7iED3arDLJjiSRsgqJPagWqmeFYL4XDfrmU12sPaE5kRdtZJf0JBJyFkc10k4LGFUT
+         0ZnRa+SP8mgZm1lHF7YW+7udpBs41Symun7OiXM7E9TfVA8C3SlfA7KJ5enm6BoCHJya
+         +enTTMDVy4Gl/uRZ2Ft+kndfwhnzewCIzL6NDJVTI4VC81qyxP7VQCNdcYrNwc0tqY3q
+         ID6jNnHMIV0fwZ9caUxfStOuRoGNT3zM5hJRL/8eOg/jvGtkpKsx4577NkyDRC6Zx8FQ
+         dnvQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAV7v6uedYA+bRHEq/+er0oJ6fVA/GFGzrVp+x8ppVcQ9pD23wDh
+	JN0pdxD7qPXTDhM7I6XYUz6tmdI5DxSt3WYX5vydpkdooY9fisgi5i0SajoHHHMaz2sxZ1vAdh6
+	0HxIr0zdEfEhUunQDaJfR2qSfQCve97dprSexhKIFEN1zi1Qm7x7lop7rKiBL6AB9EQ==
+X-Received: by 2002:a62:5303:: with SMTP id h3mr38497748pfb.58.1560870408640;
+        Tue, 18 Jun 2019 08:06:48 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzCk7o5HfTe3Ba8n5cN71Y0ckoT/q94qwFdwhZB4ljcuxmV+vHk5+A6QCpIs05NUKTCYHGT
+X-Received: by 2002:a62:5303:: with SMTP id h3mr38497603pfb.58.1560870406914;
+        Tue, 18 Jun 2019 08:06:46 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560870406; cv=none;
         d=google.com; s=arc-20160816;
-        b=D0poV2uOZ4BlCnu+ZU88s2jcZtlm3vynFu+1XJgHQ7NchciBzjjR6/p4Bu/EL2nAlp
-         FAmJ4jGNoCyTndnA43rnDuc5LGbcGIsUT9pnwtwKOfJyIb4lx+GLs7hz5D21kOB8bvvr
-         y34/DcqB61XVszlUWckd1Dbh93dTAHlAaiNf+wii0rQqMpVWGYveJ3b4PHxv60Ck/rZk
-         B5u08uiwDH9eIXByL109vkO0joPP+oB2uMhe0fPJ/id+jSc2alTWieUoXcMC/aS/dmm3
-         nO89SqpmfIvDRCNUH4YncrCoSm4bVXHsoIJg75rhwQN2m6iZjftNeoDrYAMLxhF5L5ai
-         S8AA==
+        b=hq7EIBGMWjzATXrAOFQ0bVGrr1698+8DvxAcDDPT5Nn3RVsusq6nL2HthunYKvEDwp
+         /SH5RUOtWxSBuOPA2P6XZ/qFW9W3fM4OJref68H/qtanDs1fiZ+4g7WZ8ad6DkphpcNq
+         uwYknWL9ait7iQjNnNDF+QTD57X5l4mFFhrSLZoC0977Utc2uc4MUeCElEk6Y64CyyUw
+         qA77SwyEb73FDIyLLU7jqKuvJ+ScQwoGhwuPKjInljxuItYJnn98WaQrxpHScXHealYQ
+         OnwbvyKXYNDJ7fceGtUVIiTtkuRnu+VbHGWZ0TKLlZBt5kNXsBXphtTRrJWv9dliVAAh
+         bY5A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=IrRkQLiiPOjM5QQUnELNR5Xw7wGDbfE12JYr/2t1OS0=;
-        b=kjJIz73ZZ5otZpxZ+sm7OYjeaC5ee7irXJIVV1HcGowbgbfWxTtG3Jv92RL0w7mAEW
-         fLuUYoxLEMECmK2DGj0Ylz8ihgEyNbTSyxNUClC2g/JWJeB+mM5aaB0jpVhH0S6aVDA0
-         Ak+wBvKW1yFQlEv8atfv7Z5+LaNliCs66MSlrk8tjF2cfOhrwPPh1VDiKUJMsV/RrwL6
-         OxJEY9WpHYP/s6343xOy1fMQawHANt1wM/y1RXu9x0C7MqzYgSMGxjr1mtiqVlTkVfTZ
-         EFBEN5NCEyjCT6TTtbMWgR00TD0pkfSEcAaWvRISRUmZrCzwWF40Svou+efCMPNmOlk2
-         FD2Q==
+        h=content-transfer-encoding:mime-version:references:in-reply-to:date
+         :cc:to:from:subject:message-id;
+        bh=h3Sefg6u6oxFoY2FeQ8eCT/Mcn2nszvs3FQjGtROTqw=;
+        b=l49I6SLWYk1uUjpS6c0HJHKlcVMDlyq9xNgZUDBc8DTXPXJDQL6V2wJZUxmljGL0S6
+         akBGWSqzhYL/hYIgO4XEq4czE1wIGRDhpOh1364M3XgsQ2mPY3WqWSz0uT1HR+yhdOvU
+         XT6Ww7R/OIX9+lTbCh6qxmWBKNpSHL/zHcVJuKgh4rA05/VSja/nD6KKKzH/SsXF/txG
+         BhLZuuFzdv1f1IMHDLfb1BVELlpc+1pYn2wOqMtP04dlzAcl4d23/24c+6LqLYIdR9rW
+         KlAUfyRZao2vpC5kG2vo5SjyDDW0i9CfkN+5KbITIqv+3DGeoezi0sGtABQ6/V/WEvUt
+         IuYg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t48si10694195edb.29.2019.06.18.07.57.56
+       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
+        by mx.google.com with ESMTPS id f9si417099pgg.450.2019.06.18.08.06.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 18 Jun 2019 07:57:56 -0700 (PDT)
-Received-SPF: pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Tue, 18 Jun 2019 08:06:46 -0700 (PDT)
+Received-SPF: pass (google.com: domain of yu-cheng.yu@intel.com designates 192.55.52.136 as permitted sender) client-ip=192.55.52.136;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id B2F8EAD81;
-	Tue, 18 Jun 2019 14:57:55 +0000 (UTC)
-Date: Tue, 18 Jun 2019 16:57:52 +0200
-From: Oscar Salvador <osalvador@suse.de>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>,
-	Michal Hocko <mhocko@kernel.org>,
-	Mike Kravetz <mike.kravetz@oracle.com>,
-	xishi.qiuxishi@alibaba-inc.com,
-	"Chen, Jerry T" <jerry.t.chen@intel.com>,
-	"Zhuo, Qiuxu" <qiuxu.zhuo@intel.com>, linux-kernel@vger.kernel.org,
-	Anshuman Khandual <anshuman.khandual@arm.com>
-Subject: Re: [PATCH v3 1/2] mm: soft-offline: return -EBUSY if
- set_hwpoison_free_buddy_page() fails
-Message-ID: <20190618145748.GA14817@linux>
-References: <1560761476-4651-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1560761476-4651-2-git-send-email-n-horiguchi@ah.jp.nec.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1560761476-4651-2-git-send-email-n-horiguchi@ah.jp.nec.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from fmsmga008.fm.intel.com ([10.253.24.58])
+  by fmsmga106.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 18 Jun 2019 08:06:46 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.63,389,1557212400"; 
+   d="scan'208";a="160085055"
+Received: from yyu32-desk1.sc.intel.com ([10.144.153.205])
+  by fmsmga008.fm.intel.com with ESMTP; 18 Jun 2019 08:06:47 -0700
+Message-ID: <d54fe81be77b9edd8578a6d208c72cd7c0b8c1dd.camel@intel.com>
+Subject: Re: [PATCH v7 22/27] binfmt_elf: Extract .note.gnu.property from an
+ ELF file
+From: Yu-cheng Yu <yu-cheng.yu@intel.com>
+To: Dave Martin <Dave.Martin@arm.com>, Peter Zijlstra <peterz@infradead.org>
+Cc: Florian Weimer <fweimer@redhat.com>, Thomas Gleixner
+ <tglx@linutronix.de>,  x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>,
+ Ingo Molnar <mingo@redhat.com>,  linux-kernel@vger.kernel.org,
+ linux-doc@vger.kernel.org, linux-mm@kvack.org,  linux-arch@vger.kernel.org,
+ linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski
+ <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Borislav
+ Petkov <bp@alien8.de>, Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen
+ <dave.hansen@linux.intel.com>, Eugene Syromiatnikov <esyr@redhat.com>,
+ "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan
+ Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>, Mike Kravetz
+ <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov
+ <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Randy Dunlap
+ <rdunlap@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, 
+ Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
+Date: Tue, 18 Jun 2019 07:58:37 -0700
+In-Reply-To: <20190618133223.GD2790@e103592.cambridge.arm.com>
+References: <87lfy9cq04.fsf@oldenburg2.str.redhat.com>
+	 <20190611114109.GN28398@e103592.cambridge.arm.com>
+	 <031bc55d8dcdcf4f031e6ff27c33fd52c61d33a5.camel@intel.com>
+	 <20190612093238.GQ28398@e103592.cambridge.arm.com>
+	 <87imt4jwpt.fsf@oldenburg2.str.redhat.com>
+	 <alpine.DEB.2.21.1906171418220.1854@nanos.tec.linutronix.de>
+	 <20190618091248.GB2790@e103592.cambridge.arm.com>
+	 <20190618124122.GH3419@hirez.programming.kicks-ass.net>
+	 <87ef3r9i2j.fsf@oldenburg2.str.redhat.com>
+	 <20190618125512.GJ3419@hirez.programming.kicks-ass.net>
+	 <20190618133223.GD2790@e103592.cambridge.arm.com>
+Content-Type: text/plain; charset="UTF-8"
+X-Mailer: Evolution 3.28.1-2 
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jun 17, 2019 at 05:51:15PM +0900, Naoya Horiguchi wrote:
-> The pass/fail of soft offline should be judged by checking whether the
-> raw error page was finally contained or not (i.e. the result of
-> set_hwpoison_free_buddy_page()), but current code do not work like that.
-> So this patch is suggesting to fix it.
+On Tue, 2019-06-18 at 14:32 +0100, Dave Martin wrote:
+> On Tue, Jun 18, 2019 at 02:55:12PM +0200, Peter Zijlstra wrote:
+> > On Tue, Jun 18, 2019 at 02:47:00PM +0200, Florian Weimer wrote:
+> > > * Peter Zijlstra:
+> > > 
+> > > > I'm not sure I read Thomas' comment like that. In my reading keeping the
+> > > > PT_NOTE fallback is exactly one of those 'fly workarounds'. By not
+> > > > supporting PT_NOTE only the 'fine' people already shit^Hpping this out
+> > > > of tree are affected, and we don't have to care about them at all.
+> > > 
+> > > Just to be clear here: There was an ABI document that required PT_NOTE
+> > > parsing.
+> > 
+> > URGH.
+> > 
+> > > The Linux kernel does *not* define the x86-64 ABI, it only
+> > > implements it.  The authoritative source should be the ABI document.
+> > > 
+> > > In this particularly case, so far anyone implementing this ABI extension
+> > > tried to provide value by changing it, sometimes successfully.  Which
+> > > makes me wonder why we even bother to mainatain ABI documentation.  The
+> > > kernel is just very late to the party.
+> > 
+> > How can the kernel be late to the party if all of this is spinning
+> > wheels without kernel support?
 > 
-> Without this fix, there are cases where madvise(MADV_SOFT_OFFLINE) may
-> not offline the original page and will not return an error.  It might
-> lead us to misjudge the test result when set_hwpoison_free_buddy_page()
-> actually fails.
+> PT_GNU_PROPERTY is mentioned and allocated a p_type value in hjl's
+> spec [1], but otherwise seems underspecified.
 > 
-> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Fixes: 6bc9b56433b76 ("mm: fix race on soft-offlining")
-> Cc: <stable@vger.kernel.org> # v4.19+
+> In particular, it's not clear whether a PT_GNU_PROPERTY phdr _must_ be
+> emitted for NT_GNU_PROPERTY_TYPE_0.  While it seems a no-brainer to emit
+> it, RHEL's linker already doesn't IIUC, and there are binaries in the
+> wild.
+> 
+> Maybe this phdr type is a late addition -- I haven't attempted to dig
+> through the history.
+> 
+> 
+> For arm64 we don't have this out-of-tree legacy to support, so we can
+> avoid exhausitvely searching for the note: no PT_GNU_PROPERTY ->
+> no note.
+> 
+> So, can we do the same for x86, forcing RHEL to carry some code out of
+> tree to support their legacy binaries?  Or do we accept that there is
+> already a de facto ABI and try to be compatible with it?
+> 
+> 
+> From my side, I want to avoid duplication between x86 and arm64, and
+> keep unneeded complexity out of the ELF loader where possible.
 
-Reviewed-by: Oscar Salvador <osalvador@suse.de>
+Hi Florian,
 
-> ---
-> ChangeLog v2->v3:
-> - update patch description to clarify user visible change
-> ---
->  mm/memory-failure.c | 2 ++
->  1 file changed, 2 insertions(+)
-> 
-> diff --git v5.2-rc4/mm/memory-failure.c v5.2-rc4_patched/mm/memory-failure.c
-> index 8da0334..8ee7b16 100644
-> --- v5.2-rc4/mm/memory-failure.c
-> +++ v5.2-rc4_patched/mm/memory-failure.c
-> @@ -1730,6 +1730,8 @@ static int soft_offline_huge_page(struct page *page, int flags)
->  		if (!ret) {
->  			if (set_hwpoison_free_buddy_page(page))
->  				num_poisoned_pages_inc();
-> +			else
-> +				ret = -EBUSY;
->  		}
->  	}
->  	return ret;
-> -- 
-> 2.7.0
-> 
+The kernel looks at only ld-linux.  Other applications are loaded by ld-linux. 
+So the issues are limited to three versions of ld-linux's.  Can we somehow
+update those??
 
--- 
-Oscar Salvador
-SUSE L3
+Thanks,
+Yu-cheng
 
