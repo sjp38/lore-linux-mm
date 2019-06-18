@@ -2,176 +2,166 @@ Return-Path: <SRS0=8DoX=UR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.6 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
-	SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-8.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3A4B5C31E51
-	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 06:54:24 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 35707C31E5E
+	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 07:32:43 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0254E20673
-	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 06:54:23 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="oBvX088a"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0254E20673
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id CA8F52084B
+	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 07:32:42 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CA8F52084B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 926296B0003; Tue, 18 Jun 2019 02:54:23 -0400 (EDT)
+	id 167756B0003; Tue, 18 Jun 2019 03:32:42 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8D9758E0003; Tue, 18 Jun 2019 02:54:23 -0400 (EDT)
+	id 0F2808E0002; Tue, 18 Jun 2019 03:32:42 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7C4F78E0001; Tue, 18 Jun 2019 02:54:23 -0400 (EDT)
+	id EACD28E0001; Tue, 18 Jun 2019 03:32:41 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 46EF66B0003
-	for <linux-mm@kvack.org>; Tue, 18 Jun 2019 02:54:23 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id y5so8645019pfb.20
-        for <linux-mm@kvack.org>; Mon, 17 Jun 2019 23:54:23 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B16A86B0003
+	for <linux-mm@kvack.org>; Tue, 18 Jun 2019 03:32:41 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id y75so807131pfg.1
+        for <linux-mm@kvack.org>; Tue, 18 Jun 2019 00:32:41 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=CJNJ5IXvAErjWakSbjVW0/qa4cRl1dbfK+XVrWxhxVw=;
-        b=Ov3jO+hWQAqsXUkXPwco0IX2ZNaklw4lOIGuoxPNpmxcW7fAzh/0xoBuv7geEnJ+fB
-         PdBlC/9DKDhHbexEwa4f8dFjhjBipWw9FLG2f1cAYBG5XfcpV6Rd5bwP2NERkMOiO5km
-         NqZzZ2cjzyC5KL4n9AZIGa0fy8MTvKT8aODsE4Prdj5GCsAMkfFH3YSFOKTPGOreWmSr
-         rE8VnFFiHz/sAV9/PoiyJp9zKElsyyWg3I9TMFV0E3Ii/uP1N+y7toLfwBe27dtOhtbz
-         1fV2zzJTVivdATg1X5nakdfGcJWoJCNHTrh7X8HLJtY7Mqtsy/Cz25AyhhB652wl6Hlg
-         r+gA==
-X-Gm-Message-State: APjAAAVVUnivuDMuGc+XR74lW4m4TdFehT/jGBXqw8aMFENIx697zMpW
-	alWJbsKWbcENJ3iJkDaDk37VQdpHZNy/11fiMgr4LSSHruxXW15KR8qnkFvIWkaZB/thfmFcs5/
-	NCETImHXsXZOLVJN5EjPTVit+9O0V6Ge4TGvUs58s3nMlbpq2Jz83NzyoPr8vGIYKrw==
-X-Received: by 2002:a17:902:b591:: with SMTP id a17mr51043408pls.96.1560840862907;
-        Mon, 17 Jun 2019 23:54:22 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwy1BAPUTqx73TQkQffpJqaqbChTr9OP8XPwUD9IKt7I/qsQZ+gWBFBTBxx6wff2zAIO1Rr
-X-Received: by 2002:a17:902:b591:: with SMTP id a17mr51043377pls.96.1560840862286;
-        Mon, 17 Jun 2019 23:54:22 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560840862; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id;
+        bh=74HL889peYR3czd0O1hHxo0J/IaCxhDuYag2WrXiebc=;
+        b=PgKoaG/TMWwIBvhkaCl1LIaDd6I9JmlDVFAzK18/7Hn5HibKUPTPqmk4J894neb+Ii
+         qnzKXUz+08gytDpTgiMIGAQR6vHiwxfwwqgBHCkxo+Kg7CoIw3bFB69uiIU/A3FGaji5
+         ztmsTJUrTqkpuxDeRJlR4PxObC3kBAMLldT2WJtexDg1O2rQG6d/BrizMDHMQI/Ef+oa
+         7g1bvF3hw+kf3GWAVU061hDos8w30N28/IcCnFk9PhAd5S+xS6DEuWuL5OVO+Mkc8smM
+         IT/XWJArpWI0RZYOCqyATBv/OP+bDXjLehsYmAr9iPPGdjwMsL+wooer0OhSa9JYQls7
+         6CRg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: APjAAAX7oV1PeSuE1QONCj8fwV5/g7D6vv4+bhgppagL11ar24B8LgYh
+	JDf8icCPlQOn5QXfQ5C8GBv7INu/VA4aJHafom3ZgNfWA/qAjJvcRj3uaFRz6E64MOb0w1/SO12
+	tDghzxZ33Dg5r7qROy85WTxuu/QFKf2Ap53qciswF2vzWebfn8ErqPjOamhmlrSwfkA==
+X-Received: by 2002:a17:90a:db52:: with SMTP id u18mr3568220pjx.107.1560843161408;
+        Tue, 18 Jun 2019 00:32:41 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxNeI/wMFGB3xS24ml8ktwXtoVvmw5dam5+Cjl4U8cMrtn7tPaChJ+Pp/CkFgt8pbGzqg7G
+X-Received: by 2002:a17:90a:db52:: with SMTP id u18mr3568149pjx.107.1560843160399;
+        Tue, 18 Jun 2019 00:32:40 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560843160; cv=none;
         d=google.com; s=arc-20160816;
-        b=tzgvc+q2pt9epdi/MkKEf6CQv8n8xW6IbK2JWsZzM/LYWoBaRelprgiCPrdt0hAWvl
-         XOgfxP4dNVxAFkq23BjwHgLLOW6jB7wt58Kwno+thY1A/vqgC/xOGbLjCVZAnTHETxa6
-         Vq77rNhC/9f9M7mgeAQgs50qbhezZyZH0F6nRpV89SmI3FTyUpRHV1kg3Fu/EwI+AoY+
-         mBiFnGeTz1Jm6mthtG9fMz5xYN4e3LzULeJhZ558l0HitKBDDE3zZpkKwhczTrtP1eq3
-         jlNaFF8mY4Z7r3UrSejMU8RPpmHQm1PiUTYtDBmdw72JsLycXs/69kqxCft+9WvpTWAA
-         XsDw==
+        b=k+Q7agedGdCNSIeNEPOFrbBMs9M2Zri0OCNOsW3VrTMV7P1uFpbmi8Uxtlo0kbNVis
+         AOiPfK+MP9nFEAQIlU7KsXeSBsPuo6m1et+hKjtXscvNhJKj/kwXUtg8CFnjPjhBseUh
+         07TJSLA9+zbNZ+KMmQX7aiksrztrgrNv4qq3hSrIwmRZCMWIkRVdcke/DwRSjYyvEiKJ
+         0FzPGHSewtcGg7IqMr6/xY1L01LgHoOPVtkDRPQSdW6DSRNLuxE8cz4Zx0mFhC+tuq1I
+         ehXl6l9VGdbvkCQHX1xtm+QSPAl9sN90/vZokyWnkQ+/AVbR/1JwaFkUbHgdTMzsx7GK
+         BQng==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=CJNJ5IXvAErjWakSbjVW0/qa4cRl1dbfK+XVrWxhxVw=;
-        b=n02y/1GQH0vHd8soIgSsgRiFg3QQxYQ6eqUqDR7OjO/ymZvQ23zjJ3MEiKuJSzQn99
-         YYkIsQxYphX+uRvF8pONUn702TPNr1+/x3h9RC8/VcUT6Z+nnbLIRNfmZ76mSzSYr7X/
-         pc/TA+mxKyWJxOFV1oBFniwXYxOyomifaVma9sq0C59mnHt3Lj5WUwT7eFGYqlUvB8/w
-         KNwvhDIp5RciEn3iVjN7cyDAAZhW6tfVY/eQGQgE4VvCby/QjvmnkXtcP+9NpgYKA7Dp
-         cks2gbFM9ZAzaakHj3mr/hhx2TyTORmlpIWBuS9kj7SU2diQzeZhQe2FSG+VMhXeidga
-         4w5Q==
+        h=message-id:date:subject:cc:to:from;
+        bh=74HL889peYR3czd0O1hHxo0J/IaCxhDuYag2WrXiebc=;
+        b=cT8//u1ggpF3X+tEql896N11s7EGuLl2jlZJHfg6dORRd+jf9vJy6fH/pZUmzrYU3V
+         j0thzVz4uZWpBLyVqH3ts8LqaGU9xt/zQ/XH8OPiXi0vDNc6yudDM8JZmmThWufgYdT1
+         Xm0kSmE+RYc/JeAGURcnxXf1xo21ygmyNrNJv1kWSTDSKZrO1ZBjUEn7PsXpjrTonhkQ
+         jvFlF8jZnmTM7DfaLkUZ7QG3usK/NDbbX4BwAvCdS7He24QSnOAWvSfdMZOk3vi1Pkz9
+         3sIVefeDRMsfDrfd7o6SlGlu+uipDZwpbFLXHk/q3h//iC7oeFdhUo7lb4E2hXz8qjxN
+         TPyQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=oBvX088a;
-       spf=pass (google.com: domain of will@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=will@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id k10si13316930pgc.9.2019.06.17.23.54.22
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id q4si13250662pfg.286.2019.06.18.00.32.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 17 Jun 2019 23:54:22 -0700 (PDT)
-Received-SPF: pass (google.com: domain of will@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        Tue, 18 Jun 2019 00:32:40 -0700 (PDT)
+Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=oBvX088a;
-       spf=pass (google.com: domain of will@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=will@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from brain-police (236.31.169.217.in-addr.arpa [217.169.31.236])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id AB0AB20665;
-	Tue, 18 Jun 2019 06:54:18 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1560840861;
-	bh=h6KCEecYqvEUsVXMGsOj14p5VeuD+CI26MOesVKK8tw=;
-	h=Date:From:To:Cc:Subject:References:In-Reply-To:From;
-	b=oBvX088a/fOuuObjn7+ntF6Kq5hoY2/4Hpn4C9r/FHAPQ18VfSrKIN6FL5H8J8wzc
-	 BBR26SXGwC+04hPIj6pp4cWe3SMe5tW99SFutH5DZAbPe6caLBBE0uSV5X3hETFvma
-	 RU/jAfOdqr0dwXiPJhdVASX8az+JIm0olJ4+olBE=
-Date: Tue, 18 Jun 2019 07:54:15 +0100
-From: Will Deacon <will@kernel.org>
-To: Mike Rapoport <rppt@linux.ibm.com>
-Cc: Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>,
-	Qian Cai <cai@lca.pw>, akpm@linux-foundation.org,
-	Roman Gushchin <guro@fb.com>, catalin.marinas@arm.com,
-	linux-kernel@vger.kernel.org, mhocko@kernel.org, linux-mm@kvack.org,
-	vdavydov.dev@gmail.com, hannes@cmpxchg.org, cgroups@vger.kernel.org,
-	linux-arm-kernel@lists.infradead.org
-Subject: Re: [PATCH -next] arm64/mm: fix a bogus GFP flag in pgd_alloc()
-Message-ID: <20190618065414.GA15875@brain-police>
-References: <1559656836-24940-1-git-send-email-cai@lca.pw>
- <20190604142338.GC24467@lakrids.cambridge.arm.com>
- <20190610114326.GF15979@fuggles.cambridge.arm.com>
- <1560187575.6132.70.camel@lca.pw>
- <20190611100348.GB26409@lakrids.cambridge.arm.com>
- <20190613121100.GB25164@rapoport-lnx>
- <20190617151252.GF16810@rapoport-lnx>
- <20190617163630.GH30800@fuggles.cambridge.arm.com>
- <20190618061259.GB15497@rapoport-lnx>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190618061259.GB15497@rapoport-lnx>
-User-Agent: Mutt/1.9.4 (2018-02-28)
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x5I7SYPd034649
+	for <linux-mm@kvack.org>; Tue, 18 Jun 2019 03:32:39 -0400
+Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2t6t8qu2pu-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 18 Jun 2019 03:32:39 -0400
+Received: from localhost
+	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
+	Tue, 18 Jun 2019 08:32:37 +0100
+Received: from b06cxnps3075.portsmouth.uk.ibm.com (9.149.109.195)
+	by e06smtp04.uk.ibm.com (192.168.101.134) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Tue, 18 Jun 2019 08:32:33 +0100
+Received: from d06av22.portsmouth.uk.ibm.com (d06av22.portsmouth.uk.ibm.com [9.149.105.58])
+	by b06cxnps3075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x5I7WWdI32702618
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Tue, 18 Jun 2019 07:32:32 GMT
+Received: from d06av22.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 94A9C4C046;
+	Tue, 18 Jun 2019 07:32:32 +0000 (GMT)
+Received: from d06av22.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id DFB6B4C063;
+	Tue, 18 Jun 2019 07:32:30 +0000 (GMT)
+Received: from rapoport-lnx (unknown [9.148.8.53])
+	by d06av22.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
+	Tue, 18 Jun 2019 07:32:30 +0000 (GMT)
+Received: by rapoport-lnx (sSMTP sendmail emulation); Tue, 18 Jun 2019 10:32:30 +0300
+From: Mike Rapoport <rppt@linux.ibm.com>
+To: Will Deacon <will.deacon@arm.com>
+Cc: Mark Rutland <mark.rutland@arm.com>, Qian Cai <cai@lca.pw>,
+        Andrew Morton <akpm@linux-foundation.org>,
+        Catalin Marinas <catalin.marinas@arm.com>,
+        linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+        linux-arm-kernel@lists.infradead.org,
+        Mike Rapoport <rppt@linux.ibm.com>
+Subject: [PATCH] arm64/mm: don't initialize pgd_cache twice
+Date: Tue, 18 Jun 2019 10:32:29 +0300
+X-Mailer: git-send-email 2.7.4
+X-TM-AS-GCONF: 00
+x-cbid: 19061807-0016-0000-0000-0000028A04C9
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19061807-0017-0000-0000-000032E7538F
+Message-Id: <1560843149-13845-1-git-send-email-rppt@linux.ibm.com>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-06-18_04:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=854 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1906180062
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jun 18, 2019 at 09:12:59AM +0300, Mike Rapoport wrote:
-> On Mon, Jun 17, 2019 at 05:36:30PM +0100, Will Deacon wrote:
-> > On Mon, Jun 17, 2019 at 06:12:52PM +0300, Mike Rapoport wrote:
-> > > Andrew, can you please add the patch below as an incremental fix?
-> > > 
-> > > With this the arm64::pgd_alloc() should be in the right shape.
-> > > 
-> > > 
-> > > From 1c1ef0bc04c655689c6c527bd03b140251399d87 Mon Sep 17 00:00:00 2001
-> > > From: Mike Rapoport <rppt@linux.ibm.com>
-> > > Date: Mon, 17 Jun 2019 17:37:43 +0300
-> > > Subject: [PATCH] arm64/mm: don't initialize pgd_cache twice
-> > > 
-> > > When PGD_SIZE != PAGE_SIZE, arm64 uses kmem_cache for allocation of PGD
-> > > memory. That cache was initialized twice: first through
-> > > pgtable_cache_init() alias and then as an override for weak
-> > > pgd_cache_init().
-> > > 
-> > > After enabling accounting for the PGD memory, this created a confusion for
-> > > memcg and slub sysfs code which resulted in the following errors:
-> > > 
-> > > [   90.608597] kobject_add_internal failed for pgd_cache(13:init.scope) (error: -2 parent: cgroup)
-> > > [   90.678007] kobject_add_internal failed for pgd_cache(13:init.scope) (error: -2 parent: cgroup)
-> > > [   90.713260] kobject_add_internal failed for pgd_cache(21:systemd-tmpfiles-setup.service) (error: -2 parent: cgroup)
-> > > 
-> > > Removing the alias from pgtable_cache_init() and keeping the only pgd_cache
-> > > initialization in pgd_cache_init() resolves the problem and allows
-> > > accounting of PGD memory.
-> > > 
-> > > Reported-by: Qian Cai <cai@lca.pw>
-> > > Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
-> > > ---
-> > >  arch/arm64/include/asm/pgtable.h | 3 +--
-> > >  arch/arm64/mm/pgd.c              | 5 +----
-> > >  2 files changed, 2 insertions(+), 6 deletions(-)
-> > 
-> > Looks like this actually fixes caa841360134 ("x86/mm: Initialize PGD cache
-> > during mm initialization") due to an unlucky naming conflict!
-> > 
-> > In which case, I'd actually prefer to take this fix asap via the arm64
-> > tree. Is that ok?
-> 
-> I suppose so, it just won't apply as is. Would you like a patch against the
-> current upstream?
+When PGD_SIZE != PAGE_SIZE, arm64 uses kmem_cache for allocation of PGD
+memory. That cache was initialized twice: first through
+pgtable_cache_init() alias and then as an override for weak
+pgd_cache_init().
 
-Yes, please. I'm assuming it's a straightforward change (please shout if it
-isn't).
+Remove the alias from pgtable_cache_init() and keep the only pgd_cache
+initialization in pgd_cache_init().
 
-Will
+Fixes: caa841360134 ("x86/mm: Initialize PGD cache during mm initialization")
+Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
+---
+ arch/arm64/include/asm/pgtable.h | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/arch/arm64/include/asm/pgtable.h b/arch/arm64/include/asm/pgtable.h
+index 2c41b04..851c68d 100644
+--- a/arch/arm64/include/asm/pgtable.h
++++ b/arch/arm64/include/asm/pgtable.h
+@@ -812,8 +812,7 @@ extern int kern_addr_valid(unsigned long addr);
+ 
+ #include <asm-generic/pgtable.h>
+ 
+-void pgd_cache_init(void);
+-#define pgtable_cache_init	pgd_cache_init
++static inline void pgtable_cache_init(void) { }
+ 
+ /*
+  * On AArch64, the cache coherency is handled via the set_pte_at() function.
+-- 
+2.7.4
 
