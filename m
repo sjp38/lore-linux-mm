@@ -2,155 +2,171 @@ Return-Path: <SRS0=8DoX=UR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CE8E7C31E5B
-	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 01:45:51 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A27B6C31E5B
+	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 01:51:01 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 915982084B
-	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 01:45:51 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 5BE6D20657
+	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 01:51:01 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="yNs5c0Qr"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 915982084B
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="aO3C7gus"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5BE6D20657
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0BD228E0005; Mon, 17 Jun 2019 21:45:51 -0400 (EDT)
+	id C52626B0005; Mon, 17 Jun 2019 21:51:00 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 06DE08E0001; Mon, 17 Jun 2019 21:45:51 -0400 (EDT)
+	id C03198E0003; Mon, 17 Jun 2019 21:51:00 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E9F748E0005; Mon, 17 Jun 2019 21:45:50 -0400 (EDT)
+	id AF22B8E0001; Mon, 17 Jun 2019 21:51:00 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id ACF9A8E0001
-	for <linux-mm@kvack.org>; Mon, 17 Jun 2019 21:45:50 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id e16so8886874pga.4
-        for <linux-mm@kvack.org>; Mon, 17 Jun 2019 18:45:50 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 78B7E6B0005
+	for <linux-mm@kvack.org>; Mon, 17 Jun 2019 21:51:00 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id k2so8869931pga.12
+        for <linux-mm@kvack.org>; Mon, 17 Jun 2019 18:51:00 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=v94EC3Ly9N8znMaUvo6aI0M5YUCyspTmqnqky3coBh8=;
-        b=tUE6TFaF505gjuVBikFmLlWOP/+fUGeWFwFCsbO3ioyT1A+9wPuvQr6HEwK5McBNow
-         xkOxkT9dA/BtZvk2ZpTBJQHcX1wXANcnZ1G9XH0wI9nHLGF679pcl2bXVh3XClWGvoJc
-         KXGKa2Ouj1qAwf6qpD/u3f1uNS6rxEg3+iIsIc7aPlEbLpQRurwn7ClVxapwPk2K9aR7
-         fQSRvWNhUZ9V/G2MKfTJjyxIx0gd8csf739JYo5PFFyZCigSCuKSlIYoQbf0yZHZgYYS
-         dqNwW6DYWSc11GpO5T8ZHNgRdC7AO47UcWwzuIWJNHP8WUc5T9eg5wo+twe6kQP+DwoZ
-         0P4w==
-X-Gm-Message-State: APjAAAVYir92r92VKd9riuV6X5nKYWIV2bpyYJCQuaOYs1bRT9UxQ9Fj
-	BOmvHU9JtM1fQG1owuNaGnkHVo8+zwK3+938eLG4S6jhSPGVqclMYOS7WDbXxiclRnQOLEV6RXD
-	cDoLyodi4i8t9wuPWA87lM5ioGgSkkMwv6wYKDGt7adW44d2J3A97zS9GNthWjAq52g==
-X-Received: by 2002:a17:902:8ec3:: with SMTP id x3mr24311747plo.313.1560822350360;
-        Mon, 17 Jun 2019 18:45:50 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxeTdFCNgCf0f/4N6PDhuLm++xdJfHfLh6XpcxUk5xXeqHB/e9eZ6EVLFAVER1lHee/YRBu
-X-Received: by 2002:a17:902:8ec3:: with SMTP id x3mr24311706plo.313.1560822349734;
-        Mon, 17 Jun 2019 18:45:49 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560822349; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=yGUUgP1uKXn/fRTt1KOFlBO2RYvvxLk1PzE3vsueHXw=;
+        b=icIGPh8RoZPuIf2N1DcBOpcJzJ2vCS1ZhxPTUpjjU61zq5+AMMqSV0JwbWHdKMK1jj
+         m9AuPpP2vgz0jhVv4oUuuIdwKwtDPhxgkhmkk1DBVhH1DnXCL69GjANned902qCAG3uZ
+         r1cxCJ/DdeeLB3Gj61PKfo7/TmdJPocDKXtX+FS7jpUk+YpTEg4t7R5+FgONV0f3vzAY
+         Hk11/+0pJPuQ0n3jCSMXzdsTjGLnAjMSlFQCHdDtNkr2cqoudfs/8QuJmMQrlpT+Ps5O
+         P9QlzrrXHGU5yyZC5k7O7vsRFe7Rz2AQ6pvwGbCYEflQDdtspFRz4h27Ptn/luYuQwBK
+         25yA==
+X-Gm-Message-State: APjAAAVNOtudTAwyPXEEd4enBlGfMX/BtTZWkWHZl1SeDqCcyr8OL5uE
+	fc+v83YdTzCp76U6zqkP2feIe8YxDgR02QqC8ESNv2O//t0ZGJWSmnxjO5uq6MJ0yTpugb0p/e6
+	AyVsyDImQ/PXhGCAWNT4Ou+SdAE9/jioRtq7tzGL68O6HoxG4OspH3G2/y0mIh3phbg==
+X-Received: by 2002:a17:90a:9382:: with SMTP id q2mr2325422pjo.131.1560822660084;
+        Mon, 17 Jun 2019 18:51:00 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyWVpcWe0tv2cK4NVa64H3axMlwp4iKucGTaBSvh1W0WMFWdFf2UpWqUs8VrfWVqT3/eDME
+X-Received: by 2002:a17:90a:9382:: with SMTP id q2mr2325380pjo.131.1560822659322;
+        Mon, 17 Jun 2019 18:50:59 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560822659; cv=none;
         d=google.com; s=arc-20160816;
-        b=oy2+VKs331dKPs7wdVlyaODC8HRRvkOgJ6PcTZ7qIV5OeWqn/jXlYCElUDhZb8DqTH
-         TDbrJAb8NMyo6neaJAitYAvBGyXTL5O6WldJTyM4vC4xlXBsCjyw72pUUw6+9uVU9HzW
-         u8ZsC/z1iQcIl9cTyesW0/WVhyZpoAW/1tbocIOIaWcl140oKo+olZavzvKgfi6DktfG
-         AUvH4QAqj6zIlw1mV4bkgdH9lrUSZXFllsGV9Nizqh0GU6o+yElGUASp4z/xVsLfn49G
-         xlE75y6KsH1RGgBqODXC7+lSEN4N7X63S1PCVDrTrn2Q/tG1/94Jq93hDvphyvKB51A0
-         88hg==
+        b=lMtodiStIvnV1I+0H5UiNbUHlTYRzA91Gu0ljJwCYELlmNe6O/Ny/rqf+8jKOsKKLK
+         C+T6iXYBqq4i665IKDmX+HHH6u7qTXmJ69NEZ49doWIdgzlMX+iZRQVwPu6536RVYZ4R
+         UJVPtqZfOEMe1IrjZB0lLnO+QFWVBnGXLpQKUtk80oFwWd/qmuvDSYjIIpS2OQk6Dhnl
+         5NBW65isRwX3uiFpR5Ws7okYvzA2xXF9uNJwkqLAJNymZO0BL9optvVQ7fGUeilJ2YIi
+         24/1/iou36FQ9bbNA36cqsP3jG8I+n2e3o0S0GEj5qEuy5DOPFRLu5NYmy6rdm4PIJ4+
+         YHLg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=v94EC3Ly9N8znMaUvo6aI0M5YUCyspTmqnqky3coBh8=;
-        b=GDKLsh3JQ/23yDtvvoaoJuqnBRYJKszOmj1e3ZW4ZOnrf8BvnoWK0KPFWO51Hdd3CH
-         I3KeNFf2D4/CumymUFfyd/2KBwJnVi7HTfggghKIdFI9HSwclgVzLXZGkKs3iaSYo6cj
-         AX8WGQtsQM7Fmpn81NFK54W8jep+HhbBqmGZVZhzy+VR4jzy/RX9YsPguzwbXgw/nfvA
-         vJRXBOUTLWU8c4XcUi2WH3/LAiM+wK7GDTBmAEM3nn9kuph+ZtfeFeDAw7zOIChL7BWI
-         QNG149smerONExLyL6Acrbcqoc/mNJGzQ5+zst0JsIkLIdtsLdimzfA5KefaN3Ic6Uzm
-         mlEQ==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=yGUUgP1uKXn/fRTt1KOFlBO2RYvvxLk1PzE3vsueHXw=;
+        b=zZnLAYiIn/i32lAfCpN9uSjvE/21C5wsCXImYHnuk+SUoqCvV9f6VbSYOwXjPLZf1L
+         FAypO0bB5MRS1hjdrQ95mXKmL/PmIMiNSv683GtKgeQ0OeE8gStMyKiMmeqxja3cthdw
+         1MVJE6nJM46mG0EcWs1jjT75aLuGBhhXp51atkLmCvOZhjIQm77S6qnOADhQLzO0RHKD
+         IjoGNccOSil+bNbBlFYf2Uazaght0IuAueKXKUSNufOKnApQurDkYB9d2h/Vx8boU4HL
+         r49/ihiuIWK4HlPVfAOjPFLqGgFzXnDfkAspoPq7HIJyicjU2inMw1bZzjAtfqzIYr/p
+         FmJw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=yNs5c0Qr;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+       dkim=pass header.i=@kernel.org header.s=default header.b=aO3C7gus;
+       spf=pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=luto@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id y6si12303910pgv.210.2019.06.17.18.45.49
+        by mx.google.com with ESMTPS id p9si2401916pgs.58.2019.06.17.18.50.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 17 Jun 2019 18:45:49 -0700 (PDT)
-Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        Mon, 17 Jun 2019 18:50:59 -0700 (PDT)
+Received-SPF: pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=yNs5c0Qr;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-Received: from localhost.localdomain (c-73-223-200-170.hsd1.ca.comcast.net [73.223.200.170])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+       dkim=pass header.i=@kernel.org header.s=default header.b=aO3C7gus;
+       spf=pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=luto@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail-wm1-f41.google.com (mail-wm1-f41.google.com [209.85.128.41])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 606D22082C;
-	Tue, 18 Jun 2019 01:45:48 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTPSA id 8FE4F2166E
+	for <linux-mm@kvack.org>; Tue, 18 Jun 2019 01:50:58 +0000 (UTC)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1560822349;
-	bh=oSzNYEyekhj/NlwHW0X2pXMLHkV8SDK6JssH3xf5sKg=;
-	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
-	b=yNs5c0QrkZ+OIgygnIUxK1vdNmaCS4P0DJmYxw82YOS8uUEUaNn7eElyjXdJTD7e6
-	 AfBWK397l1VTwpLOKs0GssDSAozZx2a+g3IrfRp4gA0WGzszrWdzhMeqc4VaY4cRJc
-	 ay+PycslEeYEG8Qr0sSGPmcGs7WwRl+eZQ6k8OdY=
-Date: Mon, 17 Jun 2019 18:45:47 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-To: Shakeel Butt <shakeelb@google.com>
-Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Michal Hocko
- <mhocko@kernel.org>, syzbot
- <syzbot+d0fc9d3c166bc5e4a94b@syzkaller.appspotmail.com>,
- "Eric W. Biederman" <ebiederm@xmission.com>, Roman Gushchin <guro@fb.com>,
- Johannes Weiner <hannes@cmpxchg.org>, =?ISO-8859-1?Q?J=E9r=F4me?= Glisse
- <jglisse@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Linux MM
- <linux-mm@kvack.org>, syzkaller-bugs <syzkaller-bugs@googlegroups.com>,
- yuzhoujian@didichuxing.com
-Subject: Re: general protection fault in oom_unkillable_task
-Message-Id: <20190617184547.5b81f7df81af46e86441ba8c@linux-foundation.org>
-In-Reply-To: <CALvZod5VPLVEwRzy83+wT=aA8vsrUkvoJJZvmQxyv4YbXvrQWw@mail.gmail.com>
-References: <0000000000004143a5058b526503@google.com>
-	<CALvZod72=KuBZkSd0ey5orJFGFpwx462XY=cZvO3NOXC0MogFw@mail.gmail.com>
-	<20190615134955.GA28441@dhcp22.suse.cz>
-	<CALvZod4hT39PfGt9Ohj+g77om5=G0coHK=+G1=GKcm-PowkXsw@mail.gmail.com>
-	<5bb1fe5d-f0e1-678b-4f64-82c8d5d81f61@i-love.sakura.ne.jp>
-	<CALvZod4etSv9Hv4UD=E6D7U4vyjCqhxQgq61AoTUCd+VubofFg@mail.gmail.com>
-	<791594c6-45a3-d78a-70b5-901aa580ed9f@i-love.sakura.ne.jp>
-	<840fa9f1-07e2-e206-2fc0-725392f96baf@i-love.sakura.ne.jp>
-	<c763afc8-f0ae-756a-56a7-395f625b95fc@i-love.sakura.ne.jp>
-	<CALvZod5VPLVEwRzy83+wT=aA8vsrUkvoJJZvmQxyv4YbXvrQWw@mail.gmail.com>
-X-Mailer: Sylpheed 3.5.1 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+	s=default; t=1560822658;
+	bh=9pADkGP6B9XPZnoSXHTdilPdPV8psk9Fh8iUhTu3lCw=;
+	h=References:In-Reply-To:From:Date:Subject:To:Cc:From;
+	b=aO3C7gusUpRN/F1U4OsRkHAd5bWRjQMfpkle66mvj1CdvoqtH8xKaAKZisXNpFECZ
+	 QOlRO1ZyOcvCR5lcG2FzLXrziVwwb7nFPBKZOO+serlPcj/7WLJ2HliilezLLDjCa7
+	 qcRrhJb8zqZ5haKe+GxoCxdEy5Z5yvR95St+9PVQ=
+Received: by mail-wm1-f41.google.com with SMTP id s3so1372939wms.2
+        for <linux-mm@kvack.org>; Mon, 17 Jun 2019 18:50:58 -0700 (PDT)
+X-Received: by 2002:a7b:cd84:: with SMTP id y4mr951107wmj.79.1560822657085;
+ Mon, 17 Jun 2019 18:50:57 -0700 (PDT)
+MIME-Version: 1.0
+References: <20190508144422.13171-1-kirill.shutemov@linux.intel.com>
+ <20190508144422.13171-46-kirill.shutemov@linux.intel.com> <CALCETrVCdp4LyCasvGkc0+S6fvS+dna=_ytLdDPuD2xeAr5c-w@mail.gmail.com>
+ <3c658cce-7b7e-7d45-59a0-e17dae986713@intel.com> <CALCETrUPSv4Xae3iO+2i_HecJLfx4mqFfmtfp+cwBdab8JUZrg@mail.gmail.com>
+ <5cbfa2da-ba2e-ed91-d0e8-add67753fc12@intel.com> <CALCETrWFXSndmPH0OH4DVVrAyPEeKUUfNwo_9CxO-3xy9awq0g@mail.gmail.com>
+ <d599b1d7-9455-3012-0115-96ddbad31833@intel.com> <1560818931.5187.70.camel@linux.intel.com>
+In-Reply-To: <1560818931.5187.70.camel@linux.intel.com>
+From: Andy Lutomirski <luto@kernel.org>
+Date: Mon, 17 Jun 2019 18:50:46 -0700
+X-Gmail-Original-Message-ID: <CALCETrXNCmSnrTwGiwuF9=wLu797WBPZ0gt92D-CyU+V3sq7hA@mail.gmail.com>
+Message-ID: <CALCETrXNCmSnrTwGiwuF9=wLu797WBPZ0gt92D-CyU+V3sq7hA@mail.gmail.com>
+Subject: Re: [PATCH, RFC 45/62] mm: Add the encrypt_mprotect() system call for MKTME
+To: Kai Huang <kai.huang@linux.intel.com>
+Cc: Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@kernel.org>, 
+	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, 
+	X86 ML <x86@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, 
+	"H. Peter Anvin" <hpa@zytor.com>, Borislav Petkov <bp@alien8.de>, Peter Zijlstra <peterz@infradead.org>, 
+	David Howells <dhowells@redhat.com>, Kees Cook <keescook@chromium.org>, 
+	Jacob Pan <jacob.jun.pan@linux.intel.com>, 
+	Alison Schofield <alison.schofield@intel.com>, Linux-MM <linux-mm@kvack.org>, 
+	kvm list <kvm@vger.kernel.org>, keyrings@vger.kernel.org, 
+	LKML <linux-kernel@vger.kernel.org>, Tom Lendacky <thomas.lendacky@amd.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 17 Jun 2019 06:23:07 -0700 Shakeel Butt <shakeelb@google.com> wrote:
-
-> > Here is a patch to use CSS_TASK_ITER_PROCS.
+On Mon, Jun 17, 2019 at 5:48 PM Kai Huang <kai.huang@linux.intel.com> wrote:
+>
+>
 > >
-> > From 415e52cf55bc4ad931e4f005421b827f0b02693d Mon Sep 17 00:00:00 2001
-> > From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> > Date: Mon, 17 Jun 2019 00:09:38 +0900
-> > Subject: [PATCH] mm: memcontrol: Use CSS_TASK_ITER_PROCS at mem_cgroup_scan_tasks().
+> > > And another silly argument: if we had /dev/mktme, then we could
+> > > possibly get away with avoiding all the keyring stuff entirely.
+> > > Instead, you open /dev/mktme and you get your own key under the hook.
+> > > If you want two keys, you open /dev/mktme twice.  If you want some
+> > > other program to be able to see your memory, you pass it the fd.
 > >
-> > Since commit c03cd7738a83b137 ("cgroup: Include dying leaders with live
-> > threads in PROCS iterations") corrected how CSS_TASK_ITER_PROCS works,
-> > mem_cgroup_scan_tasks() can use CSS_TASK_ITER_PROCS in order to check
-> > only one thread from each thread group.
-> >
-> > Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> 
-> Reviewed-by: Shakeel Butt <shakeelb@google.com>
-> 
-> Why not add the reproducer in the commit message?
+> > We still like the keyring because it's one-stop-shopping as the place
+> > that *owns* the hardware KeyID slots.  Those are global resources and
+> > scream for a single global place to allocate and manage them.  The
+> > hardware slots also need to be shared between any anonymous and
+> > file-based users, no matter what the APIs for the anonymous side.
+>
+> MKTME driver (who creates /dev/mktme) can also be the one-stop-shopping. I think whether to choose
+> keyring to manage MKTME key should be based on whether we need/should take advantage of existing key
+> retention service functionalities. For example, with key retention service we can
+> revoke/invalidate/set expiry for a key (not sure whether MKTME needs those although), and we have
+> several keyrings -- thread specific keyring, process specific keyring, user specific keyring, etc,
+> thus we can control who can/cannot find the key, etc. I think managing MKTME key in MKTME driver
+> doesn't have those advantages.
+>
 
-That would be nice.
+Trying to evaluate this with the current proposed code is a bit odd, I
+think.  Suppose you create a thread-specific key and then fork().  The
+child can presumably still use the key regardless of whether the child
+can nominally access the key in the keyring because the PTEs are still
+there.
 
-More nice would be, as always, a descriptoin of the user-visible impact
-of the patch.
+More fundamentally, in some sense, the current code has no semantics.
+Associating a key with memory and "encrypting" it doesn't actually do
+anything unless you are attacking the memory bus but you haven't
+compromised the kernel.  There's no protection against a guest that
+can corrupt its EPT tables, there's no protection against kernel bugs
+(*especially* if the duplicate direct map design stays), and there
+isn't even any fd or other object around by which you can only access
+the data if you can see the key.
 
-As I understand it, it's just a bit of a cleanup against current
-mainline but without this patch in place, Shakeel's "mm, oom: refactor
-dump_tasks for memcg OOMs" will cause kernel crashes.  Correct?
+I'm also wondering whether the kernel will always be able to be a
+one-stop shop for key allocation -- if the MKTME hardware gains
+interesting new uses down the road, who knows how key allocation will
+work?
 
