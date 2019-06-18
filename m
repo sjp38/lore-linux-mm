@@ -2,139 +2,184 @@ Return-Path: <SRS0=8DoX=UR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.1 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 051DCC31E51
-	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 13:27:33 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BAB0DC31E5E
+	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 13:32:34 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BA65920679
-	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 13:27:32 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="n3ZDxpzb"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BA65920679
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	by mail.kernel.org (Postfix) with ESMTP id 80D0220B1F
+	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 13:32:34 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 80D0220B1F
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5B4746B0005; Tue, 18 Jun 2019 09:27:32 -0400 (EDT)
+	id 16A4B8E0002; Tue, 18 Jun 2019 09:32:34 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 564AE8E0002; Tue, 18 Jun 2019 09:27:32 -0400 (EDT)
+	id 1427D8E0001; Tue, 18 Jun 2019 09:32:34 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 47A5D8E0001; Tue, 18 Jun 2019 09:27:32 -0400 (EDT)
+	id 0304C8E0002; Tue, 18 Jun 2019 09:32:33 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 100FE6B0005
-	for <linux-mm@kvack.org>; Tue, 18 Jun 2019 09:27:32 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id g11so7781578plt.23
-        for <linux-mm@kvack.org>; Tue, 18 Jun 2019 06:27:32 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id A6FF38E0001
+	for <linux-mm@kvack.org>; Tue, 18 Jun 2019 09:32:33 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id n49so21290219edd.15
+        for <linux-mm@kvack.org>; Tue, 18 Jun 2019 06:32:33 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=R8Y3KUjrFsX7X/g2S4dMsmTowqPuT9Y71h6/+llmgw0=;
-        b=WgcAsUupZMpxXlg5dVyE4AYK7Y9yIN+NtpL+0tLDt4QE8V4eOAIVZy+ylZD71NDGk/
-         lz8WDnk8cSSAqgyiOzkPGjWUXvhwXg/xzNQJ+dSIlNvuQgYSlyGluOMOyBCiG4zjiKmR
-         mnKaz86eBI4Y8fSHKYcH6O0rN+EKaD4sIu9KpBMX9fETT9GY2ZHtx10aRe0WorHo1wrL
-         jJzULFGebXdFCxf1POgJ5//BpfNGy97cuwVj04Hnz8uu3NnupziYvzAVRmwB+LN/5+W1
-         3SP9i3fMqyVTEGcY962S+J7q3pDiLmFA+Utnp3/x6PV4UDPIPsB5wo32moZNr+irJZH5
-         uzwQ==
-X-Gm-Message-State: APjAAAXFteRaEcxAYSM1FDEbunWMYJeD32zjf+aMis6Y/APRl5ms+KDZ
-	NlDeigWDRCu2h/YQ0x+kfdR54ic/Jtw+rHaPEPBtnmpeJG9IsYDh212Kz+PYr5oG/v+Im5hwXjI
-	MQrOHYzbzIzfBCGM/g1Nsz3rVUAfaEP8NnuhwVcKgpXkBEr6Eu4QMkI2aHjAEgEa2xg==
-X-Received: by 2002:a62:6344:: with SMTP id x65mr15239344pfb.111.1560864451536;
-        Tue, 18 Jun 2019 06:27:31 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzvZmRUzHTDuSTcm+HELhAgWWODbWi97Cm/Q5dLzh4kNUjcmvRXCwgeV/unF8uGhrm+0Fxj
-X-Received: by 2002:a62:6344:: with SMTP id x65mr15239288pfb.111.1560864450973;
-        Tue, 18 Jun 2019 06:27:30 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560864450; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=N4pVrL6usQLH6c5p5qN/YVIiWKQ3Q0SXmNB3pZRT4Ac=;
+        b=QcT7khPOVonrzHV+mZZno7mFlCsr/Jmlp0pdt0kGzqjIJx/dtswVBXKv4gdLjbxs5Q
+         JXWw2j9osLzdKJ8zyRDQ6ACaHQeNIr1Ssy+Co2snYyder3duURdbX5WZnriyRzxdKR/k
+         VhbOTrfMriZAZ8gS0G3t1j0jOxz2zRVNY5b/RCyrxWTy7CI146EbwbT3s1JLynyQXaBQ
+         Dmm958iIVNEFpjVa/++S6uASjJXT+JxX47DVhniO89xu6rzUWG1w5OHvmXMLMVYkq4fb
+         cQC3kdtyT3mBidwvA2iUjlt0zlySn+jn56sJNTRJtJgdHDrzvbucbibR6XjK5Di9Wj4O
+         rylA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.martin@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=Dave.Martin@arm.com
+X-Gm-Message-State: APjAAAVS9V1nMh2v8t2wmwQkc47yZNe/CHXzMMppTlulLH4ycf9legDv
+	5MxWRbqL63QgFoUxBswhYviLjLcYFoEnfO4jtovjjwAktWQfsyYKjc6DCt/7+1nJNmgeU8IHSOv
+	YvFFTEYTtFfa2h6DCoyzvk4GvPDvK/3Xc7Wpg7Tl/KTUBvfMiF65jcp74K19x6VqYMQ==
+X-Received: by 2002:a50:9441:: with SMTP id q1mr97943387eda.41.1560864753112;
+        Tue, 18 Jun 2019 06:32:33 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwJB3Ti90YJy1qyKirv2txLkFArIZ+H9/xss3bzds9Yz45SF/JgYu/BSiqd+dyboLzc97do
+X-Received: by 2002:a50:9441:: with SMTP id q1mr97943275eda.41.1560864752244;
+        Tue, 18 Jun 2019 06:32:32 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560864752; cv=none;
         d=google.com; s=arc-20160816;
-        b=f2IHoUz++vEJtPUU8xhylwLgdhONOsnAA7phunEg8abMJTzDzLxBfCRPxMaZuE+t4+
-         ixyNM7M98Xu9W4x+9x8GrcoBLTSmcIsffImXaKnWMXBnYdigb8c0pjDx/g9ZpA91MZMr
-         VeXVK0eIEhZf2XKtYudJniYByoDK0mzV0iBKmCclK9JjCWAxIPP1NqCnCpOAvqm1EEEi
-         lZ1+3GtS+9Z6VUygs4kHhP2vRB76FdvukeACWYcsyiMPflQdzbRMUy0sTcN+Fyh4D3Lp
-         LSz/S5SvU/8F78fcUoICRkTHy7XbTpSX8+kdTop44KejVH8xrz6Vq2w6/kJd2gK+Vc4s
-         22UQ==
+        b=diYw7ey8tbBVjCuYUVzoHu0Y1PxQqwS0842IxbFI0WlgFHSDrJCBJXI6yWFheRGTvu
+         Gdij65ygmJW1uwi4TdVka5wfZm0BuyavHdAJfzjZnncCmDiOyVtN8z2ztpKKTO+FyFMd
+         3rI2Y51B2JDLZ+fNtqFpl2PQS5YYPNIx0cZZZPiTmFI4OseIo2pKr5x/2BoniREbJCAK
+         /Jo/5ZeZJIaYZHjzwWJ4LH4Er2Qe4W2tg5pwEzhx7x6cQPebZ6mhaCQhg/8JlUgjmL+l
+         hxPSXhFX1y21OoEvd9HmAh6z+zgFjM8pvS8nmYip3C7tTJVfkZ1CaDptzL6XhQO/tD4f
+         TzLw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=R8Y3KUjrFsX7X/g2S4dMsmTowqPuT9Y71h6/+llmgw0=;
-        b=Q4zxbzu+AokhI/KpjBmyD4GC12aI0OCpt+CZcM/DkArXiyt1PmkZQMGIlWVRIYsFVO
-         bqOa0yZ8bwUnRUoG0k8pSdgC4oKiUjp2ku3Y06eEEw7N7gy9M8js6SIh2GiUy/uXJAJv
-         +CqlpKUwqoxpBWX5HtNyVpCZGPtoxY25womEhvS7Y8s18W7nNqTANhM/2rEPTj9GpTFu
-         8uSUie1PsfR2ENvm7ucNOiOMXfz38GCkSO2wO+w4Fs+qOymD5Q7Rmu5ioFn1eAP+SASO
-         iJceP5e5txH31R7+s3uuA7i70ISULTQzFrKEr/PwiRQsEPV/7XJZtdQD11rHdXr1/YiO
-         ScWg==
+         :message-id:subject:cc:to:from:date;
+        bh=N4pVrL6usQLH6c5p5qN/YVIiWKQ3Q0SXmNB3pZRT4Ac=;
+        b=lMeoe0O0hvwL+e4+mDJO2lPDwqdYXKd2H1rdHvdh89vCliHfOP4RKH+HVEgRgSaL0C
+         vzE8i2sIDtwmULtxitr4lj7ukvDfJYLLcfMdoL54kZ76bPDQ/yq3lIeIDNtZv+zT8sKt
+         XchTt2Y2qTzk9CDziEJv91BiKRg/nUbpq2k/ACH5eHsordMTiUmRvyM+0OeDh0OVtd0F
+         zLR9nCR33Rudpz2p3po1bDo35xmvQCPn4S1ZXPtOQB6EFgF3pWNb8zw06yD2qc52yo0m
+         hKEvtPhpT4mjhINnpgi6cjk85aDWoHT6OqLJIeYPLvgKd5BmXlM9nr/qUsdgWOBYJnAz
+         Stew==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=n3ZDxpzb;
-       spf=pass (google.com: best guess record for domain of batv+aaa270176d60fe65a2bf+5777+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+aaa270176d60fe65a2bf+5777+infradead.org+hch@bombadil.srs.infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id d21si3700052pll.369.2019.06.18.06.27.30
-        for <linux-mm@kvack.org>
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Tue, 18 Jun 2019 06:27:30 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of batv+aaa270176d60fe65a2bf+5777+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+       spf=pass (google.com: domain of dave.martin@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=Dave.Martin@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
+        by mx.google.com with ESMTP id c18si10869120edc.229.2019.06.18.06.32.31
+        for <linux-mm@kvack.org>;
+        Tue, 18 Jun 2019 06:32:32 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dave.martin@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=n3ZDxpzb;
-       spf=pass (google.com: best guess record for domain of batv+aaa270176d60fe65a2bf+5777+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+aaa270176d60fe65a2bf+5777+infradead.org+hch@bombadil.srs.infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=R8Y3KUjrFsX7X/g2S4dMsmTowqPuT9Y71h6/+llmgw0=; b=n3ZDxpzbEjb8R1YKJLBpAmwI5
-	fg4UHLI0YBDL1Xe27VYvdUCGF95z2vAUdWoaWGPThlJIFk6rgNQuGjNp5TDE1LLU9ECS4LxQw96ML
-	+RCnUJDGNPupO5iWQgPgY71z5jdI6LT9v+5khZpolVw0InzMNQKiIn4/PHhnOF17eUM1E32oFnzqC
-	iWauMQoWTacJNZ46XZqRsJeWRwGpaq1/Dv10jtsfzimXcwJGM/5zSO47R/FPNsz/wwBuKwfpsz2uG
-	yZpfrSudQW9FDkAJR2C2gjZlV/jsEeePTa3LPRYnyVcRAYJnFrHd7UlJ5Qr1Dwk10+mVVNEVELOb+
-	AJSeWlhpA==;
-Received: from hch by bombadil.infradead.org with local (Exim 4.92 #3 (Red Hat Linux))
-	id 1hdE8w-0000uS-GG; Tue, 18 Jun 2019 13:27:22 +0000
-Date: Tue, 18 Jun 2019 06:27:22 -0700
-From: Christoph Hellwig <hch@infradead.org>
-To: Jason Gunthorpe <jgg@ziepe.ca>
-Cc: Christoph Hellwig <hch@infradead.org>,
-	Jerome Glisse <jglisse@redhat.com>,
-	Ralph Campbell <rcampbell@nvidia.com>,
-	John Hubbard <jhubbard@nvidia.com>, Felix.Kuehling@amd.com,
-	linux-rdma@vger.kernel.org, linux-mm@kvack.org,
-	Andrea Arcangeli <aarcange@redhat.com>,
-	dri-devel@lists.freedesktop.org, amd-gfx@lists.freedesktop.org,
-	Ben Skeggs <bskeggs@redhat.com>, Philip Yang <Philip.Yang@amd.com>
-Subject: Re: [PATCH v3 hmm 08/12] mm/hmm: Remove racy protection against
- double-unregistration
-Message-ID: <20190618132722.GA1633@infradead.org>
-References: <20190614004450.20252-1-jgg@ziepe.ca>
- <20190614004450.20252-9-jgg@ziepe.ca>
- <20190615141612.GH17724@infradead.org>
- <20190618131324.GF6961@ziepe.ca>
+       spf=pass (google.com: domain of dave.martin@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=Dave.Martin@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 2CBDA2B;
+	Tue, 18 Jun 2019 06:32:31 -0700 (PDT)
+Received: from e103592.cambridge.arm.com (usa-sjc-imap-foss1.foss.arm.com [10.121.207.14])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 956973F718;
+	Tue, 18 Jun 2019 06:32:27 -0700 (PDT)
+Date: Tue, 18 Jun 2019 14:32:25 +0100
+From: Dave Martin <Dave.Martin@arm.com>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Florian Weimer <fweimer@redhat.com>,
+	Thomas Gleixner <tglx@linutronix.de>,
+	Yu-cheng Yu <yu-cheng.yu@intel.com>, x86@kernel.org,
+	"H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>,
+	linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org,
+	linux-mm@kvack.org, linux-arch@vger.kernel.org,
+	linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>,
+	Andy Lutomirski <luto@amacapital.net>,
+	Balbir Singh <bsingharora@gmail.com>,
+	Borislav Petkov <bp@alien8.de>,
+	Cyrill Gorcunov <gorcunov@gmail.com>,
+	Dave Hansen <dave.hansen@linux.intel.com>,
+	Eugene Syromiatnikov <esyr@redhat.com>,
+	"H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>,
+	Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>,
+	Mike Kravetz <mike.kravetz@oracle.com>,
+	Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>,
+	Pavel Machek <pavel@ucw.cz>, Randy Dunlap <rdunlap@infradead.org>,
+	"Ravi V. Shankar" <ravi.v.shankar@intel.com>,
+	Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
+Subject: Re: [PATCH v7 22/27] binfmt_elf: Extract .note.gnu.property from an
+ ELF file
+Message-ID: <20190618133223.GD2790@e103592.cambridge.arm.com>
+References: <87lfy9cq04.fsf@oldenburg2.str.redhat.com>
+ <20190611114109.GN28398@e103592.cambridge.arm.com>
+ <031bc55d8dcdcf4f031e6ff27c33fd52c61d33a5.camel@intel.com>
+ <20190612093238.GQ28398@e103592.cambridge.arm.com>
+ <87imt4jwpt.fsf@oldenburg2.str.redhat.com>
+ <alpine.DEB.2.21.1906171418220.1854@nanos.tec.linutronix.de>
+ <20190618091248.GB2790@e103592.cambridge.arm.com>
+ <20190618124122.GH3419@hirez.programming.kicks-ass.net>
+ <87ef3r9i2j.fsf@oldenburg2.str.redhat.com>
+ <20190618125512.GJ3419@hirez.programming.kicks-ass.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190618131324.GF6961@ziepe.ca>
-User-Agent: Mutt/1.11.4 (2019-03-13)
-X-SRS-Rewrite: SMTP reverse-path rewritten from <hch@infradead.org> by bombadil.infradead.org. See http://www.infradead.org/rpr.html
+In-Reply-To: <20190618125512.GJ3419@hirez.programming.kicks-ass.net>
+User-Agent: Mutt/1.5.23 (2014-03-12)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jun 18, 2019 at 10:13:24AM -0300, Jason Gunthorpe wrote:
-> > I don't even think we even need to bother with the POISON, normal list
-> > debugging will already catch a double unregistration anyway.
+On Tue, Jun 18, 2019 at 02:55:12PM +0200, Peter Zijlstra wrote:
+> On Tue, Jun 18, 2019 at 02:47:00PM +0200, Florian Weimer wrote:
+> > * Peter Zijlstra:
+> > 
+> > > I'm not sure I read Thomas' comment like that. In my reading keeping the
+> > > PT_NOTE fallback is exactly one of those 'fly workarounds'. By not
+> > > supporting PT_NOTE only the 'fine' people already shit^Hpping this out
+> > > of tree are affected, and we don't have to care about them at all.
+> > 
+> > Just to be clear here: There was an ABI document that required PT_NOTE
+> > parsing.
 > 
-> mirror->hmm isn't a list so list debugging won't help.
+> URGH.
 > 
-> My concern when I wrote this was that one of the in flight patches I
-> can't see might be depending on this double-unregister-is-safe
-> behavior, so I wanted them to crash reliably.
+> > The Linux kernel does *not* define the x86-64 ABI, it only
+> > implements it.  The authoritative source should be the ABI document.
+> >
+> > In this particularly case, so far anyone implementing this ABI extension
+> > tried to provide value by changing it, sometimes successfully.  Which
+> > makes me wonder why we even bother to mainatain ABI documentation.  The
+> > kernel is just very late to the party.
 > 
-> It is a really overly conservative thing to do..
+> How can the kernel be late to the party if all of this is spinning
+> wheels without kernel support?
 
-mirror->list is a list, and if we do a list_del on it during the
-second unregistration it will trip up on the list poisoning.
+PT_GNU_PROPERTY is mentioned and allocated a p_type value in hjl's
+spec [1], but otherwise seems underspecified.
+
+In particular, it's not clear whether a PT_GNU_PROPERTY phdr _must_ be
+emitted for NT_GNU_PROPERTY_TYPE_0.  While it seems a no-brainer to emit
+it, RHEL's linker already doesn't IIUC, and there are binaries in the
+wild.
+
+Maybe this phdr type is a late addition -- I haven't attempted to dig
+through the history.
+
+
+For arm64 we don't have this out-of-tree legacy to support, so we can
+avoid exhausitvely searching for the note: no PT_GNU_PROPERTY ->
+no note.
+
+So, can we do the same for x86, forcing RHEL to carry some code out of
+tree to support their legacy binaries?  Or do we accept that there is
+already a de facto ABI and try to be compatible with it?
+
+
+From my side, I want to avoid duplication between x86 and arm64, and
+keep unneeded complexity out of the ELF loader where possible.
+
+Cheers
+---Dave
+
+
+[1] https://github.com/hjl-tools/linux-abi/wiki/Linux-Extensions-to-gABI
 
