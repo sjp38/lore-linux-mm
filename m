@@ -4,198 +4,136 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-8.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+	URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 83E36C31E51
-	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 09:54:09 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2D012C31E51
+	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 10:21:48 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 20425206BA
-	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 09:54:08 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 20425206BA
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arndb.de
+	by mail.kernel.org (Postfix) with ESMTP id B65772085A
+	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 10:21:47 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B65772085A
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=I-love.SAKURA.ne.jp
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 84FE26B0003; Tue, 18 Jun 2019 05:54:08 -0400 (EDT)
+	id 52E986B0003; Tue, 18 Jun 2019 06:21:47 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 801968E0002; Tue, 18 Jun 2019 05:54:08 -0400 (EDT)
+	id 4DF228E0002; Tue, 18 Jun 2019 06:21:47 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6EFBD8E0001; Tue, 18 Jun 2019 05:54:08 -0400 (EDT)
+	id 3A7C88E0001; Tue, 18 Jun 2019 06:21:47 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 2058B6B0003
-	for <linux-mm@kvack.org>; Tue, 18 Jun 2019 05:54:08 -0400 (EDT)
-Received: by mail-wr1-f69.google.com with SMTP id i2so5880452wrp.12
-        for <linux-mm@kvack.org>; Tue, 18 Jun 2019 02:54:08 -0700 (PDT)
+Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 1A1B86B0003
+	for <linux-mm@kvack.org>; Tue, 18 Jun 2019 06:21:47 -0400 (EDT)
+Received: by mail-io1-f71.google.com with SMTP id y5so15615618ioj.10
+        for <linux-mm@kvack.org>; Tue, 18 Jun 2019 03:21:47 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:mime-version:content-transfer-encoding;
-        bh=SgnmHDwEv21XaHv/ypCvWtdlqKd3kLHEL/ZSPKbCoWM=;
-        b=BI9x9wpNCMPo+wm2MydXTOCuhR0pUWIIqAYcizIGslpQh29k7UYZebP959scjZEkXU
-         l3xjbFfZF1ai9lKrat3/zNNJZ8+0j3Tql3XuFLx03N8ov6WeO5E5pIeDAeNz/JAhqr/d
-         NCowybn8b5rmmcILECwuV63Of2ZVip0Hsn+/LKKjbTgTYgc84p2tFmqFQ7oJ7JPwajvb
-         6KS0uLz8U2w2LTv/Q2pEY54cIaLKcWmYPhoJEf/7/M4PszJxv5x60HWC3LzARSgKItLd
-         fusXLuVqkYSTB4igK3FYzDbKfB5ii/MSy2IrpaVq0GWkoVbqIl0x5KRkkl2+3Se40MVA
-         ezlg==
-X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 212.227.126.131 is neither permitted nor denied by best guess record for domain of arnd@arndb.de) smtp.mailfrom=arnd@arndb.de
-X-Gm-Message-State: APjAAAWcqz/AYhP40Cy96N6lMmSlVNEUAEHPrTpYHc9rEGgdUEFX1ZJv
-	tI9Du9mPZwByjT82X+Ctl0Wv6PN4azj+98hP5hIy2a1+0FCSeMLHYh5jhDWYvegNhavqcSfLHGa
-	QjmdKR8xp0o81ySVEuzwD4QSoZ8XF+c36zLJc08mdt1n2UIeFB5wk7H1TdYqeKaQ=
-X-Received: by 2002:a5d:540e:: with SMTP id g14mr5201479wrv.346.1560851647527;
-        Tue, 18 Jun 2019 02:54:07 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwTN8u+6mgOmRHxwiAApr/HV8snptQiE3Fz1JxVLSfi9zb+AVfzjSjhhFUq84Xd0tySLPDq
-X-Received: by 2002:a5d:540e:: with SMTP id g14mr5201416wrv.346.1560851646624;
-        Tue, 18 Jun 2019 02:54:06 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560851646; cv=none;
+         :subject:date:message-id;
+        bh=0zuk9ap3kdii5bGymjz3VhOYqS2Fp0WNvD9SwPrFQ54=;
+        b=rmr4qhHBETeKAl133JEG9Gy6aWZESVg4d10r6mv8nwQWbAj5bMCGq9JlElrUjXaut1
+         nRTm3GXPQCNsvOt2y+kuE5A7x6T6irOSDlh9LT0L8tMs2/dIXD5gNQOq7ZFvkxucbH4N
+         ajlvec6f5H3qlUE/n8/Gp2iH6MJXNJjh/6Gkf1bIbXwTnFlT35IcvSN+9ejWTGbRTyGq
+         4IXrTlf/yvm/ZCzW1ijsFbeE4IxN/MQ9pPZUX9HeBJgRfB9ZLHauqBoggFAhwrCpU+e/
+         yxY+629n1CYhMei9wYA0d8K6JRKJWwmIRRYFqqfciAbwBglNVS/slCBdKsoyzDIQFL1w
+         GKsw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
+X-Gm-Message-State: APjAAAVO3Fb3OnabO6wgUQubpq6qgsw2cyfRsflBAbwIhiwpU8JSxqR7
+	+FlCRG27Iv+X8iAC0YR6uFYMIupyuiDBTqQY0AFYJZbnvNLOVl7yy8X3Qk+mg7D2fp1LJAhvfUo
+	p8YNchtr2ojq4dUr74vcjjta0W7A68+4gLka/JXCx2mYNaRC4LXzyH6YrBg1lPtRBCA==
+X-Received: by 2002:a5d:9047:: with SMTP id v7mr60892404ioq.18.1560853306878;
+        Tue, 18 Jun 2019 03:21:46 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqz1ozq2rr1R2QTsE0S0KHX0UZzr/VCosEKAQFDUG+va/2/UquFgTeCAMyMl+C6cknQF7adw
+X-Received: by 2002:a5d:9047:: with SMTP id v7mr60892253ioq.18.1560853304532;
+        Tue, 18 Jun 2019 03:21:44 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560853304; cv=none;
         d=google.com; s=arc-20160816;
-        b=dJhyKlvEn9b7Las5xkLjAk+WoJVmjyr2BgrzDl88Ggt62JrvqYs5uKjK6KxD/UjSba
-         C50gFlnrYdJ/DMkEQxrC/2QbgX7g3zhs4r2XgOLSG7paLNA19AwtlurGlJvQFnibjIyL
-         vyW8RySCKzQhO29SRCQ75lKgTcmJ8IbFUTV+fc4euU/oGefY1X2MHrb/mdOtOdpTtyPR
-         sQtVHYE58wOKVLSVDWeOid+pua1o7mdZx2JW8tWzkKxHQalxGLjU1eHCp5TMvvf+xQlt
-         3Kbpfft9RUBbeCTjd8mK8iJBu3rh+jZ2Vj/00j92n8bBmIpdIlyKrc/Os9gRSsz6rsgs
-         89PA==
+        b=fkkzLfA68tsYjFMCv4mt/+z9JV9yBGBwIBRlXw1lXiQoYz/4FI96Id0C/neSbE0cUw
+         0lqhHkpFzFt0uRF0phbFkU8AbcxRFJmXecVohJofH07I9G/WXfmhecqch4QsfGhrlnf7
+         sO5AAv4+UESdTtDHajdL6gu/jp4O89hK1om+oesFbEjKsHW0vTqhYXEb2vBRfpvrdvfX
+         n6nIPuvmMaxEQ56Ta49biaGVK+MlrfmAUxQu504CdJIo7l4gSle/m6BveUUwd7cRwOB9
+         MTveXS/XyMqm2XIoshq10bN7dQc7dnBiCB46Ew3I+lTUdsfSbblSHY2m/54dC4pt4WsU
+         r2aw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
-         :to:from;
-        bh=SgnmHDwEv21XaHv/ypCvWtdlqKd3kLHEL/ZSPKbCoWM=;
-        b=vrp44MAf1elt+dZ2e+F8PEhD6naVT14RhCPeir7ZRa02H5LnxpS+qdhKiQvjhZP4D1
-         MixkbSx/rcEXg9lAUOTxvo8syMlsK7UZnDgelhRGd7MxxPkRuUMO2rEsH9bBJAlRcPhl
-         ifl48OxbBFcMDqb1viIvWtsDxVjg2LwKZzI9NettOppQ42MAVIdanYpzmqZB67d/+Ftg
-         UvkotWd4VJnnz9wTJq1UzeVHHjUPjmZVNL7jU57AHucMgqhwPA8b9vuFUXdz/cEkjVzu
-         PVroyfvAmOBu3GkYTdd8i5VJMHD0l2J+h4J+6/eSZHUnNMTdMBBkEZQSO3Xy7BMBOzU/
-         ml7A==
+        h=message-id:date:subject:cc:to:from;
+        bh=0zuk9ap3kdii5bGymjz3VhOYqS2Fp0WNvD9SwPrFQ54=;
+        b=KOkMjhJkH0baA/P/VZRPf/cmNDpk6WqHLrrHBszMNpGbGG17MI5vEmICUyfjQZ766P
+         sBxPZmPLqUkZGd2tUgygQFVLVKa82PqRoEHM+xnHoJArX3sPqxEi2viWYdtBLPbXc/RG
+         OVZTNGctF04yL+9uGRgQ6DgUc52Gg7br5kFc97r1ADzINMibAkSKjYI3R1/n204Tx4Yh
+         Mrf55lx8aU3Dphetpd9Q5QNQcS9H5NkXlQAZLuKoETG9mYe3P1ZQohY6MwZMtSGCDwlQ
+         a70pmDoV9yx7QfzqTLUWc1HjsfB5fs/roYYmO1Z9ToGE59TefQIjZB7dJsmztpJiJMtt
+         gU1w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=neutral (google.com: 212.227.126.131 is neither permitted nor denied by best guess record for domain of arnd@arndb.de) smtp.mailfrom=arnd@arndb.de
-Received: from mout.kundenserver.de (mout.kundenserver.de. [212.227.126.131])
-        by mx.google.com with ESMTPS id d14si13463438wrr.306.2019.06.18.02.54.06
+       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id m18si11065510jaa.95.2019.06.18.03.21.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 18 Jun 2019 02:54:06 -0700 (PDT)
-Received-SPF: neutral (google.com: 212.227.126.131 is neither permitted nor denied by best guess record for domain of arnd@arndb.de) client-ip=212.227.126.131;
+        Tue, 18 Jun 2019 03:21:44 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) client-ip=202.181.97.72;
 Authentication-Results: mx.google.com;
-       spf=neutral (google.com: 212.227.126.131 is neither permitted nor denied by best guess record for domain of arnd@arndb.de) smtp.mailfrom=arnd@arndb.de
-Received: from threadripper.lan ([149.172.19.189]) by mrelayeu.kundenserver.de
- (mreue010 [212.227.15.129]) with ESMTPA (Nemesis) id
- 1Ma1kC-1i95I60lue-00W10Y; Tue, 18 Jun 2019 11:54:02 +0200
-From: Arnd Bergmann <arnd@arndb.de>
+       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
+Received: from fsav101.sakura.ne.jp (fsav101.sakura.ne.jp [27.133.134.228])
+	by www262.sakura.ne.jp (8.15.2/8.15.2) with ESMTP id x5IALFcr066488;
+	Tue, 18 Jun 2019 19:21:15 +0900 (JST)
+	(envelope-from penguin-kernel@I-love.SAKURA.ne.jp)
+Received: from www262.sakura.ne.jp (202.181.97.72)
+ by fsav101.sakura.ne.jp (F-Secure/fsigk_smtp/530/fsav101.sakura.ne.jp);
+ Tue, 18 Jun 2019 19:21:15 +0900 (JST)
+X-Virus-Status: clean(F-Secure/fsigk_smtp/530/fsav101.sakura.ne.jp)
+Received: from ccsecurity.localdomain (softbank126012062002.bbtec.net [126.12.62.2])
+	(authenticated bits=0)
+	by www262.sakura.ne.jp (8.15.2/8.15.2) with ESMTPSA id x5IALA0K066330
+	(version=TLSv1.2 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=NO);
+	Tue, 18 Jun 2019 19:21:15 +0900 (JST)
+	(envelope-from penguin-kernel@I-love.SAKURA.ne.jp)
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>,
-	Alexander Potapenko <glider@google.com>,
-	Dmitry Vyukov <dvyukov@google.com>,
-	kasan-dev@googlegroups.com,
-	linux-mm@kvack.org,
-	Arnd Bergmann <arnd@arndb.de>,
-	Andrey Konovalov <andreyknvl@google.com>,
-	Will Deacon <will.deacon@arm.com>,
-	Christoph Lameter <cl@linux.com>,
-	Mark Rutland <mark.rutland@arm.com>,
-	Linus Torvalds <torvalds@linux-foundation.org>,
-	linux-kernel@vger.kernel.org
-Subject: [PATCH] [v2] page flags: prioritize kasan bits over last-cpuid
-Date: Tue, 18 Jun 2019 11:53:27 +0200
-Message-Id: <20190618095347.3850490-1-arnd@arndb.de>
-X-Mailer: git-send-email 2.20.0
-MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-X-Provags-ID: V03:K1:bUJwQclvqm/katzhhzycV3+/zOxa7NbjGOKFIqH4EXPNW02vwyN
- lRoCJ9pDU+WbEFJZSH5TpY8rP8VBIOStIKLRBqcBtosxCv5LlrE/rA1pQcShjiptjGdXGMx
- y9Yby5nkzWG9VqIi84t+aokD+Qbu9EaMbAUpG7WpjvuQIBC7Yyl1HNU0eFDofbbcqLY2YTW
- O5MFfR4770dZqo2qlu0aQ==
-X-UI-Out-Filterresults: notjunk:1;V03:K0:iIwUq5FcHw4=:EB3SY0U94Oo+TOTWQB9G2D
- PP+nddwoiOQnZ5tkbYk2Lh2TJIc6E+ObTe4LhKccCu1IcrQZOlkZn7KXdl6ZxelHoT4M9EZml
- IDZINoYBhyPor35Ghp0KLV9mzYSYx3vcijpLUUfWcw29jPzNpEVGfaOBKG2VYtAIqvyNA7n95
- nd/aMvU71fn6g9czQwP46IEaIpNTliHYKbqzxuMg/s7U8XTi0LVY56wnsQ0562+KqvoBroqfn
- LwUrik8VyfQ7qcg9vU9KSSKdUaaB744scxeMfp2X/LmyqDsQFb31u0xxf9MkgE9x4sseIEgdY
- tkUDn3azX/IOlZqJOenTjDAc6LyPGbJhgje5/4VyU2M/tgniMR/nivygYSXnAa5FGC3TQr9CK
- mFh7hpTVejfntAP3mziLcPtwJzxx+gF6nhf8Dqeqpv8vcApz51ybXO/JAl8Jjb5YYQA09oXIL
- M4NIcymsuiB6gGIYAGZgiQYFz4wZFfpUl9tnGaYECOUnnDo2MIMdMSPsASgkJ+7/ykwTsm4CK
- PNMcnQvhY/4r0oVL7obwyKN6+N07+L8fmRFkggm8Q6KHWFhHqjjIczLtP05jjiLJzVihadbZz
- QRxQa3jPCD2YHzmIS5qtobDTEM1ixuOl5ENcbORlp06BlPucfyOBj+m+6gGMXlvmMOo1L/LPF
- pwAZsa4fYFeY5Wjj6AYkesP8CdrFlMuQ9Jt1lgOI6adRwOldxtK/0CiT3LI8dPOJp1Be5giSt
- hNB6ySTYYupaUPbKZG3WZvwGdnRbzjmbIetlKQ==
+Cc: linux-mm@kvack.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>,
+        David Rientjes <rientjes@google.com>, Greg Thelen <gthelen@google.com>,
+        Johannes Weiner <hannes@cmpxchg.org>,
+        KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>,
+        Michal Hocko <mhocko@suse.cz>
+Subject: [PATCH] mm: oom: Remove thread group leader check in oom_evaluate_task().
+Date: Tue, 18 Jun 2019 19:20:57 +0900
+Message-Id: <1560853257-14934-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+X-Mailer: git-send-email 1.8.3.1
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-ARM64 randdconfig builds regularly run into a build error, especially
-when NUMA_BALANCING and SPARSEMEM are enabled but not SPARSEMEM_VMEMMAP:
+Since mem_cgroup_scan_tasks() uses CSS_TASK_ITER_PROCS, only thread group
+leaders will be scanned (unless dying leaders with live threads). Thus,
+commit d49ad9355420c743 ("mm, oom: prefer thread group leaders for display
+purposes") makes little sense.
 
- #error "KASAN: not enough bits in page flags for tag"
-
-The last-cpuid bits are already contitional on the available space,
-so the result of the calculation is a bit random on whether they
-were already left out or not.
-
-Adding the kasan tag bits before last-cpuid makes it much more likely
-to end up with a successful build here, and should be reliable for
-randconfig at least, as long as that does not randomize NR_CPUS
-or NODES_SHIFT but uses the defaults.
-
-In order for the modified check to not trigger in the x86 vdso32 code
-where all constants are wrong (building with -m32), enclose all the
-definitions with an #ifdef.
-
-Fixes: 2813b9c02962 ("kasan, mm, arm64: tag non slab memory allocated via pagealloc")
-Reviewed-by: Andrey Konovalov <andreyknvl@google.com>
-Signed-off-by: Arnd Bergmann <arnd@arndb.de>
+Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: David Rientjes <rientjes@google.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michal Hocko <mhocko@suse.cz>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Greg Thelen <gthelen@google.com>
 ---
-Submitted v1 in March and never followed up on the build regression,
-which is fixed in this version.
----
- include/linux/page-flags-layout.h | 16 ++++++++++------
- 1 file changed, 10 insertions(+), 6 deletions(-)
+ mm/oom_kill.c | 3 ---
+ 1 file changed, 3 deletions(-)
 
-diff --git a/include/linux/page-flags-layout.h b/include/linux/page-flags-layout.h
-index 1dda31825ec4..7d794a629822 100644
---- a/include/linux/page-flags-layout.h
-+++ b/include/linux/page-flags-layout.h
-@@ -32,6 +32,7 @@
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index 32abc7a..09a5116 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -348,9 +348,6 @@ static int oom_evaluate_task(struct task_struct *task, void *arg)
+ 	if (!points || points < oc->chosen_points)
+ 		goto next;
  
- #endif /* CONFIG_SPARSEMEM */
- 
-+#ifndef BUILD_VDSO32_64
- /*
-  * page->flags layout:
-  *
-@@ -76,21 +77,23 @@
- #define LAST_CPUPID_SHIFT 0
- #endif
- 
--#if SECTIONS_WIDTH+ZONES_WIDTH+NODES_SHIFT+LAST_CPUPID_SHIFT <= BITS_PER_LONG - NR_PAGEFLAGS
-+#ifdef CONFIG_KASAN_SW_TAGS
-+#define KASAN_TAG_WIDTH 8
-+#else
-+#define KASAN_TAG_WIDTH 0
-+#endif
-+
-+#if SECTIONS_WIDTH+ZONES_WIDTH+NODES_SHIFT+LAST_CPUPID_SHIFT+KASAN_TAG_WIDTH \
-+	<= BITS_PER_LONG - NR_PAGEFLAGS
- #define LAST_CPUPID_WIDTH LAST_CPUPID_SHIFT
- #else
- #define LAST_CPUPID_WIDTH 0
- #endif
- 
--#ifdef CONFIG_KASAN_SW_TAGS
--#define KASAN_TAG_WIDTH 8
- #if SECTIONS_WIDTH+NODES_WIDTH+ZONES_WIDTH+LAST_CPUPID_WIDTH+KASAN_TAG_WIDTH \
- 	> BITS_PER_LONG - NR_PAGEFLAGS
- #error "KASAN: not enough bits in page flags for tag"
- #endif
--#else
--#define KASAN_TAG_WIDTH 0
--#endif
- 
- /*
-  * We are going to use the flags for the page to node mapping if its in
-@@ -104,4 +107,5 @@
- #define LAST_CPUPID_NOT_IN_PAGE_FLAGS
- #endif
- 
-+#endif
- #endif /* _LINUX_PAGE_FLAGS_LAYOUT */
+-	/* Prefer thread group leaders for display purposes */
+-	if (points == oc->chosen_points && thread_group_leader(oc->chosen))
+-		goto next;
+ select:
+ 	if (oc->chosen)
+ 		put_task_struct(oc->chosen);
 -- 
-2.20.0
+1.8.3.1
 
