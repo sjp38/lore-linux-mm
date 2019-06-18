@@ -2,165 +2,334 @@ Return-Path: <SRS0=8DoX=UR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	UNPARSEABLE_RELAY autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B42F6C46477
-	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 16:59:53 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 59909C31E5B
+	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 17:07:18 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7A796214AF
-	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 16:59:53 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7A796214AF
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 1018420673
+	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 17:07:17 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1018420673
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 255166B0005; Tue, 18 Jun 2019 12:59:53 -0400 (EDT)
+	id 92DC96B0005; Tue, 18 Jun 2019 13:07:17 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1DE548E0002; Tue, 18 Jun 2019 12:59:53 -0400 (EDT)
+	id 8DDD58E0002; Tue, 18 Jun 2019 13:07:17 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0812F8E0001; Tue, 18 Jun 2019 12:59:53 -0400 (EDT)
+	id 7CD1D8E0001; Tue, 18 Jun 2019 13:07:17 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D9A9A6B0005
-	for <linux-mm@kvack.org>; Tue, 18 Jun 2019 12:59:52 -0400 (EDT)
-Received: by mail-qk1-f199.google.com with SMTP id c4so12827171qkd.16
-        for <linux-mm@kvack.org>; Tue, 18 Jun 2019 09:59:52 -0700 (PDT)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 445F96B0005
+	for <linux-mm@kvack.org>; Tue, 18 Jun 2019 13:07:17 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id q6so8145107pll.22
+        for <linux-mm@kvack.org>; Tue, 18 Jun 2019 10:07:17 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:organization:message-id:date:user-agent
-         :mime-version:in-reply-to:content-transfer-encoding:content-language;
-        bh=jbg2gvpZyX4cO6a3E9Z4XawgBlE+FKPXjXpiA3SrO7M=;
-        b=kILWY2cMxihK8+RO5rV1X5fS9mF+371JYOnpYbFmLcj77ZMvDfF0c/Gz7+5cdy4SiD
-         xh8HrxaMADtfbANmn0PkXHMaOc8l3GgEGEBAIaoD4MKB95vqoAPBqY58lXWTl12Gzxqn
-         sCakTkJyvUmnY8sP0CORGAqxOI5ZNtKAgTEfVLjoM5VJDwvde51TdqYDrCchah9aEEMM
-         3qjkk03/VvWFFXXURmi1Y0ZFpu7B1omCTHR3jy9+fHsefmRe119lOOrxwYNAODV/By/x
-         kaP3CVzpUJzSpRBymtetsgeVzBtIIHiMza69bSR17eqW0V3fwRetu8/lx84ktS+0LvpS
-         jN8A==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAWB6hoUIuYim9cXTizCbubrIeLfvOECgS2ZYYwTbBc1HLMjjgnc
-	oozeKr5Y9dThe6fir9KbJGfJN0HI0StQeOFZXbAvufaZXY3WVBePjPTMpTQmpLCqM7mJyinXLT4
-	1Ydy0e41rX8OnXDhobyV0VdLDUqOupmSz8N+LRGu7keov/BidIZ/rZM0EsJfs/X6o3Q==
-X-Received: by 2002:ac8:41d1:: with SMTP id o17mr26596262qtm.17.1560877192666;
-        Tue, 18 Jun 2019 09:59:52 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxKwct+1uTZKLW2hW/x1DMDj8vDrG+WKQxqzJ48Ch2PMoD9fv742pE/JVc7FZH//Wrg5I9p
-X-Received: by 2002:ac8:41d1:: with SMTP id o17mr26596219qtm.17.1560877192090;
-        Tue, 18 Jun 2019 09:59:52 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560877192; cv=none;
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-transfer-encoding:content-language;
+        bh=pZ7Q7xEELPx3xK2hVqvttNyG5jyzAAgyKf7a6VQyx4E=;
+        b=al1jHtaGntvnEt6L4EW6WMLAx1bUCkP1AyuvNSxfbGsOyAT1nL5Zhd3+VoxeoxKTXK
+         EBHytSUIzb7jAzalWY0j92C+jABZNOmpGiXJd7BNjEFmk6Qg2r3wrZ1oDrpkozCuZFjF
+         l7aDXr15XYp31cOnsMauo5eugG+2mzENgAN8dD3kVbNzPFgtoJZLrkDApbR62NF+zmgw
+         1SATtoGI4ijSDcGt9eCoC4GP/XVmRwdckTovbCNhp810IxrpBSwd/XABBXm/NtL8W6kI
+         VMrxEh9USSbqW4cF+o7h2+2+sJS8ZZDddbxWkzTIhSnx7dTOd2u55pyktC0Smje+7otZ
+         nOuA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.56 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Gm-Message-State: APjAAAW5Lu1H6VxuJfADSUe4wNywxQUDHTzx3dYQ7srxQ5CmPy/HgW6P
+	P9EWpYkpnEjmj6l5Zmzu4rQJrnmSF6z1CBe6pd/o3U++x3/xSuXQ7phewYCeGUFz6JwcCGdtL6j
+	lslU6es6EJ4z6u+lDq36xQdeMqli5ado6inX3lBZQ2wy2YHfRpDehnnN8mnrS4Vz75g==
+X-Received: by 2002:a17:90a:ac0e:: with SMTP id o14mr6351529pjq.142.1560877636883;
+        Tue, 18 Jun 2019 10:07:16 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxAIWdpkC64l5oUSgap4q5+vQEt2Jtzu2HJEb1piQkia8fHWAK3FofpaEsrgFMv3AyCIrZt
+X-Received: by 2002:a17:90a:ac0e:: with SMTP id o14mr6351443pjq.142.1560877635778;
+        Tue, 18 Jun 2019 10:07:15 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560877635; cv=none;
         d=google.com; s=arc-20160816;
-        b=0i+VHoR5fnhfXrKLjtNFcTeSjTfCs+5IfNCmKbPVD+WDH8WPL0t+IuabXNkqOgb1dO
-         3tL7SV1F1J0/hZAgNYbYzcGDSmhbSqLvbCG8dQb3CnYB2pvebupLehbQqG4dsqqJ9qL+
-         /q16rUJIAQajAi7KBGPrN/bepst9OCA3cdxEC2XAggc1R+UkbZpTEmzgfuUi1jF0uufP
-         KYesNKBS1cgsNtNF85SSlyP9NGpc0fB/xjpJtzVEHb78E/gR1tEsdWE2wO7QasCtmuis
-         ijzyrjgEO8gRrIG/sMvWTo1ehmkI3bdqJMISUdUwvgzEbYWNcGRruu0PpAn/r6YLkhBc
-         RTWA==
+        b=yTkf1m5NdjMsb1eUaABLvcMqIQLxFWRBpVpTG9p3SeMQ2OJhQCBL8SwvY9p8A2J3v7
+         KH6M4S6vx4HKcDhcu/tM6SCApoMI+h9qbGED+iN2DjPnqVhyR/CntLPW3u5u6qrZHqea
+         r9WH2BtqvHaS1WsSbVCjuQRlk8h5n/Cf29zbPK/jRhZZFOTJiMr9nw9GTAK/YBwXjr7W
+         +xPzC4Vhb+yzRWDjasFO9Vjupu8bfbxEa95BsZmoBKHUkYlM9IlSvdUgUqCxjyjKpkK1
+         lDjpIn7WK+rokJPRC0X5YhDgeHYrIseKuxoNmxO4bjLAPmnVkJzK6jFqx9LdquoxWnkH
+         HnkA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-language:content-transfer-encoding:in-reply-to:mime-version
-         :user-agent:date:message-id:organization:from:references:cc:to
-         :subject;
-        bh=jbg2gvpZyX4cO6a3E9Z4XawgBlE+FKPXjXpiA3SrO7M=;
-        b=T7N8zUS91dHMea9maOgQAIOtpGJ0ePPH/8mciwrZ0iV9NBDCAJextosgFdkZGc1aRE
-         MxclNehxtvXsmIfP1wQUhNA15RDIjU1nQhX8U6rrnvZVI9NqGTJrpKhaKC8vZj+eSY2Q
-         IN5SjBh/kLhLAs1rHz5acqhog1DwIdhgHNaLTgZMafHv9rQEqWqaRuHmno9q2QPuKjBW
-         5pUPIJ4MonQzg3sFln4FtItiliUqWRCDHf6teME3aqKcVDfWASGewVLaxcszE8zyn3D+
-         4Nc73XJwIyPXouWHgkf0SF4+MZlFYepP7gdRcT3lDvJmUtmUFmZnJHj9+d37Mq4BqTOG
-         Bivg==
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=pZ7Q7xEELPx3xK2hVqvttNyG5jyzAAgyKf7a6VQyx4E=;
+        b=cPpQfowwETOwGrRqIkJuitE1++cjxrNoPllye56KNqnvBfnFajUIs7Mbg/rRxulIFr
+         zBaZbYk4WBsukuHmyUINYMUEtml9P2bj/lIXO1T52KM+dCGbCVpo/0JX5YZOfzbCvl8S
+         iSL99O7o7ZFp9YvtsBXoVZ45LZo7uqQERriw9Ln2vVzTjsuRBbIlrs2Y5kr73bJpSZQl
+         CuXjQcKMQ+CYw4J2r2qrAdavbNzyI4VZ4PYaVT+JjPQLEFggGN0ibfDgSGbjNzJpvxFt
+         D7Lja3oXCLsOq1jY3fNEhZROZQ2xOVJS2l4xqJt64X/INzyyCXZAhSztHPSe9EgBBH4X
+         DOPA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id i3si1845031qvt.69.2019.06.18.09.59.51
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.56 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+Received: from out30-56.freemail.mail.aliyun.com (out30-56.freemail.mail.aliyun.com. [115.124.30.56])
+        by mx.google.com with ESMTPS id b13si13489685plk.313.2019.06.18.10.07.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 18 Jun 2019 09:59:52 -0700 (PDT)
-Received-SPF: pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Tue, 18 Jun 2019 10:07:15 -0700 (PDT)
+Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.56 as permitted sender) client-ip=115.124.30.56;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 7200C3162909;
-	Tue, 18 Jun 2019 16:59:30 +0000 (UTC)
-Received: from llong.remote.csb (dhcp-17-85.bos.redhat.com [10.18.17.85])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 8A3241001E73;
-	Tue, 18 Jun 2019 16:59:24 +0000 (UTC)
-Subject: Re: [PATCH] mm, memcg: Report number of memcg caches in slabinfo
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.56 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R101e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01f04446;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=9;SR=0;TI=SMTPD_---0TUXRpT3_1560877625;
+Received: from US-143344MP.local(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TUXRpT3_1560877625)
+          by smtp.aliyun-inc.com(127.0.0.1);
+          Wed, 19 Jun 2019 01:07:12 +0800
+Subject: Re: [PATCH] mm: mempolicy: handle vma with unmovable pages mapped
+ correctly in mbind
 To: Michal Hocko <mhocko@kernel.org>
-Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>,
- David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>,
- Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
- linux-kernel@vger.kernel.org, Roman Gushchin <guro@fb.com>,
- Johannes Weiner <hannes@cmpxchg.org>, Shakeel Butt <shakeelb@google.com>,
- Vladimir Davydov <vdavydov.dev@gmail.com>, linux-api@vger.kernel.org
-References: <20190617142149.5245-1-longman@redhat.com>
- <20190617143842.GC1492@dhcp22.suse.cz>
- <9e165eae-e354-04c4-6362-0f80fe819469@redhat.com>
- <20190618123750.GG3318@dhcp22.suse.cz>
-From: Waiman Long <longman@redhat.com>
-Organization: Red Hat
-Message-ID: <dee4dee2-1f4f-a7c9-0014-dca54b991377@redhat.com>
-Date: Tue, 18 Jun 2019 12:59:24 -0400
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.0
+Cc: akpm@linux-foundation.org, vbabka@suse.cz, mgorman@techsingularity.net,
+ linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+ Eric Dumazet <edumazet@google.com>, "David S. Miller" <davem@davemloft.net>,
+ netdev@vger.kernel.org
+References: <1560797290-42267-1-git-send-email-yang.shi@linux.alibaba.com>
+ <20190618130253.GH3318@dhcp22.suse.cz>
+From: Yang Shi <yang.shi@linux.alibaba.com>
+Message-ID: <cf33b724-fdd5-58e3-c06a-1bc563525311@linux.alibaba.com>
+Date: Tue, 18 Jun 2019 10:06:54 -0700
+User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:52.0)
+ Gecko/20100101 Thunderbird/52.7.0
 MIME-Version: 1.0
-In-Reply-To: <20190618123750.GG3318@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <20190618130253.GH3318@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Content-Language: en-US
-X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.41]); Tue, 18 Jun 2019 16:59:51 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 6/18/19 8:37 AM, Michal Hocko wrote:
-> On Mon 17-06-19 10:50:23, Waiman Long wrote:
->> On 6/17/19 10:38 AM, Michal Hocko wrote:
->>> [Cc linux-api]
->>>
->>> On Mon 17-06-19 10:21:49, Waiman Long wrote:
->>>> There are concerns about memory leaks from extensive use of memory
->>>> cgroups as each memory cgroup creates its own set of kmem caches. There
->>>> is a possiblity that the memcg kmem caches may remain even after the
->>>> memory cgroup removal.
->>>>
->>>> Therefore, it will be useful to show how many memcg caches are present
->>>> for each of the kmem caches.
->>> How is a user going to use that information?  Btw. Don't we have an
->>> interface to display the number of (dead) cgroups?
->> The interface to report dead cgroups is for cgroup v2 (cgroup.stat)
->> only. I don't think there is a way to find that for cgroup v1.
-> Doesn't debug_legacy_files provide the information for both cgroups
-> APIs?
-
-Not really. The debug controller doesn't provide information about the
-number of dead cgroups, for instance. Of course, we can always add those
-information there. Also the debug controller is not typically configured
-into a production kernel.
 
 
->> Also the
->> number of memcg kmem caches may not be the same as the number of
->> memcg's. It can range from 0 to above the number of memcg's.  So it is
->> an interesting number by itself.
-> Is this useful enough to put into slabinfo? Doesn't this sound more like
-> a debugfs kinda a thing?
+On 6/18/19 6:02 AM, Michal Hocko wrote:
+> [Cc networking people - see a question about setsockopt below]
+>
+> On Tue 18-06-19 02:48:10, Yang Shi wrote:
+>> When running syzkaller internally, we ran into the below bug on 4.9.x
+>> kernel:
+>>
+>> kernel BUG at mm/huge_memory.c:2124!
+> What is the BUG_ON because I do not see any BUG_ON neither in v4.9 nor
+> the latest stable/linux-4.9.y
 
-I guess it is probably more on the debug side of things. I add it to
-slabinfo as the data is readily available. It will be much more work if
-we need to export the data via debugfs.
+The line number might be not exactly same with upstream 4.9 since there 
+might be some our internal patches.
 
-We are seeing the kmem_cache slab growing continuously overtime when
-running a container-based workloads. Roman's kmem_cache reparenting
-patch will hopefully solve a major part of the problem, but we still
-need a way to confirm that by looking at how many memcg kmem_caches are
-associated with each root kmem_cache.
+It is line 2096 at mm/huge_memory.c in 4.9.182.
 
-Cheers,
-Longman
+>
+>> invalid opcode: 0000 [#1] SMP KASAN
+> [...]
+>> Code: c7 80 1c 02 00 e8 26 0a 76 01 <0f> 0b 48 c7 c7 40 46 45 84 e8 4c
+>> RIP  [<ffffffff81895d6b>] split_huge_page_to_list+0x8fb/0x1030 mm/huge_memory.c:2124
+>>   RSP <ffff88006899f980>
+>>
+>> with the below test:
+>>
+>> ---8<---
+>>
+>> uint64_t r[1] = {0xffffffffffffffff};
+>>
+>> int main(void)
+>> {
+>> 	syscall(__NR_mmap, 0x20000000, 0x1000000, 3, 0x32, -1, 0);
+>> 				intptr_t res = 0;
+>> 	res = syscall(__NR_socket, 0x11, 3, 0x300);
+>> 	if (res != -1)
+>> 		r[0] = res;
+>> *(uint32_t*)0x20000040 = 0x10000;
+>> *(uint32_t*)0x20000044 = 1;
+>> *(uint32_t*)0x20000048 = 0xc520;
+>> *(uint32_t*)0x2000004c = 1;
+>> 	syscall(__NR_setsockopt, r[0], 0x107, 0xd, 0x20000040, 0x10);
+>> 	syscall(__NR_mmap, 0x20fed000, 0x10000, 0, 0x8811, r[0], 0);
+>> *(uint64_t*)0x20000340 = 2;
+>> 	syscall(__NR_mbind, 0x20ff9000, 0x4000, 0x4002, 0x20000340,
+>> 0x45d4, 3);
+>> 	return 0;
+>> }
+>>
+>> ---8<---
+>>
+>> Actually the test does:
+>>
+>> mmap(0x20000000, 16777216, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_ANONYMOUS, -1, 0) = 0x20000000
+>> socket(AF_PACKET, SOCK_RAW, 768)        = 3
+>> setsockopt(3, SOL_PACKET, PACKET_TX_RING, {block_size=65536, block_nr=1, frame_size=50464, frame_nr=1}, 16) = 0
+>> mmap(0x20fed000, 65536, PROT_NONE, MAP_SHARED|MAP_FIXED|MAP_POPULATE|MAP_DENYWRITE, 3, 0) = 0x20fed000
+>> mbind(..., MPOL_MF_STRICT|MPOL_MF_MOVE) = 0
+> Ughh. Do I get it right that that this setsockopt allows an arbitrary
+> contiguous memory allocation size to be requested by a unpriviledged
+> user? Or am I missing something that restricts there any restriction?
+
+It needs CAP_NET_RAW to call socket() to set socket type to RAW. The 
+test is run by root user.
+
+>
+>> The setsockopt() would allocate compound pages (16 pages in this test)
+>> for packet tx ring, then the mmap() would call packet_mmap() to map the
+>> pages into the user address space specifed by the mmap() call.
+>>
+>> When calling mbind(), it would scan the vma to queue the pages for
+>> migration to the new node.  It would split any huge page since 4.9
+>> doesn't support THP migration, however, the packet tx ring compound
+>> pages are not THP and even not movable.  So, the above bug is triggered.
+>>
+>> However, the later kernel is not hit by this issue due to the commit
+>> d44d363f65780f2ac2ec672164555af54896d40d ("mm: don't assume anonymous
+>> pages have SwapBacked flag"), which just removes the PageSwapBacked
+>> check for a different reason.
+>>
+>> But, there is a deeper issue.  According to the semantic of mbind(), it
+>> should return -EIO if MPOL_MF_MOVE or MPOL_MF_MOVE_ALL was specified and
+>> the kernel was unable to move all existing pages in the range.  The tx ring
+>> of the packet socket is definitely not movable, however, mbind returns
+>> success for this case.
+>>
+>> Although the most socket file associates with non-movable pages, but XDP
+>> may have movable pages from gup.  So, it sounds not fine to just check
+>> the underlying file type of vma in vma_migratable().
+>>
+>> Change migrate_page_add() to check if the page is movable or not, if it
+>> is unmovable, just return -EIO.  We don't have to check non-LRU movable
+>> pages since just zsmalloc and virtio-baloon support this.  And, they
+>> should be not able to reach here.
+> You are not checking whether the page is movable, right? You only rely
+> on PageLRU check which is not really an equivalent thing. There are
+> movable pages which are not LRU and also pages might be off LRU
+> temporarily for many reasons so this could lead to false positives.
+
+I'm supposed non-LRU movable pages could not reach here. Since most of 
+them are not mmapable, i.e. virtio-balloon, zsmalloc. zram device is 
+mmapable, but the page fault to that vma would end up allocating user 
+space pages which are on LRU. If I miss something please let me know.
+
+The migrate_page_add() also just checks PageLRU(), non-LRU pages will be 
+*not* put on the migration list at all. See migrate_page_add() -> 
+isolate_lru_page().
+
+> So I do not think this fix is correct. Blowing up on a BUG_ON is
+> definitely not a right thing to do but we should rely on migrate_pages
+> to fail the migration and report the failure based on that.
+
+The BUG_ON was removed by commit 
+d44d363f65780f2ac2ec672164555af54896d40d ("mm: don't assume anonymous 
+pages have SwapBacked flag") since 4.12.
+
+Actually, those pages will *not* be put on the migration list at all 
+since they are !PageLRU. So, we can't rely on migrate_pages(). This is 
+why I added the check in migrate_page_add().
+
+>
+>> With this change the above test would return -EIO as expected.
+>>
+>> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
+>> ---
+>>   include/linux/mempolicy.h |  3 ++-
+>>   mm/mempolicy.c            | 22 +++++++++++++++++-----
+>>   2 files changed, 19 insertions(+), 6 deletions(-)
+>>
+>> diff --git a/include/linux/mempolicy.h b/include/linux/mempolicy.h
+>> index 5228c62..cce7ba3 100644
+>> --- a/include/linux/mempolicy.h
+>> +++ b/include/linux/mempolicy.h
+>> @@ -198,7 +198,8 @@ static inline bool vma_migratable(struct vm_area_struct *vma)
+>>   	if (vma->vm_file &&
+>>   		gfp_zone(mapping_gfp_mask(vma->vm_file->f_mapping))
+>>   								< policy_zone)
+>> -			return false;
+>> +		return false;
+>> +
+> Any reason to make this change?
+
+Just a indent fix by hand.
+
+>
+>>   	return true;
+>>   }
+>>   
+>> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+>> index 2219e74..4d9e17d 100644
+>> --- a/mm/mempolicy.c
+>> +++ b/mm/mempolicy.c
+>> @@ -403,7 +403,7 @@ void mpol_rebind_mm(struct mm_struct *mm, nodemask_t *new)
+>>   	},
+>>   };
+>>   
+>> -static void migrate_page_add(struct page *page, struct list_head *pagelist,
+>> +static int migrate_page_add(struct page *page, struct list_head *pagelist,
+>>   				unsigned long flags);
+>>   
+>>   struct queue_pages {
+>> @@ -467,7 +467,9 @@ static int queue_pages_pmd(pmd_t *pmd, spinlock_t *ptl, unsigned long addr,
+>>   			goto unlock;
+>>   		}
+>>   
+>> -		migrate_page_add(page, qp->pagelist, flags);
+>> +		ret = migrate_page_add(page, qp->pagelist, flags);
+>> +		if (ret)
+>> +			goto unlock;
+>>   	} else
+>>   		ret = -EIO;
+>>   unlock:
+>> @@ -521,7 +523,9 @@ static int queue_pages_pte_range(pmd_t *pmd, unsigned long addr,
+>>   		if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL)) {
+>>   			if (!vma_migratable(vma))
+>>   				break;
+>> -			migrate_page_add(page, qp->pagelist, flags);
+>> +			ret = migrate_page_add(page, qp->pagelist, flags);
+>> +			if (ret)
+>> +				break;
+>>   		} else
+>>   			break;
+>>   	}
+>> @@ -940,10 +944,15 @@ static long do_get_mempolicy(int *policy, nodemask_t *nmask,
+>>   /*
+>>    * page migration, thp tail pages can be passed.
+>>    */
+>> -static void migrate_page_add(struct page *page, struct list_head *pagelist,
+>> +static int migrate_page_add(struct page *page, struct list_head *pagelist,
+>>   				unsigned long flags)
+>>   {
+>>   	struct page *head = compound_head(page);
+>> +
+>> +	/* Non-movable page may reach here. */
+>> +	if (!PageLRU(head))
+>> +		return -EIO;
+>> +
+>>   	/*
+>>   	 * Avoid migrating a page that is shared with others.
+>>   	 */
+>> @@ -955,6 +964,8 @@ static void migrate_page_add(struct page *page, struct list_head *pagelist,
+>>   				hpage_nr_pages(head));
+>>   		}
+>>   	}
+>> +
+>> +	return 0;
+>>   }
+>>   
+>>   /* page allocation callback for NUMA node migration */
+>> @@ -1157,9 +1168,10 @@ static struct page *new_page(struct page *page, unsigned long start)
+>>   }
+>>   #else
+>>   
+>> -static void migrate_page_add(struct page *page, struct list_head *pagelist,
+>> +static int migrate_page_add(struct page *page, struct list_head *pagelist,
+>>   				unsigned long flags)
+>>   {
+>> +	return -EIO;
+>>   }
+>>   
+>>   int do_migrate_pages(struct mm_struct *mm, const nodemask_t *from,
+>> -- 
+>> 1.8.3.1
+>>
 
