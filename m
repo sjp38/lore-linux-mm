@@ -2,213 +2,176 @@ Return-Path: <SRS0=8DoX=UR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7891FC31E5B
-	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 16:48:49 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 45E0AC31E5E
+	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 16:50:37 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2E1B020B1F
-	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 16:48:49 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2E1B020B1F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 08EA020B1F
+	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 16:50:36 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 08EA020B1F
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C20FE6B0005; Tue, 18 Jun 2019 12:48:48 -0400 (EDT)
+	id 8EC906B0005; Tue, 18 Jun 2019 12:50:36 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BD1F08E0002; Tue, 18 Jun 2019 12:48:48 -0400 (EDT)
+	id 877068E0002; Tue, 18 Jun 2019 12:50:36 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A99C28E0001; Tue, 18 Jun 2019 12:48:48 -0400 (EDT)
+	id 7167A8E0001; Tue, 18 Jun 2019 12:50:36 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 737086B0005
-	for <linux-mm@kvack.org>; Tue, 18 Jun 2019 12:48:48 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id y75so1744310pfg.1
-        for <linux-mm@kvack.org>; Tue, 18 Jun 2019 09:48:48 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 2138A6B0005
+	for <linux-mm@kvack.org>; Tue, 18 Jun 2019 12:50:36 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id k15so22088147eda.6
+        for <linux-mm@kvack.org>; Tue, 18 Jun 2019 09:50:36 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=Id8FC4UKbpkhWM3vYR07qgjvZRPME8zimSEH9eZmCEg=;
-        b=BkqlFmRLrLaU1orh3lSpPaLXbu2/1PBgf83pdVqyTTsbzPvhUYun0QwGHu7V9RNsVs
-         8c5zqLwVHkmc0MmScJG/PctgchNYjbLXLqjP/vmMNuvrTUs0qfGT39NJbr3i0PMVKTHs
-         4DxHZ/L+YK9MMQ1Nz7cEWy5SUfHx6jp/3G3eRB0Az5pKzTwuQDXUMt96QBxCI6LCVOxI
-         KCyMy2/sGCP97NuMb6BFls5+l0jQmS+WHrVOtfeBQTgkkHraS7qgVIF5S1Ec55Q0Egjl
-         GyfRUF0pMLcDmnNOtu9p7pMP8JEIIv0VMiRXQS7RD/pMBCNs4dLnrGucDBcqOXBX6G/r
-         ys6g==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAV8D27mwhhvBI0/ZFMwvUuthfchU1gRg1eAmbFpb9oKMHnWVMwR
-	1fXaZUiHPOcOU6K1nmKbKmJ4Pp1oKZgRQl2/J2okFTrk55DRX6I/QQDlwA+QRKk06FNkwTaSn6B
-	artzFqfDnXaBp95RV/wSAhw3Ng8Zu3SfaDFQjkmurilgsMUUto0RWPmhJCy82t9PTmA==
-X-Received: by 2002:a17:902:f216:: with SMTP id gn22mr96221038plb.118.1560876528135;
-        Tue, 18 Jun 2019 09:48:48 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxidyQkLhZkksw76rJs0KeDnr7H7DxnSP+IjFB9d9UBWxktmn/RYfawGyvqoxMeq/ENoQrL
-X-Received: by 2002:a17:902:f216:: with SMTP id gn22mr96220989plb.118.1560876527431;
-        Tue, 18 Jun 2019 09:48:47 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560876527; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=cbCOm89CaR3G1j2HEC6TT5+yxrz1x0OCp6qaI06DO8k=;
+        b=ZxH/O/qbDaCcQl7JIKPZyCh/JXJUEqYbq0fk3OlDPkCTbHRXzK6sQXuz5KqzdDbWzG
+         5ZoZaJ9GHFxvWwVzq0ZUqWIE0pk+PGeiEzmRKsC+8xhu1BiS6HJ0KDQfKOZedqdMMKsA
+         T078tfZ147hErmakjPf0Hf4Kqx7bwo3nsnG1ohu2HPLGomINJ2c0JtQG9fvzSqabBQkf
+         ZwKSYvTTqvSPVZSZ+bOJKuCoaD7b5MmEv4xg+x7d0O7ueeLwmEshwsCDsGGHV4JHKLQT
+         +F8R5O+6W3rFvIiUDnlHlUzIF9hUNjrSPaMtVh8uArl3oKIOxTFGTl2kB398ekF/v/pT
+         iHOw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.martin@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=Dave.Martin@arm.com
+X-Gm-Message-State: APjAAAUVMvkD5MfdFY3gG8Wxufc0T9hUNkK5DikhYbSqZU1oYX3DrKRK
+	Q8nGPPjCexbE3GSSILd8RTPkdfpFSDdJXLRgXXIKQfSVGvzGHH9l0EPsbT4qeN8HqKU/J7KqTag
+	K7LERfGJKiNfYWyRYojjSyA0B2pmUkSLp323T2i/d4Vk4NbkGG4BTbdhd9U+8X89hAQ==
+X-Received: by 2002:a50:b7bc:: with SMTP id h57mr127090747ede.77.1560876635711;
+        Tue, 18 Jun 2019 09:50:35 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzj3bdGcJdGzmUUaaPk3DAUVKRuEyXn73cdyG9HgligPvQ4M93fOrDLXrmIvBiBlJNwwlZy
+X-Received: by 2002:a50:b7bc:: with SMTP id h57mr127090679ede.77.1560876634986;
+        Tue, 18 Jun 2019 09:50:34 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560876634; cv=none;
         d=google.com; s=arc-20160816;
-        b=VrN0KbXuxbubhX1sHWBrVyqYRwDbYA5614t6ZC7mX6mLg6qUwCidVDpCnQqqyAVl86
-         D27hOIIVSaWLGHbpuJlj1PrLh438CImxBYZutBPwB/ST0jdZ0wZx4rlzcUhqGD/i4Tvz
-         EAwb8qvY2K7g9ntIlM1IhW0wegiVvUjwjWKXg2eY9LLK0XtJNdHXnoNYj0InLDBGDGY9
-         nSqABuUGXloa8rloVwjmmb3T03Z9uuKHUap7fi/5vuPA38Pk1ntXs0AHKNDIMVt1LId9
-         s4OysvSm4IMZIdDmtGrFLN+NV2EuHYYjHRWTtWlSGeY6PAjTPbBUkj5HzrKzysTPvJ73
-         pH6A==
+        b=OoGdQgcHPZuY2PhteuoTwExpwThmKP5a23ITW1qTOw0YUhMCZ43EnMRxVjhqqZLeMi
+         Zwlkc4SoCMQ+W2DKWdBPC9xJoWBUQmKV9DelcEzxQV5eU5zvZCL2Lc+QtPHARLmh4ct1
+         9lP06JCwMbAB88ICm9xQ6NKel1Y8RIqdnXIlObkHXQDK2vkbyeaQ0qhBQ2h3ITMvfcud
+         9/nCOFfSt282BYJoLRv/8o7tQIFmBaAC7Qb4rKUVjJkQVnMVpEEnVOV9cAxxEAGc85ox
+         XBtzMo1q9aymM7NsC9+C7gvem358Tm0EEXxU2n+zhi0LFO70NcaGhEjv/c5f3vZ/WiPg
+         aIqQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
-         :subject;
-        bh=Id8FC4UKbpkhWM3vYR07qgjvZRPME8zimSEH9eZmCEg=;
-        b=bnmH+Z+SCCv3BsDC/glcQH5Pv5GHQ7z9LC+a6AXPWU1uC0sd3VxZQolpkbpJ+dEVAe
-         eS+zZ8zU7BFr8lLMx8DRvg62+KsUE8JAosxmackxCY0cI4fuQk/4gSBpbmpx/jxeFNbG
-         qMknN9IzgqsrerXEqpK6nR0iynbvl6HnXA/MGy1CkXQmvDtNxfy9pO1aGPjPq9VNwlpF
-         uWmJ+mh3Xd4XRqEhXHNJfdlh03kkt0u9LRdDATphLvZrKdQ5IO5L+3to7DahcVQKNDcD
-         7UGksLdVldXD8ykJdLIY8mHsJkzYJ9sInUqG2lpo5mYV6jnKc/1hrgj3UmujNi3/ngjp
-         DMuw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=cbCOm89CaR3G1j2HEC6TT5+yxrz1x0OCp6qaI06DO8k=;
+        b=0UqVZrtoW5wm/uYmK8XJ4rWUYgIVoVJtiBPWO5BsBZNe5k2cTrjsFtgnkqCRk/QO18
+         ZuQQuUFwqqsxZ0scd5/OOfDmkHdvd8bgE4R/TEaXrgZJ7Kik8XYgM0KzcYmUJWy2zd1D
+         p6thjTmD0N+DmTh3VTDTu8yZn2fg8lZmJuihLE9gZufG0NePC4oJLems2DsYTnBPMaS+
+         tv7AXySjviiNo93bvfoR7RFWr9f3tt5the9JBDUW1urafdFhTQK5u42Psef2k4tD02hJ
+         5Ps/GtuqlgdAhM4+SBS4OImhK7yyC0dVjBwww1ZI1fyuR/cx55BQyKQQGCQghFlIpclv
+         RiWw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id e13si13764865pfn.24.2019.06.18.09.48.47
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 18 Jun 2019 09:48:47 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.100 as permitted sender) client-ip=134.134.136.100;
+       spf=pass (google.com: domain of dave.martin@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=Dave.Martin@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
+        by mx.google.com with ESMTP id 30si11369527edu.170.2019.06.18.09.50.34
+        for <linux-mm@kvack.org>;
+        Tue, 18 Jun 2019 09:50:34 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dave.martin@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from orsmga001.jf.intel.com ([10.7.209.18])
-  by orsmga105.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 18 Jun 2019 09:48:46 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.63,389,1557212400"; 
-   d="scan'208";a="243045278"
-Received: from oamaslek-mobl.amr.corp.intel.com (HELO [10.251.9.224]) ([10.251.9.224])
-  by orsmga001.jf.intel.com with ESMTP; 18 Jun 2019 09:48:46 -0700
-Subject: Re: [PATCH, RFC 45/62] mm: Add the encrypt_mprotect() system call for
- MKTME
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>,
- Peter Zijlstra <peterz@infradead.org>, Kai Huang
- <kai.huang@linux.intel.com>, Andy Lutomirski <luto@kernel.org>,
- "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
- Andrew Morton <akpm@linux-foundation.org>, X86 ML <x86@kernel.org>,
- Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>,
- "H. Peter Anvin" <hpa@zytor.com>, Borislav Petkov <bp@alien8.de>,
- David Howells <dhowells@redhat.com>, Kees Cook <keescook@chromium.org>,
- Jacob Pan <jacob.jun.pan@linux.intel.com>,
- Alison Schofield <alison.schofield@intel.com>, Linux-MM
- <linux-mm@kvack.org>, kvm list <kvm@vger.kernel.org>,
- keyrings@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>,
- Tom Lendacky <thomas.lendacky@amd.com>
-References: <CALCETrUPSv4Xae3iO+2i_HecJLfx4mqFfmtfp+cwBdab8JUZrg@mail.gmail.com>
- <5cbfa2da-ba2e-ed91-d0e8-add67753fc12@intel.com>
- <CALCETrWFXSndmPH0OH4DVVrAyPEeKUUfNwo_9CxO-3xy9awq0g@mail.gmail.com>
- <1560816342.5187.63.camel@linux.intel.com>
- <CALCETrVcrPYUUVdgnPZojhJLgEhKv5gNqnT6u2nFVBAZprcs5g@mail.gmail.com>
- <1560821746.5187.82.camel@linux.intel.com>
- <CALCETrUrFTFGhRMuNLxD9G9=GsR6U-THWn4AtminR_HU-nBj+Q@mail.gmail.com>
- <1560824611.5187.100.camel@linux.intel.com>
- <20190618091246.GM3436@hirez.programming.kicks-ass.net>
- <2ec26c05-7c57-d0e0-a628-94d581b96b63@intel.com>
- <20190618161502.jiuqhvs3wvnac5ow@box.shutemov.name>
- <f701f859-0990-9f02-baa2-451dd6c8b3c4@intel.com>
- <8FDB1E33-21BC-400D-9051-7BE61400ACD2@amacapital.net>
-From: Dave Hansen <dave.hansen@intel.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=dave.hansen@intel.com; keydata=
- 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
-Message-ID: <7e001776-a8f8-9109-a536-90398de81d53@intel.com>
-Date: Tue, 18 Jun 2019 09:48:45 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.0
+       spf=pass (google.com: domain of dave.martin@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=Dave.Martin@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id E2F57344;
+	Tue, 18 Jun 2019 09:50:33 -0700 (PDT)
+Received: from e103592.cambridge.arm.com (usa-sjc-imap-foss1.foss.arm.com [10.121.207.14])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 56B6C3F246;
+	Tue, 18 Jun 2019 09:50:30 -0700 (PDT)
+Date: Tue, 18 Jun 2019 17:50:28 +0100
+From: Dave Martin <Dave.Martin@arm.com>
+To: Florian Weimer <fweimer@redhat.com>
+Cc: Yu-cheng Yu <yu-cheng.yu@intel.com>,
+	Peter Zijlstra <peterz@infradead.org>,
+	Thomas Gleixner <tglx@linutronix.de>, x86@kernel.org,
+	"H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>,
+	linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org,
+	linux-mm@kvack.org, linux-arch@vger.kernel.org,
+	linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>,
+	Andy Lutomirski <luto@amacapital.net>,
+	Balbir Singh <bsingharora@gmail.com>,
+	Borislav Petkov <bp@alien8.de>,
+	Cyrill Gorcunov <gorcunov@gmail.com>,
+	Dave Hansen <dave.hansen@linux.intel.com>,
+	Eugene Syromiatnikov <esyr@redhat.com>,
+	"H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>,
+	Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>,
+	Mike Kravetz <mike.kravetz@oracle.com>,
+	Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>,
+	Pavel Machek <pavel@ucw.cz>, Randy Dunlap <rdunlap@infradead.org>,
+	"Ravi V. Shankar" <ravi.v.shankar@intel.com>,
+	Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
+Subject: Re: [PATCH v7 22/27] binfmt_elf: Extract .note.gnu.property from an
+ ELF file
+Message-ID: <20190618165027.GG2790@e103592.cambridge.arm.com>
+References: <87ef3r9i2j.fsf@oldenburg2.str.redhat.com>
+ <20190618125512.GJ3419@hirez.programming.kicks-ass.net>
+ <20190618133223.GD2790@e103592.cambridge.arm.com>
+ <d54fe81be77b9edd8578a6d208c72cd7c0b8c1dd.camel@intel.com>
+ <87pnna7v1d.fsf@oldenburg2.str.redhat.com>
+ <1ca57aaae8a2121731f2dcb1a137b92eed39a0d2.camel@intel.com>
+ <87blyu7ubf.fsf@oldenburg2.str.redhat.com>
+ <b0491cb517ba377da6496fe91a98fdbfca4609a9.camel@intel.com>
+ <20190618162005.GF2790@e103592.cambridge.arm.com>
+ <8736k67tdc.fsf@oldenburg2.str.redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <8FDB1E33-21BC-400D-9051-7BE61400ACD2@amacapital.net>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <8736k67tdc.fsf@oldenburg2.str.redhat.com>
+User-Agent: Mutt/1.5.23 (2014-03-12)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 6/18/19 9:36 AM, Andy Lutomirski wrote:
-> Should MKTME+DAX encrypt the entire volume or should it encrypt individual files?  Or both?
+On Tue, Jun 18, 2019 at 06:25:51PM +0200, Florian Weimer wrote:
+> * Dave Martin:
+> 
+> > On Tue, Jun 18, 2019 at 09:00:35AM -0700, Yu-cheng Yu wrote:
+> >> On Tue, 2019-06-18 at 18:05 +0200, Florian Weimer wrote:
+> >> > * Yu-cheng Yu:
+> >> > 
+> >> > > > I assumed that it would also parse the main executable and make
+> >> > > > adjustments based on that.
+> >> > > 
+> >> > > Yes, Linux also looks at the main executable's header, but not its
+> >> > > NT_GNU_PROPERTY_TYPE_0 if there is a loader.
+> >> > > 
+> >> > > > 
+> >> > > > ld.so can certainly provide whatever the kernel needs.  We need to tweak
+> >> > > > the existing loader anyway.
+> >> > > > 
+> >> > > > No valid statically-linked binaries exist today, so this is not a
+> >> > > > consideration at this point.
+> >> > > 
+> >> > > So from kernel, we look at only PT_GNU_PROPERTY?
+> >> > 
+> >> > If you don't parse notes/segments in the executable for CET, then yes.
+> >> > We can put PT_GNU_PROPERTY into the loader.
+> >> 
+> >> Thanks!
+> >
+> > Would this require the kernel and ld.so to be updated in a particular
+> > order to avoid breakage?  I don't know enough about RHEL to know how
+> > controversial that might be.
+> 
+> There is no official ld.so that will work with the current userspace
+> interface (in this patch submission).  Upstream glibc needs to be
+> updated anyway, so yet another change isn't much of an issue.  This is
+> not a problem; we knew that something like this might happen.
+> 
+> Sure, people need a new binutils with backports for PT_GNU_PROPERTY, but
+> given that only very few people will build CET binaries with older
+> binutils, I think that's not a real issue either.
 
-Our current thought is that there should be two modes: One for entire
-DAX namespaces and one for filesystem DAX that would allow it to be at
-the file level.  More likely, we would mirror fscrypt and do it at the
-directory level.
+OK, just wanted to check we weren't missing any requirement for x86.
 
-> If it encrypts individual files, should the fs be involved at all?
-> Should there be metadata that can check whether a given key is the
-> correct key?
-FWIW, this is a question for the fs guys.  Their guidance so far has
-been "do what fscrypt does", and fscrypt does not protect against
-incorrect keys being specified.  See:
+This approach should satisfy the requirement for arm64 nicely.
 
-	https://www.kernel.org/doc/html/v5.1/filesystems/fscrypt.html
-
-Which says:
-
-> Currently, fscrypt does not prevent a user from maliciously providing
-> an incorrect key for another user’s existing encrypted files. A
-> protection against this is planned.
-
-> If it encrypts individual files, is it even conceptually possible to
-> avoid corruption if the fs is not involved?  After all, many
-> filesystems think that they can move data blocks, compute checksums,
-> journal data, etc.
-
-Yes, exactly.  Thankfully, fscrypt has thought about this already and
-has infrastructure for this.  For instance:
-
-> Online defragmentation of encrypted files is not supported. The
-> EXT4_IOC_MOVE_EXT and F2FS_IOC_MOVE_RANGE ioctls will fail with
-> EOPNOTSUPP.
+Cheers
+---Dave
 
