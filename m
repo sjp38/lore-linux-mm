@@ -2,264 +2,256 @@ Return-Path: <SRS0=8DoX=UR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 33DBDC31E5B
-	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 21:48:29 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 80A86C31E5B
+	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 21:56:24 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D0C5220873
-	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 21:48:28 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 2941420B1F
+	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 21:56:23 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="Ud6tooM5";
-	dkim=pass (1024-bit key) header.d=fb.onmicrosoft.com header.i=@fb.onmicrosoft.com header.b="QNTDSUbq"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D0C5220873
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
+	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="o9IxJYZ8"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2941420B1F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4D8096B0003; Tue, 18 Jun 2019 17:48:28 -0400 (EDT)
+	id 93EF96B0003; Tue, 18 Jun 2019 17:56:23 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 461DA8E0002; Tue, 18 Jun 2019 17:48:28 -0400 (EDT)
+	id 8C89B8E0002; Tue, 18 Jun 2019 17:56:23 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2DB868E0001; Tue, 18 Jun 2019 17:48:28 -0400 (EDT)
+	id 768F08E0001; Tue, 18 Jun 2019 17:56:23 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 087EA6B0003
-	for <linux-mm@kvack.org>; Tue, 18 Jun 2019 17:48:28 -0400 (EDT)
-Received: by mail-io1-f72.google.com with SMTP id w17so17823167iom.2
-        for <linux-mm@kvack.org>; Tue, 18 Jun 2019 14:48:28 -0700 (PDT)
+Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 47FAF6B0003
+	for <linux-mm@kvack.org>; Tue, 18 Jun 2019 17:56:23 -0400 (EDT)
+Received: by mail-ot1-f69.google.com with SMTP id w110so6959244otb.10
+        for <linux-mm@kvack.org>; Tue, 18 Jun 2019 14:56:23 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:dkim-signature:from:to:cc:subject
-         :thread-topic:thread-index:date:message-id:references:in-reply-to
-         :accept-language:content-language:content-id
-         :content-transfer-encoding:mime-version;
-        bh=gKeQAHGiCguXF8PWrmaFtB6YG4mQS8zmTH1/6Go6PXI=;
-        b=Utlp8GxwJJ0TrvOUaARwEYzfeoRiQqiDSzjXST6PRrB5M8drEummQxqvkbaR1b0U4C
-         sztFD0h9AW6ULyOLITmcyp5ypXQuL5+nZmDXemx2tPGISNeJwQnnHSrr6DMtRGH7sU/E
-         ad8uV08teB/DceIVsq1uQrQbeu/EMMBKLa6+D6pqh8kK1UzSc/7HnfgNH9/8bywd1fpj
-         NiidHzo0A43v7xwp4ylgDNR8fgs8X2DW88rDxFLC0BbKX2suIRsaNECvPvgaxqH449YO
-         PPqWzFRGvSrMuH2nV0ckGarw+qO5bJ2m8/72xKvKUSQHbU7K0KsvlkZNGyoXc5/C7oqO
-         8GOQ==
-X-Gm-Message-State: APjAAAWXCwVvvbIQqD3aiTHgAoBR8TUjRZ9//jTVbl4bgS2yomhuR7mf
-	rh+g1edwLe/mxqmHMqp46V6knyipHIIoTSQnQ4lPz4VLV6LDU0IKeXUSN8MgVutA7UYw/VxpVg6
-	7aKDyQj/pR6viGt/ox8hkP+CIVJFmSIapndYjfm2QCK/Mkqs6EsHm0V4Q+9xOHx0sFQ==
-X-Received: by 2002:a05:6602:22cc:: with SMTP id e12mr3084773ioe.192.1560894507709;
-        Tue, 18 Jun 2019 14:48:27 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyHG3NNBFrFJrtG/sjiEexdFsTn1Zi4BUJSP56gize0YW1jM0Il5KPk1CrnHsDtfTZxDw91
-X-Received: by 2002:a05:6602:22cc:: with SMTP id e12mr3084722ioe.192.1560894506948;
-        Tue, 18 Jun 2019 14:48:26 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560894506; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=qtt1rZDPVuhTzJb0IIpSWujWs31YenUk5EJQ2S55LAQ=;
+        b=ZvU3hO4au7N5pS+wAkDpTQDYJ144pItbZ8XDzBKdhbfbHKrsj+hjXWIM1TBBzxzGsU
+         hU9Vp7J3HoGhD83bdys/VSbaDAd+eaT9jmJSTNFF3Bol8Dm3V2k6qUZzcdHi/+2k4xa4
+         VcMd+3YkfQjl2JAWEq2GvG0vKiw2jabxjdLFNM03tqdZZitAjAqpUgdg4PA1NXoYkTkK
+         rzlteuJhW732tgtrzMIRIuZH5KK8L/SKMbeIs/Vhmts9Hfpo7V5FGAYkpeLVbpwrVPvN
+         P8x6jt9WdAeGpZgyyYvmKjH9SSLJ+ifGk7kQQ3el+UDyHFVTvT+mrMNpS0i4ganxmdbI
+         l0kg==
+X-Gm-Message-State: APjAAAUjj+xORxTrbi9q3b5mnpa57oeVC4T+a3IKXfoe4lL3VtT5exmM
+	H+Wxlt2rthglIc6nfg+3oKOnRLl04YPa/l82PWdYyOusRR7/I7JT+bM74wlgdB3d4ogwORjPCHn
+	tXQC2DhkPAfibgn96hQu+tlRwtJY3rivYXvrKCBW2XmkHIJGSqxigUyp917/EgP51CA==
+X-Received: by 2002:a9d:4b88:: with SMTP id k8mr70726983otf.285.1560894982867;
+        Tue, 18 Jun 2019 14:56:22 -0700 (PDT)
+X-Received: by 2002:a9d:4b88:: with SMTP id k8mr70726946otf.285.1560894982031;
+        Tue, 18 Jun 2019 14:56:22 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560894982; cv=none;
         d=google.com; s=arc-20160816;
-        b=HB0fKORNJYSNLjDv+FHTu5AeyN5cp4Uhg60VdfZL0lLvBJk+odRs8NWSZQAVZ+PplY
-         2i0Cn4cJqebYmwGcQ4IuyIdo/+krzNurRhw1PnF0PQQFINOY+sotbCyvojpp1dukZ1Pn
-         R4NlcUlwAnEd5t+BQQjE7CvRaeJAeSNS17VFxTD2F8fSlTAOfP3pMfF3Cras641UJEOX
-         pjfhooVXfRBatHA+LimNHEML/GAa8F6eE89mtpUtAVSIq3JAE+YARjP4MskQyKzxqDPf
-         kMsvMzBRBDISFdg3b2NxDC4ihULtcxwwrjMPMdV1IWpwMrb/INULYhzEF7hCllPHgyeL
-         SXJQ==
+        b=Sq8tNQocRs0xr+qpnZZWL8qMfgVo6eSD+dYGHpsKlD9DhUUQ2hr2NSwdNPmBnuY06R
+         h4uPrUq37i2K5oQRd4gnE3X6+LsWTZZie8PW1l62OtMx++QlW+gjRDgrFS6URfI+9YEo
+         oU4NSlPKMsF/CEdDQjpJqzl4D8c/A4SkR5WZaiPF9QmOfbJTNcGAoROKQEXnvXQFnJ5t
+         Nv2tVGeDk7ODyagm8ItlyDxKz44Iswmra88bJKQdMND55rMbRPoFmtRo617SICn4MdqS
+         rprilUBOvniFSmZOmPCZ+qT0TGYf/RyAUxhrLV73FDUS7wjqzvQPTdjY+mUS3GOin3in
+         SBTg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from:dkim-signature:dkim-signature;
-        bh=gKeQAHGiCguXF8PWrmaFtB6YG4mQS8zmTH1/6Go6PXI=;
-        b=bnIVsMYZFLQJH3Esxcg61oux+opOhhdSoVkHJXGh3/mbFzGnpGrej2kmjFVtdroEmJ
-         /e/h8WUoohvzZaayVsHx3+DV4ZT7mThBbCvp0rB0aHTEJGcAlWcsMe1IwdHC9l7IoThx
-         vVPQR3ls3VKLnE4FPV3j9cNY2ftlS3Y14vBP80dMXHPAsjdW5BsZNRkRWKz54LXtTGON
-         wI6twOAhwelKXQiBA6yzTq+ABCIEl3Oua0iE5f3o/XErxMWRRcUbcSDmqqziPFiZ0JMk
-         ZoEdEVvRVuN3DAvRcd2HV3R7VtuqxFd0IMtjL0N1D2KEy52F+7FxZGh8RYv0uvBT9PZH
-         WjCw==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=qtt1rZDPVuhTzJb0IIpSWujWs31YenUk5EJQ2S55LAQ=;
+        b=Yc0A1vUflTabdYuJe3ECbLPvL6zD15RIWvIvSWDvyRwxBScE2epQRPPAa7Izao1C4V
+         xF775V/z56rWxiIcLqYgmRm+Zwyg1OmIctL/NRr6O9uwqwlWFuqkDR3mSdKYHANzCCAD
+         aywxESjPxMROxphP24yzghaeUW4wQof44vyJ7A0mwn9eLYr3E+b0rV9Gx11idbb1hfbr
+         BYMoiWWkSUqPRpe0DZoIxKLSP+wLmh7usrSTyqS5DiNRCkWIebsZ89XXAc6PjVd1/Au6
+         iSBhxhWtUEGr2IO4xVzuiZBFhQm9I216gZ1IcGkDjB8mOzstlVO+g/XyC2ZfORo1JoKj
+         Zkjg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b=Ud6tooM5;
-       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-onmicrosoft-com header.b=QNTDSUbq;
-       spf=pass (google.com: domain of prvs=1072dbd9ac=songliubraving@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=1072dbd9ac=songliubraving@fb.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id o6si24896247jan.49.2019.06.18.14.48.26
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=o9IxJYZ8;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id g19sor7667270oti.100.2019.06.18.14.56.21
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 18 Jun 2019 14:48:26 -0700 (PDT)
-Received-SPF: pass (google.com: domain of prvs=1072dbd9ac=songliubraving@fb.com designates 67.231.145.42 as permitted sender) client-ip=67.231.145.42;
+        (Google Transport Security);
+        Tue, 18 Jun 2019 14:56:22 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b=Ud6tooM5;
-       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-onmicrosoft-com header.b=QNTDSUbq;
-       spf=pass (google.com: domain of prvs=1072dbd9ac=songliubraving@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=1072dbd9ac=songliubraving@fb.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from pps.filterd (m0148461.ppops.net [127.0.0.1])
-	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x5ILlcGL007068;
-	Tue, 18 Jun 2019 14:48:25 -0700
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
- : date : message-id : references : in-reply-to : content-type : content-id
- : content-transfer-encoding : mime-version; s=facebook;
- bh=gKeQAHGiCguXF8PWrmaFtB6YG4mQS8zmTH1/6Go6PXI=;
- b=Ud6tooM5blmauzJzBBwxM6JMbEUeQ7vm/lJZn3fmyn2CWXXDg1LmFqyTn7g7EryQpS3m
- R1VTwocXV7FRwqVE7Qa3PwPsWkltKOp7s4OWdb06No6N1LupzUgLNTnMqytPpgTrTlof
- cl0mvxQcauppgVx8xPuTI87i27C7dLQj3qI= 
-Received: from maileast.thefacebook.com ([163.114.130.16])
-	by mx0a-00082601.pphosted.com with ESMTP id 2t77yjr1h4-6
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128 verify=NOT);
-	Tue, 18 Jun 2019 14:48:25 -0700
-Received: from ash-exopmbx201.TheFacebook.com (2620:10d:c0a8:83::8) by
- ash-exhub204.TheFacebook.com (2620:10d:c0a8:83::4) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) id
- 15.1.1713.5; Tue, 18 Jun 2019 14:48:18 -0700
-Received: from ash-exhub102.TheFacebook.com (2620:10d:c0a8:82::f) by
- ash-exopmbx201.TheFacebook.com (2620:10d:c0a8:83::8) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) id
- 15.1.1713.5; Tue, 18 Jun 2019 14:48:18 -0700
-Received: from NAM02-BL2-obe.outbound.protection.outlook.com (100.104.31.183)
- by o365-in.thefacebook.com (100.104.35.172) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256) id 15.1.1713.5
- via Frontend Transport; Tue, 18 Jun 2019 14:48:17 -0700
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.onmicrosoft.com;
- s=selector1-fb-onmicrosoft-com;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=gKeQAHGiCguXF8PWrmaFtB6YG4mQS8zmTH1/6Go6PXI=;
- b=QNTDSUbq5mM31gBz4fZ0Csb4gYmQlJyTJ2N0OR5V4Jv6NRqlNstok6OaN6Gx7KpUZJHXr12ixwAFogcCtm7Nc4bEIpzLmmsHlUaEvFMeDsCRlOn9cyCN9gMDf4CWsKFNlNvuN/8y101QHH2Jqznn5kEKf7hq/OvlHWHaDkUTzpE=
-Received: from MWHPR15MB1165.namprd15.prod.outlook.com (10.175.3.22) by
- MWHPR15MB1230.namprd15.prod.outlook.com (10.175.2.148) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.1987.12; Tue, 18 Jun 2019 21:48:16 +0000
-Received: from MWHPR15MB1165.namprd15.prod.outlook.com
- ([fe80::400e:e329:ea98:aa0d]) by MWHPR15MB1165.namprd15.prod.outlook.com
- ([fe80::400e:e329:ea98:aa0d%6]) with mapi id 15.20.1987.014; Tue, 18 Jun 2019
- 21:48:16 +0000
-From: Song Liu <songliubraving@fb.com>
-To: Andrew Morton <akpm@linux-foundation.org>
-CC: "linux-mm@kvack.org" <linux-mm@kvack.org>,
-        "matthew.wilcox@oracle.com"
-	<matthew.wilcox@oracle.com>,
-        "kirill.shutemov@linux.intel.com"
-	<kirill.shutemov@linux.intel.com>,
-        Kernel Team <Kernel-team@fb.com>,
-        "william.kucharski@oracle.com" <william.kucharski@oracle.com>,
-        "chad.mynhier@oracle.com" <chad.mynhier@oracle.com>,
-        "mike.kravetz@oracle.com" <mike.kravetz@oracle.com>
-Subject: Re: [PATCH v2 0/3] Enable THP for text section of non-shmem files
-Thread-Topic: [PATCH v2 0/3] Enable THP for text section of non-shmem files
-Thread-Index: AQHVIt4f2F2VuI2II0W4i6vGZDY11qah706AgAAKBoA=
-Date: Tue, 18 Jun 2019 21:48:16 +0000
-Message-ID: <BA4D64DA-4F48-4683-8512-0402B9533EE7@fb.com>
-References: <20190614182204.2673660-1-songliubraving@fb.com>
- <20190618141223.4479989e18b1e1ea942b0e42@linux-foundation.org>
-In-Reply-To: <20190618141223.4479989e18b1e1ea942b0e42@linux-foundation.org>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach: 
-X-MS-TNEF-Correlator: 
-x-mailer: Apple Mail (2.3445.104.11)
-x-originating-ip: [2620:10d:c090:200::3:2b1d]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: a9d26c59-fe43-4a4e-8c80-08d6f436abc3
-x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(2017052603328)(7193020);SRVR:MWHPR15MB1230;
-x-ms-traffictypediagnostic: MWHPR15MB1230:
-x-microsoft-antispam-prvs: <MWHPR15MB1230E5EF0ADAF5FE643BC418B3EA0@MWHPR15MB1230.namprd15.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:6108;
-x-forefront-prvs: 007271867D
-x-forefront-antispam-report: SFV:NSPM;SFS:(10019020)(136003)(366004)(376002)(346002)(39860400002)(396003)(199004)(189003)(6436002)(102836004)(6506007)(478600001)(53546011)(11346002)(25786009)(76116006)(36756003)(33656002)(73956011)(66556008)(66476007)(2616005)(6246003)(446003)(66446008)(486006)(46003)(64756008)(6486002)(4326008)(186003)(76176011)(66946007)(71200400001)(8676002)(50226002)(256004)(71190400001)(476003)(81166006)(86362001)(6916009)(14444005)(305945005)(81156014)(68736007)(53936002)(99286004)(7736002)(2906002)(229853002)(6512007)(316002)(6116002)(54906003)(8936002)(14454004)(5660300002)(57306001);DIR:OUT;SFP:1102;SCL:1;SRVR:MWHPR15MB1230;H:MWHPR15MB1165.namprd15.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
-received-spf: None (protection.outlook.com: fb.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info: jTfpDxwJuU1GuSeJcb+u1U0bETHd8008MkxbJKw0BHNc2WBBGJ5FDfRONeOVPBfznBr8ovKoHtSDfX0KLL+QI2oozdyYAp/evRHjzHSadJnCWWl+1Ea3zfpRmK5+tQdS0VS3omTGkzSUDZ1lSDAm/8uIqJT29qJPPwdV/CkTHQSjisbEmLHlSw3DyPZM9LIf03oInqKOI9MbHXG72kwbXW5uo1G9fsfR1gXLdJYsB3BfQ5OS+Nf2yAFDqOFVjp+WAzc3BDVdTk95JRvceXMYcSccfOty4BwjtXPHdH62UeN+9+cjIcn3BTdNMAGIHikCcQ4t+MxeihyaRfmB++A4QUs00acC5X7gJucdex6O3AIAU9WuZoDbh1f67A2KEPohj7yt+7hzxaddDG6yPe8ZPXtRkauH1FNdqaQHHj8BdYw=
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <AB2F0BAC20E27C43BE321CD7B74858E5@namprd15.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=o9IxJYZ8;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=intel-com.20150623.gappssmtp.com; s=20150623;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=qtt1rZDPVuhTzJb0IIpSWujWs31YenUk5EJQ2S55LAQ=;
+        b=o9IxJYZ8kwnBSB9PQOv7jn58lvvPn/adQGqPIytHTR0TqJoqUCra3YWwiCY4h3AlYH
+         xiZVw6gaMWJJUNrNFzyv9a4lveZ5YBGgHA+j//loikNHE8IV1EjpOlRBLVY2vYvSogUU
+         0HRgDKcziETxicByU2DKj1YOyOdBmwys4mY9nB3vVUzv2wlkAnmWoPopS5DE1HODt0hE
+         5HVGkkpPJqTlus0NxOgdUJsZNLwRI5Ms+DrGaIK6OcLsA9l+7fwVwNt+8+nXzMaUjztq
+         4e50KhU65baxSh5uGc0V1VK+yxUUi7tMoUQttN0dHnsHn1Nd/1FiB0CnMXZ3aGU2Sbu1
+         pGuQ==
+X-Google-Smtp-Source: APXvYqzKPs+IsgHm4GdmBY9YxJvdl69JbeHvSvRruLq+veyQ9aHjXa2JJYwL1cAEYPsSnqgORpvbEL1TnIVnaDe8a/c=
+X-Received: by 2002:a9d:7a8b:: with SMTP id l11mr1219251otn.247.1560894981583;
+ Tue, 18 Jun 2019 14:56:21 -0700 (PDT)
 MIME-Version: 1.0
-X-MS-Exchange-CrossTenant-Network-Message-Id: a9d26c59-fe43-4a4e-8c80-08d6f436abc3
-X-MS-Exchange-CrossTenant-originalarrivaltime: 18 Jun 2019 21:48:16.4102
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: 8ae927fe-1255-47a7-a2af-5f3a069daaa2
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-userprincipalname: songliubraving@fb.com
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: MWHPR15MB1230
-X-OriginatorOrg: fb.com
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-06-18_10:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=fb_default_notspam policy=fb_default score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1011 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1906180174
-X-FB-Internal: deliver
+References: <155977186863.2443951.9036044808311959913.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <155977187407.2443951.16503493275720588454.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <20190616131123.fkjs4kyg32aryjq6@master>
+In-Reply-To: <20190616131123.fkjs4kyg32aryjq6@master>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Tue, 18 Jun 2019 14:56:09 -0700
+Message-ID: <CAPcyv4hw2W3=CkrUmWtvu3cAdo3GLRhG0=G_RO7xQBugNB2htA@mail.gmail.com>
+Subject: Re: [PATCH v9 01/12] mm/sparsemem: Introduce struct mem_section_usage
+To: Wei Yang <richard.weiyang@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, 
+	Vlastimil Babka <vbabka@suse.cz>, Logan Gunthorpe <logang@deltatee.com>, Oscar Salvador <osalvador@suse.de>, 
+	Pavel Tatashin <pasha.tatashin@soleen.com>, 
+	Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, 
+	Michael Ellerman <mpe@ellerman.id.au>, Linux MM <linux-mm@kvack.org>, 
+	linux-nvdimm <linux-nvdimm@lists.01.org>, 
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Sun, Jun 16, 2019 at 6:11 AM Wei Yang <richard.weiyang@gmail.com> wrote:
+>
+> On Wed, Jun 05, 2019 at 02:57:54PM -0700, Dan Williams wrote:
+> >Towards enabling memory hotplug to track partial population of a
+> >section, introduce 'struct mem_section_usage'.
+> >
+> >A pointer to a 'struct mem_section_usage' instance replaces the existing
+> >pointer to a 'pageblock_flags' bitmap. Effectively it adds one more
+> >'unsigned long' beyond the 'pageblock_flags' (usemap) allocation to
+> >house a new 'subsection_map' bitmap.  The new bitmap enables the memory
+> >hot{plug,remove} implementation to act on incremental sub-divisions of a
+> >section.
+> >
+> >The default SUBSECTION_SHIFT is chosen to keep the 'subsection_map' no
+> >larger than a single 'unsigned long' on the major architectures.
+> >Alternatively an architecture can define ARCH_SUBSECTION_SHIFT to
+> >override the default PMD_SHIFT. Note that PowerPC needs to use
+> >ARCH_SUBSECTION_SHIFT to workaround PMD_SHIFT being a non-constant
+> >expression on PowerPC.
+> >
+> >The primary motivation for this functionality is to support platforms
+> >that mix "System RAM" and "Persistent Memory" within a single section,
+> >or multiple PMEM ranges with different mapping lifetimes within a single
+> >section. The section restriction for hotplug has caused an ongoing saga
+> >of hacks and bugs for devm_memremap_pages() users.
+> >
+> >Beyond the fixups to teach existing paths how to retrieve the 'usemap'
+> >from a section, and updates to usemap allocation path, there are no
+> >expected behavior changes.
+> >
+> >Cc: Michal Hocko <mhocko@suse.com>
+> >Cc: Vlastimil Babka <vbabka@suse.cz>
+> >Cc: Logan Gunthorpe <logang@deltatee.com>
+> >Cc: Oscar Salvador <osalvador@suse.de>
+> >Cc: Pavel Tatashin <pasha.tatashin@soleen.com>
+> >Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+> >Cc: Paul Mackerras <paulus@samba.org>
+> >Cc: Michael Ellerman <mpe@ellerman.id.au>
+> >Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+> >---
+> > arch/powerpc/include/asm/sparsemem.h |    3 +
+> > include/linux/mmzone.h               |   48 +++++++++++++++++++-
+> > mm/memory_hotplug.c                  |   18 ++++----
+> > mm/page_alloc.c                      |    2 -
+> > mm/sparse.c                          |   81 +++++++++++++++++-----------------
+> > 5 files changed, 99 insertions(+), 53 deletions(-)
+> >
+> >diff --git a/arch/powerpc/include/asm/sparsemem.h b/arch/powerpc/include/asm/sparsemem.h
+> >index 3192d454a733..1aa3c9303bf8 100644
+> >--- a/arch/powerpc/include/asm/sparsemem.h
+> >+++ b/arch/powerpc/include/asm/sparsemem.h
+> >@@ -10,6 +10,9 @@
+> >  */
+> > #define SECTION_SIZE_BITS       24
+> >
+> >+/* Reflect the largest possible PMD-size as the subsection-size constant */
+> >+#define ARCH_SUBSECTION_SHIFT 24
+> >+
+> > #endif /* CONFIG_SPARSEMEM */
+> >
+> > #ifdef CONFIG_MEMORY_HOTPLUG
+> >diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> >index 427b79c39b3c..ac163f2f274f 100644
+> >--- a/include/linux/mmzone.h
+> >+++ b/include/linux/mmzone.h
+> >@@ -1161,6 +1161,44 @@ static inline unsigned long section_nr_to_pfn(unsigned long sec)
+> > #define SECTION_ALIGN_UP(pfn) (((pfn) + PAGES_PER_SECTION - 1) & PAGE_SECTION_MASK)
+> > #define SECTION_ALIGN_DOWN(pfn)       ((pfn) & PAGE_SECTION_MASK)
+> >
+> >+/*
+> >+ * SUBSECTION_SHIFT must be constant since it is used to declare
+> >+ * subsection_map and related bitmaps without triggering the generation
+> >+ * of variable-length arrays. The most natural size for a subsection is
+> >+ * a PMD-page. For architectures that do not have a constant PMD-size
+> >+ * ARCH_SUBSECTION_SHIFT can be set to a constant max size, or otherwise
+> >+ * fallback to 2MB.
+> >+ */
+> >+#if defined(ARCH_SUBSECTION_SHIFT)
+> >+#define SUBSECTION_SHIFT (ARCH_SUBSECTION_SHIFT)
+> >+#elif defined(PMD_SHIFT)
+> >+#define SUBSECTION_SHIFT (PMD_SHIFT)
+> >+#else
+> >+/*
+> >+ * Memory hotplug enabled platforms avoid this default because they
+> >+ * either define ARCH_SUBSECTION_SHIFT, or PMD_SHIFT is a constant, but
+> >+ * this is kept as a backstop to allow compilation on
+> >+ * !ARCH_ENABLE_MEMORY_HOTPLUG archs.
+> >+ */
+> >+#define SUBSECTION_SHIFT 21
+> >+#endif
+> >+
+> >+#define PFN_SUBSECTION_SHIFT (SUBSECTION_SHIFT - PAGE_SHIFT)
+> >+#define PAGES_PER_SUBSECTION (1UL << PFN_SUBSECTION_SHIFT)
+> >+#define PAGE_SUBSECTION_MASK ((~(PAGES_PER_SUBSECTION-1)))
+>
+> One pair of brackets could be removed, IMHO.
 
+Sure.
 
-> On Jun 18, 2019, at 2:12 PM, Andrew Morton <akpm@linux-foundation.org> wr=
-ote:
->=20
-> On Fri, 14 Jun 2019 11:22:01 -0700 Song Liu <songliubraving@fb.com> wrote=
-:
->=20
->> This set follows up discussion at LSF/MM 2019. The motivation is to put
->> text section of an application in THP, and thus reduces iTLB miss rate a=
-nd
->> improves performance. Both Facebook and Oracle showed strong interests t=
-o
->> this feature.
->>=20
->> To make reviews easier, this set aims a mininal valid product. Current
->> version of the work does not have any changes to file system specific
->> code. This comes with some limitations (discussed later).
->>=20
->> This set enables an application to "hugify" its text section by simply
->> running something like:
->>=20
->>          madvise(0x600000, 0x80000, MADV_HUGEPAGE);
->>=20
->> Before this call, the /proc/<pid>/maps looks like:
->>=20
->>    00400000-074d0000 r-xp 00000000 00:27 2006927     app
->>=20
->> After this call, part of the text section is split out and mapped to THP=
-:
->>=20
->>    00400000-00425000 r-xp 00000000 00:27 2006927     app
->>    00600000-00e00000 r-xp 00200000 00:27 2006927     app   <<< on THP
->>    00e00000-074d0000 r-xp 00a00000 00:27 2006927     app
->>=20
->> Limitations:
->>=20
->> 1. This only works for text section (vma with VM_DENYWRITE).
->> 2. Once the application put its own pages in THP, the file is read only.
->>   open(file, O_WRITE) will fail with -ETXTBSY. To modify/update the file=
-,
->>   it must be removed first.
->=20
-> Removed?  Even if the original mmap/madvise has gone away?  hm.
+>
+> >+
+> >+#if SUBSECTION_SHIFT > SECTION_SIZE_BITS
+> >+#error Subsection size exceeds section size
+> >+#else
+> >+#define SUBSECTIONS_PER_SECTION (1UL << (SECTION_SIZE_BITS - SUBSECTION_SHIFT))
+> >+#endif
+> >+
+> >+struct mem_section_usage {
+> >+      DECLARE_BITMAP(subsection_map, SUBSECTIONS_PER_SECTION);
+> >+      /* See declaration of similar field in struct zone */
+> >+      unsigned long pageblock_flags[0];
+> >+};
+> >+
+> > struct page;
+> > struct page_ext;
+> > struct mem_section {
+> >@@ -1178,8 +1216,7 @@ struct mem_section {
+> >        */
+> >       unsigned long section_mem_map;
+> >
+> >-      /* See declaration of similar field in struct zone */
+> >-      unsigned long *pageblock_flags;
+> >+      struct mem_section_usage *usage;
+> > #ifdef CONFIG_PAGE_EXTENSION
+> >       /*
+> >        * If SPARSEMEM, pgdat doesn't have page_ext pointer. We use
+> >@@ -1210,6 +1247,11 @@ extern struct mem_section **mem_section;
+> > extern struct mem_section mem_section[NR_SECTION_ROOTS][SECTIONS_PER_ROOT];
+> > #endif
+> >
+> >+static inline unsigned long *section_to_usemap(struct mem_section *ms)
+> >+{
+> >+      return ms->usage->pageblock_flags;
+>
+> Do we need to consider the case when ms->usage is NULL?
 
-Yeah, it is not ideal. The thp holds a negative count on i_mmap_writable,=20
-so it cannot be opened for write.=20
-
->=20
-> I'm wondering if this limitation can be abused in some fashion: mmap a
-> file to which you have read permissions, run madvise(MADV_HUGEPAGE) and
-> thus prevent the file's owner from being able to modify the file?  Or
-> something like that.  What are the issues and protections here?
-
-In this case, the owner need to make a copy of the file, and then remove=20
-and update the original file.=20
-
-In this version, we want either split huge page on writes, or fail the=20
-write when we cannot split. However, the huge page information is only=20
-available at page level, and on the write path, page level information=20
-is not available until write_begin(). So it is hard to stop writes at=20
-earlier stage. Therefore, in this version, we leverage i_mmap_writable,=20
-which is at address_space level. So it is easier to stop writes to the=20
-file.=20
-
-This is a temporary behavior. And it is gated by the config. So I guess
-it is OK. It works well for our use cases though. Once we have better=20
-write support, we can remove the limitation.=20
-
-If this is too weird, I am also open to suggestions.=20
-
-Thanks,
-Song=
+No, this routine safely assumes it is always set.
 
