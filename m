@@ -6,98 +6,94 @@ X-Spam-Status: No, score=-8.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
 	URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2D012C31E51
-	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 10:21:48 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C5C02C31E51
+	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 10:24:08 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B65772085A
-	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 10:21:47 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B65772085A
+	by mail.kernel.org (Postfix) with ESMTP id 917692085A
+	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 10:24:08 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 917692085A
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=I-love.SAKURA.ne.jp
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 52E986B0003; Tue, 18 Jun 2019 06:21:47 -0400 (EDT)
+	id 2946A6B0005; Tue, 18 Jun 2019 06:24:08 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4DF228E0002; Tue, 18 Jun 2019 06:21:47 -0400 (EDT)
+	id 244F08E0002; Tue, 18 Jun 2019 06:24:08 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3A7C88E0001; Tue, 18 Jun 2019 06:21:47 -0400 (EDT)
+	id 1346F8E0001; Tue, 18 Jun 2019 06:24:08 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 1A1B86B0003
-	for <linux-mm@kvack.org>; Tue, 18 Jun 2019 06:21:47 -0400 (EDT)
-Received: by mail-io1-f71.google.com with SMTP id y5so15615618ioj.10
-        for <linux-mm@kvack.org>; Tue, 18 Jun 2019 03:21:47 -0700 (PDT)
+Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E93946B0005
+	for <linux-mm@kvack.org>; Tue, 18 Jun 2019 06:24:07 -0400 (EDT)
+Received: by mail-oi1-f197.google.com with SMTP id t198so4702912oih.20
+        for <linux-mm@kvack.org>; Tue, 18 Jun 2019 03:24:07 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id;
-        bh=0zuk9ap3kdii5bGymjz3VhOYqS2Fp0WNvD9SwPrFQ54=;
-        b=rmr4qhHBETeKAl133JEG9Gy6aWZESVg4d10r6mv8nwQWbAj5bMCGq9JlElrUjXaut1
-         nRTm3GXPQCNsvOt2y+kuE5A7x6T6irOSDlh9LT0L8tMs2/dIXD5gNQOq7ZFvkxucbH4N
-         ajlvec6f5H3qlUE/n8/Gp2iH6MJXNJjh/6Gkf1bIbXwTnFlT35IcvSN+9ejWTGbRTyGq
-         4IXrTlf/yvm/ZCzW1ijsFbeE4IxN/MQ9pPZUX9HeBJgRfB9ZLHauqBoggFAhwrCpU+e/
-         yxY+629n1CYhMei9wYA0d8K6JRKJWwmIRRYFqqfciAbwBglNVS/slCBdKsoyzDIQFL1w
-         GKsw==
+        bh=AvrxHp0gzy1y4LIfR1p0YscwaVAorkw2TRpxZ1Kb7eI=;
+        b=rIpzDa/SW3Xr/O35igmf4sQEQzS8kNqi+vvDaKS8t9Ku81IIrOuDsGyYtCSVbovb+y
+         pEGEZgNVjiGVc98kTBa6y4dDC+T+Fd/MDYpMLGOzzG4HSZg0cj9NYQNwEqXrw9Z7lqTS
+         ExZDDgQuzkiYPcAlrsxC+faQWBKl7kzwHOzdMvbHl6BhsOIMoWfyY+gfOrQU8nMQDrQV
+         twAJGmIA9bkdDgofHYQbnrPzqWcGT5DEE9gfHGNOhPUP7PzyXdof2Gar1BDya7E1GS4R
+         uLX1ixLp0ujX7w3HMddHw2sEU21tScaBiMoHc/mbbD98zawChL1gjyqBiqMiHJmTbGZ2
+         M+4w==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
-X-Gm-Message-State: APjAAAVO3Fb3OnabO6wgUQubpq6qgsw2cyfRsflBAbwIhiwpU8JSxqR7
-	+FlCRG27Iv+X8iAC0YR6uFYMIupyuiDBTqQY0AFYJZbnvNLOVl7yy8X3Qk+mg7D2fp1LJAhvfUo
-	p8YNchtr2ojq4dUr74vcjjta0W7A68+4gLka/JXCx2mYNaRC4LXzyH6YrBg1lPtRBCA==
-X-Received: by 2002:a5d:9047:: with SMTP id v7mr60892404ioq.18.1560853306878;
-        Tue, 18 Jun 2019 03:21:46 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz1ozq2rr1R2QTsE0S0KHX0UZzr/VCosEKAQFDUG+va/2/UquFgTeCAMyMl+C6cknQF7adw
-X-Received: by 2002:a5d:9047:: with SMTP id v7mr60892253ioq.18.1560853304532;
-        Tue, 18 Jun 2019 03:21:44 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560853304; cv=none;
+X-Gm-Message-State: APjAAAWeUr0vBVoYlH62CvAOG7CmtByLCG6JLsiJZ+tWBqfR98e4M1GQ
+	lz64aFm01tcj3Imm5naPUwBQ3EVVWgrwZH/s24FYoAsvswjzYdxK6VvQCt58z/5Otj3cVRPuo2q
+	JxP/qiGpll4M3gOsujMNtv6KRGDxI0Ri75jxDF2H+kcKCpFW7EXHPcgMgGFJqL3RejQ==
+X-Received: by 2002:a9d:6289:: with SMTP id x9mr16354794otk.82.1560853447636;
+        Tue, 18 Jun 2019 03:24:07 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqydUCGaupx30QgqhnGmt2t7C12ZkhUYJ3rtSnfA9d+WC10UV3FYjVPNeb75Yly6YA4sKjgZ
+X-Received: by 2002:a9d:6289:: with SMTP id x9mr16354735otk.82.1560853446825;
+        Tue, 18 Jun 2019 03:24:06 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560853446; cv=none;
         d=google.com; s=arc-20160816;
-        b=fkkzLfA68tsYjFMCv4mt/+z9JV9yBGBwIBRlXw1lXiQoYz/4FI96Id0C/neSbE0cUw
-         0lqhHkpFzFt0uRF0phbFkU8AbcxRFJmXecVohJofH07I9G/WXfmhecqch4QsfGhrlnf7
-         sO5AAv4+UESdTtDHajdL6gu/jp4O89hK1om+oesFbEjKsHW0vTqhYXEb2vBRfpvrdvfX
-         n6nIPuvmMaxEQ56Ta49biaGVK+MlrfmAUxQu504CdJIo7l4gSle/m6BveUUwd7cRwOB9
-         MTveXS/XyMqm2XIoshq10bN7dQc7dnBiCB46Ew3I+lTUdsfSbblSHY2m/54dC4pt4WsU
-         r2aw==
+        b=czBYzTPLI/4+pYf3JCsjOgktpZEj1QfZHDrmKRPkPNDhxf0aZ0GY3Nf/N+pVwvJQOf
+         Ya92kO+bLYNN6YOqrN67V89j6scYC9uSDXSkJo0ve9vd3pKTKOSyk2c/jV0CevjDoBiR
+         beuu+sbCdYkIKboYFzlGuk8+QZ6Gv2bCCd2Repte/KuqPD1lfa5Ws/DG7cixnyoJgICo
+         QU607WbuLfEwRJe9NZSQC3yESCQS+PTNfaP2tDIk87JcXduxtfkTUul6Huk+cu/GaYVz
+         BgWWewwpgir49/FPEzfZhVmHboyM79aw463dlL6oCKhC6yPoFVYDtLqkMXnpM0wJ79KA
+         cH3Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=message-id:date:subject:cc:to:from;
-        bh=0zuk9ap3kdii5bGymjz3VhOYqS2Fp0WNvD9SwPrFQ54=;
-        b=KOkMjhJkH0baA/P/VZRPf/cmNDpk6WqHLrrHBszMNpGbGG17MI5vEmICUyfjQZ766P
-         sBxPZmPLqUkZGd2tUgygQFVLVKa82PqRoEHM+xnHoJArX3sPqxEi2viWYdtBLPbXc/RG
-         OVZTNGctF04yL+9uGRgQ6DgUc52Gg7br5kFc97r1ADzINMibAkSKjYI3R1/n204Tx4Yh
-         Mrf55lx8aU3Dphetpd9Q5QNQcS9H5NkXlQAZLuKoETG9mYe3P1ZQohY6MwZMtSGCDwlQ
-         a70pmDoV9yx7QfzqTLUWc1HjsfB5fs/roYYmO1Z9ToGE59TefQIjZB7dJsmztpJiJMtt
-         gU1w==
+        bh=AvrxHp0gzy1y4LIfR1p0YscwaVAorkw2TRpxZ1Kb7eI=;
+        b=IMnSJzHLOQ9z0eM7Vy7dhrcJx6mpg9Bc03FXbdNpDGpGs/G4WRqO+9JO8pwj73bvGZ
+         KWgYzbtLCuJcAva2QxecRkcgXKuB67a6STbkVs8JWxEYzki4X/aVqMebqFmoo1FCC/pO
+         XdfyNgr10fXN5+ilmkghiBHbFZ/CxgpRrAgEilaxO0hYCWsgg8tEgV7ooK7J1iKnrh5e
+         ZZLE7pqqhyRzqIugUPRhEpcNXfxopF/44U27Sxk6biPF2ymTlD+k7x5OhdyzEh2Hhqi/
+         P9TF9tKD3+t/2czR2E1tHfAVZL+vAfqznGdQAwOiiP7kBaSZwrw3MGaR7ETjsI3XoDSP
+         YB/g==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
 Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id m18si11065510jaa.95.2019.06.18.03.21.43
+        by mx.google.com with ESMTPS id 5si8855727oto.141.2019.06.18.03.24.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 18 Jun 2019 03:21:44 -0700 (PDT)
+        Tue, 18 Jun 2019 03:24:06 -0700 (PDT)
 Received-SPF: pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) client-ip=202.181.97.72;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
-Received: from fsav101.sakura.ne.jp (fsav101.sakura.ne.jp [27.133.134.228])
-	by www262.sakura.ne.jp (8.15.2/8.15.2) with ESMTP id x5IALFcr066488;
-	Tue, 18 Jun 2019 19:21:15 +0900 (JST)
+Received: from fsav305.sakura.ne.jp (fsav305.sakura.ne.jp [153.120.85.136])
+	by www262.sakura.ne.jp (8.15.2/8.15.2) with ESMTP id x5IAO0qE069006;
+	Tue, 18 Jun 2019 19:24:01 +0900 (JST)
 	(envelope-from penguin-kernel@I-love.SAKURA.ne.jp)
 Received: from www262.sakura.ne.jp (202.181.97.72)
- by fsav101.sakura.ne.jp (F-Secure/fsigk_smtp/530/fsav101.sakura.ne.jp);
- Tue, 18 Jun 2019 19:21:15 +0900 (JST)
-X-Virus-Status: clean(F-Secure/fsigk_smtp/530/fsav101.sakura.ne.jp)
+ by fsav305.sakura.ne.jp (F-Secure/fsigk_smtp/530/fsav305.sakura.ne.jp);
+ Tue, 18 Jun 2019 19:24:00 +0900 (JST)
+X-Virus-Status: clean(F-Secure/fsigk_smtp/530/fsav305.sakura.ne.jp)
 Received: from ccsecurity.localdomain (softbank126012062002.bbtec.net [126.12.62.2])
 	(authenticated bits=0)
-	by www262.sakura.ne.jp (8.15.2/8.15.2) with ESMTPSA id x5IALA0K066330
+	by www262.sakura.ne.jp (8.15.2/8.15.2) with ESMTPSA id x5IANu2B068841
 	(version=TLSv1.2 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=NO);
-	Tue, 18 Jun 2019 19:21:15 +0900 (JST)
+	Tue, 18 Jun 2019 19:24:00 +0900 (JST)
 	(envelope-from penguin-kernel@I-love.SAKURA.ne.jp)
 From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>,
-        David Rientjes <rientjes@google.com>, Greg Thelen <gthelen@google.com>,
-        Johannes Weiner <hannes@cmpxchg.org>,
-        KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>,
-        Michal Hocko <mhocko@suse.cz>
-Subject: [PATCH] mm: oom: Remove thread group leader check in oom_evaluate_task().
-Date: Tue, 18 Jun 2019 19:20:57 +0900
-Message-Id: <1560853257-14934-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: linux-mm@kvack.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Subject: [PATCH] mm, oom: Remove redundant OOM score normalization at select_bad_process().
+Date: Tue, 18 Jun 2019 19:23:55 +0900
+Message-Id: <1560853435-15575-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
 X-Mailer: git-send-email 1.8.3.1
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -105,35 +101,31 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Since mem_cgroup_scan_tasks() uses CSS_TASK_ITER_PROCS, only thread group
-leaders will be scanned (unless dying leaders with live threads). Thus,
-commit d49ad9355420c743 ("mm, oom: prefer thread group leaders for display
-purposes") makes little sense.
+Since commit bbbe48029720d2c6 ("mm, oom: remove 'prefer children over
+parent' heuristic") removed
+
+  "%s: Kill process %d (%s) score %u or sacrifice child\n"
+
+line, oc->chosen_points is no longer used after select_bad_process().
 
 Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: David Rientjes <rientjes@google.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Michal Hocko <mhocko@suse.cz>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Greg Thelen <gthelen@google.com>
 ---
- mm/oom_kill.c | 3 ---
- 1 file changed, 3 deletions(-)
+ mm/oom_kill.c | 2 --
+ 1 file changed, 2 deletions(-)
 
 diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 32abc7a..09a5116 100644
+index 09a5116..789a1bc 100644
 --- a/mm/oom_kill.c
 +++ b/mm/oom_kill.c
-@@ -348,9 +348,6 @@ static int oom_evaluate_task(struct task_struct *task, void *arg)
- 	if (!points || points < oc->chosen_points)
- 		goto next;
+@@ -380,8 +380,6 @@ static void select_bad_process(struct oom_control *oc)
+ 				break;
+ 		rcu_read_unlock();
+ 	}
+-
+-	oc->chosen_points = oc->chosen_points * 1000 / oc->totalpages;
+ }
  
--	/* Prefer thread group leaders for display purposes */
--	if (points == oc->chosen_points && thread_group_leader(oc->chosen))
--		goto next;
- select:
- 	if (oc->chosen)
- 		put_task_struct(oc->chosen);
+ static int dump_task(struct task_struct *p, void *arg)
 -- 
 1.8.3.1
 
