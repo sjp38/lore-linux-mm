@@ -2,148 +2,226 @@ Return-Path: <SRS0=8DoX=UR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 99349C31E5B
-	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 01:40:46 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1685CC31E5B
+	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 01:42:51 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5239B2082C
-	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 01:40:46 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="tAYxS8Cz"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5239B2082C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id CDE242082C
+	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 01:42:50 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CDE242082C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id ECAEA8E0005; Mon, 17 Jun 2019 21:40:45 -0400 (EDT)
+	id 775F18E0005; Mon, 17 Jun 2019 21:42:50 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E7AEF8E0001; Mon, 17 Jun 2019 21:40:45 -0400 (EDT)
+	id 726358E0001; Mon, 17 Jun 2019 21:42:50 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D43CD8E0005; Mon, 17 Jun 2019 21:40:45 -0400 (EDT)
+	id 614EB8E0005; Mon, 17 Jun 2019 21:42:50 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 9C3648E0001
-	for <linux-mm@kvack.org>; Mon, 17 Jun 2019 21:40:45 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id h27so1638738pfq.17
-        for <linux-mm@kvack.org>; Mon, 17 Jun 2019 18:40:45 -0700 (PDT)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 2DF5F8E0001
+	for <linux-mm@kvack.org>; Mon, 17 Jun 2019 21:42:50 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id t2so6873265plo.10
+        for <linux-mm@kvack.org>; Mon, 17 Jun 2019 18:42:50 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=e8n1dhH05vKni7panA8EPqi7kyq4X1nEgLodhwt9/EE=;
-        b=ceHRXJzTIEMfq6XUkoR+DlKx4+XZdTA69QYLYPD+GG4Z0GwBxfPhC/S004xIX7Qrkf
-         XesCbrxIqUpbbNDsp596ciKfraW6+HpTqvlqqS1whGKAq6/HzVHX3wvwlUA29RURg4/2
-         enUO7mpdOdt4nPaLZzNv0C3x1PJ9H9seSgMZSdLBgsckh5DjXsZaFjI2JSPeq2eHGX26
-         Pyt+z0EKqqHgaqipSTS3u2U7y3T4iN3h56sU/wiJAur8VmXALr/xp056QhIOaQjwj1GN
-         crpS0ELO3ntZ1ogkwCS4qORqK8WoMvL26eZcW74RSGGdo53Ydfp+tomJFl5CVkho+9KV
-         vVkg==
-X-Gm-Message-State: APjAAAUrRsWv1e+0zlyvdpbAjzBcKpsUhPe8I3Y8WaLzCx6aIZOy2pmq
-	gGsD+n8gkjvuXBBQiAxeopwbAUAVpKxE6Lc7jOll+qGiGRsA5KyElfpuH9oxO7ycn/pYAGrXGUW
-	Q1iX6ijhCWlGUq6skfyj/EMkw4tySXNiLkazzbfiMSV2jIQY/h4LZnSR+ntDvyJu98Q==
-X-Received: by 2002:a62:4d04:: with SMTP id a4mr116829614pfb.177.1560822045250;
-        Mon, 17 Jun 2019 18:40:45 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz6+nFbH5RnRwmC7BWPidnRq1MahclNQgmj/vu7N52Tafyk1N/1NXEbbfsqpu3d8fF+LDhn
-X-Received: by 2002:a62:4d04:: with SMTP id a4mr116829586pfb.177.1560822044588;
-        Mon, 17 Jun 2019 18:40:44 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560822044; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:reply-to:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=p6H0mL+tlfk+OXys+YnErPASvhlh2UJN/+MjTuBwcq0=;
+        b=mtyD9P7GhrKblXh8n5pKWuKGK3iiymM4G1dtImwtVn94uK3+LsDu1TfMyPudO+N6/k
+         S/XqOcsaF4UK4RC47mgK+GRrkoVjr8BRncEOAi2S4Y1vpLx+Y7Kxh6RBf29/wUgfKWnA
+         eTUylQVW0EMh60bKHrAtoNzH9S51I3e6601/mWCW/em0SsI77qN+mwax7zFlPgPk8jdj
+         nv6rvMSgcXcvkkc8kZPq8SXPx1nq0+DcVdiq3EVcGGakPIiXvQE3YIu7hOAHhQF3dUZo
+         Do6ZvyqWKM2ZLkpRYR4sUDyGfw+1C6W1F1s4g3NeCOIqt5Mb6xFC08mcbtHKOQlkzcxY
+         +NIw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of richardw.yang@linux.intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=richardw.yang@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAWP09/b/ZZQxCH3aM1nxu9QuP45lZOg7NFGbNBdqE7Nifh7QTMI
+	w+8G7gbmSDrvzGRsxKF8Q7fsmLSfKmyr6lg0fqoJCg57Lt070AdDqHx64Y/lkY1NJjBfw3sPPO0
+	wheRxHkTCoXNGLA4261WznTUYCXnY9kavGn0WMC2ewhzIfcIaExe4hQdEvfvZq8eF7Q==
+X-Received: by 2002:a17:90a:aa85:: with SMTP id l5mr2189925pjq.69.1560822169836;
+        Mon, 17 Jun 2019 18:42:49 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzQmCWHe0ShI6Bq2GlwKM1m4/nH1I8NL5Sog2NbJ/G8MFZt7GAN/HsFCACZZbNVirgTXlFs
+X-Received: by 2002:a17:90a:aa85:: with SMTP id l5mr2189874pjq.69.1560822169012;
+        Mon, 17 Jun 2019 18:42:49 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560822169; cv=none;
         d=google.com; s=arc-20160816;
-        b=j66RwlxPRrCEeW63sjn4k6q36Rv3SuOY/RIslKo1a3HYlvYS8HK69wW2VwQs8gB5on
-         UhGL9Rg03RPYAJq1502NnS9YTifvhY3b1XtvL/FLKAFiacrQgxa8GvS4gwSgW08LtCrV
-         e3jQcOq1tl9XEk3T1V4sWnaEeBVYCFm1FWGdqUCDJcPctVHDQO2814EdMlkVtuve7ydQ
-         21FDGFB4D6WS1RVryRPFNgacYg2RbvuUUza5xFVygMKhIdm/+15r+lCCQHu6KoEVYsmL
-         kfykuP2bHantxZV6l6PBuTfW4BRKm9hd9/yCjpEYDVGFEbq/bJC2AWHYTuicsjrLgZWY
-         Xw+w==
+        b=fIxrQkdHonmhJ08MXP/SbQJoPMVi8pA2gr4M/I1xhd7XE8SVlbhPSYLIcSeYGzKIuX
+         1u7NLlOdd12WjMm6hC+FVY78dmgWMqoXRmh668Mc5POjlKe/2Ec2HSUfb0OILJyvILAd
+         jkJLZWIyCZZGGJXZdkVN//J//vwjD3ir6/dkhb3oyAT1bXWZ4VHJEgs6gpj7MAWUwoHF
+         6jY32r+oQy1n3bdELgnm0JZgx4XmiN2WAqhaxJppL5OtIyELuaqfWvEqCjtLFcQ77XRv
+         2WcJ429Z56BhHKURUQJqy79i0tPGHun1cryLrjFMGRRF17VAmmZZ3MrKL2YugW09at4S
+         cNNg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=e8n1dhH05vKni7panA8EPqi7kyq4X1nEgLodhwt9/EE=;
-        b=m7ZQWUSUBWdrymX73XFRLMAniYN20LaPdEblvbjKsTsi0wc/GruFuKRdZKpKU48bVY
-         v0VQOjcypua0/y9Qp/NrPqztLQfuNRgPn833kNRJpWpaouVQ6LoIIgKc2U+Z/kxGz4Cs
-         kZYTiSwSHFvG+8E4ejywMRr9Jy4cpQsnSjSSJ9qKMs+oVmurpOH5rkLWPBkVd6VflVVm
-         rArNkQW61lm6Ca5WEvxfl0wx+6KBYc5MLY/2+KvvTUDw3TX1liGiBL4vIeRPmi1soa0G
-         ugMsFie+n9B7vpkggVhjNUFl7Cr8JVwO8Aev1vS8SGBWm1KJ5R+DJtTlxF3RqEYJ47db
-         hoZw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :reply-to:message-id:subject:cc:to:from:date;
+        bh=p6H0mL+tlfk+OXys+YnErPASvhlh2UJN/+MjTuBwcq0=;
+        b=bJxwx5GwkHSNnCkEYhSGl8bcFmdUK4UAwdpKXf0S0saiOKIeugL/lZmdqt4kO0O5Um
+         SgBT9k7ptm9eSH8/AfX6KElMc8O1aKcEIjQovEXBvRpnAA3D13tYhMAjtBesL69IX40F
+         iPHgjO/Rz0KAOkjl9ysg6I/JxDVirr0dZNamHqW3Bdwq3jcXr900/kJXdVmzxgUv9L7y
+         NHGnsh5rbVTfjZbVzJrSx9sqXLT3YCgA3QLDRKzE7G6Gd2hrMtC3e31KgsXqlIl9yYWm
+         +LoWek6bnqUXSSqfz7PLo3T+2+Fc5Oqm0kFVxHxMfdX2p94lW8onQ1AJ4qdIirNaPjBk
+         9gAA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=tAYxS8Cz;
-       spf=pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=luto@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id r3si12437063pgr.495.2019.06.17.18.40.44
+       spf=pass (google.com: best guess record for domain of richardw.yang@linux.intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=richardw.yang@linux.intel.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id d2si11087789plo.21.2019.06.17.18.42.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 17 Jun 2019 18:40:44 -0700 (PDT)
-Received-SPF: pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        Mon, 17 Jun 2019 18:42:49 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of richardw.yang@linux.intel.com designates 134.134.136.31 as permitted sender) client-ip=134.134.136.31;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=tAYxS8Cz;
-       spf=pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=luto@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail-wm1-f48.google.com (mail-wm1-f48.google.com [209.85.128.48])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id EDB9321783
-	for <linux-mm@kvack.org>; Tue, 18 Jun 2019 01:40:43 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1560822044;
-	bh=KsbO8zqRDwjqNqLUKDtxw38bKGpR6/rXffGf+dHWdqY=;
-	h=References:In-Reply-To:From:Date:Subject:To:Cc:From;
-	b=tAYxS8CzDFuv2tQZHZR4A3RbB0atwX6vH4WU+fA+oZHmeDZ2QCd8tIftSy05dWYvx
-	 Zr2+5L9RCAkPUy8diltaJF7/yaAZ9lLrLPKmiWFNUhWORvS5gl44MTXH5S00eMh8Dm
-	 CARK3lbj5/kG+g8UA3DoM4IVv0LeK7RA1QPw8H0E=
-Received: by mail-wm1-f48.google.com with SMTP id s3so1358987wms.2
-        for <linux-mm@kvack.org>; Mon, 17 Jun 2019 18:40:43 -0700 (PDT)
-X-Received: by 2002:a7b:cd84:: with SMTP id y4mr928755wmj.79.1560822042435;
- Mon, 17 Jun 2019 18:40:42 -0700 (PDT)
+       spf=pass (google.com: best guess record for domain of richardw.yang@linux.intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=richardw.yang@linux.intel.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: UNSCANNABLE
+X-Amp-File-Uploaded: False
+Received: from fmsmga005.fm.intel.com ([10.253.24.32])
+  by orsmga104.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 17 Jun 2019 18:42:48 -0700
+X-ExtLoop1: 1
+Received: from richard.sh.intel.com (HELO localhost) ([10.239.159.54])
+  by fmsmga005.fm.intel.com with ESMTP; 17 Jun 2019 18:42:46 -0700
+Date: Tue, 18 Jun 2019 09:42:23 +0800
+From: Wei Yang <richardw.yang@linux.intel.com>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: akpm@linux-foundation.org, mhocko@suse.com,
+	Pavel Tatashin <pasha.tatashin@soleen.com>,
+	linux-nvdimm@lists.01.org, linux-kernel@vger.kernel.org,
+	linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>,
+	osalvador@suse.de
+Subject: Re: [PATCH v9 03/12] mm/hotplug: Prepare shrink_{zone, pgdat}_span
+ for sub-section removal
+Message-ID: <20190618014223.GD18161@richard>
+Reply-To: Wei Yang <richardw.yang@linux.intel.com>
+References: <155977186863.2443951.9036044808311959913.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <155977188458.2443951.9573565800736334460.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
-References: <20190508144422.13171-1-kirill.shutemov@linux.intel.com>
- <20190508144422.13171-46-kirill.shutemov@linux.intel.com> <CALCETrVCdp4LyCasvGkc0+S6fvS+dna=_ytLdDPuD2xeAr5c-w@mail.gmail.com>
- <3c658cce-7b7e-7d45-59a0-e17dae986713@intel.com> <CALCETrUPSv4Xae3iO+2i_HecJLfx4mqFfmtfp+cwBdab8JUZrg@mail.gmail.com>
- <5cbfa2da-ba2e-ed91-d0e8-add67753fc12@intel.com> <1560815959.5187.57.camel@linux.intel.com>
- <cbbc6af7-36f8-a81f-48b1-2ad4eefc2417@amd.com>
-In-Reply-To: <cbbc6af7-36f8-a81f-48b1-2ad4eefc2417@amd.com>
-From: Andy Lutomirski <luto@kernel.org>
-Date: Mon, 17 Jun 2019 18:40:31 -0700
-X-Gmail-Original-Message-ID: <CALCETrWq98--AgXXj=h1R70CiCWNncCThN2fEdxj2ZkedMw6=A@mail.gmail.com>
-Message-ID: <CALCETrWq98--AgXXj=h1R70CiCWNncCThN2fEdxj2ZkedMw6=A@mail.gmail.com>
-Subject: Re: [PATCH, RFC 45/62] mm: Add the encrypt_mprotect() system call for MKTME
-To: "Lendacky, Thomas" <Thomas.Lendacky@amd.com>
-Cc: Kai Huang <kai.huang@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, 
-	Andy Lutomirski <luto@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, 
-	Andrew Morton <akpm@linux-foundation.org>, X86 ML <x86@kernel.org>, 
-	Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, 
-	Borislav Petkov <bp@alien8.de>, Peter Zijlstra <peterz@infradead.org>, David Howells <dhowells@redhat.com>, 
-	Kees Cook <keescook@chromium.org>, Jacob Pan <jacob.jun.pan@linux.intel.com>, 
-	Alison Schofield <alison.schofield@intel.com>, Linux-MM <linux-mm@kvack.org>, 
-	kvm list <kvm@vger.kernel.org>, "keyrings@vger.kernel.org" <keyrings@vger.kernel.org>, 
-	LKML <linux-kernel@vger.kernel.org>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <155977188458.2443951.9573565800736334460.stgit@dwillia2-desk3.amr.corp.intel.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jun 17, 2019 at 6:34 PM Lendacky, Thomas
-<Thomas.Lendacky@amd.com> wrote:
+On Wed, Jun 05, 2019 at 02:58:04PM -0700, Dan Williams wrote:
+>Sub-section hotplug support reduces the unit of operation of hotplug
+>from section-sized-units (PAGES_PER_SECTION) to sub-section-sized units
+>(PAGES_PER_SUBSECTION). Teach shrink_{zone,pgdat}_span() to consider
+>PAGES_PER_SUBSECTION boundaries as the points where pfn_valid(), not
+>valid_section(), can toggle.
 >
-> On 6/17/19 6:59 PM, Kai Huang wrote:
-> > On Mon, 2019-06-17 at 11:27 -0700, Dave Hansen wrote:
-
-> >
-> > And yes from my reading (better to have AMD guys to confirm) SEV guest uses anonymous memory, but it
-> > also pins all guest memory (by calling GUP from KVM -- SEV specifically introduced 2 KVM ioctls for
-> > this purpose), since SEV architecturally cannot support swapping, migraiton of SEV-encrypted guest
-> > memory, because SME/SEV also uses physical address as "tweak", and there's no way that kernel can
-> > get or use SEV-guest's memory encryption key. In order to swap/migrate SEV-guest memory, we need SGX
-> > EPC eviction/reload similar thing, which SEV doesn't have today.
+>Cc: Michal Hocko <mhocko@suse.com>
+>Cc: Vlastimil Babka <vbabka@suse.cz>
+>Cc: Logan Gunthorpe <logang@deltatee.com>
+>Reviewed-by: Pavel Tatashin <pasha.tatashin@soleen.com>
+>Reviewed-by: Oscar Salvador <osalvador@suse.de>
+>Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+>---
+> mm/memory_hotplug.c |   29 ++++++++---------------------
+> 1 file changed, 8 insertions(+), 21 deletions(-)
 >
-> Yes, all the guest memory is currently pinned by calling GUP when creating
-> an SEV guest.
+>diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+>index 7b963c2d3a0d..647859a1d119 100644
+>--- a/mm/memory_hotplug.c
+>+++ b/mm/memory_hotplug.c
+>@@ -318,12 +318,8 @@ static unsigned long find_smallest_section_pfn(int nid, struct zone *zone,
+> 				     unsigned long start_pfn,
+> 				     unsigned long end_pfn)
+> {
+>-	struct mem_section *ms;
+>-
+>-	for (; start_pfn < end_pfn; start_pfn += PAGES_PER_SECTION) {
+>-		ms = __pfn_to_section(start_pfn);
+>-
+>-		if (unlikely(!valid_section(ms)))
+>+	for (; start_pfn < end_pfn; start_pfn += PAGES_PER_SUBSECTION) {
+>+		if (unlikely(!pfn_valid(start_pfn)))
+> 			continue;
 
-Ick.
+Hmm, we change the granularity of valid section from SECTION to SUBSECTION.
+But we didn't change the granularity of node id and zone information.
 
-What happens if QEMU tries to read the memory?  Does it just see
-ciphertext?  Is cache coherency lost if QEMU writes it?
+For example, we found the node id of a pfn mismatch, we can skip the whole
+section instead of a subsection.
+
+Maybe this is not a big deal.
+
+> 
+> 		if (unlikely(pfn_to_nid(start_pfn) != nid))
+>@@ -343,15 +339,12 @@ static unsigned long find_biggest_section_pfn(int nid, struct zone *zone,
+> 				    unsigned long start_pfn,
+> 				    unsigned long end_pfn)
+> {
+>-	struct mem_section *ms;
+> 	unsigned long pfn;
+> 
+> 	/* pfn is the end pfn of a memory section. */
+> 	pfn = end_pfn - 1;
+>-	for (; pfn >= start_pfn; pfn -= PAGES_PER_SECTION) {
+>-		ms = __pfn_to_section(pfn);
+>-
+>-		if (unlikely(!valid_section(ms)))
+>+	for (; pfn >= start_pfn; pfn -= PAGES_PER_SUBSECTION) {
+>+		if (unlikely(!pfn_valid(pfn)))
+> 			continue;
+> 
+> 		if (unlikely(pfn_to_nid(pfn) != nid))
+>@@ -373,7 +366,6 @@ static void shrink_zone_span(struct zone *zone, unsigned long start_pfn,
+> 	unsigned long z = zone_end_pfn(zone); /* zone_end_pfn namespace clash */
+> 	unsigned long zone_end_pfn = z;
+> 	unsigned long pfn;
+>-	struct mem_section *ms;
+> 	int nid = zone_to_nid(zone);
+> 
+> 	zone_span_writelock(zone);
+>@@ -410,10 +402,8 @@ static void shrink_zone_span(struct zone *zone, unsigned long start_pfn,
+> 	 * it check the zone has only hole or not.
+> 	 */
+> 	pfn = zone_start_pfn;
+>-	for (; pfn < zone_end_pfn; pfn += PAGES_PER_SECTION) {
+>-		ms = __pfn_to_section(pfn);
+>-
+>-		if (unlikely(!valid_section(ms)))
+>+	for (; pfn < zone_end_pfn; pfn += PAGES_PER_SUBSECTION) {
+>+		if (unlikely(!pfn_valid(pfn)))
+> 			continue;
+> 
+> 		if (page_zone(pfn_to_page(pfn)) != zone)
+>@@ -441,7 +431,6 @@ static void shrink_pgdat_span(struct pglist_data *pgdat,
+> 	unsigned long p = pgdat_end_pfn(pgdat); /* pgdat_end_pfn namespace clash */
+> 	unsigned long pgdat_end_pfn = p;
+> 	unsigned long pfn;
+>-	struct mem_section *ms;
+> 	int nid = pgdat->node_id;
+> 
+> 	if (pgdat_start_pfn == start_pfn) {
+>@@ -478,10 +467,8 @@ static void shrink_pgdat_span(struct pglist_data *pgdat,
+> 	 * has only hole or not.
+> 	 */
+> 	pfn = pgdat_start_pfn;
+>-	for (; pfn < pgdat_end_pfn; pfn += PAGES_PER_SECTION) {
+>-		ms = __pfn_to_section(pfn);
+>-
+>-		if (unlikely(!valid_section(ms)))
+>+	for (; pfn < pgdat_end_pfn; pfn += PAGES_PER_SUBSECTION) {
+>+		if (unlikely(!pfn_valid(pfn)))
+> 			continue;
+> 
+> 		if (pfn_to_nid(pfn) != nid)
+>
+>_______________________________________________
+>Linux-nvdimm mailing list
+>Linux-nvdimm@lists.01.org
+>https://lists.01.org/mailman/listinfo/linux-nvdimm
+
+-- 
+Wei Yang
+Help you, Help me
 
