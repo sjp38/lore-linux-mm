@@ -2,221 +2,130 @@ Return-Path: <SRS0=8DoX=UR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.1 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7DCD5C31E5B
-	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 15:22:21 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2304BC31E5B
+	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 15:31:15 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 358A220B1F
-	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 15:22:21 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (1024-bit key) header.d=ffwll.ch header.i=@ffwll.ch header.b="S0baOBWq"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 358A220B1F
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ffwll.ch
+	by mail.kernel.org (Postfix) with ESMTP id BED7B2085A
+	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 15:31:14 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BED7B2085A
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arndb.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C62C16B0005; Tue, 18 Jun 2019 11:22:20 -0400 (EDT)
+	id 249AC6B0005; Tue, 18 Jun 2019 11:31:14 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C13658E0002; Tue, 18 Jun 2019 11:22:20 -0400 (EDT)
+	id 1FA368E0002; Tue, 18 Jun 2019 11:31:14 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B28648E0001; Tue, 18 Jun 2019 11:22:20 -0400 (EDT)
+	id 10FDB8E0001; Tue, 18 Jun 2019 11:31:14 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 658BD6B0005
-	for <linux-mm@kvack.org>; Tue, 18 Jun 2019 11:22:20 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id y24so21760643edb.1
-        for <linux-mm@kvack.org>; Tue, 18 Jun 2019 08:22:20 -0700 (PDT)
+Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
+	by kanga.kvack.org (Postfix) with ESMTP id E5B406B0005
+	for <linux-mm@kvack.org>; Tue, 18 Jun 2019 11:31:13 -0400 (EDT)
+Received: by mail-qt1-f200.google.com with SMTP id h47so12710808qtc.20
+        for <linux-mm@kvack.org>; Tue, 18 Jun 2019 08:31:13 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:sender:date:from:to:cc:subject
-         :message-id:mail-followup-to:references:mime-version
-         :content-disposition:content-transfer-encoding:in-reply-to
-         :user-agent;
-        bh=E/qk0N+cIbM6HKj1qhjne1NfpocVmMqaX5q+/tL+ueI=;
-        b=Ha+ddr++oyzY712kbYD2AYrBqMFwtHND4P5LrPMOOXicpiP+wXW+w5Q8a2iLoFryfJ
-         KAqUZMW6GyKdgZ41Xrnfe6vN5ot5vz7I8r1+J5j9Om+SuFUbzTkAXr3TKzClChOeuzwG
-         5G6ZBwCmnM6S9ASNG7299rV5uQuLwqWtN675it/ch/TimfpR7y2XpFmCdWYi0Izjvk9E
-         gashFkj4g0KdYkk5z6rUeLINmYyvkCFhcRi6sN/na+H/NL1O2Smx8sO7Ame2iP8+183s
-         J9WavbxOFEVa0HiKFGEX4nYrZKeAIVPDwv8pD/ENYbkX72io9uWXfQCs773XSEQrkj7/
-         sd7w==
-X-Gm-Message-State: APjAAAWf2Qsuii2Z0YzyWorh4BL5iQ3Cpq8IWmf9jW80lrj5BxgJ4ZHj
-	huwLyhRvHei7PM13pmwTrbR0WvhSg0IE8/UsQonl87njRGNkf/TYjMjybwo0AuVhcfFkPbwI7m0
-	X7g5p+5qVCzYbj1ZeM67GfijmTFLls7hn5jz98pcryU5dIfthirdp/PnCTxqwtdXB2A==
-X-Received: by 2002:a17:906:3948:: with SMTP id g8mr69865195eje.168.1560871339838;
-        Tue, 18 Jun 2019 08:22:19 -0700 (PDT)
-X-Received: by 2002:a17:906:3948:: with SMTP id g8mr69865129eje.168.1560871338914;
-        Tue, 18 Jun 2019 08:22:18 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560871338; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:mime-version
+         :references:in-reply-to:from:date:message-id:subject:to:cc;
+        bh=enVeaDd9KA1FhkBFIcyRHmn1gPk9Dn42G5cz03oOzOw=;
+        b=R8OrjsOz5Arww87W/GTbbi7w0+0IzQtfjpQPuppwo0TH9893a5z4tGXbQ3403TyKhL
+         S0HEOxSOrwwVinODivwMLuS3DC/MiXNksGGhIzDbH7Q5tYoX7yH6jDzct+2ofo0LSkOf
+         xQP2Y99noHUwz2vvUf4rZPhaZhilHRKhamxVEiSPkEb6aeLb9uXIAw761KXgioT84lII
+         8V+xD1b9h1EjLQzr9ShMQthAIAbJKriVngYkgXoiskm5GYgiXe1jcHVbENYkBrncnkBK
+         J94Q6PGPYPE0xwd8NXRK/GBGQ2GxAnzXK1xfiA34rfpPsqKo9enepfUGPqOTWeOk7Xwk
+         bzhA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of arndbergmann@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=arndbergmann@gmail.com
+X-Gm-Message-State: APjAAAUEHZYs9HanC+s4QdEIEx1Pe5eqgiUrxtiy1zRInZb1pTGvqcul
+	5T6BV4syocNOQRSt+4Ya6eBCPdypzv7aOF56D8D6J97zzjN78o/KdL/Pcm8qccwffaSKXJm1F9q
+	aYEAHC5Zc549x8Ofkub3myjx93Sk6QJqVRA1f7DU2vgQ3isR8uef7V27l9bTI9wM=
+X-Received: by 2002:a37:aa8e:: with SMTP id t136mr28268738qke.222.1560871873702;
+        Tue, 18 Jun 2019 08:31:13 -0700 (PDT)
+X-Received: by 2002:a37:aa8e:: with SMTP id t136mr28268696qke.222.1560871873223;
+        Tue, 18 Jun 2019 08:31:13 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560871873; cv=none;
         d=google.com; s=arc-20160816;
-        b=w72JxrZnuTDcmI2ETpvwdBGHGFwPDoQSl1QL0HrIkvb8eN3GADy8hOAhqOdcZqNdda
-         O0EFYpShWLMbwhbpuM8rj6Xsmvw5pHrzzaKn3Z+b4wXIoESO8076BiipEREUT7xeMcay
-         zpE/qDCu6+DAGnqcx7gIyBUPDpmzThIC2SlcIMO71hEot7x8zGEMu3V+uE1oqn/8usAY
-         yb+UDGdWMM6lBSHnMxEmLjfwY25Bb5T1/J7VEY/SgxnApGUJ37ZD9ybixNWG7hlAmtZS
-         oWJM5MwLllOtMBTlP8nwSSdQUjS6vmJHciwJBMKNQnttPCAD5XolLpHatSOASz4Tb2PU
-         FDXw==
+        b=iTjB6GKDZRDw/E0CgFjCi2ZMBDAUwUgyGlo4Vq6P3v97omOvntx/ZwQD/+I6qfGt4W
+         NJJbhMsd1wb0hY91ZPnlluz/7hIEVJc1Br4xGZ15zOkZGmVeHu6IRAebRh3WOyOSywCX
+         uGb9RXiPzPsQUFj1ruu+Wa3JMET5RL+h5jJUIvCboFKzU1gyc/DBpf+efZ583PRIKTSU
+         zFANo1JWSJGVnSvLdwLTe6zY9fjGbvhxZx6910gEvlssGRvRt4kT+VAYft8vbTgCjJf0
+         MPXP0m5Z7uc0pW1e6N0Jh/usRwT+AarVkA45J9xssg428a+ZU8fsMV0YCEQymTCY4NH9
+         yoSg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:mail-followup-to
-         :message-id:subject:cc:to:from:date:sender:dkim-signature;
-        bh=E/qk0N+cIbM6HKj1qhjne1NfpocVmMqaX5q+/tL+ueI=;
-        b=ry4jXTQGE18q40lSdT7WzuiWqJa5Ea7Vx+GamkrJqsXHnXFnzQBR2UshB+aBEBHYmE
-         3xDlgh9d/acVHKpwd5R1wibOsJH76u/ZPdpZY4GpSpt7MhurtTTejaCYAdi9nMT+cmJu
-         ccxFmjVRp52yV+O2TWCiH6FHr8Y6NpRyJkZIBIursAcjWBI9L2CNRvu/jbyPuBgw4kny
-         WpVXrfiBXRFmJ0qSN1eHCxIoBoj33gDUWByqqzPMPNFo3/p0hhtaDgjzUnz0PftTbcXw
-         wkmD48cGXmtiRLkeR6pamrFwe0INfiIgz9TO16HAUyQOF/rJKhG5GrfDV+mwzGiiDHMV
-         Baig==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version;
+        bh=enVeaDd9KA1FhkBFIcyRHmn1gPk9Dn42G5cz03oOzOw=;
+        b=0xOMTMsnI9PYK0Xq80ZSQpvSqA0YzfoZjJUOZGAWjsnOim8njH0fhiyIn8RcjtOE9Q
+         r98DVvUcdD+51iF8SfLTKAa7aqImMv/gZvCvJ2g8IBgDClFknhwm/gThLghWhJFOzWrH
+         eJ85EEucP9kihwfhKOlrS0GMB04tdID2/+56uf2ebOQrU8uO9/r6DaEVUlTQf2oRfMoL
+         HvrpGfoObMzNeybRLH0ed9YOwR4jAJWAAO5cXZqUzBmjKPf2gAnmR9YEzNkXuvpwFts8
+         GasXMS/Bs0ugHlQI3xi1T7KN+YNsii+0FukiQxwrWjt4LUlPY9+7lscMDzm8qWqxAYQw
+         yMnQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@ffwll.ch header.s=google header.b=S0baOBWq;
-       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of daniel@ffwll.ch) smtp.mailfrom=daniel@ffwll.ch
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i21sor12555068ede.18.2019.06.18.08.22.18
+       spf=pass (google.com: domain of arndbergmann@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=arndbergmann@gmail.com
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id w6sor21448993qth.14.2019.06.18.08.31.13
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 18 Jun 2019 08:22:18 -0700 (PDT)
-Received-SPF: neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of daniel@ffwll.ch) client-ip=209.85.220.65;
+        Tue, 18 Jun 2019 08:31:13 -0700 (PDT)
+Received-SPF: pass (google.com: domain of arndbergmann@gmail.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@ffwll.ch header.s=google header.b=S0baOBWq;
-       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of daniel@ffwll.ch) smtp.mailfrom=daniel@ffwll.ch
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=ffwll.ch; s=google;
-        h=sender:date:from:to:cc:subject:message-id:mail-followup-to
-         :references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=E/qk0N+cIbM6HKj1qhjne1NfpocVmMqaX5q+/tL+ueI=;
-        b=S0baOBWqecd8R9Fv9S0yBSLlPx0B4vYX0TvI7oaRAzSf4d2jvMU2DZNwb2RG3dYdoB
-         4+rZlzI6OA2RQxSWsdDqUVmzxXcyYpc2/nLIKI8MXqYfLfBjl7BetsvlRKqBiD5NuAUg
-         AXHEz2PEzrj8GeuDgxkf0L8t0EXnxlWwtpkRw=
-X-Google-Smtp-Source: APXvYqwy35fNeHyWQSb1sdW5IH38w+mc35q9rAaNur5D3Zl1Sv5PQx84zYiDMSvgBUjPLKdZDrkeAA==
-X-Received: by 2002:a50:8825:: with SMTP id b34mr48288557edb.22.1560871338412;
-        Tue, 18 Jun 2019 08:22:18 -0700 (PDT)
-Received: from phenom.ffwll.local ([2a02:168:569e:0:3106:d637:d723:e855])
-        by smtp.gmail.com with ESMTPSA id 9sm1439769ejg.49.2019.06.18.08.22.16
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Tue, 18 Jun 2019 08:22:17 -0700 (PDT)
-Date: Tue, 18 Jun 2019 17:22:15 +0200
-From: Daniel Vetter <daniel@ffwll.ch>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: Daniel Vetter <daniel.vetter@ffwll.ch>, Michal Hocko <mhocko@suse.com>,
-	Daniel Vetter <daniel.vetter@intel.com>,
-	Intel Graphics Development <intel-gfx@lists.freedesktop.org>,
-	LKML <linux-kernel@vger.kernel.org>,
-	DRI Development <dri-devel@lists.freedesktop.org>,
-	Linux MM <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>,
-	Paolo Bonzini <pbonzini@redhat.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>
-Subject: Re: [PATCH 1/4] mm: Check if mmu notifier callbacks are allowed to
- fail
-Message-ID: <20190618152215.GG12905@phenom.ffwll.local>
-Mail-Followup-To: Jerome Glisse <jglisse@redhat.com>,
-	Michal Hocko <mhocko@suse.com>,
-	Daniel Vetter <daniel.vetter@intel.com>,
-	Intel Graphics Development <intel-gfx@lists.freedesktop.org>,
-	LKML <linux-kernel@vger.kernel.org>,
-	DRI Development <dri-devel@lists.freedesktop.org>,
-	Linux MM <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>,
-	Paolo Bonzini <pbonzini@redhat.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>
-References: <20190520213945.17046-1-daniel.vetter@ffwll.ch>
- <20190521154411.GD3836@redhat.com>
+       spf=pass (google.com: domain of arndbergmann@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=arndbergmann@gmail.com
+X-Google-Smtp-Source: APXvYqzapZcyoXvg/K9EJjtdZZMPh8k1zuhs32ixPde8PXyTRUBF8PG/4CP94Bb7WQNtLtRHg8lQle5wZPdwdvBvQuU=
+X-Received: by 2002:aed:33a4:: with SMTP id v33mr66076417qtd.18.1560871872815;
+ Tue, 18 Jun 2019 08:31:12 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20190521154411.GD3836@redhat.com>
-X-Operating-System: Linux phenom 4.19.0-5-amd64 
-User-Agent: Mutt/1.10.1 (2018-07-13)
+References: <20190618095347.3850490-1-arnd@arndb.de> <5ac26e68-8b75-1b06-eecd-950987550451@virtuozzo.com>
+In-Reply-To: <5ac26e68-8b75-1b06-eecd-950987550451@virtuozzo.com>
+From: Arnd Bergmann <arnd@arndb.de>
+Date: Tue, 18 Jun 2019 17:30:55 +0200
+Message-ID: <CAK8P3a1CAKecyinhzG9Mc7UzZ9U15o6nacbcfSvb4EBSaWvCTw@mail.gmail.com>
+Subject: Re: [PATCH] [v2] page flags: prioritize kasan bits over last-cpuid
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Alexander Potapenko <glider@google.com>, 
+	Dmitry Vyukov <dvyukov@google.com>, kasan-dev <kasan-dev@googlegroups.com>, 
+	Linux-MM <linux-mm@kvack.org>, Andrey Konovalov <andreyknvl@google.com>, 
+	Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Mark Rutland <mark.rutland@arm.com>, 
+	Linus Torvalds <torvalds@linux-foundation.org>, 
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 21, 2019 at 11:44:11AM -0400, Jerome Glisse wrote:
-> On Mon, May 20, 2019 at 11:39:42PM +0200, Daniel Vetter wrote:
-> > Just a bit of paranoia, since if we start pushing this deep into
-> > callchains it's hard to spot all places where an mmu notifier
-> > implementation might fail when it's not allowed to.
-> > 
-> > Inspired by some confusion we had discussing i915 mmu notifiers and
-> > whether we could use the newly-introduced return value to handle some
-> > corner cases. Until we realized that these are only for when a task
-> > has been killed by the oom reaper.
-> > 
-> > An alternative approach would be to split the callback into two
-> > versions, one with the int return value, and the other with void
-> > return value like in older kernels. But that's a lot more churn for
-> > fairly little gain I think.
-> > 
-> > Summary from the m-l discussion on why we want something at warning
-> > level: This allows automated tooling in CI to catch bugs without
-> > humans having to look at everything. If we just upgrade the existing
-> > pr_info to a pr_warn, then we'll have false positives. And as-is, no
-> > one will ever spot the problem since it's lost in the massive amounts
-> > of overall dmesg noise.
-> > 
-> > v2: Drop the full WARN_ON backtrace in favour of just a pr_warn for
-> > the problematic case (Michal Hocko).
-> > 
-> > v3: Rebase on top of Glisse's arg rework.
-> > 
-> > v4: More rebase on top of Glisse reworking everything.
-> > 
-> > Cc: Andrew Morton <akpm@linux-foundation.org>
-> > Cc: Michal Hocko <mhocko@suse.com>
-> > Cc: "Christian König" <christian.koenig@amd.com>
-> > Cc: David Rientjes <rientjes@google.com>
-> > Cc: Daniel Vetter <daniel.vetter@ffwll.ch>
-> > Cc: "Jérôme Glisse" <jglisse@redhat.com>
-> > Cc: linux-mm@kvack.org
-> > Cc: Paolo Bonzini <pbonzini@redhat.com>
-> > Reviewed-by: Christian König <christian.koenig@amd.com>
-> > Signed-off-by: Daniel Vetter <daniel.vetter@intel.com>
-> 
-> Reviewed-by: Jérôme Glisse <jglisse@redhat.com>
+On Tue, Jun 18, 2019 at 4:30 PM Andrey Ryabinin <aryabinin@virtuozzo.com> wrote:
+> On 6/18/19 12:53 PM, Arnd Bergmann wrote:
+> > ARM64 randdconfig builds regularly run into a build error, especially
+> > when NUMA_BALANCING and SPARSEMEM are enabled but not SPARSEMEM_VMEMMAP:
+> >
+> >  #error "KASAN: not enough bits in page flags for tag"
+> >
+> > The last-cpuid bits are already contitional on the available space,
+> > so the result of the calculation is a bit random on whether they
+> > were already left out or not.
+> >
+> > Adding the kasan tag bits before last-cpuid makes it much more likely
+> > to end up with a successful build here, and should be reliable for
+> > randconfig at least, as long as that does not randomize NR_CPUS
+> > or NODES_SHIFT but uses the defaults.
+> >
+> > In order for the modified check to not trigger in the x86 vdso32 code
+> > where all constants are wrong (building with -m32), enclose all the
+> > definitions with an #ifdef.
+> >
+>
+> Why not keep "#error "KASAN: not enough bits in page flags for tag"" under "#ifdef CONFIG_KASAN_SW_TAGS" ?
 
--mm folks, is this (entire series of 4 patches) planned to land in the 5.3
-merge window? Or do you want more reviews/testing/polish?
+I think I had meant the #error to leave out the mention of KASAN, as there
+might be other reasons for using up all the bits, but then I did not change
+it in the end.
 
-I think with all the hmm rework going on, a bit more validation and checks
-in this tricky area would help.
+Should I remove the "KASAN" word or add the #ifdef when resending?
 
-Thanks, Daniel
-
-> 
-> > ---
-> >  mm/mmu_notifier.c | 3 +++
-> >  1 file changed, 3 insertions(+)
-> > 
-> > diff --git a/mm/mmu_notifier.c b/mm/mmu_notifier.c
-> > index ee36068077b6..c05e406a7cd7 100644
-> > --- a/mm/mmu_notifier.c
-> > +++ b/mm/mmu_notifier.c
-> > @@ -181,6 +181,9 @@ int __mmu_notifier_invalidate_range_start(struct mmu_notifier_range *range)
-> >  				pr_info("%pS callback failed with %d in %sblockable context.\n",
-> >  					mn->ops->invalidate_range_start, _ret,
-> >  					!mmu_notifier_range_blockable(range) ? "non-" : "");
-> > +				if (!mmu_notifier_range_blockable(range))
-> > +					pr_warn("%pS callback failure not allowed\n",
-> > +						mn->ops->invalidate_range_start);
-> >  				ret = _ret;
-> >  			}
-> >  		}
-> > -- 
-> > 2.20.1
-> > 
-> _______________________________________________
-> dri-devel mailing list
-> dri-devel@lists.freedesktop.org
-> https://lists.freedesktop.org/mailman/listinfo/dri-devel
-
--- 
-Daniel Vetter
-Software Engineer, Intel Corporation
-http://blog.ffwll.ch
+     Arnd
 
