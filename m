@@ -2,177 +2,199 @@ Return-Path: <SRS0=8DoX=UR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+X-Spam-Status: No, score=-3.9 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
 	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 059D3C31E5E
-	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 17:42:12 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 97E7DC31E5B
+	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 17:55:47 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9FF8E2147A
-	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 17:42:11 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 516A0205F4
+	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 17:55:47 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=vmware.com header.i=@vmware.com header.b="rjW6qig6"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9FF8E2147A
-Authentication-Results: mail.kernel.org; dmarc=fail (p=quarantine dis=none) header.from=vmware.com
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="duqFJcbL"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 516A0205F4
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 172416B0003; Tue, 18 Jun 2019 13:42:11 -0400 (EDT)
+	id BA3226B0003; Tue, 18 Jun 2019 13:55:46 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 123F08E0002; Tue, 18 Jun 2019 13:42:11 -0400 (EDT)
+	id B79D28E0002; Tue, 18 Jun 2019 13:55:46 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 011668E0001; Tue, 18 Jun 2019 13:42:10 -0400 (EDT)
+	id A41DA8E0001; Tue, 18 Jun 2019 13:55:46 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A955F6B0003
-	for <linux-mm@kvack.org>; Tue, 18 Jun 2019 13:42:10 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id b12so22249179eds.14
-        for <linux-mm@kvack.org>; Tue, 18 Jun 2019 10:42:10 -0700 (PDT)
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 84BDD6B0003
+	for <linux-mm@kvack.org>; Tue, 18 Jun 2019 13:55:46 -0400 (EDT)
+Received: by mail-qt1-f197.google.com with SMTP id s9so13150784qtn.14
+        for <linux-mm@kvack.org>; Tue, 18 Jun 2019 10:55:46 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
-         :thread-index:date:message-id:references:in-reply-to:accept-language
-         :content-language:content-id:content-transfer-encoding:mime-version;
-        bh=w6JzkPR9QDBk+QB3uy5PkkeQhwYX3KI/2LLcSwk5al0=;
-        b=Mb3lh3gR6RM1mUpdxR/OEPSAqyIFzwJrLFxOsKgRy3IsyZUzeJ+VXy0g8sGR0bOsK/
-         KZhXRFbzhD0i63gVcroPCtiOmUmYMfOT+OrxtZzYDgPoDlq8+470Av1r56Eo/fG0Lixz
-         msueEN8W3VQjRm+KKesnNDl39BL9rkkbx5HsvPCo8fqFdKHGjfZD3gRhw+H/CQc+Q/Pb
-         Eyb3vxSZU1Cq6cCT3IblzMUr9+5FDrjl3g9XOZFz9xCsWsw2ea706RoGz4F/MciLuEAm
-         LSMwp8lw5M2XrhXSs22Esybppi+M0KRH6p7wcipAhA6tBM5ihJ/iBKrBQ4sTfHa+OwiO
-         nnCA==
-X-Gm-Message-State: APjAAAX/7F7Nlm3++ODs9blIJBP+NOYwqY1Pu+PxJgjf5TIXlGJjf1Rf
-	lrNI3JletVTHWpxey/ZqJtFsA44Yk4o4wIJmCb/+n2H1zEZqjgY+phox5D8sZnzDMW6/wqfyU0E
-	MSeitgn5ncRaO5ZKE/mXkbDeUU6Y7SfR6KHvmx1TNkA4eSN14Q3ZVx8lLAdVQvVK3TA==
-X-Received: by 2002:a17:906:838a:: with SMTP id p10mr10148000ejx.237.1560879729940;
-        Tue, 18 Jun 2019 10:42:09 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyOpd4AUMoUUL1csL79QspRq0xHPTgBMcxvy/OtC728W93rvA/FBcDOk+3I313gDTHWG1er
-X-Received: by 2002:a17:906:838a:: with SMTP id p10mr10147936ejx.237.1560879729005;
-        Tue, 18 Jun 2019 10:42:09 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560879729; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+         :message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=hRFOK+pjnetQHO1VbczYeIM67ED6Qp4/xDYjAsyHg0Y=;
+        b=JqjJKisuxI4zoDDzcmT5PTRWXwSrh7/IRLf7JiKjE/FkkIZit7NF2QPCx4S2X8WaOZ
+         Vt3vzxTtXfIm4loY/rsvrbwDfHoGa73595DZqUhw8Lsbee7L5GuUEjRQWWb7tqhwX1H/
+         8DIKAF5xPARaHgv/GrLnb3V7dOWlML1WvWyFf65rP3QHidQD9taiTyLZY8vnAhAjD1G9
+         D6rD6Wa879LsuCdY+a295yfUP90wiTTiZnCK1/gf9jR2tQIlrTRKZ4A3iwZKk8acZxCK
+         0QdgxqE2aRmKB3/BnIFr3arnKp+mCarOvyHUvO0PMpUaoid/Itkj9b3Lpl0PcAINKhZn
+         J2Mw==
+X-Gm-Message-State: APjAAAUNOjkLfrJXqFagk/lLUfxkcCcyKbBUmapCGKoaTYgF9Wmm8u4x
+	dslDC+hSaz1mIrKFvHfTFhW0yXX/6CgEezpI90NMjnEcVmE451Y8XmikFAiba64NzpXqqVQ4Mx/
+	3Yb5BdX0w89/qCLGEBu0JG7JQVgCh/QW008g7k9FVXTHafAe023UORDpi5NpXqtaenQ==
+X-Received: by 2002:ac8:7949:: with SMTP id r9mr69976050qtt.217.1560880546306;
+        Tue, 18 Jun 2019 10:55:46 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxdMSFKc0FG3eE5EIKFOeWk1TbRUr7BHkUvkWxHLG6wA43hw+NvQ1a5LMLuv+EDxQXFgfxj
+X-Received: by 2002:ac8:7949:: with SMTP id r9mr69976015qtt.217.1560880545827;
+        Tue, 18 Jun 2019 10:55:45 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560880545; cv=none;
         d=google.com; s=arc-20160816;
-        b=A2zXY38UBJYPbh6UYjLpUbPGJmW0JL76rNgQAEYIgTl2F0nPsUu+rCHid5GR88fCA/
-         DUMa+nHprkC/Gd8IY6ikNYdkA3F6AiBUtUAol2v4eckpSVtyqgg4fBj7NFwQq+f7abIr
-         1Z/jB/s02gJXKqY4kYU+X3XVxxi+WM1VWUd0AK2tGkOmqE4u0z6CjYYD8zupE2vnZhid
-         w567GmO6g8kdfEii/BX+GojrO/7fyPKXjYEOuZjHXGmqX9MNs8xbVh/xXTj/qjQF5wio
-         STDjN+PtPNjI6VjqogWWlcywIZnlgUsYBLaRdBcAjTX7Uc5Agfrn1fiW8HRWGDVrQBBy
-         b1tQ==
+        b=NUtTjHyeyDNrxVioPrPngSeQREXHlV1H7mnJiRb+tOR4EGOvzo2+yUuPuOvCA35Rsc
+         eINFU5VTXKIknMghn9ZrsAii67XttPc2593lRux52haJQSJ4Jl+B9FuCXmFFwpHOOBA9
+         3rXEHP+XkvJdMshQdvr38yR/8Vydzc56Mvlvg672j3HYeYYJYzz8rrJxgOJ25VXyeXzF
+         38hNORjs9EViBENj24eyV6BusrzMDQqpFXuwWU37EH8oKfQGVzf0ksh5OYg7GECmx9Ts
+         3sBO1UH2ERLe2fqsOHtLPrg4W/fQyGsLvwFkLTQQ5yaYNacFn0D2GrTaosULCQMd9GBg
+         rmnw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from:dkim-signature;
-        bh=w6JzkPR9QDBk+QB3uy5PkkeQhwYX3KI/2LLcSwk5al0=;
-        b=DVUz8ybqBpJtECQiuVij4M8x9JnsP0tGoon+57NS56wkvaxinPOvjUGtO/TmQLUJcO
-         +VdZN0yXgrSSHEOcxi3LllLxHJe8nYaiZEGOQcS/PjtWWJf6CWQenpz1JskWqWCOsY+Q
-         7IJiQRnLcvSK6I2f1WKdELlZpmLXTOWv0jhfLpMSlevH8i71dtg9aIB1T4zbRYSpBR78
-         hKE09MCRAnUhRQOG2NVqs7n9gZriekfmjxGSYJhA2q7akLpiSxbIrH5a89ytgDU9RHcH
-         edPHbTT8z7+NbvRa22ZXDFMJ+FI0bHKuvHcza6GHLTVVjzKf6/ZC63rxVwqGXIXshqkC
-         A5pQ==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject
+         :dkim-signature;
+        bh=hRFOK+pjnetQHO1VbczYeIM67ED6Qp4/xDYjAsyHg0Y=;
+        b=ijs5dPYxV5b9conx02epSS16xXS9G5PeRiJDes2oFutc84X6cG1SlFzYZrlloW5b/b
+         T2s6J3HzoR/TQYL7PG+5dGBH4HqefUarbOsiVaWHei122FpYxsRB5fp6CmDk7oRdwTb0
+         RUUjk7KBxjV07kOEkBzJnyhesltrb/HMwHbTgb1LVlvKO2yU+BXi4jGsrIrq5+/toT7d
+         SPbIh/KkjGkaYw+SL91kIOPKzLgzfes7xr6jNk+4OqGzRPyjkAHKQamY8P4mgPrULtZz
+         E5IRHX1tf4Dz3Ej01cqGBIreOIwcqDvnISv8OWCInrpABdN1eICYLArbnxRxUMwFI6DD
+         FY7w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@vmware.com header.s=selector2 header.b=rjW6qig6;
-       spf=pass (google.com: domain of namit@vmware.com designates 40.107.80.82 as permitted sender) smtp.mailfrom=namit@vmware.com;
-       dmarc=pass (p=QUARANTINE sp=NONE dis=NONE) header.from=vmware.com
-Received: from NAM03-DM3-obe.outbound.protection.outlook.com (mail-eopbgr800082.outbound.protection.outlook.com. [40.107.80.82])
-        by mx.google.com with ESMTPS id l28si11061606edb.261.2019.06.18.10.42.08
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=duqFJcbL;
+       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 141.146.126.78 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
+        by mx.google.com with ESMTPS id b9si10409796qvh.196.2019.06.18.10.55.45
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 18 Jun 2019 10:42:08 -0700 (PDT)
-Received-SPF: pass (google.com: domain of namit@vmware.com designates 40.107.80.82 as permitted sender) client-ip=40.107.80.82;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 18 Jun 2019 10:55:45 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mike.kravetz@oracle.com designates 141.146.126.78 as permitted sender) client-ip=141.146.126.78;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@vmware.com header.s=selector2 header.b=rjW6qig6;
-       spf=pass (google.com: domain of namit@vmware.com designates 40.107.80.82 as permitted sender) smtp.mailfrom=namit@vmware.com;
-       dmarc=pass (p=QUARANTINE sp=NONE dis=NONE) header.from=vmware.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=vmware.com;
- s=selector2;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=w6JzkPR9QDBk+QB3uy5PkkeQhwYX3KI/2LLcSwk5al0=;
- b=rjW6qig6fjWShvsiuOghfkNOo5S+Jzgl7V3lNJRxl39QtR+8nlyjnPl+hjZ/u4UBpM5GVF+Nhvh+gXuZEiFT8KYB5D2NIcxk4ELRV5Pqx6aXq9QlEZiX0RiQP0hLFqSfOO5LMDNyEU7u4lwAU/cVH66tC5GyhQrNmb3dC+OO9yo=
-Received: from BYAPR05MB4776.namprd05.prod.outlook.com (52.135.233.146) by
- BYAPR05MB6630.namprd05.prod.outlook.com (20.179.60.204) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.2008.12; Tue, 18 Jun 2019 17:42:06 +0000
-Received: from BYAPR05MB4776.namprd05.prod.outlook.com
- ([fe80::f493:3bba:aabf:dd58]) by BYAPR05MB4776.namprd05.prod.outlook.com
- ([fe80::f493:3bba:aabf:dd58%7]) with mapi id 15.20.2008.007; Tue, 18 Jun 2019
- 17:42:06 +0000
-From: Nadav Amit <namit@vmware.com>
-To: Dan Williams <dan.j.williams@intel.com>
-CC: Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List
-	<linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Borislav
- Petkov <bp@suse.de>, Toshi Kani <toshi.kani@hpe.com>, Peter Zijlstra
-	<peterz@infradead.org>, Dave Hansen <dave.hansen@linux.intel.com>, Bjorn
- Helgaas <bhelgaas@google.com>, Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH 0/3] resource: find_next_iomem_res() improvements
-Thread-Topic: [PATCH 0/3] resource: find_next_iomem_res() improvements
-Thread-Index: AQHVIaTGJ7ym4R/nDEy6A26DLGCJOaag/0oAgAC3tYA=
-Date: Tue, 18 Jun 2019 17:42:06 +0000
-Message-ID: <9387A285-B768-4B58-B91B-61B70D964E6E@vmware.com>
-References: <20190613045903.4922-1-namit@vmware.com>
- <CAPcyv4hpWg5DWRhazS-ftyghiZP-J_M-7Vd5tiUd5UKONOib8g@mail.gmail.com>
-In-Reply-To:
- <CAPcyv4hpWg5DWRhazS-ftyghiZP-J_M-7Vd5tiUd5UKONOib8g@mail.gmail.com>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-authentication-results: spf=none (sender IP is )
- smtp.mailfrom=namit@vmware.com; 
-x-originating-ip: [66.170.99.1]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: 583d96b3-9c55-4bb4-123d-08d6f414481e
-x-microsoft-antispam:
- BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(2017052603328)(7193020);SRVR:BYAPR05MB6630;
-x-ms-traffictypediagnostic: BYAPR05MB6630:
-x-microsoft-antispam-prvs:
- <BYAPR05MB663062DBB97317948E0F9B9CD0EA0@BYAPR05MB6630.namprd05.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:10000;
-x-forefront-prvs: 007271867D
-x-forefront-antispam-report:
- SFV:NSPM;SFS:(10009020)(366004)(346002)(39860400002)(396003)(136003)(376002)(189003)(199004)(8676002)(7416002)(305945005)(8936002)(6512007)(68736007)(81156014)(7736002)(2906002)(3846002)(66066001)(6116002)(316002)(66946007)(5660300002)(64756008)(66556008)(66446008)(86362001)(66476007)(11346002)(446003)(14444005)(256004)(73956011)(76116006)(6916009)(36756003)(2616005)(33656002)(54906003)(14454004)(76176011)(102836004)(81166006)(6486002)(186003)(476003)(486006)(26005)(478600001)(6246003)(53936002)(25786009)(71190400001)(6506007)(99286004)(6436002)(71200400001)(4326008)(53546011)(229853002);DIR:OUT;SFP:1101;SCL:1;SRVR:BYAPR05MB6630;H:BYAPR05MB4776.namprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
-received-spf: None (protection.outlook.com: vmware.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info:
- C5ILFoWOoBxqi0qVa1f/8QUZRdIyMIwIq52U7FNHhGS8q9gzPCjaGcbsp4fwMqBT4kYCv7Ynzk+a0KZ67XK/Etkz3xRIw6bgYqP3REIgILb2oXhlpgEdeU1pPlSB4GF2ySx8sxgjdeqSW9G5dthU1ATrb6QAe3NontDGBql73J7k8fCKPXPOtgop3mvdGc/85Fq/Y65EPK9ypTqf73QYaNhsPkmhg4WPY6IsWkjIZ/tsUhoiQPlea7w6pkjbk3NWBS6ooTA8rhwQKtXQ4ridrDW2nO8Kh9CziK3WfDWfgeI/EIMDyw13/xeNYt8TW9B8oZiBiKV4szSp5GV/mms+jfFf1GiGii7qffe+hb9hMYWa1j2NlbuqRUDNmEqkErbsnGGVEHxinSuMKYSaO5Ok3BU90+plULJPW/HlM6L0gbg=
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <8B3066CA312C354E921B3D0BA8A0EE0D@namprd05.prod.outlook.com>
-Content-Transfer-Encoding: base64
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=duqFJcbL;
+       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 141.146.126.78 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from pps.filterd (aserp2120.oracle.com [127.0.0.1])
+	by aserp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x5IHrkdQ192936;
+	Tue, 18 Jun 2019 17:55:33 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
+ references : from : message-id : date : mime-version : in-reply-to :
+ content-type : content-transfer-encoding; s=corp-2018-07-02;
+ bh=hRFOK+pjnetQHO1VbczYeIM67ED6Qp4/xDYjAsyHg0Y=;
+ b=duqFJcbLo0ULPOq2ei4bvjgi9cATMVZgQJD+V3y+jt4MrMtO0NaxV9tb3/6PTsmoiaiL
+ JFlD9+CcThW1ctgAMj7UtErFYTYYhYG3KN6rTqpLlHxg3Rmid4wkU6YfW+7a9HBCz9aO
+ yevFg+iwtdJa+B24KFPywrI6D6eopuRC2EmsPfAVKcjRX7toXFnd6pJM3ubnFiguI6s/
+ PxXUgR/Y8CkEuEhhpNgYDREND86pAfsQ/FKMynBRQnB5CuOQrKTGdQHC7qoM2IfwFP0G
+ JUs49S3k+Xo3jtVc7bHvUq2U5k9KUWCSfPS/Z+IUeySsGSijMWi1zbhl7orlHoKYswa7 xw== 
+Received: from userp3020.oracle.com (userp3020.oracle.com [156.151.31.79])
+	by aserp2120.oracle.com with ESMTP id 2t4rmp60gn-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Tue, 18 Jun 2019 17:55:32 +0000
+Received: from pps.filterd (userp3020.oracle.com [127.0.0.1])
+	by userp3020.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x5IHt79E081741;
+	Tue, 18 Jun 2019 17:55:32 GMT
+Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
+	by userp3020.oracle.com with ESMTP id 2t5h5tw6d1-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Tue, 18 Jun 2019 17:55:31 +0000
+Received: from abhmp0010.oracle.com (abhmp0010.oracle.com [141.146.116.16])
+	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x5IHtTve008642;
+	Tue, 18 Jun 2019 17:55:29 GMT
+Received: from [192.168.1.222] (/71.63.128.209)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Tue, 18 Jun 2019 10:55:28 -0700
+Subject: Re: [PATCH v3 2/2] mm: hugetlb: soft-offline:
+ dissolve_free_huge_page() return zero on !PageHuge
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+        Michal Hocko <mhocko@kernel.org>, xishi.qiuxishi@alibaba-inc.com,
+        "Chen, Jerry T" <jerry.t.chen@intel.com>,
+        "Zhuo, Qiuxu"
+ <qiuxu.zhuo@intel.com>, linux-kernel@vger.kernel.org,
+        Anshuman Khandual <anshuman.khandual@arm.com>
+References: <1560761476-4651-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1560761476-4651-3-git-send-email-n-horiguchi@ah.jp.nec.com>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <53844c4d-966e-48d3-f174-b0d3598c180c@oracle.com>
+Date: Tue, 18 Jun 2019 10:55:27 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.1
 MIME-Version: 1.0
-X-OriginatorOrg: vmware.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: 583d96b3-9c55-4bb4-123d-08d6f414481e
-X-MS-Exchange-CrossTenant-originalarrivaltime: 18 Jun 2019 17:42:06.4138
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: b39138ca-3cee-4b4a-a4d6-cd83d9dd62f0
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-userprincipalname: namit@vmware.com
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: BYAPR05MB6630
+In-Reply-To: <1560761476-4651-3-git-send-email-n-horiguchi@ah.jp.nec.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9292 signatures=668687
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=2 malwarescore=0
+ phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
+ adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
+ engine=8.0.1-1810050000 definitions=main-1906180143
+X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9292 signatures=668687
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=2 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
+ definitions=main-1906180143
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-PiBPbiBKdW4gMTcsIDIwMTksIGF0IDExOjQ0IFBNLCBEYW4gV2lsbGlhbXMgPGRhbi5qLndpbGxp
-YW1zQGludGVsLmNvbT4gd3JvdGU6DQo+IA0KPiBPbiBXZWQsIEp1biAxMiwgMjAxOSBhdCA5OjU5
-IFBNIE5hZGF2IEFtaXQgPG5hbWl0QHZtd2FyZS5jb20+IHdyb3RlOg0KPj4gUnVubmluZyBzb21l
-IG1pY3JvYmVuY2htYXJrcyBvbiBkYXgga2VlcHMgc2hvd2luZyBmaW5kX25leHRfaW9tZW1fcmVz
-KCkNCj4+IGFzIGEgcGxhY2UgaW4gd2hpY2ggc2lnbmlmaWNhbnQgYW1vdW50IG9mIHRpbWUgaXMg
-c3BlbnQuIEl0IGFwcGVhcnMgdGhhdA0KPj4gaW4gb3JkZXIgdG8gZGV0ZXJtaW5lIHRoZSBjYWNo
-ZWFiaWxpdHkgdGhhdCBpcyByZXF1aXJlZCBmb3IgdGhlIFBURSwNCj4+IGxvb2t1cF9tZW10eXBl
-KCkgaXMgY2FsbGVkLCBhbmQgdGhpcyBvbmUgdHJhdmVyc2VzIHRoZSByZXNvdXJjZXMgbGlzdCBp
-bg0KPj4gYW4gaW5lZmZpY2llbnQgbWFubmVyLiBUaGlzIHBhdGNoLXNldCB0cmllcyB0byBpbXBy
-b3ZlIHRoaXMgc2l0dWF0aW9uLg0KPiANCj4gTGV0J3MganVzdCBkbyB0aGlzIGxvb2t1cCBvbmNl
-IHBlciBkZXZpY2UsIGNhY2hlIHRoYXQsIGFuZCByZXBsYXkgaXQNCj4gdG8gbW9kaWZpZWQgdm1m
-X2luc2VydF8qIHJvdXRpbmVzIHRoYXQgdHJ1c3QgdGhlIGNhbGxlciB0byBhbHJlYWR5DQo+IGtu
-b3cgdGhlIHBncHJvdF92YWx1ZXMuDQoNCklJVUMsIG9uZSBkZXZpY2UgY2FuIGhhdmUgbXVsdGlw
-bGUgcmVnaW9ucyB3aXRoIGRpZmZlcmVudCBjaGFyYWN0ZXJpc3RpY3MsDQp3aGljaCByZXF1aXJl
-IGRpZmZlcmVuY2UgY2FjaGFiaWxpdHkuIEFwcGFyZW50bHksIHRoYXQgaXMgdGhlIHJlYXNvbiB0
-aGVyZQ0KaXMgYSB0cmVlIG9mIHJlc291cmNlcy4gUGxlYXNlIGJlIG1vcmUgc3BlY2lmaWMgYWJv
-dXQgd2hlcmUgeW91IHdhbnQgdG8NCmNhY2hlIGl0LCBwbGVhc2UuDQoNClBlcmhhcHMgeW91IHdh
-bnQgdG8gY2FjaGUgdGhlIGNhY2hhYmlsaXR5LW1vZGUgaW4gdm1hLT52bV9wYWdlX3Byb3QgKHdo
-aWNoIEkNCnNlZSBiZWluZyBkb25lIGluIHF1aXRlIGEgZmV3IGNhc2VzKSwgYnV0IEkgZG9u4oCZ
-dCBrbm93IHRoZSBjb2RlIHdlbGwgZW5vdWdoDQp0byBiZSBjZXJ0YWluIHRoYXQgZXZlcnkgdm1h
-IHNob3VsZCBoYXZlIGEgc2luZ2xlIHByb3RlY3Rpb24gYW5kIHRoYXQgaXQNCnNob3VsZCBub3Qg
-Y2hhbmdlIGFmdGVyd2FyZHMuDQoNCg==
+On 6/17/19 1:51 AM, Naoya Horiguchi wrote:
+> madvise(MADV_SOFT_OFFLINE) often returns -EBUSY when calling soft offline
+> for hugepages with overcommitting enabled. That was caused by the suboptimal
+> code in current soft-offline code. See the following part:
+> 
+>     ret = migrate_pages(&pagelist, new_page, NULL, MPOL_MF_MOVE_ALL,
+>                             MIGRATE_SYNC, MR_MEMORY_FAILURE);
+>     if (ret) {
+>             ...
+>     } else {
+>             /*
+>              * We set PG_hwpoison only when the migration source hugepage
+>              * was successfully dissolved, because otherwise hwpoisoned
+>              * hugepage remains on free hugepage list, then userspace will
+>              * find it as SIGBUS by allocation failure. That's not expected
+>              * in soft-offlining.
+>              */
+>             ret = dissolve_free_huge_page(page);
+>             if (!ret) {
+>                     if (set_hwpoison_free_buddy_page(page))
+>                             num_poisoned_pages_inc();
+>             }
+>     }
+>     return ret;
+> 
+> Here dissolve_free_huge_page() returns -EBUSY if the migration source page
+> was freed into buddy in migrate_pages(), but even in that case we actually
+> has a chance that set_hwpoison_free_buddy_page() succeeds. So that means
+> current code gives up offlining too early now.
+> 
+> dissolve_free_huge_page() checks that a given hugepage is suitable for
+> dissolving, where we should return success for !PageHuge() case because
+> the given hugepage is considered as already dissolved.
+> 
+> This change also affects other callers of dissolve_free_huge_page(),
+> which are cleaned up together.
+> 
+> Reported-by: Chen, Jerry T <jerry.t.chen@intel.com>
+> Tested-by: Chen, Jerry T <jerry.t.chen@intel.com>
+> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+
+Thanks,
+
+Reviewed-by: Mike Kravetz <mike.kravetz@oracle.com>
+
+-- 
+Mike Kravetz
 
