@@ -3,157 +3,157 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=unavailable
-	autolearn_force=no version=3.4.0
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5CC22C46477
-	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 16:01:41 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B9F99C31E5E
+	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 16:05:51 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1EC5B214AF
-	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 16:01:40 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1EC5B214AF
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 7C29A20873
+	for <linux-mm@archiver.kernel.org>; Tue, 18 Jun 2019 16:05:51 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7C29A20873
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 874048E0005; Tue, 18 Jun 2019 12:01:40 -0400 (EDT)
+	id 0D01E8E0006; Tue, 18 Jun 2019 12:05:51 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 824548E0001; Tue, 18 Jun 2019 12:01:40 -0400 (EDT)
+	id 0A7A18E0001; Tue, 18 Jun 2019 12:05:51 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 73A4A8E0005; Tue, 18 Jun 2019 12:01:40 -0400 (EDT)
+	id ED9CB8E0006; Tue, 18 Jun 2019 12:05:50 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D8B28E0001
-	for <linux-mm@kvack.org>; Tue, 18 Jun 2019 12:01:40 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id b24so8040990plz.20
-        for <linux-mm@kvack.org>; Tue, 18 Jun 2019 09:01:40 -0700 (PDT)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D26258E0001
+	for <linux-mm@kvack.org>; Tue, 18 Jun 2019 12:05:50 -0400 (EDT)
+Received: by mail-qt1-f198.google.com with SMTP id i9so10135235qtc.15
+        for <linux-mm@kvack.org>; Tue, 18 Jun 2019 09:05:50 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:message-id
-         :subject:from:to:cc:date:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=6E2GD28gLWT06212squaTJfa5siGlOHjnRSYK5oIen8=;
-        b=buwBJm4lMpkk2PGRtYZ4f8TgAPgRKKGpl0B4QZcTnHwbzLmOMGzYThqwuOE3D091nq
-         q8CYCfJz6hVw0YgfZpeUTHxadoGyOnhazuulSZ2J7+DJ9NOy7U8KKnAPnvYMlBRGgs61
-         4JVQ1g7u1SlUPdr9peuca01mULGoKOgDCr6FiIk2DG/QXNEGf8+q0w+hCSwezstG9x3w
-         ONNS7MujK5IlXVo8qgJeAqf3TQ8sqq4/G3P3YUKoQxfXNeqL1/UmGwgxyw5X2qHSTzCX
-         mrk26BujHK2YnEu7ALzourgkPrOmVxQ1xfbPwkyOs4woO4g0GdM/Sr/jTdzuq39OmuFD
-         +6Kw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAXzCDT2d//x88htrvBGkvKhR6XxWOhcL8AR21LZHqAr0npteO6G
-	RmSgdtj0TQYcM5vpyfwkt5zkQeY2C3ypuOWYjyPGFGqyu8jbgtVW+AMFItnpEc36+ruQMyFbb9l
-	BoKqlFAYnhiy6Weqq5wOElTLYWk7hCXRj017BVpdzp9yKybmuW2Jeau+R8G4IlsLysQ==
-X-Received: by 2002:a17:90a:3724:: with SMTP id u33mr5878652pjb.19.1560873699948;
-        Tue, 18 Jun 2019 09:01:39 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxA8cJEVb/0rFmaboZegim9P3GhLBxmBXPxz55pY71WwXLRA4rEuZ1Jc8jRfOgikyKnBrc5
-X-Received: by 2002:a17:90a:3724:: with SMTP id u33mr5878588pjb.19.1560873699298;
-        Tue, 18 Jun 2019 09:01:39 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560873699; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:references:date:in-reply-to:message-id:user-agent
+         :mime-version;
+        bh=R9lzACpyysqEMFTWath+L8VuA7EH+R6hsPpYBcFTTZc=;
+        b=Aqjh7sXYhi3M8o0AdqkgyR0cH8l4ygBvldSqT6YgKz+hLToDQdxC0tupJYAwWhezuH
+         oraHTv4+NOQQIODCOs7uKvepcRl1IB5nLZZpYUrqB3c06/AqNsVMJ4EOdEuheOaXDhj9
+         yQa6iK3M03sTcmGi0qntYHgz4xzmTm0JhRm0pBlkZw24RLZH8eB0Fi+pll/HwXX6Cmj2
+         PYwWMgFELjzAuL0IHrL4Q+vu3/ztZJQYRal1uGvJFGg1KqLU8k/PR24AaLbAMsCCiiB4
+         BzMWa35K5L3myRU8awe9q7BhgqD9JUefADu2+pMaodo3WLWV3SalWWeCloukKk6dP+hD
+         ZbLg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of fweimer@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=fweimer@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAVG5RRe/q2wI+3RwxvW9OnYOYoNWZWqWyng/RcMy2e69apaghIE
+	KIEbkTsvhXFTJ2EjwAsRMJdHBWQ8s5xnd8uss1WVo2FHYB5Pn4aZLmfU50s4aejLAnaL1ZgIqaT
+	aIZojmRINvpi4B6V5YCtQ3beA23TiDvXuIhcVGbbhgC9yvpwEdOllQw7UMz8RadeWWQ==
+X-Received: by 2002:a37:a98c:: with SMTP id s134mr92360942qke.176.1560873950666;
+        Tue, 18 Jun 2019 09:05:50 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqx5mn8xp33F7Y/J6TBi2n2PALmQjeB7Wy+yy+/HgQHi656bWNQ6XFQ7kMJ1q/HSStK6z0kw
+X-Received: by 2002:a37:a98c:: with SMTP id s134mr92360898qke.176.1560873950139;
+        Tue, 18 Jun 2019 09:05:50 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560873950; cv=none;
         d=google.com; s=arc-20160816;
-        b=A7bUE7aFczqe0k5umQ2bkFCY5PDHiK1pioQ3V2WaV1pLI5DY3j1WS+EugBd9MMy2hT
-         nyPDSsJYe9a2IBhYwR6p2VXSQ2IlPed4bV9B55R3GsrD3eeektdiwlsSZC8XdQdDwo4y
-         n3miqY0phE/e++GVqDuYLpaTxTGCoY9+4v3khZ5LNNilpMTzz3HhH7lPv4hkG/t99ERG
-         WP/DhQ6kA9oi4S/QwdJTvv59jhjcZKZ7o9j1wwKHFsY1gp3hMw6KgaHaZnJQrNVo+RKB
-         qc5ffdzf9Dh8T7xIr+oVMdMEy2OrPrZvENYK65ZUhC4nIVd+jtr0fJjrd4s4cNucYFdg
-         uALA==
+        b=szFCcc1n4644alAkIOddAyCzLcUnoh+pM/E0nh9PdKsAtpMdRObyi+PNd6KGxEkbSt
+         WjDLGlho5Q/17AbAeljkKOSvCrBBtHKrY7LxoVZluKKdoGz641/wwePExQhsHbeeWSod
+         iptWN1i2bZuc08pcO57LK/NwUdRWS4vJwgBBAwdGHyS0Ri1zEfvsNCMuvbfsb1lUytg1
+         nI9neoqo8S5RysIE0yoKROYGtDYC5r+9p1PYD2JaGd1Jx/C5UMqm9jMwyNxrLoJ6luM3
+         b51zaJGPeWjZO+uOK2gNh8fc6Z/Wfh2Byj95JQxqM9s3GaWFFwJnKXJEWDq4Un+9FkoD
+         0zzA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to:date
-         :cc:to:from:subject:message-id;
-        bh=6E2GD28gLWT06212squaTJfa5siGlOHjnRSYK5oIen8=;
-        b=tlyLl28sTD8stkhXxeh3/CuO6GMbFCiUTnaciGuRjaclxfhEpmvetbFMGJQT4+2s02
-         vV8zio8hS41k1kIIhK8hq9KCaRI7kWN6HZDePziIYn+No7rLAjnqxR/vtxZJGL1BssEV
-         IzcDyXI3iD8TOuW0Lla5bE6osReRYuaarskUnBsXHIRA7EIeVebMJ32gvgw1yMCHiiVp
-         kM0x26zU4RkSWek/gOglanyHFXQhMYg7yp9HWtZoxiM+/kZBsN3CBt2oNYrx/4kxVi1i
-         uULR6qPbkBukH/Gy/9iMnNK6+JoeKDcsSAnZs0VK7+LFU2w9r5EyHM5qQTQ2ngCagXcv
-         Dv7A==
+        h=mime-version:user-agent:message-id:in-reply-to:date:references
+         :subject:cc:to:from;
+        bh=R9lzACpyysqEMFTWath+L8VuA7EH+R6hsPpYBcFTTZc=;
+        b=W7rXN7WPgoSCyiFoeR4jaBy0gW2ZT/TRiUAVZZBK2B5NcwKGZfEnQUp5Mqxcc5v1dq
+         7ciQI5xSiDaZ/8OMlr/nftIH5yl4Sne1iIrhQMmzVhJxyH5G0phFZTJXJ3D9YPGx2lnk
+         Up8kf26WOyd6JPy7Hpa7plHeBU9XgdKC3o6x3j+lFi330J+tI8FRfRMbnoT7u30Ob2ef
+         /Ge5wbVULCeXJPD4FYXY8/bkieYdQnSaicLbMXOkiOb7/PnPOAjs4xDotQPdNx9lV3ua
+         5GNhyx3hZ2WH5FoYqZdifsPHwrwvfirdBUi9psS0Qbr0Pq4/ExtPwurtGGVntJeG9M+W
+         XDNg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id h32si2335578pld.402.2019.06.18.09.01.39
+       spf=pass (google.com: domain of fweimer@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=fweimer@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id i66si482422qtb.274.2019.06.18.09.05.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 18 Jun 2019 09:01:39 -0700 (PDT)
-Received-SPF: pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.100 as permitted sender) client-ip=134.134.136.100;
+        Tue, 18 Jun 2019 09:05:50 -0700 (PDT)
+Received-SPF: pass (google.com: domain of fweimer@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from fmsmga005.fm.intel.com ([10.253.24.32])
-  by orsmga105.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 18 Jun 2019 09:01:38 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.63,389,1557212400"; 
-   d="scan'208";a="357901271"
-Received: from yyu32-desk1.sc.intel.com ([10.144.153.205])
-  by fmsmga005.fm.intel.com with ESMTP; 18 Jun 2019 09:01:38 -0700
-Message-ID: <1ca57aaae8a2121731f2dcb1a137b92eed39a0d2.camel@intel.com>
-Subject: Re: [PATCH v7 22/27] binfmt_elf: Extract .note.gnu.property from an
- ELF file
-From: Yu-cheng Yu <yu-cheng.yu@intel.com>
-To: Florian Weimer <fweimer@redhat.com>
-Cc: Dave Martin <Dave.Martin@arm.com>, Peter Zijlstra
+       spf=pass (google.com: domain of fweimer@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=fweimer@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 06BA17FDF9;
+	Tue, 18 Jun 2019 16:05:39 +0000 (UTC)
+Received: from oldenburg2.str.redhat.com (ovpn-116-87.ams2.redhat.com [10.36.116.87])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 70CCD37DE;
+	Tue, 18 Jun 2019 16:05:26 +0000 (UTC)
+From: Florian Weimer <fweimer@redhat.com>
+To: Yu-cheng Yu <yu-cheng.yu@intel.com>
+Cc: Dave Martin <Dave.Martin@arm.com>,  Peter Zijlstra
  <peterz@infradead.org>,  Thomas Gleixner <tglx@linutronix.de>,
- x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar
+  x86@kernel.org,  "H. Peter Anvin" <hpa@zytor.com>,  Ingo Molnar
  <mingo@redhat.com>,  linux-kernel@vger.kernel.org,
- linux-doc@vger.kernel.org, linux-mm@kvack.org,  linux-arch@vger.kernel.org,
- linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski
- <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Borislav
- Petkov <bp@alien8.de>, Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen
- <dave.hansen@linux.intel.com>, Eugene Syromiatnikov <esyr@redhat.com>,
- "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan
- Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>, Mike Kravetz
- <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov
- <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Randy Dunlap
- <rdunlap@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, 
- Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
-Date: Tue, 18 Jun 2019 08:53:29 -0700
-In-Reply-To: <87pnna7v1d.fsf@oldenburg2.str.redhat.com>
+  linux-doc@vger.kernel.org,  linux-mm@kvack.org,
+  linux-arch@vger.kernel.org,  linux-api@vger.kernel.org,  Arnd Bergmann
+ <arnd@arndb.de>,  Andy Lutomirski <luto@amacapital.net>,  Balbir Singh
+ <bsingharora@gmail.com>,  Borislav Petkov <bp@alien8.de>,  Cyrill Gorcunov
+ <gorcunov@gmail.com>,  Dave Hansen <dave.hansen@linux.intel.com>,  Eugene
+ Syromiatnikov <esyr@redhat.com>,  "H.J. Lu" <hjl.tools@gmail.com>,  Jann
+ Horn <jannh@google.com>,  Jonathan Corbet <corbet@lwn.net>,  Kees Cook
+ <keescook@chromium.org>,  Mike Kravetz <mike.kravetz@oracle.com>,  Nadav
+ Amit <nadav.amit@gmail.com>,  Oleg Nesterov <oleg@redhat.com>,  Pavel
+ Machek <pavel@ucw.cz>,  Randy Dunlap <rdunlap@infradead.org>,  "Ravi V.
+ Shankar" <ravi.v.shankar@intel.com>,  Vedvyas Shanbhogue
+ <vedvyas.shanbhogue@intel.com>
+Subject: Re: [PATCH v7 22/27] binfmt_elf: Extract .note.gnu.property from an ELF file
 References: <87lfy9cq04.fsf@oldenburg2.str.redhat.com>
-	 <20190611114109.GN28398@e103592.cambridge.arm.com>
-	 <031bc55d8dcdcf4f031e6ff27c33fd52c61d33a5.camel@intel.com>
-	 <20190612093238.GQ28398@e103592.cambridge.arm.com>
-	 <87imt4jwpt.fsf@oldenburg2.str.redhat.com>
-	 <alpine.DEB.2.21.1906171418220.1854@nanos.tec.linutronix.de>
-	 <20190618091248.GB2790@e103592.cambridge.arm.com>
-	 <20190618124122.GH3419@hirez.programming.kicks-ass.net>
-	 <87ef3r9i2j.fsf@oldenburg2.str.redhat.com>
-	 <20190618125512.GJ3419@hirez.programming.kicks-ass.net>
-	 <20190618133223.GD2790@e103592.cambridge.arm.com>
-	 <d54fe81be77b9edd8578a6d208c72cd7c0b8c1dd.camel@intel.com>
-	 <87pnna7v1d.fsf@oldenburg2.str.redhat.com>
-Content-Type: text/plain; charset="UTF-8"
-X-Mailer: Evolution 3.28.1-2 
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+	<20190611114109.GN28398@e103592.cambridge.arm.com>
+	<031bc55d8dcdcf4f031e6ff27c33fd52c61d33a5.camel@intel.com>
+	<20190612093238.GQ28398@e103592.cambridge.arm.com>
+	<87imt4jwpt.fsf@oldenburg2.str.redhat.com>
+	<alpine.DEB.2.21.1906171418220.1854@nanos.tec.linutronix.de>
+	<20190618091248.GB2790@e103592.cambridge.arm.com>
+	<20190618124122.GH3419@hirez.programming.kicks-ass.net>
+	<87ef3r9i2j.fsf@oldenburg2.str.redhat.com>
+	<20190618125512.GJ3419@hirez.programming.kicks-ass.net>
+	<20190618133223.GD2790@e103592.cambridge.arm.com>
+	<d54fe81be77b9edd8578a6d208c72cd7c0b8c1dd.camel@intel.com>
+	<87pnna7v1d.fsf@oldenburg2.str.redhat.com>
+	<1ca57aaae8a2121731f2dcb1a137b92eed39a0d2.camel@intel.com>
+Date: Tue, 18 Jun 2019 18:05:24 +0200
+In-Reply-To: <1ca57aaae8a2121731f2dcb1a137b92eed39a0d2.camel@intel.com>
+	(Yu-cheng Yu's message of "Tue, 18 Jun 2019 08:53:29 -0700")
+Message-ID: <87blyu7ubf.fsf@oldenburg2.str.redhat.com>
+User-Agent: Gnus/5.13 (Gnus v5.13) Emacs/26.2 (gnu/linux)
+MIME-Version: 1.0
+Content-Type: text/plain
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.27]); Tue, 18 Jun 2019 16:05:49 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2019-06-18 at 17:49 +0200, Florian Weimer wrote:
-> * Yu-cheng Yu:
-> 
-> > The kernel looks at only ld-linux.  Other applications are loaded by ld-
-> > linux. 
-> > So the issues are limited to three versions of ld-linux's.  Can we somehow
-> > update those??
-> 
-> I assumed that it would also parse the main executable and make
-> adjustments based on that.
+* Yu-cheng Yu:
 
-Yes, Linux also looks at the main executable's header, but not its
-NT_GNU_PROPERTY_TYPE_0 if there is a loader.
+>> I assumed that it would also parse the main executable and make
+>> adjustments based on that.
+>
+> Yes, Linux also looks at the main executable's header, but not its
+> NT_GNU_PROPERTY_TYPE_0 if there is a loader.
+>
+>> 
+>> ld.so can certainly provide whatever the kernel needs.  We need to tweak
+>> the existing loader anyway.
+>> 
+>> No valid statically-linked binaries exist today, so this is not a
+>> consideration at this point.
+>
+> So from kernel, we look at only PT_GNU_PROPERTY?
 
-> 
-> ld.so can certainly provide whatever the kernel needs.  We need to tweak
-> the existing loader anyway.
-> 
-> No valid statically-linked binaries exist today, so this is not a
-> consideration at this point.
+If you don't parse notes/segments in the executable for CET, then yes.
+We can put PT_GNU_PROPERTY into the loader.
 
-So from kernel, we look at only PT_GNU_PROPERTY?
-
-Yu-cheng
+Thanks,
+Florian
 
