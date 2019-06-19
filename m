@@ -2,186 +2,197 @@ Return-Path: <SRS0=1eqM=US=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 34022C31E49
-	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 13:18:46 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8412AC31E49
+	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 13:24:54 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BCA9B2166E
-	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 13:18:45 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=c-s.fr header.i=@c-s.fr header.b="Ga0F0K7E"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BCA9B2166E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=c-s.fr
+	by mail.kernel.org (Postfix) with ESMTP id 4965B206E0
+	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 13:24:54 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4965B206E0
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 552826B0005; Wed, 19 Jun 2019 09:18:45 -0400 (EDT)
+	id CA14A6B0003; Wed, 19 Jun 2019 09:24:53 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 502B38E0002; Wed, 19 Jun 2019 09:18:45 -0400 (EDT)
+	id C51418E0002; Wed, 19 Jun 2019 09:24:53 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3CB0D8E0001; Wed, 19 Jun 2019 09:18:45 -0400 (EDT)
+	id B406D8E0001; Wed, 19 Jun 2019 09:24:53 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wm1-f72.google.com (mail-wm1-f72.google.com [209.85.128.72])
-	by kanga.kvack.org (Postfix) with ESMTP id E54526B0005
-	for <linux-mm@kvack.org>; Wed, 19 Jun 2019 09:18:44 -0400 (EDT)
-Received: by mail-wm1-f72.google.com with SMTP id b67so1707093wmd.0
-        for <linux-mm@kvack.org>; Wed, 19 Jun 2019 06:18:44 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 65C716B0003
+	for <linux-mm@kvack.org>; Wed, 19 Jun 2019 09:24:53 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id y3so26109733edm.21
+        for <linux-mm@kvack.org>; Wed, 19 Jun 2019 06:24:53 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=qiE5blyrEXjR+EvN4cIOjdw+vmQhFfJ4XznqchvkiBE=;
-        b=C5P1J0oJhGyyQ4NMhRSMQYxCxQUe0c1MSE/eeVh1vZNbje3eIIouQkUVumos29PsZo
-         F95aDJgYpbh/hmMSG0LkKcW6XeXLhpRPS14/iT4gG5ibEoaEj5mjXxmUKefYJTbpCZRF
-         yOmc5cC9CeNLNnWQo4TnoIZSIychUqbelej5mNQiGLuzrHzyfwA7PiasclYwXvrVkKbG
-         uiUE8A/TJeEhdToeSXALUZvr9go4qM2BsDoxgKhcbSifiyDPldvwLVwUdDEvIu9aFNn5
-         ei3+ITHdjbbkqLyfxrFXLOkAOULPGDyfFobSNaZE/F+eeCIb+bkcNdB5woKWiwNTKiz/
-         JebA==
-X-Gm-Message-State: APjAAAVLYkSAW8hJdm/jspy9KgncmF580zJ565bp3eVkHzONjVRdNa+V
-	AbIa7MHJkCHgSueScOD3Ddcu65jyItDIUuVq3oVP8igzZjATc3Fyvni/gc142yuWeEAmYyoWCdf
-	MyLdNgVe0V5E1bbKJaDwy7ps6qyRk1WHswSRWIqtbvoduVVJyheqU0qgriXNQ+WuKPg==
-X-Received: by 2002:a5d:548e:: with SMTP id h14mr34989649wrv.76.1560950324510;
-        Wed, 19 Jun 2019 06:18:44 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqw/WuztuRLJbaBODehH0DCcHFmzx9ZlAb54+8dufBXrArejTbz0S+RrZ8Hna9gFLQmcsrLD
-X-Received: by 2002:a5d:548e:: with SMTP id h14mr34989604wrv.76.1560950323774;
-        Wed, 19 Jun 2019 06:18:43 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560950323; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=b0O3mprRJ3WdZye48HA9IWlDk2nK2hgN1roQFBRqozQ=;
+        b=dQD3COtNv4RKmDsAs1OiF3Vun9bJ7INe5vUgKI2jU5Z6oPOmUoh+IRS/YvtomTsEoN
+         fpI43PLygshMvqmHb8LCalVmaVy/hdQu1h9r2eV7NDDfV3I+FbZ/+36CjpupCWwly9NF
+         wG6n8XrPzxvEaDq2srPBTbxJmcz/TguSlc2DHROMmyL88FlPz1weyPtOBGpdQlZGEI9R
+         MHjK6XzZSe2e6yeIPufRKjpoLMNzsVNto3cLCeJMZHSXj+BxDId77MtCp9o8J/fGucIw
+         3Z0RYO6XuPUe8kQWjrjKPBZrU3S7dGRFx/+UHJKKtiImsHo2xzBZxPvts+4kofukNwM9
+         FcDQ==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAVzDsWn7sq+mOPNCFy9aq6G8pDiATM9kom/ysbodcqPeq/mEFL/
+	JHIeWqmazPdGBkmaMuNspJTU+SUilR+PVpibnuyhI/px45FxMUoVMsjadRD/KlgtAa7lbjpogrW
+	OaYR85g7s2HmvrMBUlkkw5zOsIHDJEwZzP3HES/6/ASeHjtepKTsxG1eyRMScWlY=
+X-Received: by 2002:a50:fb86:: with SMTP id e6mr5920607edq.203.1560950692971;
+        Wed, 19 Jun 2019 06:24:52 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzgbXV6sgFfw8l6iYpdd2K5bSipUbyFz1RbT4MD2dFfi2jZOGEgu2xBGUam4dRRYOJZRihj
+X-Received: by 2002:a50:fb86:: with SMTP id e6mr5920541edq.203.1560950692305;
+        Wed, 19 Jun 2019 06:24:52 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560950692; cv=none;
         d=google.com; s=arc-20160816;
-        b=shxOYPBeMj2vX9ke9hF79tTKfQEQvZ9zvqiJ91uwYLvx9QWKevmtrnFg+oPw3mI9BN
-         Rtrd/gDNkhKNzqfHLryGXs21cWdHnB5YgiSnnKDphVDHBGu8Nb1d9i0OS9uZlBVJkvps
-         8cStWFHMpFvaRmuajREw61ez15e2dwglhgo4RC1xlZHE6r69309tztuJJJiV9VXKBODA
-         2XbeUhNaiRDkd5FqCHl/X20e5a4v3ptFzmoxFdeTwPBOSBx7VsAlCROngbIZbo2kUuXU
-         B06UtIkDRtfeeC+ZlMWrH5SPHLlZKLMH5/OBrx7Q15kyPRfh5uF3mcdG7TC7Bx+Nsp6x
-         s0Dg==
+        b=gezfPri2sRvAy6432cRDdU4JC73cot/JAaGb6K+fukwSoCGPrRIdhS1zd+WiUE1RTC
+         5Xib/BnGiRqYZwqvRVMCybX0h+/gTGapwdA0mdiy8nWk8DAhp6TIv2IcKpWaV5/dXBZU
+         M2fAosTadMecBel4Eg5eb4AKZM99WrZoHO6+2z6iKKPYnwBSwW5fg7Ase/K+Wl5sShLP
+         h/vLIWpUPajavTbNrMGgHI1qDDrRRCBAbJey0PHYCk+5PiIP2nWL8mswQNXXbxfB8jRg
+         kmcu32/fnvMAramYbMqJHBsHGzSlsEHlqNPydtJkh+ep+qCY4ukZETR+gfXfF1cTeoTj
+         nzJw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject
-         :dkim-signature;
-        bh=qiE5blyrEXjR+EvN4cIOjdw+vmQhFfJ4XznqchvkiBE=;
-        b=VNlmPNO8a/5si4i7dNduFjtqNLdGoKnWmdkxZxXfybUM9c5aeAbemGtGciAOD0msu7
-         2ES7ojAnUWiJE3CW6o4/Hc7JNgsAiz7R2zNXEqxadDsYRPIJIOPaUCQp4khQ0PaTVr4d
-         4OfCjBS19fiqDxohwDQOJI3o1K8FsEvZpB3k6wn7Rh1Q9XWNhWvF3BujxavxSn+UuAqI
-         kf7ViWxfNcf5g814H9YzKfAf2vudcZZb8EKUkrBWmiA4VQk4Z1bRX+QF8qr8DnTSkb4w
-         yj9jaXRXkkdvHMsEpb5YF+8bcIGNHtf/cMSy9Kr+7qIjyA09Ap4NL5lEKZUgRgMXGMUl
-         JTXg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=b0O3mprRJ3WdZye48HA9IWlDk2nK2hgN1roQFBRqozQ=;
+        b=zVEA+uxae77KCCeG3IS2N9ZH7P0AumKTcrKkkh5pzEZFazixt6D4sxRH/MQpgZxncN
+         ZGHYUFmY7EZp4A9iZaWizBqcpYkce0OAk5dUHSDvNpNmR9BNG77G7nC0O6E8urOLJyCa
+         Dcotpv+qTazzKAKeP9Ma0Ktk4b1qqbdCFFAxrwn1daa1+nncQnBbjszp9rMrosKeue20
+         ySnxArtB0oYBw40JuLn84klpZHw4ZmBL8Tk/JznJxsT8rNqHF0urt0uNSe+zu/ohj5RS
+         REC7eMWLXbFL30PTnDqo70sUFbZpngYg4uu0fTS/8mIfWhNB0rIaTqh3A0icufgG7uY9
+         MFAQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@c-s.fr header.s=mail header.b=Ga0F0K7E;
-       spf=pass (google.com: domain of christophe.leroy@c-s.fr designates 93.17.236.30 as permitted sender) smtp.mailfrom=christophe.leroy@c-s.fr
-Received: from pegase1.c-s.fr (pegase1.c-s.fr. [93.17.236.30])
-        by mx.google.com with ESMTPS id f15si10567895wrp.75.2019.06.19.06.18.43
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id t17si2455472ejq.121.2019.06.19.06.24.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 19 Jun 2019 06:18:43 -0700 (PDT)
-Received-SPF: pass (google.com: domain of christophe.leroy@c-s.fr designates 93.17.236.30 as permitted sender) client-ip=93.17.236.30;
+        Wed, 19 Jun 2019 06:24:52 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@c-s.fr header.s=mail header.b=Ga0F0K7E;
-       spf=pass (google.com: domain of christophe.leroy@c-s.fr designates 93.17.236.30 as permitted sender) smtp.mailfrom=christophe.leroy@c-s.fr
-Received: from localhost (mailhub1-int [192.168.12.234])
-	by localhost (Postfix) with ESMTP id 45TQWN67qgzB09ZM;
-	Wed, 19 Jun 2019 15:18:40 +0200 (CEST)
-Authentication-Results: localhost; dkim=pass
-	reason="1024-bit key; insecure key"
-	header.d=c-s.fr header.i=@c-s.fr header.b=Ga0F0K7E; dkim-adsp=pass;
-	dkim-atps=neutral
-X-Virus-Scanned: Debian amavisd-new at c-s.fr
-Received: from pegase1.c-s.fr ([192.168.12.234])
-	by localhost (pegase1.c-s.fr [192.168.12.234]) (amavisd-new, port 10024)
-	with ESMTP id eJHKCkKy6Csx; Wed, 19 Jun 2019 15:18:40 +0200 (CEST)
-Received: from messagerie.si.c-s.fr (messagerie.si.c-s.fr [192.168.25.192])
-	by pegase1.c-s.fr (Postfix) with ESMTP id 45TQWN4sgfzB09ZJ;
-	Wed, 19 Jun 2019 15:18:40 +0200 (CEST)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=c-s.fr; s=mail;
-	t=1560950320; bh=qiE5blyrEXjR+EvN4cIOjdw+vmQhFfJ4XznqchvkiBE=;
-	h=Subject:To:Cc:References:From:Date:In-Reply-To:From;
-	b=Ga0F0K7E3XoSDkoIpBC50ILQufEvplU5MlC4X6vPhMU1h2lHMVlSrVE5mHAB+nqNC
-	 u3xzEP6IH5n8KFFmyPV57vrixG7l5hCWIOZ2C/GfThUKzBI/uYSic2p6jPyCT5mGlK
-	 iHsxCiOKvH3UEOSNrHTp85AHc9HB4RkpVmLZLu9A=
-Received: from localhost (localhost [127.0.0.1])
-	by messagerie.si.c-s.fr (Postfix) with ESMTP id 0727F8B92B;
-	Wed, 19 Jun 2019 15:18:43 +0200 (CEST)
-X-Virus-Scanned: amavisd-new at c-s.fr
-Received: from messagerie.si.c-s.fr ([127.0.0.1])
-	by localhost (messagerie.si.c-s.fr [127.0.0.1]) (amavisd-new, port 10023)
-	with ESMTP id KNj3EcPtKvgV; Wed, 19 Jun 2019 15:18:42 +0200 (CEST)
-Received: from PO15451 (unknown [192.168.4.90])
-	by messagerie.si.c-s.fr (Postfix) with ESMTP id A64938B93C;
-	Wed, 19 Jun 2019 15:18:42 +0200 (CEST)
-Subject: Re: [PATCH 1/4] mm: Move ioremap page table mapping function to mm/
-To: Nicholas Piggin <npiggin@gmail.com>, linux-mm@kvack.org
-Cc: linux-arm-kernel@lists.infradead.org, linuxppc-dev@lists.ozlabs.org
-References: <20190610043838.27916-1-npiggin@gmail.com>
- <86991f76-2101-8087-37db-d939d5d744fa@c-s.fr>
- <1560915576.aqf69c3nf8.astroid@bobo.none>
-From: Christophe Leroy <christophe.leroy@c-s.fr>
-Message-ID: <7218a243-0d9c-ad90-d409-87663893799e@c-s.fr>
-Date: Wed, 19 Jun 2019 15:18:29 +0200
-User-Agent: Mozilla/5.0 (Windows NT 6.1; WOW64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.1
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id A63F2AD96;
+	Wed, 19 Jun 2019 13:24:51 +0000 (UTC)
+Date: Wed, 19 Jun 2019 15:24:50 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+	linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>,
+	linux-api@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>,
+	Tim Murray <timmurray@google.com>,
+	Joel Fernandes <joel@joelfernandes.org>,
+	Suren Baghdasaryan <surenb@google.com>,
+	Daniel Colascione <dancol@google.com>,
+	Shakeel Butt <shakeelb@google.com>, Sonny Rao <sonnyrao@google.com>,
+	Brian Geffon <bgeffon@google.com>, jannh@google.com,
+	oleg@redhat.com, christian@brauner.io, oleksandr@redhat.com,
+	hdanton@sina.com, lizeb@google.com
+Subject: Re: [PATCH v2 4/5] mm: introduce MADV_PAGEOUT
+Message-ID: <20190619132450.GQ2968@dhcp22.suse.cz>
+References: <20190610111252.239156-1-minchan@kernel.org>
+ <20190610111252.239156-5-minchan@kernel.org>
 MIME-Version: 1.0
-In-Reply-To: <1560915576.aqf69c3nf8.astroid@bobo.none>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: fr
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190610111252.239156-5-minchan@kernel.org>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Mon 10-06-19 20:12:51, Minchan Kim wrote:
+[...]
+> +static int madvise_pageout_pte_range(pmd_t *pmd, unsigned long addr,
+> +				unsigned long end, struct mm_walk *walk)
 
+Again the same question about a potential code reuse...
+[...]
+> +regular_page:
+> +	tlb_change_page_size(tlb, PAGE_SIZE);
+> +	orig_pte = pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
+> +	flush_tlb_batched_pending(mm);
+> +	arch_enter_lazy_mmu_mode();
+> +	for (; addr < end; pte++, addr += PAGE_SIZE) {
+> +		ptent = *pte;
+> +		if (!pte_present(ptent))
+> +			continue;
+> +
+> +		page = vm_normal_page(vma, addr, ptent);
+> +		if (!page)
+> +			continue;
+> +
+> +		if (isolate_lru_page(page))
+> +			continue;
+> +
+> +		isolated++;
+> +		if (pte_young(ptent)) {
+> +			ptent = ptep_get_and_clear_full(mm, addr, pte,
+> +							tlb->fullmm);
+> +			ptent = pte_mkold(ptent);
+> +			set_pte_at(mm, addr, pte, ptent);
+> +			tlb_remove_tlb_entry(tlb, pte, addr);
+> +		}
+> +		ClearPageReferenced(page);
+> +		test_and_clear_page_young(page);
+> +		list_add(&page->lru, &page_list);
+> +		if (isolated >= SWAP_CLUSTER_MAX) {
 
-Le 19/06/2019 à 05:43, Nicholas Piggin a écrit :
-> Christophe Leroy's on June 11, 2019 3:24 pm:
->>
->>
->> Le 10/06/2019 à 06:38, Nicholas Piggin a écrit :
+Why do we need SWAP_CLUSTER_MAX batching? Especially when we need ...
+[...]
 
-[snip]
+> +unsigned long reclaim_pages(struct list_head *page_list)
+> +{
+> +	int nid = -1;
+> +	unsigned long nr_reclaimed = 0;
+> +	LIST_HEAD(node_page_list);
+> +	struct reclaim_stat dummy_stat;
+> +	struct scan_control sc = {
+> +		.gfp_mask = GFP_KERNEL,
+> +		.priority = DEF_PRIORITY,
+> +		.may_writepage = 1,
+> +		.may_unmap = 1,
+> +		.may_swap = 1,
+> +	};
+> +
+> +	while (!list_empty(page_list)) {
+> +		struct page *page;
+> +
+> +		page = lru_to_page(page_list);
+> +		if (nid == -1) {
+> +			nid = page_to_nid(page);
+> +			INIT_LIST_HEAD(&node_page_list);
+> +		}
+> +
+> +		if (nid == page_to_nid(page)) {
+> +			list_move(&page->lru, &node_page_list);
+> +			continue;
+> +		}
+> +
+> +		nr_reclaimed += shrink_page_list(&node_page_list,
+> +						NODE_DATA(nid),
+> +						&sc, 0,
+> +						&dummy_stat, false);
 
->>> diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
->>> index 51e131245379..812bea5866d6 100644
->>> --- a/include/linux/vmalloc.h
->>> +++ b/include/linux/vmalloc.h
->>> @@ -147,6 +147,9 @@ extern struct vm_struct *find_vm_area(const void *addr);
->>>    extern int map_vm_area(struct vm_struct *area, pgprot_t prot,
->>>    			struct page **pages);
->>>    #ifdef CONFIG_MMU
->>> +extern int vmap_range(unsigned long addr,
->>> +		       unsigned long end, phys_addr_t phys_addr, pgprot_t prot,
->>> +		       unsigned int max_page_shift);
->>
->> Drop extern keyword here.
-> 
-> I don't know if I was going crazy but at one point I was getting
-> duplicate symbol errors that were fixed by adding extern somewhere.
-
-probably not on a function name ...
-
-> Maybe sleep depravation. However...
-> 
->> As checkpatch tells you, 'CHECK:AVOID_EXTERNS: extern prototypes should
->> be avoided in .h files'
-> 
-> I prefer to follow existing style in surrounding code at the expense
-> of some checkpatch warnings. If somebody later wants to "fix" it
-> that's fine.
-
-I don't think that's fine to 'fix' later things that could be done right 
-from the begining. 'Cosmetic only' fixes never happen because they are a 
-nightmare for backports, and a shame for 'git blame'.
-
-In some patches, you add cleanups to make the code look nicer, and here 
-you have the opportunity to make the code nice from the begining and you 
-prefer repeating the errors done in the past ? You're surprising me.
-
-Christophe
-
-> 
-> Thanks,
-> Nick
-> 
+per-node batching in fact. Other than that nothing really jumped at me.
+Except for the shared page cache side channel timing aspect not being
+considered AFAICS. To be more specific. Pushing out a shared page cache
+is possible even now but this interface gives a much easier tool to
+evict shared state and perform all sorts of timing attacks. Unless I am
+missing something we should be doing something similar to mincore and
+ignore shared pages without a writeable access or at least document why
+we do not care.
+-- 
+Michal Hocko
+SUSE Labs
 
