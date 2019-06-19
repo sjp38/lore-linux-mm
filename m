@@ -2,145 +2,164 @@ Return-Path: <SRS0=1eqM=US=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A0437C31E49
-	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 05:35:56 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 76454C31E49
+	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 05:39:23 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 69D882084A
-	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 05:35:55 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 69D882084A
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 34D7D20B1F
+	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 05:39:23 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 34D7D20B1F
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ghiti.fr
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A08E06B0003; Wed, 19 Jun 2019 01:35:55 -0400 (EDT)
+	id AEF7E6B0003; Wed, 19 Jun 2019 01:39:22 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 992048E0002; Wed, 19 Jun 2019 01:35:55 -0400 (EDT)
+	id A79328E0002; Wed, 19 Jun 2019 01:39:22 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8CEB88E0001; Wed, 19 Jun 2019 01:35:55 -0400 (EDT)
+	id 9414F8E0001; Wed, 19 Jun 2019 01:39:22 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 4213A6B0003
-	for <linux-mm@kvack.org>; Wed, 19 Jun 2019 01:35:55 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id c1so24493356edi.20
-        for <linux-mm@kvack.org>; Tue, 18 Jun 2019 22:35:55 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 45A4F6B0003
+	for <linux-mm@kvack.org>; Wed, 19 Jun 2019 01:39:22 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id b3so24467464edd.22
+        for <linux-mm@kvack.org>; Tue, 18 Jun 2019 22:39:22 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=5xFI6CC+SBydA8Y9UU8UZWk761AJ3Twzt9eFzf2XbD0=;
-        b=XaoGMBLCUxOhEJxvh8LDIwPE58GmGABYA6kngy/KCoRtKjKYF1WcKIPbhllJbeYEII
-         v/plRl/bTnsjpkHDzwBtO6K8L0G9RYWrVnL9xRDJcIDtE637TSEttp1jH3gIM9LEfeDk
-         7ZSufzH3iHSO6FpPRNPSNLjje5rMIksgDbZRgAfMGWXTr/JL9Nm6uEZ23/ToMnwY2iUU
-         WfXmcUgsjbHm3V0E0nfk1lpkctPUuy+Op3I+JIFev0NUK1kSBM7A/TRoFuJhiVIeM4rm
-         BNoCWIfHjwRMDEw08tVWUVQOz2wI/FAgqhkFBYgIIIV6k7QfNXmmzTZx5Z2tApR/YnUO
-         ZOig==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAXxMRhucPqgSPLe5+5khqOLfooJEWeWM5CD/ySkFuySlLHkGaI3
-	O9mNyXNBf+EjZ0ZaEjOMnrRV2nTsZVcuwR7kQyEw3l+ozU+01Dl/8j6fOK07gbJh0gISQ5Z7YQp
-	Jj6PfRK/F/TLsuZID9wzVn6TW3oFUb5gapEn4UUxYR7KV4KsElsJ914RadRpe8uc=
-X-Received: by 2002:a50:9413:: with SMTP id p19mr107940835eda.224.1560922554850;
-        Tue, 18 Jun 2019 22:35:54 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqydcjtqEYtSmOSChZQ/njfaSuA/BRdh83gmJcyoJc3OXb0ya0/z2K/bpF2v237rJ863iVW0
-X-Received: by 2002:a50:9413:: with SMTP id p19mr107940800eda.224.1560922554179;
-        Tue, 18 Jun 2019 22:35:54 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560922554; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:mime-version:content-transfer-encoding;
+        bh=U8wwWkMc4xREbydMVGhGOpMQaRQYb5wF9yJW/vXkBZ4=;
+        b=ZvoecCVlEhvcxdSpJ79NO5SbUuQ/PWbNQkzKRO8E9aqsi4g42vmOXNpXtZmKzgG5N5
+         Eon20Z5x2kuOcLkp29XvPgJ4cYsO/jNbGm8sw04wPPM6/V8ZgRRTvH3aZoLKhZY9B5Sv
+         D0kOwLctgVWaVIs2UG+1SA3GGg+hlsImzXpHhhrEAenE58sKLxvuIX06W30Td4qQhAOa
+         secXHREa6dVtjrSryY/LNYQ8LDyyaXPJNNQsBA3qiYUdTeJW0WehRtCA/24SOsaFn6AA
+         DuwctloS1dePTgHNZ27UCBkyyKU7cE+AsZegfrQEPq0YmMfGKYxpNj7sZN9gyUn0PtfR
+         jgHg==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 217.70.178.230 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
+X-Gm-Message-State: APjAAAW2D5yDrzErFgvNbDt9efZ9v4OUPMO3zqJmz2Fhj+P6WOVdN74Q
+	x+JhpELKCj/HpO/CZ4nRLUuN+QN6j90NAn70o7lnAcyfVPQoRROLVjElqxLgASO6bxjyzOyqxm2
+	Hk2w8JpS9L3kJ3p+8PC7SSeZQVNpE6+RnrDFA0qaPS9ANkX9J8LvQq+V5V7C0Psw=
+X-Received: by 2002:a17:906:6051:: with SMTP id p17mr34021622ejj.142.1560922761838;
+        Tue, 18 Jun 2019 22:39:21 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwGzvMniMD2A1rGHEyCTQcy4tDGtZW+swt7eJLSIkULSUJAUTo+OeHVfU6bf/z2c00InZq5
+X-Received: by 2002:a17:906:6051:: with SMTP id p17mr34021593ejj.142.1560922761068;
+        Tue, 18 Jun 2019 22:39:21 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560922761; cv=none;
         d=google.com; s=arc-20160816;
-        b=deg8vo1KyMrtHJZNC0caGkrw6DfTTVtJE2GEn3s887koyYuJg//bzVpTISebeWjQvd
-         Hs4UWnSuGFA4eu0m6ijxw44H50DWCtSN7T58lF3J3ihNe+jO+NcEgJRwkBe5iKLXTiD7
-         LC/vPZj3pQ/VG1i64l3E8uXSZP3UvG8BNAZbMxsta4f5NFxwmAb3/jNH3ca0s+H3FD5h
-         JC9H8qEpg92/lYcvxPobYT0jR7PWkkel/1OyyRAhbdCRsCAhewfpp2HPd8DIvYn++1SY
-         fw+MCbhLgpk6YtcOCorFLYXXLMaOqHqejmPNzD0vxvG7lSOQEzqgmGNdYbL+HVEY99Fx
-         Z8iQ==
+        b=BNbElfYdgmZqkd4oZyIaj1iCuNQz97Fk4UV3j+Ds0hDj/+LmDxYEtMkBUcRW4TGFLr
+         +QnxGAr3m1W/Abx1fvnjoG0y0Q+mVIHi5FD7Ed4e6e6bHQ6zEJboB7pkcR9KornwGiI6
+         yxTPT+VDjQGdJGgNGUVr0yyvW187KnCeUFNT2cvmJ8wr4ynXTc55qFFFWHMp5988Ojno
+         q6ipYQGOmzT6XJM/Ssk5b65QvWLObKde6q1rJttNEYLZJ+bKTrx8en6zagkobWQ+9Adn
+         fx8wr14RnHduubTogp9rtm7icUa3+eTe0vODhVQG2+p6qbquZ3KFy5M/7+cFfVrDgp7H
+         qYhg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=5xFI6CC+SBydA8Y9UU8UZWk761AJ3Twzt9eFzf2XbD0=;
-        b=rIWMBVe8qhxQ1Jeu6tnKQF43cTdesUX8tZiRZLdgI0lDvB1/0s5TZ6I6ca83fDO12D
-         S2qjU24wud1+7WLEOaYIk9hCV1ZnB7oPPWifgycjXEG4Etf2OkXI3a7oD/6fjSBvCTjn
-         5GlatZHUfiYP5dPNP8UcuT6TXYgxfnc2QlZZqhJ1KjfeChvudrF1uHpj1nIjPLAL1JTR
-         NLVFJ58vAiKZFAnUhIdk207d69GyNGG2vpk0NitzIQG6nvgh4MvOHlEmQIcox229fUT2
-         M8thgj4qsph/XZkM4vkvNDgy9hhW3Zek6V00nNJY35Ylzz9ALFgwFExBtnnjHQA4N7/G
-         BRxw==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from;
+        bh=U8wwWkMc4xREbydMVGhGOpMQaRQYb5wF9yJW/vXkBZ4=;
+        b=a4NbJM5Ek6SlLGa2M8uNaVPJHhw5KbDPcZdM05IXLmjALCVfl4GG5BT/lv+ffcAkmr
+         X2IKTXPSWG8cPqTS+yjVuvDqaqQ9labAgIopJDDYNqI8xIpm36MnKB2GBQ2IZKM/RbtP
+         YdlLjGXfmMHsEWVY2HLNI2eno6dOxtjbuHf7nyi5gfnY0ovqz6QcPHCZ9WtT/6RdZ4np
+         FTuBpuxvZgQbNF09ojOy7nTY738x2muaC9m+4h9fNNsibchl+cYWnYLi8SD1dW984pLP
+         hpu4h5PfHHh5c7R5mTT+5D31aKnlJak63tR4DVSPKP4MxmMBoWnFB971+xBEG3lpQ35m
+         4eOg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id s6si13295225eda.228.2019.06.18.22.35.54
+       spf=neutral (google.com: 217.70.178.230 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
+Received: from relay10.mail.gandi.net (relay10.mail.gandi.net. [217.70.178.230])
+        by mx.google.com with ESMTPS id x10si12809987edd.307.2019.06.18.22.39.20
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 18 Jun 2019 22:35:54 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 18 Jun 2019 22:39:20 -0700 (PDT)
+Received-SPF: neutral (google.com: 217.70.178.230 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) client-ip=217.70.178.230;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id B82C8ACD8;
-	Wed, 19 Jun 2019 05:35:53 +0000 (UTC)
-Date: Wed, 19 Jun 2019 07:35:52 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
-Subject: Re: [PATCH] mm, oom: Remove redundant OOM score normalization at
- select_bad_process().
-Message-ID: <20190619053552.GC2968@dhcp22.suse.cz>
-References: <1560853435-15575-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+       spf=neutral (google.com: 217.70.178.230 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
+Received: from alex.numericable.fr (127.19.86.79.rev.sfr.net [79.86.19.127])
+	(Authenticated sender: alex@ghiti.fr)
+	by relay10.mail.gandi.net (Postfix) with ESMTPSA id DE71124000B;
+	Wed, 19 Jun 2019 05:39:07 +0000 (UTC)
+From: Alexandre Ghiti <alex@ghiti.fr>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "James E . J . Bottomley" <James.Bottomley@HansenPartnership.com>,
+	Helge Deller <deller@gmx.de>,
+	Heiko Carstens <heiko.carstens@de.ibm.com>,
+	Vasily Gorbik <gor@linux.ibm.com>,
+	Christian Borntraeger <borntraeger@de.ibm.com>,
+	Yoshinori Sato <ysato@users.sourceforge.jp>,
+	Rich Felker <dalias@libc.org>,
+	"David S . Miller" <davem@davemloft.net>,
+	Thomas Gleixner <tglx@linutronix.de>,
+	Ingo Molnar <mingo@redhat.com>,
+	Borislav Petkov <bp@alien8.de>,
+	"H . Peter Anvin" <hpa@zytor.com>,
+	x86@kernel.org,
+	Dave Hansen <dave.hansen@linux.intel.com>,
+	Andy Lutomirski <luto@kernel.org>,
+	Peter Zijlstra <peterz@infradead.org>,
+	linux-parisc@vger.kernel.org,
+	linux-kernel@vger.kernel.org,
+	linux-s390@vger.kernel.org,
+	linux-sh@vger.kernel.org,
+	sparclinux@vger.kernel.org,
+	linux-mm@kvack.org,
+	Alexandre Ghiti <alex@ghiti.fr>
+Subject: [PATCH RESEND 0/8] Fix mmap base in bottom-up mmap
+Date: Wed, 19 Jun 2019 01:38:58 -0400
+Message-Id: <20190619053906.5900-1-alex@ghiti.fr>
+X-Mailer: git-send-email 2.20.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1560853435-15575-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue 18-06-19 19:23:55, Tetsuo Handa wrote:
-> Since commit bbbe48029720d2c6 ("mm, oom: remove 'prefer children over
-> parent' heuristic") removed
-> 
->   "%s: Kill process %d (%s) score %u or sacrifice child\n"
-> 
-> line, oc->chosen_points is no longer used after select_bad_process().
+(Sorry for the previous interrupted series) 
 
-Well spotted. I am still trying to understand how that was supposed to
-work before that commit as oom_badness() already provides a normalized
-value so we have normalized it for the second time. But that is largely
-irrelevant for this patch.
+This series fixes the fallback of the top-down mmap: in case of
+failure, a bottom-up scheme can be tried as a last resort between
+the top-down mmap base and the stack, hoping for a large unused stack
+limit.
 
-> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Lots of architectures and even mm code start this fallback
+at TASK_UNMAPPED_BASE, which is useless since the top-down scheme
+already failed on the whole address space: instead, simply use
+mmap_base.
 
-Acked-by: Michal Hocko <mhocko@suse.com>
+Along the way, it allows to get rid of of mmap_legacy_base and
+mmap_compat_legacy_base from mm_struct.
 
-Thanks!
+Note that arm and mips already implement this behaviour.
 
-> ---
->  mm/oom_kill.c | 2 --
->  1 file changed, 2 deletions(-)
-> 
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index 09a5116..789a1bc 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -380,8 +380,6 @@ static void select_bad_process(struct oom_control *oc)
->  				break;
->  		rcu_read_unlock();
->  	}
-> -
-> -	oc->chosen_points = oc->chosen_points * 1000 / oc->totalpages;
->  }
->  
->  static int dump_task(struct task_struct *p, void *arg)
-> -- 
-> 1.8.3.1
+Alexandre Ghiti (8):
+  s390: Start fallback of top-down mmap at mm->mmap_base
+  sh: Start fallback of top-down mmap at mm->mmap_base
+  sparc: Start fallback of top-down mmap at mm->mmap_base
+  x86, hugetlbpage: Start fallback of top-down mmap at mm->mmap_base
+  mm: Start fallback top-down mmap at mm->mmap_base
+  parisc: Use mmap_base, not mmap_legacy_base, as low_limit for
+    bottom-up mmap
+  x86: Use mmap_*base, not mmap_*legacy_base, as low_limit for bottom-up
+    mmap
+  mm: Remove mmap_legacy_base and mmap_compat_legacy_code fields from
+    mm_struct
+
+ arch/parisc/kernel/sys_parisc.c  |  8 +++-----
+ arch/s390/mm/mmap.c              |  2 +-
+ arch/sh/mm/mmap.c                |  2 +-
+ arch/sparc/kernel/sys_sparc_64.c |  2 +-
+ arch/sparc/mm/hugetlbpage.c      |  2 +-
+ arch/x86/include/asm/elf.h       |  2 +-
+ arch/x86/kernel/sys_x86_64.c     |  4 ++--
+ arch/x86/mm/hugetlbpage.c        |  7 ++++---
+ arch/x86/mm/mmap.c               | 20 +++++++++-----------
+ include/linux/mm_types.h         |  2 --
+ mm/debug.c                       |  4 ++--
+ mm/mmap.c                        |  2 +-
+ 12 files changed, 26 insertions(+), 31 deletions(-)
 
 -- 
-Michal Hocko
-SUSE Labs
+2.20.1
 
