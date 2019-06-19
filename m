@@ -2,116 +2,114 @@ Return-Path: <SRS0=1eqM=US=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+X-Spam-Status: No, score=-6.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id F354DC31E51
-	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 03:44:26 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9D5F4C31E49
+	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 03:48:27 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A591120B1F
-	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 03:44:26 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 540F520B1F
+	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 03:48:27 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="W+j0kD9y"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A591120B1F
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="tC1fzbkL"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 540F520B1F
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4E2056B0006; Tue, 18 Jun 2019 23:44:26 -0400 (EDT)
+	id F3EDD6B0006; Tue, 18 Jun 2019 23:48:26 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 493278E0002; Tue, 18 Jun 2019 23:44:26 -0400 (EDT)
+	id EF0618E0002; Tue, 18 Jun 2019 23:48:26 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 35AC98E0001; Tue, 18 Jun 2019 23:44:26 -0400 (EDT)
+	id DDEE98E0001; Tue, 18 Jun 2019 23:48:26 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id F3A286B0006
-	for <linux-mm@kvack.org>; Tue, 18 Jun 2019 23:44:25 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id a20so8040211pfn.19
-        for <linux-mm@kvack.org>; Tue, 18 Jun 2019 20:44:25 -0700 (PDT)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A4EC26B0006
+	for <linux-mm@kvack.org>; Tue, 18 Jun 2019 23:48:26 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id 30so11361846pgk.16
+        for <linux-mm@kvack.org>; Tue, 18 Jun 2019 20:48:26 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:subject:to:cc
          :references:in-reply-to:mime-version:user-agent:message-id
          :content-transfer-encoding;
-        bh=EGHEaYjfXjUJTdauQ4fG3Qy+hvFG8OA2oIP4ZHxwa88=;
-        b=HWcx9vn3ISPuxioJ/Fa0hwDjygCeZlnr2TYJHkr2RvODXg5t//npEcrtIaavB0aRDA
-         2n9OME/Q+lPMF71Q8DeqAc284KyCdibZyB1fXA6/ICVuxoj45tx9sJ7P/VSkSmjF9AhU
-         XrAaGKIfW8AB4DaRtgRCLc+Ur70hGTw5+ova3+DMrP9gmYacEf25IHPfMvvJBORImYaR
-         uVyvRBs45QrugnJJFQ83dKeavsabeSbU+3X4xK4lfENpvnultMh9YCrcNQR3jQbLbdUF
-         o+Ot/iVAswUTyYIYUI3utBfpBPsBpFT5CVI+HN1qM6L57xaJtsVufpx2HXlZtg/hX8WI
-         t3Aw==
-X-Gm-Message-State: APjAAAXQY4NhDvZ44tvnok3J4eKyNe7n3ZTeK2+oUrrrzZbxlCNqVRWH
-	PhZITSv419H2VIdNA8WL6kElAENOSw54Adtq7gSbf33UsHOYi227zqRu6MqalAq2ulRUrHzG+hS
-	ddtaIp/21hkj2uXNFdpFngH8kt/vtU/oWDbp/+3g4zyRv/a8s/bGUtl4YpjHaaIA2Pw==
-X-Received: by 2002:a63:4406:: with SMTP id r6mr5770089pga.250.1560915865496;
-        Tue, 18 Jun 2019 20:44:25 -0700 (PDT)
-X-Received: by 2002:a63:4406:: with SMTP id r6mr5770058pga.250.1560915864792;
-        Tue, 18 Jun 2019 20:44:24 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560915864; cv=none;
+        bh=X6XTYsovFVueps9eDYXkESbdVwlOJdDMq7uOuCJqwXc=;
+        b=iHYnPI0lR1uhZU3YJ0NLwPiWfx89G9TCXH8W/dUbQcps+R4/2VdelwKJRorQZ7dsXD
+         2XG5i3rDrKjW9rpX/8hIyyUi4Ks5RHT3nxWvUSAEN0pxR21u6T0rS69bntoJlOcdEcFz
+         FqohkvRHrDTip+GnKrjg6iDGwakEhRqSwlVhQZ0omUrUBh+jQS0IuZm2XVb7/nLD38xC
+         KnSCkS9/4QoWQYlSEqHmFzSsSE8ecH3wtUM7BFcMrUizsIfaasz2jzgtzaL/TxtRcc/x
+         DPBKMUi3Ev8gNFlTUHZkakFext8flfxU82a6wo1q7DAh7NlDeobOL+u+VS5ehJspp0S3
+         dYEg==
+X-Gm-Message-State: APjAAAVe/tu8gmTzazpveMHevxeNyzD6FhmgXm8ERGVDsrBpOjDFsafp
+	x5tILsCy6b0iWJtCIDPRiOooT5AAoVEV2KChPkXX4t0AdZBzW+oUdZW1KhgBgWPBAy/4AUp6zLK
+	r9xXl9rot0F++zROWW3QkjqrdPlGXHw2A/uGFhUKRTVM3z/U3jD6gsmRQjAUe4HRhhA==
+X-Received: by 2002:a17:90a:9a83:: with SMTP id e3mr8644252pjp.105.1560916106226;
+        Tue, 18 Jun 2019 20:48:26 -0700 (PDT)
+X-Received: by 2002:a17:90a:9a83:: with SMTP id e3mr8644221pjp.105.1560916105553;
+        Tue, 18 Jun 2019 20:48:25 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560916105; cv=none;
         d=google.com; s=arc-20160816;
-        b=fD3bYhSlp3+xjDCrNFuoKGEajEBCq+57E4qlKpBAWZ4Ql2Sv9OZK7hlVCYfAftYOun
-         WzeWAx6ZlINHicEIPBv6/STr0JeyD+Im64TLEXcDyuyU3wZRyea9Th3QbT4aPKmG2F56
-         IX94Lwvmjx5uVmOo0hbPHyhtS32KUjTUduVqe/BfhO//SAVh6ivTZneuyb6khX0v2zw9
-         uUEP6Q44Liv61xbJraHnTQMManCxRzlaZSvbc5u7DKva9NBWy83xpyErZYQ8ammsfCuW
-         8OK0YxoN78h/iVIrNW9ZwpEg0JB3L8J66ETagPbx0Lvvh3Vm8huBuY0dCUFbFsz6fxtC
-         U6zw==
+        b=Lb014Q5fX/5xKfK393rE0jWu5DLtA6B9K+vYWhlZHSySIu+ckx1Oy8ohd3LK+CJFze
+         4FVNJwkLU2m1rRMhPtBXyWaKbtjUOfKMO+wbjXU2pP9I3guUSj1m9uQ1teJI1Ofz8lXo
+         3fKbNVrVxckISUcfK2BKCM7P6jRAPuAo++nCToFT9rRdTQKCujQuqGI7CDNvc+QbvcvI
+         JUjo91wFWvHLgqSAVZj9wMipuChawLzKRflvVpldVXzE67/Xzt5Lw/CHaq+vWG6e7E8L
+         DweGaLDDOqPDCWYpoiB4wNugDL2tWclIGNo8Xouh58assqQLmPVsOU1sxozn0221T2PU
+         HfvA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:message-id:user-agent:mime-version
          :in-reply-to:references:cc:to:subject:from:date:dkim-signature;
-        bh=EGHEaYjfXjUJTdauQ4fG3Qy+hvFG8OA2oIP4ZHxwa88=;
-        b=zBbEGcfSCSXwPpjhDVXNkHZif5AraNJlqIy7xW+FKjhLBE7K9RGZFIwDnNTOADWXso
-         Z/ukplIuk66BXRtNoIdADtXw4NwNMRkE1zEKmmYjbKTQVfOuMcPJ6jJ2QArr6oi1AXX5
-         O0gg+ZQcuVnB3pr/gWDRp9zjvgLuns+Y1FD6HYuNBhQqD2K2DQAuwtR2EoHYmGWBEIrM
-         TB6Nj5sOCmyY2I2JTZ/Taw7kuAbZ/yo42d8Ghl8QUTp7a+9Ua5NAx0QhkRSDLG6r7fzb
-         UcPSNmHxEwzbtmm7I7sjHUmtPpxgfs2QnTs/OCi57BMioQLRhFxgcGNU+l4uu37nU2x9
-         SHug==
+        bh=X6XTYsovFVueps9eDYXkESbdVwlOJdDMq7uOuCJqwXc=;
+        b=m2oNCqnYSlmiWppWucuq0wc2+3ddIbcsXRzwbkFJ1N7jSmVCPqf04BbZ1oWO2tGeED
+         /XP6C3NxhvctLFpi6bv2VCNplrv1pCTZ620LXn2k/uWx3IniICNApb24lv2H9hZ0gFtJ
+         CcXY9Lvmx3p5M/AaeVCKxgPDMmb14JJ7leP/YfsFCD1AM5Oy7VPK37MhqcvtE/1C0KEe
+         A9ByW0GCiZK8AysWo15kMu1H4yzglcEF4nzJJ7qk9k6y2p3BYTBH4LyBgCnFgaNekRQO
+         6DzvvgXvfEd7rb8/pQxpFni4Y9rAp/1j/Tt4RuPz/a7dcp7W5zRSE1Mo4TbRekLOI8Vo
+         yNHg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=W+j0kD9y;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=tC1fzbkL;
        spf=pass (google.com: domain of npiggin@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=npiggin@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id x21sor16691576pfm.53.2019.06.18.20.44.24
+        by mx.google.com with SMTPS id v13sor15142568pgr.24.2019.06.18.20.48.25
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 18 Jun 2019 20:44:24 -0700 (PDT)
+        Tue, 18 Jun 2019 20:48:25 -0700 (PDT)
 Received-SPF: pass (google.com: domain of npiggin@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=W+j0kD9y;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=tC1fzbkL;
        spf=pass (google.com: domain of npiggin@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=npiggin@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
         h=date:from:subject:to:cc:references:in-reply-to:mime-version
          :user-agent:message-id:content-transfer-encoding;
-        bh=EGHEaYjfXjUJTdauQ4fG3Qy+hvFG8OA2oIP4ZHxwa88=;
-        b=W+j0kD9yojaW+hMlyk96Hha2xluF+17N7BX9ERK2TgvEPC51BC4u2dq+nw03r1DWnx
-         qvEJnZfOncY8GNkfHLYyFd1gUqK/DmwkvbMMbTo2XYoe4knHRkooq2LDS7hxglixe+lt
-         HsY3uvWPW/XZKJ44ul+TFBuD0gLNwY9RuVBPX1VgqzRWsFUjTBvVUaOh+u4eFiw+CObP
-         Jp83FXUzxjExnl4Uyx+Nr2FrIZkfzQjY4+aPzkAcfTPALITve38+sCyAndT+LyNUeJU7
-         T/GcE419O6pmuHckNP5CbqtcPwnuADo1M5bulo/e0geUj9rCOlWLnno8sobB9iPLWqlm
-         gz1A==
-X-Google-Smtp-Source: APXvYqwB7lHrI569djdy3eQ/PTdJiIHmfUvLO5bVVwFEwAzySywuMBRsshv/4G+mG7op0lLRUOHdYQ==
-X-Received: by 2002:a62:68c4:: with SMTP id d187mr126870371pfc.245.1560915864395;
-        Tue, 18 Jun 2019 20:44:24 -0700 (PDT)
+        bh=X6XTYsovFVueps9eDYXkESbdVwlOJdDMq7uOuCJqwXc=;
+        b=tC1fzbkLO4VEb2uG5tpdzpdcGioSEyum/AxMt7rl3u+3W+pwVWz0ir6DqBvt7Sx/pi
+         1WlaAg652y+gLKabGhhaJdZC5Xkwvz6PbaHrbWWyz/xljVyoCpISGt95eX7YZTobS1J6
+         hwD6aFs6efu0dM1kesEHSloRI9DM5Ny9A+zFW3syvgakwqh6mAX9NzBVCLWSYe6nHfv3
+         3xrcez+XQj8IXjVXr74e0U1ufVVsSBKn0K8lBSZjsUxEHztCH5pfIEbRUm8GFCDuTKes
+         ZnxHyzQ92i2RQOPqavK4WLESBq1uTY1GCjHjaQDK682QCK2m2V311Qtx8nHh8LNJW9VG
+         0PBQ==
+X-Google-Smtp-Source: APXvYqxdJiQO254qpFiGA9nxIIwq5CyEWTUc2NnUWtayrZavFfK006a2p6VEwiUzEdlEmOggvyLlnA==
+X-Received: by 2002:a63:2b57:: with SMTP id r84mr378763pgr.282.1560916105203;
+        Tue, 18 Jun 2019 20:48:25 -0700 (PDT)
 Received: from localhost (193-116-92-108.tpgi.com.au. [193.116.92.108])
-        by smtp.gmail.com with ESMTPSA id r1sm11612280pfq.100.2019.06.18.20.44.22
+        by smtp.gmail.com with ESMTPSA id s15sm20952137pfd.183.2019.06.18.20.48.23
         (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Tue, 18 Jun 2019 20:44:23 -0700 (PDT)
-Date: Wed, 19 Jun 2019 13:39:19 +1000
+        Tue, 18 Jun 2019 20:48:24 -0700 (PDT)
+Date: Wed, 19 Jun 2019 13:43:19 +1000
 From: Nicholas Piggin <npiggin@gmail.com>
-Subject: Re: [PATCH 4/4] mm/vmalloc: Hugepage vmalloc mappings
-To: Christophe Leroy <christophe.leroy@c-s.fr>, linux-mm@kvack.org,
-	Russell Currey <ruscur@russell.cc>
+Subject: Re: [PATCH 1/4] mm: Move ioremap page table mapping function to mm/
+To: Christophe Leroy <christophe.leroy@c-s.fr>, linux-mm@kvack.org
 Cc: linux-arm-kernel@lists.infradead.org, linuxppc-dev@lists.ozlabs.org
 References: <20190610043838.27916-1-npiggin@gmail.com>
-	<20190610043838.27916-4-npiggin@gmail.com>
-	<b79bf11d-43c7-88c9-8395-239625a1bdcf@c-s.fr>
-In-Reply-To: <b79bf11d-43c7-88c9-8395-239625a1bdcf@c-s.fr>
+	<86991f76-2101-8087-37db-d939d5d744fa@c-s.fr>
+In-Reply-To: <86991f76-2101-8087-37db-d939d5d744fa@c-s.fr>
 MIME-Version: 1.0
 User-Agent: astroid/0.14.0 (https://github.com/astroidmail/astroid)
-Message-Id: <1560915223.if2qg1yc7k.astroid@bobo.none>
+Message-Id: <1560915576.aqf69c3nf8.astroid@bobo.none>
 Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
@@ -120,102 +118,61 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Christophe Leroy's on June 11, 2019 3:39 pm:
+Christophe Leroy's on June 11, 2019 3:24 pm:
 >=20
 >=20
 > Le 10/06/2019 =C3=A0 06:38, Nicholas Piggin a =C3=A9crit=C2=A0:
->> For platforms that define HAVE_ARCH_HUGE_VMAP, have vmap allow vmalloc t=
-o
->> allocate huge pages and map them
+>> ioremap_page_range is a generic function to create a kernel virtual
+>> mapping, move it to mm/vmalloc.c and rename it vmap_range.
+>>=20
+>> For clarity with this move, also:
+>> - Rename vunmap_page_range (vmap_range's inverse) to vunmap_range.
+>> - Rename vmap_page_range (which takes a page array) to vmap_pages.
 >=20
-> Will this be compatible with Russell's series=20
-> https://patchwork.ozlabs.org/patch/1099857/ for the implementation of=20
-> STRICT_MODULE_RWX ?
-> I see that apply_to_page_range() have things like BUG_ON(pud_huge(*pud));
+> Maybe it would be easier to follow the change if the name change was=20
+> done in another patch than the move.
+
+I could do that.
+
+>> Signed-off-by: Nicholas Piggin <npiggin@gmail.com>
+>> ---
+>>=20
+>> Fixed up the arm64 compile errors, fixed a few bugs, and tidied
+>> things up a bit more.
+>>=20
+>> Have tested powerpc and x86 but not arm64, would appreciate a review
+>> and test of the arm64 patch if possible.
+>>=20
+>>   include/linux/vmalloc.h |   3 +
+>>   lib/ioremap.c           | 173 +++---------------------------
+>>   mm/vmalloc.c            | 228 ++++++++++++++++++++++++++++++++++++----
+>>   3 files changed, 229 insertions(+), 175 deletions(-)
+>>=20
+>> diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
+>> index 51e131245379..812bea5866d6 100644
+>> --- a/include/linux/vmalloc.h
+>> +++ b/include/linux/vmalloc.h
+>> @@ -147,6 +147,9 @@ extern struct vm_struct *find_vm_area(const void *ad=
+dr);
+>>   extern int map_vm_area(struct vm_struct *area, pgprot_t prot,
+>>   			struct page **pages);
+>>   #ifdef CONFIG_MMU
+>> +extern int vmap_range(unsigned long addr,
+>> +		       unsigned long end, phys_addr_t phys_addr, pgprot_t prot,
+>> +		       unsigned int max_page_shift);
 >=20
-> Might also be an issue for arm64 as I think Russell's implementation=20
-> comes from there.
+> Drop extern keyword here.
 
-Yeah you're right (and correct about arm64 problem). I'll fix that up.
+I don't know if I was going crazy but at one point I was getting
+duplicate symbol errors that were fixed by adding extern somewhere.
+Maybe sleep depravation. However...
 
->> +static int vmap_hpages_range(unsigned long start, unsigned long end,
->> +			   pgprot_t prot, struct page **pages,
->> +			   unsigned int page_shift)
->> +{
->> +	BUG_ON(page_shift !=3D PAGE_SIZE);
->=20
-> Do we really need a BUG_ON() there ? What happens if this condition is=20
-> true ?
+> As checkpatch tells you, 'CHECK:AVOID_EXTERNS: extern prototypes should=20
+> be avoided in .h files'
 
-If it's true then vmap_pages_range would die horribly reading off the
-end of the pages array thinking they are struct page pointers.
-
-I guess it could return failure.
-
->> +	return vmap_pages_range(start, end, prot, pages);
->> +}
->> +#endif
->> +
->> +
->>   int is_vmalloc_or_module_addr(const void *x)
->>   {
->>   	/*
->> @@ -462,7 +498,7 @@ struct page *vmalloc_to_page(const void *vmalloc_add=
-r)
->>   {
->>   	unsigned long addr =3D (unsigned long) vmalloc_addr;
->>   	struct page *page =3D NULL;
->> -	pgd_t *pgd =3D pgd_offset_k(addr);
->> +	pgd_t *pgd;
->>   	p4d_t *p4d;
->>   	pud_t *pud;
->>   	pmd_t *pmd;
->> @@ -474,27 +510,38 @@ struct page *vmalloc_to_page(const void *vmalloc_a=
-ddr)
->>   	 */
->>   	VIRTUAL_BUG_ON(!is_vmalloc_or_module_addr(vmalloc_addr));
->>  =20
->> +	pgd =3D pgd_offset_k(addr);
->>   	if (pgd_none(*pgd))
->>   		return NULL;
->> +
->>   	p4d =3D p4d_offset(pgd, addr);
->>   	if (p4d_none(*p4d))
->>   		return NULL;
->> -	pud =3D pud_offset(p4d, addr);
->> +#ifdef CONFIG_HAVE_ARCH_HUGE_VMAP
->=20
-> Do we really need that ifdef ? Won't p4d_large() always return 0 when is=20
-> not set ?
-> Otherwise, could we use IS_ENABLED(CONFIG_HAVE_ARCH_HUGE_VMAP) instead ?
->=20
-> Same several places below.
-
-Possibly some of them are not defined without HAVE_ARCH_HUGE_VMAP
-I think. I'll try to apply this pattern as much as possible.
-
->> @@ -2541,14 +2590,17 @@ static void *__vmalloc_area_node(struct vm_struc=
-t *area, gfp_t gfp_mask,
->>   				 pgprot_t prot, int node)
->>   {
->>   	struct page **pages;
->> +	unsigned long addr =3D (unsigned long)area->addr;
->> +	unsigned long size =3D get_vm_area_size(area);
->> +	unsigned int page_shift =3D area->page_shift;
->> +	unsigned int shift =3D page_shift + PAGE_SHIFT;
->>   	unsigned int nr_pages, array_size, i;
->>   	const gfp_t nested_gfp =3D (gfp_mask & GFP_RECLAIM_MASK) | __GFP_ZERO=
-;
->>   	const gfp_t alloc_mask =3D gfp_mask | __GFP_NOWARN;
->>   	const gfp_t highmem_mask =3D (gfp_mask & (GFP_DMA | GFP_DMA32)) ?
->> -					0 :
->> -					__GFP_HIGHMEM;
->> +					0 : __GFP_HIGHMEM;
->=20
-> This patch is already quite big, shouldn't this kind of unrelated=20
-> cleanups be in another patch ?
-
-Okay, 2 against 1. I'll minimise changes like this.
+I prefer to follow existing style in surrounding code at the expense
+of some checkpatch warnings. If somebody later wants to "fix" it
+that's fine.
 
 Thanks,
 Nick
