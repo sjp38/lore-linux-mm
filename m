@@ -2,99 +2,100 @@ Return-Path: <SRS0=1eqM=US=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.9 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.9 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 44D4CC31E5E
-	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 17:22:23 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BA234C31E5F
+	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 17:22:24 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E659E20657
-	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 17:22:22 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 71EB92147A
+	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 17:22:24 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=chromium.org header.i=@chromium.org header.b="gb4iGaYn"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E659E20657
+	dkim=pass (1024-bit key) header.d=chromium.org header.i=@chromium.org header.b="XJUjnADz"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 71EB92147A
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chromium.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5D46C8E0002; Wed, 19 Jun 2019 13:22:22 -0400 (EDT)
+	id 22BED8E0005; Wed, 19 Jun 2019 13:22:24 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 584F28E0001; Wed, 19 Jun 2019 13:22:22 -0400 (EDT)
+	id 1B88C8E0001; Wed, 19 Jun 2019 13:22:24 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 473518E0002; Wed, 19 Jun 2019 13:22:22 -0400 (EDT)
+	id 054C38E0005; Wed, 19 Jun 2019 13:22:23 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 27C938E0001
-	for <linux-mm@kvack.org>; Wed, 19 Jun 2019 13:22:22 -0400 (EDT)
-Received: by mail-io1-f70.google.com with SMTP id h4so282916iol.5
-        for <linux-mm@kvack.org>; Wed, 19 Jun 2019 10:22:22 -0700 (PDT)
+Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
+	by kanga.kvack.org (Postfix) with ESMTP id DC2318E0001
+	for <linux-mm@kvack.org>; Wed, 19 Jun 2019 13:22:23 -0400 (EDT)
+Received: by mail-io1-f72.google.com with SMTP id f22so268084ioj.9
+        for <linux-mm@kvack.org>; Wed, 19 Jun 2019 10:22:23 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id:mime-version:content-transfer-encoding;
-        bh=y4I5Ty62o91Pugxcg1FTgTnvgf8oL/T0SugxfMdF360=;
-        b=jNS+U8CB1HPf3RfqtkW423rPDoP6VbcHNlKzecVzeWeJ/+BGHdnzstKr6agF2e0OvH
-         Yb+5ofVTno/jmid5/jDZxvjxAFnak0NCnL6hrKzspIXL7KDR30CdwJp7oRLyYqjkgIGl
-         xyronQjZHTWADz7v8gLf0HvBMmFLV7r8Jf7CtH5bGG0w/HbdOVAjTJa8IVYA0evqaZlP
-         YCdA48QVwNibrG5PZ2i0+TYe+BRW16tfG+F9U8ksZ2xomgS0FGn3dVuNFeP9+ewpb5No
-         37h+aMA6QPAPBQg6KldgKCPFTmVfgDqFGOVTDfvtJDF/JndplmzlWcBQfxPVwQhHSdUD
-         3WyA==
-X-Gm-Message-State: APjAAAVIdc/0PYpew3XXhn9vZrwtkilgUzW2Tml+TUtWfFc4bn4+PBZj
-	/awhh9nu8nnvBtboLbe5NrXvpG3MNz2999R7pe3IE+bPOb36oWRulG7Sc750IXEiv0dmZqn0QYc
-	5eLkA1Fjj+egDaS+fTILBK1IDHtHE+km7sbk2xBDFsWmeWuy06lTh3V/aqKRf4DRmvw==
-X-Received: by 2002:a02:a581:: with SMTP id b1mr35353417jam.84.1560964941853;
-        Wed, 19 Jun 2019 10:22:21 -0700 (PDT)
-X-Received: by 2002:a02:a581:: with SMTP id b1mr35353365jam.84.1560964941213;
-        Wed, 19 Jun 2019 10:22:21 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560964941; cv=none;
+         :message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=E3jskMxg6mXOnAk1TRm40OOCGhyEHDf4Luejh67p06E=;
+        b=Y7mh1mxsbGmfBd/NbSlXpJeaQx10nokmHQ+7zwYdp0/LsLKtrLz+4Z3EnKkTd/bI0C
+         n77mlNmSuSuzZ3e1Scf2GupRnzGwAo2Gx4rVbSswOoMq69cfqLd3WZdllaqulKgEWFf5
+         LFvm5S0adL+nRFr45+W/zErSDiVijf1AQ4ZLO+8s9QMEmvnFwpcE/Jw9qWALpihcKNw1
+         XAYy8zsO6OummeywuvKBvdlG0EwWjWOd2h72BIP7TACtnBMv21O/E/qnxVkmUTiJztCW
+         b04Y8jtit7J/daDaJi4qx9c8P3q6tgz+m+OlJeTKBfJ6AO+zOq0pCrt8Mqss3qX+P2Mn
+         vdrg==
+X-Gm-Message-State: APjAAAUemXD+lMFSwLXXByACKMdmc9jq+4YiQwNkZt5SLVN8lZMDl4mW
+	XNdPQ5TvxGWQ7Q0bhbB8PSeKlYiGbbCUgDqNEyDV18dPxR3Xvx06TubsAkJT6Qph9VwhVcY9LJ3
+	I1ASz4vBGiMD9xPqw05fFiPy91NhE+E2mSub/w9e7nzY+kgSkRCYK6MBFoxX+bNsTlQ==
+X-Received: by 2002:a6b:f114:: with SMTP id e20mr9846262iog.169.1560964943487;
+        Wed, 19 Jun 2019 10:22:23 -0700 (PDT)
+X-Received: by 2002:a6b:f114:: with SMTP id e20mr9846220iog.169.1560964942908;
+        Wed, 19 Jun 2019 10:22:22 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560964942; cv=none;
         d=google.com; s=arc-20160816;
-        b=hWjXe33MTiDJkamoSwjxpg+cOkzNFUAjDPEB/YPn4NbWEZ3S3qOMvfTUb/H5EhCE+J
-         Bgl9shhSxMfLqtrGYr97Qm1WaUKmX5MGW7FDDRzX4m+HZYXf5+UUMvBI8gdBKUi5SZXq
-         NZ+lXnmwvNVL2x01E9PaFRCvOTOn5kbXQVIBqxYi7BJNz41CVCC6qg1qrtBTeuymjiei
-         93LrLvGcfpNpJgXybmUHANPd9aWIy/Rmd6Bxu7S7/2EkUEZPQp4HKbi0UrlzjYnVAd+P
-         ej8YZvnXRbrwPaHqAoPAe07dh9jd8VTiNwWzJ6Ziw6/qlIZCZJK/oh5PYkeR+fQewAdo
-         Rk2g==
+        b=dPkZJOSFs/btjciO0ZHeY3l8I85+IUx18zAP8C7a887nBT4QChAQeNiVtQpWu3tpM2
+         ipGC7XWw23hiBwcGPUuVHs3jew8Jb+CAAABos69EtlaOhO9hUfC9xlRrbSzKmKT4plVg
+         lmLVJuj54RJbg5rXhiblBj+GAj8z4h9ZMnyn8OQq8u/ij/dl/hI3L4fA8kAGZUXGLhhN
+         0DaY62uLW3q79YYVBANgbRuYwFOJkmwjJvxu6qx2R+RA6dcserl5XJVWUUEA7LTBtQm/
+         x5ZEyHAbZiO9/UrDzEPaD5KIXJvo7W0Ev4awu2VnhcZ3vJjDPfSmRoxyIvYPOYF/2oFp
+         q2Pg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
-         :to:from:dkim-signature;
-        bh=y4I5Ty62o91Pugxcg1FTgTnvgf8oL/T0SugxfMdF360=;
-        b=VVoXhiVQR8j9YfDFRVFYtefRe7jCkevxeU3ZkZ/1dhBtRl5bUZcxzgbH0bsZPVyFwd
-         D659fGEO2+u4lz0M8g/BFkhwwJuhxUmckIqE2nXZ0W5gsyFSm6cJcUk1HA6BGtIB+q/o
-         WyMXcu0TXRIku54/cpGrvJ0U28us0zY+xo3/Oc3yIBiVlV9eSLGuaHblrkEQuAkfimKI
-         g/0siFgeTb2ItKMLxpPDJoIiMXIYvsXjG6KXWuCAKOM/EGsvtirK8QnZ9mIHjXT85HFl
-         YMkmkDhZQPIN2F8oKKaydfGpxOIUrdN9+raJfx6WG2sbihe4H5i7j1pV3SnFFO1wnR96
-         ofaQ==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:date:subject:cc:to:from:dkim-signature;
+        bh=E3jskMxg6mXOnAk1TRm40OOCGhyEHDf4Luejh67p06E=;
+        b=HHhUP0aHo0yh5oKGy7I5TGeTc4nbvq2BsRCf1wFbORwiTHDuQsowpX6yFN2Gwu0MEH
+         M7tpPlemWqNCEKehAI7y+FIysgYiRZE4kqfKX44/OxKkBtm5JXBKmWXiYC6WNJsu/fCU
+         20AfVvftLHYe8x+m/aAaSyLM5PBwIJ42IgTc5ywvwKY11oMZgD0XTpdV4NrEpsHXQ897
+         TqnEJvboqxI/1rfGhTTGcg5meeUJIM7+Hqx52HsigpmUxBdOJFrKZWOrxUoxsT2B+ZXZ
+         T31rpqdkK9EbqiKI+Ou0nVz+AnTH/fzrljsaLbSlhOnAbKxlQwKenrNHM+/yEARK0+JZ
+         nm5A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@chromium.org header.s=google header.b=gb4iGaYn;
+       dkim=pass header.i=@chromium.org header.s=google header.b=XJUjnADz;
        spf=pass (google.com: domain of zwisler@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=zwisler@chromium.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q35sor42681813jac.12.2019.06.19.10.22.21
+        by mx.google.com with SMTPS id i21sor21462597jan.8.2019.06.19.10.22.22
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 19 Jun 2019 10:22:21 -0700 (PDT)
+        Wed, 19 Jun 2019 10:22:22 -0700 (PDT)
 Received-SPF: pass (google.com: domain of zwisler@chromium.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@chromium.org header.s=google header.b=gb4iGaYn;
+       dkim=pass header.i=@chromium.org header.s=google header.b=XJUjnADz;
        spf=pass (google.com: domain of zwisler@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=zwisler@chromium.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=chromium.org; s=google;
-        h=from:to:cc:subject:date:message-id:mime-version
-         :content-transfer-encoding;
-        bh=y4I5Ty62o91Pugxcg1FTgTnvgf8oL/T0SugxfMdF360=;
-        b=gb4iGaYnPJYNqGfAxkP3X1NyZrCyL5DKEUxf/+boDKefd2UjG+qdworr0YK1ObtumN
-         6uLmt1ytGOjQmAyYXv5eWn2+e/wwvBH4V0YZ02cusIrDbo9JldyQ2tukswmk+W03TQCZ
-         3fJ2x8pKx2vhpksYet+kdD7iF28u6Vzn2HBLk=
-X-Google-Smtp-Source: APXvYqweh9cE0ZdyorzDcYNOiMgH/757F101nec4Tfciidd/HUUM94okf25BnwroKGtoHIwyBfvbEQ==
-X-Received: by 2002:a02:ce37:: with SMTP id v23mr11907871jar.2.1560964940961;
-        Wed, 19 Jun 2019 10:22:20 -0700 (PDT)
+        h=from:to:cc:subject:date:message-id:in-reply-to:references
+         :mime-version:content-transfer-encoding;
+        bh=E3jskMxg6mXOnAk1TRm40OOCGhyEHDf4Luejh67p06E=;
+        b=XJUjnADzObWPEkqAra7JZG2MqVf6jOIl2xtoUl1SDnE0wuok4jfWhzqw1sqdOy1MdG
+         ukIsu9ZRYZ7Odf66ee9EScvXI8+ziKIaEoU1vAYC/d16vXG5k7/dNvwAB5MjWlb1v9J5
+         LJYYWKu+nb0iK/BWTUe5n9zeCPnxh/3JNBMQ4=
+X-Google-Smtp-Source: APXvYqzUJ4kHlMB8oH2as8CG6GkE5UrM7Ov3FQ1gEUbkCnWiEbXHPUBrf42GwGzGyQpr2zjdPsDhvg==
+X-Received: by 2002:a02:cd82:: with SMTP id l2mr11507623jap.96.1560964942675;
+        Wed, 19 Jun 2019 10:22:22 -0700 (PDT)
 Received: from localhost ([2620:15c:183:200:855f:8919:84a7:4794])
-        by smtp.gmail.com with ESMTPSA id z26sm16377581ioi.85.2019.06.19.10.22.19
+        by smtp.gmail.com with ESMTPSA id y17sm17889989ioa.40.2019.06.19.10.22.21
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 19 Jun 2019 10:22:20 -0700 (PDT)
+        Wed, 19 Jun 2019 10:22:22 -0700 (PDT)
 From: Ross Zwisler <zwisler@chromium.org>
 X-Google-Original-From: Ross Zwisler <zwisler@google.com>
 To: linux-kernel@vger.kernel.org
@@ -108,10 +109,12 @@ Cc: Ross Zwisler <zwisler@google.com>,
 	linux-mm@kvack.org,
 	Fletcher Woodruff <fletcherw@google.com>,
 	Justin TerAvest <teravest@google.com>
-Subject: [PATCH 0/3] Add dirty range scoping to jbd2
-Date: Wed, 19 Jun 2019 11:21:53 -0600
-Message-Id: <20190619172156.105508-1-zwisler@google.com>
+Subject: [PATCH 1/3] mm: add filemap_fdatawait_range_keep_errors()
+Date: Wed, 19 Jun 2019 11:21:54 -0600
+Message-Id: <20190619172156.105508-2-zwisler@google.com>
 X-Mailer: git-send-email 2.22.0.410.gd8fdbe21b5-goog
+In-Reply-To: <20190619172156.105508-1-zwisler@google.com>
+References: <20190619172156.105508-1-zwisler@google.com>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
@@ -120,37 +123,63 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This patch series fixes the issue I described here:
+In the spirit of filemap_fdatawait_range() and
+filemap_fdatawait_keep_errors(), introduce
+filemap_fdatawait_range_keep_errors() which both takes a range upon
+which to wait and does not clear errors from the address space.
 
-https://www.spinics.net/lists/linux-block/msg38274.html
+Signed-off-by: Ross Zwisler <zwisler@google.com>
+---
+ include/linux/fs.h |  2 ++
+ mm/filemap.c       | 22 ++++++++++++++++++++++
+ 2 files changed, 24 insertions(+)
 
-Essentially the issue is that journal_finish_inode_data_buffers() operates
-on the entire address space of each of the inodes associated with a given
-journal entry.  This means that if we have an inode where we are constantly
-appending dirty pages we can end up waiting for an indefinite amount of
-time in journal_finish_inode_data_buffers().
-
-This series improves this situation in ext4 by scoping each of the inode
-dirty ranges associated with a given transaction.  Other users of jbd2
-which don't (yet?) take advantage of this scoping (ocfs2) will continue to
-have the old behavior.
-
-Ross Zwisler (3):
-  mm: add filemap_fdatawait_range_keep_errors()
-  jbd2: introduce jbd2_inode dirty range scoping
-  ext4: use jbd2_inode dirty range scoping
-
- fs/ext4/ext4_jbd2.h   | 12 +++++------
- fs/ext4/inode.c       | 13 +++++++++---
- fs/ext4/move_extent.c |  3 ++-
- fs/jbd2/commit.c      | 26 +++++++++++++++++------
- fs/jbd2/journal.c     |  2 ++
- fs/jbd2/transaction.c | 49 ++++++++++++++++++++++++-------------------
- include/linux/fs.h    |  2 ++
- include/linux/jbd2.h  | 22 +++++++++++++++++++
- mm/filemap.c          | 22 +++++++++++++++++++
- 9 files changed, 114 insertions(+), 37 deletions(-)
-
+diff --git a/include/linux/fs.h b/include/linux/fs.h
+index f7fdfe93e25d3..79fec8a8413f4 100644
+--- a/include/linux/fs.h
++++ b/include/linux/fs.h
+@@ -2712,6 +2712,8 @@ extern int filemap_flush(struct address_space *);
+ extern int filemap_fdatawait_keep_errors(struct address_space *mapping);
+ extern int filemap_fdatawait_range(struct address_space *, loff_t lstart,
+ 				   loff_t lend);
++extern int filemap_fdatawait_range_keep_errors(struct address_space *mapping,
++		loff_t start_byte, loff_t end_byte);
+ 
+ static inline int filemap_fdatawait(struct address_space *mapping)
+ {
+diff --git a/mm/filemap.c b/mm/filemap.c
+index df2006ba0cfa5..e87252ca0835a 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -553,6 +553,28 @@ int filemap_fdatawait_range(struct address_space *mapping, loff_t start_byte,
+ }
+ EXPORT_SYMBOL(filemap_fdatawait_range);
+ 
++/**
++ * filemap_fdatawait_range_keep_errors - wait for writeback to complete
++ * @mapping:		address space structure to wait for
++ * @start_byte:		offset in bytes where the range starts
++ * @end_byte:		offset in bytes where the range ends (inclusive)
++ *
++ * Walk the list of under-writeback pages of the given address space in the
++ * given range and wait for all of them.  Unlike filemap_fdatawait_range(),
++ * this function does not clear error status of the address space.
++ *
++ * Use this function if callers don't handle errors themselves.  Expected
++ * call sites are system-wide / filesystem-wide data flushers: e.g. sync(2),
++ * fsfreeze(8)
++ */
++int filemap_fdatawait_range_keep_errors(struct address_space *mapping,
++		loff_t start_byte, loff_t end_byte)
++{
++	__filemap_fdatawait_range(mapping, start_byte, end_byte);
++	return filemap_check_and_keep_errors(mapping);
++}
++EXPORT_SYMBOL(filemap_fdatawait_range_keep_errors);
++
+ /**
+  * file_fdatawait_range - wait for writeback to complete
+  * @file:		file pointing to address space structure to wait for
 -- 
 2.22.0.410.gd8fdbe21b5-goog
 
