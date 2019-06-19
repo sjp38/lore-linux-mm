@@ -2,107 +2,98 @@ Return-Path: <SRS0=1eqM=US=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 81655C31E5E
-	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 05:21:37 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A0437C31E49
+	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 05:35:56 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3BC14208CB
-	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 05:21:37 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3BC14208CB
+	by mail.kernel.org (Postfix) with ESMTP id 69D882084A
+	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 05:35:55 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 69D882084A
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DBD436B0003; Wed, 19 Jun 2019 01:21:36 -0400 (EDT)
+	id A08E06B0003; Wed, 19 Jun 2019 01:35:55 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D46588E0002; Wed, 19 Jun 2019 01:21:36 -0400 (EDT)
+	id 992048E0002; Wed, 19 Jun 2019 01:35:55 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BE6418E0001; Wed, 19 Jun 2019 01:21:36 -0400 (EDT)
+	id 8CEB88E0001; Wed, 19 Jun 2019 01:35:55 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 6D4006B0003
-	for <linux-mm@kvack.org>; Wed, 19 Jun 2019 01:21:36 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id i9so24465242edr.13
-        for <linux-mm@kvack.org>; Tue, 18 Jun 2019 22:21:36 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 4213A6B0003
+	for <linux-mm@kvack.org>; Wed, 19 Jun 2019 01:35:55 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id c1so24493356edi.20
+        for <linux-mm@kvack.org>; Tue, 18 Jun 2019 22:35:55 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=xFRGzeiFO8+pD19Md0LFWfOM4XJAqNPTCfgtFjKFPaA=;
-        b=GN4CeJZRo8ibBlv0HVEK4YBDL686hiWPh37AWQcFaerFyTG683Cw+pqTDh/uUamrSJ
-         xbX1s7lX+K4BN/DmbHdFOFCeX83SG1+4qYMeYcm3whxbBNFKW8nRbHk6+dxSliVNTUec
-         TVg+83S43d1FrELxpKEhs5STVZCOKpzdUneFQRBJ+uMckD9/g74AIPcKw/oliIj451JB
-         Yik+ZQXc2XmuloUUzPn9jgPD8w+BmZGmuIT67/+B9Rzpm1j6wfgeFrYQFlftEF2rDR3e
-         gN5ETQBr6l8zC5Wqpd/JrsoheVoW03CMYfTDQVwQ9MFgd0cCujRntH3BRX44o2E286Dd
-         k/ZQ==
+         :in-reply-to:user-agent;
+        bh=5xFI6CC+SBydA8Y9UU8UZWk761AJ3Twzt9eFzf2XbD0=;
+        b=XaoGMBLCUxOhEJxvh8LDIwPE58GmGABYA6kngy/KCoRtKjKYF1WcKIPbhllJbeYEII
+         v/plRl/bTnsjpkHDzwBtO6K8L0G9RYWrVnL9xRDJcIDtE637TSEttp1jH3gIM9LEfeDk
+         7ZSufzH3iHSO6FpPRNPSNLjje5rMIksgDbZRgAfMGWXTr/JL9Nm6uEZ23/ToMnwY2iUU
+         WfXmcUgsjbHm3V0E0nfk1lpkctPUuy+Op3I+JIFev0NUK1kSBM7A/TRoFuJhiVIeM4rm
+         BNoCWIfHjwRMDEw08tVWUVQOz2wI/FAgqhkFBYgIIIV6k7QfNXmmzTZx5Z2tApR/YnUO
+         ZOig==
 X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAXKm9+FRcq/lPF30H7gzeTnBB8jRcdcSEUc+ut31m+umtZOBJy/
-	jICCNsYzoKAUvpe05WofDn/2+/+oHgBZkyPbhYpTmq8jGiahZQteMT/sBcGT29H2fG6y2FpQLcX
-	1t+6UK+5UbBbrFgd9h0HWEjJIhW+vYtIyhfizzgDwM/Vr8LHRoQMWPNZB2cdaUw8=
-X-Received: by 2002:a17:906:1f44:: with SMTP id d4mr93255235ejk.195.1560921696005;
-        Tue, 18 Jun 2019 22:21:36 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqx4Q2zRpZv/Y7O5JHFL88v8XRlVW6mOMcYeacMRv85Daw8RDyNKofOQ6ospMUGpePV+QMss
-X-Received: by 2002:a17:906:1f44:: with SMTP id d4mr93255202ejk.195.1560921695286;
-        Tue, 18 Jun 2019 22:21:35 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560921695; cv=none;
+X-Gm-Message-State: APjAAAXxMRhucPqgSPLe5+5khqOLfooJEWeWM5CD/ySkFuySlLHkGaI3
+	O9mNyXNBf+EjZ0ZaEjOMnrRV2nTsZVcuwR7kQyEw3l+ozU+01Dl/8j6fOK07gbJh0gISQ5Z7YQp
+	Jj6PfRK/F/TLsuZID9wzVn6TW3oFUb5gapEn4UUxYR7KV4KsElsJ914RadRpe8uc=
+X-Received: by 2002:a50:9413:: with SMTP id p19mr107940835eda.224.1560922554850;
+        Tue, 18 Jun 2019 22:35:54 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqydcjtqEYtSmOSChZQ/njfaSuA/BRdh83gmJcyoJc3OXb0ya0/z2K/bpF2v237rJ863iVW0
+X-Received: by 2002:a50:9413:: with SMTP id p19mr107940800eda.224.1560922554179;
+        Tue, 18 Jun 2019 22:35:54 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560922554; cv=none;
         d=google.com; s=arc-20160816;
-        b=pZrd1x7Qu57WdzAVYFjO99AplA4AwvxBH/aOMzgi8zbmreyFH4fMG3mqvyrSlebLYi
-         KtFT/uyM1Xg5oj8YDxBWkP7nERXObLOFqvN6rfJJWCOC7/kmOfpuM7USPzRPJgUBZpuV
-         LJZSXfG2TNHqgu4Ae6zFcaKR3MaB66ZTEDuKlcXX01f8QuUnkjAGs32V5ZyBaeSFvpLS
-         uWc4Wha6aOlh+ZcBU/yIzXZ77o3WAhdWPFGb7vXUWw0VocMCVt5dI7dj/fGRrU+BMATN
-         oNW0YUIlWv06jGYOzmi3ZXB1oTeyznK5mRKjz0JUGdNdrzAi80jToSVrB42COOY02VXr
-         49sQ==
+        b=deg8vo1KyMrtHJZNC0caGkrw6DfTTVtJE2GEn3s887koyYuJg//bzVpTISebeWjQvd
+         Hs4UWnSuGFA4eu0m6ijxw44H50DWCtSN7T58lF3J3ihNe+jO+NcEgJRwkBe5iKLXTiD7
+         LC/vPZj3pQ/VG1i64l3E8uXSZP3UvG8BNAZbMxsta4f5NFxwmAb3/jNH3ca0s+H3FD5h
+         JC9H8qEpg92/lYcvxPobYT0jR7PWkkel/1OyyRAhbdCRsCAhewfpp2HPd8DIvYn++1SY
+         fw+MCbhLgpk6YtcOCorFLYXXLMaOqHqejmPNzD0vxvG7lSOQEzqgmGNdYbL+HVEY99Fx
+         Z8iQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date;
-        bh=xFRGzeiFO8+pD19Md0LFWfOM4XJAqNPTCfgtFjKFPaA=;
-        b=RkVYar/ktBPzaMz0mCzoxncLM0xd5Y02vOfXKcZ4GnqWqEDotXr/AsAhbfrTcNgeV7
-         M6t+IH8U9YEoHjHlBoMoyKmK4liP8wAUL0AKNK9LIuo8lzEUlqDWmhblMS5DS1GDu0zn
-         YV6MyB7qOkLbQceRSzfOoIi8rvM6nul88O7WF7MUwTJ+SaFIxu+DLcOSEWgAUGySMmXk
-         OMizxC41fJfU/RM6eo+yVLJ4ZjM0gNAAWsK0YZU9tvugEwGMGHwp4a9tF57QjiF6befd
-         vU41AtD1YPQIakxAGWvZ68uLBBx7iseJagApSw1Onhb+FfuTktaCV/eg5269Q85iEY7y
-         Qo0Q==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=5xFI6CC+SBydA8Y9UU8UZWk761AJ3Twzt9eFzf2XbD0=;
+        b=rIWMBVe8qhxQ1Jeu6tnKQF43cTdesUX8tZiRZLdgI0lDvB1/0s5TZ6I6ca83fDO12D
+         S2qjU24wud1+7WLEOaYIk9hCV1ZnB7oPPWifgycjXEG4Etf2OkXI3a7oD/6fjSBvCTjn
+         5GlatZHUfiYP5dPNP8UcuT6TXYgxfnc2QlZZqhJ1KjfeChvudrF1uHpj1nIjPLAL1JTR
+         NLVFJ58vAiKZFAnUhIdk207d69GyNGG2vpk0NitzIQG6nvgh4MvOHlEmQIcox229fUT2
+         M8thgj4qsph/XZkM4vkvNDgy9hhW3Zek6V00nNJY35Ylzz9ALFgwFExBtnnjHQA4N7/G
+         BRxw==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a20si10562463ejr.109.2019.06.18.22.21.35
+        by mx.google.com with ESMTPS id s6si13295225eda.228.2019.06.18.22.35.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 18 Jun 2019 22:21:35 -0700 (PDT)
+        Tue, 18 Jun 2019 22:35:54 -0700 (PDT)
 Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
        spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 60E36AE04;
-	Wed, 19 Jun 2019 05:21:34 +0000 (UTC)
-Date: Wed, 19 Jun 2019 07:21:33 +0200
+	by mx1.suse.de (Postfix) with ESMTP id B82C8ACD8;
+	Wed, 19 Jun 2019 05:35:53 +0000 (UTC)
+Date: Wed, 19 Jun 2019 07:35:52 +0200
 From: Michal Hocko <mhocko@kernel.org>
-To: Yang Shi <yang.shi@linux.alibaba.com>
-Cc: akpm@linux-foundation.org, vbabka@suse.cz, mgorman@techsingularity.net,
-	linux-mm@kvack.org, linux-kernel@vger.kernel.org,
-	Eric Dumazet <edumazet@google.com>,
-	"David S. Miller" <davem@davemloft.net>, netdev@vger.kernel.org
-Subject: Re: [PATCH] mm: mempolicy: handle vma with unmovable pages mapped
- correctly in mbind
-Message-ID: <20190619052133.GB2968@dhcp22.suse.cz>
-References: <1560797290-42267-1-git-send-email-yang.shi@linux.alibaba.com>
- <20190618130253.GH3318@dhcp22.suse.cz>
- <cf33b724-fdd5-58e3-c06a-1bc563525311@linux.alibaba.com>
- <20190618182848.GJ3318@dhcp22.suse.cz>
- <68c2592d-b747-e6eb-329f-7a428bff1f86@linux.alibaba.com>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+Subject: Re: [PATCH] mm, oom: Remove redundant OOM score normalization at
+ select_bad_process().
+Message-ID: <20190619053552.GC2968@dhcp22.suse.cz>
+References: <1560853435-15575-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <68c2592d-b747-e6eb-329f-7a428bff1f86@linux.alibaba.com>
+In-Reply-To: <1560853435-15575-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -110,43 +101,45 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue 18-06-19 14:13:16, Yang Shi wrote:
-[...]
-> > > > > Change migrate_page_add() to check if the page is movable or not, if it
-> > > > > is unmovable, just return -EIO.  We don't have to check non-LRU movable
-> > > > > pages since just zsmalloc and virtio-baloon support this.  And, they
-> > > > > should be not able to reach here.
-> > > > You are not checking whether the page is movable, right? You only rely
-> > > > on PageLRU check which is not really an equivalent thing. There are
-> > > > movable pages which are not LRU and also pages might be off LRU
-> > > > temporarily for many reasons so this could lead to false positives.
-> > > I'm supposed non-LRU movable pages could not reach here. Since most of them
-> > > are not mmapable, i.e. virtio-balloon, zsmalloc. zram device is mmapable,
-> > > but the page fault to that vma would end up allocating user space pages
-> > > which are on LRU. If I miss something please let me know.
-> > That might be true right now but it is a very subtle assumption that
-> > might break easily in the future. The point is still that even LRU pages
-> > might be isolated from the LRU list temporarily and you do not want this
-> > to cause the failure easily.
+On Tue 18-06-19 19:23:55, Tetsuo Handa wrote:
+> Since commit bbbe48029720d2c6 ("mm, oom: remove 'prefer children over
+> parent' heuristic") removed
 > 
-> I used to have !__PageMovable(page), but it was removed since the
-> aforementioned reason. I could add it back.
+>   "%s: Kill process %d (%s) score %u or sacrifice child\n"
 > 
-> For the temporary off LRU page, I did a quick search, it looks the most
-> paths have to acquire mmap_sem, so it can't race with us here. Page
-> reclaim/compaction looks like the only race. But, since the mapping should
-> be preserved even though the page is off LRU temporarily unless the page is
-> reclaimed, so we should be able to exclude temporary off LRU pages by
-> calling page_mapping() and page_anon_vma().
-> 
-> So, the fix may look like:
-> 
-> if (!PageLRU(head) && !__PageMovable(page)) {
->     if (!(page_mapping(page) || page_anon_vma(page)))
->         return -EIO;
+> line, oc->chosen_points is no longer used after select_bad_process().
 
-This is getting even more muddy TBH. Is there any reason that we have to
-handle this problem during the isolation phase rather the migration?
+Well spotted. I am still trying to understand how that was supposed to
+work before that commit as oom_badness() already provides a normalized
+value so we have normalized it for the second time. But that is largely
+irrelevant for this patch.
+
+> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+
+Acked-by: Michal Hocko <mhocko@suse.com>
+
+Thanks!
+
+> ---
+>  mm/oom_kill.c | 2 --
+>  1 file changed, 2 deletions(-)
+> 
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> index 09a5116..789a1bc 100644
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -380,8 +380,6 @@ static void select_bad_process(struct oom_control *oc)
+>  				break;
+>  		rcu_read_unlock();
+>  	}
+> -
+> -	oc->chosen_points = oc->chosen_points * 1000 / oc->totalpages;
+>  }
+>  
+>  static int dump_task(struct task_struct *p, void *arg)
+> -- 
+> 1.8.3.1
+
 -- 
 Michal Hocko
 SUSE Labs
