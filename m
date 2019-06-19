@@ -2,509 +2,163 @@ Return-Path: <SRS0=1eqM=US=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3B95CC46477
-	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 04:17:56 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5BE62C31E49
+	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 05:09:15 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E82F1214AF
-	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 04:17:55 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E82F1214AF
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id E71E4208CB
+	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 05:09:14 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E71E4208CB
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ghiti.fr
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 899146B0007; Wed, 19 Jun 2019 00:17:55 -0400 (EDT)
+	id 5FDCB6B0003; Wed, 19 Jun 2019 01:09:14 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 849548E0002; Wed, 19 Jun 2019 00:17:55 -0400 (EDT)
+	id 5AE9B8E0002; Wed, 19 Jun 2019 01:09:14 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 738728E0001; Wed, 19 Jun 2019 00:17:55 -0400 (EDT)
+	id 477218E0001; Wed, 19 Jun 2019 01:09:14 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 242936B0007
-	for <linux-mm@kvack.org>; Wed, 19 Jun 2019 00:17:55 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id a5so24218435edx.12
-        for <linux-mm@kvack.org>; Tue, 18 Jun 2019 21:17:55 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id EFFE86B0003
+	for <linux-mm@kvack.org>; Wed, 19 Jun 2019 01:09:13 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id b12so12587451ede.23
+        for <linux-mm@kvack.org>; Tue, 18 Jun 2019 22:09:13 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:in-reply-to:references;
-        bh=uWiY2WTdo/ew647hAF8F0jW57wgesm6JL1lLbG+HNBQ=;
-        b=Jyq7/fuUPe+9odIbLisGB7lq0x2ZEaaxbONg9cGqWpe7thodKutdyBxDplqVW8sMS9
-         d4iQMuV5kiaYoxDI3IU5RJw1BWnZCwPI5Sdk2U1b/bfJXsIKfWwTfGPBSc60Yr5L3nm1
-         apQN6Tt2/p5o29QU6no5DqfltSsGmuMSZJoWX9SxcxKKyxEYMTQbB6/ti7lHqAA95zQ1
-         kZV9eR5RA817uefhnypH7TYHYgHAveTy4fe7bih4CnNP4rioqOAHyMQon4g+TmRZI+2F
-         lgwRewnl9rYBakGlCkIa1GCaSas0rAMBAXeG2xte1REI2df3gPdcujsafe2vU3L8NA83
-         rulw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-X-Gm-Message-State: APjAAAWO0GJWp7OGJwEDB5Oy4iRmj4/L2KuAJJJ2HXQVKzZnWR8FiabR
-	E1zxnhTqI2x+21dy5ftU2zSv+6fQpEdNxGwnnABi0BQh8DWDpRlsUDKBwz6kM42GElqjYQ6hxF5
-	TUkmVT7kwsxlaOJmXwhZxZ58aWXVm6eikuLKQKWOY8xdjqzZw7PP175XTn0k42qjk3g==
-X-Received: by 2002:a17:906:454d:: with SMTP id s13mr6815271ejq.255.1560917874661;
-        Tue, 18 Jun 2019 21:17:54 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqw7WYkh46L3qjMeE9utzUi73hPdgnuWBAz70dRzrNXXhWs7qLoHAMClnqH1dQdPvjNdGqeL
-X-Received: by 2002:a17:906:454d:: with SMTP id s13mr6815211ejq.255.1560917873451;
-        Tue, 18 Jun 2019 21:17:53 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560917873; cv=none;
+         :subject:date:message-id:mime-version:content-transfer-encoding;
+        bh=rlfuBatknSoexbXQq8Uk9ryMN1twJ+Icien1yK5z69o=;
+        b=hA98Y1j7d5ympgaJBju7F5o6GAp3UEvY1DEO6NOfAlcxcZblb6RcyjtSSpPhbBg3J6
+         MvvhMEWfRYgCH/Zj1SLqzNKJuOi8jWz96wG2bj0DEdiyXbWZ2odMrkE8NNKVTXuJjg/y
+         2BJcXmXiubmq2h8qK5zjg+KfffAa1zq2SFEwYT7u4TUWygNg31PxW6NVS6wvtfCpueYR
+         GQcBFaiXBUj7vKfpOBU5bzPXGwSmSCWvIqCOEZ3baW6Tu1+jik54QWFjA3eVbUEAvbyp
+         gjSsmY3wb9DMDWvwF+2vRIqbJCrwyCZlKIykatawBA7hCOgQSSPCwmmKSpDu8caRQ+LI
+         mxNw==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 217.70.183.200 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
+X-Gm-Message-State: APjAAAUrEjv49srJh5BCwqO+/lNO9ThHPb5+kiuC8GckTh6mUIYbsJFv
+	5SrflN3+ydM17w7tTIGjUFU4zJBRBbhJVp4D2wC+uaPHcRcgJ13/tlZBu/Y2BYFQvQRWxZRFhKY
+	SYC8rM/VmnVvCOmibqSCGpNmePyqghKZmms0nPT5F41kK3IH0H6jd7J/vHTBMIG4=
+X-Received: by 2002:a17:906:76c9:: with SMTP id q9mr21965744ejn.236.1560920953467;
+        Tue, 18 Jun 2019 22:09:13 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwT2s2i3Gxjfh/2kkIPjkf1IOGcITAG0Z4PfN2B+k8ZtrH/DbKw9mO/syKl0LI8uy3erBJk
+X-Received: by 2002:a17:906:76c9:: with SMTP id q9mr21965670ejn.236.1560920951904;
+        Tue, 18 Jun 2019 22:09:11 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560920951; cv=none;
         d=google.com; s=arc-20160816;
-        b=XQaL54jYL87/q9QTjZR3yvyUxNhAfjSaOvMiqwDN4p/oyx+jlXdauNCnGym/z5Hw9U
-         FzBf0qEsTuTCpOMR8o2PC2GAxjs3bt3VZb6lBhB2bUIB/I8Ng42w2sCmBMD3awwhm2l6
-         P3YfaqACCXEVW77lqDo6QDKcH9iYcyLTX1baN3+l/0OYfoeutotDIcwS4LknAUShb32k
-         IUMM0nXro6bFMeImEeGE0S2SqrIBt5p7AsagOzRkPK3FDYMKfnnqRNoJoIBKJtSu3HI9
-         O40nikP2QbAnj8ItVuJ9E3GDrG8N3x1yIQAjJjLSurxzq9rLhDHuaVF958pNinMXivJw
-         3sOw==
+        b=ZzdAkzK2QrFzU363N4kyJmu8kvUwWJPRLb3IqlPJkMbzDfoZz4k+vV4pEA9jVzt/3m
+         cXu0EUqf/q5AzYqD+rzEwgyTKiRPERMCS7ZLe88AA/e6N2ZfNInYG6WFNwv1UHnjQmG/
+         7wGOHCkb4KZ5RkOoDFdfGhbt0uMWsw3FFixDczFWJlFaTQuln1SG1b51PAi6ALUJ99e2
+         Cbtfvj4VsunhKs+y9qFqQ5N8bFVpaziJ3qaVzozV7jIhQsfXjfHXyndJexJmUtMLuJdn
+         3UtQV7Rkdz4WN+5bltiV+uliEwuftehM0u+PX6k3nauSHdepG14jRuSd5hEnhH9H9xH0
+         DweQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=uWiY2WTdo/ew647hAF8F0jW57wgesm6JL1lLbG+HNBQ=;
-        b=QanXsToLHNLcYWyK1H1HYwRgTvr1cF3EtfPUCdLkzkP97qiGxO0gsr4XSRlC8jjb2J
-         6GrAf93Z2TTsCwQMZ/tbdSf2UXddKG8osQmM1exkqaMSRDzHoKwL85zd4SC8pQt9i6hE
-         ioSK3wn+h0Hg2GC+FfgP/SXrYu7HSYL8U+S/TGjSplxEym58h+QpuQcgO0lm39fpzUS6
-         4LWC1xsmLpjNV9Bmon8SykjMrBM08GfV5OazmcxNMD7x6TEvGhXdpt7w1M8GNyQpfSqU
-         FDAQuZ3UJOrULSFsDur/pS3ZHhVqB4NpgaZ+5HxdVUYS6MY+xi+6xVLG0c9oV3Dlzqid
-         oaJA==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from;
+        bh=rlfuBatknSoexbXQq8Uk9ryMN1twJ+Icien1yK5z69o=;
+        b=s5EqS1ABFz+etQ3JMlPT9+o01x/U6Y9VAL0g9/B72UTIKq1DC8cOgerDqIgNfSziXo
+         WZjhOC8ImxILv4j+G3uuyX74RrYckeGqQZ3teDMat2e3JcrjW2tZIbNfHUiKF26QZuAr
+         RmzUwF/MpElxlUKaPG7wwrt0Ai79wzQCo99p5sXZ3WPzy6QeaJIfUUxqKneWiuXgtnnp
+         yUyx4ZVYEYuv7oGCTMlelGZ/Gr7FvDrpJ206sj/xYSnfJplckXfqUUVQeWwAGAR+Y9kh
+         LO2/oibFpgaNqbrwUQSyqt0+qrazmbNQFb2TzVd3udBYpMs3ukMqzb6EhGCZTMre2uj3
+         e+bw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
-        by mx.google.com with ESMTP id j42si12702039eda.80.2019.06.18.21.17.53
-        for <linux-mm@kvack.org>;
-        Tue, 18 Jun 2019 21:17:53 -0700 (PDT)
-Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
+       spf=neutral (google.com: 217.70.183.200 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
+Received: from relay7-d.mail.gandi.net (relay7-d.mail.gandi.net. [217.70.183.200])
+        by mx.google.com with ESMTPS id n12si10187012ejr.105.2019.06.18.22.09.11
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 18 Jun 2019 22:09:11 -0700 (PDT)
+Received-SPF: neutral (google.com: 217.70.183.200 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) client-ip=217.70.183.200;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 6F25CCFC;
-	Tue, 18 Jun 2019 21:17:52 -0700 (PDT)
-Received: from p8cg001049571a15.blr.arm.com (p8cg001049571a15.blr.arm.com [10.162.43.130])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPA id 60B7F3F718;
-	Tue, 18 Jun 2019 21:17:46 -0700 (PDT)
-From: Anshuman Khandual <anshuman.khandual@arm.com>
-To: linux-mm@kvack.org,
+       spf=neutral (google.com: 217.70.183.200 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
+X-Originating-IP: 79.86.19.127
+Received: from alex.numericable.fr (127.19.86.79.rev.sfr.net [79.86.19.127])
+	(Authenticated sender: alex@ghiti.fr)
+	by relay7-d.mail.gandi.net (Postfix) with ESMTPSA id C3AB120006;
+	Wed, 19 Jun 2019 05:08:57 +0000 (UTC)
+From: Alexandre Ghiti <alex@ghiti.fr>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "James E . J . Bottomley" <James.Bottomley@HansenPartnership.com>,
+	Helge Deller <deller@gmx.de>,
+	Heiko Carstens <heiko.carstens@de.ibm.com>,
+	Vasily Gorbik <gor@linux.ibm.com>,
+	Christian Borntraeger <borntraeger@de.ibm.com>,
+	Yoshinori Sato <ysato@users.sourceforge.jp>,
+	Rich Felker <dalias@libc.org>,
+	"David S . Miller" <davem@davemloft.net>,
+	Thomas Gleixner <tglx@linutronix.de>,
+	Ingo Molnar <mingo@redhat.com>,
+	Borislav Petkov <bp@alien8.de>,
+	"H . Peter Anvin" <hpa@zytor.com>,
+	x86@kernel.org,
+	Dave Hansen <dave.hansen@linux.intel.com>,
+	Andy Lutomirski <luto@kernel.org>,
+	Peter Zijlstra <peterz@infradead.org>,
+	linux-parisc@vger.kernel.org,
 	linux-kernel@vger.kernel.org,
-	linux-arm-kernel@lists.infradead.org,
-	akpm@linux-foundation.org,
-	catalin.marinas@arm.com,
-	will.deacon@arm.com
-Cc: mark.rutland@arm.com,
-	mhocko@suse.com,
-	ira.weiny@intel.com,
-	david@redhat.com,
-	cai@lca.pw,
-	logang@deltatee.com,
-	james.morse@arm.com,
-	cpandya@codeaurora.org,
-	arunks@codeaurora.org,
-	dan.j.williams@intel.com,
-	mgorman@techsingularity.net,
-	osalvador@suse.de,
-	ard.biesheuvel@arm.com,
-	steve.capper@arm.com
-Subject: [PATCH V6 3/3] arm64/mm: Enable memory hot remove
-Date: Wed, 19 Jun 2019 09:47:40 +0530
-Message-Id: <1560917860-26169-4-git-send-email-anshuman.khandual@arm.com>
-X-Mailer: git-send-email 2.7.4
-In-Reply-To: <1560917860-26169-1-git-send-email-anshuman.khandual@arm.com>
-References: <1560917860-26169-1-git-send-email-anshuman.khandual@arm.com>
+	linux-s390@vger.kernel.org,
+	linux-sh@vger.kernel.org,
+	sparclinux@vger.kernel.org,
+	linux-mm@kvack.org,
+	Alexandre Ghiti <alex@ghiti.fr>
+Subject: [PATCH 0/8] Fix mmap base in bottom-up mmap
+Date: Wed, 19 Jun 2019 01:08:36 -0400
+Message-Id: <20190619050844.5294-1-alex@ghiti.fr>
+X-Mailer: git-send-email 2.20.1
+MIME-Version: 1.0
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The arch code for hot-remove must tear down portions of the linear map and
-vmemmap corresponding to memory being removed. In both cases the page
-tables mapping these regions must be freed, and when sparse vmemmap is in
-use the memory backing the vmemmap must also be freed.
+This series fixes the fallback of the top-down mmap: in case of
+failure, a bottom-up scheme can be tried as a last resort between
+the top-down mmap base and the stack, hoping for a large unused stack
+limit.
 
-This patch adds a new remove_pagetable() helper which can be used to tear
-down either region, and calls it from vmemmap_free() and
-___remove_pgd_mapping(). The sparse_vmap argument determines whether the
-backing memory will be freed.
+Lots of architectures and even mm code start this fallback
+at TASK_UNMAPPED_BASE, which is useless since the top-down scheme
+already failed on the whole address space: instead, simply use
+mmap_base.
 
-remove_pagetable() makes two distinct passes over the kernel page table.
-In the first pass it unmaps, invalidates applicable TLB cache and frees
-backing memory if required (vmemmap) for each mapped leaf entry. In the
-second pass it looks for empty page table sections whose page table page
-can be unmapped, TLB invalidated and freed.
+Along the way, it allows to get rid of of mmap_legacy_base and
+mmap_compat_legacy_base from mm_struct.
 
-While freeing intermediate level page table pages bail out if any of its
-entries are still valid. This can happen for partially filled kernel page
-table either from a previously attempted failed memory hot add or while
-removing an address range which does not span the entire page table page
-range.
+Note that arm and mips already implement this behaviour. 
 
-The vmemmap region may share levels of table with the vmalloc region.
-There can be conflicts between hot remove freeing page table pages with
-a concurrent vmalloc() walking the kernel page table. This conflict can
-not just be solved by taking the init_mm ptl because of existing locking
-scheme in vmalloc(). Hence unlike linear mapping, skip freeing page table
-pages while tearing down vmemmap mapping.
+Alexandre Ghiti (8):
+  s390: Start fallback of top-down mmap at mm->mmap_base
+  sh: Start fallback of top-down mmap at mm->mmap_base
+  sparc: Start fallback of top-down mmap at mm->mmap_base
+  x86, hugetlbpage: Start fallback of top-down mmap at mm->mmap_base
+  mm: Start fallback top-down mmap at mm->mmap_base
+  parisc: Use mmap_base, not mmap_legacy_base, as low_limit for
+    bottom-up mmap
+  x86: Use mmap_*base, not mmap_*legacy_base, as low_limit for bottom-up
+    mmap
+  mm: Remove mmap_legacy_base and mmap_compat_legacy_code fields from
+    mm_struct
 
-While here update arch_add_memory() to handle __add_pages() failures by
-just unmapping recently added kernel linear mapping. Now enable memory hot
-remove on arm64 platforms by default with ARCH_ENABLE_MEMORY_HOTREMOVE.
+ arch/parisc/kernel/sys_parisc.c  |  8 +++-----
+ arch/s390/mm/mmap.c              |  2 +-
+ arch/sh/mm/mmap.c                |  2 +-
+ arch/sparc/kernel/sys_sparc_64.c |  2 +-
+ arch/sparc/mm/hugetlbpage.c      |  2 +-
+ arch/x86/include/asm/elf.h       |  2 +-
+ arch/x86/kernel/sys_x86_64.c     |  4 ++--
+ arch/x86/mm/hugetlbpage.c        |  7 ++++---
+ arch/x86/mm/mmap.c               | 20 +++++++++-----------
+ include/linux/mm_types.h         |  2 --
+ mm/debug.c                       |  4 ++--
+ mm/mmap.c                        |  2 +-
+ 12 files changed, 26 insertions(+), 31 deletions(-)
 
-This implementation is overall inspired from kernel page table tear down
-procedure on X86 architecture.
-
-Acked-by: David Hildenbrand <david@redhat.com>
-Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
----
- arch/arm64/Kconfig  |   3 +
- arch/arm64/mm/mmu.c | 290 ++++++++++++++++++++++++++++++++++++++++++++++++++--
- 2 files changed, 284 insertions(+), 9 deletions(-)
-
-diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-index 6426f48..9375f26 100644
---- a/arch/arm64/Kconfig
-+++ b/arch/arm64/Kconfig
-@@ -270,6 +270,9 @@ config HAVE_GENERIC_GUP
- config ARCH_ENABLE_MEMORY_HOTPLUG
- 	def_bool y
- 
-+config ARCH_ENABLE_MEMORY_HOTREMOVE
-+	def_bool y
-+
- config SMP
- 	def_bool y
- 
-diff --git a/arch/arm64/mm/mmu.c b/arch/arm64/mm/mmu.c
-index 93ed0df..9e80a94 100644
---- a/arch/arm64/mm/mmu.c
-+++ b/arch/arm64/mm/mmu.c
-@@ -733,6 +733,250 @@ int kern_addr_valid(unsigned long addr)
- 
- 	return pfn_valid(pte_pfn(pte));
- }
-+
-+#ifdef CONFIG_MEMORY_HOTPLUG
-+static void free_hotplug_page_range(struct page *page, size_t size)
-+{
-+	WARN_ON(!page || PageReserved(page));
-+	free_pages((unsigned long)page_address(page), get_order(size));
-+}
-+
-+static void free_hotplug_pgtable_page(struct page *page)
-+{
-+	free_hotplug_page_range(page, PAGE_SIZE);
-+}
-+
-+static void free_pte_table(pmd_t *pmdp, unsigned long addr)
-+{
-+	struct page *page;
-+	pte_t *ptep;
-+	int i;
-+
-+	ptep = pte_offset_kernel(pmdp, 0UL);
-+	for (i = 0; i < PTRS_PER_PTE; i++) {
-+		if (!pte_none(READ_ONCE(ptep[i])))
-+			return;
-+	}
-+
-+	page = pmd_page(READ_ONCE(*pmdp));
-+	pmd_clear(pmdp);
-+	__flush_tlb_kernel_pgtable(addr);
-+	free_hotplug_pgtable_page(page);
-+}
-+
-+static void free_pmd_table(pud_t *pudp, unsigned long addr)
-+{
-+	struct page *page;
-+	pmd_t *pmdp;
-+	int i;
-+
-+	if (CONFIG_PGTABLE_LEVELS <= 2)
-+		return;
-+
-+	pmdp = pmd_offset(pudp, 0UL);
-+	for (i = 0; i < PTRS_PER_PMD; i++) {
-+		if (!pmd_none(READ_ONCE(pmdp[i])))
-+			return;
-+	}
-+
-+	page = pud_page(READ_ONCE(*pudp));
-+	pud_clear(pudp);
-+	__flush_tlb_kernel_pgtable(addr);
-+	free_hotplug_pgtable_page(page);
-+}
-+
-+static void free_pud_table(pgd_t *pgdp, unsigned long addr)
-+{
-+	struct page *page;
-+	pud_t *pudp;
-+	int i;
-+
-+	if (CONFIG_PGTABLE_LEVELS <= 3)
-+		return;
-+
-+	pudp = pud_offset(pgdp, 0UL);
-+	for (i = 0; i < PTRS_PER_PUD; i++) {
-+		if (!pud_none(READ_ONCE(pudp[i])))
-+			return;
-+	}
-+
-+	page = pgd_page(READ_ONCE(*pgdp));
-+	pgd_clear(pgdp);
-+	__flush_tlb_kernel_pgtable(addr);
-+	free_hotplug_pgtable_page(page);
-+}
-+
-+static void unmap_hotplug_pte_range(pmd_t *pmdp, unsigned long addr,
-+				    unsigned long end, bool sparse_vmap)
-+{
-+	struct page *page;
-+	pte_t *ptep, pte;
-+
-+	do {
-+		ptep = pte_offset_kernel(pmdp, addr);
-+		pte = READ_ONCE(*ptep);
-+		if (pte_none(pte))
-+			continue;
-+
-+		WARN_ON(!pte_present(pte));
-+		page = sparse_vmap ? pte_page(pte) : NULL;
-+		pte_clear(&init_mm, addr, ptep);
-+		flush_tlb_kernel_range(addr, addr + PAGE_SIZE);
-+		if (sparse_vmap)
-+			free_hotplug_page_range(page, PAGE_SIZE);
-+	} while (addr += PAGE_SIZE, addr < end);
-+}
-+
-+static void unmap_hotplug_pmd_range(pud_t *pudp, unsigned long addr,
-+				    unsigned long end, bool sparse_vmap)
-+{
-+	unsigned long next;
-+	struct page *page;
-+	pmd_t *pmdp, pmd;
-+
-+	do {
-+		next = pmd_addr_end(addr, end);
-+		pmdp = pmd_offset(pudp, addr);
-+		pmd = READ_ONCE(*pmdp);
-+		if (pmd_none(pmd))
-+			continue;
-+
-+		WARN_ON(!pmd_present(pmd));
-+		if (pmd_sect(pmd)) {
-+			page = sparse_vmap ? pmd_page(pmd) : NULL;
-+			pmd_clear(pmdp);
-+			flush_tlb_kernel_range(addr, next);
-+			if (sparse_vmap)
-+				free_hotplug_page_range(page, PMD_SIZE);
-+			continue;
-+		}
-+		WARN_ON(!pmd_table(pmd));
-+		unmap_hotplug_pte_range(pmdp, addr, next, sparse_vmap);
-+	} while (addr = next, addr < end);
-+}
-+
-+static void unmap_hotplug_pud_range(pgd_t *pgdp, unsigned long addr,
-+				    unsigned long end, bool sparse_vmap)
-+{
-+	unsigned long next;
-+	struct page *page;
-+	pud_t *pudp, pud;
-+
-+	do {
-+		next = pud_addr_end(addr, end);
-+		pudp = pud_offset(pgdp, addr);
-+		pud = READ_ONCE(*pudp);
-+		if (pud_none(pud))
-+			continue;
-+
-+		WARN_ON(!pud_present(pud));
-+		if (pud_sect(pud)) {
-+			page = sparse_vmap ? pud_page(pud) : NULL;
-+			pud_clear(pudp);
-+			flush_tlb_kernel_range(addr, next);
-+			if (sparse_vmap)
-+				free_hotplug_page_range(page, PUD_SIZE);
-+			continue;
-+		}
-+		WARN_ON(!pud_table(pud));
-+		unmap_hotplug_pmd_range(pudp, addr, next, sparse_vmap);
-+	} while (addr = next, addr < end);
-+}
-+
-+static void unmap_hotplug_range(unsigned long addr, unsigned long end,
-+				bool sparse_vmap)
-+{
-+	unsigned long next;
-+	pgd_t *pgdp, pgd;
-+
-+	do {
-+		next = pgd_addr_end(addr, end);
-+		pgdp = pgd_offset_k(addr);
-+		pgd = READ_ONCE(*pgdp);
-+		if (pgd_none(pgd))
-+			continue;
-+
-+		WARN_ON(!pgd_present(pgd));
-+		unmap_hotplug_pud_range(pgdp, addr, next, sparse_vmap);
-+	} while (addr = next, addr < end);
-+}
-+
-+static void free_empty_pte_table(pmd_t *pmdp, unsigned long addr,
-+				 unsigned long end)
-+{
-+	pte_t *ptep, pte;
-+
-+	do {
-+		ptep = pte_offset_kernel(pmdp, addr);
-+		pte = READ_ONCE(*ptep);
-+		WARN_ON(!pte_none(pte));
-+	} while (addr += PAGE_SIZE, addr < end);
-+}
-+
-+static void free_empty_pmd_table(pud_t *pudp, unsigned long addr,
-+				 unsigned long end)
-+{
-+	unsigned long next;
-+	pmd_t *pmdp, pmd;
-+
-+	do {
-+		next = pmd_addr_end(addr, end);
-+		pmdp = pmd_offset(pudp, addr);
-+		pmd = READ_ONCE(*pmdp);
-+		if (pmd_none(pmd))
-+			continue;
-+
-+		WARN_ON(!pmd_present(pmd) || !pmd_table(pmd) || pmd_sect(pmd));
-+		free_empty_pte_table(pmdp, addr, next);
-+		free_pte_table(pmdp, addr);
-+	} while (addr = next, addr < end);
-+}
-+
-+static void free_empty_pud_table(pgd_t *pgdp, unsigned long addr,
-+				 unsigned long end)
-+{
-+	unsigned long next;
-+	pud_t *pudp, pud;
-+
-+	do {
-+		next = pud_addr_end(addr, end);
-+		pudp = pud_offset(pgdp, addr);
-+		pud = READ_ONCE(*pudp);
-+		if (pud_none(pud))
-+			continue;
-+
-+		WARN_ON(!pud_present(pud) || !pud_table(pud) || pud_sect(pud));
-+		free_empty_pmd_table(pudp, addr, next);
-+		free_pmd_table(pudp, addr);
-+	} while (addr = next, addr < end);
-+}
-+
-+static void free_empty_tables(unsigned long addr, unsigned long end)
-+{
-+	unsigned long next;
-+	pgd_t *pgdp, pgd;
-+
-+	do {
-+		next = pgd_addr_end(addr, end);
-+		pgdp = pgd_offset_k(addr);
-+		pgd = READ_ONCE(*pgdp);
-+		if (pgd_none(pgd))
-+			continue;
-+
-+		WARN_ON(!pgd_present(pgd));
-+		free_empty_pud_table(pgdp, addr, next);
-+		free_pud_table(pgdp, addr);
-+	} while (addr = next, addr < end);
-+}
-+
-+static void remove_pagetable(unsigned long start, unsigned long end,
-+			     bool sparse_vmap)
-+{
-+	unmap_hotplug_range(start, end, sparse_vmap);
-+	free_empty_tables(start, end);
-+}
-+#endif
-+
- #ifdef CONFIG_SPARSEMEM_VMEMMAP
- #if !ARM64_SWAPPER_USES_SECTION_MAPS
- int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
-@@ -780,6 +1024,27 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
- void vmemmap_free(unsigned long start, unsigned long end,
- 		struct vmem_altmap *altmap)
- {
-+#ifdef CONFIG_MEMORY_HOTPLUG
-+	/*
-+	 * FIXME: We should have called remove_pagetable(start, end, true).
-+	 * vmemmap and vmalloc virtual range might share intermediate kernel
-+	 * page table entries. Removing vmemmap range page table pages here
-+	 * can potentially conflict with a cuncurrent vmalloc() allocation.
-+	 *
-+	 * This is primarily because valloc() does not take init_mm ptl for
-+	 * the entire page table walk and it's modification. Instead it just
-+	 * takes the lock while allocating and installing page table pages
-+	 * via [p4d|pud|pmd|pte]_aloc(). A cuncurrently vanishing page table
-+	 * entry via memory hotremove can cause vmalloc() kernel page table
-+	 * walk pointers to be invalid on the fly which can cause corruption
-+	 * or worst, a crash.
-+	 *
-+	 * To avoid this problem, lets not free empty page table pages for
-+	 * given vmemmap range being hot-removed. Just unmap and free the
-+	 * range instead.
-+	 */
-+	unmap_hotplug_range(start, end, true);
-+#endif
- }
- #endif	/* CONFIG_SPARSEMEM_VMEMMAP */
- 
-@@ -1066,10 +1331,18 @@ int p4d_free_pud_page(p4d_t *p4d, unsigned long addr)
- }
- 
- #ifdef CONFIG_MEMORY_HOTPLUG
-+static void __remove_pgd_mapping(pgd_t *pgdir, unsigned long start, u64 size)
-+{
-+	unsigned long end = start + size;
-+
-+	WARN_ON(pgdir != init_mm.pgd);
-+	remove_pagetable(start, end, false);
-+}
-+
- int arch_add_memory(int nid, u64 start, u64 size,
- 			struct mhp_restrictions *restrictions)
- {
--	int flags = 0;
-+	int ret, flags = 0;
- 
- 	if (rodata_full || debug_pagealloc_enabled())
- 		flags = NO_BLOCK_MAPPINGS | NO_CONT_MAPPINGS;
-@@ -1077,9 +1350,14 @@ int arch_add_memory(int nid, u64 start, u64 size,
- 	__create_pgd_mapping(swapper_pg_dir, start, __phys_to_virt(start),
- 			     size, PAGE_KERNEL, __pgd_pgtable_alloc, flags);
- 
--	return __add_pages(nid, start >> PAGE_SHIFT, size >> PAGE_SHIFT,
-+	ret = __add_pages(nid, start >> PAGE_SHIFT, size >> PAGE_SHIFT,
- 			   restrictions);
-+	if (ret)
-+		__remove_pgd_mapping(swapper_pg_dir,
-+				     __phys_to_virt(start), size);
-+	return ret;
- }
-+
- void arch_remove_memory(int nid, u64 start, u64 size,
- 			struct vmem_altmap *altmap)
- {
-@@ -1087,14 +1365,8 @@ void arch_remove_memory(int nid, u64 start, u64 size,
- 	unsigned long nr_pages = size >> PAGE_SHIFT;
- 	struct zone *zone;
- 
--	/*
--	 * FIXME: Cleanup page tables (also in arch_add_memory() in case
--	 * adding fails). Until then, this function should only be used
--	 * during memory hotplug (adding memory), not for memory
--	 * unplug. ARCH_ENABLE_MEMORY_HOTREMOVE must not be
--	 * unlocked yet.
--	 */
- 	zone = page_zone(pfn_to_page(start_pfn));
- 	__remove_pages(zone, start_pfn, nr_pages, altmap);
-+	__remove_pgd_mapping(swapper_pg_dir, __phys_to_virt(start), size);
- }
- #endif
 -- 
-2.7.4
+2.20.1
 
