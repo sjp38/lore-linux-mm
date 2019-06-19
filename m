@@ -2,132 +2,177 @@ Return-Path: <SRS0=1eqM=US=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.0 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 09A47C31E49
-	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 08:14:24 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3A653C31E49
+	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 08:18:05 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B2E81206E0
-	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 08:14:23 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="VTq/5def"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B2E81206E0
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	by mail.kernel.org (Postfix) with ESMTP id F38362080C
+	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 08:18:04 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F38362080C
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 415126B0006; Wed, 19 Jun 2019 04:14:23 -0400 (EDT)
+	id 6F7696B0006; Wed, 19 Jun 2019 04:18:04 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3C52C8E0002; Wed, 19 Jun 2019 04:14:23 -0400 (EDT)
+	id 6A8C48E0002; Wed, 19 Jun 2019 04:18:04 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2B4108E0001; Wed, 19 Jun 2019 04:14:23 -0400 (EDT)
+	id 522C48E0001; Wed, 19 Jun 2019 04:18:04 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id E737A6B0006
-	for <linux-mm@kvack.org>; Wed, 19 Jun 2019 04:14:22 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id w31so11763797pgk.23
-        for <linux-mm@kvack.org>; Wed, 19 Jun 2019 01:14:22 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id F42236B0006
+	for <linux-mm@kvack.org>; Wed, 19 Jun 2019 04:18:03 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id b3so25008731edd.22
+        for <linux-mm@kvack.org>; Wed, 19 Jun 2019 01:18:03 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=0ZL0Rt+On3+fcA7ZOTp27GEbaFXAtfEHfk/A4omOFs8=;
-        b=L5K4FTzvcvAm1h2S7Gg3b32CxNHc1i3/lGcfijP0S7ng477ufM5u/rWnEeKync8Icz
-         OV8zx62Qz4c0hdR6HOLZabMd8dgzAvdP8c9ElGCcCqDmNK3pYqnS7+qtaM9Yc+M+wigp
-         Ll6ZDRr2rCjEvJJvPyAMtt5/aRIH/slTWUGbOHXOjcyYJ2a2nj+KsDkcmZ5p2TBqeRIk
-         IplDI6aDwbsYg1RgY0BHzdyWuEM8X/EkDgwHKeD261IReeFbU0ObyIBZrOnZXeT/zzCG
-         e44nrTTk75V8kr0xsB0uDjVOfIVxJW2sSvkP2230ilhxnPcdA+Q+S03TFiGic8iCAK48
-         NAJA==
-X-Gm-Message-State: APjAAAWeGnZzbGox4Ww2f1kXmujfCu1nZs1CcNa5CPat7Jym92uyx21H
-	trmdxIvQ8tWJa5oVr/jSI/soE34uCj7KaUIgEp74EZ1QOHayI0vr0myWGdMJsiHVRTA7OSrDU0/
-	KvJ4MYNOYld+kgOLdEk9TiChqmZkaFyhPF4l8RSKp/lMY3pEMTlLcMlg8zKRiCFJF9w==
-X-Received: by 2002:a63:a46:: with SMTP id z6mr6634122pgk.76.1560932062553;
-        Wed, 19 Jun 2019 01:14:22 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqw0zRhnu9fWaJipaW8r/MdPNtdVa/Om88z1x/MonXvTFah5u2CcMuYCFJNZBqQvwaEXdEmS
-X-Received: by 2002:a63:a46:: with SMTP id z6mr6634085pgk.76.1560932061905;
-        Wed, 19 Jun 2019 01:14:21 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560932061; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=64K18PIXt9WXTvPoGIrWHH7r6qJq8/BR6oXtLV/xuSc=;
+        b=BUqrc8Gw1vzQZUel3WO0Dqdhyyc8ad4iUknL2dMvrJPCZyd/TtAqOi0aDCR5hya3qQ
+         dogOX855B8A/WH80ppH3mRQ2skM3+KtjBfhhrFAJLcpZ3IbVDGOUjNqFaEt8n1WTKgJF
+         ZZFYbPKxtelNxqrZl+t4hVYD4PNljYV43FKTwRj+DLMAm9ARgI04WTVAHOjoFWUqyFGw
+         ogwXU4YrBZgHh661Jf6o4734wnV+GU9Vlk9JB8zDPNVljum4CuVUE5F0oHcwtiAqCU5R
+         WNdINDPZdeX5ax3YLB/izWlZ3CDzTwQzijrDalWX7Cg4IFnRe8HbhOUINNSbCli8Ufd5
+         TD7g==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+X-Gm-Message-State: APjAAAW0/Omf7IMyRCWMA6lGM0jetb0wXLSYUwyQ+pd47W995Jdkxc4F
+	27MLW/RdTKFCaBKWk4XZoF/Wa6MnsdVVnYPKP7GvEP3lM4C2Qw3waL3yY0Zuxi92MLWfg6cif+Y
+	7rfxqgq0UwN2YHlo/32STdL/P4ogA9Gczhk3MIIZp1tALjFXeRgEfMefdiTLEUklRZg==
+X-Received: by 2002:a05:6402:134c:: with SMTP id y12mr30221366edw.96.1560932283535;
+        Wed, 19 Jun 2019 01:18:03 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzx33yDg2tcMTA4ywXehvi3CV1jW7yGk2gAmNDmkLl5Hh2ov2elPfC1zXP8vvIyX3qJSrE3
+X-Received: by 2002:a05:6402:134c:: with SMTP id y12mr30221315edw.96.1560932282950;
+        Wed, 19 Jun 2019 01:18:02 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560932282; cv=none;
         d=google.com; s=arc-20160816;
-        b=l3mvTTI0yVsG9yIYh4HM/wlPp/2vgIWvnWkaWZAkxp6evpr+ewaEYTdugGEb7w/+zF
-         R8YN/bzR2kooWiXe6k0sUwNeVr3cvLcI5z6QS+JjVYqbMsy65eHdvHHWKrqQ69PBl9zM
-         2Qmew5ZHIHiSvWSgv2+IqgYYm+QlVja/eqTSgL/qsTj5wW6hleoOnVeTVp3u3SSppH0M
-         x6XXrLmiE1Q6aMrv4tB51FLgF/IRsNlfmB+z/Ux2MJSmmFG7CDnzt69jMtb7EVb6wXGW
-         UB3XGAkcrkhGPshKNKj5A6J9nSjneYIRbKXzEAkAweZ2M6SqIl/wwRoCUwpDg/HZb8ZY
-         u4yw==
+        b=vlquePK4BaPGywjraDQBNUC1ZTYK9cHPCMx5t80j2Rw0rvrL1spu8lGHicT1fy4Wvw
+         3QsornAGJh+JGioGhvAVhW45SwvUliZcV49Ey6uEIogn6kRWFoishavVxQXB7QgkTP8X
+         Cz/aqAfTT2qgUZlAtFolvrV4S2oHCLYp9H82I6PcY5R30f+ZICrNrmMbOqwuZ9c3UEu+
+         H1U2ECUGlKZkH8of9nr6ijUboz/BnypmzQj7yVLNa0GotFA9+V5NF9wq12XwSlrZFNXC
+         kUz0fFwP7aK0ExHnz+sJN44M+aHSSGzg53BzIe4b9UldGSl2pKGCOwHArFq3FdEnr1ZY
+         gWCg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=0ZL0Rt+On3+fcA7ZOTp27GEbaFXAtfEHfk/A4omOFs8=;
-        b=bvO+/oWCJAaq2Rui4ng63elQQ9kGqfIjNi0u+ko1CWhgYspY4FkxR5ui+OXVaOSS5v
-         ZVW0tHoxsmkyFKYsjbvyaycFHOLxYrGcS2QrBaMwY9Pq26t/lpBI9QtjvOtPHF6XEqGQ
-         /SeaptGWpulu0rhJGbsMeOV2Gw5mcsft9irm6rw7dqr+wBqaGbegVBeYkdopcQN61LdG
-         rIlk0TDvnfQurITvCkAkvVxNuugxIhYO4g5IkCvCZU1IfUJGthJZhhsH9gn47VxWgA/0
-         oPZZJo8y5vw0lgT/H9JJAdOdM5WpgImr6J5fA0LHNI4aIKtzp5Gr8B4pSbqFKylwKjVi
-         abgQ==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
+         :subject;
+        bh=64K18PIXt9WXTvPoGIrWHH7r6qJq8/BR6oXtLV/xuSc=;
+        b=J6EUQyovO/qIGSYr5uvE8JGjMmUgiceha2EKvUmDvn6+yJsXWmV2sQLbjrcbz8lIlw
+         00cMJ9Z9k2AZwcAuvbx93kanLkD81cc+s3UKTu0/3yNwNY0VU1tFHevEhcHhNJzlMmDc
+         MwAzUV7F6enjRKsvxVIq3FcXgJXBB3DHC2vnX3XOAJcTlEFJIcV03XnM/n5Yzddg9LAa
+         QJwLm6eTeIb3jie7OeUKOrTvy8dJB2x4HmD45Nbbs6ZFr9aEEHKuFyR+p1odjP1FpzDm
+         z5Gr2l2/a3iaqd6FJffV6jbNKBkkSd8HQCrZKFfGHqdR4Q7HAYGpbM1+oDO3SLQ8mq2D
+         afRg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b="VTq/5def";
-       spf=pass (google.com: best guess record for domain of batv+77cd4ac56e5e79ab4dbe+5778+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+77cd4ac56e5e79ab4dbe+5778+infradead.org+hch@bombadil.srs.infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id i14si2514973pgh.437.2019.06.19.01.14.21
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id r5si13065492edm.368.2019.06.19.01.18.02
         for <linux-mm@kvack.org>
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Wed, 19 Jun 2019 01:14:21 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of batv+77cd4ac56e5e79ab4dbe+5778+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 19 Jun 2019 01:18:02 -0700 (PDT)
+Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b="VTq/5def";
-       spf=pass (google.com: best guess record for domain of batv+77cd4ac56e5e79ab4dbe+5778+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+77cd4ac56e5e79ab4dbe+5778+infradead.org+hch@bombadil.srs.infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=0ZL0Rt+On3+fcA7ZOTp27GEbaFXAtfEHfk/A4omOFs8=; b=VTq/5defW3rvl0qSVOJTGq4WO
-	PXQkheSR6n7cepjJuJbIsuVqXJAeoO6w1Usz/0OOo4rXXtGYEvT83GQ+qAKZ8bmqtqvMjBo88SJmL
-	IIWd00nGQ1ntnsuA6llhTgwbAcNH+LoQHYo8RR3DLgE3rFAmRgqjhTiFPPyQfPWNhfGwJr+UsyQJa
-	gMhBPjfITvI13/SnXh1sjD0CDMc7PiYSMIBJUj4LSHubqiu5ZQC8eq0kA/vGy9kJi/xCtwqSUmiY3
-	BM7plvYLHHJiXz7AgxGshkFNjukTfR/NZqKEqUb7nNjEyBrB+qHiXhOT0y+6rLL8sO6KZljTddayk
-	Pd1lyxT4g==;
-Received: from hch by bombadil.infradead.org with local (Exim 4.92 #3 (Red Hat Linux))
-	id 1hdVjU-0006aZ-Cc; Wed, 19 Jun 2019 08:14:16 +0000
-Date: Wed, 19 Jun 2019 01:14:16 -0700
-From: Christoph Hellwig <hch@infradead.org>
-To: Jason Gunthorpe <jgg@ziepe.ca>
-Cc: Christoph Hellwig <hch@infradead.org>,
-	Jerome Glisse <jglisse@redhat.com>,
-	Ralph Campbell <rcampbell@nvidia.com>,
-	John Hubbard <jhubbard@nvidia.com>, Felix.Kuehling@amd.com,
-	linux-rdma@vger.kernel.org, linux-mm@kvack.org,
-	Andrea Arcangeli <aarcange@redhat.com>,
-	dri-devel@lists.freedesktop.org, amd-gfx@lists.freedesktop.org,
-	Ben Skeggs <bskeggs@redhat.com>, Ira Weiny <ira.weiny@intel.com>,
-	Philip Yang <Philip.Yang@amd.com>
-Subject: Re: [PATCH v3 hmm 02/12] mm/hmm: Use hmm_mirror not mm as an
- argument for hmm_range_register
-Message-ID: <20190619081416.GA24900@infradead.org>
-References: <20190614004450.20252-1-jgg@ziepe.ca>
- <20190614004450.20252-3-jgg@ziepe.ca>
- <20190615135906.GB17724@infradead.org>
- <20190618130544.GC6961@ziepe.ca>
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 1B4ADAF1F;
+	Wed, 19 Jun 2019 08:18:02 +0000 (UTC)
+Subject: Re: [PATCH] mm: mempolicy: handle vma with unmovable pages mapped
+ correctly in mbind
+To: Yang Shi <yang.shi@linux.alibaba.com>, Michal Hocko <mhocko@kernel.org>
+Cc: akpm@linux-foundation.org, mgorman@techsingularity.net,
+ linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+ Eric Dumazet <edumazet@google.com>, "David S. Miller" <davem@davemloft.net>,
+ netdev@vger.kernel.org
+References: <1560797290-42267-1-git-send-email-yang.shi@linux.alibaba.com>
+ <20190618130253.GH3318@dhcp22.suse.cz>
+ <cf33b724-fdd5-58e3-c06a-1bc563525311@linux.alibaba.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Openpgp: preference=signencrypt
+Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
+ 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
+Message-ID: <2c30d86f-43e4-f43c-411d-c916fb1de44e@suse.cz>
+Date: Wed, 19 Jun 2019 10:18:01 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190618130544.GC6961@ziepe.ca>
-User-Agent: Mutt/1.11.4 (2019-03-13)
-X-SRS-Rewrite: SMTP reverse-path rewritten from <hch@infradead.org> by bombadil.infradead.org. See http://www.infradead.org/rpr.html
+In-Reply-To: <cf33b724-fdd5-58e3-c06a-1bc563525311@linux.alibaba.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jun 18, 2019 at 10:05:44AM -0300, Jason Gunthorpe wrote:
-> I'm thinking to tackle that as part of the mmu notififer invlock
-> idea.. Once the range looses the lock then we don't really need to
-> register it at all.
+On 6/18/19 7:06 PM, Yang Shi wrote:
+> The BUG_ON was removed by commit 
+> d44d363f65780f2ac2ec672164555af54896d40d ("mm: don't assume anonymous 
+> pages have SwapBacked flag") since 4.12.
 
-Ok.
+Perhaps that commit should be sent to stable@ ? Although with
+VM_BUG_ON() this is less critical than plain BUG_ON().
 
