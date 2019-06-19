@@ -2,141 +2,178 @@ Return-Path: <SRS0=1eqM=US=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8E19FC31E49
-	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 09:04:08 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 16476C31E49
+	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 09:06:12 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5C3BA20B1F
-	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 09:04:08 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5C3BA20B1F
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.com
+	by mail.kernel.org (Postfix) with ESMTP id C04962080C
+	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 09:06:11 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=ffwll.ch header.i=@ffwll.ch header.b="gnP9HHMG"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C04962080C
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ffwll.ch
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id F3B5F6B0005; Wed, 19 Jun 2019 05:04:07 -0400 (EDT)
+	id 6ADF86B0003; Wed, 19 Jun 2019 05:06:11 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id EEA688E0002; Wed, 19 Jun 2019 05:04:07 -0400 (EDT)
+	id 65EC28E0002; Wed, 19 Jun 2019 05:06:11 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DB3AC8E0001; Wed, 19 Jun 2019 05:04:07 -0400 (EDT)
+	id 54D868E0001; Wed, 19 Jun 2019 05:06:11 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id A1C876B0005
-	for <linux-mm@kvack.org>; Wed, 19 Jun 2019 05:04:07 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id m23so7628692edr.7
-        for <linux-mm@kvack.org>; Wed, 19 Jun 2019 02:04:07 -0700 (PDT)
+Received: from mail-oi1-f199.google.com (mail-oi1-f199.google.com [209.85.167.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 2A7376B0003
+	for <linux-mm@kvack.org>; Wed, 19 Jun 2019 05:06:11 -0400 (EDT)
+Received: by mail-oi1-f199.google.com with SMTP id 189so5509334oii.18
+        for <linux-mm@kvack.org>; Wed, 19 Jun 2019 02:06:11 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=xNNV3S6Kss++8jlN3BK40Yi4FsbpFz6QrDvAgIE+I7U=;
-        b=TmdLJJ8xM3nuMbqb1FKomuUVBvMee8g+nrB92ICndEBrX8yxyP1AuzugpUIF0VYH6K
-         nKIUs+PpqhkLofB67Ou/c1h5rqQwqBFO6rV9FY5xbX7hmKBu+yH35pw3j2MMGn7Oehdr
-         +4eSrz8+PYYZxZxH8TjylY9JtUD1zE0Na+b65w9fJQC67aC/DzSJU5gcJc0VaErnKO34
-         2qxKGIXTt4JMunhfnEy+OoJ1Bn6iRCnY7J0uWsU0VMbN1eCS+YD9ONvauWO4AihWHX/F
-         BywsBUNGbec+V53hQ8gWOBCc5f3nM9caF5BmnhyWoyL9L8MFTTf9UmLkjd4oI+Y0OO1V
-         B3IA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mhocko@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@suse.com
-X-Gm-Message-State: APjAAAU6pGiw1jRV1d5Npod2W7Gtmn0ajh2PYODsbJbAtXWaQ+NP/Qe0
-	7YiZHTlC3lKxbCrOMK5JcxoUnw68XMhHNY97+Jv8pzaIapt1KEHvpG9kumJWcxyq8GDvcw75TU8
-	uHCLky6POXrb0fdkfVLDbhs4VfJ3Fnl2vH0Z3uKtS9os7k2HUHGQw6FUdASuOW7AwNQ==
-X-Received: by 2002:a50:9590:: with SMTP id w16mr110234656eda.0.1560935047237;
-        Wed, 19 Jun 2019 02:04:07 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxydncfrF2IubuwdlnWJUHbuS1qH3XXn0sGjsbTtCLD1i6sIGnoaCEFwwd/4Mo+B0K/Vijo
-X-Received: by 2002:a50:9590:: with SMTP id w16mr110234585eda.0.1560935046619;
-        Wed, 19 Jun 2019 02:04:06 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560935046; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=u3kWunp1yg8qsBlz075d3zHcl3e5zCJuL+usdOTYmOc=;
+        b=pbd4ZL6+k/o511wDzRbX90yeXWuwNXho1pIvGM9UWRlliDzFLbywV0YPo/lEkQRvKc
+         vI7dnfeyQThDcA6NVJMBhqZsh88tZGNc5/f/nk9uSSLabT3QTfaskpbKXtwixStKkJfa
+         PpwH4ZE86HMkQsaDicb+6mF4OCREgVzfr6ieOJSsYKGlVIBiOygF08gsmpXnwAvlsd7J
+         LhOMM1+5PjBiHSxJiJmWmy29Th/IA6vzXyxmpfLGjbk4rVvdF1Rc05Ka9oqiu0Aaep1k
+         LNRyVMnpEltEhUfTcMI5Xts+udUuPG7o0A3l2yH7anCPcn6h5pgNkytoocOZUlEaXYIX
+         a7Vg==
+X-Gm-Message-State: APjAAAWnZJjeRZfHFtAiZLI64+fuoe/ojCfyYdIxUoifUWt6SD6XyEa8
+	/IZHeTH/aJ65jDxX1NM/7aZeojd8HbNNwBrtqZ3B9yQ6NjIJZSIoWDmyD5ydo5EqkU+6/jgeEF0
+	Ur0Sb/U9gI/nrRPzglECgFiO5ViO543Cinqq/oKjskzbZW2nUonu49x5IwuW9sEyJ3Q==
+X-Received: by 2002:aca:1b04:: with SMTP id b4mr2131940oib.157.1560935170747;
+        Wed, 19 Jun 2019 02:06:10 -0700 (PDT)
+X-Received: by 2002:aca:1b04:: with SMTP id b4mr2131913oib.157.1560935170058;
+        Wed, 19 Jun 2019 02:06:10 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560935170; cv=none;
         d=google.com; s=arc-20160816;
-        b=o3vnnc3aeOUSePYDhUoY8oUksitqzIGMihQd+3ZRRZEI5AmTMbnwcTSz1/TODkIFu5
-         SRIPEygNZVbdv1POipAh0rK14eEwXPNut7q6CVnNnQZfi8ZVUtHoTbS/0KdGgtd+biAl
-         dyg+2OeA2RQF6t+0IvIm8r50arq3MjV5uaxZ0tsabMGrbgHb5uUHCL7eJEwfgkhEJE5A
-         aNn8n7nMrBff2qkNmD2Lls8FsAoSz9wh3mEDUGAf2wTklCi2Zb88KpdESzOK1TgMEICI
-         4SdHI1uWJ/imyGVCTHB8OoDsygi5brBtOWbtu4k+xmFF0VCR4hvY2PE/aw7ebGB/6xxp
-         rcog==
+        b=wf+9iWoLIrnerwBpfKVvmSh4UAto9zKHC/HJO1dsATq7FuS/bsXwj3d2x9tUkaooAg
+         tkIQ97JEXtjA2EQ/ZDlfpqpruz3Ij8kkyMG5i3Szd3X/1rOqKIfmhgT5p7/7BW0xQC+z
+         ykL/RczW19h+Xfp86DRUQvcmUWXLgDoXA9/5rHdkryOPMAbrkQhtX9LX3mPOj8hoEDgI
+         AT7c211REs9X+fKNv6nM5tU2BQJOkBnEtUkfr0FP/IJ/nvTAe2QVY+k5d0H/Z5ONdr2M
+         +U5SGpz33XeHbJpe6lJSV5sMRPlGOoIzBYahhheBFY1c3FT/ExyiPBK14dLOYdUS5eAV
+         ruSw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=xNNV3S6Kss++8jlN3BK40Yi4FsbpFz6QrDvAgIE+I7U=;
-        b=WfBleBvwJHq8S/Ka6gD3KicUFbKvv5gcInS9eamGPivN8DJsEfe3NYp3ZjdAQ/XNKg
-         p/C9Zs5Cf2EZWtfC1yQwHZvEU7wu7zsamAkT2aKEWyeffyyafqyZToyzO5sLHkeD+bOr
-         IqxiL8Fi4caVpZ26/VHDr6/I7Mq5kv+TQHzWh/2IVRIRghX/rJkrjx6uI7f9soc8DE+I
-         VEwvcf/R7Qb9s1eEN/rmHMhDJnWXMUEs0o81+tfSu3QAdoHW8bm3GI3w2WixhWACtlpL
-         EXPr3O7DlAuUwlpLrU4nDHp9TgxXqkWuX41gP+Ksy4CJQ1Rga0GTZCn2bHEBQDheUWyN
-         kI0g==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=u3kWunp1yg8qsBlz075d3zHcl3e5zCJuL+usdOTYmOc=;
+        b=wX33IqU0Ud41SAWoVuqhT/wUpzU7+IRSX8DMduJEjXp+QSwTqPPjlmXBnGPHF0e9nR
+         YBBvJZ7LgXkJX1FNMftlQCLYy3YNv8XT7CiiQb2RpvVAJxp/O6A7MP9X21fCdRLVHl/j
+         AIkj7F+UjifG6iPwRtZUPfTWxdEmbl4S7OUDj7rCOaCO0k35QUphufS6ReS9olQvIXNM
+         4hTjEryEJ1ZRV1eceHosklzwfL/8JYDylJqlqsXxYmWazM9NBcQB4645Ang8cLv0Uf5m
+         W3hkLoiPghSwp2WTfZJXvZBaGXyF2iR/4rSSXYTKMTpy6+eYbhvqmiZsUAVwr3yb4Eh+
+         1ebw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of mhocko@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@suse.com
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id q25si339438ejs.164.2019.06.19.02.04.06
+       dkim=pass header.i=@ffwll.ch header.s=google header.b=gnP9HHMG;
+       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of daniel.vetter@ffwll.ch) smtp.mailfrom=daniel.vetter@ffwll.ch
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id m22sor8668189otl.129.2019.06.19.02.06.09
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 19 Jun 2019 02:04:06 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mhocko@suse.com designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (Google Transport Security);
+        Wed, 19 Jun 2019 02:06:10 -0700 (PDT)
+Received-SPF: neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of daniel.vetter@ffwll.ch) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of mhocko@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@suse.com
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 2381DAF57;
-	Wed, 19 Jun 2019 09:04:06 +0000 (UTC)
-Date: Wed, 19 Jun 2019 11:04:05 +0200
-From: Michal Hocko <mhocko@suse.com>
-To: David Hildenbrand <david@redhat.com>
-Cc: Oscar Salvador <osalvador@suse.de>,
-	Wei Yang <richardw.yang@linux.intel.com>, linux-mm@kvack.org,
-	akpm@linux-foundation.org, anshuman.khandual@arm.com
-Subject: Re: [PATCH v2] mm/sparse: set section nid for hot-add memory
-Message-ID: <20190619090405.GJ2968@dhcp22.suse.cz>
-References: <20190618005537.18878-1-richardw.yang@linux.intel.com>
- <20190619062330.GB5717@dhcp22.suse.cz>
- <20190619075347.GA22552@linux>
- <a52a196a-9900-0710-a508-966e725eae03@redhat.com>
+       dkim=pass header.i=@ffwll.ch header.s=google header.b=gnP9HHMG;
+       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of daniel.vetter@ffwll.ch) smtp.mailfrom=daniel.vetter@ffwll.ch
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=ffwll.ch; s=google;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=u3kWunp1yg8qsBlz075d3zHcl3e5zCJuL+usdOTYmOc=;
+        b=gnP9HHMGYKwK9IsnAHwypqrW+QHPyyxL5VsMOQFqOBt9sxJJN5Q28pik6LLPgli2C3
+         8U4+LuFuA2pG4azWksKAC4dzSQH2hr74fm1ub0T1PmruwOzmCDKQaqlsvoLqIxDcuIwv
+         c4hN54DM8GwFFMGvP3sPTRofnN8sE6FGqYkHE=
+X-Google-Smtp-Source: APXvYqzG/v8GSMVQIarAoClCL4IFuEHrrKyRFYYJXnbvihoMS3DzXDAwuocRw/1b+9yFPJR2Hoa9o9P/lmOprXYAeyI=
+X-Received: by 2002:a9d:4b95:: with SMTP id k21mr21462009otf.281.1560935169757;
+ Wed, 19 Jun 2019 02:06:09 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <a52a196a-9900-0710-a508-966e725eae03@redhat.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+References: <cover.1560890771.git.mchehab+samsung@kernel.org> <b0d24e805d5368719cc64e8104d64ee9b5b89dd0.1560890772.git.mchehab+samsung@kernel.org>
+In-Reply-To: <b0d24e805d5368719cc64e8104d64ee9b5b89dd0.1560890772.git.mchehab+samsung@kernel.org>
+From: Daniel Vetter <daniel@ffwll.ch>
+Date: Wed, 19 Jun 2019 11:05:57 +0200
+Message-ID: <CAKMK7uGM1aZz9yg1kYM8w2gw_cS6Eaynmar-uVurXjK5t6WouQ@mail.gmail.com>
+Subject: Re: [PATCH v1 12/22] docs: driver-api: add .rst files from the main dir
+To: Mauro Carvalho Chehab <mchehab+samsung@kernel.org>
+Cc: Linux Doc Mailing List <linux-doc@vger.kernel.org>, 
+	Mauro Carvalho Chehab <mchehab@infradead.org>, 
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Jonathan Corbet <corbet@lwn.net>, 
+	Johannes Berg <johannes@sipsolutions.net>, Kurt Schwemmer <kurt.schwemmer@microsemi.com>, 
+	Logan Gunthorpe <logang@deltatee.com>, Bjorn Helgaas <bhelgaas@google.com>, 
+	Alan Stern <stern@rowland.harvard.edu>, 
+	Andrea Parri <andrea.parri@amarulasolutions.com>, Will Deacon <will.deacon@arm.com>, 
+	Peter Zijlstra <peterz@infradead.org>, Boqun Feng <boqun.feng@gmail.com>, 
+	Nicholas Piggin <npiggin@gmail.com>, David Howells <dhowells@redhat.com>, 
+	Jade Alglave <j.alglave@ucl.ac.uk>, Luc Maranget <luc.maranget@inria.fr>, 
+	"Paul E. McKenney" <paulmck@linux.ibm.com>, Akira Yokosawa <akiyks@gmail.com>, 
+	Daniel Lustig <dlustig@nvidia.com>, Stuart Hayes <stuart.w.hayes@gmail.com>, 
+	Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, 
+	Darren Hart <dvhart@infradead.org>, Kees Cook <keescook@chromium.org>, 
+	Emese Revfy <re.emese@gmail.com>, Ohad Ben-Cohen <ohad@wizery.com>, 
+	Bjorn Andersson <bjorn.andersson@linaro.org>, Corey Minyard <minyard@acm.org>, 
+	Marc Zyngier <marc.zyngier@arm.com>, William Breathitt Gray <vilhelm.gray@gmail.com>, 
+	Jaroslav Kysela <perex@perex.cz>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, 
+	"Rafael J. Wysocki" <rafael@kernel.org>, "Naveen N. Rao" <naveen.n.rao@linux.ibm.com>, 
+	Anil S Keshavamurthy <anil.s.keshavamurthy@intel.com>, "David S. Miller" <davem@davemloft.net>, 
+	Masami Hiramatsu <mhiramat@kernel.org>, Johannes Thumshirn <morbidrsa@gmail.com>, 
+	Steffen Klassert <steffen.klassert@secunet.com>, Sudip Mukherjee <sudipm.mukherjee@gmail.com>, 
+	=?UTF-8?Q?Andreas_F=C3=A4rber?= <afaerber@suse.de>, 
+	Manivannan Sadhasivam <manivannan.sadhasivam@linaro.org>, Rodolfo Giometti <giometti@enneenne.com>, 
+	Richard Cochran <richardcochran@gmail.com>, Thierry Reding <thierry.reding@gmail.com>, 
+	Sumit Semwal <sumit.semwal@linaro.org>, Gustavo Padovan <gustavo@padovan.org>, 
+	Jens Wiklander <jens.wiklander@linaro.org>, Kirti Wankhede <kwankhede@nvidia.com>, 
+	Alex Williamson <alex.williamson@redhat.com>, Cornelia Huck <cohuck@redhat.com>, 
+	Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, David Airlie <airlied@linux.ie>, 
+	Maarten Lankhorst <maarten.lankhorst@linux.intel.com>, 
+	Maxime Ripard <maxime.ripard@bootlin.com>, Sean Paul <sean@poorly.run>, 
+	Farhan Ali <alifm@linux.ibm.com>, Eric Farman <farman@linux.ibm.com>, 
+	Halil Pasic <pasic@linux.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, 
+	Vasily Gorbik <gor@linux.ibm.com>, Christian Borntraeger <borntraeger@de.ibm.com>, 
+	Harry Wei <harryxiyou@gmail.com>, Alex Shi <alex.shi@linux.alibaba.com>, 
+	Evgeniy Polyakov <zbr@ioremap.net>, Jerry Hoemann <jerry.hoemann@hpe.com>, 
+	Wim Van Sebroeck <wim@linux-watchdog.org>, Guenter Roeck <linux@roeck-us.net>, 
+	Guan Xuetao <gxt@pku.edu.cn>, Arnd Bergmann <arnd@arndb.de>, Linus Walleij <linus.walleij@linaro.org>, 
+	Bartosz Golaszewski <bgolaszewski@baylibre.com>, Andy Shevchenko <andy@infradead.org>, 
+	Jiri Slaby <jslaby@suse.com>, linux-wireless@vger.kernel.org, 
+	Linux PCI <linux-pci@vger.kernel.org>, 
+	"open list:GENERIC INCLUDE/A..." <linux-arch@vger.kernel.org>, platform-driver-x86@vger.kernel.org, 
+	Kernel Hardening <kernel-hardening@lists.openwall.com>, linux-remoteproc@vger.kernel.org, 
+	openipmi-developer@lists.sourceforge.net, linux-crypto@vger.kernel.org, 
+	Linux ARM <linux-arm-kernel@lists.infradead.org>, netdev <netdev@vger.kernel.org>, 
+	linux-pwm <linux-pwm@vger.kernel.org>, dri-devel <dri-devel@lists.freedesktop.org>, 
+	kvm@vger.kernel.org, 
+	Linux Fbdev development list <linux-fbdev@vger.kernel.org>, linux-s390@vger.kernel.org, 
+	linux-watchdog@vger.kernel.org, 
+	"moderated list:DMA BUFFER SHARING FRAMEWORK" <linaro-mm-sig@lists.linaro.org>, linux-gpio <linux-gpio@vger.kernel.org>, 
+	Linux MM <linux-mm@kvack.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed 19-06-19 10:51:47, David Hildenbrand wrote:
-> On 19.06.19 09:53, Oscar Salvador wrote:
-> > On Wed, Jun 19, 2019 at 08:23:30AM +0200, Michal Hocko wrote:
-> >> On Tue 18-06-19 08:55:37, Wei Yang wrote:
-> >>> In case of NODE_NOT_IN_PAGE_FLAGS is set, we store section's node id in
-> >>> section_to_node_table[]. While for hot-add memory, this is missed.
-> >>> Without this information, page_to_nid() may not give the right node id.
-> >>
-> >> Which would mean that NODE_NOT_IN_PAGE_FLAGS doesn't really work with
-> >> the hotpluged memory, right? Any idea why nobody has noticed this
-> >> so far? Is it because NODE_NOT_IN_PAGE_FLAGS is rare and essentially
-> >> unused with the hotplug? page_to_nid providing an incorrect result
-> >> sounds quite serious to me.
-> > 
-> > The thing is that for NODE_NOT_IN_PAGE_FLAGS to be enabled we need to run out of
-> > space in page->flags to store zone, nid and section. 
-> > Currently, even with the largest values (with pagetable level 5), that is not
-> > possible on x86_64.
-> > It is possible though, that somewhere in the future, when the values get larger
-> > (e.g: we add more zones, NODE_SHIFT grows, or we need more space to store
-> > the section) we finally run out of room for the flags though.
-> > 
-> > I am not sure about the other arches though, we probably should audit them
-> > and see which ones can fall in there.
-> > 
-> 
-> I'd love to see NODE_NOT_IN_PAGE_FLAGS go.
+On Tue, Jun 18, 2019 at 10:55 PM Mauro Carvalho Chehab
+<mchehab+samsung@kernel.org> wrote:
+> diff --git a/Documentation/gpu/drm-mm.rst b/Documentation/gpu/drm-mm.rst
+> index fa30dfcfc3c8..b0f948d8733b 100644
+> --- a/Documentation/gpu/drm-mm.rst
+> +++ b/Documentation/gpu/drm-mm.rst
+> @@ -320,7 +320,7 @@ struct :c:type:`struct file_operations <file_operations>` get_unmapped_area
+>  field with a pointer on :c:func:`drm_gem_cma_get_unmapped_area`.
+>
+>  More detailed information about get_unmapped_area can be found in
+> -Documentation/nommu-mmap.rst
+> +Documentation/driver-api/nommu-mmap.rst
 
-NODE_NOT_IN_PAGE_FLAGS is an implementation detail on where the
-information is stored. I cannot say how much it is really needed now but
-I can see there will be a demand for it in a longer term because
-page->flags space is scarce and very interesting storage. So I do not
-see it go away I am afraid.
+Random drive-by comment: Could we convert these into hyperlinks within
+sphinx somehow, without making them less useful as raw file references
+(with vim I can just type 'gf' and it works, emacs probably the same).
+-Daniel
 -- 
-Michal Hocko
-SUSE Labs
+Daniel Vetter
+Software Engineer, Intel Corporation
++41 (0) 79 365 57 48 - http://blog.ffwll.ch
 
