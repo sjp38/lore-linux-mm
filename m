@@ -6,78 +6,78 @@ X-Spam-Status: No, score=-2.0 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
 	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
 	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 29146C31E49
-	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 11:44:20 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5ECE5C31E49
+	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 11:46:05 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D4A852084A
-	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 11:44:19 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 1F2332084A
+	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 11:46:05 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="OXehKNII"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D4A852084A
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="DhxC+ENO"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1F2332084A
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6ACA76B0003; Wed, 19 Jun 2019 07:44:19 -0400 (EDT)
+	id AC9066B0003; Wed, 19 Jun 2019 07:46:04 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 65C5F8E0002; Wed, 19 Jun 2019 07:44:19 -0400 (EDT)
+	id A79C78E0002; Wed, 19 Jun 2019 07:46:04 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 523A58E0001; Wed, 19 Jun 2019 07:44:19 -0400 (EDT)
+	id 8F28D8E0001; Wed, 19 Jun 2019 07:46:04 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 01F366B0003
-	for <linux-mm@kvack.org>; Wed, 19 Jun 2019 07:44:19 -0400 (EDT)
-Received: by mail-wr1-f71.google.com with SMTP id b6so1211430wrp.21
-        for <linux-mm@kvack.org>; Wed, 19 Jun 2019 04:44:18 -0700 (PDT)
+Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 3A4AD6B0003
+	for <linux-mm@kvack.org>; Wed, 19 Jun 2019 07:46:04 -0400 (EDT)
+Received: by mail-wr1-f72.google.com with SMTP id d15so1221545wrx.5
+        for <linux-mm@kvack.org>; Wed, 19 Jun 2019 04:46:04 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
          :message-id:references:mime-version:content-disposition:in-reply-to
          :user-agent;
-        bh=P4p0lEgtRoDQcgzLi/inI+oeUsfDK0bgbuVkWRc+gr8=;
-        b=U1MoqDyDJKVnYpRUIqimxhdSu8eCSB+1UTAMSjULN34ORWzwUwK/TMb8lJ1C4lQJxD
-         cESDsPULvnq0M2usN6gSf5T5hVTw5FtFqxerkUkGjxFLjP3Q7lFjI73pUKOGHzBsfRT9
-         LOjoc5prXLHSwC1s9MI6BPgvm78aHS8zUN9r7YmKC9P2IxXUF5/WgEniC4vytX8zCfVk
-         n5tBf1ZfVFJOly4IBhA4PeCm+IWH0PTtVV4GsefMNeGzqUhKROpwfHDrXMnzbewDQ1j4
-         SmnYjV/qGRXsQ+C8maQZ4wkQ4X4aUXaMjWyzZ/iJb51BwSxpHJ2Bq3lDL9aW/KG1KdSu
-         V1IQ==
-X-Gm-Message-State: APjAAAWMb7Cgarr0rCOveXlsOuafy7LVG08gZau5KWrcZAMCGTc6bnWx
-	WTXcMvSaFmrcZ5JmM6hOqOnLWDFQ2awUdqmVgSXglfmBWmQ4qG+eo18GBm02K73Z1mbn1gQtlXz
-	nUr5MftSZ0G6yzjUyNillsPQgibvMIa/sh5YRAa+oDKXVBRcCDt/rv0kzHUI6hku4Og==
-X-Received: by 2002:a1c:6545:: with SMTP id z66mr7893407wmb.77.1560944658559;
-        Wed, 19 Jun 2019 04:44:18 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwH8UqLLRvfo9x/cZWOmT2qj6HueRKF3WO7hIA/VeUvH9IXVA9WQtFUIZjvY6ZsJyleL//u
-X-Received: by 2002:a1c:6545:: with SMTP id z66mr7893342wmb.77.1560944657778;
-        Wed, 19 Jun 2019 04:44:17 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560944657; cv=none;
+        bh=8Ld1/gUBGA37LwDlAfN0RHjyQhkqgHav958Z4E1YaNk=;
+        b=EmxBmhpLkRTXQAWYf+0Con+5YC98Whc6D93WRdIBHNi70sHQFIU5D6V3yD+moU2DkH
+         G0f7fGKajeqOcsigM4sZGgwsaYJWqXLg9l6aAvyUB7iXmeP8ESxmzNRQEqG+K8Ljw8aW
+         7aXwJ3SWORgGoKHRB9pzz72M4Gtm5wMcEdOKDxHacVlSPH3ppWW0Rtb4RdHV/VxGC40y
+         2twgvqqNCSlbGKLuj/fGo7doDmnhotgsH2wZZqf1aTCgk06khYsGql1iOb15lmhJijSx
+         Apg0PDVPPFE/RjAw/PAE7NQ7gl1KnB65zsTaOB0yRRL7kM6kxBKrpWmNNP0Sh0bCm6q2
+         gdKg==
+X-Gm-Message-State: APjAAAUe/u6pPtiENyRp4d0auvkIHaZvHoBLowo+l1t92X/CJvFJRxM2
+	Syiy4rO14M5Xlp1vLM1DXHDGYplA8K7P4mq+geTAt8IbnoxtruGHkYubnTx8YEQ+XLYTRY9dgyM
+	LCZVipF04EQa71BrqRZ+vc7lGxUVKnfzVMX3GRYmbEDNRTpKpr0oQ1EW3lZNaGlA6dw==
+X-Received: by 2002:adf:afd5:: with SMTP id y21mr84629873wrd.12.1560944763786;
+        Wed, 19 Jun 2019 04:46:03 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw+t4cW7utEB/fHlfe98xLV968+B7BljtOv7KqDwTroSYjSEMWMmjEPwDL/MRMeZCGIr6lQ
+X-Received: by 2002:adf:afd5:: with SMTP id y21mr84629821wrd.12.1560944763054;
+        Wed, 19 Jun 2019 04:46:03 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560944763; cv=none;
         d=google.com; s=arc-20160816;
-        b=ic9nO8h6PU+KOmaS1d3l3w/tQyY+GmShBpPYm9K5tc4KeKli7At6QpohuzKwwz0OBt
-         0rTNnljs+a3C58R64sV4Vj52zaoXSWj8lL3pOvqKY6UhSmxPqy7ffjyCFUkCXamBq3VP
-         Qd4A9uEVyogRFvgP0oU/w/DqCH+KEDUGBp9v9q8zyNP97EWXkdjxrrHMUk/LZ9jq6zIK
-         kHOXuC8fjAk8Mvr9iEhK72oI14Gk3XfqNFqNWr4NMBrvBXU8S2lSSahnjqra7RVmmKOK
-         c7nRdsXP0cxQ6sZUJN+vT8vmW8SWSBqyn8gbmo1xP+ItZvsyKxweyeyTKJqoHtPyXkfo
-         eUAw==
+        b=ptHPMdPGaFjRoS+on/OxJNazyi7RApx5Xgv/UcZFcyVSreuaVi9nrKbTv0PDA50gtv
+         PtBhnI1ebu/SsgmB20uF3/hUhpNpdlx3OWyqxbRAOwjPS3Vu+64CEvBUxMU8Vd/z3Rdt
+         6SP8ffaquy4aFckvZHGDOaPAq4vPuwUmNzsHXmgGdgjRR7SNpw/padieueS3zRJySJEq
+         KYgHC9beRiN1gk7/ZnEyqd3EjErz9Izt06edOkhP5hQzv4VYMGkR6MqVAfrozrQ3Qf3F
+         g6pKmDwecMfnzwMQPC3t2Ridu4UzO++bX/Q25ImPOfarr12YQSa7N5Bn2f3VcPnok+4r
+         Xv3A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=P4p0lEgtRoDQcgzLi/inI+oeUsfDK0bgbuVkWRc+gr8=;
-        b=RZ/yDKWUtzjexEL/+MviZsQlfzU7Uyk4zrEl6D54AYGuNdTRFCAbXMxwpz2p+dFi8P
-         7W6OQTjytynYu4m5nYlMIFA1qdo1Pf+Zm0ndRiEATf3mDN7TRq86o/MU3Dy76q0EDL+N
-         trkp0bUmcEXk9N2fY7XBnkXwjwp1q7FkProWjSvGNXOKKn2P3XRY2cEqWINtPN5+e+9z
-         Rs5uMknyS/KFvcTy0fIZdhRh4Y995RPOmDbQAcqtAH4eSBI5vDTRVp6A2R07iuK0cvdw
-         8XhBRfiIbrOBfqPDZFaVX3kp0v/hVL9p2FOAsiz3piv92TWW+Vz9GfvamcULwtMo1JAP
-         S0lg==
+        bh=8Ld1/gUBGA37LwDlAfN0RHjyQhkqgHav958Z4E1YaNk=;
+        b=VVrxiDCLIvDxSkxbUsjmEVziONRWyrD6vWw3MmDJ7uP0wdz2wqrpD+68ZS5+wTiZwA
+         4Sn/s/wn5vPFik2aw8gNb3eRpxvpE20BaB2NrgiQkicijatR/nLnLtsNHLGtBJrDvTED
+         Uyp98EYg5c9ylKOK9i8jPII/WVT9wFvJ/0CZQeaKo9yT1suAIotUv0QiHTcuz2xgSyTU
+         d3fYz1F8JGZl6bhh2CcfwUvNhKW9PveJKTbZ04F88fEasqwoupYCY6wW9LCCwWCdQRfe
+         QvMbNMQ7YIoM92UocUHrle6OyBDYkajZsmFYAdcWYivDjhGXlOFId6m7j6g1awh36SB4
+         QCxw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=OXehKNII;
+       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=DhxC+ENO;
        spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 205.233.59.134 as permitted sender) smtp.mailfrom=peterz@infradead.org
 Received: from merlin.infradead.org (merlin.infradead.org. [205.233.59.134])
-        by mx.google.com with ESMTPS id z2si915567wma.41.2019.06.19.04.44.17
+        by mx.google.com with ESMTPS id m6si6762705wrn.240.2019.06.19.04.46.02
         for <linux-mm@kvack.org>
         (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Wed, 19 Jun 2019 04:44:17 -0700 (PDT)
+        Wed, 19 Jun 2019 04:46:03 -0700 (PDT)
 Received-SPF: pass (google.com: best guess record for domain of peterz@infradead.org designates 205.233.59.134 as permitted sender) client-ip=205.233.59.134;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=OXehKNII;
+       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=DhxC+ENO;
        spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 205.233.59.134 as permitted sender) smtp.mailfrom=peterz@infradead.org
 DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	d=infradead.org; s=merlin.20170209; h=In-Reply-To:Content-Type:MIME-Version:
@@ -85,18 +85,18 @@ DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
 	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
 	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=P4p0lEgtRoDQcgzLi/inI+oeUsfDK0bgbuVkWRc+gr8=; b=OXehKNIIK5+7AJqrCcGuPeVQM
-	sVAS9t3w53Uf+9ZjZ4Oq/miXG9m8YOfsNDtBNH0H+PLoL0OD3hYR4lqfcnlqXXkk9st/FSykuUJVj
-	/2Cp6IiZzuYUsS4mDt+wjwiHTlu6tEjE6fjTRmD0JgHToB8P6+J5KsBowqTn7mC/e8A9hunO6Rxcp
-	nktlcUBXd6KFAhFC4z/P+88TooWUE6AEv5ZOHdPEAJfCQDchI9f5L0jLpFx7f6DONdb+LnMmzG8ll
-	aUPisfZJyyV7qB30UzBVViMk7eKAp8qgDwCq4VHjBTPt1rWquWLxrXMCrWzlFFJjuNkmeHsoD0UZl
-	Ruhswmm0g==;
+	 bh=8Ld1/gUBGA37LwDlAfN0RHjyQhkqgHav958Z4E1YaNk=; b=DhxC+ENOnd2Nk4b8T/HMJUPzz
+	5WNVLKvDJcfUGbnM5+VTHFA2m91PvfuRuayR5ED5QmBv3lEawxZ5ApLG84FZIQYeVrko8q9k4XwU9
+	FR7toCfnP0eO4dTCz2MYzpJDu0Pp0m8FTj4RiVREpibUIYeZN7luHs0i/Rr7l8KI09XjMPUDzeV1U
+	927w887Wj92ThjXRQcqoyjlxYHUeG7U0dKoS3GeOQePvL63I3zBb+tyDtMTtMtEwmsyDX4GWZIyt0
+	F6PZU9yN6ShrwEzJwdf2fXRGHvQ0w4XtpTkSLJeTIdMj3LE4T0i1tBWPOMtDb3yLncV0gNnoPYjHg
+	tMoWXagEw==;
 Received: from j217100.upc-j.chello.nl ([24.132.217.100] helo=hirez.programming.kicks-ass.net)
 	by merlin.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
-	id 1hdZ0Q-0006kA-QD; Wed, 19 Jun 2019 11:43:59 +0000
+	id 1hdZ2G-0006lF-SI; Wed, 19 Jun 2019 11:45:53 +0000
 Received: by hirez.programming.kicks-ass.net (Postfix, from userid 1000)
-	id 6377820796506; Wed, 19 Jun 2019 13:43:56 +0200 (CEST)
-Date: Wed, 19 Jun 2019 13:43:56 +0200
+	id A55D3201F98F6; Wed, 19 Jun 2019 13:45:51 +0200 (CEST)
+Date: Wed, 19 Jun 2019 13:45:51 +0200
 From: Peter Zijlstra <peterz@infradead.org>
 To: Mauro Carvalho Chehab <mchehab+samsung@kernel.org>
 Cc: Linux Doc Mailing List <linux-doc@vger.kernel.org>,
@@ -180,13 +180,14 @@ Cc: Linux Doc Mailing List <linux-doc@vger.kernel.org>,
 	linux-gpio@vger.kernel.org, linux-mm@kvack.org
 Subject: Re: [PATCH v1 12/22] docs: driver-api: add .rst files from the main
  dir
-Message-ID: <20190619114356.GP3419@hirez.programming.kicks-ass.net>
+Message-ID: <20190619114551.GQ3463@hirez.programming.kicks-ass.net>
 References: <cover.1560890771.git.mchehab+samsung@kernel.org>
  <b0d24e805d5368719cc64e8104d64ee9b5b89dd0.1560890772.git.mchehab+samsung@kernel.org>
+ <20190619114356.GP3419@hirez.programming.kicks-ass.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <b0d24e805d5368719cc64e8104d64ee9b5b89dd0.1560890772.git.mchehab+samsung@kernel.org>
+In-Reply-To: <20190619114356.GP3419@hirez.programming.kicks-ass.net>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -194,35 +195,14 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jun 18, 2019 at 05:53:17PM -0300, Mauro Carvalho Chehab wrote:
+On Wed, Jun 19, 2019 at 01:43:56PM +0200, Peter Zijlstra wrote:
+> On Tue, Jun 18, 2019 at 05:53:17PM -0300, Mauro Carvalho Chehab wrote:
+> 
+> >  .../{ => driver-api}/atomic_bitops.rst        |  2 -
+> 
+> That's a .txt file, big fat NAK for making it an rst.
 
->  .../{ => driver-api}/atomic_bitops.rst        |  2 -
+Also, how many bloody times do I have to keep telling this? It is
+starting to get _REALLY_ annoying.
 
-That's a .txt file, big fat NAK for making it an rst.
-
->  .../{ => driver-api}/futex-requeue-pi.rst     |  2 -
-
->  .../{ => driver-api}/gcc-plugins.rst          |  2 -
-
->  Documentation/{ => driver-api}/kprobes.rst    |  2 -
->  .../{ => driver-api}/percpu-rw-semaphore.rst  |  2 -
-
-More NAK for rst conversion
-
->  Documentation/{ => driver-api}/pi-futex.rst   |  2 -
->  .../{ => driver-api}/preempt-locking.rst      |  2 -
-
->  Documentation/{ => driver-api}/rbtree.rst     |  2 -
-
->  .../{ => driver-api}/robust-futex-ABI.rst     |  2 -
->  .../{ => driver-api}/robust-futexes.rst       |  2 -
-
->  .../{ => driver-api}/speculation.rst          |  8 +--
->  .../{ => driver-api}/static-keys.rst          |  2 -
-
->  .../{ => driver-api}/this_cpu_ops.rst         |  2 -
-
->  Documentation/locking/rt-mutex.rst            |  2 +-
-
-NAK. None of the above have anything to do with driver-api.
 
