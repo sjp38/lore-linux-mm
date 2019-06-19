@@ -1,153 +1,237 @@
 Return-Path: <SRS0=1eqM=US=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
-X-Spam-Level: 
-X-Spam-Status: No, score=-3.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Level: *
+X-Spam-Status: No, score=1.5 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	FSL_HELO_FAKE,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 61148C43613
-	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 23:41:19 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 22D1AC48BE0
+	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 23:42:48 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 191882084B
-	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 23:41:18 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id C520621721
+	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 23:42:47 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="r5JIdJ/o"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 191882084B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="sg+QN5Do"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C520621721
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8FEBF6B0003; Wed, 19 Jun 2019 19:41:18 -0400 (EDT)
+	id 63DAB6B0003; Wed, 19 Jun 2019 19:42:47 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 887AF8E0002; Wed, 19 Jun 2019 19:41:18 -0400 (EDT)
+	id 5EE878E0002; Wed, 19 Jun 2019 19:42:47 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 74E558E0001; Wed, 19 Jun 2019 19:41:18 -0400 (EDT)
+	id 4B6688E0001; Wed, 19 Jun 2019 19:42:47 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-vs1-f70.google.com (mail-vs1-f70.google.com [209.85.217.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 4CBAD6B0003
-	for <linux-mm@kvack.org>; Wed, 19 Jun 2019 19:41:18 -0400 (EDT)
-Received: by mail-vs1-f70.google.com with SMTP id j77so206163vsd.3
-        for <linux-mm@kvack.org>; Wed, 19 Jun 2019 16:41:18 -0700 (PDT)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F6156B0003
+	for <linux-mm@kvack.org>; Wed, 19 Jun 2019 19:42:47 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id c17so596485pfb.21
+        for <linux-mm@kvack.org>; Wed, 19 Jun 2019 16:42:47 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=4S6wJji0gcgl4NBCnpFCHSOLG2rN/9LzvZSGruzYoLc=;
-        b=Kxuj5TNyiZD4rJbtvj+FGnidcfz4ujWbnxDgfDvfKwbKTkSvS1IAJ2tHIdlJsGx7FS
-         uVkgJsYABPNnVWRizfuMqNiN36SAUImL2yJ0LwWuZYnLqKZfeW5Rdb4P82T199e6Z6/E
-         V+RG6ACfXcVlhomY0f6iLf7Ok1dGiVxA1QU8eWAGqc/vRnz86Pci/FuqYIotqUO/6pz9
-         riLgPCCbG5w6uSjb8kjmkeJJx/T15xJgnhTxZC0WBJSfDqbcpbxcBesUwWz3BwrynHZw
-         23tMS20ZK1IpJfyrbBcHnvQgr/GBaqrBQSyvbmRzIrGmc6gWdIJxEd2WQMgTSdjILBEN
-         D1SQ==
-X-Gm-Message-State: APjAAAUNHEYh/HwUf+KltolnB3Q/ALpxLYNTW1zgHiqf2QYZxt6c53AA
-	9AclotIxbmZwRQw0zY2GKC40k1GI0kdYzFYJe1eth749nIVvSVrof/TwG5oQn7XkayVpdUNmiy1
-	fQZCsqf4bbRkWkHABmjObPn35rvMS2sBcT9wyj3cJx8ss38CpPJL6pz7SYA7bVB854g==
-X-Received: by 2002:a67:d386:: with SMTP id b6mr45947048vsj.170.1560987677937;
-        Wed, 19 Jun 2019 16:41:17 -0700 (PDT)
-X-Received: by 2002:a67:d386:: with SMTP id b6mr45947020vsj.170.1560987677408;
-        Wed, 19 Jun 2019 16:41:17 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560987677; cv=none;
+        h=x-gm-message-state:dkim-signature:sender:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=vsbPrRbTy3n+9aeG6Y9WG7BmsjIf/GUTHi4GwNMBp8A=;
+        b=SFxfb7SN6pQ6nNFMXR0IW2NYobGO0K98ZGl6jY7UpvwRGYnlgUl1VvtUm1NK1YER/7
+         em22yNgrhqg87sj8eDJSxE1kWunYjf1w+qCkOPg4zzTGVBwEyhgR9luG1l2m/OoCZdWZ
+         RkFUj20l3h16KOFbxp9reSXzan2drQ9Y4sbqlFUJ8SURVc5gcEZsiF4CyLG6hEwp3+bS
+         bi+azz4NZxgwU+sIXYtplqU9KmwAPa3HU1V1Yqgi095g0NIeOL/+m1Zb7S8M/HpOhYcB
+         Sw0X6o68cV/QKPsMIxhgy9v8+j9JcCxiyHKGuastEpNfEaToEFAegY/u/k0SKL0mqOB1
+         +ipQ==
+X-Gm-Message-State: APjAAAWaE0GpaDqEAjEHC1qzdYsgk75yUqwbm4bO2QFA49T8AgK7Bmw4
+	1GTTlMVyH4mwOuLWbsYbLCry73pjU11wGzRP60HHYIDEKND0nIW8OzAA8G38gzuqdGEay8XWS4q
+	b+NKpqlFGwF3bM+tOcV6LLY8E0+7UiU5jhTa6f3/jyDrL7CUiA9K4k2n/xBfH7f0=
+X-Received: by 2002:a17:902:d695:: with SMTP id v21mr103089115ply.342.1560987766496;
+        Wed, 19 Jun 2019 16:42:46 -0700 (PDT)
+X-Received: by 2002:a17:902:d695:: with SMTP id v21mr103089044ply.342.1560987765598;
+        Wed, 19 Jun 2019 16:42:45 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560987765; cv=none;
         d=google.com; s=arc-20160816;
-        b=WxBko0MKNyefxHSHbO+gxyzi/XrnBN16hqtde5CuS4896HRe/wZHe5heLrU99iFYwC
-         bBx9xO6Vq278ftE0DjpuxYgeIzfVHietQVYM0YqTvY+hRJ8Z3P7AP6lWm7l5zaUQF0DD
-         h/b12lGqSpKp56AX3yt1guM26h/qlGG6gj15KkCLfdpK9naUWW4TRlAjHYrA8G2qBReK
-         6JRUSaqk0RwTdsiPonrfQ3Tb0Vedt8OPRimLu4GEHvWAavGcFr8c2U08ub/9+YzrJ+jL
-         3oBP52BZfTGw6okX+gfE9V+zev53bsSyRD7YJhS2ooeuhNnmnxpJ+uGXsrS0XF+s1UWy
-         RLbw==
+        b=JCZEmA1friVP1QS9y+W3qpds+4kqCXHdWnFdMwbzD7NnJehxPwArQMIFh3cP+l74NJ
+         7pghHQc0Y3LXOK7TjVe0thnqXW8Ma7RgU9PHs6LiRpg0YeH8SeHJGk1BwMugWFy7jwqF
+         FHgtkZ6D3HtRc1xDlrMiRqHpZS8bJGSXFoUkEyDLT8/o+xGaoMSvWUco821MKg4Q/yg6
+         j5QZtwhJi4bxPiMjh/5qcZq5gN9RKDjw0WFkIfuqScteHZVahZUTX4dsPyeeqxvpt9c+
+         a6IeI6O1UwK7fb5v/Lxuar2NwnqunY/P4CLYUxJ0fPkWH3Ph7qHRZHQuw6P9hx1d8gls
+         aLSg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=4S6wJji0gcgl4NBCnpFCHSOLG2rN/9LzvZSGruzYoLc=;
-        b=dPiqPOO3k/bcHDj44JipUWFuI4DUtZ4yiDouOaVGDVnklC7BEPMTgHOcYYJi3XcdFV
-         Z1SLMFnQIBsPxOecMFG32Yw+TVaoFIEqJ8TfbMWP2nhTjHkrkdA/GgP08S62ZZd5alrk
-         /DxYFAw0bssQNAZnaHztHKoUOwsH5ErQ14zozzbOD+j1Av7G6vXtq1H07944HjnxX881
-         +r+n5zqX/HxhUvGF1EXnm1ji70npalqk3LxG1oWR7VqbLhlNT6OlF9PyK4EMLcK+eEXM
-         q9e4SByB2xJzQu043KwcKE+dYtilhuR/TVciqAzvbneuXHrkGZTb0MM93TvZ3+A88Mu0
-         hE/Q==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date:sender:dkim-signature;
+        bh=vsbPrRbTy3n+9aeG6Y9WG7BmsjIf/GUTHi4GwNMBp8A=;
+        b=o5BTU4epBN+scZw4ry370+B11T1j1kOIik38w0lMxBGnqXUQq7MVzqMajE+IXr6L92
+         YhPZHHgHEl5E0FChfcajXGNdJ3YpmI+Lvu1zNfoB2TaeRFHCy/AjPdHS/fI6upFIZxiQ
+         /x2lGSxUECidMfeee77NBHCysn1sKnpwN8WJxSGxNOXIdyoP96a8I7BifmJJjUqZB3X1
+         nVyptWb2fc683H04YBsrv5s4jnJlD6XCFzbEN63wf9nAa/U+0L4+WV44Q718Kv1yFwuV
+         2e3wpx+F9rJqofE2gRGrk/TWtmXEqzQgS/UMovMXkWc/9LOdY54dSfcvVrbkHkqzAYXq
+         HLaw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b="r5JIdJ/o";
-       spf=pass (google.com: domain of avagin@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=avagin@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=sg+QN5Do;
+       spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id o10sor9563217uad.53.2019.06.19.16.41.17
+        by mx.google.com with SMTPS id go5sor23199387plb.37.2019.06.19.16.42.45
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 19 Jun 2019 16:41:17 -0700 (PDT)
-Received-SPF: pass (google.com: domain of avagin@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Wed, 19 Jun 2019 16:42:45 -0700 (PDT)
+Received-SPF: pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b="r5JIdJ/o";
-       spf=pass (google.com: domain of avagin@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=avagin@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=sg+QN5Do;
+       spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=4S6wJji0gcgl4NBCnpFCHSOLG2rN/9LzvZSGruzYoLc=;
-        b=r5JIdJ/o1v4aHKdBEsLJTiu4d+96pIOJxiREE80wIMMhx2zCAzIdp+sdWBjaDrpYLx
-         c0LufpT7cH4pBTFYNDLtW4Q9YcyaRzHZsURNDnp/RPtmj8jWqIm8+k8YKYYSE4lZMGL9
-         1pFV9INgFjRfr2In6DA+ZLYqqBGNJi6+vlCdKdNq1THOIPICj22AQQ6OOi8BwyOAean/
-         CJs5cKCkkEb7bYtHKmpCGeXvJ9docD87Hr288YJOpIPWC9LhNny3XmcViaYDyfbuMCUZ
-         ttPZhmEkn74IUURCB+B3mq/vYq7NaUGBI5S7atVVsHWK0aakMC2lwmvtwax69KVby6M+
-         SlEQ==
-X-Google-Smtp-Source: APXvYqzTN1QVq0nmJ/eFFi2lKKlVvQvvm5zDD8gMwepUhPUOrL24jy3n5SQWGE238fRGh9vz7CvAdKhInCkFk7PaaBA=
-X-Received: by 2002:a9f:3871:: with SMTP id q46mr12695329uad.50.1560987676823;
- Wed, 19 Jun 2019 16:41:16 -0700 (PDT)
+        h=sender:date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:content-transfer-encoding:in-reply-to
+         :user-agent;
+        bh=vsbPrRbTy3n+9aeG6Y9WG7BmsjIf/GUTHi4GwNMBp8A=;
+        b=sg+QN5DojLMGxQQDCS+jGFwhnp/TLRwrvzhYpTG6Y8H8qxN1UxurIXe/OVcpscALku
+         SR2IxIhu/MpK1E3IjWjSfb6Q+Utkc8F1Iwi1LmQnJn1AYZz+AfCDrMwA0ujfRwE+Y4c4
+         DDfalXES/sc+uvLmUCV2D9QDn6sJYQEQfb/aSJw7KNMNyS5k9mpd8eX5p+dTK9T9rsaj
+         Fz0D3SQxIJsjtrx2EF+EKZodWobX20P5cOeF/oE8xnlZU1E+Dyv0xPVPRqoWTugLsZYd
+         EjDQOAGCnfUANmgZBT8o3qvxaYgeL2frTMIUj6me0ApUAM9fwlHOYDQJL/8Lt8h0hEXI
+         dO9w==
+X-Google-Smtp-Source: APXvYqyBFSgDTUXU7wAhb9dojUkivR3grLasbuyIhBXnxjA2gqQw71aDb1O3j7rkdX9uurouxgzQvg==
+X-Received: by 2002:a17:902:d887:: with SMTP id b7mr15509236plz.28.1560987765105;
+        Wed, 19 Jun 2019 16:42:45 -0700 (PDT)
+Received: from google.com ([122.38.223.241])
+        by smtp.gmail.com with ESMTPSA id j1sm21890149pfe.101.2019.06.19.16.42.38
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Wed, 19 Jun 2019 16:42:43 -0700 (PDT)
+Date: Thu, 20 Jun 2019 08:42:35 +0900
+From: Minchan Kim <minchan@kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+	linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>,
+	linux-api@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>,
+	Tim Murray <timmurray@google.com>,
+	Joel Fernandes <joel@joelfernandes.org>,
+	Suren Baghdasaryan <surenb@google.com>,
+	Daniel Colascione <dancol@google.com>,
+	Shakeel Butt <shakeelb@google.com>, Sonny Rao <sonnyrao@google.com>,
+	Brian Geffon <bgeffon@google.com>, jannh@google.com,
+	oleg@redhat.com, christian@brauner.io, oleksandr@redhat.com,
+	hdanton@sina.com, lizeb@google.com
+Subject: Re: [PATCH v2 0/5] Introduce MADV_COLD and MADV_PAGEOUT
+Message-ID: <20190619234235.GA52978@google.com>
+References: <20190610111252.239156-1-minchan@kernel.org>
+ <20190619122750.GN2968@dhcp22.suse.cz>
 MIME-Version: 1.0
-References: <CANaxB-xz6-uCYbSsSEXn3OScYCfpPwP_DxWdh63d9PuLNkeV5g@mail.gmail.com>
- <20190619211909.GA20860@castle.DHCP.thefacebook.com>
-In-Reply-To: <20190619211909.GA20860@castle.DHCP.thefacebook.com>
-From: Andrei Vagin <avagin@gmail.com>
-Date: Wed, 19 Jun 2019 16:41:05 -0700
-Message-ID: <CANaxB-xAjfpmLSVLMWb2EETQR5zroizJ9xjTNmTTARnJBSEYvA@mail.gmail.com>
-Subject: Re: WARNING: CPU: 0 PID: 11655 at mm/page_counter.c:62
-To: Roman Gushchin <guro@fb.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20190619122750.GN2968@dhcp22.suse.cz>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jun 19, 2019 at 2:19 PM Roman Gushchin <guro@fb.com> wrote:
->
-> On Tue, Jun 18, 2019 at 07:08:26PM -0700, Andrei Vagin wrote:
-> > Hello,
-> >
-> > We run CRIU tests on linux-next kernels and today we found this
-> > warning in the kernel log:
->
-> Hello, Andrei!
->
-> Can you, please, check if the following patch fixes the problem?
+On Wed, Jun 19, 2019 at 02:27:50PM +0200, Michal Hocko wrote:
+> On Mon 10-06-19 20:12:47, Minchan Kim wrote:
+> > This patch is part of previous series:
+> > https://lore.kernel.org/lkml/20190531064313.193437-1-minchan@kernel.org/T/#u
+> > Originally, it was created for external madvise hinting feature.
+> > 
+> > https://lkml.org/lkml/2019/5/31/463
+> > Michal wanted to separte the discussion from external hinting interface
+> > so this patchset includes only first part of my entire patchset
+> > 
+> >   - introduce MADV_COLD and MADV_PAGEOUT hint to madvise.
+> > 
+> > However, I keep entire description for others for easier understanding
+> > why this kinds of hint was born.
+> > 
+> > Thanks.
+> > 
+> > This patchset is against on next-20190530.
+> > 
+> > Below is description of previous entire patchset.
+> > ================= &< =====================
+> > 
+> > - Background
+> > 
+> > The Android terminology used for forking a new process and starting an app
+> > from scratch is a cold start, while resuming an existing app is a hot start.
+> > While we continually try to improve the performance of cold starts, hot
+> > starts will always be significantly less power hungry as well as faster so
+> > we are trying to make hot start more likely than cold start.
+> > 
+> > To increase hot start, Android userspace manages the order that apps should
+> > be killed in a process called ActivityManagerService. ActivityManagerService
+> > tracks every Android app or service that the user could be interacting with
+> > at any time and translates that into a ranked list for lmkd(low memory
+> > killer daemon). They are likely to be killed by lmkd if the system has to
+> > reclaim memory. In that sense they are similar to entries in any other cache.
+> > Those apps are kept alive for opportunistic performance improvements but
+> > those performance improvements will vary based on the memory requirements of
+> > individual workloads.
+> > 
+> > - Problem
+> > 
+> > Naturally, cached apps were dominant consumers of memory on the system.
+> > However, they were not significant consumers of swap even though they are
+> > good candidate for swap. Under investigation, swapping out only begins
+> > once the low zone watermark is hit and kswapd wakes up, but the overall
+> > allocation rate in the system might trip lmkd thresholds and cause a cached
+> > process to be killed(we measured performance swapping out vs. zapping the
+> > memory by killing a process. Unsurprisingly, zapping is 10x times faster
+> > even though we use zram which is much faster than real storage) so kill
+> > from lmkd will often satisfy the high zone watermark, resulting in very
+> > few pages actually being moved to swap.
+> > 
+> > - Approach
+> > 
+> > The approach we chose was to use a new interface to allow userspace to
+> > proactively reclaim entire processes by leveraging platform information.
+> > This allowed us to bypass the inaccuracy of the kernel’s LRUs for pages
+> > that are known to be cold from userspace and to avoid races with lmkd
+> > by reclaiming apps as soon as they entered the cached state. Additionally,
+> > it could provide many chances for platform to use much information to
+> > optimize memory efficiency.
+> > 
+> > To achieve the goal, the patchset introduce two new options for madvise.
+> > One is MADV_COLD which will deactivate activated pages and the other is
+> > MADV_PAGEOUT which will reclaim private pages instantly. These new options
+> > complement MADV_DONTNEED and MADV_FREE by adding non-destructive ways to
+> > gain some free memory space. MADV_PAGEOUT is similar to MADV_DONTNEED in a way
+> > that it hints the kernel that memory region is not currently needed and
+> > should be reclaimed immediately; MADV_COLD is similar to MADV_FREE in a way
+> > that it hints the kernel that memory region is not currently needed and
+> > should be reclaimed when memory pressure rises.
+> 
+> This all is a very good background information suitable for the cover
+> letter.
+> 
+> > This approach is similar in spirit to madvise(MADV_WONTNEED), but the
+> > information required to make the reclaim decision is not known to the app.
+> > Instead, it is known to a centralized userspace daemon, and that daemon
+> > must be able to initiate reclaim on its own without any app involvement.
+> > To solve the concern, this patch introduces new syscall -
+> > 
+> >     struct pr_madvise_param {
+> >             int size;               /* the size of this structure */
+> >             int cookie;             /* reserved to support atomicity */
+> >             int nr_elem;            /* count of below arrary fields */
+> >             int __user *hints;      /* hints for each range */
+> >             /* to store result of each operation */
+> >             const struct iovec __user *results;
+> >             /* input address ranges */
+> >             const struct iovec __user *ranges;
+> >     };
+> >     
+> >     int process_madvise(int pidfd, struct pr_madvise_param *u_param,
+> >                             unsigned long flags);
+> 
+> But this and the following paragraphs are referring to the later step
+> when the madvise gains a remote process capabilities and that is out
+> of the scope of this patch series so I would simply remove it from
+> here. Andrew tends to put the cover letter into the first patch of the
+> series and that would be indeed
+> confusing here.
 
-All my tests passed: https://travis-ci.org/avagin/linux/builds/547940031
-
-Tested-by: Andrei Vagin <avagin@gmail.com>
-
-Thanks,
-Andrei
-
->
-> Thanks a lot!
->
-> --
->
-> diff --git a/mm/slab.h b/mm/slab.h
-> index a4c9b9d042de..7667dddb6492 100644
-> --- a/mm/slab.h
-> +++ b/mm/slab.h
-> @@ -326,7 +326,8 @@ static __always_inline void memcg_uncharge_slab(struct page *page, int order,
->         memcg = READ_ONCE(s->memcg_params.memcg);
->         lruvec = mem_cgroup_lruvec(page_pgdat(page), memcg);
->         mod_lruvec_state(lruvec, cache_vmstat_idx(s), -(1 << order));
-> -       memcg_kmem_uncharge_memcg(page, order, memcg);
-> +       if (!mem_cgroup_is_root(memcg))
-> +               memcg_kmem_uncharge_memcg(page, order, memcg);
->         rcu_read_unlock();
->
->         percpu_ref_put_many(&s->memcg_params.refcnt, 1 << order);
->
+Okay, I will remove the part in next revision.
 
