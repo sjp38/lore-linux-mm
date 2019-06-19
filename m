@@ -2,218 +2,238 @@ Return-Path: <SRS0=1eqM=US=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_NEOMUTT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.0 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 40B36C31E49
-	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 10:36:48 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A80B8C31E49
+	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 10:43:09 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0481D208CB
-	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 10:36:47 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 694452064A
+	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 10:43:09 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="fOgBcyWW"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0481D208CB
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="NNCmFmFT"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 694452064A
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 901966B0003; Wed, 19 Jun 2019 06:36:47 -0400 (EDT)
+	id 0236F6B0006; Wed, 19 Jun 2019 06:43:09 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 88A1C8E0002; Wed, 19 Jun 2019 06:36:47 -0400 (EDT)
+	id F16528E0002; Wed, 19 Jun 2019 06:43:08 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 705978E0001; Wed, 19 Jun 2019 06:36:47 -0400 (EDT)
+	id DDC938E0001; Wed, 19 Jun 2019 06:43:08 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lf1-f72.google.com (mail-lf1-f72.google.com [209.85.167.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 08F256B0003
-	for <linux-mm@kvack.org>; Wed, 19 Jun 2019 06:36:47 -0400 (EDT)
-Received: by mail-lf1-f72.google.com with SMTP id 22so2165341lft.2
-        for <linux-mm@kvack.org>; Wed, 19 Jun 2019 03:36:46 -0700 (PDT)
+Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
+	by kanga.kvack.org (Postfix) with ESMTP id BF2206B0006
+	for <linux-mm@kvack.org>; Wed, 19 Jun 2019 06:43:08 -0400 (EDT)
+Received: by mail-io1-f70.google.com with SMTP id w17so20639618iom.2
+        for <linux-mm@kvack.org>; Wed, 19 Jun 2019 03:43:08 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:date:to:cc:subject
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
          :message-id:references:mime-version:content-disposition:in-reply-to
          :user-agent;
-        bh=+vEo5ld3iyjHBFwUuEjWL+Gba8QM9jKd32c5zWkOfXU=;
-        b=b5DqDNZ/0lcjbZS3tX31FSqA7b6O1vwi6IA38qRExDMTeG3vI3SlhkGjNYtq0lUBFr
-         uUxk4c3TQOuOiKDFq7Em/cKsrtAxQcYQAtnNwwtQbfyiWuJk51NwOE+rBv7owYFTtjAf
-         t/dnie9ou+nrze9h/28R41a9pA5Z1jubUR+4y/sqr9EavUTWrwPc3hLqwuKJinMV5FfI
-         UgF1Q0c65hMq2cW2uFYMD0a4yupv76B3FtFOTZBvKQmXLXB2g6yDDZ3nbRqc98SzqE5l
-         NV/AF3f8EUZKAOrd+gEYQaWn+I251La95+alBHbcBx//sjo/gWuujace97m8+qOpIh3h
-         eAFQ==
-X-Gm-Message-State: APjAAAX9QIS12JABlAHlauLQi7B5tdfd8BFS8IhbZg14tXVuXimpP9ma
-	yngL8rBRpBR+7158CeOPaW9ufYUZM8Ii761lKR6J8A686M9z2desm+oh0XtgLMqXSzaY4714ioc
-	JfwPaxEYaheeyzC1RmGBJ1aPcpL0PcexC/M+SMiXXmXBgBh3EbZphcerAKCEVhlho7w==
-X-Received: by 2002:ac2:52ac:: with SMTP id r12mr41886452lfm.126.1560940606128;
-        Wed, 19 Jun 2019 03:36:46 -0700 (PDT)
-X-Received: by 2002:ac2:52ac:: with SMTP id r12mr41886415lfm.126.1560940605306;
-        Wed, 19 Jun 2019 03:36:45 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560940605; cv=none;
+        bh=m16f9ue1VFiC0DkFO5F5uINqAIvhMmZvVgKeJd9wfsY=;
+        b=nQmH3MrEU3o/gmDNaPN8t/xg1iYMexQdGkk/tCugHeA+DvdSunJZkqYEHYK+bkYeA6
+         /vy+/wvyOwFGBt6zUQsK2jmjKmjmj6pHmkcgANWAHRgA+WlQp3FEMrjVycGLyclq7SC9
+         4jZLaqDTcZs8xpsyHNrn1Hu4+rIJv2zV2y1l0+qhOmf4cctneGmLsuVHA2XGojUwfK/J
+         zi1nYPHtZWkkdCVKmcGqCKOwzoUEGlXKMlIcjnL0PR1QVqNCi2dqdN09CYcg1C+yWMY3
+         +q6IGPyPbVXIwekgh/xPUI0OviDF8KVCphjxLbkP2Eju+ePKRFmPqNUk9kvFUfD+KhkA
+         ZSVA==
+X-Gm-Message-State: APjAAAW1ocEaXQ4q2AyrVO1F7jRtU7fyqksDUjdKy0L86qhbwNskuAbD
+	TJIYrW9ErRPaH1rKPOMlgX+gxSOCtQ9k0gtHUyO2gQr0c012Qn7fPRwK93HmnBb5NM1MHI8VEMq
+	xOt3oLOCxfpuuAdV8dqKnSutqDt4H8YEkZzn5Gyd1uDNDwoF3JcfkutGZptCKqiXpdQ==
+X-Received: by 2002:a5d:8747:: with SMTP id k7mr10419736iol.20.1560940988524;
+        Wed, 19 Jun 2019 03:43:08 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqy+rLWf9Cg/dinHT7L73RYrXxVoR4BRkxysQHAF18BP5d3/1vaArK2rpsVtmWSL9uMPPh9J
+X-Received: by 2002:a5d:8747:: with SMTP id k7mr10419682iol.20.1560940987681;
+        Wed, 19 Jun 2019 03:43:07 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560940987; cv=none;
         d=google.com; s=arc-20160816;
-        b=a/wkr3hupWqp/hZ7xj7YujNpTlBJWRxViA8uEIV07oxOj1W577bRqfW9w4Y4DtEZY7
-         cupvfL0v7riHFLSOaQMHcPf64Ii2uYlb9wMTczLKbiqwstAeRHTJhayM/5eN8qDgaLsM
-         RM7FRWGnsz+JW8M8zk79hmFUy/wykLTAM58HKNvwSa4I9An+Rl6RkcgLxLdEiDjlK2oc
-         Po889of+XB4ReiMa3YxOICmZV+l+rzpmm07KzjIXZgAlzUkqDnz/dG8a3OiHmrzFu6gV
-         WbNTNYTaJh3QiEFbWvZnjZ73FsTFYNn2J3x7+zvdSzB1gvA2DE0lLXZXyRx0YzBoT7jV
-         SAXA==
+        b=RYvQt4ZnGH4Goj0Sg2aR0UmA4l02/vurw4TIoAcUIbzJn04g31jlJnsZP/Jbmcicxt
+         nMJycTk96/ElInAq8+JD5syoxg3LHAZ2IFlH9fRXDrUtnsXzZFofcybtRwG1lzboExBl
+         dBp46JO+f/mXOYeYtHlq87JpxMPOJJxCSJm240fnX8wNn7qLsHcdxmOSy0Vv84uozuNQ
+         FNsMk6NepW1MYNJA22ldE7D0vTr511f/l9Mg4r5BMcxud8xCEtHWTWCeOkNdXJxaiR5c
+         Qmd05N7iBmmA3IPX5t5r+UndseZc5eTl9q1sQ1q+dqAxdunffwD0ku3TCHJLlUAzNgCl
+         86BA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:date:from:dkim-signature;
-        bh=+vEo5ld3iyjHBFwUuEjWL+Gba8QM9jKd32c5zWkOfXU=;
-        b=EVIm/+BCd8nHEVllxJanroE1Wu4r5p0SXbqJ+bVLmyqv7LQhSrQavKiDDWJ7ART6He
-         Y24zDv58GvaIovhx+B9ueJybwmwV/SQnb++Q33QZbsweUUDh+wq0kAdB8YqDKdw250KP
-         B7PDDtsJXWRTLq6A+IyXPUnlM0686oyL+l0Utv/8T6he/WhpcJ+BpC5oFxP1iuksh8x/
-         +KCwppIIVONNz1zs9uM0X29ey+k3GsMflxV2dYw2JxPzzHKbafE/gfpaSjrYN0iolOKa
-         oV4t2186m3ki/Ip88VGsd3ywfznz2yandvWZSICeDRYtib8NcqxUPBv/ssSr6F0Gt4aG
-         5mBw==
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=m16f9ue1VFiC0DkFO5F5uINqAIvhMmZvVgKeJd9wfsY=;
+        b=gOsqSR7jGm7+FMmZ0W15pZvoT22rKncgHuxvhZknGNVVfz0RM6vSkRxZ3PQZNTN/1V
+         jIHf5gl66lFu7gUCly9HEdMVcyK7IRAds1KIR7QjrcO2UCaK5R1zxukcwHcKOZ4U5btK
+         cjA9u4fhMQfdoLC9QxDODwo16rBS0HphFLkK41HZDs1/uKLnULOXPCNuzwS7m8n+SMEM
+         fvfFz8e6tM44tccwSJLbeHcWz1X+hfHzkOhdfce9AxtwWiQdca+XCczX4AVye77oRbII
+         UkuLfbeIRQJ4hOEANf2CuipoLwBKwxxDRMPJVd9u6RkbysL8cElkfrfDEU/P8ux9cRdO
+         E7aA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=fOgBcyWW;
-       spf=pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=urezki@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id a1sor9911427lji.35.2019.06.19.03.36.45
+       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=NNCmFmFT;
+       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 205.233.59.134 as permitted sender) smtp.mailfrom=peterz@infradead.org
+Received: from merlin.infradead.org (merlin.infradead.org. [205.233.59.134])
+        by mx.google.com with ESMTPS id 195si24661073jaa.78.2019.06.19.03.43.07
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 19 Jun 2019 03:36:45 -0700 (PDT)
-Received-SPF: pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Wed, 19 Jun 2019 03:43:07 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of peterz@infradead.org designates 205.233.59.134 as permitted sender) client-ip=205.233.59.134;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=fOgBcyWW;
-       spf=pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=urezki@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=from:date:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=+vEo5ld3iyjHBFwUuEjWL+Gba8QM9jKd32c5zWkOfXU=;
-        b=fOgBcyWWXD9P2VTaJp8pVqhCFDQL68ehA5gqT0yPI6bQbj514Ee+DULCsd6Dp3ZbOh
-         DGSZXVuG7lYeqbUXZs93eOiIBvJGV33/slmAioY+QScWze4CArTSsWfog5HCd1bAHP+m
-         WcHckthzkDjRHUnW8VFUHgqW2PUMrX46gUTcn8tQaddFvyHyWodiAbX5yapFWHi9eaAe
-         j4FjHZ8pEns9hMWJQQ4ufug3wGHPTiAHYNiwGWjxAf3BlekJ/hzkgCYmRi5M1kvl9yZm
-         NTEgNM0PZAGqI0KG/meyH4d7ejAAlEARet0RWBIMNpvTlBFYCIoAw4kXpFj6O9qUwUJA
-         A3Hw==
-X-Google-Smtp-Source: APXvYqy2z2pzaeKHA9hb6yNgYbbhdvOfcA4iWRJnQjmbNVPRzTzd9ruwFCZMUQXHwqCqKwOAy9ozAQ==
-X-Received: by 2002:a2e:82c5:: with SMTP id n5mr27228732ljh.175.1560940604841;
-        Wed, 19 Jun 2019 03:36:44 -0700 (PDT)
-Received: from pc636 ([37.139.158.167])
-        by smtp.gmail.com with ESMTPSA id v14sm2624011lfb.50.2019.06.19.03.36.42
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 19 Jun 2019 03:36:43 -0700 (PDT)
-From: Uladzislau Rezki <urezki@gmail.com>
-X-Google-Original-From: Uladzislau Rezki <urezki@pc636>
-Date: Wed, 19 Jun 2019 12:36:36 +0200
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Uladzislau Rezki <urezki@gmail.com>, Joel Fernandes <joelaf@google.com>,
-	Arnd Bergmann <arnd@arndb.de>, Roman Penyaev <rpenyaev@suse.de>,
-	"open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>,
-	Roman Gushchin <guro@fb.com>, Michal Hocko <mhocko@suse.com>,
-	Matthew Wilcox <willy@infradead.org>,
-	Thomas Garnier <thgarnie@google.com>,
-	Oleksiy Avramchenko <oleksiy.avramchenko@sonymobile.com>,
-	Steven Rostedt <rostedt@goodmis.org>,
-	Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>,
-	Tejun Heo <tj@kernel.org>,
-	Linus Torvalds <torvalds@linux-foundation.org>,
-	Rick Edgecombe <rick.p.edgecombe@intel.com>,
-	Andrey Ryabinin <aryabinin@virtuozzo.com>,
-	Mike Rapoport <rppt@linux.ibm.com>,
-	LKML <linux-kernel@vger.kernel.org>
-Subject: Re: [PATCH] mm/vmalloc: avoid bogus -Wmaybe-uninitialized warning
-Message-ID: <20190619103636.rzjca5jxofc5anjw@pc636>
-References: <20190618092650.2943749-1-arnd@arndb.de>
- <CAJWu+oqzd8MJqusRV0LAK=Xnm7VSRSu3QbNZ-j5h9_MbzcFhhg@mail.gmail.com>
- <20190618140622.bbak3is7yv32hfjn@pc636>
- <20190618135920.9dd7bdc78fc0ce33ee65d99c@linux-foundation.org>
+       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=NNCmFmFT;
+       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 205.233.59.134 as permitted sender) smtp.mailfrom=peterz@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=merlin.20170209; h=In-Reply-To:Content-Type:MIME-Version:
+	References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=m16f9ue1VFiC0DkFO5F5uINqAIvhMmZvVgKeJd9wfsY=; b=NNCmFmFTbay0EtIcKhS6MVrGl
+	AdplcSD+3WFy0yuGIcmTpCJPXrfb55Lpu2H797MTbB6ew5vKohxoJSQJLtIC/C2gEN00R3UVsIYdk
+	odvorgfBGIM5ZpvJM6uL3VI0bU22NQpoEeUUFz+Qq+N4xgBsUVncaZjurZV2iJ+3aQP5JQXidntqu
+	+L1KkgDQZHNmUbATT3kjxJVRF+EClVGvxhKRuhAQkfGjP/Y38SLSfoc4EkRuJvyz2Mh8Rgw/5+zcv
+	hP5pBkdqtyojMN8no8YOonPn5fOmDREMC15lAYsx4mRCklZKOVfPXs+KTV497tIaRpmhDdfuXR6ce
+	ZM4YeuitQ==;
+Received: from j217100.upc-j.chello.nl ([24.132.217.100] helo=hirez.programming.kicks-ass.net)
+	by merlin.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
+	id 1hdY38-0006TK-Ru; Wed, 19 Jun 2019 10:42:43 +0000
+Received: by hirez.programming.kicks-ass.net (Postfix, from userid 1000)
+	id AA9C320098E60; Wed, 19 Jun 2019 12:42:39 +0200 (CEST)
+Date: Wed, 19 Jun 2019 12:42:39 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+To: Mauro Carvalho Chehab <mchehab+samsung@kernel.org>
+Cc: Daniel Vetter <daniel@ffwll.ch>,
+	Linux Doc Mailing List <linux-doc@vger.kernel.org>,
+	Mauro Carvalho Chehab <mchehab@infradead.org>,
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
+	Jonathan Corbet <corbet@lwn.net>,
+	Johannes Berg <johannes@sipsolutions.net>,
+	Kurt Schwemmer <kurt.schwemmer@microsemi.com>,
+	Logan Gunthorpe <logang@deltatee.com>,
+	Bjorn Helgaas <bhelgaas@google.com>,
+	Alan Stern <stern@rowland.harvard.edu>,
+	Andrea Parri <andrea.parri@amarulasolutions.com>,
+	Will Deacon <will.deacon@arm.com>,
+	Boqun Feng <boqun.feng@gmail.com>,
+	Nicholas Piggin <npiggin@gmail.com>,
+	David Howells <dhowells@redhat.com>,
+	Jade Alglave <j.alglave@ucl.ac.uk>,
+	Luc Maranget <luc.maranget@inria.fr>,
+	"Paul E. McKenney" <paulmck@linux.ibm.com>,
+	Akira Yokosawa <akiyks@gmail.com>,
+	Daniel Lustig <dlustig@nvidia.com>,
+	Stuart Hayes <stuart.w.hayes@gmail.com>,
+	Thomas Gleixner <tglx@linutronix.de>,
+	Ingo Molnar <mingo@redhat.com>, Darren Hart <dvhart@infradead.org>,
+	Kees Cook <keescook@chromium.org>, Emese Revfy <re.emese@gmail.com>,
+	Ohad Ben-Cohen <ohad@wizery.com>,
+	Bjorn Andersson <bjorn.andersson@linaro.org>,
+	Corey Minyard <minyard@acm.org>,
+	Marc Zyngier <marc.zyngier@arm.com>,
+	William Breathitt Gray <vilhelm.gray@gmail.com>,
+	Jaroslav Kysela <perex@perex.cz>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	"Rafael J. Wysocki" <rafael@kernel.org>,
+	"Naveen N. Rao" <naveen.n.rao@linux.ibm.com>,
+	Anil S Keshavamurthy <anil.s.keshavamurthy@intel.com>,
+	"David S. Miller" <davem@davemloft.net>,
+	Masami Hiramatsu <mhiramat@kernel.org>,
+	Johannes Thumshirn <morbidrsa@gmail.com>,
+	Steffen Klassert <steffen.klassert@secunet.com>,
+	Sudip Mukherjee <sudipm.mukherjee@gmail.com>,
+	Andreas =?iso-8859-1?Q?F=E4rber?= <afaerber@suse.de>,
+	Manivannan Sadhasivam <manivannan.sadhasivam@linaro.org>,
+	Rodolfo Giometti <giometti@enneenne.com>,
+	Richard Cochran <richardcochran@gmail.com>,
+	Thierry Reding <thierry.reding@gmail.com>,
+	Sumit Semwal <sumit.semwal@linaro.org>,
+	Gustavo Padovan <gustavo@padovan.org>,
+	Jens Wiklander <jens.wiklander@linaro.org>,
+	Kirti Wankhede <kwankhede@nvidia.com>,
+	Alex Williamson <alex.williamson@redhat.com>,
+	Cornelia Huck <cohuck@redhat.com>,
+	Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>,
+	David Airlie <airlied@linux.ie>,
+	Maarten Lankhorst <maarten.lankhorst@linux.intel.com>,
+	Maxime Ripard <maxime.ripard@bootlin.com>,
+	Sean Paul <sean@poorly.run>, Farhan Ali <alifm@linux.ibm.com>,
+	Eric Farman <farman@linux.ibm.com>,
+	Halil Pasic <pasic@linux.ibm.com>,
+	Heiko Carstens <heiko.carstens@de.ibm.com>,
+	Vasily Gorbik <gor@linux.ibm.com>,
+	Christian Borntraeger <borntraeger@de.ibm.com>,
+	Harry Wei <harryxiyou@gmail.com>,
+	Alex Shi <alex.shi@linux.alibaba.com>,
+	Evgeniy Polyakov <zbr@ioremap.net>,
+	Jerry Hoemann <jerry.hoemann@hpe.com>,
+	Wim Van Sebroeck <wim@linux-watchdog.org>,
+	Guenter Roeck <linux@roeck-us.net>, Guan Xuetao <gxt@pku.edu.cn>,
+	Arnd Bergmann <arnd@arndb.de>,
+	Linus Walleij <linus.walleij@linaro.org>,
+	Bartosz Golaszewski <bgolaszewski@baylibre.com>,
+	Andy Shevchenko <andy@infradead.org>, Jiri Slaby <jslaby@suse.com>,
+	linux-wireless@vger.kernel.org,
+	Linux PCI <linux-pci@vger.kernel.org>,
+	"open list:GENERIC INCLUDE/A..." <linux-arch@vger.kernel.org>,
+	platform-driver-x86@vger.kernel.org,
+	Kernel Hardening <kernel-hardening@lists.openwall.com>,
+	linux-remoteproc@vger.kernel.org,
+	openipmi-developer@lists.sourceforge.net,
+	linux-crypto@vger.kernel.org,
+	Linux ARM <linux-arm-kernel@lists.infradead.org>,
+	netdev <netdev@vger.kernel.org>,
+	linux-pwm <linux-pwm@vger.kernel.org>,
+	dri-devel <dri-devel@lists.freedesktop.org>, kvm@vger.kernel.org,
+	Linux Fbdev development list <linux-fbdev@vger.kernel.org>,
+	linux-s390@vger.kernel.org, linux-watchdog@vger.kernel.org,
+	"moderated list:DMA BUFFER SHARING FRAMEWORK" <linaro-mm-sig@lists.linaro.org>,
+	linux-gpio <linux-gpio@vger.kernel.org>,
+	Linux MM <linux-mm@kvack.org>
+Subject: Re: [PATCH v1 12/22] docs: driver-api: add .rst files from the main
+ dir
+Message-ID: <20190619104239.GM3419@hirez.programming.kicks-ass.net>
+References: <cover.1560890771.git.mchehab+samsung@kernel.org>
+ <b0d24e805d5368719cc64e8104d64ee9b5b89dd0.1560890772.git.mchehab+samsung@kernel.org>
+ <CAKMK7uGM1aZz9yg1kYM8w2gw_cS6Eaynmar-uVurXjK5t6WouQ@mail.gmail.com>
+ <20190619072218.4437f891@coco.lan>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190618135920.9dd7bdc78fc0ce33ee65d99c@linux-foundation.org>
-User-Agent: NeoMutt/20170113 (1.7.2)
+In-Reply-To: <20190619072218.4437f891@coco.lan>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jun 18, 2019 at 01:59:20PM -0700, Andrew Morton wrote:
-> On Tue, 18 Jun 2019 16:06:22 +0200 Uladzislau Rezki <urezki@gmail.com> wrote:
+On Wed, Jun 19, 2019 at 07:22:18AM -0300, Mauro Carvalho Chehab wrote:
+> Hi Daniel,
 > 
-> > On Tue, Jun 18, 2019 at 09:40:28AM -0400, Joel Fernandes wrote:
-> > > On Tue, Jun 18, 2019 at 5:27 AM Arnd Bergmann <arnd@arndb.de> wrote:
-> > > >
-> > > > gcc gets confused in pcpu_get_vm_areas() because there are too many
-> > > > branches that affect whether 'lva' was initialized before it gets
-> > > > used:
-> > > >
-> > > > mm/vmalloc.c: In function 'pcpu_get_vm_areas':
-> > > > mm/vmalloc.c:991:4: error: 'lva' may be used uninitialized in this function [-Werror=maybe-uninitialized]
-> > > >     insert_vmap_area_augment(lva, &va->rb_node,
-> > > >     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-> > > >      &free_vmap_area_root, &free_vmap_area_list);
-> > > >      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-> > > > mm/vmalloc.c:916:20: note: 'lva' was declared here
-> > > >   struct vmap_area *lva;
-> > > >                     ^~~
-> > > >
-> > > > Add an intialization to NULL, and check whether this has changed
-> > > > before the first use.
-> > > >
-> > > > Fixes: 68ad4a330433 ("mm/vmalloc.c: keep track of free blocks for vmap allocation")
-> > > > Signed-off-by: Arnd Bergmann <arnd@arndb.de>
-> > > > ---
-> > > >  mm/vmalloc.c | 9 +++++++--
-> > > >  1 file changed, 7 insertions(+), 2 deletions(-)
-> > > >
-> > > > diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-> > > > index a9213fc3802d..42a6f795c3ee 100644
-> > > > --- a/mm/vmalloc.c
-> > > > +++ b/mm/vmalloc.c
-> > > > @@ -913,7 +913,12 @@ adjust_va_to_fit_type(struct vmap_area *va,
-> > > >         unsigned long nva_start_addr, unsigned long size,
-> > > >         enum fit_type type)
-> > > >  {
-> > > > -       struct vmap_area *lva;
-> > > > +       /*
-> > > > +        * GCC cannot always keep track of whether this variable
-> > > > +        * was initialized across many branches, therefore set
-> > > > +        * it NULL here to avoid a warning.
-> > > > +        */
-> > > > +       struct vmap_area *lva = NULL;
-> > > 
-> > > Fair enough, but is this 5-line comment really needed here?
-> > > 
-> > How it is rewritten now, probably not. I would just set it NULL and
-> > leave the comment, but that is IMHO. Anyway
+> Em Wed, 19 Jun 2019 11:05:57 +0200
+> Daniel Vetter <daniel@ffwll.ch> escreveu:
+> 
+> > On Tue, Jun 18, 2019 at 10:55 PM Mauro Carvalho Chehab
+> > <mchehab+samsung@kernel.org> wrote:
+> > > diff --git a/Documentation/gpu/drm-mm.rst b/Documentation/gpu/drm-mm.rst
+> > > index fa30dfcfc3c8..b0f948d8733b 100644
+> > > --- a/Documentation/gpu/drm-mm.rst
+> > > +++ b/Documentation/gpu/drm-mm.rst
+> > > @@ -320,7 +320,7 @@ struct :c:type:`struct file_operations <file_operations>` get_unmapped_area
+> > >  field with a pointer on :c:func:`drm_gem_cma_get_unmapped_area`.
+> > >
+> > >  More detailed information about get_unmapped_area can be found in
+> > > -Documentation/nommu-mmap.rst
+> > > +Documentation/driver-api/nommu-mmap.rst  
 > > 
+> > Random drive-by comment: Could we convert these into hyperlinks within
+> > sphinx somehow, without making them less useful as raw file references
+> > (with vim I can just type 'gf' and it works, emacs probably the same).
+> > -Daniel
 > 
-> I agree - given that the patch does this:
-> 
-> @@ -972,7 +977,7 @@ adjust_va_to_fit_type(struct vmap_area *
->  	if (type != FL_FIT_TYPE) {
->  		augment_tree_propagate_from(va);
->  
-> -		if (type == NE_FIT_TYPE)
-> +		if (lva)
->  			insert_vmap_area_augment(lva, &va->rb_node,
->  				&free_vmap_area_root, &free_vmap_area_list);
->  	}
-> 
-> the comment simply isn't relevant any more.  Although I guess this
-> might be a bit helpful:
-> 
-> @@ -977,7 +972,7 @@ adjust_va_to_fit_type(struct vmap_area *
->  	if (type != FL_FIT_TYPE) {
->  		augment_tree_propagate_from(va);
->  
-> -		if (lva)
-> +		if (lva)	/* type == NE_FIT_TYPE */
->  			insert_vmap_area_augment(lva, &va->rb_node,
->  				&free_vmap_area_root, &free_vmap_area_list);
->  	}
-> 
-That comment makes it much clear, thanks!
+> Short answer: I don't know how vim/emacs would recognize Sphinx tags.
 
---
-Vlad Rezki
+No, the other way around, Sphinx can recognize local files and treat
+them special. That way we keep the text readable.
+
+Same with that :c:func:'foo' crap, that needs to die, and Sphinx needs
+to be taught about foo().
 
