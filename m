@@ -2,224 +2,305 @@ Return-Path: <SRS0=1eqM=US=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-8.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4F7B8C43613
-	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 20:42:46 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0CB5CC43613
+	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 20:53:28 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id F41BA215EA
-	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 20:42:45 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 9FD222147A
+	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 20:53:27 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="EaQyYCuf"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F41BA215EA
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
+	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="PBQvRmU9"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9FD222147A
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8E8556B0003; Wed, 19 Jun 2019 16:42:45 -0400 (EDT)
+	id 3B0316B0003; Wed, 19 Jun 2019 16:53:27 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 898168E0002; Wed, 19 Jun 2019 16:42:45 -0400 (EDT)
+	id 360C38E0002; Wed, 19 Jun 2019 16:53:27 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7AD2D8E0001; Wed, 19 Jun 2019 16:42:45 -0400 (EDT)
+	id 250188E0001; Wed, 19 Jun 2019 16:53:27 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 59BBE6B0003
-	for <linux-mm@kvack.org>; Wed, 19 Jun 2019 16:42:45 -0400 (EDT)
-Received: by mail-qk1-f200.google.com with SMTP id s67so700358qkc.6
-        for <linux-mm@kvack.org>; Wed, 19 Jun 2019 13:42:45 -0700 (PDT)
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 089E56B0003
+	for <linux-mm@kvack.org>; Wed, 19 Jun 2019 16:53:27 -0400 (EDT)
+Received: by mail-qk1-f198.google.com with SMTP id u129so710747qkd.12
+        for <linux-mm@kvack.org>; Wed, 19 Jun 2019 13:53:27 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=TBgu1F4abnQgrkAM7sC23aDSMvrhGnN7FBKN+b/i6is=;
-        b=kbcUgWIbn0qqqyp69IfpEPxXTV2ey01j6lcHRY+w5y8gjSEjaxO78monL5xPWUkyS5
-         YZ6fSfy1yorqDhqfDK7gUzqfxsBaeaJlKWjoFSu7O69+ygtyGLQkWwPvIsNreAG1E7gV
-         qpFEMs5YwWJLx8Vf0T4yFx0N/YNwPifvIf1fscAeABu5IQyfrbD+sLZbMjZ8R3i/DZRd
-         YfIyTHdXaKNFlN6WMd2OHYsiDpe0hAbuvKgBnQHWF499urRSJKjBcvthGiVn43Tm0Hel
-         xwdqgA64XNZBzmrtgBDb2bcAgsy9qhvrgfpHwyBeR3Pyr6ayzG5BwiYlEfgxB2XrCcEk
-         ekUQ==
-X-Gm-Message-State: APjAAAVcj7hRLrl9wOfOMd6fMDUh+NnwHNIK9d44vBkLtVMOsK8VaESd
-	PPKLr3Sh4Mkjr922Su6D6T1cmmjhUjsqkTZS4DBfmiRq1MaNNaqBE5VL3WN9hmLY0nGhX0aaFP/
-	c6HxbHWlbAviOC6ywUWmEoCSAQTnAAr93WTR2XROdn7oROUjS7Uwki9B2DnkbV2XkwA==
-X-Received: by 2002:a05:620a:13b9:: with SMTP id m25mr39842377qki.246.1560976965081;
-        Wed, 19 Jun 2019 13:42:45 -0700 (PDT)
-X-Received: by 2002:a05:620a:13b9:: with SMTP id m25mr39842331qki.246.1560976964445;
-        Wed, 19 Jun 2019 13:42:44 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560976964; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id;
+        bh=r1JW72QZvFM97mG3byq8Xb6t+u2a6sidb0hhLRwcOmU=;
+        b=lYzrYfn9GEPmZZIcVOwmTSGwaDA7PYPVcHaucoPdSPP2oplrKQH+YkL0XvM0Knituy
+         p37EWqAc6DlaOH+1MtWqjzCHlmZgrIQJE/N1yWF6woe7Wy3oorCu5S71uwtqKfK6D73L
+         Vz35/diFiknqDfGbri0ktRQ01MS7KObDVLtD0w4zzpayhcMr5k2Hf0abCrdu8LRE5gJM
+         IPGGc26DVCf/RgFJXsPIMoqO+yUAUp23RpiLahksn0yuoVWkuCZKAGn6cyxrxmuQSAeK
+         zj0uKv5LlFZFCyqr8CDqO1/1KMuUWj0KHUd7WJ79F289ZayueD7Ee/+LFYE6wcQZ7yRi
+         1vfA==
+X-Gm-Message-State: APjAAAX9URx39xeS7tFTNxjCffqd5244o07u35cDMiSGv/nIXCfPZg5D
+	V54fT5l7FGKqyJuYQbav/ni7bG0j+apkwnaPxR2ThrqZvEGdm5IS/G5M4/fVDloiW0gtb23mA9R
+	X/HAe6ac48zPlsrWMRuOrffR2SeTfyaSYpkxw+avjz5GS4uHVk9cG+6qbVRXBCfYv1Q==
+X-Received: by 2002:ac8:1751:: with SMTP id u17mr96024671qtk.305.1560977606748;
+        Wed, 19 Jun 2019 13:53:26 -0700 (PDT)
+X-Received: by 2002:ac8:1751:: with SMTP id u17mr96024608qtk.305.1560977605779;
+        Wed, 19 Jun 2019 13:53:25 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560977605; cv=none;
         d=google.com; s=arc-20160816;
-        b=tbHwK20XsGlJESwDX5sXTMoMOL3ygWr6gFA+5rXC6fI6Y+RgfJgjGp+yj3ZbDkEDL9
-         7pPHqsPo3aasqOIra60n5l1QrWkaS04tsAYfcNkhGCe+iAyCmJb94jXzoax1IND+06TJ
-         eWQ/B7JLg2UHmoTRZExIMR+22NlLNOJJgE35jaALcWwCxe/tRlhuuHsAm6laHFfXIqsX
-         yG/grISTsyzoI+teq1W4ENIUL9DiCKxXGKdSGWChCOsbH0ymFNBmMMC7M6S6jtFFuZjq
-         Jwi1N36bNl96/QpWlvECrabFm09pY7xiATw2RNCXSOxbM95HhCIT7ZJjRviszoa4+kJz
-         HoMw==
+        b=ovIBg1kdOA3MS275GTvLsynT3fLBWWMHa5kfKb9ELT98k4kdtSsmfFhB3BO5WPhGZI
+         2s8rbkwR+7CRWxA/A0s4/EtVB0Cu4mV3nCXKyf26PoHMagQsI75OUG5DlLXszdR8XBVf
+         GlsDZF3UvXPdksF5aSaauCDsjn6j4B+e2JqBUFidaIv1Fe28F5e/7TKZefyhUDNAlcMY
+         R1k6G07bDgS4TscEAfYKJV6Lq3pilvJebkwJx6bWGIwqOVn5mqe2B6b0tDW/nXTjpQ0D
+         m1RKSlaucxtkifilvddEUukPPufYOUeVDf0QPPH5e9U3qg9Cyxw3QCAD4C6bI5rf4jlm
+         khnQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=TBgu1F4abnQgrkAM7sC23aDSMvrhGnN7FBKN+b/i6is=;
-        b=xuJQ7ozJOm2xxH3qAiwEKMv7ZKMF7m+H45/6QIFNQzq6epAe11pxjFU+qlXT8QirCj
-         HrFPYL11dQqbYMezMq+Y/28pEi5HOlgAWK9pQRQmBa77916MbcDODpTB23Bmwh2KjmwS
-         mn94wBcgA2aqUM8EVgs97ZocnVmi7fX7x29NfxyDsKjzOx8mXHhAV5jz7+6QMbIv0ya/
-         9Gw9a9a5duszhFeADjeR1i7nmyD9zAXVafzXaDnUbfOpYFiZhrdAVzIbxBD09oeu3Drf
-         wVv0wIhwjbl0VT/04xTkkrbY7wXSBbvbF4RL7iQeyXRFIUKCc53FQZB7DPlZPRbxXbR5
-         JKgw==
+        h=message-id:date:subject:cc:to:from:dkim-signature;
+        bh=r1JW72QZvFM97mG3byq8Xb6t+u2a6sidb0hhLRwcOmU=;
+        b=lX9xBkEYrV/o41RGlXecEyHEHMQ3sj1nR7w4p1JxcubdKzhKqOAUw3MnBCJYsex23g
+         /6JDv++XPZeRAXS81f6Cjf0tIxJvE4Fp7+ZMZ1Sx8YD0yNVs0OujJDORIwqlufEvfTSU
+         sehV+pKECbxP+nDkXxUa2qICx1rLfoK0Apt9ZmDCvy8/b2qK/5k7n5U5kNtvCfrBlt3n
+         IruJ6rRwI3hfx04V3R75Iuk9PYqEwk5K0G1EeRCGL83oVgcdORPvZWYtHNDbHQBe7v2k
+         +AherXhvAqJNCYNyYy3w3WuHpBLqwg3BzBaoUNP7lmod3uFNgNVScQoQ70XsK3kq5nXX
+         M3BQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=EaQyYCuf;
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
+       dkim=pass header.i=@lca.pw header.s=google header.b=PBQvRmU9;
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id t188sor12354755qke.1.2019.06.19.13.42.44
+        by mx.google.com with SMTPS id d7sor16989242qvc.67.2019.06.19.13.53.25
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 19 Jun 2019 13:42:44 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Wed, 19 Jun 2019 13:53:25 -0700 (PDT)
+Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=EaQyYCuf;
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
+       dkim=pass header.i=@lca.pw header.s=google header.b=PBQvRmU9;
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=ziepe.ca; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=TBgu1F4abnQgrkAM7sC23aDSMvrhGnN7FBKN+b/i6is=;
-        b=EaQyYCufZoEOHUrhA5C65HJeWWPQ44TPFwOFRGPSs/kadihvsNLaI7C/q5Lx8nN+Ag
-         sSDJ00GlbBb7AJQltrBt4pAJwniFtTcJwmPfocq+9b/luxO0IGfSUSCUcqNBfJDLTEJK
-         tB9u05+y9B2z2wjTFsd1vtJjyBLIpYpd/eq94rM0W2qq4HuwikeZhRhGE2DCMw8Kh+XN
-         k5mEjEVJVKN3SSaBa9vFnUXWcZjDEkf4Rj6INQpXctWJQ+wQ2KMy1BsL2lqcmQdWLVPw
-         rX7ZLwMaAvHaIuHIm75mR3SW8q1aJpTlLjILf0Y2XNeQqa7qWoAclPlvugKKMyVxXGnU
-         tGhQ==
-X-Google-Smtp-Source: APXvYqwkpP3oHvZN3nRaQ3RbrtVXeyrf0MwnUp9n/IQIWK8LXxln8+qpmD6ZJN85f7XPHS4TGxx0zg==
-X-Received: by 2002:a37:a854:: with SMTP id r81mr25171872qke.53.1560976964070;
-        Wed, 19 Jun 2019 13:42:44 -0700 (PDT)
-Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
-        by smtp.gmail.com with ESMTPSA id q36sm14171694qtc.12.2019.06.19.13.42.43
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 19 Jun 2019 13:42:43 -0700 (PDT)
-Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
-	(envelope-from <jgg@ziepe.ca>)
-	id 1hdhPn-00033G-4Y; Wed, 19 Jun 2019 17:42:43 -0300
-Date: Wed, 19 Jun 2019 17:42:43 -0300
-From: Jason Gunthorpe <jgg@ziepe.ca>
-To: Daniel Vetter <daniel.vetter@ffwll.ch>
-Cc: Jerome Glisse <jglisse@redhat.com>, Michal Hocko <mhocko@suse.com>,
-	Daniel Vetter <daniel.vetter@intel.com>,
-	Intel Graphics Development <intel-gfx@lists.freedesktop.org>,
-	LKML <linux-kernel@vger.kernel.org>,
-	DRI Development <dri-devel@lists.freedesktop.org>,
-	Linux MM <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>,
-	Paolo Bonzini <pbonzini@redhat.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Christian =?utf-8?B?S8O2bmln?= <christian.koenig@amd.com>
-Subject: Re: [PATCH 1/4] mm: Check if mmu notifier callbacks are allowed to
- fail
-Message-ID: <20190619204243.GM9360@ziepe.ca>
-References: <20190520213945.17046-1-daniel.vetter@ffwll.ch>
- <20190521154411.GD3836@redhat.com>
- <20190618152215.GG12905@phenom.ffwll.local>
- <20190619165055.GI9360@ziepe.ca>
- <CAKMK7uGpupxF8MdyX3_HmOfc+OkGxVM_b9WbF+S-2fHe0F5SQA@mail.gmail.com>
- <20190619201340.GL9360@ziepe.ca>
- <CAKMK7uGtXT1qLdUqnmTd9uUkdMrcreg4UmAxscx0Fp4Pv6uj_A@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAKMK7uGtXT1qLdUqnmTd9uUkdMrcreg4UmAxscx0Fp4Pv6uj_A@mail.gmail.com>
-User-Agent: Mutt/1.9.4 (2018-02-28)
+        d=lca.pw; s=google;
+        h=from:to:cc:subject:date:message-id;
+        bh=r1JW72QZvFM97mG3byq8Xb6t+u2a6sidb0hhLRwcOmU=;
+        b=PBQvRmU97QmDiSH6VHDaVQhPepePHrPHYlwwQ/KedfmWFuxP7nUwqp4/gHO2vD8PXY
+         SW9GabxMpnd0/VDvqluCZBrgba4B+TZYn77dps9SRIWk2FLlws4+lPZaBGwxR9ZgjM2C
+         7xwslkwmmsnwnPue83IhaipYL5eRyUk5+oWTnWae3b1fwgku785VXUP54Ar7RnMV4R3m
+         RE9tyi1FcCXdjUJTubVkJobdiO0q/NrOpxhXAtRsHS/dMms3Qj4rgqvYQf5xhyi07dpw
+         TqZPdrr43X0vGiK+pke37NhAY8QZWb7anvOlUJl9WUNKa1+r9pA81Myq6CsYzOWv+tym
+         apsQ==
+X-Google-Smtp-Source: APXvYqzoYanqwMwE8GB/pmwJLxlLQcRHAuhdcsBEYsWD0YJ/kIjmSl19ksNIX8BZAxajAHkqRUDi9g==
+X-Received: by 2002:a0c:acab:: with SMTP id m40mr19419150qvc.52.1560977605321;
+        Wed, 19 Jun 2019 13:53:25 -0700 (PDT)
+Received: from qcai.nay.com (nat-pool-bos-t.redhat.com. [66.187.233.206])
+        by smtp.gmail.com with ESMTPSA id g2sm8477275qkm.31.2019.06.19.13.53.24
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 19 Jun 2019 13:53:24 -0700 (PDT)
+From: Qian Cai <cai@lca.pw>
+To: akpm@linux-foundation.org
+Cc: guro@fb.com,
+	vdavydov.dev@gmail.com,
+	hannes@cmpxchg.org,
+	linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org,
+	Qian Cai <cai@lca.pw>
+Subject: [PATCH -next] mm/slab: fix an use-after-free in kmemcg_workfn()
+Date: Wed, 19 Jun 2019 16:52:53 -0400
+Message-Id: <1560977573-10715-1-git-send-email-cai@lca.pw>
+X-Mailer: git-send-email 1.8.3.1
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jun 19, 2019 at 10:18:43PM +0200, Daniel Vetter wrote:
-> On Wed, Jun 19, 2019 at 10:13 PM Jason Gunthorpe <jgg@ziepe.ca> wrote:
-> > On Wed, Jun 19, 2019 at 09:57:15PM +0200, Daniel Vetter wrote:
-> > > On Wed, Jun 19, 2019 at 6:50 PM Jason Gunthorpe <jgg@ziepe.ca> wrote:
-> > > > On Tue, Jun 18, 2019 at 05:22:15PM +0200, Daniel Vetter wrote:
-> > > > > On Tue, May 21, 2019 at 11:44:11AM -0400, Jerome Glisse wrote:
-> > > > > > On Mon, May 20, 2019 at 11:39:42PM +0200, Daniel Vetter wrote:
-> > > > > > > Just a bit of paranoia, since if we start pushing this deep into
-> > > > > > > callchains it's hard to spot all places where an mmu notifier
-> > > > > > > implementation might fail when it's not allowed to.
-> > > > > > >
-> > > > > > > Inspired by some confusion we had discussing i915 mmu notifiers and
-> > > > > > > whether we could use the newly-introduced return value to handle some
-> > > > > > > corner cases. Until we realized that these are only for when a task
-> > > > > > > has been killed by the oom reaper.
-> > > > > > >
-> > > > > > > An alternative approach would be to split the callback into two
-> > > > > > > versions, one with the int return value, and the other with void
-> > > > > > > return value like in older kernels. But that's a lot more churn for
-> > > > > > > fairly little gain I think.
-> > > > > > >
-> > > > > > > Summary from the m-l discussion on why we want something at warning
-> > > > > > > level: This allows automated tooling in CI to catch bugs without
-> > > > > > > humans having to look at everything. If we just upgrade the existing
-> > > > > > > pr_info to a pr_warn, then we'll have false positives. And as-is, no
-> > > > > > > one will ever spot the problem since it's lost in the massive amounts
-> > > > > > > of overall dmesg noise.
-> > > > > > >
-> > > > > > > v2: Drop the full WARN_ON backtrace in favour of just a pr_warn for
-> > > > > > > the problematic case (Michal Hocko).
-> > > >
-> > > > I disagree with this v2 note, the WARN_ON/WARN will trigger checkers
-> > > > like syzkaller to report a bug, while a random pr_warn probably will
-> > > > not.
-> > > >
-> > > > I do agree the backtrace is not useful here, but we don't have a
-> > > > warn-no-backtrace version..
-> > > >
-> > > > IMHO, kernel/driver bugs should always be reported by WARN &
-> > > > friends. We never expect to see the print, so why do we care how big
-> > > > it is?
-> > > >
-> > > > Also note that WARN integrates an unlikely() into it so the codegen is
-> > > > automatically a bit more optimal that the if & pr_warn combination.
-> > >
-> > > Where do you make a difference between a WARN without backtrace and a
-> > > pr_warn? They're both dumped at the same log-level ...
-> >
-> > WARN panics the kernel when you set
-> >
-> > /proc/sys/kernel/panic_on_warn
-> >
-> > So auto testing tools can set that and get a clean detection that the
-> > kernel has failed the test in some way.
-> >
-> > Otherwise you are left with frail/ugly grepping of dmesg.
-> 
-> Hm right.
-> 
-> Anyway, I'm happy to repaint the bikeshed in any color that's desired,
-> if that helps with landing it. WARN_WITHOUT_BACKTRACE might take a bit
-> longer (need to find a bit of time, plus it'll definitely attract more
-> comments).
+The linux-next commit "mm: rework non-root kmem_cache lifecycle
+management" [1] introduced an use-after-free below because
+kmemcg_workfn() may call slab_kmem_cache_release() which has already
+freed the whole kmem_cache. Fix it by removing the bogus NULL assignment
+and checkings that will not work with SLUB_DEBUG poisoning anyway.
 
-I was actually just writing something very similar when looking at the
-hmm things..
+[1] https://lore.kernel.org/patchwork/patch/1087376/
 
-Also, is the test backwards?
+BUG kmem_cache (Tainted: G    B   W        ): Poison overwritten
+INFO: 0x(____ptrval____)-0x(____ptrval____). First byte 0x0 instead of
+0x6b
+INFO: Allocated in create_cache+0x6c/0x1bc age=2653 cpu=154 pid=1599
+	kmem_cache_alloc+0x514/0x568
+	create_cache+0x6c/0x1bc
+	memcg_create_kmem_cache+0xfc/0x11c
+	memcg_kmem_cache_create_func+0x40/0x170
+	process_one_work+0x4e0/0xa54
+	worker_thread+0x498/0x650
+	kthread+0x1b8/0x1d4
+	ret_from_fork+0x10/0x18
+INFO: Freed in slab_kmem_cache_release+0x3c/0x48 age=255 cpu=7 pid=1505
+	slab_kmem_cache_release+0x3c/0x48
+	kmem_cache_release+0x1c/0x28
+	kobject_cleanup+0x134/0x288
+	kobject_put+0x5c/0x68
+	sysfs_slab_release+0x2c/0x38
+	shutdown_cache+0x190/0x234
+	kmemcg_cache_shutdown_fn+0x1c/0x34
+	kmemcg_workfn+0x44/0x68
+	process_one_work+0x4e0/0xa54
+	worker_thread+0x498/0x650
+	kthread+0x1b8/0x1d4
+	ret_from_fork+0x10/0x18
+INFO: Slab 0x(____ptrval____) objects=64 used=64 fp=0x(____ptrval____)
+flags=0x17ffffffc000200
+INFO: Object 0x(____ptrval____) @offset=11601272640106456192
+fp=0x(____ptrval____)
+Redzone (____ptrval____): bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb
+bb  ................
+Redzone (____ptrval____): bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb
+bb  ................
+Redzone (____ptrval____): bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb
+bb  ................
+Redzone (____ptrval____): bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb
+bb  ................
+Redzone (____ptrval____): bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb
+bb  ................
+Redzone (____ptrval____): bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb
+bb  ................
+Redzone (____ptrval____): bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb
+bb  ................
+Redzone (____ptrval____): bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb
+bb  ................
+Object (____ptrval____): 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
+kkkkkkkkkkkkkkkk
+Object (____ptrval____): 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
+kkkkkkkkkkkkkkkk
+Object (____ptrval____): 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
+kkkkkkkkkkkkkkkk
+Object (____ptrval____): 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
+kkkkkkkkkkkkkkkk
+Object (____ptrval____): 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
+kkkkkkkkkkkkkkkk
+Object (____ptrval____): 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
+kkkkkkkkkkkkkkkk
+Object (____ptrval____): 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
+kkkkkkkkkkkkkkkk
+Object (____ptrval____): 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
+kkkkkkkkkkkkkkkk
+Object (____ptrval____): 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
+kkkkkkkkkkkkkkkk
+Object (____ptrval____): 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
+kkkkkkkkkkkkkkkk
+Object (____ptrval____): 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
+kkkkkkkkkkkkkkkk
+Object (____ptrval____): 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
+kkkkkkkkkkkkkkkk
+Object (____ptrval____): 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
+kkkkkkkkkkkkkkkk
+Object (____ptrval____): 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
+kkkkkkkkkkkkkkkk
+Object (____ptrval____): 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
+kkkkkkkkkkkkkkkk
+Object (____ptrval____): 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
+kkkkkkkkkkkkkkkk
+Object (____ptrval____): 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
+kkkkkkkkkkkkkkkk
+Object (____ptrval____): 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
+kkkkkkkkkkkkkkkk
+Object (____ptrval____): 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
+kkkkkkkkkkkkkkkk
+Object (____ptrval____): 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
+kkkkkkkkkkkkkkkk
+Object (____ptrval____): 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
+kkkkkkkkkkkkkkkk
+Object (____ptrval____): 6b 6b 6b 6b 6b 6b 6b 6b 00 00 00 00 00 00 00 00
+kkkkkkkk........
+Object (____ptrval____): 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
+kkkkkkkkkkkkkkkk
+Object (____ptrval____): 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
+kkkkkkkkkkkkkkkk
+Object (____ptrval____): 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
+kkkkkkkkkkkkkkkk
+Object (____ptrval____): 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
+kkkkkkkkkkkkkkkk
+Object (____ptrval____): 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
+kkkkkkkkkkkkkkkk
+Object (____ptrval____): 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
+kkkkkkkkkkkkkkkk
+Object (____ptrval____): 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
+kkkkkkkkkkkkkkkk
+Object (____ptrval____): 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
+kkkkkkkkkkkkkkkk
+Object (____ptrval____): 6b 6b 6b 6b 6b 6b 6b a5
+kkkkkkk.
+Redzone (____ptrval____): bb bb bb bb bb bb bb bb
+........
+Padding (____ptrval____): 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a
+5a  ZZZZZZZZZZZZZZZZ
+Padding (____ptrval____): 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a
+5a  ZZZZZZZZZZZZZZZZ
+Padding (____ptrval____): 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a
+5a  ZZZZZZZZZZZZZZZZ
+Padding (____ptrval____): 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a
+5a  ZZZZZZZZZZZZZZZZ
+Padding (____ptrval____): 5a 5a 5a 5a 5a 5a 5a 5a
+ZZZZZZZZ
+CPU: 193 PID: 1557 Comm: kworker/193:1 Tainted: G    B   W
+5.2.0-rc5-next-20190619+ #8
+Hardware name: HPE Apollo 70             /C01_APACHE_MB         , BIOS
+L50_5.13_1.0.9 03/01/2019
+Workqueue: memcg_kmem_cache memcg_kmem_cache_create_func
+Call trace:
+ dump_backtrace+0x0/0x268
+ show_stack+0x20/0x2c
+ dump_stack+0xb4/0x108
+ print_trailer+0x274/0x298
+ check_bytes_and_report+0xc4/0x118
+ check_object+0x2fc/0x36c
+ alloc_debug_processing+0x154/0x240
+ ___slab_alloc+0x710/0xa68
+ kmem_cache_alloc+0x514/0x568
+ create_cache+0x6c/0x1bc
+ memcg_create_kmem_cache+0xfc/0x11c
+ memcg_kmem_cache_create_func+0x40/0x170
+ process_one_work+0x4e0/0xa54
+ worker_thread+0x498/0x650
+ kthread+0x1b8/0x1d4
+ ret_from_fork+0x10/0x18
+FIX kmem_cache: Restoring 0x(____ptrval____)-0x(____ptrval____)=0x6b
 
-mmu_notifier_range_blockable() == true means the callback must return
-zero
+FIX kmem_cache: Marking all objects used
 
-mmu_notififer_range_blockable() == false means the callback can return
-0 or -EAGAIN.
+Signed-off-by: Qian Cai <cai@lca.pw>
+---
+ mm/slab_common.c | 5 -----
+ 1 file changed, 5 deletions(-)
 
-Suggest this:
-
-                                pr_info("%pS callback failed with %d in %sblockable context.\n",
-                                        mn->ops->invalidate_range_start, _ret,
-                                        !mmu_notifier_range_blockable(range) ? "non-" : "");
-+                               WARN_ON(mmu_notifier_range_blockable(range) ||
-+                                       _ret != -EAGAIN);
-                                ret = _ret;
-                        }
-                }
-
-To express the API invariant.
-
-Jason
+diff --git a/mm/slab_common.c b/mm/slab_common.c
+index 91e8c739dc97..bb8aec6d8744 100644
+--- a/mm/slab_common.c
++++ b/mm/slab_common.c
+@@ -714,10 +714,7 @@ static void kmemcg_workfn(struct work_struct *work)
+ 	get_online_mems();
+ 
+ 	mutex_lock(&slab_mutex);
+-
+ 	s->memcg_params.work_fn(s);
+-	s->memcg_params.work_fn = NULL;
+-
+ 	mutex_unlock(&slab_mutex);
+ 
+ 	put_online_mems();
+@@ -753,7 +750,6 @@ static void kmemcg_cache_shutdown(struct percpu_ref *percpu_ref)
+ 	if (s->memcg_params.root_cache->memcg_params.dying)
+ 		goto unlock;
+ 
+-	WARN_ON(s->memcg_params.work_fn);
+ 	s->memcg_params.work_fn = kmemcg_cache_shutdown_fn;
+ 	INIT_WORK(&s->memcg_params.work, kmemcg_workfn);
+ 	queue_work(memcg_kmem_cache_wq, &s->memcg_params.work);
+@@ -784,7 +780,6 @@ static void kmemcg_cache_deactivate(struct kmem_cache *s)
+ 	if (s->memcg_params.root_cache->memcg_params.dying)
+ 		goto unlock;
+ 
+-	WARN_ON_ONCE(s->memcg_params.work_fn);
+ 	s->memcg_params.work_fn = kmemcg_cache_deactivate_after_rcu;
+ 	call_rcu(&s->memcg_params.rcu_head, kmemcg_rcufn);
+ unlock:
+-- 
+1.8.3.1
 
