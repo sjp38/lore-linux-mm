@@ -2,289 +2,158 @@ Return-Path: <SRS0=1eqM=US=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 260E8C31E5B
-	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 16:30:29 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id EAAF6C31E5B
+	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 16:36:58 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CC7A22173E
-	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 16:30:28 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CC7A22173E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id 973DC2084E
+	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 16:36:58 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="EDamHHKF"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 973DC2084E
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 64AF58E0008; Wed, 19 Jun 2019 12:30:28 -0400 (EDT)
+	id 310958E0008; Wed, 19 Jun 2019 12:36:58 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5FAD48E0001; Wed, 19 Jun 2019 12:30:28 -0400 (EDT)
+	id 2C05A8E0001; Wed, 19 Jun 2019 12:36:58 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4EBFE8E0008; Wed, 19 Jun 2019 12:30:28 -0400 (EDT)
+	id 1AFA18E0008; Wed, 19 Jun 2019 12:36:58 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f70.google.com (mail-yw1-f70.google.com [209.85.161.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 2CCDB8E0001
-	for <linux-mm@kvack.org>; Wed, 19 Jun 2019 12:30:28 -0400 (EDT)
-Received: by mail-yw1-f70.google.com with SMTP id b188so35001ywb.10
-        for <linux-mm@kvack.org>; Wed, 19 Jun 2019 09:30:28 -0700 (PDT)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id EC6BE8E0001
+	for <linux-mm@kvack.org>; Wed, 19 Jun 2019 12:36:57 -0400 (EDT)
+Received: by mail-qt1-f198.google.com with SMTP id r58so16546980qtb.5
+        for <linux-mm@kvack.org>; Wed, 19 Jun 2019 09:36:57 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:in-reply-to:references:date:mime-version:message-id;
-        bh=qw40hPqfWiyBgxT3MUNSYP1O/HT3LUBF/+fYdBrltaE=;
-        b=aZvjRUgUltLloUGPgtRFZnNwhOmOSfs8rc4UOFieY/U7SeZb0gKMXatXypt2MzFh6k
-         o2dFcDMkK7n+8AuhUnREx6tg6lmdBTQ5lSZUBrQM7YzZBA0UdUdp4jUZKZ9OzSvrG67z
-         isPTdjLxhB9EcWrtg13JpykmE7tR5HsnNwMWuKhOkWJE/XA/KI8jqfBy+ILJdzbCp4Md
-         yj2ZT84uU7PpdYpr6Y2chyLdNTccS874bvXDPUoN6CxWAEpJNUVOhvyYjoXSwlzuZOVe
-         nkn7tJQ2fdFsYDYlp4t8xXgjHsOdd13IKcgYjlJ1Hi57s8m4NMBwZMKu4XsktNH/A1ir
-         TRqw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: APjAAAXhkUV3NIY2kXP01gdixZ6VaRQXkqNDOmNlksjBdAkA1+QWdLr2
-	XFXpFYNGYQV2IXuAgkRzKAH8IELsd+ikDAMBR8DYYMY2mbiY5RTo0bb4e8CP2dyT5IQNDthfKY2
-	PClXvFKwIDIjx+7Y6Kwdahd7auigyOn+bPWbdUN4ob/nPW143U8awUqfDgaQnNrEyzQ==
-X-Received: by 2002:a81:47c1:: with SMTP id u184mr71044976ywa.313.1560961827900;
-        Wed, 19 Jun 2019 09:30:27 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxVyPviv/N9WFId756naDrf3vKUr6nQe/YQcaemwBWI2LxRiK8l/dov7epjsGTKCiTApoPT
-X-Received: by 2002:a81:47c1:: with SMTP id u184mr71044928ywa.313.1560961827139;
-        Wed, 19 Jun 2019 09:30:27 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560961827; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=DzpNw7iMfHgKemdLUrfJxvdy9KGKJSIkCkr6aus8rCA=;
+        b=VurhcEsSdV13Itw338DxB7XI3QM2MUBq4M9f2rsi8xGr5OPX0nE48inIdRyv2SuE9a
+         uYb7YM6Mn5Y49Sm3GLgIClYolixmO1v2NefervdhjbZwh+rKg3YhMJ9MOhLe8Vl6MLxs
+         Jk6zZAkqzh4anF0iAUfRZz1zD+Ll0WDT+XCHL8OG5X20UtiLqRx49hiUOpTXcqpAQyUN
+         qyhekL/6w2/zLVXNr7wAg5N+0uOJicBsgRjVcylRWdWE2ECRhGds5TJQzkkZYsS0DS/Z
+         ZeQ1AgHv+n9MSVEuye3Cr4SSBt74ph5BBEwlf6gwboj5OzuIEp7WJxDrYxGVuHH29QVT
+         ao5A==
+X-Gm-Message-State: APjAAAUJPFhiSKpjr17v7s9mS2RCRNqirANOgovm+TiteP8NMijURqNw
+	554RqJEH92CFo+3fyzJtwEnhPCFUPm48gUqyF3doGftTIoh0VMD7ybkJ74KCajC3PRZOobl5yP1
+	/fQvHHnaXBBbvUD/CSd5iApJihG0hr7niif1Z5ftl+zmzWMZee9SL3QOU4xIrysLLIA==
+X-Received: by 2002:ac8:16ac:: with SMTP id r41mr107957617qtj.346.1560962217715;
+        Wed, 19 Jun 2019 09:36:57 -0700 (PDT)
+X-Received: by 2002:ac8:16ac:: with SMTP id r41mr107957570qtj.346.1560962217163;
+        Wed, 19 Jun 2019 09:36:57 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560962217; cv=none;
         d=google.com; s=arc-20160816;
-        b=f1dr+oD2fwDEcko4gnKoZS9qNsLwFyzwWRgKzsB2a5FO+WvSHadydeB/g5GcT27BxR
-         eUQTk2IbI6fWagJpJuJ1L7UHVvC8ta2exS86wLn5OksJSQe91x4TDOgU98iGyaAdzTr1
-         HyxCK8HcF+XA5/vIolXrDtW8BkLdWvTRs22/rmVORWWTkoPVSwESn6ra+n2Dh+mQiw6t
-         oZVbDsbXlWOgljQmJWZCAE0G0iOZ1RdT5+CvFm/5BUlkMzBxbbUy88TuM5Xs4ZWtEc27
-         TevRlgtLHHZejXAMF7KBRQPM57UplRuB/kfOYL864viDlkcGw+vZN+bM7p567MUFlFA6
-         7JHg==
+        b=wCFD7cWb5x2CoIb/KeHS/LPHTHraFj/fWkClPg5CP3obLPhrpEDRIopR8x1cwOaNbQ
+         fb7ESwQPYwuh1TuiblUu9Pfyp+BrcKVHZGE9l+FF5mVlz5FnD0wQDy68MJg4j0BPbLZh
+         vcV7VjpE5XRkR0g3lDVcdwMu/X9GAqpH7craZNLlWV3qWPSG17rXA15DhA+yZHz9zsh3
+         NEJNyjyC3Bl/Quds1shST04ODLDAlyL2XuvSsj8TJN6qiFajWmpR/rQ3cCuKtgHdi8Vq
+         CiwZRmxnpaoovcIktk6X4Ks9IU1PXd4NGbgci2+cCj2N8PaPJ3RJJ5Xl0l9PGPLSQLBw
+         3jMQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:mime-version:date:references:in-reply-to:subject:cc:to
-         :from;
-        bh=qw40hPqfWiyBgxT3MUNSYP1O/HT3LUBF/+fYdBrltaE=;
-        b=iNdOrnSKnqzs8KoIMqsWY+J+uIVL/0dm56PnHHr+bSY1MV4Fla+SWPcbwdiUGKmjp/
-         hjxbVaKo4mJoG7dIUb0VIDpxYdYUbyg+NO3cXhCUukd5wasH06NWYIHIp13sf/IZUEUd
-         M1gFLL72kqG+kSoQ96xw7co0N0BCy0aH//7uI+7ZOeVHUvgvM2ZKyj8ke7SLSGljNvjj
-         oN2CWWgo3hh1vvddWyWEexks6ujc7ziyrqw4Dvq0gJTqG3tAD3yJiY3LxR9vdnqNiU+Q
-         vacSwlhYHV1knZ9qJwlDX+VFyTInwcEJv5q5CiYQ4W25h9puLMVsUoosh/UGRrt54LYb
-         TdQw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=DzpNw7iMfHgKemdLUrfJxvdy9KGKJSIkCkr6aus8rCA=;
+        b=v9Uqaw/monxfXnKxuWb7aRfJUsiKmPGIFkzhOiFZRnLm9ODyyIlX2oLcQe9aYdBpvb
+         XmQyQc8VzrZdkrEkTSd3LaJA30GTeHTDbKz9r+Ozwc2U4AP8FBelBbibd+JbLcxzwg96
+         dNciyvH1BnHJiR4wzcgyec7P22Li8nCLgsaCpL9NkczvZOne99/aevmWRQYljcDjcDVX
+         X2Y/avnRof+BTP2xwip5i50jQJUnGpJhn16n7k4LJZ7FDKJ5JCpHw+UyIM3Y3K9xjnhE
+         1LkqjA8LDXofHHH/zyp9BF8zRH0qi2uVfbQ23UCNpfNAOFimsjBPUyLFBLBhMbrzaqDM
+         HXEA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id n129si6901065ywn.233.2019.06.19.09.30.27
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=EDamHHKF;
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id n24sor16294612qvd.2.2019.06.19.09.36.57
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 19 Jun 2019 09:30:27 -0700 (PDT)
-Received-SPF: pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
+        (Google Transport Security);
+        Wed, 19 Jun 2019 09:36:57 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x5JGSQlA029971
-	for <linux-mm@kvack.org>; Wed, 19 Jun 2019 12:30:26 -0400
-Received: from e06smtp02.uk.ibm.com (e06smtp02.uk.ibm.com [195.75.94.98])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2t7r9b94kf-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 19 Jun 2019 12:30:26 -0400
-Received: from localhost
-	by e06smtp02.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
-	Wed, 19 Jun 2019 17:30:24 +0100
-Received: from b06cxnps3074.portsmouth.uk.ibm.com (9.149.109.194)
-	by e06smtp02.uk.ibm.com (192.168.101.132) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Wed, 19 Jun 2019 17:30:22 +0100
-Received: from b06wcsmtp001.portsmouth.uk.ibm.com (b06wcsmtp001.portsmouth.uk.ibm.com [9.149.105.160])
-	by b06cxnps3074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x5JGULFb59965666
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Wed, 19 Jun 2019 16:30:21 GMT
-Received: from b06wcsmtp001.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 14CA6A4067;
-	Wed, 19 Jun 2019 16:30:21 +0000 (GMT)
-Received: from b06wcsmtp001.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 97E78A405C;
-	Wed, 19 Jun 2019 16:30:19 +0000 (GMT)
-Received: from skywalker.linux.ibm.com (unknown [9.85.91.144])
-	by b06wcsmtp001.portsmouth.uk.ibm.com (Postfix) with ESMTP;
-	Wed, 19 Jun 2019 16:30:19 +0000 (GMT)
-X-Mailer: emacs 26.2 (via feedmail 11-beta-1 I)
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-To: Dan Williams <dan.j.williams@intel.com>, akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org,
-        linux-nvdimm@lists.01.org
-Subject: Re: [PATCH v10 12/13] libnvdimm/pfn: Fix fsdax-mode namespace info-block zero-fields
-In-Reply-To: <156092356065.979959.6681003754765958296.stgit@dwillia2-desk3.amr.corp.intel.com>
-References: <156092349300.979959.17603710711957735135.stgit@dwillia2-desk3.amr.corp.intel.com> <156092356065.979959.6681003754765958296.stgit@dwillia2-desk3.amr.corp.intel.com>
-Date: Wed, 19 Jun 2019 22:00:18 +0530
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=EDamHHKF;
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=ziepe.ca; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=DzpNw7iMfHgKemdLUrfJxvdy9KGKJSIkCkr6aus8rCA=;
+        b=EDamHHKFiI7TTHkw3d71MrV0NdBwB6F1R0bV3XkjGbuH5mQMYmiVlZa63N43certmw
+         GaIE2u+163Cb4BhvTpbwTBxOWcLAcGEeI/3LO9nZ2D3hphDdktczve9XtPtWbb/zjdgx
+         QuoJYZuWKxQ1Q1HWKQMOXlDG8688RHVxOe9ZrXX0wEZogGnlfFfLqDn8V5Dbs8IQvczi
+         yQX28xdFN722tg0xFkBas291DRO6iaiEm0BDaeD7B2Eul7XBDtVnG/ZeKQsPeS/6vBSl
+         FO7l2jZl3LYlQIBoVhkk/uCuTaMtyaMfsLTID0dqUBuf/FNrb2Plto9Q3eXvKdPYCYXn
+         mxug==
+X-Google-Smtp-Source: APXvYqzqHRHHrr8SACyRyLxcASgrxSvjDf6v3XwfN8DQX4ZVR7KLVzKliqO65H7tJkj2zv0u+29foQ==
+X-Received: by 2002:a0c:d24d:: with SMTP id o13mr34947576qvh.86.1560962216870;
+        Wed, 19 Jun 2019 09:36:56 -0700 (PDT)
+Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
+        by smtp.gmail.com with ESMTPSA id r36sm11720396qte.71.2019.06.19.09.36.56
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 19 Jun 2019 09:36:56 -0700 (PDT)
+Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
+	(envelope-from <jgg@ziepe.ca>)
+	id 1hddZv-0001vf-QN; Wed, 19 Jun 2019 13:36:55 -0300
+Date: Wed, 19 Jun 2019 13:36:55 -0300
+From: Jason Gunthorpe <jgg@ziepe.ca>
+To: Christoph Hellwig <hch@lst.de>
+Cc: Dan Williams <dan.j.williams@intel.com>,
+	=?utf-8?B?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>,
+	Ben Skeggs <bskeggs@redhat.com>, Linux MM <linux-mm@kvack.org>,
+	nouveau@lists.freedesktop.org,
+	Maling list - DRI developers <dri-devel@lists.freedesktop.org>,
+	linux-nvdimm <linux-nvdimm@lists.01.org>, linux-pci@vger.kernel.org,
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+Subject: Re: dev_pagemap related cleanups v2
+Message-ID: <20190619163655.GG9360@ziepe.ca>
+References: <20190617122733.22432-1-hch@lst.de>
+ <CAPcyv4hBUJB2RxkDqHkfEGCupDdXfQSrEJmAdhLFwnDOwt8Lig@mail.gmail.com>
+ <20190619094032.GA8928@lst.de>
 MIME-Version: 1.0
-Content-Type: text/plain
-X-TM-AS-GCONF: 00
-x-cbid: 19061916-0008-0000-0000-000002F53C2B
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19061916-0009-0000-0000-0000226258B9
-Message-Id: <877e9hk06d.fsf@linux.ibm.com>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-06-19_10:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1906190133
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190619094032.GA8928@lst.de>
+User-Agent: Mutt/1.9.4 (2018-02-28)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Dan Williams <dan.j.williams@intel.com> writes:
+On Wed, Jun 19, 2019 at 11:40:32AM +0200, Christoph Hellwig wrote:
+> On Tue, Jun 18, 2019 at 12:47:10PM -0700, Dan Williams wrote:
+> > > Git tree:
+> > >
+> > >     git://git.infradead.org/users/hch/misc.git hmm-devmem-cleanup.2
+> > >
+> > > Gitweb:
+> > >
+> > >     http://git.infradead.org/users/hch/misc.git/shortlog/refs/heads/hmm-devmem-cleanup.2
+> 
+> > 
+> > Attached is my incremental fixups on top of this series, with those
+> > integrated you can add:
+> 
+> I've folded your incremental bits in and pushed out a new
+> hmm-devmem-cleanup.3 to the repo above.  Let me know if I didn't mess
+> up anything else.  I'll wait for a few more comments and Jason's
+> planned rebase of the hmm branch before reposting.
 
-> At namespace creation time there is the potential for the "expected to
-> be zero" fields of a 'pfn' info-block to be filled with indeterminate
-> data. While the kernel buffer is zeroed on allocation it is immediately
-> overwritten by nd_pfn_validate() filling it with the current contents of
-> the on-media info-block location. For fields like, 'flags' and the
-> 'padding' it potentially means that future implementations can not rely
-> on those fields being zero.
->
-> In preparation to stop using the 'start_pad' and 'end_trunc' fields for
-> section alignment, arrange for fields that are not explicitly
-> initialized to be guaranteed zero. Bump the minor version to indicate it
-> is safe to assume the 'padding' and 'flags' are zero. Otherwise, this
-> corruption is expected to benign since all other critical fields are
-> explicitly initialized.
->
-> Note The cc: stable is about spreading this new policy to as many
-> kernels as possible not fixing an issue in those kernels. It is not
-> until the change titled "libnvdimm/pfn: Stop padding pmem namespaces to
-> section alignment" where this improper initialization becomes a problem.
-> So if someone decides to backport "libnvdimm/pfn: Stop padding pmem
-> namespaces to section alignment" (which is not tagged for stable), make
-> sure this pre-requisite is flagged.
+I said I wouldn't rebase the hmm.git (as it needs to go to DRM, AMD
+and RDMA git trees)..
 
-Don't we need a change like below in this patch?
+Instead I will merge v5.2-rc5 to the tree before applying this series.
 
-modified   drivers/nvdimm/pfn_devs.c
-@@ -452,10 +452,11 @@ int nd_pfn_validate(struct nd_pfn *nd_pfn, const char *sig)
- 	if (memcmp(pfn_sb->parent_uuid, parent_uuid, 16) != 0)
- 		return -ENODEV;
- 
--	if (__le16_to_cpu(pfn_sb->version_minor) < 1) {
--		pfn_sb->start_pad = 0;
--		pfn_sb->end_trunc = 0;
--	}
-+	if ((__le16_to_cpu(pfn_sb->version_minor) < 1) ||
-+	    (__le16_to_cpu(pfn_sb->version_minor) >= 3)) {
-+			pfn_sb->start_pad = 0;
-+			pfn_sb->end_trunc = 0;
-+		}
+I've understood this to be Linus's prefered workflow.
 
+So, please send the next iteration of this against either
+plainv5.2-rc5 or v5.2-rc5 merged with hmm.git and I'll sort it out.
 
-IIUC we want to force the start_pad and end_truc to zero if the pfn_sb
-minor version number >= 3. So once we have this patch backported and
-older kernel finds a pfn_sb with minor version 3, it will ignore the
-start_pad read from the nvdimm and overwrite that with zero here.
-This patch doesn't enforce that right? After the next patch we can have
-values other than 0 in pfn_sb->start_pad?
-
-
->
-> Fixes: 32ab0a3f5170 ("libnvdimm, pmem: 'struct page' for pmem")
-> Cc: <stable@vger.kernel.org>
-> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
-> ---
->  drivers/nvdimm/dax_devs.c |    2 +-
->  drivers/nvdimm/pfn.h      |    1 +
->  drivers/nvdimm/pfn_devs.c |   18 +++++++++++++++---
->  3 files changed, 17 insertions(+), 4 deletions(-)
->
-> diff --git a/drivers/nvdimm/dax_devs.c b/drivers/nvdimm/dax_devs.c
-> index 49fc18ee0565..6d22b0f83b3b 100644
-> --- a/drivers/nvdimm/dax_devs.c
-> +++ b/drivers/nvdimm/dax_devs.c
-> @@ -118,7 +118,7 @@ int nd_dax_probe(struct device *dev, struct nd_namespace_common *ndns)
->  	nvdimm_bus_unlock(&ndns->dev);
->  	if (!dax_dev)
->  		return -ENOMEM;
-> -	pfn_sb = devm_kzalloc(dev, sizeof(*pfn_sb), GFP_KERNEL);
-> +	pfn_sb = devm_kmalloc(dev, sizeof(*pfn_sb), GFP_KERNEL);
->  	nd_pfn->pfn_sb = pfn_sb;
->  	rc = nd_pfn_validate(nd_pfn, DAX_SIG);
->  	dev_dbg(dev, "dax: %s\n", rc == 0 ? dev_name(dax_dev) : "<none>");
-> diff --git a/drivers/nvdimm/pfn.h b/drivers/nvdimm/pfn.h
-> index f58b849e455b..dfb2bcda8f5a 100644
-> --- a/drivers/nvdimm/pfn.h
-> +++ b/drivers/nvdimm/pfn.h
-> @@ -28,6 +28,7 @@ struct nd_pfn_sb {
->  	__le32 end_trunc;
->  	/* minor-version-2 record the base alignment of the mapping */
->  	__le32 align;
-> +	/* minor-version-3 guarantee the padding and flags are zero */
->  	u8 padding[4000];
->  	__le64 checksum;
->  };
-> diff --git a/drivers/nvdimm/pfn_devs.c b/drivers/nvdimm/pfn_devs.c
-> index 0f81fc56bbfd..4977424693b0 100644
-> --- a/drivers/nvdimm/pfn_devs.c
-> +++ b/drivers/nvdimm/pfn_devs.c
-> @@ -412,6 +412,15 @@ static int nd_pfn_clear_memmap_errors(struct nd_pfn *nd_pfn)
->  	return 0;
->  }
->  
-> +/**
-> + * nd_pfn_validate - read and validate info-block
-> + * @nd_pfn: fsdax namespace runtime state / properties
-> + * @sig: 'devdax' or 'fsdax' signature
-> + *
-> + * Upon return the info-block buffer contents (->pfn_sb) are
-> + * indeterminate when validation fails, and a coherent info-block
-> + * otherwise.
-> + */
->  int nd_pfn_validate(struct nd_pfn *nd_pfn, const char *sig)
->  {
->  	u64 checksum, offset;
-> @@ -557,7 +566,7 @@ int nd_pfn_probe(struct device *dev, struct nd_namespace_common *ndns)
->  	nvdimm_bus_unlock(&ndns->dev);
->  	if (!pfn_dev)
->  		return -ENOMEM;
-> -	pfn_sb = devm_kzalloc(dev, sizeof(*pfn_sb), GFP_KERNEL);
-> +	pfn_sb = devm_kmalloc(dev, sizeof(*pfn_sb), GFP_KERNEL);
->  	nd_pfn = to_nd_pfn(pfn_dev);
->  	nd_pfn->pfn_sb = pfn_sb;
->  	rc = nd_pfn_validate(nd_pfn, PFN_SIG);
-> @@ -694,7 +703,7 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
->  	u64 checksum;
->  	int rc;
->  
-> -	pfn_sb = devm_kzalloc(&nd_pfn->dev, sizeof(*pfn_sb), GFP_KERNEL);
-> +	pfn_sb = devm_kmalloc(&nd_pfn->dev, sizeof(*pfn_sb), GFP_KERNEL);
->  	if (!pfn_sb)
->  		return -ENOMEM;
->  
-> @@ -703,11 +712,14 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
->  		sig = DAX_SIG;
->  	else
->  		sig = PFN_SIG;
-> +
->  	rc = nd_pfn_validate(nd_pfn, sig);
->  	if (rc != -ENODEV)
->  		return rc;
->  
->  	/* no info block, do init */;
-> +	memset(pfn_sb, 0, sizeof(*pfn_sb));
-> +
->  	nd_region = to_nd_region(nd_pfn->dev.parent);
->  	if (nd_region->ro) {
->  		dev_info(&nd_pfn->dev,
-> @@ -760,7 +772,7 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
->  	memcpy(pfn_sb->uuid, nd_pfn->uuid, 16);
->  	memcpy(pfn_sb->parent_uuid, nd_dev_to_uuid(&ndns->dev), 16);
->  	pfn_sb->version_major = cpu_to_le16(1);
-> -	pfn_sb->version_minor = cpu_to_le16(2);
-> +	pfn_sb->version_minor = cpu_to_le16(3);
->  	pfn_sb->start_pad = cpu_to_le32(start_pad);
->  	pfn_sb->end_trunc = cpu_to_le32(end_trunc);
->  	pfn_sb->align = cpu_to_le32(nd_pfn->align);
->
-> _______________________________________________
-> Linux-nvdimm mailing list
-> Linux-nvdimm@lists.01.org
-> https://lists.01.org/mailman/listinfo/linux-nvdimm
+Jason
 
