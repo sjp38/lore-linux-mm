@@ -6,94 +6,97 @@ X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 87CB3C31E49
-	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 08:52:05 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id EE51CC31E49
+	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 08:54:16 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4547820823
-	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 08:52:05 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4547820823
+	by mail.kernel.org (Postfix) with ESMTP id 8533D2080C
+	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 08:54:16 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8533D2080C
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D21246B0003; Wed, 19 Jun 2019 04:52:04 -0400 (EDT)
+	id EA5E06B0003; Wed, 19 Jun 2019 04:54:15 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CD2318E0002; Wed, 19 Jun 2019 04:52:04 -0400 (EDT)
+	id E56F18E0002; Wed, 19 Jun 2019 04:54:15 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B98D98E0001; Wed, 19 Jun 2019 04:52:04 -0400 (EDT)
+	id CD03E8E0001; Wed, 19 Jun 2019 04:54:15 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 9466F6B0003
-	for <linux-mm@kvack.org>; Wed, 19 Jun 2019 04:52:04 -0400 (EDT)
-Received: by mail-qt1-f198.google.com with SMTP id e39so15060497qte.8
-        for <linux-mm@kvack.org>; Wed, 19 Jun 2019 01:52:04 -0700 (PDT)
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id AB9516B0003
+	for <linux-mm@kvack.org>; Wed, 19 Jun 2019 04:54:15 -0400 (EDT)
+Received: by mail-qk1-f200.google.com with SMTP id v80so14838715qkb.19
+        for <linux-mm@kvack.org>; Wed, 19 Jun 2019 01:54:15 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
          :references:from:openpgp:autocrypt:organization:message-id:date
          :user-agent:mime-version:in-reply-to:content-language
          :content-transfer-encoding;
-        bh=P7zjzVil6Y5RgSKB2IussTzmQA1qMDH4DbEPYTWF3A4=;
-        b=R6TU/3GHOuOhMaXCH84P0mCIFTxr+ZpHBbOS7CM5V8V/LiQ79E6DUJZzDUgBZbl7Wo
-         7HIfAX+kDkG1OhpAXFrD+ZvFEZtbkf2j83bATlzdg8FlwtSwfTCBpdoD7bdTsvR9Hqc4
-         BjQZhdEpuQcNUQkNsRP8Det6Jn/f77AZWdXTIlGwGn2qUq70YLAsSulorkXlAVrDkAsR
-         MDLD4lz6y98pg7RAc3RUUefJ2NX9RJ/ILoRw+cGRmsVfeqejqI+Rp+atSoFgD9lM7bnD
-         zofvaxP7A3LefEJbdNvKiriDxpSm56K/q0c42xfk6sybUm3PxXiwaZacpQtNA8m5s/Mb
-         Jn8A==
+        bh=d6kNICFWRLj2ax6Ull3Dwq4Ud3JaX2V2EqtFtXp3ZUI=;
+        b=B/+HlczSf8qZkDM3SfY28U+AivFDhlIrmO1TENwhYBOQJUjr9FmZcrl6eVM0FFBtoh
+         IESswj6DOieO4TR1AKSDzYuY5DeeJ+TyK29ZaCTBd5dsCNloWAgXYQpTVN/iXeqtVqWd
+         KwQK2KP6+xRd68T/u16S5FJHlz7bFQZ9tZVz5NT/YYvCkoPYoHPSDtgZeV/yz/Mie/cn
+         R8BlwUcO66eIIebbZGam2Xeahv4bb/VikoKUFssA+x41p41q9m/hxqjsjMf2wTlO8ViI
+         CZk4M0ttkTl7Llpnc5Zpwmp1SOEVu8E2cLblDYlxL8UbgCSZZ1F/Ppf9qB663GrFWw1Z
+         Ws4Q==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAW+h/yTcvknjg7DELyzbtVkUMMqlp8zQx3+60DzSjt0VQo76HWU
-	C318hCfsLFAE0KtVBMv8LHzEx7vbSsVksBmcb8OrO3+NVeigMEcTk/25Rqlwjx818F04IqPeXof
-	mV7ZSBhQ6s9jINEe3qI/rboeQ9sAiU2bbmNYjg7U/LGl2HdPF98o86l22DM2p2uSSFg==
-X-Received: by 2002:ac8:2ae8:: with SMTP id c37mr50988636qta.267.1560934324321;
-        Wed, 19 Jun 2019 01:52:04 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwSWIWuBg6oaw+TFHjpogYxWhRcKfHEtcdTNqV54a1sZgiVnMwYxUqi5E48orlohD4SPKkN
-X-Received: by 2002:ac8:2ae8:: with SMTP id c37mr50988595qta.267.1560934323728;
-        Wed, 19 Jun 2019 01:52:03 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560934323; cv=none;
+X-Gm-Message-State: APjAAAUv3TmdH2rF3gQq3HMru3lMiOI1wiJ+0qsO+ySjp/WHGGonH1pd
+	ShWX1qGG7C3J9KovIraD69ItiwmgQUx8oqA+2+9KhQqyMhB0Mv09H3HL2Cv9BFE4ZREfBvKQ1Bb
+	v3uN7bJeNJhf8/p8e580HlSfEtB+ErWzG79RJbkUA8EyalE2G25Wn4sXOyaRaTVvgYQ==
+X-Received: by 2002:aed:3e7c:: with SMTP id m57mr99464897qtf.204.1560934455456;
+        Wed, 19 Jun 2019 01:54:15 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzwxhjzTJTaAMkaLZrLjlppFCclJB9PWZfP0NFBYkCIf2rR9AoTZrmhU4L1DDMxThwmeBTR
+X-Received: by 2002:aed:3e7c:: with SMTP id m57mr99464860qtf.204.1560934454878;
+        Wed, 19 Jun 2019 01:54:14 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560934454; cv=none;
         d=google.com; s=arc-20160816;
-        b=tr4YHRQKgq1AlRY5Noaz1QtgZXDELDysCk2dbZay5jRXSq1awkNazQ4nlDJuaKBG4P
-         e913BbMafivtgWuCly1w3dW7ZlTwxChkdX7eK0T+NDyREOIKgujkTqahO2NVHp8e0vGm
-         XaJaVORMXZIWXWVEjxKriGuzM+pnM51WDEtgKgQZnav987wUqHFDBy1m74a93eaKsqc/
-         Alh4LC4FeN3m2V2l+dAgvVOfhu91ro1PZmYHhTOjOGVLrKIi6rc7nbpWNHTUMqO397GN
-         W661kygEacT67vGExmiDuv71OKPo6PkmUhmG5K03Q7INhf+QAwhBFu7ifOioctKi1pFX
-         vplA==
+        b=WOGID4wSIDNcywho83DgaSjORKQZMx6FpHzqRXebb2Aph3ToLS5TXuK6TZHrbvgv2I
+         ALalb0OE0zD9mLuUx6vWts5hvz4Lplinj6V2QOmsrZFYPL59Zsd/qCTD5Z7VkSbh17WF
+         nkhMjGeLZm2bobmcdmyCAJIK3qjkndnecNoVswP4sULS7L3pBznrFJYf8tPpMCAF1t4g
+         LnuMf56lGbrEu0qO/qbts5zV6HksUIeYllAVybBGvYaFS3JAHUP43YD3YzdKBICdc4u4
+         l1hC4PCB8ecWbRx2OD1xYB5OlPvAn+MA0e2wqAT8hZ4cDc4a052vcVahd59RKEjZEkb2
+         39DA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
          :user-agent:date:message-id:organization:autocrypt:openpgp:from
          :references:cc:to:subject;
-        bh=P7zjzVil6Y5RgSKB2IussTzmQA1qMDH4DbEPYTWF3A4=;
-        b=VSJJwWk8Qz7Mpyre9+qgaLST7advH1b7Jg7FznvmdFc202sGSF1D93X2FOQlKzhuMm
-         hVd5UUW9p3tOTSegWe3jNK/gbBuMIKcVxnp6naItFvqDgmBOcX1IxLcExSQgTwHjzTnu
-         /YNAuRTCQoryZJsRe63SBiX+77H0vxQVVG2wd0/Q59yeiVstK+yeZT1bXdtM/ZAwAFCY
-         KgxQqS3q8mie4seRZWdfPZ7WaOdOJiWhpCIJow/1JMsUbl3ZRnKZSBpJuidgTF45er+B
-         /U8fe5TJwc8s1x4hxr+JlGTuGxVT8abDa6hskPSdIPaPeIjD2GjuGO8gxVDZP9+qXdRw
-         26ow==
+        bh=d6kNICFWRLj2ax6Ull3Dwq4Ud3JaX2V2EqtFtXp3ZUI=;
+        b=huBbC/O0w4ZN0OvKFqK71kF1vgASQf1v0x0pJnt3Sr8FBTz/QqzXr8hZyQ4iWOZAOo
+         XLw25hLjKtEX/tRTJx7MHS+qFZWPGzBCWMGO5Q5WOd4ybT6uzYZN2HDfw0sGAb567l8O
+         VSqMEWNvkhMJkzS9Dyp4Wjd8/Mr8EijNDW0uKkuZ8NFdciUlJKkGA5Js7CnLuHFJ5dDu
+         KdOrMW6N16JQU8jTgk7Mzy5s5Ki1xKl/MYYI8UBySbxsd789Kx3Nnlku1a3dkHvm1nAB
+         k1h8jV21w1RYkRPqr13/D6J2eebxdnMEwXeYewTYu4Lacrhe6y8KMv+QJ5JSgfLdkqHt
+         CErg==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id n94si566901qte.210.2019.06.19.01.52.03
+        by mx.google.com with ESMTPS id u55si5464991qvg.168.2019.06.19.01.54.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 19 Jun 2019 01:52:03 -0700 (PDT)
+        Wed, 19 Jun 2019 01:54:14 -0700 (PDT)
 Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
+Received: from smtp.corp.redhat.com (int-mx02.intmail.prod.int.phx2.redhat.com [10.5.11.12])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 0913630018E9;
-	Wed, 19 Jun 2019 08:51:50 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id A97153082133;
+	Wed, 19 Jun 2019 08:54:11 +0000 (UTC)
 Received: from [10.36.117.229] (ovpn-117-229.ams2.redhat.com [10.36.117.229])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id A095D60A9A;
-	Wed, 19 Jun 2019 08:51:48 +0000 (UTC)
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 45FEA84FF;
+	Wed, 19 Jun 2019 08:54:10 +0000 (UTC)
 Subject: Re: [PATCH v2] mm/sparse: set section nid for hot-add memory
-To: Oscar Salvador <osalvador@suse.de>, Michal Hocko <mhocko@suse.com>
-Cc: Wei Yang <richardw.yang@linux.intel.com>, linux-mm@kvack.org,
+To: Michal Hocko <mhocko@suse.com>
+Cc: Wei Yang <richardw.yang@linux.intel.com>,
+ Oscar Salvador <osalvador@suse.de>, linux-mm@kvack.org,
  akpm@linux-foundation.org, anshuman.khandual@arm.com
 References: <20190618005537.18878-1-richardw.yang@linux.intel.com>
- <20190619062330.GB5717@dhcp22.suse.cz> <20190619075347.GA22552@linux>
+ <20190618074900.GA10030@linux> <20190618083212.GA24738@richard>
+ <93d7ea6c-135e-7f12-9d75-b3657862dea0@redhat.com>
+ <20190619061025.GA5717@dhcp22.suse.cz>
 From: David Hildenbrand <david@redhat.com>
 Openpgp: preference=signencrypt
 Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
@@ -140,49 +143,76 @@ Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
  +8Umfre0Xt4713VxMygW0PnQt5aSQdMD58jHFxTk092mU+yIHj5LeYgvwSgZN4airXk5yRXl
  SE+xAvmumFBY
 Organization: Red Hat GmbH
-Message-ID: <a52a196a-9900-0710-a508-966e725eae03@redhat.com>
-Date: Wed, 19 Jun 2019 10:51:47 +0200
+Message-ID: <aaa9d3af-0472-ffde-a565-fe6a067a4c49@redhat.com>
+Date: Wed, 19 Jun 2019 10:54:08 +0200
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.7.0
 MIME-Version: 1.0
-In-Reply-To: <20190619075347.GA22552@linux>
+In-Reply-To: <20190619061025.GA5717@dhcp22.suse.cz>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.46]); Wed, 19 Jun 2019 08:52:02 +0000 (UTC)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.12
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.42]); Wed, 19 Jun 2019 08:54:14 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 19.06.19 09:53, Oscar Salvador wrote:
-> On Wed, Jun 19, 2019 at 08:23:30AM +0200, Michal Hocko wrote:
->> On Tue 18-06-19 08:55:37, Wei Yang wrote:
->>> In case of NODE_NOT_IN_PAGE_FLAGS is set, we store section's node id in
->>> section_to_node_table[]. While for hot-add memory, this is missed.
->>> Without this information, page_to_nid() may not give the right node id.
+On 19.06.19 08:10, Michal Hocko wrote:
+> On Tue 18-06-19 10:40:06, David Hildenbrand wrote:
+>> On 18.06.19 10:32, Wei Yang wrote:
+>>> On Tue, Jun 18, 2019 at 09:49:48AM +0200, Oscar Salvador wrote:
+>>>> On Tue, Jun 18, 2019 at 08:55:37AM +0800, Wei Yang wrote:
+>>>>> In case of NODE_NOT_IN_PAGE_FLAGS is set, we store section's node id in
+>>>>> section_to_node_table[]. While for hot-add memory, this is missed.
+>>>>> Without this information, page_to_nid() may not give the right node id.
+>>>>>
+>>>>> BTW, current online_pages works because it leverages nid in memory_block.
+>>>>> But the granularity of node id should be mem_section wide.
+>>>>
+>>>> I forgot to ask this before, but why do you mention online_pages here?
+>>>> IMHO, it does not add any value to the changelog, and it does not have much
+>>>> to do with the matter.
+>>>>
+>>>
+>>> Since to me it is a little confused why we don't set the node info but still
+>>> could online memory to the correct node. It turns out we leverage the
+>>> information in memblock.
 >>
->> Which would mean that NODE_NOT_IN_PAGE_FLAGS doesn't really work with
->> the hotpluged memory, right? Any idea why nobody has noticed this
->> so far? Is it because NODE_NOT_IN_PAGE_FLAGS is rare and essentially
->> unused with the hotplug? page_to_nid providing an incorrect result
->> sounds quite serious to me.
+>> I'd also drop the comment here.
+>>
+>>>
+>>>> online_pages() works with memblock granularity and not section granularity.
+>>>> That memblock is just a hot-added range of memory, worth of either 1 section or multiple
+>>>> sections, depending on the arch or on the size of the current memory.
+>>>> And we assume that each hot-added memory all belongs to the same node.
+>>>>
+>>>
+>>> So I am not clear about the granularity of node id. section based or memblock
+>>> based. Or we have two cases:
+>>>
+>>> * for initial memory, section wide
+>>> * for hot-add memory, mem_block wide
+>>
+>> It's all a big mess. Right now, you can offline initial memory with
+>> mixed nodes. Also on my list of many ugly things to clean up.
+>>
+>> (I even remember that we can have mixed nodes within a section, but I
+>> haven't figured out yet how that is supposed to work in some scenarios)
 > 
-> The thing is that for NODE_NOT_IN_PAGE_FLAGS to be enabled we need to run out of
-> space in page->flags to store zone, nid and section. 
-> Currently, even with the largest values (with pagetable level 5), that is not
-> possible on x86_64.
-> It is possible though, that somewhere in the future, when the values get larger
-> (e.g: we add more zones, NODE_SHIFT grows, or we need more space to store
-> the section) we finally run out of room for the flags though.
-> 
-> I am not sure about the other arches though, we probably should audit them
-> and see which ones can fall in there.
+> Yes, that is indeed the case. See 4aa9fc2a435abe95a1e8d7f8c7b3d6356514b37a.
+> How to fix this? Well, I do not think we can. Section based granularity
+> simply doesn't agree with the reality and so we have to live with that.
+> There is a long way to remove all those section size assumptions from
+> the code though.
 > 
 
-I'd love to see NODE_NOT_IN_PAGE_FLAGS go.
+Trying to remove NODE_NOT_IN_PAGE_FLAGS could work, but we would have to
+identify how exactly needs that. For memory blocks, we need a different
+approach (I have in my head to make ->nid indicate if we are dealing
+with mixed nodes. If mixed, disallow onlining/offlining).
 
 -- 
 
