@@ -2,148 +2,153 @@ Return-Path: <SRS0=1eqM=US=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9AF0CC31E5E
-	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 05:15:05 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 78D62C31E49
+	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 05:18:11 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6DD41214AF
-	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 05:15:05 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6DD41214AF
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ghiti.fr
+	by mail.kernel.org (Postfix) with ESMTP id 2889F208CB
+	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 05:18:11 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2889F208CB
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1DC156B0003; Wed, 19 Jun 2019 01:15:05 -0400 (EDT)
+	id 9532C6B0003; Wed, 19 Jun 2019 01:18:10 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 18B1B8E0002; Wed, 19 Jun 2019 01:15:05 -0400 (EDT)
+	id 903388E0002; Wed, 19 Jun 2019 01:18:10 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 053968E0001; Wed, 19 Jun 2019 01:15:04 -0400 (EDT)
+	id 819218E0001; Wed, 19 Jun 2019 01:18:10 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id ABF996B0003
-	for <linux-mm@kvack.org>; Wed, 19 Jun 2019 01:15:04 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id m23so6839094edr.7
-        for <linux-mm@kvack.org>; Tue, 18 Jun 2019 22:15:04 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 3786A6B0003
+	for <linux-mm@kvack.org>; Wed, 19 Jun 2019 01:18:10 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id i44so24469904eda.3
+        for <linux-mm@kvack.org>; Tue, 18 Jun 2019 22:18:10 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=UWpdnrbGefkQI6ssngVxJNkCRhvWsEseMpLH8MS8OO4=;
-        b=rGNAX5Db5Qz3N0SV4KZhJkMUTVQ2Cy0QvAgndiqNr/KQwHaCzhliisDpFBj6eUecTA
-         u6kKHDxq/MYdSj0PBN1L2rlEhPi99uKOjkIbp3N/IuiLEtNk79pmuXPPjr6jP+W4DN6A
-         DTOHVDiGx871EiPklsaNcE0TV04mNcdPYFm6HDcoanvMut5E0bEmKNeGVPlUOMmMd8zg
-         D836lVrVG4nhk2ECY0yD3g1d4kad6waQSh8B2M4ZcxMLUnzllnzsFju8fiucFKTnsb0A
-         wyL1TopP8lx/XCmfqRQ5ZanjF87ZerOwONUd2HQ1RvvnRNrVlC0lYuBrOF+ek03gF7g0
-         ISpQ==
-X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 217.70.183.195 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
-X-Gm-Message-State: APjAAAVqM7tvbSqSmIXqNkGy49DtkijPHUugYdedJ31KPlSvFbEu4K2d
-	C2eutAeKbrPmaRWfP00FR6Nusjge4t7529pPTTREsUBUJFiv1ESqqbRlFGHGuhQRveye+9o0xgi
-	pMlPFGsJ+jvGKFkBaVvVUGswDPXf5ymGZCIi7PlQTSfpTMJEEGC1l9USWU9PcR0Q=
-X-Received: by 2002:a17:906:1804:: with SMTP id v4mr2336494eje.188.1560921304196;
-        Tue, 18 Jun 2019 22:15:04 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxziE3jD9L9/Yq2WtLjuH0JWTEOny/7v/SkFO3LFu6w9EAFoK6w6oVCsJ0S2b8GUizC68x1
-X-Received: by 2002:a17:906:1804:: with SMTP id v4mr2336434eje.188.1560921303159;
-        Tue, 18 Jun 2019 22:15:03 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560921303; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=9vipYaSJ6BMz6gquEUlu3+yR5KbrxPlIt7hKWE2cUQ4=;
+        b=PhCKAyZIx9sxuzhjdVffnzG8vG2g7UIqqfNKS+ZgW/5P097BDUrdO9m64fsHX9m+RI
+         YP1Q6uRIz8zHRgVrDAiueAYDcC9sfTzCz0mlK2gTl7M+dpbqRdXK7lajTl/Yfg9KFt1H
+         FLFWv6JVKg6jxU86uYFaHDoG1S8mrjep8KzUXsZZaMPEk9NClDdnasvgbtqtto8rcf6v
+         89lfNfGDocsiZpeelKfduTRfIdHVIR81o96Ucz83w5bK3E4bQgo0mDsUxVDAtZayGSz3
+         qoC/v7KyiwTvRY9FEpcIKBeqNtiKTCv0vbJ5kR7sxvyb6Ju4tZPAnjvSJ3wosyDGDPtZ
+         +UxA==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAUsNGv3nVmJnbf3HF4/Ej4VJNQ9SajMhqvQVetYtB6jmcoB+KA8
+	BSEBhuMX4GwSVLWqMCpaUqPbaw/M7L+PH/CXV30WfDeliNXkb0DoE0e01ltEdvrKsnjY3gHQGHR
+	uqcss+0OZusvJ4ZRpeFE5vmzra8+Q9iJBmTXVa3mrbzwaEyUvitvBvFgscvebzt0=
+X-Received: by 2002:a17:906:8603:: with SMTP id o3mr16355570ejx.162.1560921489802;
+        Tue, 18 Jun 2019 22:18:09 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyMl2gQ9H38qOLkVOIub19YUP/5ciKaFFOwiZQKWoPx547/tvDEEkR0DWFFEiQhhB0iD/lV
+X-Received: by 2002:a17:906:8603:: with SMTP id o3mr16355537ejx.162.1560921489055;
+        Tue, 18 Jun 2019 22:18:09 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560921489; cv=none;
         d=google.com; s=arc-20160816;
-        b=SRzjLO5q9UAU0jw31cJaEYeFyLnakqF6DKcRFy1Uxe7VILSCW4a7T6tjUUklR4ubUm
-         15jjmRZdEAMYO7IdE2Uvp/6NnjmdnBHm4Et6m9GgCmxmvlI4TCk33nqd3TLxEd0dmQKz
-         vkETeVVi4oZ50MqbUpiEFESLU/yv1T0PVVVsWSuWXGEUVpO52NMODQuQQfe0UYX0Tu2r
-         vJS6dos0hzFXQ3eO88bE5nFvRsdhiYVAhVYsf0leIxOVR9+xbn8KpdoZdU3qlXjzph/F
-         DquMcfKW6JdbSMMBO0tMxuqFOirs9NR459UPtgUtbKJuGQQrtC/ax+SgKIao01Si37Jm
-         UCvw==
+        b=xkhUGGAXyFLWIFtBTKTw6i+nmcc1agnZlBtVlLaR4y4cLtXxL1qDVl8ct9OVc3hSa+
+         TSrDEja7bfoQGLamlPocDH18HUK3WDKrux4v4bJOcrAy46ukI6cITNcA4fozDi4+1NTw
+         1v23ljUQSRlkyzuo/IX2K7H7xze60JR/QtftRse70mpENKWmIoA8KxY0MSzcaUwezHQR
+         skrbthOLZMoWyM+zJFGj++T8Olc+GMRpYdruBtDp9FwIDNr6UK4Xzw2QnE3TMB6R293b
+         peGvQjH3T4hgzP3Y2unHK1z0OOJkTYA/b4Br6IyU768J4CZX8hShsqyUd4DjlOW9b3XG
+         yg0Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from;
-        bh=UWpdnrbGefkQI6ssngVxJNkCRhvWsEseMpLH8MS8OO4=;
-        b=qDPDb7qtqbdTpFAvVwuB4gBRsV42k5lCZNBOa2qMIg7xjDpidpXsd9I0Tk07PWXX/q
-         wxx8nFDZxJ4tigELULq0D/kqH0Ofa2HEGhC/udD3rVEqI+lg5NxpTvaxXM2PCHT2gRHZ
-         5Zg4jZ4doitqOIP8OuyZ9e0S33U4FYJGCUMAE3ed50oSSpT8W2cRLUgKLO11WaQ2+Jb/
-         YDpmQuTzr/Jqn/AcYafWm4LFdYRkqQsgnpT7gJ4JkE5HLImYjjRb7CkM5G5Ifl+v2aOy
-         ovmG3egorPIMm6VfekGo613NV2xBMgHu3UBUe0t1h3xBFFl27gWP9LqkHu5mrrr9eb8U
-         B2oQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=9vipYaSJ6BMz6gquEUlu3+yR5KbrxPlIt7hKWE2cUQ4=;
+        b=0So/gnnN9LePK0EpfxbOoPxJoJTncjXOSOkZdebs5kHQZwilAhfM4AFxwYSWEKWdhd
+         3fqgFzQsDNp27dI6W3LeCGA1dHoaDV3NoX1cxYpiGCdSp8wllazze6jGM6yJIzWE228t
+         p1vxdzXVKzpzCozrjAJWApPXE3SaV7VZnoxu9UtGVMDa2me+dpt5XvTrnktOjv69yIdO
+         q4dOKwd4AqsPJkK9KYE8wpx0BF520sg4eWYrrioPUt0QX26zsMgQehV2nDOFpQBwJywW
+         Ox3KiIsS3rVe9gIAg1BoO38jk4pMjfgniJcl2o15kk9JLN5UcVseZKtj6qybShT1dkr+
+         Hu0g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=neutral (google.com: 217.70.183.195 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
-Received: from relay3-d.mail.gandi.net (relay3-d.mail.gandi.net. [217.70.183.195])
-        by mx.google.com with ESMTPS id q55si13532093eda.257.2019.06.18.22.15.02
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id n12si10196500ejr.105.2019.06.18.22.18.08
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 18 Jun 2019 22:15:03 -0700 (PDT)
-Received-SPF: neutral (google.com: 217.70.183.195 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) client-ip=217.70.183.195;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 18 Jun 2019 22:18:09 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=neutral (google.com: 217.70.183.195 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
-X-Originating-IP: 79.86.19.127
-Received: from alex.numericable.fr (127.19.86.79.rev.sfr.net [79.86.19.127])
-	(Authenticated sender: alex@ghiti.fr)
-	by relay3-d.mail.gandi.net (Postfix) with ESMTPSA id E2FD860012;
-	Wed, 19 Jun 2019 05:14:58 +0000 (UTC)
-From: Alexandre Ghiti <alex@ghiti.fr>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "James E . J . Bottomley" <James.Bottomley@HansenPartnership.com>,
-	Helge Deller <deller@gmx.de>,
-	Heiko Carstens <heiko.carstens@de.ibm.com>,
-	Vasily Gorbik <gor@linux.ibm.com>,
-	Christian Borntraeger <borntraeger@de.ibm.com>,
-	Yoshinori Sato <ysato@users.sourceforge.jp>,
-	Rich Felker <dalias@libc.org>,
-	"David S . Miller" <davem@davemloft.net>,
-	Thomas Gleixner <tglx@linutronix.de>,
-	Ingo Molnar <mingo@redhat.com>,
-	Borislav Petkov <bp@alien8.de>,
-	"H . Peter Anvin" <hpa@zytor.com>,
-	x86@kernel.org,
-	Dave Hansen <dave.hansen@linux.intel.com>,
-	Andy Lutomirski <luto@kernel.org>,
-	Peter Zijlstra <peterz@infradead.org>,
-	linux-parisc@vger.kernel.org,
-	linux-kernel@vger.kernel.org,
-	linux-s390@vger.kernel.org,
-	linux-sh@vger.kernel.org,
-	sparclinux@vger.kernel.org,
-	linux-mm@kvack.org,
-	Alexandre Ghiti <alex@ghiti.fr>
-Subject: [PATCH 5/8] mm: Start fallback top-down mmap at mm->mmap_base
-Date: Wed, 19 Jun 2019 01:08:41 -0400
-Message-Id: <20190619050844.5294-6-alex@ghiti.fr>
-X-Mailer: git-send-email 2.20.1
-In-Reply-To: <20190619050844.5294-1-alex@ghiti.fr>
-References: <20190619050844.5294-1-alex@ghiti.fr>
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 80758ADF7;
+	Wed, 19 Jun 2019 05:18:08 +0000 (UTC)
+Date: Wed, 19 Jun 2019 07:18:05 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
+	Rik van Riel <riel@surriel.com>, Roman Gushchin <guro@fb.com>
+Subject: Re: [PATCH 1/1] fork,memcg: alloc_thread_stack_node needs to set
+ tsk->stack
+Message-ID: <20190619051805.GA2968@dhcp22.suse.cz>
+References: <20190619011450.28048-1-aarcange@redhat.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190619011450.28048-1-aarcange@redhat.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-In case of mmap failure in top-down mode, there is no need to go through
-the whole address space again for the bottom-up fallback: the goal of this
-fallback is to find, as a last resort, space between the top-down mmap base
-and the stack, which is the only place not covered by the top-down mmap.
+On Tue 18-06-19 21:14:50, Andrea Arcangeli wrote:
+> Commit 5eed6f1dff87bfb5e545935def3843edf42800f2 corrected two
+> instances, but there was a third instance of this bug.
 
-Signed-off-by: Alexandre Ghiti <alex@ghiti.fr>
----
- mm/mmap.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+Sigh. I should have noticed when reviewing the above. My bad.
 
-diff --git a/mm/mmap.c b/mm/mmap.c
-index dedae10cb6e2..e563145c1ff4 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -2185,7 +2185,7 @@ arch_get_unmapped_area_topdown(struct file *filp, unsigned long addr,
- 	if (offset_in_page(addr)) {
- 		VM_BUG_ON(addr != -ENOMEM);
- 		info.flags = 0;
--		info.low_limit = TASK_UNMAPPED_BASE;
-+		info.low_limit = arch_get_mmap_base(addr, mm->mmap_base);
- 		info.high_limit = mmap_end;
- 		addr = vm_unmapped_area(&info);
- 	}
+> Without setting tsk->stack, if memcg_charge_kernel_stack fails, it'll
+> execute free_thread_stack() on a dangling pointer.
+> 
+> Enterprise kernels are compiled with VMAP_STACK=y so this isn't
+> critical, but custom VMAP_STACK=n builds should have some performance
+> advantage, with the drawback of risking to fail fork because
+> compaction didn't succeed. So as long as VMAP_STACK=n is a supported
+> option it's worth fixing it upstream.
+> 
+> Fixes: 9b6f7e163cd0 ("mm: rework memcg kernel stack accounting")
+> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+
+Acked-by: Michal Hocko <mhocko@suse.com>
+
+I have double checked now and it seems we have covered all the cases
+finally.
+
+Thanks!
+> ---
+>  kernel/fork.c | 6 +++++-
+>  1 file changed, 5 insertions(+), 1 deletion(-)
+> 
+> diff --git a/kernel/fork.c b/kernel/fork.c
+> index d6c324b1b29e..9ee28dfe7c21 100644
+> --- a/kernel/fork.c
+> +++ b/kernel/fork.c
+> @@ -248,7 +248,11 @@ static unsigned long *alloc_thread_stack_node(struct task_struct *tsk, int node)
+>  	struct page *page = alloc_pages_node(node, THREADINFO_GFP,
+>  					     THREAD_SIZE_ORDER);
+>  
+> -	return page ? page_address(page) : NULL;
+> +	if (likely(page)) {
+> +		tsk->stack = page_address(page);
+> +		return tsk->stack;
+> +	}
+> +	return NULL;
+>  #endif
+>  }
+>  
+
 -- 
-2.20.1
+Michal Hocko
+SUSE Labs
 
