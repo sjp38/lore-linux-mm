@@ -2,174 +2,188 @@ Return-Path: <SRS0=1eqM=US=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-8.3 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_IN_DEF_DKIM_WL autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C41FDC31E5D
-	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 14:15:35 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 61DCCC31E49
+	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 14:42:29 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7B8FC21670
-	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 14:15:34 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 26A6C214AF
+	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 14:42:29 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="dPqOh1g1"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7B8FC21670
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="jbRaxdb+"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 26A6C214AF
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 37A7D6B0003; Wed, 19 Jun 2019 10:15:34 -0400 (EDT)
+	id B7DBA6B0003; Wed, 19 Jun 2019 10:42:28 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 32B8F8E0002; Wed, 19 Jun 2019 10:15:34 -0400 (EDT)
+	id B550C8E0002; Wed, 19 Jun 2019 10:42:28 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 241748E0001; Wed, 19 Jun 2019 10:15:34 -0400 (EDT)
+	id A1D188E0001; Wed, 19 Jun 2019 10:42:28 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id E01106B0003
-	for <linux-mm@kvack.org>; Wed, 19 Jun 2019 10:15:33 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id t2so9922546plo.10
-        for <linux-mm@kvack.org>; Wed, 19 Jun 2019 07:15:33 -0700 (PDT)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 687766B0003
+	for <linux-mm@kvack.org>; Wed, 19 Jun 2019 10:42:28 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id j36so12379053pgb.20
+        for <linux-mm@kvack.org>; Wed, 19 Jun 2019 07:42:28 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=NBYZM4x4vonQf9U9PegTdJ8Gr3lWbvulPmcaW6blw1o=;
-        b=AJT5T3xEo5HIl0Y/1lpRpKtGI1iV+TZPrhzBdu/i1oFSGHPX0e+j4hmAMt9foe/qDR
-         /NJjPhbStJr/d9AAFAWx7hLgBxmb5otLV6nNgFNhmu7VS1509EOfegluW6AoXlUpdwRr
-         h7LrSDnyLdRwX2PvAPwqw/u/hSdmI1HhnPO/VMPurKIyHcO85S3GnyI4JP97EnR+lSyV
-         0h8pcNcsWRwEUfBxdjK4L/+LFVbv3gOqjQsc65vj7mxuqGViHeP+g9K0Bn5KGq1rm0y8
-         joSwkCXvdvZKd1IsOlP3/sg4O58I2oITZNZ0PhIyVPf5/e3gb4luDHjmdC3ed9wz3ApL
-         N1Ig==
-X-Gm-Message-State: APjAAAVG4rfEJZn6Qqu5hYUbsZJBUSzabFV/OwVj6VZscWfOOfzgqXBR
-	5M2S1X0BUX0aer3q9OZmpgD8wBkj8Uam5ZTxzBExlCOCUfKpBepEXr1ztX7QrW4z/tM0O0/UuAM
-	Klk9nubatXSIXhW/iT5PPXfuBAFOSgS0VQieRXgj5a5+6ARcSZwWQcn1LNH7XtIA=
-X-Received: by 2002:a62:1ec3:: with SMTP id e186mr127377501pfe.197.1560953733482;
-        Wed, 19 Jun 2019 07:15:33 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqw/FNR+WoGXKYSe64L3NDuGcDUN9UtplK4T4qAR1b7LU0U0hVnIfNUn8yJJISenMCD6TGVf
-X-Received: by 2002:a62:1ec3:: with SMTP id e186mr127377451pfe.197.1560953732814;
-        Wed, 19 Jun 2019 07:15:32 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560953732; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=ZUb5QTtqm4gVcMQkDqa/NfcfqCV/fqPlPHdvScpz0wo=;
+        b=S846z2+nBBB1e8nJjpQF4+m5tzXaOdsLcVgix5nNZkVlNEdHkN4fq4xy1o/A1lBbQU
+         2klkizp39HvP2mQ10QC7MYsrG1/rDO6khC1Q7lk/lX5ISwsKxy9Pu55DhGlO+52dOA3Z
+         ag6KdJo9Epj7yz4MMIG8u+feWJeFM/8QRc+DuKh2q3bsUB06cx7TNJKRG0RFPZ8Jt53L
+         LuOHKFmAU6ljTtnTMN1/8kD7iJBYvTGh3h/Umr7afmKQZJA0ONya6YRomVbsWvI/NVSX
+         ITb3HUBEVXdRRfZKjPZhSm/zF8rwxD+ssDHIGy02cEbfRzoayxWLYVlwxpDys9LE1cLu
+         vu/Q==
+X-Gm-Message-State: APjAAAXcREjvsmZQcAZnsYpIp2Owe3uTNDk7uI6hmNRn1ZKcWWzRDNVJ
+	7AXpyH6gUSf/Zmps3A1rR1y8owt37x0Zgzgd7Mq1/H7YDbVaaynaTdu45typ5mHZnH3QuLB2AE8
+	XxTwjfLK15pYbXdpt6BoH6hIkFEg3X6cAOfqvoEGE/JXJLptRQUbxE2cdYBBZ/3zBLQ==
+X-Received: by 2002:a17:902:54d:: with SMTP id 71mr8260262plf.140.1560955348009;
+        Wed, 19 Jun 2019 07:42:28 -0700 (PDT)
+X-Received: by 2002:a17:902:54d:: with SMTP id 71mr8260198plf.140.1560955347050;
+        Wed, 19 Jun 2019 07:42:27 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560955347; cv=none;
         d=google.com; s=arc-20160816;
-        b=pNrI1n5mCLBWM3arzkmQBO1jOpF+jAikw2GglzU3ih4nQF6BY0lzYofFholqQFfa18
-         kS8YbDVsGOMLHMDtfauKJGRCuHiHB955y41aXYdbgcrZ4MA3cKMckn0o59UgOTw9+O6w
-         WsKY6IaoOsAqDY8R2snoIpnMHYZXZfb8IE3hs0SUbhH0NxkvApiqh16GXIuzZtckWDOj
-         924jj592Pg9r/YhhSfPPBMcPLnOBv3ewqKYTwe4spaeASiNCPm4S/4mHyhZ5/Ba1Kefm
-         0Cson56tOc+W6VSQCbkaqKRA4nUb4H/RUSs/NnfHCR76b2irWx/1Eq9DEoKwtGCdwZvC
-         gy5A==
+        b=Q4rsAr1KtkGOKUKXfL2TMcAhD77W/gyFSz0WwGPTXdPgrAS5aPT4nabx6hSaXsh5ck
+         mujIHgd/DNA+nDqvBsNtTrRjXxGJhyRD7V1wFnrtO01/qkrgz5BB/Y6w1jthdMomexVH
+         F3tYdharZuRq02O8zei+LeoQF6eBdsQQrURBKsuEwbr70ZMpsTsU5DgjyC558KkK6Z0R
+         bLM7qHQH4Q0dxTWImL9lHN4L2GtOagUHZhKFO11jBX7qOjXJ7+Nl/WNV4P87gNl40pQE
+         OF8twrwK0Lr3OLLb8l5fw6ekIlfgYiCe2OQdMijwXhrf6Xm9xzOTFBvTEk9hZ10kTOm3
+         UdPA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=NBYZM4x4vonQf9U9PegTdJ8Gr3lWbvulPmcaW6blw1o=;
-        b=VduZ4bIPBXCj8DN4Iso71yeHkhwLeoi8ohG5b8mXl34Lel059+q8PPm/utKDVlk7gi
-         nh8dIAzQYdGCxpHxMmVgmjAJMXgzhY5QtVPAkstdvwqHUcjGBDtolYbUliawDvBrDX4T
-         Vo5yvRSZp33u0yNsudWE0EsnR771d9TCYD/dY4uwuxfzqnPIKBaYjEvSVvmvT6giOtxD
-         xhwWYhu5ZCt4PwL2iLRhRjfuKYJxuewTxDOfjJw3PF5b2rc1iIbaPy+a7SI/S1IZG/02
-         ZKVU0/O17t5AEC32tSsCd0cXkV3iYIPulZKSMkdnXFltG5zHY2HztDmGxheVl0uAtXaL
-         ZmbQ==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=ZUb5QTtqm4gVcMQkDqa/NfcfqCV/fqPlPHdvScpz0wo=;
+        b=DI5OyK7ZoFllhT7LuDGazw+JUJ3TKgHI7gfK5MmZA5BwoH0uMF9BYGAxI+xwJX+wUx
+         wRs+3cAnWUc1eEISnaL2+hAkQyVxK2cbTXVBuLSnCrBDAA1lQHogOm/RlncjaXY7pAbN
+         oNN9do1vIove/EayP/LtyCl+m4ELgMfjzGasDswvGLLpojR/UgIM9ZX3r8aZjf/xs05j
+         y3nq9MpDpFG6uGq/1wnvCC+9xx8xCAyWqSS8ShxC7hTUT2+upE+eY3pyKD8IOggF3e1U
+         f04g6TP7y1zt9+AeCWQkw+11+ZuVxFixW/kuFUilpAd1miV2GAO2/yUqVe3FAX5pPHhY
+         Q32w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=dPqOh1g1;
-       spf=softfail (google.com: domain of transitioning mchehab+samsung@kernel.org does not designate 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=mchehab+samsung@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id 135si3159840pgb.357.2019.06.19.07.15.32
+       dkim=pass header.i=@google.com header.s=20161025 header.b=jbRaxdb+;
+       spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id bf4sor22001880plb.51.2019.06.19.07.42.26
         for <linux-mm@kvack.org>
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Wed, 19 Jun 2019 07:15:32 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mchehab+samsung@kernel.org does not designate 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (Google Transport Security);
+        Wed, 19 Jun 2019 07:42:27 -0700 (PDT)
+Received-SPF: pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=dPqOh1g1;
-       spf=softfail (google.com: domain of transitioning mchehab+samsung@kernel.org does not designate 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=mchehab+samsung@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=Content-Transfer-Encoding:
-	Content-Type:MIME-Version:References:In-Reply-To:Message-ID:Subject:Cc:To:
-	From:Date:Sender:Reply-To:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=NBYZM4x4vonQf9U9PegTdJ8Gr3lWbvulPmcaW6blw1o=; b=dPqOh1g1u6+Gx0sBalb5rkX2u
-	wIbBMtAEdIsAee3Ub7W9KYWOgt2mtCWo8S4Q3A8BuyYcZpFXJIBFKLK93DcM0OgM4m/inlhuMxd4i
-	xv4bXL13yE2S6AOwvmz7dbVWGoNRlTOpVocD4rVyrbv1GF1YVK56MDdeJUJ2TJdyUU/i7LDzPPxwk
-	q5bBzKUGnZGKBhiO1stiWprfqZmaUIaVdpkulYzUlK2rGWSYmI7ne0f+vptRKQfKdDsKioHcQ3HVY
-	ZLJmnIxZLL9Wg8XwEkfcleJ+3FQYhKRtXa8W53asUfOJcitK/KfLJc7dkOM7cGkK88AajNUpeKd7M
-	OSliQfZFw==;
-Received: from 177.133.86.196.dynamic.adsl.gvt.net.br ([177.133.86.196] helo=coco.lan)
-	by bombadil.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
-	id 1hdbN5-0002AD-M9; Wed, 19 Jun 2019 14:15:32 +0000
-Date: Wed, 19 Jun 2019 11:15:28 -0300
-From: Mauro Carvalho Chehab <mchehab+samsung@kernel.org>
-To: David Howells <dhowells@redhat.com>
-Cc: Linux Doc Mailing List <linux-doc@vger.kernel.org>, Linux MM
- <linux-mm@kvack.org>, Linux Kernel Mailing List
- <linux-kernel@vger.kernel.org>
-Subject: Re: [PATCH v1 12/22] docs: driver-api: add .rst files from the main
- dir
-Message-ID: <20190619111528.3e2665e3@coco.lan>
-In-Reply-To: <11422.1560951550@warthog.procyon.org.uk>
-References: <20190619072218.4437f891@coco.lan>
-	<cover.1560890771.git.mchehab+samsung@kernel.org>
-	<b0d24e805d5368719cc64e8104d64ee9b5b89dd0.1560890772.git.mchehab+samsung@kernel.org>
-	<CAKMK7uGM1aZz9yg1kYM8w2gw_cS6Eaynmar-uVurXjK5t6WouQ@mail.gmail.com>
-	<11422.1560951550@warthog.procyon.org.uk>
-X-Mailer: Claws Mail 3.17.3 (GTK+ 2.24.32; x86_64-redhat-linux-gnu)
+       dkim=pass header.i=@google.com header.s=20161025 header.b=jbRaxdb+;
+       spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=ZUb5QTtqm4gVcMQkDqa/NfcfqCV/fqPlPHdvScpz0wo=;
+        b=jbRaxdb+WWdzPQKppmuoBauA7dvRkdybKRNWtDi8BmVPL/duOwFKyfvGY1RtILXxC+
+         E8fMNzdn99xzzaV1RU67k5BSaIeAySJVjGFam1tncgt0b1c3N/H+rn9Q1Ce9beAuIxY9
+         4KU4S5Y6wyOdt8eRLq9iK/DasXwgpWgTB7OZoLagsJt17dKKFAk9z5/knt/SGGUXD1Pm
+         OoCcVKVcumlyUAfwODg+GBNNkPYKXfWaLZhXGdXetH+hDPabh+cOTFmJx9VZ0MK9R5nx
+         t58AUdQKa58pKb0SOzR1wBFV6nXGOJqmSpABaHdX/di+h0+s+ytlFiUVqPji7K9x3yTy
+         3m5w==
+X-Google-Smtp-Source: APXvYqz/8xJBvM5YApkc8q1BMr1dT5VicIPSZVfioxxqqY6SMtW097rTx7U+hky1E4IR1FcJP1uIwN60haaDiBmSyao=
+X-Received: by 2002:a17:902:4183:: with SMTP id f3mr3975974pld.336.1560955346243;
+ Wed, 19 Jun 2019 07:42:26 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+References: <cover.1560339705.git.andreyknvl@google.com> <e024234e652f23be4d76d63227de114e7def5dff.1560339705.git.andreyknvl@google.com>
+ <7cd942c0-d4c1-0cf4-623a-bce6ef14d992@arm.com> <20190612150040.GH28951@C02TF0J2HF1T.local>
+In-Reply-To: <20190612150040.GH28951@C02TF0J2HF1T.local>
+From: Andrey Konovalov <andreyknvl@google.com>
+Date: Wed, 19 Jun 2019 16:42:15 +0200
+Message-ID: <CAAeHK+yWdW_sa2HgD8foCuwHj97dgGd07K2b1W1-9fpLXGmphQ@mail.gmail.com>
+Subject: Re: [PATCH v17 15/15] selftests, arm64: add a selftest for passing
+ tagged pointers to kernel
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: Szabolcs Nagy <Szabolcs.Nagy@arm.com>, 
+	"linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, 
+	"linux-mm@kvack.org" <linux-mm@kvack.org>, 
+	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, 
+	"amd-gfx@lists.freedesktop.org" <amd-gfx@lists.freedesktop.org>, 
+	"dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>, 
+	"linux-rdma@vger.kernel.org" <linux-rdma@vger.kernel.org>, 
+	"linux-media@vger.kernel.org" <linux-media@vger.kernel.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, 
+	"linux-kselftest@vger.kernel.org" <linux-kselftest@vger.kernel.org>, nd <nd@arm.com>, 
+	Vincenzo Frascino <Vincenzo.Frascino@arm.com>, Will Deacon <Will.Deacon@arm.com>, 
+	Mark Rutland <Mark.Rutland@arm.com>, Andrew Morton <akpm@linux-foundation.org>, 
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kees Cook <keescook@chromium.org>, 
+	Yishai Hadas <yishaih@mellanox.com>, Felix Kuehling <Felix.Kuehling@amd.com>, 
+	Alexander Deucher <Alexander.Deucher@amd.com>, Christian Koenig <Christian.Koenig@amd.com>, 
+	Mauro Carvalho Chehab <mchehab@kernel.org>, Jens Wiklander <jens.wiklander@linaro.org>, 
+	Alex Williamson <alex.williamson@redhat.com>, Leon Romanovsky <leon@kernel.org>, 
+	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>, Dave P Martin <Dave.Martin@arm.com>, 
+	Khalid Aziz <khalid.aziz@oracle.com>, enh <enh@google.com>, Jason Gunthorpe <jgg@ziepe.ca>, 
+	Christoph Hellwig <hch@infradead.org>, Dmitry Vyukov <dvyukov@google.com>, 
+	Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, 
+	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, 
+	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Robin Murphy <Robin.Murphy@arm.com>, 
+	Kevin Brodsky <Kevin.Brodsky@arm.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi David,
+On Wed, Jun 12, 2019 at 5:01 PM Catalin Marinas <catalin.marinas@arm.com> wrote:
+>
+> On Wed, Jun 12, 2019 at 01:30:36PM +0100, Szabolcs Nagy wrote:
+> > On 12/06/2019 12:43, Andrey Konovalov wrote:
+> > > --- /dev/null
+> > > +++ b/tools/testing/selftests/arm64/tags_lib.c
+> > > @@ -0,0 +1,62 @@
+> > > +// SPDX-License-Identifier: GPL-2.0
+> > > +
+> > > +#include <stdlib.h>
+> > > +#include <sys/prctl.h>
+> > > +
+> > > +#define TAG_SHIFT  (56)
+> > > +#define TAG_MASK   (0xffUL << TAG_SHIFT)
+> > > +
+> > > +#define PR_SET_TAGGED_ADDR_CTRL    55
+> > > +#define PR_GET_TAGGED_ADDR_CTRL    56
+> > > +#define PR_TAGGED_ADDR_ENABLE      (1UL << 0)
+> > > +
+> > > +void *__libc_malloc(size_t size);
+> > > +void __libc_free(void *ptr);
+> > > +void *__libc_realloc(void *ptr, size_t size);
+> > > +void *__libc_calloc(size_t nmemb, size_t size);
+> >
+> > this does not work on at least musl.
+> >
+> > the most robust solution would be to implement
+> > the malloc apis with mmap/munmap/mremap, if that's
+> > too cumbersome then use dlsym RTLD_NEXT (although
+> > that has the slight wart that in glibc it may call
+> > calloc so wrapping calloc that way is tricky).
+> >
+> > in simple linux tests i'd just use static or
+> > stack allocations or mmap.
+> >
+> > if a generic preloadable lib solution is needed
+> > then do it properly with pthread_once to avoid
+> > races etc.
+>
+> Thanks for the feedback Szabolcs. I guess we can go back to the initial
+> simple test that Andrey had and drop the whole LD_PRELOAD hack (I'll
+> just use it for my internal testing).
 
-Em Wed, 19 Jun 2019 14:39:10 +0100
-David Howells <dhowells@redhat.com> escreveu:
+OK, will do in v18.
 
-> Mauro Carvalho Chehab <mchehab+samsung@kernel.org> wrote:
-> 
-> > > > -Documentation/nommu-mmap.rst
-> > > > +Documentation/driver-api/nommu-mmap.rst    
-> 
-> Why is this moving to Documentation/driver-api?  
-
-Good point. I tried to do my best with those document renames, but
-I'm pretty sure some of them ended by going to the wrong place - or
-at least there are arguments in favor of moving it to different
-places :-)
-
-The driver-api ended to be where most of the stuff has been moved,
-as this is the main kAPI dir (there is also a core-api dir for kAPI too).
-
-I tend to place there stuff that has a mix of kAPI and uAPI at
-driver-api, as usually such documents are written assuming that
-the one that would be reading it is a Kernel developer.
-
-> It's less to do with drivers
-> than with the userspace mapping interface.  Documentation/vm/ would seem a
-> better home.
-> 
-> Or should we institute a Documentation/uapi/?  Though that might be seen to
-> overlap with man2.  Actually, should this be in man7?
-
-Actually, there is an userspace-api dir too. While the logs show that
-this was created back on 2017, I only noticed it very recently.
-
-Re-checking the file, I see your point: there are lots of
-userspace-relevant contents there. Yet, it also mentions kAPI internals,
-like a reference for file and vm ops (at "Providing shareable character
-device support" session):
-
-	file->f_op->get_unmapped_area()
-	file->f_op->mmap()
-	vm_ops->close()
-
-It is up to MM people and Jon to decide where to place it.
-
-In any case, the best (long term) seems to split it on separate files, 
-one with kAPI and another one with uAPI (just like may other subsystem
-specific docs).
-
-Thanks,
-Mauro
+>
+> BTW, when you get some time, please review Vincenzo's ABI documentation
+> patches from a user/libc perspective. Once agreed, they should become
+> part of this series.
+>
+> --
+> Catalin
 
