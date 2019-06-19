@@ -2,229 +2,152 @@ Return-Path: <SRS0=1eqM=US=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.7 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 61837C31E5B
-	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 16:41:37 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 71B09C31E5B
+	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 16:46:37 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 15C0221783
-	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 16:41:37 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 3595621537
+	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 16:46:37 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="iM3Ngn2x"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 15C0221783
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="eEIpXOcP"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3595621537
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id AD6098E0002; Wed, 19 Jun 2019 12:41:36 -0400 (EDT)
+	id C581B8E0002; Wed, 19 Jun 2019 12:46:36 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A5EE38E0001; Wed, 19 Jun 2019 12:41:36 -0400 (EDT)
+	id C09918E0001; Wed, 19 Jun 2019 12:46:36 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8D96B8E0002; Wed, 19 Jun 2019 12:41:36 -0400 (EDT)
+	id AD1158E0002; Wed, 19 Jun 2019 12:46:36 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 67F1E8E0001
-	for <linux-mm@kvack.org>; Wed, 19 Jun 2019 12:41:36 -0400 (EDT)
-Received: by mail-qt1-f200.google.com with SMTP id p34so16566737qtp.1
-        for <linux-mm@kvack.org>; Wed, 19 Jun 2019 09:41:36 -0700 (PDT)
+Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 82CFB8E0001
+	for <linux-mm@kvack.org>; Wed, 19 Jun 2019 12:46:36 -0400 (EDT)
+Received: by mail-ot1-f70.google.com with SMTP id a8so8140651oti.8
+        for <linux-mm@kvack.org>; Wed, 19 Jun 2019 09:46:36 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :organization:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=4T5a0glbRa2aBSKkc/pjnTjMsTPHECFT1E9bbL1l2HM=;
-        b=kXogA/LbDAEUma/n43iS2c676V303Wi1V48eCQih/FEERzOsA1+3cRp/v9+keyn5na
-         57gn4aOYBtLmdj20KJ+puLqNO9IEbBZLqwDvMVJNPK8sS3fPBw671V67OBQMolvNVmxo
-         OfEStPLZrmI5wiT/NzbpzfnrmE4Zapkh4dQSz9eiqqEHFICeYzqVWxzwZmZhGdD02ccc
-         VYx0/+MDbh1nK1OnGTUFiVzDhp4KVu5tltmsbc07T4a9i71PhbQ9pQj3RYbLWxc16IPG
-         OjXo9586GpvpcSBOhI0CE8vWsE+LlDFRp40a6DkJL7kOY5+L9aZTgKGlY5H2Rg4umit3
-         g7jg==
-X-Gm-Message-State: APjAAAUSAM0KgSH6xTRIT5M2/1Ad5T68Ars/iiJwjlv0NI8I4aXZaUjl
-	CSFRBXGm4U+OBRSwqeFtfl0cq7oAwSHpYL0c/H4iULFB7RIm4tjGERKCHln/eyhI0vPNRZKXelV
-	LjL5eifJsXrtldnlnIc/0Uu4v1Ijn2PEJ6oWGlECXLfCkDkJYlobJdVQAC3YVMBjQkg==
-X-Received: by 2002:ac8:34f4:: with SMTP id x49mr96725870qtb.95.1560962496127;
-        Wed, 19 Jun 2019 09:41:36 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy1GxSNxv6+2mmVPVcc3bN0iDBPYLM9EsSxXYHQJUPb9hLbPAlWZKS6clPBl8qhizUfc01V
-X-Received: by 2002:ac8:34f4:: with SMTP id x49mr96725815qtb.95.1560962495474;
-        Wed, 19 Jun 2019 09:41:35 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560962495; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=dAeca+NaeasgKg8wLjwxe/d8KFhZwiNtk4NpQn2oH10=;
+        b=o18HPHcMJVsX1AA850XGCIBgB1rIlqFcZ+8hJUPdC95+oEKZzodES4BH/6XouCfo/i
+         3APxAUTnktoGcEMGriJjB62NIGaUuGS2PQob/E/jHi6cYYDF+x7Xw0Ca76nPDbT4md0R
+         znS6FT5A8kdKTwVugUmUJCQcVQy0qlPhU8OplnaXK80pWcSgWChRNNF2wpF4iVkYnqVM
+         t5DeaPf8iFx3NBBfkwIlBydwR9RRtrslrsK/nxxR9Ufst4RNbq/FwAm/Vu6RPQT2UEEE
+         zIGdxVvXEleSpo2ajoRmYWKK6W8EdNsaV56SnoPy1jRMIwbQEnVS3YcpEJP1b9EQJDqw
+         mF+g==
+X-Gm-Message-State: APjAAAXpqxBairpSjY6yf+lgbk46YIWjuc5QlfEqRHMrBmrFOmrYFyyB
+	8BusNCeF2GOGBhgnxwIk9aLifDjnFwOdRrAUbwncw4w8AppuGsOipDq5pUXBYMGVUvvoKyL/Fas
+	snWeX0wwNldpF96NGNPTNMz+QjxAG3/kL1WhFC2PZwNQdxQybZzyrESXuYbKDOQrjqg==
+X-Received: by 2002:a9d:7a46:: with SMTP id z6mr4068666otm.2.1560962796090;
+        Wed, 19 Jun 2019 09:46:36 -0700 (PDT)
+X-Received: by 2002:a9d:7a46:: with SMTP id z6mr4068573otm.2.1560962794561;
+        Wed, 19 Jun 2019 09:46:34 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560962794; cv=none;
         d=google.com; s=arc-20160816;
-        b=OjogQrFqhUQsAklNEtsUFvOWB8id4s7k3mnG6rFMMoDJN/SFIzbKoscAIUph3QElZM
-         tkUGBz0NQGnq3KiC44R7hpgZAq+JdcXgSZNnAy+phztrsvBo5OvfIS24chw5AsOTsyzr
-         vkmLIp9JaQZC5kre7UkKfQFGY1mEz0e5000vOXeN+JqBYxYr1WZrg9tn3qPplFZsm4xP
-         TK2hsg0QsyHACLaeylXZVWRmmT42NSB1iAYGfizyHI9wLwslYu6rMARYShdTC0YvNJ89
-         vIHj9hh8YMcOlxYLxTw41sW+xvQiAshfOQ1ibnZlkwpmazCtiZwi/FqWIUiwrG+r3/cp
-         VIRQ==
+        b=jFvXe2kAzcWCnmFqlqs/F0vlSvsxE0msCefmc77xvCjhhup/SdBVoX4jgVzaAj7UuH
+         riovvwVHtcqKJjIj5/z7sCZNMKL7czrqp6725mzctv4EK2i+tPrgBdtqgJu3I6CjOJQs
+         BSyG47iDnBvBdv4/sZnHhFsooL+uVOi43NaWMd9gOR/0scmVOviaY+2fXA63Kr9HMdZ4
+         bxjPGDDKlV19w5z2wZWioj20GcSPLNn7r3GNAE0uAIp55jc0gjuolZirfFLRDZVvXj7h
+         /WVQ3uf4a9TCMgbOXp3puBBoy8yUzUU8agWUrPqw7slLupGUbkvLO+awcz/Exae9SLJ7
+         DhTw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:organization:from:references:cc:to
-         :subject:dkim-signature;
-        bh=4T5a0glbRa2aBSKkc/pjnTjMsTPHECFT1E9bbL1l2HM=;
-        b=PIWJ39MrO7tQHCnry1j8kB+3rKz1wOCQ6w6CZt06ChYSo0je1O9awsFCSFUb0Hbygb
-         QLE0CRfxpsN0RhXDztxFFD60at3oFz1HqVXSW+SYRbxw2w4PDfWk9sKd42nayUwrF+tL
-         SLIclrWS17vvI4ByVx3oWr8fLtGArv44gUjXslT/ed3+43Y5qhZ46D3q3/MbuXp+SIku
-         hrohCQgbn3bm7l3ek5fPG5bmy6w1DJ8df4Uy8Ql3BqTfPY1N7fHE687fmvrYUnjh7+v+
-         AfNS2OOkYr0c6J/kzcSXM+/0vqoLg0uv2919JrK5NfHD0LCCv78RtC3hWNRuQw9+RgsG
-         S/2w==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=dAeca+NaeasgKg8wLjwxe/d8KFhZwiNtk4NpQn2oH10=;
+        b=mhIIRdkq1wCYPA3i+SlO+Yvft5PFSdbuA46fgWRcLkqz/sJ4W4bYIRl+iYP6BkbmMf
+         dogTz2kt0cl2DAQBxX5f3M+Qrux6qelr+7g0/abXzLiKX6j9cNHuMbMReZ4dY9zUTnuZ
+         XqyQSY3LUlUbA87hv9qRqGgjRuzey+wAabdDEzRqHnMX6jTOSE7wxUXV6gesoZSEioJz
+         cAPT3CZ1gTPRuL/TgxK9DUspmRw27hsRxJtqYNt4EglxNRepDtinHkv03hnqH4XATZf9
+         j2pGSV24zFvA4AWKHyn/Eg7QHljWnqZMNnFW9/VqEhseADVhqcDSrK63UDUFg3TrNHDF
+         e18w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=iM3Ngn2x;
-       spf=pass (google.com: domain of khalid.aziz@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=khalid.aziz@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id y1si2777476qto.202.2019.06.19.09.41.35
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=eEIpXOcP;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id b21sor8965514oti.14.2019.06.19.09.46.34
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 19 Jun 2019 09:41:35 -0700 (PDT)
-Received-SPF: pass (google.com: domain of khalid.aziz@oracle.com designates 156.151.31.86 as permitted sender) client-ip=156.151.31.86;
+        (Google Transport Security);
+        Wed, 19 Jun 2019 09:46:34 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=iM3Ngn2x;
-       spf=pass (google.com: domain of khalid.aziz@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=khalid.aziz@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
-	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x5JGZ3BA139193;
-	Wed, 19 Jun 2019 16:41:19 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
- references : from : message-id : date : mime-version : in-reply-to :
- content-type : content-transfer-encoding; s=corp-2018-07-02;
- bh=4T5a0glbRa2aBSKkc/pjnTjMsTPHECFT1E9bbL1l2HM=;
- b=iM3Ngn2x6aaNg+8wMaz2TYv3kwfBr7esbrJ8PsegJPNksN4Z/YjPTI3TmHcIUAH5xIxd
- gAnjdNn//nUURYK/24P/Mz+8CWzLw/ldkJ0Ah8cTKTN8TsQstYz7Wc1JokBHslvlpojt
- t58Ckn54FcLS6JnUQMgNT/8sCvOqKf+qXUPK2SC5pwHYaAG2DxzZEfDTOmnxSxjRlk17
- 81k1k3JZIHS9isv6MaXvl6eghbedIhy09UL0UJZ7M5tLa9EvLThKgTnTshAaPgND2Tmz
- VORmseouIshgIQ+DfXX2+2Cq67n27+huaukcohM59RMNDmLVIT4WZNeTT5o/4WBjQ22r Kg== 
-Received: from aserp3020.oracle.com (aserp3020.oracle.com [141.146.126.70])
-	by userp2130.oracle.com with ESMTP id 2t7809ckb0-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Wed, 19 Jun 2019 16:41:19 +0000
-Received: from pps.filterd (aserp3020.oracle.com [127.0.0.1])
-	by aserp3020.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x5JGeTfm168992;
-	Wed, 19 Jun 2019 16:41:18 GMT
-Received: from aserv0122.oracle.com (aserv0122.oracle.com [141.146.126.236])
-	by aserp3020.oracle.com with ESMTP id 2t77ynxysy-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Wed, 19 Jun 2019 16:41:18 +0000
-Received: from abhmp0018.oracle.com (abhmp0018.oracle.com [141.146.116.24])
-	by aserv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x5JGfFiP008310;
-	Wed, 19 Jun 2019 16:41:16 GMT
-Received: from [10.65.164.174] (/10.65.164.174)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Wed, 19 Jun 2019 09:41:15 -0700
-Subject: Re: [PATCH v17 05/15] mm, arm64: untag user pointers in mm/gup.c
-To: Andrey Konovalov <andreyknvl@google.com>,
-        linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org,
-        linux-kernel@vger.kernel.org, amd-gfx@lists.freedesktop.org,
-        dri-devel@lists.freedesktop.org, linux-rdma@vger.kernel.org,
-        linux-media@vger.kernel.org, kvm@vger.kernel.org,
-        linux-kselftest@vger.kernel.org
-Cc: Catalin Marinas <catalin.marinas@arm.com>,
-        Vincenzo Frascino <vincenzo.frascino@arm.com>,
-        Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>,
-        Andrew Morton <akpm@linux-foundation.org>,
-        Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-        Kees Cook <keescook@chromium.org>, Yishai Hadas <yishaih@mellanox.com>,
-        Felix Kuehling <Felix.Kuehling@amd.com>,
-        Alexander Deucher <Alexander.Deucher@amd.com>,
-        Christian Koenig <Christian.Koenig@amd.com>,
-        Mauro Carvalho Chehab <mchehab@kernel.org>,
-        Jens Wiklander <jens.wiklander@linaro.org>,
-        Alex Williamson <alex.williamson@redhat.com>,
-        Leon Romanovsky <leon@kernel.org>,
-        Luc Van Oostenryck <luc.vanoostenryck@gmail.com>,
-        Dave Martin <Dave.Martin@arm.com>, enh <enh@google.com>,
-        Jason Gunthorpe <jgg@ziepe.ca>, Christoph Hellwig <hch@infradead.org>,
-        Dmitry Vyukov <dvyukov@google.com>, Kostya Serebryany <kcc@google.com>,
-        Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>,
-        Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
-        Jacob Bramley <Jacob.Bramley@arm.com>,
-        Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
-        Robin Murphy <robin.murphy@arm.com>,
-        Kevin Brodsky <kevin.brodsky@arm.com>,
-        Szabolcs Nagy <Szabolcs.Nagy@arm.com>
-References: <cover.1560339705.git.andreyknvl@google.com>
- <8f65548bef8544d49980a92d221b74440d544c1e.1560339705.git.andreyknvl@google.com>
-From: Khalid Aziz <khalid.aziz@oracle.com>
-Organization: Oracle Corp
-Message-ID: <dbf2dd46-0240-f8a9-203c-4f1234c16825@oracle.com>
-Date: Wed, 19 Jun 2019 10:41:12 -0600
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.0
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=eEIpXOcP;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=intel-com.20150623.gappssmtp.com; s=20150623;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=dAeca+NaeasgKg8wLjwxe/d8KFhZwiNtk4NpQn2oH10=;
+        b=eEIpXOcPgh/FQm8AcRovuq2bVonIAGIxG4O8hqog+t2sNo8lmrfYIpq/+3PFypMTty
+         siI4svCj0XFFk8DvueW2Zz7Zvoia5aS+WjHA2V9kjitsGk2Dr7OrDOGRxd+jgBEHrThr
+         EHGL3vlgHvvthlk8Gfj633B1vbDSWX+nCllo+CoYhKFeZWAJNLlFWMmdziVMMg2G+cne
+         9LkPYCnW/ZVKV1OTMMtvp9jixEL4J8gu4orI34DCJ30mCCAblY3ezSDjxZuDDDsPUqbB
+         ZHR6EtInNGpbX74S1TmPO0TGeYVW9GToDYCY1yWZmGb6+1NQToWu8/vN0HJQG43y5Q4m
+         K3fw==
+X-Google-Smtp-Source: APXvYqxu7jzERtujGtRB1JUPTrrSRxaJnnRx7A59gFxSd7DNSrReLEw7sHQTmTBvokQEtVRT1Qlvl4tg5ll4Z2fBIRs=
+X-Received: by 2002:a9d:7b48:: with SMTP id f8mr9700022oto.207.1560962794186;
+ Wed, 19 Jun 2019 09:46:34 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <8f65548bef8544d49980a92d221b74440d544c1e.1560339705.git.andreyknvl@google.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: quoted-printable
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9293 signatures=668687
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
- phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
- adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
- engine=8.0.1-1810050000 definitions=main-1906190134
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9293 signatures=668687
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1906190134
+References: <20190617122733.22432-1-hch@lst.de> <CAPcyv4hBUJB2RxkDqHkfEGCupDdXfQSrEJmAdhLFwnDOwt8Lig@mail.gmail.com>
+ <20190619094032.GA8928@lst.de> <20190619163655.GG9360@ziepe.ca>
+In-Reply-To: <20190619163655.GG9360@ziepe.ca>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Wed, 19 Jun 2019 09:46:23 -0700
+Message-ID: <CAPcyv4hYtQdg0DTYjrJxCNXNjadBSWQ5QaMJYsA-QSribKuwrQ@mail.gmail.com>
+Subject: Re: dev_pagemap related cleanups v2
+To: Jason Gunthorpe <jgg@ziepe.ca>
+Cc: Christoph Hellwig <hch@lst.de>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, 
+	Ben Skeggs <bskeggs@redhat.com>, Linux MM <linux-mm@kvack.org>, nouveau@lists.freedesktop.org, 
+	Maling list - DRI developers <dri-devel@lists.freedesktop.org>, linux-nvdimm <linux-nvdimm@lists.01.org>, 
+	linux-pci@vger.kernel.org, 
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 6/12/19 5:43 AM, Andrey Konovalov wrote:
-> This patch is a part of a series that extends arm64 kernel ABI to allow=
- to
-> pass tagged user pointers (with the top byte set to something else othe=
-r
-> than 0x00) as syscall arguments.
->=20
-> mm/gup.c provides a kernel interface that accepts user addresses and
-> manipulates user pages directly (for example get_user_pages, that is us=
-ed
-> by the futex syscall). Since a user can provided tagged addresses, we n=
-eed
-> to handle this case.
->=20
-> Add untagging to gup.c functions that use user addresses for vma lookup=
-s.
->=20
-> Reviewed-by: Kees Cook <keescook@chromium.org>
-> Reviewed-by: Catalin Marinas <catalin.marinas@arm.com>
-> Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
-> ---
+On Wed, Jun 19, 2019 at 9:37 AM Jason Gunthorpe <jgg@ziepe.ca> wrote:
+>
+> On Wed, Jun 19, 2019 at 11:40:32AM +0200, Christoph Hellwig wrote:
+> > On Tue, Jun 18, 2019 at 12:47:10PM -0700, Dan Williams wrote:
+> > > > Git tree:
+> > > >
+> > > >     git://git.infradead.org/users/hch/misc.git hmm-devmem-cleanup.2
+> > > >
+> > > > Gitweb:
+> > > >
+> > > >     http://git.infradead.org/users/hch/misc.git/shortlog/refs/heads/hmm-devmem-cleanup.2
+> >
+> > >
+> > > Attached is my incremental fixups on top of this series, with those
+> > > integrated you can add:
+> >
+> > I've folded your incremental bits in and pushed out a new
+> > hmm-devmem-cleanup.3 to the repo above.  Let me know if I didn't mess
+> > up anything else.  I'll wait for a few more comments and Jason's
+> > planned rebase of the hmm branch before reposting.
+>
+> I said I wouldn't rebase the hmm.git (as it needs to go to DRM, AMD
+> and RDMA git trees)..
+>
+> Instead I will merge v5.2-rc5 to the tree before applying this series.
+>
+> I've understood this to be Linus's prefered workflow.
+>
+> So, please send the next iteration of this against either
+> plainv5.2-rc5 or v5.2-rc5 merged with hmm.git and I'll sort it out.
 
-Reviewed-by: Khalid Aziz <khalid.aziz@oracle.com>
-
-
->  mm/gup.c | 4 ++++
->  1 file changed, 4 insertions(+)
->=20
-> diff --git a/mm/gup.c b/mm/gup.c
-> index ddde097cf9e4..c37df3d455a2 100644
-> --- a/mm/gup.c
-> +++ b/mm/gup.c
-> @@ -802,6 +802,8 @@ static long __get_user_pages(struct task_struct *ts=
-k, struct mm_struct *mm,
->  	if (!nr_pages)
->  		return 0;
-> =20
-> +	start =3D untagged_addr(start);
-> +
->  	VM_BUG_ON(!!pages !=3D !!(gup_flags & FOLL_GET));
-> =20
->  	/*
-> @@ -964,6 +966,8 @@ int fixup_user_fault(struct task_struct *tsk, struc=
-t mm_struct *mm,
->  	struct vm_area_struct *vma;
->  	vm_fault_t ret, major =3D 0;
-> =20
-> +	address =3D untagged_addr(address);
-> +
->  	if (unlocked)
->  		fault_flags |=3D FAULT_FLAG_ALLOW_RETRY;
-> =20
->=20
-
+Just make sure that when you backmerge v5.2-rc5 you have a clear
+reason in the merge commit message about why you needed to do it.
+While needless rebasing is top of the pet peeve list, second place, as
+I found out, is mystery merges without explanations.
 
