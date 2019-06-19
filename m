@@ -6,95 +6,97 @@ X-Spam-Status: No, score=-6.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
 	URIBL_BLOCKED autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3C2C8C31E49
-	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 06:06:06 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3151DC31E5D
+	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 06:06:11 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 173A721530
-	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 06:06:04 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 173A721530
+	by mail.kernel.org (Postfix) with ESMTP id 0C88421530
+	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 06:06:08 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0C88421530
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B02096B0006; Wed, 19 Jun 2019 02:06:03 -0400 (EDT)
+	id 92D8D6B0007; Wed, 19 Jun 2019 02:06:08 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A8CC68E0002; Wed, 19 Jun 2019 02:06:03 -0400 (EDT)
+	id 8EA378E0001; Wed, 19 Jun 2019 02:06:08 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8DEB28E0001; Wed, 19 Jun 2019 02:06:03 -0400 (EDT)
+	id 77F5F8E0001; Wed, 19 Jun 2019 02:06:08 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 54E1B6B0006
-	for <linux-mm@kvack.org>; Wed, 19 Jun 2019 02:06:03 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id g9so11567194pgd.17
-        for <linux-mm@kvack.org>; Tue, 18 Jun 2019 23:06:03 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 40CBD6B0007
+	for <linux-mm@kvack.org>; Wed, 19 Jun 2019 02:06:08 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id x18so10990874pfj.4
+        for <linux-mm@kvack.org>; Tue, 18 Jun 2019 23:06:08 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:from
          :to:cc:date:message-id:in-reply-to:references:user-agent
          :mime-version:content-transfer-encoding;
-        bh=rBPlEcf/zda1uNkC6O2OdGpJ9KV4wxiKq/x0oVCD0uE=;
-        b=rLYhf0RiPHB9OJwM5qkLkEk6gQhl1obAaFDnIjLQG6q1lgoMLvKvs1QDcFELjjUBBT
-         whs5lBG8qF83Mckm0UU4069q6OU7ztkHUe5HZNglu5UHqCFc621rTI3PotA1lGoe3Oxa
-         aOtWfThPsOK4BkCatfucATCcbTWy+Tsr+itMP4ZwiGOTjIjSBPb5aRfx5hSeaEduVfB9
-         +VXrSTS7n/d7YEWk7MAJYrpxauRz8VDcZosO+V3QSZgss0PpzaMvkJvEcUiQJJU8f7jE
-         Bd+1GRreyqbhlXfQQGkMJybZ+jvUarxAmI1qAxFP6Bc/SuTd0JLOQRPQLPN4UrvK1Y/i
-         dEow==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAWFxfViYB+usQXAQphAGQd5ZI8k55cZ13i165VmLDmU3lFiNEoe
-	XfBPW2DITCwcNsgFp8Ar/mUxOcfnlpa7PYnG4+r2TjSp60q+wHadJrKg1E4pVQGUbvFL2pJ6tjJ
-	zdPsHNGHQTJM1ATmJpD6VcwK51RCIKOcDxWmNRFCD4EFK6jwjlB3q+Hf/e0Hn8ojSgw==
-X-Received: by 2002:a63:6245:: with SMTP id w66mr122545pgb.117.1560924362831;
-        Tue, 18 Jun 2019 23:06:02 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyTTQhpQ68jcwX3nP3F6B//E4UicAm0qbkhOCfhBb6RaGkIrbDGoTFyOibzcye+nKMvA49N
-X-Received: by 2002:a63:6245:: with SMTP id w66mr122487pgb.117.1560924362001;
-        Tue, 18 Jun 2019 23:06:02 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560924361; cv=none;
+        bh=efV/bOh1lMhwsgpUzGakm9wILLGEQUb8r2cn7Vf8up0=;
+        b=hZ6Vt6A4s5GhJVJ5h1hvY/jHAFCQHQzQjImWMi9R/RU4RyI2qI7wFRn7HVUeqHwclc
+         nuIOu1fpRIgs7DqeA2NzFmtdwl5XjYvpmUyqrhgL0YxJwis8EkFOlqs3B4ZzeE+q2INA
+         YY0vbnn+29jAlEygXpFUiRLkHF6fb+0zmAq9V/vxAi5/a0ldADSjNm0HSFxnDkkGICoE
+         bHKq9wlET5LHjbY6YLa44i60SQwmrFz2y5JnjTqTJl00ltRq+0SLqVFwl+XM5m/tgQfB
+         k5EKf4FHTpx7XZm3MC6AUI/u0d9YNeQDICDigsW3OzQdGOt95ze1LBx3SBOgi8mzNuwN
+         LPCA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAWC94/PfQMM7SIhIqI+8qSPz4ADQUbeUXL8N28Sa2qWU2sSKP7O
+	uvr3Tp6Sf/3KAaaaMSuisGFxQPe+JXliZ1tv4hS/FLgXyMpKOjr+qqV5ty/HwNEFBHe64PpeNmu
+	phZQ97ugDrY7TnhNuYHsypakjyo3FKaQjtcmQ/soGBAXC0ENwzEe0Z4Sj29OKHgk2jg==
+X-Received: by 2002:a63:4d50:: with SMTP id n16mr6288630pgl.146.1560924367732;
+        Tue, 18 Jun 2019 23:06:07 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyGOxfHhva9serZtdxOGtB8ib0WPG+S1r9ma0c2uEygCCpG6Dra90534GMDnK0NzLISAFkv
+X-Received: by 2002:a63:4d50:: with SMTP id n16mr6288571pgl.146.1560924366933;
+        Tue, 18 Jun 2019 23:06:06 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560924366; cv=none;
         d=google.com; s=arc-20160816;
-        b=x7pu9I0ZRiBqQbvDGyrnOl7Dqb+A36rsCJT/MLjgwppHw6u3o0jYUsYOg1tvN4ISkw
-         9rsa2r5WZeB1Y0lFWMoza2FAkk1sQ8cMGhmFvc5d5WV9Cd+8uo460DVrTr/pbAWuAwij
-         QokNweb7tFMxdsNCyBxw6GdbvhyyE/pPjxtVuoWVJF595CyVyN3GQ6yQcGj8e+ROwxg5
-         /WyJYQkh6UNxnIzUsTx22vU2Gp06+DRPLcpS9CyGFfM6kACgE/N1BuMb8UrgVcY659rR
-         4s3Ih01ZkEV2sDH5hAPVKRirVoD/c1XXfOlkhHB2++2AwozIuVeQQc0MGFSNQ+dU7+rK
-         Bd+g==
+        b=qeEF7JZGEmgGNaZ2h3E0EU64y9daua2q82M2HY/5nhA/HWGNZ88lgp9W3+w5piWm2Y
+         HCxGfhPVY+4AM4hqgyOwS/D1pGO1Cs3mHppinYe3mLcwNVWyI+YeN/sLNBZc3xkPmf15
+         nLDqK9HEPmr+QSnY9b/YjGmCarbRgbWaxA3JCDMOnU9uYrvD4P/Rt27N9b+THMYeoQvd
+         qMOtW/elO6v/j9AaBtX4qJ2nYtd4WUrSt5tstZAtGjJhaIyUggY/VldU7Ymsa9VeRvZj
+         XVagRGb0zDVUMUcsLaht0tLxHF+SPSb9A1x5hVwZIYaId0wsU/eH4sZsvK+9sF2p3heG
+         ZY8w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:user-agent:references
          :in-reply-to:message-id:date:cc:to:from:subject;
-        bh=rBPlEcf/zda1uNkC6O2OdGpJ9KV4wxiKq/x0oVCD0uE=;
-        b=rxMyt1qteYsbwL8d6OrtyJKMm7O2GvGeNcVsXpC7WUc2k5fB0MploamFjyCZDcEaGu
-         wba/KwyE2EaVwl8nE/ZuNc55MivaE/x/gXVKTCUhWcPyJQZT6cGcMQ1k374wpzGr8nVz
-         lhhtEBfbX6gGhopF4i51YY9V00uHGtdugOcE3XCB8Ye9EI4W6wyw2cbvAviNrKuJHUuE
-         fASYyHTwVEqXHUB4xEDWcfCRNUqE6hXI8tPh5ypF4wnbsJUNfNSIul3Z6THs9P3XYhLk
-         bHnE9fqXlw3oKWka5RC9oIvX4ctrZfMEXWM4fba9gQbwSru2B6x47hoDEvkE/uSi9J/Z
-         /+zg==
+        bh=efV/bOh1lMhwsgpUzGakm9wILLGEQUb8r2cn7Vf8up0=;
+        b=t5IcmDyQ+1CHODu0yp+Y6O8vj37UpTmdk4cc7PBootSntgBGI95ZH+Ja7ZPLE6HKSN
+         Qco5KJbzV32POKfQTsBQej1W2rUJScPAHRfCmMnz0ysT5NCG9nsvH4A5d4bXKEi6kw3B
+         +1SSSr4V0+CD+k40AiIqXs9LUqRnt4wsipjK1u8r4R/OsdEl1ffcaBkptgYc5pTLgLA/
+         xMH+G0C9YrW+10Vas3ycyfFzunBjz/hNrhKTChbNtmgG1P0sLj4Z0m8asWiLxeMdWWyW
+         SZ0MmAiUELkPVxGins90jZa/YEIX9PRHADIhfm5WgxSX9QxGwwNAXozNTu1iSkhOXrT9
+         RrkA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
-        by mx.google.com with ESMTPS id 35si173412pgn.199.2019.06.18.23.06.01
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id l1si14855891plb.302.2019.06.18.23.06.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 18 Jun 2019 23:06:01 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.136 as permitted sender) client-ip=192.55.52.136;
+        Tue, 18 Jun 2019 23:06:06 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.88 as permitted sender) client-ip=192.55.52.88;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 X-Amp-Result: SKIPPED(no attachment in message)
 X-Amp-File-Uploaded: False
-Received: from orsmga001.jf.intel.com ([10.7.209.18])
-  by fmsmga106.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 18 Jun 2019 23:06:00 -0700
+Received: from fmsmga008.fm.intel.com ([10.253.24.58])
+  by fmsmga101.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 18 Jun 2019 23:06:06 -0700
 X-IronPort-AV: E=Sophos;i="5.63,392,1557212400"; 
-   d="scan'208";a="243216408"
+   d="scan'208";a="160271014"
 Received: from dwillia2-desk3.jf.intel.com (HELO dwillia2-desk3.amr.corp.intel.com) ([10.54.39.16])
-  by orsmga001-auth.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 18 Jun 2019 23:06:00 -0700
-Subject: [PATCH v10 02/13] mm/sparsemem: Introduce a SECTION_IS_EARLY flag
+  by fmsmga008-auth.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 18 Jun 2019 23:06:05 -0700
+Subject: [PATCH v10 03/13] mm/sparsemem: Add helpers track active portions
+ of a section at boot
 From: Dan Williams <dan.j.williams@intel.com>
 To: akpm@linux-foundation.org
-Cc: Qian Cai <cai@lca.pw>, Michal Hocko <mhocko@suse.com>,
- Logan Gunthorpe <logang@deltatee.com>, David Hildenbrand <david@redhat.com>,
- Oscar Salvador <osalvador@suse.de>, Pavel Tatashin <pasha.tatashin@soleen.com>,
- linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-kernel@vger.kernel.org
-Date: Tue, 18 Jun 2019 22:51:43 -0700
-Message-ID: <156092350358.979959.5817209875548072819.stgit@dwillia2-desk3.amr.corp.intel.com>
+Cc: Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>,
+ Logan Gunthorpe <logang@deltatee.com>, Oscar Salvador <osalvador@suse.de>,
+ Pavel Tatashin <pasha.tatashin@soleen.com>, Qian Cai <cai@lca.pw>,
+ Jane Chu <jane.chu@oracle.com>, linux-mm@kvack.org, linux-nvdimm@lists.01.org,
+ linux-kernel@vger.kernel.org
+Date: Tue, 18 Jun 2019 22:51:48 -0700
+Message-ID: <156092350874.979959.18185938451405518285.stgit@dwillia2-desk3.amr.corp.intel.com>
 In-Reply-To: <156092349300.979959.17603710711957735135.stgit@dwillia2-desk3.amr.corp.intel.com>
 References: <156092349300.979959.17603710711957735135.stgit@dwillia2-desk3.amr.corp.intel.com>
 User-Agent: StGit/0.18-2-gc94f
@@ -107,129 +109,172 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-In preparation for sub-section hotplug, track whether a given section
-was created during early memory initialization, or later via memory
-hotplug.  This distinction is needed to maintain the coarse expectation
-that pfn_valid() returns true for any pfn within a given section even if
-that section has pages that are reserved from the page allocator.
+Prepare for hot{plug,remove} of sub-ranges of a section by tracking a
+sub-section active bitmask, each bit representing a PMD_SIZE span of the
+architecture's memory hotplug section size.
 
-For example one of the of goals of subsection hotplug is to support
-cases where the system physical memory layout collides System RAM and
-PMEM within a section. Several pfn_valid() users expect to just check if
-a section is valid, but they are not careful to check if the given pfn
-is within a "System RAM" boundary and instead expect pgdat information
-to further validate the pfn.
+The implications of a partially populated section is that pfn_valid()
+needs to go beyond a valid_section() check and either determine that the
+section is an "early section", or read the sub-section active ranges
+from the bitmask. The expectation is that the bitmask (subsection_map)
+fits in the same cacheline as the valid_section() / early_section()
+data, so the incremental performance overhead to pfn_valid() should be
+negligible.
 
-Rather than unwind those paths to make their pfn_valid() queries more
-precise a follow on patch uses the SECTION_IS_EARLY flag to maintain the
-traditional expectation that pfn_valid() returns true for all early
-sections.
+The rationale for using early_section() to short-ciruit the
+subsection_map check is that there are legacy code paths that use
+pfn_valid() at section granularity before validating the pfn against
+pgdat data. So, the early_section() check allows those traditional
+assumptions to persist while also permitting subsection_map to tell the
+truth for purposes of populating the unused portions of early sections
+with PMEM and other ZONE_DEVICE mappings.
 
-Link: https://lore.kernel.org/lkml/1560366952-10660-1-git-send-email-cai@lca.pw/
-Reported-by: Qian Cai <cai@lca.pw>
 Cc: Michal Hocko <mhocko@suse.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>
 Cc: Logan Gunthorpe <logang@deltatee.com>
-Cc: David Hildenbrand <david@redhat.com>
 Cc: Oscar Salvador <osalvador@suse.de>
 Cc: Pavel Tatashin <pasha.tatashin@soleen.com>
+Reported-by: Qian Cai <cai@lca.pw>
+Tested-by: Jane Chu <jane.chu@oracle.com>
 Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
- include/linux/mmzone.h |    8 +++++++-
- mm/sparse.c            |   20 +++++++++-----------
- 2 files changed, 16 insertions(+), 12 deletions(-)
+ include/linux/mmzone.h |   33 ++++++++++++++++++++++++++++++++-
+ mm/page_alloc.c        |   10 ++++++++--
+ mm/sparse.c            |   35 +++++++++++++++++++++++++++++++++++
+ 3 files changed, 75 insertions(+), 3 deletions(-)
 
 diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 179680c94262..d081c9a1d25d 100644
+index d081c9a1d25d..c4e8843e283c 100644
 --- a/include/linux/mmzone.h
 +++ b/include/linux/mmzone.h
-@@ -1261,7 +1261,8 @@ extern size_t mem_section_usage_size(void);
- #define	SECTION_MARKED_PRESENT	(1UL<<0)
- #define SECTION_HAS_MEM_MAP	(1UL<<1)
- #define SECTION_IS_ONLINE	(1UL<<2)
--#define SECTION_MAP_LAST_BIT	(1UL<<3)
-+#define SECTION_IS_EARLY	(1UL<<3)
-+#define SECTION_MAP_LAST_BIT	(1UL<<4)
- #define SECTION_MAP_MASK	(~(SECTION_MAP_LAST_BIT-1))
- #define SECTION_NID_SHIFT	3
+@@ -1179,6 +1179,8 @@ struct mem_section_usage {
+ 	unsigned long pageblock_flags[0];
+ };
  
-@@ -1287,6 +1288,11 @@ static inline int valid_section(struct mem_section *section)
- 	return (section && (section->section_mem_map & SECTION_HAS_MEM_MAP));
- }
++void subsection_map_init(unsigned long pfn, unsigned long nr_pages);
++
+ struct page;
+ struct page_ext;
+ struct mem_section {
+@@ -1322,12 +1324,40 @@ static inline struct mem_section *__pfn_to_section(unsigned long pfn)
  
-+static inline int early_section(struct mem_section *section)
+ extern int __highest_present_section_nr;
+ 
++static inline int subsection_map_index(unsigned long pfn)
 +{
-+	return (section && (section->section_mem_map & SECTION_IS_EARLY));
++	return (pfn & ~(PAGE_SECTION_MASK)) / PAGES_PER_SUBSECTION;
 +}
 +
- static inline int valid_section_nr(unsigned long nr)
++#ifdef CONFIG_SPARSEMEM_VMEMMAP
++static inline int pfn_section_valid(struct mem_section *ms, unsigned long pfn)
++{
++	int idx = subsection_map_index(pfn);
++
++	return test_bit(idx, ms->usage->subsection_map);
++}
++#else
++static inline int pfn_section_valid(struct mem_section *ms, unsigned long pfn)
++{
++	return 1;
++}
++#endif
++
+ #ifndef CONFIG_HAVE_ARCH_PFN_VALID
+ static inline int pfn_valid(unsigned long pfn)
  {
- 	return valid_section(__nr_to_section(nr));
-diff --git a/mm/sparse.c b/mm/sparse.c
-index 71da15cc7432..2031a0694f35 100644
---- a/mm/sparse.c
-+++ b/mm/sparse.c
-@@ -288,11 +288,11 @@ struct page *sparse_decode_mem_map(unsigned long coded_mem_map, unsigned long pn
- 
- static void __meminit sparse_init_one_section(struct mem_section *ms,
- 		unsigned long pnum, struct page *mem_map,
--		struct mem_section_usage *usage)
-+		struct mem_section_usage *usage, unsigned long flags)
- {
- 	ms->section_mem_map &= ~SECTION_MAP_MASK;
--	ms->section_mem_map |= sparse_encode_mem_map(mem_map, pnum) |
--							SECTION_HAS_MEM_MAP;
-+	ms->section_mem_map |= sparse_encode_mem_map(mem_map, pnum)
-+		| SECTION_HAS_MEM_MAP | flags;
- 	ms->usage = usage;
- }
- 
-@@ -497,7 +497,8 @@ static void __init sparse_init_nid(int nid, unsigned long pnum_begin,
- 			goto failed;
- 		}
- 		check_usemap_section_nr(nid, usage);
--		sparse_init_one_section(__nr_to_section(pnum), pnum, map, usage);
-+		sparse_init_one_section(__nr_to_section(pnum), pnum, map, usage,
-+				SECTION_IS_EARLY);
- 		usage = (void *) usage + mem_section_usage_size();
- 	}
- 	sparse_buffer_fini();
-@@ -731,7 +732,7 @@ int __meminit sparse_add_one_section(int nid, unsigned long start_pfn,
- 	page_init_poison(memmap, sizeof(struct page) * PAGES_PER_SECTION);
- 
- 	section_mark_present(ms);
--	sparse_init_one_section(ms, section_nr, memmap, usage);
-+	sparse_init_one_section(ms, section_nr, memmap, usage, 0);
- 
- out:
- 	if (ret < 0) {
-@@ -771,19 +772,16 @@ static inline void clear_hwpoisoned_pages(struct page *memmap, int nr_pages)
++	struct mem_section *ms;
++
+ 	if (pfn_to_section_nr(pfn) >= NR_MEM_SECTIONS)
+ 		return 0;
+-	return valid_section(__nr_to_section(pfn_to_section_nr(pfn)));
++	ms = __nr_to_section(pfn_to_section_nr(pfn));
++	if (!valid_section(ms))
++		return 0;
++	/*
++	 * Traditionally early sections always returned pfn_valid() for
++	 * the entire section-sized span.
++	 */
++	return early_section(ms) || pfn_section_valid(ms, pfn);
  }
  #endif
  
--static void free_section_usage(struct page *memmap,
-+static void free_section_usage(struct mem_section *ms, struct page *memmap,
- 		struct mem_section_usage *usage, struct vmem_altmap *altmap)
- {
--	struct page *usage_page;
--
- 	if (!usage)
- 		return;
+@@ -1359,6 +1389,7 @@ void sparse_init(void);
+ #define sparse_init()	do {} while (0)
+ #define sparse_index_init(_sec, _nid)  do {} while (0)
+ #define pfn_present pfn_valid
++#define subsection_map_init(_pfn, _nr_pages) do {} while (0)
+ #endif /* CONFIG_SPARSEMEM */
  
--	usage_page = virt_to_page(usage);
- 	/*
- 	 * Check to see if allocation came from hot-plug-add
- 	 */
--	if (PageSlab(usage_page) || PageCompound(usage_page)) {
-+	if (!early_section(ms)) {
- 		kfree(usage);
- 		if (memmap)
- 			__kfree_section_memmap(memmap, altmap);
-@@ -815,6 +813,6 @@ void sparse_remove_one_section(struct mem_section *ms, unsigned long map_offset,
+ /*
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 8cc091e87200..8e7215fb6976 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -7306,12 +7306,18 @@ void __init free_area_init_nodes(unsigned long *max_zone_pfn)
+ 			       (u64)zone_movable_pfn[i] << PAGE_SHIFT);
+ 	}
  
- 	clear_hwpoisoned_pages(memmap + map_offset,
- 			PAGES_PER_SECTION - map_offset);
--	free_section_usage(memmap, usage, altmap);
-+	free_section_usage(ms, memmap, usage, altmap);
+-	/* Print out the early node map */
++	/*
++	 * Print out the early node map, and initialize the
++	 * subsection-map relative to active online memory ranges to
++	 * enable future "sub-section" extensions of the memory map.
++	 */
+ 	pr_info("Early memory node ranges\n");
+-	for_each_mem_pfn_range(i, MAX_NUMNODES, &start_pfn, &end_pfn, &nid)
++	for_each_mem_pfn_range(i, MAX_NUMNODES, &start_pfn, &end_pfn, &nid) {
+ 		pr_info("  node %3d: [mem %#018Lx-%#018Lx]\n", nid,
+ 			(u64)start_pfn << PAGE_SHIFT,
+ 			((u64)end_pfn << PAGE_SHIFT) - 1);
++		subsection_map_init(start_pfn, end_pfn - start_pfn);
++	}
+ 
+ 	/* Initialise every node */
+ 	mminit_verify_pageflags_layout();
+diff --git a/mm/sparse.c b/mm/sparse.c
+index 2031a0694f35..e9fec3c2f7ec 100644
+--- a/mm/sparse.c
++++ b/mm/sparse.c
+@@ -210,6 +210,41 @@ static inline unsigned long first_present_section_nr(void)
+ 	return next_present_section_nr(-1);
  }
- #endif /* CONFIG_MEMORY_HOTPLUG */
+ 
++void subsection_mask_set(unsigned long *map, unsigned long pfn,
++		unsigned long nr_pages)
++{
++	int idx = subsection_map_index(pfn);
++	int end = subsection_map_index(pfn + nr_pages - 1);
++
++	bitmap_set(map, idx, end - idx + 1);
++}
++
++void __init subsection_map_init(unsigned long pfn, unsigned long nr_pages)
++{
++	int end_sec = pfn_to_section_nr(pfn + nr_pages - 1);
++	int i, start_sec = pfn_to_section_nr(pfn);
++
++	if (!nr_pages)
++		return;
++
++	for (i = start_sec; i <= end_sec; i++) {
++		struct mem_section *ms;
++		unsigned long pfns;
++
++		pfns = min(nr_pages, PAGES_PER_SECTION
++				- (pfn & ~PAGE_SECTION_MASK));
++		ms = __nr_to_section(i);
++		subsection_mask_set(ms->usage->subsection_map, pfn, pfns);
++
++		pr_debug("%s: sec: %d pfns: %ld set(%d, %d)\n", __func__, i,
++				pfns, subsection_map_index(pfn),
++				subsection_map_index(pfn + pfns - 1));
++
++		pfn += pfns;
++		nr_pages -= pfns;
++	}
++}
++
+ /* Record a memory area against a node. */
+ void __init memory_present(int nid, unsigned long start, unsigned long end)
+ {
 
