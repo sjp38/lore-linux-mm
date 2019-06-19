@@ -2,314 +2,155 @@ Return-Path: <SRS0=1eqM=US=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 28FD9C31E5D
-	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 06:07:06 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6CD45C31E49
+	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 06:10:29 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D229B21479
-	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 06:07:05 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D229B21479
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 2B25120679
+	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 06:10:29 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2B25120679
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 81BA96B0269; Wed, 19 Jun 2019 02:07:05 -0400 (EDT)
+	id B9BA08E0005; Wed, 19 Jun 2019 02:10:28 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7CC478E0005; Wed, 19 Jun 2019 02:07:05 -0400 (EDT)
+	id B4AAB8E0003; Wed, 19 Jun 2019 02:10:28 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6BB868E0003; Wed, 19 Jun 2019 02:07:05 -0400 (EDT)
+	id A14008E0005; Wed, 19 Jun 2019 02:10:28 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 31FDD6B0269
-	for <linux-mm@kvack.org>; Wed, 19 Jun 2019 02:07:05 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id a21so11577015pgh.11
-        for <linux-mm@kvack.org>; Tue, 18 Jun 2019 23:07:05 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 566D58E0003
+	for <linux-mm@kvack.org>; Wed, 19 Jun 2019 02:10:28 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id k22so24669725ede.0
+        for <linux-mm@kvack.org>; Tue, 18 Jun 2019 23:10:28 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:from
-         :to:cc:date:message-id:in-reply-to:references:user-agent
-         :mime-version:content-transfer-encoding;
-        bh=uENTIG141SlYLUctyscwu1NCfEx0TuuCIzKm45ugQqw=;
-        b=MUCGylCMePbLzXUyIc3CT273NPppo6hFvbjMzxtW5f4jlKAwxDV46iizUteGK5BkZT
-         +Jnpj8NasMh9XCdaGQS4liyhWoRETvPGYzlaR8CEJxPnI0aTS5dO/ioTXa3dm1xrKd3k
-         5IdjqjgaI5t+4D3v45xV+x/+tf/y4icmEcEkCInMsAisBPcLOXsqdwdi/3trAyNVVZe7
-         153XVO9Xcacw3BgKO5SMZAV8WS161m3Txq/VZJHH37ttSgl3kh5D0tEBcA1Z9Sri9nQQ
-         23poK2UfFMA8gV+THeIq+H2aDqQRIilQYEtgRoQAANyFSHa1yZRUmozKioyv4JFEL+2n
-         KexA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAVmP2Rc4P+YUNlEYXv1q3mG8/pCUH7KEgInW16SB6hheJVkn4IV
-	WO02awbjBIGSK0aQsqTw3YRjf+eR5O91G474XESn7+z0XFuk9Zu/u/szkd3X+rN3KEs1KxGZGw0
-	C6Y3p6Yc0mgLJ6mHDPm9EaUXmMUafXRIhjdnCixbdHDI00p5qZIjDYNX0ScqgzLG9cw==
-X-Received: by 2002:a63:f510:: with SMTP id w16mr6308408pgh.0.1560924424801;
-        Tue, 18 Jun 2019 23:07:04 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzk8/lFvQPQbalQUWVXqLNxhqQUjsfRvDaGd1o6C9gEhGuwTNJo7fEpnG4CaBVGzLdiNcgM
-X-Received: by 2002:a63:f510:: with SMTP id w16mr6308345pgh.0.1560924423536;
-        Tue, 18 Jun 2019 23:07:03 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560924423; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=Rozr/ImJR2c8yWhDDNCj/WHVelt/TnoaDO4kaX4HCQ4=;
+        b=L489z1Oy9+sA3i9i+GodVDGeFsMgIU2ctQB270KMMIb6q0ZKaABByDSWVqfvFVNZGJ
+         SgfNhZ9KcpWk7ipagnxl9ypR4Pg0aJIl2Lc6nPETt2jZ8Nh8AGltX7fofNiQnp908Wm4
+         jNRmD9TKxFrFvSBKcIX/nrgcfhxeaoQ6N64JtTOSXJGRSh4mAHKjh4qDcf+kstHx3hN9
+         KmZOLTWzgtyD9d2k/p/qmpsOlnBJEA0jVVq2lZ+ZgCLmIbaPvwvJm8+ojw0ahiL5XBD+
+         IGKxH8SvpTFkrtd30AI7oqLR46+POB4PLT+DwTGzBgM9/fljxKrc1xb177X2kFxgknwR
+         H2fg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mhocko@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@suse.com
+X-Gm-Message-State: APjAAAUJjOaMjXxDkpqJXCAzSiLXJvS/HfPqpu+C2oixIhe6prc+LRV6
+	jq0WSB1A6sL/TdptVvSdykDFlwnxdYSVSF1XDP3J/JglGCqx7MMDtyZ8j/LcxuWtuUulY4jMonl
+	snbpNiXHbljJDQ60Dcs+OVgbKD2IRyDs7nyY6YSmKzmcK68JbZi5q8KFneBRpzXap3A==
+X-Received: by 2002:a17:906:15d0:: with SMTP id l16mr55748843ejd.234.1560924627903;
+        Tue, 18 Jun 2019 23:10:27 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzyLF17PqqcGR2pKGP1zFxg4Dmkq1X4KLlxThU1L2zNW3sp/W02At6H13AzYQx1i9Ag2Nok
+X-Received: by 2002:a17:906:15d0:: with SMTP id l16mr55748785ejd.234.1560924627007;
+        Tue, 18 Jun 2019 23:10:27 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560924627; cv=none;
         d=google.com; s=arc-20160816;
-        b=VLWsHQ8ow2FbTz70f4fpmI1lQxyiUKyLCPeCoHYsudkYBJ3kLbB1ZgdaxNQRPFAcFT
-         nhB6ougYrFP6LyBPfOInKpG+uTsL9DVTYv5zOMXsLzBHw2Gcm0qM+Wim/mF9MeFmqMdk
-         sp/mya6ZT+RDPhGoL5c7p2JJzMvqkk6fki63qdSHLv7jZjm+UEtmMO9aWZdROl7ayk5z
-         x+JBQnKP1LEwHr4k39a/lvB3/3be2TODgVx3fOVWLIRDcVETSkowYK0/6kHx0xkO2wpQ
-         Nt1K6hSYcwCP7bgfI8TyhmYGiVy8intlQD+fRNUsEA94Q1b8cmNr6GmlUTRGHQr12pMB
-         y+BA==
+        b=DbB5hushacTrF6U+jKq7NIoOCXWM/qAGlhv8AZd9jY6SM7fssSdyOFvh/XNAWEtO6j
+         fde3JsdWQYv1uGqKVUGCFoofQZaax0vW3hDYmAc3OAvKaFUmSjbZsaCRssbutrMPsHwL
+         E6ePWLrcbU8p8LjV3AHSxmTsqWxKRHzQRTOji/Ak6uud0Xk1dmb0Hbf1fcVTtUVd3BRl
+         hsrsmV9GPEGcgbDAzHeZnr2KP9/DlF9Uvxx/hCsbDvkfXNyzewAmZsEDjQJLDFu0MzBL
+         usc5BY1Xt+pG4iXbupr3QHViVg11KGjDqJ74Cr/ssYgFou0jSVkCnfsSNyhQ/4oz3znW
+         SZXw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:user-agent:references
-         :in-reply-to:message-id:date:cc:to:from:subject;
-        bh=uENTIG141SlYLUctyscwu1NCfEx0TuuCIzKm45ugQqw=;
-        b=HfVdXTmzFW3FvXiRO6mPh5ajHHv6YtsM1vO16Dtzzkz/o8h8mL09+dzBNeAfVQdrAC
-         PBB1oPyfuEXPDlVJBQc7F6c72VLmD/r3dZyd0PRhtqFsPRWkzV2J9Q9qltT6+TGbFL9I
-         AL9QiTEQFJ2A7XUgwSVPFJG1bTzdgZO4VPu4YnoYLi3lWJ7To6xEjyQ4neQl+VfgV8BA
-         znB0S7W84LEqp17668iyC3LgXMzEFUsf3trs3I34pkU0/VenG4gWY8K4iKp1aZXT0mAf
-         1NuNYrCghzk4fPkGtGGeMe/+xQJUVYN41NojpC+BQ+oInbuZnEW3j2bzyRPd9sGgddNM
-         Dvdw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=Rozr/ImJR2c8yWhDDNCj/WHVelt/TnoaDO4kaX4HCQ4=;
+        b=0l4h632IygdXYmWEe5xowRuwNDmUoK34/OL+zsB0komRWIG/FoWbI2eDttxNO6qTEE
+         ZEWGMfsVo25C7WKuv45xYThsYIS7poNwHRnVzLEwbM2cy+9Aw1LriFwy0S0eWYv2/+G3
+         3Ot/9ll2way7aC/12w2bCX+k0QeorQR1IN/yRIvKzQW4dcwyIc+57VGdJzmHXYemG34C
+         M4AQ3oqHTFhjUYkoG5pzeFTGxnR9wRgx3mQwJdMzNSYKExXVM1T2HzIOGXg3zjbqyrKm
+         x/Wo0cvKSInXN7j0QNU3Ohu/ph6Yv0dpTL1zXX3YaVC1HDZkguPhRir6uEbg5LwdIZDu
+         YaZQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
-        by mx.google.com with ESMTPS id j68si4362274plb.28.2019.06.18.23.07.03
+       spf=pass (google.com: domain of mhocko@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@suse.com
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id y10si12967821edc.151.2019.06.18.23.10.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 18 Jun 2019 23:07:03 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.151 as permitted sender) client-ip=192.55.52.151;
+        Tue, 18 Jun 2019 23:10:26 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mhocko@suse.com designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from orsmga006.jf.intel.com ([10.7.209.51])
-  by fmsmga107.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 18 Jun 2019 23:07:02 -0700
-X-IronPort-AV: E=Sophos;i="5.63,392,1557212400"; 
-   d="scan'208";a="164932402"
-Received: from dwillia2-desk3.jf.intel.com (HELO dwillia2-desk3.amr.corp.intel.com) ([10.54.39.16])
-  by orsmga006-auth.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 18 Jun 2019 23:07:02 -0700
-Subject: [PATCH v10 13/13] libnvdimm/pfn: Stop padding pmem namespaces to
- section alignment
-From: Dan Williams <dan.j.williams@intel.com>
-To: akpm@linux-foundation.org
-Cc: Jeff Moyer <jmoyer@redhat.com>, linux-mm@kvack.org,
- linux-nvdimm@lists.01.org, linux-kernel@vger.kernel.org
-Date: Tue, 18 Jun 2019 22:52:45 -0700
-Message-ID: <156092356588.979959.6793371748950931916.stgit@dwillia2-desk3.amr.corp.intel.com>
-In-Reply-To: <156092349300.979959.17603710711957735135.stgit@dwillia2-desk3.amr.corp.intel.com>
-References: <156092349300.979959.17603710711957735135.stgit@dwillia2-desk3.amr.corp.intel.com>
-User-Agent: StGit/0.18-2-gc94f
+       spf=pass (google.com: domain of mhocko@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@suse.com
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 46FE0AFC3;
+	Wed, 19 Jun 2019 06:10:26 +0000 (UTC)
+Date: Wed, 19 Jun 2019 08:10:25 +0200
+From: Michal Hocko <mhocko@suse.com>
+To: David Hildenbrand <david@redhat.com>
+Cc: Wei Yang <richardw.yang@linux.intel.com>,
+	Oscar Salvador <osalvador@suse.de>, linux-mm@kvack.org,
+	akpm@linux-foundation.org, anshuman.khandual@arm.com
+Subject: Re: [PATCH v2] mm/sparse: set section nid for hot-add memory
+Message-ID: <20190619061025.GA5717@dhcp22.suse.cz>
+References: <20190618005537.18878-1-richardw.yang@linux.intel.com>
+ <20190618074900.GA10030@linux>
+ <20190618083212.GA24738@richard>
+ <93d7ea6c-135e-7f12-9d75-b3657862dea0@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <93d7ea6c-135e-7f12-9d75-b3657862dea0@redhat.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Now that the mm core supports section-unaligned hotplug of ZONE_DEVICE
-memory, we no longer need to add padding at pfn/dax device creation
-time. The kernel will still honor padding established by older kernels.
+On Tue 18-06-19 10:40:06, David Hildenbrand wrote:
+> On 18.06.19 10:32, Wei Yang wrote:
+> > On Tue, Jun 18, 2019 at 09:49:48AM +0200, Oscar Salvador wrote:
+> >> On Tue, Jun 18, 2019 at 08:55:37AM +0800, Wei Yang wrote:
+> >>> In case of NODE_NOT_IN_PAGE_FLAGS is set, we store section's node id in
+> >>> section_to_node_table[]. While for hot-add memory, this is missed.
+> >>> Without this information, page_to_nid() may not give the right node id.
+> >>>
+> >>> BTW, current online_pages works because it leverages nid in memory_block.
+> >>> But the granularity of node id should be mem_section wide.
+> >>
+> >> I forgot to ask this before, but why do you mention online_pages here?
+> >> IMHO, it does not add any value to the changelog, and it does not have much
+> >> to do with the matter.
+> >>
+> > 
+> > Since to me it is a little confused why we don't set the node info but still
+> > could online memory to the correct node. It turns out we leverage the
+> > information in memblock.
+> 
+> I'd also drop the comment here.
+> 
+> > 
+> >> online_pages() works with memblock granularity and not section granularity.
+> >> That memblock is just a hot-added range of memory, worth of either 1 section or multiple
+> >> sections, depending on the arch or on the size of the current memory.
+> >> And we assume that each hot-added memory all belongs to the same node.
+> >>
+> > 
+> > So I am not clear about the granularity of node id. section based or memblock
+> > based. Or we have two cases:
+> > 
+> > * for initial memory, section wide
+> > * for hot-add memory, mem_block wide
+> 
+> It's all a big mess. Right now, you can offline initial memory with
+> mixed nodes. Also on my list of many ugly things to clean up.
+> 
+> (I even remember that we can have mixed nodes within a section, but I
+> haven't figured out yet how that is supposed to work in some scenarios)
 
-Reported-by: Jeff Moyer <jmoyer@redhat.com>
-Signed-off-by: Dan Williams <dan.j.williams@intel.com>
----
- drivers/nvdimm/pfn.h      |   14 --------
- drivers/nvdimm/pfn_devs.c |   77 ++++++++-------------------------------------
- include/linux/mmzone.h    |    3 ++
- 3 files changed, 16 insertions(+), 78 deletions(-)
+Yes, that is indeed the case. See 4aa9fc2a435abe95a1e8d7f8c7b3d6356514b37a.
+How to fix this? Well, I do not think we can. Section based granularity
+simply doesn't agree with the reality and so we have to live with that.
+There is a long way to remove all those section size assumptions from
+the code though.
 
-diff --git a/drivers/nvdimm/pfn.h b/drivers/nvdimm/pfn.h
-index dfb2bcda8f5a..7381673b7b70 100644
---- a/drivers/nvdimm/pfn.h
-+++ b/drivers/nvdimm/pfn.h
-@@ -33,18 +33,4 @@ struct nd_pfn_sb {
- 	__le64 checksum;
- };
- 
--#ifdef CONFIG_SPARSEMEM
--#define PFN_SECTION_ALIGN_DOWN(x) SECTION_ALIGN_DOWN(x)
--#define PFN_SECTION_ALIGN_UP(x) SECTION_ALIGN_UP(x)
--#else
--/*
-- * In this case ZONE_DEVICE=n and we will disable 'pfn' device support,
-- * but we still want pmem to compile.
-- */
--#define PFN_SECTION_ALIGN_DOWN(x) (x)
--#define PFN_SECTION_ALIGN_UP(x) (x)
--#endif
--
--#define PHYS_SECTION_ALIGN_DOWN(x) PFN_PHYS(PFN_SECTION_ALIGN_DOWN(PHYS_PFN(x)))
--#define PHYS_SECTION_ALIGN_UP(x) PFN_PHYS(PFN_SECTION_ALIGN_UP(PHYS_PFN(x)))
- #endif /* __NVDIMM_PFN_H */
-diff --git a/drivers/nvdimm/pfn_devs.c b/drivers/nvdimm/pfn_devs.c
-index 4977424693b0..2537aa338bd0 100644
---- a/drivers/nvdimm/pfn_devs.c
-+++ b/drivers/nvdimm/pfn_devs.c
-@@ -587,14 +587,14 @@ static u32 info_block_reserve(void)
- }
- 
- /*
-- * We hotplug memory at section granularity, pad the reserved area from
-- * the previous section base to the namespace base address.
-+ * We hotplug memory at sub-section granularity, pad the reserved area
-+ * from the previous section base to the namespace base address.
-  */
- static unsigned long init_altmap_base(resource_size_t base)
- {
- 	unsigned long base_pfn = PHYS_PFN(base);
- 
--	return PFN_SECTION_ALIGN_DOWN(base_pfn);
-+	return SUBSECTION_ALIGN_DOWN(base_pfn);
- }
- 
- static unsigned long init_altmap_reserve(resource_size_t base)
-@@ -602,7 +602,7 @@ static unsigned long init_altmap_reserve(resource_size_t base)
- 	unsigned long reserve = info_block_reserve() >> PAGE_SHIFT;
- 	unsigned long base_pfn = PHYS_PFN(base);
- 
--	reserve += base_pfn - PFN_SECTION_ALIGN_DOWN(base_pfn);
-+	reserve += base_pfn - SUBSECTION_ALIGN_DOWN(base_pfn);
- 	return reserve;
- }
- 
-@@ -633,8 +633,7 @@ static int __nvdimm_setup_pfn(struct nd_pfn *nd_pfn, struct dev_pagemap *pgmap)
- 		nd_pfn->npfns = le64_to_cpu(pfn_sb->npfns);
- 		pgmap->altmap_valid = false;
- 	} else if (nd_pfn->mode == PFN_MODE_PMEM) {
--		nd_pfn->npfns = PFN_SECTION_ALIGN_UP((resource_size(res)
--					- offset) / PAGE_SIZE);
-+		nd_pfn->npfns = PHYS_PFN((resource_size(res) - offset));
- 		if (le64_to_cpu(nd_pfn->pfn_sb->npfns) > nd_pfn->npfns)
- 			dev_info(&nd_pfn->dev,
- 					"number of pfns truncated from %lld to %ld\n",
-@@ -650,54 +649,14 @@ static int __nvdimm_setup_pfn(struct nd_pfn *nd_pfn, struct dev_pagemap *pgmap)
- 	return 0;
- }
- 
--static u64 phys_pmem_align_down(struct nd_pfn *nd_pfn, u64 phys)
--{
--	return min_t(u64, PHYS_SECTION_ALIGN_DOWN(phys),
--			ALIGN_DOWN(phys, nd_pfn->align));
--}
--
--/*
-- * Check if pmem collides with 'System RAM', or other regions when
-- * section aligned.  Trim it accordingly.
-- */
--static void trim_pfn_device(struct nd_pfn *nd_pfn, u32 *start_pad, u32 *end_trunc)
--{
--	struct nd_namespace_common *ndns = nd_pfn->ndns;
--	struct nd_namespace_io *nsio = to_nd_namespace_io(&ndns->dev);
--	struct nd_region *nd_region = to_nd_region(nd_pfn->dev.parent);
--	const resource_size_t start = nsio->res.start;
--	const resource_size_t end = start + resource_size(&nsio->res);
--	resource_size_t adjust, size;
--
--	*start_pad = 0;
--	*end_trunc = 0;
--
--	adjust = start - PHYS_SECTION_ALIGN_DOWN(start);
--	size = resource_size(&nsio->res) + adjust;
--	if (region_intersects(start - adjust, size, IORESOURCE_SYSTEM_RAM,
--				IORES_DESC_NONE) == REGION_MIXED
--			|| nd_region_conflict(nd_region, start - adjust, size))
--		*start_pad = PHYS_SECTION_ALIGN_UP(start) - start;
--
--	/* Now check that end of the range does not collide. */
--	adjust = PHYS_SECTION_ALIGN_UP(end) - end;
--	size = resource_size(&nsio->res) + adjust;
--	if (region_intersects(start, size, IORESOURCE_SYSTEM_RAM,
--				IORES_DESC_NONE) == REGION_MIXED
--			|| !IS_ALIGNED(end, nd_pfn->align)
--			|| nd_region_conflict(nd_region, start, size))
--		*end_trunc = end - phys_pmem_align_down(nd_pfn, end);
--}
--
- static int nd_pfn_init(struct nd_pfn *nd_pfn)
- {
- 	struct nd_namespace_common *ndns = nd_pfn->ndns;
- 	struct nd_namespace_io *nsio = to_nd_namespace_io(&ndns->dev);
--	u32 start_pad, end_trunc, reserve = info_block_reserve();
- 	resource_size_t start, size;
- 	struct nd_region *nd_region;
-+	unsigned long npfns, align;
- 	struct nd_pfn_sb *pfn_sb;
--	unsigned long npfns;
- 	phys_addr_t offset;
- 	const char *sig;
- 	u64 checksum;
-@@ -728,43 +687,35 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
- 		return -ENXIO;
- 	}
- 
--	memset(pfn_sb, 0, sizeof(*pfn_sb));
--
--	trim_pfn_device(nd_pfn, &start_pad, &end_trunc);
--	if (start_pad + end_trunc)
--		dev_info(&nd_pfn->dev, "%s alignment collision, truncate %d bytes\n",
--				dev_name(&ndns->dev), start_pad + end_trunc);
--
- 	/*
- 	 * Note, we use 64 here for the standard size of struct page,
- 	 * debugging options may cause it to be larger in which case the
- 	 * implementation will limit the pfns advertised through
- 	 * ->direct_access() to those that are included in the memmap.
- 	 */
--	start = nsio->res.start + start_pad;
-+	start = nsio->res.start;
- 	size = resource_size(&nsio->res);
--	npfns = PFN_SECTION_ALIGN_UP((size - start_pad - end_trunc - reserve)
--			/ PAGE_SIZE);
-+	npfns = PHYS_PFN(size - SZ_8K);
-+	align = max(nd_pfn->align, (1UL << SUBSECTION_SHIFT));
- 	if (nd_pfn->mode == PFN_MODE_PMEM) {
- 		/*
- 		 * The altmap should be padded out to the block size used
- 		 * when populating the vmemmap. This *should* be equal to
- 		 * PMD_SIZE for most architectures.
- 		 */
--		offset = ALIGN(start + reserve + 64 * npfns,
--				max(nd_pfn->align, PMD_SIZE)) - start;
-+		offset = ALIGN(start + SZ_8K + 64 * npfns, align) - start;
- 	} else if (nd_pfn->mode == PFN_MODE_RAM)
--		offset = ALIGN(start + reserve, nd_pfn->align) - start;
-+		offset = ALIGN(start + SZ_8K, align) - start;
- 	else
- 		return -ENXIO;
- 
--	if (offset + start_pad + end_trunc >= size) {
-+	if (offset >= size) {
- 		dev_err(&nd_pfn->dev, "%s unable to satisfy requested alignment\n",
- 				dev_name(&ndns->dev));
- 		return -ENXIO;
- 	}
- 
--	npfns = (size - offset - start_pad - end_trunc) / SZ_4K;
-+	npfns = PHYS_PFN(size - offset);
- 	pfn_sb->mode = cpu_to_le32(nd_pfn->mode);
- 	pfn_sb->dataoff = cpu_to_le64(offset);
- 	pfn_sb->npfns = cpu_to_le64(npfns);
-@@ -773,8 +724,6 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
- 	memcpy(pfn_sb->parent_uuid, nd_dev_to_uuid(&ndns->dev), 16);
- 	pfn_sb->version_major = cpu_to_le16(1);
- 	pfn_sb->version_minor = cpu_to_le16(3);
--	pfn_sb->start_pad = cpu_to_le32(start_pad);
--	pfn_sb->end_trunc = cpu_to_le32(end_trunc);
- 	pfn_sb->align = cpu_to_le32(nd_pfn->align);
- 	checksum = nd_sb_checksum((struct nd_gen_sb *) pfn_sb);
- 	pfn_sb->checksum = cpu_to_le64(checksum);
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index e976faf57292..350a24e48a1b 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -1161,6 +1161,9 @@ static inline unsigned long section_nr_to_pfn(unsigned long sec)
- #define SUBSECTIONS_PER_SECTION (1UL << (SECTION_SIZE_BITS - SUBSECTION_SHIFT))
- #endif
- 
-+#define SUBSECTION_ALIGN_UP(pfn) ALIGN((pfn), PAGES_PER_SUBSECTION)
-+#define SUBSECTION_ALIGN_DOWN(pfn) ((pfn) & PAGE_SUBSECTION_MASK)
-+
- struct mem_section_usage {
- 	DECLARE_BITMAP(subsection_map, SUBSECTIONS_PER_SECTION);
- 	/* See declaration of similar field in struct zone */
+-- 
+Michal Hocko
+SUSE Labs
 
