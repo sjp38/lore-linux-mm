@@ -2,240 +2,301 @@ Return-Path: <SRS0=1eqM=US=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id EE5E8C46477
-	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 12:12:55 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2946CC31E49
+	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 12:16:26 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A62392084A
-	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 12:12:55 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A62392084A
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id D551821530
+	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 12:16:25 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D551821530
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 200F86B0003; Wed, 19 Jun 2019 08:12:55 -0400 (EDT)
+	id 840FD6B0003; Wed, 19 Jun 2019 08:16:25 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1B28E8E0002; Wed, 19 Jun 2019 08:12:55 -0400 (EDT)
+	id 7F0A88E0002; Wed, 19 Jun 2019 08:16:25 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 07B018E0001; Wed, 19 Jun 2019 08:12:55 -0400 (EDT)
+	id 6BA128E0001; Wed, 19 Jun 2019 08:16:25 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id AA41B6B0003
-	for <linux-mm@kvack.org>; Wed, 19 Jun 2019 08:12:54 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id d27so25871143eda.9
-        for <linux-mm@kvack.org>; Wed, 19 Jun 2019 05:12:54 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 1AFD36B0003
+	for <linux-mm@kvack.org>; Wed, 19 Jun 2019 08:16:25 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id s7so25849089edb.19
+        for <linux-mm@kvack.org>; Wed, 19 Jun 2019 05:16:25 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=bTZ34gjzzP0Jy0ADECXUetaZX9fMfNzVu8DZSO8np30=;
-        b=b+9nYgthE6ihY0scv+Ossm5kfToJyOx6IivVEdpza46mLNPemj2flhuc/zxQHf24Jg
-         S9AHbn1lH7GdtoLgPHFFPelKobRVi1M0+7d2TBks4SrqqWR1BEJzZtbvvRSk5/7wdJ4w
-         XN1She17ZDx+hMYLT3HbLS/fncwmSWD0CWDiG0mpPqFf7UeLLBgsXGCYuFQ3Ujv80AJu
-         avo72dSUwt2zOWMjydYhUA9nEKfXBh7FwsyrZtoc02imRIAAn2FrCY20UBHWl3Cby7zr
-         LwmU3iuW1F5jpEgoMFmBS9KIkEfK+HRZUb/dZwk6M879R2Q12LsF8/58GcULlx0fC1BI
-         u/bw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Gm-Message-State: APjAAAXjbVgTFniU4WQxdMaYGUutUjo+KzFrTpuvt+BW3J9zjOrvemWm
-	6OLl2FNi3YqEOhOoMrzh9RjxFoF3Wq6ma5EWAUn3j2l0CYDcYaew/jp8HRGXiByvcrEDfKYQhUt
-	HWZZraxG++8ua0b+pU56p9ErQ+Za9ZDvZ3tTs1i8WeGVWZKmTWi72Pe1XYV07W+zmUQ==
-X-Received: by 2002:a50:fc18:: with SMTP id i24mr67870957edr.249.1560946374266;
-        Wed, 19 Jun 2019 05:12:54 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqynv8+XrxStqKz3Uw6Vpf70NVEBOR/h75OT2Agi5NJv2decyMIGYUQZv1za2C4MOy+f2rns
-X-Received: by 2002:a50:fc18:: with SMTP id i24mr67870884edr.249.1560946373590;
-        Wed, 19 Jun 2019 05:12:53 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560946373; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:mime-version:content-disposition:user-agent;
+        bh=7XJhRoT4tjULlZWPGDn/RrgYz+6lS2rDjC+LfrLTgS4=;
+        b=CTgGRwOf2x03M8IhGN9X9oSa65llFXlMKh6PV2aXAxW/p3jvgzQPGLagye9wl83L0+
+         FF/+bl46HZlvHlTtvmhIpzGs46Y6fQWwpJ6frRL6nT0ZDOdksPGEA2kZtKFBt/EIbhpd
+         BNsOPVX18aJHArbLwLsGQ8xzxSs7XxH6Ri1DSqq+QzwA3yZ+1GcmmB5fkXaTTVbHFluv
+         2HISkywy5zCP0zOYHGtkDxeK9iQbpb1D+pKpN17QPVl+L6K65Ha1L44Ko1kqncjvHd6+
+         snQBX+xafM2ZNfhA/K4cq3KmcGORHqEv6hLyg74+4UbvtBe5aIF6oUV2mXMhRmV5vNhq
+         WlyQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of andrew.murray@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=andrew.murray@arm.com
+X-Gm-Message-State: APjAAAUv5oTJVnAlBA3RfWPxaVL3mT8LwsehMFqeKOf8+kREkasyiZx/
+	8dqE03Ta1N0ZFbZlRaSp8Ifj5ADCLNrHVhTq6KONQXbS3cfeNkwxOaOgYmegfnP+f1uD+dNrPCM
+	Yw422Ray97rUsYGk1iodGKyU3QfqHykwOshNkw2Kb81jl80glLFqy78FacN7+jqqb+w==
+X-Received: by 2002:a50:a485:: with SMTP id w5mr40515303edb.277.1560946584589;
+        Wed, 19 Jun 2019 05:16:24 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxabRB/9OJuAkuv+NBYOMkQvApPdLHyVnMDoqpdHmAGOuXoJ+aAvkmhGYuPNxpou+J1FJd3
+X-Received: by 2002:a50:a485:: with SMTP id w5mr40515175edb.277.1560946583325;
+        Wed, 19 Jun 2019 05:16:23 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560946583; cv=none;
         d=google.com; s=arc-20160816;
-        b=CnwlMQ7D2oROTl79NKzjTO3UDiSNCdIrpgKvLvmiGcvWYng/tXWwsTrKYfsOtD/bxA
-         qBPf4t/UWHfYu3PwJ3OZq0s8JGFr91Lv/qa1mvO+wrN3SJxLvvmV7yY78ET/gyeJEWxb
-         IKKcOSGrd2R2xGEfVwtPQd9egydsvslFRkS03mU+LtGLFic2AWe8v7SVx4lkyGM7ip2a
-         1rF1EK4HscERBAKGbTJuMy26ybUerDVwjcFF7q2iU/WOf13axmNj34TsE7+cPJ/tiOFq
-         QITmcAnJxuwz34iXq1N9M5m72AimQb47MLQ5egh960ALAIw5vlteFXR6susuhyrti9IM
-         UHiw==
+        b=yc2x3toOzbj/L3Vo1zZYMwGrKUckAXyHtC6evmhxJVEXIfHpMtA/x4je/k+3ynqr8v
+         +SbC1S1D7CjzTCG1UfHsjY80fpMjH6ki795X6rHD8zAZ6ldZOeA9KqOdrHw9taBR/NMQ
+         BcFwqxZVnakBTBWo3/BZ3PqnAzmPaJbUygjMNcPYwzQ9ks6NFPaIW9byWEdFxs1VKBYq
+         ry+d2ZJx27hIDZ8CyEoxpwRsWHAoFDOAHj72AwK79J6X+vgwH0lpETIlrpTBei/QElBk
+         kdrK81vN9KZ5+SUJY8VhDX9VU+f7C9Zl9ySJhbGcyJc/2JUAl/bbv5plAzZJ+vVjGwaF
+         +gRA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
-         :subject;
-        bh=bTZ34gjzzP0Jy0ADECXUetaZX9fMfNzVu8DZSO8np30=;
-        b=BcsMkTHIZv/M7wzy6Onsa1umlbukHdZzm5zy+T8nAgJap9XczsoQgl0flPs39DPnC7
-         PMuIrJLvGv+UPIrvWS/N66BRj9nL2nKDeBnhaUm0JWjXnbLpNZVXiCeRixc9tiFyjLJZ
-         P/XZFwow9MUi9lXEuhrFWsyPLt86O5ddMASqkWQ4b42m3W7lD5J8Ip/4y+5lOO7/bIP5
-         tOQA+E5USLcoWp8ctWK8YVSmVnONywQ3j3/wSTEZvfV5tOcUjxO33FcqxLbwTwKVmylU
-         MSzoAYMeJbebmg6+EMuXnkcU39N/bf/cVgbjrZ4EkG8B9xFlGDGfuDpEqn/JTBvYEg3x
-         2Y9w==
+        h=user-agent:content-disposition:mime-version:message-id:subject:cc
+         :to:from:date;
+        bh=7XJhRoT4tjULlZWPGDn/RrgYz+6lS2rDjC+LfrLTgS4=;
+        b=WMH1RhJ99RQ4GbA+gMmR2JC3vlbH0/V9JkOWzVf4RbZEs/SwONeyprI2PC8qsz5rHh
+         ds6+TBopvBmhpX1xcD9NF1Bs+OpdsCK8unTyli+kYxUAGOQ2M4BU+2cJsidWvtbD0ffy
+         MSpcMK75nQpC33Fr1oN2f01RDysXtWJNki6Ad10TPae8mWpXHafVqIMHaV+Z7PB+HrhE
+         cSYm8dfludH9jKLVxBVj12xGB5u8Yd90t9Bwjh+aKoJ78IdPNKlRIUJZZAWSgWfMCkwu
+         +qszoLxi7gHABQiAN4n6rYinuUdxWNoa4uRSLQJQ+ZE6MbVBJzEbqU1qeSO0iftmRo2j
+         pC7A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id u14si10689368ejm.334.2019.06.19.05.12.53
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 19 Jun 2019 05:12:53 -0700 (PDT)
-Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+       spf=pass (google.com: domain of andrew.murray@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=andrew.murray@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
+        by mx.google.com with ESMTP id c4si12469751edi.438.2019.06.19.05.16.22
+        for <linux-mm@kvack.org>;
+        Wed, 19 Jun 2019 05:16:23 -0700 (PDT)
+Received-SPF: pass (google.com: domain of andrew.murray@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 1536FAC54;
-	Wed, 19 Jun 2019 12:12:53 +0000 (UTC)
-Subject: Re: [v3 PATCH 2/2] mm: thp: fix false negative of shmem vma's THP
- eligibility
-To: Yang Shi <yang.shi@linux.alibaba.com>, hughd@google.com,
- kirill.shutemov@linux.intel.com, mhocko@suse.com, rientjes@google.com,
- akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-References: <1560401041-32207-1-git-send-email-yang.shi@linux.alibaba.com>
- <1560401041-32207-3-git-send-email-yang.shi@linux.alibaba.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Openpgp: preference=signencrypt
-Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
- 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
-Message-ID: <4a07a6b8-8ff2-419c-eac8-3e7dc17670df@suse.cz>
-Date: Wed, 19 Jun 2019 14:12:35 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.1
+       spf=pass (google.com: domain of andrew.murray@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=andrew.murray@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 57C0AC0A;
+	Wed, 19 Jun 2019 05:16:22 -0700 (PDT)
+Received: from localhost (unknown [10.37.6.20])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id CC64D3F738;
+	Wed, 19 Jun 2019 05:16:21 -0700 (PDT)
+Date: Wed, 19 Jun 2019 13:16:20 +0100
+From: Andrew Murray <andrew.murray@arm.com>
+To: Andrey Konovalov <andreyknvl@google.com>, vincenzo.frascino@arm.com,
+	catalin.marinas@arm.com
+Cc: linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org, linux-kselftest@vger.kernel.org
+Subject: [RFC] arm64: Detecting tagged addresses
+Message-ID: <20190619121619.GV20984@e119886-lin.cambridge.arm.com>
 MIME-Version: 1.0
-In-Reply-To: <1560401041-32207-3-git-send-email-yang.shi@linux.alibaba.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+User-Agent: Mutt/1.10.1+81 (426a6c1) (2018-08-26)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 6/13/19 6:44 AM, Yang Shi wrote:
-> The commit 7635d9cbe832 ("mm, thp, proc: report THP eligibility for each
-> vma") introduced THPeligible bit for processes' smaps. But, when checking
-> the eligibility for shmem vma, __transparent_hugepage_enabled() is
-> called to override the result from shmem_huge_enabled().  It may result
-> in the anonymous vma's THP flag override shmem's.  For example, running a
-> simple test which create THP for shmem, but with anonymous THP disabled,
-> when reading the process's smaps, it may show:
+Hello,
 
+The proposed introduction of a relaxed ARM64 ABI [1] will allow tagged memory
+addresses to be passed through the user-kernel syscall ABI boundary. Tagged
+memory addresses are those which contain a non-zero top byte (the hardware
+has always ignored this top byte due to TCR_EL1.TBI0) and may be useful
+for features such as HWASan.
+
+To permit this relaxation a proposed patchset [2] strips the top byte (tag)
+from user provided memory addresses prior to use in kernel functions which
+require untagged addresses (for example comparasion/arithmetic of addresses).
+The author of this patchset relied on a variety of techniques [2] (such as
+grep, BUG_ON, sparse etc) to identify as many instances of possible where
+tags need to be stipped.
+
+To support this effort and to catch future regressions (e.g. in new syscalls
+or ioctls), I've devised an additional approach for detecting the use of
+tagged addresses in functions that do not want them. This approach makes
+use of Smatch [3] and is outlined in this RFC. Due to the ability of Smatch
+to do flow analysis I believe we can annotate the kernel in fewer places
+than a similar approach in sparse.
+
+I'm keen for feedback on the likely usefulness of this approach.
+
+We first add some new annotations that are exclusively consumed by Smatch:
+
+--- a/include/linux/compiler_types.h
++++ b/include/linux/compiler_types.h
+@@ -19,6 +19,7 @@
+ # define __cond_lock(x,c)      ((c) ? ({ __acquire(x); 1; }) : 0)
+ # define __percpu      __attribute__((noderef, address_space(3)))
+ # define __rcu         __attribute__((noderef, address_space(4)))
++# define __untagged    __attribute__((address_space(5)))
+ # define __private     __attribute__((noderef))
+ extern void __chk_user_ptr(const volatile void __user *);
+ extern void __chk_io_ptr(const volatile void __iomem *);
+@@ -45,6 +46,7 @@ extern void __chk_io_ptr(const volatile void __iomem *);
 ...
 
-> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-> index 01d4eb0..6a13882 100644
-> --- a/fs/proc/task_mmu.c
-> +++ b/fs/proc/task_mmu.c
-> @@ -796,7 +796,8 @@ static int show_smap(struct seq_file *m, void *v)
->  
->  	__show_smap(m, &mss);
->  
-> -	seq_printf(m, "THPeligible:    %d\n", transparent_hugepage_enabled(vma));
-> +	seq_printf(m, "THPeligible:		%d\n",
-> +		   transparent_hugepage_enabled(vma));
->  
->  	if (arch_pkeys_enabled())
->  		seq_printf(m, "ProtectionKey:  %8u\n", vma_pkey(vma));
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> index 4bc2552..36f0225 100644
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -65,10 +65,15 @@
->  
->  bool transparent_hugepage_enabled(struct vm_area_struct *vma)
->  {
-> +	/* The addr is used to check if the vma size fits */
-> +	unsigned long addr = (vma->vm_end & HPAGE_PMD_MASK) - HPAGE_PMD_SIZE;
-> +
-> +	if (!transhuge_vma_suitable(vma, addr))
-> +		return false;
 
-Sorry for replying rather late, and not in the v2 thread, but unlike
-Hugh I'm not convinced that we should include vma size/alignment in the
-test for reporting THPeligible, which was supposed to reflect
-administrative settings and madvise hints. I guess it's mostly a matter
-of personal feeling. But one objective distinction is that the admin
-settings and madvise do have an exact binary result for the whole VMA,
-while this check is more fuzzy - only part of the VMA's span might be
-properly sized+aligned, and THPeligible will be 1 for the whole VMA.
 
->  	if (vma_is_anonymous(vma))
->  		return __transparent_hugepage_enabled(vma);
-> -	if (vma_is_shmem(vma) && shmem_huge_enabled(vma))
-> -		return __transparent_hugepage_enabled(vma);
-> +	if (vma_is_shmem(vma))
-> +		return shmem_huge_enabled(vma);
->  
->  	return false;
->  }
-> diff --git a/mm/shmem.c b/mm/shmem.c
-> index 1bb3b8d..a807712 100644
-> --- a/mm/shmem.c
-> +++ b/mm/shmem.c
-> @@ -3872,6 +3872,9 @@ bool shmem_huge_enabled(struct vm_area_struct *vma)
->  	loff_t i_size;
->  	pgoff_t off;
->  
-> +	if ((vma->vm_flags & VM_NOHUGEPAGE) ||
-> +	    test_bit(MMF_DISABLE_THP, &vma->vm_mm->flags))
-> +		return false;
->  	if (shmem_huge == SHMEM_HUGE_FORCE)
->  		return true;
->  	if (shmem_huge == SHMEM_HUGE_DENY)
-> 
+The purpose of this annotation is to indicate in function prototypes that a
+given argument must not be a user tagged memory address. (The address space
+number isn't significant here and could be replaced with any other annotation
+that we get Smatch to understand).
+
+An example of how we use this annotation is as follows:
+
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -2224,7 +2224,7 @@ get_unmapped_area(struct file *file, unsigned long addr, unsigned long len,
+ EXPORT_SYMBOL(get_unmapped_area);
+ 
+ /* Look up the first VMA which satisfies  addr < vm_end,  NULL if none. */
+-struct vm_area_struct *find_vma(struct mm_struct *mm, unsigned long addr)
++struct vm_area_struct *find_vma(struct mm_struct *mm, unsigned long __untagged addr)
+ {
+        struct rb_node *rb_node;
+        struct vm_area_struct *vma;
+
+
+
+Thus our intent here is to flag up whenever addr is tagged. Specifically
+modifications I've made to Smatch to test this will flag an issue where all
+the following conditions are met:
+
+ 1. the parameter is used in the function
+ 2. the data in the parameter has originated or been derived from userspace
+    (this relies on existing Smatch functionality to detect where data has
+     come from)
+ 3. the data's top byte is non-zero (via flow analysis to determine the 
+    range of values that it may be given the known call-tree).
+
+Due to the use of smatch and its flow-analysis we don't need to propogate the
+__untagged annotation up the call chain to the callers and their callers - thus
+allowing us to only annotate functions that actually does something with the address
+and it's only necessary if the function has the potential to receive user data. I.e.
+we only need to tag find_vma to catch an issue with mmap_region (because it calls
+count_vma_pages_range which calls find_vma_intersection which calls find_vma).
+
+Due to condition 3 above, the use of the existing untagged_addr macro (or anything
+that does something similar) will prevent smatch from producing a warning.
+
+Using a vanilla (v5.2-rc2) kernel, and a single find_vma annotation, smatch will
+produce the following warnings:
+
+mm/mmap.c:2227 find_vma() warn: Variable addr looks like a tagged address - it is not allowed here
+mm/mmap.c:2227 find_vma() warn: Variable addr looks like a tagged address - it is not allowed here
+mm/mmap.c:2227 find_vma() warn: Variable addr looks like a tagged address - it is not allowed here
+...
+
+
+
+The warning is printed for each call site that calls find_vma with a tagged
+address from userspace. After 6 runs of smatch, 24 warnings are produced.
+
+The warnings are helpful in detecting issues, but not useful in providing enough
+information to debug the issue and find the offending functions higher up the
+call stack that call find_vma. Smatch is good at determining the ranges of values
+that can be passed to a function, but it doesn't keep track of how it determined
+those ranges - this makes it difficult to determine the offending function.
+
+However even this level of limited functionality is helpful - as once the kernel
+is initially sanitized of tagged addresses, then the use of smatch here can
+spot regressions and offending code identified via git aiaiai/bisect.
+
+Smatch builds a database which includes a table of functions, who they are
+called by and with what range of parameters. Smatch also provides a bunch
+of perl and python scripts which can be used to extract helpful information
+for example to produce a call tree for a given function. I've adapted these
+scripts such that for a given function (e.g. find_vma) it will show you the
+call tree where callers pass user data and where that data is tagged addresses.
+The output looks something like this:
+
+find_vma() - 0-u64max (1)
+  kvm_arch_prepare_memory_region() - 0-u64max (1)
+    __kvm_set_memory_region() - 0-u64max (1)
+      kvm_set_memory_region() - 0-u64max (1)
+        kvm_vm_ioctl_set_memory_region() - 0-u64max (1)
+  hugetlb_get_unmapped_area() - 0-u64max (1)
+    shm_get_unmapped_area() - 0-u64max (1)
+      shm_get_unmapped_area() - 32785,40977,98321,106513,2097151-u64max[c] (1)
+...
+
+
+
+In summary the following are found, note this currently unhelpfuly includes
+functions inbetween find_vma and the leaf functions:
+
+$ cat find_vma_tree_orig | sed -e 's/^[ \t]*//' | cut -d ' ' -f 1 | sort | uniq
+call_mmap()
+check_and_migrate_cma_pages()
+compat_ipv6_getsockopt()
+compat_sock_common_getsockopt()
+compat_tcp_getsockopt()
+count_vma_pages_range()
+__do_compat_sys_get_mempolicy()
+do_get_mempolicy()
+do_ioctl()
+do_mincore()
+do_mlock()
+do_mmap()
+do_mmap_pgoff()
+...
+
+
+
+As you can see, this gives a good point in the right direction for hunting
+down callers of find_vma with tagged addresses.
+
+This can be further improved - the problem here is that for a given function,
+e.g. find_vma we look for callers where *any* of the parameters
+passed to find_vma are tagged addresses from userspace - i.e. not *just*
+the annotated parameter. This is also true for find_vma's callers' callers'.
+This results in the call tree having false positives.
+
+It *is* possible to track parameters (e.g. find_vma arg 1 comes from arg 3 of
+do_pages_stat_array etc), but this is limited as if functions modify the
+data then the tracking is stopped (however this can be fixed).
+
+After apply the patchset ([PATCH v16 00/16] arm64: untag user pointers passed
+to the kernel)[2] which untags user addresses, smatch indicates 11 issues. The
+call tree is reduced. After grep'ing the call tree output, there are some valid
+instances where untagging is needed, e.g:
+
+gntdev_ioctl_get_offset_for_vaddr()
+kvm_vm_ioctl_set_memory_region()
+privcmd_ioctl_mmap_batch()
+privcmd_ioctl_mmap_resource()
+__se_sys_brk()
+__se_sys_mremap()
+__se_sys_munmap()
+__se_sys_remap_file_pages()
+__se_sys_shmat()
+__se_sys_shmdt()
+__vm_munmap()
+...
+
+An example of a false positve is do_mlock. We untag the address and pass that
+to apply_vma_lock_flags - however we also pass a length - because the length
+came from userspace and could have the top bits set - it's flagged. However
+with improved parameter tracking we can remove this false positive and similar.
+
+Prior to smatch I attempted a similar approach with sparse - however it seemed
+necessary to propogate the __untagged annotation in every function up the call tree,
+and resulted in adding the __untagged annotation to functions that would never
+get near user provided data. This leads to a littering of __untagged all over the
+kernel which doesn't seem appealing. Smatch is more capable, however it almost
+certainly won't pick up 100% of issues due to the difficulity of making flow
+analysis understand everything a compiler can.
+
+Is it likely to be acceptable to use the __untagged annotation in user-path
+functions that require untagged addresses across the kernel?
+
+Thanks,
+
+Andrew Murray
+
+[1] https://lkml.org/lkml/2019/6/13/534
+[2] https://patchwork.kernel.org/cover/10989517/
+[3] http://smatch.sourceforge.net/
 
