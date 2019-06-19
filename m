@@ -2,100 +2,96 @@ Return-Path: <SRS0=1eqM=US=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6CD45C31E49
-	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 06:10:29 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2DF6BC31E49
+	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 06:23:36 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2B25120679
-	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 06:10:29 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2B25120679
+	by mail.kernel.org (Postfix) with ESMTP id D1D7820B1F
+	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 06:23:35 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D1D7820B1F
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B9BA08E0005; Wed, 19 Jun 2019 02:10:28 -0400 (EDT)
+	id 4DC188E0006; Wed, 19 Jun 2019 02:23:35 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B4AAB8E0003; Wed, 19 Jun 2019 02:10:28 -0400 (EDT)
+	id 48B9B8E0003; Wed, 19 Jun 2019 02:23:35 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A14008E0005; Wed, 19 Jun 2019 02:10:28 -0400 (EDT)
+	id 379CA8E0006; Wed, 19 Jun 2019 02:23:35 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 566D58E0003
-	for <linux-mm@kvack.org>; Wed, 19 Jun 2019 02:10:28 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id k22so24669725ede.0
-        for <linux-mm@kvack.org>; Tue, 18 Jun 2019 23:10:28 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id DA8198E0003
+	for <linux-mm@kvack.org>; Wed, 19 Jun 2019 02:23:34 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id l26so24672308eda.2
+        for <linux-mm@kvack.org>; Tue, 18 Jun 2019 23:23:34 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=Rozr/ImJR2c8yWhDDNCj/WHVelt/TnoaDO4kaX4HCQ4=;
-        b=L489z1Oy9+sA3i9i+GodVDGeFsMgIU2ctQB270KMMIb6q0ZKaABByDSWVqfvFVNZGJ
-         SgfNhZ9KcpWk7ipagnxl9ypR4Pg0aJIl2Lc6nPETt2jZ8Nh8AGltX7fofNiQnp908Wm4
-         jNRmD9TKxFrFvSBKcIX/nrgcfhxeaoQ6N64JtTOSXJGRSh4mAHKjh4qDcf+kstHx3hN9
-         KmZOLTWzgtyD9d2k/p/qmpsOlnBJEA0jVVq2lZ+ZgCLmIbaPvwvJm8+ojw0ahiL5XBD+
-         IGKxH8SvpTFkrtd30AI7oqLR46+POB4PLT+DwTGzBgM9/fljxKrc1xb177X2kFxgknwR
-         H2fg==
+        bh=ZazGDObRvA6ihltT67SyH2WSEN7/MIUfpCYaYcTwKu0=;
+        b=M2YgCZGol19n3FZ+RySNP8Tn85gcpqVSDcMbIebUF+/KOsv8NwUE3LoftqvvXkkdA2
+         4/0X1kmNtGyHnRWw/thbEdBdIj+RJFHfAmaRXboiggHxz+6Jf36RHiQJ5N4LNl/Lf4NQ
+         zvaegNmgbFOzbQNlJo8Kf2KnV4rA5CmHZUuciVmFpsGik+cJt5gWeSHDFdYTxNRkg08Q
+         ycFt036t4Kzhu55/lQyy8Z4e1F4br1yJ1zr0oGOeKF9bPLQO9O0OpSukyWSY8Q4j8XQU
+         9jEN8S6KtWH7lifNco3pArjQau7cQAZwXxRSBjGR+Fxg9HuyjxJbMlcwMQ6ZRFObpKX/
+         xHcA==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mhocko@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@suse.com
-X-Gm-Message-State: APjAAAUJjOaMjXxDkpqJXCAzSiLXJvS/HfPqpu+C2oixIhe6prc+LRV6
-	jq0WSB1A6sL/TdptVvSdykDFlwnxdYSVSF1XDP3J/JglGCqx7MMDtyZ8j/LcxuWtuUulY4jMonl
-	snbpNiXHbljJDQ60Dcs+OVgbKD2IRyDs7nyY6YSmKzmcK68JbZi5q8KFneBRpzXap3A==
-X-Received: by 2002:a17:906:15d0:: with SMTP id l16mr55748843ejd.234.1560924627903;
-        Tue, 18 Jun 2019 23:10:27 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzyLF17PqqcGR2pKGP1zFxg4Dmkq1X4KLlxThU1L2zNW3sp/W02At6H13AzYQx1i9Ag2Nok
-X-Received: by 2002:a17:906:15d0:: with SMTP id l16mr55748785ejd.234.1560924627007;
-        Tue, 18 Jun 2019 23:10:27 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560924627; cv=none;
+X-Gm-Message-State: APjAAAW0WuGXvHtkrmDBCdwS7tyLab6GQAZr5S5a2Ct830oYd2mthh5u
+	NbvESPT2w8wlfoyZK10pwXH93U2vK4846yhiRlUrqlBqmIJTcINJA3mIDF8Aw5zRCrg0R1RN/4f
+	K05cJBEbxKHDEcCctsIHmVyAbSKMioNNTJflg6wbcj07x0ofvJF6lQLlFEcvBWStnlw==
+X-Received: by 2002:aa7:c149:: with SMTP id r9mr42411431edp.92.1560925414384;
+        Tue, 18 Jun 2019 23:23:34 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzH5A3Vb9CBkhgfKnfC3IgRTnySAo8tC7ZDO9IvrLgLQpuVUEEBATf03oHxlWrW6TVcOGd7
+X-Received: by 2002:aa7:c149:: with SMTP id r9mr42411389edp.92.1560925413726;
+        Tue, 18 Jun 2019 23:23:33 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560925413; cv=none;
         d=google.com; s=arc-20160816;
-        b=DbB5hushacTrF6U+jKq7NIoOCXWM/qAGlhv8AZd9jY6SM7fssSdyOFvh/XNAWEtO6j
-         fde3JsdWQYv1uGqKVUGCFoofQZaax0vW3hDYmAc3OAvKaFUmSjbZsaCRssbutrMPsHwL
-         E6ePWLrcbU8p8LjV3AHSxmTsqWxKRHzQRTOji/Ak6uud0Xk1dmb0Hbf1fcVTtUVd3BRl
-         hsrsmV9GPEGcgbDAzHeZnr2KP9/DlF9Uvxx/hCsbDvkfXNyzewAmZsEDjQJLDFu0MzBL
-         usc5BY1Xt+pG4iXbupr3QHViVg11KGjDqJ74Cr/ssYgFou0jSVkCnfsSNyhQ/4oz3znW
-         SZXw==
+        b=zdp4C1JMvHzr3Qu6QLtYwEsUxXkjtL5jJMfgPxW7c053FvAlJM/I1nzmabgrAZQQyw
+         +elE9vePVun/Z0r45m6l12cdz16rZW3NbLvR8tvtP4tIFrCjzhUWLkUOV6BhM0WGkWoS
+         lZ8zJ9ZkWjznW6rmp3NqBm/EXoK+FTekjGlsSuEt1zXcAzbQfZZGUiSnwOb+j1Oex1XZ
+         ERRebF6JHWfMGiRToVHHmKJhTXh+qF400ouW+gh3hhT5Jq2YOyRCHRRthLgPgCrKAhxA
+         nPzE2P3DOM0wIwFy07ORUr+ma4bmBz9ZxY0+c7diuN40nHIAGPriV8lRIERmc/DUgfHX
+         5Iaw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=Rozr/ImJR2c8yWhDDNCj/WHVelt/TnoaDO4kaX4HCQ4=;
-        b=0l4h632IygdXYmWEe5xowRuwNDmUoK34/OL+zsB0komRWIG/FoWbI2eDttxNO6qTEE
-         ZEWGMfsVo25C7WKuv45xYThsYIS7poNwHRnVzLEwbM2cy+9Aw1LriFwy0S0eWYv2/+G3
-         3Ot/9ll2way7aC/12w2bCX+k0QeorQR1IN/yRIvKzQW4dcwyIc+57VGdJzmHXYemG34C
-         M4AQ3oqHTFhjUYkoG5pzeFTGxnR9wRgx3mQwJdMzNSYKExXVM1T2HzIOGXg3zjbqyrKm
-         x/Wo0cvKSInXN7j0QNU3Ohu/ph6Yv0dpTL1zXX3YaVC1HDZkguPhRir6uEbg5LwdIZDu
-         YaZQ==
+        bh=ZazGDObRvA6ihltT67SyH2WSEN7/MIUfpCYaYcTwKu0=;
+        b=JpLc+RCjjynII/DtOyUgnzSl5km8IwDdJf/dMT3AUNKCD5X3V8ghbZIJJ9O4MLvDyf
+         WshpAoOhFsSPWWHEJRCM7BDRpIa3eKDr65S0/DRRTuj9/ZgmaLMs9j7IH31/FZUqHGv7
+         nI8/0UMJnWhSkc45sLvEctVJsnBnMjnYVxV3eVBOei1Qjegpy/EhaIKGLTxkqOw0Ptf6
+         wYo78XuA8KiTo+rPolp7dThibWVPo/oWoktnoAV/BArtxc93lp8Pph0KYa6jGEU8ioSm
+         4nLmeXLvS1aFErUGAR4QbroSQamJPLbGE491txMxFlN8Ocb1na+c1vJyHPjaTuIAhqTG
+         TTOw==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of mhocko@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@suse.com
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y10si12967821edc.151.2019.06.18.23.10.26
+        by mx.google.com with ESMTPS id r18si1893497eda.193.2019.06.18.23.23.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 18 Jun 2019 23:10:26 -0700 (PDT)
+        Tue, 18 Jun 2019 23:23:33 -0700 (PDT)
 Received-SPF: pass (google.com: domain of mhocko@suse.com designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of mhocko@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@suse.com
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 46FE0AFC3;
-	Wed, 19 Jun 2019 06:10:26 +0000 (UTC)
-Date: Wed, 19 Jun 2019 08:10:25 +0200
+	by mx1.suse.de (Postfix) with ESMTP id 4C5C2ACB8;
+	Wed, 19 Jun 2019 06:23:32 +0000 (UTC)
+Date: Wed, 19 Jun 2019 08:23:30 +0200
 From: Michal Hocko <mhocko@suse.com>
-To: David Hildenbrand <david@redhat.com>
-Cc: Wei Yang <richardw.yang@linux.intel.com>,
-	Oscar Salvador <osalvador@suse.de>, linux-mm@kvack.org,
-	akpm@linux-foundation.org, anshuman.khandual@arm.com
+To: Wei Yang <richardw.yang@linux.intel.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, osalvador@suse.de,
+	david@redhat.com, anshuman.khandual@arm.com
 Subject: Re: [PATCH v2] mm/sparse: set section nid for hot-add memory
-Message-ID: <20190619061025.GA5717@dhcp22.suse.cz>
+Message-ID: <20190619062330.GB5717@dhcp22.suse.cz>
 References: <20190618005537.18878-1-richardw.yang@linux.intel.com>
- <20190618074900.GA10030@linux>
- <20190618083212.GA24738@richard>
- <93d7ea6c-135e-7f12-9d75-b3657862dea0@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <93d7ea6c-135e-7f12-9d75-b3657862dea0@redhat.com>
+In-Reply-To: <20190618005537.18878-1-richardw.yang@linux.intel.com>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -103,52 +99,61 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue 18-06-19 10:40:06, David Hildenbrand wrote:
-> On 18.06.19 10:32, Wei Yang wrote:
-> > On Tue, Jun 18, 2019 at 09:49:48AM +0200, Oscar Salvador wrote:
-> >> On Tue, Jun 18, 2019 at 08:55:37AM +0800, Wei Yang wrote:
-> >>> In case of NODE_NOT_IN_PAGE_FLAGS is set, we store section's node id in
-> >>> section_to_node_table[]. While for hot-add memory, this is missed.
-> >>> Without this information, page_to_nid() may not give the right node id.
-> >>>
-> >>> BTW, current online_pages works because it leverages nid in memory_block.
-> >>> But the granularity of node id should be mem_section wide.
-> >>
-> >> I forgot to ask this before, but why do you mention online_pages here?
-> >> IMHO, it does not add any value to the changelog, and it does not have much
-> >> to do with the matter.
-> >>
-> > 
-> > Since to me it is a little confused why we don't set the node info but still
-> > could online memory to the correct node. It turns out we leverage the
-> > information in memblock.
-> 
-> I'd also drop the comment here.
-> 
-> > 
-> >> online_pages() works with memblock granularity and not section granularity.
-> >> That memblock is just a hot-added range of memory, worth of either 1 section or multiple
-> >> sections, depending on the arch or on the size of the current memory.
-> >> And we assume that each hot-added memory all belongs to the same node.
-> >>
-> > 
-> > So I am not clear about the granularity of node id. section based or memblock
-> > based. Or we have two cases:
-> > 
-> > * for initial memory, section wide
-> > * for hot-add memory, mem_block wide
-> 
-> It's all a big mess. Right now, you can offline initial memory with
-> mixed nodes. Also on my list of many ugly things to clean up.
-> 
-> (I even remember that we can have mixed nodes within a section, but I
-> haven't figured out yet how that is supposed to work in some scenarios)
+On Tue 18-06-19 08:55:37, Wei Yang wrote:
+> In case of NODE_NOT_IN_PAGE_FLAGS is set, we store section's node id in
+> section_to_node_table[]. While for hot-add memory, this is missed.
+> Without this information, page_to_nid() may not give the right node id.
 
-Yes, that is indeed the case. See 4aa9fc2a435abe95a1e8d7f8c7b3d6356514b37a.
-How to fix this? Well, I do not think we can. Section based granularity
-simply doesn't agree with the reality and so we have to live with that.
-There is a long way to remove all those section size assumptions from
-the code though.
+Which would mean that NODE_NOT_IN_PAGE_FLAGS doesn't really work with
+the hotpluged memory, right? Any idea why nobody has noticed this
+so far? Is it because NODE_NOT_IN_PAGE_FLAGS is rare and essentially
+unused with the hotplug? page_to_nid providing an incorrect result
+sounds quite serious to me.
+
+Could you identify when we have introduced this problem? A Fixes tag
+would sound very useful to me.
+
+> BTW, current online_pages works because it leverages nid in memory_block.
+> But the granularity of node id should be mem_section wide.
+
+This is not really helpful because nothing except for the hotplug really
+cares about mem blocks. The whole MM really does care about page_to_nid
+and that is why it matters much more so spending a word or two on that
+would be more helpful.
+
+> Signed-off-by: Wei Yang <richardw.yang@linux.intel.com>
+> Reviewed-by: Oscar Salvador <osalvador@suse.de>
+> Reviewed-by: David Hildenbrand <david@redhat.com>
+> Reviewed-by: Anshuman Khandual <anshuman.khandual@arm.com>
+
+The patch itself looks good to me.
+Acked-by: Michal Hocko <mhocko@suse.com>
+
+Thanks!
+> 
+> ---
+> v2:
+>   * specify the case NODE_NOT_IN_PAGE_FLAGS is effected.
+>   * list one of the victim page_to_nid()
+> 
+> ---
+>  mm/sparse.c | 1 +
+>  1 file changed, 1 insertion(+)
+> 
+> diff --git a/mm/sparse.c b/mm/sparse.c
+> index 4012d7f50010..48fa16038cf5 100644
+> --- a/mm/sparse.c
+> +++ b/mm/sparse.c
+> @@ -733,6 +733,7 @@ int __meminit sparse_add_one_section(int nid, unsigned long start_pfn,
+>  	 */
+>  	page_init_poison(memmap, sizeof(struct page) * PAGES_PER_SECTION);
+>  
+> +	set_section_nid(section_nr, nid);
+>  	section_mark_present(ms);
+>  	sparse_init_one_section(ms, section_nr, memmap, usemap);
+>  
+> -- 
+> 2.19.1
 
 -- 
 Michal Hocko
