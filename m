@@ -2,210 +2,216 @@ Return-Path: <SRS0=1eqM=US=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0BB5AC43613
-	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 21:19:24 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CFAC0C43613
+	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 21:20:39 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id AB8852085A
-	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 21:19:23 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 7F92A2085A
+	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 21:20:39 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="bmLfM3qw";
-	dkim=pass (1024-bit key) header.d=fb.onmicrosoft.com header.i=@fb.onmicrosoft.com header.b="UZgNhZP6"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AB8852085A
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
+	dkim=pass (1024-bit key) header.d=ffwll.ch header.i=@ffwll.ch header.b="Tz3wIEMJ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7F92A2085A
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ffwll.ch
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4AD3F6B0006; Wed, 19 Jun 2019 17:19:23 -0400 (EDT)
+	id 0DB986B0006; Wed, 19 Jun 2019 17:20:39 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 45E468E0002; Wed, 19 Jun 2019 17:19:23 -0400 (EDT)
+	id 08E108E0002; Wed, 19 Jun 2019 17:20:39 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2FF9D8E0001; Wed, 19 Jun 2019 17:19:23 -0400 (EDT)
+	id EBEA48E0001; Wed, 19 Jun 2019 17:20:38 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id EB9AA6B0006
-	for <linux-mm@kvack.org>; Wed, 19 Jun 2019 17:19:22 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id 14so259117pgo.14
-        for <linux-mm@kvack.org>; Wed, 19 Jun 2019 14:19:22 -0700 (PDT)
+Received: from mail-oi1-f198.google.com (mail-oi1-f198.google.com [209.85.167.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C363F6B0006
+	for <linux-mm@kvack.org>; Wed, 19 Jun 2019 17:20:38 -0400 (EDT)
+Received: by mail-oi1-f198.google.com with SMTP id h184so200388oif.16
+        for <linux-mm@kvack.org>; Wed, 19 Jun 2019 14:20:38 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:dkim-signature:from:to:cc:subject
-         :thread-topic:thread-index:date:message-id:references:in-reply-to
-         :accept-language:content-language:content-id
-         :content-transfer-encoding:mime-version;
-        bh=3NY+crrjnx+TvV8HMgMwqtScaTHrRa6ZFF6/ZoDx/bI=;
-        b=Oi41mfH0WQH+gN1DKxwro4b6TXImqx1hjIkAqnEgwa5K/Wwr0FxRzj/7aqmsJs4XpR
-         qhfWnRaRaFPrYkdcTQJVbfsUhiDI8b3A1fuSs1UFdjopz2lGXEt2PaXTk3rQHdL0ryZf
-         DWHWV3SS++D9gr3rV8YYZ0PZ/aZW2P01oi2qic+N1BzOoa/rOxeY3FhFODY+ejggjCJ8
-         EpkZQCPwdRHhwInHpYqbj53MiQgsYcmG32P2kA6N/E63eRqIMp2k6ZXlh6O+E5P/IDp1
-         f3TvzqFjWWGFh7M2gkxPYiCu0lragU3lSIi5X6RP4KzvHacTaLsCJ9C/RWBe5ACaMrON
-         +yMA==
-X-Gm-Message-State: APjAAAUjSxIti9AQI/GFcadovntjL0OX/YIicKaS0l9fYtIS+0w0Etvt
-	lz1e6a86qmu3OusQhft5F150ROOLAev28DxNckXD1/yHqm9rnN0lqq9njrAycWOvli+EAGdE5gP
-	g/O0t5yvxx6sZEIwKaC5v3hofl1aMW31e8nsWrvHQIuxAmnZYJUpBx3sepZzbvO8nhA==
-X-Received: by 2002:a65:6102:: with SMTP id z2mr9305057pgu.194.1560979162332;
-        Wed, 19 Jun 2019 14:19:22 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqySgpKL2wtLIh6kNOfIjedFnwyd2C6B7iIUUjDheeVJFdtABNiQDWW67bUibCuIXuQ1ta8Z
-X-Received: by 2002:a65:6102:: with SMTP id z2mr9304994pgu.194.1560979161489;
-        Wed, 19 Jun 2019 14:19:21 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560979161; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=bI9P9AKaggByB2J+3Bzt1bHMyBdbzhZul43br86InHM=;
+        b=QeJaYfJuaSChpe26XQfG8qcq/XQi03dgceJMlo8SeiaoFSHfOUMn3+ZT8lzHQxrH/g
+         8dlA0YTaAquwjmurenWr9KzE24iPxXhHSgDqOYtGG7zWesZHns6Pme0bplObiD+vpDoO
+         BfivBZREabr+BsjrjKNa0ZhnWolQ0fEVmHaUlaj/dwhxv9egNrmtiN0+Bayxv6GNJGxO
+         7PNTf4ZPuhaBUdKVLZP8piqZ53yCsifE/qHsR/OmBZeQtD7C8AgIu0gls2InwdzBDvGo
+         j+/GScfElk2wX4Qz4pVVqKi+eGf4+nTGSI+2lzlt363Twt8qH4uRRi+9bIqrYtuyVmlf
+         2WoA==
+X-Gm-Message-State: APjAAAUrPZsTc33+8qGfKkkVPbvmlz0V2dHGEaZ9vu336FVgaLrS8tiQ
+	tC+VjxsEPCmxwZ6W/mQREpDrNprYqKQzGNGkml9ZI/GB7dOxGH+pIjZzWJhbjWXqkcu9HnCbb8x
+	g0rAizPEbzgdWfRO1fY7YLWxayX1z1XUkjlTp9lC70ef6moLiJL5ec3qTZjshsOl7Kg==
+X-Received: by 2002:a54:4694:: with SMTP id k20mr3728450oic.136.1560979238321;
+        Wed, 19 Jun 2019 14:20:38 -0700 (PDT)
+X-Received: by 2002:a54:4694:: with SMTP id k20mr3728411oic.136.1560979237649;
+        Wed, 19 Jun 2019 14:20:37 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560979237; cv=none;
         d=google.com; s=arc-20160816;
-        b=O9qGljRxf8nnz/El9ixjv7wf2pd5t4yKCfqlff6agORUDJ/Ltsd8WM+evz7oTDnryL
-         HuwoCrxvKDjqFHHapRoCyzH9Sd/W2h5ie6BhWmY8PRq0o/jhK4bTWe3tld9osNyaPKed
-         8JXJV/tVHik/oU/8GDmBu/zfocYBNPJAOJZQoR3ebVZYuCK7G66aw+rc/uYTDaZVmzK/
-         OZo5T/8zs7HFrEawhtRg74hnsAMsBFvtttXYfBXZWLxCiI/bp56CQqsjUHBEGIVpW7n6
-         0zPwGulbc+bvvZTyDQrV93zOG06MNQSlCkuQDsqnwjAGrvU7fdy77rSWYK2GgMRaZ9ex
-         c7sA==
+        b=QPD7uXXr1XbSs0lNLEhHZqNDQCj0Rmf3Y0GKDi+/TrSmjbObbRjQJOeKHVayrFC/ls
+         /W/6SEYGX9Hb3qVo7YRq7xbjgaHXmG/SSzW7s5tXBvtyH6y5Az7KJDYapCUBHW9MaaZj
+         gXyzC2dbVyPihY03FuzoUDhr/P0eooETU0Cu6pSz53CSID2GBTNU3ZQKaTyCD/Lkemdq
+         1Zfr8zxQ/HJfjy6qXUgk6M20IqlovEY4GZP2RjEterUWMQ0OZgv+hOHSJCrRkJr/fNiH
+         3bwJ+YsjIewZ3bHdwoabzsv1GVeYm5N5ayBNikqdup00IJcjiJTptYnIf10bSwxszxAR
+         I2xg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from:dkim-signature:dkim-signature;
-        bh=3NY+crrjnx+TvV8HMgMwqtScaTHrRa6ZFF6/ZoDx/bI=;
-        b=kHSe4of5cdyAnGzH5dmfl4YMQYRxfUyXXZdackY++koG8VqCk88hC4tZVsdTV5OzSr
-         zO5mCIg2uamjwlzatd/1DYX6kliKO7TvX4jkWalP+kIkkWS/ockIeszCBkcib1ExEkLo
-         C27zKqTq3paK08NsVoSFbbbsu5Z1EeYU9y2U6M/PU6qO+cI4BvfIPuh4CI2mKDTwZxeW
-         pNWwLFTK28GwzLvxMpuFQaPVSTF6EJaAa5VT4/T6/Pm1oAkhLoVqDr9GnkmmWB2ejWzi
-         RiSkziWPZHUtD9x6LcPxPLfARP9H0TeNA6hdl2J2J4J3zjeQjKXCvTarMMpW5boKz6W7
-         fsUQ==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=bI9P9AKaggByB2J+3Bzt1bHMyBdbzhZul43br86InHM=;
+        b=u9m1LYM7pwbtT/iREvQB20iNajD2Jac3vVB5gzhfUOhy+JDEn82u95ocn5cljyID0y
+         ycNFXNiukbEC07I15clwWhr9oc2L6YeQoUsoF2wL5DNEUm/7w5eYda1VLpe5G3WInG4Q
+         oAILYnT949qkZxEc91NGC6UEUFi6tn8tgGoFXRETZRCWciWcylLaY/9CIAnfTjJVevIW
+         Kjv7J17ESFacZMPYZcqoYSHjAlSD/2zVwBZQ6U/pqe0C2b6+gJyGa5QeTQqgjhVy8XuM
+         XBsz0i2Mb0uw5BMJ038F5W/gMI6M4uxBzUqh2do5phEiOjSGwIDEQ02g4x/jjisysPT9
+         PbPw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b=bmLfM3qw;
-       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-onmicrosoft-com header.b=UZgNhZP6;
-       spf=pass (google.com: domain of prvs=10734da445=guro@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=10734da445=guro@fb.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id n184si17290580pfn.59.2019.06.19.14.19.21
+       dkim=pass header.i=@ffwll.ch header.s=google header.b=Tz3wIEMJ;
+       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of daniel.vetter@ffwll.ch) smtp.mailfrom=daniel.vetter@ffwll.ch
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id x11sor6850683oia.38.2019.06.19.14.20.37
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 19 Jun 2019 14:19:21 -0700 (PDT)
-Received-SPF: pass (google.com: domain of prvs=10734da445=guro@fb.com designates 67.231.145.42 as permitted sender) client-ip=67.231.145.42;
+        (Google Transport Security);
+        Wed, 19 Jun 2019 14:20:37 -0700 (PDT)
+Received-SPF: neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of daniel.vetter@ffwll.ch) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b=bmLfM3qw;
-       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-onmicrosoft-com header.b=UZgNhZP6;
-       spf=pass (google.com: domain of prvs=10734da445=guro@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=10734da445=guro@fb.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from pps.filterd (m0044010.ppops.net [127.0.0.1])
-	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x5JLFVWo000367;
-	Wed, 19 Jun 2019 14:19:20 -0700
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
- : date : message-id : references : in-reply-to : content-type : content-id
- : content-transfer-encoding : mime-version; s=facebook;
- bh=3NY+crrjnx+TvV8HMgMwqtScaTHrRa6ZFF6/ZoDx/bI=;
- b=bmLfM3qw3rWLd3gqel2Xys2m/uwQFDnFDqVQsppZF+VF9/7qKTREJ1b+fE8hDJW4lmOz
- xZg3Xb+lKFQxQ1Fnj2iGwzRmMjXlM5M0hWocteC6HmOWloQjKVqotLm7Osv6dJrd61mp
- VDInvEwJNvB8Iu8eF9+fZFdN7i7F8zi7EjQ= 
-Received: from mail.thefacebook.com (mailout.thefacebook.com [199.201.64.23])
-	by mx0a-00082601.pphosted.com with ESMTP id 2t7r9v92tu-2
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-SHA384 bits=256 verify=NOT);
-	Wed, 19 Jun 2019 14:19:20 -0700
-Received: from prn-hub01.TheFacebook.com (2620:10d:c081:35::125) by
- prn-hub02.TheFacebook.com (2620:10d:c081:35::126) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id
- 15.1.1713.5; Wed, 19 Jun 2019 14:19:18 -0700
-Received: from NAM03-CO1-obe.outbound.protection.outlook.com (192.168.54.28)
- by o365-in.thefacebook.com (192.168.16.25) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id 15.1.1713.5
- via Frontend Transport; Wed, 19 Jun 2019 14:19:18 -0700
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.onmicrosoft.com;
- s=selector1-fb-onmicrosoft-com;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=3NY+crrjnx+TvV8HMgMwqtScaTHrRa6ZFF6/ZoDx/bI=;
- b=UZgNhZP6yIuHddenr9xkBBVpkq1msj5Tca9c+3DXIf5YDry331CwN1E1qs6evb4Umbj4Wqf7P9kHj/poPzH1fGEdIxPqRCqfk31Cf+iCUybZaDSKUodX/dwC5PJ87+qxgDiwOcIfyYmpT3+xb1xppx+sbvQ8vwD0agMqspignac=
-Received: from DM6PR15MB2635.namprd15.prod.outlook.com (20.179.161.152) by
- DM6PR15MB2651.namprd15.prod.outlook.com (20.179.161.212) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.1987.10; Wed, 19 Jun 2019 21:19:17 +0000
-Received: from DM6PR15MB2635.namprd15.prod.outlook.com
- ([fe80::5022:93e0:dd8b:b1a1]) by DM6PR15MB2635.namprd15.prod.outlook.com
- ([fe80::5022:93e0:dd8b:b1a1%7]) with mapi id 15.20.1987.014; Wed, 19 Jun 2019
- 21:19:17 +0000
-From: Roman Gushchin <guro@fb.com>
-To: Andrei Vagin <avagin@gmail.com>
-CC: "linux-mm@kvack.org" <linux-mm@kvack.org>
-Subject: Re: WARNING: CPU: 0 PID: 11655 at mm/page_counter.c:62
-Thread-Topic: WARNING: CPU: 0 PID: 11655 at mm/page_counter.c:62
-Thread-Index: AQHVJkPy+Jr2Wzo7c0mhpNsIq/YA/aajfL8A
-Date: Wed, 19 Jun 2019 21:19:16 +0000
-Message-ID: <20190619211909.GA20860@castle.DHCP.thefacebook.com>
-References: <CANaxB-xz6-uCYbSsSEXn3OScYCfpPwP_DxWdh63d9PuLNkeV5g@mail.gmail.com>
-In-Reply-To: <CANaxB-xz6-uCYbSsSEXn3OScYCfpPwP_DxWdh63d9PuLNkeV5g@mail.gmail.com>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach: 
-X-MS-TNEF-Correlator: 
-x-clientproxiedby: CO2PR04CA0075.namprd04.prod.outlook.com
- (2603:10b6:102:1::43) To DM6PR15MB2635.namprd15.prod.outlook.com
- (2603:10b6:5:1a6::24)
-x-ms-exchange-messagesentrepresentingtype: 1
-x-originating-ip: [2620:10d:c090:180::1:3e17]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: b7fb7c26-7d9a-49cc-9ed9-08d6f4fbc906
-x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(2017052603328)(7193020);SRVR:DM6PR15MB2651;
-x-ms-traffictypediagnostic: DM6PR15MB2651:
-x-microsoft-antispam-prvs: <DM6PR15MB2651D7A5E6D69ED140A582ABBEE50@DM6PR15MB2651.namprd15.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:2582;
-x-forefront-prvs: 0073BFEF03
-x-forefront-antispam-report: SFV:NSPM;SFS:(10019020)(366004)(189003)(199004)(53936002)(486006)(6506007)(73956011)(64756008)(66476007)(66446008)(4326008)(476003)(66556008)(256004)(66946007)(229853002)(14444005)(6486002)(6512007)(68736007)(446003)(25786009)(498600001)(14454004)(11346002)(8936002)(8676002)(6436002)(81166006)(81156014)(186003)(33656002)(52116002)(76176011)(9686003)(6916009)(71200400001)(99286004)(71190400001)(1076003)(102836004)(6246003)(46003)(305945005)(7736002)(4744005)(2906002)(6116002)(5660300002)(1411001)(86362001)(386003);DIR:OUT;SFP:1102;SCL:1;SRVR:DM6PR15MB2651;H:DM6PR15MB2635.namprd15.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
-received-spf: None (protection.outlook.com: fb.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info: KkQxOtrhjnhjRMTUQYGLKFbtnkFobIc7p1y4GYeauUKGThVNvYun1SbUbx6rzarY84PVQEGfPbgl3JsSbALqlCmGINClyLz1ukEd6MYXrNOHWH18xOjk16SOzcJJ+oSeHe5DdX6pHS3YlDHuDCKPip7k+L8+FfuVnT+AfjL0DyT/TsStXeKznZDBEKy4MxciOBc5GuAkBKuSQOqipNJkPQr8TLc1u0i5nrFzABY7vyJsrMH0NNUa69Ka0QJmm34K8Vm0ybqJwycpONZcYX6KW6U1olRGM67X0M9PJ9NmHXDlro9DmGxuBOH3/+qYhHZAiw4xLLqpHpSlJLKy7sPFRSnulbd7Ss1dfwWn20lztYg7UDWyzWUIW6H+TMEHBc5KJYP9GrtXM19CEiXkqMtMyCTanpHXbSXl6GIR+9LgNi8=
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <4E3B263D315271428FC070E91C93BB31@namprd15.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
+       dkim=pass header.i=@ffwll.ch header.s=google header.b=Tz3wIEMJ;
+       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of daniel.vetter@ffwll.ch) smtp.mailfrom=daniel.vetter@ffwll.ch
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=ffwll.ch; s=google;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=bI9P9AKaggByB2J+3Bzt1bHMyBdbzhZul43br86InHM=;
+        b=Tz3wIEMJQ6KUu24p8kJGpTzmA6Co/vmiIUI3dfmnw92cqIil2cOfv4n0isjZeDFBj/
+         N2DwUQt3F8qi0Lq/xtl6BMeVRiOStswnCRJNxGBm9I3jcsl0Vin08++XC8/kTEXa8Rb4
+         gdhuT8fnTwj/ll0yWjskwxZDpP7xdYe59hvjI=
+X-Google-Smtp-Source: APXvYqx/TLTpB9wGr9JZtdZ6RHY2xIrpHVS+clHcKNaPFf5G0BlbrC2hAFkgq7x4pUPG8gx88sa6UIhdMVbNbLa5tDI=
+X-Received: by 2002:a05:6808:118:: with SMTP id b24mr3757147oie.128.1560979237149;
+ Wed, 19 Jun 2019 14:20:37 -0700 (PDT)
 MIME-Version: 1.0
-X-MS-Exchange-CrossTenant-Network-Message-Id: b7fb7c26-7d9a-49cc-9ed9-08d6f4fbc906
-X-MS-Exchange-CrossTenant-originalarrivaltime: 19 Jun 2019 21:19:16.9984
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: 8ae927fe-1255-47a7-a2af-5f3a069daaa2
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-userprincipalname: guro@fb.com
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: DM6PR15MB2651
-X-OriginatorOrg: fb.com
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-06-19_13:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=fb_default_notspam policy=fb_default score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1906190175
-X-FB-Internal: deliver
+References: <20190520213945.17046-1-daniel.vetter@ffwll.ch>
+ <20190521154411.GD3836@redhat.com> <20190618152215.GG12905@phenom.ffwll.local>
+ <20190619165055.GI9360@ziepe.ca> <CAKMK7uGpupxF8MdyX3_HmOfc+OkGxVM_b9WbF+S-2fHe0F5SQA@mail.gmail.com>
+ <20190619201340.GL9360@ziepe.ca> <CAKMK7uGtXT1qLdUqnmTd9uUkdMrcreg4UmAxscx0Fp4Pv6uj_A@mail.gmail.com>
+ <20190619204243.GM9360@ziepe.ca>
+In-Reply-To: <20190619204243.GM9360@ziepe.ca>
+From: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date: Wed, 19 Jun 2019 23:20:23 +0200
+Message-ID: <CAKMK7uEJu4+gDLGDabxeDpArgXEGQ0B+9Z_SUM2zTB4QsnTB+g@mail.gmail.com>
+Subject: Re: [PATCH 1/4] mm: Check if mmu notifier callbacks are allowed to fail
+To: Jason Gunthorpe <jgg@ziepe.ca>
+Cc: Jerome Glisse <jglisse@redhat.com>, Michal Hocko <mhocko@suse.com>, 
+	Daniel Vetter <daniel.vetter@intel.com>, 
+	Intel Graphics Development <intel-gfx@lists.freedesktop.org>, LKML <linux-kernel@vger.kernel.org>, 
+	DRI Development <dri-devel@lists.freedesktop.org>, Linux MM <linux-mm@kvack.org>, 
+	David Rientjes <rientjes@google.com>, Paolo Bonzini <pbonzini@redhat.com>, 
+	Andrew Morton <akpm@linux-foundation.org>, =?UTF-8?Q?Christian_K=C3=B6nig?= <christian.koenig@amd.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jun 18, 2019 at 07:08:26PM -0700, Andrei Vagin wrote:
-> Hello,
->=20
-> We run CRIU tests on linux-next kernels and today we found this
-> warning in the kernel log:
+On Wed, Jun 19, 2019 at 10:42 PM Jason Gunthorpe <jgg@ziepe.ca> wrote:
+>
+> On Wed, Jun 19, 2019 at 10:18:43PM +0200, Daniel Vetter wrote:
+> > On Wed, Jun 19, 2019 at 10:13 PM Jason Gunthorpe <jgg@ziepe.ca> wrote:
+> > > On Wed, Jun 19, 2019 at 09:57:15PM +0200, Daniel Vetter wrote:
+> > > > On Wed, Jun 19, 2019 at 6:50 PM Jason Gunthorpe <jgg@ziepe.ca> wrote:
+> > > > > On Tue, Jun 18, 2019 at 05:22:15PM +0200, Daniel Vetter wrote:
+> > > > > > On Tue, May 21, 2019 at 11:44:11AM -0400, Jerome Glisse wrote:
+> > > > > > > On Mon, May 20, 2019 at 11:39:42PM +0200, Daniel Vetter wrote:
+> > > > > > > > Just a bit of paranoia, since if we start pushing this deep into
+> > > > > > > > callchains it's hard to spot all places where an mmu notifier
+> > > > > > > > implementation might fail when it's not allowed to.
+> > > > > > > >
+> > > > > > > > Inspired by some confusion we had discussing i915 mmu notifiers and
+> > > > > > > > whether we could use the newly-introduced return value to handle some
+> > > > > > > > corner cases. Until we realized that these are only for when a task
+> > > > > > > > has been killed by the oom reaper.
+> > > > > > > >
+> > > > > > > > An alternative approach would be to split the callback into two
+> > > > > > > > versions, one with the int return value, and the other with void
+> > > > > > > > return value like in older kernels. But that's a lot more churn for
+> > > > > > > > fairly little gain I think.
+> > > > > > > >
+> > > > > > > > Summary from the m-l discussion on why we want something at warning
+> > > > > > > > level: This allows automated tooling in CI to catch bugs without
+> > > > > > > > humans having to look at everything. If we just upgrade the existing
+> > > > > > > > pr_info to a pr_warn, then we'll have false positives. And as-is, no
+> > > > > > > > one will ever spot the problem since it's lost in the massive amounts
+> > > > > > > > of overall dmesg noise.
+> > > > > > > >
+> > > > > > > > v2: Drop the full WARN_ON backtrace in favour of just a pr_warn for
+> > > > > > > > the problematic case (Michal Hocko).
+> > > > >
+> > > > > I disagree with this v2 note, the WARN_ON/WARN will trigger checkers
+> > > > > like syzkaller to report a bug, while a random pr_warn probably will
+> > > > > not.
+> > > > >
+> > > > > I do agree the backtrace is not useful here, but we don't have a
+> > > > > warn-no-backtrace version..
+> > > > >
+> > > > > IMHO, kernel/driver bugs should always be reported by WARN &
+> > > > > friends. We never expect to see the print, so why do we care how big
+> > > > > it is?
+> > > > >
+> > > > > Also note that WARN integrates an unlikely() into it so the codegen is
+> > > > > automatically a bit more optimal that the if & pr_warn combination.
+> > > >
+> > > > Where do you make a difference between a WARN without backtrace and a
+> > > > pr_warn? They're both dumped at the same log-level ...
+> > >
+> > > WARN panics the kernel when you set
+> > >
+> > > /proc/sys/kernel/panic_on_warn
+> > >
+> > > So auto testing tools can set that and get a clean detection that the
+> > > kernel has failed the test in some way.
+> > >
+> > > Otherwise you are left with frail/ugly grepping of dmesg.
+> >
+> > Hm right.
+> >
+> > Anyway, I'm happy to repaint the bikeshed in any color that's desired,
+> > if that helps with landing it. WARN_WITHOUT_BACKTRACE might take a bit
+> > longer (need to find a bit of time, plus it'll definitely attract more
+> > comments).
+>
+> I was actually just writing something very similar when looking at the
+> hmm things..
+>
+> Also, is the test backwards?
 
-Hello, Andrei!
+Yes, in the last rebase I screwed things up :-/
+-Daniel
 
-Can you, please, check if the following patch fixes the problem?
+> mmu_notifier_range_blockable() == true means the callback must return
+> zero
+>
+> mmu_notififer_range_blockable() == false means the callback can return
+> 0 or -EAGAIN.
+>
+> Suggest this:
+>
+>                                 pr_info("%pS callback failed with %d in %sblockable context.\n",
+>                                         mn->ops->invalidate_range_start, _ret,
+>                                         !mmu_notifier_range_blockable(range) ? "non-" : "");
+> +                               WARN_ON(mmu_notifier_range_blockable(range) ||
+> +                                       _ret != -EAGAIN);
+>                                 ret = _ret;
+>                         }
+>                 }
+>
+> To express the API invariant.
+>
+> Jason
 
-Thanks a lot!
 
---
 
-diff --git a/mm/slab.h b/mm/slab.h
-index a4c9b9d042de..7667dddb6492 100644
---- a/mm/slab.h
-+++ b/mm/slab.h
-@@ -326,7 +326,8 @@ static __always_inline void memcg_uncharge_slab(struct =
-page *page, int order,
-        memcg =3D READ_ONCE(s->memcg_params.memcg);
-        lruvec =3D mem_cgroup_lruvec(page_pgdat(page), memcg);
-        mod_lruvec_state(lruvec, cache_vmstat_idx(s), -(1 << order));
--       memcg_kmem_uncharge_memcg(page, order, memcg);
-+       if (!mem_cgroup_is_root(memcg))
-+               memcg_kmem_uncharge_memcg(page, order, memcg);
-        rcu_read_unlock();
-=20
-        percpu_ref_put_many(&s->memcg_params.refcnt, 1 << order);
+-- 
+Daniel Vetter
+Software Engineer, Intel Corporation
++41 (0) 79 365 57 48 - http://blog.ffwll.ch
 
