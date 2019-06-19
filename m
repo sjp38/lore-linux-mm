@@ -2,166 +2,227 @@ Return-Path: <SRS0=1eqM=US=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.0 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id EEC3BC31E5E
-	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 11:34:55 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 29146C31E49
+	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 11:44:20 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9184B2080C
-	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 11:34:55 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id D4A852084A
+	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 11:44:19 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="FKAUonMZ"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9184B2080C
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="OXehKNII"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D4A852084A
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E7B946B0003; Wed, 19 Jun 2019 07:34:54 -0400 (EDT)
+	id 6ACA76B0003; Wed, 19 Jun 2019 07:44:19 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E2C8F8E0002; Wed, 19 Jun 2019 07:34:54 -0400 (EDT)
+	id 65C5F8E0002; Wed, 19 Jun 2019 07:44:19 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D1A8F8E0001; Wed, 19 Jun 2019 07:34:54 -0400 (EDT)
+	id 523A58E0001; Wed, 19 Jun 2019 07:44:19 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B1A8D6B0003
-	for <linux-mm@kvack.org>; Wed, 19 Jun 2019 07:34:54 -0400 (EDT)
-Received: by mail-qk1-f197.google.com with SMTP id i196so15225452qke.20
-        for <linux-mm@kvack.org>; Wed, 19 Jun 2019 04:34:54 -0700 (PDT)
+Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 01F366B0003
+	for <linux-mm@kvack.org>; Wed, 19 Jun 2019 07:44:19 -0400 (EDT)
+Received: by mail-wr1-f71.google.com with SMTP id b6so1211430wrp.21
+        for <linux-mm@kvack.org>; Wed, 19 Jun 2019 04:44:18 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=Lo9X66uznaZ6SGYkNk0Sx1BYJ1CIYwurC70zh2R4uz8=;
-        b=lNhY7WWc3PP43c9k+je67/whNISocGgPjyNOnLcY9CzPMlqIdW/oVpm28Lw/KUP5uu
-         rEGbtgss2Y4w7A7asJ2Nos2CthK0dtLczKvbu33vn/7CiydsQAal3NufZmoLL/LV7VZu
-         zyrXl6UNuaI808ZX73zg4Ah/l71Is8CcaqWhtRAwRxZXAX+ZxDZ/ZEcSzPkanjpDeOqM
-         G+lD+5a3/hw+aeRvhPsJFAjeCYnHnHB2V+txsNj56fVv5LtVMrmnTguJ8za3T+m76+ep
-         pFMezYmXRdWwKMdAibTRa0oUT+nEuxBGUEFgRUirVXP5KnC1t5bqce0D4d392WjjOe7s
-         OmAA==
-X-Gm-Message-State: APjAAAUB1Sj1OWv+q1J4RIFftDYindZpltuSa1BIqituDuOZonVeMNEy
-	sADTZJ5+doR8/ukJ+YYnGbLXAJnHzYOu7m44/FN1cyvyKhC0nnLrq7JpGNNAwHsX3p8Pr2rCwcv
-	opESApOJs5rqMtWTaThrBsuiqkMtsVhpLrAaooltAj0vVRl8Nt0XXceIhm2QGViNZXA==
-X-Received: by 2002:a37:634f:: with SMTP id x76mr96931920qkb.205.1560944094495;
-        Wed, 19 Jun 2019 04:34:54 -0700 (PDT)
-X-Received: by 2002:a37:634f:: with SMTP id x76mr96931877qkb.205.1560944093750;
-        Wed, 19 Jun 2019 04:34:53 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560944093; cv=none;
-        d=google.com; s=arc-20160816;
-        b=SGXXxfU7IZxqBJVpaRfwmOsCdzAWMGYjN/l1vzam9cb5dShwBuTMSIuYzESoBvSkEu
-         Ssng71HSt659BzMhkksUhBXJBNB6wR3XcBsfnvP1WvT2U9GCE9Sqq8Ed/wHij2pTKTmx
-         ZDaHtbjPI8MzFMK+8hdY1LSrLzlIhRf1FyGNsqkdjEVPZ0CqTvLrxKREWE0IVLoUKZZo
-         soR040Ug1ySXxDVloXosWP7tq7yeCc0bo5/DnHR5Hf8EB3lnvtQIb5sEMOR5JC9v0bkq
-         Ey9IotE0yfqGtaGM4mLZH18QOlpRMT2xXHhet92SQJHYd0SKDuCL0wscY4Pfh4gl2zbx
-         2PuQ==
-ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date:dkim-signature;
-        bh=Lo9X66uznaZ6SGYkNk0Sx1BYJ1CIYwurC70zh2R4uz8=;
-        b=zc9uTzjHfVku3TQO2FKUrZmbuieQMPpgpmWN2jgvKfxhZd+2CHbhdbI7VRG4FqR1oY
-         XErJ2zzCqkRcIFHHmvD1dULOXultraypc2idquRHaf6lQ2N4LrvUKICD6a4L/UdwDt43
-         XJLw/dsBhb/x5xgRcYZ66Adz+ITq8U6cwde7Ahl8SvBKz8wDlr2aRzN7iWBWjA42yaTh
-         By5RgV/VGW94p62Tr57ILfogF8NRDKfL88GgbDfZAN/TRfu5J+k8PF5+nq6iR8L+JaW4
-         eU2G/lvZL4vKUfKCkNe+1AxYcWg95kIyuJOsASiOl6DnXFeHcTHeZtdijMZ+wZZ57guS
-         ovAg==
-ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=FKAUonMZ;
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id a14sor15583949qvb.23.2019.06.19.04.34.53
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 19 Jun 2019 04:34:53 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=FKAUonMZ;
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=ziepe.ca; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:content-transfer-encoding:in-reply-to
+         :message-id:references:mime-version:content-disposition:in-reply-to
          :user-agent;
-        bh=Lo9X66uznaZ6SGYkNk0Sx1BYJ1CIYwurC70zh2R4uz8=;
-        b=FKAUonMZk1gq68qWyHk5hxQwjYagl4YsmsAJviMRujON6p/cymKi6K/YRCSBGj83zJ
-         JkfE/8aIyLUhGGY3g43VYw3XN/P1XonbUFKtelLRQiEwpnDabiu0XyHp4MTd4BxXnjq0
-         V7oSMVDQ0B9LhdM9XamUqUYQ5FEAD5RlNAb4/W6UMjxMBMs9JgY42UFu4GcvX+n/zWDK
-         MfPOy1Eqv9vEhMluQPKsGeBikLCd90E0ip1ORNx/X6O84GweOuD7mvfqOcigbyXMEBZB
-         NoPogRjRvgMiG+lHlke1ShBBcwTOJQM51QTvE9P4WYq9zRxtb4rz854nmVnQvJZtVMtb
-         Qb+A==
-X-Google-Smtp-Source: APXvYqysE5jQwu5IGvItnPtoqMfHXLCakREbAz5IbbNkflU7Xd2VYz5hjEn1/wSvLEs0Ks3ehAZ0LQ==
-X-Received: by 2002:ad4:5388:: with SMTP id i8mr6987929qvv.166.1560944093328;
-        Wed, 19 Jun 2019 04:34:53 -0700 (PDT)
-Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
-        by smtp.gmail.com with ESMTPSA id i22sm10799810qti.30.2019.06.19.04.34.52
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 19 Jun 2019 04:34:52 -0700 (PDT)
-Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
-	(envelope-from <jgg@ziepe.ca>)
-	id 1hdYrc-0002xP-6l; Wed, 19 Jun 2019 08:34:52 -0300
-Date: Wed, 19 Jun 2019 08:34:52 -0300
-From: Jason Gunthorpe <jgg@ziepe.ca>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Jerome Glisse <jglisse@redhat.com>,
-	Ralph Campbell <rcampbell@nvidia.com>,
-	John Hubbard <jhubbard@nvidia.com>, Felix.Kuehling@amd.com,
-	linux-rdma@vger.kernel.org, linux-mm@kvack.org,
-	Andrea Arcangeli <aarcange@redhat.com>,
-	dri-devel@lists.freedesktop.org, amd-gfx@lists.freedesktop.org,
-	Ben Skeggs <bskeggs@redhat.com>, Philip Yang <Philip.Yang@amd.com>
-Subject: Re: [PATCH v3 hmm 06/12] mm/hmm: Hold on to the mmget for the
- lifetime of the range
-Message-ID: <20190619113452.GB9360@ziepe.ca>
-References: <20190614004450.20252-1-jgg@ziepe.ca>
- <20190614004450.20252-7-jgg@ziepe.ca>
- <20190615141435.GF17724@infradead.org>
- <20190618151100.GI6961@ziepe.ca>
- <20190619081858.GB24900@infradead.org>
+        bh=P4p0lEgtRoDQcgzLi/inI+oeUsfDK0bgbuVkWRc+gr8=;
+        b=U1MoqDyDJKVnYpRUIqimxhdSu8eCSB+1UTAMSjULN34ORWzwUwK/TMb8lJ1C4lQJxD
+         cESDsPULvnq0M2usN6gSf5T5hVTw5FtFqxerkUkGjxFLjP3Q7lFjI73pUKOGHzBsfRT9
+         LOjoc5prXLHSwC1s9MI6BPgvm78aHS8zUN9r7YmKC9P2IxXUF5/WgEniC4vytX8zCfVk
+         n5tBf1ZfVFJOly4IBhA4PeCm+IWH0PTtVV4GsefMNeGzqUhKROpwfHDrXMnzbewDQ1j4
+         SmnYjV/qGRXsQ+C8maQZ4wkQ4X4aUXaMjWyzZ/iJb51BwSxpHJ2Bq3lDL9aW/KG1KdSu
+         V1IQ==
+X-Gm-Message-State: APjAAAWMb7Cgarr0rCOveXlsOuafy7LVG08gZau5KWrcZAMCGTc6bnWx
+	WTXcMvSaFmrcZ5JmM6hOqOnLWDFQ2awUdqmVgSXglfmBWmQ4qG+eo18GBm02K73Z1mbn1gQtlXz
+	nUr5MftSZ0G6yzjUyNillsPQgibvMIa/sh5YRAa+oDKXVBRcCDt/rv0kzHUI6hku4Og==
+X-Received: by 2002:a1c:6545:: with SMTP id z66mr7893407wmb.77.1560944658559;
+        Wed, 19 Jun 2019 04:44:18 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwH8UqLLRvfo9x/cZWOmT2qj6HueRKF3WO7hIA/VeUvH9IXVA9WQtFUIZjvY6ZsJyleL//u
+X-Received: by 2002:a1c:6545:: with SMTP id z66mr7893342wmb.77.1560944657778;
+        Wed, 19 Jun 2019 04:44:17 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560944657; cv=none;
+        d=google.com; s=arc-20160816;
+        b=ic9nO8h6PU+KOmaS1d3l3w/tQyY+GmShBpPYm9K5tc4KeKli7At6QpohuzKwwz0OBt
+         0rTNnljs+a3C58R64sV4Vj52zaoXSWj8lL3pOvqKY6UhSmxPqy7ffjyCFUkCXamBq3VP
+         Qd4A9uEVyogRFvgP0oU/w/DqCH+KEDUGBp9v9q8zyNP97EWXkdjxrrHMUk/LZ9jq6zIK
+         kHOXuC8fjAk8Mvr9iEhK72oI14Gk3XfqNFqNWr4NMBrvBXU8S2lSSahnjqra7RVmmKOK
+         c7nRdsXP0cxQ6sZUJN+vT8vmW8SWSBqyn8gbmo1xP+ItZvsyKxweyeyTKJqoHtPyXkfo
+         eUAw==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=P4p0lEgtRoDQcgzLi/inI+oeUsfDK0bgbuVkWRc+gr8=;
+        b=RZ/yDKWUtzjexEL/+MviZsQlfzU7Uyk4zrEl6D54AYGuNdTRFCAbXMxwpz2p+dFi8P
+         7W6OQTjytynYu4m5nYlMIFA1qdo1Pf+Zm0ndRiEATf3mDN7TRq86o/MU3Dy76q0EDL+N
+         trkp0bUmcEXk9N2fY7XBnkXwjwp1q7FkProWjSvGNXOKKn2P3XRY2cEqWINtPN5+e+9z
+         Rs5uMknyS/KFvcTy0fIZdhRh4Y995RPOmDbQAcqtAH4eSBI5vDTRVp6A2R07iuK0cvdw
+         8XhBRfiIbrOBfqPDZFaVX3kp0v/hVL9p2FOAsiz3piv92TWW+Vz9GfvamcULwtMo1JAP
+         S0lg==
+ARC-Authentication-Results: i=1; mx.google.com;
+       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=OXehKNII;
+       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 205.233.59.134 as permitted sender) smtp.mailfrom=peterz@infradead.org
+Received: from merlin.infradead.org (merlin.infradead.org. [205.233.59.134])
+        by mx.google.com with ESMTPS id z2si915567wma.41.2019.06.19.04.44.17
+        for <linux-mm@kvack.org>
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Wed, 19 Jun 2019 04:44:17 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of peterz@infradead.org designates 205.233.59.134 as permitted sender) client-ip=205.233.59.134;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=OXehKNII;
+       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 205.233.59.134 as permitted sender) smtp.mailfrom=peterz@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=merlin.20170209; h=In-Reply-To:Content-Type:MIME-Version:
+	References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=P4p0lEgtRoDQcgzLi/inI+oeUsfDK0bgbuVkWRc+gr8=; b=OXehKNIIK5+7AJqrCcGuPeVQM
+	sVAS9t3w53Uf+9ZjZ4Oq/miXG9m8YOfsNDtBNH0H+PLoL0OD3hYR4lqfcnlqXXkk9st/FSykuUJVj
+	/2Cp6IiZzuYUsS4mDt+wjwiHTlu6tEjE6fjTRmD0JgHToB8P6+J5KsBowqTn7mC/e8A9hunO6Rxcp
+	nktlcUBXd6KFAhFC4z/P+88TooWUE6AEv5ZOHdPEAJfCQDchI9f5L0jLpFx7f6DONdb+LnMmzG8ll
+	aUPisfZJyyV7qB30UzBVViMk7eKAp8qgDwCq4VHjBTPt1rWquWLxrXMCrWzlFFJjuNkmeHsoD0UZl
+	Ruhswmm0g==;
+Received: from j217100.upc-j.chello.nl ([24.132.217.100] helo=hirez.programming.kicks-ass.net)
+	by merlin.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
+	id 1hdZ0Q-0006kA-QD; Wed, 19 Jun 2019 11:43:59 +0000
+Received: by hirez.programming.kicks-ass.net (Postfix, from userid 1000)
+	id 6377820796506; Wed, 19 Jun 2019 13:43:56 +0200 (CEST)
+Date: Wed, 19 Jun 2019 13:43:56 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+To: Mauro Carvalho Chehab <mchehab+samsung@kernel.org>
+Cc: Linux Doc Mailing List <linux-doc@vger.kernel.org>,
+	Mauro Carvalho Chehab <mchehab@infradead.org>,
+	linux-kernel@vger.kernel.org, Jonathan Corbet <corbet@lwn.net>,
+	Johannes Berg <johannes@sipsolutions.net>,
+	Kurt Schwemmer <kurt.schwemmer@microsemi.com>,
+	Logan Gunthorpe <logang@deltatee.com>,
+	Bjorn Helgaas <bhelgaas@google.com>,
+	Alan Stern <stern@rowland.harvard.edu>,
+	Andrea Parri <andrea.parri@amarulasolutions.com>,
+	Will Deacon <will.deacon@arm.com>,
+	Boqun Feng <boqun.feng@gmail.com>,
+	Nicholas Piggin <npiggin@gmail.com>,
+	David Howells <dhowells@redhat.com>,
+	Jade Alglave <j.alglave@ucl.ac.uk>,
+	Luc Maranget <luc.maranget@inria.fr>,
+	"Paul E. McKenney" <paulmck@linux.ibm.com>,
+	Akira Yokosawa <akiyks@gmail.com>,
+	Daniel Lustig <dlustig@nvidia.com>,
+	Stuart Hayes <stuart.w.hayes@gmail.com>,
+	Thomas Gleixner <tglx@linutronix.de>,
+	Ingo Molnar <mingo@redhat.com>, Darren Hart <dvhart@infradead.org>,
+	Kees Cook <keescook@chromium.org>, Emese Revfy <re.emese@gmail.com>,
+	Ohad Ben-Cohen <ohad@wizery.com>,
+	Bjorn Andersson <bjorn.andersson@linaro.org>,
+	Corey Minyard <minyard@acm.org>,
+	Marc Zyngier <marc.zyngier@arm.com>,
+	William Breathitt Gray <vilhelm.gray@gmail.com>,
+	Jaroslav Kysela <perex@perex.cz>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	"Rafael J. Wysocki" <rafael@kernel.org>,
+	"Naveen N. Rao" <naveen.n.rao@linux.ibm.com>,
+	Anil S Keshavamurthy <anil.s.keshavamurthy@intel.com>,
+	"David S. Miller" <davem@davemloft.net>,
+	Masami Hiramatsu <mhiramat@kernel.org>,
+	Johannes Thumshirn <morbidrsa@gmail.com>,
+	Steffen Klassert <steffen.klassert@secunet.com>,
+	Sudip Mukherjee <sudipm.mukherjee@gmail.com>,
+	Andreas =?iso-8859-1?Q?F=E4rber?= <afaerber@suse.de>,
+	Manivannan Sadhasivam <manivannan.sadhasivam@linaro.org>,
+	Rodolfo Giometti <giometti@enneenne.com>,
+	Richard Cochran <richardcochran@gmail.com>,
+	Thierry Reding <thierry.reding@gmail.com>,
+	Sumit Semwal <sumit.semwal@linaro.org>,
+	Gustavo Padovan <gustavo@padovan.org>,
+	Jens Wiklander <jens.wiklander@linaro.org>,
+	Kirti Wankhede <kwankhede@nvidia.com>,
+	Alex Williamson <alex.williamson@redhat.com>,
+	Cornelia Huck <cohuck@redhat.com>,
+	Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>,
+	David Airlie <airlied@linux.ie>, Daniel Vetter <daniel@ffwll.ch>,
+	Maarten Lankhorst <maarten.lankhorst@linux.intel.com>,
+	Maxime Ripard <maxime.ripard@bootlin.com>,
+	Sean Paul <sean@poorly.run>, Farhan Ali <alifm@linux.ibm.com>,
+	Eric Farman <farman@linux.ibm.com>,
+	Halil Pasic <pasic@linux.ibm.com>,
+	Heiko Carstens <heiko.carstens@de.ibm.com>,
+	Vasily Gorbik <gor@linux.ibm.com>,
+	Christian Borntraeger <borntraeger@de.ibm.com>,
+	Harry Wei <harryxiyou@gmail.com>,
+	Alex Shi <alex.shi@linux.alibaba.com>,
+	Evgeniy Polyakov <zbr@ioremap.net>,
+	Jerry Hoemann <jerry.hoemann@hpe.com>,
+	Wim Van Sebroeck <wim@linux-watchdog.org>,
+	Guenter Roeck <linux@roeck-us.net>, Guan Xuetao <gxt@pku.edu.cn>,
+	Arnd Bergmann <arnd@arndb.de>,
+	Linus Walleij <linus.walleij@linaro.org>,
+	Bartosz Golaszewski <bgolaszewski@baylibre.com>,
+	Andy Shevchenko <andy@infradead.org>, Jiri Slaby <jslaby@suse.com>,
+	linux-wireless@vger.kernel.org, linux-pci@vger.kernel.org,
+	linux-arch@vger.kernel.org, platform-driver-x86@vger.kernel.org,
+	kernel-hardening@lists.openwall.com,
+	linux-remoteproc@vger.kernel.org,
+	openipmi-developer@lists.sourceforge.net,
+	linux-crypto@vger.kernel.org, linux-arm-kernel@lists.infradead.org,
+	netdev@vger.kernel.org, linux-pwm@vger.kernel.org,
+	dri-devel@lists.freedesktop.org, kvm@vger.kernel.org,
+	linux-fbdev@vger.kernel.org, linux-s390@vger.kernel.org,
+	linux-watchdog@vger.kernel.org, linaro-mm-sig@lists.linaro.org,
+	linux-gpio@vger.kernel.org, linux-mm@kvack.org
+Subject: Re: [PATCH v1 12/22] docs: driver-api: add .rst files from the main
+ dir
+Message-ID: <20190619114356.GP3419@hirez.programming.kicks-ass.net>
+References: <cover.1560890771.git.mchehab+samsung@kernel.org>
+ <b0d24e805d5368719cc64e8104d64ee9b5b89dd0.1560890772.git.mchehab+samsung@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20190619081858.GB24900@infradead.org>
-User-Agent: Mutt/1.9.4 (2018-02-28)
+In-Reply-To: <b0d24e805d5368719cc64e8104d64ee9b5b89dd0.1560890772.git.mchehab+samsung@kernel.org>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jun 19, 2019 at 01:18:58AM -0700, Christoph Hellwig wrote:
-> >  	mutex_lock(&hmm->lock);
-> > -	list_del(&range->list);
-> > +	list_del_init(&range->list);
-> >  	mutex_unlock(&hmm->lock);
-> 
-> I don't see the point why this is a list_del_init - that just
-> reinitializeѕ range->list, but doesn't change anything for the list
-> head it was removed from.  (and if the list_del_init was intended
-> a later patch in your branch reverts it to plain list_del..)
+On Tue, Jun 18, 2019 at 05:53:17PM -0300, Mauro Carvalho Chehab wrote:
 
-Just following the instructions:
+>  .../{ => driver-api}/atomic_bitops.rst        |  2 -
 
-/**
- * list_empty_careful - tests whether a list is empty and not being modified
- * @head: the list to test
- *
- * Description:
- * tests whether a list is empty _and_ checks that no other CPU might be
- * in the process of modifying either member (next or prev)
- *
- * NOTE: using list_empty_careful() without synchronization
- * can only be safe if the only activity that can happen
- * to the list entry is list_del_init(). Eg. it cannot be used
- * if another CPU could re-list_add() it.
- */
+That's a .txt file, big fat NAK for making it an rst.
 
-Agree it doesn't seem obvious why this is relevant when checking the
-list head..
+>  .../{ => driver-api}/futex-requeue-pi.rst     |  2 -
 
-Maybe the comment is a bit misleading?
+>  .../{ => driver-api}/gcc-plugins.rst          |  2 -
 
-Jason
+>  Documentation/{ => driver-api}/kprobes.rst    |  2 -
+>  .../{ => driver-api}/percpu-rw-semaphore.rst  |  2 -
+
+More NAK for rst conversion
+
+>  Documentation/{ => driver-api}/pi-futex.rst   |  2 -
+>  .../{ => driver-api}/preempt-locking.rst      |  2 -
+
+>  Documentation/{ => driver-api}/rbtree.rst     |  2 -
+
+>  .../{ => driver-api}/robust-futex-ABI.rst     |  2 -
+>  .../{ => driver-api}/robust-futexes.rst       |  2 -
+
+>  .../{ => driver-api}/speculation.rst          |  8 +--
+>  .../{ => driver-api}/static-keys.rst          |  2 -
+
+>  .../{ => driver-api}/this_cpu_ops.rst         |  2 -
+
+>  Documentation/locking/rt-mutex.rst            |  2 +-
+
+NAK. None of the above have anything to do with driver-api.
 
