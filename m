@@ -2,164 +2,289 @@ Return-Path: <SRS0=1eqM=US=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4E575C31E5B
-	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 16:29:06 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 260E8C31E5B
+	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 16:30:29 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 040372173E
-	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 16:29:06 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="Mu7sgXi6"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 040372173E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
+	by mail.kernel.org (Postfix) with ESMTP id CC7A22173E
+	for <linux-mm@archiver.kernel.org>; Wed, 19 Jun 2019 16:30:28 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CC7A22173E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9F4538E0007; Wed, 19 Jun 2019 12:29:05 -0400 (EDT)
+	id 64AF58E0008; Wed, 19 Jun 2019 12:30:28 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9A5268E0001; Wed, 19 Jun 2019 12:29:05 -0400 (EDT)
+	id 5FAD48E0001; Wed, 19 Jun 2019 12:30:28 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 894D78E0007; Wed, 19 Jun 2019 12:29:05 -0400 (EDT)
+	id 4EBFE8E0008; Wed, 19 Jun 2019 12:30:28 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 68A2C8E0001
-	for <linux-mm@kvack.org>; Wed, 19 Jun 2019 12:29:05 -0400 (EDT)
-Received: by mail-qk1-f198.google.com with SMTP id v80so16239417qkb.19
-        for <linux-mm@kvack.org>; Wed, 19 Jun 2019 09:29:05 -0700 (PDT)
+Received: from mail-yw1-f70.google.com (mail-yw1-f70.google.com [209.85.161.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 2CCDB8E0001
+	for <linux-mm@kvack.org>; Wed, 19 Jun 2019 12:30:28 -0400 (EDT)
+Received: by mail-yw1-f70.google.com with SMTP id b188so35001ywb.10
+        for <linux-mm@kvack.org>; Wed, 19 Jun 2019 09:30:28 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=qnUOwWGBCAXAVLri1Ul0fDjUeERWKjKVp0Rio+t6Mw0=;
-        b=b6iwQyDuIcdmXtd5DXOr+EfHxpd66vw5MJthXnzC5jWn/KGehHPghMIdAeU1pO/9yX
-         T7DZPTN84zNzXu2RHjEhpyYHOAb4dXuCtbHUYYVNnjg7VWfef2nEe9c3+yXlmaX+jBgl
-         K8Zfx3+tqA42Fnvcma6Dn71AZO6gnuQb1J9J8hgdEIraJm4RPW8NHhE5e9bPU3bwyieO
-         nqzEkF5TZe1xxN8JadLAQp6yhtDJb9Crlrl3m7Vkd4cPeyXy6E8wig9UxbQrIld4kSsO
-         0Y2G8EA04OQQu3aB02rjG4DlYqzkxSYnySd/VH9zwzSzQgCulTFPaho4up9sHonboXH1
-         Ik+g==
-X-Gm-Message-State: APjAAAWFE4RiqnbanNyTt5hsbwJD2lJLB1THG8qbtGLNUzM3RKT8FNit
-	/wUms21MFL53vg866XqPE3c9dmClcvUATrIHz2Rse1z3stUZe1Lo7eZ0i5BXdrL4I6K73hIiT2w
-	xWJ1qrW7BDTx3VNGpu89mbk5NfEyNdQMpOYbWjDL/ffu7X3WH9nZH7QdRAEIH5t+Klw==
-X-Received: by 2002:a37:9a50:: with SMTP id c77mr100421359qke.12.1560961745229;
-        Wed, 19 Jun 2019 09:29:05 -0700 (PDT)
-X-Received: by 2002:a37:9a50:: with SMTP id c77mr100421314qke.12.1560961744636;
-        Wed, 19 Jun 2019 09:29:04 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560961744; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:in-reply-to:references:date:mime-version:message-id;
+        bh=qw40hPqfWiyBgxT3MUNSYP1O/HT3LUBF/+fYdBrltaE=;
+        b=aZvjRUgUltLloUGPgtRFZnNwhOmOSfs8rc4UOFieY/U7SeZb0gKMXatXypt2MzFh6k
+         o2dFcDMkK7n+8AuhUnREx6tg6lmdBTQ5lSZUBrQM7YzZBA0UdUdp4jUZKZ9OzSvrG67z
+         isPTdjLxhB9EcWrtg13JpykmE7tR5HsnNwMWuKhOkWJE/XA/KI8jqfBy+ILJdzbCp4Md
+         yj2ZT84uU7PpdYpr6Y2chyLdNTccS874bvXDPUoN6CxWAEpJNUVOhvyYjoXSwlzuZOVe
+         nkn7tJQ2fdFsYDYlp4t8xXgjHsOdd13IKcgYjlJ1Hi57s8m4NMBwZMKu4XsktNH/A1ir
+         TRqw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: APjAAAXhkUV3NIY2kXP01gdixZ6VaRQXkqNDOmNlksjBdAkA1+QWdLr2
+	XFXpFYNGYQV2IXuAgkRzKAH8IELsd+ikDAMBR8DYYMY2mbiY5RTo0bb4e8CP2dyT5IQNDthfKY2
+	PClXvFKwIDIjx+7Y6Kwdahd7auigyOn+bPWbdUN4ob/nPW143U8awUqfDgaQnNrEyzQ==
+X-Received: by 2002:a81:47c1:: with SMTP id u184mr71044976ywa.313.1560961827900;
+        Wed, 19 Jun 2019 09:30:27 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxVyPviv/N9WFId756naDrf3vKUr6nQe/YQcaemwBWI2LxRiK8l/dov7epjsGTKCiTApoPT
+X-Received: by 2002:a81:47c1:: with SMTP id u184mr71044928ywa.313.1560961827139;
+        Wed, 19 Jun 2019 09:30:27 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560961827; cv=none;
         d=google.com; s=arc-20160816;
-        b=XPU15xsx1jWUqCaUzeFa5XVOp0rTgeoDwd4Mn2MQv6hu8PKfwHlnBcSiwEYkW7LIZy
-         uJ2BlR5qToipJB962JOeyTmvyVsvjapO1hGkIddwndn6hmujxZFeC5uWDBco6n4AjSwx
-         /0HGJkrXkTr9sBnPV7Q0+1m9gBIVeiDPkMBNdz1jvEOej7x0rlifSRMHvbj76dSYVPnQ
-         aJHtMqVN3BaGZr9VDoFcrHb/RvPEWm6jx7rRwfpEnp9hAxROb731ImYIdMYWi+/xIw6E
-         XhKCDJAIgksGornx3hobjmR7S/f9FYLXMurUu9MjwaBYXTrtGvPxbkkkmcKUjGJNpcW6
-         d4mg==
+        b=f1dr+oD2fwDEcko4gnKoZS9qNsLwFyzwWRgKzsB2a5FO+WvSHadydeB/g5GcT27BxR
+         eUQTk2IbI6fWagJpJuJ1L7UHVvC8ta2exS86wLn5OksJSQe91x4TDOgU98iGyaAdzTr1
+         HyxCK8HcF+XA5/vIolXrDtW8BkLdWvTRs22/rmVORWWTkoPVSwESn6ra+n2Dh+mQiw6t
+         oZVbDsbXlWOgljQmJWZCAE0G0iOZ1RdT5+CvFm/5BUlkMzBxbbUy88TuM5Xs4ZWtEc27
+         TevRlgtLHHZejXAMF7KBRQPM57UplRuB/kfOYL864viDlkcGw+vZN+bM7p567MUFlFA6
+         7JHg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=qnUOwWGBCAXAVLri1Ul0fDjUeERWKjKVp0Rio+t6Mw0=;
-        b=lerZf39U10tNAAQSWMQpDuXjFFOL2koBqhYbTvnSXXKbxlVnkny0R2GHFWw4pm8iJw
-         EAsrA/vZSIhm7ajUNZGq4YYd8eykwB74sREDysNv2Xas8uUPU4HD0fzFsRejBCDsQ51c
-         PozumdUH4N+r9VH8VMJsgyYSBjCmuRwfsM7Yee5KXUbarWUGsGBtUWPN/2t1b8shQZjN
-         nsI6hwvGNHkrCI2tuXwErpUMw+MFjcBs/Z+1JxqjVw5vQvLeOqjWD1xXf3p6cLDsuNQ7
-         0YlB1ksJrdznaqnzNiiJdYy6hWL89QHQAGG9jR567me3wKh9Kq8ApGjjp7GFUWwfI/nd
-         Ptkg==
+        h=message-id:mime-version:date:references:in-reply-to:subject:cc:to
+         :from;
+        bh=qw40hPqfWiyBgxT3MUNSYP1O/HT3LUBF/+fYdBrltaE=;
+        b=iNdOrnSKnqzs8KoIMqsWY+J+uIVL/0dm56PnHHr+bSY1MV4Fla+SWPcbwdiUGKmjp/
+         hjxbVaKo4mJoG7dIUb0VIDpxYdYUbyg+NO3cXhCUukd5wasH06NWYIHIp13sf/IZUEUd
+         M1gFLL72kqG+kSoQ96xw7co0N0BCy0aH//7uI+7ZOeVHUvgvM2ZKyj8ke7SLSGljNvjj
+         oN2CWWgo3hh1vvddWyWEexks6ujc7ziyrqw4Dvq0gJTqG3tAD3yJiY3LxR9vdnqNiU+Q
+         vacSwlhYHV1knZ9qJwlDX+VFyTInwcEJv5q5CiYQ4W25h9puLMVsUoosh/UGRrt54LYb
+         TdQw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=Mu7sgXi6;
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g64sor10907446qkf.90.2019.06.19.09.29.04
+       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id n129si6901065ywn.233.2019.06.19.09.30.27
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 19 Jun 2019 09:29:04 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 19 Jun 2019 09:30:27 -0700 (PDT)
+Received-SPF: pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=Mu7sgXi6;
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=ziepe.ca; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=qnUOwWGBCAXAVLri1Ul0fDjUeERWKjKVp0Rio+t6Mw0=;
-        b=Mu7sgXi6O1BEfTzeAxDFiZq9WYAU+8GuA+frzMgX9hRk0/2Eo2VPU9VKN7SPqn7GLw
-         BMmvCbBlMZt8BrrdyjrzJb5mIwmN+Un5ohC6uh52oLeiu3fM9lYGSfsBxw2N/in8YFn5
-         94JBdMTWXqhPkHC5ogDkAk30Vj3tK2OB7FH+D8RuRjkNrh4KSwvNzZkKLQDt1o6UXnKk
-         akxzg79p5LQYrNgI6wQWhEDCa4i3Wr2Q3GuDm1M6C6XhuTkbEI5dQ8Rzs09QxzMXG/yv
-         86i6u7h1UReQ+1KLg8ARX3o5vtg8COFFdiinD/3xnzFLxOpaxmET6WHLpP1penmwv6Fz
-         qw4w==
-X-Google-Smtp-Source: APXvYqxI2A2AbFb1+ZoFRIh7H3fg512a+PNV8rhMF80/TQ7Ui3RJ5j2fJJDqC3jWu2+hRHD8V09puw==
-X-Received: by 2002:a37:5444:: with SMTP id i65mr23556982qkb.263.1560961744340;
-        Wed, 19 Jun 2019 09:29:04 -0700 (PDT)
-Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
-        by smtp.gmail.com with ESMTPSA id n5sm11854916qta.29.2019.06.19.09.29.03
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 19 Jun 2019 09:29:03 -0700 (PDT)
-Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
-	(envelope-from <jgg@ziepe.ca>)
-	id 1hddSJ-0001sf-Di; Wed, 19 Jun 2019 13:29:03 -0300
-Date: Wed, 19 Jun 2019 13:29:03 -0300
-From: Jason Gunthorpe <jgg@ziepe.ca>
-To: Christoph Hellwig <hch@lst.de>,
-	Potnuri Bharat Teja <bharat@chelsio.com>
-Cc: Dan Carpenter <dan.carpenter@oracle.com>,
-	Maarten Lankhorst <maarten.lankhorst@linux.intel.com>,
-	Maxime Ripard <maxime.ripard@bootlin.com>,
-	Sean Paul <sean@poorly.run>, David Airlie <airlied@linux.ie>,
-	Daniel Vetter <daniel@ffwll.ch>,
-	Jani Nikula <jani.nikula@linux.intel.com>,
-	Joonas Lahtinen <joonas.lahtinen@linux.intel.com>,
-	Rodrigo Vivi <rodrigo.vivi@intel.com>,
-	Ian Abbott <abbotti@mev.co.uk>,
-	H Hartley Sweeten <hsweeten@visionengravers.com>,
-	devel@driverdev.osuosl.org, linux-s390@vger.kernel.org,
-	Intel Linux Wireless <linuxwifi@intel.com>,
-	linux-rdma@vger.kernel.org, netdev@vger.kernel.org,
-	intel-gfx@lists.freedesktop.org, linux-wireless@vger.kernel.org,
-	linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org,
-	linux-mm@kvack.org, iommu@lists.linux-foundation.org,
-	"moderated list:ARM PORT" <linux-arm-kernel@lists.infradead.org>,
-	linux-media@vger.kernel.org
-Subject: Re: use exact allocation for dma coherent memory
-Message-ID: <20190619162903.GF9360@ziepe.ca>
-References: <20190614134726.3827-1-hch@lst.de>
- <20190617082148.GF28859@kadam>
- <20190617083342.GA7883@lst.de>
+       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x5JGSQlA029971
+	for <linux-mm@kvack.org>; Wed, 19 Jun 2019 12:30:26 -0400
+Received: from e06smtp02.uk.ibm.com (e06smtp02.uk.ibm.com [195.75.94.98])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2t7r9b94kf-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 19 Jun 2019 12:30:26 -0400
+Received: from localhost
+	by e06smtp02.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
+	Wed, 19 Jun 2019 17:30:24 +0100
+Received: from b06cxnps3074.portsmouth.uk.ibm.com (9.149.109.194)
+	by e06smtp02.uk.ibm.com (192.168.101.132) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Wed, 19 Jun 2019 17:30:22 +0100
+Received: from b06wcsmtp001.portsmouth.uk.ibm.com (b06wcsmtp001.portsmouth.uk.ibm.com [9.149.105.160])
+	by b06cxnps3074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x5JGULFb59965666
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Wed, 19 Jun 2019 16:30:21 GMT
+Received: from b06wcsmtp001.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 14CA6A4067;
+	Wed, 19 Jun 2019 16:30:21 +0000 (GMT)
+Received: from b06wcsmtp001.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 97E78A405C;
+	Wed, 19 Jun 2019 16:30:19 +0000 (GMT)
+Received: from skywalker.linux.ibm.com (unknown [9.85.91.144])
+	by b06wcsmtp001.portsmouth.uk.ibm.com (Postfix) with ESMTP;
+	Wed, 19 Jun 2019 16:30:19 +0000 (GMT)
+X-Mailer: emacs 26.2 (via feedmail 11-beta-1 I)
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+To: Dan Williams <dan.j.williams@intel.com>, akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org,
+        linux-nvdimm@lists.01.org
+Subject: Re: [PATCH v10 12/13] libnvdimm/pfn: Fix fsdax-mode namespace info-block zero-fields
+In-Reply-To: <156092356065.979959.6681003754765958296.stgit@dwillia2-desk3.amr.corp.intel.com>
+References: <156092349300.979959.17603710711957735135.stgit@dwillia2-desk3.amr.corp.intel.com> <156092356065.979959.6681003754765958296.stgit@dwillia2-desk3.amr.corp.intel.com>
+Date: Wed, 19 Jun 2019 22:00:18 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190617083342.GA7883@lst.de>
-User-Agent: Mutt/1.9.4 (2018-02-28)
+Content-Type: text/plain
+X-TM-AS-GCONF: 00
+x-cbid: 19061916-0008-0000-0000-000002F53C2B
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19061916-0009-0000-0000-0000226258B9
+Message-Id: <877e9hk06d.fsf@linux.ibm.com>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-06-19_10:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1906190133
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jun 17, 2019 at 10:33:42AM +0200, Christoph Hellwig wrote:
-> > drivers/infiniband/hw/cxgb4/qp.c
-> >    129  static int alloc_host_sq(struct c4iw_rdev *rdev, struct t4_sq *sq)
-> >    130  {
-> >    131          sq->queue = dma_alloc_coherent(&(rdev->lldi.pdev->dev), sq->memsize,
-> >    132                                         &(sq->dma_addr), GFP_KERNEL);
-> >    133          if (!sq->queue)
-> >    134                  return -ENOMEM;
-> >    135          sq->phys_addr = virt_to_phys(sq->queue);
-> >    136          dma_unmap_addr_set(sq, mapping, sq->dma_addr);
-> >    137          return 0;
-> >    138  }
-> > 
-> > Is this a bug?
-> 
-> Yes.  This will blow up badly on many platforms, as sq->queue
-> might be vmapped, ioremapped, come from a pool without page backing.
+Dan Williams <dan.j.williams@intel.com> writes:
 
-Gah, this addr gets fed into io_remap_pfn_range/remap_pfn_range too..
+> At namespace creation time there is the potential for the "expected to
+> be zero" fields of a 'pfn' info-block to be filled with indeterminate
+> data. While the kernel buffer is zeroed on allocation it is immediately
+> overwritten by nd_pfn_validate() filling it with the current contents of
+> the on-media info-block location. For fields like, 'flags' and the
+> 'padding' it potentially means that future implementations can not rely
+> on those fields being zero.
+>
+> In preparation to stop using the 'start_pad' and 'end_trunc' fields for
+> section alignment, arrange for fields that are not explicitly
+> initialized to be guaranteed zero. Bump the minor version to indicate it
+> is safe to assume the 'padding' and 'flags' are zero. Otherwise, this
+> corruption is expected to benign since all other critical fields are
+> explicitly initialized.
+>
+> Note The cc: stable is about spreading this new policy to as many
+> kernels as possible not fixing an issue in those kernels. It is not
+> until the change titled "libnvdimm/pfn: Stop padding pmem namespaces to
+> section alignment" where this improper initialization becomes a problem.
+> So if someone decides to backport "libnvdimm/pfn: Stop padding pmem
+> namespaces to section alignment" (which is not tagged for stable), make
+> sure this pre-requisite is flagged.
 
-Potnuri, you should fix this.. 
+Don't we need a change like below in this patch?
 
-You probably need to use dma_mmap_from_dev_coherent() in the mmap ?
+modified   drivers/nvdimm/pfn_devs.c
+@@ -452,10 +452,11 @@ int nd_pfn_validate(struct nd_pfn *nd_pfn, const char *sig)
+ 	if (memcmp(pfn_sb->parent_uuid, parent_uuid, 16) != 0)
+ 		return -ENODEV;
+ 
+-	if (__le16_to_cpu(pfn_sb->version_minor) < 1) {
+-		pfn_sb->start_pad = 0;
+-		pfn_sb->end_trunc = 0;
+-	}
++	if ((__le16_to_cpu(pfn_sb->version_minor) < 1) ||
++	    (__le16_to_cpu(pfn_sb->version_minor) >= 3)) {
++			pfn_sb->start_pad = 0;
++			pfn_sb->end_trunc = 0;
++		}
 
-Jason
+
+IIUC we want to force the start_pad and end_truc to zero if the pfn_sb
+minor version number >= 3. So once we have this patch backported and
+older kernel finds a pfn_sb with minor version 3, it will ignore the
+start_pad read from the nvdimm and overwrite that with zero here.
+This patch doesn't enforce that right? After the next patch we can have
+values other than 0 in pfn_sb->start_pad?
+
+
+>
+> Fixes: 32ab0a3f5170 ("libnvdimm, pmem: 'struct page' for pmem")
+> Cc: <stable@vger.kernel.org>
+> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+> ---
+>  drivers/nvdimm/dax_devs.c |    2 +-
+>  drivers/nvdimm/pfn.h      |    1 +
+>  drivers/nvdimm/pfn_devs.c |   18 +++++++++++++++---
+>  3 files changed, 17 insertions(+), 4 deletions(-)
+>
+> diff --git a/drivers/nvdimm/dax_devs.c b/drivers/nvdimm/dax_devs.c
+> index 49fc18ee0565..6d22b0f83b3b 100644
+> --- a/drivers/nvdimm/dax_devs.c
+> +++ b/drivers/nvdimm/dax_devs.c
+> @@ -118,7 +118,7 @@ int nd_dax_probe(struct device *dev, struct nd_namespace_common *ndns)
+>  	nvdimm_bus_unlock(&ndns->dev);
+>  	if (!dax_dev)
+>  		return -ENOMEM;
+> -	pfn_sb = devm_kzalloc(dev, sizeof(*pfn_sb), GFP_KERNEL);
+> +	pfn_sb = devm_kmalloc(dev, sizeof(*pfn_sb), GFP_KERNEL);
+>  	nd_pfn->pfn_sb = pfn_sb;
+>  	rc = nd_pfn_validate(nd_pfn, DAX_SIG);
+>  	dev_dbg(dev, "dax: %s\n", rc == 0 ? dev_name(dax_dev) : "<none>");
+> diff --git a/drivers/nvdimm/pfn.h b/drivers/nvdimm/pfn.h
+> index f58b849e455b..dfb2bcda8f5a 100644
+> --- a/drivers/nvdimm/pfn.h
+> +++ b/drivers/nvdimm/pfn.h
+> @@ -28,6 +28,7 @@ struct nd_pfn_sb {
+>  	__le32 end_trunc;
+>  	/* minor-version-2 record the base alignment of the mapping */
+>  	__le32 align;
+> +	/* minor-version-3 guarantee the padding and flags are zero */
+>  	u8 padding[4000];
+>  	__le64 checksum;
+>  };
+> diff --git a/drivers/nvdimm/pfn_devs.c b/drivers/nvdimm/pfn_devs.c
+> index 0f81fc56bbfd..4977424693b0 100644
+> --- a/drivers/nvdimm/pfn_devs.c
+> +++ b/drivers/nvdimm/pfn_devs.c
+> @@ -412,6 +412,15 @@ static int nd_pfn_clear_memmap_errors(struct nd_pfn *nd_pfn)
+>  	return 0;
+>  }
+>  
+> +/**
+> + * nd_pfn_validate - read and validate info-block
+> + * @nd_pfn: fsdax namespace runtime state / properties
+> + * @sig: 'devdax' or 'fsdax' signature
+> + *
+> + * Upon return the info-block buffer contents (->pfn_sb) are
+> + * indeterminate when validation fails, and a coherent info-block
+> + * otherwise.
+> + */
+>  int nd_pfn_validate(struct nd_pfn *nd_pfn, const char *sig)
+>  {
+>  	u64 checksum, offset;
+> @@ -557,7 +566,7 @@ int nd_pfn_probe(struct device *dev, struct nd_namespace_common *ndns)
+>  	nvdimm_bus_unlock(&ndns->dev);
+>  	if (!pfn_dev)
+>  		return -ENOMEM;
+> -	pfn_sb = devm_kzalloc(dev, sizeof(*pfn_sb), GFP_KERNEL);
+> +	pfn_sb = devm_kmalloc(dev, sizeof(*pfn_sb), GFP_KERNEL);
+>  	nd_pfn = to_nd_pfn(pfn_dev);
+>  	nd_pfn->pfn_sb = pfn_sb;
+>  	rc = nd_pfn_validate(nd_pfn, PFN_SIG);
+> @@ -694,7 +703,7 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
+>  	u64 checksum;
+>  	int rc;
+>  
+> -	pfn_sb = devm_kzalloc(&nd_pfn->dev, sizeof(*pfn_sb), GFP_KERNEL);
+> +	pfn_sb = devm_kmalloc(&nd_pfn->dev, sizeof(*pfn_sb), GFP_KERNEL);
+>  	if (!pfn_sb)
+>  		return -ENOMEM;
+>  
+> @@ -703,11 +712,14 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
+>  		sig = DAX_SIG;
+>  	else
+>  		sig = PFN_SIG;
+> +
+>  	rc = nd_pfn_validate(nd_pfn, sig);
+>  	if (rc != -ENODEV)
+>  		return rc;
+>  
+>  	/* no info block, do init */;
+> +	memset(pfn_sb, 0, sizeof(*pfn_sb));
+> +
+>  	nd_region = to_nd_region(nd_pfn->dev.parent);
+>  	if (nd_region->ro) {
+>  		dev_info(&nd_pfn->dev,
+> @@ -760,7 +772,7 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
+>  	memcpy(pfn_sb->uuid, nd_pfn->uuid, 16);
+>  	memcpy(pfn_sb->parent_uuid, nd_dev_to_uuid(&ndns->dev), 16);
+>  	pfn_sb->version_major = cpu_to_le16(1);
+> -	pfn_sb->version_minor = cpu_to_le16(2);
+> +	pfn_sb->version_minor = cpu_to_le16(3);
+>  	pfn_sb->start_pad = cpu_to_le32(start_pad);
+>  	pfn_sb->end_trunc = cpu_to_le32(end_trunc);
+>  	pfn_sb->align = cpu_to_le32(nd_pfn->align);
+>
+> _______________________________________________
+> Linux-nvdimm mailing list
+> Linux-nvdimm@lists.01.org
+> https://lists.01.org/mailman/listinfo/linux-nvdimm
 
