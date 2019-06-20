@@ -2,171 +2,163 @@ Return-Path: <SRS0=424v=UT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D2C98C43613
-	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 05:13:30 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 47CFFC43613
+	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 05:50:34 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9116E20B1F
-	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 05:13:30 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9116E20B1F
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ghiti.fr
+	by mail.kernel.org (Postfix) with ESMTP id 0D0A9208CB
+	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 05:50:33 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0D0A9208CB
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 34B656B0008; Thu, 20 Jun 2019 01:13:30 -0400 (EDT)
+	id 971B06B0003; Thu, 20 Jun 2019 01:50:33 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2FB8E8E0002; Thu, 20 Jun 2019 01:13:30 -0400 (EDT)
+	id 922188E0002; Thu, 20 Jun 2019 01:50:33 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 175B88E0001; Thu, 20 Jun 2019 01:13:30 -0400 (EDT)
+	id 810908E0001; Thu, 20 Jun 2019 01:50:33 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id BB2206B0008
-	for <linux-mm@kvack.org>; Thu, 20 Jun 2019 01:13:29 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id b3so2539684edd.22
-        for <linux-mm@kvack.org>; Wed, 19 Jun 2019 22:13:29 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 31C646B0003
+	for <linux-mm@kvack.org>; Thu, 20 Jun 2019 01:50:33 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id b12so2657512ede.23
+        for <linux-mm@kvack.org>; Wed, 19 Jun 2019 22:50:33 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=1r8du5rzM3WoefU9HQ0cQWK6fVdukLsqJtmhoiFPfns=;
-        b=ZfO/y2jF4jl0ERoZ7401Tp4IegEJoRnz7VuxXbbAlw+IsqpUL5G4eqZe6LU4prlxjO
-         mTODUvep8dF9cCCo2TeNAAgbo3gphEZahdOEhiUzZBJTE44Fqj8A0TyrBpR8UesfGmPW
-         dzW98z3cCUnwY+idcpX2js5Tf6cZJaRQgCR4U8dPUmPi7qY2jU4obA72Uwlrjrcy7Z0j
-         H5LKMN3KCDRyP4MsNAKeyDQs7jfMkYxxmNH7aTn+tPl4OQsI/3Lf7lx3Y2vgRY+D6biU
-         s2PjU3nhHomr9BCAva2pHdlTkcnxeoLaFmM9LrtDlasz7chl7AmgqmxoDRCVKFb8biOP
-         SilA==
-X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 217.70.183.193 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
-X-Gm-Message-State: APjAAAXv9h6aXS7HJ3VNs+cPl/iKgC4Tcnb9GPYZhnNSytZnNMUxXhsk
-	y2aV33MEZ7Roi6L6gucl5nKh1OYnfLO30fSYS8GTE0Poiao4UKovTn/H0Jz1kV9sKjq2gja1Qf5
-	bU5xZ1NtlJS/5qaJOQgKSrqJ/k87oma9qpyLT4VcvrHvtGgn9g4NukF9/yu6gq2s=
-X-Received: by 2002:a50:b147:: with SMTP id l7mr84833484edd.65.1561007609301;
-        Wed, 19 Jun 2019 22:13:29 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy9Zen9HBvaT9MWNSuDhD+Gr/EfdblwSunbdBBIVBibwlDDbiCzjSdJqMvruEI67OuLBY8E
-X-Received: by 2002:a50:b147:: with SMTP id l7mr84833410edd.65.1561007608248;
-        Wed, 19 Jun 2019 22:13:28 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561007608; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=3T44utvmtBO3o2QILLRC35Gdr9y9LM81Qc8eYWW3mvg=;
+        b=C9LWZb8XOdKfsJYFvjusCtZW58Fp8ozGF8SQ08lpR+2prkDHKjKkTBnZbijqct/ZH2
+         JRgDN5T+YCDgQsLNBaeDyPEGPdZik6bV/bNCvUZjbx5qKvvTcGFQzhVxqXuWweLH0DxQ
+         6Cwpjd4dNExUwIsuYiMzPa4S2AZ+KCWhVr+I5kRZTw+h84Y5DhVLUZgtfVz0EFWQrazo
+         3Kdrq+hJAEpJPeTxoVwqoW9Kbe8zA3JxUS3kjuA1+Hcvmy9Srvzn75CYQIm+fzBgmLlD
+         4x6JUMrTzLFKwF2wcovzCutO7ta5bpaw5IrsuOdwGTgkgAvt629fxqh0puM7FzgH6+PC
+         RwrQ==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAVOQbLw+dV4dy50vGCNcBcC/CrIUa+v8UAKvGMah34L7h1KVDBO
+	CDnlI1RH45gBpqwh54VOzhSYkcLOs5aI168Lar0pYrqSM5MUcL0bIh9/xErpL6TlTpjjnhbNFQD
+	SOmLinvujq8AmfmkBLW78OvBG8OdZTtijjMs5C3pspR9K8SabkGh37wLbcFXksVA=
+X-Received: by 2002:a50:8e9d:: with SMTP id w29mr108115659edw.103.1561009832753;
+        Wed, 19 Jun 2019 22:50:32 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwdnjPGOukQSb7RQWK8EOuaY+XAhJFQaOrkmM0OurIXfWF+cU+1VQhc0jcDCzUjZS5jxzsS
+X-Received: by 2002:a50:8e9d:: with SMTP id w29mr108115607edw.103.1561009831963;
+        Wed, 19 Jun 2019 22:50:31 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561009831; cv=none;
         d=google.com; s=arc-20160816;
-        b=gPPOGCcE5/k9Xrzx6tjOIxsXO3AwDh4DQ8jUVdrF9cYbPSB7YE2ckUw+auf0WpDDyV
-         grIB7qtEwcdiidPsCJpkKnuk+m/s5QCdxA2JhK1uk4jfpiNPyazb8h5l9ytWNLaz6ZUV
-         YDOSWKbPy7ne5yBAF6j7oys1MJT6sZERnGbex+BrmQfEbVMzXEtTWdF8GbEnPF6fq5ch
-         rx9j+8fIU2uTUIEJn+sVITLgxiEJdjmoTWFjqH+RTro1suKAOs9bie8TeTUjvucr2Hvv
-         4tgS2GLB5mlPPDAdqtViNobIcwK/nxJpTYw0rKpTU3yJJV6CN3QpwY08Pl5BJUIZY1rS
-         QKTg==
+        b=mKDgQnduEGdnSdTBDXIcfNkyBPBr7OYcTJJevL1pwax/QoYYNc/iWalxSoqpVaPJ7Q
+         HZhh5VG7izaKHkZ+8ldsnFF4LbJKWfcttBDUPwYG8JikKBNDn4wOBNYAewFV9+gS95iS
+         j+T5Sg80+eTK0WzLiMmUoUGGiRR70ubHL2TTb1mDdT+9JUQh4C2e2TeKZKZ9eZiqGcP8
+         2uuzfkkisSG2K9olsKze6q9WQP9MGObCmLWQscR9pXnVvsblf4xrjwdudMdkXjb66bKe
+         KwF+OkC+/LvJ/S5eHz1ErHgTCqoiiUWOw/P5iSAOjJyJOhoXLDAxIisiBljneEm6si7K
+         u4/Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from;
-        bh=1r8du5rzM3WoefU9HQ0cQWK6fVdukLsqJtmhoiFPfns=;
-        b=pJCoIPr82h6jlGBLcx76kKu1kY7xP6yCIZp3T16DkhByGj67jINnYgfdcZbWXaHpQv
-         3C9br3jdtLbqY7pSRsG9w8J2fbssk8t8qM9aE+6ICX0Sfs3GgnTK4EqDnz19W33zP8NU
-         eDlAuSAox8cSI7LTanOs8TEGBK8G0EVQa+MzPIew4RnndhTMpdQ8D7GOGG3CADPWXy1D
-         H50yrMHyKEwIVyF702bUP8oW+xjHA/gvx3jGLI/x0nPPPWOZ1TBM+QyEhjbMnLUHJQHQ
-         KVg7g39djR0uMZuK3Zh4vPh6O5Zwl3yr0Gqa+UNW3HJ6lnL74oJqlBKaKYEqcdpAvrOE
-         81NA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=3T44utvmtBO3o2QILLRC35Gdr9y9LM81Qc8eYWW3mvg=;
+        b=bd/ymmjelntAMpgnCpQf6ZEBxJm1D86g4dCQq61e2vmfDxF665933yWdt3oT9tPa2T
+         ApHE8gGHX/w19c5/Pww2zocx8Iqqd8OKxIqwYGkaanLPDTcQK+wo7R8NmtH5YVH2gzYo
+         0U+IAZQOBufk9ST2GDLz+Xwx49+VNyUvnL7pLR7gGcMBAvBF2Gy5mZTDGLLzoah8dxhF
+         bO4bl96wGu6RSXf8EhQxP3rFIc40Xr11o1jGjJbTOnEHlKdj0wb7QmmKuWVxgXL5bVRS
+         o8CPRPzo1IZ0d7OuAkF86UYqySdIMFe78rik2MmAYBrLH9Nh4DkrqlvUWN/r3bnq2viP
+         OfsQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=neutral (google.com: 217.70.183.193 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
-Received: from relay1-d.mail.gandi.net (relay1-d.mail.gandi.net. [217.70.183.193])
-        by mx.google.com with ESMTPS id hk14si4163767ejb.294.2019.06.19.22.13.28
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id k49si16457130ede.209.2019.06.19.22.50.31
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 19 Jun 2019 22:13:28 -0700 (PDT)
-Received-SPF: neutral (google.com: 217.70.183.193 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) client-ip=217.70.183.193;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 19 Jun 2019 22:50:31 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=neutral (google.com: 217.70.183.193 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
-X-Originating-IP: 79.86.19.127
-Received: from alex.numericable.fr (127.19.86.79.rev.sfr.net [79.86.19.127])
-	(Authenticated sender: alex@ghiti.fr)
-	by relay1-d.mail.gandi.net (Postfix) with ESMTPSA id CD96D240006;
-	Thu, 20 Jun 2019 05:13:22 +0000 (UTC)
-From: Alexandre Ghiti <alex@ghiti.fr>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "James E . J . Bottomley" <James.Bottomley@HansenPartnership.com>,
-	Helge Deller <deller@gmx.de>,
-	Heiko Carstens <heiko.carstens@de.ibm.com>,
-	Vasily Gorbik <gor@linux.ibm.com>,
-	Christian Borntraeger <borntraeger@de.ibm.com>,
-	Yoshinori Sato <ysato@users.sourceforge.jp>,
-	Rich Felker <dalias@libc.org>,
-	"David S . Miller" <davem@davemloft.net>,
-	Thomas Gleixner <tglx@linutronix.de>,
-	Ingo Molnar <mingo@redhat.com>,
-	Borislav Petkov <bp@alien8.de>,
-	"H . Peter Anvin" <hpa@zytor.com>,
-	x86@kernel.org,
-	Dave Hansen <dave.hansen@linux.intel.com>,
-	Andy Lutomirski <luto@kernel.org>,
-	Peter Zijlstra <peterz@infradead.org>,
-	linux-parisc@vger.kernel.org,
-	linux-kernel@vger.kernel.org,
-	linux-s390@vger.kernel.org,
-	linux-sh@vger.kernel.org,
-	sparclinux@vger.kernel.org,
-	linux-mm@kvack.org,
-	Alexandre Ghiti <alex@ghiti.fr>
-Subject: [PATCH RESEND 8/8] mm: Remove mmap_legacy_base and mmap_compat_legacy_code fields from mm_struct
-Date: Thu, 20 Jun 2019 01:03:28 -0400
-Message-Id: <20190620050328.8942-9-alex@ghiti.fr>
-X-Mailer: git-send-email 2.20.1
-In-Reply-To: <20190620050328.8942-1-alex@ghiti.fr>
-References: <20190620050328.8942-1-alex@ghiti.fr>
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 4B5A0AC2C;
+	Thu, 20 Jun 2019 05:50:31 +0000 (UTC)
+Date: Thu, 20 Jun 2019 07:50:28 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: Shakeel Butt <shakeelb@google.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Roman Gushchin <guro@fb.com>, Pekka Enberg <penberg@kernel.org>,
+	David Rientjes <rientjes@google.com>,
+	Joonsoo Kim <iamjoonsoo.kim@lge.com>, cgroups@vger.kernel.org,
+	linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+	Dave Hansen <dave.hansen@intel.com>
+Subject: Re: [PATCH] slub: Don't panic for memcg kmem cache creation failure
+Message-ID: <20190620055028.GA12083@dhcp22.suse.cz>
+References: <20190619232514.58994-1-shakeelb@google.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190619232514.58994-1-shakeelb@google.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Now that x86 and parisc do not use those fields anymore, remove them from
-mm code.
+On Wed 19-06-19 16:25:14, Shakeel Butt wrote:
+> Currently for CONFIG_SLUB, if a memcg kmem cache creation is failed and
+> the corresponding root kmem cache has SLAB_PANIC flag, the kernel will
+> be crashed. This is unnecessary as the kernel can handle the creation
+> failures of memcg kmem caches.
 
-Signed-off-by: Alexandre Ghiti <alex@ghiti.fr>
----
- include/linux/mm_types.h | 2 --
- mm/debug.c               | 4 ++--
- 2 files changed, 2 insertions(+), 4 deletions(-)
+AFAICS it will handle those by simply not accounting those objects
+right?
 
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index 1d1093474c1a..9a5935f9cc7e 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -364,11 +364,9 @@ struct mm_struct {
- 				unsigned long pgoff, unsigned long flags);
- #endif
- 		unsigned long mmap_base;	/* base of mmap area */
--		unsigned long mmap_legacy_base;	/* base of mmap area in bottom-up allocations */
- #ifdef CONFIG_HAVE_ARCH_COMPAT_MMAP_BASES
- 		/* Base adresses for compatible mmap() */
- 		unsigned long mmap_compat_base;
--		unsigned long mmap_compat_legacy_base;
- #endif
- 		unsigned long task_size;	/* size of task vm space */
- 		unsigned long highest_vm_end;	/* highest vma end address */
-diff --git a/mm/debug.c b/mm/debug.c
-index 8345bb6e4769..3ddffe1efcda 100644
---- a/mm/debug.c
-+++ b/mm/debug.c
-@@ -134,7 +134,7 @@ void dump_mm(const struct mm_struct *mm)
- #ifdef CONFIG_MMU
- 		"get_unmapped_area %px\n"
- #endif
--		"mmap_base %lu mmap_legacy_base %lu highest_vm_end %lu\n"
-+		"mmap_base %lu highest_vm_end %lu\n"
- 		"pgd %px mm_users %d mm_count %d pgtables_bytes %lu map_count %d\n"
- 		"hiwater_rss %lx hiwater_vm %lx total_vm %lx locked_vm %lx\n"
- 		"pinned_vm %llx data_vm %lx exec_vm %lx stack_vm %lx\n"
-@@ -162,7 +162,7 @@ void dump_mm(const struct mm_struct *mm)
- #ifdef CONFIG_MMU
- 		mm->get_unmapped_area,
- #endif
--		mm->mmap_base, mm->mmap_legacy_base, mm->highest_vm_end,
-+		mm->mmap_base, mm->highest_vm_end,
- 		mm->pgd, atomic_read(&mm->mm_users),
- 		atomic_read(&mm->mm_count),
- 		mm_pgtables_bytes(mm),
+> Additionally CONFIG_SLAB does not
+> implement this behavior. So, to keep the behavior consistent between
+> SLAB and SLUB, removing the panic for memcg kmem cache creation
+> failures. The root kmem cache creation failure for SLAB_PANIC correctly
+> panics for both SLAB and SLUB.
+
+I do agree that panicing is really dubious especially because it opens
+doors to shut the system down from a restricted environment. So the
+patch makes sesne to me.
+
+I am wondering whether SLAB_PANIC makes sense in general though. Why is
+it any different from any other essential early allocations? We tend to
+not care about allocation failures for those on bases that the system
+must be in a broken state to fail that early already. Do you think it is
+time to remove SLAB_PANIC altogether?
+
+> Reported-by: Dave Hansen <dave.hansen@intel.com>
+> Signed-off-by: Shakeel Butt <shakeelb@google.com>
+
+Acked-by: Michal Hocko <mhocko@suse.com>
+
+> ---
+>  mm/slub.c | 4 ----
+>  1 file changed, 4 deletions(-)
+> 
+> diff --git a/mm/slub.c b/mm/slub.c
+> index 6a5174b51cd6..84c6508e360d 100644
+> --- a/mm/slub.c
+> +++ b/mm/slub.c
+> @@ -3640,10 +3640,6 @@ static int kmem_cache_open(struct kmem_cache *s, slab_flags_t flags)
+>  
+>  	free_kmem_cache_nodes(s);
+>  error:
+> -	if (flags & SLAB_PANIC)
+> -		panic("Cannot create slab %s size=%u realsize=%u order=%u offset=%u flags=%lx\n",
+> -		      s->name, s->size, s->size,
+> -		      oo_order(s->oo), s->offset, (unsigned long)flags);
+>  	return -EINVAL;
+>  }
+>  
+> -- 
+> 2.22.0.410.gd8fdbe21b5-goog
+
 -- 
-2.20.1
+Michal Hocko
+SUSE Labs
 
