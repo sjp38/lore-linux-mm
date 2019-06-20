@@ -2,173 +2,185 @@ Return-Path: <SRS0=424v=UT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 22BECC43613
-	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 09:00:09 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C8F6DC43613
+	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 09:17:17 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D7D132084A
-	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 09:00:08 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D7D132084A
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 54C562080C
+	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 09:17:17 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 54C562080C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 589AD6B0003; Thu, 20 Jun 2019 05:00:08 -0400 (EDT)
+	id AD1B76B0003; Thu, 20 Jun 2019 05:17:16 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 512308E0002; Thu, 20 Jun 2019 05:00:08 -0400 (EDT)
+	id A5B308E0002; Thu, 20 Jun 2019 05:17:16 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3DA428E0001; Thu, 20 Jun 2019 05:00:08 -0400 (EDT)
+	id 8D41A8E0001; Thu, 20 Jun 2019 05:17:16 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id E302B6B0003
-	for <linux-mm@kvack.org>; Thu, 20 Jun 2019 05:00:07 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id n49so3327255edd.15
-        for <linux-mm@kvack.org>; Thu, 20 Jun 2019 02:00:07 -0700 (PDT)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 528886B0003
+	for <linux-mm@kvack.org>; Thu, 20 Jun 2019 05:17:16 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id x18so1612211pfj.4
+        for <linux-mm@kvack.org>; Thu, 20 Jun 2019 02:17:16 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=2cv6mjZn+837cj1cUtBJI/JvDmliAPGUL6FTcqFT6V4=;
-        b=fKBjo9uJb7iKLasVLbPd9sjm+oGA7f4rHDr6n6zQvozWt002XhLJ1sqULNGHt5YvIG
-         7cnYfW7TrqM34UUHxHij+6n7I/uVDgOLPPmt5yYsABSWbPDKIBPe/ZmK36PPMrQeT74r
-         INcPmYsaa6AaTOFiVehIDbbdUK0X5TZKURYE200MxfLnLVS3Ig22RtasLFF1mhkxhyJI
-         La5M1ytGUo7LCoRckHcwcgyxSdsnYtn0emrDQCbboeJ7/gpa7li16Yyrfyan+s3/K6ZS
-         DTimddU4WgOsi9Wbnq6fJ6NC5ykW6sVyZABsK6EVlPreZnZIRRdYeZuThVgCQP/CzaUa
-         rjRQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-X-Gm-Message-State: APjAAAXf7ZixIV+G+FjYVM8kgERL0F/E4Rb1gDCyp+auSzDgk3QGwQlz
-	8CatZFz84kcFetyNhKFWP37hlBapP+u0iRJFviSVLYo34Qs2K+wS7/Uh7tEHbgtzAF+hwR9FzXW
-	8UqlFrQOQu2Xta1uuSitYktA46gjI4Pdf8bZQFlgU+p9y5j7BS50NRRkuINW4QqMBLQ==
-X-Received: by 2002:a50:97c8:: with SMTP id f8mr90520231edb.176.1561021207475;
-        Thu, 20 Jun 2019 02:00:07 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyQ9OoflMnC6Yw1jBsS6f7cu1mMrdbhZlB9PotdFJwIAKyV4AHlP5wXziaYVlbUk3HApLCH
-X-Received: by 2002:a50:97c8:: with SMTP id f8mr90520112edb.176.1561021206563;
-        Thu, 20 Jun 2019 02:00:06 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561021206; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:mime-version:content-transfer-encoding:message-id;
+        bh=mlof7Y82mScWCXP0ezqjFFy0phQ3/0dtFpnOxyU9W3E=;
+        b=JjKJc21W3j1NcfdhlxidbR/LwRtICib8ZxC1sgYHOV769PE22J0NZWvR5lykAfLrdU
+         HE2pnfBtMl7DD/vEcLchw+iHuLuWIQ6FtDS4W9A3yCorkYD8v/u2oD7d6SQzgkLpGy99
+         0Mf7QeeZmw8NW7AnBgwnZnFwfMIt20P5cx8BlpwVz47Lf5UeBiQ7ccjF2wHijF++77Y7
+         UY84bLdLTYm49rOOXMIyOeWbuy49pbxCin/ydis4GHg3/2uekRdPVkzrgkEvPEljbgfQ
+         4EYgYnC8RKzKxNeYjJZE3tkBB3JDZbSMIaLUT6eCjsEHWVrjTro3gsuHQBfNhbIZmGq1
+         iYUw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: APjAAAVYXu5TglK1YvzvTMISNcjFsMunBdd4BglEELTYtVzawUOYmU+b
+	SHMGpqiNhPSW+yrRoxY0pzPYZyF+TEOEDM29p+55ALuxrDVDpqHCTF1Noy3QMylzo2nzOQ+zbfw
+	YQzFGoFdiTxTySbn7xSBMmojDUvFI2mOpEyPgy0QuH12yhgTQG8Ycm31d6EP6Nbde7A==
+X-Received: by 2002:a65:408d:: with SMTP id t13mr11973845pgp.373.1561022235900;
+        Thu, 20 Jun 2019 02:17:15 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxTGmd7PG+fZKU7KMfIN4UXaKi/4iLcTLU4ZSmyCUPJi4HSvKVvCwxn0ZubcyIHUwCsz6y8
+X-Received: by 2002:a65:408d:: with SMTP id t13mr11973793pgp.373.1561022235089;
+        Thu, 20 Jun 2019 02:17:15 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561022235; cv=none;
         d=google.com; s=arc-20160816;
-        b=Scj9cFeJLaqZ2AyeT5j+gIz8aJ0imM7njKeYks+odkJ6BRH73pUxe+TNB9LAB/R1H9
-         TRvFz0BwZWhLOWyv253KRQ+BgxhDx8LWAhlKJFhCnDIR9F08+3pdGhHJRuJcYO5n5uIO
-         GlgoPmgMOkdQ0STDuRjSSCfGlacUIZoguVA8c8Fqm9NfEpFHfPm8VdGayG5kRoEx0U6O
-         404utJS2CPVTzyAzlfKAKgDhDzgRbjIR6WOJSQcrbRzxlsOWr6dAOUaUbZyL+CTm7GSi
-         3WfvQea95RSc/a+T4njstaqMxvmvOyvvVCZpHcmPZUvM6ouTKykzp9VJqut4F2RhCcsx
-         oGMA==
+        b=DOWsc1nzEdv6IrgehXibHm+PwzAfMprVRg/6i5/8hYQQTvBlIDsT4IaVeCfwf5K5gq
+         M1mwuZW6Ple4mU6hUIGiR9JphfwuDqOaHstO+OS4aqpOdZeOgvCfP6lhRzzSwhNi+OlP
+         ZdSFxbI7FLQpj35T0izsKdkY74AHLvzQdhDFIxwy4T6OsgtwN8wrJwkvUIvk62VSzXv9
+         bcqEIkrfxr4Br2SdHYOT4d5hLam6IE2kX1oaWFoE3UOyRn01vaFC0R1U9gBZa6GOqXsR
+         YF2sZ6Yf/cazEjUz1rP7Guk58kmxsyjhQfZOOncLG6TC1j9TnqWQ19T4KyHogh+4uPJr
+         JmnA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=2cv6mjZn+837cj1cUtBJI/JvDmliAPGUL6FTcqFT6V4=;
-        b=jcF8l861dryP+5Z8rEb0vkX0aejyspEF3p6XSL18PGQ0lmzS+8uGS6EGzS941Z+guG
-         +uwTBk+TviQNhrTPrH4ecXHx9MR3MUBwOENL90NnYQXrOzxDS2j4Q7eFFPVCsBYl0zI4
-         DA8PEOJTF8tvum0v15FDAfzoMxa1R3EzDK8syc4uS+9OiBc/fUC0fqMMlrybtS2eXpXA
-         elxVVOX84BFtwWkaoeGRxnPmlo63i34mPLL8zRa3mZ7RUXt++qvU+vahRfOMtbQaJx7F
-         X8iatl1SHfxFrSBBSlpSRHixHtP+uPn/spNY/LNb0tQIKoY1SdFnLJwPu0UMf4xNAtE/
-         Uk4Q==
+        h=message-id:content-transfer-encoding:mime-version:date:subject:cc
+         :to:from;
+        bh=mlof7Y82mScWCXP0ezqjFFy0phQ3/0dtFpnOxyU9W3E=;
+        b=uNghlS/YfCu/JshK2NcP3ETF1MjvYy55E7d/cqpFuzc79fKx4i/ghte435M1cg1Yy6
+         D2F90muG33PQP/0uMdr2aJ7ymtHod+axYurUyTQK2AeXqSlrLywRU2KeE/NWlFd9vIVp
+         BtUYR/vFrZtA2RuCG1tUDxLP1Ma5MRScBB11DONdbTHGbcjh1NYmJmtXEO/0hWMpDG3e
+         CYE5013mo2ZGps1WLQUSERaIlSE+JcjPv3+zKD2WO2FF3+HjUm7HyiKQ9a1oj2Mf8jfM
+         i4MgmYAlEk4avpzcbnb0zDIQ+qZTgpUx5e6jbG854qChHtoncNgA/TkiPxVqcLT2zIXI
+         OZzw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
-        by mx.google.com with ESMTP id g15si9614253ejh.113.2019.06.20.02.00.05
-        for <linux-mm@kvack.org>;
-        Thu, 20 Jun 2019 02:00:06 -0700 (PDT)
-Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
+       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id 14si5612327pgl.594.2019.06.20.02.17.14
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 20 Jun 2019 02:17:15 -0700 (PDT)
+Received-SPF: pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 0D037344;
-	Thu, 20 Jun 2019 02:00:05 -0700 (PDT)
-Received: from [10.162.42.129] (p8cg001049571a15.blr.arm.com [10.162.42.129])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 99FF43F246;
-	Thu, 20 Jun 2019 02:00:03 -0700 (PDT)
-Subject: Re: [linux-next:master 6470/6646] include/linux/kprobes.h:477:9:
- error: implicit declaration of function 'kprobe_fault_handler'; did you mean
- 'kprobe_page_fault'?
-To: Andrew Morton <akpm@linux-foundation.org>,
- kbuild test robot <lkp@intel.com>
-Cc: kbuild-all@01.org, Dave Hansen <dave.hansen@linux.intel.com>,
- Linux Memory Management List <linux-mm@kvack.org>
-References: <201906151005.MbWIPMeb%lkp@intel.com>
- <20190617190734.e044c1ba48d69a3cb3e01f59@linux-foundation.org>
-From: Anshuman Khandual <anshuman.khandual@arm.com>
-Message-ID: <702ba0e8-0ef5-c5df-a350-b928ac984d58@arm.com>
-Date: Thu, 20 Jun 2019 14:30:25 +0530
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
- Thunderbird/52.9.1
+       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098394.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x5K9DqMs019188
+	for <linux-mm@kvack.org>; Thu, 20 Jun 2019 05:17:14 -0400
+Received: from e11.ny.us.ibm.com (e11.ny.us.ibm.com [129.33.205.201])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2t87b3g445-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 20 Jun 2019 05:17:14 -0400
+Received: from localhost
+	by e11.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
+	Thu, 20 Jun 2019 10:17:13 +0100
+Received: from b01cxnp22036.gho.pok.ibm.com (9.57.198.26)
+	by e11.ny.us.ibm.com (146.89.104.198) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Thu, 20 Jun 2019 10:17:10 +0100
+Received: from b01ledav005.gho.pok.ibm.com (b01ledav005.gho.pok.ibm.com [9.57.199.110])
+	by b01cxnp22036.gho.pok.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x5K9H9aw35389804
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Thu, 20 Jun 2019 09:17:09 GMT
+Received: from b01ledav005.gho.pok.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id A4140AE05C;
+	Thu, 20 Jun 2019 09:17:09 +0000 (GMT)
+Received: from b01ledav005.gho.pok.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 23904AE063;
+	Thu, 20 Jun 2019 09:17:08 +0000 (GMT)
+Received: from skywalker.in.ibm.com (unknown [9.124.35.143])
+	by b01ledav005.gho.pok.ibm.com (Postfix) with ESMTP;
+	Thu, 20 Jun 2019 09:17:07 +0000 (GMT)
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+To: dan.j.williams@intel.com
+Cc: linux-nvdimm@lists.01.org, linux-mm@kvack.org,
+        linuxppc-dev@lists.ozlabs.org,
+        "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+Subject: [PATCH v4 0/6] Fixes related namespace alignment/page size/big endian
+Date: Thu, 20 Jun 2019 14:46:20 +0530
+X-Mailer: git-send-email 2.21.0
 MIME-Version: 1.0
-In-Reply-To: <20190617190734.e044c1ba48d69a3cb3e01f59@linux-foundation.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+X-TM-AS-GCONF: 00
+x-cbid: 19062009-2213-0000-0000-000003A20120
+X-IBM-SpamModules-Scores: 
+X-IBM-SpamModules-Versions: BY=3.00011296; HX=3.00000242; KW=3.00000007;
+ PH=3.00000004; SC=3.00000286; SDB=6.01220629; UDB=6.00642131; IPR=6.01001767;
+ MB=3.00027390; MTD=3.00000008; XFM=3.00000015; UTC=2019-06-20 09:17:12
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19062009-2214-0000-0000-00005EED0B0C
+Message-Id: <20190620091626.31824-1-aneesh.kumar@linux.ibm.com>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-06-20_06:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=1 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=887 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1906200068
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hello Andrew,
+This series handle configs where hugepage support is not enabled by default.
+Also, we update some of the information messages to make sure we use PAGE_SIZE instead
+of SZ_4K. We now store page size and struct page size in pfn_sb and do extra check
+before enabling namespace. There also an endianness fix.
 
-On 06/18/2019 07:37 AM, Andrew Morton wrote:
-> On Sat, 15 Jun 2019 10:55:07 +0800 kbuild test robot <lkp@intel.com> wrote:
-> 
->> tree:   https://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
->> head:   f4788d37bc84e27ac9370be252afb451bf6ef718
->> commit: 4dd635bce90e8b6ed31c08cd654deca29f4d9d66 [6470/6646] mm, kprobes: generalize and rename notify_page_fault() as kprobe_page_fault()
->> config: mips-allmodconfig (attached as .config)
->> compiler: mips-linux-gcc (GCC) 7.4.0
->> reproduce:
->>         wget https://raw.githubusercontent.com/intel/lkp-tests/master/sbin/make.cross -O ~/bin/make.cross
->>         chmod +x ~/bin/make.cross
->>         git checkout 4dd635bce90e8b6ed31c08cd654deca29f4d9d66
->>         # save the attached .config to linux build tree
->>         GCC_VERSION=7.4.0 make.cross ARCH=mips 
->>
->> If you fix the issue, kindly add following tag
->> Reported-by: kbuild test robot <lkp@intel.com>
->>
->> All errors (new ones prefixed by >>):
->>
->>    In file included from net//sctp/offload.c:11:0:
->>    include/linux/kprobes.h: In function 'kprobe_page_fault':
->>>> include/linux/kprobes.h:477:9: error: implicit declaration of function 'kprobe_fault_handler'; did you mean 'kprobe_page_fault'? [-Werror=implicit-function-declaration]
->>      return kprobe_fault_handler(regs, trap);
-> 
-> Urgh, OK, thanks.
-> 
-> kprobe_fault_handler() is only ever defined and referenced in arch code
-> and generic code has no right to be assuming that the architecture
-> actually provides it.  And so it is with mips (at least).
+The patch series is on top of subsection v10 patchset
 
-Hmm, so the problem really is that on mips arch even though CONFIG_KPROBES
-is enabled, it does not export (though it defines) a kprobe_fault_handler()
-implementation unlike all other architectures.
+http://lore.kernel.org/linux-mm/156092349300.979959.17603710711957735135.stgit@dwillia2-desk3.amr.corp.intel.com
 
-Now that generic code calls kprobe_fault_handler(), should not all arch be
-providing one when they subscribe to CONFIG_KPROBES ? In which case mips
-should just export it's existing definition to fix this build problem.
+Changes from V3:
+* Dropped the change related PFN_MIN_VERSION
+* for pfn_sb minor version < 4, we default page_size to PAGE_SIZE instead of SZ_4k.
 
-> 
-> The !CONFIG_KPROBES stub version of kprobe_fault_handler() should not
-> have been placed in include/linux/kprobes.h!  Each arch should have
-> defined its own, if that proved necessary.
+Aneesh Kumar K.V (6):
+  nvdimm: Consider probe return -EOPNOTSUPP as success
+  mm/nvdimm: Add page size and struct page size to pfn superblock
+  mm/nvdimm: Use correct #defines instead of open coding
+  mm/nvdimm: Pick the right alignment default when creating dax devices
+  mm/nvdimm: Use correct alignment when looking at first pfn from a
+    region
+  mm/nvdimm: Fix endian conversion issues 
 
-I guess its there in include/linux/kprobes.h! because !CONFIG_KPROBES stub
-version for all archs will exactly look the same.
+ arch/powerpc/include/asm/libnvdimm.h |  9 ++++
+ arch/powerpc/mm/Makefile             |  1 +
+ arch/powerpc/mm/nvdimm.c             | 34 +++++++++++++++
+ arch/x86/include/asm/libnvdimm.h     | 19 +++++++++
+ drivers/nvdimm/btt.c                 |  8 ++--
+ drivers/nvdimm/bus.c                 |  4 +-
+ drivers/nvdimm/label.c               |  2 +-
+ drivers/nvdimm/namespace_devs.c      | 13 +++---
+ drivers/nvdimm/nd-core.h             |  3 +-
+ drivers/nvdimm/nd.h                  |  6 ---
+ drivers/nvdimm/pfn.h                 |  5 ++-
+ drivers/nvdimm/pfn_devs.c            | 62 ++++++++++++++++++++++++++--
+ drivers/nvdimm/pmem.c                | 26 ++++++++++--
+ drivers/nvdimm/region_devs.c         | 27 ++++++++----
+ include/linux/huge_mm.h              |  7 +++-
+ kernel/memremap.c                    |  8 ++--
+ 16 files changed, 194 insertions(+), 40 deletions(-)
+ create mode 100644 arch/powerpc/include/asm/libnvdimm.h
+ create mode 100644 arch/powerpc/mm/nvdimm.c
+ create mode 100644 arch/x86/include/asm/libnvdimm.h
 
-> 
-> Oh well, ho hum.  Hopefully Anshuman will be able to come up with a fix
-> for mips and any similarly-affected architectures.
-
-Will export it's existing definition via arch/mips/include/asm/kprobes.h
-unless that is problematic for other reasons. Another solution would be
-to define an weak symbol in include/linux/kprobes.h for CONFIG_KPROBES.
-But that will not be correct because kprobe_fault_handler() by all means
-is always platform specific.
-
-> 
-> Also, please very carefully check that this patchset is correct for all
-> architectures!  kprobe_fault_handler() could conceivably do different
-> things on different architectures.
-
-Agreed.
+-- 
+2.21.0
 
