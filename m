@@ -2,133 +2,216 @@ Return-Path: <SRS0=424v=UT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
+X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 915E8C43613
-	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 07:08:58 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E2E35C43613
+	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 07:18:46 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5FABC2084A
-	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 07:08:58 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5FABC2084A
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 976D22084A
+	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 07:18:46 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 976D22084A
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0FD176B0006; Thu, 20 Jun 2019 03:08:58 -0400 (EDT)
+	id 18DC36B0006; Thu, 20 Jun 2019 03:18:46 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0D0AB8E0002; Thu, 20 Jun 2019 03:08:58 -0400 (EDT)
+	id 1402C8E0002; Thu, 20 Jun 2019 03:18:46 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id F01D78E0001; Thu, 20 Jun 2019 03:08:57 -0400 (EDT)
+	id 006448E0001; Thu, 20 Jun 2019 03:18:45 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id A0B956B0006
-	for <linux-mm@kvack.org>; Thu, 20 Jun 2019 03:08:57 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id f19so2953474edv.16
-        for <linux-mm@kvack.org>; Thu, 20 Jun 2019 00:08:57 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id A444F6B0006
+	for <linux-mm@kvack.org>; Thu, 20 Jun 2019 03:18:45 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id c27so3020757edn.8
+        for <linux-mm@kvack.org>; Thu, 20 Jun 2019 00:18:45 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=Rk+vCv5pTjlB6mJr9WQfKgVUUf/TX6MAy/OWqhY87AQ=;
-        b=bHjPVc4jRr/MQB9XQ1cPhkjhJuypgDGvc2Dgo2zSTLpp+mXiRna4mGFUcMyLgkW2AE
-         PaaEe6kOqDBd4au76y+YdUiW4g7DfQ9NbzBUGDKpbqvhn7V0igvp+Q7OweXdvBnZxVG/
-         DojLvqOxWJA68BiVrsbqzwzjGIM61MGCE7hfcucme6BgU44djvMBoX2UxedbApc2NXJ0
-         GD/NWxpMoOzf+ww+fcWmsZzF1T3Wew1LZU+Z6Ws9BrDXZy0TXXB4u9wKkiN16PtdVW52
-         DffoONYKibCzuXSeI0PSeKnOdW58aJ1FZytLEpDF/DaWfEPsLkssTgFgdcqUE5zy+fam
-         g1HQ==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAWv9OSDrYmMMCGyrInqDL+QgL0+1+eBQFwjnP9XO9Mo0Zvx3vwf
-	+5iLjIYDlys3JcbZY/BpFcsN3+6x0aUUOccYxGhZcgHJhJUlWx7/QKAOUdit9JcOGklZ7JbVg74
-	sHHkKztgzvTldWqD3GwVkJ5j0l1LFiZC+5+b2tacDWy7Tj9G4N+vhaouPPylEJvw=
-X-Received: by 2002:a05:6402:1507:: with SMTP id f7mr76595365edw.94.1561014537234;
-        Thu, 20 Jun 2019 00:08:57 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwBHS4fJm7t9JH67gTI6uZajyICHlSxNsuDvuo3s/xsFVJIFFg/d5Ygz1KzZPHCoA8OoJSE
-X-Received: by 2002:a05:6402:1507:: with SMTP id f7mr76595304edw.94.1561014536603;
-        Thu, 20 Jun 2019 00:08:56 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561014536; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=MOvLUVteCqSmjNbFCmUyVuY8knqfDVFcb4HabVN3cT8=;
+        b=ZWtPQ0VWhOdk4zz4wTHhGUh8dusZXiXnh/IpER3Yrnp+fM7EfrRxcQ8Y0Nxewb4b3v
+         t2M974vQ6GDiFJRnvch6v8sKhbdd8Hq3KMZv9/gMudQ0KHYIpW0YxNt/b/W5pYNWW2yk
+         jFN+hMiVUKdLn5CATApF37sEVvVshMc24rWO9KbGc9asjfZxfdix+rHIVhFR3Bfp9TQT
+         jeIZv8QzlByoDbTPnqLItJran2LU7zNVo7mPQVKYPbU1VRU4x6C+8zFwwAr86/6LUKU5
+         auZ8VxErv8ORk04GLMJv/gNFM0pphCzdHDFJSHfQgD9y0izR5jtVQQwku8toSPwPTRuB
+         zBvA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+X-Gm-Message-State: APjAAAWjkIorAA77IPB5DMv/TwON6WcKVBhWhibuObMff5NOxlVz+k9d
+	8w9V5TrwHe2bq/K+eSs5iev8yhs3GDcKBEtP3B+1daJFqYQhi890up8anfqyGBVgf5AwhLWvQkx
+	gV1MdFkMWGVcfYwwLc2valeTaO+3qQX4Zox3byvrwvci/OBSc8/SKuN8YFZryunK9MQ==
+X-Received: by 2002:a05:6402:1507:: with SMTP id f7mr76641728edw.94.1561015125250;
+        Thu, 20 Jun 2019 00:18:45 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzlPEoBvc2XLTR0bV5UKsq8woF+/j7Ar8KZWh9N7hpeXlK+o8Kb/hPxISxgBshBiTSrTWFm
+X-Received: by 2002:a05:6402:1507:: with SMTP id f7mr76641666edw.94.1561015124396;
+        Thu, 20 Jun 2019 00:18:44 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561015124; cv=none;
         d=google.com; s=arc-20160816;
-        b=kDhah4C5cxshn0rX0pvEbiuax1CzZDfqnmNBkrxMe9f6jfmfbqMxTjFzGpSF7HzZ6g
-         ZH2jb8eZOdQM9zk5aE4FeLMjplkFJRxfpXzhxZkz3HTp28WxLeFpij7/lJJBDhdZWNHX
-         yTB2S/7UbHKtLMtis83y76o9dcnGrrBmow5jFXP1HgAzaPDU0n+ZSIb+sNC+ft61kb+Y
-         LMwkx3QgzVxCCtafsESlOAdCPpOT9TQ/BHeoYdPNe9TfbQ4JFsDlTLmcld1mhqBMMexL
-         72982Fnc2o8A1L7bZTl9PrwRQUdIrsENQgHdG+hmQRVx4iQvHINpPTqOCp19B2LL1Jmx
-         X0ew==
+        b=W3Gq7skMnYHGlc1SmlqjD8UG6mJSTNDFJhmk7QglQxKYq+R5a4/u8POW2ohJmEre3t
+         62/BGYA9ewY4S2sZcojZ6625C2nne7k6sBZ7BhtAvvVbZvkkxg4SiK0UzLnzVEIF8TqI
+         AzQ6G3tLJaO4GLfDx0U2tHFf2fyM+e+PI88T6eHLbBI2RRWbTcl8oXu/Je+AHwHP5uTQ
+         6CjohvawRqAiIUQgHAZBQmmt1f7jjXPbMDAbByDnOTzqWevbtmRpF6MFTDp4qdlxihkU
+         qECSZcVnBQf7L8yaXgj2BEvtDEe40qxuOZvgfm2TRaUvjgfhGxw/OfVYWDAcTL/rKzez
+         nTxw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=Rk+vCv5pTjlB6mJr9WQfKgVUUf/TX6MAy/OWqhY87AQ=;
-        b=w1jwOU6y1AvE65VvIflSbFilMbeXJaa5F7FLFmwGRPzkEVLtHpuRy4DwgvoNhZpj5j
-         jD8/kyue5xpjIUuUinVUKTY/9tAetXP3wvWJmk4Z9MxGJzPDmgT171n7eNhAFYdbjmIS
-         KJ3ZZmzJ4DVficp4WuZGgWeTc3q9qkjnAogQBypvMbsTpmE1hmc9745GCZvg3QZ5bzc/
-         8YSYEd2V6XdxtIU+PLTHKi3ex9P3FMAy+2oUMqhDF5I1RUoe54eU2QVO5Eih1lcRFmOh
-         o3fntajp3+Fa6OR6ZnCEHK/XWKpbErFMuYMC4RJFr53VG0tOeI5dUooR7YFwRRPYrxOH
-         GioA==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
+         :subject;
+        bh=MOvLUVteCqSmjNbFCmUyVuY8knqfDVFcb4HabVN3cT8=;
+        b=pUNyAZOOAVkIlMmQwb7QGw1jRcv2C5Jp76sAoxPI6V2keY07LVQ5WP8tjt4KGcr9dU
+         nuB9r7r3T52w5aWZG0AVq8HxU4S6tGYkMDYvukG5ZhrbdmQchnt6PfzRC9JkX32obcgL
+         gk3/BF3QaMiqMyDhix5FPKyrP1bpeO3TnDIRnGkS0uAYHrhJ/LAMwK+NLuw3yAkR1BCM
+         zazPkvNMJkjjSjqVdyGalEK3zIE/bvOECGcYjHP0H9fAndtIQ2EefPO1fO+bu5JLj8dv
+         j6r9L30J7Si+WsOjyzb8KC4RNYBwqW/XXeoD8YpVcA9eu53YMwy9Fhpe/EeOZ/6X8Vcy
+         UxWg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w14si12834343ejv.124.2019.06.20.00.08.56
+        by mx.google.com with ESMTPS id b52si16568358ede.326.2019.06.20.00.18.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 20 Jun 2019 00:08:56 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Thu, 20 Jun 2019 00:18:44 -0700 (PDT)
+Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id C31BEAE34;
-	Thu, 20 Jun 2019 07:08:55 +0000 (UTC)
-Date: Thu, 20 Jun 2019 09:08:54 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-	linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>,
-	linux-api@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>,
-	Tim Murray <timmurray@google.com>,
-	Joel Fernandes <joel@joelfernandes.org>,
-	Suren Baghdasaryan <surenb@google.com>,
-	Daniel Colascione <dancol@google.com>,
-	Shakeel Butt <shakeelb@google.com>, Sonny Rao <sonnyrao@google.com>,
-	Brian Geffon <bgeffon@google.com>, jannh@google.com,
-	oleg@redhat.com, christian@brauner.io, oleksandr@redhat.com,
-	hdanton@sina.com, lizeb@google.com
-Subject: Re: [PATCH v2 1/5] mm: introduce MADV_COLD
-Message-ID: <20190620070854.GC12083@dhcp22.suse.cz>
-References: <20190610111252.239156-1-minchan@kernel.org>
- <20190610111252.239156-2-minchan@kernel.org>
- <20190619125611.GO2968@dhcp22.suse.cz>
- <20190620000650.GB52978@google.com>
+	by mx1.suse.de (Postfix) with ESMTP id 90EBFAF3B;
+	Thu, 20 Jun 2019 07:18:43 +0000 (UTC)
+Subject: Re: [PATCH] mm: mempolicy: handle vma with unmovable pages mapped
+ correctly in mbind
+To: Yang Shi <yang.shi@linux.alibaba.com>, Michal Hocko <mhocko@kernel.org>
+Cc: akpm@linux-foundation.org, mgorman@techsingularity.net,
+ linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+ Eric Dumazet <edumazet@google.com>, "David S. Miller" <davem@davemloft.net>,
+ netdev@vger.kernel.org
+References: <1560797290-42267-1-git-send-email-yang.shi@linux.alibaba.com>
+ <20190618130253.GH3318@dhcp22.suse.cz>
+ <cf33b724-fdd5-58e3-c06a-1bc563525311@linux.alibaba.com>
+ <20190618182848.GJ3318@dhcp22.suse.cz>
+ <68c2592d-b747-e6eb-329f-7a428bff1f86@linux.alibaba.com>
+ <20190619052133.GB2968@dhcp22.suse.cz>
+ <21a0b20c-5b62-490e-ad8e-26b4b78ac095@suse.cz>
+ <687f4e57-5c50-7900-645e-6ef3a5c1c0c7@linux.alibaba.com>
+ <55eb2ea9-2c74-87b1-4568-b620c7913e17@linux.alibaba.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Openpgp: preference=signencrypt
+Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
+ mQINBFZdmxYBEADsw/SiUSjB0dM+vSh95UkgcHjzEVBlby/Fg+g42O7LAEkCYXi/vvq31JTB
+ KxRWDHX0R2tgpFDXHnzZcQywawu8eSq0LxzxFNYMvtB7sV1pxYwej2qx9B75qW2plBs+7+YB
+ 87tMFA+u+L4Z5xAzIimfLD5EKC56kJ1CsXlM8S/LHcmdD9Ctkn3trYDNnat0eoAcfPIP2OZ+
+ 9oe9IF/R28zmh0ifLXyJQQz5ofdj4bPf8ecEW0rhcqHfTD8k4yK0xxt3xW+6Exqp9n9bydiy
+ tcSAw/TahjW6yrA+6JhSBv1v2tIm+itQc073zjSX8OFL51qQVzRFr7H2UQG33lw2QrvHRXqD
+ Ot7ViKam7v0Ho9wEWiQOOZlHItOOXFphWb2yq3nzrKe45oWoSgkxKb97MVsQ+q2SYjJRBBH4
+ 8qKhphADYxkIP6yut/eaj9ImvRUZZRi0DTc8xfnvHGTjKbJzC2xpFcY0DQbZzuwsIZ8OPJCc
+ LM4S7mT25NE5kUTG/TKQCk922vRdGVMoLA7dIQrgXnRXtyT61sg8PG4wcfOnuWf8577aXP1x
+ 6mzw3/jh3F+oSBHb/GcLC7mvWreJifUL2gEdssGfXhGWBo6zLS3qhgtwjay0Jl+kza1lo+Cv
+ BB2T79D4WGdDuVa4eOrQ02TxqGN7G0Biz5ZLRSFzQSQwLn8fbwARAQABtCBWbGFzdGltaWwg
+ QmFia2EgPHZiYWJrYUBzdXNlLmN6PokCVAQTAQoAPgIbAwULCQgHAwUVCgkICwUWAgMBAAIe
+ AQIXgBYhBKlA1DSZLC6OmRA9UCJPp+fMgqZkBQJcbbyGBQkH8VTqAAoJECJPp+fMgqZkpGoP
+ /1jhVihakxw1d67kFhPgjWrbzaeAYOJu7Oi79D8BL8Vr5dmNPygbpGpJaCHACWp+10KXj9yz
+ fWABs01KMHnZsAIUytVsQv35DMMDzgwVmnoEIRBhisMYOQlH2bBn/dqBjtnhs7zTL4xtqEcF
+ 1hoUFEByMOey7gm79utTk09hQE/Zo2x0Ikk98sSIKBETDCl4mkRVRlxPFl4O/w8dSaE4eczH
+ LrKezaFiZOv6S1MUKVKzHInonrCqCNbXAHIeZa3JcXCYj1wWAjOt9R3NqcWsBGjFbkgoKMGD
+ usiGabetmQjXNlVzyOYdAdrbpVRNVnaL91sB2j8LRD74snKsV0Wzwt90YHxDQ5z3M75YoIdl
+ byTKu3BUuqZxkQ/emEuxZ7aRJ1Zw7cKo/IVqjWaQ1SSBDbZ8FAUPpHJxLdGxPRN8Pfw8blKY
+ 8mvLJKoF6i9T6+EmlyzxqzOFhcc4X5ig5uQoOjTIq6zhLO+nqVZvUDd2Kz9LMOCYb516cwS/
+ Enpi0TcZ5ZobtLqEaL4rupjcJG418HFQ1qxC95u5FfNki+YTmu6ZLXy+1/9BDsPuZBOKYpUm
+ 3HWSnCS8J5Ny4SSwfYPH/JrtberWTcCP/8BHmoSpS/3oL3RxrZRRVnPHFzQC6L1oKvIuyXYF
+ rkybPXYbmNHN+jTD3X8nRqo+4Qhmu6SHi3VquQENBFsZNQwBCACuowprHNSHhPBKxaBX7qOv
+ KAGCmAVhK0eleElKy0sCkFghTenu1sA9AV4okL84qZ9gzaEoVkgbIbDgRbKY2MGvgKxXm+kY
+ n8tmCejKoeyVcn9Xs0K5aUZiDz4Ll9VPTiXdf8YcjDgeP6/l4kHb4uSW4Aa9ds0xgt0gP1Xb
+ AMwBlK19YvTDZV5u3YVoGkZhspfQqLLtBKSt3FuxTCU7hxCInQd3FHGJT/IIrvm07oDO2Y8J
+ DXWHGJ9cK49bBGmK9B4ajsbe5GxtSKFccu8BciNluF+BqbrIiM0upJq5Xqj4y+Xjrpwqm4/M
+ ScBsV0Po7qdeqv0pEFIXKj7IgO/d4W2bABEBAAGJA3IEGAEKACYWIQSpQNQ0mSwujpkQPVAi
+ T6fnzIKmZAUCWxk1DAIbAgUJA8JnAAFACRAiT6fnzIKmZMB0IAQZAQoAHRYhBKZ2GgCcqNxn
+ k0Sx9r6Fd25170XjBQJbGTUMAAoJEL6Fd25170XjDBUH/2jQ7a8g+FC2qBYxU/aCAVAVY0NE
+ YuABL4LJ5+iWwmqUh0V9+lU88Cv4/G8fWwU+hBykSXhZXNQ5QJxyR7KWGy7LiPi7Cvovu+1c
+ 9Z9HIDNd4u7bxGKMpn19U12ATUBHAlvphzluVvXsJ23ES/F1c59d7IrgOnxqIcXxr9dcaJ2K
+ k9VP3TfrjP3g98OKtSsyH0xMu0MCeyewf1piXyukFRRMKIErfThhmNnLiDbaVy6biCLx408L
+ Mo4cCvEvqGKgRwyckVyo3JuhqreFeIKBOE1iHvf3x4LU8cIHdjhDP9Wf6ws1XNqIvve7oV+w
+ B56YWoalm1rq00yUbs2RoGcXmtX1JQ//aR/paSuLGLIb3ecPB88rvEXPsizrhYUzbe1TTkKc
+ 4a4XwW4wdc6pRPVFMdd5idQOKdeBk7NdCZXNzoieFntyPpAq+DveK01xcBoXQ2UktIFIsXey
+ uSNdLd5m5lf7/3f0BtaY//f9grm363NUb9KBsTSnv6Vx7Co0DWaxgC3MFSUhxzBzkJNty+2d
+ 10jvtwOWzUN+74uXGRYSq5WefQWqqQNnx+IDb4h81NmpIY/X0PqZrapNockj3WHvpbeVFAJ0
+ 9MRzYP3x8e5OuEuJfkNnAbwRGkDy98nXW6fKeemREjr8DWfXLKFWroJzkbAVmeIL0pjXATxr
+ +tj5JC0uvMrrXefUhXTo0SNoTsuO/OsAKOcVsV/RHHTwCDR2e3W8mOlA3QbYXsscgjghbuLh
+ J3oTRrOQa8tUXWqcd5A0+QPo5aaMHIK0UAthZsry5EmCY3BrbXUJlt+23E93hXQvfcsmfi0N
+ rNh81eknLLWRYvMOsrbIqEHdZBT4FHHiGjnck6EYx/8F5BAZSodRVEAgXyC8IQJ+UVa02QM5
+ D2VL8zRXZ6+wARKjgSrW+duohn535rG/ypd0ctLoXS6dDrFokwTQ2xrJiLbHp9G+noNTHSan
+ ExaRzyLbvmblh3AAznb68cWmM3WVkceWACUalsoTLKF1sGrrIBj5updkKkzbKOq5gcC5AQ0E
+ Wxk1NQEIAJ9B+lKxYlnKL5IehF1XJfknqsjuiRzj5vnvVrtFcPlSFL12VVFVUC2tT0A1Iuo9
+ NAoZXEeuoPf1dLDyHErrWnDyn3SmDgb83eK5YS/K363RLEMOQKWcawPJGGVTIRZgUSgGusKL
+ NuZqE5TCqQls0x/OPljufs4gk7E1GQEgE6M90Xbp0w/r0HB49BqjUzwByut7H2wAdiNAbJWZ
+ F5GNUS2/2IbgOhOychHdqYpWTqyLgRpf+atqkmpIJwFRVhQUfwztuybgJLGJ6vmh/LyNMRr8
+ J++SqkpOFMwJA81kpjuGR7moSrUIGTbDGFfjxmskQV/W/c25Xc6KaCwXah3OJ40AEQEAAYkC
+ PAQYAQoAJhYhBKlA1DSZLC6OmRA9UCJPp+fMgqZkBQJbGTU1AhsMBQkDwmcAAAoJECJPp+fM
+ gqZkPN4P/Ra4NbETHRj5/fM1fjtngt4dKeX/6McUPDIRuc58B6FuCQxtk7sX3ELs+1+w3eSV
+ rHI5cOFRSdgw/iKwwBix8D4Qq0cnympZ622KJL2wpTPRLlNaFLoe5PkoORAjVxLGplvQIlhg
+ miljQ3R63ty3+MZfkSVsYITlVkYlHaSwP2t8g7yTVa+q8ZAx0NT9uGWc/1Sg8j/uoPGrctml
+ hFNGBTYyPq6mGW9jqaQ8en3ZmmJyw3CHwxZ5FZQ5qc55xgshKiy8jEtxh+dgB9d8zE/S/UGI
+ E99N/q+kEKSgSMQMJ/CYPHQJVTi4YHh1yq/qTkHRX+ortrF5VEeDJDv+SljNStIxUdroPD29
+ 2ijoaMFTAU+uBtE14UP5F+LWdmRdEGS1Ah1NwooL27uAFllTDQxDhg/+LJ/TqB8ZuidOIy1B
+ xVKRSg3I2m+DUTVqBy7Lixo73hnW69kSjtqCeamY/NSu6LNP+b0wAOKhwz9hBEwEHLp05+mj
+ 5ZFJyfGsOiNUcMoO/17FO4EBxSDP3FDLllpuzlFD7SXkfJaMWYmXIlO0jLzdfwfcnDzBbPwO
+ hBM8hvtsyq8lq8vJOxv6XD6xcTtj5Az8t2JjdUX6SF9hxJpwhBU0wrCoGDkWp4Bbv6jnF7zP
+ Nzftr4l8RuJoywDIiJpdaNpSlXKpj/K6KrnyAI/joYc7
+Message-ID: <d81b36bb-876e-917a-6115-cedf496b4923@suse.cz>
+Date: Thu, 20 Jun 2019 09:18:41 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190620000650.GB52978@google.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <55eb2ea9-2c74-87b1-4568-b620c7913e17@linux.alibaba.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu 20-06-19 09:06:51, Minchan Kim wrote:
-> On Wed, Jun 19, 2019 at 02:56:12PM +0200, Michal Hocko wrote:
-[...]
-> > Why cannot we reuse a large part of that code and differ essentially on
-> > the reclaim target check and action? Have you considered to consolidate
-> > the code to share as much as possible? Maybe that is easier said than
-> > done because the devil is always in details...
+On 6/19/19 8:19 PM, Yang Shi wrote:
+>>>> This is getting even more muddy TBH. Is there any reason that we 
+>>>> have to
+>>>> handle this problem during the isolation phase rather the migration?
+>>> I think it was already said that if pages can't be isolated, then
+>>> migration phase won't process them, so they're just ignored.
+>>
+>> Yes，exactly.
+>>
+>>> However I think the patch is wrong to abort immediately when
+>>> encountering such page that cannot be isolated (AFAICS). IMHO it should
+>>> still try to migrate everything it can, and only then return -EIO.
+>>
+>> It is fine too. I don't see mbind semantics define how to handle such 
+>> case other than returning -EIO.
+
+I think it does. There's:
+If MPOL_MF_MOVE is specified in flags, then the kernel *will attempt to
+move all the existing pages* ... If MPOL_MF_STRICT is also specified,
+then the call fails with the error *EIO if some pages could not be moved*
+
+Aborting immediately would be against the attempt to move all.
+
+> By looking into the code, it looks not that easy as what I thought. 
+> do_mbind() would check the return value of queue_pages_range(), it just 
+> applies the policy and manipulates vmas as long as the return value is 0 
+> (success), then migrate pages on the list. We could put the movable 
+> pages on the list by not breaking immediately, but they will be ignored. 
+> If we migrate the pages regardless of the return value, it may break the 
+> policy since the policy will *not* be applied at all.
+
+I think we just need to remember if there was at least one page that
+failed isolation or migration, but keep working, and in the end return
+EIO if there was such page(s). I don't think it breaks the policy. Once
+pages are allocated in a mapping, changing the policy is a best effort
+thing anyway.
+
+>>
+>>
 > 
-> Yub, it was not pretty when I tried. Please see last patch in this
-> patchset.
-
-That is bad because this code is quite subtle - especially the THP part
-of it. I will be staring at the code some more. Maybe some
-simplification pops out.
-
--- 
-Michal Hocko
-SUSE Labs
 
