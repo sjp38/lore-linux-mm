@@ -2,163 +2,125 @@ Return-Path: <SRS0=424v=UT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 47CFFC43613
-	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 05:50:34 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 56FFFC48BE2
+	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 06:33:09 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0D0A9208CB
-	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 05:50:33 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0D0A9208CB
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 0D8642070B
+	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 06:33:08 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0D8642070B
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 971B06B0003; Thu, 20 Jun 2019 01:50:33 -0400 (EDT)
+	id 6444B6B0003; Thu, 20 Jun 2019 02:33:08 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 922188E0002; Thu, 20 Jun 2019 01:50:33 -0400 (EDT)
+	id 5F5018E0002; Thu, 20 Jun 2019 02:33:08 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 810908E0001; Thu, 20 Jun 2019 01:50:33 -0400 (EDT)
+	id 4E4268E0001; Thu, 20 Jun 2019 02:33:08 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 31C646B0003
-	for <linux-mm@kvack.org>; Thu, 20 Jun 2019 01:50:33 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id b12so2657512ede.23
-        for <linux-mm@kvack.org>; Wed, 19 Jun 2019 22:50:33 -0700 (PDT)
+Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
+	by kanga.kvack.org (Postfix) with ESMTP id F2D8E6B0003
+	for <linux-mm@kvack.org>; Thu, 20 Jun 2019 02:33:07 -0400 (EDT)
+Received: by mail-wr1-f71.google.com with SMTP id t4so764514wrs.10
+        for <linux-mm@kvack.org>; Wed, 19 Jun 2019 23:33:07 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=3T44utvmtBO3o2QILLRC35Gdr9y9LM81Qc8eYWW3mvg=;
-        b=C9LWZb8XOdKfsJYFvjusCtZW58Fp8ozGF8SQ08lpR+2prkDHKjKkTBnZbijqct/ZH2
-         JRgDN5T+YCDgQsLNBaeDyPEGPdZik6bV/bNCvUZjbx5qKvvTcGFQzhVxqXuWweLH0DxQ
-         6Cwpjd4dNExUwIsuYiMzPa4S2AZ+KCWhVr+I5kRZTw+h84Y5DhVLUZgtfVz0EFWQrazo
-         3Kdrq+hJAEpJPeTxoVwqoW9Kbe8zA3JxUS3kjuA1+Hcvmy9Srvzn75CYQIm+fzBgmLlD
-         4x6JUMrTzLFKwF2wcovzCutO7ta5bpaw5IrsuOdwGTgkgAvt629fxqh0puM7FzgH6+PC
-         RwrQ==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAVOQbLw+dV4dy50vGCNcBcC/CrIUa+v8UAKvGMah34L7h1KVDBO
-	CDnlI1RH45gBpqwh54VOzhSYkcLOs5aI168Lar0pYrqSM5MUcL0bIh9/xErpL6TlTpjjnhbNFQD
-	SOmLinvujq8AmfmkBLW78OvBG8OdZTtijjMs5C3pspR9K8SabkGh37wLbcFXksVA=
-X-Received: by 2002:a50:8e9d:: with SMTP id w29mr108115659edw.103.1561009832753;
-        Wed, 19 Jun 2019 22:50:32 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwdnjPGOukQSb7RQWK8EOuaY+XAhJFQaOrkmM0OurIXfWF+cU+1VQhc0jcDCzUjZS5jxzsS
-X-Received: by 2002:a50:8e9d:: with SMTP id w29mr108115607edw.103.1561009831963;
-        Wed, 19 Jun 2019 22:50:31 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561009831; cv=none;
+        bh=uLUPTxU2N+zCGOI+R+1Rpte7sIhhFJUQFrROi2j1rMg=;
+        b=S0BcgQACCEvhaZO98LbtPdREVfEr6QX+qi1LFonOcvNeq8PYMcDSKIeEjHwI0Gizog
+         lkZZ56LeVdX8OCXKJHrG/6wqLv8gDqGV6nlZrOY+CgksIdI9fQqftSVurJlNJlV51kAI
+         9fnHM+B1OzHPLvGr3ZU/3g9d5ibmIrC/Rl1njZ/9cTAe9J2u5fuiyon0nGFkPX/5aQ6Y
+         N3wwimHRS1Jw4O1ophJDvVC/GqVbVcd7UKoYTvc3GXMrzwe5nRI1/8k4KMZgSNr1CeO1
+         thQM33sSnzc7wcKHwETY9l+0/sEoh+DptOXvuC4yv9mkHC/H9JPTwYHOMVE/hFa5WkDt
+         AS+w==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
+X-Gm-Message-State: APjAAAXXX7IneX+Rsm3c4YmxtVKkejK+4tGv/OnCXzQPfYyydaDQi+Ze
+	W15wJZiC97z1g+rn7/bljU8B2hvePXsGbREjm85SKGmX3p4fO4SewBcob+I89iRnJ0kYeFEUWWE
+	ixK2BRB7uet2qFHyLjTmneDRV6AhSC8CJDeiogpSRvV3o1RG5wQUh7ycACwjKtyc51g==
+X-Received: by 2002:a5d:4310:: with SMTP id h16mr25892870wrq.331.1561012387593;
+        Wed, 19 Jun 2019 23:33:07 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqztUxNNj9oR1l7A3/82QSlaQdCXWoHWnbqzN3Saao7cyyfu0OUE4js1tPV3wG2DwTW2xgn9
+X-Received: by 2002:a5d:4310:: with SMTP id h16mr25892792wrq.331.1561012386617;
+        Wed, 19 Jun 2019 23:33:06 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561012386; cv=none;
         d=google.com; s=arc-20160816;
-        b=mKDgQnduEGdnSdTBDXIcfNkyBPBr7OYcTJJevL1pwax/QoYYNc/iWalxSoqpVaPJ7Q
-         HZhh5VG7izaKHkZ+8ldsnFF4LbJKWfcttBDUPwYG8JikKBNDn4wOBNYAewFV9+gS95iS
-         j+T5Sg80+eTK0WzLiMmUoUGGiRR70ubHL2TTb1mDdT+9JUQh4C2e2TeKZKZ9eZiqGcP8
-         2uuzfkkisSG2K9olsKze6q9WQP9MGObCmLWQscR9pXnVvsblf4xrjwdudMdkXjb66bKe
-         KwF+OkC+/LvJ/S5eHz1ErHgTCqoiiUWOw/P5iSAOjJyJOhoXLDAxIisiBljneEm6si7K
-         u4/Q==
+        b=RnyGkE7Ne3IILwBfjMQ8jARx93K4XwRfISyTHM6binJOQ5aq3fbCTETfIdQKU7PQBp
+         HcTimoq3b51+aZel0sPzDB2VfgFJy5/y0MxqT6+LogKZIME45eI7ILmOfZfpgd1FCigK
+         8b31ZVyT/4LXvG20LjXbix8X+au8yAy0PQEl0a/Wf2KBmLC/NjJ7MmRaMwQFaJ8nEVj2
+         9GXUL0sY3I5QV+C6iYRlraLMx9WXM7znF2uuKEx5Ah2V0etzjzBdYWEmduP7DkLgn9sq
+         GR60xzpzWlsrhLVSlIyMGO2bgmpAClqUQh0OcWgEXDUyrQqYrhhikiJwzey8V+qSZtzi
+         3xUA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=3T44utvmtBO3o2QILLRC35Gdr9y9LM81Qc8eYWW3mvg=;
-        b=bd/ymmjelntAMpgnCpQf6ZEBxJm1D86g4dCQq61e2vmfDxF665933yWdt3oT9tPa2T
-         ApHE8gGHX/w19c5/Pww2zocx8Iqqd8OKxIqwYGkaanLPDTcQK+wo7R8NmtH5YVH2gzYo
-         0U+IAZQOBufk9ST2GDLz+Xwx49+VNyUvnL7pLR7gGcMBAvBF2Gy5mZTDGLLzoah8dxhF
-         bO4bl96wGu6RSXf8EhQxP3rFIc40Xr11o1jGjJbTOnEHlKdj0wb7QmmKuWVxgXL5bVRS
-         o8CPRPzo1IZ0d7OuAkF86UYqySdIMFe78rik2MmAYBrLH9Nh4DkrqlvUWN/r3bnq2viP
-         OfsQ==
+        bh=uLUPTxU2N+zCGOI+R+1Rpte7sIhhFJUQFrROi2j1rMg=;
+        b=ywGCvnkvu9+FRKB0ZHe0bHr5uvEs0UbkBC9c4WVENSksY9LrZbNhhABmbDLkrvMFAg
+         BLXmC2d7vqeN4LjIpR9z5D/r7bsuC/xUYxlLBrhqlpebcU56A1xZtaz4A10YXVELfySZ
+         CbtBAfELCroEbw5RAtOCuTyVRAHE8Ee2hLaOxWhEYIYfvpWh1BDxjzrDmLdK/ntsKq+M
+         TSPxBxHq43y91cZEYwlRA0DUU+4VWv/3gjXRyCYlmOOag/ZZDL7NS5gps0DdvTreBWhW
+         F/E2ZH18sWkSPPCpjgACd6HgIWPnRUnnGHyZfob6jZMbShIbZI5xWSO1dD9PkNUom5jz
+         wqfQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k49si16457130ede.209.2019.06.19.22.50.31
+       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
+Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
+        by mx.google.com with ESMTPS id 3si2620003wmc.43.2019.06.19.23.33.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 19 Jun 2019 22:50:31 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Wed, 19 Jun 2019 23:33:06 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) client-ip=213.95.11.211;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 4B5A0AC2C;
-	Thu, 20 Jun 2019 05:50:31 +0000 (UTC)
-Date: Thu, 20 Jun 2019 07:50:28 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Shakeel Butt <shakeelb@google.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Roman Gushchin <guro@fb.com>, Pekka Enberg <penberg@kernel.org>,
-	David Rientjes <rientjes@google.com>,
-	Joonsoo Kim <iamjoonsoo.kim@lge.com>, cgroups@vger.kernel.org,
-	linux-mm@kvack.org, linux-kernel@vger.kernel.org,
-	Dave Hansen <dave.hansen@intel.com>
-Subject: Re: [PATCH] slub: Don't panic for memcg kmem cache creation failure
-Message-ID: <20190620055028.GA12083@dhcp22.suse.cz>
-References: <20190619232514.58994-1-shakeelb@google.com>
+       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
+Received: by newverein.lst.de (Postfix, from userid 2407)
+	id 0877068B05; Thu, 20 Jun 2019 08:32:37 +0200 (CEST)
+Date: Thu, 20 Jun 2019 08:32:36 +0200
+From: Christoph Hellwig <hch@lst.de>
+To: Jason Gunthorpe <jgg@ziepe.ca>
+Cc: Dan Williams <dan.j.williams@intel.com>, Christoph Hellwig <hch@lst.de>,
+	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
+	Ben Skeggs <bskeggs@redhat.com>, Linux MM <linux-mm@kvack.org>,
+	nouveau@lists.freedesktop.org,
+	Maling list - DRI developers <dri-devel@lists.freedesktop.org>,
+	linux-nvdimm <linux-nvdimm@lists.01.org>, linux-pci@vger.kernel.org,
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+Subject: Re: dev_pagemap related cleanups v2
+Message-ID: <20190620063236.GE20765@lst.de>
+References: <20190617122733.22432-1-hch@lst.de> <CAPcyv4hBUJB2RxkDqHkfEGCupDdXfQSrEJmAdhLFwnDOwt8Lig@mail.gmail.com> <20190619094032.GA8928@lst.de> <20190619163655.GG9360@ziepe.ca> <CAPcyv4hYtQdg0DTYjrJxCNXNjadBSWQ5QaMJYsA-QSribKuwrQ@mail.gmail.com> <20190619181923.GJ9360@ziepe.ca>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190619232514.58994-1-shakeelb@google.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190619181923.GJ9360@ziepe.ca>
+User-Agent: Mutt/1.5.17 (2007-11-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed 19-06-19 16:25:14, Shakeel Butt wrote:
-> Currently for CONFIG_SLUB, if a memcg kmem cache creation is failed and
-> the corresponding root kmem cache has SLAB_PANIC flag, the kernel will
-> be crashed. This is unnecessary as the kernel can handle the creation
-> failures of memcg kmem caches.
-
-AFAICS it will handle those by simply not accounting those objects
-right?
-
-> Additionally CONFIG_SLAB does not
-> implement this behavior. So, to keep the behavior consistent between
-> SLAB and SLUB, removing the panic for memcg kmem cache creation
-> failures. The root kmem cache creation failure for SLAB_PANIC correctly
-> panics for both SLAB and SLUB.
-
-I do agree that panicing is really dubious especially because it opens
-doors to shut the system down from a restricted environment. So the
-patch makes sesne to me.
-
-I am wondering whether SLAB_PANIC makes sense in general though. Why is
-it any different from any other essential early allocations? We tend to
-not care about allocation failures for those on bases that the system
-must be in a broken state to fail that early already. Do you think it is
-time to remove SLAB_PANIC altogether?
-
-> Reported-by: Dave Hansen <dave.hansen@intel.com>
-> Signed-off-by: Shakeel Butt <shakeelb@google.com>
-
-Acked-by: Michal Hocko <mhocko@suse.com>
-
-> ---
->  mm/slub.c | 4 ----
->  1 file changed, 4 deletions(-)
+On Wed, Jun 19, 2019 at 03:19:23PM -0300, Jason Gunthorpe wrote:
+> > Just make sure that when you backmerge v5.2-rc5 you have a clear
+> > reason in the merge commit message about why you needed to do it.
+> > While needless rebasing is top of the pet peeve list, second place, as
+> > I found out, is mystery merges without explanations.
 > 
-> diff --git a/mm/slub.c b/mm/slub.c
-> index 6a5174b51cd6..84c6508e360d 100644
-> --- a/mm/slub.c
-> +++ b/mm/slub.c
-> @@ -3640,10 +3640,6 @@ static int kmem_cache_open(struct kmem_cache *s, slab_flags_t flags)
->  
->  	free_kmem_cache_nodes(s);
->  error:
-> -	if (flags & SLAB_PANIC)
-> -		panic("Cannot create slab %s size=%u realsize=%u order=%u offset=%u flags=%lx\n",
-> -		      s->name, s->size, s->size,
-> -		      oo_order(s->oo), s->offset, (unsigned long)flags);
->  	return -EINVAL;
->  }
->  
-> -- 
-> 2.22.0.410.gd8fdbe21b5-goog
+> Yes, I always describe the merge commits. Linus also particular about
+> having *good reasons* for merges.
+> 
+> This is why I can't fix the hmm.git to have rc5 until I have patches
+> to apply..
+> 
+> Probbaly I will just put CH's series on rc5 and merge it with the
+> cover letter as the merge message. This avoid both rebasing and gives
+> purposeful merges.
 
--- 
-Michal Hocko
-SUSE Labs
+Fine with me.  My series right now is on top of the rdma/hmm branch.
+There is a trivial conflict that is solved by doing so, as my series
+removes documentation that is fixed up there a bit.  There is another
+trivial conflict with your pending series as they remove code next to
+each other in hmm.git.
 
