@@ -2,227 +2,135 @@ Return-Path: <SRS0=424v=UT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 20C9BC48BE1
-	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 10:36:05 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A54AFC43613
+	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 10:51:56 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DE794206E0
-	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 10:36:04 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DE794206E0
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 711022070B
+	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 10:51:56 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 711022070B
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8EAC78E0006; Thu, 20 Jun 2019 06:36:04 -0400 (EDT)
+	id 0037F8E0007; Thu, 20 Jun 2019 06:51:56 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 872898E0002; Thu, 20 Jun 2019 06:36:04 -0400 (EDT)
+	id ECEE08E0002; Thu, 20 Jun 2019 06:51:55 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 713DC8E0006; Thu, 20 Jun 2019 06:36:04 -0400 (EDT)
+	id DE49A8E0007; Thu, 20 Jun 2019 06:51:55 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 498408E0002
-	for <linux-mm@kvack.org>; Thu, 20 Jun 2019 06:36:04 -0400 (EDT)
-Received: by mail-qk1-f199.google.com with SMTP id c4so3016895qkd.16
-        for <linux-mm@kvack.org>; Thu, 20 Jun 2019 03:36:04 -0700 (PDT)
+Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 96B1F8E0002
+	for <linux-mm@kvack.org>; Thu, 20 Jun 2019 06:51:55 -0400 (EDT)
+Received: by mail-wr1-f70.google.com with SMTP id e8so1016544wrw.15
+        for <linux-mm@kvack.org>; Thu, 20 Jun 2019 03:51:55 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=DoTahoElNd51FKBs5W52n2Aegfmsf/gprGY01Gxnd1k=;
-        b=JMy2qVpcKGO/R0LrZlzECXjfefYkhiQ5kLgMHOP1bKhpo/lkiCcfW9lx682HnV+z1f
-         z1EqvlTLS40Q9UI/utrPb+1y50mNmFIcjAPofgDEc8jk/4IZMtFoe9I46ux4HNtXOa5S
-         4yXFv3M+MLIwOyUd+j4f7m8/i1Rtc8aaaBW4EeCx9FiRawZ/m6A5bSv4GKrn3bhBMmlO
-         MBxWH6nNelXpiYM2u8tbu3znRaUHbWuMHeBTqxnDKKDAwi7rcwtpgj10Xxlb6xPpoQX6
-         TXaglMzXsmvnmsgVwX4O4a26Hj//0Jh7R6olf8cwCrxbpvsg70Dwx6xQiOslgez/phdz
-         Uo0A==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAUF8Es8AJF2HWdm2b/uSVx3UFfj3Y3iO0+eiOHEM3teUNXTaKVD
-	h1e1Th/mHekBhG6Js3fIymgmtulohIzEAuDJgaxpNB4JK8P2H0F05sEVe9pC12mt3w0+y/6hFbZ
-	8FT0a0GE8Nd32KH4QFcjOwlkTfu0pWwMjThwKltVV1X3+/Q2+hUv2DF/JSquadm/CfQ==
-X-Received: by 2002:ac8:3932:: with SMTP id s47mr112367173qtb.264.1561026964042;
-        Thu, 20 Jun 2019 03:36:04 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqx3VSOgZbEdKrqkaxsaRLCVk4MHsZm1qv9Ah0MMPdqFEhlsJsWILnlMcr9tYXOhir3X/BQf
-X-Received: by 2002:ac8:3932:: with SMTP id s47mr112367108qtb.264.1561026963137;
-        Thu, 20 Jun 2019 03:36:03 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561026963; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=BEEpkMXWvj7oR+wfAkuOS4waCs4VBdR1wOtlhK8+NmQ=;
+        b=tOnImgj/yZoo1flSKOo2R5dncL+LwVstSsbnHXQHkfCNNE863tqRVcKlaIev/zmfGe
+         iApP4WOGtO2ufsBjfIpdTfcscOpkzBuB1hXgUz8E5QZlXhDpqgjSj1YdPzjSo0Tvb5YB
+         7Ym6c4Kst0YjA8X2kwwVkJsg5/KUAo0hQDW0g9QWIL7IhpBg/I34RnGL86berAQFIXYl
+         mx1SkCTc9gSXuyr5wvML4m790j2rXBObQW6j6JMjSDUOpbojCgNBzRWEjCvHzJG1N02P
+         YNASMeWIt5YTUW84N7jWxuRH6w4m2pWG+33lduqzTep8jD+PzCV3S8KLaPadzJsqF/nm
+         qJ+g==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
+X-Gm-Message-State: APjAAAUZnOsSsNjaMIOkGbkCFmqTl1IDqRIq4hivGJC/HWlgjXtwdim5
+	Lo1fLkfZ5l3CJ4VrfIDPsxu4W900wTcQJU/cCK4WEbu8V45sg75Xuj7cSluB137TWwI84GZ0RZI
+	tQyvQ1n0cwLl0xeCO8ALq/yj5aTwSq8hiBitPM3p9jsKDzc17WIjqIYXs/WrfbspXPQ==
+X-Received: by 2002:a1c:9d48:: with SMTP id g69mr2522103wme.31.1561027915096;
+        Thu, 20 Jun 2019 03:51:55 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwuJ5he2LoUGCXYS25y6jyj8M1Frt0sKqMbd3ZFg1EcQ4fXLZjsuTPKK8E2Zaac4fOuR/fu
+X-Received: by 2002:a1c:9d48:: with SMTP id g69mr2522056wme.31.1561027914434;
+        Thu, 20 Jun 2019 03:51:54 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561027914; cv=none;
         d=google.com; s=arc-20160816;
-        b=ph84ztAzI1tO01fTrcRfYZGi3z8yIWZBqgR3BRq3QPsPWTkUPsefv18U0Y+ynxeJPm
-         niQc0zl6NfBkEny/TtxWSsLr1/iPeTYJk0cK+55EfKqhroyc4XVrSF7TPke5Hmrz4SL8
-         qkVT852201KeRZR6FeTHN8NQMRxdDyGOxPwTlQMIIGOpqCwCIy8j0QAqFt+tq33LJgUs
-         8ulPuCt1hQrJHVdJ+fGSX0XY8sZ+OVE6UNx9yi7uqz+C4bLoygVEph0xh5dcYSzdHt1Q
-         ihpBe4k/lvAaB+GgdUJK5GpP2EDSqk9x7wDyjtKmQ77SM6gzIE2ez9ssP6WE1L54BbYP
-         CkVQ==
+        b=aS0USzgyJWd/KyI+L5vRMzXH1QH/RPq+m0b0wRh4c/+P06S8AZzyY7m/b+oEB2cBtA
+         BCw2NvLJzvjdqrVkBQXYyTWgSevrDtJ/w/UELakIT99iUPZjI1vpDx++jULB+WNwlwW6
+         Axe50MBa+9ZsscxjuwmgFfeAoZjaqbQlJZjBiUVHxzbPfhGPZwZ7Td9I/6CMAewxFTTI
+         c/JgtA+/D1PQ3/Y3IgYjAmulex2jdS80d71dnxTdiDApMm65fuXEFebfifzMfawSVr6i
+         W5duHREC665ynB62/A1XWsnLv5dVvEW+/a2oKKdnsX79U4txAO41QgaTS99jccchT4qN
+         Vi/g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from;
-        bh=DoTahoElNd51FKBs5W52n2Aegfmsf/gprGY01Gxnd1k=;
-        b=NUwXgxECHKVlh+zo3CujOKx+7fLsPoTNsF2KojD7FJ/2mAdc3XISTM6mNmtZE1zXRF
-         whrBRdfT6d4zQe5kcGzbHYuP2vWulBuKXXED3SbgD/PiI7dhWl8ozkENoinlAb5FqMMJ
-         4nunWLQGxbnu0f4wH5zJ92ED/u3UCB/bYIV2Rx1UCuhg6vjayFCjsiuk+t55g6md67qL
-         mxj4dPLqQRGOjXl2bbE6KIKfHPiq+y4QQNWZ3mj7VK33IdVU+lzN5v6EBvdmSmNsON2b
-         k5yXzgf9PzmtkSMxURd7nn3HIVa+EpsIlklkXYjj0pqCRV+YgX3FqKAUanNfahgeb7Wd
-         CNiw==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date;
+        bh=BEEpkMXWvj7oR+wfAkuOS4waCs4VBdR1wOtlhK8+NmQ=;
+        b=ojiEigcMyrbDDvELxh6acwrAdn5Qcpm02cyoTQLZlJEnjNnebW1AzqKVUJUnfdGZoG
+         TvsbJ3vpXdeGMo2cMtLRiP/7CqHuJ4zGTZK36pct6lYk4yys7XL098fKEPYME1AZBTjd
+         NUKI5EbTgJY3YLPAuCW/1t8R0BVlsbQ1RDxhhXWVjaQZ/r7d3OJ2uyCHyZ1Lg+i2nen5
+         FpHxEtuOVpBFo2NizdvjtoxvNFckVG8CtQwbf7o86yHfofv+RAb38ZPiNmGWFI7bHqQG
+         qwOcd3pb62TVe+2W3RkpkNj4VGtT2RSDQV4hOQwmqHIDldfH3/IoKfVEg+BX52jSS9Af
+         aX2Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id k23si15303426qke.240.2019.06.20.03.36.02
+       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
+Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
+        by mx.google.com with ESMTPS id s2si17543953wru.119.2019.06.20.03.51.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 20 Jun 2019 03:36:03 -0700 (PDT)
-Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Thu, 20 Jun 2019 03:51:54 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) client-ip=213.95.11.211;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 3AF3386663;
-	Thu, 20 Jun 2019 10:36:02 +0000 (UTC)
-Received: from t460s.redhat.com (ovpn-117-88.ams2.redhat.com [10.36.117.88])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 628215C66B;
-	Thu, 20 Jun 2019 10:35:59 +0000 (UTC)
-From: David Hildenbrand <david@redhat.com>
-To: linux-kernel@vger.kernel.org
-Cc: Dan Williams <dan.j.williams@intel.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	linuxppc-dev@lists.ozlabs.org,
-	linux-acpi@vger.kernel.org,
-	linux-mm@kvack.org,
-	David Hildenbrand <david@redhat.com>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	"Rafael J. Wysocki" <rafael@kernel.org>,
-	Stephen Rothwell <sfr@canb.auug.org.au>,
-	Pavel Tatashin <pasha.tatashin@soleen.com>,
-	"mike.travis@hpe.com" <mike.travis@hpe.com>
-Subject: [PATCH v2 6/6] drivers/base/memory.c: Get rid of find_memory_block_hinted()
-Date: Thu, 20 Jun 2019 12:35:20 +0200
-Message-Id: <20190620103520.23481-7-david@redhat.com>
-In-Reply-To: <20190620103520.23481-1-david@redhat.com>
-References: <20190620103520.23481-1-david@redhat.com>
+       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
+Received: by newverein.lst.de (Postfix, from userid 2407)
+	id 558CF68B20; Thu, 20 Jun 2019 12:51:24 +0200 (CEST)
+Date: Thu, 20 Jun 2019 12:51:24 +0200
+From: Christoph Hellwig <hch@lst.de>
+To: Jason Gunthorpe <jgg@ziepe.ca>
+Cc: Christoph Hellwig <hch@lst.de>,
+	Potnuri Bharat Teja <bharat@chelsio.com>,
+	Dan Carpenter <dan.carpenter@oracle.com>,
+	Maarten Lankhorst <maarten.lankhorst@linux.intel.com>,
+	Maxime Ripard <maxime.ripard@bootlin.com>,
+	Sean Paul <sean@poorly.run>, David Airlie <airlied@linux.ie>,
+	Daniel Vetter <daniel@ffwll.ch>,
+	Jani Nikula <jani.nikula@linux.intel.com>,
+	Joonas Lahtinen <joonas.lahtinen@linux.intel.com>,
+	Rodrigo Vivi <rodrigo.vivi@intel.com>,
+	Ian Abbott <abbotti@mev.co.uk>,
+	H Hartley Sweeten <hsweeten@visionengravers.com>,
+	devel@driverdev.osuosl.org, linux-s390@vger.kernel.org,
+	Intel Linux Wireless <linuxwifi@intel.com>,
+	linux-rdma@vger.kernel.org, netdev@vger.kernel.org,
+	intel-gfx@lists.freedesktop.org, linux-wireless@vger.kernel.org,
+	linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org,
+	linux-mm@kvack.org, iommu@lists.linux-foundation.org,
+	"moderated list:ARM PORT" <linux-arm-kernel@lists.infradead.org>,
+	linux-media@vger.kernel.org
+Subject: Re: use exact allocation for dma coherent memory
+Message-ID: <20190620105124.GA25233@lst.de>
+References: <20190614134726.3827-1-hch@lst.de> <20190617082148.GF28859@kadam> <20190617083342.GA7883@lst.de> <20190619162903.GF9360@ziepe.ca>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.26]); Thu, 20 Jun 2019 10:36:02 +0000 (UTC)
+In-Reply-To: <20190619162903.GF9360@ziepe.ca>
+User-Agent: Mutt/1.5.17 (2007-11-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-No longer needed, let's remove it. Also, drop the "hint" parameter
-completely from "find_memory_block_by_id", as nobody needs it anymore.
+On Wed, Jun 19, 2019 at 01:29:03PM -0300, Jason Gunthorpe wrote:
+> > Yes.  This will blow up badly on many platforms, as sq->queue
+> > might be vmapped, ioremapped, come from a pool without page backing.
+> 
+> Gah, this addr gets fed into io_remap_pfn_range/remap_pfn_range too..
+> 
+> Potnuri, you should fix this.. 
+> 
+> You probably need to use dma_mmap_from_dev_coherent() in the mmap ?
 
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: "Rafael J. Wysocki" <rafael@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Stephen Rothwell <sfr@canb.auug.org.au>
-Cc: Pavel Tatashin <pasha.tatashin@soleen.com>
-Cc: "mike.travis@hpe.com" <mike.travis@hpe.com>
-Signed-off-by: David Hildenbrand <david@redhat.com>
----
- drivers/base/memory.c  | 32 ++++++++++----------------------
- include/linux/memory.h |  2 --
- 2 files changed, 10 insertions(+), 24 deletions(-)
+The function to use is dma_mmap_coherent, dma_mmap_from_dev_coherent is
+just an internal helper.
 
-diff --git a/drivers/base/memory.c b/drivers/base/memory.c
-index 0204384b4d1d..fefb64d3588e 100644
---- a/drivers/base/memory.c
-+++ b/drivers/base/memory.c
-@@ -592,26 +592,12 @@ int __weak arch_get_memory_phys_device(unsigned long start_pfn)
-  * A reference for the returned object is held and the reference for the
-  * hinted object is released.
-  */
--static struct memory_block *find_memory_block_by_id(unsigned long block_id,
--						    struct memory_block *hint)
-+static struct memory_block *find_memory_block_by_id(unsigned long block_id)
- {
--	struct device *hintdev = hint ? &hint->dev : NULL;
- 	struct device *dev;
- 
--	dev = subsys_find_device_by_id(&memory_subsys, block_id, hintdev);
--	if (hint)
--		put_device(&hint->dev);
--	if (!dev)
--		return NULL;
--	return to_memory_block(dev);
--}
--
--struct memory_block *find_memory_block_hinted(struct mem_section *section,
--					      struct memory_block *hint)
--{
--	unsigned long block_id = base_memory_block_id(__section_nr(section));
--
--	return find_memory_block_by_id(block_id, hint);
-+	dev = subsys_find_device_by_id(&memory_subsys, block_id, NULL);
-+	return dev ? to_memory_block(dev) : NULL;
- }
- 
- /*
-@@ -624,7 +610,9 @@ struct memory_block *find_memory_block_hinted(struct mem_section *section,
-  */
- struct memory_block *find_memory_block(struct mem_section *section)
- {
--	return find_memory_block_hinted(section, NULL);
-+	unsigned long block_id = base_memory_block_id(__section_nr(section));
-+
-+	return find_memory_block_by_id(block_id);
- }
- 
- static struct attribute *memory_memblk_attrs[] = {
-@@ -675,7 +663,7 @@ static int init_memory_block(struct memory_block **memory,
- 	unsigned long start_pfn;
- 	int ret = 0;
- 
--	mem = find_memory_block_by_id(block_id, NULL);
-+	mem = find_memory_block_by_id(block_id);
- 	if (mem) {
- 		put_device(&mem->dev);
- 		return -EEXIST;
-@@ -755,7 +743,7 @@ int create_memory_block_devices(unsigned long start, unsigned long size)
- 		end_block_id = block_id;
- 		for (block_id = start_block_id; block_id != end_block_id;
- 		     block_id++) {
--			mem = find_memory_block_by_id(block_id, NULL);
-+			mem = find_memory_block_by_id(block_id);
- 			mem->section_count = 0;
- 			unregister_memory(mem);
- 		}
-@@ -782,7 +770,7 @@ void remove_memory_block_devices(unsigned long start, unsigned long size)
- 
- 	mutex_lock(&mem_sysfs_mutex);
- 	for (block_id = start_block_id; block_id != end_block_id; block_id++) {
--		mem = find_memory_block_by_id(block_id, NULL);
-+		mem = find_memory_block_by_id(block_id);
- 		if (WARN_ON_ONCE(!mem))
- 			continue;
- 		mem->section_count = 0;
-@@ -882,7 +870,7 @@ int walk_memory_blocks(unsigned long start, unsigned long size,
- 	int ret = 0;
- 
- 	for (block_id = start_block_id; block_id <= end_block_id; block_id++) {
--		mem = find_memory_block_by_id(block_id, NULL);
-+		mem = find_memory_block_by_id(block_id);
- 		if (!mem)
- 			continue;
- 
-diff --git a/include/linux/memory.h b/include/linux/memory.h
-index b3b388775a30..02e633f3ede0 100644
---- a/include/linux/memory.h
-+++ b/include/linux/memory.h
-@@ -116,8 +116,6 @@ void remove_memory_block_devices(unsigned long start, unsigned long size);
- extern int memory_dev_init(void);
- extern int memory_notify(unsigned long val, void *v);
- extern int memory_isolate_notify(unsigned long val, void *v);
--extern struct memory_block *find_memory_block_hinted(struct mem_section *,
--							struct memory_block *);
- extern struct memory_block *find_memory_block(struct mem_section *);
- typedef int (*walk_memory_blocks_func_t)(struct memory_block *, void *);
- extern int walk_memory_blocks(unsigned long start, unsigned long size,
--- 
-2.21.0
+That beiŋ said the drivers/infiniband code has a lot of
+*remap_pfn_range, and a lot of them look like they might be for
+DMA memory.
 
