@@ -6,74 +6,74 @@ X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id F2377C48BE0
-	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 02:25:01 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D3539C48BE0
+	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 02:25:12 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C3EE72084B
-	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 02:25:01 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C3EE72084B
+	by mail.kernel.org (Postfix) with ESMTP id A4C142084A
+	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 02:25:12 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A4C142084A
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 612FE8E000D; Wed, 19 Jun 2019 22:25:01 -0400 (EDT)
+	id 551178E000E; Wed, 19 Jun 2019 22:25:12 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5C35A8E0001; Wed, 19 Jun 2019 22:25:01 -0400 (EDT)
+	id 526B88E0001; Wed, 19 Jun 2019 22:25:12 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4D9A48E000D; Wed, 19 Jun 2019 22:25:01 -0400 (EDT)
+	id 415148E000E; Wed, 19 Jun 2019 22:25:12 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 2F2C98E0001
-	for <linux-mm@kvack.org>; Wed, 19 Jun 2019 22:25:01 -0400 (EDT)
-Received: by mail-qt1-f199.google.com with SMTP id x10so1687378qti.11
-        for <linux-mm@kvack.org>; Wed, 19 Jun 2019 19:25:01 -0700 (PDT)
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 2206B8E0001
+	for <linux-mm@kvack.org>; Wed, 19 Jun 2019 22:25:12 -0400 (EDT)
+Received: by mail-qk1-f199.google.com with SMTP id u129so1723106qkd.12
+        for <linux-mm@kvack.org>; Wed, 19 Jun 2019 19:25:12 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=6M5vIGHcsYBb3WCxHxaonQjlAK8kKdGHX+f4QKpk54A=;
-        b=UJgvi3pVnpXgXDCGkVmT8cYrLOqXFpLKG9VwUckt3k122CnR4Ynd44cZhXE58rQXTV
-         7OX8JdI1m+B/Hv1VI1/oazlcFT47+auCN1oXuCoCr7WxoorYrwr52t7Ydw7RIxvZI8yg
-         iRCkZ86ENTzFgk9uDxs9vFmYVWTDRh8G+dGsHtY1SnVlzeYoHyEbPwsxoNLjcnEZR61B
-         ooAAHJFn1IvYsVSfGJ3IhIG91UfuyZ1fFU2pNymNjKjubOtCVxQtLkNDfIyijkGF8u4u
-         RlVgVs6r5tJEM5Ybx4n6f1R/fFUxNOXX0cPshz9RaYmDeEh8UjmDT3XykSeR3BlLWcPE
-         FtpA==
+        bh=Lm0S7FSq2A9HYbt5saNCQ4d83jxh4YmQI2wDIQ8lFTc=;
+        b=CeduDrsCZwUip3iN/CRY1J/uS0zC6vQBuJld1idLsMrfNCVc6IOpJ1UAwkqOMzMN56
+         G4wVzyG5yuZEKAwUuXEbf6lKjj7TfHXWJSsbnkU/Nmmp0sqEx8uNKVz/f8ekrO12ebuC
+         cjputnL4FpzQG2bR6IxMsXIR4ONlnacrw2qm/nODqXYrsj/egGrcGQHyen+75yqA5wiN
+         MTjL26jZNFatuscF2mP/Nru1HO3NmvI3TQ7Fqh8Dj+UudSIZ0/Qbu1XJi7hLyOK66LtI
+         v9+2m19AtF/uzFpIn6X7PRtF/pC6S7q4CTtJoXAUX8LZgBET7iWTQb5CwRno+2Y7UjuN
+         a/2A==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAVH51vUg97LjhYzaRNGVSKzA0ejBPdP6KKWSWz9q/UlSyO8DUk/
-	brRln75cuOn1agDq/fQPSr9+/xTAf2spOnEoIf5t1SYXjhgJfCKLxDKMImjXCbikmG0A6n+Di3g
-	q51fv9xK5Ogpt7eejbPI/WF2/mE3bKsBbOpQbRJ/AK9sTLxkXDQfGQQXw2sGeY22V2g==
-X-Received: by 2002:aed:3f1a:: with SMTP id p26mr108477513qtf.113.1560997500973;
-        Wed, 19 Jun 2019 19:25:00 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzybsm4ikg3cAo40AsKI7jtqBoVnsDhZNQfXlL7pQW8YuMbRfFUKyjEnjpeogwio2PKaB64
-X-Received: by 2002:aed:3f1a:: with SMTP id p26mr108477482qtf.113.1560997500357;
-        Wed, 19 Jun 2019 19:25:00 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560997500; cv=none;
+X-Gm-Message-State: APjAAAXstdbF/QlGKPccq/eGrUsCRBIKJrmninKmKkan51z6C4bGdD6A
+	is4xEoly4kvzYNFmcxgXzGQO004rpeK74TDLlkm4h/MQNQqENO3DRFkrVpttZtWuwRebukDLLpf
+	BRRSoOrgHv7VJGvaaj2IeZcSCYBxSYG6xeQAspwO/AlX1WkFcpnQsEyErwWOiYGLpVg==
+X-Received: by 2002:a05:620a:14a8:: with SMTP id x8mr47497464qkj.35.1560997511916;
+        Wed, 19 Jun 2019 19:25:11 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwR1XVlXQIHbJWJGgh1hz1pEQ/8/sXqVN0n6oOYMDUwSIF1MBV88rgEnWMNXSkbLMld0B/U
+X-Received: by 2002:a05:620a:14a8:: with SMTP id x8mr47497434qkj.35.1560997511407;
+        Wed, 19 Jun 2019 19:25:11 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560997511; cv=none;
         d=google.com; s=arc-20160816;
-        b=t3nC9ELiMtn2zEgtws1QudVXPjEdv5fMOx7AlBP358QWYJLWgyeuJzSxHDaqb92enR
-         kSB3XXhejagA83PNpzTI+f0WCyWOZ7QCi1KYZvRUe6Vo+TF8MkX8Wti6jb8VF+IMz0NK
-         3qDRJ2yyvvocTzAH1hViaw4TuuoS6YvLUiKwiOCfllyovG1ovC+GrMTwg/D3rqCPbNKu
-         Cacn3h/PqOFz5IHRe+lFvmgAvcY+t6ehkxWbq+TqkFTTs91jKuote8BcJvKUtHcfduOv
-         KFMn/OQdm6OoM7c5gvRuHNNTNPWzXRzYmnEQXohxPWqV62uWozdJtP08s2B77x0old2s
-         PFlA==
+        b=wuT5WgWgDLTDKbKXMpJFlpha2mxv8NQ7ZuCy7i3ja1nnWuE+o67MrJfQDdQC+Su2c1
+         f79JfbqYbNlIq2X7d61N4WD56SuY1s8Ig1DdKYAcYcSf3ZMoAp3gvnqBphZpTWXmAyYF
+         2MM/d4eM/WjhEnklH5IC9rnUwsZJKKINdKuZuc4rrZqUTWKHXl2Cg85vz0yBikM3yEhi
+         SzIbBN9b4q5BEkuues8xN2oHbzK5fr6/y+BlNb9bkuzC5iql8erGPY5DZsEmRfd8z/Vq
+         KwLdGuIR9Ud5KzdTPUcjdhmszaQ+aNDnMwarYlSG38/pmTdt3NfZ2ktWzAThZJ6dL9hQ
+         YNWA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=6M5vIGHcsYBb3WCxHxaonQjlAK8kKdGHX+f4QKpk54A=;
-        b=App0vrrg1wK+aQGcW4wdhKsuFrRwLJZnC5XxDoalxDbaLE4hKgeLpqmg2kypMpHBhX
-         0VISxaA/yeSdq7UbQooWh7lfGlRY7+5ABjZW0Y+ASGBqacVvMhwtCSLRTEVzFPpyesny
-         8aZtQRzH771gR+XGzC7HMgerrj435KItldgtGCoNArNCmfoTKw0COX9WfM7NQVJ9t7vE
-         m44zutvcQNUgCy8KCXd1Evcj5ASyarzScMRzLoitNmsySr2994Nj2NvtFT5+krjLOIr2
-         eStUT3t8ggD02PpiEQQLZe9SptideBwp5RvK3DDaVGQh5A5ce+IJlL4bEKsdUCi9sbna
-         dV5Q==
+        bh=Lm0S7FSq2A9HYbt5saNCQ4d83jxh4YmQI2wDIQ8lFTc=;
+        b=KpljIwSh4eian7NWTHYS+Su2M+sRy/ktVqLMXwv3Se5OPg3XaHQxaLjhU94LN5oIj0
+         Any1K/PoDf/M0Wg7RM7euxBnlqq8YirgncO+pmLPOs9YKBJpmb/1qMDw8OZf0UrzVT22
+         rlwy3Yqud/xgkB7xhfCSO5Mit24oB20xXdQ8kKdYv0TYf7VwXtYp5wSvK4EA+VNunsnC
+         O4hia2eRH3Vjk9AghsYm81Jza8V4bbzYKSmUSoS36E4mF+Al3Stg5uwXteR0AWUnxkkM
+         ueKjeCUX+h1/WaS0ACes5XfcCGAq/x1wvjPY1CfKSk8nWC4qlbfmxzxOrTI2wr0/8xdk
+         R0SA==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id b20si3994439qte.321.2019.06.19.19.25.00
+        by mx.google.com with ESMTPS id x8si3756887qtf.386.2019.06.19.19.25.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 19 Jun 2019 19:25:00 -0700 (PDT)
+        Wed, 19 Jun 2019 19:25:11 -0700 (PDT)
 Received-SPF: pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;
@@ -81,11 +81,11 @@ Authentication-Results: mx.google.com;
 Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 7B2A685538;
-	Thu, 20 Jun 2019 02:24:59 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id C7B6F22386D;
+	Thu, 20 Jun 2019 02:25:09 +0000 (UTC)
 Received: from xz-x1.redhat.com (ovpn-12-78.pek2.redhat.com [10.72.12.78])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id C410C1001DC3;
-	Thu, 20 Jun 2019 02:24:46 +0000 (UTC)
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 0F7811001E69;
+	Thu, 20 Jun 2019 02:24:59 +0000 (UTC)
 From: Peter Xu <peterx@redhat.com>
 To: linux-mm@kvack.org,
 	linux-kernel@vger.kernel.org
@@ -106,97 +106,65 @@ Cc: David Hildenbrand <david@redhat.com>,
 	Mel Gorman <mgorman@suse.de>,
 	"Kirill A . Shutemov" <kirill@shutemov.name>,
 	"Dr . David Alan Gilbert" <dgilbert@redhat.com>
-Subject: [PATCH v5 22/25] userfaultfd: wp: UFFDIO_REGISTER_MODE_WP documentation update
-Date: Thu, 20 Jun 2019 10:20:05 +0800
-Message-Id: <20190620022008.19172-23-peterx@redhat.com>
+Subject: [PATCH v5 23/25] userfaultfd: wp: declare _UFFDIO_WRITEPROTECT conditionally
+Date: Thu, 20 Jun 2019 10:20:06 +0800
+Message-Id: <20190620022008.19172-24-peterx@redhat.com>
 In-Reply-To: <20190620022008.19172-1-peterx@redhat.com>
 References: <20190620022008.19172-1-peterx@redhat.com>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.28]); Thu, 20 Jun 2019 02:24:59 +0000 (UTC)
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.39]); Thu, 20 Jun 2019 02:25:10 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Martin Cracauer <cracauer@cons.org>
+Only declare _UFFDIO_WRITEPROTECT if the user specified
+UFFDIO_REGISTER_MODE_WP and if all the checks passed.  Then when the
+user registers regions with shmem/hugetlbfs we won't expose the new
+ioctl to them.  Even with complete anonymous memory range, we'll only
+expose the new WP ioctl bit if the register mode has MODE_WP.
 
-Adds documentation about the write protection support.
-
-Signed-off-by: Martin Cracauer <cracauer@cons.org>
-Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-[peterx: rewrite in rst format; fixups here and there]
-Reviewed-by: Jerome Glisse <jglisse@redhat.com>
 Reviewed-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
 Signed-off-by: Peter Xu <peterx@redhat.com>
 ---
- Documentation/admin-guide/mm/userfaultfd.rst | 51 ++++++++++++++++++++
- 1 file changed, 51 insertions(+)
+ fs/userfaultfd.c | 16 +++++++++++++---
+ 1 file changed, 13 insertions(+), 3 deletions(-)
 
-diff --git a/Documentation/admin-guide/mm/userfaultfd.rst b/Documentation/admin-guide/mm/userfaultfd.rst
-index 5048cf661a8a..c30176e67900 100644
---- a/Documentation/admin-guide/mm/userfaultfd.rst
-+++ b/Documentation/admin-guide/mm/userfaultfd.rst
-@@ -108,6 +108,57 @@ UFFDIO_COPY. They're atomic as in guaranteeing that nothing can see an
- half copied page since it'll keep userfaulting until the copy has
- finished.
- 
-+Notes:
+diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
+index 498971fa9163..4e1d7748224a 100644
+--- a/fs/userfaultfd.c
++++ b/fs/userfaultfd.c
+@@ -1465,14 +1465,24 @@ static int userfaultfd_register(struct userfaultfd_ctx *ctx,
+ 	up_write(&mm->mmap_sem);
+ 	mmput(mm);
+ 	if (!ret) {
++		__u64 ioctls_out;
 +
-+- If you requested UFFDIO_REGISTER_MODE_MISSING when registering then
-+  you must provide some kind of page in your thread after reading from
-+  the uffd.  You must provide either UFFDIO_COPY or UFFDIO_ZEROPAGE.
-+  The normal behavior of the OS automatically providing a zero page on
-+  an annonymous mmaping is not in place.
++		ioctls_out = basic_ioctls ? UFFD_API_RANGE_IOCTLS_BASIC :
++		    UFFD_API_RANGE_IOCTLS;
 +
-+- None of the page-delivering ioctls default to the range that you
-+  registered with.  You must fill in all fields for the appropriate
-+  ioctl struct including the range.
++		/*
++		 * Declare the WP ioctl only if the WP mode is
++		 * specified and all checks passed with the range
++		 */
++		if (!(uffdio_register.mode & UFFDIO_REGISTER_MODE_WP))
++			ioctls_out &= ~((__u64)1 << _UFFDIO_WRITEPROTECT);
 +
-+- You get the address of the access that triggered the missing page
-+  event out of a struct uffd_msg that you read in the thread from the
-+  uffd.  You can supply as many pages as you want with UFFDIO_COPY or
-+  UFFDIO_ZEROPAGE.  Keep in mind that unless you used DONTWAKE then
-+  the first of any of those IOCTLs wakes up the faulting thread.
-+
-+- Be sure to test for all errors including (pollfd[0].revents &
-+  POLLERR).  This can happen, e.g. when ranges supplied were
-+  incorrect.
-+
-+Write Protect Notifications
-+---------------------------
-+
-+This is equivalent to (but faster than) using mprotect and a SIGSEGV
-+signal handler.
-+
-+Firstly you need to register a range with UFFDIO_REGISTER_MODE_WP.
-+Instead of using mprotect(2) you use ioctl(uffd, UFFDIO_WRITEPROTECT,
-+struct *uffdio_writeprotect) while mode = UFFDIO_WRITEPROTECT_MODE_WP
-+in the struct passed in.  The range does not default to and does not
-+have to be identical to the range you registered with.  You can write
-+protect as many ranges as you like (inside the registered range).
-+Then, in the thread reading from uffd the struct will have
-+msg.arg.pagefault.flags & UFFD_PAGEFAULT_FLAG_WP set. Now you send
-+ioctl(uffd, UFFDIO_WRITEPROTECT, struct *uffdio_writeprotect) again
-+while pagefault.mode does not have UFFDIO_WRITEPROTECT_MODE_WP set.
-+This wakes up the thread which will continue to run with writes. This
-+allows you to do the bookkeeping about the write in the uffd reading
-+thread before the ioctl.
-+
-+If you registered with both UFFDIO_REGISTER_MODE_MISSING and
-+UFFDIO_REGISTER_MODE_WP then you need to think about the sequence in
-+which you supply a page and undo write protect.  Note that there is a
-+difference between writes into a WP area and into a !WP area.  The
-+former will have UFFD_PAGEFAULT_FLAG_WP set, the latter
-+UFFD_PAGEFAULT_FLAG_WRITE.  The latter did not fail on protection but
-+you still need to supply a page when UFFDIO_REGISTER_MODE_MISSING was
-+used.
-+
- QEMU/KVM
- ========
- 
+ 		/*
+ 		 * Now that we scanned all vmas we can already tell
+ 		 * userland which ioctls methods are guaranteed to
+ 		 * succeed on this range.
+ 		 */
+-		if (put_user(basic_ioctls ? UFFD_API_RANGE_IOCTLS_BASIC :
+-			     UFFD_API_RANGE_IOCTLS,
+-			     &user_uffdio_register->ioctls))
++		if (put_user(ioctls_out, &user_uffdio_register->ioctls))
+ 			ret = -EFAULT;
+ 	}
+ out:
 -- 
 2.21.0
 
