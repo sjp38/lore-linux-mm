@@ -2,318 +2,181 @@ Return-Path: <SRS0=424v=UT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D9B35C48BE4
-	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 12:03:42 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A36B7C43613
+	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 12:18:56 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8F14E20675
-	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 12:03:42 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8F14E20675
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id 5B6B82080C
+	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 12:18:56 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="So/APhDB"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5B6B82080C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 28BA36B0003; Thu, 20 Jun 2019 08:03:42 -0400 (EDT)
+	id E40CA6B0003; Thu, 20 Jun 2019 08:18:55 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 23C1D8E0002; Thu, 20 Jun 2019 08:03:42 -0400 (EDT)
+	id DF2E38E0002; Thu, 20 Jun 2019 08:18:55 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0B6C28E0001; Thu, 20 Jun 2019 08:03:42 -0400 (EDT)
+	id CE11E8E0001; Thu, 20 Jun 2019 08:18:55 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id AA2236B0003
-	for <linux-mm@kvack.org>; Thu, 20 Jun 2019 08:03:41 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id d27so3982595eda.9
-        for <linux-mm@kvack.org>; Thu, 20 Jun 2019 05:03:41 -0700 (PDT)
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 9872B6B0003
+	for <linux-mm@kvack.org>; Thu, 20 Jun 2019 08:18:55 -0400 (EDT)
+Received: by mail-pl1-f200.google.com with SMTP id t2so1491933plo.10
+        for <linux-mm@kvack.org>; Thu, 20 Jun 2019 05:18:55 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to
-         :references:from:openpgp:autocrypt:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=7FlxYRD+PPVtk7Q/VT/Z84UbSCXLBsiR4iqVyiSDj8A=;
-        b=A6Ylc3pZT4AzVDH+KrDsd9lFkztP25piphAlwPgLE9E50QB+CNJkJ7jeePWdY7Hrfz
-         w3nDGGdsD6L4uO43ZWD8kE7intx5ntcX/0uMiZ3wXHYOup/uyUxBzY5o0YRvl5HPsjTl
-         Mmnu/9f7zx2wePoqHC9mCtR8CMlaoETthaUNOrWhZLuyATZn4p4UCgyvD0FFmQcaU3+o
-         Fya46A6SuQzlbS0IMzogYOcWZNGkHWDgFaRf5ru5x6qX4fpVAHzZ1qjKRLmxm8Zn6Btu
-         qhBM+VSSuoX+qrzAE13UrQcLuXV1hajwleLuN/pIdUXeXw2zEB3O3oHtJuWEXHH1XNoN
-         YpUw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Gm-Message-State: APjAAAXwaGl7J9gEogLr1Uerxz6IuGn+guUhQzMYYiwoQICupS8i39g8
-	YIEOeOC1OrDOGy3Fb+EBQ0iilY35U3wd3cWFilHXYedar7VeAxdJQiqLzXPsHexHRI/i6Rkmf3K
-	YrSK9ybOP1LPNJKC+PuJQD0Jk2zCd/COUhX/wo+yLG7lJmMqlioKC6AQwcv/VILfR9A==
-X-Received: by 2002:a17:906:b209:: with SMTP id p9mr5933458ejz.270.1561032221116;
-        Thu, 20 Jun 2019 05:03:41 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwEpXRJTUyWsAtFUQA0ZbLkJEU9JuoPGA/LIOzQgof6CwQm6I1WwwoR2VzZEeSMhzANIpTf
-X-Received: by 2002:a17:906:b209:: with SMTP id p9mr5933305ejz.270.1561032219387;
-        Thu, 20 Jun 2019 05:03:39 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561032219; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:subject:to:cc
+         :references:in-reply-to:mime-version:user-agent:message-id
+         :content-transfer-encoding;
+        bh=YoTiXuUhP7MILD5fnaoAlkgFg2nR8TYJrJEF6s4RZXw=;
+        b=sCHS7aB4+TNI1LvzDRIUp0KYi4E+8LFfsp4+eSeSQcFkisPT4ySC3TR7Gww2oG7+CL
+         pqpLpqS5SnQnyZ2xkO/6SKmKroT5j/+cwoJ/tTlw62E6zzRquIW6G1Yr0KTF0xbSNtqC
+         fv18uUcRvQxLKI/bIFaEsQ2jy9og5/YdfssXoMveHdhOeLoP9cxW+m9fVvRO+ViW5dC0
+         34LBAFTqtdbb/YR0aiCxXM8qClG2jPPywtOtkpfY9f3cM5M3uwMpVJwJASPpF52lRu9R
+         d4IeA8z2EdTkEydhaXahbw9dmQf778I7fX5rUAJp8Ux/DwHv3Fp0kFERK/KPCvvbuWK+
+         D6TA==
+X-Gm-Message-State: APjAAAVH0OYeNJQZT6R1xGwJBaCNAhh3flTz9bgWNjU/FnDqfBDqAh0d
+	S84ugYzRyWgZqlgG6jP9ygBpFQIfOHJHayc9cQQV06/7jLULaZaNYL6zGEOLk3+7LSXnIux5rHu
+	JDJUuAJc9amGTNmrk3GwIjSodBCTmsPMd9n9Zxs6dPWULK9gmuOxumATxUV0HSK8hvQ==
+X-Received: by 2002:a17:90a:3225:: with SMTP id k34mr2783030pjb.31.1561033135212;
+        Thu, 20 Jun 2019 05:18:55 -0700 (PDT)
+X-Received: by 2002:a17:90a:3225:: with SMTP id k34mr2782963pjb.31.1561033134253;
+        Thu, 20 Jun 2019 05:18:54 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561033134; cv=none;
         d=google.com; s=arc-20160816;
-        b=XQv73OIm07o3x3PnJt4sdGxVcmMgqaWjTize4fBWjaCgt3hUtXIzcVTa3XJWZRZsFr
-         4F52CkYidRVpKqeqkSkWLyRjyyhPNpaCXXFs9RURR9NObt0FQZSgNdiIxEzJC5sOAeYr
-         1tZWCAeLuG0W6s9KVXPwGefbTE8VUgOmbt4bvmYqYmGtQ9MymeCNxK486tJKHEg1dWie
-         IKU/2mj4zH/urQg54lIm+mI6cIkWB4ZpZ/Z2VksY85n7TshyTLbKVmJ5eCwUCG20wEfG
-         /KjSIpF0FYaRCOcU0h5/B3ay0Qb2Md6J1JEOGeIW9myL+T3MSFrSvCvRt5UTZM87gYwO
-         ZMmw==
+        b=Rctg5EdkXpUfKGqMkUyI0MtIS5CeBJslAM+swxifAaxY5jGBgFcdqtwSiRyAyrh5cU
+         KMzGzTuxRkbooHE+rKP8zkHXzJyMlWzVWk3RmIZdE2z9W5JDAS8FJ6og57HP7RjRdtbK
+         VsXp3twJxXZJRQXUTcA9oV4iKAJtoG0iKqF3lurv3jdgfVplfJEhWH6zJgwbkJ56ZvtU
+         ISXjxCjRoWZhxH98ViWf/+jySYp/JxsRV1BG9y0KiOMvZw/nS5ggjNsUvKZq9X5O46JV
+         8Uq69Y2w0LBbaAMRwFeLfC4foImoqm9xG/nXEIOr5dFUL2TpVinTbvvlqFYDTezXP6lT
+         7m2A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:autocrypt:openpgp:from:references:to
-         :subject;
-        bh=7FlxYRD+PPVtk7Q/VT/Z84UbSCXLBsiR4iqVyiSDj8A=;
-        b=ZPxvUfS7g4AW3cHEZnl4f5tLMaHVAEj8Q0+vxd1KSRd/mt6aIC4cS7FZXncqbJqtQk
-         hyq5u7QOJEQXKmKSYNmI3G/53VyvJ+oTiGb29ARsaY8ok33ILGsGkVj3QKqZzzu52Zj0
-         tE3wgJKg/az/fIjkZEMjQVTzygGl7GskguN22fO9Ju12ZBLssIzJIZYQ4alGYsoG0LLD
-         +UGIjz3T05vIJsz59y4B1xMJZQ53/863yX+oolyQL0ES36s/JTSIDkDbhFJEeS6qlTbQ
-         LtDm9lHB6GuDSCTdrN0BwFdqJ8dJHfz+8eP8Jf7jWfMkvUKUUP7d7ZnDYm5YdISosieS
-         xWxQ==
+        h=content-transfer-encoding:message-id:user-agent:mime-version
+         :in-reply-to:references:cc:to:subject:from:date:dkim-signature;
+        bh=YoTiXuUhP7MILD5fnaoAlkgFg2nR8TYJrJEF6s4RZXw=;
+        b=Sq96uW1IvFFlWrM5iEs4SluurMnB/va47SNj8j66BfSQScyo2+RauReb3MyZH/hhG+
+         4ZhF2PHIIPievCoXcrDI2QZnqJNbw0sHbj1v/1oeELJpb6+/jfoUMN+nKUylH5ypeuR0
+         USB5XT64ZFMdR5vhXsQM/d2M44c+Tex2TfcdhjRnDgelATTjX3o68Cp30QBmMz7XW0K3
+         vX9E4BjAdvsTHvRwLhdlPEjwNyUMhloq4Y+xZPU4OepeXPsoKg7d3f67UBM0tUr1YCTy
+         pDp/niZt9rn01CQfpSg+tAv1ZtL/5EC+wiK+6VdqHaANC+FG8DtVKBL3hJHwXj6nmi59
+         z27w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id g41si17232798edc.339.2019.06.20.05.03.39
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b="So/APhDB";
+       spf=pass (google.com: domain of npiggin@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=npiggin@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id c20sor21215109pfi.47.2019.06.20.05.18.54
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 20 Jun 2019 05:03:39 -0700 (PDT)
-Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (Google Transport Security);
+        Thu, 20 Jun 2019 05:18:54 -0700 (PDT)
+Received-SPF: pass (google.com: domain of npiggin@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 5AB4FAF03;
-	Thu, 20 Jun 2019 12:03:38 +0000 (UTC)
-Subject: Re: [PATCH RFC] proc/meminfo: add NetBuffers counter for socket
- buffers
-To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, linux-mm@kvack.org,
- linux-kernel@vger.kernel.org, netdev@vger.kernel.org
-References: <155792134187.1641.3858215257559626632.stgit@buzz>
-From: Vlastimil Babka <vbabka@suse.cz>
-Openpgp: preference=signencrypt
-Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
- 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
-Message-ID: <9f611f72-c883-45e9-cb2a-824ba27356d9@suse.cz>
-Date: Thu, 20 Jun 2019 14:03:37 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.1
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b="So/APhDB";
+       spf=pass (google.com: domain of npiggin@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=npiggin@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=date:from:subject:to:cc:references:in-reply-to:mime-version
+         :user-agent:message-id:content-transfer-encoding;
+        bh=YoTiXuUhP7MILD5fnaoAlkgFg2nR8TYJrJEF6s4RZXw=;
+        b=So/APhDByNH5ZTnsyLPXFkassmIa6Ov5z4dUXPiq3BcI+/tBJroH1OYfD+D/LPx2Kz
+         Z2iebLBARMIonYTJViKAMNqX6T9DWFpGX4f7lEU40XE6jdwOBAKSb7px2/VVG1NdMZUV
+         DGEi2tUgpJk8ahufrxePUMdf1fVMSMqTEhNaXDKRGi+y/W5OIH7OvaZjkf2vDypfXqxI
+         TD2ewroIsXlnf4E6gOQtkllshj947AFSuqcZtKArd6jeI++QOwML2r0B7G5wvAqJD4UD
+         xWsias8CY08OAi7pp0ZZm2YUI8zBDfNLVjsK8N1PIHm6HWAHq05Ev5F7HsEKLa/T1vLU
+         uiFg==
+X-Google-Smtp-Source: APXvYqx1eSkhbrnX9j+XXPf1ijevNCfi95aQ4yuFnnSZCNNzh3FuAkFtzgkNfUYJBeEqzMwN6uhd9g==
+X-Received: by 2002:a62:e815:: with SMTP id c21mr90025668pfi.244.1561033133807;
+        Thu, 20 Jun 2019 05:18:53 -0700 (PDT)
+Received: from localhost ([203.220.63.126])
+        by smtp.gmail.com with ESMTPSA id i133sm24389358pfe.75.2019.06.20.05.18.51
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Thu, 20 Jun 2019 05:18:52 -0700 (PDT)
+Date: Thu, 20 Jun 2019 22:18:51 +1000
+From: Nicholas Piggin <npiggin@gmail.com>
+Subject: Re: [PATCH 16/16] mm: pass get_user_pages_fast iterator arguments in
+ a structure
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Andrey Konovalov <andreyknvl@google.com>, Benjamin Herrenschmidt
+	<benh@kernel.crashing.org>, Rich Felker <dalias@libc.org>, "David S. Miller"
+	<davem@davemloft.net>, Christoph Hellwig <hch@lst.de>, James Hogan
+	<jhogan@kernel.org>, Khalid Aziz <khalid.aziz@oracle.com>,
+	Linux List Kernel Mailing <linux-kernel@vger.kernel.org>,
+	linux-mips@vger.kernel.org, Linux-MM <linux-mm@kvack.org>,
+	linuxppc-dev@lists.ozlabs.org, Linux-sh list <linux-sh@vger.kernel.org>,
+	Michael Ellerman <mpe@ellerman.id.au>, Paul Burton <paul.burton@mips.com>,
+	Paul Mackerras <paulus@samba.org>, sparclinux@vger.kernel.org,
+	the arch/x86 maintainers <x86@kernel.org>, Yoshinori Sato
+	<ysato@users.sourceforge.jp>
+References: <20190611144102.8848-1-hch@lst.de>
+	<20190611144102.8848-17-hch@lst.de>
+	<1560300464.nijubslu3h.astroid@bobo.none>
+	<CAHk-=wjSo+TzkvYnAqrp=eFgzzc058DhSMTPr4-2quZTbGLfnw@mail.gmail.com>
+In-Reply-To:
+	<CAHk-=wjSo+TzkvYnAqrp=eFgzzc058DhSMTPr4-2quZTbGLfnw@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <155792134187.1641.3858215257559626632.stgit@buzz>
+User-Agent: astroid/0.14.0 (https://github.com/astroidmail/astroid)
+Message-Id: <1561032202.0qfct43s2c.astroid@bobo.none>
 Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 5/15/19 1:55 PM, Konstantin Khlebnikov wrote:
-> Socket buffers always were dark-matter that lives by its own rules.
+Linus Torvalds's on June 12, 2019 11:09 am:
+> On Tue, Jun 11, 2019 at 2:55 PM Nicholas Piggin <npiggin@gmail.com> wrote=
+:
+>>
+>> What does this do for performance? I've found this pattern can be
+>> bad for store aliasing detection.
+>=20
+> I wouldn't expect it to be noticeable, and the lack of argument
+> reloading etc should make up for it. Plus inlining makes it a
+> non-issue when that happens.
 
-Is the information even exported somewhere e.g. in sysfs or via netlink yet?
+Maybe in isolation. Just seems like a strange pattern to sprinkle
+around randomly, I wouldn't like it to proliferate.
 
-> This patch adds line NetBuffers that exposes most common kinds of them.
+I understand in some cases where a big set of parameters or
+basically state gets sent around through a lot of interfaces.
+Within one file to make lines a bit shorter or save a few bytes
+isn't such a strong case.
 
-Did you encounter a situation where the number was significant and this
-would help finding out why memory is occupied?
+>=20
+> But I guess we could also at least look at using "restrict", if that
+> ends up helping. Unlike the completely bogus type-based aliasing rules
+> (that we disable because I think the C people were on some bad bad
+> drugs when they came up with them), restricted pointers are a real
+> thing that makes sense.
+>=20
+> That said, we haven't traditionally used it, and I don't know how much
+> it helps gcc. Maybe gcc ignores it entirely? S
 
-> TCP and UDP are most important species.
-> SCTP is added as example of modular protocol.
-> UNIX have no memory counter for now, should be easy to add.
-> 
-> Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Ahh, it's not compiler store alias analysis I'm talking about, but
+processor (but you raise an interesting point about compiler too,
+would be nice if we could improve that in general).
 
-Right now it's a sum of a few values, which should be fine wrt
-/proc/meminfo overhead. But I guess netdev guys should have a say in
-this. Also you should update the corresponding Documentation/ file.
+The processor aliasing problem happens because the struct will
+be initialised with stores using one base register (e.g., stack
+register), and then same memory is loaded using a different
+register (e.g., parameter register). Processor's static heuristics
+for determining a load doesn't alias with an earlier store doesn't
+do so well in that case.
+
+Just about everywhere I've seen those kind of misspeculation and
+flushes in the kernel has been this pattern, so I'm wary of it in
+performance critical code.
 
 Thanks,
-Vlastimil
-
-> ---
->  fs/proc/meminfo.c  |    5 ++++-
->  include/linux/mm.h |    6 ++++++
->  mm/page_alloc.c    |    3 ++-
->  net/core/sock.c    |   20 ++++++++++++++++++++
->  net/sctp/socket.c  |    2 +-
->  5 files changed, 33 insertions(+), 3 deletions(-)
-> 
-> diff --git a/fs/proc/meminfo.c b/fs/proc/meminfo.c
-> index 7bc14716fc5d..0ee2300a916d 100644
-> --- a/fs/proc/meminfo.c
-> +++ b/fs/proc/meminfo.c
-> @@ -41,6 +41,7 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
->  	unsigned long sreclaimable, sunreclaim, misc_reclaimable;
->  	unsigned long kernel_stack_kb, page_tables, percpu_pages;
->  	unsigned long anon_pages, file_pages, swap_cached;
-> +	unsigned long net_buffers;
->  	long kernel_misc;
->  	int lru;
->  
-> @@ -66,12 +67,13 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
->  	kernel_stack_kb = global_zone_page_state(NR_KERNEL_STACK_KB);
->  	page_tables = global_zone_page_state(NR_PAGETABLE);
->  	percpu_pages = pcpu_nr_pages();
-> +	net_buffers = total_netbuffer_pages();
->  
->  	/* all other kinds of kernel memory allocations */
->  	kernel_misc = i.totalram - i.freeram - anon_pages - file_pages
->  		      - sreclaimable - sunreclaim - misc_reclaimable
->  		      - (kernel_stack_kb >> (PAGE_SHIFT - 10))
-> -		      - page_tables - percpu_pages;
-> +		      - page_tables - percpu_pages - net_buffers;
->  	if (kernel_misc < 0)
->  		kernel_misc = 0;
->  
-> @@ -137,6 +139,7 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
->  	show_val_kb(m, "VmallocUsed:    ", 0ul);
->  	show_val_kb(m, "VmallocChunk:   ", 0ul);
->  	show_val_kb(m, "Percpu:         ", percpu_pages);
-> +	show_val_kb(m, "NetBuffers:     ", net_buffers);
->  	show_val_kb(m, "KernelMisc:     ", kernel_misc);
->  
->  #ifdef CONFIG_MEMORY_FAILURE
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index 0e8834ac32b7..d0a58355bfb7 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -2254,6 +2254,12 @@ extern void si_meminfo_node(struct sysinfo *val, int nid);
->  extern unsigned long arch_reserved_kernel_pages(void);
->  #endif
->  
-> +#ifdef CONFIG_NET
-> +extern unsigned long total_netbuffer_pages(void);
-> +#else
-> +static inline unsigned long total_netbuffer_pages(void) { return 0; }
-> +#endif
-> +
->  extern __printf(3, 4)
->  void warn_alloc(gfp_t gfp_mask, nodemask_t *nodemask, const char *fmt, ...);
->  
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 3b13d3914176..fcdd7c6e72b9 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -5166,7 +5166,7 @@ void show_free_areas(unsigned int filter, nodemask_t *nodemask)
->  		" active_file:%lu inactive_file:%lu isolated_file:%lu\n"
->  		" unevictable:%lu dirty:%lu writeback:%lu unstable:%lu\n"
->  		" slab_reclaimable:%lu slab_unreclaimable:%lu\n"
-> -		" mapped:%lu shmem:%lu pagetables:%lu bounce:%lu\n"
-> +		" mapped:%lu shmem:%lu pagetables:%lu bounce:%lu net_buffers:%lu\n"
->  		" free:%lu free_pcp:%lu free_cma:%lu\n",
->  		global_node_page_state(NR_ACTIVE_ANON),
->  		global_node_page_state(NR_INACTIVE_ANON),
-> @@ -5184,6 +5184,7 @@ void show_free_areas(unsigned int filter, nodemask_t *nodemask)
->  		global_node_page_state(NR_SHMEM),
->  		global_zone_page_state(NR_PAGETABLE),
->  		global_zone_page_state(NR_BOUNCE),
-> +		total_netbuffer_pages(),
->  		global_zone_page_state(NR_FREE_PAGES),
->  		free_pcp,
->  		global_zone_page_state(NR_FREE_CMA_PAGES));
-> diff --git a/net/core/sock.c b/net/core/sock.c
-> index 75b1c950b49f..dfca4e024b74 100644
-> --- a/net/core/sock.c
-> +++ b/net/core/sock.c
-> @@ -142,6 +142,7 @@
->  #include <trace/events/sock.h>
->  
->  #include <net/tcp.h>
-> +#include <net/udp.h>
->  #include <net/busy_poll.h>
->  
->  static DEFINE_MUTEX(proto_list_mutex);
-> @@ -3573,3 +3574,22 @@ bool sk_busy_loop_end(void *p, unsigned long start_time)
->  }
->  EXPORT_SYMBOL(sk_busy_loop_end);
->  #endif /* CONFIG_NET_RX_BUSY_POLL */
-> +
-> +#if IS_ENABLED(CONFIG_IP_SCTP)
-> +atomic_long_t sctp_memory_allocated;
-> +EXPORT_SYMBOL_GPL(sctp_memory_allocated);
-> +#endif
-> +
-> +unsigned long total_netbuffer_pages(void)
-> +{
-> +	unsigned long ret = 0;
-> +
-> +#if IS_ENABLED(CONFIG_IP_SCTP)
-> +	ret += atomic_long_read(&sctp_memory_allocated);
-> +#endif
-> +#ifdef CONFIG_INET
-> +	ret += atomic_long_read(&tcp_memory_allocated);
-> +	ret += atomic_long_read(&udp_memory_allocated);
-> +#endif
-> +	return ret;
-> +}
-> diff --git a/net/sctp/socket.c b/net/sctp/socket.c
-> index e4e892cc5644..9d11afdeeae4 100644
-> --- a/net/sctp/socket.c
-> +++ b/net/sctp/socket.c
-> @@ -107,7 +107,7 @@ static int sctp_sock_migrate(struct sock *oldsk, struct sock *newsk,
->  			     enum sctp_socket_type type);
->  
->  static unsigned long sctp_memory_pressure;
-> -static atomic_long_t sctp_memory_allocated;
-> +extern atomic_long_t sctp_memory_allocated;
->  struct percpu_counter sctp_sockets_allocated;
->  
->  static void sctp_enter_memory_pressure(struct sock *sk)
-> 
+Nick
+=
 
