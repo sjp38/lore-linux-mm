@@ -2,487 +2,470 @@ Return-Path: <SRS0=424v=UT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 64A7DC48BDF
-	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 02:25:42 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D4C89C43613
+	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 03:32:58 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1CF082084A
-	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 02:25:42 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1CF082084A
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 4AFF5214AF
+	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 03:32:58 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="sDpSgEG6"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4AFF5214AF
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BB7868E0010; Wed, 19 Jun 2019 22:25:41 -0400 (EDT)
+	id BD3C88E0002; Wed, 19 Jun 2019 23:32:57 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B69548E0001; Wed, 19 Jun 2019 22:25:41 -0400 (EDT)
+	id B83EE8E0001; Wed, 19 Jun 2019 23:32:57 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9B9AB8E0010; Wed, 19 Jun 2019 22:25:41 -0400 (EDT)
+	id A73F48E0002; Wed, 19 Jun 2019 23:32:57 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D1858E0001
-	for <linux-mm@kvack.org>; Wed, 19 Jun 2019 22:25:41 -0400 (EDT)
-Received: by mail-qk1-f198.google.com with SMTP id v4so1740338qkj.10
-        for <linux-mm@kvack.org>; Wed, 19 Jun 2019 19:25:41 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 62B768E0001
+	for <linux-mm@kvack.org>; Wed, 19 Jun 2019 23:32:57 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id y5so1018051pfb.20
+        for <linux-mm@kvack.org>; Wed, 19 Jun 2019 20:32:57 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=kMN4O4i3BJ2zkE5zs2TwQZ/JGfg9TBffImhfwjWsIf0=;
-        b=qv2Ol+bLNXCcWZMZh/6sN46b+C88YeKw9630qBQbTmdGZGaggqq3eDFASCXw1ldXDt
-         sfQdMbcgKvNSI8uV/AiBTnmBiN1HVUNnnD1h0w+vGkoYr1NZNotdQxFdxx8fLFMjDfbD
-         GjiOVRQjHlP1smgcrsbbW4ICUVm3xRrh+CEH57P0x3AL6pXnqhlXyIX9RFCLqQu2hvwc
-         dsrwVouhIah4jlR+Nm8Jm6bs8Y7lLZzPgOXQNVQbjTORW6hoMIbgQPJlbpVaA0osdY6o
-         xfvTmkKxGYTKf2CaQ1342o61ondZH51Oi/9yl6ImsSgYIWl6Cd9guASNeWeTJtn+fTgr
-         bCbw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAVu9nkFGqvvAnKSdlX6l3vASFYEc24pgyazJKzeIPSUx+xKwHSl
-	LDNNSD4NyJY/2QqBYTo6HYRgM1fSpM7TEyZt0SuTMQMGA+bXbh5GYSZcyNsIiYKlrAkJem3KY1y
-	OgoAn726J5lHGspcChKV59851MKHrxPIT+bPfIB8NKSAokC3HJ6wOlPQLFrUlslMgzA==
-X-Received: by 2002:ae9:d601:: with SMTP id r1mr103736664qkk.231.1560997541227;
-        Wed, 19 Jun 2019 19:25:41 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyYFXsbd6Jp9vM7cMXOF0a8M1kVzo3txuopQKLamD2nx3ZR0qs+sjQ+/HUUEblt7NvJkZR4
-X-Received: by 2002:ae9:d601:: with SMTP id r1mr103736623qkk.231.1560997540295;
-        Wed, 19 Jun 2019 19:25:40 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560997540; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:subject:message-id
+         :user-agent;
+        bh=xo0lFU7yDrh8rRiBioefi7YVVGheBPuISU/F6CMl2jE=;
+        b=kmt65sKWzXyY6MdJNoTtkm9b3UTyriL/mp60yH9Y7/9d0cqCtHqLsaqevT+nOjXGk8
+         poDU/aJ9kgiVuzEkTMwFZbsyv0WmY7Pr6vZMvYQ7Wu1w96pUmurwyg/OFO6L341Dr7OO
+         y1QTMHFFg4Tno3w9IEuAIuQjdMTYSoe+A7oLR0IjnISstmAM7zlhe36byet5vWABtw89
+         pkhdPiYse5DIE+WjjMlxba8R2KQsZ7+/dSWCivPKkm5Na3gzY9fKDJSDfGUOPhYvh+t3
+         BKTc/ry7ORchjJNpuJ5A8Hz7o9b1TRGQuGPZZuu9tqXh+7VFHbobMvqdiVcauM7LeDpM
+         u+sg==
+X-Gm-Message-State: APjAAAUFLgopT7okBWEm00hqE3HMDINGKf43UNJvYsCltAzG6d3Y6cwi
+	LCj8VzOlUeUPV8WR56nESB658UEBnAFZCHm4O1wJ+RDDEbyT4AutoJl2v0IZHMcra9Lm2KHz6Ry
+	MMv0PwhFe0lhAgzxwoYCFrBJNGbdM8zF7drYNdItrnO3CV3clp+RRdP9zk+GGMSW2HA==
+X-Received: by 2002:a17:902:9f93:: with SMTP id g19mr107058474plq.223.1561001576792;
+        Wed, 19 Jun 2019 20:32:56 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwKwTx7uzq+r2/ZrVuqAh7O8k1l6nFqTRwdrPZ9jCKFFZ/X6OfCbov4uD2guE2I0DTSuY9M
+X-Received: by 2002:a17:902:9f93:: with SMTP id g19mr107058357plq.223.1561001574846;
+        Wed, 19 Jun 2019 20:32:54 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561001574; cv=none;
         d=google.com; s=arc-20160816;
-        b=QoVR5pSWyKziowd66sNnuJ4tZqzF53S5efNVioSBLPoMgczFFYomKbKHLQdGggMyiB
-         noIHLl6ly5W+PyEwcjfCp33K/DuPkf8V5/bsKsAhec+by/wAEo0aAs+lapG+vrj5vaRq
-         mG2mOA4Nk83+SEAVG1lh2dlA5WHqaHRwtBWhkrXkVRaoQt/dPG2boJHt8PQZaiPawuC1
-         oNTq0P+e85lwpl7luzN2KnvH7AJkGmbHfx2yAqO6lzNkav5WW0lhJeI/+uZ5ZEeFCDkz
-         gL9V8fmYm/QSmexTA0uQdFTB5fXlBGykX3E9eCuqWfrUOmpo5jRaqzOJYd7KyYMuDZzm
-         QUkw==
+        b=T0zwyiqsS0nlwd4notQ+d7BVeOB1Otk+dWkLkl3jAFqWrfUoCBW77lP+4MWDMW8AOw
+         1AzytRo5umjkSehngrl5yjEaZdsrGbj02czHSFJnzR0VF+6wOTYKhh7ilua9nGGcYJC7
+         zUWjlNwg5NhShsU7TqqDAAwxsFTfobuism4WOXy7MxObrtSLyCWPDgq1dPRYy+AMxbTY
+         QiTxaa9cjb3dpM55fo6D/nFV2VTVa+apkGg4v3yLRPmZE4fMaQNtcs/ppHtjTLSpxOL/
+         QParNqDMuGklx2nErjodedcc/QXJ+HneMHcvWiDsAl+h7IZIrzr/V1u2vanVUIVtFyAv
+         7j0Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from;
-        bh=kMN4O4i3BJ2zkE5zs2TwQZ/JGfg9TBffImhfwjWsIf0=;
-        b=f1VSF3LnUJ2/YaNDLIeDmxunsQWVTCGlkErqHtG44WW4dclgJ1GZdF7JZNaiN4VIh+
-         Ha+VGprlrs/vhvITArf67kjOUgvdJEGmmhsDNfugv3J9a6mqmZz1vCbyflUaUZf8fAom
-         DDdCwsG8hTKqdLazoQindCTln+d943ovZzLoMj/ChC2nmSWuUf3AkXx4Oe5gw2QxJxsO
-         WSlcfzAdjmBqT4izhGsARO3VVCkGJep1fTwhKW7KTkTZI6mIN1iR436RSTmFS9I5YE+O
-         MUSd9OZKXrx8rg90/wTuePjK2ztYAUSX63lwk9v8f8AbrxvW9EMp3b21oAHqa2OPTWBX
-         bEzw==
+        h=user-agent:message-id:subject:to:from:date:dkim-signature;
+        bh=xo0lFU7yDrh8rRiBioefi7YVVGheBPuISU/F6CMl2jE=;
+        b=Vp+8fk1CN0MzNe746cEpN9TrnK6aAqvybPCzU3aR2zv8b+fjsL8fi3WP176v+frsOE
+         ja47+25ULW6D5ZdNFjZMBzqeihPSDnox9PmFDChpKHc41U8fN6ZJf6ZjzrIvpPafv3nv
+         p02zqths4ZC+2j5IwMsNr6yL974QP7WdFveSrUW3ZRvHQQ4onxyCfxbgCA7WRoKnr2sa
+         eD4M7fTm9jX7W8Vyp0p+jGWMDz2+1kl+6rmwwJyBvZmuVT0X1EBnwNq4kUKYRcz3BfkS
+         mid2R3QlNU/aER6To9HhwqxZUqQGey8FGibt3ViBGa8tXYNT9JcdL++uszJsqULqxlkj
+         1IlQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id u23si3473273qtq.369.2019.06.19.19.25.40
+       dkim=pass header.i=@kernel.org header.s=default header.b=sDpSgEG6;
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id b5si17683034pfi.205.2019.06.19.20.32.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 19 Jun 2019 19:25:40 -0700 (PDT)
-Received-SPF: pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Wed, 19 Jun 2019 20:32:54 -0700 (PDT)
+Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+       dkim=pass header.i=@kernel.org header.s=default header.b=sDpSgEG6;
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from localhost.localdomain (c-73-223-200-170.hsd1.ca.comcast.net [73.223.200.170])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id E300485538;
-	Thu, 20 Jun 2019 02:25:30 +0000 (UTC)
-Received: from xz-x1.redhat.com (ovpn-12-78.pek2.redhat.com [10.72.12.78])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 6E0691001E69;
-	Thu, 20 Jun 2019 02:25:22 +0000 (UTC)
-From: Peter Xu <peterx@redhat.com>
-To: linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
-Cc: David Hildenbrand <david@redhat.com>,
-	Hugh Dickins <hughd@google.com>,
-	Maya Gokhale <gokhale2@llnl.gov>,
-	Jerome Glisse <jglisse@redhat.com>,
-	Pavel Emelyanov <xemul@virtuozzo.com>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	peterx@redhat.com,
-	Martin Cracauer <cracauer@cons.org>,
-	Denis Plotnikov <dplotnikov@virtuozzo.com>,
-	Shaohua Li <shli@fb.com>,
-	Andrea Arcangeli <aarcange@redhat.com>,
-	Mike Kravetz <mike.kravetz@oracle.com>,
-	Marty McFadden <mcfadden8@llnl.gov>,
-	Mike Rapoport <rppt@linux.vnet.ibm.com>,
-	Mel Gorman <mgorman@suse.de>,
-	"Kirill A . Shutemov" <kirill@shutemov.name>,
-	"Dr . David Alan Gilbert" <dgilbert@redhat.com>
-Subject: [PATCH v5 25/25] userfaultfd: selftests: add write-protect test
-Date: Thu, 20 Jun 2019 10:20:08 +0800
-Message-Id: <20190620022008.19172-26-peterx@redhat.com>
-In-Reply-To: <20190620022008.19172-1-peterx@redhat.com>
-References: <20190620022008.19172-1-peterx@redhat.com>
-MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.28]); Thu, 20 Jun 2019 02:25:39 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTPSA id 056F420861;
+	Thu, 20 Jun 2019 03:32:53 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1561001574;
+	bh=2ShmX+TUzBT7AIwKpbQ5JwnBuBXToB6XwK6SMbOL3bM=;
+	h=Date:From:To:Subject:From;
+	b=sDpSgEG6RLDt9uDFGFWjqIOkQivEZqQSfP3yCH+bBPYF4eu4Fd+zuyI7J/mWx9jxq
+	 P3KCXkjidXdlKqd69HH0/f4jweVmS5khIKfAR/Uzv80PQsnkRi1CNHBJdWeeJERoCG
+	 6hFlWGc/HVwpQOwSL3szx7mYLx8OoQjbrW3fsrMo=
+Date: Wed, 19 Jun 2019 20:32:53 -0700
+From: akpm@linux-foundation.org
+To: broonie@kernel.org, linux-fsdevel@vger.kernel.org,
+ linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+ linux-next@vger.kernel.org, mhocko@suse.cz, mm-commits@vger.kernel.org,
+ sfr@canb.auug.org.au
+Subject:  mmotm 2019-06-19-20-32 uploaded
+Message-ID: <20190620033253.hao9i0PFT%akpm@linux-foundation.org>
+User-Agent: s-nail v14.8.16
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This patch adds uffd tests for write protection.
+The mm-of-the-moment snapshot 2019-06-19-20-32 has been uploaded to
 
-Instead of introducing new tests for it, let's simply squashing uffd-wp
-tests into existing uffd-missing test cases.  Changes are:
+   http://www.ozlabs.org/~akpm/mmotm/
 
-(1) Bouncing tests
+mmotm-readme.txt says
 
-  We do the write-protection in two ways during the bouncing test:
+README for mm-of-the-moment:
 
-  - By using UFFDIO_COPY_MODE_WP when resolving MISSING pages: then
-    we'll make sure for each bounce process every single page will be
-    at least fault twice: once for MISSING, once for WP.
+http://www.ozlabs.org/~akpm/mmotm/
 
-  - By direct call UFFDIO_WRITEPROTECT on existing faulted memories:
-    To further torture the explicit page protection procedures of
-    uffd-wp, we split each bounce procedure into two halves (in the
-    background thread): the first half will be MISSING+WP for each
-    page as explained above.  After the first half, we write protect
-    the faulted region in the background thread to make sure at least
-    half of the pages will be write protected again which is the first
-    half to test the new UFFDIO_WRITEPROTECT call.  Then we continue
-    with the 2nd half, which will contain both MISSING and WP faulting
-    tests for the 2nd half and WP-only faults from the 1st half.
+This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
+more than once a week.
 
-(2) Event/Signal test
+You will need quilt to apply these patches to the latest Linus release (5.x
+or 5.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
+http://ozlabs.org/~akpm/mmotm/series
 
-  Mostly previous tests but will do MISSING+WP for each page.  For
-  sigbus-mode test we'll need to provide standalone path to handle the
-  write protection faults.
+The file broken-out.tar.gz contains two datestamp files: .DATE and
+.DATE-yyyy-mm-dd-hh-mm-ss.  Both contain the string yyyy-mm-dd-hh-mm-ss,
+followed by the base kernel version against which this patch series is to
+be applied.
 
-For all tests, do statistics as well for uffd-wp pages.
+This tree is partially included in linux-next.  To see which patches are
+included in linux-next, consult the `series' file.  Only the patches
+within the #NEXT_PATCHES_START/#NEXT_PATCHES_END markers are included in
+linux-next.
 
-Signed-off-by: Peter Xu <peterx@redhat.com>
----
- tools/testing/selftests/vm/userfaultfd.c | 157 +++++++++++++++++++----
- 1 file changed, 133 insertions(+), 24 deletions(-)
 
-diff --git a/tools/testing/selftests/vm/userfaultfd.c b/tools/testing/selftests/vm/userfaultfd.c
-index 417dbdf4d379..fa362fe311e3 100644
---- a/tools/testing/selftests/vm/userfaultfd.c
-+++ b/tools/testing/selftests/vm/userfaultfd.c
-@@ -56,6 +56,7 @@
- #include <linux/userfaultfd.h>
- #include <setjmp.h>
- #include <stdbool.h>
-+#include <assert.h>
- 
- #include "../kselftest.h"
- 
-@@ -78,6 +79,8 @@ static int test_type;
- #define ALARM_INTERVAL_SECS 10
- static volatile bool test_uffdio_copy_eexist = true;
- static volatile bool test_uffdio_zeropage_eexist = true;
-+/* Whether to test uffd write-protection */
-+static bool test_uffdio_wp = false;
- 
- static bool map_shared;
- static int huge_fd;
-@@ -92,6 +95,7 @@ pthread_attr_t attr;
- struct uffd_stats {
- 	int cpu;
- 	unsigned long missing_faults;
-+	unsigned long wp_faults;
- };
- 
- /* pthread_mutex_t starts at page offset 0 */
-@@ -141,9 +145,29 @@ static void uffd_stats_reset(struct uffd_stats *uffd_stats,
- 	for (i = 0; i < n_cpus; i++) {
- 		uffd_stats[i].cpu = i;
- 		uffd_stats[i].missing_faults = 0;
-+		uffd_stats[i].wp_faults = 0;
- 	}
- }
- 
-+static void uffd_stats_report(struct uffd_stats *stats, int n_cpus)
-+{
-+	int i;
-+	unsigned long long miss_total = 0, wp_total = 0;
-+
-+	for (i = 0; i < n_cpus; i++) {
-+		miss_total += stats[i].missing_faults;
-+		wp_total += stats[i].wp_faults;
-+	}
-+
-+	printf("userfaults: %llu missing (", miss_total);
-+	for (i = 0; i < n_cpus; i++)
-+		printf("%lu+", stats[i].missing_faults);
-+	printf("\b), %llu wp (", wp_total);
-+	for (i = 0; i < n_cpus; i++)
-+		printf("%lu+", stats[i].wp_faults);
-+	printf("\b)\n");
-+}
-+
- static int anon_release_pages(char *rel_area)
- {
- 	int ret = 0;
-@@ -264,10 +288,15 @@ struct uffd_test_ops {
- 	void (*alias_mapping)(__u64 *start, size_t len, unsigned long offset);
- };
- 
--#define ANON_EXPECTED_IOCTLS		((1 << _UFFDIO_WAKE) | \
-+#define SHMEM_EXPECTED_IOCTLS		((1 << _UFFDIO_WAKE) | \
- 					 (1 << _UFFDIO_COPY) | \
- 					 (1 << _UFFDIO_ZEROPAGE))
- 
-+#define ANON_EXPECTED_IOCTLS		((1 << _UFFDIO_WAKE) | \
-+					 (1 << _UFFDIO_COPY) | \
-+					 (1 << _UFFDIO_ZEROPAGE) | \
-+					 (1 << _UFFDIO_WRITEPROTECT))
-+
- static struct uffd_test_ops anon_uffd_test_ops = {
- 	.expected_ioctls = ANON_EXPECTED_IOCTLS,
- 	.allocate_area	= anon_allocate_area,
-@@ -276,7 +305,7 @@ static struct uffd_test_ops anon_uffd_test_ops = {
- };
- 
- static struct uffd_test_ops shmem_uffd_test_ops = {
--	.expected_ioctls = ANON_EXPECTED_IOCTLS,
-+	.expected_ioctls = SHMEM_EXPECTED_IOCTLS,
- 	.allocate_area	= shmem_allocate_area,
- 	.release_pages	= shmem_release_pages,
- 	.alias_mapping = noop_alias_mapping,
-@@ -300,6 +329,21 @@ static int my_bcmp(char *str1, char *str2, size_t n)
- 	return 0;
- }
- 
-+static void wp_range(int ufd, __u64 start, __u64 len, bool wp)
-+{
-+	struct uffdio_writeprotect prms = { 0 };
-+
-+	/* Write protection page faults */
-+	prms.range.start = start;
-+	prms.range.len = len;
-+	/* Undo write-protect, do wakeup after that */
-+	prms.mode = wp ? UFFDIO_WRITEPROTECT_MODE_WP : 0;
-+
-+	if (ioctl(ufd, UFFDIO_WRITEPROTECT, &prms))
-+		fprintf(stderr, "clear WP failed for address 0x%Lx\n",
-+			start), exit(1);
-+}
-+
- static void *locking_thread(void *arg)
- {
- 	unsigned long cpu = (unsigned long) arg;
-@@ -438,7 +482,10 @@ static int __copy_page(int ufd, unsigned long offset, bool retry)
- 	uffdio_copy.dst = (unsigned long) area_dst + offset;
- 	uffdio_copy.src = (unsigned long) area_src + offset;
- 	uffdio_copy.len = page_size;
--	uffdio_copy.mode = 0;
-+	if (test_uffdio_wp)
-+		uffdio_copy.mode = UFFDIO_COPY_MODE_WP;
-+	else
-+		uffdio_copy.mode = 0;
- 	uffdio_copy.copy = 0;
- 	if (ioctl(ufd, UFFDIO_COPY, &uffdio_copy)) {
- 		/* real retval in ufdio_copy.copy */
-@@ -495,15 +542,21 @@ static void uffd_handle_page_fault(struct uffd_msg *msg,
- 		fprintf(stderr, "unexpected msg event %u\n",
- 			msg->event), exit(1);
- 
--	if (bounces & BOUNCE_VERIFY &&
--	    msg->arg.pagefault.flags & UFFD_PAGEFAULT_FLAG_WRITE)
--		fprintf(stderr, "unexpected write fault\n"), exit(1);
-+	if (msg->arg.pagefault.flags & UFFD_PAGEFAULT_FLAG_WP) {
-+		wp_range(uffd, msg->arg.pagefault.address, page_size, false);
-+		stats->wp_faults++;
-+	} else {
-+		/* Missing page faults */
-+		if (bounces & BOUNCE_VERIFY &&
-+		    msg->arg.pagefault.flags & UFFD_PAGEFAULT_FLAG_WRITE)
-+			fprintf(stderr, "unexpected write fault\n"), exit(1);
- 
--	offset = (char *)(unsigned long)msg->arg.pagefault.address - area_dst;
--	offset &= ~(page_size-1);
-+		offset = (char *)(unsigned long)msg->arg.pagefault.address - area_dst;
-+		offset &= ~(page_size-1);
- 
--	if (copy_page(uffd, offset))
--		stats->missing_faults++;
-+		if (copy_page(uffd, offset))
-+			stats->missing_faults++;
-+	}
- }
- 
- static void *uffd_poll_thread(void *arg)
-@@ -589,11 +642,30 @@ static void *uffd_read_thread(void *arg)
- static void *background_thread(void *arg)
- {
- 	unsigned long cpu = (unsigned long) arg;
--	unsigned long page_nr;
-+	unsigned long page_nr, start_nr, mid_nr, end_nr;
-+
-+	start_nr = cpu * nr_pages_per_cpu;
-+	end_nr = (cpu+1) * nr_pages_per_cpu;
-+	mid_nr = (start_nr + end_nr) / 2;
-+
-+	/* Copy the first half of the pages */
-+	for (page_nr = start_nr; page_nr < mid_nr; page_nr++)
-+		copy_page_retry(uffd, page_nr * page_size);
- 
--	for (page_nr = cpu * nr_pages_per_cpu;
--	     page_nr < (cpu+1) * nr_pages_per_cpu;
--	     page_nr++)
-+	/*
-+	 * If we need to test uffd-wp, set it up now.  Then we'll have
-+	 * at least the first half of the pages mapped already which
-+	 * can be write-protected for testing
-+	 */
-+	if (test_uffdio_wp)
-+		wp_range(uffd, (unsigned long)area_dst + start_nr * page_size,
-+			nr_pages_per_cpu * page_size, true);
-+
-+	/*
-+	 * Continue the 2nd half of the page copying, handling write
-+	 * protection faults if any
-+	 */
-+	for (page_nr = mid_nr; page_nr < end_nr; page_nr++)
- 		copy_page_retry(uffd, page_nr * page_size);
- 
- 	return NULL;
-@@ -755,17 +827,31 @@ static int faulting_process(int signal_test)
- 	}
- 
- 	for (nr = 0; nr < split_nr_pages; nr++) {
-+		int steps = 1;
-+		unsigned long offset = nr * page_size;
-+
- 		if (signal_test) {
- 			if (sigsetjmp(*sigbuf, 1) != 0) {
--				if (nr == lastnr) {
-+				if (steps == 1 && nr == lastnr) {
- 					fprintf(stderr, "Signal repeated\n");
- 					return 1;
- 				}
- 
- 				lastnr = nr;
- 				if (signal_test == 1) {
--					if (copy_page(uffd, nr * page_size))
--						signalled++;
-+					if (steps == 1) {
-+						/* This is a MISSING request */
-+						steps++;
-+						if (copy_page(uffd, offset))
-+							signalled++;
-+					} else {
-+						/* This is a WP request */
-+						assert(steps == 2);
-+						wp_range(uffd,
-+							 (__u64)area_dst +
-+							 offset,
-+							 page_size, false);
-+					}
- 				} else {
- 					signalled++;
- 					continue;
-@@ -778,8 +864,13 @@ static int faulting_process(int signal_test)
- 			fprintf(stderr,
- 				"nr %lu memory corruption %Lu %Lu\n",
- 				nr, count,
--				count_verify[nr]), exit(1);
--		}
-+				count_verify[nr]);
-+	        }
-+		/*
-+		 * Trigger write protection if there is by writting
-+		 * the same value back.
-+		 */
-+		*area_count(area_dst, nr) = count;
- 	}
- 
- 	if (signal_test)
-@@ -801,6 +892,11 @@ static int faulting_process(int signal_test)
- 				nr, count,
- 				count_verify[nr]), exit(1);
- 		}
-+		/*
-+		 * Trigger write protection if there is by writting
-+		 * the same value back.
-+		 */
-+		*area_count(area_dst, nr) = count;
- 	}
- 
- 	if (uffd_test_ops->release_pages(area_dst))
-@@ -904,6 +1000,8 @@ static int userfaultfd_zeropage_test(void)
- 	uffdio_register.range.start = (unsigned long) area_dst;
- 	uffdio_register.range.len = nr_pages * page_size;
- 	uffdio_register.mode = UFFDIO_REGISTER_MODE_MISSING;
-+	if (test_uffdio_wp)
-+		uffdio_register.mode |= UFFDIO_REGISTER_MODE_WP;
- 	if (ioctl(uffd, UFFDIO_REGISTER, &uffdio_register))
- 		fprintf(stderr, "register failure\n"), exit(1);
- 
-@@ -949,6 +1047,8 @@ static int userfaultfd_events_test(void)
- 	uffdio_register.range.start = (unsigned long) area_dst;
- 	uffdio_register.range.len = nr_pages * page_size;
- 	uffdio_register.mode = UFFDIO_REGISTER_MODE_MISSING;
-+	if (test_uffdio_wp)
-+		uffdio_register.mode |= UFFDIO_REGISTER_MODE_WP;
- 	if (ioctl(uffd, UFFDIO_REGISTER, &uffdio_register))
- 		fprintf(stderr, "register failure\n"), exit(1);
- 
-@@ -979,7 +1079,8 @@ static int userfaultfd_events_test(void)
- 		return 1;
- 
- 	close(uffd);
--	printf("userfaults: %ld\n", stats.missing_faults);
-+
-+	uffd_stats_report(&stats, 1);
- 
- 	return stats.missing_faults != nr_pages;
- }
-@@ -1009,6 +1110,8 @@ static int userfaultfd_sig_test(void)
- 	uffdio_register.range.start = (unsigned long) area_dst;
- 	uffdio_register.range.len = nr_pages * page_size;
- 	uffdio_register.mode = UFFDIO_REGISTER_MODE_MISSING;
-+	if (test_uffdio_wp)
-+		uffdio_register.mode |= UFFDIO_REGISTER_MODE_WP;
- 	if (ioctl(uffd, UFFDIO_REGISTER, &uffdio_register))
- 		fprintf(stderr, "register failure\n"), exit(1);
- 
-@@ -1141,6 +1244,8 @@ static int userfaultfd_stress(void)
- 		uffdio_register.range.start = (unsigned long) area_dst;
- 		uffdio_register.range.len = nr_pages * page_size;
- 		uffdio_register.mode = UFFDIO_REGISTER_MODE_MISSING;
-+		if (test_uffdio_wp)
-+			uffdio_register.mode |= UFFDIO_REGISTER_MODE_WP;
- 		if (ioctl(uffd, UFFDIO_REGISTER, &uffdio_register)) {
- 			fprintf(stderr, "register failure\n");
- 			return 1;
-@@ -1195,6 +1300,11 @@ static int userfaultfd_stress(void)
- 		if (stress(uffd_stats))
- 			return 1;
- 
-+		/* Clear all the write protections if there is any */
-+		if (test_uffdio_wp)
-+			wp_range(uffd, (unsigned long)area_dst,
-+				 nr_pages * page_size, false);
-+
- 		/* unregister */
- 		if (ioctl(uffd, UFFDIO_UNREGISTER, &uffdio_register.range)) {
- 			fprintf(stderr, "unregister failure\n");
-@@ -1233,10 +1343,7 @@ static int userfaultfd_stress(void)
- 		area_src_alias = area_dst_alias;
- 		area_dst_alias = tmp_area;
- 
--		printf("userfaults:");
--		for (cpu = 0; cpu < nr_cpus; cpu++)
--			printf(" %lu", uffd_stats[cpu].missing_faults);
--		printf("\n");
-+		uffd_stats_report(uffd_stats, nr_cpus);
- 	}
- 
- 	if (err)
-@@ -1276,6 +1383,8 @@ static void set_test_type(const char *type)
- 	if (!strcmp(type, "anon")) {
- 		test_type = TEST_ANON;
- 		uffd_test_ops = &anon_uffd_test_ops;
-+		/* Only enable write-protect test for anonymous test */
-+		test_uffdio_wp = true;
- 	} else if (!strcmp(type, "hugetlb")) {
- 		test_type = TEST_HUGETLB;
- 		uffd_test_ops = &hugetlb_uffd_test_ops;
--- 
-2.21.0
+A full copy of the full kernel tree with the linux-next and mmotm patches
+already applied is available through git within an hour of the mmotm
+release.  Individual mmotm releases are tagged.  The master branch always
+points to the latest release, so it's constantly rebasing.
+
+http://git.cmpxchg.org/cgit.cgi/linux-mmotm.git/
+
+
+
+The directory http://www.ozlabs.org/~akpm/mmots/ (mm-of-the-second)
+contains daily snapshots of the -mm tree.  It is updated more frequently
+than mmotm, and is untested.
+
+A git copy of this tree is available at
+
+	http://git.cmpxchg.org/cgit.cgi/linux-mmots.git/
+
+and use of this tree is similar to
+http://git.cmpxchg.org/cgit.cgi/linux-mmotm.git/, described above.
+
+
+This mmotm tree contains the following patches against 5.2-rc5:
+(patches marked "*" will be included in linux-next)
+
+  origin.patch
+* mm-dev_pfn-exclude-memory_device_private-while-computing-virtual-address.patch
+* fs-proc-allow-reporting-eip-esp-for-all-coredumping-threads.patch
+* mm-mempolicy-fix-an-incorrect-rebind-node-in-mpol_rebind_nodemask.patch
+* binfmt_flat-make-load_flat_shared_library-work.patch
+* signal-remove-the-wrong-signal_pending-check-in-restore_user_sigmask.patch
+* mm-soft-offline-return-ebusy-if-set_hwpoison_free_buddy_page-fails.patch
+* mm-hugetlb-soft-offline-dissolve_free_huge_page-return-zero-on-pagehuge.patch
+* mm-hugetlb-soft-offline-dissolve_free_huge_page-return-zero-on-pagehuge-v3.patch
+* mm-oom_kill-fix-uninitialized-oc-constraint.patch
+* initramfs-fix-populate_initrd_image-section-mismatch.patch
+* mm-idle-page-fix-oops-because-end_pfn-is-larger-than-max_pfn.patch
+* mm-vmalloc-avoid-bogus-wmaybe-uninitialized-warning.patch
+* mm-vmalloc-avoid-bogus-wmaybe-uninitialized-warning-fix.patch
+* maintainers-add-clang-llvm-build-support-info.patch
+* mm-vmscan-fix-not-scanning-anonymous-pages-when-detecting-file-refaults.patch
+* forkmemcg-alloc_thread_stack_node-needs-to-set-tsk-stack.patch
+* iommu-replace-single-char-identifiers-in-macros.patch
+* lib-test_kasan-add-bitops-tests.patch
+* x86-use-static_cpu_has-in-uaccess-region-to-avoid-instrumentation.patch
+* asm-generic-x86-add-bitops-instrumentation-for-kasan.patch
+* scripts-decode_stacktrace-match-basepath-using-shell-prefix-operator-not-regex.patch
+* scripts-decode_stacktrace-look-for-modules-with-kodebug-extension.patch
+* scripts-decode_stacktrace-look-for-modules-with-kodebug-extension-v2.patch
+* scripts-spellingtxt-drop-sepc-from-the-misspelling-list.patch
+* scripts-spellingtxt-drop-sepc-from-the-misspelling-list-fix.patch
+* scripts-spellingtxt-add-spelling-fix-for-prohibited.patch
+* scripts-decode_stacktrace-accept-dash-underscore-in-modules.patch
+* scripts-spellingtxt-add-more-spellings-to-spellingtxt.patch
+* sh-configs-remove-config_logfs-from-defconfig.patch
+* sh-config-remove-left-over-backlight_lcd_support.patch
+* debugobjects-move-printk-out-of-db-lock-critical-sections.patch
+* fs-ocfs-fix-spelling-mistake-hearbeating-heartbeat.patch
+* ocfs2-dlm-use-struct_size-helper.patch
+* ocfs2-add-last-unlock-times-in-locking_state.patch
+* ocfs2-add-locking-filter-debugfs-file.patch
+* ocfs2-add-locking-filter-debugfs-file-fix.patch
+* ocfs2-add-first-lock-wait-time-in-locking_state.patch
+* ocfs-no-need-to-check-return-value-of-debugfs_create-functions.patch
+* ocfs-no-need-to-check-return-value-of-debugfs_create-functions-v2.patch
+* ocfs2-clear-zero-in-unaligned-direct-io.patch
+* ocfs2-clear-zero-in-unaligned-direct-io-checkpatch-fixes.patch
+* ocfs2-wait-for-recovering-done-after-direct-unlock-request.patch
+* ocfs2-checkpoint-appending-truncate-log-transaction-before-flushing.patch
+* ramfs-support-o_tmpfile.patch
+  mm.patch
+* mm-slab-validate-cache-membership-under-freelist-hardening.patch
+* mm-slab-sanity-check-page-type-when-looking-up-cache.patch
+* mm-slab-sanity-check-page-type-when-looking-up-cache-fix.patch
+* lkdtm-heap-add-tests-for-freelist-hardening.patch
+* mm-slub-avoid-double-string-traverse-in-kmem_cache_flags.patch
+* slub-dont-panic-for-memcg-kmem-cache-creation-failure.patch
+* kmemleak-fix-check-for-softirq-context.patch
+* mm-kmemleak-change-error-at-_write-when-kmemleak-is-disabled.patch
+* docs-kmemleak-add-more-documentation-details.patch
+* mm-kasan-print-frame-description-for-stack-bugs.patch
+* device-dax-fix-memory-and-resource-leak-if-hotplug-fails.patch
+* mm-hotplug-make-remove_memory-interface-useable.patch
+* device-dax-hotremove-persistent-memory-that-is-used-like-normal-ram.patch
+* mm-move-map_sync-to-asm-generic-mman-commonh.patch
+* include-linux-pfn_th-remove-pfn_t_to_virt.patch
+* arm-remove-arch_select_memory_model.patch
+* s390-remove-arch_select_memory_model.patch
+* sparc-remove-arch_select_memory_model.patch
+* mm-gupc-make-follow_page_mask-static.patch
+* mm-migrate-remove-unused-mode-argument.patch
+* mm-trivial-clean-up-in-insert_page.patch
+* mm-make-config_huge_page-wrappers-into-static-inlines.patch
+* swap-ifdef-struct-vm_area_struct-swap_readahead_info.patch
+* mm-remove-the-account_page_dirtied-export.patch
+* mm-failslab-by-default-do-not-fail-allocations-with-direct-reclaim-only.patch
+* mm-debug_pagelloc-use-static-keys-to-enable-debugging.patch
+* mm-page_alloc-more-extensive-free-page-checking-with-debug_pagealloc.patch
+* mm-debug_pagealloc-use-a-page-type-instead-of-page_ext-flag.patch
+* mm-page_owner-store-page_owners-gfp_mask-in-stackdepot-itself.patch
+* mm-fix-an-overly-long-line-in-read_cache_page.patch
+* mm-dont-cast-readpage-to-filler_t-for-do_read_cache_page.patch
+* jffs2-pass-the-correct-prototype-to-read_cache_page.patch
+* 9p-pass-the-correct-prototype-to-read_cache_page.patch
+* mm-filemap-correct-the-comment-about-vm_fault_retry.patch
+* mm-swap-fix-race-between-swapoff-and-some-swap-operations.patch
+* mm-swap-simplify-total_swapcache_pages-with-get_swap_device.patch
+* mm-swap-simplify-total_swapcache_pages-with-get_swap_device-fix.patch
+* mm-swap-use-rbtree-for-swap_extent.patch
+* mm-swap-use-rbtree-for-swap_extent-fix.patch
+* mm-fix-race-between-swapoff-and-mincore.patch
+* memcg-oom-no-oom-kill-for-__gfp_retry_mayfail.patch
+* memcg-fsnotify-no-oom-kill-for-remote-memcg-charging.patch
+* mm-vmscan-expose-cgroup_ino-for-memcg-reclaim-tracepoints.patch
+* mm-memcg-introduce-memoryeventslocal.patch
+* mm-memcontrol-dump-memorystat-during-cgroup-oom.patch
+* mm-memcontrol-dump-memorystat-during-cgroup-oom-fix.patch
+* mm-postpone-kmem_cache-memcg-pointer-initialization-to-memcg_link_cache.patch
+* mm-rename-slab-delayed-deactivation-functions-and-fields.patch
+* mm-generalize-postponed-non-root-kmem_cache-deactivation.patch
+* mm-introduce-__memcg_kmem_uncharge_memcg.patch
+* mm-unify-slab-and-slub-page-accounting.patch
+* mm-dont-check-the-dying-flag-on-kmem_cache-creation.patch
+* mm-synchronize-access-to-kmem_cache-dying-flag-using-a-spinlock.patch
+* mm-rework-non-root-kmem_cache-lifecycle-management.patch
+* mm-rework-non-root-kmem_cache-lifecycle-management-fix.patch
+* mm-stop-setting-page-mem_cgroup-pointer-for-slab-pages.patch
+* mm-reparent-memcg-kmem_caches-on-cgroup-removal.patch
+* mm-memcg-add-a-memcg_slabinfo-debugfs-file.patch
+* mm-mmap-fix-the-adjusted-length-error.patch
+* asm-generic-x86-introduce-generic-pte_allocfree_one.patch
+* alpha-switch-to-generic-version-of-pte-allocation.patch
+* arm-switch-to-generic-version-of-pte-allocation.patch
+* arm64-switch-to-generic-version-of-pte-allocation.patch
+* arm64-switch-to-generic-version-of-pte-allocation-fix.patch
+* csky-switch-to-generic-version-of-pte-allocation.patch
+* m68k-sun3-switch-to-generic-version-of-pte-allocation.patch
+* mips-switch-to-generic-version-of-pte-allocation.patch
+* nds32-switch-to-generic-version-of-pte-allocation.patch
+* nios2-switch-to-generic-version-of-pte-allocation.patch
+* parisc-switch-to-generic-version-of-pte-allocation.patch
+* riscv-switch-to-generic-version-of-pte-allocation.patch
+* um-switch-to-generic-version-of-pte-allocation.patch
+* unicore32-switch-to-generic-version-of-pte-allocation.patch
+* mm-memremap-rename-and-consolidate-section_size.patch
+* mm-clean-up-is_device__page-definitions.patch
+* mm-introduce-arch_has_pte_devmap.patch
+* arm64-mm-implement-pte_devmap-support.patch
+* arm64-mm-implement-pte_devmap-support-fix.patch
+* mm-pgtable-drop-pgtable_t-variable-from-pte_fn_t-functions.patch
+* mm-fail-when-offset-==-num-in-first-check-of-vm_map_pages_zero.patch
+* mm-mmap-move-common-defines-to-mman-commonh.patch
+* mm-swap-fix-release_pages-when-releasing-devmap-pages.patch
+* mm-swap-fix-release_pages-when-releasing-devmap-pages-v2.patch
+* mm-swap-fix-release_pages-when-releasing-devmap-pages-v3.patch
+* mm-swap-fix-release_pages-when-releasing-devmap-pages-v4.patch
+* mm-mmu_notifier-use-hlist_add_head_rcu.patch
+* mm-add-account_locked_vm-utility-function.patch
+* mm-add-account_locked_vm-utility-function-v3.patch
+* mm-memory_hotplug-simplify-and-fix-check_hotplug_memory_range.patch
+* s390x-mm-fail-when-an-altmap-is-used-for-arch_add_memory.patch
+* s390x-mm-implement-arch_remove_memory.patch
+* arm64-mm-add-temporary-arch_remove_memory-implementation.patch
+* drivers-base-memory-pass-a-block_id-to-init_memory_block.patch
+* drivers-base-memory-pass-a-block_id-to-init_memory_block-fix.patch
+* mm-memory_hotplug-allow-arch_remove_pages-without-config_memory_hotremove.patch
+* mm-memory_hotplug-create-memory-block-devices-after-arch_add_memory.patch
+* mm-memory_hotplug-drop-mhp_memblock_api.patch
+* mm-memory_hotplug-remove-memory-block-devices-before-arch_remove_memory.patch
+* mm-memory_hotplug-make-unregister_memory_block_under_nodes-never-fail.patch
+* mm-memory_hotplug-remove-zone-parameter-from-sparse_remove_one_section.patch
+* mm-section-numbers-use-the-type-unsigned-long.patch
+* mm-section-numbers-use-the-type-unsigned-long-fix.patch
+* drivers-base-memory-use-unsigned-long-for-block-ids.patch
+* mm-make-register_mem_sect_under_node-static.patch
+* mm-memory_hotplug-rename-walk_memory_range-and-pass-startsize-instead-of-pfns.patch
+* mm-memory_hotplug-move-and-simplify-walk_memory_blocks.patch
+* drivers-base-memoryc-get-rid-of-find_memory_block_hinted.patch
+* mm-sparse-set-section-nid-for-hot-add-memory.patch
+* mm-sparsemem-introduce-struct-mem_section_usage.patch
+* mm-sparsemem-introduce-a-section_is_early-flag.patch
+* mm-sparsemem-add-helpers-track-active-portions-of-a-section-at-boot.patch
+* mm-hotplug-prepare-shrink_zone-pgdat_span-for-sub-section-removal.patch
+* mm-sparsemem-convert-kmalloc_section_memmap-to-populate_section_memmap.patch
+* mm-hotplug-kill-is_dev_zone-usage-in-__remove_pages.patch
+* mm-kill-is_dev_zone-helper.patch
+* mm-sparsemem-prepare-for-sub-section-ranges.patch
+* mm-sparsemem-support-sub-section-hotplug.patch
+* mm-document-zone_device-memory-model-implications.patch
+* mm-devm_memremap_pages-enable-sub-section-remap.patch
+* libnvdimm-pfn-fix-fsdax-mode-namespace-info-block-zero-fields.patch
+* libnvdimm-pfn-stop-padding-pmem-namespaces-to-section-alignment.patch
+* mm-vmallocc-remove-node-argument.patch
+* mm-vmallocc-preload-a-cpu-with-one-object-for-split-purpose.patch
+* mm-vmallocc-get-rid-of-one-single-unlink_va-when-merge.patch
+* mm-vmallocc-switch-to-warn_on-and-move-it-under-unlink_va.patch
+* mm-vmalloc-spelling-s-configuraion-configuration.patch
+* mm-large-system-hash-use-vmalloc-for-size-max_order-when-hashdist.patch
+* mm-large-system-hash-clear-hashdist-when-only-one-node-with-memory-is-booted.patch
+* mm-security-introduce-init_on_alloc=1-and-init_on_free=1-boot-options.patch
+* mm-security-introduce-init_on_alloc=1-and-init_on_free=1-boot-options-fix.patch
+* mm-init-report-memory-auto-initialization-features-at-boot-time.patch
+* mm-vmscan-remove-double-slab-pressure-by-incing-sc-nr_scanned.patch
+* mm-vmscan-correct-some-vmscan-counters-for-thp-swapout.patch
+* tools-vm-slabinfo-order-command-line-options.patch
+* tools-vm-slabinfo-add-partial-slab-listing-to-x.patch
+* tools-vm-slabinfo-add-option-to-sort-by-partial-slabs.patch
+* tools-vm-slabinfo-add-sorting-info-to-help-menu.patch
+* proc-use-down_read_killable-mmap_sem-for-proc-pid-maps.patch
+* proc-use-down_read_killable-mmap_sem-for-proc-pid-smaps_rollup.patch
+* proc-use-down_read_killable-mmap_sem-for-proc-pid-pagemap.patch
+* proc-use-down_read_killable-mmap_sem-for-proc-pid-clear_refs.patch
+* proc-use-down_read_killable-mmap_sem-for-proc-pid-map_files.patch
+* proc-use-down_read_killable-mmap_sem-for-proc-pid-map_files-fix.patch
+* mm-use-down_read_killable-for-locking-mmap_sem-in-access_remote_vm.patch
+* z3fold-add-inter-page-compaction.patch
+* z3fold-add-inter-page-compaction-fix.patch
+* z3fold-add-inter-page-compaction-fix-2.patch
+* mm-memory-failure-clarify-error-message.patch
+* mm-mempolicy-handle-vma-with-unmovable-pages-mapped-correctly-in-mbind.patch
+* mm-oom_killer-add-task-uid-to-info-message-on-an-oom-kill.patch
+* mm-oom_killer-add-task-uid-to-info-message-on-an-oom-kill-fix.patch
+* mm-memcontrol-use-css_task_iter_procs-at-mem_cgroup_scan_tasks.patch
+* mm-memcontrol-use-css_task_iter_procs-at-mem_cgroup_scan_tasks-fix.patch
+* mm-oom-refactor-dump_tasks-for-memcg-ooms.patch
+* mm-oom-fix-oom_unkillable_task-for-memcg-ooms-fix.patch
+* mm-oom-fix-oom_unkillable_task-for-memcg-ooms.patch
+* mm-oom-remove-redundant-oom-score-normalization-at-select_bad_process.patch
+* mm-thp-make-transhuge_vma_suitable-available-for-anonymous-thp.patch
+* mm-thp-make-transhuge_vma_suitable-available-for-anonymous-thp-fix.patch
+* mm-thp-fix-false-negative-of-shmem-vmas-thp-eligibility.patch
+* x86-numa-always-initialize-all-possible-nodes.patch
+* mm-be-more-verbose-about-zonelist-initialization.patch
+* mm-proportional-memorylowmin-reclaim.patch
+* mm-make-memoryemin-the-baseline-for-utilisation-determination.patch
+* mm-make-memoryemin-the-baseline-for-utilisation-determination-fix.patch
+* mm-vmscan-remove-unused-lru_pages-argument.patch
+* mm-dont-expose-page-to-fast-gup-before-its-ready.patch
+* info-task-hung-in-generic_file_write_iter.patch
+* info-task-hung-in-generic_file_write-fix.patch
+* kernel-hung_taskc-monitor-killed-tasks.patch
+* proc-hide-segfault-at-ffffffffff600000-dmesg-spam.patch
+* vmcore-add-a-kernel-parameter-novmcoredd.patch
+* vmcore-add-a-kernel-parameter-novmcoredd-fix.patch
+* vmcore-add-a-kernel-parameter-novmcoredd-fix-fix.patch
+* add-typeof_member-macro.patch
+* proc-use-typeof_member-macro.patch
+* kernel-fix-typos-and-some-coding-style-in-comments.patch
+* linux-bitsh-make-bit-genmask-and-friends-available-in-assembly.patch
+* arch-replace-_bitul-in-kernel-space-headers-with-bit.patch
+* drop-unused-isa_page_to_bus.patch
+* lib-genallocc-export-symbol-addr_in_gen_pool.patch
+* lib-genallocc-rename-addr_in_gen_pool-to-gen_pool_has_addr.patch
+* lib-genallocc-rename-addr_in_gen_pool-to-gen_pool_has_addr-fix.patch
+* lib-fix-possible-incorrect-result-from-rational-fractions-helper.patch
+* tweak-list_poison2-for-better-code-generation-on-x86_64.patch
+* lib-string-allow-searching-for-nul-with-strnchr.patch
+* lib-test_string-avoid-masking-memset16-32-64-failures.patch
+* lib-test_string-add-some-testcases-for-strchr-and-strnchr.patch
+* lib-test_overflow-avoid-tainting-the-kernel-and-fix-wrap-size.patch
+* lib-introduce-test_meminit-module.patch
+* mm-ioremap-check-virtual-address-alignment-while-creating-huge-mappings.patch
+* mm-ioremap-probe-platform-for-p4d-huge-map-support.patch
+* lib-string_helpers-fix-some-kerneldoc-warnings.patch
+* lib-debugobjects-no-need-to-check-return-value-of-debugfs_create-functions.patch
+* lib-test_meminit-fix-wmaybe-uninitialized-false-positive.patch
+* checkpatchpl-warn-on-duplicate-sysctl-local-variable.patch
+* checkpatch-dont-interpret-stack-dumps-as-commit-ids.patch
+* checkpatch-fix-something.patch
+* binfmt_flat-remove-set-but-not-used-variable-inode.patch
+* elf-delete-stale-comment.patch
+* mm-kconfig-fix-neighboring-typos.patch
+* mm-generalize-and-rename-notify_page_fault-as-kprobe_page_fault.patch
+* coda-pass-the-host-file-in-vma-vm_file-on-mmap.patch
+* uapi-linux-codah-use-__kernel_pid_t-for-userspace.patch
+* uapi-linux-coda_psdevh-move-upc_req-definition-from-uapi-to-kernel-side-headers.patch
+* coda-add-error-handling-for-fget.patch
+* coda-potential-buffer-overflow-in-coda_psdev_write.patch
+* coda-fix-build-using-bare-metal-toolchain.patch
+* coda-dont-try-to-print-names-that-were-considered-too-long.patch
+* uapi-linux-coda_psdevh-move-coda_req_-from-uapi-to-kernel-side-headers.patch
+* coda-clean-up-indentation-replace-spaces-with-tab.patch
+* coda-stop-using-struct-timespec-in-user-api.patch
+* coda-change-codas-user-api-to-use-64-bit-time_t-in-timespec.patch
+* coda-get-rid-of-coda_alloc.patch
+* coda-get-rid-of-coda_free.patch
+* coda-bump-module-version.patch
+* coda-move-internal-defs-out-of-include-linux.patch
+* coda-remove-uapi-linux-coda_psdevh.patch
+* coda-destroy-mutex-in-put_super.patch
+* coda-use-size-for-stat.patch
+* coda-add-__init-to-init_coda_psdev.patch
+* coda-remove-sysctl-object-from-module-when-unused.patch
+* coda-remove-sb-test-in-coda_fid_to_inode.patch
+* coda-ftoc-validity-check-integration.patch
+* coda-add-hinting-support-for-partial-file-caching.patch
+* coda-add-hinting-support-for-partial-file-caching-fix.patch
+* hfsplus-replace-strncpy-with-memcpy.patch
+* ufs-remove-set-but-not-used-variable-usb3.patch
+* nds32-fix-asm-syscallh.patch
+* hexagon-define-syscall_get_error-and-syscall_get_return_value.patch
+* mips-define-syscall_get_error.patch
+* parisc-define-syscall_get_error.patch
+* powerpc-define-syscall_get_error.patch
+* ptrace-add-ptrace_get_syscall_info-request.patch
+* selftests-ptrace-add-a-test-case-for-ptrace_get_syscall_info.patch
+* selftests-ptrace-add-a-test-case-for-ptrace_get_syscall_info-checkpatch-fixes.patch
+* signal-reorder-struct-sighand_struct.patch
+* signal-simplify-set_user_sigmask-restore_user_sigmask.patch
+* select-change-do_poll-to-return-erestartnohand-rather-than-eintr.patch
+* select-shift-restore_saved_sigmask_unless-into-poll_select_copy_remaining.patch
+* coredump-split-pipe-command-whitespace-before-expanding-template.patch
+* rapidio-mport_cdev-nul-terminate-some-strings.patch
+* convert-struct-pid-count-to-refcount_t.patch
+* aio-simplify-read_events.patch
+* resource-fix-locking-in-find_next_iomem_res.patch
+* resource-fix-locking-in-find_next_iomem_res-fix.patch
+* resource-avoid-unnecessary-lookups-in-find_next_iomem_res.patch
+* ipc-mqueue-only-perform-resource-calculation-if-user-valid.patch
+* ipc-consolidate-all-xxxctl_down-functions.patch
+* lz4-fix-spelling-and-copy-paste-errors-in-documentation.patch
+  linux-next.patch
+  linux-next-rejects.patch
+  linux-next-git-rejects.patch
+* pinctrl-fix-pxa2xxc-build-warnings.patch
+* proc-sysctl-add-shared-variables-for-range-check.patch
+* proc-sysctl-add-shared-variables-for-range-check-fix-2.patch
+* proc-sysctl-add-shared-variables-for-range-check-fix-2-fix.patch
+* proc-sysctl-add-shared-variables-for-range-check-fix-3.patch
+* fs-select-use-struct_size-in-kmalloc.patch
+* fix-read-buffer-overflow-in-delta-ipc.patch
+  make-sure-nobodys-leaking-resources.patch
+  releasing-resources-with-children.patch
+  mutex-subsystem-synchro-test-module.patch
+  kernel-forkc-export-kernel_thread-to-modules.patch
+  workaround-for-a-pci-restoring-bug.patch
 
