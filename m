@@ -2,77 +2,78 @@ Return-Path: <SRS0=424v=UT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	HEXHASH_WORD,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1BD9FC48BE0
-	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 02:20:30 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C135FC43613
+	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 02:20:40 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C7A502084A
-	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 02:20:29 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C7A502084A
+	by mail.kernel.org (Postfix) with ESMTP id 719BA2084A
+	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 02:20:40 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 719BA2084A
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 52BB76B0003; Wed, 19 Jun 2019 22:20:29 -0400 (EDT)
+	id 1D00E6B0005; Wed, 19 Jun 2019 22:20:40 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4DCCC8E0002; Wed, 19 Jun 2019 22:20:29 -0400 (EDT)
+	id 180FB8E0002; Wed, 19 Jun 2019 22:20:40 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3CAD58E0001; Wed, 19 Jun 2019 22:20:29 -0400 (EDT)
+	id 06EE98E0001; Wed, 19 Jun 2019 22:20:40 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 17FC06B0003
-	for <linux-mm@kvack.org>; Wed, 19 Jun 2019 22:20:29 -0400 (EDT)
-Received: by mail-qt1-f199.google.com with SMTP id x10so1675093qti.11
-        for <linux-mm@kvack.org>; Wed, 19 Jun 2019 19:20:29 -0700 (PDT)
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D95C16B0005
+	for <linux-mm@kvack.org>; Wed, 19 Jun 2019 22:20:39 -0400 (EDT)
+Received: by mail-qt1-f197.google.com with SMTP id e39so1665333qte.8
+        for <linux-mm@kvack.org>; Wed, 19 Jun 2019 19:20:39 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:mime-version:content-transfer-encoding;
-        bh=FztMw+ePNk5SUbifLx2boJko5saLrWmrOhGG5Hdcgk0=;
-        b=NXYAVmbOQPvKwFpR5ULe0B8qo/O2tPV5L1V3S4gaAwxiD37xWeKjIj8AzqIkoFP5lH
-         n5OpM5qnkYnfug2jo5QJspgkcotBdGxMK15wTVpnJ3lobWrvBRDC7dK+9c4E8UlccmzI
-         XTiwAUzG/kI1FTLQRHkikxRu/aor5j6vd2puYAVigbuPWTbrmemb6NTdBLkpz+1N96K9
-         clH7ExP8au8vjD+O0LZaQx4DL6fH8B0LxySuyGcQ/7eIudLFjdjvXgaUpQkSu51u/XbO
-         yUhfAeysL/etdesxSWhBbA9Eh+yOowAl5cqgi15VsmJ65IV7NC5650fPhcEiJp1UY+TL
-         AWSw==
+         :subject:date:message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=x0adZNsyyZj3oLuHDkXHPlZ8L8iyk5kBrsICEZ96nek=;
+        b=RqUQ7n562S5eioQEkmi2UL0CKs+W3WsHjPBrGMn6FbVAJIIA0Lo3GobJhZ+lG2VbPL
+         Y781GP8/YWOpo52xYQ3Tr3fS/aMm1+hN1PH/N4WjRDbS+wpLS+XCIpWMJiz1O3U4eMJ5
+         OKgLDfP3Yh7fleQoY5wcQGEGEI0vA1POKNqhS4xXLHvaWgWgjLI6dCcRCPSto25Iujr/
+         /jRUMZ6xut01aeb424JzmlZoBNAdkvYc//eUMNhpa4OI9/2k7jzEqvnraj8k3SRXDoF0
+         fNNXQ5aGtBH1U0a10ltzDL1tV1bEqeFGB9EemFWZaVzVaI2IFRezZbgMtO5qZDXD1Z5u
+         ccZg==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAX41AFCNfVam33F3cFSpgWMGJJd21xccpEwRu0vOvC1DjrAUktM
-	HrCcrO2J4u/kuOUP240CiHdowAJlSSAHd1CCc0rCS15y5xqZVh9kQaZMV4Nk09T0wlSRptTlmAX
-	ycLtkddRj3ttdBfEBIEnhfWQI+LhAA76PThN0AX8XYRoQHXNouyyGeKgJy4zcLqe5bQ==
-X-Received: by 2002:ac8:1978:: with SMTP id g53mr20094110qtk.3.1560997228787;
-        Wed, 19 Jun 2019 19:20:28 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzphU4TgPURPvhTMTVN6tTytidAPnUA3W+Ya+NbhsW2tw90pIixKIN7+IUod3/02ZoCecOx
-X-Received: by 2002:ac8:1978:: with SMTP id g53mr20094019qtk.3.1560997227554;
-        Wed, 19 Jun 2019 19:20:27 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560997227; cv=none;
+X-Gm-Message-State: APjAAAVzcccBs9IfkY7QD48csIUjSqe7F4bvWKyLO0xUi4fhayialAgG
+	3Bfm4w2AcfMvDFkKy6yfLYZQpVz6DhQ2SaCOvwqcHA0VMFAgnuve2RZyEit40jb9j3YJkCwzGya
+	mFOOz0sBJURjtm+y4IoRsn+8Q3/wMkFwo6RU44mAHyq+WsCvp9LvlNqgbpv/IZazufA==
+X-Received: by 2002:ac8:2268:: with SMTP id p37mr77134609qtp.187.1560997239534;
+        Wed, 19 Jun 2019 19:20:39 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyw1+SV4A+NSRXlSuCbaQPyuj0dTSoxReankDVF6ehhNlCP3205A/0zdUcbximFzzB+CMCW
+X-Received: by 2002:ac8:2268:: with SMTP id p37mr77134533qtp.187.1560997238557;
+        Wed, 19 Jun 2019 19:20:38 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560997238; cv=none;
         d=google.com; s=arc-20160816;
-        b=yRQWqE+hVV6+HVaF+zPYlYiZJv3HPBRvlQ6r+xqoqHVRrrkZvDMj+2ib7tIgY86WJS
-         ZOiqI275tz4I9JBp0QYZ5JPMwQZMiDSZvIvK8JB1C7hzifesBogbo6zlTV3GKOaKcsRW
-         7aIv8L0C8lZgCSk67AbgvUVuXfTz2P16eeWUNbkoOGVG6NWWCed/QGteCMi1IkMNvn8p
-         jT3LeAyIwI0/1pGZrP+BjDdd7pl631drgQdgrleQo4WoyVoADpDr837kZsQ68QsGw+le
-         HS0/l2nldNsVR+uHpmEEeuYat/kHRfde3m0Ksv3WOFkVorGJ2o626EjEamCaE1fOZQus
-         uAUA==
+        b=Ld2nI7rcDRaj+q4y+2MxJ0fjLpGuzgqM13Oi/hoeAckzOXZCz4vBpwinIjAmuOS0Z+
+         ZzPOp1MnKyM0YzL4UXjz13UKi8K1cxoYQvWBiUFZMFxsgtOMv962FFNaYI78PhgpvobL
+         KsXSm3Myw7+qe9me0i3aOBlwEWaoEOm1hAQA4WclZukXO6NsbiTDmWyEGOO10kqj0Kul
+         b4/GoiBzZ/HoVwhGa1hJI9upf6YTDCTstDTJNWtOTr1SzDiMsIttob10eckNd9lD05Xf
+         kdDZL+50ypTay1BSiZ4TY6bdKcWuZ5hv2FluQTW8xl2VLOXs7Srpo4BqxlIfydgH+VSQ
+         33dQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
-         :to:from;
-        bh=FztMw+ePNk5SUbifLx2boJko5saLrWmrOhGG5Hdcgk0=;
-        b=TI/AxbNBGoGqLD94kVqNXSJEJP46QqypQemMG7BVi9ftZ/mVX/O9MXeMFmgrWVCUNZ
-         EhNjkzMjL5a6Nt8ULojpCxnK8LEi7VK2ByFhjR1K9B6J+LCrv09BYDo7meDLhDn2hBto
-         Z2j8qo0OGK1y2k8sFHhXFAKb55g1glG+VU/Z3Ro5JaRiy2gMM+ZkRdug6hcHtM7w4anC
-         9nzAiLHD0bU5oAJCuzRdPw28xIiOkBkeBzKP6jPeRP0V5Fe9slgcU1SxWKGHZF3Cu+2d
-         4HjODTF9GTlzFOVjQ3pM8LgGoLYIf4KfJMcGUpFIZekNYvbHkkrYBGG92ltAlXwvy5qh
-         6MZg==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:date:subject:cc:to:from;
+        bh=x0adZNsyyZj3oLuHDkXHPlZ8L8iyk5kBrsICEZ96nek=;
+        b=1Hi/7109Trhw+BZ+XytI6M408HYvZZKVFPGcs022QSaMa5pxo58Z5lt9+20qKSZZlj
+         OsSibLZS8MEC25hIpsUOMChN4D1LYk1xM9XVKDRH6LHh5xZmbniDtgNblDLEg0dXqFjl
+         ypiWUnqJtu5ngFUG5dFLtCKh5SFPJGKVHOBum5H4ki3fvCuCzJY6xZCyrEcEi9cmc7Ps
+         4dCO/R/DOw2Mv0yhnjy5/xAyFQ4b7UjlE+UuOTZXjBYjTAeSu4SwyeuEqNh6Rpy76cZ0
+         lg9rLZmqWqfRjazXNRWlx4Tk4KFgni+K1XBHDPUQfNHKEYJAKSqsPsB0YSQUzV7wSfb7
+         pp0w==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id q24si13018082qve.35.2019.06.19.19.20.27
+        by mx.google.com with ESMTPS id r8si3946871qte.143.2019.06.19.19.20.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 19 Jun 2019 19:20:27 -0700 (PDT)
+        Wed, 19 Jun 2019 19:20:38 -0700 (PDT)
 Received-SPF: pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;
@@ -80,11 +81,11 @@ Authentication-Results: mx.google.com;
 Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 1F2093092671;
-	Thu, 20 Jun 2019 02:20:25 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id 9E7CF3082E25;
+	Thu, 20 Jun 2019 02:20:37 +0000 (UTC)
 Received: from xz-x1.redhat.com (ovpn-12-78.pek2.redhat.com [10.72.12.78])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id D53C91001DC3;
-	Thu, 20 Jun 2019 02:20:10 +0000 (UTC)
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 93ED31001E6F;
+	Thu, 20 Jun 2019 02:20:25 +0000 (UTC)
 From: Peter Xu <peterx@redhat.com>
 To: linux-mm@kvack.org,
 	linux-kernel@vger.kernel.org
@@ -105,273 +106,209 @@ Cc: David Hildenbrand <david@redhat.com>,
 	Mel Gorman <mgorman@suse.de>,
 	"Kirill A . Shutemov" <kirill@shutemov.name>,
 	"Dr . David Alan Gilbert" <dgilbert@redhat.com>
-Subject: [PATCH v5 00/25] userfaultfd: write protection support
-Date: Thu, 20 Jun 2019 10:19:43 +0800
-Message-Id: <20190620022008.19172-1-peterx@redhat.com>
+Subject: [PATCH v5 01/25] mm: gup: rename "nonblocking" to "locked" where proper
+Date: Thu, 20 Jun 2019 10:19:44 +0800
+Message-Id: <20190620022008.19172-2-peterx@redhat.com>
+In-Reply-To: <20190620022008.19172-1-peterx@redhat.com>
+References: <20190620022008.19172-1-peterx@redhat.com>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.43]); Thu, 20 Jun 2019 02:20:26 +0000 (UTC)
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.46]); Thu, 20 Jun 2019 02:20:37 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This series implements initial write protection support for
-userfaultfd.  Currently both shmem and hugetlbfs are not supported
-yet, but only anonymous memory.  This is the 4nd version of it.
+There's plenty of places around __get_user_pages() that has a parameter
+"nonblocking" which does not really mean that "it won't block" (because
+it can really block) but instead it shows whether the mmap_sem is
+released by up_read() during the page fault handling mostly when
+VM_FAULT_RETRY is returned.
 
-The latest code can also be found at:
+We have the correct naming in e.g. get_user_pages_locked() or
+get_user_pages_remote() as "locked", however there're still many places
+that are using the "nonblocking" as name.
 
-  https://github.com/xzpeter/linux/tree/uffd-wp-merged
+Renaming the places to "locked" where proper to better suite the
+functionality of the variable.  While at it, fixing up some of the
+comments accordingly.
 
-v5 changelog:
-- rebase
-- drop two patches:
-    "userfaultfd: wp: handle COW properly for uffd-wp"
-    "mm: introduce do_wp_page_cont()"
-  instead remove the write bit always when resolving uffd-wp page
-  fault in previous patch ("userfaultfd: wp: apply _PAGE_UFFD_WP bit")
-  then COW will be handled correctly in the PF irq handler [Andrea]
+Reviewed-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Reviewed-by: Jerome Glisse <jglisse@redhat.com>
+Signed-off-by: Peter Xu <peterx@redhat.com>
+---
+ mm/gup.c     | 44 +++++++++++++++++++++-----------------------
+ mm/hugetlb.c |  8 ++++----
+ 2 files changed, 25 insertions(+), 27 deletions(-)
 
-v4 changelog:
-- add r-bs
-- use kernel-doc format for fault_flag_allow_retry_first [Jerome]
-- drop "export wp_page_copy", add new patch to split do_wp_page(), use
-  it in change_pte_range() to replace the wp_page_copy(). [Jerome] (I
-  thought about different ways to do this but I still can't find a
-  100% good way for all... in this version I still used the
-  do_wp_page_cont naming.  We can still discuss this and how we should
-  split do_wp_page)
-- make sure uffd-wp will also apply to device private entries which
-  HMM uses [Jerome]
-
-v3 changelog:
-- take r-bs
-- patch 1: fix typo [Jerome]
-- patch 2: use brackets where proper around (flags & VM_FAULT_RETRY)
-  (there're three places to change, not four...) [Jerome]
-- patch 4: make sure TRIED is applied correctly on all archs, add more
-  comment to explain the new page fault mechanism [Jerome]
-- patch 7: in do_swap_page() remove the two lines to remove
-  FAULT_FLAG_WRITE flag [Jerome]
-- patch 10: another brackets change like above, and in
-  mfill_atomic_pte return -EINVAL when detected wp_copy==1 upon shared
-  memories [Jerome]
-- patch 12: move _PAGE_CHG_MASK change to patch 8 [Jerome]
-- patch 14: wp_page_copy() - fix write bit; change_pte_range() -
-  detect PTE change after COW [Jerome]
-- patch 17: remove last paragraph of commit message, no need to drop
-  the two lines in do_swap_page() since they've been directly dropped
-  in patch 7; touch up remove_migration_pte() to only detect uffd-wp
-  bit if it's read migration entry [Jerome]
-- add patch: "userfaultfd: wp: declare _UFFDIO_WRITEPROTECT
-  conditionally", which remove _UFFDIO_WRITEPROTECT bit if detected
-  non-anonymous memory during REGISTER; meanwhile fixup the test case
-  for shmem too for expected ioctls returned from REGISTER [Mike]
-- add patch: "userfaultfd: wp: fixup swap entries in
-  change_pte_range", the new patch will allow to apply the uffd-wp
-  bits upon swap entries directly (e.g., when the page is during
-  migration or the page was swapped out).  Please see the patch for
-  detail information.
-
-v2 changelog:
-- add some r-bs
-- split the patch "mm: userfault: return VM_FAULT_RETRY on signals"
-  into two: one to focus on the signal behavior change, the other to
-  remove the NOPAGE special path in handle_userfault().  Removing the
-  ARC specific change and remove that part of commit message since
-  it's fixed in 4d447455e73b already [Jerome]
-- return -ENOENT when VMA is invalid for UFFDIO_WRITEPROTECT to match
-  UFFDIO_COPY errno [Mike]
-- add a new patch to introduce helper to find valid VMA for uffd
-  [Mike]
-- check against VM_MAYWRITE instead of VM_WRITE when registering UFFD
-  WP [Mike]
-- MM_CP_DIRTY_ACCT is used incorrectly, fix it up [Jerome]
-- make sure the lock_page behavior will not be changed [Jerome]
-- reorder the whole series, introduce the new ioctl last. [Jerome]
-- fix up the uffdio_writeprotect() following commit df2cc96e77011cf79
-  to return -EAGAIN when detected mm layout changes [Mike]
-
-v1 can be found at: https://lkml.org/lkml/2019/1/21/130
-
-Any comment would be greatly welcomed.   Thanks.
-
-Overview
-====================
-
-The uffd-wp work was initialized by Shaohua Li [1], and later
-continued by Andrea [2]. This series is based upon Andrea's latest
-userfaultfd tree, and it is a continuous works from both Shaohua and
-Andrea.  Many of the follow up ideas come from Andrea too.
-
-Besides the old MISSING register mode of userfaultfd, the new uffd-wp
-support provides another alternative register mode called
-UFFDIO_REGISTER_MODE_WP that can be used to listen to not only missing
-page faults but also write protection page faults, or even they can be
-registered together.  At the same time, the new feature also provides
-a new userfaultfd ioctl called UFFDIO_WRITEPROTECT which allows the
-userspace to write protect a range or memory or fixup write permission
-of faulted pages.
-
-Please refer to the document patch "userfaultfd: wp:
-UFFDIO_REGISTER_MODE_WP documentation update" for more information on
-the new interface and what it can do.
-
-The major workflow of an uffd-wp program should be:
-
-  1. Register a memory region with WP mode using UFFDIO_REGISTER_MODE_WP
-
-  2. Write protect part of the whole registered region using
-     UFFDIO_WRITEPROTECT, passing in UFFDIO_WRITEPROTECT_MODE_WP to
-     show that we want to write protect the range.
-
-  3. Start a working thread that modifies the protected pages,
-     meanwhile listening to UFFD messages.
-
-  4. When a write is detected upon the protected range, page fault
-     happens, a UFFD message will be generated and reported to the
-     page fault handling thread
-
-  5. The page fault handler thread resolves the page fault using the
-     new UFFDIO_WRITEPROTECT ioctl, but this time passing in
-     !UFFDIO_WRITEPROTECT_MODE_WP instead showing that we want to
-     recover the write permission.  Before this operation, the fault
-     handler thread can do anything it wants, e.g., dumps the page to
-     a persistent storage.
-
-  6. The worker thread will continue running with the correctly
-     applied write permission from step 5.
-
-Currently there are already two projects that are based on this new
-userfaultfd feature.
-
-QEMU Live Snapshot: The project provides a way to allow the QEMU
-                    hypervisor to take snapshot of VMs without
-                    stopping the VM [3].
-
-LLNL umap library:  The project provides a mmap-like interface and
-                    "allow to have an application specific buffer of
-                    pages cached from a large file, i.e. out-of-core
-                    execution using memory map" [4][5].
-
-Before posting the patchset, this series was smoke tested against QEMU
-live snapshot and the LLNL umap library (by doing parallel quicksort
-using 128 sorting threads + 80 uffd servicing threads).  My sincere
-thanks to Marty Mcfadden and Denis Plotnikov for the help along the
-way.
-
-TODO
-=============
-
-- hugetlbfs/shmem support
-- performance
-- more architectures
-- cooperate with mprotect()-allowed processes (???)
-- ...
-
-References
-==========
-
-[1] https://lwn.net/Articles/666187/
-[2] https://git.kernel.org/pub/scm/linux/kernel/git/andrea/aa.git/log/?h=userfault
-[3] https://github.com/denis-plotnikov/qemu/commits/background-snapshot-kvm
-[4] https://github.com/LLNL/umap
-[5] https://llnl-umap.readthedocs.io/en/develop/
-[6] https://git.kernel.org/pub/scm/linux/kernel/git/andrea/aa.git/commit/?h=userfault&id=b245ecf6cf59156966f3da6e6b674f6695a5ffa5
-[7] https://lkml.org/lkml/2018/11/21/370
-[8] https://lkml.org/lkml/2018/12/30/64
-
-Andrea Arcangeli (5):
-  userfaultfd: wp: hook userfault handler to write protection fault
-  userfaultfd: wp: add WP pagetable tracking to x86
-  userfaultfd: wp: userfaultfd_pte/huge_pmd_wp() helpers
-  userfaultfd: wp: add UFFDIO_COPY_MODE_WP
-  userfaultfd: wp: add the writeprotect API to userfaultfd ioctl
-
-Martin Cracauer (1):
-  userfaultfd: wp: UFFDIO_REGISTER_MODE_WP documentation update
-
-Peter Xu (16):
-  mm: gup: rename "nonblocking" to "locked" where proper
-  mm: userfault: return VM_FAULT_RETRY on signals
-  userfaultfd: don't retake mmap_sem to emulate NOPAGE
-  mm: allow VM_FAULT_RETRY for multiple times
-  mm: gup: allow VM_FAULT_RETRY for multiple times
-  mm: merge parameters for change_protection()
-  userfaultfd: wp: apply _PAGE_UFFD_WP bit
-  userfaultfd: wp: drop _PAGE_UFFD_WP properly when fork
-  userfaultfd: wp: add pmd_swp_*uffd_wp() helpers
-  userfaultfd: wp: support swap and page migration
-  khugepaged: skip collapse if uffd-wp detected
-  userfaultfd: introduce helper vma_find_uffd
-  userfaultfd: wp: don't wake up when doing write protect
-  userfaultfd: wp: declare _UFFDIO_WRITEPROTECT conditionally
-  userfaultfd: selftests: refactor statistics
-  userfaultfd: selftests: add write-protect test
-
-Shaohua Li (3):
-  userfaultfd: wp: add helper for writeprotect check
-  userfaultfd: wp: support write protection for userfault vma range
-  userfaultfd: wp: enabled write protection in userfaultfd API
-
- Documentation/admin-guide/mm/userfaultfd.rst |  51 +++++
- arch/alpha/mm/fault.c                        |   4 +-
- arch/arc/mm/fault.c                          |  12 +-
- arch/arm/mm/fault.c                          |   9 +-
- arch/arm64/mm/fault.c                        |  11 +-
- arch/hexagon/mm/vm_fault.c                   |   3 +-
- arch/ia64/mm/fault.c                         |   3 +-
- arch/m68k/mm/fault.c                         |   5 +-
- arch/microblaze/mm/fault.c                   |   3 +-
- arch/mips/mm/fault.c                         |   3 +-
- arch/nds32/mm/fault.c                        |   7 +-
- arch/nios2/mm/fault.c                        |   5 +-
- arch/openrisc/mm/fault.c                     |   3 +-
- arch/parisc/mm/fault.c                       |   6 +-
- arch/powerpc/mm/fault.c                      |   8 +-
- arch/riscv/mm/fault.c                        |   9 +-
- arch/s390/mm/fault.c                         |  14 +-
- arch/sh/mm/fault.c                           |   5 +-
- arch/sparc/mm/fault_32.c                     |   4 +-
- arch/sparc/mm/fault_64.c                     |   4 +-
- arch/um/kernel/trap.c                        |   6 +-
- arch/unicore32/mm/fault.c                    |   8 +-
- arch/x86/Kconfig                             |   1 +
- arch/x86/include/asm/pgtable.h               |  67 ++++++
- arch/x86/include/asm/pgtable_64.h            |   8 +-
- arch/x86/include/asm/pgtable_types.h         |  11 +-
- arch/x86/mm/fault.c                          |   8 +-
- arch/xtensa/mm/fault.c                       |   4 +-
- drivers/gpu/drm/ttm/ttm_bo_vm.c              |  12 +-
- fs/userfaultfd.c                             | 130 +++++++----
- include/asm-generic/pgtable.h                |   1 +
- include/asm-generic/pgtable_uffd.h           |  66 ++++++
- include/linux/huge_mm.h                      |   2 +-
- include/linux/mm.h                           |  60 ++++-
- include/linux/swapops.h                      |   2 +
- include/linux/userfaultfd_k.h                |  42 +++-
- include/trace/events/huge_memory.h           |   1 +
- include/uapi/linux/userfaultfd.h             |  40 +++-
- init/Kconfig                                 |   5 +
- mm/filemap.c                                 |   2 +-
- mm/gup.c                                     |  61 ++---
- mm/huge_memory.c                             |  32 ++-
- mm/hugetlb.c                                 |  14 +-
- mm/khugepaged.c                              |  23 ++
- mm/memory.c                                  |  26 ++-
- mm/mempolicy.c                               |   2 +-
- mm/migrate.c                                 |   6 +
- mm/mprotect.c                                |  74 ++++--
- mm/rmap.c                                    |   6 +
- mm/shmem.c                                   |   2 +-
- mm/userfaultfd.c                             | 148 +++++++++---
- tools/testing/selftests/vm/userfaultfd.c     | 225 +++++++++++++++----
- 52 files changed, 974 insertions(+), 290 deletions(-)
- create mode 100644 include/asm-generic/pgtable_uffd.h
-
+diff --git a/mm/gup.c b/mm/gup.c
+index ddde097cf9e4..58d282115d9b 100644
+--- a/mm/gup.c
++++ b/mm/gup.c
+@@ -625,12 +625,12 @@ static int get_gate_page(struct mm_struct *mm, unsigned long address,
+ }
+ 
+ /*
+- * mmap_sem must be held on entry.  If @nonblocking != NULL and
+- * *@flags does not include FOLL_NOWAIT, the mmap_sem may be released.
+- * If it is, *@nonblocking will be set to 0 and -EBUSY returned.
++ * mmap_sem must be held on entry.  If @locked != NULL and *@flags
++ * does not include FOLL_NOWAIT, the mmap_sem may be released.  If it
++ * is, *@locked will be set to 0 and -EBUSY returned.
+  */
+ static int faultin_page(struct task_struct *tsk, struct vm_area_struct *vma,
+-		unsigned long address, unsigned int *flags, int *nonblocking)
++		unsigned long address, unsigned int *flags, int *locked)
+ {
+ 	unsigned int fault_flags = 0;
+ 	vm_fault_t ret;
+@@ -642,7 +642,7 @@ static int faultin_page(struct task_struct *tsk, struct vm_area_struct *vma,
+ 		fault_flags |= FAULT_FLAG_WRITE;
+ 	if (*flags & FOLL_REMOTE)
+ 		fault_flags |= FAULT_FLAG_REMOTE;
+-	if (nonblocking)
++	if (locked)
+ 		fault_flags |= FAULT_FLAG_ALLOW_RETRY;
+ 	if (*flags & FOLL_NOWAIT)
+ 		fault_flags |= FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_RETRY_NOWAIT;
+@@ -668,8 +668,8 @@ static int faultin_page(struct task_struct *tsk, struct vm_area_struct *vma,
+ 	}
+ 
+ 	if (ret & VM_FAULT_RETRY) {
+-		if (nonblocking && !(fault_flags & FAULT_FLAG_RETRY_NOWAIT))
+-			*nonblocking = 0;
++		if (locked && !(fault_flags & FAULT_FLAG_RETRY_NOWAIT))
++			*locked = 0;
+ 		return -EBUSY;
+ 	}
+ 
+@@ -746,7 +746,7 @@ static int check_vma_flags(struct vm_area_struct *vma, unsigned long gup_flags)
+  *		only intends to ensure the pages are faulted in.
+  * @vmas:	array of pointers to vmas corresponding to each page.
+  *		Or NULL if the caller does not require them.
+- * @nonblocking: whether waiting for disk IO or mmap_sem contention
++ * @locked:     whether we're still with the mmap_sem held
+  *
+  * Returns number of pages pinned. This may be fewer than the number
+  * requested. If nr_pages is 0 or negative, returns 0. If no pages
+@@ -775,13 +775,11 @@ static int check_vma_flags(struct vm_area_struct *vma, unsigned long gup_flags)
+  * appropriate) must be called after the page is finished with, and
+  * before put_page is called.
+  *
+- * If @nonblocking != NULL, __get_user_pages will not wait for disk IO
+- * or mmap_sem contention, and if waiting is needed to pin all pages,
+- * *@nonblocking will be set to 0.  Further, if @gup_flags does not
+- * include FOLL_NOWAIT, the mmap_sem will be released via up_read() in
+- * this case.
++ * If @locked != NULL, *@locked will be set to 0 when mmap_sem is
++ * released by an up_read().  That can happen if @gup_flags does not
++ * have FOLL_NOWAIT.
+  *
+- * A caller using such a combination of @nonblocking and @gup_flags
++ * A caller using such a combination of @locked and @gup_flags
+  * must therefore hold the mmap_sem for reading only, and recognize
+  * when it's been released.  Otherwise, it must be held for either
+  * reading or writing and will not be released.
+@@ -793,7 +791,7 @@ static int check_vma_flags(struct vm_area_struct *vma, unsigned long gup_flags)
+ static long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+ 		unsigned long start, unsigned long nr_pages,
+ 		unsigned int gup_flags, struct page **pages,
+-		struct vm_area_struct **vmas, int *nonblocking)
++		struct vm_area_struct **vmas, int *locked)
+ {
+ 	long ret = 0, i = 0;
+ 	struct vm_area_struct *vma = NULL;
+@@ -837,7 +835,7 @@ static long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+ 			if (is_vm_hugetlb_page(vma)) {
+ 				i = follow_hugetlb_page(mm, vma, pages, vmas,
+ 						&start, &nr_pages, i,
+-						gup_flags, nonblocking);
++						gup_flags, locked);
+ 				continue;
+ 			}
+ 		}
+@@ -855,7 +853,7 @@ static long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+ 		page = follow_page_mask(vma, start, foll_flags, &ctx);
+ 		if (!page) {
+ 			ret = faultin_page(tsk, vma, start, &foll_flags,
+-					nonblocking);
++					   locked);
+ 			switch (ret) {
+ 			case 0:
+ 				goto retry;
+@@ -1508,7 +1506,7 @@ EXPORT_SYMBOL(get_user_pages);
+  * @vma:   target vma
+  * @start: start address
+  * @end:   end address
+- * @nonblocking:
++ * @locked: whether the mmap_sem is still held
+  *
+  * This takes care of mlocking the pages too if VM_LOCKED is set.
+  *
+@@ -1516,14 +1514,14 @@ EXPORT_SYMBOL(get_user_pages);
+  *
+  * vma->vm_mm->mmap_sem must be held.
+  *
+- * If @nonblocking is NULL, it may be held for read or write and will
++ * If @locked is NULL, it may be held for read or write and will
+  * be unperturbed.
+  *
+- * If @nonblocking is non-NULL, it must held for read only and may be
+- * released.  If it's released, *@nonblocking will be set to 0.
++ * If @locked is non-NULL, it must held for read only and may be
++ * released.  If it's released, *@locked will be set to 0.
+  */
+ long populate_vma_page_range(struct vm_area_struct *vma,
+-		unsigned long start, unsigned long end, int *nonblocking)
++		unsigned long start, unsigned long end, int *locked)
+ {
+ 	struct mm_struct *mm = vma->vm_mm;
+ 	unsigned long nr_pages = (end - start) / PAGE_SIZE;
+@@ -1558,7 +1556,7 @@ long populate_vma_page_range(struct vm_area_struct *vma,
+ 	 * not result in a stack expansion that recurses back here.
+ 	 */
+ 	return __get_user_pages(current, mm, start, nr_pages, gup_flags,
+-				NULL, NULL, nonblocking);
++				NULL, NULL, locked);
+ }
+ 
+ /*
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index ac843d32b019..ba179c2fa8fb 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -4240,7 +4240,7 @@ int hugetlb_mcopy_atomic_pte(struct mm_struct *dst_mm,
+ long follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 			 struct page **pages, struct vm_area_struct **vmas,
+ 			 unsigned long *position, unsigned long *nr_pages,
+-			 long i, unsigned int flags, int *nonblocking)
++			 long i, unsigned int flags, int *locked)
+ {
+ 	unsigned long pfn_offset;
+ 	unsigned long vaddr = *position;
+@@ -4311,7 +4311,7 @@ long follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 				spin_unlock(ptl);
+ 			if (flags & FOLL_WRITE)
+ 				fault_flags |= FAULT_FLAG_WRITE;
+-			if (nonblocking)
++			if (locked)
+ 				fault_flags |= FAULT_FLAG_ALLOW_RETRY;
+ 			if (flags & FOLL_NOWAIT)
+ 				fault_flags |= FAULT_FLAG_ALLOW_RETRY |
+@@ -4328,9 +4328,9 @@ long follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 				break;
+ 			}
+ 			if (ret & VM_FAULT_RETRY) {
+-				if (nonblocking &&
++				if (locked &&
+ 				    !(fault_flags & FAULT_FLAG_RETRY_NOWAIT))
+-					*nonblocking = 0;
++					*locked = 0;
+ 				*nr_pages = 0;
+ 				/*
+ 				 * VM_FAULT_RETRY must not return an
 -- 
 2.21.0
 
