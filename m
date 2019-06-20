@@ -2,104 +2,112 @@ Return-Path: <SRS0=424v=UT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A6167C43613
-	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 16:35:59 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CC38EC48BE3
+	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 16:37:50 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6037D2084A
-	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 16:35:59 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6037D2084A
+	by mail.kernel.org (Postfix) with ESMTP id 826392083B
+	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 16:37:50 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 826392083B
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id F04886B0005; Thu, 20 Jun 2019 12:35:58 -0400 (EDT)
+	id 231346B0007; Thu, 20 Jun 2019 12:37:50 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id EB57C8E0003; Thu, 20 Jun 2019 12:35:58 -0400 (EDT)
+	id 1E2B08E0003; Thu, 20 Jun 2019 12:37:50 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D7C6C8E0001; Thu, 20 Jun 2019 12:35:58 -0400 (EDT)
+	id 0D2D18E0001; Thu, 20 Jun 2019 12:37:50 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B61956B0005
-	for <linux-mm@kvack.org>; Thu, 20 Jun 2019 12:35:58 -0400 (EDT)
-Received: by mail-qk1-f199.google.com with SMTP id v4so4312031qkj.10
-        for <linux-mm@kvack.org>; Thu, 20 Jun 2019 09:35:58 -0700 (PDT)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E00966B0007
+	for <linux-mm@kvack.org>; Thu, 20 Jun 2019 12:37:49 -0400 (EDT)
+Received: by mail-qt1-f199.google.com with SMTP id e39so4313504qte.8
+        for <linux-mm@kvack.org>; Thu, 20 Jun 2019 09:37:49 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
          :references:from:openpgp:autocrypt:organization:message-id:date
          :user-agent:mime-version:in-reply-to:content-language
          :content-transfer-encoding;
-        bh=+v82EA19QUdGg0HujII6g3ea1F/gqFFo2+aBUrf6nSQ=;
-        b=Cgjumdm+ajQWw4QyibkzZQeWOG59T/6vCgblBEf5W/mYmAHQxKxPIhqv7pbJP+xfXc
-         bwuz1w/15A7wBwAUSUSBUflX5UKYP2JpjZySW16g5YVoDTGv3JX51jK5ucJk8H/gVffl
-         KON8iZVDi9kjbNo8knRY6WUmLMQY2d41jnFv5bo/TnqUIgwgrw5P7511Qs2dPpYBRuUr
-         HEEGEb/u1Uw0zPcQwdOe07Dt+cQp2Kg9Fq4YSr2BGffrz6fHu0AN4vmqA95IBUMcKCcB
-         AM09dEqSdrRXpo9Dozo6WL3XsFDfHTjwucZZwrvhsjKRKOFVzIrk8y3zHohGdTOmdhGA
-         TMZg==
+        bh=Y7djfo9C72oSddDkps99xsZfZZx1VsJ71gM3u+PP48M=;
+        b=jjM8x9JKtC1Yzugpdj7UbCSzaB2PW0lOpgihEywI4Rq3TTB4zu+P36PctdhqS8VFrM
+         TVsCvnNLwTI0LmBioyR+ITkAiXQYMUw4X9pbooUtlmnOI04vTE+tuO3PPgLypKCUOowG
+         E103uz+D9Yv4R7/JYJ89P6hHtHTWQRTE2az/m9c4y9Sqj8S18jKx9uLCxCcJuHwlODPW
+         RhTRQvsGv35GAOZUvLV7t4NNtTRnAEDQjQPA90wGeYasylIa9YdAs5OLah0n626za6F2
+         8yJH57UvongTIPxuIaq4QHr1dzxve5Ih6lBLZN2KXHgoWAf1RZEpGtTG2/FV+ZMo3ueQ
+         A/UA==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAXKZ6l/xAqM0KhNcv1Ty26HXaPlCqaAI8qoPuZvdsOJpgZgDYuy
-	H7GOkuuCM4L/ZPOEtBwv2TC+E7ZfQGOKT5QhGR3BehvLXAAahvydVRfFtwmHXpOVtaqW79Q1ZN9
-	Q0dsnC/IvUuIVerV7DGOCRrPVhmtGj/wOKMqcJGcPrFYFSeyqyqjIKFNjzzTeZ1JfCA==
-X-Received: by 2002:a05:620a:1519:: with SMTP id i25mr12027472qkk.331.1561048558490;
-        Thu, 20 Jun 2019 09:35:58 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzW+ZsfQ8UaW3BLH1OEYtj8taQcdx/EnphzHLL5qaMxeGSSNoiqARXuTt59Tg/lHWzZpnz8
-X-Received: by 2002:a05:620a:1519:: with SMTP id i25mr12027423qkk.331.1561048557927;
-        Thu, 20 Jun 2019 09:35:57 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561048557; cv=none;
+X-Gm-Message-State: APjAAAXAhUB0J44DWgqpeF8tAlx+q5KiuSB5TnnZ1Df3bY6tgpANG8xe
+	GYXVwvod6gBY2rne+s6ocg/wHmbMZ/Fh5B1MXxCaX6euL7EvUfwumNwvVYxbqMA/QMwTlQYbojS
+	VcL4v7plUaZAZKqDl3RdYNeriT9CuTHm+cxCsjCMvvyijUHAJDZZQvUbKMFnIbJeV3A==
+X-Received: by 2002:ac8:2439:: with SMTP id c54mr80370396qtc.160.1561048669680;
+        Thu, 20 Jun 2019 09:37:49 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxq65PG/rN6ErNK4IThtYRduOWBe8S5bl52hlQqe2TadXgHTwdpYgxH4FqytKpq1AqpEfO1
+X-Received: by 2002:ac8:2439:: with SMTP id c54mr80370356qtc.160.1561048669103;
+        Thu, 20 Jun 2019 09:37:49 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561048669; cv=none;
         d=google.com; s=arc-20160816;
-        b=mICIN8i95ffZzWxCu2D8oYeOrSFXUPyKMoXkv/l/8080yP432hlsfVyL6Kth91YKOb
-         mVT0AZO4jh+0gXlbeCbwojRg8nXDiVcTrT2O1eBoaOg9iSHEmR3C81XC0dtcY9qzCca5
-         fbVDHEyVvh27PRWGYOFJj+MczUNWRGSJr5whIcJsX4zEFNmrXaCw+gh2eqvceSCApqJN
-         mHel89d73IdLvuz1rSZXDND8ZG3wIFFsGxUdCOJTe8Dz3mzxW9FcB1wmwnyHLJ+vZeYe
-         +XbzNLNBP0ZHLsFScthinvP/50TezRtBTYA6SlGQTDtYAXHrxtQAswvPAF4wgLrJBYzM
-         gszA==
+        b=B9qVDQkyyHGXzWRGkS4Fmu8KYmWsuih5qx1rvQJicyHvOA7kXfNro/NCEncG9mCAgQ
+         DCxT+63/tCA/lWGDftuAlQLu6cW3SsLEayMJmzuV9gHiezEEkVu2tlXmxGjRZw2Fwq+X
+         X4Mxu7380nMoElr5aQirTcL3fQNwnmjaOH2SPPEjiArmh1lA3a+YOir+4L/1cRg4mBap
+         P3bvNKiJN0PuFSHzrANMEHLpbcT7gML+mNOwpgMnU5hwxBqYDC1zaTvsxzNBUcykzUEd
+         X9q+CV3R2GzLk+nUAQ5peIYsz9ENpDKBtaoxhmeQDNThNPzqTpg6blgsDjn3bzvaH0zV
+         HlXg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
          :user-agent:date:message-id:organization:autocrypt:openpgp:from
          :references:cc:to:subject;
-        bh=+v82EA19QUdGg0HujII6g3ea1F/gqFFo2+aBUrf6nSQ=;
-        b=NSJymVL8tL+S9tRt1bR5uvwbj9ryN24Pjz/BCQ58M8zEElcib0qRitsq/aorLwjPCg
-         SSMFUI82wlxXSQGammwUoAANyMVnJqnUmAF8ArQCbHsJ5E4eHOqj/UJJyzP25e4wxE6r
-         wImDpL9PlOUkEJIF0fopyUjhVGSP1q0Nxd7XSen2bWO6HBdrqj1b0tz/toOYTgpj0AR3
-         TdHceTuLEayK1JupkGB0lemY2FoP5XbxmytzApq7DDVp5MzP7YwnBa8MbTXT/ZptGyCS
-         ufo2oG9cNTJF74qvVsk6XoHN1VTDw3O8Zh69QNm8gZOsgxwV29pNVMhfXKu0B4MtpbA7
-         bUgA==
+        bh=Y7djfo9C72oSddDkps99xsZfZZx1VsJ71gM3u+PP48M=;
+        b=iSeuvpsazIW7cM3SYmeuGpkOtmIwY1Tj5V5XfEjqDpqzZCsKAPc/bL21DHUSv5Bhuy
+         GUnKZSOlR3NQ/NiMhBbgFJYzMCZbvB17WTbZ8QIz62vNIXRK5tgtBugUdASl2akb8nAh
+         WKaviW47RUT3P2mWdUtjjBahskaG+x74/38zdVk9NCFwL52ObLnUHQC4oAHYbCu1MDiN
+         GbPWyeWVUcBT2GzrUqCWfyFxx72QjAFzZRXP5iCbDTG5+12cEIJYhJMOzX/oOHsuXPlN
+         4QF0Vmzrcewt7BnFHpodj+a43rWQPDJP7wQw2KCT0+7FOVHVjhvI8gCMOWQHd83m3iWV
+         6auA==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id f28si10481246qkh.113.2019.06.20.09.35.57
+        by mx.google.com with ESMTPS id h8si67741qtb.258.2019.06.20.09.37.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 20 Jun 2019 09:35:57 -0700 (PDT)
+        Thu, 20 Jun 2019 09:37:49 -0700 (PDT)
 Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx02.intmail.prod.int.phx2.redhat.com [10.5.11.12])
+Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 1024731628F5;
-	Thu, 20 Jun 2019 16:35:57 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id 294E2307D8E3;
+	Thu, 20 Jun 2019 16:37:32 +0000 (UTC)
 Received: from [10.36.116.54] (ovpn-116-54.ams2.redhat.com [10.36.116.54])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id E491D60BE0;
-	Thu, 20 Jun 2019 16:35:54 +0000 (UTC)
-Subject: Re: [PATCH v10 08/13] mm/sparsemem: Prepare for sub-section ranges
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko
- <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>,
- Logan Gunthorpe <logang@deltatee.com>, Oscar Salvador <osalvador@suse.de>,
- Pavel Tatashin <pasha.tatashin@soleen.com>, Linux MM <linux-mm@kvack.org>,
- linux-nvdimm <linux-nvdimm@lists.01.org>,
- Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
-References: <156092349300.979959.17603710711957735135.stgit@dwillia2-desk3.amr.corp.intel.com>
- <156092353780.979959.9713046515562743194.stgit@dwillia2-desk3.amr.corp.intel.com>
- <70f3559b-2832-67eb-0715-ed9f856f6ed9@redhat.com>
- <CAPcyv4jzELzrf-p6ujUwdXN2FRe0WCNhpTziP2-z4-8uBSSp7A@mail.gmail.com>
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 91D98100194A;
+	Thu, 20 Jun 2019 16:37:11 +0000 (UTC)
+Subject: Re: [PATCH v2 4/6] mm/memory_hotplug: Rename walk_memory_range() and
+ pass start+size instead of pfns
+To: Nathan Chancellor <natechancellor@gmail.com>
+Cc: linux-kernel@vger.kernel.org, Dan Williams <dan.j.williams@intel.com>,
+ Andrew Morton <akpm@linux-foundation.org>, linuxppc-dev@lists.ozlabs.org,
+ linux-acpi@vger.kernel.org, linux-mm@kvack.org,
+ Benjamin Herrenschmidt <benh@kernel.crashing.org>,
+ Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>,
+ "Rafael J. Wysocki" <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>,
+ Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+ Rashmica Gupta <rashmica.g@gmail.com>,
+ Pavel Tatashin <pavel.tatashin@microsoft.com>,
+ Anshuman Khandual <anshuman.khandual@arm.com>,
+ Michael Neuling <mikey@neuling.org>, Thomas Gleixner <tglx@linutronix.de>,
+ Oscar Salvador <osalvador@suse.de>, Michal Hocko <mhocko@suse.com>,
+ Wei Yang <richard.weiyang@gmail.com>, Juergen Gross <jgross@suse.com>,
+ Qian Cai <cai@lca.pw>, Arun KS <arunks@codeaurora.org>
+References: <20190620103520.23481-1-david@redhat.com>
+ <20190620103520.23481-5-david@redhat.com>
+ <20190620160507.GA34841@archlinux-epyc>
 From: David Hildenbrand <david@redhat.com>
 Openpgp: preference=signencrypt
 Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
@@ -146,70 +154,94 @@ Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
  +8Umfre0Xt4713VxMygW0PnQt5aSQdMD58jHFxTk092mU+yIHj5LeYgvwSgZN4airXk5yRXl
  SE+xAvmumFBY
 Organization: Red Hat GmbH
-Message-ID: <d62e1f2f-70db-da84-5cc3-01fab779aeb7@redhat.com>
-Date: Thu, 20 Jun 2019 18:35:54 +0200
+Message-ID: <bffe90e6-81fa-e8d5-5fb2-b54539f45c5d@redhat.com>
+Date: Thu, 20 Jun 2019 18:37:10 +0200
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.7.0
 MIME-Version: 1.0
-In-Reply-To: <CAPcyv4jzELzrf-p6ujUwdXN2FRe0WCNhpTziP2-z4-8uBSSp7A@mail.gmail.com>
+In-Reply-To: <20190620160507.GA34841@archlinux-epyc>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.12
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.41]); Thu, 20 Jun 2019 16:35:57 +0000 (UTC)
+X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.48]); Thu, 20 Jun 2019 16:37:48 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 20.06.19 18:19, Dan Williams wrote:
-> On Thu, Jun 20, 2019 at 3:31 AM David Hildenbrand <david@redhat.com> wrote:
+On 20.06.19 18:05, Nathan Chancellor wrote:
+> On Thu, Jun 20, 2019 at 12:35:18PM +0200, David Hildenbrand wrote:
+>> walk_memory_range() was once used to iterate over sections. Now, it
+>> iterates over memory blocks. Rename the function, fixup the
+>> documentation. Also, pass start+size instead of PFNs, which is what most
+>> callers already have at hand. (we'll rework link_mem_sections() most
+>> probably soon)
 >>
->> On 19.06.19 07:52, Dan Williams wrote:
->>> Prepare the memory hot-{add,remove} paths for handling sub-section
->>> ranges by plumbing the starting page frame and number of pages being
->>> handled through arch_{add,remove}_memory() to
->>> sparse_{add,remove}_one_section().
->>>
->>> This is simply plumbing, small cleanups, and some identifier renames. No
->>> intended functional changes.
->>>
->>> Cc: Michal Hocko <mhocko@suse.com>
->>> Cc: Vlastimil Babka <vbabka@suse.cz>
->>> Cc: Logan Gunthorpe <logang@deltatee.com>
->>> Cc: Oscar Salvador <osalvador@suse.de>
->>> Reviewed-by: Pavel Tatashin <pasha.tatashin@soleen.com>
->>> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
->>> ---
->>>  include/linux/memory_hotplug.h |    5 +-
->>>  mm/memory_hotplug.c            |  114 +++++++++++++++++++++++++---------------
->>>  mm/sparse.c                    |   16 ++----
->>>  3 files changed, 81 insertions(+), 54 deletions(-)
-> [..]
->>> @@ -528,31 +556,31 @@ static void __remove_section(struct zone *zone, struct mem_section *ms,
->>>   * sure that pages are marked reserved and zones are adjust properly by
->>>   * calling offline_pages().
->>>   */
->>> -void __remove_pages(struct zone *zone, unsigned long phys_start_pfn,
->>> +void __remove_pages(struct zone *zone, unsigned long pfn,
->>>                   unsigned long nr_pages, struct vmem_altmap *altmap)
->>>  {
->>> -     unsigned long i;
->>>       unsigned long map_offset = 0;
->>> -     int sections_to_remove;
->>> +     int i, start_sec, end_sec;
+>> Follow-up patches wil rework, simplify, and move walk_memory_blocks() to
+>> drivers/base/memory.c.
 >>
->> As mentioned in v9, use "unsigned long" for start_sec and end_sec please.
+>> Note: walk_memory_blocks() only works correctly right now if the
+>> start_pfn is aligned to a section start. This is the case right now,
+>> but we'll generalize the function in a follow up patch so the semantics
+>> match the documentation.
+>>
+>> Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+>> Cc: Paul Mackerras <paulus@samba.org>
+>> Cc: Michael Ellerman <mpe@ellerman.id.au>
+>> Cc: "Rafael J. Wysocki" <rjw@rjwysocki.net>
+>> Cc: Len Brown <lenb@kernel.org>
+>> Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+>> Cc: David Hildenbrand <david@redhat.com>
+>> Cc: Rashmica Gupta <rashmica.g@gmail.com>
+>> Cc: Andrew Morton <akpm@linux-foundation.org>
+>> Cc: Pavel Tatashin <pavel.tatashin@microsoft.com>
+>> Cc: Anshuman Khandual <anshuman.khandual@arm.com>
+>> Cc: Michael Neuling <mikey@neuling.org>
+>> Cc: Thomas Gleixner <tglx@linutronix.de>
+>> Cc: Oscar Salvador <osalvador@suse.de>
+>> Cc: Michal Hocko <mhocko@suse.com>
+>> Cc: Wei Yang <richard.weiyang@gmail.com>
+>> Cc: Juergen Gross <jgross@suse.com>
+>> Cc: Qian Cai <cai@lca.pw>
+>> Cc: Arun KS <arunks@codeaurora.org>
+>> Signed-off-by: David Hildenbrand <david@redhat.com>
+>> ---
+>>  arch/powerpc/platforms/powernv/memtrace.c | 22 ++++++++++-----------
+>>  drivers/acpi/acpi_memhotplug.c            | 19 ++++--------------
+>>  drivers/base/node.c                       |  5 +++--
+>>  include/linux/memory_hotplug.h            |  2 +-
+>>  mm/memory_hotplug.c                       | 24 ++++++++++++-----------
+>>  5 files changed, 32 insertions(+), 40 deletions(-)
+>>
+>> diff --git a/arch/powerpc/platforms/powernv/memtrace.c b/arch/powerpc/platforms/powernv/memtrace.c
+>> index 5e53c1392d3b..8c82c041afe6 100644
+>> --- a/arch/powerpc/platforms/powernv/memtrace.c
+>> +++ b/arch/powerpc/platforms/powernv/memtrace.c
+>> @@ -70,23 +70,24 @@ static int change_memblock_state(struct memory_block *mem, void *arg)
+>>  /* called with device_hotplug_lock held */
+>>  static bool memtrace_offline_pages(u32 nid, u64 start_pfn, u64 nr_pages)
+>>  {
+>> +	const unsigned long start = PFN_PHYS(start_pfn);
+>> +	const unsigned long size = PFN_PHYS(nr_pages);
+>>  	u64 end_pfn = start_pfn + nr_pages - 1;
 > 
-> Honestly I saw you and Andrew going back and forth about "unsigned
-> long i" that I thought this would be handled by a follow on patchset
-> when that debate settled.
+> This variable should be removed:
+> 
+> arch/powerpc/platforms/powernv/memtrace.c:75:6: warning: unused variable 'end_pfn' [-Wunused-variable]
+>         u64 end_pfn = start_pfn + nr_pages - 1;
+>             ^
+> 1 warning generated.
+> 
+> https://travis-ci.com/ClangBuiltLinux/continuous-integration/jobs/209576737
+> 
+> Cheers,
+> Nathan
 > 
 
-I'll send a fixup then, once this patch set is final - hoping I won't
-forget about it (that's why I asked about using these types in the first
-place).
+Indeed, thanks!
+
 
 -- 
 
