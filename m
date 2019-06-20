@@ -2,316 +2,309 @@ Return-Path: <SRS0=424v=UT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS autolearn=ham
+X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B4C3AC43613
-	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 12:30:40 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5BD0DC43613
+	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 12:40:21 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6956E206E0
-	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 12:30:40 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6956E206E0
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id B9D972082C
+	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 12:40:20 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=yandex-team.ru header.i=@yandex-team.ru header.b="j+2Xmh4s"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B9D972082C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=yandex-team.ru
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id EADBA6B0005; Thu, 20 Jun 2019 08:30:39 -0400 (EDT)
+	id 5A4A46B0003; Thu, 20 Jun 2019 08:40:20 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E5D688E0002; Thu, 20 Jun 2019 08:30:39 -0400 (EDT)
+	id 5376A8E0002; Thu, 20 Jun 2019 08:40:20 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D4C328E0001; Thu, 20 Jun 2019 08:30:39 -0400 (EDT)
+	id 3F72E8E0001; Thu, 20 Jun 2019 08:40:20 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
-	by kanga.kvack.org (Postfix) with ESMTP id AEB236B0005
-	for <linux-mm@kvack.org>; Thu, 20 Jun 2019 08:30:39 -0400 (EDT)
-Received: by mail-yw1-f71.google.com with SMTP id w127so2747877ywe.6
-        for <linux-mm@kvack.org>; Thu, 20 Jun 2019 05:30:39 -0700 (PDT)
+Received: from mail-lj1-f198.google.com (mail-lj1-f198.google.com [209.85.208.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C8E2F6B0003
+	for <linux-mm@kvack.org>; Thu, 20 Jun 2019 08:40:19 -0400 (EDT)
+Received: by mail-lj1-f198.google.com with SMTP id c25so372882ljb.3
+        for <linux-mm@kvack.org>; Thu, 20 Jun 2019 05:40:19 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:in-reply-to:references:date:mime-version:message-id;
-        bh=sK4dgJWbel1z30zU8S30KyfnJdvt22tsMUI9PvYM1iw=;
-        b=QmqPGjeFI2J8Qei3fETJ4B8rqJOIf8/XdrFffaFo1h5wjnYdb15O4/NWhFkesutZmj
-         9ytu5daY9wfJ4UwIvg6VAWhKbw4gTZPqZJ4Pr/Vrl8bvzBspq5yLKB56knYb+u3GvE42
-         tLEeCYsPAoKYUntOrN+2ADZU1NMr5P7vRWrg6IecF83yJSu0+pD1eyXGdNB0ttMIkvMj
-         4yUBujQJqG1gjvrLLcbSZGFEiEN6PUZ05RkE8+nNAhsCCAM75zwwOGaWr5TW562h0uV1
-         0Gp7tzcmXxOus6h4LXZ2OHXhiCB3KPMtasg0Sj0IO+h9eVb5ertxLovmUhIRHPZ/OB50
-         ZEHw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: APjAAAU/aCQ6hMyMZn882Cf8O+eTjWuI5NYJEEmPQ141u+mzI+A5PvYE
-	rWB1KQFAk8hu0mgbhHKA4IPylfQOdCrFkeDFxV0ZAuZWW93FrrG5vZgvI6oZZ3b81BDT3WkhNWx
-	0Ab+YorzPI/62LAq4Na3dtNBzHJop3KUtDHmHgGYTvD/GJZELQFjStx0Ni7I7BrzAHg==
-X-Received: by 2002:a0d:db83:: with SMTP id d125mr4408232ywe.330.1561033839265;
-        Thu, 20 Jun 2019 05:30:39 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzMZ/3wTDHavk3dqZ8IdeCVGG0NRPHdOYxbbkmGoeggxAmzpWZ9pUNpL0ZQZt0vL7WSWgGN
-X-Received: by 2002:a0d:db83:: with SMTP id d125mr4408190ywe.330.1561033838373;
-        Thu, 20 Jun 2019 05:30:38 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561033838; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:references:from
+         :message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=8zUumKf1qeYuTC1ownuhlHgHCHk6qEa6psiv56trKZ0=;
+        b=ObH3kcVDDQ79xxazyWoaCXMayGh4hx/EhyXjpHvGYltFpP4tGG0QUHYPZVIYGk8xvE
+         ddYWm4D5l/Lk745pxknYUGnb0ebkjb/u8MPdBnIu1z7zKjbTrUw45BrCd0UfNLI6wAfB
+         zEClzp+zwfiF/L2t+ziECWt8/TLdwjf/QeYRklJfr5Hjtd9pqabCDVYxIBhhvbbJtWdn
+         SZUQhgCNVGJevQipDU81oXUHD9hb4auaGFMi/4TON4CG7/au8OSJ35bOPzC9ZQbcEyql
+         x9MGcl9ZPCddMn5/B356iRCO/5AmBbaTzuqOAcA5uEKHaH0+NJqYnSc8MllUbpleseJd
+         KLeg==
+X-Gm-Message-State: APjAAAVxH9pJj7pPgonGDb1srAtiBKrtA/m2MVQSDZiM+VYOYQIMUCQt
+	ZbftcHlQpYqtjVPVmDJfMZ5UIuAGyzA7kp398ntWA2bKchW0ne76gG29ocZAGLINVPIbF18+RsG
+	fO4IiK16/Lw6XiCtLp4c3ZT1qQPdUzgg4/ac6D4C/1tMVyelr39RnSHCV+Z95fuu4Kg==
+X-Received: by 2002:a2e:2993:: with SMTP id p19mr40944945ljp.202.1561034418994;
+        Thu, 20 Jun 2019 05:40:18 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxE5OqsHY2Lx1iq4seOHMQKURRMthUzyZrewVVIK636jnC/B8yuU5IJYq7Ke/kF6/5OeETC
+X-Received: by 2002:a2e:2993:: with SMTP id p19mr40944909ljp.202.1561034418054;
+        Thu, 20 Jun 2019 05:40:18 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561034418; cv=none;
         d=google.com; s=arc-20160816;
-        b=V6Rra6hhezK+E7+ply2d24mByv5a4NIEmvhyvTsmvsVJ/U+V0wUaxAGfjC0LoWbr5W
-         OqcRsz9tD/YeBMGV6Du+6t1HIHPbN9HzJzPtYALVEUfAT/Z28GSk9ZkVYb6vMFDMU03l
-         Hl7Q7+xaRnFjds/CJZxvqPTYcP9ZkgmlSmv0A/Fx8WBqGFowLr+FxaJq5Wi868zz0PAR
-         /c5eHh1BUPTgwe5QtcflfhvIOYyxSjBL1S8rs3ZQbvDzJ73/IwZN/iLen8moxak+EMoc
-         YpIw/B9BJ9muoBFuwW9ACoUOEnZw1Leg4tchWr8rcw7p0RZcozqXMFPgt5kaqYOntWdy
-         3xCw==
+        b=hz9NYkK7164KScJyWXJk8hTwWna17ZaIk9f90DCfKerBRGBAdeu3n5FCyDcE7Sh6lS
+         pGCeLvIcIx88yp9XpMkinJVESJjbORDzTidZGekdcReQtmNs+JUEUjGzSoYeIp0xCNDf
+         ZkF6UGlgfcW9DO/+Jej1HkZ20X2q3rcAM+XL0tfgKGS4Pn0HfhvUbRwZ+sXLQSj0+/FU
+         AsY5xsR1sJVqP9fOYfGNSS6owVKRBcUfOhkU8qxWhbxxoyo69DqhQtBX2+nfawKWI0w/
+         svC2mZPvdNXU5QeSUMo+kfJnBkyEc9J9H8lshCvQrW62rArK9B1UTDOP1u2ilf6ewsSH
+         UVpg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:mime-version:date:references:in-reply-to:subject:cc:to
-         :from;
-        bh=sK4dgJWbel1z30zU8S30KyfnJdvt22tsMUI9PvYM1iw=;
-        b=J2jSveIW1PXIrejGagsKrUS8tW8mXovnM63KIfQAvjbTpLnt0QfC4Eb0AZ4dA039aj
-         C5J/FvHmSicQ04hczhAF9VkAMIsjjisqZR8Dv8s3pq1vKrw2Nf6qpr30jitX3/XwK9d5
-         9ABcutyleSzpTri3HF91yxwhGRz3+ZG4QzC3JOXozE/bcp+SnaxWwlo4fcErbEXRFtiM
-         e3T5FdTPo4DuK8BO/p7lwaRnb/M3ITOgPT8jw314/wyVVS8vUPOhXLzCYZHeABmd0zfc
-         ImGm3r10L6uXXnG7goBiO9hLAKJYX0VNGIKMLZOB5+4wvDN+HxyXKp4leg6u9uylCkne
-         lCHg==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:to:subject
+         :dkim-signature;
+        bh=8zUumKf1qeYuTC1ownuhlHgHCHk6qEa6psiv56trKZ0=;
+        b=bbPnYevRRxw22+IC+Duc4floSluAg2vPXS7g4u/BBkYOWYCov//0aU0Y/x3sCKTPVi
+         46V9aIvSk+nzYvSjx9kMW6a7NCTVRsCl4qORKKVgJFrd/amVQX8DF+0Qacb4iKZ1Ov6Q
+         TpO2GkYiqd/+YR8CvqF6fRuHute7mCbzrsq9ZawrHlO02+zuZHVsT3XZ5mygOjjV2c9Z
+         ffgQPyDcIh9MKLVe167kYHqVnpj1rde+g9guW5RHvcLxndCJCSDtG6N0YBPWwNwL7pzZ
+         +2VgepIfX9p+HmBagjUoDA+2viSiiXhCuRSyg7/PhwYRYaqD+CRW/eFtSjhVkb0aAsfr
+         p0fA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id z65si7021835ybb.445.2019.06.20.05.30.38
+       dkim=pass header.i=@yandex-team.ru header.s=default header.b=j+2Xmh4s;
+       spf=pass (google.com: domain of khlebnikov@yandex-team.ru designates 2a02:6b8:0:1619::183 as permitted sender) smtp.mailfrom=khlebnikov@yandex-team.ru;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=yandex-team.ru
+Received: from forwardcorp1j.mail.yandex.net (forwardcorp1j.mail.yandex.net. [2a02:6b8:0:1619::183])
+        by mx.google.com with ESMTPS id j23si11975037lja.27.2019.06.20.05.40.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 20 Jun 2019 05:30:38 -0700 (PDT)
-Received-SPF: pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
+        Thu, 20 Jun 2019 05:40:18 -0700 (PDT)
+Received-SPF: pass (google.com: domain of khlebnikov@yandex-team.ru designates 2a02:6b8:0:1619::183 as permitted sender) client-ip=2a02:6b8:0:1619::183;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x5KCIQGS009776
-	for <linux-mm@kvack.org>; Thu, 20 Jun 2019 08:30:38 -0400
-Received: from e06smtp02.uk.ibm.com (e06smtp02.uk.ibm.com [195.75.94.98])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2t89ewt1ke-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 20 Jun 2019 08:30:37 -0400
-Received: from localhost
-	by e06smtp02.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
-	Thu, 20 Jun 2019 13:30:35 +0100
-Received: from b06cxnps4076.portsmouth.uk.ibm.com (9.149.109.198)
-	by e06smtp02.uk.ibm.com (192.168.101.132) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Thu, 20 Jun 2019 13:30:29 +0100
-Received: from d06av22.portsmouth.uk.ibm.com (d06av22.portsmouth.uk.ibm.com [9.149.105.58])
-	by b06cxnps4076.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x5KCUSMK19595406
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 20 Jun 2019 12:30:29 GMT
-Received: from d06av22.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id AE50F4C04E;
-	Thu, 20 Jun 2019 12:30:28 +0000 (GMT)
-Received: from d06av22.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id A9FED4C052;
-	Thu, 20 Jun 2019 12:30:24 +0000 (GMT)
-Received: from skywalker.linux.ibm.com (unknown [9.199.52.129])
-	by d06av22.portsmouth.uk.ibm.com (Postfix) with ESMTP;
-	Thu, 20 Jun 2019 12:30:24 +0000 (GMT)
-X-Mailer: emacs 26.2 (via feedmail 11-beta-1 I)
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-To: Dan Williams <dan.j.williams@intel.com>, akpm@linux-foundation.org
-Cc: David Hildenbrand <david@redhat.com>,
-        =?utf-8?B?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>,
-        Mike Rapoport <rppt@linux.ibm.com>, Jane Chu <jane.chu@oracle.com>,
-        Pavel Tatashin <pasha.tatashin@soleen.com>,
-        Jonathan Corbet <corbet@lwn.net>, Qian Cai <cai@lca.pw>,
-        Logan Gunthorpe <logang@deltatee.com>, Toshi Kani <toshi.kani@hpe.com>,
-        Oscar Salvador <osalvador@suse.de>, Jeff Moyer <jmoyer@redhat.com>,
-        Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>,
-        stable@vger.kernel.org, Wei Yang <richardw.yang@linux.intel.com>,
-        linux-mm@kvack.org, linux-nvdimm@lists.01.org,
-        linux-kernel@vger.kernel.org
-Subject: Re: [PATCH v10 00/13] mm: Sub-section memory hotplug support
-In-Reply-To: <156092349300.979959.17603710711957735135.stgit@dwillia2-desk3.amr.corp.intel.com>
-References: <156092349300.979959.17603710711957735135.stgit@dwillia2-desk3.amr.corp.intel.com>
-Date: Thu, 20 Jun 2019 18:00:23 +0530
+       dkim=pass header.i=@yandex-team.ru header.s=default header.b=j+2Xmh4s;
+       spf=pass (google.com: domain of khlebnikov@yandex-team.ru designates 2a02:6b8:0:1619::183 as permitted sender) smtp.mailfrom=khlebnikov@yandex-team.ru;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=yandex-team.ru
+Received: from mxbackcorp1g.mail.yandex.net (mxbackcorp1g.mail.yandex.net [IPv6:2a02:6b8:0:1402::301])
+	by forwardcorp1j.mail.yandex.net (Yandex) with ESMTP id 740152E0A55;
+	Thu, 20 Jun 2019 15:40:17 +0300 (MSK)
+Received: from smtpcorp1p.mail.yandex.net (smtpcorp1p.mail.yandex.net [2a02:6b8:0:1472:2741:0:8b6:10])
+	by mxbackcorp1g.mail.yandex.net (nwsmtp/Yandex) with ESMTP id rW3WrpNMFh-eH5OgRV3;
+	Thu, 20 Jun 2019 15:40:17 +0300
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=yandex-team.ru; s=default;
+	t=1561034417; bh=8zUumKf1qeYuTC1ownuhlHgHCHk6qEa6psiv56trKZ0=;
+	h=In-Reply-To:References:Date:Message-ID:From:To:Subject;
+	b=j+2Xmh4sT8D479rVDfmbVGmhxUaSriUW7RJV/wFTW7+nSuxMANixYXGe2CpyZhdVd
+	 zRbpFjgUxB8h+o+nyPocDh1FL+zZtt6Zb0nWHS+6ak+vtAsAlEHDbRGbRpUZeKNQv7
+	 TO/sLQdOt2nOwqdHRUE133ZykzX5WajwXnKpGdiA=
+Authentication-Results: mxbackcorp1g.mail.yandex.net; dkim=pass header.i=@yandex-team.ru
+Received: from dynamic-red.dhcp.yndx.net (dynamic-red.dhcp.yndx.net [2a02:6b8:0:40c:a1b1:2ca9:8cc0:4c56])
+	by smtpcorp1p.mail.yandex.net (nwsmtp/Yandex) with ESMTPSA id ado0pY8xXj-eGqqONGn;
+	Thu, 20 Jun 2019 15:40:17 +0300
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(Client certificate not present)
+Subject: Re: [PATCH RFC] proc/meminfo: add NetBuffers counter for socket
+ buffers
+To: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org,
+ linux-kernel@vger.kernel.org, netdev@vger.kernel.org
+References: <155792134187.1641.3858215257559626632.stgit@buzz>
+ <9f611f72-c883-45e9-cb2a-824ba27356d9@suse.cz>
+From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Message-ID: <fe7a4739-556f-69b1-fe30-f4b6e1b31e64@yandex-team.ru>
+Date: Thu, 20 Jun 2019 15:40:16 +0300
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.0
 MIME-Version: 1.0
-Content-Type: text/plain
-X-TM-AS-GCONF: 00
-x-cbid: 19062012-0008-0000-0000-000002F57E05
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19062012-0009-0000-0000-000022629E8E
-Message-Id: <874l4kjv6o.fsf@linux.ibm.com>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-06-20_08:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1906200091
+In-Reply-To: <9f611f72-c883-45e9-cb2a-824ba27356d9@suse.cz>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-CA
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Dan Williams <dan.j.williams@intel.com> writes:
+On 20.06.2019 15:03, Vlastimil Babka wrote:
+> On 5/15/19 1:55 PM, Konstantin Khlebnikov wrote:
+>> Socket buffers always were dark-matter that lives by its own rules.
+> 
+> Is the information even exported somewhere e.g. in sysfs or via netlink yet?
 
-> Changes since v9 [1]:
-> - Fix multiple issues related to the fact that pfn_valid() has
->   traditionally returned true for any pfn in an 'early' (onlined at
->   boot) section regardless of whether that pfn represented 'System RAM'.
->   Teach pfn_valid() to maintain its traditional behavior in the presence
->   of subsections. Specifically, subsection precision for pfn_valid() is
->   only considered for non-early / hot-plugged sections. (Qian)
->
-> - Related to the first item introduce a SECTION_IS_EARLY
->   (->section_mem_map flag) to remove the existing hacks for determining
->   an early section by looking at whether the usemap was allocated from the
->   slab.
->
-> - Kill off the EEXIST hackery in __add_pages(). It breaks
->   (arch_add_memory() false-positive) the detection of subsection
->   collisions reported by section_activate(). It is also obviated by
->   David's recent reworks to move the 'System RAM' request_region() earlier
->   in the add_memory() sequence().
->
-> - Switch to an arch-independent / static subsection-size of 2MB.
->   Otherwise, a per-arch subsection-size is a roadblock on the path to
->   persistent memory namespace compatibility across archs. (Jeff)
->
-> - Update the changelog for "libnvdimm/pfn: Fix fsdax-mode namespace
->   info-block zero-fields" to clarify that the "Cc: stable" is only there
->   as safety measure for a distro that decides to backport "libnvdimm/pfn:
->   Stop padding pmem namespaces to section alignment", otherwise there is
->   no known bug exposure in older kernels. (Andrew)
->   
-> - Drop some redundant subsection checks (Oscar)
->
-> - Collect some reviewed-bys
->
-> [1]: https://lore.kernel.org/lkml/155977186863.2443951.9036044808311959913.stgit@dwillia2-desk3.amr.corp.intel.com/
+in /proc/self/net/protocols
 
+protocol  size sockets  memory press maxhdr  slab module     cl co di ac io in de sh ss gs se re sp bi br ha uh gp em
+PACKET    1408      0      -1   NI       0   no   kernel      n  n  n  n  n  n  n  n  n  n  n  n  n  n  n  n  n  n  n
+PINGv6    1088      0      -1   NI       0   yes  kernel      y  y  y  n  n  y  n  n  y  y  y  y  n  y  y  y  y  y  n
+RAWv6     1088      0      -1   NI       0   yes  kernel      y  y  y  n  y  y  y  n  y  y  y  y  n  y  y  y  y  n  n
+UDPLITEv6 1080      0      -1   NI       0   yes  kernel      y  y  y  n  y  y  y  n  y  y  y  y  n  n  y  y  y  y  n
+UDPv6     1080     21     111   NI       0   yes  kernel      y  y  y  n  y  n  y  n  y  y  y  y  n  n  y  y  y  y  n
+TCPv6     2048  49297  442697   no     304   yes  kernel      y  y  y  y  y  y  y  y  y  y  y  y  y  n  y  y  y  y  y
+UNIX      1024    158      -1   NI       0   yes  kernel      n  n  n  n  n  n  n  n  n  n  n  n  n  n  n  n  n  n  n
+UDP-Lite   920      0      -1   NI       0   yes  kernel      y  y  y  n  y  y  y  n  y  y  y  y  y  n  y  y  y  y  n
+PING       880      0      -1   NI       0   yes  kernel      y  y  y  n  n  y  n  n  y  y  y  y  n  y  y  y  y  y  n
+RAW        888      0      -1   NI       0   yes  kernel      y  y  y  n  y  y  y  n  y  y  y  y  n  y  y  y  y  n  n
+UDP        920      0     111   NI       0   yes  kernel      y  y  y  n  y  n  y  n  y  y  y  y  y  n  y  y  y  y  n
+TCP       1888      0  442697   no     304   yes  kernel      y  y  y  y  y  y  y  y  y  y  y  y  y  n  y  y  y  y  y
+NETLINK   1040      1      -1   NI       0   no   kernel      n  n  n  n  n  n  n  n  n  n  n  n  n  n  n  n  n  n  n
 
-You can add Tested-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
-for ppc64.
+column 'sockets' is virtualized, while 'memory' is not
 
-BTW even after this series we have the kernel crash mentioned in the
-below email on reconfigure. 
+> 
+>> This patch adds line NetBuffers that exposes most common kinds of them.
+> 
+> Did you encounter a situation where the number was significant and this
+> would help finding out why memory is occupied?
 
-https://lore.kernel.org/linux-mm/20190514025354.9108-1-aneesh.kumar@linux.ibm.com
+Might be. In example above tcp buffers are 1,7G.
+This is real server, with 0.5T ram though.
 
-I guess we need to conclude how the reserve space struct page should be
-initialized ?
+> 
+>> TCP and UDP are most important species.
+>> SCTP is added as example of modular protocol.
+>> UNIX have no memory counter for now, should be easy to add.
+>>
+>> Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+> 
+> Right now it's a sum of a few values, which should be fine wrt
+> /proc/meminfo overhead. But I guess netdev guys should have a say in
+> this. Also you should update the corresponding Documentation/ file.
 
->
-> ---
->
-> The memory hotplug section is an arbitrary / convenient unit for memory
-> hotplug. 'Section-size' units have bled into the user interface
-> ('memblock' sysfs) and can not be changed without breaking existing
-> userspace. The section-size constraint, while mostly benign for typical
-> memory hotplug, has and continues to wreak havoc with 'device-memory'
-> use cases, persistent memory (pmem) in particular. Recall that pmem uses
-> devm_memremap_pages(), and subsequently arch_add_memory(), to allocate a
-> 'struct page' memmap for pmem. However, it does not use the 'bottom
-> half' of memory hotplug, i.e. never marks pmem pages online and never
-> exposes the userspace memblock interface for pmem. This leaves an
-> opening to redress the section-size constraint.
->
-> To date, the libnvdimm subsystem has attempted to inject padding to
-> satisfy the internal constraints of arch_add_memory(). Beyond
-> complicating the code, leading to bugs [2], wasting memory, and limiting
-> configuration flexibility, the padding hack is broken when the platform
-> changes this physical memory alignment of pmem from one boot to the
-> next. Device failure (intermittent or permanent) and physical
-> reconfiguration are events that can cause the platform firmware to
-> change the physical placement of pmem on a subsequent boot, and device
-> failure is an everyday event in a data-center.
->
-> It turns out that sections are only a hard requirement of the
-> user-facing interface for memory hotplug and with a bit more
-> infrastructure sub-section arch_add_memory() support can be added for
-> kernel internal usages like devm_memremap_pages(). Here is an analysis
-> of the current design assumptions in the current code and how they are
-> addressed in the new implementation:
->
-> Current design assumptions:
->
-> - Sections that describe boot memory (early sections) are never
->   unplugged / removed.
->
-> - pfn_valid(), in the CONFIG_SPARSEMEM_VMEMMAP=y, case devolves to a
->   valid_section() check
->
-> - __add_pages() and helper routines assume all operations occur in
->   PAGES_PER_SECTION units.
->
-> - The memblock sysfs interface only comprehends full sections
->
-> New design assumptions:
->
-> - Sections are instrumented with a sub-section bitmask to track (on x86)
->   individual 2MB sub-divisions of a 128MB section.
->
-> - Partially populated early sections can be extended with additional
->   sub-sections, and those sub-sections can be removed with
->   arch_remove_memory(). With this in place we no longer lose usable memory
->   capacity to padding.
->
-> - pfn_valid() is updated to look deeper than valid_section() to also check the
->   active-sub-section mask. This indication is in the same cacheline as
->   the valid_section() so the performance impact is expected to be
->   negligible. So far the lkp robot has not reported any regressions.
->
-> - Outside of the core vmemmap population routines which are replaced,
->   other helper routines like shrink_{zone,pgdat}_span() are updated to
->   handle the smaller granularity. Core memory hotplug routines that deal
->   with online memory are not touched.
->
-> - The existing memblock sysfs user api guarantees / assumptions are
->   not touched since this capability is limited to !online
->   !memblock-sysfs-accessible sections.
->
-> Meanwhile the issue reports continue to roll in from users that do not
-> understand when and how the 128MB constraint will bite them. The current
-> implementation relied on being able to support at least one misaligned
-> namespace, but that immediately falls over on any moderately complex
-> namespace creation attempt. Beyond the initial problem of 'System RAM'
-> colliding with pmem, and the unsolvable problem of physical alignment
-> changes, Linux is now being exposed to platforms that collide pmem
-> ranges with other pmem ranges by default [3]. In short,
-> devm_memremap_pages() has pushed the venerable section-size constraint
-> past the breaking point, and the simplicity of section-aligned
-> arch_add_memory() is no longer tenable.
->
-> These patches are exposed to the kbuild robot on a subsection-v10 branch
-> [4], and a preview of the unit test for this functionality is available
-> on the 'subsection-pending' branch of ndctl [5].
->
-> [2]: https://lore.kernel.org/r/155000671719.348031.2347363160141119237.stgit@dwillia2-desk3.amr.corp.intel.com
-> [3]: https://github.com/pmem/ndctl/issues/76
-> [4]: https://git.kernel.org/pub/scm/linux/kernel/git/djbw/nvdimm.git/log/?h=subsection-v10
-> [5]: https://github.com/pmem/ndctl/commit/7c59b4867e1c
->
-> ---
->
-> Dan Williams (13):
->       mm/sparsemem: Introduce struct mem_section_usage
->       mm/sparsemem: Introduce a SECTION_IS_EARLY flag
->       mm/sparsemem: Add helpers track active portions of a section at boot
->       mm/hotplug: Prepare shrink_{zone,pgdat}_span for sub-section removal
->       mm/sparsemem: Convert kmalloc_section_memmap() to populate_section_memmap()
->       mm/hotplug: Kill is_dev_zone() usage in __remove_pages()
->       mm: Kill is_dev_zone() helper
->       mm/sparsemem: Prepare for sub-section ranges
->       mm/sparsemem: Support sub-section hotplug
->       mm: Document ZONE_DEVICE memory-model implications
->       mm/devm_memremap_pages: Enable sub-section remap
->       libnvdimm/pfn: Fix fsdax-mode namespace info-block zero-fields
->       libnvdimm/pfn: Stop padding pmem namespaces to section alignment
->
->
->  Documentation/vm/memory-model.rst |   39 ++++
->  arch/x86/mm/init_64.c             |    4 
->  drivers/nvdimm/dax_devs.c         |    2 
->  drivers/nvdimm/pfn.h              |   15 --
->  drivers/nvdimm/pfn_devs.c         |   95 +++-------
->  include/linux/memory_hotplug.h    |    7 -
->  include/linux/mm.h                |    4 
->  include/linux/mmzone.h            |   84 +++++++--
->  kernel/memremap.c                 |   61 +++----
->  mm/memory_hotplug.c               |  173 +++++++++----------
->  mm/page_alloc.c                   |   16 +-
->  mm/sparse-vmemmap.c               |   21 ++
->  mm/sparse.c                       |  335 ++++++++++++++++++++++++-------------
->  13 files changed, 494 insertions(+), 362 deletions(-)
+Later I send another proposal: even bigger sum - "MemKernel".
+https://lore.kernel.org/linux-mm/155853600919.381.8172097084053782598.stgit@buzz/
+Which gives estimation for all kinds of 'kernel' memory. It seems more useful for me.
+
+> 
+> Thanks,
+> Vlastimil
+> 
+>> ---
+>>   fs/proc/meminfo.c  |    5 ++++-
+>>   include/linux/mm.h |    6 ++++++
+>>   mm/page_alloc.c    |    3 ++-
+>>   net/core/sock.c    |   20 ++++++++++++++++++++
+>>   net/sctp/socket.c  |    2 +-
+>>   5 files changed, 33 insertions(+), 3 deletions(-)
+>>
+>> diff --git a/fs/proc/meminfo.c b/fs/proc/meminfo.c
+>> index 7bc14716fc5d..0ee2300a916d 100644
+>> --- a/fs/proc/meminfo.c
+>> +++ b/fs/proc/meminfo.c
+>> @@ -41,6 +41,7 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
+>>   	unsigned long sreclaimable, sunreclaim, misc_reclaimable;
+>>   	unsigned long kernel_stack_kb, page_tables, percpu_pages;
+>>   	unsigned long anon_pages, file_pages, swap_cached;
+>> +	unsigned long net_buffers;
+>>   	long kernel_misc;
+>>   	int lru;
+>>   
+>> @@ -66,12 +67,13 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
+>>   	kernel_stack_kb = global_zone_page_state(NR_KERNEL_STACK_KB);
+>>   	page_tables = global_zone_page_state(NR_PAGETABLE);
+>>   	percpu_pages = pcpu_nr_pages();
+>> +	net_buffers = total_netbuffer_pages();
+>>   
+>>   	/* all other kinds of kernel memory allocations */
+>>   	kernel_misc = i.totalram - i.freeram - anon_pages - file_pages
+>>   		      - sreclaimable - sunreclaim - misc_reclaimable
+>>   		      - (kernel_stack_kb >> (PAGE_SHIFT - 10))
+>> -		      - page_tables - percpu_pages;
+>> +		      - page_tables - percpu_pages - net_buffers;
+>>   	if (kernel_misc < 0)
+>>   		kernel_misc = 0;
+>>   
+>> @@ -137,6 +139,7 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
+>>   	show_val_kb(m, "VmallocUsed:    ", 0ul);
+>>   	show_val_kb(m, "VmallocChunk:   ", 0ul);
+>>   	show_val_kb(m, "Percpu:         ", percpu_pages);
+>> +	show_val_kb(m, "NetBuffers:     ", net_buffers);
+>>   	show_val_kb(m, "KernelMisc:     ", kernel_misc);
+>>   
+>>   #ifdef CONFIG_MEMORY_FAILURE
+>> diff --git a/include/linux/mm.h b/include/linux/mm.h
+>> index 0e8834ac32b7..d0a58355bfb7 100644
+>> --- a/include/linux/mm.h
+>> +++ b/include/linux/mm.h
+>> @@ -2254,6 +2254,12 @@ extern void si_meminfo_node(struct sysinfo *val, int nid);
+>>   extern unsigned long arch_reserved_kernel_pages(void);
+>>   #endif
+>>   
+>> +#ifdef CONFIG_NET
+>> +extern unsigned long total_netbuffer_pages(void);
+>> +#else
+>> +static inline unsigned long total_netbuffer_pages(void) { return 0; }
+>> +#endif
+>> +
+>>   extern __printf(3, 4)
+>>   void warn_alloc(gfp_t gfp_mask, nodemask_t *nodemask, const char *fmt, ...);
+>>   
+>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>> index 3b13d3914176..fcdd7c6e72b9 100644
+>> --- a/mm/page_alloc.c
+>> +++ b/mm/page_alloc.c
+>> @@ -5166,7 +5166,7 @@ void show_free_areas(unsigned int filter, nodemask_t *nodemask)
+>>   		" active_file:%lu inactive_file:%lu isolated_file:%lu\n"
+>>   		" unevictable:%lu dirty:%lu writeback:%lu unstable:%lu\n"
+>>   		" slab_reclaimable:%lu slab_unreclaimable:%lu\n"
+>> -		" mapped:%lu shmem:%lu pagetables:%lu bounce:%lu\n"
+>> +		" mapped:%lu shmem:%lu pagetables:%lu bounce:%lu net_buffers:%lu\n"
+>>   		" free:%lu free_pcp:%lu free_cma:%lu\n",
+>>   		global_node_page_state(NR_ACTIVE_ANON),
+>>   		global_node_page_state(NR_INACTIVE_ANON),
+>> @@ -5184,6 +5184,7 @@ void show_free_areas(unsigned int filter, nodemask_t *nodemask)
+>>   		global_node_page_state(NR_SHMEM),
+>>   		global_zone_page_state(NR_PAGETABLE),
+>>   		global_zone_page_state(NR_BOUNCE),
+>> +		total_netbuffer_pages(),
+>>   		global_zone_page_state(NR_FREE_PAGES),
+>>   		free_pcp,
+>>   		global_zone_page_state(NR_FREE_CMA_PAGES));
+>> diff --git a/net/core/sock.c b/net/core/sock.c
+>> index 75b1c950b49f..dfca4e024b74 100644
+>> --- a/net/core/sock.c
+>> +++ b/net/core/sock.c
+>> @@ -142,6 +142,7 @@
+>>   #include <trace/events/sock.h>
+>>   
+>>   #include <net/tcp.h>
+>> +#include <net/udp.h>
+>>   #include <net/busy_poll.h>
+>>   
+>>   static DEFINE_MUTEX(proto_list_mutex);
+>> @@ -3573,3 +3574,22 @@ bool sk_busy_loop_end(void *p, unsigned long start_time)
+>>   }
+>>   EXPORT_SYMBOL(sk_busy_loop_end);
+>>   #endif /* CONFIG_NET_RX_BUSY_POLL */
+>> +
+>> +#if IS_ENABLED(CONFIG_IP_SCTP)
+>> +atomic_long_t sctp_memory_allocated;
+>> +EXPORT_SYMBOL_GPL(sctp_memory_allocated);
+>> +#endif
+>> +
+>> +unsigned long total_netbuffer_pages(void)
+>> +{
+>> +	unsigned long ret = 0;
+>> +
+>> +#if IS_ENABLED(CONFIG_IP_SCTP)
+>> +	ret += atomic_long_read(&sctp_memory_allocated);
+>> +#endif
+>> +#ifdef CONFIG_INET
+>> +	ret += atomic_long_read(&tcp_memory_allocated);
+>> +	ret += atomic_long_read(&udp_memory_allocated);
+>> +#endif
+>> +	return ret;
+>> +}
+>> diff --git a/net/sctp/socket.c b/net/sctp/socket.c
+>> index e4e892cc5644..9d11afdeeae4 100644
+>> --- a/net/sctp/socket.c
+>> +++ b/net/sctp/socket.c
+>> @@ -107,7 +107,7 @@ static int sctp_sock_migrate(struct sock *oldsk, struct sock *newsk,
+>>   			     enum sctp_socket_type type);
+>>   
+>>   static unsigned long sctp_memory_pressure;
+>> -static atomic_long_t sctp_memory_allocated;
+>> +extern atomic_long_t sctp_memory_allocated;
+>>   struct percpu_counter sctp_sockets_allocated;
+>>   
+>>   static void sctp_enter_memory_pressure(struct sock *sk)
+>>
+> 
 
