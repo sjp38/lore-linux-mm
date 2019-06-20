@@ -2,377 +2,142 @@ Return-Path: <SRS0=424v=UT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 47A98C43613
-	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 16:05:14 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3AB98C43613
+	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 16:08:26 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BD21B20679
-	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 16:05:13 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="Rgl51jjf"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BD21B20679
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 06E652084E
+	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 16:08:25 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 06E652084E
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 558B96B0005; Thu, 20 Jun 2019 12:05:13 -0400 (EDT)
+	id 973968E0002; Thu, 20 Jun 2019 12:08:25 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 52F5D8E0002; Thu, 20 Jun 2019 12:05:13 -0400 (EDT)
+	id 9249A8E0001; Thu, 20 Jun 2019 12:08:25 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4453D8E0001; Thu, 20 Jun 2019 12:05:13 -0400 (EDT)
+	id 812948E0002; Thu, 20 Jun 2019 12:08:25 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E8AED6B0005
-	for <linux-mm@kvack.org>; Thu, 20 Jun 2019 12:05:12 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id c27so4900182edn.8
-        for <linux-mm@kvack.org>; Thu, 20 Jun 2019 09:05:12 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 47CC28E0001
+	for <linux-mm@kvack.org>; Thu, 20 Jun 2019 12:08:25 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id i9so4891465edr.13
+        for <linux-mm@kvack.org>; Thu, 20 Jun 2019 09:08:25 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=uWavFABFzAWag3agb+1ixBf4/NsmQ/Jk55lG7/RwZvs=;
-        b=F1X7Q9z65AEI849N7FiDVcnpn7Y7UlPgJ6QuzIXsBx9a62gZNM/fFPxrLc929AoEoV
-         /iyegApIov7xOTSxymGv5zVT+WK/G/xs/XbY/ld2oWdZrqqdngyrxOtQ+VSFlxZZVmr7
-         3Ok6KbWO+qI7fsbj+9u2LQ8VefTRT8JKQFPPQVDrlxaS4XAFNyIRT0kGzXxs0vL4XFQ0
-         ZWliKBiTPP392EsoLO4vOmGiRb7/h0+7IFZwCSsEaUy3kH5zHCpOyyn3vAHGVDbbr6Pf
-         0By9HCU9iq95k/3y9qDkncvyNQNWPic7Jk82fm5jCk+i96kWYZS1SQH6cTLiDtpKTv1w
-         DhGQ==
-X-Gm-Message-State: APjAAAUKjwVi0to+wTEdJZnIRslKHwc9Gluz+5P9qx0933p0lw7e41dS
-	JpAnlTJrV69kUSZiNpqcOrgOCF2NrF/kBL3QpMWHT2FbQmkQyRg315YoNEZx3IPnU/U+oDsY2fN
-	8SnlQzdkjm1RowIg3MwgtOioMbdHUNbbYBJb8dFTMB/K2DpGx1oMv9h08/W1szwD7QQ==
-X-Received: by 2002:a17:906:7817:: with SMTP id u23mr12083209ejm.148.1561046712393;
-        Thu, 20 Jun 2019 09:05:12 -0700 (PDT)
-X-Received: by 2002:a17:906:7817:: with SMTP id u23mr12083075ejm.148.1561046711070;
-        Thu, 20 Jun 2019 09:05:11 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561046711; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id;
+        bh=Wj4l7u5/Zr5Kx/uUEp0mWbD594cR9O6KElaUEAz2BSY=;
+        b=KFIgMKgoLhaQQjNbzapHQ5ZzqNkcyb/SEMH8f4J/r+ehHotnhZ3HljxOhUCZKoioks
+         nfVLqw84TZsjkpoHV4E3MihJtzCG6vjvTgjXJGdO3gUwSoaULn563+31IaxVRyYBKuUJ
+         awi4xaCTlkFiO0vnq0VxMfUBz8DJc0DQgVzVynqwq0NvCCdlGW1f0f6ln4pGCZLDcipW
+         vQ+61QKPdHY6r3uZ6y/nlkaYtMQFdz4nt9gBiptkzIUcEyf/vsFjdmvKbxeKMCDw/a/c
+         2598ByQorGgtb6idtxXOVDZM2lF21vB/YFkVOalozkfGzLHBBp8TiScU8EuC/rz2uk0R
+         CUig==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jgross@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=jgross@suse.com
+X-Gm-Message-State: APjAAAWyujq5z9HY09AjdLuLCrcbXiBITas0kSTio4kRFZHMEVXt9QV7
+	OjIz0sa4FvU6VcwYZlbi1QHHkxu5T3oMNs5w/Ae8PLA+NtCj2I4ejgD5r3e0oKrJAapFszaH0tu
+	fAOiXMJz1yAAL5UD1tsXVTyA/jKkwQyDzhJAtCk4Fne4zw2JVRFMgrUX+dmq7hkiVqA==
+X-Received: by 2002:a17:906:45d7:: with SMTP id z23mr60665389ejq.54.1561046904824;
+        Thu, 20 Jun 2019 09:08:24 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxIFZYXFM5jxpKpM12w8FYZpRJsDEFYLu02dwjiwp3ph6dqboBevAvolbRl6e9NawCOcXHb
+X-Received: by 2002:a17:906:45d7:: with SMTP id z23mr60665319ejq.54.1561046904040;
+        Thu, 20 Jun 2019 09:08:24 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561046904; cv=none;
         d=google.com; s=arc-20160816;
-        b=KqRw0/xMojRzP/xevCIdhmyvL1GwgXSjHW8elMmanGIUoh/9V2r/UkRuJMxeTlSAug
-         SxrttKQe9TSOX/Ohn/nUB7Rlg49sJrUOYyLp8asZI6Dhhl8yaXrJtmag2QuZ4U8ZZlSh
-         jfGEfhv1qda4rwFnej4Ma1+qZ4bflqC/o0CFLVb/Z+ZnwDC7xBu2wkYv7Edyhs4giA/I
-         V7NO8ZWF5oZOiN4O2nptownM1iekWNWVljI9LBgf2Mw2kYgcc/TUmVau4F2zvZ7XhzLD
-         0HX4T2U17K6QF+qXodz9nswla+97pdqsiDI7Z5rBHs5HGEln4WKGuklX+L1Mu35rCbNP
-         QqUQ==
+        b=N7QWZWy6bAjwK6Pikmik08Xccf1JOlkEf+K0/u9PKTozWQRRf/OYmxk1DRPXuiIEkv
+         /D346yk8jF0FjKnsZrZ54FZNBYjiF2zSeeapW1BvKDxtmnVw7skyUrnQSL1WMvGRpslB
+         LAZSg/k+FGGwM0BrdR5EoyCH+bF39C3hJPBY0FGuFtaFSvGJPVJSoAYyYEYppppLmJPJ
+         v99wjQ5fb7gQgQn4wCfgapnBPhONMzh08aORh71hnE1c/Jrjdmcitgk13qKv0PMqYy1q
+         iooPmtdFvLCF3nhAb7hrDe+0o0EYa08AZ8+lfNscGroo8A4MkrxJmdSFT5n2FS493d41
+         q4KQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=uWavFABFzAWag3agb+1ixBf4/NsmQ/Jk55lG7/RwZvs=;
-        b=VlW40b0OT637K0lhLD/O6H41beh7M96dvG+jIaZSHa1Rym3+ndVpWNOrzCyTGlNUSW
-         pXJ1VQpPy4KqAf/DUKwRTc36Xrsi6wV3mCYZtPFOk443FE/BUTF9bxbj4lV5s7lj6LiT
-         jIBJRzquhfDal7BuwmBIElDpBtRqi27Sm67dxHuFSN7IDRaM5UhztEnHOFtdglrkabbt
-         Ra2bwebY8Lw6EZOslY+fD44T2HUxdHM2EIdoP7qYhmz6wNGJsIWKLgxro0+Tu1xrgMGO
-         Wq2eOOodtxZj8H7pQeymEqtzpWvW5y/CJreZICWn1iyXdP5rDNtjz8mIbwE7JfL/SnV6
-         bgzQ==
+        h=message-id:date:subject:cc:to:from;
+        bh=Wj4l7u5/Zr5Kx/uUEp0mWbD594cR9O6KElaUEAz2BSY=;
+        b=hZAxPMiJT01mzh2F6NHzGjRdL0W8B9i/SHlUi/3BqA4qLwIxCzFhkersVeASKzVwTd
+         xlyRWrtJCjfNILL2FZtoErMtUHYpghpKmprNT7R0oyJOjAjSxx3pfzxNyarU4+2BYPLT
+         oebvGJ2r5QAqmQDMto00Q0aPeXuu0EfzZd1FlXJ1luzEhFdVUvjhpkoyGUrozE4i750C
+         i9jGfgC6k2trMaMByvl6jMW5UBDGf06MOBDcx4zTSnUYEJMkWXS3s5HqtJ3sPnkER8hD
+         Y95/vS9N8bFfjfxNpc2keWKWNGlnTHE7OYHCIZEdPXg3kRuxOgnKjWvrhbkchIOdbi3Z
+         qVlw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Rgl51jjf;
-       spf=pass (google.com: domain of natechancellor@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=natechancellor@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y7sor232263edd.25.2019.06.20.09.05.10
+       spf=pass (google.com: domain of jgross@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=jgross@suse.com
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id p2si209097edh.167.2019.06.20.09.08.23
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 20 Jun 2019 09:05:11 -0700 (PDT)
-Received-SPF: pass (google.com: domain of natechancellor@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 20 Jun 2019 09:08:24 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jgross@suse.com designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Rgl51jjf;
-       spf=pass (google.com: domain of natechancellor@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=natechancellor@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=uWavFABFzAWag3agb+1ixBf4/NsmQ/Jk55lG7/RwZvs=;
-        b=Rgl51jjfve9zspKM7TBc2Hsuz0I+OEUa6feRk9BqadSjiIy2ew9sutrYPIIIiDkPkd
-         WUFu8tsHOrndtIM4hkN9mSFzkHV2ZTgCxN3FOVwsjwj0iiZCDOMkowLNEkE8bBi4QqMi
-         y0wXGtmI2GHK12pmj8+HWwOML7Ly1AZE+F070527fMXIk44GFVrWAkwMc4+JvvGhyA4k
-         V63n25adUFYwJ/rGBRqbxWVu9EF8e8pCr/zIy3eCz+rZ8ULWtPp9U7XsX5TN4rMo7gaS
-         VgKaDLcIiaDNxvrF4ANklg7EBz6RQPBJkrKYClXPKNyJCwpVTsFxBnzroy6ibnecty1j
-         wUNQ==
-X-Google-Smtp-Source: APXvYqyWjLuoM8jMXFMhzcvs2toTW2e3AF4u6C8PLjKPkwgtBawqbYKjpPYtthFm5oPurgKp6zQ0WA==
-X-Received: by 2002:a05:6402:134c:: with SMTP id y12mr39686504edw.96.1561046710496;
-        Thu, 20 Jun 2019 09:05:10 -0700 (PDT)
-Received: from archlinux-epyc ([2a01:4f9:2b:2b15::2])
-        by smtp.gmail.com with ESMTPSA id h10sm6974892eda.85.2019.06.20.09.05.08
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Thu, 20 Jun 2019 09:05:09 -0700 (PDT)
-Date: Thu, 20 Jun 2019 09:05:07 -0700
-From: Nathan Chancellor <natechancellor@gmail.com>
-To: David Hildenbrand <david@redhat.com>
-Cc: linux-kernel@vger.kernel.org, Dan Williams <dan.j.williams@intel.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org,
+       spf=pass (google.com: domain of jgross@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=jgross@suse.com
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 979FEAF2B;
+	Thu, 20 Jun 2019 16:08:23 +0000 (UTC)
+From: Juergen Gross <jgross@suse.com>
+To: xen-devel@lists.xenproject.org,
 	linux-mm@kvack.org,
-	Benjamin Herrenschmidt <benh@kernel.crashing.org>,
-	Paul Mackerras <paulus@samba.org>,
-	Michael Ellerman <mpe@ellerman.id.au>,
-	"Rafael J. Wysocki" <rjw@rjwysocki.net>,
-	Len Brown <lenb@kernel.org>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	Rashmica Gupta <rashmica.g@gmail.com>,
-	Pavel Tatashin <pavel.tatashin@microsoft.com>,
-	Anshuman Khandual <anshuman.khandual@arm.com>,
-	Michael Neuling <mikey@neuling.org>,
-	Thomas Gleixner <tglx@linutronix.de>,
-	Oscar Salvador <osalvador@suse.de>, Michal Hocko <mhocko@suse.com>,
-	Wei Yang <richard.weiyang@gmail.com>,
-	Juergen Gross <jgross@suse.com>, Qian Cai <cai@lca.pw>,
-	Arun KS <arunks@codeaurora.org>
-Subject: Re: [PATCH v2 4/6] mm/memory_hotplug: Rename walk_memory_range() and
- pass start+size instead of pfns
-Message-ID: <20190620160507.GA34841@archlinux-epyc>
-References: <20190620103520.23481-1-david@redhat.com>
- <20190620103520.23481-5-david@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190620103520.23481-5-david@redhat.com>
-User-Agent: Mutt/1.12.1 (2019-06-15)
+	linux-kernel@vger.kernel.org
+Cc: Juergen Gross <jgross@suse.com>,
+	Alexander Duyck <alexander.h.duyck@linux.intel.com>
+Subject: [PATCH] mm: fix regression with deferred struct page init
+Date: Thu, 20 Jun 2019 18:08:21 +0200
+Message-Id: <20190620160821.4210-1-jgross@suse.com>
+X-Mailer: git-send-email 2.16.4
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jun 20, 2019 at 12:35:18PM +0200, David Hildenbrand wrote:
-> walk_memory_range() was once used to iterate over sections. Now, it
-> iterates over memory blocks. Rename the function, fixup the
-> documentation. Also, pass start+size instead of PFNs, which is what most
-> callers already have at hand. (we'll rework link_mem_sections() most
-> probably soon)
-> 
-> Follow-up patches wil rework, simplify, and move walk_memory_blocks() to
-> drivers/base/memory.c.
-> 
-> Note: walk_memory_blocks() only works correctly right now if the
-> start_pfn is aligned to a section start. This is the case right now,
-> but we'll generalize the function in a follow up patch so the semantics
-> match the documentation.
-> 
-> Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-> Cc: Paul Mackerras <paulus@samba.org>
-> Cc: Michael Ellerman <mpe@ellerman.id.au>
-> Cc: "Rafael J. Wysocki" <rjw@rjwysocki.net>
-> Cc: Len Brown <lenb@kernel.org>
-> Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-> Cc: David Hildenbrand <david@redhat.com>
-> Cc: Rashmica Gupta <rashmica.g@gmail.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Pavel Tatashin <pavel.tatashin@microsoft.com>
-> Cc: Anshuman Khandual <anshuman.khandual@arm.com>
-> Cc: Michael Neuling <mikey@neuling.org>
-> Cc: Thomas Gleixner <tglx@linutronix.de>
-> Cc: Oscar Salvador <osalvador@suse.de>
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: Wei Yang <richard.weiyang@gmail.com>
-> Cc: Juergen Gross <jgross@suse.com>
-> Cc: Qian Cai <cai@lca.pw>
-> Cc: Arun KS <arunks@codeaurora.org>
-> Signed-off-by: David Hildenbrand <david@redhat.com>
-> ---
->  arch/powerpc/platforms/powernv/memtrace.c | 22 ++++++++++-----------
->  drivers/acpi/acpi_memhotplug.c            | 19 ++++--------------
->  drivers/base/node.c                       |  5 +++--
->  include/linux/memory_hotplug.h            |  2 +-
->  mm/memory_hotplug.c                       | 24 ++++++++++++-----------
->  5 files changed, 32 insertions(+), 40 deletions(-)
-> 
-> diff --git a/arch/powerpc/platforms/powernv/memtrace.c b/arch/powerpc/platforms/powernv/memtrace.c
-> index 5e53c1392d3b..8c82c041afe6 100644
-> --- a/arch/powerpc/platforms/powernv/memtrace.c
-> +++ b/arch/powerpc/platforms/powernv/memtrace.c
-> @@ -70,23 +70,24 @@ static int change_memblock_state(struct memory_block *mem, void *arg)
->  /* called with device_hotplug_lock held */
->  static bool memtrace_offline_pages(u32 nid, u64 start_pfn, u64 nr_pages)
->  {
-> +	const unsigned long start = PFN_PHYS(start_pfn);
-> +	const unsigned long size = PFN_PHYS(nr_pages);
->  	u64 end_pfn = start_pfn + nr_pages - 1;
+Commit 0e56acae4b4dd4a9 ("mm: initialize MAX_ORDER_NR_PAGES at a time
+instead of doing larger sections") is causing a regression on some
+systems when the kernel is booted as Xen dom0.
 
-This variable should be removed:
+The system will just hang in early boot.
 
-arch/powerpc/platforms/powernv/memtrace.c:75:6: warning: unused variable 'end_pfn' [-Wunused-variable]
-        u64 end_pfn = start_pfn + nr_pages - 1;
-            ^
-1 warning generated.
+Reason is an endless loop in get_page_from_freelist() in case the first
+zone looked at has no free memory. deferred_grow_zone() is always
+returning true due to the following code snipplet:
 
-https://travis-ci.com/ClangBuiltLinux/continuous-integration/jobs/209576737
+  /* If the zone is empty somebody else may have cleared out the zone */
+  if (!deferred_init_mem_pfn_range_in_zone(&i, zone, &spfn, &epfn,
+                                           first_deferred_pfn)) {
+          pgdat->first_deferred_pfn = ULONG_MAX;
+          pgdat_resize_unlock(pgdat, &flags);
+          return true;
+  }
 
-Cheers,
-Nathan
+This in turn results in the loop as get_page_from_freelist() is
+assuming forward progress can be made by doing some more struct page
+initialization.
 
->  
-> -	if (walk_memory_range(start_pfn, end_pfn, NULL,
-> -	    check_memblock_online))
-> +	if (walk_memory_blocks(start, size, NULL, check_memblock_online))
->  		return false;
->  
-> -	walk_memory_range(start_pfn, end_pfn, (void *)MEM_GOING_OFFLINE,
-> -			  change_memblock_state);
-> +	walk_memory_blocks(start, size, (void *)MEM_GOING_OFFLINE,
-> +			   change_memblock_state);
->  
->  	if (offline_pages(start_pfn, nr_pages)) {
-> -		walk_memory_range(start_pfn, end_pfn, (void *)MEM_ONLINE,
-> -				  change_memblock_state);
-> +		walk_memory_blocks(start, size, (void *)MEM_ONLINE,
-> +				   change_memblock_state);
->  		return false;
->  	}
->  
-> -	walk_memory_range(start_pfn, end_pfn, (void *)MEM_OFFLINE,
-> -			  change_memblock_state);
-> +	walk_memory_blocks(start, size, (void *)MEM_OFFLINE,
-> +			   change_memblock_state);
->  
->  
->  	return true;
-> @@ -242,9 +243,8 @@ static int memtrace_online(void)
->  		 */
->  		if (!memhp_auto_online) {
->  			lock_device_hotplug();
-> -			walk_memory_range(PFN_DOWN(ent->start),
-> -					  PFN_UP(ent->start + ent->size - 1),
-> -					  NULL, online_mem_block);
-> +			walk_memory_blocks(ent->start, ent->size, NULL,
-> +					   online_mem_block);
->  			unlock_device_hotplug();
->  		}
->  
-> diff --git a/drivers/acpi/acpi_memhotplug.c b/drivers/acpi/acpi_memhotplug.c
-> index db013dc21c02..e294f44a7850 100644
-> --- a/drivers/acpi/acpi_memhotplug.c
-> +++ b/drivers/acpi/acpi_memhotplug.c
-> @@ -155,16 +155,6 @@ static int acpi_memory_check_device(struct acpi_memory_device *mem_device)
->  	return 0;
->  }
->  
-> -static unsigned long acpi_meminfo_start_pfn(struct acpi_memory_info *info)
-> -{
-> -	return PFN_DOWN(info->start_addr);
-> -}
-> -
-> -static unsigned long acpi_meminfo_end_pfn(struct acpi_memory_info *info)
-> -{
-> -	return PFN_UP(info->start_addr + info->length-1);
-> -}
-> -
->  static int acpi_bind_memblk(struct memory_block *mem, void *arg)
->  {
->  	return acpi_bind_one(&mem->dev, arg);
-> @@ -173,9 +163,8 @@ static int acpi_bind_memblk(struct memory_block *mem, void *arg)
->  static int acpi_bind_memory_blocks(struct acpi_memory_info *info,
->  				   struct acpi_device *adev)
->  {
-> -	return walk_memory_range(acpi_meminfo_start_pfn(info),
-> -				 acpi_meminfo_end_pfn(info), adev,
-> -				 acpi_bind_memblk);
-> +	return walk_memory_blocks(info->start_addr, info->length, adev,
-> +				  acpi_bind_memblk);
->  }
->  
->  static int acpi_unbind_memblk(struct memory_block *mem, void *arg)
-> @@ -186,8 +175,8 @@ static int acpi_unbind_memblk(struct memory_block *mem, void *arg)
->  
->  static void acpi_unbind_memory_blocks(struct acpi_memory_info *info)
->  {
-> -	walk_memory_range(acpi_meminfo_start_pfn(info),
-> -			  acpi_meminfo_end_pfn(info), NULL, acpi_unbind_memblk);
-> +	walk_memory_blocks(info->start_addr, info->length, NULL,
-> +			   acpi_unbind_memblk);
->  }
->  
->  static int acpi_memory_enable_device(struct acpi_memory_device *mem_device)
-> diff --git a/drivers/base/node.c b/drivers/base/node.c
-> index e6364e3e3e31..d8c02e65df68 100644
-> --- a/drivers/base/node.c
-> +++ b/drivers/base/node.c
-> @@ -833,8 +833,9 @@ void unregister_memory_block_under_nodes(struct memory_block *mem_blk)
->  
->  int link_mem_sections(int nid, unsigned long start_pfn, unsigned long end_pfn)
->  {
-> -	return walk_memory_range(start_pfn, end_pfn, (void *)&nid,
-> -					register_mem_sect_under_node);
-> +	return walk_memory_blocks(PFN_PHYS(start_pfn),
-> +				  PFN_PHYS(end_pfn - start_pfn), (void *)&nid,
-> +				  register_mem_sect_under_node);
->  }
->  
->  #ifdef CONFIG_HUGETLBFS
-> diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
-> index 79e0add6a597..d9fffc34949f 100644
-> --- a/include/linux/memory_hotplug.h
-> +++ b/include/linux/memory_hotplug.h
-> @@ -340,7 +340,7 @@ static inline void __remove_memory(int nid, u64 start, u64 size) {}
->  #endif /* CONFIG_MEMORY_HOTREMOVE */
->  
->  extern void __ref free_area_init_core_hotplug(int nid);
-> -extern int walk_memory_range(unsigned long start_pfn, unsigned long end_pfn,
-> +extern int walk_memory_blocks(unsigned long start, unsigned long size,
->  		void *arg, int (*func)(struct memory_block *, void *));
->  extern int __add_memory(int nid, u64 start, u64 size);
->  extern int add_memory(int nid, u64 start, u64 size);
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index a88c5f334e5a..122a7d31efdd 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -1126,8 +1126,7 @@ int __ref add_memory_resource(int nid, struct resource *res)
->  
->  	/* online pages if requested */
->  	if (memhp_auto_online)
-> -		walk_memory_range(PFN_DOWN(start), PFN_UP(start + size - 1),
-> -				  NULL, online_memory_block);
-> +		walk_memory_blocks(start, size, NULL, online_memory_block);
->  
->  	return ret;
->  error:
-> @@ -1665,20 +1664,24 @@ int offline_pages(unsigned long start_pfn, unsigned long nr_pages)
->  #endif /* CONFIG_MEMORY_HOTREMOVE */
->  
->  /**
-> - * walk_memory_range - walks through all mem sections in [start_pfn, end_pfn)
-> - * @start_pfn: start pfn of the memory range
-> - * @end_pfn: end pfn of the memory range
-> + * walk_memory_blocks - walk through all present memory blocks overlapped
-> + *			by the range [start, start + size)
-> + *
-> + * @start: start address of the memory range
-> + * @size: size of the memory range
->   * @arg: argument passed to func
-> - * @func: callback for each memory section walked
-> + * @func: callback for each memory block walked
->   *
-> - * This function walks through all present mem sections in range
-> - * [start_pfn, end_pfn) and call func on each mem section.
-> + * This function walks through all present memory blocks overlapped by the
-> + * range [start, start + size), calling func on each memory block.
->   *
->   * Returns the return value of func.
->   */
-> -int walk_memory_range(unsigned long start_pfn, unsigned long end_pfn,
-> +int walk_memory_blocks(unsigned long start, unsigned long size,
->  		void *arg, int (*func)(struct memory_block *, void *))
->  {
-> +	const unsigned long start_pfn = PFN_DOWN(start);
-> +	const unsigned long end_pfn = PFN_UP(start + size - 1);
->  	struct memory_block *mem = NULL;
->  	struct mem_section *section;
->  	unsigned long pfn, section_nr;
-> @@ -1824,8 +1827,7 @@ static int __ref try_remove_memory(int nid, u64 start, u64 size)
->  	 * whether all memory blocks in question are offline and return error
->  	 * if this is not the case.
->  	 */
-> -	rc = walk_memory_range(PFN_DOWN(start), PFN_UP(start + size - 1), NULL,
-> -			       check_memblock_offlined_cb);
-> +	rc = walk_memory_blocks(start, size, NULL, check_memblock_offlined_cb);
->  	if (rc)
->  		goto done;
->  
-> -- 
-> 2.21.0
-> 
+Cc: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+Fixes: 0e56acae4b4dd4a9 ("mm: initialize MAX_ORDER_NR_PAGES at a time instead of doing larger sections")
+Suggested-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+Signed-off-by: Juergen Gross <jgross@suse.com>
+---
+ mm/page_alloc.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index d66bc8abe0af..8e3bc949ebcc 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1826,7 +1826,8 @@ deferred_grow_zone(struct zone *zone, unsigned int order)
+ 						 first_deferred_pfn)) {
+ 		pgdat->first_deferred_pfn = ULONG_MAX;
+ 		pgdat_resize_unlock(pgdat, &flags);
+-		return true;
++		/* Retry only once. */
++		return first_deferred_pfn != ULONG_MAX;
+ 	}
+ 
+ 	/*
+-- 
+2.16.4
 
