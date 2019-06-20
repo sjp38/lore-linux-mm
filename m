@@ -2,131 +2,150 @@ Return-Path: <SRS0=424v=UT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.9 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7DE01C43613
-	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 21:27:30 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 83F93C48BE1
+	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 21:29:41 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 44F472070B
-	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 21:27:30 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 44F472070B
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=mit.edu
+	by mail.kernel.org (Postfix) with ESMTP id 4AAD02070B
+	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 21:29:41 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=chromium.org header.i=@chromium.org header.b="KvOr4Sp+"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4AAD02070B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chromium.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id EC93B6B0006; Thu, 20 Jun 2019 17:27:29 -0400 (EDT)
+	id B94146B0005; Thu, 20 Jun 2019 17:29:40 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E79DC8E0002; Thu, 20 Jun 2019 17:27:29 -0400 (EDT)
+	id B1CA08E0002; Thu, 20 Jun 2019 17:29:40 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D8E788E0001; Thu, 20 Jun 2019 17:27:29 -0400 (EDT)
+	id 9964A8E0001; Thu, 20 Jun 2019 17:29:40 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B86F56B0006
-	for <linux-mm@kvack.org>; Thu, 20 Jun 2019 17:27:29 -0400 (EDT)
-Received: by mail-qt1-f198.google.com with SMTP id k31so5445864qte.13
-        for <linux-mm@kvack.org>; Thu, 20 Jun 2019 14:27:29 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 4AC016B0005
+	for <linux-mm@kvack.org>; Thu, 20 Jun 2019 17:29:40 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id i9so6015042edr.13
+        for <linux-mm@kvack.org>; Thu, 20 Jun 2019 14:29:40 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:mail-followup-to:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=CYawPU6JjWvjE2T4iP4SlLl/rOVEe56dAhd/U+oP9s8=;
-        b=sKHTgQBVztHhBFUjPoboRDWlzYUydSDf83kB7ZLFGWtE3+1qX+9cDsHNxNL7hlQK+O
-         1Nw7XyaelD0QhmbjWcrP1FtfLB9vxjBwMbMvU1u3lKwvTHcXmzv4K+oUKEbT4lKeq1ZF
-         6C6ffHXfvfQ08LJ2w5zPwtYbHk3EXNsGsAPRX7NECeF5v8t3hWCAAyFeQ27QqpAzJu0g
-         Zvdk9xzi32MhGiCofJLRZNwYvItYNX91ptRBAOeTOd0Wwpik5Md3kYyA6qRBEC3ZDnTC
-         sZQxe4lw0y8NrqBa2W5I8e8BE9NG/SwXl7edxAEaG9vIpZlCCCLCks12/0BdlwFa6a//
-         KB+w==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of tytso@mit.edu designates 18.9.28.11 as permitted sender) smtp.mailfrom=tytso@mit.edu
-X-Gm-Message-State: APjAAAW8xnuow8LzI6Y+FPgonN2vIEXM+idq2nWzaBF1H1iShLHB1394
-	VRKmqBVRdLwS7ZJVR1oyjZWmnIxoJxj5iVTX1sNVzU21LJ1Bf/NQ0fklN5dQwvZjo8f5te1Lj2Y
-	TN0uWHvW9+DvtVHnU12QY0BOyzYYa7p2MIV6fV/gVbB2SCIiiszlA70LdwfC+QW0uaA==
-X-Received: by 2002:ac8:3932:: with SMTP id s47mr115367098qtb.264.1561066049559;
-        Thu, 20 Jun 2019 14:27:29 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyFGbij0hBWIOts5RPeJT74bZPvdlt501eatPA3V3kWFAmFl5o/x9uJhcZPExCGOXts1xFh
-X-Received: by 2002:ac8:3932:: with SMTP id s47mr115367074qtb.264.1561066049107;
-        Thu, 20 Jun 2019 14:27:29 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561066049; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to;
+        bh=v3IpD3zOAyT/o3jFLveqYdHxVLapPS/YFt6LidFqVKU=;
+        b=SdJ5zvQm5a8M6EFHI9Olx2ntAA7q8rGeGnszq2QemnBKJo+vkP4Qzg2XTpUw1trv2r
+         2l0q+qtvwAHFvrqQCcLryzyZM4u1B0qZDeizP7ADINrtQsOTQAHHzkZpANds1yx7Bmww
+         Lz6adhdP5GpKlHUJ8thVdKDt4rf+gpZf3cPGFWhwM0s3FOEbwA4czG1RMo4oMr8Xqe14
+         GIoPseyYvJY0K1/TYG9my6BhT6yK6JAXneIZRYd4+2Twdnuc7tjRl6sd0og2cCqx0kpL
+         xvbOMClKF4yoEPhfHr1fI49+QdOZoPcISI0xS1YSXFdUAL+DFjdnnMXYEdWHrHiDyjip
+         ITkQ==
+X-Gm-Message-State: APjAAAX9mWSDAeVcXdO/tf0ppN2ms3GP4DhwVqAaZCH6KTgazatYdTOV
+	MJA95YJgAsmXG/Zbm9hBu0KMSc3OII6SmsUr6PUoKKlqjvKsxReK+aLOTxs7pCf8LFu9G8mZXkm
+	tfBV2e8i8lyopq9RoOm7Jo1/qdeHdrZiIx78WK1abm/mXgsLR+dbI6WItYa5P4WRTxQ==
+X-Received: by 2002:a17:906:2605:: with SMTP id h5mr86965592ejc.178.1561066179863;
+        Thu, 20 Jun 2019 14:29:39 -0700 (PDT)
+X-Received: by 2002:a17:906:2605:: with SMTP id h5mr86965565ejc.178.1561066179215;
+        Thu, 20 Jun 2019 14:29:39 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561066179; cv=none;
         d=google.com; s=arc-20160816;
-        b=Cb1pVrVGM+c9CrzZadpM2LfMU0/nSgdpk44C1MJbBlbX55p9PQzuHMew2WWpFosUjL
-         Hm3LyWfhtzx5YUSczBcAAh3RvJx7MS2jaH2rEaAo6TQ/NXcolykVoOlogr7Q8Z79mg/B
-         v3jP48y1RTdtNZ9DDKiWgyTPhWtRNU9JyolIunz9T6lup8iRdbr4PSDjKcSayXf6LjGk
-         F+CecjvKzF0Yow/WHpyhfrgFg+P7ETNGMcv63Ayr/dbe0mked0mioDpfvR/GTLmMdvsm
-         crzFdjDM6fgGHxR1J8d8afbazMcYu3RtjGypULkqGdBYujYUFPuPfMDgys6N3St3LuiJ
-         wwBA==
+        b=yLwpWN9Bj/l7M5ICLpq7IqitgHTEKmxKh3N8A7dDcbklYYje/e0jnpbjdX34jIRYz3
+         LSy37E6JOH/k5IQs9u2L0f6W88ICWOFftHSs8EYIFGLtmzIe3G7gNf7sJg9sxtg445LB
+         pdw0ihv5XkH2QWv3how39gy/VNeZSas9k2sStF9vGtxDE4Skw0771W2PRGf1T+6aETGX
+         ujKsz99T6fPYQoCCJIXYCMfP6ZRS06C0Wup2lrfz5Yac8TmI09ob8jC00AA0XaHO1cnE
+         7smhdrJAa69FJJtcheTi/IxeLsi28qGMtxt57qythIz67eVq2tQM85lXWL9EyKq/jidY
+         q3+Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :mail-followup-to:message-id:subject:cc:to:from:date;
-        bh=CYawPU6JjWvjE2T4iP4SlLl/rOVEe56dAhd/U+oP9s8=;
-        b=Rm6pGXv8im5r91K9CwEp6ihP6q1QsqVa7mhhSyoYxBznzL8zQiLiTB/suW/xhAdYLv
-         L5zPMK1I80rBcDncd1GjcRAHik57AUvjWA0OENsD9ZfLdN/jXh3hC/rvdRIpes9pop1M
-         B1WRg3I4Uw9EC5LYl+FDab1KUB89uXY4EHrSEL/nENIhvrkQlU6w9HEPEK8IfFHHp0rP
-         dMXI+Kv1yuURsJTlNH+ZmtH8jFDEVl7kfiPv0SblXE6ZgxqMNRdJPwnGUccFcNF9yeMl
-         7Ud0BnMkqi4J2d2KF6uKJFxHIfmbk6BfLjBD0eECvi8QosNNTFfIj1tqLoYjueJnri6/
-         LM3Q==
+        h=to:subject:message-id:date:from:in-reply-to:references:mime-version
+         :dkim-signature;
+        bh=v3IpD3zOAyT/o3jFLveqYdHxVLapPS/YFt6LidFqVKU=;
+        b=SKwaa30GYV8Qd6ziD5MDFQztxJLmPAZeiwrUWHE4WB5iGD7hlhCyVQCmQ5v39mYHC/
+         Gyn+9A4juMP+Eki+Atl7BbqR8LUFji1GNl3OlEpfyVSZOS9Q96JvDAajBA3B7I92Prf2
+         kSx+C823/noDvJ/9yKSeBXYq+zSLIHY1uVY+o7Wp4AZF2q11eUVgjmxrc6NCw0yZmvzh
+         1yV05SAllt23uzfqlNULigwFJ36+cF/vfP0NADMEslTDyX3oeCVnY8xJzHVA3bSMYgcn
+         KZTqSYKJevrwd/jbCjh5NIMwaO/doc4jObXhthfdUzK734Ks5k9UM6KqC2Ih5R1R8nJe
+         Ja6A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of tytso@mit.edu designates 18.9.28.11 as permitted sender) smtp.mailfrom=tytso@mit.edu
-Received: from outgoing.mit.edu (outgoing-auth-1.mit.edu. [18.9.28.11])
-        by mx.google.com with ESMTPS id s40si607098qte.44.2019.06.20.14.27.28
+       dkim=pass header.i=@chromium.org header.s=google header.b=KvOr4Sp+;
+       spf=pass (google.com: domain of zwisler@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=zwisler@chromium.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id p15sor313327ejr.10.2019.06.20.14.29.39
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 20 Jun 2019 14:27:29 -0700 (PDT)
-Received-SPF: pass (google.com: domain of tytso@mit.edu designates 18.9.28.11 as permitted sender) client-ip=18.9.28.11;
+        (Google Transport Security);
+        Thu, 20 Jun 2019 14:29:39 -0700 (PDT)
+Received-SPF: pass (google.com: domain of zwisler@chromium.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of tytso@mit.edu designates 18.9.28.11 as permitted sender) smtp.mailfrom=tytso@mit.edu
-Received: from callcc.thunk.org (guestnat-104-133-0-109.corp.google.com [104.133.0.109] (may be forged))
-	(authenticated bits=0)
-        (User authenticated as tytso@ATHENA.MIT.EDU)
-	by outgoing.mit.edu (8.14.7/8.12.4) with ESMTP id x5KLRR4u007652
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=NOT);
-	Thu, 20 Jun 2019 17:27:27 -0400
-Received: by callcc.thunk.org (Postfix, from userid 15806)
-	id DC7A0420484; Thu, 20 Jun 2019 17:27:26 -0400 (EDT)
-Date: Thu, 20 Jun 2019 17:27:26 -0400
-From: "Theodore Ts'o" <tytso@mit.edu>
-To: Ross Zwisler <zwisler@chromium.org>
-Cc: linux-kernel@vger.kernel.org, Ross Zwisler <zwisler@google.com>,
-        Alexander Viro <viro@zeniv.linux.org.uk>,
-        Andreas Dilger <adilger.kernel@dilger.ca>, Jan Kara <jack@suse.com>,
-        linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org,
-        linux-mm@kvack.org, Fletcher Woodruff <fletcherw@google.com>,
-        Justin TerAvest <teravest@google.com>, Jan Kara <jack@suse.cz>,
-        stable@vger.kernel.org
-Subject: Re: [PATCH v2 3/3] ext4: use jbd2_inode dirty range scoping
-Message-ID: <20190620212726.GD4650@mit.edu>
-Mail-Followup-To: Theodore Ts'o <tytso@mit.edu>,
-	Ross Zwisler <zwisler@chromium.org>, linux-kernel@vger.kernel.org,
-	Ross Zwisler <zwisler@google.com>,
-	Alexander Viro <viro@zeniv.linux.org.uk>,
-	Andreas Dilger <adilger.kernel@dilger.ca>, Jan Kara <jack@suse.com>,
-	linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org,
-	linux-mm@kvack.org, Fletcher Woodruff <fletcherw@google.com>,
-	Justin TerAvest <teravest@google.com>, Jan Kara <jack@suse.cz>,
-	stable@vger.kernel.org
-References: <20190620151839.195506-1-zwisler@google.com>
- <20190620151839.195506-4-zwisler@google.com>
+       dkim=pass header.i=@chromium.org header.s=google header.b=KvOr4Sp+;
+       spf=pass (google.com: domain of zwisler@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=zwisler@chromium.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=chromium.org; s=google;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to;
+        bh=v3IpD3zOAyT/o3jFLveqYdHxVLapPS/YFt6LidFqVKU=;
+        b=KvOr4Sp+Id3A6XKZfDq0jaToh9hTpDvR4uHERHTmM5jYRInzJr41kiC9SoOmmDJhky
+         oWXqPY/lKaIz9THmlD7IH7YFcmC3tZDq/MG8PgXKGCf9XHFgOdbfcOfRn1VFfw/TeOoP
+         bFK/Xo6W9HJHbqyCJAlgYtMGuDNKG7dFjc43Q=
+X-Google-Smtp-Source: APXvYqxH8N7gZu/J+S62Ravhdxjgpq9+ykbmaOmCuTGIRirwxuf5ibuiv2SvStR/J1qvrYRS2BOpzA==
+X-Received: by 2002:a17:906:e994:: with SMTP id ka20mr3905136ejb.264.1561066178511;
+        Thu, 20 Jun 2019 14:29:38 -0700 (PDT)
+Received: from mail-ed1-f42.google.com (mail-ed1-f42.google.com. [209.85.208.42])
+        by smtp.gmail.com with ESMTPSA id j30sm208722edb.8.2019.06.20.14.29.36
+        for <linux-mm@kvack.org>
+        (version=TLS1_3 cipher=AEAD-AES128-GCM-SHA256 bits=128/128);
+        Thu, 20 Jun 2019 14:29:37 -0700 (PDT)
+Received: by mail-ed1-f42.google.com with SMTP id a14so6683411edv.12
+        for <linux-mm@kvack.org>; Thu, 20 Jun 2019 14:29:36 -0700 (PDT)
+X-Received: by 2002:a17:906:b315:: with SMTP id n21mr8174762ejz.312.1561066175899;
+ Thu, 20 Jun 2019 14:29:35 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190620151839.195506-4-zwisler@google.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+References: <20190620151839.195506-1-zwisler@google.com> <20190620151839.195506-3-zwisler@google.com>
+ <20190620212517.GC4650@mit.edu>
+In-Reply-To: <20190620212517.GC4650@mit.edu>
+From: Ross Zwisler <zwisler@chromium.org>
+Date: Thu, 20 Jun 2019 15:29:24 -0600
+X-Gmail-Original-Message-ID: <CAGRrVHw8LuMT7eTnJ4VV9OpnetSSYaLh5nLkN4Anevz6r8KmZA@mail.gmail.com>
+Message-ID: <CAGRrVHw8LuMT7eTnJ4VV9OpnetSSYaLh5nLkN4Anevz6r8KmZA@mail.gmail.com>
+Subject: Re: [PATCH v2 2/3] jbd2: introduce jbd2_inode dirty range scoping
+To: "Theodore Ts'o" <tytso@mit.edu>, Ross Zwisler <zwisler@chromium.org>, linux-kernel@vger.kernel.org, 
+	Ross Zwisler <zwisler@google.com>, Alexander Viro <viro@zeniv.linux.org.uk>, 
+	Andreas Dilger <adilger.kernel@dilger.ca>, Jan Kara <jack@suse.com>, linux-ext4@vger.kernel.org, 
+	linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, 
+	Fletcher Woodruff <fletcherw@google.com>, Justin TerAvest <teravest@google.com>, Jan Kara <jack@suse.cz>, 
+	stable@vger.kernel.org
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jun 20, 2019 at 09:18:39AM -0600, Ross Zwisler wrote:
-> Use the newly introduced jbd2_inode dirty range scoping to prevent us
-> from waiting forever when trying to complete a journal transaction.
-> 
-> Signed-off-by: Ross Zwisler <zwisler@google.com>
-> Reviewed-by: Jan Kara <jack@suse.cz>
-> Cc: stable@vger.kernel.org
+On Thu, Jun 20, 2019 at 3:25 PM Theodore Ts'o <tytso@mit.edu> wrote:
+> On Thu, Jun 20, 2019 at 09:18:38AM -0600, Ross Zwisler wrote:
+> > diff --git a/include/linux/jbd2.h b/include/linux/jbd2.h
+> > index 5c04181b7c6d8..0e0393e7f41a4 100644
+> > --- a/include/linux/jbd2.h
+> > +++ b/include/linux/jbd2.h
+> > @@ -1397,6 +1413,12 @@ extern int        jbd2_journal_force_commit(journal_t *);
+> >  extern int      jbd2_journal_force_commit_nested(journal_t *);
+> >  extern int      jbd2_journal_inode_add_write(handle_t *handle, struct jbd2_inode *inode);
+> >  extern int      jbd2_journal_inode_add_wait(handle_t *handle, struct jbd2_inode *inode);
+> > +extern int      jbd2_journal_inode_ranged_write(handle_t *handle,
+> > +                     struct jbd2_inode *inode, loff_t start_byte,
+> > +                     loff_t length);
+> > +extern int      jbd2_journal_inode_ranged_wait(handle_t *handle,
+> > +                     struct jbd2_inode *inode, loff_t start_byte,
+> > +                     loff_t length);
+> >  extern int      jbd2_journal_begin_ordered_truncate(journal_t *journal,
+> >                               struct jbd2_inode *inode, loff_t new_size);
+> >  extern void     jbd2_journal_init_jbd_inode(struct jbd2_inode *jinode, struct inode *inode);
+>
+> You're adding two new functions that are called from outside the jbd2
+> subsystem.  To support compiling jbd2 as a module, we also need to add
+> EXPORT_SYMBOL declarations for these two functions.
+>
+> I'll take care of this when applying this change.
 
-Applied, thanks.
-
-					- Ted
+Ah, yep, great catch.  Thanks!
 
