@@ -2,232 +2,170 @@ Return-Path: <SRS0=424v=UT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id EA01EC43613
-	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 18:32:38 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9A752C43613
+	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 19:01:09 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B1BEF20675
-	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 18:32:38 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B1BEF20675
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 5A352206BA
+	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 19:01:09 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="esuVGuPH"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5A352206BA
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5AF5F8E0003; Thu, 20 Jun 2019 14:32:38 -0400 (EDT)
+	id DFDE08E0005; Thu, 20 Jun 2019 15:01:08 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 587836B000C; Thu, 20 Jun 2019 14:32:38 -0400 (EDT)
+	id D870F8E0001; Thu, 20 Jun 2019 15:01:08 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 474878E0003; Thu, 20 Jun 2019 14:32:38 -0400 (EDT)
+	id C4D1A8E0005; Thu, 20 Jun 2019 15:01:08 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 21EA56B000A
-	for <linux-mm@kvack.org>; Thu, 20 Jun 2019 14:32:38 -0400 (EDT)
-Received: by mail-qt1-f199.google.com with SMTP id q26so4842770qtr.3
-        for <linux-mm@kvack.org>; Thu, 20 Jun 2019 11:32:38 -0700 (PDT)
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F1B38E0001
+	for <linux-mm@kvack.org>; Thu, 20 Jun 2019 15:01:08 -0400 (EDT)
+Received: by mail-qk1-f198.google.com with SMTP id 11so3486785qkg.3
+        for <linux-mm@kvack.org>; Thu, 20 Jun 2019 12:01:08 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=Ua/1L85XXvxNpLU3txbB6eYF1WAK8cUWmLRonh+Cr9s=;
-        b=RRkVkVZAyIEIPj3btc4gYGHxMhl1hGzwDTvS57Fv/SJXbTY++e38Ztw2zuSz6eJ7tO
-         7iivTr/8UYYPUmrt6IxNOzGeT4tknDwqJcY8k7wO0ohRz14Ud5aB7sQpe68jE7pqRFo9
-         O72ZV3jKc2g/6PZLng9zlp5pAtW9nk1xb/NDIkQjUx/GMGo8lnv/87RSX716aOM0/Gny
-         6EJQgUK1rb/wKM0fdtDKm6ZraBhqYvajbJ31izjuNLmC7tDtBccqGtSYA3puy3VDtBPk
-         mN6B3lWbwNJnWa3qVa8CbxoLtF4eOpb5RofhACon+cKAeBTi32oeEjjmOdGgnRHW8kbJ
-         ZWaA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAWJqSTJGeifiQWdg7RnrRyMpx7ikQbosszBjKjKUool6bFEDSps
-	a6x/sRDhuDnpVCwx1mIgwBszDsjRtFw5ukTQXHav/iaf2RA95RNg2Z4tmXXTdC9gVL3sQNG0+tR
-	lgqLxaBsyf1+69XEdLag/JszqKvL2bEjV0QP5uXs6cMTTscyVTYAqiQAXoabjoP6wDQ==
-X-Received: by 2002:aed:24f4:: with SMTP id u49mr109457059qtc.8.1561055557904;
-        Thu, 20 Jun 2019 11:32:37 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxVLVHj5MSs8xAjdg29ZO0PGtyqH+cYNHDziU/7+Iu+0khRKTVo/o/OWa2BW+f7kNoylp4Q
-X-Received: by 2002:aed:24f4:: with SMTP id u49mr109456977qtc.8.1561055556824;
-        Thu, 20 Jun 2019 11:32:36 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561055556; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id;
+        bh=fxS7BF5YnKVYas/qowRkmGk4FPNWJ865a8LlJ7jJcM4=;
+        b=VbgnPBhbgIt8C1SCMbrj30A4NpPpOpa8zz17rPD50VGpqFSLcMA9MebikBPl8gm0VN
+         468kFm57iew5T86G0b05679ncQpirWbz3Dj1tJ9m/5x62Fan8zTxaiMHHMqbWm093MUg
+         pGFqmQiNK8wAo9bejLvSXQQFMX4hJ8v07mCuF8i8gJB5qs7MEBq+2qzFVGqoF2/FiS0d
+         m9J/gSZGD6E4vQjro2LbxtZ1jQbjkboxFtHvHY8v3itbDy0hX4pJR4OVsiXnBl6B/K53
+         kzLUImMR1tTw2ZYY3mevaNYPJA/uV64OuRBmzRuAe+/KuaCtFVCdmAJD1CLF+6OCJrHf
+         ToKA==
+X-Gm-Message-State: APjAAAUYVrPMEe+zMRpuBfstkneIcxywMh8rlFv1YM0cNPhR8D2zXs8C
+	5S5QYMVDEOQa4CvO/L1J0o14yXOdU+nyTWP5RhJxfuApkENKrPKjsBEw+eKBPwoj0PQUcflbFgn
+	T82PyFAev3LPgHM0Lhpnc+EX+/IaFeoWZjWkozMUvcW3SGrlRu7b72Nv4BLVDNn7wiQ==
+X-Received: by 2002:ac8:17f7:: with SMTP id r52mr15676794qtk.235.1561057268383;
+        Thu, 20 Jun 2019 12:01:08 -0700 (PDT)
+X-Received: by 2002:ac8:17f7:: with SMTP id r52mr15676725qtk.235.1561057267607;
+        Thu, 20 Jun 2019 12:01:07 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561057267; cv=none;
         d=google.com; s=arc-20160816;
-        b=mE3NBE9PFBfggxf2KX8h/gXyVwfVGCCnejYu0nUhiXgDqKa4WJ2b4LtjFskJYUCPrY
-         8ACv3uuYzy9qzH7eys2pewrmtNI19pyU4gm+bJIz0DRM3cypGK0n8xFjTN90+2YHHNi3
-         2XX1jxpqcW3AjseAtEvvhjLmWjFFAoOw/XPwFfN06ezCl/k0Ut6NfwfQQeO7GYEb6C2N
-         zNz9a8Hw68AA9NN1uE44eLVLJfXxCTaM02X/uR2q5kzK9diwrdehrcs5MwbpxirfWxI0
-         nf1dXYpbjt8wH6X1cW6Nuq4hvQ2sAtl2rl4Xa5pwt6JF3KiOMAxBBTAdRNh3X0Lv03Ir
-         jXsA==
+        b=qZwcqVNgI7KMhPJeGXUW70W8DTvXLIy3nO3OP5U3u+zX8YQiteEsCopk2ATHL/D8SI
+         84q5yU8R7b6U9cCY2WoafUWlxmE3K3T9122QiPDtzcSMV6+3aeRxVy4hMp1urPPaVXh0
+         qc3Ku0WeDxIRzWBbx0Wcaw6v8JbJ1bY5NDO9QCQfA6/KDkW2lAcKKn7RVwfQ2zYgUqC3
+         iEZPLqgSMklVrE3dn5SD0om6BaTu9YBnz+U1jfrHKj8/gux2suQLAdn4Djc3u9/pEkOr
+         JNbPwtvdSkc/SQ7y2NcoeSU3aZjGHS66W7qeZHucC4HhOt1YCsvGl0nlQAj0AWt1Kmku
+         /NGg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from;
-        bh=Ua/1L85XXvxNpLU3txbB6eYF1WAK8cUWmLRonh+Cr9s=;
-        b=vtKOw+P4Ayx7b6woOInnxo3wC42QeqVr1rQPoDi55eRzMThHfe4SZintFeaR5MmfcV
-         7NwlEli0iN0rvPAUyVzwQc3LctAJr6wsZap1+wy9JmlVa1sHZvNDprKqRuWctHXJwNJT
-         fSuLOFQ76YIG0ZoCdK4guD0YU8Paiz75UyStIp2vszlpInMAItdgGRrcfEIpbyFlvRL8
-         +a1rY9hvG7PoEUh4h7ue6JygTF0qaZjraCdTp8fQ5MoMwCkZ1W9XnuFVENfgTzX70Li3
-         bdQfjz1ohJMBj94eSgp4ZIUl7sjmnVATgUR3rUq7+WnDEXCn73BgbBJcuPYdKjWJnum3
-         806A==
+        h=message-id:date:subject:cc:to:from:dkim-signature;
+        bh=fxS7BF5YnKVYas/qowRkmGk4FPNWJ865a8LlJ7jJcM4=;
+        b=q6s3nY0T980FKcdzaUP1z4vaxkXXhOdj+0q8krhFmNRcWVZTBhVFV8h60I6pEJkfmy
+         jrnMVuSNPQEE5Vm2B6LONXGUcHVwZ6nGihHZqQmNVc7ktQII+cvlazTUELwI8WAeZ0rI
+         3gPRAcH2SFrmSsZjl31B6OBEgHAiWWx0aECJaIWbd7tVNKB+en1fRQPppT2Wekirer83
+         357FO1jI11Q7YYdxnHIdtk22WzsnSxj3hGRjmQuRyeCmqcLbOwSwmN09qSiq+TukHaWJ
+         PTQEjXAf5yT/khyqtwW0saOTU6qynCduSv66E8rnEQzdMmO1tfWcrt4anZpV8f0f3sfu
+         bWSg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id p54si249823qtc.371.2019.06.20.11.32.36
+       dkim=pass header.i=@lca.pw header.s=google header.b=esuVGuPH;
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id u44sor287762qvh.40.2019.06.20.12.01.07
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 20 Jun 2019 11:32:36 -0700 (PDT)
-Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (Google Transport Security);
+        Thu, 20 Jun 2019 12:01:07 -0700 (PDT)
+Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx08.intmail.prod.int.phx2.redhat.com [10.5.11.23])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id CFED74E90E;
-	Thu, 20 Jun 2019 18:32:31 +0000 (UTC)
-Received: from t460s.redhat.com (ovpn-116-71.ams2.redhat.com [10.36.116.71])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id EFF9419722;
-	Thu, 20 Jun 2019 18:32:25 +0000 (UTC)
-From: David Hildenbrand <david@redhat.com>
-To: linux-kernel@vger.kernel.org
-Cc: Dan Williams <dan.j.williams@intel.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	linuxppc-dev@lists.ozlabs.org,
-	linux-acpi@vger.kernel.org,
+       dkim=pass header.i=@lca.pw header.s=google header.b=esuVGuPH;
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=lca.pw; s=google;
+        h=from:to:cc:subject:date:message-id;
+        bh=fxS7BF5YnKVYas/qowRkmGk4FPNWJ865a8LlJ7jJcM4=;
+        b=esuVGuPHL56ybvaqOi4wr1sfCwyi7F90uFQQg9tDD7rakbJPt06CIihYvU6E/v7e+I
+         uENQ4kzNchpmVv/XoVJiEEgg378BnrefimklEXz6CAeEB311DR3h8OgJjMntqg4AoGmi
+         tCa7K0JPelfWIG5PvLB+98Sg0cEYB5XPVyjpvIiLjStcU4LZ7t3vbLUYjlTCNkRXFHIT
+         ecPYI7BNUFg0LIRkX/JlHlb6+HXYysZkx8gm54zyBF88Bz2MDiqMSyQCsK0hOVv4L958
+         nP76/otkB76YZk9ir5BcKU7vVwQXXZWENpXaQeFy0FRIwaiisCKVarXEjd78H0mYBEqL
+         X0Kg==
+X-Google-Smtp-Source: APXvYqysIE3Ly6ZIllbwREVHhww7QCrn4Q3w2CO3KTEKsTltsmi4QX8G1yOr8xqJrrtRaWd1Y93z4Q==
+X-Received: by 2002:a0c:add8:: with SMTP id x24mr41689584qvc.167.1561057267285;
+        Thu, 20 Jun 2019 12:01:07 -0700 (PDT)
+Received: from qcai.nay.com (nat-pool-bos-t.redhat.com. [66.187.233.206])
+        by smtp.gmail.com with ESMTPSA id k58sm279904qtc.38.2019.06.20.12.01.05
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 20 Jun 2019 12:01:06 -0700 (PDT)
+From: Qian Cai <cai@lca.pw>
+To: akpm@linux-foundation.org
+Cc: glider@google.com,
+	keescook@chromium.org,
 	linux-mm@kvack.org,
-	David Hildenbrand <david@redhat.com>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	"Rafael J. Wysocki" <rafael@kernel.org>,
-	Stephen Rothwell <sfr@canb.auug.org.au>,
-	Pavel Tatashin <pasha.tatashin@soleen.com>,
-	"mike.travis@hpe.com" <mike.travis@hpe.com>
-Subject: [PATCH v3 6/6] drivers/base/memory.c: Get rid of find_memory_block_hinted()
-Date: Thu, 20 Jun 2019 20:31:39 +0200
-Message-Id: <20190620183139.4352-7-david@redhat.com>
-In-Reply-To: <20190620183139.4352-1-david@redhat.com>
-References: <20190620183139.4352-1-david@redhat.com>
-MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-X-Scanned-By: MIMEDefang 2.84 on 10.5.11.23
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.38]); Thu, 20 Jun 2019 18:32:32 +0000 (UTC)
+	linux-kernel@vger.kernel.org,
+	Qian Cai <cai@lca.pw>
+Subject: [PATCH -next] mm/page_poison: fix a false memory corruption
+Date: Thu, 20 Jun 2019 15:00:49 -0400
+Message-Id: <1561057249-7493-1-git-send-email-cai@lca.pw>
+X-Mailer: git-send-email 1.8.3.1
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-No longer needed, let's remove it. Also, drop the "hint" parameter
-completely from "find_memory_block_by_id", as nobody needs it anymore.
+The linux-next commit "mm: security: introduce init_on_alloc=1 and
+init_on_free=1 boot options" [1] introduced a false positive when
+init_on_free=1 and page_poison=on, due to the page_poison expects the
+pattern 0xaa when allocating pages which were overwritten by
+init_on_free=1 with 0.
 
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: "Rafael J. Wysocki" <rafael@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Stephen Rothwell <sfr@canb.auug.org.au>
-Cc: Pavel Tatashin <pasha.tatashin@soleen.com>
-Cc: "mike.travis@hpe.com" <mike.travis@hpe.com>
-Signed-off-by: David Hildenbrand <david@redhat.com>
+It is not possible to switch the order between kernel_init_free_pages()
+and kernel_poison_pages() in free_pages_prepare(), because at least on
+powerpc the formal will call clear_page() and the subsequence access by
+kernel_poison_pages() will trigger the kernel access of bad area errors.
+
+Fix it by treating init_on_free=1 the same as
+CONFIG_PAGE_POISONING_ZERO=y.
+
+[1] https://patchwork.kernel.org/patch/10999465/
+
+Signed-off-by: Qian Cai <cai@lca.pw>
 ---
- drivers/base/memory.c  | 37 +++++++++++--------------------------
- include/linux/memory.h |  2 --
- 2 files changed, 11 insertions(+), 28 deletions(-)
+ mm/page_poison.c | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)
 
-diff --git a/drivers/base/memory.c b/drivers/base/memory.c
-index 0204384b4d1d..195dbcb8e8a8 100644
---- a/drivers/base/memory.c
-+++ b/drivers/base/memory.c
-@@ -588,30 +588,13 @@ int __weak arch_get_memory_phys_device(unsigned long start_pfn)
- 	return 0;
- }
+diff --git a/mm/page_poison.c b/mm/page_poison.c
+index 21d4f97cb49b..272403b992d3 100644
+--- a/mm/page_poison.c
++++ b/mm/page_poison.c
+@@ -68,22 +68,26 @@ static void check_poison_mem(unsigned char *mem, size_t bytes)
+ 	static DEFINE_RATELIMIT_STATE(ratelimit, 5 * HZ, 10);
+ 	unsigned char *start;
+ 	unsigned char *end;
++	int pattern = PAGE_POISON;
  
--/*
-- * A reference for the returned object is held and the reference for the
-- * hinted object is released.
-- */
--static struct memory_block *find_memory_block_by_id(unsigned long block_id,
--						    struct memory_block *hint)
-+/* A reference for the returned memory block device is acquired. */
-+static struct memory_block *find_memory_block_by_id(unsigned long block_id)
- {
--	struct device *hintdev = hint ? &hint->dev : NULL;
- 	struct device *dev;
+ 	if (IS_ENABLED(CONFIG_PAGE_POISONING_NO_SANITY))
+ 		return;
  
--	dev = subsys_find_device_by_id(&memory_subsys, block_id, hintdev);
--	if (hint)
--		put_device(&hint->dev);
--	if (!dev)
--		return NULL;
--	return to_memory_block(dev);
--}
--
--struct memory_block *find_memory_block_hinted(struct mem_section *section,
--					      struct memory_block *hint)
--{
--	unsigned long block_id = base_memory_block_id(__section_nr(section));
--
--	return find_memory_block_by_id(block_id, hint);
-+	dev = subsys_find_device_by_id(&memory_subsys, block_id, NULL);
-+	return dev ? to_memory_block(dev) : NULL;
- }
- 
- /*
-@@ -624,7 +607,9 @@ struct memory_block *find_memory_block_hinted(struct mem_section *section,
-  */
- struct memory_block *find_memory_block(struct mem_section *section)
- {
--	return find_memory_block_hinted(section, NULL);
-+	unsigned long block_id = base_memory_block_id(__section_nr(section));
+-	start = memchr_inv(mem, PAGE_POISON, bytes);
++	if (static_branch_unlikely(&init_on_free))
++		pattern = 0;
 +
-+	return find_memory_block_by_id(block_id);
- }
++	start = memchr_inv(mem, pattern, bytes);
+ 	if (!start)
+ 		return;
  
- static struct attribute *memory_memblk_attrs[] = {
-@@ -675,7 +660,7 @@ static int init_memory_block(struct memory_block **memory,
- 	unsigned long start_pfn;
- 	int ret = 0;
+ 	for (end = mem + bytes - 1; end > start; end--) {
+-		if (*end != PAGE_POISON)
++		if (*end != pattern)
+ 			break;
+ 	}
  
--	mem = find_memory_block_by_id(block_id, NULL);
-+	mem = find_memory_block_by_id(block_id);
- 	if (mem) {
- 		put_device(&mem->dev);
- 		return -EEXIST;
-@@ -755,7 +740,7 @@ int create_memory_block_devices(unsigned long start, unsigned long size)
- 		end_block_id = block_id;
- 		for (block_id = start_block_id; block_id != end_block_id;
- 		     block_id++) {
--			mem = find_memory_block_by_id(block_id, NULL);
-+			mem = find_memory_block_by_id(block_id);
- 			mem->section_count = 0;
- 			unregister_memory(mem);
- 		}
-@@ -782,7 +767,7 @@ void remove_memory_block_devices(unsigned long start, unsigned long size)
- 
- 	mutex_lock(&mem_sysfs_mutex);
- 	for (block_id = start_block_id; block_id != end_block_id; block_id++) {
--		mem = find_memory_block_by_id(block_id, NULL);
-+		mem = find_memory_block_by_id(block_id);
- 		if (WARN_ON_ONCE(!mem))
- 			continue;
- 		mem->section_count = 0;
-@@ -882,7 +867,7 @@ int walk_memory_blocks(unsigned long start, unsigned long size,
- 	int ret = 0;
- 
- 	for (block_id = start_block_id; block_id <= end_block_id; block_id++) {
--		mem = find_memory_block_by_id(block_id, NULL);
-+		mem = find_memory_block_by_id(block_id);
- 		if (!mem)
- 			continue;
- 
-diff --git a/include/linux/memory.h b/include/linux/memory.h
-index b3b388775a30..02e633f3ede0 100644
---- a/include/linux/memory.h
-+++ b/include/linux/memory.h
-@@ -116,8 +116,6 @@ void remove_memory_block_devices(unsigned long start, unsigned long size);
- extern int memory_dev_init(void);
- extern int memory_notify(unsigned long val, void *v);
- extern int memory_isolate_notify(unsigned long val, void *v);
--extern struct memory_block *find_memory_block_hinted(struct mem_section *,
--							struct memory_block *);
- extern struct memory_block *find_memory_block(struct mem_section *);
- typedef int (*walk_memory_blocks_func_t)(struct memory_block *, void *);
- extern int walk_memory_blocks(unsigned long start, unsigned long size,
+ 	if (!__ratelimit(&ratelimit))
+ 		return;
+-	else if (start == end && single_bit_flip(*start, PAGE_POISON))
++	else if (start == end && single_bit_flip(*start, pattern))
+ 		pr_err("pagealloc: single bit error\n");
+ 	else
+ 		pr_err("pagealloc: memory corruption\n");
 -- 
-2.21.0
+1.8.3.1
 
