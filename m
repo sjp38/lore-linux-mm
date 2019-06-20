@@ -2,135 +2,129 @@ Return-Path: <SRS0=424v=UT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C8F6DC43613
-	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 09:17:17 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 39037C43613
+	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 09:17:19 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 54C562080C
-	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 09:17:17 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 54C562080C
+	by mail.kernel.org (Postfix) with ESMTP id E51FC2080C
+	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 09:17:18 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E51FC2080C
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id AD1B76B0003; Thu, 20 Jun 2019 05:17:16 -0400 (EDT)
+	id AFA346B0005; Thu, 20 Jun 2019 05:17:17 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A5B308E0002; Thu, 20 Jun 2019 05:17:16 -0400 (EDT)
+	id A83628E0002; Thu, 20 Jun 2019 05:17:17 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8D41A8E0001; Thu, 20 Jun 2019 05:17:16 -0400 (EDT)
+	id 8D4538E0001; Thu, 20 Jun 2019 05:17:17 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 528886B0003
-	for <linux-mm@kvack.org>; Thu, 20 Jun 2019 05:17:16 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id x18so1612211pfj.4
-        for <linux-mm@kvack.org>; Thu, 20 Jun 2019 02:17:16 -0700 (PDT)
+Received: from mail-yw1-f72.google.com (mail-yw1-f72.google.com [209.85.161.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 69E6D6B0005
+	for <linux-mm@kvack.org>; Thu, 20 Jun 2019 05:17:17 -0400 (EDT)
+Received: by mail-yw1-f72.google.com with SMTP id p76so2317013ywg.5
+        for <linux-mm@kvack.org>; Thu, 20 Jun 2019 02:17:17 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:mime-version:content-transfer-encoding:message-id;
-        bh=mlof7Y82mScWCXP0ezqjFFy0phQ3/0dtFpnOxyU9W3E=;
-        b=JjKJc21W3j1NcfdhlxidbR/LwRtICib8ZxC1sgYHOV769PE22J0NZWvR5lykAfLrdU
-         HE2pnfBtMl7DD/vEcLchw+iHuLuWIQ6FtDS4W9A3yCorkYD8v/u2oD7d6SQzgkLpGy99
-         0Mf7QeeZmw8NW7AnBgwnZnFwfMIt20P5cx8BlpwVz47Lf5UeBiQ7ccjF2wHijF++77Y7
-         UY84bLdLTYm49rOOXMIyOeWbuy49pbxCin/ydis4GHg3/2uekRdPVkzrgkEvPEljbgfQ
-         4EYgYnC8RKzKxNeYjJZE3tkBB3JDZbSMIaLUT6eCjsEHWVrjTro3gsuHQBfNhbIZmGq1
-         iYUw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: APjAAAVYXu5TglK1YvzvTMISNcjFsMunBdd4BglEELTYtVzawUOYmU+b
-	SHMGpqiNhPSW+yrRoxY0pzPYZyF+TEOEDM29p+55ALuxrDVDpqHCTF1Noy3QMylzo2nzOQ+zbfw
-	YQzFGoFdiTxTySbn7xSBMmojDUvFI2mOpEyPgy0QuH12yhgTQG8Ycm31d6EP6Nbde7A==
-X-Received: by 2002:a65:408d:: with SMTP id t13mr11973845pgp.373.1561022235900;
-        Thu, 20 Jun 2019 02:17:15 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxTGmd7PG+fZKU7KMfIN4UXaKi/4iLcTLU4ZSmyCUPJi4HSvKVvCwxn0ZubcyIHUwCsz6y8
-X-Received: by 2002:a65:408d:: with SMTP id t13mr11973793pgp.373.1561022235089;
+         :subject:date:message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=cCTWCJmLM0r4llmHyOPcBCm2p9igblEXyjzvCISLi64=;
+        b=QNcCnYHErZiMqNpRL9Uj/0xjkIZmgX1+1xHRpxFzxFCxrz9gCVQzOGwm6grbrXCn2b
+         D8EXbM2p9Q599xhkFgtIqoGDZ+wIoyvGtJSN/d6OnEsyUydz8+eXD6KG6Zm6XjZpmqHX
+         Xh/1P9l+BB+a/GUWaAPU6F6JFFialjaugMwZ7eBQ/iyLcFlntDXSlyFSJpCBfb7XSRRg
+         +qGB4m0jiN9VzTOhrGQrfmGP1OMIOomE7dcDjlfE9wuosRvRU1sYsOSy0Q8hvWs41k3R
+         1mbwqKzVzUWwTbp80g4vYchVp0Nailpo4XJ34SBhA0lZ0V7j8cb5F//Kg4BIY8hURzSZ
+         V7dw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: APjAAAXizFEhXQSR+WffvkQY9jJpy23aOh/OPSfxqLwS3pg6y4oyNUnU
+	EJyg6e34kAO51W0tg0WNczLMVEfkOt2U57ZVwnvzw1l071oKr4OaI5crH6WGW+EqOJu0LwuhrSv
+	//oxEPrqIdqDxmqmIokgQrM5S5sF7rTxIf1yDxalOhBtemFGka/EN+OtjlrS8pDtKuw==
+X-Received: by 2002:a81:4c44:: with SMTP id z65mr3876433ywa.4.1561022237106;
+        Thu, 20 Jun 2019 02:17:17 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqx1hA5TjGwA2Ht6BMURzB7v29IcYsyG9v8I7s7cLUTLCcZfEhKORmSSnnMNpTtKKqsSru+b
+X-Received: by 2002:a81:4c44:: with SMTP id z65mr3876368ywa.4.1561022235450;
         Thu, 20 Jun 2019 02:17:15 -0700 (PDT)
 ARC-Seal: i=1; a=rsa-sha256; t=1561022235; cv=none;
         d=google.com; s=arc-20160816;
-        b=DOWsc1nzEdv6IrgehXibHm+PwzAfMprVRg/6i5/8hYQQTvBlIDsT4IaVeCfwf5K5gq
-         M1mwuZW6Ple4mU6hUIGiR9JphfwuDqOaHstO+OS4aqpOdZeOgvCfP6lhRzzSwhNi+OlP
-         ZdSFxbI7FLQpj35T0izsKdkY74AHLvzQdhDFIxwy4T6OsgtwN8wrJwkvUIvk62VSzXv9
-         bcqEIkrfxr4Br2SdHYOT4d5hLam6IE2kX1oaWFoE3UOyRn01vaFC0R1U9gBZa6GOqXsR
-         YF2sZ6Yf/cazEjUz1rP7Guk58kmxsyjhQfZOOncLG6TC1j9TnqWQ19T4KyHogh+4uPJr
-         JmnA==
+        b=a3T4+ChrsS33PL2XMr9jZM32AOYeMgpiTQ5nPxWzCJXP+3BSisu9Bz94oaj4G/7dKm
+         l2fJoBAGRNGCB7c3dtrMgot3suENeeOCQdxaxOw+QXkeZ9Lwcm36nnlZfEouQDP2owDx
+         t4KSawEN3m06/pbq0O5y7x1c4mr4MkUdzXwB7N1aCfzwQoG2OM5G5n4ypX5zaqe7h1Au
+         pBVknQFfE2rfp0MaO890auq1ppA8rAnf/UpT8vD7AVLgXBkYNoeSMeLnoG952rm1H3qb
+         v8j7RoL9XqCTAC+zxsZYWbilztQHHLJVL7MGX/H/lIfhXUv3bRVOqHnEgM9833weYzu1
+         bMKg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:content-transfer-encoding:mime-version:date:subject:cc
-         :to:from;
-        bh=mlof7Y82mScWCXP0ezqjFFy0phQ3/0dtFpnOxyU9W3E=;
-        b=uNghlS/YfCu/JshK2NcP3ETF1MjvYy55E7d/cqpFuzc79fKx4i/ghte435M1cg1Yy6
-         D2F90muG33PQP/0uMdr2aJ7ymtHod+axYurUyTQK2AeXqSlrLywRU2KeE/NWlFd9vIVp
-         BtUYR/vFrZtA2RuCG1tUDxLP1Ma5MRScBB11DONdbTHGbcjh1NYmJmtXEO/0hWMpDG3e
-         CYE5013mo2ZGps1WLQUSERaIlSE+JcjPv3+zKD2WO2FF3+HjUm7HyiKQ9a1oj2Mf8jfM
-         i4MgmYAlEk4avpzcbnb0zDIQ+qZTgpUx5e6jbG854qChHtoncNgA/TkiPxVqcLT2zIXI
-         OZzw==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:date:subject:cc:to:from;
+        bh=cCTWCJmLM0r4llmHyOPcBCm2p9igblEXyjzvCISLi64=;
+        b=SxGORZm+VsEN4WKyn7ynFIBljQI96U0b+6PUmuFrHD2sXgCK39hcM2FasqdftRMva3
+         6m4gt9Pa/BujCaGB/1DIdKak9StlwEC9BjPZJYbI8TE0S4yOvNkx9sUJ2SiVo1VRwpkD
+         euRw3PSOEO/qXLf/lY3TcS0ocA5g/Doarznjo029kTA0ZvSZricg7inPsn7U+hkCagl+
+         NIMczLcrgMAoIkNScYKdTwSS2XJujU5w3xstuRWnVNKrJHhxKLBT3YS0nEpGw9rVMc7z
+         VEUYzpVOer3J9aAbrL345M6xcnN651dHKBJwMqsJHt5W//r3CUk9uVOCsLP4xwOmAjeA
+         FNVw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
+       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id 14si5612327pgl.594.2019.06.20.02.17.14
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id r13si7020494ybm.497.2019.06.20.02.17.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Thu, 20 Jun 2019 02:17:15 -0700 (PDT)
-Received-SPF: pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
+Received-SPF: pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
+       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098394.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x5K9DqMs019188
-	for <linux-mm@kvack.org>; Thu, 20 Jun 2019 05:17:14 -0400
-Received: from e11.ny.us.ibm.com (e11.ny.us.ibm.com [129.33.205.201])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2t87b3g445-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 20 Jun 2019 05:17:14 -0400
-Received: from localhost
-	by e11.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
-	Thu, 20 Jun 2019 10:17:13 +0100
-Received: from b01cxnp22036.gho.pok.ibm.com (9.57.198.26)
-	by e11.ny.us.ibm.com (146.89.104.198) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Thu, 20 Jun 2019 10:17:10 +0100
+Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x5K9692V122435;
+	Thu, 20 Jun 2019 05:17:13 -0400
+Received: from ppma01dal.us.ibm.com (83.d6.3fa9.ip4.static.sl-reverse.com [169.63.214.131])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2t871xrs45-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=NOT);
+	Thu, 20 Jun 2019 05:17:13 -0400
+Received: from pps.filterd (ppma01dal.us.ibm.com [127.0.0.1])
+	by ppma01dal.us.ibm.com (8.16.0.27/8.16.0.27) with SMTP id x5K94k2x024184;
+	Thu, 20 Jun 2019 09:17:12 GMT
+Received: from b01cxnp23033.gho.pok.ibm.com (b01cxnp23033.gho.pok.ibm.com [9.57.198.28])
+	by ppma01dal.us.ibm.com with ESMTP id 2t75r12xet-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=NOT);
+	Thu, 20 Jun 2019 09:17:12 +0000
 Received: from b01ledav005.gho.pok.ibm.com (b01ledav005.gho.pok.ibm.com [9.57.199.110])
-	by b01cxnp22036.gho.pok.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x5K9H9aw35389804
+	by b01cxnp23033.gho.pok.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x5K9HBam33227140
 	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 20 Jun 2019 09:17:09 GMT
+	Thu, 20 Jun 2019 09:17:11 GMT
 Received: from b01ledav005.gho.pok.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id A4140AE05C;
-	Thu, 20 Jun 2019 09:17:09 +0000 (GMT)
+	by IMSVA (Postfix) with ESMTP id 9925AAE060;
+	Thu, 20 Jun 2019 09:17:11 +0000 (GMT)
 Received: from b01ledav005.gho.pok.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 23904AE063;
-	Thu, 20 Jun 2019 09:17:08 +0000 (GMT)
+	by IMSVA (Postfix) with ESMTP id 18769AE05C;
+	Thu, 20 Jun 2019 09:17:10 +0000 (GMT)
 Received: from skywalker.in.ibm.com (unknown [9.124.35.143])
 	by b01ledav005.gho.pok.ibm.com (Postfix) with ESMTP;
-	Thu, 20 Jun 2019 09:17:07 +0000 (GMT)
+	Thu, 20 Jun 2019 09:17:09 +0000 (GMT)
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
 To: dan.j.williams@intel.com
 Cc: linux-nvdimm@lists.01.org, linux-mm@kvack.org,
         linuxppc-dev@lists.ozlabs.org,
         "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-Subject: [PATCH v4 0/6] Fixes related namespace alignment/page size/big endian
-Date: Thu, 20 Jun 2019 14:46:20 +0530
+Subject: [PATCH v4 1/6] nvdimm: Consider probe return -EOPNOTSUPP as success
+Date: Thu, 20 Jun 2019 14:46:21 +0530
+Message-Id: <20190620091626.31824-2-aneesh.kumar@linux.ibm.com>
 X-Mailer: git-send-email 2.21.0
+In-Reply-To: <20190620091626.31824-1-aneesh.kumar@linux.ibm.com>
+References: <20190620091626.31824-1-aneesh.kumar@linux.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
 X-TM-AS-GCONF: 00
-x-cbid: 19062009-2213-0000-0000-000003A20120
-X-IBM-SpamModules-Scores: 
-X-IBM-SpamModules-Versions: BY=3.00011296; HX=3.00000242; KW=3.00000007;
- PH=3.00000004; SC=3.00000286; SDB=6.01220629; UDB=6.00642131; IPR=6.01001767;
- MB=3.00027390; MTD=3.00000008; XFM=3.00000015; UTC=2019-06-20 09:17:12
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19062009-2214-0000-0000-00005EED0B0C
-Message-Id: <20190620091626.31824-1-aneesh.kumar@linux.ibm.com>
 X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-06-20_06:,,
  signatures=0
 X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=1 phishscore=0 bulkscore=0 spamscore=0
+ malwarescore=0 suspectscore=3 phishscore=0 bulkscore=0 spamscore=0
  clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=887 adultscore=0 classifier=spam adjust=0 reason=mlx
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
  scancount=1 engine=8.0.1-1810050000 definitions=main-1906200068
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -138,49 +132,144 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This series handle configs where hugepage support is not enabled by default.
-Also, we update some of the information messages to make sure we use PAGE_SIZE instead
-of SZ_4K. We now store page size and struct page size in pfn_sb and do extra check
-before enabling namespace. There also an endianness fix.
+This patch add -EOPNOTSUPP as return from probe callback to
+indicate we were not able to initialize a namespace due to pfn superblock
+feature/version mismatch. We want to consider this a probe success so that
+we can create new namesapce seed and there by avoid marking the failed
+namespace as the seed namespace.
 
-The patch series is on top of subsection v10 patchset
+Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
+---
+ drivers/nvdimm/bus.c         |  4 ++--
+ drivers/nvdimm/nd-core.h     |  3 ++-
+ drivers/nvdimm/pmem.c        | 26 ++++++++++++++++++++++----
+ drivers/nvdimm/region_devs.c | 19 +++++++++++++++----
+ 4 files changed, 41 insertions(+), 11 deletions(-)
 
-http://lore.kernel.org/linux-mm/156092349300.979959.17603710711957735135.stgit@dwillia2-desk3.amr.corp.intel.com
-
-Changes from V3:
-* Dropped the change related PFN_MIN_VERSION
-* for pfn_sb minor version < 4, we default page_size to PAGE_SIZE instead of SZ_4k.
-
-Aneesh Kumar K.V (6):
-  nvdimm: Consider probe return -EOPNOTSUPP as success
-  mm/nvdimm: Add page size and struct page size to pfn superblock
-  mm/nvdimm: Use correct #defines instead of open coding
-  mm/nvdimm: Pick the right alignment default when creating dax devices
-  mm/nvdimm: Use correct alignment when looking at first pfn from a
-    region
-  mm/nvdimm: Fix endian conversion issues 
-
- arch/powerpc/include/asm/libnvdimm.h |  9 ++++
- arch/powerpc/mm/Makefile             |  1 +
- arch/powerpc/mm/nvdimm.c             | 34 +++++++++++++++
- arch/x86/include/asm/libnvdimm.h     | 19 +++++++++
- drivers/nvdimm/btt.c                 |  8 ++--
- drivers/nvdimm/bus.c                 |  4 +-
- drivers/nvdimm/label.c               |  2 +-
- drivers/nvdimm/namespace_devs.c      | 13 +++---
- drivers/nvdimm/nd-core.h             |  3 +-
- drivers/nvdimm/nd.h                  |  6 ---
- drivers/nvdimm/pfn.h                 |  5 ++-
- drivers/nvdimm/pfn_devs.c            | 62 ++++++++++++++++++++++++++--
- drivers/nvdimm/pmem.c                | 26 ++++++++++--
- drivers/nvdimm/region_devs.c         | 27 ++++++++----
- include/linux/huge_mm.h              |  7 +++-
- kernel/memremap.c                    |  8 ++--
- 16 files changed, 194 insertions(+), 40 deletions(-)
- create mode 100644 arch/powerpc/include/asm/libnvdimm.h
- create mode 100644 arch/powerpc/mm/nvdimm.c
- create mode 100644 arch/x86/include/asm/libnvdimm.h
-
+diff --git a/drivers/nvdimm/bus.c b/drivers/nvdimm/bus.c
+index 2dca3034fee0..3b8ffb3966ab 100644
+--- a/drivers/nvdimm/bus.c
++++ b/drivers/nvdimm/bus.c
+@@ -92,8 +92,8 @@ static int nvdimm_bus_probe(struct device *dev)
+ 
+ 	nvdimm_bus_probe_start(nvdimm_bus);
+ 	rc = nd_drv->probe(dev);
+-	if (rc == 0)
+-		nd_region_probe_success(nvdimm_bus, dev);
++	if (rc == 0 || rc == -EOPNOTSUPP)
++		nd_region_probe_success(nvdimm_bus, dev, rc);
+ 	else
+ 		nd_region_disable(nvdimm_bus, dev);
+ 	nvdimm_bus_probe_end(nvdimm_bus);
+diff --git a/drivers/nvdimm/nd-core.h b/drivers/nvdimm/nd-core.h
+index 391e88de3a29..4e6ffa0d89bb 100644
+--- a/drivers/nvdimm/nd-core.h
++++ b/drivers/nvdimm/nd-core.h
+@@ -126,7 +126,8 @@ int __init nvdimm_bus_init(void);
+ void nvdimm_bus_exit(void);
+ void nvdimm_devs_exit(void);
+ void nd_region_devs_exit(void);
+-void nd_region_probe_success(struct nvdimm_bus *nvdimm_bus, struct device *dev);
++void nd_region_probe_success(struct nvdimm_bus *nvdimm_bus,
++			     struct device *dev, int ret);
+ struct nd_region;
+ void nd_region_create_ns_seed(struct nd_region *nd_region);
+ void nd_region_create_btt_seed(struct nd_region *nd_region);
+diff --git a/drivers/nvdimm/pmem.c b/drivers/nvdimm/pmem.c
+index 24d7fe7c74ed..422b11c01301 100644
+--- a/drivers/nvdimm/pmem.c
++++ b/drivers/nvdimm/pmem.c
+@@ -497,6 +497,7 @@ static int pmem_attach_disk(struct device *dev,
+ 
+ static int nd_pmem_probe(struct device *dev)
+ {
++	int ret;
+ 	struct nd_namespace_common *ndns;
+ 
+ 	ndns = nvdimm_namespace_common_probe(dev);
+@@ -512,12 +513,29 @@ static int nd_pmem_probe(struct device *dev)
+ 	if (is_nd_pfn(dev))
+ 		return pmem_attach_disk(dev, ndns);
+ 
+-	/* if we find a valid info-block we'll come back as that personality */
+-	if (nd_btt_probe(dev, ndns) == 0 || nd_pfn_probe(dev, ndns) == 0
+-			|| nd_dax_probe(dev, ndns) == 0)
++	ret = nd_btt_probe(dev, ndns);
++	if (ret == 0)
+ 		return -ENXIO;
++	else if (ret == -EOPNOTSUPP)
++		return ret;
+ 
+-	/* ...otherwise we're just a raw pmem device */
++	ret = nd_pfn_probe(dev, ndns);
++	if (ret == 0)
++		return -ENXIO;
++	else if (ret == -EOPNOTSUPP)
++		return ret;
++
++	ret = nd_dax_probe(dev, ndns);
++	if (ret == 0)
++		return -ENXIO;
++	else if (ret == -EOPNOTSUPP)
++		return ret;
++	/*
++	 * We have two failure conditions here, there is no
++	 * info reserver block or we found a valid info reserve block
++	 * but failed to initialize the pfn superblock.
++	 * Don't create a raw pmem disk for the second case.
++	 */
+ 	return pmem_attach_disk(dev, ndns);
+ }
+ 
+diff --git a/drivers/nvdimm/region_devs.c b/drivers/nvdimm/region_devs.c
+index 4fed9ce9c2fe..1e74a1c9fdac 100644
+--- a/drivers/nvdimm/region_devs.c
++++ b/drivers/nvdimm/region_devs.c
+@@ -715,7 +715,7 @@ void nd_mapping_free_labels(struct nd_mapping *nd_mapping)
+  * disable the region.
+  */
+ static void nd_region_notify_driver_action(struct nvdimm_bus *nvdimm_bus,
+-		struct device *dev, bool probe)
++					   struct device *dev, bool probe, int ret)
+ {
+ 	struct nd_region *nd_region;
+ 
+@@ -745,6 +745,16 @@ static void nd_region_notify_driver_action(struct nvdimm_bus *nvdimm_bus,
+ 			nd_region_create_ns_seed(nd_region);
+ 		nvdimm_bus_unlock(dev);
+ 	}
++
++	if (dev->parent && is_nd_region(dev->parent) &&
++	    !probe && (ret == -EOPNOTSUPP)) {
++		nd_region = to_nd_region(dev->parent);
++		nvdimm_bus_lock(dev);
++		if (nd_region->ns_seed == dev)
++			nd_region_create_ns_seed(nd_region);
++		nvdimm_bus_unlock(dev);
++	}
++
+ 	if (is_nd_btt(dev) && probe) {
+ 		struct nd_btt *nd_btt = to_nd_btt(dev);
+ 
+@@ -780,14 +790,15 @@ static void nd_region_notify_driver_action(struct nvdimm_bus *nvdimm_bus,
+ 	}
+ }
+ 
+-void nd_region_probe_success(struct nvdimm_bus *nvdimm_bus, struct device *dev)
++void nd_region_probe_success(struct nvdimm_bus *nvdimm_bus,
++			     struct device *dev, int ret)
+ {
+-	nd_region_notify_driver_action(nvdimm_bus, dev, true);
++	nd_region_notify_driver_action(nvdimm_bus, dev, true, ret);
+ }
+ 
+ void nd_region_disable(struct nvdimm_bus *nvdimm_bus, struct device *dev)
+ {
+-	nd_region_notify_driver_action(nvdimm_bus, dev, false);
++	nd_region_notify_driver_action(nvdimm_bus, dev, false, 0);
+ }
+ 
+ static ssize_t mappingN(struct device *dev, char *buf, int n)
 -- 
 2.21.0
 
