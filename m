@@ -2,145 +2,137 @@ Return-Path: <SRS0=424v=UT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.5 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1738EC48BE1
-	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 15:49:22 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 25D14C43613
+	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 15:57:24 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D2B2B2084E
-	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 15:49:21 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id D3BCC205ED
+	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 15:57:23 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="Q8dvbg7Y"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D2B2B2084E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	dkim=pass (1024-bit key) header.d=joelfernandes.org header.i=@joelfernandes.org header.b="bFe5M5Vi"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D3BCC205ED
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=joelfernandes.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6EB016B0006; Thu, 20 Jun 2019 11:49:21 -0400 (EDT)
+	id 7A6F76B0005; Thu, 20 Jun 2019 11:57:23 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 674358E0002; Thu, 20 Jun 2019 11:49:21 -0400 (EDT)
+	id 758428E0002; Thu, 20 Jun 2019 11:57:23 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 53C5F8E0001; Thu, 20 Jun 2019 11:49:21 -0400 (EDT)
+	id 66D848E0001; Thu, 20 Jun 2019 11:57:23 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 0387F6B0006
-	for <linux-mm@kvack.org>; Thu, 20 Jun 2019 11:49:21 -0400 (EDT)
-Received: by mail-wr1-f69.google.com with SMTP id r4so1355096wrt.13
-        for <linux-mm@kvack.org>; Thu, 20 Jun 2019 08:49:20 -0700 (PDT)
+Received: from mail-lj1-f198.google.com (mail-lj1-f198.google.com [209.85.208.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 070326B0005
+	for <linux-mm@kvack.org>; Thu, 20 Jun 2019 11:57:23 -0400 (EDT)
+Received: by mail-lj1-f198.google.com with SMTP id 9so485042ljp.7
+        for <linux-mm@kvack.org>; Thu, 20 Jun 2019 08:57:22 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:references:from
-         :message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=DEHl/heRoFE3pmtAOs3jRbe+EMJIxlq4+fAPJDAKNqA=;
-        b=PA7q2Nrt23sUD1ZTEc1DEJc/rebfIoll60ZE4CSa/1IOKasMAB73XvJTNZ9cFbs/rF
-         ug9dP+4lMZfVRSRvVvdvtNdpmZ+GRg24N89LaoF/XAtS/d5vM47HTzH5DxzV1oaOZd7b
-         3kPA5LR8ypMNjkJhWffi7ZwK0lpkwWrIx8W+iF/xW/daVKAAQD+zuP/QM3V5+IrDKofM
-         0EkVEZ+EFmx9rCjbER6xDPsIqTrVMa3Gsfo10FZn+P7zI0XXUl6ZV6AHWD2Q4Ba8dGrQ
-         wtwlaMncjkbY+y69zNwozMZYEOVgPc3Z4oeevWeOkzM2FSu2GltQEY4F8M6OBKlp/4lu
-         PnNA==
-X-Gm-Message-State: APjAAAX6D9CivZiWB8GBQgoDURWzwvWwde9Go3eshPAPp5bnDuknFovH
-	v+XmjXemDnGAr2a2CIdE27sBf/pCHy0ZvgqI8UKgdsVrKD2iaPzEeznprGI6Jqw+3C7A2Cf5zbV
-	PSMxvvn0rNRCcIeGc6wOaaQYOQRVj0aaFuPnJ3KBhXV4qiHx5uNr92SbF486IIPDSCw==
-X-Received: by 2002:a7b:c301:: with SMTP id k1mr187674wmj.43.1561045760430;
-        Thu, 20 Jun 2019 08:49:20 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzKaR1rZMZKvyJVIw6LQZhu466h2oyT5++zQbx8YLHFNchLdWlEjcebMI2h+KtcuOCgodHG
-X-Received: by 2002:a7b:c301:: with SMTP id k1mr187645wmj.43.1561045759665;
-        Thu, 20 Jun 2019 08:49:19 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561045759; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=jWGyLei7iIX0YquCcpJVdvUVmyD9HHcydfLdWLV6VdQ=;
+        b=QZjAkoQ29Es/2zj2HUjX/68sLJ2Ardcj1OFk4MO/VdQeXhIWPl7J6CCZFwZanaFuSd
+         yky8iwd3wyMJwEqeu2oddLPzSamOwfyrYEytnq2h9HZzooHv+8KUmNfBu2SKdLIrkEFk
+         wQDu4fa2MinmrNPe+l/cCuRGxkHTlEcKV8A6xcoy038n4fKx9KbQxIlc0YnKbcVPk2QI
+         JhKNifmDQKH/4GTaYqstRVmvVNUMhwnEqfX5DqNvjANbnPszHPyHUqy19gl9xRPfszN+
+         Glze2qryGUn1EqW+hkviuOUyPOs3R7gGX8CUFS9a6LXqHTpBHCxWal4JuOWaaL1synkS
+         d9uQ==
+X-Gm-Message-State: APjAAAUz0DI8IIlaq6vCTjqLP5dLvjGJgbWck3UvRVzBxDh/z/v91XkZ
+	Hf5FlaXBXeV1eozEe5DbdbMSasLGquIWLFc+n5ZzsgXWPLcuxGZ4+eOnZYlJpiY0PWC6DfextIK
+	LJjtEu0EiWJAlzQKQVFwIoEDObGFr8h1XtLNpQK2boHTQo7Qax2xMI2M1xB5tD/M2wg==
+X-Received: by 2002:ac2:546a:: with SMTP id e10mr18203290lfn.75.1561046242224;
+        Thu, 20 Jun 2019 08:57:22 -0700 (PDT)
+X-Received: by 2002:ac2:546a:: with SMTP id e10mr18203261lfn.75.1561046241348;
+        Thu, 20 Jun 2019 08:57:21 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561046241; cv=none;
         d=google.com; s=arc-20160816;
-        b=rS4lTsgw/A99YwZOfNa3wDk4XVLuKTVtcnwhxHVVcEoWJU4+j7+NNW3/867IbwV0Cd
-         QE+o7QakaOnaVmLhdhuaiZsFwJSI3D/zQ8jnHJFyfJr5x4gcqQkNBnp7AUcqhztNqLNZ
-         sz8lygMj9MKH3JZi8zSzbLm3a39zma7bLKL6OPQ1G9bqYOD+oORy0ReX8P70FY5OLwrn
-         J3IDc47FRBavYzruKdZw2q3YeR/cmWy8l9AVX+kJTWWoNq8nP1rsMVdyHZ60o+NNAtuY
-         f04Vz7xHX7HunqPx4iDFuR3ueiM0lXXNR9pXwhB/8RfjoAq8zJPD/t25AQpbGDkDWXgq
-         fC1w==
+        b=mJJmznm6j7Yvv6xUPbyzF9sRDGWvD3OcnzHxRbegRUpZo6jWyI7q0W/znOQlvmXFkm
+         d58rnmetmAi2VhdpvJTXCdWyJaTmYfCeDSbnMspJ0u/f0y6UVbK/Ag8zgJh2I7BZkbkh
+         keim21EE3JUwLkmHOje0Snu5tsx/Tltn/GcB0gjYHNNrZAyi29JrzUFn9BZaNSr9jdPf
+         3Zb5ZHlJi3k5UAmUZnB9Fd1b15Immw8TmI833IaJLO8XkXOOESgPo55o3uBHxPX3fywK
+         VsLCHqT7YEIf9gcJ/WbkCzWvKiTSVr4EvFrEsbAO7GliTjVtMsmEr+xJFFYPGZn/VKDR
+         Za9A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:to:subject
-         :dkim-signature;
-        bh=DEHl/heRoFE3pmtAOs3jRbe+EMJIxlq4+fAPJDAKNqA=;
-        b=A0LK7BtS48by6nlPMiex4q5xS/JawetWHog48hl53FsYn4hy3JUpE6YAYWz1sLOTow
-         fYZyx8u8/D2kzgsNuDali+3uFrnpPO+mX1llKtt5SurQVN67kBAOmNmIAIX3XYs0RyxM
-         yFm2ndjsv6DZNhtYyizhpW3032FisPoBBRnSWfVieoX7gt2jUgxtN5ZaoRncfAiituzA
-         8xO2nn4z6BAvEAKY/d0XZvaX6OzINhHLT0WmEdr+9tlDH2xN8EaoUnFKv6oYTyhYbNHU
-         KE7n5ySYGBI4Ub/PpVhOESdppDF+1HVxiEAvIrWEPlMshaPR3QVYTUqUFfYUyFu4iq4B
-         0dYg==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=jWGyLei7iIX0YquCcpJVdvUVmyD9HHcydfLdWLV6VdQ=;
+        b=jmgSvx6DzPZiTG2vAzduJBHUJxAUt2OM+6iz6i972xYWTgWwq1vDgrouX/Caq1qpk5
+         x535ljw4xxM/ib3Yl8QGiGhc7VLpfnjGhVkZG4PJzq/uZcIv9AIMePIcOBF+ymYqfN5p
+         KK47DaRk3y5BBaZZgLQdd/oGsh+j0XgT5hyYj5er4xFEZkogdUwIUK7zRAJW97anfQuX
+         uzjkrNSpxCmdluVz9SfiXvvQ4vHgQooKgSGcmvNJF2BmBiuFbX7QmHTT/LSpv8arzfdP
+         PlYavpDTqPuLrooms2c34ymkLfhTC23hbhQ7gx1vriVt6jZJlU62eBKnYqwMTgxDJ8Vx
+         +aPw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=Q8dvbg7Y;
-       spf=pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=rdunlap@infradead.org
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id v15si94571wmf.136.2019.06.20.08.49.19
+       dkim=pass header.i=@joelfernandes.org header.s=google header.b=bFe5M5Vi;
+       spf=pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=joel@joelfernandes.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id m7sor11253008ljg.14.2019.06.20.08.57.21
         for <linux-mm@kvack.org>
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Thu, 20 Jun 2019 08:49:19 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) client-ip=2001:8b0:10b:1231::1;
+        (Google Transport Security);
+        Thu, 20 Jun 2019 08:57:21 -0700 (PDT)
+Received-SPF: pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=Q8dvbg7Y;
-       spf=pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=rdunlap@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=merlin.20170209; h=Content-Transfer-Encoding:Content-Type:
-	In-Reply-To:MIME-Version:Date:Message-ID:From:References:To:Subject:Sender:
-	Reply-To:Cc:Content-ID:Content-Description:Resent-Date:Resent-From:
-	Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:List-Help:
-	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	bh=DEHl/heRoFE3pmtAOs3jRbe+EMJIxlq4+fAPJDAKNqA=; b=Q8dvbg7Y3KEguFux87Tlx8c4nI
-	TzRU0UFrSH0P5s98Ir4S7dS3oFK63/wyKX/EX9awC86Z4Lp/RmiDXdS/rWlSXwuz8FpMlJqT97jzE
-	8BgOhI3ManVmb4M15/4DF851rnD+ujzuR7FcZVkUKPU4StnexKlSXhp3F7yX9fifgd9BHu9mgc/l9
-	Rm8jaiQ+3L1+e4ExkTlf0yQ8G8NiOS9o537wp1iWcdguBUqtBW1oUSLtGWdPNvKqMmHIcOMG/h1Me
-	jU/P1a3P6/0bgnpPWPJGSXH3yUdmgSVkoc+q+jL0vmermx/de1lRLpX4Fny6RGoDoaYx/WOfOHylU
-	v94QgEpQ==;
-Received: from static-50-53-52-16.bvtn.or.frontiernet.net ([50.53.52.16] helo=dragon.dunlab)
-	by merlin.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
-	id 1hdzJ5-0000MQ-Ia; Thu, 20 Jun 2019 15:48:59 +0000
-Subject: Re: mmotm 2019-06-19-20-32 uploaded (drivers/base/memory.c)
-To: akpm@linux-foundation.org, broonie@kernel.org,
- linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org,
- linux-mm@kvack.org, linux-next@vger.kernel.org, mhocko@suse.cz,
- mm-commits@vger.kernel.org, sfr@canb.auug.org.au,
- David Hildenbrand <david@redhat.com>
-References: <20190620033253.hao9i0PFT%akpm@linux-foundation.org>
-From: Randy Dunlap <rdunlap@infradead.org>
-Message-ID: <bbc205e3-f947-ad46-6b62-afb72af7791e@infradead.org>
-Date: Thu, 20 Jun 2019 08:48:51 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.1
+       dkim=pass header.i=@joelfernandes.org header.s=google header.b=bFe5M5Vi;
+       spf=pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=joel@joelfernandes.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=joelfernandes.org; s=google;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=jWGyLei7iIX0YquCcpJVdvUVmyD9HHcydfLdWLV6VdQ=;
+        b=bFe5M5Viz6mhTHKLXiMPTsQHKWSneXU/P32CqJMYYaptrO+yxI3A5ZHrwgrV2u0KS5
+         rMgI+Roe2+x3nxcZJ1pksI2BGPwWFMRIupONO1kQiB3020Q2Rgino0w1y37GLCitolpZ
+         audrqCWFZ8YkyqtOjHihYhu0nEmriemTSSrqQ=
+X-Google-Smtp-Source: APXvYqwrlNR3lH/4m9IeD5Bkl0pzlV3Ska/rPfDDBMmGCP6oxktUzG4DNWPlJ52+fxSnzyurONehOvGDKpiTNUq3KkQ=
+X-Received: by 2002:a2e:3602:: with SMTP id d2mr7778406lja.112.1561046240877;
+ Thu, 20 Jun 2019 08:57:20 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20190620033253.hao9i0PFT%akpm@linux-foundation.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+References: <20190603053655.127730-1-minchan@kernel.org> <20190603053655.127730-2-minchan@kernel.org>
+ <20190604203841.GC228607@google.com> <20190610100904.GC55602@google.com>
+ <20190612172104.GA125771@google.com> <20190613044824.GF55602@google.com>
+ <20190619171340.GA83620@google.com> <20190620050132.GC105727@google.com>
+In-Reply-To: <20190620050132.GC105727@google.com>
+From: Joel Fernandes <joel@joelfernandes.org>
+Date: Thu, 20 Jun 2019 11:57:09 -0400
+Message-ID: <CAEXW_YSY2GgW_Fp6VN2Qrf0Gr8c71DUgoTzZoq-V2=jFgDEDvQ@mail.gmail.com>
+Subject: Re: [PATCH v1 1/4] mm: introduce MADV_COLD
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, 
+	LKML <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, 
+	Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Tim Murray <timmurray@google.com>, 
+	Suren Baghdasaryan <surenb@google.com>, Daniel Colascione <dancol@google.com>, 
+	Shakeel Butt <shakeelb@google.com>, Sonny Rao <sonnyrao@google.com>, 
+	Brian Geffon <bgeffon@google.com>, Jann Horn <jannh@google.com>, Oleg Nesterov <oleg@redhat.com>, 
+	Christian Brauner <christian@brauner.io>, oleksandr@redhat.com, hdanton@sina.com, 
+	Vladimir Davydov <vdavydov.dev@gmail.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 6/19/19 8:32 PM, akpm@linux-foundation.org wrote:
-> The mm-of-the-moment snapshot 2019-06-19-20-32 has been uploaded to
-> 
->    http://www.ozlabs.org/~akpm/mmotm/
-> 
-> mmotm-readme.txt says
-> 
-> README for mm-of-the-moment:
-> 
-> http://www.ozlabs.org/~akpm/mmotm/
-> 
-> This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
-> more than once a week.
-> 
+On Thu, Jun 20, 2019 at 1:01 AM Minchan Kim <minchan@kernel.org> wrote:
+[snip]
+> > > >
+> > > > I think to fix this, what you should do is clear the PG_Idle flag if the
+> > > > young/accessed PTE bits are set. If PG_Idle is already cleared, then you
+> > > > don't need to do anything.
+> > >
+> > > I'm not sure. What does it make MADV_COLD special?
+> > > How about MADV_FREE|MADV_DONTNEED?
+> > > Why don't they clear PG_Idle if pte was young at tearing down pte?
+> >
+> > Good point, so it sounds like those (MADV_FREE|MADV_DONTNEED) also need to be fixed then?
+>
+> Not sure. If you want it, maybe you need to fix every pte clearing and pte_mkold
+> part, which is more general to cover every sites like munmap, get_user_pages and
+> so on. Anyway, I don't think it's related to this patchset.
 
-on i386 or x86_64:
+Ok, I can look into this issue on my own when I get time. I'll add it
+to my list. No problems with your patch otherwise from my side.
 
-../drivers/base/memory.c: In function 'find_memory_block':
-../drivers/base/memory.c:621:43: error: 'hint' undeclared (first use in this function); did you mean 'uint'?
-  return find_memory_block_by_id(block_id, hint);
-                                           ^~~~
-
-
--- 
-~Randy
+ -Joel
 
