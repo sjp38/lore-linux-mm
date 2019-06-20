@@ -2,112 +2,100 @@ Return-Path: <SRS0=424v=UT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CC38EC48BE3
-	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 16:37:50 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DD163C48BE3
+	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 16:44:37 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 826392083B
-	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 16:37:50 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 826392083B
+	by mail.kernel.org (Postfix) with ESMTP id AC0A22085A
+	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 16:44:36 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AC0A22085A
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 231346B0007; Thu, 20 Jun 2019 12:37:50 -0400 (EDT)
+	id 6E8476B0005; Thu, 20 Jun 2019 12:44:36 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1E2B08E0003; Thu, 20 Jun 2019 12:37:50 -0400 (EDT)
+	id 699078E0003; Thu, 20 Jun 2019 12:44:36 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0D2D18E0001; Thu, 20 Jun 2019 12:37:50 -0400 (EDT)
+	id 5604D8E0001; Thu, 20 Jun 2019 12:44:36 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E00966B0007
-	for <linux-mm@kvack.org>; Thu, 20 Jun 2019 12:37:49 -0400 (EDT)
-Received: by mail-qt1-f199.google.com with SMTP id e39so4313504qte.8
-        for <linux-mm@kvack.org>; Thu, 20 Jun 2019 09:37:49 -0700 (PDT)
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 325DF6B0005
+	for <linux-mm@kvack.org>; Thu, 20 Jun 2019 12:44:36 -0400 (EDT)
+Received: by mail-qk1-f197.google.com with SMTP id o4so4353446qko.8
+        for <linux-mm@kvack.org>; Thu, 20 Jun 2019 09:44:36 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+        h=x-original-authentication-results:x-gm-message-state:subject:to
          :references:from:openpgp:autocrypt:organization:message-id:date
          :user-agent:mime-version:in-reply-to:content-language
          :content-transfer-encoding;
-        bh=Y7djfo9C72oSddDkps99xsZfZZx1VsJ71gM3u+PP48M=;
-        b=jjM8x9JKtC1Yzugpdj7UbCSzaB2PW0lOpgihEywI4Rq3TTB4zu+P36PctdhqS8VFrM
-         TVsCvnNLwTI0LmBioyR+ITkAiXQYMUw4X9pbooUtlmnOI04vTE+tuO3PPgLypKCUOowG
-         E103uz+D9Yv4R7/JYJ89P6hHtHTWQRTE2az/m9c4y9Sqj8S18jKx9uLCxCcJuHwlODPW
-         RhTRQvsGv35GAOZUvLV7t4NNtTRnAEDQjQPA90wGeYasylIa9YdAs5OLah0n626za6F2
-         8yJH57UvongTIPxuIaq4QHr1dzxve5Ih6lBLZN2KXHgoWAf1RZEpGtTG2/FV+ZMo3ueQ
-         A/UA==
+        bh=x1QqEoLtWyPcwSkisAsF+INk5iai7HcfeWLw8vNPLYM=;
+        b=ABpOhGpEmi50dTLtBTe4QMIQfzpZ/uRRmaerAM+j++LBeEussB5fPwBP+lJTahd254
+         JfEl/BqhwMQ6SgDKoAMSHpbV8GWU7/7V71nXrYvcxckLQW+k0nbsfnh2Y34fm4jkVrXG
+         Yx7OQxYMoFjGFCEU3XDKPMkBe7STk+KWEQktavmjzyxjefLTVEwfjlgpHw3AF2wnH9jD
+         Zb2ofTVA04dx6/3r2tpSAtsIsQmnWKjY3zh+Le1a/2YuCSbfhp3iqtBh60yOy3X9Rw5X
+         vGblg49XtGOVt0kfHZyAmk6tg/WMKAEAQOQ0VA3NGKmbQrQbHmExMyO32fBNixpXTJ9G
+         Nf1w==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAXAhUB0J44DWgqpeF8tAlx+q5KiuSB5TnnZ1Df3bY6tgpANG8xe
-	GYXVwvod6gBY2rne+s6ocg/wHmbMZ/Fh5B1MXxCaX6euL7EvUfwumNwvVYxbqMA/QMwTlQYbojS
-	VcL4v7plUaZAZKqDl3RdYNeriT9CuTHm+cxCsjCMvvyijUHAJDZZQvUbKMFnIbJeV3A==
-X-Received: by 2002:ac8:2439:: with SMTP id c54mr80370396qtc.160.1561048669680;
-        Thu, 20 Jun 2019 09:37:49 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxq65PG/rN6ErNK4IThtYRduOWBe8S5bl52hlQqe2TadXgHTwdpYgxH4FqytKpq1AqpEfO1
-X-Received: by 2002:ac8:2439:: with SMTP id c54mr80370356qtc.160.1561048669103;
-        Thu, 20 Jun 2019 09:37:49 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561048669; cv=none;
+X-Gm-Message-State: APjAAAXnz8w7Av+PixPTFJjFkHpwQKk4RfwO3xpu/OjsheswQL5nrxnb
+	t6rBCnI9WJggLi0Wmr1BMDIbUb9D8LcApT2ACxE80I2OKmBXsV+iGKlDPiR2xdNqkWln+iqjzZi
+	8rQHszGTmJZq+RNfJNRPuxKC55XE+kwf9oNm9JDeOu48turiJELXn8AOVkUP5KU0Q9g==
+X-Received: by 2002:ac8:f13:: with SMTP id e19mr111473883qtk.11.1561049075964;
+        Thu, 20 Jun 2019 09:44:35 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqz4DDyBU+XwUF2TTVnKl7cYFIK/JdmUQFs+lbYJX8Bin0aT/Mn8W8YbbKbuZpUsxKPoOze4
+X-Received: by 2002:ac8:f13:: with SMTP id e19mr111473845qtk.11.1561049075497;
+        Thu, 20 Jun 2019 09:44:35 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561049075; cv=none;
         d=google.com; s=arc-20160816;
-        b=B9qVDQkyyHGXzWRGkS4Fmu8KYmWsuih5qx1rvQJicyHvOA7kXfNro/NCEncG9mCAgQ
-         DCxT+63/tCA/lWGDftuAlQLu6cW3SsLEayMJmzuV9gHiezEEkVu2tlXmxGjRZw2Fwq+X
-         X4Mxu7380nMoElr5aQirTcL3fQNwnmjaOH2SPPEjiArmh1lA3a+YOir+4L/1cRg4mBap
-         P3bvNKiJN0PuFSHzrANMEHLpbcT7gML+mNOwpgMnU5hwxBqYDC1zaTvsxzNBUcykzUEd
-         X9q+CV3R2GzLk+nUAQ5peIYsz9ENpDKBtaoxhmeQDNThNPzqTpg6blgsDjn3bzvaH0zV
-         HlXg==
+        b=zYXRlLaZ6hsPTlvaFXnILggd1+1jUHZ9N19pcHZcF4do5mdpbvbZdr5Rf+3FkNxKQy
+         hUZEUrBEZjQ1QVzjX4OsmAoFc0/R9seXd35hVHYXrSWPuR5ABBcgyfB0jnD1opInedop
+         aJYTOZrNcgWRZPlCkS/+3WKXrDwFBHf77/+6wKrFWRP4CL2mNVn7kSa7U0WBGu5lNXds
+         JcctOtP+xLbkqP0D4BKwRTDJHQhJSeO/2ok1WcJZbh9G7qlJXYZ5zJgPbPAe0je10966
+         JK4c1GVhILwbnIPnzMvpMBoI/cBif3a9sFyOJHGmF1Pdq91j94yr5RhMIIXSNG+RuHtl
+         ymag==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
          :user-agent:date:message-id:organization:autocrypt:openpgp:from
-         :references:cc:to:subject;
-        bh=Y7djfo9C72oSddDkps99xsZfZZx1VsJ71gM3u+PP48M=;
-        b=iSeuvpsazIW7cM3SYmeuGpkOtmIwY1Tj5V5XfEjqDpqzZCsKAPc/bL21DHUSv5Bhuy
-         GUnKZSOlR3NQ/NiMhBbgFJYzMCZbvB17WTbZ8QIz62vNIXRK5tgtBugUdASl2akb8nAh
-         WKaviW47RUT3P2mWdUtjjBahskaG+x74/38zdVk9NCFwL52ObLnUHQC4oAHYbCu1MDiN
-         GbPWyeWVUcBT2GzrUqCWfyFxx72QjAFzZRXP5iCbDTG5+12cEIJYhJMOzX/oOHsuXPlN
-         4QF0Vmzrcewt7BnFHpodj+a43rWQPDJP7wQw2KCT0+7FOVHVjhvI8gCMOWQHd83m3iWV
-         6auA==
+         :references:to:subject;
+        bh=x1QqEoLtWyPcwSkisAsF+INk5iai7HcfeWLw8vNPLYM=;
+        b=m0rp96j6XWe3BBD/foCuqT5tVapqpoFE5z/whzmROXhQX4Q/MJIqzuld7Qx4xfutG2
+         FrEZcYDE33QTxjF5gpkumx0Y7ySsQi4TXnT3dn+p030nfGknEiR1Moinru83OGHs/bkT
+         K6KWWQJpYBZWbMg+oE4pB4p6JgJ6hWuoO6jDxrNX4ExH2EHIhG9juHxA9tIgrNZ7eMsH
+         HlYqfB9FWAB5CqGzvW6INGjsVlftxe6/0ltyEBG67zePH5maTdBIX62SLBBPxXpoDdSb
+         XROjfs1d5a1/OYs8Za0pi/r1WG96f0MilPnDkHJB3bdpw6EuWAO0hx/+SjLF/yC9VTPZ
+         /Gig==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id h8si67741qtb.258.2019.06.20.09.37.48
+        by mx.google.com with ESMTPS id t3si151181qvt.202.2019.06.20.09.44.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 20 Jun 2019 09:37:49 -0700 (PDT)
+        Thu, 20 Jun 2019 09:44:35 -0700 (PDT)
 Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
+Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 294E2307D8E3;
-	Thu, 20 Jun 2019 16:37:32 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id 7CD8A307D91F;
+	Thu, 20 Jun 2019 16:44:29 +0000 (UTC)
 Received: from [10.36.116.54] (ovpn-116-54.ams2.redhat.com [10.36.116.54])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 91D98100194A;
-	Thu, 20 Jun 2019 16:37:11 +0000 (UTC)
-Subject: Re: [PATCH v2 4/6] mm/memory_hotplug: Rename walk_memory_range() and
- pass start+size instead of pfns
-To: Nathan Chancellor <natechancellor@gmail.com>
-Cc: linux-kernel@vger.kernel.org, Dan Williams <dan.j.williams@intel.com>,
- Andrew Morton <akpm@linux-foundation.org>, linuxppc-dev@lists.ozlabs.org,
- linux-acpi@vger.kernel.org, linux-mm@kvack.org,
- Benjamin Herrenschmidt <benh@kernel.crashing.org>,
- Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>,
- "Rafael J. Wysocki" <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>,
- Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
- Rashmica Gupta <rashmica.g@gmail.com>,
- Pavel Tatashin <pavel.tatashin@microsoft.com>,
- Anshuman Khandual <anshuman.khandual@arm.com>,
- Michael Neuling <mikey@neuling.org>, Thomas Gleixner <tglx@linutronix.de>,
- Oscar Salvador <osalvador@suse.de>, Michal Hocko <mhocko@suse.com>,
- Wei Yang <richard.weiyang@gmail.com>, Juergen Gross <jgross@suse.com>,
- Qian Cai <cai@lca.pw>, Arun KS <arunks@codeaurora.org>
-References: <20190620103520.23481-1-david@redhat.com>
- <20190620103520.23481-5-david@redhat.com>
- <20190620160507.GA34841@archlinux-epyc>
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 66AA15C21E;
+	Thu, 20 Jun 2019 16:44:27 +0000 (UTC)
+Subject: Re: mmotm 2019-06-19-20-32 uploaded (drivers/base/memory.c)
+To: Randy Dunlap <rdunlap@infradead.org>, akpm@linux-foundation.org,
+ broonie@kernel.org, linux-fsdevel@vger.kernel.org,
+ linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+ linux-next@vger.kernel.org, mhocko@suse.cz, mm-commits@vger.kernel.org,
+ sfr@canb.auug.org.au
+References: <20190620033253.hao9i0PFT%akpm@linux-foundation.org>
+ <bbc205e3-f947-ad46-6b62-afb72af7791e@infradead.org>
 From: David Hildenbrand <david@redhat.com>
 Openpgp: preference=signencrypt
 Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
@@ -154,94 +142,51 @@ Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
  +8Umfre0Xt4713VxMygW0PnQt5aSQdMD58jHFxTk092mU+yIHj5LeYgvwSgZN4airXk5yRXl
  SE+xAvmumFBY
 Organization: Red Hat GmbH
-Message-ID: <bffe90e6-81fa-e8d5-5fb2-b54539f45c5d@redhat.com>
-Date: Thu, 20 Jun 2019 18:37:10 +0200
+Message-ID: <20f6cca9-42f7-848f-e782-2c9240ec84f6@redhat.com>
+Date: Thu, 20 Jun 2019 18:44:26 +0200
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.7.0
 MIME-Version: 1.0
-In-Reply-To: <20190620160507.GA34841@archlinux-epyc>
+In-Reply-To: <bbc205e3-f947-ad46-6b62-afb72af7791e@infradead.org>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
-X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.48]); Thu, 20 Jun 2019 16:37:48 +0000 (UTC)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.48]); Thu, 20 Jun 2019 16:44:34 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 20.06.19 18:05, Nathan Chancellor wrote:
-> On Thu, Jun 20, 2019 at 12:35:18PM +0200, David Hildenbrand wrote:
->> walk_memory_range() was once used to iterate over sections. Now, it
->> iterates over memory blocks. Rename the function, fixup the
->> documentation. Also, pass start+size instead of PFNs, which is what most
->> callers already have at hand. (we'll rework link_mem_sections() most
->> probably soon)
+On 20.06.19 17:48, Randy Dunlap wrote:
+> On 6/19/19 8:32 PM, akpm@linux-foundation.org wrote:
+>> The mm-of-the-moment snapshot 2019-06-19-20-32 has been uploaded to
 >>
->> Follow-up patches wil rework, simplify, and move walk_memory_blocks() to
->> drivers/base/memory.c.
+>>    http://www.ozlabs.org/~akpm/mmotm/
 >>
->> Note: walk_memory_blocks() only works correctly right now if the
->> start_pfn is aligned to a section start. This is the case right now,
->> but we'll generalize the function in a follow up patch so the semantics
->> match the documentation.
+>> mmotm-readme.txt says
 >>
->> Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
->> Cc: Paul Mackerras <paulus@samba.org>
->> Cc: Michael Ellerman <mpe@ellerman.id.au>
->> Cc: "Rafael J. Wysocki" <rjw@rjwysocki.net>
->> Cc: Len Brown <lenb@kernel.org>
->> Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
->> Cc: David Hildenbrand <david@redhat.com>
->> Cc: Rashmica Gupta <rashmica.g@gmail.com>
->> Cc: Andrew Morton <akpm@linux-foundation.org>
->> Cc: Pavel Tatashin <pavel.tatashin@microsoft.com>
->> Cc: Anshuman Khandual <anshuman.khandual@arm.com>
->> Cc: Michael Neuling <mikey@neuling.org>
->> Cc: Thomas Gleixner <tglx@linutronix.de>
->> Cc: Oscar Salvador <osalvador@suse.de>
->> Cc: Michal Hocko <mhocko@suse.com>
->> Cc: Wei Yang <richard.weiyang@gmail.com>
->> Cc: Juergen Gross <jgross@suse.com>
->> Cc: Qian Cai <cai@lca.pw>
->> Cc: Arun KS <arunks@codeaurora.org>
->> Signed-off-by: David Hildenbrand <david@redhat.com>
->> ---
->>  arch/powerpc/platforms/powernv/memtrace.c | 22 ++++++++++-----------
->>  drivers/acpi/acpi_memhotplug.c            | 19 ++++--------------
->>  drivers/base/node.c                       |  5 +++--
->>  include/linux/memory_hotplug.h            |  2 +-
->>  mm/memory_hotplug.c                       | 24 ++++++++++++-----------
->>  5 files changed, 32 insertions(+), 40 deletions(-)
+>> README for mm-of-the-moment:
 >>
->> diff --git a/arch/powerpc/platforms/powernv/memtrace.c b/arch/powerpc/platforms/powernv/memtrace.c
->> index 5e53c1392d3b..8c82c041afe6 100644
->> --- a/arch/powerpc/platforms/powernv/memtrace.c
->> +++ b/arch/powerpc/platforms/powernv/memtrace.c
->> @@ -70,23 +70,24 @@ static int change_memblock_state(struct memory_block *mem, void *arg)
->>  /* called with device_hotplug_lock held */
->>  static bool memtrace_offline_pages(u32 nid, u64 start_pfn, u64 nr_pages)
->>  {
->> +	const unsigned long start = PFN_PHYS(start_pfn);
->> +	const unsigned long size = PFN_PHYS(nr_pages);
->>  	u64 end_pfn = start_pfn + nr_pages - 1;
+>> http://www.ozlabs.org/~akpm/mmotm/
+>>
+>> This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
+>> more than once a week.
+>>
 > 
-> This variable should be removed:
+> on i386 or x86_64:
 > 
-> arch/powerpc/platforms/powernv/memtrace.c:75:6: warning: unused variable 'end_pfn' [-Wunused-variable]
->         u64 end_pfn = start_pfn + nr_pages - 1;
->             ^
-> 1 warning generated.
+> ../drivers/base/memory.c: In function 'find_memory_block':
+> ../drivers/base/memory.c:621:43: error: 'hint' undeclared (first use in this function); did you mean 'uint'?
+>   return find_memory_block_by_id(block_id, hint);
+>                                            ^~~~
 > 
-> https://travis-ci.com/ClangBuiltLinux/continuous-integration/jobs/209576737
-> 
-> Cheers,
-> Nathan
 > 
 
-Indeed, thanks!
+Thanks, see
 
+[PATCH v2 0/6] mm: Further memory block device cleanups
 
 -- 
 
