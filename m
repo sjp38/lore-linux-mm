@@ -2,155 +2,158 @@ Return-Path: <SRS0=424v=UT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.7 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
+	SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 61755C43613
-	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 16:10:48 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CC333C43613
+	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 16:19:57 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0DF902070B
-	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 16:10:48 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0DF902070B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 843C12070B
+	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 16:19:57 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="TyqKBNvB"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 843C12070B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A0DAA8E0005; Thu, 20 Jun 2019 12:10:47 -0400 (EDT)
+	id 107098E0006; Thu, 20 Jun 2019 12:19:57 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9BEF58E0001; Thu, 20 Jun 2019 12:10:47 -0400 (EDT)
+	id 0B7EB8E0001; Thu, 20 Jun 2019 12:19:57 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8AD408E0005; Thu, 20 Jun 2019 12:10:47 -0400 (EDT)
+	id F11688E0006; Thu, 20 Jun 2019 12:19:56 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 537748E0001
-	for <linux-mm@kvack.org>; Thu, 20 Jun 2019 12:10:47 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id i3so1860221plb.8
-        for <linux-mm@kvack.org>; Thu, 20 Jun 2019 09:10:47 -0700 (PDT)
+Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
+	by kanga.kvack.org (Postfix) with ESMTP id CA0B38E0001
+	for <linux-mm@kvack.org>; Thu, 20 Jun 2019 12:19:56 -0400 (EDT)
+Received: by mail-oi1-f197.google.com with SMTP id s197so1517706oih.14
+        for <linux-mm@kvack.org>; Thu, 20 Jun 2019 09:19:56 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:message-id
-         :subject:from:to:date:in-reply-to:references:user-agent:mime-version
-         :content-transfer-encoding;
-        bh=gqq0kQFFP/GC+r+iqn1/8NXq7wLnXIrnyFa+ACUn8WY=;
-        b=bH5vB4cDb8IR2sTJCUxaHiM8TBpbw8RyBfyb06U1ox/gvH9jXtZoeC4ErMGLoRxkR/
-         3XY6A/tFKOek1I8Sv7kfdrQTu/RBITQGDRY0zSBQFC2ed2zMs0HFfvi+WchpVqhWORpK
-         YOVwIOSRj8/UbpLdRgywNUiHvrG4SXISnNsuHsuNaM6eLGRws8CMlIPazG+zgp+f8mUz
-         TBiMgNeNTvSda54rE5Cl7uQiaqnMtamRKyVpICnHz3ICN7ipIZN+WTBhSpRd58eILv/l
-         tANMHm9iX0l+t3xWPev4lO7iNxfkYrV+TLHL15UOmz7D7SSlt6si+mvaB1MN44ZzF9O3
-         A14Q==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=alexander.h.duyck@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAWykSrBmRj/VBm4KfuZap4wQE/mxz6sv+0sgh0T1t7kdeLtkhba
-	pr1Vn7m2qAKJIIyAIMpislF2vYi+Eceet3nYs759prW2M9ChDd5khcDc6Nl4btNqGEJ0Dhf7v6x
-	GM+aq2jzncXslWaTT+v2+EeSaNJ+6m1SfpvAMD1BlEb5xNSf0jg3dGho0NUSZ8m8iVQ==
-X-Received: by 2002:a62:e511:: with SMTP id n17mr121133140pff.181.1561047047016;
-        Thu, 20 Jun 2019 09:10:47 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwUo7kpWyv4V7pGm3yqeNY4tHx7SNAthYrQ+p7E6P1szbSXJkljOPiXrfWg69YBtK0oaoTS
-X-Received: by 2002:a62:e511:: with SMTP id n17mr121133050pff.181.1561047045821;
-        Thu, 20 Jun 2019 09:10:45 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561047045; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=yuGyF1gaAxnc5NCYYEX6kiZekDv13zqB0UQA2n5aQis=;
+        b=Dpqo/b77cvQWfNijjbsEkm2ZLv/dYSZYALCv+Xnn9RbNyz7GqIvXZaDq32wGt9fhCy
+         65MVsxmQrh0ZKZY0DlxecYA63fZwX5uVJzVGKR+g8qiAKLBCoz0SCY+k5lNEK/R1IbmK
+         VnGuFpkaQ8TRnEH10kwSOtaC/Fta6jkUSktE2FMCvm//rR9L79/NRC8O+/0Qh8HdCDYo
+         xn1IYluUE85hbltv0F/H6jeNV13DFqxuyibNXNEqkmxEv9uIhk4CNYyAyn2OhDzqG1AN
+         7xtg3xJe7qZ/JXtgLc9nEbAr4RwDSNveziFSNONqO4rpcBz02tHasvzkjuitoSw4xtXy
+         NWWA==
+X-Gm-Message-State: APjAAAXr1/jBqOPz3hBOdpJ6VGRcxqWQK6zffSB0gOclVx5t5DfNyvAN
+	xbEwO/Ql6fHuatsuNYODZOXE7AveV6q6KK1PS2xwWna4HaJPUKjnuimXDcIpodaNN33h/jWju0P
+	C4PAz0a0uG9osbpL//FJCDH2qDRI71sD7qJorYHATDrrFmsyS+nxgcNpPltu+jMNAXQ==
+X-Received: by 2002:a05:6830:12d6:: with SMTP id a22mr8488130otq.236.1561047596413;
+        Thu, 20 Jun 2019 09:19:56 -0700 (PDT)
+X-Received: by 2002:a05:6830:12d6:: with SMTP id a22mr8488087otq.236.1561047595861;
+        Thu, 20 Jun 2019 09:19:55 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561047595; cv=none;
         d=google.com; s=arc-20160816;
-        b=DQXjkG3j7zafq/XTYt7wiD0GferFuaG6YmA9Exoqm/jXh04keyWo+k/J1nE5E0y/tU
-         uu2GuS0B9GVCarltioEifZOeQ3Q8LithoN6iGr+swb/AUZhU6ojIbEsv7xb8q+7VVnsN
-         slvquTlWPHgeYDGU6lkDgUeEct0GZ1KdHx3LMGS5g/bbKzHICDC43XkPGqtAQ4yguQjT
-         l4y8pFKkIlNvC2Z3+7PZXmnSKKVLSxdimvpup+ki82omEP34ABMjKztCWKl/TZnSZ21p
-         NRUHQSJd0RmBKO2unQo6dtexliT4hN203M0lr0ffE2XhxRT7qAKRBQEVQy/f/f2Dw/bJ
-         daXg==
+        b=Le6CcaExEt0WAGUTkMCrQQUEGHFGC8gGVOotyiCcd59Kfy1hAwHx25pWs6E6vt9Zq4
+         4UkKl9DJ9ZH3HkeCY9194j7bdJTrzlcFSL6TB/v4r3t33FDEArXCriJhzANMsSkUT5AW
+         lJ6TWfwxr1CrCBzROAauIROC08342H3+71U9NC5daU6HFT2D0JaOM/ZbabTl7gglFJqX
+         Bx0JfuiQ+Ao26VdzXn0wWCUvfkbE7j1KSWno79YPRqt0ZKJ6sJv0MzSZTJlYW9GKd7WQ
+         VhsftiKgU3w2E88msGNBTsYl+0Sc/+eRfpZ0JUk5EUA46BNte9/oJujl/+b88iyG0sZf
+         dYJw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:user-agent:references
-         :in-reply-to:date:to:from:subject:message-id;
-        bh=gqq0kQFFP/GC+r+iqn1/8NXq7wLnXIrnyFa+ACUn8WY=;
-        b=dmNBAIcPDOodWKORIYvRXhXmkJz31s8YfqzBsxjWnWWrxebD7arsEXVtZiPvf/akiB
-         c497vPjU0pfj1iwS2YdA1PYokRnj3NG6Mn+KrQ7HNCQHXZ4SHwLbroewqCJ836vjUS4W
-         /N+I9Vc7oa5QsvEZQ5upKr4cD1dJCzhZe97vyhBYmUu2rxZNOfAYUuEKKgFX8jS6qjkH
-         skJeRFTe4SMbiwPvElbCiEpxLjTS4sIWXp56w2gH8vvKAA2kHUCeyK1jZDtaVaoelXJm
-         Q+J0gzom2ifDNAJfbFaP6DJYTP9eINo9kuTc0pnKdMU+ADMLS3bLcEB6G1v0x1XsYzX9
-         l/lQ==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=yuGyF1gaAxnc5NCYYEX6kiZekDv13zqB0UQA2n5aQis=;
+        b=1CGa2T1QVZU+00Ktbor9QZ990m434CglCtC7TsRgDlx1unYBmDl8rhx6XMNZdoAL9Y
+         GqtYs6N39LEfKtBPCgCub3IynO44SP9Xeqkym6mTSCPx9HgONfr1XyeTpUaDm0mrRFqU
+         F5BNc9rFj0psnIehcIg7LgJhyl0LpBr/SJpeEwT3nHFO6B2boV1Q921zV0piJ9AgRNir
+         8wVlHXi6sPPyr3dIrlgdRtlg8mJxsaSnWbmLjjvx1zgj7RiPFfVPP7N+QbSR9yoY4wpX
+         gahDhhpU1nk78569ECnrZm0Rfl14uqXm09W7OdYvVzNmUUjFQxsoHydzFZRDOfC/+mXg
+         csNw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=alexander.h.duyck@linux.intel.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
-        by mx.google.com with ESMTPS id k10si6595312pgc.9.2019.06.20.09.10.45
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=TyqKBNvB;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id x206sor8000576oif.28.2019.06.20.09.19.55
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 20 Jun 2019 09:10:45 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 192.55.52.151 as permitted sender) client-ip=192.55.52.151;
+        (Google Transport Security);
+        Thu, 20 Jun 2019 09:19:55 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=alexander.h.duyck@linux.intel.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from orsmga007.jf.intel.com ([10.7.209.58])
-  by fmsmga107.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 20 Jun 2019 09:10:45 -0700
-X-IronPort-AV: E=Sophos;i="5.63,397,1557212400"; 
-   d="scan'208";a="150979509"
-Received: from ahduyck-desk1.jf.intel.com ([10.7.198.76])
-  by orsmga007-auth.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 20 Jun 2019 09:10:44 -0700
-Message-ID: <2299c1a5b8773c955e7d0c3803ad3fc6c83c127a.camel@linux.intel.com>
-Subject: Re: [PATCH] mm: fix regression with deferred struct page init
-From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
-To: Juergen Gross <jgross@suse.com>, xen-devel@lists.xenproject.org, 
-	linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Date: Thu, 20 Jun 2019 09:10:44 -0700
-In-Reply-To: <20190620160821.4210-1-jgross@suse.com>
-References: <20190620160821.4210-1-jgross@suse.com>
-Content-Type: text/plain; charset="UTF-8"
-User-Agent: Evolution 3.30.5 (3.30.5-1.fc29) 
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=TyqKBNvB;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=intel-com.20150623.gappssmtp.com; s=20150623;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=yuGyF1gaAxnc5NCYYEX6kiZekDv13zqB0UQA2n5aQis=;
+        b=TyqKBNvBRHg2N7hM9S8c6U4FOJz5mxm6Kd+KBEMqs2GVrceDbu2B5Yv+Tpqg9S34ys
+         MaHgCO6/ySGOZphnnrTbgImRuL2QMVoCGG2VWkmL5W3Uon95vGsNjpaeOGPEgMJOT3L9
+         5WEJx442dDZs/YbNnY0UQilkmAx8XpdOKM4CFfFFAge3HyxFPgiIP95x0HYvSNAaMKy6
+         1mXvvW5okLy4jiD7hQSkY3gSwkQy7MxiqZoOpVEppM+LOHSdZJYPl7dVTiAul4GD3HrH
+         y9JAaW9RA4lNlRmSX3HsfKvWxmHRadsFz/qNFrGo4+gaTh+E4u2Ot15NvBhXkJk5Bz/Z
+         edQg==
+X-Google-Smtp-Source: APXvYqycTrfFCdUGQlxbLBM8sq/vvF4AR0qE564N7NnNzy2gB1lQelj0Er/vC+yiQUqqVAU2Tj/69BOUevu0+1dRykA=
+X-Received: by 2002:aca:d60c:: with SMTP id n12mr4630027oig.105.1561047595403;
+ Thu, 20 Jun 2019 09:19:55 -0700 (PDT)
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7bit
+References: <156092349300.979959.17603710711957735135.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <156092353780.979959.9713046515562743194.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <70f3559b-2832-67eb-0715-ed9f856f6ed9@redhat.com>
+In-Reply-To: <70f3559b-2832-67eb-0715-ed9f856f6ed9@redhat.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Thu, 20 Jun 2019 09:19:43 -0700
+Message-ID: <CAPcyv4jzELzrf-p6ujUwdXN2FRe0WCNhpTziP2-z4-8uBSSp7A@mail.gmail.com>
+Subject: Re: [PATCH v10 08/13] mm/sparsemem: Prepare for sub-section ranges
+To: David Hildenbrand <david@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, 
+	Vlastimil Babka <vbabka@suse.cz>, Logan Gunthorpe <logang@deltatee.com>, Oscar Salvador <osalvador@suse.de>, 
+	Pavel Tatashin <pasha.tatashin@soleen.com>, Linux MM <linux-mm@kvack.org>, 
+	linux-nvdimm <linux-nvdimm@lists.01.org>, 
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2019-06-20 at 18:08 +0200, Juergen Gross wrote:
-> Commit 0e56acae4b4dd4a9 ("mm: initialize MAX_ORDER_NR_PAGES at a time
-> instead of doing larger sections") is causing a regression on some
-> systems when the kernel is booted as Xen dom0.
-> 
-> The system will just hang in early boot.
-> 
-> Reason is an endless loop in get_page_from_freelist() in case the first
-> zone looked at has no free memory. deferred_grow_zone() is always
-> returning true due to the following code snipplet:
-> 
->   /* If the zone is empty somebody else may have cleared out the zone */
->   if (!deferred_init_mem_pfn_range_in_zone(&i, zone, &spfn, &epfn,
->                                            first_deferred_pfn)) {
->           pgdat->first_deferred_pfn = ULONG_MAX;
->           pgdat_resize_unlock(pgdat, &flags);
->           return true;
->   }
-> 
-> This in turn results in the loop as get_page_from_freelist() is
-> assuming forward progress can be made by doing some more struct page
-> initialization.
-> 
-> Cc: Alexander Duyck <alexander.h.duyck@linux.intel.com>
-> Fixes: 0e56acae4b4dd4a9 ("mm: initialize MAX_ORDER_NR_PAGES at a time instead of doing larger sections")
-> Suggested-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
-> Signed-off-by: Juergen Gross <jgross@suse.com>
+On Thu, Jun 20, 2019 at 3:31 AM David Hildenbrand <david@redhat.com> wrote:
+>
+> On 19.06.19 07:52, Dan Williams wrote:
+> > Prepare the memory hot-{add,remove} paths for handling sub-section
+> > ranges by plumbing the starting page frame and number of pages being
+> > handled through arch_{add,remove}_memory() to
+> > sparse_{add,remove}_one_section().
+> >
+> > This is simply plumbing, small cleanups, and some identifier renames. No
+> > intended functional changes.
+> >
+> > Cc: Michal Hocko <mhocko@suse.com>
+> > Cc: Vlastimil Babka <vbabka@suse.cz>
+> > Cc: Logan Gunthorpe <logang@deltatee.com>
+> > Cc: Oscar Salvador <osalvador@suse.de>
+> > Reviewed-by: Pavel Tatashin <pasha.tatashin@soleen.com>
+> > Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+> > ---
+> >  include/linux/memory_hotplug.h |    5 +-
+> >  mm/memory_hotplug.c            |  114 +++++++++++++++++++++++++---------------
+> >  mm/sparse.c                    |   16 ++----
+> >  3 files changed, 81 insertions(+), 54 deletions(-)
+[..]
+> > @@ -528,31 +556,31 @@ static void __remove_section(struct zone *zone, struct mem_section *ms,
+> >   * sure that pages are marked reserved and zones are adjust properly by
+> >   * calling offline_pages().
+> >   */
+> > -void __remove_pages(struct zone *zone, unsigned long phys_start_pfn,
+> > +void __remove_pages(struct zone *zone, unsigned long pfn,
+> >                   unsigned long nr_pages, struct vmem_altmap *altmap)
+> >  {
+> > -     unsigned long i;
+> >       unsigned long map_offset = 0;
+> > -     int sections_to_remove;
+> > +     int i, start_sec, end_sec;
+>
+> As mentioned in v9, use "unsigned long" for start_sec and end_sec please.
 
-Acked-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
-
-> ---
->  mm/page_alloc.c | 3 ++-
->  1 file changed, 2 insertions(+), 1 deletion(-)
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index d66bc8abe0af..8e3bc949ebcc 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -1826,7 +1826,8 @@ deferred_grow_zone(struct zone *zone, unsigned int order)
->  						 first_deferred_pfn)) {
->  		pgdat->first_deferred_pfn = ULONG_MAX;
->  		pgdat_resize_unlock(pgdat, &flags);
-> -		return true;
-> +		/* Retry only once. */
-> +		return first_deferred_pfn != ULONG_MAX;
->  	}
->  
->  	/*
-
+Honestly I saw you and Andrew going back and forth about "unsigned
+long i" that I thought this would be handled by a follow on patchset
+when that debate settled.
 
