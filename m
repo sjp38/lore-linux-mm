@@ -6,73 +6,73 @@ X-Spam-Status: No, score=-3.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED
 	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BA8B1C43613
-	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 01:04:57 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 051EEC43613
+	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 01:05:47 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 84216214AF
-	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 01:04:57 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 84216214AF
+	by mail.kernel.org (Postfix) with ESMTP id C0FAB214AF
+	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 01:05:46 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C0FAB214AF
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=surriel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1BAC86B0003; Wed, 19 Jun 2019 21:04:57 -0400 (EDT)
+	id 5D9006B0005; Wed, 19 Jun 2019 21:05:46 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 16ABD8E0002; Wed, 19 Jun 2019 21:04:57 -0400 (EDT)
+	id 589478E0002; Wed, 19 Jun 2019 21:05:46 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 081988E0001; Wed, 19 Jun 2019 21:04:57 -0400 (EDT)
+	id 4C6D38E0001; Wed, 19 Jun 2019 21:05:46 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id DE25A6B0003
-	for <linux-mm@kvack.org>; Wed, 19 Jun 2019 21:04:56 -0400 (EDT)
-Received: by mail-qk1-f199.google.com with SMTP id s25so1461342qkj.18
-        for <linux-mm@kvack.org>; Wed, 19 Jun 2019 18:04:56 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 2CE856B0005
+	for <linux-mm@kvack.org>; Wed, 19 Jun 2019 21:05:46 -0400 (EDT)
+Received: by mail-qk1-f199.google.com with SMTP id s67so1517622qkc.6
+        for <linux-mm@kvack.org>; Wed, 19 Jun 2019 18:05:46 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:message-id
          :subject:from:to:cc:date:in-reply-to:references:user-agent
          :mime-version:sender;
-        bh=MCbXnKcdeBI8YKu+nsUS6F2K1ifk/XVUvXyNGkkPedI=;
-        b=BXkFc3sPQ5SbEpGCZf2BdPwxNWF/E5mtjIUbaDN9qKcqEcVXazf4yDV9WRKiiACuYy
-         V2TV8KWgVcuc24LOKq8wr5+fQA1btGgs6pmSiUHP+hUGRgN+R5pLBNZ6zS5Mmu5X1Wx+
-         jeB9Iv7k1I/K3CYwf8fBfH2Mn+wiOnsPAiSGJBT2xVradPcITIIEfq86u7t63n8GmLY2
-         3bghnIiMZ9bdBUDc4fC6JwbTEozX165dY6lU8yNdQZrwdk3hWthtgX23yzVXoWCjFfRe
-         YPMoaz31xYTr+a+6aqf5Y/wvrsbED0NsW+Y3QeE770OZO08ldM2CkUaT3b3Cvfu25uHP
-         /vag==
+        bh=oUjehZfMRWOQqE/AhDvwqlU2QrZ/D3/sOJ+N4VrE9k8=;
+        b=clkOEIznZGDReY04LYumujGKwPJAOcmbFFeBJvDNxozUtGTlh2TFU7s4ZrFoEZ9lFy
+         5sRfRSnC7hPmSh0aFNGeL2YMrj164tkpfNnX8/PA8AmM46qwtLQeMYvKH+D8tfjWM5hI
+         6sW8pD03/X0vHEGVVq+UJ1rjiO5YtBr7g+ZFK1sjFwgqnEi+Hnyw+Uus8RUodz573NRZ
+         ERCQBoGHlAMmAaNU3S4x7MT/7Oyhuk7OMpLnhz0vKHLfj1ultOFmCWFsJeWYwlcq8fCT
+         qM+xtlF8HpYka49MGSCcZLWReHrauYX1F4jqy2RUSCCE8S+BwqyrW7UmOMMRRy72eDWg
+         KvZg==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of riel@shelob.surriel.com designates 96.67.55.147 as permitted sender) smtp.mailfrom=riel@shelob.surriel.com
-X-Gm-Message-State: APjAAAVaijhKyXzzv6PY7KGGbKiy9yDfrsVM5CAu3XlbCyVQ1VjD9yyY
-	it5JZST2SMnfp5JAjsJFNF6v7FwnjvoFUF7l4tRXnBAgip3FSVgovjAK4bMImVAK8wGZiYb6Mmd
-	CGpRfSfoc+o7Az1EtQNNPczqeLiM4Fl6SIsvNfzmDE3vx7rOFMmBxa1VxubElUsqIQA==
-X-Received: by 2002:a37:4b52:: with SMTP id y79mr4474250qka.73.1560992696662;
-        Wed, 19 Jun 2019 18:04:56 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzoKko5oCqFTpRAweKUlasB+JMpmlrw9M9mNlgNaiq7E3OAhaaGA53AQZCJxNJ5C3862QgI
-X-Received: by 2002:a37:4b52:: with SMTP id y79mr4474190qka.73.1560992695798;
-        Wed, 19 Jun 2019 18:04:55 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560992695; cv=none;
+X-Gm-Message-State: APjAAAV/VGmtkUGEwyJAyb4NfzzA1y8/E2rqa92ReUspRgKAKBElxJMF
+	yf3uJJlPxXlKN1B3nOeXEnLvNLitMMeoAM1lfqHw4jbYWbNVlr9T5HtFINyT2EtK3NOZuam4WQ4
+	5kFG5WKGE+NYH870YkONh4Aq2NCztNNrEWDehJ3VAPbUfzhYSMknQO3T2nMvDUh3yRA==
+X-Received: by 2002:ac8:1b2d:: with SMTP id y42mr58596430qtj.202.1560992745964;
+        Wed, 19 Jun 2019 18:05:45 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyfhZOc9fsiWsY1YVsiX+qZuRC4VkgzWbTx9OFt+N/YUSKWlMpFcoZkWdwIaZUvqYddpdT4
+X-Received: by 2002:ac8:1b2d:: with SMTP id y42mr58596390qtj.202.1560992745421;
+        Wed, 19 Jun 2019 18:05:45 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560992745; cv=none;
         d=google.com; s=arc-20160816;
-        b=hvsTJ/Z9KXqbgfjf2xBj8ZgE8wILnONEFbQ4z/aKI8AZum9ZmyolroagMO2pPiMkQq
-         bgyZdaPILfgSUreRmhrlusLfKR7wOBHYlxLFl40ApD/+OoYptOatw1ODCoT/4hJRHiDv
-         HW/KlioPpKEuVKzC8YeH+ACDmQcOeCRJa1a2WDfIbvwvrKBrbywILfajuj/tRXfALQ49
-         7S+V0yOcGNAn6dWjdqlbeCinC8rNrBvG4DCYIDRnKMgMw0i6IW18BgVWn6K3ZaWSSCdC
-         uL5riAtcNFxj1le2YpPnpAxxjDNwKPi38A3GlQxpAxbpeAQ2VFtWsPGh6rVStfra4o+r
-         3Qtg==
+        b=0ShWxjJ5tFpAaABsvN9/ss1rZXBXUNS7irbMHsiJ9LKlse2Zxzb1CS2d5ouAMr1eUO
+         wnicwVcdmMucmXKpUx/0YDiEar85CJx9T+nSNktohAXEQOApRH8bg/wrUkI9woAJiuhU
+         gvEC7LZ8DFkOmUHIUTDbYH4IZjjHPelXaPLt2nmTVgmu8xrztXLpaoGsKRb5TBhzR5tu
+         u9BCRhlmwGQnoimIWHE+z1LAZ/z2dlz4hmyp/ksP/bglYzc2aIf8ZFkqL9gUhMqQpcrH
+         4z1UexQga5d5aAF2Hpb7dqa0gsZIpBaVnaUQWjVk3bcqkFlijjWRlaL0ND0pwV3KsFJZ
+         C+Yw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=sender:mime-version:user-agent:references:in-reply-to:date:cc:to
          :from:subject:message-id;
-        bh=MCbXnKcdeBI8YKu+nsUS6F2K1ifk/XVUvXyNGkkPedI=;
-        b=ffkiM8UqrPVlnf/9IcwAszYb63pwH77WgGZVqZulVHN6condpZCyusHcy5V6pNOmLT
-         0WmdcvWlWmkU+wwvqLUnOAsGrDAk7JPGortOVaMSzi0EI1ez+FgNZ7wq3BrPL9sgOJy9
-         B9/jnTi+/4Sz21SYVgkpISCxxFRooYjNF3sd541khDXlzKsyIAiatYggZIlhWPswqD59
-         edOyhacG6jrFgF4AEeYTTdTj4Phc7+8AZsQICLdfouUfvJwzKsxSyHCDId4SBr/ad32t
-         PkzGqfug9VwOdPIPMt65Sw0KjBdj8cNMhj//tMQuYXnlnQ9z5Rm4fmCPNHU4M1+BWFsO
-         GrgA==
+        bh=oUjehZfMRWOQqE/AhDvwqlU2QrZ/D3/sOJ+N4VrE9k8=;
+        b=dXwepHT6K2SgA8Ion6+iWCbNnNXKcdAW1lk0csAykyua2cUTiSlFLZ/24O1gqNtEYL
+         0pOpm5YdY4RnAUVCjzxfT/05N8IcZl7YmI6tUJhLEcKTg1WFqGhw+I9nrsxGw6pN1JKn
+         SOOSEigXkgjVTJ6tgJpW7h1v4A57VTxEfo3HtNOFF7jNuzF5m5re/eBiQgQ+ZCOSDxJ6
+         b2FJ/eKOxZk/arYMFfjVKX+bVpi4ZasF1/9t2gxFXXBIkELLhF83v6cF4Et9jplwMpnB
+         sgCHCChViSSvGKSS94ZUMfl0BAjMX8Ipi4QiHmI3VBv1cJTWtlCZreUfaP/4E9QoZOCg
+         OYZQ==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: best guess record for domain of riel@shelob.surriel.com designates 96.67.55.147 as permitted sender) smtp.mailfrom=riel@shelob.surriel.com
 Received: from shelob.surriel.com (shelob.surriel.com. [96.67.55.147])
-        by mx.google.com with ESMTPS id v35si3713212qtj.81.2019.06.19.18.04.53
+        by mx.google.com with ESMTPS id e8si3661062qtm.129.2019.06.19.18.05.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 19 Jun 2019 18:04:53 -0700 (PDT)
+        Wed, 19 Jun 2019 18:05:45 -0700 (PDT)
 Received-SPF: pass (google.com: best guess record for domain of riel@shelob.surriel.com designates 96.67.55.147 as permitted sender) client-ip=96.67.55.147;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: best guess record for domain of riel@shelob.surriel.com designates 96.67.55.147 as permitted sender) smtp.mailfrom=riel@shelob.surriel.com
@@ -80,19 +80,20 @@ Received: from imladris.surriel.com ([96.67.55.152])
 	by shelob.surriel.com with esmtpsa (TLSv1.2:ECDHE-RSA-AES256-GCM-SHA384:256)
 	(Exim 4.92)
 	(envelope-from <riel@shelob.surriel.com>)
-	id 1hdlVT-0002bf-1Q; Wed, 19 Jun 2019 21:04:51 -0400
-Message-ID: <f1e3473438cadb6a9677dbff892a1ed02ffdeb64.camel@surriel.com>
-Subject: Re: [PATCH v3 2/6] filemap: update offset check in filemap_fault()
+	id 1hdlWK-0002c7-R3; Wed, 19 Jun 2019 21:05:44 -0400
+Message-ID: <df3f125197305492c47a825e38ccd8539410d8bd.camel@surriel.com>
+Subject: Re: [PATCH v3 4/6] khugepaged: rename collapse_shmem() and
+ khugepaged_scan_shmem()
 From: Rik van Riel <riel@surriel.com>
 To: Song Liu <songliubraving@fb.com>, linux-mm@kvack.org
 Cc: matthew.wilcox@oracle.com, kirill.shutemov@linux.intel.com, 
 	kernel-team@fb.com, william.kucharski@oracle.com, akpm@linux-foundation.org
-Date: Wed, 19 Jun 2019 21:04:50 -0400
-In-Reply-To: <20190619062424.3486524-3-songliubraving@fb.com>
+Date: Wed, 19 Jun 2019 21:05:44 -0400
+In-Reply-To: <20190619062424.3486524-5-songliubraving@fb.com>
 References: <20190619062424.3486524-1-songliubraving@fb.com>
-	 <20190619062424.3486524-3-songliubraving@fb.com>
+	 <20190619062424.3486524-5-songliubraving@fb.com>
 Content-Type: multipart/signed; micalg="pgp-sha256";
-	protocol="application/pgp-signature"; boundary="=-YmeMgumGZEx/PNAysoo5"
+	protocol="application/pgp-signature"; boundary="=-NyyzcCKld6bokM/woyJB"
 User-Agent: Evolution 3.30.5 (3.30.5-1.fc29) 
 MIME-Version: 1.0
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
@@ -102,18 +103,16 @@ X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 
---=-YmeMgumGZEx/PNAysoo5
+--=-NyyzcCKld6bokM/woyJB
 Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: quoted-printable
 
 On Tue, 2019-06-18 at 23:24 -0700, Song Liu wrote:
-> With THP, current check of offset:
+> Next patch will add khugepaged support of non-shmem files. This patch
+> renames these two functions to reflect the new functionality:
 >=20
->     VM_BUG_ON_PAGE(page->index !=3D offset, page);
->=20
-> is no longer accurate. Update it to:
->=20
->     VM_BUG_ON_PAGE(page_to_pgoff(page) !=3D offset, page);
+>     collapse_shmem()        =3D>  collapse_file()
+>     khugepaged_scan_shmem() =3D>  khugepaged_scan_file()
 >=20
 > Signed-off-by: Song Liu <songliubraving@fb.com>
 
@@ -122,22 +121,22 @@ Acked-by: Rik van Riel <riel@surriel.com>
 --=20
 All Rights Reversed.
 
---=-YmeMgumGZEx/PNAysoo5
+--=-NyyzcCKld6bokM/woyJB
 Content-Type: application/pgp-signature; name="signature.asc"
 Content-Description: This is a digitally signed message part
 Content-Transfer-Encoding: 7bit
 
 -----BEGIN PGP SIGNATURE-----
 
-iQEzBAABCAAdFiEEKR73pCCtJ5Xj3yADznnekoTE3oMFAl0K27IACgkQznnekoTE
-3oN5FwgAmxNVgt40kbhTretf3qlTzGbEDKIHMTWIJ62GaToY41ryi9HQR1xqFhgH
-dw0d2XibkK46rFH4MhN5nBB0EGyk3rJqrV+nYPfwLeNAeDCxj4GdRgl4B8aXGVsq
-KihetLbmKiMF9eyzsWguo+P6HF813Czo5iUB7oSqzCgGtiCG49z8vm4TBoGgTG/Q
-Wgtoemi2f10NUHy9geMmFYtzWEHGZsNxKvXxbxFM3VJuaPR8oeKs5BKNkLrzs6cg
-kvZjVZgp49K0R7t/0fD0QxLD309qDsRC/bZsZEIKLVDPJErIpRZRexQraTNeV+li
-qCfJ3dTfWfQ7UgByfxW5t/lYUZzA6g==
-=XAiK
+iQEzBAABCAAdFiEEKR73pCCtJ5Xj3yADznnekoTE3oMFAl0K2+gACgkQznnekoTE
+3oMK+AgAqoAueKAG8dsvEwNLZOpvVtD59o9tAXccmn+OAyn0HHK2v2rRzticgVCz
+W2+ZJ7t98FB3iXUC3FTl4OHxNf5BSPm/oMwxyEBV/92pF0Y2ZOSnm1OC+ZNDKlyV
+ak+i0CQFPtp94ylxDjrlDGh1PCEVlOOERDkseCZixdKkKuV/4dSf3o4GswoD0EHJ
+IPR1eiN46sIiyWtD0vhyfrZEMwcS8RVuLUPFVDdSVnjcw1j+jggvWe2x8PPsFnpy
+/CazyRfLxNL43ZtQ1z1RSVA+cnVnCJLdBsrijQBuyLYkIqSbA5N/8YJ+2iFSfZth
+O8P2CTbhw7ffec96eBgRUjOqR19x3Q==
+=CEhE
 -----END PGP SIGNATURE-----
 
---=-YmeMgumGZEx/PNAysoo5--
+--=-NyyzcCKld6bokM/woyJB--
 
