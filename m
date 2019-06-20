@@ -2,232 +2,376 @@ Return-Path: <SRS0=424v=UT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	HEXHASH_WORD,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 549F7C43613
-	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 02:10:22 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1BD9FC48BE0
+	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 02:20:30 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id F130D2084A
-	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 02:10:21 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="k6jC37G/";
-	dkim=pass (1024-bit key) header.d=fb.onmicrosoft.com header.i=@fb.onmicrosoft.com header.b="uK2hfiaR"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F130D2084A
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
+	by mail.kernel.org (Postfix) with ESMTP id C7A502084A
+	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 02:20:29 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C7A502084A
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 868026B0003; Wed, 19 Jun 2019 22:10:21 -0400 (EDT)
+	id 52BB76B0003; Wed, 19 Jun 2019 22:20:29 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7F0DB8E0002; Wed, 19 Jun 2019 22:10:21 -0400 (EDT)
+	id 4DCCC8E0002; Wed, 19 Jun 2019 22:20:29 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 669F28E0001; Wed, 19 Jun 2019 22:10:21 -0400 (EDT)
+	id 3CAD58E0001; Wed, 19 Jun 2019 22:20:29 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 469FF6B0003
-	for <linux-mm@kvack.org>; Wed, 19 Jun 2019 22:10:21 -0400 (EDT)
-Received: by mail-io1-f72.google.com with SMTP id u25so2191637iol.23
-        for <linux-mm@kvack.org>; Wed, 19 Jun 2019 19:10:21 -0700 (PDT)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 17FC06B0003
+	for <linux-mm@kvack.org>; Wed, 19 Jun 2019 22:20:29 -0400 (EDT)
+Received: by mail-qt1-f199.google.com with SMTP id x10so1675093qti.11
+        for <linux-mm@kvack.org>; Wed, 19 Jun 2019 19:20:29 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:dkim-signature:from:to:cc:subject
-         :thread-topic:thread-index:date:message-id:references:in-reply-to
-         :accept-language:content-language:content-id
-         :content-transfer-encoding:mime-version;
-        bh=WfT4AiiZAGMg3kfOOpZ1NSyUsAK4OwJlhkb3By7Uzlk=;
-        b=ggJTjIZsIZLtM+DGjYq/d0tFAx4S3YBrpwuJELrgRcQf9Vw8YdlK1FAUrAUErvNci+
-         RqkcfpxOe1I8id5w/oK/DTPX3BO3Xc+NaftwN1MNd+20WkOKHkX9RbYUWvhOyQmy/Gpw
-         n8A1/krdDjdbvuzcaGIrj44Brj86QxcRLeesidwZyDNSBhp542DfLb/iLOJCEkKx3BGT
-         MN2cgVuosHR3KcwckbmzMs9UwQMYz76ivgwKOHVgUvs+OKW+CePqPcSFP6XMq5OMGeeN
-         8z3ENmeARrAip5UnMkyUPxXjUuFvIdsqGRMEof0saK73oQ+i/80PfEeJ4kn1w3aJJPok
-         1ZDA==
-X-Gm-Message-State: APjAAAUDDyh8e7W8nqHDkx0YNuBNyNc+uGvRamZbZqfljt5xzFOq5rxo
-	fjaDmUuZcZwnHssqYDaTyvuG3JjLNqLbe9Y4mVuGtP86DN0ude8S8AxwW5cENLw70M7ke6py1sU
-	Eb0MECtnyDiKxd2nu1A25bB3UO9hwIMsDxCqKO2rmY4/gLfkenBGk/tptVJPL2zY0YA==
-X-Received: by 2002:a02:b016:: with SMTP id p22mr52275439jah.121.1560996621009;
-        Wed, 19 Jun 2019 19:10:21 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxRPvxzTrlvjm1aua0pJWzrbqQ6tU1K63z+Lcf72IFSx8qho8gejTzWBCy8jWEZ0hc3mfwo
-X-Received: by 2002:a02:b016:: with SMTP id p22mr52275405jah.121.1560996620476;
-        Wed, 19 Jun 2019 19:10:20 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560996620; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:mime-version:content-transfer-encoding;
+        bh=FztMw+ePNk5SUbifLx2boJko5saLrWmrOhGG5Hdcgk0=;
+        b=NXYAVmbOQPvKwFpR5ULe0B8qo/O2tPV5L1V3S4gaAwxiD37xWeKjIj8AzqIkoFP5lH
+         n5OpM5qnkYnfug2jo5QJspgkcotBdGxMK15wTVpnJ3lobWrvBRDC7dK+9c4E8UlccmzI
+         XTiwAUzG/kI1FTLQRHkikxRu/aor5j6vd2puYAVigbuPWTbrmemb6NTdBLkpz+1N96K9
+         clH7ExP8au8vjD+O0LZaQx4DL6fH8B0LxySuyGcQ/7eIudLFjdjvXgaUpQkSu51u/XbO
+         yUhfAeysL/etdesxSWhBbA9Eh+yOowAl5cqgi15VsmJ65IV7NC5650fPhcEiJp1UY+TL
+         AWSw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAX41AFCNfVam33F3cFSpgWMGJJd21xccpEwRu0vOvC1DjrAUktM
+	HrCcrO2J4u/kuOUP240CiHdowAJlSSAHd1CCc0rCS15y5xqZVh9kQaZMV4Nk09T0wlSRptTlmAX
+	ycLtkddRj3ttdBfEBIEnhfWQI+LhAA76PThN0AX8XYRoQHXNouyyGeKgJy4zcLqe5bQ==
+X-Received: by 2002:ac8:1978:: with SMTP id g53mr20094110qtk.3.1560997228787;
+        Wed, 19 Jun 2019 19:20:28 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzphU4TgPURPvhTMTVN6tTytidAPnUA3W+Ya+NbhsW2tw90pIixKIN7+IUod3/02ZoCecOx
+X-Received: by 2002:ac8:1978:: with SMTP id g53mr20094019qtk.3.1560997227554;
+        Wed, 19 Jun 2019 19:20:27 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560997227; cv=none;
         d=google.com; s=arc-20160816;
-        b=NDDVJBNR+kSkp1ppHx+MfFwlFliMiKPrCHfhrQ30bqAOQvPbTeu2ASvvDrayoLJdvi
-         BiUCBnmRYSoH3iAYAMsPefS4WbZNpHXDkkyJXkmjSwAEFpsCVpDfO5jb07VCAIBAaDaa
-         0xK0E4z9ixbj3W/7GkH5AHvOF6riPL7ieoIFtaPiJlFQR10O2rYv0N31dgQn28VQ5+hm
-         QdTnCzEFwHc6YpJx33G0VXZtJlyBjwkr653+OgnvrDl/0Wpk7YLBFdLodXhrk0co0OGD
-         I9ha1PLtxgsGjN5sa9+pduTpWC4PLA8saR8FXiy1EYoO6T2cqAmdL9qaUanjp+m3Jy8s
-         fJTw==
+        b=yRQWqE+hVV6+HVaF+zPYlYiZJv3HPBRvlQ6r+xqoqHVRrrkZvDMj+2ib7tIgY86WJS
+         ZOiqI275tz4I9JBp0QYZ5JPMwQZMiDSZvIvK8JB1C7hzifesBogbo6zlTV3GKOaKcsRW
+         7aIv8L0C8lZgCSk67AbgvUVuXfTz2P16eeWUNbkoOGVG6NWWCed/QGteCMi1IkMNvn8p
+         jT3LeAyIwI0/1pGZrP+BjDdd7pl631drgQdgrleQo4WoyVoADpDr837kZsQ68QsGw+le
+         HS0/l2nldNsVR+uHpmEEeuYat/kHRfde3m0Ksv3WOFkVorGJ2o626EjEamCaE1fOZQus
+         uAUA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from:dkim-signature:dkim-signature;
-        bh=WfT4AiiZAGMg3kfOOpZ1NSyUsAK4OwJlhkb3By7Uzlk=;
-        b=QtNreqekbl1myglaOb4/G2KH6IM7DeWnpBnqmo6ImUtwaGSkDh6FihOzG9OZFSfxic
-         acq5XGnlSbKmDxy15/LtWBfw7hGoxYGxQUq25gPghIlc1R2rDPtbSAOYNEECtCAwTaqU
-         hWF8H6nzYO+31JHROGsW0XPdYOWt6GjgpyiI0nUKOqWtPSc5uTGy5sfh+AvDF31DEQUA
-         Ui4F9g15BnC8BObFIU/sGOpjkBKwLoq3Pt3oo+4eAsabAA0kOwlL5eQGqXIxFCVnQGAj
-         pU1HzDrIcX5tQ1VZyRvqQTJorT3qhmTPAgcQH1V7J+OHc3QhgzMMJX5vLG4yzER5XynN
-         75hw==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from;
+        bh=FztMw+ePNk5SUbifLx2boJko5saLrWmrOhGG5Hdcgk0=;
+        b=TI/AxbNBGoGqLD94kVqNXSJEJP46QqypQemMG7BVi9ftZ/mVX/O9MXeMFmgrWVCUNZ
+         EhNjkzMjL5a6Nt8ULojpCxnK8LEi7VK2ByFhjR1K9B6J+LCrv09BYDo7meDLhDn2hBto
+         Z2j8qo0OGK1y2k8sFHhXFAKb55g1glG+VU/Z3Ro5JaRiy2gMM+ZkRdug6hcHtM7w4anC
+         9nzAiLHD0bU5oAJCuzRdPw28xIiOkBkeBzKP6jPeRP0V5Fe9slgcU1SxWKGHZF3Cu+2d
+         4HjODTF9GTlzFOVjQ3pM8LgGoLYIf4KfJMcGUpFIZekNYvbHkkrYBGG92ltAlXwvy5qh
+         6MZg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b="k6jC37G/";
-       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-onmicrosoft-com header.b=uK2hfiaR;
-       spf=pass (google.com: domain of prvs=107476d203=songliubraving@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=107476d203=songliubraving@fb.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id i142si27866633ioa.23.2019.06.19.19.10.20
+       spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id q24si13018082qve.35.2019.06.19.19.20.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 19 Jun 2019 19:10:20 -0700 (PDT)
-Received-SPF: pass (google.com: domain of prvs=107476d203=songliubraving@fb.com designates 67.231.145.42 as permitted sender) client-ip=67.231.145.42;
+        Wed, 19 Jun 2019 19:20:27 -0700 (PDT)
+Received-SPF: pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b="k6jC37G/";
-       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-onmicrosoft-com header.b=uK2hfiaR;
-       spf=pass (google.com: domain of prvs=107476d203=songliubraving@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=107476d203=songliubraving@fb.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from pps.filterd (m0109334.ppops.net [127.0.0.1])
-	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x5K27VDm028938;
-	Wed, 19 Jun 2019 19:10:18 -0700
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
- : date : message-id : references : in-reply-to : content-type : content-id
- : content-transfer-encoding : mime-version; s=facebook;
- bh=WfT4AiiZAGMg3kfOOpZ1NSyUsAK4OwJlhkb3By7Uzlk=;
- b=k6jC37G/ScbuWNWaPbtWtLmi0BMs9+/OFB30ebD+RtbKpMjn9XCSOBVGue72igZlX0WX
- sI/K9f8y8SqhHLvnj47UxCJ8x9Rm9EzE13EvlFewNz9ENkTTTl4VPwMAQJq1akYxVVEq
- 9FqV7eDzYUO4Wj+wWhRFWyxIrlNFv6Ehnd0= 
-Received: from mail.thefacebook.com (mailout.thefacebook.com [199.201.64.23])
-	by mx0a-00082601.pphosted.com with ESMTP id 2t7wwcgkms-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-SHA384 bits=256 verify=NOT);
-	Wed, 19 Jun 2019 19:10:18 -0700
-Received: from prn-mbx05.TheFacebook.com (2620:10d:c081:6::19) by
- prn-hub04.TheFacebook.com (2620:10d:c081:35::128) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id
- 15.1.1713.5; Wed, 19 Jun 2019 19:10:18 -0700
-Received: from prn-hub03.TheFacebook.com (2620:10d:c081:35::127) by
- prn-mbx05.TheFacebook.com (2620:10d:c081:6::19) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id
- 15.1.1713.5; Wed, 19 Jun 2019 19:10:17 -0700
-Received: from NAM05-CO1-obe.outbound.protection.outlook.com (192.168.54.28)
- by o365-in.thefacebook.com (192.168.16.27) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id 15.1.1713.5
- via Frontend Transport; Wed, 19 Jun 2019 19:10:17 -0700
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.onmicrosoft.com;
- s=selector1-fb-onmicrosoft-com;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=WfT4AiiZAGMg3kfOOpZ1NSyUsAK4OwJlhkb3By7Uzlk=;
- b=uK2hfiaRkfOP+Vq0HvHe9Q+if2iC18hgEBQjlA20jlGCLvVyG3ohuojvkiQQz1S67CIu2RtqezlVgH79yrE7f5LOBLexPgayJWIcuxteICRusYfhgYjVvAh7nPha87dxsqBqoRuCLoGoVQmxw8/qGKBMoMpT4ZMxlIEurzl6VMc=
-Received: from MWHPR15MB1165.namprd15.prod.outlook.com (10.175.3.22) by
- MWHPR15MB1550.namprd15.prod.outlook.com (10.173.229.143) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.1987.11; Thu, 20 Jun 2019 02:10:16 +0000
-Received: from MWHPR15MB1165.namprd15.prod.outlook.com
- ([fe80::400e:e329:ea98:aa0d]) by MWHPR15MB1165.namprd15.prod.outlook.com
- ([fe80::400e:e329:ea98:aa0d%6]) with mapi id 15.20.1987.014; Thu, 20 Jun 2019
- 02:10:16 +0000
-From: Song Liu <songliubraving@fb.com>
-To: Rik van Riel <riel@fb.com>
-CC: "linux-mm@kvack.org" <linux-mm@kvack.org>,
-        "matthew.wilcox@oracle.com"
-	<matthew.wilcox@oracle.com>,
-        "kirill.shutemov@linux.intel.com"
-	<kirill.shutemov@linux.intel.com>,
-        Kernel Team <Kernel-team@fb.com>,
-        "william.kucharski@oracle.com" <william.kucharski@oracle.com>,
-        "akpm@linux-foundation.org" <akpm@linux-foundation.org>
-Subject: Re: [PATCH v3 6/6] mm,thp: handle writes to file with THP in
- pagecache
-Thread-Topic: [PATCH v3 6/6] mm,thp: handle writes to file with THP in
- pagecache
-Thread-Index: AQHVJmezv99wdCcaVEmWmrPzjMSHT6ajxTGAgAAImQA=
-Date: Thu, 20 Jun 2019 02:10:16 +0000
-Message-ID: <B051CE4A-063B-4464-8193-93C9F1D0A0A7@fb.com>
-References: <20190619062424.3486524-1-songliubraving@fb.com>
- <20190619062424.3486524-7-songliubraving@fb.com>
- <9ec5787861152deb1c6c6365b593343b3aef18d4.camel@fb.com>
-In-Reply-To: <9ec5787861152deb1c6c6365b593343b3aef18d4.camel@fb.com>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach: 
-X-MS-TNEF-Correlator: 
-x-mailer: Apple Mail (2.3445.104.11)
-x-originating-ip: [2620:10d:c090:180::1:8b5f]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: 12789224-1134-45c0-68d5-08d6f5247013
-x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(2017052603328)(7193020);SRVR:MWHPR15MB1550;
-x-ms-traffictypediagnostic: MWHPR15MB1550:
-x-microsoft-antispam-prvs: <MWHPR15MB1550D22D519639E918C18C9CB3E40@MWHPR15MB1550.namprd15.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:4941;
-x-forefront-prvs: 0074BBE012
-x-forefront-antispam-report: SFV:NSPM;SFS:(10019020)(136003)(366004)(39860400002)(396003)(376002)(346002)(199004)(189003)(25786009)(81166006)(446003)(2906002)(8676002)(6436002)(57306001)(99286004)(73956011)(71200400001)(66946007)(186003)(71190400001)(81156014)(66476007)(46003)(50226002)(476003)(68736007)(486006)(53546011)(102836004)(6506007)(6116002)(64756008)(36756003)(76116006)(66556008)(8936002)(66446008)(33656002)(2616005)(7736002)(86362001)(305945005)(6862004)(11346002)(76176011)(6246003)(54906003)(14454004)(37006003)(6486002)(316002)(256004)(229853002)(5660300002)(4326008)(53936002)(6512007)(6636002)(478600001)(142933001);DIR:OUT;SFP:1102;SCL:1;SRVR:MWHPR15MB1550;H:MWHPR15MB1165.namprd15.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
-received-spf: None (protection.outlook.com: fb.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info: XLQiSRxhTCp40AIx97UFdKPZobMSLm8eX+rwpwxecTCTNIgTt1/yVzs7V9b2VbDGpySnvKBWfHMVkmf+E6JjwGgaGkDFoCQkO5ZkIfzLlUbMToht5LDv+CzYNv6AWhwWozQAiS1mtd/jbwyx+KI+gw/3Rda6FzAWG97XSrdoLmBq9ShOlGCGVoihrBczehn2CIhjY+GYNHYtqL8IY/QwMTomJ2IGIhF1/rVMvQ+kjSecgjmOjrEmeIRkw2/gITzPW+YMM1kEZENOVO5MWrioQS1PDtIYVvaoTbj9eCWeWEpfzT2o7YenHbVfX5bo6yPHyoGm0fPdPwFAgxFzZ0FOmjzQLsoVMbzmQbRbCpWufOzzCp3Da6NlspkRSe4Y0Z4UAKQdRmDCzu04dhQM+ewTQM4XFbQKVUdOYN3GQKDGqzk=
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <318691919763C544863EFDAA3EBCA34C@namprd15.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
+       spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 1F2093092671;
+	Thu, 20 Jun 2019 02:20:25 +0000 (UTC)
+Received: from xz-x1.redhat.com (ovpn-12-78.pek2.redhat.com [10.72.12.78])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id D53C91001DC3;
+	Thu, 20 Jun 2019 02:20:10 +0000 (UTC)
+From: Peter Xu <peterx@redhat.com>
+To: linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Cc: David Hildenbrand <david@redhat.com>,
+	Hugh Dickins <hughd@google.com>,
+	Maya Gokhale <gokhale2@llnl.gov>,
+	Jerome Glisse <jglisse@redhat.com>,
+	Pavel Emelyanov <xemul@virtuozzo.com>,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	peterx@redhat.com,
+	Martin Cracauer <cracauer@cons.org>,
+	Denis Plotnikov <dplotnikov@virtuozzo.com>,
+	Shaohua Li <shli@fb.com>,
+	Andrea Arcangeli <aarcange@redhat.com>,
+	Mike Kravetz <mike.kravetz@oracle.com>,
+	Marty McFadden <mcfadden8@llnl.gov>,
+	Mike Rapoport <rppt@linux.vnet.ibm.com>,
+	Mel Gorman <mgorman@suse.de>,
+	"Kirill A . Shutemov" <kirill@shutemov.name>,
+	"Dr . David Alan Gilbert" <dgilbert@redhat.com>
+Subject: [PATCH v5 00/25] userfaultfd: write protection support
+Date: Thu, 20 Jun 2019 10:19:43 +0800
+Message-Id: <20190620022008.19172-1-peterx@redhat.com>
 MIME-Version: 1.0
-X-MS-Exchange-CrossTenant-Network-Message-Id: 12789224-1134-45c0-68d5-08d6f5247013
-X-MS-Exchange-CrossTenant-originalarrivaltime: 20 Jun 2019 02:10:16.6270
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: 8ae927fe-1255-47a7-a2af-5f3a069daaa2
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-userprincipalname: songliubraving@fb.com
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: MWHPR15MB1550
-X-OriginatorOrg: fb.com
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-06-20_01:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=fb_default_notspam policy=fb_default score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=736 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1906200015
-X-FB-Internal: deliver
+Content-Transfer-Encoding: 8bit
+X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.43]); Thu, 20 Jun 2019 02:20:26 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+This series implements initial write protection support for
+userfaultfd.  Currently both shmem and hugetlbfs are not supported
+yet, but only anonymous memory.  This is the 4nd version of it.
 
+The latest code can also be found at:
 
-> On Jun 19, 2019, at 6:39 PM, Rik van Riel <riel@fb.com> wrote:
->=20
-> On Tue, 2019-06-18 at 23:24 -0700, Song Liu wrote:
->=20
->> index 8563339041f6..bab8d9eef46c 100644
->> --- a/mm/truncate.c
->> +++ b/mm/truncate.c
->> @@ -790,7 +790,11 @@ EXPORT_SYMBOL_GPL(invalidate_inode_pages2);
->> void truncate_pagecache(struct inode *inode, loff_t newsize)
->> {
->> 	struct address_space *mapping =3D inode->i_mapping;
->> -	loff_t holebegin =3D round_up(newsize, PAGE_SIZE);
->> +	loff_t holebegin;
->> +
->> +	/* if non-shmem file has thp, truncate the whole file */
->> +	if (filemap_nr_thps(mapping))
->> +		newsize =3D 0;
->>=20
->=20
-> I don't get it. Sometimes truncate is used to
-> increase the size of a file, or to change it
-> to a non-zero size.
->=20
-> Won't forcing the newsize to zero break applications,
-> when the file is truncated to a different size than
-> they expect?
+  https://github.com/xzpeter/linux/tree/uffd-wp-merged
 
-This is not truncate the file. It only drops page cache.=20
-truncate_setsize() will still set correct size. I don't=20
-think this breaks anything.=20
+v5 changelog:
+- rebase
+- drop two patches:
+    "userfaultfd: wp: handle COW properly for uffd-wp"
+    "mm: introduce do_wp_page_cont()"
+  instead remove the write bit always when resolving uffd-wp page
+  fault in previous patch ("userfaultfd: wp: apply _PAGE_UFFD_WP bit")
+  then COW will be handled correctly in the PF irq handler [Andrea]
 
-We can probably make it smarter and only drop the clean
-huge pages (dirty page should not exist).=20
+v4 changelog:
+- add r-bs
+- use kernel-doc format for fault_flag_allow_retry_first [Jerome]
+- drop "export wp_page_copy", add new patch to split do_wp_page(), use
+  it in change_pte_range() to replace the wp_page_copy(). [Jerome] (I
+  thought about different ways to do this but I still can't find a
+  100% good way for all... in this version I still used the
+  do_wp_page_cont naming.  We can still discuss this and how we should
+  split do_wp_page)
+- make sure uffd-wp will also apply to device private entries which
+  HMM uses [Jerome]
 
-Thanks,
-Song
+v3 changelog:
+- take r-bs
+- patch 1: fix typo [Jerome]
+- patch 2: use brackets where proper around (flags & VM_FAULT_RETRY)
+  (there're three places to change, not four...) [Jerome]
+- patch 4: make sure TRIED is applied correctly on all archs, add more
+  comment to explain the new page fault mechanism [Jerome]
+- patch 7: in do_swap_page() remove the two lines to remove
+  FAULT_FLAG_WRITE flag [Jerome]
+- patch 10: another brackets change like above, and in
+  mfill_atomic_pte return -EINVAL when detected wp_copy==1 upon shared
+  memories [Jerome]
+- patch 12: move _PAGE_CHG_MASK change to patch 8 [Jerome]
+- patch 14: wp_page_copy() - fix write bit; change_pte_range() -
+  detect PTE change after COW [Jerome]
+- patch 17: remove last paragraph of commit message, no need to drop
+  the two lines in do_swap_page() since they've been directly dropped
+  in patch 7; touch up remove_migration_pte() to only detect uffd-wp
+  bit if it's read migration entry [Jerome]
+- add patch: "userfaultfd: wp: declare _UFFDIO_WRITEPROTECT
+  conditionally", which remove _UFFDIO_WRITEPROTECT bit if detected
+  non-anonymous memory during REGISTER; meanwhile fixup the test case
+  for shmem too for expected ioctls returned from REGISTER [Mike]
+- add patch: "userfaultfd: wp: fixup swap entries in
+  change_pte_range", the new patch will allow to apply the uffd-wp
+  bits upon swap entries directly (e.g., when the page is during
+  migration or the page was swapped out).  Please see the patch for
+  detail information.
 
+v2 changelog:
+- add some r-bs
+- split the patch "mm: userfault: return VM_FAULT_RETRY on signals"
+  into two: one to focus on the signal behavior change, the other to
+  remove the NOPAGE special path in handle_userfault().  Removing the
+  ARC specific change and remove that part of commit message since
+  it's fixed in 4d447455e73b already [Jerome]
+- return -ENOENT when VMA is invalid for UFFDIO_WRITEPROTECT to match
+  UFFDIO_COPY errno [Mike]
+- add a new patch to introduce helper to find valid VMA for uffd
+  [Mike]
+- check against VM_MAYWRITE instead of VM_WRITE when registering UFFD
+  WP [Mike]
+- MM_CP_DIRTY_ACCT is used incorrectly, fix it up [Jerome]
+- make sure the lock_page behavior will not be changed [Jerome]
+- reorder the whole series, introduce the new ioctl last. [Jerome]
+- fix up the uffdio_writeprotect() following commit df2cc96e77011cf79
+  to return -EAGAIN when detected mm layout changes [Mike]
+
+v1 can be found at: https://lkml.org/lkml/2019/1/21/130
+
+Any comment would be greatly welcomed.   Thanks.
+
+Overview
+====================
+
+The uffd-wp work was initialized by Shaohua Li [1], and later
+continued by Andrea [2]. This series is based upon Andrea's latest
+userfaultfd tree, and it is a continuous works from both Shaohua and
+Andrea.  Many of the follow up ideas come from Andrea too.
+
+Besides the old MISSING register mode of userfaultfd, the new uffd-wp
+support provides another alternative register mode called
+UFFDIO_REGISTER_MODE_WP that can be used to listen to not only missing
+page faults but also write protection page faults, or even they can be
+registered together.  At the same time, the new feature also provides
+a new userfaultfd ioctl called UFFDIO_WRITEPROTECT which allows the
+userspace to write protect a range or memory or fixup write permission
+of faulted pages.
+
+Please refer to the document patch "userfaultfd: wp:
+UFFDIO_REGISTER_MODE_WP documentation update" for more information on
+the new interface and what it can do.
+
+The major workflow of an uffd-wp program should be:
+
+  1. Register a memory region with WP mode using UFFDIO_REGISTER_MODE_WP
+
+  2. Write protect part of the whole registered region using
+     UFFDIO_WRITEPROTECT, passing in UFFDIO_WRITEPROTECT_MODE_WP to
+     show that we want to write protect the range.
+
+  3. Start a working thread that modifies the protected pages,
+     meanwhile listening to UFFD messages.
+
+  4. When a write is detected upon the protected range, page fault
+     happens, a UFFD message will be generated and reported to the
+     page fault handling thread
+
+  5. The page fault handler thread resolves the page fault using the
+     new UFFDIO_WRITEPROTECT ioctl, but this time passing in
+     !UFFDIO_WRITEPROTECT_MODE_WP instead showing that we want to
+     recover the write permission.  Before this operation, the fault
+     handler thread can do anything it wants, e.g., dumps the page to
+     a persistent storage.
+
+  6. The worker thread will continue running with the correctly
+     applied write permission from step 5.
+
+Currently there are already two projects that are based on this new
+userfaultfd feature.
+
+QEMU Live Snapshot: The project provides a way to allow the QEMU
+                    hypervisor to take snapshot of VMs without
+                    stopping the VM [3].
+
+LLNL umap library:  The project provides a mmap-like interface and
+                    "allow to have an application specific buffer of
+                    pages cached from a large file, i.e. out-of-core
+                    execution using memory map" [4][5].
+
+Before posting the patchset, this series was smoke tested against QEMU
+live snapshot and the LLNL umap library (by doing parallel quicksort
+using 128 sorting threads + 80 uffd servicing threads).  My sincere
+thanks to Marty Mcfadden and Denis Plotnikov for the help along the
+way.
+
+TODO
+=============
+
+- hugetlbfs/shmem support
+- performance
+- more architectures
+- cooperate with mprotect()-allowed processes (???)
+- ...
+
+References
+==========
+
+[1] https://lwn.net/Articles/666187/
+[2] https://git.kernel.org/pub/scm/linux/kernel/git/andrea/aa.git/log/?h=userfault
+[3] https://github.com/denis-plotnikov/qemu/commits/background-snapshot-kvm
+[4] https://github.com/LLNL/umap
+[5] https://llnl-umap.readthedocs.io/en/develop/
+[6] https://git.kernel.org/pub/scm/linux/kernel/git/andrea/aa.git/commit/?h=userfault&id=b245ecf6cf59156966f3da6e6b674f6695a5ffa5
+[7] https://lkml.org/lkml/2018/11/21/370
+[8] https://lkml.org/lkml/2018/12/30/64
+
+Andrea Arcangeli (5):
+  userfaultfd: wp: hook userfault handler to write protection fault
+  userfaultfd: wp: add WP pagetable tracking to x86
+  userfaultfd: wp: userfaultfd_pte/huge_pmd_wp() helpers
+  userfaultfd: wp: add UFFDIO_COPY_MODE_WP
+  userfaultfd: wp: add the writeprotect API to userfaultfd ioctl
+
+Martin Cracauer (1):
+  userfaultfd: wp: UFFDIO_REGISTER_MODE_WP documentation update
+
+Peter Xu (16):
+  mm: gup: rename "nonblocking" to "locked" where proper
+  mm: userfault: return VM_FAULT_RETRY on signals
+  userfaultfd: don't retake mmap_sem to emulate NOPAGE
+  mm: allow VM_FAULT_RETRY for multiple times
+  mm: gup: allow VM_FAULT_RETRY for multiple times
+  mm: merge parameters for change_protection()
+  userfaultfd: wp: apply _PAGE_UFFD_WP bit
+  userfaultfd: wp: drop _PAGE_UFFD_WP properly when fork
+  userfaultfd: wp: add pmd_swp_*uffd_wp() helpers
+  userfaultfd: wp: support swap and page migration
+  khugepaged: skip collapse if uffd-wp detected
+  userfaultfd: introduce helper vma_find_uffd
+  userfaultfd: wp: don't wake up when doing write protect
+  userfaultfd: wp: declare _UFFDIO_WRITEPROTECT conditionally
+  userfaultfd: selftests: refactor statistics
+  userfaultfd: selftests: add write-protect test
+
+Shaohua Li (3):
+  userfaultfd: wp: add helper for writeprotect check
+  userfaultfd: wp: support write protection for userfault vma range
+  userfaultfd: wp: enabled write protection in userfaultfd API
+
+ Documentation/admin-guide/mm/userfaultfd.rst |  51 +++++
+ arch/alpha/mm/fault.c                        |   4 +-
+ arch/arc/mm/fault.c                          |  12 +-
+ arch/arm/mm/fault.c                          |   9 +-
+ arch/arm64/mm/fault.c                        |  11 +-
+ arch/hexagon/mm/vm_fault.c                   |   3 +-
+ arch/ia64/mm/fault.c                         |   3 +-
+ arch/m68k/mm/fault.c                         |   5 +-
+ arch/microblaze/mm/fault.c                   |   3 +-
+ arch/mips/mm/fault.c                         |   3 +-
+ arch/nds32/mm/fault.c                        |   7 +-
+ arch/nios2/mm/fault.c                        |   5 +-
+ arch/openrisc/mm/fault.c                     |   3 +-
+ arch/parisc/mm/fault.c                       |   6 +-
+ arch/powerpc/mm/fault.c                      |   8 +-
+ arch/riscv/mm/fault.c                        |   9 +-
+ arch/s390/mm/fault.c                         |  14 +-
+ arch/sh/mm/fault.c                           |   5 +-
+ arch/sparc/mm/fault_32.c                     |   4 +-
+ arch/sparc/mm/fault_64.c                     |   4 +-
+ arch/um/kernel/trap.c                        |   6 +-
+ arch/unicore32/mm/fault.c                    |   8 +-
+ arch/x86/Kconfig                             |   1 +
+ arch/x86/include/asm/pgtable.h               |  67 ++++++
+ arch/x86/include/asm/pgtable_64.h            |   8 +-
+ arch/x86/include/asm/pgtable_types.h         |  11 +-
+ arch/x86/mm/fault.c                          |   8 +-
+ arch/xtensa/mm/fault.c                       |   4 +-
+ drivers/gpu/drm/ttm/ttm_bo_vm.c              |  12 +-
+ fs/userfaultfd.c                             | 130 +++++++----
+ include/asm-generic/pgtable.h                |   1 +
+ include/asm-generic/pgtable_uffd.h           |  66 ++++++
+ include/linux/huge_mm.h                      |   2 +-
+ include/linux/mm.h                           |  60 ++++-
+ include/linux/swapops.h                      |   2 +
+ include/linux/userfaultfd_k.h                |  42 +++-
+ include/trace/events/huge_memory.h           |   1 +
+ include/uapi/linux/userfaultfd.h             |  40 +++-
+ init/Kconfig                                 |   5 +
+ mm/filemap.c                                 |   2 +-
+ mm/gup.c                                     |  61 ++---
+ mm/huge_memory.c                             |  32 ++-
+ mm/hugetlb.c                                 |  14 +-
+ mm/khugepaged.c                              |  23 ++
+ mm/memory.c                                  |  26 ++-
+ mm/mempolicy.c                               |   2 +-
+ mm/migrate.c                                 |   6 +
+ mm/mprotect.c                                |  74 ++++--
+ mm/rmap.c                                    |   6 +
+ mm/shmem.c                                   |   2 +-
+ mm/userfaultfd.c                             | 148 +++++++++---
+ tools/testing/selftests/vm/userfaultfd.c     | 225 +++++++++++++++----
+ 52 files changed, 974 insertions(+), 290 deletions(-)
+ create mode 100644 include/asm-generic/pgtable_uffd.h
+
+-- 
+2.21.0
 
