@@ -2,247 +2,216 @@ Return-Path: <SRS0=424v=UT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 06260C48BE4
-	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 14:24:13 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 51861C48BE4
+	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 14:29:23 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B9E342085A
-	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 14:24:12 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B9E342085A
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 0CC2B2084A
+	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 14:29:22 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="bWZIWH1K"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0CC2B2084A
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linuxfoundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 493F18E0001; Thu, 20 Jun 2019 10:24:12 -0400 (EDT)
+	id 85FF06B0005; Thu, 20 Jun 2019 10:29:22 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 46ABE6B0006; Thu, 20 Jun 2019 10:24:12 -0400 (EDT)
+	id 810818E0003; Thu, 20 Jun 2019 10:29:22 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 37FE68E0001; Thu, 20 Jun 2019 10:24:12 -0400 (EDT)
+	id 6FFE28E0001; Thu, 20 Jun 2019 10:29:22 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 177556B0005
-	for <linux-mm@kvack.org>; Thu, 20 Jun 2019 10:24:12 -0400 (EDT)
-Received: by mail-qt1-f197.google.com with SMTP id e39so3759818qte.8
-        for <linux-mm@kvack.org>; Thu, 20 Jun 2019 07:24:12 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 39C816B0005
+	for <linux-mm@kvack.org>; Thu, 20 Jun 2019 10:29:22 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id q14so421643pff.8
+        for <linux-mm@kvack.org>; Thu, 20 Jun 2019 07:29:22 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:organization:message-id:date:user-agent
-         :mime-version:in-reply-to:content-transfer-encoding:content-language;
-        bh=who4ibToryILCCsci1l8y2nla4lZwekQuqUlKY0sA58=;
-        b=kH3bQ1ytDYdochybDbQQZgiJPZxq+F5AxzTJy07t8DFRUkKOSFkOOUx1em9aIH28wz
-         Buw5IbxygX9fAmMg3BbQ+Z5b1jJPj6XoRoDc/ukcdV9zL0gqf70Eii2U7eR4g5DNYtZ4
-         RRgBAxLqGY5l5fyGNd9zXLyoqldyHAFbzYXCsHf9BoyjEgNTEobCgD8Cqwa9JSd6aSO/
-         Y4c/evizdsWcN/EFtPq7ien8cDqh0mv5Uy+YbAPdLqoXoC7kRnsH1Cx/x4T9OeFqekG5
-         RpIuev7agOuH7CIQT40+6FThnD5WJkxsAOKfi8KXSSzeRUSNS+i0QStyoQmackLsMesA
-         3jxw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAVlwV5bSvsP+Qdn7AiYm5lE0Asp/mFMH9Cl2YF/+25HvFjYm4Sd
-	1Ekl76fPGSlQJGYhlVqjSdWLWaB/ZZQatE8xoXQwiZ6B0CF2JuKlGbZ93/UDCy0+k9hjLjmKf7E
-	F9ZD4g4TpuayhLVFRCco7k76f86FISGBgkvrDw+0jPy00nnt8RXGQp+DivW8rzC12jw==
-X-Received: by 2002:a37:9144:: with SMTP id t65mr1125718qkd.367.1561040651846;
-        Thu, 20 Jun 2019 07:24:11 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzSL4Kxqk0UX7w/AtbRRcq/dFske+4yDvZC+iFY36+kYDCFciClbQ8eGxdqmAWiCH+rx86y
-X-Received: by 2002:a37:9144:: with SMTP id t65mr1125665qkd.367.1561040651173;
-        Thu, 20 Jun 2019 07:24:11 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561040651; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=/aZGDRAVyAV6lIE0ILnXOjAyIfIPtC0RGIBK6ejA8qE=;
+        b=Mi6sFOzFZDR2GOTv7vBffcdIcEYGSWWLG4/3nfSjwC2U9gbKGMjLxDcrHD5e+GPDrE
+         Rk/w6yzE8cxRRNtrXxZlapD43GFX/zA+VyZnFYlOWRkFkb4uQqQkLQtmKftBTeiDdDsT
+         PmIlsoUVVvRPkMX62wgAwPwlX1EaLNJM/ubbbP7sdk5KlJlGHfudl+FlekP8V5BKVBgD
+         WSvR67XrTJKvH+g3NxL/0Crz5Yf04OdvR3LEx/wMJkCPYWg3JMX0AOU4ukRqnbitTWE4
+         lo+tr/0gd19ZdBpu3dNf9WG8raoVBC1rMfrvDwKkBBl1QrlfdDB6v8dGnCVd8QjsMgdG
+         seVA==
+X-Gm-Message-State: APjAAAUZPoEN0UEUTdyu8+lDuw2Lqyv/rEoOpYy9eOHv90xgIIJJriIG
+	Nk663TctqcWQlCPyh/PwF8Jgt4jEPrnPqGA265Q5U23KurEmwygGV9kVswDBmO9/zK+feNZhLIM
+	cfcKMkeAprO3jjkqAAlI9+ZI5Wx7MM3SKK3ARedaBgGAEU9VQbDP1GfceXGoGlyl8BQ==
+X-Received: by 2002:a17:90a:7107:: with SMTP id h7mr3370034pjk.38.1561040961847;
+        Thu, 20 Jun 2019 07:29:21 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyjAGpztK2XNhNtmD6On9/NqJolJ5ngh7+V0Tjz0es7RLjlvt8q7sLnXRJUNsExxL6hhp9x
+X-Received: by 2002:a17:90a:7107:: with SMTP id h7mr3369962pjk.38.1561040960857;
+        Thu, 20 Jun 2019 07:29:20 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561040960; cv=none;
         d=google.com; s=arc-20160816;
-        b=zV761xyzZtNLwlrd0DMd52gtbM/wGFdFV10wEVU5yd2J0+vaSfP8rOjyYx2WNHit9n
-         4lfSFRP+C/OL4S2KahLgI6J/M/eoZLqJiUbPGGEWpEOwfYPpaNBms+BFgV3l+tvE9hXJ
-         0eoY2J7k8XBAp81Ejt3AQWaAnIAFLZgSTu/c8wKAV7aSlb6MP1hs2qGgWI4DggwYqoh0
-         LUxPNugvvNbxZumuVe8nZYWbIfnwCbOOpmTfh+KEesWQZXLtZQDkI1SqumctzkyUKvfV
-         4fYbuqaWwS4kTg28UqeLLS8e4yG8he8Pt0uVRhhPmzyPD1HVDvrPJnXiIUkm5Yt9arj0
-         hIBw==
+        b=Zpx9teptGsxubR0X2vTlRoFpBPPqE+/8D3XTCZ/zL29kkIgNqu0KlR+nYU9y7FMx9Y
+         vBIbWJtQlJAIzDpueDUC3vFjGbD5qJrWwUYbrSklWAMY1I/zd0iKTRJvBOUcx9G48Tjy
+         vugtBsag3aJEkQvSBw0vldJjCYMwQ6qdFD5QWZ5KeY6vFfT+4N/wccyWnc1tnVflkdz7
+         xYwDG9z0D5DFGf/fZeh2xYUNoPPxyb2xHDbrIEAAtz5PQxhhROTY+8gtv6IA8k+sEjlG
+         ucxHCKimRTUE4wkYotW+Sc/3rt2OQ1DNtsom5sCPecxLuZxcAn/HZTQmR20E+vk1BB0x
+         +LBg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-language:content-transfer-encoding:in-reply-to:mime-version
-         :user-agent:date:message-id:organization:from:references:cc:to
-         :subject;
-        bh=who4ibToryILCCsci1l8y2nla4lZwekQuqUlKY0sA58=;
-        b=FSdaa7wuKGijgHnhZlOal2i3XDVln3u/EonfCdD5QdSdt1bmiF7qQBC8BylxG0vLUR
-         SaV2hWmcon4tUJguOb07PFRhTAn0sDLJKYdWxtZ2xffGXJvBCOfUyN+zZDUn8KaRaXCD
-         o9+EzZRuWVOuo7Y7SUWEnwV5k2LFSl+Gk/IhjelGaFKgWXswrvI9ZoBO/Wqb68Qpw2VI
-         21DjmKrXc5sTDGjt6b+bQXaUxRo11JiRmeAK6P0puYYxsn6c1XPkPnvkZJXsli/y8chx
-         cZPQ5MWrkAcijBMsLS55QJdiRv9SVNpah1yRlqtCJ4lUVqtzl5P6l9OxbxnYHKFG/py4
-         0eWA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=/aZGDRAVyAV6lIE0ILnXOjAyIfIPtC0RGIBK6ejA8qE=;
+        b=tbj51G+X6CdVCFMOgs5F9/MV1KhxxelhTkQ8QhRCGPXrwjjztA8AahTcaCo+t8l8ck
+         tA6W8BZv14AE56uP4W0AvAdJHIrKGMhRSKa8fMIAgjCsW8qtE1B2sfkmGG2zN0lBmvDx
+         YIIU0viRr23XVRZw3DQ5tmnXodO2ASFlCti71WWAjxvVszSc3yvpazHPjb4HjqadCR6j
+         RV6GnYp/pTE4VH+1iNnpqI9CilNs4IN36cDQbcRtC7GOijYCASKv3TpmlUkfKQNqB0ba
+         T/OimJsbGLIQyOv9A1mDs//ot2UJe39tIOCKw7LCBG2iiEit1TCKHv/xkpdkGd6yII87
+         /+sA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id x26si15126243qkj.18.2019.06.20.07.24.10
+       dkim=pass header.i=@kernel.org header.s=default header.b=bWZIWH1K;
+       spf=pass (google.com: domain of gregkh@linuxfoundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=gregkh@linuxfoundation.org
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id w17si20737725pfj.69.2019.06.20.07.29.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 20 Jun 2019 07:24:11 -0700 (PDT)
-Received-SPF: pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Thu, 20 Jun 2019 07:29:20 -0700 (PDT)
+Received-SPF: pass (google.com: domain of gregkh@linuxfoundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+       dkim=pass header.i=@kernel.org header.s=default header.b=bWZIWH1K;
+       spf=pass (google.com: domain of gregkh@linuxfoundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=gregkh@linuxfoundation.org
+Received: from localhost (83-86-89-107.cable.dynamic.v4.ziggo.nl [83.86.89.107])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 6E0CE3082B67;
-	Thu, 20 Jun 2019 14:23:45 +0000 (UTC)
-Received: from llong.remote.csb (dhcp-17-85.bos.redhat.com [10.18.17.85])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id A323B5D9C6;
-	Thu, 20 Jun 2019 14:23:41 +0000 (UTC)
-Subject: Re: [PATCH v2] mm, memcg: Add a memcg_slabinfo debugfs file
-To: Shakeel Butt <shakeelb@google.com>
-Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>,
- David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>,
- Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>,
- LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@kernel.org>,
- Roman Gushchin <guro@fb.com>, Johannes Weiner <hannes@cmpxchg.org>,
- Vladimir Davydov <vdavydov.dev@gmail.com>
-References: <20190619171621.26209-1-longman@redhat.com>
- <CALvZod7pdOx0a1v4oX5-7ZfCykM8iwRwPkW-+gbO1B4+j1SXqw@mail.gmail.com>
-From: Waiman Long <longman@redhat.com>
-Organization: Red Hat
-Message-ID: <cfc6c800-1cb4-e2f2-e6d9-f0571c11a47b@redhat.com>
-Date: Thu, 20 Jun 2019 10:23:41 -0400
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.0
+	by mail.kernel.org (Postfix) with ESMTPSA id 017FD206E0;
+	Thu, 20 Jun 2019 14:29:19 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1561040960;
+	bh=jGmcXFeW7D8HKNyL/7thTeEj0zTlF5U4/cIcsDDUCcE=;
+	h=Date:From:To:Cc:Subject:References:In-Reply-To:From;
+	b=bWZIWH1KS7f4YtgkdDQ1w1wqZnbknVtlEjsKM3/0EvS2BVM9DQEtY3E8AbvcgmQ5j
+	 +9V/tRmfj/fFD1RtgIAerM3bvwacNNtvsKzpzC+csNmLj2Oy1HYI3wIAn8J0Eddrl6
+	 qA8Hk0xtO2X6F75FZY+zij/t168hRiOm0RZ10QK0=
+Date: Thu, 20 Jun 2019 16:29:18 +0200
+From: Greg KH <gregkh@linuxfoundation.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Stable tree <stable@vger.kernel.org>,
+	Jason Gunthorpe <jgg@mellanox.com>, linux-mm@kvack.org,
+	LKML <linux-kernel@vger.kernel.org>,
+	Andrea Arcangeli <aarcange@redhat.com>,
+	Jann Horn <jannh@google.com>, Oleg Nesterov <oleg@redhat.com>,
+	Peter Xu <peterx@redhat.com>, Mike Rapoport <rppt@linux.ibm.com>,
+	Michal Hocko <mhocko@suse.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Linus Torvalds <torvalds@linux-foundation.org>,
+	Joel Fernandes <joel@joelfernandes.org>
+Subject: Re: [PATCH stable-4.4 v3] coredump: fix race condition between
+ mmget_not_zero()/get_task_mm() and core dumping
+Message-ID: <20190620142918.GE9832@kroah.com>
+References: <20190610074635.2319-1-mhocko@kernel.org>
+ <20190617065824.28305-1-mhocko@kernel.org>
 MIME-Version: 1.0
-In-Reply-To: <CALvZod7pdOx0a1v4oX5-7ZfCykM8iwRwPkW-+gbO1B4+j1SXqw@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.45]); Thu, 20 Jun 2019 14:24:10 +0000 (UTC)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190617065824.28305-1-mhocko@kernel.org>
+User-Agent: Mutt/1.12.1 (2019-06-15)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 6/19/19 7:48 PM, Shakeel Butt wrote:
-> Hi Waiman,
->
-> On Wed, Jun 19, 2019 at 10:16 AM Waiman Long <longman@redhat.com> wrote:
->> There are concerns about memory leaks from extensive use of memory
->> cgroups as each memory cgroup creates its own set of kmem caches. There
->> is a possiblity that the memcg kmem caches may remain even after the
->> memory cgroups have been offlined. Therefore, it will be useful to show
->> the status of each of memcg kmem caches.
->>
->> This patch introduces a new <debugfs>/memcg_slabinfo file which is
->> somewhat similar to /proc/slabinfo in format, but lists only information
->> about kmem caches that have child memcg kmem caches. Information
->> available in /proc/slabinfo are not repeated in memcg_slabinfo.
->>
->> A portion of a sample output of the file was:
->>
->>   # <name> <css_id[:dead]> <active_objs> <num_objs> <active_slabs> <num_slabs>
->>   rpc_inode_cache   root          13     51      1      1
->>   rpc_inode_cache     48           0      0      0      0
->>   fat_inode_cache   root           1     45      1      1
->>   fat_inode_cache     41           2     45      1      1
->>   xfs_inode         root         770    816     24     24
->>   xfs_inode           92          22     34      1      1
->>   xfs_inode           88:dead      1     34      1      1
->>   xfs_inode           89:dead     23     34      1      1
->>   xfs_inode           85           4     34      1      1
->>   xfs_inode           84           9     34      1      1
->>
->> The css id of the memcg is also listed. If a memcg is not online,
->> the tag ":dead" will be attached as shown above.
->>
->> Suggested-by: Shakeel Butt <shakeelb@google.com>
->> Signed-off-by: Waiman Long <longman@redhat.com>
->> ---
->>  mm/slab_common.c | 57 ++++++++++++++++++++++++++++++++++++++++++++++++
->>  1 file changed, 57 insertions(+)
->>
->> diff --git a/mm/slab_common.c b/mm/slab_common.c
->> index 58251ba63e4a..2bca1558a722 100644
->> --- a/mm/slab_common.c
->> +++ b/mm/slab_common.c
->> @@ -17,6 +17,7 @@
->>  #include <linux/uaccess.h>
->>  #include <linux/seq_file.h>
->>  #include <linux/proc_fs.h>
->> +#include <linux/debugfs.h>
->>  #include <asm/cacheflush.h>
->>  #include <asm/tlbflush.h>
->>  #include <asm/page.h>
->> @@ -1498,6 +1499,62 @@ static int __init slab_proc_init(void)
->>         return 0;
->>  }
->>  module_init(slab_proc_init);
->> +
->> +#if defined(CONFIG_DEBUG_FS) && defined(CONFIG_MEMCG_KMEM)
->> +/*
->> + * Display information about kmem caches that have child memcg caches.
->> + */
->> +static int memcg_slabinfo_show(struct seq_file *m, void *unused)
->> +{
->> +       struct kmem_cache *s, *c;
->> +       struct slabinfo sinfo;
->> +
->> +       mutex_lock(&slab_mutex);
-> On large machines there can be thousands of memcgs and potentially
-> each memcg can have hundreds of kmem caches. So, the slab_mutex can be
-> held for a very long time.
+On Mon, Jun 17, 2019 at 08:58:24AM +0200, Michal Hocko wrote:
+> From: Andrea Arcangeli <aarcange@redhat.com>
+> 
+> Upstream 04f5866e41fb70690e28397487d8bd8eea7d712a commit.
+> 
+> The core dumping code has always run without holding the mmap_sem for
+> writing, despite that is the only way to ensure that the entire vma
+> layout will not change from under it.  Only using some signal
+> serialization on the processes belonging to the mm is not nearly enough.
+> This was pointed out earlier.  For example in Hugh's post from Jul 2017:
+> 
+>   https://lkml.kernel.org/r/alpine.LSU.2.11.1707191716030.2055@eggly.anvils
+> 
+>   "Not strictly relevant here, but a related note: I was very surprised
+>    to discover, only quite recently, how handle_mm_fault() may be called
+>    without down_read(mmap_sem) - when core dumping. That seems a
+>    misguided optimization to me, which would also be nice to correct"
+> 
+> In particular because the growsdown and growsup can move the
+> vm_start/vm_end the various loops the core dump does around the vma will
+> not be consistent if page faults can happen concurrently.
+> 
+> Pretty much all users calling mmget_not_zero()/get_task_mm() and then
+> taking the mmap_sem had the potential to introduce unexpected side
+> effects in the core dumping code.
+> 
+> Adding mmap_sem for writing around the ->core_dump invocation is a
+> viable long term fix, but it requires removing all copy user and page
+> faults and to replace them with get_dump_page() for all binary formats
+> which is not suitable as a short term fix.
+> 
+> For the time being this solution manually covers the places that can
+> confuse the core dump either by altering the vma layout or the vma flags
+> while it runs.  Once ->core_dump runs under mmap_sem for writing the
+> function mmget_still_valid() can be dropped.
+> 
+> Allowing mmap_sem protected sections to run in parallel with the
+> coredump provides some minor parallelism advantage to the swapoff code
+> (which seems to be safe enough by never mangling any vma field and can
+> keep doing swapins in parallel to the core dumping) and to some other
+> corner case.
+> 
+> In order to facilitate the backporting I added "Fixes: 86039bd3b4e6"
+> however the side effect of this same race condition in /proc/pid/mem
+> should be reproducible since before 2.6.12-rc2 so I couldn't add any
+> other "Fixes:" because there's no hash beyond the git genesis commit.
+> 
+> Because find_extend_vma() is the only location outside of the process
+> context that could modify the "mm" structures under mmap_sem for
+> reading, by adding the mmget_still_valid() check to it, all other cases
+> that take the mmap_sem for reading don't need the new check after
+> mmget_not_zero()/get_task_mm().  The expand_stack() in page fault
+> context also doesn't need the new check, because all tasks under core
+> dumping are frozen.
+> 
+> Link: http://lkml.kernel.org/r/20190325224949.11068-1-aarcange@redhat.com
+> Fixes: 86039bd3b4e6 ("userfaultfd: add new syscall to provide memory externalization")
+> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+> Reported-by: Jann Horn <jannh@google.com>
+> Suggested-by: Oleg Nesterov <oleg@redhat.com>
+> Acked-by: Peter Xu <peterx@redhat.com>
+> Reviewed-by: Mike Rapoport <rppt@linux.ibm.com>
+> Reviewed-by: Oleg Nesterov <oleg@redhat.com>
+> Reviewed-by: Jann Horn <jannh@google.com>
+> Acked-by: Jason Gunthorpe <jgg@mellanox.com>
+> Acked-by: Michal Hocko <mhocko@suse.com>
+> Cc: <stable@vger.kernel.org>
+> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
+> Cc: Joel Fernandes (Google) <joel@joelfernandes.org>
+> [mhocko@suse.com: stable 4.4 backport
+>  - drop infiniband part because of missing 5f9794dc94f59
+>  - drop userfaultfd_event_wait_completion hunk because of
+>    missing 9cd75c3cd4c3d]
+>  - handle binder_update_page_range because of missing 720c241924046
+>  - handle mlx5_ib_disassociate_ucontext - akaher@vmware.com
+> ]
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
+> ---
+>  drivers/android/binder.c          |  6 ++++++
+>  drivers/infiniband/hw/mlx4/main.c |  3 +++
+>  fs/proc/task_mmu.c                | 18 ++++++++++++++++++
+>  fs/userfaultfd.c                  | 10 ++++++++--
+>  include/linux/mm.h                | 21 +++++++++++++++++++++
+>  mm/mmap.c                         |  7 ++++++-
+>  6 files changed, 62 insertions(+), 3 deletions(-)
 
-But that is also what /proc/slabinfo does by doing mutex_lock() at
-slab_start() and mutex_unlock() at slab_stop(). So the same problem will
-happen when /proc/slabinfo is being read.
+I've queued this up now, as it looks like everyone agrees with it.  What
+about a 4.9.y backport?
 
-When you are in a situation that reading /proc/slabinfo take a long time
-because of the large number of memcg's, the system is in some kind of
-trouble anyway. I am saying that we should not improve the scalability
-of this patch. It is just that some nasty race conditions may pop up if
-we release the lock and re-acquire it latter. That will greatly
-complicate the code to handle all those edge cases.
+thanks,
 
-> Our internal implementation traverses the memcg tree and then
-> traverses 'memcg->kmem_caches' within the slab_mutex (and
-> cond_resched() after unlock).
-For cgroup v1, the setting of the CONFIG_SLUB_DEBUG option will allow
-you to iterate and display slabinfo just for that particular memcg. I am
-thinking of extending the debug controller to do similar thing for
-cgroup v2.
->> +       seq_puts(m, "# <name> <css_id[:dead]> <active_objs> <num_objs>");
->> +       seq_puts(m, " <active_slabs> <num_slabs>\n");
->> +       list_for_each_entry(s, &slab_root_caches, root_caches_node) {
->> +               /*
->> +                * Skip kmem caches that don't have any memcg children.
->> +                */
->> +               if (list_empty(&s->memcg_params.children))
->> +                       continue;
->> +
->> +               memset(&sinfo, 0, sizeof(sinfo));
->> +               get_slabinfo(s, &sinfo);
->> +               seq_printf(m, "%-17s root      %6lu %6lu %6lu %6lu\n",
->> +                          cache_name(s), sinfo.active_objs, sinfo.num_objs,
->> +                          sinfo.active_slabs, sinfo.num_slabs);
->> +
->> +               for_each_memcg_cache(c, s) {
->> +                       struct cgroup_subsys_state *css;
->> +                       char *dead = "";
->> +
->> +                       css = &c->memcg_params.memcg->css;
->> +                       if (!(css->flags & CSS_ONLINE))
->> +                               dead = ":dead";
-> Please note that Roman's kmem cache reparenting patch series have made
-> kmem caches of zombie memcgs a bit tricky. On memcg offlining the
-> memcg kmem caches are reparented and the css->id can get recycled. So,
-> we want to know that the a kmem cache is reparented and which memcg it
-> belonged to initially. Determining if a kmem cache is reparented, we
-> can store a flag on the kmem cache and for the previous memcg we can
-> use fhandle. However to not make this more complicated, for now, we
-> can just have the info that the kmem cache was reparented i.e. belongs
-> to an offlined memcg.
-
-I need to play with Roman's kmem cache reparenting patch a bit more to
-see how to properly recognize a reparent'ed kmem cache. What I have
-noticed is that the dead kmem caches that I saw at boot up were gone
-after applying his patch. So that is a good thing.
-
-For now, I think the current patch is good enough for its purpose. I may
-send follow-up if I see something that can be improved.
-
-Cheers,
-Longman
+greg k-h
 
