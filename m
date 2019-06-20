@@ -2,204 +2,158 @@ Return-Path: <SRS0=424v=UT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C2CD8C43613
-	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 09:17:36 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 04DD9C43613
+	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 09:22:14 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 86DA320656
-	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 09:17:36 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 86DA320656
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id C74DC206E0
+	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 09:22:13 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C74DC206E0
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2E1E96B000C; Thu, 20 Jun 2019 05:17:36 -0400 (EDT)
+	id 613306B0003; Thu, 20 Jun 2019 05:22:13 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 26AA28E0002; Thu, 20 Jun 2019 05:17:36 -0400 (EDT)
+	id 5C31B8E0002; Thu, 20 Jun 2019 05:22:13 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 10D578E0001; Thu, 20 Jun 2019 05:17:36 -0400 (EDT)
+	id 48B948E0001; Thu, 20 Jun 2019 05:22:13 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id CB70B6B000C
-	for <linux-mm@kvack.org>; Thu, 20 Jun 2019 05:17:35 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id a13so1380381pgw.19
-        for <linux-mm@kvack.org>; Thu, 20 Jun 2019 02:17:35 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id F15FA6B0003
+	for <linux-mm@kvack.org>; Thu, 20 Jun 2019 05:22:12 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id n49so3409541edd.15
+        for <linux-mm@kvack.org>; Thu, 20 Jun 2019 02:22:12 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=E3eS2eemKiR8duN0iVNt7Ev75B+RwT8FCoH3qIkQA+E=;
-        b=pbktIRf3G+DV55JPCiOM86MQaYeqlPHsVdHMfykKij/QX+asjnckJCLUl7RdiuGZUQ
-         v/54Uati6PcVhYHdJM0DXM5IkQT7XHIAty3yCB1tqkhlTuLCx4mk4Pk26qFa/apk7+By
-         I7myj2hqq6muQFbEiw6GhqUyCZE+6S6e00Ctr3DvWI+vznjqmI/7jrxwTWsWFIV5lvOo
-         D7tK6Nl7N/M2wfTpTATKJnbs3NfKUBzjpQc/4OsXBtAMruw+4ue8+3iVKXK1Rygq0d1Q
-         v2i1Zpwv4mcXSVOpOSlncT1OVtXejABHhhJ9HWgKj5/KEZf1GVfYUmajyup2WmWN2HG3
-         UK2w==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: APjAAAUak/WhsIMf8INvhNDzyUL5ijQOVcjM4C01u9NRlxSuuMqzRITV
-	nymA0LxDvovRcjLWWBlUyRH/FUQvo5pfXPCVIMLA6BFDoBRKPm6ff0S5A0BhuHmXjjJQLGF24pg
-	gdjdBH6jn0p+KD3saD5+rif3X/nMmESudaP5vw1T6BnVPP1tkidjkEaYod+JKhPJWWw==
-X-Received: by 2002:a17:902:7d8d:: with SMTP id a13mr10628620plm.98.1561022255504;
-        Thu, 20 Jun 2019 02:17:35 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyjUdbjhJCNiGxvscnHEFk2ArYfBJN22YU5hLMpXmfOiseUxqPRAwgYo7SD7E4nvsuo7yRu
-X-Received: by 2002:a17:902:7d8d:: with SMTP id a13mr10628545plm.98.1561022254231;
-        Thu, 20 Jun 2019 02:17:34 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561022254; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=sBPBhExStgMyW/2DzeZ5lD+JndetnoLAmThCc5fXkTM=;
+        b=al7feuz59Qod+xRbowsvwpQpzh3nseo9uSDbX9jVUlrbZp3UnuARLNAGrSOMHtmcsN
+         d4Z2Xjx2iGlgj3re/UmCfcj0a2J9Yb5DmtNIAGJ8anlAi841475cABZBs7pk7cqCcIWR
+         5psDrDKvP9hqqPHYG//vfkoie2xTWGU4SAelqYdnTrS70yRjQCoC00nxMMvwR69vsbev
+         J9gvWsjLzHe0a165K7Q9XjVpqJE4UAv8E2e9JkiM1R5AFVLlrBm1Ph9OsPiaLiqfBdXb
+         hv7/RV+1npA7UIU+gIGhVPLJtF3RkPPMyh7r43Y9lurY4QND1VLGqdWtu0rbedhag0kG
+         KoqQ==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAWbyVmfqRv1gyn2blEeaHjrLL8qsPzSRTh1HkhcTquZ05vgNihZ
+	pWx0wCBsihrjS1d4QTaB562Fmfjeu+TtqFLd7dECZCUJFgjj61ueGioMEnu7kBJtxyt/sLmhxa5
+	tm4ji0XYx0EiOvnO+MNzwo4oikED+OSZEwSid1rJWPlHucjB/NhhvxLt0PzyVri0=
+X-Received: by 2002:a17:906:1914:: with SMTP id a20mr31052376eje.294.1561022532512;
+        Thu, 20 Jun 2019 02:22:12 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqz6SjeJlbrO8aqmL6lBjcFNUY5eKgmcvU60iwtOtxURLIRVnfUG0+wOsO6gXJQrCcsg+WAh
+X-Received: by 2002:a17:906:1914:: with SMTP id a20mr31052328eje.294.1561022531716;
+        Thu, 20 Jun 2019 02:22:11 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561022531; cv=none;
         d=google.com; s=arc-20160816;
-        b=OAcqvlcpVihbhaTBQ39H/Nz6EdYNP5xPhT1tkb8Ab38oJS2k9W5JZk/jYrPVvzywEr
-         wXlUB16RpD1OkpXN6F7bbGn2nTF09PAkhcAqHiJ0OA7hoRngEmee69WzJ+H9QAx2giLt
-         32N9OaCyu0U7tSTXJeyqqy3qkrNpEcceBlD/HQhQd71xupb5BV+qDZLmZ3F40V8x960Q
-         niDrSal4KarUI+4uwTv1lZJUyMobum0Ka89YkVLGKu8XL4OSDNFPPxbdmLSImU/Gc8XY
-         cSnAu886wyhJHElgrZXkHTWD5QR6VpWr4K2QbkXB1B4k7npSXdXjX4ploia1emMaqJBJ
-         5mSQ==
+        b=0pTjXKokchCpMH1Xae2Jx4/Yi4+NCB1Ao0CkQHqZ5VxUKbE0kBM5HxtXEa5vz7R8Nu
+         A52m4DTAN7tZvj0fQTGeVnFfxIFT0irybZEQvLfwer0gIGlAbR7TO4dAGT6eI6Hypd+x
+         xzgvWzY1b9A3hqTG2iXDLmAfzupe9o1yyJC9QNU6LANDG6wN8klHw40vR6b0c9NphDa0
+         noKexcW6Yw1a33bFeoHpmkAQ9kjhSgxShEW9Bekw9SOwoDKUD7Nwx8Ym+Eo1SSY5fdqq
+         Hoff35IoMYuVvl/ezo6wtSoDBlYpdi/lEsP0ticl7MLjCPNoBW8a13lLdpxXRvMlfWBe
+         e0pQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from;
-        bh=E3eS2eemKiR8duN0iVNt7Ev75B+RwT8FCoH3qIkQA+E=;
-        b=cBcZBD2I9Kjl00LaKc1rWH+nfekwa3PmC2nY+mLl/iOpbeZ3JIQ7/5K3ohlx3T6SN4
-         rOsD21u7ktmzoJWhIoS7EdxrgCpP0LVdMIDkErVZ7kZIz53nq9bDy+MwPwgroWgzi2Gb
-         oBRoaPIMVEiaXT4dRjaWqth9WabmIzTMNd24/O3aP9yzQ+FIGu/+GMTv5jltWw6+skLy
-         XK+G6C/2d9wIktfO45yvuGc64gqEdeuYzWcE2ErvlxF8SO5YDRF5LGjzpUEmC+o+KUBy
-         xYFo8+CEew3Tctu4w+xHxbwjuDjX2XUWYNy87QlxBstTohybyq00RXfV77Ea/eDSdSy/
-         47tg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=sBPBhExStgMyW/2DzeZ5lD+JndetnoLAmThCc5fXkTM=;
+        b=jt5GnKZqiYvJTBHpIyfx5eu14nTn29CP2DiBpVViFGbkJy9hs7bnlsAKUu1D9bxGe4
+         4rFeqGVRq4EE+hyfG7iQriJsQCQIrq5KQOSO3BaEk0YpdLOPHjOX6/dztV02ESug6da0
+         Lfnd7FKyfYXSQWcVp4Xaj4iwPXbzAvatcCNtEg4VqkJiTjvc/Yx17GiYHF8/8UhVdqxc
+         qoSZlUktR4t8r/7vmZotaN/z7Pl1SqBsI2xOhGNnmqMRTjQbY32e1H+RgeU3FnNWYppT
+         9kXIaqDPKxhaq1+8kAtBIIs4JGuWzTA8lcK/Lgrg+GgxdvwCZ06dZECaHYnpvkHBH8lC
+         IeFA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id n8si19296951pfa.223.2019.06.20.02.17.34
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id k2si15079429eds.64.2019.06.20.02.22.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 20 Jun 2019 02:17:34 -0700 (PDT)
-Received-SPF: pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
+        Thu, 20 Jun 2019 02:22:11 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098394.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x5K9DwXT019986;
-	Thu, 20 Jun 2019 05:17:23 -0400
-Received: from ppma01wdc.us.ibm.com (fd.55.37a9.ip4.static.sl-reverse.com [169.55.85.253])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2t87b3g49y-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=NOT);
-	Thu, 20 Jun 2019 05:17:23 -0400
-Received: from pps.filterd (ppma01wdc.us.ibm.com [127.0.0.1])
-	by ppma01wdc.us.ibm.com (8.16.0.27/8.16.0.27) with SMTP id x5K94kg7032616;
-	Thu, 20 Jun 2019 09:17:22 GMT
-Received: from b01cxnp22033.gho.pok.ibm.com (b01cxnp22033.gho.pok.ibm.com [9.57.198.23])
-	by ppma01wdc.us.ibm.com with ESMTP id 2t4ra70nu6-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=NOT);
-	Thu, 20 Jun 2019 09:17:22 +0000
-Received: from b01ledav005.gho.pok.ibm.com (b01ledav005.gho.pok.ibm.com [9.57.199.110])
-	by b01cxnp22033.gho.pok.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x5K9HLb334865502
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 20 Jun 2019 09:17:21 GMT
-Received: from b01ledav005.gho.pok.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 979C9AE063;
-	Thu, 20 Jun 2019 09:17:21 +0000 (GMT)
-Received: from b01ledav005.gho.pok.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id D7F42AE05C;
-	Thu, 20 Jun 2019 09:17:19 +0000 (GMT)
-Received: from skywalker.in.ibm.com (unknown [9.124.35.143])
-	by b01ledav005.gho.pok.ibm.com (Postfix) with ESMTP;
-	Thu, 20 Jun 2019 09:17:19 +0000 (GMT)
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-To: dan.j.williams@intel.com
-Cc: linux-nvdimm@lists.01.org, linux-mm@kvack.org,
-        linuxppc-dev@lists.ozlabs.org,
-        "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>,
-        Vishal Verma <vishal.l.verma@intel.com>
-Subject: [PATCH v4 6/6] =?UTF-8?q?mm/nvdimm:=20Fix=20endian=20conversion?= =?UTF-8?q?=20issues=C2=A0?=
-Date: Thu, 20 Jun 2019 14:46:26 +0530
-Message-Id: <20190620091626.31824-7-aneesh.kumar@linux.ibm.com>
-X-Mailer: git-send-email 2.21.0
-In-Reply-To: <20190620091626.31824-1-aneesh.kumar@linux.ibm.com>
-References: <20190620091626.31824-1-aneesh.kumar@linux.ibm.com>
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 1AA10AF58;
+	Thu, 20 Jun 2019 09:22:11 +0000 (UTC)
+Date: Thu, 20 Jun 2019 11:22:09 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+	linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>,
+	linux-api@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>,
+	Tim Murray <timmurray@google.com>,
+	Joel Fernandes <joel@joelfernandes.org>,
+	Suren Baghdasaryan <surenb@google.com>,
+	Daniel Colascione <dancol@google.com>,
+	Shakeel Butt <shakeelb@google.com>, Sonny Rao <sonnyrao@google.com>,
+	Brian Geffon <bgeffon@google.com>, jannh@google.com,
+	oleg@redhat.com, christian@brauner.io, oleksandr@redhat.com,
+	hdanton@sina.com, lizeb@google.com
+Subject: Re: [PATCH v2 4/5] mm: introduce MADV_PAGEOUT
+Message-ID: <20190620092209.GD12083@dhcp22.suse.cz>
+References: <20190610111252.239156-1-minchan@kernel.org>
+ <20190610111252.239156-5-minchan@kernel.org>
+ <20190619132450.GQ2968@dhcp22.suse.cz>
+ <20190620041620.GB105727@google.com>
+ <20190620070444.GB12083@dhcp22.suse.cz>
+ <20190620084040.GD105727@google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
-X-TM-AS-GCONF: 00
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-06-20_06:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=3 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1906200068
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190620084040.GD105727@google.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-nd_label->dpa issue was observed when trying to enable the namespace created
-with little-endian kernel on a big-endian kernel. That made me run
-`sparse` on the rest of the code and other changes are the result of that.
+On Thu 20-06-19 17:40:40, Minchan Kim wrote:
+> > > > Pushing out a shared page cache
+> > > > is possible even now but this interface gives a much easier tool to
+> > > > evict shared state and perform all sorts of timing attacks. Unless I am
+> > > > missing something we should be doing something similar to mincore and
+> > > > ignore shared pages without a writeable access or at least document why
+> > > > we do not care.
+> > > 
+> > > I'm not sure IIUC side channel attach. As you mentioned, without this syscall,
+> > > 1. they already can do that simply by memory hogging
+> > 
+> > This is way much more harder for practical attacks because the reclaim
+> > logic is not fully under the attackers control. Having a direct tool to
+> > reclaim memory directly then just opens doors to measure the other
+> > consumers of that memory and all sorts of side channel.
+> 
+> Not sure it's much more harder. It's really easy on my experience.
+> Just creating new memory hogger and consume memory step by step until
+> you newly allocated pages will be reclaimed.
 
-Fixes: d9b83c756953 ("libnvdimm, btt: rework error clearing")
-Fixes: 9dedc73a4658 ("libnvdimm/btt: Fix LBA masking during 'free list' population")
+You can contain an untrusted application into a memcg and it will only
+reclaim its own working set.
 
-Reviewed-by: Vishal Verma <vishal.l.verma@intel.com>
-Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
----
- drivers/nvdimm/btt.c            | 8 ++++----
- drivers/nvdimm/namespace_devs.c | 7 ++++---
- 2 files changed, 8 insertions(+), 7 deletions(-)
+> > > 2. If we need fix MADV_PAGEOUT, that means we need to fix MADV_DONTNEED, too?
+> > 
+> > nope because MADV_DONTNEED doesn't unmap from other processes.
+> 
+> Hmm, I don't understand. MADV_PAGEOUT doesn't unmap from other
+> processes, either.
 
-diff --git a/drivers/nvdimm/btt.c b/drivers/nvdimm/btt.c
-index a8d56887ec88..3e9f45aec8d1 100644
---- a/drivers/nvdimm/btt.c
-+++ b/drivers/nvdimm/btt.c
-@@ -392,9 +392,9 @@ static int btt_flog_write(struct arena_info *arena, u32 lane, u32 sub,
- 	arena->freelist[lane].sub = 1 - arena->freelist[lane].sub;
- 	if (++(arena->freelist[lane].seq) == 4)
- 		arena->freelist[lane].seq = 1;
--	if (ent_e_flag(ent->old_map))
-+	if (ent_e_flag(le32_to_cpu(ent->old_map)))
- 		arena->freelist[lane].has_err = 1;
--	arena->freelist[lane].block = le32_to_cpu(ent_lba(ent->old_map));
-+	arena->freelist[lane].block = ent_lba(le32_to_cpu(ent->old_map));
- 
- 	return ret;
- }
-@@ -560,8 +560,8 @@ static int btt_freelist_init(struct arena_info *arena)
- 		 * FIXME: if error clearing fails during init, we want to make
- 		 * the BTT read-only
- 		 */
--		if (ent_e_flag(log_new.old_map) &&
--				!ent_normal(log_new.old_map)) {
-+		if (ent_e_flag(le32_to_cpu(log_new.old_map)) &&
-+		    !ent_normal(le32_to_cpu(log_new.old_map))) {
- 			arena->freelist[i].has_err = 1;
- 			ret = arena_clear_freelist_error(arena, i);
- 			if (ret)
-diff --git a/drivers/nvdimm/namespace_devs.c b/drivers/nvdimm/namespace_devs.c
-index 007027202542..839da9e43572 100644
---- a/drivers/nvdimm/namespace_devs.c
-+++ b/drivers/nvdimm/namespace_devs.c
-@@ -1987,7 +1987,7 @@ static struct device *create_namespace_pmem(struct nd_region *nd_region,
- 		nd_mapping = &nd_region->mapping[i];
- 		label_ent = list_first_entry_or_null(&nd_mapping->labels,
- 				typeof(*label_ent), list);
--		label0 = label_ent ? label_ent->label : 0;
-+		label0 = label_ent ? label_ent->label : NULL;
- 
- 		if (!label0) {
- 			WARN_ON(1);
-@@ -2322,8 +2322,9 @@ static struct device **scan_labels(struct nd_region *nd_region)
- 			continue;
- 
- 		/* skip labels that describe extents outside of the region */
--		if (nd_label->dpa < nd_mapping->start || nd_label->dpa > map_end)
--			continue;
-+		if (__le64_to_cpu(nd_label->dpa) < nd_mapping->start ||
-+		    __le64_to_cpu(nd_label->dpa) > map_end)
-+				continue;
- 
- 		i = add_namespace_resource(nd_region, nd_label, devs, count);
- 		if (i < 0)
+Either I am confused or missing something. shrink_page_list does
+try_to_unmap and that unmaps from all processes, right?
+
+> Could you elborate it a bit more what's your concern?
+
+If you manage to unmap from a remote process then you can measure delays
+implied from the refault and that information can be used to infer what
+the remote application is doing.
 -- 
-2.21.0
+Michal Hocko
+SUSE Labs
 
