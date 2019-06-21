@@ -2,202 +2,137 @@ Return-Path: <SRS0=pbvW=UU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 08544C48BE3
-	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 08:11:53 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0D5A1C43613
+	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 08:15:36 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id AB343208CA
-	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 08:11:52 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AB343208CA
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id CF4D1208C3
+	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 08:15:35 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CF4D1208C3
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0FE936B0005; Fri, 21 Jun 2019 04:11:52 -0400 (EDT)
+	id 653106B0005; Fri, 21 Jun 2019 04:15:35 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0B0D08E0002; Fri, 21 Jun 2019 04:11:52 -0400 (EDT)
+	id 5DC2E8E0002; Fri, 21 Jun 2019 04:15:35 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id EB88D8E0001; Fri, 21 Jun 2019 04:11:51 -0400 (EDT)
+	id 47C838E0001; Fri, 21 Jun 2019 04:15:35 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A0EC06B0005
-	for <linux-mm@kvack.org>; Fri, 21 Jun 2019 04:11:51 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id i9so8112462edr.13
-        for <linux-mm@kvack.org>; Fri, 21 Jun 2019 01:11:51 -0700 (PDT)
+Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
+	by kanga.kvack.org (Postfix) with ESMTP id EC9196B0005
+	for <linux-mm@kvack.org>; Fri, 21 Jun 2019 04:15:34 -0400 (EDT)
+Received: by mail-wm1-f70.google.com with SMTP id y130so1043268wmg.1
+        for <linux-mm@kvack.org>; Fri, 21 Jun 2019 01:15:34 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=7i6dJlpycYYkF3HawzKcEbdgni5ZrmtRBp3Gy0v9tRc=;
-        b=HBMZyGx6zjLlhg5/SNSk1ujQssTMXvfw1U15cz8YGfpPfUFaJYO2DazYg5mmsDG4Z1
-         R5Y7HGXK+zV6JmYptg9k7zfThBUcYwgWPIxaasw7vBA7uefJVLRi+vGSyXe8QXlANsTh
-         ypc0TfpPFB6EwsKKc0/f/7PGZIv91gA3TXJKI1DNdl+qC9Bhe/26NgySZ/Q6LoX8pLKU
-         6UikwkcOG7/KhSZoKeyWDLXGiOV5Y5dSvzAnN+Jpsxhr5d39qElhjwAUissj09AqQWZX
-         PU7ROtT9uRUM8K/9DI8cGypp+nwi46XksYMID2gJ5x0kEPLA7N/UyuxrINX0mq2Qyjqg
-         lKuQ==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAUPusGwGPYmB76eF0D4vhdb1Kw7lQdz1ssB4KVKP+w1loYmep7P
-	thWXzGiax7wmWn4asvHN3+P4O7OIhLedzo4NRSSEzeYsZA3FlIon4d96tRKCBDdEwgpvisg1DhE
-	lCBIegD18D0CJPDhEL3nFhtBvWW2aFqXYn7p0ALG011m9trubhEO9lt7VWTH8RFU=
-X-Received: by 2002:a50:87d0:: with SMTP id 16mr91868011edz.133.1561104710921;
-        Fri, 21 Jun 2019 01:11:50 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyWF1vYwc95ZxhkG9DE3Mj561j5nJJf/Ke6XtjokJVy3cJf0C+ISWHYAIyHvS8s+lW7ohDS
-X-Received: by 2002:a50:87d0:: with SMTP id 16mr91867943edz.133.1561104710027;
-        Fri, 21 Jun 2019 01:11:50 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561104710; cv=none;
+         :in-reply-to:user-agent;
+        bh=gvbRTCQhZvqkaynZX02aoLCskbMv6rjKoYxxWYe5ZtQ=;
+        b=Joyn50aBDLQfnfZe4ybFrBeUvKqq7AR9T3gy25Br2k9XsoIX2n8PslfrHkpMNO69Jt
+         bsO8QLKwdo1dNTLfdLypp4ZVdTFZHWsfQUijmR4PTTXK8soiiCgsd5Byf1XTtad+RWHN
+         kvlTCceQo4tfdG8L2serQSqRyDQrWzUMM8qNkHSoDF8xEkM+mfBkrqJiiLDL5Blk3x3P
+         SOIFE2EG1QW3qfW9bQKENVRXGPqQDVuQM+PgSC/4Z6sm2ajLJ4+mW9CYpm1+KOjT87wG
+         ZvwI5/K1Mz2ryhl5zCTLamzaaBEGMsvdZ+jodeHM9eUwhehamQZSfST31kG4p7a2VhCA
+         Kjrw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
+X-Gm-Message-State: APjAAAW6njviotymjVZ/xH2/rTaupWUnLNv7rsOwTbnUyAXBGhKDxuiX
+	Lsj2cgc3BuO8UJnJD9tHOe08oIu8oaLyDdJJL2TmfuvXBPyRILh+G9vuxb612xNp6LIJxQHRAY9
+	GQDwr6SEHBMsTq9Ba222Dv1KuaIi/4BAY07dW8hF31ZVxcqWAw+YDkkXFKdShgaTKmA==
+X-Received: by 2002:a05:6000:124a:: with SMTP id j10mr2069687wrx.191.1561104934486;
+        Fri, 21 Jun 2019 01:15:34 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzwHZwWAmApSCyjRJEX81tZGagEJAi5d9IEmF7lw5GRbi7QxbRreSegFlxn+KWVXSEtbg5P
+X-Received: by 2002:a05:6000:124a:: with SMTP id j10mr2069613wrx.191.1561104933680;
+        Fri, 21 Jun 2019 01:15:33 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561104933; cv=none;
         d=google.com; s=arc-20160816;
-        b=d6tzfLAW95G3ynqCtsGW1hAWALqaHAixNYsBumJvgAh4RE5NkdX/u3Wy4BCqpfxhNJ
-         QO1lk5Ia0zGquAaQmlaabSo+8nuyUzKqTCzQh2lfKzL00vR79n9ihs5AyYpXnRx6Nbxq
-         euv2bFt8PHd4Bul3s2xA9iE1uVrleNJIBgRz0/HSuzse7VSQC5gof/DFhk2FPJDw/gzA
-         B+bGTjnTW1baLrTHIns3NFqoDTRztCm+gRiYbtcnJj8HeHhwzWZ4KxY3VtSLw170yHbb
-         2OO8bePWNfWGDq0J8pRVifP0DD7w28I4g1HWL7DXbKnROY9Cazp3KyXF7UEikBGOhspt
-         V++w==
+        b=ircockXMfTtps6Cgm4oXNI3KGZ2rJAeeYcAiBkti9TPplD4rKLoUwbpY4UnOppxGBI
+         lYrJyxQv4nm1ioqzlxP08GBn+KPvd++JGvELJOpmIrlQgkB5rutYdiQevu8JdrpYQ4k4
+         +jUnimPQrhIC+npmelyD0JNyr3jmu58E04129ngcqq4qN1pKmsEqoBee3mD0C4g7UiU8
+         oTWIPdDVgEgSWpuBxtikOzjtYhwNQEwikVRY6GyDO08dV00dLAY0vqdovuNb9Jd8Btit
+         K+J2pbpqCW0Ll64K0tmXjfq6xp2g57kIqlMzwmYaH0bEnTxyBk2u47ep76cBXFOMtnq1
+         kfVA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date;
-        bh=7i6dJlpycYYkF3HawzKcEbdgni5ZrmtRBp3Gy0v9tRc=;
-        b=s+ZwzhKqLsAPAVtPLQTrWs2Yq0EwrB15K1S20/A/3sQoW8zi0n9E0c5vrlNZ/n16JL
-         K25/9ujwhnN06LqFpwQAZBgy8qDjzNNC8n21tpgq09FBRGthgxn6hRo9oA4GFHi4Hja+
-         FWtxUhptBqOrNvlNvml4shMiJSqr8auusACB7qV3yRHJl8nbCIdTHL3pHCSE+NLRZ2j+
-         C9uXI/0g/8Rlo0hGN0GqSnp+SZ+iqZV8zcovxWOjPu7ypFZkGU/G9rmyrJ03x9ZbBEAk
-         7pMoxV/k8tcpRtebUUrYA245rzCj1YZ6wM4Boa0IuA5HAuJxDuduh+baGuQvLUakmM5i
-         uMFg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=gvbRTCQhZvqkaynZX02aoLCskbMv6rjKoYxxWYe5ZtQ=;
+        b=oDFwqf5VpOC7t0VtPvCOXCu11+wHQkNdW3TAOHF8hhtdko9eYigMZ/puMg1adI8lTm
+         bpg76MfCQTUUwcYlxENWlHBsItvuUdn7JgpRRMK/iZWle1NuZgDPUwuy0ZLWZTbOohmX
+         aEkcP7LNfIK+K5tVUyJzISsY2htESEEC0YL7TlldkQIu5sAY0YyzQ9uyncJ9h6W2lry4
+         gKAvv5TMjSn5gcN+J0fVtiv/qVmy+ImEYmCCmqIjgPmro1HjcC3LyG2PIMLvr+mcoL/L
+         9G643Qe8lYzVYICRTiVTfR2bmPHoy3+ROwR2vvgAmpKYMPMKrmuuobRzdBJytP8bC0OJ
+         d6pQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id gf12si1337222ejb.392.2019.06.21.01.11.49
+       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
+Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
+        by mx.google.com with ESMTPS id q4si1869017wrn.99.2019.06.21.01.15.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 21 Jun 2019 01:11:49 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Fri, 21 Jun 2019 01:15:33 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) client-ip=213.95.11.211;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 5292CAF50;
-	Fri, 21 Jun 2019 08:11:49 +0000 (UTC)
-Date: Fri, 21 Jun 2019 10:11:47 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: ira.weiny@intel.com
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org,
-	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
-	Dan Williams <dan.j.williams@intel.com>,
-	John Hubbard <jhubbard@nvidia.com>
-Subject: Re: [PATCH v4] mm/swap: Fix release_pages() when releasing devmap
- pages
-Message-ID: <20190621081147.GC3429@dhcp22.suse.cz>
-References: <20190605214922.17684-1-ira.weiny@intel.com>
+       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
+Received: by newverein.lst.de (Postfix, from userid 2407)
+	id BAE6368C4E; Fri, 21 Jun 2019 10:15:01 +0200 (CEST)
+Date: Fri, 21 Jun 2019 10:15:01 +0200
+From: Christoph Hellwig <hch@lst.de>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Nicholas Piggin <npiggin@gmail.com>,
+	Andrey Konovalov <andreyknvl@google.com>,
+	Benjamin Herrenschmidt <benh@kernel.crashing.org>,
+	Rich Felker <dalias@libc.org>,
+	"David S. Miller" <davem@davemloft.net>,
+	Christoph Hellwig <hch@lst.de>, James Hogan <jhogan@kernel.org>,
+	Khalid Aziz <khalid.aziz@oracle.com>,
+	Linux List Kernel Mailing <linux-kernel@vger.kernel.org>,
+	linux-mips@vger.kernel.org, Linux-MM <linux-mm@kvack.org>,
+	linuxppc-dev@lists.ozlabs.org,
+	Linux-sh list <linux-sh@vger.kernel.org>,
+	Michael Ellerman <mpe@ellerman.id.au>,
+	Paul Burton <paul.burton@mips.com>,
+	Paul Mackerras <paulus@samba.org>, sparclinux@vger.kernel.org,
+	the arch/x86 maintainers <x86@kernel.org>,
+	Yoshinori Sato <ysato@users.sourceforge.jp>
+Subject: Re: [PATCH 16/16] mm: pass get_user_pages_fast iterator arguments
+ in a structure
+Message-ID: <20190621081501.GA17718@lst.de>
+References: <20190611144102.8848-1-hch@lst.de> <20190611144102.8848-17-hch@lst.de> <1560300464.nijubslu3h.astroid@bobo.none> <CAHk-=wjSo+TzkvYnAqrp=eFgzzc058DhSMTPr4-2quZTbGLfnw@mail.gmail.com> <1561032202.0qfct43s2c.astroid@bobo.none> <CAHk-=wh46y3x5O0HkR=R4ETh6e5pDCrEsJ94CtC0fyQiYYAf6A@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20190605214922.17684-1-ira.weiny@intel.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <CAHk-=wh46y3x5O0HkR=R4ETh6e5pDCrEsJ94CtC0fyQiYYAf6A@mail.gmail.com>
+User-Agent: Mutt/1.5.17 (2007-11-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Sorry for a late reply.
+On Thu, Jun 20, 2019 at 10:21:46AM -0700, Linus Torvalds wrote:
+> Hmm. Honestly, I've never seen anything like that in any kernel profiles.
+> 
+> Compared to the problems I _do_ see (which is usually the obvious
+> cache misses, and locking), it must either be in the noise or it's
+> some problem specific to whatever CPU you are doing performance work
+> on?
+> 
+> I've occasionally seen pipeline hiccups in profiles, but it's usually
+> been either some serious glass jaw of the core, or it's been something
+> really stupid we did (or occasionally that the compiler did: one in
+> particular I remember was how there was a time when gcc would narrow
+> stores when it could, so if you set a bit in a word, it would do it
+> with a byte store, and then when you read the whole word afterwards
+> you'd get a major pipeline stall and it happened to show up in some
+> really hot paths).
 
-On Wed 05-06-19 14:49:22, ira.weiny@intel.com wrote:
-> From: Ira Weiny <ira.weiny@intel.com>
-> 
-> release_pages() is an optimized version of a loop around put_page().
-> Unfortunately for devmap pages the logic is not entirely correct in
-> release_pages().  This is because device pages can be more than type
-> MEMORY_DEVICE_PUBLIC.  There are in fact 4 types, private, public, FS
-> DAX, and PCI P2PDMA.  Some of these have specific needs to "put" the
-> page while others do not.
-> 
-> This logic to handle any special needs is contained in
-> put_devmap_managed_page().  Therefore all devmap pages should be
-> processed by this function where we can contain the correct logic for a
-> page put.
-> 
-> Handle all device type pages within release_pages() by calling
-> put_devmap_managed_page() on all devmap pages.  If
-> put_devmap_managed_page() returns true the page has been put and we
-> continue with the next page.  A false return of
-> put_devmap_managed_page() means the page did not require special
-> processing and should fall to "normal" processing.
-> 
-> This was found via code inspection while determining if release_pages()
-> and the new put_user_pages() could be interchangeable.[1]
+I've not seen any difference in the GUP bench output here ar all.
 
-This is much more clear than the previous version I've looked at. Thanks
-a lot!
-> 
-> [1] https://lore.kernel.org/lkml/20190523172852.GA27175@iweiny-DESK2.sc.intel.com/
-> 
-> Cc: Jérôme Glisse <jglisse@redhat.com>
-> Cc: Michal Hocko <mhocko@suse.com>
-> Reviewed-by: Dan Williams <dan.j.williams@intel.com>
-> Reviewed-by: John Hubbard <jhubbard@nvidia.com>
-> Signed-off-by: Ira Weiny <ira.weiny@intel.com>
-
-Acked-by: Michal Hocko <mhocko@suse.com>
-
-> 
-> ---
-> Changes from V3:
-> 	Update comment to the one provided by John
-> 
-> Changes from V2:
-> 	Update changelog for more clarity as requested by Michal
-> 	Update comment WRT "failing" of put_devmap_managed_page()
-> 
-> Changes from V1:
-> 	Add comment clarifying that put_devmap_managed_page() can still
-> 	fail.
-> 	Add Reviewed-by tags.
-> 
->  mm/swap.c | 13 +++++++++----
->  1 file changed, 9 insertions(+), 4 deletions(-)
-> 
-> diff --git a/mm/swap.c b/mm/swap.c
-> index 7ede3eddc12a..607c48229a1d 100644
-> --- a/mm/swap.c
-> +++ b/mm/swap.c
-> @@ -740,15 +740,20 @@ void release_pages(struct page **pages, int nr)
->  		if (is_huge_zero_page(page))
->  			continue;
->  
-> -		/* Device public page can not be huge page */
-> -		if (is_device_public_page(page)) {
-> +		if (is_zone_device_page(page)) {
->  			if (locked_pgdat) {
->  				spin_unlock_irqrestore(&locked_pgdat->lru_lock,
->  						       flags);
->  				locked_pgdat = NULL;
->  			}
-> -			put_devmap_managed_page(page);
-> -			continue;
-> +			/*
-> +			 * ZONE_DEVICE pages that return 'false' from
-> +			 * put_devmap_managed_page() do not require special
-> +			 * processing, and instead, expect a call to
-> +			 * put_page_testzero().
-> +			 */
-> +			if (put_devmap_managed_page(page))
-> +				continue;
->  		}
->  
->  		page = compound_head(page);
-> -- 
-> 2.20.1
-> 
-
--- 
-Michal Hocko
-SUSE Labs
+But I'm fine with skipping this patch for now, I have a potential
+series I'm looking into that would benefit a lot from it, but we
+can discusss it in that context and make sure all the other works gets in
+in time.
 
