@@ -2,383 +2,182 @@ Return-Path: <SRS0=pbvW=UU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=unavailable
+X-Spam-Status: No, score=-11.4 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 765A5C48BE3
-	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 15:23:07 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D53E0C48BE3
+	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 15:24:35 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1E3CF2075E
-	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 15:23:06 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1E3CF2075E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 9DFE92089E
+	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 15:24:35 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="Orrh03bf"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9DFE92089E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 957A36B0007; Fri, 21 Jun 2019 11:23:06 -0400 (EDT)
+	id 13FAA6B0007; Fri, 21 Jun 2019 11:24:35 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 906768E0003; Fri, 21 Jun 2019 11:23:06 -0400 (EDT)
+	id 0CA8B8E0003; Fri, 21 Jun 2019 11:24:35 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7817C8E0001; Fri, 21 Jun 2019 11:23:06 -0400 (EDT)
+	id EF9A98E0001; Fri, 21 Jun 2019 11:24:34 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 51A6C6B0007
-	for <linux-mm@kvack.org>; Fri, 21 Jun 2019 11:23:06 -0400 (EDT)
-Received: by mail-qt1-f197.google.com with SMTP id p34so8267439qtp.1
-        for <linux-mm@kvack.org>; Fri, 21 Jun 2019 08:23:06 -0700 (PDT)
+Received: from mail-vs1-f71.google.com (mail-vs1-f71.google.com [209.85.217.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C67636B0007
+	for <linux-mm@kvack.org>; Fri, 21 Jun 2019 11:24:34 -0400 (EDT)
+Received: by mail-vs1-f71.google.com with SMTP id a200so2314983vsd.8
+        for <linux-mm@kvack.org>; Fri, 21 Jun 2019 08:24:34 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:organization:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc
          :content-transfer-encoding;
-        bh=oyOzNHM9ZC43ve9wuTG8cMET2PXXy1pJ6YhaEQVUgg4=;
-        b=KVLdIFfEjx0MGwBXtqv2YI7KdI+6w4t/p24YYMsS+mBaxxchugHjufFq4kDopvFp+g
-         quQFqpLBWRrjnfHck+16NLf8IPMlLZM4CbFCMDczIcy21CCqfP9pNxyp5t6tVg6APsvP
-         AyUhu4lAQTfBwFtFt97dBvNsOdGnWtyx952rb/hRpS144/1hpc/fCTR0x7Q3axDlc6zQ
-         EBEaLkkK1DPWPgLO+YAIbfMqiYONRh5bogyKCBE0cLDP3bySjJhEiBhUdbUROPG/YI9L
-         okPpd+qngnQTqOzRYAAk3SPZ0DrRqgZAQyibubW19gJnhEKd7wOEggL91jMgs+s0scoq
-         naDQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAXF3gOlhkXS8ITc1M8V8xn6dUlXZEvihwiREG8MPN3rOpjGX9Rv
-	77wIYiE6bY2NAfLla+CsRe0q+A/Q16Oou2Pn47dbRT3yngwgr2Ub7tHZq7+0m20wG99K+WYNcYt
-	e2gyftHUqez4sv/+nQq5nurWg9nLRUOWVo1AJO9UZOxkxuLq3hnCigKUKI+28F+G/Qw==
-X-Received: by 2002:a37:4a8f:: with SMTP id x137mr66211712qka.353.1561130586067;
-        Fri, 21 Jun 2019 08:23:06 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzgxmgSwQ/MA17cDYhIAbi9yjOv3DIVH+2xQ4yUjBemLydK4pyj/W0cIPClwVsQsswoWMEH
-X-Received: by 2002:a37:4a8f:: with SMTP id x137mr66211651qka.353.1561130585245;
-        Fri, 21 Jun 2019 08:23:05 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561130585; cv=none;
+        bh=amUyKy/Lgb0XxSBaEjjhtM0Eo45SjaPoxv+deIw86VE=;
+        b=O9FXa/JcMglIRFiMsemqpdKzG185wHpfLkjO2dgTzQqqRHZqj0d1rRASI0GSb0e6NH
+         5Uokg3ELq8owJbrBJNEKXi6ngw3lmYMGLvM1EMmKM4+HVZJ2zzQmAjwSRiO6TWsrhkJa
+         +MjxxnO5c3liozuACgdFjQGks59PAiE8b4J5fV/2hp79JCwsm80jW7rz1JoxIy3eBIno
+         0fnSKSNFX7pNhFcK3WoegMfBr64H9yb79DeEiisEn32AuVKpQXNk9tOUqmxQmdonLVGV
+         Q1gftzGEhulEX/cY5+Lw7FmolRn+oa5LhQ4ceLBTR+XVEAN9k37T1WSNsrEKWKvjIllj
+         UGsg==
+X-Gm-Message-State: APjAAAVCSVYW4eZHwDMc6Q3icJcSGPcXrSHLfyHaUbM5Jpm4lg6jjKod
+	ynylhT6FNk0GqJDpjKkzfbtK2ukHHC84xO52mUKZBfoeIRg9BkV1ZdkPm6fM7qOM98hxFCTZ1nh
+	Mk6T1C3bxdits5Gx/Rdzy2ifjO2HECBAU/VWEDSsBtSJ97LcWAdyy1ZqHV0bndNR+zg==
+X-Received: by 2002:a05:6102:458:: with SMTP id e24mr5180419vsq.31.1561130674543;
+        Fri, 21 Jun 2019 08:24:34 -0700 (PDT)
+X-Received: by 2002:a05:6102:458:: with SMTP id e24mr5180384vsq.31.1561130673952;
+        Fri, 21 Jun 2019 08:24:33 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561130673; cv=none;
         d=google.com; s=arc-20160816;
-        b=mfEKcN7wBzKkqeTB48e0Mg5YjA89h02nwGhLiKpbbTG6+I+uzDx8qbDzHhLoQfNAWn
-         9QunnukMA829Sxo03q4NdO98ZEnx1GvobxL9tkv9t64f47EaGtFeKqwv6pICgqOjzPaA
-         sMbejl0nm/q4KN+WMFaeaH33yMaXctgZxgtd0iMkInhPPN2xL7OFpN9Gbs5sC6qv8kfW
-         XQ3hfryj3h8xp82Ta4eji9lDwsCJWS+ZBbvNPiz/X5gPyx3qeYgIaCywQeBPzeqa97xs
-         sVhaFVU7JpehOxBOUTupGHaJKbF13m36V9AuR+Kh6b7ZWv9BasWVM2T/mNqFf1CmzT9M
-         ZJag==
+        b=wt3hltt83S09jz4RkXTX7lYVseVGzc9rIUcRVeA9z345ldvdM38cWYT5NtptzkxV4p
+         U1BJ9wk1bIuvPOSGeLCrCGL206NAhGLhOeizYeCe1KuGPGm7CDTitvh7AlMciVef0LTT
+         QR9E5USTOuF9yoR1PnDUSOp9H0gUzUsHps6++5Z6830bPPUdwuWIFVT/5uKQmG4SZlcI
+         c66GBv4AK/RqkoBlbqhBxk3RCnuYENzcOdfg5tbkO35KAkZKe2MBz78HPJuelkur1W2N
+         w1kSMVW3MP3pD3QwbpNFEQVnRBn5sl0Pjp8p/3MLEN6UZ3gJsObYAnagraPFmmPwRMFz
+         PdAg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:organization:autocrypt:openpgp:from
-         :references:cc:to:subject;
-        bh=oyOzNHM9ZC43ve9wuTG8cMET2PXXy1pJ6YhaEQVUgg4=;
-        b=qp0j1mEnrYE9kDx8vvt6e0YmEiSOUJfTwNcR8zgNkwemqv42xG3ZVuKhCHlYQU844W
-         qR76bZQOXDnWUH35Qq/bQS2liBe1Vapn+6M+xRvXphXMXytW2ybgX18R3Ad6kCuBoomW
-         P4LUn8B4uIywOtv+SCzf5L1Dm65lBnUIEXCxD7ZquSRwjUZdPVhdOlMvGpKeOQOlWRjX
-         BkMx8b6wPoOADpgfuIH8g/Wf+B7kDDdpNiONaGtMTc9qMvoqlCMz98coFjX2t1/8z4Sq
-         u58BANoNhdFo3v3grKmx31FzOi2dj7YothKeEzU6JIJaXUQgklF14ACLP3d1WsDNSrxF
-         vEkg==
+        h=content-transfer-encoding:cc:to:subject:message-id:date:from
+         :in-reply-to:references:mime-version:dkim-signature;
+        bh=amUyKy/Lgb0XxSBaEjjhtM0Eo45SjaPoxv+deIw86VE=;
+        b=u0C0YvD6jLx0Sy4Gc1IkkOzlFSJOGSLfFY1/NX6F51sxjrQsFKSq5VmLEa5ECfmCSE
+         Z3+up1zsqvNZn6BFpnwSfuyKRrR2T7cw95xwuS/ngt4t/BtcseHveXwSC5awbsuUFw7d
+         Xsb4SB23Ks0vWgKqG/xy4Vuu4SVZabVrbvEWW7s5sq3kkZ8Gmy0+fcqqCZYLg7XoqgIp
+         mT/yY5Ua7heUG+cF5M/CrvlMe25Dmr2LsElJv+M0m2Ey7WyuNrv1/Qk4Xvp9hMktkqDu
+         juJ0YIEhK20/NZSzPFtGwOTYVmffhKn9foBU8PXy2zgd5ba0lgIW2Lpy20sSLXoQ8c4E
+         hSag==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id s190si1849130qkh.220.2019.06.21.08.23.05
+       dkim=pass header.i=@google.com header.s=20161025 header.b=Orrh03bf;
+       spf=pass (google.com: domain of glider@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=glider@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id l2sor1817205ual.49.2019.06.21.08.24.33
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 21 Jun 2019 08:23:05 -0700 (PDT)
-Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (Google Transport Security);
+        Fri, 21 Jun 2019 08:24:33 -0700 (PDT)
+Received-SPF: pass (google.com: domain of glider@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id AB73A30833BE;
-	Fri, 21 Jun 2019 15:22:36 +0000 (UTC)
-Received: from [10.36.118.55] (unknown [10.36.118.55])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 46837608D0;
-	Fri, 21 Jun 2019 15:22:14 +0000 (UTC)
-Subject: Re: [PATCH v3 0/6] mm: Further memory block device cleanups
-To: Qian Cai <cai@lca.pw>, linux-kernel@vger.kernel.org
-Cc: Dan Williams <dan.j.williams@intel.com>,
- Andrew Morton <akpm@linux-foundation.org>, linuxppc-dev@lists.ozlabs.org,
- linux-acpi@vger.kernel.org, linux-mm@kvack.org,
- Andrew Banman <andrew.banman@hpe.com>,
- Anshuman Khandual <anshuman.khandual@arm.com>,
- Arun KS <arunks@codeaurora.org>, Baoquan He <bhe@redhat.com>,
- Benjamin Herrenschmidt <benh@kernel.crashing.org>,
- Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
- Johannes Weiner <hannes@cmpxchg.org>, Juergen Gross <jgross@suse.com>,
- Keith Busch <keith.busch@intel.com>, Len Brown <lenb@kernel.org>,
- Mel Gorman <mgorman@techsingularity.net>,
- Michael Ellerman <mpe@ellerman.id.au>, Michael Neuling <mikey@neuling.org>,
- Michal Hocko <mhocko@suse.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>,
- "mike.travis@hpe.com" <mike.travis@hpe.com>,
- Oscar Salvador <osalvador@suse.com>, Oscar Salvador <osalvador@suse.de>,
- Paul Mackerras <paulus@samba.org>, Pavel Tatashin
- <pasha.tatashin@oracle.com>, Pavel Tatashin <pasha.tatashin@soleen.com>,
- Pavel Tatashin <pavel.tatashin@microsoft.com>,
- "Rafael J. Wysocki" <rafael@kernel.org>,
- "Rafael J. Wysocki" <rjw@rjwysocki.net>,
- Rashmica Gupta <rashmica.g@gmail.com>,
- Stephen Rothwell <sfr@canb.auug.org.au>, Thomas Gleixner
- <tglx@linutronix.de>, Vlastimil Babka <vbabka@suse.cz>,
- Wei Yang <richard.weiyang@gmail.com>
-References: <20190620183139.4352-1-david@redhat.com>
- <1561130120.5154.47.camel@lca.pw>
-From: David Hildenbrand <david@redhat.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
- 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
- SE+xAvmumFBY
-Organization: Red Hat GmbH
-Message-ID: <f4d5979b-f7c4-0249-6c09-06539cc5824c@redhat.com>
-Date: Fri, 21 Jun 2019 17:22:13 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.0
+       dkim=pass header.i=@google.com header.s=20161025 header.b=Orrh03bf;
+       spf=pass (google.com: domain of glider@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=glider@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc:content-transfer-encoding;
+        bh=amUyKy/Lgb0XxSBaEjjhtM0Eo45SjaPoxv+deIw86VE=;
+        b=Orrh03bfO4aJYjMke+4LWCWkC5w7vaywjOm7sMgTDaogBQJkmp4uomtEoruNeHvXd2
+         wrFFjNZjkg9BjWHJ022RdUhZHglEuVmdtxZhRx0tOMqawEIBURchGPgfPlRj+a8uxPhP
+         JX7n4iiDXIP+0JEApmdlwKD/3M2IK7LKVFDrSVbORdw5UYpwP33WvmSo1xgIQ1mF8URV
+         CpjrlFZib0+riIcxhJsF+r9Q6aor+CUCS5+r6W5oWWyhoNk2kahaBYe+zmaLbLSfArA9
+         tIFjs3SCWMUiX9Z3BF0xEM+M/Z+AdXOT++bJRk7DdW0a9XEcD1YrbOeecsxWtuTYKrTv
+         5l5A==
+X-Google-Smtp-Source: APXvYqya9eZAEQgsoWb9uXlO3KmWacfsgpndqCO4dX8FLhHaJ4fELI+m+POxQSeCWNXsEFT6mpjddhLn9tBh04jJ7r0=
+X-Received: by 2002:ab0:30a3:: with SMTP id b3mr12857232uam.3.1561130673280;
+ Fri, 21 Jun 2019 08:24:33 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <1561130120.5154.47.camel@lca.pw>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.44]); Fri, 21 Jun 2019 15:23:04 +0000 (UTC)
+References: <20190617151050.92663-1-glider@google.com> <20190617151050.92663-2-glider@google.com>
+ <20190621070905.GA3429@dhcp22.suse.cz> <CAG_fn=UFj0Lzy3FgMV_JBKtxCiwE03HVxnR8=f9a7=4nrUFXSw@mail.gmail.com>
+ <CAG_fn=W90HNeZ0UcUctnbUBzJ=_b+gxMGdUoDyO3JPoyy4dGSg@mail.gmail.com> <20190621151210.GF3429@dhcp22.suse.cz>
+In-Reply-To: <20190621151210.GF3429@dhcp22.suse.cz>
+From: Alexander Potapenko <glider@google.com>
+Date: Fri, 21 Jun 2019 17:24:21 +0200
+Message-ID: <CAG_fn=W2fm5zkAUW8PcTYpfH57H89ukFGAoBHUOmyM-S1agdZg@mail.gmail.com>
+Subject: Re: [PATCH v7 1/2] mm: security: introduce init_on_alloc=1 and
+ init_on_free=1 boot options
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, 
+	Kees Cook <keescook@chromium.org>, Masahiro Yamada <yamada.masahiro@socionext.com>, 
+	James Morris <jmorris@namei.org>, "Serge E. Hallyn" <serge@hallyn.com>, 
+	Nick Desaulniers <ndesaulniers@google.com>, Kostya Serebryany <kcc@google.com>, 
+	Dmitry Vyukov <dvyukov@google.com>, Sandeep Patil <sspatil@android.com>, 
+	Laura Abbott <labbott@redhat.com>, Randy Dunlap <rdunlap@infradead.org>, Jann Horn <jannh@google.com>, 
+	Mark Rutland <mark.rutland@arm.com>, Marco Elver <elver@google.com>, 
+	Linux Memory Management List <linux-mm@kvack.org>, 
+	linux-security-module <linux-security-module@vger.kernel.org>, 
+	Kernel Hardening <kernel-hardening@lists.openwall.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 21.06.19 17:15, Qian Cai wrote:
-> On Thu, 2019-06-20 at 20:31 +0200, David Hildenbrand wrote:
->> @Andrew: Only patch 1, 4 and 6 changed compared to v1.
->>
->> Some further cleanups around memory block devices. Especially, clean up
->> and simplify walk_memory_range(). Including some other minor cleanups.
->>
->> Compiled + tested on x86 with DIMMs under QEMU. Compile-tested on ppc64.
->>
->> v2 -> v3:
->> - "mm/memory_hotplug: Rename walk_memory_range() and pass start+size .."
->> -- Avoid warning on ppc.
->> - "drivers/base/memory.c: Get rid of find_memory_block_hinted()"
->> -- Fixup a comment regarding hinted devices.
->>
->> v1 -> v2:
->> - "mm: Section numbers use the type "unsigned long""
->> -- "unsigned long i" -> "unsigned long nr", in one case -> "int i"
->> - "drivers/base/memory.c: Get rid of find_memory_block_hinted("
->> -- Fix compilation error
->> -- Get rid of the "hint" parameter completely
->>
->> David Hildenbrand (6):
->>   mm: Section numbers use the type "unsigned long"
->>   drivers/base/memory: Use "unsigned long" for block ids
->>   mm: Make register_mem_sect_under_node() static
->>   mm/memory_hotplug: Rename walk_memory_range() and pass start+size
->>     instead of pfns
->>   mm/memory_hotplug: Move and simplify walk_memory_blocks()
->>   drivers/base/memory.c: Get rid of find_memory_block_hinted()
->>
->>  arch/powerpc/platforms/powernv/memtrace.c |  23 ++---
->>  drivers/acpi/acpi_memhotplug.c            |  19 +---
->>  drivers/base/memory.c                     | 120 +++++++++++++---------
->>  drivers/base/node.c                       |   8 +-
->>  include/linux/memory.h                    |   5 +-
->>  include/linux/memory_hotplug.h            |   2 -
->>  include/linux/mmzone.h                    |   4 +-
->>  include/linux/node.h                      |   7 --
->>  mm/memory_hotplug.c                       |  57 +---------
->>  mm/sparse.c                               |  12 +--
->>  10 files changed, 106 insertions(+), 151 deletions(-)
->>
-> 
-> This series causes a few machines are unable to boot triggering endless soft
-> lockups. Reverted those commits fixed the issue.
-> 
-> 97f4217d1da0 Revert "mm/memory_hotplug: rename walk_memory_range() and pass
-> start+size instead of pfns"
-> c608eebf33c6 Revert "mm-memory_hotplug-rename-walk_memory_range-and-pass-
-> startsize-instead-of-pfns-fix"
-> 34b5e4ab7558 Revert "mm/memory_hotplug: move and simplify walk_memory_blocks()"
-> 59a9f3eec5d1 Revert "drivers/base/memory.c: Get rid of
-> find_memory_block_hinted()"
-> 5cfcd52288b6 Revert "drivers-base-memoryc-get-rid-of-find_memory_block_hinted-
-> v3"
-> 
-> [    4.582081][    T1] ACPI FADT declares the system doesn't support PCIe ASPM,
-> so disable it
-> [    4.590405][    T1] ACPI: bus type PCI registered
-> [    4.592908][    T1] PCI: MMCONFIG for domain 0000 [bus 00-ff] at [mem
-> 0x80000000-0x8fffffff] (base 0x80000000)
-> [    4.601860][    T1] PCI: MMCONFIG at [mem 0x80000000-0x8fffffff] reserved in
-> E820
-> [    4.601860][    T1] PCI: Using configuration type 1 for base access
-> [   28.661336][   C16] watchdog: BUG: soft lockup - CPU#16 stuck for 22s!
-> [swapper/0:1]
-> [   28.671351][   C16] Modules linked in:
-> [   28.671354][   C16] CPU: 16 PID: 1 Comm: swapper/0 Not tainted 5.2.0-rc5-
-> next-20190621+ #1
-> [   28.681366][   C16] Hardware name: HPE ProLiant DL385 Gen10/ProLiant DL385
-> Gen10, BIOS A40 03/09/2018
-> [   28.691334][   C16] RIP: 0010:_raw_spin_unlock_irqrestore+0x2f/0x40
-> [   28.701334][   C16] Code: 55 48 89 e5 41 54 49 89 f4 be 01 00 00 00 53 48 8b
-> 55 08 48 89 fb 48 8d 7f 18 e8 4c 89 7d ff 48 89 df e8 94 f9 7d ff 41 54 9d <65>
-> ff 0d c2 44 8d 48 5b 41 5c 5d c3 0f 1f 44 00 00 0f 1f 44 00 00
-> [   28.711354][   C16] RSP: 0018:ffff888205b27bf8 EFLAGS: 00000246 ORIG_RAX:
-> ffffffffffffff13
-> [   28.721372][   C16] RAX: 0000000000000000 RBX: ffff8882053d6138 RCX:
-> ffffffffb6f2a3b8
-> [   28.731371][   C16] RDX: 1ffff11040a7ac27 RSI: dffffc0000000000 RDI:
-> ffff8882053d6138
-> [   28.741371][   C16] RBP: ffff888205b27c08 R08: ffffed1040a7ac28 R09:
-> ffffed1040a7ac27
-> [   28.751334][   C16] R10: ffffed1040a7ac27 R11: ffff8882053d613b R12:
-> 0000000000000246
-> [   28.751370][   C16] R13: ffff888205b27c98 R14: ffff8884504d0a20 R15:
-> 0000000000000000
-> [   28.761368][   C16] FS:  0000000000000000(0000) GS:ffff888454500000(0000)
-> knlGS:0000000000000000
-> [   28.771373][   C16] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> [   28.781334][   C16] CR2: 0000000000000000 CR3: 00000007c9012000 CR4:
-> 00000000001406a0
-> [   28.791333][   C16] Call Trace:
-> [   28.791374][   C16]  klist_next+0xd8/0x1c0
-> [   28.791374][   C16]  subsys_find_device_by_id+0x13b/0x1f0
-> [   28.801334][   C16]  ? bus_find_device_by_name+0x20/0x20
-> [   28.801370][   C16]  ? kobject_put+0x23/0x250
-> [   28.811333][   C16]  walk_memory_blocks+0x6c/0xb8
-> [   28.811353][   C16]  ? write_policy_show+0x40/0x40
-> [   28.821334][   C16]  link_mem_sections+0x7e/0xa0
-> [   28.821369][   C16]  ? unregister_memory_block_under_nodes+0x210/0x210
-> [   28.831353][   C16]  ? __register_one_node+0x3bd/0x600
-> [   28.831353][   C16]  topology_init+0xbf/0x126
-> [   28.841364][   C16]  ? enable_cpu0_hotplug+0x1a/0x1a
-> [   28.841368][   C16]  do_one_initcall+0xfe/0x45a
-> [   28.851334][   C16]  ? initcall_blacklisted+0x150/0x150
-> [   28.851353][   C16]  ? kasan_check_write+0x14/0x20
-> [   28.861333][   C16]  ? up_write+0x75/0x140
-> [   28.861369][   C16]  kernel_init_freeable+0x619/0x6ac
-> [   28.871333][   C16]  ? rest_init+0x188/0x188
-> [   28.871353][   C16]  kernel_init+0x11/0x138
-> [   28.881363][   C16]  ? rest_init+0x188/0x188
-> [   28.881363][   C16]  ret_from_fork+0x22/0x40
-> [   56.661336][   C16] watchdog: BUG: soft lockup - CPU#16 stuck for 22s!
-> [swapper/0:1]
-> [   56.671352][   C16] Modules linked in:
-> [   56.671354][   C16] CPU: 16 PID: 1 Comm: swapper/0 Tainted:
-> G             L    5.2.0-rc5-next-20190621+ #1
-> [   56.681357][   C16] Hardware name: HPE ProLiant DL385 Gen10/ProLiant DL385
-> Gen10, BIOS A40 03/09/2018
-> [   56.691356][   C16] RIP: 0010:subsys_find_device_by_id+0x168/0x1f0
-> [   56.701334][   C16] Code: 48 85 c0 74 3e 48 8d 78 58 e8 14 77 ca ff 4d 8b 7e
-> 58 4d 85 ff 74 2c 49 8d bf a0 03 00 00 e8 bf 75 ca ff 45 39 a7 a0 03 00 00 <75>
-> c9 4c 89 ff e8 0e 89 ff ff 48 85 c0 74 bc 48 89 df e8 21 3b 24
-> [   56.721333][   C16] RSP: 0018:ffff888205b27c68 EFLAGS: 00000287 ORIG_RAX:
-> ffffffffffffff13
-> [   56.721370][   C16] RAX: 0000000000000000 RBX: ffff888205b27c90 RCX:
-> ffffffffb74c9dc1
-> [   56.731370][   C16] RDX: 0000000000000003 RSI: dffffc0000000000 RDI:
-> ffff8888774ec3e0
-> [   56.741371][   C16] RBP: ffff888205b27cf8 R08: ffffed1040a7ac28 R09:
-> ffffed1040a7ac27
-> [   56.751335][   C16] R10: ffffed1040a7ac27 R11: ffff8882053d613b R12:
-> 0000000000085c1b
-> [   56.761334][   C16] R13: 1ffff11040b64f8e R14: ffff888450de4a20 R15:
-> ffff8888774ec040
-> [   56.761372][   C16] FS:  0000000000000000(0000) GS:ffff888454500000(0000)
-> knlGS:0000000000000000
-> [   56.771374][   C16] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> [   56.781370][   C16] CR2: 0000000000000000 CR3: 00000007c9012000 CR4:
-> 00000000001406a0
-> [   56.791373][   C16] Call Trace:
-> [   56.791373][   C16]  ? bus_find_device_by_name+0x20/0x20
-> [   56.801334][   C16]  ? kobject_put+0x23/0x250
-> [   56.801334][   C16]  walk_memory_blocks+0x6c/0xb8
-> [   56.811333][   C16]  ? write_policy_show+0x40/0x40
-> [   56.811353][   C16]  link_mem_sections+0x7e/0xa0
-> [   56.811353][   C16]  ? unregister_memory_block_under_nodes+0x210/0x210
-> [   56.821333][   C16]  ? __register_one_node+0x3bd/0x600
-> [   56.831333][   C16]  topology_init+0xbf/0x126
-> [   56.831355][   C16]  ? enable_cpu0_hotplug+0x1a/0x1a
-> [   56.841334][   C16]  do_one_initcall+0xfe/0x45a
-> [   56.841334][   C16]  ? initcall_blacklisted+0x150/0x150
-> [   56.851333][   C16]  ? kasan_check_write+0x14/0x20
-> [   56.851354][   C16]  ? up_write+0x75/0x140
-> [   56.861333][   C16]  kernel_init_freeable+0x619/0x6ac
-> [   56.861333][   C16]  ? rest_init+0x188/0x188
-> [   56.861369][   C16]  kernel_init+0x11/0x138
-> [   56.871333][   C16]  ? rest_init+0x188/0x188
-> [   56.871354][   C16]  ret_from_fork+0x22/0x40
-> [   64.601362][   C16] rcu: INFO: rcu_sched self-detected stall on CPU
-> [   64.611335][   C16] rcu: 	16-....: (5958 ticks this GP)
-> idle=37e/1/0x4000000000000002 softirq=27/27 fqs=3000 
-> [   64.621334][   C16] 	(t=6002 jiffies g=-1079 q=25)
-> [   64.621334][   C16] NMI backtrace for cpu 16
-> [   64.621374][   C16] CPU: 16 PID: 1 Comm: swapper/0 Tainted:
-> G             L    5.2.0-rc5-next-20190621+ #1
-> [   64.631372][   C16] Hardware name: HPE ProLiant DL385 Gen10/ProLiant DL385
-> Gen10, BIOS A40 03/09/2018
-> [   64.641371][   C16] Call Trace:
-> [   64.651337][   C16]  <IRQ>
-> [   64.651376][   C16]  dump_stack+0x62/0x9a
-> [   64.651376][   C16]  nmi_cpu_backtrace.cold.0+0x2e/0x33
-> [   64.661337][   C16]  ? nmi_cpu_backtrace_handler+0x20/0x20
-> [   64.661337][   C16]  nmi_trigger_cpumask_backtrace+0x1a6/0x1b9
-> [   64.671353][   C16]  arch_trigger_cpumask_backtrace+0x19/0x20
-> [   64.681366][   C16]  rcu_dump_cpu_stacks+0x18b/0x1d6
-> [   64.681366][   C16]  rcu_sched_clock_irq.cold.64+0x368/0x791
-> [   64.691336][   C16]  ? kasan_check_read+0x11/0x20
-> [   64.691354][   C16]  ? __raise_softirq_irqoff+0x66/0x150
-> [   64.701336][   C16]  update_process_times+0x2f/0x60
-> [   64.701362][   C16]  tick_periodic+0x38/0xe0
-> [   64.711334][   C16]  tick_handle_periodic+0x2e/0x80
-> [   64.711353][   C16]  smp_apic_timer_interrupt+0xfb/0x370
-> [   64.721367][   C16]  apic_timer_interrupt+0xf/0x20
-> [   64.721367][   C16]  </IRQ>
-> [   64.721367][   C16] RIP: 0010:_raw_spin_unlock_irqrestore+0x2f/0x40
-> [   64.731370][   C16] Code: 55 48 89 e5 41 54 49 89 f4 be 01 00 00 00 53 
-> 
+On Fri, Jun 21, 2019 at 5:12 PM Michal Hocko <mhocko@kernel.org> wrote:
+>
+> On Fri 21-06-19 16:10:19, Alexander Potapenko wrote:
+> > On Fri, Jun 21, 2019 at 10:57 AM Alexander Potapenko <glider@google.com=
+> wrote:
+> [...]
+> > > > > diff --git a/mm/dmapool.c b/mm/dmapool.c
+> > > > > index 8c94c89a6f7e..e164012d3491 100644
+> > > > > --- a/mm/dmapool.c
+> > > > > +++ b/mm/dmapool.c
+> > > > > @@ -378,7 +378,7 @@ void *dma_pool_alloc(struct dma_pool *pool, g=
+fp_t mem_flags,
+> > > > >  #endif
+> > > > >       spin_unlock_irqrestore(&pool->lock, flags);
+> > > > >
+> > > > > -     if (mem_flags & __GFP_ZERO)
+> > > > > +     if (want_init_on_alloc(mem_flags))
+> > > > >               memset(retval, 0, pool->size);
+> > > > >
+> > > > >       return retval;
+> > > >
+> > > > Don't you miss dma_pool_free and want_init_on_free?
+> > > Agreed.
+> > > I'll fix this and add tests for DMA pools as well.
+> > This doesn't seem to be easy though. One needs a real DMA-capable
+> > device to allocate using DMA pools.
+> > On the other hand, what happens to a DMA pool when it's destroyed,
+> > isn't it wiped by pagealloc?
+>
+> Yes it should be returned to the page allocator AFAIR. But it is when we
+> are returning an object to the pool when you want to wipe the data, no?
+My concern was that dma allocation is something orthogonal to heap and
+page allocator.
+I also don't know how many other allocators are left overboard, e.g.
+we don't do anything to lib/genalloc.c yet.
 
-Thanks for the report. Man, this series is nastier than I thought. This
-is making more noise than I was hoping for.
+> Why cannot you do it along the already existing poisoning?
+I can sure keep these bits.
+Any idea how the correct behavior of dma_pool_alloc/free can be tested?
+> --
+> Michal Hocko
+> SUSE Labs
 
-@Andrew can you revert patch 4-6 for now? I'll be on vacation soon and
-don't want cleanups to constantly break things. Just nasty.
 
--- 
 
-Thanks,
+--=20
+Alexander Potapenko
+Software Engineer
 
-David / dhildenb
+Google Germany GmbH
+Erika-Mann-Stra=C3=9Fe, 33
+80636 M=C3=BCnchen
+
+Gesch=C3=A4ftsf=C3=BChrer: Paul Manicle, Halimah DeLaine Prado
+Registergericht und -nummer: Hamburg, HRB 86891
+Sitz der Gesellschaft: Hamburg
 
