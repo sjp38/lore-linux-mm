@@ -2,188 +2,277 @@ Return-Path: <SRS0=pbvW=UU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-14.3 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_IN_DEF_DKIM_WL autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6D3B5C4646B
-	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 10:39:26 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 53667C48BE3
+	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 11:33:52 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 34C3E21530
-	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 10:39:25 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="oaiG/My2"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 34C3E21530
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	by mail.kernel.org (Postfix) with ESMTP id E5D5C2084E
+	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 11:33:51 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E5D5C2084E
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id EC0526B0005; Fri, 21 Jun 2019 06:39:24 -0400 (EDT)
+	id 6CEEA6B0005; Fri, 21 Jun 2019 07:33:51 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E708A8E0002; Fri, 21 Jun 2019 06:39:24 -0400 (EDT)
+	id 680278E0002; Fri, 21 Jun 2019 07:33:51 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D5FC88E0001; Fri, 21 Jun 2019 06:39:24 -0400 (EDT)
+	id 56EBC8E0001; Fri, 21 Jun 2019 07:33:51 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-vs1-f72.google.com (mail-vs1-f72.google.com [209.85.217.72])
-	by kanga.kvack.org (Postfix) with ESMTP id B52FD6B0005
-	for <linux-mm@kvack.org>; Fri, 21 Jun 2019 06:39:24 -0400 (EDT)
-Received: by mail-vs1-f72.google.com with SMTP id x22so2032718vsj.1
-        for <linux-mm@kvack.org>; Fri, 21 Jun 2019 03:39:24 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 0667A6B0005
+	for <linux-mm@kvack.org>; Fri, 21 Jun 2019 07:33:51 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id i44so8833036eda.3
+        for <linux-mm@kvack.org>; Fri, 21 Jun 2019 04:33:50 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc
-         :content-transfer-encoding;
-        bh=/GyhlxzDlZ/c+fwrm+Fm2Dc67r0DcAh+69Mb7gFlO3k=;
-        b=nDwd4hEZf9pgClVMsL1wSE0MAtwsMHy7M2KvNe415xmKJpysUn2lKFzCjgyI5fDEsb
-         HiYP9iJFFXv2WIFA9xLJd6YrT2FP0pdzIT2eY8zPm1bOgQ6qWFq0+OLDmDJKAmQ+Rmbw
-         LRXnbzbOAFGQoyu+MFYKT0JvhbYRZl5s29M+DgaHG+aDiQxGtHlXoki+WwQNaxv9qIX7
-         eQk7L8i0kTA3/BxcXHhogeL5DFmNEtZ5D57ocyfsFdpgpIqX8FkRx5e8KRvhREgBM0E0
-         SdisC9DT4V0bbAE+FQm96Kx6yagbn56BMfCBaRz38Hn6Q9Ml3XiKtfOxzyh7OihF4PQS
-         +oww==
-X-Gm-Message-State: APjAAAW/G4zjnXHuEJhSiip4SCn648UnxHefPJwH6KrV5m+nKhtrAKwE
-	DL8Ss4WT1aRVk4qjymj43B/aWF6Klx8iLUcLMls45o5t08wh/FJjwHMZfPxSrJZhPbaRuyauGtG
-	UzlyaoKF0rTLFIpTqJFSKs4ZcaRgyzLu5gPlC+YYS1ng3hJlB8UzAssAeYqXZrET8Bw==
-X-Received: by 2002:a67:8c02:: with SMTP id o2mr42730566vsd.167.1561113564367;
-        Fri, 21 Jun 2019 03:39:24 -0700 (PDT)
-X-Received: by 2002:a67:8c02:: with SMTP id o2mr42730546vsd.167.1561113563788;
-        Fri, 21 Jun 2019 03:39:23 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561113563; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=2GUASv8hQlPjEjNmLm+9jbyfchDc7gmotV89NZDLTsM=;
+        b=KxkFqaPDBh4z4n9pUqcwtVmSE+EbzV6pDL7/2iZqZk5Hajez54uh0DhTjYO8Tj4YH4
+         SuNpy9ZgomCNHT0bCdnFzkxHZcZGo4ZTJ0LNq699111c/xdB7e7OLRFaOpd/KsTT8tgS
+         n+z0EAcMxENgpwAgz+1ews6q+ltr99b0mJuI3CS25ESLuH+hwmJQ3O6ldzrBibBet22u
+         sNdWBHqHS3NEjqI1cimmy8+2w4tj0T9zLqmhBW4rHQPaEEzlzv5SYJgHYXIVQptnVA8e
+         SNv65wr68MN0hnCMJ30BwEcz+2ivNgKPwAd/3Z0ackQTSExBG/G59FuNzFEGljP6h46Y
+         HTww==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+X-Gm-Message-State: APjAAAVPA0HuNXoOpJERYAUdQBPL4D9oQldFBB3Ega4+o9h4KcBIyqmm
+	GNnQy4amWwDEEFTk405jXH7CksEKePaqWvqKRCZvPsRC8UDy9mTQYzwkEzaZe9tPzDTOAGrBol7
+	c2KuonA+Nf2oQbLqB2gNwQ265AbCfuZxk2YPaC+coM3SetRUmNOQWwSpVnpSni43q9Q==
+X-Received: by 2002:aa7:d4d8:: with SMTP id t24mr68914226edr.213.1561116830564;
+        Fri, 21 Jun 2019 04:33:50 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzpa245hEu8dNLwAO7h/EIdVXW0Yrpt36olX2ThOcO37emaOhU0JMiA18Z++78cXViIXi02
+X-Received: by 2002:aa7:d4d8:: with SMTP id t24mr68914096edr.213.1561116829358;
+        Fri, 21 Jun 2019 04:33:49 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561116829; cv=none;
         d=google.com; s=arc-20160816;
-        b=KsCB4W2r3zV1SaNabdV52x8xgBMrE5Cg2k0H6QkXEtFCLJlV6+FWuN2t1jF8Z8GkP8
-         0n9uKLwlRxbdCNeFpRNURRhPIddkyDnyj7qbIwR7BJ2Fh8Npl1tLAVDEWtR81KOdZ35i
-         P6mmOxo3JNERC0x8yJ1119ALh5LEDT1uNsvCtvkmMLnufny+TTtugHkWStVR5VOt4CbN
-         ucI2mC1bH9UhUAaxN6FYUtYlaLfNsiUaozTnnIvnsLG+khT/FiynQyDbnrKjiXypbTc4
-         JMNgKRT8l1preZpXZkQmYY9IAz/djoLWzaIyRQo0wZQ8k83ID6cusiLGWc7cX8aU40SP
-         2NkA==
+        b=YQt7QHddeFm/gH4iEZ0GfRs6mz0sT+0IgjgAlXoZ/kxfwpgGAVa+1hWWvMPcT+n3/s
+         i32s0CbNtqmgp16K3FF9fmMSwgGBCn7OMr0KgycjCI13JEkb/Jx4/Ti1zrryur8X9XQ9
+         aoRfEAzVEZgFxRwFv9JRhEY2/fjw6fv61n/XN4AJZYyqicTGSQ1n/g2YVVwxyYUQLhB2
+         hjgU7MdJZ6cQAkwHxctIzldfaX1zu+Wo8XvWknnVL0v96bpI4OehSPETkDASF3rPxP41
+         +f9k/2e6pcfCeLZE1bqrNmzodyQIot7CXtXFnLKjYEbkIFXY4maZaS2w//ycLZSjkhJ+
+         o00Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:cc:to:subject:message-id:date:from
-         :in-reply-to:references:mime-version:dkim-signature;
-        bh=/GyhlxzDlZ/c+fwrm+Fm2Dc67r0DcAh+69Mb7gFlO3k=;
-        b=cQFybdevMa5cJrukwbtc4bAEJUiM6bfUR9LbjLdEMT13UiyyltVfTyCL5KfDPHZlLi
-         LjX8Atq3PFW6g+K9hC9f/MVX9l4o3ukGIacdZcO/E1YRzim/qddVD9rMPG+aQZeWMsK0
-         cjPZC0XcX6ThqzOSXE60iPavGsPCNiyh13ayr0vffmCZ2T8x5I0rJiYEbC/dT4MnjBVN
-         ptzCN3BJQrBU+slBKlL8gcQctDZrTtf9qSebMLEENaSwxpXFE2UIoDT1dOFVZolv5v00
-         Jsc7hdTNGeUkQGFu4hYSG9hlTButIYyl1V7oow2P8dy0S9Hr93M3sQjwp19NpnvTqGmg
-         HRgg==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
+         :subject;
+        bh=2GUASv8hQlPjEjNmLm+9jbyfchDc7gmotV89NZDLTsM=;
+        b=EWyRtgg3bge6nvljUHtCHf2z2A/roQvarGAGvE3vJCnhGKu/Sz3eMPWHgSIwPM9es2
+         2WkcqB0fg9Xco5WGODg4QCWNH8T5fJGyfBCVuUULg42kkKZqAQgtIQ0cGuiGKfeWJ4m3
+         F7Qul43Dl9kOTmHyCf5JRDJmHOO0oif2AjZ/h9AO2N2uRA/WyC64VGTHH/ve5Py43jGX
+         0KewDfXShfi0DcOONUrAvasKneCa81Q7+CIGX66s1KziTxMWAVRn7swsORIJGE0UOrlR
+         tcoDQIT+vydIBvem3uhuuZ26Y8udbQUkSVdzYLqDaKDVpY8/kPzIWClRIU/ahlpx9vwL
+         iVOw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b="oaiG/My2";
-       spf=pass (google.com: domain of glider@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=glider@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i29sor1172726vsj.60.2019.06.21.03.39.23
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id p26si1660404eja.372.2019.06.21.04.33.49
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 21 Jun 2019 03:39:23 -0700 (PDT)
-Received-SPF: pass (google.com: domain of glider@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 21 Jun 2019 04:33:49 -0700 (PDT)
+Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b="oaiG/My2";
-       spf=pass (google.com: domain of glider@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=glider@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc:content-transfer-encoding;
-        bh=/GyhlxzDlZ/c+fwrm+Fm2Dc67r0DcAh+69Mb7gFlO3k=;
-        b=oaiG/My2zmbB65WJe4cbDgNEyrknHvYXILox7hiJ7FCYFHhGY5Ff2YL8ONaBwKx5pD
-         XqoJmqRKroXwJjHa9xBaqoaLTOCQGZV5FpjwkJxfn9y/UtvQwI7HwI35PuXIvHGQXQMW
-         PPy/o8z6jZB7YHc42y4AmyBoe8FUmw1cL/TdSrfZBegjqTUoN5uXmKFTTAqPmTYzO+Yh
-         iHRr5uouh3j4VajNERh78oQowHtY+GbXUfdYfPUkKjEO0pX1EDgHhSrJ7oaJP8XpWkV1
-         8eBFW06bEbggFrMHGcvfsQzuNt3ZJtb8vqeS7577k5UXarwpSnqZTtQi3CfG945NDDcZ
-         eMLw==
-X-Google-Smtp-Source: APXvYqyh48CTqAoGqpwVNMKP36hE0e9kEq/4FyzDdnT36MjTnjH0TKMAT7VqOvhq6sV6TIPCijvxp5d7rVv7RHf3YhM=
-X-Received: by 2002:a67:8d8a:: with SMTP id p132mr10336981vsd.103.1561113563011;
- Fri, 21 Jun 2019 03:39:23 -0700 (PDT)
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id A88BEAD76;
+	Fri, 21 Jun 2019 11:33:48 +0000 (UTC)
+Subject: Re: [PATCH] mm: mempolicy: handle vma with unmovable pages mapped
+ correctly in mbind
+To: Yang Shi <yang.shi@linux.alibaba.com>, Michal Hocko <mhocko@kernel.org>
+Cc: akpm@linux-foundation.org, mgorman@techsingularity.net,
+ linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+ Eric Dumazet <edumazet@google.com>, "David S. Miller" <davem@davemloft.net>,
+ netdev@vger.kernel.org
+References: <1560797290-42267-1-git-send-email-yang.shi@linux.alibaba.com>
+ <20190618130253.GH3318@dhcp22.suse.cz>
+ <cf33b724-fdd5-58e3-c06a-1bc563525311@linux.alibaba.com>
+ <20190618182848.GJ3318@dhcp22.suse.cz>
+ <68c2592d-b747-e6eb-329f-7a428bff1f86@linux.alibaba.com>
+ <20190619052133.GB2968@dhcp22.suse.cz>
+ <21a0b20c-5b62-490e-ad8e-26b4b78ac095@suse.cz>
+ <687f4e57-5c50-7900-645e-6ef3a5c1c0c7@linux.alibaba.com>
+ <55eb2ea9-2c74-87b1-4568-b620c7913e17@linux.alibaba.com>
+ <d81b36bb-876e-917a-6115-cedf496b4923@suse.cz>
+ <d185f277-85ed-4dc1-8ff2-2984b54a0d64@linux.alibaba.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Openpgp: preference=signencrypt
+Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
+ 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
+Message-ID: <9945a66f-4434-b2a6-63ac-3240ef1d52c9@suse.cz>
+Date: Fri, 21 Jun 2019 13:33:47 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.1
 MIME-Version: 1.0
-References: <1561063566-16335-1-git-send-email-cai@lca.pw> <201906201801.9CFC9225@keescook>
-In-Reply-To: <201906201801.9CFC9225@keescook>
-From: Alexander Potapenko <glider@google.com>
-Date: Fri, 21 Jun 2019 12:39:11 +0200
-Message-ID: <CAG_fn=VRehbrhvNRg0igZ==YvONug_nAYMqyrOXh3kO2+JaszQ@mail.gmail.com>
-Subject: Re: [PATCH -next v2] mm/page_alloc: fix a false memory corruption
-To: Kees Cook <keescook@chromium.org>
-Cc: Qian Cai <cai@lca.pw>, Andrew Morton <akpm@linux-foundation.org>, 
-	Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <d185f277-85ed-4dc1-8ff2-2984b54a0d64@linux.alibaba.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jun 21, 2019 at 3:01 AM Kees Cook <keescook@chromium.org> wrote:
->
-> On Thu, Jun 20, 2019 at 04:46:06PM -0400, Qian Cai wrote:
-> > The linux-next commit "mm: security: introduce init_on_alloc=3D1 and
-> > init_on_free=3D1 boot options" [1] introduced a false positive when
-> > init_on_free=3D1 and page_poison=3Don, due to the page_poison expects t=
-he
-> > pattern 0xaa when allocating pages which were overwritten by
-> > init_on_free=3D1 with 0.
-> >
-> > Fix it by switching the order between kernel_init_free_pages() and
-> > kernel_poison_pages() in free_pages_prepare().
->
-> Cool; this seems like the right approach. Alexander, what do you think?
-Can using init_on_free together with page_poison bring any value at all?
-Isn't it better to decide at boot time which of the two features we're
-going to enable?
+On 6/20/19 6:08 PM, Yang Shi wrote:
+> 
+> 
+> On 6/20/19 12:18 AM, Vlastimil Babka wrote:
+>> On 6/19/19 8:19 PM, Yang Shi wrote:
+>>>>>> This is getting even more muddy TBH. Is there any reason that we
+>>>>>> have to
+>>>>>> handle this problem during the isolation phase rather the migration?
+>>>>> I think it was already said that if pages can't be isolated, then
+>>>>> migration phase won't process them, so they're just ignored.
+>>>> Yes，exactly.
+>>>>
+>>>>> However I think the patch is wrong to abort immediately when
+>>>>> encountering such page that cannot be isolated (AFAICS). IMHO it should
+>>>>> still try to migrate everything it can, and only then return -EIO.
+>>>> It is fine too. I don't see mbind semantics define how to handle such
+>>>> case other than returning -EIO.
+>> I think it does. There's:
+>> If MPOL_MF_MOVE is specified in flags, then the kernel *will attempt to
+>> move all the existing pages* ... If MPOL_MF_STRICT is also specified,
+>> then the call fails with the error *EIO if some pages could not be moved*
+>>
+>> Aborting immediately would be against the attempt to move all.
+>>
+>>> By looking into the code, it looks not that easy as what I thought.
+>>> do_mbind() would check the return value of queue_pages_range(), it just
+>>> applies the policy and manipulates vmas as long as the return value is 0
+>>> (success), then migrate pages on the list. We could put the movable
+>>> pages on the list by not breaking immediately, but they will be ignored.
+>>> If we migrate the pages regardless of the return value, it may break the
+>>> policy since the policy will *not* be applied at all.
+>> I think we just need to remember if there was at least one page that
+>> failed isolation or migration, but keep working, and in the end return
+>> EIO if there was such page(s). I don't think it breaks the policy. Once
+>> pages are allocated in a mapping, changing the policy is a best effort
+>> thing anyway.
+> 
+> The current behavior is:
+> If queue_pages_range() return -EIO (vma is not migratable, ignore other 
+> conditions since we just focus on page migration), the policy won't be 
+> set and no page will be migrated.
 
-> Reviewed-by: Kees Cook <keescook@chromium.org>
->
-> -Kees
->
-> >
-> > [1] https://patchwork.kernel.org/patch/10999465/
-> >
-> > Signed-off-by: Qian Cai <cai@lca.pw>
-> > ---
-> >
-> > v2: After further debugging, the issue after switching order is likely =
-a
-> >     separate issue as clear_page() should not cause issues with future
-> >     accesses.
-> >
-> >  mm/page_alloc.c | 3 ++-
-> >  1 file changed, 2 insertions(+), 1 deletion(-)
-> >
-> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > index 54dacf35d200..32bbd30c5f85 100644
-> > --- a/mm/page_alloc.c
-> > +++ b/mm/page_alloc.c
-> > @@ -1172,9 +1172,10 @@ static __always_inline bool free_pages_prepare(s=
-truct page *page,
-> >                                          PAGE_SIZE << order);
-> >       }
-> >       arch_free_page(page, order);
-> > -     kernel_poison_pages(page, 1 << order, 0);
-> >       if (want_init_on_free())
-> >               kernel_init_free_pages(page, 1 << order);
-> > +
-> > +     kernel_poison_pages(page, 1 << order, 0);
-> >       if (debug_pagealloc_enabled())
-> >               kernel_map_pages(page, 1 << order, 0);
-> >
-> > --
-> > 1.8.3.1
-> >
->
-> --
-> Kees Cook
+Ah, I see. IIUC the current behavior is due to your recent commit
+a7f40cfe3b7a ("mm: mempolicy: make mbind() return -EIO when
+MPOL_MF_STRICT is specified") in order to fix commit 6f4576e3687b
+("mempolicy: apply page table walker on queue_pages_range()"), which
+caused -EIO to be not returned enough. But I think you went too far and
+instead return -EIO too much. If I look at the code in parent commit of
+6f4576e3687b, I can see in queue_pages_range():
 
+if ((flags & MPOL_MF_STRICT) ||
+        ((flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL)) &&
+        vma_migratable(vma))) {
 
+        err = queue_pages_pgd_range(vma, start, endvma, nodes,
+                                flags, private);
+        if (err)
+                break;
+}
 
---=20
-Alexander Potapenko
-Software Engineer
+and in queue_pages_pte_range():
 
-Google Germany GmbH
-Erika-Mann-Stra=C3=9Fe, 33
-80636 M=C3=BCnchen
+if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL))
+        migrate_page_add(page, private, flags);
+else
+        break;
 
-Gesch=C3=A4ftsf=C3=BChrer: Paul Manicle, Halimah DeLaine Prado
-Registergericht und -nummer: Hamburg, HRB 86891
-Sitz der Gesellschaft: Hamburg
+So originally, there was no returning of -EIO due to !vma_migratable() -
+as long as MPOL_MF_STRICT and MPOL_MF_MOVE* was specified, the code
+tried to queue for migration everything it could and didn't ever abort,
+AFAICS. And I still think that's the best possible behavior.
+
+> However, the problem here is the vma might look migratable, but some or 
+> all the underlying pages are unmovable. So, my patch assumes the vma is 
+> *not* migratable if at least one page is unmovable. I'm not sure if it 
+> is possible to have both movable and unmovable pages for the same 
+> mapping or not, I'm supposed the vma would be split much earlier.
+> 
+> If we don't abort immediately, then we record if there is unmovable 
+> page, then we could do:
+> #1. Still follows the current behavior (then why not abort immediately?)
+
+See above how the current behavior differs from the original one.
+
+> #2. Set mempolicy then migrate all the migratable pages. But, we may end 
+> up with the pages on node A, but the policy says node B. Doesn't it 
+> break the policy?
+
+The policy can already be "broken" (violated is probably better word) by
+migrate_pages() failing. If that happens, we don't rollback the migrated
+pages and reset the policy back, right? I think the manpage is clear
+that MPOL_MF_MOVE is a best-effort. Userspace will know that not
+everything was successfully migrated (via -EIO), and can take whatever
+steps it deems necessary - attempt rollback, determine which exact
+page(s) are violating the policy, etc.
+
+>>
+>>>>
+> 
 
