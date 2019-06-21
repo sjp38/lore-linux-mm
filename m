@@ -2,155 +2,166 @@ Return-Path: <SRS0=pbvW=UU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C7596C43613
-	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 00:54:36 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DDBF4C48BE3
+	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 01:01:45 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 940222075E
-	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 00:54:36 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 940222075E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=mit.edu
+	by mail.kernel.org (Postfix) with ESMTP id A53472085A
+	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 01:01:45 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=chromium.org header.i=@chromium.org header.b="PbKjdPWc"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A53472085A
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chromium.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3CA686B0005; Thu, 20 Jun 2019 20:54:36 -0400 (EDT)
+	id 3EC266B0005; Thu, 20 Jun 2019 21:01:45 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 37B988E0002; Thu, 20 Jun 2019 20:54:36 -0400 (EDT)
+	id 39DC58E0002; Thu, 20 Jun 2019 21:01:45 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 242D38E0001; Thu, 20 Jun 2019 20:54:36 -0400 (EDT)
+	id 265438E0001; Thu, 20 Jun 2019 21:01:45 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 0391D6B0005
-	for <linux-mm@kvack.org>; Thu, 20 Jun 2019 20:54:36 -0400 (EDT)
-Received: by mail-qt1-f199.google.com with SMTP id r40so6082741qtk.0
-        for <linux-mm@kvack.org>; Thu, 20 Jun 2019 17:54:35 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id DFFC56B0005
+	for <linux-mm@kvack.org>; Thu, 20 Jun 2019 21:01:44 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id c17so3198066pfb.21
+        for <linux-mm@kvack.org>; Thu, 20 Jun 2019 18:01:44 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:mail-followup-to:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=6dAfEP10mYLzrMjbDQx3yrRDWC6z2OR5tbIbKtzt5Bg=;
-        b=AC23hsJpfKrtuhKeiHvQflqqcgz0QcHcRFbsvuxPoY+Ysib5w4ZOxA5pvsxcThz1Im
-         Kb8oJ63lAAl3P9zonllbz6qh3ugBPZvZCFQdq/8XrPglHHYmCOnlkAqP8SLGX9TjG6Pr
-         cgXavTfBpcRk+yeCJzfYw7CmOL+vZGX4gDi29+QTQmTml4h19B08kuK62QXdCVF1kNJG
-         W8jbVBXFzhS8MB1IMAwSufilSd2o4xLMST71qXUCh7zaBHO6aEDOHiHSYzgFn4kOs+LX
-         dPM/0ZFUpND2ymWcmPMye6R0Ip0kAqz6J9GAdRUOgZ3D4TcByZVv9z0AkaS9p0aKswS9
-         +0pQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of tytso@mit.edu designates 18.9.28.11 as permitted sender) smtp.mailfrom=tytso@mit.edu
-X-Gm-Message-State: APjAAAXWu5tb8wHAtIf2bDNIJj5dJJOGBVIn70feYOsMiXQjARCwWDaH
-	gzf1Yw/qfGVEQBBlgvgFLSDZ+HSLK10fXZ/jpJmhxxy3g5xIcM/HmRLoHx/oQ0iHTpoBxuvzM20
-	NfcTmcTr79qKxfd6x91jxXwMgREgg6SL1m+NAtIk4i10wEd4aqJWtavdHYe2mbUKJGQ==
-X-Received: by 2002:aed:24d9:: with SMTP id u25mr117339738qtc.111.1561078475806;
-        Thu, 20 Jun 2019 17:54:35 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxMluyhBL1+gsbgFm9G+7+AQNpQNtfidmg5AuyThnjOkMTxX9hKU/Ut7TsRIBbz2+JSe9qa
-X-Received: by 2002:aed:24d9:: with SMTP id u25mr117339708qtc.111.1561078475133;
-        Thu, 20 Jun 2019 17:54:35 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561078475; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to;
+        bh=jOk3PreZ3YiInlE3LTXkzPl68+QbundNai30bAJKnEU=;
+        b=eKLTmUR6Yx2q+egWYXiNFnlab+m4a2b2pMXj0Xi3hZD1G8bUKCGio9VVH03IDb0gn9
+         01dZ8eCBGWHC+pxlvkJpkAoWO0SzD6fKaRe5sBnJIRFiwLfg6/VEhRXUSJBVzACkbdei
+         BiUDN/4eYwQ+h1nXHLlVY2fqUMmOUY4pgx8zwCIRTqGWj1PvC9IpayDzUWQ0aC/qqkj1
+         jmVwg7VZKwxAXAFbHgqk0qICa5txj19iFXKcZ8etP3yUkrkHL+9sTGC7h6CwBS7hz6is
+         6LpZd+cZ1kOWi48tgVgn22sBOPrFcRPpL+JCkaj/M5vy5S2mUL3TkzjudhpMNW6UzWKo
+         i7ww==
+X-Gm-Message-State: APjAAAWZKRm6cH0TZJgXlRqE12jP9kA8l6VpFaPV8/zgUs9RYEbedG2R
+	NpK4LQD0gso5gV5N+vNpjRfg8OM7AUfKdt6zFUIFzv1R8Icu+ZsrttowOgmTMFWALi630y6WKCr
+	n30YCSXegY6cNosFOSrahSJyTkZjGd28WI4gJWkSEiuP6LXWVjZWlS1DF1dAxM1pkaA==
+X-Received: by 2002:a17:90a:b011:: with SMTP id x17mr2746720pjq.113.1561078904387;
+        Thu, 20 Jun 2019 18:01:44 -0700 (PDT)
+X-Received: by 2002:a17:90a:b011:: with SMTP id x17mr2746620pjq.113.1561078903469;
+        Thu, 20 Jun 2019 18:01:43 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561078903; cv=none;
         d=google.com; s=arc-20160816;
-        b=MlTIBMWkmChGoCXBJPhjD8OmogOn4WfEiSP0LXYie3pKcu/1QSnkta3B/eXSbOJJQZ
-         iIArDlO68JfNmsYLrV5Chj1tWWFluNj90Lp5ANyUYVv5mhuh7ahRIBL42yuCRPloCx/R
-         FdmSGT8WutBev0uyHC8po5NuEkgEgHDMFVzA4wc05aIMBZYm3BgfkoILDDpSWqB3bFjm
-         i44kwzsSLbRV0qiu47L1Jn/S1MFNTFx5bqo+2aHzTRyUFemwWl1xM89Llc3CK8zBb0up
-         YDwsjZVNrx+rjZnxS9aF0xi1DmciT+mue7vhZOReEvC8UDauiQlaB3Bz8j/pVk4xw9r1
-         R28Q==
+        b=N/XTJZB9hkNVpsZfpTv0zDNlqlzk3nThh+vasyKF46ssZY3vW6YM7GiTiYYMgXxwrT
+         HHLHP1VvzqmL8VkcFTg6Nb2GGLxRmTrKmFmWmjTO3wZZ0YXLbtaPAERa+frLQvNvV8BH
+         SygCBo0O7xGjloZa8dwPPyiY+WVxqP0u5ATmFCdhhosdFiia0jw2yeRerVAARdcZ2Cku
+         upTfvjO6X8MOYRlE2CNIT+aA8A0hyuxVi3JpBe0CDPYZlMipAVu58rqug4citiVTDEkd
+         FDMXtt9xMK/pntsaXio4XmvnPxJySw1ZKOKDOq0BuT7NpKwSXg0rMa4N0lQp0e6iNBO9
+         xHeA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :mail-followup-to:message-id:subject:cc:to:from:date;
-        bh=6dAfEP10mYLzrMjbDQx3yrRDWC6z2OR5tbIbKtzt5Bg=;
-        b=rMpvgZFZDgAIfF3xL1lR7GbqF+wixn9UeXDkTsHEDE+UOZ6TgCzZN8fCcCvsjZHTuK
-         oVAXVcSk1GBtPUhNXn9SApGiCFFqHpQI+KnkGtngn7SUiQC59HSlOi0u+/p+QqOnsREa
-         btaHiExlxWwaNGCokgbzlhA2DEcbORvg4vUsBah1e9JZdQ8gu5dSf1vIxm9xPor/NzAU
-         CLH6nFmiMp30oLUjUg2XkLa2dNL/PodLasoOT8bszJy9SfK/sLbYwM99c1DexNbtwBui
-         DjHNK/wfKndbLNcK5Chk8fr7/OOh+y8L7y8KwOjBY7cItYp86BeOuLbIfokHCmT3wi3i
-         o5iQ==
+        h=in-reply-to:content-disposition:mime-version:references:message-id
+         :subject:cc:to:from:date:dkim-signature;
+        bh=jOk3PreZ3YiInlE3LTXkzPl68+QbundNai30bAJKnEU=;
+        b=WY38muJdV3kicWvJ47xXSj3x99gJ9NCr8sPUDp+ToVfTlqb03+kB9EIFw8ig8uoHTc
+         Hqg5VyUSWAam9gXxu9q9jhO9/4opaVVzSUlO7o91G3NA2/c7WCFKv2ctmKqJ5WHZtNBi
+         QIbrxRLWyh++hINW/FfaBS1gMPf+a+mBXxum2/7GDQOSJqdPdfpkdLHzCdRkuMtmAYXg
+         ppxmKdKVvyTpzUv827NCflcjPoTqIV3w9C7BDSDmBniM+xoBHYQZW3q8Ymr5uPrSAyx/
+         LwinMQ0yPQyFMDKmwN+Qr6AQEFgZMQDEH4RvD1CCzh0gZzB2o1WRdk0b8DosrJW9EpP8
+         9QZQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of tytso@mit.edu designates 18.9.28.11 as permitted sender) smtp.mailfrom=tytso@mit.edu
-Received: from outgoing.mit.edu (outgoing-auth-1.mit.edu. [18.9.28.11])
-        by mx.google.com with ESMTPS id b19si877154qtc.279.2019.06.20.17.54.34
+       dkim=pass header.i=@chromium.org header.s=google header.b=PbKjdPWc;
+       spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id r3sor1108373pgj.74.2019.06.20.18.01.43
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 20 Jun 2019 17:54:35 -0700 (PDT)
-Received-SPF: pass (google.com: domain of tytso@mit.edu designates 18.9.28.11 as permitted sender) client-ip=18.9.28.11;
+        (Google Transport Security);
+        Thu, 20 Jun 2019 18:01:43 -0700 (PDT)
+Received-SPF: pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of tytso@mit.edu designates 18.9.28.11 as permitted sender) smtp.mailfrom=tytso@mit.edu
-Received: from callcc.thunk.org (guestnat-104-133-0-109.corp.google.com [104.133.0.109] (may be forged))
-	(authenticated bits=0)
-        (User authenticated as tytso@ATHENA.MIT.EDU)
-	by outgoing.mit.edu (8.14.7/8.12.4) with ESMTP id x5L0sK0h000800
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=NOT);
-	Thu, 20 Jun 2019 20:54:21 -0400
-Received: by callcc.thunk.org (Postfix, from userid 15806)
-	id 28403420484; Thu, 20 Jun 2019 20:54:20 -0400 (EDT)
-Date: Thu, 20 Jun 2019 20:54:20 -0400
-From: "Theodore Ts'o" <tytso@mit.edu>
-To: "Darrick J. Wong" <darrick.wong@oracle.com>
-Cc: matthew.garrett@nebula.com, yuchao0@huawei.com, ard.biesheuvel@linaro.org,
-        josef@toxicpanda.com, clm@fb.com, adilger.kernel@dilger.ca,
-        viro@zeniv.linux.org.uk, jack@suse.com, dsterba@suse.com,
-        jaegeuk@kernel.org, jk@ozlabs.org, reiserfs-devel@vger.kernel.org,
-        linux-efi@vger.kernel.org, devel@lists.orangefs.org,
-        linux-kernel@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net,
-        linux-xfs@vger.kernel.org, linux-mm@kvack.org,
-        linux-nilfs@vger.kernel.org, linux-mtd@lists.infradead.org,
-        ocfs2-devel@oss.oracle.com, linux-fsdevel@vger.kernel.org,
-        linux-ext4@vger.kernel.org, linux-btrfs@vger.kernel.org
-Subject: Re: [PATCH 1/6] mm/fs: don't allow writes to immutable files
-Message-ID: <20190621005420.GH4650@mit.edu>
-Mail-Followup-To: Theodore Ts'o <tytso@mit.edu>,
-	"Darrick J. Wong" <darrick.wong@oracle.com>,
-	matthew.garrett@nebula.com, yuchao0@huawei.com,
-	ard.biesheuvel@linaro.org, josef@toxicpanda.com, clm@fb.com,
-	adilger.kernel@dilger.ca, viro@zeniv.linux.org.uk, jack@suse.com,
-	dsterba@suse.com, jaegeuk@kernel.org, jk@ozlabs.org,
-	reiserfs-devel@vger.kernel.org, linux-efi@vger.kernel.org,
-	devel@lists.orangefs.org, linux-kernel@vger.kernel.org,
-	linux-f2fs-devel@lists.sourceforge.net, linux-xfs@vger.kernel.org,
-	linux-mm@kvack.org, linux-nilfs@vger.kernel.org,
-	linux-mtd@lists.infradead.org, ocfs2-devel@oss.oracle.com,
-	linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org,
-	linux-btrfs@vger.kernel.org
-References: <156022836912.3227213.13598042497272336695.stgit@magnolia>
- <156022837711.3227213.11787906519006016743.stgit@magnolia>
- <20190620215212.GG4650@mit.edu>
- <20190620221306.GD5375@magnolia>
+       dkim=pass header.i=@chromium.org header.s=google header.b=PbKjdPWc;
+       spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=chromium.org; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to;
+        bh=jOk3PreZ3YiInlE3LTXkzPl68+QbundNai30bAJKnEU=;
+        b=PbKjdPWcdAzMqG/JzK1HR0UcqG/UX8eh2967eEegjSLi4avW+I1MWzePzFoaR/RhDz
+         v936+ryvXqtDcxrnJqsy5S/83EDuAVf5GwkEF/Kd7NU5M9kBznE739f8ulkLOKnCN5TP
+         BgbRDjDHZ8uwDaNrUzaVY5sjhf5UK5VV4W7MA=
+X-Google-Smtp-Source: APXvYqwVLiWe21jhFrAmpCuL2rGWSXFn0Xn+zlSdAo/GWr7qvi7R3zAyZAmL5tMFTjfT5QVEED6QXQ==
+X-Received: by 2002:a65:50c3:: with SMTP id s3mr15343980pgp.177.1561078902926;
+        Thu, 20 Jun 2019 18:01:42 -0700 (PDT)
+Received: from www.outflux.net (smtp.outflux.net. [198.145.64.163])
+        by smtp.gmail.com with ESMTPSA id v13sm650415pfe.105.2019.06.20.18.01.41
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 20 Jun 2019 18:01:42 -0700 (PDT)
+Date: Thu, 20 Jun 2019 18:01:41 -0700
+From: Kees Cook <keescook@chromium.org>
+To: Qian Cai <cai@lca.pw>
+Cc: akpm@linux-foundation.org, glider@google.com, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Subject: Re: [PATCH -next v2] mm/page_alloc: fix a false memory corruption
+Message-ID: <201906201801.9CFC9225@keescook>
+References: <1561063566-16335-1-git-send-email-cai@lca.pw>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190620221306.GD5375@magnolia>
-User-Agent: Mutt/1.10.1 (2018-07-13)
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000315, version=1.2.4
+In-Reply-To: <1561063566-16335-1-git-send-email-cai@lca.pw>
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jun 20, 2019 at 03:13:06PM -0700, Darrick J. Wong wrote:
-> > I note that this patch doesn't allow writes to swap files.  So Amir's
-> > generic/554 test will still fail for those file systems that don't use
-> > copy_file_range.
+On Thu, Jun 20, 2019 at 04:46:06PM -0400, Qian Cai wrote:
+> The linux-next commit "mm: security: introduce init_on_alloc=1 and
+> init_on_free=1 boot options" [1] introduced a false positive when
+> init_on_free=1 and page_poison=on, due to the page_poison expects the
+> pattern 0xaa when allocating pages which were overwritten by
+> init_on_free=1 with 0.
 > 
-> I didn't add any IS_SWAPFILE checks here, so I'm not sure to what you're
-> referring?
+> Fix it by switching the order between kernel_init_free_pages() and
+> kernel_poison_pages() in free_pages_prepare().
 
-Sorry, my bad; I mistyped.  What I should have said is this patch
-doesn't *prohibit* writes to swap files....
+Cool; this seems like the right approach. Alexander, what do you think?
 
-(And so Amir's generic/554 test, even modified so it allow reads from
-swapfiles, but not writes, when using copy_file_range, is still
-failing for ext4.  I was looking to see if I could remove it from my
-exclude list, but not yet.  :-)
+Reviewed-by: Kees Cook <keescook@chromium.org>
 
-> > I'm indifferent as to whether you add a new patch, or include that
-> > change in this patch, but perhaps we should fix this while we're
-> > making changes in these code paths?
+-Kees
+
 > 
-> The swapfile patches should be in a separate patch, which I was planning
-> to work on but hadn't really gotten around to it.
+> [1] https://patchwork.kernel.org/patch/10999465/
+> 
+> Signed-off-by: Qian Cai <cai@lca.pw>
+> ---
+> 
+> v2: After further debugging, the issue after switching order is likely a
+>     separate issue as clear_page() should not cause issues with future
+>     accesses.
+> 
+>  mm/page_alloc.c | 3 ++-
+>  1 file changed, 2 insertions(+), 1 deletion(-)
+> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 54dacf35d200..32bbd30c5f85 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -1172,9 +1172,10 @@ static __always_inline bool free_pages_prepare(struct page *page,
+>  					   PAGE_SIZE << order);
+>  	}
+>  	arch_free_page(page, order);
+> -	kernel_poison_pages(page, 1 << order, 0);
+>  	if (want_init_on_free())
+>  		kernel_init_free_pages(page, 1 << order);
+> +
+> +	kernel_poison_pages(page, 1 << order, 0);
+>  	if (debug_pagealloc_enabled())
+>  		kernel_map_pages(page, 1 << order, 0);
+>  
+> -- 
+> 1.8.3.1
+> 
 
-Ok, great, thanks!!
-
-				- Ted
+-- 
+Kees Cook
 
