@@ -2,172 +2,200 @@ Return-Path: <SRS0=pbvW=UU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CCC6CC48BE3
-	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 23:55:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 62484C43613
+	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 23:57:07 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8329E206B6
-	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 23:55:27 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 15A0620821
+	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 23:57:06 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="ZpPFzcp3"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8329E206B6
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="VYwNeL6i"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 15A0620821
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 16E528E0002; Fri, 21 Jun 2019 19:55:27 -0400 (EDT)
+	id 9D0F88E0002; Fri, 21 Jun 2019 19:57:06 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 150728E0001; Fri, 21 Jun 2019 19:55:27 -0400 (EDT)
+	id 9A8FB8E0001; Fri, 21 Jun 2019 19:57:06 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 033428E0002; Fri, 21 Jun 2019 19:55:26 -0400 (EDT)
+	id 8BE788E0002; Fri, 21 Jun 2019 19:57:06 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C1B348E0001
-	for <linux-mm@kvack.org>; Fri, 21 Jun 2019 19:55:26 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id x3so4985290pgp.8
-        for <linux-mm@kvack.org>; Fri, 21 Jun 2019 16:55:26 -0700 (PDT)
+Received: from mail-yw1-f70.google.com (mail-yw1-f70.google.com [209.85.161.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 6CDE38E0001
+	for <linux-mm@kvack.org>; Fri, 21 Jun 2019 19:57:06 -0400 (EDT)
+Received: by mail-yw1-f70.google.com with SMTP id p18so8014531ywe.17
+        for <linux-mm@kvack.org>; Fri, 21 Jun 2019 16:57:06 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:subject:to:cc
-         :references:in-reply-to:mime-version:user-agent:message-id
-         :content-transfer-encoding;
-        bh=x9bZV3T0S6eNYo6IXHrd+kECvmTbbAucaYzxDYrbdeI=;
-        b=mLOuVwjLpWeHhyQ4EXO05/mTQ1eFliCMYwQ/zP7YnI9xuJ/G8Oj1EVy+Ysx+IV+OaE
-         TIg695mb7tJBf7jmcMYL1Nd9rceClp0800Hbykqx0iMZq4CyFevDzjaorRL0v25wBVL+
-         dyG5sJoiS5GWsQOigrTF3jDkK21dGdEFMH/MOHsJPIh/smjtKhjKU3omZQ4dhHI6FBLR
-         2R8HIU8u2XF1rJvnytIiM0i9GxdGSd9ZbanleW/w4YMHkBBNmG9q2XtEXGg7qlS4nc7P
-         G3qxOQkfD7wISC2eTVPlIBuffXEPyt4KHcqDIiz584UPIiQDyVCtm4xbKLOkCsExDNgA
-         WMLg==
-X-Gm-Message-State: APjAAAUA34YDZ1QYYoVcRtcBGBKNyaHpSSTm7BJwTt+XZWYLEyHOvOTW
-	acyyuqDFKzzkz7TstYCvJlLGgnPgBTR/9VVEaimno3m1wEEtus8/fbjEQ1TyimUPgEi9CG8ssPE
-	zu5Ve7EMQoYCaMrUkt/jOCrAcJrfIF9etFGBdUukvbZTtzp8/rnJMaihYsYSBnyKHFg==
-X-Received: by 2002:a17:902:9a04:: with SMTP id v4mr37754659plp.95.1561161326474;
-        Fri, 21 Jun 2019 16:55:26 -0700 (PDT)
-X-Received: by 2002:a17:902:9a04:: with SMTP id v4mr37754613plp.95.1561161325657;
-        Fri, 21 Jun 2019 16:55:25 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561161325; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:from:to:cc:date
+         :message-id:user-agent:mime-version:content-transfer-encoding;
+        bh=fawPQY/UISfSH6DvrztcWabWXm47TtXieQJWSELxOKQ=;
+        b=U9p2yYrewEzjAeRYxmGclFU9XomH+q7e8nktR9z5aXb/085wm6i7Ao0F1GnH0F0SW7
+         yGGzda6c/g2E7hFt7pUjSLHCnDCqYwSmxNs551eB0L+XbTlTs+IEDMCAirF6hYXEzGWY
+         Ghta7ewh5OE3OyJShPDylcW1AHJ2KrM6pSgBxJIXt3O7rf5wHF3fUMi4L0cGLtLBwJPJ
+         kh2VSgMWZJsTXaVRxa0HGT7cH4hY7pwUaceBomriGUPL4IaXd09xAT/OqOJvgGd0Xb21
+         Sd+3C1F+KJ6D4DG72iJHZ6PiMk945ClW5Dryp6KxeQAfKA7VhCjcKp55pNbEf+h3/MrC
+         +y9w==
+X-Gm-Message-State: APjAAAWkogUeHZBQKeOJQ4Jp6HOoRkg++v9b3bOP7zg+jJi7eddvQ0LR
+	El8RNTvEo8yqauBmoF/NI43R/zlMaikjS44XysfHOnLU4PYbUwx9YStTFBxfMqyLuRDqzqM/eLn
+	RLdcwC5OtsSik/Cwl8VbedMLTNm8AQSF2gslRF/DX21AiD+luAkNvlejvkKM7EdTEog==
+X-Received: by 2002:a25:738f:: with SMTP id o137mr7050133ybc.438.1561161426155;
+        Fri, 21 Jun 2019 16:57:06 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqy6U4bw8XoUv9G72RLpOEVTbssvoWGnCnC7Tczx5iJKa3d392Q4S3hNEwKLbn9HQ0plIKCO
+X-Received: by 2002:a25:738f:: with SMTP id o137mr7050118ybc.438.1561161425534;
+        Fri, 21 Jun 2019 16:57:05 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561161425; cv=none;
         d=google.com; s=arc-20160816;
-        b=o3ydsOp+rwHxEEN4erTxSAL2VyJFSxfFnQBKGGCDRV2U8/I/PNKkU773KJPRX0Hu3q
-         780v4LTFLQFwOplGPS6scCbzUVE0JNSs8REPzZksd7YVVGNlh/RbFkAciB8bpVWR113f
-         rYF07G7cwlawWD2Inlu0X+RlNaEk/+sZvvdsZZmDlQ5eeMzQBijeL87yjw5J3KuD5p+n
-         RK7zU8PdZU9Z2pvOWkqDzPAPeTVGnMt6fCWnCQyScjSempVSOj6/Sl7RZPdkATWehx7P
-         d5rbsjAFSjZpzzXYhzuBN+u3XTI7iif8Tqj2np2A4nkG51jRbZfiOPgfnY/d6+kprmT+
-         6W5Q==
+        b=ShKtTap9L14m1fPd1PUDw8GMvj41San0tT/SdgU07eQZUKmbtLAn1XIgfPxMVHyh/l
+         gSwm+GfT+m3fhpzozuSIlmpyf+EVdf7JYm5RbCtRJ+ouLlv72bdE8TyDt1g81kk30dCg
+         3Z1+i5I9ZNP6S3jN8jk7DHM1V+c3k6kmArXsMrEabV72xvBvrsRKUJOB+jPIHchEm61z
+         hU8Xw1vdvI3WfwLWVVIZt1MK2Wc5Qb+3wcsp58eEk5sGgMSVQ1UpLgHysCVJr2fXlV56
+         KRzN4hMgPX0v1AZBBXQoIyB+0GkqxJcaUVIfHdLDRYqvh4RXApxhkgIFicuRS8nIMSnu
+         OL/g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:message-id:user-agent:mime-version
-         :in-reply-to:references:cc:to:subject:from:date:dkim-signature;
-        bh=x9bZV3T0S6eNYo6IXHrd+kECvmTbbAucaYzxDYrbdeI=;
-        b=EdFU2F5os0Br6Ji7T89oMeYrZbr/b43NcnkLvLfWupVhaKTHwWU1sTrfE4Nwxu/2rj
-         ulSJQTqmo95S/U4PVIyxMrdMEqOm0Cdod16zNjf61vLIuWNaF12U6FMRjgSnPeP8JsOB
-         ac6FvWXRrvZrsZlId/YewvlS3F3YKRkks49HhgSMzgya0BFilb9aLIC5/nh9ZlHS8s+G
-         TKwKI9eY6v6hhwtwUGGZP+9+Nwx7D2UWO5RptMw8Ytnex+5oyJDeoa/r7Pjku1RcHXhU
-         4cPdWfGFLbpB+WcUM/PUnPaiViIJEq85X+sa65t7ZRqZdt1LfBcWBirIkAIAE7Zzhnoz
-         vXng==
+        h=content-transfer-encoding:mime-version:user-agent:message-id:date
+         :cc:to:from:subject:dkim-signature;
+        bh=fawPQY/UISfSH6DvrztcWabWXm47TtXieQJWSELxOKQ=;
+        b=YSDpBs9lmZ2iqxRFkCTcTblsfgaCx1vFCn1w7oxIP4KeHj8OjOXKSW/WynGmEh3UXT
+         rYrT7K1rpWE8VK6EyRRTK84bYviOoaGXdlyQMaj9oIWHOBuXCxRg/fenUNl+zT1DLcbf
+         4aEjH6Dv9RSRWbaTlH5lfFxK+GqQU9Faczdad4SYQFXHuqCywYCG4C0TMIKWcLqX/RTu
+         TZZoxrwtLwFsKwsYB95YcaQSVnIqr+hzXRDcwne9OoxUBIEa8eoTsLgrzmcuKZ0OrarT
+         W5VcjqdbpAoFhRuTItlpzlhOIun+Eu+hzyGyDk4VfvRCY4LBCHQx6JZkOtw2P0AiQ8ZH
+         uy1Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=ZpPFzcp3;
-       spf=pass (google.com: domain of npiggin@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=npiggin@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d18sor2724438pgo.60.2019.06.21.16.55.25
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=VYwNeL6i;
+       spf=pass (google.com: domain of darrick.wong@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=darrick.wong@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id o145si1476120ywo.346.2019.06.21.16.57.05
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 21 Jun 2019 16:55:25 -0700 (PDT)
-Received-SPF: pass (google.com: domain of npiggin@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 21 Jun 2019 16:57:05 -0700 (PDT)
+Received-SPF: pass (google.com: domain of darrick.wong@oracle.com designates 156.151.31.85 as permitted sender) client-ip=156.151.31.85;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=ZpPFzcp3;
-       spf=pass (google.com: domain of npiggin@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=npiggin@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=date:from:subject:to:cc:references:in-reply-to:mime-version
-         :user-agent:message-id:content-transfer-encoding;
-        bh=x9bZV3T0S6eNYo6IXHrd+kECvmTbbAucaYzxDYrbdeI=;
-        b=ZpPFzcp36+Hh5jye0ZKjtgJ550NYI096FfX2rcFyQ99LOi8SMis6xF/dheI3yxj7vn
-         TBGcbHMLdJQh068I90oszy1lxCnmI5g4KVT7DQMh+oL+mOljJTN2ljZWYTmOt23yVg2h
-         LdyqXTNKqxAmKaI+JKi19peuQtNFJ/A6jfkfKGStmgPKTkapA12DT/MDePfRHMwpeCd2
-         tgrx+S6ckAPgkEN6TA/783NZNMh/U4UZX0873+4sMF+NwUUbApR86gBQBtLXNIwieoaL
-         GIkk0MteisbTCO2dsnPaZ8Qv7rsQ8XF4reLwhY4yUxl1spYYF0SWL0LStYP/hWINYrnP
-         HtFA==
-X-Google-Smtp-Source: APXvYqyqRRpjMOtRudskKnzHE+bVq170qVap7+EY5kc6j/qI6uUR3V4Zstw2KCShBoXYwoTuoCwbAg==
-X-Received: by 2002:a63:545c:: with SMTP id e28mr4210785pgm.374.1561161325219;
-        Fri, 21 Jun 2019 16:55:25 -0700 (PDT)
-Received: from localhost ([1.144.144.251])
-        by smtp.gmail.com with ESMTPSA id 85sm4623425pfv.130.2019.06.21.16.55.23
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Fri, 21 Jun 2019 16:55:24 -0700 (PDT)
-Date: Sat, 22 Jun 2019 09:55:09 +1000
-From: Nicholas Piggin <npiggin@gmail.com>
-Subject: Re: [PATCH 16/16] mm: pass get_user_pages_fast iterator arguments in
- a structure
-To: Christoph Hellwig <hch@lst.de>, Linus Torvalds
-	<torvalds@linux-foundation.org>
-Cc: Andrey Konovalov <andreyknvl@google.com>, Benjamin Herrenschmidt
-	<benh@kernel.crashing.org>, Rich Felker <dalias@libc.org>, "David S. Miller"
-	<davem@davemloft.net>, James Hogan <jhogan@kernel.org>, Khalid Aziz
-	<khalid.aziz@oracle.com>, Linux List Kernel Mailing
-	<linux-kernel@vger.kernel.org>, linux-mips@vger.kernel.org, Linux-MM
-	<linux-mm@kvack.org>, linuxppc-dev@lists.ozlabs.org, Linux-sh list
-	<linux-sh@vger.kernel.org>, Michael Ellerman <mpe@ellerman.id.au>,
-	Paul Burton <paul.burton@mips.com>, Paul Mackerras <paulus@samba.org>,
-	sparclinux@vger.kernel.org, the arch/x86 maintainers <x86@kernel.org>,
-	Yoshinori Sato <ysato@users.sourceforge.jp>
-References: <20190611144102.8848-1-hch@lst.de>
-	<20190611144102.8848-17-hch@lst.de>
-	<1560300464.nijubslu3h.astroid@bobo.none>
-	<CAHk-=wjSo+TzkvYnAqrp=eFgzzc058DhSMTPr4-2quZTbGLfnw@mail.gmail.com>
-	<1561032202.0qfct43s2c.astroid@bobo.none>
-	<CAHk-=wh46y3x5O0HkR=R4ETh6e5pDCrEsJ94CtC0fyQiYYAf6A@mail.gmail.com>
-	<20190621081501.GA17718@lst.de>
-In-Reply-To: <20190621081501.GA17718@lst.de>
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=VYwNeL6i;
+       spf=pass (google.com: domain of darrick.wong@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=darrick.wong@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
+	by userp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x5LNt5Xd059348;
+	Fri, 21 Jun 2019 23:56:58 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : from : to :
+ cc : date : message-id : mime-version : content-type :
+ content-transfer-encoding; s=corp-2018-07-02;
+ bh=fawPQY/UISfSH6DvrztcWabWXm47TtXieQJWSELxOKQ=;
+ b=VYwNeL6ibPXVTEVoRkPUTgHJCT2wzrlt5vhgzdSSWt3OQjBNDlvSlcMAel/+5/qiR1of
+ h2fH3k9W374Ek5nhUZh18oW2OLVU8FOtFCEtIVH579hK6M1M54/APh5/t3SUPGKy7t9V
+ zr4flVMsY+8M+/9Er2kArmiUZJYRUJeMUa6Z3FeKdWFkw5uKS18otDCNc6AjwWI6ftkm
+ Qf7O4LpTTnOL9WPw64vBXu6TFLd4bcXU3WYyHNH2O8UezLzZ+yDrtb1pzL64XMboTNNv
+ P0vzfKCxcw4dY1NwEQj5N4JcCQ2pFTiMWGgyRXLO/ijggAoaKJ7wtQ0X968LtP9NJ5HD 2A== 
+Received: from aserp3030.oracle.com (aserp3030.oracle.com [141.146.126.71])
+	by userp2120.oracle.com with ESMTP id 2t7809rqup-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Fri, 21 Jun 2019 23:56:57 +0000
+Received: from pps.filterd (aserp3030.oracle.com [127.0.0.1])
+	by aserp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x5LNtKaA167994;
+	Fri, 21 Jun 2019 23:56:57 GMT
+Received: from pps.reinject (localhost [127.0.0.1])
+	by aserp3030.oracle.com with ESMTP id 2t7rdy0604-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=FAIL);
+	Fri, 21 Jun 2019 23:56:57 +0000
+Received: from aserp3030.oracle.com (aserp3030.oracle.com [127.0.0.1])
+	by pps.reinject (8.16.0.27/8.16.0.27) with SMTP id x5LNuue9170472;
+	Fri, 21 Jun 2019 23:56:56 GMT
+Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
+	by aserp3030.oracle.com with ESMTP id 2t7rdy05yy-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Fri, 21 Jun 2019 23:56:56 +0000
+Received: from abhmp0002.oracle.com (abhmp0002.oracle.com [141.146.116.8])
+	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x5LNurk8019074;
+	Fri, 21 Jun 2019 23:56:53 GMT
+Received: from localhost (/10.159.131.214)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Fri, 21 Jun 2019 16:56:53 -0700
+Subject: [PATCH v4 0/7] vfs: make immutable files actually immutable
+From: "Darrick J. Wong" <darrick.wong@oracle.com>
+To: matthew.garrett@nebula.com, yuchao0@huawei.com, tytso@mit.edu,
+        darrick.wong@oracle.com, ard.biesheuvel@linaro.org,
+        josef@toxicpanda.com, clm@fb.com, adilger.kernel@dilger.ca,
+        viro@zeniv.linux.org.uk, jack@suse.com, dsterba@suse.com,
+        jaegeuk@kernel.org, jk@ozlabs.org
+Cc: reiserfs-devel@vger.kernel.org, linux-efi@vger.kernel.org,
+        devel@lists.orangefs.org, linux-kernel@vger.kernel.org,
+        linux-f2fs-devel@lists.sourceforge.net, linux-xfs@vger.kernel.org,
+        linux-mm@kvack.org, linux-nilfs@vger.kernel.org,
+        linux-mtd@lists.infradead.org, ocfs2-devel@oss.oracle.com,
+        linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org,
+        linux-btrfs@vger.kernel.org
+Date: Fri, 21 Jun 2019 16:56:50 -0700
+Message-ID: <156116141046.1664939.11424021489724835645.stgit@magnolia>
+User-Agent: StGit/0.17.1-dirty
 MIME-Version: 1.0
-User-Agent: astroid/0.14.0 (https://github.com/astroidmail/astroid)
-Message-Id: <1561160786.mradw6fg2v.astroid@bobo.none>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9295 signatures=668687
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
+ definitions=main-1906210182
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Christoph Hellwig's on June 21, 2019 6:15 pm:
-> On Thu, Jun 20, 2019 at 10:21:46AM -0700, Linus Torvalds wrote:
->> Hmm. Honestly, I've never seen anything like that in any kernel profiles=
-.
->>=20
->> Compared to the problems I _do_ see (which is usually the obvious
->> cache misses, and locking), it must either be in the noise or it's
->> some problem specific to whatever CPU you are doing performance work
->> on?
->>=20
->> I've occasionally seen pipeline hiccups in profiles, but it's usually
->> been either some serious glass jaw of the core, or it's been something
->> really stupid we did (or occasionally that the compiler did: one in
->> particular I remember was how there was a time when gcc would narrow
->> stores when it could, so if you set a bit in a word, it would do it
->> with a byte store, and then when you read the whole word afterwards
->> you'd get a major pipeline stall and it happened to show up in some
->> really hot paths).
->=20
-> I've not seen any difference in the GUP bench output here ar all.
->=20
-> But I'm fine with skipping this patch for now, I have a potential
-> series I'm looking into that would benefit a lot from it, but we
-> can discusss it in that context and make sure all the other works gets in
-> in time.
->=20
+Hi all,
 
-If you can, that would be good. I don't like to object based on
-handwaving so I'll see if I can find any benchmarks that will give
-better confidence. Those old TPC-C tests were good, and there was
-some DB2 workload that was the reason I added gup fast in the first
-place. I'll do some digging.
+The chattr(1) manpage has this to say about the immutable bit that
+system administrators can set on files:
 
-Thanks,
-Nick
-=
+"A file with the 'i' attribute cannot be modified: it cannot be deleted
+or renamed, no link can be created to this file, most of the file's
+metadata can not be modified, and the file can not be opened in write
+mode."
+
+Given the clause about how the file 'cannot be modified', it is
+surprising that programs holding writable file descriptors can continue
+to write to and truncate files after the immutable flag has been set,
+but they cannot call other things such as utimes, fallocate, unlink,
+link, setxattr, or reflink.
+
+Since the immutable flag is only settable by administrators, resolve
+this inconsistent behavior in favor of the documented behavior -- once
+the flag is set, the file cannot be modified, period.  We presume that
+administrators must be trusted to know what they're doing, and that
+cutting off programs with writable fds will probably break them.
+
+Therefore, add immutability checks to the relevant VFS functions, then
+refactor the SETFLAGS and FSSETXATTR implementations to use common
+argument checking functions so that we can then force pagefaults on all
+the file data when setting immutability.
+
+Note that various distro manpages points out the inconsistent behavior
+of the various Linux filesystems w.r.t. immutable.  This fixes all that.
+
+I also discovered that userspace programs can write and create writable
+memory mappings to active swap files.  This is extremely bad because
+this allows anyone with write privileges to corrupt system memory.  The
+final patch in this series closes off that hole, at least for swap
+files.
+
+If you're going to start using this mess, you probably ought to just
+pull from my git trees, which are linked below.
+
+This has been lightly tested with fstests.  Enjoy!
+Comments and questions are, as always, welcome.
+
+--D
+
+kernel git tree:
+https://git.kernel.org/cgit/linux/kernel/git/djwong/xfs-linux.git/log/?h=immutable-files
+
+fstests git tree:
+https://git.kernel.org/cgit/linux/kernel/git/djwong/xfstests-dev.git/log/?h=immutable-files
 
