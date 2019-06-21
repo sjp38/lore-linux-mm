@@ -2,223 +2,183 @@ Return-Path: <SRS0=pbvW=UU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+X-Spam-Status: No, score=-8.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
-	version=3.4.0
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D9CC0C43613
-	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 13:36:15 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 90715C43613
+	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 13:39:14 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A2B9521537
-	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 13:36:15 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 233D7206B7
+	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 13:39:14 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="BFwyv2mQ"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A2B9521537
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
+	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="LOaqH/Dl"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 233D7206B7
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A1C526B0006; Fri, 21 Jun 2019 09:36:14 -0400 (EDT)
+	id 9073E6B0006; Fri, 21 Jun 2019 09:39:13 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9CDE88E0003; Fri, 21 Jun 2019 09:36:14 -0400 (EDT)
+	id 8924B8E0003; Fri, 21 Jun 2019 09:39:13 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 81EC88E0001; Fri, 21 Jun 2019 09:36:14 -0400 (EDT)
+	id 731C98E0001; Fri, 21 Jun 2019 09:39:13 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 65F186B0006
-	for <linux-mm@kvack.org>; Fri, 21 Jun 2019 09:36:14 -0400 (EDT)
-Received: by mail-qt1-f197.google.com with SMTP id h47so7844219qtc.20
-        for <linux-mm@kvack.org>; Fri, 21 Jun 2019 06:36:14 -0700 (PDT)
+Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 4E0066B0006
+	for <linux-mm@kvack.org>; Fri, 21 Jun 2019 09:39:13 -0400 (EDT)
+Received: by mail-qt1-f200.google.com with SMTP id e39so7863395qte.8
+        for <linux-mm@kvack.org>; Fri, 21 Jun 2019 06:39:13 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:message-id:subject:from:to:cc
-         :date:in-reply-to:references:mime-version:content-transfer-encoding;
-        bh=HkLaDd9qBiOze0Unc7G7/2JGdF0V+AxhgqBCBD0faFg=;
-        b=NretH5Ovwnw8SMhpjQtMVj0jFc5oRqb3ey0qOHqSM6LEYUHMskt4E8s15AiA/JJdYs
-         FBgsp4VHclFguOIXwAzHekCRAfliMIQXw8LdaRVzsjlJ+Q2iB15EGMYx+aVhLeFYBLlT
-         yB/ApT31Bl1MDNDnEyBwc3DsyzDuyzowgon/x2RY0bKUccgvMiu8OLdiIly91HFt83GJ
-         w+X0WQrm5sJd8AZuxszgpE44k7cRNwNTbQi0zW09gCo9pI3DzfADopyeGa9rJS00VdpH
-         E9SIvZJGAjHmaj+ia5fHbV0blZPoTDpf+UXoQLbT7pLvWo3lPVGqVVv1cFGIUa3LLnRo
-         ZyEw==
-X-Gm-Message-State: APjAAAWTc4XwOecV+yCYgeXkGkqmKWDvThE78NzSltzazLVVM0jsfDt8
-	gipiCbaxhug3u88gqh4zjcAIsbjjIFV5RZCk2DlgUFQvFGnpY0Cf2P1PshhQmw7++/BK8GarsOK
-	sH2MvucjZ7JF8tpECpeHZI6DW+znWnbufHQH1S7slNDey4kKb3Fty3Tsmc4XDZPADpA==
-X-Received: by 2002:ac8:36b9:: with SMTP id a54mr118267190qtc.300.1561124174183;
-        Fri, 21 Jun 2019 06:36:14 -0700 (PDT)
-X-Received: by 2002:ac8:36b9:: with SMTP id a54mr118267130qtc.300.1561124173575;
-        Fri, 21 Jun 2019 06:36:13 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561124173; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=W1v9REbUjdM2ZPgzn5WvSncnmCktMY/9EZgX6QI0HOA=;
+        b=q9VHMHK7p37gMdDHpQOy4peqB3NDlNhKk09E0fwcKErNFxz+PgUHdPOcLJ25cPlf68
+         QXpRKBbvOrNPDjqQCQ4RPTjM8JnZnBmULMF7cdTW8KjgSpnCUQamkwdHfo7NjJIgOOco
+         7jayMdXedvOvyalvk/5U03jv7Lm6hfJ04gGDgYm4/HJHTv1eMEK/1eSWAlP49FLUDu8C
+         KMcs7eO/d6dJFgs8sHp98T9R4WXRqsJSicIgndXkSPEbnF6KssrYICbCkTPOULNarN9b
+         ACWFdMbX2bFe786O05noRnbrv9qDpl7zREDMexb37NktsLNGldii7k064Qigw3pChtP8
+         l9CA==
+X-Gm-Message-State: APjAAAUY0Rocq+7vyMREOks2qbiUW3S17LJ3GOlAnHqHTTURrhKWFaO9
+	31hUFbbSPSSuNdd4BCPX5bMBWe2i2siY15BjP6dyk09OCU+KIXi5X10+GFFl+Xrp2P7kludw5ZB
+	JtSFiPTTpl2Seqs1udlimfwlJyXCYJrjw3pqof28Dqipuhatcx3A+N9vX/QPMa9iYrA==
+X-Received: by 2002:a37:64cb:: with SMTP id y194mr102207749qkb.197.1561124353119;
+        Fri, 21 Jun 2019 06:39:13 -0700 (PDT)
+X-Received: by 2002:a37:64cb:: with SMTP id y194mr102207709qkb.197.1561124352595;
+        Fri, 21 Jun 2019 06:39:12 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561124352; cv=none;
         d=google.com; s=arc-20160816;
-        b=Qg/3e7HMPYXMgE2y5J5yt3J5JiD1OK8qMquCiv8IF0v/+RAwe50hedeU/b5y1noEGM
-         M76SnT+qBKm4XnDbrHSVjVkp7ivKfrjTlrVG2HkT01ecljumwEopaGcfkyWJMWCt32Nh
-         4fe1U+VPRh4wd3SWOxghlbHNK9aqhRilPk0vpJ5M4i+Q0OW1YYHvuyHoPxagjyZ0Tu14
-         0XjpMszMLsBys03ilueGuBBObZLhYu2uRbEodR4ZCystv3BWQxETpPfBka3GzYxwRcNB
-         p+orkYnTrIE0CKh1IhRksZd11k78XYIKlCoCaSb2NU9J32Yw5JzTjBHHKPaqgMJQaaQR
-         zSAQ==
+        b=ZEpyuKQ2eojQJUwzv1X1P1gq4OjyMi5e/mYsEqnnNAnOUO3ZWjr8o3+sL2YlA5XcX6
+         j1Q88atT3POVeEQi1Isxa51z2bGUYWgOHxMuPgkhrv3PQ/w+KmzOucOwJXc+B6D+qYkL
+         ORWHcoRWSmIrxNKURYEs/C/m2RBo6vit5nxtwtDP5+hax8DSHA6vhZyAQg8JsoRbfwvT
+         1NXBvtoAY/glUl8uqaGKCm3/9SpPsDTC1MeerX0hwxgVTYQR5bf9mOgqgsOwz2WnRrxq
+         j1wKgkoG5ODV2PeDUhyuMQBDsjInsB8ekz52nUXNFh+tnr9Rz2zAy38nxQyHEIBR8Lid
+         0YFw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to:date
-         :cc:to:from:subject:message-id:dkim-signature;
-        bh=HkLaDd9qBiOze0Unc7G7/2JGdF0V+AxhgqBCBD0faFg=;
-        b=oRdkpJgTLORl2yv4lFvkUFMvEqvMuB5JoD4AmDB0y3P/OjL9FAe99k+sSLtpd/0HG4
-         hHzf+Tow7eeCL7hFbxVoBFBcTzuvLTCVOV8s2z/VyaW0X8vIaZDx/vPGeGHVXLY4Pa/e
-         T9N2rqwbMyYRJ8xdgjfOzjLpT5KXlXw1tIFsGin1CiXXy7HhdLUsEKDoOSCvDY+uo2Iu
-         o1lfCuEd6J+8D3gTY9oAOBWANxW26opssqjyYzwEcsi9pVCJHzap/Mx1uiYayECG20oT
-         5kX7gAWU+d+fo8GqLxTwqOTfPo2iTJeUGvHrW+QbzT+ZiNNaHiuZxqxiv8u4mgS2n1vM
-         RpaQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=W1v9REbUjdM2ZPgzn5WvSncnmCktMY/9EZgX6QI0HOA=;
+        b=kQ4hXnG6dOJglgVADVljI8UQhA93atphaOdvYV5lwnAQn/IAB9mdniGfItHPNA3TI5
+         7wyKenrKhXZYmC5eqf+DFMtIJR0zqnc8snzQzbkr8Ixz47pf6nd6qd00RwsYJQ4yi/bN
+         2/MdUCvxX2YKYsfFb0B3Y5POcsr2dbiU1wmiWiuTScgBX/80BuKk8MkZNsKMcEomyong
+         RUkCckd67T9uar+ICOCjST5qLVuRIIm5C+xf8jBdZhRoYMZmImviQNXoNIRZBlJvfeTA
+         8LiBfT19shI6tmC/0ZoNEszOfdzLCrZAR14Gajf1twABGW5Ewr/gLu/s/Oki4g1RHrPO
+         iIOw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b=BFwyv2mQ;
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
+       dkim=pass header.i=@ziepe.ca header.s=google header.b="LOaqH/Dl";
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id a2sor1557363qkl.45.2019.06.21.06.36.13
+        by mx.google.com with SMTPS id d15sor1595116qkk.175.2019.06.21.06.39.12
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 21 Jun 2019 06:36:13 -0700 (PDT)
-Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Fri, 21 Jun 2019 06:39:12 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b=BFwyv2mQ;
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
+       dkim=pass header.i=@ziepe.ca header.s=google header.b="LOaqH/Dl";
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=lca.pw; s=google;
-        h=message-id:subject:from:to:cc:date:in-reply-to:references
-         :mime-version:content-transfer-encoding;
-        bh=HkLaDd9qBiOze0Unc7G7/2JGdF0V+AxhgqBCBD0faFg=;
-        b=BFwyv2mQDtx4K+/JW0i2RDwexDJUJI/57J5SuyOq4zaUthV7Gi5o/XB+H1fyVhFwOf
-         GLDaA/0AN8vObSniX9YYTuhiLC9D6ryHBigVjb6Hcg/mdfVO/VLHXY0bPymknAfvLq7N
-         NiukfAJshgcG4yckhihCDPqrdd2Bt1fWPg4bFoVggsiMoH+aj5CWoqYh36A1gUCYW1Xp
-         fyiKGWrDv/FOV74nSd7onokFxRc2YMOy5TRonm5eUaPNWKaGEKV402KxD6jWs3nbHKSs
-         EXuS/VoC9yo7C+eyKb058s5rP6GAzhEWdkEbY7aPUSc4ZhcNwayFOQSf5bkk7GXqQaws
-         WxSw==
-X-Google-Smtp-Source: APXvYqwcscyJt3FoX0qWZrn2BTYE92bxsBtcJM7Uxw54ZEYNhfDICxku4GsAzZXPcYyvF/1JYrFVVQ==
-X-Received: by 2002:a37:a397:: with SMTP id m145mr20209631qke.271.1561124173249;
-        Fri, 21 Jun 2019 06:36:13 -0700 (PDT)
-Received: from dhcp-41-57.bos.redhat.com (nat-pool-bos-t.redhat.com. [66.187.233.206])
-        by smtp.gmail.com with ESMTPSA id b203sm1345753qkg.29.2019.06.21.06.36.11
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 21 Jun 2019 06:36:12 -0700 (PDT)
-Message-ID: <1561124170.5154.43.camel@lca.pw>
-Subject: Re: [PATCH v7 1/2] mm: security: introduce init_on_alloc=1 and
- init_on_free=1 boot options
-From: Qian Cai <cai@lca.pw>
-To: Alexander Potapenko <glider@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter
- <cl@linux.com>,  Kees Cook <keescook@chromium.org>, Masahiro Yamada
- <yamada.masahiro@socionext.com>, Michal Hocko <mhocko@kernel.org>, James
- Morris <jmorris@namei.org>, "Serge E. Hallyn" <serge@hallyn.com>, Nick
- Desaulniers <ndesaulniers@google.com>, Kostya Serebryany <kcc@google.com>,
- Dmitry Vyukov <dvyukov@google.com>, Sandeep Patil <sspatil@android.com>, 
- Laura Abbott <labbott@redhat.com>, Randy Dunlap <rdunlap@infradead.org>,
- Jann Horn <jannh@google.com>,  Mark Rutland <mark.rutland@arm.com>, Marco
- Elver <elver@google.com>, Linux Memory Management List
- <linux-mm@kvack.org>, linux-security-module
- <linux-security-module@vger.kernel.org>, Kernel Hardening
- <kernel-hardening@lists.openwall.com>
-Date: Fri, 21 Jun 2019 09:36:10 -0400
-In-Reply-To: <CAG_fn=XKK5+nC5LErJ+zo7dt3N-cO7zToz=bN2R891dMG_rncA@mail.gmail.com>
-References: <20190617151050.92663-1-glider@google.com>
-	 <20190617151050.92663-2-glider@google.com>
-	 <1561120576.5154.35.camel@lca.pw>
-	 <CAG_fn=XKK5+nC5LErJ+zo7dt3N-cO7zToz=bN2R891dMG_rncA@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-X-Mailer: Evolution 3.22.6 (3.22.6-10.el7) 
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+        d=ziepe.ca; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=W1v9REbUjdM2ZPgzn5WvSncnmCktMY/9EZgX6QI0HOA=;
+        b=LOaqH/DlAyTiaVsb+/cJ5fNqCKK9dcYheZzqBkbU8/dJCNcbdbTdvycRRW6WsdWNrq
+         s1KlIlJ8pqtzQuZr4K+pscDPf+VAoNvvbLh7zGps691WEcEWVHVgG/y+SfGLilLH8xno
+         0bDlX2xF7lyCGAB4ZXKagYnPnFu5m/m8VbNEpdAbBtffvGdOG5+2xjfKlD1S7GX/sCJ8
+         Tki+kAZuPALbN16uIeo3/RJOzrwHbwCpqBWSiMTS52KfM4E4JV89wOogvhl4vLh60o2b
+         9hG2keijKi4DWyDadCzOTDOZpyKgf7ZyhWBT1TsI17RSZcSyUl57cSd5RfTlT2NIe0b0
+         X9Vw==
+X-Google-Smtp-Source: APXvYqwDjXm2EEI8RDeCs7A5M5DgZpv1lwL8EVk5ylfRpHYYLvhclwPmRsPezAJyTvAyxaG7iZQC7A==
+X-Received: by 2002:a37:ef01:: with SMTP id j1mr40587433qkk.163.1561124352349;
+        Fri, 21 Jun 2019 06:39:12 -0700 (PDT)
+Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
+        by smtp.gmail.com with ESMTPSA id a6sm1525606qth.76.2019.06.21.06.39.11
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 21 Jun 2019 06:39:11 -0700 (PDT)
+Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
+	(envelope-from <jgg@ziepe.ca>)
+	id 1heJl1-00005R-4p; Fri, 21 Jun 2019 10:39:11 -0300
+Date: Fri, 21 Jun 2019 10:39:11 -0300
+From: Jason Gunthorpe <jgg@ziepe.ca>
+To: Christoph Hellwig <hch@lst.de>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>,
+	Paul Burton <paul.burton@mips.com>, James Hogan <jhogan@kernel.org>,
+	Yoshinori Sato <ysato@users.sourceforge.jp>,
+	Rich Felker <dalias@libc.org>,
+	"David S. Miller" <davem@davemloft.net>,
+	Nicholas Piggin <npiggin@gmail.com>,
+	Khalid Aziz <khalid.aziz@oracle.com>,
+	Andrey Konovalov <andreyknvl@google.com>,
+	Benjamin Herrenschmidt <benh@kernel.crashing.org>,
+	Paul Mackerras <paulus@samba.org>,
+	Michael Ellerman <mpe@ellerman.id.au>, linux-mips@vger.kernel.org,
+	linux-sh@vger.kernel.org, sparclinux@vger.kernel.org,
+	linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, x86@kernel.org,
+	linux-kernel@vger.kernel.org
+Subject: Re: [PATCH 01/16] mm: use untagged_addr() for get_user_pages_fast
+ addresses
+Message-ID: <20190621133911.GL19891@ziepe.ca>
+References: <20190611144102.8848-1-hch@lst.de>
+ <20190611144102.8848-2-hch@lst.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190611144102.8848-2-hch@lst.de>
+User-Agent: Mutt/1.9.4 (2018-02-28)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2019-06-21 at 15:31 +0200, Alexander Potapenko wrote:
-> On Fri, Jun 21, 2019 at 2:36 PM Qian Cai <cai@lca.pw> wrote:
-> > 
-> > On Mon, 2019-06-17 at 17:10 +0200, Alexander Potapenko wrote:
-> > > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > > index d66bc8abe0af..50a3b104a491 100644
-> > > --- a/mm/page_alloc.c
-> > > +++ b/mm/page_alloc.c
-> > > @@ -136,6 +136,48 @@ unsigned long totalcma_pages __read_mostly;
-> > > 
-> > >  int percpu_pagelist_fraction;
-> > >  gfp_t gfp_allowed_mask __read_mostly = GFP_BOOT_MASK;
-> > > +#ifdef CONFIG_INIT_ON_ALLOC_DEFAULT_ON
-> > > +DEFINE_STATIC_KEY_TRUE(init_on_alloc);
-> > > +#else
-> > > +DEFINE_STATIC_KEY_FALSE(init_on_alloc);
-> > > +#endif
-> > > +#ifdef CONFIG_INIT_ON_FREE_DEFAULT_ON
-> > > +DEFINE_STATIC_KEY_TRUE(init_on_free);
-> > > +#else
-> > > +DEFINE_STATIC_KEY_FALSE(init_on_free);
-> > > +#endif
-> > > +
-> > 
-> > There is a problem here running kernels built with clang,
-> > 
-> > [    0.000000] static_key_disable(): static key 'init_on_free+0x0/0x4' used
-> > before call to jump_label_init()
-> > [    0.000000] WARNING: CPU: 0 PID: 0 at ./include/linux/jump_label.h:314
-> > early_init_on_free+0x1c0/0x200
-> > [    0.000000] Modules linked in:
-> > [    0.000000] CPU: 0 PID: 0 Comm: swapper Not tainted 5.2.0-rc5-next-
-> > 20190620+
-> > #11
-> > [    0.000000] pstate: 60000089 (nZCv daIf -PAN -UAO)
-> > [    0.000000] pc : early_init_on_free+0x1c0/0x200
-> > [    0.000000] lr : early_init_on_free+0x1c0/0x200
-> > [    0.000000] sp : ffff100012c07df0
-> > [    0.000000] x29: ffff100012c07e20 x28: ffff1000110a01ec
-> > [    0.000000] x27: 0000000000000001 x26: ffff100011716f88
-> > [    0.000000] x25: ffff100010d367ae x24: ffff100010d367a5
-> > [    0.000000] x23: ffff100010d36afd x22: ffff100011716758
-> > [    0.000000] x21: 0000000000000000 x20: 0000000000000000
-> > [    0.000000] x19: 0000000000000000 x18: 000000000000002e
-> > [    0.000000] x17: 000000000000000f x16: 0000000000000040
-> > [    0.000000] x15: 0000000000000000 x14: 6d756a206f74206c
-> > [    0.000000] x13: 6c61632065726f66 x12: 6562206465737520
-> > [    0.000000] x11: 0000000000000000 x10: 0000000000000000
-> > [    0.000000] x9 : 0000000000000000 x8 : 0000000000000000
-> > [    0.000000] x7 : 73203a2928656c62 x6 : ffff1000144367ad
-> > [    0.000000] x5 : ffff100012c07b28 x4 : 000000000000000f
-> > [    0.000000] x3 : ffff1000101b36ec x2 : 0000000000000001
-> > [    0.000000] x1 : 0000000000000001 x0 : 000000000000005d
-> > [    0.000000] Call trace:
-> > [    0.000000]  early_init_on_free+0x1c0/0x200
-> > [    0.000000]  do_early_param+0xd0/0x104
-> > [    0.000000]  parse_args+0x204/0x54c
-> > [    0.000000]  parse_early_param+0x70/0x8c
-> > [    0.000000]  setup_arch+0xa8/0x268
-> > [    0.000000]  start_kernel+0x80/0x588
-> > [    0.000000] random: get_random_bytes called from __warn+0x164/0x208 with
-> > crng_init=0
-> > 
-> > > diff --git a/mm/slub.c b/mm/slub.c
-> > > index cd04dbd2b5d0..9c4a8b9a955c 100644
-> > > --- a/mm/slub.c
-> > > +++ b/mm/slub.c
-> > > @@ -1279,6 +1279,12 @@ static int __init setup_slub_debug(char *str)
-> > >       if (*str == ',')
-> > >               slub_debug_slabs = str + 1;
-> > >  out:
-> > > +     if ((static_branch_unlikely(&init_on_alloc) ||
-> > > +          static_branch_unlikely(&init_on_free)) &&
-> > > +         (slub_debug & SLAB_POISON)) {
-> > > +             pr_warn("disabling SLAB_POISON: can't be used together with
-> > > memory auto-initialization\n");
-> > > +             slub_debug &= ~SLAB_POISON;
-> > > +     }
-> > >       return 1;
-> > >  }
-> > 
-> > I don't think it is good idea to disable SLAB_POISON here as if people have
-> > decided to enable SLUB_DEBUG later already, they probably care more to make
-> > sure
-> > those additional checks with SLAB_POISON are still running to catch memory
-> > corruption.
+On Tue, Jun 11, 2019 at 04:40:47PM +0200, Christoph Hellwig wrote:
+> This will allow sparc64 to override its ADI tags for
+> get_user_pages and get_user_pages_fast.
 > 
-> The problem is that freed buffers can't be both poisoned and zeroed at
-> the same time.
-> Do you think we need to disable memory initialization in that case instead?
+> Signed-off-by: Christoph Hellwig <hch@lst.de>
+>  mm/gup.c | 4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/gup.c b/mm/gup.c
+> index ddde097cf9e4..6bb521db67ec 100644
+> +++ b/mm/gup.c
+> @@ -2146,7 +2146,7 @@ int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
+>  	unsigned long flags;
+>  	int nr = 0;
+>  
+> -	start &= PAGE_MASK;
+> +	start = untagged_addr(start) & PAGE_MASK;
+>  	len = (unsigned long) nr_pages << PAGE_SHIFT;
+>  	end = start + len;
 
-Yes, disable init_on_free|alloc and keep SLAB_POISON sounds good to me.
+Hmm, this function, and the other, goes on to do:
+
+        if (unlikely(!access_ok((void __user *)start, len)))
+                return 0;
+
+and I thought that access_ok takes in the tagged pointer?
+
+How about re-order it a bit?
+
+diff --git a/mm/gup.c b/mm/gup.c
+index ddde097cf9e410..f48747ced4723b 100644
+--- a/mm/gup.c
++++ b/mm/gup.c
+@@ -2148,11 +2148,12 @@ int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
+ 
+ 	start &= PAGE_MASK;
+ 	len = (unsigned long) nr_pages << PAGE_SHIFT;
+-	end = start + len;
+-
+ 	if (unlikely(!access_ok((void __user *)start, len)))
+ 		return 0;
+ 
++	start = untagged_ptr(start);
++	end = start + len;
++
+ 	/*
+ 	 * Disable interrupts.  We use the nested form as we can already have
+ 	 * interrupts disabled by get_futex_key.
 
