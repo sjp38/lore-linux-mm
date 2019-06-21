@@ -2,173 +2,145 @@ Return-Path: <SRS0=pbvW=UU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.7 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_NEOMUTT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-5.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 28FB9C43613
-	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 13:11:35 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 46E4AC43613
+	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 13:16:14 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D6E8D2083B
-	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 13:11:34 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 0FA1D2083B
+	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 13:16:13 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="Gg0bojnn"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D6E8D2083B
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=shutemov.name
+	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="dAlun1Hg"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0FA1D2083B
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6F9E48E0003; Fri, 21 Jun 2019 09:11:34 -0400 (EDT)
+	id 7BA2A8E0002; Fri, 21 Jun 2019 09:16:13 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6AA948E0001; Fri, 21 Jun 2019 09:11:34 -0400 (EDT)
+	id 76AAF8E0001; Fri, 21 Jun 2019 09:16:13 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 599588E0003; Fri, 21 Jun 2019 09:11:34 -0400 (EDT)
+	id 633068E0002; Fri, 21 Jun 2019 09:16:13 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 0F6038E0001
-	for <linux-mm@kvack.org>; Fri, 21 Jun 2019 09:11:34 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id y24so9205364edb.1
-        for <linux-mm@kvack.org>; Fri, 21 Jun 2019 06:11:34 -0700 (PDT)
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 445248E0001
+	for <linux-mm@kvack.org>; Fri, 21 Jun 2019 09:16:13 -0400 (EDT)
+Received: by mail-qk1-f197.google.com with SMTP id j128so7421023qkd.23
+        for <linux-mm@kvack.org>; Fri, 21 Jun 2019 06:16:13 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
          :message-id:references:mime-version:content-disposition:in-reply-to
          :user-agent;
-        bh=AyLAEHAoTiHsTh4Ci9HQnMyYQMtGJRt5b9Z5HyIMkcg=;
-        b=XW5UpWZe4L9MEZNe9GxJBUEzAmsbV007qaCZIKjiaBVCdqHNpqesvSFkwblL6ZsAMB
-         BlizQBoIIoUZX8NUl178VU3TpJZV1hvHEFK2dlpOMRdts3HeW/Z2GevM5ZXtUtv777yU
-         N8BiUpZCmmet3wEWmNgRpiUgHkofMycQbS2Aleqrq4LCzMxDWyqKH+P5Cfb60y3lUB6p
-         /5yRXj8S9b/6jE40pJpEzpv85cR56Y03uycZJfouPdpYutw1piqBm8v+LD7v5LSstCld
-         7uOux5B9Se6Zv5HGK5vFyZx4ozewBEOvAhoqVEz4nnWmDe+J7Ny10NLOo5frtH5A5qXQ
-         SnTw==
-X-Gm-Message-State: APjAAAVKiR8EyqvElIif6yTZsm0cLIRKP79O7CVHHaz2UpKnHnwEBlI1
-	83A2zzwUdmrdliypkHf3ABPrf1CRDr+u71nSp2K6CN85v8lRsjbvdZIQbbUpeTJc2opCNqHsf3S
-	E+y8UUOIV2C9wlJpd11XC/iKqGKh4XHa1OIQwrn3ab3iU+/Bmty4WyU/kpx5d2UB1Xw==
-X-Received: by 2002:a50:8974:: with SMTP id f49mr91323071edf.95.1561122693597;
-        Fri, 21 Jun 2019 06:11:33 -0700 (PDT)
-X-Received: by 2002:a50:8974:: with SMTP id f49mr91322970edf.95.1561122692828;
-        Fri, 21 Jun 2019 06:11:32 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561122692; cv=none;
+        bh=IQElyJy7GWkNBjpDGeWXQk4uiZdHF4DIvT5Nq6LmxE8=;
+        b=TivwZSfugsUzBcYZ9RhFHV3gzhSBWUKVs2t7PJvZy/0ocUK9mPBYoA04YbDLtL28lS
+         FdmNwc6EyDfdkfCGgu2BYONt6XPZYV8yN5HBqM4yMurDDgTqWhSdSTgJtvlMtNYxHkhF
+         Kynt6LpPXa+ZQNmUpFbNiSjLJMluBr8Chn4a9aXLPM09ga/VaNZLpvlSxWiljokbQrJI
+         72F1W2Cw/m8nzIsItKSuMi1t9NCyTFT9Ro/726Xm7zqI41RhassbXy864b4QwfnsDva/
+         1ME6XMzYmLtRdPV0Qz7ErKCSnfd0+vko7WXaXCtlpgj1nZsWMZrQpCGbcp2f3sr5QLIU
+         ovQA==
+X-Gm-Message-State: APjAAAU9G+TuQ062FxxnARbqlNlwBzJP8MYD7SHWbgVlRB3ry3MFyTHa
+	bc4HvWhzhsmD0dOFaD3ZCtv24Ven6SFzQpXFE5qDxV/DWi4GA7VmlDuzcscP0qHIOw8sc+KKngA
+	YC5riqtWtMwHegNqiq9dKB0jkwo9c/VW1bUNX5gIg3o8/tn3aou7Mlba5h2VaCa5kyw==
+X-Received: by 2002:a0c:bc07:: with SMTP id j7mr4525855qvg.76.1561122973066;
+        Fri, 21 Jun 2019 06:16:13 -0700 (PDT)
+X-Received: by 2002:a0c:bc07:: with SMTP id j7mr4525760qvg.76.1561122971880;
+        Fri, 21 Jun 2019 06:16:11 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561122971; cv=none;
         d=google.com; s=arc-20160816;
-        b=IomvHRKbHb1rfpky39vpQQ+OSsFUolmqBG3L4zosusB3vw0Y9+Rzqya83A7rMjgMs/
-         nUD8X+uTJjUs/AqW8WafOdS141BCQUHGyTOdwWwlPykUw9nCJl4pd1Ar29pmG6V1MMU0
-         92eM4iaNbPa2LqSagsnD+HwrC8FnkFWlsiiTTqUtkvEk6qpms1E9d1OME3pREcm7NQsI
-         yAS7MxTozrttC1fJ99JDsKbwxMdvOUhZSyoCFXd7o7hZyi/DA/vWTyW+v6PpqkwIJ3O1
-         ivRbzWadb9+OfEFkRvHyUqhJNzgZkvzNBF6trDaWuIQBT0aT6T/zhfSU6u8yuetSs6Rf
-         xkew==
+        b=AB8LGAYB9RhEN/xOA3WznfAmi9kAbF63wejhXnnftza2uTgcs6FYxJf9/nDpmOskyW
+         oEg9OIuJV0cwGakbPCR75H9KWIYNqS2pWhkjA2F16YJNlNv45Fqpq2I6I6jb6Oysu8Af
+         8Gnp1ZrVUbL3+9I7VU8AzgKMY3wkGtiODmOH/vGUbU8mcBcOe5Y9opYhoJZHprlKVIWB
+         7wTOQdGkm5SpHPKWqqny5YlyIEALSxIJfTx+fb+MEXMiYT1xdvyEyDxiZto1v5ZDRVyd
+         YAAyohXUPwmZvqzrsNcWwZr4w2/k1JJznoeL+Wpb/6Tj97z91EoBF/ICk1rLqtnZMgki
+         NAtQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=AyLAEHAoTiHsTh4Ci9HQnMyYQMtGJRt5b9Z5HyIMkcg=;
-        b=GMUxTK1l90ZHJHQ2ES2r8FR7k1jWdJ3BjBj5nbTM5HhiIWRB5mqF+1xMqexao3hfaa
-         7DdU43mpdyAJWjiDblgy0BhPMHnDJWpcmnUSnyLduWWoanhNtX6ur3dr8/7XDnPj07D0
-         EhFe8xSvqjxUwKz26JZtUyoKAe0+59Nd4C3N/W9UM66ksoqusMu/v5KtLFJNN1X3iiE8
-         MWyaG+irmT/fVveiNQfdJQcLj0697dLbqVXBVdmXcmfifXOS2B53/ageWVGivoDZKbRu
-         TIXb1IrZ8x5yzmA8RtNiExCv4JEqfVjbNAxvOarjcptmEpWPfsMY8MiGjp5IPV1/A7oa
-         4ASw==
+        bh=IQElyJy7GWkNBjpDGeWXQk4uiZdHF4DIvT5Nq6LmxE8=;
+        b=XzC8uewGOatn+uynjd93SHoqCpVTr/88f/UT+h6ECeY8q3zooXHDi6zKAo3DT0RdMp
+         K9RrK2fWMMz05Xc7kiyyIbxcH2Ob1NIHF6bgBFecVM7HVT7C5aY7/YVM6fUs1cYfNXto
+         tUpSEYC1SWW1k30EqwTSy4UytCfFQKbyhJs7lU1VhaDFO84D2fgPO3ppK8oaoT399QmL
+         pYk7MjDW0ZS8zIjYVWl8AlFuI9vS7xApp3XH6vmBIIN+nVv+KZ+nrG0RIj149FW9Wbhj
+         Dq8Dyd8wi49uSg+5c6LIBuCxoYIdhj8JeQjnroC6FX4xXf2dmy01gRS1k0KeeK1QmUfV
+         kZhA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=Gg0bojnn;
-       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=dAlun1Hg;
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id gx1sor1029160ejb.7.2019.06.21.06.11.32
+        by mx.google.com with SMTPS id v188sor1490083qkc.93.2019.06.21.06.16.11
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 21 Jun 2019 06:11:32 -0700 (PDT)
-Received-SPF: neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) client-ip=209.85.220.65;
+        Fri, 21 Jun 2019 06:16:11 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=Gg0bojnn;
-       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=dAlun1Hg;
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=shutemov-name.20150623.gappssmtp.com; s=20150623;
+        d=ziepe.ca; s=google;
         h=date:from:to:cc:subject:message-id:references:mime-version
          :content-disposition:in-reply-to:user-agent;
-        bh=AyLAEHAoTiHsTh4Ci9HQnMyYQMtGJRt5b9Z5HyIMkcg=;
-        b=Gg0bojnnmyLsVpVHlHmQK5Rq2yABGcbSrhP3lr0P29TW76t6OcDQtuHceiGumBraAd
-         fwz+RX/bkOQuE1QMOCbikS4QJ+4zxOlVkI/kjvrtqEcGQHXds0WCPTbgZkWFcOGvcGWh
-         SajZY/Z2zE3zKgpf3teOVufX6RzHjWX1Z5IKX2ECjvJWihN7LyrSZ/kR2jIeOAwIm4uV
-         fSFCzZW5UJCcOJaXboNsSIXjvNyAlQBJ2QUYa659g59e+Z239njxJB8xTydym2bP2eKq
-         wR9udhVcvLtBYFap4PTsevfBr24LFs03sfaBzpdiyIz8xkx+SgxhdqDTyDMqgMDByjsD
-         d0wg==
-X-Google-Smtp-Source: APXvYqx818Q25ywCLb9OOtkAH2lVPMpvmHlzZZl1H4Krc2wN2O9tizzeSxH0Tedf2y5rHaEO3xikcw==
-X-Received: by 2002:a17:906:a394:: with SMTP id k20mr95857655ejz.46.1561122692425;
-        Fri, 21 Jun 2019 06:11:32 -0700 (PDT)
-Received: from box.localdomain ([86.57.175.117])
-        by smtp.gmail.com with ESMTPSA id d8sm787817edi.90.2019.06.21.06.11.31
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 21 Jun 2019 06:11:31 -0700 (PDT)
-Received: by box.localdomain (Postfix, from userid 1000)
-	id DDD2010289C; Fri, 21 Jun 2019 16:11:33 +0300 (+03)
-Date: Fri, 21 Jun 2019 16:11:33 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-To: Song Liu <songliubraving@fb.com>
-Cc: Linux-MM <linux-mm@kvack.org>,
-	Matthew Wilcox <matthew.wilcox@oracle.com>,
-	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
-	Kernel Team <Kernel-team@fb.com>,
-	William Kucharski <william.kucharski@oracle.com>,
-	Chad Mynhier <chad.mynhier@oracle.com>,
-	Mike Kravetz <mike.kravetz@oracle.com>
-Subject: Re: [PATCH v2 3/3] mm,thp: add read-only THP support for (non-shmem)
- FS
-Message-ID: <20190621131133.tafbzskbvquaaa7m@box>
-References: <20190614182204.2673660-1-songliubraving@fb.com>
- <20190614182204.2673660-4-songliubraving@fb.com>
- <20190621125810.llsqslfo52nfh5g7@box>
- <B83B2259-7CF5-411E-BC4C-7112657FC48E@fb.com>
+        bh=IQElyJy7GWkNBjpDGeWXQk4uiZdHF4DIvT5Nq6LmxE8=;
+        b=dAlun1HgnUe7022YkQS6GWMYxR1o5c8vpg7JqEcJa5EPCdLDLVoVyNKQvqmZhtNBLF
+         WpB9JM8/T8dBcxbgb0A781lKzoM1O/pMV5gbPgxu5rSpwSDOdrQZP84Rnb3SOamIN0Wr
+         zqwvpJy81nkQ5T+CDcckayqmm3eCo60vgpfs1x9K8ufP7D9ZXElAHaqtpaYy7p5iJE/y
+         l4SUnUVsNsnn39sHqAifpgiGxKut8u7nW0gFTVC/+FCOE5qrTg5md8qyqRNjEUqfK8fM
+         2IShZOwM3jYukwEVdkuYU+31+Rw+P2EKrT1nUVgmbwp7XxSFSraMeiH+ei/K/LHG/DXJ
+         LUbA==
+X-Google-Smtp-Source: APXvYqzJ0dyt2+hyzdXxi/NcBy96mwSHUO+pPyyWhj5oMJpKDFijtNxh/f3duoRgranP7T7lVqZ1hA==
+X-Received: by 2002:a37:a093:: with SMTP id j141mr90247251qke.244.1561122971647;
+        Fri, 21 Jun 2019 06:16:11 -0700 (PDT)
+Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
+        by smtp.gmail.com with ESMTPSA id s23sm1691094qtk.31.2019.06.21.06.16.10
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 21 Jun 2019 06:16:10 -0700 (PDT)
+Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
+	(envelope-from <jgg@ziepe.ca>)
+	id 1heJOk-0008Dq-Dw; Fri, 21 Jun 2019 10:16:10 -0300
+Date: Fri, 21 Jun 2019 10:16:10 -0300
+From: Jason Gunthorpe <jgg@ziepe.ca>
+To: Christoph Hellwig <hch@lst.de>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>,
+	Paul Burton <paul.burton@mips.com>, James Hogan <jhogan@kernel.org>,
+	Yoshinori Sato <ysato@users.sourceforge.jp>,
+	Rich Felker <dalias@libc.org>,
+	"David S. Miller" <davem@davemloft.net>,
+	Nicholas Piggin <npiggin@gmail.com>,
+	Khalid Aziz <khalid.aziz@oracle.com>,
+	Andrey Konovalov <andreyknvl@google.com>,
+	Benjamin Herrenschmidt <benh@kernel.crashing.org>,
+	Paul Mackerras <paulus@samba.org>,
+	Michael Ellerman <mpe@ellerman.id.au>, linux-mips@vger.kernel.org,
+	linux-sh@vger.kernel.org, sparclinux@vger.kernel.org,
+	linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, x86@kernel.org,
+	linux-kernel@vger.kernel.org
+Subject: Re: [PATCH 01/16] mm: use untagged_addr() for get_user_pages_fast
+ addresses
+Message-ID: <20190621131610.GK19891@ziepe.ca>
+References: <20190611144102.8848-1-hch@lst.de>
+ <20190611144102.8848-2-hch@lst.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <B83B2259-7CF5-411E-BC4C-7112657FC48E@fb.com>
-User-Agent: NeoMutt/20180716
+In-Reply-To: <20190611144102.8848-2-hch@lst.de>
+User-Agent: Mutt/1.9.4 (2018-02-28)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jun 21, 2019 at 01:08:39PM +0000, Song Liu wrote:
+On Tue, Jun 11, 2019 at 04:40:47PM +0200, Christoph Hellwig wrote:
+> This will allow sparc64 to override its ADI tags for
+> get_user_pages and get_user_pages_fast.
 > 
-> Hi Kirill,
-> 
-> > On Jun 21, 2019, at 5:58 AM, Kirill A. Shutemov <kirill@shutemov.name> wrote:
-> > 
-> > On Fri, Jun 14, 2019 at 11:22:04AM -0700, Song Liu wrote:
-> >> This patch is (hopefully) the first step to enable THP for non-shmem
-> >> filesystems.
-> >> 
-> >> This patch enables an application to put part of its text sections to THP
-> >> via madvise, for example:
-> >> 
-> >>    madvise((void *)0x600000, 0x200000, MADV_HUGEPAGE);
-> >> 
-> >> We tried to reuse the logic for THP on tmpfs. The following functions are
-> >> renamed to reflect the new functionality:
-> >> 
-> >> 	collapse_shmem()	=>  collapse_file()
-> >> 	khugepaged_scan_shmem()	=>  khugepaged_scan_file()
-> >> 
-> >> Currently, write is not supported for non-shmem THP. This is enforced by
-> >> taking negative i_writecount. Therefore, if file has THP pages in the
-> >> page cache, open() to write will fail. To update/modify the file, the
-> >> user need to remove it first.
-> >> 
-> >> An EXPERIMENTAL config, READ_ONLY_THP_FOR_FS, is added to gate this
-> >> feature.
-> > 
-> > Please document explicitly that the feature opens local DoS attack: any
-> > user with read access to file can block write to the file by using
-> > MADV_HUGEPAGE for a range of the file.
-> > 
-> > As is it only has to be used with trusted userspace.
-> > 
-> > We also might want to have mount option in addition to Kconfig option to
-> > enable the feature on per-mount basis.
-> 
-> This behavior has been removed from v3 to v5. 
+> Signed-off-by: Christoph Hellwig <hch@lst.de>
+> ---
+>  mm/gup.c | 4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
 
-Yes, I've catch up with that. :P
-
--- 
- Kirill A. Shutemov
+Reviewed-by: Jason Gunthorpe <jgg@mellanox.com>
 
