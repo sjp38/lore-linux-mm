@@ -2,269 +2,212 @@ Return-Path: <SRS0=pbvW=UU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D8DB2C43613
-	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 16:30:58 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8388FC43613
+	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 17:30:42 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 706E420673
-	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 16:30:58 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="U3s/yHg0";
-	dkim=pass (1024-bit key) header.d=fb.onmicrosoft.com header.i=@fb.onmicrosoft.com header.b="kGUuYYiT"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 706E420673
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
+	by mail.kernel.org (Postfix) with ESMTP id 2EC9C2075E
+	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 17:30:41 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2EC9C2075E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0E6286B0005; Fri, 21 Jun 2019 12:30:58 -0400 (EDT)
+	id 80E836B0005; Fri, 21 Jun 2019 13:30:41 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 097918E0002; Fri, 21 Jun 2019 12:30:58 -0400 (EDT)
+	id 7BEB98E0002; Fri, 21 Jun 2019 13:30:41 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id EC7D08E0001; Fri, 21 Jun 2019 12:30:57 -0400 (EDT)
+	id 683DD8E0001; Fri, 21 Jun 2019 13:30:41 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f72.google.com (mail-yw1-f72.google.com [209.85.161.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C9FFC6B0005
-	for <linux-mm@kvack.org>; Fri, 21 Jun 2019 12:30:57 -0400 (EDT)
-Received: by mail-yw1-f72.google.com with SMTP id y205so6879997ywy.19
-        for <linux-mm@kvack.org>; Fri, 21 Jun 2019 09:30:57 -0700 (PDT)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 473E36B0005
+	for <linux-mm@kvack.org>; Fri, 21 Jun 2019 13:30:41 -0400 (EDT)
+Received: by mail-qt1-f199.google.com with SMTP id z5so8626255qth.15
+        for <linux-mm@kvack.org>; Fri, 21 Jun 2019 10:30:41 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:dkim-signature:from:to:cc:subject
-         :thread-topic:thread-index:date:message-id:references:in-reply-to
-         :accept-language:content-language:content-id
-         :content-transfer-encoding:mime-version;
-        bh=0qTXnWbgZ2y9IbGAMibal2DIgS8gvxNT+41nZ2D/Dl8=;
-        b=VDUEJ8eBdrxt06s82TQlG2tBVy3BQOS90OaLgwANPDSBkz02skknw9RN2teB4rtjr1
-         d+rI8p99/os7cfN93H7/U61ZMDCx6QhSYhP10kHOApBhCy6NC+5O/iTYNucbtnhGEn3o
-         J1qIJYC4DMnVWgridfeLLuPYWL/UvejDPxj6Yki527POcCzy+bwYfkuzVDQn5RyYynNl
-         vcmseBwkXOnsKOuhlQiHICvlE4eWnxz/DwE7Z6szVQ2MU722p8MOKBH6A2p3ekOQ+SeE
-         vU6jsyd97Vvf32bQ0qqCM4MskGx7lpkmAoqM3ZLt4UIiFOXzplxtasz3s2Rsm1jSuUuK
-         6VFA==
-X-Gm-Message-State: APjAAAWxRhSAjQ0E01BaZ7405XUKjM9py5E66sqMD3HPfN1oE35iQYAL
-	PdsI/Dc9dXV8v8CL+s5Ky72+qiwN2zJ/qW4xGvVX0leNDAfYCLi/joMyzAa8aL14pX13M6NrH8a
-	aAI8BFrBbGnti4irn0W+Gw43+z2PqMJz8+K6hhUgvPNpL7HzLxFGKbMx6rixGmybGcQ==
-X-Received: by 2002:a0d:e650:: with SMTP id p77mr28173078ywe.189.1561134657498;
-        Fri, 21 Jun 2019 09:30:57 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyvO7Z9v1JxrCzsLaiXguA81+1/SrQXqOBZUA+lSZnrjeMijlw8Sotzou54LO8L3UAQr6UQ
-X-Received: by 2002:a0d:e650:: with SMTP id p77mr28173026ywe.189.1561134656651;
-        Fri, 21 Jun 2019 09:30:56 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561134656; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id;
+        bh=Aqt1EhZBKrmIdyDRXu7n5fZ8WqANYvWfAN+xOyfvpDk=;
+        b=IrQvln9YPI7i+QJtQgTZG3VZ1Cejrno6ygJzX26ET92h7D/QZyIA4BUDjRb713CEb4
+         FudS/d5lIeP82aPqdrDOl0Qkjm/GZ3+BNQRPca6SafwfhBsqMe9A1qw2YNWowFX8u1C8
+         EXrcxwOSa9/GxpbreAJVyZq8Kia0KBMl0Vm/5p0o0y+kpU2Ir4jtmhDID8D7+J4G2xOE
+         8BnRAsGFsLLhk2kYpmfNkPxc9sDbsJJ+LTedXLa7z7maXq/w4N+bQp3Zi4WOX+imwNkz
+         XhErXk3hdrFC39VSpUbPEmPjoCIzX2tUJaKv4FF7e4LW2TuNXG07jlU5V0c2QSbbIJA1
+         Sb/Q==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAXzuzb2+KhtS85QAVRmiSe8otskBDGXKLnXWTpkWQ0Zw3jg2qST
+	y5rCxQZV0hOGZ2/H4hhd6cugwq6kEp37fP2z5OEzePsxzD5LLQW4rm3/7H9/0ZQ+sH41Fz0vBid
+	xwN/1d1M2OqduGA1vRoKkhxiGbRfneY+WD/yg7Mu5NeZQhYvSvBPwH5E2ncbEueRaZw==
+X-Received: by 2002:a0c:ae31:: with SMTP id y46mr46335625qvc.172.1561138241025;
+        Fri, 21 Jun 2019 10:30:41 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzN43aXzMvxlnlx7sp5q8aOngsQHo+aPxPmpNDz5jBuJ3J4QWvIBgnriuxKnZwUlKtze85M
+X-Received: by 2002:a0c:ae31:: with SMTP id y46mr46335551qvc.172.1561138240143;
+        Fri, 21 Jun 2019 10:30:40 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561138240; cv=none;
         d=google.com; s=arc-20160816;
-        b=B9AcYhw0q5EjXVbA/RHo02EvsY9fVM8KOd3ro8u1Die75QHnrATZhT8k0BwMXPFKZ5
-         NljD4MCrQl+Rqt/wxwZsfyqBuNuEeSZIkt6DpkygmESSXkt66E6ucZertQvhO3xWgrol
-         wfQux1pPUnPLsWAFHaIIsw/mrqKTxz+Pa3HJb2rF3ITXj8nt6fyQwDiklOlEMb8ATnNN
-         16PI3R1DULI22GRW95EDjsVzBh3X90QGGxY0L8x2OdD6LacZntycTvPxFibQ11d6JJCS
-         s/aJ5j2uZZHrlYiy9/ojaVsd29vcrDd+mJ5N9bLXVGrVq3DXVv3PGyR3LFGk1ElUXTym
-         39vQ==
+        b=KHMNsrZhfpeaxLifOxMlkcysqysj3wLOQJRCGI4qHpyKfXPpqyjYFaq05+raXa1u1N
+         JPsWjL8C455Yl7yMPRff+Wxasw1ew4iVqfurYI0+Fm4BtKyMhg8XGKLHTia6p1bXMMg8
+         BmlrKL+rsNKox63lkpGfa4437zAfJwEIlWqXrWMoVmclW1zQtPPpizmqWebH9z448jri
+         FkQxTrcLiTHwhCoc3B0VgLAlle6DeKzb/2KoTjo+Q8wm/o9LdV9Z+hr1fgkj1YqcCyc/
+         XhnmgTZb/20xEQLWelZhUJCaegH5cBQ/ktZFcWBCFb0tZfDpbbL4mQSBdV9+qY2VsAL7
+         aOJw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from:dkim-signature:dkim-signature;
-        bh=0qTXnWbgZ2y9IbGAMibal2DIgS8gvxNT+41nZ2D/Dl8=;
-        b=XW+1P3Pl5rfFYdz9LQB7C6VF4mH33e/rnhR5AG34SxTntBfEzkq9eqfnfFukDvhRo1
-         PXNSqHaGueUHtX9QxhCx+nYi6heIQMCSVaanmoNdEu7COCuC01t8srM0bH73eO606pR5
-         PtTiQpNN7KymianXYJSaemAOkUewOe8U+HJQDG8Za2dwnRFNhqMBWfmx5/lazzXkD2i0
-         Kne9IcHXEiO5DK8uQEGguS9usWlUSwbBX6ssNTYGQ+StlHRvarI7B8LLa9AHpaZqtGpJ
-         /hKGOGp3UUVVE9EKgJIPwKNHar/491z5lNmAZYfAehJytN0+KkDc4ksT8cUVvnJdQ617
-         iD8w==
+        h=message-id:date:subject:cc:to:from;
+        bh=Aqt1EhZBKrmIdyDRXu7n5fZ8WqANYvWfAN+xOyfvpDk=;
+        b=JXUSx71uPcnssCC2YhAn72w0/jm7YkapBuIBxnX7dr9iNB18RICE7gmnPCdYV37Zaf
+         XliNYrXIpfE/9tIXsJBSJvF/asqhmmtrmpz+8AMa0kZGp7H/mj7zPfDm8hXxVlR51osF
+         1SldXfCP8yN9rSthLHhJt7sn+3UWydR/O9i802UuiofYi5qatkS6HRYBIdGyCNVSHSUo
+         0v6QL2JIf2uzUWkmHNb6QoD/fYLBP4Fn8tHfCfnQ+2pQenCPotQt2uZgzKweOgFn8j4J
+         h8jDN1oCllf+VrV1oGFTIwk5YuFuaj57UaM7Yp5I0kRTvKNDiTilorL+IfOjIodVuxzM
+         TehQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b="U3s/yHg0";
-       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-onmicrosoft-com header.b=kGUuYYiT;
-       spf=pass (google.com: domain of prvs=10751dd214=songliubraving@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=10751dd214=songliubraving@fb.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id h63si1151434ybh.279.2019.06.21.09.30.56
+       spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id v29si2214319qtj.132.2019.06.21.10.30.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 21 Jun 2019 09:30:56 -0700 (PDT)
-Received-SPF: pass (google.com: domain of prvs=10751dd214=songliubraving@fb.com designates 67.231.153.30 as permitted sender) client-ip=67.231.153.30;
+        Fri, 21 Jun 2019 10:30:40 -0700 (PDT)
+Received-SPF: pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b="U3s/yHg0";
-       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-onmicrosoft-com header.b=kGUuYYiT;
-       spf=pass (google.com: domain of prvs=10751dd214=songliubraving@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=10751dd214=songliubraving@fb.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from pps.filterd (m0089730.ppops.net [127.0.0.1])
-	by m0089730.ppops.net (8.16.0.27/8.16.0.27) with SMTP id x5LGO01k004531;
-	Fri, 21 Jun 2019 09:30:08 -0700
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
- : date : message-id : references : in-reply-to : content-type : content-id
- : content-transfer-encoding : mime-version; s=facebook;
- bh=0qTXnWbgZ2y9IbGAMibal2DIgS8gvxNT+41nZ2D/Dl8=;
- b=U3s/yHg0hh7rWogH1ptMe3FO1h4BlINB0Ys7tPmYe6mmuo5mQsICNYTEcSqpGiNTtoy8
- Z2aXPvznL789zUex0QMn0BK0a4pU25PrbvGm4MaD4/xjy1YPZ4qLBLtr5k521yiI1fHg
- XUmA49IcGVzDhTjTgFHaPhb5IYD346yA8/c= 
-Received: from maileast.thefacebook.com ([163.114.130.16])
-	by m0089730.ppops.net with ESMTP id 2t8y020wee-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128 verify=NOT);
-	Fri, 21 Jun 2019 09:30:07 -0700
-Received: from ash-exopmbx201.TheFacebook.com (2620:10d:c0a8:83::8) by
- ash-exhub103.TheFacebook.com (2620:10d:c0a8:82::c) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) id
- 15.1.1713.5; Fri, 21 Jun 2019 09:30:06 -0700
-Received: from ash-exhub204.TheFacebook.com (2620:10d:c0a8:83::4) by
- ash-exopmbx201.TheFacebook.com (2620:10d:c0a8:83::8) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) id
- 15.1.1713.5; Fri, 21 Jun 2019 09:30:06 -0700
-Received: from NAM03-DM3-obe.outbound.protection.outlook.com (100.104.31.183)
- by o365-in.thefacebook.com (100.104.36.100) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256) id 15.1.1713.5
- via Frontend Transport; Fri, 21 Jun 2019 09:30:05 -0700
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.onmicrosoft.com;
- s=selector1-fb-onmicrosoft-com;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=0qTXnWbgZ2y9IbGAMibal2DIgS8gvxNT+41nZ2D/Dl8=;
- b=kGUuYYiTvo77BSwYIgm4jCvXPfn8v9Dp438QG8utOgAWcJpVDH8lvrdG+H2pEyfkBqyhe9PV3UXdaQAIp3nP8CiPXSAyTMNxgE9g99h2IbZ1jtMIqzmDvltkNCI4J+jNRspZbGHqGaYw8ODAAIR/WajGepRZKxB18uLI1dMA/No=
-Received: from MWHPR15MB1165.namprd15.prod.outlook.com (10.175.3.22) by
- MWHPR15MB1616.namprd15.prod.outlook.com (10.175.142.17) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.1987.15; Fri, 21 Jun 2019 16:30:04 +0000
-Received: from MWHPR15MB1165.namprd15.prod.outlook.com
- ([fe80::400e:e329:ea98:aa0d]) by MWHPR15MB1165.namprd15.prod.outlook.com
- ([fe80::400e:e329:ea98:aa0d%6]) with mapi id 15.20.2008.014; Fri, 21 Jun 2019
- 16:30:04 +0000
-From: Song Liu <songliubraving@fb.com>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-CC: LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>,
-        "oleg@redhat.com" <oleg@redhat.com>,
-        "rostedt@goodmis.org"
-	<rostedt@goodmis.org>,
-        "mhiramat@kernel.org" <mhiramat@kernel.org>,
-        "matthew.wilcox@oracle.com" <matthew.wilcox@oracle.com>,
-        "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>,
-        "Kernel
- Team" <Kernel-team@fb.com>
-Subject: Re: [PATCH v4 5/5] uprobe: collapse THP pmd after removing all
- uprobes
-Thread-Topic: [PATCH v4 5/5] uprobe: collapse THP pmd after removing all
- uprobes
-Thread-Index: AQHVIhGkBNxZAI1nUkK1d2OfbYvmTqamGxWAgAAIBYCAAAVYgIAAAncAgAAuG4A=
-Date: Fri, 21 Jun 2019 16:30:04 +0000
-Message-ID: <707D52CA-E782-4C9A-AC66-75938C8E3358@fb.com>
-References: <20190613175747.1964753-1-songliubraving@fb.com>
- <20190613175747.1964753-6-songliubraving@fb.com>
- <20190621124823.ziyyx3aagnkobs2n@box>
- <B72B62C9-78EE-4440-86CA-590D3977BDB1@fb.com>
- <20190621133613.xnzpdlicqvjklrze@box>
- <4B58B3B3-10CB-4593-8BEC-1CEF41F856A1@fb.com>
-In-Reply-To: <4B58B3B3-10CB-4593-8BEC-1CEF41F856A1@fb.com>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach: 
-X-MS-TNEF-Correlator: 
-x-mailer: Apple Mail (2.3445.104.11)
-x-originating-ip: [2620:10d:c090:200::1:e314]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: 637ab245-7cc0-476e-1212-08d6f665b71d
-x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(5600148)(711020)(4605104)(1401327)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(2017052603328)(7193020);SRVR:MWHPR15MB1616;
-x-ms-traffictypediagnostic: MWHPR15MB1616:
-x-microsoft-antispam-prvs: <MWHPR15MB16166E627F6BB6978AEA180EB3E70@MWHPR15MB1616.namprd15.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:8882;
-x-forefront-prvs: 0075CB064E
-x-forefront-antispam-report: SFV:NSPM;SFS:(10019020)(39860400002)(396003)(376002)(366004)(346002)(136003)(199004)(189003)(5660300002)(76116006)(73956011)(256004)(50226002)(6246003)(54906003)(6916009)(33656002)(102836004)(186003)(76176011)(53546011)(6506007)(478600001)(25786009)(66946007)(486006)(4326008)(66556008)(66446008)(64756008)(66476007)(2906002)(7736002)(57306001)(81156014)(14454004)(46003)(81166006)(99286004)(316002)(476003)(8676002)(53936002)(6512007)(6486002)(6116002)(36756003)(2616005)(11346002)(229853002)(71200400001)(71190400001)(6436002)(68736007)(446003)(86362001)(8936002)(305945005);DIR:OUT;SFP:1102;SCL:1;SRVR:MWHPR15MB1616;H:MWHPR15MB1165.namprd15.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
-received-spf: None (protection.outlook.com: fb.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info: aQa6KhLL3tB5eksbA19jSs8upkISddY089JT1IO6zWnJlvIip9I1FMsDjUnVAOdG8LluV5BRIBl2eDqRXy/HEc5yyOwZNFkxFDF2D3VkYJUMp4vqTj4xXAOx0xV0dL3sNlP9Hm9M4V4R8M9zj3jfTOb1FeZmLubnyefbEsjlpwqWO0bbOyWU9y+Ges4Wyhfyxv66xSPku8WrbrGpUODwQaDEAhHV2W1wS6cgndnW6nithhAygoVQhAtAs7DMTN3j3LlZC2/DoX20ixRVQ/OsYfUXaIidUlaNd/P/aotdEwSF/g+t/QypzFe40CeEm91mD6L2jyvKVw+dW5k2p272T5nN+h2MzaaBe7IrpagF8CzX8c8SETdJ/eFP7/6tW0UxfZ7ZpCyweUiC+8cdoI+JNNe0ckd77J2uMOl6hrOpYCA=
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <274FD60A5325DD41BC5BD6A652FD3B91@namprd15.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
-MIME-Version: 1.0
-X-MS-Exchange-CrossTenant-Network-Message-Id: 637ab245-7cc0-476e-1212-08d6f665b71d
-X-MS-Exchange-CrossTenant-originalarrivaltime: 21 Jun 2019 16:30:04.1697
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: 8ae927fe-1255-47a7-a2af-5f3a069daaa2
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-userprincipalname: songliubraving@fb.com
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: MWHPR15MB1616
-X-OriginatorOrg: fb.com
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-06-21_11:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=fb_default_notspam policy=fb_default score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=706 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1906210132
-X-FB-Internal: deliver
+       spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx08.intmail.prod.int.phx2.redhat.com [10.5.11.23])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 2D41D308FC5F;
+	Fri, 21 Jun 2019 17:30:29 +0000 (UTC)
+Received: from llong.com (dhcp-17-85.bos.redhat.com [10.18.17.85])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id DDD0519C68;
+	Fri, 21 Jun 2019 17:30:22 +0000 (UTC)
+From: Waiman Long <longman@redhat.com>
+To: Christoph Lameter <cl@linux.com>,
+	Pekka Enberg <penberg@kernel.org>,
+	David Rientjes <rientjes@google.com>,
+	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
+	Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org,
+	Michal Hocko <mhocko@kernel.org>,
+	Roman Gushchin <guro@fb.com>,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	Shakeel Butt <shakeelb@google.com>,
+	Vladimir Davydov <vdavydov.dev@gmail.com>,
+	Waiman Long <longman@redhat.com>
+Subject: [PATCH-next] mm, memcg: Add ":deact" tag for reparented kmem caches in memcg_slabinfo
+Date: Fri, 21 Jun 2019 13:30:05 -0400
+Message-Id: <20190621173005.31514-1-longman@redhat.com>
+X-Scanned-By: MIMEDefang 2.84 on 10.5.11.23
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.43]); Fri, 21 Jun 2019 17:30:34 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+With Roman's kmem cache reparent patch, multiple kmem caches of the same
+type can be seen attached to the same memcg id. All of them, except
+maybe one, are reparent'ed kmem caches. It can be useful to tag those
+reparented caches by adding a new slab flag "SLAB_DEACTIVATED" to those
+kmem caches that will be reparent'ed if it cannot be destroyed completely.
 
+For the reparent'ed memcg kmem caches, the tag ":deact" will now be
+shown in <debugfs>/memcg_slabinfo.
 
-> On Jun 21, 2019, at 6:45 AM, Song Liu <songliubraving@fb.com> wrote:
->=20
->=20
->=20
->> On Jun 21, 2019, at 6:36 AM, Kirill A. Shutemov <kirill@shutemov.name> w=
-rote:
->>=20
->> On Fri, Jun 21, 2019 at 01:17:05PM +0000, Song Liu wrote:
->>>=20
->>>=20
->>>> On Jun 21, 2019, at 5:48 AM, Kirill A. Shutemov <kirill@shutemov.name>=
- wrote:
->>>>=20
->>>> On Thu, Jun 13, 2019 at 10:57:47AM -0700, Song Liu wrote:
->>>>> After all uprobes are removed from the huge page (with PTE pgtable), =
-it
->>>>> is possible to collapse the pmd and benefit from THP again. This patc=
-h
->>>>> does the collapse.
->>>>>=20
->>>>> An issue on earlier version was discovered by kbuild test robot.
->>>>>=20
->>>>> Reported-by: kbuild test robot <lkp@intel.com>
->>>>> Signed-off-by: Song Liu <songliubraving@fb.com>
->>>>> ---
->>>>> include/linux/huge_mm.h |  7 +++++
->>>>> kernel/events/uprobes.c |  5 ++-
->>>>> mm/huge_memory.c        | 69 ++++++++++++++++++++++++++++++++++++++++=
+Signed-off-by: Waiman Long <longman@redhat.com>
+---
+ include/linux/slab.h |  4 ++++
+ mm/slab.c            |  1 +
+ mm/slab_common.c     | 14 ++++++++------
+ mm/slub.c            |  1 +
+ 4 files changed, 14 insertions(+), 6 deletions(-)
+
+diff --git a/include/linux/slab.h b/include/linux/slab.h
+index fecf40b7be69..19ab1380f875 100644
+--- a/include/linux/slab.h
++++ b/include/linux/slab.h
+@@ -116,6 +116,10 @@
+ /* Objects are reclaimable */
+ #define SLAB_RECLAIM_ACCOUNT	((slab_flags_t __force)0x00020000U)
+ #define SLAB_TEMPORARY		SLAB_RECLAIM_ACCOUNT	/* Objects are short-lived */
 +
->>>>=20
->>>> I still sync it's duplication of khugepaged functinallity. We need to =
-fix
->>>> khugepaged to handle SCAN_PAGE_COMPOUND and probably refactor the code=
- to
->>>> be able to call for collapse of particular range if we have all locks
->>>> taken (as we do in uprobe case).
->>>>=20
->>>=20
->>> I see the point now. I misunderstood it for a while.=20
->>>=20
->>> If we add this to khugepaged, it will have some conflicts with my other=
-=20
->>> patchset. How about we move the functionality to khugepaged after these
->>> two sets get in?=20
->>=20
->> Is the last patch of the patchset essential? I think this part can be do=
-ne
->> a bit later in a proper way, no?
->=20
-> Technically, we need this patch to regroup pmd mapped page, and thus get=
-=20
-> the performance benefit after the uprobe is detached.=20
->=20
-> On the other hand, if we get the first 4 patches of the this set and the=
-=20
-> other set in soonish. I will work on improving this patch right after tha=
-t..
-
-Actually, it might be pretty easy. We can just call try_collapse_huge_pmd()=
-=20
-in khugepaged.c (in khugepaged_scan_shmem() or khugepaged_scan_file() after=
-=20
-my other set).=20
-
-Let me fold that in and send v5.=20
-
-Thanks,
-Song
-
++/* Slab deactivation flag */
++#define SLAB_DEACTIVATED	((slab_flags_t __force)0x10000000U)
++
+ /*
+  * ZERO_SIZE_PTR will be returned for zero sized kmalloc requests.
+  *
+diff --git a/mm/slab.c b/mm/slab.c
+index a2e93adf1df0..e8c7743fc283 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -2245,6 +2245,7 @@ int __kmem_cache_shrink(struct kmem_cache *cachep)
+ #ifdef CONFIG_MEMCG
+ void __kmemcg_cache_deactivate(struct kmem_cache *cachep)
+ {
++	cachep->flags |= SLAB_DEACTIVATED;
+ 	__kmem_cache_shrink(cachep);
+ }
+ 
+diff --git a/mm/slab_common.c b/mm/slab_common.c
+index 146d8eaa639c..85cf0c374303 100644
+--- a/mm/slab_common.c
++++ b/mm/slab_common.c
+@@ -1533,7 +1533,7 @@ static int memcg_slabinfo_show(struct seq_file *m, void *unused)
+ 	struct slabinfo sinfo;
+ 
+ 	mutex_lock(&slab_mutex);
+-	seq_puts(m, "# <name> <css_id[:dead]> <active_objs> <num_objs>");
++	seq_puts(m, "# <name> <css_id[:dead|deact]> <active_objs> <num_objs>");
+ 	seq_puts(m, " <active_slabs> <num_slabs>\n");
+ 	list_for_each_entry(s, &slab_root_caches, root_caches_node) {
+ 		/*
+@@ -1544,22 +1544,24 @@ static int memcg_slabinfo_show(struct seq_file *m, void *unused)
+ 
+ 		memset(&sinfo, 0, sizeof(sinfo));
+ 		get_slabinfo(s, &sinfo);
+-		seq_printf(m, "%-17s root      %6lu %6lu %6lu %6lu\n",
++		seq_printf(m, "%-17s root       %6lu %6lu %6lu %6lu\n",
+ 			   cache_name(s), sinfo.active_objs, sinfo.num_objs,
+ 			   sinfo.active_slabs, sinfo.num_slabs);
+ 
+ 		for_each_memcg_cache(c, s) {
+ 			struct cgroup_subsys_state *css;
+-			char *dead = "";
++			char *status = "";
+ 
+ 			css = &c->memcg_params.memcg->css;
+ 			if (!(css->flags & CSS_ONLINE))
+-				dead = ":dead";
++				status = ":dead";
++			else if (c->flags & SLAB_DEACTIVATED)
++				status = ":deact";
+ 
+ 			memset(&sinfo, 0, sizeof(sinfo));
+ 			get_slabinfo(c, &sinfo);
+-			seq_printf(m, "%-17s %4d%5s %6lu %6lu %6lu %6lu\n",
+-				   cache_name(c), css->id, dead,
++			seq_printf(m, "%-17s %4d%-6s %6lu %6lu %6lu %6lu\n",
++				   cache_name(c), css->id, status,
+ 				   sinfo.active_objs, sinfo.num_objs,
+ 				   sinfo.active_slabs, sinfo.num_slabs);
+ 		}
+diff --git a/mm/slub.c b/mm/slub.c
+index a384228ff6d3..c965b4413658 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -4057,6 +4057,7 @@ void __kmemcg_cache_deactivate(struct kmem_cache *s)
+ 	 */
+ 	slub_set_cpu_partial(s, 0);
+ 	s->min_partial = 0;
++	s->flags |= SLAB_DEACTIVATED;
+ }
+ #endif	/* CONFIG_MEMCG */
+ 
+-- 
+2.18.1
 
