@@ -2,262 +2,202 @@ Return-Path: <SRS0=pbvW=UU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0A3BFC43613
-	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 07:23:50 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 08544C48BE3
+	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 08:11:53 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A7244208C3
-	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 07:23:49 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A7244208C3
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id AB343208CA
+	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 08:11:52 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AB343208CA
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 233896B0005; Fri, 21 Jun 2019 03:23:49 -0400 (EDT)
+	id 0FE936B0005; Fri, 21 Jun 2019 04:11:52 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1BE988E0002; Fri, 21 Jun 2019 03:23:49 -0400 (EDT)
+	id 0B0D08E0002; Fri, 21 Jun 2019 04:11:52 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 05D328E0001; Fri, 21 Jun 2019 03:23:48 -0400 (EDT)
+	id EB88D8E0001; Fri, 21 Jun 2019 04:11:51 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D357C6B0005
-	for <linux-mm@kvack.org>; Fri, 21 Jun 2019 03:23:48 -0400 (EDT)
-Received: by mail-qk1-f197.google.com with SMTP id s25so6580787qkj.18
-        for <linux-mm@kvack.org>; Fri, 21 Jun 2019 00:23:48 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A0EC06B0005
+	for <linux-mm@kvack.org>; Fri, 21 Jun 2019 04:11:51 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id i9so8112462edr.13
+        for <linux-mm@kvack.org>; Fri, 21 Jun 2019 01:11:51 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:organization:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding;
-        bh=5lK55dhfZprKHyxasP5WOarJKYXFZOG7PGKv6G9JtaY=;
-        b=d0Rijf9HFPfYlCDm1NyngmZ6LrHOw4v2lFvYBBaJmy17fBxOEG1VUpTSggApyAA5AP
-         tjZSuHIqi4cRtzCGJhStSmntEpq2AMjuv+263fna5ZL/VYGz/IypX/RY4Noj5TgJ5Ux9
-         DkUpkAZxjtoHdgjlU+IrRegPmp/jQ5lJCZD/nvUF2dd4/CNlcjRxjXPU4tgHQJ/7RrB4
-         MhcJYwDp8qZk2GwuTqcKD6znDT3dcNwH9M/8GOQivjcohj1bcWJF/58kVpcLEX1m7dmO
-         54vZPHPIkxGG73vpNUy6gikrUzS/306eRdmeloVnrHc/ptfPGR1tXyulYPEs0/qjXEMu
-         vLtQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAXQ1WYpQ28UZS7zD/bVTroxfl1RBz8zxtbqyPxzCnGopRimNbSM
-	oo843RYcg48Y9jJqvbnlgC9cKlvx22bWGq4jjnGw1PEWe/J8YgQHSMHu7etBkM0URG5mmw/VP78
-	CzjH7VbHiRqM5x3aXGmw8m9j4NTekhiaT+1XYg2fnoPO84DphyMNWm7BsmCC4A+MI+A==
-X-Received: by 2002:aed:382a:: with SMTP id j39mr112839872qte.94.1561101828559;
-        Fri, 21 Jun 2019 00:23:48 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzk4Ua8rSAYCV34PV9KvyD8Z5LtZNRsh6D0XZ2kJo0KDqt+WZYSQyREFs8cz8Qh54BaLBnB
-X-Received: by 2002:aed:382a:: with SMTP id j39mr112839850qte.94.1561101827986;
-        Fri, 21 Jun 2019 00:23:47 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561101827; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=7i6dJlpycYYkF3HawzKcEbdgni5ZrmtRBp3Gy0v9tRc=;
+        b=HBMZyGx6zjLlhg5/SNSk1ujQssTMXvfw1U15cz8YGfpPfUFaJYO2DazYg5mmsDG4Z1
+         R5Y7HGXK+zV6JmYptg9k7zfThBUcYwgWPIxaasw7vBA7uefJVLRi+vGSyXe8QXlANsTh
+         ypc0TfpPFB6EwsKKc0/f/7PGZIv91gA3TXJKI1DNdl+qC9Bhe/26NgySZ/Q6LoX8pLKU
+         6UikwkcOG7/KhSZoKeyWDLXGiOV5Y5dSvzAnN+Jpsxhr5d39qElhjwAUissj09AqQWZX
+         PU7ROtT9uRUM8K/9DI8cGypp+nwi46XksYMID2gJ5x0kEPLA7N/UyuxrINX0mq2Qyjqg
+         lKuQ==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAUPusGwGPYmB76eF0D4vhdb1Kw7lQdz1ssB4KVKP+w1loYmep7P
+	thWXzGiax7wmWn4asvHN3+P4O7OIhLedzo4NRSSEzeYsZA3FlIon4d96tRKCBDdEwgpvisg1DhE
+	lCBIegD18D0CJPDhEL3nFhtBvWW2aFqXYn7p0ALG011m9trubhEO9lt7VWTH8RFU=
+X-Received: by 2002:a50:87d0:: with SMTP id 16mr91868011edz.133.1561104710921;
+        Fri, 21 Jun 2019 01:11:50 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyWF1vYwc95ZxhkG9DE3Mj561j5nJJf/Ke6XtjokJVy3cJf0C+ISWHYAIyHvS8s+lW7ohDS
+X-Received: by 2002:a50:87d0:: with SMTP id 16mr91867943edz.133.1561104710027;
+        Fri, 21 Jun 2019 01:11:50 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561104710; cv=none;
         d=google.com; s=arc-20160816;
-        b=eO+g3ORhLlWis4rUcjKPGqlkZO1A0YuKIEmFHugYBft850zkBZi/bbnFkNi6QJAm1V
-         N3mKb4rlTYcEWS6YCPQf2rbcPginpuCJIKRtn3vSKJ0Lj6BNLi20avbb4xAy25BjY0Zd
-         BIcySXeIWZcxm0Ru21RC4csYAJXmEVZ6ibV9AGRwYCXVoO8Vj9T0THQMf9dtp5yVhS6K
-         nqSPrnn22+aQJIULkba5JvxnmzP11r31XXMAjttQh5sxgmnF3mH2vb/tmVY7DKbPUQVn
-         h5rxBaoMpG4WH3w1xwgdWHpLyjbQlz0yYSD+m2qylL9Qgdek/cPHqXV1+0pDBAHFQ+1N
-         hy/w==
+        b=d6tzfLAW95G3ynqCtsGW1hAWALqaHAixNYsBumJvgAh4RE5NkdX/u3Wy4BCqpfxhNJ
+         QO1lk5Ia0zGquAaQmlaabSo+8nuyUzKqTCzQh2lfKzL00vR79n9ihs5AyYpXnRx6Nbxq
+         euv2bFt8PHd4Bul3s2xA9iE1uVrleNJIBgRz0/HSuzse7VSQC5gof/DFhk2FPJDw/gzA
+         B+bGTjnTW1baLrTHIns3NFqoDTRztCm+gRiYbtcnJj8HeHhwzWZ4KxY3VtSLw170yHbb
+         2OO8bePWNfWGDq0J8pRVifP0DD7w28I4g1HWL7DXbKnROY9Cazp3KyXF7UEikBGOhspt
+         V++w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:organization:autocrypt:openpgp:from
-         :references:cc:to:subject;
-        bh=5lK55dhfZprKHyxasP5WOarJKYXFZOG7PGKv6G9JtaY=;
-        b=q/aFqlMNEgKk82AENwKPOF4ZvRFJVBBZZ28T4SNt0ynAeuGbIuf3pqkFZOu93yn3pO
-         e4VCr5TBg3ADZoqaqaKZ5KjFiNiDfrv7yXYyf4YoRJF6pT51ec5NL1SkdqdLDEy8Mcdk
-         N3njdQFf9ZpetdGctl8je2TF4HUrcDEXRfT1rZWwYdOZFKy4wpuqxhWBUNXLfBk+Ddud
-         9jX5DkVaamE4+r6CPdCfSYHgY2h9zM3TDMyNjLs5DlssXx/3Rjgq4hDsJadjyi0rN1YT
-         q+5vfPadlIcCQj5ZYVNLaonWvtJcubg9fZ7jZCrF7ErpzR4mqu0In/+nnc7Fmbl7eiVi
-         P1Bw==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date;
+        bh=7i6dJlpycYYkF3HawzKcEbdgni5ZrmtRBp3Gy0v9tRc=;
+        b=s+ZwzhKqLsAPAVtPLQTrWs2Yq0EwrB15K1S20/A/3sQoW8zi0n9E0c5vrlNZ/n16JL
+         K25/9ujwhnN06LqFpwQAZBgy8qDjzNNC8n21tpgq09FBRGthgxn6hRo9oA4GFHi4Hja+
+         FWtxUhptBqOrNvlNvml4shMiJSqr8auusACB7qV3yRHJl8nbCIdTHL3pHCSE+NLRZ2j+
+         C9uXI/0g/8Rlo0hGN0GqSnp+SZ+iqZV8zcovxWOjPu7ypFZkGU/G9rmyrJ03x9ZbBEAk
+         7pMoxV/k8tcpRtebUUrYA245rzCj1YZ6wM4Boa0IuA5HAuJxDuduh+baGuQvLUakmM5i
+         uMFg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id s54si1344490qte.241.2019.06.21.00.23.47
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id gf12si1337222ejb.392.2019.06.21.01.11.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 21 Jun 2019 00:23:47 -0700 (PDT)
-Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Fri, 21 Jun 2019 01:11:49 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx08.intmail.prod.int.phx2.redhat.com [10.5.11.23])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 0E9833082AE5;
-	Fri, 21 Jun 2019 07:23:42 +0000 (UTC)
-Received: from [10.36.117.46] (ovpn-117-46.ams2.redhat.com [10.36.117.46])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 9CF4319722;
-	Fri, 21 Jun 2019 07:23:37 +0000 (UTC)
-Subject: Re: [PATCH] mm/sparsemem: Cleanup 'section number' data types
-To: Dan Williams <dan.j.williams@intel.com>, akpm@linux-foundation.org
-Cc: Michal Hocko <mhocko@suse.com>, Oscar Salvador <osalvador@suse.de>,
- linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-kernel@vger.kernel.org
-References: <156107543656.1329419.11505835211949439815.stgit@dwillia2-desk3.amr.corp.intel.com>
-From: David Hildenbrand <david@redhat.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
- 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
- SE+xAvmumFBY
-Organization: Red Hat GmbH
-Message-ID: <68b71c3a-6fbd-ce39-2699-09c85212d9f5@redhat.com>
-Date: Fri, 21 Jun 2019 09:23:36 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.0
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 5292CAF50;
+	Fri, 21 Jun 2019 08:11:49 +0000 (UTC)
+Date: Fri, 21 Jun 2019 10:11:47 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: ira.weiny@intel.com
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org,
+	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
+	Dan Williams <dan.j.williams@intel.com>,
+	John Hubbard <jhubbard@nvidia.com>
+Subject: Re: [PATCH v4] mm/swap: Fix release_pages() when releasing devmap
+ pages
+Message-ID: <20190621081147.GC3429@dhcp22.suse.cz>
+References: <20190605214922.17684-1-ira.weiny@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <156107543656.1329419.11505835211949439815.stgit@dwillia2-desk3.amr.corp.intel.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-Scanned-By: MIMEDefang 2.84 on 10.5.11.23
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.45]); Fri, 21 Jun 2019 07:23:47 +0000 (UTC)
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20190605214922.17684-1-ira.weiny@intel.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 21.06.19 02:06, Dan Williams wrote:
-> David points out that there is a mixture of 'int' and 'unsigned long'
-> usage for section number data types. Update the memory hotplug path to
-> use 'unsigned long' consistently for section numbers.
+Sorry for a late reply.
+
+On Wed 05-06-19 14:49:22, ira.weiny@intel.com wrote:
+> From: Ira Weiny <ira.weiny@intel.com>
 > 
+> release_pages() is an optimized version of a loop around put_page().
+> Unfortunately for devmap pages the logic is not entirely correct in
+> release_pages().  This is because device pages can be more than type
+> MEMORY_DEVICE_PUBLIC.  There are in fact 4 types, private, public, FS
+> DAX, and PCI P2PDMA.  Some of these have specific needs to "put" the
+> page while others do not.
+> 
+> This logic to handle any special needs is contained in
+> put_devmap_managed_page().  Therefore all devmap pages should be
+> processed by this function where we can contain the correct logic for a
+> page put.
+> 
+> Handle all device type pages within release_pages() by calling
+> put_devmap_managed_page() on all devmap pages.  If
+> put_devmap_managed_page() returns true the page has been put and we
+> continue with the next page.  A false return of
+> put_devmap_managed_page() means the page did not require special
+> processing and should fall to "normal" processing.
+> 
+> This was found via code inspection while determining if release_pages()
+> and the new put_user_pages() could be interchangeable.[1]
+
+This is much more clear than the previous version I've looked at. Thanks
+a lot!
+> 
+> [1] https://lore.kernel.org/lkml/20190523172852.GA27175@iweiny-DESK2.sc.intel.com/
+> 
+> Cc: Jérôme Glisse <jglisse@redhat.com>
 > Cc: Michal Hocko <mhocko@suse.com>
-> Cc: Oscar Salvador <osalvador@suse.de>
-> Reported-by: David Hildenbrand <david@redhat.com>
-> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+> Reviewed-by: Dan Williams <dan.j.williams@intel.com>
+> Reviewed-by: John Hubbard <jhubbard@nvidia.com>
+> Signed-off-by: Ira Weiny <ira.weiny@intel.com>
+
+Acked-by: Michal Hocko <mhocko@suse.com>
+
+> 
 > ---
-> Hi Andrew,
+> Changes from V3:
+> 	Update comment to the one provided by John
 > 
-> This patch belatedly fixes up David's review feedback about moving over
-> to 'unsigned long' for section numbers. Let me know if you want me to
-> respin the full series, or if you'll just apply / fold this patch on
-> top.
+> Changes from V2:
+> 	Update changelog for more clarity as requested by Michal
+> 	Update comment WRT "failing" of put_devmap_managed_page()
 > 
->  mm/memory_hotplug.c |   10 +++++-----
->  mm/sparse.c         |    8 ++++----
->  2 files changed, 9 insertions(+), 9 deletions(-)
+> Changes from V1:
+> 	Add comment clarifying that put_devmap_managed_page() can still
+> 	fail.
+> 	Add Reviewed-by tags.
 > 
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index 4e8e65954f31..92bc44a73fc5 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -288,8 +288,8 @@ static int check_pfn_span(unsigned long pfn, unsigned long nr_pages,
->  int __ref __add_pages(int nid, unsigned long pfn, unsigned long nr_pages,
->  		struct mhp_restrictions *restrictions)
->  {
-> -	unsigned long i;
-> -	int start_sec, end_sec, err;
-> +	int err;
-> +	unsigned long nr, start_sec, end_sec;
->  	struct vmem_altmap *altmap = restrictions->altmap;
->  
->  	if (altmap) {
-> @@ -310,7 +310,7 @@ int __ref __add_pages(int nid, unsigned long pfn, unsigned long nr_pages,
->  
->  	start_sec = pfn_to_section_nr(pfn);
->  	end_sec = pfn_to_section_nr(pfn + nr_pages - 1);
-> -	for (i = start_sec; i <= end_sec; i++) {
-> +	for (nr = start_sec; nr <= end_sec; nr++) {
->  		unsigned long pfns;
->  
->  		pfns = min(nr_pages, PAGES_PER_SECTION
-> @@ -541,7 +541,7 @@ void __remove_pages(struct zone *zone, unsigned long pfn,
->  		    unsigned long nr_pages, struct vmem_altmap *altmap)
->  {
->  	unsigned long map_offset = 0;
-> -	int i, start_sec, end_sec;
-> +	unsigned long nr, start_sec, end_sec;
->  
->  	if (altmap)
->  		map_offset = vmem_altmap_offset(altmap);
-> @@ -553,7 +553,7 @@ void __remove_pages(struct zone *zone, unsigned long pfn,
->  
->  	start_sec = pfn_to_section_nr(pfn);
->  	end_sec = pfn_to_section_nr(pfn + nr_pages - 1);
-> -	for (i = start_sec; i <= end_sec; i++) {
-> +	for (nr = start_sec; nr <= end_sec; nr++) {
->  		unsigned long pfns;
->  
->  		cond_resched();
-> diff --git a/mm/sparse.c b/mm/sparse.c
-> index b77ca21a27a4..6c4eab2b2bb0 100644
-> --- a/mm/sparse.c
-> +++ b/mm/sparse.c
-> @@ -229,21 +229,21 @@ void subsection_mask_set(unsigned long *map, unsigned long pfn,
->  void __init subsection_map_init(unsigned long pfn, unsigned long nr_pages)
->  {
->  	int end_sec = pfn_to_section_nr(pfn + nr_pages - 1);
-> -	int i, start_sec = pfn_to_section_nr(pfn);
-> +	unsigned long nr, start_sec = pfn_to_section_nr(pfn);
->  
->  	if (!nr_pages)
->  		return;
->  
-> -	for (i = start_sec; i <= end_sec; i++) {
-> +	for (nr = start_sec; nr <= end_sec; nr++) {
->  		struct mem_section *ms;
->  		unsigned long pfns;
->  
->  		pfns = min(nr_pages, PAGES_PER_SECTION
->  				- (pfn & ~PAGE_SECTION_MASK));
-> -		ms = __nr_to_section(i);
-> +		ms = __nr_to_section(nr);
->  		subsection_mask_set(ms->usage->subsection_map, pfn, pfns);
->  
-> -		pr_debug("%s: sec: %d pfns: %ld set(%d, %d)\n", __func__, i,
-> +		pr_debug("%s: sec: %d pfns: %ld set(%d, %d)\n", __func__, nr,
->  				pfns, subsection_map_index(pfn),
->  				subsection_map_index(pfn + pfns - 1));
->  
+>  mm/swap.c | 13 +++++++++----
+>  1 file changed, 9 insertions(+), 4 deletions(-)
 > 
-
-Thanks Dan!
-
-Reviewed-by: David Hildenbrand <david@redhat.com>
+> diff --git a/mm/swap.c b/mm/swap.c
+> index 7ede3eddc12a..607c48229a1d 100644
+> --- a/mm/swap.c
+> +++ b/mm/swap.c
+> @@ -740,15 +740,20 @@ void release_pages(struct page **pages, int nr)
+>  		if (is_huge_zero_page(page))
+>  			continue;
+>  
+> -		/* Device public page can not be huge page */
+> -		if (is_device_public_page(page)) {
+> +		if (is_zone_device_page(page)) {
+>  			if (locked_pgdat) {
+>  				spin_unlock_irqrestore(&locked_pgdat->lru_lock,
+>  						       flags);
+>  				locked_pgdat = NULL;
+>  			}
+> -			put_devmap_managed_page(page);
+> -			continue;
+> +			/*
+> +			 * ZONE_DEVICE pages that return 'false' from
+> +			 * put_devmap_managed_page() do not require special
+> +			 * processing, and instead, expect a call to
+> +			 * put_page_testzero().
+> +			 */
+> +			if (put_devmap_managed_page(page))
+> +				continue;
+>  		}
+>  
+>  		page = compound_head(page);
+> -- 
+> 2.20.1
+> 
 
 -- 
-
-Thanks,
-
-David / dhildenb
+Michal Hocko
+SUSE Labs
 
