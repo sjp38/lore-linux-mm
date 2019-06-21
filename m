@@ -2,194 +2,172 @@ Return-Path: <SRS0=pbvW=UU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 78712C43613
-	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 23:42:51 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CCC6CC48BE3
+	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 23:55:27 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 173402089E
-	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 23:42:50 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 8329E206B6
+	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 23:55:27 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="RDDEklul"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 173402089E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="ZpPFzcp3"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8329E206B6
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7E0266B0003; Fri, 21 Jun 2019 19:42:50 -0400 (EDT)
+	id 16E528E0002; Fri, 21 Jun 2019 19:55:27 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7692C8E0002; Fri, 21 Jun 2019 19:42:50 -0400 (EDT)
+	id 150728E0001; Fri, 21 Jun 2019 19:55:27 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 60ACF8E0001; Fri, 21 Jun 2019 19:42:50 -0400 (EDT)
+	id 033428E0002; Fri, 21 Jun 2019 19:55:26 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 2D0526B0003
-	for <linux-mm@kvack.org>; Fri, 21 Jun 2019 19:42:50 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id k2so4963827pga.12
-        for <linux-mm@kvack.org>; Fri, 21 Jun 2019 16:42:50 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id C1B348E0001
+	for <linux-mm@kvack.org>; Fri, 21 Jun 2019 19:55:26 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id x3so4985290pgp.8
+        for <linux-mm@kvack.org>; Fri, 21 Jun 2019 16:55:26 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:in-reply-to:references:mime-version
+        h=x-gm-message-state:dkim-signature:date:from:subject:to:cc
+         :references:in-reply-to:mime-version:user-agent:message-id
          :content-transfer-encoding;
-        bh=TaIqbWk/qURrzaiG5PJ5vsRuFC8iZRx5Z1dYzRck4T0=;
-        b=GULNSdTUUfxlMArTGYIv/QEm6z9B6tZkTM29fA9/q65zRssT64+J4lXW5QJdLPvaID
-         2wZ3pIOAiDRB6nRApNCavB0D+jQbq21rB4QRbnNrtMrkDm4WtbtiW0qmpKrEUSH4woYQ
-         zJfAsQlIxdz0TGkDf97Hntm40/pJ8zNcrkmn3c2hNM9Ltgq+TMVpMwYMW9hhmzX/Wm12
-         1MS+mZwoEzduTKoUj/ZKCtWOVE3c7tg36ZDG51Ah4LrlpnfDNcqnqwFcN50jaFSEMdhB
-         K3bRuvPAxBS9Cx5zUj5z/szCtFNeL02BPcfJsj1Cu9JcZpuC9YQmUkY8iEb/c32tLgWi
-         XfUg==
-X-Gm-Message-State: APjAAAXwhvuWW84LUHgYfe7Xv8SIoEqvpcAzy9WAJ7P99pV9JAEY5hM3
-	XkjSvp3x4/X69Upc1MxmWBPt4tCs1LExvlOrkoaTmpjUVScSQlAqT6OGGSqu0bpo2FFcXivwDiU
-	neRW4FUkSWXWuykAhSIbjVmWFu0htR5n43qbP2kd7WPZgTF9wWH+oXHhuqEtax05eww==
-X-Received: by 2002:a63:5152:: with SMTP id r18mr20077141pgl.94.1561160569637;
-        Fri, 21 Jun 2019 16:42:49 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyqtu4WMldOvePJ3G36Xb62LTIlbAGEgJnTlSyncv46M6bHVOUS6GdC8FAiYBEK2OxzEgUZ
-X-Received: by 2002:a63:5152:: with SMTP id r18mr20077079pgl.94.1561160568614;
-        Fri, 21 Jun 2019 16:42:48 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561160568; cv=none;
+        bh=x9bZV3T0S6eNYo6IXHrd+kECvmTbbAucaYzxDYrbdeI=;
+        b=mLOuVwjLpWeHhyQ4EXO05/mTQ1eFliCMYwQ/zP7YnI9xuJ/G8Oj1EVy+Ysx+IV+OaE
+         TIg695mb7tJBf7jmcMYL1Nd9rceClp0800Hbykqx0iMZq4CyFevDzjaorRL0v25wBVL+
+         dyG5sJoiS5GWsQOigrTF3jDkK21dGdEFMH/MOHsJPIh/smjtKhjKU3omZQ4dhHI6FBLR
+         2R8HIU8u2XF1rJvnytIiM0i9GxdGSd9ZbanleW/w4YMHkBBNmG9q2XtEXGg7qlS4nc7P
+         G3qxOQkfD7wISC2eTVPlIBuffXEPyt4KHcqDIiz584UPIiQDyVCtm4xbKLOkCsExDNgA
+         WMLg==
+X-Gm-Message-State: APjAAAUA34YDZ1QYYoVcRtcBGBKNyaHpSSTm7BJwTt+XZWYLEyHOvOTW
+	acyyuqDFKzzkz7TstYCvJlLGgnPgBTR/9VVEaimno3m1wEEtus8/fbjEQ1TyimUPgEi9CG8ssPE
+	zu5Ve7EMQoYCaMrUkt/jOCrAcJrfIF9etFGBdUukvbZTtzp8/rnJMaihYsYSBnyKHFg==
+X-Received: by 2002:a17:902:9a04:: with SMTP id v4mr37754659plp.95.1561161326474;
+        Fri, 21 Jun 2019 16:55:26 -0700 (PDT)
+X-Received: by 2002:a17:902:9a04:: with SMTP id v4mr37754613plp.95.1561161325657;
+        Fri, 21 Jun 2019 16:55:25 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561161325; cv=none;
         d=google.com; s=arc-20160816;
-        b=ejL4/2jXZXwmNC0FKiI9d3yKTwfDrqEG/cGKnGEUGdMMRIHkB1Fh1yVWKPYTM3a/xE
-         mGIqoNY0PapU2LZX/sZ63U1oW6FwQRjH8rLWpmzCPi2X92gRybqKS6mC1ARGnuAzKBkp
-         Aw4phVmYCBLpG5eoWTx9lPWMQUPwCeEEGvfeh6b3LZIH8ALh+gz02AigTylXnWOy2Nvp
-         AF8SW+MEF21MGZXT0P5FxwDcdvdGc6aOn75keH4sZ8uH82ekCuOnQWtIYiYpHzkmydMr
-         4oQ7Vs93OrbZ7pKOsUOFNK3RkSJfs2iPMzPIpcPAEJX3nErayY2LvTXAk85017LFhkMt
-         rbGQ==
+        b=o3ydsOp+rwHxEEN4erTxSAL2VyJFSxfFnQBKGGCDRV2U8/I/PNKkU773KJPRX0Hu3q
+         780v4LTFLQFwOplGPS6scCbzUVE0JNSs8REPzZksd7YVVGNlh/RbFkAciB8bpVWR113f
+         rYF07G7cwlawWD2Inlu0X+RlNaEk/+sZvvdsZZmDlQ5eeMzQBijeL87yjw5J3KuD5p+n
+         RK7zU8PdZU9Z2pvOWkqDzPAPeTVGnMt6fCWnCQyScjSempVSOj6/Sl7RZPdkATWehx7P
+         d5rbsjAFSjZpzzXYhzuBN+u3XTI7iif8Tqj2np2A4nkG51jRbZfiOPgfnY/d6+kprmT+
+         6W5Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=TaIqbWk/qURrzaiG5PJ5vsRuFC8iZRx5Z1dYzRck4T0=;
-        b=tCefg7Lggh47SoVCpF6ZLB0Bk3uOR7ANv75IIHWZ8Zw1yPfTO7c0ABd4+rUl9loPfF
-         Va2TQq3CanhRNtrq+hvG8K887uFic3EeNjuCRcFy3fV/g71q1Zst+bWSk81ujn6FNJSN
-         kSU5UNSzM1tKQ7ZDuk+pNu8Y4euU/8ZGP9Ydy+vks4wUuqsdjdyvObHboFbzFw507bmx
-         GV/UGMdTB1BRmJ7emqXkTIb0uQo6Aj8yywY+XsHznPLvYCT+6mL1v0lde/KMQ1kfQ1QI
-         XICdIGWH3tf6ksVrGwk6k2ETzcrkp/1sS58p9DYOhA1fA/8OQfjrvQtaf3bnrKtPn8Xv
-         B3jg==
+        h=content-transfer-encoding:message-id:user-agent:mime-version
+         :in-reply-to:references:cc:to:subject:from:date:dkim-signature;
+        bh=x9bZV3T0S6eNYo6IXHrd+kECvmTbbAucaYzxDYrbdeI=;
+        b=EdFU2F5os0Br6Ji7T89oMeYrZbr/b43NcnkLvLfWupVhaKTHwWU1sTrfE4Nwxu/2rj
+         ulSJQTqmo95S/U4PVIyxMrdMEqOm0Cdod16zNjf61vLIuWNaF12U6FMRjgSnPeP8JsOB
+         ac6FvWXRrvZrsZlId/YewvlS3F3YKRkks49HhgSMzgya0BFilb9aLIC5/nh9ZlHS8s+G
+         TKwKI9eY6v6hhwtwUGGZP+9+Nwx7D2UWO5RptMw8Ytnex+5oyJDeoa/r7Pjku1RcHXhU
+         4cPdWfGFLbpB+WcUM/PUnPaiViIJEq85X+sa65t7ZRqZdt1LfBcWBirIkAIAE7Zzhnoz
+         vXng==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=RDDEklul;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id h8si3991754pjs.13.2019.06.21.16.42.48
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=ZpPFzcp3;
+       spf=pass (google.com: domain of npiggin@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=npiggin@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id d18sor2724438pgo.60.2019.06.21.16.55.25
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 21 Jun 2019 16:42:48 -0700 (PDT)
-Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        (Google Transport Security);
+        Fri, 21 Jun 2019 16:55:25 -0700 (PDT)
+Received-SPF: pass (google.com: domain of npiggin@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=RDDEklul;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-Received: from akpm3.svl.corp.google.com (unknown [104.133.8.65])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id CC20B2084E;
-	Fri, 21 Jun 2019 23:42:46 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1561160568;
-	bh=9jNNQ6ZuBBOjZIW3HIow9t4gY+OUpSdjtQl5zrDEMdQ=;
-	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
-	b=RDDEklul7g0TwzW9+rYABCiLxD3N9O7GjpeOksdPT5+/ufp4LUGpriR31HgIwLS4N
-	 su+rzFDliqa/VpGbuq7WC+iq0nUGUObMkXCICTQFtPxehIJZ4EugjMAlfNTPpNEqd2
-	 UO3XDcH6k2EANV4YmvD/OKPZrb5GXc3G08Mo32mA=
-Date: Fri, 21 Jun 2019 16:42:46 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-To: David Hildenbrand <david@redhat.com>
-Cc: Qian Cai <cai@lca.pw>, linux-kernel@vger.kernel.org, Dan Williams
- <dan.j.williams@intel.com>, linuxppc-dev@lists.ozlabs.org,
- linux-acpi@vger.kernel.org, linux-mm@kvack.org, Andrew Banman
- <andrew.banman@hpe.com>, Anshuman Khandual <anshuman.khandual@arm.com>,
- Arun KS <arunks@codeaurora.org>, Baoquan He <bhe@redhat.com>, Benjamin
- Herrenschmidt <benh@kernel.crashing.org>, Greg Kroah-Hartman
- <gregkh@linuxfoundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Juergen
- Gross <jgross@suse.com>, Keith Busch <keith.busch@intel.com>, Len Brown
- <lenb@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, Michael
- Ellerman <mpe@ellerman.id.au>, Michael Neuling <mikey@neuling.org>, Michal
- Hocko <mhocko@suse.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>,
- "mike.travis@hpe.com" <mike.travis@hpe.com>, Oscar Salvador
- <osalvador@suse.com>, Oscar Salvador <osalvador@suse.de>, Paul Mackerras
- <paulus@samba.org>, Pavel Tatashin <pasha.tatashin@oracle.com>, Pavel
- Tatashin <pasha.tatashin@soleen.com>, Pavel Tatashin
- <pavel.tatashin@microsoft.com>, "Rafael J. Wysocki" <rafael@kernel.org>,
- "Rafael J. Wysocki" <rjw@rjwysocki.net>, Rashmica Gupta
- <rashmica.g@gmail.com>, Stephen Rothwell <sfr@canb.auug.org.au>, Thomas
- Gleixner <tglx@linutronix.de>, Vlastimil Babka <vbabka@suse.cz>, Wei Yang
- <richard.weiyang@gmail.com>
-Subject: Re: [PATCH v3 0/6] mm: Further memory block device cleanups
-Message-Id: <20190621164246.9a2354a571da41950bb74562@linux-foundation.org>
-In-Reply-To: <1c2edc22-afd7-2211-c4c7-40e54e5007e8@redhat.com>
-References: <20190620183139.4352-1-david@redhat.com>
-	<1561130120.5154.47.camel@lca.pw>
-	<1c2edc22-afd7-2211-c4c7-40e54e5007e8@redhat.com>
-X-Mailer: Sylpheed 3.7.0 (GTK+ 2.24.32; x86_64-pc-linux-gnu)
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=ZpPFzcp3;
+       spf=pass (google.com: domain of npiggin@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=npiggin@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=date:from:subject:to:cc:references:in-reply-to:mime-version
+         :user-agent:message-id:content-transfer-encoding;
+        bh=x9bZV3T0S6eNYo6IXHrd+kECvmTbbAucaYzxDYrbdeI=;
+        b=ZpPFzcp36+Hh5jye0ZKjtgJ550NYI096FfX2rcFyQ99LOi8SMis6xF/dheI3yxj7vn
+         TBGcbHMLdJQh068I90oszy1lxCnmI5g4KVT7DQMh+oL+mOljJTN2ljZWYTmOt23yVg2h
+         LdyqXTNKqxAmKaI+JKi19peuQtNFJ/A6jfkfKGStmgPKTkapA12DT/MDePfRHMwpeCd2
+         tgrx+S6ckAPgkEN6TA/783NZNMh/U4UZX0873+4sMF+NwUUbApR86gBQBtLXNIwieoaL
+         GIkk0MteisbTCO2dsnPaZ8Qv7rsQ8XF4reLwhY4yUxl1spYYF0SWL0LStYP/hWINYrnP
+         HtFA==
+X-Google-Smtp-Source: APXvYqyqRRpjMOtRudskKnzHE+bVq170qVap7+EY5kc6j/qI6uUR3V4Zstw2KCShBoXYwoTuoCwbAg==
+X-Received: by 2002:a63:545c:: with SMTP id e28mr4210785pgm.374.1561161325219;
+        Fri, 21 Jun 2019 16:55:25 -0700 (PDT)
+Received: from localhost ([1.144.144.251])
+        by smtp.gmail.com with ESMTPSA id 85sm4623425pfv.130.2019.06.21.16.55.23
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Fri, 21 Jun 2019 16:55:24 -0700 (PDT)
+Date: Sat, 22 Jun 2019 09:55:09 +1000
+From: Nicholas Piggin <npiggin@gmail.com>
+Subject: Re: [PATCH 16/16] mm: pass get_user_pages_fast iterator arguments in
+ a structure
+To: Christoph Hellwig <hch@lst.de>, Linus Torvalds
+	<torvalds@linux-foundation.org>
+Cc: Andrey Konovalov <andreyknvl@google.com>, Benjamin Herrenschmidt
+	<benh@kernel.crashing.org>, Rich Felker <dalias@libc.org>, "David S. Miller"
+	<davem@davemloft.net>, James Hogan <jhogan@kernel.org>, Khalid Aziz
+	<khalid.aziz@oracle.com>, Linux List Kernel Mailing
+	<linux-kernel@vger.kernel.org>, linux-mips@vger.kernel.org, Linux-MM
+	<linux-mm@kvack.org>, linuxppc-dev@lists.ozlabs.org, Linux-sh list
+	<linux-sh@vger.kernel.org>, Michael Ellerman <mpe@ellerman.id.au>,
+	Paul Burton <paul.burton@mips.com>, Paul Mackerras <paulus@samba.org>,
+	sparclinux@vger.kernel.org, the arch/x86 maintainers <x86@kernel.org>,
+	Yoshinori Sato <ysato@users.sourceforge.jp>
+References: <20190611144102.8848-1-hch@lst.de>
+	<20190611144102.8848-17-hch@lst.de>
+	<1560300464.nijubslu3h.astroid@bobo.none>
+	<CAHk-=wjSo+TzkvYnAqrp=eFgzzc058DhSMTPr4-2quZTbGLfnw@mail.gmail.com>
+	<1561032202.0qfct43s2c.astroid@bobo.none>
+	<CAHk-=wh46y3x5O0HkR=R4ETh6e5pDCrEsJ94CtC0fyQiYYAf6A@mail.gmail.com>
+	<20190621081501.GA17718@lst.de>
+In-Reply-To: <20190621081501.GA17718@lst.de>
+MIME-Version: 1.0
+User-Agent: astroid/0.14.0 (https://github.com/astroidmail/astroid)
+Message-Id: <1561160786.mradw6fg2v.astroid@bobo.none>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 21 Jun 2019 20:24:59 +0200 David Hildenbrand <david@redhat.com> wrote:
+Christoph Hellwig's on June 21, 2019 6:15 pm:
+> On Thu, Jun 20, 2019 at 10:21:46AM -0700, Linus Torvalds wrote:
+>> Hmm. Honestly, I've never seen anything like that in any kernel profiles=
+.
+>>=20
+>> Compared to the problems I _do_ see (which is usually the obvious
+>> cache misses, and locking), it must either be in the noise or it's
+>> some problem specific to whatever CPU you are doing performance work
+>> on?
+>>=20
+>> I've occasionally seen pipeline hiccups in profiles, but it's usually
+>> been either some serious glass jaw of the core, or it's been something
+>> really stupid we did (or occasionally that the compiler did: one in
+>> particular I remember was how there was a time when gcc would narrow
+>> stores when it could, so if you set a bit in a word, it would do it
+>> with a byte store, and then when you read the whole word afterwards
+>> you'd get a major pipeline stall and it happened to show up in some
+>> really hot paths).
+>=20
+> I've not seen any difference in the GUP bench output here ar all.
+>=20
+> But I'm fine with skipping this patch for now, I have a potential
+> series I'm looking into that would benefit a lot from it, but we
+> can discusss it in that context and make sure all the other works gets in
+> in time.
+>=20
 
-> @Qian Cai, unfortunately I can't reproduce.
-> 
-> If you get the chance, it would be great if you could retry with
-> 
-> diff --git a/drivers/base/memory.c b/drivers/base/memory.c
-> index 972c5336bebf..742f99ddd148 100644
-> --- a/drivers/base/memory.c
-> +++ b/drivers/base/memory.c
-> @@ -868,6 +868,9 @@ int walk_memory_blocks(unsigned long start, unsigned
-> long size,
->         unsigned long block_id;
->         int ret = 0;
-> 
-> +       if (!size)
-> +               return;
-> +
->         for (block_id = start_block_id; block_id <= end_block_id;
-> block_id++) {
->                 mem = find_memory_block_by_id(block_id);
->                 if (!mem)
-> 
-> 
-> 
-> If both, start and size are 0, we would get a veeeery long loop. This
-> would mean that we have an online node that does not span any pages at
-> all (pgdat->node_start_pfn = 0, start_pfn + pgdat->node_spanned_pages = 0).
+If you can, that would be good. I don't like to object based on
+handwaving so I'll see if I can find any benchmarks that will give
+better confidence. Those old TPC-C tests were good, and there was
+some DB2 workload that was the reason I added gup fast in the first
+place. I'll do some digging.
 
-I think I'll make that a `return 0' and I won't drop patches 4-6 for
-now, as we appear to have this fixed.
-
-
-
-From: David Hildenbrand <david@redhat.com>
-Subject: drivers-base-memoryc-get-rid-of-find_memory_block_hinted-v3-fix
-
-handle zero-length walks
-
-Link: http://lkml.kernel.org/r/1c2edc22-afd7-2211-c4c7-40e54e5007e8@redhat.com
-Reported-by: Qian Cai <cai@lca.pw>
-Tested-by: Qian Cai <cai@lca.pw>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
----
-
- drivers/base/memory.c |    3 +++
- 1 file changed, 3 insertions(+)
-
---- a/drivers/base/memory.c~drivers-base-memoryc-get-rid-of-find_memory_block_hinted-v3-fix
-+++ a/drivers/base/memory.c
-@@ -866,6 +866,9 @@ int walk_memory_blocks(unsigned long sta
- 	unsigned long block_id;
- 	int ret = 0;
- 
-+	if (!size)
-+		return 0;
-+
- 	for (block_id = start_block_id; block_id <= end_block_id; block_id++) {
- 		mem = find_memory_block_by_id(block_id);
- 		if (!mem)
-
+Thanks,
+Nick
+=
 
