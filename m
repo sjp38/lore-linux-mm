@@ -2,234 +2,262 @@ Return-Path: <SRS0=pbvW=UU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0DDE7C48BE0
-	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 07:09:12 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0A3BFC43613
+	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 07:23:50 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id AC9CB20679
-	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 07:09:11 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AC9CB20679
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id A7244208C3
+	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 07:23:49 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A7244208C3
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E741D6B0005; Fri, 21 Jun 2019 03:09:10 -0400 (EDT)
+	id 233896B0005; Fri, 21 Jun 2019 03:23:49 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E25098E0002; Fri, 21 Jun 2019 03:09:10 -0400 (EDT)
+	id 1BE988E0002; Fri, 21 Jun 2019 03:23:49 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D136A8E0001; Fri, 21 Jun 2019 03:09:10 -0400 (EDT)
+	id 05D328E0001; Fri, 21 Jun 2019 03:23:48 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 813696B0005
-	for <linux-mm@kvack.org>; Fri, 21 Jun 2019 03:09:10 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id d13so7936912edo.5
-        for <linux-mm@kvack.org>; Fri, 21 Jun 2019 00:09:10 -0700 (PDT)
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D357C6B0005
+	for <linux-mm@kvack.org>; Fri, 21 Jun 2019 03:23:48 -0400 (EDT)
+Received: by mail-qk1-f197.google.com with SMTP id s25so6580787qkj.18
+        for <linux-mm@kvack.org>; Fri, 21 Jun 2019 00:23:48 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=cgp+8nBWSnEfDdIQm5qc/FYznVQVgcoqfLpOQVoe0nw=;
-        b=Cr4QLAtPUQpep80hMc0xMDybmFfaM3B7UlV+uvGvAv644yKbl9y9gu5CrcFBRTJ9aX
-         zCj8mAHn0Fo8jqTjA/0mAsf2ZfyptgwXMRSxHvwrDuIv6sB6kGxKeEcJtXCJMo7dnHhJ
-         QQZagg6OhjXrWgdVlg8Wg7On3BUo8D5oRXV+PJxtyC5K5Zon7Uqk4pVYQmjBfD9vejiu
-         TLhKLyhpdj2zyQKpthdH/IXM2VYxCEEQFexdexXWNLDyRu5YJLhWjYR/WWIsZeimCf42
-         4LeD7okWI3XamP3hKj+2wvI2nafWaWRG/84/VYmx8jobrxy4NjL0Cq1njmQBqJjd0ijj
-         Ivfg==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAV1+OPfFQQuFnWYkavy7i24qO1yTgAZtJ5F3NvDcckY9TOgZTXZ
-	XCA54yWKYBB81BDcFh5OHJmHDjC+0ivWTnt/T4Oz1UATOxMyFVtp4XDGo/ms+QR0TYc24lrd6sK
-	V+ZrIvQlIxSZAsY4u2M5X6YVkHw0rBdHYpqiK2Ymh1ZuxEg95b5JZyDcWrOykZAg=
-X-Received: by 2002:a17:906:d50b:: with SMTP id ge11mr63820807ejb.227.1561100949990;
-        Fri, 21 Jun 2019 00:09:09 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqySsoOPCei76MGSFe8msNzD/mboYqpJBKC22LAI4n9Uq++AQHPMnZ0avgmJDN9TbPVw//P5
-X-Received: by 2002:a17:906:d50b:: with SMTP id ge11mr63820735ejb.227.1561100948826;
-        Fri, 21 Jun 2019 00:09:08 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561100948; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:organization:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding;
+        bh=5lK55dhfZprKHyxasP5WOarJKYXFZOG7PGKv6G9JtaY=;
+        b=d0Rijf9HFPfYlCDm1NyngmZ6LrHOw4v2lFvYBBaJmy17fBxOEG1VUpTSggApyAA5AP
+         tjZSuHIqi4cRtzCGJhStSmntEpq2AMjuv+263fna5ZL/VYGz/IypX/RY4Noj5TgJ5Ux9
+         DkUpkAZxjtoHdgjlU+IrRegPmp/jQ5lJCZD/nvUF2dd4/CNlcjRxjXPU4tgHQJ/7RrB4
+         MhcJYwDp8qZk2GwuTqcKD6znDT3dcNwH9M/8GOQivjcohj1bcWJF/58kVpcLEX1m7dmO
+         54vZPHPIkxGG73vpNUy6gikrUzS/306eRdmeloVnrHc/ptfPGR1tXyulYPEs0/qjXEMu
+         vLtQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAXQ1WYpQ28UZS7zD/bVTroxfl1RBz8zxtbqyPxzCnGopRimNbSM
+	oo843RYcg48Y9jJqvbnlgC9cKlvx22bWGq4jjnGw1PEWe/J8YgQHSMHu7etBkM0URG5mmw/VP78
+	CzjH7VbHiRqM5x3aXGmw8m9j4NTekhiaT+1XYg2fnoPO84DphyMNWm7BsmCC4A+MI+A==
+X-Received: by 2002:aed:382a:: with SMTP id j39mr112839872qte.94.1561101828559;
+        Fri, 21 Jun 2019 00:23:48 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzk4Ua8rSAYCV34PV9KvyD8Z5LtZNRsh6D0XZ2kJo0KDqt+WZYSQyREFs8cz8Qh54BaLBnB
+X-Received: by 2002:aed:382a:: with SMTP id j39mr112839850qte.94.1561101827986;
+        Fri, 21 Jun 2019 00:23:47 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561101827; cv=none;
         d=google.com; s=arc-20160816;
-        b=jb9uLGMjD7wWA1yzbstHdLoTMuyBGH7zhMzvj2Jr6g7W0y5E63cvO1QeyvhLk/3RjR
-         8aac1tKeE3uRrmvDKZrF5iNswzBmwDcwKTJIy9ZYc8RxcKceTLMFKVJ1j86zp1A+3syv
-         fO/b6+MImS4WCBm+PMd+gYFvAHcf/YIKD4mNNK7nOiOAd1QshdFF81H/K3O3/CB/zR3Y
-         jX1JvT474OgvJxgzEvXuMGV9ryYiZdwZ39RQTPfzN+7mpG8omaA4dx1T+5UKjTQXYHFG
-         fTtNNx4V7PbfBafVg2o6qF8e+kcwls2A5FoK92T1sar905lHRAIgMAdUcxyvO+dhH/eG
-         NxBQ==
+        b=eO+g3ORhLlWis4rUcjKPGqlkZO1A0YuKIEmFHugYBft850zkBZi/bbnFkNi6QJAm1V
+         N3mKb4rlTYcEWS6YCPQf2rbcPginpuCJIKRtn3vSKJ0Lj6BNLi20avbb4xAy25BjY0Zd
+         BIcySXeIWZcxm0Ru21RC4csYAJXmEVZ6ibV9AGRwYCXVoO8Vj9T0THQMf9dtp5yVhS6K
+         nqSPrnn22+aQJIULkba5JvxnmzP11r31XXMAjttQh5sxgmnF3mH2vb/tmVY7DKbPUQVn
+         h5rxBaoMpG4WH3w1xwgdWHpLyjbQlz0yYSD+m2qylL9Qgdek/cPHqXV1+0pDBAHFQ+1N
+         hy/w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=cgp+8nBWSnEfDdIQm5qc/FYznVQVgcoqfLpOQVoe0nw=;
-        b=maDFAuTsQaB16to7goN6u6yd7stzyzJFDllVLgPthm/ShQSU4YNLvP1BS5+WtZ6vvo
-         3R14coi9I29GodO9ig0bZp5nfEPfWhIRyvuvcG2jJVEpSCpe7radBnrQKMZk88lTsAd2
-         +vetSzxBrUIMpRvhwbvcF2iXEtTsWL3MmR5v6CnUmiT4VGASaDTOVyrAbQfq0RjYZBV3
-         fyA/gP0WHhkgN+I2BxhQpURUJerBa20ovQGIkzbjE1MHmz8/YdW7MdgDFpWxs1iQpA0n
-         sjsx8nSpNlqDTukjUrq8JNeimVDKFUvkqp997AhvALM8vgCqITPUYe+P10LFffT6h7Jt
-         V0kw==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:organization:autocrypt:openpgp:from
+         :references:cc:to:subject;
+        bh=5lK55dhfZprKHyxasP5WOarJKYXFZOG7PGKv6G9JtaY=;
+        b=q/aFqlMNEgKk82AENwKPOF4ZvRFJVBBZZ28T4SNt0ynAeuGbIuf3pqkFZOu93yn3pO
+         e4VCr5TBg3ADZoqaqaKZ5KjFiNiDfrv7yXYyf4YoRJF6pT51ec5NL1SkdqdLDEy8Mcdk
+         N3njdQFf9ZpetdGctl8je2TF4HUrcDEXRfT1rZWwYdOZFKy4wpuqxhWBUNXLfBk+Ddud
+         9jX5DkVaamE4+r6CPdCfSYHgY2h9zM3TDMyNjLs5DlssXx/3Rjgq4hDsJadjyi0rN1YT
+         q+5vfPadlIcCQj5ZYVNLaonWvtJcubg9fZ7jZCrF7ErpzR4mqu0In/+nnc7Fmbl7eiVi
+         P1Bw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k2si1688456eds.64.2019.06.21.00.09.08
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id s54si1344490qte.241.2019.06.21.00.23.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 21 Jun 2019 00:09:08 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Fri, 21 Jun 2019 00:23:47 -0700 (PDT)
+Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id D6DB5ACC5;
-	Fri, 21 Jun 2019 07:09:07 +0000 (UTC)
-Date: Fri, 21 Jun 2019 09:09:05 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Alexander Potapenko <glider@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-	Christoph Lameter <cl@linux.com>, Kees Cook <keescook@chromium.org>,
-	Masahiro Yamada <yamada.masahiro@socionext.com>,
-	James Morris <jmorris@namei.org>,
-	"Serge E. Hallyn" <serge@hallyn.com>,
-	Nick Desaulniers <ndesaulniers@google.com>,
-	Kostya Serebryany <kcc@google.com>,
-	Dmitry Vyukov <dvyukov@google.com>,
-	Sandeep Patil <sspatil@android.com>,
-	Laura Abbott <labbott@redhat.com>,
-	Randy Dunlap <rdunlap@infradead.org>, Jann Horn <jannh@google.com>,
-	Mark Rutland <mark.rutland@arm.com>, Marco Elver <elver@google.com>,
-	linux-mm@kvack.org, linux-security-module@vger.kernel.org,
-	kernel-hardening@lists.openwall.com
-Subject: Re: [PATCH v7 1/2] mm: security: introduce init_on_alloc=1 and
- init_on_free=1 boot options
-Message-ID: <20190621070905.GA3429@dhcp22.suse.cz>
-References: <20190617151050.92663-1-glider@google.com>
- <20190617151050.92663-2-glider@google.com>
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx08.intmail.prod.int.phx2.redhat.com [10.5.11.23])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 0E9833082AE5;
+	Fri, 21 Jun 2019 07:23:42 +0000 (UTC)
+Received: from [10.36.117.46] (ovpn-117-46.ams2.redhat.com [10.36.117.46])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 9CF4319722;
+	Fri, 21 Jun 2019 07:23:37 +0000 (UTC)
+Subject: Re: [PATCH] mm/sparsemem: Cleanup 'section number' data types
+To: Dan Williams <dan.j.williams@intel.com>, akpm@linux-foundation.org
+Cc: Michal Hocko <mhocko@suse.com>, Oscar Salvador <osalvador@suse.de>,
+ linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-kernel@vger.kernel.org
+References: <156107543656.1329419.11505835211949439815.stgit@dwillia2-desk3.amr.corp.intel.com>
+From: David Hildenbrand <david@redhat.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
+ 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
+ SE+xAvmumFBY
+Organization: Red Hat GmbH
+Message-ID: <68b71c3a-6fbd-ce39-2699-09c85212d9f5@redhat.com>
+Date: Fri, 21 Jun 2019 09:23:36 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190617151050.92663-2-glider@google.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <156107543656.1329419.11505835211949439815.stgit@dwillia2-desk3.amr.corp.intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+X-Scanned-By: MIMEDefang 2.84 on 10.5.11.23
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.45]); Fri, 21 Jun 2019 07:23:47 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon 17-06-19 17:10:49, Alexander Potapenko wrote:
-> The new options are needed to prevent possible information leaks and
-> make control-flow bugs that depend on uninitialized values more
-> deterministic.
+On 21.06.19 02:06, Dan Williams wrote:
+> David points out that there is a mixture of 'int' and 'unsigned long'
+> usage for section number data types. Update the memory hotplug path to
+> use 'unsigned long' consistently for section numbers.
 > 
-> init_on_alloc=1 makes the kernel initialize newly allocated pages and heap
-> objects with zeroes. Initialization is done at allocation time at the
-> places where checks for __GFP_ZERO are performed.
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: Oscar Salvador <osalvador@suse.de>
+> Reported-by: David Hildenbrand <david@redhat.com>
+> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+> ---
+> Hi Andrew,
 > 
-> init_on_free=1 makes the kernel initialize freed pages and heap objects
-> with zeroes upon their deletion. This helps to ensure sensitive data
-> doesn't leak via use-after-free accesses.
+> This patch belatedly fixes up David's review feedback about moving over
+> to 'unsigned long' for section numbers. Let me know if you want me to
+> respin the full series, or if you'll just apply / fold this patch on
+> top.
 > 
-> Both init_on_alloc=1 and init_on_free=1 guarantee that the allocator
-> returns zeroed memory. The two exceptions are slab caches with
-> constructors and SLAB_TYPESAFE_BY_RCU flag. Those are never
-> zero-initialized to preserve their semantics.
+>  mm/memory_hotplug.c |   10 +++++-----
+>  mm/sparse.c         |    8 ++++----
+>  2 files changed, 9 insertions(+), 9 deletions(-)
 > 
-> Both init_on_alloc and init_on_free default to zero, but those defaults
-> can be overridden with CONFIG_INIT_ON_ALLOC_DEFAULT_ON and
-> CONFIG_INIT_ON_FREE_DEFAULT_ON.
-> 
-> Slowdown for the new features compared to init_on_free=0,
-> init_on_alloc=0:
-> 
-> hackbench, init_on_free=1:  +7.62% sys time (st.err 0.74%)
-> hackbench, init_on_alloc=1: +7.75% sys time (st.err 2.14%)
-> 
-> Linux build with -j12, init_on_free=1:  +8.38% wall time (st.err 0.39%)
-> Linux build with -j12, init_on_free=1:  +24.42% sys time (st.err 0.52%)
-> Linux build with -j12, init_on_alloc=1: -0.13% wall time (st.err 0.42%)
-> Linux build with -j12, init_on_alloc=1: +0.57% sys time (st.err 0.40%)
-> 
-> The slowdown for init_on_free=0, init_on_alloc=0 compared to the
-> baseline is within the standard error.
-> 
-> The new features are also going to pave the way for hardware memory
-> tagging (e.g. arm64's MTE), which will require both on_alloc and on_free
-> hooks to set the tags for heap objects. With MTE, tagging will have the
-> same cost as memory initialization.
-> 
-> Although init_on_free is rather costly, there are paranoid use-cases where
-> in-memory data lifetime is desired to be minimized. There are various
-> arguments for/against the realism of the associated threat models, but
-> given that we'll need the infrastructre for MTE anyway, and there are
-> people who want wipe-on-free behavior no matter what the performance cost,
-> it seems reasonable to include it in this series.
-
-Thanks for reworking the original implemenation. This looks much better!
-
-> Signed-off-by: Alexander Potapenko <glider@google.com>
-> Acked-by: Kees Cook <keescook@chromium.org>
-> To: Andrew Morton <akpm@linux-foundation.org>
-> To: Christoph Lameter <cl@linux.com>
-> To: Kees Cook <keescook@chromium.org>
-> Cc: Masahiro Yamada <yamada.masahiro@socionext.com>
-> Cc: Michal Hocko <mhocko@kernel.org>
-> Cc: James Morris <jmorris@namei.org>
-> Cc: "Serge E. Hallyn" <serge@hallyn.com>
-> Cc: Nick Desaulniers <ndesaulniers@google.com>
-> Cc: Kostya Serebryany <kcc@google.com>
-> Cc: Dmitry Vyukov <dvyukov@google.com>
-> Cc: Sandeep Patil <sspatil@android.com>
-> Cc: Laura Abbott <labbott@redhat.com>
-> Cc: Randy Dunlap <rdunlap@infradead.org>
-> Cc: Jann Horn <jannh@google.com>
-> Cc: Mark Rutland <mark.rutland@arm.com>
-> Cc: Marco Elver <elver@google.com>
-> Cc: linux-mm@kvack.org
-> Cc: linux-security-module@vger.kernel.org
-> Cc: kernel-hardening@lists.openwall.com
-
-Acked-by: Michal Hocko <mhocko@suse.cz> # page allocator parts.
-
-kmalloc based parts look good to me as well but I am not sure I fill
-qualified to give my ack there without much more digging and I do not
-have much time for that now.
-
-[...]
-> diff --git a/kernel/kexec_core.c b/kernel/kexec_core.c
-> index fd5c95ff9251..2f75dd0d0d81 100644
-> --- a/kernel/kexec_core.c
-> +++ b/kernel/kexec_core.c
-> @@ -315,7 +315,7 @@ static struct page *kimage_alloc_pages(gfp_t gfp_mask, unsigned int order)
->  		arch_kexec_post_alloc_pages(page_address(pages), count,
->  					    gfp_mask);
+> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> index 4e8e65954f31..92bc44a73fc5 100644
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+> @@ -288,8 +288,8 @@ static int check_pfn_span(unsigned long pfn, unsigned long nr_pages,
+>  int __ref __add_pages(int nid, unsigned long pfn, unsigned long nr_pages,
+>  		struct mhp_restrictions *restrictions)
+>  {
+> -	unsigned long i;
+> -	int start_sec, end_sec, err;
+> +	int err;
+> +	unsigned long nr, start_sec, end_sec;
+>  	struct vmem_altmap *altmap = restrictions->altmap;
 >  
-> -		if (gfp_mask & __GFP_ZERO)
-> +		if (want_init_on_alloc(gfp_mask))
->  			for (i = 0; i < count; i++)
->  				clear_highpage(pages + i);
->  	}
-
-I am not really sure I follow here. Why do we want to handle
-want_init_on_alloc here? The allocated memory comes from the page
-allocator and so it will get zeroed there. arch_kexec_post_alloc_pages
-might touch the content there but is there any actual risk of any kind
-of leak?
-
-> diff --git a/mm/dmapool.c b/mm/dmapool.c
-> index 8c94c89a6f7e..e164012d3491 100644
-> --- a/mm/dmapool.c
-> +++ b/mm/dmapool.c
-> @@ -378,7 +378,7 @@ void *dma_pool_alloc(struct dma_pool *pool, gfp_t mem_flags,
->  #endif
->  	spin_unlock_irqrestore(&pool->lock, flags);
+>  	if (altmap) {
+> @@ -310,7 +310,7 @@ int __ref __add_pages(int nid, unsigned long pfn, unsigned long nr_pages,
 >  
-> -	if (mem_flags & __GFP_ZERO)
-> +	if (want_init_on_alloc(mem_flags))
->  		memset(retval, 0, pool->size);
+>  	start_sec = pfn_to_section_nr(pfn);
+>  	end_sec = pfn_to_section_nr(pfn + nr_pages - 1);
+> -	for (i = start_sec; i <= end_sec; i++) {
+> +	for (nr = start_sec; nr <= end_sec; nr++) {
+>  		unsigned long pfns;
 >  
->  	return retval;
+>  		pfns = min(nr_pages, PAGES_PER_SECTION
+> @@ -541,7 +541,7 @@ void __remove_pages(struct zone *zone, unsigned long pfn,
+>  		    unsigned long nr_pages, struct vmem_altmap *altmap)
+>  {
+>  	unsigned long map_offset = 0;
+> -	int i, start_sec, end_sec;
+> +	unsigned long nr, start_sec, end_sec;
+>  
+>  	if (altmap)
+>  		map_offset = vmem_altmap_offset(altmap);
+> @@ -553,7 +553,7 @@ void __remove_pages(struct zone *zone, unsigned long pfn,
+>  
+>  	start_sec = pfn_to_section_nr(pfn);
+>  	end_sec = pfn_to_section_nr(pfn + nr_pages - 1);
+> -	for (i = start_sec; i <= end_sec; i++) {
+> +	for (nr = start_sec; nr <= end_sec; nr++) {
+>  		unsigned long pfns;
+>  
+>  		cond_resched();
+> diff --git a/mm/sparse.c b/mm/sparse.c
+> index b77ca21a27a4..6c4eab2b2bb0 100644
+> --- a/mm/sparse.c
+> +++ b/mm/sparse.c
+> @@ -229,21 +229,21 @@ void subsection_mask_set(unsigned long *map, unsigned long pfn,
+>  void __init subsection_map_init(unsigned long pfn, unsigned long nr_pages)
+>  {
+>  	int end_sec = pfn_to_section_nr(pfn + nr_pages - 1);
+> -	int i, start_sec = pfn_to_section_nr(pfn);
+> +	unsigned long nr, start_sec = pfn_to_section_nr(pfn);
+>  
+>  	if (!nr_pages)
+>  		return;
+>  
+> -	for (i = start_sec; i <= end_sec; i++) {
+> +	for (nr = start_sec; nr <= end_sec; nr++) {
+>  		struct mem_section *ms;
+>  		unsigned long pfns;
+>  
+>  		pfns = min(nr_pages, PAGES_PER_SECTION
+>  				- (pfn & ~PAGE_SECTION_MASK));
+> -		ms = __nr_to_section(i);
+> +		ms = __nr_to_section(nr);
+>  		subsection_mask_set(ms->usage->subsection_map, pfn, pfns);
+>  
+> -		pr_debug("%s: sec: %d pfns: %ld set(%d, %d)\n", __func__, i,
+> +		pr_debug("%s: sec: %d pfns: %ld set(%d, %d)\n", __func__, nr,
+>  				pfns, subsection_map_index(pfn),
+>  				subsection_map_index(pfn + pfns - 1));
+>  
+> 
 
-Don't you miss dma_pool_free and want_init_on_free?
+Thanks Dan!
+
+Reviewed-by: David Hildenbrand <david@redhat.com>
+
 -- 
-Michal Hocko
-SUSE Labs
+
+Thanks,
+
+David / dhildenb
 
