@@ -2,152 +2,322 @@ Return-Path: <SRS0=pbvW=UU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 98D57C48BE3
-	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 15:12:16 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A09E1C48BE3
+	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 15:15:26 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 67263206B7
-	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 15:12:16 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 67263206B7
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 4AEF22070B
+	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 15:15:26 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="NEhtyANm"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4AEF22070B
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 011928E0003; Fri, 21 Jun 2019 11:12:16 -0400 (EDT)
+	id D542A8E0003; Fri, 21 Jun 2019 11:15:25 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id F03378E0001; Fri, 21 Jun 2019 11:12:15 -0400 (EDT)
+	id CDF298E0001; Fri, 21 Jun 2019 11:15:25 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DCC528E0003; Fri, 21 Jun 2019 11:12:15 -0400 (EDT)
+	id B7F578E0003; Fri, 21 Jun 2019 11:15:25 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 9146D8E0001
-	for <linux-mm@kvack.org>; Fri, 21 Jun 2019 11:12:15 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id i9so9594094edr.13
-        for <linux-mm@kvack.org>; Fri, 21 Jun 2019 08:12:15 -0700 (PDT)
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 905848E0001
+	for <linux-mm@kvack.org>; Fri, 21 Jun 2019 11:15:25 -0400 (EDT)
+Received: by mail-qk1-f199.google.com with SMTP id s25so7791147qkj.18
+        for <linux-mm@kvack.org>; Fri, 21 Jun 2019 08:15:25 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=z3Pct2Z4Qnhh353z2nOFhuGdqMf6mKmIXrxjjfvx8so=;
-        b=DsvvQT0WGulXUzizhe8ylV0x7C14ajoeS5xXUuKvkizXS4ZvPaYtEtbtU7qyjW+oK4
-         juQKDtSZikalyy8Mn1wHY4/HBVEXY/98CIc5YBMhFdymAFtziTNWuOZS6J3K9FQhzfTo
-         QOhwstxm7/mqW2fiAmUYzcsjHRm8hPLFBd9T3kBcZLe9eCHzcAeE8RnOuEAtG2ywy3uy
-         SWM05Dco62T6BqnfZO/2yZAUJ15TNQJJQ+ZMbv3OEwjKr6TJCbQo75gzx0zXDQC6ic/U
-         gp+doBR0yZGE1YM1cT6xJmWI0J8Gek7xW/zgSjLw36QGOUKupxUnK3h1vRwdq9+pBCf7
-         NdhQ==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAVViMgWpXTaW4pSK5rV1EWsxdggkwoa+9fzI1zJJHzoWtLLaMxb
-	e672qw7E4o3my9mXMG64ENJn7aIwcbfzEAi7OWjJuLg0VpmQAFvc4BJwvv+XP5vfvHWYoQGL36F
-	+XuQkKdreAFO3yPWhnE/qME5BB3Ol0iLd/MoeR7gbSOTl5SnsuGK0S/67GmGCR/Y=
-X-Received: by 2002:a50:b7e2:: with SMTP id i31mr98985331ede.229.1561129935120;
-        Fri, 21 Jun 2019 08:12:15 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwBpgRaYMhceLaFCvuWwQ9buS5G39NtXgokh90PdZ4+g2piWhKBbKph8gbyL0/wlDlwNgAm
-X-Received: by 2002:a50:b7e2:: with SMTP id i31mr98985247ede.229.1561129934413;
-        Fri, 21 Jun 2019 08:12:14 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561129934; cv=none;
+        h=x-gm-message-state:dkim-signature:message-id:subject:from:to:cc
+         :date:in-reply-to:references:mime-version:content-transfer-encoding;
+        bh=hBWkkvTjA4NAMQD8w89qn0J+6pBWayI0jcKtNCrGeT4=;
+        b=mCcRp15mSntsaBxjUCk6NNVd8pCG+PcV/8IycTA9DXHcRBcgCj4F5dR+VSu97M24za
+         Fl+TWWgulnxi+/6s/hDHfGht6TtF5D56GBltNPKrbIhb6Abb1cMp7Yc9vMSJN5mWcdAC
+         HhUxKAohKb8+Cb7gs2b6BhzZvuhLluVJEBZDgkD7qXcn34K2RKL0mmD5mbyEJWVoCBkN
+         pGuKjujO6szs4cVqEr2OGJjTmW6sIS9hfgYbWL+2quXiOjr3av82e6Ja0x09VIOh8Zav
+         HyxRIYHZ1P9GCeQiIXklJV9/nMZ0MCDadZ/wLYx6Wad8NfZKU8h6mEC11m6THB5x6ttb
+         vx3Q==
+X-Gm-Message-State: APjAAAUaweYWZGMSMblyxStyw68WVSlhOVqw0o15u52qAkGeIXCVYraY
+	SyXVs59ENG1lL6TrZ4oTyBK4X9yxZehmAlg2HZ9CweRHAu6a507cBtsDHOL68v4YLY65rMTe8E0
+	+4TEIXFXeUAJfGPBx08tsUQA3q5xhc2KBr67/kYvbNtV2aGlKdCqo2ASV9zAyj+1Tmw==
+X-Received: by 2002:ac8:431e:: with SMTP id z30mr117688091qtm.291.1561130125266;
+        Fri, 21 Jun 2019 08:15:25 -0700 (PDT)
+X-Received: by 2002:ac8:431e:: with SMTP id z30mr117687986qtm.291.1561130124138;
+        Fri, 21 Jun 2019 08:15:24 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561130124; cv=none;
         d=google.com; s=arc-20160816;
-        b=pdA06haKXG+zV363cUt1+uuLf2vq3V+F7YpYIubh4q9hDbKqmP6W/SVQZejXJ6TC7q
-         bKMrQqn6LrFRzqnn0PdhVL19gEUo+xy4ykihavnGqvWBIEnlSl8/1D8jbJn8Qc4MjGPO
-         cJw3Dj3LmgxChYHooawop1lI5C+uA1VOCLDd772tyLxajnIYzJIcf6YN1eflf4gaG8J+
-         nmRiudy69aPenHOolZTTeSJn7weolShx6K30Y/azYBXdxga0emEkGnSHigmL38iTIN9N
-         DrZqgnD4Q36ktRUNmsn54RSGAIqGrUilkTJF31DjDJ+fKPF+ZrQoJ2Zvm8cCz5GhwtsP
-         ukSw==
+        b=bbpJyZx21XI/WwGlRlmkh5ThH05+7OphjlIyBNzrBbCQPZjab5QW7i2LpJWon4ydG4
+         8GOcyc8vk37CreM7kTPTs8H3Y5iT5O1VTDzp4KOTIVmoLPNDJfvMPCUQZ0yso5i92ANJ
+         A2lQRce36dcSsG3Ae+B1Ch5q0J2akKMdgR0yGZA6vLaPMqLGMV10aiXOlvb7lM62Lsxi
+         pE7D9UQqQFCla4l/36UDltNaqgZLl5WdvshgyYMJfthtGHDz2nGcjJvFo82Y1TIZki8G
+         Im/4UrJUa9pxsTtZ7geg3oHHS7Hurk4TjpTrFIHyR01i+t+Fl0b9gqw+HIMAuSRBLvC8
+         +2NA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=z3Pct2Z4Qnhh353z2nOFhuGdqMf6mKmIXrxjjfvx8so=;
-        b=Gx5lWn0xsHByBAm0q7JDHTeQX4MnmM/YE9sBhI1XZY84oWDA/iEDiUouw36SBZ1n8m
-         IibkGc/5AojA2gbZNoXEWotxU84KJuC/Tjphxu501CkX/zOj6z5wc2zYJH3LDPssASu2
-         +eLa/mgFrqkJXcp7QTuEb3lMpxdly/4SpzIdpeGL3ab//MVBJB8pAfcw0NWY/vdtNnIx
-         2v8XqGd9JiMgq7pCHF4XfjN+TEG2rMkKT3610v9hRz9heV6DFW2Du6sTLcrQTOmXDRIi
-         huG2MOjUJP51LfEtHS+Eg46Z8zNW4vn8Auil1gFly6bDXRU9UvDRqBBTsDJlZWqx39up
-         ooYg==
+        h=content-transfer-encoding:mime-version:references:in-reply-to:date
+         :cc:to:from:subject:message-id:dkim-signature;
+        bh=hBWkkvTjA4NAMQD8w89qn0J+6pBWayI0jcKtNCrGeT4=;
+        b=De9qHAW1bLJqUMOVsO9FF2BOgBOm4c3+v1dX4HOq6XZPCH2K+aN+a3YR+9o3a8AIoI
+         QjRXEQ/b7QDJR3KbmXN0BkOI/Tuq4YJedEFr7yNm5o3JWAyTOaY1c8wPJeLChG29hP+G
+         UWCHIe9Eq/OiZOQGn1L0ABpAlM/WGfdg3FI/q1U2CmqfFJbEUo7unK7YoqrykfJY6mDD
+         0wcAgLzS1SH2/z/89h+Yg8X0crDlZY5bHu6PavIZkUlCpZzEQSmFb7hkb596byoOGclN
+         E6Kq6cGrxYoMgQig+TFoH7wsksp74ReqviGfKRUQxffZ5LKDyvlW+vy5tnqLCgXVnTUn
+         CmqQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id n12si1959621ejr.105.2019.06.21.08.12.14
+       dkim=pass header.i=@lca.pw header.s=google header.b=NEhtyANm;
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 202sor1734786qkf.157.2019.06.21.08.15.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 21 Jun 2019 08:12:14 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (Google Transport Security);
+        Fri, 21 Jun 2019 08:15:24 -0700 (PDT)
+Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 863DAABB1;
-	Fri, 21 Jun 2019 15:12:13 +0000 (UTC)
-Date: Fri, 21 Jun 2019 17:12:10 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Alexander Potapenko <glider@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-	Christoph Lameter <cl@linux.com>, Kees Cook <keescook@chromium.org>,
-	Masahiro Yamada <yamada.masahiro@socionext.com>,
-	James Morris <jmorris@namei.org>,
-	"Serge E. Hallyn" <serge@hallyn.com>,
-	Nick Desaulniers <ndesaulniers@google.com>,
-	Kostya Serebryany <kcc@google.com>,
-	Dmitry Vyukov <dvyukov@google.com>,
-	Sandeep Patil <sspatil@android.com>,
-	Laura Abbott <labbott@redhat.com>,
-	Randy Dunlap <rdunlap@infradead.org>, Jann Horn <jannh@google.com>,
-	Mark Rutland <mark.rutland@arm.com>, Marco Elver <elver@google.com>,
-	Linux Memory Management List <linux-mm@kvack.org>,
-	linux-security-module <linux-security-module@vger.kernel.org>,
-	Kernel Hardening <kernel-hardening@lists.openwall.com>
-Subject: Re: [PATCH v7 1/2] mm: security: introduce init_on_alloc=1 and
- init_on_free=1 boot options
-Message-ID: <20190621151210.GF3429@dhcp22.suse.cz>
-References: <20190617151050.92663-1-glider@google.com>
- <20190617151050.92663-2-glider@google.com>
- <20190621070905.GA3429@dhcp22.suse.cz>
- <CAG_fn=UFj0Lzy3FgMV_JBKtxCiwE03HVxnR8=f9a7=4nrUFXSw@mail.gmail.com>
- <CAG_fn=W90HNeZ0UcUctnbUBzJ=_b+gxMGdUoDyO3JPoyy4dGSg@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAG_fn=W90HNeZ0UcUctnbUBzJ=_b+gxMGdUoDyO3JPoyy4dGSg@mail.gmail.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+       dkim=pass header.i=@lca.pw header.s=google header.b=NEhtyANm;
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=lca.pw; s=google;
+        h=message-id:subject:from:to:cc:date:in-reply-to:references
+         :mime-version:content-transfer-encoding;
+        bh=hBWkkvTjA4NAMQD8w89qn0J+6pBWayI0jcKtNCrGeT4=;
+        b=NEhtyANmlRKWDHlJKIxH8QqlCHDx1RSXiBGr5CoZpxN0m16tqlflQ5IbZ4RUcd+DHb
+         Leiy8KnZvZpnj9bIxzOGqauRgivsXHURsIDK3rb1cyMd1bWK+/lgZYSN4Ttkp9pVfU3h
+         efmTlhptjCPsGZDjJI5G4bubHOijP542gMQaI4kB/+dny8MxiVSsDzMiSOSFu+3E7v89
+         ec7Eep7L6SYTww2X5LbRKYpOHwsGvP5FwOVf005/1XRiYEcG8MPu6RrbMVItXcqoxusd
+         f/ip59VgMOkbyHyn2RNTamUWsMuS0qy5pMkkrBPXbK6kI3eHM7Gb5M1UKcwhMsgNtsXM
+         lRfQ==
+X-Google-Smtp-Source: APXvYqwTcU88yLwYdQPc9U1A6X6iWq97QwUjmkeq0aJSNvyRPi6JcVFwDbicOmgpNY9J5fQhnLJNlg==
+X-Received: by 2002:a37:5d41:: with SMTP id r62mr20894972qkb.315.1561130123705;
+        Fri, 21 Jun 2019 08:15:23 -0700 (PDT)
+Received: from dhcp-41-57.bos.redhat.com (nat-pool-bos-t.redhat.com. [66.187.233.206])
+        by smtp.gmail.com with ESMTPSA id t2sm1907683qth.33.2019.06.21.08.15.21
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 21 Jun 2019 08:15:22 -0700 (PDT)
+Message-ID: <1561130120.5154.47.camel@lca.pw>
+Subject: Re: [PATCH v3 0/6] mm: Further memory block device cleanups
+From: Qian Cai <cai@lca.pw>
+To: David Hildenbrand <david@redhat.com>, linux-kernel@vger.kernel.org
+Cc: Dan Williams <dan.j.williams@intel.com>, Andrew Morton
+ <akpm@linux-foundation.org>, linuxppc-dev@lists.ozlabs.org, 
+ linux-acpi@vger.kernel.org, linux-mm@kvack.org, Andrew Banman
+ <andrew.banman@hpe.com>, Anshuman Khandual <anshuman.khandual@arm.com>,
+ Arun KS <arunks@codeaurora.org>, Baoquan He <bhe@redhat.com>, Benjamin
+ Herrenschmidt <benh@kernel.crashing.org>, Greg Kroah-Hartman
+ <gregkh@linuxfoundation.org>,  Johannes Weiner <hannes@cmpxchg.org>,
+ Juergen Gross <jgross@suse.com>, Keith Busch <keith.busch@intel.com>, Len
+ Brown <lenb@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, Michael
+ Ellerman <mpe@ellerman.id.au>, Michael Neuling <mikey@neuling.org>, Michal
+ Hocko <mhocko@suse.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, 
+ "mike.travis@hpe.com" <mike.travis@hpe.com>, Oscar Salvador
+ <osalvador@suse.com>, Oscar Salvador <osalvador@suse.de>, Paul Mackerras
+ <paulus@samba.org>, Pavel Tatashin <pasha.tatashin@oracle.com>, Pavel
+ Tatashin <pasha.tatashin@soleen.com>,  Pavel Tatashin
+ <pavel.tatashin@microsoft.com>, "Rafael J. Wysocki" <rafael@kernel.org>,
+ "Rafael J. Wysocki" <rjw@rjwysocki.net>, Rashmica Gupta
+ <rashmica.g@gmail.com>, Stephen Rothwell <sfr@canb.auug.org.au>, Thomas
+ Gleixner <tglx@linutronix.de>, Vlastimil Babka <vbabka@suse.cz>, Wei Yang
+ <richard.weiyang@gmail.com>
+Date: Fri, 21 Jun 2019 11:15:20 -0400
+In-Reply-To: <20190620183139.4352-1-david@redhat.com>
+References: <20190620183139.4352-1-david@redhat.com>
+Content-Type: text/plain; charset="UTF-8"
+X-Mailer: Evolution 3.22.6 (3.22.6-10.el7) 
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri 21-06-19 16:10:19, Alexander Potapenko wrote:
-> On Fri, Jun 21, 2019 at 10:57 AM Alexander Potapenko <glider@google.com> wrote:
-[...]
-> > > > diff --git a/mm/dmapool.c b/mm/dmapool.c
-> > > > index 8c94c89a6f7e..e164012d3491 100644
-> > > > --- a/mm/dmapool.c
-> > > > +++ b/mm/dmapool.c
-> > > > @@ -378,7 +378,7 @@ void *dma_pool_alloc(struct dma_pool *pool, gfp_t mem_flags,
-> > > >  #endif
-> > > >       spin_unlock_irqrestore(&pool->lock, flags);
-> > > >
-> > > > -     if (mem_flags & __GFP_ZERO)
-> > > > +     if (want_init_on_alloc(mem_flags))
-> > > >               memset(retval, 0, pool->size);
-> > > >
-> > > >       return retval;
-> > >
-> > > Don't you miss dma_pool_free and want_init_on_free?
-> > Agreed.
-> > I'll fix this and add tests for DMA pools as well.
-> This doesn't seem to be easy though. One needs a real DMA-capable
-> device to allocate using DMA pools.
-> On the other hand, what happens to a DMA pool when it's destroyed,
-> isn't it wiped by pagealloc?
+On Thu, 2019-06-20 at 20:31 +0200, David Hildenbrand wrote:
+> @Andrew: Only patch 1, 4 and 6 changed compared to v1.
+> 
+> Some further cleanups around memory block devices. Especially, clean up
+> and simplify walk_memory_range(). Including some other minor cleanups.
+> 
+> Compiled + tested on x86 with DIMMs under QEMU. Compile-tested on ppc64.
+> 
+> v2 -> v3:
+> - "mm/memory_hotplug: Rename walk_memory_range() and pass start+size .."
+> -- Avoid warning on ppc.
+> - "drivers/base/memory.c: Get rid of find_memory_block_hinted()"
+> -- Fixup a comment regarding hinted devices.
+> 
+> v1 -> v2:
+> - "mm: Section numbers use the type "unsigned long""
+> -- "unsigned long i" -> "unsigned long nr", in one case -> "int i"
+> - "drivers/base/memory.c: Get rid of find_memory_block_hinted("
+> -- Fix compilation error
+> -- Get rid of the "hint" parameter completely
+> 
+> David Hildenbrand (6):
+>   mm: Section numbers use the type "unsigned long"
+>   drivers/base/memory: Use "unsigned long" for block ids
+>   mm: Make register_mem_sect_under_node() static
+>   mm/memory_hotplug: Rename walk_memory_range() and pass start+size
+>     instead of pfns
+>   mm/memory_hotplug: Move and simplify walk_memory_blocks()
+>   drivers/base/memory.c: Get rid of find_memory_block_hinted()
+> 
+>  arch/powerpc/platforms/powernv/memtrace.c |  23 ++---
+>  drivers/acpi/acpi_memhotplug.c            |  19 +---
+>  drivers/base/memory.c                     | 120 +++++++++++++---------
+>  drivers/base/node.c                       |   8 +-
+>  include/linux/memory.h                    |   5 +-
+>  include/linux/memory_hotplug.h            |   2 -
+>  include/linux/mmzone.h                    |   4 +-
+>  include/linux/node.h                      |   7 --
+>  mm/memory_hotplug.c                       |  57 +---------
+>  mm/sparse.c                               |  12 +--
+>  10 files changed, 106 insertions(+), 151 deletions(-)
+> 
 
-Yes it should be returned to the page allocator AFAIR. But it is when we
-are returning an object to the pool when you want to wipe the data, no?
-Why cannot you do it along the already existing poisoning?
--- 
-Michal Hocko
-SUSE Labs
+This series causes a few machines are unable to boot triggering endless soft
+lockups. Reverted those commits fixed the issue.
+
+97f4217d1da0 Revert "mm/memory_hotplug: rename walk_memory_range() and pass
+start+size instead of pfns"
+c608eebf33c6 Revert "mm-memory_hotplug-rename-walk_memory_range-and-pass-
+startsize-instead-of-pfns-fix"
+34b5e4ab7558 Revert "mm/memory_hotplug: move and simplify walk_memory_blocks()"
+59a9f3eec5d1 Revert "drivers/base/memory.c: Get rid of
+find_memory_block_hinted()"
+5cfcd52288b6 Revert "drivers-base-memoryc-get-rid-of-find_memory_block_hinted-
+v3"
+
+[    4.582081][    T1] ACPI FADT declares the system doesn't support PCIe ASPM,
+so disable it
+[    4.590405][    T1] ACPI: bus type PCI registered
+[    4.592908][    T1] PCI: MMCONFIG for domain 0000 [bus 00-ff] at [mem
+0x80000000-0x8fffffff] (base 0x80000000)
+[    4.601860][    T1] PCI: MMCONFIG at [mem 0x80000000-0x8fffffff] reserved in
+E820
+[    4.601860][    T1] PCI: Using configuration type 1 for base access
+[   28.661336][   C16] watchdog: BUG: soft lockup - CPU#16 stuck for 22s!
+[swapper/0:1]
+[   28.671351][   C16] Modules linked in:
+[   28.671354][   C16] CPU: 16 PID: 1 Comm: swapper/0 Not tainted 5.2.0-rc5-
+next-20190621+ #1
+[   28.681366][   C16] Hardware name: HPE ProLiant DL385 Gen10/ProLiant DL385
+Gen10, BIOS A40 03/09/2018
+[   28.691334][   C16] RIP: 0010:_raw_spin_unlock_irqrestore+0x2f/0x40
+[   28.701334][   C16] Code: 55 48 89 e5 41 54 49 89 f4 be 01 00 00 00 53 48 8b
+55 08 48 89 fb 48 8d 7f 18 e8 4c 89 7d ff 48 89 df e8 94 f9 7d ff 41 54 9d <65>
+ff 0d c2 44 8d 48 5b 41 5c 5d c3 0f 1f 44 00 00 0f 1f 44 00 00
+[   28.711354][   C16] RSP: 0018:ffff888205b27bf8 EFLAGS: 00000246 ORIG_RAX:
+ffffffffffffff13
+[   28.721372][   C16] RAX: 0000000000000000 RBX: ffff8882053d6138 RCX:
+ffffffffb6f2a3b8
+[   28.731371][   C16] RDX: 1ffff11040a7ac27 RSI: dffffc0000000000 RDI:
+ffff8882053d6138
+[   28.741371][   C16] RBP: ffff888205b27c08 R08: ffffed1040a7ac28 R09:
+ffffed1040a7ac27
+[   28.751334][   C16] R10: ffffed1040a7ac27 R11: ffff8882053d613b R12:
+0000000000000246
+[   28.751370][   C16] R13: ffff888205b27c98 R14: ffff8884504d0a20 R15:
+0000000000000000
+[   28.761368][   C16] FS:  0000000000000000(0000) GS:ffff888454500000(0000)
+knlGS:0000000000000000
+[   28.771373][   C16] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[   28.781334][   C16] CR2: 0000000000000000 CR3: 00000007c9012000 CR4:
+00000000001406a0
+[   28.791333][   C16] Call Trace:
+[   28.791374][   C16]  klist_next+0xd8/0x1c0
+[   28.791374][   C16]  subsys_find_device_by_id+0x13b/0x1f0
+[   28.801334][   C16]  ? bus_find_device_by_name+0x20/0x20
+[   28.801370][   C16]  ? kobject_put+0x23/0x250
+[   28.811333][   C16]  walk_memory_blocks+0x6c/0xb8
+[   28.811353][   C16]  ? write_policy_show+0x40/0x40
+[   28.821334][   C16]  link_mem_sections+0x7e/0xa0
+[   28.821369][   C16]  ? unregister_memory_block_under_nodes+0x210/0x210
+[   28.831353][   C16]  ? __register_one_node+0x3bd/0x600
+[   28.831353][   C16]  topology_init+0xbf/0x126
+[   28.841364][   C16]  ? enable_cpu0_hotplug+0x1a/0x1a
+[   28.841368][   C16]  do_one_initcall+0xfe/0x45a
+[   28.851334][   C16]  ? initcall_blacklisted+0x150/0x150
+[   28.851353][   C16]  ? kasan_check_write+0x14/0x20
+[   28.861333][   C16]  ? up_write+0x75/0x140
+[   28.861369][   C16]  kernel_init_freeable+0x619/0x6ac
+[   28.871333][   C16]  ? rest_init+0x188/0x188
+[   28.871353][   C16]  kernel_init+0x11/0x138
+[   28.881363][   C16]  ? rest_init+0x188/0x188
+[   28.881363][   C16]  ret_from_fork+0x22/0x40
+[   56.661336][   C16] watchdog: BUG: soft lockup - CPU#16 stuck for 22s!
+[swapper/0:1]
+[   56.671352][   C16] Modules linked in:
+[   56.671354][   C16] CPU: 16 PID: 1 Comm: swapper/0 Tainted:
+G             L    5.2.0-rc5-next-20190621+ #1
+[   56.681357][   C16] Hardware name: HPE ProLiant DL385 Gen10/ProLiant DL385
+Gen10, BIOS A40 03/09/2018
+[   56.691356][   C16] RIP: 0010:subsys_find_device_by_id+0x168/0x1f0
+[   56.701334][   C16] Code: 48 85 c0 74 3e 48 8d 78 58 e8 14 77 ca ff 4d 8b 7e
+58 4d 85 ff 74 2c 49 8d bf a0 03 00 00 e8 bf 75 ca ff 45 39 a7 a0 03 00 00 <75>
+c9 4c 89 ff e8 0e 89 ff ff 48 85 c0 74 bc 48 89 df e8 21 3b 24
+[   56.721333][   C16] RSP: 0018:ffff888205b27c68 EFLAGS: 00000287 ORIG_RAX:
+ffffffffffffff13
+[   56.721370][   C16] RAX: 0000000000000000 RBX: ffff888205b27c90 RCX:
+ffffffffb74c9dc1
+[   56.731370][   C16] RDX: 0000000000000003 RSI: dffffc0000000000 RDI:
+ffff8888774ec3e0
+[   56.741371][   C16] RBP: ffff888205b27cf8 R08: ffffed1040a7ac28 R09:
+ffffed1040a7ac27
+[   56.751335][   C16] R10: ffffed1040a7ac27 R11: ffff8882053d613b R12:
+0000000000085c1b
+[   56.761334][   C16] R13: 1ffff11040b64f8e R14: ffff888450de4a20 R15:
+ffff8888774ec040
+[   56.761372][   C16] FS:  0000000000000000(0000) GS:ffff888454500000(0000)
+knlGS:0000000000000000
+[   56.771374][   C16] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[   56.781370][   C16] CR2: 0000000000000000 CR3: 00000007c9012000 CR4:
+00000000001406a0
+[   56.791373][   C16] Call Trace:
+[   56.791373][   C16]  ? bus_find_device_by_name+0x20/0x20
+[   56.801334][   C16]  ? kobject_put+0x23/0x250
+[   56.801334][   C16]  walk_memory_blocks+0x6c/0xb8
+[   56.811333][   C16]  ? write_policy_show+0x40/0x40
+[   56.811353][   C16]  link_mem_sections+0x7e/0xa0
+[   56.811353][   C16]  ? unregister_memory_block_under_nodes+0x210/0x210
+[   56.821333][   C16]  ? __register_one_node+0x3bd/0x600
+[   56.831333][   C16]  topology_init+0xbf/0x126
+[   56.831355][   C16]  ? enable_cpu0_hotplug+0x1a/0x1a
+[   56.841334][   C16]  do_one_initcall+0xfe/0x45a
+[   56.841334][   C16]  ? initcall_blacklisted+0x150/0x150
+[   56.851333][   C16]  ? kasan_check_write+0x14/0x20
+[   56.851354][   C16]  ? up_write+0x75/0x140
+[   56.861333][   C16]  kernel_init_freeable+0x619/0x6ac
+[   56.861333][   C16]  ? rest_init+0x188/0x188
+[   56.861369][   C16]  kernel_init+0x11/0x138
+[   56.871333][   C16]  ? rest_init+0x188/0x188
+[   56.871354][   C16]  ret_from_fork+0x22/0x40
+[   64.601362][   C16] rcu: INFO: rcu_sched self-detected stall on CPU
+[   64.611335][   C16] rcu: 	16-....: (5958 ticks this GP)
+idle=37e/1/0x4000000000000002 softirq=27/27 fqs=3000 
+[   64.621334][   C16] 	(t=6002 jiffies g=-1079 q=25)
+[   64.621334][   C16] NMI backtrace for cpu 16
+[   64.621374][   C16] CPU: 16 PID: 1 Comm: swapper/0 Tainted:
+G             L    5.2.0-rc5-next-20190621+ #1
+[   64.631372][   C16] Hardware name: HPE ProLiant DL385 Gen10/ProLiant DL385
+Gen10, BIOS A40 03/09/2018
+[   64.641371][   C16] Call Trace:
+[   64.651337][   C16]  <IRQ>
+[   64.651376][   C16]  dump_stack+0x62/0x9a
+[   64.651376][   C16]  nmi_cpu_backtrace.cold.0+0x2e/0x33
+[   64.661337][   C16]  ? nmi_cpu_backtrace_handler+0x20/0x20
+[   64.661337][   C16]  nmi_trigger_cpumask_backtrace+0x1a6/0x1b9
+[   64.671353][   C16]  arch_trigger_cpumask_backtrace+0x19/0x20
+[   64.681366][   C16]  rcu_dump_cpu_stacks+0x18b/0x1d6
+[   64.681366][   C16]  rcu_sched_clock_irq.cold.64+0x368/0x791
+[   64.691336][   C16]  ? kasan_check_read+0x11/0x20
+[   64.691354][   C16]  ? __raise_softirq_irqoff+0x66/0x150
+[   64.701336][   C16]  update_process_times+0x2f/0x60
+[   64.701362][   C16]  tick_periodic+0x38/0xe0
+[   64.711334][   C16]  tick_handle_periodic+0x2e/0x80
+[   64.711353][   C16]  smp_apic_timer_interrupt+0xfb/0x370
+[   64.721367][   C16]  apic_timer_interrupt+0xf/0x20
+[   64.721367][   C16]  </IRQ>
+[   64.721367][   C16] RIP: 0010:_raw_spin_unlock_irqrestore+0x2f/0x40
+[   64.731370][   C16] Code: 55 48 89 e5 41 54 49 89 f4 be 01 00 00 00 53 
 
