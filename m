@@ -2,221 +2,404 @@ Return-Path: <SRS0=pbvW=UU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY
+X-Spam-Status: No, score=-3.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B55DAC43613
-	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 18:24:02 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2B9C8C48BE3
+	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 18:25:19 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7ABE32083B
-	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 18:24:02 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7ABE32083B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
+	by mail.kernel.org (Postfix) with ESMTP id CBB87208C3
+	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 18:25:18 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CBB87208C3
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 12F426B0003; Fri, 21 Jun 2019 14:24:02 -0400 (EDT)
+	id 6D2136B0003; Fri, 21 Jun 2019 14:25:18 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0E11B8E0002; Fri, 21 Jun 2019 14:24:02 -0400 (EDT)
+	id 683528E0002; Fri, 21 Jun 2019 14:25:18 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id F38008E0001; Fri, 21 Jun 2019 14:24:01 -0400 (EDT)
+	id 54B818E0001; Fri, 21 Jun 2019 14:25:18 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
-	by kanga.kvack.org (Postfix) with ESMTP id CADC66B0003
-	for <linux-mm@kvack.org>; Fri, 21 Jun 2019 14:24:01 -0400 (EDT)
-Received: by mail-ot1-f71.google.com with SMTP id f11so3270937otq.3
-        for <linux-mm@kvack.org>; Fri, 21 Jun 2019 11:24:01 -0700 (PDT)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 326006B0003
+	for <linux-mm@kvack.org>; Fri, 21 Jun 2019 14:25:18 -0400 (EDT)
+Received: by mail-qt1-f198.google.com with SMTP id p43so8744392qtk.23
+        for <linux-mm@kvack.org>; Fri, 21 Jun 2019 11:25:18 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-transfer-encoding:content-language;
-        bh=KX7HCFYrLCKeFznvVwe76VFG7ENGp02D2Tj5/06jtas=;
-        b=d57a4ePOK+6+Le/6OkAU9djP9aJ0J17Q8WL4QVhg3CfZY8HQ/Bw+t8/CKl4pOQ/fnE
-         Eo49lO1ZjiPlCE0NtGDjOy3pCkh2ZuLu1ReWV4kao3GRX2ao6bGjXflOFt9b5TnrgMKl
-         ibLcEX9l6uEZmgZYtWHGG8xk9qZ/ddAeDaT44BjDVoLgOE990y1tW/YqTNjLo9UgEqX0
-         8DH+ZEtStvqobR3RkSOWVz51P0cXICMnXWuu1/AAAcfZeHx+TAIiWtgCMLE1A6a+KJig
-         FZor01mOMOJZSoIfma4aoIAYdN7YbX7nbXGVLELTlVP8y7Xt9AKxLyzvBgEY1AlaIB3+
-         c4GA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.45 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Gm-Message-State: APjAAAXD0cLsbHQOJEroxUBCettBiuZqjviVmRyafyBKkVRcgfoqhHdg
-	RFbY/NobPmxcIDCkk5gBOllGhKJ9myWX7iulzoflcRrnUgFatbbAO8nyKeY2CkHoJIUNDGjyKaF
-	P1OxPjKdoo239zLUCoYeSpjFU8+EwAm0Uk/1hi2gEWUqCMuhFtepOtTcdAW4122q6Aw==
-X-Received: by 2002:aca:a902:: with SMTP id s2mr3610836oie.62.1561141441366;
-        Fri, 21 Jun 2019 11:24:01 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxyHiE/ktpIkRKkKlDqwv+25faLzJPZLm07ujxYIKe/WkmWjDx/CvHIb5KGZs8BT5p4Dufn
-X-Received: by 2002:aca:a902:: with SMTP id s2mr3610794oie.62.1561141440445;
-        Fri, 21 Jun 2019 11:24:00 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561141440; cv=none;
+         :references:from:openpgp:autocrypt:organization:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding;
+        bh=m1tiHkqGjqBfxdhRDF+qlHjb1XjaD+7HDfSiotFUSBk=;
+        b=ZPA8HqiHlky961huoYY/FtopEWT6T/h/UACAvBOKI/VnYjREkrteLqbSjBtg47v7fB
+         tcdusecEphTd9seuSnXhzTnJEKjIps9WtqclX/pyHTPmSRSr5Ig2/SgTnV8FnKOcPynH
+         V1MwEnWqIW6j/wbuGO/CYXTP5DxrWn6lrrXJdgqNmmVyJBQC5MKH7kJuYcZyXqwqSMp7
+         Y8szysBKoyWVA/l4zgl/ikLlsMSVxiThp7KceEhrHPGWBQ8/NRrvRYSWGaGGeTcod4ha
+         FLNGJj7hWceefl+kA3Iy2pcJ1QyNgbBBAQQTV+Rx6tnVfugoWWec5zCP0zvWQqqkMoYD
+         b26w==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAW0igS8u7TsdPHwoaDxiqCF3SZ8JKNnoDOsbJWOAklB8LF0/+yB
+	8MpYSOlqyoYfgY5YFodXmMQyjn4FzL2nlCd1teQwQE9kQ678dMhsIh5QLf/X0mT9+h04hUqwxmO
+	iw2mRuUXzZdCmSXgVbQxYcg5aMpBBnVgFMXzRwAjY5H/N2rhjeE/lAFfL/UuYffZ87A==
+X-Received: by 2002:ae9:ec0d:: with SMTP id h13mr84645517qkg.26.1561141517926;
+        Fri, 21 Jun 2019 11:25:17 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqx3NsulV2z1uNVLdzW8qAgIXO8RNu9mQq1ojvS/KEFa2PC77IIvmssoHgvEegxdkC83kO9p
+X-Received: by 2002:ae9:ec0d:: with SMTP id h13mr84645466qkg.26.1561141516987;
+        Fri, 21 Jun 2019 11:25:16 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561141516; cv=none;
         d=google.com; s=arc-20160816;
-        b=SuG8sTh6bWx7fiy+ZVZUczfbwyujA2ORMzyNYsHo5pjv6+QDTPlt74gPhxiYJZDDBp
-         tDm4ACp+NXqGd0IBGUjNNsXwn9+4q21AM5DeKu9pEL+Dl54PgVDeZaOngIdLmzdaoYj3
-         JwUEwpyPTQhx/HZLuBP2GqtkRlUwO1ADg+hL5ZCvqkXUSi4c2RsI4VlU+EDb2ccvAKZ3
-         u8zajv8QzcLVxPWpAGHx1wAW4bsdqn3yeGJGRQP5+lV/eM9M9bwUcuSCM45XXBKrXna4
-         Wfbkndi4kRBL2n+azkl2qm87X/o7zjBw3aL02p7cw2kVs2btlq1O3qc+f8xmqN+bmXxy
-         m9EQ==
+        b=EGmomwcYYlypjuwIbQzi+iONL0KCe/B8C1oCKoMXyNHIH4zdQpLTjnul7SVlmlk5VN
+         SJ5cf6ZawcuEIripvEGDGfcmmRGQsP+eWdDIoCJYLKrP69g9KzTvsc5BXZDtACXMi1AW
+         B8ma8Ls73hc9FV+shnWebAZStmeyNRxjwPtzdSWTggW5wsEUoUgsy+3EhiSBLaibihvt
+         5b50btgoS7dykX63GWXGxCkI/U2Z1Hnbgcc+asEDNJ6aaVQ6V76AowkeinLlR9gaSFp1
+         qjzL/a5Im+upypqGNGkVorwcuH56xjbUnXOFqJD+sV+FwF4E7frNIj0qLf4QcjOJrPj2
+         egmw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-language:content-transfer-encoding:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=KX7HCFYrLCKeFznvVwe76VFG7ENGp02D2Tj5/06jtas=;
-        b=OB1jRSG7c1lN+FNbVAdkjW7waU+LDwI011nwL1fHMD5IPp17SPRFbt9quCAtHwSybS
-         vglUEkyX0ICZirXZtJBT/dA1hmZCn0XuUdYG2VKXBvFqsdQD4IKzNIsmVABER65jj/4E
-         1xuyPAmTgAZIh8hT3rkZynEPGPfieh1EP9JHVBfLw7nIFdoow/2FMpHhEPzK6Yg/6D9f
-         RDyj/0BsYrmMs/JGPaBjiKdzWOvdR+jJGS9/F5+wzz27ChdmpDID5wwnfK5hZnR0YpcW
-         YE3YhUq8kdRMMCoSK5opY6bkGcXgHfMMUFs3habRsiBjEYatd+MXThhBVVQbL5hhdFIp
-         R1AA==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:organization:autocrypt:openpgp:from
+         :references:cc:to:subject;
+        bh=m1tiHkqGjqBfxdhRDF+qlHjb1XjaD+7HDfSiotFUSBk=;
+        b=cMMZOI2jQWFPdb1Z1BThOr4dYTdOkWWGxmxKGS2kFJslrqFxPATyBoxHCsEFgzqIF3
+         XkL2xuqHIkdDvMnylFaRJ77TpGkQ2rfMR8aX+fJdRoRShoz8gCE42WszVQYANjONsxrS
+         +NhoTxsyPi40/CT8//9jBdAktCwdtwLvSK0hyODNrDpXoUaO3BbeieduWRZjA8Aswuyp
+         ygZ982N7IQV6Rd7TDzweFqhvUSaSvk7Q6M6ZKJXW3vr/ZdvNiCxLZ23/F3Z36/Nfgmee
+         djAFKva3sW/oJNw6REq3riOsFpozOFgrOnQZx44cZpHz+J+BJvFAiQq0aoLiFWD8iPcY
+         1uMA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.45 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-Received: from out30-45.freemail.mail.aliyun.com (out30-45.freemail.mail.aliyun.com. [115.124.30.45])
-        by mx.google.com with ESMTPS id n2si2079684otk.63.2019.06.21.11.23.59
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id y126si2221125qkc.160.2019.06.21.11.25.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 21 Jun 2019 11:24:00 -0700 (PDT)
-Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.45 as permitted sender) client-ip=115.124.30.45;
+        Fri, 21 Jun 2019 11:25:16 -0700 (PDT)
+Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.45 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R111e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e04423;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=9;SR=0;TI=SMTPD_---0TUqdGdq_1561141423;
-Received: from US-143344MP.local(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TUqdGdq_1561141423)
-          by smtp.aliyun-inc.com(127.0.0.1);
-          Sat, 22 Jun 2019 02:23:46 +0800
-Subject: Re: [PATCH] mm: mempolicy: handle vma with unmovable pages mapped
- correctly in mbind
-To: Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>
-Cc: akpm@linux-foundation.org, mgorman@techsingularity.net,
- linux-mm@kvack.org, linux-kernel@vger.kernel.org,
- Eric Dumazet <edumazet@google.com>, "David S. Miller" <davem@davemloft.net>,
- netdev@vger.kernel.org
-References: <1560797290-42267-1-git-send-email-yang.shi@linux.alibaba.com>
- <20190618130253.GH3318@dhcp22.suse.cz>
- <cf33b724-fdd5-58e3-c06a-1bc563525311@linux.alibaba.com>
- <20190618182848.GJ3318@dhcp22.suse.cz>
- <68c2592d-b747-e6eb-329f-7a428bff1f86@linux.alibaba.com>
- <20190619052133.GB2968@dhcp22.suse.cz>
- <21a0b20c-5b62-490e-ad8e-26b4b78ac095@suse.cz>
- <687f4e57-5c50-7900-645e-6ef3a5c1c0c7@linux.alibaba.com>
- <55eb2ea9-2c74-87b1-4568-b620c7913e17@linux.alibaba.com>
- <d81b36bb-876e-917a-6115-cedf496b4923@suse.cz>
- <d185f277-85ed-4dc1-8ff2-2984b54a0d64@linux.alibaba.com>
- <9945a66f-4434-b2a6-63ac-3240ef1d52c9@suse.cz>
-From: Yang Shi <yang.shi@linux.alibaba.com>
-Message-ID: <7d770cda-3f62-f1a2-6f48-529ca71bd6bd@linux.alibaba.com>
-Date: Fri, 21 Jun 2019 11:23:40 -0700
-User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:52.0)
- Gecko/20100101 Thunderbird/52.7.0
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 9C6183083391;
+	Fri, 21 Jun 2019 18:25:14 +0000 (UTC)
+Received: from [10.36.116.107] (ovpn-116-107.ams2.redhat.com [10.36.116.107])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id D07F85D9D2;
+	Fri, 21 Jun 2019 18:25:05 +0000 (UTC)
+Subject: Re: [PATCH v3 0/6] mm: Further memory block device cleanups
+To: Qian Cai <cai@lca.pw>, linux-kernel@vger.kernel.org
+Cc: Dan Williams <dan.j.williams@intel.com>,
+ Andrew Morton <akpm@linux-foundation.org>, linuxppc-dev@lists.ozlabs.org,
+ linux-acpi@vger.kernel.org, linux-mm@kvack.org,
+ Andrew Banman <andrew.banman@hpe.com>,
+ Anshuman Khandual <anshuman.khandual@arm.com>,
+ Arun KS <arunks@codeaurora.org>, Baoquan He <bhe@redhat.com>,
+ Benjamin Herrenschmidt <benh@kernel.crashing.org>,
+ Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+ Johannes Weiner <hannes@cmpxchg.org>, Juergen Gross <jgross@suse.com>,
+ Keith Busch <keith.busch@intel.com>, Len Brown <lenb@kernel.org>,
+ Mel Gorman <mgorman@techsingularity.net>,
+ Michael Ellerman <mpe@ellerman.id.au>, Michael Neuling <mikey@neuling.org>,
+ Michal Hocko <mhocko@suse.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>,
+ "mike.travis@hpe.com" <mike.travis@hpe.com>,
+ Oscar Salvador <osalvador@suse.com>, Oscar Salvador <osalvador@suse.de>,
+ Paul Mackerras <paulus@samba.org>, Pavel Tatashin
+ <pasha.tatashin@oracle.com>, Pavel Tatashin <pasha.tatashin@soleen.com>,
+ Pavel Tatashin <pavel.tatashin@microsoft.com>,
+ "Rafael J. Wysocki" <rafael@kernel.org>,
+ "Rafael J. Wysocki" <rjw@rjwysocki.net>,
+ Rashmica Gupta <rashmica.g@gmail.com>,
+ Stephen Rothwell <sfr@canb.auug.org.au>, Thomas Gleixner
+ <tglx@linutronix.de>, Vlastimil Babka <vbabka@suse.cz>,
+ Wei Yang <richard.weiyang@gmail.com>
+References: <20190620183139.4352-1-david@redhat.com>
+ <1561130120.5154.47.camel@lca.pw>
+From: David Hildenbrand <david@redhat.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
+ 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
+ SE+xAvmumFBY
+Organization: Red Hat GmbH
+Message-ID: <1c2edc22-afd7-2211-c4c7-40e54e5007e8@redhat.com>
+Date: Fri, 21 Jun 2019 20:24:59 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.0
 MIME-Version: 1.0
-In-Reply-To: <9945a66f-4434-b2a6-63ac-3240ef1d52c9@suse.cz>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <1561130120.5154.47.camel@lca.pw>
+Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
+Content-Transfer-Encoding: 8bit
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.44]); Fri, 21 Jun 2019 18:25:16 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
-
-On 6/21/19 4:33 AM, Vlastimil Babka wrote:
-> On 6/20/19 6:08 PM, Yang Shi wrote:
+On 21.06.19 17:15, Qian Cai wrote:
+> On Thu, 2019-06-20 at 20:31 +0200, David Hildenbrand wrote:
+>> @Andrew: Only patch 1, 4 and 6 changed compared to v1.
 >>
->> On 6/20/19 12:18 AM, Vlastimil Babka wrote:
->>> On 6/19/19 8:19 PM, Yang Shi wrote:
->>>>>>> This is getting even more muddy TBH. Is there any reason that we
->>>>>>> have to
->>>>>>> handle this problem during the isolation phase rather the migration?
->>>>>> I think it was already said that if pages can't be isolated, then
->>>>>> migration phase won't process them, so they're just ignored.
->>>>> Yes，exactly.
->>>>>
->>>>>> However I think the patch is wrong to abort immediately when
->>>>>> encountering such page that cannot be isolated (AFAICS). IMHO it should
->>>>>> still try to migrate everything it can, and only then return -EIO.
->>>>> It is fine too. I don't see mbind semantics define how to handle such
->>>>> case other than returning -EIO.
->>> I think it does. There's:
->>> If MPOL_MF_MOVE is specified in flags, then the kernel *will attempt to
->>> move all the existing pages* ... If MPOL_MF_STRICT is also specified,
->>> then the call fails with the error *EIO if some pages could not be moved*
->>>
->>> Aborting immediately would be against the attempt to move all.
->>>
->>>> By looking into the code, it looks not that easy as what I thought.
->>>> do_mbind() would check the return value of queue_pages_range(), it just
->>>> applies the policy and manipulates vmas as long as the return value is 0
->>>> (success), then migrate pages on the list. We could put the movable
->>>> pages on the list by not breaking immediately, but they will be ignored.
->>>> If we migrate the pages regardless of the return value, it may break the
->>>> policy since the policy will *not* be applied at all.
->>> I think we just need to remember if there was at least one page that
->>> failed isolation or migration, but keep working, and in the end return
->>> EIO if there was such page(s). I don't think it breaks the policy. Once
->>> pages are allocated in a mapping, changing the policy is a best effort
->>> thing anyway.
->> The current behavior is:
->> If queue_pages_range() return -EIO (vma is not migratable, ignore other
->> conditions since we just focus on page migration), the policy won't be
->> set and no page will be migrated.
-> Ah, I see. IIUC the current behavior is due to your recent commit
-> a7f40cfe3b7a ("mm: mempolicy: make mbind() return -EIO when
-> MPOL_MF_STRICT is specified") in order to fix commit 6f4576e3687b
-> ("mempolicy: apply page table walker on queue_pages_range()"), which
-> caused -EIO to be not returned enough. But I think you went too far and
-> instead return -EIO too much. If I look at the code in parent commit of
-> 6f4576e3687b, I can see in queue_pages_range():
->
-> if ((flags & MPOL_MF_STRICT) ||
->          ((flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL)) &&
->          vma_migratable(vma))) {
->
->          err = queue_pages_pgd_range(vma, start, endvma, nodes,
->                                  flags, private);
->          if (err)
->                  break;
-> }
->
-> and in queue_pages_pte_range():
->
-> if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL))
->          migrate_page_add(page, private, flags);
-> else
->          break;
->
-> So originally, there was no returning of -EIO due to !vma_migratable() -
-> as long as MPOL_MF_STRICT and MPOL_MF_MOVE* was specified, the code
-> tried to queue for migration everything it could and didn't ever abort,
-> AFAICS. And I still think that's the best possible behavior.
->
->> However, the problem here is the vma might look migratable, but some or
->> all the underlying pages are unmovable. So, my patch assumes the vma is
->> *not* migratable if at least one page is unmovable. I'm not sure if it
->> is possible to have both movable and unmovable pages for the same
->> mapping or not, I'm supposed the vma would be split much earlier.
+>> Some further cleanups around memory block devices. Especially, clean up
+>> and simplify walk_memory_range(). Including some other minor cleanups.
 >>
->> If we don't abort immediately, then we record if there is unmovable
->> page, then we could do:
->> #1. Still follows the current behavior (then why not abort immediately?)
-> See above how the current behavior differs from the original one.
->
->> #2. Set mempolicy then migrate all the migratable pages. But, we may end
->> up with the pages on node A, but the policy says node B. Doesn't it
->> break the policy?
-> The policy can already be "broken" (violated is probably better word) by
-> migrate_pages() failing. If that happens, we don't rollback the migrated
-> pages and reset the policy back, right? I think the manpage is clear
-> that MPOL_MF_MOVE is a best-effort. Userspace will know that not
-> everything was successfully migrated (via -EIO), and can take whatever
-> steps it deems necessary - attempt rollback, determine which exact
-> page(s) are violating the policy, etc.
+>> Compiled + tested on x86 with DIMMs under QEMU. Compile-tested on ppc64.
+>>
+>> v2 -> v3:
+>> - "mm/memory_hotplug: Rename walk_memory_range() and pass start+size .."
+>> -- Avoid warning on ppc.
+>> - "drivers/base/memory.c: Get rid of find_memory_block_hinted()"
+>> -- Fixup a comment regarding hinted devices.
+>>
+>> v1 -> v2:
+>> - "mm: Section numbers use the type "unsigned long""
+>> -- "unsigned long i" -> "unsigned long nr", in one case -> "int i"
+>> - "drivers/base/memory.c: Get rid of find_memory_block_hinted("
+>> -- Fix compilation error
+>> -- Get rid of the "hint" parameter completely
+>>
+>> David Hildenbrand (6):
+>>   mm: Section numbers use the type "unsigned long"
+>>   drivers/base/memory: Use "unsigned long" for block ids
+>>   mm: Make register_mem_sect_under_node() static
+>>   mm/memory_hotplug: Rename walk_memory_range() and pass start+size
+>>     instead of pfns
+>>   mm/memory_hotplug: Move and simplify walk_memory_blocks()
+>>   drivers/base/memory.c: Get rid of find_memory_block_hinted()
+>>
+>>  arch/powerpc/platforms/powernv/memtrace.c |  23 ++---
+>>  drivers/acpi/acpi_memhotplug.c            |  19 +---
+>>  drivers/base/memory.c                     | 120 +++++++++++++---------
+>>  drivers/base/node.c                       |   8 +-
+>>  include/linux/memory.h                    |   5 +-
+>>  include/linux/memory_hotplug.h            |   2 -
+>>  include/linux/mmzone.h                    |   4 +-
+>>  include/linux/node.h                      |   7 --
+>>  mm/memory_hotplug.c                       |  57 +---------
+>>  mm/sparse.c                               |  12 +--
+>>  10 files changed, 106 insertions(+), 151 deletions(-)
+>>
+> 
+> This series causes a few machines are unable to boot triggering endless soft
+> lockups. Reverted those commits fixed the issue.
+> 
+> 97f4217d1da0 Revert "mm/memory_hotplug: rename walk_memory_range() and pass
+> start+size instead of pfns"
+> c608eebf33c6 Revert "mm-memory_hotplug-rename-walk_memory_range-and-pass-
+> startsize-instead-of-pfns-fix"
+> 34b5e4ab7558 Revert "mm/memory_hotplug: move and simplify walk_memory_blocks()"
+> 59a9f3eec5d1 Revert "drivers/base/memory.c: Get rid of
+> find_memory_block_hinted()"
+> 5cfcd52288b6 Revert "drivers-base-memoryc-get-rid-of-find_memory_block_hinted-
+> v3"
+> 
+> [    4.582081][    T1] ACPI FADT declares the system doesn't support PCIe ASPM,
+> so disable it
+> [    4.590405][    T1] ACPI: bus type PCI registered
+> [    4.592908][    T1] PCI: MMCONFIG for domain 0000 [bus 00-ff] at [mem
+> 0x80000000-0x8fffffff] (base 0x80000000)
+> [    4.601860][    T1] PCI: MMCONFIG at [mem 0x80000000-0x8fffffff] reserved in
+> E820
+> [    4.601860][    T1] PCI: Using configuration type 1 for base access
+> [   28.661336][   C16] watchdog: BUG: soft lockup - CPU#16 stuck for 22s!
+> [swapper/0:1]
+> [   28.671351][   C16] Modules linked in:
+> [   28.671354][   C16] CPU: 16 PID: 1 Comm: swapper/0 Not tainted 5.2.0-rc5-
+> next-20190621+ #1
+> [   28.681366][   C16] Hardware name: HPE ProLiant DL385 Gen10/ProLiant DL385
+> Gen10, BIOS A40 03/09/2018
+> [   28.691334][   C16] RIP: 0010:_raw_spin_unlock_irqrestore+0x2f/0x40
+> [   28.701334][   C16] Code: 55 48 89 e5 41 54 49 89 f4 be 01 00 00 00 53 48 8b
+> 55 08 48 89 fb 48 8d 7f 18 e8 4c 89 7d ff 48 89 df e8 94 f9 7d ff 41 54 9d <65>
+> ff 0d c2 44 8d 48 5b 41 5c 5d c3 0f 1f 44 00 00 0f 1f 44 00 00
+> [   28.711354][   C16] RSP: 0018:ffff888205b27bf8 EFLAGS: 00000246 ORIG_RAX:
+> ffffffffffffff13
+> [   28.721372][   C16] RAX: 0000000000000000 RBX: ffff8882053d6138 RCX:
+> ffffffffb6f2a3b8
+> [   28.731371][   C16] RDX: 1ffff11040a7ac27 RSI: dffffc0000000000 RDI:
+> ffff8882053d6138
+> [   28.741371][   C16] RBP: ffff888205b27c08 R08: ffffed1040a7ac28 R09:
+> ffffed1040a7ac27
+> [   28.751334][   C16] R10: ffffed1040a7ac27 R11: ffff8882053d613b R12:
+> 0000000000000246
+> [   28.751370][   C16] R13: ffff888205b27c98 R14: ffff8884504d0a20 R15:
+> 0000000000000000
+> [   28.761368][   C16] FS:  0000000000000000(0000) GS:ffff888454500000(0000)
+> knlGS:0000000000000000
+> [   28.771373][   C16] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> [   28.781334][   C16] CR2: 0000000000000000 CR3: 00000007c9012000 CR4:
+> 00000000001406a0
+> [   28.791333][   C16] Call Trace:
+> [   28.791374][   C16]  klist_next+0xd8/0x1c0
+> [   28.791374][   C16]  subsys_find_device_by_id+0x13b/0x1f0
+> [   28.801334][   C16]  ? bus_find_device_by_name+0x20/0x20
+> [   28.801370][   C16]  ? kobject_put+0x23/0x250
+> [   28.811333][   C16]  walk_memory_blocks+0x6c/0xb8
+> [   28.811353][   C16]  ? write_policy_show+0x40/0x40
+> [   28.821334][   C16]  link_mem_sections+0x7e/0xa0
+> [   28.821369][   C16]  ? unregister_memory_block_under_nodes+0x210/0x210
+> [   28.831353][   C16]  ? __register_one_node+0x3bd/0x600
+> [   28.831353][   C16]  topology_init+0xbf/0x126
+> [   28.841364][   C16]  ? enable_cpu0_hotplug+0x1a/0x1a
+> [   28.841368][   C16]  do_one_initcall+0xfe/0x45a
+> [   28.851334][   C16]  ? initcall_blacklisted+0x150/0x150
+> [   28.851353][   C16]  ? kasan_check_write+0x14/0x20
+> [   28.861333][   C16]  ? up_write+0x75/0x140
+> [   28.861369][   C16]  kernel_init_freeable+0x619/0x6ac
+> [   28.871333][   C16]  ? rest_init+0x188/0x188
+> [   28.871353][   C16]  kernel_init+0x11/0x138
+> [   28.881363][   C16]  ? rest_init+0x188/0x188
+> [   28.881363][   C16]  ret_from_fork+0x22/0x40
+> [   56.661336][   C16] watchdog: BUG: soft lockup - CPU#16 stuck for 22s!
+> [swapper/0:1]
+> [   56.671352][   C16] Modules linked in:
+> [   56.671354][   C16] CPU: 16 PID: 1 Comm: swapper/0 Tainted:
+> G             L    5.2.0-rc5-next-20190621+ #1
+> [   56.681357][   C16] Hardware name: HPE ProLiant DL385 Gen10/ProLiant DL385
+> Gen10, BIOS A40 03/09/2018
+> [   56.691356][   C16] RIP: 0010:subsys_find_device_by_id+0x168/0x1f0
+> [   56.701334][   C16] Code: 48 85 c0 74 3e 48 8d 78 58 e8 14 77 ca ff 4d 8b 7e
+> 58 4d 85 ff 74 2c 49 8d bf a0 03 00 00 e8 bf 75 ca ff 45 39 a7 a0 03 00 00 <75>
+> c9 4c 89 ff e8 0e 89 ff ff 48 85 c0 74 bc 48 89 df e8 21 3b 24
+> [   56.721333][   C16] RSP: 0018:ffff888205b27c68 EFLAGS: 00000287 ORIG_RAX:
+> ffffffffffffff13
+> [   56.721370][   C16] RAX: 0000000000000000 RBX: ffff888205b27c90 RCX:
+> ffffffffb74c9dc1
+> [   56.731370][   C16] RDX: 0000000000000003 RSI: dffffc0000000000 RDI:
+> ffff8888774ec3e0
+> [   56.741371][   C16] RBP: ffff888205b27cf8 R08: ffffed1040a7ac28 R09:
+> ffffed1040a7ac27
+> [   56.751335][   C16] R10: ffffed1040a7ac27 R11: ffff8882053d613b R12:
+> 0000000000085c1b
+> [   56.761334][   C16] R13: 1ffff11040b64f8e R14: ffff888450de4a20 R15:
+> ffff8888774ec040
+> [   56.761372][   C16] FS:  0000000000000000(0000) GS:ffff888454500000(0000)
+> knlGS:0000000000000000
+> [   56.771374][   C16] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> [   56.781370][   C16] CR2: 0000000000000000 CR3: 00000007c9012000 CR4:
+> 00000000001406a0
+> [   56.791373][   C16] Call Trace:
+> [   56.791373][   C16]  ? bus_find_device_by_name+0x20/0x20
+> [   56.801334][   C16]  ? kobject_put+0x23/0x250
+> [   56.801334][   C16]  walk_memory_blocks+0x6c/0xb8
+> [   56.811333][   C16]  ? write_policy_show+0x40/0x40
+> [   56.811353][   C16]  link_mem_sections+0x7e/0xa0
+> [   56.811353][   C16]  ? unregister_memory_block_under_nodes+0x210/0x210
+> [   56.821333][   C16]  ? __register_one_node+0x3bd/0x600
+> [   56.831333][   C16]  topology_init+0xbf/0x126
+> [   56.831355][   C16]  ? enable_cpu0_hotplug+0x1a/0x1a
+> [   56.841334][   C16]  do_one_initcall+0xfe/0x45a
+> [   56.841334][   C16]  ? initcall_blacklisted+0x150/0x150
+> [   56.851333][   C16]  ? kasan_check_write+0x14/0x20
+> [   56.851354][   C16]  ? up_write+0x75/0x140
+> [   56.861333][   C16]  kernel_init_freeable+0x619/0x6ac
+> [   56.861333][   C16]  ? rest_init+0x188/0x188
+> [   56.861369][   C16]  kernel_init+0x11/0x138
+> [   56.871333][   C16]  ? rest_init+0x188/0x188
+> [   56.871354][   C16]  ret_from_fork+0x22/0x40
+> [   64.601362][   C16] rcu: INFO: rcu_sched self-detected stall on CPU
+> [   64.611335][   C16] rcu: 	16-....: (5958 ticks this GP)
+> idle=37e/1/0x4000000000000002 softirq=27/27 fqs=3000 
+> [   64.621334][   C16] 	(t=6002 jiffies g=-1079 q=25)
+> [   64.621334][   C16] NMI backtrace for cpu 16
+> [   64.621374][   C16] CPU: 16 PID: 1 Comm: swapper/0 Tainted:
+> G             L    5.2.0-rc5-next-20190621+ #1
+> [   64.631372][   C16] Hardware name: HPE ProLiant DL385 Gen10/ProLiant DL385
+> Gen10, BIOS A40 03/09/2018
+> [   64.641371][   C16] Call Trace:
+> [   64.651337][   C16]  <IRQ>
+> [   64.651376][   C16]  dump_stack+0x62/0x9a
+> [   64.651376][   C16]  nmi_cpu_backtrace.cold.0+0x2e/0x33
+> [   64.661337][   C16]  ? nmi_cpu_backtrace_handler+0x20/0x20
+> [   64.661337][   C16]  nmi_trigger_cpumask_backtrace+0x1a6/0x1b9
+> [   64.671353][   C16]  arch_trigger_cpumask_backtrace+0x19/0x20
+> [   64.681366][   C16]  rcu_dump_cpu_stacks+0x18b/0x1d6
+> [   64.681366][   C16]  rcu_sched_clock_irq.cold.64+0x368/0x791
+> [   64.691336][   C16]  ? kasan_check_read+0x11/0x20
+> [   64.691354][   C16]  ? __raise_softirq_irqoff+0x66/0x150
+> [   64.701336][   C16]  update_process_times+0x2f/0x60
+> [   64.701362][   C16]  tick_periodic+0x38/0xe0
+> [   64.711334][   C16]  tick_handle_periodic+0x2e/0x80
+> [   64.711353][   C16]  smp_apic_timer_interrupt+0xfb/0x370
+> [   64.721367][   C16]  apic_timer_interrupt+0xf/0x20
+> [   64.721367][   C16]  </IRQ>
+> [   64.721367][   C16] RIP: 0010:_raw_spin_unlock_irqrestore+0x2f/0x40
+> [   64.731370][   C16] Code: 55 48 89 e5 41 54 49 89 f4 be 01 00 00 00 53 
+> 
 
-I see your point. It makes some sense to me. So, the policy should be 
-set if MPOL_MF_MOVE* is specified even though no page is migrated so 
-that we have consistent behavior for different cases:
-* vma is not migratable
-* vma is migratable, but pages are unmovable
-* vma is migratable, pages are movable, but migrate_pages() fails
+@Qian Cai, unfortunately I can't reproduce.
 
->
+If you get the chance, it would be great if you could retry with
+
+diff --git a/drivers/base/memory.c b/drivers/base/memory.c
+index 972c5336bebf..742f99ddd148 100644
+--- a/drivers/base/memory.c
++++ b/drivers/base/memory.c
+@@ -868,6 +868,9 @@ int walk_memory_blocks(unsigned long start, unsigned
+long size,
+        unsigned long block_id;
+        int ret = 0;
+
++       if (!size)
++               return;
++
+        for (block_id = start_block_id; block_id <= end_block_id;
+block_id++) {
+                mem = find_memory_block_by_id(block_id);
+                if (!mem)
+
+
+
+If both, start and size are 0, we would get a veeeery long loop. This
+would mean that we have an online node that does not span any pages at
+all (pgdat->node_start_pfn = 0, start_pfn + pgdat->node_spanned_pages = 0).
+
+-- 
+
+Thanks,
+
+David / dhildenb
 
