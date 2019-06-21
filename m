@@ -2,146 +2,154 @@ Return-Path: <SRS0=pbvW=UU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A6D7FC43613
-	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 13:08:47 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A3943C43613
+	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 13:11:00 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 279352083B
-	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 13:08:47 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 446CF2083B
+	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 13:11:00 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="F/rPWR85";
-	dkim=pass (1024-bit key) header.d=fb.onmicrosoft.com header.i=@fb.onmicrosoft.com header.b="VZNbL9Qu"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 279352083B
+	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="m+UEaORh";
+	dkim=pass (1024-bit key) header.d=fb.onmicrosoft.com header.i=@fb.onmicrosoft.com header.b="VNo6uaHB"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 446CF2083B
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C7C088E0002; Fri, 21 Jun 2019 09:08:46 -0400 (EDT)
+	id E25E58E0002; Fri, 21 Jun 2019 09:10:59 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C52C98E0001; Fri, 21 Jun 2019 09:08:46 -0400 (EDT)
+	id DD79F8E0001; Fri, 21 Jun 2019 09:10:59 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B43128E0002; Fri, 21 Jun 2019 09:08:46 -0400 (EDT)
+	id C4FF28E0002; Fri, 21 Jun 2019 09:10:59 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yb1-f198.google.com (mail-yb1-f198.google.com [209.85.219.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 926FB8E0001
-	for <linux-mm@kvack.org>; Fri, 21 Jun 2019 09:08:46 -0400 (EDT)
-Received: by mail-yb1-f198.google.com with SMTP id v83so5620409ybv.17
-        for <linux-mm@kvack.org>; Fri, 21 Jun 2019 06:08:46 -0700 (PDT)
+Received: from mail-ua1-f71.google.com (mail-ua1-f71.google.com [209.85.222.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A1D638E0001
+	for <linux-mm@kvack.org>; Fri, 21 Jun 2019 09:10:59 -0400 (EDT)
+Received: by mail-ua1-f71.google.com with SMTP id s14so752450uap.15
+        for <linux-mm@kvack.org>; Fri, 21 Jun 2019 06:10:59 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:dkim-signature:from:to:cc:subject
          :thread-topic:thread-index:date:message-id:references:in-reply-to
          :accept-language:content-language:content-id
          :content-transfer-encoding:mime-version;
-        bh=4P6eRpXWUnKjrNHd2v6FoaM6LVKEeh1Gda/8byIvIS8=;
-        b=MWqooroQ5Xl/7hT6u/QUaqEJSTbVHSSFvmRP56hywtPrRQknh5YpjpF3cDMTEan38F
-         22nPhbecvEXbnC8Fb3l1IXpSpvoNtvFkuOdQfWFDSCeUeR9zYn+Z3lz2N2z+BiffyKl3
-         dW5RKpFdIUpeBxe/Bw8XNmKVCStkHjwa74VRB+9QPLTInjeAxjyl5lUGQBc0iMJcBJBT
-         Ma4IrwW09d/bnjzKjg9daMpqBOsiS8Dn5LQiuXttjgEQDbQ6/Mk2zm6ie6gbuphIDRRy
-         xi9zQkkPFok9bAS611x8w129cjVkPSgqchWQlKetaHNr5vboijoWSFb+tpsbE0SUgHve
-         oEjw==
-X-Gm-Message-State: APjAAAWayUEHxcXFpyK+n82ih9dO/AfQQj/tGPaIHTvsy7CkeGlhMGdf
-	Gotxy/tf+DXd9+/Epg/hk/rkUmoAVLq3bred4saCWGG6kHltyd8ZLwGCIDv6IXjDG5GMpaQ+4rv
-	QSPs2vx6Gk6VxlKEcsXA4UzwuXpRtojSWxN1jbSRRd0Nuzj3CPI8s5vDAnq7FjoQUuA==
-X-Received: by 2002:a25:8382:: with SMTP id t2mr5346463ybk.454.1561122526311;
-        Fri, 21 Jun 2019 06:08:46 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqx+mB4sABNxCU4Q85uiVnyV+mLqJcZLnGAY51yUFSX6J4+1k1FvG/RAVSY3Y32hyL/pl/aa
-X-Received: by 2002:a25:8382:: with SMTP id t2mr5346415ybk.454.1561122525613;
-        Fri, 21 Jun 2019 06:08:45 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561122525; cv=none;
+        bh=3mNH8d2ax+z7OFnWeODsqy6613ZIbW9/cA8R41b6d3k=;
+        b=VpcpLdm04qx25Oc6ZIgH4PtRapmUtwP5zUPerdjIUZ/HwZF8INVkg3Q0NiHRtwb/AZ
+         GubdFNnGqEZoFe4DRvM5Q7zVk9hszxC7QSz0n8oYuYdwZ2FNWLO9+a1LxINdXP5MfmaU
+         u52oDMqsuJjsRWQ24ue2QCp7ONDK6kmK2kidrBIPdnN0D5zbqB/G9cLUA/EU4qptMeVW
+         loBwEElaG9vRc16WTitvVpbUS29ce9nZDC3tMcKtFFcAi79/zUB2LUtcZ9OJ7ip0VVsM
+         1QECB2MSrLqI+OfITCoO6RWkwkR1y1rTJMPHZ6KpRcdlBlifBD0mtyB9QFsdfEM6B43i
+         P1Mw==
+X-Gm-Message-State: APjAAAUhzkzcX7LUWnzmPr7oQrjA6x2qv/xIAMSXrN1s0d/TFxzNzIw+
+	jA4Si8mpmTLvtm4OAOuLhj3+2BkMnHTnWekNucOZ3PUA1cyn24TChckUPklAi9MJAZXphLcbvGP
+	wUWTBaxx3IjDN0Crqe9HeGOKbX3UBH7z1MkKXmQwWA19MZoPApTr1hwDZjl27z+nzog==
+X-Received: by 2002:a9f:25c6:: with SMTP id 64mr61611187uaf.36.1561122659210;
+        Fri, 21 Jun 2019 06:10:59 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyG3GZ+X0feMJQQQGbySzOlULSyt0658O6tQAadcldQPBh0Qlg9Gdo1AsB3dRgIKlBGRCxu
+X-Received: by 2002:a9f:25c6:: with SMTP id 64mr61611093uaf.36.1561122657726;
+        Fri, 21 Jun 2019 06:10:57 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561122657; cv=none;
         d=google.com; s=arc-20160816;
-        b=AJx6F6iqa6xcRmzdSdjpSAOQxC3YGf7HV5VussrVlN2ib/DCXDgPjAXBgAJHwmQf/q
-         mhmsg4Fw/g59JEbElpTRRd5mKQyem/z/FgvbkLwVxPbBtz2gOZkBfYrp5+rY6ivBr+4G
-         eoZ4x4duSWXPwSItxzSTM8BLFSySp/L4gmtq0g9+bUQxDxCSgIUax4zqpsWVaZGJQ+uC
-         vavobHFLZN+GkItNZA65CoqHmqj8YVf1qKM+8Q7m2Q9/VXf6BoaadWPCBzV/61w6DQkM
-         s93QL3XokepJreNOm9hE6mrANF5HDbdq61s7tU6GlXcZOp0eFalO2xPgB+ySrAU7TZ0R
-         sQcA==
+        b=xcE4A1/+m4Afnqmy6EGRoEJj5PD0lKNALT1/paeCwxs9xi15CyMuyyp8M5AU8bT6V9
+         Mkq6DgxYjOCb83u0QwEPDJU2U0TPzu804iR9V6J6tIQL175C0XtQtJJACgaxfujK6WPD
+         Ec/tggs5h1oUHkwhbgw5DH1uhx7Rjz4Hb6GoXGl23/jvn9fFm1UEf9Y/bvpHupRmXDnq
+         Ah6/UvOG0Zp556Lx+evU9NFhRbh6iQqKO8e5Qoq/h/rtrxtbmdTCSWCvb/wCRM1W4JBX
+         K0e4+WWFtOQtD9PTtz0U9kuwgP7pjfiocUlIVgcKWG78Ue5MxlT3c7ooxDjMlQKxKpYS
+         BfaA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=mime-version:content-transfer-encoding:content-id:content-language
          :accept-language:in-reply-to:references:message-id:date:thread-index
          :thread-topic:subject:cc:to:from:dkim-signature:dkim-signature;
-        bh=4P6eRpXWUnKjrNHd2v6FoaM6LVKEeh1Gda/8byIvIS8=;
-        b=u6SgJN6MQpZR6m9ykSY9KMlKuDjp8FWS7Zq9yGKQRWIegJ/beYIysSB1iLXKz+vzFs
-         Z0pjKRGKxDFTPuDePDeZIVb0NJgnHNh8VWV5Sbvc5VAztI/Xrty4JOBSZkzfx9DTstdE
-         zlml089Y/9mDixJkS16lVlAHNgXykwBY+sMhd4MXu+PpDFJ8BfNIJri99vQ4SsxJEwbS
-         +TwBh/i9GoLsJB+igwztQq3tMN/N7d7wHrvbFHAp1YoH+cKBoarWerRO0ukYQJa+cCzP
-         1KQqefW4o88NFMv1WfK6r7OuisQNR55kE/7IcmSCdjuv+nFmpGD+unhPnOKGn2Tj9W6Q
-         j8Iw==
+        bh=3mNH8d2ax+z7OFnWeODsqy6613ZIbW9/cA8R41b6d3k=;
+        b=H3+KuJtRrjg7aTgXfKsp0geE1iBzn3bcbEP4+bcWmHMm7IEM2EHw9+NjHQfD9pir2M
+         I5C7WofAwELhDsfDG6dijdRyY9IyR9oGDYnz6BrMFdxQPic6kbyrp5xa3d4fHtjtA3K6
+         VQQk3lrTw9Q/HwasbpZlc2tjpZvuPzc8r4QWYZ2mL9ocSOkV7k4EnqIQm8flHLmMomUD
+         QqcV/SRCCuQPK+eSx1c1riioeHQxdZau0wIxWaqHAM9bp4pXX/RxPwWOZwkIsV0ez+co
+         GBU5HWLEfiEr1QnKOE61hKIsJBRu8B/uXaK6hWr17ElQl6a+kd2c/Jj1HTwElrtUQBla
+         ly0A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b="F/rPWR85";
-       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-onmicrosoft-com header.b=VZNbL9Qu;
+       dkim=pass header.i=@fb.com header.s=facebook header.b=m+UEaORh;
+       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-onmicrosoft-com header.b=VNo6uaHB;
        spf=pass (google.com: domain of prvs=10751dd214=songliubraving@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=10751dd214=songliubraving@fb.com";
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id 21si968454ybl.461.2019.06.21.06.08.45
+Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id x21si519313vsp.55.2019.06.21.06.10.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 21 Jun 2019 06:08:45 -0700 (PDT)
+        Fri, 21 Jun 2019 06:10:57 -0700 (PDT)
 Received-SPF: pass (google.com: domain of prvs=10751dd214=songliubraving@fb.com designates 67.231.153.30 as permitted sender) client-ip=67.231.153.30;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b="F/rPWR85";
-       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-onmicrosoft-com header.b=VZNbL9Qu;
+       dkim=pass header.i=@fb.com header.s=facebook header.b=m+UEaORh;
+       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-onmicrosoft-com header.b=VNo6uaHB;
        spf=pass (google.com: domain of prvs=10751dd214=songliubraving@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=10751dd214=songliubraving@fb.com";
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from pps.filterd (m0148460.ppops.net [127.0.0.1])
-	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x5LD3UFi030440;
-	Fri, 21 Jun 2019 06:08:45 -0700
+Received: from pps.filterd (m0001303.ppops.net [127.0.0.1])
+	by m0001303.ppops.net (8.16.0.27/8.16.0.27) with SMTP id x5LD7TtU008392;
+	Fri, 21 Jun 2019 06:10:57 -0700
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
  : date : message-id : references : in-reply-to : content-type : content-id
  : content-transfer-encoding : mime-version; s=facebook;
- bh=4P6eRpXWUnKjrNHd2v6FoaM6LVKEeh1Gda/8byIvIS8=;
- b=F/rPWR852QGe1RsKLe4qT7nQGI6B1q50MSq5lxjbg6cQbeNTXYIqEo1bUcdkmwg2AatV
- bHJr60PCAxYSZL5xwxNgraTtPqV7eqk86Gv7jSYJuKalxsCNJiwelqPV+bKBhsELHUQ0
- DYtsAIrvTfFy37VB60PifHRVuZbjq8WRapE= 
-Received: from mail.thefacebook.com (mailout.thefacebook.com [199.201.64.23])
-	by mx0a-00082601.pphosted.com with ESMTP id 2t8n909w8d-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-SHA384 bits=256 verify=NOT);
-	Fri, 21 Jun 2019 06:08:45 -0700
-Received: from prn-hub06.TheFacebook.com (2620:10d:c081:35::130) by
- prn-hub03.TheFacebook.com (2620:10d:c081:35::127) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id
- 15.1.1713.5; Fri, 21 Jun 2019 06:08:42 -0700
-Received: from NAM04-BN3-obe.outbound.protection.outlook.com (192.168.54.28)
- by o365-in.thefacebook.com (192.168.16.30) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id 15.1.1713.5
- via Frontend Transport; Fri, 21 Jun 2019 06:08:42 -0700
+ bh=3mNH8d2ax+z7OFnWeODsqy6613ZIbW9/cA8R41b6d3k=;
+ b=m+UEaORhTnmiTIBHiQLRdZwebhEqvU9hnHWa55oOK7JmHe/dEn8KWTFO8ZCwCMS4i1gJ
+ +DHpI79SHtlYgpwOFUkuThW9IocOCkQ6K9yPPOZBVZwodKK7x28BklgYeKO11lTCOntK
+ JpdMQOkl+KUOXjkmCblZyukpXqywMuGzTpg= 
+Received: from maileast.thefacebook.com ([163.114.130.16])
+	by m0001303.ppops.net with ESMTP id 2t8v6wgr1y-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128 verify=NOT);
+	Fri, 21 Jun 2019 06:10:56 -0700
+Received: from ash-exopmbx101.TheFacebook.com (2620:10d:c0a8:82::b) by
+ ash-exhub102.TheFacebook.com (2620:10d:c0a8:82::f) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) id
+ 15.1.1713.5; Fri, 21 Jun 2019 06:10:56 -0700
+Received: from ash-exhub202.TheFacebook.com (2620:10d:c0a8:83::6) by
+ ash-exopmbx101.TheFacebook.com (2620:10d:c0a8:82::b) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) id
+ 15.1.1713.5; Fri, 21 Jun 2019 06:10:55 -0700
+Received: from NAM03-DM3-obe.outbound.protection.outlook.com (100.104.31.183)
+ by o365-in.thefacebook.com (100.104.36.103) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256) id 15.1.1713.5
+ via Frontend Transport; Fri, 21 Jun 2019 06:10:55 -0700
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.onmicrosoft.com;
  s=selector1-fb-onmicrosoft-com;
  h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=4P6eRpXWUnKjrNHd2v6FoaM6LVKEeh1Gda/8byIvIS8=;
- b=VZNbL9Quyo1jQjH36sTlK523IlJu2mlDptWUnwHjWaLu0fWzbo2J30Ikb4LANeEL8VPrFYXnK1Ypi8x/7yjsOusZUkEfzTP4lRnVTSwf3gMclTZsuzddRHukcHiiY1NLpGKWpKFxAYGC4/kZMpr4s+gANZC747uU4t5Sl4jSo14=
+ bh=3mNH8d2ax+z7OFnWeODsqy6613ZIbW9/cA8R41b6d3k=;
+ b=VNo6uaHBJtTWV65SrpBeb5dr2s4SVMOh97ULL6zF+oDxG072COUcFvETuhYf0A1X81z2DHC5XK4wLIUKU0zuaS+M1Tv7e156u2VEtjX7RadRQuE+NGRBwkSeBUOhAsZeaQ47d8ZQZq6I+RXpKNoaPdy6CJq/r5/XWy3uijFd/o8=
 Received: from MWHPR15MB1165.namprd15.prod.outlook.com (10.175.3.22) by
- MWHPR15MB1936.namprd15.prod.outlook.com (10.174.101.15) with Microsoft SMTP
+ MWHPR15MB1263.namprd15.prod.outlook.com (10.175.2.11) with Microsoft SMTP
  Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.2008.13; Fri, 21 Jun 2019 13:08:39 +0000
+ 15.20.1987.12; Fri, 21 Jun 2019 13:10:54 +0000
 Received: from MWHPR15MB1165.namprd15.prod.outlook.com
  ([fe80::400e:e329:ea98:aa0d]) by MWHPR15MB1165.namprd15.prod.outlook.com
  ([fe80::400e:e329:ea98:aa0d%6]) with mapi id 15.20.2008.014; Fri, 21 Jun 2019
- 13:08:39 +0000
+ 13:10:54 +0000
 From: Song Liu <songliubraving@fb.com>
 To: "Kirill A. Shutemov" <kirill@shutemov.name>
-CC: Linux-MM <linux-mm@kvack.org>, Matthew Wilcox <matthew.wilcox@oracle.com>,
-        "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
-        Kernel Team
-	<Kernel-team@fb.com>,
-        William Kucharski <william.kucharski@oracle.com>,
-        "Chad
- Mynhier" <chad.mynhier@oracle.com>,
-        Mike Kravetz <mike.kravetz@oracle.com>
-Subject: Re: [PATCH v2 3/3] mm,thp: add read-only THP support for (non-shmem)
- FS
-Thread-Topic: [PATCH v2 3/3] mm,thp: add read-only THP support for (non-shmem)
- FS
-Thread-Index: AQHVIt4j7T4iE6bxX06HBdgJcq3L56amHDgAgAAC7oA=
-Date: Fri, 21 Jun 2019 13:08:39 +0000
-Message-ID: <B83B2259-7CF5-411E-BC4C-7112657FC48E@fb.com>
-References: <20190614182204.2673660-1-songliubraving@fb.com>
- <20190614182204.2673660-4-songliubraving@fb.com>
- <20190621125810.llsqslfo52nfh5g7@box>
-In-Reply-To: <20190621125810.llsqslfo52nfh5g7@box>
+CC: Linux-MM <linux-mm@kvack.org>,
+        "linux-fsdevel@vger.kernel.org"
+	<linux-fsdevel@vger.kernel.org>,
+        LKML <linux-kernel@vger.kernel.org>,
+        "matthew.wilcox@oracle.com" <matthew.wilcox@oracle.com>,
+        "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>,
+        "Kernel
+ Team" <Kernel-team@fb.com>,
+        "william.kucharski@oracle.com"
+	<william.kucharski@oracle.com>,
+        "akpm@linux-foundation.org"
+	<akpm@linux-foundation.org>
+Subject: Re: [PATCH v5 6/6] mm,thp: avoid writes to file with THP in pagecache
+Thread-Topic: [PATCH v5 6/6] mm,thp: avoid writes to file with THP in
+ pagecache
+Thread-Index: AQHVJ6piUxjnrZaN9U27pEvDQgjQg6amFUcAgAAA5oA=
+Date: Fri, 21 Jun 2019 13:10:54 +0000
+Message-ID: <ABE906A7-719A-4AFF-8683-B413397C9865@fb.com>
+References: <20190620205348.3980213-1-songliubraving@fb.com>
+ <20190620205348.3980213-7-songliubraving@fb.com>
+ <20190621130740.ehobvjjj7gjiazjw@box>
+In-Reply-To: <20190621130740.ehobvjjj7gjiazjw@box>
 Accept-Language: en-US
 Content-Language: en-US
 X-MS-Has-Attach: 
@@ -149,36 +157,36 @@ X-MS-TNEF-Correlator:
 x-mailer: Apple Mail (2.3445.104.11)
 x-originating-ip: [2620:10d:c090:180::1:ed23]
 x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: eabfea1e-ab39-41a7-558d-08d6f6499425
-x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(2017052603328)(7193020);SRVR:MWHPR15MB1936;
-x-ms-traffictypediagnostic: MWHPR15MB1936:
-x-microsoft-antispam-prvs: <MWHPR15MB1936869777184F4ABDE9F2B8B3E70@MWHPR15MB1936.namprd15.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:8273;
+x-ms-office365-filtering-correlation-id: 98af95fc-39f7-44d5-212a-08d6f649e46e
+x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(2017052603328)(7193020);SRVR:MWHPR15MB1263;
+x-ms-traffictypediagnostic: MWHPR15MB1263:
+x-microsoft-antispam-prvs: <MWHPR15MB1263530D843C7EFE3EF39EA1B3E70@MWHPR15MB1263.namprd15.prod.outlook.com>
+x-ms-oob-tlc-oobclassifiers: OLM:7219;
 x-forefront-prvs: 0075CB064E
-x-forefront-antispam-report: SFV:NSPM;SFS:(10019020)(366004)(346002)(376002)(136003)(39860400002)(396003)(199004)(189003)(316002)(53936002)(46003)(11346002)(6512007)(256004)(102836004)(229853002)(446003)(6116002)(14444005)(66946007)(99286004)(66476007)(71190400001)(71200400001)(76116006)(76176011)(6506007)(73956011)(476003)(53546011)(2616005)(6486002)(66446008)(66556008)(64756008)(68736007)(305945005)(54906003)(6916009)(6246003)(50226002)(5660300002)(478600001)(36756003)(14454004)(486006)(4326008)(8936002)(6436002)(81156014)(81166006)(7736002)(25786009)(8676002)(33656002)(186003)(2906002)(57306001)(86362001)(142933001);DIR:OUT;SFP:1102;SCL:1;SRVR:MWHPR15MB1936;H:MWHPR15MB1165.namprd15.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
+x-forefront-antispam-report: SFV:NSPM;SFS:(10019020)(39860400002)(346002)(376002)(396003)(136003)(366004)(189003)(199004)(71200400001)(33656002)(53546011)(6512007)(11346002)(478600001)(229853002)(54906003)(36756003)(6506007)(6436002)(446003)(486006)(46003)(50226002)(186003)(8936002)(6916009)(66476007)(476003)(53936002)(68736007)(316002)(25786009)(4326008)(102836004)(8676002)(81156014)(66946007)(81166006)(76116006)(6246003)(57306001)(76176011)(14454004)(5660300002)(66556008)(6486002)(2616005)(64756008)(71190400001)(99286004)(6116002)(86362001)(256004)(305945005)(7736002)(66446008)(73956011)(2906002)(142933001);DIR:OUT;SFP:1102;SCL:1;SRVR:MWHPR15MB1263;H:MWHPR15MB1165.namprd15.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
 received-spf: None (protection.outlook.com: fb.com does not designate
  permitted sender hosts)
 x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info: 8Cd4CYlRuqhCCnwcBNKrFzHEwsrxH1aK8cb8ZBSkWCjKwncKKVnbSvwzIJ1Teowem47BInfk0Rip0VBZCOkU74hYnkU69noB/JlXh8JHIkzKbgAR00M6E9woR3BRes26vkO/s1B17bXUEjCTKJu9zuDpjxFOFqTld+clZql6C49nV/0sybiIb7aV+kXzyufPVeEwVVb6TT3yXfM9awU84BDpTh6UR6f0OJZHtD8yp/XJ/VCxORrRLI897Axvn8IFMUBau/iS8enCDga8M22LXM7mVc8q+O19zT8xdu2w6pB/Ms5mWIYK0WBfyJq92C3uHWCZP1qpHRwORHz1XgWrDAnmS/tBiVMwjTyjxioAdDVvSGK1T60V2OSTXSCyIKxG5bqkTPLUppAk5NAakazgdmUgKmDAnA9LfYWWqBqNa5w=
+x-microsoft-antispam-message-info: RLTVzRCAsYpYpYgoiLO+ozzalgkFlp5XFOqNysLSpXP3xaM/9m52drPWsg1LPH+3okLGula5vW5wuyWcKBoeGeSgBOuG2gL6aM+iiX3fG1QZLoUu5PAoOPFoRHGeJOOtb9ZYSIFG8F8qzT5BPGdZszlDTw8T+ZyymuMEMU/fYCpu731O9iFFhaC/cktX0oFQ9ctGHhWKQ8E0kgjIlXkM/w6Y/2OJFGqQ9W8qj/Ueel5W6T1Sj0TnqGvoqUfzEVslWpqV3Js5LZecPKeUrNnQP8hyXhiG0xgRIvWf7wUzZkdaeiIXA4T+TonPD3bjrIgkuRjRStFSZ1nAFP0/dZr4/901H4yPF29dwldXtvDEcwNP4go7i2762aW6wa+sUlZiLPd2lgwD242YuUtl1k3I3O/ZNee0b5AOrlBH+wjZGqs=
 Content-Type: text/plain; charset="us-ascii"
-Content-ID: <A1BD89E809276C42874DEBECA95B197D@namprd15.prod.outlook.com>
+Content-ID: <8692315AB159FC40ACBC2F9949F95E6C@namprd15.prod.outlook.com>
 Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-X-MS-Exchange-CrossTenant-Network-Message-Id: eabfea1e-ab39-41a7-558d-08d6f6499425
-X-MS-Exchange-CrossTenant-originalarrivaltime: 21 Jun 2019 13:08:39.6222
+X-MS-Exchange-CrossTenant-Network-Message-Id: 98af95fc-39f7-44d5-212a-08d6f649e46e
+X-MS-Exchange-CrossTenant-originalarrivaltime: 21 Jun 2019 13:10:54.3320
  (UTC)
 X-MS-Exchange-CrossTenant-fromentityheader: Hosted
 X-MS-Exchange-CrossTenant-id: 8ae927fe-1255-47a7-a2af-5f3a069daaa2
 X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
 X-MS-Exchange-CrossTenant-userprincipalname: songliubraving@fb.com
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: MWHPR15MB1936
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: MWHPR15MB1263
 X-OriginatorOrg: fb.com
 X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-06-21_09:,,
  signatures=0
 X-Proofpoint-Spam-Details: rule=fb_default_notspam policy=fb_default score=0 priorityscore=1501
  malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
  clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=844 adultscore=0 classifier=spam adjust=0 reason=mlx
+ mlxlogscore=795 adultscore=0 classifier=spam adjust=0 reason=mlx
  scancount=1 engine=8.0.1-1810050000 definitions=main-1906210109
 X-FB-Internal: deliver
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
@@ -188,47 +196,93 @@ X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 
-Hi Kirill,
 
-> On Jun 21, 2019, at 5:58 AM, Kirill A. Shutemov <kirill@shutemov.name> wr=
+> On Jun 21, 2019, at 6:07 AM, Kirill A. Shutemov <kirill@shutemov.name> wr=
 ote:
 >=20
-> On Fri, Jun 14, 2019 at 11:22:04AM -0700, Song Liu wrote:
->> This patch is (hopefully) the first step to enable THP for non-shmem
->> filesystems.
+> On Thu, Jun 20, 2019 at 01:53:48PM -0700, Song Liu wrote:
+>> In previous patch, an application could put part of its text section in
+>> THP via madvise(). These THPs will be protected from writes when the
+>> application is still running (TXTBSY). However, after the application
+>> exits, the file is available for writes.
 >>=20
->> This patch enables an application to put part of its text sections to TH=
-P
->> via madvise, for example:
+>> This patch avoids writes to file THP by dropping page cache for the file
+>> when the file is open for write. A new counter nr_thps is added to struc=
+t
+>> address_space. In do_last(), if the file is open for write and nr_thps
+>> is non-zero, we drop page cache for the whole file.
 >>=20
->>    madvise((void *)0x600000, 0x200000, MADV_HUGEPAGE);
+>> Signed-off-by: Song Liu <songliubraving@fb.com>
+>> ---
+>> fs/inode.c         |  3 +++
+>> fs/namei.c         | 22 +++++++++++++++++++++-
+>> include/linux/fs.h | 31 +++++++++++++++++++++++++++++++
+>> mm/filemap.c       |  1 +
+>> mm/khugepaged.c    |  4 +++-
+>> 5 files changed, 59 insertions(+), 2 deletions(-)
 >>=20
->> We tried to reuse the logic for THP on tmpfs. The following functions ar=
-e
->> renamed to reflect the new functionality:
+>> diff --git a/fs/inode.c b/fs/inode.c
+>> index df6542ec3b88..518113a4e219 100644
+>> --- a/fs/inode.c
+>> +++ b/fs/inode.c
+>> @@ -181,6 +181,9 @@ int inode_init_always(struct super_block *sb, struct=
+ inode *inode)
+>> 	mapping->flags =3D 0;
+>> 	mapping->wb_err =3D 0;
+>> 	atomic_set(&mapping->i_mmap_writable, 0);
+>> +#ifdef CONFIG_READ_ONLY_THP_FOR_FS
+>> +	atomic_set(&mapping->nr_thps, 0);
+>> +#endif
+>> 	mapping_set_gfp_mask(mapping, GFP_HIGHUSER_MOVABLE);
+>> 	mapping->private_data =3D NULL;
+>> 	mapping->writeback_index =3D 0;
+>> diff --git a/fs/namei.c b/fs/namei.c
+>> index 20831c2fbb34..de64f24b58e9 100644
+>> --- a/fs/namei.c
+>> +++ b/fs/namei.c
+>> @@ -3249,6 +3249,22 @@ static int lookup_open(struct nameidata *nd, stru=
+ct path *path,
+>> 	return error;
+>> }
 >>=20
->> 	collapse_shmem()	=3D>  collapse_file()
->> 	khugepaged_scan_shmem()	=3D>  khugepaged_scan_file()
->>=20
->> Currently, write is not supported for non-shmem THP. This is enforced by
->> taking negative i_writecount. Therefore, if file has THP pages in the
->> page cache, open() to write will fail. To update/modify the file, the
->> user need to remove it first.
->>=20
->> An EXPERIMENTAL config, READ_ONLY_THP_FOR_FS, is added to gate this
->> feature.
+>> +/*
+>> + * The file is open for write, so it is not mmapped with VM_DENYWRITE. =
+If
+>> + * it still has THP in page cache, drop the whole file from pagecache
+>> + * before processing writes. This helps us avoid handling write back of
+>> + * THP for now.
+>> + */
+>> +static inline void release_file_thp(struct file *file)
+>> +{
+>> +#ifdef CONFIG_READ_ONLY_THP_FOR_FS
+>> +	struct inode *inode =3D file_inode(file);
+>> +
+>> +	if (inode_is_open_for_write(inode) && filemap_nr_thps(inode->i_mapping=
+))
+>> +		truncate_pagecache(inode, 0);
+>> +#endif
+>> +}
+>> +
+>> /*
+>>  * Handle the last step of open()
+>>  */
+>> @@ -3418,7 +3434,11 @@ static int do_last(struct nameidata *nd,
+>> 		goto out;
+>> opened:
+>> 	error =3D ima_file_check(file, op->acc_mode);
+>> -	if (!error && will_truncate)
+>> +	if (error)
+>> +		goto out;
+>> +
+>> +	release_file_thp(file);
 >=20
-> Please document explicitly that the feature opens local DoS attack: any
-> user with read access to file can block write to the file by using
-> MADV_HUGEPAGE for a range of the file.
->=20
-> As is it only has to be used with trusted userspace.
->=20
-> We also might want to have mount option in addition to Kconfig option to
-> enable the feature on per-mount basis.
+> What protects against re-fill the file with THP in parallel?
 
-This behavior has been removed from v3 to v5.=20
+khugepaged would only process vma with VM_DENYWRITE. So once the
+file is open for write (i_write_count > 0), khugepage will not=20
+collapse the pages.=20
 
 Thanks,
-Song=
+Song
+
 
