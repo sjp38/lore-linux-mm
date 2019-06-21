@@ -1,150 +1,199 @@
-Return-Path: <SRS0=424v=UT=kvack.org=owner-linux-mm@kernel.org>
+Return-Path: <SRS0=pbvW=UU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.7 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BD2CAC48BE3
-	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 23:13:18 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8450FC48BE3
+	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 00:21:07 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 685692089C
-	for <linux-mm@archiver.kernel.org>; Thu, 20 Jun 2019 23:13:18 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="wZXK/rGx"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 685692089C
+	by mail.kernel.org (Postfix) with ESMTP id 2B6AB2075E
+	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 00:21:07 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2B6AB2075E
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CF1C96B0005; Thu, 20 Jun 2019 19:13:17 -0400 (EDT)
+	id 962816B0005; Thu, 20 Jun 2019 20:21:06 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CA1F08E0002; Thu, 20 Jun 2019 19:13:17 -0400 (EDT)
+	id 9123C8E0002; Thu, 20 Jun 2019 20:21:06 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BB8BE8E0001; Thu, 20 Jun 2019 19:13:17 -0400 (EDT)
+	id 801648E0001; Thu, 20 Jun 2019 20:21:06 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 931596B0005
-	for <linux-mm@kvack.org>; Thu, 20 Jun 2019 19:13:17 -0400 (EDT)
-Received: by mail-ot1-f70.google.com with SMTP id a8so2003901oti.8
-        for <linux-mm@kvack.org>; Thu, 20 Jun 2019 16:13:17 -0700 (PDT)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A78D6B0005
+	for <linux-mm@kvack.org>; Thu, 20 Jun 2019 20:21:06 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id a13so2869536pgw.19
+        for <linux-mm@kvack.org>; Thu, 20 Jun 2019 17:21:06 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=s1U8b9i28hLJayWU6+c6YVAvl2Rop3SMymokvtyzh0o=;
-        b=nUrhPz9LwsNyt9Tif5fMuzXjOmHTPN3ZJQ1OEdiZsaMnIOq7ZxStYjLrqLBltu94Kq
-         DpBVAAqb2fUvkIK65u7oub42nlLtWrAR3a+ox2mA7PSgK61F6+q5QjO3cmP3j8j1SDHg
-         IEvOKZ/PBy6sWjsK85g4PCb7B5R4iUJM4DotQHSLI2RjYifz+orVqQkDBlyAePaIZpCq
-         GbjgRjQvExzqMmZ+uKNouRpmcR6M00mZQ6byxRajoWbKGPz75A+iY9J4iEvVxNTblVFd
-         nlnxjoDGyY7uzg5J8ciGleuPwFymX2FLrpke7Rk8HWC6HX2iAcQbyV29H8fluIWa8/Jw
-         B4dw==
-X-Gm-Message-State: APjAAAWmr9bt4QMhXIjSEj0esY4t2k9bTB4oHTiG3ligbordxHB+B7f/
-	KyBL9GJj+tixSlr9VHta8Zi+r23ptSm58KjZ0TqH18ALUvtfNtlFsrv0DjoEqcuR49y6nHRLu88
-	Mv10st0XjmC14IjJZ30EBedZ/iKrJzJmePiS82CBH5D/EXm2JU1U9LDG43kb+eD5bJQ==
-X-Received: by 2002:aca:5883:: with SMTP id m125mr937038oib.58.1561072397221;
-        Thu, 20 Jun 2019 16:13:17 -0700 (PDT)
-X-Received: by 2002:aca:5883:: with SMTP id m125mr937001oib.58.1561072396256;
-        Thu, 20 Jun 2019 16:13:16 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561072396; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:from
+         :to:cc:date:message-id:user-agent:mime-version
+         :content-transfer-encoding;
+        bh=D9Q5TsLk9YzDlLRbdmdW0VUV//YWXj5oXBPnNGb9G/s=;
+        b=c9faTF1Y8xnKK06goZext6q6XeGgxBD9INS3wd/iZUh6F6cnxDhjev8feheQP0Nz2Z
+         CPrX7Sf/x5ecCfItiexAqmagM6duSRyXpdInvdbkxgNnyls+yOgB+F+uyxJC09IKtk9w
+         apxIqPXPoad3bWZeqSu4ogHi/Bzz423wa6OJAuQ034pKCYltNEnmhf/EQLkbo7cMQfy6
+         nEk/zJ/k3//KMljGrWaE7o+47YThow44QM+87a773AbnWESBoSZBNEyCpEeEFocIiGwa
+         W5+sy4gMTA3Xw7V0XX5zKh9PkqEqmqSGnQzGzY9AKdYVwvqI6D9eIEZYmoh67DoAnMd9
+         X8XA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAXssuDmojskTlWHu4HX/YaCn1tp31UNp7gOgXR42y0xRPt3yjrK
+	JVfLq6t1uAgGb0RPjsHWE68rKRRkaF+i+aBU4ajog9jquHA4sNA888+mQKLrAYAV1u3Lx35K7aC
+	TwYwTAWBrbloiRQfzPERzaMJf+KSiJ7HCd8EqdQ4UQW7QuoglgwQEiBrMi7j113ksnA==
+X-Received: by 2002:a63:224a:: with SMTP id t10mr15197945pgm.289.1561076465766;
+        Thu, 20 Jun 2019 17:21:05 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyktDw29Ew/8P7RWKn2dgbgrjbrey4o0lvwZ+mN68V1ENAdJ+K/0jU0zb9IeoxIr9DPn79/
+X-Received: by 2002:a63:224a:: with SMTP id t10mr15197879pgm.289.1561076464868;
+        Thu, 20 Jun 2019 17:21:04 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561076464; cv=none;
         d=google.com; s=arc-20160816;
-        b=fI0YpTLiKy8VA3AbptpxnQzxCIx1r9EoMC9sw8UhBklQrKY+H1jqDw6G3zCkRymuPE
-         3uL658SVCcUjxbRWv48bjU1cNBak7wLHG372sDinnwoTpTYz9JZ8dtmvkCtDve/Exnk+
-         bOXMeXY+JKxIwT5rGtWthiN85p7ysg/GdAFrCqiMuShCtPwpvu9bTrG5uAwB/54ZoWZv
-         N3CKlrjZUnj3wdKO1K5P7LXz5EITK+uFlv4b5RRNYkrhqcBVYOEF6dQqjhwOeF2GMxSs
-         F90h6Ttw00pQqo1vmyBrqx2XeN4uMe0CH6ORkRuFQwwXgDhUXs3UhrGi9iYAogMUHQ+l
-         CU9g==
+        b=KnpxkrU9oFwlme11pwQ2T6kZlqtMmJ/apgecGoXl172dRJtsXLPNxzS4Kbm8jmST6w
+         LGcrhhxE3Ui/oV2Rky4LacDLN3yVt7SmAR4q+QT4H5B5bg5V68InywnhNI59+iNsPZQt
+         R7OxmxJMTQeQFifWGwwO4IIa0AE5zES0jM2PA/ZIIjBWHbxfntSAiOF/hG+bpXH/lFOX
+         ja2L3mXb02lUVLK6ING5eoaKUvFAIm6Xwqfex40aQEsGYKmWsOWTKq2csR2Y8db46hfp
+         x5QjZECRzY247ul7TdrVr25JBdee6LHsN0i7xg29UPnXSiGOn0PSOudkx1aYGoF86GLU
+         uovQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=s1U8b9i28hLJayWU6+c6YVAvl2Rop3SMymokvtyzh0o=;
-        b=xQdv1WvmKXML+c/6haTiof9mr1OeQdCLFPo781OCo5aMBjOUJH3gIpyDdM3q4y73ap
-         HsWCd7W3b8jBaarfwyuGHzwz5AEo86E9B15t0xnzQ8medYAIndtfxX/DHZKHGqkxsrP8
-         41KkylmI3fvjzjU6wYwRG2LpnqfHcSx6xrlP+RNZquuyw8Dbbti8F1PZ1IOWC5tfHc2q
-         CN/Edx+n/XkM1PCOGduu8g61hX5uaRZ9AVIoGdrWoLf3rV1zrWnDTcfo5EU7oXiB2a9j
-         IQ+RPYu/O8NK6/GYPoYR/75Qgh+BmrJh1M9LSNa9PfxVqCXZCdzVjVaxoTw0bxiDdVY0
-         OXjA==
+        h=content-transfer-encoding:mime-version:user-agent:message-id:date
+         :cc:to:from:subject;
+        bh=D9Q5TsLk9YzDlLRbdmdW0VUV//YWXj5oXBPnNGb9G/s=;
+        b=WN6sT75BLqBLCPT5rpQPjs/1TF5AH9EeW1jYQbxi+j0TpX9+An53hvA0yOOtJpaTlg
+         u79VM+ic38o8GqoAM8z3Uzc/ysxfVN7VPMw9D7VNXEhOKqSAZGP4mp9BAs07AuNYSQkP
+         k7W5uSJA8KQCI1P+hxyjNQH4Lubd3rFJ1ZMeS7HbOBl9NV4rgYhIDsnxkwfCCqfrr62C
+         GpGQxVzLXIw8Dfpbzu8V4q1q9g0fLH+fbBgIb/PIPJ0eLB22r9ueuLeY7p6PQtW4rJpH
+         DsRtuqUVgWO3A1NcN90jxyJXfDo3zOwFgyjAde0ySgTE1dRHNdX7J8cM+I2SGIyRH7I9
+         TbBg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b="wZXK/rGx";
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d133sor458313oif.35.2019.06.20.16.13.16
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id g1si1048645plp.406.2019.06.20.17.21.04
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 20 Jun 2019 16:13:16 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 20 Jun 2019 17:21:04 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.43 as permitted sender) client-ip=192.55.52.43;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b="wZXK/rGx";
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=intel-com.20150623.gappssmtp.com; s=20150623;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=s1U8b9i28hLJayWU6+c6YVAvl2Rop3SMymokvtyzh0o=;
-        b=wZXK/rGx3xr+u7oi//RllS+oGNo9Tzry/ML+vUVpgS/Zv+UVNj64dDUV96UYUd1Jn3
-         HTEz2HrWATyMseQ9ESDNMngt9dsb1UfHOlUe8zE/5wDSyS1AVE4ZRpittyrzTTchLos5
-         4eYsM6eY6GbydQyeJ5021LQYq2W4FXOMsUpMRrhldyeNx0gkDVyn8cVP0JPDGRXYNHA0
-         Khcxwe9CepLmmm4wC6aJwDUSLxUAkLS7QB/OjbTbUQGW9ZgOSJMHsxAIyonm6fZ1Gisx
-         DP1+rtOY4WuxwcsaUVn8PkaGb7RTOOyiGjDW9YizTilPtgcvoQvLQUcgY/Zjj7YawYJt
-         OuAg==
-X-Google-Smtp-Source: APXvYqxf0VmRIyLU90bg8tJ1rHATTJ0aCa2jorETk2j+MQarpeuMzOl/bF99+OKywGM9BxnPQWWwQHFQhni6/xxki/w=
-X-Received: by 2002:aca:fc50:: with SMTP id a77mr917887oii.0.1561072395816;
- Thu, 20 Jun 2019 16:13:15 -0700 (PDT)
-MIME-Version: 1.0
-References: <20190613045903.4922-1-namit@vmware.com> <20190613045903.4922-4-namit@vmware.com>
- <20190617215750.8e46ae846c09cd5c1f22fdf9@linux-foundation.org>
- <98464609-8F5A-47B9-A64E-2F67809737AD@vmware.com> <8072D878-BBF2-47E4-B4C9-190F379F6221@vmware.com>
- <CAErSpo5eiweMk2rfT81Kwnpd=MZsOa01prPo_rAFp-MZ9F2xdQ@mail.gmail.com>
- <CAPcyv4iAbWnWUT2d2VhnvuHvJE0-Vxgbf1TYtOPjkR6j3qROtw@mail.gmail.com> <8736k49c57.fsf@firstfloor.org>
-In-Reply-To: <8736k49c57.fsf@firstfloor.org>
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from fmsmga003.fm.intel.com ([10.253.24.29])
+  by fmsmga105.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 20 Jun 2019 17:21:04 -0700
+X-IronPort-AV: E=Sophos;i="5.63,398,1557212400"; 
+   d="scan'208";a="168671081"
+Received: from dwillia2-desk3.jf.intel.com (HELO dwillia2-desk3.amr.corp.intel.com) ([10.54.39.16])
+  by fmsmga003-auth.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 20 Jun 2019 17:21:03 -0700
+Subject: [PATCH] mm/sparsemem: Cleanup 'section number' data types
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Thu, 20 Jun 2019 16:13:04 -0700
-Message-ID: <CAPcyv4i1YYExVtXXdkCMgRvjqoeTkZdjwDVjf=sJN-qPF1LEtg@mail.gmail.com>
-Subject: Re: [PATCH 3/3] resource: Introduce resource cache
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Bjorn Helgaas <bhelgaas@google.com>, Nadav Amit <namit@vmware.com>, 
-	Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, 
-	Linux-MM <linux-mm@kvack.org>, Borislav Petkov <bp@suse.de>, Toshi Kani <toshi.kani@hpe.com>, 
-	Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@linux.intel.com>, 
-	Ingo Molnar <mingo@kernel.org>, "Kleen, Andi" <andi.kleen@intel.com>
-Content-Type: text/plain; charset="UTF-8"
+To: akpm@linux-foundation.org
+Cc: Michal Hocko <mhocko@suse.com>, Oscar Salvador <osalvador@suse.de>,
+ David Hildenbrand <david@redhat.com>, linux-mm@kvack.org,
+ linux-nvdimm@lists.01.org, linux-kernel@vger.kernel.org
+Date: Thu, 20 Jun 2019 17:06:46 -0700
+Message-ID: <156107543656.1329419.11505835211949439815.stgit@dwillia2-desk3.amr.corp.intel.com>
+User-Agent: StGit/0.18-2-gc94f
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jun 20, 2019 at 2:31 PM Andi Kleen <andi@firstfloor.org> wrote:
->
-> Dan Williams <dan.j.williams@intel.com> writes:
-> >
-> > The underlying issue is that the x86-PAT implementation wants to
-> > ensure that conflicting mappings are not set up for the same physical
-> > address. This is mentioned in the developer manuals as problematic on
-> > some cpus. Andi, is lookup_memtype() and track_pfn_insert() still
-> > relevant?
->
-> There have been discussions about it in the past, and the right answer
-> will likely differ for different CPUs: But so far the official answer
-> for Intel CPUs is that these caching conflicts should be avoided.
->
+David points out that there is a mixture of 'int' and 'unsigned long'
+usage for section number data types. Update the memory hotplug path to
+use 'unsigned long' consistently for section numbers.
 
-Ok.
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Oscar Salvador <osalvador@suse.de>
+Reported-by: David Hildenbrand <david@redhat.com>
+Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+---
+Hi Andrew,
 
-> So I guess the cache in the original email makes sense for now.
+This patch belatedly fixes up David's review feedback about moving over
+to 'unsigned long' for section numbers. Let me know if you want me to
+respin the full series, or if you'll just apply / fold this patch on
+top.
 
-I wouldn't go that far, but it does mean that if we go ahead with
-caching the value as a dax_device property there should at least be a
-debug option to assert that the device value conforms to all the other
-mappings.
+ mm/memory_hotplug.c |   10 +++++-----
+ mm/sparse.c         |    8 ++++----
+ 2 files changed, 9 insertions(+), 9 deletions(-)
 
-Another  failing of the track_pfn_insert() and lookup_memtype()
-implementation is that it makes it awkward to handle marking mappings
-UC to prevent speculative consumption of poison. That is something
-that is better handled, in my opinion, by asking the device for the
-pgprot and coordinating shooting down any WB mappings of the same
-physical page.
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 4e8e65954f31..92bc44a73fc5 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -288,8 +288,8 @@ static int check_pfn_span(unsigned long pfn, unsigned long nr_pages,
+ int __ref __add_pages(int nid, unsigned long pfn, unsigned long nr_pages,
+ 		struct mhp_restrictions *restrictions)
+ {
+-	unsigned long i;
+-	int start_sec, end_sec, err;
++	int err;
++	unsigned long nr, start_sec, end_sec;
+ 	struct vmem_altmap *altmap = restrictions->altmap;
+ 
+ 	if (altmap) {
+@@ -310,7 +310,7 @@ int __ref __add_pages(int nid, unsigned long pfn, unsigned long nr_pages,
+ 
+ 	start_sec = pfn_to_section_nr(pfn);
+ 	end_sec = pfn_to_section_nr(pfn + nr_pages - 1);
+-	for (i = start_sec; i <= end_sec; i++) {
++	for (nr = start_sec; nr <= end_sec; nr++) {
+ 		unsigned long pfns;
+ 
+ 		pfns = min(nr_pages, PAGES_PER_SECTION
+@@ -541,7 +541,7 @@ void __remove_pages(struct zone *zone, unsigned long pfn,
+ 		    unsigned long nr_pages, struct vmem_altmap *altmap)
+ {
+ 	unsigned long map_offset = 0;
+-	int i, start_sec, end_sec;
++	unsigned long nr, start_sec, end_sec;
+ 
+ 	if (altmap)
+ 		map_offset = vmem_altmap_offset(altmap);
+@@ -553,7 +553,7 @@ void __remove_pages(struct zone *zone, unsigned long pfn,
+ 
+ 	start_sec = pfn_to_section_nr(pfn);
+ 	end_sec = pfn_to_section_nr(pfn + nr_pages - 1);
+-	for (i = start_sec; i <= end_sec; i++) {
++	for (nr = start_sec; nr <= end_sec; nr++) {
+ 		unsigned long pfns;
+ 
+ 		cond_resched();
+diff --git a/mm/sparse.c b/mm/sparse.c
+index b77ca21a27a4..6c4eab2b2bb0 100644
+--- a/mm/sparse.c
++++ b/mm/sparse.c
+@@ -229,21 +229,21 @@ void subsection_mask_set(unsigned long *map, unsigned long pfn,
+ void __init subsection_map_init(unsigned long pfn, unsigned long nr_pages)
+ {
+ 	int end_sec = pfn_to_section_nr(pfn + nr_pages - 1);
+-	int i, start_sec = pfn_to_section_nr(pfn);
++	unsigned long nr, start_sec = pfn_to_section_nr(pfn);
+ 
+ 	if (!nr_pages)
+ 		return;
+ 
+-	for (i = start_sec; i <= end_sec; i++) {
++	for (nr = start_sec; nr <= end_sec; nr++) {
+ 		struct mem_section *ms;
+ 		unsigned long pfns;
+ 
+ 		pfns = min(nr_pages, PAGES_PER_SECTION
+ 				- (pfn & ~PAGE_SECTION_MASK));
+-		ms = __nr_to_section(i);
++		ms = __nr_to_section(nr);
+ 		subsection_mask_set(ms->usage->subsection_map, pfn, pfns);
+ 
+-		pr_debug("%s: sec: %d pfns: %ld set(%d, %d)\n", __func__, i,
++		pr_debug("%s: sec: %d pfns: %ld set(%d, %d)\n", __func__, nr,
+ 				pfns, subsection_map_index(pfn),
+ 				subsection_map_index(pfn + pfns - 1));
+ 
 
