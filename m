@@ -2,177 +2,194 @@ Return-Path: <SRS0=pbvW=UU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.4 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9E0D5C43613
-	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 21:16:47 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 78712C43613
+	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 23:42:51 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2E94921530
-	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 21:16:47 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 173402089E
+	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 23:42:50 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="qkN/qi8K"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2E94921530
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="RDDEklul"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 173402089E
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8EB2A6B0003; Fri, 21 Jun 2019 17:16:46 -0400 (EDT)
+	id 7E0266B0003; Fri, 21 Jun 2019 19:42:50 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 89B2B8E0002; Fri, 21 Jun 2019 17:16:46 -0400 (EDT)
+	id 7692C8E0002; Fri, 21 Jun 2019 19:42:50 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 789878E0001; Fri, 21 Jun 2019 17:16:46 -0400 (EDT)
+	id 60ACF8E0001; Fri, 21 Jun 2019 19:42:50 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 42ECC6B0003
-	for <linux-mm@kvack.org>; Fri, 21 Jun 2019 17:16:46 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id x9so5092973pfm.16
-        for <linux-mm@kvack.org>; Fri, 21 Jun 2019 14:16:46 -0700 (PDT)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 2D0526B0003
+	for <linux-mm@kvack.org>; Fri, 21 Jun 2019 19:42:50 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id k2so4963827pga.12
+        for <linux-mm@kvack.org>; Fri, 21 Jun 2019 16:42:50 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :in-reply-to:message-id:references:user-agent:mime-version;
-        bh=ee7dIZ6uP6QXNcDhtf383EXh+QJWWk7ZjpJlf1hao0g=;
-        b=enGUjPT0RIf9iD0ys9qTpjHwbUoNyqrKBkob2lNjsJcNOj1mt/h9sVgKkFY+aScv22
-         nT21NQ/WHrWOJG/BOWUgQ+Rq9tTpaFavWkbhFpPlNPKBjbwPNg1mGkp46QqyI74dC7uS
-         ooYGyqIo7kZvgcgFL4BNTEk0FNUOQV41lmXOlcyEf0PdwUJZTmMGQCPkjL4lX/DtH2FN
-         u5kpDEN3JRs4NEN509HEDZ1E9C3X66+puDfaLyMYJRgFivn6c8ljDPU0eGHbpdL+vjYR
-         zevd7RZ1dUc9rPOuLS7q8g7/yV6tlZFivZcTL0bGzZd8M19+dHjeup1h2tHcDCAVDgZN
-         v4+g==
-X-Gm-Message-State: APjAAAWoWyJaC/O7MxqDD1404zXsDj7NTl7d9nsQ6SgwHB2jn9Ua+xKI
-	VMV0+ZGnywrgt1IJzBGITKZGlUp4d47feu7Zm8CebS82M1fX5AKb/RbNES+fspY3p8v1lsLT9Pu
-	jPQ9HChYuxtUnPS+/oLjCPhSfG2YoZApNHEeZ8PZxBqGeS+O/RKkXPbIChMRVjR5giA==
-X-Received: by 2002:a65:5c8c:: with SMTP id a12mr10800992pgt.255.1561151805813;
-        Fri, 21 Jun 2019 14:16:45 -0700 (PDT)
-X-Received: by 2002:a65:5c8c:: with SMTP id a12mr10800912pgt.255.1561151804428;
-        Fri, 21 Jun 2019 14:16:44 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561151804; cv=none;
+         :message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=TaIqbWk/qURrzaiG5PJ5vsRuFC8iZRx5Z1dYzRck4T0=;
+        b=GULNSdTUUfxlMArTGYIv/QEm6z9B6tZkTM29fA9/q65zRssT64+J4lXW5QJdLPvaID
+         2wZ3pIOAiDRB6nRApNCavB0D+jQbq21rB4QRbnNrtMrkDm4WtbtiW0qmpKrEUSH4woYQ
+         zJfAsQlIxdz0TGkDf97Hntm40/pJ8zNcrkmn3c2hNM9Ltgq+TMVpMwYMW9hhmzX/Wm12
+         1MS+mZwoEzduTKoUj/ZKCtWOVE3c7tg36ZDG51Ah4LrlpnfDNcqnqwFcN50jaFSEMdhB
+         K3bRuvPAxBS9Cx5zUj5z/szCtFNeL02BPcfJsj1Cu9JcZpuC9YQmUkY8iEb/c32tLgWi
+         XfUg==
+X-Gm-Message-State: APjAAAXwhvuWW84LUHgYfe7Xv8SIoEqvpcAzy9WAJ7P99pV9JAEY5hM3
+	XkjSvp3x4/X69Upc1MxmWBPt4tCs1LExvlOrkoaTmpjUVScSQlAqT6OGGSqu0bpo2FFcXivwDiU
+	neRW4FUkSWXWuykAhSIbjVmWFu0htR5n43qbP2kd7WPZgTF9wWH+oXHhuqEtax05eww==
+X-Received: by 2002:a63:5152:: with SMTP id r18mr20077141pgl.94.1561160569637;
+        Fri, 21 Jun 2019 16:42:49 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyqtu4WMldOvePJ3G36Xb62LTIlbAGEgJnTlSyncv46M6bHVOUS6GdC8FAiYBEK2OxzEgUZ
+X-Received: by 2002:a63:5152:: with SMTP id r18mr20077079pgl.94.1561160568614;
+        Fri, 21 Jun 2019 16:42:48 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561160568; cv=none;
         d=google.com; s=arc-20160816;
-        b=HGx/x+8ImBgA1GwZ/z0Cu1uljOGujj094ItQJRoiXhNVW1ExlS19/901IT26GKlT09
-         8+Sye2F+IPAQERMiwlJZZ0wInBc4YaRfPC/Y7/Y+nIHKy5PpxUgISE4kvq3ccLjYoaPp
-         2twM8J88RSVb1vqBxMYeZsHKUi0Z188GEVT1XMT9mRyZ+RFvHGX3oBK+EVbYtay5UYew
-         gNb7u+8n82OWUkoIjJMS9VliyZr5LnZyS8KwolvTL5Y0LOE3+uP/bAnesAmBqXwvATts
-         LWnwV4S9SSF5wqhAoiKTk4cpLr3AJIths10ptJlpJ6ifjUWdpN7rkehoD9ZTLLW+vFNT
-         KBBA==
+        b=ejL4/2jXZXwmNC0FKiI9d3yKTwfDrqEG/cGKnGEUGdMMRIHkB1Fh1yVWKPYTM3a/xE
+         mGIqoNY0PapU2LZX/sZ63U1oW6FwQRjH8rLWpmzCPi2X92gRybqKS6mC1ARGnuAzKBkp
+         Aw4phVmYCBLpG5eoWTx9lPWMQUPwCeEEGvfeh6b3LZIH8ALh+gz02AigTylXnWOy2Nvp
+         AF8SW+MEF21MGZXT0P5FxwDcdvdGc6aOn75keH4sZ8uH82ekCuOnQWtIYiYpHzkmydMr
+         4oQ7Vs93OrbZ7pKOsUOFNK3RkSJfs2iPMzPIpcPAEJX3nErayY2LvTXAk85017LFhkMt
+         rbGQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:user-agent:references:message-id:in-reply-to:subject
-         :cc:to:from:date:dkim-signature;
-        bh=ee7dIZ6uP6QXNcDhtf383EXh+QJWWk7ZjpJlf1hao0g=;
-        b=as0cFZhYtWN9BdM2jNBoCmOLlVGQE7EPYDOOfMiF1SdiRi71qdPquOm8GzM09+OnWB
-         v8Clp3NcSnXlgujsMC6I30VH6G+W2Y1qDV+Odt4bxVGDttFeNolDp2D62BaXWHDxCdM9
-         UpMVktzz+qVOuMMaFtao/b5unmcJhNnA+gdtBBbRwMbRY63xBKh/ABUQcZckvN53qYTk
-         eK27UT1CzqwoIoOvPtT/B9k28oOR5hT2NKGRtMDSQPlPveiHSez3lPCIcJPeXhjBq0aH
-         10Y4sjv4cdtM2OAPz5M6at58zJwArYk5Rk9pvnlQEZz0S4q4H7RYcJ11ntWAW4xPnRvV
-         U5cQ==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=TaIqbWk/qURrzaiG5PJ5vsRuFC8iZRx5Z1dYzRck4T0=;
+        b=tCefg7Lggh47SoVCpF6ZLB0Bk3uOR7ANv75IIHWZ8Zw1yPfTO7c0ABd4+rUl9loPfF
+         Va2TQq3CanhRNtrq+hvG8K887uFic3EeNjuCRcFy3fV/g71q1Zst+bWSk81ujn6FNJSN
+         kSU5UNSzM1tKQ7ZDuk+pNu8Y4euU/8ZGP9Ydy+vks4wUuqsdjdyvObHboFbzFw507bmx
+         GV/UGMdTB1BRmJ7emqXkTIb0uQo6Aj8yywY+XsHznPLvYCT+6mL1v0lde/KMQ1kfQ1QI
+         XICdIGWH3tf6ksVrGwk6k2ETzcrkp/1sS58p9DYOhA1fA/8OQfjrvQtaf3bnrKtPn8Xv
+         B3jg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b="qkN/qi8K";
-       spf=pass (google.com: domain of rientjes@google.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=rientjes@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id l7sor2558858pgm.25.2019.06.21.14.16.44
+       dkim=pass header.i=@kernel.org header.s=default header.b=RDDEklul;
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id h8si3991754pjs.13.2019.06.21.16.42.48
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 21 Jun 2019 14:16:44 -0700 (PDT)
-Received-SPF: pass (google.com: domain of rientjes@google.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 21 Jun 2019 16:42:48 -0700 (PDT)
+Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b="qkN/qi8K";
-       spf=pass (google.com: domain of rientjes@google.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=rientjes@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=date:from:to:cc:subject:in-reply-to:message-id:references
-         :user-agent:mime-version;
-        bh=ee7dIZ6uP6QXNcDhtf383EXh+QJWWk7ZjpJlf1hao0g=;
-        b=qkN/qi8Kbd8EBvRSeNglafT8WHdsT6KSGK8BbqDwGMfz8caRBQQJWkq7B/DdSQKES3
-         vrMUhIY+/V39FxHSDpMgxmgiAbGANCFFyenU+/X3g5PJRqQ/1LYFMfxwEjJ+X+hhr0s9
-         OI11/dhh5KjSFQWy+fxuVJv/rxRXBgDS/O3y3B0QzbPR4CD5rM5BjFxUdJlAYCIPX2uz
-         cwBj9+6GZ4hAkzdUQqeW3kX1OAgEmwXQZQaZu7xWbPQokIRnaz9ImxOIOAs4MA84phqS
-         hnL+9EBdZ55OrbqRLSJahRb3g/mKJsfX6wNPr4lYLuzlmF0Izj0mJyGzP8AxjbWq23tU
-         YqQA==
-X-Google-Smtp-Source: APXvYqzImg3CJgpFdQNkZkifeLhRrlBNhd3lJLtmXTamXKF6i/FQMziQdLYRjCbUgP1OER/BKZtqhA==
-X-Received: by 2002:a63:ed06:: with SMTP id d6mr20481370pgi.267.1561151803708;
-        Fri, 21 Jun 2019 14:16:43 -0700 (PDT)
-Received: from [2620:15c:17:3:3a5:23a7:5e32:4598] ([2620:15c:17:3:3a5:23a7:5e32:4598])
-        by smtp.gmail.com with ESMTPSA id w14sm3691529pfn.47.2019.06.21.14.16.42
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Fri, 21 Jun 2019 14:16:42 -0700 (PDT)
-Date: Fri, 21 Jun 2019 14:16:41 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-X-X-Sender: rientjes@chino.kir.corp.google.com
-To: Andrea Arcangeli <aarcange@redhat.com>
-cc: Michal Hocko <mhocko@kernel.org>, 
-    Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, 
-    Vlastimil Babka <vbabka@suse.cz>, Zi Yan <zi.yan@cs.rutgers.edu>, 
-    Stefan Priebe - Profihost AG <s.priebe@profihost.ag>, 
-    "Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org, 
-    linux-kernel@vger.kernel.org
-Subject: Re: [PATCH 2/2] Revert "mm, thp: restore node-local hugepage
- allocations"
-In-Reply-To: <alpine.DEB.2.21.1906061451001.121338@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.21.1906211415050.77141@chino.kir.corp.google.com>
-References: <20190503223146.2312-1-aarcange@redhat.com> <20190503223146.2312-3-aarcange@redhat.com> <alpine.DEB.2.21.1905151304190.203145@chino.kir.corp.google.com> <20190520153621.GL18914@techsingularity.net> <alpine.DEB.2.21.1905201018480.96074@chino.kir.corp.google.com>
- <20190523175737.2fb5b997df85b5d117092b5b@linux-foundation.org> <alpine.DEB.2.21.1905281907060.86034@chino.kir.corp.google.com> <20190531092236.GM6896@dhcp22.suse.cz> <alpine.DEB.2.21.1905311430120.92278@chino.kir.corp.google.com> <20190605093257.GC15685@dhcp22.suse.cz>
- <alpine.DEB.2.21.1906061451001.121338@chino.kir.corp.google.com>
-User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
-MIME-Version: 1.0
+       dkim=pass header.i=@kernel.org header.s=default header.b=RDDEklul;
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from akpm3.svl.corp.google.com (unknown [104.133.8.65])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id CC20B2084E;
+	Fri, 21 Jun 2019 23:42:46 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1561160568;
+	bh=9jNNQ6ZuBBOjZIW3HIow9t4gY+OUpSdjtQl5zrDEMdQ=;
+	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
+	b=RDDEklul7g0TwzW9+rYABCiLxD3N9O7GjpeOksdPT5+/ufp4LUGpriR31HgIwLS4N
+	 su+rzFDliqa/VpGbuq7WC+iq0nUGUObMkXCICTQFtPxehIJZ4EugjMAlfNTPpNEqd2
+	 UO3XDcH6k2EANV4YmvD/OKPZrb5GXc3G08Mo32mA=
+Date: Fri, 21 Jun 2019 16:42:46 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+To: David Hildenbrand <david@redhat.com>
+Cc: Qian Cai <cai@lca.pw>, linux-kernel@vger.kernel.org, Dan Williams
+ <dan.j.williams@intel.com>, linuxppc-dev@lists.ozlabs.org,
+ linux-acpi@vger.kernel.org, linux-mm@kvack.org, Andrew Banman
+ <andrew.banman@hpe.com>, Anshuman Khandual <anshuman.khandual@arm.com>,
+ Arun KS <arunks@codeaurora.org>, Baoquan He <bhe@redhat.com>, Benjamin
+ Herrenschmidt <benh@kernel.crashing.org>, Greg Kroah-Hartman
+ <gregkh@linuxfoundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Juergen
+ Gross <jgross@suse.com>, Keith Busch <keith.busch@intel.com>, Len Brown
+ <lenb@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, Michael
+ Ellerman <mpe@ellerman.id.au>, Michael Neuling <mikey@neuling.org>, Michal
+ Hocko <mhocko@suse.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>,
+ "mike.travis@hpe.com" <mike.travis@hpe.com>, Oscar Salvador
+ <osalvador@suse.com>, Oscar Salvador <osalvador@suse.de>, Paul Mackerras
+ <paulus@samba.org>, Pavel Tatashin <pasha.tatashin@oracle.com>, Pavel
+ Tatashin <pasha.tatashin@soleen.com>, Pavel Tatashin
+ <pavel.tatashin@microsoft.com>, "Rafael J. Wysocki" <rafael@kernel.org>,
+ "Rafael J. Wysocki" <rjw@rjwysocki.net>, Rashmica Gupta
+ <rashmica.g@gmail.com>, Stephen Rothwell <sfr@canb.auug.org.au>, Thomas
+ Gleixner <tglx@linutronix.de>, Vlastimil Babka <vbabka@suse.cz>, Wei Yang
+ <richard.weiyang@gmail.com>
+Subject: Re: [PATCH v3 0/6] mm: Further memory block device cleanups
+Message-Id: <20190621164246.9a2354a571da41950bb74562@linux-foundation.org>
+In-Reply-To: <1c2edc22-afd7-2211-c4c7-40e54e5007e8@redhat.com>
+References: <20190620183139.4352-1-david@redhat.com>
+	<1561130120.5154.47.camel@lca.pw>
+	<1c2edc22-afd7-2211-c4c7-40e54e5007e8@redhat.com>
+X-Mailer: Sylpheed 3.7.0 (GTK+ 2.24.32; x86_64-pc-linux-gnu)
+Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 6 Jun 2019, David Rientjes wrote:
+On Fri, 21 Jun 2019 20:24:59 +0200 David Hildenbrand <david@redhat.com> wrote:
 
-> The idea that I had was snipped from this, however, and it would be nice 
-> to get some feedback on it: I've suggested that direct reclaim for the 
-> purposes of hugepage allocation on the local node is never worthwhile 
-> unless and until memory compaction can both capture that page to use (not 
-> rely on the freeing scanner to find it) and that migration of a number of 
-> pages would eventually result in the ability to free a pageblock.
+> @Qian Cai, unfortunately I can't reproduce.
 > 
-> I'm hoping that we can all agree to that because otherwise it leads us 
-> down a bad road if reclaim is doing pointless work (freeing scanner can't 
-> find it or it gets allocated again before it can find it) or compaction 
-> can't make progress as a result of it (even though we can migrate, it 
-> still won't free a pageblock).
+> If you get the chance, it would be great if you could retry with
 > 
-> In the interim, I think we should suppress direct reclaim entirely for 
-> thp allocations, regardless of enabled=always or MADV_HUGEPAGE because it 
-> cannot be proven that the reclaim work is beneficial and I believe it 
-> results in the swap storms that are being reported.
+> diff --git a/drivers/base/memory.c b/drivers/base/memory.c
+> index 972c5336bebf..742f99ddd148 100644
+> --- a/drivers/base/memory.c
+> +++ b/drivers/base/memory.c
+> @@ -868,6 +868,9 @@ int walk_memory_blocks(unsigned long start, unsigned
+> long size,
+>         unsigned long block_id;
+>         int ret = 0;
 > 
-> Any disagreements so far?
+> +       if (!size)
+> +               return;
+> +
+>         for (block_id = start_block_id; block_id <= end_block_id;
+> block_id++) {
+>                 mem = find_memory_block_by_id(block_id);
+>                 if (!mem)
 > 
-> Furthermore, if we can agree to that, memory compaction when allocating a 
-> transparent hugepage fails for different reasons, one of which is because 
-> we fail watermark checks because we lack migration targets.  This is 
-> normally what leads to direct reclaim.  Compaction is *supposed* to return 
-> COMPACT_SKIPPED for this but that's overloaded as well: it happens when we 
-> fail extfrag_threshold checks and wheng gfp flags doesn't allow it.  The 
-> former matters for thp.
 > 
-> So my proposed change would be:
->  - give the page allocator a consistent indicator that compaction failed
->    because we are low on memory (make COMPACT_SKIPPED really mean this),
->  - if we get this in the page allocator and we are allocating thp, fail,
->    reclaim is unlikely to help here and is much more likely to be
->    disruptive
->      - we could retry compaction if we haven't scanned all memory and
->        were contended,
->  - if the hugepage allocation fails, have thp check watermarks for order-0 
->    pages without any padding,
->  - if watermarks succeed, fail the thp allocation: we can't allocate
->    because of fragmentation and it's better to return node local memory,
->  - if watermarks fail, a follow up allocation of the pte will likely also
->    fail, so thp retries the allocation with a cleared  __GFP_THISNODE.
 > 
-> This doesn't sound very invasive and I'll code it up if it will be tested.
-> 
+> If both, start and size are 0, we would get a veeeery long loop. This
+> would mean that we have an online node that does not span any pages at
+> all (pgdat->node_start_pfn = 0, start_pfn + pgdat->node_spanned_pages = 0).
 
-Following up on this since there has been no activity in a week, I am 
-happy to prototype this.  Andrea, would you be able to test a patch once 
-it is ready for you to try?
+I think I'll make that a `return 0' and I won't drop patches 4-6 for
+now, as we appear to have this fixed.
+
+
+
+From: David Hildenbrand <david@redhat.com>
+Subject: drivers-base-memoryc-get-rid-of-find_memory_block_hinted-v3-fix
+
+handle zero-length walks
+
+Link: http://lkml.kernel.org/r/1c2edc22-afd7-2211-c4c7-40e54e5007e8@redhat.com
+Reported-by: Qian Cai <cai@lca.pw>
+Tested-by: Qian Cai <cai@lca.pw>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+---
+
+ drivers/base/memory.c |    3 +++
+ 1 file changed, 3 insertions(+)
+
+--- a/drivers/base/memory.c~drivers-base-memoryc-get-rid-of-find_memory_block_hinted-v3-fix
++++ a/drivers/base/memory.c
+@@ -866,6 +866,9 @@ int walk_memory_blocks(unsigned long sta
+ 	unsigned long block_id;
+ 	int ret = 0;
+ 
++	if (!size)
++		return 0;
++
+ 	for (block_id = start_block_id; block_id <= end_block_id; block_id++) {
+ 		mem = find_memory_block_by_id(block_id);
+ 		if (!mem)
+
 
