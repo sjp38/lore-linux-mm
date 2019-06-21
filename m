@@ -2,214 +2,310 @@ Return-Path: <SRS0=pbvW=UU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	MENTIONS_GIT_HOSTING,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-14.3 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
+	USER_IN_DEF_DKIM_WL autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3AB50C43613
-	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 14:09:42 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 20D1BC43613
+	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 14:10:35 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D8E47208C3
-	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 14:09:41 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id C4F5C21655
+	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 14:10:34 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="ZaSXeobN";
-	dkim=pass (1024-bit key) header.d=fb.onmicrosoft.com header.i=@fb.onmicrosoft.com header.b="NIYNJDV2"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D8E47208C3
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="dr9Z+fBW"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C4F5C21655
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7DFE88E0005; Fri, 21 Jun 2019 10:09:41 -0400 (EDT)
+	id 5BC4E8E0006; Fri, 21 Jun 2019 10:10:34 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 791038E0001; Fri, 21 Jun 2019 10:09:41 -0400 (EDT)
+	id 56DA88E0001; Fri, 21 Jun 2019 10:10:34 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 658CD8E0005; Fri, 21 Jun 2019 10:09:41 -0400 (EDT)
+	id 45CA28E0006; Fri, 21 Jun 2019 10:10:34 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 2DA568E0001
-	for <linux-mm@kvack.org>; Fri, 21 Jun 2019 10:09:41 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id x3so4145116pgp.8
-        for <linux-mm@kvack.org>; Fri, 21 Jun 2019 07:09:41 -0700 (PDT)
+Received: from mail-vk1-f199.google.com (mail-vk1-f199.google.com [209.85.221.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 222728E0001
+	for <linux-mm@kvack.org>; Fri, 21 Jun 2019 10:10:34 -0400 (EDT)
+Received: by mail-vk1-f199.google.com with SMTP id d143so2491304vkf.10
+        for <linux-mm@kvack.org>; Fri, 21 Jun 2019 07:10:34 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:dkim-signature:from:to:cc:subject
-         :thread-topic:thread-index:date:message-id:references:in-reply-to
-         :accept-language:content-language:content-id
-         :content-transfer-encoding:mime-version;
-        bh=4zRHIq7iZporpwt9Mv54C1I/opmwoTyPXs8GekB+jtg=;
-        b=maYCOiQhmF7yzSV74mAoZAHnqm2ZJnbr1gkXQCbd+QcThnaWdVMjgMscNrC966/bOP
-         5wWinBBOugv9eERfJAQquxrfV9veEIWUv0sMPFPM8i3ZkmunV/c2XmnUjVbFC1tY2kMG
-         /04jieVOdzcMKOLXuTbrWFmUTDorowPs2tJ+LJy1DESL9HsRmE/C9qpih4keQ18pQ8ym
-         s/6gcDvz2ynv4sdU31bzkVNkfduy9OfF2b0lU7At4LoX72fO4ITE+CLTAZOgQoBrS9X9
-         ic1XQeFB28tKiaBqHyuILBRDsWTGug3qyqghieFJRdG9gPThR71OijYEq0DB+dCeOoHu
-         GlVw==
-X-Gm-Message-State: APjAAAXNEkGDBKDwlC9JBXS9FZ0aWSZ5SSM1U0C944Zzx/oEjceO16s6
-	nVdFrxkuPeqUEG3sEpnKe50RnHAxuYAg3b0kqFrP3ztdtzVt2L9mgiwp92+WdzUryEDC7N4Z9gx
-	Zh4GzfuoZgiGYVH1H/z/lleQkjgTDwkREJVP1vlZ7U0oUkUmAyTa2UggQsjjXjfPJvQ==
-X-Received: by 2002:a17:90a:2008:: with SMTP id n8mr6842880pjc.4.1561126180818;
-        Fri, 21 Jun 2019 07:09:40 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzZOOF8aDHnmrlZ425dJaQpvE1SPPSHpw79yi74uPlvMVZyuiqWnn1SE3aM92SZv3X7ZnYa
-X-Received: by 2002:a17:90a:2008:: with SMTP id n8mr6842820pjc.4.1561126180215;
-        Fri, 21 Jun 2019 07:09:40 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561126180; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc
+         :content-transfer-encoding;
+        bh=wrdEXo/dZqG2VBBEHjkm9umzSYOAuCCoFiPBOZwieBA=;
+        b=mw2vaYaR0StmtCTA8xPMiCij+oviIZmUcfLAsOkEujFfSwkAVlZqDOWlcfXRmNwfPl
+         p/xSwnrAXpQ03KjQZCpbCWSUcCZF6MONuS8ki4boJt6z/lavsbGC0f2KQ2WcoEkjDXzk
+         S77pPyXF1/RZBm5u8yx+91G4IfBl35HrTP2eSRsisBfDj5upxddJsR+s2WqsyjmGEFic
+         InUkuxLC+lPvg4wC1z5JyDLfdsZhinc8R8Wo983qdoVUPIjB2jtiCdlYvWTOh9r5Uq/j
+         ymyK8hBiTbPJJCUt57oN05m34emZv3CUWjbPKQjm/LK/Pr6BHOs8DrcWKZ3GlvBMbHEB
+         TsQQ==
+X-Gm-Message-State: APjAAAXoiGMTiV7dpTXuozJLUt31UKTeiTh2LB2/rYbE6rykXudHT8u6
+	F39H080PNc6gAkXta5s6q9ffhIQYn/xC8Vz2Bf9uSvOrw32p9hKVK8OGdLDvtun4mvdSpxZMk/p
+	IFpevxCQ24N4ARf0OBCsA1nUd8ho9nosMGb3QgGavQa0+FrVMuIPSerUOPNynOCqS0w==
+X-Received: by 2002:a67:fc19:: with SMTP id o25mr9263943vsq.106.1561126233759;
+        Fri, 21 Jun 2019 07:10:33 -0700 (PDT)
+X-Received: by 2002:a67:fc19:: with SMTP id o25mr9263900vsq.106.1561126233064;
+        Fri, 21 Jun 2019 07:10:33 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561126233; cv=none;
         d=google.com; s=arc-20160816;
-        b=vIXNyRfkC/su3m0S/Q22qRuFaMKO8GLWgARKiM0le5URDE8+xBXYQQPp3ojAT8mW1/
-         2K6GIDjgzqbubtuIyfjyx0VR2kSGgMY9deO4n2Hs9RrC/VV1EmS9DrLLW0cn1TYTdibe
-         4S6jH5jzw18UwDmeY+O+qZT0OjGsEq2Y+NgnIxZ+0qhGVvtqaFtbdRBvK00J++HnvBf5
-         I8Sro1CAjXQZKwK3GCewA6RcAn6OLxbP6Eagxe+8ZdMAK19KeoKWq7hjecLMQpyh4enC
-         pw+0ZbEN2b+WxcXOYiU0ocvp/D8y+Lk6FCHVUlkPZXXwB6TFO20iJjQcZHsXbxoMLmLf
-         GDUg==
+        b=neCjhcOL0swBVY4EibzJGSgISYIV319knMeDoG7CZGQSXG6g2PW70qgLfSRrIvxraJ
+         FqzJSU6IHrSk+KT82YVwFwn0X5P/X8DReaQ1gCy2Q1zp93kAj5pKrbLHZqRLjLccBRJ7
+         o6JWGxByd73x7JGKF/wkEvGi9gN/J3OTY5BI+Ffh/Fg7plKXcfAGUaEOMoBZ4pjLlsiP
+         nTqmLpOIAj6YtdcJCl4ZKBaIvV/5up3bG0jlt9e356LUF/vQQUOf8apId+XZP+87qRo3
+         X3bWD0pYOwI3d89uoHRQgDsHR0IU2gDNwaugMTycqk/IldrVgvPIsQUC8vssw8STqsL6
+         SLTw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from:dkim-signature:dkim-signature;
-        bh=4zRHIq7iZporpwt9Mv54C1I/opmwoTyPXs8GekB+jtg=;
-        b=aIK/VWiocr2yrECowYvj6IwR0JW/PUTXCDbY/B29+9Oo8T4MIjAmpixnofwkF286YV
-         8XOj/nUEkeFNmUoKSovCYzhwPJxi9lZZ2yDbnBMR4lcHINUuCGUek4fL4xkBRcfS6uzS
-         bRv7veW34ZbYphdlYNhlN/gnZJajcXDi6TFgN2/0BZZppzNtDtiYQJs/CTjpSfsp5np8
-         TtiHXHiL8ZvB0IBakhOx6du8yc5PoZyTC3SyqlOhp00Z3ZaeDDXVs+hEVtNpRm8sz7yB
-         sbOYeBX+gt6fhtJ2V+VNsLC4uCuKA/3GXLnIujT51POCYYPhzpTg3vVKWKzbNIBTiAgX
-         lsfw==
+        h=content-transfer-encoding:cc:to:subject:message-id:date:from
+         :in-reply-to:references:mime-version:dkim-signature;
+        bh=wrdEXo/dZqG2VBBEHjkm9umzSYOAuCCoFiPBOZwieBA=;
+        b=ciDifBBC0j3zqh8Evsst3MTIvrYrk7V+HjNeKzO3cy2O9ZshjhchlAZgw5BriUAM0L
+         pcHOLdlOSboev3jfx/DXglp86BUvFl8LOGaO7o5WC29djqmD0Yb791VBCUzk8djc8bxZ
+         eN+vutvMm+xfL2gScwC782GedWpHgKyzcPIHKoTgQwSV3PjoqR2MHFJZnAoy+8A2t2yt
+         wgqL7QtcvYI7GD3hVdOZ2S+eaLI8XSs6YENEwaMU2xJ1RwzRnLZqkD65PEpucRJpnn9v
+         8g8mA3mlicPCvlpFk0ByREGJnBjo0Bzh06MV0trMyj+C88F0ue4oxhkpP82dvXh8gt/1
+         rYGA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b=ZaSXeobN;
-       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-onmicrosoft-com header.b=NIYNJDV2;
-       spf=pass (google.com: domain of prvs=10751dd214=songliubraving@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=10751dd214=songliubraving@fb.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id g9si2695743plp.13.2019.06.21.07.09.40
+       dkim=pass header.i=@google.com header.s=20161025 header.b=dr9Z+fBW;
+       spf=pass (google.com: domain of glider@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=glider@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id y16sor1683052uar.63.2019.06.21.07.10.33
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 21 Jun 2019 07:09:40 -0700 (PDT)
-Received-SPF: pass (google.com: domain of prvs=10751dd214=songliubraving@fb.com designates 67.231.145.42 as permitted sender) client-ip=67.231.145.42;
+        (Google Transport Security);
+        Fri, 21 Jun 2019 07:10:33 -0700 (PDT)
+Received-SPF: pass (google.com: domain of glider@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b=ZaSXeobN;
-       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-onmicrosoft-com header.b=NIYNJDV2;
-       spf=pass (google.com: domain of prvs=10751dd214=songliubraving@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=10751dd214=songliubraving@fb.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from pps.filterd (m0044008.ppops.net [127.0.0.1])
-	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x5LE3mah012293;
-	Fri, 21 Jun 2019 07:09:39 -0700
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
- : date : message-id : references : in-reply-to : content-type : content-id
- : content-transfer-encoding : mime-version; s=facebook;
- bh=4zRHIq7iZporpwt9Mv54C1I/opmwoTyPXs8GekB+jtg=;
- b=ZaSXeobNIKGfMCaNDzmVPGdCvngPTs8bIQIpSS+RHao62KSU1ypsoUXDmtRfdj4rGUb5
- mkrYtsUlMRSD21WoCnGICsVmlYJXZ+An7atM6xecUf8OMqhwNteLkWbOMW2MdLceAP/G
- cux/0yuMYodO0/ELUj37TuPexFxRNUVzStc= 
-Received: from maileast.thefacebook.com ([163.114.130.16])
-	by mx0a-00082601.pphosted.com with ESMTP id 2t8tpth6sp-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128 verify=NOT);
-	Fri, 21 Jun 2019 07:09:39 -0700
-Received: from ash-exhub203.TheFacebook.com (2620:10d:c0a8:83::5) by
- ash-exhub103.TheFacebook.com (2620:10d:c0a8:82::c) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) id
- 15.1.1713.5; Fri, 21 Jun 2019 07:09:38 -0700
-Received: from NAM03-BY2-obe.outbound.protection.outlook.com (100.104.31.183)
- by o365-in.thefacebook.com (100.104.36.102) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) id 15.1.1713.5
- via Frontend Transport; Fri, 21 Jun 2019 07:09:38 -0700
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.onmicrosoft.com;
- s=selector1-fb-onmicrosoft-com;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=4zRHIq7iZporpwt9Mv54C1I/opmwoTyPXs8GekB+jtg=;
- b=NIYNJDV2qDDAWwn1BG4QmPju4GblgAc7ei1wosivusX3Dc54yY2FL/sAdtY6RFte6EGBzkHsdZau+YJWlfCT1Zg+/SBaUsGE25S4QA+087mk3RBvo52XX1P7Bc/2enj5BY1kXM08JH8R91O3g8pq89ucinKRNBy9QA4HbWueI+4=
-Received: from MWHPR15MB1165.namprd15.prod.outlook.com (10.175.3.22) by
- MWHPR15MB1373.namprd15.prod.outlook.com (10.173.233.151) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.1987.12; Fri, 21 Jun 2019 14:09:36 +0000
-Received: from MWHPR15MB1165.namprd15.prod.outlook.com
- ([fe80::400e:e329:ea98:aa0d]) by MWHPR15MB1165.namprd15.prod.outlook.com
- ([fe80::400e:e329:ea98:aa0d%6]) with mapi id 15.20.2008.014; Fri, 21 Jun 2019
- 14:09:36 +0000
-From: Song Liu <songliubraving@fb.com>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-CC: Linux-MM <linux-mm@kvack.org>,
-        "matthew.wilcox@oracle.com"
-	<matthew.wilcox@oracle.com>,
-        "kirill.shutemov@linux.intel.com"
-	<kirill.shutemov@linux.intel.com>,
-        Kernel Team <Kernel-team@fb.com>,
-        "william.kucharski@oracle.com" <william.kucharski@oracle.com>,
-        "chad.mynhier@oracle.com" <chad.mynhier@oracle.com>,
-        "mike.kravetz@oracle.com" <mike.kravetz@oracle.com>
-Subject: Re: [PATCH v2 2/3] mm,thp: stats for file backed THP
-Thread-Topic: [PATCH v2 2/3] mm,thp: stats for file backed THP
-Thread-Index: AQHVIt4miVueYeg2BEu7pHE3XHmsBKamGhsAgAAWEgA=
-Date: Fri, 21 Jun 2019 14:09:36 +0000
-Message-ID: <8C37677C-1B9E-458B-BDCE-3861ACAE6F4B@fb.com>
-References: <20190614182204.2673660-1-songliubraving@fb.com>
- <20190614182204.2673660-3-songliubraving@fb.com>
- <20190621125036.yf4yjqolu3bx77wt@box>
-In-Reply-To: <20190621125036.yf4yjqolu3bx77wt@box>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach: 
-X-MS-TNEF-Correlator: 
-x-mailer: Apple Mail (2.3445.104.11)
-x-originating-ip: [2620:10d:c090:180::1:ed23]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: 0a059d97-57f3-4cb7-4b0e-08d6f65217e8
-x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(2017052603328)(7193020);SRVR:MWHPR15MB1373;
-x-ms-traffictypediagnostic: MWHPR15MB1373:
-x-ms-exchange-purlcount: 1
-x-microsoft-antispam-prvs: <MWHPR15MB1373543C7BD090375BB72F2CB3E70@MWHPR15MB1373.namprd15.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:229;
-x-forefront-prvs: 0075CB064E
-x-forefront-antispam-report: SFV:NSPM;SFS:(10019020)(396003)(366004)(346002)(39860400002)(376002)(136003)(199004)(189003)(51914003)(50226002)(476003)(53546011)(6506007)(11346002)(446003)(486006)(102836004)(186003)(64756008)(14454004)(66476007)(76116006)(76176011)(46003)(25786009)(66556008)(66446008)(2616005)(316002)(8936002)(36756003)(478600001)(6246003)(73956011)(86362001)(4326008)(5660300002)(99286004)(6436002)(229853002)(66946007)(6512007)(6306002)(6486002)(81166006)(81156014)(8676002)(256004)(33656002)(4744005)(6916009)(53936002)(6116002)(966005)(54906003)(68736007)(305945005)(57306001)(7736002)(2906002)(71190400001)(71200400001)(142933001);DIR:OUT;SFP:1102;SCL:1;SRVR:MWHPR15MB1373;H:MWHPR15MB1165.namprd15.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
-received-spf: None (protection.outlook.com: fb.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info: 11W616OU/hn+CG776tnPFakLC3ZaiIdD+aMIIGRgaqQ6WtZyb6mRgiJvwYYJSvRs4yfrPChMsVguYjRvHNaENgpYLD6ElNKAW+Hyw4U+s8VeCTlNOB4z60njkb/6woQUnmhGeZK5Q1smwtJsZROAVD+ESA3j0Rsz9koAUCxKnLzcVw8KZihfsZ1XZYNirMtpWOq3Mxyz/geznTZH7/viZEIIddJVgBNWfBVwPwNmGHIk6lXxLpSxgFXq4VDObFrbPFefM4wUZNJb51zYuiN9/tWkEyF0TZr9rQdz75xpidlRGVDbAl8PKBAG0VlUgKFOEOQQnirwk+WbdMckK8YaVDB9MVeaXRcjqOoZpWb8R1W8ZP1LF4x0WZR3py6tfLrhIdDE/rKwly9wYnDxMlW7T5cfiNfPQ+mGuY6HUOi9l2w=
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <2A6973D0274C2E46AE5C8C003B2A9614@namprd15.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
+       dkim=pass header.i=@google.com header.s=20161025 header.b=dr9Z+fBW;
+       spf=pass (google.com: domain of glider@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=glider@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc:content-transfer-encoding;
+        bh=wrdEXo/dZqG2VBBEHjkm9umzSYOAuCCoFiPBOZwieBA=;
+        b=dr9Z+fBW/EL/AboE8tYKHBbokfp7cBhVBj2BeXnlM1sNnJU1yZlEYPW1v7VnYnKD9g
+         ZoirrFWGixiGN+pWwZxclknn52BNiexn12gfKsWELbai6du00S32lG11y9VkdYvjJre6
+         hn/PQ0y4vh8xEAQ1969NI/lVFAr2MpC9p8hAxiUHZ5yCuKRR8s6NSS0qWzbKa/tZdcKY
+         pFoj6FwVdsVghIlnlg1Y1yX0tRba/aWQxKlaLcDk9nClMescS+5hR0AA6vC4P4W5/8EF
+         XWVv9SmWCE9OsKTIGo8j8/Mer2OwCmb7jpFGnELQrvt9PuGOfEALHhGoUGNk2mgspI9o
+         i4ag==
+X-Google-Smtp-Source: APXvYqz/CH5RLWc9rguyLew76C+m4hWG0I8vzrW686B60RxUfjgG1yOUxMREVPBIXgPDhj1lf7iqdrOvdYXQfkzWbqM=
+X-Received: by 2002:ab0:308c:: with SMTP id h12mr6056804ual.72.1561126232440;
+ Fri, 21 Jun 2019 07:10:32 -0700 (PDT)
 MIME-Version: 1.0
-X-MS-Exchange-CrossTenant-Network-Message-Id: 0a059d97-57f3-4cb7-4b0e-08d6f65217e8
-X-MS-Exchange-CrossTenant-originalarrivaltime: 21 Jun 2019 14:09:36.7243
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: 8ae927fe-1255-47a7-a2af-5f3a069daaa2
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-userprincipalname: songliubraving@fb.com
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: MWHPR15MB1373
-X-OriginatorOrg: fb.com
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-06-21_10:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=fb_default_notspam policy=fb_default score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=887 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1906210118
-X-FB-Internal: deliver
+References: <20190617151050.92663-1-glider@google.com> <20190617151050.92663-2-glider@google.com>
+ <20190621070905.GA3429@dhcp22.suse.cz> <CAG_fn=UFj0Lzy3FgMV_JBKtxCiwE03HVxnR8=f9a7=4nrUFXSw@mail.gmail.com>
+In-Reply-To: <CAG_fn=UFj0Lzy3FgMV_JBKtxCiwE03HVxnR8=f9a7=4nrUFXSw@mail.gmail.com>
+From: Alexander Potapenko <glider@google.com>
+Date: Fri, 21 Jun 2019 16:10:19 +0200
+Message-ID: <CAG_fn=W90HNeZ0UcUctnbUBzJ=_b+gxMGdUoDyO3JPoyy4dGSg@mail.gmail.com>
+Subject: Re: [PATCH v7 1/2] mm: security: introduce init_on_alloc=1 and
+ init_on_free=1 boot options
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, 
+	Kees Cook <keescook@chromium.org>, Masahiro Yamada <yamada.masahiro@socionext.com>, 
+	James Morris <jmorris@namei.org>, "Serge E. Hallyn" <serge@hallyn.com>, 
+	Nick Desaulniers <ndesaulniers@google.com>, Kostya Serebryany <kcc@google.com>, 
+	Dmitry Vyukov <dvyukov@google.com>, Sandeep Patil <sspatil@android.com>, 
+	Laura Abbott <labbott@redhat.com>, Randy Dunlap <rdunlap@infradead.org>, Jann Horn <jannh@google.com>, 
+	Mark Rutland <mark.rutland@arm.com>, Marco Elver <elver@google.com>, 
+	Linux Memory Management List <linux-mm@kvack.org>, 
+	linux-security-module <linux-security-module@vger.kernel.org>, 
+	Kernel Hardening <kernel-hardening@lists.openwall.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
-
-> On Jun 21, 2019, at 5:50 AM, Kirill A. Shutemov <kirill@shutemov.name> wr=
+On Fri, Jun 21, 2019 at 10:57 AM Alexander Potapenko <glider@google.com> wr=
 ote:
->=20
-> On Fri, Jun 14, 2019 at 11:22:03AM -0700, Song Liu wrote:
->> In preparation for non-shmem THP, this patch adds two stats and exposes
->> them in /proc/meminfo
->>=20
->> Signed-off-by: Song Liu <songliubraving@fb.com>
->=20
-> I think you also need to cover smaps.
->=20
-> See my old patch for refernece:
->=20
-> https://git.kernel.org/pub/scm/linux/kernel/git/kas/linux.git/commit/?h=
-=3Dhugeext4/v6&id=3De629d1c4f9200c16bd7b4b02e8016d020c0869cb
->=20
-Thanks for the reference!
+>
+> On Fri, Jun 21, 2019 at 9:09 AM Michal Hocko <mhocko@kernel.org> wrote:
+> >
+> > On Mon 17-06-19 17:10:49, Alexander Potapenko wrote:
+> > > The new options are needed to prevent possible information leaks and
+> > > make control-flow bugs that depend on uninitialized values more
+> > > deterministic.
+> > >
+> > > init_on_alloc=3D1 makes the kernel initialize newly allocated pages a=
+nd heap
+> > > objects with zeroes. Initialization is done at allocation time at the
+> > > places where checks for __GFP_ZERO are performed.
+> > >
+> > > init_on_free=3D1 makes the kernel initialize freed pages and heap obj=
+ects
+> > > with zeroes upon their deletion. This helps to ensure sensitive data
+> > > doesn't leak via use-after-free accesses.
+> > >
+> > > Both init_on_alloc=3D1 and init_on_free=3D1 guarantee that the alloca=
+tor
+> > > returns zeroed memory. The two exceptions are slab caches with
+> > > constructors and SLAB_TYPESAFE_BY_RCU flag. Those are never
+> > > zero-initialized to preserve their semantics.
+> > >
+> > > Both init_on_alloc and init_on_free default to zero, but those defaul=
+ts
+> > > can be overridden with CONFIG_INIT_ON_ALLOC_DEFAULT_ON and
+> > > CONFIG_INIT_ON_FREE_DEFAULT_ON.
+> > >
+> > > Slowdown for the new features compared to init_on_free=3D0,
+> > > init_on_alloc=3D0:
+> > >
+> > > hackbench, init_on_free=3D1:  +7.62% sys time (st.err 0.74%)
+> > > hackbench, init_on_alloc=3D1: +7.75% sys time (st.err 2.14%)
+> > >
+> > > Linux build with -j12, init_on_free=3D1:  +8.38% wall time (st.err 0.=
+39%)
+> > > Linux build with -j12, init_on_free=3D1:  +24.42% sys time (st.err 0.=
+52%)
+> > > Linux build with -j12, init_on_alloc=3D1: -0.13% wall time (st.err 0.=
+42%)
+> > > Linux build with -j12, init_on_alloc=3D1: +0.57% sys time (st.err 0.4=
+0%)
+> > >
+> > > The slowdown for init_on_free=3D0, init_on_alloc=3D0 compared to the
+> > > baseline is within the standard error.
+> > >
+> > > The new features are also going to pave the way for hardware memory
+> > > tagging (e.g. arm64's MTE), which will require both on_alloc and on_f=
+ree
+> > > hooks to set the tags for heap objects. With MTE, tagging will have t=
+he
+> > > same cost as memory initialization.
+> > >
+> > > Although init_on_free is rather costly, there are paranoid use-cases =
+where
+> > > in-memory data lifetime is desired to be minimized. There are various
+> > > arguments for/against the realism of the associated threat models, bu=
+t
+> > > given that we'll need the infrastructre for MTE anyway, and there are
+> > > people who want wipe-on-free behavior no matter what the performance =
+cost,
+> > > it seems reasonable to include it in this series.
+> >
+> > Thanks for reworking the original implemenation. This looks much better=
+!
+> >
+> > > Signed-off-by: Alexander Potapenko <glider@google.com>
+> > > Acked-by: Kees Cook <keescook@chromium.org>
+> > > To: Andrew Morton <akpm@linux-foundation.org>
+> > > To: Christoph Lameter <cl@linux.com>
+> > > To: Kees Cook <keescook@chromium.org>
+> > > Cc: Masahiro Yamada <yamada.masahiro@socionext.com>
+> > > Cc: Michal Hocko <mhocko@kernel.org>
+> > > Cc: James Morris <jmorris@namei.org>
+> > > Cc: "Serge E. Hallyn" <serge@hallyn.com>
+> > > Cc: Nick Desaulniers <ndesaulniers@google.com>
+> > > Cc: Kostya Serebryany <kcc@google.com>
+> > > Cc: Dmitry Vyukov <dvyukov@google.com>
+> > > Cc: Sandeep Patil <sspatil@android.com>
+> > > Cc: Laura Abbott <labbott@redhat.com>
+> > > Cc: Randy Dunlap <rdunlap@infradead.org>
+> > > Cc: Jann Horn <jannh@google.com>
+> > > Cc: Mark Rutland <mark.rutland@arm.com>
+> > > Cc: Marco Elver <elver@google.com>
+> > > Cc: linux-mm@kvack.org
+> > > Cc: linux-security-module@vger.kernel.org
+> > > Cc: kernel-hardening@lists.openwall.com
+> >
+> > Acked-by: Michal Hocko <mhocko@suse.cz> # page allocator parts.
+> >
+> > kmalloc based parts look good to me as well but I am not sure I fill
+> > qualified to give my ack there without much more digging and I do not
+> > have much time for that now.
+> >
+> > [...]
+> > > diff --git a/kernel/kexec_core.c b/kernel/kexec_core.c
+> > > index fd5c95ff9251..2f75dd0d0d81 100644
+> > > --- a/kernel/kexec_core.c
+> > > +++ b/kernel/kexec_core.c
+> > > @@ -315,7 +315,7 @@ static struct page *kimage_alloc_pages(gfp_t gfp_=
+mask, unsigned int order)
+> > >               arch_kexec_post_alloc_pages(page_address(pages), count,
+> > >                                           gfp_mask);
+> > >
+> > > -             if (gfp_mask & __GFP_ZERO)
+> > > +             if (want_init_on_alloc(gfp_mask))
+> > >                       for (i =3D 0; i < count; i++)
+> > >                               clear_highpage(pages + i);
+> > >       }
+> >
+> > I am not really sure I follow here. Why do we want to handle
+> > want_init_on_alloc here? The allocated memory comes from the page
+> > allocator and so it will get zeroed there. arch_kexec_post_alloc_pages
+> > might touch the content there but is there any actual risk of any kind
+> > of leak?
+> You're right, we don't want to initialize this memory if init_on_alloc is=
+ on.
+> We need something along the lines of:
+>   if (!static_branch_unlikely(&init_on_alloc))
+>     if (gfp_mask & __GFP_ZERO)
+>       // clear the pages
+>
+> Another option would be to disable initialization in alloc_pages() using =
+a flag.
+> >
+> > > diff --git a/mm/dmapool.c b/mm/dmapool.c
+> > > index 8c94c89a6f7e..e164012d3491 100644
+> > > --- a/mm/dmapool.c
+> > > +++ b/mm/dmapool.c
+> > > @@ -378,7 +378,7 @@ void *dma_pool_alloc(struct dma_pool *pool, gfp_t=
+ mem_flags,
+> > >  #endif
+> > >       spin_unlock_irqrestore(&pool->lock, flags);
+> > >
+> > > -     if (mem_flags & __GFP_ZERO)
+> > > +     if (want_init_on_alloc(mem_flags))
+> > >               memset(retval, 0, pool->size);
+> > >
+> > >       return retval;
+> >
+> > Don't you miss dma_pool_free and want_init_on_free?
+> Agreed.
+> I'll fix this and add tests for DMA pools as well.
+This doesn't seem to be easy though. One needs a real DMA-capable
+device to allocate using DMA pools.
+On the other hand, what happens to a DMA pool when it's destroyed,
+isn't it wiped by pagealloc?
 
-Adding the fix.=20
+I'm inclined towards not touching mm/dmapool.c in this patch series,
+as it is probably orthogonal to the idea of hardening the
+heap/pagealloc.
+> > --
+> > Michal Hocko
+> > SUSE Labs
+>
+>
+>
+> --
+> Alexander Potapenko
+> Software Engineer
+>
+> Google Germany GmbH
+> Erika-Mann-Stra=C3=9Fe, 33
+> 80636 M=C3=BCnchen
+>
+> Gesch=C3=A4ftsf=C3=BChrer: Paul Manicle, Halimah DeLaine Prado
+> Registergericht und -nummer: Hamburg, HRB 86891
+> Sitz der Gesellschaft: Hamburg
 
-Thanks,
-Song
+
+
+--=20
+Alexander Potapenko
+Software Engineer
+
+Google Germany GmbH
+Erika-Mann-Stra=C3=9Fe, 33
+80636 M=C3=BCnchen
+
+Gesch=C3=A4ftsf=C3=BChrer: Paul Manicle, Halimah DeLaine Prado
+Registergericht und -nummer: Hamburg, HRB 86891
+Sitz der Gesellschaft: Hamburg
 
