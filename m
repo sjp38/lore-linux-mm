@@ -2,136 +2,247 @@ Return-Path: <SRS0=pbvW=UU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4C555C43613
-	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 14:20:54 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 98421C48BE0
+	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 14:28:27 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E5AE220679
-	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 14:20:53 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E5AE220679
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=techsingularity.net
+	by mail.kernel.org (Postfix) with ESMTP id 613482089E
+	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 14:28:27 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="gHewrOsG"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 613482089E
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 84D3A8E0005; Fri, 21 Jun 2019 10:20:53 -0400 (EDT)
+	id EFE7A8E0005; Fri, 21 Jun 2019 10:28:26 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7FD878E0001; Fri, 21 Jun 2019 10:20:53 -0400 (EDT)
+	id EAEA38E0001; Fri, 21 Jun 2019 10:28:26 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6EDD28E0005; Fri, 21 Jun 2019 10:20:53 -0400 (EDT)
+	id DC4048E0005; Fri, 21 Jun 2019 10:28:26 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 203398E0001
-	for <linux-mm@kvack.org>; Fri, 21 Jun 2019 10:20:53 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id n49so9383409edd.15
-        for <linux-mm@kvack.org>; Fri, 21 Jun 2019 07:20:53 -0700 (PDT)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id BAF558E0001
+	for <linux-mm@kvack.org>; Fri, 21 Jun 2019 10:28:26 -0400 (EDT)
+Received: by mail-qt1-f198.google.com with SMTP id d26so8028306qte.19
+        for <linux-mm@kvack.org>; Fri, 21 Jun 2019 07:28:26 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=IhUv8kOzmd5g1pqwwhiqADXNfS0X3pC2GAimunNacSQ=;
-        b=WcE1HuOdyZTZyejVwtIjhvpNEZE2h6Q6j46J28ggIFQwGpxxsz5Lws+ftwVYi2JS9A
-         jnAAf3EHsA34j7nvcoxLxAW3ANxUcYE8nnbsL9kXlAi1he0vDfOgVaUOkhEnclRnK4Ne
-         4s51hvKk8MLIDNmQmXDBvUE4Z9kx8X78Y68z9Asm+xzsiBNaRdCq4aZtLpDUJJ3GNSkj
-         ptWdkGtnfi2kmt1eiejW/84bxVkXlRRpzroOUYn/jQKrLWzZu0LXxc+HEolhxs6EZqvx
-         QpL/B8BypH2LRN2Mvk3hnfdRmTNhci0UAUuoneln9jDB5I/vE+c/9Rvma6c9ljLCMvUA
-         apQA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.192 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
-X-Gm-Message-State: APjAAAVbeEl8pQNF+tJuDTTAw0z1qiHfX6TtArvW2y+8/YSMBckpe36N
-	witV16SFNSnt1QaEL4DWVom/A1Kb2rmhuUzT7GOtLSxgMtiZD9HePyoiTIEgPxWaE74V5b6z61O
-	AxKHIdaEH57GOnurqO4LBWp+cx0LI436RFCXxgQNqntxrbJIAI2eApJTJt/xghdkO1A==
-X-Received: by 2002:a50:f781:: with SMTP id h1mr79381819edn.240.1561126852674;
-        Fri, 21 Jun 2019 07:20:52 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxTLKJId5b7megOo1Lp9CWCcC9a3ZuHf2NUJlN5M85L/x8QvLN1nSgi9WX/iXtNOS16Zk5t
-X-Received: by 2002:a50:f781:: with SMTP id h1mr79381747edn.240.1561126852003;
-        Fri, 21 Jun 2019 07:20:52 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561126851; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=QN9JaLjC+aXpYQwYy0rUybeOk/75jD5iu87wcqgiv+A=;
+        b=p5NRbTEARUEpH7vtRTx73I9YhNtjYoUAYVWodowLgOFogSr7ItlA3CBtDLVGYuMom2
+         L0BtOhDJTS8XasEqVVK9TTIVBDZOg+wpmgp3BWCksafSVs/cs9Ou6OTrAd2Mc9+Z9Whw
+         u1Gc0AEdxse4wZD0yT9bp2nIXvF9IrZE21jAmnHumWt2Ppy5LdY++zfu+9Q/ACVHJozy
+         1lrYa0R3sqUQvdQANT/kXMBg2NKOHP9RFgUmS7zKbAhlkexX1gX3flGkc6fBFX7IpQ+e
+         IGYWG4FYs9R/CSJ7X9cT1ieYmx849bWcyXGOs3sDq60N/4mNR+s6YLKlwE5ID95/RtWs
+         JBMg==
+X-Gm-Message-State: APjAAAXRR4bzDb6eHsktQh7zG+GC0nlr7h5y/JKVQvlON/vRI1f7Rlxa
+	i1S1jJmtgCmeFSeProh1RxJ7RrIACjFKZv9TQ+KuPtvk7Wk53v75lVurW+RGFE5w/X9HPQEX72J
+	mO/BB0NJW/Bvc5LVfQSc/rZdofdjzC7revOiOvUipd+Q82MObRMCdvsnvt7nlDSm8Iw==
+X-Received: by 2002:a0c:b758:: with SMTP id q24mr45020228qve.45.1561127306505;
+        Fri, 21 Jun 2019 07:28:26 -0700 (PDT)
+X-Received: by 2002:a0c:b758:: with SMTP id q24mr45020172qve.45.1561127305810;
+        Fri, 21 Jun 2019 07:28:25 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561127305; cv=none;
         d=google.com; s=arc-20160816;
-        b=e+D6bezlNSuMNq3vaV/yLqKHoBUljBwbmDBiGWlgS0ViSolaEy4LM/p5Dhs1qKeI6a
-         zSNb8BFYau39ti86yCiWbQJcySg7SX6KRVW7kAK7048ko0i9oa+IiWAAArDjq2KPFSwE
-         iWwYbtT+CRXNhXXgqRkvmEc7+G/ZJX6tgZKGXlcQ5+5GuLXJdIzkXlV+dTyfDZRZKhuJ
-         zwd6KtCZ+sis51Rrcv3OV/9YuXC9J7gFOH9QA/JE1ib5ymi6903W+XDS6nRG+B/PNnWZ
-         ShnqstbnFpZcGJZR6zDhjycvCo3Mxq0pcMTQbDM2X3+3rok5X9lh7uHZ6GQ0e4uQU3vw
-         bfqA==
+        b=dOz/RS8VVL9smqKs9gObODkF3zf4mOHATXehJcY6pjGxDHXD+hQFjLZyznFY5KIWw/
+         ldyVxEOaGohtoshLn0NIRIn7/kC4EoDRRAvCgNIDPRWcPKErcG35UlHIFRrPjYsOhGhK
+         al5CkET7aQu1PAqqkfVXyejyWsSps5qY0h/n2FR9eLpbPnchDs/u9+RORWVzLV/1XNJ9
+         IfpAy0QQtPC3DZfnsq9pcecabhJrNbFOeb8L06q3HAPFA+OJf00A4kdrkF+mWQpdViOX
+         BIdTFpy+XrW6uupx0lGo+zDSQz5qCC3F7m3hlofaFz/+zxDZI5AXcOIMXGs8+GtQ9qAe
+         WLRA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=IhUv8kOzmd5g1pqwwhiqADXNfS0X3pC2GAimunNacSQ=;
-        b=WOx0ebn/rVwbBrhF9yKb4pqiOK/7Z5vF0IV/VKM4kO7ytRWTC8YLKrz3b9ZQJbk9JR
-         kFMwW5Woqy+GO6vLT7QF1gA1NOWN3LpSrhREzyzpk04viE21yQwSn3Z/U58j1SvoBZWG
-         6WleugZspR9bkEidTHMgGG3BWff1UHoYsfwPHCwJqFRwB4Bnd/Mnbzb1c1lF8yMi0dYc
-         YPphLi1T8Z9ICdaxV8jeSJf/R/RH0A16izoPfG03yeMMjvNH5xd/hq8n/9fglSj/mV+S
-         viq5g/h3lMzV32FBLlgmKclyvmSNyi95+R/x7kFXaaosZUEGKYi4G3ZXMhsuxMWS9LJQ
-         kR3w==
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=QN9JaLjC+aXpYQwYy0rUybeOk/75jD5iu87wcqgiv+A=;
+        b=p2eOjXZ/DoXvgEonlRjeSRvjAGjxp9SBNtfFaTNYJVk9lP5rFjOEcwvHWE8jMXjGCa
+         puEZ2jfELSLWm3ZKrS2wWqdz0pgucPuDFnkLaDSzzfOqVCAl/BziNtn+z0NCAYGntKtw
+         xGwW0LRmmdSR7w/AgF6LiMyRCbl75yKrAsmtuORR1Ilf3h5shHkEXrVGxa2lkyEQd0wT
+         FoenHtQ6xd1utd0of0QdTRvA/t76vZD7Lq5dao07Pmnnkd96EwRxCkXLgbdPxWnWds7Q
+         nQY8+NkeSiSPG/olpeRAz9SoaqT1YSYUaey/QbvN+io68C+VzOlnW6iLhaXoGeKgXMNV
+         0tyg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.192 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
-Received: from outbound-smtp24.blacknight.com (outbound-smtp24.blacknight.com. [81.17.249.192])
-        by mx.google.com with ESMTPS id z2si1906720ejb.3.2019.06.21.07.20.51
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=gHewrOsG;
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id u207sor1596817qka.127.2019.06.21.07.28.25
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 21 Jun 2019 07:20:51 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.192 as permitted sender) client-ip=81.17.249.192;
+        (Google Transport Security);
+        Fri, 21 Jun 2019 07:28:25 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.192 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
-Received: from mail.blacknight.com (pemlinmail04.blacknight.ie [81.17.254.17])
-	by outbound-smtp24.blacknight.com (Postfix) with ESMTPS id 6582AB8995
-	for <linux-mm@kvack.org>; Fri, 21 Jun 2019 15:20:51 +0100 (IST)
-Received: (qmail 22845 invoked from network); 21 Jun 2019 14:20:51 -0000
-Received: from unknown (HELO techsingularity.net) (mgorman@techsingularity.net@[84.203.21.36])
-  by 81.17.254.9 with ESMTPSA (AES256-SHA encrypted, authenticated); 21 Jun 2019 14:20:51 -0000
-Date: Fri, 21 Jun 2019 15:16:33 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-To: Alan Jenkins <alan.christopher.jenkins@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
-	stable@vger.kernel.org
-Subject: Re: [PATCH] mm: fix setting the high and low watermarks
-Message-ID: <20190621141633.GA2978@techsingularity.net>
-References: <20190621114325.711-1-alan.christopher.jenkins@gmail.com>
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=gHewrOsG;
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=ziepe.ca; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=QN9JaLjC+aXpYQwYy0rUybeOk/75jD5iu87wcqgiv+A=;
+        b=gHewrOsGYjfruRd4d1g7uEoXFq0aPB7SLlglrbzK6BXTkmLdPbiazxpOboA2jm7wrI
+         b8d8+E6FX9OR7u+IFNEKrAnJnOqu/5F1VZLUMNCMCU+wgS6y2EkbpkHsbU8+r3JHZVql
+         PIegARKFvfPWOqpFRbR76bztPULQ83Vuao8w4HpYbgS5VaeHCUZ/9LZHChOTJFGspzyL
+         atunFnhPQ2nD+493uKquWuaHkbcR/Qbt9BLiGb7yOcsFbUDnB07oOdzvU9IpHgGWj6ES
+         glaSilKeeyF/aLMWsYWTQY3pAMonUdx/dUq0pDX6f1CXEmbwIgHnehnriMkvZWZLQO1T
+         0B5Q==
+X-Google-Smtp-Source: APXvYqydWDme2tP2dVS/BqtEvh4YdCf0/vXc8OQrQ6NRAaTCyw2Eaq6p7IUxO9RX+s8DYAJPYZ5q+A==
+X-Received: by 2002:a05:620a:1107:: with SMTP id o7mr77780538qkk.324.1561127305462;
+        Fri, 21 Jun 2019 07:28:25 -0700 (PDT)
+Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
+        by smtp.gmail.com with ESMTPSA id y14sm1370164qkb.109.2019.06.21.07.28.24
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 21 Jun 2019 07:28:24 -0700 (PDT)
+Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
+	(envelope-from <jgg@ziepe.ca>)
+	id 1heKWe-0000lt-CN; Fri, 21 Jun 2019 11:28:24 -0300
+Date: Fri, 21 Jun 2019 11:28:24 -0300
+From: Jason Gunthorpe <jgg@ziepe.ca>
+To: Christoph Hellwig <hch@lst.de>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>,
+	Paul Burton <paul.burton@mips.com>, James Hogan <jhogan@kernel.org>,
+	Yoshinori Sato <ysato@users.sourceforge.jp>,
+	Rich Felker <dalias@libc.org>,
+	"David S. Miller" <davem@davemloft.net>,
+	Nicholas Piggin <npiggin@gmail.com>,
+	Khalid Aziz <khalid.aziz@oracle.com>,
+	Andrey Konovalov <andreyknvl@google.com>,
+	Benjamin Herrenschmidt <benh@kernel.crashing.org>,
+	Paul Mackerras <paulus@samba.org>,
+	Michael Ellerman <mpe@ellerman.id.au>, linux-mips@vger.kernel.org,
+	linux-sh@vger.kernel.org, sparclinux@vger.kernel.org,
+	linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, x86@kernel.org,
+	linux-kernel@vger.kernel.org
+Subject: Re: [PATCH 10/16] mm: rename CONFIG_HAVE_GENERIC_GUP to
+ CONFIG_HAVE_FAST_GUP
+Message-ID: <20190621142824.GP19891@ziepe.ca>
+References: <20190611144102.8848-1-hch@lst.de>
+ <20190611144102.8848-11-hch@lst.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190621114325.711-1-alan.christopher.jenkins@gmail.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190611144102.8848-11-hch@lst.de>
+User-Agent: Mutt/1.9.4 (2018-02-28)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jun 21, 2019 at 12:43:25PM +0100, Alan Jenkins wrote:
-> When setting the low and high watermarks we use min_wmark_pages(zone).
-> I guess this is to reduce the line length.  But we forgot that this macro
-> includes zone->watermark_boost.  We need to reset zone->watermark_boost
-> first.  Otherwise the watermarks will be set inconsistently.
-> 
-> E.g. this could cause inconsistent values if the watermarks have been
-> boosted, and then you change a sysctl which triggers
-> __setup_per_zone_wmarks().
-> 
-> I strongly suspect this explains why I have seen slightly high watermarks.
-> Suspicious-looking zoneinfo below - notice high-low != low-min.
-> 
-> Node 0, zone   Normal
->   pages free     74597
->         min      9582
->         low      34505
->         high     36900
-> 
-> https://unix.stackexchange.com/questions/525674/my-low-and-high-watermarks-seem-higher-than-predicted-by-documentation-sysctl-vm/525687
-> 
-> Signed-off-by: Alan Jenkins <alan.christopher.jenkins@gmail.com>
-> Fixes: 1c30844d2dfe ("mm: reclaim small amounts of memory when an external
->                       fragmentation event occurs")
-> Cc: stable@vger.kernel.org
+On Tue, Jun 11, 2019 at 04:40:56PM +0200, Christoph Hellwig wrote:
+> We only support the generic GUP now, so rename the config option to
+> be more clear, and always use the mm/Kconfig definition of the
+> symbol and select it from the arch Kconfigs.
 
-Either way
+Looks OK to me
 
-Acked-by: Mel Gorman <mgorman@techsingularity.net>
+Reviewed-by: Jason Gunthorpe <jgg@mellanox.com>
 
--- 
-Mel Gorman
-SUSE Labs
+But could you also roll something like this in to the series? There is
+no longer any reason for the special __weak stuff that I can see -
+just follow the normal pattern for stubbing config controlled
+functions through the header file.
+
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 0e8834ac32b76c..13b1cb573383d5 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1561,8 +1561,17 @@ long get_user_pages_locked(unsigned long start, unsigned long nr_pages,
+ long get_user_pages_unlocked(unsigned long start, unsigned long nr_pages,
+ 		    struct page **pages, unsigned int gup_flags);
+ 
++#ifdef CONFIG_HAVE_FAST_GUP
+ int get_user_pages_fast(unsigned long start, int nr_pages,
+ 			unsigned int gup_flags, struct page **pages);
++#else
++static inline int get_user_pages_fast(unsigned long start, int nr_pages,
++				      unsigned int gup_flags,
++				      struct page **pages)
++{
++	return get_user_pages_unlocked(start, nr_pages, pages, gup_flags);
++}
++#endif
+ 
+ /* Container for pinned pfns / pages */
+ struct frame_vector {
+@@ -1668,8 +1677,17 @@ extern int mprotect_fixup(struct vm_area_struct *vma,
+ /*
+  * doesn't attempt to fault and will return short.
+  */
++#ifdef CONFIG_HAVE_FAST_GUP
+ int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
+ 			  struct page **pages);
++#else
++static inline int __get_user_pages_fast(unsigned long start, int nr_pages,
++					int write, struct page **pages)
++{
++	return 0;
++}
++#endif
++
+ /*
+  * per-process(per-mm_struct) statistics.
+  */
+diff --git a/mm/util.c b/mm/util.c
+index 9834c4ab7d8e86..68575a315dc5ad 100644
+--- a/mm/util.c
++++ b/mm/util.c
+@@ -300,53 +300,6 @@ void arch_pick_mmap_layout(struct mm_struct *mm, struct rlimit *rlim_stack)
+ }
+ #endif
+ 
+-/*
+- * Like get_user_pages_fast() except its IRQ-safe in that it won't fall
+- * back to the regular GUP.
+- * Note a difference with get_user_pages_fast: this always returns the
+- * number of pages pinned, 0 if no pages were pinned.
+- * If the architecture does not support this function, simply return with no
+- * pages pinned.
+- */
+-int __weak __get_user_pages_fast(unsigned long start,
+-				 int nr_pages, int write, struct page **pages)
+-{
+-	return 0;
+-}
+-EXPORT_SYMBOL_GPL(__get_user_pages_fast);
+-
+-/**
+- * get_user_pages_fast() - pin user pages in memory
+- * @start:	starting user address
+- * @nr_pages:	number of pages from start to pin
+- * @gup_flags:	flags modifying pin behaviour
+- * @pages:	array that receives pointers to the pages pinned.
+- *		Should be at least nr_pages long.
+- *
+- * get_user_pages_fast provides equivalent functionality to get_user_pages,
+- * operating on current and current->mm, with force=0 and vma=NULL. However
+- * unlike get_user_pages, it must be called without mmap_sem held.
+- *
+- * get_user_pages_fast may take mmap_sem and page table locks, so no
+- * assumptions can be made about lack of locking. get_user_pages_fast is to be
+- * implemented in a way that is advantageous (vs get_user_pages()) when the
+- * user memory area is already faulted in and present in ptes. However if the
+- * pages have to be faulted in, it may turn out to be slightly slower so
+- * callers need to carefully consider what to use. On many architectures,
+- * get_user_pages_fast simply falls back to get_user_pages.
+- *
+- * Return: number of pages pinned. This may be fewer than the number
+- * requested. If nr_pages is 0 or negative, returns 0. If no pages
+- * were pinned, returns -errno.
+- */
+-int __weak get_user_pages_fast(unsigned long start,
+-				int nr_pages, unsigned int gup_flags,
+-				struct page **pages)
+-{
+-	return get_user_pages_unlocked(start, nr_pages, pages, gup_flags);
+-}
+-EXPORT_SYMBOL_GPL(get_user_pages_fast);
+-
+ unsigned long vm_mmap_pgoff(struct file *file, unsigned long addr,
+ 	unsigned long len, unsigned long prot,
+ 	unsigned long flag, unsigned long pgoff)
 
