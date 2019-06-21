@@ -2,166 +2,262 @@ Return-Path: <SRS0=pbvW=UU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.9 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+X-Spam-Status: No, score=-14.3 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
 	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=unavailable
-	autolearn_force=no version=3.4.0
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
+	USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A6618C48BE3
-	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 01:37:35 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6736AC43613
+	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 02:31:29 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4D36E208CA
-	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 01:37:35 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 0F3D0206E0
+	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 02:31:28 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=chromium.org header.i=@chromium.org header.b="UgJtjkuA"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4D36E208CA
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chromium.org
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="RncI3AG0"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0F3D0206E0
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id AD7C76B0005; Thu, 20 Jun 2019 21:37:34 -0400 (EDT)
+	id 9C5C66B0005; Thu, 20 Jun 2019 22:31:28 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A87998E0002; Thu, 20 Jun 2019 21:37:34 -0400 (EDT)
+	id 975F38E0002; Thu, 20 Jun 2019 22:31:28 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 94F048E0001; Thu, 20 Jun 2019 21:37:34 -0400 (EDT)
+	id 863C88E0001; Thu, 20 Jun 2019 22:31:28 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D2336B0005
-	for <linux-mm@kvack.org>; Thu, 20 Jun 2019 21:37:34 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id x18so3286908pfj.4
-        for <linux-mm@kvack.org>; Thu, 20 Jun 2019 18:37:34 -0700 (PDT)
+Received: from mail-yb1-f200.google.com (mail-yb1-f200.google.com [209.85.219.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 653046B0005
+	for <linux-mm@kvack.org>; Thu, 20 Jun 2019 22:31:28 -0400 (EDT)
+Received: by mail-yb1-f200.google.com with SMTP id e7so4372891ybk.22
+        for <linux-mm@kvack.org>; Thu, 20 Jun 2019 19:31:28 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to;
-        bh=+BBLwZtK559RusCbv05GmPVwa01R9tY1N/TrVS8kF/s=;
-        b=XM+yPRpMFLh8ZxIe0l3vTMftzB9yiWZVwkYVqoQIegw8ULZdnp7UGjNid6c/ZgafDt
-         3Z+fgJOIo0BYsIvFy+q/a7XZ1EyTMXX/4bwzIyNZiqSX74NEFdkVYbpKGseDs0gRQWF8
-         e4OKalrBgvG3E4GjgE2332mwS3ySKWStIxj5mnB0h99WRyWUUdKF5lqI0tvEDYQ7nuCO
-         uAMfGCCkymOpHNmY87ThrWcRIcgcb1UcbIzI57As9ccyrdKoDzt+HJ+8VPQHFACJLVtB
-         vdcXtRPFDY1/fN0auDTW62MW3BWD3C2exGT/TfDS2/zKQFuVwPBMAcMI0FOBzIesXL21
-         uFqA==
-X-Gm-Message-State: APjAAAUQzbCiM8JRdVSG//lMhwkPymPp5Hh5lvb7rX7hGaaSidBgijMn
-	uFiqF79rCMWUxlcC7H9QZ6DCr+WUHC3qdDnixZHKF34IkD3H7IcmrDmkbPTxLLnxCahygWaEqsC
-	pRDN1Lh7oGZINXUyzabTHwKz3IXqdA569LdOGwohvqdHvxZHOr4jBkw7BhaDnBOP3EQ==
-X-Received: by 2002:a17:902:121:: with SMTP id 30mr122386916plb.314.1561081053984;
-        Thu, 20 Jun 2019 18:37:33 -0700 (PDT)
-X-Received: by 2002:a17:902:121:: with SMTP id 30mr122386862plb.314.1561081053308;
-        Thu, 20 Jun 2019 18:37:33 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561081053; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=QgpFL+6ymJMczlIkTzBjRU1WPesBaEDjjKVHMai+DRY=;
+        b=b02qboZDBw3zbHlPEiqBFW2BnyDUm006+bO2tjAzeBVK99fQdDsdFUZm8a8KYO53La
+         OHVHCZzIz+iNcOR540qqTNmp8ebuInJhLJOKtZIYDOc7+xnMV1i7q3iw+c4NTOk3tlBG
+         sGiqGZSgr+dYYGhbMSeRvleHoArZ66xVvj4INE8jORFvQVPBQzFkRczVo0A7Hy5kACZU
+         jFIeFP/FQ1AponolIw26kpHq9LC7Q6wHi/lSBiyAxrBifnpFK59HShCMdpQA3IB3pBMI
+         Zt8tx4lQ2459RYv823zNzB3AZIzoQpjqAl4Av1Oq2Q4xYD3dRHVvOCPNk7Ij6nPkp9Oe
+         FdZQ==
+X-Gm-Message-State: APjAAAUXMVrPKe9MVUH7lU6PNT4rsIbMSqZWGOwV66mfyLpOg2FhNFF8
+	J5kg4eaXdLQAKmxa9fVpR87mPaI9u++5NoiIRt2dBsZIozT06J6Ve540jurZBLpRLeByeGE1IoI
+	D5OUG8sEOLaUEsgq9Y6JnDSTyU6k3RP/jxZzAGatDpFtFuQqZG6BGTWNJgDZGcVP2Mw==
+X-Received: by 2002:a81:8981:: with SMTP id z123mr73257520ywf.303.1561084288023;
+        Thu, 20 Jun 2019 19:31:28 -0700 (PDT)
+X-Received: by 2002:a81:8981:: with SMTP id z123mr73257486ywf.303.1561084287111;
+        Thu, 20 Jun 2019 19:31:27 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561084287; cv=none;
         d=google.com; s=arc-20160816;
-        b=IctE9xIwVu6iGpqjGRCVmJ3u3/1NwPMO0UsUe9rQCj7mBVodCpkt2OXXi2r1G8atsu
-         mSpqQLUzS+LAO1t0LTUqDmQBj/zUqWVF7/QTlBjBuSGhzT1egd0z/1ArUBkJzmyozf+k
-         iM0/vORJjspjjUybz9cPVpfcFG00IV5ZhPPQIxfl/hlr0SLVUq6Or6d/re3Iu9QavWjL
-         NKYAw0Ue13Ck2Gtcib4HEOUXxQ/p/s7/oPad+GTbEVTgfl0RgBWZKfB4e//gpKwPA2m8
-         1GDmrRJVX6y1m7dVtr9yD2RHl4qU65U2htcJDIL7wDutssGOYh5vkc0WsCSFTs1aFXlq
-         nbrQ==
+        b=BgN2SSxEBMiMsj6c2qRjDSeNPagcYrUiWPOB5G07DUCglmET/sK8NbbvGVDS0zTSUJ
+         P4SAA7DMd+nYGe6F9kQk1EA5rEPkBHAdOdnUTtWr1tADDsRT/Yy3mEcJR5ufJcF0Z7S8
+         nzD2qF6tJjjfDXLXjJt/iYynDpX7+edPYc4b4QtRkAVJ8EJKBBf4qWhP3qrNteDGhzYb
+         RsY5mF1+WN86EP8tPiMOKkjUMcNkcC+mCp/+qMYcWIcMWnmjqfZ6zEuG8U0llXkpRuCb
+         FZH6jDWtW1qRZnUwp5vBw1+vXXbgcfvuvDLuRSrSr4Mj6QHlXyhPqhAH7uTWx5Hzf1pT
+         e13Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=in-reply-to:content-disposition:mime-version:references:message-id
-         :subject:cc:to:from:date:dkim-signature;
-        bh=+BBLwZtK559RusCbv05GmPVwa01R9tY1N/TrVS8kF/s=;
-        b=xnOTY0KUOx6QV+wsOtRgf9WuGiXS14EJQA3rWiIv/ujPu4oKkD+E4YTFymuGNITUDn
-         rSYVS1hHlImj0uDJVRf5oKyNwXIfh3s+VtCeGDVPs3HIquuIYRkqM/UPDccP+C+eY0JC
-         xU14wlBqrh6wGwqYmxy5gtWV/F2L4//gUcdP4YAQHftSpDThcKrpcwX+rZtz6LLhWOt3
-         vwDzVkkBm9JUxtbWjAAXKuKkNL2N5M+pnMYtm8r9+40mLyvmpCfy67D9cY5Y4HywMrMU
-         OJDkY0kVxf+JCw9EtpWFulka6CxxATSuZYRmD/34r2TIuL8acyf2aMddQBUgHkOIl180
-         SFHw==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=QgpFL+6ymJMczlIkTzBjRU1WPesBaEDjjKVHMai+DRY=;
+        b=gciJCLpRy2PZceDC/jfIWxbRzHAH2ZMVBMuwZUvuiq28vcf8qVfvHgNTcg/Ni54kca
+         J+5Z+I0l1m/ELP+OTm/861DtSoCT5Agqh5uskOcGFThJlh6SflisrfnDu3s7y1qBaCro
+         ca8dx6KccOpTxtASpUj2+0rgSgPdkVJkCnxKAO/FGe5O72j5ax9wy4NISnXkzFGYsB83
+         oM5ok1iwy5RKI5yEC9S5M5zpaH7yz4PTQlGuzrAVRtM0CoZOjzeEwAKgGQeB9O7ggDAZ
+         j5em5dqmf1mpsMq02XUbkmY0J9HE7Ejhno1ywKLJQib1xd+JJ7p8FxK/W/N/uOMEog6F
+         REGg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@chromium.org header.s=google header.b=UgJtjkuA;
-       spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
+       dkim=pass header.i=@google.com header.s=20161025 header.b=RncI3AG0;
+       spf=pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shakeelb@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z21sor1146756pgl.47.2019.06.20.18.37.33
+        by mx.google.com with SMTPS id v5sor828009ybq.163.2019.06.20.19.31.26
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 20 Jun 2019 18:37:33 -0700 (PDT)
-Received-SPF: pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Thu, 20 Jun 2019 19:31:27 -0700 (PDT)
+Received-SPF: pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@chromium.org header.s=google header.b=UgJtjkuA;
-       spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
+       dkim=pass header.i=@google.com header.s=20161025 header.b=RncI3AG0;
+       spf=pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shakeelb@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=chromium.org; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to;
-        bh=+BBLwZtK559RusCbv05GmPVwa01R9tY1N/TrVS8kF/s=;
-        b=UgJtjkuAPfCnrYv5/+nT3DgmraBLhmyJlPrB/1R/HP+7xj5HMoOxBowzAxJKYuhXal
-         TUXR4AliTFs+xAYskx4xEjwkCvPnV5s/p3VitrZPdgdQ+pzqZ4eC+e5HFC1HQ72WpDov
-         PdJmAQwmEYv2XrO5loF/BkZSQVzjTeTg7Sv8c=
-X-Google-Smtp-Source: APXvYqz96MlZh/gHUsZQiQrw95Tphw+Mau0IgtUkGB4/+lWwwoAdzVWZRWZFmnOth83mrBsvYd712g==
-X-Received: by 2002:a63:60d:: with SMTP id 13mr10624086pgg.272.1561081052880;
-        Thu, 20 Jun 2019 18:37:32 -0700 (PDT)
-Received: from www.outflux.net (smtp.outflux.net. [198.145.64.163])
-        by smtp.gmail.com with ESMTPSA id o14sm821876pjp.29.2019.06.20.18.37.31
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 20 Jun 2019 18:37:31 -0700 (PDT)
-Date: Thu, 20 Jun 2019 18:37:30 -0700
-From: Kees Cook <keescook@chromium.org>
-To: Alexander Potapenko <glider@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-	Christoph Lameter <cl@linux.com>,
-	Masahiro Yamada <yamada.masahiro@socionext.com>,
-	Michal Hocko <mhocko@kernel.org>, James Morris <jmorris@namei.org>,
-	"Serge E. Hallyn" <serge@hallyn.com>,
-	Nick Desaulniers <ndesaulniers@google.com>,
-	Kostya Serebryany <kcc@google.com>,
-	Dmitry Vyukov <dvyukov@google.com>,
-	Sandeep Patil <sspatil@android.com>,
-	Laura Abbott <labbott@redhat.com>,
-	Randy Dunlap <rdunlap@infradead.org>, Jann Horn <jannh@google.com>,
-	Mark Rutland <mark.rutland@arm.com>, Marco Elver <elver@google.com>,
-	linux-mm@kvack.org, linux-security-module@vger.kernel.org,
-	kernel-hardening@lists.openwall.com
-Subject: Re: [PATCH v6 1/3] mm: security: introduce init_on_alloc=1 and
- init_on_free=1 boot options
-Message-ID: <201906201821.8887E75@keescook>
-References: <20190606164845.179427-1-glider@google.com>
- <20190606164845.179427-2-glider@google.com>
- <201906070841.4680E54@keescook>
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=QgpFL+6ymJMczlIkTzBjRU1WPesBaEDjjKVHMai+DRY=;
+        b=RncI3AG0jrzPSPrUFfh2M1ccOyQCBhkEQFXS0sVWXSnc5pOmVqDLTEK19ntrBouXkj
+         Ur57RL1TBfQCT1S5vclt6WSiTRaClYUuIXSKH23tjIpdOI3ozfQcLQ0BYbWY66ROC4hG
+         zvCGnAhunRrlBbWQX2OrjVN+x5z2UXV4fvHCw8slkx9cUUfuBhDDHtsRL+T+vYwE8u57
+         aFU08pzd+xWDc0gwr0kCnZQki0AVV5VwX90eDj7XqNrjZDG1fFERC4MSYSmbjVpNii9O
+         +aCQtJD/KzYsM+TWZZtmaMWHSMrZEVbTkx+evTdxJHAR4S6oUxKyo/v+PeBpE/uKUJGD
+         3s+Q==
+X-Google-Smtp-Source: APXvYqyLnUhjOcuQYOaU8t0La8g94tqvg35AO0PoEVbEw5GKrr/yk6PqunkZ8TYXUWg7mCHVZERPkhSUI4JO0qgqR/Q=
+X-Received: by 2002:a25:1ed6:: with SMTP id e205mr67236770ybe.467.1561084286070;
+ Thu, 20 Jun 2019 19:31:26 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201906070841.4680E54@keescook>
+References: <20190620213427.1691847-1-guro@fb.com>
+In-Reply-To: <20190620213427.1691847-1-guro@fb.com>
+From: Shakeel Butt <shakeelb@google.com>
+Date: Thu, 20 Jun 2019 19:31:14 -0700
+Message-ID: <CALvZod6V0BTqPaF7dX3oBkFMQ1cU1yPh_4f4ZVY9k-3opYLziA@mail.gmail.com>
+Subject: Re: [PATCH v2] mm: memcg/slab: properly handle kmem_caches reparented
+ to root_mem_cgroup
+To: Roman Gushchin <guro@fb.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, 
+	Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, 
+	Kernel Team <kernel-team@fb.com>, Johannes Weiner <hannes@cmpxchg.org>, 
+	Waiman Long <longman@redhat.com>, Andrei Vagin <avagin@gmail.com>, Christoph Lameter <cl@linux.com>, 
+	Michal Hocko <mhocko@suse.com>, David Rientjes <rientjes@google.com>, 
+	Joonsoo Kim <iamjoonsoo.kim@lge.com>, Pekka Enberg <penberg@kernel.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jun 07, 2019 at 08:42:27AM -0700, Kees Cook wrote:
-> On Thu, Jun 06, 2019 at 06:48:43PM +0200, Alexander Potapenko wrote:
-> > [...]
-> > diff --git a/mm/slub.c b/mm/slub.c
-> > index cd04dbd2b5d0..9c4a8b9a955c 100644
-> > --- a/mm/slub.c
-> > +++ b/mm/slub.c
-> > [...]
-> > @@ -2741,8 +2758,14 @@ static __always_inline void *slab_alloc_node(struct kmem_cache *s,
-> >  		prefetch_freepointer(s, next_object);
-> >  		stat(s, ALLOC_FASTPATH);
-> >  	}
-> > +	/*
-> > +	 * If the object has been wiped upon free, make sure it's fully
-> > +	 * initialized by zeroing out freelist pointer.
-> > +	 */
-> > +	if (unlikely(slab_want_init_on_free(s)) && object)
-> > +		*(void **)object = NULL;
+On Thu, Jun 20, 2019 at 2:35 PM Roman Gushchin <guro@fb.com> wrote:
+>
+> As a result of reparenting a kmem_cache might belong to the root
+> memory cgroup. It happens when a top-level memory cgroup is removed,
+> and all associated kmem_caches are reparented to the root memory
+> cgroup.
+>
+> The root memory cgroup is special, and requires a special handling.
+> Let's make sure that we don't try to charge or uncharge it,
+> and we handle system-wide vmstats exactly as for root kmem_caches.
+>
+> Note, that we still need to alter the kmem_cache reference counter,
+> so that the kmem_cache can be released properly.
+>
+> The issue was discovered by running CRIU tests; the following warning
+> did appear:
+>
+> [  381.345960] WARNING: CPU: 0 PID: 11655 at mm/page_counter.c:62
+> page_counter_cancel+0x26/0x30
+> [  381.345992] Modules linked in:
+> [  381.345998] CPU: 0 PID: 11655 Comm: kworker/0:8 Not tainted
+> 5.2.0-rc5-next-20190618+ #1
+> [  381.346001] Hardware name: Google Google Compute Engine/Google
+> Compute Engine, BIOS Google 01/01/2011
+> [  381.346010] Workqueue: memcg_kmem_cache kmemcg_workfn
+> [  381.346013] RIP: 0010:page_counter_cancel+0x26/0x30
+> [  381.346017] Code: 1f 44 00 00 0f 1f 44 00 00 48 89 f0 53 48 f7 d8
+> f0 48 0f c1 07 48 29 f0 48 89 c3 48 89 c6 e8 61 ff ff ff 48 85 db 78
+> 02 5b c3 <0f> 0b 5b c3 66 0f 1f 44 00 00 0f 1f 44 00 00 48 85 ff 74 41
+> 41 55
+> [  381.346019] RSP: 0018:ffffb3b34319f990 EFLAGS: 00010086
+> [  381.346022] RAX: fffffffffffffffc RBX: fffffffffffffffc RCX: 0000000000000004
+> [  381.346024] RDX: 0000000000000000 RSI: fffffffffffffffc RDI: ffff9c2cd7165270
+> [  381.346026] RBP: 0000000000000004 R08: 0000000000000000 R09: 0000000000000001
+> [  381.346028] R10: 00000000000000c8 R11: ffff9c2cd684e660 R12: 00000000fffffffc
+> [  381.346030] R13: 0000000000000002 R14: 0000000000000006 R15: ffff9c2c8ce1f200
+> [  381.346033] FS:  0000000000000000(0000) GS:ffff9c2cd8200000(0000)
+> knlGS:0000000000000000
+> [  381.346039] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> [  381.346041] CR2: 00000000007be000 CR3: 00000001cdbfc005 CR4: 00000000001606f0
+> [  381.346043] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+> [  381.346045] DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
+> [  381.346047] Call Trace:
+> [  381.346054]  page_counter_uncharge+0x1d/0x30
+> [  381.346065]  __memcg_kmem_uncharge_memcg+0x39/0x60
+> [  381.346071]  __free_slab+0x34c/0x460
+> [  381.346079]  deactivate_slab.isra.80+0x57d/0x6d0
+> [  381.346088]  ? add_lock_to_list.isra.36+0x9c/0xf0
+> [  381.346095]  ? __lock_acquire+0x252/0x1410
+> [  381.346106]  ? cpumask_next_and+0x19/0x20
+> [  381.346110]  ? slub_cpu_dead+0xd0/0xd0
+> [  381.346113]  flush_cpu_slab+0x36/0x50
+> [  381.346117]  ? slub_cpu_dead+0xd0/0xd0
+> [  381.346125]  on_each_cpu_mask+0x51/0x70
+> [  381.346131]  ? ksm_migrate_page+0x60/0x60
+> [  381.346134]  on_each_cpu_cond_mask+0xab/0x100
+> [  381.346143]  __kmem_cache_shrink+0x56/0x320
+> [  381.346150]  ? ret_from_fork+0x3a/0x50
+> [  381.346157]  ? unwind_next_frame+0x73/0x480
+> [  381.346176]  ? __lock_acquire+0x252/0x1410
+> [  381.346188]  ? kmemcg_workfn+0x21/0x50
+> [  381.346196]  ? __mutex_lock+0x99/0x920
+> [  381.346199]  ? kmemcg_workfn+0x21/0x50
+> [  381.346205]  ? kmemcg_workfn+0x21/0x50
+> [  381.346216]  __kmemcg_cache_deactivate_after_rcu+0xe/0x40
+> [  381.346220]  kmemcg_cache_deactivate_after_rcu+0xe/0x20
+> [  381.346223]  kmemcg_workfn+0x31/0x50
+> [  381.346230]  process_one_work+0x23c/0x5e0
+> [  381.346241]  worker_thread+0x3c/0x390
+> [  381.346248]  ? process_one_work+0x5e0/0x5e0
+> [  381.346252]  kthread+0x11d/0x140
+> [  381.346255]  ? kthread_create_on_node+0x60/0x60
+> [  381.346261]  ret_from_fork+0x3a/0x50
+> [  381.346275] irq event stamp: 10302
+> [  381.346278] hardirqs last  enabled at (10301): [<ffffffffb2c1a0b9>]
+> _raw_spin_unlock_irq+0x29/0x40
+> [  381.346282] hardirqs last disabled at (10302): [<ffffffffb2182289>]
+> on_each_cpu_mask+0x49/0x70
+> [  381.346287] softirqs last  enabled at (10262): [<ffffffffb2191f4a>]
+> cgroup_idr_replace+0x3a/0x50
+> [  381.346290] softirqs last disabled at (10260): [<ffffffffb2191f2d>]
+> cgroup_idr_replace+0x1d/0x50
+> [  381.346293] ---[ end trace b324ba73eb3659f0 ]---
+>
+> v2: fixed return value from memcg_charge_slab(), spotted by Shakeel
+>
+> Reported-by: Andrei Vagin <avagin@gmail.com>
+> Signed-off-by: Roman Gushchin <guro@fb.com>
 
-In looking at metadata again, I noticed that I don't think this is
-correct, as it needs to be using s->offset to find the location of the
-freelist pointer:
+Reviewed-by: Shakeel Butt <shakeelb@google.com>
 
-	memset(object + s->offset, 0, sizeof(void *));
-
-> >  
-> > -	if (unlikely(gfpflags & __GFP_ZERO) && object)
-> > +	if (unlikely(slab_want_init_on_alloc(gfpflags, s)) && object)
-> >  		memset(object, 0, s->object_size);
-
-init_on_alloc is using "object_size" but init_on_free is using "size". I
-assume the "alloc" wipe is smaller because metadata was just written
-for the allocation?
-
--- 
-Kees Cook
+> Cc: Christoph Lameter <cl@linux.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: Shakeel Butt <shakeelb@google.com>
+> Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
+> Cc: Waiman Long <longman@redhat.com>
+> Cc: David Rientjes <rientjes@google.com>
+> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> Cc: Pekka Enberg <penberg@kernel.org>
+> ---
+>  mm/slab.h | 19 ++++++++++++++-----
+>  1 file changed, 14 insertions(+), 5 deletions(-)
+>
+> diff --git a/mm/slab.h b/mm/slab.h
+> index a4c9b9d042de..a62372d0f271 100644
+> --- a/mm/slab.h
+> +++ b/mm/slab.h
+> @@ -294,8 +294,12 @@ static __always_inline int memcg_charge_slab(struct page *page,
+>                 memcg = parent_mem_cgroup(memcg);
+>         rcu_read_unlock();
+>
+> -       if (unlikely(!memcg))
+> -               return true;
+> +       if (unlikely(!memcg || mem_cgroup_is_root(memcg))) {
+> +               mod_node_page_state(page_pgdat(page), cache_vmstat_idx(s),
+> +                                   (1 << order));
+> +               percpu_ref_get_many(&s->memcg_params.refcnt, 1 << order);
+> +               return 0;
+> +       }
+>
+>         ret = memcg_kmem_charge_memcg(page, gfp, order, memcg);
+>         if (ret)
+> @@ -324,9 +328,14 @@ static __always_inline void memcg_uncharge_slab(struct page *page, int order,
+>
+>         rcu_read_lock();
+>         memcg = READ_ONCE(s->memcg_params.memcg);
+> -       lruvec = mem_cgroup_lruvec(page_pgdat(page), memcg);
+> -       mod_lruvec_state(lruvec, cache_vmstat_idx(s), -(1 << order));
+> -       memcg_kmem_uncharge_memcg(page, order, memcg);
+> +       if (likely(!mem_cgroup_is_root(memcg))) {
+> +               lruvec = mem_cgroup_lruvec(page_pgdat(page), memcg);
+> +               mod_lruvec_state(lruvec, cache_vmstat_idx(s), -(1 << order));
+> +               memcg_kmem_uncharge_memcg(page, order, memcg);
+> +       } else {
+> +               mod_node_page_state(page_pgdat(page), cache_vmstat_idx(s),
+> +                                   -(1 << order));
+> +       }
+>         rcu_read_unlock();
+>
+>         percpu_ref_put_many(&s->memcg_params.refcnt, 1 << order);
+> --
+> 2.21.0
+>
 
