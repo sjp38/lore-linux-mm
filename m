@@ -2,127 +2,192 @@ Return-Path: <SRS0=pbvW=UU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
+X-Spam-Status: No, score=-5.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
 	SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B23B1C43613
-	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 13:55:11 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id AAF6CC43613
+	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 14:05:45 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7CB4F2083B
-	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 13:55:11 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7CB4F2083B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 674CE2166E
+	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 14:05:45 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="aWygfjPx"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 674CE2166E
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id EC90A8E0002; Fri, 21 Jun 2019 09:55:10 -0400 (EDT)
+	id EE9048E0003; Fri, 21 Jun 2019 10:05:44 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E526C8E0001; Fri, 21 Jun 2019 09:55:10 -0400 (EDT)
+	id E98EA8E0001; Fri, 21 Jun 2019 10:05:44 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D6A338E0002; Fri, 21 Jun 2019 09:55:10 -0400 (EDT)
+	id D5F058E0003; Fri, 21 Jun 2019 10:05:44 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id A31A18E0001
-	for <linux-mm@kvack.org>; Fri, 21 Jun 2019 09:55:10 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id a5so9293379edx.12
-        for <linux-mm@kvack.org>; Fri, 21 Jun 2019 06:55:10 -0700 (PDT)
+Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B24A38E0001
+	for <linux-mm@kvack.org>; Fri, 21 Jun 2019 10:05:44 -0400 (EDT)
+Received: by mail-qt1-f200.google.com with SMTP id r40so8023469qtk.0
+        for <linux-mm@kvack.org>; Fri, 21 Jun 2019 07:05:44 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=TcjMNicHImtNIaiJOvceLYYKAU95NVrH9ZXITGFpy/Q=;
-        b=BWsG3v5eDCx6i9PAZ/DDgGZRW3onJw7tbPbNmMg4XcB3t1xQgIGbA5WQUTdBU5FZQN
-         WAQ5z3XSiVQAMnnKhZb9/tvcfb5Bkh88/g4YtHMfG9eAFJgqCh/6SzSRiEVQYIjCG4AO
-         0TVdSOmgCAi7TYorRZ/9RQBZKqXPxjaWCfuzoZOVB961TQTMchWHkrWBMsbtyhxoXlN6
-         4VdEujwJZBGo5F4MsX4I3zmi9pkozNRlQ8sp9DK56YC9g94ngBORrD46nGGG66xpu90V
-         sYR8vS2uyA4LdLafLMzw+OefXDOHnBh9a6ZIN8UFWqdweKj1nxaqjQiCvg1iqp4LD80+
-         dVOg==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAXPxn6yuJ4/0pAWe5CmlsHnkjKFYPAO2INFSBY1H3ACP+SgL/Fs
-	ierf/SpKR6IRjnTomTBrzfI26U2rR4jH2HUDFYEAJ2n5IO6xWGu7GGispoY0wLPO5iGcEWksBHM
-	JzQ1c4Odgs/7P+Nwsrx/wANjgpXQVVeA8ooFCOhqo1G9MtpzaGzq0N+6RsO62rq0=
-X-Received: by 2002:aa7:d4cf:: with SMTP id t15mr87962584edr.215.1561125310255;
-        Fri, 21 Jun 2019 06:55:10 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqx+93S7prf/EWGyNOVflfo0vYVgBbPtclMOUNNALXk3vLAqpLSs8dbDebd3FlxkyJ/Dmm01
-X-Received: by 2002:aa7:d4cf:: with SMTP id t15mr87962524edr.215.1561125309643;
-        Fri, 21 Jun 2019 06:55:09 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561125309; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=DkOzjPryuxAAZ6jj5aW+vqBCJ/xdXKjWwEy6q7BhjEk=;
+        b=rZ1M78Q8xr+gY4pANxB3plvYABRTQIW9ZAUjUJnmVuZMi3sUpPbWl875QEIfobJpzK
+         QMuw3va3sBfHYxIbbFV3o19p5N+nCfP5XZ80/negISOXGN9FArBAOQ1oyj/xSLVFg6j9
+         wmwmyyIHEOIi9zNhBsAca61CXLOmQdt+l6aOI8c0Qcrs6vt0awCwsGAaZIkjIzXDLCeE
+         6cbFX9SrbbCX4jXHclWCbTWcNYygjUL+lyM4LVdYq8xnRHHxRjt0HCZzC3bMeQafNpxg
+         PHTglEYHp0Um+8eL/YdpYyLz7WqztHAPgXlWaoz8AW/cKIo4Vx3B3yIuIns79wGvO7WW
+         h/Gw==
+X-Gm-Message-State: APjAAAV2ljbY+Pc/SDbsML8fZ7oOA0GSpwH/WhRT+RDupvoxHu7IRifT
+	kONNEg77M3Neh0/VdDztcHil1V33Z0VYrURbJja2ktkBfhmHSTaqVDv87EBdqeRW7WMLIRDwIeN
+	U6m5ELTn8GDi3e8Gt8Nim0A4LB4H3ROBbb/cM4MBbOG36o5XjUHaHiFzs5MgRCZZ6rg==
+X-Received: by 2002:a0c:aed0:: with SMTP id n16mr45416945qvd.101.1561125944467;
+        Fri, 21 Jun 2019 07:05:44 -0700 (PDT)
+X-Received: by 2002:a0c:aed0:: with SMTP id n16mr45416888qvd.101.1561125943818;
+        Fri, 21 Jun 2019 07:05:43 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561125943; cv=none;
         d=google.com; s=arc-20160816;
-        b=lHW4tlMvVVb3Ix61h+2MP0aNPQrm1PTNXA5c17fh+kW/Lc3vLMYbcd/2WHgNPv1T7l
-         oP4Zh2mzPto2IxPdxwFhkCd6N0/1B0XRM8o1VYkFoo2xgPKk3xKmpXm8Biya3ooxcSMt
-         I67Cjv7UcJy3XpdNjTECim+vYY3wIltEY6AYQYWkC5tiuRAqISocqegSxo5b4GCWV8R1
-         7uI380j4yEEWOMSeqdF7z2geKvMS3aeAFEwKTP62u8TkM4APhawmVRVRAe+qqb+D1UE/
-         KiHrsNThcOY2N15GbY0ZM9H69qamtLODO2q7DswcRglVUrXmZVN0CaKirZIppGm6Gr5D
-         C3oQ==
+        b=N6rpMeMUA4w9c6gKZBtmq/Kpct9OmJto0Mvaxc5pg15j/txfYveEeXgwlnstmUcSrn
+         WUrWuikyRKzn1EuC66XRaJEgh7n4F0LQdUv3SvuE7WW6YiYajXF73w9Fo0EZQ032APmq
+         8/lNiWwIbfpwMX9rgf1852FnR+uVM4Q3RiPouy0nwNj0GPVn/HkI7ocgSIyXysErvEk0
+         t2l0hbnhFNJbdB9LIJJP0+O3+stD3tnK5TC0uBDRNxS+EI9x3D8vOfarCRjR/6EgFoqT
+         YvMT394E8q3D9DhJvxQ5wXKTFTos4L63Jyx7CAOLk05/tst8EKoQrppWDE3CZo68BMSA
+         sx0g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=TcjMNicHImtNIaiJOvceLYYKAU95NVrH9ZXITGFpy/Q=;
-        b=GdtQsKRxRUFk3eahBTXY8ZB+Tp6l/LiKHA0zzcI++CiqVnWD1VTpxVt8GfxhENNV9G
-         rvQCCavkLble1KOaCJl2Yl8Tc+BsR7hpN0d4+WR+F+n1jfMthhM5ODRkI0BBYUOG4Zeh
-         I8eZd0RFGXDsU60TtwMH96EvxgBwyWTGxZzl1gGPYxm77R/UAZQCVHT9ziZlB/VdZfgh
-         IHYHzKgFXdD0hUrNLV9oeIwoHWKtAz/QiJ6jEIT6h7NM538t3nFrVMV1hYRo7w2QApuK
-         hU+YjnBPHmF3KepZ3+AHcWRuFt/sOLuYPzV5vSnhc76NUDXLcu9+sLul/NfQiHeHnXBS
-         D2nw==
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=DkOzjPryuxAAZ6jj5aW+vqBCJ/xdXKjWwEy6q7BhjEk=;
+        b=iZ1jREswpk2yEfCXM6GfXhfhY2OsTAHvhq0cPbTJ4W1X+6aAZB6t6Nu9c8Jgwk4aLD
+         uxNMBWEppfy1Orvw7/AZM+AQRfnhPbhcScPmNNN7sAGMP12/E+KrqTq+C9xELtDyHbVR
+         to7EDaCamQeCjxsYcNzN6W8QNVc9shFc/OuLz3SHQZ/tmV65wadadh77WegIlGwSej7j
+         vzcN/80g7/ibqtbQuOPF13zA7Q8syNe+nFM57tgY8IiRUVA79dWrDpP7XbwIGf8STbvh
+         N18+4wgUm8MX6VXUKXYUJRlLWUVU3wWiKfxSUzdy1g1CKJo8Adf5WKzgCVetdETLKXAm
+         bbRA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i20si1824298ejv.210.2019.06.21.06.55.09
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=aWygfjPx;
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id t58sor2461348qvt.61.2019.06.21.07.05.43
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 21 Jun 2019 06:55:09 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (Google Transport Security);
+        Fri, 21 Jun 2019 07:05:43 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 06E6FACE1;
-	Fri, 21 Jun 2019 13:55:08 +0000 (UTC)
-Date: Fri, 21 Jun 2019 15:55:07 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Qian Cai <cai@lca.pw>
-Cc: akpm@linux-foundation.org, brho@google.com, kernelfans@gmail.com,
-	dave.hansen@intel.com, rppt@linux.ibm.com, peterz@infradead.org,
-	mpe@ellerman.id.au, mingo@elte.hu, osalvador@suse.de,
-	luto@kernel.org, tglx@linutronix.de, linux-mm@kvack.org,
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=aWygfjPx;
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=ziepe.ca; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=DkOzjPryuxAAZ6jj5aW+vqBCJ/xdXKjWwEy6q7BhjEk=;
+        b=aWygfjPxOlEI1tnMPH+ZEg4lwdm35MlZ9FC2Sv9mNYz1TXYg7zMy65oynguhqHPLHD
+         5poTOWoehn2uMjooUllCl96WCJBItvfeaEybY0ihx7Fxw7kb42coN1wbRqEsylbfnfz5
+         poQ9cLzRruP/gaTS5r2ivimvPxFxF10jIh6a1t8bY1c5/8nfCSLTPHFwmVvqBcrvoeSR
+         IrRjd3ExmNKIoqdYb4sME5daBw+7RTgROqdSMT/mhe4d+vGey9AkE/rEcyeRljT6dNfy
+         FwbLskfpDrkSyt1xncxh/ARyaZyhUUMnPNBaOl1L9cqI8FBxyq6cZOpH+4o3AamW6xDj
+         GPoA==
+X-Google-Smtp-Source: APXvYqzN1Bctip/8rcU9u7A4vdGN+f0/Jibs65Z8bT+DlW7GOUgigVYUV0gNRYHBistcmEEvwVki5g==
+X-Received: by 2002:a0c:d610:: with SMTP id c16mr45427150qvj.22.1561125943463;
+        Fri, 21 Jun 2019 07:05:43 -0700 (PDT)
+Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
+        by smtp.gmail.com with ESMTPSA id i17sm1269594qkl.71.2019.06.21.07.05.42
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 21 Jun 2019 07:05:42 -0700 (PDT)
+Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
+	(envelope-from <jgg@ziepe.ca>)
+	id 1heKAg-0000Jr-7W; Fri, 21 Jun 2019 11:05:42 -0300
+Date: Fri, 21 Jun 2019 11:05:42 -0300
+From: Jason Gunthorpe <jgg@ziepe.ca>
+To: Christoph Hellwig <hch@lst.de>, Kamal Dasu <kdasu.kdev@gmail.com>,
+	Ralf Baechle <ralf@linux-mips.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>,
+	Paul Burton <paul.burton@mips.com>, James Hogan <jhogan@kernel.org>,
+	Yoshinori Sato <ysato@users.sourceforge.jp>,
+	Rich Felker <dalias@libc.org>,
+	"David S. Miller" <davem@davemloft.net>,
+	Nicholas Piggin <npiggin@gmail.com>,
+	Khalid Aziz <khalid.aziz@oracle.com>,
+	Andrey Konovalov <andreyknvl@google.com>,
+	Benjamin Herrenschmidt <benh@kernel.crashing.org>,
+	Paul Mackerras <paulus@samba.org>,
+	Michael Ellerman <mpe@ellerman.id.au>, linux-mips@vger.kernel.org,
+	linux-sh@vger.kernel.org, sparclinux@vger.kernel.org,
+	linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, x86@kernel.org,
 	linux-kernel@vger.kernel.org
-Subject: Re: [PATCH -next v2] mm/hotplug: fix a null-ptr-deref during NUMA
- boot
-Message-ID: <20190621135507.GE3429@dhcp22.suse.cz>
-References: <20190512054829.11899-1-cai@lca.pw>
- <20190513124112.GH24036@dhcp22.suse.cz>
- <1561123078.5154.41.camel@lca.pw>
+Subject: Re: [PATCH 04/16] MIPS: use the generic get_user_pages_fast code
+Message-ID: <20190621140542.GO19891@ziepe.ca>
+References: <20190611144102.8848-1-hch@lst.de>
+ <20190611144102.8848-5-hch@lst.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1561123078.5154.41.camel@lca.pw>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190611144102.8848-5-hch@lst.de>
+User-Agent: Mutt/1.9.4 (2018-02-28)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri 21-06-19 09:17:58, Qian Cai wrote:
-> Sigh...
-> 
-> I don't see any benefit to keep the broken commit,
-> 
-> "x86, numa: always initialize all possible nodes"
-> 
-> for so long in linux-next that just prevent x86 NUMA machines with any memory-
-> less node from booting.
-> 
-> Andrew, maybe it is time to drop this patch until Michal found some time to fix
-> it properly.
+On Tue, Jun 11, 2019 at 04:40:50PM +0200, Christoph Hellwig wrote:
+> diff --git a/arch/mips/include/asm/pgtable.h b/arch/mips/include/asm/pgtable.h
+> index 4ccb465ef3f2..7d27194e3b45 100644
+> +++ b/arch/mips/include/asm/pgtable.h
+> @@ -20,6 +20,7 @@
+>  #include <asm/cmpxchg.h>
+>  #include <asm/io.h>
+>  #include <asm/pgtable-bits.h>
+> +#include <asm/cpu-features.h>
+>  
+>  struct mm_struct;
+>  struct vm_area_struct;
+> @@ -626,6 +627,8 @@ static inline pmd_t pmdp_huge_get_and_clear(struct mm_struct *mm,
+>  
+>  #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+>  
+> +#define gup_fast_permitted(start, end)	(!cpu_has_dc_aliases)
+> +
 
-Yes, please drop the patch for now, Andrew. I thought I could get to
-this but time is just scarce.
--- 
-Michal Hocko
-SUSE Labs
+Today this check is only being done on the get_user_pages_fast() -
+after this patch it is also done for __get_user_pages_fast().
+
+Which means __get_user_pages_fast is now non-functional on a range of
+MIPS CPUs, but that seems OK as far as I can tell, so:
+
+Reviewed-by: Jason Gunthorpe <jgg@mellanox.com>
+
+However, looks to me like this patch is also a bug fix for this:
+
+commit 5b167c123b3c3582f62cf1896465019bc40fe526
+Author: Kamal Dasu <kdasu.kdev@gmail.com>
+Date:   Fri Jun 14 17:10:03 2013 +0000
+
+    MIPS: Fix get_user_page_fast() for mips with cache alias
+    
+    get_user_pages_fast() is missing cache flushes for MIPS platforms with
+    cache aliases.  Filesystem failures observed with DirectIO operations due
+    to missing flush_anon_page() that use page coloring logic to work with
+    cache aliases. This fix falls through to take slow_irqon path that calls
+    get_user_pages() that has required logic for platforms where
+    cpu_has_dc_aliases is true.
+
+> -	pgdp = pgd_offset(mm, addr);
+> -	do {
+> -		pgd_t pgd = *pgdp;
+> -
+> -		next = pgd_addr_end(addr, end);
+> -		if (pgd_none(pgd))
+> -			goto slow;
+> -		if (!gup_pud_range(pgd, addr, next, gup_flags & FOLL_WRITE,
+> -				   pages, &nr))
+
+This is different too, the core code has a p4d layer, but I see that
+whole thing gets NOP'd by the compiler as mips uses pgtable-nop4d.h -
+right?
+
+Jason
 
