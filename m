@@ -1,260 +1,190 @@
-Return-Path: <SRS0=pbvW=UU=kvack.org=owner-linux-mm@kernel.org>
+Return-Path: <SRS0=rpDk=UV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.9 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 904A8C48BE0
-	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 23:58:01 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5CD0CC43613
+	for <linux-mm@archiver.kernel.org>; Sat, 22 Jun 2019 00:01:19 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 44B3D20881
-	for <linux-mm@archiver.kernel.org>; Fri, 21 Jun 2019 23:58:01 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 0D62220821
+	for <linux-mm@archiver.kernel.org>; Sat, 22 Jun 2019 00:01:19 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="j4pMav0S"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 44B3D20881
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="RhJzdLbw"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0D62220821
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DEE8F8E000A; Fri, 21 Jun 2019 19:58:00 -0400 (EDT)
+	id B064D8E0002; Fri, 21 Jun 2019 20:01:18 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D780B8E0001; Fri, 21 Jun 2019 19:58:00 -0400 (EDT)
+	id AB7C68E0001; Fri, 21 Jun 2019 20:01:18 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C18A48E000A; Fri, 21 Jun 2019 19:58:00 -0400 (EDT)
+	id 9A4B28E0002; Fri, 21 Jun 2019 20:01:18 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f72.google.com (mail-yw1-f72.google.com [209.85.161.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 9E7658E0001
-	for <linux-mm@kvack.org>; Fri, 21 Jun 2019 19:58:00 -0400 (EDT)
-Received: by mail-yw1-f72.google.com with SMTP id w127so8028805ywe.6
-        for <linux-mm@kvack.org>; Fri, 21 Jun 2019 16:58:00 -0700 (PDT)
+Received: from mail-yb1-f198.google.com (mail-yb1-f198.google.com [209.85.219.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 758588E0001
+	for <linux-mm@kvack.org>; Fri, 21 Jun 2019 20:01:18 -0400 (EDT)
+Received: by mail-yb1-f198.google.com with SMTP id l1so5454599ybj.18
+        for <linux-mm@kvack.org>; Fri, 21 Jun 2019 17:01:18 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:from:to:cc:date
-         :message-id:in-reply-to:references:user-agent:mime-version
-         :content-transfer-encoding;
-        bh=rwZuzZLu2QSuxM1deZeCZnnfsOeZtWtWWa3iVLz4Y0o=;
-        b=UBxPV/TPDjajH2rhDxXOBx5pfkSAJUjizHcIfVVSEUJfocq0GPx5tS4iJPr3MO0lg3
-         KViVQVd7sQgfGbjBtTItc+gOl952vwetTVxSCTrcpAPTadUCBmlEpvtYwOiNnJwn4OdI
-         SMWX+rX3II2V8b1nIT2QWmi093DeJJrpjFH2pftKiezvR60A1IKQmOunATh882ksZrz8
-         gzLZc7rUS6NLLMA08GpRTOZaM+/rCMFvTPTtvNu8WQW4mlMlGDIgYKJaO+cHu3i0ANJh
-         d33a25/tEjdBS8E+uxdfVZsT6+SP20ylxly2megWryrlzxgQkpyjqrohUSlDeFUBsmnh
-         +YCw==
-X-Gm-Message-State: APjAAAVlrxUt44TRSP/9UKUpVhHmjCsVg+19pR0Q4o3F8PShiBmdg28B
-	erFYT3EFUmb6lnY40mZVF+NIEfVu5aIkxqqOa1IUYYICgSat0YyfGZp8wKud74LE78dRMz7NcqO
-	vJmmG76Pkr2PN+H+EcMWGZD1WuJnrutTGg7rqeUbvQBb5XtSL3lILCJF33cphbmOFsQ==
-X-Received: by 2002:a25:e405:: with SMTP id b5mr7436691ybh.330.1561161480392;
-        Fri, 21 Jun 2019 16:58:00 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzHi0EAHtyvlY5LBWepYCtcbb4RFUgN7Ma0GYibx5lePSb1pnDFnALLZnTehu5eDEEzeBZ5
-X-Received: by 2002:a25:e405:: with SMTP id b5mr7436673ybh.330.1561161479765;
-        Fri, 21 Jun 2019 16:57:59 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561161479; cv=none;
+        h=x-gm-message-state:dkim-signature:smtp-origin-hostprefix:from
+         :smtp-origin-hostname:to:cc:smtp-origin-cluster:subject:date
+         :message-id:mime-version;
+        bh=bBRE1O8+pjz3c8Ua3BJkmiLOIIW1HMGbjn13HDJ4cYs=;
+        b=hm3Wmtu4Hk4B20jsJxqjfBvz0WWOYjKOnyh9RlkRdgu50t09fZAjilaSkPLyGeNZMN
+         pq3zu+3WJj6lRq8087c86JQeun7ZoLGRW1bC1JcZG9iuYzOHUKjK+Djaglq9YmuYiWM+
+         j/STHQO0Lvqfcc91u07MvlGUYCTu/Tv1TTceeqc2vTokvN9/3cllcazJ8ZjksS3gpMUP
+         on6S5u5OLO1M7oNIuGszNGSl04nAYw+WPujl/HqJ92B/hdpTMlCqRG/FrNBgOt4rR9TN
+         yOa0MbqftnTwcrsNmEG2IhJLME23wAsic40RS04iDsufl/wFnvMcBki3nG9H7PdBF/cR
+         3M9Q==
+X-Gm-Message-State: APjAAAVxEIyUoRgsQKOAjXQEkOf0pe2nCgNYo1y+0VVc2Q9KxeuHUD2l
+	NVIHXat4x24cebR640p9CYALjR5Q9DjnMVfMRTxrVz1CFPhmYrs+WP4wmq2wEB1lYXBhL04AU+9
+	Qi4mZwSoDC2ASTGPauWDPH56k0MUJ7+6OFWIAAnQUth0HQzOzivJfJbsP+udHUeINFg==
+X-Received: by 2002:a0d:ddca:: with SMTP id g193mr11842607ywe.476.1561161678246;
+        Fri, 21 Jun 2019 17:01:18 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqx7/g1dAwVD7CyE8/YLi99ja1wVGlGsWvCLVdSMWtVG3CLmPCADYMenm6I85eyLwgO4pAbr
+X-Received: by 2002:a0d:ddca:: with SMTP id g193mr11842560ywe.476.1561161677512;
+        Fri, 21 Jun 2019 17:01:17 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561161677; cv=none;
         d=google.com; s=arc-20160816;
-        b=bp68dM6HIbQ5GMrtG6dx72dQbQ4csOXX8IYL8wHmtEUWGQVkTR3StpU3B+8FjScKJ+
-         jaf56Dw/zvvsRn4SH2+XaS3LQRAh1S6tVctoGA43yRZANYBnts91UMEFpcNyBqL/Jhjy
-         LJdSO0Ava52hhC9VF2MxH5H/dRUkJ+4YYfvdIVvS0AoExFo2ye4Gep1xmIbLZaGmIev/
-         OWYh92uLn+0nFwjP+veCvFm+OqwcS0p1mT2Z4w06KuY8VVHbybhh9K9AL6ee4J8DeG3F
-         9RRg4qw2WqvqtjPMZWor/t1LDwfgnsNAyHCJ2DXaD3dsrOJ5+65BjgMwUGEytxnq5FRY
-         JOgA==
+        b=KKCKoB3SxYei5xt72Yo2m0VLA9Ht023gOAxDuGAOzF+2aPetResEXndajYlhcU2rlU
+         Ai6VN74HqBMRtCtH4iRs5n259lh6cexDBVydZbLXZs9uS8ipEQ5uMM/qXfuo9SuNhnF+
+         PSDjmebUpJuTgc4bVAfXFbKz8jGQsu433DC4sx3wqW3wMoPRpe2WUsS3LKFh3VHWE3dO
+         N+EKmdq3ly6KnBhvageLrXngUF4OJFc+JBKk3aKOZDUpBsDWxUPzH/5Zh5aV3Oach9bS
+         t9HXMOB6O1giDOb+WRYRU/SdgKhsbfOXbg4GaZ5UQpCNd/w3OM0XGj9NV8d/m2eYAWKQ
+         0lyg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:user-agent:references
-         :in-reply-to:message-id:date:cc:to:from:subject:dkim-signature;
-        bh=rwZuzZLu2QSuxM1deZeCZnnfsOeZtWtWWa3iVLz4Y0o=;
-        b=Pz9juVQ5NsGjXwjfydENFUAOXkzp2EwI0BOVXiScJNR6dgQgYaPhx6btQi27i+3bF2
-         PMg2LbDHiLXXniCEYrda3vnFmImB3qz9OLTmmxa7wpZHMS2hNN/UA0PsW3jixcaRzjZG
-         D4lzIUaG03VTcpH6YFl0cYpmbYZBsFKxM6tOWmMLzTusH9UYYc7cewC/mXdLpRZ3e6Fy
-         91DZxVcX/IR1b8XfXuJhJwVog5LDKBM+j7hJvePfQqjRYhkEpyNpUnGXYFvKBaJ8wac/
-         fapA3/vNTBHiP+ze7guQYEi0whg2GDrPQmvPRSrX33lsKpPyV1OI3oDOy3cEgniNIdO+
-         UwWw==
+        h=mime-version:message-id:date:subject:smtp-origin-cluster:cc:to
+         :smtp-origin-hostname:from:smtp-origin-hostprefix:dkim-signature;
+        bh=bBRE1O8+pjz3c8Ua3BJkmiLOIIW1HMGbjn13HDJ4cYs=;
+        b=cn4baxKcloJ0R+oUP0CWdOTJCtJUPkCP8aH9kNTxdxn2cniuUnyHiNKWNyfyI1VRAz
+         mwjhleQ9bbuONItGqjPN5nuuiVFaCHBg1I86QS1Qoihz4N1YJ3t/h7Bkk6o8fzpntWLZ
+         obtUDMu8j9bNSZdLTJCfhhgmLpoFsVM24VhbXBVCcQb6D3iBk2T6N+kzLMIsv+jQW4WZ
+         +q1UGUwkmpQWZ2CtuiuiWOwGOSmB5pqNkp3sGRl6aOH+iEdqMk2sWEDFGGWg4Jo52On5
+         3MbxkNl3N2FXLDt9agqvWLPnxO38qzLyCg/bKj+F6ZgXvZMQ9OUpA6M1opAM1nCkKmuy
+         gGmw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=j4pMav0S;
-       spf=pass (google.com: domain of darrick.wong@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=darrick.wong@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id 9si1562616ybq.246.2019.06.21.16.57.59
+       dkim=pass header.i=@fb.com header.s=facebook header.b=RhJzdLbw;
+       spf=pass (google.com: domain of prvs=1076a8f7d5=songliubraving@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=1076a8f7d5=songliubraving@fb.com";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
+Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id s83si1723368ywb.130.2019.06.21.17.01.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 21 Jun 2019 16:57:59 -0700 (PDT)
-Received-SPF: pass (google.com: domain of darrick.wong@oracle.com designates 156.151.31.86 as permitted sender) client-ip=156.151.31.86;
+        Fri, 21 Jun 2019 17:01:17 -0700 (PDT)
+Received-SPF: pass (google.com: domain of prvs=1076a8f7d5=songliubraving@fb.com designates 67.231.153.30 as permitted sender) client-ip=67.231.153.30;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=j4pMav0S;
-       spf=pass (google.com: domain of darrick.wong@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=darrick.wong@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
-	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x5LNt22Y052769;
-	Fri, 21 Jun 2019 23:57:53 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : from : to :
- cc : date : message-id : in-reply-to : references : mime-version :
- content-type : content-transfer-encoding; s=corp-2018-07-02;
- bh=rwZuzZLu2QSuxM1deZeCZnnfsOeZtWtWWa3iVLz4Y0o=;
- b=j4pMav0SW7e9IFJcTpCLcn4neiQwevtJo2J+lHllOH0GrPdCMsB8iQfSOQ1NgxlBqbVT
- OICMIQi3C2UlR7VmtDc28J0RWQyGpW/svba+WkpNuDwnYYbtGkzIR9onweaaZ42Hjd4v
- 7+6DtESjx18TSxlVMjfOZTOLmVoXhIFnHLJx/ZuAg0EjP7ntcN5y53Ydpo+wlR3McVro
- P/X2vkBxkiaF5hh8rtBC9Y3IHL9TJQU9hmFMqtuN/6D9K20cct8ZF1rNphEDE4665jhl
- j72tS2nlAV7F8v5YLxysiYVfhqU1R1I/qPp3EaMXTsfzZ3rfbLk0QJO1ozCXzn3jkiUu FA== 
-Received: from userp3020.oracle.com (userp3020.oracle.com [156.151.31.79])
-	by userp2130.oracle.com with ESMTP id 2t7809rsyd-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Fri, 21 Jun 2019 23:57:53 +0000
-Received: from pps.filterd (userp3020.oracle.com [127.0.0.1])
-	by userp3020.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x5LNvFfg108897;
-	Fri, 21 Jun 2019 23:57:52 GMT
-Received: from pps.reinject (localhost [127.0.0.1])
-	by userp3020.oracle.com with ESMTP id 2t77ypetb6-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=FAIL);
-	Fri, 21 Jun 2019 23:57:52 +0000
-Received: from userp3020.oracle.com (userp3020.oracle.com [127.0.0.1])
-	by pps.reinject (8.16.0.27/8.16.0.27) with SMTP id x5LNvq84109606;
-	Fri, 21 Jun 2019 23:57:52 GMT
-Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
-	by userp3020.oracle.com with ESMTP id 2t77ypetb3-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Fri, 21 Jun 2019 23:57:52 +0000
-Received: from abhmp0015.oracle.com (abhmp0015.oracle.com [141.146.116.21])
-	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x5LNvocq020839;
-	Fri, 21 Jun 2019 23:57:50 GMT
-Received: from localhost (/10.159.131.214)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Fri, 21 Jun 2019 16:57:49 -0700
-Subject: [PATCH 7/7] vfs: don't allow writes to swap files
-From: "Darrick J. Wong" <darrick.wong@oracle.com>
-To: matthew.garrett@nebula.com, yuchao0@huawei.com, tytso@mit.edu,
-        darrick.wong@oracle.com, ard.biesheuvel@linaro.org,
-        josef@toxicpanda.com, clm@fb.com, adilger.kernel@dilger.ca,
-        viro@zeniv.linux.org.uk, jack@suse.com, dsterba@suse.com,
-        jaegeuk@kernel.org, jk@ozlabs.org
-Cc: reiserfs-devel@vger.kernel.org, linux-efi@vger.kernel.org,
-        devel@lists.orangefs.org, linux-kernel@vger.kernel.org,
-        linux-f2fs-devel@lists.sourceforge.net, linux-xfs@vger.kernel.org,
-        linux-mm@kvack.org, linux-nilfs@vger.kernel.org,
-        linux-mtd@lists.infradead.org, ocfs2-devel@oss.oracle.com,
-        linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org,
-        linux-btrfs@vger.kernel.org
-Date: Fri, 21 Jun 2019 16:57:46 -0700
-Message-ID: <156116146628.1664939.13724544486987830540.stgit@magnolia>
-In-Reply-To: <156116141046.1664939.11424021489724835645.stgit@magnolia>
-References: <156116141046.1664939.11424021489724835645.stgit@magnolia>
-User-Agent: StGit/0.17.1-dirty
+       dkim=pass header.i=@fb.com header.s=facebook header.b=RhJzdLbw;
+       spf=pass (google.com: domain of prvs=1076a8f7d5=songliubraving@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=1076a8f7d5=songliubraving@fb.com";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
+Received: from pps.filterd (m0109331.ppops.net [127.0.0.1])
+	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x5LNqmRA020809
+	for <linux-mm@kvack.org>; Fri, 21 Jun 2019 17:01:17 -0700
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
+ : date : message-id : mime-version : content-type; s=facebook;
+ bh=bBRE1O8+pjz3c8Ua3BJkmiLOIIW1HMGbjn13HDJ4cYs=;
+ b=RhJzdLbwaxGsy2NmLUQezl1a3vhBHT8k+xp0aNcrs61uq9CRNSWtotehWDzKrdNaJqWO
+ JrN3qf5pNnb+NW69plClLsKP4rhB21hYZlA0h91+yJQdpZhHs/TPeUfeqHyNHSMquy0F
+ XH5tEF4Njv42kOAEOJVZldinRlTIONJe6Sw= 
+Received: from maileast.thefacebook.com ([163.114.130.16])
+	by mx0a-00082601.pphosted.com with ESMTP id 2t8uemtyvn-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 21 Jun 2019 17:01:17 -0700
+Received: from mx-out.facebook.com (2620:10d:c0a8:1b::d) by
+ mail.thefacebook.com (2620:10d:c0a8:82::c) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) id
+ 15.1.1713.5; Fri, 21 Jun 2019 17:01:16 -0700
+Received: by devbig006.ftw2.facebook.com (Postfix, from userid 4523)
+	id 1A23B62E2D56; Fri, 21 Jun 2019 17:01:15 -0700 (PDT)
+Smtp-Origin-Hostprefix: devbig
+From: Song Liu <songliubraving@fb.com>
+Smtp-Origin-Hostname: devbig006.ftw2.facebook.com
+To: <linux-kernel@vger.kernel.org>, <linux-mm@kvack.org>
+CC: <matthew.wilcox@oracle.com>, <kirill.shutemov@linux.intel.com>,
+        <peterz@infradead.org>, <oleg@redhat.com>, <rostedt@goodmis.org>,
+        <kernel-team@fb.com>, <william.kucharski@oracle.com>,
+        Song Liu
+	<songliubraving@fb.com>
+Smtp-Origin-Cluster: ftw2c04
+Subject: [PATCH v5 0/5] THP aware uprobe
+Date: Fri, 21 Jun 2019 17:01:04 -0700
+Message-ID: <20190622000109.914695-1-songliubraving@fb.com>
+X-Mailer: git-send-email 2.17.1
+X-FB-Internal: Safe
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9295 signatures=668687
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=969 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1906210182
+Content-Type: text/plain
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-06-21_16:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=fb_default_notspam policy=fb_default score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1906210182
+X-FB-Internal: deliver
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Darrick J. Wong <darrick.wong@oracle.com>
+This set makes uprobe aware of THPs.
 
-Don't let userspace write to an active swap file because the kernel
-effectively has a long term lease on the storage and things could get
-seriously corrupted if we let this happen.
+Currently, when uprobe is attached to text on THP, the page is split by
+FOLL_SPLIT. As a result, uprobe eliminates the performance benefit of THP.
 
-Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
----
- fs/attr.c     |    3 +++
- mm/filemap.c  |    3 +++
- mm/memory.c   |    4 +++-
- mm/mmap.c     |    2 ++
- mm/swapfile.c |   15 +++++++++++++--
- 5 files changed, 24 insertions(+), 3 deletions(-)
+This set makes uprobe THP-aware. Instead of FOLL_SPLIT, we introduces
+FOLL_SPLIT_PMD, which only split PMD for uprobe. After all uprobes within
+the THP are removed, the PTEs are regrouped into huge PMD.
 
+Note that, with uprobes attached, the process runs with PTEs for the huge
+page. The performance benefit of THP is recovered _after_ all uprobes on
+the huge page are detached.
 
-diff --git a/fs/attr.c b/fs/attr.c
-index 1fcfdcc5b367..42f4d4fb0631 100644
---- a/fs/attr.c
-+++ b/fs/attr.c
-@@ -236,6 +236,9 @@ int notify_change(struct dentry * dentry, struct iattr * attr, struct inode **de
- 	if (IS_IMMUTABLE(inode))
- 		return -EPERM;
- 
-+	if (IS_SWAPFILE(inode))
-+		return -ETXTBSY;
-+
- 	if ((ia_valid & (ATTR_MODE | ATTR_UID | ATTR_GID | ATTR_TIMES_SET)) &&
- 	    IS_APPEND(inode))
- 		return -EPERM;
-diff --git a/mm/filemap.c b/mm/filemap.c
-index dad85e10f5f8..fd80bc20e30a 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -2938,6 +2938,9 @@ inline ssize_t generic_write_checks(struct kiocb *iocb, struct iov_iter *from)
- 	if (IS_IMMUTABLE(inode))
- 		return -EPERM;
- 
-+	if (IS_SWAPFILE(inode))
-+		return -ETXTBSY;
-+
- 	if (!iov_iter_count(from))
- 		return 0;
- 
-diff --git a/mm/memory.c b/mm/memory.c
-index 4311cfdade90..c04c6a689995 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -2235,7 +2235,9 @@ static vm_fault_t do_page_mkwrite(struct vm_fault *vmf)
- 
- 	vmf->flags = FAULT_FLAG_WRITE|FAULT_FLAG_MKWRITE;
- 
--	if (vmf->vma->vm_file && IS_IMMUTABLE(file_inode(vmf->vma->vm_file)))
-+	if (vmf->vma->vm_file &&
-+	    (IS_IMMUTABLE(file_inode(vmf->vma->vm_file)) ||
-+	     IS_SWAPFILE(file_inode(vmf->vma->vm_file))))
- 		return VM_FAULT_SIGBUS;
- 
- 	ret = vmf->vma->vm_ops->page_mkwrite(vmf);
-diff --git a/mm/mmap.c b/mm/mmap.c
-index ac1e32205237..031807339869 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -1488,6 +1488,8 @@ unsigned long do_mmap(struct file *file, unsigned long addr,
- 					return -EACCES;
- 				if (IS_IMMUTABLE(file_inode(file)))
- 					return -EPERM;
-+				if (IS_SWAPFILE(file_inode(file)))
-+					return -ETXTBSY;
- 			}
- 
- 			/*
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 596ac98051c5..390859785558 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -3165,6 +3165,19 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
- 	if (error)
- 		goto bad_swap;
- 
-+	/*
-+	 * Flush any pending IO and dirty mappings before we start using this
-+	 * swap file.
-+	 */
-+	if (S_ISREG(inode->i_mode)) {
-+		inode->i_flags |= S_SWAPFILE;
-+		error = inode_flush_data(inode);
-+		if (error) {
-+			inode->i_flags &= ~S_SWAPFILE;
-+			goto bad_swap;
-+		}
-+	}
-+
- 	mutex_lock(&swapon_mutex);
- 	prio = -1;
- 	if (swap_flags & SWAP_FLAG_PREFER)
-@@ -3185,8 +3198,6 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
- 	atomic_inc(&proc_poll_event);
- 	wake_up_interruptible(&proc_poll_wait);
- 
--	if (S_ISREG(inode->i_mode))
--		inode->i_flags |= S_SWAPFILE;
- 	error = 0;
- 	goto out;
- bad_swap:
+This set (plus a few THP patches) is also available at
+
+   https://github.com/liu-song-6/linux/tree/uprobe-thp
+
+Changes v4 => v5:
+1. Propagate pte_alloc() error out of follow_pmd_mask().
+
+Changes since v3:
+1. Simplify FOLL_SPLIT_PMD case in follow_pmd_mask(), (Kirill A. Shutemov)
+2. Fix try_collapse_huge_pmd() to match change in follow_pmd_mask().
+
+Changes since v2:
+1. For FOLL_SPLIT_PMD, populated the page table in follow_pmd_mask().
+2. Simplify logic in uprobe_write_opcode. (Oleg Nesterov)
+3. Fix page refcount handling with FOLL_SPLIT_PMD.
+4. Much more testing, together with THP on ext4 and btrfs (sending in
+   separate set).
+5. Rebased.
+
+Changes since v1:
+1. introduces FOLL_SPLIT_PMD, instead of modifying split_huge_pmd*();
+2. reuse pages_identical() from ksm.c;
+3. rewrite most of try_collapse_huge_pmd().
+
+Song Liu (5):
+  mm: move memcmp_pages() and pages_identical()
+  uprobe: use original page when all uprobes are removed
+  mm, thp: introduce FOLL_SPLIT_PMD
+  uprobe: use FOLL_SPLIT_PMD instead of FOLL_SPLIT
+  uprobe: collapse THP pmd after removing all uprobes
+
+ include/linux/huge_mm.h |  7 +++++
+ include/linux/mm.h      |  8 +++++
+ kernel/events/uprobes.c | 54 +++++++++++++++++++++++++-------
+ mm/gup.c                |  8 +++--
+ mm/huge_memory.c        | 69 +++++++++++++++++++++++++++++++++++++++++
+ mm/ksm.c                | 18 -----------
+ mm/util.c               | 13 ++++++++
+ 7 files changed, 145 insertions(+), 32 deletions(-)
+
+--
+2.17.1
 
