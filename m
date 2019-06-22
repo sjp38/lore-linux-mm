@@ -2,303 +2,225 @@ Return-Path: <SRS0=rpDk=UV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	UNPARSEABLE_RELAY,USER_AGENT_GIT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-14.4 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_IN_DEF_DKIM_WL
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9BCCBC48BE0
-	for <linux-mm@archiver.kernel.org>; Sat, 22 Jun 2019 00:20:41 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B1B19C43613
+	for <linux-mm@archiver.kernel.org>; Sat, 22 Jun 2019 02:56:58 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 599AF20881
-	for <linux-mm@archiver.kernel.org>; Sat, 22 Jun 2019 00:20:41 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 599AF20881
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
+	by mail.kernel.org (Postfix) with ESMTP id 4A7672070B
+	for <linux-mm@archiver.kernel.org>; Sat, 22 Jun 2019 02:56:58 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="mYbRmL5/"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4A7672070B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B46608E0002; Fri, 21 Jun 2019 20:20:40 -0400 (EDT)
+	id 9E6796B0003; Fri, 21 Jun 2019 22:56:57 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AA9AE8E0001; Fri, 21 Jun 2019 20:20:40 -0400 (EDT)
+	id 998338E0002; Fri, 21 Jun 2019 22:56:57 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 971028E0002; Fri, 21 Jun 2019 20:20:40 -0400 (EDT)
+	id 885C98E0001; Fri, 21 Jun 2019 22:56:57 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 6AE348E0001
-	for <linux-mm@kvack.org>; Fri, 21 Jun 2019 20:20:40 -0400 (EDT)
-Received: by mail-ot1-f70.google.com with SMTP id a21so3656992otk.17
-        for <linux-mm@kvack.org>; Fri, 21 Jun 2019 17:20:40 -0700 (PDT)
+Received: from mail-yw1-f72.google.com (mail-yw1-f72.google.com [209.85.161.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 6A0F96B0003
+	for <linux-mm@kvack.org>; Fri, 21 Jun 2019 22:56:57 -0400 (EDT)
+Received: by mail-yw1-f72.google.com with SMTP id l62so8322592ywb.21
+        for <linux-mm@kvack.org>; Fri, 21 Jun 2019 19:56:57 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:in-reply-to:references;
-        bh=4pTkEB8vl5qzNC+ykNbveaQZgKc1hkYomiAyhBQcDEQ=;
-        b=Bk27ZeFRkulh4eewKyajPTLVeJ0wCxMRkiDVgJzbCTZ5ME3M0oXpn8sMgKpyc07eKD
-         29MMOsrh054v39ASlx6Gz19CTVUTkgMwLWOlZUPnk9O4N4Kc1OU4UnoliVlo5ZnjNjsv
-         J3Ece3X4mD9JvBMyGw9Tedirk8XhtFLiISn5b2y7AWGP2LPxo3lgveWPtGJk3mxrRE+w
-         vdEG6XKpwi1xH1SIh7DGP10RsP5F1x++NpU9zzhrgjQ0/xFbi6V2pDstFVeSlpSNpio1
-         MQgBYV8fSzfVQw3dpaXw5ZhwnxD+qZcFTmEyW5ziYRGWwU0GmI/V2uBVQd+nv/FKjMqX
-         w4Xw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.56 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Gm-Message-State: APjAAAWluWhMJtAhPmbpi+tzT7hOLzVXO3NZCWDmJIZQAnZbOV5c3dUf
-	WsVvqbZkdGhDerUIHFXo8mjyOyfhznvFQjhDw8Taf7S18Cksyf8lKtEJJhshw4W1K/Z+xFM8qwi
-	ay1k4jBJ8maN47YptXHneRuaPhpg1HsaQbqqScTLdWV4nO+KgO6owSgc0JIWlmP/XHQ==
-X-Received: by 2002:a9d:6746:: with SMTP id w6mr21010700otm.222.1561162840080;
-        Fri, 21 Jun 2019 17:20:40 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzDG9mxVipMW762PMH56lZZgxF/ZuqhLBhZdEJS6kQj1JK8B/KEl7tMUH2BtchWnqV264Fm
-X-Received: by 2002:a9d:6746:: with SMTP id w6mr21010655otm.222.1561162839013;
-        Fri, 21 Jun 2019 17:20:39 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561162839; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=/g9EiwqrPvEcGP2ni72jxssRku07PD+BBNFgfPzyheY=;
+        b=hE1Hs/34ddNeKGyvUE2kaIO4sI0Pn4E8XXIDZlsQnLDkurc1AG2W++gFKQV6uPJrQb
+         pbjsoGB8dJ/r2g0WNVGvyKKi4zv1uU5mNNCrrl+cIZImlfB+nxib3Y/JwAWlVOJx5IAP
+         bFr85YlONIck0gIXG9M2Sr1GAAkrEedswrqWC2FFUs6bxywSowzSSZgQqFWi32XJFpzQ
+         Zgochpefxc4Bq8zSeQwB+N9K0mObv15hEbxuNrkFSYR/X/tE8lnfhe9kMciTbDdLG2U6
+         PyBuPitud4GoFrA4aVA8Yi/FhZFJSBnfndFhQcrMIJlZ/SR/eQKZLgapP8GwaXqcY+Az
+         J5wA==
+X-Gm-Message-State: APjAAAU+FermtIjrLqIzskE+zOFeh1KdLQy1B8/4p68GzzMK0DGQULDk
+	neBFFSZGN0VBfgXY3UINciHhG1DLvd16gvqIM625vvWZvTml8C6WGA+uYXh6ug+8zLulqhXtelb
+	RJLw/ngvchVpVQJibYsAnMqppttcnGvGh5xTqbcj25xQ7O+UAGZc2xrJww0HaCx6zAg==
+X-Received: by 2002:a25:a08c:: with SMTP id y12mr70906411ybh.469.1561172217147;
+        Fri, 21 Jun 2019 19:56:57 -0700 (PDT)
+X-Received: by 2002:a25:a08c:: with SMTP id y12mr70906402ybh.469.1561172216300;
+        Fri, 21 Jun 2019 19:56:56 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561172216; cv=none;
         d=google.com; s=arc-20160816;
-        b=R27yiR13tTVpjLFCOEgyXOj15axUSTSdG7ga3B7AKdtStJt6i066VWB9DjVbr5/W6n
-         6TwutmxQUA1XdYcSKEfOxTkFn5RSo5nEHKH1Ilv6icXb2FG+VFm07K0omKN+u7TJzMxP
-         m6Rf5ZkTdBNVruvUhyxFwGpWeurKhYZn/cU45LsotkWXsamWKuDLgfsywkAAz+Iqul24
-         jzQT9MmHyvaaioWuwrzBUR/i0BgqNF19alFArCpeVyadEMI+JH14QjlXDxFuhUZpl3p6
-         7RCK9c8n3zTlx/UbGFrE8qXl5gqYUi51EZhg9+0wUlOyFyHM1qpJ0NnP9TCSWSDkLu/w
-         eF+w==
+        b=f66pWoksKRu7mJ7cw/c8ek9qIgPxB2NQQG/WJWU+V+nMMNVGe0VfrrsQfnRxmQF47Y
+         WhKJQ4Ex+10r5wYqFZtbztDPaaRfb123NOanKTUDXyzVyl0Q4BkYYfJcbkTcfTT2eXCt
+         Uc8X0E9kF2e6DgXCsusAoe3R25njexPK8/rf1uPoVm78eidKBrpGe+j4xOl2XwqvmZh/
+         YtHdkk+Cv8u1osO6AyTqS/k1GTYVBG9sCwt594bmODT2ukA/bynMJK6G3IUidBfzNjg7
+         5/gg8Ihxar/8huF6tGzWykzd+hXxf+zFpWHy0SabhEQlgPZWoD/I7ZXIQBT7qrRN7JXy
+         exIQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=4pTkEB8vl5qzNC+ykNbveaQZgKc1hkYomiAyhBQcDEQ=;
-        b=c1165WRe2ZRhzIRRlAMbUNnizWwB0r4CqlTjOpXljW4KTuhaP6YOyWp7i23uOQv5Xd
-         grEh4kX3bHFA9oKZtlIOOzAPqo4MaK9D+ra8mcS6RckFGv78osx9DPYAAj1xBhgL92+3
-         KL6HEUDzI5Dkbt3Pd+smd7mdqeYB5j+W/rcUVNu8EHPIXKnWgkzqMnZXtlSLZpdLOZKG
-         Bmm5jwQtL2AvtpP59LTSm97PM/3p4czMJQeNx3TABL4dSZF7cUcMB9uff/nIROaWua86
-         BUh9GV716S3Vt5ER8O3QLY0GR1nUHVeFSYiBa1aqoafw4gAbJHaXJKQj4bbLd1N+7lXs
-         i2oQ==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=/g9EiwqrPvEcGP2ni72jxssRku07PD+BBNFgfPzyheY=;
+        b=t6Bp0D8RDJZ/QEzcQeTiho/KPcKk8fbREL8EXDm2rLiuhrVew6Gju8Ufy02h9gQsZ4
+         fHI/oEwfKKWAJKQwYOD84Lqjgv6eF/EnXQGtLYx6etUHUCo+N3yvFt8CkUrigKdjYtbQ
+         KO9uCHlHNlNr4frAwolR9cKg3pgwImw73QoSb3RoRLs6Syc+hbbM0xCqY/rPitMGR5zK
+         n8ljSHWmyNRQiIA3zr2Glts0Hyn2lJo6sNDRnPVDJWbBkq/LL35+fmgTUGigJEQcUPPl
+         CwmDc8OWz97myWTPWeegXYPhGCI0M8W/Oe3H4xihb4r5Kh9dpoSi1uEuxkbw0N9g9eRm
+         x+OQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.56 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-Received: from out30-56.freemail.mail.aliyun.com (out30-56.freemail.mail.aliyun.com. [115.124.30.56])
-        by mx.google.com with ESMTPS id c15si2583534otr.289.2019.06.21.17.20.38
+       dkim=pass header.i=@google.com header.s=20161025 header.b="mYbRmL5/";
+       spf=pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shakeelb@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id o194sor2614763ywo.122.2019.06.21.19.56.56
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 21 Jun 2019 17:20:38 -0700 (PDT)
-Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.56 as permitted sender) client-ip=115.124.30.56;
+        (Google Transport Security);
+        Fri, 21 Jun 2019 19:56:56 -0700 (PDT)
+Received-SPF: pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.56 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R111e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e04423;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=7;SR=0;TI=SMTPD_---0TUrY3xA_1561162815;
-Received: from e19h19392.et15sqa.tbsite.net(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TUrY3xA_1561162815)
-          by smtp.aliyun-inc.com(127.0.0.1);
-          Sat, 22 Jun 2019 08:20:22 +0800
-From: Yang Shi <yang.shi@linux.alibaba.com>
-To: vbabka@suse.cz,
-	mhocko@kernel.org,
-	mgorman@techsingularity.net,
-	akpm@linux-foundation.org
-Cc: yang.shi@linux.alibaba.com,
-	linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
-Subject: [v2 PATCH 1/2] mm: mempolicy: make the behavior consistent when MPOL_MF_MOVE* and MPOL_MF_STRICT were specified
-Date: Sat, 22 Jun 2019 08:20:08 +0800
-Message-Id: <1561162809-59140-2-git-send-email-yang.shi@linux.alibaba.com>
-X-Mailer: git-send-email 1.8.3.1
-In-Reply-To: <1561162809-59140-1-git-send-email-yang.shi@linux.alibaba.com>
-References: <1561162809-59140-1-git-send-email-yang.shi@linux.alibaba.com>
+       dkim=pass header.i=@google.com header.s=20161025 header.b="mYbRmL5/";
+       spf=pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shakeelb@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=/g9EiwqrPvEcGP2ni72jxssRku07PD+BBNFgfPzyheY=;
+        b=mYbRmL5/P2mRzNOQSsSEJmGQWFcVIzmw0SVxH6/kO00xVRkQXvbGTzwNqSaOScTjWB
+         NHe6cCqxuiNoFoCBP+2+JLyNbzb644qpJWhOw5dt+Ans39QxbhA4zcRsBusIzJ+hAKYY
+         TfYxeV4uWgb7WwKWbr7iOeaRr3OL+RLTRvDA5oR5rHx6q+BH5Ydn/3NzL8zIkMA3Xb+Z
+         kCyfe+Pt4VRUpawyN+ajT7qbUup5s/4CkWFzXb3Y1GXcvKBKGeqZ85/BNlzgJmwrvAkH
+         4MAPxqyyRXjPUaM5bKehs6KgDYPv+ActooRkzqnEFYi+YsCj98tmxl7JeGUZyr2SrHF9
+         KICw==
+X-Google-Smtp-Source: APXvYqxFuhE0Kf5yAADli3a4wL8we59okF0BtHIRD++QuwlaOJlXqbkRZzRIR+nIVbqVOcPqNt3u2NLWkIRfajq57vw=
+X-Received: by 2002:a81:ae0e:: with SMTP id m14mr61725056ywh.308.1561172215649;
+ Fri, 21 Jun 2019 19:56:55 -0700 (PDT)
+MIME-Version: 1.0
+References: <20190621173005.31514-1-longman@redhat.com>
+In-Reply-To: <20190621173005.31514-1-longman@redhat.com>
+From: Shakeel Butt <shakeelb@google.com>
+Date: Fri, 21 Jun 2019 19:56:44 -0700
+Message-ID: <CALvZod51uMXsS+1DpyG+=1nC-6pYNc8C6yOwQUdiRLD0yrp4ZA@mail.gmail.com>
+Subject: Re: [PATCH-next] mm, memcg: Add ":deact" tag for reparented kmem
+ caches in memcg_slabinfo
+To: Waiman Long <longman@redhat.com>
+Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, 
+	David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, 
+	Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, 
+	LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@kernel.org>, 
+	Roman Gushchin <guro@fb.com>, Johannes Weiner <hannes@cmpxchg.org>, 
+	Vladimir Davydov <vdavydov.dev@gmail.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-When both MPOL_MF_MOVE* and MPOL_MF_STRICT was specified, mbind() should
-try best to migrate misplaced pages, if some of the pages could not be
-migrated, then return -EIO.
+On Fri, Jun 21, 2019 at 10:30 AM Waiman Long <longman@redhat.com> wrote:
+>
+> With Roman's kmem cache reparent patch, multiple kmem caches of the same
+> type can be seen attached to the same memcg id. All of them, except
+> maybe one, are reparent'ed kmem caches. It can be useful to tag those
+> reparented caches by adding a new slab flag "SLAB_DEACTIVATED" to those
+> kmem caches that will be reparent'ed if it cannot be destroyed completely.
+>
+> For the reparent'ed memcg kmem caches, the tag ":deact" will now be
+> shown in <debugfs>/memcg_slabinfo.
+>
+> Signed-off-by: Waiman Long <longman@redhat.com>
 
-There are three different sub-cases:
-1. vma is not migratable
-2. vma is migratable, but there are unmovable pages
-3. vma is migratable, pages are movable, but migrate_pages() fails
+Reviewed-by: Shakeel Butt <shakeelb@google.com>
 
-If #1 happens, kernel would just abort immediately, then return -EIO,
-after the commit a7f40cfe3b7ada57af9b62fd28430eeb4a7cfcb7 ("mm:
-mempolicy: make mbind() return -EIO when MPOL_MF_STRICT is specified").
-
-If #3 happens, kernel would set policy and migrate pages with best-effort,
-but won't rollback the migrated pages and reset the policy back.
-
-Before that commit, they behaves in the same way.  It'd better to keep
-their behavior consistent.  But, rolling back the migrated pages and
-resetting the policy back sounds not feasible, so just make #1 behave as
-same as #3.
-
-Userspace will know that not everything was successfully migrated (via
--EIO), and can take whatever steps it deems necessary - attempt rollback,
-determine which exact page(s) are violating the policy, etc.
-
-Make queue_pages_range() return 1 to indicate there are unmovable pages
-or vma is not migratable.
-
-The #2 is not handled correctly in the current kernel, the following
-patch will fix it.
-
-Cc: Vlastimil Babka <vbabka@suse.cz>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Mel Gorman <mgorman@techsingularity.net>
-Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
----
- mm/mempolicy.c | 86 +++++++++++++++++++++++++++++++++++++++++-----------------
- 1 file changed, 61 insertions(+), 25 deletions(-)
-
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index 01600d8..b50039c 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -429,11 +429,14 @@ static inline bool queue_pages_required(struct page *page,
- }
- 
- /*
-- * queue_pages_pmd() has three possible return values:
-+ * queue_pages_pmd() has four possible return values:
-+ * 2 - there is unmovable page, and MPOL_MF_MOVE* & MPOL_MF_STRICT were
-+ *     specified.
-  * 1 - pages are placed on the right node or queued successfully.
-  * 0 - THP was split.
-- * -EIO - is migration entry or MPOL_MF_STRICT was specified and an existing
-- *        page was already on a node that does not follow the policy.
-+ * -EIO - is migration entry or only MPOL_MF_STRICT was specified and an
-+ *        existing page was already on a node that does not follow the
-+ *        policy.
-  */
- static int queue_pages_pmd(pmd_t *pmd, spinlock_t *ptl, unsigned long addr,
- 				unsigned long end, struct mm_walk *walk)
-@@ -463,7 +466,7 @@ static int queue_pages_pmd(pmd_t *pmd, spinlock_t *ptl, unsigned long addr,
- 	/* go to thp migration */
- 	if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL)) {
- 		if (!vma_migratable(walk->vma)) {
--			ret = -EIO;
-+			ret = 2;
- 			goto unlock;
- 		}
- 
-@@ -488,16 +491,29 @@ static int queue_pages_pte_range(pmd_t *pmd, unsigned long addr,
- 	struct queue_pages *qp = walk->private;
- 	unsigned long flags = qp->flags;
- 	int ret;
-+	bool has_unmovable = false;
- 	pte_t *pte;
- 	spinlock_t *ptl;
- 
- 	ptl = pmd_trans_huge_lock(pmd, vma);
- 	if (ptl) {
- 		ret = queue_pages_pmd(pmd, ptl, addr, end, walk);
--		if (ret > 0)
-+		switch (ret) {
-+		/* THP was split, fall through to pte walk */
-+		case 0:
-+			break;
-+		/* Pages are placed on the right node or queued successfully */
-+		case 1:
- 			return 0;
--		else if (ret < 0)
-+		/*
-+		 * Met unmovable pages, MPOL_MF_MOVE* & MPOL_MF_STRICT
-+		 * were specified.
-+		 */
-+		case 2:
-+			return 1;
-+		case -EIO:
- 			return ret;
-+		}
- 	}
- 
- 	if (pmd_trans_unstable(pmd))
-@@ -519,14 +535,21 @@ static int queue_pages_pte_range(pmd_t *pmd, unsigned long addr,
- 		if (!queue_pages_required(page, qp))
- 			continue;
- 		if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL)) {
--			if (!vma_migratable(vma))
-+			/* MPOL_MF_STRICT must be specified if we get here */
-+			if (!vma_migratable(vma)) {
-+				has_unmovable |= true;
- 				break;
-+			}
- 			migrate_page_add(page, qp->pagelist, flags);
- 		} else
- 			break;
- 	}
- 	pte_unmap_unlock(pte - 1, ptl);
- 	cond_resched();
-+
-+	if (has_unmovable)
-+		return 1;
-+
- 	return addr != end ? -EIO : 0;
- }
- 
-@@ -639,7 +662,13 @@ static int queue_pages_test_walk(unsigned long start, unsigned long end,
-  *
-  * If pages found in a given range are on a set of nodes (determined by
-  * @nodes and @flags,) it's isolated and queued to the pagelist which is
-- * passed via @private.)
-+ * passed via @private.
-+ *
-+ * queue_pages_range() has three possible return values:
-+ * 1 - there is unmovable page, but MPOL_MF_MOVE* & MPOL_MF_STRICT were
-+ *     specified.
-+ * 0 - queue pages successfully or no misplaced page.
-+ * -EIO - there is misplaced page and only MPOL_MF_STRICT was specified.
-  */
- static int
- queue_pages_range(struct mm_struct *mm, unsigned long start, unsigned long end,
-@@ -1182,6 +1211,7 @@ static long do_mbind(unsigned long start, unsigned long len,
- 	struct mempolicy *new;
- 	unsigned long end;
- 	int err;
-+	int ret;
- 	LIST_HEAD(pagelist);
- 
- 	if (flags & ~(unsigned long)MPOL_MF_VALID)
-@@ -1243,26 +1273,32 @@ static long do_mbind(unsigned long start, unsigned long len,
- 	if (err)
- 		goto mpol_out;
- 
--	err = queue_pages_range(mm, start, end, nmask,
-+	ret = queue_pages_range(mm, start, end, nmask,
- 			  flags | MPOL_MF_INVERT, &pagelist);
--	if (!err)
--		err = mbind_range(mm, start, end, new);
--
--	if (!err) {
--		int nr_failed = 0;
- 
--		if (!list_empty(&pagelist)) {
--			WARN_ON_ONCE(flags & MPOL_MF_LAZY);
--			nr_failed = migrate_pages(&pagelist, new_page, NULL,
--				start, MIGRATE_SYNC, MR_MEMPOLICY_MBIND);
--			if (nr_failed)
--				putback_movable_pages(&pagelist);
--		}
-+	if (ret < 0)
-+		err = -EIO;
-+	else {
-+		err = mbind_range(mm, start, end, new);
- 
--		if (nr_failed && (flags & MPOL_MF_STRICT))
--			err = -EIO;
--	} else
--		putback_movable_pages(&pagelist);
-+		if (!err) {
-+			int nr_failed = 0;
-+
-+			if (!list_empty(&pagelist)) {
-+				WARN_ON_ONCE(flags & MPOL_MF_LAZY);
-+				nr_failed = migrate_pages(&pagelist, new_page,
-+					NULL, start, MIGRATE_SYNC,
-+					MR_MEMPOLICY_MBIND);
-+				if (nr_failed)
-+					putback_movable_pages(&pagelist);
-+			}
-+
-+			if ((ret > 0) ||
-+			    (nr_failed && (flags & MPOL_MF_STRICT)))
-+				err = -EIO;
-+		} else
-+			putback_movable_pages(&pagelist);
-+	}
- 
- 	up_write(&mm->mmap_sem);
-  mpol_out:
--- 
-1.8.3.1
+> ---
+>  include/linux/slab.h |  4 ++++
+>  mm/slab.c            |  1 +
+>  mm/slab_common.c     | 14 ++++++++------
+>  mm/slub.c            |  1 +
+>  4 files changed, 14 insertions(+), 6 deletions(-)
+>
+> diff --git a/include/linux/slab.h b/include/linux/slab.h
+> index fecf40b7be69..19ab1380f875 100644
+> --- a/include/linux/slab.h
+> +++ b/include/linux/slab.h
+> @@ -116,6 +116,10 @@
+>  /* Objects are reclaimable */
+>  #define SLAB_RECLAIM_ACCOUNT   ((slab_flags_t __force)0x00020000U)
+>  #define SLAB_TEMPORARY         SLAB_RECLAIM_ACCOUNT    /* Objects are short-lived */
+> +
+> +/* Slab deactivation flag */
+> +#define SLAB_DEACTIVATED       ((slab_flags_t __force)0x10000000U)
+> +
+>  /*
+>   * ZERO_SIZE_PTR will be returned for zero sized kmalloc requests.
+>   *
+> diff --git a/mm/slab.c b/mm/slab.c
+> index a2e93adf1df0..e8c7743fc283 100644
+> --- a/mm/slab.c
+> +++ b/mm/slab.c
+> @@ -2245,6 +2245,7 @@ int __kmem_cache_shrink(struct kmem_cache *cachep)
+>  #ifdef CONFIG_MEMCG
+>  void __kmemcg_cache_deactivate(struct kmem_cache *cachep)
+>  {
+> +       cachep->flags |= SLAB_DEACTIVATED;
+>         __kmem_cache_shrink(cachep);
+>  }
+>
+> diff --git a/mm/slab_common.c b/mm/slab_common.c
+> index 146d8eaa639c..85cf0c374303 100644
+> --- a/mm/slab_common.c
+> +++ b/mm/slab_common.c
+> @@ -1533,7 +1533,7 @@ static int memcg_slabinfo_show(struct seq_file *m, void *unused)
+>         struct slabinfo sinfo;
+>
+>         mutex_lock(&slab_mutex);
+> -       seq_puts(m, "# <name> <css_id[:dead]> <active_objs> <num_objs>");
+> +       seq_puts(m, "# <name> <css_id[:dead|deact]> <active_objs> <num_objs>");
+>         seq_puts(m, " <active_slabs> <num_slabs>\n");
+>         list_for_each_entry(s, &slab_root_caches, root_caches_node) {
+>                 /*
+> @@ -1544,22 +1544,24 @@ static int memcg_slabinfo_show(struct seq_file *m, void *unused)
+>
+>                 memset(&sinfo, 0, sizeof(sinfo));
+>                 get_slabinfo(s, &sinfo);
+> -               seq_printf(m, "%-17s root      %6lu %6lu %6lu %6lu\n",
+> +               seq_printf(m, "%-17s root       %6lu %6lu %6lu %6lu\n",
+>                            cache_name(s), sinfo.active_objs, sinfo.num_objs,
+>                            sinfo.active_slabs, sinfo.num_slabs);
+>
+>                 for_each_memcg_cache(c, s) {
+>                         struct cgroup_subsys_state *css;
+> -                       char *dead = "";
+> +                       char *status = "";
+>
+>                         css = &c->memcg_params.memcg->css;
+>                         if (!(css->flags & CSS_ONLINE))
+> -                               dead = ":dead";
+> +                               status = ":dead";
+> +                       else if (c->flags & SLAB_DEACTIVATED)
+> +                               status = ":deact";
+>
+>                         memset(&sinfo, 0, sizeof(sinfo));
+>                         get_slabinfo(c, &sinfo);
+> -                       seq_printf(m, "%-17s %4d%5s %6lu %6lu %6lu %6lu\n",
+> -                                  cache_name(c), css->id, dead,
+> +                       seq_printf(m, "%-17s %4d%-6s %6lu %6lu %6lu %6lu\n",
+> +                                  cache_name(c), css->id, status,
+>                                    sinfo.active_objs, sinfo.num_objs,
+>                                    sinfo.active_slabs, sinfo.num_slabs);
+>                 }
+> diff --git a/mm/slub.c b/mm/slub.c
+> index a384228ff6d3..c965b4413658 100644
+> --- a/mm/slub.c
+> +++ b/mm/slub.c
+> @@ -4057,6 +4057,7 @@ void __kmemcg_cache_deactivate(struct kmem_cache *s)
+>          */
+>         slub_set_cpu_partial(s, 0);
+>         s->min_partial = 0;
+> +       s->flags |= SLAB_DEACTIVATED;
+>  }
+>  #endif /* CONFIG_MEMCG */
+>
+> --
+> 2.18.1
+>
 
