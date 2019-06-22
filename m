@@ -7,101 +7,101 @@ X-Spam-Status: No, score=-8.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
 	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
 	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id F2D98C43613
-	for <linux-mm@archiver.kernel.org>; Sat, 22 Jun 2019 00:05:29 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3FE5CC48BE3
+	for <linux-mm@archiver.kernel.org>; Sat, 22 Jun 2019 00:05:33 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A94D52089E
-	for <linux-mm@archiver.kernel.org>; Sat, 22 Jun 2019 00:05:29 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id DC34320881
+	for <linux-mm@archiver.kernel.org>; Sat, 22 Jun 2019 00:05:32 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="YCqTrT/J"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A94D52089E
+	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="kxf8MJM9"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DC34320881
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5D2DC8E0003; Fri, 21 Jun 2019 20:05:29 -0400 (EDT)
+	id 843F88E0005; Fri, 21 Jun 2019 20:05:32 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 583A78E0001; Fri, 21 Jun 2019 20:05:29 -0400 (EDT)
+	id 7F5F68E0001; Fri, 21 Jun 2019 20:05:32 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 473248E0003; Fri, 21 Jun 2019 20:05:29 -0400 (EDT)
+	id 70AFA8E0005; Fri, 21 Jun 2019 20:05:32 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 13FD58E0001
-	for <linux-mm@kvack.org>; Fri, 21 Jun 2019 20:05:29 -0400 (EDT)
-Received: by mail-pl1-f199.google.com with SMTP id bb9so4489391plb.2
-        for <linux-mm@kvack.org>; Fri, 21 Jun 2019 17:05:29 -0700 (PDT)
+Received: from mail-yw1-f69.google.com (mail-yw1-f69.google.com [209.85.161.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 507838E0001
+	for <linux-mm@kvack.org>; Fri, 21 Jun 2019 20:05:32 -0400 (EDT)
+Received: by mail-yw1-f69.google.com with SMTP id p18so8040008ywe.17
+        for <linux-mm@kvack.org>; Fri, 21 Jun 2019 17:05:32 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:smtp-origin-hostprefix:from
          :smtp-origin-hostname:to:cc:smtp-origin-cluster:subject:date
          :message-id:in-reply-to:references:mime-version;
-        bh=DNX0Ai841ZgyA6yG9XH0uRWq8DS0N63a6b+fvROsjjM=;
-        b=ciDdRXFNVhMFCMFlFDL0IcaQ8hYiCLoGRPGfJVSp+AcC53dFQjOOwvA+EZFSXUankC
-         +CmV7p9x8IaEObSk2HUqLmC5R5OFnurGLTaZ5JHuVnKRlqSQMH65H0QvOa5Y6s9otPYQ
-         DqwRWN9JykXQPElFar2CUDuaj+f9j5qwsevqP4CLQj3Jp0SMlCbREzFyQpflMByVzqqk
-         nba63XU8IN+T7B7wbNDtg353s/FOFS+uKs5BdKc41dlb3BpZcXLpQ35U/TMZiuGRCP7+
-         rueb2v1+7dyHZGax3VuSEvTuJB5vPuv2Q4zTYzY8/+yWaSJMK4m19wK+hacIujg3osn7
-         oh2A==
-X-Gm-Message-State: APjAAAX+BhQ2OrpJKfjokC2TT126+ctgE7An2xufyc0do8YbtjygLkU0
-	P3z7dieKfQ8v0BHIS91JRVCyn2lXrurjZcuKywqRieQX1zH1n7znd+HBpnDevcB8HX0+b0LGUC5
-	ipc8xvLoX5dnmZ+t1nqhvRXDAW9jSDArIAa2M8sr45MItSHkY5Kh3IYScoVqsThcz0w==
-X-Received: by 2002:a63:a046:: with SMTP id u6mr5318022pgn.122.1561161928684;
-        Fri, 21 Jun 2019 17:05:28 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqybA9LUzm25jN2mrlmDInqCmERJVt20oiU/1A0km+84EXHu/Uax20tLxCYZClALeEIlzc8W
-X-Received: by 2002:a63:a046:: with SMTP id u6mr5317956pgn.122.1561161927828;
-        Fri, 21 Jun 2019 17:05:27 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561161927; cv=none;
+        bh=IWV65r5U1l3yQ4pVTe+jKPIu04iDbUqXRbQ4VzDCPdU=;
+        b=K9hSRhlHFY8E8XNRosyUeE5dreAGyAi7ZIc5gotYWGlzUh3fGYw6ZEbZqZm5fgj1nL
+         rWNqTQ9wIml7x2gbV13a9gnl6LWBRp7dwcnTZQEFGYox0adNn+wQkPXt0zv4olBaTaXI
+         PFktBcMy/a/Bj+xi03bca5KkmlQJtqDWNzL6+0a1NFIXoHyCcNReVxH3j3q4kOLkWCYm
+         JQlcNJpPyXBGZQC+eNhC7Nqa1K8zeAAo9UTrorqAXHWXFm7aWSdvhsoSJ7MXpJqBosFT
+         ioinVFokwGFSNTMLxQ60xeCqJrvry+VU373Yv1Om1poCM0shpo1KROLj0z/4vYVwUpzt
+         AQkw==
+X-Gm-Message-State: APjAAAW5gLkm8IshoUGV9+4QHebAeyxGOZ5m//ZAC+ii5FjzUMPP9G9e
+	oD4mE9hukKlGeSQSCOP9ZvLanxlE+ODNpcCMAgewHUqg5y64I1lEOWKD6TMW8mmw9CCczGNHwza
+	TB+jX5whm3Mn3vy/WKCe102v0ih4TwnU+qUwFzKm6rz4subD2d/vWUkELGvswUc3Bvg==
+X-Received: by 2002:a81:1153:: with SMTP id 80mr17267387ywr.39.1561161932057;
+        Fri, 21 Jun 2019 17:05:32 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzN5cedPvqgeYD4PhM9Rh9+aQqdRrq7/loAfy7oUQ+4E4xFLrQj5dSKXeSsE6rY6G8vfA9X
+X-Received: by 2002:a81:1153:: with SMTP id 80mr17267341ywr.39.1561161931176;
+        Fri, 21 Jun 2019 17:05:31 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561161931; cv=none;
         d=google.com; s=arc-20160816;
-        b=nPxxWc5d2fKs/Prc9ZS2siLzW2C3jlMwi00f67iw8OS0f/HRv+XWX2d9dP2vdWN93f
-         8D5jswEJDQXQheSPzgcEtPdVL1wNJ+ArDtTJWvr8KkJewFicjqnLZbaN4FkA757OEz3z
-         lCowqTVUkZPwPZd3uMJVqAjIl1xf5KOCQwXCzrGpOWOg7O8pGv589KqpQi7vK9tmfzuW
-         Z0+yVnSyMWpwa8AqutxCEWeaNbhJQvKLtqtUvPvfQwWku4HrENd7EjmzTqFZpnYd5Jjr
-         F+4ZhXWFbm8NTBzoTE8Pmpp2evf4zlcyLboGzj6STTRx4V0NXLBC1DP0SWRirag0j9qm
-         SBXQ==
+        b=bTGd/p30lDB+LHz/gNH2e8coz52DXT6/bLji7qBDhD4Mbs3Ci+2NRwd93i+zAhK+Qg
+         kgGhem1BlN+Ol1euM7ZFRzswFvk1Q50XBDWpgFKfcBWdLc0E95XSU/oy9X7ou+P2CN9J
+         SUP9+O6r2vukUz4QCcnbN1U5y7PPsWsJ8CHxWu9vLCCwlXv8tezxOup/aAhyxZsWJdwz
+         oQ4iLqkjTcTk8qqLCRS3u/m6Wxb/U7PpPY39kYjQYVJTZX5YBRVLW+vjpQUdLwddYaRj
+         7HI632tfqXq/6ILpDh6mEXVA0K9itg1XP4eNWLZQOi2OUCuTze/jaWlBRLN075Q1g+tK
+         G//g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=mime-version:references:in-reply-to:message-id:date:subject
          :smtp-origin-cluster:cc:to:smtp-origin-hostname:from
          :smtp-origin-hostprefix:dkim-signature;
-        bh=DNX0Ai841ZgyA6yG9XH0uRWq8DS0N63a6b+fvROsjjM=;
-        b=l5LJjvnyLKmZanBe0rB7VoPGS4WvGNsjGUqKArSfiZWdWHQXnZ9M6vcBlTCZ7rg761
-         DX5gKHvllDihrG3o3IQlIFlRxLnBaRNkHJFKnp+S+SRNbjd1iwMGWtTId/L3405yRlXp
-         vIrMTyJnyiciOp5yE/aRfSeePJe5EMV7v4w8PvxJBGLnx1JslUW3Q2dXTeTZxL535VjL
-         P0zf5SsGh4zPOmBjsIVPcTq/Rg5DFeR4rnR6f+MMp3tgwTw7lLXV75pSssZAYsYMmr6y
-         FJGJ0F9sAYQRCwKYdeRjWzOh+6pzr4O66AslLyQ9o1M0TzyM+kykfz2xx18jobMgKjSd
-         dzwQ==
+        bh=IWV65r5U1l3yQ4pVTe+jKPIu04iDbUqXRbQ4VzDCPdU=;
+        b=rsiVyd8DzQzqjQlCoQSRTx7xwZClq5HK9l0LNtbKZol0IHszAYtL7mymqoZ3S+8May
+         fimhGgJ/mbQDMaS/M6Kk/qrY5x1OXXv+WIEikvtzRXvtLZ/WdxpJd1EmzyRY+N2LW478
+         gbch81R7Zs3MIygz3zWxAmdaO2RodMuHjFg8qjBSgkA91VQ6ytL5aUctSxiobJcBKJ7K
+         VEjzAilg4x9HPmo042h9n33TBeO5GtYh+SurhjdVY4LJouxiKA4QL6Ljw3uttCE0MO8N
+         FcOT32wxhqLxriGAktWDNeOszPALrKSNKnupNpH+Ay5aDBDn/hkljiOZsKyEClWaylPi
+         AM6A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b="YCqTrT/J";
-       spf=pass (google.com: domain of prvs=1076a8f7d5=songliubraving@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=1076a8f7d5=songliubraving@fb.com";
+       dkim=pass header.i=@fb.com header.s=facebook header.b=kxf8MJM9;
+       spf=pass (google.com: domain of prvs=1076a8f7d5=songliubraving@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=1076a8f7d5=songliubraving@fb.com";
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id s36si3977093pld.164.2019.06.21.17.05.27
+Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id o6si1484421ybk.138.2019.06.21.17.05.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 21 Jun 2019 17:05:27 -0700 (PDT)
-Received-SPF: pass (google.com: domain of prvs=1076a8f7d5=songliubraving@fb.com designates 67.231.145.42 as permitted sender) client-ip=67.231.145.42;
+        Fri, 21 Jun 2019 17:05:31 -0700 (PDT)
+Received-SPF: pass (google.com: domain of prvs=1076a8f7d5=songliubraving@fb.com designates 67.231.153.30 as permitted sender) client-ip=67.231.153.30;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b="YCqTrT/J";
-       spf=pass (google.com: domain of prvs=1076a8f7d5=songliubraving@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=1076a8f7d5=songliubraving@fb.com";
+       dkim=pass header.i=@fb.com header.s=facebook header.b=kxf8MJM9;
+       spf=pass (google.com: domain of prvs=1076a8f7d5=songliubraving@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=1076a8f7d5=songliubraving@fb.com";
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from pps.filterd (m0044008.ppops.net [127.0.0.1])
-	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x5LNudUt026475
-	for <linux-mm@kvack.org>; Fri, 21 Jun 2019 17:05:27 -0700
+Received: from pps.filterd (m0001303.ppops.net [127.0.0.1])
+	by m0001303.ppops.net (8.16.0.27/8.16.0.27) with SMTP id x5LNqVlf029137
+	for <linux-mm@kvack.org>; Fri, 21 Jun 2019 17:05:31 -0700
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
  : date : message-id : in-reply-to : references : mime-version :
- content-type; s=facebook; bh=DNX0Ai841ZgyA6yG9XH0uRWq8DS0N63a6b+fvROsjjM=;
- b=YCqTrT/JYASHpQEOOYkGYg92c16QN3f691f37DMGfg7VNFrKhjAdtGuCBrvVxwNr09w6
- tohmnJ9WfVpElA6TQNfZEgq+itS38qXPwRjZ2zVNgQqSCnX5WEYxVtIX2JEJz15kdQua
- U1qRg8bLRHjdvvworvkgyXymApb4yBziE8Y= 
+ content-type; s=facebook; bh=IWV65r5U1l3yQ4pVTe+jKPIu04iDbUqXRbQ4VzDCPdU=;
+ b=kxf8MJM9a4RH8AW/c2NAHkpyDFMaiI5wyyll6HN4NpTI/rFcowgVM8Ntx5pmkOA3HA7h
+ gdDMqg6elkrpPdhnmZsSOYtmut/7JeewSYDBL8Csk7GZgD0HuqEdB6x50foKxYNxN5tX
+ cr2YN8BBnLhlXOoCCgmrVt2f1NQRdE2tBB4= 
 Received: from maileast.thefacebook.com ([163.114.130.16])
-	by mx0a-00082601.pphosted.com with ESMTP id 2t99btr0pc-2
+	by m0001303.ppops.net with ESMTP id 2t97gegbwx-1
 	(version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 21 Jun 2019 17:05:27 -0700
+	for <linux-mm@kvack.org>; Fri, 21 Jun 2019 17:05:30 -0700
 Received: from mx-out.facebook.com (2620:10d:c0a8:1b::d) by
- mail.thefacebook.com (2620:10d:c0a8:83::6) with Microsoft SMTP Server
+ mail.thefacebook.com (2620:10d:c0a8:83::7) with Microsoft SMTP Server
  (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) id
- 15.1.1713.5; Fri, 21 Jun 2019 17:05:25 -0700
+ 15.1.1713.5; Fri, 21 Jun 2019 17:05:30 -0700
 Received: by devbig006.ftw2.facebook.com (Postfix, from userid 4523)
-	id DCC9D62E2D56; Fri, 21 Jun 2019 17:05:24 -0700 (PDT)
+	id 5593B62E2D56; Fri, 21 Jun 2019 17:05:29 -0700 (PDT)
 Smtp-Origin-Hostprefix: devbig
 From: Song Liu <songliubraving@fb.com>
 Smtp-Origin-Hostname: devbig006.ftw2.facebook.com
@@ -111,9 +111,9 @@ CC: <matthew.wilcox@oracle.com>, <kirill.shutemov@linux.intel.com>,
         <kernel-team@fb.com>, <william.kucharski@oracle.com>,
         <akpm@linux-foundation.org>, Song Liu <songliubraving@fb.com>
 Smtp-Origin-Cluster: ftw2c04
-Subject: [PATCH v6 3/6] mm,thp: stats for file backed THP
-Date: Fri, 21 Jun 2019 17:05:09 -0700
-Message-ID: <20190622000512.923867-4-songliubraving@fb.com>
+Subject: [PATCH v6 5/6] mm,thp: add read-only THP support for (non-shmem) FS
+Date: Fri, 21 Jun 2019 17:05:11 -0700
+Message-ID: <20190622000512.923867-6-songliubraving@fb.com>
 X-Mailer: git-send-email 2.17.1
 In-Reply-To: <20190622000512.923867-1-songliubraving@fb.com>
 References: <20190622000512.923867-1-songliubraving@fb.com>
@@ -134,117 +134,313 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-In preparation for non-shmem THP, this patch adds a few stats and exposes
-them in /proc/meminfo, /sys/bus/node/devices/<node>/meminfo, and
-/proc/<pid>/task/<tid>/smaps.
+This patch is (hopefully) the first step to enable THP for non-shmem
+filesystems.
 
-This patch is mostly a rewrite of Kirill A. Shutemov's earlier version:
-https://lkml.org/lkml/2017/1/26/284.
+This patch enables an application to put part of its text sections to THP
+via madvise, for example:
+
+    madvise((void *)0x600000, 0x200000, MADV_HUGEPAGE);
+
+We tried to reuse the logic for THP on tmpfs.
+
+Currently, write is not supported for non-shmem THP. khugepaged will only
+process vma with VM_DENYWRITE. The next patch will handle writes, which
+would only happen when the vma with VM_DENYWRITE is unmapped.
+
+An EXPERIMENTAL config, READ_ONLY_THP_FOR_FS, is added to gate this
+feature.
 
 Acked-by: Rik van Riel <riel@surriel.com>
 Signed-off-by: Song Liu <songliubraving@fb.com>
 ---
- drivers/base/node.c    | 6 ++++++
- fs/proc/meminfo.c      | 4 ++++
- fs/proc/task_mmu.c     | 4 +++-
- include/linux/mmzone.h | 2 ++
- mm/vmstat.c            | 2 ++
- 5 files changed, 17 insertions(+), 1 deletion(-)
+ mm/Kconfig      | 11 ++++++
+ mm/filemap.c    |  4 +--
+ mm/khugepaged.c | 91 +++++++++++++++++++++++++++++++++++++++++--------
+ mm/rmap.c       | 12 ++++---
+ 4 files changed, 97 insertions(+), 21 deletions(-)
 
-diff --git a/drivers/base/node.c b/drivers/base/node.c
-index 8598fcbd2a17..71ae2dc93489 100644
---- a/drivers/base/node.c
-+++ b/drivers/base/node.c
-@@ -426,6 +426,8 @@ static ssize_t node_read_meminfo(struct device *dev,
- 		       "Node %d AnonHugePages:  %8lu kB\n"
- 		       "Node %d ShmemHugePages: %8lu kB\n"
- 		       "Node %d ShmemPmdMapped: %8lu kB\n"
-+		       "Node %d FileHugePages: %8lu kB\n"
-+		       "Node %d FilePmdMapped: %8lu kB\n"
- #endif
- 			,
- 		       nid, K(node_page_state(pgdat, NR_FILE_DIRTY)),
-@@ -451,6 +453,10 @@ static ssize_t node_read_meminfo(struct device *dev,
- 		       nid, K(node_page_state(pgdat, NR_SHMEM_THPS) *
- 				       HPAGE_PMD_NR),
- 		       nid, K(node_page_state(pgdat, NR_SHMEM_PMDMAPPED) *
-+				       HPAGE_PMD_NR),
-+		       nid, K(node_page_state(pgdat, NR_FILE_THPS) *
-+				       HPAGE_PMD_NR),
-+		       nid, K(node_page_state(pgdat, NR_FILE_PMDMAPPED) *
- 				       HPAGE_PMD_NR)
- #endif
- 		       );
-diff --git a/fs/proc/meminfo.c b/fs/proc/meminfo.c
-index 568d90e17c17..bac395fc11f9 100644
---- a/fs/proc/meminfo.c
-+++ b/fs/proc/meminfo.c
-@@ -136,6 +136,10 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
- 		    global_node_page_state(NR_SHMEM_THPS) * HPAGE_PMD_NR);
- 	show_val_kb(m, "ShmemPmdMapped: ",
- 		    global_node_page_state(NR_SHMEM_PMDMAPPED) * HPAGE_PMD_NR);
-+	show_val_kb(m, "FileHugePages: ",
-+		    global_node_page_state(NR_FILE_THPS) * HPAGE_PMD_NR);
-+	show_val_kb(m, "FilePmdMapped: ",
-+		    global_node_page_state(NR_FILE_PMDMAPPED) * HPAGE_PMD_NR);
- #endif
+diff --git a/mm/Kconfig b/mm/Kconfig
+index f0c76ba47695..0a8fd589406d 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -762,6 +762,17 @@ config GUP_BENCHMARK
  
- #ifdef CONFIG_CMA
-diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index 01d4eb0e6bd1..0360e3b2ba89 100644
---- a/fs/proc/task_mmu.c
-+++ b/fs/proc/task_mmu.c
-@@ -413,6 +413,7 @@ struct mem_size_stats {
- 	unsigned long lazyfree;
- 	unsigned long anonymous_thp;
- 	unsigned long shmem_thp;
-+	unsigned long file_thp;
- 	unsigned long swap;
- 	unsigned long shared_hugetlb;
- 	unsigned long private_hugetlb;
-@@ -563,7 +564,7 @@ static void smaps_pmd_entry(pmd_t *pmd, unsigned long addr,
- 	else if (is_zone_device_page(page))
- 		/* pass */;
- 	else
--		VM_BUG_ON_PAGE(1, page);
-+		mss->file_thp += HPAGE_PMD_SIZE;
- 	smaps_account(mss, page, true, pmd_young(*pmd), pmd_dirty(*pmd), locked);
+ 	  See tools/testing/selftests/vm/gup_benchmark.c
+ 
++config READ_ONLY_THP_FOR_FS
++	bool "Read-only THP for filesystems (EXPERIMENTAL)"
++	depends on TRANSPARENT_HUGE_PAGECACHE && SHMEM
++
++	help
++	  Allow khugepaged to put read-only file-backed pages in THP.
++
++	  This is marked experimental because it is a new feature. Write
++	  support of file THPs will be developed in the next few release
++	  cycles.
++
+ config ARCH_HAS_PTE_SPECIAL
+ 	bool
+ 
+diff --git a/mm/filemap.c b/mm/filemap.c
+index 5f072a113535..e79ceccdc6df 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -203,8 +203,8 @@ static void unaccount_page_cache_page(struct address_space *mapping,
+ 		__mod_node_page_state(page_pgdat(page), NR_SHMEM, -nr);
+ 		if (PageTransHuge(page))
+ 			__dec_node_page_state(page, NR_SHMEM_THPS);
+-	} else {
+-		VM_BUG_ON_PAGE(PageTransHuge(page), page);
++	} else if (PageTransHuge(page)) {
++		__dec_node_page_state(page, NR_FILE_THPS);
+ 	}
+ 
+ 	/*
+diff --git a/mm/khugepaged.c b/mm/khugepaged.c
+index dde8e45552b3..fbcff5a1d65a 100644
+--- a/mm/khugepaged.c
++++ b/mm/khugepaged.c
+@@ -48,6 +48,7 @@ enum scan_result {
+ 	SCAN_CGROUP_CHARGE_FAIL,
+ 	SCAN_EXCEED_SWAP_PTE,
+ 	SCAN_TRUNCATED,
++	SCAN_PAGE_HAS_PRIVATE,
+ };
+ 
+ #define CREATE_TRACE_POINTS
+@@ -404,7 +405,11 @@ static bool hugepage_vma_check(struct vm_area_struct *vma,
+ 	    (vm_flags & VM_NOHUGEPAGE) ||
+ 	    test_bit(MMF_DISABLE_THP, &vma->vm_mm->flags))
+ 		return false;
+-	if (shmem_file(vma->vm_file)) {
++
++	if (shmem_file(vma->vm_file) ||
++	    (IS_ENABLED(CONFIG_READ_ONLY_THP_FOR_FS) &&
++	     vma->vm_file &&
++	     (vm_flags & VM_DENYWRITE))) {
+ 		if (!IS_ENABLED(CONFIG_TRANSPARENT_HUGE_PAGECACHE))
+ 			return false;
+ 		return IS_ALIGNED((vma->vm_start >> PAGE_SHIFT) - vma->vm_pgoff,
+@@ -456,8 +461,9 @@ int khugepaged_enter_vma_merge(struct vm_area_struct *vma,
+ 	unsigned long hstart, hend;
+ 
+ 	/*
+-	 * khugepaged does not yet work on non-shmem files or special
+-	 * mappings. And file-private shmem THP is not supported.
++	 * khugepaged only supports read-only files for non-shmem files.
++	 * khugepaged does not yet work on special mappings. And
++	 * file-private shmem THP is not supported.
+ 	 */
+ 	if (!hugepage_vma_check(vma, vm_flags))
+ 		return 0;
+@@ -1287,12 +1293,12 @@ static void retract_page_tables(struct address_space *mapping, pgoff_t pgoff)
  }
- #else
-@@ -767,6 +768,7 @@ static void __show_smap(struct seq_file *m, const struct mem_size_stats *mss)
- 	SEQ_PUT_DEC(" kB\nLazyFree:       ", mss->lazyfree);
- 	SEQ_PUT_DEC(" kB\nAnonHugePages:  ", mss->anonymous_thp);
- 	SEQ_PUT_DEC(" kB\nShmemPmdMapped: ", mss->shmem_thp);
-+	SEQ_PUT_DEC(" kB\nFilePmdMapped: ", mss->file_thp);
- 	SEQ_PUT_DEC(" kB\nShared_Hugetlb: ", mss->shared_hugetlb);
- 	seq_put_decimal_ull_width(m, " kB\nPrivate_Hugetlb: ",
- 				  mss->private_hugetlb >> 10, 7);
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 70394cabaf4e..827f9b777938 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -234,6 +234,8 @@ enum node_stat_item {
- 	NR_SHMEM,		/* shmem pages (included tmpfs/GEM pages) */
- 	NR_SHMEM_THPS,
- 	NR_SHMEM_PMDMAPPED,
-+	NR_FILE_THPS,
-+	NR_FILE_PMDMAPPED,
- 	NR_ANON_THPS,
- 	NR_UNSTABLE_NFS,	/* NFS unstable pages */
- 	NR_VMSCAN_WRITE,
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index fd7e16ca6996..6afc892a148a 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -1158,6 +1158,8 @@ const char * const vmstat_text[] = {
- 	"nr_shmem",
- 	"nr_shmem_hugepages",
- 	"nr_shmem_pmdmapped",
-+	"nr_file_hugepages",
-+	"nr_file_pmdmapped",
- 	"nr_anon_transparent_hugepages",
- 	"nr_unstable",
- 	"nr_vmscan_write",
+ 
+ /**
+- * collapse_file - collapse small tmpfs/shmem pages into huge one.
++ * collapse_file - collapse filemap/tmpfs/shmem pages into huge one.
+  *
+  * Basic scheme is simple, details are more complex:
+  *  - allocate and lock a new huge page;
+  *  - scan page cache replacing old pages with the new one
+- *    + swap in pages if necessary;
++ *    + swap/gup in pages if necessary;
+  *    + fill in gaps;
+  *    + keep old pages around in case rollback is required;
+  *  - if replacing succeeds:
+@@ -1316,7 +1322,11 @@ static void collapse_file(struct vm_area_struct *vma,
+ 	LIST_HEAD(pagelist);
+ 	XA_STATE_ORDER(xas, &mapping->i_pages, start, HPAGE_PMD_ORDER);
+ 	int nr_none = 0, result = SCAN_SUCCEED;
++	bool is_shmem = shmem_file(vma->vm_file);
+ 
++#ifndef CONFIG_READ_ONLY_THP_FOR_FS
++	VM_BUG_ON(!is_shmem);
++#endif
+ 	VM_BUG_ON(start & (HPAGE_PMD_NR - 1));
+ 
+ 	/* Only allocate from the target node */
+@@ -1348,7 +1358,8 @@ static void collapse_file(struct vm_area_struct *vma,
+ 	} while (1);
+ 
+ 	__SetPageLocked(new_page);
+-	__SetPageSwapBacked(new_page);
++	if (is_shmem)
++		__SetPageSwapBacked(new_page);
+ 	new_page->index = start;
+ 	new_page->mapping = mapping;
+ 
+@@ -1363,7 +1374,7 @@ static void collapse_file(struct vm_area_struct *vma,
+ 		struct page *page = xas_next(&xas);
+ 
+ 		VM_BUG_ON(index != xas.xa_index);
+-		if (!page) {
++		if (is_shmem && !page) {
+ 			/*
+ 			 * Stop if extent has been truncated or hole-punched,
+ 			 * and is now completely empty.
+@@ -1384,7 +1395,7 @@ static void collapse_file(struct vm_area_struct *vma,
+ 			continue;
+ 		}
+ 
+-		if (xa_is_value(page) || !PageUptodate(page)) {
++		if (is_shmem && (xa_is_value(page) || !PageUptodate(page))) {
+ 			xas_unlock_irq(&xas);
+ 			/* swap in or instantiate fallocated page */
+ 			if (shmem_getpage(mapping->host, index, &page,
+@@ -1392,6 +1403,24 @@ static void collapse_file(struct vm_area_struct *vma,
+ 				result = SCAN_FAIL;
+ 				goto xa_unlocked;
+ 			}
++		} else if (!page || xa_is_value(page)) {
++			unsigned long vaddr;
++
++			VM_BUG_ON(is_shmem);
++
++			vaddr = vma->vm_start +
++				((index - vma->vm_pgoff) << PAGE_SHIFT);
++			xas_unlock_irq(&xas);
++			if (get_user_pages_remote(NULL, mm, vaddr, 1,
++					FOLL_FORCE, &page, NULL, NULL) != 1) {
++				result = SCAN_FAIL;
++				goto xa_unlocked;
++			}
++			lru_add_drain();
++			lock_page(page);
++		} else if (!PageUptodate(page) || PageDirty(page)) {
++			result = SCAN_FAIL;
++			goto xa_locked;
+ 		} else if (trylock_page(page)) {
+ 			get_page(page);
+ 			xas_unlock_irq(&xas);
+@@ -1426,6 +1455,12 @@ static void collapse_file(struct vm_area_struct *vma,
+ 			goto out_unlock;
+ 		}
+ 
++		if (page_has_private(page) &&
++		    !try_to_release_page(page, GFP_KERNEL)) {
++			result = SCAN_PAGE_HAS_PRIVATE;
++			break;
++		}
++
+ 		if (page_mapped(page))
+ 			unmap_mapping_pages(mapping, index, 1, false);
+ 
+@@ -1463,12 +1498,18 @@ static void collapse_file(struct vm_area_struct *vma,
+ 		goto xa_unlocked;
+ 	}
+ 
+-	__inc_node_page_state(new_page, NR_SHMEM_THPS);
++	if (is_shmem)
++		__inc_node_page_state(new_page, NR_SHMEM_THPS);
++	else
++		__inc_node_page_state(new_page, NR_FILE_THPS);
++
+ 	if (nr_none) {
+ 		struct zone *zone = page_zone(new_page);
+ 
+ 		__mod_node_page_state(zone->zone_pgdat, NR_FILE_PAGES, nr_none);
+-		__mod_node_page_state(zone->zone_pgdat, NR_SHMEM, nr_none);
++		if (is_shmem)
++			__mod_node_page_state(zone->zone_pgdat,
++					      NR_SHMEM, nr_none);
+ 	}
+ 
+ xa_locked:
+@@ -1506,10 +1547,15 @@ static void collapse_file(struct vm_area_struct *vma,
+ 
+ 		SetPageUptodate(new_page);
+ 		page_ref_add(new_page, HPAGE_PMD_NR - 1);
+-		set_page_dirty(new_page);
+ 		mem_cgroup_commit_charge(new_page, memcg, false, true);
++
++		if (is_shmem) {
++			set_page_dirty(new_page);
++			lru_cache_add_anon(new_page);
++		} else {
++			lru_cache_add_file(new_page);
++		}
+ 		count_memcg_events(memcg, THP_COLLAPSE_ALLOC, 1);
+-		lru_cache_add_anon(new_page);
+ 
+ 		/*
+ 		 * Remove pte page tables, so we can re-fault the page as huge.
+@@ -1524,7 +1570,9 @@ static void collapse_file(struct vm_area_struct *vma,
+ 		/* Something went wrong: roll back page cache changes */
+ 		xas_lock_irq(&xas);
+ 		mapping->nrpages -= nr_none;
+-		shmem_uncharge(mapping->host, nr_none);
++
++		if (is_shmem)
++			shmem_uncharge(mapping->host, nr_none);
+ 
+ 		xas_set(&xas, start);
+ 		xas_for_each(&xas, page, end - 1) {
+@@ -1607,6 +1655,17 @@ static void khugepaged_scan_file(struct vm_area_struct *vma,
+ 			break;
+ 		}
+ 
++		if (page_has_private(page) && trylock_page(page)) {
++			int ret;
++
++			ret = try_to_release_page(page, GFP_KERNEL);
++			unlock_page(page);
++			if (!ret) {
++				result = SCAN_PAGE_HAS_PRIVATE;
++				break;
++			}
++		}
++
+ 		if (page_count(page) != 1 + page_mapcount(page)) {
+ 			result = SCAN_PAGE_COUNT;
+ 			break;
+@@ -1714,11 +1773,13 @@ static unsigned int khugepaged_scan_mm_slot(unsigned int pages,
+ 			VM_BUG_ON(khugepaged_scan.address < hstart ||
+ 				  khugepaged_scan.address + HPAGE_PMD_SIZE >
+ 				  hend);
+-			if (shmem_file(vma->vm_file)) {
++			if (vma->vm_file) {
+ 				struct file *file;
+ 				pgoff_t pgoff = linear_page_index(vma,
+ 						khugepaged_scan.address);
+-				if (!shmem_huge_enabled(vma))
++
++				if (shmem_file(vma->vm_file)
++				    && !shmem_huge_enabled(vma))
+ 					goto skip;
+ 				file = get_file(vma->vm_file);
+ 				up_read(&mm->mmap_sem);
+diff --git a/mm/rmap.c b/mm/rmap.c
+index e5dfe2ae6b0d..87cfa2c19eda 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -1192,8 +1192,10 @@ void page_add_file_rmap(struct page *page, bool compound)
+ 		}
+ 		if (!atomic_inc_and_test(compound_mapcount_ptr(page)))
+ 			goto out;
+-		VM_BUG_ON_PAGE(!PageSwapBacked(page), page);
+-		__inc_node_page_state(page, NR_SHMEM_PMDMAPPED);
++		if (PageSwapBacked(page))
++			__inc_node_page_state(page, NR_SHMEM_PMDMAPPED);
++		else
++			__inc_node_page_state(page, NR_FILE_PMDMAPPED);
+ 	} else {
+ 		if (PageTransCompound(page) && page_mapping(page)) {
+ 			VM_WARN_ON_ONCE(!PageLocked(page));
+@@ -1232,8 +1234,10 @@ static void page_remove_file_rmap(struct page *page, bool compound)
+ 		}
+ 		if (!atomic_add_negative(-1, compound_mapcount_ptr(page)))
+ 			goto out;
+-		VM_BUG_ON_PAGE(!PageSwapBacked(page), page);
+-		__dec_node_page_state(page, NR_SHMEM_PMDMAPPED);
++		if (PageSwapBacked(page))
++			__dec_node_page_state(page, NR_SHMEM_PMDMAPPED);
++		else
++			__dec_node_page_state(page, NR_FILE_PMDMAPPED);
+ 	} else {
+ 		if (!atomic_add_negative(-1, &page->_mapcount))
+ 			goto out;
 -- 
 2.17.1
 
