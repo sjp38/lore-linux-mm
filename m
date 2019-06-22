@@ -4,305 +4,176 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-3.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
-	SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3C614C43613
-	for <linux-mm@archiver.kernel.org>; Sat, 22 Jun 2019 06:32:39 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 142EAC43613
+	for <linux-mm@archiver.kernel.org>; Sat, 22 Jun 2019 09:42:45 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B29B2205ED
-	for <linux-mm@archiver.kernel.org>; Sat, 22 Jun 2019 06:32:38 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 8CB4120679
+	for <linux-mm@archiver.kernel.org>; Sat, 22 Jun 2019 09:42:44 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="sG+GZBxk"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B29B2205ED
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="Ts6AebvH"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8CB4120679
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 06BEF6B0003; Sat, 22 Jun 2019 02:32:37 -0400 (EDT)
+	id ED2876B0003; Sat, 22 Jun 2019 05:42:43 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 01C118E0002; Sat, 22 Jun 2019 02:32:36 -0400 (EDT)
+	id E5BED8E0002; Sat, 22 Jun 2019 05:42:43 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E4C938E0001; Sat, 22 Jun 2019 02:32:36 -0400 (EDT)
+	id D22B28E0001; Sat, 22 Jun 2019 05:42:43 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C3C1A6B0003
-	for <linux-mm@kvack.org>; Sat, 22 Jun 2019 02:32:36 -0400 (EDT)
-Received: by mail-io1-f69.google.com with SMTP id u25so13735726iol.23
-        for <linux-mm@kvack.org>; Fri, 21 Jun 2019 23:32:36 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 9ABD76B0003
+	for <linux-mm@kvack.org>; Sat, 22 Jun 2019 05:42:43 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id s195so5563300pgs.13
+        for <linux-mm@kvack.org>; Sat, 22 Jun 2019 02:42:43 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=MZOW7mZS47qV542PE7GqCKSpI+Y0I41Wm27n7Aq67bQ=;
-        b=V9u+xMmDDoO4ZZDL21tXXbPNIqs9j3AYWjN7mHqImBncKWC8df/LhXlmeLd1kI3c9b
-         PdfYLCOTEXV7gKFkMFqCvX7lu089L0cw6katroJR7YYfoPKyZ19Y9kW/T6bzlQ4jsRqk
-         MPw18W61zIe1IZY0/WcBrawcOUNsgpsR+nNx6b3FTYbc7IMs+lOx+St+rwemy8t50P5Q
-         mdlEgkoqqjBN5d4RbrN5FdH8grcR8y0doXMTZW45BzGO8E9QmgEiTlR/EZsBJJcRmaN0
-         FydC/FU2/yF+tCZSzQx05KC0OvfFAEY5g3++THeG8J4BASQhTRE2itkYax5YNS1+Zl3b
-         mc1A==
-X-Gm-Message-State: APjAAAUlJqZfxAwo8mXlVjptEFi4L0gha9MOjOtwiDqZnWhrI3NH6Lk6
-	cVcDr//ucZxDHG15jzjNa3tXYVtn3yD8VAlAVZO4HPFJt7zpQPzLIWB7lngZ+CL/Lvd7ci6QV+c
-	0hX0+P07TU4l+Tw6bwyaMPPDJ0NIv/UtwA4kAuKtbaNi/sQRjBZunaL2lSDceM+Gvdg==
-X-Received: by 2002:a02:3c07:: with SMTP id m7mr3984110jaa.64.1561185156440;
-        Fri, 21 Jun 2019 23:32:36 -0700 (PDT)
-X-Received: by 2002:a02:3c07:: with SMTP id m7mr3984022jaa.64.1561185155662;
-        Fri, 21 Jun 2019 23:32:35 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561185155; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:subject:to:cc
+         :references:in-reply-to:mime-version:user-agent:message-id
+         :content-transfer-encoding;
+        bh=9j2IX/8es+MUtSvRFN6FI7AtAfO00jHDIvuYq49EqJ4=;
+        b=FY3HwzBtMpiQVFIl5FnCamUHYhhMV02tVAqXgjtlv+0LY7QFxYqH7T6ssvroh+7t2r
+         s4jatYgkIPlEuTqCPKBSImgFlgj4wg2v5/+5kgZ2aPME+B+MGODwYAM22gnQw06WeraV
+         GbTjcdQaNMmT43aEZwRZwuDETYIV/aggps6ymXyufWq3VJ3cqh7gqhF9nig5oGDo9ldO
+         eJmOc/+KH6qbgG4/nKJHlkVvMc1IGd/KE9RfnozOv70S7L7ZeUwiQbhnr5T4r4e/qPxb
+         4cs/sQjxCSAY/eF4y2FzwwdgTQT24VwqJQg0Z9VYtuW06Oco/hasxYL58Ddt/9Csdf2A
+         K2eA==
+X-Gm-Message-State: APjAAAUDzk8CE/UOqAK/9MCEVrgSz7JAPwnWsZKzZCf3b3N7CsfsYKUs
+	Z1i9mqHVzpAruANRPWCwN/kd0j8nFzrLXCmtwdLG8G8+ZFyn9CvNulyjdDyzxaxT9xLG4PaOtnw
+	Xrb1GNdgjzRmNoZGdApG5cfTKmf+hpIQusyiUcXEDD9G8pm5naOqxV8cErDSPq7S+rA==
+X-Received: by 2002:a63:e304:: with SMTP id f4mr22519260pgh.187.1561196562957;
+        Sat, 22 Jun 2019 02:42:42 -0700 (PDT)
+X-Received: by 2002:a63:e304:: with SMTP id f4mr22519198pgh.187.1561196561915;
+        Sat, 22 Jun 2019 02:42:41 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561196561; cv=none;
         d=google.com; s=arc-20160816;
-        b=WhwEmGzWHl6ntC9NQthacomO2JCBC9hjOfDwqDzJUm50MGG7li1C1wZVD4P2BtxmWr
-         957t8qMnL7YZ9w3ct3eWMXj51rcLido0c1T/hXDXvYfGr8cEwJbVi3cdpijx+VCVvE+R
-         UJkJkquN1FJami4bHnPpRmRwfiz1ujOw7Tmb4Ht1t+iq4gDXkUZAYtuHyWVGIsxHHZsQ
-         r4409wVmybDx0IJVTPAVk2JWKI2VHM7TY6kWwTFR4eXoGBwGKVcOdKmsivFprLtvQ7Rq
-         gnMEHSlyXuFS1xMy59cjAN9UUVfU9QJpp4Lo0K2nFfuXm0FKmzvXXnTq3PN2m8HfTSdU
-         dUDQ==
+        b=1DlpCrWNzfh/UIls3xnqa/o0AlJC3RDepKe6zIxN/UFFp2zzhf1q88USkc4wYPj1PX
+         /4j1y8ZXB9Uz1JZc4eNmiomaZaSQW4P0zxPBYG0kV2Kx0FiAMHhOQaOaTnhvopYw2Ab1
+         N2i/deDgO1SSov7QF3+gxnMO9gCw/f+O89hgPAX+ulKAEsDPOsEhYqQVxcmpntZSfUgq
+         g1L2Net+mNDBw5qD4B5oMQNAGd6pi15ZuzINvKfKEOzQImCyHZ5WVnJUwn2VA83SyNPk
+         PwIVUdxvpi73VzY3mTRcuD5uRSQivsMZ5bP/mukMdMAsLb//7kOcOF2sbWpwuxvjv0TD
+         b27A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=MZOW7mZS47qV542PE7GqCKSpI+Y0I41Wm27n7Aq67bQ=;
-        b=edLcoqyhMf8piu7yfztLyBAqTQIvI+VvPFKrK/NMSwYKBolik+gMG8RKYpc/NofK8W
-         fY1aYYLJjJ9Du8mf+m9/U4O4MY06fCxd5Tz92WviXYxQDXtHys8csY76StpqkPH6DJa3
-         RZcvMH4W0lhFGGs+zqR35zeV+NzAdbSVokhRgniPsh1FsQ0Z/pcBbzCaUfy79tRHl23D
-         zfUHEQiXhi+Z+CIswfKwyocjoixphdrj6YlSUoBZzIwgVdk+SkfighJDL097NF40V3Lf
-         hJEKeLAkvhNxUwO7FTWdBn/63dKzB/RZ6g6Ag/xdzjdh29kF/C2QpStw47iealWC21tX
-         ZqMQ==
+        h=content-transfer-encoding:message-id:user-agent:mime-version
+         :in-reply-to:references:cc:to:subject:from:date:dkim-signature;
+        bh=9j2IX/8es+MUtSvRFN6FI7AtAfO00jHDIvuYq49EqJ4=;
+        b=QWEKPb08OeNtJOaF9GTf6/HsjjbsRfGck27ngmm23dW4SxfhBm0Ap8QAsZlkqJeGBT
+         ZyXvOV4+jYRDHUcziiRUZeeNFFbfzjfIcWulepoTAeZfwnWbTOzbI5thNRS4Ui2/EbxD
+         cJ7svmOjXGl5yxvXQ1OOfsf2LCdH1WLvYrFOFUFLKgZwPKr47GuqWa7ksR7wJNBq+GQP
+         ewh+J9ybhKOGy1Nk7suvRQKCm5DdbD4yMNAcS66FZi97s3Ofwgk9Id47LOkVTUCfWoYC
+         zGnC+/dLstABPqRxsf2Od8xdAmclLWYvsUula5iLvUgNv/TrN7bont2UXWBAJ+tpWH1o
+         5Xuw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=sG+GZBxk;
-       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Ts6AebvH;
+       spf=pass (google.com: domain of npiggin@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=npiggin@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id m187sor3905991ioa.46.2019.06.21.23.32.35
+        by mx.google.com with SMTPS id s7sor6289709plq.42.2019.06.22.02.42.41
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 21 Jun 2019 23:32:35 -0700 (PDT)
-Received-SPF: pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Sat, 22 Jun 2019 02:42:41 -0700 (PDT)
+Received-SPF: pass (google.com: domain of npiggin@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=sG+GZBxk;
-       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Ts6AebvH;
+       spf=pass (google.com: domain of npiggin@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=npiggin@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=MZOW7mZS47qV542PE7GqCKSpI+Y0I41Wm27n7Aq67bQ=;
-        b=sG+GZBxkB4n3Y2FlrA0NAQETnsHs3+0NroO+eFKeWT1GXbFh2yIpqpqjFb78R/0qlL
-         ARxwfSsLT/2CIB24JJLSz6nmXABEldlb/cFzDJSLnwYW1RdEzJJLHz7hHqTiD+HkPrHc
-         2gd9MD2gv8D9YXZ3PeJcISFaL+kym7cTS2ZvZdKkT06JHQ6pAbYc9oG0HUesWGRlJTR8
-         77BPfsrAObClEanqUj5Lk0XocWrI/SLBUtySbuxHWTJuOLipjHeIYPYi6e3s0OaYP0nd
-         STS7c1GeQ3XGXxwDjEXx8YaCG1elMPUH0bJnBnB6Vx1cSdSm8at/oiChvAI6zxpnNi/6
-         qczg==
-X-Google-Smtp-Source: APXvYqw0hLPMEX9jIddSYlobWm97lxnCMrN3UzvEPdsz1bgNzG5ceqsVWvCDfNYcEO0CgHwY3C0t1vHdF46ysxkYSUA=
-X-Received: by 2002:a5e:9e0a:: with SMTP id i10mr22901107ioq.44.1561185155210;
- Fri, 21 Jun 2019 23:32:35 -0700 (PDT)
+        h=date:from:subject:to:cc:references:in-reply-to:mime-version
+         :user-agent:message-id:content-transfer-encoding;
+        bh=9j2IX/8es+MUtSvRFN6FI7AtAfO00jHDIvuYq49EqJ4=;
+        b=Ts6AebvHzxuEt7R7gbjgIxoo4iHiicCl3sDn4pN1BZckM0bNb7iQ8db/Rnc5ojI7xK
+         Am+VjjmHYsPZbH04bvBDUkevdmvWbmB55qd4JuzFg+Q8g6DWFXiBeRG0YJ8kfK47u1E5
+         gCDQyJUhaIPouxgkcfbIzWNh/6fXNX8kqLTqqOF70gPYZfR7sxojn2F2JJpeBIZ+HhWj
+         O2dcWwu/QL4xRGvJnSU2bUZjB/JjJXmLYQ7IdYz5WMBhHxfGJeJpBjwg6QhLDy06qTKq
+         uDtBFAh4z95tU/HD9nzcWJKhKIH5rtr/zdiK2fZahh/MeJc3voiawu/7zXQTk8tI0Dgv
+         QQ9Q==
+X-Google-Smtp-Source: APXvYqxQoSAjvHvNNS187noku0m+vdYzBFRilcXKyC8mBY29vB2ASuYueJN/FrkjmvvwxZV72kH54g==
+X-Received: by 2002:a17:902:5ac4:: with SMTP id g4mr60474836plm.80.1561196561489;
+        Sat, 22 Jun 2019 02:42:41 -0700 (PDT)
+Received: from localhost ([1.144.215.73])
+        by smtp.gmail.com with ESMTPSA id u5sm4782194pgp.19.2019.06.22.02.42.39
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Sat, 22 Jun 2019 02:42:40 -0700 (PDT)
+Date: Sat, 22 Jun 2019 19:42:16 +1000
+From: Nicholas Piggin <npiggin@gmail.com>
+Subject: Re: [PATCH 1/4] mm: Move ioremap page table mapping function to mm/
+To: Christophe Leroy <christophe.leroy@c-s.fr>, linux-mm@kvack.org
+Cc: linux-arm-kernel@lists.infradead.org, linuxppc-dev@lists.ozlabs.org
+References: <20190610043838.27916-1-npiggin@gmail.com>
+	<86991f76-2101-8087-37db-d939d5d744fa@c-s.fr>
+	<1560915576.aqf69c3nf8.astroid@bobo.none>
+	<7218a243-0d9c-ad90-d409-87663893799e@c-s.fr>
+In-Reply-To: <7218a243-0d9c-ad90-d409-87663893799e@c-s.fr>
 MIME-Version: 1.0
-References: <1561112086-6169-1-git-send-email-laoar.shao@gmail.com>
- <1561112086-6169-3-git-send-email-laoar.shao@gmail.com> <20190621203014.fff2b968b6f9c2e23ebf4eef@linux-foundation.org>
-In-Reply-To: <20190621203014.fff2b968b6f9c2e23ebf4eef@linux-foundation.org>
-From: Yafang Shao <laoar.shao@gmail.com>
-Date: Sat, 22 Jun 2019 14:31:53 +0800
-Message-ID: <CALOAHbAxMafczF8-T=B-gxiJt2ytDg+b3CojR-OypSr3oonvDA@mail.gmail.com>
-Subject: Re: [PATCH 2/2] mm/vmscan: calculate reclaimed slab caches in all
- reclaim paths
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Kirill Tkhai <ktkhai@virtuozzo.com>, Michal Hocko <mhocko@suse.com>, 
-	Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, 
-	Mel Gorman <mgorman@techsingularity.net>, Linux MM <linux-mm@kvack.org>
-Content-Type: text/plain; charset="UTF-8"
+User-Agent: astroid/0.14.0 (https://github.com/astroidmail/astroid)
+Message-Id: <1561196381.zbgk3puxhu.astroid@bobo.none>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Jun 22, 2019 at 11:30 AM Andrew Morton
-<akpm@linux-foundation.org> wrote:
->
-> On Fri, 21 Jun 2019 18:14:46 +0800 Yafang Shao <laoar.shao@gmail.com> wrote:
->
-> > There're six different reclaim paths by now,
-> > - kswapd reclaim path
-> > - node reclaim path
-> > - hibernate preallocate memory reclaim path
-> > - direct reclaim path
-> > - memcg reclaim path
-> > - memcg softlimit reclaim path
-> >
-> > The slab caches reclaimed in these paths are only calculated in the above
-> > three paths.
-> >
-> > There're some drawbacks if we don't calculate the reclaimed slab caches.
-> > - The sc->nr_reclaimed isn't correct if there're some slab caches
-> >   relcaimed in this path.
-> > - The slab caches may be reclaimed thoroughly if there're lots of
-> >   reclaimable slab caches and few page caches.
-> >   Let's take an easy example for this case.
-> >   If one memcg is full of slab caches and the limit of it is 512M, in
-> >   other words there're approximately 512M slab caches in this memcg.
-> >   Then the limit of the memcg is reached and the memcg reclaim begins,
-> >   and then in this memcg reclaim path it will continuesly reclaim the
-> >   slab caches until the sc->priority drops to 0.
-> >   After this reclaim stops, you will find there're few slab caches left,
-> >   which is less than 20M in my test case.
-> >   While after this patch applied the number is greater than 300M and
-> >   the sc->priority only drops to 3.
->
-> I got a bit exhausted checking that none of these six callsites can
-> scribble on some caller's value of current->reclaim_state.
->
-> How about we do it at runtime?
->
+Christophe Leroy's on June 19, 2019 11:18 pm:
+>=20
+>=20
+> Le 19/06/2019 =C3=A0 05:43, Nicholas Piggin a =C3=A9crit=C2=A0:
+>> Christophe Leroy's on June 11, 2019 3:24 pm:
+>>>
+>>>
+>>> Le 10/06/2019 =C3=A0 06:38, Nicholas Piggin a =C3=A9crit=C2=A0:
+>=20
+> [snip]
+>=20
+>>>> diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
+>>>> index 51e131245379..812bea5866d6 100644
+>>>> --- a/include/linux/vmalloc.h
+>>>> +++ b/include/linux/vmalloc.h
+>>>> @@ -147,6 +147,9 @@ extern struct vm_struct *find_vm_area(const void *=
+addr);
+>>>>    extern int map_vm_area(struct vm_struct *area, pgprot_t prot,
+>>>>    			struct page **pages);
+>>>>    #ifdef CONFIG_MMU
+>>>> +extern int vmap_range(unsigned long addr,
+>>>> +		       unsigned long end, phys_addr_t phys_addr, pgprot_t prot,
+>>>> +		       unsigned int max_page_shift);
+>>>
+>>> Drop extern keyword here.
+>>=20
+>> I don't know if I was going crazy but at one point I was getting
+>> duplicate symbol errors that were fixed by adding extern somewhere.
+>=20
+> probably not on a function name ...
 
-That's good.
-Thanks for your improvement.
+I know it sounds crazy :P
 
-> From: Andrew Morton <akpm@linux-foundation.org>
-> Subject: mm/vmscan.c: add checks for incorrect handling of current->reclaim_state
->
-> Six sites are presently altering current->reclaim_state.  There is a risk
-> that one function stomps on a caller's value.  Use a helper function to
-> catch such errors.
->
-> Cc: Yafang Shao <laoar.shao@gmail.com>
-> Cc: Kirill Tkhai <ktkhai@virtuozzo.com>
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
-> Cc: Mel Gorman <mgorman@techsingularity.net>
-> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-> ---
->
->  mm/vmscan.c |   37 ++++++++++++++++++++++++-------------
->  1 file changed, 24 insertions(+), 13 deletions(-)
->
-> --- a/mm/vmscan.c~mm-vmscanc-add-checks-for-incorrect-handling-of-current-reclaim_state
-> +++ a/mm/vmscan.c
-> @@ -177,6 +177,18 @@ unsigned long vm_total_pages;
->  static LIST_HEAD(shrinker_list);
->  static DECLARE_RWSEM(shrinker_rwsem);
->
-> +static void set_task_reclaim_state(struct task_struct *task,
-> +                                  struct reclaim_state *rs)
-> +{
-> +       /* Check for an overwrite */
-> +       WARN_ON_ONCE(rs && task->reclaim_state);
-> +
-> +       /* Check for the nulling of an already-nulled member */
-> +       WARN_ON_ONCE(!rs && !task->reclaim_state);
-> +
-> +       task->reclaim_state = rs;
-> +}
-> +
->  #ifdef CONFIG_MEMCG_KMEM
->
->  /*
-> @@ -3194,13 +3206,13 @@ unsigned long try_to_free_pages(struct z
->         if (throttle_direct_reclaim(sc.gfp_mask, zonelist, nodemask))
->                 return 1;
->
-> -       current->reclaim_state = &sc.reclaim_state;
-> +       set_task_reclaim_state(current, &sc.reclaim_state);
->         trace_mm_vmscan_direct_reclaim_begin(order, sc.gfp_mask);
->
->         nr_reclaimed = do_try_to_free_pages(zonelist, &sc);
->
->         trace_mm_vmscan_direct_reclaim_end(nr_reclaimed);
-> -       current->reclaim_state = NULL;
-> +       set_task_reclaim_state(current, NULL);
->
->         return nr_reclaimed;
->  }
-> @@ -3223,7 +3235,7 @@ unsigned long mem_cgroup_shrink_node(str
->         };
->         unsigned long lru_pages;
->
-> -       current->reclaim_state = &sc.reclaim_state;
-> +       set_task_reclaim_state(current, &sc.reclaim_state);
->         sc.gfp_mask = (gfp_mask & GFP_RECLAIM_MASK) |
->                         (GFP_HIGHUSER_MOVABLE & ~GFP_RECLAIM_MASK);
->
-> @@ -3245,7 +3257,7 @@ unsigned long mem_cgroup_shrink_node(str
->                                         cgroup_ino(memcg->css.cgroup),
->                                         sc.nr_reclaimed);
->
-> -       current->reclaim_state = NULL;
-> +       set_task_reclaim_state(current, NULL);
->         *nr_scanned = sc.nr_scanned;
->
->         return sc.nr_reclaimed;
-> @@ -3274,7 +3286,7 @@ unsigned long try_to_free_mem_cgroup_pag
->                 .may_shrinkslab = 1,
->         };
->
-> -       current->reclaim_state = &sc.reclaim_state;
-> +       set_task_reclaim_state(current, &sc.reclaim_state);
->         /*
->          * Unlike direct reclaim via alloc_pages(), memcg's reclaim doesn't
->          * take care zof from where we get pages. So the node where we start the
-> @@ -3299,7 +3311,7 @@ unsigned long try_to_free_mem_cgroup_pag
->         trace_mm_vmscan_memcg_reclaim_end(
->                                 cgroup_ino(memcg->css.cgroup),
->                                 nr_reclaimed);
-> -       current->reclaim_state = NULL;
-> +       set_task_reclaim_state(current, NULL);
->
->         return nr_reclaimed;
->  }
-> @@ -3501,7 +3513,7 @@ static int balance_pgdat(pg_data_t *pgda
->                 .may_unmap = 1,
->         };
->
-> -       current->reclaim_state = &sc.reclaim_state;
-> +       set_task_reclaim_state(current, &sc.reclaim_state);
->         psi_memstall_enter(&pflags);
->         __fs_reclaim_acquire();
->
-> @@ -3683,7 +3695,7 @@ out:
->         snapshot_refaults(NULL, pgdat);
->         __fs_reclaim_release();
->         psi_memstall_leave(&pflags);
-> -       current->reclaim_state = NULL;
-> +       set_task_reclaim_state(current, NULL);
->
->         /*
->          * Return the order kswapd stopped reclaiming at as
-> @@ -3945,17 +3957,16 @@ unsigned long shrink_all_memory(unsigned
->                 .hibernation_mode = 1,
->         };
->         struct zonelist *zonelist = node_zonelist(numa_node_id(), sc.gfp_mask);
-> -       struct task_struct *p = current;
->         unsigned long nr_reclaimed;
->         unsigned int noreclaim_flag;
->
->         fs_reclaim_acquire(sc.gfp_mask);
->         noreclaim_flag = memalloc_noreclaim_save();
-> -       p->reclaim_state = &sc.reclaim_state;
-> +       set_task_reclaim_state(current, &sc.reclaim_state);
->
->         nr_reclaimed = do_try_to_free_pages(zonelist, &sc);
->
-> -       p->reclaim_state = NULL;
-> +       set_task_reclaim_state(current, NULL);
->         memalloc_noreclaim_restore(noreclaim_flag);
->         fs_reclaim_release(sc.gfp_mask);
->
-> @@ -4144,7 +4155,7 @@ static int __node_reclaim(struct pglist_
->          */
->         noreclaim_flag = memalloc_noreclaim_save();
->         p->flags |= PF_SWAPWRITE;
-> -       p->reclaim_state = &sc.reclaim_state;
-> +       set_task_reclaim_state(p, &sc.reclaim_state);
->
->         if (node_pagecache_reclaimable(pgdat) > pgdat->min_unmapped_pages) {
->                 /*
-> @@ -4156,7 +4167,7 @@ static int __node_reclaim(struct pglist_
->                 } while (sc.nr_reclaimed < nr_pages && --sc.priority >= 0);
->         }
->
-> -       p->reclaim_state = NULL;
-> +       set_task_reclaim_state(p, NULL);
->         current->flags &= ~PF_SWAPWRITE;
->         memalloc_noreclaim_restore(noreclaim_flag);
->         fs_reclaim_release(sc.gfp_mask);
-> _
->
+>>> As checkpatch tells you, 'CHECK:AVOID_EXTERNS: extern prototypes should
+>>> be avoided in .h files'
+>>=20
+>> I prefer to follow existing style in surrounding code at the expense
+>> of some checkpatch warnings. If somebody later wants to "fix" it
+>> that's fine.
+>=20
+> I don't think that's fine to 'fix' later things that could be done right=20
+> from the begining. 'Cosmetic only' fixes never happen because they are a=20
+> nightmare for backports, and a shame for 'git blame'.
+>=20
+> In some patches, you add cleanups to make the code look nicer, and here=20
+> you have the opportunity to make the code nice from the begining and you=20
+> prefer repeating the errors done in the past ? You're surprising me.
+
+Well I never claimed to be consistent. I actually don't mind the
+extern keyword so it's probably just my personal preference that
+makes me notice something nearby. I have dropped those "cleanup"
+changes though, so there.
+
+Thanks,
+Nick
+=
 
