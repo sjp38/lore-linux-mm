@@ -1,223 +1,236 @@
-Return-Path: <SRS0=rpDk=UV=kvack.org=owner-linux-mm@kernel.org>
+Return-Path: <SRS0=ENxG=UW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.9 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 77261C48BE7
-	for <linux-mm@archiver.kernel.org>; Sat, 22 Jun 2019 18:03:11 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 46591C43613
+	for <linux-mm@archiver.kernel.org>; Sun, 23 Jun 2019 05:48:01 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 458192070B
-	for <linux-mm@archiver.kernel.org>; Sat, 22 Jun 2019 18:03:11 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 6CCCC20657
+	for <linux-mm@archiver.kernel.org>; Sun, 23 Jun 2019 05:48:00 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=linux-foundation.org header.i=@linux-foundation.org header.b="NHX+A4Hn"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 458192070B
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
+	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="aqXk+llh"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6CCCC20657
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D0BDD6B0003; Sat, 22 Jun 2019 14:03:10 -0400 (EDT)
+	id AFBE26B0003; Sun, 23 Jun 2019 01:47:59 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CBC4E8E0002; Sat, 22 Jun 2019 14:03:10 -0400 (EDT)
+	id A85CB8E0002; Sun, 23 Jun 2019 01:47:59 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B5D128E0001; Sat, 22 Jun 2019 14:03:10 -0400 (EDT)
+	id 926B68E0001; Sun, 23 Jun 2019 01:47:59 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lj1-f200.google.com (mail-lj1-f200.google.com [209.85.208.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 4EF5E6B0003
-	for <linux-mm@kvack.org>; Sat, 22 Jun 2019 14:03:10 -0400 (EDT)
-Received: by mail-lj1-f200.google.com with SMTP id q12so1512615ljc.4
-        for <linux-mm@kvack.org>; Sat, 22 Jun 2019 11:03:10 -0700 (PDT)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 5B0AA6B0003
+	for <linux-mm@kvack.org>; Sun, 23 Jun 2019 01:47:59 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id h27so7138428pfq.17
+        for <linux-mm@kvack.org>; Sat, 22 Jun 2019 22:47:59 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=rTVQwNdpEANBFFxnKdTYMSvJa37ECLsEqk9sL0w2aCY=;
-        b=GKfbaDiQftndmMGMxuHS+zHTpZNXluRJ00RKmGSJ0uqW/4ZZDFbTNHs2XZTSvWp1Dj
-         9PIipEvOCH+2PKU2mMO77Z9460SvkWVLuSGbQW3IcmCXnhjrmgoYZcxEDIThtKKevJh8
-         UAWnI3FLwjVrGVtU76EZtBn+qiIJswSJzwrHM9Yflf2rAWCJ534+rHf7qxF4h4XKaSDj
-         i/otLTNN6ybZEodNVzoh5OXTWY08OD4ZcaY2Ti3CU1c/Q8JkiZt8ALjqGxFVbtdQLLqt
-         FUdlaEc2m56cHQQVgWxRsj2s2R6igb6U1uC31c2SQAZDNA1rfJtCQDVTVOeJj84wwp4q
-         h85A==
-X-Gm-Message-State: APjAAAUFViPmF/54ZdLQbvE0vPdFgn+fl5JuZxp+SVrF3spnyZfhYJVs
-	cOmvqKQrIzf/58aNFH8FegNv7HXRWFBn8qseG6rcwlSKlLcstKot/ynFPboNy6v022061owf8lN
-	cQU/JnfETO6NJL8HnMytMkfKofC9W2VHUhWdPGZz6jBb4Kvi5Y1GSzu+6MlEuBHVajg==
-X-Received: by 2002:a2e:2b8f:: with SMTP id r15mr5759635ljr.210.1561226589471;
-        Sat, 22 Jun 2019 11:03:09 -0700 (PDT)
-X-Received: by 2002:a2e:2b8f:: with SMTP id r15mr5759606ljr.210.1561226588194;
-        Sat, 22 Jun 2019 11:03:08 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561226588; cv=none;
+        h=x-gm-message-state:dkim-signature:smtp-origin-hostprefix:from
+         :smtp-origin-hostname:to:cc:smtp-origin-cluster:subject:date
+         :message-id:mime-version;
+        bh=N4p2KBB2M58AXrXvSXMaov3ijBFbuQ4LQynUr7EYajE=;
+        b=LrgsEVZG1haTSYYPxAT3RwrxG4gI6bsM6pra05qwm7eKjMi03wyIlzTg/I3U9VHPol
+         UpW3JSDJ1uS5C112yF+eR/vCVG+Kw+cTzD1fvH8SaI/XWv0LI4aSzFYeBKV1CxisUpva
+         u57pwkgOaEnnFEw9cythykMELm8Cte7WVq4BN4xVz2Rkfu/ge3A9f97oqZJRriOr0cUx
+         Bdu9hIJJpulLWhDhiar893b59rT/oBhWZRFuArD7IYvU4cWCQb55dxffZ3PiVpEwXaiK
+         H9BrIj0C+qHt8ZjxhnPy+TAzOKRxmTGK5sEgTqeO5mZZSmA4BdSvxLYF4xgdKXNUdy1D
+         AldA==
+X-Gm-Message-State: APjAAAUPZS/kBRVNSa3EEw777wWM9vE5lcgirP1MtMaZLq5UpaHkikc3
+	s074KALAkq8IC+85eVNw3BV5pcQ1SFautwZpuHCMsk2iuhNJD7EwvdQuKWpe+17SeAgblTChGi/
+	3/GBhrKoS10HNbmluQ1TpoDcaQrCGFxOVJB26fsT9b9bWa8khN1ch7AQBAGD+2lNjaA==
+X-Received: by 2002:a17:902:2926:: with SMTP id g35mr95138628plb.269.1561268878787;
+        Sat, 22 Jun 2019 22:47:58 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqy0beRkM1N9SPtFTXUL5T5eluAgP9cbsTk813SizmByM9T5XuzQEOkSP/NXnFqyiUgV6efv
+X-Received: by 2002:a17:902:2926:: with SMTP id g35mr95138574plb.269.1561268877568;
+        Sat, 22 Jun 2019 22:47:57 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561268877; cv=none;
         d=google.com; s=arc-20160816;
-        b=jHcCvMBEJOCwZytsoSbVcNq1FcOGfSsy78s/W8PJCo+4joogba25lqPMxHET3wrCSv
-         l3mG1dE1CglNHtCTcFD9bIl1vii9RMiYJ7QDaBEojIRqaSA4tAY5t0jM7y7T3P+ohu+X
-         8lzkHyDRmoeUAtRGzExZ4XmLWNFnEiLq08DOouahVKm5zvh84J8N6t4HXk1PB5ldb8Ci
-         KjrVKdYurQDLhkDAOXzIksFEMAsScTY16BlRP5thzTj62RX+U3snWAusitEhcRQHyQ7T
-         GXIa9Vt8T8sJbwqN8OqXb6kziT3LYjR9e4m3ZxwwAsYCrui6hvgOb9tSdtbpndlATEZ9
-         Mf5g==
+        b=gcGDMnxOTfWjIgqMZZI9uxEMjR2pPheKMkznW+6F+OqDiJsR1fIMK9sppm82eSfcSE
+         +zcxHXhs0ScnQ0uIx4vVFXzCvsiCO+cOluYqgdGfiya4LZA+d9Da6KCHRLkv8bNbGt/O
+         R5JF33CEdY3lpcJyGAUI/ejUNt5T2fWC1CSjBdpmW7HUytzczwMfaghdaXN2edgYElW7
+         CPny39TRgH0odouez4DZ9QyWplju49uotODNbIDhG3fK4IVAepPOPHAIIogQJ8nJIrJ3
+         tsR1ZZG67tyO5/ST+OJQCbeVwRMNREdkh/+8orSjzTL9BUX9+9TcDH/7LMrEhU6Tpx8I
+         fXlg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=rTVQwNdpEANBFFxnKdTYMSvJa37ECLsEqk9sL0w2aCY=;
-        b=jWIK79PXeMIovhIMAYcti3AvawnR1DHpzJJYLvYzszE8Fe77J4CcFtfPWBDzrX6gB8
-         1HPip/J7vRKEfLrQ9M1f/bAM1EYWVcyNtZp0QbmPdsKKELbGh+bnQ3BHV/eU4F33Wl6t
-         7MYPbB5HFNn2nPNMF4XzTb5gLH7EV5vALi35Niy9pgADbbbC3S1koQ56y5IaNFKSdXQP
-         Ihz1mgEqJ/1OydncME56qzJLvdsTvtGtwtplS26QsByB+afftTW4fcJZRKlwO64SKtj5
-         pN6z5LEmIFiR8dtfMMhpXzmwQ+/5qb5yC3vzXT67TgajD+eVWnj61OEWLHLF8ik5PGm2
-         fx5Q==
+        h=mime-version:message-id:date:subject:smtp-origin-cluster:cc:to
+         :smtp-origin-hostname:from:smtp-origin-hostprefix:dkim-signature;
+        bh=N4p2KBB2M58AXrXvSXMaov3ijBFbuQ4LQynUr7EYajE=;
+        b=w2z6/JOQjYMYmLWbn8t0nNzB6NBLWsa8rcIvyzQddfTr1QL/dvI7+8KyLKr+16SS1w
+         PaTvyIutrI65LD4T3F7EGmZ7Z1hcLGD79t1BULSNxXtVW9V/HYygmLYevI7ihVCew8BT
+         jLGDYIvx2oNkekdW08e5FES1vkHXSXdlud1lsISigiTHN0JDD6GXod4tQXnxCNiOkiWW
+         9NkGeZd44LoEks6MzYgT9I9IkMIM0pVkDSMU45reN02I5dRnByLoJssl61mRrIChECXt
+         Wv/21T87JaiqU6yGtZoxz4OC4I3D6BBbtW7y3e2KekbC06jWdZT0MdkqVutyjl29BVcJ
+         Mh9w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@linux-foundation.org header.s=google header.b=NHX+A4Hn;
-       spf=pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=torvalds@linuxfoundation.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id e8sor3156816ljg.43.2019.06.22.11.03.07
+       dkim=pass header.i=@fb.com header.s=facebook header.b=aqXk+llh;
+       spf=pass (google.com: domain of prvs=1077171f80=songliubraving@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=1077171f80=songliubraving@fb.com";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id y10si6917049pjr.109.2019.06.22.22.47.57
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sat, 22 Jun 2019 11:03:08 -0700 (PDT)
-Received-SPF: pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 22 Jun 2019 22:47:57 -0700 (PDT)
+Received-SPF: pass (google.com: domain of prvs=1077171f80=songliubraving@fb.com designates 67.231.145.42 as permitted sender) client-ip=67.231.145.42;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@linux-foundation.org header.s=google header.b=NHX+A4Hn;
-       spf=pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=torvalds@linuxfoundation.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=linux-foundation.org; s=google;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=rTVQwNdpEANBFFxnKdTYMSvJa37ECLsEqk9sL0w2aCY=;
-        b=NHX+A4Hn+9k1GJ8KSdLWDJGit6XGMQmGE4DEU3fZsyRFWfBpw3wMmna3jspZ8npHAG
-         uKBQSW6kfbmK1saH4HAnCB+CK4PhAc0azGjSfqk5NUcxI70V/w92Nb9Dpol9ZFldVFig
-         uzoE3MUGDKRzt4OKUC0byx12pDyJL1JGvGwcI=
-X-Google-Smtp-Source: APXvYqxjWM1193ns2bcySGgA89seNTr/kkaFerWxQiRpX+/F8IVUHQc18FaYohBjWO7nIxHiH4k3nw==
-X-Received: by 2002:a2e:3211:: with SMTP id y17mr14035991ljy.86.1561226585705;
-        Sat, 22 Jun 2019 11:03:05 -0700 (PDT)
-Received: from mail-lj1-f169.google.com (mail-lj1-f169.google.com. [209.85.208.169])
-        by smtp.gmail.com with ESMTPSA id h11sm873174lfm.14.2019.06.22.11.03.04
-        for <linux-mm@kvack.org>
-        (version=TLS1_3 cipher=AEAD-AES128-GCM-SHA256 bits=128/128);
-        Sat, 22 Jun 2019 11:03:04 -0700 (PDT)
-Received: by mail-lj1-f169.google.com with SMTP id 131so8822324ljf.4
-        for <linux-mm@kvack.org>; Sat, 22 Jun 2019 11:03:04 -0700 (PDT)
-X-Received: by 2002:a2e:9a58:: with SMTP id k24mr30871577ljj.165.1561226584112;
- Sat, 22 Jun 2019 11:03:04 -0700 (PDT)
+       dkim=pass header.i=@fb.com header.s=facebook header.b=aqXk+llh;
+       spf=pass (google.com: domain of prvs=1077171f80=songliubraving@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=1077171f80=songliubraving@fb.com";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
+Received: from pps.filterd (m0044008.ppops.net [127.0.0.1])
+	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x5N5jFjY016702
+	for <linux-mm@kvack.org>; Sat, 22 Jun 2019 22:47:56 -0700
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
+ : date : message-id : mime-version : content-type; s=facebook;
+ bh=N4p2KBB2M58AXrXvSXMaov3ijBFbuQ4LQynUr7EYajE=;
+ b=aqXk+llhlxf02/luaoTtoMU/QnV7fgpAZH4oiXC817GCprF8wIzbKUp2eizSg1UnMbpE
+ c+s0KSeRKCD1fnrA2+yzsV0izvJoGFdvddXdaCkSEnBcHRo9VNYxIJYQR35gq6DOI5KD
+ OXqYsIXNU8/PM07z9k08FsPArBIURLCqz/Y= 
+Received: from maileast.thefacebook.com ([163.114.130.16])
+	by mx0a-00082601.pphosted.com with ESMTP id 2t9fmjjfmb-2
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Sat, 22 Jun 2019 22:47:56 -0700
+Received: from mx-out.facebook.com (2620:10d:c0a8:1b::d) by
+ mail.thefacebook.com (2620:10d:c0a8:83::4) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) id
+ 15.1.1713.5; Sat, 22 Jun 2019 22:47:54 -0700
+Received: by devbig006.ftw2.facebook.com (Postfix, from userid 4523)
+	id 3779762E2CFB; Sat, 22 Jun 2019 22:47:54 -0700 (PDT)
+Smtp-Origin-Hostprefix: devbig
+From: Song Liu <songliubraving@fb.com>
+Smtp-Origin-Hostname: devbig006.ftw2.facebook.com
+To: <linux-mm@kvack.org>, <linux-fsdevel@vger.kernel.org>,
+        <linux-kernel@vger.kernel.org>
+CC: <matthew.wilcox@oracle.com>, <kirill.shutemov@linux.intel.com>,
+        <kernel-team@fb.com>, <william.kucharski@oracle.com>,
+        <akpm@linux-foundation.org>, <hdanton@sina.com>,
+        Song Liu
+	<songliubraving@fb.com>
+Smtp-Origin-Cluster: ftw2c04
+Subject: [PATCH v7 0/6] Enable THP for text section of non-shmem files
+Date: Sat, 22 Jun 2019 22:47:43 -0700
+Message-ID: <20190623054749.4016638-1-songliubraving@fb.com>
+X-Mailer: git-send-email 2.17.1
+X-FB-Internal: Safe
 MIME-Version: 1.0
-References: <20190620022008.19172-1-peterx@redhat.com> <20190620022008.19172-3-peterx@redhat.com>
-In-Reply-To: <20190620022008.19172-3-peterx@redhat.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Sat, 22 Jun 2019 11:02:48 -0700
-X-Gmail-Original-Message-ID: <CAHk-=wiGphH2UL+To5rASyFoCk6=9bROUkGDWSa_rMu9Kgb0yw@mail.gmail.com>
-Message-ID: <CAHk-=wiGphH2UL+To5rASyFoCk6=9bROUkGDWSa_rMu9Kgb0yw@mail.gmail.com>
-Subject: Re: [PATCH v5 02/25] mm: userfault: return VM_FAULT_RETRY on signals
-To: Peter Xu <peterx@redhat.com>
-Cc: Linux-MM <linux-mm@kvack.org>, 
-	Linux List Kernel Mailing <linux-kernel@vger.kernel.org>, David Hildenbrand <david@redhat.com>, 
-	Hugh Dickins <hughd@google.com>, Maya Gokhale <gokhale2@llnl.gov>, Jerome Glisse <jglisse@redhat.com>, 
-	Pavel Emelyanov <xemul@virtuozzo.com>, Johannes Weiner <hannes@cmpxchg.org>, 
-	Martin Cracauer <cracauer@cons.org>, Denis Plotnikov <dplotnikov@virtuozzo.com>, Shaohua Li <shli@fb.com>, 
-	Andrea Arcangeli <aarcange@redhat.com>, Mike Kravetz <mike.kravetz@oracle.com>, 
-	Marty McFadden <mcfadden8@llnl.gov>, Mike Rapoport <rppt@linux.vnet.ibm.com>, 
-	Mel Gorman <mgorman@suse.de>, "Kirill A . Shutemov" <kirill@shutemov.name>, 
-	"Dr . David Alan Gilbert" <dgilbert@redhat.com>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-06-23_04:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=fb_default_notspam policy=fb_default score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1906230050
+X-FB-Internal: deliver
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-So I still think this all *may* ok, but at a minimum some of the
-comments are misleading, and we need more docs on what happens with
-normal signals.
+Changes v6 => v7:
+1. Avoid accessing vma without holding mmap_sem (Hillf Dayton)
+2. In collapse_file() use readahead API instead of gup API. This matches
+   better with existing logic for shmem.
+3. Add inline documentation for @nr_thps (kbuild test robot)
 
-I'm picking on just the first one I noticed, but I think there were
-other architectures with this too:
+Changes v5 => v6:
+1. Improve THP stats in 3/6, (Kirill).
 
-On Wed, Jun 19, 2019 at 7:20 PM Peter Xu <peterx@redhat.com> wrote:
->
-> diff --git a/arch/arc/mm/fault.c b/arch/arc/mm/fault.c
-> index 6836095251ed..3517820aea07 100644
-> --- a/arch/arc/mm/fault.c
-> +++ b/arch/arc/mm/fault.c
-> @@ -139,17 +139,14 @@ void do_page_fault(unsigned long address, struct pt_regs *regs)
->          */
->         fault = handle_mm_fault(vma, address, flags);
->
-> -       if (fatal_signal_pending(current)) {
-> -
-> +       if (unlikely((fault & VM_FAULT_RETRY) && signal_pending(current))) {
-> +               if (fatal_signal_pending(current) && !user_mode(regs))
-> +                       goto no_context;
->                 /*
->                  * if fault retry, mmap_sem already relinquished by core mm
->                  * so OK to return to user mode (with signal handled first)
->                  */
-> -               if (fault & VM_FAULT_RETRY) {
-> -                       if (!user_mode(regs))
-> -                               goto no_context;
-> -                       return;
-> -               }
-> +               return;
->         }
+Changes v4 => v5:
+1. Move the logic to drop THP from pagecache to open() path (Rik).
+2. Revise description of CONFIG_READ_ONLY_THP_FOR_FS.
 
-So note how the end result of this is:
+Changes v3 => v4:
+1. Put the logic to drop THP from pagecache in a separate function (Rik).
+2. Move the function to drop THP from pagecache to exit_mmap().
+3. Revise confusing commit log 6/6.
 
- (a) if a fatal signal is pending, and we're returning to kernel mode,
-we do the exception handling
+Changes v2 => v3:
+1. Removed the limitation (cannot write to file with THP) by truncating
+   whole file during sys_open (see 6/6);
+2. Fixed a VM_BUG_ON_PAGE() in filemap_fault() (see 2/6);
+3. Split function rename to a separate patch (Rik);
+4. Updated condition in hugepage_vma_check() (Rik).
 
- (b) otherwise, if *any* signal is pending, we'll just return and
-retry the page fault
+Changes v1 => v2:
+1. Fixed a missing mem_cgroup_commit_charge() for non-shmem case.
 
-I have nothing against (a), and (b) is likely also ok, but it's worth
-noting that (b) happens for kernel returns too. But the comment talks
-about returning to user mode.
+This set follows up discussion at LSF/MM 2019. The motivation is to put
+text section of an application in THP, and thus reduces iTLB miss rate and
+improves performance. Both Facebook and Oracle showed strong interests to
+this feature.
 
-Is it ok to return to kernel mode when signals are pending? The signal
-won't be handled, and we'll just retry the access.
+To make reviews easier, this set aims a mininal valid product. Current
+version of the work does not have any changes to file system specific
+code. This comes with some limitations (discussed later).
 
-Will we possibly keep retrying forever? When we take the fault again,
-we'll set the FAULT_FLAG_ALLOW_RETRY again, so any fault handler that
-says "if it allows retry, and signals are pending, just return" would
-keep never making any progress, and we'd be stuck taking page faults
-in kernel mode forever.
+This set enables an application to "hugify" its text section by simply
+running something like:
 
-So I think the x86 code sequence is the much safer and more correct
-one, because it will actually retry once, and set FAULT_FLAG_TRIED
-(and it will clear the "FAULT_FLAG_ALLOW_RETRY" flag - but you'll
-remove that clearing later in the series).
+          madvise(0x600000, 0x80000, MADV_HUGEPAGE);
 
-> diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
-> index 46df4c6aae46..dcd7c1393be3 100644
-> --- a/arch/x86/mm/fault.c
-> +++ b/arch/x86/mm/fault.c
-> @@ -1463,16 +1463,20 @@ void do_user_addr_fault(struct pt_regs *regs,
->          * that we made any progress. Handle this case first.
->          */
->         if (unlikely(fault & VM_FAULT_RETRY)) {
-> +               bool is_user = flags & FAULT_FLAG_USER;
-> +
->                 /* Retry at most once */
->                 if (flags & FAULT_FLAG_ALLOW_RETRY) {
->                         flags &= ~FAULT_FLAG_ALLOW_RETRY;
->                         flags |= FAULT_FLAG_TRIED;
-> +                       if (is_user && signal_pending(tsk))
-> +                               return;
->                         if (!fatal_signal_pending(tsk))
->                                 goto retry;
->                 }
->
->                 /* User mode? Just return to handle the fatal exception */
-> -               if (flags & FAULT_FLAG_USER)
-> +               if (is_user)
->                         return;
->
->                 /* Not returning to user mode? Handle exceptions or die: */
+Before this call, the /proc/<pid>/maps looks like:
 
-However, I think the real issue is that it just needs documentation
-that a fault handler must not react to signal_pending() as part of the
-fault handling itself (ie the VM_FAULT_RETRY can not be *because* of a
-non-fatal signal), and there needs to be some guarantee of forward
-progress.
+    00400000-074d0000 r-xp 00000000 00:27 2006927     app
 
-At that point the "infinite page faults in kernel mode due to pending
-signals" issue goes away. But it's not obvious in this patch, at
-least.
+After this call, part of the text section is split out and mapped to
+THP:
 
-               Linus
+    00400000-00425000 r-xp 00000000 00:27 2006927     app
+    00600000-00e00000 r-xp 00200000 00:27 2006927     app   <<< on THP
+    00e00000-074d0000 r-xp 00a00000 00:27 2006927     app
+
+Limitations:
+
+1. This only works for text section (vma with VM_DENYWRITE).
+2. Original limitation #2 is removed in v3.
+
+We gated this feature with an experimental config, READ_ONLY_THP_FOR_FS.
+Once we get better support on the write path, we can remove the config and
+enable it by default.
+
+Tested cases:
+1. Tested with btrfs and ext4.
+2. Tested with real work application (memcache like caching service).
+3. Tested with "THP aware uprobe":
+   https://patchwork.kernel.org/project/linux-mm/list/?series=131339
+
+This set (plus a few uprobe patches) is also available at
+
+   https://github.com/liu-song-6/linux/tree/uprobe-thp
+
+Please share your comments and suggestions on this.
+
+Thanks!
+
+Song Liu (6):
+  filemap: check compound_head(page)->mapping in filemap_fault()
+  filemap: update offset check in filemap_fault()
+  mm,thp: stats for file backed THP
+  khugepaged: rename collapse_shmem() and khugepaged_scan_shmem()
+  mm,thp: add read-only THP support for (non-shmem) FS
+  mm,thp: avoid writes to file with THP in pagecache
+
+ drivers/base/node.c    |   6 +++
+ fs/inode.c             |   3 ++
+ fs/namei.c             |  22 +++++++-
+ fs/proc/meminfo.c      |   4 ++
+ fs/proc/task_mmu.c     |   4 +-
+ include/linux/fs.h     |  32 ++++++++++++
+ include/linux/mmzone.h |   2 +
+ mm/Kconfig             |  11 ++++
+ mm/filemap.c           |   9 ++--
+ mm/khugepaged.c        | 113 +++++++++++++++++++++++++++++++----------
+ mm/rmap.c              |  12 +++--
+ mm/vmstat.c            |   2 +
+ 12 files changed, 184 insertions(+), 36 deletions(-)
+
+--
+2.17.1
 
