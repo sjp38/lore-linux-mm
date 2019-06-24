@@ -2,183 +2,198 @@ Return-Path: <SRS0=9FL3=UX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
+X-Spam-Status: No, score=-3.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D5A5AC43613
-	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 13:12:22 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 96298C43613
+	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 13:12:36 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 97688204EC
-	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 13:12:22 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 97688204EC
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
+	by mail.kernel.org (Postfix) with ESMTP id 444112133F
+	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 13:12:36 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=Mellanox.com header.i=@Mellanox.com header.b="Z1jEVJMZ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 444112133F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mellanox.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 352468E0006; Mon, 24 Jun 2019 09:12:22 -0400 (EDT)
+	id D8B558E0007; Mon, 24 Jun 2019 09:12:35 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2DC588E0002; Mon, 24 Jun 2019 09:12:22 -0400 (EDT)
+	id D14E58E0002; Mon, 24 Jun 2019 09:12:35 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1A3EC8E0006; Mon, 24 Jun 2019 09:12:22 -0400 (EDT)
+	id BB5ED8E0007; Mon, 24 Jun 2019 09:12:35 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
-	by kanga.kvack.org (Postfix) with ESMTP id E345D8E0002
-	for <linux-mm@kvack.org>; Mon, 24 Jun 2019 09:12:21 -0400 (EDT)
-Received: by mail-ot1-f70.google.com with SMTP id f36so7364303otf.7
-        for <linux-mm@kvack.org>; Mon, 24 Jun 2019 06:12:21 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 6E0088E0002
+	for <linux-mm@kvack.org>; Mon, 24 Jun 2019 09:12:35 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id y24so20457574edb.1
+        for <linux-mm@kvack.org>; Mon, 24 Jun 2019 06:12:35 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:message-id
-         :date:from:user-agent:mime-version:to:cc:subject:references
-         :in-reply-to:content-transfer-encoding;
-        bh=TQL0kWvxEjgFtGg2pcyhGx/m0O4ciIiYgmrGwo35dKA=;
-        b=DQbqY6MwSePQUsxxN6TtcLxt00pbszjw8SNFOJwdud4jODFVycc55tCJpTt1qBr8Na
-         YijtcrM7wOJ7voyhgVkKc+6pz9QThsDrVD5kNTjfy6y0TUohdPR3IHOoFpnOvOOtxEEa
-         XnzvZlF5ZAqkC+I4DLXZvjTP8Dt92GfRZGGqnxgjOEE5UMmSADSCQ06GldO5a902x9a5
-         WUQFYoV7kFAhgwyAO4T7TcTniiXlTff+AQ0Y4xht7NNev2l9hsWEoauu8Db/YZfkJmB5
-         3mRbGHq8egnommw+RhIBpBXB9FikHF87ZkgMXlTGgOhS7eaR3fFpaDFfDM2dR2gFxzr/
-         ee2w==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of zhongjiang@huawei.com designates 45.249.212.190 as permitted sender) smtp.mailfrom=zhongjiang@huawei.com
-X-Gm-Message-State: APjAAAVKgnFi2Reg64+dJ6Ec7VTQ1Fy8Ww5AOkbvgiAlHqWF/dpXnhlk
-	dfUCSlY9f9X8f1kfqyO/devv1my+61vPUvzW0+ODF9hjU3dH1e9yx194KaxpfFAbbyznUuRSKww
-	nM4upm5+KPka9/voosCNiBaD+CT2/qs4CiuT5x9TnUlA8UoppjlSy/pUfbM6/LBPIAQ==
-X-Received: by 2002:aca:fd04:: with SMTP id b4mr10152204oii.53.1561381941542;
-        Mon, 24 Jun 2019 06:12:21 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxIt7rVyA9ape0eFnij8ey2TJt+BLO27iqQ6+XUc8p5r9uAOMzILALg0NkGWBSTViKIoZvB
-X-Received: by 2002:aca:fd04:: with SMTP id b4mr10152153oii.53.1561381940636;
-        Mon, 24 Jun 2019 06:12:20 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561381940; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
+         :thread-index:date:message-id:references:in-reply-to:accept-language
+         :content-language:content-id:content-transfer-encoding:mime-version;
+        bh=bJKNsiWuopGsFiwJtfSmHwT6t9upZDeCWjBmCmeA7XQ=;
+        b=eHsjLpAf8nMpBiDVoQIxSaEzfd23giCguIM/idBI3FpUZQ4D4/DIEnNlj6q4gXgkb3
+         jM/cOSfBoPcqVtIrAGGFlTsMtf1CjlIj7KDZ2hqEiLosfsE6iNUZAxWcosWWMmg5lf5/
+         re8QlDv5w5H233c/3ecYOv8pH0xLneT5rN0L/ecj7BecB24keSdAmGQtdDEo9H/eG9ME
+         v1ysE8w7i6FMlYJ31VXlHHD7niW9/gTd7PcfBPu6Jl+aX76waSIkdxOv2uy0Zg4ut1Lq
+         SloMqTjA9978OYnThMLf2pBQD8lGhmHu5vPVHhspZgZqXZv+E5euI26Eys5aoHLZnwhd
+         mh6w==
+X-Gm-Message-State: APjAAAXOMW55nAJsxGN7CHnGZPDYBINFWCeiZL1DPcWLu0riyakCPU+J
+	vJxbx//0VGYJlT29MOnmpNKAVWSj/a0UXLVlyuv8CaBUmc+G4mPWc63Wu57K8iVOEadN0Xq16PM
+	l/In4uKfkgk5JsFvL6Dx5dQPk8tRE6Skd2/pAxcV9ablPzl/TootxHwca1HR9Pi2PLQ==
+X-Received: by 2002:a17:906:948c:: with SMTP id t12mr14395751ejx.222.1561381955026;
+        Mon, 24 Jun 2019 06:12:35 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyJ7SyZqAZkwho5MCfIqiA3uIYmeI67yNPGOTGefGuDkfnJWaHufUsCY+8qjct5Yqj3UGQP
+X-Received: by 2002:a17:906:948c:: with SMTP id t12mr14395688ejx.222.1561381954394;
+        Mon, 24 Jun 2019 06:12:34 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561381954; cv=none;
         d=google.com; s=arc-20160816;
-        b=KtMqLbxbfcF70gHsnmEmvbJgI6zsTEGTOQoUtMbOCP17DiMXQSIeSgUYTI9LhGf2b4
-         sGuAI5rUOO5JlbWrmZtW4dZjDfjbf8aWX/27o8z7PVc84Ju445PIMNOu3doVedajdKzH
-         YPIVkr0rgWLodAQgQVpSRsju3WjvmNhjX2WNSxPcrOb0bnETrSAHpyQn37VQFQPBTUgt
-         J4FPWteVKQyG3zh4f8n5kqCJJ11vVzCS1WySQEXBvERnCbAfGTS7C+jZga3cGB9GhTZz
-         9DtrxfS9zoSRZ69y6jyx7eRGSH+AulesBwa6Ip47UoNtcfcOya+C8NiXyT3SSViLJKo6
-         o6Kg==
+        b=wIHcCWwxzam5Acu+MtBpXnk4RAlxNbkrkQK3mLzJG8/zE4DBjUfntHrR4SdFXiJwC5
+         EY6vZPvurvvmWd17lK5bb+puFbn84Rw9YZf7WBQw+k3LnbeNodWagzLkzse2FTjcW23i
+         8B46TCLBwfEdRNyVOlnEhtjVzyrTuH2IYHD2G2S0Lf26ozT1lzrULEBFVjIa6L6m5qOS
+         nMzDGofOrF45vbwa8/jgKkbWFfMxJTs3ssmjR8CC0nqdyLJyIxEc2XFHXozb+zLz1SQ+
+         HMja5K4mxqQ4As5PTMfq7bcUSRJj4J44Lp4flh1rbGaUF2/WnOZH8u1Qo5mNmPKP6Us+
+         FJRw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:in-reply-to:references:subject:cc:to
-         :mime-version:user-agent:from:date:message-id;
-        bh=TQL0kWvxEjgFtGg2pcyhGx/m0O4ciIiYgmrGwo35dKA=;
-        b=mqC92oJcWCFfAHAH2r8ampvQcW+IKQl9P3+qxIjqQ26TjU/abQFdkDN7m80BNz7am2
-         boaafeV1uBpCccxkpjFd83XoFtY6b3DxNv/1E2u0Ripd1zWa6E/bjTVRwPGuxMvihUV/
-         hfZsQ76WAMlxhDf3w4WrswiuPKuoQQc40pFf8bUttQGC5y89rm1wxVQaO8hXprWBbtq/
-         5ETFwZ7v9EcGMZ/2IPhBSdcLXQcJLrqeE5TjKVC3cavjm/3VBJnbcF8+5bEIvR4+brGO
-         SwCcW1D9EYG1TYGtBdn9NEOhLe99vXqgsAtE/uxonI0TC3M+mmX/9zWeRcFHdfLgmC0l
-         /Fyg==
+        h=mime-version:content-transfer-encoding:content-id:content-language
+         :accept-language:in-reply-to:references:message-id:date:thread-index
+         :thread-topic:subject:cc:to:from:dkim-signature;
+        bh=bJKNsiWuopGsFiwJtfSmHwT6t9upZDeCWjBmCmeA7XQ=;
+        b=lnFtnvBdYfb5kEZX7QAHvw93q7lZH6p6CxLE/B/xCQN3mVlqY2LnvvLkduS0fIC3+y
+         eG9RCmP+sQyvoD5BeSfelK1fZYa4RjX3vNdGMES/DXgH1a4hbQ7DWza8MtwWf/0fq7a3
+         5TaEh2tvKz07yf0KC0Bgj6X4rQDgw9sqAkvGPTlF/v2upkMMCeqhovl3kXmDx17xeo76
+         2znICLBDBIV7amuiXG/+GOII6YXIGxA5jDC3LjI/Fu1fZXT0uNhWSUjz1meBPwVTI1jZ
+         2klZODKqERL/ZX8SdUAG71Q7syjowWOLbPvfQM7c+1jYTnOo7saspjxaAEvFAeV+zJ8o
+         wpfQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of zhongjiang@huawei.com designates 45.249.212.190 as permitted sender) smtp.mailfrom=zhongjiang@huawei.com
-Received: from huawei.com (szxga04-in.huawei.com. [45.249.212.190])
-        by mx.google.com with ESMTPS id s133si6573859oie.9.2019.06.24.06.12.20
+       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b=Z1jEVJMZ;
+       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.5.65 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
+Received: from EUR03-VE1-obe.outbound.protection.outlook.com (mail-eopbgr50065.outbound.protection.outlook.com. [40.107.5.65])
+        by mx.google.com with ESMTPS id i45si9121841ede.94.2019.06.24.06.12.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 24 Jun 2019 06:12:20 -0700 (PDT)
-Received-SPF: pass (google.com: domain of zhongjiang@huawei.com designates 45.249.212.190 as permitted sender) client-ip=45.249.212.190;
+        Mon, 24 Jun 2019 06:12:34 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jgg@mellanox.com designates 40.107.5.65 as permitted sender) client-ip=40.107.5.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of zhongjiang@huawei.com designates 45.249.212.190 as permitted sender) smtp.mailfrom=zhongjiang@huawei.com
-Received: from DGGEMS411-HUB.china.huawei.com (unknown [172.30.72.59])
-	by Forcepoint Email with ESMTP id E682691E5F83DCDDE5B0;
-	Mon, 24 Jun 2019 21:12:13 +0800 (CST)
-Received: from [127.0.0.1] (10.177.29.68) by DGGEMS411-HUB.china.huawei.com
- (10.3.19.211) with Microsoft SMTP Server id 14.3.439.0; Mon, 24 Jun 2019
- 21:11:56 +0800
-Message-ID: <5D10CC1B.3080201@huawei.com>
-Date: Mon, 24 Jun 2019 21:11:55 +0800
-From: zhong jiang <zhongjiang@huawei.com>
-User-Agent: Mozilla/5.0 (Windows NT 6.1; WOW64; rv:12.0) Gecko/20120428 Thunderbird/12.0.1
+       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b=Z1jEVJMZ;
+       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.5.65 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=Mellanox.com;
+ s=selector2;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=bJKNsiWuopGsFiwJtfSmHwT6t9upZDeCWjBmCmeA7XQ=;
+ b=Z1jEVJMZeA2aVFeQjyVX7/o4DJ+7JCvRf4WB7j5DitZp9Eec4o34k6ZMPdBc8DRs9251E7fBsr40IgTR+/qGaLd5Ce2yN5fUuin90BVN/A4n61Dlhc8rIJpghdvWQbcEo+NvAKhD6BjynMtbuzDfvbufD3a3XZFwNSOsl4cwFyg=
+Received: from VI1PR05MB4141.eurprd05.prod.outlook.com (10.171.182.144) by
+ VI1PR05MB5662.eurprd05.prod.outlook.com (20.178.120.212) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.2008.16; Mon, 24 Jun 2019 13:12:30 +0000
+Received: from VI1PR05MB4141.eurprd05.prod.outlook.com
+ ([fe80::f5d8:df9:731:682e]) by VI1PR05MB4141.eurprd05.prod.outlook.com
+ ([fe80::f5d8:df9:731:682e%5]) with mapi id 15.20.2008.014; Mon, 24 Jun 2019
+ 13:12:30 +0000
+From: Jason Gunthorpe <jgg@mellanox.com>
+To: Ajay Kaher <akaher@vmware.com>
+CC: "aarcange@redhat.com" <aarcange@redhat.com>, "jannh@google.com"
+	<jannh@google.com>, "oleg@redhat.com" <oleg@redhat.com>, "peterx@redhat.com"
+	<peterx@redhat.com>, "rppt@linux.ibm.com" <rppt@linux.ibm.com>,
+	"mhocko@suse.com" <mhocko@suse.com>, "jglisse@redhat.com"
+	<jglisse@redhat.com>, "akpm@linux-foundation.org"
+	<akpm@linux-foundation.org>, "mike.kravetz@oracle.com"
+	<mike.kravetz@oracle.com>, "viro@zeniv.linux.org.uk"
+	<viro@zeniv.linux.org.uk>, "riandrews@android.com" <riandrews@android.com>,
+	"arve@android.com" <arve@android.com>, Yishai Hadas <yishaih@mellanox.com>,
+	"dledford@redhat.com" <dledford@redhat.com>, "sean.hefty@intel.com"
+	<sean.hefty@intel.com>, "hal.rosenstock@gmail.com"
+	<hal.rosenstock@gmail.com>, Matan Barak <matanb@mellanox.com>, Leon
+ Romanovsky <leonro@mellanox.com>, "linux-fsdevel@vger.kernel.org"
+	<linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>,
+	"devel@driverdev.osuosl.org" <devel@driverdev.osuosl.org>,
+	"linux-rdma@vger.kernel.org" <linux-rdma@vger.kernel.org>,
+	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+	"stable@vger.kernel.org" <stable@vger.kernel.org>, "srivatsab@vmware.com"
+	<srivatsab@vmware.com>, "amakhalov@vmware.com" <amakhalov@vmware.com>
+Subject: Re: [PATCH v4 2/3][v4.9.y] coredump: fix race condition between
+ mmget_not_zero()/get_task_mm() and core dumping
+Thread-Topic: [PATCH v4 2/3][v4.9.y] coredump: fix race condition between
+ mmget_not_zero()/get_task_mm() and core dumping
+Thread-Index: AQHVKo0oRBGkKYxOxkqZ7SBtAl/moqaqx9UA
+Date: Mon, 24 Jun 2019 13:12:30 +0000
+Message-ID: <20190624131226.GA7418@mellanox.com>
+References: <1561410186-3919-1-git-send-email-akaher@vmware.com>
+ <1561410186-3919-2-git-send-email-akaher@vmware.com>
+In-Reply-To: <1561410186-3919-2-git-send-email-akaher@vmware.com>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+x-clientproxiedby: PR2P264CA0011.FRAP264.PROD.OUTLOOK.COM (2603:10a6:101::23)
+ To VI1PR05MB4141.eurprd05.prod.outlook.com (2603:10a6:803:4d::16)
+authentication-results: spf=none (sender IP is )
+ smtp.mailfrom=jgg@mellanox.com; 
+x-ms-exchange-messagesentrepresentingtype: 1
+x-originating-ip: [66.187.232.66]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: 1279592d-f3e3-4d7c-f79c-08d6f8a59cb2
+x-ms-office365-filtering-ht: Tenant
+x-microsoft-antispam:
+ BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(4618075)(2017052603328)(7193020);SRVR:VI1PR05MB5662;
+x-ms-traffictypediagnostic: VI1PR05MB5662:
+x-ld-processed: a652971c-7d2e-4d9b-a6a4-d149256f461b,ExtAddr
+x-microsoft-antispam-prvs:
+ <VI1PR05MB5662688FC277DCA3E4A171D3CFE00@VI1PR05MB5662.eurprd05.prod.outlook.com>
+x-ms-oob-tlc-oobclassifiers: OLM:407;
+x-forefront-prvs: 007814487B
+x-forefront-antispam-report:
+ SFV:NSPM;SFS:(10009020)(39860400002)(376002)(346002)(136003)(396003)(366004)(199004)(189003)(5660300002)(478600001)(6506007)(53936002)(33656002)(2616005)(6486002)(81156014)(86362001)(14444005)(3846002)(256004)(8676002)(81166006)(7736002)(229853002)(2906002)(446003)(66446008)(11346002)(68736007)(6916009)(486006)(66556008)(66476007)(36756003)(71190400001)(71200400001)(476003)(73956011)(99286004)(64756008)(66946007)(54906003)(76176011)(6512007)(102836004)(1076003)(4744005)(52116002)(386003)(25786009)(6116002)(6246003)(6436002)(316002)(66066001)(14454004)(4326008)(7416002)(8936002)(186003)(26005)(305945005);DIR:OUT;SFP:1101;SCL:1;SRVR:VI1PR05MB5662;H:VI1PR05MB4141.eurprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
+received-spf: None (protection.outlook.com: mellanox.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info:
+ 40jUzpU9CguJn2eIvgacEOcIi2CYrA0fIWmsrZEo49I+3EgVJp2pRrgkltjExJd0cjLBr/ZjZlNwxkj3odOMuDp291oxCEbrf3qoTyS3t50EwIjNffVdqGTeH6SCwGNP75qu35Wfr9Fgt5LrVmv2KNlC0hj671ZjeDtCZGFuGl7uZoYiJsrZdi4d6ionXc5Hiw4AyN1GqbfMpsRhTIk04KKLL4BQOMw0SERrzFPOOZ3ElIE3NiCP6fv0/k+bGED0ir5nSBe1nGavp8idteCEzizj2yiReEGiw+Jv1jpp3+eI21DhvKqarSVs8wjJQAGdjWFsi/LMX1xvw6PCN8mBZivSW/3TKHejjD7JWQl00Jp9rHUnCy4wwss0fSFbTacnV6ybN+BzydI38iRxeDsA2x+8r0/iw5rWc1H41b2zd7M=
+Content-Type: text/plain; charset="us-ascii"
+Content-ID: <626B17CC09D07E449465C19358AB7DB5@eurprd05.prod.outlook.com>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-To: Michal Hocko <mhocko@kernel.org>
-CC: Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>,
-	Minchan Kim <minchan@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, "Linux
- Memory Management List" <linux-mm@kvack.org>, "Wangkefeng (Kevin)"
-	<wangkefeng.wang@huawei.com>
-Subject: Re: Frequent oom introduced in mainline when migrate_highatomic replace
- migrate_reserve
-References: <5D1054EE.20402@huawei.com> <20190624081011.GA11400@dhcp22.suse.cz>
-In-Reply-To: <20190624081011.GA11400@dhcp22.suse.cz>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
-X-Originating-IP: [10.177.29.68]
-X-CFilter-Loop: Reflected
+X-OriginatorOrg: Mellanox.com
+X-MS-Exchange-CrossTenant-Network-Message-Id: 1279592d-f3e3-4d7c-f79c-08d6f8a59cb2
+X-MS-Exchange-CrossTenant-originalarrivaltime: 24 Jun 2019 13:12:30.5998
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: a652971c-7d2e-4d9b-a6a4-d149256f461b
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-CrossTenant-userprincipalname: jgg@mellanox.com
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: VI1PR05MB5662
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 2019/6/24 16:10, Michal Hocko wrote:
-> On Mon 24-06-19 12:43:26, zhong jiang wrote:
->> Recently,  I  hit an frequent oom issue in linux-4.4 stable with less than 4M free memory after
->> the machine boots up.
-> Is this is a regression? Could you share the oom report?
-Yep,  At least at the small memory machine.  I has tested that revert the migrate_highatomic  works well. 
-The oom report message is as follows.
+On Tue, Jun 25, 2019 at 02:33:04AM +0530, Ajay Kaher wrote:
+> This patch is the extension of following upstream commit to fix
+> the race condition between get_task_mm() and core dumping
+> for IB->mlx4 and IB->mlx5 drivers:
+>=20
+> commit 04f5866e41fb ("coredump: fix race condition between
+> mmget_not_zero()/get_task_mm() and core dumping")'
+>=20
+> Thanks to Jason for pointing this.
+>=20
+> Signed-off-by: Ajay Kaher <akaher@vmware.com>
+> ---
+>  drivers/infiniband/hw/mlx4/main.c | 4 +++-
+>  drivers/infiniband/hw/mlx5/main.c | 3 +++
+>  2 files changed, 6 insertions(+), 1 deletion(-)
 
-[  652.272622] sh invoked oom-killer: gfp_mask=0x26080c0, order=3, oom_score_adj=0
-[  652.272683] CPU: 0 PID: 1748 Comm: sh Tainted: P           O    4.4.171 #8
-[  652.345605] Hardware name: Qualcomm (Flattened Device Tree)
-[  652.428968] [<c02149d0>] (unwind_backtrace) from [<c02125a4>] (show_stack+0x10/0x14)
-[  652.494604] [<c02125a4>] (show_stack) from [<c037fb08>] (dump_stack+0xa0/0xd8)
-[  652.590432] [<c037fb08>] (dump_stack) from [<c02bdf58>] (dump_header.constprop.6+0x40/0x15c)
-[  652.674793] [<c02bdf58>] (dump_header.constprop.6) from [<c0287504>] (oom_kill_process+0xc4/0x434)
-[  652.777934] [<c0287504>] (oom_kill_process) from [<c0287b5c>] (out_of_memory+0x284/0x318)
-[  652.883120] [<c0287b5c>] (out_of_memory) from [<c028b990>] (__alloc_pages_nodemask+0x90c/0x9b4)
-[  652.982080] [<c028b990>] (__alloc_pages_nodemask) from [<c021aa94>] (copy_process.part.2+0xe4/0x12f0)
-[  653.084160] [<c021aa94>] (copy_process.part.2) from [<c021bdf8>] (_do_fork+0xb8/0x2d4)
-[  653.196678] [<c021bdf8>] (_do_fork) from [<c021c0d0>] (SyS_clone+0x1c/0x24)
-[  653.290424] [<c021c0d0>] (SyS_clone) from [<c020f480>] (ret_fast_syscall+0x0/0x4c)
-[  653.452827] Mem-Info:
-[  653.466390] active_anon:20377 inactive_anon:187 isolated_anon:0
-[  653.466390]  active_file:5087 inactive_file:4825 isolated_file:0
-[  653.466390]  unevictable:12 dirty:0 writeback:32 unstable:0
-[  653.466390]  slab_reclaimable:636 slab_unreclaimable:1754
-[  653.466390]  mapped:5338 shmem:194 pagetables:231 bounce:0
-[  653.466390]  free:1086 free_pcp:85 free_cma:0
-[  653.625286] Normal free:4248kB min:1696kB low:2120kB high:2544kB active_anon:81508kB inactive_anon:748kB active_file:20348kB inactive_file:19300kB unevictable:48kB isolated(anon):0kB isolated(file):0kB present:252928kB managed:180496kB mlocked:0kB dirty:0kB writeback:128kB mapped:21352kB shmem:776kB slab_reclaimable:2544kB slab_unreclaimable:7016kB kernel_stack:9856kB pagetables:924kB unstable:0kB bounce:0kB free_pcp:392kB local_pcp:392kB free_cma:0kB writeback_tmp:0kB pages_scanned:0 all_unreclaimable? no
-[  654.177121] lowmem_reserve[]: 0 0 0
-[  654.462015] Normal: 752*4kB (UME) 128*8kB (UM) 21*16kB (M) 0*32kB 0*64kB 0*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB = 4368kB
-[  654.601093] 10132 total pagecache pages
-[  654.606655] 63232 pages RAM
-[  654.656658] 0 pages HighMem/MovableOnly
-[  654.686821] 18108 pages reserved
-[  654.731549] [ pid ]   uid  tgid total_vm      rss nr_ptes nr_pmds swapents oom_score_adj name
-[  654.775019] [  108]     0   108      814       11       6       0        0             0 rcS
-[  654.877730] [  113]     0   113      814      125       6       0        0             0 sh
-[  654.978510] [  116]     0   116      485       16       5       0        0             0 fprefetch
-[  655.083679] [  272]     0   272     1579       83       7       0        0         -1000 sshd
-[  655.187516] [  276]     0   276     7591      518      10       0        0             0 redis-server
-[  655.287893] [  282]     0   282     3495      364       8       0        0             0 callhome
-[  655.406249] [  284]     0   284     1166      322       6       0        0             0 remote_plugin
-[  655.524594] [  292]     0   292      523      113       6       0        0           -17 monitor
-[  655.616477] [  293]     0   293    17958      609      39       0        0             0 cap32
-[  655.724315] [  296]     0   296     2757     1106      10       0        0             0 confd
-[  655.823061] [  297]     0   297    60183    20757     112       0        0             0 vos.o
-[  655.952344] [ 1748]     0  1748      814       92       6       0        0             0 sh
-......[  656.241027] *****************Start oom extend info.*****************
->> As the process is created,  kernel stack will use the higher order to allocate continuous memory.
->> Due to the fragmentabtion,  we fails to allocate the memory.   And the low memory will result
->> in hardly memory compction.  hence,  it will easily to reproduce the oom.
-> How get your get such a large fragmentation that you cannot allocate
-> order-1 pages and compaction is not making any progress?
-From the above oom report,  we can see that  there is not order-2 pages.  It wil hardly to allocate kernel stack when
-creating the process.  And we can easily to reproduce the situation when runing some userspace program.
+Looks OK
 
-But it rarely trigger the oom when It do not introducing the highatomic.  we test that in the kernel 3.10.
->> But if we use migrate_reserve to reserve at least a pageblock at  the boot stage.   we can use
->> the reserve memory to allocate continuous memory for process when the system is under
->> severerly fragmentation.
-> Well, any reservation is a finite resource so I am not sure how that can
-> help universally. But your description is quite vague. Could you be more
-> specific about that workload? Also do you see the same with the current
-> upstream kernel as well?
-I  just compare the kernel 3.10 with  kernel 4.4 in same situation.  I do not test the issue in the upstream kernel.
-and check the /proc/pagetypeinfo after the system boots up.
+Reviewed-by: Jason Gunthorpe <jgg@mellanox.com>
 
-migrate_highatomic  is always zero.,  while migrate_reserve has an pageblock that it can use for high order allocation.
-Even though go back the migrate_reserve can not solve the issue. but In fact , it did relieve the oom situation.
-
-Thanks,
-zhong jiang
-
-
+Thanks
+Jason
 
