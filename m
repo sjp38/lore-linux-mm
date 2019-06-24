@@ -2,102 +2,104 @@ Return-Path: <SRS0=9FL3=UX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6D778C4646B
-	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 21:02:19 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 13150C4646C
+	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 21:02:22 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 22ACE20656
-	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 21:02:19 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id BDAE220656
+	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 21:02:21 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="RTldUZCA"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 22ACE20656
+	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="QHyBSbia"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BDAE220656
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A09DF8E0008; Mon, 24 Jun 2019 17:02:07 -0400 (EDT)
+	id F3B878E0007; Mon, 24 Jun 2019 17:02:07 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9E4838E0007; Mon, 24 Jun 2019 17:02:07 -0400 (EDT)
+	id EC5428E0002; Mon, 24 Jun 2019 17:02:07 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 722E18E0008; Mon, 24 Jun 2019 17:02:07 -0400 (EDT)
+	id DB1048E0007; Mon, 24 Jun 2019 17:02:07 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 0743A8E0002
+Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 91D608E0002
 	for <linux-mm@kvack.org>; Mon, 24 Jun 2019 17:02:07 -0400 (EDT)
-Received: by mail-wr1-f71.google.com with SMTP id g13so1721021wrb.3
-        for <linux-mm@kvack.org>; Mon, 24 Jun 2019 14:02:06 -0700 (PDT)
+Received: by mail-wr1-f72.google.com with SMTP id b6so6885759wrp.21
+        for <linux-mm@kvack.org>; Mon, 24 Jun 2019 14:02:07 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id:mime-version:content-transfer-encoding;
-        bh=+TXg+V1PV7qytX0xwqixrcBsIlYVASLMn0QfVVkViw4=;
-        b=bzGww4cYGTWQk8apUJnULx0mvEOgE0/g1hrcOGCky80p9sZlIEos/BF4/5qVCnENfL
-         LSkhlqD6N6ikLaedp7gmjxrsEC02VuSVCBp4hcgt3oP7NiqNCZFGDgIHuoKe6Py85KLP
-         vCb7+EwhUFtNuEM7hC3Jp11HvGsDvTj0zkRB0m8lkPFLUBKoye3ClAnUPPiABAjksPLM
-         x4n9O9GLpjlU4PCdQU8oGDq5/Rl7+34+UK6WmgLdnujwI1MxFqC+Np2kg/paqG+LrYlq
-         IQf7A80XZ9/GYXFrm9cgr6Iud+fpMf06ooEZSF+uyNNnl0vuvsIs6i01Jtk4mgaIGMfr
-         27ug==
-X-Gm-Message-State: APjAAAWWP4Tup393R5fBN92+nsL/VbcensftgUzN2GVgNb9pS5UPWzaf
-	8fMtHylaMDFJAyEXTHleLtZ0DavVIbQnxFwHl2/5ODyiYDcYmsmnP4jw55H3vpXeJcdsZJt94Ql
-	UU1h0GZoyfSrJnvpnKO3k+QRI855Hm6Kd7Oc/a8GlxUIljocRCvIQqPU7fER1kki3NA==
-X-Received: by 2002:adf:efc5:: with SMTP id i5mr101872415wrp.158.1561410126543;
+         :message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=5QRiWs/DQbjPzNp3Mmcykk+AEBHTNlfm8mEd5w/KsEk=;
+        b=UZwzdgmmtXWmI+7RIsx1ijbxY8slI96URmOwe+N9Geml6Wywtr+s3IhzN3ydELyAha
+         1Qe8sEXkZduS6SoZoJv10tPudEesIZWFsixvHDnYjw4wdBYaJoeC9hEuwSojtRVeMHoE
+         QH6rMSOzzgy5wShOf20AEhvpAP2wUkYcudHi5/X9AP44idaDGQl6R6k/8W+mZrr6b2iV
+         2kjK1fBVZ193G6yvlZkxIZLpruaEDnxSbpC+3SaVIUuee0yRlhaWOTI0I4gG/XwEoswm
+         LxMrLEFFVVurQmARgPwzLgqhkJbrFzibTsw1UwjDbA0Ry1C8L65Sq5THgsEaHxQGuyap
+         27hw==
+X-Gm-Message-State: APjAAAUMZO/TKhMxT0G0NDGAf3/drZblj3CWM8mtuUh7ZU/Aku75/jtP
+	pK4NgGbQqhduyQKKAVEoAx6a1Nb4jP0iPTU5oCpDromC9y1CKEzaMeArnl+FILI1nK1Gbs0TMTJ
+	UaDFO87FhhZw/vKCeVgf1pUz2Os0VMEOuxY6jbUTCaNJ8yZ4WxN2xErRhw5fZ2bYpyA==
+X-Received: by 2002:a05:600c:114f:: with SMTP id z15mr16868279wmz.131.1561410127148;
+        Mon, 24 Jun 2019 14:02:07 -0700 (PDT)
+X-Received: by 2002:a05:600c:114f:: with SMTP id z15mr16868246wmz.131.1561410126202;
         Mon, 24 Jun 2019 14:02:06 -0700 (PDT)
-X-Received: by 2002:adf:efc5:: with SMTP id i5mr101872387wrp.158.1561410125705;
-        Mon, 24 Jun 2019 14:02:05 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561410125; cv=none;
+ARC-Seal: i=1; a=rsa-sha256; t=1561410126; cv=none;
         d=google.com; s=arc-20160816;
-        b=zlrDkox8pV9Q+L7xLXQ0aNEiuPFiCsIVaxluvNOgn//11NQDm75ouvkzRJpredL7Te
-         STaahn6l/WnpFEpTUx+1nsDPxKOER/HUglok/SP1taJsKbP2C55hy/YyYv1mxI5TLrVT
-         xJTRNHp9BZ2HByTtND2PACXLmx9lzPSfJB5BxAUtb/DRN4dBZRVm9gaL9l60CQmNQpew
-         Pv7yaesojnn2RUu1wLQgKl1iDbdLi/psoIFidfUhwcLxnLPdEhjzo5Wp4yUgCZyWG6Oi
-         ry+luW0ugE5TR4gfonkbhzyjEnVgCYBuRUo+4jEKljcOyYSYGtiz0Ao2YFM8t/1o9owZ
-         AQLQ==
+        b=nBtQ2qQhLdQ3jHuLvW3RpYhtZ22Xy2hKYXmbJY1S21/FzD/dOifSwFdNy9ttJX/H8A
+         nEMEW4HFHGmWPemdDJFbS+I+jvCgHO8Z+12tp4YtlhYrMKQoXf3QjCLFRtdRIwWbIs0/
+         iI0MsCYnsIiJqSMOT/eu5K+GMYHTFzSIEYOPEP9qnjXNfjo9wfnMaq6PWabFgNRSuz+a
+         xfSlcl/T2izZmAYBuzA8DWifgkRJnclgHU5sNpM6Lm+LnG66QP2TNyGuXGtZF7vCijKc
+         LOqWtQ6+f8ZbCAr3QsdtBCMy96zshLVIOpzxI/KTcAByeuo+BTyQgvQXhb/Rh/J778sK
+         r4Qw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
-         :to:from:dkim-signature;
-        bh=+TXg+V1PV7qytX0xwqixrcBsIlYVASLMn0QfVVkViw4=;
-        b=cj3AqwV8jb58U4lb6GDy2pWZyUCm6bjMKkc74LAYrhfn9XlATWgFZsbTFUZuFZSvpy
-         0vLdY60lr3v0mQqR3T7njie/XQgpfEBANK61/SjQ/HS+xjOK6qsiwOjLNbePyeMuzzOX
-         GvHjaCfzL5/xAer0fidvQdRjIXKl6go+6u5P42q2ja5qkv+aHOPOay4jclpe591TiuXe
-         +aVeRoBJjS4Ft90g/5iaVmPbDn4TuzN55sRdclOD+19qgzyMDuAm+3HcQTyrHXgU0Qvu
-         MZ55lBx1TkvQG8MiW+5K6TWk81iRoQToj1GGyh+nvJlrGsT6pl3BdhKNzYPaGpVmmX+M
-         riDA==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:date:subject:cc:to:from:dkim-signature;
+        bh=5QRiWs/DQbjPzNp3Mmcykk+AEBHTNlfm8mEd5w/KsEk=;
+        b=uBFjwjbef+nYtoXH2zKuK8Di9x9VIwQQXGGb8LZVS9STTGrTb+1Bp2n440+YbE0Kbk
+         DK94wSUpPF+/N0a3/fcBIvhVwCxt47A7JgfQCs7YlPdq1XH5+QkzIQ3yP+gQgV3Sk6TR
+         NidcF98C47VML8cfT+zNsZa3j8oN7rXurs/LxNcH/XDdq2JaGHkSb8MG3Fax5b5DCEMf
+         BqPPDXrYVv0LBDpYWNdCtnvuwicwRlgmJz29xuSra27ITx+YxOUGbTMjissnEy/1kYZU
+         tMIPPUrno43z13PuglUpO2K9Fpn7XAvrkgDncaPkg1LRTUR3k8+zsGhe0kegcsRpq2GS
+         p9iA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=RTldUZCA;
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=QHyBSbia;
        spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g66sor350776wmg.26.2019.06.24.14.02.05
+        by mx.google.com with SMTPS id b202sor368630wmd.20.2019.06.24.14.02.06
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 24 Jun 2019 14:02:05 -0700 (PDT)
+        Mon, 24 Jun 2019 14:02:06 -0700 (PDT)
 Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=RTldUZCA;
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=QHyBSbia;
        spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=ziepe.ca; s=google;
-        h=from:to:cc:subject:date:message-id:mime-version
-         :content-transfer-encoding;
-        bh=+TXg+V1PV7qytX0xwqixrcBsIlYVASLMn0QfVVkViw4=;
-        b=RTldUZCA/ujlOPqeFpIG1/oq7I0MMWuhfuWJToHG67t3OQXfVVzK17LY3kJ6F+Brer
-         lnz/th7nTkxS/2R+LqhfZEwU5MvrsZIu821B9utLccmxMdrak8HYApdsHFF6X5Hm9BeZ
-         Vo8kf7gnh3yt+gibgQeVYXuNFbbhYpUZLvfs+XYPYbnhZ2hu/dNSj1xBfyMpQjtX1doH
-         EZDWsi96WfqzpwW/fpPX43H1AiRarnXcaSLJUUvqCyT81nbN45aacsBUof6bL1BIOqTB
-         ajwQSV/zBBYiXqc83fyuqH5/tTOsWhrpi8aDboRkZhx14nYt1qY3C4UY4GvtasO88w1a
-         gS5g==
-X-Google-Smtp-Source: APXvYqzG1w8w/MlwN4mNnTDNK32BkM+Kopo5HpXOnXXh6GBim1Uqm95bmEpjBPM4rzRFOIIj8zgSlQ==
-X-Received: by 2002:a7b:cc93:: with SMTP id p19mr16950467wma.12.1561410125331;
+        h=from:to:cc:subject:date:message-id:in-reply-to:references
+         :mime-version:content-transfer-encoding;
+        bh=5QRiWs/DQbjPzNp3Mmcykk+AEBHTNlfm8mEd5w/KsEk=;
+        b=QHyBSbiaOkKGu/MxsSMUiXu2VTSCzVLYMxWwINOB/2Q6vPwGK/3fpuJ8DeqVV/RHuy
+         PlWt0PKGF2DxILefQKepmvvAs9zfo0sJ/4JuHPb0QB5wuqyBLoHp42kHvsETulBVPEc1
+         nqIqqhYShDyfMHcp9pog0fds+dL+EL98KHWdrqc1jzmg4ngIMYHE16t7uPvX3+VkB4vI
+         bsZkTMXkFYDGzt6JPUksZtjhk0vmx/AJejbnSzHMAh8/EfzJ0wiL46ukX5ePRnoNGE/1
+         nJ7mvYjHCVInsefIPkoIGcN7Hka7i1yS3Hv0kHKhgEn2UJ3p9gHquSgDjpsddvKgWt95
+         ZSwg==
+X-Google-Smtp-Source: APXvYqyUO9q1BVm7bVuWFkSD3xUfLwXJTWFUz+E3q3pTmFAgmdWwYSJRzm7jgl6xIMlY4/wE2Sy8yg==
+X-Received: by 2002:a1c:2311:: with SMTP id j17mr9036341wmj.84.1561410125783;
         Mon, 24 Jun 2019 14:02:05 -0700 (PDT)
 Received: from ziepe.ca ([66.187.232.66])
-        by smtp.gmail.com with ESMTPSA id l124sm464451wmf.36.2019.06.24.14.02.02
+        by smtp.gmail.com with ESMTPSA id d5sm10927937wrc.17.2019.06.24.14.02.02
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
         Mon, 24 Jun 2019 14:02:02 -0700 (PDT)
 Received: from jgg by jggl.ziepe.ca with local (Exim 4.90_1)
 	(envelope-from <jgg@ziepe.ca>)
-	id 1hfW6C-0001Lx-Mk; Mon, 24 Jun 2019 18:02:00 -0300
+	id 1hfW6C-0001MH-Rm; Mon, 24 Jun 2019 18:02:00 -0300
 From: Jason Gunthorpe <jgg@ziepe.ca>
 To: Jerome Glisse <jglisse@redhat.com>,
 	Ralph Campbell <rcampbell@nvidia.com>,
@@ -113,12 +115,13 @@ Cc: linux-rdma@vger.kernel.org,
 	Philip Yang <Philip.Yang@amd.com>,
 	Ira Weiny <ira.weiny@intel.com>,
 	Jason Gunthorpe <jgg@mellanox.com>
-Subject: [PATCH v4 hmm 00/12] 
-Date: Mon, 24 Jun 2019 18:00:58 -0300
-Message-Id: <20190624210110.5098-1-jgg@ziepe.ca>
+Subject: [PATCH v4 hmm 04/12] mm/hmm: Simplify hmm_get_or_create and make it reliable
+Date: Mon, 24 Jun 2019 18:01:02 -0300
+Message-Id: <20190624210110.5098-5-jgg@ziepe.ca>
 X-Mailer: git-send-email 2.22.0
+In-Reply-To: <20190624210110.5098-1-jgg@ziepe.ca>
+References: <20190624210110.5098-1-jgg@ziepe.ca>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -128,55 +131,156 @@ List-ID: <linux-mm.kvack.org>
 
 From: Jason Gunthorpe <jgg@mellanox.com>
 
-This patch series arised out of discussions with Jerome when looking at the
-ODP changes, particularly informed by use after free races we have already
-found and fixed in the ODP code (thanks to syzkaller) working with mmu
-notifiers, and the discussion with Ralph on how to resolve the lifetime model.
+As coded this function can false-fail in various racy situations. Make it
+reliable and simpler by running under the write side of the mmap_sem and
+avoiding the false-failing compare/exchange pattern. Due to the mmap_sem
+this no longer has to avoid racing with a 2nd parallel
+hmm_get_or_create().
 
-Overall this brings in a simplified locking scheme and easy to explain
-lifetime model:
+Unfortunately this still has to use the page_table_lock as the
+non-sleeping lock protecting mm->hmm, since the contexts where we free the
+hmm are incompatible with mmap_sem.
 
- If a hmm_range is valid, then the hmm is valid, if a hmm is valid then the mm
- is allocated memory.
+Signed-off-by: Jason Gunthorpe <jgg@mellanox.com>
+Reviewed-by: John Hubbard <jhubbard@nvidia.com>
+Reviewed-by: Ralph Campbell <rcampbell@nvidia.com>
+Reviewed-by: Ira Weiny <ira.weiny@intel.com>
+Tested-by: Philip Yang <Philip.Yang@amd.com>
+---
+v2:
+- Fix error unwind of mmgrab (Jerome)
+- Use hmm local instead of 2nd container_of (Jerome)
+v3:
+- Can't use mmap_sem in the SRCU callback, keep using the
+  page_table_lock (Philip)
+v4:
+- Put the mm->hmm = NULL in the kref release, reduce LOC
+  in hmm_get_or_create() (Christoph)
+---
+ mm/hmm.c | 77 ++++++++++++++++++++++----------------------------------
+ 1 file changed, 30 insertions(+), 47 deletions(-)
 
- If the mm needs to still be alive (ie to lock the mmap_sem, find a vma, etc)
- then the mmget must be obtained via mmget_not_zero().
-
-The use of unlocked reads on 'hmm->dead' are also eliminated in favour of
-using standard mmget() locking to prevent the mm from being released. Many of
-the debugging checks of !range->hmm and !hmm->mm are dropped in favour of
-poison - which is much clearer as to the lifetime intent.
-
-The trailing patches are just some random cleanups I noticed when reviewing
-this code.
-
-I'll apply this in the next few days - the only patch that doesn't have enough
-Reviewed-bys is 'mm/hmm: Remove confusing comment and logic from hmm_release',
-which had alot of questions, I still think it is good. If people really don't
-like it I'll drop it.
-
-Thanks to everyone who took time to look at this!
-
-Jason Gunthorpe (12):
-  mm/hmm: fix use after free with struct hmm in the mmu notifiers
-  mm/hmm: Use hmm_mirror not mm as an argument for hmm_range_register
-  mm/hmm: Hold a mmgrab from hmm to mm
-  mm/hmm: Simplify hmm_get_or_create and make it reliable
-  mm/hmm: Remove duplicate condition test before wait_event_timeout
-  mm/hmm: Do not use list*_rcu() for hmm->ranges
-  mm/hmm: Hold on to the mmget for the lifetime of the range
-  mm/hmm: Use lockdep instead of comments
-  mm/hmm: Remove racy protection against double-unregistration
-  mm/hmm: Poison hmm_range during unregister
-  mm/hmm: Remove confusing comment and logic from hmm_release
-  mm/hmm: Fix error flows in hmm_invalidate_range_start
-
- drivers/gpu/drm/nouveau/nouveau_svm.c |   2 +-
- include/linux/hmm.h                   |  52 +----
- kernel/fork.c                         |   1 -
- mm/hmm.c                              | 275 ++++++++++++--------------
- 4 files changed, 130 insertions(+), 200 deletions(-)
-
+diff --git a/mm/hmm.c b/mm/hmm.c
+index 080b17a2e87e2d..0423f4ca3a7e09 100644
+--- a/mm/hmm.c
++++ b/mm/hmm.c
+@@ -31,16 +31,6 @@
+ #if IS_ENABLED(CONFIG_HMM_MIRROR)
+ static const struct mmu_notifier_ops hmm_mmu_notifier_ops;
+ 
+-static inline struct hmm *mm_get_hmm(struct mm_struct *mm)
+-{
+-	struct hmm *hmm = READ_ONCE(mm->hmm);
+-
+-	if (hmm && kref_get_unless_zero(&hmm->kref))
+-		return hmm;
+-
+-	return NULL;
+-}
+-
+ /**
+  * hmm_get_or_create - register HMM against an mm (HMM internal)
+  *
+@@ -55,11 +45,16 @@ static inline struct hmm *mm_get_hmm(struct mm_struct *mm)
+  */
+ static struct hmm *hmm_get_or_create(struct mm_struct *mm)
+ {
+-	struct hmm *hmm = mm_get_hmm(mm);
+-	bool cleanup = false;
++	struct hmm *hmm;
++
++	lockdep_assert_held_exclusive(&mm->mmap_sem);
+ 
+-	if (hmm)
+-		return hmm;
++	/* Abuse the page_table_lock to also protect mm->hmm. */
++	spin_lock(&mm->page_table_lock);
++	hmm = mm->hmm;
++	if (mm->hmm && kref_get_unless_zero(&mm->hmm->kref))
++		goto out_unlock;
++	spin_unlock(&mm->page_table_lock);
+ 
+ 	hmm = kmalloc(sizeof(*hmm), GFP_KERNEL);
+ 	if (!hmm)
+@@ -74,57 +69,45 @@ static struct hmm *hmm_get_or_create(struct mm_struct *mm)
+ 	hmm->notifiers = 0;
+ 	hmm->dead = false;
+ 	hmm->mm = mm;
+-	mmgrab(hmm->mm);
+ 
+-	spin_lock(&mm->page_table_lock);
+-	if (!mm->hmm)
+-		mm->hmm = hmm;
+-	else
+-		cleanup = true;
+-	spin_unlock(&mm->page_table_lock);
++	hmm->mmu_notifier.ops = &hmm_mmu_notifier_ops;
++	if (__mmu_notifier_register(&hmm->mmu_notifier, mm)) {
++		kfree(hmm);
++		return NULL;
++	}
+ 
+-	if (cleanup)
+-		goto error;
++	mmgrab(hmm->mm);
+ 
+ 	/*
+-	 * We should only get here if hold the mmap_sem in write mode ie on
+-	 * registration of first mirror through hmm_mirror_register()
++	 * We hold the exclusive mmap_sem here so we know that mm->hmm is
++	 * still NULL or 0 kref, and is safe to update.
+ 	 */
+-	hmm->mmu_notifier.ops = &hmm_mmu_notifier_ops;
+-	if (__mmu_notifier_register(&hmm->mmu_notifier, mm))
+-		goto error_mm;
+-
+-	return hmm;
+-
+-error_mm:
+ 	spin_lock(&mm->page_table_lock);
+-	if (mm->hmm == hmm)
+-		mm->hmm = NULL;
++	mm->hmm = hmm;
++
++out_unlock:
+ 	spin_unlock(&mm->page_table_lock);
+-error:
+-	mmdrop(hmm->mm);
+-	kfree(hmm);
+-	return NULL;
++	return hmm;
+ }
+ 
+ static void hmm_free_rcu(struct rcu_head *rcu)
+ {
+-	kfree(container_of(rcu, struct hmm, rcu));
++	struct hmm *hmm = container_of(rcu, struct hmm, rcu);
++
++	mmdrop(hmm->mm);
++	kfree(hmm);
+ }
+ 
+ static void hmm_free(struct kref *kref)
+ {
+ 	struct hmm *hmm = container_of(kref, struct hmm, kref);
+-	struct mm_struct *mm = hmm->mm;
+ 
+-	mmu_notifier_unregister_no_release(&hmm->mmu_notifier, mm);
++	spin_lock(&hmm->mm->page_table_lock);
++	if (hmm->mm->hmm == hmm)
++		hmm->mm->hmm = NULL;
++	spin_unlock(&hmm->mm->page_table_lock);
+ 
+-	spin_lock(&mm->page_table_lock);
+-	if (mm->hmm == hmm)
+-		mm->hmm = NULL;
+-	spin_unlock(&mm->page_table_lock);
+-
+-	mmdrop(hmm->mm);
++	mmu_notifier_unregister_no_release(&hmm->mmu_notifier, hmm->mm);
+ 	mmu_notifier_call_srcu(&hmm->rcu, hmm_free_rcu);
+ }
+ 
 -- 
 2.22.0
 
