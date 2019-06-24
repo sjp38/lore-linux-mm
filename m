@@ -2,345 +2,177 @@ Return-Path: <SRS0=9FL3=UX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_MUTT autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D16FCC43613
-	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 17:43:43 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E7923C43613
+	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 17:50:19 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 95C2A20848
-	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 17:43:43 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 95C2A20848
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id AA02320645
+	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 17:50:19 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AA02320645
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 399556B0007; Mon, 24 Jun 2019 13:43:43 -0400 (EDT)
+	id 4F3296B0005; Mon, 24 Jun 2019 13:50:19 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3225B8E0003; Mon, 24 Jun 2019 13:43:43 -0400 (EDT)
+	id 4570E8E0003; Mon, 24 Jun 2019 13:50:19 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 175A98E0002; Mon, 24 Jun 2019 13:43:43 -0400 (EDT)
+	id 2F6FB8E0002; Mon, 24 Jun 2019 13:50:19 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id EBD236B0007
-	for <linux-mm@kvack.org>; Mon, 24 Jun 2019 13:43:42 -0400 (EDT)
-Received: by mail-qt1-f197.google.com with SMTP id o16so17837458qtj.6
-        for <linux-mm@kvack.org>; Mon, 24 Jun 2019 10:43:42 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id CF9906B0005
+	for <linux-mm@kvack.org>; Mon, 24 Jun 2019 13:50:18 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id m23so21504966edr.7
+        for <linux-mm@kvack.org>; Mon, 24 Jun 2019 10:50:18 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:in-reply-to:references;
-        bh=JSpF2NUCMDbG/5aaSELxhrMmYwoGB8rBkLI1jEMCSKk=;
-        b=gxBUDDOZHlbb5bwHVPFSQkeg6WKq4NrrKdx8pKTeR/403pJtSmCN3LCwWPJ9Zn5WHT
-         q0LWlKhdaNuWFNzrKBGfWNZyqJ4lcFVeOq83Y+91SXCwP3qQknx5uoPfUTelMVM9UZp2
-         /dC4SUiO7n4drY951xg9d/SeH8q3l4/lqgDW9rfU5vFC9dQhEGRnGVtjXFMB1vNz/Ksn
-         r1xi6NDXXxTVuXjjgqxBO2XhKIn8nd3SGPMXFyU1C1ZmKlHQWwlXrhiQQw6699hJ6Cd4
-         NQHxA2YOG57eyMI3GPCXNMZ91MD0KceFGMUWJU3tkamyBuYk0shB7bkeyWh+QjRwGXN4
-         gOyQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAV4s6WWZFs08YpTyx7/6NjJNTnYNTsmUGgQjzkyv9ljj7Od4wnr
-	LPgLqJgpa6iom3oZTTzbbCvJygnrBZjmr6LtBDu384myN1CCDYIrOvNmzMRk5vwFhzjcQlM0Z9j
-	CG+H2yoFIqXQ3Eqv6xPiMbXj/Yk18chZj2QwSyZW40+f7NV6oyWl0kSAta6mF8b6VKA==
-X-Received: by 2002:ac8:3098:: with SMTP id v24mr81732124qta.47.1561398222717;
-        Mon, 24 Jun 2019 10:43:42 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxDx1IWpyQ14uz3xq159NgFAEN2ILKNvNmoU6P4YACahkfUG5R7bhQZC/ZIAxcaZcNBMFzC
-X-Received: by 2002:ac8:3098:: with SMTP id v24mr81732068qta.47.1561398221757;
-        Mon, 24 Jun 2019 10:43:41 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561398221; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=pGxAcVZb2pu4qCgsMauriEtCQ2yZkNo4J7UHDlOo+NQ=;
+        b=sE1QwyzM0VVup/W1B284yPgTYLtFsitn5qxMtA3hV1vYFkbPrlMdh0ZWnmilyAAamZ
+         U81BWflVd6LGzI16f3+4NTaQhshw863FnFQHKPOHkCwCmGOSm41XkIGWpVPBZEz1RUOF
+         ROhsHpzBtLk98iywuqaYVZELiEr5I8hVAqY9w8sPZaZtGJmNOm1ZRYwFC1GHkn6Rlihb
+         gf3ZSwh5s34oRuG89SGAGUYf7KZ3XtNa5/qMLrERHTVZjvr0eGBkwP1mrl0oUgEaAwfH
+         OSEhEY7W4Vp1qT38usbjTRR3gplEau9T+2kGmNoYgR6GftfRIdkhz2as6xsrxlYLyWMR
+         WvYA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
+X-Gm-Message-State: APjAAAU+tA22kFmug7O1NoqVZrbSQll3rx1rYXBvYwM7Gs1PwdQUHX8E
+	oTLwxt4UlCzI4qT1yn/3VMPd+vnO3OlrBDS+zbZKZk+k3VtyRDy5ZxCrQ1iWTa3RRaOgwbC9/aF
+	1IgD3pJ4SU86RbG3N7kYHZuy8JxYcoW69xD44bSRLkgNOZG3TMQRtCwAzJLW1Glif8Q==
+X-Received: by 2002:aa7:ca41:: with SMTP id j1mr112332854edt.149.1561398618415;
+        Mon, 24 Jun 2019 10:50:18 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyWiU1QxAlYis47waRAmniJjB8p7IhOup+EODBbQLdbufoGvKnrk/dPm9gWdWpFInA/+YBe
+X-Received: by 2002:aa7:ca41:: with SMTP id j1mr112332794edt.149.1561398617726;
+        Mon, 24 Jun 2019 10:50:17 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561398617; cv=none;
         d=google.com; s=arc-20160816;
-        b=QO1tzNDqXczSOl34J9TIhNRK2LjAGh+a9n6bLxlNQNWZQSSIOBnKuTluce1A1gb0Vq
-         yOVxwxPFT1CIgiL90+xjD4LA8Q3p06Tp3tOEYyekLyMVli+x6kkw6vUhHxOWevzGJkFc
-         YKISMWqqFDEVlaqFi1KBXTAiwvDSK2cZzey1/vDhsN0suGkxnBy9iuDKZp34ostfYD7o
-         horiVs+9ZbgZKOvC+UC2hQD6Yg45jfuw8lg2IkvhKdXPb6Z/jrZGfdv3A/eHJTdrzNj3
-         DgNtrA215vDQRdZ9zU0rUX1aC5munCvCU+KpSmVQFrWzF05vu3cDMbL/7qArrt+CdbgY
-         PfgQ==
+        b=LSGH7zlLBnV5BmEc5EknN+X/CX2t9diDd1oVkr558ZlG91u1tIT8LB0pQwzTeyNABd
+         BtgMYidKMeykbMwlhZljjXb5E7R7yZbevI0rOQaWEQWSLSa2tlFLILeb15QbSCR3GfbV
+         3Y6EKoo+wTgk6UGYCVsl1cpuL8QAKS+oW4g/SvTJhNicUmSWxJOG8VHxO6A2lTc+smma
+         Y6KPXOv4WRcKXEyRFzIddnMFZmKB0B9b+qM1gPLvVf4ztaZsI5R0Z3oWp+A4uL/echYn
+         uGDa/Txf3mSYZqHfcCXnBfzI1Tkk8S743DLYaTJ7MTVJe3BtHKWCwXBmpatERF3LRjVQ
+         BH8g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=JSpF2NUCMDbG/5aaSELxhrMmYwoGB8rBkLI1jEMCSKk=;
-        b=m8814+CPBQ+htVeZxJvPKbePVfnUgtA53CWqv8TJPfMo9UaqfSRRWs8UHaWMzMHnnH
-         UrnatCA0tllFaPTywgyjTUedvnf+vFAzl5H2Mvl3B3aRo5YxrGkY2Hnlg5TQKnEn9Cb6
-         Qh01pmeNS/toifdUZEBi0bA3xX2lFna+U+KF0XEcveR/xjAn/fVf2VzaXPm0/xuF5pc7
-         +Kb+bDJJL/aoZWnhue2dgVXH4RZ9AiMvxrTWsokcjR+UeXwsfofvXFM1gJveKg8Apeyl
-         FTzc6jW/aq+EzDcJZgo6hUd8huQ11WFqDP4CezG3G6p8wFQu2ZybXItLXbhRA7QY8LLC
-         Q0hA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=pGxAcVZb2pu4qCgsMauriEtCQ2yZkNo4J7UHDlOo+NQ=;
+        b=vXO1OyVXOKFRE2AqIbnWDd/31Dz6pFg2CLbObbJ/CP4VYeuOqDMIT/bRiBvBxVWmzG
+         B38O/1tIYnMcVA7nVlyKiRLRd7AIkEWxxg/SZvfNhN9UmiIqa98mLR2xR0IKg9vVmtXN
+         7UuM8xRAOKzzofoVoJEka59jV0ycPsU3cQ8TAxy2gXqmY59t80v52FC1rC+Q3Pdh8t9G
+         lgPQGtkiHU+e7ayhk8CLPJqhSL2+g3swEIQ50YfCf5X6o7zF35Ce85P7iTGROPILLdE2
+         SLi3TutItEenCFgS8WThTfZ9f3XxA9d7hDdiA4KCluc7fpcdaDv9fJ6kt9A0TXcd/WP9
+         N46g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id v27si5171063qtb.140.2019.06.24.10.43.41
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 24 Jun 2019 10:43:41 -0700 (PDT)
-Received-SPF: pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
+        by mx.google.com with ESMTP id r16si10152236eda.14.2019.06.24.10.50.17
+        for <linux-mm@kvack.org>;
+        Mon, 24 Jun 2019 10:50:17 -0700 (PDT)
+Received-SPF: pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id EEC937FDE5;
-	Mon, 24 Jun 2019 17:43:22 +0000 (UTC)
-Received: from llong.com (dhcp-17-85.bos.redhat.com [10.18.17.85])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 0D47B5D9D5;
-	Mon, 24 Jun 2019 17:43:17 +0000 (UTC)
-From: Waiman Long <longman@redhat.com>
-To: Christoph Lameter <cl@linux.com>,
-	Pekka Enberg <penberg@kernel.org>,
-	David Rientjes <rientjes@google.com>,
-	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
+       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id B0CA2360;
+	Mon, 24 Jun 2019 10:50:16 -0700 (PDT)
+Received: from arrakis.emea.arm.com (arrakis.cambridge.arm.com [10.1.196.78])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id E5FBC3F718;
+	Mon, 24 Jun 2019 10:50:11 -0700 (PDT)
+Date: Mon, 24 Jun 2019 18:50:09 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+To: Andrey Konovalov <andreyknvl@google.com>
+Cc: linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org, amd-gfx@lists.freedesktop.org,
+	dri-devel@lists.freedesktop.org, linux-rdma@vger.kernel.org,
+	linux-media@vger.kernel.org, kvm@vger.kernel.org,
+	linux-kselftest@vger.kernel.org,
+	Vincenzo Frascino <vincenzo.frascino@arm.com>,
+	Will Deacon <will.deacon@arm.com>,
+	Mark Rutland <mark.rutland@arm.com>,
 	Andrew Morton <akpm@linux-foundation.org>,
-	Alexander Viro <viro@zeniv.linux.org.uk>,
-	Jonathan Corbet <corbet@lwn.net>,
-	Luis Chamberlain <mcgrof@kernel.org>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
 	Kees Cook <keescook@chromium.org>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	Michal Hocko <mhocko@kernel.org>,
-	Vladimir Davydov <vdavydov.dev@gmail.com>
-Cc: linux-mm@kvack.org,
-	linux-doc@vger.kernel.org,
-	linux-fsdevel@vger.kernel.org,
-	cgroups@vger.kernel.org,
-	linux-kernel@vger.kernel.org,
-	Roman Gushchin <guro@fb.com>,
-	Shakeel Butt <shakeelb@google.com>,
-	Andrea Arcangeli <aarcange@redhat.com>,
-	Waiman Long <longman@redhat.com>
-Subject: [PATCH 2/2] mm, slab: Extend vm/drop_caches to shrink kmem slabs
-Date: Mon, 24 Jun 2019 13:42:19 -0400
-Message-Id: <20190624174219.25513-3-longman@redhat.com>
-In-Reply-To: <20190624174219.25513-1-longman@redhat.com>
-References: <20190624174219.25513-1-longman@redhat.com>
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.27]); Mon, 24 Jun 2019 17:43:40 +0000 (UTC)
+	Yishai Hadas <yishaih@mellanox.com>,
+	Felix Kuehling <Felix.Kuehling@amd.com>,
+	Alexander Deucher <Alexander.Deucher@amd.com>,
+	Christian Koenig <Christian.Koenig@amd.com>,
+	Mauro Carvalho Chehab <mchehab@kernel.org>,
+	Jens Wiklander <jens.wiklander@linaro.org>,
+	Alex Williamson <alex.williamson@redhat.com>,
+	Leon Romanovsky <leon@kernel.org>,
+	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>,
+	Dave Martin <Dave.Martin@arm.com>,
+	Khalid Aziz <khalid.aziz@oracle.com>, enh <enh@google.com>,
+	Jason Gunthorpe <jgg@ziepe.ca>,
+	Christoph Hellwig <hch@infradead.org>,
+	Dmitry Vyukov <dvyukov@google.com>,
+	Kostya Serebryany <kcc@google.com>,
+	Evgeniy Stepanov <eugenis@google.com>,
+	Lee Smith <Lee.Smith@arm.com>,
+	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
+	Jacob Bramley <Jacob.Bramley@arm.com>,
+	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
+	Robin Murphy <robin.murphy@arm.com>,
+	Kevin Brodsky <kevin.brodsky@arm.com>,
+	Szabolcs Nagy <Szabolcs.Nagy@arm.com>,
+	Al Viro <viro@zeniv.linux.org.uk>
+Subject: Re: [PATCH v18 07/15] fs/namespace: untag user pointers in
+ copy_mount_options
+Message-ID: <20190624175009.GM29120@arrakis.emea.arm.com>
+References: <cover.1561386715.git.andreyknvl@google.com>
+ <41e0a911e4e4d533486a1468114e6878e21f9f84.1561386715.git.andreyknvl@google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <41e0a911e4e4d533486a1468114e6878e21f9f84.1561386715.git.andreyknvl@google.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-With the slub memory allocator, the numbers of active slab objects
-reported in /proc/slabinfo are not real because they include objects
-that are held by the per-cpu slab structures whether they are actually
-used or not.  The problem gets worse the more CPUs a system have. For
-instance, looking at the reported number of active task_struct objects,
-one will wonder where all the missing tasks gone.
+On Mon, Jun 24, 2019 at 04:32:52PM +0200, Andrey Konovalov wrote:
+> This patch is a part of a series that extends kernel ABI to allow to pass
+> tagged user pointers (with the top byte set to something else other than
+> 0x00) as syscall arguments.
+> 
+> In copy_mount_options a user address is being subtracted from TASK_SIZE.
+> If the address is lower than TASK_SIZE, the size is calculated to not
+> allow the exact_copy_from_user() call to cross TASK_SIZE boundary.
+> However if the address is tagged, then the size will be calculated
+> incorrectly.
+> 
+> Untag the address before subtracting.
+> 
+> Reviewed-by: Khalid Aziz <khalid.aziz@oracle.com>
+> Reviewed-by: Vincenzo Frascino <vincenzo.frascino@arm.com>
+> Reviewed-by: Kees Cook <keescook@chromium.org>
+> Reviewed-by: Catalin Marinas <catalin.marinas@arm.com>
+> Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
+> ---
+>  fs/namespace.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/fs/namespace.c b/fs/namespace.c
+> index 7660c2749c96..ec78f7223917 100644
+> --- a/fs/namespace.c
+> +++ b/fs/namespace.c
+> @@ -2994,7 +2994,7 @@ void *copy_mount_options(const void __user * data)
+>  	 * the remainder of the page.
+>  	 */
+>  	/* copy_from_user cannot cross TASK_SIZE ! */
+> -	size = TASK_SIZE - (unsigned long)data;
+> +	size = TASK_SIZE - (unsigned long)untagged_addr(data);
+>  	if (size > PAGE_SIZE)
+>  		size = PAGE_SIZE;
 
-I know it is hard and costly to get a real count of active objects. So
-I am not advocating for that. Instead, this patch extends the
-/proc/sys/vm/drop_caches sysctl parameter by using a new bit (bit 3)
-to shrink all the kmem slabs which will flush out all the slabs in the
-per-cpu structures and give a more accurate view of how much memory are
-really used up by the active slab objects. This is a costly operation,
-of course, but it gives a way to have a clearer picture of the actual
-number of slab objects used, if the need arises.
+I think this patch needs an ack from Al Viro (cc'ed).
 
-The upper range of the drop_caches sysctl parameter is increased to 15
-to allow all possible combinations of the lowest 4 bits.
-
-On a 2-socket 64-core 256-thread ARM64 system with 64k page size after
-a parallel kernel build, the amount of memory occupied by slabs before
-and after echoing to drop_caches were:
-
- # grep task_struct /proc/slabinfo
- task_struct        48376  48434   4288   61    4 : tunables    0    0
- 0 : slabdata    794    794      0
- # grep "^S[lRU]" /proc/meminfo
- Slab:            3419072 kB
- SReclaimable:     354688 kB
- SUnreclaim:      3064384 kB
- # echo 3 > /proc/sys/vm/drop_caches
- # grep "^S[lRU]" /proc/meminfo
- Slab:            3351680 kB
- SReclaimable:     316096 kB
- SUnreclaim:      3035584 kB
- # echo 8 > /proc/sys/vm/drop_caches
- # grep "^S[lRU]" /proc/meminfo
- Slab:            1008192 kB
- SReclaimable:     126912 kB
- SUnreclaim:       881280 kB
- # grep task_struct /proc/slabinfo
- task_struct         2601   6588   4288   61    4 : tunables    0    0
- 0 : slabdata    108    108      0
-
-Shrinking the slabs saves more than 2GB of memory in this case. This
-new feature certainly fulfills the promise of dropping caches.
-
-Unlike counting objects in the per-node caches done by /proc/slabinfo
-which is rather light weight, iterating all the per-cpu caches and
-shrinking them is much more heavy weight.
-
-For this particular instance, the time taken to shrinks all the root
-caches was about 30.2ms. There were 73 memory cgroup and the longest
-time taken for shrinking the largest one was about 16.4ms. The total
-shrinking time was about 101ms.
-
-Because of the potential long time to shrinks all the caches, the
-slab_mutex was taken multiple times - once for all the root caches
-and once for each memory cgroup. This is to reduce the slab_mutex hold
-time to minimize impact to other running applications that may need to
-acquire the mutex.
-
-The slab shrinking feature is only available when CONFIG_MEMCG_KMEM is
-defined as the code need to access slab_root_caches to iterate all the
-root caches.
-
-Signed-off-by: Waiman Long <longman@redhat.com>
----
- Documentation/sysctl/vm.txt | 11 ++++++++--
- fs/drop_caches.c            |  4 ++++
- include/linux/slab.h        |  1 +
- kernel/sysctl.c             |  4 ++--
- mm/slab_common.c            | 44 +++++++++++++++++++++++++++++++++++++
- 5 files changed, 60 insertions(+), 4 deletions(-)
-
-diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
-index 749322060f10..b643ac8968d2 100644
---- a/Documentation/sysctl/vm.txt
-+++ b/Documentation/sysctl/vm.txt
-@@ -207,8 +207,8 @@ Setting this to zero disables periodic writeback altogether.
- drop_caches
- 
- Writing to this will cause the kernel to drop clean caches, as well as
--reclaimable slab objects like dentries and inodes.  Once dropped, their
--memory becomes free.
-+reclaimable slab objects like dentries and inodes.  It can also be used
-+to shrink the slabs.  Once dropped, their memory becomes free.
- 
- To free pagecache:
- 	echo 1 > /proc/sys/vm/drop_caches
-@@ -216,6 +216,8 @@ To free reclaimable slab objects (includes dentries and inodes):
- 	echo 2 > /proc/sys/vm/drop_caches
- To free slab objects and pagecache:
- 	echo 3 > /proc/sys/vm/drop_caches
-+To shrink the slabs:
-+	echo 8 > /proc/sys/vm/drop_caches
- 
- This is a non-destructive operation and will not free any dirty objects.
- To increase the number of objects freed by this operation, the user may run
-@@ -223,6 +225,11 @@ To increase the number of objects freed by this operation, the user may run
- number of dirty objects on the system and create more candidates to be
- dropped.
- 
-+Shrinking the slabs can reduce the memory footprint used by the slabs.
-+It also makes the number of active objects reported in /proc/slabinfo
-+more representative of the actual number of objects used for the slub
-+memory allocator.
-+
- This file is not a means to control the growth of the various kernel caches
- (inodes, dentries, pagecache, etc...)  These objects are automatically
- reclaimed by the kernel when memory is needed elsewhere on the system.
-diff --git a/fs/drop_caches.c b/fs/drop_caches.c
-index d31b6c72b476..633b99e25dab 100644
---- a/fs/drop_caches.c
-+++ b/fs/drop_caches.c
-@@ -9,6 +9,7 @@
- #include <linux/writeback.h>
- #include <linux/sysctl.h>
- #include <linux/gfp.h>
-+#include <linux/slab.h>
- #include "internal.h"
- 
- /* A global variable is a bit ugly, but it keeps the code simple */
-@@ -65,6 +66,9 @@ int drop_caches_sysctl_handler(struct ctl_table *table, int write,
- 			drop_slab();
- 			count_vm_event(DROP_SLAB);
- 		}
-+		if (sysctl_drop_caches & 8) {
-+			kmem_cache_shrink_all();
-+		}
- 		if (!stfu) {
- 			pr_info("%s (%d): drop_caches: %d\n",
- 				current->comm, task_pid_nr(current),
-diff --git a/include/linux/slab.h b/include/linux/slab.h
-index 9449b19c5f10..f7c1626b2aa6 100644
---- a/include/linux/slab.h
-+++ b/include/linux/slab.h
-@@ -149,6 +149,7 @@ struct kmem_cache *kmem_cache_create_usercopy(const char *name,
- 			void (*ctor)(void *));
- void kmem_cache_destroy(struct kmem_cache *);
- int kmem_cache_shrink(struct kmem_cache *);
-+void kmem_cache_shrink_all(void);
- 
- void memcg_create_kmem_cache(struct mem_cgroup *, struct kmem_cache *);
- void memcg_deactivate_kmem_caches(struct mem_cgroup *);
-diff --git a/kernel/sysctl.c b/kernel/sysctl.c
-index 1beca96fb625..feeb867dabd7 100644
---- a/kernel/sysctl.c
-+++ b/kernel/sysctl.c
-@@ -129,7 +129,7 @@ static int __maybe_unused neg_one = -1;
- static int zero;
- static int __maybe_unused one = 1;
- static int __maybe_unused two = 2;
--static int __maybe_unused four = 4;
-+static int __maybe_unused fifteen = 15;
- static unsigned long zero_ul;
- static unsigned long one_ul = 1;
- static unsigned long long_max = LONG_MAX;
-@@ -1455,7 +1455,7 @@ static struct ctl_table vm_table[] = {
- 		.mode		= 0644,
- 		.proc_handler	= drop_caches_sysctl_handler,
- 		.extra1		= &one,
--		.extra2		= &four,
-+		.extra2		= &fifteen,
- 	},
- #ifdef CONFIG_COMPACTION
- 	{
-diff --git a/mm/slab_common.c b/mm/slab_common.c
-index 58251ba63e4a..b3c5b64f9bfb 100644
---- a/mm/slab_common.c
-+++ b/mm/slab_common.c
-@@ -956,6 +956,50 @@ int kmem_cache_shrink(struct kmem_cache *cachep)
- }
- EXPORT_SYMBOL(kmem_cache_shrink);
- 
-+#ifdef CONFIG_MEMCG_KMEM
-+static void kmem_cache_shrink_memcg(struct mem_cgroup *memcg,
-+				    void __maybe_unused *arg)
-+{
-+	struct kmem_cache *s;
-+
-+	if (memcg == root_mem_cgroup)
-+		return;
-+	mutex_lock(&slab_mutex);
-+	list_for_each_entry(s, &memcg->kmem_caches,
-+			    memcg_params.kmem_caches_node) {
-+		kmem_cache_shrink(s);
-+	}
-+	mutex_unlock(&slab_mutex);
-+	cond_resched();
-+}
-+
-+/*
-+ * Shrink all the kmem caches.
-+ *
-+ * If there are a large number of memory cgroups outstanding, it may take
-+ * a while to shrink all of them. So we may need to release the lock, call
-+ * cond_resched() and reacquire the lock from time to time.
-+ */
-+void kmem_cache_shrink_all(void)
-+{
-+	struct kmem_cache *s;
-+
-+	/* Shrink all the root caches */
-+	mutex_lock(&slab_mutex);
-+	list_for_each_entry(s, &slab_root_caches, root_caches_node)
-+		kmem_cache_shrink(s);
-+	mutex_unlock(&slab_mutex);
-+	cond_resched();
-+
-+	/*
-+	 * Flush each of the memcg individually
-+	 */
-+	memcg_iterate_all(kmem_cache_shrink_memcg, NULL);
-+}
-+#else
-+void kmem_cache_shrink_all(void) { }
-+#endif
-+
- bool slab_is_available(void)
- {
- 	return slab_state >= UP;
 -- 
-2.18.1
+Catalin
 
