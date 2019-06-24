@@ -2,83 +2,83 @@ Return-Path: <SRS0=9FL3=UX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+X-Spam-Status: No, score=-5.7 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
 	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
-	autolearn_force=no version=3.4.0
+	SPF_HELO_NONE,SPF_PASS,UNWANTED_LANGUAGE_BODY,URIBL_BLOCKED,USER_AGENT_GIT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 249BDC48BEA
-	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 05:43:54 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 725EDC48BE3
+	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 05:43:57 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E101C2089F
-	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 05:43:53 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 200CC2089F
+	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 05:43:57 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="Ox0Bj2s2"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E101C2089F
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="pE4dI02l"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 200CC2089F
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 14AD46B0269; Mon, 24 Jun 2019 01:43:53 -0400 (EDT)
+	id 6798C6B026A; Mon, 24 Jun 2019 01:43:56 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0D4258E0002; Mon, 24 Jun 2019 01:43:53 -0400 (EDT)
+	id 62BDA8E0002; Mon, 24 Jun 2019 01:43:56 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id EDDBF8E0001; Mon, 24 Jun 2019 01:43:52 -0400 (EDT)
+	id 42F2D8E0001; Mon, 24 Jun 2019 01:43:56 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B63AF6B0269
-	for <linux-mm@kvack.org>; Mon, 24 Jun 2019 01:43:52 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id h15so8889471pfn.3
-        for <linux-mm@kvack.org>; Sun, 23 Jun 2019 22:43:52 -0700 (PDT)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 0A3206B026A
+	for <linux-mm@kvack.org>; Mon, 24 Jun 2019 01:43:56 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id s195so8644991pgs.13
+        for <linux-mm@kvack.org>; Sun, 23 Jun 2019 22:43:56 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=43pRHKdJKqNssrr4/Vc0cDK/nlhOlcebDC3ttvLu+nk=;
-        b=KCbBhmDH83M83DQEFHZPkQ7z6vKyOlnrbQp0sL/kUCZh2TZAQOo9DZUlTwl/oDhWiT
-         Sh4U8ag2sVzlwIIhQ/Rf1jNCv6xHf6RFOedr93i+MstrE452dBdAUUUnR31FMcmEa5qH
-         Up9qblPs+cGqwwUxxn//Pu8BNv23zL8mB7gWR9sjfU9wItIDFsjxAIiZyFveuAKXQZ2V
-         XIsgNpMpSpxbHtM+d0P++h8OhalReg3ZTGTYAETWP9mOvHV+igWjcLEy2MUxZibA6DWY
-         aBOYW3Duvt9RO9JdokE2Ali3V5jAMxuPkEVrAyENozxawD9HtxXqI/U3KCPwJGehYWyo
-         gr/A==
-X-Gm-Message-State: APjAAAVHnX/jAMzeo/I7p44rhHq+e4Apyt8QsrkHLpWHdeuAF9qSwZAY
-	H6qFdmHS1uuJLeVGy5KiJQJjTsOOY4JrzmpKsxMxLa/cewQU4WCHYBz0gr3yP2Du1M1FpPURD72
-	xzS6z65ZtSpOUzJjwry+X7DViyADy1Gg5r+1dckvFfKMcJlF9lGxYkQ69O5dQHGc=
-X-Received: by 2002:a65:524b:: with SMTP id q11mr30301876pgp.384.1561355032332;
-        Sun, 23 Jun 2019 22:43:52 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqx5olcSIoAIqovBqj5sngIHCt9o6TL9a07GwkC2N5QP3+HfQfF7gEjS+DKS1cZau/vcTvn/
-X-Received: by 2002:a65:524b:: with SMTP id q11mr30301850pgp.384.1561355031609;
-        Sun, 23 Jun 2019 22:43:51 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561355031; cv=none;
+        bh=f/LMSlxfhI7zBN2HPhyn2vXf7Q0YVjnn4dkhV1o/cCs=;
+        b=Zofyg/8i2F+YS7MXXJS6oE9hFzABhkbj0gt+YvmlvBTUMf3qKrYm5HR8cBVylqda5C
+         Zk1rEHhR3ucKmm+9LSt/TLjFfkkkDvjo1nNInEDAEfzU/Ba+CO5zD3pCpei8AeXq5Kl1
+         eT7i5ELB+/+NMqKN+7qGxFzMHIerJpXSiCLQz90akkXo329Z6wmWjHpPHFgklbz6rCn5
+         JFsQK3cqPJrStHJr5npmg+9eiqRNX5BwTeKdRngGtv3OTLFrlmJohtB44qbiErJnjZDf
+         mBinrcvtZ/tfAF8YQLZGYGJMl6hBfVpF9wffJFE6Q7VTwu3fxle3dFCHNPFrCaVoQ5b8
+         h2Tw==
+X-Gm-Message-State: APjAAAVGN8rfUv8bgnYKnnCA0l7KuPLqWTGavj6NiwITZMBi19EBvuB+
+	PyLNReZBKI8UvLtFEhisKl5dQA4574V1F7m5k3yWo5oOOol44ExK2Y5z05umcez4OCODH4O29yA
+	5aVstoaCO0xePvc2OG7zvCOD+qV6EhH25emoQxDplTaD+ebWRvmEWxG3rD0Y882g=
+X-Received: by 2002:a17:90a:ba93:: with SMTP id t19mr22381012pjr.139.1561355035675;
+        Sun, 23 Jun 2019 22:43:55 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzcoZaM2ponF/yyjOpkkZx6gm/5qorYrIhZHuplJP9+DCuWBPsKaKeoO/yliR4FHLA/q/+6
+X-Received: by 2002:a17:90a:ba93:: with SMTP id t19mr22380959pjr.139.1561355034695;
+        Sun, 23 Jun 2019 22:43:54 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561355034; cv=none;
         d=google.com; s=arc-20160816;
-        b=UqDVHz7DKs5UGeWeDcc6AT4qZegXM/31jr69r59a6PPLTPJL1BaVe04AQCUVs05Uyp
-         JFH8fjRIWs2fjUqByy1nS+p7V7sAxuJ2aqONPX2TI47i8+x00Ok6eB5CEd1qxVzQDJck
-         9EIzMMV98XCx4KuBbTQR3/6zNaqQKf322fnp429g0bBVDwfXymDsiSd4H3bdqNFdEFDw
-         Y0YfLzWoBzhg3GmslfA2f8bN3WHlzWcYx8uKZPZUoglW7nUKVyNaoVSVsVOOMsiByxNP
-         xCTha8+JhN865hSbeDF8Eusw4zsqwgyiBNHjXwEK4j+mxzIUU9Vb+hhIpqCHhpb+iqWf
-         lv3Q==
+        b=INj3v7UtsR1APZCI5zPhaEKTyICYEDCCFLzjiKELSQmVcH2ItlAFuPZIeBzX1YOj5d
+         Q5e05QMNfBfFGSruSFPMmjomvpzOIsXcR/kM6quHue6xcQ6/oO0bU7vy9L6e63YBf5A5
+         IYzK09U3rFB4AC2hbuIikqiSronzZ7MuYhokwnFf8+iNbTfICWe4IDmL18xcrSjtx330
+         sx/wkWu66eCod8GfBoHyHNVojnF+3B5pjYYiGdjsG440YEtPy+J1qC1q9D7WwI8/yGCK
+         eN6Szl6lq3o8gPiVB0V8qYo8Y07VIW6v9xX4S5O54gL8I+gcsnkDuJlwNYNkV4sxC1co
+         0wOA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=43pRHKdJKqNssrr4/Vc0cDK/nlhOlcebDC3ttvLu+nk=;
-        b=TBfHnuB5chHYRGNVQJAfIh8iu3d64ha5JbnbGiAsTj6aN4HyeVFgTWet3CSMWwNYMd
-         qJR1bB1wVvDq4EobMd0Rh7YeqFPtKWE8blFp8d+rLf867uwttma9+mvkIB0vszCvDWKn
-         Cfwue5EJvOO39XwErJPv4BtRWsOmjyUQL3HgJQ060X3x4FvAyWbpUuWSDNsawdOJw9bh
-         S3UhCGERXXa7RjVDaFFuD4AaduwoY9sM8kNGnwp4QSmdqmnqg4o4NYednr16YsSqC7Sx
-         6ltqEnwe68jcgRalQ3pwfxTV5im4zPuIWRQ/naiWVekedyMbx/+PoP/65We17xxhSUF/
-         6s4A==
+        bh=f/LMSlxfhI7zBN2HPhyn2vXf7Q0YVjnn4dkhV1o/cCs=;
+        b=gN6nGoT1yaLlQJ5qLvrl5BNUGQkloHLKbuvDRSn0tZlWZU2uO+yjCYQyVOGTBoQBL9
+         MCXZwkSZ/SHgFI5IZwzCSJ3PntzVHgV93lLCxwLnAgAjTQRrZN/0dF4I4ciyFoNW9bAu
+         Ev+Pbb05SzrtufAUEf7THjUYyh0vvh+MeqQjE4/XS2Ffs/dWCdPUsGjOCKZDDy/y86a/
+         BHscc7T74mmZZLFB7jSxrgRB+YXNAnsohe/eWXurrBHWTpz2U94UfGCgdOT0zqvqtX1B
+         Kzn9EjLnMgQbDA/Y7ERLF05ZH5Otip9kkLJzB75YEJMS/AXjh4xHqCADL7jE2BcmYfwX
+         Nggg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=Ox0Bj2s2;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=pE4dI02l;
        spf=pass (google.com: best guess record for domain of batv+84882ec255bc51113d1a+5783+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+84882ec255bc51113d1a+5783+infradead.org+hch@bombadil.srs.infradead.org
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id 59si10154952plp.90.2019.06.23.22.43.51
+        by mx.google.com with ESMTPS id 33si9368165pli.144.2019.06.23.22.43.54
         for <linux-mm@kvack.org>
         (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Sun, 23 Jun 2019 22:43:51 -0700 (PDT)
+        Sun, 23 Jun 2019 22:43:54 -0700 (PDT)
 Received-SPF: pass (google.com: best guess record for domain of batv+84882ec255bc51113d1a+5783+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=Ox0Bj2s2;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=pE4dI02l;
        spf=pass (google.com: best guess record for domain of batv+84882ec255bc51113d1a+5783+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+84882ec255bc51113d1a+5783+infradead.org+hch@bombadil.srs.infradead.org
 DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	d=infradead.org; s=bombadil.20170209; h=Content-Transfer-Encoding:
@@ -86,26 +86,25 @@ DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	:Reply-To:Content-Type:Content-ID:Content-Description:Resent-Date:Resent-From
 	:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:List-Help:
 	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	bh=43pRHKdJKqNssrr4/Vc0cDK/nlhOlcebDC3ttvLu+nk=; b=Ox0Bj2s2AYtMiNqOyzVUJu1aca
-	4Zw5sJu947Gj5rs0jUIlbbOtlbwYiuHZ0nJ1wtQi79umOkWFdlOji03dK+QH22LmwJp2C8vJ56/Fw
-	VBYObyjWlQcJ9h5SQj6t76j0JD5TudW+arpOJd2w7RxIDG8pwuO4dR1jb3JpSDfRzc7ZczKYWm7vh
-	QI2c2xxg9ZuRIDvDgzexiDXDbZSYqdKgNNN3aPwHwGLG857aQEXAdzB2Nf4gvK+YbgR5Imuqbwebr
-	zBivLC6z+ob0BD9JpbwnxUy0vPPLYKipdDiBzZ5jLr7Jy5pym/AnznE86d12FYY1jmZQrC/xeH+IC
-	s5lNwFPQ==;
+	bh=f/LMSlxfhI7zBN2HPhyn2vXf7Q0YVjnn4dkhV1o/cCs=; b=pE4dI02lDFfkAV82lMiqZforjy
+	SG8akkDP/ZbgaSrs+ci1Ww+ClWN3TIs/e2BGmih9m1XnFy7suJnKZb7wRpi2ZLabuo7kIxpKfX173
+	TbXzu+w+qPkAIwKYjE6uwsy++/t3xcQbwOIWoVI9LMjU+hM3TIbsmlWMl2FIQInTv4tc3NxFPb2KG
+	Z0/2oVjWC8zT/BhhTsD57BD0nMkDQKjDr6maNaiBp1ev3xHz2Y+/4nO8OL1XSf6G8mTiEm88Gjplr
+	VfPkrdYotaO/y0aV4AjWWDBr65EuvWHwT+5P8pSs8zTVVQWUtrm7HCf9hutHyKpw/HLo63mGonrFG
+	P5RplXeQ==;
 Received: from 213-225-6-159.nat.highway.a1.net ([213.225.6.159] helo=localhost)
 	by bombadil.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
-	id 1hfHld-0006Xj-5S; Mon, 24 Jun 2019 05:43:49 +0000
+	id 1hfHlg-0006c3-P1; Mon, 24 Jun 2019 05:43:53 +0000
 From: Christoph Hellwig <hch@lst.de>
 To: Palmer Dabbelt <palmer@sifive.com>,
 	Paul Walmsley <paul.walmsley@sifive.com>
 Cc: Damien Le Moal <damien.lemoal@wdc.com>,
 	linux-riscv@lists.infradead.org,
 	linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org,
-	Damien Le Moal <Damien.LeMoal@wdc.com>
-Subject: [PATCH 10/17] riscv: read the hart ID from mhartid on boot
-Date: Mon, 24 Jun 2019 07:43:04 +0200
-Message-Id: <20190624054311.30256-11-hch@lst.de>
+	linux-kernel@vger.kernel.org
+Subject: [PATCH 11/17] riscv: provide native clint access for M-mode
+Date: Mon, 24 Jun 2019 07:43:05 +0200
+Message-Id: <20190624054311.30256-12-hch@lst.de>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190624054311.30256-1-hch@lst.de>
 References: <20190624054311.30256-1-hch@lst.de>
@@ -118,36 +117,309 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Damien Le Moal <Damien.LeMoal@wdc.com>
+RISC-V has the concept of a cpu level interrupt controller.  Part of it
+is expose as bits in the status registers, and 2 new CSRs per privilege
+level in the instruction set, but the machanisms to trigger IPIs and
+timer events, as well as reading the actual timer value are not
+specified in the RISC-V spec but usually delegated to a block of MMIO
+registers.  This patch adds support for those MMIO registers in the
+timer and IPI code.  For now only the SiFive layout also supported by
+a few other implementations is supported, but the code should be
+easily extensible to others in the future.
 
-When in M-Mode, we can use the mhartid CSR to get the ID of the running
-HART. Doing so, direct M-Mode boot without firmware is possible.
-
-Signed-off-by: Damien Le Moal <damien.lemoal@wdc.com>
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- arch/riscv/kernel/head.S | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ arch/riscv/include/asm/clint.h    | 40 +++++++++++++++++++++++++++
+ arch/riscv/include/asm/timex.h    | 17 ++++++++++++
+ arch/riscv/kernel/Makefile        |  1 +
+ arch/riscv/kernel/clint.c         | 45 +++++++++++++++++++++++++++++++
+ arch/riscv/kernel/setup.c         |  2 ++
+ arch/riscv/kernel/smp.c           | 24 +++++++++++++++++
+ arch/riscv/kernel/smpboot.c       |  3 +++
+ drivers/clocksource/timer-riscv.c | 16 ++++++++---
+ 8 files changed, 144 insertions(+), 4 deletions(-)
+ create mode 100644 arch/riscv/include/asm/clint.h
+ create mode 100644 arch/riscv/kernel/clint.c
 
-diff --git a/arch/riscv/kernel/head.S b/arch/riscv/kernel/head.S
-index e5fa5481aa99..a4c170e41a34 100644
---- a/arch/riscv/kernel/head.S
-+++ b/arch/riscv/kernel/head.S
-@@ -18,6 +18,14 @@ ENTRY(_start)
- 	csrw CSR_XIE, zero
- 	csrw CSR_XIP, zero
+diff --git a/arch/riscv/include/asm/clint.h b/arch/riscv/include/asm/clint.h
+new file mode 100644
+index 000000000000..46d182d9a4db
+--- /dev/null
++++ b/arch/riscv/include/asm/clint.h
+@@ -0,0 +1,40 @@
++// SPDX-License-Identifier: GPL-2.0
++#ifndef _ASM_CLINT_H
++#define _ASM_CLINT_H 1
++
++#include <linux/smp.h>
++
++#ifdef CONFIG_M_MODE
++extern u32 __iomem *clint_ipi_base;
++extern u64 __iomem *clint_time_val;
++extern u64 __iomem *clint_time_cmp;
++
++void clint_init_boot_cpu(void);
++
++static inline void clint_send_ipi(unsigned long hartid)
++{
++	writel(1, clint_ipi_base + hartid);
++}
++
++static inline void clint_clear_ipi(unsigned long hartid)
++{
++	writel(0, clint_ipi_base + hartid);
++}
++
++static inline u64 clint_read_timer(void)
++{
++	return readq_relaxed(clint_time_val);
++}
++
++static inline void clint_set_timer(unsigned long delta)
++{
++	writeq_relaxed(clint_read_timer() + delta,
++		clint_time_cmp + cpuid_to_hartid_map(smp_processor_id()));
++}
++
++#else
++#define clint_init_boot_cpu()	do { } while (0)
++#define clint_clear_ipi(hartid)	do { } while (0)
++#endif /* CONFIG_M_MODE */
++
++#endif /* _ASM_CLINT_H */
+diff --git a/arch/riscv/include/asm/timex.h b/arch/riscv/include/asm/timex.h
+index 6a703ec9d796..bf907997f107 100644
+--- a/arch/riscv/include/asm/timex.h
++++ b/arch/riscv/include/asm/timex.h
+@@ -10,6 +10,22 @@
+ 
+ typedef unsigned long cycles_t;
  
 +#ifdef CONFIG_M_MODE
-+	/*
-+	 * The hartid in a0 is expected later on, and we have no firmware
-+	 * to hand it to us.
-+	 */
-+	csrr a0, mhartid
-+#endif
 +
- 	/* Load the global pointer */
- .option push
- .option norelax
++#include <linux/io-64-nonatomic-lo-hi.h>
++#include <asm/clint.h>
++
++static inline cycles_t get_cycles(void)
++{
++#ifdef CONFIG_64BIT
++	return readq_relaxed(clint_time_val);
++#else
++	return readl_relaxed(clint_time_val);
++#endif
++}
++#define get_cycles	get_cycles
++
++#else /* CONFIG_M_MODE */
+ static inline cycles_t get_cycles_inline(void)
+ {
+ 	cycles_t n;
+@@ -40,6 +56,7 @@ static inline uint64_t get_cycles64(void)
+ 	return ((u64)hi << 32) | lo;
+ }
+ #endif
++#endif /* CONFIG_M_MODE */
+ 
+ #define ARCH_HAS_READ_CURRENT_TIMER
+ 
+diff --git a/arch/riscv/kernel/Makefile b/arch/riscv/kernel/Makefile
+index 2420d37d96de..f933c04f89db 100644
+--- a/arch/riscv/kernel/Makefile
++++ b/arch/riscv/kernel/Makefile
+@@ -29,6 +29,7 @@ obj-y	+= vdso.o
+ obj-y	+= cacheinfo.o
+ obj-y	+= vdso/
+ 
++obj-$(CONFIG_M_MODE)		+= clint.o
+ obj-$(CONFIG_FPU)		+= fpu.o
+ obj-$(CONFIG_SMP)		+= smpboot.o
+ obj-$(CONFIG_SMP)		+= smp.o
+diff --git a/arch/riscv/kernel/clint.c b/arch/riscv/kernel/clint.c
+new file mode 100644
+index 000000000000..15b9e7fa5416
+--- /dev/null
++++ b/arch/riscv/kernel/clint.c
+@@ -0,0 +1,45 @@
++// SPDX-License-Identifier: GPL-2.0
++/*
++ * Copyright (c) 2019 Christoph Hellwig.
++ */
++
++#include <linux/io.h>
++#include <linux/of_address.h>
++#include <linux/types.h>
++#include <asm/csr.h>
++#include <asm/irq.h>
++#include <asm/timex.h>
++
++/*
++ * This is the layout used by the SiFive clint, which is also shared by the qemu
++ * virt platform, and the Kendryte KD210 at least.
++ */
++#define CLINT_IPI_OFF		0
++#define CLINT_TIME_VAL_OFF	0xbff8
++#define CLINT_TIME_CMP_OFF	0x4000;
++
++u32 __iomem *clint_ipi_base;
++u64 __iomem *clint_time_val;
++u64 __iomem *clint_time_cmp;
++
++void clint_init_boot_cpu(void)
++{
++	struct device_node *np;
++	void __iomem *base;
++
++	np = of_find_compatible_node(NULL, NULL, "riscv,clint0");
++	if (!np) {
++		panic("clint not found");
++		return;
++	}
++
++	base = of_iomap(np, 0);
++	if (!base)
++		panic("could not map CLINT");
++
++	clint_ipi_base = base + CLINT_IPI_OFF;
++	clint_time_val = base + CLINT_TIME_VAL_OFF;
++	clint_time_cmp = base + CLINT_TIME_CMP_OFF;
++
++	clint_clear_ipi(boot_cpu_hartid);
++}
+diff --git a/arch/riscv/kernel/setup.c b/arch/riscv/kernel/setup.c
+index b92e6831d1ec..2892d82f474c 100644
+--- a/arch/riscv/kernel/setup.c
++++ b/arch/riscv/kernel/setup.c
+@@ -17,6 +17,7 @@
+ #include <linux/sched/task.h>
+ #include <linux/swiotlb.h>
+ 
++#include <asm/clint.h>
+ #include <asm/setup.h>
+ #include <asm/sections.h>
+ #include <asm/pgtable.h>
+@@ -67,6 +68,7 @@ void __init setup_arch(char **cmdline_p)
+ 	setup_bootmem();
+ 	paging_init();
+ 	unflatten_device_tree();
++	clint_init_boot_cpu();
+ 
+ #ifdef CONFIG_SWIOTLB
+ 	swiotlb_init(1);
+diff --git a/arch/riscv/kernel/smp.c b/arch/riscv/kernel/smp.c
+index 8cd730239613..ee8599a7ca48 100644
+--- a/arch/riscv/kernel/smp.c
++++ b/arch/riscv/kernel/smp.c
+@@ -13,7 +13,9 @@
+ #include <linux/sched.h>
+ #include <linux/seq_file.h>
+ #include <linux/delay.h>
++#include <linux/io.h>
+ 
++#include <asm/clint.h>
+ #include <asm/sbi.h>
+ #include <asm/tlbflush.h>
+ #include <asm/cacheflush.h>
+@@ -78,6 +80,27 @@ static void ipi_stop(void)
+ 		wait_for_interrupt();
+ }
+ 
++#ifdef CONFIG_M_MODE
++static inline void send_ipi_single(int cpu, enum ipi_message_type op)
++{
++	set_bit(op, &ipi_data[cpu].bits);
++	clint_send_ipi(cpuid_to_hartid_map(cpu));
++}
++
++static inline void send_ipi_mask(const struct cpumask *mask,
++		enum ipi_message_type op)
++{
++	int cpu;
++
++	for_each_cpu(cpu, mask)
++		send_ipi_single(cpu, op);
++}
++
++static inline void clear_ipi(void)
++{
++	clint_clear_ipi(cpuid_to_hartid_map(smp_processor_id()));
++}
++#else /* CONFIG_M_MODE */
+ static void send_ipi_mask(const struct cpumask *mask, enum ipi_message_type op)
+ {
+ 	int cpuid, hartid;
+@@ -103,6 +126,7 @@ static inline void clear_ipi(void)
+ {
+ 	csr_clear(CSR_SIP, SIE_SSIE);
+ }
++#endif /* CONFIG_M_MODE */
+ 
+ void riscv_software_interrupt(void)
+ {
+diff --git a/arch/riscv/kernel/smpboot.c b/arch/riscv/kernel/smpboot.c
+index 7462a44304fe..1b7678d86ec8 100644
+--- a/arch/riscv/kernel/smpboot.c
++++ b/arch/riscv/kernel/smpboot.c
+@@ -23,6 +23,7 @@
+ #include <linux/of.h>
+ #include <linux/sched/task_stack.h>
+ #include <linux/sched/mm.h>
++#include <asm/clint.h>
+ #include <asm/irq.h>
+ #include <asm/mmu_context.h>
+ #include <asm/tlbflush.h>
+@@ -132,6 +133,8 @@ asmlinkage void __init smp_callin(void)
+ {
+ 	struct mm_struct *mm = &init_mm;
+ 
++	clint_clear_ipi(cpuid_to_hartid_map(smp_processor_id()));
++
+ 	/* All kernel threads share the same mm context.  */
+ 	mmgrab(mm);
+ 	current->active_mm = mm;
+diff --git a/drivers/clocksource/timer-riscv.c b/drivers/clocksource/timer-riscv.c
+index 2e2d363faabf..008af21611d9 100644
+--- a/drivers/clocksource/timer-riscv.c
++++ b/drivers/clocksource/timer-riscv.c
+@@ -24,12 +24,16 @@
+  * operations on the current hart.  There is guaranteed to be exactly one timer
+  * per hart on all RISC-V systems.
+  */
+-
+ static int riscv_clock_next_event(unsigned long delta,
+ 		struct clock_event_device *ce)
+ {
+ 	csr_set(CSR_XIE, XIE_XTIE);
++
++#ifdef CONFIG_M_MODE
++	clint_set_timer(delta);
++#else
+ 	sbi_set_timer(get_cycles64() + delta);
++#endif
+ 	return 0;
+ }
+ 
+@@ -45,14 +49,18 @@ static DEFINE_PER_CPU(struct clock_event_device, riscv_clock_event) = {
+  * within one tick of each other, so while this could technically go
+  * backwards when hopping between CPUs, practically it won't happen.
+  */
+-static unsigned long long riscv_clocksource_rdtime(struct clocksource *cs)
++static u64 riscv_sched_clock(void)
+ {
++#ifdef CONFIG_M_MODE
++	return clint_read_timer();
++#else
+ 	return get_cycles64();
++#endif
+ }
+ 
+-static u64 riscv_sched_clock(void)
++static unsigned long long riscv_clocksource_rdtime(struct clocksource *cs)
+ {
+-	return get_cycles64();
++	return riscv_sched_clock();
+ }
+ 
+ static DEFINE_PER_CPU(struct clocksource, riscv_clocksource) = {
 -- 
 2.20.1
 
