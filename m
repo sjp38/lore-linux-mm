@@ -7,78 +7,78 @@ X-Spam-Status: No, score=-8.5 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
 	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 70CBFC48BE8
-	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 05:43:37 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D75F6C48BE3
+	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 05:43:40 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 341342089F
-	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 05:43:37 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 9F8C52089F
+	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 05:43:40 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="mAvADQ+c"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 341342089F
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="YNs3gx+c"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9F8C52089F
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id AEAD26B000C; Mon, 24 Jun 2019 01:43:36 -0400 (EDT)
+	id 457066B000D; Mon, 24 Jun 2019 01:43:40 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A9A258E0002; Mon, 24 Jun 2019 01:43:36 -0400 (EDT)
+	id 408168E0002; Mon, 24 Jun 2019 01:43:40 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 95FC78E0001; Mon, 24 Jun 2019 01:43:36 -0400 (EDT)
+	id 2A6B68E0001; Mon, 24 Jun 2019 01:43:40 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 5E2CA6B000C
-	for <linux-mm@kvack.org>; Mon, 24 Jun 2019 01:43:36 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id e16so8656514pga.4
-        for <linux-mm@kvack.org>; Sun, 23 Jun 2019 22:43:36 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E9AD86B000D
+	for <linux-mm@kvack.org>; Mon, 24 Jun 2019 01:43:39 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id d190so8880307pfa.0
+        for <linux-mm@kvack.org>; Sun, 23 Jun 2019 22:43:39 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=+l3vwi8bsor/tja9ZheW5y8DiiO/mW8k6zhZ4E83rTI=;
-        b=d1kQGqThxpnY2dOW9jnL3+2Nmdkf3QfHw/4glHsNq8gHQSkVAv0hs2rfYCjdZIzsby
-         Rs53lTtEUaAFyHXNb1oiQlzV/Rra0w5+pkqSzRKghPdjnZzE87M0dJlFkNZip5DyOfBB
-         KKQ+BVxDXPcKISCPJjFffNJYKf/moUu7TcZMJm6ekdNMBfinDM5zFuMZg1hfkgvyhBIK
-         Wol4Q0gJPftR6fcl6iryTIKP5Ml3gNTjT07F4X3bedA5k7yj/D11dWsuMY8Y8zG+DFyC
-         QsI8WQjuijGRUEOWHrdsY/iOxL/0gVqy57cb+PBqXR0zqUREfr9XOcKvE5VabUIRoP3k
-         mCqA==
-X-Gm-Message-State: APjAAAUxScIkd/hOYw8N7zBdTtm7IalrDoiUOZJvHfjfdiJZdZBswusy
-	XdRbTBEuyXA9A2KkDWXDPi0RG1kS79ffFinJsmlhJPQMDrQ+RfKB9YxfBjNFTfUICSMz+GyvVa0
-	HinaDfgDX6rROG3ANCzNMepNU69hSUGqHe04fNXBVKWp3bSkuBhrAyok2cbMJlRg=
-X-Received: by 2002:a63:4d4a:: with SMTP id n10mr25503356pgl.396.1561355015880;
-        Sun, 23 Jun 2019 22:43:35 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyRpSa8egB44ZhzGuHXSc9m34KUWRyHUs8nXSUxyLldkbe4wwhv/fJEKzq8a7gcbNeUFpTt
-X-Received: by 2002:a63:4d4a:: with SMTP id n10mr25503321pgl.396.1561355015170;
-        Sun, 23 Jun 2019 22:43:35 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561355015; cv=none;
+        bh=5WJArPRhLKawZExF1a/OJKFWf27gCJZIRATflv1f+LA=;
+        b=q2Dveix6wpMta/ym3PQ/cVjiUkSvrQDzXCQBPo4iT2EIZF3HQ4sePz9r9DADD1PUit
+         JPALFWnIccWPNCOdp5V/jwojE0RrYFS6ctdeHnRP+qO8KJR2SlaWntMQ1TV64QxQGPLT
+         5DYQfu7QIwjK0X3jjY0cKa+LVtQvu4cnHstAWREnwunPY3fflnS5jiZlNSIMCatVAo/c
+         1tNkXUMfUu3e5zTI6mlkwyBIIqrgG/4XzQ6xraKqndhgokj7XI5DiH4HU2BIoDVFq8lV
+         tcXZJd7jyK6Fs9GOijsTG4AVaqTHw0cmzU5m7C7IYj3CeEyCq7blB59pLYGkEro0FABM
+         AXHg==
+X-Gm-Message-State: APjAAAUvdbM1m0g/mGARQlPYg6fMNE8fdAFyvge5GsRHgsx484JHSlUJ
+	3XOZGXmtNO/Eg+Mp8YbzXA4Fj8vSM2lIRlcr/SPRtcVqXvaoJLuafe9aqQmNeG5zGMk2Ne1MjvT
+	ob+/S0h8aBA+P7WfAWhshvDwo2olwiFYP3pfcIFJrYDHFw/+yoD14MiwBgFcI5M8=
+X-Received: by 2002:a63:7945:: with SMTP id u66mr5025540pgc.127.1561355019489;
+        Sun, 23 Jun 2019 22:43:39 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqz379UeVOpSClnSb+pjSENLDD2UAa2vzt4WlD3jMgoLaY5k3RU+CbgAIqwNslSQckpECHv8
+X-Received: by 2002:a63:7945:: with SMTP id u66mr5025499pgc.127.1561355018735;
+        Sun, 23 Jun 2019 22:43:38 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561355018; cv=none;
         d=google.com; s=arc-20160816;
-        b=oxA+onsqcOwAkR/i9tIrJpKjHHBQhr/wjNrq2UMgkRxUTe0Aut2v6iZLlrchk9jvqA
-         bXLYEVSh1FRW+RPFEnAD00rOGt79yqNYBVXh/0MNeqJR1FlKgqoAza9IzrlQ24T3bFWi
-         u+DxXiOCocNhb/ABxqyKzjHHDoUtyZe0bHQLFjA2wgGBVRznSiHeIwTyltXO1zlGYzPn
-         W0PnFOd74rRcIVd6P8CPQUFugKlF9wFJbjiRzsxFC6dZ5bj5CAddpYsziG+boE/ikFfV
-         WA7JjUilEaAJp9Y9jAgHDNgzNq7yJYXZACfpJsYr4GzNIF0DIsNXLaY+nUjUaFhAS5qD
-         owdw==
+        b=kV9hRarkVYAQ61urPlzmfVM5aGSQx6NUkQmhEwIFfgd+MHBr3CkUZR1e/dH0D7v+67
+         rf5MZ3We70QnMKYwcHIzAzRwlkKIgxlzuDOCttBYXUofoPgfDLQxq9wc94dZCQYshtD9
+         pDNESCusCaXJRPe/ITCnPxNop8u8sikMgjN0SSPyFDbgACuHH1RCeol1t6eryeze6HV0
+         6HBHxMzQqUNsf2oa0wvV81yHJX53Gk091Fg8CV/OvJeNsarjFY7DyGZHGF7Nw9WYsw8/
+         gG6XL+bROZAGTBojzJL0UNxXRHu6BwVrz/gC1ilJAX/RuaJVbGf+5GUrzcHXD189lk4D
+         gW3Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=+l3vwi8bsor/tja9ZheW5y8DiiO/mW8k6zhZ4E83rTI=;
-        b=hI9gp6tJ4N/+d+4RRS9NrZ/CIdzuEE4k93r6xVE5O6ybvg9k/uNCajgyqnaEpTTDkn
-         a95RllwTrjbJ3HnrqTfxwLgzG9c3qv1SsnT0NWrMWSAjCsTL2I/EkTrbIxEaFgBZzuTH
-         COg7QNvoIn9sdXdbYjfI6dFuoVlO2iELjNsA0eDATvng8g1Nyx7fkfCzjxESC5zl5tNN
-         foQjXqFzDsTh7xED7Bv1dpdduNTeNzRVBypqVrX8F8ZbtqxDNxoc7d9IOBVxWlo+J6eM
-         YPU+RmYQwmIt5m0cBR0Q46Iffky+ZBWb2zcs2FUL0bQ7+DW+456ZGsTSZQjOjGHxQL6P
-         fPSw==
+        bh=5WJArPRhLKawZExF1a/OJKFWf27gCJZIRATflv1f+LA=;
+        b=R6QmQxrBuHvqtimsPJhEQNWDsT0+ALNAKAhAPQACf8qqiD64mQZhoSwz6Y5lmovd2a
+         Chin28CrKWrme1c0LwWm2g9eeszuKqdi7LMxD+OJo3yap4E22aukPxTsb009TrrVSX9d
+         y4+pDZ73qdQy4lySs326VVNf9ejXVSYnleDUVwltGRtAXMfaHOzJZ6eg576ZpxNfzWAM
+         LmcwMJVYKE1EAIjNh7GbDxY7H8FP5faUcTvnlvoQIxDlhRwPlkZa6m1dcjsUn3hY7/Ly
+         imRY+azAkq4enRP5yZ2vz0eAYS9pz8MdUsdeyU6AJhRbwBF4FvwU0Z2IUYhrsNI0+7e5
+         QMjw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=mAvADQ+c;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=YNs3gx+c;
        spf=pass (google.com: best guess record for domain of batv+84882ec255bc51113d1a+5783+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+84882ec255bc51113d1a+5783+infradead.org+hch@bombadil.srs.infradead.org
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id 6si9627376plb.345.2019.06.23.22.43.35
+        by mx.google.com with ESMTPS id n1si3813539plk.388.2019.06.23.22.43.38
         for <linux-mm@kvack.org>
         (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Sun, 23 Jun 2019 22:43:35 -0700 (PDT)
+        Sun, 23 Jun 2019 22:43:38 -0700 (PDT)
 Received-SPF: pass (google.com: best guess record for domain of batv+84882ec255bc51113d1a+5783+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=mAvADQ+c;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=YNs3gx+c;
        spf=pass (google.com: best guess record for domain of batv+84882ec255bc51113d1a+5783+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+84882ec255bc51113d1a+5783+infradead.org+hch@bombadil.srs.infradead.org
 DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	d=infradead.org; s=bombadil.20170209; h=Content-Transfer-Encoding:
@@ -86,15 +86,15 @@ DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	:Reply-To:Content-Type:Content-ID:Content-Description:Resent-Date:Resent-From
 	:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:List-Help:
 	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	bh=+l3vwi8bsor/tja9ZheW5y8DiiO/mW8k6zhZ4E83rTI=; b=mAvADQ+cwTdSv+lt/UrCLAQIca
-	0dD4dqEu4sMMNiFBL7leKtPj9jibj22MJ0jwgHB3KU5zu4mlrT2QfCgV56BTu/m9YZiG5Nr1uUm84
-	y1PwMD41gPqcy/8w1H7CcUsZnBbdXBxDp9rR/8b7435grnEb/8gn616L6xirlmp6IkDOHezq54Jci
-	M+NToc3yEOIoREpCO/yTJs29tuZDuvF0ETJp51nUCIKg/w2K4HNxKopP12CaHADIOpvmDhFTgD5Qr
-	WovcnekXgMnBwUh7ex4C90RWdFHYis/U2RnDWbeNGhclz0LrvcsC3mzmXItVAbQVafsOja8CpIj2P
-	g7pyPeTQ==;
+	bh=5WJArPRhLKawZExF1a/OJKFWf27gCJZIRATflv1f+LA=; b=YNs3gx+cZZv1ocI36RZcvQyY9T
+	QTQAtNYVUae846VvayO26Eo+iWXkBfk4QXQM6mmZ5W6Zx0yJsWF18x+cP04E4Yy/Qu+9KKD8R4nRm
+	HUfGGHLa7joE4G/VLRECg18AwszpPm3Dm/vU5chIb9rtFkH8A/EDQCh6t/mX19oO6tHcN1wx9YlGf
+	J9IRgkwvTb8sJ4unejzwORv8IR/ev5ze7WeDv/2sC7ro8hXmHsJjeh4WUn9fJNDBEKBqyzxGctyDo
+	nOQDQkr2twVVOQPP4YTh47PUmzt9r88vq5a82lkOHFOHV54/hbA3uXyXBxpCBr+tJrhKc77DWOAZG
+	ZY9VAwnA==;
 Received: from 213-225-6-159.nat.highway.a1.net ([213.225.6.159] helo=localhost)
 	by bombadil.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
-	id 1hfHlM-0006Fu-LS; Mon, 24 Jun 2019 05:43:33 +0000
+	id 1hfHlP-0006JM-V8; Mon, 24 Jun 2019 05:43:36 +0000
 From: Christoph Hellwig <hch@lst.de>
 To: Palmer Dabbelt <palmer@sifive.com>,
 	Paul Walmsley <paul.walmsley@sifive.com>
@@ -102,9 +102,9 @@ Cc: Damien Le Moal <damien.lemoal@wdc.com>,
 	linux-riscv@lists.infradead.org,
 	linux-mm@kvack.org,
 	linux-kernel@vger.kernel.org
-Subject: [PATCH 05/17] riscv: use CSR_SATP instead of the legacy sptbr name in switch_mm
-Date: Mon, 24 Jun 2019 07:42:59 +0200
-Message-Id: <20190624054311.30256-6-hch@lst.de>
+Subject: [PATCH 06/17] riscv: refactor the IPI code
+Date: Mon, 24 Jun 2019 07:43:00 +0200
+Message-Id: <20190624054311.30256-7-hch@lst.de>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190624054311.30256-1-hch@lst.de>
 References: <20190624054311.30256-1-hch@lst.de>
@@ -117,32 +117,114 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Switch to our own constant for the satp register instead of using
-the old name from a legacy version of the privileged spec.
+This prepare for adding native non-SBI IPI code.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- arch/riscv/mm/context.c | 7 +------
- 1 file changed, 1 insertion(+), 6 deletions(-)
+ arch/riscv/kernel/smp.c | 55 +++++++++++++++++++++++------------------
+ 1 file changed, 31 insertions(+), 24 deletions(-)
 
-diff --git a/arch/riscv/mm/context.c b/arch/riscv/mm/context.c
-index 89ceb3cbe218..beeb5d7f92ea 100644
---- a/arch/riscv/mm/context.c
-+++ b/arch/riscv/mm/context.c
-@@ -57,12 +57,7 @@ void switch_mm(struct mm_struct *prev, struct mm_struct *next,
- 	cpumask_clear_cpu(cpu, mm_cpumask(prev));
- 	cpumask_set_cpu(cpu, mm_cpumask(next));
+diff --git a/arch/riscv/kernel/smp.c b/arch/riscv/kernel/smp.c
+index 5a9834503a2f..8cd730239613 100644
+--- a/arch/riscv/kernel/smp.c
++++ b/arch/riscv/kernel/smp.c
+@@ -78,13 +78,38 @@ static void ipi_stop(void)
+ 		wait_for_interrupt();
+ }
  
--	/*
--	 * Use the old spbtr name instead of using the current satp
--	 * name to support binutils 2.29 which doesn't know about the
--	 * privileged ISA 1.10 yet.
--	 */
--	csr_write(sptbr, virt_to_pfn(next->pgd) | SATP_MODE);
-+	csr_write(CSR_SATP, virt_to_pfn(next->pgd) | SATP_MODE);
- 	local_flush_tlb_all();
++static void send_ipi_mask(const struct cpumask *mask, enum ipi_message_type op)
++{
++	int cpuid, hartid;
++	struct cpumask hartid_mask;
++
++	cpumask_clear(&hartid_mask);
++	mb();
++	for_each_cpu(cpuid, mask) {
++		set_bit(op, &ipi_data[cpuid].bits);
++		hartid = cpuid_to_hartid_map(cpuid);
++		cpumask_set_cpu(hartid, &hartid_mask);
++	}
++	mb();
++	sbi_send_ipi(cpumask_bits(&hartid_mask));
++}
++
++static void send_ipi_single(int cpu, enum ipi_message_type op)
++{
++	send_ipi_mask(cpumask_of(cpu), op);
++}
++
++static inline void clear_ipi(void)
++{
++	csr_clear(CSR_SIP, SIE_SSIE);
++}
++
+ void riscv_software_interrupt(void)
+ {
+ 	unsigned long *pending_ipis = &ipi_data[smp_processor_id()].bits;
+ 	unsigned long *stats = ipi_data[smp_processor_id()].stats;
  
- 	flush_icache_deferred(next);
+-	/* Clear pending IPI */
+-	csr_clear(CSR_SIP, SIE_SSIE);
++	clear_ipi();
+ 
+ 	while (true) {
+ 		unsigned long ops;
+@@ -118,23 +143,6 @@ void riscv_software_interrupt(void)
+ 	}
+ }
+ 
+-static void
+-send_ipi_message(const struct cpumask *to_whom, enum ipi_message_type operation)
+-{
+-	int cpuid, hartid;
+-	struct cpumask hartid_mask;
+-
+-	cpumask_clear(&hartid_mask);
+-	mb();
+-	for_each_cpu(cpuid, to_whom) {
+-		set_bit(operation, &ipi_data[cpuid].bits);
+-		hartid = cpuid_to_hartid_map(cpuid);
+-		cpumask_set_cpu(hartid, &hartid_mask);
+-	}
+-	mb();
+-	sbi_send_ipi(cpumask_bits(&hartid_mask));
+-}
+-
+ static const char * const ipi_names[] = {
+ 	[IPI_RESCHEDULE]	= "Rescheduling interrupts",
+ 	[IPI_CALL_FUNC]		= "Function call interrupts",
+@@ -156,12 +164,12 @@ void show_ipi_stats(struct seq_file *p, int prec)
+ 
+ void arch_send_call_function_ipi_mask(struct cpumask *mask)
+ {
+-	send_ipi_message(mask, IPI_CALL_FUNC);
++	send_ipi_mask(mask, IPI_CALL_FUNC);
+ }
+ 
+ void arch_send_call_function_single_ipi(int cpu)
+ {
+-	send_ipi_message(cpumask_of(cpu), IPI_CALL_FUNC);
++	send_ipi_single(cpu, IPI_CALL_FUNC);
+ }
+ 
+ void smp_send_stop(void)
+@@ -176,7 +184,7 @@ void smp_send_stop(void)
+ 
+ 		if (system_state <= SYSTEM_RUNNING)
+ 			pr_crit("SMP: stopping secondary CPUs\n");
+-		send_ipi_message(&mask, IPI_CPU_STOP);
++		send_ipi_mask(&mask, IPI_CPU_STOP);
+ 	}
+ 
+ 	/* Wait up to one second for other CPUs to stop */
+@@ -191,6 +199,5 @@ void smp_send_stop(void)
+ 
+ void smp_send_reschedule(int cpu)
+ {
+-	send_ipi_message(cpumask_of(cpu), IPI_RESCHEDULE);
++	send_ipi_single(cpu, IPI_RESCHEDULE);
+ }
+-
 -- 
 2.20.1
 
