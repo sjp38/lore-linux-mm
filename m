@@ -2,194 +2,240 @@ Return-Path: <SRS0=9FL3=UX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 92761C43613
-	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 06:10:15 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 93FECC43613
+	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 06:52:42 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4A5D820663
-	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 06:10:15 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="QaG2tg0Y"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4A5D820663
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 3B69A20665
+	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 06:52:42 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3B69A20665
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C5A928E0002; Mon, 24 Jun 2019 02:10:14 -0400 (EDT)
+	id 8DD428E0002; Mon, 24 Jun 2019 02:52:41 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C085B8E0001; Mon, 24 Jun 2019 02:10:14 -0400 (EDT)
+	id 88E2D8E0001; Mon, 24 Jun 2019 02:52:41 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AF6BD8E0002; Mon, 24 Jun 2019 02:10:14 -0400 (EDT)
+	id 757398E0002; Mon, 24 Jun 2019 02:52:41 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 91E558E0001
-	for <linux-mm@kvack.org>; Mon, 24 Jun 2019 02:10:14 -0400 (EDT)
-Received: by mail-io1-f72.google.com with SMTP id s83so20686284iod.13
-        for <linux-mm@kvack.org>; Sun, 23 Jun 2019 23:10:14 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 285808E0001
+	for <linux-mm@kvack.org>; Mon, 24 Jun 2019 02:52:41 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id s7so18994678edb.19
+        for <linux-mm@kvack.org>; Sun, 23 Jun 2019 23:52:41 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=4j6NnH/rtjW7YqPJZlJgQIQOVFVwz7hkEl28tcCpX/c=;
-        b=V3sXkwt+LyAzFzMv4MsBhYjkhUukamDgwvmtpwxE//y5O82pkk50VFvLLy6IXgMKXi
-         hB/8E84bmrGFqc3yLiOFTBqX/VZupX0hKo4+LvtkIpCyMaN1c0D8naf4/YHfqp4mDAfn
-         iXflWosKs0DPccfEjEn4F1ZUZPw+qEDqovM5SiVHnBLVSI0sUJlccr6FC89PY5c4cyT7
-         7N99W8sylmt2oVOVd1VlkmH2oQnQytavfo/hN6OPrekVnWhKYirgzNbcuNewn6KpJ7Pg
-         nyySpNu3gzoUWI5ggw56zf6rpguSRoc4IO1FJa1mjIlXSgp0nPTUrk32kFfqQcndhgmh
-         2LYQ==
-X-Gm-Message-State: APjAAAUaBxpGlb8v7u5EXOi8zpbjjsLe1CKceluy9Z3a5jv7m3f5SyeL
-	GAoQhseHxdjot2wwnY1wfRyFtQ7nSiHMq1EhGkwN8EIvrdEiXAzUlm/7AglJ4vRuTd9tVnKuem/
-	MAZ8cRH0uzbLNGj7OiKbcJrp9jY4DC6wrKfR9/FIihXz3ZohKKrf0m6gODP147MIFnw==
-X-Received: by 2002:a02:aa0d:: with SMTP id r13mr22220778jam.129.1561356614354;
-        Sun, 23 Jun 2019 23:10:14 -0700 (PDT)
-X-Received: by 2002:a02:aa0d:: with SMTP id r13mr22220717jam.129.1561356613591;
-        Sun, 23 Jun 2019 23:10:13 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561356613; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=ravRVdrefX3LmEH8E9wTic6GQVrIv9Dyv6IzjGnHH0A=;
+        b=NRO2/cqUW/rN9qh6hEuQdzBQ+JzEOK+axQavfewiSSWj4Vx9G4rpNsvNtDwwBTmOme
+         fycWo7OBwwQ4yU0HUZOTm1/2a6ogfFAL+STndCPFlxoNvJth8N6INhSedjKdaTRAXNcn
+         mB2GEiKhqO6dHUZHy9HeP5L/6xCaMdzmwHQTSuwJBHHTMJTsNR3snmyXrrGNsfPFYVTm
+         J4wdOyc1j+m/a9coLSoPEZILirnhtX/Osk69iX8CF5+C1ZWx6bTfBBfZU04iG7lKBzni
+         uJntem6TOtIvwHnmYrwtToYbecDZgqPhS/p5chJmHCoF6ZMy7ANRx9sVa/rHiTi/uZWr
+         fgXg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+X-Gm-Message-State: APjAAAUfpr/Lu4RQ1aPvrQIDAfewV7KBQB5TAjJ/kdFMxXDje4P0Ef3e
+	oDB0kdoFBhdItfqgHwP8eUPAOrbaoM2fgDnqaDqNtxQ1/xKNdcWlSdrycQRyT2l7lh9K7npXHFP
+	exJctTeeKnNV0GtBhuHw/0j/DHeCT3ISUE6zZOPAMh6nGFXEKjja+NWUwH9gAjMFaqA==
+X-Received: by 2002:a05:6402:134c:: with SMTP id y12mr61522953edw.96.1561359160620;
+        Sun, 23 Jun 2019 23:52:40 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqy45gRmCDJdkqZdEPlYDG+ZyPpJpkZn/fmhhRD5sjUCdU1zxAsGsCErvQmicX2/Tg7/kJK1
+X-Received: by 2002:a05:6402:134c:: with SMTP id y12mr61522907edw.96.1561359159728;
+        Sun, 23 Jun 2019 23:52:39 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561359159; cv=none;
         d=google.com; s=arc-20160816;
-        b=ENSoUvhIxworW+rMm0nfp3iNcO0N8vj8t7LqKeJOBHWt9nZ6pWqa8U6KIGztJuUSAH
-         aYdp+6V+5K4itCJIP8FsnGLM3eaupuM1Ez/W0tsondauc/UqB2PZBbU0+vQfljX53XGU
-         L6IUquYzmocVOLpdKmnLUZxC2BD4+ztvu30Ut04uFsFZWhfCtmwkOAHaKP/xqd5ZStaf
-         ag9OECDH1Q72AShauRSkrWzigvvz7sLMGy0rSCKJRzXKDGkvQR90xyanA0vIH3clMxTo
-         x0IuMjAKUBANvvEO/CX5Zvz3Ewmo8/HY47qWL29wQRHXjHkJta5rR4hmoc7A5AGMvcsS
-         G6RQ==
+        b=lyDQ+EhD/7cWtdg9VoAdkVdAdFzyGEX8IZr6zX3fkGxUrEUjuyhJE5F5qC0LAOC+8E
+         KDlHRSVr215wwYUA5FrVdlEPjLWWYY/bAt+nZpzMwV8XokADxz1dHI/lw7smPEtXdJf5
+         DyWZQoxZNd/fPcOGdqUXTs80p1T1mW278pzCPHHOVx++1fR9fXpaa+jUaQ1xABKpCLn5
+         XH6Ebh8gQwtIf6udA2Mj1oko4P8DG/xyhzh7fL0BitSV/qaXM3xDmgmQHEOi5HxpE6rf
+         wU8r/0w+6aRhnhX7CgjMK4bu9Ajrz32f6frf6NfipInJllUCEZiu/7fqNuBDkGTabBQr
+         rH9Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=4j6NnH/rtjW7YqPJZlJgQIQOVFVwz7hkEl28tcCpX/c=;
-        b=fkPX2L94S2DvX/5sMiKDOaFTrSBHOZBGCG5fYIjvFfKT57snNZIi0/GIQd2Cb+SdS+
-         VfevfgBuXogpuBT7OaldxfSiy7mEkWp1ZpUnG22bL9JGsRMFQ7stqmwOeHAKZniR3PXY
-         0AQgq1OnSblMT6Tfqe+kiSKU8+V3dV6caLHUCYmmmbsyfbFF7Mx4InWTdkx1wn2YOPfy
-         QGbsZWttXhLoa7ZQQSf2NXxn8lhKWE1rbsgCrWnVst3muXiWGb1guPQxX3/9VOYagAH/
-         QoGvoEp6ugnF5ZRE3LTs7p+BGfV84MtDm85ybeiPlWr7tvuIo0af0atcsCs434x7Rnb3
-         jjqA==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=ravRVdrefX3LmEH8E9wTic6GQVrIv9Dyv6IzjGnHH0A=;
+        b=Czr/n6EWT3dR0NUN333Idm3l//HbrDaROrqjRnr+S08Rn8KHhAh4M4GuIxaDYHJkx0
+         dE9gZN5QWbmcKqbaNTUJyA8av/gtFoPjL0xLPXYF1HhZ7CR7QONc7AyZn4E70CVdpd0q
+         +ccIaHSMMnO2Dpx4rWzhol6C/6LceaHIivOL9uXKp4/CQsPr3WDjDB0/qNl8gAKMmbpn
+         dI2duPg5edi8nkM5vgbGV3qf/QUc8erKvBUszHwIXUDJ0WmyBH7LGx6f48YpChpmPwLq
+         qWPYh1my8c6BDWpAVZ7xuDtVWikBXtfcMkXjuEfJUgRnjF/JOb9YL441CDPBIT2clyHN
+         0OXQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=QaG2tg0Y;
-       spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d124sor7053194iof.41.2019.06.23.23.10.13
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sun, 23 Jun 2019 23:10:13 -0700 (PDT)
-Received-SPF: pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
+        by mx.google.com with ESMTP id s13si8947268edb.309.2019.06.23.23.52.39
+        for <linux-mm@kvack.org>;
+        Sun, 23 Jun 2019 23:52:39 -0700 (PDT)
+Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=QaG2tg0Y;
-       spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=4j6NnH/rtjW7YqPJZlJgQIQOVFVwz7hkEl28tcCpX/c=;
-        b=QaG2tg0YYgd5+P5YRlDvLPsQpP7pDaSmqOTCFDcG7/rcTc53ymw2VqKN97slpnV64h
-         Z0qRqTGndfOy26HG/tWXys9SYkoqbC/kD6scoZi8KsC2l3+OsH6QsMKNsERmRMR0PDlM
-         NCls1WOiUY+TnzK1tWtORWC0o/KQlxMxSoR4va5E58FzkSBpUkmE8HWQZ0/Zb3ZcfTSn
-         mSaid68PFqvYlQA3Fnblkgdug64w3pgL4eb3n3Di+vyEQM9/Ab7C/9Jip9LxDovl67NG
-         S5t16MOLFqYUMTdA5h1HYzdKbBrk8BRvQa+OW1Z8gIH+DIPrutdgXyVI2/6HHWDy+kos
-         tJSg==
-X-Google-Smtp-Source: APXvYqz4l/aitSGXlKJujrJxoiu8kzosNa/t0hrpf2ai9RzW0CH9f/kJvMBczKvXomO4NEdlo8XLXdUnhSubabN7hoI=
-X-Received: by 2002:a02:a384:: with SMTP id y4mr124829515jak.77.1561356613275;
- Sun, 23 Jun 2019 23:10:13 -0700 (PDT)
+       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 7C6152B;
+	Sun, 23 Jun 2019 23:52:38 -0700 (PDT)
+Received: from [10.162.41.123] (p8cg001049571a15.blr.arm.com [10.162.41.123])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 61E2B3F246;
+	Sun, 23 Jun 2019 23:54:24 -0700 (PDT)
+Subject: Re: [PATCH 3/3] mm/vmalloc: fix vmalloc_to_page for huge vmap
+ mappings
+To: Nicholas Piggin <npiggin@gmail.com>, linux-mm@kvack.org
+Cc: linux-arm-kernel@lists.infradead.org, linuxppc-dev@lists.ozlabs.org,
+ Andrew Morton <akpm@linux-foundation.org>,
+ Christophe Leroy <christophe.leroy@c-s.fr>,
+ Ard Biesheuvel <ard.biesheuvel@linaro.org>,
+ Mark Rutland <mark.rutland@arm.com>
+References: <20190623094446.28722-1-npiggin@gmail.com>
+ <20190623094446.28722-4-npiggin@gmail.com>
+From: Anshuman Khandual <anshuman.khandual@arm.com>
+Message-ID: <8668f76d-faad-4e57-2f7b-f2b8969b1026@arm.com>
+Date: Mon, 24 Jun 2019 12:22:59 +0530
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
+ Thunderbird/52.9.1
 MIME-Version: 1.0
-References: <1561350068-8966-1-git-send-email-kernelfans@gmail.com> <216a335d-f7c6-26ad-2ac1-427c8a73ca2f@arm.com>
-In-Reply-To: <216a335d-f7c6-26ad-2ac1-427c8a73ca2f@arm.com>
-From: Pingfan Liu <kernelfans@gmail.com>
-Date: Mon, 24 Jun 2019 14:10:02 +0800
-Message-ID: <CAFgQCTs14R5P7RpCTMwLCMJrGgPzbTGp4tvxCJA0kFgD8_y==g@mail.gmail.com>
-Subject: Re: [PATCH] mm/hugetlb: allow gigantic page allocation to migrate
- away smaller huge page
-To: Anshuman Khandual <anshuman.khandual@arm.com>
-Cc: linux-mm@kvack.org, Mike Kravetz <mike.kravetz@oracle.com>, 
-	Oscar Salvador <osalvador@suse.de>, David Hildenbrand <david@redhat.com>, 
-	Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20190623094446.28722-4-npiggin@gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jun 24, 2019 at 1:16 PM Anshuman Khandual
-<anshuman.khandual@arm.com> wrote:
->
->
->
-> On 06/24/2019 09:51 AM, Pingfan Liu wrote:
-> > The current pfn_range_valid_gigantic() rejects the pud huge page allocation
-> > if there is a pmd huge page inside the candidate range.
-> >
-> > But pud huge resource is more rare, which should align on 1GB on x86. It is
-> > worth to allow migrating away pmd huge page to make room for a pud huge
-> > page.
-> >
-> > The same logic is applied to pgd and pud huge pages.
->
-> The huge page in the range can either be a THP or HugeTLB and migrating them has
-> different costs and chances of success. THP migration will involve splitting if
-> THP migration is not enabled and all related TLB related costs. Are you sure
-> that a PUD HugeTLB allocation really should go through these ? Is there any
-PUD hugetlb has already driven out PMD thp in current. This patch just
-want to make PUD hugetlb survives PMD hugetlb.
 
-> guarantee that after migration of multiple PMD sized THP/HugeTLB pages on the
-> given range, the allocation request for PUD will succeed ?
-The migration is complicated, but as my understanding, if there is no
-gup pin in the range and there is enough memory including swap, then
-it will success.
->
-> >
-> > Signed-off-by: Pingfan Liu <kernelfans@gmail.com>
-> > Cc: Mike Kravetz <mike.kravetz@oracle.com>
-> > Cc: Oscar Salvador <osalvador@suse.de>
-> > Cc: David Hildenbrand <david@redhat.com>
-> > Cc: Andrew Morton <akpm@linux-foundation.org>
-> > Cc: linux-kernel@vger.kernel.org
-> > ---
-> >  mm/hugetlb.c | 8 +++++---
-> >  1 file changed, 5 insertions(+), 3 deletions(-)
-> >
-> > diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> > index ac843d3..02d1978 100644
-> > --- a/mm/hugetlb.c
-> > +++ b/mm/hugetlb.c
-> > @@ -1081,7 +1081,11 @@ static bool pfn_range_valid_gigantic(struct zone *z,
-> >                       unsigned long start_pfn, unsigned long nr_pages)
-> >  {
-> >       unsigned long i, end_pfn = start_pfn + nr_pages;
-> > -     struct page *page;
-> > +     struct page *page = pfn_to_page(start_pfn);
-> > +
-> > +     if (PageHuge(page))
-> > +             if (compound_order(compound_head(page)) >= nr_pages)
-> > +                     return false;
-> >
-> >       for (i = start_pfn; i < end_pfn; i++) {
-> >               if (!pfn_valid(i))
-> > @@ -1098,8 +1102,6 @@ static bool pfn_range_valid_gigantic(struct zone *z,
-> >               if (page_count(page) > 0)
-> >                       return false;
-> >
-> > -             if (PageHuge(page))
-> > -                     return false;
-> >       }
-> >
-> >       return true;
-> >
->
-> So except in the case where there is a bigger huge page in the range this will
-> attempt migrating everything on the way. As mentioned before if it all this is
-> a good idea, it needs to differentiate between HugeTLB and THP and also take
-> into account costs of migrations and chance of subsequence allocation attempt
-> into account.
-Sorry, but I think this logic is only for hugetlb. The caller
-alloc_gigantic_page() is only used inside mm/hugetlb.c, not by
-huge_memory.c.
 
-Thanks,
-  Pingfan
+On 06/23/2019 03:14 PM, Nicholas Piggin wrote:
+> vmalloc_to_page returns NULL for addresses mapped by larger pages[*].
+> Whether or not a vmap is huge depends on the architecture details,
+> alignments, boot options, etc., which the caller can not be expected
+> to know. Therefore HUGE_VMAP is a regression for vmalloc_to_page.
+> 
+> This change teaches vmalloc_to_page about larger pages, and returns
+> the struct page that corresponds to the offset within the large page.
+> This makes the API agnostic to mapping implementation details.
+> 
+> [*] As explained by commit 029c54b095995 ("mm/vmalloc.c: huge-vmap:
+>     fail gracefully on unexpected huge vmap mappings")
+> 
+> Signed-off-by: Nicholas Piggin <npiggin@gmail.com>
+> ---
+>  include/asm-generic/4level-fixup.h |  1 +
+>  include/asm-generic/5level-fixup.h |  1 +
+>  mm/vmalloc.c                       | 37 +++++++++++++++++++-----------
+>  3 files changed, 26 insertions(+), 13 deletions(-)
+> 
+> diff --git a/include/asm-generic/4level-fixup.h b/include/asm-generic/4level-fixup.h
+> index e3667c9a33a5..3cc65a4dd093 100644
+> --- a/include/asm-generic/4level-fixup.h
+> +++ b/include/asm-generic/4level-fixup.h
+> @@ -20,6 +20,7 @@
+>  #define pud_none(pud)			0
+>  #define pud_bad(pud)			0
+>  #define pud_present(pud)		1
+> +#define pud_large(pud)			0
+>  #define pud_ERROR(pud)			do { } while (0)
+>  #define pud_clear(pud)			pgd_clear(pud)
+>  #define pud_val(pud)			pgd_val(pud)
+> diff --git a/include/asm-generic/5level-fixup.h b/include/asm-generic/5level-fixup.h
+> index bb6cb347018c..c4377db09a4f 100644
+> --- a/include/asm-generic/5level-fixup.h
+> +++ b/include/asm-generic/5level-fixup.h
+> @@ -22,6 +22,7 @@
+>  #define p4d_none(p4d)			0
+>  #define p4d_bad(p4d)			0
+>  #define p4d_present(p4d)		1
+> +#define p4d_large(p4d)			0
+>  #define p4d_ERROR(p4d)			do { } while (0)
+>  #define p4d_clear(p4d)			pgd_clear(p4d)
+>  #define p4d_val(p4d)			pgd_val(p4d)
+> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+> index 4c9e150e5ad3..4be98f700862 100644
+> --- a/mm/vmalloc.c
+> +++ b/mm/vmalloc.c
+> @@ -36,6 +36,7 @@
+>  #include <linux/rbtree_augmented.h>
+>  
+>  #include <linux/uaccess.h>
+> +#include <asm/pgtable.h>
+>  #include <asm/tlbflush.h>
+>  #include <asm/shmparam.h>
+>  
+> @@ -284,26 +285,36 @@ struct page *vmalloc_to_page(const void *vmalloc_addr)
+>  
+>  	if (pgd_none(*pgd))
+>  		return NULL;
+> +
+>  	p4d = p4d_offset(pgd, addr);
+>  	if (p4d_none(*p4d))
+>  		return NULL;
+> -	pud = pud_offset(p4d, addr);
+> +	if (WARN_ON_ONCE(p4d_bad(*p4d)))
+> +		return NULL;
+
+The warning here is a required addition but it needs to be moved after p4d_large()
+check. Please see the next comment below.
+
+> +#ifdef CONFIG_HAVE_ARCH_HUGE_VMAP
+> +	if (p4d_large(*p4d))
+> +		return p4d_page(*p4d) + ((addr & ~P4D_MASK) >> PAGE_SHIFT);
+> +#endif
+>  
+> -	/*
+> -	 * Don't dereference bad PUD or PMD (below) entries. This will also
+> -	 * identify huge mappings, which we may encounter on architectures
+> -	 * that define CONFIG_HAVE_ARCH_HUGE_VMAP=y. Such regions will be
+> -	 * identified as vmalloc addresses by is_vmalloc_addr(), but are
+> -	 * not [unambiguously] associated with a struct page, so there is
+> -	 * no correct value to return for them.
+> -	 */
+> -	WARN_ON_ONCE(pud_bad(*pud));
+> -	if (pud_none(*pud) || pud_bad(*pud))
+> +	pud = pud_offset(p4d, addr);
+> +	if (pud_none(*pud))
+> +		return NULL;
+> +	if (WARN_ON_ONCE(pud_bad(*pud)))
+>  		return NULL;
+> +#ifdef CONFIG_HAVE_ARCH_HUGE_VMAP
+> +	if (pud_large(*pud))
+> +		return pud_page(*pud) + ((addr & ~PUD_MASK) >> PAGE_SHIFT);
+> +#endif
+> +
+
+pud_bad() on arm64 returns true when the PUD does not point to a next page
+table page implying the fact that it might be a large/huge entry. I am not
+sure if the semantics holds good for other architectures too. But on arm64
+if pud_large() is true, then pud_bad() will be true as well. So pud_bad()
+check must happen after pud_large() check. So the sequence here should be
+
+1. pud_none()	--> Nothing is in here, return NULL
+2. pud_large()	--> Return offset page address from the huge page mapping
+3. pud_bad()	--> Return NULL as there is no more page table level left
+
+Checking pud_bad() first can return NULL for a valid huge mapping.
+
+>  	pmd = pmd_offset(pud, addr);
+> -	WARN_ON_ONCE(pmd_bad(*pmd));
+> -	if (pmd_none(*pmd) || pmd_bad(*pmd))
+> +	if (pmd_none(*pmd))
+> +		return NULL;
+> +	if (WARN_ON_ONCE(pmd_bad(*pmd)))
+>  		return NULL;
+> +#ifdef CONFIG_HAVE_ARCH_HUGE_VMAP
+> +	if (pmd_large(*pmd))
+> +		return pmd_page(*pmd) + ((addr & ~PMD_MASK) >> PAGE_SHIFT);
+> +#endif
+
+Ditto.
+
+I see that your previous proposal had this right which got changed in this
+manner after my comments. Sorry about it.
+
+It was recently when I learned (correctly) that expected semantics of pxx_bad()
+is that - It does not point to the next page table page.  Hence I wonder why is
+this not renamed as pxx_table() instead to make it absolutely clear.
 
