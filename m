@@ -2,141 +2,150 @@ Return-Path: <SRS0=9FL3=UX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0599BC48BE8
-	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 15:19:31 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 65755C43613
+	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 15:28:28 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C122E20652
-	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 15:19:30 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=cmpxchg-org.20150623.gappssmtp.com header.i=@cmpxchg-org.20150623.gappssmtp.com header.b="gJlLLhHa"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C122E20652
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=cmpxchg.org
+	by mail.kernel.org (Postfix) with ESMTP id 222E120652
+	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 15:28:28 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 222E120652
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5B39A8E0006; Mon, 24 Jun 2019 11:19:30 -0400 (EDT)
+	id B2A158E0006; Mon, 24 Jun 2019 11:28:27 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 562F78E0002; Mon, 24 Jun 2019 11:19:30 -0400 (EDT)
+	id ADB3C8E0002; Mon, 24 Jun 2019 11:28:27 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 451BD8E0006; Mon, 24 Jun 2019 11:19:30 -0400 (EDT)
+	id 9F0F18E0006; Mon, 24 Jun 2019 11:28:27 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 10C3A8E0002
-	for <linux-mm@kvack.org>; Mon, 24 Jun 2019 11:19:30 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id s195so9577121pgs.13
-        for <linux-mm@kvack.org>; Mon, 24 Jun 2019 08:19:30 -0700 (PDT)
+Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 72B058E0002
+	for <linux-mm@kvack.org>; Mon, 24 Jun 2019 11:28:27 -0400 (EDT)
+Received: by mail-ot1-f72.google.com with SMTP id b1so7562167otk.0
+        for <linux-mm@kvack.org>; Mon, 24 Jun 2019 08:28:27 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=xk9Y9/4d1P0hhiRulYC6/59GayfnrTydVvyulmj2MA0=;
-        b=A3Bg5MncPZnOY/EES8v8vHwjhjXK3R4TG/bzrF7rCzaLWeMWPHP1rIemctEx5wCO/S
-         aJbWhJeZKtsD2SQlP054twYRyEA80S2ZC7N8lHeivNW88NwkbkY63eu4mM1qgSomo9AX
-         sbLUQTdfv4u5b1QtlSVGYaaSE9ypCyJ/8tHg2gfVgwHgH9fjHYgKKt2C9PxfklXbNxQQ
-         qYPNqOPCkLcHWkf9p7Pyo0pHI+25OOCnKKGh8EJg5i/Uty+oypSXkXJLe9L0z8puA73f
-         2ihYndBDki2tLSbqLfXPq52o6GEKv8bA+yF6ZWozNrQroFFmLDbGxYtv/P5XsRk9S8h7
-         VI1Q==
-X-Gm-Message-State: APjAAAUEv6MOCMQ+i9X8xFRTa6gRJpa95XFOjpL2vdYg3aYEabsFkY6c
-	BRn6JrNPwPV5sIzzW+Jvc0VE4tgA1vut3T2HsN9tRv80vTfUjOBeCgXj6ITKZD1kqM3JHljiUH0
-	W8dduWl3SJRTvemlXrK3Za7bB3ola4r62XxnpLF49qu8ETfwGAwl/R3xaxa75ORwQFA==
-X-Received: by 2002:a65:6204:: with SMTP id d4mr33160808pgv.104.1561389569591;
-        Mon, 24 Jun 2019 08:19:29 -0700 (PDT)
-X-Received: by 2002:a65:6204:: with SMTP id d4mr33160766pgv.104.1561389568942;
-        Mon, 24 Jun 2019 08:19:28 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561389568; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:message-id
+         :date:from:user-agent:mime-version:to:cc:subject:references
+         :in-reply-to:content-transfer-encoding;
+        bh=tD9LW0b0iQaF5lKcuMYVOUpAEUh7N54UN8Sooe5594g=;
+        b=GfbAFauqNIOBu4LZY6BOztGKn3FUTr85k8T0M9TD2Szjda8SKg0E4tZHlsmRLWWqc3
+         sNsg56s92FT5kQPIW8snqBOk4xypCQCUPBCDZxHmOXktu8peIYnBwSomApJA1fybM/w7
+         qpynNNpwep3gEJXgaAelM/LtAz4j/BWWwQkAqOXTbutMEDbfWb/oZsPDQh0rZ03KfKQl
+         yVGDZelkBdNRVRRQ7xww3SOVeYzLDpHu/G6EYG0Brg1brygE6+LG0jbpjzFoS4OsLWXx
+         2l34pm+QwAkTuEaIWD2NMIdv83iND+VhKzDexd8bIfhmH7DkV7Q3qtKG2UllPRtoGzNk
+         v/rA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of zhongjiang@huawei.com designates 45.249.212.190 as permitted sender) smtp.mailfrom=zhongjiang@huawei.com
+X-Gm-Message-State: APjAAAXAOZVDQ1KpF4mjDOLsN8VbwlXjJaKuuzrr6cVulkPNR8TG2AyK
+	S0lgOr9+MwLS+abMmS7ovqIxz53LFILsNn7Bkl7h5XtpoMTe6nqld4Y1zHR1qENBzxBNsDOfqJv
+	hicFUwl2qgFpnbFgkYUH7zi9TnaajOuo4fatd9mq1qaNtziI5U/grl8EaXlD0tuGDhQ==
+X-Received: by 2002:aca:c1d4:: with SMTP id r203mr10580734oif.109.1561390107154;
+        Mon, 24 Jun 2019 08:28:27 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxYp58XjVVQcQTrzLJJNY+aVcErr9eMDWNd0IvAT481rYmyg+N1KfPyO7hjVbFkAxurB+sz
+X-Received: by 2002:aca:c1d4:: with SMTP id r203mr10580693oif.109.1561390106318;
+        Mon, 24 Jun 2019 08:28:26 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561390106; cv=none;
         d=google.com; s=arc-20160816;
-        b=ce7bkfT1Ekx9we0RLiqIe92XiWD+jG2eO0ZUt839FO2PRTQcI8ZliziMzFtakV8+AX
-         +0OAz+VBjb4MhzVGbF6FaGloo8fI09z8dbVY7dtXXjLrta+ovK6dHP85QUu8qSUEaMTz
-         9LPJtBOvWbLpYgTEDTqctfaLGpE3HUcj3DDQNmdl/YQk950ur3zGmZGxL3FgZ+bTYWQ9
-         NGMGHxXKW9YY0aoFZjP4y1tD/+DVXGWrIudyISfDcPRWB/61a1cnu4hYnKFz1c15dEPd
-         Z9heLWeBPF552u6+YWS3DF423fGZGGwXR/RrRDsRexlFxAS+FCj7FvG7JJD1Cnx0cW2M
-         X0WQ==
+        b=xpfDqqgcbo9XAv0d/EhIlV4RhWDwVQVh5jxBi+2SGxJxmxfMzl5YXNFqmpAHf1FI/4
+         evekvohOBfE+tUPooIbXI7JjDk5rxp2dH8VX4zjW1lvnXoN+oxfyMTfFm0QugYUngmdT
+         /1JZnYQlVCFaIhbCAMnDh5kTCzdC72GE3/KKDbIbtj4UkgS5R+uyew7Nlc+GpxBPufes
+         dxc6X5Jfxs4DvPBWlAtaY8gg0zrMwcjmquwWKU01IVxyJw1PZEKyFhCBxDrpJeMCdM25
+         FTM/B1v5yG2NkZyLazhZMStc6FeEKPdtEp9+kJ2ZIhNFzHdBP04a9667PxpnLE49ovzv
+         dLNg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=xk9Y9/4d1P0hhiRulYC6/59GayfnrTydVvyulmj2MA0=;
-        b=kINCpby05F3M/xQQNWvXREgViu+N+oYmk+xbgpgMokwuk0xtAO7A/mHKPGnUalqy0a
-         Me8Syws7gvibgOPJsyw2cPRgHNcfYrrPeRVx7xvwq7akKElvuF1GqYcDmp1+dY/CdYVi
-         lmq9N5JXt9q4yOnZet1gy2V1Hl5Sh1aDGyIZ6iDQY8XU+l5R7sMe2cS7c8xMxEODh9mu
-         b3S6gCZxP68akJkysO75HQCpq2irhXOVY95CTU/xRM1kiqNIE0Xnh414sSVcrGmpPEbJ
-         jqA5SEHwTT0M0oiOaW/IWQ2ut4Oitrh6QUk3yhQoTT66OKva9sFZzjdDuTInsyzb46Cj
-         lPcQ==
+        h=content-transfer-encoding:in-reply-to:references:subject:cc:to
+         :mime-version:user-agent:from:date:message-id;
+        bh=tD9LW0b0iQaF5lKcuMYVOUpAEUh7N54UN8Sooe5594g=;
+        b=f1+RAq3w2rtg1+3/bHnrRl41INziCpBmC9aEq/1mXRF8mLTCeJ+7/fxTMJjQ/Lmhzr
+         oDmEalSrD/lcmp+XlGDpaUr8en8VLcaXNuQ6+DL7ypGkZvq6WOgKghAnam7GPsWYhB/k
+         HeGEReYdonPK0x7J8l8Ibe4X4kYJThEkdAa6ZrqC+jszs3U4JY9f7qdHKnkeFScz5rYT
+         dp+otCvYFSTy4UuO9RmVflzRF4fu0C5flgkpYw7Tbfon18AVoLrOtdnpFhoh56dCCQjm
+         USwMCB3rMJPBVK+lSn7E0BiwIgfIA87YiAEsUqbd1s1RSrfq7ZXQKNvbCcx4whnZR+Aj
+         12lQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=gJlLLhHa;
-       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h70sor15337295pje.6.2019.06.24.08.19.26
+       spf=pass (google.com: domain of zhongjiang@huawei.com designates 45.249.212.190 as permitted sender) smtp.mailfrom=zhongjiang@huawei.com
+Received: from huawei.com (szxga04-in.huawei.com. [45.249.212.190])
+        by mx.google.com with ESMTPS id 204si6784338oii.169.2019.06.24.08.28.25
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 24 Jun 2019 08:19:26 -0700 (PDT)
-Received-SPF: pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 24 Jun 2019 08:28:26 -0700 (PDT)
+Received-SPF: pass (google.com: domain of zhongjiang@huawei.com designates 45.249.212.190 as permitted sender) client-ip=45.249.212.190;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=gJlLLhHa;
-       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=cmpxchg-org.20150623.gappssmtp.com; s=20150623;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=xk9Y9/4d1P0hhiRulYC6/59GayfnrTydVvyulmj2MA0=;
-        b=gJlLLhHaj6Jvm1bCaUN3ZW2zumf00y0LQxCLkUqwaGzxFCYZiFYQ8rTczXQpCRZDpw
-         NtK5q/uM6I5V76gghSg5fmbJ43CHbwtS081cohfzOJ6io4WFLGOcoXgaTyWCbMrjkAsj
-         xY9qHxrZFwQHzIVemFHx4ljFg0oGqYce6edkh2yeRRpwJiU/trCjsIhFgezWhFJcCgqe
-         H4Scl/FXgMov4Q2yD8FeFxw798h6RqiToCrKV5Bs2iobxW0/QAamUc9TkSldXFyswImI
-         Apxtk2c/8886Fs7QUpgFAYPFhvHX896Nq/69H5XW37lFOXvRa0xmPRdWgvt7Lc42nHf+
-         rPsw==
-X-Google-Smtp-Source: APXvYqwFHGQOnQnTXhDr9lU4NK1+H6IcL2ndUHa4gASx7rxzeny46s92Ldbi9u0yLFNEg+G6B9aOGg==
-X-Received: by 2002:a17:90a:ad93:: with SMTP id s19mr25538029pjq.36.1561389566146;
-        Mon, 24 Jun 2019 08:19:26 -0700 (PDT)
-Received: from localhost ([2620:10d:c091:500::d3ed])
-        by smtp.gmail.com with ESMTPSA id n2sm10152216pgp.27.2019.06.24.08.19.24
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Mon, 24 Jun 2019 08:19:25 -0700 (PDT)
-Date: Mon, 24 Jun 2019 11:19:23 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>,
-	Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
-	cgroups@vger.kernel.org, linux-kernel@vger.kernel.org,
-	kernel-team@fb.com
-Subject: Re: [PATCH] mm: fix page cache convergence regression
-Message-ID: <20190624151923.GA10572@cmpxchg.org>
-References: <20190524153148.18481-1-hannes@cmpxchg.org>
- <20190524160417.GB1075@bombadil.infradead.org>
- <20190524173900.GA11702@cmpxchg.org>
- <20190530161548.GA8415@cmpxchg.org>
- <20190530171356.GA19630@bombadil.infradead.org>
+       spf=pass (google.com: domain of zhongjiang@huawei.com designates 45.249.212.190 as permitted sender) smtp.mailfrom=zhongjiang@huawei.com
+Received: from DGGEMS414-HUB.china.huawei.com (unknown [172.30.72.59])
+	by Forcepoint Email with ESMTP id DC1AB725DFA0C932C2BF;
+	Mon, 24 Jun 2019 23:28:20 +0800 (CST)
+Received: from [127.0.0.1] (10.177.29.68) by DGGEMS414-HUB.china.huawei.com
+ (10.3.19.214) with Microsoft SMTP Server id 14.3.439.0; Mon, 24 Jun 2019
+ 23:28:11 +0800
+Message-ID: <5D10EC0B.1010901@huawei.com>
+Date: Mon, 24 Jun 2019 23:28:11 +0800
+From: zhong jiang <zhongjiang@huawei.com>
+User-Agent: Mozilla/5.0 (Windows NT 6.1; WOW64; rv:12.0) Gecko/20120428 Thunderbird/12.0.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190530171356.GA19630@bombadil.infradead.org>
-User-Agent: Mutt/1.12.0 (2019-05-25)
+To: Michal Hocko <mhocko@kernel.org>
+CC: Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>,
+	Minchan Kim <minchan@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, "Linux
+ Memory Management List" <linux-mm@kvack.org>, "Wangkefeng (Kevin)"
+	<wangkefeng.wang@huawei.com>
+Subject: Re: Frequent oom introduced in mainline when migrate_highatomic replace
+ migrate_reserve
+References: <5D1054EE.20402@huawei.com> <20190624081011.GA11400@dhcp22.suse.cz> <5D10CC1B.3080201@huawei.com> <20190624140120.GD11400@dhcp22.suse.cz>
+In-Reply-To: <20190624140120.GD11400@dhcp22.suse.cz>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
+X-Originating-IP: [10.177.29.68]
+X-CFilter-Loop: Reflected
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, May 30, 2019 at 10:13:56AM -0700, Matthew Wilcox wrote:
-> On Thu, May 30, 2019 at 12:15:48PM -0400, Johannes Weiner wrote:
-> > Are there any objections or feedback on the proposed fix below? This
-> > is kind of a serious regression.
-> 
-> I'll drop it into the xarray tree for merging in a week, if that's ok
-> with you?
+On 2019/6/24 22:01, Michal Hocko wrote:
+> On Mon 24-06-19 21:11:55, zhong jiang wrote:
+>> [  652.272622] sh invoked oom-killer: gfp_mask=0x26080c0, order=3, oom_score_adj=0
+>> [  652.272683] CPU: 0 PID: 1748 Comm: sh Tainted: P           O    4.4.171 #8
+>> [  653.452827] Mem-Info:
+>> [  653.466390] active_anon:20377 inactive_anon:187 isolated_anon:0
+>> [  653.466390]  active_file:5087 inactive_file:4825 isolated_file:0
+>> [  653.466390]  unevictable:12 dirty:0 writeback:32 unstable:0
+>> [  653.466390]  slab_reclaimable:636 slab_unreclaimable:1754
+>> [  653.466390]  mapped:5338 shmem:194 pagetables:231 bounce:0
+>> [  653.466390]  free:1086 free_pcp:85 free_cma:0
+>> [  653.625286] Normal free:4248kB min:1696kB low:2120kB high:2544kB active_anon:81508kB inactive_anon:748kB active_file:20348kB inactive_file:19300kB unevictable:48kB isolated(anon):0kB isolated(file):0kB present:252928kB managed:180496kB mlocked:0kB dirty:0kB writeback:128kB mapped:21352kB shmem:776kB slab_reclaimable:2544kB slab_unreclaimable:7016kB kernel_stack:9856kB pagetables:924kB unstable:0kB bounce:0kB free_pcp:392kB local_pcp:392kB free_cma:0kB writeback_tmp:0kB pages_scanned:0 all_unreclaimable? no
+>> [  654.177121] lowmem_reserve[]: 0 0 0
+>> [  654.462015] Normal: 752*4kB (UME) 128*8kB (UM) 21*16kB (M) 0*32kB 0*64kB 0*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB = 4368kB
+>> [  654.601093] 10132 total pagecache pages
+>> [  654.606655] 63232 pages RAM
+> [...]
+>>>> As the process is created,  kernel stack will use the higher order to allocate continuous memory.
+>>>> Due to the fragmentabtion,  we fails to allocate the memory.   And the low memory will result
+>>>> in hardly memory compction.  hence,  it will easily to reproduce the oom.
+>>> How get your get such a large fragmentation that you cannot allocate
+>>> order-1 pages and compaction is not making any progress?
+>> >From the above oom report,  we can see that  there is not order-2 pages.  It wil hardly to allocate kernel stack when
+>> creating the process.  And we can easily to reproduce the situation when runing some userspace program.
+>>
+>> But it rarely trigger the oom when It do not introducing the highatomic.  we test that in the kernel 3.10.
+> I do not really see how highatomic reserves could make any difference.
+> We do drain them before OOM killer is invoked. The above oom report
+> confirms that there is indeed no order-3+ free page to be used.
+Unfortunatly,  migrate_highatomic is alway zero,  hence it will not
+work for this situation.
 
-Hey, it's three weeks later and we're about to miss 5.2.
+Thanks,
+zhongjiang
+> It is hard to tell whether compaction has done all it could but there
+> have many changes in this area since 4.4 so I would be really curious
+> about the current upstream kernel behavior. I would also note that
+> relying on order-3 allocation is far from optimal. I am not sure what
+> exactly copy_process.part.2+0xe4 refers to but if this is really a stack
+> allocation then I would consider such a large stack really dangerous for
+> a small system.
 
-This sucks, Matthew. You introduced a serious regression to the MM
-subsystem, whose process and patch routing you largely bypassed. When
-I encountered the problem and provided a reproducer and a fix, you
-gave me a hard time on cosmetic grounds. I incorporated all your
-feedback, and still you show no urgency to get this patch or a fix of
-your own into mainline. It's your bug, please fix it.
 
