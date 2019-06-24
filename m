@@ -2,241 +2,339 @@ Return-Path: <SRS0=9FL3=UX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.7 required=3.0 tests=DATE_IN_FUTURE_06_12,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 23196C48BE8
-	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 12:58:54 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DDC13C43613
+	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 13:02:43 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CE4FA20679
-	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 12:58:53 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="UCwvLTFa"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CE4FA20679
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
+	by mail.kernel.org (Postfix) with ESMTP id 9684F2063F
+	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 13:02:43 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9684F2063F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=quarantine dis=none) header.from=vmware.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 669AD6B0005; Mon, 24 Jun 2019 08:58:53 -0400 (EDT)
+	id 3331B6B0006; Mon, 24 Jun 2019 09:02:43 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 61A698E0003; Mon, 24 Jun 2019 08:58:53 -0400 (EDT)
+	id 2BD078E0003; Mon, 24 Jun 2019 09:02:43 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4E28C8E0002; Mon, 24 Jun 2019 08:58:53 -0400 (EDT)
+	id 15D148E0002; Mon, 24 Jun 2019 09:02:43 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 316D46B0005
-	for <linux-mm@kvack.org>; Mon, 24 Jun 2019 08:58:53 -0400 (EDT)
-Received: by mail-qt1-f200.google.com with SMTP id v58so16950570qta.2
-        for <linux-mm@kvack.org>; Mon, 24 Jun 2019 05:58:53 -0700 (PDT)
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id CB8936B0006
+	for <linux-mm@kvack.org>; Mon, 24 Jun 2019 09:02:42 -0400 (EDT)
+Received: by mail-pl1-f200.google.com with SMTP id p14so7341074plq.1
+        for <linux-mm@kvack.org>; Mon, 24 Jun 2019 06:02:42 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:message-id:subject:from:to:cc
-         :date:in-reply-to:references:mime-version:content-transfer-encoding;
-        bh=Xx/RWmPWBvyJH2ZU2NlE1zPXjYqIgHNE0+DzqPjHLoo=;
-        b=hxiU+mM3sOcNx73NQlWpVhAj1jPYzpF731aRaiuOPoCfR5/Rb5fMb8dIh2XdFbN3e6
-         tsL3STXNLYjVJV4Nh/Re6SFBCcHjOY5sHZwQNUfZZkvKblJPjMdwRLtC3etqJ3jbH2q0
-         bFlAMxOXQu4yRO2+DKqwh/10A2R7KfzGyd12P5uY0DMoMQLiOjFZORcXyOyZmHWcsmLN
-         zwWuq7ao25TkXoGYYJlSu6+LeVlVmlIlTENNOHKOEPlFFJ4Ius4dgnwgYpD6YjTgP6yC
-         6vD8PACjcqjbvszHbBREcJKishmbxbHv+wznQn/ZO75j0R/AlteRZEO4RTS7cT51sxsY
-         whHQ==
-X-Gm-Message-State: APjAAAVkQwqEn1gVojTVLR7KcZUl32TcB5xx7AcLTEGZFPnsPvXzKSEm
-	kCsfUgnLXjfPTBzb6DbAwHZe/A97XaPqYDazrxhDjKguvWnFfEPscqdcfHz4S1Qfph/1XAU6vEO
-	r9J8MPXExavCCf0Grr5JNM3X07FUdeMTl1TUyAxlCxLJGmfdkVM5L/VWpcLzOHW6Nng==
-X-Received: by 2002:a37:6795:: with SMTP id b143mr15375545qkc.387.1561381132867;
-        Mon, 24 Jun 2019 05:58:52 -0700 (PDT)
-X-Received: by 2002:a37:6795:: with SMTP id b143mr15375498qkc.387.1561381132092;
-        Mon, 24 Jun 2019 05:58:52 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561381132; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:mime-version;
+        bh=1WhF6WRW29t4JGYTp97LOe92+QWH1u7qXPt6K87cbjI=;
+        b=d2sAhu5G29z79l5fPiazc2ZywjG6Be7f1ldnxaVJ7rRJQiHFzGEcYf/DiP0oSrniCV
+         PrCO1o53vbAnBOAAFhrUCJgIpT0HCSSVuAHw8Ka0MBa8j9R8R3Z/BsH3BblCJ7HlEuKu
+         Y9FCRKV9G6JQxmJoVIt3CrBvYaP/4AcJbiY6A+g9cVGF0Fe3ytpVlkjPckIJXXf3QwOA
+         vUy7+MwsLvIAsraOI0ouvog4WX85mG/6sLtJoZshLExHcgTZMwAvoKDdGfv3SUy2YsXR
+         yAgH83A6Xbg2qnO6X85/dnfePBeWBdJXKV929kK0J8Hghet8/a/D2C+zszks63ToTDII
+         FcDw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of akaher@vmware.com designates 208.91.0.190 as permitted sender) smtp.mailfrom=akaher@vmware.com;       dmarc=pass (p=QUARANTINE sp=NONE dis=NONE) header.from=vmware.com
+X-Gm-Message-State: APjAAAXUIxVgzlR7CAHpxIUqoXPpDAqEnSWZ8TCh/0UluwfK4GOKaMY2
+	AV2vgpxhrb0Vsm624Q5eOrBG8s29toESLLw/01Tu4GctIyg1w8R/JsIkqIT2EpnVTyYisYMCccz
+	6IZzrsJPLL3hsqDJpx/GQ+ewTxo7Kc630QH4hgXliAnBqJ1VZ3wE1dUpXKAjG+3sjkA==
+X-Received: by 2002:a63:374a:: with SMTP id g10mr32229505pgn.31.1561381362290;
+        Mon, 24 Jun 2019 06:02:42 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxM29heQWpkvGmpaNIxRSmQSAOiL0T91rbxsC+0qAyAY0PzxkzEkIbk/bxA72jPsfKt2qBt
+X-Received: by 2002:a63:374a:: with SMTP id g10mr32229378pgn.31.1561381361025;
+        Mon, 24 Jun 2019 06:02:41 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561381361; cv=none;
         d=google.com; s=arc-20160816;
-        b=QyaZR54ZmLiYN4GDRN7vYYhkOPX/ElpAenm0Ur6kgniKQL3utjFTE0msREyHeTOgNL
-         033Tkdlg1Llu+D6vsghs5IKOBXmkvwq0/KMLqbPsFe3cdyv/DdMTgu1NaOsYH0YYpic1
-         RTgkm9FXOVhE+3dKi/5LC3u6iKtYPVw/pcZx2FkXw6ObCckuDmiDDS4aWSJFrfMFInOs
-         MHooAgxki0TLbEDBFzcxtZzaiRSxjPbMzTAcngnC9OLC42m79zCRbUHVwEqnYxAYDTeb
-         UML1Coxoi7YIuSSNkFa0LmbxCv20/Ngse3r9XrbX9GuszaucGLt6jXarqCmaBYI211yA
-         9c7g==
+        b=rpWsdY73HPOKVERSMB9rDV6phkw06KjvWk7SXHv7/Edkb5pw8Iw9Hki1AVPwk+1fSb
+         XwpCrxU9QtrNdnJ0NpzwQuvqN8O2Wr/Tk5ifRFLpoS9eT8LS7ienckkYjLB27vckU2Kf
+         8xl1poNMVrnjfgdJhUO0Vdye0T9u4lB2wzOIFWRzsx1Mcsj+BRWOt+91PTy16b5fpKdS
+         q5ypYt63DxghvPa1D+rEVHz/DRKu0Sh6fyDut1EhMn7RigQcLPEkma4Ar/CdNSQ88nVV
+         1ijiJqiy7u35iDcbRV10lKsDneFsNX/NIVpov/u2XMuNIV01fy6Vzv8u6KQWktLjExPD
+         YJtg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to:date
-         :cc:to:from:subject:message-id:dkim-signature;
-        bh=Xx/RWmPWBvyJH2ZU2NlE1zPXjYqIgHNE0+DzqPjHLoo=;
-        b=0wp5nb00PYaNon/8yTtdUUNHi+YSuqgx6BH6hcaEdDjLIfw4XzN3W71xtGR0PDZT2f
-         4eNgC1I99bXfl4i0vgg7EEgSKaQMG+Sl6KtK55bhhQSMoDkg+aR/pYkWnVEyo1hCWjHT
-         6ybaXoRQ15TrjCYfcJPs6Cr0d9043o+pM6RkWBusur8kZTOTwMxUKQ313L84+WtcjeG0
-         ulTiJkhnHj2zmwI2XbpZq00FQ0Xgt8FZmV33DB83GV7Rmcx65IgD149nhjGJHUo9Z3qB
-         WajkO/dsVjHsbAuAlFWXy7Ck+2DLpyTQ6tVUyB6qb9vcKGffGs6fPM+KwnoIyG7MhiOl
-         Dvlg==
+        h=mime-version:message-id:date:subject:cc:to:from;
+        bh=1WhF6WRW29t4JGYTp97LOe92+QWH1u7qXPt6K87cbjI=;
+        b=tpmFjZLUciJ+rRr8glIAqfWt0fuBo6QQjwXAovkmrpetFIJqb355Qg3ZCSxJ3RkqeL
+         Oj7UqDRoyQhkO4Z1fXrNg5uU3M2bvrb36j0Je/3QnZVGo/GDs0FZZbwmGiILThJLMleL
+         OFTwVXN5EbD5LbnPSzHSedkpRDdtGpCLJ8krngypoQlCuVZ+0vmfrdfRLQjvohEnGxbh
+         PeK+/w5o1xb57D8G4Ycr77FYHrk2bBZYlWofmg2FcZNwGgodKnFxms1n9ry45cX4f/FF
+         hAjllHBMhSVykc80PLcjcbxhk8CkqPFPebPscMvsCWh1h4Wsay/P2Zbzj5sFtZ3+836r
+         /6QQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b=UCwvLTFa;
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id f69sor6129471qke.60.2019.06.24.05.58.51
+       spf=pass (google.com: domain of akaher@vmware.com designates 208.91.0.190 as permitted sender) smtp.mailfrom=akaher@vmware.com;
+       dmarc=pass (p=QUARANTINE sp=NONE dis=NONE) header.from=vmware.com
+Received: from EX13-EDG-OU-002.vmware.com (ex13-edg-ou-002.vmware.com. [208.91.0.190])
+        by mx.google.com with ESMTPS id 33si5175720pla.44.2019.06.24.06.02.40
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 24 Jun 2019 05:58:52 -0700 (PDT)
-Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 24 Jun 2019 06:02:41 -0700 (PDT)
+Received-SPF: pass (google.com: domain of akaher@vmware.com designates 208.91.0.190 as permitted sender) client-ip=208.91.0.190;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b=UCwvLTFa;
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=lca.pw; s=google;
-        h=message-id:subject:from:to:cc:date:in-reply-to:references
-         :mime-version:content-transfer-encoding;
-        bh=Xx/RWmPWBvyJH2ZU2NlE1zPXjYqIgHNE0+DzqPjHLoo=;
-        b=UCwvLTFauBZM95y94QPC9oGAEFrPbOt1jJVDGyUlhejwVII3S37uAzEACDd2yNiWBO
-         ZfugWza9SALwHGlXK6Us5p0JFr8g7Uq6jOhsgHGnOv2iLSTaBMMCmFeIlJ/PlMYSoVKY
-         7V1p9+PFLFuZxBSv/8oozyk+2ws3ohRQ+lP5KlRHZzB0zyaRdMRtH6GzM0Ybc9IdSt7C
-         QYW+6878VyjokxvbhFe/IuwqXjgMMKC4JR2xtAJTacgmn59f49lg93ukqIFU0Wx62B2w
-         TrRRXepBonyL+njzjSwQU4tq5njBfTcRcrIsKEVqtWoohLqcA+kGcBYNBJF6vy8F4jB4
-         LywQ==
-X-Google-Smtp-Source: APXvYqxjWNfQxLfoP+rpGNMOujJkBpLhTS8ucR6j2FpSxRJn0uwMDXTszglfdGdwE/0XbXCQipp1Kw==
-X-Received: by 2002:a37:6b07:: with SMTP id g7mr20623988qkc.217.1561381131743;
-        Mon, 24 Jun 2019 05:58:51 -0700 (PDT)
-Received: from dhcp-41-57.bos.redhat.com (nat-pool-bos-t.redhat.com. [66.187.233.206])
-        by smtp.gmail.com with ESMTPSA id f1sm5502266qke.117.2019.06.24.05.58.50
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 24 Jun 2019 05:58:50 -0700 (PDT)
-Message-ID: <1561381129.5154.55.camel@lca.pw>
-Subject: Re: LTP hugemmap05 test case failure on arm64 with linux-next
- (next-20190613)
-From: Qian Cai <cai@lca.pw>
-To: Will Deacon <will@kernel.org>
-Cc: Anshuman Khandual <anshuman.khandual@arm.com>, Will Deacon
-	 <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, 
-	"linux-mm@kvack.org"
-	 <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org"
-	 <linux-kernel@vger.kernel.org>, linux-arm-kernel@lists.infradead.org
-Date: Mon, 24 Jun 2019 08:58:49 -0400
-In-Reply-To: <20190624093507.6m2quduiacuot3ne@willie-the-truck>
-References: <1560461641.5154.19.camel@lca.pw>
-	 <20190614102017.GC10659@fuggles.cambridge.arm.com>
-	 <1560514539.5154.20.camel@lca.pw>
-	 <054b6532-a867-ec7c-0a72-6a58d4b2723e@arm.com>
-	 <EC704BC3-62FF-4DCE-8127-40279ED50D65@lca.pw>
-	 <20190624093507.6m2quduiacuot3ne@willie-the-truck>
-Content-Type: text/plain; charset="UTF-8"
-X-Mailer: Evolution 3.22.6 (3.22.6-10.el7) 
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+       spf=pass (google.com: domain of akaher@vmware.com designates 208.91.0.190 as permitted sender) smtp.mailfrom=akaher@vmware.com;
+       dmarc=pass (p=QUARANTINE sp=NONE dis=NONE) header.from=vmware.com
+Received: from sc9-mailhost3.vmware.com (10.113.161.73) by
+ EX13-EDG-OU-002.vmware.com (10.113.208.156) with Microsoft SMTP Server id
+ 15.0.1156.6; Mon, 24 Jun 2019 06:02:38 -0700
+Received: from akaher-lnx-dev.eng.vmware.com (unknown [10.110.19.203])
+	by sc9-mailhost3.vmware.com (Postfix) with ESMTP id 5A37440C84;
+	Mon, 24 Jun 2019 06:02:33 -0700 (PDT)
+From: Ajay Kaher <akaher@vmware.com>
+To: <aarcange@redhat.com>, <jannh@google.com>, <oleg@redhat.com>,
+	<peterx@redhat.com>, <rppt@linux.ibm.com>, <jgg@mellanox.com>,
+	<mhocko@suse.com>
+CC: <jglisse@redhat.com>, <akpm@linux-foundation.org>,
+	<mike.kravetz@oracle.com>, <viro@zeniv.linux.org.uk>,
+	<riandrews@android.com>, <arve@android.com>, <yishaih@mellanox.com>,
+	<dledford@redhat.com>, <sean.hefty@intel.com>, <hal.rosenstock@gmail.com>,
+	<matanb@mellanox.com>, <leonro@mellanox.com>,
+	<linux-fsdevel@vger.kernel.org>, <linux-mm@kvack.org>,
+	<devel@driverdev.osuosl.org>, <linux-rdma@vger.kernel.org>,
+	<linux-kernel@vger.kernel.org>, <stable@vger.kernel.org>,
+	<akaher@vmware.com>, <srivatsab@vmware.com>, <amakhalov@vmware.com>, Linus
+ Torvalds <torvalds@linux-foundation.org>, Greg Kroah-Hartman
+	<gregkh@linuxfoundation.org>
+Subject: [PATCH v4 1/3] [v4.9.y] coredump: fix race condition between mmget_not_zero()/get_task_mm() and core dumping
+Date: Tue, 25 Jun 2019 02:33:03 +0530
+Message-ID: <1561410186-3919-1-git-send-email-akaher@vmware.com>
+X-Mailer: git-send-email 2.7.4
+MIME-Version: 1.0
+Content-Type: text/plain
+Received-SPF: None (EX13-EDG-OU-002.vmware.com: akaher@vmware.com does not
+ designate permitted sender hosts)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2019-06-24 at 10:35 +0100, Will Deacon wrote:
-> Hi Qian Cai,
-> 
-> On Sun, Jun 16, 2019 at 09:41:09PM -0400, Qian Cai wrote:
-> > > On Jun 16, 2019, at 9:32 PM, Anshuman Khandual <anshuman.khandual@arm.com>
-> > > wrote:
-> > > On 06/14/2019 05:45 PM, Qian Cai wrote:
-> > > > On Fri, 2019-06-14 at 11:20 +0100, Will Deacon wrote:
-> > > > > On Thu, Jun 13, 2019 at 05:34:01PM -0400, Qian Cai wrote:
-> > > > > > LTP hugemmap05 test case [1] could not exit itself properly and then
-> > > > > > degrade
-> > > > > > the
-> > > > > > system performance on arm64 with linux-next (next-20190613). The
-> > > > > > bisection
-> > > > > > so
-> > > > > > far indicates,
-> > > > > > 
-> > > > > > BAD:  30bafbc357f1 Merge remote-tracking branch 'arm64/for-
-> > > > > > next/core'
-> > > > > > GOOD: 0c3d124a3043 Merge remote-tracking branch 'arm64-fixes/for-
-> > > > > > next/fixes'
-> > > > > 
-> > > > > Did you finish the bisection in the end? Also, what config are you
-> > > > > using
-> > > > > (you usually have something fairly esoteric ;)?
-> > > > 
-> > > > No, it is still running.
-> > > > 
-> > > > https://raw.githubusercontent.com/cailca/linux-mm/master/arm64.config
-> > > > 
-> > > 
-> > > Were you able to bisect the problem till a particular commit ?
-> > 
-> > Not yet, it turned out the test case needs to run a few times (usually
-> > within 5) to reproduce, so the previous bisection was totally wrong where
-> > it assume the bad commit will fail every time. Once reproduced, the test
-> > case becomes unkillable stuck in the D state.
-> > 
-> > I am still in the middle of running a new round of bisection. The current
-> > progress is,
-> > 
-> > 35c99ffa20ed GOOD (survived 20 times)
-> > def0fdae813d BAD
-> 
-> Just wondering if you got anywhere with this? We've failed to reproduce the
-> problem locally.
+From: Andrea Arcangeli <aarcange@redhat.com>
 
-Unfortunately, I have not had a chance to dig this up yet. The progress I had so
-far is,
+commit 04f5866e41fb70690e28397487d8bd8eea7d712a upstream.
 
-The issue was there for a long time goes back to 4.20 and probably earlier. It
-is not failing every time. The script below could reproduce it usually within 10
-0 tires.
+The core dumping code has always run without holding the mmap_sem for
+writing, despite that is the only way to ensure that the entire vma
+layout will not change from under it.  Only using some signal
+serialization on the processes belonging to the mm is not nearly enough.
+This was pointed out earlier.  For example in Hugh's post from Jul 2017:
 
-i=0; while :; do ./hugemmap05 -m -s; echo $((i++)); sleep 5; done
+  https://lkml.kernel.org/r/alpine.LSU.2.11.1707191716030.2055@eggly.anvils
 
-This can be reproduced in an error path, i.e., shmget() in the test case will
-fail every time before triggering the soft lockups.
+  "Not strictly relevant here, but a related note: I was very surprised
+   to discover, only quite recently, how handle_mm_fault() may be called
+   without down_read(mmap_sem) - when core dumping. That seems a
+   misguided optimization to me, which would also be nice to correct"
 
-# ./hugemmap05 -s -m
-tst_test.c:1112: INFO: Timeout per run is 0h 05m 00s
-hugemmap05.c:235: INFO: original nr_hugepages is 0
-hugemmap05.c:248: INFO: original nr_overcommit_hugepages is 0
-tst_safe_sysv_ipc.c:111: BROK: hugemmap05.c:97: shmget(218366029, 103079215104,
-b80) failed: ENOMEM
-hugemmap05.c:192: INFO: restore nr_hugepages to 0.
-hugemmap05.c:201: INFO: restore nr_overcommit_hugepages to 0.
+In particular because the growsdown and growsup can move the
+vm_start/vm_end the various loops the core dump does around the vma will
+not be consistent if page faults can happen concurrently.
 
-Summary:
-passed   0
-failed   0
-skipped  0
-warnings 0
-0
+Pretty much all users calling mmget_not_zero()/get_task_mm() and then
+taking the mmap_sem had the potential to introduce unexpected side
+effects in the core dumping code.
 
-My understanding is that the soft lockups are triggered in this path,
+Adding mmap_sem for writing around the ->core_dump invocation is a
+viable long term fix, but it requires removing all copy user and page
+faults and to replace them with get_dump_page() for all binary formats
+which is not suitable as a short term fix.
 
-ipcget
-  ipcget_public
-    ops->getnew
-      newseg
-        hugetlb_file_setup <- return ENOMEM
+For the time being this solution manually covers the places that can
+confuse the core dump either by altering the vma layout or the vma flags
+while it runs.  Once ->core_dump runs under mmap_sem for writing the
+function mmget_still_valid() can be dropped.
 
-[ 1521.471216][ T1309] INFO: task hugemmap05:4718 blocked for more than 860
-seconds.
-[ 1521.478731][ T1309]       Tainted: G        W         5.2.0-rc4+ #8
-[ 1521.485023][ T1309] "echo 0 > /proc/sys/kernel/hung_task_timeout_secs"
-disables this message.
-[ 1521.493568][ T1309] hugemmap05      D27168  4718      1 0x00000001
-[ 1521.499815][ T1309] Call trace:
-[ 1521.502985][ T1309]  __switch_to+0x2e0/0x37c
-[ 1521.507278][ T1309]  __schedule+0xa0c/0xd9c
-[ 1521.511484][ T1309]  schedule+0x60/0x168
-[ 1521.515430][ T1309]  __rwsem_down_write_failed_common+0x484/0x7b8
-[ 1521.521546][ T1309]  rwsem_down_write_failed+0x20/0x2c
-[ 1521.526717][ T1309]  down_write+0xa0/0xa4
-[ 1521.530747][ T1309]  ipcget+0x74/0x414
-[ 1521.534518][ T1309]  ksys_shmget+0x90/0xc4
-[ 1521.538638][ T1309]  __arm64_sys_shmget+0x54/0x88
-[ 1521.543366][ T1309]  el0_svc_handler+0x198/0x260
-[ 1521.548005][ T1309]  el0_svc+0x8/0xc
-[ 1521.551605][ T1309] 
-[ 1521.551605][ T1309] Showing all locks held in the system:
-[ 1521.559349][ T1309] 1 lock held by khungtaskd/1309:
-[ 1521.564251][ T1309]  #0: 00000000033dd0e2 (rcu_read_lock){....}, at:
-rcu_lock_acquire+0x8/0x38
-[ 1521.573014][ T1309] 2 locks held by hugemmap05/4694:
-[ 1521.578010][ T1309] 1 lock held by hugemmap05/4718:
-[ 1521.582904][ T1309]  #0: 00000000c62a3d44 (&ids->rwsem){....}, at:
-ipcget+0x74/0x414
-[ 1521.590707][ T1309] 1 lock held by hugemmap05/4755:
-[ 1521.595595][ T1309]  #0: 00000000c62a3d44 (&ids->rwsem){....}, at:
-ipcget+0x74/0x414
-[ 1521.603373][ T1309] 1 lock held by hugemmap05/4781:
-[ 1521.608270][ T1309]  #0: 00000000c62a3d44 (&ids->rwsem){....}, at:
-ipcget+0x74/0x414
+Allowing mmap_sem protected sections to run in parallel with the
+coredump provides some minor parallelism advantage to the swapoff code
+(which seems to be safe enough by never mangling any vma field and can
+keep doing swapins in parallel to the core dumping) and to some other
+corner case.
+
+In order to facilitate the backporting I added "Fixes: 86039bd3b4e6"
+however the side effect of this same race condition in /proc/pid/mem
+should be reproducible since before 2.6.12-rc2 so I couldn't add any
+other "Fixes:" because there's no hash beyond the git genesis commit.
+
+Because find_extend_vma() is the only location outside of the process
+context that could modify the "mm" structures under mmap_sem for
+reading, by adding the mmget_still_valid() check to it, all other cases
+that take the mmap_sem for reading don't need the new check after
+mmget_not_zero()/get_task_mm().  The expand_stack() in page fault
+context also doesn't need the new check, because all tasks under core
+dumping are frozen.
+
+Link: http://lkml.kernel.org/r/20190325224949.11068-1-aarcange@redhat.com
+Fixes: 86039bd3b4e6 ("userfaultfd: add new syscall to provide memory externalization")
+Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+Reported-by: Jann Horn <jannh@google.com>
+Suggested-by: Oleg Nesterov <oleg@redhat.com>
+Acked-by: Peter Xu <peterx@redhat.com>
+Reviewed-by: Mike Rapoport <rppt@linux.ibm.com>
+Reviewed-by: Oleg Nesterov <oleg@redhat.com>
+Reviewed-by: Jann Horn <jannh@google.com>
+Acked-by: Jason Gunthorpe <jgg@mellanox.com>
+Acked-by: Michal Hocko <mhocko@suse.com>
+Cc: <stable@vger.kernel.org>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
+Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+[akaher@vmware.com: stable 4.9 backport
+ -  handle binder_update_page_range - mhocko@suse.com]
+Signed-off-by: Ajay Kaher <akaher@vmware.com>
+---
+ drivers/android/binder.c |  6 ++++++
+ fs/proc/task_mmu.c       | 18 ++++++++++++++++++
+ fs/userfaultfd.c         |  9 +++++++++
+ include/linux/mm.h       | 21 +++++++++++++++++++++
+ mm/mmap.c                |  6 +++++-
+ 5 files changed, 59 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/android/binder.c b/drivers/android/binder.c
+index 80499f4..f05ab8f 100644
+--- a/drivers/android/binder.c
++++ b/drivers/android/binder.c
+@@ -581,6 +581,12 @@ static int binder_update_page_range(struct binder_proc *proc, int allocate,
+ 
+ 	if (mm) {
+ 		down_write(&mm->mmap_sem);
++		if (!mmget_still_valid(mm)) {
++			if (allocate == 0)
++				goto free_range;
++			goto err_no_vma;
++		}
++
+ 		vma = proc->vma;
+ 		if (vma && mm != proc->vma_vm_mm) {
+ 			pr_err("%d: vma mm and task mm mismatch\n",
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+index 5138e78..4b207b1 100644
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -1057,6 +1057,24 @@ static ssize_t clear_refs_write(struct file *file, const char __user *buf,
+ 					count = -EINTR;
+ 					goto out_mm;
+ 				}
++				/*
++				 * Avoid to modify vma->vm_flags
++				 * without locked ops while the
++				 * coredump reads the vm_flags.
++				 */
++				if (!mmget_still_valid(mm)) {
++					/*
++					 * Silently return "count"
++					 * like if get_task_mm()
++					 * failed. FIXME: should this
++					 * function have returned
++					 * -ESRCH if get_task_mm()
++					 * failed like if
++					 * get_proc_task() fails?
++					 */
++					up_write(&mm->mmap_sem);
++					goto out_mm;
++				}
+ 				for (vma = mm->mmap; vma; vma = vma->vm_next) {
+ 					vma->vm_flags &= ~VM_SOFTDIRTY;
+ 					vma_set_page_prot(vma);
+diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
+index 784d667..8bf425a 100644
+--- a/fs/userfaultfd.c
++++ b/fs/userfaultfd.c
+@@ -479,6 +479,8 @@ static int userfaultfd_release(struct inode *inode, struct file *file)
+ 	 * taking the mmap_sem for writing.
+ 	 */
+ 	down_write(&mm->mmap_sem);
++	if (!mmget_still_valid(mm))
++		goto skip_mm;
+ 	prev = NULL;
+ 	for (vma = mm->mmap; vma; vma = vma->vm_next) {
+ 		cond_resched();
+@@ -501,6 +503,7 @@ static int userfaultfd_release(struct inode *inode, struct file *file)
+ 		vma->vm_flags = new_flags;
+ 		vma->vm_userfaultfd_ctx = NULL_VM_UFFD_CTX;
+ 	}
++skip_mm:
+ 	up_write(&mm->mmap_sem);
+ 	mmput(mm);
+ wakeup:
+@@ -802,6 +805,9 @@ static int userfaultfd_register(struct userfaultfd_ctx *ctx,
+ 		goto out;
+ 
+ 	down_write(&mm->mmap_sem);
++	if (!mmget_still_valid(mm))
++		goto out_unlock;
++
+ 	vma = find_vma_prev(mm, start, &prev);
+ 	if (!vma)
+ 		goto out_unlock;
+@@ -947,6 +953,9 @@ static int userfaultfd_unregister(struct userfaultfd_ctx *ctx,
+ 		goto out;
+ 
+ 	down_write(&mm->mmap_sem);
++	if (!mmget_still_valid(mm))
++		goto out_unlock;
++
+ 	vma = find_vma_prev(mm, start, &prev);
+ 	if (!vma)
+ 		goto out_unlock;
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index e3c8d40..c239984 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1189,6 +1189,27 @@ void zap_page_range(struct vm_area_struct *vma, unsigned long address,
+ void unmap_vmas(struct mmu_gather *tlb, struct vm_area_struct *start_vma,
+ 		unsigned long start, unsigned long end);
+ 
++/*
++ * This has to be called after a get_task_mm()/mmget_not_zero()
++ * followed by taking the mmap_sem for writing before modifying the
++ * vmas or anything the coredump pretends not to change from under it.
++ *
++ * NOTE: find_extend_vma() called from GUP context is the only place
++ * that can modify the "mm" (notably the vm_start/end) under mmap_sem
++ * for reading and outside the context of the process, so it is also
++ * the only case that holds the mmap_sem for reading that must call
++ * this function. Generally if the mmap_sem is hold for reading
++ * there's no need of this check after get_task_mm()/mmget_not_zero().
++ *
++ * This function can be obsoleted and the check can be removed, after
++ * the coredump code will hold the mmap_sem for writing before
++ * invoking the ->core_dump methods.
++ */
++static inline bool mmget_still_valid(struct mm_struct *mm)
++{
++	return likely(!mm->core_state);
++}
++
+ /**
+  * mm_walk - callbacks for walk_page_range
+  * @pmd_entry: if set, called for each non-empty PMD (3rd-level) entry
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 3f2314a..19368fb 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -2448,7 +2448,8 @@ find_extend_vma(struct mm_struct *mm, unsigned long addr)
+ 	vma = find_vma_prev(mm, addr, &prev);
+ 	if (vma && (vma->vm_start <= addr))
+ 		return vma;
+-	if (!prev || expand_stack(prev, addr))
++	/* don't alter vm_end if the coredump is running */
++	if (!prev || !mmget_still_valid(mm) || expand_stack(prev, addr))
+ 		return NULL;
+ 	if (prev->vm_flags & VM_LOCKED)
+ 		populate_vma_page_range(prev, addr, prev->vm_end, NULL);
+@@ -2474,6 +2475,9 @@ find_extend_vma(struct mm_struct *mm, unsigned long addr)
+ 		return vma;
+ 	if (!(vma->vm_flags & VM_GROWSDOWN))
+ 		return NULL;
++	/* don't alter vm_start if the coredump is running */
++	if (!mmget_still_valid(mm))
++		return NULL;
+ 	start = vma->vm_start;
+ 	if (expand_stack(vma, addr))
+ 		return NULL;
+-- 
+2.7.4
 
