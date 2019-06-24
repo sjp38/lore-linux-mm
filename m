@@ -7,106 +7,107 @@ X-Spam-Status: No, score=-14.3 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
 	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
 	USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9BD83C43613
-	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 11:46:08 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 873E2C43613
+	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 11:46:27 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 467DB20674
-	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 11:46:08 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 3E2CE20674
+	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 11:46:27 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="c/f5f/Ez"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 467DB20674
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="sm2RVRXA"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3E2CE20674
 Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D7F1A8E0006; Mon, 24 Jun 2019 07:46:07 -0400 (EDT)
+	id D09D88E0007; Mon, 24 Jun 2019 07:46:26 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D2F9A8E0002; Mon, 24 Jun 2019 07:46:07 -0400 (EDT)
+	id CB9948E0002; Mon, 24 Jun 2019 07:46:26 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BD1298E0006; Mon, 24 Jun 2019 07:46:07 -0400 (EDT)
+	id B81C88E0007; Mon, 24 Jun 2019 07:46:26 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 9AFC18E0002
-	for <linux-mm@kvack.org>; Mon, 24 Jun 2019 07:46:07 -0400 (EDT)
-Received: by mail-io1-f71.google.com with SMTP id s83so21625319iod.13
-        for <linux-mm@kvack.org>; Mon, 24 Jun 2019 04:46:07 -0700 (PDT)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 812708E0002
+	for <linux-mm@kvack.org>; Mon, 24 Jun 2019 07:46:26 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id x18so9435401pfj.4
+        for <linux-mm@kvack.org>; Mon, 24 Jun 2019 04:46:26 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=xjyC1woOCk6QoSm3J7dmvFYHQ65jTUd0WwHup6buLdA=;
-        b=aJmG+iHlvOlGDsub6aNBGYcF01zIOfMeXnhPZpT0Q0po3MDrgGF4LkSKAyW8ug1HMu
-         TS5p13CvPva4qL7HNVIT7NmBIoWze7gUAfIkjPiOCDwlgNezDr4X+afEhx2ubxZcC7qS
-         xI6Avp03RFeeAFTpFPgHVVtSfKiHTu2sXuvT+MHjgvrz/ImjNor4Y8MOgHMFdhbVci77
-         RrmchSgevxGhA63lLcKwRpdhmuWi7iCTFR+JsYIK84LRKS3MSzhaGCgY+Q3+HCE1e/1C
-         kJOhxX9XN8GPev1D5h9V0NrcvicS9qeiCWBeFZ/iuY4CKB7tUEr+a8wo9zXNTX6ZuZ5/
-         hSpQ==
-X-Gm-Message-State: APjAAAXgKPPebmV0T54bw2c/mmRzFSl4aGL64RslcKfKIwlWh/hf73qU
-	gCi6bm94JXA5M0dYDL40UbW9RyEL59aUJ7qWMebHFNMvUDzQdZ6LDmgc+yI3aGVuQ45/kTl26z1
-	y/qWwPjyNeZEW7F/U+4JQecDVJKjA0D0Wm1CoxacW64g4Z0rGsLNhmrLbE2/0BXpHJw==
-X-Received: by 2002:a02:5502:: with SMTP id e2mr41876080jab.87.1561376767350;
-        Mon, 24 Jun 2019 04:46:07 -0700 (PDT)
-X-Received: by 2002:a02:5502:: with SMTP id e2mr41876020jab.87.1561376766685;
-        Mon, 24 Jun 2019 04:46:06 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561376766; cv=none;
+        bh=4sCioPXlb29uCUXcWaSeu3ouKfJt5j/bFJ2w/CyNw2c=;
+        b=VLTDSm0R2OQzqaschPC23BBIpNatJd/nCZIGnuxongQsjRTJgM3g/Ara1kOR62KKuX
+         ezFb3RG1/vwYtdDBxUhpzld+57bwe91haqeOLdFrketh65+AaehesNMS9amp+OVEvsG/
+         D64mKopMybSzB8akKM/klj5FdLkU4dJxdJrDg0mpy6LL+NiWS9y3aQuL/7Ib43U+EEiD
+         Dz/Y30yJ0pEy3ChrFi6Nsln/MXFKPrLEvAqZsyZ7NAnxovsasTh2/8W1yQRPm+pzO7o9
+         diBLYdcEJhEZSvuCmxhw3cvrya5ZXAPZJ15tqXYlloSvSRe5hLGoBbvFManHTIWeFvfC
+         cgmw==
+X-Gm-Message-State: APjAAAXD0UiJsCPQ9uTaZfMyN1XjPzLoDqkGZ7SiANKAJXMV9VFkBizR
+	Z/Q9JiQjUuug4HRji87sRexeiwIfybANICDtIGCqE8WN+xo+4E3ztYefC87/4t7bDGYLXyULPFx
+	k7P+I8/WZ/+SaGLFDq0HiQSVj8rxrjso418oDni3eq4F/Iawph1KGx83ggxWM+groCg==
+X-Received: by 2002:a17:902:9a95:: with SMTP id w21mr1896962plp.126.1561376786010;
+        Mon, 24 Jun 2019 04:46:26 -0700 (PDT)
+X-Received: by 2002:a17:902:9a95:: with SMTP id w21mr1896903plp.126.1561376785212;
+        Mon, 24 Jun 2019 04:46:25 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561376785; cv=none;
         d=google.com; s=arc-20160816;
-        b=KIJAQeGiz/k0cBE/FtcA/BfYRBSc3Ss38aNwDbSA6mE0iuKAeh6jKRt46JRjhpWW8C
-         t4vpe8UXm0m5cavAuontfLZ483F8UlHyHU9Kbc+RrHR5gx9ZL5ed8fyEjf2t681qMbcU
-         CQwVfWq4DD9M3op3V1QabwGm56jkH6u2EViWPKgArzv0xpptVTXj8i03BkFLwe2k2A2x
-         Dbu5Q1SIyQ0UVWGMMZMTkkUlRwAnY+3SJv8qvKpk+4wHxXxvYowBer7PSyReGbvErXtD
-         kmmk6h07IBa342OU4T6jh/UUtY3mt0tpm2OoAPgObzFZb8dEYGXvQroOUy/6JNe2YbWA
-         h27Q==
+        b=mJnzrg8nZ+jh9tqevHojrtTfnLYd6vvQGpCrHWD1VQy/M2Clrd/g7hm3fZJfJfic6q
+         D2S/x48dY5WE4tFCxeDlWdjj7YEhtNMfYr6LoPivRHcjLOvWJhXioMfHEsAtp48boLVh
+         ENAde+BoVwsnf59dTiojuvfUBpq6PadYo578oVfNSq8AI6afVtjyydXxVMJBp3kIjZrK
+         7TXU1UvZv+6WlGGMO8Gn4bF7YHQVlnyX7q0mJ8CdDqBzgqvHnT2b1/iZTQ3Cet6UBGZo
+         DsEmOgIf4dUpHxG/N65A2MNUqakpkwBljbwJvpQuL2EkUqdq8zAWcHB39+psy5DyEjMs
+         CYSA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=xjyC1woOCk6QoSm3J7dmvFYHQ65jTUd0WwHup6buLdA=;
-        b=oJZgM29HLXJceYUelQRqb9S1GR2N85GcewtRPE61Js3FpbNkmERkF6B05ERB7I3MuD
-         89NCYeJ/B23pvfc1zABe1O5Gjct8MHN/A8isJ+3KbY6v7WF8Tnm0MBlF8F5ya3m9+URM
-         MqMBR/ZYoammtWRf3gU9xHZ9ABZ1ovGgL5dZWbgWzO/Wrpgt5NJFFlP8ipozEQGvfTH+
-         KM0CJIQm/9KLmXnPxOQgh5AyXCRgTzjBCKMog83CRU9iGevcdxPyof2ucvaasn9c/Nju
-         +z86S1ed6rJI/WZWej1b2qxPdfUds4ov0V519NgsR60AQAV+fLeF5p/rO2bZmBChUUWG
-         Mlmw==
+        bh=4sCioPXlb29uCUXcWaSeu3ouKfJt5j/bFJ2w/CyNw2c=;
+        b=Jsgfui/mWCadrB9FrcHHMie4ELN+r5JldDdZrnW0JJtNvM9NEzbr9ps1jTUe2C2XBB
+         sVUoZxc5c+Y/npIbWs//H+tQHNT6OEDipXVa2OOsEQsqmPJGzuDBpGUHtHIg/VlnFsbx
+         /uCK61Signu4hOJ50ptTKtDVsXSQ4qweamIm/5AT1FXC32GiQXg6j6cH+F3YK+ASBzyW
+         sY2wINzXLzTirqsdP+X47qBh6V6JYD746+62B08GCCGrVRKWFDlKJDJZhtBDyl+kzaSC
+         Acpi7ckfsqjz3OL6bU3g8uq8jPbU7tbncKhDv2LSr+brjdbuKaww8otlecFRJj52Dr8W
+         xDNw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b="c/f5f/Ez";
-       spf=pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dvyukov@google.com;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=sm2RVRXA;
+       spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id f25sor7743692iob.115.2019.06.24.04.46.06
+        by mx.google.com with SMTPS id l10sor12668028plt.10.2019.06.24.04.46.25
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 24 Jun 2019 04:46:06 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Mon, 24 Jun 2019 04:46:25 -0700 (PDT)
+Received-SPF: pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b="c/f5f/Ez";
-       spf=pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dvyukov@google.com;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=sm2RVRXA;
+       spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=google.com; s=20161025;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=xjyC1woOCk6QoSm3J7dmvFYHQ65jTUd0WwHup6buLdA=;
-        b=c/f5f/Ezq3qoosgf0iqgNPPcbIYUobo1qpnTyfBhKYcJlD4mJXs5nY2Fk/i59Ypocr
-         oQFMXxWneqxFDJ3UlvFYhCbMzeaD0RwSQIePTpoE5ZabZmOc1ubkk2xy9XaV16k1mWpG
-         uhW5uB/qv024uac34FQoadj7MRiYeO6H4o0MhAbsqH09bTa0F0KQpiaQXFET3z1MtT/d
-         Oju2FzIw+5E6M8TP+z8WD0t/uffACrjPTXLSo1MYDaEtdGk+3Hm/PaRXl5EZWsdpLsO8
-         3k6Ap14uTP2sPWcBeX+6gjzk8vGBecUobCh1G6MaumuEeR7EXuz9p88d7wEt2SPezw97
-         FmjQ==
-X-Google-Smtp-Source: APXvYqx6HEUoIqfS52gzn8y0KrQsf7q1x4CiJ/9P8zJ9QW7nroLu9eqcvYa+03rEne+EbXrDQjNrpkGRT2bTR5Pv1mU=
-X-Received: by 2002:a6b:4101:: with SMTP id n1mr14151102ioa.138.1561376765960;
- Mon, 24 Jun 2019 04:46:05 -0700 (PDT)
+        bh=4sCioPXlb29uCUXcWaSeu3ouKfJt5j/bFJ2w/CyNw2c=;
+        b=sm2RVRXAjwVlXYZLx7geioGtk+BR242iTE1ahR9xHr0PmrJjewpjBjtvnvs/qIFqp/
+         abD3pOu/UOwmqUWwwoz0bkUvBMFuuWaXQFhjAYGad/dxwR0f4Yp/p4RLynZO0bl6cB1V
+         1ZyAUXh+Yd4XNJ06zBDrmW/UCque+MpGgUQtsNQ1tt+eMg+1fKBtRcLSMQ+q/Tbpty5b
+         jCWWBeJWWo8u045J3E9ZVtqB0tk/dsl2ryXKOqdlynQ8YipfI1qGXIScDJ1RhHHu7w6Y
+         9C1bXNH2/eJ6LC0wnSD0Henu0S2E6xfL7xnFb63mnmeByrHaxchCLGPrHiJdecHasvM4
+         TMZg==
+X-Google-Smtp-Source: APXvYqwtGwqXfKf0YFqGGNqqaIODSyYzqBP+opW0jxwa9SyEbdSS0oG3ciF67nSp+8tfpiP0kQFKFzXpMmOfeZVvhtQ=
+X-Received: by 2002:a17:902:4183:: with SMTP id f3mr31396406pld.336.1561376784423;
+ Mon, 24 Jun 2019 04:46:24 -0700 (PDT)
 MIME-Version: 1.0
 References: <20190624110532.41065-1-elver@google.com>
 In-Reply-To: <20190624110532.41065-1-elver@google.com>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Mon, 24 Jun 2019 13:45:53 +0200
-Message-ID: <CACT4Y+ZP4gkLh5zbwSLzV+ZwJCq_zSrsaQE+1Y94iU0JJzJNqw@mail.gmail.com>
+From: Andrey Konovalov <andreyknvl@google.com>
+Date: Mon, 24 Jun 2019 13:46:12 +0200
+Message-ID: <CAAeHK+w5oNt+3wvHr2W2+ikd8J=psk2YSjRSARF4P+W7UgUX_Q@mail.gmail.com>
 Subject: Re: [PATCH] mm/kasan: Add shadow memory validation in ksize()
 To: Marco Elver <elver@google.com>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, 
-	Andrey Konovalov <andreyknvl@google.com>, LKML <linux-kernel@vger.kernel.org>, 
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Dmitry Vyukov <dvyukov@google.com>, 
+	Alexander Potapenko <glider@google.com>, LKML <linux-kernel@vger.kernel.org>, 
 	Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, 
 	Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, 
-	kasan-dev <kasan-dev@googlegroups.com>, Linux-MM <linux-mm@kvack.org>
+	kasan-dev <kasan-dev@googlegroups.com>, 
+	Linux Memory Management List <linux-mm@kvack.org>
 Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -222,11 +223,6 @@ On Mon, Jun 24, 2019 at 1:05 PM Marco Elver <elver@google.com> wrote:
 > +       size_t size = 16;
 > +
 > +       pr_info("kmalloc pagealloc allocation: double-free (kzfree)\n");
-
-This does not have anything to do with pagealloc, right?
-If so, remove pagealloc here and in the function name. kzfree also
-implies kmalloc, so this could be just double_kzfree().
-
 > +       ptr = kmalloc(size, GFP_KERNEL);
 > +       if (!ptr) {
 > +               pr_err("Allocation failed\n");
@@ -272,6 +268,10 @@ implies kmalloc, so this could be just double_kzfree().
 >  {
 > -       s8 shadow_byte;
 >         u8 tag;
+
+The tag variable is not used any more in this function, right? If so,
+it can be removed.
+
 >         void *tagged_object;
 >         unsigned long rounded_up_size;
 > @@ -435,8 +445,7 @@ static bool __kasan_slab_free(struct kmem_cache *cache, void *object,
@@ -320,32 +320,19 @@ implies kmalloc, so this could be just double_kzfree().
 > -        */
 > -       kasan_unpoison_shadow(object, size);
 > +       if (!kasan_shadow_invalid(object)) {
-
-
-I am thinking if we should call kasan_check_read(object, 1) here...
-This would not produce a double-free error (use-after-free read
-instead), but conceptually why we would allow calling ksize on freed
-objects? But more importantly, we just skip unpoisoning shadow, but we
-still smash the object contents on the second kzfree, right? This
-means that the heap is corrupted after running the tests. As far as I
-remember we avoided corrupting heap in tests and in particular a
-normal double-free does not. As of now we've smashed the quarantine
-link, but if we move the free metadata back into the object (e.g. to
-resolve https://bugzilla.kernel.org/show_bug.cgi?id=198437) we also
-smash free metadata before we print the double free report (at the
-very least we will fail to print free stack, and crash at worst).
-
-Doing kasan_check_read() in ksize() will cause a report _before_ we
-smashed the object at the cost of an imprecise report title.
-And fixing all of the issues will require changing kzfree I think.
-
-
 > +               /*
 > +                * We assume that ksize callers could use whole allocated area,
 > +                * so we need to unpoison this area.
 > +                */
 > +               kasan_unpoison_shadow(object, size);
 > +       }
+
+I think it's better to add a kasan_ksize() hook that implements this
+logic. This way we don't have to duplicate it for SLAB and SLUB.
+
+In this case we also don't need an exported kasan_shadow_invalid()
+hook, and its logic can be moved into shadow_invalid().
+
 >         return size;
 >  }
 >  EXPORT_SYMBOL(ksize);
