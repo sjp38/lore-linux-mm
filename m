@@ -7,99 +7,99 @@ X-Spam-Status: No, score=-8.7 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_NEOMUTT autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 24399C43613
-	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 12:47:45 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1C9D0C43613
+	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 12:49:34 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B926D20652
-	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 12:47:44 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id C754B212F5
+	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 12:49:33 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="a2aeOwwq"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B926D20652
+	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="rK1fCVjr"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C754B212F5
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=shutemov.name
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 513056B0003; Mon, 24 Jun 2019 08:47:44 -0400 (EDT)
+	id 698416B0003; Mon, 24 Jun 2019 08:49:33 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4C2FE8E0003; Mon, 24 Jun 2019 08:47:44 -0400 (EDT)
+	id 649138E0003; Mon, 24 Jun 2019 08:49:33 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 365038E0002; Mon, 24 Jun 2019 08:47:44 -0400 (EDT)
+	id 5379D8E0002; Mon, 24 Jun 2019 08:49:33 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id DC1EE6B0003
-	for <linux-mm@kvack.org>; Mon, 24 Jun 2019 08:47:43 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id l26so20364020eda.2
-        for <linux-mm@kvack.org>; Mon, 24 Jun 2019 05:47:43 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 0764E6B0003
+	for <linux-mm@kvack.org>; Mon, 24 Jun 2019 08:49:33 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id k22so20370571ede.0
+        for <linux-mm@kvack.org>; Mon, 24 Jun 2019 05:49:32 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
          :message-id:references:mime-version:content-disposition:in-reply-to
          :user-agent;
-        bh=5R1XuJC9DE2YVjPQXPWriy0pxsYFqY6xXdBGHnrUnJs=;
-        b=ZmAtyFIpGo93WE8+tkxnbKp9l++s8vTkIgfCntfyR44h5G37R69t0Foys6Q0aXl3P8
-         ROg14sX7ui4x50/51bgUlTERezWimq04Kcwssu8ubmra0/28xivl8itbNHICpuEt+NlX
-         pNLMEQVbka+eknGp1L0AItHCOPSm79KduTkRKS5nDO/N6RsgFa/VgvVIOTdHq0HDYzcn
-         0rvr29aPFVRKTJn+b7NvP3MjFzVdEPWF92mLyazijv/EK44vPx7dTCeBpsB0MdCBiJ7G
-         zUFevp9TL3zFA42cF3vldpBoNG8ZeNkVYUrKKUhNmVsgPiD2mZFeRDFBSK+3nzXrKYpc
-         eD4Q==
-X-Gm-Message-State: APjAAAUnuMznbiBeNqTQ1TTXmXIV89kQ8E2G8aS1+IMhqFinstyHAhXN
-	30RKlDltkpTLzJ5OC4I3PuHpLG1VrEpGQoLOvNRghgsjGipvEo+WpJVdm5GWxGBdpuxW/07Ijjx
-	kOc1bKpVc5KyI3lnrXiPi74ma/qjdTBM5v8CPYQ1iwXpnQdzNYvYB0MA2pzDvHlpUHQ==
-X-Received: by 2002:a17:906:944f:: with SMTP id z15mr19424982ejx.137.1561380463424;
-        Mon, 24 Jun 2019 05:47:43 -0700 (PDT)
-X-Received: by 2002:a17:906:944f:: with SMTP id z15mr19424931ejx.137.1561380462538;
-        Mon, 24 Jun 2019 05:47:42 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561380462; cv=none;
+        bh=GO2oBSDlPl0PNRYpRAnBbZVvBmybpqwS00Has79olYk=;
+        b=luhdPoY1mFwt0ECAta6R8yI/aTeeMJJRZXMNGLOxPFofRYWxnLn5Y11kqV0JaXhwyT
+         p8Jitsu3LxmTBaslR/KdawB2Bks9f1D71mpOGg4qURX+hll6NEpN/WCvyfPp1MQf+Vdy
+         WwSfCMzxaB1ANEEik1wqRLUFK0niiQ+tpE/Ow2kNubHSnInrir0Mb/xutJ3R3AhjFHkN
+         c7NvNJEw6Xu1RC039C4W9Gan3A43niIp4CpOHHnJ3xxBInZW5R877xJkwQFpzvnI3loi
+         qKTnCgoZA0YNoe5xT9myT5L/HhhPiOnt32++WgdtVVyDnQ594VP10CF5W0p/m0nkm0Z/
+         E79A==
+X-Gm-Message-State: APjAAAVZv1+yD7MIOg9bY3i0YNgXctb3+TcZuI4dSIN6srfMeXsUi4xn
+	eYQaC6iaFLddNcx9i7Lo0JA+RE4mayOWFSHy6YAeFStysKOzKKk8eib6ratyx4Q2BpP/t6V5VP4
+	pNa6Fuj1j0upo0wZmf6YFnGa0Na/o9EBkOc2n6ksg0Dsq/MMyyoJ4+q+1OIRM++iX1g==
+X-Received: by 2002:a50:d1c6:: with SMTP id i6mr46451110edg.110.1561380572446;
+        Mon, 24 Jun 2019 05:49:32 -0700 (PDT)
+X-Received: by 2002:a50:d1c6:: with SMTP id i6mr46451048edg.110.1561380571671;
+        Mon, 24 Jun 2019 05:49:31 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561380571; cv=none;
         d=google.com; s=arc-20160816;
-        b=diN63dgpAfU8BNAqOCueH6hZtB1dQ0jK6Al6naBWqKM4YvB+n5X3e3tcMIcX1fBE4h
-         OvDoux7WMwM4iF4PpGJ7K7szKCy7VNgBhErblnndiWu3j9Jd6UUJZZH1MT5xvJ48a/Wl
-         AgCF2HlkF3H02LWjjS3IB7KfXZCsd+l0EXUZORLSj9UvdKaBeAZHTUJo2EdSMxeO+kGT
-         3LimPm32yIkTb+hzpWev/BzJ6HLi5spT/8uStJvtXdB6SVyd0Xwr7OcmozSFYFTwGTER
-         JZPWLa5HPh+DpbOeynANHbsDLU1uih5pkGbdbS3nmOkaV58p/y0YM+XW/A/pUerPN91t
-         F5Hg==
+        b=ZT+yi6D/9eJxstlaLrn1MYSrIVo5PJFIET3j/Vy8FS9nJGEDCn4cJ5KYz9Z9CH8C2P
+         /CjdxMqqD+LMLn6cKng2/Df0CiySpRenxXu5EE5UjYIr9AMtk2LcbrsLQQybGqtiiVrZ
+         xOwMHRHFZimvQ9Wld1tFMcLDBK8KDiS3cf1gC78XFnRuHmWqDlPw9Qk8FuGbIjEfv6/Q
+         0RKcMdelh7C+BnEKmvOjn+KA10yCdYo9qvJvsueOYXt7DXLV5INu0eIJ6cPI+RLHttWD
+         XBBoHVC5b3sZXSaUtskO/+tDV22Ilx7DMY7talLvNrl5u80LfvII7WXyDeh9Z4ILHQAJ
+         oqLA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=5R1XuJC9DE2YVjPQXPWriy0pxsYFqY6xXdBGHnrUnJs=;
-        b=Ci4UbSif33CNwNIQUjn7IlHpgjIRSWmrdUrm/F4pzjCKiGtNbJiaHctxHGKO3x6oUT
-         0usZyTxb7mgW3NPRywv5W0HGpWh7yUX5PE5QPuLN0dkV67HoI8flkaCm9fDxbDXyb4e7
-         HCbj+jF1aONKnKgjljk316759hGk3mGYYGFufyZibSDMeZpEXCYh5OiK+MMFd92bYyJD
-         CilQZ1VstZNLpdcNn/2KVKfun6yudK1KX6SewDMImAMjCQCXXl674UVmLLZSjmjHJxUE
-         pDUMlrWdTEUQ/MOhQbkeTdZTRzTmld6s+n+90wvqf4WDHfEARRJLXI8wnaZa7umv2dPs
-         6srQ==
+        bh=GO2oBSDlPl0PNRYpRAnBbZVvBmybpqwS00Has79olYk=;
+        b=o+3OM/BdekEv9RkoZEW9pjoLbUeZV//L6wLBBKJ4lrYh+huqFvbkRNWb3xOOF0L3ww
+         /lPlkTnp/N8mrZ3x4Zd8zTeOFMO8rTyvA0snlJODkF4HriIygALBwr9hoDrQHw9mFfU8
+         zmpimkxWr+T/R2IslX5bvNOXvhWBJhF245KX7NjkJnv4KFgRdap+kNPHsiPyJyFibe0o
+         5Hn6SohZD/b83XSP8BH6eANccF8mDv+RscF+ao520XdjKlMh08EBZE2aqNhqnEbfrb2s
+         2oByfkgUzx5HJN1IddkNBqzRU3+0MlOSRnHVyINyjPyaeXfAZnrzQANSTOlWrVuf6Ff4
+         mtaA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=a2aeOwwq;
+       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=rK1fCVjr;
        spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id cw2sor3311897ejb.24.2019.06.24.05.47.42
+        by mx.google.com with SMTPS id h12sor3346459ejc.9.2019.06.24.05.49.31
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 24 Jun 2019 05:47:42 -0700 (PDT)
+        Mon, 24 Jun 2019 05:49:31 -0700 (PDT)
 Received-SPF: neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=a2aeOwwq;
+       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=rK1fCVjr;
        spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=shutemov-name.20150623.gappssmtp.com; s=20150623;
         h=date:from:to:cc:subject:message-id:references:mime-version
          :content-disposition:in-reply-to:user-agent;
-        bh=5R1XuJC9DE2YVjPQXPWriy0pxsYFqY6xXdBGHnrUnJs=;
-        b=a2aeOwwqRc9sdanvz4ex1HZ3aDnbv42+RPlV99fm907NTH5b2ydB4YRrV8RXAsEsrg
-         ZktJtepV3h00JBNvjW79HzJUAmHQOEibl375GFp3YLKds2zjIP2HuW0/fuhRBybWokZ5
-         xOTpPtThyzge4iQ3ia1LpIffvCMUCkyjG01tU2HRseOpLuubnP3MlMoIMGwL6/EJJ4nX
-         +GxOr+mOTru/UXDm0fZPauhHI2X/LF+35LNRW5E4b44TtqnOHeV1RUqSfAedXTcD1hFG
-         6PVQaIJTnIbsXo1yxe6hHrj0L5DRk8ZnZtBXYVhaqEBEdPPH/Ym081LI3qjegmyeYuqD
-         NSZg==
-X-Google-Smtp-Source: APXvYqw6YlhAC3oIiA9s+aVARSckup/URDhBj1oaqoxAsYqXrJAtuunouiuEqz7c66HAgftkpi/aGg==
-X-Received: by 2002:a17:907:2114:: with SMTP id qn20mr112521670ejb.138.1561380462147;
-        Mon, 24 Jun 2019 05:47:42 -0700 (PDT)
+        bh=GO2oBSDlPl0PNRYpRAnBbZVvBmybpqwS00Has79olYk=;
+        b=rK1fCVjro0ij0GY/+VmDa/DZKR+COsmWCeos7/Mw946RphPMrKr5mg9az3IsT3y++Y
+         ZQnjSo1yDT9CeRpH++R+6uudXOuGpxZ6ouEp1OO+tcQ8QYKslWyDjoQD7nfVXstHh4Nm
+         ZcEnUf1XxbmrYZmYczc5DNmFV349K8x1UTCIeinfMDSQYe0VCgaNOKER6vB8DAWiyJ4c
+         oPKVW+X0co8AsiLlaF1hnbjq9I9YFpmk53bmhZl0/FgP5+v+Z4b+Uuz9sJNtGlqG+Z5c
+         fTTqIU3ihnunnjAq0x22EnO3IVDCDiA13XWfT8AEcvtFd2QMGB2nvcNfjtPnqTGwP5VO
+         U7iw==
+X-Google-Smtp-Source: APXvYqyp72hr1uxp/CILmlYg6sj6ztU4rrUmEIE/YZVKldHuBkXQ0HHxrQ0g87k/RrqZ4HGv20IDAw==
+X-Received: by 2002:a17:906:c106:: with SMTP id h6mr82142308ejz.112.1561380571354;
+        Mon, 24 Jun 2019 05:49:31 -0700 (PDT)
 Received: from box.localdomain ([86.57.175.117])
-        by smtp.gmail.com with ESMTPSA id f7sm3884261edb.12.2019.06.24.05.47.41
+        by smtp.gmail.com with ESMTPSA id f36sm3693648ede.47.2019.06.24.05.49.30
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 24 Jun 2019 05:47:41 -0700 (PDT)
+        Mon, 24 Jun 2019 05:49:30 -0700 (PDT)
 Received: by box.localdomain (Postfix, from userid 1000)
-	id D1CEA10439E; Mon, 24 Jun 2019 15:47:46 +0300 (+03)
-Date: Mon, 24 Jun 2019 15:47:46 +0300
+	id 1BE4210439E; Mon, 24 Jun 2019 15:49:36 +0300 (+03)
+Date: Mon, 24 Jun 2019 15:49:36 +0300
 From: "Kirill A. Shutemov" <kirill@shutemov.name>
 To: Song Liu <songliubraving@fb.com>
 Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org,
@@ -107,15 +107,14 @@ Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org,
 	kirill.shutemov@linux.intel.com, kernel-team@fb.com,
 	william.kucharski@oracle.com, akpm@linux-foundation.org,
 	hdanton@sina.com
-Subject: Re: [PATCH v7 5/6] mm,thp: add read-only THP support for (non-shmem)
- FS
-Message-ID: <20190624124746.7evd2hmbn3qg3tfs@box>
+Subject: Re: [PATCH v7 6/6] mm,thp: avoid writes to file with THP in pagecache
+Message-ID: <20190624124936.2vq55jc3qstxrujj@box>
 References: <20190623054749.4016638-1-songliubraving@fb.com>
- <20190623054749.4016638-6-songliubraving@fb.com>
+ <20190623054749.4016638-7-songliubraving@fb.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190623054749.4016638-6-songliubraving@fb.com>
+In-Reply-To: <20190623054749.4016638-7-songliubraving@fb.com>
 User-Agent: NeoMutt/20180716
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -123,195 +122,62 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Jun 22, 2019 at 10:47:48PM -0700, Song Liu wrote:
-> This patch is (hopefully) the first step to enable THP for non-shmem
-> filesystems.
+On Sat, Jun 22, 2019 at 10:47:49PM -0700, Song Liu wrote:
+> In previous patch, an application could put part of its text section in
+> THP via madvise(). These THPs will be protected from writes when the
+> application is still running (TXTBSY). However, after the application
+> exits, the file is available for writes.
 > 
-> This patch enables an application to put part of its text sections to THP
-> via madvise, for example:
+> This patch avoids writes to file THP by dropping page cache for the file
+> when the file is open for write. A new counter nr_thps is added to struct
+> address_space. In do_last(), if the file is open for write and nr_thps
+> is non-zero, we drop page cache for the whole file.
 > 
->     madvise((void *)0x600000, 0x200000, MADV_HUGEPAGE);
-> 
-> We tried to reuse the logic for THP on tmpfs.
-> 
-> Currently, write is not supported for non-shmem THP. khugepaged will only
-> process vma with VM_DENYWRITE. The next patch will handle writes, which
-> would only happen when the vma with VM_DENYWRITE is unmapped.
-> 
-> An EXPERIMENTAL config, READ_ONLY_THP_FOR_FS, is added to gate this
-> feature.
-> 
-> Acked-by: Rik van Riel <riel@surriel.com>
+> Reported-by: kbuild test robot <lkp@intel.com>
 > Signed-off-by: Song Liu <songliubraving@fb.com>
 > ---
->  mm/Kconfig      | 11 ++++++
->  mm/filemap.c    |  4 +--
->  mm/khugepaged.c | 90 ++++++++++++++++++++++++++++++++++++++++---------
->  mm/rmap.c       | 12 ++++---
->  4 files changed, 96 insertions(+), 21 deletions(-)
+>  fs/inode.c         |  3 +++
+>  fs/namei.c         | 22 +++++++++++++++++++++-
+>  include/linux/fs.h | 32 ++++++++++++++++++++++++++++++++
+>  mm/filemap.c       |  1 +
+>  mm/khugepaged.c    |  4 +++-
+>  5 files changed, 60 insertions(+), 2 deletions(-)
 > 
-> diff --git a/mm/Kconfig b/mm/Kconfig
-> index f0c76ba47695..0a8fd589406d 100644
-> --- a/mm/Kconfig
-> +++ b/mm/Kconfig
-> @@ -762,6 +762,17 @@ config GUP_BENCHMARK
->  
->  	  See tools/testing/selftests/vm/gup_benchmark.c
->  
-> +config READ_ONLY_THP_FOR_FS
-> +	bool "Read-only THP for filesystems (EXPERIMENTAL)"
-> +	depends on TRANSPARENT_HUGE_PAGECACHE && SHMEM
-> +
-> +	help
-> +	  Allow khugepaged to put read-only file-backed pages in THP.
-> +
-> +	  This is marked experimental because it is a new feature. Write
-> +	  support of file THPs will be developed in the next few release
-> +	  cycles.
-> +
->  config ARCH_HAS_PTE_SPECIAL
->  	bool
->  
-> diff --git a/mm/filemap.c b/mm/filemap.c
-> index 5f072a113535..e79ceccdc6df 100644
-> --- a/mm/filemap.c
-> +++ b/mm/filemap.c
-> @@ -203,8 +203,8 @@ static void unaccount_page_cache_page(struct address_space *mapping,
->  		__mod_node_page_state(page_pgdat(page), NR_SHMEM, -nr);
->  		if (PageTransHuge(page))
->  			__dec_node_page_state(page, NR_SHMEM_THPS);
-> -	} else {
-> -		VM_BUG_ON_PAGE(PageTransHuge(page), page);
-> +	} else if (PageTransHuge(page)) {
-> +		__dec_node_page_state(page, NR_FILE_THPS);
->  	}
->  
->  	/*
-> diff --git a/mm/khugepaged.c b/mm/khugepaged.c
-> index 158cad542627..090127e4e185 100644
-> --- a/mm/khugepaged.c
-> +++ b/mm/khugepaged.c
-> @@ -48,6 +48,7 @@ enum scan_result {
->  	SCAN_CGROUP_CHARGE_FAIL,
->  	SCAN_EXCEED_SWAP_PTE,
->  	SCAN_TRUNCATED,
-> +	SCAN_PAGE_HAS_PRIVATE,
->  };
->  
->  #define CREATE_TRACE_POINTS
-> @@ -404,7 +405,11 @@ static bool hugepage_vma_check(struct vm_area_struct *vma,
->  	    (vm_flags & VM_NOHUGEPAGE) ||
->  	    test_bit(MMF_DISABLE_THP, &vma->vm_mm->flags))
->  		return false;
-> -	if (shmem_file(vma->vm_file)) {
-> +
-> +	if (shmem_file(vma->vm_file) ||
-> +	    (IS_ENABLED(CONFIG_READ_ONLY_THP_FOR_FS) &&
-> +	     vma->vm_file &&
-> +	     (vm_flags & VM_DENYWRITE))) {
->  		if (!IS_ENABLED(CONFIG_TRANSPARENT_HUGE_PAGECACHE))
->  			return false;
->  		return IS_ALIGNED((vma->vm_start >> PAGE_SHIFT) - vma->vm_pgoff,
-> @@ -456,8 +461,9 @@ int khugepaged_enter_vma_merge(struct vm_area_struct *vma,
->  	unsigned long hstart, hend;
->  
->  	/*
-> -	 * khugepaged does not yet work on non-shmem files or special
-> -	 * mappings. And file-private shmem THP is not supported.
-> +	 * khugepaged only supports read-only files for non-shmem files.
-> +	 * khugepaged does not yet work on special mappings. And
-> +	 * file-private shmem THP is not supported.
->  	 */
->  	if (!hugepage_vma_check(vma, vm_flags))
->  		return 0;
-> @@ -1287,12 +1293,12 @@ static void retract_page_tables(struct address_space *mapping, pgoff_t pgoff)
+> diff --git a/fs/inode.c b/fs/inode.c
+> index df6542ec3b88..518113a4e219 100644
+> --- a/fs/inode.c
+> +++ b/fs/inode.c
+> @@ -181,6 +181,9 @@ int inode_init_always(struct super_block *sb, struct inode *inode)
+>  	mapping->flags = 0;
+>  	mapping->wb_err = 0;
+>  	atomic_set(&mapping->i_mmap_writable, 0);
+> +#ifdef CONFIG_READ_ONLY_THP_FOR_FS
+> +	atomic_set(&mapping->nr_thps, 0);
+> +#endif
+>  	mapping_set_gfp_mask(mapping, GFP_HIGHUSER_MOVABLE);
+>  	mapping->private_data = NULL;
+>  	mapping->writeback_index = 0;
+> diff --git a/fs/namei.c b/fs/namei.c
+> index 20831c2fbb34..de64f24b58e9 100644
+> --- a/fs/namei.c
+> +++ b/fs/namei.c
+> @@ -3249,6 +3249,22 @@ static int lookup_open(struct nameidata *nd, struct path *path,
+>  	return error;
 >  }
 >  
->  /**
-> - * collapse_file - collapse small tmpfs/shmem pages into huge one.
-> + * collapse_file - collapse filemap/tmpfs/shmem pages into huge one.
->   *
->   * Basic scheme is simple, details are more complex:
->   *  - allocate and lock a new huge page;
->   *  - scan page cache replacing old pages with the new one
-> - *    + swap in pages if necessary;
-> + *    + swap/gup in pages if necessary;
->   *    + fill in gaps;
->   *    + keep old pages around in case rollback is required;
->   *  - if replacing succeeds:
-> @@ -1316,7 +1322,11 @@ static void collapse_file(struct mm_struct *mm,
->  	LIST_HEAD(pagelist);
->  	XA_STATE_ORDER(xas, &mapping->i_pages, start, HPAGE_PMD_ORDER);
->  	int nr_none = 0, result = SCAN_SUCCEED;
-> +	bool is_shmem = shmem_file(file);
->  
-> +#ifndef CONFIG_READ_ONLY_THP_FOR_FS
-> +	VM_BUG_ON(!is_shmem);
-> +#endif
+> +/*
+> + * The file is open for write, so it is not mmapped with VM_DENYWRITE. If
+> + * it still has THP in page cache, drop the whole file from pagecache
+> + * before processing writes. This helps us avoid handling write back of
+> + * THP for now.
+> + */
+> +static inline void release_file_thp(struct file *file)
+> +{
+> +#ifdef CONFIG_READ_ONLY_THP_FOR_FS
 
-	VM_BUG_ON(!IS_ENABLED(CONFIG_READ_ONLY_THP_FOR_FS) && !is_shmem);
+Please, use IS_ENABLED() where it is possible.
 
->  	VM_BUG_ON(start & (HPAGE_PMD_NR - 1));
->  
->  	/* Only allocate from the target node */
-> @@ -1348,7 +1358,8 @@ static void collapse_file(struct mm_struct *mm,
->  	} while (1);
->  
->  	__SetPageLocked(new_page);
-> -	__SetPageSwapBacked(new_page);
-> +	if (is_shmem)
-> +		__SetPageSwapBacked(new_page);
->  	new_page->index = start;
->  	new_page->mapping = mapping;
->  
-> @@ -1363,7 +1374,7 @@ static void collapse_file(struct mm_struct *mm,
->  		struct page *page = xas_next(&xas);
->  
->  		VM_BUG_ON(index != xas.xa_index);
-> -		if (!page) {
-> +		if (is_shmem && !page) {
->  			/*
->  			 * Stop if extent has been truncated or hole-punched,
->  			 * and is now completely empty.
-> @@ -1384,7 +1395,7 @@ static void collapse_file(struct mm_struct *mm,
->  			continue;
->  		}
->  
-> -		if (xa_is_value(page) || !PageUptodate(page)) {
-> +		if (is_shmem && (xa_is_value(page) || !PageUptodate(page))) {
->  			xas_unlock_irq(&xas);
->  			/* swap in or instantiate fallocated page */
->  			if (shmem_getpage(mapping->host, index, &page,
-> @@ -1392,6 +1403,23 @@ static void collapse_file(struct mm_struct *mm,
->  				result = SCAN_FAIL;
->  				goto xa_unlocked;
->  			}
-> +		} else if (!page || xa_is_value(page)) {
-> +			xas_unlock_irq(&xas);
-> +			page_cache_sync_readahead(mapping, &file->f_ra, file,
-> +						  index, PAGE_SIZE);
-> +			lru_add_drain();
 
-Why?
-
-> +			page = find_lock_page(mapping, index);
-> +			if (unlikely(page == NULL)) {
-> +				result = SCAN_FAIL;
-> +				goto xa_unlocked;
-> +			}
-> +		} else if (!PageUptodate(page)) {
-
-Maybe we should try wait_on_page_locked() here before give up?
-
-> +			VM_BUG_ON(is_shmem);
-> +			result = SCAN_FAIL;
-> +			goto xa_locked;
-> +		} else if (!is_shmem && PageDirty(page)) {
-> +			result = SCAN_FAIL;
-> +			goto xa_locked;
->  		} else if (trylock_page(page)) {
->  			get_page(page);
->  			xas_unlock_irq(&xas);
 -- 
  Kirill A. Shutemov
 
