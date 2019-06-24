@@ -2,213 +2,171 @@ Return-Path: <SRS0=9FL3=UX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+	URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 48811C48BE8
-	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 04:44:46 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2ABF6C48BE8
+	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 05:03:45 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 116AA213F2
-	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 04:44:46 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 116AA213F2
+	by mail.kernel.org (Postfix) with ESMTP id F002D2089F
+	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 05:03:44 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F002D2089F
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B86206B0003; Mon, 24 Jun 2019 00:44:45 -0400 (EDT)
+	id 732686B0003; Mon, 24 Jun 2019 01:03:44 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B37558E0002; Mon, 24 Jun 2019 00:44:45 -0400 (EDT)
+	id 6BC7B8E0002; Mon, 24 Jun 2019 01:03:44 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9FFFA8E0001; Mon, 24 Jun 2019 00:44:45 -0400 (EDT)
+	id 55CDE8E0001; Mon, 24 Jun 2019 01:03:44 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 6AB0B6B0003
-	for <linux-mm@kvack.org>; Mon, 24 Jun 2019 00:44:45 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id u21so8778133pfn.15
-        for <linux-mm@kvack.org>; Sun, 23 Jun 2019 21:44:45 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 1BD7B6B0003
+	for <linux-mm@kvack.org>; Mon, 24 Jun 2019 01:03:44 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id d190so8820458pfa.0
+        for <linux-mm@kvack.org>; Sun, 23 Jun 2019 22:03:44 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:references:date:in-reply-to:message-id:user-agent
-         :mime-version;
-        bh=Ji8DNvujj/CEicTHVNU23bF98+MsaKG7wilSatCYpdY=;
-        b=NU0ldZuo5KfFab5KRFmTDdk1mNFjHjfto6WCofLOAnQE7bQ066KRaItMUuZ0CVsZZU
-         EOKfhxYq7mVNfgXo/4XadjkqAfZnxIwV/aNFGVsAa2DB7qlGRxOfK25NerASYbEBHGKS
-         b1Jgoat/wwSvAcKEYy/+ocNpv9uhj6FEmlu0xs8/P1x8doJ29c+mLMl5BXqvP7LvY7hh
-         ORw6rsZtGssSMdfEYXv5fetGih5pkHToqTaeYtu8eUBQdk15/p1kj9k/Ug3ii5QTZihg
-         YgCyaFJN+BKfb+lXIjLxo2mehnCFjvQ2eSh0wzJxlEAnjqzmQpZYp4Srzkuly9ddtbKZ
-         64EA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ying.huang@intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=ying.huang@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAVIBnRngIGavowneHn7GfQ4oms7GbO2jlxd/EBTykmtAT1YRuO+
-	yRsj/ZfUwde9UNoQqC0XaIMH73bS8i/em2ULvKMas+yN1TMrGVDM8wxMDals+1I3aQADjn8Dp06
-	ceDQfuCJS3bWhqz+OBZZu089VtPsgOz2xXhwPAOvyWH77Q2mqMkJOgGVAhKKr/rHeVg==
-X-Received: by 2002:a17:902:7448:: with SMTP id e8mr137082048plt.222.1561351485120;
-        Sun, 23 Jun 2019 21:44:45 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzYy9aZF5pETS39ql3XQsGc46Uy5cl+pCgKZ8R4SdyrKwiTG9F9pei+Jw1+ClXcgIvsK/qF
-X-Received: by 2002:a17:902:7448:: with SMTP id e8mr137082012plt.222.1561351484453;
-        Sun, 23 Jun 2019 21:44:44 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561351484; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=I39Bi0bn1V2qCmzChaXQgVPzQdJt5HaZsOVvSEfHmxQ=;
+        b=aexP2qPOILH1WjtTMDycdKg8v9CDO94ebffoK1fG617+SIP0VWNFFXCLNF6YMjk7CU
+         NCFt48sn3xq/N8ixE8pXpWBjbzC+FhjzyAWEIRD7YkZ06hnILZhmV2D52RC2OW8pSCAg
+         XaD8Lyt1hO3EhFZhh4YQVQF91Dcuumb5WPlHUDJJ00eHvrIYVIljVeaiknbi+j7+m0bB
+         55EnVM0BxWcWAYrKgxt5wnJr5XMQj6vzDw0Yw2b2k/FJEd9OWGHulLGcZAhr/160j8A7
+         adGl7NsmIeQqVirH1H+K1qe5ygdeB3qbwP2r/rlpnrWMjwrviYiF6B7TzlfZZ6Z8XBpX
+         nPng==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAUBeulm6ITWEf0HHeOGalJW/Psp842EZs0BbckCfUm2a2L1stk/
+	HvE/BfNOSdcogAKa0CoTuIAOfWN/HjFQ4PO5HTayAqV4DgJoZKCU5w/AIhyXHVqCMMDojO/pWFB
+	t1guoOtWoCrwgBJmdSqURTC/Y7MmVBNAtrDA7xWL7cWqr/PsPEDEgPuWfkLc21qc8dg==
+X-Received: by 2002:a17:902:2ae7:: with SMTP id j94mr61623351plb.270.1561352623718;
+        Sun, 23 Jun 2019 22:03:43 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwZ21QkUMb0+xt6IlG569PrY3PRAc3zLcg4m+KmGJjvZbedl/+5TFr999BgM1Tzd/ZDbCxH
+X-Received: by 2002:a17:902:2ae7:: with SMTP id j94mr61623322plb.270.1561352623071;
+        Sun, 23 Jun 2019 22:03:43 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561352623; cv=none;
         d=google.com; s=arc-20160816;
-        b=Jdq7PLsnzhBm7R4hWvxOH5avMl0mtUzrX3pVyz4Y81/6Qq7Y0Zdk8cIjjx7pn9guZJ
-         jeLT6hE2r6ATuVTKll8tJa1Dav9VaIFjI+BgVUQ2iQAfQRzH/7FDd+E4smMLkaVquQYD
-         yRkGRBbQz4qBZrLnDygSLToIPgOsb4y9VzilnM3XeSzKDPD5995zKGTK2o5ViCCNx8bM
-         mhUf4hhdm8Wwic3y03OcpF+m9TmbXUcSbVbs+2roGfgy8uZ/DZrSh0gi3MjvUqwtLccA
-         pXbRcz73No35ldAkCzm1ZNQg9q+Wo3wD8rZGysjp5TngJmoLWBOL6tIpf19WM0wvnHCV
-         tyMQ==
+        b=cCmyn9rHXk1+/H2tXlt/trlaIX+ZuPYquG7cTqbuJE/Wxs5uVlYzva3ANonsx1a6CN
+         ftsMwoU7w7jkj0XW0m5t0PFxdaWAkh++elZFx+cOiGmFabMSpYvsqZ2ML7Nwj99mr3ww
+         9GZ8cprbH6v21U9rT+ZfvhLEI05J/uSNAKw8SM7VLzvhB86TC2UB9Iev9/7hvPeEsv1y
+         U8McQN5ltxGFKDJdiOJtnwcaIyI4bUAQHbxVPVxeFtzn5t18jIpZhogOMoRRqsAACY0q
+         f4TotiYkGsY84e29HpEcMCGJx/ecKejHJXPP3sA3Vzl0TK+y6iKUVLnq/OqeahuBSq0+
+         +Qfw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:user-agent:message-id:in-reply-to:date:references
-         :subject:cc:to:from;
-        bh=Ji8DNvujj/CEicTHVNU23bF98+MsaKG7wilSatCYpdY=;
-        b=GAzWTdnZtakSQ3jJ56dYNStPzBY6825fcIdpYN/bEXqJXsmkaSGwRxb8eKr4VV0kHf
-         6VLWx4YckZ0PcQmidaWZYr0tzi2TRoxJ8LOJQR7Vg5TIYGs5oIk4B6Z47LyO8fYv/ILb
-         5RQsLGNaHRmq3XEdzuo7CKO97NiN4zpcCVdFMckbvpA6mx/XfBiE8q1+//v91MfbGHZn
-         Lbo4mcio2ec2bsGXhF680COEN36H1QXQqi2JN4uV9yIIvRrPHCkoDHEqpeMinySWuRgR
-         xEVSz7HH/G80qyV3VpaBmym2AiWHw2uzRgr+gw4AuKHXnRlFDaF5yVO5ZXGHTu84/Ob/
-         CEKA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=I39Bi0bn1V2qCmzChaXQgVPzQdJt5HaZsOVvSEfHmxQ=;
+        b=acBRFYkLT8nfh5UjxifTnDyouxRHrZWNg/UdgAGZYkm5TL4PD182Y7GjZR3FnBms6e
+         32f+XnYMLBqG3pNQL7iKNSvbPh+/kAf1Ra3QKE02eAi7vHZ5oRkjfa1WqkkA7gXDHMqO
+         N3wdaLlPVEQ5xjfE2zvTkLhuEmN67rRqWL7qZ16sqF8chrdYsIvLczXvBdEcPYc9OMTd
+         wywmHPrzG7cYoXlcb9+ONp/82eMUx23J38P//Py9jgpQblWbwMqtQSCzcwZu4CFNuoQ8
+         v+4Wx9TQggFxOpW/L13HnPbeJWPDfx05JPy6IoyjA6sKgH8rloZ16tJPxMcNEvsiw1XD
+         vy3A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ying.huang@intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=ying.huang@intel.com;
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id f32si10089909pjg.42.2019.06.23.21.44.44
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id j3si9556031pjt.79.2019.06.23.22.03.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 23 Jun 2019 21:44:44 -0700 (PDT)
-Received-SPF: pass (google.com: domain of ying.huang@intel.com designates 192.55.52.93 as permitted sender) client-ip=192.55.52.93;
+        Sun, 23 Jun 2019 22:03:43 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.120 as permitted sender) client-ip=192.55.52.120;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ying.huang@intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=ying.huang@intel.com;
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-Result: UNKNOWN
+X-Amp-Original-Verdict: FILE UNKNOWN
 X-Amp-File-Uploaded: False
-Received: from orsmga001.jf.intel.com ([10.7.209.18])
-  by fmsmga102.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 23 Jun 2019 21:44:43 -0700
+Received: from fmsmga007.fm.intel.com ([10.253.24.52])
+  by fmsmga104.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 23 Jun 2019 22:03:42 -0700
 X-ExtLoop1: 1
 X-IronPort-AV: E=Sophos;i="5.63,411,1557212400"; 
-   d="scan'208";a="244579823"
-Received: from yhuang-dev.sh.intel.com (HELO yhuang-dev) ([10.239.159.29])
-  by orsmga001.jf.intel.com with ESMTP; 23 Jun 2019 21:44:41 -0700
-From: "Huang\, Ying" <ying.huang@intel.com>
-To: Ming Lei <ming.lei@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>,  <linux-mm@kvack.org>,  <linux-kernel@vger.kernel.org>,  Michal Hocko <mhocko@kernel.org>,  "Johannes Weiner" <hannes@cmpxchg.org>,  Hugh Dickins <hughd@google.com>,  Minchan Kim <minchan@kernel.org>,  Rik van Riel <riel@redhat.com>,  Daniel Jordan <daniel.m.jordan@oracle.com>
-Subject: Re: [PATCH -mm] mm, swap: Fix THP swap out
-References: <20190624022336.12465-1-ying.huang@intel.com>
-	<20190624033438.GB6563@ming.t460p>
-Date: Mon, 24 Jun 2019 12:44:41 +0800
-In-Reply-To: <20190624033438.GB6563@ming.t460p> (Ming Lei's message of "Mon,
-	24 Jun 2019 11:34:40 +0800")
-Message-ID: <87imsvbnie.fsf@yhuang-dev.intel.com>
-User-Agent: Gnus/5.13 (Gnus v5.13) Emacs/26.1 (gnu/linux)
+   d="scan'208";a="163216338"
+Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
+  by fmsmga007.fm.intel.com with ESMTP; 23 Jun 2019 22:03:42 -0700
+Date: Sun, 23 Jun 2019 22:03:42 -0700
+From: Ira Weiny <ira.weiny@intel.com>
+To: Pingfan Liu <kernelfans@gmail.com>
+Cc: linux-mm@kvack.org, Mike Kravetz <mike.kravetz@oracle.com>,
+	Oscar Salvador <osalvador@suse.de>,
+	David Hildenbrand <david@redhat.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	linux-kernel@vger.kernel.org
+Subject: Re: [PATCH] mm/hugetlb: allow gigantic page allocation to migrate
+ away smaller huge page
+Message-ID: <20190624050341.GB30102@iweiny-DESK2.sc.intel.com>
+References: <1561350068-8966-1-git-send-email-kernelfans@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ascii
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1561350068-8966-1-git-send-email-kernelfans@gmail.com>
+User-Agent: Mutt/1.11.1 (2018-12-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Ming Lei <ming.lei@redhat.com> writes:
+On Mon, Jun 24, 2019 at 12:21:08PM +0800, Pingfan Liu wrote:
+> The current pfn_range_valid_gigantic() rejects the pud huge page allocation
+> if there is a pmd huge page inside the candidate range.
+> 
+> But pud huge resource is more rare, which should align on 1GB on x86. It is
+> worth to allow migrating away pmd huge page to make room for a pud huge
+> page.
+> 
+> The same logic is applied to pgd and pud huge pages.
 
-> Hi Huang Ying,
->
-> On Mon, Jun 24, 2019 at 10:23:36AM +0800, Huang, Ying wrote:
->> From: Huang Ying <ying.huang@intel.com>
->> 
->> 0-Day test system reported some OOM regressions for several
->> THP (Transparent Huge Page) swap test cases.  These regressions are
->> bisected to 6861428921b5 ("block: always define BIO_MAX_PAGES as
->> 256").  In the commit, BIO_MAX_PAGES is set to 256 even when THP swap
->> is enabled.  So the bio_alloc(gfp_flags, 512) in get_swap_bio() may
->> fail when swapping out THP.  That causes the OOM.
->> 
->> As in the patch description of 6861428921b5 ("block: always define
->> BIO_MAX_PAGES as 256"), THP swap should use multi-page bvec to write
->> THP to swap space.  So the issue is fixed via doing that in
->> get_swap_bio().
->> 
->> BTW: I remember I have checked the THP swap code when
->> 6861428921b5 ("block: always define BIO_MAX_PAGES as 256") was merged,
->> and thought the THP swap code needn't to be changed.  But apparently,
->> I was wrong.  I should have done this at that time.
->> 
->> Fixes: 6861428921b5 ("block: always define BIO_MAX_PAGES as 256")
->> Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
->> Cc: Ming Lei <ming.lei@redhat.com>
->> Cc: Michal Hocko <mhocko@kernel.org>
->> Cc: Johannes Weiner <hannes@cmpxchg.org>
->> Cc: Hugh Dickins <hughd@google.com>
->> Cc: Minchan Kim <minchan@kernel.org>
->> Cc: Rik van Riel <riel@redhat.com>
->> Cc: Daniel Jordan <daniel.m.jordan@oracle.com>
->> ---
->>  mm/page_io.c | 7 ++-----
->>  1 file changed, 2 insertions(+), 5 deletions(-)
->> 
->> diff --git a/mm/page_io.c b/mm/page_io.c
->> index 2e8019d0e048..4ab997f84061 100644
->> --- a/mm/page_io.c
->> +++ b/mm/page_io.c
->> @@ -29,10 +29,9 @@
->>  static struct bio *get_swap_bio(gfp_t gfp_flags,
->>  				struct page *page, bio_end_io_t end_io)
->>  {
->> -	int i, nr = hpage_nr_pages(page);
->>  	struct bio *bio;
->>  
->> -	bio = bio_alloc(gfp_flags, nr);
->> +	bio = bio_alloc(gfp_flags, 1);
->>  	if (bio) {
->>  		struct block_device *bdev;
->>  
->> @@ -41,9 +40,7 @@ static struct bio *get_swap_bio(gfp_t gfp_flags,
->>  		bio->bi_iter.bi_sector <<= PAGE_SHIFT - 9;
->>  		bio->bi_end_io = end_io;
->>  
->> -		for (i = 0; i < nr; i++)
->> -			bio_add_page(bio, page + i, PAGE_SIZE, 0);
->
-> bio_add_page() supposes to work, just wondering why it doesn't recently.
+I'm sorry but I don't quite understand why we should do this.  Is this a bug or
+an optimization?  It sounds like an optimization.
 
-Yes.  Just checked and bio_add_page() works too.  I should have used
-that.  The problem isn't bio_add_page(), but bio_alloc(), because nr ==
-512 > 256, mempool cannot be used during swapout, so swapout will fail.
-
-Best Regards,
-Huang, Ying
-
-> Could you share me one test case for reproducing it?
->
->> -		VM_BUG_ON(bio->bi_iter.bi_size != PAGE_SIZE * nr);
->> +		__bio_add_page(bio, page, PAGE_SIZE * hpage_nr_pages(page), 0);
->>  	}
->>  	return bio;
->
-> Actually the above code can be simplified as:
->
-> diff --git a/mm/page_io.c b/mm/page_io.c
-> index 2e8019d0e048..c20b4189d0a1 100644
-> --- a/mm/page_io.c
-> +++ b/mm/page_io.c
-> @@ -29,7 +29,7 @@
->  static struct bio *get_swap_bio(gfp_t gfp_flags,
->  				struct page *page, bio_end_io_t end_io)
+> 
+> Signed-off-by: Pingfan Liu <kernelfans@gmail.com>
+> Cc: Mike Kravetz <mike.kravetz@oracle.com>
+> Cc: Oscar Salvador <osalvador@suse.de>
+> Cc: David Hildenbrand <david@redhat.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: linux-kernel@vger.kernel.org
+> ---
+>  mm/hugetlb.c | 8 +++++---
+>  1 file changed, 5 insertions(+), 3 deletions(-)
+> 
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index ac843d3..02d1978 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -1081,7 +1081,11 @@ static bool pfn_range_valid_gigantic(struct zone *z,
+>  			unsigned long start_pfn, unsigned long nr_pages)
 >  {
-> -	int i, nr = hpage_nr_pages(page);
-> +	int nr = hpage_nr_pages(page);
->  	struct bio *bio;
+>  	unsigned long i, end_pfn = start_pfn + nr_pages;
+> -	struct page *page;
+> +	struct page *page = pfn_to_page(start_pfn);
+> +
+> +	if (PageHuge(page))
+> +		if (compound_order(compound_head(page)) >= nr_pages)
+
+I don't think you want compound_order() here.
+
+Ira
+
+> +			return false;
 >  
->  	bio = bio_alloc(gfp_flags, nr);
-> @@ -41,8 +41,7 @@ static struct bio *get_swap_bio(gfp_t gfp_flags,
->  		bio->bi_iter.bi_sector <<= PAGE_SHIFT - 9;
->  		bio->bi_end_io = end_io;
+>  	for (i = start_pfn; i < end_pfn; i++) {
+>  		if (!pfn_valid(i))
+> @@ -1098,8 +1102,6 @@ static bool pfn_range_valid_gigantic(struct zone *z,
+>  		if (page_count(page) > 0)
+>  			return false;
 >  
-> -		for (i = 0; i < nr; i++)
-> -			bio_add_page(bio, page + i, PAGE_SIZE, 0);
-> +		bio_add_page(bio, page, PAGE_SIZE * nr, 0);
->  		VM_BUG_ON(bio->bi_iter.bi_size != PAGE_SIZE * nr);
+> -		if (PageHuge(page))
+> -			return false;
 >  	}
->  	return bio;
->
->
-> Thanks,
-> Ming
+>  
+>  	return true;
+> -- 
+> 2.7.5
+> 
 
