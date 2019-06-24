@@ -2,175 +2,196 @@ Return-Path: <SRS0=9FL3=UX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C325EC43613
-	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 08:42:33 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id EBA62C43613
+	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 08:53:39 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 85A5320663
-	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 08:42:33 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="GaVWc9JS"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 85A5320663
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 777E52089F
+	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 08:53:39 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 777E52089F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=virtuozzo.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0C2C68E0006; Mon, 24 Jun 2019 04:42:33 -0400 (EDT)
+	id 156668E0007; Mon, 24 Jun 2019 04:53:39 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 073878E0002; Mon, 24 Jun 2019 04:42:33 -0400 (EDT)
+	id 0E0F78E0002; Mon, 24 Jun 2019 04:53:39 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id EA4B58E0006; Mon, 24 Jun 2019 04:42:32 -0400 (EDT)
+	id F10A48E0007; Mon, 24 Jun 2019 04:53:38 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C9EFD8E0002
-	for <linux-mm@kvack.org>; Mon, 24 Jun 2019 04:42:32 -0400 (EDT)
-Received: by mail-io1-f72.google.com with SMTP id y13so21108793iol.6
-        for <linux-mm@kvack.org>; Mon, 24 Jun 2019 01:42:32 -0700 (PDT)
+Received: from mail-lj1-f200.google.com (mail-lj1-f200.google.com [209.85.208.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 89A8E8E0002
+	for <linux-mm@kvack.org>; Mon, 24 Jun 2019 04:53:38 -0400 (EDT)
+Received: by mail-lj1-f200.google.com with SMTP id s14so2156120ljd.13
+        for <linux-mm@kvack.org>; Mon, 24 Jun 2019 01:53:38 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=hZDK98pFVpxt3chkW1SOjanxcVKTD0vgdvliCnO9TDw=;
-        b=Xuoy1wffprA0cWVFoyf8yRnvfFhw1LX1GRSe3mfJM4it4/oE9yv49g5bv2NyMfHbRM
-         H0ZUGLbmDmxRKw2V+wwDyLYbFSGtbRcxgLE1kdh4IWFwYZjdt/KH/eA1KMvOD8V9ruQh
-         KsFECMA4P+oz8rLM1kXCbz0KUxJZyulnP2EtChlpkmLQf6LsoUpm2FLIBwHKJjHT9kRq
-         QweO8+/1MnsMjZwGtoL7keCcZ3Ne1i1UUxBOs+Fm39RWsyW/GK9YqXKD69GQAmYwPJeY
-         LrRV7NLvzfmCC3fb5SJRsdS31s+bMq1tqAWhlELw3OaFPzaR7qp2RSHVO7QBZ53j1J8A
-         hsPw==
-X-Gm-Message-State: APjAAAWICuWtpGcEmqChRaZ/N8JSYN1h/BUo+Ayq/OA4MPoKzR8hp0IL
-	MdOPf26E4oKD8rnxLXdO37CLNsybM7OaDNdc1rWqYqCtVeTnH81hAQxnAtGJR0VvLiwqRLw/Pv4
-	KDuTs3AQyIukwYkgDZHJ0uZJd3xeulp8+gJctfylM0ybryLTpLTcu+gpMKY0uTTG/9g==
-X-Received: by 2002:a6b:5b01:: with SMTP id v1mr727185ioh.120.1561365752546;
-        Mon, 24 Jun 2019 01:42:32 -0700 (PDT)
-X-Received: by 2002:a6b:5b01:: with SMTP id v1mr727147ioh.120.1561365751813;
-        Mon, 24 Jun 2019 01:42:31 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561365751; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=u5tS/iA+7+FkYFkOUO0oNR26ml579ZCMCCIENEs9uW8=;
+        b=O6caVt2T9/GIHo9QxJm83cv8YXuJScZbkhDGhQodreLDi5U69I/wWQ0+yCg4qZXKQ9
+         x7uBkH8xbsncEmsl+6HrgPxT6rb0p20Alf0riyDGPwxBB3cUm/UZjZd4/zNAgF+q2MMm
+         xrcsH67xVb01Km0iAMKDYN8uPG/EwHbOO4nZjqgHdJfhTlXmXAiMmBsDuq2n1WjACYAB
+         a6yHw783rqmCAFvD3FOvaVTWRh56GhcYyUjkaESY9swk/UIHsVTE2dTNoD9dv5NanVdG
+         /c+VRK+oKX4NKtCT3t2wz4ZZb/z2QXE1inGDcJm3jULL94mw7tm5K9bQSZ7HoFpgDj3U
+         BKzA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+X-Gm-Message-State: APjAAAVXfhz/J3/h44ajfhps+KbplnecQ0gxx/ECFTN3UY0WjU9/K58B
+	rk2+Bn7DDynbBvEjq8Ir3/mFe0eAY89zwz1x1ePLr+viFyYBlxjFA4uOC5R8Q/XLAvWE7Vt0ATi
+	X2nhD1IDTFMWpvpaxUZn3TVOfKSutFQmwal4JO0pi8QME07uIXsQyfUSw7CV0Unp7Wg==
+X-Received: by 2002:a05:651c:150:: with SMTP id c16mr38469722ljd.193.1561366417816;
+        Mon, 24 Jun 2019 01:53:37 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxdiUjwx54xzrCQOEmHBOks73W448mmUbSrPvKrdDyEZIYWoVjuAYSUN9p6tIXrfy6keE6V
+X-Received: by 2002:a05:651c:150:: with SMTP id c16mr38469688ljd.193.1561366416913;
+        Mon, 24 Jun 2019 01:53:36 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561366416; cv=none;
         d=google.com; s=arc-20160816;
-        b=AfdMC9Mky1vugEMQgJvZXLtiYvkhJsknDyZeKQ862AgHiHcOpopUmEM7o7ZTw2tvWA
-         KR8YCi3FjGqVbFbIsnmTF7t4hJ4Qddy2UR9EoAmvTou97JvbeaDGzHzvE0I+ChWxI/kT
-         h+4XLGwnA2bT+sTk5DpsFx7HCqGPQd1kGS9CEUVfanYrlbv/qap6idmK2Ucixg03Nad6
-         cQT3yr0AoNIE23Pqq+6aNx5ZBaCcZsp76uTR+LDY+TZp0VcEtS80jdKAyGdmFM96avqW
-         T5F/JgcHk3ktcZJ3WLkjnhB0FSbo32xhbUHVZ5FQmc6ZQizF9EkqwOkxPrskOHhjvySX
-         LAUA==
+        b=Lw0V6I9Tfmc46vwUKxzU5yi0H8dFsuTP/5ggWIYjci+qU05Y24o1yjx5pMkWBr5Qf0
+         j8Afw33EdwzefWa1FwGFjOjzLMDRUsainDBd5Ma+V4zRYXtWDkMe59Nv5nd2s3wHLRDx
+         RxwobxcEIo3B8cBRAnpgr0wPKICsstLeGBmP7EcHdbVBiO1GGxQ41KWExbfTSsVfJAzR
+         beMQ3W7YgocSCcyIb0rf0pqHCAup/6rhMo9urhWe4f4gAyMwMGg4K8qSw7RZpoTatese
+         QoMjpYAP4g+j5HfDWPyLbiEaRfXmFgStbiex/4IIZPef2tjCLVtCKjjYULYnkcjdswJz
+         Rv2A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=hZDK98pFVpxt3chkW1SOjanxcVKTD0vgdvliCnO9TDw=;
-        b=mCrix645d2EqhxL/8EjfibnKLLcpgMj2Tr9roDyKIoOS//zc7hJKvW9glqIUM+gkG8
-         wsZHs4ubjiEPe7vfliz7xvhvrKxShFR+DqtNnWTPDwCmnF3qdAQJt21k8bgnaW3Pp0Ml
-         w0kxvn+5dbKf2UdSvyIvQczTTkHIT96NrGvcLuPE94+LDNvYEcx+uJdmmeWHCeXZBf3b
-         W2XR8WyQKMEMwfjKd1kjLKc2tIdTfzUsADahfrdonVf5qj4946fQESVEQMuJ0Algb215
-         FC2KJtLktUbSIEyEZ9/zPVVE2/LEs3W3dd3zgP2yiArCVGoALGCD32pUx2NCLbYx9qOJ
-         HU7Q==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=u5tS/iA+7+FkYFkOUO0oNR26ml579ZCMCCIENEs9uW8=;
+        b=l/pUut6yq4YTAdI1pRh9jxpfztO0NBbq5FCRcUSOiHDfNmqfltAngzmo1Nk8kk9kof
+         vmU9csa0Uk8dQ90XMQCtEBLHZ4UkWFH96Hdpm8t7TPKpy2ljx/XjJf3Vq6Z4D9YjNkCv
+         SQyvbg6FyFwQok8suYTA9zUpIDqTg6DMtbqlDvdkIFSzDmuMOptvh4YLZOdlGdOk6gR0
+         j4Xx/D/Vh1R13Cx81X3afCjgzE3I7Tvunc8z2srQq3Ap+6eoExbtSd3HgFjLwXuReoNG
+         VmbG28Is1N++6VHGJdjnTSBrB7kogGNQZzL02ooFCQKzsgeRMLz1AoaXoQF+cv4Tb/s/
+         v93A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=GaVWc9JS;
-       spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 197sor27926143jaa.13.2019.06.24.01.42.31
+       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
+        by mx.google.com with ESMTPS id m127si10074069lfa.65.2019.06.24.01.53.36
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 24 Jun 2019 01:42:31 -0700 (PDT)
-Received-SPF: pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 24 Jun 2019 01:53:36 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) client-ip=185.231.240.75;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=GaVWc9JS;
-       spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=hZDK98pFVpxt3chkW1SOjanxcVKTD0vgdvliCnO9TDw=;
-        b=GaVWc9JSf9wAxISpuhTVscTFLYvILW3vniklJFaI1vv/NHx9x1mRLzYj/z0McDaIeh
-         UC2vVaMO7FpWZQP3TW5wdKIxA4UlAI7b2N1VaOCcNCctRhbMbyy6RECYU1QiHsVyOriM
-         siiSyvwCDXUyOxOwnDOqdCHjuJsKeAyey2cmjwd9hzF4qJz3x2gW3YxggyHWn3FlToV+
-         9rjw8ZCnxaWx2gEpS/hmCi3nAWjd3FobYDlVWMJU+SoqDOTwK6pmo3qlmxzEHHXCx8tF
-         vRPGIzZQxBbIJIdesoB/MbQ9xrDVXG0U8pXE/jhRah3fpzWlpC2c5Dzrn2NaYHF7FxKJ
-         TYJw==
-X-Google-Smtp-Source: APXvYqxx7glCCsFqx7G/HkqXPaiYIfpS79svZoUBDKDV/wgnir+RKuzvj8Mui4giQxIVCXR+W8I7qXj9HjI3nRGl4Eo=
-X-Received: by 2002:a05:6638:40c:: with SMTP id q12mr22707922jap.17.1561365751552;
- Mon, 24 Jun 2019 01:42:31 -0700 (PDT)
+       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+Received: from [172.16.25.169]
+	by relay.sw.ru with esmtp (Exim 4.92)
+	(envelope-from <ktkhai@virtuozzo.com>)
+	id 1hfKjE-000288-VO; Mon, 24 Jun 2019 11:53:33 +0300
+Subject: Re: [PATCH 2/2] mm/vmscan: calculate reclaimed slab caches in all
+ reclaim paths
+To: Yafang Shao <laoar.shao@gmail.com>, akpm@linux-foundation.org,
+ mhocko@suse.com, hannes@cmpxchg.org, vdavydov.dev@gmail.com,
+ mgorman@techsingularity.net
+Cc: linux-mm@kvack.org
+References: <1561112086-6169-1-git-send-email-laoar.shao@gmail.com>
+ <1561112086-6169-3-git-send-email-laoar.shao@gmail.com>
+From: Kirill Tkhai <ktkhai@virtuozzo.com>
+Message-ID: <d919ea73-daea-8a77-da0a-d1dc6089fd92@virtuozzo.com>
+Date: Mon, 24 Jun 2019 11:53:31 +0300
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.1
 MIME-Version: 1.0
-References: <20190512054829.11899-1-cai@lca.pw> <20190513124112.GH24036@dhcp22.suse.cz>
- <1561123078.5154.41.camel@lca.pw> <20190621135507.GE3429@dhcp22.suse.cz>
-In-Reply-To: <20190621135507.GE3429@dhcp22.suse.cz>
-From: Pingfan Liu <kernelfans@gmail.com>
-Date: Mon, 24 Jun 2019 16:42:20 +0800
-Message-ID: <CAFgQCTvSJjzFGGyt_VOvyB46yy6452wach7UmmuY5ZJZ3YZzcg@mail.gmail.com>
-Subject: Re: [PATCH -next v2] mm/hotplug: fix a null-ptr-deref during NUMA boot
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Qian Cai <cai@lca.pw>, Andrew Morton <akpm@linux-foundation.org>, 
-	Barret Rhoden <brho@google.com>, Dave Hansen <dave.hansen@intel.com>, 
-	Mike Rapoport <rppt@linux.ibm.com>, Peter Zijlstra <peterz@infradead.org>, 
-	Michael Ellerman <mpe@ellerman.id.au>, Ingo Molnar <mingo@elte.hu>, Oscar Salvador <osalvador@suse.de>, 
-	Andy Lutomirski <luto@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, 
-	LKML <linux-kernel@vger.kernel.org>
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <1561112086-6169-3-git-send-email-laoar.shao@gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Michal,
+On 21.06.2019 13:14, Yafang Shao wrote:
+> There're six different reclaim paths by now,
+> - kswapd reclaim path
+> - node reclaim path
+> - hibernate preallocate memory reclaim path
+> - direct reclaim path
+> - memcg reclaim path
+> - memcg softlimit reclaim path
+> 
+> The slab caches reclaimed in these paths are only calculated in the above
+> three paths.
+> 
+> There're some drawbacks if we don't calculate the reclaimed slab caches.
+> - The sc->nr_reclaimed isn't correct if there're some slab caches
+>   relcaimed in this path.
+> - The slab caches may be reclaimed thoroughly if there're lots of
+>   reclaimable slab caches and few page caches.
+>   Let's take an easy example for this case.
+>   If one memcg is full of slab caches and the limit of it is 512M, in
+>   other words there're approximately 512M slab caches in this memcg.
+>   Then the limit of the memcg is reached and the memcg reclaim begins,
+>   and then in this memcg reclaim path it will continuesly reclaim the
+>   slab caches until the sc->priority drops to 0.
+>   After this reclaim stops, you will find there're few slab caches left,
+>   which is less than 20M in my test case.
+>   While after this patch applied the number is greater than 300M and
+>   the sc->priority only drops to 3.
+> 
+> Signed-off-by: Yafang Shao <laoar.shao@gmail.com>
+> ---
+>  mm/vmscan.c | 7 +++++++
+>  1 file changed, 7 insertions(+)
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 18a66e5..d6c3fc8 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -3164,11 +3164,13 @@ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
+>  	if (throttle_direct_reclaim(sc.gfp_mask, zonelist, nodemask))
+>  		return 1;
+>  
+> +	current->reclaim_state = &sc.reclaim_state;
+>  	trace_mm_vmscan_direct_reclaim_begin(order, sc.gfp_mask);
+>  
+>  	nr_reclaimed = do_try_to_free_pages(zonelist, &sc);
+>  
+>  	trace_mm_vmscan_direct_reclaim_end(nr_reclaimed);
+> +	current->reclaim_state = NULL;
 
-What about dropping the change of the online definition of your patch,
-just do the following?
-diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
-index e6dad60..9c087c3 100644
---- a/arch/x86/mm/numa.c
-+++ b/arch/x86/mm/numa.c
-@@ -749,13 +749,12 @@ static void __init init_memory_less_node(int nid)
-  */
- void __init init_cpu_to_node(void)
- {
--       int cpu;
-+       int cpu, node;
-        u16 *cpu_to_apicid = early_per_cpu_ptr(x86_cpu_to_apicid);
-
-        BUG_ON(cpu_to_apicid == NULL);
-
--       for_each_possible_cpu(cpu) {
--               int node = numa_cpu_node(cpu);
-+       for_each_node_mask(node, numa_nodes_parsed) {
-
-                if (node == NUMA_NO_NODE)
-                        continue;
-@@ -765,6 +764,10 @@ void __init init_cpu_to_node(void)
-
-                numa_set_node(cpu, node);
-        }
-+       for_each_possible_cpu(cpu) {
-+               int node = numa_cpu_node(cpu);
-+               numa_set_node(cpu, node);
-+       }
- }
-
-Thanks,
-  Pingfan
-
-On Fri, Jun 21, 2019 at 9:55 PM Michal Hocko <mhocko@kernel.org> wrote:
->
-> On Fri 21-06-19 09:17:58, Qian Cai wrote:
-> > Sigh...
-> >
-> > I don't see any benefit to keep the broken commit,
-> >
-> > "x86, numa: always initialize all possible nodes"
-> >
-> > for so long in linux-next that just prevent x86 NUMA machines with any memory-
-> > less node from booting.
-> >
-> > Andrew, maybe it is time to drop this patch until Michal found some time to fix
-> > it properly.
->
-> Yes, please drop the patch for now, Andrew. I thought I could get to
-> this but time is just scarce.
-> --
-> Michal Hocko
-> SUSE Labs
+Shouldn't we remove reclaim_state assignment from __perform_reclaim() after this?
+  
+>  	return nr_reclaimed;
+>  }
+> @@ -3191,6 +3193,7 @@ unsigned long mem_cgroup_shrink_node(struct mem_cgroup *memcg,
+>  	};
+>  	unsigned long lru_pages;
+>  
+> +	current->reclaim_state = &sc.reclaim_state;
+>  	sc.gfp_mask = (gfp_mask & GFP_RECLAIM_MASK) |
+>  			(GFP_HIGHUSER_MOVABLE & ~GFP_RECLAIM_MASK);
+>  
+> @@ -3212,7 +3215,9 @@ unsigned long mem_cgroup_shrink_node(struct mem_cgroup *memcg,
+>  					cgroup_ino(memcg->css.cgroup),
+>  					sc.nr_reclaimed);
+>  
+> +	current->reclaim_state = NULL;
+>  	*nr_scanned = sc.nr_scanned;
+> +
+>  	return sc.nr_reclaimed;
+>  }
+>  
+> @@ -3239,6 +3244,7 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,
+>  		.may_shrinkslab = 1,
+>  	};
+>  
+> +	current->reclaim_state = &sc.reclaim_state;
+>  	/*
+>  	 * Unlike direct reclaim via alloc_pages(), memcg's reclaim doesn't
+>  	 * take care of from where we get pages. So the node where we start the
+> @@ -3263,6 +3269,7 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,
+>  	trace_mm_vmscan_memcg_reclaim_end(
+>  				cgroup_ino(memcg->css.cgroup),
+>  				nr_reclaimed);
+> +	current->reclaim_state = NULL;
+>  
+>  	return nr_reclaimed;
+>  }
+> 
 
