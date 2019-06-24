@@ -2,147 +2,148 @@ Return-Path: <SRS0=9FL3=UX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-3.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4BF88C43613
-	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 17:54:52 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 795FFC43613
+	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 17:58:00 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0A24420673
-	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 17:54:51 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0A24420673
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 424A620657
+	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 17:58:00 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 424A620657
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7AE856B0006; Mon, 24 Jun 2019 13:54:51 -0400 (EDT)
+	id C68376B0005; Mon, 24 Jun 2019 13:57:59 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 760458E0003; Mon, 24 Jun 2019 13:54:51 -0400 (EDT)
+	id C18848E0003; Mon, 24 Jun 2019 13:57:59 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 64F258E0002; Mon, 24 Jun 2019 13:54:51 -0400 (EDT)
+	id B2DE88E0002; Mon, 24 Jun 2019 13:57:59 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 177E66B0006
-	for <linux-mm@kvack.org>; Mon, 24 Jun 2019 13:54:51 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id c27so21524432edn.8
-        for <linux-mm@kvack.org>; Mon, 24 Jun 2019 10:54:51 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 65F106B0005
+	for <linux-mm@kvack.org>; Mon, 24 Jun 2019 13:57:59 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id d27so21540463eda.9
+        for <linux-mm@kvack.org>; Mon, 24 Jun 2019 10:57:59 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=vEovS816TCrnuE755nLbl53w7YThsepSXD+/D4xfscc=;
-        b=m90tGRzNK64vMJSM/Ymklq0bYwG1uqSy2KIQIYEZXx+QUSao8uXcJzMdhkv2bl5pNZ
-         C888CX70i2IGUDhiIykPafrUoOx4ZPzy7lllC6ZeyRPIGdDh5vPm7xC0ubD3IjAmCqaq
-         UvGjsW9a5wXQ80re1AnOSon10vyX+wGtKzevDVAa/8sVLNxisnSwqTlbO5qtl2rM0Af8
-         ZQJ/9+WIgeNvkWhVBXrqMdD5lFC5yTKrW7SrdRxrCsJWeVelNiAlKpTb7VVcuplpy+Lw
-         RyKplSSt5aY0sOoaXX3siqdAlUfrTKD4eIen97ozXGF2IMGgVnfhr+nRTDj8EUWSFRcw
-         eVpA==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAV3a3rYw4TShxYp13FRQFj8ZMqSkTY24nOTN6kXU5dxopm30sDm
-	xYICUUglu7Uw8I+ZVZa7M/sepKK31uLcHy4fXU/kJ/CqhU3qnNLt4jv8L3+GBTEwUPpD0pjqr4m
-	zwitLApSuav7wv+rdfHPrFo5HbWj4P5ZYleck1MgtULIorSAuikngxkC3CtJaofU=
-X-Received: by 2002:a50:b3b8:: with SMTP id s53mr84622194edd.61.1561398890663;
-        Mon, 24 Jun 2019 10:54:50 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyqKKXlQrMp3vMFsm9narw9P/1eVc7th1xy4nnvnDv/cMCHpFSuWDCvtD/ySNvh7ttTCkTt
-X-Received: by 2002:a50:b3b8:: with SMTP id s53mr84622150edd.61.1561398889940;
-        Mon, 24 Jun 2019 10:54:49 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561398889; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:message-id
+         :subject:from:to:cc:date:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=KrwsAkcAw2v3F1L6aY+XSF75B2iEkM4vSjjVnem0/xw=;
+        b=iXDsveyFR5ALUQIAYjzbG0uWnp+V3DKUTGZk4CkWQHEjOGA2Tqz5zMF9xTCsuyvdOM
+         5/FrCV6E9DXAmobuGoSAxF76Z/q9Zxw09RjInE1f7c+zoxkoHydf8POJizKhiMGMF66D
+         Q2Yo2a5xNzF6py6TY/s/ggJ4BU/HCtVmAa3bZMJriAinxndbPT07+AIAh3uEBML5FwvE
+         pCk1s4H64afqJUtM6vqWqoSbHC3Em3TPm+X78qGG9zZ5jFcy5fsItzzZiINiq7X+a2Ag
+         CgpNETS2ZEeeTi6/06XNBFjsDaPI+UAuQWUnGI60FqomHRArP00H7VWFOzVK7NitAmZL
+         rGSw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
+X-Gm-Message-State: APjAAAWAcP1znnHMkdfTDIGrrA44FOFYvDb2fIbm6QVRX3YnBpVdIR7u
+	uY0WbqhltKYpPPN6bHkMe0LslsRhtsZgOqbqayDmyRUHJcvWJnqpqGbkHnXiDumi7ZJfP4mCJPy
+	4gKp+gmjEDK+bm/yhToCvtJLtTTHrr+4SDramwOAfCxHteK/Jgo0pfeoUZ/ogxyljzA==
+X-Received: by 2002:aa7:c98c:: with SMTP id c12mr100994667edt.225.1561399078998;
+        Mon, 24 Jun 2019 10:57:58 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzcmuch3tlsLFqE/425evs9bMUbQp2xpnaCrJVmMdvT1Xp7WFhOZ9vbjqL/eV2ohm1ERZrt
+X-Received: by 2002:aa7:c98c:: with SMTP id c12mr100994618edt.225.1561399078322;
+        Mon, 24 Jun 2019 10:57:58 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561399078; cv=none;
         d=google.com; s=arc-20160816;
-        b=NB/QF8XqJLHzd62gLlf9g4sf9wIkRQROXpjmDOBegz7RMFQJ5yJQuA8MoqaJHwdPWB
-         dRdi28gpcMkobDXlz2OZ4MWDzNn4St07Uoh9PLNSLq9HoNs25TZubp4O4QDwx9XKCM6a
-         4KXqEVt+VtmKunFWOIH3K14P1VHdxrAlTHMrT0ztqohJ3ga/M0V35z2jMkdvB3OVwbGH
-         +J9FIUwDX+eIOnmCI7DE1hM1RSQh0TWyuVKTLu8dMr5QU7fX5X2nUPwkb8adBJjJrI1h
-         Gol4hlE/wkFeyujqhSDq8Oj8Cua6Y6Rjm3QAL00KD45DcnN46swjwJFFeT9F7BTjaIhg
-         TqXA==
+        b=oATnMAfeER4wt6zKdbUet+i/bFFNf/nvPkzR7BoyA9a5fygRB6rJO5y2OcN+Ec7dmw
+         +JRDVaN5SGvr3egPrGylbm34gXPJ8S01tOemcU/S7Lok0dCFCH1MNtrgLzWOUwUYz9Lm
+         6qDSRFEksAd46z0tqmqDkFqJmr+XRqb5XkV0rDXPA5xksauKI5Wmy9bh3fhKHCyhUy3Z
+         r0aBqYFkzvhzKWrQdu1WagqpyZ4PFtxhDDWrbOqZVqY5JJL2jxlraaIv4TuboKBmXbYc
+         Px0wvDRlA4K/2inszjjhkQsHiFLx6zdGI0P/1hz+N2oM7BodMX9oovYuI79tJND/gifC
+         0Y7A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=vEovS816TCrnuE755nLbl53w7YThsepSXD+/D4xfscc=;
-        b=AI5MzxjYb0IQojAEuSvyZ3f5tS3KDk6p2IshBjO5mzqQPul/xz4y00g4FtYBp19JGT
-         1c/S8vZCty/28ZalaIdc4JcA62PWC+t8EM40+9OzXLaDMrwa7NCsZIOtANrdK7nxk5Ln
-         jkgEiPA5Fg/Mp8dL/rfAGWW3NtzEigHea9cwE8RcgKSIeVLXkG5kCc7E1mjMrWfxqgR1
-         pTViLQe1Z/7by4jDdpPgjAuoPbgWwv5n20KTyEBjcsQDSTtpT2Wa5ynIFwhQjhaEdWb+
-         cGFd5AHpVGBeqMIBPOupb9vQ7ZIClV7BW32f9gNChZCc4910YReudgTEM1i7sMBUntd0
-         /26Q==
+        h=content-transfer-encoding:mime-version:references:in-reply-to:date
+         :cc:to:from:subject:message-id;
+        bh=KrwsAkcAw2v3F1L6aY+XSF75B2iEkM4vSjjVnem0/xw=;
+        b=BiRGwn6MyrUXdqMcn3Qepd9e93dQjP0PNvIR6Pznx479QzzqY3kIOfXUszWy4wMz9O
+         tQ+mYuSX93ycxNW2NFo3UWClykcLle2NXsIX5QShBcXQBH+oIAe1wiy6avfLxsKvIsTQ
+         ooUuX2T9JzIf1GS+udne/dLfxjMW93qRuluw4/ugvsr4lvQ1y8QTU1PE+K6gnDq7ozuc
+         Bb2PRz2FdNIhzUs4750OyzTc9LDr1nAOrKVCWAx8ZYznSP40UhjVGmDao5BAr9vZsbMZ
+         gi/Muiu9yq2HbX46nkWwS5gScTnD2PIuShjvRYWDh1lJv/fmwVYsobvBZ0nIItCs6ve0
+         ENxA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l5si5913216eja.12.2019.06.24.10.54.49
+        by mx.google.com with ESMTPS id b24si9520978ede.402.2019.06.24.10.57.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 24 Jun 2019 10:54:49 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Mon, 24 Jun 2019 10:57:58 -0700 (PDT)
+Received-SPF: pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 82C75AC8C;
-	Mon, 24 Jun 2019 17:54:49 +0000 (UTC)
-Date: Mon, 24 Jun 2019 19:54:48 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: zhong jiang <zhongjiang@huawei.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>,
-	Minchan Kim <minchan@kernel.org>, Vlastimil Babka <vbabka@suse.cz>,
-	Linux Memory Management List <linux-mm@kvack.org>,
-	"Wangkefeng (Kevin)" <wangkefeng.wang@huawei.com>
-Subject: Re: Frequent oom introduced in mainline when migrate_highatomic
- replace migrate_reserve
-Message-ID: <20190624175448.GG11400@dhcp22.suse.cz>
-References: <5D1054EE.20402@huawei.com>
- <20190624081011.GA11400@dhcp22.suse.cz>
- <5D10CC1B.3080201@huawei.com>
- <20190624140120.GD11400@dhcp22.suse.cz>
- <5D10FE8F.2010906@huawei.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5D10FE8F.2010906@huawei.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+	by mx1.suse.de (Postfix) with ESMTP id 83F67ABE1;
+	Mon, 24 Jun 2019 17:57:57 +0000 (UTC)
+Message-ID: <1561399075.3073.6.camel@suse.de>
+Subject: Re: [PATCH v10 03/13] mm/sparsemem: Add helpers track active
+ portions of a section at boot
+From: Oscar Salvador <osalvador@suse.de>
+To: Dan Williams <dan.j.williams@intel.com>, akpm@linux-foundation.org
+Cc: Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Logan
+ Gunthorpe <logang@deltatee.com>, Pavel Tatashin
+ <pasha.tatashin@soleen.com>, Qian Cai <cai@lca.pw>,  Jane Chu
+ <jane.chu@oracle.com>, linux-mm@kvack.org, linux-nvdimm@lists.01.org, 
+ linux-kernel@vger.kernel.org
+Date: Mon, 24 Jun 2019 19:57:55 +0200
+In-Reply-To: <156092350874.979959.18185938451405518285.stgit@dwillia2-desk3.amr.corp.intel.com>
+References: 
+	<156092349300.979959.17603710711957735135.stgit@dwillia2-desk3.amr.corp.intel.com>
+	 <156092350874.979959.18185938451405518285.stgit@dwillia2-desk3.amr.corp.intel.com>
+Content-Type: text/plain; charset="UTF-8"
+X-Mailer: Evolution 3.26.1 
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue 25-06-19 00:47:11, zhong jiang wrote:
-> On 2019/6/24 22:01, Michal Hocko wrote:
-> > On Mon 24-06-19 21:11:55, zhong jiang wrote:
-> >> [  652.272622] sh invoked oom-killer: gfp_mask=0x26080c0, order=3, oom_score_adj=0
-> >> [  652.272683] CPU: 0 PID: 1748 Comm: sh Tainted: P           O    4.4.171 #8
-> >> [  653.452827] Mem-Info:
-> >> [  653.466390] active_anon:20377 inactive_anon:187 isolated_anon:0
-> >> [  653.466390]  active_file:5087 inactive_file:4825 isolated_file:0
-> >> [  653.466390]  unevictable:12 dirty:0 writeback:32 unstable:0
-> >> [  653.466390]  slab_reclaimable:636 slab_unreclaimable:1754
-> >> [  653.466390]  mapped:5338 shmem:194 pagetables:231 bounce:0
-> >> [  653.466390]  free:1086 free_pcp:85 free_cma:0
-> >> [  653.625286] Normal free:4248kB min:1696kB low:2120kB high:2544kB active_anon:81508kB inactive_anon:748kB active_file:20348kB inactive_file:19300kB unevictable:48kB isolated(anon):0kB isolated(file):0kB present:252928kB managed:180496kB mlocked:0kB dirty:0kB writeback:128kB mapped:21352kB shmem:776kB slab_reclaimable:2544kB slab_unreclaimable:7016kB kernel_stack:9856kB pagetables:924kB unstable:0kB bounce:0kB free_pcp:392kB local_pcp:392kB free_cma:0kB writeback_tmp:0kB pages_scanned:0 all_unreclaimable? no
-> >> [  654.177121] lowmem_reserve[]: 0 0 0
-> >> [  654.462015] Normal: 752*4kB (UME) 128*8kB (UM) 21*16kB (M) 0*32kB 0*64kB 0*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB = 4368kB
-> >> [  654.601093] 10132 total pagecache pages
-> >> [  654.606655] 63232 pages RAM
-> > [...]
-> >>>> As the process is created,  kernel stack will use the higher order to allocate continuous memory.
-> >>>> Due to the fragmentabtion,  we fails to allocate the memory.   And the low memory will result
-> >>>> in hardly memory compction.  hence,  it will easily to reproduce the oom.
-> >>> How get your get such a large fragmentation that you cannot allocate
-> >>> order-1 pages and compaction is not making any progress?
-> >> >From the above oom report,  we can see that  there is not order-2 pages.  It wil hardly to allocate kernel stack when
-> >> creating the process.  And we can easily to reproduce the situation when runing some userspace program.
-> >>
-> >> But it rarely trigger the oom when It do not introducing the highatomic.  we test that in the kernel 3.10.
-> > I do not really see how highatomic reserves could make any difference.
-> > We do drain them before OOM killer is invoked. The above oom report
-> > confirms that there is indeed no order-3+ free page to be used.
-> I mean that all order with migrate_highatomic is alway zero,  it can be  true that
+On Tue, 2019-06-18 at 22:51 -0700, Dan Williams wrote:
+> Prepare for hot{plug,remove} of sub-ranges of a section by tracking a
+> sub-section active bitmask, each bit representing a PMD_SIZE span of
+> the
+> architecture's memory hotplug section size.
+> 
+> The implications of a partially populated section is that pfn_valid()
+> needs to go beyond a valid_section() check and either determine that
+> the
+> section is an "early section", or read the sub-section active ranges
+> from the bitmask. The expectation is that the bitmask
+> (subsection_map)
+> fits in the same cacheline as the valid_section() / early_section()
+> data, so the incremental performance overhead to pfn_valid() should
+> be
+> negligible.
+> 
+> The rationale for using early_section() to short-ciruit the
+> subsection_map check is that there are legacy code paths that use
+> pfn_valid() at section granularity before validating the pfn against
+> pgdat data. So, the early_section() check allows those traditional
+> assumptions to persist while also permitting subsection_map to tell
+> the
+> truth for purposes of populating the unused portions of early
+> sections
+> with PMEM and other ZONE_DEVICE mappings.
+> 
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: Vlastimil Babka <vbabka@suse.cz>
+> Cc: Logan Gunthorpe <logang@deltatee.com>
+> Cc: Oscar Salvador <osalvador@suse.de>
+> Cc: Pavel Tatashin <pasha.tatashin@soleen.com>
+> Reported-by: Qian Cai <cai@lca.pw>
+> Tested-by: Jane Chu <jane.chu@oracle.com>
+> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 
-Yes, highatomic is meant to be used for higher order allocations which
-already do have access to memory reserves. E.g. via __GFP_ATOMIC.
+Reviewed-by: Oscar Salvador <osalvador@suse.de>
+
 -- 
-Michal Hocko
-SUSE Labs
+Oscar Salvador
+SUSE L3
 
