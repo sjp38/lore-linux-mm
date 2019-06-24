@@ -2,815 +2,221 @@ Return-Path: <SRS0=9FL3=UX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
+X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5BAD6C43613
-	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 05:44:19 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E8544C48BE9
+	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 05:46:57 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EDE27208CA
-	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 05:44:18 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="qd1xnqNv"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EDE27208CA
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
+	by mail.kernel.org (Postfix) with ESMTP id 9D0A12089F
+	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 05:46:56 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9D0A12089F
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9D3D28E0003; Mon, 24 Jun 2019 01:44:18 -0400 (EDT)
+	id 53DB68E0005; Mon, 24 Jun 2019 01:46:56 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9846E8E0001; Mon, 24 Jun 2019 01:44:18 -0400 (EDT)
+	id 4C9648E0001; Mon, 24 Jun 2019 01:46:56 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 84CFA8E0003; Mon, 24 Jun 2019 01:44:18 -0400 (EDT)
+	id 368EF8E0005; Mon, 24 Jun 2019 01:46:56 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 4027D8E0001
-	for <linux-mm@kvack.org>; Mon, 24 Jun 2019 01:44:18 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id e7so6713468plt.13
-        for <linux-mm@kvack.org>; Sun, 23 Jun 2019 22:44:18 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id D65008E0001
+	for <linux-mm@kvack.org>; Mon, 24 Jun 2019 01:46:55 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id b21so18720554edt.18
+        for <linux-mm@kvack.org>; Sun, 23 Jun 2019 22:46:55 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=bADdo+Mbgo83CtlWv1N78ekIJfVsXi0DKzmLCwrP8tg=;
-        b=essct5xBQuJgHWDhHrOQgW6K1nPTsL7YZhIqNASgJNZSmjrU8e1RYl5t9ukSr7Jo0Q
-         cTg6dg/6Tcktq6He55tcAdw4HM0FAn8nCIIPseMTFSL3NeLc/jR4HHH235NtWApqyRa7
-         D+sYEnDzpO9Jy/ETm6ItT6Dv3J3CAFFELWUNQ23UA31qFkFC2NI/SS0JGq7gwAOkNgZc
-         CxumAJnuTvZLYybMUvIUG/ZLwIbjto8iy4YWKZKgGxQOjolI+AnBcPwWVvza+XRDTHH9
-         wlxN49PyRxFRqU4GSFt01CGyjCxTNSpipNUZCKrAy+QKXO/XH664B1MhjhLm7jZcTTUz
-         lRUw==
-X-Gm-Message-State: APjAAAUWIBi3qYqJOtslB4j2QQR5uGhToITdO6srCpBeVtkIe9MymFQv
-	L2EQjao7lwX37oIiAzPm+p692rdnhlLcZ2HN3TS/Sou5N08JFLZHmzB75ewG8+ezZZojiDQuhiz
-	ZGzyLKJNDzVlH0ClNNe/M4VWybjClk2tNy8XcjBdEdJxeRAwvJtbpkBaOixX3Mcw=
-X-Received: by 2002:a65:64d5:: with SMTP id t21mr31851512pgv.310.1561355057661;
-        Sun, 23 Jun 2019 22:44:17 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz3Iz9Hdr4Bvg+FoOZi3zR+1rr3sgfcOH3y4RzqqCz8CXnYJ8jua/LfUjTbURmql4dVAtdP
-X-Received: by 2002:a65:64d5:: with SMTP id t21mr31851431pgv.310.1561355055908;
-        Sun, 23 Jun 2019 22:44:15 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561355055; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=2pdkzO1ZBe6jeFx8SlQxBsl2jhi2f0nsk47IVYXzi5M=;
+        b=YC8ARxiUkmT8lpAV2MxY5lmfjgiVdykNydnW0FZvCuNYiMYDaqC34z6bfkhsgGjyNS
+         a4//nZpzFPDh+9pkynqcEPJ4rWh0bevYw6Qe37A/g8toJ8de8tnyVJbzWtmpUwNp88Kw
+         FxxvBe8rzYXS73MUdGehvYdE/wroWBFYIROe7CxY5KPk0bMPpchXM4+N0Ymzp1cfvy3v
+         gGD94DJK7gVXsC8b4r0H5pJQFkBl7s9mSpF+bcNp9CE/215Fe7uvXeEvy/rwUw6mEx5+
+         0HwfopK9z7iXXg9FPxXCXluVQrxE/6EUmAClL9yLYa9vkNPo/WlpyMgte4hH1nkox10h
+         HA+w==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+X-Gm-Message-State: APjAAAXMRBTU9s59ljfh1hZwfshzRxUtNhuiACjTmcy2dqJo2o8xkrGy
+	tmBofKQKgUOvSy/u/Rrmv942PF3QpLXG2kQeANB+numieybOdyd1YVhedIaS8goT6ECsV8WGxg3
+	uvqMp4r9gRh7ecjPrNWzwDDh18frDwkBbEOpaCYYwUVhDmBsKfLscA7rg/qPnhggCjw==
+X-Received: by 2002:a17:906:7043:: with SMTP id r3mr50936719ejj.135.1561355215426;
+        Sun, 23 Jun 2019 22:46:55 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwESqP/qj9XmAuo3zCjv9XVwD7JNFu/4EPZyDHIPoB50uV3p4/Itv7Wq720p4NDH4cFa39t
+X-Received: by 2002:a17:906:7043:: with SMTP id r3mr50936692ejj.135.1561355214780;
+        Sun, 23 Jun 2019 22:46:54 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561355214; cv=none;
         d=google.com; s=arc-20160816;
-        b=xdQsj2oZiB/vLYsZVwacDwoTY1BoaDjXVDHtH/wXzD2tow4BuOG6oab6D0J8e1dFcJ
-         2DxdF1ZogqB1Nthk20sLDkanMSSynWsAfvM2r+JY877uQ+A5RUNGHwgDX1MWdD1zdSXJ
-         1x04R5Gum6LhqptJn8xFPFHO+Jpt+LZ/q/tU9yuOcILsDm+i4uonIrf+8p13HM53T5kH
-         wOfKGurnZHlMkPtCNqh+x6ZTbYkUJOHdOf+7fF3Am4s+7msoRydR60gPHrPTpxP5029K
-         hDjWFa5lrTn3rcxSxT+c8A/qWRGBWKyzvN29gZ6iYygS9n5pnr3yQeGsl0Y9RQIgmY5t
-         zSeQ==
+        b=lrqu0Ip6ttIZ4mkeN01H+kPFBAjwnrnUMIbC9g291Y+tcE6EMp3IfyyxeeoySB2acp
+         qMSN4IEL40jKKR5RLd2f5w6FzYgyiln3PQDHb7hl54Snwnc3DlcpOsZpRyIAZMfzGOK1
+         U/+ZOG0D7LGZChgV8PhfNJJz9Y7CdZNzXl25RpQFx4pmwdVe3cf4G5JTU3MPmqlVc3iG
+         V/IPiLgagS67clRuGvO+098eoDNHYttCkEIpxrS5wBq7ute6HivW/5IU8UA8I0sU8ovR
+         gCAeCvYKaweQQEF7zlCiD8bWCpzKKbaTOFbVceUNi2TE8qwWi/dscT0QrXBD/S/qJKvz
+         n6sw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=bADdo+Mbgo83CtlWv1N78ekIJfVsXi0DKzmLCwrP8tg=;
-        b=L1VCeSaFNjqztYbSO2ItbTHwfUmreDmjQv8VfL18KaudgkIT+cM6mz1jGWIoPe705J
-         iMdFcbhiOGD+sHwSB+f1UYueraF479EC9FMiFPkuz5Cm9kTm6qunHcHl5n0ndQXcwh2N
-         PqtA3RLRAHh+jzTgwkMfyZsT6zDeqpgbed8uoceWU8y7S1cWy6mAq32tkjPqy7gZXDAB
-         kdzXtmQxUOXg4Pb4sfLACoySPm/Ds58MFSD19Um24MWx6qEIdWmpE4A05NSnoSkaXAgy
-         i0+22L1aTS7pCzaroRtCz9g1uDTxFdzQIWEhkKhzN8pvZIsBzsO0zkWDdwZxjzPuIWU3
-         FQcA==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
+         :subject;
+        bh=2pdkzO1ZBe6jeFx8SlQxBsl2jhi2f0nsk47IVYXzi5M=;
+        b=j9Wa4+yipSNDXexot1hYQh0afmZx8+46TEnR1f7h3fMQyC9TyuHNAhkt1dIkLmbWD/
+         gJ0p247wuZC7qo1iCDdF5yA516nCeKWmIZ87/KKFnCB6OTGs4zXiT2yDIOCprrzgp29C
+         sl/vFI0gJMQ45ib/F6W4CFoFAV3kSOYu5xC/plZjltEkFep80JQHovo8blbfcDalSlQz
+         YOHp9NT68G7zTSKYa6T8LnRk9xjF06qOYeHmAUd50V3V52fSgxqlDY9YG7/xluJYHSzT
+         njIRLEXsRPOAwpSw54DfloHKCN/Vr3wmIiTFunDOFijOPFiCf/LBDy4QXkk5EUx/E+cF
+         bpvg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=qd1xnqNv;
-       spf=pass (google.com: best guess record for domain of batv+84882ec255bc51113d1a+5783+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+84882ec255bc51113d1a+5783+infradead.org+hch@bombadil.srs.infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id z9si9699636pju.2.2019.06.23.22.44.15
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id e26si8366608edq.401.2019.06.23.22.46.54
         for <linux-mm@kvack.org>
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Sun, 23 Jun 2019 22:44:15 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of batv+84882ec255bc51113d1a+5783+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 23 Jun 2019 22:46:54 -0700 (PDT)
+Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=qd1xnqNv;
-       spf=pass (google.com: best guess record for domain of batv+84882ec255bc51113d1a+5783+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+84882ec255bc51113d1a+5783+infradead.org+hch@bombadil.srs.infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=Content-Transfer-Encoding:
-	MIME-Version:References:In-Reply-To:Message-Id:Date:Subject:Cc:To:From:Sender
-	:Reply-To:Content-Type:Content-ID:Content-Description:Resent-Date:Resent-From
-	:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:List-Help:
-	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	bh=bADdo+Mbgo83CtlWv1N78ekIJfVsXi0DKzmLCwrP8tg=; b=qd1xnqNviXPK/Xv6R3erTR19ca
-	BglzCnfB64T6lcv4qB6UeYPhVn0XAS2/7naeKyyP0p226JTodY2ENHArPQP5dvxJvMdBVopDLGDf/
-	XWrgkr5BmlKGJWiDZzAQfedCYZ0p4DCY1GutTDRl4EkEXW683vVl2MLs5daJB32yAT/EQJenXC+PP
-	eERHLfGa3uuY+EenzP3Ubi/XsuS4jrGoPJp/CMsdF+imUqy73OVXX30vFDU+bYQP/3u1iToOYHk/d
-	7BOxatu+2BN+gOxT5SNF0xXqcfUSmbJT0U4WmYkPpB3Q1hBSHTRs7MVr7Jdky9R9URnI37aLbl0Vw
-	leweGmEw==;
-Received: from 213-225-6-159.nat.highway.a1.net ([213.225.6.159] helo=localhost)
-	by bombadil.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
-	id 1hfHm1-0006zd-03; Mon, 24 Jun 2019 05:44:13 +0000
-From: Christoph Hellwig <hch@lst.de>
-To: Palmer Dabbelt <palmer@sifive.com>,
-	Paul Walmsley <paul.walmsley@sifive.com>
-Cc: Damien Le Moal <damien.lemoal@wdc.com>,
-	linux-riscv@lists.infradead.org,
-	linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
-Subject: [PATCH 17/17] riscv: add nommu support
-Date: Mon, 24 Jun 2019 07:43:11 +0200
-Message-Id: <20190624054311.30256-18-hch@lst.de>
-X-Mailer: git-send-email 2.20.1
-In-Reply-To: <20190624054311.30256-1-hch@lst.de>
-References: <20190624054311.30256-1-hch@lst.de>
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id C8667AD76;
+	Mon, 24 Jun 2019 05:46:53 +0000 (UTC)
+Subject: Re: [PATCH] mm: fix setting the high and low watermarks
+To: Bharath Vedartham <linux.bhar@gmail.com>
+Cc: Alan Jenkins <alan.christopher.jenkins@gmail.com>,
+ Mel Gorman <mgorman@techsingularity.net>, linux-mm@kvack.org,
+ linux-kernel@vger.kernel.org, stable@vger.kernel.org
+References: <20190621114325.711-1-alan.christopher.jenkins@gmail.com>
+ <3d15b808-b7cd-7379-a6a9-d3cf04b7dcec@suse.cz>
+ <20190621140717.GA28387@bharath12345-Inspiron-5559>
+From: Vlastimil Babka <vbabka@suse.cz>
+Openpgp: preference=signencrypt
+Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
+ 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
+Message-ID: <c997fb4d-c064-4faf-f40b-1fda064681b1@suse.cz>
+Date: Mon, 24 Jun 2019 07:46:53 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.1
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-X-SRS-Rewrite: SMTP reverse-path rewritten from <hch@infradead.org> by bombadil.infradead.org. See http://www.infradead.org/rpr.html
+In-Reply-To: <20190621140717.GA28387@bharath12345-Inspiron-5559>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The kernel runs in M-mode without using page tables, and thus can't run
-bare metal without help from additional firmware.
+On 6/21/19 4:07 PM, Bharath Vedartham wrote:
+> Do you think this could cause a race condition between
+> __setup_per_zone_wmarks and pgdat_watermark_boosted which checks whether
+> the watermark_boost of each zone is non-zero? pgdat_watermark_boosted is
+> not called with a zone lock.
+> Here is a probable case scenario:
+> watermarks are boosted in steal_suitable_fallback(which happens under a
+> zone lock). After that kswapd is woken up by
+> wakeup_kswapd(zone,0,0,zone_idx(zone)) in rmqueue without holding a
+> zone lock. Lets say someone modified min_kfree_bytes, this would lead to
+> all the zone->watermark_boost being set to 0. This may cause
+> pgdat_watermark_boosted to return false, which would not wakeup kswapd
+> as intended by boosting the watermark. This behaviour is similar to waking up kswapd for a
+> balanced node.
 
-Most of the patch is just stubbing out code not needed without page
-tables, but there is an interesting detail in the signals implementation:
+Not waking up kswapd shouldn't cause a significant trouble.
 
- - The normal RISC-V syscall ABI only implements rt_sigreturn as VDSO
-   entry point, but the ELF VDSO is not supported for nommu Linux.
-   We instead copy the code to call the syscall onto the stack.
+> Also if kswapd was woken up successfully because of watermarks being
+> boosted. In balance_pgdat, we use nr_boost_reclaim to count number of
+> pages to reclaim because of boosting. nr_boost_reclaim is calculated as:
+> nr_boost_reclaim = 0;
+> for (i = 0; i <= classzone_idx; i++) {
+> 	zone = pgdat->node_zones + i;
+> 	if (!managed_zone(zone))
+> 		continue;
+> 
+> 	nr_boost_reclaim += zone->watermark_boost;
+> 	zone_boosts[i] = zone->watermark_boost;
+> }
+> boosted = nr_boost_reclaim;
+> 
+> This is not under a zone_lock. This could lead to nr_boost_reclaim to
+> be 0 if min_kfree_bytes is set to 0. Which would wake up kcompactd
+> without reclaiming memory.
 
-In addition to enabling the nommu code a new defconfig for a small
-kernel image that can run in nommu mode on qemu is also provided, to run
-a kernel in qemu you can use the following command line:
+Setting min_kfree_bytes to 0 is asking for problems regardless of this
+check. Much more trouble than waking up kcompactd spuriously, which is
+just a few wasted cpu cycles.
 
-qemu-system-riscv64 -smp 2 -m 64 -machine virt -nographic \
-	-kernel arch/riscv/boot/loader \
-	-drive file=rootfs.ext2,format=raw,id=hd0 \
-	-device virtio-blk-device,drive=hd0
+> kcompactd compaction might be spurious if the if the memory reclaim step is not happening?
+> 
+> Any thoughts?
 
-Contains contributions from Damien Le Moal <Damien.LeMoal@wdc.com>.
+Unless the races cause either some data corruption, or e.g. spurious
+allocation failures, I don't think they are worth adding new spinlock
+sections.
 
-Signed-off-by: Christoph Hellwig <hch@lst.de>
----
- arch/riscv/Kconfig                      | 24 +++++---
- arch/riscv/configs/nommu_virt_defconfig | 78 +++++++++++++++++++++++++
- arch/riscv/include/asm/elf.h            |  4 +-
- arch/riscv/include/asm/futex.h          |  6 ++
- arch/riscv/include/asm/io.h             |  4 ++
- arch/riscv/include/asm/mmu.h            |  3 +
- arch/riscv/include/asm/page.h           | 12 +++-
- arch/riscv/include/asm/pgalloc.h        |  2 +
- arch/riscv/include/asm/pgtable.h        | 38 ++++++++----
- arch/riscv/include/asm/tlbflush.h       |  7 ++-
- arch/riscv/include/asm/uaccess.h        |  4 ++
- arch/riscv/kernel/Makefile              |  3 +-
- arch/riscv/kernel/entry.S               | 11 ++++
- arch/riscv/kernel/head.S                |  6 ++
- arch/riscv/kernel/signal.c              | 17 +++++-
- arch/riscv/lib/Makefile                 |  8 +--
- arch/riscv/mm/Makefile                  |  3 +-
- arch/riscv/mm/cacheflush.c              |  2 +
- arch/riscv/mm/context.c                 |  2 +
- arch/riscv/mm/init.c                    |  2 +
- 20 files changed, 200 insertions(+), 36 deletions(-)
- create mode 100644 arch/riscv/configs/nommu_virt_defconfig
+Thanks,
+Vlastimil
 
-diff --git a/arch/riscv/Kconfig b/arch/riscv/Kconfig
-index 2185481d1589..f36f337c7570 100644
---- a/arch/riscv/Kconfig
-+++ b/arch/riscv/Kconfig
-@@ -26,13 +26,13 @@ config RISCV
- 	select GENERIC_IRQ_SHOW
- 	select GENERIC_PCI_IOMAP
- 	select GENERIC_SCHED_CLOCK
--	select GENERIC_STRNCPY_FROM_USER
--	select GENERIC_STRNLEN_USER
-+	select GENERIC_STRNCPY_FROM_USER if MMU
-+	select GENERIC_STRNLEN_USER if MMU
- 	select GENERIC_SMP_IDLE_THREAD
- 	select GENERIC_ATOMIC64 if !64BIT
- 	select HAVE_ARCH_AUDITSYSCALL
- 	select HAVE_MEMBLOCK_NODE_MAP
--	select HAVE_DMA_CONTIGUOUS
-+	select HAVE_DMA_CONTIGUOUS if MMU
- 	select HAVE_FUTEX_CMPXCHG if FUTEX
- 	select HAVE_PERF_EVENTS
- 	select HAVE_SYSCALL_TRACEPOINTS
-@@ -47,6 +47,7 @@ config RISCV
- 	select PCI_DOMAINS_GENERIC if PCI
- 	select PCI_MSI if PCI
- 	select RISCV_TIMER
-+	select UACCESS_MEMCPY if !MMU
- 	select GENERIC_IRQ_MULTI_HANDLER
- 	select ARCH_HAS_PTE_SPECIAL
- 	select ARCH_HAS_MMIOWB
-@@ -55,9 +56,14 @@ config RISCV
- # set if we run in machine mode, cleared if we run in supervisor mode
- config M_MODE
- 	bool
-+	default y if !MMU
- 
- config MMU
--	def_bool y
-+	bool "MMU-based Paged Memory Management Support"
-+	default y
-+	help
-+	  Select if you want MMU-based virtualised addressing space
-+	  support by paged memory management. If unsure, say 'Y'.
- 
- config ZONE_DMA32
- 	bool
-@@ -66,6 +72,7 @@ config ZONE_DMA32
- config PAGE_OFFSET
- 	hex
- 	default 0xC0000000 if 32BIT && MAXPHYSMEM_2GB
-+	default 0x80000000 if 64BIT && !MMU
- 	default 0xffffffff80000000 if 64BIT && MAXPHYSMEM_2GB
- 	default 0xffffffe000000000 if 64BIT && MAXPHYSMEM_128GB
- 
-@@ -93,7 +100,7 @@ config GENERIC_HWEIGHT
- 	def_bool y
- 
- config FIX_EARLYCON_MEM
--	def_bool y
-+	def_bool CONFIG_MMU
- 
- config PGTABLE_LEVELS
- 	int
-@@ -116,6 +123,7 @@ config ARCH_RV32I
- 	select GENERIC_LIB_ASHRDI3
- 	select GENERIC_LIB_LSHRDI3
- 	select GENERIC_LIB_UCMPDI2
-+	select MMU
- 
- config ARCH_RV64I
- 	bool "RV64I"
-@@ -124,9 +132,9 @@ config ARCH_RV64I
- 	select HAVE_FUNCTION_TRACER
- 	select HAVE_FUNCTION_GRAPH_TRACER
- 	select HAVE_FTRACE_MCOUNT_RECORD
--	select HAVE_DYNAMIC_FTRACE
--	select HAVE_DYNAMIC_FTRACE_WITH_REGS
--	select SWIOTLB
-+	select HAVE_DYNAMIC_FTRACE if MMU
-+	select HAVE_DYNAMIC_FTRACE_WITH_REGS if HAVE_DYNAMIC_FTRACE
-+	select SWIOTLB if MMU
- 
- endchoice
- 
-diff --git a/arch/riscv/configs/nommu_virt_defconfig b/arch/riscv/configs/nommu_virt_defconfig
-new file mode 100644
-index 000000000000..cf74e179bf90
---- /dev/null
-+++ b/arch/riscv/configs/nommu_virt_defconfig
-@@ -0,0 +1,78 @@
-+# CONFIG_CPU_ISOLATION is not set
-+CONFIG_LOG_BUF_SHIFT=16
-+CONFIG_PRINTK_SAFE_LOG_BUF_SHIFT=12
-+CONFIG_BLK_DEV_INITRD=y
-+# CONFIG_RD_BZIP2 is not set
-+# CONFIG_RD_LZMA is not set
-+# CONFIG_RD_XZ is not set
-+# CONFIG_RD_LZO is not set
-+# CONFIG_RD_LZ4 is not set
-+CONFIG_CC_OPTIMIZE_FOR_SIZE=y
-+CONFIG_EXPERT=y
-+# CONFIG_SYSFS_SYSCALL is not set
-+# CONFIG_FHANDLE is not set
-+# CONFIG_BASE_FULL is not set
-+# CONFIG_EPOLL is not set
-+# CONFIG_SIGNALFD is not set
-+# CONFIG_TIMERFD is not set
-+# CONFIG_EVENTFD is not set
-+# CONFIG_AIO is not set
-+# CONFIG_IO_URING is not set
-+# CONFIG_ADVISE_SYSCALLS is not set
-+# CONFIG_MEMBARRIER is not set
-+# CONFIG_KALLSYMS is not set
-+# CONFIG_VM_EVENT_COUNTERS is not set
-+# CONFIG_COMPAT_BRK is not set
-+CONFIG_SLOB=y
-+# CONFIG_SLAB_MERGE_DEFAULT is not set
-+# CONFIG_MMU is not set
-+CONFIG_MAXPHYSMEM_2GB=y
-+CONFIG_SMP=y
-+CONFIG_CMDLINE="root=/dev/vda rw earlycon=uart8250,mmio,0x10000000,115200n8 console=ttyS0"
-+CONFIG_CMDLINE_FORCE=y
-+# CONFIG_BLK_DEV_BSG is not set
-+CONFIG_PARTITION_ADVANCED=y
-+# CONFIG_MSDOS_PARTITION is not set
-+# CONFIG_EFI_PARTITION is not set
-+# CONFIG_MQ_IOSCHED_DEADLINE is not set
-+# CONFIG_MQ_IOSCHED_KYBER is not set
-+CONFIG_BINFMT_FLAT=y
-+# CONFIG_COREDUMP is not set
-+CONFIG_DEVTMPFS=y
-+CONFIG_DEVTMPFS_MOUNT=y
-+# CONFIG_FW_LOADER is not set
-+# CONFIG_ALLOW_DEV_COREDUMP is not set
-+CONFIG_VIRTIO_BLK=y
-+# CONFIG_INPUT_KEYBOARD is not set
-+# CONFIG_INPUT_MOUSE is not set
-+# CONFIG_SERIO is not set
-+# CONFIG_LEGACY_PTYS is not set
-+# CONFIG_LDISC_AUTOLOAD is not set
-+# CONFIG_DEVMEM is not set
-+CONFIG_SERIAL_8250=y
-+# CONFIG_SERIAL_8250_DEPRECATED_OPTIONS is not set
-+CONFIG_SERIAL_8250_CONSOLE=y
-+CONFIG_SERIAL_8250_NR_UARTS=1
-+CONFIG_SERIAL_8250_RUNTIME_UARTS=1
-+CONFIG_SERIAL_OF_PLATFORM=y
-+# CONFIG_HW_RANDOM is not set
-+# CONFIG_HWMON is not set
-+# CONFIG_LCD_CLASS_DEVICE is not set
-+# CONFIG_BACKLIGHT_CLASS_DEVICE is not set
-+# CONFIG_VGA_CONSOLE is not set
-+# CONFIG_HID is not set
-+# CONFIG_USB_SUPPORT is not set
-+CONFIG_VIRTIO_MMIO=y
-+CONFIG_VIRTIO_MMIO_CMDLINE_DEVICES=y
-+CONFIG_SIFIVE_PLIC=y
-+# CONFIG_VALIDATE_FS_PARSER is not set
-+CONFIG_EXT2_FS=y
-+# CONFIG_DNOTIFY is not set
-+# CONFIG_INOTIFY_USER is not set
-+# CONFIG_MISC_FILESYSTEMS is not set
-+CONFIG_LSM="[]"
-+CONFIG_PRINTK_TIME=y
-+# CONFIG_SCHED_DEBUG is not set
-+# CONFIG_RCU_TRACE is not set
-+# CONFIG_FTRACE is not set
-+# CONFIG_RUNTIME_TESTING_MENU is not set
-diff --git a/arch/riscv/include/asm/elf.h b/arch/riscv/include/asm/elf.h
-index ef04084bf0de..d83a4efd052b 100644
---- a/arch/riscv/include/asm/elf.h
-+++ b/arch/riscv/include/asm/elf.h
-@@ -56,16 +56,16 @@ extern unsigned long elf_hwcap;
-  */
- #define ELF_PLATFORM	(NULL)
- 
-+#ifdef CONFIG_MMU
- #define ARCH_DLINFO						\
- do {								\
- 	NEW_AUX_ENT(AT_SYSINFO_EHDR,				\
- 		(elf_addr_t)current->mm->context.vdso);		\
- } while (0)
--
--
- #define ARCH_HAS_SETUP_ADDITIONAL_PAGES
- struct linux_binprm;
- extern int arch_setup_additional_pages(struct linux_binprm *bprm,
- 	int uses_interp);
-+#endif /* CONFIG_MMU */
- 
- #endif /* _ASM_RISCV_ELF_H */
-diff --git a/arch/riscv/include/asm/futex.h b/arch/riscv/include/asm/futex.h
-index 4ad6409c4647..418564b96dc4 100644
---- a/arch/riscv/include/asm/futex.h
-+++ b/arch/riscv/include/asm/futex.h
-@@ -12,6 +12,12 @@
- #include <linux/errno.h>
- #include <asm/asm.h>
- 
-+/* We don't even really need the extable code, but for now keep it simple */
-+#ifndef CONFIG_MMU
-+#define __enable_user_access()		do { } while (0)
-+#define __disable_user_access()		do { } while (0)
-+#endif
-+
- #define __futex_atomic_op(insn, ret, oldval, uaddr, oparg)	\
- {								\
- 	uintptr_t tmp;						\
-diff --git a/arch/riscv/include/asm/io.h b/arch/riscv/include/asm/io.h
-index fc1189ad3777..d39a8f03e85e 100644
---- a/arch/riscv/include/asm/io.h
-+++ b/arch/riscv/include/asm/io.h
-@@ -14,6 +14,7 @@
- #include <linux/types.h>
- #include <asm/mmiowb.h>
- 
-+#ifdef CONFIG_MMU
- extern void __iomem *ioremap(phys_addr_t offset, unsigned long size);
- 
- /*
-@@ -26,6 +27,9 @@ extern void __iomem *ioremap(phys_addr_t offset, unsigned long size);
- #define ioremap_wt(addr, size) ioremap((addr), (size))
- 
- extern void iounmap(volatile void __iomem *addr);
-+#else
-+#define pgprot_noncached(x)	(x)
-+#endif /* CONFIG_MMU */
- 
- /* Generic IO read/write.  These perform native-endian accesses. */
- #define __raw_writeb __raw_writeb
-diff --git a/arch/riscv/include/asm/mmu.h b/arch/riscv/include/asm/mmu.h
-index 151476fb58cb..967eacb01ab5 100644
---- a/arch/riscv/include/asm/mmu.h
-+++ b/arch/riscv/include/asm/mmu.h
-@@ -10,6 +10,9 @@
- #ifndef __ASSEMBLY__
- 
- typedef struct {
-+#ifndef CONFIG_MMU
-+	unsigned long	end_brk;
-+#endif
- 	void *vdso;
- #ifdef CONFIG_SMP
- 	/* A local icache flush is needed before user execution can resume. */
-diff --git a/arch/riscv/include/asm/page.h b/arch/riscv/include/asm/page.h
-index 8ddb6c7fedac..df0256a9a965 100644
---- a/arch/riscv/include/asm/page.h
-+++ b/arch/riscv/include/asm/page.h
-@@ -78,8 +78,14 @@ typedef struct page *pgtable_t;
- #define PTE_FMT "%08lx"
- #endif
- 
-+#ifdef CONFIG_MMU
- extern unsigned long va_pa_offset;
- extern unsigned long pfn_base;
-+#define ARCH_PFN_OFFSET		(pfn_base)
-+#else
-+#define va_pa_offset		0
-+#define ARCH_PFN_OFFSET		(PAGE_OFFSET >> PAGE_SHIFT)
-+#endif /* CONFIG_MMU */
- 
- extern unsigned long max_low_pfn;
- extern unsigned long min_low_pfn;
-@@ -101,9 +107,7 @@ extern unsigned long min_low_pfn;
- #define phys_to_page(paddr)	(pfn_to_page(phys_to_pfn(paddr)))
- 
- #define pfn_valid(pfn) \
--	(((pfn) >= pfn_base) && (((pfn)-pfn_base) < max_mapnr))
--
--#define ARCH_PFN_OFFSET		(pfn_base)
-+	(((pfn) >= ARCH_PFN_OFFSET) && (((pfn) - ARCH_PFN_OFFSET) < max_mapnr))
- 
- #endif /* __ASSEMBLY__ */
- 
-@@ -115,8 +119,10 @@ extern unsigned long min_low_pfn;
- #include <asm-generic/memory_model.h>
- #include <asm-generic/getorder.h>
- 
-+#ifdef CONFIG_MMU
- /* vDSO support */
- /* We do define AT_SYSINFO_EHDR but don't use the gate mechanism */
- #define __HAVE_ARCH_GATE_AREA
-+#endif /* CONFIG_MMU */
- 
- #endif /* _ASM_RISCV_PAGE_H */
-diff --git a/arch/riscv/include/asm/pgalloc.h b/arch/riscv/include/asm/pgalloc.h
-index eb8b0195f27f..8d60c862d2f9 100644
---- a/arch/riscv/include/asm/pgalloc.h
-+++ b/arch/riscv/include/asm/pgalloc.h
-@@ -10,6 +10,7 @@
- #include <linux/mm.h>
- #include <asm/tlb.h>
- 
-+#ifdef CONFIG_MMU
- static inline void pmd_populate_kernel(struct mm_struct *mm,
- 	pmd_t *pmd, pte_t *pte)
- {
-@@ -106,6 +107,7 @@ do {                                    \
- 	pgtable_page_dtor(pte);         \
- 	tlb_remove_page((tlb), pte);    \
- } while (0)
-+#endif /* CONFIG_MMU */
- 
- static inline void check_pgt_cache(void)
- {
-diff --git a/arch/riscv/include/asm/pgtable.h b/arch/riscv/include/asm/pgtable.h
-index f7c3f7de15f2..dd6a63648e4a 100644
---- a/arch/riscv/include/asm/pgtable.h
-+++ b/arch/riscv/include/asm/pgtable.h
-@@ -24,6 +24,7 @@
- #include <asm/pgtable-32.h>
- #endif /* CONFIG_64BIT */
- 
-+#ifdef CONFIG_MMU
- /* Number of entries in the page global directory */
- #define PTRS_PER_PGD    (PAGE_SIZE / sizeof(pgd_t))
- /* Number of entries in the page table */
-@@ -31,7 +32,6 @@
- 
- /* Number of PGD entries that a user-mode program can use */
- #define USER_PTRS_PER_PGD   (TASK_SIZE / PGDIR_SIZE)
--#define FIRST_USER_ADDRESS  0
- 
- /* Page protection bits */
- #define _PAGE_BASE	(_PAGE_PRESENT | _PAGE_ACCESSED | _PAGE_USER)
-@@ -81,13 +81,6 @@ extern pgd_t swapper_pg_dir[];
- #define __S110	PAGE_SHARED_EXEC
- #define __S111	PAGE_SHARED_EXEC
- 
--/*
-- * ZERO_PAGE is a global shared page that is always zero,
-- * used for zero-mapped memory areas, etc.
-- */
--extern unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)];
--#define ZERO_PAGE(vaddr) (virt_to_page(empty_zero_page))
--
- static inline int pmd_present(pmd_t pmd)
- {
- 	return (pmd_val(pmd) & (_PAGE_PRESENT | _PAGE_PROT_NONE));
-@@ -392,6 +385,18 @@ static inline int ptep_clear_flush_young(struct vm_area_struct *vma,
- #define __pte_to_swp_entry(pte)	((swp_entry_t) { pte_val(pte) })
- #define __swp_entry_to_pte(x)	((pte_t) { (x).val })
- 
-+#define VMALLOC_SIZE		(KERN_VIRT_SIZE >> 1)
-+#define VMALLOC_END		(PAGE_OFFSET - 1)
-+#define VMALLOC_START		(PAGE_OFFSET - VMALLOC_SIZE)
-+
-+#else /* CONFIG_MMU */
-+
-+#define PAGE_KERNEL		__pgprot(0)
-+#define swapper_pg_dir		NULL
-+#define VMALLOC_START		0
-+
-+#endif /* CONFIG_MMU */
-+
- #ifdef CONFIG_FLATMEM
- #define kern_addr_valid(addr)   (1) /* FIXME */
- #endif
-@@ -404,10 +409,7 @@ static inline void pgtable_cache_init(void)
- 	/* No page table caches to initialize */
- }
- 
--#define VMALLOC_SIZE     (KERN_VIRT_SIZE >> 1)
--#define VMALLOC_END      (PAGE_OFFSET - 1)
--#define VMALLOC_START    (PAGE_OFFSET - VMALLOC_SIZE)
--
-+#ifdef CONFIG_MMU
- /*
-  * Task size is 0x40000000000 for RV64 or 0xb800000 for RV32.
-  * Note that PGDIR_SIZE must evenly divide TASK_SIZE.
-@@ -417,6 +419,18 @@ static inline void pgtable_cache_init(void)
- #else
- #define TASK_SIZE VMALLOC_START
- #endif
-+#else /* CONFIG_MMU */
-+#define TASK_SIZE 0xffffffffUL
-+#endif /* !CONFIG_MMU */
-+
-+#define FIRST_USER_ADDRESS  0
-+
-+/*
-+ * ZERO_PAGE is a global shared page that is always zero,
-+ * used for zero-mapped memory areas, etc.
-+ */
-+extern unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)];
-+#define ZERO_PAGE(vaddr) (virt_to_page(empty_zero_page))
- 
- #include <asm-generic/pgtable.h>
- 
-diff --git a/arch/riscv/include/asm/tlbflush.h b/arch/riscv/include/asm/tlbflush.h
-index 687dd19735a7..f127b3d17ec2 100644
---- a/arch/riscv/include/asm/tlbflush.h
-+++ b/arch/riscv/include/asm/tlbflush.h
-@@ -10,6 +10,7 @@
- #include <linux/mm_types.h>
- #include <asm/smp.h>
- 
-+#ifdef CONFIG_MMU
- /*
-  * Flush entire local TLB.  'sfence.vma' implicitly fences with the instruction
-  * cache as well, so a 'fence.i' is not necessary.
-@@ -24,8 +25,12 @@ static inline void local_flush_tlb_page(unsigned long addr)
- {
- 	__asm__ __volatile__ ("sfence.vma %0" : : "r" (addr) : "memory");
- }
-+#else /* CONFIG_MMU */
-+#define local_flush_tlb_all()			do { } while (0)
-+#define local_flush_tlb_page(addr)		do { } while (0)
-+#endif /* CONFIG_MMU */
- 
--#ifndef CONFIG_SMP
-+#if !defined(CONFIG_SMP) || !defined(CONFIG_MMU)
- 
- #define flush_tlb_all() local_flush_tlb_all()
- #define flush_tlb_page(vma, addr) local_flush_tlb_page(addr)
-diff --git a/arch/riscv/include/asm/uaccess.h b/arch/riscv/include/asm/uaccess.h
-index e076437cfafe..f462a183a9c2 100644
---- a/arch/riscv/include/asm/uaccess.h
-+++ b/arch/riscv/include/asm/uaccess.h
-@@ -11,6 +11,7 @@
- /*
-  * User space memory access functions
-  */
-+#ifdef CONFIG_MMU
- #include <linux/errno.h>
- #include <linux/compiler.h>
- #include <linux/thread_info.h>
-@@ -475,4 +476,7 @@ unsigned long __must_check clear_user(void __user *to, unsigned long n)
- 	__ret;							\
- })
- 
-+#else /* CONFIG_MMU */
-+#include <asm-generic/uaccess.h>
-+#endif /* CONFIG_MMU */
- #endif /* _ASM_RISCV_UACCESS_H */
-diff --git a/arch/riscv/kernel/Makefile b/arch/riscv/kernel/Makefile
-index f933c04f89db..d720666283d6 100644
---- a/arch/riscv/kernel/Makefile
-+++ b/arch/riscv/kernel/Makefile
-@@ -25,9 +25,8 @@ obj-y	+= time.o
- obj-y	+= traps.o
- obj-y	+= riscv_ksyms.o
- obj-y	+= stacktrace.o
--obj-y	+= vdso.o
- obj-y	+= cacheinfo.o
--obj-y	+= vdso/
-+obj-$(CONFIG_MMU) += vdso.o vdso/
- 
- obj-$(CONFIG_M_MODE)		+= clint.o
- obj-$(CONFIG_FPU)		+= fpu.o
-diff --git a/arch/riscv/kernel/entry.S b/arch/riscv/kernel/entry.S
-index b722ce20dc20..0e040573d6a8 100644
---- a/arch/riscv/kernel/entry.S
-+++ b/arch/riscv/kernel/entry.S
-@@ -370,6 +370,10 @@ ENTRY(__switch_to)
- 	ret
- ENDPROC(__switch_to)
- 
-+#ifndef CONFIG_MMU
-+#define do_page_fault do_trap_unknown
-+#endif
-+
- 	.section ".rodata"
- 	/* Exception vector table */
- ENTRY(excp_vect_table)
-@@ -391,3 +395,10 @@ ENTRY(excp_vect_table)
- 	RISCV_PTR do_page_fault   /* store page fault */
- excp_vect_table_end:
- END(excp_vect_table)
-+
-+#ifndef CONFIG_MMU
-+ENTRY(__user_rt_sigreturn)
-+	li a7, __NR_rt_sigreturn
-+	scall
-+END(__user_rt_sigreturn)
-+#endif
-diff --git a/arch/riscv/kernel/head.S b/arch/riscv/kernel/head.S
-index 74feb17737b4..405bd6ccf44a 100644
---- a/arch/riscv/kernel/head.S
-+++ b/arch/riscv/kernel/head.S
-@@ -68,10 +68,12 @@ clear_bss_done:
- 	la a2, boot_cpu_hartid
- 	REG_S a0, (a2)
- 
-+#ifdef CONFIG_MMU
- 	/* Initialize page tables and relocate to virtual addresses */
- 	la sp, init_thread_union + THREAD_SIZE
- 	call setup_vm
- 	call relocate
-+#endif /* CONFIG_MMU */
- 
- 	/* Restore C environment */
- 	la tp, init_task
-@@ -83,6 +85,7 @@ clear_bss_done:
- 	call parse_dtb
- 	tail start_kernel
- 
-+#ifdef CONFIG_MMU
- relocate:
- 	/* Relocate return address */
- 	li a1, PAGE_OFFSET
-@@ -134,6 +137,7 @@ relocate:
- 	sfence.vma
- 
- 	ret
-+#endif /* CONFIG_MMU */
- 
- .Lsecondary_start:
- #ifdef CONFIG_SMP
-@@ -162,8 +166,10 @@ relocate:
- 	beqz tp, .Lwait_for_cpu_up
- 	fence
- 
-+#ifdef CONFIG_MMU
- 	/* Enable virtual memory and relocate to virtual address */
- 	call relocate
-+#endif
- 
- 	tail smp_callin
- #endif
-diff --git a/arch/riscv/kernel/signal.c b/arch/riscv/kernel/signal.c
-index dfb26b64e17a..7de7e539b25b 100644
---- a/arch/riscv/kernel/signal.c
-+++ b/arch/riscv/kernel/signal.c
-@@ -17,11 +17,16 @@
- #include <asm/switch_to.h>
- #include <asm/csr.h>
- 
-+extern u32 __user_rt_sigreturn[2];
-+
- #define DEBUG_SIG 0
- 
- struct rt_sigframe {
- 	struct siginfo info;
- 	struct ucontext uc;
-+#ifndef CONFIG_MMU
-+	u32 sigreturn_code[2];
-+#endif
- };
- 
- #ifdef CONFIG_FPU
-@@ -166,7 +171,6 @@ static inline void __user *get_sigframe(struct ksignal *ksig,
- 	return (void __user *)sp;
- }
- 
--
- static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
- 	struct pt_regs *regs)
- {
-@@ -189,8 +193,19 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
- 		return -EFAULT;
- 
- 	/* Set up to return from userspace. */
-+#ifdef CONFIG_MMU
- 	regs->ra = (unsigned long)VDSO_SYMBOL(
- 		current->mm->context.vdso, rt_sigreturn);
-+#else
-+	/*
-+	 * For the nommu case we don't have a VDSO.  Instead we push two
-+	 * instructions to call the rt_sigreturn syscall onto the user stack.
-+	 */
-+	if (copy_to_user(&frame->sigreturn_code, __user_rt_sigreturn,
-+			sizeof(frame->sigreturn_code)))
-+		return -EFAULT;
-+	regs->ra = (unsigned long)&frame->sigreturn_code;;
-+#endif /* CONFIG_MMU */
- 
- 	/*
- 	 * Set up registers for signal handler.
-diff --git a/arch/riscv/lib/Makefile b/arch/riscv/lib/Makefile
-index 8e364ebf37de..5382e42d0cba 100644
---- a/arch/riscv/lib/Makefile
-+++ b/arch/riscv/lib/Makefile
-@@ -2,8 +2,6 @@
- lib-y	+= delay.o
- lib-y	+= memcpy.o
- lib-y	+= memset.o
--lib-y	+= uaccess.o
--
--lib-$(CONFIG_64BIT) += tishift.o
--
--lib-$(CONFIG_32BIT) += udivdi3.o
-+lib-$(CONFIG_MMU)	+= uaccess.o
-+lib-$(CONFIG_64BIT)	+= tishift.o
-+lib-$(CONFIG_32BIT)	+= udivdi3.o
-diff --git a/arch/riscv/mm/Makefile b/arch/riscv/mm/Makefile
-index fc51d3b7876e..8fc2fd148b06 100644
---- a/arch/riscv/mm/Makefile
-+++ b/arch/riscv/mm/Makefile
-@@ -6,9 +6,8 @@ CFLAGS_REMOVE_init.o = -pg
- endif
- 
- obj-y += init.o
--obj-y += fault.o
- obj-y += extable.o
--obj-y += ioremap.o
-+obj-$(CONFIG_MMU) += fault.o ioremap.o
- obj-y += cacheflush.o
- obj-y += context.o
- obj-y += sifive_l2_cache.o
-diff --git a/arch/riscv/mm/cacheflush.c b/arch/riscv/mm/cacheflush.c
-index 10875ea1065e..0fc69eedc921 100644
---- a/arch/riscv/mm/cacheflush.c
-+++ b/arch/riscv/mm/cacheflush.c
-@@ -90,6 +90,7 @@ void flush_icache_mm(struct mm_struct *mm, bool local)
- 
- #endif /* CONFIG_SMP */
- 
-+#ifdef CONFIG_MMU
- void flush_icache_pte(pte_t pte)
- {
- 	struct page *page = pte_page(pte);
-@@ -97,3 +98,4 @@ void flush_icache_pte(pte_t pte)
- 	if (!test_and_set_bit(PG_dcache_clean, &page->flags))
- 		flush_icache_all();
- }
-+#endif /* CONFIG_MMU */
-diff --git a/arch/riscv/mm/context.c b/arch/riscv/mm/context.c
-index beeb5d7f92ea..073ff12a838a 100644
---- a/arch/riscv/mm/context.c
-+++ b/arch/riscv/mm/context.c
-@@ -57,8 +57,10 @@ void switch_mm(struct mm_struct *prev, struct mm_struct *next,
- 	cpumask_clear_cpu(cpu, mm_cpumask(prev));
- 	cpumask_set_cpu(cpu, mm_cpumask(next));
- 
-+#ifdef CONFIG_MMU
- 	csr_write(CSR_SATP, virt_to_pfn(next->pgd) | SATP_MODE);
- 	local_flush_tlb_all();
-+#endif
- 
- 	flush_icache_deferred(next);
- }
-diff --git a/arch/riscv/mm/init.c b/arch/riscv/mm/init.c
-index 84747d7a1e85..782be273e714 100644
---- a/arch/riscv/mm/init.c
-+++ b/arch/riscv/mm/init.c
-@@ -142,6 +142,7 @@ void __init setup_bootmem(void)
- 	}
- }
- 
-+#ifdef CONFIG_MMU
- unsigned long va_pa_offset;
- EXPORT_SYMBOL(va_pa_offset);
- unsigned long pfn_base;
-@@ -247,3 +248,4 @@ asmlinkage void __init setup_vm(void)
- 				__pgprot(_PAGE_TABLE));
- #endif
- }
-+#endif /* CONFIG_MMU */
--- 
-2.20.1
+>>  		spin_unlock_irqrestore(&zone->lock, flags);
+>>
+> 
 
