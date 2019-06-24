@@ -2,240 +2,155 @@ Return-Path: <SRS0=9FL3=UX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_MUTT autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-0.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 36CEEC48BE9
-	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 16:52:16 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D461CC48BE8
+	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 16:54:19 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id F0861204EC
-	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 16:52:15 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F0861204EC
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id A55DA20663
+	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 16:54:19 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A55DA20663
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 790F48E0003; Mon, 24 Jun 2019 12:52:15 -0400 (EDT)
+	id 40C998E0003; Mon, 24 Jun 2019 12:54:19 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7489C8E0002; Mon, 24 Jun 2019 12:52:15 -0400 (EDT)
+	id 3BCAC8E0002; Mon, 24 Jun 2019 12:54:19 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 609028E0003; Mon, 24 Jun 2019 12:52:15 -0400 (EDT)
+	id 2ABE78E0003; Mon, 24 Jun 2019 12:54:19 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 113808E0002
-	for <linux-mm@kvack.org>; Mon, 24 Jun 2019 12:52:15 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id b21so21205325edt.18
-        for <linux-mm@kvack.org>; Mon, 24 Jun 2019 09:52:15 -0700 (PDT)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id E55108E0002
+	for <linux-mm@kvack.org>; Mon, 24 Jun 2019 12:54:18 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id t2so7631179plo.10
+        for <linux-mm@kvack.org>; Mon, 24 Jun 2019 09:54:18 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=vnaYT7xz8hzZ9utgOxwBGCOEmkU1KLZSf5Bef1pBtfE=;
-        b=Vh6LxSwtwybnZdDkHEsGdAIXzXdBwUy3ZlVYH7mbnN6PZHacW/gSij9LlS+35CfhK7
-         GR8EW+UMV8OMEFa9+bvHHc8qhA6y8Z3gzg5jR6yb4sX/N5no75B7h6PTdfwS/aJgY5h1
-         2xDLmLBAsfg+ENIt7i5BETC+HcXjAPyUxWVpyxQZwG3Oq9W849mJKrI+utgCxv09Qy2s
-         Kjj/Yv5rtk6xiQEM6FSVqqYr8WtWimrn5id8oNzYriP3nFd9yAn99903DXKi7Dty3mGc
-         ffWuur4ul49z0ERRlKSwEzmTkqA2jaoM6L9UEj2NTCBzvcG+mpf2RJbuxOuWBhBn1KBw
-         M7XQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mark.rutland@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=mark.rutland@arm.com
-X-Gm-Message-State: APjAAAVW2XqBETEEDyw5aYa63hbMXvOd5sp/g6PKAGay2rossiOi5UZ+
-	WEntBPq4nYsG1ivygNd0qD1GH3wN3mcXJAjsNRevlYWLkdiHR6EBdNjZPqXNGfmctgSBC7vI/jO
-	Ry8tiyUPHEf0gWI7rA2Zgz+PunDychz17zNfq9dAyITO9MghqksS3fseN/LesRClQbA==
-X-Received: by 2002:a05:6402:1801:: with SMTP id g1mr72500331edy.262.1561395134613;
-        Mon, 24 Jun 2019 09:52:14 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwG7se8RUAq7NoQiXhNcXx3Ku6Mxa4syQN9Kf4tIxuYE5zy1tCks2eLaYlWIvAecbUKxqoW
-X-Received: by 2002:a05:6402:1801:: with SMTP id g1mr72500245edy.262.1561395133673;
-        Mon, 24 Jun 2019 09:52:13 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561395133; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:from
+         :to:cc:references:message-id:date:user-agent:mime-version
+         :in-reply-to:content-transfer-encoding:content-language;
+        bh=xNQfDudqIWnqMRWyEsJQ+IQUIlyt9uf8PPAEvRP5kVU=;
+        b=A+QZrUOjS80GXWb53Ru96y/69ecjS7Ne+RtPSyLba0IzPNZ33oqNoe14CV5gMFy52n
+         SUmeRapKrceUz98Lselx0UeS7DqwFcB6SkD2t5p2xD0mpTtOTPYZeSa76fBmVedF6B2z
+         paeoGjjs5uFPtsLiwcBI3It18G2jYsf3iT0DheUL9oWUC73XchVrIZ9LbKB54fC1Ie48
+         0M/rv4AEibPFgz2GkQWj+umhfSu/DiNEm2uL5PPhzpD0LxjOGFqK2vwz9RUE79wHFHoX
+         DFbzFCuHzWWBxmsKwNqjUNiEFkUGf/wLbdRlNh+GKjZj0ZM5M6uDESmMU0lK0ScTGgwu
+         LdmA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.37 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Gm-Message-State: APjAAAVzWOtWOEdbCc2xszgU8kqafdWZqmZKlZw8nFdf3BWTu/cdf8WU
+	FYWeX9j2DFwQ/XnwFP97pqBKrIfWds0hFKUgdtnOJkvoDNTsatydlLlITISAaRXwQvsb4H5e/i8
+	4vayL0FihIAefSl4syHr/dFJd4V9jzCI385XIXmUid6zrTt1Jfo3pyjJc7dbI7+Hc1g==
+X-Received: by 2002:a17:902:bb85:: with SMTP id m5mr32256614pls.280.1561395258584;
+        Mon, 24 Jun 2019 09:54:18 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwYS0H0epj3GteWZb8kW75tCsaslz7BUK/c967Id3BsyvifVSLVBqt9/giGmvNlBHMk4D2a
+X-Received: by 2002:a17:902:bb85:: with SMTP id m5mr32256565pls.280.1561395257918;
+        Mon, 24 Jun 2019 09:54:17 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561395257; cv=none;
         d=google.com; s=arc-20160816;
-        b=HY9OJ8tEC7XtSwvdV1dXy+cnJc7/XHJYzI4a27H2Xd9USqs6Qs/ME1A63H5E9p6pIz
-         XoYaX+GrNDSfYMkuPkjjeS7E/1pnQSaSTmZ1MmhL+LmwPutoMkK2O/n2utFxK4wrzjvT
-         rd3SrBiX82VF6Im92lpnUYLYqqXRdm9ky+pX/+B5P7oYTtiGLcOfrlh82/+JeVNj9g7c
-         /6bRq57KIbCj2HAlJK26Vb/l4nz+LqgTmvNQx+NsbSeAjNpo3BBN9If8VHo/uerj/rw3
-         yoo2MELbP9pGct3vulGzFnMymw9a19IOxNmjNXzFDVRbe3wu4Td8bW4hc/sZhW+g/kGi
-         iBbg==
+        b=Pxsk1rYY7eyuf0d08VhO165HDKEymful75CqYfvO6R4/x4L1lsnuU+XShmULzRLKdz
+         hkbTdazdZ1Ce98tNKbR7+MWcVapNsIrzN3ZMT6sf6WWUAQVCo2p6gc+m7pPhQmmHQD9a
+         +DyyPSSpBYnvv0XUp2MXS27E+URY35JeEIOIadR2QmsCnO9xctko4UAVUiL6jPo8bYxZ
+         T/zDuJ2DeOBATrSUVzPawAn9cxogef/p4XGNajOwwMFvXMee5E8QIhq2A4vPCpl72YX4
+         VjvYEuEBfOKLAYSvA+4hM9PN0hlaRUc6vAL5JpYLqIziyx+oUgcXh+YBWCk6NLZUUOtN
+         mFdQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=vnaYT7xz8hzZ9utgOxwBGCOEmkU1KLZSf5Bef1pBtfE=;
-        b=aqFeOu4XI84YWqGkG69BoAqfYSAMXuwl0M86obF2lTAHnJ9xqfstqFpHrbfL8XbwzM
-         HTymKXffMuaSigmwKPCAYqJGS1LMaIh/jZtEMIQ3FCzXBooXJvk3EZMz+4oTq7hw7PYY
-         hyZiZzzal9Hb3DgB349Mri+lqbQedgnYJAiIC27c5N/t4mm8u7R2StQJq81gQ3TVqqVY
-         /u4f45GtK55mSXu1JjEXrS640LKtakXxOCTY1kIf24WDAh/T5YceoAS+aAsm8RwJUYNJ
-         tmGv0VetOFAUCVnwUNAude7Ay5hVn6GS8XqMiKspP2gI1D2SVvRM7hpb6JBaH7K+Qp7L
-         hq/Q==
+        h=content-language:content-transfer-encoding:in-reply-to:mime-version
+         :user-agent:date:message-id:references:cc:to:from:subject;
+        bh=xNQfDudqIWnqMRWyEsJQ+IQUIlyt9uf8PPAEvRP5kVU=;
+        b=O36OKdOHe0dxPh/G6+zafFjcXU0S1eqfpxqfCKR0X8ScIF3apYzh/ltJafZoCX45jf
+         4w94CXLEQ+8J8jDOPdyaN8T5YDxQUKf6wjLjGd8yT0i0j6q/85QuZ/ApyWo1PLaWUp16
+         sTFzCr8vi3vNzXuSU2ssqeeN+A1JTdzqMsUwGqXWHoPmi8GKYtswiz3C9cnkj91e1j1d
+         9MZY1iyzxDfbrp7uEy2nFP4rVKHT/QmWeRTo3Dk8MKeMPnQKzW0x60R1lbRT5kL2lrw0
+         MvO13o98/chhzj+2HN5CKj1SHpjEExMc+U7j4uN0MQ5Ekh4DRrjWnL3k60ZUz4jPDLa6
+         JHNg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of mark.rutland@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=mark.rutland@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
-        by mx.google.com with ESMTP id v1si7310911ejv.304.2019.06.24.09.52.13
-        for <linux-mm@kvack.org>;
-        Mon, 24 Jun 2019 09:52:13 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mark.rutland@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.37 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+Received: from out4437.biz.mail.alibaba.com (out4437.biz.mail.alibaba.com. [47.88.44.37])
+        by mx.google.com with ESMTPS id t14si10556291pgh.51.2019.06.24.09.54.16
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 24 Jun 2019 09:54:17 -0700 (PDT)
+Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.37 as permitted sender) client-ip=47.88.44.37;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of mark.rutland@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=mark.rutland@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id ABF5E360;
-	Mon, 24 Jun 2019 09:52:12 -0700 (PDT)
-Received: from lakrids.cambridge.arm.com (usa-sjc-imap-foss1.foss.arm.com [10.121.207.14])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 223FE3F71E;
-	Mon, 24 Jun 2019 09:52:10 -0700 (PDT)
-Date: Mon, 24 Jun 2019 17:52:01 +0100
-From: Mark Rutland <mark.rutland@arm.com>
-To: Steve Capper <Steve.Capper@arm.com>
-Cc: Anshuman Khandual <Anshuman.Khandual@arm.com>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-	"linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>,
-	"akpm@linux-foundation.org" <akpm@linux-foundation.org>,
-	Catalin Marinas <Catalin.Marinas@arm.com>,
-	Will Deacon <Will.Deacon@arm.com>,
-	"mhocko@suse.com" <mhocko@suse.com>,
-	"ira.weiny@intel.com" <ira.weiny@intel.com>,
-	"david@redhat.com" <david@redhat.com>, "cai@lca.pw" <cai@lca.pw>,
-	"logang@deltatee.com" <logang@deltatee.com>,
-	James Morse <James.Morse@arm.com>,
-	"cpandya@codeaurora.org" <cpandya@codeaurora.org>,
-	"arunks@codeaurora.org" <arunks@codeaurora.org>,
-	"dan.j.williams@intel.com" <dan.j.williams@intel.com>,
-	"mgorman@techsingularity.net" <mgorman@techsingularity.net>,
-	"osalvador@suse.de" <osalvador@suse.de>,
-	Ard Biesheuvel <Ard.Biesheuvel@arm.com>, nd <nd@arm.com>
-Subject: Re: [PATCH V6 3/3] arm64/mm: Enable memory hot remove
-Message-ID: <20190624165148.GA9847@lakrids.cambridge.arm.com>
-References: <1560917860-26169-1-git-send-email-anshuman.khandual@arm.com>
- <1560917860-26169-4-git-send-email-anshuman.khandual@arm.com>
- <20190621143540.GA3376@capper-debian.cambridge.arm.com>
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.37 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R101e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e04426;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=11;SR=0;TI=SMTPD_---0TV6jVAp_1561395249;
+Received: from US-143344MP.local(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TV6jVAp_1561395249)
+          by smtp.aliyun-inc.com(127.0.0.1);
+          Tue, 25 Jun 2019 00:54:13 +0800
+Subject: Re: [v3 PATCH 2/4] mm: move mem_cgroup_uncharge out of
+ __page_cache_release()
+From: Yang Shi <yang.shi@linux.alibaba.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: ktkhai@virtuozzo.com, kirill.shutemov@linux.intel.com,
+ hannes@cmpxchg.org, mhocko@suse.com, hughd@google.com, shakeelb@google.com,
+ rientjes@google.com, akpm@linux-foundation.org, linux-mm@kvack.org,
+ linux-kernel@vger.kernel.org
+References: <1560376609-113689-1-git-send-email-yang.shi@linux.alibaba.com>
+ <1560376609-113689-3-git-send-email-yang.shi@linux.alibaba.com>
+ <20190613113943.ahmqpezemdbwgyax@box>
+ <2909ce59-86ba-ea0b-479f-756020fb32af@linux.alibaba.com>
+Message-ID: <df469474-9b1c-6052-6aaa-be4558f7bd86@linux.alibaba.com>
+Date: Mon, 24 Jun 2019 09:54:05 -0700
+User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:52.0)
+ Gecko/20100101 Thunderbird/52.7.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190621143540.GA3376@capper-debian.cambridge.arm.com>
-User-Agent: Mutt/1.11.1+11 (2f07cb52) (2018-12-01)
+In-Reply-To: <2909ce59-86ba-ea0b-479f-756020fb32af@linux.alibaba.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 8bit
+Content-Language: en-US
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jun 21, 2019 at 03:35:53PM +0100, Steve Capper wrote:
-> Hi Anshuman,
-> 
-> On Wed, Jun 19, 2019 at 09:47:40AM +0530, Anshuman Khandual wrote:
-> > The arch code for hot-remove must tear down portions of the linear map and
-> > vmemmap corresponding to memory being removed. In both cases the page
-> > tables mapping these regions must be freed, and when sparse vmemmap is in
-> > use the memory backing the vmemmap must also be freed.
-> > 
-> > This patch adds a new remove_pagetable() helper which can be used to tear
-> > down either region, and calls it from vmemmap_free() and
-> > ___remove_pgd_mapping(). The sparse_vmap argument determines whether the
-> > backing memory will be freed.
-> > 
-> > remove_pagetable() makes two distinct passes over the kernel page table.
-> > In the first pass it unmaps, invalidates applicable TLB cache and frees
-> > backing memory if required (vmemmap) for each mapped leaf entry. In the
-> > second pass it looks for empty page table sections whose page table page
-> > can be unmapped, TLB invalidated and freed.
-> > 
-> > While freeing intermediate level page table pages bail out if any of its
-> > entries are still valid. This can happen for partially filled kernel page
-> > table either from a previously attempted failed memory hot add or while
-> > removing an address range which does not span the entire page table page
-> > range.
-> > 
-> > The vmemmap region may share levels of table with the vmalloc region.
-> > There can be conflicts between hot remove freeing page table pages with
-> > a concurrent vmalloc() walking the kernel page table. This conflict can
-> > not just be solved by taking the init_mm ptl because of existing locking
-> > scheme in vmalloc(). Hence unlike linear mapping, skip freeing page table
-> > pages while tearing down vmemmap mapping.
-> > 
-> > While here update arch_add_memory() to handle __add_pages() failures by
-> > just unmapping recently added kernel linear mapping. Now enable memory hot
-> > remove on arm64 platforms by default with ARCH_ENABLE_MEMORY_HOTREMOVE.
-> > 
-> > This implementation is overall inspired from kernel page table tear down
-> > procedure on X86 architecture.
-> > 
-> > Acked-by: David Hildenbrand <david@redhat.com>
-> > Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
-> > ---
-> 
-> FWIW:
-> Acked-by: Steve Capper <steve.capper@arm.com>
-> 
-> One minor comment below though.
-> 
-> >  arch/arm64/Kconfig  |   3 +
-> >  arch/arm64/mm/mmu.c | 290 ++++++++++++++++++++++++++++++++++++++++++++++++++--
-> >  2 files changed, 284 insertions(+), 9 deletions(-)
-> > 
-> > diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-> > index 6426f48..9375f26 100644
-> > --- a/arch/arm64/Kconfig
-> > +++ b/arch/arm64/Kconfig
-> > @@ -270,6 +270,9 @@ config HAVE_GENERIC_GUP
-> >  config ARCH_ENABLE_MEMORY_HOTPLUG
-> >  	def_bool y
-> >  
-> > +config ARCH_ENABLE_MEMORY_HOTREMOVE
-> > +	def_bool y
-> > +
-> >  config SMP
-> >  	def_bool y
-> >  
-> > diff --git a/arch/arm64/mm/mmu.c b/arch/arm64/mm/mmu.c
-> > index 93ed0df..9e80a94 100644
-> > --- a/arch/arm64/mm/mmu.c
-> > +++ b/arch/arm64/mm/mmu.c
-> > @@ -733,6 +733,250 @@ int kern_addr_valid(unsigned long addr)
-> >  
-> >  	return pfn_valid(pte_pfn(pte));
-> >  }
-> > +
-> > +#ifdef CONFIG_MEMORY_HOTPLUG
-> > +static void free_hotplug_page_range(struct page *page, size_t size)
-> > +{
-> > +	WARN_ON(!page || PageReserved(page));
-> > +	free_pages((unsigned long)page_address(page), get_order(size));
-> > +}
-> 
-> We are dealing with power of 2 number of pages, it makes a lot more
-> sense (to me) to replace the size parameter with order.
-> 
-> Also, all the callers are for known compile-time sizes, so we could just
-> translate the size parameter as follows to remove any usage of get_order?
-> PAGE_SIZE -> 0
-> PMD_SIZE -> PMD_SHIFT - PAGE_SHIFT
-> PUD_SIZE -> PUD_SHIFT - PAGE_SHIFT
 
-Now that I look at this again, the above makes sense to me.
 
-I'd requested the current form (which I now realise is broken), since
-back in v2 the code looked like:
+On 6/13/19 10:13 AM, Yang Shi wrote:
+>
+>
+> On 6/13/19 4:39 AM, Kirill A. Shutemov wrote:
+>> On Thu, Jun 13, 2019 at 05:56:47AM +0800, Yang Shi wrote:
+>>> The later patch would make THP deferred split shrinker memcg aware, but
+>>> it needs page->mem_cgroup information in THP destructor, which is 
+>>> called
+>>> after mem_cgroup_uncharge() now.
+>>>
+>>> So, move mem_cgroup_uncharge() from __page_cache_release() to compound
+>>> page destructor, which is called by both THP and other compound pages
+>>> except HugeTLB.  And call it in __put_single_page() for single order
+>>> page.
+>>
+>> If I read the patch correctly, it will change behaviour for pages with
+>> NULL_COMPOUND_DTOR. Have you considered it? Are you sure it will not 
+>> break
+>> anything?
+>
 
-static void free_pagetable(struct page *page, int order)
-{
-	...
-	free_pages((unsigned long)page_address(page), order);
-	...
-}
+Hi Kirill,
 
-... with callsites looking like:
-
-free_pagetable(pud_page(*pud), get_order(PUD_SIZE));
-
-... which I now see is off by PAGE_SHIFT, and we inherited that bug in
-the current code, so the calculated order is vastly larger than it
-should be. It's worrying that doesn't seem to be caught by anything in
-testing. :/
-
-Anshuman, could you please fold in Steve's suggested change? I'll look
-at the rest of the series shortly, so no need to resend that right away,
-but it would be worth sorting out.
+Did this solve your concern? Any more comments on this series?
 
 Thanks,
-Mark.
+Yang
+
+> So far a quick search shows NULL_COMPOUND_DTOR is not used by any type 
+> of compound page. The HugeTLB code sets destructor to 
+> NULL_COMPOUND_DTOR when freeing hugetlb pages via hugetlb specific 
+> destructor.
+>
+> The prep_new_page() would call prep_compound_page() if __GFP_COMP is 
+> used, which sets dtor to COMPOUND_PAGE_DTOR by default.  Just hugetlb 
+> and THP set their specific dtors.
+>
+> And, it looks __put_compound_page() doesn't check if dtor is NULL or 
+> not at all.
+>
+>>
+>
 
