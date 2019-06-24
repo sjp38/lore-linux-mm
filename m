@@ -2,195 +2,141 @@ Return-Path: <SRS0=9FL3=UX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+X-Spam-Status: No, score=-2.2 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_NEOMUTT autolearn=ham autolearn_force=no version=3.4.0
+	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DACA3C43613
-	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 15:15:26 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0599BC48BE8
+	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 15:19:31 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 86A1220645
-	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 15:15:26 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id C122E20652
+	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 15:19:30 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="hKivaIYv"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 86A1220645
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=shutemov.name
+	dkim=pass (2048-bit key) header.d=cmpxchg-org.20150623.gappssmtp.com header.i=@cmpxchg-org.20150623.gappssmtp.com header.b="gJlLLhHa"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C122E20652
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=cmpxchg.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2A7908E0006; Mon, 24 Jun 2019 11:15:26 -0400 (EDT)
+	id 5B39A8E0006; Mon, 24 Jun 2019 11:19:30 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 258898E0002; Mon, 24 Jun 2019 11:15:26 -0400 (EDT)
+	id 562F78E0002; Mon, 24 Jun 2019 11:19:30 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 120E58E0006; Mon, 24 Jun 2019 11:15:26 -0400 (EDT)
+	id 451BD8E0006; Mon, 24 Jun 2019 11:19:30 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id B6DF08E0002
-	for <linux-mm@kvack.org>; Mon, 24 Jun 2019 11:15:25 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id d27so20917826eda.9
-        for <linux-mm@kvack.org>; Mon, 24 Jun 2019 08:15:25 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 10C3A8E0002
+	for <linux-mm@kvack.org>; Mon, 24 Jun 2019 11:19:30 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id s195so9577121pgs.13
+        for <linux-mm@kvack.org>; Mon, 24 Jun 2019 08:19:30 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
          :message-id:references:mime-version:content-disposition:in-reply-to
          :user-agent;
-        bh=tb/fwXJIPZBkB2w8y3N+xp6qDheDapQLagvbQVmWBxs=;
-        b=IcrTtvOjQmdausx+M0du+C22fseXmxTht16pqfO3659tkc77I9z7GxIa9QNsG8VkRD
-         ErdKxCmzhcWp/nejL2coUmkF1+ZjlV5JV5LkKPvNHcXPJrJeTLbe4+/U4FovOtlWKIiD
-         vW3KXeNErFO7mToZJTbPi9MFtXWCBVfZRLN+dAyCJ2daBesn1SDfrYunpWFhzzQKFmcG
-         G8mWZ5sw4SyD4PKSRroyNlpneI3iqwH5asALJeFwLakhYorszFm5qs4YTux6QGqZ/tww
-         YBKwtcw8+w02jkVwTZt0TQN3Hw9lVSDOSN3Ijhk51sQWUaxJPvAYgisTkC8ouFaPBO6R
-         IaUQ==
-X-Gm-Message-State: APjAAAXXRbMwtwmWOObBCC83+3SURmQu79gtLEoidQNGfZ3e1B1MVxrq
-	VGVzdVew0WWZllJd5VA615BEZ+gP3q8y40a2NoUkS6LEpl+w7yBZTdzKIszLt5mFCRVPMW4WdP2
-	7cUaaaBYbWVOLs6rugs+taPICnFmuJ5usz1B/E4fwA8WZxxKWKuWWoropfazXct11fw==
-X-Received: by 2002:a17:906:710:: with SMTP id y16mr75699358ejb.58.1561389325319;
-        Mon, 24 Jun 2019 08:15:25 -0700 (PDT)
-X-Received: by 2002:a17:906:710:: with SMTP id y16mr75699293ejb.58.1561389324602;
-        Mon, 24 Jun 2019 08:15:24 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561389324; cv=none;
+        bh=xk9Y9/4d1P0hhiRulYC6/59GayfnrTydVvyulmj2MA0=;
+        b=A3Bg5MncPZnOY/EES8v8vHwjhjXK3R4TG/bzrF7rCzaLWeMWPHP1rIemctEx5wCO/S
+         aJbWhJeZKtsD2SQlP054twYRyEA80S2ZC7N8lHeivNW88NwkbkY63eu4mM1qgSomo9AX
+         sbLUQTdfv4u5b1QtlSVGYaaSE9ypCyJ/8tHg2gfVgwHgH9fjHYgKKt2C9PxfklXbNxQQ
+         qYPNqOPCkLcHWkf9p7Pyo0pHI+25OOCnKKGh8EJg5i/Uty+oypSXkXJLe9L0z8puA73f
+         2ihYndBDki2tLSbqLfXPq52o6GEKv8bA+yF6ZWozNrQroFFmLDbGxYtv/P5XsRk9S8h7
+         VI1Q==
+X-Gm-Message-State: APjAAAUEv6MOCMQ+i9X8xFRTa6gRJpa95XFOjpL2vdYg3aYEabsFkY6c
+	BRn6JrNPwPV5sIzzW+Jvc0VE4tgA1vut3T2HsN9tRv80vTfUjOBeCgXj6ITKZD1kqM3JHljiUH0
+	W8dduWl3SJRTvemlXrK3Za7bB3ola4r62XxnpLF49qu8ETfwGAwl/R3xaxa75ORwQFA==
+X-Received: by 2002:a65:6204:: with SMTP id d4mr33160808pgv.104.1561389569591;
+        Mon, 24 Jun 2019 08:19:29 -0700 (PDT)
+X-Received: by 2002:a65:6204:: with SMTP id d4mr33160766pgv.104.1561389568942;
+        Mon, 24 Jun 2019 08:19:28 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561389568; cv=none;
         d=google.com; s=arc-20160816;
-        b=bF70GeIeoDEGo7sf1bngAyfZ2CYAUDj4Kap7WwGCPju0qiNqnWnk0mJHu62/5zSW6n
-         HZ0Agjf085o93RSqK/4paeOKdWG8GSZiM0FPT0G4ILotxOmIMRSLwrmRF7FZRRlww9RS
-         NJsv9QNI4+ui32cO9lYfaMpsdhKNYjXmo6vL267Dn186WuWZn8E6T8M50n/3WoZzusBV
-         qw4UZz3Zt1M5Y4Lr9fU42uHLJxkPtBG+H2qraCDxBrN/MmTAZHSuzyCP7I9Sg+9w7Y/7
-         6vYETHX5OBRnPP86zQ5Q1Yb76CGXsbys5X+iF0MIIE5/vLm26oQAOF3GQnRDBp/s6XEd
-         nLGg==
+        b=ce7bkfT1Ekx9we0RLiqIe92XiWD+jG2eO0ZUt839FO2PRTQcI8ZliziMzFtakV8+AX
+         +0OAz+VBjb4MhzVGbF6FaGloo8fI09z8dbVY7dtXXjLrta+ovK6dHP85QUu8qSUEaMTz
+         9LPJtBOvWbLpYgTEDTqctfaLGpE3HUcj3DDQNmdl/YQk950ur3zGmZGxL3FgZ+bTYWQ9
+         NGMGHxXKW9YY0aoFZjP4y1tD/+DVXGWrIudyISfDcPRWB/61a1cnu4hYnKFz1c15dEPd
+         Z9heLWeBPF552u6+YWS3DF423fGZGGwXR/RrRDsRexlFxAS+FCj7FvG7JJD1Cnx0cW2M
+         X0WQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=tb/fwXJIPZBkB2w8y3N+xp6qDheDapQLagvbQVmWBxs=;
-        b=lx0Td2MKl4K15iRVItvImNvIjJzW6S4nnX6ju/wnuojW/FO8gukUl7T2qMe71SsCkl
-         HBgChyGuraqdK4jS5R0C7zRUetl5VrZQQGTLKeTMqmYfr9lT1SiOLf0tUtHgnTzZ1mgW
-         FVk+ckkRNEkTJLRApfpapYltBaY9PnyWQvscbgFzwUSH4db7gQHv6brc3pmoqSdyj6lH
-         d6gCgryCTS8D4gcig6QxQ48mSXqzGnWnbjz0Ch47pf1BDLFWppOk6rVi+70Ogs3nPrfV
-         NDGjFraMwojJeRpOlc+6g3TEuidqnoyDRTHr7vGBiqAak2RVoOm0h6vG/c/TgKrYzDJI
-         +9MA==
+        bh=xk9Y9/4d1P0hhiRulYC6/59GayfnrTydVvyulmj2MA0=;
+        b=kINCpby05F3M/xQQNWvXREgViu+N+oYmk+xbgpgMokwuk0xtAO7A/mHKPGnUalqy0a
+         Me8Syws7gvibgOPJsyw2cPRgHNcfYrrPeRVx7xvwq7akKElvuF1GqYcDmp1+dY/CdYVi
+         lmq9N5JXt9q4yOnZet1gy2V1Hl5Sh1aDGyIZ6iDQY8XU+l5R7sMe2cS7c8xMxEODh9mu
+         b3S6gCZxP68akJkysO75HQCpq2irhXOVY95CTU/xRM1kiqNIE0Xnh414sSVcrGmpPEbJ
+         jqA5SEHwTT0M0oiOaW/IWQ2ut4Oitrh6QUk3yhQoTT66OKva9sFZzjdDuTInsyzb46Cj
+         lPcQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=hKivaIYv;
-       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
+       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=gJlLLhHa;
+       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z1sor2059537ejm.5.2019.06.24.08.15.24
+        by mx.google.com with SMTPS id h70sor15337295pje.6.2019.06.24.08.19.26
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 24 Jun 2019 08:15:24 -0700 (PDT)
-Received-SPF: neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) client-ip=209.85.220.65;
+        Mon, 24 Jun 2019 08:19:26 -0700 (PDT)
+Received-SPF: pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=hKivaIYv;
-       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
+       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=gJlLLhHa;
+       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=shutemov-name.20150623.gappssmtp.com; s=20150623;
+        d=cmpxchg-org.20150623.gappssmtp.com; s=20150623;
         h=date:from:to:cc:subject:message-id:references:mime-version
          :content-disposition:in-reply-to:user-agent;
-        bh=tb/fwXJIPZBkB2w8y3N+xp6qDheDapQLagvbQVmWBxs=;
-        b=hKivaIYvCcbw0ygV6Kz/ud/MoCDO10N8kdFBEYqhIMh4ZVCmzkU5sNxig8oy6ZYXyO
-         DaxcwQ0dkrrDxCs+vYrQatvN8v7AZbUi+4VwFuHZnNzOD1wtZ8Y54yY17uaAJEGQ6PcN
-         yRxIyk/1RryQNYcrfRh4XEPNBhwjPu1A6L+5MulFzYjeDc/0xxkYjzHAmbGMJ5NKWyA9
-         UkUGsfw18XOL+7K9WbelemLiJ3LthA+M0veyhFrPVt6CR8IQFI15s1KBKIOSa3dsDjT8
-         uBxf4Mz5ND81hGRaKlV6YbyHwMOiqyw7I9U54xVYEi2z/yawXzgiyOpuhmO7EF3adB03
-         IU2w==
-X-Google-Smtp-Source: APXvYqz2rk4utKNukeyBdZl2ORALqkVcwVPb1q4qGRLCaAP8B6P/6LhMQuSx+7vkAKVkB7JktYIaZQ==
-X-Received: by 2002:a17:906:85d4:: with SMTP id i20mr20687001ejy.256.1561389324273;
-        Mon, 24 Jun 2019 08:15:24 -0700 (PDT)
-Received: from box.localdomain ([86.57.175.117])
-        by smtp.gmail.com with ESMTPSA id f2sm873444ejb.41.2019.06.24.08.15.23
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 24 Jun 2019 08:15:23 -0700 (PDT)
-Received: by box.localdomain (Postfix, from userid 1000)
-	id A98AF1043B3; Mon, 24 Jun 2019 18:15:28 +0300 (+03)
-Date: Mon, 24 Jun 2019 18:15:28 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-To: Song Liu <songliubraving@fb.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>,
-	"linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-	"matthew.wilcox@oracle.com" <matthew.wilcox@oracle.com>,
-	"kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>,
-	Kernel Team <Kernel-team@fb.com>,
-	"william.kucharski@oracle.com" <william.kucharski@oracle.com>,
-	"akpm@linux-foundation.org" <akpm@linux-foundation.org>,
-	"hdanton@sina.com" <hdanton@sina.com>
-Subject: Re: [PATCH v7 5/6] mm,thp: add read-only THP support for (non-shmem)
- FS
-Message-ID: <20190624151528.fnz3hvlnyvea3ytn@box>
-References: <20190623054749.4016638-1-songliubraving@fb.com>
- <20190623054749.4016638-6-songliubraving@fb.com>
- <20190624124746.7evd2hmbn3qg3tfs@box>
- <52BDA50B-7CBF-4333-9D15-0C17FD04F6ED@fb.com>
- <20190624142747.chy5s3nendxktm3l@box>
- <C3161C66-5044-44E6-92F4-BBAD42EDF4E2@fb.com>
- <20190624145453.u4ej3e4ktyyqjite@box>
- <5BE23F34-B611-496B-9277-A09C9CC784B1@fb.com>
+        bh=xk9Y9/4d1P0hhiRulYC6/59GayfnrTydVvyulmj2MA0=;
+        b=gJlLLhHaj6Jvm1bCaUN3ZW2zumf00y0LQxCLkUqwaGzxFCYZiFYQ8rTczXQpCRZDpw
+         NtK5q/uM6I5V76gghSg5fmbJ43CHbwtS081cohfzOJ6io4WFLGOcoXgaTyWCbMrjkAsj
+         xY9qHxrZFwQHzIVemFHx4ljFg0oGqYce6edkh2yeRRpwJiU/trCjsIhFgezWhFJcCgqe
+         H4Scl/FXgMov4Q2yD8FeFxw798h6RqiToCrKV5Bs2iobxW0/QAamUc9TkSldXFyswImI
+         Apxtk2c/8886Fs7QUpgFAYPFhvHX896Nq/69H5XW37lFOXvRa0xmPRdWgvt7Lc42nHf+
+         rPsw==
+X-Google-Smtp-Source: APXvYqwFHGQOnQnTXhDr9lU4NK1+H6IcL2ndUHa4gASx7rxzeny46s92Ldbi9u0yLFNEg+G6B9aOGg==
+X-Received: by 2002:a17:90a:ad93:: with SMTP id s19mr25538029pjq.36.1561389566146;
+        Mon, 24 Jun 2019 08:19:26 -0700 (PDT)
+Received: from localhost ([2620:10d:c091:500::d3ed])
+        by smtp.gmail.com with ESMTPSA id n2sm10152216pgp.27.2019.06.24.08.19.24
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Mon, 24 Jun 2019 08:19:25 -0700 (PDT)
+Date: Mon, 24 Jun 2019 11:19:23 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>,
+	Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
+	cgroups@vger.kernel.org, linux-kernel@vger.kernel.org,
+	kernel-team@fb.com
+Subject: Re: [PATCH] mm: fix page cache convergence regression
+Message-ID: <20190624151923.GA10572@cmpxchg.org>
+References: <20190524153148.18481-1-hannes@cmpxchg.org>
+ <20190524160417.GB1075@bombadil.infradead.org>
+ <20190524173900.GA11702@cmpxchg.org>
+ <20190530161548.GA8415@cmpxchg.org>
+ <20190530171356.GA19630@bombadil.infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <5BE23F34-B611-496B-9277-A09C9CC784B1@fb.com>
-User-Agent: NeoMutt/20180716
+In-Reply-To: <20190530171356.GA19630@bombadil.infradead.org>
+User-Agent: Mutt/1.12.0 (2019-05-25)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jun 24, 2019 at 03:04:21PM +0000, Song Liu wrote:
+On Thu, May 30, 2019 at 10:13:56AM -0700, Matthew Wilcox wrote:
+> On Thu, May 30, 2019 at 12:15:48PM -0400, Johannes Weiner wrote:
+> > Are there any objections or feedback on the proposed fix below? This
+> > is kind of a serious regression.
 > 
-> 
-> > On Jun 24, 2019, at 7:54 AM, Kirill A. Shutemov <kirill@shutemov.name> wrote:
-> > 
-> > On Mon, Jun 24, 2019 at 02:42:13PM +0000, Song Liu wrote:
-> >> 
-> >> 
-> >>> On Jun 24, 2019, at 7:27 AM, Kirill A. Shutemov <kirill@shutemov.name> wrote:
-> >>> 
-> >>> On Mon, Jun 24, 2019 at 02:01:05PM +0000, Song Liu wrote:
-> >>>>>> @@ -1392,6 +1403,23 @@ static void collapse_file(struct mm_struct *mm,
-> >>>>>> 				result = SCAN_FAIL;
-> >>>>>> 				goto xa_unlocked;
-> >>>>>> 			}
-> >>>>>> +		} else if (!page || xa_is_value(page)) {
-> >>>>>> +			xas_unlock_irq(&xas);
-> >>>>>> +			page_cache_sync_readahead(mapping, &file->f_ra, file,
-> >>>>>> +						  index, PAGE_SIZE);
-> >>>>>> +			lru_add_drain();
-> >>>>> 
-> >>>>> Why?
-> >>>> 
-> >>>> isolate_lru_page() is likely to fail if we don't drain the pagevecs. 
-> >>> 
-> >>> Please add a comment.
-> >> 
-> >> Will do. 
-> >> 
-> >>> 
-> >>>>>> +			page = find_lock_page(mapping, index);
-> >>>>>> +			if (unlikely(page == NULL)) {
-> >>>>>> +				result = SCAN_FAIL;
-> >>>>>> +				goto xa_unlocked;
-> >>>>>> +			}
-> >>>>>> +		} else if (!PageUptodate(page)) {
-> >>>>> 
-> >>>>> Maybe we should try wait_on_page_locked() here before give up?
-> >>>> 
-> >>>> Are you referring to the "if (!PageUptodate(page))" case? 
-> >>> 
-> >>> Yes.
-> >> 
-> >> I think this case happens when another thread is reading the page in. 
-> >> I could not think of a way to trigger this condition for testing. 
-> >> 
-> >> On the other hand, with current logic, we will retry the page on the 
-> >> next scan, so I guess this is OK. 
-> > 
-> > What I meant that calling wait_on_page_locked() on !PageUptodate() page
-> > will likely make it up-to-date and we don't need to SCAN_FAIL the attempt.
-> > 
-> 
-> Yeah, I got the point. My only concern is that I don't know how to 
-> reliably trigger this case for testing. I can try to trigger it. But I 
-> don't know whether it will happen easily. 
+> I'll drop it into the xarray tree for merging in a week, if that's ok
+> with you?
 
-Atrifically slowing down IO should do the trick.
+Hey, it's three weeks later and we're about to miss 5.2.
 
--- 
- Kirill A. Shutemov
+This sucks, Matthew. You introduced a serious regression to the MM
+subsystem, whose process and patch routing you largely bypassed. When
+I encountered the problem and provided a reproducer and a fix, you
+gave me a hard time on cosmetic grounds. I incorporated all your
+feedback, and still you show no urgency to get this patch or a fix of
+your own into mainline. It's your bug, please fix it.
 
