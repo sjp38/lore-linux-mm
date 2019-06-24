@@ -2,396 +2,268 @@ Return-Path: <SRS0=9FL3=UX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7AC43C43613
-	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 15:04:15 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B47C6C43613
+	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 15:04:26 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 25D38205C9
-	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 15:04:15 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 5D0E7205C9
+	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 15:04:26 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=chromium.org header.i=@chromium.org header.b="Unq9Tc/t"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 25D38205C9
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chromium.org
+	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="V+afxCw4";
+	dkim=pass (1024-bit key) header.d=fb.onmicrosoft.com header.i=@fb.onmicrosoft.com header.b="EDPL+dC6"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5D0E7205C9
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C74618E0006; Mon, 24 Jun 2019 11:04:14 -0400 (EDT)
+	id 066728E0007; Mon, 24 Jun 2019 11:04:26 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C24ED8E0002; Mon, 24 Jun 2019 11:04:14 -0400 (EDT)
+	id 0166E8E0002; Mon, 24 Jun 2019 11:04:25 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AECBD8E0006; Mon, 24 Jun 2019 11:04:14 -0400 (EDT)
+	id E1FE88E0007; Mon, 24 Jun 2019 11:04:25 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 77F618E0002
-	for <linux-mm@kvack.org>; Mon, 24 Jun 2019 11:04:14 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id q14so8061924pff.8
-        for <linux-mm@kvack.org>; Mon, 24 Jun 2019 08:04:14 -0700 (PDT)
+Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
+	by kanga.kvack.org (Postfix) with ESMTP id C49298E0002
+	for <linux-mm@kvack.org>; Mon, 24 Jun 2019 11:04:25 -0400 (EDT)
+Received: by mail-io1-f69.google.com with SMTP id f22so22323198ioj.9
+        for <linux-mm@kvack.org>; Mon, 24 Jun 2019 08:04:25 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to;
-        bh=4fUtk2X/B8EA5bC3OoTiCOMWUPKtO10Ph33S+4u9cmM=;
-        b=chtClj4KnBfF9HLxLe3nhEG6Ww2tDNd3/oBdYfEa341ixBMyDuoN/XfCImM4sys+wq
-         Tj1ywaPSc3Bifofp3jNoXDFdNWykUSgTiq8ELe6KNJsxXllnw2bMUk6pJXAMyZHjsFUM
-         0TULU+xGYCp0fVxEAouivDW0HxRxKkOx09b6QfAbnealArFx3IIUEHMZfbBlq82+gYDS
-         S28jKV3G/73igoB+dXzd7IeuDPDUR8z3D9SfZJyKgSDNaMwYVwqu2TMSESnmAR28jmqD
-         7//FcUHvwb6y2qSKShiRUu7bJrD21/+b27FGD7uRW/id77KEWHdyJtifKaX9Z7Q0NBwO
-         893g==
-X-Gm-Message-State: APjAAAVspspelhzbtzrsorBuCsV1WnuucP4eOMYSuSRXxTPxD7aPzNug
-	ksFy2/ySeiH8hupYkP95BkkMzriUNZz/mM5T1pn/+XTavMKCKVLRws3F2d/SgdKlNYdx57+hszV
-	vCPbfk2P/vPQyBTOJIqW0jJA02Fi0bXFnFA04w2VKUrabzew/TMhFsJ2/NSBcSfoNLQ==
-X-Received: by 2002:a17:902:29a7:: with SMTP id h36mr98379844plb.158.1561388654124;
-        Mon, 24 Jun 2019 08:04:14 -0700 (PDT)
-X-Received: by 2002:a17:902:29a7:: with SMTP id h36mr98379746plb.158.1561388653147;
-        Mon, 24 Jun 2019 08:04:13 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561388653; cv=none;
+        h=x-gm-message-state:dkim-signature:dkim-signature:from:to:cc:subject
+         :thread-topic:thread-index:date:message-id:references:in-reply-to
+         :accept-language:content-language:content-id
+         :content-transfer-encoding:mime-version;
+        bh=wAbXcPgUJOYdfGMLbmH1Z7DXHW0tzW6Rge5M0Y12xYg=;
+        b=U6GiQDlb/EiahYeGDwV8JQTvE9nqXW5ALSFVt0gL5oKK4NaqhnWLUqdiv9M23oMgCE
+         zi4ormP8lOqtk9SeN4LQaeGR+5v5kUp4K9nioTl0EX6xI4b2d6t5kGn9Laesn6gDKHYl
+         jP0UkaPD6HU+bClKoOMV4w5E4ZLR085JUNzVftT+7WILZ8YrZDa5/KrFlLPHpJH18IzB
+         SPteb12iozo+7NZAGCPEmT8qq2Q4XIXKyXA74JEMNkViP5yqfJ/swEPvstfh+OOnUWEb
+         +Ygq70fgzIoNzLRpPNBmIYVjXeAvkChejBa+e+/wOxF3YzYvmcDuRVrOUJY4AB7R7IAy
+         SbBA==
+X-Gm-Message-State: APjAAAVuqYON6wgaRxCmdICY9QWuEUERj18aXmrFgnQ3oLLSmJxJn9pC
+	qqlX0owZyG8q6OR1Ipp7bIwUTkOdIOUdLtV4ntYCTaCaxJ2lcNYpL7xmjE5Z66ILDaiT/Y7ENqM
+	AzGMQIyfNa6J/I3Fmu2+2sd07aZc31k1k1CFhK8958EF/I3f19zL+1CtJUl3Ew70q9A==
+X-Received: by 2002:a5e:c748:: with SMTP id g8mr55801489iop.267.1561388665536;
+        Mon, 24 Jun 2019 08:04:25 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxgKuNfMb5DEwPJnux78ArqvBNEaQ261oqmnnu4t0RGs7+vcFVgka/b1ZqkoFee1aA6tSS8
+X-Received: by 2002:a5e:c748:: with SMTP id g8mr55801445iop.267.1561388664993;
+        Mon, 24 Jun 2019 08:04:24 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561388664; cv=none;
         d=google.com; s=arc-20160816;
-        b=qi5/BhXm48+25byYye+bs1F0l0dpIrnIFflf03mNDzlRtJIhMFOvGwxL9fTfbmlRv1
-         cI604vQPEjLB3K8kUTojF4kO6LRx+socc0vku0OpykXSmfY9N9ugpC4DA2E8AliZg97u
-         KdiZmAas5P6Kg79gylhYqS++dppvEllnTqo6++PiHTv1WaevYGcD3sP4qciI2ZoRjqe3
-         DiDR425kkZMJkoHY7SVlghl5AqMDDfPL3+vDPzoaeElyIm65q3azoHxx4NEBJ7neKVHm
-         qLF8Bu/KH+hfWCqfz2AsAkVX9EvjilOfhzBXis7jtawT5cLc0Gc9a6UMtPTOVV3t80d5
-         /q1w==
+        b=Cnb0KzkekIvjbNPqzMLkpO8ebAIKA7FeEF4ZzW+/jYQHAxGKVS2+PV3Efgf3gXdBUi
+         aSzR+8dRxWqIsQh0qKzGahosRsAG9FSMPXl3JOR1X/0gtFU+ULwq7hzBkJughBY/KH+B
+         T2707xQ/0K+IG4Qj2pRnAPp/j4HfglzyGeLM1mYo241tVKDURYhjGf5Zq3iJB9DlaJDa
+         lEuTEpHBBAHfPrx8doR6uti5utU9pyh0X7eEGAW25p/4kDXdHzPylTqbTXfiZ7eg8PuV
+         X4Uz/+eg3Z9S62tHRBAupTexnl4lz+q9eaXAHJzGCZlnJzLfygmJapptVqvwnRzBQTyE
+         PGwQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=in-reply-to:content-disposition:mime-version:references:message-id
-         :subject:cc:to:from:date:dkim-signature;
-        bh=4fUtk2X/B8EA5bC3OoTiCOMWUPKtO10Ph33S+4u9cmM=;
-        b=bv3bjfKAioFbGkfjggCD7dCzYfSdCimnBvBtFzRQAx2VIw5tx634MV47mngfK7g6um
-         Va225H0Dl9goe49uGJxBp2i7Zz1kXhn9b0usQKZTRko3xkPdtkijAPJ/0KCAn/U7Bcl0
-         ZRA1XU68zvQpeQWqLCcR28iGsiLdRGXPzqKCQs4sPxhKniw7kyL1yACX00MB09o7M35i
-         hho3h1reVzVSt73QoJIefMMxZxs2OS6+e9rKSFz4+qnymFxemrip77qn+bII+tOQuLUE
-         1zQRPvjb2xsQk76LptIlxFCHmdw4eF9faPkwPOloi0CyL50TW5buc0TA0iUVTkaZTHsR
-         7GQQ==
+        h=mime-version:content-transfer-encoding:content-id:content-language
+         :accept-language:in-reply-to:references:message-id:date:thread-index
+         :thread-topic:subject:cc:to:from:dkim-signature:dkim-signature;
+        bh=wAbXcPgUJOYdfGMLbmH1Z7DXHW0tzW6Rge5M0Y12xYg=;
+        b=uF3uTrKXwFlVYo6jcxlYnPlCLUXZZomOh2XzgHTTxrbQ7MFXOkWNL/WBDle1d7w8LH
+         0gy2Uqbr53J3AaxFh3gWjs1RJby4Ce/rd9m0gLdEezvv1wX5xE6jNSHELse5ShV84ani
+         xxMcwf4+DHnkOal4QfNs8N3k72iWaQwX5b4Hcnmqp9j92hJFWIK50PIlztJxDafitqE+
+         n/Uwq/kcvsBOUCRnfKU8RZE7R67nXKnIJEz+tPq0DMLz7myphFB8ilgJA5M0Ebs13wMX
+         4fAxOvMGY/2w2qawf+bpaWPc8EDdJWprtIfUmJsTgJ3Qple1ryeVLAox0sFSlz1t9E9B
+         gtqA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@chromium.org header.s=google header.b="Unq9Tc/t";
-       spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y131sor7264625pfb.27.2019.06.24.08.04.13
+       dkim=pass header.i=@fb.com header.s=facebook header.b=V+afxCw4;
+       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-onmicrosoft-com header.b=EDPL+dC6;
+       spf=pass (google.com: domain of prvs=1078cbd532=songliubraving@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=1078cbd532=songliubraving@fb.com";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id n20si13758359ioh.35.2019.06.24.08.04.24
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 24 Jun 2019 08:04:13 -0700 (PDT)
-Received-SPF: pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 24 Jun 2019 08:04:24 -0700 (PDT)
+Received-SPF: pass (google.com: domain of prvs=1078cbd532=songliubraving@fb.com designates 67.231.145.42 as permitted sender) client-ip=67.231.145.42;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@chromium.org header.s=google header.b="Unq9Tc/t";
-       spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=chromium.org; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to;
-        bh=4fUtk2X/B8EA5bC3OoTiCOMWUPKtO10Ph33S+4u9cmM=;
-        b=Unq9Tc/tyYLcrlDiUHjqb3TVsHvcrSGxzFku5zQQaJFanNh7cZPh8q46hVjZps1z81
-         uDB0Xtq6gfRGjJJixib0RhA2G8JO+YeJ0PEaotZK6musiMYDSPvWh+qB6jxY0/COcLnq
-         l3/ss6tf0ZUQLieVDIxu7IvLQn6FFv2JGvXLY=
-X-Google-Smtp-Source: APXvYqwuadhAXWHIlg6sacPEdNNPqhO7/afynu04PvpO/WXneR7cKybll9iRuNlplQEsgibh+dZilg==
-X-Received: by 2002:a63:d415:: with SMTP id a21mr32379347pgh.229.1561388652708;
-        Mon, 24 Jun 2019 08:04:12 -0700 (PDT)
-Received: from www.outflux.net (smtp.outflux.net. [198.145.64.163])
-        by smtp.gmail.com with ESMTPSA id r4sm10229549pjd.28.2019.06.24.08.04.11
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 24 Jun 2019 08:04:11 -0700 (PDT)
-Date: Mon, 24 Jun 2019 08:04:10 -0700
-From: Kees Cook <keescook@chromium.org>
-To: Andrey Konovalov <andreyknvl@google.com>
-Cc: linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org, amd-gfx@lists.freedesktop.org,
-	dri-devel@lists.freedesktop.org, linux-rdma@vger.kernel.org,
-	linux-media@vger.kernel.org, kvm@vger.kernel.org,
-	linux-kselftest@vger.kernel.org,
-	Catalin Marinas <catalin.marinas@arm.com>,
-	Vincenzo Frascino <vincenzo.frascino@arm.com>,
-	Will Deacon <will.deacon@arm.com>,
-	Mark Rutland <mark.rutland@arm.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	Yishai Hadas <yishaih@mellanox.com>,
-	Felix Kuehling <Felix.Kuehling@amd.com>,
-	Alexander Deucher <Alexander.Deucher@amd.com>,
-	Christian Koenig <Christian.Koenig@amd.com>,
-	Mauro Carvalho Chehab <mchehab@kernel.org>,
-	Jens Wiklander <jens.wiklander@linaro.org>,
-	Alex Williamson <alex.williamson@redhat.com>,
-	Leon Romanovsky <leon@kernel.org>,
-	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>,
-	Dave Martin <Dave.Martin@arm.com>,
-	Khalid Aziz <khalid.aziz@oracle.com>, enh <enh@google.com>,
-	Jason Gunthorpe <jgg@ziepe.ca>,
-	Christoph Hellwig <hch@infradead.org>,
-	Dmitry Vyukov <dvyukov@google.com>,
-	Kostya Serebryany <kcc@google.com>,
-	Evgeniy Stepanov <eugenis@google.com>,
-	Lee Smith <Lee.Smith@arm.com>,
-	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
-	Jacob Bramley <Jacob.Bramley@arm.com>,
-	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
-	Robin Murphy <robin.murphy@arm.com>,
-	Kevin Brodsky <kevin.brodsky@arm.com>,
-	Szabolcs Nagy <Szabolcs.Nagy@arm.com>
-Subject: Re: [PATCH v18 02/15] arm64: Introduce prctl() options to control
- the tagged user addresses ABI
-Message-ID: <201906240804.899CE7BE3@keescook>
-References: <cover.1561386715.git.andreyknvl@google.com>
- <653598b3cfcd80f0cc69f72a214e156bb1afde68.1561386715.git.andreyknvl@google.com>
+       dkim=pass header.i=@fb.com header.s=facebook header.b=V+afxCw4;
+       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-onmicrosoft-com header.b=EDPL+dC6;
+       spf=pass (google.com: domain of prvs=1078cbd532=songliubraving@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=1078cbd532=songliubraving@fb.com";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
+Received: from pps.filterd (m0148461.ppops.net [127.0.0.1])
+	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x5OEvnsO004968;
+	Mon, 24 Jun 2019 08:04:23 -0700
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
+ : date : message-id : references : in-reply-to : content-type : content-id
+ : content-transfer-encoding : mime-version; s=facebook;
+ bh=wAbXcPgUJOYdfGMLbmH1Z7DXHW0tzW6Rge5M0Y12xYg=;
+ b=V+afxCw4wjdx8xnBGMl2OAvyO54pvEZYHW50MQXGa2C9fmulrZGDX/bfSl+GbizmStrI
+ oEIQgRzrwALjcQ5A9HCodFDryka1CT7Bkg5JY3sazSHgWePCxzt30Dyol8e1GAxs4ggp
+ SCYgv+FlpwGrSNwbgQcEyJ+1+jESJkzRER8= 
+Received: from mail.thefacebook.com (mailout.thefacebook.com [199.201.64.23])
+	by mx0a-00082601.pphosted.com with ESMTP id 2taujw1545-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-SHA384 bits=256 verify=NOT);
+	Mon, 24 Jun 2019 08:04:23 -0700
+Received: from prn-mbx04.TheFacebook.com (2620:10d:c081:6::18) by
+ prn-hub04.TheFacebook.com (2620:10d:c081:35::128) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id
+ 15.1.1713.5; Mon, 24 Jun 2019 08:04:23 -0700
+Received: from prn-hub04.TheFacebook.com (2620:10d:c081:35::128) by
+ prn-mbx04.TheFacebook.com (2620:10d:c081:6::18) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id
+ 15.1.1713.5; Mon, 24 Jun 2019 08:04:22 -0700
+Received: from NAM01-BY2-obe.outbound.protection.outlook.com (192.168.54.28)
+ by o365-in.thefacebook.com (192.168.16.28) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id 15.1.1713.5
+ via Frontend Transport; Mon, 24 Jun 2019 08:04:22 -0700
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.onmicrosoft.com;
+ s=selector1-fb-onmicrosoft-com;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=wAbXcPgUJOYdfGMLbmH1Z7DXHW0tzW6Rge5M0Y12xYg=;
+ b=EDPL+dC6XilxxNf4HQX2esAFi2NtG55lAVOmkvT+ojvjaaryQ/arT4Zy5P+WT78yjHGbvpuXAVKMICdraijWF/luA4wgT/6c1yDQtpG4dYO6LS1+mThdXPH/AijuUC/HMpPFlefDSI0/4+AGVXf32Gl4TQqhkHDcrn60I5bfWGo=
+Received: from MWHPR15MB1165.namprd15.prod.outlook.com (10.175.3.22) by
+ MWHPR15MB1232.namprd15.prod.outlook.com (10.175.4.10) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.2008.16; Mon, 24 Jun 2019 15:04:21 +0000
+Received: from MWHPR15MB1165.namprd15.prod.outlook.com
+ ([fe80::400e:e329:ea98:aa0d]) by MWHPR15MB1165.namprd15.prod.outlook.com
+ ([fe80::400e:e329:ea98:aa0d%6]) with mapi id 15.20.2008.014; Mon, 24 Jun 2019
+ 15:04:21 +0000
+From: Song Liu <songliubraving@fb.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+CC: "linux-mm@kvack.org" <linux-mm@kvack.org>,
+        "linux-fsdevel@vger.kernel.org"
+	<linux-fsdevel@vger.kernel.org>,
+        "linux-kernel@vger.kernel.org"
+	<linux-kernel@vger.kernel.org>,
+        "matthew.wilcox@oracle.com"
+	<matthew.wilcox@oracle.com>,
+        "kirill.shutemov@linux.intel.com"
+	<kirill.shutemov@linux.intel.com>,
+        Kernel Team <Kernel-team@fb.com>,
+        "william.kucharski@oracle.com" <william.kucharski@oracle.com>,
+        "akpm@linux-foundation.org" <akpm@linux-foundation.org>,
+        "hdanton@sina.com"
+	<hdanton@sina.com>
+Subject: Re: [PATCH v7 5/6] mm,thp: add read-only THP support for (non-shmem)
+ FS
+Thread-Topic: [PATCH v7 5/6] mm,thp: add read-only THP support for (non-shmem)
+ FS
+Thread-Index: AQHVKYdGAmz09KUZ80Kts9GVGsmXGaaqwvwAgAAUeoCAAAd4gIAABAcAgAADi4CAAAKkAA==
+Date: Mon, 24 Jun 2019 15:04:21 +0000
+Message-ID: <5BE23F34-B611-496B-9277-A09C9CC784B1@fb.com>
+References: <20190623054749.4016638-1-songliubraving@fb.com>
+ <20190623054749.4016638-6-songliubraving@fb.com>
+ <20190624124746.7evd2hmbn3qg3tfs@box>
+ <52BDA50B-7CBF-4333-9D15-0C17FD04F6ED@fb.com>
+ <20190624142747.chy5s3nendxktm3l@box>
+ <C3161C66-5044-44E6-92F4-BBAD42EDF4E2@fb.com>
+ <20190624145453.u4ej3e4ktyyqjite@box>
+In-Reply-To: <20190624145453.u4ej3e4ktyyqjite@box>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach: 
+X-MS-TNEF-Correlator: 
+x-mailer: Apple Mail (2.3445.104.11)
+x-originating-ip: [2620:10d:c090:180::1:d642]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: 6ac82330-a4bb-43fa-ae24-08d6f8b53d03
+x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(2017052603328)(7193020);SRVR:MWHPR15MB1232;
+x-ms-traffictypediagnostic: MWHPR15MB1232:
+x-microsoft-antispam-prvs: <MWHPR15MB1232812A54DBA94A2CDEDEC3B3E00@MWHPR15MB1232.namprd15.prod.outlook.com>
+x-ms-oob-tlc-oobclassifiers: OLM:7219;
+x-forefront-prvs: 007814487B
+x-forefront-antispam-report: SFV:NSPM;SFS:(10019020)(136003)(396003)(39860400002)(366004)(346002)(376002)(189003)(199004)(68736007)(66556008)(6486002)(81156014)(54906003)(4326008)(76176011)(86362001)(36756003)(14444005)(5660300002)(25786009)(102836004)(53936002)(53546011)(14454004)(6506007)(71190400001)(6916009)(6246003)(316002)(71200400001)(478600001)(33656002)(6436002)(50226002)(8676002)(64756008)(66446008)(11346002)(66476007)(46003)(81166006)(229853002)(76116006)(66946007)(99286004)(6512007)(8936002)(186003)(486006)(73956011)(476003)(305945005)(256004)(7736002)(2616005)(57306001)(6116002)(2906002)(446003)(142933001);DIR:OUT;SFP:1102;SCL:1;SRVR:MWHPR15MB1232;H:MWHPR15MB1165.namprd15.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
+received-spf: None (protection.outlook.com: fb.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info: tPD8t/UNAK4Vi02lbF9qIaK9bfU9bG1mrnoVdYULmwo+/Ka3TPaYRA/ag++ZagjNYIXZkp/NJ/SxARdDVqOPdHgB8DeFWTdxvRW+r5KJLKuqBLuJa2FhOxATFOAwH+gFNKN+JsLm7jeJnJYry71Za0StevZGQ9qbkvhsF6FoGMBYQ6r7N3Ap6V9HXUzyBb8qTZ98q4iSLaE9/dFI2V+H1qDnr+mpH+TSvjPNYWYiCDFwE8XLi9kktQMv3DwOHjICpC1cy5J3D9Pzq2EQ8ULjXmybI3LFnrALoHbcUpr6ZXuDL+SwWKT2ZG4WED7L89xjhLV1FhZ1AP3Gy1rDasbuAFA8EGcJlRDA/GWW2AOaeeSnuJ8R9pTk7MrWMm8QHSDOf/PUAzo/asKxTEeoLX5ucHcUH3VqUTavQP7mlUondDI=
+Content-Type: text/plain; charset="us-ascii"
+Content-ID: <ADE4CD8BAFE8BE4DA4CFF6C4D4090BC4@namprd15.prod.outlook.com>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <653598b3cfcd80f0cc69f72a214e156bb1afde68.1561386715.git.andreyknvl@google.com>
+X-MS-Exchange-CrossTenant-Network-Message-Id: 6ac82330-a4bb-43fa-ae24-08d6f8b53d03
+X-MS-Exchange-CrossTenant-originalarrivaltime: 24 Jun 2019 15:04:21.4803
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: 8ae927fe-1255-47a7-a2af-5f3a069daaa2
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-CrossTenant-userprincipalname: songliubraving@fb.com
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: MWHPR15MB1232
+X-OriginatorOrg: fb.com
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-06-24_10:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=fb_default_notspam policy=fb_default score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1906240122
+X-FB-Internal: deliver
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jun 24, 2019 at 04:32:47PM +0200, Andrey Konovalov wrote:
-> From: Catalin Marinas <catalin.marinas@arm.com>
-> 
-> It is not desirable to relax the ABI to allow tagged user addresses into
-> the kernel indiscriminately. This patch introduces a prctl() interface
-> for enabling or disabling the tagged ABI with a global sysctl control
-> for preventing applications from enabling the relaxed ABI (meant for
-> testing user-space prctl() return error checking without reconfiguring
-> the kernel). The ABI properties are inherited by threads of the same
-> application and fork()'ed children but cleared on execve(). A Kconfig
-> option allows the overall disabling of the relaxed ABI.
-> 
-> The PR_SET_TAGGED_ADDR_CTRL will be expanded in the future to handle
-> MTE-specific settings like imprecise vs precise exceptions.
-> 
-> Signed-off-by: Catalin Marinas <catalin.marinas@arm.com>
 
-Reviewed-by: Kees Cook <keescook@chromium.org>
 
--Kees
+> On Jun 24, 2019, at 7:54 AM, Kirill A. Shutemov <kirill@shutemov.name> wr=
+ote:
+>=20
+> On Mon, Jun 24, 2019 at 02:42:13PM +0000, Song Liu wrote:
+>>=20
+>>=20
+>>> On Jun 24, 2019, at 7:27 AM, Kirill A. Shutemov <kirill@shutemov.name> =
+wrote:
+>>>=20
+>>> On Mon, Jun 24, 2019 at 02:01:05PM +0000, Song Liu wrote:
+>>>>>> @@ -1392,6 +1403,23 @@ static void collapse_file(struct mm_struct *m=
+m,
+>>>>>> 				result =3D SCAN_FAIL;
+>>>>>> 				goto xa_unlocked;
+>>>>>> 			}
+>>>>>> +		} else if (!page || xa_is_value(page)) {
+>>>>>> +			xas_unlock_irq(&xas);
+>>>>>> +			page_cache_sync_readahead(mapping, &file->f_ra, file,
+>>>>>> +						  index, PAGE_SIZE);
+>>>>>> +			lru_add_drain();
+>>>>>=20
+>>>>> Why?
+>>>>=20
+>>>> isolate_lru_page() is likely to fail if we don't drain the pagevecs.=20
+>>>=20
+>>> Please add a comment.
+>>=20
+>> Will do.=20
+>>=20
+>>>=20
+>>>>>> +			page =3D find_lock_page(mapping, index);
+>>>>>> +			if (unlikely(page =3D=3D NULL)) {
+>>>>>> +				result =3D SCAN_FAIL;
+>>>>>> +				goto xa_unlocked;
+>>>>>> +			}
+>>>>>> +		} else if (!PageUptodate(page)) {
+>>>>>=20
+>>>>> Maybe we should try wait_on_page_locked() here before give up?
+>>>>=20
+>>>> Are you referring to the "if (!PageUptodate(page))" case?=20
+>>>=20
+>>> Yes.
+>>=20
+>> I think this case happens when another thread is reading the page in.=20
+>> I could not think of a way to trigger this condition for testing.=20
+>>=20
+>> On the other hand, with current logic, we will retry the page on the=20
+>> next scan, so I guess this is OK.=20
+>=20
+> What I meant that calling wait_on_page_locked() on !PageUptodate() page
+> will likely make it up-to-date and we don't need to SCAN_FAIL the attempt=
+.
+>=20
 
-> Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
-> ---
->  arch/arm64/Kconfig                   |  9 ++++
->  arch/arm64/include/asm/processor.h   |  8 ++++
->  arch/arm64/include/asm/thread_info.h |  1 +
->  arch/arm64/include/asm/uaccess.h     |  4 +-
->  arch/arm64/kernel/process.c          | 72 ++++++++++++++++++++++++++++
->  include/uapi/linux/prctl.h           |  5 ++
->  kernel/sys.c                         | 12 +++++
->  7 files changed, 110 insertions(+), 1 deletion(-)
-> 
-> diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-> index 697ea0510729..55fbaf20af2d 100644
-> --- a/arch/arm64/Kconfig
-> +++ b/arch/arm64/Kconfig
-> @@ -1107,6 +1107,15 @@ config ARM64_SW_TTBR0_PAN
->  	  zeroed area and reserved ASID. The user access routines
->  	  restore the valid TTBR0_EL1 temporarily.
->  
-> +config ARM64_TAGGED_ADDR_ABI
-> +	bool "Enable the tagged user addresses syscall ABI"
-> +	default y
-> +	help
-> +	  When this option is enabled, user applications can opt in to a
-> +	  relaxed ABI via prctl() allowing tagged addresses to be passed
-> +	  to system calls as pointer arguments. For details, see
-> +	  Documentation/arm64/tagged-address-abi.txt.
-> +
->  menuconfig COMPAT
->  	bool "Kernel support for 32-bit EL0"
->  	depends on ARM64_4K_PAGES || EXPERT
-> diff --git a/arch/arm64/include/asm/processor.h b/arch/arm64/include/asm/processor.h
-> index fd5b1a4efc70..ee86070a28d4 100644
-> --- a/arch/arm64/include/asm/processor.h
-> +++ b/arch/arm64/include/asm/processor.h
-> @@ -296,6 +296,14 @@ extern void __init minsigstksz_setup(void);
->  /* PR_PAC_RESET_KEYS prctl */
->  #define PAC_RESET_KEYS(tsk, arg)	ptrauth_prctl_reset_keys(tsk, arg)
->  
-> +#ifdef CONFIG_ARM64_TAGGED_ADDR_ABI
-> +/* PR_{SET,GET}_TAGGED_ADDR_CTRL prctl */
-> +long set_tagged_addr_ctrl(unsigned long arg);
-> +long get_tagged_addr_ctrl(void);
-> +#define SET_TAGGED_ADDR_CTRL(arg)	set_tagged_addr_ctrl(arg)
-> +#define GET_TAGGED_ADDR_CTRL()		get_tagged_addr_ctrl()
-> +#endif
-> +
->  /*
->   * For CONFIG_GCC_PLUGIN_STACKLEAK
->   *
-> diff --git a/arch/arm64/include/asm/thread_info.h b/arch/arm64/include/asm/thread_info.h
-> index 2372e97db29c..4f81c4f15404 100644
-> --- a/arch/arm64/include/asm/thread_info.h
-> +++ b/arch/arm64/include/asm/thread_info.h
-> @@ -88,6 +88,7 @@ void arch_release_task_struct(struct task_struct *tsk);
->  #define TIF_SVE			23	/* Scalable Vector Extension in use */
->  #define TIF_SVE_VL_INHERIT	24	/* Inherit sve_vl_onexec across exec */
->  #define TIF_SSBD		25	/* Wants SSB mitigation */
-> +#define TIF_TAGGED_ADDR		26	/* Allow tagged user addresses */
->  
->  #define _TIF_SIGPENDING		(1 << TIF_SIGPENDING)
->  #define _TIF_NEED_RESCHED	(1 << TIF_NEED_RESCHED)
-> diff --git a/arch/arm64/include/asm/uaccess.h b/arch/arm64/include/asm/uaccess.h
-> index a138e3b4f717..097d6bfac0b7 100644
-> --- a/arch/arm64/include/asm/uaccess.h
-> +++ b/arch/arm64/include/asm/uaccess.h
-> @@ -62,7 +62,9 @@ static inline unsigned long __range_ok(const void __user *addr, unsigned long si
->  {
->  	unsigned long ret, limit = current_thread_info()->addr_limit;
->  
-> -	addr = untagged_addr(addr);
-> +	if (IS_ENABLED(CONFIG_ARM64_TAGGED_ADDR_ABI) &&
-> +	    test_thread_flag(TIF_TAGGED_ADDR))
-> +		addr = untagged_addr(addr);
->  
->  	__chk_user_ptr(addr);
->  	asm volatile(
-> diff --git a/arch/arm64/kernel/process.c b/arch/arm64/kernel/process.c
-> index 9856395ccdb7..60e70158a4a1 100644
-> --- a/arch/arm64/kernel/process.c
-> +++ b/arch/arm64/kernel/process.c
-> @@ -19,6 +19,7 @@
->  #include <linux/kernel.h>
->  #include <linux/mm.h>
->  #include <linux/stddef.h>
-> +#include <linux/sysctl.h>
->  #include <linux/unistd.h>
->  #include <linux/user.h>
->  #include <linux/delay.h>
-> @@ -307,11 +308,18 @@ static void tls_thread_flush(void)
->  	}
->  }
->  
-> +static void flush_tagged_addr_state(void)
-> +{
-> +	if (IS_ENABLED(CONFIG_ARM64_TAGGED_ADDR_ABI))
-> +		clear_thread_flag(TIF_TAGGED_ADDR);
-> +}
-> +
->  void flush_thread(void)
->  {
->  	fpsimd_flush_thread();
->  	tls_thread_flush();
->  	flush_ptrace_hw_breakpoint(current);
-> +	flush_tagged_addr_state();
->  }
->  
->  void release_thread(struct task_struct *dead_task)
-> @@ -541,3 +549,67 @@ void arch_setup_new_exec(void)
->  
->  	ptrauth_thread_init_user(current);
->  }
-> +
-> +#ifdef CONFIG_ARM64_TAGGED_ADDR_ABI
-> +/*
-> + * Control the relaxed ABI allowing tagged user addresses into the kernel.
-> + */
-> +static unsigned int tagged_addr_prctl_allowed = 1;
-> +
-> +long set_tagged_addr_ctrl(unsigned long arg)
-> +{
-> +	if (!tagged_addr_prctl_allowed)
-> +		return -EINVAL;
-> +	if (is_compat_task())
-> +		return -EINVAL;
-> +	if (arg & ~PR_TAGGED_ADDR_ENABLE)
-> +		return -EINVAL;
-> +
-> +	update_thread_flag(TIF_TAGGED_ADDR, arg & PR_TAGGED_ADDR_ENABLE);
-> +
-> +	return 0;
-> +}
-> +
-> +long get_tagged_addr_ctrl(void)
-> +{
-> +	if (!tagged_addr_prctl_allowed)
-> +		return -EINVAL;
-> +	if (is_compat_task())
-> +		return -EINVAL;
-> +
-> +	if (test_thread_flag(TIF_TAGGED_ADDR))
-> +		return PR_TAGGED_ADDR_ENABLE;
-> +
-> +	return 0;
-> +}
-> +
-> +/*
-> + * Global sysctl to disable the tagged user addresses support. This control
-> + * only prevents the tagged address ABI enabling via prctl() and does not
-> + * disable it for tasks that already opted in to the relaxed ABI.
-> + */
-> +static int zero;
-> +static int one = 1;
-> +
-> +static struct ctl_table tagged_addr_sysctl_table[] = {
-> +	{
-> +		.procname	= "tagged_addr",
-> +		.mode		= 0644,
-> +		.data		= &tagged_addr_prctl_allowed,
-> +		.maxlen		= sizeof(int),
-> +		.proc_handler	= proc_dointvec_minmax,
-> +		.extra1		= &zero,
-> +		.extra2		= &one,
-> +	},
-> +	{ }
-> +};
-> +
-> +static int __init tagged_addr_init(void)
-> +{
-> +	if (!register_sysctl("abi", tagged_addr_sysctl_table))
-> +		return -EINVAL;
-> +	return 0;
-> +}
-> +
-> +core_initcall(tagged_addr_init);
-> +#endif	/* CONFIG_ARM64_TAGGED_ADDR_ABI */
-> diff --git a/include/uapi/linux/prctl.h b/include/uapi/linux/prctl.h
-> index 094bb03b9cc2..2e927b3e9d6c 100644
-> --- a/include/uapi/linux/prctl.h
-> +++ b/include/uapi/linux/prctl.h
-> @@ -229,4 +229,9 @@ struct prctl_mm_map {
->  # define PR_PAC_APDBKEY			(1UL << 3)
->  # define PR_PAC_APGAKEY			(1UL << 4)
->  
-> +/* Tagged user address controls for arm64 */
-> +#define PR_SET_TAGGED_ADDR_CTRL		55
-> +#define PR_GET_TAGGED_ADDR_CTRL		56
-> +# define PR_TAGGED_ADDR_ENABLE		(1UL << 0)
-> +
->  #endif /* _LINUX_PRCTL_H */
-> diff --git a/kernel/sys.c b/kernel/sys.c
-> index 2969304c29fe..c6c4d5358bd3 100644
-> --- a/kernel/sys.c
-> +++ b/kernel/sys.c
-> @@ -124,6 +124,12 @@
->  #ifndef PAC_RESET_KEYS
->  # define PAC_RESET_KEYS(a, b)	(-EINVAL)
->  #endif
-> +#ifndef SET_TAGGED_ADDR_CTRL
-> +# define SET_TAGGED_ADDR_CTRL(a)	(-EINVAL)
-> +#endif
-> +#ifndef GET_TAGGED_ADDR_CTRL
-> +# define GET_TAGGED_ADDR_CTRL()		(-EINVAL)
-> +#endif
->  
->  /*
->   * this is where the system-wide overflow UID and GID are defined, for
-> @@ -2492,6 +2498,12 @@ SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
->  			return -EINVAL;
->  		error = PAC_RESET_KEYS(me, arg2);
->  		break;
-> +	case PR_SET_TAGGED_ADDR_CTRL:
-> +		error = SET_TAGGED_ADDR_CTRL(arg2);
-> +		break;
-> +	case PR_GET_TAGGED_ADDR_CTRL:
-> +		error = GET_TAGGED_ADDR_CTRL();
-> +		break;
->  	default:
->  		error = -EINVAL;
->  		break;
-> -- 
-> 2.22.0.410.gd8fdbe21b5-goog
-> 
+Yeah, I got the point. My only concern is that I don't know how to=20
+reliably trigger this case for testing. I can try to trigger it. But I=20
+don't know whether it will happen easily.=20
 
--- 
-Kees Cook
+Thanks,
+Song
+
+
+
 
