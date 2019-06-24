@@ -2,202 +2,185 @@ Return-Path: <SRS0=9FL3=UX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.7 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
-	SPF_PASS,URIBL_BLOCKED,USER_AGENT_NEOMUTT autolearn=ham autolearn_force=no
+X-Spam-Status: No, score=-6.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8A903C43613
-	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 12:34:36 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6DC85C43613
+	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 12:41:24 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3B158205F4
-	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 12:34:36 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 24DA8212F5
+	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 12:41:24 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="t642LGgn"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3B158205F4
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=shutemov.name
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="QEI4Ii/J"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 24DA8212F5
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BD3CE6B0003; Mon, 24 Jun 2019 08:34:35 -0400 (EDT)
+	id A21156B0003; Mon, 24 Jun 2019 08:41:23 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B83448E0003; Mon, 24 Jun 2019 08:34:35 -0400 (EDT)
+	id 9D0AD8E0003; Mon, 24 Jun 2019 08:41:23 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A72EB8E0002; Mon, 24 Jun 2019 08:34:35 -0400 (EDT)
+	id 898178E0002; Mon, 24 Jun 2019 08:41:23 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 5949E6B0003
-	for <linux-mm@kvack.org>; Mon, 24 Jun 2019 08:34:35 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id o13so20310954edt.4
-        for <linux-mm@kvack.org>; Mon, 24 Jun 2019 05:34:35 -0700 (PDT)
+Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 6AED96B0003
+	for <linux-mm@kvack.org>; Mon, 24 Jun 2019 08:41:23 -0400 (EDT)
+Received: by mail-io1-f71.google.com with SMTP id i133so21744625ioa.11
+        for <linux-mm@kvack.org>; Mon, 24 Jun 2019 05:41:23 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=lR/K9dPqLYYsbzYW2e/lfBpEoeC6Cvpl0omMuZVAwYE=;
-        b=kSw0ZuwQgHSQfRo53B/rTnGgbLxiC5Gs/InuNJblPnPrXq+CbLyvblev7aLHYYph/9
-         TRcmVoAAVuEbb3FhQNWI6+vXNlzKD480cRXZdQbk6ZrpCYaYryxfJ5+bEogVRZS4aV59
-         oDO2BROr9UniSY1R1qqBwfz1/CUjRirATewaF8f9Uw3fVZNEDOz2RhLL/pC9TJS9KBP6
-         MOumqWxxgXDR6xHaND2A275uVEiefvWfLfTcAol0u/crQAmC7WIXSNHS/dsoxFrsdW9J
-         30D7OmCx8BpA/QQUPnCTm9tDwZGr8eOgrbE5nqEq1o5e6ksrrqIBIgp1WNLI1H2Xrfjx
-         u94g==
-X-Gm-Message-State: APjAAAXQSavh+37Qhrd5JjfuOfrZjScepFcvMEBitgTZtSGFJmvkhHmt
-	8N6SlctzY9IYUeFb/bA93UMaN7uJlcvKvmypfrQGzOqq59efAEu7UCCbDaWcGPsjKbBqNgHSkC0
-	m5aSV9iwkCvexYCSF2HN4d3E79XcyFa1uncBw9K/j83Rjg4wuksvdol6a+ZO7QRadSg==
-X-Received: by 2002:a17:906:5814:: with SMTP id m20mr2291911ejq.252.1561379674911;
-        Mon, 24 Jun 2019 05:34:34 -0700 (PDT)
-X-Received: by 2002:a17:906:5814:: with SMTP id m20mr2291842ejq.252.1561379673936;
-        Mon, 24 Jun 2019 05:34:33 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561379673; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=vT0IOmV5vKSiaiLLTDu0ytTER6gDYyMjplNs/Pum/5Q=;
+        b=OEPREX0TLNWv5mmL6oNHzsrxOwvHDp0h+OP0UkEtZJCELUOnBNerPMSkg0v0ECvYr6
+         oa/pKUJ6HRFGNl/H4dujMtwQI7uuwDCaGAWrq8+YvLq2oIY/KPOGYzYVdvTCx3C+DEyO
+         aw5uWHS4BIUUrp0W3Tgy6LtwiR5RRQfOnY6DRsSosxGy6JQpfqGJNyEBjLzAqQP9/kk9
+         spUVtMcIyTi/SXBGFVQmXUn+0Ty1lpKz94UwXYhxbox6UxbzUs9XaeFIdwizWe4FjYDa
+         pAzOq6vmkZuHhuSgfqZ4BY8uRE776TXz60s8Xq8vy8BC+WrPQtLtixbii62kURn4IPHa
+         WjNg==
+X-Gm-Message-State: APjAAAVH6AcXCsUpDYfZZAOLeZa4r+6y0wC517Y5dNdVIDb3U9tHDzBY
+	nUJUu1U7OKvFOoxdbo1S/fUWH7tnUsXDtYwKsHkJ3K41gTqcYp/Dfvnu2vRoMjbnNcTFfpG87wr
+	mqjFqhe0cXUXtMLomCvN92erYDMh0cNaJqwvB9XhaJte2C8l7nHOeg+QSOPb9R1SW5g==
+X-Received: by 2002:a5d:8b52:: with SMTP id c18mr36450937iot.89.1561380083223;
+        Mon, 24 Jun 2019 05:41:23 -0700 (PDT)
+X-Received: by 2002:a5d:8b52:: with SMTP id c18mr36450887iot.89.1561380082660;
+        Mon, 24 Jun 2019 05:41:22 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561380082; cv=none;
         d=google.com; s=arc-20160816;
-        b=EvKM6xI83PQzQC3/ZgjNiGtk3RCowBRWfko4T65UzQE6vfX9/Tdsf4mg7jLNTuxHP/
-         brPV9ERosxBXD7sPYW318RmRlWO1G3qID/4C5Zx3jJ5NKIjsTSHPd5INhyvOUwEBlXDq
-         lfw1/D17v8vbADnEhXdTUIJzIB6acCU5YfYgy8wBEyDSrkDCFqBKYdXvMNBNNIuhjvD7
-         b+ZX8PFrQE+8ZLWkWM2JMGUsp61VN7CJvqxRP1Nh+quYr51Q4u9N1OQyzY4hVJ57wEPa
-         1Gf3NgOzwsyCfoMyK5blUTkMv8kaOf1IVNnnuMBr+EBV+iWa5pVJ+qRAabg1H2XIPcnp
-         0O9Q==
+        b=bHtp9zT+zOvw8OMnq/ACdF0zPMVbQcluypYQwbAvDO8b8AhFPcA59UFfgw5MvrdDFZ
+         X9bf+Gws3FSSvlflrROVjXbqpkWYRrkrlOpSm2Cz14PtpWAGe9oUibHFlrVmELE7oz/y
+         p7YzNUy31CSUKebnPb5FCiklUpn9DCiEz00+PcJnuYAbKGZi7Pi1ZBu62Kf3oyNaq7fU
+         CgGAe/NyWX8pNGahrlEJO7K3xkxNupF1eNcqSPZWqFZcEumnUctrLvZ7Np2pVu8cev5b
+         vgIyDWtkIzke16W4kFOV5JSc4t5Jt+dK76qYFO+li/SYCkGhEEFNww6EG/LKVsGgxsVj
+         Vzqw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=lR/K9dPqLYYsbzYW2e/lfBpEoeC6Cvpl0omMuZVAwYE=;
-        b=PIBG/8dY5RYCdi1KPfRCO3jQq73mRpoono4CiSOvRvSll9z4JQYk7UGKefIiEPDty0
-         FjFt3VhxLgvjM++39ZlP/hOJer2dox+96Sc2sbsbcKrS6DArvtRBW4MLtxHvcLREZrBh
-         raazbcZ9uDopOWAOnJNE383HaIp1GR7aJVq8zUUkofaqVTTAUQ1yr7ramZbKM+t7ho6M
-         85ryxvb7N/eBma0IhsdpRU8ngJ/NYzy7XwKESXoYo4VuExlrwUpMS9vYuzZzMMD8ydym
-         gWFCHoyVal/knyKWHKQ+GE7fYuXrpE+6pPDCmMOqHadY75xRUPqV0BBZyA7ByLwJjfoT
-         gOCg==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=vT0IOmV5vKSiaiLLTDu0ytTER6gDYyMjplNs/Pum/5Q=;
+        b=BhN6p0OAln+iVfRhKnMo1eSHKKJRfg6MPdewuyQUyto7XyOshK0D/Udk5TmUZQ5EOO
+         ELEd2sstlYfX6umYHw1kauY4Fy2uNdD9efAe1tvh1ttywHN1qX9e/Rh5DZG39VD0JFTV
+         vIt+f9JcO0cWAD9LaAEphdSs/Jpe7CqNkl8vxJF2bI8nkG39y036DhY0uPDAUdJci8gM
+         RD9DT+5zLk3p4yUI6K55PIrF4Y4ogPeOuVeyNOwNo6ThH/gFYz4nJrz7T5q4Ro2clGlx
+         +RTg+eL85F5qi/Wg/eSCvUTMOnb1sHTbP2F4SUIenBJ0OSicH6W2BGTRnvy+FncA2jgr
+         NTlA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=t642LGgn;
-       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b="QEI4Ii/J";
+       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id ch22sor3228862ejb.44.2019.06.24.05.34.33
+        by mx.google.com with SMTPS id e18sor7554702iot.134.2019.06.24.05.41.22
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 24 Jun 2019 05:34:33 -0700 (PDT)
-Received-SPF: neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) client-ip=209.85.220.65;
+        Mon, 24 Jun 2019 05:41:22 -0700 (PDT)
+Received-SPF: pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=t642LGgn;
-       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b="QEI4Ii/J";
+       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=shutemov-name.20150623.gappssmtp.com; s=20150623;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=lR/K9dPqLYYsbzYW2e/lfBpEoeC6Cvpl0omMuZVAwYE=;
-        b=t642LGgn6kd1Tw+bg6xnoK7KAmyybbu2hSgkAwPeYxKZC8G9mQXRdrkOhnvrU3K1pW
-         yRMyp9OiwNJAD1gC3ckyahmckgj2KaGdZRnPto9Zh2VnDpYKvjguSSFHgnIPB6gS0AkD
-         P7EdRWOXPrVsp+pRxKB/7Qrt9gI9GRvDZE/KvWzK4ec2gWXmgxsITzCEMRV9WjPZPECh
-         KHS4ySpz2XP7UuQo5DH6nWJvcOBpb9bdWKcNa827kBXUNhU1q3nKRfx4eqPCUjWYaCsD
-         MqIMQcbVvqcI54K2OQpgYigJqqzK6bEKkCrRVUoEmRW5/Qlt+CqW+cyzE0Ot1Wrx/cSU
-         4f/w==
-X-Google-Smtp-Source: APXvYqyYG0KW9bFgfCg3/28Cw1GvUVIn0oWrcBJwaum/DCvk7ez7L29DjOpy8Uas3/JkBWDdA7egFA==
-X-Received: by 2002:a17:906:a39a:: with SMTP id k26mr104302117ejz.82.1561379673442;
-        Mon, 24 Jun 2019 05:34:33 -0700 (PDT)
-Received: from box.localdomain ([86.57.175.117])
-        by smtp.gmail.com with ESMTPSA id y21sm1861137ejm.60.2019.06.24.05.34.32
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 24 Jun 2019 05:34:32 -0700 (PDT)
-Received: by box.localdomain (Postfix, from userid 1000)
-	id 1417D10439E; Mon, 24 Jun 2019 15:34:38 +0300 (+03)
-Date: Mon, 24 Jun 2019 15:34:38 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-To: Song Liu <songliubraving@fb.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>,
-	"oleg@redhat.com" <oleg@redhat.com>,
-	"rostedt@goodmis.org" <rostedt@goodmis.org>,
-	"mhiramat@kernel.org" <mhiramat@kernel.org>,
-	"matthew.wilcox@oracle.com" <matthew.wilcox@oracle.com>,
-	"kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>,
-	Kernel Team <Kernel-team@fb.com>
-Subject: Re: [PATCH v4 5/5] uprobe: collapse THP pmd after removing all
- uprobes
-Message-ID: <20190624123438.dubsp52tauwkr342@box>
-References: <20190613175747.1964753-1-songliubraving@fb.com>
- <20190613175747.1964753-6-songliubraving@fb.com>
- <20190621124823.ziyyx3aagnkobs2n@box>
- <B72B62C9-78EE-4440-86CA-590D3977BDB1@fb.com>
- <20190621133613.xnzpdlicqvjklrze@box>
- <4B58B3B3-10CB-4593-8BEC-1CEF41F856A1@fb.com>
- <707D52CA-E782-4C9A-AC66-75938C8E3358@fb.com>
- <DB6689FE-8528-4883-8CD9-CFE5F3BEC321@fb.com>
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=vT0IOmV5vKSiaiLLTDu0ytTER6gDYyMjplNs/Pum/5Q=;
+        b=QEI4Ii/JgjYvV0arHUuvELncjGCeyEpAfm8BD4kAOTo6jkhiDH2Is13/npizKczz8K
+         pRiPI0nJ6Hf6iJXiAS8+Xx9Hxc0aC0xCHPdu8QVyshmeak5abk92g+1vnKzamiGVfJXy
+         Snjws+eyI90PMUAMdjkT+qwIoDTtvZJiaJ3vCiYpAOpPO7SPR1muO7yKv2SsNpSjOLqS
+         ZzDNLMg58DKL/uF7XQmmeaKaKNsLPP2DckfFS4DsskD4Te9TxVAm7/VFPUo3Cvm1F/n9
+         /2Zbac0CziSdLqpft3h9FXP9jD5iEV+gdkk9ia2S+E/XCg0HXr6QS/Jheoajjwe4okZE
+         SGEQ==
+X-Google-Smtp-Source: APXvYqxrRTp1t2axXfEQaqztzgCLboJlJ5RdFCisW+UOCEfYvD9hFXfy3YyCkQnf74bf25MayislxGDYdVd89/a7yac=
+X-Received: by 2002:a6b:8dcf:: with SMTP id p198mr4665574iod.46.1561380082421;
+ Mon, 24 Jun 2019 05:41:22 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <DB6689FE-8528-4883-8CD9-CFE5F3BEC321@fb.com>
-User-Agent: NeoMutt/20180716
+References: <1561112086-6169-1-git-send-email-laoar.shao@gmail.com>
+ <1561112086-6169-3-git-send-email-laoar.shao@gmail.com> <d919ea73-daea-8a77-da0a-d1dc6089fd92@virtuozzo.com>
+ <CALOAHbCYgky01_LZF+JGq-ooQY-W=S9SE6yc_MmsmnqG5mmmVg@mail.gmail.com> <abcc5922-3d58-f9a3-b040-2871d384ab07@virtuozzo.com>
+In-Reply-To: <abcc5922-3d58-f9a3-b040-2871d384ab07@virtuozzo.com>
+From: Yafang Shao <laoar.shao@gmail.com>
+Date: Mon, 24 Jun 2019 20:40:46 +0800
+Message-ID: <CALOAHbD9F-ON04uX+Von3EZ113K5ROA239Vo9Eo6dPtMLL1q1w@mail.gmail.com>
+Subject: Re: [PATCH 2/2] mm/vmscan: calculate reclaimed slab caches in all
+ reclaim paths
+To: Kirill Tkhai <ktkhai@virtuozzo.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, 
+	Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, 
+	Mel Gorman <mgorman@techsingularity.net>, Linux MM <linux-mm@kvack.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jun 21, 2019 at 06:04:14PM +0000, Song Liu wrote:
-> 
-> 
-> > On Jun 21, 2019, at 9:30 AM, Song Liu <songliubraving@fb.com> wrote:
-> > 
-> > 
-> > 
-> >> On Jun 21, 2019, at 6:45 AM, Song Liu <songliubraving@fb.com> wrote:
-> >> 
-> >> 
-> >> 
-> >>> On Jun 21, 2019, at 6:36 AM, Kirill A. Shutemov <kirill@shutemov.name> wrote:
-> >>> 
-> >>> On Fri, Jun 21, 2019 at 01:17:05PM +0000, Song Liu wrote:
-> >>>> 
-> >>>> 
-> >>>>> On Jun 21, 2019, at 5:48 AM, Kirill A. Shutemov <kirill@shutemov.name> wrote:
-> >>>>> 
-> >>>>> On Thu, Jun 13, 2019 at 10:57:47AM -0700, Song Liu wrote:
-> >>>>>> After all uprobes are removed from the huge page (with PTE pgtable), it
-> >>>>>> is possible to collapse the pmd and benefit from THP again. This patch
-> >>>>>> does the collapse.
-> >>>>>> 
-> >>>>>> An issue on earlier version was discovered by kbuild test robot.
-> >>>>>> 
-> >>>>>> Reported-by: kbuild test robot <lkp@intel.com>
-> >>>>>> Signed-off-by: Song Liu <songliubraving@fb.com>
-> >>>>>> ---
-> >>>>>> include/linux/huge_mm.h |  7 +++++
-> >>>>>> kernel/events/uprobes.c |  5 ++-
-> >>>>>> mm/huge_memory.c        | 69 +++++++++++++++++++++++++++++++++++++++++
-> >>>>> 
-> >>>>> I still sync it's duplication of khugepaged functinallity. We need to fix
-> >>>>> khugepaged to handle SCAN_PAGE_COMPOUND and probably refactor the code to
-> >>>>> be able to call for collapse of particular range if we have all locks
-> >>>>> taken (as we do in uprobe case).
-> >>>>> 
-> >>>> 
-> >>>> I see the point now. I misunderstood it for a while. 
-> >>>> 
-> >>>> If we add this to khugepaged, it will have some conflicts with my other 
-> >>>> patchset. How about we move the functionality to khugepaged after these
-> >>>> two sets get in? 
-> >>> 
-> >>> Is the last patch of the patchset essential? I think this part can be done
-> >>> a bit later in a proper way, no?
-> >> 
-> >> Technically, we need this patch to regroup pmd mapped page, and thus get 
-> >> the performance benefit after the uprobe is detached. 
-> >> 
-> >> On the other hand, if we get the first 4 patches of the this set and the 
-> >> other set in soonish. I will work on improving this patch right after that..
-> > 
-> > Actually, it might be pretty easy. We can just call try_collapse_huge_pmd() 
-> > in khugepaged.c (in khugepaged_scan_shmem() or khugepaged_scan_file() after 
-> > my other set). 
-> > 
-> > Let me fold that in and send v5. 
-> 
-> On a second thought, if we would have khugepaged to do collapse, we need a
-> dedicated bit to tell khugepaged which pmd to collapse. Otherwise, it may 
-> accidentally collapse pmd that are split by other split_huge_pmd. 
+On Mon, Jun 24, 2019 at 8:33 PM Kirill Tkhai <ktkhai@virtuozzo.com> wrote:
+>
+> On 24.06.2019 15:30, Yafang Shao wrote:
+> > On Mon, Jun 24, 2019 at 4:53 PM Kirill Tkhai <ktkhai@virtuozzo.com> wrote:
+> >>
+> >> On 21.06.2019 13:14, Yafang Shao wrote:
+> >>> There're six different reclaim paths by now,
+> >>> - kswapd reclaim path
+> >>> - node reclaim path
+> >>> - hibernate preallocate memory reclaim path
+> >>> - direct reclaim path
+> >>> - memcg reclaim path
+> >>> - memcg softlimit reclaim path
+> >>>
+> >>> The slab caches reclaimed in these paths are only calculated in the above
+> >>> three paths.
+> >>>
+> >>> There're some drawbacks if we don't calculate the reclaimed slab caches.
+> >>> - The sc->nr_reclaimed isn't correct if there're some slab caches
+> >>>   relcaimed in this path.
+> >>> - The slab caches may be reclaimed thoroughly if there're lots of
+> >>>   reclaimable slab caches and few page caches.
+> >>>   Let's take an easy example for this case.
+> >>>   If one memcg is full of slab caches and the limit of it is 512M, in
+> >>>   other words there're approximately 512M slab caches in this memcg.
+> >>>   Then the limit of the memcg is reached and the memcg reclaim begins,
+> >>>   and then in this memcg reclaim path it will continuesly reclaim the
+> >>>   slab caches until the sc->priority drops to 0.
+> >>>   After this reclaim stops, you will find there're few slab caches left,
+> >>>   which is less than 20M in my test case.
+> >>>   While after this patch applied the number is greater than 300M and
+> >>>   the sc->priority only drops to 3.
+> >>>
+> >>> Signed-off-by: Yafang Shao <laoar.shao@gmail.com>
+> >>> ---
+> >>>  mm/vmscan.c | 7 +++++++
+> >>>  1 file changed, 7 insertions(+)
+> >>>
+> >>> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> >>> index 18a66e5..d6c3fc8 100644
+> >>> --- a/mm/vmscan.c
+> >>> +++ b/mm/vmscan.c
+> >>> @@ -3164,11 +3164,13 @@ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
+> >>>       if (throttle_direct_reclaim(sc.gfp_mask, zonelist, nodemask))
+> >>>               return 1;
+> >>>
+> >>> +     current->reclaim_state = &sc.reclaim_state;
+> >>>       trace_mm_vmscan_direct_reclaim_begin(order, sc.gfp_mask);
+> >>>
+> >>>       nr_reclaimed = do_try_to_free_pages(zonelist, &sc);
+> >>>
+> >>>       trace_mm_vmscan_direct_reclaim_end(nr_reclaimed);
+> >>> +     current->reclaim_state = NULL;
+> >>
+> >> Shouldn't we remove reclaim_state assignment from __perform_reclaim() after this?
+> >>
+> >
+> > Oh yes. We should remove it. Thanks for pointing out.
+> > I will post a fix soon.
+>
+> With the change above, feel free to add my Reviewed-by: to all of the series.
+>
 
-Why is it a problem? Do you know a situation where such collapse possible
-and will break split_huge_pmd() user's expectation. If there's such user
-it is broken: normal locking should prevent such situation.
+Sure, thanks for your review.
 
--- 
- Kirill A. Shutemov
+Thanks
+Yafang
 
