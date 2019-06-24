@@ -2,156 +2,167 @@ Return-Path: <SRS0=9FL3=UX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 180A2C48BEA
-	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 20:21:55 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 339C0C4646C
+	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 20:45:35 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B64E720673
-	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 20:21:54 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="2VPaEOiY"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B64E720673
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 02F4220665
+	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 20:45:34 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 02F4220665
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2D35B6B0005; Mon, 24 Jun 2019 16:21:54 -0400 (EDT)
+	id 866E86B0005; Mon, 24 Jun 2019 16:45:34 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 283E58E0003; Mon, 24 Jun 2019 16:21:54 -0400 (EDT)
+	id 7F07A8E0003; Mon, 24 Jun 2019 16:45:34 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 14C578E0002; Mon, 24 Jun 2019 16:21:54 -0400 (EDT)
+	id 6B9418E0002; Mon, 24 Jun 2019 16:45:34 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id CF96D6B0005
-	for <linux-mm@kvack.org>; Mon, 24 Jun 2019 16:21:53 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id i11so7205685pgt.7
-        for <linux-mm@kvack.org>; Mon, 24 Jun 2019 13:21:53 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 1A3926B0005
+	for <linux-mm@kvack.org>; Mon, 24 Jun 2019 16:45:34 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id d13so22186986edo.5
+        for <linux-mm@kvack.org>; Mon, 24 Jun 2019 13:45:34 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=/rV1TlvYuXOK2sFci2/p6W21rW/APz4/kUsj3EobUV4=;
-        b=k2lGQHNBhaUeFHoJ01qDMtPSrEwpCxE+ixOC3UlD3rxv6bSPfUC7D9EOV3l2iwCGcn
-         7Q+pFG0Mdk9zJ/DN6tuCuyZdQCmr4d5mCYyL4t79fuQCM1uAoG/6oqb53FSj6q8DnwQZ
-         Z6+E9t87A69VgWsqRgMXGLJdy3S3Oqozl8C2tbHGe7AFs4dHJNe6bS63+GAA9BqjIjnC
-         jsqaF1nv0J0t3c1lFeo+gvLgPXNn3aoU7SAVLJLziMSOQxsNK5r4Cy1UmvcVVoaT7OPd
-         4mHMvsuGfkcd78IbFUDGTX553VrEZdFCDLIdsoEp8bXJigw2gH7s4dCusL69AOuC+AwQ
-         FFLg==
-X-Gm-Message-State: APjAAAWAF78UxxX4hIddlT5xCGxmQQ8QtS3DuxwfBe7hPsYhhUf4uCzy
-	nsGFZPAg1/uPAcLnjCx5oTCpZSRjeSeF6eqklHSIpyyXQpRFpSHK0krW7SfRDEXpovBVTddSK99
-	BeSkL/C8iHvQC0Ho4koCLpfbD7EuPweNkF/zL+sXPUhBYvIRC4gdicHZiT5SdbwS/Dg==
-X-Received: by 2002:a17:902:246:: with SMTP id 64mr77804980plc.311.1561407713291;
-        Mon, 24 Jun 2019 13:21:53 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy9HrI8EcEwgDAWIE+KfmjvAvWfmuSNtWh7GnKkmafellFbwGwAWj530xIj3BO0pPHkrNG7
-X-Received: by 2002:a17:902:246:: with SMTP id 64mr77804916plc.311.1561407712466;
-        Mon, 24 Jun 2019 13:21:52 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561407712; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:message-id
+         :subject:from:to:cc:date:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=8EGDkDlRwTg68dmvhUz2v5W3wT6YxTFHi108IOVbZTM=;
+        b=Jl/kdKl6HT6VUcrY28FB/GfPaAQdyT76aUXHPbO4tiDci49BVTEDwFiwDWK/3kjIxp
+         2BcNUZWj/yTb8r4rwG26qjsLBCc5+8HkOFBWnI0xiUBmJrpLXZzHb9ls56B9sHuMSa9M
+         5s9wAQ2VyjJuSdAM5C1QPFeu8WkmcEbiVLEoQAmBYXhXiJ393hEGsPGaCdaAjUqKRKDo
+         CgBq+LCBAJKNkG+1hF0g7ZTGj8XQtRkq+sBL0FMLNd/D8fqzFxmQwwRfNhyq5saoKtpd
+         mElvTBbb2RAfPvEb1LMQJwmS7Sm62YnOFM1bNWavFj7l8Ytt36pGylHKJqng0Rh/j8tz
+         Jw+w==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
+X-Gm-Message-State: APjAAAUPY5P68MfHXuoGJb8vOiQh7Fg14WLAfVXRPKFNl1G0MaktpzVx
+	zAmkbWRO2bS5vgq3uQ45O24nbZZDagBXZtsFRc/7rD03kcrywsiGTuggAVS7e9FM2YQKeghbXuF
+	dnXSJbuXhPtxZOnP/rvsjeyWpdC4G0BzBD8sIvzbaDip7DXJFJ9bLEt8F70QYP8i2Bg==
+X-Received: by 2002:a50:adec:: with SMTP id b41mr11723747edd.102.1561409133628;
+        Mon, 24 Jun 2019 13:45:33 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzGVx9ITcBfqRZzbx409Qgwsyk4DFjUjSshxd/Tc3FDeGc4cyh/qtPhVIFzXZBljFLl6/nh
+X-Received: by 2002:a50:adec:: with SMTP id b41mr11723669edd.102.1561409132633;
+        Mon, 24 Jun 2019 13:45:32 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561409132; cv=none;
         d=google.com; s=arc-20160816;
-        b=HAWO6r4fdY+d2PuaJGk3sitpZDHwueubHJDuJ1yh28qdXDN4t+K/IXmA0b/mfHiV0C
-         OHiJjSiIkPzA+b0UMsvNZOofy0h1Zwc6g/rAeNsjh9aItqL6IUAwdsz9ZMOZVbXtGA2D
-         xmod1nmBch3hDGgUm5esDbTiX0+ZBCTYF/nN/T7OIZRCH40We4avdfBd/eFPp1hAzYrx
-         kLaxeyLGHMj9PrUJOG3UGLt4fOVtJnXeHctp4Zjp6dzrt6qMTafUcWzrU5OP+pDLiqOY
-         GmRyQN4MITLTTCR5cqNw3zvxleX7LtubZQFwryzQll9vMYTRTZu3afpg8jQ5ZOdNVOMq
-         C3wg==
+        b=tepKWlLdn+DXhl9xytum644lNGXaNoMu9exljx2MvQMXk+5VdX5oL94joLDZuglWi5
+         ZWqiadXuFdwBgRtN6Igwq7lEC2bHVkJhi6eogPHOP0veIiLeetGUtFNJb1qtx36L19RS
+         QgAwG1ZTyPz7DFL7I6sBrKPkp2xqtY5EuEpiRUnya66GEFZsL7VU+ddAQ3bQ5GESU8um
+         fk2K9ncPhZmnQ1tPuObsolUrJo1YBH1Q0mm6AgjjYSYaBw1DWUWVchwmx6c0IsJGT2Fu
+         FO/8Dwg/F28IzrjXyLUX+lvght5qCzl4jHasK32GK0fAk6OzPxmKZ1NpTUMPBculZcQz
+         P8oA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=/rV1TlvYuXOK2sFci2/p6W21rW/APz4/kUsj3EobUV4=;
-        b=glwmdAG2Vp1DHqe+KxVgkOPfwEd1m/96M9+8s434Z5xHxXx5OlIXfH4g6/2nGEGE5u
-         C54RxmpJjPoPUYRszfa63MMP5QH8fkAt+T76htnjf02M59pM/2/Syz/cigwqUF6NRWMA
-         aS6YGOVX1HhLD2Gv+wxk3LMSlBpg7P/LozD1aPLYlwXX3gPMecIrHBHRtav1w51J9Pdb
-         wa2P+TQqB+gLNBQHkYSmGHmyzma6wowCPumuHWrWO/Tqh89rODzD10q4dyF5ENd47iTN
-         Uzip9F134oSP+Vwe/ddqd0uOVV1NLXEpn2HiyzEHGIbWGP6L6/Q8y7Miwy6wFD14RC4P
-         O4VQ==
+        h=content-transfer-encoding:mime-version:references:in-reply-to:date
+         :cc:to:from:subject:message-id;
+        bh=8EGDkDlRwTg68dmvhUz2v5W3wT6YxTFHi108IOVbZTM=;
+        b=j7gQXprS/A0CzrC1KMl58vf/nhgqKzzw1yoJpQlx6RTZxpW/6rCpQ/enw2zH1SSleD
+         rHpjGmJFmX0/m9+xAwa9Sh6nFkZqxX/Lrz3H5JXbbnCcI1TjtTuk2wGxQQsexM0rFlij
+         0aeZ8yPDDWTzx4Raa1MeErC/cqwA0CWPGzOLvkXf8+G+6q+qhCmHxgBhqmVaOJP11ia0
+         dKN37k9tIJEaXsOJduUos5xy9hvIOaRYfVzGqOLQCXH+RDAXr0l/iwVHr0A4ifcYGdM5
+         5QSD6PG/t3sVHG7x8V6xzkbqS1gIhABbjAF8MIAyroiajMa4n0+pt0djhzKvFQ7fgyj4
+         IGJA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=2VPaEOiY;
-       spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id b5si11218646pfi.205.2019.06.24.13.21.52
+       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id f25si10463315ede.206.2019.06.24.13.45.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 24 Jun 2019 13:21:52 -0700 (PDT)
-Received-SPF: pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        Mon, 24 Jun 2019 13:45:32 -0700 (PDT)
+Received-SPF: pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=2VPaEOiY;
-       spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from localhost (unknown [167.220.24.221])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 6755E20645;
-	Mon, 24 Jun 2019 20:21:51 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1561407711;
-	bh=/rV1TlvYuXOK2sFci2/p6W21rW/APz4/kUsj3EobUV4=;
-	h=Date:From:To:Cc:Subject:References:In-Reply-To:From;
-	b=2VPaEOiYLx/B1U7xl+3URPJW/PCnea+Hoo4lmR8kq/6n244//CX5FcosNOr1Dj3oq
-	 kZ/WOwKR+mt0aTbDmzXkGDY61uNn7Pw8n0E1ZmPY1FmKSwRlrgS69rOqWLgsC9nNQT
-	 I7qwRnBg2lc/TFX9Q7IzCpvfO5IQUktLdI8ucdSE=
-Date: Mon, 24 Jun 2019 16:21:50 -0400
-From: Sasha Levin <sashal@kernel.org>
-To: Ajay Kaher <akaher@vmware.com>
-Cc: aarcange@redhat.com, jannh@google.com, oleg@redhat.com,
-	peterx@redhat.com, rppt@linux.ibm.com, jgg@mellanox.com,
-	mhocko@suse.com, jglisse@redhat.com, akpm@linux-foundation.org,
-	mike.kravetz@oracle.com, viro@zeniv.linux.org.uk,
-	riandrews@android.com, arve@android.com, yishaih@mellanox.com,
-	dledford@redhat.com, sean.hefty@intel.com, hal.rosenstock@gmail.com,
-	matanb@mellanox.com, leonro@mellanox.com,
-	linux-fsdevel@vger.kernel.org, linux-mm@kvack.org,
-	devel@driverdev.osuosl.org, linux-rdma@vger.kernel.org,
-	linux-kernel@vger.kernel.org, stable@vger.kernel.org,
-	srivatsab@vmware.com, amakhalov@vmware.com
-Subject: Re: [PATCH v4 0/3] [v4.9.y] coredump: fix race condition between
- mmget_not_zero()/get_task_mm() and core dumping
-Message-ID: <20190624202150.GC3881@sasha-vm>
-References: <1561410186-3919-1-git-send-email-akaher@vmware.com>
- <1561410186-3919-4-git-send-email-akaher@vmware.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Disposition: inline
-In-Reply-To: <1561410186-3919-4-git-send-email-akaher@vmware.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id CC8C4AE34;
+	Mon, 24 Jun 2019 20:45:31 +0000 (UTC)
+Message-ID: <1561409129.3058.1.camel@suse.de>
+Subject: Re: [PATCH v10 09/13] mm/sparsemem: Support sub-section hotplug
+From: Oscar Salvador <osalvador@suse.de>
+To: Dan Williams <dan.j.williams@intel.com>, akpm@linux-foundation.org
+Cc: Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Logan
+ Gunthorpe <logang@deltatee.com>, Pavel Tatashin
+ <pasha.tatashin@soleen.com>, linux-mm@kvack.org, 
+ linux-nvdimm@lists.01.org, linux-kernel@vger.kernel.org
+Date: Mon, 24 Jun 2019 22:45:29 +0200
+In-Reply-To: <156092354368.979959.6232443923440952359.stgit@dwillia2-desk3.amr.corp.intel.com>
+References:
+	  <156092349300.979959.17603710711957735135.stgit@dwillia2-desk3.amr.corp.intel.com>
+	 <156092354368.979959.6232443923440952359.stgit@dwillia2-desk3.amr.corp.intel.com>
+Content-Type: text/plain; charset="UTF-8"
+X-Mailer: Evolution 3.26.1 
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jun 25, 2019 at 02:33:06AM +0530, Ajay Kaher wrote:
->coredump: fix race condition between mmget_not_zero()/get_task_mm()
->and core dumping
->
->[PATCH v4 1/3]:
->Backporting of commit 04f5866e41fb70690e28397487d8bd8eea7d712a upstream.
->
->[PATCH v4 2/3]:
->Extension of commit 04f5866e41fb to fix the race condition between
->get_task_mm() and core dumping for IB->mlx4 and IB->mlx5 drivers.
->
->[PATCH v4 3/3]
->Backporting of commit 59ea6d06cfa9247b586a695c21f94afa7183af74 upstream.
->
->[diff from v3]:
->- added [PATCH v4 3/3]
+On Tue, 2019-06-18 at 22:52 -0700, Dan Williams wrote:
+> The libnvdimm sub-system has suffered a series of hacks and broken
+> workarounds for the memory-hotplug implementation's awkward
+> section-aligned (128MB) granularity. For example the following
+> backtrace
+> is emitted when attempting arch_add_memory() with physical address
+> ranges that intersect 'System RAM' (RAM) with 'Persistent Memory'
+> (PMEM)
+> within a given section:
+> 
+>     # cat /proc/iomem | grep -A1 -B1 Persistent\ Memory
+>     100000000-1ffffffff : System RAM
+>     200000000-303ffffff : Persistent Memory (legacy)
+>     304000000-43fffffff : System RAM
+>     440000000-23ffffffff : Persistent Memory
+>     2400000000-43bfffffff : Persistent Memory
+>       2400000000-43bfffffff : namespace2.0
+> 
+>     WARNING: CPU: 38 PID: 928 at arch/x86/mm/init_64.c:850
+> add_pages+0x5c/0x60
+>     [..]
+>     RIP: 0010:add_pages+0x5c/0x60
+>     [..]
+>     Call Trace:
+>      devm_memremap_pages+0x460/0x6e0
+>      pmem_attach_disk+0x29e/0x680 [nd_pmem]
+>      ? nd_dax_probe+0xfc/0x120 [libnvdimm]
+>      nvdimm_bus_probe+0x66/0x160 [libnvdimm]
+> 
+> It was discovered that the problem goes beyond RAM vs PMEM collisions
+> as
+> some platform produce PMEM vs PMEM collisions within a given section.
+> The libnvdimm workaround for that case revealed that the libnvdimm
+> section-alignment-padding implementation has been broken for a long
+> while. A fix for that long-standing breakage introduces as many
+> problems
+> as it solves as it would require a backward-incompatible change to
+> the
+> namespace metadata interpretation. Instead of that dubious route [1],
+> address the root problem in the memory-hotplug implementation.
+> 
+> Note that EEXIST is no longer treated as success as that is how
+> sparse_add_section() reports subsection collisions, it was also
+> obviated
+> by recent changes to perform the request_region() for 'System RAM'
+> before arch_add_memory() in the add_memory() sequence.
+> 
+> [1]: https://lore.kernel.org/r/155000671719.348031.234736316014111923
+> 7.stgit@dwillia2-desk3.amr.corp.intel.com
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: Vlastimil Babka <vbabka@suse.cz>
+> Cc: Logan Gunthorpe <logang@deltatee.com>
+> Cc: Oscar Salvador <osalvador@suse.de>
+> Cc: Pavel Tatashin <pasha.tatashin@soleen.com>
+> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 
-Why do all the patches have the same subject line?
+Reviewed-by: Oscar Salvador <osalvador@suse.de>
 
-I guess it's correct for the first one, but can you explain what's up
-with #2 and #3?
 
-If the second one isn't upstream, please explain in detail why not and
-how 4.9 differs from upstream so that it requires a custom backport.
-
-The third one just looks like a different patch altogether with a wrong
-subject line?
-
---
-Thanks,
-Sasha
+-- 
+Oscar Salvador
+SUSE L3
 
