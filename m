@@ -7,78 +7,78 @@ X-Spam-Status: No, score=-8.5 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
 	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2FF80C43613
-	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 05:43:51 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 249BDC48BEA
+	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 05:43:54 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DF51A2089F
-	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 05:43:50 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id E101C2089F
+	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 05:43:53 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="t+2vO2nF"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DF51A2089F
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="Ox0Bj2s2"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E101C2089F
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 73E896B0266; Mon, 24 Jun 2019 01:43:49 -0400 (EDT)
+	id 14AD46B0269; Mon, 24 Jun 2019 01:43:53 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6A0658E0002; Mon, 24 Jun 2019 01:43:49 -0400 (EDT)
+	id 0D4258E0002; Mon, 24 Jun 2019 01:43:53 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 53F9C8E0001; Mon, 24 Jun 2019 01:43:49 -0400 (EDT)
+	id EDDBF8E0001; Mon, 24 Jun 2019 01:43:52 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D92C6B0266
-	for <linux-mm@kvack.org>; Mon, 24 Jun 2019 01:43:49 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id q14so7186477pff.8
-        for <linux-mm@kvack.org>; Sun, 23 Jun 2019 22:43:49 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B63AF6B0269
+	for <linux-mm@kvack.org>; Mon, 24 Jun 2019 01:43:52 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id h15so8889471pfn.3
+        for <linux-mm@kvack.org>; Sun, 23 Jun 2019 22:43:52 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=skB+ZnavO/i7RNPtU2wJ23sFxTsqRf+NEErVUiBdRM8=;
-        b=c6ZyxVjlTQkweNZ1Q2CPU6ibLt/yBq0MtrBby2eJPHC63SxkaJ9vU9S6xdcFpjnVud
-         xWNj/PssM6b2C07Oc7tG3V2HGlaPBdqzCDCn3agqfiJzo/jhngX+A1m1w88vnCrloRAM
-         UHLtNXL+GPVCrDOzQqgUno0XD/m2xW+0RrnsQlUz2DIvl2nplY8kgy3IbOmBkLIjjoXn
-         xICOZKJCZIWYGG8JjGFPhsY/67dL8QpXoYwqjhfQGp7Mex/7qnsaRYWudr4KxZZjZbzz
-         VuAQmlKVMoVksL+8GzOTdvAewLOD6/TJ1O6G+1nkj6pYwnNS2NRYqXsUZdS62ygLRipi
-         iDxg==
-X-Gm-Message-State: APjAAAWHDlh1ewE7ljyGfQM412HKLVRWlP4X6PFw6Q3pm/kxrK5QLtr4
-	Pr0jaSTxRYfJE5IplcN4qFzvVD9LMF0xAE66O8Ctedbh4mYVNCbopLTaQouGTDHVIyuywBkf9bF
-	clcjZ5z6+i6209VhC5t4odijGzq/iyDkw0oZHOVjSBMbZOOK8PI4zpfKbqOznoaA=
-X-Received: by 2002:a63:9d82:: with SMTP id i124mr4220910pgd.155.1561355028728;
-        Sun, 23 Jun 2019 22:43:48 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz0n+nCoQdVtfyv30K/oUurfX3T2KNjS5MTekTy1tp+wsm5LJHud2U0f1clULsrWXbC6o/K
-X-Received: by 2002:a63:9d82:: with SMTP id i124mr4220865pgd.155.1561355027862;
-        Sun, 23 Jun 2019 22:43:47 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561355027; cv=none;
+        bh=43pRHKdJKqNssrr4/Vc0cDK/nlhOlcebDC3ttvLu+nk=;
+        b=KCbBhmDH83M83DQEFHZPkQ7z6vKyOlnrbQp0sL/kUCZh2TZAQOo9DZUlTwl/oDhWiT
+         Sh4U8ag2sVzlwIIhQ/Rf1jNCv6xHf6RFOedr93i+MstrE452dBdAUUUnR31FMcmEa5qH
+         Up9qblPs+cGqwwUxxn//Pu8BNv23zL8mB7gWR9sjfU9wItIDFsjxAIiZyFveuAKXQZ2V
+         XIsgNpMpSpxbHtM+d0P++h8OhalReg3ZTGTYAETWP9mOvHV+igWjcLEy2MUxZibA6DWY
+         aBOYW3Duvt9RO9JdokE2Ali3V5jAMxuPkEVrAyENozxawD9HtxXqI/U3KCPwJGehYWyo
+         gr/A==
+X-Gm-Message-State: APjAAAVHnX/jAMzeo/I7p44rhHq+e4Apyt8QsrkHLpWHdeuAF9qSwZAY
+	H6qFdmHS1uuJLeVGy5KiJQJjTsOOY4JrzmpKsxMxLa/cewQU4WCHYBz0gr3yP2Du1M1FpPURD72
+	xzS6z65ZtSpOUzJjwry+X7DViyADy1Gg5r+1dckvFfKMcJlF9lGxYkQ69O5dQHGc=
+X-Received: by 2002:a65:524b:: with SMTP id q11mr30301876pgp.384.1561355032332;
+        Sun, 23 Jun 2019 22:43:52 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqx5olcSIoAIqovBqj5sngIHCt9o6TL9a07GwkC2N5QP3+HfQfF7gEjS+DKS1cZau/vcTvn/
+X-Received: by 2002:a65:524b:: with SMTP id q11mr30301850pgp.384.1561355031609;
+        Sun, 23 Jun 2019 22:43:51 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561355031; cv=none;
         d=google.com; s=arc-20160816;
-        b=E4yW1b+uWaNUJn0+1RAiZOYGck3XfQdGI9TEtCuax0BUlA1r6jw1KlYjcBPHxh4vo3
-         Mr009jEl4S027WNC61tAn4sERezc4Xy8OU+xOqzvwq+0Z7DibruDH4/SGFRRhBGZxauV
-         k/L3ftZZg2nzx8qdCxQ+dJDRs/1Id8LfTn91h7TsWtyUEkSt8gXpKfbtMk3Ir3H7vjTB
-         7sSjEIurau3qbwJvHWtw9YwGWg3Es9FJGI7ucY5BPBPgccN50/U6FdPAJE28tPcGzbBM
-         rmZVL+BMTbkyM5bc8B6/ORf/BP6zaGollFgG+1AxOAw4Azhd6N8g3PJi32m/cYrAA0Ge
-         GWmw==
+        b=UqDVHz7DKs5UGeWeDcc6AT4qZegXM/31jr69r59a6PPLTPJL1BaVe04AQCUVs05Uyp
+         JFH8fjRIWs2fjUqByy1nS+p7V7sAxuJ2aqONPX2TI47i8+x00Ok6eB5CEd1qxVzQDJck
+         9EIzMMV98XCx4KuBbTQR3/6zNaqQKf322fnp429g0bBVDwfXymDsiSd4H3bdqNFdEFDw
+         Y0YfLzWoBzhg3GmslfA2f8bN3WHlzWcYx8uKZPZUoglW7nUKVyNaoVSVsVOOMsiByxNP
+         xCTha8+JhN865hSbeDF8Eusw4zsqwgyiBNHjXwEK4j+mxzIUU9Vb+hhIpqCHhpb+iqWf
+         lv3Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=skB+ZnavO/i7RNPtU2wJ23sFxTsqRf+NEErVUiBdRM8=;
-        b=tDKykeFtSHj9BS4In/oaCr82c/lQMKG0iVQYiijZoRQXISyLM7LM4erW+GZ+tUh5B/
-         QqeliVqbGIY2BstAOoIUgMw9Nz/TIKDnQHQTKgyXAGd78tzdh4XSbkk+eJ1DXxEO9eNi
-         bg2TFdeO6oE7jtFbA///n+1rZqIaPy5SgL8gKSTA8E5fogkWmGxV/NowDtqpUDPbVv07
-         vL5nkY17lrimLp2Hvp1LYwcz+RdHgidoY+H1fNzF43KcB0Z2GZDOAQVoyQaTRIbUWtRv
-         Db+GQyoIdLfCsCbY74G58sXOrk13tS1rHl9dT6lE3iU91KMBJRtvj3CUoyZ/HYeFiWId
-         3Z/A==
+        bh=43pRHKdJKqNssrr4/Vc0cDK/nlhOlcebDC3ttvLu+nk=;
+        b=TBfHnuB5chHYRGNVQJAfIh8iu3d64ha5JbnbGiAsTj6aN4HyeVFgTWet3CSMWwNYMd
+         qJR1bB1wVvDq4EobMd0Rh7YeqFPtKWE8blFp8d+rLf867uwttma9+mvkIB0vszCvDWKn
+         Cfwue5EJvOO39XwErJPv4BtRWsOmjyUQL3HgJQ060X3x4FvAyWbpUuWSDNsawdOJw9bh
+         S3UhCGERXXa7RjVDaFFuD4AaduwoY9sM8kNGnwp4QSmdqmnqg4o4NYednr16YsSqC7Sx
+         6ltqEnwe68jcgRalQ3pwfxTV5im4zPuIWRQ/naiWVekedyMbx/+PoP/65We17xxhSUF/
+         6s4A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=t+2vO2nF;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=Ox0Bj2s2;
        spf=pass (google.com: best guess record for domain of batv+84882ec255bc51113d1a+5783+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+84882ec255bc51113d1a+5783+infradead.org+hch@bombadil.srs.infradead.org
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id l6si10225035pgl.444.2019.06.23.22.43.47
+        by mx.google.com with ESMTPS id 59si10154952plp.90.2019.06.23.22.43.51
         for <linux-mm@kvack.org>
         (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Sun, 23 Jun 2019 22:43:47 -0700 (PDT)
+        Sun, 23 Jun 2019 22:43:51 -0700 (PDT)
 Received-SPF: pass (google.com: best guess record for domain of batv+84882ec255bc51113d1a+5783+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=t+2vO2nF;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=Ox0Bj2s2;
        spf=pass (google.com: best guess record for domain of batv+84882ec255bc51113d1a+5783+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+84882ec255bc51113d1a+5783+infradead.org+hch@bombadil.srs.infradead.org
 DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	d=infradead.org; s=bombadil.20170209; h=Content-Transfer-Encoding:
@@ -86,25 +86,26 @@ DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	:Reply-To:Content-Type:Content-ID:Content-Description:Resent-Date:Resent-From
 	:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:List-Help:
 	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	bh=skB+ZnavO/i7RNPtU2wJ23sFxTsqRf+NEErVUiBdRM8=; b=t+2vO2nFTl72dJHuKdBfsPVdXB
-	PpN4mUwQTM7uVVMBYemMWRy7TO6gT0foijMGEEFeKV4uMpaJeS7qSaL5ucgqPVCxwZrtbPlPp19Da
-	aqyr1nEhcizmT1bqw0YevN+FGcf0/OYne3Oepy6C+pN0QROZYbNapyQkwh5WhJpTkQZiTywAon4cA
-	r85QDsSSL1jXX30Ue8PHJp9qgNOGx/Zwc7vrTgAy5NwVztpDW8OlKMsoqOwaUNpk5k8xj3sWraNC4
-	RTk3jha4jQXHwplpwmyxVqldpftE7xCFg0DjpblKhPjvOPMSDLEZR4e+gDg/zk4OBHuakmfmsrQmz
-	3x0/tFLw==;
+	bh=43pRHKdJKqNssrr4/Vc0cDK/nlhOlcebDC3ttvLu+nk=; b=Ox0Bj2s2AYtMiNqOyzVUJu1aca
+	4Zw5sJu947Gj5rs0jUIlbbOtlbwYiuHZ0nJ1wtQi79umOkWFdlOji03dK+QH22LmwJp2C8vJ56/Fw
+	VBYObyjWlQcJ9h5SQj6t76j0JD5TudW+arpOJd2w7RxIDG8pwuO4dR1jb3JpSDfRzc7ZczKYWm7vh
+	QI2c2xxg9ZuRIDvDgzexiDXDbZSYqdKgNNN3aPwHwGLG857aQEXAdzB2Nf4gvK+YbgR5Imuqbwebr
+	zBivLC6z+ob0BD9JpbwnxUy0vPPLYKipdDiBzZ5jLr7Jy5pym/AnznE86d12FYY1jmZQrC/xeH+IC
+	s5lNwFPQ==;
 Received: from 213-225-6-159.nat.highway.a1.net ([213.225.6.159] helo=localhost)
 	by bombadil.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
-	id 1hfHlZ-0006UH-Uw; Mon, 24 Jun 2019 05:43:46 +0000
+	id 1hfHld-0006Xj-5S; Mon, 24 Jun 2019 05:43:49 +0000
 From: Christoph Hellwig <hch@lst.de>
 To: Palmer Dabbelt <palmer@sifive.com>,
 	Paul Walmsley <paul.walmsley@sifive.com>
 Cc: Damien Le Moal <damien.lemoal@wdc.com>,
 	linux-riscv@lists.infradead.org,
 	linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
-Subject: [PATCH 09/17] riscv: provide a flat entry loader
-Date: Mon, 24 Jun 2019 07:43:03 +0200
-Message-Id: <20190624054311.30256-10-hch@lst.de>
+	linux-kernel@vger.kernel.org,
+	Damien Le Moal <Damien.LeMoal@wdc.com>
+Subject: [PATCH 10/17] riscv: read the hart ID from mhartid on boot
+Date: Mon, 24 Jun 2019 07:43:04 +0200
+Message-Id: <20190624054311.30256-11-hch@lst.de>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190624054311.30256-1-hch@lst.de>
 References: <20190624054311.30256-1-hch@lst.de>
@@ -117,105 +118,36 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This allows just loading the kernel at a pre-set address without
-qemu going bonkers trying to map the ELF file.
+From: Damien Le Moal <Damien.LeMoal@wdc.com>
 
+When in M-Mode, we can use the mhartid CSR to get the ID of the running
+HART. Doing so, direct M-Mode boot without firmware is possible.
+
+Signed-off-by: Damien Le Moal <damien.lemoal@wdc.com>
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- arch/riscv/Makefile        | 13 +++++++++----
- arch/riscv/boot/Makefile   |  7 ++++++-
- arch/riscv/boot/loader.S   |  8 ++++++++
- arch/riscv/boot/loader.lds | 14 ++++++++++++++
- 4 files changed, 37 insertions(+), 5 deletions(-)
- create mode 100644 arch/riscv/boot/loader.S
- create mode 100644 arch/riscv/boot/loader.lds
+ arch/riscv/kernel/head.S | 8 ++++++++
+ 1 file changed, 8 insertions(+)
 
-diff --git a/arch/riscv/Makefile b/arch/riscv/Makefile
-index 6b0741c9f348..69dbb6cb72f3 100644
---- a/arch/riscv/Makefile
-+++ b/arch/riscv/Makefile
-@@ -84,13 +84,18 @@ PHONY += vdso_install
- vdso_install:
- 	$(Q)$(MAKE) $(build)=arch/riscv/kernel/vdso $@
+diff --git a/arch/riscv/kernel/head.S b/arch/riscv/kernel/head.S
+index e5fa5481aa99..a4c170e41a34 100644
+--- a/arch/riscv/kernel/head.S
++++ b/arch/riscv/kernel/head.S
+@@ -18,6 +18,14 @@ ENTRY(_start)
+ 	csrw CSR_XIE, zero
+ 	csrw CSR_XIP, zero
  
--all: Image.gz
-+ifeq ($(CONFIG_M_MODE),y)
-+KBUILD_IMAGE := $(boot)/loader
-+else
-+KBUILD_IMAGE := $(boot)/Image.gz
-+endif
-+BOOT_TARGETS := Image Image.gz loader
- 
--Image: vmlinux
--	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
-+all:	$(notdir $(KBUILD_IMAGE))
- 
--Image.%: Image
-+$(BOOT_TARGETS): vmlinux
- 	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
-+	@$(kecho) '  Kernel: $(boot)/$@ is ready'
- 
- zinstall install:
- 	$(Q)$(MAKE) $(build)=$(boot) $@
-diff --git a/arch/riscv/boot/Makefile b/arch/riscv/boot/Makefile
-index 0990a9fdbe5d..32d2addeddba 100644
---- a/arch/riscv/boot/Makefile
-+++ b/arch/riscv/boot/Makefile
-@@ -16,7 +16,7 @@
- 
- OBJCOPYFLAGS_Image :=-O binary -R .note -R .note.gnu.build-id -R .comment -S
- 
--targets := Image
-+targets := Image loader
- 
- $(obj)/Image: vmlinux FORCE
- 	$(call if_changed,objcopy)
-@@ -24,6 +24,11 @@ $(obj)/Image: vmlinux FORCE
- $(obj)/Image.gz: $(obj)/Image FORCE
- 	$(call if_changed,gzip)
- 
-+loader.o: $(src)/loader.S $(obj)/Image
++#ifdef CONFIG_M_MODE
++	/*
++	 * The hartid in a0 is expected later on, and we have no firmware
++	 * to hand it to us.
++	 */
++	csrr a0, mhartid
++#endif
 +
-+$(obj)/loader: $(obj)/loader.o $(obj)/Image FORCE
-+	$(Q)$(LD) -T $(src)/loader.lds -o $@ $(obj)/loader.o
-+
- install:
- 	$(CONFIG_SHELL) $(srctree)/$(src)/install.sh $(KERNELRELEASE) \
- 	$(obj)/Image System.map "$(INSTALL_PATH)"
-diff --git a/arch/riscv/boot/loader.S b/arch/riscv/boot/loader.S
-new file mode 100644
-index 000000000000..5586e2610dbb
---- /dev/null
-+++ b/arch/riscv/boot/loader.S
-@@ -0,0 +1,8 @@
-+// SPDX-License-Identifier: GPL-2.0
-+
-+	.align 4
-+	.section .payload, "ax", %progbits
-+	.globl _start
-+_start:
-+	.incbin "arch/riscv/boot/Image"
-+
-diff --git a/arch/riscv/boot/loader.lds b/arch/riscv/boot/loader.lds
-new file mode 100644
-index 000000000000..da9efd57bf44
---- /dev/null
-+++ b/arch/riscv/boot/loader.lds
-@@ -0,0 +1,14 @@
-+/* SPDX-License-Identifier: GPL-2.0 */
-+
-+OUTPUT_ARCH(riscv)
-+ENTRY(_start)
-+
-+SECTIONS
-+{
-+	. = 0x80000000;
-+
-+	.payload : {
-+		*(.payload)
-+		. = ALIGN(8);
-+	}
-+}
+ 	/* Load the global pointer */
+ .option push
+ .option norelax
 -- 
 2.20.1
 
