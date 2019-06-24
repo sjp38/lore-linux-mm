@@ -7,102 +7,101 @@ X-Spam-Status: No, score=-8.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 41156C48BE8
-	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 02:25:23 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BC3B7C48BE4
+	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 02:56:14 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E370020673
-	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 02:25:22 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E370020673
+	by mail.kernel.org (Postfix) with ESMTP id 809AF208C3
+	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 02:56:14 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 809AF208C3
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4EA846B0003; Sun, 23 Jun 2019 22:25:22 -0400 (EDT)
+	id 017966B0003; Sun, 23 Jun 2019 22:56:14 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 473DE8E0002; Sun, 23 Jun 2019 22:25:22 -0400 (EDT)
+	id F0AB58E0002; Sun, 23 Jun 2019 22:56:13 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 314628E0001; Sun, 23 Jun 2019 22:25:22 -0400 (EDT)
+	id DF9E78E0001; Sun, 23 Jun 2019 22:56:13 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E9B0C6B0003
-	for <linux-mm@kvack.org>; Sun, 23 Jun 2019 22:25:21 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id t2so6455510plo.10
-        for <linux-mm@kvack.org>; Sun, 23 Jun 2019 19:25:21 -0700 (PDT)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id ABE916B0003
+	for <linux-mm@kvack.org>; Sun, 23 Jun 2019 22:56:13 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id j7so8627624pfn.10
+        for <linux-mm@kvack.org>; Sun, 23 Jun 2019 19:56:13 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:mime-version:content-transfer-encoding;
-        bh=i62MDUco+L88u+gho4OXVi2QGt71UcWNN0qob8xe0Ws=;
-        b=Jh98xvDLyf/i2loVX/DPK/d5nE0Sv4fq8gKosYE/eioON6PjbSN4q8t0s6BJBVCIK+
-         HBa1pN8HjmTxNd0dm/OmutaLYRkrA1D8f+9gYsG+ab6nRDbigRhkyJw9Rp4d9VrCBCau
-         hXn1P9/YQMuvd393Uf9CnMS8Ty0BL9uonAhhg5lqZqjsd7CyHHFtZEfy9NnHXjfgo9Kv
-         XBQGw5N+7/fcV5EeIm5hugie/sWFh98h8nBM2re+ciXS4W6HZkhvSDC9hxfrzBedlYNP
-         2oyGaGd214DFVdpD7nfBboOdu1xACl2om5hudkGLmqudso7vkXmVP2/eSyklma5ciOUb
-         CHUw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ying.huang@intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=ying.huang@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAV15mkwz/YoBeUBJxqG9xAVr57YBD6rM0uMKuc+7HsatPJxzUPf
-	SmzPpaZk4YhVg/IzKrk9+/tqRsQxyDVPdstLxFkOVCXw5d8HJOoDKY/XgMXBuXa6euD5g9aaHoU
-	5jWBTSICIX4m32VHdwwXCM0USWZjgHlFdcp3TW6fZp5u9Y2Lb2wzgy/W19Y2/oEMkTA==
-X-Received: by 2002:a17:902:846:: with SMTP id 64mr20317941plk.265.1561343121539;
-        Sun, 23 Jun 2019 19:25:21 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqznpADUUtuy9kL1OUuPcKifiXaKNzEFAx6osMQoqiYhNTH3x0rX9yuAFIcNU+TzScgaoYu4
-X-Received: by 2002:a17:902:846:: with SMTP id 64mr20317900plk.265.1561343120714;
-        Sun, 23 Jun 2019 19:25:20 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561343120; cv=none;
+        bh=14hwdtvFDq+AenOKYgds7GhM287m9jnEwcUgDZlU0d8=;
+        b=Gyc8/5Fbo7UfRJEIq9Zv/oLLHUIv3gu0QOtYq0fqqLLbhjqRG9ZrOh3OChKL34et8v
+         amue3ev4gw4lBUA+HY2rUVpMGlFUlahs0P/+3UH4gKw+MGESm7v3t/902MeaOFBjNPAm
+         NCTK5ODL9GL0pCQGe+gPvv+gVxHalRv5TauIamFADXZZ2WqX3vjIarJM6T04JDNXSOI9
+         WuqPgp9ErdPzDyMZxep4v1EfCPiIRJhLI8ReIIw4l4OGQcw7zoZRgpD/fBXkLVio3yis
+         vjOCUgg5DSfkG6fTGebnBP8f22Id+jVEZGOrkNJcaiO/vq552ndAyOeF+q8nVaNCpwCo
+         XeHQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ying.huang@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=ying.huang@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAU5ufHvrkI0vSlbry4tN6KTOVwT9qcR7KpBgRCKKcR7eB2ng8yn
+	9PwzHXD9HgkhhzI/ZwNl/vVIG9JW+DGSMHx6qavlYeEYhNsSqeNv3tTpbAVF/fKB54bmoZ8b4EI
+	w3NB/9Bt1xfFBjuKqcpWYjICJz6sJdTRdiT8mfD4GbkJ6AL4UfZbHJtieuSR18xjg2A==
+X-Received: by 2002:a63:f50d:: with SMTP id w13mr30644578pgh.411.1561344973159;
+        Sun, 23 Jun 2019 19:56:13 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyvLXUlyRginYmQu5wx7xGXGgTAy2leq14pdMg8VXIHb94B+lvRK+IqzrCA5KFTcTe8tbO7
+X-Received: by 2002:a63:f50d:: with SMTP id w13mr30644523pgh.411.1561344971967;
+        Sun, 23 Jun 2019 19:56:11 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561344971; cv=none;
         d=google.com; s=arc-20160816;
-        b=uczNxjDFngCbRlm6SNg90+ejw/hbUUEcPVhmHGoVeZb/LZzEcKtbceuNmIdxLyTrxH
-         z07bAGprEg8bc35zmyMGT8z60W3yn3b6KLH5/TYay+FFCK+1ATsY2ALRvZKiZBzuMGIT
-         TnBmUAzoU/4K1WGNeXWvGmlBU+JIFNcL7jQx/XeH9y3GrElPy8XNwhkbT5Hte1k/b009
-         l778lRrGpwgLgtynLn3gkimA+eYJADYSBWmr95Eh/RqBC7z1ER5VDEhSJCuiybJ8Be23
-         MGsdxSh1/a/rFSH8zEyzOl9ESoSdpBQ13q/e7dStlS4uNWcOXM/nawtAkny/S4MVjEqT
-         IOJg==
+        b=zRkkwuWmJ+SwSz3EaIU3N3kA/fWON4WUjHCsWJnvhwFhUD4WIp2QJa61K2KuhgLZI2
+         cXm0YmOXIcC+YQhBQf1DjQCLavCAZMyMvBDoHa8Tpe5YR3Z1k3mVpHRBa4Jh/mfBhuyc
+         wsIpWbyaSgC9S/s7sZPLCyqp5bB2T+j4geffQVivTkQp+Z3SiS9x+Y6G+IkykaScbVzv
+         dXwKSZZWRzLhNlzCM2/HFsljbQe7xqeFgyqGaHAT6GDcpMmwJJ8P3aXPSzuFpzd+hcSj
+         RrelZqSATJ+hRogqC//PAS/zI1W38UxZh9uKiODn+vMWcsEelXWIKiVOUbbl/14GtCDA
+         1n+Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:message-id:date:subject:cc
          :to:from;
-        bh=i62MDUco+L88u+gho4OXVi2QGt71UcWNN0qob8xe0Ws=;
-        b=LkCA8sPFf5d9Dcl2UBZPnt1VC6QrXrWCo5/53mgGGW89QAYOJXEN4XTV+gobXqraIU
-         nEWrmVkWdmIBgpRzxeanIeobp2+oPKng3JmC9oQbXNxlCCYU1SPqdz8dSj6hAFSZqJWF
-         HiF7gw1qx8tHFwBynRSvTvjzjevKx/xSg9WOIzj7skuDHoHroiCnc76S1T20ekSKroPg
-         PDgaXDI+kCgAlx/yHlvZjVKqbuCtQI7or19qGg5zVsY6ASJPrAdpXfz0SPGpYc60KbZh
-         M9xu8ki0mtxgcbJIJAzU75u66sC5ey45usN5xcciF/735p3YsOGuhbBhj0Trq66iUpeT
-         EQdA==
+        bh=14hwdtvFDq+AenOKYgds7GhM287m9jnEwcUgDZlU0d8=;
+        b=cibdzEckqBS/zx4BXQSbuu2jDPk9zQvL9Sca3uTl04tdk8RZAPadp2yrBpVn7cqxL2
+         EURETSJCdHWa2vGDY8XZJjGnO/hRQGWVheEOOhtvxOeKnhtFYyTDrrhw1qYHXi4KNbhK
+         LEJs5RVSYunrZuXzFByfP3toe4hvkYgWOIPn3/QiORNpYN4t+Ylp/oFyPWRLJ4IgnI+Q
+         kjoIXykKKzZoe4y2DTLly94DPK7g9DXayYFFpuedqdMnAMi2L2c2RaOZVYSFw7TeZWH+
+         dTEpTnOWg5nhJnqp3uuzf+oSliDei6XWBtNCsOHOVI8v+7z43Qhwm0sePbPuxycpvwYB
+         eUiA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ying.huang@intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=ying.huang@intel.com;
+       spf=pass (google.com: domain of ying.huang@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=ying.huang@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id t1si8989531pgv.169.2019.06.23.19.25.20
+Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
+        by mx.google.com with ESMTPS id k3si8896153pll.343.2019.06.23.19.56.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 23 Jun 2019 19:25:20 -0700 (PDT)
-Received-SPF: pass (google.com: domain of ying.huang@intel.com designates 192.55.52.93 as permitted sender) client-ip=192.55.52.93;
+        Sun, 23 Jun 2019 19:56:11 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ying.huang@intel.com designates 192.55.52.151 as permitted sender) client-ip=192.55.52.151;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ying.huang@intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=ying.huang@intel.com;
+       spf=pass (google.com: domain of ying.huang@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=ying.huang@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 X-Amp-Result: SKIPPED(no attachment in message)
 X-Amp-File-Uploaded: False
 Received: from orsmga002.jf.intel.com ([10.7.209.21])
-  by fmsmga102.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 23 Jun 2019 19:25:19 -0700
+  by fmsmga107.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 23 Jun 2019 19:56:11 -0700
 X-ExtLoop1: 1
 X-IronPort-AV: E=Sophos;i="5.63,410,1557212400"; 
-   d="scan'208";a="171832130"
-Received: from yhuang-dev.sh.intel.com ([10.239.159.29])
-  by orsmga002.jf.intel.com with ESMTP; 23 Jun 2019 19:25:17 -0700
-From: "Huang, Ying" <ying.huang@intel.com>
+   d="scan'208";a="171838542"
+Received: from yhuang-mobile.sh.intel.com ([10.239.197.69])
+  by orsmga002.jf.intel.com with ESMTP; 23 Jun 2019 19:56:08 -0700
+From: Huang Ying <ying.huang@intel.com>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org,
 	linux-kernel@vger.kernel.org,
 	Huang Ying <ying.huang@intel.com>,
-	Ming Lei <ming.lei@redhat.com>,
-	Michal Hocko <mhocko@kernel.org>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	Hugh Dickins <hughd@google.com>,
-	Minchan Kim <minchan@kernel.org>,
 	Rik van Riel <riel@redhat.com>,
-	Daniel Jordan <daniel.m.jordan@oracle.com>
-Subject: [PATCH -mm] mm, swap: Fix THP swap out
-Date: Mon, 24 Jun 2019 10:23:36 +0800
-Message-Id: <20190624022336.12465-1-ying.huang@intel.com>
-X-Mailer: git-send-email 2.20.1
+	Peter Zijlstra <peterz@infradead.org>,
+	Mel Gorman <mgorman@suse.de>,
+	jhladky@redhat.com,
+	lvenanci@redhat.com,
+	Ingo Molnar <mingo@kernel.org>
+Subject: [PATCH -mm] autonuma: Fix scan period updating
+Date: Mon, 24 Jun 2019 10:56:04 +0800
+Message-Id: <20190624025604.30896-1-ying.huang@intel.com>
+X-Mailer: git-send-email 2.21.0
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
@@ -111,65 +110,81 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Huang Ying <ying.huang@intel.com>
+The autonuma scan period should be increased (scanning is slowed down)
+if the majority of the page accesses are shared with other processes.
+But in current code, the scan period will be decreased (scanning is
+speeded up) in that situation.
 
-0-Day test system reported some OOM regressions for several
-THP (Transparent Huge Page) swap test cases.  These regressions are
-bisected to 6861428921b5 ("block: always define BIO_MAX_PAGES as
-256").  In the commit, BIO_MAX_PAGES is set to 256 even when THP swap
-is enabled.  So the bio_alloc(gfp_flags, 512) in get_swap_bio() may
-fail when swapping out THP.  That causes the OOM.
+This patch fixes the code.  And this has been tested via tracing the
+scan period changing and /proc/vmstat numa_pte_updates counter when
+running a multi-threaded memory accessing program (most memory
+areas are accessed by multiple threads).
 
-As in the patch description of 6861428921b5 ("block: always define
-BIO_MAX_PAGES as 256"), THP swap should use multi-page bvec to write
-THP to swap space.  So the issue is fixed via doing that in
-get_swap_bio().
-
-BTW: I remember I have checked the THP swap code when
-6861428921b5 ("block: always define BIO_MAX_PAGES as 256") was merged,
-and thought the THP swap code needn't to be changed.  But apparently,
-I was wrong.  I should have done this at that time.
-
-Fixes: 6861428921b5 ("block: always define BIO_MAX_PAGES as 256")
+Fixes: 37ec97deb3a8 ("sched/numa: Slow down scan rate if shared faults dominate")
 Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
-Cc: Ming Lei <ming.lei@redhat.com>
-Cc: Michal Hocko <mhocko@kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Minchan Kim <minchan@kernel.org>
 Cc: Rik van Riel <riel@redhat.com>
-Cc: Daniel Jordan <daniel.m.jordan@oracle.com>
+Cc: Peter Zijlstra (Intel) <peterz@infradead.org>
+Cc: Mel Gorman <mgorman@suse.de>
+Cc: jhladky@redhat.com
+Cc: lvenanci@redhat.com
+Cc: Ingo Molnar <mingo@kernel.org>
 ---
- mm/page_io.c | 7 ++-----
- 1 file changed, 2 insertions(+), 5 deletions(-)
+ kernel/sched/fair.c | 20 ++++++++++----------
+ 1 file changed, 10 insertions(+), 10 deletions(-)
 
-diff --git a/mm/page_io.c b/mm/page_io.c
-index 2e8019d0e048..4ab997f84061 100644
---- a/mm/page_io.c
-+++ b/mm/page_io.c
-@@ -29,10 +29,9 @@
- static struct bio *get_swap_bio(gfp_t gfp_flags,
- 				struct page *page, bio_end_io_t end_io)
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index f35930f5e528..79bc4d2d1e58 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -1923,7 +1923,7 @@ static void update_task_scan_period(struct task_struct *p,
+ 			unsigned long shared, unsigned long private)
  {
--	int i, nr = hpage_nr_pages(page);
- 	struct bio *bio;
+ 	unsigned int period_slot;
+-	int lr_ratio, ps_ratio;
++	int lr_ratio, sp_ratio;
+ 	int diff;
  
--	bio = bio_alloc(gfp_flags, nr);
-+	bio = bio_alloc(gfp_flags, 1);
- 	if (bio) {
- 		struct block_device *bdev;
+ 	unsigned long remote = p->numa_faults_locality[0];
+@@ -1954,22 +1954,22 @@ static void update_task_scan_period(struct task_struct *p,
+ 	 */
+ 	period_slot = DIV_ROUND_UP(p->numa_scan_period, NUMA_PERIOD_SLOTS);
+ 	lr_ratio = (local * NUMA_PERIOD_SLOTS) / (local + remote);
+-	ps_ratio = (private * NUMA_PERIOD_SLOTS) / (private + shared);
++	sp_ratio = (shared * NUMA_PERIOD_SLOTS) / (private + shared);
  
-@@ -41,9 +40,7 @@ static struct bio *get_swap_bio(gfp_t gfp_flags,
- 		bio->bi_iter.bi_sector <<= PAGE_SHIFT - 9;
- 		bio->bi_end_io = end_io;
- 
--		for (i = 0; i < nr; i++)
--			bio_add_page(bio, page + i, PAGE_SIZE, 0);
--		VM_BUG_ON(bio->bi_iter.bi_size != PAGE_SIZE * nr);
-+		__bio_add_page(bio, page, PAGE_SIZE * hpage_nr_pages(page), 0);
+-	if (ps_ratio >= NUMA_PERIOD_THRESHOLD) {
++	if (sp_ratio >= NUMA_PERIOD_THRESHOLD) {
+ 		/*
+-		 * Most memory accesses are local. There is no need to
+-		 * do fast NUMA scanning, since memory is already local.
++		 * Most memory accesses are shared with other tasks.
++		 * There is no point in continuing fast NUMA scanning,
++		 * since other tasks may just move the memory elsewhere.
+ 		 */
+-		int slot = ps_ratio - NUMA_PERIOD_THRESHOLD;
++		int slot = sp_ratio - NUMA_PERIOD_THRESHOLD;
+ 		if (!slot)
+ 			slot = 1;
+ 		diff = slot * period_slot;
+ 	} else if (lr_ratio >= NUMA_PERIOD_THRESHOLD) {
+ 		/*
+-		 * Most memory accesses are shared with other tasks.
+-		 * There is no point in continuing fast NUMA scanning,
+-		 * since other tasks may just move the memory elsewhere.
++		 * Most memory accesses are local. There is no need to
++		 * do fast NUMA scanning, since memory is already local.
+ 		 */
+ 		int slot = lr_ratio - NUMA_PERIOD_THRESHOLD;
+ 		if (!slot)
+@@ -1981,7 +1981,7 @@ static void update_task_scan_period(struct task_struct *p,
+ 		 * yet they are not on the local NUMA node. Speed up
+ 		 * NUMA scanning to get the memory moved over.
+ 		 */
+-		int ratio = max(lr_ratio, ps_ratio);
++		int ratio = max(lr_ratio, sp_ratio);
+ 		diff = -(NUMA_PERIOD_THRESHOLD - ratio) * period_slot;
  	}
- 	return bio;
- }
+ 
 -- 
-2.20.1
+2.21.0
 
