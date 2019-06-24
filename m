@@ -2,164 +2,247 @@ Return-Path: <SRS0=9FL3=UX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
+X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7E3FEC43613
-	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 04:21:26 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5FDFFC43613
+	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 04:27:47 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3E992208CA
-	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 04:21:26 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 08927208CA
+	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 04:27:46 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="BZ00Q4nD"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3E992208CA
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="TLG0EvqL";
+	dkim=pass (1024-bit key) header.d=fb.onmicrosoft.com header.i=@fb.onmicrosoft.com header.b="B6yi5Vl3"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 08927208CA
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C0E5B6B0003; Mon, 24 Jun 2019 00:21:25 -0400 (EDT)
+	id 9BED16B0003; Mon, 24 Jun 2019 00:27:46 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BBE2D8E0002; Mon, 24 Jun 2019 00:21:25 -0400 (EDT)
+	id 948D38E0002; Mon, 24 Jun 2019 00:27:46 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AACCB8E0001; Mon, 24 Jun 2019 00:21:25 -0400 (EDT)
+	id 7EA818E0001; Mon, 24 Jun 2019 00:27:46 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 7064A6B0003
-	for <linux-mm@kvack.org>; Mon, 24 Jun 2019 00:21:25 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id c17so8733787pfb.21
-        for <linux-mm@kvack.org>; Sun, 23 Jun 2019 21:21:25 -0700 (PDT)
+Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 5B58D6B0003
+	for <linux-mm@kvack.org>; Mon, 24 Jun 2019 00:27:46 -0400 (EDT)
+Received: by mail-io1-f72.google.com with SMTP id s83so20409763iod.13
+        for <linux-mm@kvack.org>; Sun, 23 Jun 2019 21:27:46 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id;
-        bh=/Vi0SmBJrr/dhcFyf+7ZAHJAQmuruaehm6iOPvzhh0A=;
-        b=TXAb4LbqNWBxD1iJ0TgnDu8EJbsrwyCn3aoMytv/2iLxcrIahAeCgsLQh/gO/hoH6F
-         byrS7jef1cjFcJJE4LAuv7wFpGMgoyrYTyfW6rrO0el6zDzOGvFKfMxEq8ahqUu+lOss
-         rXstao7pG5DAQFnU1f6wf4YQmtWopESbFYm7nAr3lUqAzBoeOBwb8GTiQhrCrN1PQBhJ
-         HCmQxJp47YIkfINNO1mXD7R8W1H0VJ6Cgjz22yaBwL4NPZ+4jGWLVhdW2ApY8/Qw8lpb
-         RPTDpCjAbmKfuslXwRQjXArnFeaTa0oNYo0ZcRCMglUhkXUBE3navSoxtXNBB8t/Fsuy
-         2iCg==
-X-Gm-Message-State: APjAAAWULuIX/BHTYgtc4U2oW/f01GUFxU5rLMVJ5CMREBsL56EnOBRg
-	s2SIgZNgmCm7JzOzogD1IDHmYC39IGNmTEyDwXpbEE/3+6aJx2u0KU0F4OLXYSmn5bA1T4eMARu
-	NWaVIxWL6t1f7FaSlx5TCt4AZZr3NCDGbl04dd3u3AHqUep4tVkpEGVJyZEtwv0VsgA==
-X-Received: by 2002:a17:902:b944:: with SMTP id h4mr21042859pls.179.1561350085063;
-        Sun, 23 Jun 2019 21:21:25 -0700 (PDT)
-X-Received: by 2002:a17:902:b944:: with SMTP id h4mr21042826pls.179.1561350084358;
-        Sun, 23 Jun 2019 21:21:24 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561350084; cv=none;
+        h=x-gm-message-state:dkim-signature:dkim-signature:from:to:cc:subject
+         :thread-topic:thread-index:date:message-id:references:in-reply-to
+         :accept-language:content-language:content-id
+         :content-transfer-encoding:mime-version;
+        bh=XuTjufMvw1F3LPzFlw9eNFH3K9AJjMcbnTPS75xB6GE=;
+        b=h3e06RD6p6Zz7XFVERyhFVmXLvxvuiQEB/gQyXzqrfzUrZOlwqSWjePO+qd80S3kLf
+         RKCCJqn4BSQvGSBgAmdCgUOrwvSmpVKTFsCbxlQk7DsQC9sKhEmrzRGU1u0HD2o7Ct1o
+         ILYOL2G5sV3xwX9dm2Z3qU2cWyToNehLl4VSjUQU0D6/2uFp2N4t22DpADEaRW5xBHuD
+         zZY/B6+i9IqgKHuGS1Uc0Ml+k14CjP/am+UDgLwW+pAjMDiBBaPtR7JhdNdkEXR4n9Pp
+         uy1Euo0Nvzbdc86Ube2AMN/UlaGZ+TqBkYmJFi7iO53jTfT/8mVaEdECwJBrc/9Rbjfr
+         u3+Q==
+X-Gm-Message-State: APjAAAU3exNo7Nx+evmbuJJKDBZM3QaCq1zj3aT5NKGMb/02QgVP1r0U
+	905s3Z7SaQgORXiOAM45qOlbhY28Zm/9yATjxMsYsF1MF/v60pqYCdzs0dyS+jbLb5MWjB9df+c
+	0lovFUbZl77YhtG5hE0tcoq6v6R4jrdTPQvB9DPxPdQlzMGacXw/zjhprE+HuOFl2KA==
+X-Received: by 2002:a02:7c2:: with SMTP id f185mr11669435jaf.16.1561350466015;
+        Sun, 23 Jun 2019 21:27:46 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwK35ZwI/doUwELCNJCLbvd6s88Fw2viz1HCmc/OPc6q58xxMTUDQNiY+n1y7/joyYZp5Gp
+X-Received: by 2002:a02:7c2:: with SMTP id f185mr11669396jaf.16.1561350465295;
+        Sun, 23 Jun 2019 21:27:45 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561350465; cv=none;
         d=google.com; s=arc-20160816;
-        b=OYwIp1DM33WIjfh0wePzc1n87RehXDqsN8Ml7TiuxGzoGtv9c/U1uQDaCDmLsWmrhk
-         DVYHH7AJIkOYk3pr6s/3M/vvD0rHxFAxWOiqOcNO/fpv4zsEQeNB3IIqTiq7Vydy199w
-         X8/udCPSJ1jcXXshAr4MqIfdO9X3pD2zER77dHZ5SQUTTw2YKsa6rA6C+1Hn0YvnOLb+
-         Cp7PUntHohOy18usoL07vGlIsBy7uie4GgdkvpEbyEbUAkdeI8QdqR8tI/cCHnuVOulP
-         9uXnX3ZIt6+q4hr+TNLl5+35FhLzaUG5Lp8x3TVTTKpchgezhP2CzvYtuJnxXnk6QPLC
-         jmuQ==
+        b=aicGciQlYcfyGHWQCGxBRuBstwXyAN8QRiXQj6aE4QgSSjbqqNkKQkfWSkOb9txYEE
+         hWCN1yVag2MjauIvd/8dHpJo3JqP7XOiOb0cXw4ni2MLzuH5pkEYJzfwRLBRJ49D2b6j
+         ueX+lXC3gWM1GGNQaF5WVJnZtW6RJA66rmfxUT/uqY0EkJnW+7Au9LBDR+Ca332Tfco6
+         uOfaMp8TlD7XT+BDnz7n4+JN+WQw/ovlaXhyslww+C43rWYWv42LUf2RMdNkWDXd2ayb
+         IO0uZjKZKf8e49ObsmOnEzkw6/WkI93oxnDcABLYxvetMCI9zyxQVeHrLoU7ie0q5fPv
+         QCPQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:date:subject:cc:to:from:dkim-signature;
-        bh=/Vi0SmBJrr/dhcFyf+7ZAHJAQmuruaehm6iOPvzhh0A=;
-        b=jhLW1QvpJFtqju9e8jx//Ex+aQO90uSiuWkP6O1+cbMePi9RnJk+BP5cIXFSOxstcE
-         moVulimvH4ffdm3UwfnMxVFTvokFUT1mreYCWBDLQXDsZupnFvpNXSI4NADO9+RwSvoa
-         wzENwkC+cPtyuRo4hgjpM/JeTcwyzD2Rt42Re1rtvzlcAncc08mOmeROAGEcMr//nwbt
-         0HFhH9dKTJXslq3Wfj6b6DvuBHqJgslnLlv5J1/19Rxyl6mFhtTyHjUYfr3axS0pXJK4
-         qoIPNlZcaJo5mqBIb+VmU+aO0IVBz9AhS2PX6I3iM1FXlWGxDN1di6m7J51Fd/RiFLOo
-         Eu0w==
+        h=mime-version:content-transfer-encoding:content-id:content-language
+         :accept-language:in-reply-to:references:message-id:date:thread-index
+         :thread-topic:subject:cc:to:from:dkim-signature:dkim-signature;
+        bh=XuTjufMvw1F3LPzFlw9eNFH3K9AJjMcbnTPS75xB6GE=;
+        b=PrJ2lZsc9yRYUbMvCrxi4yTQyMGruKaHX1M1fyQFHXUEiXyusvJNIBNvLsTy+ceu2p
+         GjSeZ1fz0nsDasK/zjiV0a/AoFvL72sSTLLmdYoPjOM7T99e011kV6PliMFrT2Mkbn42
+         j4m0zt1RCjw2hQc21ypf4IkmLY5PF5I+L9Pu3SmyeWI17MjRlganqAp5dSsCY4Ut8k/s
+         IKDaN4x4g3WZW3Zyx55wzsHcMziCyFOSplJIJu7shqriadBXFQkja92hecy+wljAl6aP
+         Q+Zd7BlB0zqP57sjbMp5R9fcYit+NKHSsKsnWbdM2siUjkytoLOqIM1NlPNEkc5wBk9m
+         NAfQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=BZ00Q4nD;
-       spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 19sor5452256pgo.69.2019.06.23.21.21.24
+       dkim=pass header.i=@fb.com header.s=facebook header.b=TLG0EvqL;
+       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-onmicrosoft-com header.b=B6yi5Vl3;
+       spf=pass (google.com: domain of prvs=1078cbd532=songliubraving@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=1078cbd532=songliubraving@fb.com";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id g24si15399410jao.59.2019.06.23.21.27.45
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sun, 23 Jun 2019 21:21:24 -0700 (PDT)
-Received-SPF: pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=BZ00Q4nD;
-       spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=from:to:cc:subject:date:message-id;
-        bh=/Vi0SmBJrr/dhcFyf+7ZAHJAQmuruaehm6iOPvzhh0A=;
-        b=BZ00Q4nDJWbfG8+WDCxOo9DiaRK/yg6Yn/n2eoMxTA6AukHxBQvZ4+mZP16keQzAgb
-         aCsv4jtOVZi0/bgxePIWQmSeq2A2N7zo1ty8lDc6eAOwMd2YYfJY3C/wFotgvEVEmnyB
-         8/DgGIGsxZ8kk2ISnWjURBlXhlgWPpfWFRwr5CBk+ma0PfNx6V4v6/c1HQwctUNhXgHF
-         YUmoVtW4aH+sw0cJQPaeBP2dq3g1jGkUWlPZRyyZ0z4hMy50mRrR/f/wIEnPmFifV64o
-         uq+9VNBHCcsiEIIERe4TC4Kq1oC++FL/XWelwlAX+eliU/V0nipXL02bQBn0VfgV31u3
-         5nZw==
-X-Google-Smtp-Source: APXvYqzk+mEWys6LQTcZ4E5e9NNeshfHFdIyEnJiuucAc3dGIR7ipjsKgsHr3zoJScBJt8PvZYLzhQ==
-X-Received: by 2002:a63:8ac3:: with SMTP id y186mr24564759pgd.198.1561350083906;
-        Sun, 23 Jun 2019 21:21:23 -0700 (PDT)
-Received: from mylaptop.nay.redhat.com ([209.132.188.80])
-        by smtp.gmail.com with ESMTPSA id w14sm10047181pfn.47.2019.06.23.21.21.21
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 23 Jun 2019 21:21:23 -0700 (PDT)
-From: Pingfan Liu <kernelfans@gmail.com>
-To: linux-mm@kvack.org
-Cc: Pingfan Liu <kernelfans@gmail.com>,
-	Mike Kravetz <mike.kravetz@oracle.com>,
-	Oscar Salvador <osalvador@suse.de>,
-	David Hildenbrand <david@redhat.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	linux-kernel@vger.kernel.org
-Subject: [PATCH] mm/hugetlb: allow gigantic page allocation to migrate away smaller huge page
-Date: Mon, 24 Jun 2019 12:21:08 +0800
-Message-Id: <1561350068-8966-1-git-send-email-kernelfans@gmail.com>
-X-Mailer: git-send-email 2.7.5
+        Sun, 23 Jun 2019 21:27:45 -0700 (PDT)
+Received-SPF: pass (google.com: domain of prvs=1078cbd532=songliubraving@fb.com designates 67.231.145.42 as permitted sender) client-ip=67.231.145.42;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@fb.com header.s=facebook header.b=TLG0EvqL;
+       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-onmicrosoft-com header.b=B6yi5Vl3;
+       spf=pass (google.com: domain of prvs=1078cbd532=songliubraving@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=1078cbd532=songliubraving@fb.com";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
+Received: from pps.filterd (m0148461.ppops.net [127.0.0.1])
+	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x5O4MUB0010133;
+	Sun, 23 Jun 2019 21:27:43 -0700
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
+ : date : message-id : references : in-reply-to : content-type : content-id
+ : content-transfer-encoding : mime-version; s=facebook;
+ bh=XuTjufMvw1F3LPzFlw9eNFH3K9AJjMcbnTPS75xB6GE=;
+ b=TLG0EvqLadctEf3wQ1gcbGiwKgnt1GAGZKOIpnat2IbQuTi8Qw6TJWDmnbWXfacm7nRQ
+ UFDywD2TCrH8KrowxuRGSODlmkHrv1SGnoV99x8BHzoJUHpicHE4Ob+xmdOiAPeerKG9
+ jSUCZdsJbLKnbtHC8H4gba+LLyHbeaBzjr4= 
+Received: from maileast.thefacebook.com ([163.114.130.16])
+	by mx0a-00082601.pphosted.com with ESMTP id 2t9he9mrd0-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128 verify=NOT);
+	Sun, 23 Jun 2019 21:27:43 -0700
+Received: from ash-exhub201.TheFacebook.com (2620:10d:c0a8:83::7) by
+ ash-exhub101.TheFacebook.com (2620:10d:c0a8:82::e) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) id
+ 15.1.1713.5; Sun, 23 Jun 2019 21:27:42 -0700
+Received: from NAM03-DM3-obe.outbound.protection.outlook.com (100.104.31.183)
+ by o365-in.thefacebook.com (100.104.36.101) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) id 15.1.1713.5
+ via Frontend Transport; Sun, 23 Jun 2019 21:27:42 -0700
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.onmicrosoft.com;
+ s=selector1-fb-onmicrosoft-com;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=XuTjufMvw1F3LPzFlw9eNFH3K9AJjMcbnTPS75xB6GE=;
+ b=B6yi5Vl3DUKwpCdutqT7m6zMQPeMRwyAWdC14fh7GRh4P5dCZ4VFjYx7plw5cTsHxbXJzuyVkEO7sGCChYl2xZi1RdoILX5mB+BIE8SAjDv4qy2kAZ5jK1oatB1LeEEev7Ha8OaPvJ3dBvMp0BT4KfAHMIzc4kCni3tX81jtQis=
+Received: from MWHPR15MB1165.namprd15.prod.outlook.com (10.175.3.22) by
+ MWHPR15MB1278.namprd15.prod.outlook.com (10.175.3.143) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.2008.16; Mon, 24 Jun 2019 04:27:25 +0000
+Received: from MWHPR15MB1165.namprd15.prod.outlook.com
+ ([fe80::400e:e329:ea98:aa0d]) by MWHPR15MB1165.namprd15.prod.outlook.com
+ ([fe80::400e:e329:ea98:aa0d%6]) with mapi id 15.20.2008.014; Mon, 24 Jun 2019
+ 04:27:24 +0000
+From: Song Liu <songliubraving@fb.com>
+To: Hillf Danton <hdanton@sina.com>
+CC: "linux-mm@kvack.org" <linux-mm@kvack.org>,
+        "linux-fsdevel@vger.kernel.org"
+	<linux-fsdevel@vger.kernel.org>,
+        "linux-kernel@vger.kernel.org"
+	<linux-kernel@vger.kernel.org>,
+        "matthew.wilcox@oracle.com"
+	<matthew.wilcox@oracle.com>,
+        "kirill.shutemov@linux.intel.com"
+	<kirill.shutemov@linux.intel.com>,
+        Kernel Team <Kernel-team@fb.com>,
+        "william.kucharski@oracle.com" <william.kucharski@oracle.com>,
+        "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+Subject: Re: [PATCH v7 5/6] mm,thp: add read-only THP support for (non-shmem)
+ FS
+Thread-Topic: [PATCH v7 5/6] mm,thp: add read-only THP support for (non-shmem)
+ FS
+Thread-Index: AQHVKjs2dBa2nM4KLk66F9b20QIHQqaqNccA
+Date: Mon, 24 Jun 2019 04:27:24 +0000
+Message-ID: <3959BFED-F105-4CDC-8490-B48337812276@fb.com>
+References: <20190624031604.7764-1-hdanton@sina.com>
+In-Reply-To: <20190624031604.7764-1-hdanton@sina.com>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach: 
+X-MS-TNEF-Correlator: 
+x-mailer: Apple Mail (2.3445.104.11)
+x-originating-ip: [2620:10d:c090:180::1:2524]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: 1f412b9e-6367-44e4-7336-08d6f85c4225
+x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(2017052603328)(7193020);SRVR:MWHPR15MB1278;
+x-ms-traffictypediagnostic: MWHPR15MB1278:
+x-microsoft-antispam-prvs: <MWHPR15MB12780CE6476F80A4233D7CE6B3E00@MWHPR15MB1278.namprd15.prod.outlook.com>
+x-ms-oob-tlc-oobclassifiers: OLM:8273;
+x-forefront-prvs: 007814487B
+x-forefront-antispam-report: SFV:NSPM;SFS:(10019020)(346002)(376002)(39860400002)(366004)(396003)(136003)(189003)(199004)(446003)(66946007)(46003)(11346002)(99286004)(73956011)(66446008)(66556008)(64756008)(25786009)(6246003)(6486002)(66476007)(5660300002)(71200400001)(71190400001)(486006)(57306001)(6436002)(86362001)(229853002)(476003)(6512007)(53936002)(4326008)(6116002)(68736007)(6916009)(76176011)(81166006)(8936002)(50226002)(6506007)(81156014)(53546011)(102836004)(2616005)(76116006)(2906002)(8676002)(305945005)(7736002)(316002)(36756003)(33656002)(186003)(256004)(14454004)(54906003)(478600001)(142933001);DIR:OUT;SFP:1102;SCL:1;SRVR:MWHPR15MB1278;H:MWHPR15MB1165.namprd15.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
+received-spf: None (protection.outlook.com: fb.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info: Fh8FU9fBWXQPfCRS0fNoGHNF67Y+mYRaB7q0GheRnNGJXWIzQxvL3rtZ3zwbEt9DrjKel0OA4PDbjcCSXMY4gYYXzr7/aEzanRERh4UcwSyS4j4OVi9dogaSXCcZUzbBlD+SfbiVEiVgFJ6I3+tIfhEduCQVr656ug2cnivHWlNgSNYUTXF26PMYQ87RvZ4OOoElYby4EiYv52YynLX2qLExI2aEY1i9Nlp4F89ZzpHOzOb/124acPnOjBG47QvExoHbv7mSDlNMdyLNSknhT3oFheydwSr0nLxF+1hl5V8iJB9c+CosZpNEqwMcz7BJPxCbhJzYBHoyV9XJx61l4iyIkvK80ZXm0Ch61p0al7dI7y853j09gMUArTmJGuktl2m4i3FlRqjp5oQ1HH/8QW1OW+cJC2RJ4y9duzMOjlI=
+Content-Type: text/plain; charset="us-ascii"
+Content-ID: <B635E38414FB2D44A9FA87A5C78512A8@namprd15.prod.outlook.com>
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
+X-MS-Exchange-CrossTenant-Network-Message-Id: 1f412b9e-6367-44e4-7336-08d6f85c4225
+X-MS-Exchange-CrossTenant-originalarrivaltime: 24 Jun 2019 04:27:24.8192
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: 8ae927fe-1255-47a7-a2af-5f3a069daaa2
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-CrossTenant-userprincipalname: songliubraving@fb.com
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: MWHPR15MB1278
+X-OriginatorOrg: fb.com
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-06-24_04:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=fb_default_notspam policy=fb_default score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1906240036
+X-FB-Internal: deliver
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The current pfn_range_valid_gigantic() rejects the pud huge page allocation
-if there is a pmd huge page inside the candidate range.
+Hi Hillf,
 
-But pud huge resource is more rare, which should align on 1GB on x86. It is
-worth to allow migrating away pmd huge page to make room for a pud huge
-page.
+> On Jun 23, 2019, at 8:16 PM, Hillf Danton <hdanton@sina.com> wrote:
+>=20
+>=20
+> Hello
+>=20
+> On Sun, 23 Jun 2019 13:48:47 +0800 Song Liu wrote:
+>> This patch is (hopefully) the first step to enable THP for non-shmem
+>> filesystems.
+>>=20
+>> This patch enables an application to put part of its text sections to TH=
+P
+>> via madvise, for example:
+>>=20
+>>    madvise((void *)0x600000, 0x200000, MADV_HUGEPAGE);
+>>=20
+>> We tried to reuse the logic for THP on tmpfs.
+>>=20
+>> Currently, write is not supported for non-shmem THP. khugepaged will onl=
+y
+>> process vma with VM_DENYWRITE. The next patch will handle writes, which
+>> would only happen when the vma with VM_DENYWRITE is unmapped.
+>>=20
+>> An EXPERIMENTAL config, READ_ONLY_THP_FOR_FS, is added to gate this
+>> feature.
+>>=20
+>> Acked-by: Rik van Riel <riel@surriel.com>
+>> Signed-off-by: Song Liu <songliubraving@fb.com>
+>> ---
+>> mm/Kconfig      | 11 ++++++
+>> mm/filemap.c    |  4 +--
+>> mm/khugepaged.c | 90 ++++++++++++++++++++++++++++++++++++++++---------
+>> mm/rmap.c       | 12 ++++---
+>> 4 files changed, 96 insertions(+), 21 deletions(-)
+>>=20
+>> diff --git a/mm/Kconfig b/mm/Kconfig
+>> index f0c76ba47695..0a8fd589406d 100644
+>> --- a/mm/Kconfig
+>> +++ b/mm/Kconfig
+>> @@ -762,6 +762,17 @@ config GUP_BENCHMARK
+>>=20
+>> 	  See tools/testing/selftests/vm/gup_benchmark.c
+>>=20
+>> +config READ_ONLY_THP_FOR_FS
+>> +	bool "Read-only THP for filesystems (EXPERIMENTAL)"
+>> +	depends on TRANSPARENT_HUGE_PAGECACHE && SHMEM
+>> +
+> The ext4 mentioned in the cover letter, along with the subject line of
+> this patch, suggests the scissoring of SHMEM.
 
-The same logic is applied to pgd and pud huge pages.
+We reuse khugepaged code for SHMEM, so the dependency does exist.=20
 
-Signed-off-by: Pingfan Liu <kernelfans@gmail.com>
-Cc: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: Oscar Salvador <osalvador@suse.de>
-Cc: David Hildenbrand <david@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org
----
- mm/hugetlb.c | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
-
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index ac843d3..02d1978 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -1081,7 +1081,11 @@ static bool pfn_range_valid_gigantic(struct zone *z,
- 			unsigned long start_pfn, unsigned long nr_pages)
- {
- 	unsigned long i, end_pfn = start_pfn + nr_pages;
--	struct page *page;
-+	struct page *page = pfn_to_page(start_pfn);
-+
-+	if (PageHuge(page))
-+		if (compound_order(compound_head(page)) >= nr_pages)
-+			return false;
- 
- 	for (i = start_pfn; i < end_pfn; i++) {
- 		if (!pfn_valid(i))
-@@ -1098,8 +1102,6 @@ static bool pfn_range_valid_gigantic(struct zone *z,
- 		if (page_count(page) > 0)
- 			return false;
- 
--		if (PageHuge(page))
--			return false;
- 	}
- 
- 	return true;
--- 
-2.7.5
+Thanks,
+Song
 
