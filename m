@@ -2,240 +2,188 @@ Return-Path: <SRS0=9FL3=UX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 93FECC43613
-	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 06:52:42 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 27396C48BE8
+	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 07:28:58 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3B69A20665
-	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 06:52:42 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3B69A20665
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id DD7D920663
+	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 07:28:57 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DD7D920663
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8DD428E0002; Mon, 24 Jun 2019 02:52:41 -0400 (EDT)
+	id 714FE8E0002; Mon, 24 Jun 2019 03:28:57 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 88E2D8E0001; Mon, 24 Jun 2019 02:52:41 -0400 (EDT)
+	id 6C51C8E0001; Mon, 24 Jun 2019 03:28:57 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 757398E0002; Mon, 24 Jun 2019 02:52:41 -0400 (EDT)
+	id 5DB068E0002; Mon, 24 Jun 2019 03:28:57 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 285808E0001
-	for <linux-mm@kvack.org>; Mon, 24 Jun 2019 02:52:41 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id s7so18994678edb.19
-        for <linux-mm@kvack.org>; Sun, 23 Jun 2019 23:52:41 -0700 (PDT)
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 3ED058E0001
+	for <linux-mm@kvack.org>; Mon, 24 Jun 2019 03:28:57 -0400 (EDT)
+Received: by mail-qk1-f200.google.com with SMTP id c1so15229476qkl.7
+        for <linux-mm@kvack.org>; Mon, 24 Jun 2019 00:28:57 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=ravRVdrefX3LmEH8E9wTic6GQVrIv9Dyv6IzjGnHH0A=;
-        b=NRO2/cqUW/rN9qh6hEuQdzBQ+JzEOK+axQavfewiSSWj4Vx9G4rpNsvNtDwwBTmOme
-         fycWo7OBwwQ4yU0HUZOTm1/2a6ogfFAL+STndCPFlxoNvJth8N6INhSedjKdaTRAXNcn
-         mB2GEiKhqO6dHUZHy9HeP5L/6xCaMdzmwHQTSuwJBHHTMJTsNR3snmyXrrGNsfPFYVTm
-         J4wdOyc1j+m/a9coLSoPEZILirnhtX/Osk69iX8CF5+C1ZWx6bTfBBfZU04iG7lKBzni
-         uJntem6TOtIvwHnmYrwtToYbecDZgqPhS/p5chJmHCoF6ZMy7ANRx9sVa/rHiTi/uZWr
-         fgXg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-X-Gm-Message-State: APjAAAUfpr/Lu4RQ1aPvrQIDAfewV7KBQB5TAjJ/kdFMxXDje4P0Ef3e
-	oDB0kdoFBhdItfqgHwP8eUPAOrbaoM2fgDnqaDqNtxQ1/xKNdcWlSdrycQRyT2l7lh9K7npXHFP
-	exJctTeeKnNV0GtBhuHw/0j/DHeCT3ISUE6zZOPAMh6nGFXEKjja+NWUwH9gAjMFaqA==
-X-Received: by 2002:a05:6402:134c:: with SMTP id y12mr61522953edw.96.1561359160620;
-        Sun, 23 Jun 2019 23:52:40 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy45gRmCDJdkqZdEPlYDG+ZyPpJpkZn/fmhhRD5sjUCdU1zxAsGsCErvQmicX2/Tg7/kJK1
-X-Received: by 2002:a05:6402:134c:: with SMTP id y12mr61522907edw.96.1561359159728;
-        Sun, 23 Jun 2019 23:52:39 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561359159; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=XyYRgx350jjujPbQ0+x5JSnjeXS7I6qwUhZF2MfrE4A=;
+        b=GQ8glQQMx9ueZrDQ8W9w7kXkGz32ziyhMQMAIRJzsgwSMtBJQ+akrtG1FBy9KkmAA/
+         0gp+jNNjYzc9TqBQf5/l7MEqoHHkVQmYIsBjtnCTNkqZ5l7wdzkjin/wYywOuX7XlE2E
+         eMySWhxCo9XzrLnuE31c+26JotQTKbiI2BCBXhUiibIrN/+zJ//5eg3+o3y8etOiweXp
+         lI9E6LOF3l05QJR91ZY9EvpyIAkB+NTtmLhdiNgvPaKW0ky9R9lm6EtYKnJXZvKQu/5K
+         C/aTkHh9XjVSTor7mBuWB+2x7NCQbWfACgbgHYdmBMR/Hmr/4twwxiT6BzUqt0GLVhKv
+         HsmQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ming.lei@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=ming.lei@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAU2sito5ps3rhxi/xC230Y643cLW2Ns+vD7h+dFY9dGgvIOh7bX
+	5alfpEN/fxDRrmyylA23WaHl7CXS0vQtE578A8E/BXg9S+CtnifK9iaiImPM64m2t8f+QbBeFkL
+	HSY/2m6Q8pm4iCfm9eC+/B3PWeWWIMTQHfM/aIHRXna+d8uxeHZUUaUnsY1+TvB4Tww==
+X-Received: by 2002:a0c:acab:: with SMTP id m40mr13693352qvc.52.1561361337024;
+        Mon, 24 Jun 2019 00:28:57 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyv2ofHLL1icVrEZnRS4vVcnriYi6s3lSYX9UwxfrMvJT/EDEgg5JBFoIj+BZvCbQyctq5n
+X-Received: by 2002:a0c:acab:: with SMTP id m40mr13693317qvc.52.1561361336221;
+        Mon, 24 Jun 2019 00:28:56 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561361336; cv=none;
         d=google.com; s=arc-20160816;
-        b=lyDQ+EhD/7cWtdg9VoAdkVdAdFzyGEX8IZr6zX3fkGxUrEUjuyhJE5F5qC0LAOC+8E
-         KDlHRSVr215wwYUA5FrVdlEPjLWWYY/bAt+nZpzMwV8XokADxz1dHI/lw7smPEtXdJf5
-         DyWZQoxZNd/fPcOGdqUXTs80p1T1mW278pzCPHHOVx++1fR9fXpaa+jUaQ1xABKpCLn5
-         XH6Ebh8gQwtIf6udA2Mj1oko4P8DG/xyhzh7fL0BitSV/qaXM3xDmgmQHEOi5HxpE6rf
-         wU8r/0w+6aRhnhX7CgjMK4bu9Ajrz32f6frf6NfipInJllUCEZiu/7fqNuBDkGTabBQr
-         rH9Q==
+        b=P+ZfN2YY2mR1YTy0azacYX75FMjSYNYRdaBBtlTWZYImDmfthXrIPK1jgvfB6R5PNp
+         3flq4+5LsSie1Ua5JcjmTQmN/AwHnC/hgSelQHJnfNrxZdhXh2OmWlWBpDDWn0HJar0+
+         CKqyEnBtmEt1t+8yc+8QDepiOrRZVzolvNMSAAnD9QP3CVdCGMxDmcgSwq9NChrFdgOn
+         EZ9WXwkpdLPay0JI72gZUfhBS3tf5reGVoip8s0Oywx6gIqmHlSIbFGRnljy44PZm++G
+         kSs+qrAS2cJdQn6Cua68yyvf7Seh7GNeLiof/cpX05Iv+boSiSCC6QSqWz1OCrgM4DVO
+         cnlw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=ravRVdrefX3LmEH8E9wTic6GQVrIv9Dyv6IzjGnHH0A=;
-        b=Czr/n6EWT3dR0NUN333Idm3l//HbrDaROrqjRnr+S08Rn8KHhAh4M4GuIxaDYHJkx0
-         dE9gZN5QWbmcKqbaNTUJyA8av/gtFoPjL0xLPXYF1HhZ7CR7QONc7AyZn4E70CVdpd0q
-         +ccIaHSMMnO2Dpx4rWzhol6C/6LceaHIivOL9uXKp4/CQsPr3WDjDB0/qNl8gAKMmbpn
-         dI2duPg5edi8nkM5vgbGV3qf/QUc8erKvBUszHwIXUDJ0WmyBH7LGx6f48YpChpmPwLq
-         qWPYh1my8c6BDWpAVZ7xuDtVWikBXtfcMkXjuEfJUgRnjF/JOb9YL441CDPBIT2clyHN
-         0OXQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=XyYRgx350jjujPbQ0+x5JSnjeXS7I6qwUhZF2MfrE4A=;
+        b=cMKvOv8cmxmK12d1dHbB1eStDKYlZvGJpyIMm9q47Nc/nxj6YneXhO8PHhZ2K3Qr7T
+         Gjw+XVQHChYOuBIAuac16K9MbxSv+H1XaKL8VMseLH5MqIyrpBTqev0TSiJYXnL1+8kS
+         RyUjunNU1CNgONHTsBfex50IeZCwYBtireb3JnN7HGCRcczW3iF5m2MtfEA9bfA4uQwh
+         8jLlP2qYk8VJamjEYH2hgKF+3bhTbpam6RoG0DjmHPa8QUxy3EfFUZ5H4PIcjuZ56N6A
+         19V4tAbujbv3GnHGC2MO6yrcrYnONppMGSrS/l9h8AHy6oJcu2gxNg2fkHGu4CIZ4LWP
+         CZ4A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
-        by mx.google.com with ESMTP id s13si8947268edb.309.2019.06.23.23.52.39
-        for <linux-mm@kvack.org>;
-        Sun, 23 Jun 2019 23:52:39 -0700 (PDT)
-Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
+       spf=pass (google.com: domain of ming.lei@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=ming.lei@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id u11si6884869qvf.139.2019.06.24.00.28.55
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 24 Jun 2019 00:28:56 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ming.lei@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 7C6152B;
-	Sun, 23 Jun 2019 23:52:38 -0700 (PDT)
-Received: from [10.162.41.123] (p8cg001049571a15.blr.arm.com [10.162.41.123])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 61E2B3F246;
-	Sun, 23 Jun 2019 23:54:24 -0700 (PDT)
-Subject: Re: [PATCH 3/3] mm/vmalloc: fix vmalloc_to_page for huge vmap
- mappings
-To: Nicholas Piggin <npiggin@gmail.com>, linux-mm@kvack.org
-Cc: linux-arm-kernel@lists.infradead.org, linuxppc-dev@lists.ozlabs.org,
- Andrew Morton <akpm@linux-foundation.org>,
- Christophe Leroy <christophe.leroy@c-s.fr>,
- Ard Biesheuvel <ard.biesheuvel@linaro.org>,
- Mark Rutland <mark.rutland@arm.com>
-References: <20190623094446.28722-1-npiggin@gmail.com>
- <20190623094446.28722-4-npiggin@gmail.com>
-From: Anshuman Khandual <anshuman.khandual@arm.com>
-Message-ID: <8668f76d-faad-4e57-2f7b-f2b8969b1026@arm.com>
-Date: Mon, 24 Jun 2019 12:22:59 +0530
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
- Thunderbird/52.9.1
+       spf=pass (google.com: domain of ming.lei@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=ming.lei@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 56D955AFF8;
+	Mon, 24 Jun 2019 07:28:50 +0000 (UTC)
+Received: from ming.t460p (ovpn-8-18.pek2.redhat.com [10.72.8.18])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id DC51B5C1B5;
+	Mon, 24 Jun 2019 07:28:36 +0000 (UTC)
+Date: Mon, 24 Jun 2019 15:28:31 +0800
+From: Ming Lei <ming.lei@redhat.com>
+To: "Huang, Ying" <ying.huang@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org, Michal Hocko <mhocko@kernel.org>,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>,
+	Rik van Riel <riel@redhat.com>,
+	Daniel Jordan <daniel.m.jordan@oracle.com>
+Subject: Re: [PATCH -mm] mm, swap: Fix THP swap out
+Message-ID: <20190624072830.GA10539@ming.t460p>
+References: <20190624022336.12465-1-ying.huang@intel.com>
+ <20190624033438.GB6563@ming.t460p>
+ <87imsvbnie.fsf@yhuang-dev.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20190623094446.28722-4-npiggin@gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <87imsvbnie.fsf@yhuang-dev.intel.com>
+User-Agent: Mutt/1.11.3 (2019-02-01)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.39]); Mon, 24 Jun 2019 07:28:55 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
-
-On 06/23/2019 03:14 PM, Nicholas Piggin wrote:
-> vmalloc_to_page returns NULL for addresses mapped by larger pages[*].
-> Whether or not a vmap is huge depends on the architecture details,
-> alignments, boot options, etc., which the caller can not be expected
-> to know. Therefore HUGE_VMAP is a regression for vmalloc_to_page.
+On Mon, Jun 24, 2019 at 12:44:41PM +0800, Huang, Ying wrote:
+> Ming Lei <ming.lei@redhat.com> writes:
 > 
-> This change teaches vmalloc_to_page about larger pages, and returns
-> the struct page that corresponds to the offset within the large page.
-> This makes the API agnostic to mapping implementation details.
+> > Hi Huang Ying,
+> >
+> > On Mon, Jun 24, 2019 at 10:23:36AM +0800, Huang, Ying wrote:
+> >> From: Huang Ying <ying.huang@intel.com>
+> >> 
+> >> 0-Day test system reported some OOM regressions for several
+> >> THP (Transparent Huge Page) swap test cases.  These regressions are
+> >> bisected to 6861428921b5 ("block: always define BIO_MAX_PAGES as
+> >> 256").  In the commit, BIO_MAX_PAGES is set to 256 even when THP swap
+> >> is enabled.  So the bio_alloc(gfp_flags, 512) in get_swap_bio() may
+> >> fail when swapping out THP.  That causes the OOM.
+> >> 
+> >> As in the patch description of 6861428921b5 ("block: always define
+> >> BIO_MAX_PAGES as 256"), THP swap should use multi-page bvec to write
+> >> THP to swap space.  So the issue is fixed via doing that in
+> >> get_swap_bio().
+> >> 
+> >> BTW: I remember I have checked the THP swap code when
+> >> 6861428921b5 ("block: always define BIO_MAX_PAGES as 256") was merged,
+> >> and thought the THP swap code needn't to be changed.  But apparently,
+> >> I was wrong.  I should have done this at that time.
+> >> 
+> >> Fixes: 6861428921b5 ("block: always define BIO_MAX_PAGES as 256")
+> >> Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
+> >> Cc: Ming Lei <ming.lei@redhat.com>
+> >> Cc: Michal Hocko <mhocko@kernel.org>
+> >> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> >> Cc: Hugh Dickins <hughd@google.com>
+> >> Cc: Minchan Kim <minchan@kernel.org>
+> >> Cc: Rik van Riel <riel@redhat.com>
+> >> Cc: Daniel Jordan <daniel.m.jordan@oracle.com>
+> >> ---
+> >>  mm/page_io.c | 7 ++-----
+> >>  1 file changed, 2 insertions(+), 5 deletions(-)
+> >> 
+> >> diff --git a/mm/page_io.c b/mm/page_io.c
+> >> index 2e8019d0e048..4ab997f84061 100644
+> >> --- a/mm/page_io.c
+> >> +++ b/mm/page_io.c
+> >> @@ -29,10 +29,9 @@
+> >>  static struct bio *get_swap_bio(gfp_t gfp_flags,
+> >>  				struct page *page, bio_end_io_t end_io)
+> >>  {
+> >> -	int i, nr = hpage_nr_pages(page);
+> >>  	struct bio *bio;
+> >>  
+> >> -	bio = bio_alloc(gfp_flags, nr);
+> >> +	bio = bio_alloc(gfp_flags, 1);
+> >>  	if (bio) {
+> >>  		struct block_device *bdev;
+> >>  
+> >> @@ -41,9 +40,7 @@ static struct bio *get_swap_bio(gfp_t gfp_flags,
+> >>  		bio->bi_iter.bi_sector <<= PAGE_SHIFT - 9;
+> >>  		bio->bi_end_io = end_io;
+> >>  
+> >> -		for (i = 0; i < nr; i++)
+> >> -			bio_add_page(bio, page + i, PAGE_SIZE, 0);
+> >
+> > bio_add_page() supposes to work, just wondering why it doesn't recently.
 > 
-> [*] As explained by commit 029c54b095995 ("mm/vmalloc.c: huge-vmap:
->     fail gracefully on unexpected huge vmap mappings")
-> 
-> Signed-off-by: Nicholas Piggin <npiggin@gmail.com>
-> ---
->  include/asm-generic/4level-fixup.h |  1 +
->  include/asm-generic/5level-fixup.h |  1 +
->  mm/vmalloc.c                       | 37 +++++++++++++++++++-----------
->  3 files changed, 26 insertions(+), 13 deletions(-)
-> 
-> diff --git a/include/asm-generic/4level-fixup.h b/include/asm-generic/4level-fixup.h
-> index e3667c9a33a5..3cc65a4dd093 100644
-> --- a/include/asm-generic/4level-fixup.h
-> +++ b/include/asm-generic/4level-fixup.h
-> @@ -20,6 +20,7 @@
->  #define pud_none(pud)			0
->  #define pud_bad(pud)			0
->  #define pud_present(pud)		1
-> +#define pud_large(pud)			0
->  #define pud_ERROR(pud)			do { } while (0)
->  #define pud_clear(pud)			pgd_clear(pud)
->  #define pud_val(pud)			pgd_val(pud)
-> diff --git a/include/asm-generic/5level-fixup.h b/include/asm-generic/5level-fixup.h
-> index bb6cb347018c..c4377db09a4f 100644
-> --- a/include/asm-generic/5level-fixup.h
-> +++ b/include/asm-generic/5level-fixup.h
-> @@ -22,6 +22,7 @@
->  #define p4d_none(p4d)			0
->  #define p4d_bad(p4d)			0
->  #define p4d_present(p4d)		1
-> +#define p4d_large(p4d)			0
->  #define p4d_ERROR(p4d)			do { } while (0)
->  #define p4d_clear(p4d)			pgd_clear(p4d)
->  #define p4d_val(p4d)			pgd_val(p4d)
-> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-> index 4c9e150e5ad3..4be98f700862 100644
-> --- a/mm/vmalloc.c
-> +++ b/mm/vmalloc.c
-> @@ -36,6 +36,7 @@
->  #include <linux/rbtree_augmented.h>
->  
->  #include <linux/uaccess.h>
-> +#include <asm/pgtable.h>
->  #include <asm/tlbflush.h>
->  #include <asm/shmparam.h>
->  
-> @@ -284,26 +285,36 @@ struct page *vmalloc_to_page(const void *vmalloc_addr)
->  
->  	if (pgd_none(*pgd))
->  		return NULL;
-> +
->  	p4d = p4d_offset(pgd, addr);
->  	if (p4d_none(*p4d))
->  		return NULL;
-> -	pud = pud_offset(p4d, addr);
-> +	if (WARN_ON_ONCE(p4d_bad(*p4d)))
-> +		return NULL;
+> Yes.  Just checked and bio_add_page() works too.  I should have used
+> that.  The problem isn't bio_add_page(), but bio_alloc(), because nr ==
+> 512 > 256, mempool cannot be used during swapout, so swapout will fail.
 
-The warning here is a required addition but it needs to be moved after p4d_large()
-check. Please see the next comment below.
+Then we can pass 1 to bio_alloc(), together with single bio_add_page()
+for making the code more readable.
 
-> +#ifdef CONFIG_HAVE_ARCH_HUGE_VMAP
-> +	if (p4d_large(*p4d))
-> +		return p4d_page(*p4d) + ((addr & ~P4D_MASK) >> PAGE_SHIFT);
-> +#endif
->  
-> -	/*
-> -	 * Don't dereference bad PUD or PMD (below) entries. This will also
-> -	 * identify huge mappings, which we may encounter on architectures
-> -	 * that define CONFIG_HAVE_ARCH_HUGE_VMAP=y. Such regions will be
-> -	 * identified as vmalloc addresses by is_vmalloc_addr(), but are
-> -	 * not [unambiguously] associated with a struct page, so there is
-> -	 * no correct value to return for them.
-> -	 */
-> -	WARN_ON_ONCE(pud_bad(*pud));
-> -	if (pud_none(*pud) || pud_bad(*pud))
-> +	pud = pud_offset(p4d, addr);
-> +	if (pud_none(*pud))
-> +		return NULL;
-> +	if (WARN_ON_ONCE(pud_bad(*pud)))
->  		return NULL;
-> +#ifdef CONFIG_HAVE_ARCH_HUGE_VMAP
-> +	if (pud_large(*pud))
-> +		return pud_page(*pud) + ((addr & ~PUD_MASK) >> PAGE_SHIFT);
-> +#endif
-> +
 
-pud_bad() on arm64 returns true when the PUD does not point to a next page
-table page implying the fact that it might be a large/huge entry. I am not
-sure if the semantics holds good for other architectures too. But on arm64
-if pud_large() is true, then pud_bad() will be true as well. So pud_bad()
-check must happen after pud_large() check. So the sequence here should be
-
-1. pud_none()	--> Nothing is in here, return NULL
-2. pud_large()	--> Return offset page address from the huge page mapping
-3. pud_bad()	--> Return NULL as there is no more page table level left
-
-Checking pud_bad() first can return NULL for a valid huge mapping.
-
->  	pmd = pmd_offset(pud, addr);
-> -	WARN_ON_ONCE(pmd_bad(*pmd));
-> -	if (pmd_none(*pmd) || pmd_bad(*pmd))
-> +	if (pmd_none(*pmd))
-> +		return NULL;
-> +	if (WARN_ON_ONCE(pmd_bad(*pmd)))
->  		return NULL;
-> +#ifdef CONFIG_HAVE_ARCH_HUGE_VMAP
-> +	if (pmd_large(*pmd))
-> +		return pmd_page(*pmd) + ((addr & ~PMD_MASK) >> PAGE_SHIFT);
-> +#endif
-
-Ditto.
-
-I see that your previous proposal had this right which got changed in this
-manner after my comments. Sorry about it.
-
-It was recently when I learned (correctly) that expected semantics of pxx_bad()
-is that - It does not point to the next page table page.  Hence I wonder why is
-this not renamed as pxx_table() instead to make it absolutely clear.
+thanks,
+Ming
 
