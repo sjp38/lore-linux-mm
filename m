@@ -7,78 +7,78 @@ X-Spam-Status: No, score=-8.5 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
 	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 90F54C43613
-	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 05:43:34 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 70CBFC48BE8
+	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 05:43:37 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4E83C2089F
-	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 05:43:34 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 341342089F
+	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 05:43:37 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="fMawuu3O"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4E83C2089F
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="mAvADQ+c"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 341342089F
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 875556B000A; Mon, 24 Jun 2019 01:43:32 -0400 (EDT)
+	id AEAD26B000C; Mon, 24 Jun 2019 01:43:36 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 828A98E0002; Mon, 24 Jun 2019 01:43:32 -0400 (EDT)
+	id A9A258E0002; Mon, 24 Jun 2019 01:43:36 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6C8518E0001; Mon, 24 Jun 2019 01:43:32 -0400 (EDT)
+	id 95FC78E0001; Mon, 24 Jun 2019 01:43:36 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 3889F6B000A
-	for <linux-mm@kvack.org>; Mon, 24 Jun 2019 01:43:32 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id e25so7730461pfn.5
-        for <linux-mm@kvack.org>; Sun, 23 Jun 2019 22:43:32 -0700 (PDT)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 5E2CA6B000C
+	for <linux-mm@kvack.org>; Mon, 24 Jun 2019 01:43:36 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id e16so8656514pga.4
+        for <linux-mm@kvack.org>; Sun, 23 Jun 2019 22:43:36 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=vOVF1bL6OtEC3ny1W9eKFWhCTN+KLHMSW/CBbgd+PKs=;
-        b=m7EMl+CYL0IvyQ1rIBJkDHliKN2yH8GTwtOBdn9b6TimLif5+M2vW1+qafeW+8Kuv9
-         0Iot5Wk61gJC4dqk3BH3mJVpRrQ64cF5OF69qH8DZGTat2VTYysj/Zpd4Vn2/ar5Ao5H
-         oOMYJ9YxbnJOptx68H+VfbwBVG9mKISOleyg6GKIH7BRW0HABK9U5dF353DUxKy4e4Qu
-         Y4mLFF9Q8ExOWmMvvNYCg2r46b56GwcdTi8wBR7TfnJEM0DMHeWotBOmJZbDoVcvDTvK
-         Wp++XNtrdQ5XzgNfwvmPEVFyCGr+M3/7ruNMZeft8BQ4630NTqw6KNNdUijHiGRcpL5f
-         S5kw==
-X-Gm-Message-State: APjAAAWYz0jf7YKYRYCHfKkx/xF7dRltMWHeQnDbx6a5O8+fzL8zOn6H
-	4128MhufJgYeVwWfK4i8wjBhDsgVoeO2GDbUg0T2Vy1lpk+vc05EXE/7x8CZEN9b8rjj9x4iPoG
-	N7W6dYKCZhgfICEgvIgOC36ZfHsXxVFllMdHl5JhybK+ZdbrTf8nyk3IeHCqGshM=
-X-Received: by 2002:a17:902:9a06:: with SMTP id v6mr126590331plp.71.1561355011936;
-        Sun, 23 Jun 2019 22:43:31 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzF4Zk91TP1MN6SUwV8sd6k/ioG9RPddAdTF/PhCC1/YvtC2Hu2JATlAjZudawhnA5rYh+S
-X-Received: by 2002:a17:902:9a06:: with SMTP id v6mr126590296plp.71.1561355011312;
-        Sun, 23 Jun 2019 22:43:31 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561355011; cv=none;
+        bh=+l3vwi8bsor/tja9ZheW5y8DiiO/mW8k6zhZ4E83rTI=;
+        b=d1kQGqThxpnY2dOW9jnL3+2Nmdkf3QfHw/4glHsNq8gHQSkVAv0hs2rfYCjdZIzsby
+         Rs53lTtEUaAFyHXNb1oiQlzV/Rra0w5+pkqSzRKghPdjnZzE87M0dJlFkNZip5DyOfBB
+         KKQ+BVxDXPcKISCPJjFffNJYKf/moUu7TcZMJm6ekdNMBfinDM5zFuMZg1hfkgvyhBIK
+         Wol4Q0gJPftR6fcl6iryTIKP5Ml3gNTjT07F4X3bedA5k7yj/D11dWsuMY8Y8zG+DFyC
+         QsI8WQjuijGRUEOWHrdsY/iOxL/0gVqy57cb+PBqXR0zqUREfr9XOcKvE5VabUIRoP3k
+         mCqA==
+X-Gm-Message-State: APjAAAUxScIkd/hOYw8N7zBdTtm7IalrDoiUOZJvHfjfdiJZdZBswusy
+	XdRbTBEuyXA9A2KkDWXDPi0RG1kS79ffFinJsmlhJPQMDrQ+RfKB9YxfBjNFTfUICSMz+GyvVa0
+	HinaDfgDX6rROG3ANCzNMepNU69hSUGqHe04fNXBVKWp3bSkuBhrAyok2cbMJlRg=
+X-Received: by 2002:a63:4d4a:: with SMTP id n10mr25503356pgl.396.1561355015880;
+        Sun, 23 Jun 2019 22:43:35 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyRpSa8egB44ZhzGuHXSc9m34KUWRyHUs8nXSUxyLldkbe4wwhv/fJEKzq8a7gcbNeUFpTt
+X-Received: by 2002:a63:4d4a:: with SMTP id n10mr25503321pgl.396.1561355015170;
+        Sun, 23 Jun 2019 22:43:35 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561355015; cv=none;
         d=google.com; s=arc-20160816;
-        b=g8BkWHw1xR+2IePjy3xLMlF8VGjrOvpK8/PD57Eya5vyVN0Jj2rOoW2R6SW1K/t4UX
-         LLvQyVExnN9zqG2+dqjN2hdl1U6EK0l7htd/T8RygTg08KoBqDuBsKJ+Vi7NgdM8up83
-         pkh3iPe/6LXj+xo6w9QsjR5y90ppbwSCSLj0uaKn0YYcO9sRZOWzEMOV723GRMIBTXkk
-         nG0012zklYh7bfmnU8KLXbJ82e/z1Ns+IHuq1MwemD133vFEl1/IhihnHx19+5yMJGE6
-         Vb9/2pKztoyK6LPbcvnVqmzSglPKkoTpCCvSN1EaSqgD88tz2SUIdlvnsTVlimlM9YDS
-         uRBA==
+        b=oxA+onsqcOwAkR/i9tIrJpKjHHBQhr/wjNrq2UMgkRxUTe0Aut2v6iZLlrchk9jvqA
+         bXLYEVSh1FRW+RPFEnAD00rOGt79yqNYBVXh/0MNeqJR1FlKgqoAza9IzrlQ24T3bFWi
+         u+DxXiOCocNhb/ABxqyKzjHHDoUtyZe0bHQLFjA2wgGBVRznSiHeIwTyltXO1zlGYzPn
+         W0PnFOd74rRcIVd6P8CPQUFugKlF9wFJbjiRzsxFC6dZ5bj5CAddpYsziG+boE/ikFfV
+         WA7JjUilEaAJp9Y9jAgHDNgzNq7yJYXZACfpJsYr4GzNIF0DIsNXLaY+nUjUaFhAS5qD
+         owdw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=vOVF1bL6OtEC3ny1W9eKFWhCTN+KLHMSW/CBbgd+PKs=;
-        b=S971J1WgGKJ69AiYM18meSYJAjXlX6pZPnX+ySFmokTio7+OMFoT3z3iQ5PvoZBhVd
-         7rRr9juaYE/dl4XVug/FL/qfJJWdNxoTUtwWNIOkq+5GsHdXPzG4N9uy+fMOpC84Vgwa
-         ZBc5uYh6NyS+zCd7sky+ZsNS2VR+wxcV2xRk1o6Po/oRjQjwZtDrl+DvhrpMzEeIZPvU
-         BZlaMm5+J2F1yA03SwmqUYURvmT8etpo3b64cvGE5q3GkK+MfWMskaynUn9Epbtln/gZ
-         RTEUkPKczFbJtwMcFvaKyFrpi8PtJHVoqtjTIvDVz+D77ZywqkiarnKd/06sANWwvNxT
-         /wqw==
+        bh=+l3vwi8bsor/tja9ZheW5y8DiiO/mW8k6zhZ4E83rTI=;
+        b=hI9gp6tJ4N/+d+4RRS9NrZ/CIdzuEE4k93r6xVE5O6ybvg9k/uNCajgyqnaEpTTDkn
+         a95RllwTrjbJ3HnrqTfxwLgzG9c3qv1SsnT0NWrMWSAjCsTL2I/EkTrbIxEaFgBZzuTH
+         COg7QNvoIn9sdXdbYjfI6dFuoVlO2iELjNsA0eDATvng8g1Nyx7fkfCzjxESC5zl5tNN
+         foQjXqFzDsTh7xED7Bv1dpdduNTeNzRVBypqVrX8F8ZbtqxDNxoc7d9IOBVxWlo+J6eM
+         YPU+RmYQwmIt5m0cBR0Q46Iffky+ZBWb2zcs2FUL0bQ7+DW+456ZGsTSZQjOjGHxQL6P
+         fPSw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=fMawuu3O;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=mAvADQ+c;
        spf=pass (google.com: best guess record for domain of batv+84882ec255bc51113d1a+5783+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+84882ec255bc51113d1a+5783+infradead.org+hch@bombadil.srs.infradead.org
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id 31si9532924plf.195.2019.06.23.22.43.31
+        by mx.google.com with ESMTPS id 6si9627376plb.345.2019.06.23.22.43.35
         for <linux-mm@kvack.org>
         (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Sun, 23 Jun 2019 22:43:31 -0700 (PDT)
+        Sun, 23 Jun 2019 22:43:35 -0700 (PDT)
 Received-SPF: pass (google.com: best guess record for domain of batv+84882ec255bc51113d1a+5783+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=fMawuu3O;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=mAvADQ+c;
        spf=pass (google.com: best guess record for domain of batv+84882ec255bc51113d1a+5783+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+84882ec255bc51113d1a+5783+infradead.org+hch@bombadil.srs.infradead.org
 DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	d=infradead.org; s=bombadil.20170209; h=Content-Transfer-Encoding:
@@ -86,15 +86,15 @@ DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	:Reply-To:Content-Type:Content-ID:Content-Description:Resent-Date:Resent-From
 	:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:List-Help:
 	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	bh=vOVF1bL6OtEC3ny1W9eKFWhCTN+KLHMSW/CBbgd+PKs=; b=fMawuu3Opqat44vDe3HBjfC2NV
-	U5+fXW3mv7s7Jlh5elWKOcphZfFUedF1vGm+7MYpefOZ9keuy6mkobCiyuiWMY5CLEcGsBYr3epoG
-	m757TAQi2HxXtEeXw31FzGZsYfQbEb96/9Ia45hV6LD8/DMRBoIc4DCLBiY6bHE3E/pVumBkLBY5w
-	zQsrCXvA58a8v8QR10iyNRva5OtbMApi6LzDxtYh6XUzs8CFb1qIBB/sbzkWkI0sjoTbtb5hHeHM8
-	YgjPe0IwJKPuJTnzuw0MJiDrV8RqIWDzx9q3MB2qJlJKHNWksaE9721c9vrJkODjAmgxyXQOo4sY+
-	3XbUdhVw==;
+	bh=+l3vwi8bsor/tja9ZheW5y8DiiO/mW8k6zhZ4E83rTI=; b=mAvADQ+cwTdSv+lt/UrCLAQIca
+	0dD4dqEu4sMMNiFBL7leKtPj9jibj22MJ0jwgHB3KU5zu4mlrT2QfCgV56BTu/m9YZiG5Nr1uUm84
+	y1PwMD41gPqcy/8w1H7CcUsZnBbdXBxDp9rR/8b7435grnEb/8gn616L6xirlmp6IkDOHezq54Jci
+	M+NToc3yEOIoREpCO/yTJs29tuZDuvF0ETJp51nUCIKg/w2K4HNxKopP12CaHADIOpvmDhFTgD5Qr
+	WovcnekXgMnBwUh7ex4C90RWdFHYis/U2RnDWbeNGhclz0LrvcsC3mzmXItVAbQVafsOja8CpIj2P
+	g7pyPeTQ==;
 Received: from 213-225-6-159.nat.highway.a1.net ([213.225.6.159] helo=localhost)
 	by bombadil.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
-	id 1hfHlJ-0006Cb-Dy; Mon, 24 Jun 2019 05:43:29 +0000
+	id 1hfHlM-0006Fu-LS; Mon, 24 Jun 2019 05:43:33 +0000
 From: Christoph Hellwig <hch@lst.de>
 To: Palmer Dabbelt <palmer@sifive.com>,
 	Paul Walmsley <paul.walmsley@sifive.com>
@@ -102,9 +102,9 @@ Cc: Damien Le Moal <damien.lemoal@wdc.com>,
 	linux-riscv@lists.infradead.org,
 	linux-mm@kvack.org,
 	linux-kernel@vger.kernel.org
-Subject: [PATCH 04/17] irqchip/sifive-plic: set max threshold for ignored handlers
-Date: Mon, 24 Jun 2019 07:42:58 +0200
-Message-Id: <20190624054311.30256-5-hch@lst.de>
+Subject: [PATCH 05/17] riscv: use CSR_SATP instead of the legacy sptbr name in switch_mm
+Date: Mon, 24 Jun 2019 07:42:59 +0200
+Message-Id: <20190624054311.30256-6-hch@lst.de>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190624054311.30256-1-hch@lst.de>
 References: <20190624054311.30256-1-hch@lst.de>
@@ -117,55 +117,32 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-When running in M-mode we still the S-mode plic handlers in the DT.
-Ignore them by setting the maximum threshold.
+Switch to our own constant for the satp register instead of using
+the old name from a legacy version of the privileged spec.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- drivers/irqchip/irq-sifive-plic.c | 12 ++++++++++--
- 1 file changed, 10 insertions(+), 2 deletions(-)
+ arch/riscv/mm/context.c | 7 +------
+ 1 file changed, 1 insertion(+), 6 deletions(-)
 
-diff --git a/drivers/irqchip/irq-sifive-plic.c b/drivers/irqchip/irq-sifive-plic.c
-index cf755964f2f8..c72c036aea76 100644
---- a/drivers/irqchip/irq-sifive-plic.c
-+++ b/drivers/irqchip/irq-sifive-plic.c
-@@ -244,6 +244,7 @@ static int __init plic_init(struct device_node *node,
- 		struct plic_handler *handler;
- 		irq_hw_number_t hwirq;
- 		int cpu, hartid;
-+		u32 threshold = 0;
+diff --git a/arch/riscv/mm/context.c b/arch/riscv/mm/context.c
+index 89ceb3cbe218..beeb5d7f92ea 100644
+--- a/arch/riscv/mm/context.c
++++ b/arch/riscv/mm/context.c
+@@ -57,12 +57,7 @@ void switch_mm(struct mm_struct *prev, struct mm_struct *next,
+ 	cpumask_clear_cpu(cpu, mm_cpumask(prev));
+ 	cpumask_set_cpu(cpu, mm_cpumask(next));
  
- 		if (of_irq_parse_one(node, i, &parent)) {
- 			pr_err("failed to parse parent for context %d.\n", i);
-@@ -266,10 +267,16 @@ static int __init plic_init(struct device_node *node,
- 			continue;
- 		}
+-	/*
+-	 * Use the old spbtr name instead of using the current satp
+-	 * name to support binutils 2.29 which doesn't know about the
+-	 * privileged ISA 1.10 yet.
+-	 */
+-	csr_write(sptbr, virt_to_pfn(next->pgd) | SATP_MODE);
++	csr_write(CSR_SATP, virt_to_pfn(next->pgd) | SATP_MODE);
+ 	local_flush_tlb_all();
  
-+		/*
-+		 * When running in M-mode we need to ignore the S-mode handler.
-+		 * Here we assume it always comes later, but that might be a
-+		 * little fragile.
-+		 */
- 		handler = per_cpu_ptr(&plic_handlers, cpu);
- 		if (handler->present) {
- 			pr_warn("handler already present for context %d.\n", i);
--			continue;
-+			threshold = 0xffffffff;
-+			goto done;
- 		}
- 
- 		handler->present = true;
-@@ -279,8 +286,9 @@ static int __init plic_init(struct device_node *node,
- 		handler->enable_base =
- 			plic_regs + ENABLE_BASE + i * ENABLE_PER_HART;
- 
-+done:
- 		/* priority must be > threshold to trigger an interrupt */
--		writel(0, handler->hart_base + CONTEXT_THRESHOLD);
-+		writel(threshold, handler->hart_base + CONTEXT_THRESHOLD);
- 		for (hwirq = 1; hwirq <= nr_irqs; hwirq++)
- 			plic_toggle(handler, hwirq, 0);
- 		nr_handlers++;
+ 	flush_icache_deferred(next);
 -- 
 2.20.1
 
