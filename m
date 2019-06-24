@@ -2,134 +2,144 @@ Return-Path: <SRS0=9FL3=UX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1E6D8C43613
-	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 13:33:01 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B5FDEC43613
+	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 13:40:04 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B3722212F5
-	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 13:33:00 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 78DEB208E4
+	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 13:40:04 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (1024-bit key) header.d=163.com header.i=@163.com header.b="mQly/kqz"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B3722212F5
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=163.com
+	dkim=pass (1024-bit key) header.d=linux-foundation.org header.i=@linux-foundation.org header.b="fP2Ot5P/"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 78DEB208E4
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 232238E0008; Mon, 24 Jun 2019 09:33:00 -0400 (EDT)
+	id EFD556B0005; Mon, 24 Jun 2019 09:40:03 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1E1F38E0002; Mon, 24 Jun 2019 09:33:00 -0400 (EDT)
+	id EAE9F8E0003; Mon, 24 Jun 2019 09:40:03 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0AA348E0008; Mon, 24 Jun 2019 09:33:00 -0400 (EDT)
+	id D27708E0002; Mon, 24 Jun 2019 09:40:03 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-oi1-f199.google.com (mail-oi1-f199.google.com [209.85.167.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D2DD08E0002
-	for <linux-mm@kvack.org>; Mon, 24 Jun 2019 09:32:59 -0400 (EDT)
-Received: by mail-oi1-f199.google.com with SMTP id i16so5356927oie.1
-        for <linux-mm@kvack.org>; Mon, 24 Jun 2019 06:32:59 -0700 (PDT)
+Received: from mail-lf1-f69.google.com (mail-lf1-f69.google.com [209.85.167.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 67C8A6B0005
+	for <linux-mm@kvack.org>; Mon, 24 Jun 2019 09:40:03 -0400 (EDT)
+Received: by mail-lf1-f69.google.com with SMTP id 22so1925271lft.2
+        for <linux-mm@kvack.org>; Mon, 24 Jun 2019 06:40:03 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :content-transfer-encoding:mime-version:message-id;
-        bh=ZtuXJBKL8JZI6ZcD4t/TJM9MlPRmDeIp7jSZT/RQHac=;
-        b=sEeRSVJGtDyMZwcAjhEqUsNamx3NlPrvyjiv3zMi6ja55o9nWzrj5PyFuZtrK4X/rp
-         xaEk2e15OG+iuoKZOqgCrX5tJkxZWjpxrpvpIKJSkBmjZXgmtknuQi4JxjS/MEi14ym6
-         lynu4Fx8bhniiB5TVFJHHaB2gWt4eF7G+fLFa17CEHIrbNn4Txb10HLqy4quVpEQjvYy
-         lHwblP3yORucC7Q6WAqdGifDyr9PUbdxDJfpJfmorqIkmaqCp+0m7540BMpI7gKRry0H
-         oNqPi0aDpJcNb2uhPq/pPvaptrgVZcJ0xQwp3GZAMQrrabKWqC+ZJcw+qIwi9gQzhfmw
-         GZqg==
-X-Gm-Message-State: APjAAAUnIgknif+d3Cm8YHBcPH6jeYsrDXKPl9YRl0uHnOd04i2rl5d8
-	pOiZmE/4vqTeOOkgzbTvjGF1W2byKiXu3gnkR3YlPhURpYYQHjL32MawmwPDlDE3Pd7gUO0EE85
-	kmPCJL1+UXjO9oEjQT7Jf5wjb0fMRmi4dXOfOdFx7YUr5A2EVvM59XZ+xbNWXjYbTRA==
-X-Received: by 2002:a05:6830:1197:: with SMTP id u23mr37452075otq.36.1561383179502;
-        Mon, 24 Jun 2019 06:32:59 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzhDm7eV1tNl2Ffl7Nwd3VyiBa5dH5P4y1XCYeTQnj+as8wPn3tyXEGj7ndsiPF5LwKzTlE
-X-Received: by 2002:a05:6830:1197:: with SMTP id u23mr37451999otq.36.1561383178303;
-        Mon, 24 Jun 2019 06:32:58 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561383178; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=CCHpK1CZOVMMRr9wyoLp/eyfAndWJItR7EDWf+w9QSU=;
+        b=NJEVuuovjK/t95UlnWbKFO8YI1HFJWF2GnuYFvT6x6Hwo9ypI9x2gLr0cQLNpVa9lM
+         vvafKEJfW4VXvT7mu3Iwha55ZwTHp3sYyK9TZRlpIeD5aByn6aO85beza+iDzPZmE1Cg
+         UKRzbQpk6Mw5KuaIWuDk81mmla4C49fa3S6gcfEtkaA99WZ/ByESrefRMyiVlY9QqTvb
+         9VUUxH6i7gncD4CavgkMClYWQVdVeUv44fKliIEKkPvEuMSt65ddX7B1c6Yc4kmge7pF
+         sSMZllae9443gJpEsfPGy2kP5mdgnp58c7gq3WZJHdsYyCHAOAwpXI4NxsncladV4rIH
+         60Qw==
+X-Gm-Message-State: APjAAAVXTXSdU9oCfU4gxNSCGfHHIIRjhb/aek73bvpEMyM73cW1k6v3
+	qrFPaEZzGal7iOd8HGpWPKXaqb5XC37iNQMuUY2/nuWTwJRje/ogNpG+Mf/eIlFulfY0gBwrov/
+	babUiTZWdBHEF1vYVwmCa1tiit6AkGVAEybHQ75rCzR9vmIx01ajy7Lm57DASkV+J7Q==
+X-Received: by 2002:a2e:9b81:: with SMTP id z1mr18152125lji.101.1561383602665;
+        Mon, 24 Jun 2019 06:40:02 -0700 (PDT)
+X-Received: by 2002:a2e:9b81:: with SMTP id z1mr18152090lji.101.1561383601924;
+        Mon, 24 Jun 2019 06:40:01 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561383601; cv=none;
         d=google.com; s=arc-20160816;
-        b=wtnQzyJB95mdXRCY+rHN4GtcLr3TFUmZ6pIulAABbuoiGJA7xe0l1H/mIBu7afDm+c
-         gJ31z1g85Demk/AS6dP5wy9VdQapxvCzPyK4Czyfu9T8z5Hz7vidaL8pcB4X2BFSw14j
-         nFil5bks0ktVg3JYCIOK9wqdxjENmAYwxTlNp7eiR/hB6cC5nBZREKnzCyqckZRsZn93
-         soKjbkPId6D/BGdio7NyteaylBeUdFNNpxLPvWrJclIIrH4f79uZZaEu5/E9enCMhRTm
-         qHLphR8zznXQk1p8n88Qf1v3Dr6jBEoQ0t3WvrvWccTui0pJ3klj/Bs0D7VTBOt40HSm
-         jtUg==
+        b=G8vJqxUD5vX9owIRvTf5Sn+8nuqEDhr2RTBDHWNxM8eVg5Vavct7+awtvRx9UH9Rm3
+         75Nw/BQxvT4CGpYUSqel2Pwk86gnfnXoE1VKX1w3JqAWpme9aDbGPwX9RYQndlZiIB35
+         ARUAdx0GDGWmIxA9QSU8HSSoOAWOlgpO/r4Oij7XO/tHbUeqGoxUhsAqUsEIV7trYYe3
+         h/EfRzchBraseqS8Ilm+2OWnqz67T4V+aaqWf9XO1HMopYvS9quz9qJiQwfWMBNfCulz
+         +ycJJMH6WQsqtXD+1MuN1f84tLHxB3vIWTyMcveeqTA3Jtznlpx1mfkykc2Za405oR+h
+         Bsdg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:mime-version:content-transfer-encoding:subject:cc:to
-         :from:date:dkim-signature;
-        bh=ZtuXJBKL8JZI6ZcD4t/TJM9MlPRmDeIp7jSZT/RQHac=;
-        b=ix6oMCv6myr9YRJFYoYk9Ntv3vMQfFo7U9sXfxoYUhbOT43QTzYvLSDI2e2Jr/nYuc
-         YOYlUpA0MQ3dl5Xdl7s6WB7Ts0ZXdXkod1yDfXzJE6caQFw0UXK52JqK0upqaPkimE/0
-         dehxUs7RGyDO4CGMSsimofy1l8BdyX3Y7MbfmgrhyoPj6fR3udW3wTQsOUWtLx3cZGrQ
-         jAORXixLJADJTaAAaYYOitlq9S7DVmMOWKw2gPSCZ71H71piKJQmtfwP9KQKN2iqBvnt
-         TK+9vQ9FQeHlOd73cdzVAGXNBLhRcKd+1r+AK6F241u0PcqlTssPdjR7g1pKRQCBDgH1
-         Conw==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=CCHpK1CZOVMMRr9wyoLp/eyfAndWJItR7EDWf+w9QSU=;
+        b=StzogdHo7KiRVHxzHZx8wnarOIrtE0A7IcDpiEKxpPbWOMwkuqHhivhbDC8RcVJ5G4
+         xWcRa3PkxYVhqTBeIoPt1G6wo3Uy3o+j9tGsWHRAnpvrv7SK9D191s/0/jCakXoOxIWT
+         JUawhEMmJy6gmy6/UDqFCr8xOxzaHTk0dj/nEw/7wWOSwKTQTSlQQpbkxt9iAFHd3Zwp
+         hktUNM8fppdgJBYLaCpDu/y9Q9WQkzZbWjZQ8JzLfIqas0vW1tixWXe+VujZb+ABB8wB
+         c/ZP4cDcykw0sRsgQ88Z2f84iecI0H6ty6PGnYoZFJYcLfwfp3DMjbRpS0MbBryx1uvY
+         7onw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=neutral (body hash did not verify) header.i=@163.com header.s=s110527 header.b="mQly/kqz";
-       spf=pass (google.com: domain of weijieut@163.com designates 220.181.13.129 as permitted sender) smtp.mailfrom=weijieut@163.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=163.com
-Received: from m13-129.163.com (m13-129.163.com. [220.181.13.129])
-        by mx.google.com with ESMTP id d65si6554729oib.140.2019.06.24.06.32.56
-        for <linux-mm@kvack.org>;
-        Mon, 24 Jun 2019 06:32:58 -0700 (PDT)
-Received-SPF: pass (google.com: domain of weijieut@163.com designates 220.181.13.129 as permitted sender) client-ip=220.181.13.129;
+       dkim=pass header.i=@linux-foundation.org header.s=google header.b="fP2Ot5P/";
+       spf=pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=torvalds@linuxfoundation.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id k19sor5274279ljj.5.2019.06.24.06.40.01
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Mon, 24 Jun 2019 06:40:01 -0700 (PDT)
+Received-SPF: pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=neutral (body hash did not verify) header.i=@163.com header.s=s110527 header.b="mQly/kqz";
-       spf=pass (google.com: domain of weijieut@163.com designates 220.181.13.129 as permitted sender) smtp.mailfrom=weijieut@163.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=163.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=163.com;
-	s=s110527; h=Date:From:Subject:MIME-Version:Message-ID; bh=aUGKt
-	vZSy+6o0S9PVtKxbkzfcp42LXfJggJvKQBcobw=; b=mQly/kqzO1oiR3doEt8hS
-	ppAyTx2uccPH4rQaW6E2hG79FGTcWdoLaP4/usBjKU2gFnZ6g0P1Qr5yI5bZGeqw
-	nMLcNJNkKT9jAvWPUFg2jPFPiJ2mlOTez343k0d5uFJ+Tnw2Sd7t8QRdjMDgLSQz
-	ZOuiDhAZpZrNIfxQpY2au4=
-Received: from weijieut$163.com ( [121.237.48.209] ) by
- ajax-webmail-wmsvr129 (Coremail) ; Mon, 24 Jun 2019 21:30:10 +0800 (CST)
-X-Originating-IP: [121.237.48.209]
-Date: Mon, 24 Jun 2019 21:30:10 +0800 (CST)
-From: "Weijie Yang" <weijieut@163.com>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: axboe@fb.com, fengguang.wu@intel.com, linux-api@vger.kernel.org, 
-	"weijie.yang@samsung.com" <weijie.yang@samsung.com>
-Subject: [bug report] read-ahead can't work properly
-X-Priority: 3
-X-Mailer: Coremail Webmail Server Version SP_ntes V3.5 build
- 20190614(cb3344cf) Copyright (c) 2002-2019 www.mailtech.cn 163com
-Content-Transfer-Encoding: base64
-Content-Type: text/plain; charset=GBK
+       dkim=pass header.i=@linux-foundation.org header.s=google header.b="fP2Ot5P/";
+       spf=pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=torvalds@linuxfoundation.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=linux-foundation.org; s=google;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=CCHpK1CZOVMMRr9wyoLp/eyfAndWJItR7EDWf+w9QSU=;
+        b=fP2Ot5P/h6IfQPNnkVaknnZvAAp4gjmHLWg6mRMP+CMZ9YAztqfCuIF7zICgw8PE7u
+         /C5LdKfScbPHPRwoC7oBsNOwoCQQK/AfSEDzYLOxSTacOSmZz5MIf7KYY0IaZD9cXmtQ
+         J7BnzTNhxal/KCJBAvzgxW3R7HKTgQazjdJ9I=
+X-Google-Smtp-Source: APXvYqxe3/6CzzzR4gqJmON9bleLRt6tjIA/Xd8vMWrt/qMZrE6mZsWn5jqP2T0jgi1lJiNXhDo48Q==
+X-Received: by 2002:a2e:8846:: with SMTP id z6mr31548465ljj.20.1561383601131;
+        Mon, 24 Jun 2019 06:40:01 -0700 (PDT)
+Received: from mail-lj1-f172.google.com (mail-lj1-f172.google.com. [209.85.208.172])
+        by smtp.gmail.com with ESMTPSA id n1sm1531626lfl.77.2019.06.24.06.40.00
+        for <linux-mm@kvack.org>
+        (version=TLS1_3 cipher=AEAD-AES128-GCM-SHA256 bits=128/128);
+        Mon, 24 Jun 2019 06:40:00 -0700 (PDT)
+Received: by mail-lj1-f172.google.com with SMTP id v18so12644121ljh.6
+        for <linux-mm@kvack.org>; Mon, 24 Jun 2019 06:40:00 -0700 (PDT)
+X-Received: by 2002:a2e:95d5:: with SMTP id y21mr63467183ljh.84.1561383118160;
+ Mon, 24 Jun 2019 06:31:58 -0700 (PDT)
 MIME-Version: 1.0
-Message-ID: <37a8bb5a.af8b.16b89adff5d.Coremail.weijieut@163.com>
-X-Coremail-Locale: zh_CN
-X-CM-TRANSID:gcGowADXbfJi0BBdeBX+AA--.3677W
-X-CM-SenderInfo: xzhlyxxhxwqiywtou0bp/xtbBDQLdsFaD5oP5fAAAsX
-X-Coremail-Antispam: 1U5529EdanIXcx71UUUUU7vcSsGvfC2KfnxnUU==
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.011776, version=1.2.4
+References: <20190620022008.19172-1-peterx@redhat.com> <20190620022008.19172-3-peterx@redhat.com>
+ <CAHk-=wiGphH2UL+To5rASyFoCk6=9bROUkGDWSa_rMu9Kgb0yw@mail.gmail.com> <20190624074250.GF6279@xz-x1>
+In-Reply-To: <20190624074250.GF6279@xz-x1>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Mon, 24 Jun 2019 21:31:42 +0800
+X-Gmail-Original-Message-ID: <CAHk-=whRw_6ZTj=AT=cRoSTyoEk2-hiqJoNkqgWE-gSRVE5YwQ@mail.gmail.com>
+Message-ID: <CAHk-=whRw_6ZTj=AT=cRoSTyoEk2-hiqJoNkqgWE-gSRVE5YwQ@mail.gmail.com>
+Subject: Re: [PATCH v5 02/25] mm: userfault: return VM_FAULT_RETRY on signals
+To: Peter Xu <peterx@redhat.com>
+Cc: Linux-MM <linux-mm@kvack.org>, 
+	Linux List Kernel Mailing <linux-kernel@vger.kernel.org>, David Hildenbrand <david@redhat.com>, 
+	Hugh Dickins <hughd@google.com>, Maya Gokhale <gokhale2@llnl.gov>, Jerome Glisse <jglisse@redhat.com>, 
+	Pavel Emelyanov <xemul@virtuozzo.com>, Johannes Weiner <hannes@cmpxchg.org>, 
+	Martin Cracauer <cracauer@cons.org>, Denis Plotnikov <dplotnikov@virtuozzo.com>, Shaohua Li <shli@fb.com>, 
+	Andrea Arcangeli <aarcange@redhat.com>, Mike Kravetz <mike.kravetz@oracle.com>, 
+	Marty McFadden <mcfadden8@llnl.gov>, Mike Rapoport <rppt@linux.vnet.ibm.com>, 
+	Mel Gorman <mgorman@suse.de>, "Kirill A . Shutemov" <kirill@shutemov.name>, 
+	"Dr . David Alan Gilbert" <dgilbert@redhat.com>
+Content-Type: text/plain; charset="UTF-8"
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-CldoZW4gdHJ5IHRoZSBmaWxlIHJlYWRhaGVhZCBieSBwb3NpeF9mYWR2aXNlKCksIEkgZmluZCBp
-dCBjYW4ndCB3b3JrIHByb3Blcmx5LgoKRm9yIGV4YW1wbGUsIHBvc2l4X2ZhZHZpc2UoUE9TSVhf
-RkFEVl9XSUxMTkVFRCkgYSAxME1CIGZpbGUsIHRoZSBrZXJuZWwKYWN0dWFsbHkgIHJlYWRhaGVh
-ZCBvbmx5IDUxMktCIGRhdGEgdG8gdGhlIHBhZ2UgY2FjaGUsIGV2ZW4gaWYgdGhlcmUgYXJlIGVu
-b3VnaApmcmVlIG1lbW9yeSBpbiB0aGUgbWFjaGluZS4KCldoZW4gdHJhY2UgdG8ga2VybmVsLCBJ
-IGZpbmQgdGhlIGlzc3VlIGlzIGF0IGZvcmNlX3BhZ2VfY2FjaGVfcmVhZGFoZWFkKCk6CiAKICAg
-ICAgICBtYXhfcGFnZXMgPSBtYXhfdCh1bnNpZ25lZCBsb25nLCBiZGktPmlvX3BhZ2VzLCByYS0+
-cmFfcGFnZXMpOwogICAgICAgIG5yX3RvX3JlYWQgPSBtaW4obnJfdG9fcmVhZCwgbWF4X3BhZ2Vz
-KTsKCk5vIG1hdGVyIHdoYXQgaW5wdXQgbnJfdG9fcmVhZCBpcywgaXQgaXMgbGltaXRlZCB0byBh
-IHZlcnkgc21hbGwgc2l6ZSwgc3VjaCBhcyAxMjggcGFnZXMuCgpJIHRoaW5rIHRoZSBtaW4oKSBs
-aW1pdCBjb2RlIGlzIHRvIGxpbWl0IHBlci1kaXNrLWlvIHNpemUsIG5vdCB0aGUgdG90YWwgbnJf
-dG9fcmVhZC4KYW5kIHRyYWNlIHRoZSBnaXQgbG9nLCB0aGlzIGlzc3VlIGlzIGludHJvZHVjZWQg
-YnkgNmQyYmU5MTVlNTg5CmFmdGVyIHRoYXQsIG5yX3RvX3JlYWQgaXMgbGltaXRlZCBhdCBzbWFs
-bCwgZXZlbiBpZiB0aGVyZSBhcmUgZW5vdWdoIGZyZWUgbWVtb3J5LgpiZWZvcmUgdGhhdCwgdXNl
-ciBjYW4gcmVhZGFoZWFkIGEgdmVyeSBsYXJnZSBmaWxlIGlmIHRoZXkgaGF2ZSBlbm91Z2ggbWVt
-b3J5LgoKV2hlbiByZWFkIHRoZSBwb3NpeF9mYWR2aXNlKCkgbWFuLXBhZ2UsIGl0IHNheXMgcmVh
-ZGFoZWFkIGRhdGEgZGVwZW5kaW5nIG9uCnZpcnR1YWwgbWVtb3J5IGxvYWQuIApTbyBpZiB0aGVy
-ZSBhcmUgZW5vdWdoIG1lbW9yeSwgaXQgc2hvdWxkIHJlYWQgYXMgbWFueSBkYXRhIGFzIHVzZXIg
-ZXhwZWN0ZWQuCgpFeHBlY3Qgc29tZW9uZSBjYW4gY2xhcmlmeSBvci9hbmQgZml4IGl0LiAKClRo
-YW5rcyAKCgoKCg==
+On Mon, Jun 24, 2019 at 3:43 PM Peter Xu <peterx@redhat.com> wrote:
+>
+> Should we still be able to react on signal_pending() as part of fault
+> handling (because that's what this patch wants to do, at least for an
+> user-mode page fault)?  Please kindly correct me if I misunderstood...
+
+I think that with this patch (modulo possible fix-ups) then yes, as
+long as we're returning to user mode we can do signal_pending() and
+return RETRY.
+
+But I think we really want to add a new FAULT_FLAG_INTERRUPTIBLE bit
+for that (the same way we already have FAULT_FLAG_KILLABLE for things
+that can react to fatal signals), and only do it when that is set.
+Then the page fault handler can set that flag when it's doing a
+user-mode page fault.
+
+Does that sound reasonable?
+
+               Linus
 
