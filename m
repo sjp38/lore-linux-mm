@@ -7,99 +7,99 @@ X-Spam-Status: No, score=-8.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT
 	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 74309C4646C
-	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 21:02:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2D8BCC4646B
+	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 21:02:30 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2CD2A20656
-	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 21:02:27 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id DD59720656
+	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 21:02:29 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="oRmOk0Zj"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2CD2A20656
+	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="i+h5jdKO"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DD59720656
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A583D8E0002; Mon, 24 Jun 2019 17:02:08 -0400 (EDT)
+	id E51FB8E0009; Mon, 24 Jun 2019 17:02:08 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A0BB68E0009; Mon, 24 Jun 2019 17:02:08 -0400 (EDT)
+	id DD8988E000A; Mon, 24 Jun 2019 17:02:08 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6FFCE8E0002; Mon, 24 Jun 2019 17:02:08 -0400 (EDT)
+	id CF0978E0009; Mon, 24 Jun 2019 17:02:08 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 120018E000A
+Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 71BC28E000A
 	for <linux-mm@kvack.org>; Mon, 24 Jun 2019 17:02:08 -0400 (EDT)
-Received: by mail-wr1-f69.google.com with SMTP id l11so6937842wrv.9
+Received: by mail-wr1-f71.google.com with SMTP id i2so6891574wrp.12
         for <linux-mm@kvack.org>; Mon, 24 Jun 2019 14:02:08 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=Xvvvfm/iICt6EAx3A7hygYXF1jRJFUeMrawdTwOi4ns=;
-        b=VE9wrLonYLVYhGcNza3Xd82/AOSVblYF41ASbAN+88YceWGY81mY55GRWBaXrYixlA
-         oAoP0qJT01H5svtj22PQxUH29fgatQM91XpEQ5tLV7TMGpCutrwaT5CXKD1qWWKDW2+8
-         PO3FYeat94KmVvOWDZMpoHzNlMvf7DvNDkeYyqh1vzFaOdd5s8PisgjoKcz4M/DtWtoF
-         Rg7OCd+LLGT2um6e4u58vKyiJ+xnUhGmsubgeiM55dhg0QHlhKh/z3NEPQ4G5w3ASW5L
-         bDcHXXwrSF1II6+mpxmXCCY9Xo7CuKrNZJGQr6UXlTFs6NyfR9EzM6a+JEo32AKTJ3NP
-         nGWA==
-X-Gm-Message-State: APjAAAV4+fuYwsB7MPMB7m997dxRpO7EYlsPeE/Z4jTDZ3ZnY4Js7t2r
-	PzFFo75ms1zFWmI8nfu/7tVJonUGv8DNAnk/9oO41vGvtZtL371RRvSFbLmmZmM/joYxXFtKn7E
-	L4c0yr1xN6z0RMMJXbvK+/ikNGVP+oFI4r15jlkiP4U0wF0hyzpHFl2jpL81C9NC+ag==
-X-Received: by 2002:adf:c654:: with SMTP id u20mr26984336wrg.271.1561410127605;
+        bh=Y7+HSfyIPKIyVRlHiPSUTXfMPMA2cBMnzwF3/BJJWoM=;
+        b=BqOmy/kO2Y2p/J/T2qLA+VYJgg2PUcvXM3rwZ6J7724FSm9FohhjG9RoE/Gb26Pf/+
+         fB0gG4c7SJcUAdjkV6+qhy0u1o07YrH+Jccjm3rmGLMwcCzly/sihTnN+tZOtfIpqeWh
+         CCDXohxqB7kqGvKR5K1He24fBWKjv8kigrslVsB14LVUD/3zZThNJ2p1w4kmDpZqvOKT
+         plURq46XuWaceZO8Feg0fsEih/dKpbhIPaDLlnLEr07dxEGmumhyUUePkzKAzP75oCV2
+         faZaz2m/KjBiRsSRNY3IR6Qp8o+9lylWjjkG26rvmpANAxmYlBQ9PnmTiwRE/vmCaMl9
+         B1sQ==
+X-Gm-Message-State: APjAAAUw3X2/P0/St9CP5pEx0MTB7OsvdnJBWkCN3ZBzqrYwvPjtyY7O
+	JO6LjjJYtrAH3NqL891A5kwv0ZkPiLGZ4W9PvH4ejz1YykeDpJ8sqfSa9uMNYOSCvIIc875lLmE
+	tumySIpbKOrDov4uMv1Km1NWTMqS1ANuZDegv+WItxCB5NjWZATc9Ni11A4is906vqQ==
+X-Received: by 2002:adf:f542:: with SMTP id j2mr49635972wrp.16.1561410127955;
         Mon, 24 Jun 2019 14:02:07 -0700 (PDT)
-X-Received: by 2002:adf:c654:: with SMTP id u20mr26984304wrg.271.1561410126747;
-        Mon, 24 Jun 2019 14:02:06 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561410126; cv=none;
+X-Received: by 2002:adf:f542:: with SMTP id j2mr49635944wrp.16.1561410127141;
+        Mon, 24 Jun 2019 14:02:07 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561410127; cv=none;
         d=google.com; s=arc-20160816;
-        b=nAUCL1Pi8cWgQGNLVtLXRovrmp8/kuBH4PI6gPUK5G8E0fvLkdHWy4enaMrCSsIHqc
-         tbRSGsfxUtsjwt9Arxo2X/PkWq/ykAfNEECBgqDyyRV2fFKRMXfWbS1HlxTvnrhOMOWn
-         2BO3q6Eq7f+5itZmj4yYzmvDv/BcHA/hS3PnjHKME4mGupzjP0T770bAmQHweTh38jh3
-         pv00G1zwFXloIJcfcE+xNnruNIRkwD5j+DW0dbZpz9TeQDiIXSzFXlXqBXUExEPzblLO
-         I6V7Prv/0ggSrCkMiUhpH7FaqipXFOtsgzQo1e4YW39itde88T5800kIhzLoo8NLuCPa
-         YG7w==
+        b=W/6Xwd8ef2k1kDRE8q7pBcnjqoio+NNsNVYOjnqfuXWaPDA6TeqxoYbBXPncVzoWCt
+         iouHgZ/G6gNEEcf1vWkD1dpUu+DixqvDORXjDnkQrex6HPjGLiXXxGGKbrEtXCi7LZYF
+         puD4AOkk3mvR5ex2KV88aqAKt7zxCoRhIJRjHtAYYMQCL0cbxVfXL6ruXP0lz59PNGjs
+         kKmP5BpZhOS4rcsp9IkEv8rTBOI62BHzfWz4QEiXZn0j2GKT0N+1NhxyO4o2RbnxO5An
+         1dHicIsxBpuwg/DcHuIiQeqKE1R1ieI5Wl0ZGdWHD5Ix1BSBa3rImvydn4dpM1ljya4f
+         0S9Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=Xvvvfm/iICt6EAx3A7hygYXF1jRJFUeMrawdTwOi4ns=;
-        b=TrffeMSxZJg+kGWWfQTb1NZBJvb59819VWvQoXG0gxYk2sQrPZ7hactsLskMjb+lS1
-         5rw7oYcxAi2SXFd97A5d6K0PjwBeVt2Y57FMIblBqtlHyV9RMay9xfTOnX1ZnZ1M7+UI
-         p7glr7xQdWHgaeeBFR5P1jM9bSdxVr4tTn1dyp3SefMPJ8Kt7rlgV+N4LCtFrCzhb7k3
-         +G4X5Lxm6Ata6zFO6m2gJz09il6k8itFpP1TDrdnUKqImEICtFg4vm4Q2m60TjylhJil
-         vHpELJiSAg6DDsykNQ6YHBmSmSJUx/6BFZW/K1VUY62RKZQkbsCMAqlrKrGKzI6ocHly
-         3T2w==
+        bh=Y7+HSfyIPKIyVRlHiPSUTXfMPMA2cBMnzwF3/BJJWoM=;
+        b=aju9sPxXNd3bPGvytfRbhyWBAOGnz55byW4SDOfH3zs6IrMFKTY2t+7MNtC7+x1mz+
+         RwQe9R/Ww+2fMAAwHPffWKrfB+0BfYRV2g48rmcNklVQKLLsXLOR9vzWUinoCJy+L/bB
+         lk4ChepYi6F05p85mT8Cs0S3S/GkNHCAYNKbi/SaGgVrqQIFEeMCGHH717gPXCBs9IYx
+         MViFmdQyrS0UhJbsVqmjYptvWCW7hocxVm5bHV1zgY2IiUo/fKIPb63Gom3gUACq2dDK
+         QhOzuF1nZ+DMo9hU/jxtWNfykKh/SAiwi0INNRYPOrHbFuEPZ2hzorsvZguS7pkSkz9S
+         qRUw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=oRmOk0Zj;
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=i+h5jdKO;
        spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id t16sor7104312wrn.0.2019.06.24.14.02.06
+        by mx.google.com with SMTPS id p2sor350098wma.27.2019.06.24.14.02.07
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 24 Jun 2019 14:02:06 -0700 (PDT)
+        Mon, 24 Jun 2019 14:02:07 -0700 (PDT)
 Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=oRmOk0Zj;
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=i+h5jdKO;
        spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=ziepe.ca; s=google;
         h=from:to:cc:subject:date:message-id:in-reply-to:references
          :mime-version:content-transfer-encoding;
-        bh=Xvvvfm/iICt6EAx3A7hygYXF1jRJFUeMrawdTwOi4ns=;
-        b=oRmOk0Zjj6i+pMHvCNnVsb1wjfONs2JBTQnEE3rglcDcUQoG84gXWTDhq9ll76MAqu
-         NbvHm5LXP2Mk44izNVB3slQr8uyWefSSkQB31EfSp+uwq/HLZh/BdNDnY90d603FucOz
-         AC8Ce8Oh4o0dEDF5pq+h9XhIOGQHW9OrQOCgPMR6XEU0ePQEDlF6JmUB9j6v51IImlni
-         0CRtVjdLLAq8G7uZWcwboxDMUZIuPWUPunZLZVkEDI1o2Eb0mtkYKg08tRTwS/QFWzk2
-         3v3z9wVq/LNXCzMnbVfsewXyPw+o1BeCYz8bMIx9Jd6EvXRVTZY/u0AkUUg08yGiPfXO
-         xJgA==
-X-Google-Smtp-Source: APXvYqxEB08pD22xw7z431fz4zoGHVSBNwMRdaiB40BUYEvmuPcR/sYQyqDcLZPR3XganfuFLHNJMQ==
-X-Received: by 2002:a5d:5283:: with SMTP id c3mr28666603wrv.268.1561410126403;
+        bh=Y7+HSfyIPKIyVRlHiPSUTXfMPMA2cBMnzwF3/BJJWoM=;
+        b=i+h5jdKODrJM6HAgihfib7r1p3HTIoXotHgwp0BCzd39jXyo1BGTDGN5CpLNMF70TR
+         V6PVWeRW3fvAO6anYPbAasncAm2gfDig99onMjq8DGbcxmOsbdJoUx+UOv3Ew172buN4
+         Vpsbiiy/5q+1oRn8UdTlfhMTuBnx4G1ji+wcVIaoYK5Nbt5H8mqxT5v/JzerbsooORD5
+         HimcJCbD82rblSOa3TsdNlNx3R6AxGDFuxuK+lEyTuOggfGhT5ua5kBPNLimVjJkqu5U
+         RIddsbNK0RH7LIGRspoDR8r0YYISQuOycZZHVH/0xfxFXODjXkabiQ3hMa0QYuximxJ6
+         o2Mg==
+X-Google-Smtp-Source: APXvYqxYsEWfPj+ojP/Pdo0/oemDCD+9/xSgl5N/QS6OZzqvHa256HMQOw+3zV/4M5gAiwA2ZCoPBA==
+X-Received: by 2002:a1c:228b:: with SMTP id i133mr17321325wmi.140.1561410126760;
         Mon, 24 Jun 2019 14:02:06 -0700 (PDT)
 Received: from ziepe.ca ([66.187.232.66])
-        by smtp.gmail.com with ESMTPSA id j7sm16820277wru.54.2019.06.24.14.02.02
+        by smtp.gmail.com with ESMTPSA id k125sm600943wmf.41.2019.06.24.14.02.02
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
         Mon, 24 Jun 2019 14:02:02 -0700 (PDT)
 Received: from jgg by jggl.ziepe.ca with local (Exim 4.90_1)
 	(envelope-from <jgg@ziepe.ca>)
-	id 1hfW6C-0001MM-Sw; Mon, 24 Jun 2019 18:02:00 -0300
+	id 1hfW6D-0001Mv-3O; Mon, 24 Jun 2019 18:02:01 -0300
 From: Jason Gunthorpe <jgg@ziepe.ca>
 To: Jerome Glisse <jglisse@redhat.com>,
 	Ralph Campbell <rcampbell@nvidia.com>,
@@ -114,14 +114,16 @@ Cc: linux-rdma@vger.kernel.org,
 	Christoph Hellwig <hch@lst.de>,
 	Philip Yang <Philip.Yang@amd.com>,
 	Ira Weiny <ira.weiny@intel.com>,
-	Jason Gunthorpe <jgg@mellanox.com>
-Subject: [PATCH v4 hmm 05/12] mm/hmm: Remove duplicate condition test before wait_event_timeout
-Date: Mon, 24 Jun 2019 18:01:03 -0300
-Message-Id: <20190624210110.5098-6-jgg@ziepe.ca>
+	Jason Gunthorpe <jgg@mellanox.com>,
+	Souptick Joarder <jrdr.linux@gmail.com>
+Subject: [PATCH v4 hmm 10/12] mm/hmm: Poison hmm_range during unregister
+Date: Mon, 24 Jun 2019 18:01:08 -0300
+Message-Id: <20190624210110.5098-11-jgg@ziepe.ca>
 X-Mailer: git-send-email 2.22.0
 In-Reply-To: <20190624210110.5098-1-jgg@ziepe.ca>
 References: <20190624210110.5098-1-jgg@ziepe.ca>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -131,58 +133,60 @@ List-ID: <linux-mm.kvack.org>
 
 From: Jason Gunthorpe <jgg@mellanox.com>
 
-The wait_event_timeout macro already tests the condition as its first
-action, so there is no reason to open code another version of this, all
-that does is skip the might_sleep() debugging in common cases, which is
-not helpful.
-
-Further, based on prior patches, we can now simplify the required condition
-test:
- - If range is valid memory then so is range->hmm
- - If hmm_release() has run then range->valid is set to false
-   at the same time as dead, so no reason to check both.
- - A valid hmm has a valid hmm->mm.
-
-Allowing the return value of wait_event_timeout() (along with its internal
-barriers) to compute the result of the function.
+Trying to misuse a range outside its lifetime is a kernel bug. Use poison
+bytes to help detect this condition. Double unregister will reliably crash.
 
 Signed-off-by: Jason Gunthorpe <jgg@mellanox.com>
-Reviewed-by: Ralph Campbell <rcampbell@nvidia.com>
+Reviewed-by: Jérôme Glisse <jglisse@redhat.com>
 Reviewed-by: John Hubbard <jhubbard@nvidia.com>
+Acked-by: Souptick Joarder <jrdr.linux@gmail.com>
+Reviewed-by: Ralph Campbell <rcampbell@nvidia.com>
 Reviewed-by: Ira Weiny <ira.weiny@intel.com>
-Reviewed-by: Christoph Hellwig <hch@lst.de>
 Tested-by: Philip Yang <Philip.Yang@amd.com>
 ---
+v2
+- Keep range start/end valid after unregistration (Jerome)
 v3
-- Simplify the wait_event_timeout to not check valid
+- Revise some comments (John)
+- Remove start/end WARN_ON (Souptick)
+v4
+- Fix tabs vs spaces in comment (Christoph)
 ---
- include/linux/hmm.h | 13 ++-----------
- 1 file changed, 2 insertions(+), 11 deletions(-)
+ mm/hmm.c | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)
 
-diff --git a/include/linux/hmm.h b/include/linux/hmm.h
-index 1d97b6d62c5bcf..26e7c477490c4e 100644
---- a/include/linux/hmm.h
-+++ b/include/linux/hmm.h
-@@ -209,17 +209,8 @@ static inline unsigned long hmm_range_page_size(const struct hmm_range *range)
- static inline bool hmm_range_wait_until_valid(struct hmm_range *range,
- 					      unsigned long timeout)
+diff --git a/mm/hmm.c b/mm/hmm.c
+index 2ef14b2b5505f6..c30aa9403dbe4d 100644
+--- a/mm/hmm.c
++++ b/mm/hmm.c
+@@ -925,19 +925,21 @@ void hmm_range_unregister(struct hmm_range *range)
  {
--	/* Check if mm is dead ? */
--	if (range->hmm == NULL || range->hmm->dead || range->hmm->mm == NULL) {
--		range->valid = false;
--		return false;
--	}
--	if (range->valid)
--		return true;
--	wait_event_timeout(range->hmm->wq, range->valid || range->hmm->dead,
--			   msecs_to_jiffies(timeout));
--	/* Return current valid status just in case we get lucky */
--	return range->valid;
-+	return wait_event_timeout(range->hmm->wq, range->valid,
-+				  msecs_to_jiffies(timeout)) != 0;
- }
+ 	struct hmm *hmm = range->hmm;
  
- /*
+-	/* Sanity check this really should not happen. */
+-	if (hmm == NULL || range->end <= range->start)
+-		return;
+-
+ 	mutex_lock(&hmm->lock);
+ 	list_del_init(&range->list);
+ 	mutex_unlock(&hmm->lock);
+ 
+ 	/* Drop reference taken by hmm_range_register() */
+-	range->valid = false;
+ 	mmput(hmm->mm);
+ 	hmm_put(hmm);
+-	range->hmm = NULL;
++
++	/*
++	 * The range is now invalid and the ref on the hmm is dropped, so
++	 * poison the pointer.  Leave other fields in place, for the caller's
++	 * use.
++	 */
++	range->valid = false;
++	memset(&range->hmm, POISON_INUSE, sizeof(range->hmm));
+ }
+ EXPORT_SYMBOL(hmm_range_unregister);
+ 
 -- 
 2.22.0
 
