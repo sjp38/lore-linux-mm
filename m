@@ -2,169 +2,175 @@ Return-Path: <SRS0=9FL3=UX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B7190C48BE3
-	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 05:16:18 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C6A08C43613
+	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 05:32:47 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7B8B8208C3
-	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 05:16:18 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7B8B8208C3
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 7DDE82083D
+	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 05:32:47 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="Dkbiwb35"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7DDE82083D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 15C4B6B0003; Mon, 24 Jun 2019 01:16:18 -0400 (EDT)
+	id 066466B0003; Mon, 24 Jun 2019 01:32:47 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 10E068E0002; Mon, 24 Jun 2019 01:16:18 -0400 (EDT)
+	id 0179E8E0002; Mon, 24 Jun 2019 01:32:46 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id F17238E0001; Mon, 24 Jun 2019 01:16:17 -0400 (EDT)
-X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id A5FA66B0003
-	for <linux-mm@kvack.org>; Mon, 24 Jun 2019 01:16:17 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id l14so18648351edw.20
-        for <linux-mm@kvack.org>; Sun, 23 Jun 2019 22:16:17 -0700 (PDT)
+	id E206E8E0001; Mon, 24 Jun 2019 01:32:46 -0400 (EDT)
+X-Delivered-To: Linux-mm@kvack.org
+Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
+	by kanga.kvack.org (Postfix) with ESMTP id C26A36B0003
+	for <Linux-mm@kvack.org>; Mon, 24 Jun 2019 01:32:46 -0400 (EDT)
+Received: by mail-io1-f69.google.com with SMTP id f22so20617688ioj.9
+        for <Linux-mm@kvack.org>; Sun, 23 Jun 2019 22:32:46 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=ZRFgzicg77+rcj3QkgTNCzOOesTvIaxUshyWhE6ak/s=;
-        b=cogj1FgVUzd7k7j39bXNOcUjQwOtwSX+J756YZChFKnF85zL65zd3qw+mW48wBFzCn
-         DdtRBlDX4A6A+sPXHzjGKFMo2MFd/CsPdodTSao1T8mv1WbfkMHHpCDJC2mTgaFa+LjR
-         SXZWmGXRn83Y8DVUWxPPoicelBtg3sulvYC+QTBSolPcw0qpahSFYnqg4/MdSLVb76VD
-         BfiGR2Xp95eC1YgcMEM50u+CG3hNwejTMId+nkNAyZpy5Oq/BNAeUjeq3Kz/UGjvyzug
-         fCIRH7YCMOz4R7Yf9WE+Mpvw3GDj/L4RzYKklBfM1WlAjq8r8sSEG0ZnI6sDcZDCvp8h
-         YP3Q==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-X-Gm-Message-State: APjAAAWJKwM/gTV/WhO7GJsutSHJpjuQzYu5hF6Xjr/7sPur1LkMzVy9
-	Tj+3yorIvn7sJ/rYh4CPivu69kkg9v8CowzygvgSK6mxrew23/kZJq7QUIf5B2ve4mrpgvjS5zE
-	PXbXyjLXTSLt6R8bQp2wRV+ZfUuDeT5sWgjkI4F6BMPb5sC2R6SXJowQT6At5wxsuwQ==
-X-Received: by 2002:a17:906:4948:: with SMTP id f8mr81690277ejt.79.1561353377240;
-        Sun, 23 Jun 2019 22:16:17 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxxGw+D8YgDjOSzvlnRKBE31P+7yHOv9bE7ofLWhggP/C3lPohriXxA9Mq9+hOP5DUKhqHL
-X-Received: by 2002:a17:906:4948:: with SMTP id f8mr81690235ejt.79.1561353376526;
-        Sun, 23 Jun 2019 22:16:16 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561353376; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=/l5qUlzkkXSn8Rj4gRqkwVlRMYz6YfXqXzcoaQu0DB4=;
+        b=sXadgOxzSSAo4gCTYblWKIdG4lk6sWy4yv6Bcjt0DIJdue/3Z6fPK+vQZkicEEnXSf
+         vw8HkwPNiyR+8bhmJJCWbLWqK2gODJhK6ry9zkSmk92ze27yDwmdytev80WZ2xI/UzeF
+         FzaZci/J5v9EMhJL/hUX3jX/RO5+KFnatXWARuqeV/zxLQj5c9JWmeT16/EHF23EBiIX
+         +S7/04tVG9G4QfnCdit5qsgWcacKw52wcSu1eUROI9kpReXYsXutiFffRXyTCQs3h5KH
+         Ar6H7G/WWoaXWWN9GlsH/43kc1fekn9z8TzxCzbhwTzt5zKRjEbjUs3SsaHX3MuXc+Kz
+         7N9w==
+X-Gm-Message-State: APjAAAVt0JV1T1wnTg95N+C0IuPJExdO1V5ZJzV+le8Osy5YpAmPKWFI
+	CM0VKHQik+0rE81k07dMgQMetrORDljkH200KtBpw0rwHnoLqE+g13HRKFZStZTbP2aMUtR0jhU
+	CNQrKbV7arkKMERNMDPCzm+oNobCTFY5cqR1/aScdKY2LhokqsRbKj6RuwVQiN1zKtQ==
+X-Received: by 2002:a6b:3e57:: with SMTP id l84mr53181378ioa.164.1561354366552;
+        Sun, 23 Jun 2019 22:32:46 -0700 (PDT)
+X-Received: by 2002:a6b:3e57:: with SMTP id l84mr53181346ioa.164.1561354365913;
+        Sun, 23 Jun 2019 22:32:45 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561354365; cv=none;
         d=google.com; s=arc-20160816;
-        b=YEGKwjdrgZBBfpB1cjgh+CTqweY30OYHGaBKuhsg+qIyjVBJwjlLJP0RIv5xUa2kBO
-         8EHlB4CK6xz0P/bOnufMbTlgoG67NP0LagQiNZMBM9IAlmk4Hdw04wnlOOiKjNQzvsEA
-         nMJhXL8Wx4blk3E+TeFQCCl2WBbdKWxKrWj9XFfIwI8Lrm1objqfEWGAc8MdnPLXiQus
-         hw2V2QPu7XrI0MYDvVkEfRt4PkAta0zGBOiFbILBeR+/ZXpMkRefn/JwXXdZYAb6zbY/
-         8tx2Y4BUq9pEJxCDqdDZER2++Tbzo6TO3Sm1CaW9ckeKyOS1P2+oKH8Tztq9NYiMlR+w
-         SDlQ==
+        b=DVx7kN8MTXex8hIo09f8LeQP1CJCld0dCIg+Vsi4htXM0CU3L497t3qA3dYYXpXREB
+         745XJujyMbyN5ZtBEDirsMeEwfnNg9f5ZjfH2yxZ8KgW+UWXM1vSj2rZP6lmoT9HGtDc
+         YwMKaAxOD3wx0NtuogV0pTF+wGAr0bjAWDLMXx1P6suCd5zeqcr4TS7y9DHXJO5NcIt+
+         PHkGdOCPs3sHaPM+fV1lPkhL5N3SsIC7rtlCKr2bx/UhokMaxQKyI7Y890vJrZ5U4oKE
+         NypLglbMrQXoMNvkZzhvSHAh23pbJ7lAxhPbcG4Vijh6frsfxLyzYPjV6dD5WtgSmgo6
+         ViVg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=ZRFgzicg77+rcj3QkgTNCzOOesTvIaxUshyWhE6ak/s=;
-        b=cvn9Hx8xBMJ/25jU66jSPo1BRJRxy5hWTdWhk9MzRWC8wbEyKGbdY8fnVwRwmuLRsN
-         UvgnDqNSNaHY1g2/28MK1LLlAFPiWE9gcNmw8eCXFPoz59wpp8TmqZqhC6lsyyWa/mBC
-         510n2CtUzAZrycGo7IXPgs8d1oKI2xvWPGRR2BYDuYN6oFOXxYEHNkepKlyh/T+P7dhk
-         QgYqqAiTEq9BksiYnCDk63WdK5VQN6XN9zhQyZmdrap3OCnmwm37Qlo3sSWI4Nmt1Ih4
-         2tkOoxOKTppK9GT+CXITDUAcHzY2k53++F9PudAd9k+ih/CHUt6kBSkrq/crYe/oJLp5
-         fa4w==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=/l5qUlzkkXSn8Rj4gRqkwVlRMYz6YfXqXzcoaQu0DB4=;
+        b=MD99qvS801srnTx5b/2qWGvDn1WXbDAYAWxNRTjZibY4HjS/2cBtHmjhpp9A2rkpKz
+         +f/r1ChK08JSFUfgfmQ31SIlU6pl/WqOqB7dXOFW3Fn5/bTUqXjaCdnZrS81aJ+uRJAp
+         rVquMdj01wiiH8XWnUD7AjAduWV8matpel13sU98CNVPp7EpCGHT92PcweblcsJofyl/
+         5b6F5PpVawmvupBcl6BE7vadv0VVXj8RniTp/UvZIdp+g7SHlsYBCtUCfZamhFuoXL/W
+         mTSC1gMYFVWGYtlPz0kLZwNoxDZ8OV3cNj/DE1ctyKNj4UIX9N67OQTsddXtdplvWACw
+         L0+w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
-        by mx.google.com with ESMTP id g34si8737542edb.182.2019.06.23.22.16.15
-        for <linux-mm@kvack.org>;
-        Sun, 23 Jun 2019 22:16:15 -0700 (PDT)
-Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Dkbiwb35;
+       spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id h25sor6877913ioh.29.2019.06.23.22.32.45
+        for <Linux-mm@kvack.org>
+        (Google Transport Security);
+        Sun, 23 Jun 2019 22:32:45 -0700 (PDT)
+Received-SPF: pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 95739344;
-	Sun, 23 Jun 2019 22:16:14 -0700 (PDT)
-Received: from [10.162.41.123] (p8cg001049571a15.blr.arm.com [10.162.41.123])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id E82183F718;
-	Sun, 23 Jun 2019 22:18:00 -0700 (PDT)
-Subject: Re: [PATCH] mm/hugetlb: allow gigantic page allocation to migrate
- away smaller huge page
-To: Pingfan Liu <kernelfans@gmail.com>, linux-mm@kvack.org
-Cc: Mike Kravetz <mike.kravetz@oracle.com>, Oscar Salvador
- <osalvador@suse.de>, David Hildenbrand <david@redhat.com>,
- Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
-References: <1561350068-8966-1-git-send-email-kernelfans@gmail.com>
-From: Anshuman Khandual <anshuman.khandual@arm.com>
-Message-ID: <216a335d-f7c6-26ad-2ac1-427c8a73ca2f@arm.com>
-Date: Mon, 24 Jun 2019 10:46:36 +0530
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
- Thunderbird/52.9.1
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Dkbiwb35;
+       spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=/l5qUlzkkXSn8Rj4gRqkwVlRMYz6YfXqXzcoaQu0DB4=;
+        b=Dkbiwb35Z4XCd7jAlpAZCQu5U6vQ2IJMnfRSCFrBUb+0AD++dGclfZL2qAFUVugf9q
+         cUnF8CJHMh2e1Y2kwP/3P+4vHjICpw5lRXFrR75FNpAOxz4UyV/NWmUBlx5OX663D6b3
+         FpjNyvXxm2+UK741ClSkR+a6xyMg/8mHcFOpRl4CDHUJnY0Pxz5Ywn7fT3+Hf6Nx991+
+         WCTtn8lQkJbVEqqQKZXc5VljE/9+bsxN4bJtL5w6NXn54UH/1XSi7bsSKrP9f3QBwPys
+         SWb6/JhlZvRJd9GHNzdgugfJ782MbwIJulfvwNr471wDzJpW/sBRYyeAm07BCOosFi9P
+         roJw==
+X-Google-Smtp-Source: APXvYqzlHl65VPmh6Fpk+kxQ+1lgOSdmQFpOTpFQfFvOCSSDU3U1pIGJZHw/K1MdWEGG1h+GA1/Q71eEsPHo6r3vczg=
+X-Received: by 2002:a6b:6f06:: with SMTP id k6mr52432551ioc.32.1561354365683;
+ Sun, 23 Jun 2019 22:32:45 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <1561350068-8966-1-git-send-email-kernelfans@gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+References: <1561349561-8302-1-git-send-email-kernelfans@gmail.com> <20190624044305.GA30102@iweiny-DESK2.sc.intel.com>
+In-Reply-To: <20190624044305.GA30102@iweiny-DESK2.sc.intel.com>
+From: Pingfan Liu <kernelfans@gmail.com>
+Date: Mon, 24 Jun 2019 13:32:34 +0800
+Message-ID: <CAFgQCTuMVdrjkiQ5H3xUuME16g-xNUFXtvU1p+=P4-pujXcSAA@mail.gmail.com>
+Subject: Re: [PATCHv2] mm/gup: speed up check_and_migrate_cma_pages() on huge page
+To: Ira Weiny <ira.weiny@intel.com>
+Cc: Linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, 
+	Mike Rapoport <rppt@linux.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, 
+	Thomas Gleixner <tglx@linutronix.de>, John Hubbard <jhubbard@nvidia.com>, 
+	"Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>, Christoph Hellwig <hch@lst.de>, 
+	Keith Busch <keith.busch@intel.com>, Mike Kravetz <mike.kravetz@oracle.com>, 
+	LKML <Linux-kernel@vger.kernel.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Mon, Jun 24, 2019 at 12:43 PM Ira Weiny <ira.weiny@intel.com> wrote:
+>
+> On Mon, Jun 24, 2019 at 12:12:41PM +0800, Pingfan Liu wrote:
+> > Both hugetlb and thp locate on the same migration type of pageblock, since
+> > they are allocated from a free_list[]. Based on this fact, it is enough to
+> > check on a single subpage to decide the migration type of the whole huge
+> > page. By this way, it saves (2M/4K - 1) times loop for pmd_huge on x86,
+> > similar on other archs.
+> >
+> > Furthermore, when executing isolate_huge_page(), it avoid taking global
+> > hugetlb_lock many times, and meanless remove/add to the local link list
+> > cma_page_list.
+> >
+> > Signed-off-by: Pingfan Liu <kernelfans@gmail.com>
+> > Cc: Andrew Morton <akpm@linux-foundation.org>
+> > Cc: Ira Weiny <ira.weiny@intel.com>
+> > Cc: Mike Rapoport <rppt@linux.ibm.com>
+> > Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> > Cc: Thomas Gleixner <tglx@linutronix.de>
+> > Cc: John Hubbard <jhubbard@nvidia.com>
+> > Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+> > Cc: Christoph Hellwig <hch@lst.de>
+> > Cc: Keith Busch <keith.busch@intel.com>
+> > Cc: Mike Kravetz <mike.kravetz@oracle.com>
+> > Cc: Linux-kernel@vger.kernel.org
+> > ---
+> >  mm/gup.c | 19 ++++++++++++-------
+> >  1 file changed, 12 insertions(+), 7 deletions(-)
+> >
+> > diff --git a/mm/gup.c b/mm/gup.c
+> > index ddde097..544f5de 100644
+> > --- a/mm/gup.c
+> > +++ b/mm/gup.c
+> > @@ -1342,19 +1342,22 @@ static long check_and_migrate_cma_pages(struct task_struct *tsk,
+> >       LIST_HEAD(cma_page_list);
+> >
+> >  check_again:
+> > -     for (i = 0; i < nr_pages; i++) {
+> > +     for (i = 0; i < nr_pages;) {
+> > +
+> > +             struct page *head = compound_head(pages[i]);
+> > +             long step = 1;
+> > +
+> > +             if (PageCompound(head))
+> > +                     step = compound_order(head) - (pages[i] - head);
+>
+> Sorry if I missed this last time.  compound_order() is not correct here.
+For thp, prep_transhuge_page()->prep_compound_page()->set_compound_order().
+For smaller hugetlb,
+prep_new_huge_page()->prep_compound_page()->set_compound_order().
+For gigantic page, prep_compound_gigantic_page()->set_compound_order().
 
+Do I miss anything?
 
-On 06/24/2019 09:51 AM, Pingfan Liu wrote:
-> The current pfn_range_valid_gigantic() rejects the pud huge page allocation
-> if there is a pmd huge page inside the candidate range.
-> 
-> But pud huge resource is more rare, which should align on 1GB on x86. It is
-> worth to allow migrating away pmd huge page to make room for a pud huge
-> page.
-> 
-> The same logic is applied to pgd and pud huge pages.
-
-The huge page in the range can either be a THP or HugeTLB and migrating them has
-different costs and chances of success. THP migration will involve splitting if
-THP migration is not enabled and all related TLB related costs. Are you sure
-that a PUD HugeTLB allocation really should go through these ? Is there any
-guarantee that after migration of multiple PMD sized THP/HugeTLB pages on the
-given range, the allocation request for PUD will succeed ?
-
-> 
-> Signed-off-by: Pingfan Liu <kernelfans@gmail.com>
-> Cc: Mike Kravetz <mike.kravetz@oracle.com>
-> Cc: Oscar Salvador <osalvador@suse.de>
-> Cc: David Hildenbrand <david@redhat.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: linux-kernel@vger.kernel.org
-> ---
->  mm/hugetlb.c | 8 +++++---
->  1 file changed, 5 insertions(+), 3 deletions(-)
-> 
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index ac843d3..02d1978 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -1081,7 +1081,11 @@ static bool pfn_range_valid_gigantic(struct zone *z,
->  			unsigned long start_pfn, unsigned long nr_pages)
->  {
->  	unsigned long i, end_pfn = start_pfn + nr_pages;
-> -	struct page *page;
-> +	struct page *page = pfn_to_page(start_pfn);
-> +
-> +	if (PageHuge(page))
-> +		if (compound_order(compound_head(page)) >= nr_pages)
-> +			return false;
->  
->  	for (i = start_pfn; i < end_pfn; i++) {
->  		if (!pfn_valid(i))
-> @@ -1098,8 +1102,6 @@ static bool pfn_range_valid_gigantic(struct zone *z,
->  		if (page_count(page) > 0)
->  			return false;
->  
-> -		if (PageHuge(page))
-> -			return false;
->  	}
->  
->  	return true;
-> 
-
-So except in the case where there is a bigger huge page in the range this will
-attempt migrating everything on the way. As mentioned before if it all this is
-a good idea, it needs to differentiate between HugeTLB and THP and also take
-into account costs of migrations and chance of subsequence allocation attempt
-into account.
+Thanks,
+  Pingfan
+[...]
 
