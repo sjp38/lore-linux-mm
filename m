@@ -2,198 +2,122 @@ Return-Path: <SRS0=9FL3=UX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 96298C43613
-	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 13:12:36 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A4E93C43613
+	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 13:17:06 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 444112133F
-	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 13:12:36 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=Mellanox.com header.i=@Mellanox.com header.b="Z1jEVJMZ"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 444112133F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mellanox.com
+	by mail.kernel.org (Postfix) with ESMTP id 73622204EC
+	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 13:17:06 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 73622204EC
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D8B558E0007; Mon, 24 Jun 2019 09:12:35 -0400 (EDT)
+	id 0B6A18E0007; Mon, 24 Jun 2019 09:17:06 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D14E58E0002; Mon, 24 Jun 2019 09:12:35 -0400 (EDT)
+	id 0660F8E0002; Mon, 24 Jun 2019 09:17:06 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BB5ED8E0007; Mon, 24 Jun 2019 09:12:35 -0400 (EDT)
+	id E70F48E0007; Mon, 24 Jun 2019 09:17:05 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 6E0088E0002
-	for <linux-mm@kvack.org>; Mon, 24 Jun 2019 09:12:35 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id y24so20457574edb.1
-        for <linux-mm@kvack.org>; Mon, 24 Jun 2019 06:12:35 -0700 (PDT)
+Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
+	by kanga.kvack.org (Postfix) with ESMTP id B138F8E0002
+	for <linux-mm@kvack.org>; Mon, 24 Jun 2019 09:17:05 -0400 (EDT)
+Received: by mail-wr1-f72.google.com with SMTP id d15so6365280wrx.5
+        for <linux-mm@kvack.org>; Mon, 24 Jun 2019 06:17:05 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
-         :thread-index:date:message-id:references:in-reply-to:accept-language
-         :content-language:content-id:content-transfer-encoding:mime-version;
-        bh=bJKNsiWuopGsFiwJtfSmHwT6t9upZDeCWjBmCmeA7XQ=;
-        b=eHsjLpAf8nMpBiDVoQIxSaEzfd23giCguIM/idBI3FpUZQ4D4/DIEnNlj6q4gXgkb3
-         jM/cOSfBoPcqVtIrAGGFlTsMtf1CjlIj7KDZ2hqEiLosfsE6iNUZAxWcosWWMmg5lf5/
-         re8QlDv5w5H233c/3ecYOv8pH0xLneT5rN0L/ecj7BecB24keSdAmGQtdDEo9H/eG9ME
-         v1ysE8w7i6FMlYJ31VXlHHD7niW9/gTd7PcfBPu6Jl+aX76waSIkdxOv2uy0Zg4ut1Lq
-         SloMqTjA9978OYnThMLf2pBQD8lGhmHu5vPVHhspZgZqXZv+E5euI26Eys5aoHLZnwhd
-         mh6w==
-X-Gm-Message-State: APjAAAXOMW55nAJsxGN7CHnGZPDYBINFWCeiZL1DPcWLu0riyakCPU+J
-	vJxbx//0VGYJlT29MOnmpNKAVWSj/a0UXLVlyuv8CaBUmc+G4mPWc63Wu57K8iVOEadN0Xq16PM
-	l/In4uKfkgk5JsFvL6Dx5dQPk8tRE6Skd2/pAxcV9ablPzl/TootxHwca1HR9Pi2PLQ==
-X-Received: by 2002:a17:906:948c:: with SMTP id t12mr14395751ejx.222.1561381955026;
-        Mon, 24 Jun 2019 06:12:35 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyJ7SyZqAZkwho5MCfIqiA3uIYmeI67yNPGOTGefGuDkfnJWaHufUsCY+8qjct5Yqj3UGQP
-X-Received: by 2002:a17:906:948c:: with SMTP id t12mr14395688ejx.222.1561381954394;
-        Mon, 24 Jun 2019 06:12:34 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561381954; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=lVi7efEyMXSuInljZFOxYkNyqzRF6ZaNOuiAyjFVxlY=;
+        b=DdyjzvMiC5nvxeJJyEGh7Ku+JbDEcPiSVlencG6IWeeQSW57TjM5Y7ZVrEbQ7gCazc
+         Bvo/eGy3p5AjNpNN6W9sCVD9BbpPmc3PHgFs+dVu2M8gL9ayze2aC99cvjzqwHDLlfdz
+         2lKSfFB9zd/2NEzG0XtNQQJkyUwJhWGzugasGFnOrmdV+IRsdDcqvQBvNXLWDTFA/d2r
+         W3RsKetAyHqbD8uA8wsth5z3Cs5YDydmXDWWhVIzjKdddFz2bgkQs9f/nRHFVyPw6jNj
+         Cf0T6pcfT5kqj59CvcZPsH6zCHctfEtNFgf3PiEdV9E+AftCpoFXP4G0eOXTxa2UqIC+
+         T+wQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
+X-Gm-Message-State: APjAAAUZg25AwvVdI7RQSRsnQFaPzKtJRffvLwItLL8kQlBSpszYdvaO
+	ptxWpgQtz4DItDE/x8k77Se38uANQvjLjNaGYTXeK5RODVuYlxnEsT21p6cJk7jsWogn8emd9M6
+	F5Q3EC54ldqz3OxJtrqBx0sAfiOqUQthWyeRdenC8IkuecOdOO+vv/pF3khbpY3irPA==
+X-Received: by 2002:a1c:2088:: with SMTP id g130mr8061440wmg.80.1561382225217;
+        Mon, 24 Jun 2019 06:17:05 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqz6qw8j3F8YdfMBEX0oqIx3CTnmTnCQdJsvj2yfF7D5wua/RE85OYutvaGw3zZ5s2eYe1rZ
+X-Received: by 2002:a1c:2088:: with SMTP id g130mr8061409wmg.80.1561382224493;
+        Mon, 24 Jun 2019 06:17:04 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561382224; cv=none;
         d=google.com; s=arc-20160816;
-        b=wIHcCWwxzam5Acu+MtBpXnk4RAlxNbkrkQK3mLzJG8/zE4DBjUfntHrR4SdFXiJwC5
-         EY6vZPvurvvmWd17lK5bb+puFbn84Rw9YZf7WBQw+k3LnbeNodWagzLkzse2FTjcW23i
-         8B46TCLBwfEdRNyVOlnEhtjVzyrTuH2IYHD2G2S0Lf26ozT1lzrULEBFVjIa6L6m5qOS
-         nMzDGofOrF45vbwa8/jgKkbWFfMxJTs3ssmjR8CC0nqdyLJyIxEc2XFHXozb+zLz1SQ+
-         HMja5K4mxqQ4As5PTMfq7bcUSRJj4J44Lp4flh1rbGaUF2/WnOZH8u1Qo5mNmPKP6Us+
-         FJRw==
+        b=OCydaGKsht5ycsQve2Z9CmAUlTbRdeivhZBBcL5HtnEnLRCmiEo0hxquBzAaW1I64j
+         o1oo5wXRuIKGJWvJ5xOAgL8u7HaPmIopJCTySZQBB9IYtqHYkSfbPiGzCyXz+rtc1bMI
+         rntxWWSUIMJINaKbZ1kOjCpwvVeb9I5qTq99itcJX/Yar3wTja8j/KoWknNBZNnDJXKV
+         o6ZrhpddIA4nobxGB/7Z+oOvIHvIoXuTuUx4cCWJkdIYdVOFaoaly8FqUDgHWsSgEfpr
+         YrfdiZSyhqkxc+bncOFNrpzslmX15rydntjQYB0MiM+/2+0Fw8yWxHK2XkMNymYbDtn+
+         k/8w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from:dkim-signature;
-        bh=bJKNsiWuopGsFiwJtfSmHwT6t9upZDeCWjBmCmeA7XQ=;
-        b=lnFtnvBdYfb5kEZX7QAHvw93q7lZH6p6CxLE/B/xCQN3mVlqY2LnvvLkduS0fIC3+y
-         eG9RCmP+sQyvoD5BeSfelK1fZYa4RjX3vNdGMES/DXgH1a4hbQ7DWza8MtwWf/0fq7a3
-         5TaEh2tvKz07yf0KC0Bgj6X4rQDgw9sqAkvGPTlF/v2upkMMCeqhovl3kXmDx17xeo76
-         2znICLBDBIV7amuiXG/+GOII6YXIGxA5jDC3LjI/Fu1fZXT0uNhWSUjz1meBPwVTI1jZ
-         2klZODKqERL/ZX8SdUAG71Q7syjowWOLbPvfQM7c+1jYTnOo7saspjxaAEvFAeV+zJ8o
-         wpfQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=lVi7efEyMXSuInljZFOxYkNyqzRF6ZaNOuiAyjFVxlY=;
+        b=duAMwUDgb1BQLWwhJrhboRjGuqy2o8kdWMy6Et1DqRVPpSM4ZzkOAu44W6nHl3I6b0
+         o7W6Rti50vG+VxFDf50AByyPmJapfXoVCKB9/tbAG8LpYCFVlNLvCmM30EvC0jWC7DKt
+         IcFk8qrNXJdMLOGxhf9PJ5RNNGmdZpo4YXKQb/lIjr2ovPbGwqiFwRu2cClg/7tQ9zyZ
+         PJt4LSDJVcSXd22V1VdRBrWwILuR9/N+WSEkplRNd9fGa4BBYMgEijRq5QnHf3B0i9dw
+         KyjbAfLQgD+s7Ou/Z7jpvidw2b7FfVeF79SAr/pS9DL7UDWEGA5OeKfG02DZ63uSyKfL
+         KkIA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b=Z1jEVJMZ;
-       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.5.65 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
-Received: from EUR03-VE1-obe.outbound.protection.outlook.com (mail-eopbgr50065.outbound.protection.outlook.com. [40.107.5.65])
-        by mx.google.com with ESMTPS id i45si9121841ede.94.2019.06.24.06.12.34
+       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
+Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
+        by mx.google.com with ESMTPS id r187si7490120wma.34.2019.06.24.06.17.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 24 Jun 2019 06:12:34 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jgg@mellanox.com designates 40.107.5.65 as permitted sender) client-ip=40.107.5.65;
+        Mon, 24 Jun 2019 06:17:04 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) client-ip=213.95.11.211;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b=Z1jEVJMZ;
-       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.5.65 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=Mellanox.com;
- s=selector2;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=bJKNsiWuopGsFiwJtfSmHwT6t9upZDeCWjBmCmeA7XQ=;
- b=Z1jEVJMZeA2aVFeQjyVX7/o4DJ+7JCvRf4WB7j5DitZp9Eec4o34k6ZMPdBc8DRs9251E7fBsr40IgTR+/qGaLd5Ce2yN5fUuin90BVN/A4n61Dlhc8rIJpghdvWQbcEo+NvAKhD6BjynMtbuzDfvbufD3a3XZFwNSOsl4cwFyg=
-Received: from VI1PR05MB4141.eurprd05.prod.outlook.com (10.171.182.144) by
- VI1PR05MB5662.eurprd05.prod.outlook.com (20.178.120.212) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.2008.16; Mon, 24 Jun 2019 13:12:30 +0000
-Received: from VI1PR05MB4141.eurprd05.prod.outlook.com
- ([fe80::f5d8:df9:731:682e]) by VI1PR05MB4141.eurprd05.prod.outlook.com
- ([fe80::f5d8:df9:731:682e%5]) with mapi id 15.20.2008.014; Mon, 24 Jun 2019
- 13:12:30 +0000
-From: Jason Gunthorpe <jgg@mellanox.com>
-To: Ajay Kaher <akaher@vmware.com>
-CC: "aarcange@redhat.com" <aarcange@redhat.com>, "jannh@google.com"
-	<jannh@google.com>, "oleg@redhat.com" <oleg@redhat.com>, "peterx@redhat.com"
-	<peterx@redhat.com>, "rppt@linux.ibm.com" <rppt@linux.ibm.com>,
-	"mhocko@suse.com" <mhocko@suse.com>, "jglisse@redhat.com"
-	<jglisse@redhat.com>, "akpm@linux-foundation.org"
-	<akpm@linux-foundation.org>, "mike.kravetz@oracle.com"
-	<mike.kravetz@oracle.com>, "viro@zeniv.linux.org.uk"
-	<viro@zeniv.linux.org.uk>, "riandrews@android.com" <riandrews@android.com>,
-	"arve@android.com" <arve@android.com>, Yishai Hadas <yishaih@mellanox.com>,
-	"dledford@redhat.com" <dledford@redhat.com>, "sean.hefty@intel.com"
-	<sean.hefty@intel.com>, "hal.rosenstock@gmail.com"
-	<hal.rosenstock@gmail.com>, Matan Barak <matanb@mellanox.com>, Leon
- Romanovsky <leonro@mellanox.com>, "linux-fsdevel@vger.kernel.org"
-	<linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>,
-	"devel@driverdev.osuosl.org" <devel@driverdev.osuosl.org>,
-	"linux-rdma@vger.kernel.org" <linux-rdma@vger.kernel.org>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-	"stable@vger.kernel.org" <stable@vger.kernel.org>, "srivatsab@vmware.com"
-	<srivatsab@vmware.com>, "amakhalov@vmware.com" <amakhalov@vmware.com>
-Subject: Re: [PATCH v4 2/3][v4.9.y] coredump: fix race condition between
- mmget_not_zero()/get_task_mm() and core dumping
-Thread-Topic: [PATCH v4 2/3][v4.9.y] coredump: fix race condition between
- mmget_not_zero()/get_task_mm() and core dumping
-Thread-Index: AQHVKo0oRBGkKYxOxkqZ7SBtAl/moqaqx9UA
-Date: Mon, 24 Jun 2019 13:12:30 +0000
-Message-ID: <20190624131226.GA7418@mellanox.com>
-References: <1561410186-3919-1-git-send-email-akaher@vmware.com>
- <1561410186-3919-2-git-send-email-akaher@vmware.com>
-In-Reply-To: <1561410186-3919-2-git-send-email-akaher@vmware.com>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-x-clientproxiedby: PR2P264CA0011.FRAP264.PROD.OUTLOOK.COM (2603:10a6:101::23)
- To VI1PR05MB4141.eurprd05.prod.outlook.com (2603:10a6:803:4d::16)
-authentication-results: spf=none (sender IP is )
- smtp.mailfrom=jgg@mellanox.com; 
-x-ms-exchange-messagesentrepresentingtype: 1
-x-originating-ip: [66.187.232.66]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: 1279592d-f3e3-4d7c-f79c-08d6f8a59cb2
-x-ms-office365-filtering-ht: Tenant
-x-microsoft-antispam:
- BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(4618075)(2017052603328)(7193020);SRVR:VI1PR05MB5662;
-x-ms-traffictypediagnostic: VI1PR05MB5662:
-x-ld-processed: a652971c-7d2e-4d9b-a6a4-d149256f461b,ExtAddr
-x-microsoft-antispam-prvs:
- <VI1PR05MB5662688FC277DCA3E4A171D3CFE00@VI1PR05MB5662.eurprd05.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:407;
-x-forefront-prvs: 007814487B
-x-forefront-antispam-report:
- SFV:NSPM;SFS:(10009020)(39860400002)(376002)(346002)(136003)(396003)(366004)(199004)(189003)(5660300002)(478600001)(6506007)(53936002)(33656002)(2616005)(6486002)(81156014)(86362001)(14444005)(3846002)(256004)(8676002)(81166006)(7736002)(229853002)(2906002)(446003)(66446008)(11346002)(68736007)(6916009)(486006)(66556008)(66476007)(36756003)(71190400001)(71200400001)(476003)(73956011)(99286004)(64756008)(66946007)(54906003)(76176011)(6512007)(102836004)(1076003)(4744005)(52116002)(386003)(25786009)(6116002)(6246003)(6436002)(316002)(66066001)(14454004)(4326008)(7416002)(8936002)(186003)(26005)(305945005);DIR:OUT;SFP:1101;SCL:1;SRVR:VI1PR05MB5662;H:VI1PR05MB4141.eurprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
-received-spf: None (protection.outlook.com: mellanox.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info:
- 40jUzpU9CguJn2eIvgacEOcIi2CYrA0fIWmsrZEo49I+3EgVJp2pRrgkltjExJd0cjLBr/ZjZlNwxkj3odOMuDp291oxCEbrf3qoTyS3t50EwIjNffVdqGTeH6SCwGNP75qu35Wfr9Fgt5LrVmv2KNlC0hj671ZjeDtCZGFuGl7uZoYiJsrZdi4d6ionXc5Hiw4AyN1GqbfMpsRhTIk04KKLL4BQOMw0SERrzFPOOZ3ElIE3NiCP6fv0/k+bGED0ir5nSBe1nGavp8idteCEzizj2yiReEGiw+Jv1jpp3+eI21DhvKqarSVs8wjJQAGdjWFsi/LMX1xvw6PCN8mBZivSW/3TKHejjD7JWQl00Jp9rHUnCy4wwss0fSFbTacnV6ybN+BzydI38iRxeDsA2x+8r0/iw5rWc1H41b2zd7M=
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <626B17CC09D07E449465C19358AB7DB5@eurprd05.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
+       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
+Received: by newverein.lst.de (Postfix, from userid 2407)
+	id D879268AFE; Mon, 24 Jun 2019 15:16:33 +0200 (CEST)
+Date: Mon, 24 Jun 2019 15:16:33 +0200
+From: Christoph Hellwig <hch@lst.de>
+To: Vladimir Murzin <vladimir.murzin@arm.com>
+Cc: Christoph Hellwig <hch@lst.de>, Palmer Dabbelt <palmer@sifive.com>,
+	Paul Walmsley <paul.walmsley@sifive.com>,
+	Damien Le Moal <damien.lemoal@wdc.com>,
+	linux-riscv@lists.infradead.org, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Subject: Re: RISC-V nommu support v2
+Message-ID: <20190624131633.GB10746@lst.de>
+References: <20190624054311.30256-1-hch@lst.de> <28e3d823-7b78-fa2b-5ca7-79f0c62f9ecb@arm.com> <20190624115428.GA9538@lst.de> <d4fd824d-03ff-e8ab-b19f-9e5ef5c22449@arm.com>
 MIME-Version: 1.0
-X-OriginatorOrg: Mellanox.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: 1279592d-f3e3-4d7c-f79c-08d6f8a59cb2
-X-MS-Exchange-CrossTenant-originalarrivaltime: 24 Jun 2019 13:12:30.5998
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: a652971c-7d2e-4d9b-a6a4-d149256f461b
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-userprincipalname: jgg@mellanox.com
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: VI1PR05MB5662
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <d4fd824d-03ff-e8ab-b19f-9e5ef5c22449@arm.com>
+User-Agent: Mutt/1.5.17 (2007-11-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jun 25, 2019 at 02:33:04AM +0530, Ajay Kaher wrote:
-> This patch is the extension of following upstream commit to fix
-> the race condition between get_task_mm() and core dumping
-> for IB->mlx4 and IB->mlx5 drivers:
->=20
-> commit 04f5866e41fb ("coredump: fix race condition between
-> mmget_not_zero()/get_task_mm() and core dumping")'
->=20
-> Thanks to Jason for pointing this.
->=20
-> Signed-off-by: Ajay Kaher <akaher@vmware.com>
-> ---
->  drivers/infiniband/hw/mlx4/main.c | 4 +++-
->  drivers/infiniband/hw/mlx5/main.c | 3 +++
->  2 files changed, 6 insertions(+), 1 deletion(-)
+On Mon, Jun 24, 2019 at 02:08:50PM +0100, Vladimir Murzin wrote:
+> True, yet my observation was that elf2flt utility assumes that address
+> space cannot exceed 32-bit (for header and absolute relocations). So,
+> from my limited point of view straightforward way to guarantee that would
+> be to build incoming elf in 32-bit mode (it is why I mentioned COMPAT/ILP32).
+> 
+> Also one of your patches expressed somewhat related idea
+> 
+> "binfmt_flat isn't the right binary format for huge executables to
+> start with"
+> 
+> Since you said there is no support for compat/ilp32, probably I'm missing some
+> toolchain magic?
 
-Looks OK
-
-Reviewed-by: Jason Gunthorpe <jgg@mellanox.com>
-
-Thanks
-Jason
+There is no magic except for the tiny elf2flt patch, which for
+now is just in the buildroot repo pointed to in the cover letter
+(and which I plan to upstream once the kernel support has landed
+in Linus' tree).  We only support 32-bit code and data address spaces,
+but we otherwise use the normal RISC-V ABI, that is 64-bit longs and
+pointers.
 
