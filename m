@@ -7,101 +7,101 @@ X-Spam-Status: No, score=-8.9 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
 	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT
 	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E237AC4646B
-	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 22:30:06 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id AB22DC4646C
+	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 22:30:13 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9CCC520674
-	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 22:30:06 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 6CE5F20674
+	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 22:30:13 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="UMhjMbAp"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9CCC520674
+	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="oHI2WN65"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6CE5F20674
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 362956B0007; Mon, 24 Jun 2019 18:30:04 -0400 (EDT)
+	id E84186B0008; Mon, 24 Jun 2019 18:30:12 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 273538E0003; Mon, 24 Jun 2019 18:30:04 -0400 (EDT)
+	id E0A828E0003; Mon, 24 Jun 2019 18:30:12 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0C8BC8E0002; Mon, 24 Jun 2019 18:30:03 -0400 (EDT)
+	id C5E6E8E0002; Mon, 24 Jun 2019 18:30:12 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yb1-f198.google.com (mail-yb1-f198.google.com [209.85.219.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D496A6B0007
-	for <linux-mm@kvack.org>; Mon, 24 Jun 2019 18:30:03 -0400 (EDT)
-Received: by mail-yb1-f198.google.com with SMTP id v83so17698346ybv.17
-        for <linux-mm@kvack.org>; Mon, 24 Jun 2019 15:30:03 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 8F8EF6B0008
+	for <linux-mm@kvack.org>; Mon, 24 Jun 2019 18:30:12 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id 6so10449503pfi.6
+        for <linux-mm@kvack.org>; Mon, 24 Jun 2019 15:30:12 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:smtp-origin-hostprefix:from
          :smtp-origin-hostname:to:cc:smtp-origin-cluster:subject:date
          :message-id:in-reply-to:references:mime-version;
-        bh=z7orUW1w2AFawDH57ZTLvYALJSDsMI3HPUuppHQ+jCM=;
-        b=kFezXImE62IAA1aivsjfuJdxRV49RqFoU1DT0iqVnNozYY0AGLZvzvSOzpdp4FORH0
-         s8O/0GDKnCYqgx/ZRPS+w0IkrLG7huPlytdj/fpNIX1kY/YGVnHTiNPwVYC840wxdk/B
-         IzrmP9HV4tR9lmSRdaR3bSeQTD8FV5GF4KHFh3LAGG8nd2wZLv+h/Q/iECaKwKD0esip
-         OjvLT2hRI9pTSfy8lHSiDAVqVsSY+It1lne57gyoo4JpEulTREIvZ6/LVRd2isNorkI+
-         kLEHhHUYFma3mByPcAFgr9rrzozPl8avyPrP6JS9Vnlg5tFFpGoIBFspkKqj1SI9c46m
-         Pksg==
-X-Gm-Message-State: APjAAAWiZpam0ImZRmZ3r1X+g2jOX8816DxVALwtmbURGqZjJzCF+SRN
-	+X5OQKlJreAjZVg9QQpcr2bFY3vuT7FrMaVnU1QxHDOt4wK/AXcATugrB32CLsg+3HdTALohPp7
-	Q56Eb6+d9tCPdgi+IfGzZPZIvFemK7jk6kNemnPtC+SvzJvMJnCs++CK4fFHRii9g4A==
-X-Received: by 2002:a25:d47:: with SMTP id 68mr14080832ybn.75.1561415403599;
-        Mon, 24 Jun 2019 15:30:03 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwY1cpaI8DD/9pcoBCNhQGJVj9ZMMco0B17qRWx1zefRVk6rD4fQfrS6aPAffsiM8vY9/27
-X-Received: by 2002:a25:d47:: with SMTP id 68mr14080813ybn.75.1561415403098;
-        Mon, 24 Jun 2019 15:30:03 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561415403; cv=none;
+        bh=Kr37aYRy2KacRNeWnEOl8WIgUYHSnWgZ3fV+borBCvY=;
+        b=OqcT52xjeEHgMnee7nJgl11HMaz+aVFKU8hsmYV6GBrQS4bk7PQlgw2Fppp3eAPAAU
+         uBDn544Cj0Ua7DCL9t97Nbt50wX0NCY+cVCFszd8hpqT1UrY0xPcJ5zhdPGhA/ey77F3
+         Unyi9q+66Y8TMKPfnRqDtk+jnOJiBpYfuddQwSh2JcuHSSlHnbz6qTtkub347vNGdYgM
+         I/sBN4b6xuU1UuB+pnOSy6C67yf7i07h3KF9hbR/XHZUuJIL720hIG2OyKvv/uoAqnyF
+         /Vq3pYuUkfkiMekv619iBSME79tSMSHGpN6OanAV8mgHB7RFcf8EfJsAY32G1LRlxJhz
+         jiMQ==
+X-Gm-Message-State: APjAAAVKjtXWIlIkvknshUvJWyPeyXaWQ2LJzkEeG2rSaEDts2D9D8x6
+	mMo1b4TQg5+uCY1ygeOSVtyeDr1zR6CyfDdjKOYOcRWlpqepbQBhi2+D4JHjuf+m4XUdZkl4Wka
+	MpjNb/mzlwJPtTzyFfYql4s9Bboiw/TUidhKCTpAHprnOq+9IBJjfTICo9nwB20STWg==
+X-Received: by 2002:a65:404a:: with SMTP id h10mr36007076pgp.262.1561415412178;
+        Mon, 24 Jun 2019 15:30:12 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqx8YLJQAF44qS6wFIh/3G+Kuh/GKsDCbrpZoQYKHO7KzxXCCqDwjFMxLMoyPV623x0eFj22
+X-Received: by 2002:a65:404a:: with SMTP id h10mr36007015pgp.262.1561415411428;
+        Mon, 24 Jun 2019 15:30:11 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561415411; cv=none;
         d=google.com; s=arc-20160816;
-        b=Q5TEdVaWSgKZAm1gVU0MJ/U3GVGAfOnb5+bBqKns6r1D/sFcHCUxL8H8bvPwIfQNph
-         8tp6uinSNlbgQwof3zZUrOuKtb0dx8BC+TNz87JwfBqQHu4tFSXEQkyg5RbNtKd4vS7R
-         CIlN6nSbH/X7fBaEV5WHEhX7Jc1QrzFxuMR37yWNB+30+qf+8nbvgPKnQsy/8X1acIgE
-         5gHZQB2XgHdqjxHfJgrMVRa1VCv5je/DBYDQEggpum5fMR9eaAuZYcSKFkJTrqiafsPH
-         I+NM7RmDQheQiN3JJdNeSAv9uLgtPZl2dkydyEFkcaeYZKMPXoTv0oKb6bM3OZZ3ysoP
-         Z8eQ==
+        b=QxjIQjOvsSx9QffWhzcEUj6JTC9A7XSkg2UPKFS0P40mM07KdN7proZ+c65mpBmjBT
+         qlPVBu/NjF3IRTGv2ZoLlH0LLdbY6+6CC/SLhoyqSmEbZzTyspyWAbOaGZLhxy0pI2NW
+         5b0+BzkW3rOLp30fI+ALl4/Hv0hTe7dWS7I63jgunbpbSbqKp82BaWFGssih+Uc/Wyos
+         2EKJl9TllGUn67lMQTGroHkwPglsJ99Ep27GagdDvhNfR3bi6D8B+RiyLswQcHDt1JUO
+         3pon6Qug013NCZjhOH1dxhmpZYYk1yLzdqcJDa1XyZzjQsU/j3e7x6F60UG2mMcY6s7o
+         hxhA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=mime-version:references:in-reply-to:message-id:date:subject
          :smtp-origin-cluster:cc:to:smtp-origin-hostname:from
          :smtp-origin-hostprefix:dkim-signature;
-        bh=z7orUW1w2AFawDH57ZTLvYALJSDsMI3HPUuppHQ+jCM=;
-        b=OeC2OHH+2vFqM2Dw+4SZoUZPjoW8Rhy8/3vmvOViDJPV+LB+3LCLZbBwdepTPYsMVy
-         fFvBBPMJcyPNfnBsZkFqhw5Iddkg+Jvsqb2wPPBToGQFbiiTy4FcNZZRrXuFtIx6wabb
-         B7ppd7eMxJF49j1KLojJvg6SeaBiEbLoW4kB5zLQmP2xZHdkktXazTHfnwztKEkDX2Vw
-         uvZijfbEsnnekxh20mElJR3njBQxvVJ7aynOT+wzkTJCtjF1LWuUf5odR/RfpJlGFjge
-         JZt6aWzylvtd1TAONHgF1VE4MGPXTm288oivckcoKT6Ly5GAPlsEAlE8wGLS9bQkDByK
-         J9cw==
+        bh=Kr37aYRy2KacRNeWnEOl8WIgUYHSnWgZ3fV+borBCvY=;
+        b=haaOOCeyRcfVQFrqwh3U2rTmJsotF4ddBWFEdsWxX/NZhpeWzHwnmGXfG6w8S5RdtG
+         IpwNIGrwKImB3U+qn4jG3QJxfOP6A8/isX6BbGKn+RmQZEhR4JBv7qfmE13vY+eg4/Uj
+         jF3JkGB2o3l+9ZiT23sNKwSUuGGsUN6B6ZuTfwzskdr864riyJl/upqCN05ZiFzpDt/c
+         j9JTdWEoXdblDjRf1nAuWaSJWyOzdhkJ4aem6voZlWb4twc3jEFGngGN4FD4B9BHaiVu
+         Ydsi2XP0pN2JqSMqRZGk6QU6M+t8hCZ9q1JwWE3WhCzvHnIhaE+Ze2nKldroVKtS3XEy
+         hRDA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b=UMhjMbAp;
-       spf=pass (google.com: domain of prvs=1078cbd532=songliubraving@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=1078cbd532=songliubraving@fb.com";
+       dkim=pass header.i=@fb.com header.s=facebook header.b=oHI2WN65;
+       spf=pass (google.com: domain of prvs=1078cbd532=songliubraving@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=1078cbd532=songliubraving@fb.com";
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id 82si4104819ybs.371.2019.06.24.15.30.03
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id a22si11138593pgw.60.2019.06.24.15.30.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 24 Jun 2019 15:30:03 -0700 (PDT)
-Received-SPF: pass (google.com: domain of prvs=1078cbd532=songliubraving@fb.com designates 67.231.153.30 as permitted sender) client-ip=67.231.153.30;
+        Mon, 24 Jun 2019 15:30:11 -0700 (PDT)
+Received-SPF: pass (google.com: domain of prvs=1078cbd532=songliubraving@fb.com designates 67.231.145.42 as permitted sender) client-ip=67.231.145.42;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b=UMhjMbAp;
-       spf=pass (google.com: domain of prvs=1078cbd532=songliubraving@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=1078cbd532=songliubraving@fb.com";
+       dkim=pass header.i=@fb.com header.s=facebook header.b=oHI2WN65;
+       spf=pass (google.com: domain of prvs=1078cbd532=songliubraving@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=1078cbd532=songliubraving@fb.com";
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from pps.filterd (m0109332.ppops.net [127.0.0.1])
-	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x5OMIYN6021032
-	for <linux-mm@kvack.org>; Mon, 24 Jun 2019 15:30:02 -0700
+Received: from pps.filterd (m0044010.ppops.net [127.0.0.1])
+	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x5OMFof7015249
+	for <linux-mm@kvack.org>; Mon, 24 Jun 2019 15:30:11 -0700
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
  : date : message-id : in-reply-to : references : mime-version :
- content-type; s=facebook; bh=z7orUW1w2AFawDH57ZTLvYALJSDsMI3HPUuppHQ+jCM=;
- b=UMhjMbApjLP862682QVi0t9i6FsW/AFuvXqUNekJR8oZ7bQomxw8jtbXKo8GTlXYQNCZ
- QiyGfJtQ+xyIcxdVKn0/+n0VsGO95URd2QkSCVmLhn++McKMeCjccY6/XsSMZ7tYK3t3
- x3WKz7PGioAgn60vF8exXfTK6VIxBRFSyd8= 
-Received: from mail.thefacebook.com (mailout.thefacebook.com [199.201.64.23])
-	by mx0a-00082601.pphosted.com with ESMTP id 2taxvpj5yd-2
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 24 Jun 2019 15:30:02 -0700
-Received: from mx-out.facebook.com (2620:10d:c081:10::13) by
- mail.thefacebook.com (2620:10d:c081:35::129) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA) id 15.1.1713.5;
- Mon, 24 Jun 2019 15:30:00 -0700
+ content-type; s=facebook; bh=Kr37aYRy2KacRNeWnEOl8WIgUYHSnWgZ3fV+borBCvY=;
+ b=oHI2WN65t3TCnQDE//aJ/s9nxwaKSLmp8pfBq6Bq5WgQBS+03mEnzm2xT8XTwrotvIAT
+ RErBC9VDCiAyM6aWLLXosrEdEea3qR5kI6PjmEadNZTbc7efeog0HLnU5pFdQng14eEa
+ Mdl0JrumO1UlAS3iHYGFewHgzlbWTxxw/b0= 
+Received: from maileast.thefacebook.com ([163.114.130.16])
+	by mx0a-00082601.pphosted.com with ESMTP id 2tb3cm9169-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 24 Jun 2019 15:30:10 -0700
+Received: from mx-out.facebook.com (2620:10d:c0a8:1b::d) by
+ mail.thefacebook.com (2620:10d:c0a8:82::d) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) id
+ 15.1.1713.5; Mon, 24 Jun 2019 15:30:09 -0700
 Received: by devbig006.ftw2.facebook.com (Postfix, from userid 4523)
-	id 897BB62E206E; Mon, 24 Jun 2019 15:30:00 -0700 (PDT)
+	id DDC9162E206E; Mon, 24 Jun 2019 15:30:05 -0700 (PDT)
 Smtp-Origin-Hostprefix: devbig
 From: Song Liu <songliubraving@fb.com>
 Smtp-Origin-Hostname: devbig006.ftw2.facebook.com
@@ -113,9 +113,9 @@ CC: <matthew.wilcox@oracle.com>, <kirill.shutemov@linux.intel.com>,
         Song Liu
 	<songliubraving@fb.com>
 Smtp-Origin-Cluster: ftw2c04
-Subject: [PATCH v8 2/6] filemap: update offset check in filemap_fault()
-Date: Mon, 24 Jun 2019 15:29:47 -0700
-Message-ID: <20190624222951.37076-3-songliubraving@fb.com>
+Subject: [PATCH v8 4/6] khugepaged: rename collapse_shmem() and khugepaged_scan_shmem()
+Date: Mon, 24 Jun 2019 15:29:49 -0700
+Message-ID: <20190624222951.37076-5-songliubraving@fb.com>
 X-Mailer: git-send-email 2.17.1
 In-Reply-To: <20190624222951.37076-1-songliubraving@fb.com>
 References: <20190624222951.37076-1-songliubraving@fb.com>
@@ -125,9 +125,9 @@ Content-Type: text/plain
 X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-06-24_15:,,
  signatures=0
 X-Proofpoint-Spam-Details: rule=fb_default_notspam policy=fb_default score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ malwarescore=0 suspectscore=2 phishscore=0 bulkscore=0 spamscore=0
  clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=797 adultscore=0 classifier=spam adjust=0 reason=mlx
+ mlxlogscore=627 adultscore=0 classifier=spam adjust=0 reason=mlx
  scancount=1 engine=8.0.1-1810050000 definitions=main-1906240176
 X-FB-Internal: deliver
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
@@ -136,33 +136,89 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-With THP, current check of offset:
+Next patch will add khugepaged support of non-shmem files. This patch
+renames these two functions to reflect the new functionality:
 
-    VM_BUG_ON_PAGE(page->index != offset, page);
+    collapse_shmem()        =>  collapse_file()
+    khugepaged_scan_shmem() =>  khugepaged_scan_file()
 
-is no longer accurate. Update it to:
-
-    VM_BUG_ON_PAGE(page_to_pgoff(page) != offset, page);
-
-Acked-by: Rik van Riel <riel@surriel.com>
 Signed-off-by: Song Liu <songliubraving@fb.com>
 ---
- mm/filemap.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ mm/khugepaged.c | 23 +++++++++++------------
+ 1 file changed, 11 insertions(+), 12 deletions(-)
 
-diff --git a/mm/filemap.c b/mm/filemap.c
-index f5b79a43946d..5f072a113535 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -2522,7 +2522,7 @@ vm_fault_t filemap_fault(struct vm_fault *vmf)
- 		put_page(page);
- 		goto retry_find;
- 	}
--	VM_BUG_ON_PAGE(page->index != offset, page);
-+	VM_BUG_ON_PAGE(page_to_pgoff(page) != offset, page);
+diff --git a/mm/khugepaged.c b/mm/khugepaged.c
+index 0f7419938008..158cad542627 100644
+--- a/mm/khugepaged.c
++++ b/mm/khugepaged.c
+@@ -1287,7 +1287,7 @@ static void retract_page_tables(struct address_space *mapping, pgoff_t pgoff)
+ }
  
- 	/*
- 	 * We have a locked page in the page cache, now we need to check
+ /**
+- * collapse_shmem - collapse small tmpfs/shmem pages into huge one.
++ * collapse_file - collapse small tmpfs/shmem pages into huge one.
+  *
+  * Basic scheme is simple, details are more complex:
+  *  - allocate and lock a new huge page;
+@@ -1304,10 +1304,11 @@ static void retract_page_tables(struct address_space *mapping, pgoff_t pgoff)
+  *    + restore gaps in the page cache;
+  *    + unlock and free huge page;
+  */
+-static void collapse_shmem(struct mm_struct *mm,
+-		struct address_space *mapping, pgoff_t start,
++static void collapse_file(struct mm_struct *mm,
++		struct file *file, pgoff_t start,
+ 		struct page **hpage, int node)
+ {
++	struct address_space *mapping = file->f_mapping;
+ 	gfp_t gfp;
+ 	struct page *new_page;
+ 	struct mem_cgroup *memcg;
+@@ -1563,11 +1564,11 @@ static void collapse_shmem(struct mm_struct *mm,
+ 	/* TODO: tracepoints */
+ }
+ 
+-static void khugepaged_scan_shmem(struct mm_struct *mm,
+-		struct address_space *mapping,
+-		pgoff_t start, struct page **hpage)
++static void khugepaged_scan_file(struct mm_struct *mm,
++		struct file *file, pgoff_t start, struct page **hpage)
+ {
+ 	struct page *page = NULL;
++	struct address_space *mapping = file->f_mapping;
+ 	XA_STATE(xas, &mapping->i_pages, start);
+ 	int present, swap;
+ 	int node = NUMA_NO_NODE;
+@@ -1631,16 +1632,15 @@ static void khugepaged_scan_shmem(struct mm_struct *mm,
+ 			result = SCAN_EXCEED_NONE_PTE;
+ 		} else {
+ 			node = khugepaged_find_target_node();
+-			collapse_shmem(mm, mapping, start, hpage, node);
++			collapse_file(mm, file, start, hpage, node);
+ 		}
+ 	}
+ 
+ 	/* TODO: tracepoints */
+ }
+ #else
+-static void khugepaged_scan_shmem(struct mm_struct *mm,
+-		struct address_space *mapping,
+-		pgoff_t start, struct page **hpage)
++static void khugepaged_scan_file(struct mm_struct *mm,
++		struct file *file, pgoff_t start, struct page **hpage)
+ {
+ 	BUILD_BUG();
+ }
+@@ -1722,8 +1722,7 @@ static unsigned int khugepaged_scan_mm_slot(unsigned int pages,
+ 				file = get_file(vma->vm_file);
+ 				up_read(&mm->mmap_sem);
+ 				ret = 1;
+-				khugepaged_scan_shmem(mm, file->f_mapping,
+-						pgoff, hpage);
++				khugepaged_scan_file(mm, file, pgoff, hpage);
+ 				fput(file);
+ 			} else {
+ 				ret = khugepaged_scan_pmd(mm, vma,
 -- 
 2.17.1
 
