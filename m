@@ -7,78 +7,78 @@ X-Spam-Status: No, score=-8.5 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
 	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 08EBFC43613
-	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 05:43:32 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 90F54C43613
+	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 05:43:34 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B82D62089F
-	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 05:43:31 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 4E83C2089F
+	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 05:43:34 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="oQ+2sb4O"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B82D62089F
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="fMawuu3O"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4E83C2089F
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4A9146B0008; Mon, 24 Jun 2019 01:43:29 -0400 (EDT)
+	id 875556B000A; Mon, 24 Jun 2019 01:43:32 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 42FEC8E0002; Mon, 24 Jun 2019 01:43:29 -0400 (EDT)
+	id 828A98E0002; Mon, 24 Jun 2019 01:43:32 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 31D678E0001; Mon, 24 Jun 2019 01:43:29 -0400 (EDT)
+	id 6C8518E0001; Mon, 24 Jun 2019 01:43:32 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id F007B6B0008
-	for <linux-mm@kvack.org>; Mon, 24 Jun 2019 01:43:28 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id bb9so6726825plb.2
-        for <linux-mm@kvack.org>; Sun, 23 Jun 2019 22:43:28 -0700 (PDT)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 3889F6B000A
+	for <linux-mm@kvack.org>; Mon, 24 Jun 2019 01:43:32 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id e25so7730461pfn.5
+        for <linux-mm@kvack.org>; Sun, 23 Jun 2019 22:43:32 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=dGgF55hFtmmmZc+ieAzS4XO99ZIShl4dVYuogqe2WpY=;
-        b=h6cU5z94bif5aS8SjblqrBF8S/0cqI5GtupIvSsr45UmGkUhfCzKLsP8Wk/z9Mdlyr
-         Sw9hVDaZuC4ZNEu4jg0eWoTRiZf4Po838AFTZ7v6MyAQbIzHJJ+i5oNV7ivygeUVPqYF
-         wajygIjsPzosVHajLVs2xWh/bG7yZn+JLK+yse+7aMOM26gV+MENKCigG/Z8Qx58sMZM
-         1l97E+Bei874Bbk5kk00cKogZXlkqrA+j5pxoq/b9v5EE5d5hEqgiFkyZP+VC3Ihun+n
-         v0u33Apm/DbiTYoOE4hZngkXBnFZ78kqxvUpRSbQFRwZaNwyBd0iF04yxMMJfQvMHIQh
-         /B+A==
-X-Gm-Message-State: APjAAAVPEETG0XSQCvAHfhom0sW88ucbmweRCb9y1Ri3KbCbNXPeCcjp
-	VxOX/WgHIuCXlUlno5GE09fXzUfB4VMDQOdnWXhSSEg0K/u2Rhz8KIIkcJCbmoh+hmr1PVmHc2+
-	yEBpSVz/jz7lrveeuqWYnAWYECf9dZF4oyg6SyiZGf7pdxrwH7PvlzEL82Hpr3Fs=
-X-Received: by 2002:a17:90a:ba94:: with SMTP id t20mr23597640pjr.116.1561355008655;
-        Sun, 23 Jun 2019 22:43:28 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyTl6hB2AVkfbG3v76yxi4IOhRmbQZB3Fgd7xDOSALWZ1rIIMLpuMUKf9s3i+i/muBlpMQB
-X-Received: by 2002:a17:90a:ba94:: with SMTP id t20mr23597579pjr.116.1561355007908;
-        Sun, 23 Jun 2019 22:43:27 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561355007; cv=none;
+        bh=vOVF1bL6OtEC3ny1W9eKFWhCTN+KLHMSW/CBbgd+PKs=;
+        b=m7EMl+CYL0IvyQ1rIBJkDHliKN2yH8GTwtOBdn9b6TimLif5+M2vW1+qafeW+8Kuv9
+         0Iot5Wk61gJC4dqk3BH3mJVpRrQ64cF5OF69qH8DZGTat2VTYysj/Zpd4Vn2/ar5Ao5H
+         oOMYJ9YxbnJOptx68H+VfbwBVG9mKISOleyg6GKIH7BRW0HABK9U5dF353DUxKy4e4Qu
+         Y4mLFF9Q8ExOWmMvvNYCg2r46b56GwcdTi8wBR7TfnJEM0DMHeWotBOmJZbDoVcvDTvK
+         Wp++XNtrdQ5XzgNfwvmPEVFyCGr+M3/7ruNMZeft8BQ4630NTqw6KNNdUijHiGRcpL5f
+         S5kw==
+X-Gm-Message-State: APjAAAWYz0jf7YKYRYCHfKkx/xF7dRltMWHeQnDbx6a5O8+fzL8zOn6H
+	4128MhufJgYeVwWfK4i8wjBhDsgVoeO2GDbUg0T2Vy1lpk+vc05EXE/7x8CZEN9b8rjj9x4iPoG
+	N7W6dYKCZhgfICEgvIgOC36ZfHsXxVFllMdHl5JhybK+ZdbrTf8nyk3IeHCqGshM=
+X-Received: by 2002:a17:902:9a06:: with SMTP id v6mr126590331plp.71.1561355011936;
+        Sun, 23 Jun 2019 22:43:31 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzF4Zk91TP1MN6SUwV8sd6k/ioG9RPddAdTF/PhCC1/YvtC2Hu2JATlAjZudawhnA5rYh+S
+X-Received: by 2002:a17:902:9a06:: with SMTP id v6mr126590296plp.71.1561355011312;
+        Sun, 23 Jun 2019 22:43:31 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561355011; cv=none;
         d=google.com; s=arc-20160816;
-        b=Qm+WokjI9/N6N9fEbecMdV/1IpJ0kXV8Y1tpzVa7a2TwSnsEgsB21OtRoBbhmS7+AB
-         C9kqOW0ItztDER++Bg59BtwDMmqVs9tnftjC1RNck7z5z1Bi3wSc17T05T5QCB0HDFKX
-         +xuctMGZEhopFKGL4jzzKcI0C0vR4A+8N33B7KhMeBQEvk4h8TkTR5jg5jELGYVKJsR0
-         KEFsFzUYnRwcOLNTzeaLDx12KJD7DTvnhgZzXW9lRK8ZFt1SBydzAQHAzLyWRz38G9U3
-         Y8f8Ps0ecc/ASBbSC0COmTRZmSjHOhE4mhjNyNmpDx0DJMxEF962qdc0mGYiBnvKRDOK
-         kJlg==
+        b=g8BkWHw1xR+2IePjy3xLMlF8VGjrOvpK8/PD57Eya5vyVN0Jj2rOoW2R6SW1K/t4UX
+         LLvQyVExnN9zqG2+dqjN2hdl1U6EK0l7htd/T8RygTg08KoBqDuBsKJ+Vi7NgdM8up83
+         pkh3iPe/6LXj+xo6w9QsjR5y90ppbwSCSLj0uaKn0YYcO9sRZOWzEMOV723GRMIBTXkk
+         nG0012zklYh7bfmnU8KLXbJ82e/z1Ns+IHuq1MwemD133vFEl1/IhihnHx19+5yMJGE6
+         Vb9/2pKztoyK6LPbcvnVqmzSglPKkoTpCCvSN1EaSqgD88tz2SUIdlvnsTVlimlM9YDS
+         uRBA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=dGgF55hFtmmmZc+ieAzS4XO99ZIShl4dVYuogqe2WpY=;
-        b=SI0lT/uwdB1uADlesJYvSS2ivQCKCyIUZQ30TnSPMSh2+okNXXQuhKmmZLdenafg5l
-         oYgXo3vdvZVq21dWQb8NBFnNw6Mf71TRtM4Bdf83nMFFj3sjjrueFswi5TK7uwStcClQ
-         W+m9rgTJzSJTbFZPPfZcPe8f/fI/7GkiZj9lqU+8kmf0xaNTb9iqYeEuK7RgDKRoYny5
-         Hw/BX5zOeWKCMe8UGjU1MAuvZFKySzWLeZFck50sq2enjQaLIsCeWmpuaTokity/mJwv
-         ftjpwp4Rr4ZOJ4rv7A+/5Yt2exQL58wTevUG6oF/qSDa5h1MZGYXooVlm77cZCFu44Ws
-         huzA==
+        bh=vOVF1bL6OtEC3ny1W9eKFWhCTN+KLHMSW/CBbgd+PKs=;
+        b=S971J1WgGKJ69AiYM18meSYJAjXlX6pZPnX+ySFmokTio7+OMFoT3z3iQ5PvoZBhVd
+         7rRr9juaYE/dl4XVug/FL/qfJJWdNxoTUtwWNIOkq+5GsHdXPzG4N9uy+fMOpC84Vgwa
+         ZBc5uYh6NyS+zCd7sky+ZsNS2VR+wxcV2xRk1o6Po/oRjQjwZtDrl+DvhrpMzEeIZPvU
+         BZlaMm5+J2F1yA03SwmqUYURvmT8etpo3b64cvGE5q3GkK+MfWMskaynUn9Epbtln/gZ
+         RTEUkPKczFbJtwMcFvaKyFrpi8PtJHVoqtjTIvDVz+D77ZywqkiarnKd/06sANWwvNxT
+         /wqw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=oQ+2sb4O;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=fMawuu3O;
        spf=pass (google.com: best guess record for domain of batv+84882ec255bc51113d1a+5783+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+84882ec255bc51113d1a+5783+infradead.org+hch@bombadil.srs.infradead.org
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id m19si26085pgb.523.2019.06.23.22.43.27
+        by mx.google.com with ESMTPS id 31si9532924plf.195.2019.06.23.22.43.31
         for <linux-mm@kvack.org>
         (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Sun, 23 Jun 2019 22:43:27 -0700 (PDT)
+        Sun, 23 Jun 2019 22:43:31 -0700 (PDT)
 Received-SPF: pass (google.com: best guess record for domain of batv+84882ec255bc51113d1a+5783+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=oQ+2sb4O;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=fMawuu3O;
        spf=pass (google.com: best guess record for domain of batv+84882ec255bc51113d1a+5783+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+84882ec255bc51113d1a+5783+infradead.org+hch@bombadil.srs.infradead.org
 DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	d=infradead.org; s=bombadil.20170209; h=Content-Transfer-Encoding:
@@ -86,26 +86,25 @@ DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	:Reply-To:Content-Type:Content-ID:Content-Description:Resent-Date:Resent-From
 	:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:List-Help:
 	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	bh=dGgF55hFtmmmZc+ieAzS4XO99ZIShl4dVYuogqe2WpY=; b=oQ+2sb4O0ME8d5ABjk4P58q0nw
-	GIsnV3dmJ/XiMyp6DvmASmc4e5qGID3C66YIiTWRuy/o8Ws3yDWphOJBSiduNIzLdTKUaicf/eT5+
-	+J8xkvIy0OgTS9FXTCwbHDLUDO2czpVwB8TGgdLKOE/Fc+tVqHBSOvSMYLGLtsPKFswRD0EGvJ0bp
-	AFIsQdQU3ONiJIJ4edKqFETEQtDQuKbY9oUUthtrbn2nDZik41DPsPUguFaOzAHoYKZvQzRL+t5LX
-	BJKN5z/viz/nDZY3Ue8edIuv8pyfQgby9aJmhKEnEVq4ZKaEnbDqV0pszHiwm9V55p3Pa861BFO6P
-	BV4LEQ5Q==;
+	bh=vOVF1bL6OtEC3ny1W9eKFWhCTN+KLHMSW/CBbgd+PKs=; b=fMawuu3Opqat44vDe3HBjfC2NV
+	U5+fXW3mv7s7Jlh5elWKOcphZfFUedF1vGm+7MYpefOZ9keuy6mkobCiyuiWMY5CLEcGsBYr3epoG
+	m757TAQi2HxXtEeXw31FzGZsYfQbEb96/9Ia45hV6LD8/DMRBoIc4DCLBiY6bHE3E/pVumBkLBY5w
+	zQsrCXvA58a8v8QR10iyNRva5OtbMApi6LzDxtYh6XUzs8CFb1qIBB/sbzkWkI0sjoTbtb5hHeHM8
+	YgjPe0IwJKPuJTnzuw0MJiDrV8RqIWDzx9q3MB2qJlJKHNWksaE9721c9vrJkODjAmgxyXQOo4sY+
+	3XbUdhVw==;
 Received: from 213-225-6-159.nat.highway.a1.net ([213.225.6.159] helo=localhost)
 	by bombadil.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
-	id 1hfHlG-00068k-3f; Mon, 24 Jun 2019 05:43:26 +0000
+	id 1hfHlJ-0006Cb-Dy; Mon, 24 Jun 2019 05:43:29 +0000
 From: Christoph Hellwig <hch@lst.de>
 To: Palmer Dabbelt <palmer@sifive.com>,
 	Paul Walmsley <paul.walmsley@sifive.com>
 Cc: Damien Le Moal <damien.lemoal@wdc.com>,
 	linux-riscv@lists.infradead.org,
 	linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org,
-	Vladimir Murzin <vladimir.murzin@arm.com>
-Subject: [PATCH 03/17] mm/nommu: fix the MAP_UNINITIALIZED flag
-Date: Mon, 24 Jun 2019 07:42:57 +0200
-Message-Id: <20190624054311.30256-4-hch@lst.de>
+	linux-kernel@vger.kernel.org
+Subject: [PATCH 04/17] irqchip/sifive-plic: set max threshold for ignored handlers
+Date: Mon, 24 Jun 2019 07:42:58 +0200
+Message-Id: <20190624054311.30256-5-hch@lst.de>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190624054311.30256-1-hch@lst.de>
 References: <20190624054311.30256-1-hch@lst.de>
@@ -118,74 +117,55 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-We can't expose UAPI symbols differently based on CONFIG_ symbols, as
-userspace won't have them available.  Instead always define the flag,
-but only respect it based on the config option.
+When running in M-mode we still the S-mode plic handlers in the DT.
+Ignore them by setting the maximum threshold.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
-Reviewed-by: Vladimir Murzin <vladimir.murzin@arm.com>
 ---
- arch/xtensa/include/uapi/asm/mman.h    | 6 +-----
- include/uapi/asm-generic/mman-common.h | 8 +++-----
- mm/nommu.c                             | 4 +++-
- 3 files changed, 7 insertions(+), 11 deletions(-)
+ drivers/irqchip/irq-sifive-plic.c | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)
 
-diff --git a/arch/xtensa/include/uapi/asm/mman.h b/arch/xtensa/include/uapi/asm/mman.h
-index be726062412b..ebbb48842190 100644
---- a/arch/xtensa/include/uapi/asm/mman.h
-+++ b/arch/xtensa/include/uapi/asm/mman.h
-@@ -56,12 +56,8 @@
- #define MAP_STACK	0x40000		/* give out an address that is best suited for process/thread stacks */
- #define MAP_HUGETLB	0x80000		/* create a huge page mapping */
- #define MAP_FIXED_NOREPLACE 0x100000	/* MAP_FIXED which doesn't unmap underlying mapping */
--#ifdef CONFIG_MMAP_ALLOW_UNINITIALIZED
--# define MAP_UNINITIALIZED 0x4000000	/* For anonymous mmap, memory could be
-+#define MAP_UNINITIALIZED 0x4000000	/* For anonymous mmap, memory could be
- 					 * uninitialized */
--#else
--# define MAP_UNINITIALIZED 0x0		/* Don't support this flag */
--#endif
+diff --git a/drivers/irqchip/irq-sifive-plic.c b/drivers/irqchip/irq-sifive-plic.c
+index cf755964f2f8..c72c036aea76 100644
+--- a/drivers/irqchip/irq-sifive-plic.c
++++ b/drivers/irqchip/irq-sifive-plic.c
+@@ -244,6 +244,7 @@ static int __init plic_init(struct device_node *node,
+ 		struct plic_handler *handler;
+ 		irq_hw_number_t hwirq;
+ 		int cpu, hartid;
++		u32 threshold = 0;
  
- /*
-  * Flags for msync
-diff --git a/include/uapi/asm-generic/mman-common.h b/include/uapi/asm-generic/mman-common.h
-index abd238d0f7a4..cb556b430e71 100644
---- a/include/uapi/asm-generic/mman-common.h
-+++ b/include/uapi/asm-generic/mman-common.h
-@@ -19,15 +19,13 @@
- #define MAP_TYPE	0x0f		/* Mask for type of mapping */
- #define MAP_FIXED	0x10		/* Interpret addr exactly */
- #define MAP_ANONYMOUS	0x20		/* don't use a file */
--#ifdef CONFIG_MMAP_ALLOW_UNINITIALIZED
--# define MAP_UNINITIALIZED 0x4000000	/* For anonymous mmap, memory could be uninitialized */
--#else
--# define MAP_UNINITIALIZED 0x0		/* Don't support this flag */
--#endif
+ 		if (of_irq_parse_one(node, i, &parent)) {
+ 			pr_err("failed to parse parent for context %d.\n", i);
+@@ -266,10 +267,16 @@ static int __init plic_init(struct device_node *node,
+ 			continue;
+ 		}
  
- /* 0x0100 - 0x80000 flags are defined in asm-generic/mman.h */
- #define MAP_FIXED_NOREPLACE	0x100000	/* MAP_FIXED which doesn't unmap underlying mapping */
++		/*
++		 * When running in M-mode we need to ignore the S-mode handler.
++		 * Here we assume it always comes later, but that might be a
++		 * little fragile.
++		 */
+ 		handler = per_cpu_ptr(&plic_handlers, cpu);
+ 		if (handler->present) {
+ 			pr_warn("handler already present for context %d.\n", i);
+-			continue;
++			threshold = 0xffffffff;
++			goto done;
+ 		}
  
-+#define MAP_UNINITIALIZED 0x4000000	/* For anonymous mmap, memory could be
-+					 * uninitialized */
-+
- /*
-  * Flags for mlock
-  */
-diff --git a/mm/nommu.c b/mm/nommu.c
-index d8c02fbe03b5..ec75a0dffd4f 100644
---- a/mm/nommu.c
-+++ b/mm/nommu.c
-@@ -1349,7 +1349,9 @@ unsigned long do_mmap(struct file *file,
- 	add_nommu_region(region);
+ 		handler->present = true;
+@@ -279,8 +286,9 @@ static int __init plic_init(struct device_node *node,
+ 		handler->enable_base =
+ 			plic_regs + ENABLE_BASE + i * ENABLE_PER_HART;
  
- 	/* clear anonymous mappings that don't ask for uninitialized data */
--	if (!vma->vm_file && !(flags & MAP_UNINITIALIZED))
-+	if (!vma->vm_file &&
-+	    (!IS_ENABLED(CONFIG_MMAP_ALLOW_UNINITIALIZED) ||
-+	     !(flags & MAP_UNINITIALIZED)))
- 		memset((void *)region->vm_start, 0,
- 		       region->vm_end - region->vm_start);
- 
++done:
+ 		/* priority must be > threshold to trigger an interrupt */
+-		writel(0, handler->hart_base + CONTEXT_THRESHOLD);
++		writel(threshold, handler->hart_base + CONTEXT_THRESHOLD);
+ 		for (hwirq = 1; hwirq <= nr_irqs; hwirq++)
+ 			plic_toggle(handler, hwirq, 0);
+ 		nr_handlers++;
 -- 
 2.20.1
 
