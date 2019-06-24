@@ -2,130 +2,138 @@ Return-Path: <SRS0=9FL3=UX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
+X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 499BEC43613
-	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 08:10:23 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B834EC48BE3
+	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 08:26:15 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1776A208C3
-	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 08:10:23 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1776A208C3
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 88D332089F
+	for <linux-mm@archiver.kernel.org>; Mon, 24 Jun 2019 08:26:15 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 88D332089F
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A2BA28E0005; Mon, 24 Jun 2019 04:10:22 -0400 (EDT)
+	id 191DD8E0005; Mon, 24 Jun 2019 04:26:15 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9DBA68E0002; Mon, 24 Jun 2019 04:10:22 -0400 (EDT)
+	id 1448D8E0002; Mon, 24 Jun 2019 04:26:15 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8F0328E0005; Mon, 24 Jun 2019 04:10:22 -0400 (EDT)
+	id 0318A8E0005; Mon, 24 Jun 2019 04:26:14 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 43E338E0002
-	for <linux-mm@kvack.org>; Mon, 24 Jun 2019 04:10:22 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id n49so19293632edd.15
-        for <linux-mm@kvack.org>; Mon, 24 Jun 2019 01:10:22 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id A76258E0002
+	for <linux-mm@kvack.org>; Mon, 24 Jun 2019 04:26:14 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id b21so19297899edt.18
+        for <linux-mm@kvack.org>; Mon, 24 Jun 2019 01:26:14 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=RZKAfdNkkZhfv4uWe9xB11wjrlRnV2dauStMSJOvwuA=;
-        b=H2Bu/2XmF1/gnSDW7TIaXVBxZqZNGHBPtYq4GSi6bOk7TP2eUInawNyFKqPluTC+ZJ
-         ari7WwkgrISiJC5CowGTErLSqPkEbZKf9F8xKkPka/Qlnsxt0LWs/flpDJq3zk9qCe/i
-         ejwQMKH10XJIgaYErHqLoedcOtFqFugJ+VzeyN1J8aa0m+yA3OyVEZr/Ix2vrRCh7LUJ
-         OjLxX8fQoV06TJDGQ16e+4v0K6vuIbX4XUfgQTktU4SmRQrqmviCtdV5Vxar40dWsqNw
-         HwA5VKOuk0Z3SmLFbu9KCD1DTB9MKrPsIgiTCw/FdONGd+qTwSHgnx0NMhLlrcSSqryJ
-         Dh4w==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAUyaDYyhqnM6jNBq5BDwrMrKzjpwknFpxLnJciqZP2DqtKOMfaW
-	BabYn6hYXXRWFQLpIwnxjLZEapuH9akG1JdnBnPkm14MMjikpfbG+ev3rtFxLoDLGtHiW/hJC9Q
-	vf0FwMQxZmf/XWEXUco4KypwbX5rHrtP/dbt6/Et27mqIugo/JRAc/lUJHi4Cto4=
-X-Received: by 2002:a17:906:ca9:: with SMTP id k9mr121338756ejh.4.1561363821840;
-        Mon, 24 Jun 2019 01:10:21 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzG7E83W7Q9stUQxgKC+ZJW/memYPIzPTUW6J+kRBSGo85RFqeVV34yFZAUWR3W5nYhJkWm
-X-Received: by 2002:a17:906:ca9:: with SMTP id k9mr121338711ejh.4.1561363821056;
-        Mon, 24 Jun 2019 01:10:21 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561363821; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=BRZq4S2DDLhQNM3xsu962oaD4iXVjqObF4JAZ5MfzjE=;
+        b=Ntl3k8AhkOs0Z0GVUk/eqS39sh2LQwctox5tacWo4kvBSsNnFhtdv7RvKCHn3y2o4z
+         WJfr9og6EgAgIUWtxgOrx6dsDIhbw5OoMGmReHEyb/x/A6Jnyfn9ifyxQ/xifhT6wYWO
+         /HA+0KjPKbeUOYVUIIz9Cktr9zrxx0BIg7AbTPn3IF13UyHkHpzNuQcIGdWf20GC/Fi1
+         hTqtb14Bqg1GwC44CZtBHGbkExM2RzZEh4KVFHuhpBABykdsDGDwDCkoEnbT4Ufrp1RN
+         R7LMKWdUC0mWYPVmVLKDOSVH72Wc0OYbavmBaepTxBYs8orEwSpqa/WYuDK/yHifvpzc
+         PsNA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+X-Gm-Message-State: APjAAAXY4KMztrh+WBLKM0cUAMx0frpTADZDu7HDZIZAxPwF+66kfSHi
+	zKqe2QhRfawUWPs2xey8k/0VBOFxSWtO2RjnRwmMtavS7x14X28liyTZF7QUzX63Ed5km7f70Sz
+	7holNxyQss+KxxUMIE5U5iCRYSSuLrDixEeHJkhTBbpDy8uEiWXW+VIrzKGK1TpAVTg==
+X-Received: by 2002:a17:906:5243:: with SMTP id y3mr29363065ejm.88.1561364774196;
+        Mon, 24 Jun 2019 01:26:14 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqye6v6uSew2nuoKwlqsEZIJDPYfZXiGo2iD4qsniIFBphU5wKJnCYTDZ8lzNSjaxLj4vkGg
+X-Received: by 2002:a17:906:5243:: with SMTP id y3mr29363030ejm.88.1561364773533;
+        Mon, 24 Jun 2019 01:26:13 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561364773; cv=none;
         d=google.com; s=arc-20160816;
-        b=IoVCCHsiwk4z9irU1/oKGfLdWtcYaxachwB1eB5xBjt6AB/HPtbxZNSVAeyfSFcqpG
-         w0KsQL+ZPNp/w9k2a4diRmzYeWI/d62ajCy+0QcuNyGWVJg84HqUlrmQf5RZ7K2qEYQv
-         ufSZUwmYWJ4yrDGeCpQ1T70qVO886F5dl9GTOtWglIMC101+UKZxb2/12vRmZjcofIjO
-         FrhEo1yhXvnJcP2uWmNq2pS/3poz98bIMgO9lpEbTXmmQlJm7IyU1WVfpU/CgHYQGHpj
-         thp1xO9JKxnMtwEq7G+WxMQKnK5qHB3Q+omxGqV79jj62MXOQ9Avuoi9yQKdjSBXIUNp
-         c8rQ==
+        b=VaMxAxgp6rq+rlIAJyoU0BcLhA4zDWgv1Kn+ifgg0y1pyu4C0n05hXegfoj2AzxkJK
+         2JycSIrAWfOHCWc9ksm9bGQ/QSaSK3romMuomM7rW5OMppKHLafUs88cT5SZnDyqeLZr
+         yaZIlFIzlcEOdt4tUQHNwaTkZz8xUVmCn/N2MU5jTAG80eDEG2h4ro5uV2fbj4DKN2WK
+         f3vm59Kc4Ah8sWXjemc72UComXTcBKY2dJmSctWLc77aP0S/9aYnKuwlCivjR7V73BUn
+         mOqnf1X/E9RjXe5wT+25tqLIBjfAj2iiptaESQbE3SKxKjLjAbKH29cRJ3jAJ0s8KpaQ
+         JLuA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=RZKAfdNkkZhfv4uWe9xB11wjrlRnV2dauStMSJOvwuA=;
-        b=BaeOawDmBztsY93p+UAxR5nSyoa3yPgRspGAbckdsBvbpwZbBR/p2aTECkmQS6T3jq
-         KNHMIfKXuZw/i/ld9jQ9QZKpeJ+g8oOVqR0gU5Vft0imNIwHNgJqurK0QtXOXtQFsMKb
-         /DcGgIqYbCHxeKKhDPcV5nU6WXYSKmX2quXjP6633QZJ3IoUfymBaumG7pc1GEtAJsHb
-         IvykCUrhxq182weGn/r2mBomMVCLFQCVG6P5mSd/OWJBZ8GbtJhiaDZDMhoHufdYCeuG
-         uchHzGU3zlqDF9gepFqfhgdunzTmXHtUf6UOxMpJERlgMxIQcu1s3LltXVAwEHfMAjUr
-         WPhQ==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=BRZq4S2DDLhQNM3xsu962oaD4iXVjqObF4JAZ5MfzjE=;
+        b=BsZPlXukKrRVEi9C8bIqPEz1mJbn0GaCvPQtcpAnJoJwO0LCFpNIAzR02J0Ofn2L+8
+         J1lQyy366UmIA86wNTKgend+o9nivgH2A21iMp76V5P9AnfFUd7PtkkeaP+p59sAHlTE
+         btpvJYGXETgLRSzQxptPSOI1BEssn7ua3mwtUUdV1d1mFp7kEU5eveKPJk4nmDDPO2O8
+         YjMiEJGeCeDuN8wkwHmx7tsNpPfg+hho3NN7gHQw/H5Stmvd7TD8YJYndFxF3z/qXO/t
+         jHuk/cf8ri4d2dsfP4edG2if+eLyXlKdLg9lqfYrjWtUI3rVHkJT1QdIEw4XghVb85Z/
+         e72Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id z9si8682285edz.403.2019.06.24.01.10.20
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 24 Jun 2019 01:10:21 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
+        by mx.google.com with ESMTP id 9si8956177eds.342.2019.06.24.01.26.13
+        for <linux-mm@kvack.org>;
+        Mon, 24 Jun 2019 01:26:13 -0700 (PDT)
+Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id D0121AF99;
-	Mon, 24 Jun 2019 08:10:12 +0000 (UTC)
-Date: Mon, 24 Jun 2019 10:10:11 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: zhong jiang <zhongjiang@huawei.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>,
-	Minchan Kim <minchan@kernel.org>, Vlastimil Babka <vbabka@suse.cz>,
-	Linux Memory Management List <linux-mm@kvack.org>,
-	"Wangkefeng (Kevin)" <wangkefeng.wang@huawei.com>
-Subject: Re: Frequent oom introduced in mainline when migrate_highatomic
- replace migrate_reserve
-Message-ID: <20190624081011.GA11400@dhcp22.suse.cz>
-References: <5D1054EE.20402@huawei.com>
+       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 81D042B;
+	Mon, 24 Jun 2019 01:26:12 -0700 (PDT)
+Received: from [10.162.41.123] (p8cg001049571a15.blr.arm.com [10.162.41.123])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 5533C3F71E;
+	Mon, 24 Jun 2019 01:26:10 -0700 (PDT)
+Subject: Re: [PATCH] mm/hugetlb: allow gigantic page allocation to migrate
+ away smaller huge page
+To: Pingfan Liu <kernelfans@gmail.com>
+Cc: linux-mm@kvack.org, Mike Kravetz <mike.kravetz@oracle.com>,
+ Oscar Salvador <osalvador@suse.de>, David Hildenbrand <david@redhat.com>,
+ Andrew Morton <akpm@linux-foundation.org>,
+ LKML <linux-kernel@vger.kernel.org>
+References: <1561350068-8966-1-git-send-email-kernelfans@gmail.com>
+ <216a335d-f7c6-26ad-2ac1-427c8a73ca2f@arm.com>
+ <CAFgQCTs14R5P7RpCTMwLCMJrGgPzbTGp4tvxCJA0kFgD8_y==g@mail.gmail.com>
+From: Anshuman Khandual <anshuman.khandual@arm.com>
+Message-ID: <5fe6bd80-7801-d81e-7a5e-a90afb697c33@arm.com>
+Date: Mon, 24 Jun 2019 13:56:34 +0530
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
+ Thunderbird/52.9.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5D1054EE.20402@huawei.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <CAFgQCTs14R5P7RpCTMwLCMJrGgPzbTGp4tvxCJA0kFgD8_y==g@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon 24-06-19 12:43:26, zhong jiang wrote:
-> Recently,  I  hit an frequent oom issue in linux-4.4 stable with less than 4M free memory after
-> the machine boots up.
 
-Is this is a regression? Could you share the oom report?
 
-> As the process is created,  kernel stack will use the higher order to allocate continuous memory.
-> Due to the fragmentabtion,  we fails to allocate the memory.   And the low memory will result
-> in hardly memory compction.  hence,  it will easily to reproduce the oom.
+On 06/24/2019 11:40 AM, Pingfan Liu wrote:
+> On Mon, Jun 24, 2019 at 1:16 PM Anshuman Khandual
+> <anshuman.khandual@arm.com> wrote:
+>>
+>>
+>>
+>> On 06/24/2019 09:51 AM, Pingfan Liu wrote:
+>>> The current pfn_range_valid_gigantic() rejects the pud huge page allocation
+>>> if there is a pmd huge page inside the candidate range.
+>>>
+>>> But pud huge resource is more rare, which should align on 1GB on x86. It is
+>>> worth to allow migrating away pmd huge page to make room for a pud huge
+>>> page.
+>>>
+>>> The same logic is applied to pgd and pud huge pages.
+>>
+>> The huge page in the range can either be a THP or HugeTLB and migrating them has
+>> different costs and chances of success. THP migration will involve splitting if
+>> THP migration is not enabled and all related TLB related costs. Are you sure
+>> that a PUD HugeTLB allocation really should go through these ? Is there any
+> PUD hugetlb has already driven out PMD thp in current. This patch just
+> want to make PUD hugetlb survives PMD hugetlb.
 
-How get your get such a large fragmentation that you cannot allocate
-order-1 pages and compaction is not making any progress?
-
-> But if we use migrate_reserve to reserve at least a pageblock at  the boot stage.   we can use
-> the reserve memory to allocate continuous memory for process when the system is under
-> severerly fragmentation.
-
-Well, any reservation is a finite resource so I am not sure how that can
-help universally. But your description is quite vague. Could you be more
-specific about that workload? Also do you see the same with the current
-upstream kernel as well?
--- 
-Michal Hocko
-SUSE Labs
+You are right. PageHuge() is true only for HugeTLB pages unlike PageTransHuge()
+which is true for both HugeTLB and THP pages. So the current code does migrate
+the THP out in order to allocate a gigantic HugeTLB. While here just wondering
+should not we exclude THP as well unless it supports ARCH_HAS_THP_MIGRATION.
 
