@@ -2,94 +2,93 @@ Return-Path: <SRS0=nbyn=UY=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=unavailable
+X-Spam-Status: No, score=-3.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9CA6EC48BD5
-	for <linux-mm@archiver.kernel.org>; Tue, 25 Jun 2019 18:26:49 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 84705C48BD6
+	for <linux-mm@archiver.kernel.org>; Tue, 25 Jun 2019 18:28:11 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6489E2086D
-	for <linux-mm@archiver.kernel.org>; Tue, 25 Jun 2019 18:26:49 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6489E2086D
+	by mail.kernel.org (Postfix) with ESMTP id 4D3282086D
+	for <linux-mm@archiver.kernel.org>; Tue, 25 Jun 2019 18:28:11 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4D3282086D
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0029F6B0006; Tue, 25 Jun 2019 14:26:49 -0400 (EDT)
+	id 0020F6B0005; Tue, 25 Jun 2019 14:28:11 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id ECEC58E0003; Tue, 25 Jun 2019 14:26:48 -0400 (EDT)
+	id EF4C38E0003; Tue, 25 Jun 2019 14:28:10 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D48F18E0002; Tue, 25 Jun 2019 14:26:48 -0400 (EDT)
+	id DBCAA8E0002; Tue, 25 Jun 2019 14:28:10 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 990EE6B0006
-	for <linux-mm@kvack.org>; Tue, 25 Jun 2019 14:26:48 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id q11so3272676pll.22
-        for <linux-mm@kvack.org>; Tue, 25 Jun 2019 11:26:48 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A62B36B0005
+	for <linux-mm@kvack.org>; Tue, 25 Jun 2019 14:28:10 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id f25so12368246pfk.14
+        for <linux-mm@kvack.org>; Tue, 25 Jun 2019 11:28:10 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
          :references:from:openpgp:autocrypt:message-id:date:user-agent
          :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=JwCx4Vqpa4pUtXw+dcRjB/EYZQKlrAB0DHT+dHcr7fg=;
-        b=bXgVf/VdYOXKCFxNtnPYLFGQz9Ukrps8Xs1QcleSrSd3tBkj6fOKlyr6613YL5aqgD
-         T69elfEcsWwm4PWWjyAJkE8XRhWffX5WRwp2snBERFknwFJov7gSVVMvEi+76ZOd4su7
-         uTabX2brbd+n42xgJEC2iO2UNNoSgRZLV9wrAddYR3oEc4B1IQogTN6uipEQtYp8mNm7
-         KSvkPiUFN+RqlmQmF+aLTms6a0+Ys2AeSlmfsIi5wUW5UHsxWSer5/UA+VvuhhMo49R0
-         iQHi/kp4F9Jk0I73fCb0zbp2u5bbi6z4uXgbebPLSyHYXg3JmMiu0QlaGDEJik5n/SMC
-         GsYw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAV6qUFbSDcO6MrMd2JRdG8yv227/47NLip2Fla/DSA0b47ZOItA
-	M5Dg23tFhbn/wx8xtceuL3DI9JuX3uM+cxtukZy4vSNRKIH0a4IwRtq/TLewp4EAdJuBSZdxUSr
-	lvfD7enohzi+zxM3G2oUatkCIIzLKsqfPbgZ9fie0vnfY2SagqzIhD7ynwuzRpgp2SQ==
-X-Received: by 2002:a63:1c09:: with SMTP id c9mr31491443pgc.63.1561487208205;
-        Tue, 25 Jun 2019 11:26:48 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqx2WswLjf9gK16YTu7Ym9D/Y2cBVVzIfhUg4qeFN0MOZfGmBwODSWQGOgw5oKf+MMHFVbBU
-X-Received: by 2002:a63:1c09:: with SMTP id c9mr31491389pgc.63.1561487207536;
-        Tue, 25 Jun 2019 11:26:47 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561487207; cv=none;
+        bh=OEQEcgT8qel25Z8QW5ED+nAugFd72KJhoKKHlco2x/M=;
+        b=Xy+wPRAcKsx5hpu88e2oxUkw/2V0tsQQmRa5HAb4tDF9u36ljQra9J/2BhGrrarPUq
+         1diaVBX63UgQ4YTbx6Ubo3E+k4qurzMubWjevcJn2PjX181BnMpesWKq2OpNyl1QNtTS
+         qxccN+Xaxj++UI75S5IYZaPTKuWAA3oUknxZ93kPz2AVVIPuIAV/nJj9OeDLRU7iDcvS
+         LXReVwMYahJVbFU2LVsaSQ95fhoP8QwvCnqfSJX78bO4pVGeQMlLevqV68FJCDFSTSGZ
+         lVKnxkRIcvGQOq/jRJnVS27b/STYM8p+16HwUUQry+UoWzDO7yWdEcLmNkKMQP+eycIv
+         VMHQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAW662YuyE/xWC93s0Ou+sfVqjWPw/mUbyrPGLfnKWaUJVp3YOoI
+	+mqXRcmurGsaNzXDiJIhk6wPgN4Z/Zq2oxyDp31eqf+9JS34SUZPvnl3ittawnwAlGccNP4X6w1
+	BqlURzQ8NN8VCbjtuGIZ8Ft2OCrQP1StvfIvMQDoE3uVTHEnHzO4vSE7aQvqkMRL+jg==
+X-Received: by 2002:a17:90a:cf0d:: with SMTP id h13mr215870pju.63.1561487290382;
+        Tue, 25 Jun 2019 11:28:10 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxkTYZE38BeU7B90AKcDIwsKtOT6xyTSstHf/UpyxICO2KGseLmEsRlIyRqH+xL3bQQzZio
+X-Received: by 2002:a17:90a:cf0d:: with SMTP id h13mr215807pju.63.1561487289705;
+        Tue, 25 Jun 2019 11:28:09 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561487289; cv=none;
         d=google.com; s=arc-20160816;
-        b=Z5RBd6b/Om1GPGp3HKEMGvOHAgcaAc1t/7yIqG9v4zj2tbbyvtyWn4zbW0W4QJWmSu
-         YKl9LDnbnRUX2VNmI/Xil93z5aFKptywPLGfEUtyXZyeyQWWblgdgZVCZNc7uB2uivO8
-         i7eCf2XjP0vnTuqZkXOi4/p0zDYn8I23ZXz+udz/TWomOpYff+gYZVyIAJeC95afuBut
-         f7b9K1QJNJ/H4IKgnylFl8jtSR+udZqDU65rz3BBGxVoTCWpseqXZuwLv6WyDxBZwfba
-         FB2toxHZDWfnTvwM28r/IE2btd2hEHOuCAZwuQEwzkqJwnJedpw8LfueeVFuZaOO8RWN
-         LzgA==
+        b=dLfAM9C2vDDB6YRNJpkYCYW/gm1yWOkZuxmgbqObDRSBcWIGI0u1D4JxSTZ/4Y0O/n
+         Pd1CXOOWLOhFXooiMN5gWe9XdiOfrUu5T7fFBSBh8cT+f45QvNVzHTns9oPbuGuRnQgy
+         ZwVBNALmze1SkTGQTMHJkJEz2JfJVRHdDO2gMhi9HO1DLRJwYXAX5JXJ65qJCO61uFj7
+         TELQcNxF2MBLS6i0i7ClwqCs6ul6cHfdCcs8ClekkfK1lPQnHXM4r+8ARmdUv56LcqvO
+         0UB/45apjMdNXr3fVuoG0aVmBdMHoL68wajIOZ2n3Slp6w9T1rlpTP+AE6juH721SHvh
+         ahJA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
          :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
          :subject;
-        bh=JwCx4Vqpa4pUtXw+dcRjB/EYZQKlrAB0DHT+dHcr7fg=;
-        b=UG/wQby5EA5CFg8hWomS6t6BFDFUqHXmvnFd04hYqtq77EWaQHvnC7BQ0fYGodH2s7
-         DeitQm1BwIeWDaRFxwylNyv0vcueOTHxdgH0eFrlViq6rV7Ck5FZMN63cq4qiohVJesg
-         Boq4AUdJO1jUd1BxAwAFrmaszXdIxGEkKC2h2S1FfssqlVb9vR6ioSYqcgPxeBNt1gEC
-         Qk1PBjs89BhafLYtYSPFCOiySRFMa/izbNHmkNEzdn0e55hrqvRTJYH3TY/j+k7IDl2s
-         yja/M6x6wLUrGg2cgmHEjEylr8fIdsX9lbAjuedx6hVVwxaObbLxjxQBhKdyPz/aKJKV
-         XZQQ==
+        bh=OEQEcgT8qel25Z8QW5ED+nAugFd72KJhoKKHlco2x/M=;
+        b=HpbGBpu1o4rZcWOkEunUtbmg7BcKkfIojBRHst18EBdyar/XqQb7P16qG3Y7K5lxoQ
+         nLavfxLD1qjjL9xDEV5x3hBlg1Ng9b8RjEfQEdgbnmI1hxSgP1dkRprdnS1AzYj3TYhq
+         aZTHlixCuMIiXbxl8gTkjV4w1zJfIfdhBVMulUlUcA4ybZuKxNk1Kl+PDTS8U3J0UW/e
+         6ptCe7kDkFZBslybwgn8gxvRcWXU11DleFSfK4hnh38xySnfRLrwzaiXalwxmC5sRaYd
+         M0J3IbpLpwUwiDSa/JnIvPlnfNERqNjf/0DCe3FOWt3usSQznD7jQ6GhAhpxtMRBAP8X
+         ys2A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
+       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id r19si11942125pgk.519.2019.06.25.11.26.47
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id w8si13106744pgr.258.2019.06.25.11.28.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 25 Jun 2019 11:26:47 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.120 as permitted sender) client-ip=192.55.52.120;
+        Tue, 25 Jun 2019 11:28:09 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.43 as permitted sender) client-ip=192.55.52.43;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
+       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 X-Amp-Result: SKIPPED(no attachment in message)
 X-Amp-File-Uploaded: False
 Received: from orsmga002.jf.intel.com ([10.7.209.21])
-  by fmsmga104.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 25 Jun 2019 11:26:46 -0700
+  by fmsmga105.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 25 Jun 2019 11:28:09 -0700
 X-ExtLoop1: 1
 X-IronPort-AV: E=Sophos;i="5.63,416,1557212400"; 
-   d="scan'208";a="172456162"
+   d="scan'208";a="172456454"
 Received: from ray.jf.intel.com (HELO [10.7.201.139]) ([10.7.201.139])
-  by orsmga002.jf.intel.com with ESMTP; 25 Jun 2019 11:26:46 -0700
-Subject: Re: [PATCH v1 1/6] mm: Adjust shuffle code to allow for future
- coalescing
+  by orsmga002.jf.intel.com with ESMTP; 25 Jun 2019 11:28:08 -0700
+Subject: Re: [PATCH v1 2/6] mm: Move set/get_pcppage_migratetype to mmzone.h
 To: Alexander Duyck <alexander.duyck@gmail.com>, nitesh@redhat.com,
  kvm@vger.kernel.org, david@redhat.com, mst@redhat.com,
  linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org
@@ -98,7 +97,7 @@ Cc: yang.zhang.wz@gmail.com, pagupta@redhat.com, riel@surriel.com,
  aarcange@redhat.com, pbonzini@redhat.com, dan.j.williams@intel.com,
  alexander.h.duyck@linux.intel.com
 References: <20190619222922.1231.27432.stgit@localhost.localdomain>
- <20190619223302.1231.51136.stgit@localhost.localdomain>
+ <20190619223309.1231.16506.stgit@localhost.localdomain>
 From: Dave Hansen <dave.hansen@intel.com>
 Openpgp: preference=signencrypt
 Autocrypt: addr=dave.hansen@intel.com; keydata=
@@ -144,12 +143,12 @@ Autocrypt: addr=dave.hansen@intel.com; keydata=
  MTsCeQDdjpgHsj+P2ZDeEKCbma4m6Ez/YWs4+zDm1X8uZDkZcfQlD9NldbKDJEXLIjYWo1PH
  hYepSffIWPyvBMBTW2W5FRjJ4vLRrJSUoEfJuPQ3vW9Y73foyo/qFoURHO48AinGPZ7PC7TF
  vUaNOTjKedrqHkaOcqB185ahG2had0xnFsDPlx5y
-Message-ID: <d8287bfe-8b34-895c-eff2-c88d0a3f76ae@intel.com>
-Date: Tue, 25 Jun 2019 11:26:46 -0700
+Message-ID: <68ed3507-16dd-2ea3-4a12-09d04a8dd028@intel.com>
+Date: Tue, 25 Jun 2019 11:28:08 -0700
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.7.1
 MIME-Version: 1.0
-In-Reply-To: <20190619223302.1231.51136.stgit@localhost.localdomain>
+In-Reply-To: <20190619223309.1231.16506.stgit@localhost.localdomain>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
@@ -160,13 +159,15 @@ X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 On 6/19/19 3:33 PM, Alexander Duyck wrote:
-> This patch is meant to move the head/tail adding logic out of the shuffle
-> code and into the __free_one_page function since ultimately that is where
-> it is really needed anyway. By doing this we should be able to reduce the
-> overhead and can consolidate all of the list addition bits in one spot.
+> In order to support page aeration it will be necessary to store and
+> retrieve the migratetype of a page. To enable that I am moving the set and
+> get operations for pcppage_migratetype into the mmzone header so that they
+> can be used when adding or removing pages from the free lists.
+...
+> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> index 4c07af2cfc2f..6f8fd5c1a286 100644
+> --- a/include/linux/mmzone.h
+> +++ b/include/linux/mmzone.h
 
-This looks like a sane cleanup that can stand on its own.  It gives nice
-names (buddy_merge_likely()) to things that were just code blobs before.
-
-Reviewed-by: Dave Hansen <dave.hansen@intel.com>
+Not mm/internal.h?
 
