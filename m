@@ -2,118 +2,173 @@ Return-Path: <SRS0=nbyn=UY=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham
+X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BEFBBC48BD5
-	for <linux-mm@archiver.kernel.org>; Tue, 25 Jun 2019 07:29:48 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 97AC0C48BD6
+	for <linux-mm@archiver.kernel.org>; Tue, 25 Jun 2019 07:31:28 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8BF1F2085A
-	for <linux-mm@archiver.kernel.org>; Tue, 25 Jun 2019 07:29:48 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8BF1F2085A
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
+	by mail.kernel.org (Postfix) with ESMTP id 5CA962085A
+	for <linux-mm@archiver.kernel.org>; Tue, 25 Jun 2019 07:31:28 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5CA962085A
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=sifive.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 28E866B0003; Tue, 25 Jun 2019 03:29:48 -0400 (EDT)
+	id DFD586B0003; Tue, 25 Jun 2019 03:31:27 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 23E038E0003; Tue, 25 Jun 2019 03:29:48 -0400 (EDT)
+	id D86608E0003; Tue, 25 Jun 2019 03:31:27 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 153CB8E0002; Tue, 25 Jun 2019 03:29:48 -0400 (EDT)
+	id C4E258E0002; Tue, 25 Jun 2019 03:31:27 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id D8BA16B0003
-	for <linux-mm@kvack.org>; Tue, 25 Jun 2019 03:29:47 -0400 (EDT)
-Received: by mail-wr1-f69.google.com with SMTP id q2so7504284wrr.18
-        for <linux-mm@kvack.org>; Tue, 25 Jun 2019 00:29:47 -0700 (PDT)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 8D0BA6B0003
+	for <linux-mm@kvack.org>; Tue, 25 Jun 2019 03:31:27 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id h15so11341132pfn.3
+        for <linux-mm@kvack.org>; Tue, 25 Jun 2019 00:31:27 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=fiDfl6thwhLhapszwH9MhDWa2YeJyq81IolM/b0PlzA=;
-        b=rjPSPXL4tk9MJu3XLJuW8vzaA9xMFRjHk32Th6IxK7MByLVr1wsloESXxsVbbCoZnR
-         75Y4XYzsFeXXQPzAq9xpKsRbCekqOMMbvW/QPDRQD3ep+xT4hGsIfAdugLlUBFei5LJd
-         qTeP+vdkesQeKjCkSSl1meB6tX8DJGCo+yMl78/UY+i/QUS74/W4HDPkhKKhTBvxK7bm
-         71F6YqQIQhwz4kFz4g14MR/PwRHgA6mAfkYFzXyweL3OKISDKkl/0y4IqAAIKNb7qTY1
-         +tvmO0rbjOqa1BF5UePDN/byb4KUgGxaFxAD3Lt01gvFN/lPbVz0DBoOIww8tJMoEoym
-         u0aw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
-X-Gm-Message-State: APjAAAX406tyI7gqh7elnVNPNgdFWg1C949k8gdtIRjtAgkt9Ylvs0Qh
-	iNKYhxM5szMKZczZsThq1zE6ogjQcKiQ6uQ86TPj3tXIj/P7XE1BBHRujqJq99La0eBL1gNWmDw
-	mO1Shh2NkiucJiMjHFmEt6h9VqWImWGTVBHEtGwzPBqBgP3Jv+ycn5jdxOPpAjZEmbA==
-X-Received: by 2002:adf:f246:: with SMTP id b6mr54879367wrp.92.1561447787411;
-        Tue, 25 Jun 2019 00:29:47 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyZJzF3vcMNasw+eMrIxdfBR+ltFofLAhYG4DFeg+vHm+7AdxegThXqqvCTUA54de0wAKuI
-X-Received: by 2002:adf:f246:: with SMTP id b6mr54879319wrp.92.1561447786744;
-        Tue, 25 Jun 2019 00:29:46 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561447786; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:subject
+         :in-reply-to:cc:from:to:message-id:mime-version
+         :content-transfer-encoding;
+        bh=LSFnG1VLPAxdrZu/1aoqM762Ph1wbr10WuLO1iu5MTU=;
+        b=lIGQFsd6w+6FtHbnjmv+r+42Dtjj0dZ522lGh//SN3/OBnz7cJ2GVJgAlPWya3h5m8
+         BrL1FahmF0h62HGeLJh2PNk9V8lYEoQwNgvgxRwvNI39Wrd0GmMp5JQyqX5BgGZvNKEh
+         jWXWAmu+GDNhHS4l0Qv9eYci/8Ve81SG2Zd5Tlcj7d3eln8L1NJsKv6+W8AKSJZcvcuP
+         dSRb6w3bu0HMc+vBdRDLXhTeuUWUGAPJ/ajgtuEMOBh8QSCJsm1ObuD80Aqn71IXXJL+
+         QCd74XjRE6NtejjkLr8ngbtLfIkdfyQt7OxyWRrq1dWOqN7/6ZY4sMCAEO4DCjQYw0wt
+         yjkg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of palmer@dabbelt.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=palmer@dabbelt.com
+X-Gm-Message-State: APjAAAWVZG5poXHiLs6bcancWSAvmLaYCJlLHJHLlPsN7hpUf0phTEOB
+	uC9q8Bdlez6OZy489Zc5/Dz1Da1jGurhvrOJgCkIcvoItqGCPoSUayk0IqJiZYUjM2BTV21Oipb
+	+2ODgP2z6LFyQN0m9mX8zXJ3gA3yux4mkWrXRYvo6+1l2th4fmMfMETwCP/vy4kg0MQ==
+X-Received: by 2002:a17:90a:62c7:: with SMTP id k7mr2220943pjs.135.1561447887234;
+        Tue, 25 Jun 2019 00:31:27 -0700 (PDT)
+X-Received: by 2002:a17:90a:62c7:: with SMTP id k7mr2220879pjs.135.1561447886481;
+        Tue, 25 Jun 2019 00:31:26 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561447886; cv=none;
         d=google.com; s=arc-20160816;
-        b=HiaZ8dYqzeMqHx21GPAmwfAJ+F4prM8YLyT4Ap3T5uIL6iwiAfJfIRBlw13GwaeF3H
-         ak+nIrVyAFJipLolW67e0Sahe7dP0nxRkvhvOk3TzqKYrptZBGEmS0Yc1/hqxCxjhkxt
-         /D4svAf+C5bzqoq7dj03MczD4gYt7HZu5WfdA665K3qNySFz6KP5bWbmOTq/vB1knJHd
-         bPYbaLmb01ii9lo/lXNomO1LbbJFi7g1pX64Bea/PmvxqMY3d2UdcUn46/aZgCdYdK+B
-         O94Soq8wEr8LNSbmvE0mXXFY1VCVifb5Mybcjy5BXHSGz3Co0pARlCau6LApjdJMQZRr
-         w2mA==
+        b=G9Z6+PjmS1tgy4utzpSo7yV2UK0PD0jbSddtvSWYotzRoRkz/O5/bFEloGkClts7pb
+         q2B/h29x4LvO88GYpEAsuehE8xVXG4nwVM+j+rqwE75f0ITZeQSp+uUCEcwqivgnN3KQ
+         cyDhWpQhqz3u3rCpXyLiki0SBUC//JPlo5V9+wodVmIAdiwSmXMT94Hh0JovFwHhGXqz
+         8RVVP95qIZoC74ulKD5lNd4z1O4b855CGQK6ooKapenv7ZlZn2tLW8OWdG8lmILoC/yj
+         GqEes9xEvBVUmfbnO3sNmYRZzmkEtvZDUq+d4g8aqesXnU43UlyZPLMocLUmbfYEcL2n
+         bcGQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=fiDfl6thwhLhapszwH9MhDWa2YeJyq81IolM/b0PlzA=;
-        b=JTbxpl8SJ5WkfP9ykqhQhz88rsWCnnBjG0NgS3PsEehq30g5FzAqaAgs7bFCLXra8g
-         fWZdXgpQ38rGWK6TbpHabYXywI7etDHY6PhQVQ1z3D1jTwRxpF8Dgfy5lcxSj3zuLHLX
-         tpl6kOxuG6poEz5kBwlGB9lUzD6S5Z1zi2Ywe17sO4V8QjcjOktgZhwzXq4UiJaFAwEc
-         U8oRp8HtxwqwpVOf21CCTKN/49C/gYCZZNI9XIb7BTd4NrbN6S4bjcNqa9YBAHVNV2KV
-         Mp+wp2NQY6KXCqL1hOQa3at2iiK5BgfU189/6w8WXpFf7N0jS7eH6vJAeRo71802mllz
-         rBEw==
+        h=content-transfer-encoding:mime-version:message-id:to:from:cc
+         :in-reply-to:subject:date;
+        bh=LSFnG1VLPAxdrZu/1aoqM762Ph1wbr10WuLO1iu5MTU=;
+        b=vwSASPFl9d1HpXOo9gJI3kXg0LvjhJE+JrDX3JZiw35X9wcOY8W0tkcfBciEiFq70E
+         EGnIQ8gJyHv4K8CdrD7xuueb4gT5/zSO4rbjTsDut2xcElXnz4yGDN5FFUqgA+jdczNR
+         JvlWMzvg0BjulRHfrW8R/Qg9VEIT9+Q8VVvr2o5KrxqThR2l/K11EN6qw2jfuUV+70GD
+         CQUfU3egncd2DNwtcZkwwu3OGII3V8bQWD90Q07EjL54H6l+hBtY/hOhUbcNWcYQ+W2O
+         ewdkcrZYL9xZiBfYQD0FY97PMkC2FZWcOXiEOPJrUfTvyVdZltoRs9EmWQo4oF5ZW4V/
+         mHKQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
-Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
-        by mx.google.com with ESMTPS id r5si11255492wrq.102.2019.06.25.00.29.46
+       spf=pass (google.com: domain of palmer@dabbelt.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=palmer@dabbelt.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id b9sor4456708plb.21.2019.06.25.00.31.26
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 25 Jun 2019 00:29:46 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) client-ip=213.95.11.211;
+        (Google Transport Security);
+        Tue, 25 Jun 2019 00:31:26 -0700 (PDT)
+Received-SPF: pass (google.com: domain of palmer@dabbelt.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
-Received: by newverein.lst.de (Postfix, from userid 2407)
-	id 0839568B02; Tue, 25 Jun 2019 09:29:16 +0200 (CEST)
-Date: Tue, 25 Jun 2019 09:29:15 +0200
-From: Christoph Hellwig <hch@lst.de>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>,
-	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
-	Jason Gunthorpe <jgg@mellanox.com>, Ben Skeggs <bskeggs@redhat.com>,
-	linux-mm@kvack.org, nouveau@lists.freedesktop.org,
-	dri-devel@lists.freedesktop.org, linux-nvdimm@lists.01.org,
-	linux-pci@vger.kernel.org, linux-kernel@vger.kernel.org
-Subject: Re: [PATCH 18/22] mm: mark DEVICE_PUBLIC as broken
-Message-ID: <20190625072915.GD30350@lst.de>
-References: <20190613094326.24093-1-hch@lst.de> <20190613094326.24093-19-hch@lst.de> <20190620192648.GI12083@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190620192648.GI12083@dhcp22.suse.cz>
-User-Agent: Mutt/1.5.17 (2007-11-01)
+       spf=pass (google.com: domain of palmer@dabbelt.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=palmer@dabbelt.com
+X-Google-Smtp-Source: APXvYqxA3AiKfUdGgybrZGEd+QlSDx5f6SSD+C9TEX69lBm8COreE3lS5uJ/emXNgMIJT2bbhTf5JQ==
+X-Received: by 2002:a17:902:8f81:: with SMTP id z1mr85183321plo.290.1561447885879;
+        Tue, 25 Jun 2019 00:31:25 -0700 (PDT)
+Received: from localhost (220-132-236-182.HINET-IP.hinet.net. [220.132.236.182])
+        by smtp.gmail.com with ESMTPSA id 12sm13241505pfi.60.2019.06.25.00.31.25
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Tue, 25 Jun 2019 00:31:25 -0700 (PDT)
+Date: Tue, 25 Jun 2019 00:31:25 -0700 (PDT)
+X-Google-Original-Date: Tue, 25 Jun 2019 00:30:40 PDT (-0700)
+Subject:     Re: RISC-V nommu support v2
+In-Reply-To: <d4fd824d-03ff-e8ab-b19f-9e5ef5c22449@arm.com>
+CC: Christoph Hellwig <hch@lst.de>, Paul Walmsley <paul.walmsley@sifive.com>,
+  Damien Le Moal <Damien.LeMoal@wdc.com>, linux-riscv@lists.infradead.org, linux-mm@kvack.org,
+  linux-kernel@vger.kernel.org
+From: Palmer Dabbelt <palmer@sifive.com>
+To: vladimir.murzin@arm.com
+Message-ID: <mhng-6f11ed95-e3f3-41dc-93c5-1576928b373b@palmer-si-x1e>
+Mime-Version: 1.0 (MHng)
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jun 20, 2019 at 09:26:48PM +0200, Michal Hocko wrote:
-> On Thu 13-06-19 11:43:21, Christoph Hellwig wrote:
-> > The code hasn't been used since it was added to the tree, and doesn't
-> > appear to actually be usable.  Mark it as BROKEN until either a user
-> > comes along or we finally give up on it.
-> 
-> I would go even further and simply remove all the DEVICE_PUBLIC code.
+On Mon, 24 Jun 2019 06:08:50 PDT (-0700), vladimir.murzin@arm.com wrote:
+> On 6/24/19 12:54 PM, Christoph Hellwig wrote:
+>> On Mon, Jun 24, 2019 at 12:47:07PM +0100, Vladimir Murzin wrote:
+>>> Since you are using binfmt_flat which is kind of 32-bit only I was expecting to see
+>>> CONFIG_COMPAT (or something similar to that, like ILP32) enabled, yet I could not
+>>> find it.
+>>
+>> There is no such thing in RISC-V.  I don't know of any 64-bit RISC-V
+>> cpu that can actually run 32-bit RISC-V code, although in theory that
+>> is possible.  There also is nothing like the x86 x32 or mips n32 mode
+>> available either for now.
+>>
+>> But it turns out that with a few fixes to binfmt_flat it can run 64-bit
+>> binaries just fine.  I sent that series out a while ago, and IIRC you
+>> actually commented on it.
+>>
+>
+> True, yet my observation was that elf2flt utility assumes that address
+> space cannot exceed 32-bit (for header and absolute relocations). So,
+> from my limited point of view straightforward way to guarantee that would
+> be to build incoming elf in 32-bit mode (it is why I mentioned COMPAT/ILP32).
+>
+> Also one of your patches expressed somewhat related idea
+>
+> "binfmt_flat isn't the right binary format for huge executables to
+> start with"
+>
+> Since you said there is no support for compat/ilp32, probably I'm missing some
+> toolchain magic?
+>
+> Cheers
+> Vladimir
+To:          Christoph Hellwig <hch@lst.de>
+CC:          vladimir.murzin@arm.com
+CC:          Christoph Hellwig <hch@lst.de>
+CC:          Paul Walmsley <paul.walmsley@sifive.com>
+CC:          Damien Le Moal <Damien.LeMoal@wdc.com>
+CC:          linux-riscv@lists.infradead.org
+CC:          linux-mm@kvack.org
+CC:          linux-kernel@vger.kernel.org
+Subject:     Re: RISC-V nommu support v2
+In-Reply-To: <20190624131633.GB10746@lst.de>
 
-I looked into that as I now got the feedback twice.  It would
-create a conflict with another tree cleaning things up around the
-is_device_private defintion, but otherwise I'd be glad to just remove
-it.
+On Mon, 24 Jun 2019 06:16:33 PDT (-0700), Christoph Hellwig wrote:
+> On Mon, Jun 24, 2019 at 02:08:50PM +0100, Vladimir Murzin wrote:
+>> True, yet my observation was that elf2flt utility assumes that address
+>> space cannot exceed 32-bit (for header and absolute relocations). So,
+>> from my limited point of view straightforward way to guarantee that would
+>> be to build incoming elf in 32-bit mode (it is why I mentioned COMPAT/ILP32).
+>>
+>> Also one of your patches expressed somewhat related idea
+>>
+>> "binfmt_flat isn't the right binary format for huge executables to
+>> start with"
+>>
+>> Since you said there is no support for compat/ilp32, probably I'm missing some
+>> toolchain magic?
+>
+> There is no magic except for the tiny elf2flt patch, which for
+> now is just in the buildroot repo pointed to in the cover letter
+> (and which I plan to upstream once the kernel support has landed
+> in Linus' tree).  We only support 32-bit code and data address spaces,
+> but we otherwise use the normal RISC-V ABI, that is 64-bit longs and
+> pointers.
 
-Jason, as this goes through your tree, do you mind the additional
-conflict?
+The medlow code model on RISC-V essentially enforces this -- technically it
+enforces a 32-bit region centered around address 0, but it's not that hard to
+stay away from negative addresses.  That said, as long as elf2flt gives you an
+error it should be fine because all medlow is going to do is give you a
+different looking error message.
 
