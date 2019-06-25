@@ -2,172 +2,133 @@ Return-Path: <SRS0=nbyn=UY=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-11.4 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_IN_DEF_DKIM_WL
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 84705C48BD6
-	for <linux-mm@archiver.kernel.org>; Tue, 25 Jun 2019 18:28:11 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9DA5AC48BD5
+	for <linux-mm@archiver.kernel.org>; Tue, 25 Jun 2019 18:31:17 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4D3282086D
-	for <linux-mm@archiver.kernel.org>; Tue, 25 Jun 2019 18:28:11 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4D3282086D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 613482086D
+	for <linux-mm@archiver.kernel.org>; Tue, 25 Jun 2019 18:31:17 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="EH3y4zD2"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 613482086D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0020F6B0005; Tue, 25 Jun 2019 14:28:11 -0400 (EDT)
+	id 0EAAD6B0005; Tue, 25 Jun 2019 14:31:17 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id EF4C38E0003; Tue, 25 Jun 2019 14:28:10 -0400 (EDT)
+	id 09ABD8E0003; Tue, 25 Jun 2019 14:31:17 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DBCAA8E0002; Tue, 25 Jun 2019 14:28:10 -0400 (EDT)
+	id EFA158E0002; Tue, 25 Jun 2019 14:31:16 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A62B36B0005
-	for <linux-mm@kvack.org>; Tue, 25 Jun 2019 14:28:10 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id f25so12368246pfk.14
-        for <linux-mm@kvack.org>; Tue, 25 Jun 2019 11:28:10 -0700 (PDT)
+Received: from mail-yb1-f198.google.com (mail-yb1-f198.google.com [209.85.219.198])
+	by kanga.kvack.org (Postfix) with ESMTP id CD4F86B0005
+	for <linux-mm@kvack.org>; Tue, 25 Jun 2019 14:31:16 -0400 (EDT)
+Received: by mail-yb1-f198.google.com with SMTP id 133so23425921ybl.8
+        for <linux-mm@kvack.org>; Tue, 25 Jun 2019 11:31:16 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=OEQEcgT8qel25Z8QW5ED+nAugFd72KJhoKKHlco2x/M=;
-        b=Xy+wPRAcKsx5hpu88e2oxUkw/2V0tsQQmRa5HAb4tDF9u36ljQra9J/2BhGrrarPUq
-         1diaVBX63UgQ4YTbx6Ubo3E+k4qurzMubWjevcJn2PjX181BnMpesWKq2OpNyl1QNtTS
-         qxccN+Xaxj++UI75S5IYZaPTKuWAA3oUknxZ93kPz2AVVIPuIAV/nJj9OeDLRU7iDcvS
-         LXReVwMYahJVbFU2LVsaSQ95fhoP8QwvCnqfSJX78bO4pVGeQMlLevqV68FJCDFSTSGZ
-         lVKnxkRIcvGQOq/jRJnVS27b/STYM8p+16HwUUQry+UoWzDO7yWdEcLmNkKMQP+eycIv
-         VMHQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAW662YuyE/xWC93s0Ou+sfVqjWPw/mUbyrPGLfnKWaUJVp3YOoI
-	+mqXRcmurGsaNzXDiJIhk6wPgN4Z/Zq2oxyDp31eqf+9JS34SUZPvnl3ittawnwAlGccNP4X6w1
-	BqlURzQ8NN8VCbjtuGIZ8Ft2OCrQP1StvfIvMQDoE3uVTHEnHzO4vSE7aQvqkMRL+jg==
-X-Received: by 2002:a17:90a:cf0d:: with SMTP id h13mr215870pju.63.1561487290382;
-        Tue, 25 Jun 2019 11:28:10 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxkTYZE38BeU7B90AKcDIwsKtOT6xyTSstHf/UpyxICO2KGseLmEsRlIyRqH+xL3bQQzZio
-X-Received: by 2002:a17:90a:cf0d:: with SMTP id h13mr215807pju.63.1561487289705;
-        Tue, 25 Jun 2019 11:28:09 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561487289; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=3tJadmfIaP+3cUt4e6djg3uYwSGFYlA4L4PJ/03vX94=;
+        b=gz2kuuJX7U571OjdL7ViocLmqB7FVqjssqWDDljTcAvRZfxRSod048BXeICW7fsHWi
+         DwbyOMuRHje4Xh739yOPOmkNxJvpcC/bm/419Un9vVGkaC8KR+3DMQd8RLRaKS15k3NR
+         8gi0v+9defsPqA7+hLWMnIlL7Hds0i0JOwWlu3hWeYK3mMVymRvjMR43Md4sY1tyIHNK
+         4VukpwIFu+RVAjyz+74xL4acKrYsVC+I7Amh0AbqE9l+BEGRtD1ko1sZ5+Bjmq0zf017
+         sWVAknlemu6Yfp52cXy+6kkpZyi0zuKUD7vzmtLCNt6/U/ByhRSjqg52bd5TJpS18SmU
+         0cyA==
+X-Gm-Message-State: APjAAAU4n/FqypJ+rPV9z6Z8xZafiLRfpCPwSA/1OUl7FBEN15NgHBZM
+	4EFYHwQmrABZhmZDa/KiSwKm+o68daYeUa7CUxmapaXe9nF4IQRhvVq0ysEqg1FY1weUYpGjmKy
+	IQu8bHHG/hnWMk71qwCxxkx+ePTYcR9EOPA/1JzJ0FfSvtdW2j7N0K717/DMAVfBaAQ==
+X-Received: by 2002:a81:924a:: with SMTP id j71mr72315ywg.5.1561487476605;
+        Tue, 25 Jun 2019 11:31:16 -0700 (PDT)
+X-Received: by 2002:a81:924a:: with SMTP id j71mr72281ywg.5.1561487476103;
+        Tue, 25 Jun 2019 11:31:16 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561487476; cv=none;
         d=google.com; s=arc-20160816;
-        b=dLfAM9C2vDDB6YRNJpkYCYW/gm1yWOkZuxmgbqObDRSBcWIGI0u1D4JxSTZ/4Y0O/n
-         Pd1CXOOWLOhFXooiMN5gWe9XdiOfrUu5T7fFBSBh8cT+f45QvNVzHTns9oPbuGuRnQgy
-         ZwVBNALmze1SkTGQTMHJkJEz2JfJVRHdDO2gMhi9HO1DLRJwYXAX5JXJ65qJCO61uFj7
-         TELQcNxF2MBLS6i0i7ClwqCs6ul6cHfdCcs8ClekkfK1lPQnHXM4r+8ARmdUv56LcqvO
-         0UB/45apjMdNXr3fVuoG0aVmBdMHoL68wajIOZ2n3Slp6w9T1rlpTP+AE6juH721SHvh
-         ahJA==
+        b=irwmzSiP7Y5Z7RBkAhF4GgenhY9GhPIi2ojNk5Ho3p/Iow5yquSD+ohqORy9dUEHX5
+         f6d6VJNDl0Va87X5J704N/T/wUG+uZIgsjtWeggCad4sEEvmYKMHbOGQOME2w/euQiDK
+         0G5fZNxJJer0ANAx2rivX641YqgHGJfjXMBC1BtH5TlUl88Ov7wzabj/7KthwWvEeKfc
+         sVoRgrOWDW2IwwBbovlr2LqT+bhIZNP6L8QEBXhjC3Dn3m14rf/wFyB4rD46s1moFPXq
+         FTNQME9eA9MEN49y/Ty60fZLPDrNCX0Vthe+S3mxHQL+0r1moASVotclPvOmRvMztXCa
+         fHCw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
-         :subject;
-        bh=OEQEcgT8qel25Z8QW5ED+nAugFd72KJhoKKHlco2x/M=;
-        b=HpbGBpu1o4rZcWOkEunUtbmg7BcKkfIojBRHst18EBdyar/XqQb7P16qG3Y7K5lxoQ
-         nLavfxLD1qjjL9xDEV5x3hBlg1Ng9b8RjEfQEdgbnmI1hxSgP1dkRprdnS1AzYj3TYhq
-         aZTHlixCuMIiXbxl8gTkjV4w1zJfIfdhBVMulUlUcA4ybZuKxNk1Kl+PDTS8U3J0UW/e
-         6ptCe7kDkFZBslybwgn8gxvRcWXU11DleFSfK4hnh38xySnfRLrwzaiXalwxmC5sRaYd
-         M0J3IbpLpwUwiDSa/JnIvPlnfNERqNjf/0DCe3FOWt3usSQznD7jQ6GhAhpxtMRBAP8X
-         ys2A==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=3tJadmfIaP+3cUt4e6djg3uYwSGFYlA4L4PJ/03vX94=;
+        b=YlxswQWRsN5d1KBBTHpvplP/CnFcCxD1Wabq+4fonje16RMvj6MFHmhL3FguMHfmkG
+         /o0cKFnpvxKuFQdo9H8YWhOEjHZaAUkNP0Z4jgA2LJAUM9+6SAZ4PJoM+ietL68vm6JI
+         hxdBlgTFqyhdXUpyRCROYD9SNKxfPB7bsttNnExjlHoupdhDYCIuBZ39VhdtcjqJwji/
+         TKaAZyVarRWSM4Z80QASOk0Ujn9l4qcWCckxZHF5z+PoDls1LIYIxf+R123bynXwjG3B
+         /MvqSTw7kV7ZFFL+1JXRirxO4Bl7tin1zcN2RcBW0R5y6/otr+a+CpDPiD0S8ZEkheC4
+         EJ3w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id w8si13106744pgr.258.2019.06.25.11.28.09
+       dkim=pass header.i=@google.com header.s=20161025 header.b=EH3y4zD2;
+       spf=pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shakeelb@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 189sor7679619ybi.56.2019.06.25.11.31.16
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 25 Jun 2019 11:28:09 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.43 as permitted sender) client-ip=192.55.52.43;
+        (Google Transport Security);
+        Tue, 25 Jun 2019 11:31:16 -0700 (PDT)
+Received-SPF: pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from orsmga002.jf.intel.com ([10.7.209.21])
-  by fmsmga105.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 25 Jun 2019 11:28:09 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.63,416,1557212400"; 
-   d="scan'208";a="172456454"
-Received: from ray.jf.intel.com (HELO [10.7.201.139]) ([10.7.201.139])
-  by orsmga002.jf.intel.com with ESMTP; 25 Jun 2019 11:28:08 -0700
-Subject: Re: [PATCH v1 2/6] mm: Move set/get_pcppage_migratetype to mmzone.h
-To: Alexander Duyck <alexander.duyck@gmail.com>, nitesh@redhat.com,
- kvm@vger.kernel.org, david@redhat.com, mst@redhat.com,
- linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org
-Cc: yang.zhang.wz@gmail.com, pagupta@redhat.com, riel@surriel.com,
- konrad.wilk@oracle.com, lcapitulino@redhat.com, wei.w.wang@intel.com,
- aarcange@redhat.com, pbonzini@redhat.com, dan.j.williams@intel.com,
- alexander.h.duyck@linux.intel.com
-References: <20190619222922.1231.27432.stgit@localhost.localdomain>
- <20190619223309.1231.16506.stgit@localhost.localdomain>
-From: Dave Hansen <dave.hansen@intel.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=dave.hansen@intel.com; keydata=
- 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
-Message-ID: <68ed3507-16dd-2ea3-4a12-09d04a8dd028@intel.com>
-Date: Tue, 25 Jun 2019 11:28:08 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.1
+       dkim=pass header.i=@google.com header.s=20161025 header.b=EH3y4zD2;
+       spf=pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shakeelb@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=3tJadmfIaP+3cUt4e6djg3uYwSGFYlA4L4PJ/03vX94=;
+        b=EH3y4zD22YVqGG+RHMfFEthpglof2dKKJrLZODUIcgdQyL6wvrwdMmPysZQFNoc2BK
+         03B4jdpd9RdUOnaQHMk/k7zYWHUxDFiMN85zh3eBas/KoFrA9RJ4Oh4Pay55XRPXrnUI
+         kRlCCKZ1Q4xVqcRZg8cDczj/dp10i2E+bDt59cYKTPiX6rijpqiPa6Ng7hdxL8GVQzUO
+         zK9o82cg7pIIab6+dGP9KB9qKEPh3aSRQEHXkMhIV0F1KB7EmBXM4kjp3LTaDvVnAmAq
+         kYmt9k9R+v75ZAK5NW6TNMmnsYyEtKQ58mOIhfE0GXIPY85W1HBMHmw6ubXTAGPWdpdB
+         i4lQ==
+X-Google-Smtp-Source: APXvYqwNG1kh+k/L+YnZbCVrDwBuWFG+WXRj+Yr7jmS6YTLtMJlpnmTuApTpCOI2UGQ8fp1IdBSvPwZbls9jENi5vd4=
+X-Received: by 2002:a25:943:: with SMTP id u3mr82067600ybm.293.1561487475490;
+ Tue, 25 Jun 2019 11:31:15 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20190619223309.1231.16506.stgit@localhost.localdomain>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+References: <20190611231813.3148843-1-guro@fb.com> <20190611231813.3148843-7-guro@fb.com>
+In-Reply-To: <20190611231813.3148843-7-guro@fb.com>
+From: Shakeel Butt <shakeelb@google.com>
+Date: Tue, 25 Jun 2019 11:31:04 -0700
+Message-ID: <CALvZod6wR7th1JF407-_i9PfbCzAiakU7mD2HBshH+jW9db1bw@mail.gmail.com>
+Subject: Re: [PATCH v7 06/10] mm: don't check the dying flag on kmem_cache creation
+To: Roman Gushchin <guro@fb.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, 
+	Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, 
+	Kernel Team <kernel-team@fb.com>, Johannes Weiner <hannes@cmpxchg.org>, 
+	Waiman Long <longman@redhat.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 6/19/19 3:33 PM, Alexander Duyck wrote:
-> In order to support page aeration it will be necessary to store and
-> retrieve the migratetype of a page. To enable that I am moving the set and
-> get operations for pcppage_migratetype into the mmzone header so that they
-> can be used when adding or removing pages from the free lists.
-...
-> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> index 4c07af2cfc2f..6f8fd5c1a286 100644
-> --- a/include/linux/mmzone.h
-> +++ b/include/linux/mmzone.h
+On Tue, Jun 11, 2019 at 4:18 PM Roman Gushchin <guro@fb.com> wrote:
+>
+> There is no point in checking the root_cache->memcg_params.dying
+> flag on kmem_cache creation path. New allocations shouldn't be
+> performed using a dead root kmem_cache,
 
-Not mm/internal.h?
+Yes, it's the user's responsibility to synchronize the kmem cache
+destruction and allocations.
+
+> so no new memcg kmem_cache
+> creation can be scheduled after the flag is set. And if it was
+> scheduled before, flush_memcg_workqueue() will wait for it anyway.
+>
+> So let's drop this check to simplify the code.
+>
+> Signed-off-by: Roman Gushchin <guro@fb.com>
+
+Reviewed-by: Shakeel Butt <shakeelb@google.com>
 
