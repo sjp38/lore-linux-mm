@@ -2,228 +2,164 @@ Return-Path: <SRS0=nbyn=UY=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-11.4 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A9C57C48BD4
-	for <linux-mm@archiver.kernel.org>; Tue, 25 Jun 2019 16:09:17 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B564CC48BD4
+	for <linux-mm@archiver.kernel.org>; Tue, 25 Jun 2019 16:16:57 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 60CD52080C
-	for <linux-mm@archiver.kernel.org>; Tue, 25 Jun 2019 16:09:17 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 798D32080C
+	for <linux-mm@archiver.kernel.org>; Tue, 25 Jun 2019 16:16:57 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="RcMVE9f4"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 60CD52080C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="lfU+EkDA"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 798D32080C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DD8886B0005; Tue, 25 Jun 2019 12:09:16 -0400 (EDT)
+	id F0B5E8E0003; Tue, 25 Jun 2019 12:16:56 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D89CB8E0003; Tue, 25 Jun 2019 12:09:16 -0400 (EDT)
+	id EBA9F8E0002; Tue, 25 Jun 2019 12:16:56 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C77DB8E0002; Tue, 25 Jun 2019 12:09:16 -0400 (EDT)
+	id DA9268E0003; Tue, 25 Jun 2019 12:16:56 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A6D8E6B0005
-	for <linux-mm@kvack.org>; Tue, 25 Jun 2019 12:09:16 -0400 (EDT)
-Received: by mail-io1-f69.google.com with SMTP id j18so26957448ioj.4
-        for <linux-mm@kvack.org>; Tue, 25 Jun 2019 09:09:16 -0700 (PDT)
+Received: from mail-vk1-f198.google.com (mail-vk1-f198.google.com [209.85.221.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B31D28E0002
+	for <linux-mm@kvack.org>; Tue, 25 Jun 2019 12:16:56 -0400 (EDT)
+Received: by mail-vk1-f198.google.com with SMTP id z6so7923968vkd.12
+        for <linux-mm@kvack.org>; Tue, 25 Jun 2019 09:16:56 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=k3UMAW6XTy18ywUCIThj/81Ms19rifRTEd/lQqY16ew=;
-        b=foX8ntFFaLKGhUd+jqv1T+MpClFEnPmLqc86n0mePFD8wF0Zd319ZjyJbQWEr51CAz
-         eltEaBV95Y0aTXKNiMbXHBlDrdpOJBqsIhYoMcmOZLkL0Md5tKRvOfr7dXZZ4jHQFCXf
-         +gDwXBABhSD/T7iej9SjN2FSXe5XtlH03nzjck9Lp88WAazxk5U4IHMXMRKozvQrO8Ua
-         +LsCcF+mSyHVyCBUopomNRiuw39IEAlSJ1voPGquipq+ESUiIFNuq7zVwfywkhgPf1gp
-         0UvrbEiB+t6Tdk8wvptmuHkksGCIWHa8+tK5FmSuU37djKrBDZBFKt7okiICLcH2jOGN
-         mykQ==
-X-Gm-Message-State: APjAAAUZEEiytGh/VjRFZXVcmd8/PaB/sI50kjhIHvMklX17YQAg5/fV
-	xnxis6s37s7KBfjcIs5vNryUIn2+h1cO5Yq2J+1Pnt4uabMx1HXUIGzUT9EpwYGOVcMHJ2uTJrX
-	rfM3e4o/wf5dS+zJ689rwdZiT9/iuj+DCgztSY+onvYdstAz/Kj6l15q6UJRPQf2KHw==
-X-Received: by 2002:a02:1607:: with SMTP id a7mr3871157jaa.123.1561478956374;
-        Tue, 25 Jun 2019 09:09:16 -0700 (PDT)
-X-Received: by 2002:a02:1607:: with SMTP id a7mr3871057jaa.123.1561478955337;
-        Tue, 25 Jun 2019 09:09:15 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561478955; cv=none;
+         :in-reply-to:from:date:message-id:subject:to:cc
+         :content-transfer-encoding;
+        bh=bxHs3cMUSY/lcnTBaWC9lm65VMyS9xe/CNCPh9Pq+7Y=;
+        b=Ee9+6hublxWtsTvwBj3/A1Bdl9sTQoMxA7g77xfEReZ3b5Px5SLo1offC4nrSbife8
+         Bp+pMnyxa2mqnKLRReQb/LOF3+A9wHlGc8Ov0huoCX/nedURcYXv30bU6uo/EqG+VwzQ
+         KIvBp0xhasPKVqGGe9dGfiqAqgxjuufx5Yr/FjWepDlVW9U0BkPZqg8XuW6zQwhT4XbT
+         qaCGaIyyPH8RlB5nt1PxWOfXcg5oXi+wb+YRIrX0bEFj3LFFiZgM32xDWwlkddrfSp1l
+         RGepXxqpt89AoaERpqkNV2/t7lFuOOCMeJ+vGjJqEv+1RYE+EUr4bPsgEsFlXSsk3ZMF
+         2Qjg==
+X-Gm-Message-State: APjAAAU9uw2rIZnY3o0saVqzMwV3CfY9Zdm7++U7KA0cBMsqMe9GsJTj
+	wcjIPj/IX7yPXPgn8LtAJm4NOZb/QnpaACq+4884DWF8nNIijcCG9Us4kFvl8Kygrg6Lui+mQjQ
+	vJcSy3qA904jc+jBDHFWjbiWfnl0WZVciGdaKY1bWyOg47jXDJCPnrH43wS0p6u22/g==
+X-Received: by 2002:a67:d590:: with SMTP id m16mr63163400vsj.76.1561479416402;
+        Tue, 25 Jun 2019 09:16:56 -0700 (PDT)
+X-Received: by 2002:a67:d590:: with SMTP id m16mr63163367vsj.76.1561479415816;
+        Tue, 25 Jun 2019 09:16:55 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561479415; cv=none;
         d=google.com; s=arc-20160816;
-        b=Slm20V7JCNdQd/T5hqT5wOAv6UHjaOAYUYv/K2Qs1N0mjK+jLIqrlP513wG+y0bLeq
-         xKFhxmSvPwcjZpaO3Syo29TBH/M9KD4YrHjyeHhzWdJc2mCMDvUU+Ome6xTDzpMW3VXo
-         wZQ58+xjXefc+gnK4OUCveJViI7LPDlFi2mS7/Gbozb4pLvudHpFWENBK5nXpyRxpamy
-         m359FC52b4wWYhW+JoqcGVp02tFn7uVqNaQ/Kgh5pBYOx7pxSpO6Njok26tcrYuFIuif
-         bXeSnPLfVySnUXkBRoA19L/ENg/yNn0CPIZrvNPviGishf63gYGHiKIjxlEmsmdO2hf8
-         tJJQ==
+        b=B3TWCVH3Qokn0gbTY+9TMQjDQ2OVt/O28zbF5daL6smv9CBsrbMvp3jwlW6UoYNhWC
+         sSGNf4/QqoZFdk2QjVxMIOFT4utqBMwYcuNeQBGRLDS3K/GC1fUUcmq7XlEpg68Ly4ZQ
+         Xs1MqBQh0FoosypftDXIh4syqyigZxEYVhpOtEARsHZhG4OY4XMbGcayD1hpXSVv9Isa
+         357zDzb0sM8x2PdNBiS1GpJkRyqXjQxv9GAweweZ5y8HDhLFGXn4EnWk01hP4EWKlWPc
+         jceYzjhtGtu147RmdfJ+X+qptb6kFtRNIuJtvC8HvrjHmbagGWlzHAOujaISztblAO+w
+         YYCg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=k3UMAW6XTy18ywUCIThj/81Ms19rifRTEd/lQqY16ew=;
-        b=POgVjoX0ONWH7cGA8znl/Lo1gdrdoCFM2PXawlifvpT5NFN/T7f7GnpkCYabxDUDqH
-         UwcVUM8hRFDBYmFzduwvvYcredR+mEL5CTqX2LvGxWje7V9hwehV7cIGZnZAkdpYZW38
-         vsLhtivgo/oORMRj+rNALoN5zXHICWQesr1IFUKGq8tGKu1NdVVVI+RglAIY/hUW14ji
-         IzAmvCsm0kGgzCcggXuGZq/o5IOIA/pYvOoHFrwbQKbH2epGjRbOeGMXm7M2oMEPbwpA
-         hYM8zSKyIb7M8QH1nmOxjgdbry7VOwQOBJHK2PKScbBKByK7l4E+RdSJs4VnXCdosM+n
-         Bzgg==
+        h=content-transfer-encoding:cc:to:subject:message-id:date:from
+         :in-reply-to:references:mime-version:dkim-signature;
+        bh=bxHs3cMUSY/lcnTBaWC9lm65VMyS9xe/CNCPh9Pq+7Y=;
+        b=IH2LldZMN1VAIFcBegG2PXdboNwNZDNYFQpr/QfKR1VKoNHCiMLiA12Rh/IX826583
+         jeZi4x6eVL4i6W40fDIrvIcoVVe3R2Av0AWqY8I/hQLRmoZqZ1Ze95Ng0fzQOCJ0gQ+e
+         NFbc648xH36EHlyLTIn0ubY+O1PFdE/KyZQ9vCpu3xz+BIsRABF15Fy+ynqNQ8Tg5hGE
+         nMbtIxu4eF3EiZvUpYn8J1KVU2diFcBYrNfNCPg5H2VbyrOYgHZnbxSECR1+8nfqI0Dd
+         Bhs8W2Lpa32sDbmEzvKxzpzy5Uo8h3ezNYXESeNBf1O2hZJ6VsDpO6V5E+ICdC3S/Qrk
+         z/nw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=RcMVE9f4;
-       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+       dkim=pass header.i=@google.com header.s=20161025 header.b=lfU+EkDA;
+       spf=pass (google.com: domain of glider@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=glider@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id l9sor10373566iom.67.2019.06.25.09.09.15
+        by mx.google.com with SMTPS id q19sor4492765vkq.52.2019.06.25.09.16.55
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 25 Jun 2019 09:09:15 -0700 (PDT)
-Received-SPF: pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Tue, 25 Jun 2019 09:16:55 -0700 (PDT)
+Received-SPF: pass (google.com: domain of glider@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=RcMVE9f4;
-       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+       dkim=pass header.i=@google.com header.s=20161025 header.b=lfU+EkDA;
+       spf=pass (google.com: domain of glider@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=glider@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
+        d=google.com; s=20161025;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=k3UMAW6XTy18ywUCIThj/81Ms19rifRTEd/lQqY16ew=;
-        b=RcMVE9f4Bja0Quc1wT3vaYzlpnQSCmnBDIRhttxCcYMhQfFL2Si3oiW3r0hViYD5Tk
-         FRaD4Hex+cjI7KWEfjC6ekEYINHz/TnrCMjgaeHvZSbCtCvRc+Xn8jB8Yi2f1Br+TYUj
-         7zsFPdJWsei9CRvWVphvTkWQchIgL8I5zM8JAMEQz606ONHnrr44//hjttX/mI6cujTz
-         zkbJpwqkAhH9nXJXirD36NVuyipjf/ug4oG+2V2qWien5JeV09/fVyP0fsVK8VEJDrHG
-         vrJhjbU2ctmC1t/KIvpzJmdnc7kvZbbuXBdKu5+HhIiqvcj2vOQxDKr4ZoHuI6lVwA8Q
-         v8ug==
-X-Google-Smtp-Source: APXvYqyD+fdojUZzJs1AJNVi0qgjkM376l87i5l2KN7FZYAjv5QbKJz++V5cn1bug0htF6W8pFlVQ0Ci5zMtWUQ4iAg=
-X-Received: by 2002:a6b:5106:: with SMTP id f6mr17136739iob.15.1561478954660;
- Tue, 25 Jun 2019 09:09:14 -0700 (PDT)
+         :cc:content-transfer-encoding;
+        bh=bxHs3cMUSY/lcnTBaWC9lm65VMyS9xe/CNCPh9Pq+7Y=;
+        b=lfU+EkDAWcPLRsWFZdyEfPOrokoZXTJOFAaKyF3r6LE750Q13wN0o6eV2p2X6/qNh3
+         xlGQrTOAWphdM3tf5Q34V9WcKc5qb9CS3qnIXd4/GggBxU4ZWYv8/urgyGIE/WjwL9wu
+         JBhXvzUzCj7LzikrH2PdogJbPcFyLBQSVovo2yg69817e8gHinU5WNLuBem3pzfcgKhm
+         uwj1XNHUc/4wK7wKWvtPAIKoXhNIipBITpomNKuKYvub+6wZ7z9/OKSUdHzocg5uIVxn
+         gjVsMiEuEbdySUgXhOjJfMxL6lLkNNocT19B5soH7h9dL3yAl4V0IUneDji3O4ZE3idz
+         OLlA==
+X-Google-Smtp-Source: APXvYqzpmnLCOXbPK1tWPjNlTXEyP5BOMbJ27cXAFZ8jzDcM35yx9cTomQz6y6wya6Cj0FLuD1+b0URocoD+vFFBtcY=
+X-Received: by 2002:a1f:b0b:: with SMTP id 11mr6742950vkl.64.1561479415224;
+ Tue, 25 Jun 2019 09:16:55 -0700 (PDT)
 MIME-Version: 1.0
-References: <20190619222922.1231.27432.stgit@localhost.localdomain> <ff133df4-6291-bece-3d8d-dc3f12f398cf@redhat.com>
-In-Reply-To: <ff133df4-6291-bece-3d8d-dc3f12f398cf@redhat.com>
-From: Alexander Duyck <alexander.duyck@gmail.com>
-Date: Tue, 25 Jun 2019 09:09:03 -0700
-Message-ID: <CAKgT0Ue4k_MHiAqMM0kyBBnPCB+828tXE2HfiZ9N1gKYayQcow@mail.gmail.com>
-Subject: Re: [PATCH v1 0/6] mm / virtio: Provide support for paravirtual waste
- page treatment
-To: David Hildenbrand <david@redhat.com>
-Cc: Nitesh Narayan Lal <nitesh@redhat.com>, kvm list <kvm@vger.kernel.org>, 
-	"Michael S. Tsirkin" <mst@redhat.com>, Dave Hansen <dave.hansen@intel.com>, 
-	LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, 
-	Andrew Morton <akpm@linux-foundation.org>, Yang Zhang <yang.zhang.wz@gmail.com>, pagupta@redhat.com, 
-	Rik van Riel <riel@surriel.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, lcapitulino@redhat.com, 
-	wei.w.wang@intel.com, Andrea Arcangeli <aarcange@redhat.com>, 
-	Paolo Bonzini <pbonzini@redhat.com>, dan.j.williams@intel.com, 
-	Alexander Duyck <alexander.h.duyck@linux.intel.com>
+References: <1561058881-9814-1-git-send-email-cai@lca.pw> <201906201812.8B49A36@keescook>
+ <201906201818.6C90BC875@keescook> <1561121745.5154.37.camel@lca.pw>
+In-Reply-To: <1561121745.5154.37.camel@lca.pw>
+From: Alexander Potapenko <glider@google.com>
+Date: Tue, 25 Jun 2019 18:16:43 +0200
+Message-ID: <CAG_fn=WuEL0ZGdmy3fhY9gW-nBw_qG9_yb3Ut1+17By3h=d0Jg@mail.gmail.com>
+Subject: Re: [PATCH -next] slub: play init_on_free=1 well with SLAB_RED_ZONE
+To: Qian Cai <cai@lca.pw>
+Cc: Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, 
+	Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, 
+	Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jun 25, 2019 at 12:42 AM David Hildenbrand <david@redhat.com> wrote:
+On Fri, Jun 21, 2019 at 2:55 PM Qian Cai <cai@lca.pw> wrote:
 >
-> On 20.06.19 00:32, Alexander Duyck wrote:
-> > This series provides an asynchronous means of hinting to a hypervisor
-> > that a guest page is no longer in use and can have the data associated
-> > with it dropped. To do this I have implemented functionality that allows
-> > for what I am referring to as waste page treatment.
+> On Thu, 2019-06-20 at 18:19 -0700, Kees Cook wrote:
+> > On Thu, Jun 20, 2019 at 06:14:33PM -0700, Kees Cook wrote:
+> > > On Thu, Jun 20, 2019 at 03:28:01PM -0400, Qian Cai wrote:
+> > > > diff --git a/mm/slub.c b/mm/slub.c
+> > > > index a384228ff6d3..787971d4fa36 100644
+> > > > --- a/mm/slub.c
+> > > > +++ b/mm/slub.c
+> > > > @@ -1437,7 +1437,7 @@ static inline bool slab_free_freelist_hook(st=
+ruct
+> > > > kmem_cache *s,
+> > > >           do {
+> > > >                   object =3D next;
+> > > >                   next =3D get_freepointer(s, object);
+> > > > -                 memset(object, 0, s->size);
+> > > > +                 memset(object, 0, s->object_size);
+> > >
+> > > I think this should be more dynamic -- we _do_ want to wipe all
+> > > of object_size in the case where it's just alignment and padding
+> > > adjustments. If redzones are enabled, let's remove that portion only.
 > >
-> > I have based many of the terms and functionality off of waste water
-> > treatment, the idea for the similarity occurred to me after I had reached
-> > the point of referring to the hints as "bubbles", as the hints used the
-> > same approach as the balloon functionality but would disappear if they
-> > were touched, as a result I started to think of the virtio device as an
-> > aerator. The general idea with all of this is that the guest should be
-> > treating the unused pages so that when they end up heading "downstream"
-> > to either another guest, or back at the host they will not need to be
-> > written to swap.
-> >
-> > When the number of "dirty" pages in a given free_area exceeds our high
-> > water mark, which is currently 32, we will schedule the aeration task to
-> > start going through and scrubbing the zone. While the scrubbing is taking
-> > place a boundary will be defined that we use to seperate the "aerated"
-> > pages from the "dirty" ones. We use the ZONE_AERATION_ACTIVE bit to flag
-> > when these boundaries are in place.
->
-> I still *detest* the terminology, sorry. Can't you come up with a
-> simpler terminology that makes more sense in the context of operating
-> systems and pages we want to hint to the hypervisor? (that is the only
-> use case you are using it for so far)
-
-I'm open to suggestions. The terminology is just what I went with as I
-had gone from balloon to thinking of this as a bubble since it was a
-balloon without the deflate logic. From there I got to aeration since
-it is filling the buddy allocator with those bubbles.
-
-> >
-> > I am leaving a number of things hard-coded such as limiting the lowest
-> > order processed to PAGEBLOCK_ORDER, and have left it up to the guest to
-> > determine what batch size it wants to allocate to process the hints.
-> >
-> > My primary testing has just been to verify the memory is being freed after
-> > allocation by running memhog 32g in the guest and watching the total free
-> > memory via /proc/meminfo on the host. With this I have verified most of
-> > the memory is freed after each iteration. As far as performance I have
-> > been mainly focusing on the will-it-scale/page_fault1 test running with
-> > 16 vcpus. With that I have seen a less than 1% difference between the
->
-> 1% throughout all benchmarks? Guess that is quite good.
-
-That is the general idea. What I wanted to avoid was this introducing
-any significant slowdown, especially in the case where we weren't
-using it.
-
-> > base kernel without these patches, with the patches and virtio-balloon
-> > disabled, and with the patches and virtio-balloon enabled with hinting.
-> >
-> > Changes from the RFC:
-> > Moved aeration requested flag out of aerator and into zone->flags.
-> > Moved boundary out of free_area and into local variables for aeration.
-> > Moved aeration cycle out of interrupt and into workqueue.
-> > Left nr_free as total pages instead of splitting it between raw and aerated.
-> > Combined size and physical address values in virtio ring into one 64b value.
-> > Restructured the patch set to reduce patches from 11 to 6.
+> > (Sorry, I meant: all of object's "size", not object_size.)
 > >
 >
-> I'm planning to look into the details, but will be on PTO for two weeks
-> starting this Saturday (and still have other things to finish first :/ ).
-
-Thanks. No rush. I will be on PTO for the next couple of weeks myself.
-
-> > ---
-> >
-> > Alexander Duyck (6):
-> >       mm: Adjust shuffle code to allow for future coalescing
-> >       mm: Move set/get_pcppage_migratetype to mmzone.h
-> >       mm: Use zone and order instead of free area in free_list manipulators
-> >       mm: Introduce "aerated" pages
-> >       mm: Add logic for separating "aerated" pages from "raw" pages
-> >       virtio-balloon: Add support for aerating memory via hinting
-> >
-> >
-> >  drivers/virtio/Kconfig              |    1
-> >  drivers/virtio/virtio_balloon.c     |  110 ++++++++++++++
-> >  include/linux/memory_aeration.h     |  118 +++++++++++++++
-> >  include/linux/mmzone.h              |  113 +++++++++------
-> >  include/linux/page-flags.h          |    8 +
-> >  include/uapi/linux/virtio_balloon.h |    1
-> >  mm/Kconfig                          |    5 +
-> >  mm/Makefile                         |    1
-> >  mm/aeration.c                       |  270 +++++++++++++++++++++++++++++++++++
-> >  mm/page_alloc.c                     |  203 ++++++++++++++++++--------
-> >  mm/shuffle.c                        |   24 ---
-> >  mm/shuffle.h                        |   35 +++++
-> >  12 files changed, 753 insertions(+), 136 deletions(-)
-> >  create mode 100644 include/linux/memory_aeration.h
-> >  create mode 100644 mm/aeration.c
+> I suppose Alexander is going to revise the series anyway, so he can proba=
+bly
+> take care of the issue here in the new version as well. Something like th=
+is,
 >
-> Compared to
->
->  17 files changed, 838 insertions(+), 86 deletions(-)
->  create mode 100644 include/linux/memory_aeration.h
->  create mode 100644 mm/aeration.c
->
-> this looks like a good improvement :)
+> memset(object, 0, s->object_size);
+> memset(object, 0, s->size - s->inuse);
+Looks like we also need to account for the redzone size. I'm testing
+the fix right now.
 
-Thanks.
 
-- Alex
+--
+Alexander Potapenko
+Software Engineer
+
+Google Germany GmbH
+Erika-Mann-Stra=C3=9Fe, 33
+80636 M=C3=BCnchen
+
+Gesch=C3=A4ftsf=C3=BChrer: Paul Manicle, Halimah DeLaine Prado
+Registergericht und -nummer: Hamburg, HRB 86891
+Sitz der Gesellschaft: Hamburg
 
