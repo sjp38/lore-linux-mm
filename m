@@ -2,147 +2,228 @@ Return-Path: <SRS0=nbyn=UY=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 24843C48BD4
-	for <linux-mm@archiver.kernel.org>; Tue, 25 Jun 2019 15:50:07 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A9C57C48BD4
+	for <linux-mm@archiver.kernel.org>; Tue, 25 Jun 2019 16:09:17 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E4D42208E3
-	for <linux-mm@archiver.kernel.org>; Tue, 25 Jun 2019 15:50:06 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E4D42208E3
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
+	by mail.kernel.org (Postfix) with ESMTP id 60CD52080C
+	for <linux-mm@archiver.kernel.org>; Tue, 25 Jun 2019 16:09:17 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="RcMVE9f4"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 60CD52080C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 904D46B0005; Tue, 25 Jun 2019 11:50:06 -0400 (EDT)
+	id DD8886B0005; Tue, 25 Jun 2019 12:09:16 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8B5E18E0005; Tue, 25 Jun 2019 11:50:06 -0400 (EDT)
+	id D89CB8E0003; Tue, 25 Jun 2019 12:09:16 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 77C6E8E0003; Tue, 25 Jun 2019 11:50:06 -0400 (EDT)
+	id C77DB8E0002; Tue, 25 Jun 2019 12:09:16 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D5BE6B0005
-	for <linux-mm@kvack.org>; Tue, 25 Jun 2019 11:50:06 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id o6so9409095plk.23
-        for <linux-mm@kvack.org>; Tue, 25 Jun 2019 08:50:06 -0700 (PDT)
+Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
+	by kanga.kvack.org (Postfix) with ESMTP id A6D8E6B0005
+	for <linux-mm@kvack.org>; Tue, 25 Jun 2019 12:09:16 -0400 (EDT)
+Received: by mail-io1-f69.google.com with SMTP id j18so26957448ioj.4
+        for <linux-mm@kvack.org>; Tue, 25 Jun 2019 09:09:16 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-transfer-encoding:content-language;
-        bh=y5ZNy7i81Ut+mfkDSJ5o7JLLa2AHZoKYgMtKxzFwKNs=;
-        b=ac8R/DJ3Lu7qAT1DapEnstiVhRu4hNM7+QD3baGgqHnTsPw6PFv+HIb3wH8QI+ndfZ
-         6TFR1N7cEvzOPoqzzqgFbuXnCoIWtMXuwM14ZugmI5zHTre7ahjucTmszWeeWkkRiDlB
-         7RBVMrtuFRn0sicFO2Snv9+nJ3jBQYP7Q7s9KfYI31dGRyRIPVp9AY/7yfb9XLCi03pC
-         pIAym97iYhz4ViNjr9/Y//eOzNLVXbfvFJDtpBl+98GqQU60Hm0pGe72RBdvlT+S0M8i
-         4OcTu0Iev4a54lg9Dkbe3aQzC0bvs6aUGrM4zPdgqWvnieXa0vJTE8LNsALlq/BksYvf
-         0v8g==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.37 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Gm-Message-State: APjAAAV0Yng3Sde5y3DXD5+cMCBeWjiKnuYPaW3wcwOVLwdapbX4VrSA
-	ODqIJCKbi0FQI7X9P+bMn6I3vOlVoCZFbzFWQo68CPtFFBKUruPzdMy70KZ6rIDwxbyDV8BM/IR
-	X5j9JkTFqiaOxMrW+DmQvCaTM4ocX+HCgFl4bH9N2CmkVYBPoaF/VHGprSNzkIgXdaQ==
-X-Received: by 2002:a17:90a:5d0a:: with SMTP id s10mr32529818pji.94.1561477805838;
-        Tue, 25 Jun 2019 08:50:05 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyUzpgoK5dd5f5ChLuYAfnF8IT+QBQ1OZui239Op5g71UIiGizIUAyKwjxZ23jadgmHngK0
-X-Received: by 2002:a17:90a:5d0a:: with SMTP id s10mr32529758pji.94.1561477805187;
-        Tue, 25 Jun 2019 08:50:05 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561477805; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=k3UMAW6XTy18ywUCIThj/81Ms19rifRTEd/lQqY16ew=;
+        b=foX8ntFFaLKGhUd+jqv1T+MpClFEnPmLqc86n0mePFD8wF0Zd319ZjyJbQWEr51CAz
+         eltEaBV95Y0aTXKNiMbXHBlDrdpOJBqsIhYoMcmOZLkL0Md5tKRvOfr7dXZZ4jHQFCXf
+         +gDwXBABhSD/T7iej9SjN2FSXe5XtlH03nzjck9Lp88WAazxk5U4IHMXMRKozvQrO8Ua
+         +LsCcF+mSyHVyCBUopomNRiuw39IEAlSJ1voPGquipq+ESUiIFNuq7zVwfywkhgPf1gp
+         0UvrbEiB+t6Tdk8wvptmuHkksGCIWHa8+tK5FmSuU37djKrBDZBFKt7okiICLcH2jOGN
+         mykQ==
+X-Gm-Message-State: APjAAAUZEEiytGh/VjRFZXVcmd8/PaB/sI50kjhIHvMklX17YQAg5/fV
+	xnxis6s37s7KBfjcIs5vNryUIn2+h1cO5Yq2J+1Pnt4uabMx1HXUIGzUT9EpwYGOVcMHJ2uTJrX
+	rfM3e4o/wf5dS+zJ689rwdZiT9/iuj+DCgztSY+onvYdstAz/Kj6l15q6UJRPQf2KHw==
+X-Received: by 2002:a02:1607:: with SMTP id a7mr3871157jaa.123.1561478956374;
+        Tue, 25 Jun 2019 09:09:16 -0700 (PDT)
+X-Received: by 2002:a02:1607:: with SMTP id a7mr3871057jaa.123.1561478955337;
+        Tue, 25 Jun 2019 09:09:15 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561478955; cv=none;
         d=google.com; s=arc-20160816;
-        b=PA5VqwOSNL0tdrQ5krGeHkOvWlre84GgHlXGUO9kEoA8gBsE1ME7y4H+vlLsd83Wj3
-         64k9/wUKzw8smkMUlfL/hSehprcmyInqRokwaPQtgx9tWMXBip0MFi2Oeqo9E8gFhrsB
-         K5TgcUY+wWX/tYPjSfB10CYcY8jaZdGvvvNN0MvurCHCMDlvBoLCsC4+uRKcKgFo+HyF
-         9OlQBppR81yUO8vs6Evlz8tjUCGk7/QKasqxy7FhxCRbecGFEflWWOXwtgPKRvHZLunf
-         NRW+sax9l2kWcZELZS9Z6Ff3VcT9kTv1fYuRiTylYwDBbsWqSG9h1qOnMo56Xu4aoeIU
-         iO3w==
+        b=Slm20V7JCNdQd/T5hqT5wOAv6UHjaOAYUYv/K2Qs1N0mjK+jLIqrlP513wG+y0bLeq
+         xKFhxmSvPwcjZpaO3Syo29TBH/M9KD4YrHjyeHhzWdJc2mCMDvUU+Ome6xTDzpMW3VXo
+         wZQ58+xjXefc+gnK4OUCveJViI7LPDlFi2mS7/Gbozb4pLvudHpFWENBK5nXpyRxpamy
+         m359FC52b4wWYhW+JoqcGVp02tFn7uVqNaQ/Kgh5pBYOx7pxSpO6Njok26tcrYuFIuif
+         bXeSnPLfVySnUXkBRoA19L/ENg/yNn0CPIZrvNPviGishf63gYGHiKIjxlEmsmdO2hf8
+         tJJQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-language:content-transfer-encoding:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=y5ZNy7i81Ut+mfkDSJ5o7JLLa2AHZoKYgMtKxzFwKNs=;
-        b=qJrv6onS8WGuJl1tBKiQF4OaGjjOWwMjA7FIcx2gsuWOssLY1dXnC7t9fr479wtbR+
-         GZMMspN/PAiaU2NeNRm0xCmOdSHZkze039aM9ac6NGpMXCKPh+5qhszJpH6Fw4rULhrX
-         /85U+744ROPxXL/GAYFre4WeIFtRjVO+VnLJf5p5QEqcfz9i5KyTKv6ia80YESkGshr2
-         k5cfLzKAVGhxTWQwc37vckVHMEgyp99iJIMo8XAuQR52pKgD7Hn+0PTjJCXAVu8Uh4Jg
-         xDRhO7aFGvgiyTB7AZljtKbcppFNKUQEUCUbhOtlBBMZZg1OTBPcIaEy1yFfX3SEVeon
-         aLeg==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=k3UMAW6XTy18ywUCIThj/81Ms19rifRTEd/lQqY16ew=;
+        b=POgVjoX0ONWH7cGA8znl/Lo1gdrdoCFM2PXawlifvpT5NFN/T7f7GnpkCYabxDUDqH
+         UwcVUM8hRFDBYmFzduwvvYcredR+mEL5CTqX2LvGxWje7V9hwehV7cIGZnZAkdpYZW38
+         vsLhtivgo/oORMRj+rNALoN5zXHICWQesr1IFUKGq8tGKu1NdVVVI+RglAIY/hUW14ji
+         IzAmvCsm0kGgzCcggXuGZq/o5IOIA/pYvOoHFrwbQKbH2epGjRbOeGMXm7M2oMEPbwpA
+         hYM8zSKyIb7M8QH1nmOxjgdbry7VOwQOBJHK2PKScbBKByK7l4E+RdSJs4VnXCdosM+n
+         Bzgg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.37 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-Received: from out4437.biz.mail.alibaba.com (out4437.biz.mail.alibaba.com. [47.88.44.37])
-        by mx.google.com with ESMTPS id y18si9237140pgk.286.2019.06.25.08.50.03
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=RcMVE9f4;
+       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id l9sor10373566iom.67.2019.06.25.09.09.15
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 25 Jun 2019 08:50:05 -0700 (PDT)
-Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.37 as permitted sender) client-ip=47.88.44.37;
+        (Google Transport Security);
+        Tue, 25 Jun 2019 09:09:15 -0700 (PDT)
+Received-SPF: pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.37 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R161e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e04407;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=11;SR=0;TI=SMTPD_---0TVBV9sb_1561477780;
-Received: from US-143344MP.local(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TVBV9sb_1561477780)
-          by smtp.aliyun-inc.com(127.0.0.1);
-          Tue, 25 Jun 2019 23:49:44 +0800
-Subject: Re: [v3 PATCH 2/4] mm: move mem_cgroup_uncharge out of
- __page_cache_release()
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: ktkhai@virtuozzo.com, kirill.shutemov@linux.intel.com,
- hannes@cmpxchg.org, mhocko@suse.com, hughd@google.com, shakeelb@google.com,
- rientjes@google.com, akpm@linux-foundation.org, linux-mm@kvack.org,
- linux-kernel@vger.kernel.org
-References: <1560376609-113689-1-git-send-email-yang.shi@linux.alibaba.com>
- <1560376609-113689-3-git-send-email-yang.shi@linux.alibaba.com>
- <20190613113943.ahmqpezemdbwgyax@box>
- <2909ce59-86ba-ea0b-479f-756020fb32af@linux.alibaba.com>
- <df469474-9b1c-6052-6aaa-be4558f7bd86@linux.alibaba.com>
- <20190625093543.qsl5l5hyjv6shvve@box>
-From: Yang Shi <yang.shi@linux.alibaba.com>
-Message-ID: <18396199-8997-c721-0b9f-b1d8650c0f5b@linux.alibaba.com>
-Date: Tue, 25 Jun 2019 08:49:37 -0700
-User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:52.0)
- Gecko/20100101 Thunderbird/52.7.0
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=RcMVE9f4;
+       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=k3UMAW6XTy18ywUCIThj/81Ms19rifRTEd/lQqY16ew=;
+        b=RcMVE9f4Bja0Quc1wT3vaYzlpnQSCmnBDIRhttxCcYMhQfFL2Si3oiW3r0hViYD5Tk
+         FRaD4Hex+cjI7KWEfjC6ekEYINHz/TnrCMjgaeHvZSbCtCvRc+Xn8jB8Yi2f1Br+TYUj
+         7zsFPdJWsei9CRvWVphvTkWQchIgL8I5zM8JAMEQz606ONHnrr44//hjttX/mI6cujTz
+         zkbJpwqkAhH9nXJXirD36NVuyipjf/ug4oG+2V2qWien5JeV09/fVyP0fsVK8VEJDrHG
+         vrJhjbU2ctmC1t/KIvpzJmdnc7kvZbbuXBdKu5+HhIiqvcj2vOQxDKr4ZoHuI6lVwA8Q
+         v8ug==
+X-Google-Smtp-Source: APXvYqyD+fdojUZzJs1AJNVi0qgjkM376l87i5l2KN7FZYAjv5QbKJz++V5cn1bug0htF6W8pFlVQ0Ci5zMtWUQ4iAg=
+X-Received: by 2002:a6b:5106:: with SMTP id f6mr17136739iob.15.1561478954660;
+ Tue, 25 Jun 2019 09:09:14 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20190625093543.qsl5l5hyjv6shvve@box>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 8bit
-Content-Language: en-US
+References: <20190619222922.1231.27432.stgit@localhost.localdomain> <ff133df4-6291-bece-3d8d-dc3f12f398cf@redhat.com>
+In-Reply-To: <ff133df4-6291-bece-3d8d-dc3f12f398cf@redhat.com>
+From: Alexander Duyck <alexander.duyck@gmail.com>
+Date: Tue, 25 Jun 2019 09:09:03 -0700
+Message-ID: <CAKgT0Ue4k_MHiAqMM0kyBBnPCB+828tXE2HfiZ9N1gKYayQcow@mail.gmail.com>
+Subject: Re: [PATCH v1 0/6] mm / virtio: Provide support for paravirtual waste
+ page treatment
+To: David Hildenbrand <david@redhat.com>
+Cc: Nitesh Narayan Lal <nitesh@redhat.com>, kvm list <kvm@vger.kernel.org>, 
+	"Michael S. Tsirkin" <mst@redhat.com>, Dave Hansen <dave.hansen@intel.com>, 
+	LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, 
+	Andrew Morton <akpm@linux-foundation.org>, Yang Zhang <yang.zhang.wz@gmail.com>, pagupta@redhat.com, 
+	Rik van Riel <riel@surriel.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, lcapitulino@redhat.com, 
+	wei.w.wang@intel.com, Andrea Arcangeli <aarcange@redhat.com>, 
+	Paolo Bonzini <pbonzini@redhat.com>, dan.j.williams@intel.com, 
+	Alexander Duyck <alexander.h.duyck@linux.intel.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
-
-On 6/25/19 2:35 AM, Kirill A. Shutemov wrote:
-> On Mon, Jun 24, 2019 at 09:54:05AM -0700, Yang Shi wrote:
->>
->> On 6/13/19 10:13 AM, Yang Shi wrote:
->>>
->>> On 6/13/19 4:39 AM, Kirill A. Shutemov wrote:
->>>> On Thu, Jun 13, 2019 at 05:56:47AM +0800, Yang Shi wrote:
->>>>> The later patch would make THP deferred split shrinker memcg aware, but
->>>>> it needs page->mem_cgroup information in THP destructor, which
->>>>> is called
->>>>> after mem_cgroup_uncharge() now.
->>>>>
->>>>> So, move mem_cgroup_uncharge() from __page_cache_release() to compound
->>>>> page destructor, which is called by both THP and other compound pages
->>>>> except HugeTLB.  And call it in __put_single_page() for single order
->>>>> page.
->>>> If I read the patch correctly, it will change behaviour for pages with
->>>> NULL_COMPOUND_DTOR. Have you considered it? Are you sure it will not
->>>> break
->>>> anything?
->> Hi Kirill,
->>
->> Did this solve your concern? Any more comments on this series?
-> Everyting looks good now. You can use my
+On Tue, Jun 25, 2019 at 12:42 AM David Hildenbrand <david@redhat.com> wrote:
 >
-> Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> On 20.06.19 00:32, Alexander Duyck wrote:
+> > This series provides an asynchronous means of hinting to a hypervisor
+> > that a guest page is no longer in use and can have the data associated
+> > with it dropped. To do this I have implemented functionality that allows
+> > for what I am referring to as waste page treatment.
+> >
+> > I have based many of the terms and functionality off of waste water
+> > treatment, the idea for the similarity occurred to me after I had reached
+> > the point of referring to the hints as "bubbles", as the hints used the
+> > same approach as the balloon functionality but would disappear if they
+> > were touched, as a result I started to think of the virtio device as an
+> > aerator. The general idea with all of this is that the guest should be
+> > treating the unused pages so that when they end up heading "downstream"
+> > to either another guest, or back at the host they will not need to be
+> > written to swap.
+> >
+> > When the number of "dirty" pages in a given free_area exceeds our high
+> > water mark, which is currently 32, we will schedule the aeration task to
+> > start going through and scrubbing the zone. While the scrubbing is taking
+> > place a boundary will be defined that we use to seperate the "aerated"
+> > pages from the "dirty" ones. We use the ZONE_AERATION_ACTIVE bit to flag
+> > when these boundaries are in place.
 >
-> for the series.
+> I still *detest* the terminology, sorry. Can't you come up with a
+> simpler terminology that makes more sense in the context of operating
+> systems and pages we want to hint to the hypervisor? (that is the only
+> use case you are using it for so far)
 
-Thanks!
+I'm open to suggestions. The terminology is just what I went with as I
+had gone from balloon to thinking of this as a bubble since it was a
+balloon without the deflate logic. From there I got to aeration since
+it is filling the buddy allocator with those bubbles.
 
+> >
+> > I am leaving a number of things hard-coded such as limiting the lowest
+> > order processed to PAGEBLOCK_ORDER, and have left it up to the guest to
+> > determine what batch size it wants to allocate to process the hints.
+> >
+> > My primary testing has just been to verify the memory is being freed after
+> > allocation by running memhog 32g in the guest and watching the total free
+> > memory via /proc/meminfo on the host. With this I have verified most of
+> > the memory is freed after each iteration. As far as performance I have
+> > been mainly focusing on the will-it-scale/page_fault1 test running with
+> > 16 vcpus. With that I have seen a less than 1% difference between the
 >
+> 1% throughout all benchmarks? Guess that is quite good.
+
+That is the general idea. What I wanted to avoid was this introducing
+any significant slowdown, especially in the case where we weren't
+using it.
+
+> > base kernel without these patches, with the patches and virtio-balloon
+> > disabled, and with the patches and virtio-balloon enabled with hinting.
+> >
+> > Changes from the RFC:
+> > Moved aeration requested flag out of aerator and into zone->flags.
+> > Moved boundary out of free_area and into local variables for aeration.
+> > Moved aeration cycle out of interrupt and into workqueue.
+> > Left nr_free as total pages instead of splitting it between raw and aerated.
+> > Combined size and physical address values in virtio ring into one 64b value.
+> > Restructured the patch set to reduce patches from 11 to 6.
+> >
+>
+> I'm planning to look into the details, but will be on PTO for two weeks
+> starting this Saturday (and still have other things to finish first :/ ).
+
+Thanks. No rush. I will be on PTO for the next couple of weeks myself.
+
+> > ---
+> >
+> > Alexander Duyck (6):
+> >       mm: Adjust shuffle code to allow for future coalescing
+> >       mm: Move set/get_pcppage_migratetype to mmzone.h
+> >       mm: Use zone and order instead of free area in free_list manipulators
+> >       mm: Introduce "aerated" pages
+> >       mm: Add logic for separating "aerated" pages from "raw" pages
+> >       virtio-balloon: Add support for aerating memory via hinting
+> >
+> >
+> >  drivers/virtio/Kconfig              |    1
+> >  drivers/virtio/virtio_balloon.c     |  110 ++++++++++++++
+> >  include/linux/memory_aeration.h     |  118 +++++++++++++++
+> >  include/linux/mmzone.h              |  113 +++++++++------
+> >  include/linux/page-flags.h          |    8 +
+> >  include/uapi/linux/virtio_balloon.h |    1
+> >  mm/Kconfig                          |    5 +
+> >  mm/Makefile                         |    1
+> >  mm/aeration.c                       |  270 +++++++++++++++++++++++++++++++++++
+> >  mm/page_alloc.c                     |  203 ++++++++++++++++++--------
+> >  mm/shuffle.c                        |   24 ---
+> >  mm/shuffle.h                        |   35 +++++
+> >  12 files changed, 753 insertions(+), 136 deletions(-)
+> >  create mode 100644 include/linux/memory_aeration.h
+> >  create mode 100644 mm/aeration.c
+>
+> Compared to
+>
+>  17 files changed, 838 insertions(+), 86 deletions(-)
+>  create mode 100644 include/linux/memory_aeration.h
+>  create mode 100644 mm/aeration.c
+>
+> this looks like a good improvement :)
+
+Thanks.
+
+- Alex
 
