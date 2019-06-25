@@ -2,823 +2,433 @@ Return-Path: <SRS0=nbyn=UY=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9B891C48BD4
-	for <linux-mm@archiver.kernel.org>; Tue, 25 Jun 2019 07:53:18 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C1B8DC48BD4
+	for <linux-mm@archiver.kernel.org>; Tue, 25 Jun 2019 07:56:05 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 36F972089F
-	for <linux-mm@archiver.kernel.org>; Tue, 25 Jun 2019 07:53:18 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 36F972089F
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
+	by mail.kernel.org (Postfix) with ESMTP id 79E6520659
+	for <linux-mm@archiver.kernel.org>; Tue, 25 Jun 2019 07:56:05 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 79E6520659
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A95576B000C; Tue, 25 Jun 2019 03:53:13 -0400 (EDT)
+	id 1B6388E0003; Tue, 25 Jun 2019 03:56:05 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9F6AE8E0003; Tue, 25 Jun 2019 03:53:13 -0400 (EDT)
+	id 18DB18E0002; Tue, 25 Jun 2019 03:56:05 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7D57C8E0002; Tue, 25 Jun 2019 03:53:13 -0400 (EDT)
+	id 07B968E0003; Tue, 25 Jun 2019 03:56:05 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 120236B000C
-	for <linux-mm@kvack.org>; Tue, 25 Jun 2019 03:53:13 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id y3so24367425edm.21
-        for <linux-mm@kvack.org>; Tue, 25 Jun 2019 00:53:13 -0700 (PDT)
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D8EC18E0002
+	for <linux-mm@kvack.org>; Tue, 25 Jun 2019 03:56:04 -0400 (EDT)
+Received: by mail-qt1-f197.google.com with SMTP id d26so19955322qte.19
+        for <linux-mm@kvack.org>; Tue, 25 Jun 2019 00:56:04 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:in-reply-to:references;
-        bh=7ZJiIu6+Q0/KpgqbrO7Z2w7ZhGh9YiaEfkdXVkzctqI=;
-        b=RWGiPvoFqRdoATNNqc+jDqXaQjdZ4LZigITRT3zrmdtIC4f1vBryhLbdqxH4UJBO/L
-         Oc6DNPbQrHVrArInXWEzODEAg/V+fjzsPHqhRjtCAzgWd+2Yei1EwRQtltRbW9AY0TgV
-         q7OmdHgUVS5Zyt2+cLcOsfgF2/mQgwEhLlG0ieLoC4Jg6k7yzsUOOpKwsOwNkaCNoDX1
-         QpaDWx7+PJL4Ee80YBsTJaBMMgljvPWapikxiYerYLulb6gjax/DhHgU8P1cCFwnSXSj
-         m97EBDgvjtxVRgIEIA6IPqpw4gCDfPUPZ7Z6UodFztiFz/KGgsKiyKpgysiPuVrfBL/k
-         vjyQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.221.5 as permitted sender) smtp.mailfrom=osalvador@suse.de
-X-Gm-Message-State: APjAAAXRLDbwCXWgKJFtG0184R9INURULEE/Wqx8gy/z2aeVRrT+Bn50
-	ew+PpF+0mAnENJsv59CRBaLSnX6PIiOFloFSZmT9T3QfpNuAKceuxenu/7G4mxYpnealcNq9Q1g
-	64cGt1cGvMg/FiHqEKM64S5oPwBNCWPsDKnNMPZO69Vn4XYhFuLR84ZuwjEk2E/23Xg==
-X-Received: by 2002:a17:906:d69:: with SMTP id s9mr30030372ejh.305.1561449192542;
-        Tue, 25 Jun 2019 00:53:12 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxUR3bS125N6BGlvqrll0D/m27aK2sWir2j3+Q0lbrzFGwUxYXpxkEJIVjBE37i2Ikj/JaF
-X-Received: by 2002:a17:906:d69:: with SMTP id s9mr30030265ejh.305.1561449190404;
-        Tue, 25 Jun 2019 00:53:10 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561449190; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:organization:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding;
+        bh=nWYXzWFttn4OC7Xl3Gr74qsB4knWFl1bGTiqg31JOPA=;
+        b=sRBEzQicUwneAKV8Bc+G27WfPoU/xrqWw9UXa7THDh/vqSCdmA9NR06bHB8S2BYW3D
+         ejcAzi86t0aaKxVDaDJQ8U69bRyLl2uFNwugYXGCB45h26FmNvxB8zvU+5to82kfaNGe
+         KvDDOJFal7Ir/8MX0e8kUQfuW0N1Gliknc3JRvZKq6sqEc26I0vz8pbx2B9L91Pbi9Dc
+         EEG/cvQ8xN76ICNW109+NHbB2uMGRpvPqPwKFVqWPIELVSKhjOLpDmmOcbFbEuewv665
+         THjhEUBGABG4qjZoLWBVm5GBFeNFVEKpnGNDdEvEpg+FVrqSKlid2hFGvyX0u+XpeKZ4
+         lEYA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAXuuyxF/iasUjkmuQFkGgZhFEYRt8XYGVP0MNutyKbCLMu5XOgR
+	dhxorHxzFy5u5yRl7HoBm1KZghS3RrJBBFPqYdEsUvEMFrczmkqLbZHA3Ue8yDDNKBeXkv9YX8z
+	lQswWaCCBjwjNvQrI2v9StelObFZ2ca8bNJn0ChIXMQD1FGlvDmYAclAmmckWvd7ZzQ==
+X-Received: by 2002:a37:98c3:: with SMTP id a186mr20882277qke.498.1561449364653;
+        Tue, 25 Jun 2019 00:56:04 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyBwa3EypobN9wwN+xb3wITZ7Kt2oNM8Ni7wmRsZfwfAP22HNcNvwugBJvJbU2wRr7tmdT9
+X-Received: by 2002:a37:98c3:: with SMTP id a186mr20882252qke.498.1561449363911;
+        Tue, 25 Jun 2019 00:56:03 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561449363; cv=none;
         d=google.com; s=arc-20160816;
-        b=I0rBPrxs7Kaufiyt5LkM/eTDX/vLOxxU3OH19G2U4pRRTY8wbx3o4Y++07v0Ca6imn
-         VNw3+ytLazORKsPxAIwcI5msLKCwfzoi3U5N3ARcMLQcFLQkdWt2Saho6uo00wyqOJ+t
-         xNRmHG7E6g2Y8EADrfRgV2VaU3NJPScWQQFVBHNyFmxGbd9+Ul3VxjvoR2dnPST9FuyU
-         MKV17Hhej6C6oXu7iaCJfaXr0ai1Vq2VPw1Nl8JSeP82xppZIHMr5p+8k6p4UmhDTGOk
-         +3XP4OPJShfRnUfAxi2XSMrKVOxc9Woylg8jvGo1uaaZ6szTQX/sSNHI89iucVMx63FE
-         6Ejw==
+        b=SPAkBEiKD5VxNAk9OzT40tN8gEQJie1VgPbe9z69pPTZca1DO/1ZV+Tc34yykVFCXk
+         cUG/pAysKuSuK6UE7BlGQTZw2UlkGEQrYO5e+y/S3sHY7eYkNAN4oUCz6SqmeAEIZ0eM
+         zxZekFm3jv7cbqaO876gBbCMrwDB3TZjvUFt0VpUHRvUWaUDqvW21fjXxvs3N1erSID9
+         xyk8FOhRj/87zF2nUp7oLAoF2w420eq7NY4y2kqq8evJh/UmsC6YVmnbAdQIewPILJSh
+         t7DyDuFSqf/sh939YuKYBRcfTzGaaC7WHjo75upQrnQWL410lrCb4x2pcbxiekcnWGf0
+         B1GA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=7ZJiIu6+Q0/KpgqbrO7Z2w7ZhGh9YiaEfkdXVkzctqI=;
-        b=KZeRZx1TPEXECgpnApxzC1iafM6mhCs2hb9o2coBSl360ojWU57qH9xHgnTFmQZsRN
-         PZyGGs9S7BpiDjj7z2lKuVjFRYaJ2fMaxPj6Dt1rOHispC361/e3uJ6vd4frvA9qy8hZ
-         qNcwKMYguedlEe0PEpOrHcvOGZ4HyQnNIiFu8N5V8WJevFpzcTL+dmcl/Jt1EzGV8Q8Z
-         aqqP6kh82HlpJ5L5p8TxS/OY4oHAtwcZEM+abdGuaoCEb2fJLbWseWGSOX0SsLmtcSAk
-         YW/yPQRtG0ozzYwTQQj8JEVemcteNR5JQ27WIGuGTMVFCldW/jNl9Ro+KRliM46epFvr
-         +8Mg==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:organization:autocrypt:openpgp:from
+         :references:cc:to:subject;
+        bh=nWYXzWFttn4OC7Xl3Gr74qsB4knWFl1bGTiqg31JOPA=;
+        b=ZC4ymWiXv8uZ0SuqpRcwXK2p0ngMn257pDGUsb2Tj3KgJEQYm+6TvzPXgNw61RzUaQ
+         EEQRXiOQkZdB6+B2ikbLB2K/5deWyp0A9IctreY4g7nRLW/VammW75bjQ0TfXd4q54xu
+         eZk1s7JXpzA4Ue+rhTtxEQWAsmqcgqXrRExsE5qgvZv3qiSMmXKI9t8gpR52EJpFHs/C
+         TH/hxJ9H4wYIUG/fhT/8xblOH8LdVwFx8L2FuHFtFiXynKl9FTUyRi9NEpIQU9qaTKWh
+         fmJZBPGESHFqhh0YuFNXH3Q/TZdcWhfDNWOn/xtPM2zd7gCLRLFnUY1Qk8K7B3IyvHXl
+         rjzw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.221.5 as permitted sender) smtp.mailfrom=osalvador@suse.de
-Received: from smtp.nue.novell.com (smtp.nue.novell.com. [195.135.221.5])
-        by mx.google.com with ESMTPS id g39si12558324edc.434.2019.06.25.00.53.10
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id s25si1557401qkj.26.2019.06.25.00.56.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 25 Jun 2019 00:53:10 -0700 (PDT)
-Received-SPF: pass (google.com: domain of osalvador@suse.de designates 195.135.221.5 as permitted sender) client-ip=195.135.221.5;
+        Tue, 25 Jun 2019 00:56:03 -0700 (PDT)
+Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.221.5 as permitted sender) smtp.mailfrom=osalvador@suse.de
-Received: from emea4-mta.ukb.novell.com ([10.120.13.87])
-	by smtp.nue.novell.com with ESMTP (TLS encrypted); Tue, 25 Jun 2019 09:53:09 +0200
-Received: from suse.de (nwb-a10-snat.microfocus.com [10.120.13.201])
-	by emea4-mta.ukb.novell.com with ESMTP (NOT encrypted); Tue, 25 Jun 2019 08:52:35 +0100
-From: Oscar Salvador <osalvador@suse.de>
-To: akpm@linux-foundation.org
-Cc: mhocko@suse.com,
-	dan.j.williams@intel.com,
-	pasha.tatashin@soleen.com,
-	Jonathan.Cameron@huawei.com,
-	david@redhat.com,
-	anshuman.khandual@arm.com,
-	vbabka@suse.cz,
-	linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org,
-	Oscar Salvador <osalvador@suse.de>
-Subject: [PATCH v2 4/5] mm,memory_hotplug: allocate memmap from the added memory range for sparse-vmemmap
-Date: Tue, 25 Jun 2019 09:52:26 +0200
-Message-Id: <20190625075227.15193-5-osalvador@suse.de>
-X-Mailer: git-send-email 2.13.7
-In-Reply-To: <20190625075227.15193-1-osalvador@suse.de>
-References: <20190625075227.15193-1-osalvador@suse.de>
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx08.intmail.prod.int.phx2.redhat.com [10.5.11.23])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id EF7AC3086204;
+	Tue, 25 Jun 2019 07:55:54 +0000 (UTC)
+Received: from [10.36.117.83] (ovpn-117-83.ams2.redhat.com [10.36.117.83])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id D85D819936;
+	Tue, 25 Jun 2019 07:55:39 +0000 (UTC)
+Subject: Re: [PATCH v1 1/6] mm: Adjust shuffle code to allow for future
+ coalescing
+To: Alexander Duyck <alexander.duyck@gmail.com>, nitesh@redhat.com,
+ kvm@vger.kernel.org, mst@redhat.com, dave.hansen@intel.com,
+ linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org
+Cc: yang.zhang.wz@gmail.com, pagupta@redhat.com, riel@surriel.com,
+ konrad.wilk@oracle.com, lcapitulino@redhat.com, wei.w.wang@intel.com,
+ aarcange@redhat.com, pbonzini@redhat.com, dan.j.williams@intel.com,
+ alexander.h.duyck@linux.intel.com
+References: <20190619222922.1231.27432.stgit@localhost.localdomain>
+ <20190619223302.1231.51136.stgit@localhost.localdomain>
+From: David Hildenbrand <david@redhat.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
+ 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
+ SE+xAvmumFBY
+Organization: Red Hat GmbH
+Message-ID: <7d959202-b2cd-fe24-5b3c-84e159eafe0a@redhat.com>
+Date: Tue, 25 Jun 2019 09:55:38 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.0
+MIME-Version: 1.0
+In-Reply-To: <20190619223302.1231.51136.stgit@localhost.localdomain>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
+X-Scanned-By: MIMEDefang 2.84 on 10.5.11.23
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.42]); Tue, 25 Jun 2019 07:56:03 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Physical memory hotadd has to allocate a memmap (struct page array) for
-the newly added memory section. Currently, alloc_pages_node() is used
-for those allocations.
+On 20.06.19 00:33, Alexander Duyck wrote:
+> From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+> 
+> This patch is meant to move the head/tail adding logic out of the shuffle
+> code and into the __free_one_page function since ultimately that is where
+> it is really needed anyway. By doing this we should be able to reduce the
+> overhead and can consolidate all of the list addition bits in one spot.
+> 
+> Signed-off-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+> ---
+>  include/linux/mmzone.h |   12 --------
+>  mm/page_alloc.c        |   70 +++++++++++++++++++++++++++---------------------
+>  mm/shuffle.c           |   24 ----------------
+>  mm/shuffle.h           |   35 ++++++++++++++++++++++++
+>  4 files changed, 74 insertions(+), 67 deletions(-)
+> 
+> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> index 427b79c39b3c..4c07af2cfc2f 100644
+> --- a/include/linux/mmzone.h
+> +++ b/include/linux/mmzone.h
+> @@ -116,18 +116,6 @@ static inline void add_to_free_area_tail(struct page *page, struct free_area *ar
+>  	area->nr_free++;
+>  }
+>  
+> -#ifdef CONFIG_SHUFFLE_PAGE_ALLOCATOR
+> -/* Used to preserve page allocation order entropy */
+> -void add_to_free_area_random(struct page *page, struct free_area *area,
+> -		int migratetype);
+> -#else
+> -static inline void add_to_free_area_random(struct page *page,
+> -		struct free_area *area, int migratetype)
+> -{
+> -	add_to_free_area(page, area, migratetype);
+> -}
+> -#endif
+> -
+>  /* Used for pages which are on another list */
+>  static inline void move_to_free_area(struct page *page, struct free_area *area,
+>  			     int migratetype)
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index f4651a09948c..ec344ce46587 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -830,6 +830,36 @@ static inline struct capture_control *task_capc(struct zone *zone)
+>  #endif /* CONFIG_COMPACTION */
+>  
+>  /*
+> + * If this is not the largest possible page, check if the buddy
+> + * of the next-highest order is free. If it is, it's possible
+> + * that pages are being freed that will coalesce soon. In case,
+> + * that is happening, add the free page to the tail of the list
+> + * so it's less likely to be used soon and more likely to be merged
+> + * as a higher order page
+> + */
+> +static inline bool
+> +buddy_merge_likely(unsigned long pfn, unsigned long buddy_pfn,
+> +		   struct page *page, unsigned int order)
+> +{
+> +	struct page *higher_page, *higher_buddy;
+> +	unsigned long combined_pfn;
+> +
+> +	if (is_shuffle_order(order) || order >= (MAX_ORDER - 2))
 
-This has some disadvantages:
- a) an existing memory is consumed for that purpose
-    (~2MB per 128MB memory section on x86_64)
- b) if the whole node is movable then we have off-node struct pages
-    which has performance drawbacks.
+My intuition tells me you can drop the () around "MAX_ORDER - 2"
 
-a) has turned out to be a problem for memory hotplug based ballooning
-   because the userspace might not react in time to online memory while
-   the memory consumed during physical hotadd consumes enough memory to
-   push system to OOM. 31bc3858ea3e ("memory-hotplug: add automatic onlining
-   policy for the newly added memory") has been added to workaround that
-   problem.
+> +		return false;
 
-I have also seen hot-add operations failing on powerpc due to the fact
-that we try to use order-8 pages. If the base page size is 64KB, this
-gives us 16MB, and if we run out of those, we simply fail.
-One could arge that we can fall back to basepages as we do in x86_64, but
-we can do better when CONFIG_SPARSEMEM_VMEMMAP is enabled.
+Guess the "is_shuffle_order(order)" check should rather be performed by
+the caller, before calling this function.
 
-Vmemap page tables can map arbitrary memory.
-That means that we can simply use the beginning of each memory section and
-map struct pages there.
-struct pages which back the allocated space then just need to be treated
-carefully.
+> +
+> +	if (!pfn_valid_within(buddy_pfn))
+> +		return false;
+> +
+> +	combined_pfn = buddy_pfn & pfn;
+> +	higher_page = page + (combined_pfn - pfn);
+> +	buddy_pfn = __find_buddy_pfn(combined_pfn, order + 1);
+> +	higher_buddy = higher_page + (buddy_pfn - combined_pfn);
+> +
+> +	return pfn_valid_within(buddy_pfn) &&
+> +	       page_is_buddy(higher_page, higher_buddy, order + 1);
+> +}
+> +
+> +/*
+>   * Freeing function for a buddy system allocator.
+>   *
+>   * The concept of a buddy system is to maintain direct-mapped table
+> @@ -858,11 +888,12 @@ static inline void __free_one_page(struct page *page,
+>  		struct zone *zone, unsigned int order,
+>  		int migratetype)
+>  {
+> -	unsigned long combined_pfn;
+> +	struct capture_control *capc = task_capc(zone);
+>  	unsigned long uninitialized_var(buddy_pfn);
+> -	struct page *buddy;
+> +	unsigned long combined_pfn;
+> +	struct free_area *area;
+>  	unsigned int max_order;
+> -	struct capture_control *capc = task_capc(zone);
+> +	struct page *buddy;
+>  
+>  	max_order = min_t(unsigned int, MAX_ORDER, pageblock_order + 1);
+>  
+> @@ -931,35 +962,12 @@ static inline void __free_one_page(struct page *page,
+>  done_merging:
+>  	set_page_order(page, order);
+>  
+> -	/*
+> -	 * If this is not the largest possible page, check if the buddy
+> -	 * of the next-highest order is free. If it is, it's possible
+> -	 * that pages are being freed that will coalesce soon. In case,
+> -	 * that is happening, add the free page to the tail of the list
+> -	 * so it's less likely to be used soon and more likely to be merged
+> -	 * as a higher order page
+> -	 */
+> -	if ((order < MAX_ORDER-2) && pfn_valid_within(buddy_pfn)
+> -			&& !is_shuffle_order(order)) {
+> -		struct page *higher_page, *higher_buddy;
+> -		combined_pfn = buddy_pfn & pfn;
+> -		higher_page = page + (combined_pfn - pfn);
+> -		buddy_pfn = __find_buddy_pfn(combined_pfn, order + 1);
+> -		higher_buddy = higher_page + (buddy_pfn - combined_pfn);
+> -		if (pfn_valid_within(buddy_pfn) &&
+> -		    page_is_buddy(higher_page, higher_buddy, order + 1)) {
+> -			add_to_free_area_tail(page, &zone->free_area[order],
+> -					      migratetype);
+> -			return;
+> -		}
+> -	}
+> -
+> -	if (is_shuffle_order(order))
+> -		add_to_free_area_random(page, &zone->free_area[order],
+> -				migratetype);
+> +	area = &zone->free_area[order];
+> +	if (buddy_merge_likely(pfn, buddy_pfn, page, order) ||
+> +	    is_shuffle_tail_page(order))
+> +		add_to_free_area_tail(page, area, migratetype);
 
-Implementation wise we reuse vmem_altmap infrastructure to override
-the default allocator used by __vmemap_populate. Once the memmap is
-allocated we need a way to mark altmap pfns used for the allocation.
-If MHP_MEMMAP_{DEVICE,MEMBLOCK} flag was passed, we set up the layout of the
-altmap structure at the beginning of __add_pages(), and then we call
-mark_vmemmap_pages().
+I would prefer here something like
 
-Depending on which flag is passed (MHP_MEMMAP_DEVICE or MHP_MEMMAP_MEMBLOCK),
-mark_vmemmap_pages() gets called at a different stage.
-With MHP_MEMMAP_MEMBLOCK, we call it once we have populated the sections
-fitting in a single memblock, while with MHP_MEMMAP_DEVICE we wait until all
-sections have been populated.
+if (is_shuffle_order(order)) {
+	if (add_shuffle_order_to_tail(order))
+		add_to_free_area_tail(page, area, migratetype);
+	else
+		add_to_free_area(page, area, migratetype);
+} else if (buddy_merge_likely(pfn, buddy_pfn, page, order)) {
+	add_to_free_area_tail(page, area, migratetype);
+} else {
+	add_to_free_area(page, area, migratetype);
+}
 
-mark_vmemmap_pages() marks the pages as vmemmap and sets some metadata:
+dropping "is_shuffle_order()" from buddy_merge_likely()
 
-The current layout of the Vmemmap pages are:
+Especially, the name "is_shuffle_tail_page(order)" suggests that you are
+passing a page.
 
-	[Head->refcount] : Nr sections used by this altmap
-	[Head->private]  : Nr of vmemmap pages
-	[Tail->freelist] : Pointer to the head page
+>  	else
+> -		add_to_free_area(page, &zone->free_area[order], migratetype);
+> -
+> +		add_to_free_area(page, area, migratetype);
+>  }
+>  
+>  /*
+> diff --git a/mm/shuffle.c b/mm/shuffle.c
+> index 3ce12481b1dc..55d592e62526 100644
+> --- a/mm/shuffle.c
+> +++ b/mm/shuffle.c
+> @@ -4,7 +4,6 @@
+>  #include <linux/mm.h>
+>  #include <linux/init.h>
+>  #include <linux/mmzone.h>
+> -#include <linux/random.h>
+>  #include <linux/moduleparam.h>
+>  #include "internal.h"
+>  #include "shuffle.h"
+> @@ -182,26 +181,3 @@ void __meminit __shuffle_free_memory(pg_data_t *pgdat)
+>  	for (z = pgdat->node_zones; z < pgdat->node_zones + MAX_NR_ZONES; z++)
+>  		shuffle_zone(z);
+>  }
+> -
+> -void add_to_free_area_random(struct page *page, struct free_area *area,
+> -		int migratetype)
+> -{
+> -	static u64 rand;
+> -	static u8 rand_bits;
+> -
+> -	/*
+> -	 * The lack of locking is deliberate. If 2 threads race to
+> -	 * update the rand state it just adds to the entropy.
+> -	 */
+> -	if (rand_bits == 0) {
+> -		rand_bits = 64;
+> -		rand = get_random_u64();
+> -	}
+> -
+> -	if (rand & 1)
+> -		add_to_free_area(page, area, migratetype);
+> -	else
+> -		add_to_free_area_tail(page, area, migratetype);
+> -	rand_bits--;
+> -	rand >>= 1;
+> -}
+> diff --git a/mm/shuffle.h b/mm/shuffle.h
+> index 777a257a0d2f..3f4edb60a453 100644
+> --- a/mm/shuffle.h
+> +++ b/mm/shuffle.h
+> @@ -3,6 +3,7 @@
+>  #ifndef _MM_SHUFFLE_H
+>  #define _MM_SHUFFLE_H
+>  #include <linux/jump_label.h>
+> +#include <linux/random.h>
+>  
+>  /*
+>   * SHUFFLE_ENABLE is called from the command line enabling path, or by
+> @@ -43,6 +44,35 @@ static inline bool is_shuffle_order(int order)
+>  		return false;
+>  	return order >= SHUFFLE_ORDER;
+>  }
+> +
+> +static inline bool is_shuffle_tail_page(int order)
+> +{
+> +	static u64 rand;
+> +	static u8 rand_bits;
+> +	u64 rand_old;
+> +
+> +	if (!is_shuffle_order(order))
+> +		return false;
+> +
+> +	/*
+> +	 * The lack of locking is deliberate. If 2 threads race to
+> +	 * update the rand state it just adds to the entropy.
+> +	 */
+> +	if (rand_bits-- == 0) {
+> +		rand_bits = 64;
+> +		rand = get_random_u64();
+> +	}
+> +
+> +	/*
+> +	 * Test highest order bit while shifting our random value. This
+> +	 * should result in us testing for the carry flag following the
+> +	 * shift.
+> +	 */
+> +	rand_old = rand;
+> +	rand <<= 1;
+> +
+> +	return rand < rand_old;
+> +}
+>  #else
+>  static inline void shuffle_free_memory(pg_data_t *pgdat)
+>  {
+> @@ -60,5 +90,10 @@ static inline bool is_shuffle_order(int order)
+>  {
+>  	return false;
+>  }
+> +
+> +static inline bool is_shuffle_tail_page(int order)
+> +{
+> +	return false;
+> +}
+>  #endif
+>  #endif /* _MM_SHUFFLE_H */
+> 
 
-This is done to easy the computation we need in some places.
-E.g:
 
-Example 1)
-We hot-add 1GB on x86_64 (memory block 128MB) using
-MHP_MEMMAP_DEVICE:
-
-head->_refcount = 8 sections
-head->private = 4096 vmemmap pages
-tail's->freelist = head
-
-Example 2)
-We hot-add 1GB on x86_64 using MHP_MEMMAP_MEMBLOCK:
-
-[at the beginning of each memblock]
-head->_refcount = 1 section
-head->private = 512 vmemmap pages
-tail's->freelist = head
-
-We have the refcount because when using MHP_MEMMAP_DEVICE, we need to know
-how much do we have to defer the call to vmemmap_free().
-The thing is that the first pages of the hot-added range are used to create
-the memmap mapping, so we cannot remove those first, otherwise we would blow up
-when accessing the other pages.
-
-What we do is that since when we hot-remove a memory-range, sections are being
-removed sequentially, we wait until we hit the last section, and then we free
-the hole range to vmemmap_free backwards.
-We know that it is the last section because in every pass we
-decrease head->_refcount, and when it reaches 0, we got our last section.
-
-We also have to be careful about those pages during online and offline
-operations. They are simply skipped, so online will keep them
-reserved and so unusable for any other purpose and offline ignores them
-so they do not block the offline operation.
-
-In offline operation we only have to check for one particularity.
-Depending on how large was the hot-added range, and using MHP_MEMMAP_DEVICE,
-can be that one or more than one memory block is filled with only vmemmap pages.
-We just need to check for this case and skip 1) isolating 2) migrating,
-because those pages do not need to be migrated anywhere, they are self-hosted.
-
-Signed-off-by: Oscar Salvador <osalvador@suse.de>
----
- arch/arm64/mm/mmu.c            |   5 +-
- arch/powerpc/mm/init_64.c      |   7 +++
- arch/s390/mm/init.c            |   6 ++
- arch/x86/mm/init_64.c          |  10 +++
- drivers/acpi/acpi_memhotplug.c |   2 +-
- drivers/base/memory.c          |   2 +-
- include/linux/memory_hotplug.h |   6 ++
- include/linux/memremap.h       |   2 +-
- mm/compaction.c                |   7 +++
- mm/memory_hotplug.c            | 138 +++++++++++++++++++++++++++++++++++------
- mm/page_alloc.c                |  22 ++++++-
- mm/page_isolation.c            |  14 ++++-
- mm/sparse.c                    |  93 +++++++++++++++++++++++++++
- 13 files changed, 289 insertions(+), 25 deletions(-)
-
-diff --git a/arch/arm64/mm/mmu.c b/arch/arm64/mm/mmu.c
-index 93ed0df4df79..d4b5661fa6b6 100644
---- a/arch/arm64/mm/mmu.c
-+++ b/arch/arm64/mm/mmu.c
-@@ -765,7 +765,10 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
- 		if (pmd_none(READ_ONCE(*pmdp))) {
- 			void *p = NULL;
- 
--			p = vmemmap_alloc_block_buf(PMD_SIZE, node);
-+			if (altmap)
-+				p = altmap_alloc_block_buf(PMD_SIZE, altmap);
-+			else
-+				p = vmemmap_alloc_block_buf(PMD_SIZE, node);
- 			if (!p)
- 				return -ENOMEM;
- 
-diff --git a/arch/powerpc/mm/init_64.c b/arch/powerpc/mm/init_64.c
-index a4e17a979e45..ff9d2c245321 100644
---- a/arch/powerpc/mm/init_64.c
-+++ b/arch/powerpc/mm/init_64.c
-@@ -289,6 +289,13 @@ void __ref vmemmap_free(unsigned long start, unsigned long end,
- 
- 		if (base_pfn >= alt_start && base_pfn < alt_end) {
- 			vmem_altmap_free(altmap, nr_pages);
-+		} else if (PageVmemmap(page)) {
-+			/*
-+			 * runtime vmemmap pages are residing inside the memory
-+			 * section so they do not have to be freed anywhere.
-+			 */
-+			while (PageVmemmap(page))
-+				__ClearPageVmemmap(page++);
- 		} else if (PageReserved(page)) {
- 			/* allocated from bootmem */
- 			if (page_size < PAGE_SIZE) {
-diff --git a/arch/s390/mm/init.c b/arch/s390/mm/init.c
-index ffb81fe95c77..c045411552a3 100644
---- a/arch/s390/mm/init.c
-+++ b/arch/s390/mm/init.c
-@@ -226,6 +226,12 @@ int arch_add_memory(int nid, u64 start, u64 size,
- 	unsigned long size_pages = PFN_DOWN(size);
- 	int rc;
- 
-+	/*
-+	 * Physical memory is added only later during the memory online so we
-+	 * cannot use the added range at this stage unfortunately.
-+	 */
-+	restrictions->flags &= ~restrictions->flags;
-+
- 	if (WARN_ON_ONCE(restrictions->altmap))
- 		return -EINVAL;
- 
-diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
-index 688fb0687e55..00d17b666337 100644
---- a/arch/x86/mm/init_64.c
-+++ b/arch/x86/mm/init_64.c
-@@ -874,6 +874,16 @@ static void __meminit free_pagetable(struct page *page, int order)
- 	unsigned long magic;
- 	unsigned int nr_pages = 1 << order;
- 
-+	/*
-+	 * Runtime vmemmap pages are residing inside the memory section so
-+	 * they do not have to be freed anywhere.
-+	 */
-+	if (PageVmemmap(page)) {
-+		while (nr_pages--)
-+			__ClearPageVmemmap(page++);
-+		return;
-+	}
-+
- 	/* bootmem page has reserved flag */
- 	if (PageReserved(page)) {
- 		__ClearPageReserved(page);
-diff --git a/drivers/acpi/acpi_memhotplug.c b/drivers/acpi/acpi_memhotplug.c
-index 860f84e82dd0..3257edb98d90 100644
---- a/drivers/acpi/acpi_memhotplug.c
-+++ b/drivers/acpi/acpi_memhotplug.c
-@@ -218,7 +218,7 @@ static int acpi_memory_enable_device(struct acpi_memory_device *mem_device)
- 		if (node < 0)
- 			node = memory_add_physaddr_to_nid(info->start_addr);
- 
--		result = __add_memory(node, info->start_addr, info->length, 0);
-+		result = __add_memory(node, info->start_addr, info->length, MHP_MEMMAP_DEVICE);
- 
- 		/*
- 		 * If the memory block has been used by the kernel, add_memory()
-diff --git a/drivers/base/memory.c b/drivers/base/memory.c
-index ad9834b8b7f7..e0ac9a3b66f8 100644
---- a/drivers/base/memory.c
-+++ b/drivers/base/memory.c
-@@ -32,7 +32,7 @@ static DEFINE_MUTEX(mem_sysfs_mutex);
- 
- #define to_memory_block(dev) container_of(dev, struct memory_block, dev)
- 
--static int sections_per_block;
-+int sections_per_block;
- 
- static inline int base_memory_block_id(int section_nr)
- {
-diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
-index 6fdbce9d04f9..e28e226c9a20 100644
---- a/include/linux/memory_hotplug.h
-+++ b/include/linux/memory_hotplug.h
-@@ -375,4 +375,10 @@ extern bool allow_online_pfn_range(int nid, unsigned long pfn, unsigned long nr_
- 		int online_type);
- extern struct zone *zone_for_pfn_range(int online_type, int nid, unsigned start_pfn,
- 		unsigned long nr_pages);
-+
-+#ifdef CONFIG_SPARSEMEM_VMEMMAP
-+extern void mark_vmemmap_pages(struct vmem_altmap *self);
-+#else
-+static inline void mark_vmemmap_pages(struct vmem_altmap *self) {}
-+#endif
- #endif /* __LINUX_MEMORY_HOTPLUG_H */
-diff --git a/include/linux/memremap.h b/include/linux/memremap.h
-index 1732dea030b2..6de37e168f57 100644
---- a/include/linux/memremap.h
-+++ b/include/linux/memremap.h
-@@ -16,7 +16,7 @@ struct device;
-  * @alloc: track pages consumed, private to vmemmap_populate()
-  */
- struct vmem_altmap {
--	const unsigned long base_pfn;
-+	unsigned long base_pfn;
- 	const unsigned long reserve;
- 	unsigned long free;
- 	unsigned long align;
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 9e1b9acb116b..40697f74b8b4 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -855,6 +855,13 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
- 		nr_scanned++;
- 
- 		page = pfn_to_page(low_pfn);
-+		/*
-+		 * Vmemmap pages do not need to be isolated.
-+		 */
-+		if (PageVmemmap(page)) {
-+			low_pfn += get_nr_vmemmap_pages(page) - 1;
-+			continue;
-+		}
- 
- 		/*
- 		 * Check if the pageblock has already been marked skipped.
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index e4e3baa6eaa7..b5106cb75795 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -42,6 +42,8 @@
- #include "internal.h"
- #include "shuffle.h"
- 
-+extern int sections_per_block;
-+
- /*
-  * online_page_callback contains pointer to current page onlining function.
-  * Initially it is generic_online_page(). If it is required it could be
-@@ -279,6 +281,24 @@ static int check_pfn_span(unsigned long pfn, unsigned long nr_pages,
- 	return 0;
- }
- 
-+static void mhp_reset_altmap(unsigned long next_pfn,
-+			     struct vmem_altmap *altmap)
-+{
-+	altmap->base_pfn = next_pfn;
-+	altmap->alloc = 0;
-+}
-+
-+static void mhp_init_altmap(unsigned long pfn, unsigned long nr_pages,
-+			    unsigned long mhp_flags,
-+			    struct vmem_altmap *altmap)
-+{
-+	if (mhp_flags & MHP_MEMMAP_DEVICE)
-+		altmap->free = nr_pages;
-+	else
-+		altmap->free = PAGES_PER_SECTION * sections_per_block;
-+	altmap->base_pfn = pfn;
-+}
-+
- /*
-  * Reasonably generic function for adding memory.  It is
-  * expected that archs that support memory hotplug will
-@@ -290,8 +310,17 @@ int __ref __add_pages(int nid, unsigned long pfn, unsigned long nr_pages,
- {
- 	unsigned long i;
- 	int start_sec, end_sec, err;
--	struct vmem_altmap *altmap = restrictions->altmap;
-+	struct vmem_altmap *altmap;
-+	struct vmem_altmap __memblk_altmap = {};
-+	unsigned long mhp_flags = restrictions->flags;
-+	unsigned long sections_added;
-+
-+	if (mhp_flags & MHP_VMEMMAP_FLAGS) {
-+		mhp_init_altmap(pfn, nr_pages, mhp_flags, &__memblk_altmap);
-+		restrictions->altmap = &__memblk_altmap;
-+	}
- 
-+	altmap = restrictions->altmap;
- 	if (altmap) {
- 		/*
- 		 * Validate altmap is within bounds of the total request
-@@ -308,9 +337,10 @@ int __ref __add_pages(int nid, unsigned long pfn, unsigned long nr_pages,
- 	if (err)
- 		return err;
- 
-+	sections_added = 1;
- 	start_sec = pfn_to_section_nr(pfn);
- 	end_sec = pfn_to_section_nr(pfn + nr_pages - 1);
--	for (i = start_sec; i <= end_sec; i++) {
-+	for (i = start_sec; i <= end_sec; i++, sections_added++) {
- 		unsigned long pfns;
- 
- 		pfns = min(nr_pages, PAGES_PER_SECTION
-@@ -320,9 +350,19 @@ int __ref __add_pages(int nid, unsigned long pfn, unsigned long nr_pages,
- 			break;
- 		pfn += pfns;
- 		nr_pages -= pfns;
-+
-+		if (mhp_flags & MHP_MEMMAP_MEMBLOCK &&
-+		    !(sections_added % sections_per_block)) {
-+			mark_vmemmap_pages(altmap);
-+			mhp_reset_altmap(pfn, altmap);
-+		}
- 		cond_resched();
- 	}
- 	vmemmap_populate_print_last();
-+
-+	if (mhp_flags & MHP_MEMMAP_DEVICE)
-+		mark_vmemmap_pages(altmap);
-+
- 	return err;
- }
- 
-@@ -642,6 +682,14 @@ static int online_pages_blocks(unsigned long start, unsigned long nr_pages)
- 	while (start < end) {
- 		order = min(MAX_ORDER - 1,
- 			get_order(PFN_PHYS(end) - PFN_PHYS(start)));
-+		/*
-+		 * Check if the pfn is aligned to its order.
-+		 * If not, we decrement the order until it is,
-+		 * otherwise __free_one_page will bug us.
-+		 */
-+		while (start & ((1 << order) - 1))
-+			order--;
-+
- 		(*online_page_callback)(pfn_to_page(start), order);
- 
- 		onlined_pages += (1UL << order);
-@@ -654,13 +702,30 @@ static int online_pages_range(unsigned long start_pfn, unsigned long nr_pages,
- 			void *arg)
- {
- 	unsigned long onlined_pages = *(unsigned long *)arg;
-+	unsigned long pfn = start_pfn;
-+	unsigned long nr_vmemmap_pages = 0;
- 
--	if (PageReserved(pfn_to_page(start_pfn)))
--		onlined_pages += online_pages_blocks(start_pfn, nr_pages);
-+	if (PageVmemmap(pfn_to_page(pfn))) {
-+		/*
-+		 * Do not send vmemmap pages to the page allocator.
-+		 */
-+		nr_vmemmap_pages = get_nr_vmemmap_pages(pfn_to_page(start_pfn));
-+		nr_vmemmap_pages = min(nr_vmemmap_pages, nr_pages);
-+		pfn += nr_vmemmap_pages;
-+		if (nr_vmemmap_pages == nr_pages)
-+			/*
-+			 * If the entire range contains only vmemmap pages,
-+			 * there are no pages left for the page allocator.
-+			 */
-+			goto skip_online;
-+	}
- 
-+	if (PageReserved(pfn_to_page(pfn)))
-+		onlined_pages += online_pages_blocks(pfn, nr_pages - nr_vmemmap_pages);
-+skip_online:
- 	online_mem_sections(start_pfn, start_pfn + nr_pages);
- 
--	*(unsigned long *)arg = onlined_pages;
-+	*(unsigned long *)arg = onlined_pages + nr_vmemmap_pages;
- 	return 0;
- }
- 
-@@ -1051,6 +1116,23 @@ static int online_memory_block(struct memory_block *mem, void *arg)
- 	return device_online(&mem->dev);
- }
- 
-+static bool mhp_check_correct_flags(unsigned long flags)
-+{
-+	if (flags & MHP_VMEMMAP_FLAGS) {
-+		if (!IS_ENABLED(CONFIG_SPARSEMEM_VMEMMAP)) {
-+			WARN(1, "Vmemmap capability can only be used on"
-+				"CONFIG_SPARSEMEM_VMEMMAP. Ignoring flags.\n");
-+			return false;
-+		}
-+		if ((flags & MHP_VMEMMAP_FLAGS) == MHP_VMEMMAP_FLAGS) {
-+			WARN(1, "Both MHP_MEMMAP_DEVICE and MHP_MEMMAP_MEMBLOCK"
-+				"were passed. Ignoring flags.\n");
-+			return false;
-+		}
-+	}
-+	return true;
-+}
-+
- /*
-  * NOTE: The caller must call lock_device_hotplug() to serialize hotplug
-  * and online/offline operations (triggered e.g. by sysfs).
-@@ -1086,6 +1168,9 @@ int __ref add_memory_resource(int nid, struct resource *res, unsigned long flags
- 		goto error;
- 	new_node = ret;
- 
-+	if (mhp_check_correct_flags(flags))
-+		restrictions.flags = flags;
-+
- 	/* call arch's memory hotadd */
- 	ret = arch_add_memory(nid, start, size, &restrictions);
- 	if (ret < 0)
-@@ -1518,12 +1603,14 @@ static int __ref __offline_pages(unsigned long start_pfn,
- {
- 	unsigned long pfn, nr_pages;
- 	unsigned long offlined_pages = 0;
-+	unsigned long nr_vmemmap_pages = 0;
- 	int ret, node, nr_isolate_pageblock;
- 	unsigned long flags;
- 	unsigned long valid_start, valid_end;
- 	struct zone *zone;
- 	struct memory_notify arg;
- 	char *reason;
-+	bool skip = false;
- 
- 	mem_hotplug_begin();
- 
-@@ -1540,15 +1627,24 @@ static int __ref __offline_pages(unsigned long start_pfn,
- 	node = zone_to_nid(zone);
- 	nr_pages = end_pfn - start_pfn;
- 
--	/* set above range as isolated */
--	ret = start_isolate_page_range(start_pfn, end_pfn,
--				       MIGRATE_MOVABLE,
--				       SKIP_HWPOISON | REPORT_FAILURE);
--	if (ret < 0) {
--		reason = "failure to isolate range";
--		goto failed_removal;
-+	if (PageVmemmap(pfn_to_page(start_pfn))) {
-+		nr_vmemmap_pages = get_nr_vmemmap_pages(pfn_to_page(start_pfn));
-+		nr_vmemmap_pages = min(nr_vmemmap_pages, nr_pages);
-+		if (nr_vmemmap_pages == nr_pages)
-+			skip = true;
-+	}
-+
-+	if (!skip) {
-+		/* set above range as isolated */
-+		ret = start_isolate_page_range(start_pfn, end_pfn,
-+					       MIGRATE_MOVABLE,
-+					       SKIP_HWPOISON | REPORT_FAILURE);
-+		if (ret < 0) {
-+			reason = "failure to isolate range";
-+			goto failed_removal;
-+		}
-+		nr_isolate_pageblock = ret;
- 	}
--	nr_isolate_pageblock = ret;
- 
- 	arg.start_pfn = start_pfn;
- 	arg.nr_pages = nr_pages;
-@@ -1561,6 +1657,9 @@ static int __ref __offline_pages(unsigned long start_pfn,
- 		goto failed_removal_isolated;
- 	}
- 
-+	if (skip)
-+		goto skip_migration;
-+
- 	do {
- 		for (pfn = start_pfn; pfn;) {
- 			if (signal_pending(current)) {
-@@ -1601,7 +1700,9 @@ static int __ref __offline_pages(unsigned long start_pfn,
- 	   We cannot do rollback at this point. */
- 	walk_system_ram_range(start_pfn, end_pfn - start_pfn,
- 			      &offlined_pages, offline_isolated_pages_cb);
--	pr_info("Offlined Pages %ld\n", offlined_pages);
-+
-+skip_migration:
-+	pr_info("Offlined Pages %ld\n", offlined_pages + nr_vmemmap_pages);
- 	/*
- 	 * Onlining will reset pagetype flags and makes migrate type
- 	 * MOVABLE, so just need to decrease the number of isolated
-@@ -1612,11 +1713,12 @@ static int __ref __offline_pages(unsigned long start_pfn,
- 	spin_unlock_irqrestore(&zone->lock, flags);
- 
- 	/* removal success */
--	adjust_managed_page_count(pfn_to_page(start_pfn), -offlined_pages);
--	zone->present_pages -= offlined_pages;
-+	if (offlined_pages)
-+		adjust_managed_page_count(pfn_to_page(start_pfn), -offlined_pages);
-+	zone->present_pages -= offlined_pages + nr_vmemmap_pages;
- 
- 	pgdat_resize_lock(zone->zone_pgdat, &flags);
--	zone->zone_pgdat->node_present_pages -= offlined_pages;
-+	zone->zone_pgdat->node_present_pages -= offlined_pages + nr_vmemmap_pages;
- 	pgdat_resize_unlock(zone->zone_pgdat, &flags);
- 
- 	init_per_zone_wmark_min();
-@@ -1645,7 +1747,7 @@ static int __ref __offline_pages(unsigned long start_pfn,
- 	memory_notify(MEM_CANCEL_OFFLINE, &arg);
- failed_removal:
- 	pr_debug("memory offlining [mem %#010llx-%#010llx] failed due to %s\n",
--		 (unsigned long long) start_pfn << PAGE_SHIFT,
-+		 (unsigned long long) (start_pfn - nr_vmemmap_pages) << PAGE_SHIFT,
- 		 ((unsigned long long) end_pfn << PAGE_SHIFT) - 1,
- 		 reason);
- 	/* pushback to free area */
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 5b3266d63521..7a73a06c5730 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1282,9 +1282,14 @@ static void free_one_page(struct zone *zone,
- static void __meminit __init_single_page(struct page *page, unsigned long pfn,
- 				unsigned long zone, int nid)
- {
--	mm_zero_struct_page(page);
-+	if (!__PageVmemmap(page)) {
-+		/*
-+		 * Vmemmap pages need to preserve their state.
-+		 */
-+		mm_zero_struct_page(page);
-+		init_page_count(page);
-+	}
- 	set_page_links(page, zone, nid, pfn);
--	init_page_count(page);
- 	page_mapcount_reset(page);
- 	page_cpupid_reset_last(page);
- 	page_kasan_tag_reset(page);
-@@ -8143,6 +8148,14 @@ bool has_unmovable_pages(struct zone *zone, struct page *page, int count,
- 
- 		page = pfn_to_page(check);
- 
-+		/*
-+		 * Vmemmap pages are not needed to be moved around.
-+		 */
-+		if (PageVmemmap(page)) {
-+			iter += get_nr_vmemmap_pages(page) - 1;
-+			continue;
-+		}
-+
- 		if (PageReserved(page))
- 			goto unmovable;
- 
-@@ -8510,6 +8523,11 @@ __offline_isolated_pages(unsigned long start_pfn, unsigned long end_pfn)
- 			continue;
- 		}
- 		page = pfn_to_page(pfn);
-+
-+		if (PageVmemmap(page)) {
-+			pfn += get_nr_vmemmap_pages(page);
-+			continue;
-+		}
- 		/*
- 		 * The HWPoisoned page may be not in buddy system, and
- 		 * page_count() is not 0.
-diff --git a/mm/page_isolation.c b/mm/page_isolation.c
-index e3638a5bafff..128c47a27925 100644
---- a/mm/page_isolation.c
-+++ b/mm/page_isolation.c
-@@ -146,7 +146,7 @@ static void unset_migratetype_isolate(struct page *page, unsigned migratetype)
- static inline struct page *
- __first_valid_page(unsigned long pfn, unsigned long nr_pages)
- {
--	int i;
-+	unsigned long i;
- 
- 	for (i = 0; i < nr_pages; i++) {
- 		struct page *page;
-@@ -154,6 +154,10 @@ __first_valid_page(unsigned long pfn, unsigned long nr_pages)
- 		page = pfn_to_online_page(pfn + i);
- 		if (!page)
- 			continue;
-+		if (PageVmemmap(page)) {
-+			i += get_nr_vmemmap_pages(page) - 1;
-+			continue;
-+		}
- 		return page;
- 	}
- 	return NULL;
-@@ -268,6 +272,14 @@ __test_page_isolated_in_pageblock(unsigned long pfn, unsigned long end_pfn,
- 			continue;
- 		}
- 		page = pfn_to_page(pfn);
-+		/*
-+		 * Vmemmap pages are not isolated. Skip them.
-+		 */
-+		if (PageVmemmap(page)) {
-+			pfn += get_nr_vmemmap_pages(page);
-+			continue;
-+		}
-+
- 		if (PageBuddy(page))
- 			/*
- 			 * If the page is on a free list, it has to be on
-diff --git a/mm/sparse.c b/mm/sparse.c
-index b77ca21a27a4..04b395fb4463 100644
---- a/mm/sparse.c
-+++ b/mm/sparse.c
-@@ -635,6 +635,94 @@ void offline_mem_sections(unsigned long start_pfn, unsigned long end_pfn)
- #endif
- 
- #ifdef CONFIG_SPARSEMEM_VMEMMAP
-+void mark_vmemmap_pages(struct vmem_altmap *self)
-+{
-+	unsigned long pfn = self->base_pfn + self->reserve;
-+	unsigned long nr_pages = self->alloc;
-+	unsigned long nr_sects = self->free / PAGES_PER_SECTION;
-+	unsigned long i;
-+	struct page *head;
-+
-+	if (!nr_pages)
-+		return;
-+
-+	pr_debug("%s: marking %px - %px as Vmemmap (%ld pages)\n",
-+						__func__,
-+						pfn_to_page(pfn),
-+						pfn_to_page(pfn + nr_pages - 1),
-+						nr_pages);
-+
-+	/*
-+	 * All allocations for the memory hotplug are the same sized so align
-+	 * should be 0.
-+	 */
-+	WARN_ON(self->align);
-+
-+	/*
-+	 * Layout of vmemmap pages:
-+	 * [Head->refcount] : Nr sections used by this altmap
-+	 * [Head->private]  : Nr of vmemmap pages
-+	 * [Tail->freelist] : Pointer to the head page
-+	 */
-+
-+	/*
-+	 * Head, first vmemmap page
-+	 */
-+	head = pfn_to_page(pfn);
-+	for (i = 0; i < nr_pages; i++, pfn++) {
-+		struct page *page = pfn_to_page(pfn);
-+
-+		mm_zero_struct_page(page);
-+		__SetPageVmemmap(page);
-+		page->freelist = head;
-+		init_page_count(page);
-+	}
-+	set_page_count(head, (int)nr_sects);
-+	set_page_private(head, nr_pages);
-+}
-+/*
-+ * If the range we are trying to remove was hot-added with vmemmap pages
-+ * using MHP_MEMMAP_DEVICE, we need to keep track of it to know how much
-+ * do we have do defer the free up.
-+ * Since sections are removed sequentally in __remove_pages()->
-+ * __remove_section(), we just wait until we hit the last section.
-+ * Once that happens, we can trigger free_deferred_vmemmap_range to actually
-+ * free the whole memory-range.
-+ */
-+static struct page *head_vmemmap_page = NULL;;
-+static bool freeing_vmemmap_range = false;
-+
-+static inline bool vmemmap_dec_and_test(void)
-+{
-+	return page_ref_dec_and_test(head_vmemmap_page);
-+}
-+
-+static void free_deferred_vmemmap_range(unsigned long start,
-+                                       unsigned long end)
-+{
-+	unsigned long nr_pages = end - start;
-+	unsigned long first_section = (unsigned long)head_vmemmap_page;
-+
-+	while (start >= first_section) {
-+		vmemmap_free(start, end, NULL);
-+		end = start;
-+		start -= nr_pages;
-+	}
-+	head_vmemmap_page = NULL;
-+	freeing_vmemmap_range = false;
-+}
-+
-+static void deferred_vmemmap_free(unsigned long start, unsigned long end)
-+{
-+	if (!freeing_vmemmap_range) {
-+		freeing_vmemmap_range = true;
-+		head_vmemmap_page = (struct page *)start;
-+	}
-+
-+	if (vmemmap_dec_and_test())
-+		free_deferred_vmemmap_range(start, end);
-+}
-+
- static struct page *populate_section_memmap(unsigned long pfn,
- 		unsigned long nr_pages, int nid, struct vmem_altmap *altmap)
- {
-@@ -647,6 +735,11 @@ static void depopulate_section_memmap(unsigned long pfn, unsigned long nr_pages,
- 	unsigned long start = (unsigned long) pfn_to_page(pfn);
- 	unsigned long end = start + nr_pages * sizeof(struct page);
- 
-+	if (PageVmemmap((struct page *)start) || freeing_vmemmap_range) {
-+		deferred_vmemmap_free(start, end);
-+		return;
-+	}
-+
- 	vmemmap_free(start, end, altmap);
- }
- static void free_map_bootmem(struct page *memmap)
 -- 
-2.12.3
+
+Thanks,
+
+David / dhildenb
 
