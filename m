@@ -6,78 +6,78 @@ X-Spam-Status: No, score=-8.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
 	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 630B9C48BD4
-	for <linux-mm@archiver.kernel.org>; Tue, 25 Jun 2019 07:53:13 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id EB254C48BD6
+	for <linux-mm@archiver.kernel.org>; Tue, 25 Jun 2019 07:53:15 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 368B520665
-	for <linux-mm@archiver.kernel.org>; Tue, 25 Jun 2019 07:53:13 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 368B520665
+	by mail.kernel.org (Postfix) with ESMTP id AC66D20665
+	for <linux-mm@archiver.kernel.org>; Tue, 25 Jun 2019 07:53:15 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AC66D20665
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1E41F6B0008; Tue, 25 Jun 2019 03:53:11 -0400 (EDT)
+	id 032AB6B000A; Tue, 25 Jun 2019 03:53:13 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0CD1C8E0003; Tue, 25 Jun 2019 03:53:10 -0400 (EDT)
+	id EFEB28E0003; Tue, 25 Jun 2019 03:53:12 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E14108E0002; Tue, 25 Jun 2019 03:53:10 -0400 (EDT)
+	id DEE228E0002; Tue, 25 Jun 2019 03:53:12 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 95F556B0008
-	for <linux-mm@kvack.org>; Tue, 25 Jun 2019 03:53:10 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id s7so24339014edb.19
-        for <linux-mm@kvack.org>; Tue, 25 Jun 2019 00:53:10 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 913A16B000A
+	for <linux-mm@kvack.org>; Tue, 25 Jun 2019 03:53:12 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id f19so24367366edv.16
+        for <linux-mm@kvack.org>; Tue, 25 Jun 2019 00:53:12 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references;
-        bh=pQySH0L22RUnV1R+Ri6D2HobC1fyefST74dWKRzISAc=;
-        b=JWvbw+JHcoe/R1M7xUfPlY0Aw0EG2CrtbYtiJy1Jx17X4MkmWIs5OX+YnGl56l8HTg
-         nXhbKp41agOHBBxV5O4gdiWiGzCKcj3ao+7NOpOof8rW7+WmVUdWQATSYbaKqouhZYt5
-         UzNNoOjlYFCwLgCWU63xrHbehUC05lWocea1FDNLo/kDemy6dmxWYPMzsmSSNwvQ9wK0
-         NQbifc/gSSWwhRF5L1IPb5d10AzM/wtbe0iCe0davve0Q4M0j48wnS8TqzbYRc4yEPp1
-         uuwzHsQHo6moLL1we0gmTxgFomuJywUcw9h7pnsr8jkSFplKXsk1IXU0gxW1bwVJ9Z2Y
-         iWEg==
+        bh=pOYCJ3wCl+5Aq16br5xzf6IifgjC4BiDEDrEzJSV9Ig=;
+        b=QBZB3ioZAVTlg66yX/siWfU6FT0AorVOSIFZflvIQQ4Bb/4IG5Y4SdqXBNRN0YTs0X
+         PVqchoLTmcTfYH1fUp8z2g0uU64tqwA19RSfnvnA+OQQUeUcW7fjTGmu3NY5pjse0z3r
+         oBM8yjxK5N9l67d1zUYgreqrO2KP1USByReHyHVJEYUGqKeeSQqorOaSH47+BodxyDo3
+         tutL6iuIufBmVHY5QhuXOySyd4/Uczwv84A4TIK+t3jr2RAuXpcTizYvW+z7B9fqDL/T
+         ca7EXPWV+d8wPBPnroT0TYAH6ldo0HksjkUg4GQDHI2YnyCIECWi/+TbZzDXRkcR1nGp
+         BBog==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.221.5 as permitted sender) smtp.mailfrom=osalvador@suse.de
-X-Gm-Message-State: APjAAAUp2KjKzZR+4Dd3gAGPCEzUMjwYIIvICyVzbJ5sVj4LeUrzawPm
-	pKk55gD5VI8XlnPLtnEnjE1hR+ydVle8/F0ugEZF74W6H08C2Gpnj8d/TYE5WV9cJBrA2u0ydq4
-	+sJh8tKgIxzZq//e2dVoX/fJ9gFcGJd9bSydJhzdB0RaqccMxGultiojz/hXnz2xbNg==
-X-Received: by 2002:a17:906:3953:: with SMTP id g19mr17204153eje.242.1561449190192;
-        Tue, 25 Jun 2019 00:53:10 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyHUQ4uiafh49rYR/Ooi6d/eoY2fKQ4YJQnAs+cJggb2qcQyyo48V/G73domiGWZd8bLePB
-X-Received: by 2002:a17:906:3953:: with SMTP id g19mr17204083eje.242.1561449188973;
-        Tue, 25 Jun 2019 00:53:08 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561449188; cv=none;
+X-Gm-Message-State: APjAAAVrsIxKGMW2HIYPbGNUmwAEILx2kBS82/UlWTsNgwWBZ/9UsMry
+	H3UI460CzbHxoDz7KTVGartuAotnpjVoEHm9yposT2pNSF78byChhWGGu9C4CeDgJQ70mDCALXc
+	O1+o03MPMd0UtVfLifxtd63SCl8nQzx8s/DX5dQgw4w3dU732mVky5HkKxheloU2n6Q==
+X-Received: by 2002:a17:906:fcb3:: with SMTP id qw19mr105429441ejb.286.1561449192151;
+        Tue, 25 Jun 2019 00:53:12 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzgX5/BFj7/q+f5soUQhaV1o4Kn5Itp4tXRdDP2zyKL3J88+321e0LwcbAMGulCbARPbNjn
+X-Received: by 2002:a17:906:fcb3:: with SMTP id qw19mr105429397ejb.286.1561449191317;
+        Tue, 25 Jun 2019 00:53:11 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561449191; cv=none;
         d=google.com; s=arc-20160816;
-        b=ES3NebXaS/goRHdD2ZxCVaxNXTOypBV0S9XCtb4tSj2+YypaakkDNaYwg8Ug2YifTn
-         k4PwMboOFoLuqnKHZ79HxXtm8JsMlrpDOqlESBGMZu42c7US3TapW64F1uCRbhpKyVnb
-         iS2XzDZcDKSQM+4f8Di+7CTBfnryLDBokhKcWflMk+hYeyZDzaUZ47/kt2SbXhGuVpTK
-         NX1ptbwAcISmI5GD3T7GVw2qjpbNzkUEgPten0SYbXZ50j5gAvvsOQRaBDok6sfwrC4/
-         lrzjHGG6KL8jXmZ7oFWIcv1aa2i0cqBBOZXX+UKHfHIGIg3zoQZPqUzvwFdG55pwH0hx
-         agIg==
+        b=m08ASN4e+vpsgtjR0W97bhu6ylta5xFG62P/rSQCjunCryoIPwqwgmq+iDt9/QQGSy
+         eFXdexN5YIQDt5+lLnxJIqD5bJeXp+wWrEkRU4Lk1yn3AApuvzNyI5EbL9g8/33qubyw
+         TKYJSmCGxwuMcm+tygrmKbpYXoxF2conQGX5MjLbOXpcglsNZie3YybaIM+1gD515xQt
+         4ZH5dtY1ctENreog2l80V/4fuiyPIxyA9ZLNHX+f4pUQpk/ugF2sNLN468jn4E4mWLdY
+         21DUdmjAc2AdPsrL/pxANrDG2V31ok8eLCsZe30F6oTw74abNUb/3vUcsuW1ksQx+bKQ
+         /K7w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=pQySH0L22RUnV1R+Ri6D2HobC1fyefST74dWKRzISAc=;
-        b=tTACkTXVb9UPXWfvlOy+VhOrmco9AfRglgS3iCPN0Tlt0bF21ZrZuUJFVjf9BHdXwz
-         5J4LBIRDb0a4vOcqWSE6+7k3y0ZcVdcHkCi6E/kKYCxEpQ8jrO/5sG17x7pk4RAxZge+
-         TS7t5yCV4uX2exOecSClVTgy/aG5luld8ETUYWcThe9Bj60R4s6AQa8isj70IoOaB0sh
-         urhSsrXbzE7ARHw3syauBPCAsm6w+pIED4LVn9wT4H1vNwjG10yoBZ1s3bJtv7h7rmk8
-         2cAXV+HOysmv5vshc1mA696GwYEw7MZdBXFouwRd4zM3mkNv7cywOD9YJ9kTERzUitSK
-         6lgg==
+        bh=pOYCJ3wCl+5Aq16br5xzf6IifgjC4BiDEDrEzJSV9Ig=;
+        b=QhA72gNBuX3gJF1npnVc5XJAoFjGm3Tg8dxZTkOyHCVLfQqHTpyzAHTzS3azA9gXPQ
+         xU8MqYneORnq4xvlAYYYVSKGVLAvx1f1pi/LfAgjulLceSOgtYnozUL1aScGNMyQBWOy
+         YFOtcceYfESnl8ffTaS0mD4QrZaeSX7x10VqdMxKdqH4Lu8vIn2LXRIcirWD9Z5ZV2pG
+         JHTeW6nHJ+xkUv2948+Lj4lN8z/o7u6iQN0Kp46jR2VjIdBFeZcF8tgUwpEueOPpLKZf
+         IfXBMUQ62qQVFpuXl2//HpB0IFxuzVzTQfdgByhdakpsNYZbBCHRJD4RbiQmNTH0jrVH
+         /m1w==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of osalvador@suse.de designates 195.135.221.5 as permitted sender) smtp.mailfrom=osalvador@suse.de
 Received: from smtp.nue.novell.com (smtp.nue.novell.com. [195.135.221.5])
-        by mx.google.com with ESMTPS id j20si8309411ejt.117.2019.06.25.00.53.08
+        by mx.google.com with ESMTPS id o7si8086149ejd.303.2019.06.25.00.53.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 25 Jun 2019 00:53:08 -0700 (PDT)
+        Tue, 25 Jun 2019 00:53:11 -0700 (PDT)
 Received-SPF: pass (google.com: domain of osalvador@suse.de designates 195.135.221.5 as permitted sender) client-ip=195.135.221.5;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of osalvador@suse.de designates 195.135.221.5 as permitted sender) smtp.mailfrom=osalvador@suse.de
 Received: from emea4-mta.ukb.novell.com ([10.120.13.87])
-	by smtp.nue.novell.com with ESMTP (TLS encrypted); Tue, 25 Jun 2019 09:53:08 +0200
+	by smtp.nue.novell.com with ESMTP (TLS encrypted); Tue, 25 Jun 2019 09:53:10 +0200
 Received: from suse.de (nwb-a10-snat.microfocus.com [10.120.13.201])
-	by emea4-mta.ukb.novell.com with ESMTP (NOT encrypted); Tue, 25 Jun 2019 08:52:34 +0100
+	by emea4-mta.ukb.novell.com with ESMTP (NOT encrypted); Tue, 25 Jun 2019 08:52:35 +0100
 From: Oscar Salvador <osalvador@suse.de>
 To: akpm@linux-foundation.org
 Cc: mhocko@suse.com,
@@ -90,9 +90,9 @@ Cc: mhocko@suse.com,
 	linux-mm@kvack.org,
 	linux-kernel@vger.kernel.org,
 	Oscar Salvador <osalvador@suse.de>
-Subject: [PATCH v2 3/5] mm,memory_hotplug: Introduce Vmemmap page helpers
-Date: Tue, 25 Jun 2019 09:52:25 +0200
-Message-Id: <20190625075227.15193-4-osalvador@suse.de>
+Subject: [PATCH v2 5/5] mm,memory_hotplug: Allow userspace to enable/disable vmemmap
+Date: Tue, 25 Jun 2019 09:52:27 +0200
+Message-Id: <20190625075227.15193-6-osalvador@suse.de>
 X-Mailer: git-send-email 2.13.7
 In-Reply-To: <20190625075227.15193-1-osalvador@suse.de>
 References: <20190625075227.15193-1-osalvador@suse.de>
@@ -102,80 +102,108 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Introduce a set of functions for Vmemmap pages.
-Set of functions:
+It seems that we have some users out there that want to expose all
+hotpluggable memory to userspace, so this implements a toggling mechanism
+for those users who want to disable it.
 
-- {Set,Clear,Check} Vmemmap flag
-- Given a vmemmap page, get its vmemmap-head
-- Get #nr of vmemmap pages taking into account the current position
-  of the page
-
-These functions will be used for the code handling Vmemmap pages.
+By default, vmemmap pages mechanism is enabled.
 
 Signed-off-by: Oscar Salvador <osalvador@suse.de>
 ---
- include/linux/page-flags.h | 34 ++++++++++++++++++++++++++++++++++
- mm/util.c                  |  2 ++
- 2 files changed, 36 insertions(+)
+ drivers/base/memory.c          | 33 +++++++++++++++++++++++++++++++++
+ include/linux/memory_hotplug.h |  3 +++
+ mm/memory_hotplug.c            |  6 +++++-
+ 3 files changed, 41 insertions(+), 1 deletion(-)
 
-diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-index b848517da64c..a8b9b57162b3 100644
---- a/include/linux/page-flags.h
-+++ b/include/linux/page-flags.h
-@@ -466,6 +466,40 @@ static __always_inline int __PageMovable(struct page *page)
- 				PAGE_MAPPING_MOVABLE;
- }
+diff --git a/drivers/base/memory.c b/drivers/base/memory.c
+index e0ac9a3b66f8..6fca2c96cc08 100644
+--- a/drivers/base/memory.c
++++ b/drivers/base/memory.c
+@@ -573,6 +573,35 @@ static DEVICE_ATTR_WO(soft_offline_page);
+ static DEVICE_ATTR_WO(hard_offline_page);
+ #endif
  
-+#define VMEMMAP_PAGE		(~PAGE_MAPPING_FLAGS)
-+static __always_inline int PageVmemmap(struct page *page)
++#ifdef CONFIG_SPARSEMEM_VMEMMAP
++static ssize_t vmemmap_hotplug_show(struct device *dev,
++				    struct device_attribute *attr, char *buf)
 +{
-+	return PageReserved(page) && (unsigned long)page->mapping == VMEMMAP_PAGE;
++	if (vmemmap_enabled)
++		return sprintf(buf, "enabled\n");
++	else
++		return sprintf(buf, "disabled\n");
 +}
 +
-+static __always_inline int __PageVmemmap(struct page *page)
++static ssize_t vmemmap_hotplug_store(struct device *dev,
++			   struct device_attribute *attr,
++			   const char *buf, size_t count)
 +{
-+	return (unsigned long)page->mapping == VMEMMAP_PAGE;
-+}
++	if (!capable(CAP_SYS_ADMIN))
++		return -EPERM;
 +
-+static __always_inline void __ClearPageVmemmap(struct page *page)
-+{
-+	__ClearPageReserved(page);
-+	page->mapping = NULL;
-+}
++	if (sysfs_streq(buf, "enable"))
++		vmemmap_enabled = true;
++	else if (sysfs_streq(buf, "disable"))
++		vmemmap_enabled = false;
++	else
++		return -EINVAL;
 +
-+static __always_inline void __SetPageVmemmap(struct page *page)
-+{
-+	__SetPageReserved(page);
-+	page->mapping = (void *)VMEMMAP_PAGE;
++	return count;
 +}
++static DEVICE_ATTR_RW(vmemmap_hotplug);
++#endif
 +
-+static __always_inline struct page *vmemmap_get_head(struct page *page)
-+{
-+	return (struct page *)page->freelist;
-+}
-+
-+static __always_inline unsigned long get_nr_vmemmap_pages(struct page *page)
-+{
-+	struct page *head = vmemmap_get_head(page);
-+	return head->private - (page - head);
-+}
-+
- #ifdef CONFIG_KSM
  /*
-  * A KSM page is one of those write-protected "shared pages" or "merged pages"
-diff --git a/mm/util.c b/mm/util.c
-index 021648a8a3a3..5e20563cdef6 100644
---- a/mm/util.c
-+++ b/mm/util.c
-@@ -607,6 +607,8 @@ struct address_space *page_mapping(struct page *page)
- 	mapping = page->mapping;
- 	if ((unsigned long)mapping & PAGE_MAPPING_ANON)
- 		return NULL;
-+	if ((unsigned long)mapping == VMEMMAP_PAGE)
-+		return NULL;
+  * Note that phys_device is optional.  It is here to allow for
+  * differentiation between which *physical* devices each
+@@ -799,6 +828,10 @@ static struct attribute *memory_root_attrs[] = {
+ 	&dev_attr_hard_offline_page.attr,
+ #endif
  
- 	return (void *)((unsigned long)mapping & ~PAGE_MAPPING_FLAGS);
- }
++#ifdef CONFIG_SPARSEMEM_VMEMMAP
++	&dev_attr_vmemmap_hotplug.attr,
++#endif
++
+ 	&dev_attr_block_size_bytes.attr,
+ 	&dev_attr_auto_online_blocks.attr,
+ 	NULL
+diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
+index e28e226c9a20..94b4adc1a0ba 100644
+--- a/include/linux/memory_hotplug.h
++++ b/include/linux/memory_hotplug.h
+@@ -131,6 +131,9 @@ extern int arch_add_memory(int nid, u64 start, u64 size,
+ 			struct mhp_restrictions *restrictions);
+ extern u64 max_mem_size;
+ 
++#ifdef CONFIG_SPARSEMEM_VMEMMAP
++extern bool vmemmap_enabled;
++#endif
+ extern bool memhp_auto_online;
+ /* If movable_node boot option specified */
+ extern bool movable_node_enabled;
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index b5106cb75795..32ee6fb7d3bf 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -70,6 +70,10 @@ void put_online_mems(void)
+ 
+ bool movable_node_enabled = false;
+ 
++#ifdef CONFIG_SPARSEMEM_VMEMMAP
++bool vmemmap_enabled __read_mostly = true;
++#endif
++
+ #ifndef CONFIG_MEMORY_HOTPLUG_DEFAULT_ONLINE
+ bool memhp_auto_online;
+ #else
+@@ -1168,7 +1172,7 @@ int __ref add_memory_resource(int nid, struct resource *res, unsigned long flags
+ 		goto error;
+ 	new_node = ret;
+ 
+-	if (mhp_check_correct_flags(flags))
++	if (vmemmap_enabled && mhp_check_correct_flags(flags))
+ 		restrictions.flags = flags;
+ 
+ 	/* call arch's memory hotadd */
 -- 
 2.12.3
 
