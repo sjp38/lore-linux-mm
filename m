@@ -2,196 +2,155 @@ Return-Path: <SRS0=nbyn=UY=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 18E00C48BD4
-	for <linux-mm@archiver.kernel.org>; Tue, 25 Jun 2019 14:13:48 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 47DDCC48BD5
+	for <linux-mm@archiver.kernel.org>; Tue, 25 Jun 2019 14:37:49 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B03FD208E3
-	for <linux-mm@archiver.kernel.org>; Tue, 25 Jun 2019 14:13:47 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id D06C0214DA
+	for <linux-mm@archiver.kernel.org>; Tue, 25 Jun 2019 14:37:48 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="r80m0NId"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B03FD208E3
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="X5F7mPiW"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D06C0214DA
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 640056B0003; Tue, 25 Jun 2019 10:13:47 -0400 (EDT)
+	id 240166B0003; Tue, 25 Jun 2019 10:37:48 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5CA098E0003; Tue, 25 Jun 2019 10:13:47 -0400 (EDT)
+	id 1997A8E0005; Tue, 25 Jun 2019 10:37:48 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4432A8E0002; Tue, 25 Jun 2019 10:13:47 -0400 (EDT)
-X-Delivered-To: Linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 0AC376B0003
-	for <Linux-mm@kvack.org>; Tue, 25 Jun 2019 10:13:47 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id h27so11915894pfq.17
-        for <Linux-mm@kvack.org>; Tue, 25 Jun 2019 07:13:47 -0700 (PDT)
+	id 087AF8E0003; Tue, 25 Jun 2019 10:37:48 -0400 (EDT)
+X-Delivered-To: linux-mm@kvack.org
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C05F96B0003
+	for <linux-mm@kvack.org>; Tue, 25 Jun 2019 10:37:47 -0400 (EDT)
+Received: by mail-pl1-f200.google.com with SMTP id 91so9307237pla.7
+        for <linux-mm@kvack.org>; Tue, 25 Jun 2019 07:37:47 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id;
-        bh=nqUjvEpbHa4bmVVbiNY3TsSLDN/ESHjmI3nWhtZpm64=;
-        b=p5uSNv0+D+48uXWbnDAFxxZWS0ByXvmHtROiU/YqvL13+FS994GRvngkmm/nD9XP4b
-         khz6m2NiATRh6VQBpp5g0M3IsoCr5A5wA9I57o2iGMwFosidajTH3apeWNyzemxI+bMJ
-         dzr6cNE0G02kYLPSApf2n5N1pWeOOSQVESkBu4SvpZ1DwYvrs474utmr3aBsQhU9AsJD
-         GOdPLyjtE/zJToum1M3G5xkvjSEihF1pIEfVECD3nebT5qzgQC/kL9LGawvu4r/V1sUW
-         E5qdR5Jyc7Dy4yVBLv6h59+ignH5DbjFGcoxqy82Tsu7j03DJ55dszr9YuWMuEQzvtrV
-         sZiQ==
-X-Gm-Message-State: APjAAAW3QZacjJcWmgRXw+uCRblIGAQJagF9YoDhdobuQXuDAy+VdL/N
-	AIfmdRagUgfdRXrTA1NKXdOrE3v3GVEaUJtX1dQfCdQI41WcH3BgfHo+MSpVT02kfQG2JyqGX9I
-	NTBBgUe4nJwW2WsfXcSAbbZMjXMC3AqNGvdCXpi+kwYI9r5B9yoT0Le8FbCE6GpD3wA==
-X-Received: by 2002:a17:90a:338b:: with SMTP id n11mr31777232pjb.21.1561472026700;
-        Tue, 25 Jun 2019 07:13:46 -0700 (PDT)
-X-Received: by 2002:a17:90a:338b:: with SMTP id n11mr31777158pjb.21.1561472025872;
-        Tue, 25 Jun 2019 07:13:45 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561472025; cv=none;
+         :message-id:mime-version:content-transfer-encoding;
+        bh=f4+tMQltbicxd4ALT4Rx3OQZpZ5MP+Ju7Cl4XLKLtrM=;
+        b=uTlYhDsnxrAjIfIo4quM+7glBOukAa2rdIXRmtdT52FIYTc3LbJMkmEvOWBbOgbAFQ
+         TPx5on6+nrdYmGMMhjsCbx9xS4awSYqiwmZn2T0oLOvZSUhLxQzvmZjrmMAq50PVO0AV
+         4p8FubR5wEU1jSWVBhwemfzulDR5YQhjzuSNYQDvIZgLUxhWRXZl5nqQyCeW+emPfyHI
+         bCSD4YQYzkQHzoU2y54E+RWsl92KFaYOSzJP7iAGjlwZAJ+pjH8o76Ojjvp3Kwr18P8f
+         sGaAh7R+/0n27ReA28GI9H+zm/iFz94wlVbJh8JtMt5EiR4ib8ZhRVz2+2DxZwh3zorA
+         5Wsg==
+X-Gm-Message-State: APjAAAU+2F/0X1/pI4RAogtoebtccucO8Q6SVUAj3nfDg7UDYgry5KWq
+	0RkUc2JU08PPMy/iIh3ZCjRBBqeYzEnLcorK0TyN0JkbwbSgUrpKKTIVg7OEUNXyP5dn3Wa3bFB
+	EQvZGGYPQ+1ARJIwTdnpVhwgLnFDhkITObXq9cs3kGhnPfiDNi02pxJRB6cKZRsc=
+X-Received: by 2002:a17:902:27e6:: with SMTP id i35mr153978580plg.190.1561473467353;
+        Tue, 25 Jun 2019 07:37:47 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwSAAXqR23VRmHHYTBULTvfsVKo+2maVAIeY/NhmfjydIgnrxnafqGMv2YhXA+bP5rQ9SA0
+X-Received: by 2002:a17:902:27e6:: with SMTP id i35mr153978510plg.190.1561473466558;
+        Tue, 25 Jun 2019 07:37:46 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561473466; cv=none;
         d=google.com; s=arc-20160816;
-        b=uiIXjBahhww4oAAzvrcMv3CYs2SCd76sP1rd7e+JuBuaTWMhyq+SAOmUDLZTQY7CtT
-         JqYBLC9aNUF78rZYzwzDbNwHnc7fVnuER03N6IveivX7EgNgmbBTc6KM0Ar+APjXhULx
-         B/BcZZVZRtbiCgtjQmholOJ2+ufteMZ1+quA8H2DljM81ab/c8KQzWZ6s1Yt6wqe4wAs
-         D/pNzYq6akq/Hu+CTpgAkNl4HVXDUWBQlWmRVyuNqgUDvrEp8uHWFelGkJK6oHNGBCTT
-         LVoqIn0RbeYqNSDePojcT9QX5FfDhqvV88EExb27EUkxTSy+wRHN7wMYHLhb9PkS8bUf
-         Lgmg==
+        b=etKC2u2ExyicidMK4QGp27jy8B+C4hG3iSx5loK1cWpeDxI/ujVMLR+qFXl7mAFeV+
+         B5J2vqzLgqXrDYOo5b6v0pH4tOtiHmjQ2LDoAdQQsZqaMgAM2LNflEv2qRQNZEmcJtTR
+         EDYnOts0TQzpU5KMtcc0Ac86relu6E9krBwiyOrn5iilVcmxFSvyJJRZY67QurqWrcMw
+         dLGlaUdwxx9dBkoFJ3MuCgcSUZ2lMnR2tXLZ7NH5OVFhfXS0GZzm3e99RddDzwX2OMss
+         KqAlGwMamHbSBAug4zFIaJTIxn7rmg4mWOwOOujTaZxePe5NrvS+UMUCJ63OxWwM/9cT
+         t8qQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:date:subject:cc:to:from:dkim-signature;
-        bh=nqUjvEpbHa4bmVVbiNY3TsSLDN/ESHjmI3nWhtZpm64=;
-        b=aTHwUlP3VFWcg3jOQxFVapor9r2TiQg90Q+iQ+t1fDKu5PJQFAfSLiMfPT6PN6nyXT
-         NXj6JswS5FnZlv4YZ0eTr0EqC8OQpZQWB2FTCw5bFtioTDX2i5cIxd/YMT/zVE160aho
-         2Z9WoIVx6UHWElsV1opxxqtyjCyezlcHAF0kb7cVOO46MUeh689WAe3wa3n21pZ0rtbp
-         832uh+2YA605o7ErxVJAcZiuKJaOmkF1p13O3P9Fze6+mVINDPg27d/cNwC01WvUPbg2
-         vXLKybPEVaouFS4NJsKTsZOK/6L78dZP6PRpv6rmQ4CRtodTJqVdCEfzHWxN+Tv1Ehbr
-         q7QA==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from:dkim-signature;
+        bh=f4+tMQltbicxd4ALT4Rx3OQZpZ5MP+Ju7Cl4XLKLtrM=;
+        b=Te9ymx09aXfv0Uw1KsgdnIET/CFyU6PlRYf/h6IMNCRqKg33K1vj3FGfMwWY+fUpYY
+         qU9J4c5Mr2zlV2T9d0ozVFKbAPVEaCjcal7gRtvn5e49Eus2XEBMuUZPfDYJPHZ2yRdy
+         NJwOR+nP1chuUgZ/u67MLxebbNUvozG7CzVbW80rLHLZkGZzMdyaRI51P+Sk+q+Z6+lS
+         1KNyLGvXfwBhbao6Y1tThwmNS9dBhuk/DaUVvL5Tr38YlvemeEGaFRN3M/6+m1v/c/EW
+         K4kPDu4vFaxQGOASMHpYdJyYZMr3BlXXFf13byTYfHF3IYszv0nhnSRxJttYjVEGX+/V
+         JNTg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=r80m0NId;
-       spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id s65sor8847049pfb.30.2019.06.25.07.13.45
-        for <Linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 25 Jun 2019 07:13:45 -0700 (PDT)
-Received-SPF: pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=X5F7mPiW;
+       spf=pass (google.com: best guess record for domain of batv+c5155a46dc30cc8634d8+5784+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+c5155a46dc30cc8634d8+5784+infradead.org+hch@bombadil.srs.infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id b17si2964542pjq.20.2019.06.25.07.37.46
+        for <linux-mm@kvack.org>
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Tue, 25 Jun 2019 07:37:46 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of batv+c5155a46dc30cc8634d8+5784+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=r80m0NId;
-       spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=from:to:cc:subject:date:message-id;
-        bh=nqUjvEpbHa4bmVVbiNY3TsSLDN/ESHjmI3nWhtZpm64=;
-        b=r80m0NIdXLhEvaCqjUKhJX37qFh2W1g6cDf7weUm9jbNptPWp80pEUI9opw6H9gm50
-         dNmhZXvCVB7xW0waafhq+LNBKV0JsgcA+qJLihBKEqAxTl87fkXs4vfs5m1RU6Ny1EUw
-         xzHPIbBFyf5f0niEY2MbY1DGMxmKWiAaYEZLHWvQXKC6NDcTNZnPWnviqEIe2vTnY2I8
-         v71WGhMfREL1Z5sxRTnGFOLtHP+T7LaFHL+uUCVZ+eGH8HuKVjbuAh7ZTJAEM7He/MYd
-         r3R2cpD5S2eqqQPrPqIOM5OJ1ikTC7a4MnE9EfCIyVJrY8VYTEmwMnScWHDiyGbLNS/r
-         46eA==
-X-Google-Smtp-Source: APXvYqwBAkDTfGiLDfKt1+XLvKyU+gy/E6/TGdVcHhUhqGlY5n9j0/Z2+O2ED2nwS5zoHJYeucBMew==
-X-Received: by 2002:a63:4f46:: with SMTP id p6mr7708849pgl.268.1561472025302;
-        Tue, 25 Jun 2019 07:13:45 -0700 (PDT)
-Received: from mylaptop.redhat.com ([2408:8207:7826:5c10:8935:c645:2c30:74ef])
-        by smtp.gmail.com with ESMTPSA id d9sm15953790pgj.34.2019.06.25.07.13.34
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 25 Jun 2019 07:13:44 -0700 (PDT)
-From: Pingfan Liu <kernelfans@gmail.com>
-To: Linux-mm@kvack.org
-Cc: Pingfan Liu <kernelfans@gmail.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Ira Weiny <ira.weiny@intel.com>,
-	Mike Rapoport <rppt@linux.ibm.com>,
-	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
-	Thomas Gleixner <tglx@linutronix.de>,
-	John Hubbard <jhubbard@nvidia.com>,
-	"Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>,
-	Christoph Hellwig <hch@lst.de>,
-	Keith Busch <keith.busch@intel.com>,
-	Mike Kravetz <mike.kravetz@oracle.com>,
-	Linux-kernel@vger.kernel.org
-Subject: [PATCHv3] mm/gup: speed up check_and_migrate_cma_pages() on huge page
-Date: Tue, 25 Jun 2019 22:13:19 +0800
-Message-Id: <1561471999-6688-1-git-send-email-kernelfans@gmail.com>
-X-Mailer: git-send-email 2.7.5
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=X5F7mPiW;
+       spf=pass (google.com: best guess record for domain of batv+c5155a46dc30cc8634d8+5784+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+c5155a46dc30cc8634d8+5784+infradead.org+hch@bombadil.srs.infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=Content-Transfer-Encoding:
+	MIME-Version:Message-Id:Date:Subject:Cc:To:From:Sender:Reply-To:Content-Type:
+	Content-ID:Content-Description:Resent-Date:Resent-From:Resent-Sender:
+	Resent-To:Resent-Cc:Resent-Message-ID:In-Reply-To:References:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=f4+tMQltbicxd4ALT4Rx3OQZpZ5MP+Ju7Cl4XLKLtrM=; b=X5F7mPiW6V3GpB2Dzy0uuiLcr
+	Q1nr0Z/bXKkYgiYtfSjd+rSbKATjF3Gdgd0mN3/vYrEMO/Wc/SRIgcRhLlvYadt94BdYFq6jdw/nP
+	AwhtIbzcbLCYlOTHif1Um8TqdW1pmhZSHImvIPJZMwHU/da3RXnjCfqDaWAe3BVBdltBFNznvQFOb
+	sRb3NYKvhSFrwhB734qJDCQWStHZJ257YIrBp8b33Xces5frH9sCRfyV0D74Bszew9YprhF9rXvKm
+	VWnBYQKDFqJSt5VR8xllP4qXZjXg2ARWfiP1d9zuj7aazxYYWmVgGyU3SQUIS3Xwx2oVWJEAJo7C7
+	SL9QNydbA==;
+Received: from 213-225-6-159.nat.highway.a1.net ([213.225.6.159] helo=localhost)
+	by bombadil.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
+	id 1hfmZR-0007x9-Ll; Tue, 25 Jun 2019 14:37:18 +0000
+From: Christoph Hellwig <hch@lst.de>
+To: Andrew Morton <akpm@linux-foundation.org>,
+	Linus Torvalds <torvalds@linux-foundation.org>,
+	Paul Burton <paul.burton@mips.com>,
+	James Hogan <jhogan@kernel.org>,
+	Yoshinori Sato <ysato@users.sourceforge.jp>,
+	Rich Felker <dalias@libc.org>,
+	"David S. Miller" <davem@davemloft.net>
+Cc: Nicholas Piggin <npiggin@gmail.com>,
+	Khalid Aziz <khalid.aziz@oracle.com>,
+	Andrey Konovalov <andreyknvl@google.com>,
+	Benjamin Herrenschmidt <benh@kernel.crashing.org>,
+	Paul Mackerras <paulus@samba.org>,
+	Michael Ellerman <mpe@ellerman.id.au>,
+	linux-mips@vger.kernel.org,
+	linux-sh@vger.kernel.org,
+	sparclinux@vger.kernel.org,
+	linuxppc-dev@lists.ozlabs.org,
+	linux-mm@kvack.org,
+	x86@kernel.org,
+	linux-kernel@vger.kernel.org
+Subject: switch the remaining architectures to use generic GUP v4
+Date: Tue, 25 Jun 2019 16:36:59 +0200
+Message-Id: <20190625143715.1689-1-hch@lst.de>
+X-Mailer: git-send-email 2.20.1
+MIME-Version: 1.0
+Content-Transfer-Encoding: 8bit
+X-SRS-Rewrite: SMTP reverse-path rewritten from <hch@infradead.org> by bombadil.infradead.org. See http://www.infradead.org/rpr.html
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Both hugetlb and thp locate on the same migration type of pageblock, since
-they are allocated from a free_list[]. Based on this fact, it is enough to
-check on a single subpage to decide the migration type of the whole huge
-page. By this way, it saves (2M/4K - 1) times loop for pmd_huge on x86,
-similar on other archs.
+Hi Linus and maintainers,
 
-Furthermore, when executing isolate_huge_page(), it avoid taking global
-hugetlb_lock many times, and meanless remove/add to the local link list
-cma_page_list.
+below is a series to switch mips, sh and sparc64 to use the generic
+GUP code so that we only have one codebase to touch for further
+improvements to this code.  I don't have hardware for any of these
+architectures, and generally no clue about their page table
+management, so handle with care.
 
-Signed-off-by: Pingfan Liu <kernelfans@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Ira Weiny <ira.weiny@intel.com>
-Cc: Mike Rapoport <rppt@linux.ibm.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: John Hubbard <jhubbard@nvidia.com>
-Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-Cc: Christoph Hellwig <hch@lst.de>
-Cc: Keith Busch <keith.busch@intel.com>
-Cc: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: Linux-kernel@vger.kernel.org
----
-v2 -> v3: fix page order to size convertion
+Changes since v3:
+ - improve a few commit messages
+ - clean up gup_fast_permitted a bit more
+ - split the code reordering in gup.c into a separate patch
+ - drop the patch to pass argument in a structure for now
 
- mm/gup.c | 19 ++++++++++++-------
- 1 file changed, 12 insertions(+), 7 deletions(-)
+Changes since v2:
+ - rebase to mainline to pick up the untagged_addr definition
+ - fix the gup range check to be start <= end to catch the 0 length case
+ - use pfn based version for the missing pud_page/pgd_page definitions
+ - fix a wrong check in the sparc64 version of pte_access_permitted
 
-diff --git a/mm/gup.c b/mm/gup.c
-index ddde097..03cc1f4 100644
---- a/mm/gup.c
-+++ b/mm/gup.c
-@@ -1342,19 +1342,22 @@ static long check_and_migrate_cma_pages(struct task_struct *tsk,
- 	LIST_HEAD(cma_page_list);
- 
- check_again:
--	for (i = 0; i < nr_pages; i++) {
-+	for (i = 0; i < nr_pages;) {
-+
-+		struct page *head = compound_head(pages[i]);
-+		long step = 1;
-+
-+		if (PageCompound(head))
-+			step = 1 << compound_order(head) - (pages[i] - head);
- 		/*
- 		 * If we get a page from the CMA zone, since we are going to
- 		 * be pinning these entries, we might as well move them out
- 		 * of the CMA zone if possible.
- 		 */
--		if (is_migrate_cma_page(pages[i])) {
--
--			struct page *head = compound_head(pages[i]);
--
--			if (PageHuge(head)) {
-+		if (is_migrate_cma_page(head)) {
-+			if (PageHuge(head))
- 				isolate_huge_page(head, &cma_page_list);
--			} else {
-+			else {
- 				if (!PageLRU(head) && drain_allow) {
- 					lru_add_drain_all();
- 					drain_allow = false;
-@@ -1369,6 +1372,8 @@ static long check_and_migrate_cma_pages(struct task_struct *tsk,
- 				}
- 			}
- 		}
-+
-+		i += step;
- 	}
- 
- 	if (!list_empty(&cma_page_list)) {
--- 
-2.7.5
+Changes since v1:
+ - fix various issues found by the build bot
+ - cherry pick and use the untagged_addr helper form Andrey
+ - add various refactoring patches to share more code over architectures
+ - move the powerpc hugepd code to mm/gup.c and sync it with the generic
+   hup semantics
 
