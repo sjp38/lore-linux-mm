@@ -2,454 +2,276 @@ Return-Path: <SRS0=nbyn=UY=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 94BEBC4646C
-	for <linux-mm@archiver.kernel.org>; Tue, 25 Jun 2019 00:13:15 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C3A0DC4646C
+	for <linux-mm@archiver.kernel.org>; Tue, 25 Jun 2019 00:21:18 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4279F20848
-	for <linux-mm@archiver.kernel.org>; Tue, 25 Jun 2019 00:13:15 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 70D1520644
+	for <linux-mm@archiver.kernel.org>; Tue, 25 Jun 2019 00:21:18 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="mO3hm+2L"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4279F20848
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="lCqYJd0f"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 70D1520644
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3123E6B000C; Mon, 24 Jun 2019 20:13:11 -0400 (EDT)
+	id 0C1618E0003; Mon, 24 Jun 2019 20:21:18 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 29E598E0002; Mon, 24 Jun 2019 20:13:11 -0400 (EDT)
+	id 0715F8E0002; Mon, 24 Jun 2019 20:21:18 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 001C06B000C; Mon, 24 Jun 2019 20:13:10 -0400 (EDT)
+	id EA2B28E0003; Mon, 24 Jun 2019 20:21:17 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yb1-f198.google.com (mail-yb1-f198.google.com [209.85.219.198])
-	by kanga.kvack.org (Postfix) with ESMTP id CBA0A8E0002
-	for <linux-mm@kvack.org>; Mon, 24 Jun 2019 20:13:10 -0400 (EDT)
-Received: by mail-yb1-f198.google.com with SMTP id d6so18145712ybj.16
-        for <linux-mm@kvack.org>; Mon, 24 Jun 2019 17:13:10 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B1D488E0002
+	for <linux-mm@kvack.org>; Mon, 24 Jun 2019 20:21:17 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id a20so10599836pfn.19
+        for <linux-mm@kvack.org>; Mon, 24 Jun 2019 17:21:17 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:smtp-origin-hostprefix:from
-         :smtp-origin-hostname:to:cc:smtp-origin-cluster:subject:date
-         :message-id:in-reply-to:references:mime-version;
-        bh=Rw3bF3LLOPMJXUJryh7BDppGG/fMUSMU6vd9No970FE=;
-        b=VfB25HWjKGex2cGDMJBB32Sdhs9YL6sELimP20LZQBpL4eW+CJGy8KO3GOAYmCq2T+
-         tmeXwgPasz7w9cl96BfeVVC3hw5WLDOOki5cD69YHC/jILNKe1x3hlyyu9a+QLiUf0Ux
-         HiMt3abPx8coxpaA2LnyzglT/EBN3gkptmQZiTjhj4KehMn58p1LEHlr8Mu972MA3wEY
-         YtO8mnxKaQRyiBBoEFb8/iI2EsKsTNe2DgbwUuPS8amf5QN5H2g80INqwo3NK13RdmeD
-         vfWQwZViXtCXqSqdwH16JQietx8GUFdTb/QjjwS5IwrYrj8xThfDXznShxF/+nysFwFg
-         zx4A==
-X-Gm-Message-State: APjAAAU2b/4uXmSwSV/c5lNqBqyTrs/kxHIYurceQnUNq8O9Y/g/5t3i
-	jXZ0i+HuvxCxYKg3WL4tZVCquvrLptbW0i0DraKWHK/qXs30dESGL5PVJbG9qFwgtFHqeAtmaDS
-	U3Cwb/ARhZvUijtxU0Bxf3zUYHTURwh84G3hhmmrFq1nRXjYu3j4x58X+voPBdp3VZA==
-X-Received: by 2002:a25:3506:: with SMTP id c6mr67822631yba.325.1561421590552;
-        Mon, 24 Jun 2019 17:13:10 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqweIRr9a6MRREe2RCKQ4MlskOz3w7ZQmMmAzaDtjz4Tyt80aGm5KuNQ8CEScTxC8EMJCGum
-X-Received: by 2002:a25:3506:: with SMTP id c6mr67822613yba.325.1561421589708;
-        Mon, 24 Jun 2019 17:13:09 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561421589; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:subject:to:cc
+         :references:in-reply-to:mime-version:user-agent:message-id
+         :content-transfer-encoding;
+        bh=9GWfUGprvA4ILcpimuVJoGtm5PW6KPiiPRGCbFZh52w=;
+        b=LHI6nT7FqymrBPxLxUHTtqHxeWKywl+vWZW7d0gTCTqG8fbzsww0yvvBt9HGwDVrUc
+         anVV8+1xUGcQvnmkC4xDGjsLQ7xE8p/F3uZ9D+tkAbk59OQiiW8vuUEcfPTCBAuDUuZU
+         XOKYMykJSKOVBwFJ3S07Me3wCgmMOT2sQqtim/AlLjfIBgpq+pOY8xYIayG8ZPX1d/to
+         qWC0WXbNeSM7TuMq32gq7W5i9/lZopg0w6mSkEgvNWfl267SyKQevG1b3MkNef4CZLxQ
+         UkV1lenW4g7Sh6fJ42QljN91yOZe9Ie3yJcK25K3TuaS6utfDx6meqm0IhR8vvvlmeQk
+         FAgg==
+X-Gm-Message-State: APjAAAVSjnygBlVqsiISiE+1zAiHeI6WJj+nzwputfCsTF4q5TzeA0fN
+	LiKogMAJ7IpF84gcJbEZxkm5DiTf0A68dVBSUAFgp17izp+3PypTWTUHZWQVcp70Gz73tyL1ukQ
+	VguLEqT55ZSQHlbDuoo3vI77OhYZ0EBsGiti7hG9dnctV1UuveojH2f2L/c2yNrcb3A==
+X-Received: by 2002:a65:6481:: with SMTP id e1mr28083478pgv.408.1561422077243;
+        Mon, 24 Jun 2019 17:21:17 -0700 (PDT)
+X-Received: by 2002:a65:6481:: with SMTP id e1mr28083409pgv.408.1561422076342;
+        Mon, 24 Jun 2019 17:21:16 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561422076; cv=none;
         d=google.com; s=arc-20160816;
-        b=QRyjmB7mtPdVZvwmWzG3/c8qXl3hz6bCK25wo378K980q9ASXoVJPoOdcrYVyfiGHX
-         LUvo8w3cALXEqhSmt8KIIKV8W0M8z+tcL7gzyJVsllo9ju9Oetsfop1frfp3Js+xj2i4
-         BPCWu5IpBbkmL4FSJBP9uqj+eV1Mk9cyQopRfVz4raG86bn+mY3ByOm4HSJd6KhFYFr4
-         J2TjMDdQXnwX2m3e9+6l+J3KOUOhaXjkPKdfgHqrua4WBN6kuNizUHY7I1iyL9DSCJXW
-         8o5CSs11/IIYPdeJIT3bguZwG9u4VDVmq4qfiutu4evYaJIvI1jdsGWVeoWDf0h+jzlD
-         hg/g==
+        b=QYoWdDsq2RrwqhitXTlfstjS1cPm2QkRNyuWnuz4fHRYnZzEWJbSfM1lOp+/c6CJUr
+         zTzDWTh+fAVmJy7UXtiyM7s8JLWXL7IjY1aVK9MKX9No0dFN+u5ngPU5GE13Ze5cTRrH
+         BUl0apxbxrEbgK1p4Z+3OMbE8b6Ql7favGK+FcZhchfd99znuN9LJ3iq2DgieV5BXT2q
+         eC/3sm8EWWE4FwBSwLKSGfrdQu4RUr2h01wvXPmg63mlFmULkgiO1JncB70ZvKJcn3Fp
+         L5U371HUd/WJW6Y6A/nMYGFJkUyMOht0paVMVjIxNFN1X4nDEERsfK54og4x29pWYexM
+         Y4ug==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:references:in-reply-to:message-id:date:subject
-         :smtp-origin-cluster:cc:to:smtp-origin-hostname:from
-         :smtp-origin-hostprefix:dkim-signature;
-        bh=Rw3bF3LLOPMJXUJryh7BDppGG/fMUSMU6vd9No970FE=;
-        b=rsCBLy3U/zqPPE5vfiMW95Wq0IUlXR46QTqO/8F3KwcqJ33jfo/P751Rr4o1k9nmaz
-         5eCfSE/dBqeMcZ9QnLVlmlXjPYTIXCrk8LaPzroIHGHj58Fo23UJT2yBbfy2QxTfPksf
-         wUeSXAIONyezHzcdSgmnvncRkaea9xOO1BkMcC82D67KNiyS/7dEoBjZTfiglpKqm9A4
-         Ry+dnw4aMfo3UBcijBBxWnNmgioLR4Qn2xXQDgdQvRUxUYOVdrmbkvfiWg84Vcu6B35w
-         WgmdAO2sTMAFtaujZYmrB1BL8Wp4Nb7jFwtWm5NNLC0UWxGS+GkhS8SW2GTj6z7Y4SpS
-         AJUg==
+        h=content-transfer-encoding:message-id:user-agent:mime-version
+         :in-reply-to:references:cc:to:subject:from:date:dkim-signature;
+        bh=9GWfUGprvA4ILcpimuVJoGtm5PW6KPiiPRGCbFZh52w=;
+        b=LSt3/VGOUBrmfkUe3lPKuUiTU/3dCmMzbVKbFKzGqDtK8SenO7VliNcWclUwmhW+NT
+         URtwVrP8jjPQVxcXzT1VQlPqBtir6vnqlFjq46f91zhREGc/Hh0NcCV9UlzbPbjDl5a3
+         aLMHQAFD3QxDXL2yAJOGm9+HrWLa8konrCPKwYPVhYN9bAhKeEVOY4wLuLL2ti3yI3yM
+         Kr3iF89O7zEUbEcvlyP5BhVGBP/2NOVNEL9Fg+gU8B3AirlnvSkv1701SM99eTy1nIUl
+         FgznAqHL40FNto7moc+hQhSzTXs3FQt+d9PytvuPOI26R1LaCA/kMC8Yb0Ovq/1rgMsp
+         40mQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b=mO3hm+2L;
-       spf=pass (google.com: domain of prvs=1079b839a8=songliubraving@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=1079b839a8=songliubraving@fb.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id h124si4283041ywe.429.2019.06.24.17.13.09
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=lCqYJd0f;
+       spf=pass (google.com: domain of npiggin@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=npiggin@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id x6sor7963489pfa.60.2019.06.24.17.21.16
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 24 Jun 2019 17:13:09 -0700 (PDT)
-Received-SPF: pass (google.com: domain of prvs=1079b839a8=songliubraving@fb.com designates 67.231.153.30 as permitted sender) client-ip=67.231.153.30;
+        (Google Transport Security);
+        Mon, 24 Jun 2019 17:21:16 -0700 (PDT)
+Received-SPF: pass (google.com: domain of npiggin@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b=mO3hm+2L;
-       spf=pass (google.com: domain of prvs=1079b839a8=songliubraving@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=1079b839a8=songliubraving@fb.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from pps.filterd (m0148460.ppops.net [127.0.0.1])
-	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x5P08x8k018099
-	for <linux-mm@kvack.org>; Mon, 24 Jun 2019 17:13:09 -0700
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
- : date : message-id : in-reply-to : references : mime-version :
- content-type; s=facebook; bh=Rw3bF3LLOPMJXUJryh7BDppGG/fMUSMU6vd9No970FE=;
- b=mO3hm+2LH2rxdCsKSlHAreXhi4s/QrX6zYlIKEWOdii/Z8Qtje+3L2WT/pfT19C7XR7P
- meQyvDqrCqtIO62oiuWgWRKFbNp71Y3WJmfmngOkO6DhPmJFDC9hq6JqbX7caVu9iKlj
- dwT5+vhjugrOSrQte2PFkW+iLn4/QKJo2ls= 
-Received: from mail.thefacebook.com (mailout.thefacebook.com [199.201.64.23])
-	by mx0a-00082601.pphosted.com with ESMTP id 2tawbtarad-2
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 24 Jun 2019 17:13:09 -0700
-Received: from mx-out.facebook.com (2620:10d:c081:10::13) by
- mail.thefacebook.com (2620:10d:c081:35::127) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA) id 15.1.1713.5;
- Mon, 24 Jun 2019 17:13:07 -0700
-Received: by devbig006.ftw2.facebook.com (Postfix, from userid 4523)
-	id 362D562E206E; Mon, 24 Jun 2019 17:13:05 -0700 (PDT)
-Smtp-Origin-Hostprefix: devbig
-From: Song Liu <songliubraving@fb.com>
-Smtp-Origin-Hostname: devbig006.ftw2.facebook.com
-To: <linux-mm@kvack.org>, <linux-fsdevel@vger.kernel.org>,
-        <linux-kernel@vger.kernel.org>
-CC: <matthew.wilcox@oracle.com>, <kirill.shutemov@linux.intel.com>,
-        <kernel-team@fb.com>, <william.kucharski@oracle.com>,
-        <akpm@linux-foundation.org>, <hdanton@sina.com>,
-        Song Liu
-	<songliubraving@fb.com>
-Smtp-Origin-Cluster: ftw2c04
-Subject: [PATCH v9 5/6] mm,thp: add read-only THP support for (non-shmem) FS
-Date: Mon, 24 Jun 2019 17:12:45 -0700
-Message-ID: <20190625001246.685563-6-songliubraving@fb.com>
-X-Mailer: git-send-email 2.17.1
-In-Reply-To: <20190625001246.685563-1-songliubraving@fb.com>
-References: <20190625001246.685563-1-songliubraving@fb.com>
-X-FB-Internal: Safe
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=lCqYJd0f;
+       spf=pass (google.com: domain of npiggin@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=npiggin@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=date:from:subject:to:cc:references:in-reply-to:mime-version
+         :user-agent:message-id:content-transfer-encoding;
+        bh=9GWfUGprvA4ILcpimuVJoGtm5PW6KPiiPRGCbFZh52w=;
+        b=lCqYJd0fDqFS6i7DNl565RTG+AMIJ12ZQw/A8KlWcTmhSBSVfi7R1JjAyw0diyQp5w
+         0icVERPM79uGIRc4rPDhlMIs9Eo2BQh1ycTUT9KC3ODr0hA1PyMBys+Jaotlrqmw8rAA
+         Wt8yT3wpCentyV+O8DJ5e6cvFVmdPSqFV2Kc8+YOWKsXjw4VYlWdsJC5lXkAL0PqpP0o
+         73Yf4SJ4tYZJkdlgJGAysG7Ig2VZPMOIU5e0ItUS6tJ6xASc27CJzVnMXH5w13pWwPWd
+         Jr57070WGncwHZKG0t81ad61He+o8mdJstJQKs1+pRI7NVN6/ZXpvO99jSOqxg8lWbPb
+         L5Ag==
+X-Google-Smtp-Source: APXvYqyinR+SxTKAhy01mEzpneT2onpFntPNglVujvIPVOk7YeZhmGjQ045hT6anajo5VX8LeLss3w==
+X-Received: by 2002:a65:4c0c:: with SMTP id u12mr35552980pgq.130.1561422075888;
+        Mon, 24 Jun 2019 17:21:15 -0700 (PDT)
+Received: from localhost ([1.129.213.195])
+        by smtp.gmail.com with ESMTPSA id j23sm13670632pgb.63.2019.06.24.17.21.14
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Mon, 24 Jun 2019 17:21:14 -0700 (PDT)
+Date: Tue, 25 Jun 2019 10:20:14 +1000
+From: Nicholas Piggin <npiggin@gmail.com>
+Subject: Re: [PATCH 3/3] mm/vmalloc: fix vmalloc_to_page for huge vmap
+ mappings
+To: Anshuman Khandual <anshuman.khandual@arm.com>, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Ard Biesheuvel
+	<ard.biesheuvel@linaro.org>, Christophe Leroy <christophe.leroy@c-s.fr>,
+	linux-arm-kernel@lists.infradead.org, linuxppc-dev@lists.ozlabs.org,
+	Mark Rutland <mark.rutland@arm.com>
+References: <20190623094446.28722-1-npiggin@gmail.com>
+	<20190623094446.28722-4-npiggin@gmail.com>
+	<8668f76d-faad-4e57-2f7b-f2b8969b1026@arm.com>
+In-Reply-To: <8668f76d-faad-4e57-2f7b-f2b8969b1026@arm.com>
 MIME-Version: 1.0
-Content-Type: text/plain
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-06-24_16:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=fb_default_notspam policy=fb_default score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1906250000
-X-FB-Internal: deliver
+User-Agent: astroid/0.14.0 (https://github.com/astroidmail/astroid)
+Message-Id: <1561421882.9uwq6zqlvo.astroid@bobo.none>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This patch is (hopefully) the first step to enable THP for non-shmem
-filesystems.
+Anshuman Khandual's on June 24, 2019 4:52 pm:
+>=20
+>=20
+> On 06/23/2019 03:14 PM, Nicholas Piggin wrote:
+>> vmalloc_to_page returns NULL for addresses mapped by larger pages[*].
+>> Whether or not a vmap is huge depends on the architecture details,
+>> alignments, boot options, etc., which the caller can not be expected
+>> to know. Therefore HUGE_VMAP is a regression for vmalloc_to_page.
+>>=20
+>> This change teaches vmalloc_to_page about larger pages, and returns
+>> the struct page that corresponds to the offset within the large page.
+>> This makes the API agnostic to mapping implementation details.
+>>=20
+>> [*] As explained by commit 029c54b095995 ("mm/vmalloc.c: huge-vmap:
+>>     fail gracefully on unexpected huge vmap mappings")
+>>=20
+>> Signed-off-by: Nicholas Piggin <npiggin@gmail.com>
+>> ---
+>>  include/asm-generic/4level-fixup.h |  1 +
+>>  include/asm-generic/5level-fixup.h |  1 +
+>>  mm/vmalloc.c                       | 37 +++++++++++++++++++-----------
+>>  3 files changed, 26 insertions(+), 13 deletions(-)
+>>=20
+>> diff --git a/include/asm-generic/4level-fixup.h b/include/asm-generic/4l=
+evel-fixup.h
+>> index e3667c9a33a5..3cc65a4dd093 100644
+>> --- a/include/asm-generic/4level-fixup.h
+>> +++ b/include/asm-generic/4level-fixup.h
+>> @@ -20,6 +20,7 @@
+>>  #define pud_none(pud)			0
+>>  #define pud_bad(pud)			0
+>>  #define pud_present(pud)		1
+>> +#define pud_large(pud)			0
+>>  #define pud_ERROR(pud)			do { } while (0)
+>>  #define pud_clear(pud)			pgd_clear(pud)
+>>  #define pud_val(pud)			pgd_val(pud)
+>> diff --git a/include/asm-generic/5level-fixup.h b/include/asm-generic/5l=
+evel-fixup.h
+>> index bb6cb347018c..c4377db09a4f 100644
+>> --- a/include/asm-generic/5level-fixup.h
+>> +++ b/include/asm-generic/5level-fixup.h
+>> @@ -22,6 +22,7 @@
+>>  #define p4d_none(p4d)			0
+>>  #define p4d_bad(p4d)			0
+>>  #define p4d_present(p4d)		1
+>> +#define p4d_large(p4d)			0
+>>  #define p4d_ERROR(p4d)			do { } while (0)
+>>  #define p4d_clear(p4d)			pgd_clear(p4d)
+>>  #define p4d_val(p4d)			pgd_val(p4d)
+>> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+>> index 4c9e150e5ad3..4be98f700862 100644
+>> --- a/mm/vmalloc.c
+>> +++ b/mm/vmalloc.c
+>> @@ -36,6 +36,7 @@
+>>  #include <linux/rbtree_augmented.h>
+>> =20
+>>  #include <linux/uaccess.h>
+>> +#include <asm/pgtable.h>
+>>  #include <asm/tlbflush.h>
+>>  #include <asm/shmparam.h>
+>> =20
+>> @@ -284,26 +285,36 @@ struct page *vmalloc_to_page(const void *vmalloc_a=
+ddr)
+>> =20
+>>  	if (pgd_none(*pgd))
+>>  		return NULL;
+>> +
+>>  	p4d =3D p4d_offset(pgd, addr);
+>>  	if (p4d_none(*p4d))
+>>  		return NULL;
+>> -	pud =3D pud_offset(p4d, addr);
+>> +	if (WARN_ON_ONCE(p4d_bad(*p4d)))
+>> +		return NULL;
+>=20
+> The warning here is a required addition but it needs to be moved after p4=
+d_large()
+> check. Please see the next comment below.
+>=20
+>> +#ifdef CONFIG_HAVE_ARCH_HUGE_VMAP
+>> +	if (p4d_large(*p4d))
+>> +		return p4d_page(*p4d) + ((addr & ~P4D_MASK) >> PAGE_SHIFT);
+>> +#endif
+>> =20
+>> -	/*
+>> -	 * Don't dereference bad PUD or PMD (below) entries. This will also
+>> -	 * identify huge mappings, which we may encounter on architectures
+>> -	 * that define CONFIG_HAVE_ARCH_HUGE_VMAP=3Dy. Such regions will be
+>> -	 * identified as vmalloc addresses by is_vmalloc_addr(), but are
+>> -	 * not [unambiguously] associated with a struct page, so there is
+>> -	 * no correct value to return for them.
+>> -	 */
+>> -	WARN_ON_ONCE(pud_bad(*pud));
+>> -	if (pud_none(*pud) || pud_bad(*pud))
+>> +	pud =3D pud_offset(p4d, addr);
+>> +	if (pud_none(*pud))
+>> +		return NULL;
+>> +	if (WARN_ON_ONCE(pud_bad(*pud)))
+>>  		return NULL;
+>> +#ifdef CONFIG_HAVE_ARCH_HUGE_VMAP
+>> +	if (pud_large(*pud))
+>> +		return pud_page(*pud) + ((addr & ~PUD_MASK) >> PAGE_SHIFT);
+>> +#endif
+>> +
+>=20
+> pud_bad() on arm64 returns true when the PUD does not point to a next pag=
+e
+> table page implying the fact that it might be a large/huge entry. I am no=
+t
+> sure if the semantics holds good for other architectures too. But on arm6=
+4
+> if pud_large() is true, then pud_bad() will be true as well. So pud_bad()
+> check must happen after pud_large() check. So the sequence here should be
+>=20
+> 1. pud_none()	--> Nothing is in here, return NULL
+> 2. pud_large()	--> Return offset page address from the huge page mapping
+> 3. pud_bad()	--> Return NULL as there is no more page table level left
+>=20
+> Checking pud_bad() first can return NULL for a valid huge mapping.
+>=20
+>>  	pmd =3D pmd_offset(pud, addr);
+>> -	WARN_ON_ONCE(pmd_bad(*pmd));
+>> -	if (pmd_none(*pmd) || pmd_bad(*pmd))
+>> +	if (pmd_none(*pmd))
+>> +		return NULL;
+>> +	if (WARN_ON_ONCE(pmd_bad(*pmd)))
+>>  		return NULL;
+>> +#ifdef CONFIG_HAVE_ARCH_HUGE_VMAP
+>> +	if (pmd_large(*pmd))
+>> +		return pmd_page(*pmd) + ((addr & ~PMD_MASK) >> PAGE_SHIFT);
+>> +#endif
+>=20
+> Ditto.
+>=20
+> I see that your previous proposal had this right which got changed in thi=
+s
+> manner after my comments. Sorry about it.
+>=20
+> It was recently when I learned (correctly) that expected semantics of pxx=
+_bad()
+> is that - It does not point to the next page table page.  Hence I wonder =
+why is
+> this not renamed as pxx_table() instead to make it absolutely clear.
+>=20
 
-This patch enables an application to put part of its text sections to THP
-via madvise, for example:
+Okay, I'll change it and resend. It worked okay on powerpc but it
+looks like the usual precedent is testing for large before bad so we
+will have to go with that.
 
-    madvise((void *)0x600000, 0x200000, MADV_HUGEPAGE);
-
-We tried to reuse the logic for THP on tmpfs.
-
-Currently, write is not supported for non-shmem THP. khugepaged will only
-process vma with VM_DENYWRITE. sys_mmap() ignores VM_DENYWRITE requests
-(see ksys_mmap_pgoff). The only way to create vma with VM_DENYWRITE is
-execve(). This requirement limits non-shmem THP to text sections.
-
-The next patch will handle writes, which would only happen when the all
-the vmas with VM_DENYWRITE are unmapped.
-
-An EXPERIMENTAL config, READ_ONLY_THP_FOR_FS, is added to gate this
-feature.
-
-Acked-by: Rik van Riel <riel@surriel.com>
-Signed-off-by: Song Liu <songliubraving@fb.com>
----
- mm/Kconfig      | 11 ++++++
- mm/filemap.c    |  4 +--
- mm/khugepaged.c | 94 +++++++++++++++++++++++++++++++++++++++++--------
- mm/rmap.c       | 12 ++++---
- 4 files changed, 100 insertions(+), 21 deletions(-)
-
-diff --git a/mm/Kconfig b/mm/Kconfig
-index f0c76ba47695..0a8fd589406d 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -762,6 +762,17 @@ config GUP_BENCHMARK
- 
- 	  See tools/testing/selftests/vm/gup_benchmark.c
- 
-+config READ_ONLY_THP_FOR_FS
-+	bool "Read-only THP for filesystems (EXPERIMENTAL)"
-+	depends on TRANSPARENT_HUGE_PAGECACHE && SHMEM
-+
-+	help
-+	  Allow khugepaged to put read-only file-backed pages in THP.
-+
-+	  This is marked experimental because it is a new feature. Write
-+	  support of file THPs will be developed in the next few release
-+	  cycles.
-+
- config ARCH_HAS_PTE_SPECIAL
- 	bool
- 
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 5f072a113535..e79ceccdc6df 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -203,8 +203,8 @@ static void unaccount_page_cache_page(struct address_space *mapping,
- 		__mod_node_page_state(page_pgdat(page), NR_SHMEM, -nr);
- 		if (PageTransHuge(page))
- 			__dec_node_page_state(page, NR_SHMEM_THPS);
--	} else {
--		VM_BUG_ON_PAGE(PageTransHuge(page), page);
-+	} else if (PageTransHuge(page)) {
-+		__dec_node_page_state(page, NR_FILE_THPS);
- 	}
- 
- 	/*
-diff --git a/mm/khugepaged.c b/mm/khugepaged.c
-index 158cad542627..acbbbeaa083c 100644
---- a/mm/khugepaged.c
-+++ b/mm/khugepaged.c
-@@ -48,6 +48,7 @@ enum scan_result {
- 	SCAN_CGROUP_CHARGE_FAIL,
- 	SCAN_EXCEED_SWAP_PTE,
- 	SCAN_TRUNCATED,
-+	SCAN_PAGE_HAS_PRIVATE,
- };
- 
- #define CREATE_TRACE_POINTS
-@@ -404,7 +405,11 @@ static bool hugepage_vma_check(struct vm_area_struct *vma,
- 	    (vm_flags & VM_NOHUGEPAGE) ||
- 	    test_bit(MMF_DISABLE_THP, &vma->vm_mm->flags))
- 		return false;
--	if (shmem_file(vma->vm_file)) {
-+
-+	if (shmem_file(vma->vm_file) ||
-+	    (IS_ENABLED(CONFIG_READ_ONLY_THP_FOR_FS) &&
-+	     vma->vm_file &&
-+	     (vm_flags & VM_DENYWRITE))) {
- 		if (!IS_ENABLED(CONFIG_TRANSPARENT_HUGE_PAGECACHE))
- 			return false;
- 		return IS_ALIGNED((vma->vm_start >> PAGE_SHIFT) - vma->vm_pgoff,
-@@ -456,8 +461,9 @@ int khugepaged_enter_vma_merge(struct vm_area_struct *vma,
- 	unsigned long hstart, hend;
- 
- 	/*
--	 * khugepaged does not yet work on non-shmem files or special
--	 * mappings. And file-private shmem THP is not supported.
-+	 * khugepaged only supports read-only files for non-shmem files.
-+	 * khugepaged does not yet work on special mappings. And
-+	 * file-private shmem THP is not supported.
- 	 */
- 	if (!hugepage_vma_check(vma, vm_flags))
- 		return 0;
-@@ -1287,12 +1293,12 @@ static void retract_page_tables(struct address_space *mapping, pgoff_t pgoff)
- }
- 
- /**
-- * collapse_file - collapse small tmpfs/shmem pages into huge one.
-+ * collapse_file - collapse filemap/tmpfs/shmem pages into huge one.
-  *
-  * Basic scheme is simple, details are more complex:
-  *  - allocate and lock a new huge page;
-  *  - scan page cache replacing old pages with the new one
-- *    + swap in pages if necessary;
-+ *    + swap/gup in pages if necessary;
-  *    + fill in gaps;
-  *    + keep old pages around in case rollback is required;
-  *  - if replacing succeeds:
-@@ -1316,7 +1322,9 @@ static void collapse_file(struct mm_struct *mm,
- 	LIST_HEAD(pagelist);
- 	XA_STATE_ORDER(xas, &mapping->i_pages, start, HPAGE_PMD_ORDER);
- 	int nr_none = 0, result = SCAN_SUCCEED;
-+	bool is_shmem = shmem_file(file);
- 
-+	VM_BUG_ON(!IS_ENABLED(CONFIG_READ_ONLY_THP_FOR_FS) && !is_shmem);
- 	VM_BUG_ON(start & (HPAGE_PMD_NR - 1));
- 
- 	/* Only allocate from the target node */
-@@ -1348,7 +1356,8 @@ static void collapse_file(struct mm_struct *mm,
- 	} while (1);
- 
- 	__SetPageLocked(new_page);
--	__SetPageSwapBacked(new_page);
-+	if (is_shmem)
-+		__SetPageSwapBacked(new_page);
- 	new_page->index = start;
- 	new_page->mapping = mapping;
- 
-@@ -1363,7 +1372,7 @@ static void collapse_file(struct mm_struct *mm,
- 		struct page *page = xas_next(&xas);
- 
- 		VM_BUG_ON(index != xas.xa_index);
--		if (!page) {
-+		if (is_shmem && !page) {
- 			/*
- 			 * Stop if extent has been truncated or hole-punched,
- 			 * and is now completely empty.
-@@ -1384,7 +1393,7 @@ static void collapse_file(struct mm_struct *mm,
- 			continue;
- 		}
- 
--		if (xa_is_value(page) || !PageUptodate(page)) {
-+		if (is_shmem && (xa_is_value(page) || !PageUptodate(page))) {
- 			xas_unlock_irq(&xas);
- 			/* swap in or instantiate fallocated page */
- 			if (shmem_getpage(mapping->host, index, &page,
-@@ -1392,6 +1401,29 @@ static void collapse_file(struct mm_struct *mm,
- 				result = SCAN_FAIL;
- 				goto xa_unlocked;
- 			}
-+		} else if (!page || xa_is_value(page)) {
-+			xas_unlock_irq(&xas);
-+			page_cache_sync_readahead(mapping, &file->f_ra, file,
-+						  index, PAGE_SIZE);
-+			/* drain pagevecs to help isolate_lru_page() */
-+			lru_add_drain();
-+			page = find_lock_page(mapping, index);
-+			if (unlikely(page == NULL)) {
-+				result = SCAN_FAIL;
-+				goto xa_unlocked;
-+			}
-+		} else if (!PageUptodate(page)) {
-+			VM_BUG_ON(is_shmem);
-+			xas_unlock_irq(&xas);
-+			wait_on_page_locked(page);
-+			if (!trylock_page(page)) {
-+				result = SCAN_PAGE_LOCK;
-+				goto xa_unlocked;
-+			}
-+			get_page(page);
-+		} else if (!is_shmem && PageDirty(page)) {
-+			result = SCAN_FAIL;
-+			goto xa_locked;
- 		} else if (trylock_page(page)) {
- 			get_page(page);
- 			xas_unlock_irq(&xas);
-@@ -1426,6 +1458,12 @@ static void collapse_file(struct mm_struct *mm,
- 			goto out_unlock;
- 		}
- 
-+		if (page_has_private(page) &&
-+		    !try_to_release_page(page, GFP_KERNEL)) {
-+			result = SCAN_PAGE_HAS_PRIVATE;
-+			break;
-+		}
-+
- 		if (page_mapped(page))
- 			unmap_mapping_pages(mapping, index, 1, false);
- 
-@@ -1463,12 +1501,18 @@ static void collapse_file(struct mm_struct *mm,
- 		goto xa_unlocked;
- 	}
- 
--	__inc_node_page_state(new_page, NR_SHMEM_THPS);
-+	if (is_shmem)
-+		__inc_node_page_state(new_page, NR_SHMEM_THPS);
-+	else
-+		__inc_node_page_state(new_page, NR_FILE_THPS);
-+
- 	if (nr_none) {
- 		struct zone *zone = page_zone(new_page);
- 
- 		__mod_node_page_state(zone->zone_pgdat, NR_FILE_PAGES, nr_none);
--		__mod_node_page_state(zone->zone_pgdat, NR_SHMEM, nr_none);
-+		if (is_shmem)
-+			__mod_node_page_state(zone->zone_pgdat,
-+					      NR_SHMEM, nr_none);
- 	}
- 
- xa_locked:
-@@ -1506,10 +1550,15 @@ static void collapse_file(struct mm_struct *mm,
- 
- 		SetPageUptodate(new_page);
- 		page_ref_add(new_page, HPAGE_PMD_NR - 1);
--		set_page_dirty(new_page);
- 		mem_cgroup_commit_charge(new_page, memcg, false, true);
-+
-+		if (is_shmem) {
-+			set_page_dirty(new_page);
-+			lru_cache_add_anon(new_page);
-+		} else {
-+			lru_cache_add_file(new_page);
-+		}
- 		count_memcg_events(memcg, THP_COLLAPSE_ALLOC, 1);
--		lru_cache_add_anon(new_page);
- 
- 		/*
- 		 * Remove pte page tables, so we can re-fault the page as huge.
-@@ -1524,7 +1573,9 @@ static void collapse_file(struct mm_struct *mm,
- 		/* Something went wrong: roll back page cache changes */
- 		xas_lock_irq(&xas);
- 		mapping->nrpages -= nr_none;
--		shmem_uncharge(mapping->host, nr_none);
-+
-+		if (is_shmem)
-+			shmem_uncharge(mapping->host, nr_none);
- 
- 		xas_set(&xas, start);
- 		xas_for_each(&xas, page, end - 1) {
-@@ -1607,6 +1658,17 @@ static void khugepaged_scan_file(struct mm_struct *mm,
- 			break;
- 		}
- 
-+		if (page_has_private(page) && trylock_page(page)) {
-+			int ret;
-+
-+			ret = try_to_release_page(page, GFP_KERNEL);
-+			unlock_page(page);
-+			if (!ret) {
-+				result = SCAN_PAGE_HAS_PRIVATE;
-+				break;
-+			}
-+		}
-+
- 		if (page_count(page) != 1 + page_mapcount(page)) {
- 			result = SCAN_PAGE_COUNT;
- 			break;
-@@ -1713,11 +1775,13 @@ static unsigned int khugepaged_scan_mm_slot(unsigned int pages,
- 			VM_BUG_ON(khugepaged_scan.address < hstart ||
- 				  khugepaged_scan.address + HPAGE_PMD_SIZE >
- 				  hend);
--			if (shmem_file(vma->vm_file)) {
-+			if (vma->vm_file) {
- 				struct file *file;
- 				pgoff_t pgoff = linear_page_index(vma,
- 						khugepaged_scan.address);
--				if (!shmem_huge_enabled(vma))
-+
-+				if (shmem_file(vma->vm_file)
-+				    && !shmem_huge_enabled(vma))
- 					goto skip;
- 				file = get_file(vma->vm_file);
- 				up_read(&mm->mmap_sem);
-diff --git a/mm/rmap.c b/mm/rmap.c
-index e5dfe2ae6b0d..87cfa2c19eda 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -1192,8 +1192,10 @@ void page_add_file_rmap(struct page *page, bool compound)
- 		}
- 		if (!atomic_inc_and_test(compound_mapcount_ptr(page)))
- 			goto out;
--		VM_BUG_ON_PAGE(!PageSwapBacked(page), page);
--		__inc_node_page_state(page, NR_SHMEM_PMDMAPPED);
-+		if (PageSwapBacked(page))
-+			__inc_node_page_state(page, NR_SHMEM_PMDMAPPED);
-+		else
-+			__inc_node_page_state(page, NR_FILE_PMDMAPPED);
- 	} else {
- 		if (PageTransCompound(page) && page_mapping(page)) {
- 			VM_WARN_ON_ONCE(!PageLocked(page));
-@@ -1232,8 +1234,10 @@ static void page_remove_file_rmap(struct page *page, bool compound)
- 		}
- 		if (!atomic_add_negative(-1, compound_mapcount_ptr(page)))
- 			goto out;
--		VM_BUG_ON_PAGE(!PageSwapBacked(page), page);
--		__dec_node_page_state(page, NR_SHMEM_PMDMAPPED);
-+		if (PageSwapBacked(page))
-+			__dec_node_page_state(page, NR_SHMEM_PMDMAPPED);
-+		else
-+			__dec_node_page_state(page, NR_FILE_PMDMAPPED);
- 	} else {
- 		if (!atomic_add_negative(-1, &page->_mapcount))
- 			goto out;
--- 
-2.17.1
+Thanks,
+Nick
+=
 
