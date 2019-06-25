@@ -6,100 +6,95 @@ X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
 	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8917CC48BD4
-	for <linux-mm@archiver.kernel.org>; Tue, 25 Jun 2019 08:27:12 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1B0A1C48BD4
+	for <linux-mm@archiver.kernel.org>; Tue, 25 Jun 2019 08:31:24 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3C708215EA
-	for <linux-mm@archiver.kernel.org>; Tue, 25 Jun 2019 08:27:12 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3C708215EA
+	by mail.kernel.org (Postfix) with ESMTP id 791E3205ED
+	for <linux-mm@archiver.kernel.org>; Tue, 25 Jun 2019 08:31:22 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 791E3205ED
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DD3C16B0003; Tue, 25 Jun 2019 04:27:11 -0400 (EDT)
+	id 1E9D36B0003; Tue, 25 Jun 2019 04:31:22 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D84C88E0003; Tue, 25 Jun 2019 04:27:11 -0400 (EDT)
+	id 19B0D8E0003; Tue, 25 Jun 2019 04:31:22 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C4AF18E0002; Tue, 25 Jun 2019 04:27:11 -0400 (EDT)
+	id 03C3F8E0002; Tue, 25 Jun 2019 04:31:22 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 9ECED6B0003
-	for <linux-mm@kvack.org>; Tue, 25 Jun 2019 04:27:11 -0400 (EDT)
-Received: by mail-qk1-f200.google.com with SMTP id n77so18977961qke.17
-        for <linux-mm@kvack.org>; Tue, 25 Jun 2019 01:27:11 -0700 (PDT)
+Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D74E26B0003
+	for <linux-mm@kvack.org>; Tue, 25 Jun 2019 04:31:21 -0400 (EDT)
+Received: by mail-qt1-f200.google.com with SMTP id o16so20035445qtj.6
+        for <linux-mm@kvack.org>; Tue, 25 Jun 2019 01:31:21 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
          :references:from:openpgp:autocrypt:organization:message-id:date
          :user-agent:mime-version:in-reply-to:content-language
          :content-transfer-encoding;
-        bh=kdQMEnNMjhjHAeqdU733i3ujTlowle5FLjHOZHXduWM=;
-        b=mQVR5jFfVGruvEX8l3FnfE/qh1BAwMw3QUkmwziOk8duhMlJY/bGjyxKfda9qGaQoX
-         kqgs12QujkxHUxfMFEwd+evzJZNNkAiw1L5KKQNlMmwR0ZGC0qxWupjr/Ysx/nWnMXvq
-         xBRq/ynMZrbU9xBEPr4kbw7xWNz3Jf94hiyDuyz1HmrEOULp0cM4bTJ7LYeYEM1xreBS
-         QmS3nwJG47GtcePHxwgoTpZXhYD/2KCHST5qqBQWJUmcrey+ssN40nSRPvqQjpmSgg+P
-         zA5s9JtGGdqaz+ChG5JENwtypnAOJGp672Dk1GqFFDKpgXdIfJ76TSUsxCnxvzuDlon5
-         qZLg==
+        bh=4Ctd7KD/iBnYNzY9KdzgQP7nZqWhPzjPMroZgv8LNMY=;
+        b=ABAAGsM7n945MA3B4b9RdLE2vFVbaqWJgf/pOvs+eJVeS+0kPlC4V1VpFytgssYUfp
+         3sFQ3qpaitY2e6HWJoLhiTEkwIIy67bIfVI/OwpMAhSXYlyMbFoejUA5eeIY8AbFXIVG
+         rfN1LDWdGz3hLGTgpjLbNVl3+9S4j2hG7YF6xIe5SK9IV5R3hLEdfkqd87Exstz2SdRB
+         BxCYkoZULYPK30oU1E523uRwUMXZY4SlB8Gil4g/DsqWpmQeNy0JeferO3sj/vyshxXn
+         gR1OchsH+inw8k0C3amxTpjkkC2f49d9b3R0o8p4mMdEAF7+SFzOqpnn0QP1Z7PxdvCs
+         qNfg==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAVwj/ABXpZWFyqjpbYP5GqWeFSsL/gObSXl3xploLk+7aC2v2i7
-	HbaNetafkJuILNRfQixiqqHu7Wqh2ORjGFSf3JPVOkrfXVgMqZYEC1GrIxUVO58Gamsqo5yW2Jm
-	NWX6v1BqgwrOgcLhQPNsezBJkuxehWRm+Oy6fH0HpVseTOw24NFVyFKV0+9+I2GgWqg==
-X-Received: by 2002:a0c:aedc:: with SMTP id n28mr37259065qvd.242.1561451231422;
-        Tue, 25 Jun 2019 01:27:11 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzsAdu41e2KtyqSMJRmUvymUeVtYYnQGq7AQb3LXpErmQk6FvcYYPPDL7EscRqZde9tApDE
-X-Received: by 2002:a0c:aedc:: with SMTP id n28mr37259029qvd.242.1561451230873;
-        Tue, 25 Jun 2019 01:27:10 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561451230; cv=none;
+X-Gm-Message-State: APjAAAVHVqQ4Xu5MxV6+GNOWWACLBptXIk7IWG4vRMjw6T9rDAKW73b5
+	pryBT+aiElgi8RcdGtUx6TWdB4IGWhX7+dl5K4n5Fi3+zqmZZ2JrcRS0dI42py6SlvMkI5cOPOS
+	e2c7MwlAN0qs80ihowqnKoLCrcKAQA+XZU2NaXDT/eeiohBUQ/QqYY0yB0RSpfv5SkQ==
+X-Received: by 2002:a37:357:: with SMTP id 84mr20367840qkd.483.1561451481610;
+        Tue, 25 Jun 2019 01:31:21 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw9S3CWRZOc+hLLRt7wnc5AoDCE8kzSF0R7GjAYdYdmOCC5vos+9CYyowlx4p2Ugc+eqW4u
+X-Received: by 2002:a37:357:: with SMTP id 84mr20367797qkd.483.1561451480642;
+        Tue, 25 Jun 2019 01:31:20 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561451480; cv=none;
         d=google.com; s=arc-20160816;
-        b=wvX/0m/64aS0Zrg5P+Hi8zxAHxAedO6Uj9DS9Lg0aU8D1XE7jrkZbXyR7ga26r64dd
-         KFS5TJoaki/c8lYS0+312XhV6kXW/s8/ktLA7Vot8PdqfUnlRAeoPCPXXAWNu9sIXgTA
-         7w17ZOHX8MIlTEaZe8D6uNYudsTSbWJFbVWTUV8+hCDxBHATGcuRZ6+ZFUXS7gwYyn3t
-         5poj1ZkWBsyZxN00yuZA6doDuyH0k/+lJomGtxSsduzgPyTdqiCpsalCtSZXkAlEX+TD
-         sKxssZiQeces1hEhGylDhYtDZyvPxIsqD6kw0o0lexSdcli6zps8TbWsjPCjWUIulPZW
-         IfNg==
+        b=DpvpL0owxrPUE/P1UQhya/hekCMA2YZ+1zjYUq4zfm1bQ+gak5/25xqRG7+Buge+Ca
+         A7+4LQ4uTk4N3vYilRk4uy6qyP/fCT0Sqvl9qk8jtIb+awF4jqG0q210Zi2xx2jmTdve
+         0fzDimzzPQIsQRVQdXlTWR5Tp5v2haTBP156FFxRtwJmMlCRADu/A7m4HO66fBM1q+Ro
+         DCKHAl/KzyYD7hsJcMxsvcyZ8Uy2+NynvFX9xIbYElVrUhEHrE8kp9cSIM5tKmhhRxSO
+         zMR1zQ1OzJPPL4bYJlvNyYCzCqBRqSxljnuuVIVeksbodhkSv2p7IxzPzkCckLGwVpKd
+         +ccw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
          :user-agent:date:message-id:organization:autocrypt:openpgp:from
          :references:cc:to:subject;
-        bh=kdQMEnNMjhjHAeqdU733i3ujTlowle5FLjHOZHXduWM=;
-        b=dKVJPDhPBXlUbTQorQb7RXZfN4WQFc29EOz6j2AMwl6iEWEFVLllSepoooz3Gbmi/j
-         h2xb9hPK8WQM0YgoUsSv8fP+9VilPePXrxAV+Eu2MvVRKx4SksijBlabb9QBrEia/g09
-         OaBPsBnSW9cIbTqyLHjovMrT/ZiEx8B3qKqjaHVtWzM6cviDsGRxacdc6WV9thtEamCC
-         6Ijgy6sEAnCQ+51S5YQc1FTkVp0NexGtxj24+xGomvPnirflO6BSHOC3RusIxvIBn4Ge
-         KGh92gweL+fvjh3ppYWSlz14D2XSUjQQCmwEs5y/0Y72nmOjpyCL8VkIM727AV7Z+82L
-         PZnQ==
+        bh=4Ctd7KD/iBnYNzY9KdzgQP7nZqWhPzjPMroZgv8LNMY=;
+        b=T9OmshIN7ScH2hSmtVfT34x5uqbRA7m7oR+42z4zo9wcXa4dnSeYUtVZCsxOweS8ar
+         VBuSCrvNsP8R2EBjZWyR7qDV2MupYCiGoKvfWS2PdAbSZv6aX2dkLaagXGZMuKDwfR0v
+         3zG1Bebr/mohSkJwXAwSXP38cGKS3YLfWsS8sUrKTAbKoNy3BQ8zhIo6F1vX0sX0VF44
+         fDKRITk7rlDqzHXsn1DCErT9FIVhChnsjS9p9C4i2Hr0pAOAGoo7d6z28K3siKvneClr
+         Bt0Ytj2TaBLvt38zQnd5fULSQouyZ/AHjiXrZEyFTJXr9KGBQEkJjpRpfgvKIAM+4pzC
+         Crxg==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id k3si1946572qvh.30.2019.06.25.01.27.10
+        by mx.google.com with ESMTPS id h4si10359612qvk.167.2019.06.25.01.31.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 25 Jun 2019 01:27:10 -0700 (PDT)
+        Tue, 25 Jun 2019 01:31:20 -0700 (PDT)
 Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
+Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id E6258307CDD5;
-	Tue, 25 Jun 2019 08:27:09 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id B3A7D36899;
+	Tue, 25 Jun 2019 08:31:19 +0000 (UTC)
 Received: from [10.36.117.83] (ovpn-117-83.ams2.redhat.com [10.36.117.83])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id DAB7C600C7;
-	Tue, 25 Jun 2019 08:27:07 +0000 (UTC)
-Subject: Re: [PATCH v2 1/5] drivers/base/memory: Remove unneeded check in
- remove_memory_block_devices
-To: Oscar Salvador <osalvador@suse.de>
-Cc: akpm@linux-foundation.org, mhocko@suse.com, dan.j.williams@intel.com,
- pasha.tatashin@soleen.com, Jonathan.Cameron@huawei.com,
- anshuman.khandual@arm.com, vbabka@suse.cz, linux-mm@kvack.org,
- linux-kernel@vger.kernel.org
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 78B1C5C232;
+	Tue, 25 Jun 2019 08:31:17 +0000 (UTC)
+Subject: Re: [PATCH v2 2/5] mm,memory_hotplug: Introduce MHP_VMEMMAP_FLAGS
+To: Oscar Salvador <osalvador@suse.de>, akpm@linux-foundation.org
+Cc: mhocko@suse.com, dan.j.williams@intel.com, pasha.tatashin@soleen.com,
+ Jonathan.Cameron@huawei.com, anshuman.khandual@arm.com, vbabka@suse.cz,
+ linux-mm@kvack.org, linux-kernel@vger.kernel.org
 References: <20190625075227.15193-1-osalvador@suse.de>
- <20190625075227.15193-2-osalvador@suse.de>
- <3e820fee-f82f-3336-ff34-31c66dbbbbfe@redhat.com>
- <0ed2f4ec-cc6f-8b81-46b0-d56d90ac1e86@redhat.com>
- <20190625080909.GA15394@linux>
+ <20190625075227.15193-3-osalvador@suse.de>
 From: David Hildenbrand <david@redhat.com>
 Openpgp: preference=signencrypt
 Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
@@ -146,90 +141,268 @@ Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
  +8Umfre0Xt4713VxMygW0PnQt5aSQdMD58jHFxTk092mU+yIHj5LeYgvwSgZN4airXk5yRXl
  SE+xAvmumFBY
 Organization: Red Hat GmbH
-Message-ID: <14272082-6ed4-a5d2-e275-2b4ebb53e65c@redhat.com>
-Date: Tue, 25 Jun 2019 10:27:02 +0200
+Message-ID: <a1e459fe-c48c-b888-7cf3-973fb0684509@redhat.com>
+Date: Tue, 25 Jun 2019 10:31:16 +0200
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.7.0
 MIME-Version: 1.0
-In-Reply-To: <20190625080909.GA15394@linux>
+In-Reply-To: <20190625075227.15193-3-osalvador@suse.de>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.49]); Tue, 25 Jun 2019 08:27:10 +0000 (UTC)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.30]); Tue, 25 Jun 2019 08:31:19 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 25.06.19 10:09, Oscar Salvador wrote:
-> On Tue, Jun 25, 2019 at 10:03:31AM +0200, David Hildenbrand wrote:
->> On 25.06.19 10:01, David Hildenbrand wrote:
->>> On 25.06.19 09:52, Oscar Salvador wrote:
->>>> remove_memory_block_devices() checks for the range to be aligned
->>>> to memory_block_size_bytes, which is our current memory block size,
->>>> and WARNs_ON and bails out if it is not.
->>>>
->>>> This is the right to do, but we do already do that in try_remove_memory(),
->>>> where remove_memory_block_devices() gets called from, and we even are
->>>> more strict in try_remove_memory, since we directly BUG_ON in case the range
->>>> is not properly aligned.
->>>>
->>>> Since remove_memory_block_devices() is only called from try_remove_memory(),
->>>> we can safely drop the check here.
->>>>
->>>> To be honest, I am not sure if we should kill the system in case we cannot
->>>> remove memory.
->>>> I tend to think that WARN_ON and return and error is better.
->>>
->>> I failed to parse this sentence.
->>>
->>>>
->>>> Signed-off-by: Oscar Salvador <osalvador@suse.de>
->>>> ---
->>>>  drivers/base/memory.c | 4 ----
->>>>  1 file changed, 4 deletions(-)
->>>>
->>>> diff --git a/drivers/base/memory.c b/drivers/base/memory.c
->>>> index 826dd76f662e..07ba731beb42 100644
->>>> --- a/drivers/base/memory.c
->>>> +++ b/drivers/base/memory.c
->>>> @@ -771,10 +771,6 @@ void remove_memory_block_devices(unsigned long start, unsigned long size)
->>>>  	struct memory_block *mem;
->>>>  	int block_id;
->>>>  
->>>> -	if (WARN_ON_ONCE(!IS_ALIGNED(start, memory_block_size_bytes()) ||
->>>> -			 !IS_ALIGNED(size, memory_block_size_bytes())))
->>>> -		return;
->>>> -
->>>>  	mutex_lock(&mem_sysfs_mutex);
->>>>  	for (block_id = start_block_id; block_id != end_block_id; block_id++) {
->>>>  		mem = find_memory_block_by_id(block_id, NULL);
->>>>
->>>
->>> As I said when I introduced this, I prefer to have such duplicate checks
->>> in place in case we have dependent code splattered over different files.
->>> (especially mm/ vs. drivers/base). Such simple checks avoid to document
->>> "start and size have to be aligned to memory blocks".
->>
->> Lol, I even documented it as well. So yeah, if you're going to drop this
->> once, also drop the one in create_memory_block_devices().
+On 25.06.19 09:52, Oscar Salvador wrote:
+> This patch introduces MHP_MEMMAP_DEVICE and MHP_MEMMAP_MEMBLOCK flags,
+> and prepares the callers that add memory to take a "flags" parameter.
+> This "flags" parameter will be evaluated later on in Patch#3
+> to init mhp_restrictions struct.
 > 
-> TBH, I would not mind sticking with it.
-> What sticked out the most was that in the previous check, we BUG_on while
-> here we just print out a warning, so it seemed quite "inconsistent" to me.
+> The callers are:
 > 
-> And I only stumbled upon this when I was testing a kernel module that
-> hot-removed memory in a different granularity.
+> add_memory
+> __add_memory
+> add_memory_resource
 > 
-> Anyway, I do not really feel strong here, I can perfectly drop this patch as I
-> would rather have the focus in the following-up patches, which are the important
-> ones IMO.
+> Unfortunately, we do not have a single entry point to add memory, as depending
+> on the requisites of the caller, they want to hook up in different places,
+> (e.g: Xen reserve_additional_memory()), so we have to spread the parameter
+> in the three callers.
+> 
+> The flags are either MHP_MEMMAP_DEVICE or MHP_MEMMAP_MEMBLOCK, and only differ
+> in the way they allocate vmemmap pages within the memory blocks.
+> 
+> MHP_MEMMAP_MEMBLOCK:
+> 	- With this flag, we will allocate vmemmap pages in each memory block.
+> 	  This means that if we hot-add a range that spans multiple memory blocks,
+> 	  we will use the beginning of each memory block for the vmemmap pages.
+> 	  This strategy is good for cases where the caller wants the flexiblity
+> 	  to hot-remove memory in a different granularity than when it was added.
+> 
+> 	  E.g:
+> 		We allocate a range (x,y], that spans 3 memory blocks, and given
+> 		memory block size = 128MB.
+> 		[memblock#0  ]
+> 		[0 - 511 pfns      ] - vmemmaps for section#0
+> 		[512 - 32767 pfns  ] - normal memory
+> 
+> 		[memblock#1 ]
+> 		[32768 - 33279 pfns] - vmemmaps for section#1
+> 		[33280 - 65535 pfns] - normal memory
+> 
+> 		[memblock#2 ]
+> 		[65536 - 66047 pfns] - vmemmap for section#2
+> 		[66048 - 98304 pfns] - normal memory
+> 
+> MHP_MEMMAP_DEVICE:
+> 	- With this flag, we will store all vmemmap pages at the beginning of
+> 	  hot-added memory.
+> 
+> 	  E.g:
+> 		We allocate a range (x,y], that spans 3 memory blocks, and given
+> 		memory block size = 128MB.
+> 		[memblock #0 ]
+> 		[0 - 1533 pfns    ] - vmemmap for section#{0-2}
+> 		[1534 - 98304 pfns] - normal memory
+> 
+> When using larger memory blocks (1GB or 2GB), the principle is the same.
+> 
+> Of course, MHP_MEMMAP_DEVICE is nicer when it comes to have a large contigous
+> area, while MHP_MEMMAP_MEMBLOCK allows us to have flexibility when removing the
+> memory.
+> 
+> Signed-off-by: Oscar Salvador <osalvador@suse.de>
+> ---
+>  drivers/acpi/acpi_memhotplug.c |  2 +-
+>  drivers/base/memory.c          |  2 +-
+>  drivers/dax/kmem.c             |  2 +-
+>  drivers/hv/hv_balloon.c        |  2 +-
+>  drivers/s390/char/sclp_cmd.c   |  2 +-
+>  drivers/xen/balloon.c          |  2 +-
+>  include/linux/memory_hotplug.h | 22 +++++++++++++++++++---
+>  mm/memory_hotplug.c            | 10 +++++-----
+>  8 files changed, 30 insertions(+), 14 deletions(-)
+> 
+> diff --git a/drivers/acpi/acpi_memhotplug.c b/drivers/acpi/acpi_memhotplug.c
+> index db013dc21c02..860f84e82dd0 100644
+> --- a/drivers/acpi/acpi_memhotplug.c
+> +++ b/drivers/acpi/acpi_memhotplug.c
+> @@ -218,7 +218,7 @@ static int acpi_memory_enable_device(struct acpi_memory_device *mem_device)
+>  		if (node < 0)
+>  			node = memory_add_physaddr_to_nid(info->start_addr);
+>  
+> -		result = __add_memory(node, info->start_addr, info->length);
+> +		result = __add_memory(node, info->start_addr, info->length, 0);
+>  
+>  		/*
+>  		 * If the memory block has been used by the kernel, add_memory()
+> diff --git a/drivers/base/memory.c b/drivers/base/memory.c
+> index 07ba731beb42..ad9834b8b7f7 100644
+> --- a/drivers/base/memory.c
+> +++ b/drivers/base/memory.c
+> @@ -516,7 +516,7 @@ static ssize_t probe_store(struct device *dev, struct device_attribute *attr,
+>  
+>  	nid = memory_add_physaddr_to_nid(phys_addr);
+>  	ret = __add_memory(nid, phys_addr,
+> -			   MIN_MEMORY_BLOCK_SIZE * sections_per_block);
+> +			   MIN_MEMORY_BLOCK_SIZE * sections_per_block, 0);
+>  
+>  	if (ret)
+>  		goto out;
+> diff --git a/drivers/dax/kmem.c b/drivers/dax/kmem.c
+> index 3d0a7e702c94..e159184e0ba0 100644
+> --- a/drivers/dax/kmem.c
+> +++ b/drivers/dax/kmem.c
+> @@ -65,7 +65,7 @@ int dev_dax_kmem_probe(struct device *dev)
+>  	new_res->flags = IORESOURCE_SYSTEM_RAM;
+>  	new_res->name = dev_name(dev);
+>  
+> -	rc = add_memory(numa_node, new_res->start, resource_size(new_res));
+> +	rc = add_memory(numa_node, new_res->start, resource_size(new_res), 0);
+>  	if (rc) {
+>  		release_resource(new_res);
+>  		kfree(new_res);
+> diff --git a/drivers/hv/hv_balloon.c b/drivers/hv/hv_balloon.c
+> index 6fb4ea5f0304..beb92bc56186 100644
+> --- a/drivers/hv/hv_balloon.c
+> +++ b/drivers/hv/hv_balloon.c
+> @@ -731,7 +731,7 @@ static void hv_mem_hot_add(unsigned long start, unsigned long size,
+>  
+>  		nid = memory_add_physaddr_to_nid(PFN_PHYS(start_pfn));
+>  		ret = add_memory(nid, PFN_PHYS((start_pfn)),
+> -				(HA_CHUNK << PAGE_SHIFT));
+> +				(HA_CHUNK << PAGE_SHIFT), 0);
+>  
+>  		if (ret) {
+>  			pr_err("hot_add memory failed error is %d\n", ret);
+> diff --git a/drivers/s390/char/sclp_cmd.c b/drivers/s390/char/sclp_cmd.c
+> index 37d42de06079..f61026c7db7e 100644
+> --- a/drivers/s390/char/sclp_cmd.c
+> +++ b/drivers/s390/char/sclp_cmd.c
+> @@ -406,7 +406,7 @@ static void __init add_memory_merged(u16 rn)
+>  	if (!size)
+>  		goto skip_add;
+>  	for (addr = start; addr < start + size; addr += block_size)
+> -		add_memory(numa_pfn_to_nid(PFN_DOWN(addr)), addr, block_size);
+> +		add_memory(numa_pfn_to_nid(PFN_DOWN(addr)), addr, block_size, 0);
+>  skip_add:
+>  	first_rn = rn;
+>  	num = 1;
+> diff --git a/drivers/xen/balloon.c b/drivers/xen/balloon.c
+> index 37a36c6b9f93..33814b3513ca 100644
+> --- a/drivers/xen/balloon.c
+> +++ b/drivers/xen/balloon.c
+> @@ -349,7 +349,7 @@ static enum bp_state reserve_additional_memory(void)
+>  	mutex_unlock(&balloon_mutex);
+>  	/* add_memory_resource() requires the device_hotplug lock */
+>  	lock_device_hotplug();
+> -	rc = add_memory_resource(nid, resource);
+> +	rc = add_memory_resource(nid, resource, 0);
+>  	unlock_device_hotplug();
+>  	mutex_lock(&balloon_mutex);
+>  
+> diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
+> index 0b8a5e5ef2da..6fdbce9d04f9 100644
+> --- a/include/linux/memory_hotplug.h
+> +++ b/include/linux/memory_hotplug.h
+> @@ -54,6 +54,22 @@ enum {
+>  };
+>  
+>  /*
+> + * We want memmap (struct page array) to be allocated from the hotadded range.
+> + * To do so, there are two possible ways depending on what the caller wants.
+> + * 1) Allocate memmap pages per device (whole hot-added range)
+> + * 2) Allocate memmap pages per memblock
+> + * The former implies that we wil use the beginning of the hot-added range
 
-Whetever you prefer, I can live with either :)
+s/wil/will/
 
-(yes, separating this patch from the others makes sense)
+> + * to store the memmap pages of the whole range, while the latter implies
+> + * that we will use the beginning of each memblock to store its own memmap
+> + * pages.
+> + * Please note that only SPARSE_VMEMMAP implements this feature and some
+> + * architectures might not support it even for that memory model (e.g. s390)
+
+Probably rephrase to "This is only a hint, not a guarantee. Only
+selected architectures support it with SPARSE_VMEMMAP."
+
+> + */
+> +#define MHP_MEMMAP_DEVICE	(1UL<<0)
+> +#define MHP_MEMMAP_MEMBLOCK	(1UL<<1)
+> +#define MHP_VMEMMAP_FLAGS	(MHP_MEMMAP_DEVICE|MHP_MEMMAP_MEMBLOCK)
+> +
+> +/*
+>   * Restrictions for the memory hotplug:
+>   * flags:  MHP_ flags
+>   * altmap: alternative allocator for memmap array
+> @@ -342,9 +358,9 @@ static inline void __remove_memory(int nid, u64 start, u64 size) {}
+>  extern void __ref free_area_init_core_hotplug(int nid);
+>  extern int walk_memory_range(unsigned long start_pfn, unsigned long end_pfn,
+>  		void *arg, int (*func)(struct memory_block *, void *));
+> -extern int __add_memory(int nid, u64 start, u64 size);
+> -extern int add_memory(int nid, u64 start, u64 size);
+> -extern int add_memory_resource(int nid, struct resource *resource);
+> +extern int __add_memory(int nid, u64 start, u64 size, unsigned long flags);
+> +extern int add_memory(int nid, u64 start, u64 size, unsigned long flags);
+> +extern int add_memory_resource(int nid, struct resource *resource, unsigned long flags);
+>  extern void move_pfn_range_to_zone(struct zone *zone, unsigned long start_pfn,
+>  		unsigned long nr_pages, struct vmem_altmap *altmap);
+>  extern bool is_memblock_offlined(struct memory_block *mem);
+> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> index 4e8e65954f31..e4e3baa6eaa7 100644
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+> @@ -1057,7 +1057,7 @@ static int online_memory_block(struct memory_block *mem, void *arg)
+>   *
+>   * we are OK calling __meminit stuff here - we have CONFIG_MEMORY_HOTPLUG
+>   */
+> -int __ref add_memory_resource(int nid, struct resource *res)
+> +int __ref add_memory_resource(int nid, struct resource *res, unsigned long flags)
+>  {
+>  	struct mhp_restrictions restrictions = {};
+>  	u64 start, size;
+> @@ -1135,7 +1135,7 @@ int __ref add_memory_resource(int nid, struct resource *res)
+>  }
+>  
+>  /* requires device_hotplug_lock, see add_memory_resource() */
+> -int __ref __add_memory(int nid, u64 start, u64 size)
+> +int __ref __add_memory(int nid, u64 start, u64 size, unsigned long flags)
+>  {
+>  	struct resource *res;
+>  	int ret;
+> @@ -1144,18 +1144,18 @@ int __ref __add_memory(int nid, u64 start, u64 size)
+>  	if (IS_ERR(res))
+>  		return PTR_ERR(res);
+>  
+> -	ret = add_memory_resource(nid, res);
+> +	ret = add_memory_resource(nid, res, flags);
+>  	if (ret < 0)
+>  		release_memory_resource(res);
+>  	return ret;
+>  }
+>  
+> -int add_memory(int nid, u64 start, u64 size)
+> +int add_memory(int nid, u64 start, u64 size, unsigned long flags)
+>  {
+>  	int rc;
+>  
+>  	lock_device_hotplug();
+> -	rc = __add_memory(nid, start, size);
+> +	rc = __add_memory(nid, start, size, flags);
+>  	unlock_device_hotplug();
+>  
+>  	return rc;
+> 
+
+Apart from that, looks good to me.
+
+Reviewed-by: David Hildenbrand <david@redhat.com>
 
 -- 
 
