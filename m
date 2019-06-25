@@ -2,153 +2,239 @@ Return-Path: <SRS0=nbyn=UY=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-5.3 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY,URIBL_BLOCKED,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4A41BC4646B
-	for <linux-mm@archiver.kernel.org>; Tue, 25 Jun 2019 02:52:33 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0353DC4646C
+	for <linux-mm@archiver.kernel.org>; Tue, 25 Jun 2019 03:05:08 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E3DFB20652
-	for <linux-mm@archiver.kernel.org>; Tue, 25 Jun 2019 02:52:32 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E3DFB20652
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
+	by mail.kernel.org (Postfix) with ESMTP id AE7DA20663
+	for <linux-mm@archiver.kernel.org>; Tue, 25 Jun 2019 03:05:07 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="BXJlUqAK"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AE7DA20663
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5A8A46B0003; Mon, 24 Jun 2019 22:52:32 -0400 (EDT)
+	id 37B038E0003; Mon, 24 Jun 2019 23:05:07 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5312E8E0003; Mon, 24 Jun 2019 22:52:32 -0400 (EDT)
+	id 32B4C8E0002; Mon, 24 Jun 2019 23:05:07 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3F8F88E0002; Mon, 24 Jun 2019 22:52:32 -0400 (EDT)
+	id 1F2EE8E0003; Mon, 24 Jun 2019 23:05:07 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 13A956B0003
-	for <linux-mm@kvack.org>; Mon, 24 Jun 2019 22:52:32 -0400 (EDT)
-Received: by mail-ot1-f69.google.com with SMTP id a8so8392502oti.8
-        for <linux-mm@kvack.org>; Mon, 24 Jun 2019 19:52:32 -0700 (PDT)
+Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
+	by kanga.kvack.org (Postfix) with ESMTP id F24268E0002
+	for <linux-mm@kvack.org>; Mon, 24 Jun 2019 23:05:06 -0400 (EDT)
+Received: by mail-io1-f70.google.com with SMTP id z19so7012900ioi.15
+        for <linux-mm@kvack.org>; Mon, 24 Jun 2019 20:05:06 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:message-id
-         :date:from:user-agent:mime-version:to:cc:subject:references
-         :in-reply-to:content-transfer-encoding;
-        bh=2ct1JEOPbK/oq6Rx4H3L48Xnc9tYl30SRktt09LGxzw=;
-        b=ZNjddzzo1vBYtCWYmNegmZCsidD99MY04WtoBWqdXanKEHYQhZZ+AAi14kg7uZj/c1
-         4Zx5moB8HPEy52d0e8I+1v4zuiWxD8udXcCL4lHFhw2zclY5c3jGZ1x7r7AGHBnrUr3V
-         Q7I2L5RuNDUFOeAEUTe77xLiOWDGc57j6RhFoURcP0NRjd/B+wzGv0uBqjRt/tpILai3
-         FRWmMSPBLEv6t69/j7eWWHjV7vLM10aW65Axy+hA4yxgsAnqn335kTGwAob3oXtcjBfS
-         rg9tvFF3E7Wi3Jv5vFmyHZUVI1yUhy7da3Lq/kEkueAMTjn4/2r7yVYeFCa1cFRG9aFa
-         fEEQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of zhongjiang@huawei.com designates 45.249.212.32 as permitted sender) smtp.mailfrom=zhongjiang@huawei.com
-X-Gm-Message-State: APjAAAXlgpIUEiYASKLhCe0ZfmYXP5Br2cEgdx1kRCqdH+cH4vyJMXUh
-	2t4phxsD8aiwVqyX4dURr3w08Q+LRHbQkDd3x4wmavFGc5vIVNeCGYVUlujwrr8BcDM4AqWnL2C
-	pIW5A7q28SWigLc3d6X+H4R58EJb8qwlwAcGACs+W5l5GuCs8uHI5MCKtUhuOZW+HsA==
-X-Received: by 2002:a05:6830:93:: with SMTP id a19mr33086904oto.127.1561431151589;
-        Mon, 24 Jun 2019 19:52:31 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxTauQj/RDiJ+7j0a4pp2AjgrG+/D6uBxlrQiFcpAjuFR1NoefVAg4924yor1Ut95hNQhZ5
-X-Received: by 2002:a05:6830:93:: with SMTP id a19mr33086868oto.127.1561431150813;
-        Mon, 24 Jun 2019 19:52:30 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561431150; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=y1nTqvm5zm2oVuuxHsrGpbU4gEqHpmqSXspC8Bne9NM=;
+        b=WaYDqgr85iML2ZTslt/HQPemYY1dTQt9NXZjBuIiuO6HPVF+Pmx56ScUPNVeywProO
+         cvSJhFeKFkmGd3YVIa6m/Z/tubQMttPfj4g4BMiDwcUWktWRM4WqwWlXgdLHCdSkBQHt
+         pUgC30Njf3v71K9C3ZzsnMpKoK6WZdsAdNRbHrFokW/y2UoJr8G0Z2u4vzTiuDVrtvOB
+         xoF7MOo1BPLJx1kbvJfDe6YRHnvyTzPguHbCt4OIfJINz7K7mkd5GZGy1phctRUH1EnH
+         6zCjHOc4IZdx2puypteo3pfPoyreXaX6HvzETqnwzreFr8GTauyZjfbSTdXR4JcFQxP9
+         5ezQ==
+X-Gm-Message-State: APjAAAXDwp7oVaTQQbrFgrZ1H5Jxl3/kvCqgKsKjuppRBOGVnePf2qeo
+	ktsI9w4zamzKDv6uTDW3w68UKEOF1VaBhNg9FERxuKwZc6B4yr3NGcV5PNWwVgEqTEyX3i+Wg2O
+	9vPFxmdxyLxPt8fFT2waukgtsKanT8CkyZdV5lnhOHvAuT5CMHqxroTzPQrJVoCdo3Q==
+X-Received: by 2002:a6b:8bce:: with SMTP id n197mr21074259iod.299.1561431906727;
+        Mon, 24 Jun 2019 20:05:06 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqygAcQ3URQsvKNl7ciGH3JLvSJWK1sPBHP8bBh6xvn9yWJ7dy3NrICx3JnP7Fkd38JHuQKX
+X-Received: by 2002:a6b:8bce:: with SMTP id n197mr21074195iod.299.1561431905896;
+        Mon, 24 Jun 2019 20:05:05 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561431905; cv=none;
         d=google.com; s=arc-20160816;
-        b=HGxQpmlHd8VVqieM9LeF8ib2lkIT6NMz0dv1bpCmmzfKk8zuYajwhhwOmJ9T5M2JXz
-         IURgsnsozCtStaSbWRQ54rmyWPLi0xKe5VesN0D2dLNFK9D78m44ozuUG/NZwWMCR8iI
-         fn5vQHoiPw7dkZCjfS0vlUlLMV5FNLawcgGy0obZlGpnIqwN5LCuZ5X6ZvaagCZBdpHu
-         kn44AQCKqttYJK3N8aibbIcUXBJ6JAudCPcsUv5SoOZ2gBLwFTo9O3glrp1JOoKxlmkT
-         qRRnlVoJQAL3LAXUhC5XGbCrcPjSNCe+eelRoqCpmzP9QEP6IfjZe6Vevvh5ojQm3IPK
-         55zQ==
+        b=PVgLG3gnC8gArcSz7Fsar7fomsvjMs11OPjyaW2n+GK/8CHueba1KzMIX90en+kqVU
+         Fnr63ohlPtm/m3M5nukB/L4l6s061S1frVD3zen3LNEbiQLPUfBc4X+ZPizrfdP1ZC34
+         3EqRj2ism0ZeaLmw9kjYzKac0iXC/4y3ZneC+3c9FHWc3mKOeR6JLH1JSNHYfVWUT1zr
+         MIt2hOZW4nejzuXYgJWLg5ZYuDVWmUa/jT4ZUmauzB9mGOh1w8cZhoGaCPNLRDqRpGj3
+         gFvK1RWM/9tLK1OiMfmt3Sa28GSFtORVQu8ZzdXdOA2EWYkgWqpXy9hdXfKycolWpEyA
+         6m2g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:in-reply-to:references:subject:cc:to
-         :mime-version:user-agent:from:date:message-id;
-        bh=2ct1JEOPbK/oq6Rx4H3L48Xnc9tYl30SRktt09LGxzw=;
-        b=a1xG175wNvsFgwHPZ3iVFKnYyK7zkziZc9AyJ1wRaZK5CT4uAKORJ22ozsLPk63Ex+
-         aWl98JTSWucXheStjO8BAd7uB4ObfvrRYaPxBsKgRqYMJTK5lvsYxGIovC1ENxnukP7m
-         gyFBGZRpDWeOtAoPengNltrh4OK6keL4PhypjNqBmTbLo6DjP4F7E3oT42Iw/OMIHRfk
-         fdCovTLY7jgKPUaESCMUxB7W3bTblCAgZeCX00jPMk2lPcnp9EFp6wYKK0b80SnW2wAH
-         qaNcyfZCoVdjFiD0P7NhL69Ox4x118ZNkO9q4R3nyPmtiXjpWPpHTVCXDDI32ApyAIz3
-         1bxg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=y1nTqvm5zm2oVuuxHsrGpbU4gEqHpmqSXspC8Bne9NM=;
+        b=OE0NIUHNDvEqkxdkqV2C7N1oRyhkTMyWQ35gApBDRQDJIkDboBDZVEq2UydO0VO+E/
+         s2XZpMn9UGn7FtkJrsrisdW7p1olu95Fp7FG20/pCkgeZfnJC1Usyvy8Bc+7umq5MnzD
+         awwCRiNv2uvurt2qq2AmnHIE3PHbE+OSl1qS9XUrmOF0twUjNdt1X3b5p0TX42nr34T9
+         qGc92KnxMmSOsEaxUqXJECMXEsewUrWCBYEMdXwnl2Nda/GwzWFeJkSpP0HWAqAvTGjl
+         MPxZe9e5fhNL22b2rypGnoiS2kxqujXF+a65jzKgLrBcgY6LWBcotwMz8bLdkCkM6l18
+         I3DQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of zhongjiang@huawei.com designates 45.249.212.32 as permitted sender) smtp.mailfrom=zhongjiang@huawei.com
-Received: from huawei.com (szxga06-in.huawei.com. [45.249.212.32])
-        by mx.google.com with ESMTPS id h23si8427001otr.292.2019.06.24.19.52.30
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=BXJlUqAK;
+       spf=pass (google.com: domain of darrick.wong@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=darrick.wong@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id i12si20450989jal.125.2019.06.24.20.05.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 24 Jun 2019 19:52:30 -0700 (PDT)
-Received-SPF: pass (google.com: domain of zhongjiang@huawei.com designates 45.249.212.32 as permitted sender) client-ip=45.249.212.32;
+        Mon, 24 Jun 2019 20:05:05 -0700 (PDT)
+Received-SPF: pass (google.com: domain of darrick.wong@oracle.com designates 156.151.31.86 as permitted sender) client-ip=156.151.31.86;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of zhongjiang@huawei.com designates 45.249.212.32 as permitted sender) smtp.mailfrom=zhongjiang@huawei.com
-Received: from DGGEMS408-HUB.china.huawei.com (unknown [172.30.72.60])
-	by Forcepoint Email with ESMTP id 7F3AA7D34BEAABD75BE0;
-	Tue, 25 Jun 2019 10:52:25 +0800 (CST)
-Received: from [127.0.0.1] (10.177.29.68) by DGGEMS408-HUB.china.huawei.com
- (10.3.19.208) with Microsoft SMTP Server id 14.3.439.0; Tue, 25 Jun 2019
- 10:52:17 +0800
-Message-ID: <5D118C61.7040308@huawei.com>
-Date: Tue, 25 Jun 2019 10:52:17 +0800
-From: zhong jiang <zhongjiang@huawei.com>
-User-Agent: Mozilla/5.0 (Windows NT 6.1; WOW64; rv:12.0) Gecko/20120428 Thunderbird/12.0.1
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=BXJlUqAK;
+       spf=pass (google.com: domain of darrick.wong@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=darrick.wong@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
+	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x5P2xZkP183824;
+	Tue, 25 Jun 2019 03:04:56 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=date : from : to : cc
+ : subject : message-id : references : mime-version : content-type :
+ in-reply-to; s=corp-2018-07-02;
+ bh=y1nTqvm5zm2oVuuxHsrGpbU4gEqHpmqSXspC8Bne9NM=;
+ b=BXJlUqAKvMETApXDcsKgEZiNdrmlXkQGnY88kMW3AMxNKcXyyaE6UXAlpYECy+ntv7pH
+ 6uhEP1tj4tycY9LMVwQSwCJ1OFoN8XiURaWWP5MgMDhRGeWBYKJ5F+hDMXeWyXvzw09Y
+ W93kGqDhXdEUxHJGprg0ZqzGMSQuXc6a6uPIBselde0/QnSPFrNudLSF4JrDCRjZHlSe
+ PtPwNFzZ3qhrAqfZeA252/OTt3UOJ6W5XclgLFaB43nqCHJq7hk5QCcLKtksxGRz16et
+ vcWpg2Ca0sMBi64yleW6uVf2BPJY2qw2eabFh6Nu+9cNmwvp3CwrP4l2harCRSOmeEeb 1g== 
+Received: from aserp3020.oracle.com (aserp3020.oracle.com [141.146.126.70])
+	by userp2130.oracle.com with ESMTP id 2t9brt1hg7-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Tue, 25 Jun 2019 03:04:56 +0000
+Received: from pps.filterd (aserp3020.oracle.com [127.0.0.1])
+	by aserp3020.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x5P34h96101926;
+	Tue, 25 Jun 2019 03:04:55 GMT
+Received: from pps.reinject (localhost [127.0.0.1])
+	by aserp3020.oracle.com with ESMTP id 2t9p6tx2qw-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=FAIL);
+	Tue, 25 Jun 2019 03:04:55 +0000
+Received: from aserp3020.oracle.com (aserp3020.oracle.com [127.0.0.1])
+	by pps.reinject (8.16.0.27/8.16.0.27) with SMTP id x5P34tbP102400;
+	Tue, 25 Jun 2019 03:04:55 GMT
+Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
+	by aserp3020.oracle.com with ESMTP id 2t9p6tx2qp-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Tue, 25 Jun 2019 03:04:54 +0000
+Received: from abhmp0010.oracle.com (abhmp0010.oracle.com [141.146.116.16])
+	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x5P34gx0001788;
+	Tue, 25 Jun 2019 03:04:42 GMT
+Received: from localhost (/67.169.218.210)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Mon, 24 Jun 2019 20:04:41 -0700
+Date: Mon, 24 Jun 2019 20:04:39 -0700
+From: "Darrick J. Wong" <darrick.wong@oracle.com>
+To: Jan Kara <jack@suse.cz>
+Cc: linux-efi@vger.kernel.org, linux-btrfs@vger.kernel.org, yuchao0@huawei.com,
+        linux-mm@kvack.org, clm@fb.com, adilger.kernel@dilger.ca,
+        matthew.garrett@nebula.com, linux-nilfs@vger.kernel.org,
+        linux-ext4@vger.kernel.org, devel@lists.orangefs.org,
+        josef@toxicpanda.com, reiserfs-devel@vger.kernel.org,
+        viro@zeniv.linux.org.uk, dsterba@suse.com, jaegeuk@kernel.org,
+        tytso@mit.edu, ard.biesheuvel@linaro.org, linux-kernel@vger.kernel.org,
+        linux-f2fs-devel@lists.sourceforge.net, linux-xfs@vger.kernel.org,
+        jk@ozlabs.org, jack@suse.com, linux-fsdevel@vger.kernel.org,
+        linux-mtd@lists.infradead.org, ocfs2-devel@oss.oracle.com
+Subject: Re: [Ocfs2-devel] [PATCH 2/7] vfs: flush and wait for io when
+ setting the immutable flag via SETFLAGS
+Message-ID: <20190625030439.GA5379@magnolia>
+References: <156116141046.1664939.11424021489724835645.stgit@magnolia>
+ <156116142734.1664939.5074567130774423066.stgit@magnolia>
+ <20190624113737.GG32376@quack2.suse.cz>
+ <20190624215817.GE1611011@magnolia>
 MIME-Version: 1.0
-To: Michal Hocko <mhocko@kernel.org>
-CC: Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>,
-	Minchan Kim <minchan@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, "Linux
- Memory Management List" <linux-mm@kvack.org>, "Wangkefeng (Kevin)"
-	<wangkefeng.wang@huawei.com>
-Subject: Re: Frequent oom introduced in mainline when migrate_highatomic replace
- migrate_reserve
-References: <5D1054EE.20402@huawei.com> <20190624081011.GA11400@dhcp22.suse.cz> <5D10CC1B.3080201@huawei.com> <20190624140120.GD11400@dhcp22.suse.cz> <5D10FE8F.2010906@huawei.com> <20190624175448.GG11400@dhcp22.suse.cz>
-In-Reply-To: <20190624175448.GG11400@dhcp22.suse.cz>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
-X-Originating-IP: [10.177.29.68]
-X-CFilter-Loop: Reflected
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190624215817.GE1611011@magnolia>
+User-Agent: Mutt/1.9.4 (2018-02-28)
+X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9298 signatures=668687
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
+ definitions=main-1906250023
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 2019/6/25 1:54, Michal Hocko wrote:
-> On Tue 25-06-19 00:47:11, zhong jiang wrote:
->> On 2019/6/24 22:01, Michal Hocko wrote:
->>> On Mon 24-06-19 21:11:55, zhong jiang wrote:
->>>> [  652.272622] sh invoked oom-killer: gfp_mask=0x26080c0, order=3, oom_score_adj=0
->>>> [  652.272683] CPU: 0 PID: 1748 Comm: sh Tainted: P           O    4.4.171 #8
->>>> [  653.452827] Mem-Info:
->>>> [  653.466390] active_anon:20377 inactive_anon:187 isolated_anon:0
->>>> [  653.466390]  active_file:5087 inactive_file:4825 isolated_file:0
->>>> [  653.466390]  unevictable:12 dirty:0 writeback:32 unstable:0
->>>> [  653.466390]  slab_reclaimable:636 slab_unreclaimable:1754
->>>> [  653.466390]  mapped:5338 shmem:194 pagetables:231 bounce:0
->>>> [  653.466390]  free:1086 free_pcp:85 free_cma:0
->>>> [  653.625286] Normal free:4248kB min:1696kB low:2120kB high:2544kB active_anon:81508kB inactive_anon:748kB active_file:20348kB inactive_file:19300kB unevictable:48kB isolated(anon):0kB isolated(file):0kB present:252928kB managed:180496kB mlocked:0kB dirty:0kB writeback:128kB mapped:21352kB shmem:776kB slab_reclaimable:2544kB slab_unreclaimable:7016kB kernel_stack:9856kB pagetables:924kB unstable:0kB bounce:0kB free_pcp:392kB local_pcp:392kB free_cma:0kB writeback_tmp:0kB pages_scanned:0 all_unreclaimable? no
->>>> [  654.177121] lowmem_reserve[]: 0 0 0
->>>> [  654.462015] Normal: 752*4kB (UME) 128*8kB (UM) 21*16kB (M) 0*32kB 0*64kB 0*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB = 4368kB
->>>> [  654.601093] 10132 total pagecache pages
->>>> [  654.606655] 63232 pages RAM
->>> [...]
->>>>>> As the process is created,  kernel stack will use the higher order to allocate continuous memory.
->>>>>> Due to the fragmentabtion,  we fails to allocate the memory.   And the low memory will result
->>>>>> in hardly memory compction.  hence,  it will easily to reproduce the oom.
->>>>> How get your get such a large fragmentation that you cannot allocate
->>>>> order-1 pages and compaction is not making any progress?
->>>> >From the above oom report,  we can see that  there is not order-2 pages.  It wil hardly to allocate kernel stack when
->>>> creating the process.  And we can easily to reproduce the situation when runing some userspace program.
->>>>
->>>> But it rarely trigger the oom when It do not introducing the highatomic.  we test that in the kernel 3.10.
->>> I do not really see how highatomic reserves could make any difference.
->>> We do drain them before OOM killer is invoked. The above oom report
->>> confirms that there is indeed no order-3+ free page to be used.
->> I mean that all order with migrate_highatomic is alway zero,  it can be  true that
-> Yes, highatomic is meant to be used for higher order allocations which
-> already do have access to memory reserves. E.g. via __GFP_ATOMIC.
-If current kernel have not use __GFP_ATOMIC to allocate memory,  highatomic will have not available higher order.
-And we have order-3 kernel stack allocation requirement in the system.  
+On Mon, Jun 24, 2019 at 02:58:17PM -0700, Darrick J. Wong wrote:
+> On Mon, Jun 24, 2019 at 01:37:37PM +0200, Jan Kara wrote:
+> > On Fri 21-06-19 16:57:07, Darrick J. Wong wrote:
+> > > From: Darrick J. Wong <darrick.wong@oracle.com>
+> > > 
+> > > When we're using FS_IOC_SETFLAGS to set the immutable flag on a file, we
+> > > need to ensure that userspace can't continue to write the file after the
+> > > file becomes immutable.  To make that happen, we have to flush all the
+> > > dirty pagecache pages to disk to ensure that we can fail a page fault on
+> > > a mmap'd region, wait for pending directio to complete, and hope the
+> > > caller locked out any new writes by holding the inode lock.
+> > > 
+> > > Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
+> > 
+> > Seeing the way this worked out, is there a reason to have separate
+> > vfs_ioc_setflags_flush_data() instead of folding the functionality in
+> > vfs_ioc_setflags_check() (possibly renaming it to
+> > vfs_ioc_setflags_prepare() to indicate it does already some changes)? I
+> > don't see any place that would need these two separated...
+> 
+> XFS needs them to be separated.
+> 
+> If we even /think/ that we're going to be setting the immutable flag
+> then we need to grab the IOLOCK and the MMAPLOCK to prevent further
+> writes while we drain all the directio writes and dirty data.  IO
+> completions for the write draining can take the ILOCK, which means that
+> we can't have grabbed it yet.
+> 
+> Next, we grab the ILOCK so we can check the new flags against the inode
+> and then update the inode core.
+> 
+> For most filesystems I think it suffices to inode_lock and then do both,
+> though.
 
-There is not  memory reserve to use for us in the emergency situation,  which is different from migrate_reserve.
-Maybe I  think that we can change the reserve memory behaviour,  Not only reserve higher order in GFP_ATOMIC.
+Heh, lol, that applies to fssetxattr, not to setflags, because xfs
+setflags implementation open-codes the relevant fssetxattr pieces.
+So for setflags we can combine both parts into a single _prepare
+function.
 
-Thanks,
-zhong jiang
+--D
 
-
-
+> > > +/*
+> > > + * Flush all pending IO and dirty mappings before setting S_IMMUTABLE on an
+> > > + * inode via FS_IOC_SETFLAGS.  If the flush fails we'll clear the flag before
+> > > + * returning error.
+> > > + *
+> > > + * Note: the caller should be holding i_mutex, or else be sure that
+> > > + * they have exclusive access to the inode structure.
+> > > + */
+> > > +static inline int vfs_ioc_setflags_flush_data(struct inode *inode, int flags)
+> > > +{
+> > > +	int ret;
+> > > +
+> > > +	if (!vfs_ioc_setflags_need_flush(inode, flags))
+> > > +		return 0;
+> > > +
+> > > +	inode_set_flags(inode, S_IMMUTABLE, S_IMMUTABLE);
+> > > +	ret = inode_flush_data(inode);
+> > > +	if (ret)
+> > > +		inode_set_flags(inode, 0, S_IMMUTABLE);
+> > > +	return ret;
+> > > +}
+> > 
+> > Also this sets S_IMMUTABLE whenever vfs_ioc_setflags_need_flush() returns
+> > true. That is currently the right thing but seems like a landmine waiting
+> > to trip? So I'd just drop the vfs_ioc_setflags_need_flush() abstraction to
+> > make it clear what's going on.
+> 
+> Ok.
+> 
+> --D
+> 
+> > 
+> > 								Honza
+> > -- 
+> > Jan Kara <jack@suse.com>
+> > SUSE Labs, CR
+> 
+> _______________________________________________
+> Ocfs2-devel mailing list
+> Ocfs2-devel@oss.oracle.com
+> https://oss.oracle.com/mailman/listinfo/ocfs2-devel
 
