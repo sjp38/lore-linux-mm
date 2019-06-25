@@ -6,105 +6,99 @@ X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BBA09C48BD6
-	for <linux-mm@archiver.kernel.org>; Tue, 25 Jun 2019 18:23:00 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 05478C48BD5
+	for <linux-mm@archiver.kernel.org>; Tue, 25 Jun 2019 18:25:55 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 87E3F20883
-	for <linux-mm@archiver.kernel.org>; Tue, 25 Jun 2019 18:23:00 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 87E3F20883
+	by mail.kernel.org (Postfix) with ESMTP id BCE732086D
+	for <linux-mm@archiver.kernel.org>; Tue, 25 Jun 2019 18:25:54 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BCE732086D
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3AF976B0005; Tue, 25 Jun 2019 14:23:00 -0400 (EDT)
+	id 5CF996B0005; Tue, 25 Jun 2019 14:25:54 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 360328E0003; Tue, 25 Jun 2019 14:23:00 -0400 (EDT)
+	id 5597D8E0003; Tue, 25 Jun 2019 14:25:54 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 200918E0002; Tue, 25 Jun 2019 14:23:00 -0400 (EDT)
+	id 3F9ED8E0002; Tue, 25 Jun 2019 14:25:54 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id DF5366B0005
-	for <linux-mm@kvack.org>; Tue, 25 Jun 2019 14:22:59 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id u21so12385062pfn.15
-        for <linux-mm@kvack.org>; Tue, 25 Jun 2019 11:22:59 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 06ED86B0005
+	for <linux-mm@kvack.org>; Tue, 25 Jun 2019 14:25:54 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id s4so12178852pgr.3
+        for <linux-mm@kvack.org>; Tue, 25 Jun 2019 11:25:53 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
          :references:from:openpgp:autocrypt:message-id:date:user-agent
          :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=RcQZ8PqvadPXEFZ4k+4JsSARneaNQKWeJLeusj3xHWE=;
-        b=nmPJUuXkoLQQXbwg4SqNPRxgom5EHJ2FmNKrwEEaR75ouOGTkyLWHeEQFVWuDjqrOQ
-         C13qlzQtycxV/ADB6kgmw+1nGp6JH9KhkUZaO/+H7RltX3yX++9AR6AQkMiXy4V8qQYs
-         4pCIb9H8S843NQm9pmhHUeR4MlKsl03DSKgOyaYNeT/ibmT4ifj25idHA8HbWBWw/H0f
-         /WX8Puu9BPT6+9tzUideiQ9Ll0wvZW7ci42yRuPf2g5kMVho5/1OqcL4srC8bDTSJN1u
-         pRLTW2XVclKEROVufZR42sQYOnZ0rwnlVI95yr586eahOXgxZof3cnu8PF4pXyPDknCQ
-         WYPA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAXMqOIYTf3FJKnmN0K45QtSP7wU9JTeCdDyMG1XGlviLNl+ctVj
-	MSJP50nQfrSqJk+gJYztyhcq1ECeYXYxsWBH1RL0StzrRRoX7I5av8tDDeiZs0iKogWSDqFgIQx
-	yBmJEWNac9V0FeevWpT9Tdx7eQI45dLAZwY7WYI74NmWjwum4xJh7YazpmFam6mU7vg==
-X-Received: by 2002:a17:902:a986:: with SMTP id bh6mr109950plb.100.1561486979531;
-        Tue, 25 Jun 2019 11:22:59 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzOMPE/uhzTnnCHCAg3xdDLIR4YenGYYsoxR19dYAOvaEmwyGbLDZwBZR/PPgdfdekbjFHd
-X-Received: by 2002:a17:902:a986:: with SMTP id bh6mr109909plb.100.1561486978896;
-        Tue, 25 Jun 2019 11:22:58 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561486978; cv=none;
+        bh=v6ARLDtcnnjLvrbs+a2P4XQFugqnr2nmlsAPAahsDFY=;
+        b=lU10pPD9r0VHGHcjuZvCtPY9ZLbDvqesOO+EVDFae1oCXCGArNfLiHTtPUjtPiS3Px
+         +hPaEHuDdFuha5sd3K3FTeeWT7Nwkg6M8+0z8HD4S8CVwaFfIfntfHVSh26HfwRSSjbp
+         2G8dDHam+O8Pb+aWw1eb5xS7uA2Ixj1oECuLpr7Q7s029QGLpslGxhKOtWgiWFf/Bdwt
+         ynT3ADTBFSGtix1Eg15ah+J/7SK2TQWIdifk1wxAoFboODKRgS+reTd4Jbq3ViDUtJDr
+         xmrGInoc7JOT+Z2UaVh845mtiqGBcVm/YZSUxIYjBcigw5uakRfOOiR/FVEp9xGvWIpg
+         PkOQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAVLa8YlO70tfYOaEgqDuxHO8CcgfxmjtCPQZMXEzLQMsQmZql6B
+	ZcH2UulP9fmaygxey2f/Sl9zcy2ISHE72ugp1UNpjzpXBPxpbLS+fKilf5lBACPbYnGhfLyFiLS
+	kFXpONah/r6RhR8paVWY/f6/Hn0ME4Yahm+54CkrO0f8jZs/fiBW/on2XnzDEUnycEg==
+X-Received: by 2002:a17:902:ab8f:: with SMTP id f15mr60540plr.159.1561487153737;
+        Tue, 25 Jun 2019 11:25:53 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxvwkhxFDDadEI7ZbA1KHX9dE2yb1jPloustKbDfAyKxlNIMx4CMjfhh7CoyM4VhCoFmHhI
+X-Received: by 2002:a17:902:ab8f:: with SMTP id f15mr60491plr.159.1561487153167;
+        Tue, 25 Jun 2019 11:25:53 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561487153; cv=none;
         d=google.com; s=arc-20160816;
-        b=X+XwAmlIiEjktj9Nc70HTS7kwwhTgc7lPKDwFr94pJmO4UpKxPpPT/sb75N1Dw42GK
-         R+mpRA898P69vEBFZPyT3849CQ4a93T2Aoa55YG38L6LW99B+ARuY/KXgBR1NgYsIDGx
-         /A0jKgPfz0LRS0xwOuQjx30PK4RIHdth8QIyxWeXtLtsne3qWoLCEWhtXZsAK1aF4diy
-         jCeuRfBL42QNoOTtNX1awl/tNvLbQVw6kjfp545HryG3+ybB+8ZzljBVHZUnJNAZeDaA
-         qCDFPGNvf2QwXtXTa2NBhC5zfrPckmz+SkecjnAdPPc4N9zfPJFe7fjdvtYfc+kdH+ru
-         pHxA==
+        b=l+6/FGl2NoAGjCnO5DGHXwLr93YbSVDD4L6kDLmy0ruMzqtWTfKoLx5CYhVDN9o0j9
+         e7EjyDP3rqNrKxnnJ1FnJPLYj2Fx5Ft8Kh8fO1FPps4r9N7L1DzDIJdVmwFDFoGxNUW7
+         GsKXiclwn15gc9aFwaNMC+wMczPRqGa7tolQlHl5juoPimJZOO5cIEZgzgx7I20mnNq4
+         wzjh98FCLUsiKaRq7Zv0Gl+95NjYaEvEyAank2mcYzyyjqkePIaaSGxy2JwrWvU/AGLG
+         6O8H461ePceELKJaIxPUHc57lz5yzGfc4kL1VDI/vx/6Bxpt659kk7Fb0L1bqvszXl3v
+         3YfQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
          :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
          :subject;
-        bh=RcQZ8PqvadPXEFZ4k+4JsSARneaNQKWeJLeusj3xHWE=;
-        b=iL3nRtXXpzqhOPYlMNzb39ua/+pdUEOMQuc8Kg7AId/6gTOCXPuoL3OSBh5mfgx/OX
-         drA0UoPQjmo37ETXnNumXUV0EjZFOOn9IKcBaFcof4P4YwhoHro6cXmFQcRpAkFU9Iyr
-         BHLuG2aZpCrYiyugXncXrA1MW6+33Kp2Wu3RmlB2VeLvhGA9gMM52CE/OMNzua+V4/PC
-         yZaiWvsSAaRfusKEPct/08D9NtJiX5gpfZhm7CdPkktf/NPrwfCOqZOK124eVaFXNKAc
-         3V3f3s/n5kKb0s59aHDcrnBHekYUuWNf6S6O8xJ8BrK/sjyQKjdrtBxBURGlMs7kp1Wi
-         ACxA==
+        bh=v6ARLDtcnnjLvrbs+a2P4XQFugqnr2nmlsAPAahsDFY=;
+        b=iz4VQtVf1CECjK7Rduqb7IsQVdDyeFmjHgfVvYTx+ILyBMAfpCHNOTAe53rboWKHMq
+         vVlvNFNwtTd+M5mwRvt2ixE5JNOW0GNjuMwblAyWczyBSPcS1nYyYyqiku23jvysWRIs
+         U8ii1c6ZY0DRDssiVj4+5e1JXah2o5+5s2UE4epNqs93779nTRP3y+VKcUTRmueR1VOt
+         CrcPGi22lUY8EedVe2/rM01ujplcqIlveJANPKdSWJu+54ZcSR8vqIIViMxVrkBTl8+D
+         KuDHBdj2dHv/HlhiRcNobTzq8LRNtY1xuumMQT9K+US9u7inbrpwENBBrdcTYY3fTYms
+         zYmg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
+       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id j36si961715plb.77.2019.06.25.11.22.58
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id b20si9681344pfo.108.2019.06.25.11.25.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 25 Jun 2019 11:22:58 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.20 as permitted sender) client-ip=134.134.136.20;
+        Tue, 25 Jun 2019 11:25:53 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.43 as permitted sender) client-ip=192.55.52.43;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
+       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 X-Amp-Result: SKIPPED(no attachment in message)
 X-Amp-File-Uploaded: False
 Received: from orsmga002.jf.intel.com ([10.7.209.21])
-  by orsmga101.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 25 Jun 2019 11:22:58 -0700
+  by fmsmga105.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 25 Jun 2019 11:25:52 -0700
 X-ExtLoop1: 1
 X-IronPort-AV: E=Sophos;i="5.63,416,1557212400"; 
-   d="scan'208";a="172454799"
+   d="scan'208";a="172455613"
 Received: from ray.jf.intel.com (HELO [10.7.201.139]) ([10.7.201.139])
-  by orsmga002.jf.intel.com with ESMTP; 25 Jun 2019 11:22:58 -0700
-Subject: Re: [PATCH v1 0/6] mm / virtio: Provide support for paravirtual waste
- page treatment
-To: Alexander Duyck <alexander.duyck@gmail.com>
-Cc: David Hildenbrand <david@redhat.com>,
- Nitesh Narayan Lal <nitesh@redhat.com>, kvm list <kvm@vger.kernel.org>,
- "Michael S. Tsirkin" <mst@redhat.com>, LKML <linux-kernel@vger.kernel.org>,
- linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>,
- Yang Zhang <yang.zhang.wz@gmail.com>, pagupta@redhat.com,
- Rik van Riel <riel@surriel.com>,
- Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, lcapitulino@redhat.com,
- wei.w.wang@intel.com, Andrea Arcangeli <aarcange@redhat.com>,
- Paolo Bonzini <pbonzini@redhat.com>, dan.j.williams@intel.com,
- Alexander Duyck <alexander.h.duyck@linux.intel.com>
+  by orsmga002.jf.intel.com with ESMTP; 25 Jun 2019 11:25:51 -0700
+Subject: Re: [PATCH v1 1/6] mm: Adjust shuffle code to allow for future
+ coalescing
+To: Alexander Duyck <alexander.duyck@gmail.com>, nitesh@redhat.com,
+ kvm@vger.kernel.org, david@redhat.com, mst@redhat.com,
+ linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org
+Cc: yang.zhang.wz@gmail.com, pagupta@redhat.com, riel@surriel.com,
+ konrad.wilk@oracle.com, lcapitulino@redhat.com, wei.w.wang@intel.com,
+ aarcange@redhat.com, pbonzini@redhat.com, dan.j.williams@intel.com,
+ alexander.h.duyck@linux.intel.com
 References: <20190619222922.1231.27432.stgit@localhost.localdomain>
- <ff133df4-6291-bece-3d8d-dc3f12f398cf@redhat.com>
- <8fea71ba-2464-ead8-3802-2241805283cc@intel.com>
- <CAKgT0UdAj4Kq8qHKkaiB3z08gCQh-jovNpos45VcGHa_v5aFGg@mail.gmail.com>
+ <20190619223302.1231.51136.stgit@localhost.localdomain>
 From: Dave Hansen <dave.hansen@intel.com>
 Openpgp: preference=signencrypt
 Autocrypt: addr=dave.hansen@intel.com; keydata=
@@ -150,32 +144,25 @@ Autocrypt: addr=dave.hansen@intel.com; keydata=
  MTsCeQDdjpgHsj+P2ZDeEKCbma4m6Ez/YWs4+zDm1X8uZDkZcfQlD9NldbKDJEXLIjYWo1PH
  hYepSffIWPyvBMBTW2W5FRjJ4vLRrJSUoEfJuPQ3vW9Y73foyo/qFoURHO48AinGPZ7PC7TF
  vUaNOTjKedrqHkaOcqB185ahG2had0xnFsDPlx5y
-Message-ID: <bc4bb663-585b-bee0-1310-b149382047d0@intel.com>
-Date: Tue, 25 Jun 2019 11:22:58 -0700
+Message-ID: <dd694406-6384-d859-6ac6-ec6e6cffe4e8@intel.com>
+Date: Tue, 25 Jun 2019 11:25:51 -0700
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.7.1
 MIME-Version: 1.0
-In-Reply-To: <CAKgT0UdAj4Kq8qHKkaiB3z08gCQh-jovNpos45VcGHa_v5aFGg@mail.gmail.com>
+In-Reply-To: <20190619223302.1231.51136.stgit@localhost.localdomain>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 6/25/19 10:00 AM, Alexander Duyck wrote:
-> Basically what we are doing is inflating the memory size we can report
-> by inserting voids into the free memory areas. In my mind that matches
-> up very well with what "aeration" is. It is similar to balloon in
-> functionality, however instead of inflating the balloon we are
-> inflating the free_list for higher order free areas by creating voids
-> where the madvised pages were.
-
-OK, then call it "free page auto ballooning" or "auto ballooning" or
-"allocator ballooning".  s390 calls them "unused pages".
-
-Any of those things are clearer and more meaningful than "page aeration"
-to me.
+On 6/19/19 3:33 PM, Alexander Duyck wrote:
+> 
+> This patch is meant to move the head/tail adding logic out of the shuffle
+> code and into the __free_one_page function since ultimately that is where
+> it is really needed anyway. By doing this we should be able to reduce the
+> overhead and can consolidate all of the list addition bits in one spot.
 
