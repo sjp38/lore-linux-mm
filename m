@@ -3,98 +3,97 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D5304C48BD4
-	for <linux-mm@archiver.kernel.org>; Tue, 25 Jun 2019 07:23:50 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BEFBBC48BD5
+	for <linux-mm@archiver.kernel.org>; Tue, 25 Jun 2019 07:29:48 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A68F02086D
-	for <linux-mm@archiver.kernel.org>; Tue, 25 Jun 2019 07:23:50 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A68F02086D
+	by mail.kernel.org (Postfix) with ESMTP id 8BF1F2085A
+	for <linux-mm@archiver.kernel.org>; Tue, 25 Jun 2019 07:29:48 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8BF1F2085A
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4172D6B0003; Tue, 25 Jun 2019 03:23:50 -0400 (EDT)
+	id 28E866B0003; Tue, 25 Jun 2019 03:29:48 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3C85F8E0003; Tue, 25 Jun 2019 03:23:50 -0400 (EDT)
+	id 23E038E0003; Tue, 25 Jun 2019 03:29:48 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 291838E0002; Tue, 25 Jun 2019 03:23:50 -0400 (EDT)
+	id 153CB8E0002; Tue, 25 Jun 2019 03:29:48 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
-	by kanga.kvack.org (Postfix) with ESMTP id D111A6B0003
-	for <linux-mm@kvack.org>; Tue, 25 Jun 2019 03:23:49 -0400 (EDT)
-Received: by mail-wr1-f71.google.com with SMTP id s18so7513421wru.16
-        for <linux-mm@kvack.org>; Tue, 25 Jun 2019 00:23:49 -0700 (PDT)
+Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
+	by kanga.kvack.org (Postfix) with ESMTP id D8BA16B0003
+	for <linux-mm@kvack.org>; Tue, 25 Jun 2019 03:29:47 -0400 (EDT)
+Received: by mail-wr1-f69.google.com with SMTP id q2so7504284wrr.18
+        for <linux-mm@kvack.org>; Tue, 25 Jun 2019 00:29:47 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=FvNRjQG2BPXWuW/pvCSIb3fcN4Eu0B3o2gMIAbG0coQ=;
-        b=iFaIeSEXwf8AlyHYhxF396Pu+xcbB2Sh7nJxblnbI8eZX9zS28EIEPtVwYP4RLyXIO
-         /883ajEoLgjnkZ4J3Ec3n6KLqWRIXjtYXvs3Swhdg9UZVlPp91lA12NdTy0hSTsWQHyw
-         bSdVEiPEaVE1pb/I0mM/pl5MAyX69dt5iyZv1aAJQhrQZ7ei0PGNRPBxNKjZBQEFD0OH
-         QVXDHEfE/UiICt+AgYjNjWW6mdJ1ngq4D0ct14sRc7ihFJ3ASDS2IbJPIpB6TKPb5swh
-         6nujulNRRG5Fpskx2xgDCspjy/FFsrXE/R557FGadHHNiY4S/oGsMJ1/aHDix8717llp
-         AOgg==
+        bh=fiDfl6thwhLhapszwH9MhDWa2YeJyq81IolM/b0PlzA=;
+        b=rjPSPXL4tk9MJu3XLJuW8vzaA9xMFRjHk32Th6IxK7MByLVr1wsloESXxsVbbCoZnR
+         75Y4XYzsFeXXQPzAq9xpKsRbCekqOMMbvW/QPDRQD3ep+xT4hGsIfAdugLlUBFei5LJd
+         qTeP+vdkesQeKjCkSSl1meB6tX8DJGCo+yMl78/UY+i/QUS74/W4HDPkhKKhTBvxK7bm
+         71F6YqQIQhwz4kFz4g14MR/PwRHgA6mAfkYFzXyweL3OKISDKkl/0y4IqAAIKNb7qTY1
+         +tvmO0rbjOqa1BF5UePDN/byb4KUgGxaFxAD3Lt01gvFN/lPbVz0DBoOIww8tJMoEoym
+         u0aw==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
-X-Gm-Message-State: APjAAAUiZ/dGs1xepieopgiX1fUCisxKVLj3gs3+avihzzDpCXWJdw6l
-	pTffa2V3+FTConeQXsZnlcnUkA11IGSGY7zX0/48SXfERuCk0LUROgFzScDNpEylR65iTUbrANn
-	tWNJPcyf1RoqNUVel7YxJ5SnmXGR/l85VhFmlVha5L7wbUlL05fuU0D5C2yCeVsH2Xg==
-X-Received: by 2002:a05:600c:303:: with SMTP id q3mr19113620wmd.130.1561447429441;
-        Tue, 25 Jun 2019 00:23:49 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxSONYqiYlElJSIZdjqqEtQh7OwqXpGpLF+2622pVt8KOb/geyuoYrmSBXec4CqkzvD3xXQ
-X-Received: by 2002:a05:600c:303:: with SMTP id q3mr19113586wmd.130.1561447428625;
-        Tue, 25 Jun 2019 00:23:48 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561447428; cv=none;
+X-Gm-Message-State: APjAAAX406tyI7gqh7elnVNPNgdFWg1C949k8gdtIRjtAgkt9Ylvs0Qh
+	iNKYhxM5szMKZczZsThq1zE6ogjQcKiQ6uQ86TPj3tXIj/P7XE1BBHRujqJq99La0eBL1gNWmDw
+	mO1Shh2NkiucJiMjHFmEt6h9VqWImWGTVBHEtGwzPBqBgP3Jv+ycn5jdxOPpAjZEmbA==
+X-Received: by 2002:adf:f246:: with SMTP id b6mr54879367wrp.92.1561447787411;
+        Tue, 25 Jun 2019 00:29:47 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyZJzF3vcMNasw+eMrIxdfBR+ltFofLAhYG4DFeg+vHm+7AdxegThXqqvCTUA54de0wAKuI
+X-Received: by 2002:adf:f246:: with SMTP id b6mr54879319wrp.92.1561447786744;
+        Tue, 25 Jun 2019 00:29:46 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561447786; cv=none;
         d=google.com; s=arc-20160816;
-        b=asteVPtHyg80tU3zbRD7DstTMKOYBirhZ/DH9rSUQhQmt2JXSZbXVH29eiTgDcUgm2
-         4st/70034o50orc9R1ek8HDFMUqZRH54A6mQnQvJLAuNVbVfEcYUYiMe4E/srOa3SvFM
-         7JaFFebzPRTRRBKG/f1L3XsMk/Avvgww3dv7ZAN20Bgg+H/a2rupogdQUtQCUXr/SW5s
-         oiZGhtqWPWrILKNGc6nf0TiE/tQS3t/KTiCYJua0ASBSAX8GX1cizYLdD7BFoMQm5SYF
-         Gjx6yC1gu5AhtTXAm/1O7mLUoRHhyS4PuxWasUc0TuvEjVbghYjZaN+PWUQ1LDlknbCg
-         WiXw==
+        b=HiaZ8dYqzeMqHx21GPAmwfAJ+F4prM8YLyT4Ap3T5uIL6iwiAfJfIRBlw13GwaeF3H
+         ak+nIrVyAFJipLolW67e0Sahe7dP0nxRkvhvOk3TzqKYrptZBGEmS0Yc1/hqxCxjhkxt
+         /D4svAf+C5bzqoq7dj03MczD4gYt7HZu5WfdA665K3qNySFz6KP5bWbmOTq/vB1knJHd
+         bPYbaLmb01ii9lo/lXNomO1LbbJFi7g1pX64Bea/PmvxqMY3d2UdcUn46/aZgCdYdK+B
+         O94Soq8wEr8LNSbmvE0mXXFY1VCVifb5Mybcjy5BXHSGz3Co0pARlCau6LApjdJMQZRr
+         w2mA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=FvNRjQG2BPXWuW/pvCSIb3fcN4Eu0B3o2gMIAbG0coQ=;
-        b=i7BLyUmBS63CjjKrSmgjGGcF86pIQaiQ/CBXSGLl7m+lN+2LcOeozrObGpYN/TVHWi
-         cnGKrXxZWAAqrDLGzaGpqh6Rh0JVox4fZvEwOFv5k/A/oeXUC2gnyXjkNMwZLlLMC/gU
-         3X5c6xfQJVfWVHrFEcU4dIMVrzIbLChr3+357v7udxpnDN/DYvbRamGj5EyFpzroSARF
-         NnfVYcGkYo7UVoy4i44pwMWqzonkaYsklq9PzOYr6s8RYWNxbXPSGlMyyc49WVl8GoRM
-         o8GI0UAoNj04yk3wAFDRVWak4UIOUJ7EYalIIDI/o5a7yvcXyTOdrywD5cBJEW7mU9v7
-         y++w==
+        bh=fiDfl6thwhLhapszwH9MhDWa2YeJyq81IolM/b0PlzA=;
+        b=JTbxpl8SJ5WkfP9ykqhQhz88rsWCnnBjG0NgS3PsEehq30g5FzAqaAgs7bFCLXra8g
+         fWZdXgpQ38rGWK6TbpHabYXywI7etDHY6PhQVQ1z3D1jTwRxpF8Dgfy5lcxSj3zuLHLX
+         tpl6kOxuG6poEz5kBwlGB9lUzD6S5Z1zi2Ywe17sO4V8QjcjOktgZhwzXq4UiJaFAwEc
+         U8oRp8HtxwqwpVOf21CCTKN/49C/gYCZZNI9XIb7BTd4NrbN6S4bjcNqa9YBAHVNV2KV
+         Mp+wp2NQY6KXCqL1hOQa3at2iiK5BgfU189/6w8WXpFf7N0jS7eH6vJAeRo71802mllz
+         rBEw==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
 Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
-        by mx.google.com with ESMTPS id x21si1381027wmh.99.2019.06.25.00.23.48
+        by mx.google.com with ESMTPS id r5si11255492wrq.102.2019.06.25.00.29.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 25 Jun 2019 00:23:48 -0700 (PDT)
+        Tue, 25 Jun 2019 00:29:46 -0700 (PDT)
 Received-SPF: pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) client-ip=213.95.11.211;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
 Received: by newverein.lst.de (Postfix, from userid 2407)
-	id EDBB068B02; Tue, 25 Jun 2019 09:23:17 +0200 (CEST)
-Date: Tue, 25 Jun 2019 09:23:17 +0200
+	id 0839568B02; Tue, 25 Jun 2019 09:29:16 +0200 (CEST)
+Date: Tue, 25 Jun 2019 09:29:15 +0200
 From: Christoph Hellwig <hch@lst.de>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Christoph Hellwig <hch@lst.de>,
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>,
 	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
 	Jason Gunthorpe <jgg@mellanox.com>, Ben Skeggs <bskeggs@redhat.com>,
-	Linux MM <linux-mm@kvack.org>, nouveau@lists.freedesktop.org,
-	Maling list - DRI developers <dri-devel@lists.freedesktop.org>,
-	linux-nvdimm <linux-nvdimm@lists.01.org>, linux-pci@vger.kernel.org,
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
-Subject: Re: [PATCH 05/22] mm: export alloc_pages_vma
-Message-ID: <20190625072317.GC30350@lst.de>
-References: <20190613094326.24093-1-hch@lst.de> <20190613094326.24093-6-hch@lst.de> <20190620191733.GH12083@dhcp22.suse.cz> <CAPcyv4h9+Ha4FVrvDAe-YAr1wBOjc4yi7CAzVuASv=JCxPcFaw@mail.gmail.com>
+	linux-mm@kvack.org, nouveau@lists.freedesktop.org,
+	dri-devel@lists.freedesktop.org, linux-nvdimm@lists.01.org,
+	linux-pci@vger.kernel.org, linux-kernel@vger.kernel.org
+Subject: Re: [PATCH 18/22] mm: mark DEVICE_PUBLIC as broken
+Message-ID: <20190625072915.GD30350@lst.de>
+References: <20190613094326.24093-1-hch@lst.de> <20190613094326.24093-19-hch@lst.de> <20190620192648.GI12083@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAPcyv4h9+Ha4FVrvDAe-YAr1wBOjc4yi7CAzVuASv=JCxPcFaw@mail.gmail.com>
+In-Reply-To: <20190620192648.GI12083@dhcp22.suse.cz>
 User-Agent: Mutt/1.5.17 (2007-11-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -102,23 +101,19 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jun 24, 2019 at 11:24:48AM -0700, Dan Williams wrote:
-> I asked for this simply because it was not exported historically. In
-> general I want to establish explicit export-type criteria so the
-> community can spend less time debating when to use EXPORT_SYMBOL_GPL
-> [1].
+On Thu, Jun 20, 2019 at 09:26:48PM +0200, Michal Hocko wrote:
+> On Thu 13-06-19 11:43:21, Christoph Hellwig wrote:
+> > The code hasn't been used since it was added to the tree, and doesn't
+> > appear to actually be usable.  Mark it as BROKEN until either a user
+> > comes along or we finally give up on it.
 > 
-> The thought in this instance is that it is not historically exported
-> to modules and it is safer from a maintenance perspective to start
-> with GPL-only for new symbols in case we don't want to maintain that
-> interface long-term for out-of-tree modules.
-> 
-> Yes, we always reserve the right to remove / change interfaces
-> regardless of the export type, but history has shown that external
-> pressure to keep an interface stable (contrary to
-> Documentation/process/stable-api-nonsense.rst) tends to be less for
-> GPL-only exports.
+> I would go even further and simply remove all the DEVICE_PUBLIC code.
 
-Fully agreed.  In the end the decision is with the MM maintainers,
-though, although I'd prefer to keep it as in this series.
+I looked into that as I now got the feedback twice.  It would
+create a conflict with another tree cleaning things up around the
+is_device_private defintion, but otherwise I'd be glad to just remove
+it.
+
+Jason, as this goes through your tree, do you mind the additional
+conflict?
 
