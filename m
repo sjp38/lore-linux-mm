@@ -4,111 +4,110 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-11.4 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
 	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham
-	autolearn_force=no version=3.4.0
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_IN_DEF_DKIM_WL
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id AC4DBC48BD6
-	for <linux-mm@archiver.kernel.org>; Tue, 25 Jun 2019 18:17:18 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 61C29C48BD5
+	for <linux-mm@archiver.kernel.org>; Tue, 25 Jun 2019 18:17:54 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 75CD42080C
-	for <linux-mm@archiver.kernel.org>; Tue, 25 Jun 2019 18:17:18 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 288602085A
+	for <linux-mm@archiver.kernel.org>; Tue, 25 Jun 2019 18:17:54 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="Q0zhknit"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 75CD42080C
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="klsFVayI"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 288602085A
 Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 11C436B0005; Tue, 25 Jun 2019 14:17:18 -0400 (EDT)
+	id C18176B0006; Tue, 25 Jun 2019 14:17:53 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0A4DE8E0003; Tue, 25 Jun 2019 14:17:18 -0400 (EDT)
+	id BA0AA8E0003; Tue, 25 Jun 2019 14:17:53 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id EAE718E0002; Tue, 25 Jun 2019 14:17:17 -0400 (EDT)
+	id A8F738E0002; Tue, 25 Jun 2019 14:17:53 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-yw1-f72.google.com (mail-yw1-f72.google.com [209.85.161.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C409E6B0005
-	for <linux-mm@kvack.org>; Tue, 25 Jun 2019 14:17:17 -0400 (EDT)
-Received: by mail-yw1-f72.google.com with SMTP id l62so23576780ywb.21
-        for <linux-mm@kvack.org>; Tue, 25 Jun 2019 11:17:17 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 839B96B0006
+	for <linux-mm@kvack.org>; Tue, 25 Jun 2019 14:17:53 -0400 (EDT)
+Received: by mail-yw1-f72.google.com with SMTP id 75so23717600ywb.3
+        for <linux-mm@kvack.org>; Tue, 25 Jun 2019 11:17:53 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=LV+Pj0XizZBoM+Zg/sXCVKPC66eQENrb7Ey4RHKp69s=;
-        b=jCXDTg5GLa4GtAGRctdzrynO4Ge2rOPOd7eY8j3pBk1mDH4ALss7ZDEXkG+lUmcAsX
-         Dnl0IwDiA/mTCG+m57ZsmRqAEZoqmRFz+a/9c2PjVd7fwvRQDButiVvFIxiLxULIpuXn
-         zMPcNVPq8ybbH8y+7eB3crkSc77QdQymMNXNPbZAPcj1iY2deXUO9YgNDRNQbasSKuCN
-         o7aJDU3xzuiKI5d8/eCop1MumbIf6RiReSSBwAMQP54oCTUXnppVyZVqcsysHpihhiZT
-         tB0GJD4afffaOlfRVZWD72+uSiGjvkO2aHokmoHIeG+oaPc1sk+RbbzXKggn1xz3HxJQ
-         4DaA==
-X-Gm-Message-State: APjAAAXSRjmayjq3OPgHoEKTjfC38byu08AUGxU1+eqFqtxKUAmtsefA
-	cop2V3z0WGhcD6fY0EW6cOAbGMLi3dnVkRd6JFwoycXyVKu1o7w0QzyFGI5690vIzlBvude6plg
-	n5iaAodszRiu8R+lABJ/P9rXxCE9b6Bh8tOHeTPwU20sdsSkUF69HAxhcDEiiy2Uksw==
-X-Received: by 2002:a5b:510:: with SMTP id o16mr24603495ybp.443.1561486637526;
-        Tue, 25 Jun 2019 11:17:17 -0700 (PDT)
-X-Received: by 2002:a5b:510:: with SMTP id o16mr24603465ybp.443.1561486637017;
-        Tue, 25 Jun 2019 11:17:17 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561486637; cv=none;
+        bh=gd8q8neCT5NqLNWSpySLJWRTGAUdIgC+KA84NV729mY=;
+        b=jIfHYebgMyfH11Tx553PTkoI3GpKqA0PFb2Dd4fGPq4U/ur6opDaSlcyRupPldmHRv
+         VLqqLqv++4GBefDUrrwm0NRW1srV5ovoFEglV8zp39RSYI99rkcSZ5zMt6JSkl/sx+ZU
+         GauvOF5Egak1TzotxXtTEs/0Tj5yffMIs+0gXyOeHVO3BjEpNBqNM+uE5bxQFyOiHQVk
+         Nge8CEOnRP4UJt3PvMRY0oLfXnUwezWcsiMZBm/VT9EEyt78r8DT+3G1rWDNS1WTvi5J
+         GA3AVDtum3+rrK7IdHWrs17XNTH9OwmACFnRNyhmk0jjIZqHD+x0p1lBMM0r2Z0Bux/z
+         euHQ==
+X-Gm-Message-State: APjAAAWDoC5x9UHhlAGPjrc4IVQ/KEJCJs+C1Mh0GtXQgKSiRzpJfnhG
+	eHaRx4eq8kDKSUkbSzep9pGZYwO1sc3pKXVIOL4purBD97JA+vIy3xeM7IFtvzM1pDM1xU+vCgU
+	bR0y3kbhm3C/tMzt/kulI2bv/+NJkjaDe/mFi7hiZTbO8Ccqzznt/DMprjZgxdFG06Q==
+X-Received: by 2002:a81:480f:: with SMTP id v15mr58629ywa.144.1561486673351;
+        Tue, 25 Jun 2019 11:17:53 -0700 (PDT)
+X-Received: by 2002:a81:480f:: with SMTP id v15mr58601ywa.144.1561486672841;
+        Tue, 25 Jun 2019 11:17:52 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561486672; cv=none;
         d=google.com; s=arc-20160816;
-        b=y1yj9ulMoBN9QUu4jyb2RLLRno3T/JiRlMEWul4Pxp9+oilV6Nay5L5Kq3OCS3Gg8z
-         0rAVzFw09mm8fULoltftb6wRKTgdjv25uFr8ZZOQZXba0BAMrVBrhnqmV5aSDLpaZ1Ys
-         +CIkn5opEnaVSXEg7thxEqlCunVOxceDVQFShFEcXwszWPAVOMHVNT+a6SMVoDk/xcao
-         199GZlmoDZyFvH59qHSflv8hVwA09JC0IDt76pzEMzXga6ZVGWbLUW1IJbtJCqz8OFd6
-         3IdcquD+/A3mXhuFHJN8bqHr1lbiRWxY5ZkCX3TuGyjmhkEFcDMLrZ5qWdN/iE9In2Yy
-         otww==
+        b=wiUQ1ZRxcpCLTta/s2EMztcas7ZgAoZzpZZe/yFH49BbIVQ+sfUbC2Cy5GGUhWQ3oG
+         Buj0jxEu7qRHk0IGZ4Q1fyWgfkWpckst3PdIC4n6WjJQYmwliIysenIry4GXDGnzrPAe
+         PlZ1qOwwLTiQwiv1fjWm2BJvEOIjQvrYbLAzJ/mHYeiCd6nNzQijdU7cBdKG5kuH+GvR
+         WzvIcASXFPxBbUmSnLPB9CvdCSNw4+I0THl+Zkfuk9RjBlcLndO5Lq4udErFoQHYg5aH
+         XQKxGLFSO9+aIK8NsOeLhQXd/zm2wHDFt710P0/OAdh3SyS6oRnWatzJzNVoId5UEyYO
+         RiNQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=LV+Pj0XizZBoM+Zg/sXCVKPC66eQENrb7Ey4RHKp69s=;
-        b=Lh7wbvC1Un4iS05OHHinF0MNocIFzEHx8lWfTKKdiW2VmvZnBzRY68lGxR65s0krS+
-         +ggyOc2HQJeWbwt2k3kSiwWMtkRFvWg5SE5utNziI80tESRrQeyfKGvh+epsTlqHDnsn
-         tFtisodVyEFLX+COMjqDTdjuSmeScN6rizQYLLDg1vQSdqjcxLOkb9xbSU5RZrr3XorK
-         fYHLnnTB1inPNqj2auEOC/cfsFr/orYNzdN7wo6cb/GAB8v0LhUc9rhhyO0hkkZqxPjb
-         4MVwsWRy1ohPbHzlaOr4Yezeav2Bbs9AEneJOhKKED3I8iKZ1v2NubtS/zOT6X6+C10l
-         tJdw==
+        bh=gd8q8neCT5NqLNWSpySLJWRTGAUdIgC+KA84NV729mY=;
+        b=RBWKk5ptldTOg+4XSHkA12RfWJjfZD0gJlcC1LlKw6v8Rz0oggWARGgcdZH/7tangU
+         T99ryAlzw8/J4hZ4jGRkBFac7c+GoSYENfJrqVmar4AiNZyPKZcHW6R/DkMe9HsbzNun
+         FYB9l1E1Mw8CvZKcDKWd668nQG/dRfyLqoUYJPCmxVPvUXtYPlBM1WjsjCUCvX9hFhC2
+         6b/6W7Th0vN0HPoH/K6iaqF7xjobM6eTnV/vHrCLFW0Pf8v/Ba1kaUbqe4VdtRTQh2r7
+         fc5MjoKCDsaFWACPyqyR1/lbde8rA4KLpkeoKvEwVvgDMJZJgUjUw8Zh4dODnBPwz5cf
+         CvRA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=Q0zhknit;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=klsFVayI;
        spf=pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shakeelb@google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v5sor8593433ybq.163.2019.06.25.11.17.16
+        by mx.google.com with SMTPS id t65sor8060238ywa.173.2019.06.25.11.17.52
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 25 Jun 2019 11:17:17 -0700 (PDT)
+        Tue, 25 Jun 2019 11:17:52 -0700 (PDT)
 Received-SPF: pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=Q0zhknit;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=klsFVayI;
        spf=pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shakeelb@google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=google.com; s=20161025;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=LV+Pj0XizZBoM+Zg/sXCVKPC66eQENrb7Ey4RHKp69s=;
-        b=Q0zhknitW1nMpsuYODap81b+Kff2FM//a6CrncKspkGXfz6ukAPtuB4vDq/ujO0Q4P
-         Bsvo/811XJHJD4y7+vKLSA/Ir2MSraBJu1zfY7Ur/9MpBPG4tVWAqZ0jr0eO8XThScKm
-         xkqUTB8U2/BXKwnxr8KaKQa0aN0JevXkYQ69KDF/7ktoFH4lAScTbmdbKfbbvpKrOqoU
-         TR/V28hTfDInSozjEuFH6hvQG5RrZ7ArINs68zsK+twdmu9MvlXJ0/NGt9d0YeHILF2Y
-         c/CInQ8UrQAjnUW8ZYJsWyQmUXrZMU1tGH5UpJoxnMPkgQzkmJRhTP3vClkIrGpwa82o
-         lQZA==
-X-Google-Smtp-Source: APXvYqyOBKfMA9lKTfCv08MGlGUTAUGGHiNLkjP3FZ0Jpmnx5mxfL+mlmmC/u6PckTvZybw780vm3EK1meJ5YTRbNwU=
-X-Received: by 2002:a25:1ed6:: with SMTP id e205mr81985599ybe.467.1561486636279;
- Tue, 25 Jun 2019 11:17:16 -0700 (PDT)
+        bh=gd8q8neCT5NqLNWSpySLJWRTGAUdIgC+KA84NV729mY=;
+        b=klsFVayIWMeB3zp53s+cnxO5MakpqSwu+FbhTn0qaAt2J28Cz+esm64Q93IABrDnNu
+         sokI3N0pH2PmqCl1w3A0IP6HdmtNX4ywdBo18UR7Bo7cz8V3au0JpCDMUaxgMc6yeDLB
+         vlMgFhlHZiTn9UKmTWnSprBOAjqkbl9m/u0RmyKP55ZYdyymlOtfmsLHcZ29tGPNYZ6F
+         WiRfnNZ/XuN2mPbITcOveBBSo86VQVWHdiOQAgbxAMTBDKlO0ZD+yqRhrnt1vY3Sf5Zx
+         SYEguYD+3ir/4pUe5Sa+mK+rD0QkKiAnZfXR1A3PB4aRhNEg4NvFaXQc+ENV7rnH8KfZ
+         WYkA==
+X-Google-Smtp-Source: APXvYqyVMnkA1t4NbNAV4JVhrMm4t4SwyJ72YWdgbiRiIkMwuLjLpgN9kbkazuSPnykjjIk2gg0tKuSHrLqTodgR7E8=
+X-Received: by 2002:a81:3a0f:: with SMTP id h15mr66887ywa.34.1561486672366;
+ Tue, 25 Jun 2019 11:17:52 -0700 (PDT)
 MIME-Version: 1.0
-References: <20190611231813.3148843-1-guro@fb.com> <20190611231813.3148843-3-guro@fb.com>
-In-Reply-To: <20190611231813.3148843-3-guro@fb.com>
+References: <20190611231813.3148843-1-guro@fb.com> <20190611231813.3148843-4-guro@fb.com>
+In-Reply-To: <20190611231813.3148843-4-guro@fb.com>
 From: Shakeel Butt <shakeelb@google.com>
-Date: Tue, 25 Jun 2019 11:17:05 -0700
-Message-ID: <CALvZod41GMxCdsp_XSHSYAri5NpO5suimJ3y8D5=LLai2=qd7Q@mail.gmail.com>
-Subject: Re: [PATCH v7 02/10] mm: rename slab delayed deactivation functions
- and fields
+Date: Tue, 25 Jun 2019 11:17:41 -0700
+Message-ID: <CALvZod44+GuDxXSqWOZB3uhvdxJeH+vnXevx+=iy-azv74ueqA@mail.gmail.com>
+Subject: Re: [PATCH v7 03/10] mm: generalize postponed non-root kmem_cache deactivation
 To: Roman Gushchin <guro@fb.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, 
 	Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, 
 	Kernel Team <kernel-team@fb.com>, Johannes Weiner <hannes@cmpxchg.org>, 
 	Waiman Long <longman@redhat.com>
 Content-Type: text/plain; charset="UTF-8"
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000002, version=1.2.4
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
@@ -116,24 +115,31 @@ List-ID: <linux-mm.kvack.org>
 
 On Tue, Jun 11, 2019 at 4:18 PM Roman Gushchin <guro@fb.com> wrote:
 >
-> The delayed work/rcu deactivation infrastructure of non-root
-> kmem_caches can be also used for asynchronous release of these
-> objects. Let's get rid of the word "deactivation" in corresponding
-> names to make the code look better after generalization.
+> Currently SLUB uses a work scheduled after an RCU grace period
+> to deactivate a non-root kmem_cache. This mechanism can be reused
+> for kmem_caches release, but requires generalization for SLAB
+> case.
 >
-> It's easier to make the renaming first, so that the generalized
-> code will look consistent from scratch.
+> Introduce kmemcg_cache_deactivate() function, which calls
+> allocator-specific __kmem_cache_deactivate() and schedules
+> execution of __kmem_cache_deactivate_after_rcu() with all
+> necessary locks in a worker context after an rcu grace period.
 >
-> Let's rename struct memcg_cache_params fields:
->   deact_fn -> work_fn
->   deact_rcu_head -> rcu_head
->   deact_work -> work
+> Here is the new calling scheme:
+>   kmemcg_cache_deactivate()
+>     __kmemcg_cache_deactivate()                  SLAB/SLUB-specific
+>     kmemcg_rcufn()                               rcu
+>       kmemcg_workfn()                            work
+>         __kmemcg_cache_deactivate_after_rcu()    SLAB/SLUB-specific
 >
-> And RCU/delayed work callbacks in slab common code:
->   kmemcg_deactivate_rcufn -> kmemcg_rcufn
->   kmemcg_deactivate_workfn -> kmemcg_workfn
+> instead of:
+>   __kmemcg_cache_deactivate()                    SLAB/SLUB-specific
+>     slab_deactivate_memcg_cache_rcu_sched()      SLUB-only
+>       kmemcg_rcufn()                             rcu
+>         kmemcg_workfn()                          work
+>           kmemcg_cache_deact_after_rcu()         SLUB-only
 >
-> This patch contains no functional changes, only renamings.
+> For consistency, all allocator-specific functions start with "__".
 >
 > Signed-off-by: Roman Gushchin <guro@fb.com>
 > Acked-by: Vladimir Davydov <vdavydov.dev@gmail.com>
