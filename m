@@ -2,189 +2,172 @@ Return-Path: <SRS0=nbyn=UY=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 40B2FC48BD5
-	for <linux-mm@archiver.kernel.org>; Tue, 25 Jun 2019 22:30:42 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5ED81C48BD5
+	for <linux-mm@archiver.kernel.org>; Tue, 25 Jun 2019 22:34:08 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id ECC382085A
-	for <linux-mm@archiver.kernel.org>; Tue, 25 Jun 2019 22:30:41 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=amperemail.onmicrosoft.com header.i=@amperemail.onmicrosoft.com header.b="PNJVSrq5"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org ECC382085A
-Authentication-Results: mail.kernel.org; dmarc=fail (p=quarantine dis=none) header.from=os.amperecomputing.com
+	by mail.kernel.org (Postfix) with ESMTP id 1FB7920659
+	for <linux-mm@archiver.kernel.org>; Tue, 25 Jun 2019 22:34:08 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1FB7920659
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7B78C6B000D; Tue, 25 Jun 2019 18:30:39 -0400 (EDT)
+	id AE5958E0003; Tue, 25 Jun 2019 18:34:07 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6F20D8E0003; Tue, 25 Jun 2019 18:30:39 -0400 (EDT)
+	id ABED18E0002; Tue, 25 Jun 2019 18:34:07 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4CE1C8E0002; Tue, 25 Jun 2019 18:30:39 -0400 (EDT)
+	id 986738E0003; Tue, 25 Jun 2019 18:34:07 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 12C1E6B000D
-	for <linux-mm@kvack.org>; Tue, 25 Jun 2019 18:30:39 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id y5so193767pfb.20
-        for <linux-mm@kvack.org>; Tue, 25 Jun 2019 15:30:39 -0700 (PDT)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 5DE258E0002
+	for <linux-mm@kvack.org>; Tue, 25 Jun 2019 18:34:07 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id 5so222595pff.11
+        for <linux-mm@kvack.org>; Tue, 25 Jun 2019 15:34:07 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
-         :thread-index:date:message-id:references:in-reply-to:accept-language
-         :content-language:content-transfer-encoding:mime-version;
-        bh=IR5atq9Kvn/HT6403Ciiera0O5RZONj4IbbxzbUzbhs=;
-        b=GsWp4hEmD1Wb1tn//zxfCYJGkuRL8UbiuxumG6xkHVBWEqCchi+ryi71ki669q5wWq
-         tjd9r8jmz0eBiJ8P/6pY8l28gUlJrUetEHS8ESLCEDSNFgTZg8wVtPt+S81T1p5TVK/S
-         QeSSLie0IJBzCd6BtrAjxW5T055WsZMqCLFzY6WL/u0DrCcM4dkywyM8yi7GOY02vcQX
-         PvA81lH3S0ob0UMP9XK88/3uVmkW0pILIBATff7sWOPdiBzZjq+lqISXhXqp6npegMn0
-         Hv3vkA09aTGLzJLC4N34RVZ0pcwvf2+WA5V8tWOBJvvSK/jIjv/hEH4HbYV0f8GJfNvH
-         m3+A==
-X-Gm-Message-State: APjAAAW75J08r0YZ4JtuCBqfQxKvfgnMQ7YOAkjabouGdC7NPhBlkrTH
-	rIEDhlGcJoObkg090/nfsWm8g2xJHeW+tOMMokTbYA6MEXn6bsTINDOLfOqZnSteHzod77OYTyn
-	WOTyP8x/NxaFCU/n7l3KxrOVnVq8rIToWA3A2ljkKOnZkEI1frBlGU9ZHoLQS9/sGFQ==
-X-Received: by 2002:a63:1d53:: with SMTP id d19mr41239256pgm.152.1561501838669;
-        Tue, 25 Jun 2019 15:30:38 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxuqA7hH7RTl3A8UFkRHBUJYQPSR8fswTbKDANkfL9nDopjcikBFc0+osRBrbbjkEzLb7EK
-X-Received: by 2002:a63:1d53:: with SMTP id d19mr41239191pgm.152.1561501837692;
-        Tue, 25 Jun 2019 15:30:37 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561501837; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-transfer-encoding:content-language;
+        bh=7gA2hlwrbY7eN7MPbR5WAR26EEorDXR9DUPU6NexVyI=;
+        b=ceLO9nDhQR4rEF+1DKa59XBLOUoqdDvF50MoHnRzK5+EpsngE6Tr/NCHCG32eEdv9z
+         go+s5SmloxR1uEFTMOogAypuIN4U2uoyX4lef5ZcseFokILuX5TmgfxjfoLqCzrO80/T
+         RvZA6O5v9Nq6QUrRziHOjYL1OeAtntPpJJVe0UUqYc0mZbP8nGaRToz3BW2+1IhFS9lE
+         fYKrBnY8GT02rz/62aglb6ZMsNjLXlq0YGXvNB2lFsRw2Wpu+pI60w0WcNjOhEKss3+t
+         IcxlMrY9dMdKVdmXMmxrQSUUce9HbfuOkIfOd7XGBI5T/8xlIzkc0JNP1LTRR0t9FzxR
+         UkAQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.36 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Gm-Message-State: APjAAAVD5PfG82/KMKcjfy2bsOmVpMLBPhZwIVOVjxmxyESSiPJELo7i
+	H8yJoU/SUe0ozlfZuQrp9rmjx5b4bAmoA5UqlaFnU1GEn/lq952O2SQ//iRk501ROHk+qLUS9Xy
+	Zkp9iMmYTlE6+kV3IzrFDe6q51Uh04zHyldJrWIWKiBMtHtMbggw413hxSto19L/+UA==
+X-Received: by 2002:a17:902:d915:: with SMTP id c21mr1118959plz.335.1561502047045;
+        Tue, 25 Jun 2019 15:34:07 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzm4gFTsnuFBfy+xsH6HaGbr9fKpdaymPTk/h6Hs9XRsoMERXNl40FZ2o3OxdVNOa5QFPJ0
+X-Received: by 2002:a17:902:d915:: with SMTP id c21mr1118911plz.335.1561502046361;
+        Tue, 25 Jun 2019 15:34:06 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561502046; cv=none;
         d=google.com; s=arc-20160816;
-        b=iR9o+DQy9zk1h0UAXyUJSRtI+8y6KvLzPJMvBYVLtJh/eXhIkKs/gr3rxekkODRut1
-         XhAhw8WN8yQPhsf5T48+x7eA/4vQlfVUUEZDjNAxWfGN95qIjXi0ny+rNoTuScDtD1C+
-         wTa8rIhW5L9EqGKcqnuh1bkerRWF+yu0TPVtPpUS3Qk/ckA8/5/LtDOAdN8M02dHJo/T
-         TKl9UxM9dEPS/cnH/q7WXQq0MeRODBN93OsncIuU0wfcvKkCJPON9pr1wZTenRQdPtzS
-         X4PQTpIwJSZetZvIHK2M7cv/UImGujrSG70AmuYBWteNUrqgkMtRoyT3SaBrshalUx09
-         +Z0A==
+        b=uM7sB2uGkbCtzi7EdZYdcs9iW73KdLstn/UbICHaG0yAIkH36/0IbQz4U0dIFgDDk+
+         9sAZM8UrXiw7EJbVbbaps6zpGyDHIBfW8dj1srgDR1QQR8i/SX9B5syecXkimjr0vWvZ
+         3qhGuk0LXkuXD6B1pQo0XfrgcrhvcTVrduJXQRR2uiCU6kD7RRYY1xXzDIPjVNtpZt93
+         epJsYxrur2xT9pp9TIgnlQrMFyr4gQEzS0o66zqjm7qG2mvJIGKRBRELp6oWMF1QvfEP
+         EKQ/6EuVRedeVvkCuRu5lBRnKq/LexA6uqM9XrHuFt+3p5NF7TBcszWRASRjQ9EW+uWe
+         ZWkw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from:dkim-signature;
-        bh=IR5atq9Kvn/HT6403Ciiera0O5RZONj4IbbxzbUzbhs=;
-        b=wBSDeStdwFgzSilJqFCMhZcfUXAe1KJiMKvc7lqiNOR0lNkw/UIwmoHt1wzTX5t+F9
-         NTwh2UrfZOiUwsLn7iI2srNiS2G0qZPKs4AGEaqXZGDUICngkRxFLqcAjhzO3rDTAsOP
-         Lt93O2TRGWlKyT279GWXhKMK4I8puUrorZfo0zk9cWnxj7ic0O8SIXhjECybq50cV2UT
-         y7VN6DqacOummGecaEzCj4H51KZUkzTG2VgBwjqiG+OOit0nfvx7XIlZMM6wLAtzZ56j
-         tjtmLBD3ZYI+Rs6bq56AobtqWnj94Iu5JNnnDkJbCuJg4fjRIPNA/gkxHtnQ/Q9Tkkjy
-         MuRQ==
+        h=content-language:content-transfer-encoding:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=7gA2hlwrbY7eN7MPbR5WAR26EEorDXR9DUPU6NexVyI=;
+        b=Ja3PYte1RTZMBmFJc3uxkXd8cGc25O0vwFyArEXLts/3WMP4XvEN3vtDmSUwfAx97d
+         NLZh2az33eQDBa8RS+KB1GSwfU033II9wMbs4UV2uPwWJpl0pyK6uiErVgC14A6Z0k37
+         Z6KLxSTfz5ZR5A7Lf0saJ0YiDxO8kOvWFAHCRbWT+xxql/vXsXIa1oUffdQwBJ0jBCCb
+         A3KX5EVB0vbLr85X5lRFvyndDQI4dCHBzPV0da5dOVSQgeJ+BECpK2LFCU2qIpB/2QLp
+         tAow1LiE1ImJqjQBQIuphJ48qs8BeLhnpLTqgMImFQb5kl8QioSv1DLPHIWTGW/CLhUZ
+         VJVw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@amperemail.onmicrosoft.com header.s=selector2-amperemail-onmicrosoft-com header.b=PNJVSrq5;
-       spf=pass (google.com: domain of hoan@os.amperecomputing.com designates 40.107.72.126 as permitted sender) smtp.mailfrom=hoan@os.amperecomputing.com;
-       dmarc=pass (p=QUARANTINE sp=QUARANTINE dis=NONE) header.from=amperecomputing.com
-Received: from NAM05-CO1-obe.outbound.protection.outlook.com (mail-eopbgr720126.outbound.protection.outlook.com. [40.107.72.126])
-        by mx.google.com with ESMTPS id w12si1367988pld.301.2019.06.25.15.30.37
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.36 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+Received: from out4436.biz.mail.alibaba.com (out4436.biz.mail.alibaba.com. [47.88.44.36])
+        by mx.google.com with ESMTPS id f26si15883520pfd.193.2019.06.25.15.34.05
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 25 Jun 2019 15:30:37 -0700 (PDT)
-Received-SPF: pass (google.com: domain of hoan@os.amperecomputing.com designates 40.107.72.126 as permitted sender) client-ip=40.107.72.126;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 25 Jun 2019 15:34:06 -0700 (PDT)
+Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.36 as permitted sender) client-ip=47.88.44.36;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@amperemail.onmicrosoft.com header.s=selector2-amperemail-onmicrosoft-com header.b=PNJVSrq5;
-       spf=pass (google.com: domain of hoan@os.amperecomputing.com designates 40.107.72.126 as permitted sender) smtp.mailfrom=hoan@os.amperecomputing.com;
-       dmarc=pass (p=QUARANTINE sp=QUARANTINE dis=NONE) header.from=amperecomputing.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
- d=amperemail.onmicrosoft.com; s=selector2-amperemail-onmicrosoft-com;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=IR5atq9Kvn/HT6403Ciiera0O5RZONj4IbbxzbUzbhs=;
- b=PNJVSrq53wFMEcbUkb+rBKJMYatCrrSmj2MzNobtszUB5hj2Vth/b4FNoB7vT7FZwCR/QGZJTJqDVIN/tu/ioC3Ua+obMqdDp9pOyShXyQ5bA7vGx7jsqmuUW9KRCgdO9QL6kc5PuLHrhJAxoaHYc0xdCZaAFCsqHNF+JaAy+To=
-Received: from DM6PR01MB4090.prod.exchangelabs.com (20.176.104.151) by
- DM6PR01MB5308.prod.exchangelabs.com (20.177.220.85) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.2008.16; Tue, 25 Jun 2019 22:30:34 +0000
-Received: from DM6PR01MB4090.prod.exchangelabs.com
- ([fe80::f0f2:16e1:1db7:ccb3]) by DM6PR01MB4090.prod.exchangelabs.com
- ([fe80::f0f2:16e1:1db7:ccb3%7]) with mapi id 15.20.2008.017; Tue, 25 Jun 2019
- 22:30:34 +0000
-From: Hoan Tran OS <hoan@os.amperecomputing.com>
-To: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon
-	<will.deacon@arm.com>, Andrew Morton <akpm@linux-foundation.org>, Michal
- Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Oscar Salvador
-	<osalvador@suse.de>, Pavel Tatashin <pavel.tatashin@microsoft.com>, Mike
- Rapoport <rppt@linux.ibm.com>, Alexander Duyck
-	<alexander.h.duyck@linux.intel.com>, Benjamin Herrenschmidt
-	<benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael
- Ellerman <mpe@ellerman.id.au>, Thomas Gleixner <tglx@linutronix.de>, Ingo
- Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H . Peter Anvin"
-	<hpa@zytor.com>, "David S . Miller" <davem@davemloft.net>, Heiko Carstens
-	<heiko.carstens@de.ibm.com>, Vasily Gorbik <gor@linux.ibm.com>, Christian
- Borntraeger <borntraeger@de.ibm.com>
-CC: "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>,
-	"linux-arm-kernel@lists.infradead.org"
-	<linux-arm-kernel@lists.infradead.org>, "linux-s390@vger.kernel.org"
-	<linux-s390@vger.kernel.org>, "sparclinux@vger.kernel.org"
-	<sparclinux@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>,
-	"linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Open Source
- Submission <patches@amperecomputing.com>, Hoan Tran OS
-	<hoan@os.amperecomputing.com>
-Subject: [PATCH 5/5] s390: Kconfig: Remove CONFIG_NODES_SPAN_OTHER_NODES
-Thread-Topic: [PATCH 5/5] s390: Kconfig: Remove CONFIG_NODES_SPAN_OTHER_NODES
-Thread-Index: AQHVK6WaFJpFUz0LxkyiSb0RwDiB0g==
-Date: Tue, 25 Jun 2019 22:30:34 +0000
-Message-ID: <1561501810-25163-6-git-send-email-Hoan@os.amperecomputing.com>
-References: <1561501810-25163-1-git-send-email-Hoan@os.amperecomputing.com>
-In-Reply-To: <1561501810-25163-1-git-send-email-Hoan@os.amperecomputing.com>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-x-clientproxiedby: CY4PR22CA0052.namprd22.prod.outlook.com
- (2603:10b6:903:ae::14) To DM6PR01MB4090.prod.exchangelabs.com
- (2603:10b6:5:2a::23)
-authentication-results: spf=none (sender IP is )
- smtp.mailfrom=hoan@os.amperecomputing.com; 
-x-ms-exchange-messagesentrepresentingtype: 1
-x-mailer: git-send-email 2.7.4
-x-originating-ip: [4.28.12.214]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: 94260bc5-6779-4195-4197-08d6f9bcbd01
-x-microsoft-antispam:
- BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(2017052603328)(7193020);SRVR:DM6PR01MB5308;
-x-ms-traffictypediagnostic: DM6PR01MB5308:
-x-microsoft-antispam-prvs:
- <DM6PR01MB5308BE2C2C64072EBD3A384FF1E30@DM6PR01MB5308.prod.exchangelabs.com>
-x-ms-oob-tlc-oobclassifiers: OLM:5797;
-x-forefront-prvs: 0079056367
-x-forefront-antispam-report:
- SFV:NSPM;SFS:(10019020)(1496009)(376002)(366004)(136003)(346002)(39850400004)(396003)(199004)(189003)(256004)(4326008)(53936002)(14454004)(4744005)(7736002)(52116002)(107886003)(50226002)(6486002)(81156014)(81166006)(64756008)(8936002)(66446008)(8676002)(6436002)(110136005)(26005)(5660300002)(99286004)(66946007)(73956011)(6506007)(76176011)(186003)(386003)(102836004)(66066001)(2906002)(446003)(305945005)(54906003)(2616005)(66556008)(66476007)(11346002)(316002)(476003)(6512007)(1511001)(478600001)(71190400001)(3846002)(71200400001)(7416002)(6116002)(86362001)(25786009)(68736007)(486006)(921003)(1121003);DIR:OUT;SFP:1102;SCL:1;SRVR:DM6PR01MB5308;H:DM6PR01MB4090.prod.exchangelabs.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:0;MX:1;
-received-spf: None (protection.outlook.com: os.amperecomputing.com does not
- designate permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info:
- GSuHyiAFzoB+d5Mz6ITaue+2ZU9Ek9+vBzZeNR8aJzm92J79Aq8uYHSjt3YK4GpsrdpH6z+4r8fVFt0I98L3jgZTKScoDtOsOg6fRsatO1urmA5ZhVV/CHZEnD/J2Y4HPRwZB1lN5GeqpU7AaKHT47kPa83tYp3sKjDFXZVGhPCPiFxElPGBqnEZy5gjFw3iR1KpjZCDheS6DvzS3ZIb6DbZSE0eZjkUwy01kWI9zGH8BHhIJ5zXs9TXqqsExXljs58PZjYm5Mo2ABlcyXIN1HdFSYTzbpvvhOYScbc6sbDvDvqiiST7uwKoy0tBO319wlKBg7mAndwf5UiaJojOe82qcZKkNqOYLs42MA21KRiYYdiCgxTRZ/O472EH7osVWXDxGKgGwsDLZpWJ10z43tiygTOQkQ0D/HLQ6OvbiAo=
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.36 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R941e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e04420;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=10;SR=0;TI=SMTPD_---0TVCOb2O_1561502020;
+Received: from US-143344MP.local(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TVCOb2O_1561502020)
+          by smtp.aliyun-inc.com(127.0.0.1);
+          Wed, 26 Jun 2019 06:33:44 +0800
+Subject: Re: [v3 PATCH 4/4] mm: thp: make deferred split shrinker memcg aware
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: ktkhai@virtuozzo.com, kirill.shutemov@linux.intel.com,
+ hannes@cmpxchg.org, mhocko@suse.com, hughd@google.com, shakeelb@google.com,
+ rientjes@google.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+References: <1560376609-113689-1-git-send-email-yang.shi@linux.alibaba.com>
+ <1560376609-113689-5-git-send-email-yang.shi@linux.alibaba.com>
+ <20190625150040.feb6ea9d11fff73a57320a3c@linux-foundation.org>
+From: Yang Shi <yang.shi@linux.alibaba.com>
+Message-ID: <b21bc991-b375-82d8-46f3-a5a9779b79c9@linux.alibaba.com>
+Date: Tue, 25 Jun 2019 15:33:40 -0700
+User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:52.0)
+ Gecko/20100101 Thunderbird/52.7.0
 MIME-Version: 1.0
-X-OriginatorOrg: os.amperecomputing.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: 94260bc5-6779-4195-4197-08d6f9bcbd01
-X-MS-Exchange-CrossTenant-originalarrivaltime: 25 Jun 2019 22:30:34.3305
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: 3bc2b170-fd94-476d-b0ce-4229bdc904a7
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-userprincipalname: Hoan@os.amperecomputing.com
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: DM6PR01MB5308
+In-Reply-To: <20190625150040.feb6ea9d11fff73a57320a3c@linux-foundation.org>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Language: en-US
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-VGhpcyBwYXRjaCByZW1vdmVzIENPTkZJR19OT0RFU19TUEFOX09USEVSX05PREVTIGFzIGl0J3MN
-CmVuYWJsZWQgYnkgZGVmYXVsdCB3aXRoIE5VTUEuDQoNClNpZ25lZC1vZmYtYnk6IEhvYW4gVHJh
-biA8SG9hbkBvcy5hbXBlcmVjb21wdXRpbmcuY29tPg0KLS0tDQogYXJjaC9zMzkwL0tjb25maWcg
-fCA4IC0tLS0tLS0tDQogMSBmaWxlIGNoYW5nZWQsIDggZGVsZXRpb25zKC0pDQoNCmRpZmYgLS1n
-aXQgYS9hcmNoL3MzOTAvS2NvbmZpZyBiL2FyY2gvczM5MC9LY29uZmlnDQppbmRleCAxMDkyNDNm
-Li43ODhhOGU5IDEwMDY0NA0KLS0tIGEvYXJjaC9zMzkwL0tjb25maWcNCisrKyBiL2FyY2gvczM5
-MC9LY29uZmlnDQpAQCAtNDM4LDE0ICs0MzgsNiBAQCBjb25maWcgSE9UUExVR19DUFUNCiAJICBj
-YW4gYmUgY29udHJvbGxlZCB0aHJvdWdoIC9zeXMvZGV2aWNlcy9zeXN0ZW0vY3B1L2NwdSMuDQog
-CSAgU2F5IE4gaWYgeW91IHdhbnQgdG8gZGlzYWJsZSBDUFUgaG90cGx1Zy4NCiANCi0jIFNvbWUg
-TlVNQSBub2RlcyBoYXZlIG1lbW9yeSByYW5nZXMgdGhhdCBzcGFuDQotIyBvdGhlciBub2Rlcy4J
-RXZlbiB0aG91Z2ggYSBwZm4gaXMgdmFsaWQgYW5kDQotIyBiZXR3ZWVuIGEgbm9kZSdzIHN0YXJ0
-IGFuZCBlbmQgcGZucywgaXQgbWF5IG5vdA0KLSMgcmVzaWRlIG9uIHRoYXQgbm9kZS4JU2VlIG1l
-bW1hcF9pbml0X3pvbmUoKQ0KLSMgZm9yIGRldGFpbHMuIDwtIFRoZXkgbWVhbnQgbWVtb3J5IGhv
-bGVzIQ0KLWNvbmZpZyBOT0RFU19TUEFOX09USEVSX05PREVTDQotCWRlZl9ib29sIE5VTUENCi0N
-CiBjb25maWcgTlVNQQ0KIAlib29sICJOVU1BIHN1cHBvcnQiDQogCWRlcGVuZHMgb24gU01QICYm
-IFNDSEVEX1RPUE9MT0dZDQotLSANCjIuNy40DQoNCg==
+
+
+On 6/25/19 3:00 PM, Andrew Morton wrote:
+> On Thu, 13 Jun 2019 05:56:49 +0800 Yang Shi <yang.shi@linux.alibaba.com> wrote:
+>
+>> Currently THP deferred split shrinker is not memcg aware, this may cause
+>> premature OOM with some configuration. For example the below test would
+>> run into premature OOM easily:
+>>
+>> $ cgcreate -g memory:thp
+>> $ echo 4G > /sys/fs/cgroup/memory/thp/memory/limit_in_bytes
+>> $ cgexec -g memory:thp transhuge-stress 4000
+>>
+>> transhuge-stress comes from kernel selftest.
+>>
+>> It is easy to hit OOM, but there are still a lot THP on the deferred
+>> split queue, memcg direct reclaim can't touch them since the deferred
+>> split shrinker is not memcg aware.
+>>
+>> Convert deferred split shrinker memcg aware by introducing per memcg
+>> deferred split queue.  The THP should be on either per node or per memcg
+>> deferred split queue if it belongs to a memcg.  When the page is
+>> immigrated to the other memcg, it will be immigrated to the target
+>> memcg's deferred split queue too.
+>>
+>> Reuse the second tail page's deferred_list for per memcg list since the
+>> same THP can't be on multiple deferred split queues.
+>>
+>> ...
+>>
+>> --- a/mm/memcontrol.c
+>> +++ b/mm/memcontrol.c
+>> @@ -4579,6 +4579,11 @@ static struct mem_cgroup *mem_cgroup_alloc(void)
+>>   #ifdef CONFIG_CGROUP_WRITEBACK
+>>   	INIT_LIST_HEAD(&memcg->cgwb_list);
+>>   #endif
+>> +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+>> +	spin_lock_init(&memcg->deferred_split_queue.split_queue_lock);
+>> +	INIT_LIST_HEAD(&memcg->deferred_split_queue.split_queue);
+>> +	memcg->deferred_split_queue.split_queue_len = 0;
+>> +#endif
+>>   	idr_replace(&mem_cgroup_idr, memcg, memcg->id.id);
+>>   	return memcg;
+>>   fail:
+>> @@ -4949,6 +4954,14 @@ static int mem_cgroup_move_account(struct page *page,
+>>   		__mod_memcg_state(to, NR_WRITEBACK, nr_pages);
+>>   	}
+>>   
+>> +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+>> +	if (compound && !list_empty(page_deferred_list(page))) {
+>> +		spin_lock(&from->deferred_split_queue.split_queue_lock);
+>> +		list_del(page_deferred_list(page));
+> It's worrisome that this page still appears to be on the deferred_list
+> and that the above if() would still succeed.  Should this be
+> list_del_init()?
+
+list_del_init() sounds safe although I'm not quite sure this is 
+possible. Will update this with fixing build issue together.
+
+>
+>> +		from->deferred_split_queue.split_queue_len--;
+>> +		spin_unlock(&from->deferred_split_queue.split_queue_lock);
+>> +	}
+>> +#endif
 
