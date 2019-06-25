@@ -7,78 +7,78 @@ X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
 	SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BB6BCC48BD4
-	for <linux-mm@archiver.kernel.org>; Tue, 25 Jun 2019 14:37:59 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 02E49C48BD6
+	for <linux-mm@archiver.kernel.org>; Tue, 25 Jun 2019 14:38:03 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 62ECF20656
-	for <linux-mm@archiver.kernel.org>; Tue, 25 Jun 2019 14:37:59 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id B96E7214DA
+	for <linux-mm@archiver.kernel.org>; Tue, 25 Jun 2019 14:38:02 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="LrZgImpK"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 62ECF20656
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="taUea8cm"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B96E7214DA
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E1D238E0006; Tue, 25 Jun 2019 10:37:53 -0400 (EDT)
+	id 3C00C8E0007; Tue, 25 Jun 2019 10:37:54 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DCEC38E0007; Tue, 25 Jun 2019 10:37:53 -0400 (EDT)
+	id 370608E0002; Tue, 25 Jun 2019 10:37:54 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BFBC58E0006; Tue, 25 Jun 2019 10:37:53 -0400 (EDT)
+	id 1EE168E0007; Tue, 25 Jun 2019 10:37:54 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 839ED8E0002
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C39C18E0002
 	for <linux-mm@kvack.org>; Tue, 25 Jun 2019 10:37:53 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id b24so9290079plz.20
+Received: by mail-pg1-f200.google.com with SMTP id w22so2793899pgc.20
         for <linux-mm@kvack.org>; Tue, 25 Jun 2019 07:37:53 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=+LfGuMfatgroW0jiS20tFtJAd2NqewOpaHqEsGODANw=;
-        b=dRNpEklMeq6D2TMWNvpN3qCJEl0O8dbcwMchyV8LKkuv9lAumhM/Tl5URyXgXefC3a
-         MxEFPFTuWN8GKvm/CO9P7BOF0rxPm46YUlgFhEdigoleydeXOBbG7sURjYqtudWOhFS4
-         WZ8Z5Vme6lKbacoVtKXaINufruPv69EUHAzE0ja6GLzkm5v2fLEM3UL4TpNjvPnlw1dS
-         LsySNgZ9vA0/Bt2xUM6BcdJsW9uiobKg+YULnjlVVsEgM4a7kGDnQZywZ4ZRtvIqo12g
-         TJ4A1qYP9aR7kWj0E3Meep8teAjgwP310OwvEB3ln3npLO6I3JX8zOKPiE+PbB+iRows
-         Tj0A==
-X-Gm-Message-State: APjAAAWJHMrM8Vw2u1MmWxMqaP63mE8Q3gwKYobGPXqj1XC2G4c8VV91
-	rOlntSYdNaalDN6NZ2M3Qy2aygUSaevWHuw2ZNMcJoT0Hp7yI+cyg8qTRl/7xxNveZ0XOugFKgu
-	vy08EpZ2fxtyWeOv3DKEigxf8H6d3GfwkjTTkZLRi3LTH6XSBWZoIQEaru6UUl+s=
-X-Received: by 2002:a17:90a:9382:: with SMTP id q2mr32628639pjo.131.1561473473140;
+        bh=aoM0W68wUr2XaaE/a2NJlPCtCZVNUAc490vBn4tMbec=;
+        b=aAYNOqD2M9dBmtKo0aeZu76pCUNHl1Ri0589Uejb1SFE/vdtef/dgAbC79F26xv1m6
+         B/vyXsci3XHU1Rk8fyWHHyJzC4XyVc6ZE0Frf5u/lKoTuWHlB+6rbbW/eSH7nNezNfVV
+         98R6eb9LDs4J9gH7arzyMndhkBed05ilsYToDbxeE2uH9ZiYs7LzZAgabPTwYdr6vHM6
+         UNI4iqBdw39SP4Ai29GpbI+pwzQcx0PiDTND48Ak2T2JpTv+dD7DGIbjR4dqBMQzd9w8
+         I966dU0UZdDW6cpjIGRRJ+V1KlXhC1Zzw0CoJj2HEDrrzFEIKiQlLpl8pH7owG/I0vOJ
+         5+fA==
+X-Gm-Message-State: APjAAAVwbR5bPDFopmXZNyxKu/1EZZLUKKwgMbQLPEC4H3ohtRMGjO/4
+	mEA1NIJuVBRZG/kHQG6kuMtgYGUYpsaO65EKuIc2oag57UkFXY9rFO+JuVu/i+wy5whX+k8Xv0T
+	OTAaD6CtHBrU70ScDoBFIBf+wWW/6UIK6q+PlPc0MMwYnhOistRmOFya1FJJDI4s=
+X-Received: by 2002:a63:ec13:: with SMTP id j19mr19293380pgh.174.1561473473427;
         Tue, 25 Jun 2019 07:37:53 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxwErE5k+rAUG4Rj0eQ1zzGEJjH5kskQKrvoo6RPWIioVwiSjgt5bELtXxVv9QPVCw6J5AB
-X-Received: by 2002:a17:90a:9382:: with SMTP id q2mr32628512pjo.131.1561473471846;
-        Tue, 25 Jun 2019 07:37:51 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561473471; cv=none;
+X-Google-Smtp-Source: APXvYqxikwUJ2kjcCOSfkJ5FVQrkpX40PWXPyXvBXkOrJg3F3UwCgZGuyuJ6DISdGouK0WGH3g2h
+X-Received: by 2002:a63:ec13:: with SMTP id j19mr19293339pgh.174.1561473472729;
+        Tue, 25 Jun 2019 07:37:52 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561473472; cv=none;
         d=google.com; s=arc-20160816;
-        b=daygPJnwpw0HCfEcck1fFMzryZsPclhLbK9lY39KbYfsOYzz+IEa4wQXzaY8EW52b4
-         YdHu4sWDs7wudbdf3arHgBzM6PnbHzWS8F9vQFPScXWAQCmWlslYp34Q45VTNMSzAsW9
-         CDUrio43YMsBhknEN5DFbq+o1cIjzZMUU0hGjDyLMDkvANBKD6slP6K4y9Ou2QrWtYk9
-         V6eYYSsoX9j9tuUtQS8BtFw9PEKcCJw5yaA6JvWsCRW72iFPz4nd7aWwUZJ69wEqCmM6
-         2S2pYD94o+6Zk627NUJNVTnyOk5srmIcsHevl94OYBGLygrB2xfmbi5tpR2YEQrP25ue
-         Z/oQ==
+        b=GXYB4IlwoDUcwcEPRT2LnfBJjOHUjwXv+J0nZhEI+qJfJBDJMssJSuRdIYOOaRzODj
+         hq9vFSCQxx/DrkMDX2htdLhKAQCUHagRTevMzMmKiN/WqB7RbCj0TBy7zu0M9FRk0tWz
+         8NP7+gtfcBdh6qOZa19ZRWs7iuCjqolcmT9XGAllmuaxaNKBmghMHTlm2p1wHE2GOmg2
+         WTLqoZPNX2XzcbH1FfxnCPtwtySnukeqrMVg8gCjEAHX0s8POK1Az23R8jYHDHyl855y
+         fxVbXtl9NUwSQ4CwlKrLNJ+DR/Zekr1J+HHQofXaAgS8fnUCkUtNeOX7+/DNP3pmt1Tw
+         BC2A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=+LfGuMfatgroW0jiS20tFtJAd2NqewOpaHqEsGODANw=;
-        b=cNYTqlXIf1y2Cjb3L0qtxk299oL/MNs4dqTFC07Cz/s1dr0O+LX37yjlse5TncNmDN
-         O/kVsApvXVxTHDqTLO9MRijW9GRDcp3q0G8VkN4LhGFHblFE0nx/cVe5F7dxLYfSZDU8
-         qGVYmXwbz4cqfuUEdiQEt3jSQ/0I9j0Ch98ncXezA5qxPUp5EU4mURzi7d31O5oAsQ98
-         Jc8lFx+ktnrnAEVgKZpShyUzu+NE/RoyKerNPbQ0iy6ldw/Y43cg56Pg21gx7SMuu9VT
-         4rhFFjXmy5JMEM/pKk6zKn0my8AZHJ7V488SjGeImjEM+hDeqMWgETQlgxpOzFsxC0yQ
-         2nhA==
+        bh=aoM0W68wUr2XaaE/a2NJlPCtCZVNUAc490vBn4tMbec=;
+        b=VlcwwQ2Fq26UhoWJaCj1ps8WM1nEs9FC2mqIY/0vslgasyD1R5ZuxW2B1SYKB8kjCA
+         ab/v+SKKCnzCvHaoYObmdXtNFXViXyhjIEXf2M58eyUPKHmZ0PCpF7I9rQ8WvCwxxd04
+         6h89TPG7iau2RYQrtfP5FbFBgNDo/Uemfjh1Mnq5Px9+TBcqilt9also56wei4f4Dq7U
+         FhA5al58tgR+EA7iGUATRVSbuboMe+xo1LvnVTdD14z3RbVaQJeApip2o6/chtFfd5bO
+         ZEHzEDAM38l+bPf9M3VibKm2VLOQv0zPIdszAVvJhV1bsjsnSE7CMsmNCfpyNuSvSM+q
+         QuPw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=LrZgImpK;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=taUea8cm;
        spf=pass (google.com: best guess record for domain of batv+c5155a46dc30cc8634d8+5784+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+c5155a46dc30cc8634d8+5784+infradead.org+hch@bombadil.srs.infradead.org
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id v99si2903076pjb.82.2019.06.25.07.37.51
+        by mx.google.com with ESMTPS id h194si15161530pfe.214.2019.06.25.07.37.52
         for <linux-mm@kvack.org>
         (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Tue, 25 Jun 2019 07:37:51 -0700 (PDT)
+        Tue, 25 Jun 2019 07:37:52 -0700 (PDT)
 Received-SPF: pass (google.com: best guess record for domain of batv+c5155a46dc30cc8634d8+5784+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=LrZgImpK;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=taUea8cm;
        spf=pass (google.com: best guess record for domain of batv+c5155a46dc30cc8634d8+5784+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+c5155a46dc30cc8634d8+5784+infradead.org+hch@bombadil.srs.infradead.org
 DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	d=infradead.org; s=bombadil.20170209; h=Content-Transfer-Encoding:
@@ -86,15 +86,15 @@ DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	:Reply-To:Content-Type:Content-ID:Content-Description:Resent-Date:Resent-From
 	:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:List-Help:
 	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	bh=+LfGuMfatgroW0jiS20tFtJAd2NqewOpaHqEsGODANw=; b=LrZgImpKi3oHFL6XF+vRRKC03v
-	+3Ybl1kLCPZx6avRAKWmHM/z6o3DEO/u13MRuV3McCuZKOFRyPvHRfwfYatSEdVMSIWVjCOz6j5DK
-	+Z1f6G79yaFJW3on4q1flzR3iysJNFF6jskMOsdOELq1bIa+DHvjH7zGBDXwmq29/hreciaM1Mrz9
-	eJiUh+sw1rblamsDD61hVJqoJncrqn4/dl0ZBxuUHneVbEbzkikC+qsm0YqEvdb4WP2UInlo33nuK
-	j3ocG4UwRXuv3qgBpHa+7OCGkmwA0dmhehq8/ZZl7xEU//gIUmgO9iCLbcL4oTyGcMn+UJLgpYFGH
-	o5uvzvYA==;
+	bh=aoM0W68wUr2XaaE/a2NJlPCtCZVNUAc490vBn4tMbec=; b=taUea8cmHqyNdvhD2wgVGB0dn9
+	UNjhchjKAVybII1/xC+BKN2QzvKFCFr65RLRIrYQ5h4VNHBnZrtGlvGb8ysL1RNjg0DIGXH3JJr1I
+	wMmt0t69KSievW3CsBhwGLOMqCpmB619xq3/7dNBm8QoSK245z64i8ktRJFvsX6oiaUYgokit7Ev3
+	D09QUigKWtdPTnPr1NAYcmON9yQk7kWkgyVI2wQQX4iGZhTHyA2OoMmC6neGyVEt0qA+n2vzKFob3
+	lwTirQjakiJ+2XeS0olA5OJaEgxmx40KulfZoE0tJi+IazqucJGMT7t3wUDhq1sUX+wQ+1FStiMvB
+	g1sc0hpA==;
 Received: from 213-225-6-159.nat.highway.a1.net ([213.225.6.159] helo=localhost)
 	by bombadil.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
-	id 1hfmZk-0007zP-U3; Tue, 25 Jun 2019 14:37:37 +0000
+	id 1hfmZo-0007zf-3H; Tue, 25 Jun 2019 14:37:40 +0000
 From: Christoph Hellwig <hch@lst.de>
 To: Andrew Morton <akpm@linux-foundation.org>,
 	Linus Torvalds <torvalds@linux-foundation.org>,
@@ -116,9 +116,9 @@ Cc: Nicholas Piggin <npiggin@gmail.com>,
 	linux-mm@kvack.org,
 	x86@kernel.org,
 	linux-kernel@vger.kernel.org
-Subject: [PATCH 06/16] sh: use the generic get_user_pages_fast code
-Date: Tue, 25 Jun 2019 16:37:05 +0200
-Message-Id: <20190625143715.1689-7-hch@lst.de>
+Subject: [PATCH 07/16] sparc64: add the missing pgd_page definition
+Date: Tue, 25 Jun 2019 16:37:06 +0200
+Message-Id: <20190625143715.1689-8-hch@lst.de>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190625143715.1689-1-hch@lst.de>
 References: <20190625143715.1689-1-hch@lst.de>
@@ -131,382 +131,25 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The sh code is mostly equivalent to the generic one, minus various
-bugfixes and two arch overrides that this patch adds to pgtable.h.
+sparc64 only had pgd_page_vaddr, but not pgd_page.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- arch/sh/Kconfig               |   2 +
- arch/sh/include/asm/pgtable.h |  37 +++++
- arch/sh/mm/Makefile           |   2 +-
- arch/sh/mm/gup.c              | 277 ----------------------------------
- 4 files changed, 40 insertions(+), 278 deletions(-)
- delete mode 100644 arch/sh/mm/gup.c
+ arch/sparc/include/asm/pgtable_64.h | 1 +
+ 1 file changed, 1 insertion(+)
 
-diff --git a/arch/sh/Kconfig b/arch/sh/Kconfig
-index b77f512bb176..6fddfc3c9710 100644
---- a/arch/sh/Kconfig
-+++ b/arch/sh/Kconfig
-@@ -14,6 +14,7 @@ config SUPERH
- 	select HAVE_ARCH_TRACEHOOK
- 	select HAVE_PERF_EVENTS
- 	select HAVE_DEBUG_BUGVERBOSE
-+	select HAVE_GENERIC_GUP
- 	select ARCH_HAVE_CUSTOM_GPIO_H
- 	select ARCH_HAVE_NMI_SAFE_CMPXCHG if (GUSA_RB || CPU_SH4A)
- 	select ARCH_HAS_GCOV_PROFILE_ALL
-@@ -63,6 +64,7 @@ config SUPERH
- config SUPERH32
- 	def_bool "$(ARCH)" = "sh"
- 	select ARCH_32BIT_OFF_T
-+	select GUP_GET_PTE_LOW_HIGH if X2TLB
- 	select HAVE_KPROBES
- 	select HAVE_KRETPROBES
- 	select HAVE_IOREMAP_PROT if MMU && !X2TLB
-diff --git a/arch/sh/include/asm/pgtable.h b/arch/sh/include/asm/pgtable.h
-index 3587103afe59..9085d1142fa3 100644
---- a/arch/sh/include/asm/pgtable.h
-+++ b/arch/sh/include/asm/pgtable.h
-@@ -149,6 +149,43 @@ extern void paging_init(void);
- extern void page_table_range_init(unsigned long start, unsigned long end,
- 				  pgd_t *pgd);
+diff --git a/arch/sparc/include/asm/pgtable_64.h b/arch/sparc/include/asm/pgtable_64.h
+index 22500c3be7a9..f0dcf991d27f 100644
+--- a/arch/sparc/include/asm/pgtable_64.h
++++ b/arch/sparc/include/asm/pgtable_64.h
+@@ -861,6 +861,7 @@ static inline unsigned long pud_page_vaddr(pud_t pud)
+ #define pud_clear(pudp)			(pud_val(*(pudp)) = 0UL)
+ #define pgd_page_vaddr(pgd)		\
+ 	((unsigned long) __va(pgd_val(pgd)))
++#define pgd_page(pgd)			pfn_to_page(pgd_pfn(pgd))
+ #define pgd_present(pgd)		(pgd_val(pgd) != 0U)
+ #define pgd_clear(pgdp)			(pgd_val(*(pgdp)) = 0UL)
  
-+static inline bool __pte_access_permitted(pte_t pte, u64 prot)
-+{
-+	return (pte_val(pte) & (prot | _PAGE_SPECIAL)) == prot;
-+}
-+
-+#ifdef CONFIG_X2TLB
-+static inline bool pte_access_permitted(pte_t pte, bool write)
-+{
-+	u64 prot = _PAGE_PRESENT;
-+
-+	prot |= _PAGE_EXT(_PAGE_EXT_KERN_READ | _PAGE_EXT_USER_READ);
-+	if (write)
-+		prot |= _PAGE_EXT(_PAGE_EXT_KERN_WRITE | _PAGE_EXT_USER_WRITE);
-+	return __pte_access_permitted(pte, prot);
-+}
-+#elif defined(CONFIG_SUPERH64)
-+static inline bool pte_access_permitted(pte_t pte, bool write)
-+{
-+	u64 prot = _PAGE_PRESENT | _PAGE_USER | _PAGE_READ;
-+
-+	if (write)
-+		prot |= _PAGE_WRITE;
-+	return __pte_access_permitted(pte, prot);
-+}
-+#else
-+static inline bool pte_access_permitted(pte_t pte, bool write)
-+{
-+	u64 prot = _PAGE_PRESENT | _PAGE_USER;
-+
-+	if (write)
-+		prot |= _PAGE_RW;
-+	return __pte_access_permitted(pte, prot);
-+}
-+#endif
-+
-+#define pte_access_permitted pte_access_permitted
-+
- /* arch/sh/mm/mmap.c */
- #define HAVE_ARCH_UNMAPPED_AREA
- #define HAVE_ARCH_UNMAPPED_AREA_TOPDOWN
-diff --git a/arch/sh/mm/Makefile b/arch/sh/mm/Makefile
-index fbe5e79751b3..5051b38fd5b6 100644
---- a/arch/sh/mm/Makefile
-+++ b/arch/sh/mm/Makefile
-@@ -17,7 +17,7 @@ cacheops-$(CONFIG_CPU_SHX3)		+= cache-shx3.o
- obj-y			+= $(cacheops-y)
- 
- mmu-y			:= nommu.o extable_32.o
--mmu-$(CONFIG_MMU)	:= extable_$(BITS).o fault.o gup.o ioremap.o kmap.o \
-+mmu-$(CONFIG_MMU)	:= extable_$(BITS).o fault.o ioremap.o kmap.o \
- 			   pgtable.o tlbex_$(BITS).o tlbflush_$(BITS).o
- 
- obj-y			+= $(mmu-y)
-diff --git a/arch/sh/mm/gup.c b/arch/sh/mm/gup.c
-deleted file mode 100644
-index 277c882f7489..000000000000
---- a/arch/sh/mm/gup.c
-+++ /dev/null
-@@ -1,277 +0,0 @@
--// SPDX-License-Identifier: GPL-2.0
--/*
-- * Lockless get_user_pages_fast for SuperH
-- *
-- * Copyright (C) 2009 - 2010  Paul Mundt
-- *
-- * Cloned from the x86 and PowerPC versions, by:
-- *
-- *	Copyright (C) 2008 Nick Piggin
-- *	Copyright (C) 2008 Novell Inc.
-- */
--#include <linux/sched.h>
--#include <linux/mm.h>
--#include <linux/vmstat.h>
--#include <linux/highmem.h>
--#include <asm/pgtable.h>
--
--static inline pte_t gup_get_pte(pte_t *ptep)
--{
--#ifndef CONFIG_X2TLB
--	return READ_ONCE(*ptep);
--#else
--	/*
--	 * With get_user_pages_fast, we walk down the pagetables without
--	 * taking any locks.  For this we would like to load the pointers
--	 * atomically, but that is not possible with 64-bit PTEs.  What
--	 * we do have is the guarantee that a pte will only either go
--	 * from not present to present, or present to not present or both
--	 * -- it will not switch to a completely different present page
--	 * without a TLB flush in between; something that we are blocking
--	 * by holding interrupts off.
--	 *
--	 * Setting ptes from not present to present goes:
--	 * ptep->pte_high = h;
--	 * smp_wmb();
--	 * ptep->pte_low = l;
--	 *
--	 * And present to not present goes:
--	 * ptep->pte_low = 0;
--	 * smp_wmb();
--	 * ptep->pte_high = 0;
--	 *
--	 * We must ensure here that the load of pte_low sees l iff pte_high
--	 * sees h. We load pte_high *after* loading pte_low, which ensures we
--	 * don't see an older value of pte_high.  *Then* we recheck pte_low,
--	 * which ensures that we haven't picked up a changed pte high. We might
--	 * have got rubbish values from pte_low and pte_high, but we are
--	 * guaranteed that pte_low will not have the present bit set *unless*
--	 * it is 'l'. And get_user_pages_fast only operates on present ptes, so
--	 * we're safe.
--	 *
--	 * gup_get_pte should not be used or copied outside gup.c without being
--	 * very careful -- it does not atomically load the pte or anything that
--	 * is likely to be useful for you.
--	 */
--	pte_t pte;
--
--retry:
--	pte.pte_low = ptep->pte_low;
--	smp_rmb();
--	pte.pte_high = ptep->pte_high;
--	smp_rmb();
--	if (unlikely(pte.pte_low != ptep->pte_low))
--		goto retry;
--
--	return pte;
--#endif
--}
--
--/*
-- * The performance critical leaf functions are made noinline otherwise gcc
-- * inlines everything into a single function which results in too much
-- * register pressure.
-- */
--static noinline int gup_pte_range(pmd_t pmd, unsigned long addr,
--		unsigned long end, int write, struct page **pages, int *nr)
--{
--	u64 mask, result;
--	pte_t *ptep;
--
--#ifdef CONFIG_X2TLB
--	result = _PAGE_PRESENT | _PAGE_EXT(_PAGE_EXT_KERN_READ | _PAGE_EXT_USER_READ);
--	if (write)
--		result |= _PAGE_EXT(_PAGE_EXT_KERN_WRITE | _PAGE_EXT_USER_WRITE);
--#elif defined(CONFIG_SUPERH64)
--	result = _PAGE_PRESENT | _PAGE_USER | _PAGE_READ;
--	if (write)
--		result |= _PAGE_WRITE;
--#else
--	result = _PAGE_PRESENT | _PAGE_USER;
--	if (write)
--		result |= _PAGE_RW;
--#endif
--
--	mask = result | _PAGE_SPECIAL;
--
--	ptep = pte_offset_map(&pmd, addr);
--	do {
--		pte_t pte = gup_get_pte(ptep);
--		struct page *page;
--
--		if ((pte_val(pte) & mask) != result) {
--			pte_unmap(ptep);
--			return 0;
--		}
--		VM_BUG_ON(!pfn_valid(pte_pfn(pte)));
--		page = pte_page(pte);
--		get_page(page);
--		__flush_anon_page(page, addr);
--		flush_dcache_page(page);
--		pages[*nr] = page;
--		(*nr)++;
--
--	} while (ptep++, addr += PAGE_SIZE, addr != end);
--	pte_unmap(ptep - 1);
--
--	return 1;
--}
--
--static int gup_pmd_range(pud_t pud, unsigned long addr, unsigned long end,
--		int write, struct page **pages, int *nr)
--{
--	unsigned long next;
--	pmd_t *pmdp;
--
--	pmdp = pmd_offset(&pud, addr);
--	do {
--		pmd_t pmd = *pmdp;
--
--		next = pmd_addr_end(addr, end);
--		if (pmd_none(pmd))
--			return 0;
--		if (!gup_pte_range(pmd, addr, next, write, pages, nr))
--			return 0;
--	} while (pmdp++, addr = next, addr != end);
--
--	return 1;
--}
--
--static int gup_pud_range(pgd_t pgd, unsigned long addr, unsigned long end,
--			int write, struct page **pages, int *nr)
--{
--	unsigned long next;
--	pud_t *pudp;
--
--	pudp = pud_offset(&pgd, addr);
--	do {
--		pud_t pud = *pudp;
--
--		next = pud_addr_end(addr, end);
--		if (pud_none(pud))
--			return 0;
--		if (!gup_pmd_range(pud, addr, next, write, pages, nr))
--			return 0;
--	} while (pudp++, addr = next, addr != end);
--
--	return 1;
--}
--
--/*
-- * Like get_user_pages_fast() except its IRQ-safe in that it won't fall
-- * back to the regular GUP.
-- * Note a difference with get_user_pages_fast: this always returns the
-- * number of pages pinned, 0 if no pages were pinned.
-- */
--int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
--			  struct page **pages)
--{
--	struct mm_struct *mm = current->mm;
--	unsigned long addr, len, end;
--	unsigned long next;
--	unsigned long flags;
--	pgd_t *pgdp;
--	int nr = 0;
--
--	start &= PAGE_MASK;
--	addr = start;
--	len = (unsigned long) nr_pages << PAGE_SHIFT;
--	end = start + len;
--	if (unlikely(!access_ok((void __user *)start, len)))
--		return 0;
--
--	/*
--	 * This doesn't prevent pagetable teardown, but does prevent
--	 * the pagetables and pages from being freed.
--	 */
--	local_irq_save(flags);
--	pgdp = pgd_offset(mm, addr);
--	do {
--		pgd_t pgd = *pgdp;
--
--		next = pgd_addr_end(addr, end);
--		if (pgd_none(pgd))
--			break;
--		if (!gup_pud_range(pgd, addr, next, write, pages, &nr))
--			break;
--	} while (pgdp++, addr = next, addr != end);
--	local_irq_restore(flags);
--
--	return nr;
--}
--
--/**
-- * get_user_pages_fast() - pin user pages in memory
-- * @start:	starting user address
-- * @nr_pages:	number of pages from start to pin
-- * @gup_flags:	flags modifying pin behaviour
-- * @pages:	array that receives pointers to the pages pinned.
-- *		Should be at least nr_pages long.
-- *
-- * Attempt to pin user pages in memory without taking mm->mmap_sem.
-- * If not successful, it will fall back to taking the lock and
-- * calling get_user_pages().
-- *
-- * Returns number of pages pinned. This may be fewer than the number
-- * requested. If nr_pages is 0 or negative, returns 0. If no pages
-- * were pinned, returns -errno.
-- */
--int get_user_pages_fast(unsigned long start, int nr_pages,
--			unsigned int gup_flags, struct page **pages)
--{
--	struct mm_struct *mm = current->mm;
--	unsigned long addr, len, end;
--	unsigned long next;
--	pgd_t *pgdp;
--	int nr = 0;
--
--	start &= PAGE_MASK;
--	addr = start;
--	len = (unsigned long) nr_pages << PAGE_SHIFT;
--
--	end = start + len;
--	if (end < start)
--		goto slow_irqon;
--
--	local_irq_disable();
--	pgdp = pgd_offset(mm, addr);
--	do {
--		pgd_t pgd = *pgdp;
--
--		next = pgd_addr_end(addr, end);
--		if (pgd_none(pgd))
--			goto slow;
--		if (!gup_pud_range(pgd, addr, next, gup_flags & FOLL_WRITE,
--				   pages, &nr))
--			goto slow;
--	} while (pgdp++, addr = next, addr != end);
--	local_irq_enable();
--
--	VM_BUG_ON(nr != (end - start) >> PAGE_SHIFT);
--	return nr;
--
--	{
--		int ret;
--
--slow:
--		local_irq_enable();
--slow_irqon:
--		/* Try to get the remaining pages with get_user_pages */
--		start += nr << PAGE_SHIFT;
--		pages += nr;
--
--		ret = get_user_pages_unlocked(start,
--			(end - start) >> PAGE_SHIFT, pages,
--			gup_flags);
--
--		/* Have to be a bit careful with return values */
--		if (nr > 0) {
--			if (ret < 0)
--				ret = nr;
--			else
--				ret += nr;
--		}
--
--		return ret;
--	}
--}
 -- 
 2.20.1
 
