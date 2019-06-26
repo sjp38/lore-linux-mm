@@ -8,100 +8,100 @@ X-Spam-Status: No, score=-16.4 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
 	USER_AGENT_GIT,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 99B67C48BD9
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 14:27:58 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7B102C48BD9
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 14:28:02 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 617E72133F
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 14:27:58 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 19720216F4
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 14:28:02 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="r6nw3M8i"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 617E72133F
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="b1IaFK1m"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 19720216F4
 Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id ED2878E0011; Wed, 26 Jun 2019 10:27:57 -0400 (EDT)
+	id A89ED8E0012; Wed, 26 Jun 2019 10:28:01 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E328D8E0002; Wed, 26 Jun 2019 10:27:57 -0400 (EDT)
+	id 9EBB98E0002; Wed, 26 Jun 2019 10:28:01 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D216E8E0011; Wed, 26 Jun 2019 10:27:57 -0400 (EDT)
+	id 88B7F8E0012; Wed, 26 Jun 2019 10:28:01 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ua1-f70.google.com (mail-ua1-f70.google.com [209.85.222.70])
-	by kanga.kvack.org (Postfix) with ESMTP id AB7408E0002
-	for <linux-mm@kvack.org>; Wed, 26 Jun 2019 10:27:57 -0400 (EDT)
-Received: by mail-ua1-f70.google.com with SMTP id 64so236374uam.22
-        for <linux-mm@kvack.org>; Wed, 26 Jun 2019 07:27:57 -0700 (PDT)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 517BE8E0002
+	for <linux-mm@kvack.org>; Wed, 26 Jun 2019 10:28:01 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id e95so1538440plb.9
+        for <linux-mm@kvack.org>; Wed, 26 Jun 2019 07:28:01 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:in-reply-to:message-id
          :mime-version:references:subject:from:to:cc;
-        bh=M/VKnz1BZ+rvrIeSdLI9RxXAlLGL/xX/aFhsrhXW1SI=;
-        b=IKT6s9OLy6x7RD4qazO0KiNBQt1NXE6RIs+3cGNKQA/axLOAnYIcK499tMzF20nZ9w
-         antK98R7kA7sORddHQ4kJbGsBOaAWNSJKmjo9GU1oZacoo0l3ODIut6bbS0B3plMhp8p
-         bCi797DE9ln0MRIz1K57bm5MFn3F8f3xYPT65gWfsi9fAcKg+qAJi6BuiivJ1XYm6tmJ
-         xFYWGl8DQNF0G76J1bfLhLFYj6YhMKlMTp/fTL+LqgLjV4bw/TxAK8G9W1YPvl58a+iK
-         PJBQoCjqnbx7weGLw5yQ9+xibuT3J6YdvUR3QNtuXHM3Ner8UOA5KBwXAsVEiQnFCrU+
-         Xpgw==
-X-Gm-Message-State: APjAAAV6Bt+PLC8A3L9NBBou23KpT05Z+mxRF4tWP+AyFjsLPlmCLrbX
-	Ayj/s+/ZgGqFMSEBlZz7TBTqztWf1CGgHB42DT7I74BnmOF+Uk8GHyT2hxbflPId+wrpaiOfUkn
-	FSZe0a0rFa3v+Qq5llxCAWsngvRNkpYujN9SzmzG/6x9Zrhevi/lpUlgtll1jqMng+w==
-X-Received: by 2002:a9f:21d6:: with SMTP id 80mr2707672uac.60.1561559277327;
-        Wed, 26 Jun 2019 07:27:57 -0700 (PDT)
-X-Received: by 2002:a9f:21d6:: with SMTP id 80mr2707640uac.60.1561559276706;
-        Wed, 26 Jun 2019 07:27:56 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561559276; cv=none;
+        bh=Rln2FP6BOxdiVf8wORphr5UbX/lGN9PNgnvsQm0pxfA=;
+        b=YgQYC/xZRMFSmiqmd8J0pCSa01vmbTCDih+WE1jS5gNouoEuNN+TAaRSs/4J3hrBRd
+         /4FXoJ3jOlsSUL+shLX2fkt/fPcYVxuelOLz6QtG2CgG619Q0CbCK0vTRpGIrKMpagdr
+         xkX4GzogE9FAlUcbShg3BdvL54nDLsCH4i+5FtaS1eNbaCyp1JIIVcFEJF9APSowyFU8
+         Vg3E6i9c8roWv9CbkSmHPd29x/WtdKvzJrnYpZvXOr/f+A//UcMUgDuE0/m7ieSCfH09
+         ZqhDVcVD3lVU46HoT4YJoeg1gp92L3JWnR8hp5E2wZTheeJu8t8+TgaWNM59IdCCQEXJ
+         AXZA==
+X-Gm-Message-State: APjAAAU+pOFDMo/vWbbp/FLS79KwDhppoPWk+yHWDqID9tYaq8sB7cAp
+	l848ibw8F3oBsZRQKEnpE5fxVKxEdGz3wVU01wzk1iRzu/+apMS3tTBWSPvAhFldf6XCiABpqP7
+	NZG7GlWCY5dzcLW3xFHhboGgHjHiYPpVg4M//qWHEUXq8EKPlytcov0wfIesLYDsYxA==
+X-Received: by 2002:a17:902:aa8a:: with SMTP id d10mr5941623plr.154.1561559280860;
+        Wed, 26 Jun 2019 07:28:00 -0700 (PDT)
+X-Received: by 2002:a17:902:aa8a:: with SMTP id d10mr5941565plr.154.1561559280189;
+        Wed, 26 Jun 2019 07:28:00 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561559280; cv=none;
         d=google.com; s=arc-20160816;
-        b=f6MzmS6PPqosmkh/52uTzRCFUThF6HALNxSHMwO6o/6vNUF/rtmN7cR/ThRl+9niEh
-         oUp3gA4CyLIPGYRcejXofh1FUsrTAe3k2uQqJEYWjA/lLiEtjZtJXFG3x+6Rr2iepO70
-         yxMzkIx1UK0UXQkZX/YNijk01bxLAojyEUCZ7G9eDaT00qD7ksOU9cpFz66TKjaDmL7q
-         wi4Ua32hXv4zo/bpZHZj6qQRar7FIU5VNdb+XSCvcMBOFc8Jqaxb3fWFnsACEDwboIZe
-         9sflyaXJIJUK79MX5KiqkH5I1J1gitDYmalOE2m/Ewin3fcH1B2P9Lkvux8idmD7HVzA
-         jOdQ==
+        b=XXaRuENJ5yeOegFuroJy/F5I0GfaGTZhMm/ulPsUijflBfwOz0ODyQZvPTzrXP3Kis
+         sjVyD4YwD1rnpn8Q1rH8rxSlQs0EWjC0vCWb+/FhUXGopFQKls/rEYY32KGXifkwxpdE
+         ugIeGZnrmIQuNX9eVj6rxCCMrjfi4YbrEp2zJr590Q9SKVaaC+TxVP0EiKvXkBGxsK5n
+         9r8rEbf6zqcoeJEPQYqp1b4VAd+SJacM7ElEFXoTTy8UjzSH/VJKBCJRE4LLNzrKavTO
+         jxsRJCwR6GiqyiOlzq+p2O9ZT77ZBTV7vT4KqF38lzdL4RrKVjUDhbS+bJ35GN7E2Jpt
+         B3Qg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:from:subject:references:mime-version:message-id:in-reply-to
          :date:dkim-signature;
-        bh=M/VKnz1BZ+rvrIeSdLI9RxXAlLGL/xX/aFhsrhXW1SI=;
-        b=Gh459f7vRCohanbjq9/I26wbFa6c2khb7nJ12yEjDf3i4Hw4dk60WLoCJXeF+6h45L
-         ZIzLP1js6+oKIMS3nz+8qAMPFVCQr062Y3+vMS4zWMiSAtkZm6KJ/iiGt4FnvYv3ahz6
-         JJa4jHPsRnuEBuZpxYE1QBCGGYD6yFrZKXNpB3IXNR8xWYKlSRSnKbOB2Mq/Qw5Y7bQx
-         XfMOGgX21hOLW9fjNWiGcEgTlk1245E/7l58JYQfLbHHmrLGbYLbDe86TFWf4wlxN2RM
-         JwA1sUUK7Cay6vjKmzv9H8S7bcC0IBXFiYLaH7o37GdT9s4LNWXN6TzOoie2+PDKeG1h
-         f/zg==
+        bh=Rln2FP6BOxdiVf8wORphr5UbX/lGN9PNgnvsQm0pxfA=;
+        b=qUTVYVlrMUSuiiPX8F95Zp9csEUTPi4OxkRsHHmwjkBdmteSdoM06XFfUxWkBl+382
+         FNr8xZz81w+fnxZZ9SKmvCZROxSgngAiigVKlQ+55onhQnwDxgGMYY8MfiDGH629kYxr
+         P+ttAYzjdmifITLfnPOus+IeLPT0CAjd8SNRUlFBnqugLsdiF3jNeiDZI6GL2WgI5hLP
+         MnYxciizP9dugMw9pDjwwlTNhSUB6CTOVMWqpC2MXfv6KMlfrfIhTSCPflULmUT0hK47
+         8AYP3nvhvnxDPPNQtJkoY14Rv+T3kq3L9EKfCd4PzE0XyAFVG/ijTYzQPYliLUTl0cAA
+         Wo5Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=r6nw3M8i;
-       spf=pass (google.com: domain of 37iatxqukccslsclynvvnsl.jvtspube-ttrchjr.vyn@flex--elver.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=37IATXQUKCCsLScLYNVVNSL.JVTSPUbe-TTRcHJR.VYN@flex--elver.bounces.google.com;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=b1IaFK1m;
+       spf=pass (google.com: domain of 374atxqukcc4ovfobqyyqvo.mywvsxeh-wwufkmu.ybq@flex--elver.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=374ATXQUKCC4OVfObQYYQVO.MYWVSXeh-WWUfKMU.YbQ@flex--elver.bounces.google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
-        by mx.google.com with SMTPS id n16sor9197549uao.69.2019.06.26.07.27.56
+        by mx.google.com with SMTPS id r27sor10786032pfg.42.2019.06.26.07.28.00
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 26 Jun 2019 07:27:56 -0700 (PDT)
-Received-SPF: pass (google.com: domain of 37iatxqukccslsclynvvnsl.jvtspube-ttrchjr.vyn@flex--elver.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
+        Wed, 26 Jun 2019 07:28:00 -0700 (PDT)
+Received-SPF: pass (google.com: domain of 374atxqukcc4ovfobqyyqvo.mywvsxeh-wwufkmu.ybq@flex--elver.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=r6nw3M8i;
-       spf=pass (google.com: domain of 37iatxqukccslsclynvvnsl.jvtspube-ttrchjr.vyn@flex--elver.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=37IATXQUKCCsLScLYNVVNSL.JVTSPUbe-TTRcHJR.VYN@flex--elver.bounces.google.com;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=b1IaFK1m;
+       spf=pass (google.com: domain of 374atxqukcc4ovfobqyyqvo.mywvsxeh-wwufkmu.ybq@flex--elver.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=374ATXQUKCC4OVfObQYYQVO.MYWVSXeh-WWUfKMU.YbQ@flex--elver.bounces.google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=google.com; s=20161025;
         h=date:in-reply-to:message-id:mime-version:references:subject:from:to
          :cc;
-        bh=M/VKnz1BZ+rvrIeSdLI9RxXAlLGL/xX/aFhsrhXW1SI=;
-        b=r6nw3M8iBdMMdDsQCi4kz+gaKEu4VgLdto3uR/Hb+x3jWuYlTLr6ifrsToJKF86GHa
-         qA78Fzg+q3rah9Tq3+HC4NgmeJxeMXRi6X+mqSx2fMh7EN9mNVJho6xtgRDF+fgO/vzZ
-         ph3SX/j0XxKhGizyKrKnGHNigwW1uJl5IV9Uvjv8Nz6URFk0B2IZ5ts9Ue3zzcY9MHh/
-         BX7duW0QkAb0oIPz7Dhyy5UTlbci3X/d+MHSSpHlmE4LnN2rjqdhj9HwTgqMEq4YFAay
-         T924yXwtHmyBk/42sVazqXLxX0pT73ZH6McGBQ9WAhVmi56I2JeIk3VnKvW7e34FBVDz
-         ZwxA==
-X-Google-Smtp-Source: APXvYqyMLyo8aALGSXk8URhLTy8rPMv7ukPLiXQ5MQebePn4ydKU3VHhJTmrxX7/WLals9YL9eTyAQQfXg==
-X-Received: by 2002:ab0:70c8:: with SMTP id r8mr2695528ual.89.1561559276181;
- Wed, 26 Jun 2019 07:27:56 -0700 (PDT)
-Date: Wed, 26 Jun 2019 16:20:10 +0200
+        bh=Rln2FP6BOxdiVf8wORphr5UbX/lGN9PNgnvsQm0pxfA=;
+        b=b1IaFK1mLKquMHrwUdq8QS9ugryrRPvq91UQ0Uq6LFY+c2JG0h8vOnQRBq9Y4iBHrd
+         17LsoajCwmnclKkY2LGLzmZK9jswwvQ8KphGCaAcqDw3Y5nANf73MjW7Cdyza3VWGCrS
+         zpMj+JpcmgUaOeIauUqJJoduT7cgP35I/T6J0lq7MXm+xBM7VbsrPucsTC/qhyGJNYqj
+         Jq0SH14PhfI7POH8+ntsXeZlQLTimCrlHvzHDw1oHqI66dDTIlPptw8JxI9T+XhR2DNf
+         D9MpYcQLyK6spvA7kZWNLDDdjpLaHgbAIKd/hbGa6ghj3SUJRGWYatvWEVeUYYzWX5l9
+         DKaA==
+X-Google-Smtp-Source: APXvYqwQ22+0NkxIaX9CnqzWtnR2UzcffAGPuQ8MCIc490y2qHEX39KgAM5Jw+zu+rhdlMT/dvmAxkp4nA==
+X-Received: by 2002:a65:4387:: with SMTP id m7mr3168635pgp.287.1561559279316;
+ Wed, 26 Jun 2019 07:27:59 -0700 (PDT)
+Date: Wed, 26 Jun 2019 16:20:11 +0200
 In-Reply-To: <20190626142014.141844-1-elver@google.com>
-Message-Id: <20190626142014.141844-2-elver@google.com>
+Message-Id: <20190626142014.141844-3-elver@google.com>
 Mime-Version: 1.0
 References: <20190626142014.141844-1-elver@google.com>
 X-Mailer: git-send-email 2.22.0.410.gd8fdbe21b5-goog
-Subject: [PATCH v3 1/5] mm/kasan: Introduce __kasan_check_{read,write}
+Subject: [PATCH v3 2/5] mm/kasan: Change kasan_check_{read,write} to return boolean
 From: Marco Elver <elver@google.com>
 To: elver@google.com
 Cc: linux-kernel@vger.kernel.org, Andrey Ryabinin <aryabinin@virtuozzo.com>, 
@@ -117,11 +117,8 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This introduces __kasan_check_{read,write}. __kasan_check functions may
-be used from anywhere, even compilation units that disable
-instrumentation selectively.
-
-This change eliminates the need for the __KASAN_INTERNAL definition.
+This changes {,__}kasan_check_{read,write} functions to return a boolean
+denoting if the access was valid or not.
 
 Signed-off-by: Marco Elver <elver@google.com>
 Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>
@@ -142,87 +139,209 @@ v3:
 * Fix Formatting and split introduction of __kasan_check_* and returning
   bool into 2 patches.
 ---
- include/linux/kasan-checks.h | 31 ++++++++++++++++++++++++++++---
- mm/kasan/common.c            | 10 ++++------
- 2 files changed, 32 insertions(+), 9 deletions(-)
+ include/linux/kasan-checks.h | 36 ++++++++++++++++++++++--------------
+ mm/kasan/common.c            |  8 ++++----
+ mm/kasan/generic.c           | 13 +++++++------
+ mm/kasan/kasan.h             | 10 +++++++++-
+ mm/kasan/tags.c              | 12 +++++++-----
+ 5 files changed, 49 insertions(+), 30 deletions(-)
 
 diff --git a/include/linux/kasan-checks.h b/include/linux/kasan-checks.h
-index a61dc075e2ce..19a0175d2452 100644
+index 19a0175d2452..2c7f0b6307b2 100644
 --- a/include/linux/kasan-checks.h
 +++ b/include/linux/kasan-checks.h
-@@ -2,9 +2,34 @@
- #ifndef _LINUX_KASAN_CHECKS_H
- #define _LINUX_KASAN_CHECKS_H
- 
--#if defined(__SANITIZE_ADDRESS__) || defined(__KASAN_INTERNAL)
--void kasan_check_read(const volatile void *p, unsigned int size);
--void kasan_check_write(const volatile void *p, unsigned int size);
-+/*
-+ * __kasan_check_*: Always available when KASAN is enabled. This may be used
-+ * even in compilation units that selectively disable KASAN, but must use KASAN
-+ * to validate access to an address.   Never use these in header files!
-+ */
-+#ifdef CONFIG_KASAN
-+void __kasan_check_read(const volatile void *p, unsigned int size);
-+void __kasan_check_write(const volatile void *p, unsigned int size);
-+#else
-+static inline void __kasan_check_read(const volatile void *p, unsigned int size)
-+{ }
-+static inline void __kasan_check_write(const volatile void *p, unsigned int size)
-+{ }
-+#endif
-+
-+/*
-+ * kasan_check_*: Only available when the particular compilation unit has KASAN
-+ * instrumentation enabled. May be used in header files.
-+ */
-+#ifdef __SANITIZE_ADDRESS__
-+static inline void kasan_check_read(const volatile void *p, unsigned int size)
-+{
-+	__kasan_check_read(p, size);
-+}
-+static inline void kasan_check_write(const volatile void *p, unsigned int size)
-+{
-+	__kasan_check_read(p, size);
-+}
+@@ -8,13 +8,17 @@
+  * to validate access to an address.   Never use these in header files!
+  */
+ #ifdef CONFIG_KASAN
+-void __kasan_check_read(const volatile void *p, unsigned int size);
+-void __kasan_check_write(const volatile void *p, unsigned int size);
++bool __kasan_check_read(const volatile void *p, unsigned int size);
++bool __kasan_check_write(const volatile void *p, unsigned int size);
  #else
- static inline void kasan_check_read(const volatile void *p, unsigned int size)
- { }
+-static inline void __kasan_check_read(const volatile void *p, unsigned int size)
+-{ }
+-static inline void __kasan_check_write(const volatile void *p, unsigned int size)
+-{ }
++static inline bool __kasan_check_read(const volatile void *p, unsigned int size)
++{
++	return true;
++}
++static inline bool __kasan_check_write(const volatile void *p, unsigned int size)
++{
++	return true;
++}
+ #endif
+ 
+ /*
+@@ -22,19 +26,23 @@ static inline void __kasan_check_write(const volatile void *p, unsigned int size
+  * instrumentation enabled. May be used in header files.
+  */
+ #ifdef __SANITIZE_ADDRESS__
+-static inline void kasan_check_read(const volatile void *p, unsigned int size)
++static inline bool kasan_check_read(const volatile void *p, unsigned int size)
+ {
+-	__kasan_check_read(p, size);
++	return __kasan_check_read(p, size);
+ }
+-static inline void kasan_check_write(const volatile void *p, unsigned int size)
++static inline bool kasan_check_write(const volatile void *p, unsigned int size)
+ {
+-	__kasan_check_read(p, size);
++	return __kasan_check_read(p, size);
+ }
+ #else
+-static inline void kasan_check_read(const volatile void *p, unsigned int size)
+-{ }
+-static inline void kasan_check_write(const volatile void *p, unsigned int size)
+-{ }
++static inline bool kasan_check_read(const volatile void *p, unsigned int size)
++{
++	return true;
++}
++static inline bool kasan_check_write(const volatile void *p, unsigned int size)
++{
++	return true;
++}
+ #endif
+ 
+ #endif
 diff --git a/mm/kasan/common.c b/mm/kasan/common.c
-index 242fdc01aaa9..6bada42cc152 100644
+index 6bada42cc152..2277b82902d8 100644
 --- a/mm/kasan/common.c
 +++ b/mm/kasan/common.c
-@@ -14,8 +14,6 @@
-  *
-  */
- 
--#define __KASAN_INTERNAL
--
- #include <linux/export.h>
- #include <linux/interrupt.h>
- #include <linux/init.h>
-@@ -89,17 +87,17 @@ void kasan_disable_current(void)
+@@ -87,15 +87,15 @@ void kasan_disable_current(void)
  	current->kasan_depth--;
  }
  
--void kasan_check_read(const volatile void *p, unsigned int size)
-+void __kasan_check_read(const volatile void *p, unsigned int size)
+-void __kasan_check_read(const volatile void *p, unsigned int size)
++bool __kasan_check_read(const volatile void *p, unsigned int size)
  {
- 	check_memory_region((unsigned long)p, size, false, _RET_IP_);
+-	check_memory_region((unsigned long)p, size, false, _RET_IP_);
++	return check_memory_region((unsigned long)p, size, false, _RET_IP_);
  }
--EXPORT_SYMBOL(kasan_check_read);
-+EXPORT_SYMBOL(__kasan_check_read);
+ EXPORT_SYMBOL(__kasan_check_read);
  
--void kasan_check_write(const volatile void *p, unsigned int size)
-+void __kasan_check_write(const volatile void *p, unsigned int size)
+-void __kasan_check_write(const volatile void *p, unsigned int size)
++bool __kasan_check_write(const volatile void *p, unsigned int size)
  {
- 	check_memory_region((unsigned long)p, size, true, _RET_IP_);
+-	check_memory_region((unsigned long)p, size, true, _RET_IP_);
++	return check_memory_region((unsigned long)p, size, true, _RET_IP_);
  }
--EXPORT_SYMBOL(kasan_check_write);
-+EXPORT_SYMBOL(__kasan_check_write);
+ EXPORT_SYMBOL(__kasan_check_write);
  
- #undef memset
- void *memset(void *addr, int c, size_t len)
+diff --git a/mm/kasan/generic.c b/mm/kasan/generic.c
+index 504c79363a34..616f9dd82d12 100644
+--- a/mm/kasan/generic.c
++++ b/mm/kasan/generic.c
+@@ -166,29 +166,30 @@ static __always_inline bool memory_is_poisoned(unsigned long addr, size_t size)
+ 	return memory_is_poisoned_n(addr, size);
+ }
+ 
+-static __always_inline void check_memory_region_inline(unsigned long addr,
++static __always_inline bool check_memory_region_inline(unsigned long addr,
+ 						size_t size, bool write,
+ 						unsigned long ret_ip)
+ {
+ 	if (unlikely(size == 0))
+-		return;
++		return true;
+ 
+ 	if (unlikely((void *)addr <
+ 		kasan_shadow_to_mem((void *)KASAN_SHADOW_START))) {
+ 		kasan_report(addr, size, write, ret_ip);
+-		return;
++		return false;
+ 	}
+ 
+ 	if (likely(!memory_is_poisoned(addr, size)))
+-		return;
++		return true;
+ 
+ 	kasan_report(addr, size, write, ret_ip);
++	return false;
+ }
+ 
+-void check_memory_region(unsigned long addr, size_t size, bool write,
++bool check_memory_region(unsigned long addr, size_t size, bool write,
+ 				unsigned long ret_ip)
+ {
+-	check_memory_region_inline(addr, size, write, ret_ip);
++	return check_memory_region_inline(addr, size, write, ret_ip);
+ }
+ 
+ void kasan_cache_shrink(struct kmem_cache *cache)
+diff --git a/mm/kasan/kasan.h b/mm/kasan/kasan.h
+index 3ce956efa0cb..e62ea45d02e3 100644
+--- a/mm/kasan/kasan.h
++++ b/mm/kasan/kasan.h
+@@ -123,7 +123,15 @@ static inline bool addr_has_shadow(const void *addr)
+ 
+ void kasan_poison_shadow(const void *address, size_t size, u8 value);
+ 
+-void check_memory_region(unsigned long addr, size_t size, bool write,
++/**
++ * check_memory_region - Check memory region, and report if invalid access.
++ * @addr: the accessed address
++ * @size: the accessed size
++ * @write: true if access is a write access
++ * @ret_ip: return address
++ * @return: true if access was valid, false if invalid
++ */
++bool check_memory_region(unsigned long addr, size_t size, bool write,
+ 				unsigned long ret_ip);
+ 
+ void *find_first_bad_addr(void *addr, size_t size);
+diff --git a/mm/kasan/tags.c b/mm/kasan/tags.c
+index 63fca3172659..0e987c9ca052 100644
+--- a/mm/kasan/tags.c
++++ b/mm/kasan/tags.c
+@@ -76,7 +76,7 @@ void *kasan_reset_tag(const void *addr)
+ 	return reset_tag(addr);
+ }
+ 
+-void check_memory_region(unsigned long addr, size_t size, bool write,
++bool check_memory_region(unsigned long addr, size_t size, bool write,
+ 				unsigned long ret_ip)
+ {
+ 	u8 tag;
+@@ -84,7 +84,7 @@ void check_memory_region(unsigned long addr, size_t size, bool write,
+ 	void *untagged_addr;
+ 
+ 	if (unlikely(size == 0))
+-		return;
++		return true;
+ 
+ 	tag = get_tag((const void *)addr);
+ 
+@@ -106,22 +106,24 @@ void check_memory_region(unsigned long addr, size_t size, bool write,
+ 	 * set to KASAN_TAG_KERNEL (0xFF)).
+ 	 */
+ 	if (tag == KASAN_TAG_KERNEL)
+-		return;
++		return true;
+ 
+ 	untagged_addr = reset_tag((const void *)addr);
+ 	if (unlikely(untagged_addr <
+ 			kasan_shadow_to_mem((void *)KASAN_SHADOW_START))) {
+ 		kasan_report(addr, size, write, ret_ip);
+-		return;
++		return false;
+ 	}
+ 	shadow_first = kasan_mem_to_shadow(untagged_addr);
+ 	shadow_last = kasan_mem_to_shadow(untagged_addr + size - 1);
+ 	for (shadow = shadow_first; shadow <= shadow_last; shadow++) {
+ 		if (*shadow != tag) {
+ 			kasan_report(addr, size, write, ret_ip);
+-			return;
++			return false;
+ 		}
+ 	}
++
++	return true;
+ }
+ 
+ #define DEFINE_HWASAN_LOAD_STORE(size)					\
 -- 
 2.22.0.410.gd8fdbe21b5-goog
 
