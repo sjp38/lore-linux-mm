@@ -7,78 +7,78 @@ X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
 	SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 026FDC48BD8
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 12:28:39 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 530B7C48BD3
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 12:28:42 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B262E2063F
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 12:28:38 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 182A420B1F
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 12:28:42 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="uYRez3iz"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B262E2063F
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="qt1wzdpe"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 182A420B1F
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 208CE8E0019; Wed, 26 Jun 2019 08:28:17 -0400 (EDT)
+	id 983F38E0006; Wed, 26 Jun 2019 08:28:19 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 195068E0005; Wed, 26 Jun 2019 08:28:17 -0400 (EDT)
+	id 90CF98E0005; Wed, 26 Jun 2019 08:28:19 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0349B8E0019; Wed, 26 Jun 2019 08:28:16 -0400 (EDT)
+	id 75FEC8E0006; Wed, 26 Jun 2019 08:28:19 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B876C8E0005
-	for <linux-mm@kvack.org>; Wed, 26 Jun 2019 08:28:16 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id k19so1541021pgl.0
-        for <linux-mm@kvack.org>; Wed, 26 Jun 2019 05:28:16 -0700 (PDT)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 387848E0005
+	for <linux-mm@kvack.org>; Wed, 26 Jun 2019 08:28:19 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id p14so1374248plq.1
+        for <linux-mm@kvack.org>; Wed, 26 Jun 2019 05:28:19 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=O8xTiSY5VJngyKM6+yEPSiv/sNrzxm4spoPZD5fr/FE=;
-        b=KAjDH2wHx9HsXr3HqrMItRY+orju0KeGU1ozD0TavnK7QzIrCYoWPVnEWMhus3imBJ
-         y5EjXMq980G+7381M9uA7UZyY6kV9SSs5AQbg+/uH0rhlzsKaS0iecWVnA4y/sieEYpE
-         SSW7h5I36HzTVyd4vt7xLMXcmv8Ptgz75lOjAPXAvrrVALV2tiHnh0gvReBbOtcp74Cq
-         o4C95f6Q7WRuPWGYv2X0MwbW/R8W+w/ya5G8s4o7mwl1KHOZhXvIRlRN2RXbAb5z77Wi
-         vxgoDKFS0lezqd0tkdxuT2AAv400o5/CvM+bq3SPubDl1Lt9jT0sxzM/d2bcTgu6qhUz
-         h3BA==
-X-Gm-Message-State: APjAAAVlyWUUZpXvSQr8Fo3sj42F3kDa/C9EoAnURLMj4NOQiy9HOgKG
-	W5M3GKPe/vR1j3cMMkwuQVfdCjW5fPEmYtFww3lVwJgelqn4C5cboZZ9u/kadsktNzhrLHK0ugf
-	12TkgIr7F7s4uExe5Mw1Ndzy9ulYBy1MgNYa14vDjPfj7nhL/aF3bKcRBHRT5cjY=
-X-Received: by 2002:a65:50c3:: with SMTP id s3mr2711265pgp.177.1561552096265;
-        Wed, 26 Jun 2019 05:28:16 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwsTsF0YN4CLkc08GfUsrrCWNyYUUJSS0BmoKie8uvij7eB9SCC2ypoWgMOr99S6ueMZY70
-X-Received: by 2002:a65:50c3:: with SMTP id s3mr2711218pgp.177.1561552095471;
-        Wed, 26 Jun 2019 05:28:15 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561552095; cv=none;
+        bh=wJ4xmBbrpfmUG188a6jPO21+BmohIhmVPW5AXcG365o=;
+        b=QG86Gl5gjTkDcVd0KCiaK4D2j85y6OTuL+IQQv8I36qV6wh8yCkNVrL8vXEiFEKBcT
+         Jk2xU2MFszdBaANOIGzRaUvg7VxtEuIP1wBXuHd84dHHd5q9NeiZon2oKAc7QEcfHv93
+         iKVFOvDEILHT7FdbFiOHCCOOxHE9y25fKvXG8HXxcxrwglSp4su84Hl1uKvZuoZO713U
+         w9mc4CYqnA+foLK+EIND42mV8JGgpDiU4ncUYE10Jbuq9jHPrOcTKGiUVUrBTrdj+LFs
+         Y9BxOq1mzP3VVLZdBFIwAIVsItzZ/fCZcW3uBI8jv0jRmuqHAOynlARtFF0K/4M/swRw
+         8u/g==
+X-Gm-Message-State: APjAAAVOwWElTj9Lre8bPXtdwJiYa4TGRmpNUhFfhQ0DPF7mjsRqfffA
+	j3q4n94KsDDDAfx8J9D+dusinIDwEyzTDYietcGJeFvo0GdWTjY53brqyTC99Ot+qKAevMpYso7
+	eVnw2ZJp/4BzUqdBzvagVFBkJMh4n1i/gKEfe6w+xOyv4P7kIZIc7uq9lrB0SXhM=
+X-Received: by 2002:a17:90a:21ac:: with SMTP id q41mr4524156pjc.31.1561552098908;
+        Wed, 26 Jun 2019 05:28:18 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyM8MvUkETI66ssnqn3Zbiqv9VlJgEM94UvuWEbfDVvLTyismajP6JOZFhBFUBmYh3X9tkm
+X-Received: by 2002:a17:90a:21ac:: with SMTP id q41mr4524090pjc.31.1561552098281;
+        Wed, 26 Jun 2019 05:28:18 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561552098; cv=none;
         d=google.com; s=arc-20160816;
-        b=XR0YxXhR8mXOCat6nlaHZj+gGUIwsl1gvTE3sVq8iGwg+U3CL8Ne2LMXFUyr+T9jaQ
-         HhgF/pwnlEQd1+DqO/Yv5MJxY2pUYy+SQUuvv0ohI6X9zhdm1bnU4SM+F6nclXU/5pjX
-         zME5vNfTwrNpyJ76ydom8JHmt8dlr5xU+TYxii7LtmE2pZhw8p5HmsQdi63QJWANLk8l
-         1Yv6P6EjAho7z02FF/qtuXg5+wqNSmrlDbfCQmfi5TILO8/mjFuOlVDhEl3+Q+07/HU6
-         TRhdeSKXhXXvVC2YdpKFxmV6FdyRY2Sp7OBIhsGG/5lhWtPM9hqf/SOzQBUSzZS/5kGH
-         53lA==
+        b=OctmhIqGGOt+LZsXZMUtNcwEk/yqhGk3ij/wzlDNY3D38g7Wq5Kz7JurbLn3XZ/EEw
+         9uQNYghbuthzB3rNVnvXaxo6XAv8EAr4W0x57ESjmijQjaAmvgiKFxbb1utBjggK7vp+
+         KxwbejGyUs1+/bAfcI44pVLAs2GFaYgwikQ2TJB1b4KGZwOr2+YZBwL0WnwBSY+An7/d
+         J1aykTwMRfk/19fANn8HujJQrIGrtWPEodmqFGEXDQDyZa2BB47l13wIPeucTmoeHG48
+         Mzup9IMXGLSssq3fk2aOYkefzkJy23rbPylj9L6UdzL9okqLZ8k/OgfODd79+myxX6k9
+         pg/Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=O8xTiSY5VJngyKM6+yEPSiv/sNrzxm4spoPZD5fr/FE=;
-        b=jYBpoBEDPeW5mK6fVPfvu7TOwU7G9FegEH9icDLCKlLApsCVW6wWfXjyxwWw+sjyyF
-         93JbPt++cGx1tVZsMZag+cHMV1N5//vCZD3lqWwT7gT/Cee0tgI52K4wMK1+UUSciFWW
-         gDaVlfelS2wy6FCJGO2mVsT5/i8ygR+kaptaiDqs/+Epu7SrtJu+QLaUWu+et6h84+UJ
-         7Pg2EHbBvZDWBKsGjKtpTsJq5WMYjDXq/kZA6y8ZS8kMzRLTf76GWx0PWS0KFFAwv9Kb
-         TzSUiIM8wJ8JeBlu4n5zIY3DrXP10/Fd3iwX7vnotFzMp2hAeX1pXXlG9fyHoVJTUMX2
-         zPYQ==
+        bh=wJ4xmBbrpfmUG188a6jPO21+BmohIhmVPW5AXcG365o=;
+        b=iEeGd7PICx3YrN9DkEe+jwK1utl5ybJfJTD1RZHuoyLgXpHK4aUjSzVJWhgdB4cPtP
+         VfZTtlc9ZtsF6NRkuuvcVTOSG+SYZRpmR8i/jNnOjH4cSO5S404k3DVN6Z2fcV7RcZ7e
+         9dOFJj9PK/rX4deiBVPfUN92hZof28SVSMbOqfEFxIE4waMHgk/l/+PtLc7FCZRTOflZ
+         KearFkER7bwMW2dTHNdv106a59cLyR2LlCdndLs9psc51cjQSXS5g9OFBn1lgYsOWyQL
+         jdkL2ouuhZAzmkzpY5t27yW1z+BjirL7/9yjHm2k31S/6GN0v5Yysr4besuaY2jnHc0o
+         RnoQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=uYRez3iz;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=qt1wzdpe;
        spf=pass (google.com: best guess record for domain of batv+ab1f803c58217d155be4+5785+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+ab1f803c58217d155be4+5785+infradead.org+hch@bombadil.srs.infradead.org
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id m7si1911832pjs.63.2019.06.26.05.28.15
+        by mx.google.com with ESMTPS id j4si15889591pgh.209.2019.06.26.05.28.18
         for <linux-mm@kvack.org>
         (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Wed, 26 Jun 2019 05:28:15 -0700 (PDT)
+        Wed, 26 Jun 2019 05:28:18 -0700 (PDT)
 Received-SPF: pass (google.com: best guess record for domain of batv+ab1f803c58217d155be4+5785+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=uYRez3iz;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=qt1wzdpe;
        spf=pass (google.com: best guess record for domain of batv+ab1f803c58217d155be4+5785+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+ab1f803c58217d155be4+5785+infradead.org+hch@bombadil.srs.infradead.org
 DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	d=infradead.org; s=bombadil.20170209; h=Content-Transfer-Encoding:
@@ -86,15 +86,15 @@ DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	:Reply-To:Content-Type:Content-ID:Content-Description:Resent-Date:Resent-From
 	:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:List-Help:
 	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	bh=O8xTiSY5VJngyKM6+yEPSiv/sNrzxm4spoPZD5fr/FE=; b=uYRez3izVT1tTJ2inEjlr+sqzJ
-	mQ/FCU73nGQFwZr8hbyBONC+pRy4Y5zWmPKwE4e+/VnM1Wd54RXoko27P7OJdwYWEVZyOfhCpakZS
-	NceKKQi8BIED/6Zf1boEQOc2fhm7lXJtPKrQRbyudvIk9ok/2lsM7oKgHQmN0A0NUt1wauMOTrnNb
-	YztM4+JK3tURRAcVPdB2QDw04eLlKqyMRUZblAnCS+8D4s/P8NuKrPuYvEzOGKhpFIyCfq1gDkpSy
-	T+Z7xfSW0MFySDPpzpi2T3kL1+k8AT2+W9JX8ZK8GzydNUFd8VyzyqZ163oz2EZ+8MZT6vIfA9Trk
-	2ljmFk6A==;
+	bh=wJ4xmBbrpfmUG188a6jPO21+BmohIhmVPW5AXcG365o=; b=qt1wzdpeXOioJoeLjcBGzBBVU/
+	Sr6D01p4bOPlfFv7A/XbcaGQsl1IH01GeMcCCke5SJh7+fpyw5+rIKzgn9byxwe1kgVAu1j/h7ROQ
+	4lvA5eeeukgmWSeBeKgEDuEBjjwRhGPDC9AIWQm+7dOYdaQhTinbVKVEskkE0Io3IDHriXiis+aB9
+	8mEJ/G0aXx04YeP8uuuRQuTeOrRGeFyVQ4Rx8U+Noyv62xRv450IEmFtFO+E+MvzvI1V277cC6Z8i
+	R9Dvb48L9i++e+EKM3J8sWleQK00iEHpItPQXvfVhC/OdM0WIglOrdTN/KRiePoYY842rwdj3ZwLW
+	WRt9i5hw==;
 Received: from clnet-p19-102.ikbnet.co.at ([83.175.77.102] helo=localhost)
 	by bombadil.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
-	id 1hg724-0001YD-CI; Wed, 26 Jun 2019 12:28:12 +0000
+	id 1hg726-0001ZQ-Su; Wed, 26 Jun 2019 12:28:15 +0000
 From: Christoph Hellwig <hch@lst.de>
 To: Dan Williams <dan.j.williams@intel.com>,
 	=?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
@@ -106,9 +106,9 @@ Cc: linux-mm@kvack.org,
 	linux-nvdimm@lists.01.org,
 	linux-pci@vger.kernel.org,
 	linux-kernel@vger.kernel.org
-Subject: [PATCH 17/25] PCI/P2PDMA: use the dev_pagemap internal refcount
-Date: Wed, 26 Jun 2019 14:27:16 +0200
-Message-Id: <20190626122724.13313-18-hch@lst.de>
+Subject: [PATCH 18/25] nouveau: use alloc_page_vma directly
+Date: Wed, 26 Jun 2019 14:27:17 +0200
+Message-Id: <20190626122724.13313-19-hch@lst.de>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190626122724.13313-1-hch@lst.de>
 References: <20190626122724.13313-1-hch@lst.de>
@@ -121,131 +121,33 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The functionality is identical to the one currently open coded in
-p2pdma.c.
+hmm_vma_alloc_locked_page is scheduled to go away, use the proper
+mm function directly.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
+Reviewed-by: Jason Gunthorpe <jgg@mellanox.com>
 ---
- drivers/pci/p2pdma.c | 57 ++++----------------------------------------
- 1 file changed, 4 insertions(+), 53 deletions(-)
+ drivers/gpu/drm/nouveau/nouveau_dmem.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
 
-diff --git a/drivers/pci/p2pdma.c b/drivers/pci/p2pdma.c
-index ebd8ce3bba2e..608f84df604a 100644
---- a/drivers/pci/p2pdma.c
-+++ b/drivers/pci/p2pdma.c
-@@ -24,12 +24,6 @@ struct pci_p2pdma {
- 	bool p2pmem_published;
- };
+diff --git a/drivers/gpu/drm/nouveau/nouveau_dmem.c b/drivers/gpu/drm/nouveau/nouveau_dmem.c
+index 40c47d6a7d78..a50f6fd2fe24 100644
+--- a/drivers/gpu/drm/nouveau/nouveau_dmem.c
++++ b/drivers/gpu/drm/nouveau/nouveau_dmem.c
+@@ -148,11 +148,12 @@ nouveau_dmem_fault_alloc_and_copy(struct vm_area_struct *vma,
+ 		if (!spage || !(src_pfns[i] & MIGRATE_PFN_MIGRATE))
+ 			continue;
  
--struct p2pdma_pagemap {
--	struct dev_pagemap pgmap;
--	struct percpu_ref ref;
--	struct completion ref_done;
--};
--
- static ssize_t size_show(struct device *dev, struct device_attribute *attr,
- 			 char *buf)
- {
-@@ -78,32 +72,6 @@ static const struct attribute_group p2pmem_group = {
- 	.name = "p2pmem",
- };
+-		dpage = hmm_vma_alloc_locked_page(vma, addr);
++		dpage = alloc_page_vma(GFP_HIGHUSER, vma, addr);
+ 		if (!dpage) {
+ 			dst_pfns[i] = MIGRATE_PFN_ERROR;
+ 			continue;
+ 		}
++		lock_page(dpage);
  
--static struct p2pdma_pagemap *to_p2p_pgmap(struct percpu_ref *ref)
--{
--	return container_of(ref, struct p2pdma_pagemap, ref);
--}
--
--static void pci_p2pdma_percpu_release(struct percpu_ref *ref)
--{
--	struct p2pdma_pagemap *p2p_pgmap = to_p2p_pgmap(ref);
--
--	complete(&p2p_pgmap->ref_done);
--}
--
--static void pci_p2pdma_percpu_kill(struct dev_pagemap *pgmap)
--{
--	percpu_ref_kill(pgmap->ref);
--}
--
--static void pci_p2pdma_percpu_cleanup(struct dev_pagemap *pgmap)
--{
--	struct p2pdma_pagemap *p2p_pgmap =
--		container_of(pgmap, struct p2pdma_pagemap, pgmap);
--
--	wait_for_completion(&p2p_pgmap->ref_done);
--	percpu_ref_exit(&p2p_pgmap->ref);
--}
--
- static void pci_p2pdma_release(void *data)
- {
- 	struct pci_dev *pdev = data;
-@@ -153,11 +121,6 @@ static int pci_p2pdma_setup(struct pci_dev *pdev)
- 	return error;
- }
- 
--static const struct dev_pagemap_ops pci_p2pdma_pagemap_ops = {
--	.kill		= pci_p2pdma_percpu_kill,
--	.cleanup	= pci_p2pdma_percpu_cleanup,
--};
--
- /**
-  * pci_p2pdma_add_resource - add memory for use as p2p memory
-  * @pdev: the device to add the memory to
-@@ -171,7 +134,6 @@ static const struct dev_pagemap_ops pci_p2pdma_pagemap_ops = {
- int pci_p2pdma_add_resource(struct pci_dev *pdev, int bar, size_t size,
- 			    u64 offset)
- {
--	struct p2pdma_pagemap *p2p_pgmap;
- 	struct dev_pagemap *pgmap;
- 	void *addr;
- 	int error;
-@@ -194,26 +156,15 @@ int pci_p2pdma_add_resource(struct pci_dev *pdev, int bar, size_t size,
- 			return error;
- 	}
- 
--	p2p_pgmap = devm_kzalloc(&pdev->dev, sizeof(*p2p_pgmap), GFP_KERNEL);
--	if (!p2p_pgmap)
-+	pgmap = devm_kzalloc(&pdev->dev, sizeof(*pgmap), GFP_KERNEL);
-+	if (!pgmap)
- 		return -ENOMEM;
--
--	init_completion(&p2p_pgmap->ref_done);
--	error = percpu_ref_init(&p2p_pgmap->ref,
--			pci_p2pdma_percpu_release, 0, GFP_KERNEL);
--	if (error)
--		goto pgmap_free;
--
--	pgmap = &p2p_pgmap->pgmap;
--
- 	pgmap->res.start = pci_resource_start(pdev, bar) + offset;
- 	pgmap->res.end = pgmap->res.start + size - 1;
- 	pgmap->res.flags = pci_resource_flags(pdev, bar);
--	pgmap->ref = &p2p_pgmap->ref;
- 	pgmap->type = MEMORY_DEVICE_PCI_P2PDMA;
- 	pgmap->pci_p2pdma_bus_offset = pci_bus_address(pdev, bar) -
- 		pci_resource_start(pdev, bar);
--	pgmap->ops = &pci_p2pdma_pagemap_ops;
- 
- 	addr = devm_memremap_pages(&pdev->dev, pgmap);
- 	if (IS_ERR(addr)) {
-@@ -224,7 +175,7 @@ int pci_p2pdma_add_resource(struct pci_dev *pdev, int bar, size_t size,
- 	error = gen_pool_add_owner(pdev->p2pdma->pool, (unsigned long)addr,
- 			pci_bus_address(pdev, bar) + offset,
- 			resource_size(&pgmap->res), dev_to_node(&pdev->dev),
--			&p2p_pgmap->ref);
-+			pgmap->ref);
- 	if (error)
- 		goto pages_free;
- 
-@@ -236,7 +187,7 @@ int pci_p2pdma_add_resource(struct pci_dev *pdev, int bar, size_t size,
- pages_free:
- 	devm_memunmap_pages(&pdev->dev, pgmap);
- pgmap_free:
--	devm_kfree(&pdev->dev, p2p_pgmap);
-+	devm_kfree(&pdev->dev, pgmap);
- 	return error;
- }
- EXPORT_SYMBOL_GPL(pci_p2pdma_add_resource);
+ 		dst_pfns[i] = migrate_pfn(page_to_pfn(dpage)) |
+ 			      MIGRATE_PFN_LOCKED;
 -- 
 2.20.1
 
