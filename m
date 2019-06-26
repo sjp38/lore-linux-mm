@@ -2,128 +2,183 @@ Return-Path: <SRS0=C/CR=UZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-10.4 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT,USER_IN_DEF_DKIM_WL autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id ED0AEC48BD3
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 12:15:22 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2EAD1C48BD3
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 12:19:50 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B7B6920663
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 12:15:22 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B7B6920663
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id DCD3720B1F
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 12:19:49 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="h8oRe74w"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DCD3720B1F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3E79F8E0003; Wed, 26 Jun 2019 08:15:22 -0400 (EDT)
+	id 6CAC66B0003; Wed, 26 Jun 2019 08:19:49 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 397A78E0002; Wed, 26 Jun 2019 08:15:22 -0400 (EDT)
+	id 653D18E0005; Wed, 26 Jun 2019 08:19:49 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2ADB78E0003; Wed, 26 Jun 2019 08:15:22 -0400 (EDT)
+	id 542748E0002; Wed, 26 Jun 2019 08:19:49 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id E97B58E0002
-	for <linux-mm@kvack.org>; Wed, 26 Jun 2019 08:15:21 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id b12so2954250eds.14
-        for <linux-mm@kvack.org>; Wed, 26 Jun 2019 05:15:21 -0700 (PDT)
+Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E7186B0003
+	for <linux-mm@kvack.org>; Wed, 26 Jun 2019 08:19:49 -0400 (EDT)
+Received: by mail-qt1-f200.google.com with SMTP id t11so2619420qtc.9
+        for <linux-mm@kvack.org>; Wed, 26 Jun 2019 05:19:49 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=8GA34TnliigvzzmigKheCVA78yj6cP/myZ6XZIL8i5o=;
-        b=P3F22Lo63Ghu/fQv0bsp8JVfAvnyZEV3y/UKt79IxZNOtbvZKKrxAK79Cw9qywA3Bl
-         QzF7YvMEIW6KIu2yi/XxZ8MrzHLv6t3qk1a7eXmrMRY+jOLsdny6/qsQVrmZMjpAMc5f
-         LYfckjQEpzXk9nf9Y4nITjeOLBBb6IgH+xuEZkoOXeiPd9gfJ9CNiNo6yqm5cUQ0M717
-         UzrlFQqI9B+dhzy0hS5KnLBx42Win6/lTb9FEILnPPkcjUFQnTXhVdZAO+xkvsDECSor
-         aGQbDQHlOkcibOt4+EzwrRJWuBOfePJ2Zgi2oOYrrrWPoN7wOwRDvhdiVCuB8CqnSzmY
-         Pw3A==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAUi5CiPF3RM39zkf6N08SyTsa0ve9ddGKavppNlxtmb2Q6BLO0h
-	gAV8pCRO9Z3FU6XUbd2cDR+sRtvChmPYvayT7jyglK0fY3wOvNPhr5L7FL6dTcYt4pMWPfzZO4C
-	UKX5y6Yv6NnbwpSaHdtxXZPWqmpUjZ/IbE9sMPo/vwYE2xfVDnH5deYqms/I6OXU=
-X-Received: by 2002:a50:b104:: with SMTP id k4mr4746242edd.75.1561551321546;
-        Wed, 26 Jun 2019 05:15:21 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy6mcipH9SzPUt2xTSRJRbq5yORAjiqguCEpcNWnIQkKmr+W+RxvCNwSuzRYulI8C+Dn/NX
-X-Received: by 2002:a50:b104:: with SMTP id k4mr4746159edd.75.1561551320792;
-        Wed, 26 Jun 2019 05:15:20 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561551320; cv=none;
+        h=x-gm-message-state:dkim-signature:date:message-id:mime-version
+         :subject:from:to:cc;
+        bh=2Fq0HjbifmsdupktcfAuEl6sSbOWTKpMU8wUfFApIcI=;
+        b=n/LKFjEPexskHKqAnRce+LywkjWiB1gJNw/yPg/vZq+THXEEjKw0rG72cTKTreOsVK
+         7fqy75/j4vHTAKABif+FIluxPOlenrtiDUWeEjOBcm31McOW685B5aSlc/9JaUuYfKwH
+         TuMLrQUBjKrrfGlcFzi5VOKaqS0LQ/oa/OM/hr+WfRJWnce67P++HpnV0fNcY/BqT1an
+         y6FY1Fbr2zyRO1edZrJlmBs4IxUCWX7jripbCjsfizC4X3Ke6FKF9YJoynKc8aGCUWK7
+         YM+fquIU5eSqHMP5Kr+In/uthiXG5ce8jZNLnj4wLrsE0BHOWMedvfHmZIiefJID0yLC
+         JCdA==
+X-Gm-Message-State: APjAAAXtjaDTcb6r0PWgyXUlRiJ/ZWO2/I3KyR8YHlSwqHG2FSb2zdnF
+	d5EsVnZ8ve6su62Q0btePpC0A1ftW1/PCJnuMeKEzVdCeoc8AwzkuJepKsY87Cok4KTFgMylYjK
+	GZdkEBoZ8245gMeGIY4QqTHabXjWMBbnL1kn5qpxMYZtzdef1n0qeKfqKOGmPnuiX0Q==
+X-Received: by 2002:aed:3e7c:: with SMTP id m57mr3452769qtf.204.1561551588950;
+        Wed, 26 Jun 2019 05:19:48 -0700 (PDT)
+X-Received: by 2002:aed:3e7c:: with SMTP id m57mr3452730qtf.204.1561551588444;
+        Wed, 26 Jun 2019 05:19:48 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561551588; cv=none;
         d=google.com; s=arc-20160816;
-        b=Rsy7PE8W/q9UL+w8WTBbAjz4kS8c8UwD6GyGbr4LvIaF0VeuwL2tmmlH9aMi+KFpJi
-         B4ekHYz4X2eb4eQEOeZDWWNmEwulCDr+eNqfNNtA/QeK3X1/osyQubtj3KRsOfGINam4
-         UGm/Ufz/8jEYFikCEC55GijNi8uYUiFbOlI2uVTIHOwASkbiXXkgixtKGQd9jvFEnOYG
-         K0nxi9CGUo0r2ItHm+Mco1TAVzEPkm1NDwXeVgd3iKLG6cKLpHs2rMrfpZyf8vtmfvZX
-         sP7+CkSq0UaDapM/ynQNthq2r8Y8NMC0DbIzSlmxt+y9ZSY179wY3QTjSnhmGiZoBv66
-         fftw==
+        b=uVjiQLez+CZvZSjzLGJAt1Wnq1SEklB97U/YRgp77NyN6tDgENdECVn9H8UJA/tDbd
+         LGIS5gXSAdVIBm9URAUwmFs4YFSf895GE3+vKO08qVy2AUZbvCwjSi4j15qHQRu5eE8f
+         R8CrPe6WEkcwZKIVWts3zpQbVUnQB0HP0zAEGNDIdVhHMx2wLoOgODqfhSIfNx6uMvAc
+         owu/aSa5B3Oz/zubbftVcA4SI7jcBjplktWqqlXdUOc2Zq2/c/W/Y4pkuyaOB/xx+ikm
+         2tbUlxIfjvfWQYWaolSqutX8aBA83yC6eSM3bhWSM/ptPuc1t9cvPSN2uu7Has8sA4JS
+         CNHg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=8GA34TnliigvzzmigKheCVA78yj6cP/myZ6XZIL8i5o=;
-        b=bxT6ofMEbtV1YksHnt1PdiH+OPGYW3VJ+GCcNrWUAZYql72e1r3iPiZ0KGj5IUxiRI
-         6aiEhFw2e+GOQ66UKEd4OhBuk7T10a+bjcUBTOb6+uUbNDBh1CYpUCJcL9fq3PM/WMZE
-         10Uia8qkUO8PN3S/xgF4/qxe/1yDnaWVBP0XVUs1ip/Ht5K54Slxsp+8aIWURZ8/jaxg
-         T8qmu9UZc/7c9YRXhzqgnqnRL/EBwvpUQPS/BP1b8X4Rwk6X8MM4YeDY+i27LY9wF9iC
-         ae7nUDWN9sRTmAu+E8fPIEFXjdlUvStM2+/HJvAj3PVAU8uKCIzc7mBDDR2lnc+u1fK+
-         qzXg==
+        h=cc:to:from:subject:mime-version:message-id:date:dkim-signature;
+        bh=2Fq0HjbifmsdupktcfAuEl6sSbOWTKpMU8wUfFApIcI=;
+        b=RstOai1X0fRaBx6r6XSDY3I9U88+BIBu7mEdCof08tezhH2dufLS8LI/ZvpK8LyyEl
+         IWbu/esJb/liQzHZ7moil8uAbSmZutMJl6JXSvlAFmomoI6DPLiC0HSp/NjKWxzMTdkZ
+         0CFob6h+zmYUsUt9q1pGuK0mP/9i+3Zoh4M3JemPvndKiVKizD5IhFXsK5xV6v5egkj5
+         Q/W5QjT3zg3tZrOdrSPwGJUxLMWrSL/cXuDRHh94F4ePZXddAHi9okcty0GBOxJNd9+n
+         SaPBJXzmJxAVvdxb/vDm5alvEV3i+riCDssQQfqAFIXVF6b0XmL4Z+QAdnezE7QptHQd
+         OHWw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a56si3260995edc.379.2019.06.26.05.15.20
+       dkim=pass header.i=@google.com header.s=20161025 header.b=h8oRe74w;
+       spf=pass (google.com: domain of 342itxqykcoqmrojkxmuumrk.iusrotad-ssqbgiq.uxm@flex--glider.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=342ITXQYKCOQMROJKXMUUMRK.IUSROTad-SSQbGIQ.UXM@flex--glider.bounces.google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
+        by mx.google.com with SMTPS id n24sor15299643qvd.2.2019.06.26.05.19.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Jun 2019 05:15:20 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (Google Transport Security);
+        Wed, 26 Jun 2019 05:19:48 -0700 (PDT)
+Received-SPF: pass (google.com: domain of 342itxqykcoqmrojkxmuumrk.iusrotad-ssqbgiq.uxm@flex--glider.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id EDABDAF3A;
-	Wed, 26 Jun 2019 12:15:19 +0000 (UTC)
-Date: Wed, 26 Jun 2019 14:15:19 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: Shakeel Butt <shakeelb@google.com>, linux-mm@kvack.org
-Subject: Re: [PATCH v3 3/3] oom: decouple mems_allowed from
- oom_unkillable_task
-Message-ID: <20190626121519.GS17798@dhcp22.suse.cz>
-References: <20190624212631.87212-1-shakeelb@google.com>
- <20190624212631.87212-3-shakeelb@google.com>
- <20190626065118.GJ17798@dhcp22.suse.cz>
- <a94acd91-2bae-0634-b8a4-d5c8674b54f2@i-love.sakura.ne.jp>
- <20190626104737.GQ17798@dhcp22.suse.cz>
- <3ec3304f-7d3f-cb08-5635-12c6b9c0905c@i-love.sakura.ne.jp>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <3ec3304f-7d3f-cb08-5635-12c6b9c0905c@i-love.sakura.ne.jp>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+       dkim=pass header.i=@google.com header.s=20161025 header.b=h8oRe74w;
+       spf=pass (google.com: domain of 342itxqykcoqmrojkxmuumrk.iusrotad-ssqbgiq.uxm@flex--glider.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=342ITXQYKCOQMROJKXMUUMRK.IUSROTad-SSQbGIQ.UXM@flex--glider.bounces.google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=date:message-id:mime-version:subject:from:to:cc;
+        bh=2Fq0HjbifmsdupktcfAuEl6sSbOWTKpMU8wUfFApIcI=;
+        b=h8oRe74wvAhFNxCVSSLhgtaf8DdDRcvv2LUELZFKlhxIfMWHkB06yNG7SNT3CIncbO
+         xrYAcYPkEKjnBbVe2WkkxpRSyACn/8q3L802S7S92zdmpj8B19KqEVJcOM2de/TNEknR
+         +94Tt3chS1BA9EQxdCUwN45Wrz3UQ2wxYNt9NaVvGQq71AgKto3OiuqHn7RxyjdL02P3
+         kTB2Ww3CiDQVdnviX+kBmfbmKcALIJ+dol51U9jzsfedTnn6SYA/TwGSVoVw9zlhWnSb
+         4EeKQMkev9uTpqQzluNSwGkO5ukTgZfcxz/SaVb7HtKHx/CIH57gzcebuKUlYjgHmyus
+         M3AQ==
+X-Google-Smtp-Source: APXvYqwCAtzX9p5b1vV/t1GUdeUyS8l0gHd33EslOH8hxFCkdYOBd6HFsLdwDix1xDg/zZ5Qa9VT7wjTypQ=
+X-Received: by 2002:a0c:d249:: with SMTP id o9mr3328284qvh.196.1561551587948;
+ Wed, 26 Jun 2019 05:19:47 -0700 (PDT)
+Date: Wed, 26 Jun 2019 14:19:41 +0200
+Message-Id: <20190626121943.131390-1-glider@google.com>
+Mime-Version: 1.0
+X-Mailer: git-send-email 2.22.0.410.gd8fdbe21b5-goog
+Subject: [PATCH v8 0/3] add init_on_alloc/init_on_free boot options
+From: Alexander Potapenko <glider@google.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, 
+	Kees Cook <keescook@chromium.org>
+Cc: Alexander Potapenko <glider@google.com>, Masahiro Yamada <yamada.masahiro@socionext.com>, 
+	Michal Hocko <mhocko@kernel.org>, James Morris <jmorris@namei.org>, 
+	"Serge E. Hallyn" <serge@hallyn.com>, Nick Desaulniers <ndesaulniers@google.com>, 
+	Kostya Serebryany <kcc@google.com>, Dmitry Vyukov <dvyukov@google.com>, Sandeep Patil <sspatil@android.com>, 
+	Laura Abbott <labbott@redhat.com>, Randy Dunlap <rdunlap@infradead.org>, Jann Horn <jannh@google.com>, 
+	Mark Rutland <mark.rutland@arm.com>, Marco Elver <elver@google.com>, Qian Cai <cai@lca.pw>, 
+	linux-mm@kvack.org, linux-security-module@vger.kernel.org, 
+	kernel-hardening@lists.openwall.com
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed 26-06-19 20:46:02, Tetsuo Handa wrote:
-> On 2019/06/26 19:47, Michal Hocko wrote:
-> > On Wed 26-06-19 19:19:20, Tetsuo Handa wrote:
-> >> Is "mempolicy_nodemask_intersects(tsk) returning true when tsk already
-> >> passed mpol_put_task_policy(tsk) in do_exit()" what we want?
-> >>
-> >> If tsk is an already exit()ed thread group leader, that thread group is
-> >> needlessly selected by the OOM killer because mpol_put_task_policy()
-> >> returns true?
-> > 
-> > I am sorry but I do not really see how this is related to this
-> > particular patch. Are you suggesting that has_intersects_mems_allowed is
-> > racy? More racy now?
-> 
-> I'm suspecting the correctness of has_intersects_mems_allowed().
+Provide init_on_alloc and init_on_free boot options.
 
-THen this deserves an own email thread. Thanks!
+These are aimed at preventing possible information leaks and making the
+control-flow bugs that depend on uninitialized values more deterministic.
+
+Enabling either of the options guarantees that the memory returned by the
+page allocator and SL[AU]B is initialized with zeroes.
+SLOB allocator isn't supported at the moment, as its emulation of kmem
+caches complicates handling of SLAB_TYPESAFE_BY_RCU caches correctly.
+
+Enabling init_on_free also guarantees that pages and heap objects are
+initialized right after they're freed, so it won't be possible to access
+stale data by using a dangling pointer.
+
+As suggested by Michal Hocko, right now we don't let the heap users to
+disable initialization for certain allocations. There's not enough
+evidence that doing so can speed up real-life cases, and introducing
+ways to opt-out may result in things going out of control.
+
+To: Andrew Morton <akpm@linux-foundation.org>
+To: Christoph Lameter <cl@linux.com>
+To: Kees Cook <keescook@chromium.org>
+Cc: Masahiro Yamada <yamada.masahiro@socionext.com>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: James Morris <jmorris@namei.org>
+Cc: "Serge E. Hallyn" <serge@hallyn.com>
+Cc: Nick Desaulniers <ndesaulniers@google.com>
+Cc: Kostya Serebryany <kcc@google.com>
+Cc: Dmitry Vyukov <dvyukov@google.com>
+Cc: Sandeep Patil <sspatil@android.com>
+Cc: Laura Abbott <labbott@redhat.com>
+Cc: Randy Dunlap <rdunlap@infradead.org>
+Cc: Jann Horn <jannh@google.com>
+Cc: Mark Rutland <mark.rutland@arm.com>
+Cc: Marco Elver <elver@google.com>
+Cc: Qian Cai <cai@lca.pw>
+Cc: linux-mm@kvack.org
+Cc: linux-security-module@vger.kernel.org
+Cc: kernel-hardening@lists.openwall.com
+
+Alexander Potapenko (2):
+  mm: security: introduce init_on_alloc=1 and init_on_free=1 boot
+    options
+  mm: init: report memory auto-initialization features at boot time
+
+ .../admin-guide/kernel-parameters.txt         |  9 +++
+ drivers/infiniband/core/uverbs_ioctl.c        |  2 +-
+ include/linux/mm.h                            | 22 ++++++
+ init/main.c                                   | 24 +++++++
+ mm/dmapool.c                                  |  4 +-
+ mm/page_alloc.c                               | 71 +++++++++++++++++--
+ mm/slab.c                                     | 16 ++++-
+ mm/slab.h                                     | 19 +++++
+ mm/slub.c                                     | 43 +++++++++--
+ net/core/sock.c                               |  2 +-
+ security/Kconfig.hardening                    | 29 +++++++++
+ 12 files changed, 204 insertions(+), 19 deletions(-)
+---
+ v3: dropped __GFP_NO_AUTOINIT patches
+ v5: dropped support for SLOB allocator, handle SLAB_TYPESAFE_BY_RCU
+ v6: changed wording in boot-time message
+ v7: dropped the test_meminit.c patch (picked by Andrew Morton already),
+     minor wording changes
+ v8: fixes for interoperability with other heap debugging features
 -- 
-Michal Hocko
-SUSE Labs
+2.22.0.410.gd8fdbe21b5-goog
 
