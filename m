@@ -2,173 +2,127 @@ Return-Path: <SRS0=C/CR=UZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.0 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DFCDCC48BD6
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 07:44:06 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id AAA1AC4646B
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 07:58:34 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A72952086D
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 07:44:06 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A72952086D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 750882133F
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 07:58:34 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="oXeJYZx8"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 750882133F
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 43DE06B0003; Wed, 26 Jun 2019 03:44:06 -0400 (EDT)
+	id 125A38E0003; Wed, 26 Jun 2019 03:58:34 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3EF468E0003; Wed, 26 Jun 2019 03:44:06 -0400 (EDT)
+	id 0D6598E0002; Wed, 26 Jun 2019 03:58:34 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2DC708E0002; Wed, 26 Jun 2019 03:44:06 -0400 (EDT)
+	id EE1038E0003; Wed, 26 Jun 2019 03:58:33 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 09B316B0003
-	for <linux-mm@kvack.org>; Wed, 26 Jun 2019 03:44:06 -0400 (EDT)
-Received: by mail-qt1-f197.google.com with SMTP id v58so1832022qta.2
-        for <linux-mm@kvack.org>; Wed, 26 Jun 2019 00:44:06 -0700 (PDT)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B4E878E0002
+	for <linux-mm@kvack.org>; Wed, 26 Jun 2019 03:58:33 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id r7so959254plo.6
+        for <linux-mm@kvack.org>; Wed, 26 Jun 2019 00:58:33 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=AYJMbDsTZYynkoysg16sIFZnKDOyQjAo4kujBrr+YvE=;
-        b=a+B2TgVdJRV3s/Hc0cYnvtNVwwQQOsJQyFSHQXEIef3mYO4DM0dUp3oAfMzjr7Zgv+
-         akabS5LnuYyZWeunle7cfjW8DH1i1elfvvVBtmDS0B+FmZoEx3NEQhIZZs0aHxlQrNID
-         p7WS/ABCA09n+WW1s6Qxj32VrNhEH1ENH755G5QlTv/BRo2Ubl/o2TkquAKq6KOh1Z9U
-         OglQHZcSfz6p7lXseQjmsDEV8qJK5efHN7QdlextUoLRoaoKASto2NuQbqpkalL6652Y
-         PRARW5F0EWS9ECUSASMgmT0KRnkeafPi/4NSeQ4Ok/0OcgmxBpyfmoYdCssChJEjm8TZ
-         VeQw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAWG7u1OF8qpMB1GWS5RvLlfENqK44SOVBzPlReaf6v6lDMdyz/1
-	eqI8m9HM9SPOts2p4oYokDdXhFFXkqzaQVvYuVwVVD8ebOlMp5LcKvVkwRbbJ1soMv0Jh53YeAe
-	oDU9ghu980zxI+bhyuzWRmK9u8L17wP+m+55StmGr9cEi4K8z6uUlMmtdYNsPzotZ7g==
-X-Received: by 2002:a37:488c:: with SMTP id v134mr2644753qka.276.1561535045759;
-        Wed, 26 Jun 2019 00:44:05 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwLjRe4KUICXDKWdIeoa7XocVQfXdVnCiEwObaSh56Anap1/8c7FoY9lsG7V1nxtPIvGIYS
-X-Received: by 2002:a37:488c:: with SMTP id v134mr2644727qka.276.1561535045270;
-        Wed, 26 Jun 2019 00:44:05 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561535045; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=wk3gTV2rxOUxzK6dYo6NPW/evlC+KmzGL/BklH8DVGI=;
+        b=qjHXSsGy/cJAYLi8LbbdB4O4z518T8WN6xG61N83V8bp6dMjdGPstYsD2uqehkj7fR
+         GgREOKLu4QfaJTYPX0Nvy+9hUZfXsWmhvh+OrpNvk/LiWFDlQ9AwoTbB1DzUSr8LGxnJ
+         ekiLmd55zBeO3i0zBDdBTQPsFY4JwsIKS/J5iRFnkauypJysQwEpnmLAPDBpJ20HHv5H
+         3V2QH7Ei8gpeHNIsTZGaMv0xiPB0Z91kbgwly+T8XGLWhGAwfuYywsLVgVQvcWW3zKoS
+         QKzkjsSrOVvaVdG9ZWEeMZjXp3jdq2b9L4U0ocAfM/UcXg3gy2OTdsVvsmSa/zat8N55
+         qZEg==
+X-Gm-Message-State: APjAAAXAz2GWARzsa+ykycEnUNcFoM+Gtm2EsSQhLKS1fIjONuL69MO+
+	E0BkBM6caFFXms+e28G37zGrvkDtRfid42+auaWgzMfI1oNm7DzZQEWoJF0biqwhnYds40KqHK/
+	OvMreZGkCvFtZEYECQSE68EyoWcvEea8tv2gQAHcV/jvyQUt7yeBuwZg77bCOYgh1hw==
+X-Received: by 2002:a17:90a:2023:: with SMTP id n32mr3007122pjc.3.1561535913266;
+        Wed, 26 Jun 2019 00:58:33 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzwZpXVr2LP+gXlVqaZcUhIyXadQFDNBGNcdrcIhZJq4NhDAGxkKJjKC4tvxl4PR6qDwEN8
+X-Received: by 2002:a17:90a:2023:: with SMTP id n32mr3007070pjc.3.1561535912606;
+        Wed, 26 Jun 2019 00:58:32 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561535912; cv=none;
         d=google.com; s=arc-20160816;
-        b=FTw39ihfU07ndYEHXFOx9a8JY7BYkRf1LqCiTTlhIhNuhAy7RcSK6ynsi6BjvBsmjJ
-         bsZ+WacGF4Oq5c/ogZFOqIYTjkDChiPxDD2tyZj4WwOqVrEjnaNljOpWGqun70nVzG1l
-         rRCzwkbSTr0PXON3p5wLuVTM9wCpuAPr8SydPH2v8YOYTkvUsCdd2omxFBFjAR958sHD
-         GDYdI992vEH2LfSEemyUdnnp6tLQxMAVsyo1KgvI8w40QE6AmNk/7G+agRXNVGJC9v0M
-         by6+Iw2Q0+ljyAP5hHgGTDEXbQgNkeJTH40q4Ct/SEvrXkInEvA7NoBXF/A4bZaIJdWa
-         FHMg==
+        b=yAOYMjgxTsrLk2gRxz5j775NT7hVZNwRJ2imhpDkBVty1kQImDE8G18UT/NDdhNixw
+         JXo1NLKEYeGuQl4mA2Inh5+m/2NH5eXJnZot/tYmpp6JV5imvrdifLHTl0Nn4dh9HOz7
+         CTBsn62RdMuXOoauhApXLV/5ixybse491+VonN4PlJ46HVV34PuZYXgi2K50lV+rXE1H
+         U+0gPGdYkKjAaJoh3txFYwaxcQTDlbAHP/VEwQRu1NoRDA/WdGjz15CaqJtgji26WFZl
+         2PuBVvz/BQ8gcCX0LD+odS8srzJSjlYHUdHGdRzwONai8n6h3e6htgqAEVI7nrtUyCW1
+         73CQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=AYJMbDsTZYynkoysg16sIFZnKDOyQjAo4kujBrr+YvE=;
-        b=jCto/pE/vbtS2+RXQX1W8irseXtECu6O/Ab2VcrCy9g5c0itKUHKag2zHxkGs6APgN
-         SWTaTcEbwDOq83cOZap9PYteg88f810Wko2Bopqdn4SvQKW7L3diUw664WTCM80/uhfG
-         58mdy3YE71zKpcZIFOqSGiY7ESrkVR4mo75gAAt4qgQmWEU+slH3k4pqupdNdUiI67oP
-         b+b7y8JRbzjWoORk9NjQKWVDqWfd+1kwUZrm9ms1uJZPh9erjRcOndd0jF0EuJBBnX5m
-         DomsfJO8X6Ej9+a+djG/YXJ3M8HyO95rKzPdz5rssQTOgS3V4U2nh9MAuC5Rdy94PP53
-         FByg==
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=wk3gTV2rxOUxzK6dYo6NPW/evlC+KmzGL/BklH8DVGI=;
+        b=jMDFeO6gsyE1oX9TlrDh/L0zp7h642n2+6ESu6/s+mC1Lv+x8nRcxXrfDHtE5qWrJM
+         Q4jZFObMxNRPNPEY3ISFtOFcOmCHIdaEQQ23P7F8O23CWTdBDw6QPlEQQu5CcjC7/iv7
+         n1RQbxCFjV6aWrYa3RyhTfFFU8aqW42r6fJh8vpELElYUEZd3zd0YVvhjs7LwuAQpxdc
+         Qw4ZWpt/ZXhEn6rcEJYVPnTkTYsv+5pgD2a5437DIDkyuTNSaftR8FDoR1dxjqybu3CT
+         zsY9uBzufqSjJ7J9y/bhxRn1kXaA8Q83emWl2lWsmDfhmElWC30BggAaR9PgF3LYEt+N
+         IhqQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id n1si11281718qkd.107.2019.06.26.00.44.05
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=oXeJYZx8;
+       spf=pass (google.com: best guess record for domain of batv+ab1f803c58217d155be4+5785+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+ab1f803c58217d155be4+5785+infradead.org+hch@bombadil.srs.infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id q125si15606058pgq.483.2019.06.26.00.58.32
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Jun 2019 00:44:05 -0700 (PDT)
-Received-SPF: pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Wed, 26 Jun 2019 00:58:32 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of batv+ab1f803c58217d155be4+5785+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 0C4045D672;
-	Wed, 26 Jun 2019 07:43:54 +0000 (UTC)
-Received: from xz-x1 (ovpn-12-42.pek2.redhat.com [10.72.12.42])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id 7FC9C1001B04;
-	Wed, 26 Jun 2019 07:43:36 +0000 (UTC)
-Date: Wed, 26 Jun 2019 15:43:30 +0800
-From: Peter Xu <peterx@redhat.com>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Linux-MM <linux-mm@kvack.org>,
-	Linux List Kernel Mailing <linux-kernel@vger.kernel.org>,
-	David Hildenbrand <david@redhat.com>,
-	Hugh Dickins <hughd@google.com>, Maya Gokhale <gokhale2@llnl.gov>,
-	Jerome Glisse <jglisse@redhat.com>,
-	Pavel Emelyanov <xemul@virtuozzo.com>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	Martin Cracauer <cracauer@cons.org>,
-	Denis Plotnikov <dplotnikov@virtuozzo.com>,
-	Shaohua Li <shli@fb.com>, Andrea Arcangeli <aarcange@redhat.com>,
-	Mike Kravetz <mike.kravetz@oracle.com>,
-	Marty McFadden <mcfadden8@llnl.gov>,
-	Mike Rapoport <rppt@linux.vnet.ibm.com>,
-	Mel Gorman <mgorman@suse.de>,
-	"Kirill A . Shutemov" <kirill@shutemov.name>,
-	"Dr . David Alan Gilbert" <dgilbert@redhat.com>
-Subject: Re: [PATCH v5 02/25] mm: userfault: return VM_FAULT_RETRY on signals
-Message-ID: <20190626074330.GB24379@xz-x1>
-References: <20190620022008.19172-1-peterx@redhat.com>
- <20190620022008.19172-3-peterx@redhat.com>
- <CAHk-=wiGphH2UL+To5rASyFoCk6=9bROUkGDWSa_rMu9Kgb0yw@mail.gmail.com>
- <20190624074250.GF6279@xz-x1>
- <CAHk-=whRw_6ZTj=AT=cRoSTyoEk2-hiqJoNkqgWE-gSRVE5YwQ@mail.gmail.com>
- <20190625053047.GC10020@xz-x1>
- <CAHk-=wjxOz5RXpFTU=wSJg4Mjg1ugOBhBVppSTH6qjZPxpGOKg@mail.gmail.com>
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=oXeJYZx8;
+       spf=pass (google.com: best guess record for domain of batv+ab1f803c58217d155be4+5785+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+ab1f803c58217d155be4+5785+infradead.org+hch@bombadil.srs.infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
+	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=wk3gTV2rxOUxzK6dYo6NPW/evlC+KmzGL/BklH8DVGI=; b=oXeJYZx84PoEDtYajsGmQzn39
+	xi9TIEcA8hiu2D5oFu9mbD1PgsbVdgRnAOLsgOnh1Gxe4tPvZxOHCu8mXty01blDpfv3jUECQtMvl
+	XeZpFefr4u+CYnn5ZBMMQJ7x7j2t06Z3FBAEUv0klRe0pjqbEImOdN2RQrj84aSAOL02chEbh8NfQ
+	8rJVk5VUinGHxU9zF5JXtwxjfsFdK9OfURrkjt8japaN5G0VqyRJeB29xmRkNw4p9sGWyQCBri8Aj
+	qqWS9CtcR4C0yi0q96eWQHvehJ1kKps51KJb+zlrtdYv5tzdNXYyx7tpPTSstvXlwqKZ3sh8hNENn
+	EuNRJTulQ==;
+Received: from hch by bombadil.infradead.org with local (Exim 4.92 #3 (Red Hat Linux))
+	id 1hg2oT-0006vL-19; Wed, 26 Jun 2019 07:57:53 +0000
+Date: Wed, 26 Jun 2019 00:57:53 -0700
+From: Christoph Hellwig <hch@infradead.org>
+To: Alastair D'Silva <alastair@au1.ibm.com>
+Cc: alastair@d-silva.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	"Rafael J. Wysocki" <rafael@kernel.org>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Pavel Tatashin <pasha.tatashin@oracle.com>,
+	Oscar Salvador <osalvador@suse.de>, Michal Hocko <mhocko@suse.com>,
+	Mike Rapoport <rppt@linux.ibm.com>, Baoquan He <bhe@redhat.com>,
+	Wei Yang <richard.weiyang@gmail.com>,
+	Logan Gunthorpe <logang@deltatee.com>, linux-kernel@vger.kernel.org,
+	linux-mm@kvack.org
+Subject: Re: [PATCH v2 0/3] mm: Cleanup & allow modules to hotplug memory
+Message-ID: <20190626075753.GA24711@infradead.org>
+References: <20190626061124.16013-1-alastair@au1.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAHk-=wjxOz5RXpFTU=wSJg4Mjg1ugOBhBVppSTH6qjZPxpGOKg@mail.gmail.com>
+In-Reply-To: <20190626061124.16013-1-alastair@au1.ibm.com>
 User-Agent: Mutt/1.11.4 (2019-03-13)
-X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.39]); Wed, 26 Jun 2019 07:44:04 +0000 (UTC)
+X-SRS-Rewrite: SMTP reverse-path rewritten from <hch@infradead.org> by bombadil.infradead.org. See http://www.infradead.org/rpr.html
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jun 26, 2019 at 09:59:58AM +0800, Linus Torvalds wrote:
-> On Tue, Jun 25, 2019 at 1:31 PM Peter Xu <peterx@redhat.com> wrote:
-> >
-> > Yes that sounds reasonable to me, and that matches perfectly with
-> > TASK_INTERRUPTIBLE and TASK_KILLABLE.  The only thing that I am a bit
-> > uncertain is whether we should define FAULT_FLAG_INTERRUPTIBLE as a
-> > new bit or make it simply a combination of:
-> >
-> >   FAULT_FLAG_KILLABLE | FAULT_FLAG_USER
-> 
-> It needs to be a new bit, I think.
-> 
-> Some things could potentially care about the difference between "can I
-> abort this thing because the task will *die* and never see the end
-> result" and "can I abort this thing because it will be retried".
-> 
-> For a regular page fault, maybe FAULT_FLAG_INTERRUPTBLE will always be
-> set for the same things that set FAULT_FLAG_KILLABLE when it happens
-> from user mode, but at least conceptually I think they are different,
-> and it could make a difference for things like get_user_pages() or
-> similar.
-> 
-> Also, I actually don't think we should ever expose FAULT_FLAG_USER to
-> any fault handlers anyway. It has a very specific meaning for memory
-> cgroup handling, and no other fault handler should likely ever care
-> about "was this a user fault". So I'd actually prefer for people to
-> ignore and forget that hacky flag entirely, rather than give it subtle
-> semantic meaning together with KILLABLE.
+On Wed, Jun 26, 2019 at 04:11:20PM +1000, Alastair D'Silva wrote:
+>   - Drop mm/hotplug: export try_online_node
+>         (not necessary)
 
-OK.
-
-> 
-> [ Side note: this is the point where I may soon lose internet access,
-> so I'll probably not be able to participate in the discussion any more
-> for a while ]
-
-Appreciate for these suggestions.  I'll prepare something with that
-new bit and see whether that could be accepted.  I'll also try to
-split those out of the bigger series.
-
-Thanks,
-
--- 
-Peter Xu
+With this the subject line of the cover letter seems incorrect now :)
 
