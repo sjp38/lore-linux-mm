@@ -2,376 +2,215 @@ Return-Path: <SRS0=C/CR=UZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	UNPARSEABLE_RELAY,URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 154A9C48BD5
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 00:04:16 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 967FAC48BD6
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 00:05:22 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BCC9320883
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 00:04:15 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BCC9320883
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
+	by mail.kernel.org (Postfix) with ESMTP id 3F70120883
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 00:05:22 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="c2gm01Bh";
+	dkim=pass (1024-bit key) header.d=fb.onmicrosoft.com header.i=@fb.onmicrosoft.com header.b="AsG9IPzo"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3F70120883
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6D1056B0006; Tue, 25 Jun 2019 20:04:15 -0400 (EDT)
+	id D36866B0003; Tue, 25 Jun 2019 20:05:21 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6A6088E0003; Tue, 25 Jun 2019 20:04:15 -0400 (EDT)
+	id C9C078E0003; Tue, 25 Jun 2019 20:05:21 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 570788E0002; Tue, 25 Jun 2019 20:04:15 -0400 (EDT)
+	id AECE68E0002; Tue, 25 Jun 2019 20:05:21 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 207FC6B0006
-	for <linux-mm@kvack.org>; Tue, 25 Jun 2019 20:04:15 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id p14so228858plq.1
-        for <linux-mm@kvack.org>; Tue, 25 Jun 2019 17:04:15 -0700 (PDT)
+Received: from mail-yb1-f200.google.com (mail-yb1-f200.google.com [209.85.219.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 8CC656B0003
+	for <linux-mm@kvack.org>; Tue, 25 Jun 2019 20:05:21 -0400 (EDT)
+Received: by mail-yb1-f200.google.com with SMTP id y3so1585341ybg.12
+        for <linux-mm@kvack.org>; Tue, 25 Jun 2019 17:05:21 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:in-reply-to:references;
-        bh=S797eYnzFdTMMfjZJVlwmlDvblrr20h1Xd/x4lcf5OU=;
-        b=riR+0wkK7nhWCJIwRFfK/0fWlly4F5MJdSLeGNqJ3jywC9f6hFsnxg20sIEr54PSsg
-         nfGC5v2QasUPl5AxsAqXHPgnzOYok1cet7txSBEHqtH5sHoJHpfXv6yFFRJPzTAHe940
-         GLb3Z3z5VoCxMQ0vN+A9qh2IBHskZpEI7/xUoReycGPkRgX1aQyMxEpVhxXMVDbQpkQw
-         tY4ue4zRlusz/SkQH5FmmNXLspRtyhhEDyYRXSjT/rpXOw5Ak6V6iZctPqX5Zgp5rnJM
-         5v6BaaJntLV1o0qN7+uG+RzpjJqJB/cccJzvYyJQkQRkzgQH+JLaXw8TDnSb6O+ncISs
-         oTkg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.37 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Gm-Message-State: APjAAAXKZIPMoAl4G7mTlHfxQIDdjj/T04Bl0B+qfAKXZl2qZ0GBNDOw
-	rObEXSw6QL6aYCx5pNkW5Hjx5zLqinI2YfJuSpLu2SHyxYB7ZFyavMbYVOeyFWEIggan5lJe7ew
-	Qpp/CgZukjRuv3PuDfRD47r5sK1CTqbE5uuWb70i8Nrpln4cO1pSsr6OxxE8sOq0tag==
-X-Received: by 2002:a17:90a:360c:: with SMTP id s12mr704058pjb.30.1561507454736;
-        Tue, 25 Jun 2019 17:04:14 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwm/blPXQZO+JfBS61gPdg8MmNlVLFvlwYjJUYSXc8HOQFZrIaV7aof5RcY8Q0WQRg/UfOJ
-X-Received: by 2002:a17:90a:360c:: with SMTP id s12mr703929pjb.30.1561507453259;
-        Tue, 25 Jun 2019 17:04:13 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561507453; cv=none;
+        h=x-gm-message-state:dkim-signature:dkim-signature:from:to:cc:subject
+         :thread-topic:thread-index:date:message-id:references:in-reply-to
+         :accept-language:content-language:content-id
+         :content-transfer-encoding:mime-version;
+        bh=gJqK7WAwnppGNe+WaPuYdN7w6pmeK+qS5lDIC2cNwBg=;
+        b=qjuMkVPpcVQ8NXhHMe+RZCItCGlA7EJlx4ctWRHSWqSOTW01rws7j4MfhDUfTtMJv/
+         qjgDmip81LV8B2kgNab/h/KUY6+1BIMD+AYoRnHZPwCy4l/hFrMMgc0ROo+zLyS3vvKj
+         8A1ZUYM/xlHPMHTP9pfUPM3joZe4IlE2Sfj1nlT/NSp4FpD2nyS7pdY8TApzXmCKryCk
+         2Jv5/8ApLFAwNHSxugYw7pAtNnnV+KyrKwbqToh2y4jAjp96E/XxRcClsGFENatTxRM7
+         dd9Xfv34vY1gqq1Y2MbF0HNY31VbR91VRe+qVuAmJqL2SK8fITR7vaY7BSFfmpFOtMOO
+         RepA==
+X-Gm-Message-State: APjAAAXnViTincPd2FLH0IIr7zdnHRnmr4+h3Uj+dB+HtG8kbCAGds6Q
+	w6/mAmcvwSfkhbzGNXBNfmRrrG1ryyBzH+mHhz+dcGAmgpH2Ni+gY/pKDWpEPi41vBbJAlsJd9l
+	9RcD/qXYe7o2k9YWmmEVtW8c2CpkZ6kmsn6qVwiFk3pWzZnyD7/cE2nLX++MvNT4USg==
+X-Received: by 2002:a81:3308:: with SMTP id z8mr946912ywz.298.1561507521348;
+        Tue, 25 Jun 2019 17:05:21 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwTdEtx0Ywq7O5qWAoMl62gGMznCXYsLYqaGfD4D4+T2HsIsu7y+HrnkNcobhAMrbSMqs6B
+X-Received: by 2002:a81:3308:: with SMTP id z8mr946893ywz.298.1561507520836;
+        Tue, 25 Jun 2019 17:05:20 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561507520; cv=none;
         d=google.com; s=arc-20160816;
-        b=oVYUEYqxwLnwlwHIfd9oVxn4i9i1F8KHjq372TO9fnUxbNgh68py/IT/dBH1eZmWjT
-         GFi6o+SDagKzuxqslDagyPoHb3BCo0oVgKEuM94dHsov538jpOSyvl9QSDurdJ4ICv3N
-         JizR4Q2E/PDouyWeWnD5Q/1LL7LzlHacMACoysmpS/8EQPqpykZc/NV4k0vBylXxOd1J
-         X4Yl0n/wB5X8aMQGfOp9GWNYf5beRnadjdShUSxUjZDdOSXGgWnXqhK7WHmuMIsiOlkj
-         OSJnPVThSDqT/p53LNBb3wulBPNIHLwbJqH+OVxHvYRW5k72zxbHkr42lnRG3rW5s7wq
-         Lu5g==
+        b=fmVh8W/xIwaYVTq0y3ISl4GUc+rasxX+LEdgHFA9i0LAgh41ZVigHFSCBqpBFCcop3
+         kkvF+/HpDuh6WzdXD1nyMbfxTbVgxy9HPp3H48R7MAPmF7ecpU6Zy+3BSEYxCRadB5A4
+         eGELtdIA00WUUdcY2OSqpkdHNLC7GPE3Dd3I05bbB0EN8BAFCf1KqSuDhPd00JaV6TK/
+         OjvSvxoV5xdfxO1LvZ9xQWLisFFdfx38QeEYXgdrS43TLLtAT8JAm+HNp7xhzK0egha/
+         UIWrJNBTRw/LGdUZPU1VKgH06U7yQkcEWntsQbkdojZZXZTEVxPug2lKqyaj6+9zYBoH
+         vpWQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=S797eYnzFdTMMfjZJVlwmlDvblrr20h1Xd/x4lcf5OU=;
-        b=xTTVC7PD+tA4goR5Z5of/ATRnUUsRCh0MaMTCe1HThsM4ctK8A402UCGa0bN0wX0vj
-         6WpbT7tlQY/vg6+NJTk3yb15A1pMZBrxP39apmpLVa4SXFP4MphdifaV4XdHp47cljKt
-         XipR5CcdV5SjZ4kmDI6hL94xRCr9qMQE74ozgg+fp/28NjejL4CQf20tiOqVFKThkp3i
-         idjNU1EA7hEquxNWZDZ1jAbqCvPQ7ZKGE0aZQJCwFGVYTWU4jAFY04B1FU4BdHbCnq1U
-         q0WATpnWz/TIzcqBtPv5JaRHSI/IMhysYmZzJcaIDx0VUi/B6mRyZw2UNbGmCPNK+6xj
-         6Ttw==
+        h=mime-version:content-transfer-encoding:content-id:content-language
+         :accept-language:in-reply-to:references:message-id:date:thread-index
+         :thread-topic:subject:cc:to:from:dkim-signature:dkim-signature;
+        bh=gJqK7WAwnppGNe+WaPuYdN7w6pmeK+qS5lDIC2cNwBg=;
+        b=OChq3W3ULD3AFvjJnlaxsS8XIvLC2PYNFoLaqlIrCs9Ic48A8+1xjyj2nEmKefLBZz
+         jRUo2UKeYUvE9sTLiYIYjKhUAvWO6jt+77w08J2VgZPe2FgK3l6H7zlqnbkYOKhN24m2
+         nIuIvwCmzPr0CKaKAgeoZhKLwLmFPRm++Xw4C7zfo0Qy+7DO/vLIzAaUdSBdI0G3r0sC
+         F/Ghm0tXrm0HySrr5wGTo273Rdbr8YT6o+zjzYKsG6TRn0y+91Loo8C2A3JntOTlV1RN
+         f+noKp0nTz5rt67n4pxSPt9/24qmZb+cbT28BPJBOLuLuBd2kv1ReUbuJYVlKEcu3ID0
+         l/bQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.37 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-Received: from out4437.biz.mail.alibaba.com (out4437.biz.mail.alibaba.com. [47.88.44.37])
-        by mx.google.com with ESMTPS id y135si10968724pfg.200.2019.06.25.17.04.11
+       dkim=pass header.i=@fb.com header.s=facebook header.b=c2gm01Bh;
+       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-onmicrosoft-com header.b=AsG9IPzo;
+       spf=pass (google.com: domain of prvs=1080e1092d=songliubraving@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=1080e1092d=songliubraving@fb.com";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
+Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id r67si4845921ywr.279.2019.06.25.17.05.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 25 Jun 2019 17:04:13 -0700 (PDT)
-Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.37 as permitted sender) client-ip=47.88.44.37;
+        Tue, 25 Jun 2019 17:05:20 -0700 (PDT)
+Received-SPF: pass (google.com: domain of prvs=1080e1092d=songliubraving@fb.com designates 67.231.153.30 as permitted sender) client-ip=67.231.153.30;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.37 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R171e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e04395;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=11;SR=0;TI=SMTPD_---0TVCYVJX_1561507375;
-Received: from e19h19392.et15sqa.tbsite.net(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TVCYVJX_1561507375)
-          by smtp.aliyun-inc.com(127.0.0.1);
-          Wed, 26 Jun 2019 08:03:03 +0800
-From: Yang Shi <yang.shi@linux.alibaba.com>
-To: kirill.shutemov@linux.intel.com,
-	ktkhai@virtuozzo.com,
-	hannes@cmpxchg.org,
-	mhocko@suse.com,
-	hughd@google.com,
-	shakeelb@google.com,
-	rientjes@google.com,
-	akpm@linux-foundation.org
-Cc: yang.shi@linux.alibaba.com,
-	linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
-Subject: [v4 PATCH 4/4] mm: thp: make deferred split shrinker memcg aware
-Date: Wed, 26 Jun 2019 08:02:41 +0800
-Message-Id: <1561507361-59349-5-git-send-email-yang.shi@linux.alibaba.com>
-X-Mailer: git-send-email 1.8.3.1
-In-Reply-To: <1561507361-59349-1-git-send-email-yang.shi@linux.alibaba.com>
-References: <1561507361-59349-1-git-send-email-yang.shi@linux.alibaba.com>
+       dkim=pass header.i=@fb.com header.s=facebook header.b=c2gm01Bh;
+       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-onmicrosoft-com header.b=AsG9IPzo;
+       spf=pass (google.com: domain of prvs=1080e1092d=songliubraving@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=1080e1092d=songliubraving@fb.com";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
+Received: from pps.filterd (m0089730.ppops.net [127.0.0.1])
+	by m0089730.ppops.net (8.16.0.27/8.16.0.27) with SMTP id x5PNxAB8029198;
+	Tue, 25 Jun 2019 17:03:19 -0700
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
+ : date : message-id : references : in-reply-to : content-type : content-id
+ : content-transfer-encoding : mime-version; s=facebook;
+ bh=gJqK7WAwnppGNe+WaPuYdN7w6pmeK+qS5lDIC2cNwBg=;
+ b=c2gm01BhQAbHk0SuF/XBkloY+GVjBo6IvnGWO/Blsv2+1BN8LCTsjke1kTxsFfeWUqnr
+ hwADihpsPGC63IMMwE5jkPMAerDY7rSNFg2LOL4P2xfenp7GrnvHZ50cmAJwdCrMT0BE
+ i9xMSEPaIZPfOsVYkVvAhnQ+HIJK+rUXlds= 
+Received: from mail.thefacebook.com (mailout.thefacebook.com [199.201.64.23])
+	by m0089730.ppops.net with ESMTP id 2tbsw3gw01-18
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-SHA384 bits=256 verify=NOT);
+	Tue, 25 Jun 2019 17:03:19 -0700
+Received: from prn-hub04.TheFacebook.com (2620:10d:c081:35::128) by
+ prn-hub01.TheFacebook.com (2620:10d:c081:35::125) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id
+ 15.1.1713.5; Tue, 25 Jun 2019 17:03:13 -0700
+Received: from NAM04-SN1-obe.outbound.protection.outlook.com (192.168.54.28)
+ by o365-in.thefacebook.com (192.168.16.28) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id 15.1.1713.5
+ via Frontend Transport; Tue, 25 Jun 2019 17:03:13 -0700
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.onmicrosoft.com;
+ s=selector1-fb-onmicrosoft-com;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=gJqK7WAwnppGNe+WaPuYdN7w6pmeK+qS5lDIC2cNwBg=;
+ b=AsG9IPzoqGvnpL72ORyjIKmV362HWwZPyq2Tp0MbBaGVEAFg7XoRiYT7Wpg8GnlLDt1xLnsQYrRnyXXGgNYHB0LeazM5RwvD8ulhrO0mA2zZJyH/bVzK4mqoR0MkUPWfv1ehl0PIaLawSj7WGz5otf6C/VjpQSJxAuqatZeoWQo=
+Received: from MWHPR15MB1165.namprd15.prod.outlook.com (10.175.3.22) by
+ MWHPR15MB1168.namprd15.prod.outlook.com (10.175.2.147) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.2008.16; Wed, 26 Jun 2019 00:03:12 +0000
+Received: from MWHPR15MB1165.namprd15.prod.outlook.com
+ ([fe80::400e:e329:ea98:aa0d]) by MWHPR15MB1165.namprd15.prod.outlook.com
+ ([fe80::400e:e329:ea98:aa0d%6]) with mapi id 15.20.2008.017; Wed, 26 Jun 2019
+ 00:03:12 +0000
+From: Song Liu <songliubraving@fb.com>
+To: LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>,
+        "Oleg
+ Nesterov" <oleg@redhat.com>
+CC: Matthew Wilcox <matthew.wilcox@oracle.com>,
+        "Kirill A. Shutemov"
+	<kirill.shutemov@linux.intel.com>,
+        Peter Zijlstra <peterz@infradead.org>,
+        Steven Rostedt <rostedt@goodmis.org>, Kernel Team <Kernel-team@fb.com>,
+        William Kucharski <william.kucharski@oracle.com>
+Subject: Re: [PATCH v7 0/4] THP aware uprobe
+Thread-Topic: [PATCH v7 0/4] THP aware uprobe
+Thread-Index: AQHVK7E4lol1kVOHXUGEcao/g/n2faatDbOA
+Date: Wed, 26 Jun 2019 00:03:12 +0000
+Message-ID: <0A9B714D-59D4-4F78-8625-831F76FB7797@fb.com>
+References: <20190625235325.2096441-1-songliubraving@fb.com>
+In-Reply-To: <20190625235325.2096441-1-songliubraving@fb.com>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach: 
+X-MS-TNEF-Correlator: 
+x-mailer: Apple Mail (2.3445.104.11)
+x-originating-ip: [2620:10d:c090:200::3:8487]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: a8b71272-571f-4a31-ee80-08d6f9c9ae04
+x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(5600148)(711020)(4605104)(1401327)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(2017052603328)(7193020);SRVR:MWHPR15MB1168;
+x-ms-traffictypediagnostic: MWHPR15MB1168:
+x-ms-exchange-purlcount: 1
+x-microsoft-antispam-prvs: <MWHPR15MB11689A5FD5FFC06C2B7C7820B3E20@MWHPR15MB1168.namprd15.prod.outlook.com>
+x-ms-oob-tlc-oobclassifiers: OLM:9508;
+x-forefront-prvs: 00808B16F3
+x-forefront-antispam-report: SFV:NSPM;SFS:(10019020)(366004)(346002)(376002)(39860400002)(136003)(396003)(189003)(199004)(36756003)(305945005)(54906003)(71200400001)(53546011)(71190400001)(6506007)(4744005)(316002)(7736002)(110136005)(6486002)(256004)(76176011)(99286004)(5660300002)(229853002)(6116002)(4326008)(57306001)(6306002)(476003)(46003)(11346002)(73956011)(66446008)(66556008)(2616005)(8936002)(66946007)(6246003)(64756008)(8676002)(14454004)(53936002)(76116006)(25786009)(81166006)(81156014)(86362001)(6512007)(486006)(186003)(102836004)(6436002)(2906002)(14444005)(966005)(5024004)(68736007)(446003)(478600001)(66476007)(50226002)(33656002);DIR:OUT;SFP:1102;SCL:1;SRVR:MWHPR15MB1168;H:MWHPR15MB1165.namprd15.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
+received-spf: None (protection.outlook.com: fb.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info: Nv9jKFYxRz9CLYqaMnVMgwyoHbB2/48fn66YCSD8woiuJTYDDQNHk4IDhsWBvCwgoqqLk3GNwD/TRq6Q8Eyq5jFiDv2ytdMWMECrIPcysblE4VygJLzsRlx4rL8DexxBab6imbKhQddy8ZKWwz74CvTUu/ue7k5W8gqUR0SDkVY/bVUymCsb3kCGXCg4xXP9FCm6ZRQ4aVJI8Vwcl5O73jz/nCp3V2jxRe7f4zaZ2oNrQaU/rYrHBDwWkI5Pm0a0sDDlpwF/wfGR+iYi2F6uA8QJ3W3aoSkpOf/3VSws8NS++4jDfV4Ky0dfk7Vp9Ztt+WFQPuCXAuk9JVw+XWP2Gs7WnY0cfJzPTY8CNsn1DMQ4pbcFCeBUw87E+TW/JUg6QiHBL72naLbCb2U66a170mkTTY21m/aHX+VRUNhan3c=
+Content-Type: text/plain; charset="us-ascii"
+Content-ID: <F8DE82D15AEF80409DB949920B7CFF6B@namprd15.prod.outlook.com>
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
+X-MS-Exchange-CrossTenant-Network-Message-Id: a8b71272-571f-4a31-ee80-08d6f9c9ae04
+X-MS-Exchange-CrossTenant-originalarrivaltime: 26 Jun 2019 00:03:12.0723
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: 8ae927fe-1255-47a7-a2af-5f3a069daaa2
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-CrossTenant-userprincipalname: songliubraving@fb.com
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: MWHPR15MB1168
+X-OriginatorOrg: fb.com
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-06-25_16:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=fb_default_notspam policy=fb_default score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=851 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1906250198
+X-FB-Internal: deliver
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Currently THP deferred split shrinker is not memcg aware, this may cause
-premature OOM with some configuration. For example the below test would
-run into premature OOM easily:
+Hi Oleg,=20
 
-$ cgcreate -g memory:thp
-$ echo 4G > /sys/fs/cgroup/memory/thp/memory/limit_in_bytes
-$ cgexec -g memory:thp transhuge-stress 4000
+> On Jun 25, 2019, at 4:53 PM, Song Liu <songliubraving@fb.com> wrote:
+>=20
+> This set makes uprobe aware of THPs.
+>=20
+> Currently, when uprobe is attached to text on THP, the page is split by
+> FOLL_SPLIT. As a result, uprobe eliminates the performance benefit of THP=
+.
+>=20
+> This set makes uprobe THP-aware. Instead of FOLL_SPLIT, we introduces
+> FOLL_SPLIT_PMD, which only split PMD for uprobe.
+>=20
+> TODO (temporarily removed in v7):
+> After all uprobes within the THP are removed, regroup the PTE-mapped page=
+s
+> into huge PMD.
+>=20
+> This set (plus a few THP patches) is also available at
+>=20
+>   https://github.com/liu-song-6/linux/tree/uprobe-thp
+>=20
 
-transhuge-stress comes from kernel selftest.
+Do you have further comments/suggestions on this work? If not, could you=20
+please add your Acked-by or Reviewed-by?=20
 
-It is easy to hit OOM, but there are still a lot THP on the deferred
-split queue, memcg direct reclaim can't touch them since the deferred
-split shrinker is not memcg aware.
-
-Convert deferred split shrinker memcg aware by introducing per memcg
-deferred split queue.  The THP should be on either per node or per memcg
-deferred split queue if it belongs to a memcg.  When the page is
-immigrated to the other memcg, it will be immigrated to the target
-memcg's deferred split queue too.
-
-Reuse the second tail page's deferred_list for per memcg list since the
-same THP can't be on multiple deferred split queues.
-
-Cc: Kirill Tkhai <ktkhai@virtuozzo.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Shakeel Butt <shakeelb@google.com>
-Cc: David Rientjes <rientjes@google.com>
-Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
----
- include/linux/huge_mm.h    |  9 +++++++
- include/linux/memcontrol.h |  4 +++
- include/linux/mm_types.h   |  1 +
- mm/huge_memory.c           | 63 ++++++++++++++++++++++++++++++++++++++--------
- mm/memcontrol.c            | 24 ++++++++++++++++++
- 5 files changed, 90 insertions(+), 11 deletions(-)
-
-diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-index 7cd5c15..7738509 100644
---- a/include/linux/huge_mm.h
-+++ b/include/linux/huge_mm.h
-@@ -250,6 +250,15 @@ static inline bool thp_migration_supported(void)
- 	return IS_ENABLED(CONFIG_ARCH_ENABLE_THP_MIGRATION);
- }
- 
-+static inline struct list_head *page_deferred_list(struct page *page)
-+{
-+	/*
-+	 * Global or memcg deferred list in the second tail pages is
-+	 * occupied by compound_head.
-+	 */
-+	return &page[2].deferred_list;
-+}
-+
- #else /* CONFIG_TRANSPARENT_HUGEPAGE */
- #define HPAGE_PMD_SHIFT ({ BUILD_BUG(); 0; })
- #define HPAGE_PMD_MASK ({ BUILD_BUG(); 0; })
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 1dcb763..77a313c 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -311,6 +311,10 @@ struct mem_cgroup {
- 	struct list_head event_list;
- 	spinlock_t event_list_lock;
- 
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+	struct deferred_split deferred_split_queue;
-+#endif
-+
- 	struct mem_cgroup_per_node *nodeinfo[0];
- 	/* WARNING: nodeinfo must be the last member here */
- };
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index 8ec38b1..4eabf80 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -139,6 +139,7 @@ struct page {
- 		struct {	/* Second tail page of compound page */
- 			unsigned long _compound_pad_1;	/* compound_head */
- 			unsigned long _compound_pad_2;
-+			/* For both global and memcg */
- 			struct list_head deferred_list;
- 		};
- 		struct {	/* Page table pages */
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 81cf759..b00570d 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -492,11 +492,25 @@ pmd_t maybe_pmd_mkwrite(pmd_t pmd, struct vm_area_struct *vma)
- 	return pmd;
- }
- 
--static inline struct list_head *page_deferred_list(struct page *page)
-+#ifdef CONFIG_MEMCG
-+static inline struct deferred_split *get_deferred_split_queue(struct page *page)
- {
--	/* ->lru in the tail pages is occupied by compound_head. */
--	return &page[2].deferred_list;
-+	struct mem_cgroup *memcg = compound_head(page)->mem_cgroup;
-+	struct pglist_data *pgdat = NODE_DATA(page_to_nid(page));
-+
-+	if (memcg)
-+		return &memcg->deferred_split_queue;
-+	else
-+		return &pgdat->deferred_split_queue;
- }
-+#else
-+static inline struct deferred_split *get_deferred_split_queue(struct page *page)
-+{
-+	struct pglist_data *pgdat = NODE_DATA(page_to_nid(page));
-+
-+	return &pgdat->deferred_split_queue;
-+}
-+#endif
- 
- void prep_transhuge_page(struct page *page)
- {
-@@ -2658,7 +2672,7 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
- {
- 	struct page *head = compound_head(page);
- 	struct pglist_data *pgdata = NODE_DATA(page_to_nid(head));
--	struct deferred_split *ds_queue = &pgdata->deferred_split_queue;
-+	struct deferred_split *ds_queue = get_deferred_split_queue(page);
- 	struct anon_vma *anon_vma = NULL;
- 	struct address_space *mapping = NULL;
- 	int count, mapcount, extra_pins, ret;
-@@ -2794,8 +2808,7 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
- 
- void free_transhuge_page(struct page *page)
- {
--	struct pglist_data *pgdata = NODE_DATA(page_to_nid(page));
--	struct deferred_split *ds_queue = &pgdata->deferred_split_queue;
-+	struct deferred_split *ds_queue = get_deferred_split_queue(page);
- 	unsigned long flags;
- 
- 	spin_lock_irqsave(&ds_queue->split_queue_lock, flags);
-@@ -2809,8 +2822,10 @@ void free_transhuge_page(struct page *page)
- 
- void deferred_split_huge_page(struct page *page)
- {
--	struct pglist_data *pgdata = NODE_DATA(page_to_nid(page));
--	struct deferred_split *ds_queue = &pgdata->deferred_split_queue;
-+	struct deferred_split *ds_queue = get_deferred_split_queue(page);
-+#ifdef CONFIG_MEMCG
-+	struct mem_cgroup *memcg = compound_head(page)->mem_cgroup;
-+#endif
- 	unsigned long flags;
- 
- 	VM_BUG_ON_PAGE(!PageTransHuge(page), page);
-@@ -2820,6 +2835,11 @@ void deferred_split_huge_page(struct page *page)
- 		count_vm_event(THP_DEFERRED_SPLIT_PAGE);
- 		list_add_tail(page_deferred_list(page), &ds_queue->split_queue);
- 		ds_queue->split_queue_len++;
-+#ifdef CONFIG_MEMCG
-+		if (memcg)
-+			memcg_set_shrinker_bit(memcg, page_to_nid(page),
-+					       deferred_split_shrinker.id);
-+#endif
- 	}
- 	spin_unlock_irqrestore(&ds_queue->split_queue_lock, flags);
- }
-@@ -2827,8 +2847,19 @@ void deferred_split_huge_page(struct page *page)
- static unsigned long deferred_split_count(struct shrinker *shrink,
- 		struct shrink_control *sc)
- {
-+	struct deferred_split *ds_queue;
- 	struct pglist_data *pgdata = NODE_DATA(sc->nid);
--	struct deferred_split *ds_queue = &pgdata->deferred_split_queue;
-+
-+#ifdef CONFIG_MEMCG
-+	if (!sc->memcg) {
-+		ds_queue = &pgdata->deferred_split_queue;
-+		return READ_ONCE(ds_queue->split_queue_len);
-+	}
-+
-+	ds_queue = &sc->memcg->deferred_split_queue;
-+#else
-+	ds_queue = &pgdata->deferred_split_queue;
-+#endif
- 	return READ_ONCE(ds_queue->split_queue_len);
- }
- 
-@@ -2836,12 +2867,21 @@ static unsigned long deferred_split_scan(struct shrinker *shrink,
- 		struct shrink_control *sc)
- {
- 	struct pglist_data *pgdata = NODE_DATA(sc->nid);
--	struct deferred_split *ds_queue = &pgdata->deferred_split_queue;
-+	struct deferred_split *ds_queue;
- 	unsigned long flags;
- 	LIST_HEAD(list), *pos, *next;
- 	struct page *page;
- 	int split = 0;
- 
-+#ifdef CONFIG_MEMCG
-+	if (sc->memcg)
-+		ds_queue = &sc->memcg->deferred_split_queue;
-+	else
-+		ds_queue = &pgdata->deferred_split_queue;
-+#else
-+	ds_queue = &pgdata->deferred_split_queue;
-+#endif
-+
- 	spin_lock_irqsave(&ds_queue->split_queue_lock, flags);
- 	/* Take pin on all head pages to avoid freeing them under us */
- 	list_for_each_safe(pos, next, &ds_queue->split_queue) {
-@@ -2888,7 +2928,8 @@ static unsigned long deferred_split_scan(struct shrinker *shrink,
- 	.count_objects = deferred_split_count,
- 	.scan_objects = deferred_split_scan,
- 	.seeks = DEFAULT_SEEKS,
--	.flags = SHRINKER_NUMA_AWARE,
-+	.flags = SHRINKER_NUMA_AWARE | SHRINKER_MEMCG_AWARE |
-+		 SHRINKER_NONSLAB,
- };
- 
- #ifdef CONFIG_DEBUG_FS
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index ba9138a..5730608 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -4585,6 +4585,11 @@ static struct mem_cgroup *mem_cgroup_alloc(void)
- #ifdef CONFIG_CGROUP_WRITEBACK
- 	INIT_LIST_HEAD(&memcg->cgwb_list);
- #endif
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+	spin_lock_init(&memcg->deferred_split_queue.split_queue_lock);
-+	INIT_LIST_HEAD(&memcg->deferred_split_queue.split_queue);
-+	memcg->deferred_split_queue.split_queue_len = 0;
-+#endif
- 	idr_replace(&mem_cgroup_idr, memcg, memcg->id.id);
- 	return memcg;
- fail:
-@@ -4955,6 +4960,14 @@ static int mem_cgroup_move_account(struct page *page,
- 		__mod_memcg_state(to, NR_WRITEBACK, nr_pages);
- 	}
- 
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+	if (compound && !list_empty(page_deferred_list(page))) {
-+		spin_lock(&from->deferred_split_queue.split_queue_lock);
-+		list_del_init(page_deferred_list(page));
-+		from->deferred_split_queue.split_queue_len--;
-+		spin_unlock(&from->deferred_split_queue.split_queue_lock);
-+	}
-+#endif
- 	/*
- 	 * It is safe to change page->mem_cgroup here because the page
- 	 * is referenced, charged, and isolated - we can't race with
-@@ -4963,6 +4976,17 @@ static int mem_cgroup_move_account(struct page *page,
- 
- 	/* caller should have done css_get */
- 	page->mem_cgroup = to;
-+
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+	if (compound && list_empty(page_deferred_list(page))) {
-+		spin_lock(&to->deferred_split_queue.split_queue_lock);
-+		list_add_tail(page_deferred_list(page),
-+			      &to->deferred_split_queue.split_queue);
-+		to->deferred_split_queue.split_queue_len++;
-+		spin_unlock(&to->deferred_split_queue.split_queue_lock);
-+	}
-+#endif
-+
- 	spin_unlock_irqrestore(&from->move_lock, flags);
- 
- 	ret = 0;
--- 
-1.8.3.1
+Thanks,
+Song
 
