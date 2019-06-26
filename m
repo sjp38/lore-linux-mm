@@ -2,229 +2,209 @@ Return-Path: <SRS0=C/CR=UZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_MUTT autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-5.3 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY,USER_AGENT_MUTT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B3758C48BD6
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 16:17:55 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E700CC48BD3
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 16:31:04 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 85FD82084B
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 16:17:55 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 85FD82084B
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id A76A52133F
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 16:31:04 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="N/a93ebu"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A76A52133F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 26E388E001A; Wed, 26 Jun 2019 12:17:55 -0400 (EDT)
+	id 39F228E0003; Wed, 26 Jun 2019 12:31:04 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 21DE28E0002; Wed, 26 Jun 2019 12:17:55 -0400 (EDT)
+	id 34F908E0002; Wed, 26 Jun 2019 12:31:04 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 10E5B8E001A; Wed, 26 Jun 2019 12:17:55 -0400 (EDT)
+	id 23EB58E0003; Wed, 26 Jun 2019 12:31:04 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B4F658E0002
-	for <linux-mm@kvack.org>; Wed, 26 Jun 2019 12:17:54 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id y24so3893195edb.1
-        for <linux-mm@kvack.org>; Wed, 26 Jun 2019 09:17:54 -0700 (PDT)
+Received: from mail-vs1-f70.google.com (mail-vs1-f70.google.com [209.85.217.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 026EE8E0002
+	for <linux-mm@kvack.org>; Wed, 26 Jun 2019 12:31:04 -0400 (EDT)
+Received: by mail-vs1-f70.google.com with SMTP id j77so658009vsd.3
+        for <linux-mm@kvack.org>; Wed, 26 Jun 2019 09:31:03 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=QcBn4cqu94i8F4ufUBZvWRMGOwZ2fc5S8X3LYrAGys8=;
-        b=WyvhsDhironwWvmHJI0PKnawE7UIsQhjr7XUFUBzwphwOlyOwATuy5DIm5xv+gu79X
-         oWJ8fOhbsiiKGqTVJwhC1Qlv0JWzh8rt00KWfTQIBiqTAz97Jxmkt7mD5Z3GtN1r/KN1
-         BQaGahxAf/pFgRK1KsISzYPNrdgoMD7XgpYPAE5FE0PUh7ru3Oo5EFDLDlqXX3KD04AL
-         knOnQmb+KCIAK1HgckJ0K4dNiQX4rfEU6UO3YllJOOdAfDjZ2Q1WnUhRDVF2KQ+FsbLK
-         0C1ibgMUl1/w5cr8go63DSTSAY27xF4THCQ/cJQMSeHqTlr2OoIPEYwDcyY1imc0X67s
-         0d5g==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mark.rutland@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=mark.rutland@arm.com
-X-Gm-Message-State: APjAAAWbPm+C3esEr6M+VTkP5/benbfK5pRoL3IdmADJTzLgvVhq/fgD
-	VMAiR7nWhvzZmwTNryN5mZz9lYembqMCjHdFswWvlJy8mrJ1C7MUV0i2871yWA6ZFsLOX5xftdi
-	MLn6csJF+6PhBhBl8XvkshrBYOmbHwRq1iMxCznEi6Yo6nvreM50RCtj7UradjdWPYQ==
-X-Received: by 2002:a17:906:4e8f:: with SMTP id v15mr4827186eju.47.1561565874267;
-        Wed, 26 Jun 2019 09:17:54 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzpjZyuY4MpNPNVrFjBfgWcG/5Mn5nV8LJ6hJkQ4PStiv3X/bLRc8Bcq66uexDdExBl+703
-X-Received: by 2002:a17:906:4e8f:: with SMTP id v15mr4827105eju.47.1561565873249;
-        Wed, 26 Jun 2019 09:17:53 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561565873; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=Mz7em8B5BcTHywkzCrR8lugIdy2ootcWo4w3RRWBYaM=;
+        b=kcK5+cqrDqMZgVFG2+DhohN+BA8lK4oHLgrLNmrGoxKHMrvSYBbmtyrG6Hiab90isy
+         AY9dWiXUdtoEbJfkxHQO68skYoaBeAqYWGpaD5AjMvmRLoE5Ux55D8byY6CsAU/LwmRJ
+         PnohAWkoUpwLdZiX+SPv+vGFpgDreEEG0EOxLwbX+OHtUQW4R5uq5GDgCMMHgpM01HS8
+         /4bYRaPAIqw9tu9QIbBOqGjHxZCm2jBdH8iGGBZBvURx8ldR2UxWh4IPDYyYvQ5yYgpq
+         re6wngHOcYCNWNKNrmBA9Nk6atqeW26yI93fXG2bR220G8KdaB//FLrz3sen3jOjZOPk
+         lptQ==
+X-Gm-Message-State: APjAAAVrcVVqP3uaBobanTq1X8Nxw51AFP6nPzWDTJja1NAgqwXOeVoY
+	GXp+4f/gFVkFqvZz5zoBzewR3jRyVHTXIdNsVMF8LpMzBwPjIPiKnnrgI+C0t4ZBJk6o6SsdZfC
+	j3rBImu0nZa0WyzrCf8EI3X4osoN+5XXm8nUKE3RNFdeXlCFB6HWgUOTXXUdyXm8Qiw==
+X-Received: by 2002:ab0:74c9:: with SMTP id f9mr3175786uaq.18.1561566663659;
+        Wed, 26 Jun 2019 09:31:03 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqybZZZ6hKP+bhSBt/Uc/GhR7kUuYpw58bUsg12N34UKj5H54SMhRdIIUN6jAzXOATezUF0I
+X-Received: by 2002:ab0:74c9:: with SMTP id f9mr3175721uaq.18.1561566662690;
+        Wed, 26 Jun 2019 09:31:02 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561566662; cv=none;
         d=google.com; s=arc-20160816;
-        b=aiE+R3RjuUe58vVd6mtBF61aHyZtUDoLVL6CJgtXbyxV0sNYTGPTXP+tNxjgqxfbJo
-         kJyA+m+JHtKVOdVnYTSeLB/YJOojqTcAvXWPJqVYhe1bPcB9uwI7DoIbiJZI3kSwYdnK
-         AUFtMJ3uohOqzyA5wF4LHiFQH8fGsuXdfiF4qM7Qj0jPcbdiRFFD4D/r9y8y9yWplyFj
-         BauZkMwlDBuq0U6LGJhc3dYj1IOOzH5qekZIC3XJTWlfvmWO4mwSRy69YvTqf4i5uJOO
-         RAvrNu/xBhjGop5kfkvUWBLVOeHBzsjJ3x/E8ue3AUxOTqK65bRXHohH9B+pcCCBjpXs
-         UCIg==
+        b=sgyrXkgNl7JPFGh7HNnsf2CNhs34awskBI7Vw9oztcuJxwJES9fEjWBAuoikKLKny8
+         Q4C9cWQvnLWa/8bEK1xPGlX3vqVPgpJMoeX00CikPib02EUntUo3Nyd957lN/MMxfyAK
+         ui7iczqGJJSsolZVgeImWkkqILo5zWeGBzeWCs10AL9RV47HkVIJ8mCk5Hs8ThdoSJhT
+         nf3+rNtDQd0Sf0Q3vHl/xmEtR6GixYRze+DHx+4xzpPY270u4VHxraTN0yH6htPOzDVh
+         skCUtWK7NhU1WAT2nO6wSiVZO61hWWTAKoq5xqX67CAv44CPka08wxBORPrEQIPw2z9Y
+         NoYg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=QcBn4cqu94i8F4ufUBZvWRMGOwZ2fc5S8X3LYrAGys8=;
-        b=CcgsLIM8nwjXbbUsveKgAVif5CNIB7A64MYq6iyNf3YsLo3i/eo5d/V54VkTjOaZMa
-         ASkpp9P+DYv8Q6ajIXyARvD/W7bXncthmyazpS2J99MI8HbVUn4uyj5XcyGsFVNMpChc
-         rgGetQ3CqHbLj9JQmxuuA8KPThrDnJRIiCJcCiCfEve+fJsyWyT3pGCViyFM+aUXFdxq
-         DSPZwxkSFiWw1INjyUPJV86PQsETWtOJ6pEQNNmFmulO5Gd3kxBs8vUYFzneNDPl1s+p
-         h6P6+KT6Pe0SiAWw5tk6Xc2ILfwKSeknHgUzMOhl4qruaAe5yTk6yA2xFHHEvdLqvaep
-         SxIQ==
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=Mz7em8B5BcTHywkzCrR8lugIdy2ootcWo4w3RRWBYaM=;
+        b=NPR7/NxPxkTqQPBsiL02ilaN0CPbfASoFMruzwR9FUbyvjK//m0aQdAcRRN6vq10M6
+         Dvm2fnxX69aijUl2QtKRZUdku7P1f8gqA4oCS6S+p4m0H/VCGu8CD1QBhhiEhyre45Vo
+         2CGeF8m8PP8sClaG7IItTSVw3BZlS4ISZqBeoUp+BseuGQHgBAsZ//i9ikgIX5ve5FLz
+         KkKePhyONq5dyZLgMdTe5Z9MoLUwmdbSkBVVvxvYFGnoFdcmmR24LJMMIqGz/bDws4aY
+         misee276Kfh1pStPRqY4uOqdcWYhfEdLtpSgTVNML9QNi/O6109rwjry1qLXVNeyR0tw
+         A0GQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of mark.rutland@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=mark.rutland@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
-        by mx.google.com with ESMTP id f36si3934286edd.292.2019.06.26.09.17.52
-        for <linux-mm@kvack.org>;
-        Wed, 26 Jun 2019 09:17:53 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mark.rutland@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b="N/a93ebu";
+       spf=pass (google.com: domain of darrick.wong@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=darrick.wong@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id f13si1186057vsm.173.2019.06.26.09.31.02
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 26 Jun 2019 09:31:02 -0700 (PDT)
+Received-SPF: pass (google.com: domain of darrick.wong@oracle.com designates 156.151.31.86 as permitted sender) client-ip=156.151.31.86;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of mark.rutland@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=mark.rutland@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 458BE2B;
-	Wed, 26 Jun 2019 09:17:52 -0700 (PDT)
-Received: from lakrids.cambridge.arm.com (usa-sjc-imap-foss1.foss.arm.com [10.121.207.14])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 93CED3F706;
-	Wed, 26 Jun 2019 09:17:50 -0700 (PDT)
-Date: Wed, 26 Jun 2019 17:17:48 +0100
-From: Mark Rutland <mark.rutland@arm.com>
-To: Marco Elver <elver@google.com>
-Cc: linux-kernel@vger.kernel.org, Andrey Ryabinin <aryabinin@virtuozzo.com>,
-	Dmitry Vyukov <dvyukov@google.com>,
-	Alexander Potapenko <glider@google.com>,
-	Andrey Konovalov <andreyknvl@google.com>,
-	Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>,
-	David Rientjes <rientjes@google.com>,
-	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	kasan-dev@googlegroups.com, linux-mm@kvack.org
-Subject: Re: [PATCH v3 1/5] mm/kasan: Introduce __kasan_check_{read,write}
-Message-ID: <20190626161748.GH20635@lakrids.cambridge.arm.com>
-References: <20190626142014.141844-1-elver@google.com>
- <20190626142014.141844-2-elver@google.com>
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b="N/a93ebu";
+       spf=pass (google.com: domain of darrick.wong@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=darrick.wong@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
+	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x5QGU4Wg004218;
+	Wed, 26 Jun 2019 16:30:39 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=date : from : to : cc
+ : subject : message-id : references : mime-version : content-type :
+ in-reply-to; s=corp-2018-07-02;
+ bh=Mz7em8B5BcTHywkzCrR8lugIdy2ootcWo4w3RRWBYaM=;
+ b=N/a93ebuSSKM+1UIO0buPOjR9AvCbLsHhw01AwBMp/XW9BUb98JLnzoJbLgwOZFWmGyw
+ hJdpkR7HkvPCAWlWLDnQsdQatbUdssqmn37SwPrTcAyE+/9x/iin4aJ6YtVFtP1GNmmr
+ W4gQLbQG2SBcdOy5QNpDSE2/3fIVqQVrn7mZXub6KhldCj8Zzx/yQQ7a5EH7pzSZXmup
+ IrJvp7zWK9kXgRoeoC8dGqS2tKAzLiR74Ta5S5LQWYLQBZWpbM10fUskgAys8/96vQdr
+ G26RY/thy8CrA4lCa0mPtRoigi2YSG7nQksiKL4VCeGiPZV6yAFAimBMe+B5DQlWGUUd ig== 
+Received: from aserp3020.oracle.com (aserp3020.oracle.com [141.146.126.70])
+	by userp2130.oracle.com with ESMTP id 2t9brtbf85-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Wed, 26 Jun 2019 16:30:39 +0000
+Received: from pps.filterd (aserp3020.oracle.com [127.0.0.1])
+	by aserp3020.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x5QGRxdd192423;
+	Wed, 26 Jun 2019 16:28:38 GMT
+Received: from pps.reinject (localhost [127.0.0.1])
+	by aserp3020.oracle.com with ESMTP id 2t9p6uvctr-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=FAIL);
+	Wed, 26 Jun 2019 16:28:38 +0000
+Received: from aserp3020.oracle.com (aserp3020.oracle.com [127.0.0.1])
+	by pps.reinject (8.16.0.27/8.16.0.27) with SMTP id x5QGScxQ193859;
+	Wed, 26 Jun 2019 16:28:38 GMT
+Received: from aserv0122.oracle.com (aserv0122.oracle.com [141.146.126.236])
+	by aserp3020.oracle.com with ESMTP id 2t9p6uvctj-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Wed, 26 Jun 2019 16:28:38 +0000
+Received: from abhmp0004.oracle.com (abhmp0004.oracle.com [141.146.116.10])
+	by aserv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x5QGSZWS032167;
+	Wed, 26 Jun 2019 16:28:35 GMT
+Received: from localhost (/10.159.137.246)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Wed, 26 Jun 2019 09:28:35 -0700
+Date: Wed, 26 Jun 2019 09:28:31 -0700
+From: "Darrick J. Wong" <darrick.wong@oracle.com>
+To: Al Viro <viro@zeniv.linux.org.uk>
+Cc: matthew.garrett@nebula.com, yuchao0@huawei.com, tytso@mit.edu,
+        ard.biesheuvel@linaro.org, josef@toxicpanda.com, hch@infradead.org,
+        clm@fb.com, adilger.kernel@dilger.ca, jack@suse.com, dsterba@suse.com,
+        jaegeuk@kernel.org, jk@ozlabs.org, reiserfs-devel@vger.kernel.org,
+        linux-efi@vger.kernel.org, devel@lists.orangefs.org,
+        linux-kernel@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net,
+        linux-xfs@vger.kernel.org, linux-mm@kvack.org,
+        linux-nilfs@vger.kernel.org, linux-mtd@lists.infradead.org,
+        ocfs2-devel@oss.oracle.com, linux-fsdevel@vger.kernel.org,
+        linux-ext4@vger.kernel.org, linux-btrfs@vger.kernel.org
+Subject: Re: [PATCH 5/5] vfs: don't allow writes to swap files
+Message-ID: <20190626162831.GF5171@magnolia>
+References: <156151637248.2283603.8458727861336380714.stgit@magnolia>
+ <156151641177.2283603.7806026378321236401.stgit@magnolia>
+ <20190626035151.GA10613@ZenIV.linux.org.uk>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190626142014.141844-2-elver@google.com>
-User-Agent: Mutt/1.11.1+11 (2f07cb52) (2018-12-01)
+In-Reply-To: <20190626035151.GA10613@ZenIV.linux.org.uk>
+User-Agent: Mutt/1.9.4 (2018-02-28)
+X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9300 signatures=668687
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
+ definitions=main-1906260193
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jun 26, 2019 at 04:20:10PM +0200, Marco Elver wrote:
-> This introduces __kasan_check_{read,write}. __kasan_check functions may
-> be used from anywhere, even compilation units that disable
-> instrumentation selectively.
+On Wed, Jun 26, 2019 at 04:51:51AM +0100, Al Viro wrote:
+> On Tue, Jun 25, 2019 at 07:33:31PM -0700, Darrick J. Wong wrote:
+> > --- a/fs/attr.c
+> > +++ b/fs/attr.c
+> > @@ -236,6 +236,9 @@ int notify_change(struct dentry * dentry, struct iattr * attr, struct inode **de
+> >  	if (IS_IMMUTABLE(inode))
+> >  		return -EPERM;
+> >  
+> > +	if (IS_SWAPFILE(inode))
+> > +		return -ETXTBSY;
+> > +
+> >  	if ((ia_valid & (ATTR_MODE | ATTR_UID | ATTR_GID | ATTR_TIMES_SET)) &&
+> >  	    IS_APPEND(inode))
+> >  		return -EPERM;
 > 
-> This change eliminates the need for the __KASAN_INTERNAL definition.
+> Er...  So why exactly is e.g. chmod(2) forbidden for swapfiles?  Or touch(1),
+> for that matter...
+
+Oops, that check is overly broad; I think the only attribute change we
+need to filter here is ATTR_SIZE.... which we could do unconditionally
+in inode_newsize_ok.
+
+What's the use case for allowing userspace to increase the size of an
+active swapfile?  I don't see any; the kernel has a permanent lease on
+the file space mapping (at least until swapoff)...
+
+> > diff --git a/mm/swapfile.c b/mm/swapfile.c
+> > index 596ac98051c5..1ca4ee8c2d60 100644
+> > --- a/mm/swapfile.c
+> > +++ b/mm/swapfile.c
+> > @@ -3165,6 +3165,19 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
+> >  	if (error)
+> >  		goto bad_swap;
+> >  
+> > +	/*
+> > +	 * Flush any pending IO and dirty mappings before we start using this
+> > +	 * swap file.
+> > +	 */
+> > +	if (S_ISREG(inode->i_mode)) {
+> > +		inode->i_flags |= S_SWAPFILE;
+> > +		error = inode_drain_writes(inode);
+> > +		if (error) {
+> > +			inode->i_flags &= ~S_SWAPFILE;
+> > +			goto bad_swap;
+> > +		}
+> > +	}
 > 
-> Signed-off-by: Marco Elver <elver@google.com>
-> Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>
-> Cc: Dmitry Vyukov <dvyukov@google.com>
-> Cc: Alexander Potapenko <glider@google.com>
-> Cc: Andrey Konovalov <andreyknvl@google.com>
-> Cc: Christoph Lameter <cl@linux.com>
-> Cc: Pekka Enberg <penberg@kernel.org>
-> Cc: David Rientjes <rientjes@google.com>
-> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Mark Rutland <mark.rutland@arm.com>
-> Cc: kasan-dev@googlegroups.com
-> Cc: linux-kernel@vger.kernel.org
-> Cc: linux-mm@kvack.org
+> Why are swap partitions any less worthy of protection?
 
-Logically this makes sense to me, so FWIW:
+Hmm, yeah, S_SWAPFILE should apply to block devices too.  I figured that
+the mantra of "sane tools will open block devices with O_EXCL" should
+have sufficed, but there's really no reason to allow that either.
 
-Acked-by: Mark Rutland <mark.rutland@arm.com>
-
-Thanks,
-Mark.
-
-> ---
-> v3:
-> * Fix Formatting and split introduction of __kasan_check_* and returning
->   bool into 2 patches.
-> ---
->  include/linux/kasan-checks.h | 31 ++++++++++++++++++++++++++++---
->  mm/kasan/common.c            | 10 ++++------
->  2 files changed, 32 insertions(+), 9 deletions(-)
-> 
-> diff --git a/include/linux/kasan-checks.h b/include/linux/kasan-checks.h
-> index a61dc075e2ce..19a0175d2452 100644
-> --- a/include/linux/kasan-checks.h
-> +++ b/include/linux/kasan-checks.h
-> @@ -2,9 +2,34 @@
->  #ifndef _LINUX_KASAN_CHECKS_H
->  #define _LINUX_KASAN_CHECKS_H
->  
-> -#if defined(__SANITIZE_ADDRESS__) || defined(__KASAN_INTERNAL)
-> -void kasan_check_read(const volatile void *p, unsigned int size);
-> -void kasan_check_write(const volatile void *p, unsigned int size);
-> +/*
-> + * __kasan_check_*: Always available when KASAN is enabled. This may be used
-> + * even in compilation units that selectively disable KASAN, but must use KASAN
-> + * to validate access to an address.   Never use these in header files!
-> + */
-> +#ifdef CONFIG_KASAN
-> +void __kasan_check_read(const volatile void *p, unsigned int size);
-> +void __kasan_check_write(const volatile void *p, unsigned int size);
-> +#else
-> +static inline void __kasan_check_read(const volatile void *p, unsigned int size)
-> +{ }
-> +static inline void __kasan_check_write(const volatile void *p, unsigned int size)
-> +{ }
-> +#endif
-> +
-> +/*
-> + * kasan_check_*: Only available when the particular compilation unit has KASAN
-> + * instrumentation enabled. May be used in header files.
-> + */
-> +#ifdef __SANITIZE_ADDRESS__
-> +static inline void kasan_check_read(const volatile void *p, unsigned int size)
-> +{
-> +	__kasan_check_read(p, size);
-> +}
-> +static inline void kasan_check_write(const volatile void *p, unsigned int size)
-> +{
-> +	__kasan_check_read(p, size);
-> +}
->  #else
->  static inline void kasan_check_read(const volatile void *p, unsigned int size)
->  { }
-> diff --git a/mm/kasan/common.c b/mm/kasan/common.c
-> index 242fdc01aaa9..6bada42cc152 100644
-> --- a/mm/kasan/common.c
-> +++ b/mm/kasan/common.c
-> @@ -14,8 +14,6 @@
->   *
->   */
->  
-> -#define __KASAN_INTERNAL
-> -
->  #include <linux/export.h>
->  #include <linux/interrupt.h>
->  #include <linux/init.h>
-> @@ -89,17 +87,17 @@ void kasan_disable_current(void)
->  	current->kasan_depth--;
->  }
->  
-> -void kasan_check_read(const volatile void *p, unsigned int size)
-> +void __kasan_check_read(const volatile void *p, unsigned int size)
->  {
->  	check_memory_region((unsigned long)p, size, false, _RET_IP_);
->  }
-> -EXPORT_SYMBOL(kasan_check_read);
-> +EXPORT_SYMBOL(__kasan_check_read);
->  
-> -void kasan_check_write(const volatile void *p, unsigned int size)
-> +void __kasan_check_write(const volatile void *p, unsigned int size)
->  {
->  	check_memory_region((unsigned long)p, size, true, _RET_IP_);
->  }
-> -EXPORT_SYMBOL(kasan_check_write);
-> +EXPORT_SYMBOL(__kasan_check_write);
->  
->  #undef memset
->  void *memset(void *addr, int c, size_t len)
-> -- 
-> 2.22.0.410.gd8fdbe21b5-goog
-> 
+--D
 
