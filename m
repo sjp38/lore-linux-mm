@@ -2,208 +2,158 @@ Return-Path: <SRS0=C/CR=UZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.3 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_IN_DEF_DKIM_WL autolearn=ham
+X-Spam-Status: No, score=-7.5 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5E29FC48BD6
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 12:27:11 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7628DC48BD8
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 12:27:40 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 13420204FD
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 12:27:11 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 24399204EC
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 12:27:40 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="LA9vnejy"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 13420204FD
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="e05g33We"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 24399204EC
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9F98F8E0005; Wed, 26 Jun 2019 08:27:10 -0400 (EDT)
+	id C6BD98E000A; Wed, 26 Jun 2019 08:27:39 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 982398E0002; Wed, 26 Jun 2019 08:27:10 -0400 (EDT)
+	id BF3458E0002; Wed, 26 Jun 2019 08:27:39 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8231D8E0005; Wed, 26 Jun 2019 08:27:10 -0400 (EDT)
+	id AE2938E0009; Wed, 26 Jun 2019 08:27:39 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-vk1-f199.google.com (mail-vk1-f199.google.com [209.85.221.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 55ED38E0002
-	for <linux-mm@kvack.org>; Wed, 26 Jun 2019 08:27:10 -0400 (EDT)
-Received: by mail-vk1-f199.google.com with SMTP id a185so714187vkb.0
-        for <linux-mm@kvack.org>; Wed, 26 Jun 2019 05:27:10 -0700 (PDT)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 785548E0002
+	for <linux-mm@kvack.org>; Wed, 26 Jun 2019 08:27:39 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id s195so1525694pgs.13
+        for <linux-mm@kvack.org>; Wed, 26 Jun 2019 05:27:39 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc
-         :content-transfer-encoding;
-        bh=6kfkIhuHoPIjfMfVB0Ztiwt1Me6klHBycZVbDOiK0gk=;
-        b=lKDTEVENBrRHG1/zJydt0Qq6gIyxpG+JbNN8pq6Aqsb7dzSmEJdp+LOjIRymYM9pwx
-         GPWeAb5ayuv2TCKMreW8TnEoqQpSwuY3D5rk+BXAC+vUbB81ZVQFQxSFc/Nwz3dhOd/5
-         OsqGTY0rmoBE0SGJJioHCoLvhbWCo2gi8wHX2yws85woLOVD3xfImQwKKRrrqftC3V0/
-         Ac6f74sJ4I4pa3133Om6Q/IyUUDUTzpaQjcrglHE0UeVXFOgeR1AS+xFyihWKp2uyOF6
-         Ebj+cItJaGT02pezhY6k4rkyLoSgY47HF6U5dOzjbNP67Q9gf8u9JLQehb0PW1kLvfCE
-         +SOg==
-X-Gm-Message-State: APjAAAXFNYnhYirqCbfoDB2FJZAg0950kIpIus05SurkMxRShGwTeO4Z
-	7fOVQCWRRkrFCW+izNUwKJC06VuqcxD1SOZYFcrgDA3zTI1/YgWLz8jWM4PiUQKKGwLeBn7PbEh
-	oyeEtxAHvsQlbwSytOFHpnSp7ELH4a1ggUeMpQbMAMSj3ykXQZZV7D0WHSTPhtdUVKA==
-X-Received: by 2002:a67:ee8d:: with SMTP id n13mr2853394vsp.49.1561552030060;
-        Wed, 26 Jun 2019 05:27:10 -0700 (PDT)
-X-Received: by 2002:a67:ee8d:: with SMTP id n13mr2853369vsp.49.1561552029468;
-        Wed, 26 Jun 2019 05:27:09 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561552029; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id:mime-version:content-transfer-encoding;
+        bh=YGx69ktqFfd50Mnd66pLKlz3uikDiZWUcfJ3jfUuvQk=;
+        b=VRJjl0H1nSdjCIz4E9rc+juFp+Iq2zJ0gygp5SD1qfpjdDOL4VF5cEGA8CrYj/dyn1
+         Erg8UnOEg4Xt4TdoDl3BtaoYYpw2zQw6PUSrS5L+GEYERIMMMW/CFDcKPX7I+BrIz/+a
+         Ov9LvzYo6YoO1KrUr46wvJ7CFhCJEDhFtpNFhBksDaPQKKixb+4s/qUD743UCCgvZ41N
+         3KTfmdVs9j7gIIL8H+GKbI9DSCIRL/vMy0AWl0Bbxck8tluJYEYXrxtOpRHrFa2J2erW
+         CeJ3HM6EjQLe+4B37eiMreAzIoW/iHwU1GUlVcTweg9xkysQGeNRhSj27652y9eMsCBD
+         Hkvg==
+X-Gm-Message-State: APjAAAVlRC0TQzSpl0EmcGAW5nsYmItgFJOi9CMmVnu5T5xbs58rmjHX
+	hFBztUfvlIf3FrMO6U3EcossHQ4s68p6R8QULy3FCUCc1c5I6DDTeQuNoHoMDmnqpx1rc0ySPWE
+	qOdzcIf4NgrZ4appONmbRvb6AkSvUP8/8WFv7qW4jaVja+ZOG/77YS9DOSUOrPpY=
+X-Received: by 2002:a63:2bc8:: with SMTP id r191mr2661490pgr.398.1561552058902;
+        Wed, 26 Jun 2019 05:27:38 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwVm2aLyrkH8ZBTudPJsVqZ9CKqKYDiTVhWdCSho9Y2nLm6LRviRANA03wW0NSFAJLONpvn
+X-Received: by 2002:a63:2bc8:: with SMTP id r191mr2661435pgr.398.1561552058068;
+        Wed, 26 Jun 2019 05:27:38 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561552058; cv=none;
         d=google.com; s=arc-20160816;
-        b=mH0bzqzOgLCUOkG0vY/cnR8siXhSCR5GtLh+JD+eycRJ1Vo6EyvhBVxI7yXgcX2krk
-         RV5EFKVp4XmidHyGSf+IsYPyhqyio+kP9uyo8wZv86Oz5CEVpcFSkoGwo2DgaC4lwCvB
-         G8eID66yM9kDqygJz6KKjTp1c9bnAUfIPPiXcNyJpNnrr4RgYN2LS9rLyMPC9hxtIWkV
-         CRrT00MfnLODHB2FnIReuoVM4olNb9KblJpewq6KZH5R/jQ54YjbHdXjeoKTxgos6Pv8
-         T5arsFSAYg5OpNQfk4WKKxc2NopT4qYPO90KGFGX0mcJ7X2HhqF6YJlncpBWJm0urKV6
-         jkqQ==
+        b=e5oldtijkqhJ+sMqJQGpxlp2FvoW59Z837lcYMEra0xLljfk15Md71S4kEQRHICEvE
+         DTUCwTlykDP/1LvV+DLO+ZDd07MRx+T2IkNrjSbfaaF/mogmlMx1uDa7fxY7l8J1gfZH
+         4ZbLD1sQH488pS9vxhoqH+wDYuIvA6ZKQCfhROiL7RKlgPkpMQyNW4Cp1vITbZATVcua
+         VaQeX9ZLSDZwvByvg78DaWAeBULrT8Ov06/l/eFIaZgrE080ZIWDhnusYlxC1PtBpN01
+         7OvuC7xc9fLb/VpLiUal2PxaimJLLF7ak8/li3tu+OqoCGkagFBc//yQz7hb2ky6QpS1
+         3riw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:cc:to:subject:message-id:date:from
-         :in-reply-to:references:mime-version:dkim-signature;
-        bh=6kfkIhuHoPIjfMfVB0Ztiwt1Me6klHBycZVbDOiK0gk=;
-        b=rKuwTBN0a1xEybgKZvQQ5CUvoiOXs2AlEy3Aj1xk+zfJQD+HbA/9KnuAIy4dwPz1b4
-         anUkVTrpCX0OyGllKPFyALST0rw349s1fuC6HWJFkDGkF+GvGrLkB04XK9ilELaw41Wo
-         tPlme7azQ/q24f8SfsVNorSoTADw/Nj+eDI+priXAUdwKjTvJiuj9c433KmS0LcHQcS1
-         gicu8R+aL5IpSScmUlUC36EtGGw+408y3qk3e2JCIwrI+6eYYVrpDcjkCfw7Et3ZWAMk
-         kOv+1/Z1NVo2R9nqt7ozskJWw4kw1xtgZvImPzgYJGt9OM/amOXPAjn/nlnjJkx/m0kb
-         9jpQ==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from:dkim-signature;
+        bh=YGx69ktqFfd50Mnd66pLKlz3uikDiZWUcfJ3jfUuvQk=;
+        b=Z6Z7Fokvv3rpyHCEJrp8UFMrcon7iltWRt1TwWkttfQTgA5LvzfLtbY70ERiE12feP
+         vxOilCHl5t8i/LqQJldHwCOV7T4msJzYnsiJzKK8oyfAiZJyeNoO+h/5Rg9Gcvb7qNaI
+         AmrvNcJj+9dDu2Gs14+F7mVaycvgdeGb0wOtyPakdNZ/AhqDAIg4zGX19KZG/uPTo5CD
+         93+ZTTYxfJS7aAp8y/z+xIxRLybJ3l/+ZJ0++Yyin7qx9bT6qoBLuWpxG8FoduDo+17b
+         Ke0r7Z+Pj5QszErUrIsCQP821yrwbrsdvYOleEPwuzXgsrh5S+XySfrQ1Iubs3SRz8+W
+         qBuQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=LA9vnejy;
-       spf=pass (google.com: domain of glider@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=glider@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id l127sor9021491vsd.5.2019.06.26.05.27.09
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=e05g33We;
+       spf=pass (google.com: best guess record for domain of batv+ab1f803c58217d155be4+5785+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+ab1f803c58217d155be4+5785+infradead.org+hch@bombadil.srs.infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id h127si17642740pfe.44.2019.06.26.05.27.36
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 26 Jun 2019 05:27:09 -0700 (PDT)
-Received-SPF: pass (google.com: domain of glider@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Wed, 26 Jun 2019 05:27:36 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of batv+ab1f803c58217d155be4+5785+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=LA9vnejy;
-       spf=pass (google.com: domain of glider@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=glider@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc:content-transfer-encoding;
-        bh=6kfkIhuHoPIjfMfVB0Ztiwt1Me6klHBycZVbDOiK0gk=;
-        b=LA9vnejysG80LoRMNK06zRKNClzSYlPIdhO2BG8R5WimhgksbZNGFBE1+GUiQLEifw
-         eagA1Ss7o118bXvq49QRHs+qJqELP+XQixvQAYDIsNY3C8BcfX7mpLNtT8ORoVLO0I87
-         c0MDtIeXo60EqlRh1gnyMvvuq9qf0CzKX64dtRn0ifZI4hXXE0kqy16Q5v4HugyKWeK2
-         UuwCITTAl5UFtiD9Rs4b/geol+F+Nyj5TAz6c5zFvVJKZYPyKWMPY2Z6T+8dQC+CzHVK
-         xBAsf8dcoFTgafsDg4Thp/2Chqjg9t5WhkYXBT/PqOpgZF0AEy8MdUMfUE56k+QPMpzj
-         VlTw==
-X-Google-Smtp-Source: APXvYqzFVn7+Sobi3957YqMqzgXYiYzf1aj+EhLLCRNEuqntRTM8bUrv2ro9eKC8ad0q35LYmIjx6cO3FPMvsDikbes=
-X-Received: by 2002:a67:11c1:: with SMTP id 184mr2733987vsr.217.1561552028933;
- Wed, 26 Jun 2019 05:27:08 -0700 (PDT)
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=e05g33We;
+       spf=pass (google.com: best guess record for domain of batv+ab1f803c58217d155be4+5785+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+ab1f803c58217d155be4+5785+infradead.org+hch@bombadil.srs.infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=Content-Transfer-Encoding:
+	Content-Type:MIME-Version:Message-Id:Date:Subject:Cc:To:From:Sender:Reply-To:
+	Content-ID:Content-Description:Resent-Date:Resent-From:Resent-Sender:
+	Resent-To:Resent-Cc:Resent-Message-ID:In-Reply-To:References:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=YGx69ktqFfd50Mnd66pLKlz3uikDiZWUcfJ3jfUuvQk=; b=e05g33Wex+0CQQ9qi04aK+PPD
+	72YJJQlOybfiI5HDpvAwNw3qyS9BQ2WnPDw3YMr+fSZN7R9d4Tn5T/Kg6qLvyaoDaHQZ0vlVbYbhx
+	sH7r9sk7n9uAVs7ytRQPMUWtpIBu34n75RQsdX09ZN7vTlq63SjgxFL3+W2CGRZnbY4b1uq2QoXC9
+	wfCap12FyOEmQpV3o8HSsJ+3sDUypgYRRenguNdBNIJhO4plDWVryg6VP0j/VmweKz3YUcCgDWjkR
+	wJkxMMcljSkpHVx1W9E80XqfefYKjbk4v/9jvt3SU/bAHja9Xecuu8HugJFvBvJ02cUDAF0fQb/UW
+	LymOmxY1g==;
+Received: from clnet-p19-102.ikbnet.co.at ([83.175.77.102] helo=localhost)
+	by bombadil.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
+	id 1hg71L-0001Kf-Nf; Wed, 26 Jun 2019 12:27:28 +0000
+From: Christoph Hellwig <hch@lst.de>
+To: Dan Williams <dan.j.williams@intel.com>,
+	=?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
+	Jason Gunthorpe <jgg@mellanox.com>,
+	Ben Skeggs <bskeggs@redhat.com>
+Cc: linux-mm@kvack.org,
+	nouveau@lists.freedesktop.org,
+	dri-devel@lists.freedesktop.org,
+	linux-nvdimm@lists.01.org,
+	linux-pci@vger.kernel.org,
+	linux-kernel@vger.kernel.org
+Subject: dev_pagemap related cleanups v3
+Date: Wed, 26 Jun 2019 14:26:59 +0200
+Message-Id: <20190626122724.13313-1-hch@lst.de>
+X-Mailer: git-send-email 2.20.1
 MIME-Version: 1.0
-References: <20190626121943.131390-1-glider@google.com>
-In-Reply-To: <20190626121943.131390-1-glider@google.com>
-From: Alexander Potapenko <glider@google.com>
-Date: Wed, 26 Jun 2019 14:26:57 +0200
-Message-ID: <CAG_fn=V5o-wt5PQ4LSarpXrEGfbrdbtSFqOOag=nmMrxf4gfnA@mail.gmail.com>
-Subject: Re: [PATCH v8 0/3] add init_on_alloc/init_on_free boot options
-To: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, 
-	Kees Cook <keescook@chromium.org>
-Cc: Masahiro Yamada <yamada.masahiro@socionext.com>, Michal Hocko <mhocko@kernel.org>, 
-	James Morris <jmorris@namei.org>, "Serge E. Hallyn" <serge@hallyn.com>, 
-	Nick Desaulniers <ndesaulniers@google.com>, Kostya Serebryany <kcc@google.com>, 
-	Dmitry Vyukov <dvyukov@google.com>, Sandeep Patil <sspatil@android.com>, 
-	Laura Abbott <labbott@redhat.com>, Randy Dunlap <rdunlap@infradead.org>, Jann Horn <jannh@google.com>, 
-	Mark Rutland <mark.rutland@arm.com>, Marco Elver <elver@google.com>, Qian Cai <cai@lca.pw>, 
-	Linux Memory Management List <linux-mm@kvack.org>, 
-	linux-security-module <linux-security-module@vger.kernel.org>, 
-	Kernel Hardening <kernel-hardening@lists.openwall.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+X-SRS-Rewrite: SMTP reverse-path rewritten from <hch@infradead.org> by bombadil.infradead.org. See http://www.infradead.org/rpr.html
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jun 26, 2019 at 2:19 PM Alexander Potapenko <glider@google.com> wro=
-te:
->
-> Provide init_on_alloc and init_on_free boot options.
-akpm: May I kindly ask you to replace the two patches from this series
-in the -mm tree with their newer versions?
+Hi Dan, Jérôme and Jason,
 
-> These are aimed at preventing possible information leaks and making the
-> control-flow bugs that depend on uninitialized values more deterministic.
->
-> Enabling either of the options guarantees that the memory returned by the
-> page allocator and SL[AU]B is initialized with zeroes.
-> SLOB allocator isn't supported at the moment, as its emulation of kmem
-> caches complicates handling of SLAB_TYPESAFE_BY_RCU caches correctly.
->
-> Enabling init_on_free also guarantees that pages and heap objects are
-> initialized right after they're freed, so it won't be possible to access
-> stale data by using a dangling pointer.
->
-> As suggested by Michal Hocko, right now we don't let the heap users to
-> disable initialization for certain allocations. There's not enough
-> evidence that doing so can speed up real-life cases, and introducing
-> ways to opt-out may result in things going out of control.
->
-> To: Andrew Morton <akpm@linux-foundation.org>
-> To: Christoph Lameter <cl@linux.com>
-> To: Kees Cook <keescook@chromium.org>
-> Cc: Masahiro Yamada <yamada.masahiro@socionext.com>
-> Cc: Michal Hocko <mhocko@kernel.org>
-> Cc: James Morris <jmorris@namei.org>
-> Cc: "Serge E. Hallyn" <serge@hallyn.com>
-> Cc: Nick Desaulniers <ndesaulniers@google.com>
-> Cc: Kostya Serebryany <kcc@google.com>
-> Cc: Dmitry Vyukov <dvyukov@google.com>
-> Cc: Sandeep Patil <sspatil@android.com>
-> Cc: Laura Abbott <labbott@redhat.com>
-> Cc: Randy Dunlap <rdunlap@infradead.org>
-> Cc: Jann Horn <jannh@google.com>
-> Cc: Mark Rutland <mark.rutland@arm.com>
-> Cc: Marco Elver <elver@google.com>
-> Cc: Qian Cai <cai@lca.pw>
-> Cc: linux-mm@kvack.org
-> Cc: linux-security-module@vger.kernel.org
-> Cc: kernel-hardening@lists.openwall.com
->
-> Alexander Potapenko (2):
->   mm: security: introduce init_on_alloc=3D1 and init_on_free=3D1 boot
->     options
->   mm: init: report memory auto-initialization features at boot time
->
->  .../admin-guide/kernel-parameters.txt         |  9 +++
->  drivers/infiniband/core/uverbs_ioctl.c        |  2 +-
->  include/linux/mm.h                            | 22 ++++++
->  init/main.c                                   | 24 +++++++
->  mm/dmapool.c                                  |  4 +-
->  mm/page_alloc.c                               | 71 +++++++++++++++++--
->  mm/slab.c                                     | 16 ++++-
->  mm/slab.h                                     | 19 +++++
->  mm/slub.c                                     | 43 +++++++++--
->  net/core/sock.c                               |  2 +-
->  security/Kconfig.hardening                    | 29 +++++++++
->  12 files changed, 204 insertions(+), 19 deletions(-)
-> ---
->  v3: dropped __GFP_NO_AUTOINIT patches
->  v5: dropped support for SLOB allocator, handle SLAB_TYPESAFE_BY_RCU
->  v6: changed wording in boot-time message
->  v7: dropped the test_meminit.c patch (picked by Andrew Morton already),
->      minor wording changes
->  v8: fixes for interoperability with other heap debugging features
-> --
-> 2.22.0.410.gd8fdbe21b5-goog
->
+below is a series that cleans up the dev_pagemap interface so that
+it is more easily usable, which removes the need to wrap it in hmm
+and thus allowing to kill a lot of code
+
+Note: this series is on top of Linux 5.2-rc5 and has some minor
+conflicts with the hmm tree that are easy to resolve.
+
+Diffstat summary:
+
+ 32 files changed, 361 insertions(+), 1012 deletions(-)
+
+Git tree:
+
+    git://git.infradead.org/users/hch/misc.git hmm-devmem-cleanup.3
+
+Gitweb:
+
+    http://git.infradead.org/users/hch/misc.git/shortlog/refs/heads/hmm-devmem-cleanup.3
 
 
---=20
-Alexander Potapenko
-Software Engineer
+Changes since v2:
+ - fix nvdimm kunit build
+ - add a new memory type for device dax
+ - fix a few issues in intermediate patches that didn't show up in the end
+   result
+ - incorporate feedback from Michal Hocko, including killing of
+   the DEVICE_PUBLIC memory type entirely
 
-Google Germany GmbH
-Erika-Mann-Stra=C3=9Fe, 33
-80636 M=C3=BCnchen
-
-Gesch=C3=A4ftsf=C3=BChrer: Paul Manicle, Halimah DeLaine Prado
-Registergericht und -nummer: Hamburg, HRB 86891
-Sitz der Gesellschaft: Hamburg
+Changes since v1:
+ - rebase
+ - also switch p2pdma to the internal refcount
+ - add type checking for pgmap->type
+ - rename the migrate method to migrate_to_ram
+ - cleanup the altmap_valid flag
+ - various tidbits from the reviews
 
