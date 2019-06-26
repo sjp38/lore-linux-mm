@@ -7,78 +7,78 @@ X-Spam-Status: No, score=-8.5 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
 	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 52AECC48BD3
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 12:28:45 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BAC31C48BD6
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 12:28:48 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0FE1920B1F
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 12:28:45 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 755E12063F
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 12:28:48 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="jgy09Umb"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0FE1920B1F
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="e1I2Wme7"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 755E12063F
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id AE2A98E001A; Wed, 26 Jun 2019 08:28:21 -0400 (EDT)
+	id CB7CB8E001B; Wed, 26 Jun 2019 08:28:24 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A6D0A8E0005; Wed, 26 Jun 2019 08:28:21 -0400 (EDT)
+	id C42368E0005; Wed, 26 Jun 2019 08:28:24 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8E71B8E001A; Wed, 26 Jun 2019 08:28:21 -0400 (EDT)
+	id A94488E001B; Wed, 26 Jun 2019 08:28:24 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 4DE4A8E0005
-	for <linux-mm@kvack.org>; Wed, 26 Jun 2019 08:28:21 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id y7so1681663pfy.9
-        for <linux-mm@kvack.org>; Wed, 26 Jun 2019 05:28:21 -0700 (PDT)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 6F7248E0005
+	for <linux-mm@kvack.org>; Wed, 26 Jun 2019 08:28:24 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id i27so1676520pfk.12
+        for <linux-mm@kvack.org>; Wed, 26 Jun 2019 05:28:24 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=h3EyOBgzIzwY5aTyr8+M/7FbufnJaVYVU0zNDtVIxKY=;
-        b=YZSTGTF7nnEADo+LQJNbZT7Ey+gBHpzeh+2lLfnpLT2KBX0CL8JQ3munFxxswpHZoo
-         PM5FGwDKVE1It7R578ToUOCaZtH4XefnIVTnvfZ6WSO9YLSt3tQ5rBRlljcZJBZ+UQ8I
-         PPuHtcYcMKtUvKUfxPC9P4Un0sQtQpxHT8eesZnxOTjp/Bn42AODgAp64lhGq5SgdKkW
-         7qHOt4luB8xUoHFCHkneplajwaFXduolUrT4lp+Rq7SquJz7tZOOp8GdtOWoejOoukoj
-         IMGtqAAXiCeWBXTm2ueXkOWosLnQUrAEcQy4K/B0MfgYnYA2xzPNbhmM4P03mbhoWNne
-         xQsw==
-X-Gm-Message-State: APjAAAWAjYon10+mnZWZ9fp5iIX0p6YnvA16nodIBP8+IT7brwtIHJg6
-	D883gavGoZ85BEb7e3isyOX73DLJz9rrp/f6ITaDGUOf8M/6K7oIU0sTPbnJqOFMxXTpG/qFVqo
-	cC54PTPijLXmIkrhvSlhWy3kw4q51HiHqgXvj8bnXole4XFOpiTD3UO9zvs3gNEY=
-X-Received: by 2002:a17:90a:8a15:: with SMTP id w21mr4515221pjn.134.1561552100984;
-        Wed, 26 Jun 2019 05:28:20 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyHhVRvzsjyj7OzOzAuLaUJO7p67z4agbrlbku5uJr/h3HwPYKf+D1K1pY2UKBssLXYyLfT
-X-Received: by 2002:a17:90a:8a15:: with SMTP id w21mr4515144pjn.134.1561552100090;
-        Wed, 26 Jun 2019 05:28:20 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561552100; cv=none;
+        bh=Q+TYvRiX1OhT+BScY8OczmwoERZbakk+9rslWoznBYs=;
+        b=hdEgQceODGpubjzf+6+S8EKRwI0QwUGxJ9daiyWADdJBv3bzDN3Z3oGJ6aJAeEqWPg
+         ZQMhF/IV8LfzMiip94/qfUeqJApI9ZCcc16BUeP2dkgXIuizzzM2Sqa3J2jk67Nck57C
+         fzfCpFoTVQj46diL0kPGWnpRKLhImF8NmBdiElhkEQDFpJeRoKrscOAaaFPZ/qaZMrke
+         4+1n+MzOEscNGMeNTP6DxPokSWbC5b3XO66xtZHnCrO3SIcscVLhDNOc0y1DuIelaEs8
+         yylgGk5s7Vfg9M8Qkwqqf0yrbkrTnwDyYnRxQxzf0ggDUyyKzXx5mEtbNRvA7rGuOn/c
+         r91w==
+X-Gm-Message-State: APjAAAUhtQyzvkFDLNGYRcLUacJyJmsmHSwZv+hKOfmge8ZTTGPUW8xd
+	FpPaxxzIpeJwkiL8u8cr//V+7bWA6H4H/t1QuLfQ+k2YS7qZy0ulnlX0Bch/trP6WzBIW3oQDxh
+	e+MhBUWDgLBfNNg8fKdp2fKIlnaeMNkAIBIxBLNx8BxpuaBYEY29EMQdv0IrqnpY=
+X-Received: by 2002:a17:90a:37e9:: with SMTP id v96mr4415057pjb.10.1561552104056;
+        Wed, 26 Jun 2019 05:28:24 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwXiKkK3dFHmGdXmYI8rlNig9CVbxb6PTUXF3JdKHWykyQXbsriaX1cZDmK3Z+EXCv8aTo1
+X-Received: by 2002:a17:90a:37e9:: with SMTP id v96mr4414987pjb.10.1561552103379;
+        Wed, 26 Jun 2019 05:28:23 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561552103; cv=none;
         d=google.com; s=arc-20160816;
-        b=nSOfcymj3ouEN5In46COVXNPwpw3Odd3e6iBmBWjCcQpohbUdM31A+zSGDv3fyPjA1
-         Ziao1cDvfovHIWuRxgUKwt6BoM9VjEb90/2lVZpixR84eN+juFXOd5gRMwLpo/ua0jG4
-         QqkikN1oyCh4qM8cwExlTgPIsXd/VCii661577BXXFJRTQcIfb1+QXrwWUiUdVQJawRF
-         sB8FxsJ60S8o9mQ3uI5YaAehf2/kT2G++w0Fm/8erZTPtCZPF+lw7wh+03xP4pSgJKSc
-         q+Oi00zJCDn+0/kmyl42RGMXKzcVbV0kxr4K4q/s6QHb5+4KLd2u6FqY1HwUfYp+9u2I
-         DPuQ==
+        b=tiyyIn1wR+Q7rZ7MhLTwRAjbl/vtudJY9dD3t7UceC7mHsbNeanDPLbf24QbU1lMmX
+         i0TVsZjdQhbY7R71mCBReQaXWlTOvltE0SHjk0pbqJeLD3uvF6NPfut70AhEpttdYhQz
+         xO6LW9Ij8RafghEvTBlfn+xMn6a0ZUuv3cFnOEKcfmQ65NXihrJG/lsCaxNhqTjhrn1b
+         bcEDW0nGzQzb5Nybt5JZ/bep2Fnmyg39za7I55aXMePOyaxwgk9l8d51APR3Qc2/X/9n
+         3Pe6Uq2gvaRDJxAMLob2bdayildpX7L+ybptg8zOydw7k3BiHmWUrIBZv8ScCpofQ+o5
+         5Bfw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=h3EyOBgzIzwY5aTyr8+M/7FbufnJaVYVU0zNDtVIxKY=;
-        b=FIc57KcSakXlKsIioH1RBcYVJY1Cie/cT/aDgGmDO9tUbhgtHFjPIE8p1Zra7hsS0x
-         ddwxgarf39vy2KlPNWCN+mFtgP+DjelKpoUyuB9EyMPJQNPZXmDzAFsTTG5GjS1PfZ+s
-         LtqiLCL+l7GRzOEyZ7xFFM6Q1gyV8v1AVrLIk9WpIRhLcwYWR3DX/leHWOuYpzFTxqLv
-         WPG/y8FUvcSW9k85VCsaS1qLaSGFTM+nsP316oMmzii68+duEbNuFX6GFA4zSscywyQG
-         la0DxD1sZFexcLVdtfDJqmfpK8Q3caSmQfyWJl988Dd+pB04+Twxh5TVexmppargTBO5
-         meaA==
+        bh=Q+TYvRiX1OhT+BScY8OczmwoERZbakk+9rslWoznBYs=;
+        b=Rpk7zi6btj7gjatMkbcexjPtfP3JqTFt/aL0pCfxmUKHiYjAt/N3fbhGaNUJHR/Cpk
+         Z2DGFa4u2XXPEN4IUbhwK8wPtOfhbvri0V6m7NJpoTZ9VMlauLV7SLc/Gtd/JlPPwo3t
+         VfzevIJVGfUmGwggO8SQHncCYmMXFGT6xAQNhlSxOCT4ZF8BHzjVI/nE5lSTOHY0mceQ
+         xSfNj/bPgCBJTWrLKhgXL0efhUB1nmiy7p3ivQs2Fs7z1DwVyJR85CN1fEUWzFTHodn3
+         gUu1gpZ5oD+SOylJuccIyiEQGN5/Vxax5YI8JAiflKT+YvPoo34DkC+1wc9QfW/y0mKL
+         kyOA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=jgy09Umb;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=e1I2Wme7;
        spf=pass (google.com: best guess record for domain of batv+ab1f803c58217d155be4+5785+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+ab1f803c58217d155be4+5785+infradead.org+hch@bombadil.srs.infradead.org
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id q23si1920964pjp.63.2019.06.26.05.28.19
+        by mx.google.com with ESMTPS id b92si2019077pjc.17.2019.06.26.05.28.23
         for <linux-mm@kvack.org>
         (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Wed, 26 Jun 2019 05:28:20 -0700 (PDT)
+        Wed, 26 Jun 2019 05:28:23 -0700 (PDT)
 Received-SPF: pass (google.com: best guess record for domain of batv+ab1f803c58217d155be4+5785+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=jgy09Umb;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=e1I2Wme7;
        spf=pass (google.com: best guess record for domain of batv+ab1f803c58217d155be4+5785+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+ab1f803c58217d155be4+5785+infradead.org+hch@bombadil.srs.infradead.org
 DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	d=infradead.org; s=bombadil.20170209; h=Content-Transfer-Encoding:
@@ -86,15 +86,15 @@ DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	:Reply-To:Content-Type:Content-ID:Content-Description:Resent-Date:Resent-From
 	:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:List-Help:
 	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	bh=h3EyOBgzIzwY5aTyr8+M/7FbufnJaVYVU0zNDtVIxKY=; b=jgy09UmbLfN+TWf3ytByumWWNU
-	MBpzdiGmKPVtjV+r0URWfeF2E9GRBVEM/c8PnQUO2wZiW0zBK04cKMOZbgGnhwOq4cUSwiniKoMeX
-	nT+P2ZmloBddnkxKnDLCv0p9C9VKIfvJhCYoDMLDhebT7jxtq+qTcxT+DpTV1aEPuh24GfFM+21jc
-	kOYj7R6c4SAui71wSqq81SUZTzHwpTbjiSuAhN1+J8BxHpjAxvSj7bpXQIAp5IJs+sveIvxCpy3e5
-	M8/sKyXAXPj85iSMU4X7j+qpHu/XpfkJAYPDnm1oVPWTY+HoDT6ptwrKa0Hjb/nKTsoEaSJKqs41g
-	dD55ye6w==;
+	bh=Q+TYvRiX1OhT+BScY8OczmwoERZbakk+9rslWoznBYs=; b=e1I2Wme7Ox3SphXo/U291LQsFi
+	3MsV4dR6yO4KCQ2FSAu9/N4uNapXRXs4dz5vWPTNn9ZH7fPwZipzQi6fhI8Ahdaljbwgv8TKqjmXy
+	iKSKLEl5eN3aNB5BKVY6ZDuPBgqiMxHFj8zu/PfbrJi+Xtpji+RaiGnOKIVP+UaYs1dxMiAc3tNMj
+	xepXmBCES099SHbE2RluDL2qHrXXOo3qYkTaXO9Ys5YBarsJezAR4o94rn4r7aSSJiEUq27AMLr7Q
+	Sfv5eRswkyXs4C0cmqD2h6WkAQ+t0O12yKFFanMfEUC3M8QOGS50Xyrtpl16hCtphB5Nujt/+/gJl
+	+J5cCWZw==;
 Received: from clnet-p19-102.ikbnet.co.at ([83.175.77.102] helo=localhost)
 	by bombadil.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
-	id 1hg729-0001ab-Cw; Wed, 26 Jun 2019 12:28:17 +0000
+	id 1hg72C-0001bU-3z; Wed, 26 Jun 2019 12:28:20 +0000
 From: Christoph Hellwig <hch@lst.de>
 To: Dan Williams <dan.j.williams@intel.com>,
 	=?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
@@ -106,9 +106,9 @@ Cc: linux-mm@kvack.org,
 	linux-nvdimm@lists.01.org,
 	linux-pci@vger.kernel.org,
 	linux-kernel@vger.kernel.org
-Subject: [PATCH 19/25] nouveau: use devm_memremap_pages directly
-Date: Wed, 26 Jun 2019 14:27:18 +0200
-Message-Id: <20190626122724.13313-20-hch@lst.de>
+Subject: [PATCH 20/25] mm: remove hmm_vma_alloc_locked_page
+Date: Wed, 26 Jun 2019 14:27:19 +0200
+Message-Id: <20190626122724.13313-21-hch@lst.de>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190626122724.13313-1-hch@lst.de>
 References: <20190626122724.13313-1-hch@lst.de>
@@ -121,193 +121,54 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Just use devm_memremap_pages instead of hmm_devmem_add pages to allow
-killing that wrapper which doesn't provide a whole lot of benefits.
+The only user of it has just been removed, and there wasn't really any need
+to wrap a basic memory allocator to start with.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- drivers/gpu/drm/nouveau/nouveau_dmem.c | 82 ++++++++++++--------------
- 1 file changed, 38 insertions(+), 44 deletions(-)
+ include/linux/hmm.h |  3 ---
+ mm/hmm.c            | 14 --------------
+ 2 files changed, 17 deletions(-)
 
-diff --git a/drivers/gpu/drm/nouveau/nouveau_dmem.c b/drivers/gpu/drm/nouveau/nouveau_dmem.c
-index a50f6fd2fe24..0fb7a44b8bc4 100644
---- a/drivers/gpu/drm/nouveau/nouveau_dmem.c
-+++ b/drivers/gpu/drm/nouveau/nouveau_dmem.c
-@@ -72,7 +72,8 @@ struct nouveau_dmem_migrate {
- };
+diff --git a/include/linux/hmm.h b/include/linux/hmm.h
+index ba19c19e24ed..1d55b7ea2da6 100644
+--- a/include/linux/hmm.h
++++ b/include/linux/hmm.h
+@@ -587,9 +587,6 @@ static inline void hmm_mm_init(struct mm_struct *mm) {}
+ #if IS_ENABLED(CONFIG_DEVICE_PRIVATE)
+ struct hmm_devmem;
  
- struct nouveau_dmem {
--	struct hmm_devmem *devmem;
-+	struct nouveau_drm *drm;
-+	struct dev_pagemap pagemap;
- 	struct nouveau_dmem_migrate migrate;
- 	struct list_head chunk_free;
- 	struct list_head chunk_full;
-@@ -80,6 +81,11 @@ struct nouveau_dmem {
- 	struct mutex mutex;
- };
+-struct page *hmm_vma_alloc_locked_page(struct vm_area_struct *vma,
+-				       unsigned long addr);
+-
+ /*
+  * struct hmm_devmem_ops - callback for ZONE_DEVICE memory events
+  *
+diff --git a/mm/hmm.c b/mm/hmm.c
+index e4470462298f..fdbd48771292 100644
+--- a/mm/hmm.c
++++ b/mm/hmm.c
+@@ -1330,20 +1330,6 @@ EXPORT_SYMBOL(hmm_range_dma_unmap);
  
-+static inline struct nouveau_dmem *page_to_dmem(struct page *page)
-+{
-+	return container_of(page->pgmap, struct nouveau_dmem, pagemap);
-+}
-+
- struct nouveau_dmem_fault {
- 	struct nouveau_drm *drm;
- 	struct nouveau_fence *fence;
-@@ -96,8 +102,7 @@ struct nouveau_migrate {
- 	unsigned long dma_nr;
- };
  
--static void
--nouveau_dmem_free(struct hmm_devmem *devmem, struct page *page)
-+static void nouveau_dmem_page_free(struct page *page)
+ #if IS_ENABLED(CONFIG_DEVICE_PRIVATE)
+-struct page *hmm_vma_alloc_locked_page(struct vm_area_struct *vma,
+-				       unsigned long addr)
+-{
+-	struct page *page;
+-
+-	page = alloc_page_vma(GFP_HIGHUSER, vma, addr);
+-	if (!page)
+-		return NULL;
+-	lock_page(page);
+-	return page;
+-}
+-EXPORT_SYMBOL(hmm_vma_alloc_locked_page);
+-
+-
+ static void hmm_devmem_ref_release(struct percpu_ref *ref)
  {
- 	struct nouveau_dmem_chunk *chunk;
- 	unsigned long idx;
-@@ -260,29 +265,21 @@ static const struct migrate_vma_ops nouveau_dmem_fault_migrate_ops = {
- 	.finalize_and_map	= nouveau_dmem_fault_finalize_and_map,
- };
- 
--static vm_fault_t
--nouveau_dmem_fault(struct hmm_devmem *devmem,
--		   struct vm_area_struct *vma,
--		   unsigned long addr,
--		   const struct page *page,
--		   unsigned int flags,
--		   pmd_t *pmdp)
-+static vm_fault_t nouveau_dmem_migrate_to_ram(struct vm_fault *vmf)
- {
--	struct drm_device *drm_dev = dev_get_drvdata(devmem->device);
-+	struct nouveau_dmem *dmem = page_to_dmem(vmf->page);
- 	unsigned long src[1] = {0}, dst[1] = {0};
--	struct nouveau_dmem_fault fault = {0};
-+	struct nouveau_dmem_fault fault = { .drm = dmem->drm };
- 	int ret;
- 
--
--
- 	/*
- 	 * FIXME what we really want is to find some heuristic to migrate more
- 	 * than just one page on CPU fault. When such fault happens it is very
- 	 * likely that more surrounding page will CPU fault too.
- 	 */
--	fault.drm = nouveau_drm(drm_dev);
--	ret = migrate_vma(&nouveau_dmem_fault_migrate_ops, vma, addr,
--			  addr + PAGE_SIZE, src, dst, &fault);
-+	ret = migrate_vma(&nouveau_dmem_fault_migrate_ops, vmf->vma,
-+			vmf->address, vmf->address + PAGE_SIZE,
-+			src, dst, &fault);
- 	if (ret)
- 		return VM_FAULT_SIGBUS;
- 
-@@ -292,10 +289,9 @@ nouveau_dmem_fault(struct hmm_devmem *devmem,
- 	return 0;
- }
- 
--static const struct hmm_devmem_ops
--nouveau_dmem_devmem_ops = {
--	.free = nouveau_dmem_free,
--	.fault = nouveau_dmem_fault,
-+static const struct dev_pagemap_ops nouveau_dmem_pagemap_ops = {
-+	.page_free		= nouveau_dmem_page_free,
-+	.migrate_to_ram		= nouveau_dmem_migrate_to_ram,
- };
- 
- static int
-@@ -581,7 +577,8 @@ void
- nouveau_dmem_init(struct nouveau_drm *drm)
- {
- 	struct device *device = drm->dev->dev;
--	unsigned long i, size;
-+	struct resource *res;
-+	unsigned long i, size, pfn_first;
- 	int ret;
- 
- 	/* This only make sense on PASCAL or newer */
-@@ -591,6 +588,7 @@ nouveau_dmem_init(struct nouveau_drm *drm)
- 	if (!(drm->dmem = kzalloc(sizeof(*drm->dmem), GFP_KERNEL)))
- 		return;
- 
-+	drm->dmem->drm = drm;
- 	mutex_init(&drm->dmem->mutex);
- 	INIT_LIST_HEAD(&drm->dmem->chunk_free);
- 	INIT_LIST_HEAD(&drm->dmem->chunk_full);
-@@ -600,11 +598,8 @@ nouveau_dmem_init(struct nouveau_drm *drm)
- 
- 	/* Initialize migration dma helpers before registering memory */
- 	ret = nouveau_dmem_migrate_init(drm);
--	if (ret) {
--		kfree(drm->dmem);
--		drm->dmem = NULL;
--		return;
--	}
-+	if (ret)
-+		goto out_free;
- 
- 	/*
- 	 * FIXME we need some kind of policy to decide how much VRAM we
-@@ -612,14 +607,16 @@ nouveau_dmem_init(struct nouveau_drm *drm)
- 	 * and latter if we want to do thing like over commit then we
- 	 * could revisit this.
- 	 */
--	drm->dmem->devmem = hmm_devmem_add(&nouveau_dmem_devmem_ops,
--					   device, size);
--	if (IS_ERR(drm->dmem->devmem)) {
--		kfree(drm->dmem);
--		drm->dmem = NULL;
--		return;
--	}
--
-+	res = devm_request_free_mem_region(device, &iomem_resource, size);
-+	if (IS_ERR(res))
-+		goto out_free;
-+	drm->dmem->pagemap.type = MEMORY_DEVICE_PRIVATE;
-+	drm->dmem->pagemap.res = *res;
-+	drm->dmem->pagemap.ops = &nouveau_dmem_pagemap_ops;
-+	if (IS_ERR(devm_memremap_pages(device, &drm->dmem->pagemap)))
-+		goto out_free;
-+
-+	pfn_first = res->start >> PAGE_SHIFT;
- 	for (i = 0; i < (size / DMEM_CHUNK_SIZE); ++i) {
- 		struct nouveau_dmem_chunk *chunk;
- 		struct page *page;
-@@ -632,8 +629,7 @@ nouveau_dmem_init(struct nouveau_drm *drm)
- 		}
- 
- 		chunk->drm = drm;
--		chunk->pfn_first = drm->dmem->devmem->pfn_first;
--		chunk->pfn_first += (i * DMEM_CHUNK_NPAGES);
-+		chunk->pfn_first = pfn_first + (i * DMEM_CHUNK_NPAGES);
- 		list_add_tail(&chunk->list, &drm->dmem->chunk_empty);
- 
- 		page = pfn_to_page(chunk->pfn_first);
-@@ -643,6 +639,10 @@ nouveau_dmem_init(struct nouveau_drm *drm)
- 	}
- 
- 	NV_INFO(drm, "DMEM: registered %ldMB of device memory\n", size >> 20);
-+	return;
-+out_free:
-+	kfree(drm->dmem);
-+	drm->dmem = NULL;
- }
- 
- static void
-@@ -833,13 +833,7 @@ nouveau_dmem_migrate_vma(struct nouveau_drm *drm,
- static inline bool
- nouveau_dmem_page(struct nouveau_drm *drm, struct page *page)
- {
--	if (!is_device_private_page(page))
--		return false;
--
--	if (drm->dmem->devmem != page->pgmap->data)
--		return false;
--
--	return true;
-+	return is_device_private_page(page) && drm->dmem == page_to_dmem(page);
- }
- 
- void
+ 	struct hmm_devmem *devmem;
 -- 
 2.20.1
 
