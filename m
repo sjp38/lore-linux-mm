@@ -2,428 +2,253 @@ Return-Path: <SRS0=C/CR=UZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E53C3C48BD3
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 20:19:36 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9D195C48BD6
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 20:23:39 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8C3882086D
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 20:19:36 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 546882085A
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 20:23:39 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="oJHHrJK0";
-	dkim=pass (1024-bit key) header.d=fb.onmicrosoft.com header.i=@fb.onmicrosoft.com header.b="pSycmtxs"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8C3882086D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
+	dkim=pass (1024-bit key) header.d=chromium.org header.i=@chromium.org header.b="P/scPxgJ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 546882085A
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chromium.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0800D8E0003; Wed, 26 Jun 2019 16:19:36 -0400 (EDT)
+	id E38B06B0003; Wed, 26 Jun 2019 16:23:38 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 00A648E0002; Wed, 26 Jun 2019 16:19:35 -0400 (EDT)
+	id DE91F8E0005; Wed, 26 Jun 2019 16:23:38 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DC5B38E0003; Wed, 26 Jun 2019 16:19:35 -0400 (EDT)
+	id CD7698E0002; Wed, 26 Jun 2019 16:23:38 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9DF558E0002
-	for <linux-mm@kvack.org>; Wed, 26 Jun 2019 16:19:35 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id i11so2225712pgt.7
-        for <linux-mm@kvack.org>; Wed, 26 Jun 2019 13:19:35 -0700 (PDT)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 94FB36B0003
+	for <linux-mm@kvack.org>; Wed, 26 Jun 2019 16:23:38 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id f25so82029pfk.14
+        for <linux-mm@kvack.org>; Wed, 26 Jun 2019 13:23:38 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:dkim-signature:from:to:cc:subject
-         :thread-topic:thread-index:date:message-id:references:in-reply-to
-         :accept-language:content-language:content-id
-         :content-transfer-encoding:mime-version;
-        bh=M4vrHSrBEE5RnH6j6JfZxg6FcoHo6rNTZz4qxyJUWfA=;
-        b=aU8EbCfGnezRLOpU2PVBlVDmQYQ8mCZ5JVb2ZWUkSZiQJM4bl7ZeGxDAwYYWTkVEUu
-         pqIddu8h9wIrmEmha7D+efIOzG0HYDzt6jIWEB/nLRvb3e3oAyPB3o+QdO8OeWMBSjct
-         S9rogRPTu4adaFPFmDEOjHdMWgbCUainWuWZez7oAetl4BUwgNj8HiU/pY1bBysBL1G7
-         ihdgpmFy+qmH4N74Eq7yU48fbZpjG39AlLFRzfJjFvERxF6gVLIqlJN/ieQxl5Unnjsn
-         xkf+c0ED8IiPjdQ6L3daAncczSqOB/uZilm1i9ZL7+KZ6ou8XltwZTyA1uIwtP6uuP+G
-         9kRA==
-X-Gm-Message-State: APjAAAWnNPJH8tmScn76mRqx5RQK3da75shZsENTLlZg2u969ruvgniQ
-	Z3J7KM1nKadD3Lq6gmGG3+EattFYXQNtHWaw8dZflDCuZm78zBcSmGKqhCcQ+bOjpHIvQUsIx6r
-	TxelQNHV1CaApJdCL+P6HD/eee4w5p7Q1ll4xHMPEqnEV2XUW6/KAWTPqIfZPNU030g==
-X-Received: by 2002:a17:90a:dc86:: with SMTP id j6mr1020464pjv.141.1561580375151;
-        Wed, 26 Jun 2019 13:19:35 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxz6j0J92vX8k1zLoeCRT1YhjQCVM8m6HvnO2Yno8CU0Vx44G9bRvmHynVSQH25kSTzPpJP
-X-Received: by 2002:a17:90a:dc86:: with SMTP id j6mr1020374pjv.141.1561580373880;
-        Wed, 26 Jun 2019 13:19:33 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561580373; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to;
+        bh=muTYyZgRfl/88mIFAVs1e5kjaDnXa1/tEbRZdzaGsjo=;
+        b=s10SItwuqt7zuYbHvBAtFt8JyiLYQcYZjmF+Nxnvj8wDA0D0laVGGVkWEObSciG8up
+         amKRMejN/YYINPyPMr0It2P6FhheVCTj7BGfsY8prjBvZj6T06xU0RWxtx7tnrj9qHXC
+         hXAra8QApNEhjOxRok2VdM4At+EwbyLeVLZZyyjylb532VYan32bmJVOq7WShntAHCXY
+         5PN8xuNqbPyInJTiHEwNG0WPTVMUgrtI4Uvisq0lnVbQVmJKxZ20ZlKhye/4mBVowfyj
+         EpKdQFFuUgMojBiK9l9+N2Jo1NJkmwD26P9ZZ6c38EKtxSRxwdtDCw+3Dj1JtayTzaQs
+         dbwQ==
+X-Gm-Message-State: APjAAAWTo+tzP8+1VBJ37d5C1pSdCZpIrs8RwZWttgAsCekpKr7RG8Qm
+	1kq1y+aSWb30cK6nVauc2DtsEABnbN8Y1FNOAfSMPmIuIDy1gU83CLV2bCJjAesdgo7CUwxFqXW
+	uzSFNfjirNjbJajlx4nAHPWZK1u0CSLTZ1JBcnjL+tlGttslB36rmCrw18YcsYX6HGg==
+X-Received: by 2002:a63:a50a:: with SMTP id n10mr4410406pgf.200.1561580618102;
+        Wed, 26 Jun 2019 13:23:38 -0700 (PDT)
+X-Received: by 2002:a63:a50a:: with SMTP id n10mr4410331pgf.200.1561580616988;
+        Wed, 26 Jun 2019 13:23:36 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561580616; cv=none;
         d=google.com; s=arc-20160816;
-        b=vB1V5Zk4laXheqvIO+X1kw6b1CK9mJAB00F0/JX96LIjwEOcHvyqHCNfhV9rRAUgOp
-         4niam4HC0mzl8tXMxd5I0NMXzujxLI27joJpzIitgfIMna7G/Rh0XHerQsyTWwwA+aOw
-         lIw8Md3p3ET4cSceRlqHWQoj20x3VnMIA7igi8Djva2Gnrn6Rxhg38hvKvdg0aruxKIk
-         sU5GT1dVRkECEdujnNlkex48Sh/Gy/LdNddQ+rSbCkxKsyKQeUa3U/DRkenznXyQlrvp
-         JHgT6npLhovKUx9HrXdLCaphI3njz/cjlpGK5rcX3BTk9EbR5lZ8acZEJVvRJq7VDw8k
-         iSVw==
+        b=YDzEyBlR586EylYH644rZibksTkKsSDjl+b7tjUWfzhnsXUgDSw/G+OPx2Q9Uy7zFW
+         DyeZei0sdUoi2jFnPUFKbyMlJTbhC1TehlkcYTNZlKsWD0Bc0ZGgB0uPeeA7GN1w+e15
+         Jf5lM9VN61y1ZCHGIDLx9RW6q0u2BGStOOaZCb9KniZBQfrJmZGz0KatZNN3sMWdugKU
+         z7Aeflodq3238oxOdFEWu2BaX6ymJrCpDpWPBTGsHkehVFh1RI1jUbXVt73PGDg717ez
+         yETCZE5pvuLDEtR8b6op74mH4blLQZ8uWbSb30WJNlES4TjnHCwGWKP77zzUEkMQI1YT
+         3HzA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from:dkim-signature:dkim-signature;
-        bh=M4vrHSrBEE5RnH6j6JfZxg6FcoHo6rNTZz4qxyJUWfA=;
-        b=UQY6uPd6vvzoYMVo0eQsBygKBWqyPVnOUiQ/l89O08v9b9Idithmt7V2d5fGO4xv9G
-         a7CdTTsxY+n8on+IGCr3Jtk4k6Y7twNQWQy4Ki4ZJN7M3FD9/wuuNXpLAdFBpHTNP++2
-         SI7vbH0lKpqEWN4fP1OsogP8iHXmzkau5ZhghSNgMYtsE/osLibOa6AXVcV5xXGWfQds
-         3xRMq3fh7dSGtz/NkT4S51jYImosUjj1DZmIbNlplY/yItiv7S8bxf4bOZjlo5bgOI0C
-         t8EBRO3YyH4pB3WkZO48aiwJ+4R9yePf3Hz5mUCVqKPW2Ww+eMESgGoHoTBEpxim5hrE
-         16rQ==
+        h=in-reply-to:content-transfer-encoding:content-disposition
+         :mime-version:references:message-id:subject:cc:to:from:date
+         :dkim-signature;
+        bh=muTYyZgRfl/88mIFAVs1e5kjaDnXa1/tEbRZdzaGsjo=;
+        b=yeotBS/9ljEfSqrGvmFL598TXpYnWbdXYdiepJOXyHjiPFuErSPVxLMYAbhSp9E2xH
+         a7ZsbtZ/Y0ggSgP5Ob5EKFiMLWLLV65SsmOf/a91I+II4hZoFTe2HKRtNIgovBJo+5Cu
+         T+1CIABDwIJB4mXsYO3m8Fn5k2FBXMZgNoaNprNPPVhZs79PXwKyYVNz8LzyQiNNfbuh
+         RDez/qB4ggrTHjPJs51u1HEJSP/AHF4xlhFOw1OrLCuE1nHcu5cfIbTNymNM1HpesuLb
+         C+0fWvbdvyL36VKgk2UUvO5RCmL5Iw+kVGw/aortxr3t6+NfwVXFYRaM1+v2+JCK8Yzd
+         blEg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b=oJHHrJK0;
-       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-onmicrosoft-com header.b=pSycmtxs;
-       spf=pass (google.com: domain of prvs=10801e5284=guro@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=10801e5284=guro@fb.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id c145si155985pfb.9.2019.06.26.13.19.33
+       dkim=pass header.i=@chromium.org header.s=google header.b="P/scPxgJ";
+       spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id d126sor73150pfa.39.2019.06.26.13.23.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Jun 2019 13:19:33 -0700 (PDT)
-Received-SPF: pass (google.com: domain of prvs=10801e5284=guro@fb.com designates 67.231.145.42 as permitted sender) client-ip=67.231.145.42;
+        (Google Transport Security);
+        Wed, 26 Jun 2019 13:23:36 -0700 (PDT)
+Received-SPF: pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b=oJHHrJK0;
-       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-onmicrosoft-com header.b=pSycmtxs;
-       spf=pass (google.com: domain of prvs=10801e5284=guro@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=10801e5284=guro@fb.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from pps.filterd (m0044008.ppops.net [127.0.0.1])
-	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x5QKDx9p007310;
-	Wed, 26 Jun 2019 13:19:26 -0700
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
- : date : message-id : references : in-reply-to : content-type : content-id
- : content-transfer-encoding : mime-version; s=facebook;
- bh=M4vrHSrBEE5RnH6j6JfZxg6FcoHo6rNTZz4qxyJUWfA=;
- b=oJHHrJK0eB/uYYyFJ0TYcfB6xkWEDAoV8ZB/c98R6Fs9iBQax88QAWKjxzpIFVPm6oqJ
- zy7LSPT0m9Tar9oE7ecKFZdn3TfV0tWvGCVnd7axTbF0MhTwveQexK3Px5w+62o6Wp0d
- t1kNbaatwWolIi0mBV4w9hcguEX+VZfbLXU= 
-Received: from mail.thefacebook.com (mailout.thefacebook.com [199.201.64.23])
-	by mx0a-00082601.pphosted.com with ESMTP id 2tcdfs8gku-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-SHA384 bits=256 verify=NOT);
-	Wed, 26 Jun 2019 13:19:26 -0700
-Received: from prn-mbx03.TheFacebook.com (2620:10d:c081:6::17) by
- prn-hub05.TheFacebook.com (2620:10d:c081:35::129) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id
- 15.1.1713.5; Wed, 26 Jun 2019 13:19:25 -0700
-Received: from prn-hub02.TheFacebook.com (2620:10d:c081:35::126) by
- prn-mbx03.TheFacebook.com (2620:10d:c081:6::17) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id
- 15.1.1713.5; Wed, 26 Jun 2019 13:19:25 -0700
-Received: from NAM01-BY2-obe.outbound.protection.outlook.com (192.168.54.28)
- by o365-in.thefacebook.com (192.168.16.26) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id 15.1.1713.5
- via Frontend Transport; Wed, 26 Jun 2019 13:19:25 -0700
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.onmicrosoft.com;
- s=selector1-fb-onmicrosoft-com;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=M4vrHSrBEE5RnH6j6JfZxg6FcoHo6rNTZz4qxyJUWfA=;
- b=pSycmtxs/UIGlbDkIx5ITb83xMnTnDo+YD1fZvxlECzYvPNr27K8Lsa3mRdf6bra+33JpL+RMgs+DKVzDiQ8WSjpn9wfAKkP/eJqI1O5Q/GJY9wxU68LTP5rgpsqlJmf7NPhmMqHsZUtLvOv20azq5KF03Cr/dBS2jGa3Yz49/w=
-Received: from BN8PR15MB2626.namprd15.prod.outlook.com (20.179.137.220) by
- BN8PR15MB3443.namprd15.prod.outlook.com (20.179.76.33) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.2008.16; Wed, 26 Jun 2019 20:19:23 +0000
-Received: from BN8PR15MB2626.namprd15.prod.outlook.com
- ([fe80::e594:155f:a43:92ad]) by BN8PR15MB2626.namprd15.prod.outlook.com
- ([fe80::e594:155f:a43:92ad%6]) with mapi id 15.20.2008.018; Wed, 26 Jun 2019
- 20:19:23 +0000
-From: Roman Gushchin <guro@fb.com>
-To: Waiman Long <longman@redhat.com>
-CC: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>,
-        David
- Rientjes <rientjes@google.com>,
-        Joonsoo Kim <iamjoonsoo.kim@lge.com>,
-        Andrew
- Morton <akpm@linux-foundation.org>,
-        Alexander Viro <viro@zeniv.linux.org.uk>,
-        Jonathan Corbet <corbet@lwn.net>, Luis Chamberlain <mcgrof@kernel.org>,
-        Kees
- Cook <keescook@chromium.org>,
-        Johannes Weiner <hannes@cmpxchg.org>,
-        Michal
- Hocko <mhocko@kernel.org>,
-        Vladimir Davydov <vdavydov.dev@gmail.com>,
-        "linux-mm@kvack.org" <linux-mm@kvack.org>,
-        "linux-doc@vger.kernel.org"
-	<linux-doc@vger.kernel.org>,
-        "linux-fsdevel@vger.kernel.org"
-	<linux-fsdevel@vger.kernel.org>,
-        "cgroups@vger.kernel.org"
-	<cgroups@vger.kernel.org>,
-        "linux-kernel@vger.kernel.org"
-	<linux-kernel@vger.kernel.org>,
-        Shakeel Butt <shakeelb@google.com>,
-        Andrea
- Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 2/2] mm, slab: Extend vm/drop_caches to shrink kmem slabs
-Thread-Topic: [PATCH 2/2] mm, slab: Extend vm/drop_caches to shrink kmem slabs
-Thread-Index: AQHVKrRnjGLXeWaE8kq5EhXDbrxOt6auY3OA
-Date: Wed, 26 Jun 2019 20:19:23 +0000
-Message-ID: <20190626201900.GC24698@tower.DHCP.thefacebook.com>
-References: <20190624174219.25513-1-longman@redhat.com>
- <20190624174219.25513-3-longman@redhat.com>
-In-Reply-To: <20190624174219.25513-3-longman@redhat.com>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach: 
-X-MS-TNEF-Correlator: 
-x-clientproxiedby: MWHPR14CA0047.namprd14.prod.outlook.com
- (2603:10b6:300:12b::33) To BN8PR15MB2626.namprd15.prod.outlook.com
- (2603:10b6:408:c7::28)
-x-ms-exchange-messagesentrepresentingtype: 1
-x-originating-ip: [2620:10d:c090:200::2:d5a9]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: 5bdf17f2-dfe0-45f4-fb22-08d6fa739431
-x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(2017052603328)(7193020);SRVR:BN8PR15MB3443;
-x-ms-traffictypediagnostic: BN8PR15MB3443:
-x-microsoft-antispam-prvs: <BN8PR15MB34436A3565DE963D8BB93538BEE20@BN8PR15MB3443.namprd15.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:901;
-x-forefront-prvs: 00808B16F3
-x-forefront-antispam-report: SFV:NSPM;SFS:(10019020)(346002)(366004)(396003)(136003)(39860400002)(376002)(189003)(199004)(14454004)(33656002)(6246003)(102836004)(14444005)(256004)(71190400001)(71200400001)(486006)(305945005)(8676002)(11346002)(6436002)(7736002)(6916009)(186003)(6486002)(86362001)(7416002)(446003)(81156014)(6512007)(476003)(9686003)(81166006)(25786009)(1076003)(6116002)(66556008)(68736007)(53936002)(316002)(8936002)(66446008)(5660300002)(46003)(2906002)(229853002)(99286004)(76176011)(386003)(66946007)(52116002)(64756008)(73956011)(6506007)(54906003)(66476007)(4326008)(478600001);DIR:OUT;SFP:1102;SCL:1;SRVR:BN8PR15MB3443;H:BN8PR15MB2626.namprd15.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
-received-spf: None (protection.outlook.com: fb.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info: 4D7BX8RnVfFfaQ9pc/82uv9X23u14aj1iBvBB3MFxrqyIROiGlN8DNdW9eH0K9K34wJ1o/IVtY1LOmidZjcuc4wzPZx03ZwLo3c44oUIYoylX8io9DIzgc+1tP1d95mwTcUOteOrxwYc8RKkWzuYWj2l5Vm/FbVVt8NIWj3GBN/DyYvwzlw7M3hxeGqwu8YKpWbwR+m1630Bdews19tHmmtqz6w3RjFKOZzhUCdQBMGgU1JvHtcn2pTEbRXdeqpi44B23/JtBIL0v+9QFDSWVY8+2RrtOgj0QfuyLoBt8+TXCy+u9/TmUzL9r71Yd+tt6J/tvIpTo+vEMa2Ey1PSQPEl1+c8D5VRBqEskNRIymW8KiWwKgpRIvciTUNlguLQ66Sgw8FBjTUuT8zQPao4GxcD34DizPmBf0pEiOGdWsE=
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <57AA2DBB24C0BA4DB2F8CE916F7C523C@namprd15.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
+       dkim=pass header.i=@chromium.org header.s=google header.b="P/scPxgJ";
+       spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=chromium.org; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:content-transfer-encoding:in-reply-to;
+        bh=muTYyZgRfl/88mIFAVs1e5kjaDnXa1/tEbRZdzaGsjo=;
+        b=P/scPxgJwc5farJAuIHByPDzINLlpr/5LkI5Tz6+ai7Kj6UtSOEPgw/pAPCJhurLrb
+         ZQ0eibdOJyW6g/M6uGhLEpiSkeN4GKncEIPlWE3Fza8R3XpnXSMtSrmpdDBC74OQmyy4
+         JbJbO0Oym2obl8mXnsLlMjJEvdkuFyPhp8y6U=
+X-Google-Smtp-Source: APXvYqzqyJA+jcyGndR/DWIwWD+l17OEz6109S6f0/nlZGL0QzbHiaGQY6O+Vl51hxMnbBXTaxumMg==
+X-Received: by 2002:a65:5003:: with SMTP id f3mr4639488pgo.75.1561580616571;
+        Wed, 26 Jun 2019 13:23:36 -0700 (PDT)
+Received: from www.outflux.net (smtp.outflux.net. [198.145.64.163])
+        by smtp.gmail.com with ESMTPSA id d4sm2593109pju.19.2019.06.26.13.23.35
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 26 Jun 2019 13:23:35 -0700 (PDT)
+Date: Wed, 26 Jun 2019 13:23:34 -0700
+From: Kees Cook <keescook@chromium.org>
+To: Qian Cai <cai@lca.pw>
+Cc: Catalin Marinas <catalin.marinas@arm.com>,
+	Ard Biesheuvel <ard.biesheuvel@linaro.org>,
+	Alexander Potapenko <glider@google.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Christoph Lameter <cl@linux.com>,
+	Masahiro Yamada <yamada.masahiro@socionext.com>,
+	Michal Hocko <mhocko@kernel.org>, James Morris <jmorris@namei.org>,
+	"Serge E. Hallyn" <serge@hallyn.com>,
+	Nick Desaulniers <ndesaulniers@google.com>,
+	Kostya Serebryany <kcc@google.com>,
+	Dmitry Vyukov <dvyukov@google.com>,
+	Sandeep Patil <sspatil@android.com>,
+	Laura Abbott <labbott@redhat.com>,
+	Randy Dunlap <rdunlap@infradead.org>, Jann Horn <jannh@google.com>,
+	Mark Rutland <mark.rutland@arm.com>, Marco Elver <elver@google.com>,
+	linux-mm@kvack.org, linux-security-module@vger.kernel.org,
+	kernel-hardening@lists.openwall.com,
+	clang-built-linux@googlegroups.com
+Subject: Re: [PATCH v8 1/2] mm: security: introduce init_on_alloc=1 and
+ init_on_free=1 boot options
+Message-ID: <201906261303.020ADC9@keescook>
+References: <20190626121943.131390-1-glider@google.com>
+ <20190626121943.131390-2-glider@google.com>
+ <1561572949.5154.81.camel@lca.pw>
 MIME-Version: 1.0
-X-MS-Exchange-CrossTenant-Network-Message-Id: 5bdf17f2-dfe0-45f4-fb22-08d6fa739431
-X-MS-Exchange-CrossTenant-originalarrivaltime: 26 Jun 2019 20:19:23.7718
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: 8ae927fe-1255-47a7-a2af-5f3a069daaa2
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-userprincipalname: guro@fb.com
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: BN8PR15MB3443
-X-OriginatorOrg: fb.com
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-06-26_11:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=fb_default_notspam policy=fb_default score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1011 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1906260234
-X-FB-Internal: deliver
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <1561572949.5154.81.camel@lca.pw>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jun 24, 2019 at 01:42:19PM -0400, Waiman Long wrote:
-> With the slub memory allocator, the numbers of active slab objects
-> reported in /proc/slabinfo are not real because they include objects
-> that are held by the per-cpu slab structures whether they are actually
-> used or not.  The problem gets worse the more CPUs a system have. For
-> instance, looking at the reported number of active task_struct objects,
-> one will wonder where all the missing tasks gone.
->=20
-> I know it is hard and costly to get a real count of active objects. So
-> I am not advocating for that. Instead, this patch extends the
-> /proc/sys/vm/drop_caches sysctl parameter by using a new bit (bit 3)
-> to shrink all the kmem slabs which will flush out all the slabs in the
-> per-cpu structures and give a more accurate view of how much memory are
-> really used up by the active slab objects. This is a costly operation,
-> of course, but it gives a way to have a clearer picture of the actual
-> number of slab objects used, if the need arises.
->=20
-> The upper range of the drop_caches sysctl parameter is increased to 15
-> to allow all possible combinations of the lowest 4 bits.
->=20
-> On a 2-socket 64-core 256-thread ARM64 system with 64k page size after
-> a parallel kernel build, the amount of memory occupied by slabs before
-> and after echoing to drop_caches were:
->=20
->  # grep task_struct /proc/slabinfo
->  task_struct        48376  48434   4288   61    4 : tunables    0    0
->  0 : slabdata    794    794      0
->  # grep "^S[lRU]" /proc/meminfo
->  Slab:            3419072 kB
->  SReclaimable:     354688 kB
->  SUnreclaim:      3064384 kB
->  # echo 3 > /proc/sys/vm/drop_caches
->  # grep "^S[lRU]" /proc/meminfo
->  Slab:            3351680 kB
->  SReclaimable:     316096 kB
->  SUnreclaim:      3035584 kB
->  # echo 8 > /proc/sys/vm/drop_caches
->  # grep "^S[lRU]" /proc/meminfo
->  Slab:            1008192 kB
->  SReclaimable:     126912 kB
->  SUnreclaim:       881280 kB
->  # grep task_struct /proc/slabinfo
->  task_struct         2601   6588   4288   61    4 : tunables    0    0
->  0 : slabdata    108    108      0
->=20
-> Shrinking the slabs saves more than 2GB of memory in this case. This
-> new feature certainly fulfills the promise of dropping caches.
->=20
-> Unlike counting objects in the per-node caches done by /proc/slabinfo
-> which is rather light weight, iterating all the per-cpu caches and
-> shrinking them is much more heavy weight.
->=20
-> For this particular instance, the time taken to shrinks all the root
-> caches was about 30.2ms. There were 73 memory cgroup and the longest
-> time taken for shrinking the largest one was about 16.4ms. The total
-> shrinking time was about 101ms.
->=20
-> Because of the potential long time to shrinks all the caches, the
-> slab_mutex was taken multiple times - once for all the root caches
-> and once for each memory cgroup. This is to reduce the slab_mutex hold
-> time to minimize impact to other running applications that may need to
-> acquire the mutex.
->=20
-> The slab shrinking feature is only available when CONFIG_MEMCG_KMEM is
-> defined as the code need to access slab_root_caches to iterate all the
-> root caches.
->=20
-> Signed-off-by: Waiman Long <longman@redhat.com>
-> ---
->  Documentation/sysctl/vm.txt | 11 ++++++++--
->  fs/drop_caches.c            |  4 ++++
->  include/linux/slab.h        |  1 +
->  kernel/sysctl.c             |  4 ++--
->  mm/slab_common.c            | 44 +++++++++++++++++++++++++++++++++++++
->  5 files changed, 60 insertions(+), 4 deletions(-)
->=20
-> diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
-> index 749322060f10..b643ac8968d2 100644
-> --- a/Documentation/sysctl/vm.txt
-> +++ b/Documentation/sysctl/vm.txt
-> @@ -207,8 +207,8 @@ Setting this to zero disables periodic writeback alto=
-gether.
->  drop_caches
-> =20
->  Writing to this will cause the kernel to drop clean caches, as well as
-> -reclaimable slab objects like dentries and inodes.  Once dropped, their
-> -memory becomes free.
-> +reclaimable slab objects like dentries and inodes.  It can also be used
-> +to shrink the slabs.  Once dropped, their memory becomes free.
-> =20
->  To free pagecache:
->  	echo 1 > /proc/sys/vm/drop_caches
-> @@ -216,6 +216,8 @@ To free reclaimable slab objects (includes dentries a=
-nd inodes):
->  	echo 2 > /proc/sys/vm/drop_caches
->  To free slab objects and pagecache:
->  	echo 3 > /proc/sys/vm/drop_caches
-> +To shrink the slabs:
-> +	echo 8 > /proc/sys/vm/drop_caches
-> =20
->  This is a non-destructive operation and will not free any dirty objects.
->  To increase the number of objects freed by this operation, the user may =
-run
-> @@ -223,6 +225,11 @@ To increase the number of objects freed by this oper=
-ation, the user may run
->  number of dirty objects on the system and create more candidates to be
->  dropped.
-> =20
-> +Shrinking the slabs can reduce the memory footprint used by the slabs.
-> +It also makes the number of active objects reported in /proc/slabinfo
-> +more representative of the actual number of objects used for the slub
-> +memory allocator.
-> +
->  This file is not a means to control the growth of the various kernel cac=
-hes
->  (inodes, dentries, pagecache, etc...)  These objects are automatically
->  reclaimed by the kernel when memory is needed elsewhere on the system.
-> diff --git a/fs/drop_caches.c b/fs/drop_caches.c
-> index d31b6c72b476..633b99e25dab 100644
-> --- a/fs/drop_caches.c
-> +++ b/fs/drop_caches.c
-> @@ -9,6 +9,7 @@
->  #include <linux/writeback.h>
->  #include <linux/sysctl.h>
->  #include <linux/gfp.h>
-> +#include <linux/slab.h>
->  #include "internal.h"
-> =20
->  /* A global variable is a bit ugly, but it keeps the code simple */
-> @@ -65,6 +66,9 @@ int drop_caches_sysctl_handler(struct ctl_table *table,=
- int write,
->  			drop_slab();
->  			count_vm_event(DROP_SLAB);
->  		}
-> +		if (sysctl_drop_caches & 8) {
-> +			kmem_cache_shrink_all();
-> +		}
->  		if (!stfu) {
->  			pr_info("%s (%d): drop_caches: %d\n",
->  				current->comm, task_pid_nr(current),
-> diff --git a/include/linux/slab.h b/include/linux/slab.h
-> index 9449b19c5f10..f7c1626b2aa6 100644
-> --- a/include/linux/slab.h
-> +++ b/include/linux/slab.h
-> @@ -149,6 +149,7 @@ struct kmem_cache *kmem_cache_create_usercopy(const c=
-har *name,
->  			void (*ctor)(void *));
->  void kmem_cache_destroy(struct kmem_cache *);
->  int kmem_cache_shrink(struct kmem_cache *);
-> +void kmem_cache_shrink_all(void);
-> =20
->  void memcg_create_kmem_cache(struct mem_cgroup *, struct kmem_cache *);
->  void memcg_deactivate_kmem_caches(struct mem_cgroup *);
-> diff --git a/kernel/sysctl.c b/kernel/sysctl.c
-> index 1beca96fb625..feeb867dabd7 100644
-> --- a/kernel/sysctl.c
-> +++ b/kernel/sysctl.c
-> @@ -129,7 +129,7 @@ static int __maybe_unused neg_one =3D -1;
->  static int zero;
->  static int __maybe_unused one =3D 1;
->  static int __maybe_unused two =3D 2;
-> -static int __maybe_unused four =3D 4;
-> +static int __maybe_unused fifteen =3D 15;
->  static unsigned long zero_ul;
->  static unsigned long one_ul =3D 1;
->  static unsigned long long_max =3D LONG_MAX;
-> @@ -1455,7 +1455,7 @@ static struct ctl_table vm_table[] =3D {
->  		.mode		=3D 0644,
->  		.proc_handler	=3D drop_caches_sysctl_handler,
->  		.extra1		=3D &one,
-> -		.extra2		=3D &four,
-> +		.extra2		=3D &fifteen,
->  	},
->  #ifdef CONFIG_COMPACTION
->  	{
-> diff --git a/mm/slab_common.c b/mm/slab_common.c
-> index 58251ba63e4a..b3c5b64f9bfb 100644
-> --- a/mm/slab_common.c
-> +++ b/mm/slab_common.c
-> @@ -956,6 +956,50 @@ int kmem_cache_shrink(struct kmem_cache *cachep)
->  }
->  EXPORT_SYMBOL(kmem_cache_shrink);
+On Wed, Jun 26, 2019 at 02:15:49PM -0400, Qian Cai wrote:
+> On Wed, 2019-06-26 at 14:19 +0200, Alexander Potapenko wrote:
+> > Both init_on_alloc and init_on_free default to zero, but those defaults
+> > can be overridden with CONFIG_INIT_ON_ALLOC_DEFAULT_ON and
+> > CONFIG_INIT_ON_FREE_DEFAULT_ON.
+> > [...]
+> > +static int __init early_init_on_alloc(char *buf)
+> > +{
+> > +	int ret;
+> > +	bool bool_result;
+> > +
+> > +	if (!buf)
+> > +		return -EINVAL;
+> > +	ret = kstrtobool(buf, &bool_result);
+> > +	if (bool_result)
+> > +		static_branch_enable(&init_on_alloc);
+> > +	else
+> > +		static_branch_disable(&init_on_alloc);
+> > +	return ret;
+> > +}
+> > +early_param("init_on_alloc", early_init_on_alloc);
+> 
+> Do those really necessary need to be static keys?
+> 
+> Adding either init_on_free=0 or init_on_alloc=0 to the kernel cmdline will
+> generate a warning with kernels built with clang.
+> 
+> [    0.000000] static_key_disable(): static key 'init_on_free+0x0/0x4' used
+> before call to jump_label_init()
+> [    0.000000] WARNING: CPU: 0 PID: 0 at ./include/linux/jump_label.h:317
+> early_init_on_free+0x1c0/0x200
+> [    0.000000] Modules linked in:
+> [    0.000000] CPU: 0 PID: 0 Comm: swapper Not tainted 5.2.0-rc6-next-20190626+
+> #9
+> [    0.000000] pstate: 60000089 (nZCv daIf -PAN -UAO)
 
-Hi Waiman!
+I think the issue here is that arm64 doesn't initialize static keys
+early enough.
 
-> =20
-> +#ifdef CONFIG_MEMCG_KMEM
-> +static void kmem_cache_shrink_memcg(struct mem_cgroup *memcg,
-> +				    void __maybe_unused *arg)
-> +{
-> +	struct kmem_cache *s;
-> +
-> +	if (memcg =3D=3D root_mem_cgroup)
-> +		return;
-> +	mutex_lock(&slab_mutex);
-> +	list_for_each_entry(s, &memcg->kmem_caches,
-> +			    memcg_params.kmem_caches_node) {
-> +		kmem_cache_shrink(s);
-> +	}
-> +	mutex_unlock(&slab_mutex);
-> +	cond_resched();
-> +}
+init/main.c has the general case:
 
-A couple of questions:
-1) how about skipping already offlined kmem_caches? They are already shrunk=
-,
-   so you probably won't get much out of them. Or isn't it true?
-2) what's your long-term vision here? do you think that we need to shrink
-   kmem_caches periodically, depending on memory pressure? how a user
-   will use this new sysctl?
+asmlinkage __visible void __init start_kernel(void)
+{
+        ...
+        setup_arch(&command_line);
+        ...
+        smp_prepare_boot_cpu();
+        ...
+        /* parameters may set static keys */
+        jump_label_init();
+        parse_early_param();
+        ...
+}
 
-What's the problem you're trying to solve in general?
+however, x86 does even earlier early params in setup_arch():
 
-Thanks!
+void __init setup_arch(char **cmdline_p)
+{
+        ...
+        jump_label_init();
+        ...
+        parse_early_param();
+        ...
+}
 
-Roman
+arm64 does similar very early early params in setup_arch()[1] too,
+but not jump_label_init() which is too late in smp_prepare_boot_cpu():
+
+void __init setup_arch(char **cmdline_p)
+{
+        ...
+        parse_early_param();
+        ...
+}
+
+void __init smp_prepare_boot_cpu(void)
+{
+        ...
+        jump_label_init();
+        ...
+}
+
+I can send a patch to fix this...
+
+-Kees
+
+[1] since efd9e03facd07 ("arm64: Use static keys for CPU features")
+
+> [    0.000000] pc : early_init_on_free+0x1c0/0x200
+> [    0.000000] lr : early_init_on_free+0x1c0/0x200
+> [    0.000000] sp : ffff100012c07df0
+> [    0.000000] x29: ffff100012c07e20 x28: ffff1000110a01ec 
+> [    0.000000] x27: 000000000000005f x26: ffff100011716cd0 
+> [    0.000000] x25: ffff100010d36166 x24: ffff100010d3615d 
+> [    0.000000] x23: ffff100010d364b5 x22: ffff1000117164a0 
+> [    0.000000] x21: 0000000000000000 x20: 0000000000000000 
+> [    0.000000] x19: 0000000000000000 x18: 000000000000002e 
+> [    0.000000] x17: 000000000000000f x16: 0000000000000040 
+> [    0.000000] x15: 0000000000000000 x14: 6c61632065726f66 
+> [    0.000000] x13: 6562206465737520 x12: 273478302f307830 
+> [    0.000000] x11: 0000000000000000 x10: 0000000000000000 
+> [    0.000000] x9 : 0000000000000000 x8 : 0000000000000000 
+> [    0.000000] x7 : 6d756a206f74206c x6 : ffff100014426625 
+> [    0.000000] x5 : ffff100012c07b28 x4 : 0000000000000007 
+> [    0.000000] x3 : ffff1000101aadf4 x2 : 0000000000000001 
+> [    0.000000] x1 : 0000000000000001 x0 : 000000000000005d 
+> [    0.000000] Call trace:
+> [    0.000000]  early_init_on_free+0x1c0/0x200
+> [    0.000000]  do_early_param+0xd0/0x104
+> [    0.000000]  parse_args+0x1f0/0x524
+> [    0.000000]  parse_early_param+0x70/0x8c
+> [    0.000000]  setup_arch+0xa8/0x268
+> [    0.000000]  start_kernel+0x80/0x560
+> 
+
+-- 
+Kees Cook
 
