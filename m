@@ -2,123 +2,124 @@ Return-Path: <SRS0=C/CR=UZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY,
-	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.9 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 38D59C48BD6
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 02:33:21 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 396E9C48BD6
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 02:33:23 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D8E1F20645
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 02:33:20 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id EC37220645
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 02:33:22 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="OwYWG9CO"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D8E1F20645
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="G/aYnUXE"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EC37220645
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 489E28E0003; Tue, 25 Jun 2019 22:33:20 -0400 (EDT)
+	id 96CCD8E0005; Tue, 25 Jun 2019 22:33:22 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 43A7C8E0002; Tue, 25 Jun 2019 22:33:20 -0400 (EDT)
+	id 944128E0002; Tue, 25 Jun 2019 22:33:22 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 350EC8E0003; Tue, 25 Jun 2019 22:33:20 -0400 (EDT)
+	id 85C328E0005; Tue, 25 Jun 2019 22:33:22 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yb1-f200.google.com (mail-yb1-f200.google.com [209.85.219.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 160A78E0002
-	for <linux-mm@kvack.org>; Tue, 25 Jun 2019 22:33:20 -0400 (EDT)
-Received: by mail-yb1-f200.google.com with SMTP id 133so2363398ybl.8
-        for <linux-mm@kvack.org>; Tue, 25 Jun 2019 19:33:20 -0700 (PDT)
+Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 684F18E0002
+	for <linux-mm@kvack.org>; Tue, 25 Jun 2019 22:33:22 -0400 (EDT)
+Received: by mail-io1-f69.google.com with SMTP id x17so826743iog.8
+        for <linux-mm@kvack.org>; Tue, 25 Jun 2019 19:33:22 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:from:to:cc:date
-         :message-id:in-reply-to:references:user-agent:mime-version
-         :content-transfer-encoding;
-        bh=GZ5Da9i8UXdicVq5/ebI4XscP19RKvf9/ymCHA5iuvw=;
-        b=Nj85QZzC+4V3eys8dS60lN4cIOqbwsYjX0zJs5Ib5bU4VtnAhlfXrOJdR5kc/50UlP
-         IwYFBcRPBwGEbt7oCBxAUadzhFq/klNLXoLzoLX009eiWe6FZ15okacDXdIXmFR+iedz
-         6JE2MGh4drDqjYAHPrDnOcEL0yCPegGaeKd5YXHNCJfNKiVQY1QnpZDMYIv3KMUxHo0M
-         Lnm7IMx7ElPozt615wNtzalwIk+7IlNhI6oWHAa1AooKRje3rMDBnlNe4mJ0ZBZSdNQy
-         RcKamxpeOCmrOV1WVBXdXfUWDUJDbgMjU+6xypjMD1wfdWCjp5Yje8Vih4AgVWHeSkog
-         7cmA==
-X-Gm-Message-State: APjAAAVbdSH5sl4zQ6nNZtXpw/wOHyTNxgxtSovm4TUHyzTXJOj1N1q6
-	IE4m6zrnDxOTWB35mMSdIMJJ+etA2tukz0VDKm84jZGaXfjpKYQEGgnV1QGNsaj4q5I3FRVTAXH
-	SFOXwJTpDsKLslgcA3uB6SkB16pamLNkpHC5hoJAb4cOlcZGpFcrh1lH4O+lG712wqA==
-X-Received: by 2002:a81:7b02:: with SMTP id w2mr1268747ywc.436.1561516399703;
-        Tue, 25 Jun 2019 19:33:19 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxdz0m+3CVZrodg7rrzhT4bt85DH+RKe33SDn6d7Mo0BpOjKKVQs6pU+/4QALdCCGmaDRKN
-X-Received: by 2002:a81:7b02:: with SMTP id w2mr1268728ywc.436.1561516398870;
-        Tue, 25 Jun 2019 19:33:18 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561516398; cv=none;
+        h=x-gm-message-state:dkim-signature:user-agent:mime-version
+         :message-id:date:from:to:cc:subject:content-transfer-encoding;
+        bh=fawPQY/UISfSH6DvrztcWabWXm47TtXieQJWSELxOKQ=;
+        b=OBcyUa0ooHvZkrS57gJcblHcKMPLwQomXpoEb8+ritm6MTVy2+BVLBB9HQQ7eVhdxe
+         8mIj8xPYzp3NCipmo+lsttToeVP8LWJ+ybc4Opg6cBmguvT2r5qYdrKLohYPE06RFuuE
+         D1oP3u5NBtz1OPHfYCZdpJNWVjb7liuxRCYGFGM1A5IRtlVZYJVT8eK6zDwk1KTAQMi6
+         LrXpjloB12eH1AG9BO/R7tU9M8sLeqTaCb53inEOrleCq4m4EjJ9SdZCKp0MRMVupKBz
+         pWiARIdhBg9tUvT5HM8b2hc8pNyTdnGNs8G1rVXZhYLD/R4NHJmbYVbd1nP5Nygmq/Mi
+         yu2A==
+X-Gm-Message-State: APjAAAVRmBGVqpGERiYbc9AkGi/HQzidHYyDC+VLEpc/LDKRNq3sjfVs
+	hJwkEtBAmaA0AyLwIXFkI/So/PMkWpwzrbyAkL579DQUYe4Z6tMG8JNR2GH/Bg3hcA3vkTvBvjK
+	1Ay/hF4f1sKSHqCBk2cGz/edDN/1hWk8iJzh1qfDricdikuN2JqESDJU3FXWArt8y4A==
+X-Received: by 2002:a5d:9416:: with SMTP id v22mr2266168ion.4.1561516402118;
+        Tue, 25 Jun 2019 19:33:22 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxwnTvFS1q6CSOV0Dfr8y2j1Rys9TtwOpkV904e8ynRKPeTYp3WG35ZX+UQbNCcW8TvP0OR
+X-Received: by 2002:a5d:9416:: with SMTP id v22mr2266118ion.4.1561516401289;
+        Tue, 25 Jun 2019 19:33:21 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561516401; cv=none;
         d=google.com; s=arc-20160816;
-        b=AyJt6JCfvdGNoh9VKQqeD6Dy2SZwCyqbTgTIMrMVFqukBXa8do0FvuD8MLiaHTKP4+
-         dyvmby4Cz037M9lUAjGH/rirLR2SlJzZvag8aVcQTJJ89HfdvcrfBsp/A3qskJoWEKgg
-         I+BRl7AZiejHCyUtPRc/TPs0nNCRnKkSZnCQSANcSkyDoRljAjfyxyYC6wUMLhwW+wi+
-         nQMX0k4wyAVlg/vlJC5uIiUEkwIjnUOq6jIdC1ordLrbZ8s8XS9j2WiAlZTLf00w0BBG
-         MQZ2jq/aRTIM7btW/A5YMmlUbO7WnGP7C1ATitIpqQcR1cGcgo3BleUUKxllj6+TrV/2
-         oPNg==
+        b=S+g1MaB9Ae4Ask0wzJF7KhUkJHDmOzfeFfwGqKOmpIW/FYyoUAfZHIFUp+uIEZeZkA
+         lXCfN7YoxCNA0gWG9Ltt+rJRI/+uA/Q0Ju0I8pTs/+29+JBveAOZHKTVf18lSYtBRc5Y
+         DKL9Z8CAKfDNi+iRm9Hc8SiKgqUa0X9A7gM1ysMzRrcujEdgzT6KtyWrR1CCcJ9EYT9c
+         2oRP2qr/11J70YNVFVtm8CijqaPc/fEM5Xo8tNmJr18ZRW2uKxIhCG2Fc6e1ZXwxrVIO
+         06Jyqp79sqlmhp8GxfVugR7BlWza5aNr6E+QJNXLChC6DLvX2Q6fdvsAN6+fjAmPVRDg
+         dxHQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:user-agent:references
-         :in-reply-to:message-id:date:cc:to:from:subject:dkim-signature;
-        bh=GZ5Da9i8UXdicVq5/ebI4XscP19RKvf9/ymCHA5iuvw=;
-        b=vuHKH85Kc4PABXjm+uofhug6GcCcaVCBpDPr1767DbDrYwP+YNFZXj1zhuSLD+jsZS
-         +Da9bT3+o7GZflZcJ6E8qO8EaHxcNe9mw2802fV9BTdyjQnmI0WkV8iYE1XK85aSjtZK
-         FibYXnZw0YEj8u6KZIKaxbx5pMTy3d2t91oijx0WokXkghj6wBg08juwRvO+zYLQxPyc
-         MMdvuCpdiyqLKosUOqwK3t/ol4sJTy0rpTiuE286EF1i1bPl6ExRNwOaiR9qCLquLiCc
-         yvbf2RAbhcxrNQAwx4eN1DPrSXiJrNglr0aY39ScipOpGsD4a9HiX1y7SEsIW0SaEpAj
-         BpPA==
+        h=content-transfer-encoding:subject:cc:to:from:date:message-id
+         :mime-version:user-agent:dkim-signature;
+        bh=fawPQY/UISfSH6DvrztcWabWXm47TtXieQJWSELxOKQ=;
+        b=peeH2vCeQYuPTsVITEHTXjKR2KXhQ5wh1OVdcJlvQj9XHCbB+saqPrDvnJlRFqxSmP
+         fBo+sV4FzdU9TZX9aVuMvTUBmxK9wy0YidH31n834QZ2ZDiAKUIPy9mDDr9RVWy27AP3
+         LPMJ+ceVVufPYduw4PRCIMYQXf3TeLM+Wpk9VOpqoJ0dulMZZut8fmWTeLGcS/QnDkbL
+         gZ6TPjnD673yKcv7O1yI1y8SRbktmOXmvjLtcjzAm+fORMTgf/5hwhrWo8B2u2tZvDqR
+         kGV2TQuttQgK2TSdPEWB/a8XZlEP6EzV/D2lV2b2b+5esskJC/EuBknKrh2fS+fCIDKQ
+         iVXQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=OwYWG9CO;
-       spf=pass (google.com: domain of darrick.wong@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=darrick.wong@oracle.com;
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b="G/aYnUXE";
+       spf=pass (google.com: domain of darrick.wong@oracle.com designates 141.146.126.78 as permitted sender) smtp.mailfrom=darrick.wong@oracle.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id r126si5905821yba.165.2019.06.25.19.33.18
+Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
+        by mx.google.com with ESMTPS id y14si26907002jan.93.2019.06.25.19.33.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 25 Jun 2019 19:33:18 -0700 (PDT)
-Received-SPF: pass (google.com: domain of darrick.wong@oracle.com designates 156.151.31.86 as permitted sender) client-ip=156.151.31.86;
+        Tue, 25 Jun 2019 19:33:21 -0700 (PDT)
+Received-SPF: pass (google.com: domain of darrick.wong@oracle.com designates 141.146.126.78 as permitted sender) client-ip=141.146.126.78;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=OwYWG9CO;
-       spf=pass (google.com: domain of darrick.wong@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=darrick.wong@oracle.com;
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b="G/aYnUXE";
+       spf=pass (google.com: domain of darrick.wong@oracle.com designates 141.146.126.78 as permitted sender) smtp.mailfrom=darrick.wong@oracle.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
-	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x5Q2St3m116601;
-	Wed, 26 Jun 2019 02:33:06 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : from : to :
- cc : date : message-id : in-reply-to : references : mime-version :
- content-type : content-transfer-encoding; s=corp-2018-07-02;
- bh=GZ5Da9i8UXdicVq5/ebI4XscP19RKvf9/ymCHA5iuvw=;
- b=OwYWG9COa/utVeg+XFueBCQNbNHCKEORscmBRW6CX5wX1eaV2FXBC7NljSPy3RS4qDUE
- b9M9KeySwRTS+CsKX1Xla151y395HzGSXJJfbVfWx4faXRcg07z0e6bgKSj3w9DHkvII
- gHuoqvYt3YoddlkFH+TkNlF+72zdoGX3Sep9OlkXKvgZw+mtCU/rS3hW1v8feUw3Jiv+
- swWRG78ZiDDHbKViaLEwV+Y4c0KtsiRV7RBTt83NxTKbz7E7deMXzIVYS9lFPFateZVC
- +waBXMHaI1HYAQqb+CTireZ6bU/vo07hOOzWEEuIfzyuXzso74QcEtkOyaT392xtlJLV lg== 
-Received: from userp3020.oracle.com (userp3020.oracle.com [156.151.31.79])
-	by userp2130.oracle.com with ESMTP id 2t9brt7mm4-1
+Received: from pps.filterd (aserp2120.oracle.com [127.0.0.1])
+	by aserp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x5Q2TYh8026692;
+	Wed, 26 Jun 2019 02:33:08 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=mime-version :
+ message-id : date : from : to : cc : subject : content-type :
+ content-transfer-encoding; s=corp-2018-07-02;
+ bh=fawPQY/UISfSH6DvrztcWabWXm47TtXieQJWSELxOKQ=;
+ b=G/aYnUXEphMoz0tS57JlzzJidDTnCP3JwQDBotgjzdUejbyDPYJP0ww7UIoJ9qziXtze
+ V8WfKNQm07ANAuCm8B36a/SSrlnF4iTQcfj6+NLwHRqJVTP47OZew3gQAlm23ALl0Umk
+ xq3Im7dO6UOb8iISWt8zfUFMNhrviliNGlkVCg5a0cfeb27h0Drq5G4rl1p6MZONDA9T
+ LOJ0700Z6AtHwS+rK56pnb/hADrt/VxtC4zKanyLYIE10jvKJ1zJCdEbZq2d2Ps/KjeI
+ pOTljCBSvtHNdPtMRfVj73W2qgv94B8p+0UE9rS1oOhD12Oac8PGEIcskWt9iHiUUTuy 2A== 
+Received: from aserp3020.oracle.com (aserp3020.oracle.com [141.146.126.70])
+	by aserp2120.oracle.com with ESMTP id 2t9c9pqjk5-1
 	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Wed, 26 Jun 2019 02:33:06 +0000
-Received: from pps.filterd (userp3020.oracle.com [127.0.0.1])
-	by userp3020.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x5Q2WkGE080003;
-	Wed, 26 Jun 2019 02:33:05 GMT
+	Wed, 26 Jun 2019 02:33:08 +0000
+Received: from pps.filterd (aserp3020.oracle.com [127.0.0.1])
+	by aserp3020.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x5Q2Wj2o020612;
+	Wed, 26 Jun 2019 02:33:07 GMT
 Received: from pps.reinject (localhost [127.0.0.1])
-	by userp3020.oracle.com with ESMTP id 2tat7cjnv7-1
+	by aserp3020.oracle.com with ESMTP id 2t9p6uh2eh-1
 	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=FAIL);
-	Wed, 26 Jun 2019 02:33:05 +0000
-Received: from userp3020.oracle.com (userp3020.oracle.com [127.0.0.1])
-	by pps.reinject (8.16.0.27/8.16.0.27) with SMTP id x5Q2X5bt080432;
-	Wed, 26 Jun 2019 02:33:05 GMT
-Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
-	by userp3020.oracle.com with ESMTP id 2tat7cjnv1-1
+	Wed, 26 Jun 2019 02:33:07 +0000
+Received: from aserp3020.oracle.com (aserp3020.oracle.com [127.0.0.1])
+	by pps.reinject (8.16.0.27/8.16.0.27) with SMTP id x5Q2X7If021156;
+	Wed, 26 Jun 2019 02:33:07 GMT
+Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
+	by aserp3020.oracle.com with ESMTP id 2t9p6uh2ec-1
 	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Wed, 26 Jun 2019 02:33:05 +0000
-Received: from abhmp0013.oracle.com (abhmp0013.oracle.com [141.146.116.19])
-	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x5Q2X32M024230;
-	Wed, 26 Jun 2019 02:33:03 GMT
-Received: from localhost (/10.159.230.235)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Tue, 25 Jun 2019 19:33:03 -0700
-Subject: [PATCH 1/5] mm/fs: don't allow writes to immutable files
+	Wed, 26 Jun 2019 02:33:07 +0000
+Received: from abhmp0020.oracle.com (abhmp0020.oracle.com [141.146.116.26])
+	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x5Q2X6O7021146;
+	Wed, 26 Jun 2019 02:33:06 GMT
+Received: from localhost (/10.159.230.235) by default (Oracle Beehive Gateway
+ v4.0) with ESMTP ; Tue, 25 Jun 2019 19:32:55 -0700
+USER-AGENT: StGit/0.17.1-dirty
+MIME-Version: 1.0
+Message-ID: <156151637248.2283603.8458727861336380714.stgit@magnolia>
+Date: Tue, 25 Jun 2019 19:32:52 -0700 (PDT)
 From: "Darrick J. Wong" <darrick.wong@oracle.com>
 To: matthew.garrett@nebula.com, yuchao0@huawei.com, tytso@mit.edu,
         darrick.wong@oracle.com, ard.biesheuvel@linaro.org,
@@ -126,24 +127,19 @@ To: matthew.garrett@nebula.com, yuchao0@huawei.com, tytso@mit.edu,
         adilger.kernel@dilger.ca, viro@zeniv.linux.org.uk, jack@suse.com,
         dsterba@suse.com, jaegeuk@kernel.org, jk@ozlabs.org
 Cc: reiserfs-devel@vger.kernel.org, linux-efi@vger.kernel.org,
-        Jan Kara <jack@suse.cz>, devel@lists.orangefs.org,
-        linux-kernel@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net,
-        linux-xfs@vger.kernel.org, linux-mm@kvack.org,
-        linux-nilfs@vger.kernel.org, linux-mtd@lists.infradead.org,
-        ocfs2-devel@oss.oracle.com, linux-fsdevel@vger.kernel.org,
-        linux-ext4@vger.kernel.org, linux-btrfs@vger.kernel.org
-Date: Tue, 25 Jun 2019 19:33:00 -0700
-Message-ID: <156151638036.2283603.8347635093125152699.stgit@magnolia>
-In-Reply-To: <156151637248.2283603.8458727861336380714.stgit@magnolia>
-References: <156151637248.2283603.8458727861336380714.stgit@magnolia>
-User-Agent: StGit/0.17.1-dirty
-MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
+        devel@lists.orangefs.org, linux-kernel@vger.kernel.org,
+        linux-f2fs-devel@lists.sourceforge.net, linux-xfs@vger.kernel.org,
+        linux-mm@kvack.org, linux-nilfs@vger.kernel.org,
+        linux-mtd@lists.infradead.org, ocfs2-devel@oss.oracle.com,
+        linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org,
+        linux-btrfs@vger.kernel.org
+Subject: [PATCH v5 0/5] vfs: make immutable files actually immutable
+Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
 X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9299 signatures=668687
 X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
  suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=324 adultscore=0
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
  classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
  definitions=main-1906260027
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
@@ -152,118 +148,53 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Darrick J. Wong <darrick.wong@oracle.com>
+Hi all,
 
-The chattr manpage has this to say about immutable files:
+The chattr(1) manpage has this to say about the immutable bit that
+system administrators can set on files:
 
 "A file with the 'i' attribute cannot be modified: it cannot be deleted
 or renamed, no link can be created to this file, most of the file's
 metadata can not be modified, and the file can not be opened in write
 mode."
 
-Once the flag is set, it is enforced for quite a few file operations,
-such as fallocate, fpunch, fzero, rm, touch, open, etc.  However, we
-don't check for immutability when doing a write(), a PROT_WRITE mmap(),
-a truncate(), or a write to a previously established mmap.
+Given the clause about how the file 'cannot be modified', it is
+surprising that programs holding writable file descriptors can continue
+to write to and truncate files after the immutable flag has been set,
+but they cannot call other things such as utimes, fallocate, unlink,
+link, setxattr, or reflink.
 
-If a program has an open write fd to a file that the administrator
-subsequently marks immutable, the program still can change the file
-contents.  Weird!
+Since the immutable flag is only settable by administrators, resolve
+this inconsistent behavior in favor of the documented behavior -- once
+the flag is set, the file cannot be modified, period.  We presume that
+administrators must be trusted to know what they're doing, and that
+cutting off programs with writable fds will probably break them.
 
-The ability to write to an immutable file does not follow the manpage
-promise that immutable files cannot be modified.  Worse yet it's
-inconsistent with the behavior of other syscalls which don't allow
-modifications of immutable files.
+Therefore, add immutability checks to the relevant VFS functions, then
+refactor the SETFLAGS and FSSETXATTR implementations to use common
+argument checking functions so that we can then force pagefaults on all
+the file data when setting immutability.
 
-Therefore, add the necessary checks to make the write, mmap, and
-truncate behavior consistent with what the manpage says and consistent
-with other syscalls on filesystems which support IMMUTABLE.
+Note that various distro manpages points out the inconsistent behavior
+of the various Linux filesystems w.r.t. immutable.  This fixes all that.
 
-Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
-Reviewed-by: Jan Kara <jack@suse.cz>
----
- fs/attr.c    |   13 ++++++-------
- mm/filemap.c |    3 +++
- mm/memory.c  |    3 +++
- mm/mmap.c    |    8 ++++++--
- 4 files changed, 18 insertions(+), 9 deletions(-)
+I also discovered that userspace programs can write and create writable
+memory mappings to active swap files.  This is extremely bad because
+this allows anyone with write privileges to corrupt system memory.  The
+final patch in this series closes off that hole, at least for swap
+files.
 
+If you're going to start using this mess, you probably ought to just
+pull from my git trees, which are linked below.
 
-diff --git a/fs/attr.c b/fs/attr.c
-index d22e8187477f..1fcfdcc5b367 100644
---- a/fs/attr.c
-+++ b/fs/attr.c
-@@ -233,19 +233,18 @@ int notify_change(struct dentry * dentry, struct iattr * attr, struct inode **de
- 
- 	WARN_ON_ONCE(!inode_is_locked(inode));
- 
--	if (ia_valid & (ATTR_MODE | ATTR_UID | ATTR_GID | ATTR_TIMES_SET)) {
--		if (IS_IMMUTABLE(inode) || IS_APPEND(inode))
--			return -EPERM;
--	}
-+	if (IS_IMMUTABLE(inode))
-+		return -EPERM;
-+
-+	if ((ia_valid & (ATTR_MODE | ATTR_UID | ATTR_GID | ATTR_TIMES_SET)) &&
-+	    IS_APPEND(inode))
-+		return -EPERM;
- 
- 	/*
- 	 * If utimes(2) and friends are called with times == NULL (or both
- 	 * times are UTIME_NOW), then we need to check for write permission
- 	 */
- 	if (ia_valid & ATTR_TOUCH) {
--		if (IS_IMMUTABLE(inode))
--			return -EPERM;
--
- 		if (!inode_owner_or_capable(inode)) {
- 			error = inode_permission(inode, MAY_WRITE);
- 			if (error)
-diff --git a/mm/filemap.c b/mm/filemap.c
-index aac71aef4c61..dad85e10f5f8 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -2935,6 +2935,9 @@ inline ssize_t generic_write_checks(struct kiocb *iocb, struct iov_iter *from)
- 	loff_t count;
- 	int ret;
- 
-+	if (IS_IMMUTABLE(inode))
-+		return -EPERM;
-+
- 	if (!iov_iter_count(from))
- 		return 0;
- 
-diff --git a/mm/memory.c b/mm/memory.c
-index ddf20bd0c317..4311cfdade90 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -2235,6 +2235,9 @@ static vm_fault_t do_page_mkwrite(struct vm_fault *vmf)
- 
- 	vmf->flags = FAULT_FLAG_WRITE|FAULT_FLAG_MKWRITE;
- 
-+	if (vmf->vma->vm_file && IS_IMMUTABLE(file_inode(vmf->vma->vm_file)))
-+		return VM_FAULT_SIGBUS;
-+
- 	ret = vmf->vma->vm_ops->page_mkwrite(vmf);
- 	/* Restore original flags so that caller is not surprised */
- 	vmf->flags = old_flags;
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 7e8c3e8ae75f..ac1e32205237 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -1483,8 +1483,12 @@ unsigned long do_mmap(struct file *file, unsigned long addr,
- 		case MAP_SHARED_VALIDATE:
- 			if (flags & ~flags_mask)
- 				return -EOPNOTSUPP;
--			if ((prot&PROT_WRITE) && !(file->f_mode&FMODE_WRITE))
--				return -EACCES;
-+			if (prot & PROT_WRITE) {
-+				if (!(file->f_mode & FMODE_WRITE))
-+					return -EACCES;
-+				if (IS_IMMUTABLE(file_inode(file)))
-+					return -EPERM;
-+			}
- 
- 			/*
- 			 * Make sure we don't allow writing to an append-only
+This has been lightly tested with fstests.  Enjoy!
+Comments and questions are, as always, welcome.
+
+--D
+
+kernel git tree:
+https://git.kernel.org/cgit/linux/kernel/git/djwong/xfs-linux.git/log/?h=immutable-files
+
+fstests git tree:
+https://git.kernel.org/cgit/linux/kernel/git/djwong/xfstests-dev.git/log/?h=immutable-files
 
