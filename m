@@ -2,180 +2,171 @@ Return-Path: <SRS0=C/CR=UZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 59042C4646B
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 05:21:09 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 650E9C48BD6
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 05:45:59 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id ED8E4208CB
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 05:21:08 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org ED8E4208CB
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ghiti.fr
+	by mail.kernel.org (Postfix) with ESMTP id 2A904208E3
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 05:45:58 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2A904208E3
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4A9CB6B0003; Wed, 26 Jun 2019 01:21:08 -0400 (EDT)
+	id 9A0038E0003; Wed, 26 Jun 2019 01:45:58 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 433DE8E0003; Wed, 26 Jun 2019 01:21:08 -0400 (EDT)
+	id 92A168E0002; Wed, 26 Jun 2019 01:45:58 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2FCD48E0002; Wed, 26 Jun 2019 01:21:08 -0400 (EDT)
+	id 7CA698E0003; Wed, 26 Jun 2019 01:45:58 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id D2B396B0003
-	for <linux-mm@kvack.org>; Wed, 26 Jun 2019 01:21:07 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id y24so1406411edb.1
-        for <linux-mm@kvack.org>; Tue, 25 Jun 2019 22:21:07 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 2EA1F8E0002
+	for <linux-mm@kvack.org>; Wed, 26 Jun 2019 01:45:58 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id i9so1469124edr.13
+        for <linux-mm@kvack.org>; Tue, 25 Jun 2019 22:45:58 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:references:message-id:date:user-agent:mime-version
-         :in-reply-to:content-transfer-encoding;
-        bh=5pjbrnpYwS/GXEKx778qKfAMNKb+zKXFQK12kH6bUDs=;
-        b=kG2WbWwqMJ3aH+YB+J4ibtZGd0tjgL13zwpujWwMhTUZKU/+u7b3cdXZaFqNb9KOW5
-         c9v7EC1gNbIUwtNN40MM86+O1F4eG7Iwb6Yg7PHc9BOYrocdhfbCb0ZwIM9q+lTAfxeO
-         BoXJPrjCtlQhjVj2bs9tdqjaxvZWK7St9mTjJXM7Ce8uoG3UJL+d2z9SKHdz4W0YCv4t
-         3hnWbrN3gZeRb972RcNLkq3c1kUbh8PYRXY61XHY8dWS6DY4hA6zm+Jt3RU8wZeQKzeU
-         bO9Cu3vbBjlcB3PufxrkaFsJKGWymKdhHxTKrUjZVPy5KIDqMn3sozQqrqV5hFSYNWZl
-         0oNw==
-X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 217.70.183.198 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
-X-Gm-Message-State: APjAAAVzWR3JFi2rmnUQYAF4fysZvzc5b/8VbDDYkZtNjuw2rBZee0ka
-	f8uRPZuKS5xolPQWB9RAcPZxtGIHQJMOEdzrjMhSwkGD+sGDu2qmXurwagkFEEgKNPgQW1uuQzV
-	Ueb9SD0vSX5iQnGblkYiHwVRXIGa/uKR+IdzAV3HLwZ+6bhULe1cEDqhz+JtWDJo=
-X-Received: by 2002:a17:906:27c7:: with SMTP id k7mr2161392ejc.91.1561526467304;
-        Tue, 25 Jun 2019 22:21:07 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwBXC8Yyo6diqzvGbfkrJen4ROgFS1ykT9YWszMqE7exuTIrG6FVtXM8E9VDo0VxBnljYC0
-X-Received: by 2002:a17:906:27c7:: with SMTP id k7mr2161333ejc.91.1561526466291;
-        Tue, 25 Jun 2019 22:21:06 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561526466; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=aydUDGa5+QAYmpZPtYMkWwUUvB1zVRCSCYE+QEV0K9Y=;
+        b=Mys35rRSfWJird2rfW/kkbeM5Dw+/Xw8pl7U2qQRCtiaJpixYiOHkLdZYDZCGb5KRC
+         FRMDOsdP9w9X8Klmh7+9W2lxAZU8N0YyUIrPBSBhd4z1BBkXk8Jx1KnsuXMy4iL8vCUE
+         2vx37tumvsY92HTttZ/yX46r3injav4t1kDjQC5ynLI2VUBGAlPSrj5INTx/Ka95xdny
+         2Z/K4F13okrAjUFu6relmQ3tCzhMwB+ddQypG96VLmG9f8lQS/BhzWfgIAD281WM7aHK
+         zkUxL7Mdt1s3wxrdD5p0zylFvIyAsUXUOUTX2xsBz9rUz1b+xDliVsO9d5KqoAsXnzWh
+         vBIw==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAWbvbMEKbaTNRC7R/9iVBF8fv+jrOcrnaor0JDjhjeFbnsrJLCC
+	2cZ3aWI97+whwFOS++gkAM9OYl7fu2LPII4GG1e90SCAdXYAS0uIQGLgt/FUG+f6KVrBaMQkoYs
+	OQEVTKm1fHu3RBe8iZboYm4fuKPZYOvj+JDIPAK82MiNTR/XWJHGbwdNoRYLuWvc=
+X-Received: by 2002:a50:cc47:: with SMTP id n7mr2967142edi.58.1561527957754;
+        Tue, 25 Jun 2019 22:45:57 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzBK03tEezwcipN5qIo6mQlPcDxT1d1UeH4zXsUfyc4dOW5rdC6Cy/WAzrD64/SQQ6qFFsJ
+X-Received: by 2002:a50:cc47:: with SMTP id n7mr2967081edi.58.1561527956764;
+        Tue, 25 Jun 2019 22:45:56 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561527956; cv=none;
         d=google.com; s=arc-20160816;
-        b=RpX7y8bLGQvywoXYe6eHv1gWr0Jtlbu8oJz9VUYeOlWnWBl3NSaKxmH2LDJ8kbaz5D
-         /QlxTV74aWbcJqQd7ymWBGcT+hK+n1RZmP2SkR1mwONMPVnfeCmbc3Xk64DFAZ0JW3Et
-         OTNce/OzwOsF/sFGSjgkAs7RBIpMVYuv1M24gw7MsRzAq00P+dfTrNYrVmFUlazSrZyZ
-         0LIF144Gvgy48EsqgtCmyERvCLCndaH4CZzad9YPm9x7WetkJXyZA9GSQ8usMlcGIDDY
-         X4ycZE91QMDbRZjrC4pTt8JwjDIDaCUqFNsjxeNTv80IUE+ypBwpQQJPMsOiHY6mEAFs
-         qobA==
+        b=gGDBDN/K9EY5bPi9bESJNh7g55KmuEd48FrGmLw4iPNoBUp2mcEKhTs+/+cxBqL4iB
+         z/i2c4pHdt6IMXxllDYlMX6kDLD5ENSU/+W623ogcfs0iUI/V9ZRCmHo5MC4VT81qQZb
+         7GAIG8oyHmpKxHzW9dfIcGYnlN2ZrTSbSsvKCdOcbeZxDVzu4lWCgjtkvz320SCQrbaZ
+         2ncFRSOzjTwFIxtrK8A5QdmXoD2qPrqEtZZ0OdMwOvfDRH501vyITw/X/T6yw2ds7qm5
+         iNGgkrI2Ij6YrJsSNUnahH/JGwNGeQVN9pn8xPPqMbt6BQASu8FWdkem96VxgNzu4DIJ
+         Ss7Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:in-reply-to:mime-version:user-agent:date
-         :message-id:references:subject:cc:to:from;
-        bh=5pjbrnpYwS/GXEKx778qKfAMNKb+zKXFQK12kH6bUDs=;
-        b=IURkiOdJPvqy0VOSQgCtU7NROqnqdL8OKfLg2a8k9z3b5Wi4Soha0rxX8D6YlPhQ0X
-         4dQqiEnGZO76zcWBcP10WoMw3GtHsi47zvOo+M/QphQ4fdLsLGkrRXJ8YNGCAwmsmKbj
-         01dirAfn+USBxcB51G5vO3NOKUMk31Bj8NOJno3JjmfXUt3gPTDQepQR/Kr1hmesTzX8
-         BecEqUBPfCpZVMZVvqF5GgeH7hQVm6W7zujusWj1b9i05qhqcta8gbDLVigzWkW2Tqwq
-         CO4Rvt035C0vsOaFN5E8DvV5xHyXEKFUfbT8kuIQq48CXZmeCjhfe+p7WhH5p8KuJ+kc
-         h+IA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=aydUDGa5+QAYmpZPtYMkWwUUvB1zVRCSCYE+QEV0K9Y=;
+        b=QODqH1/dbi9vQOgkPopvhj8Z9FgTbofvz/gKJpW9DOhleKht46JaX/vkoR0eiPnJOM
+         kN45K8dOxLm1VenYI89XU/I17BI6ueGfh+S0ThuJNZjwGSJM+2bu3Pt3G1JbocRtHDr9
+         /hxHbTrxudjl6RgjJM4faqsBOoGlutgT9QArrYtlXucYvu2IF8wWxR5x7yiEXgiZxlD4
+         Z37nkVUZtLJHnp07bCF/xKFDYkn5oQhsw6fJAc49mSMS7+GzvFG3u2xeoC8zmTpaGQaL
+         0l3aLVo8KqN1j2u5kxwCY3KzUvLQ9j03HSC1zIeWdcmxTQBd224XR4I6IjP5hezHR2XS
+         wz2Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=neutral (google.com: 217.70.183.198 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
-Received: from relay6-d.mail.gandi.net (relay6-d.mail.gandi.net. [217.70.183.198])
-        by mx.google.com with ESMTPS id p12si2616382eda.385.2019.06.25.22.21.05
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id b3si1937967ejv.334.2019.06.25.22.45.56
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 25 Jun 2019 22:21:06 -0700 (PDT)
-Received-SPF: neutral (google.com: 217.70.183.198 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) client-ip=217.70.183.198;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 25 Jun 2019 22:45:56 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=neutral (google.com: 217.70.183.198 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
-X-Originating-IP: 79.86.19.127
-Received: from [192.168.0.12] (127.19.86.79.rev.sfr.net [79.86.19.127])
-	(Authenticated sender: alex@ghiti.fr)
-	by relay6-d.mail.gandi.net (Postfix) with ESMTPSA id BAAC4C0003;
-	Wed, 26 Jun 2019 05:20:51 +0000 (UTC)
-From: Alex Ghiti <alex@ghiti.fr>
-To: Helge Deller <deller@gmx.de>
-Cc: "James E . J . Bottomley" <james.bottomley@hansenpartnership.com>,
- Heiko Carstens <heiko.carstens@de.ibm.com>, Vasily Gorbik
- <gor@linux.ibm.com>, Christian Borntraeger <borntraeger@de.ibm.com>,
- Yoshinori Sato <ysato@users.sourceforge.jp>, Rich Felker <dalias@libc.org>,
- "David S . Miller" <davem@davemloft.net>,
- Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>,
- Borislav Petkov <bp@alien8.de>, "H . Peter Anvin" <hpa@zytor.com>,
- x86@kernel.org, Dave Hansen <dave.hansen@linux.intel.com>,
- Andy Lutomirski <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>,
- linux-parisc@vger.kernel.org, linux-kernel@vger.kernel.org,
- linux-s390@vger.kernel.org, linux-sh@vger.kernel.org,
- sparclinux@vger.kernel.org, linux-mm@kvack.org,
- Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH RESEND 6/8] parisc: Use mmap_base, not mmap_legacy_base,
- as low_limit for bottom-up mmap
-References: <20190620050328.8942-1-alex@ghiti.fr>
- <20190620050328.8942-7-alex@ghiti.fr>
- <438124ff-6838-7ced-044c-ca57a6b9cc91@gmx.de>
-Message-ID: <7fb32983-3444-0747-4e5f-812d1b4d84c2@ghiti.fr>
-Date: Wed, 26 Jun 2019 01:20:51 -0400
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.4.0
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id A851EAF25;
+	Wed, 26 Jun 2019 05:45:55 +0000 (UTC)
+Date: Wed, 26 Jun 2019 07:45:54 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: John Hubbard <jhubbard@nvidia.com>
+Cc: Jason Gunthorpe <jgg@mellanox.com>, Ira Weiny <ira.weiny@intel.com>,
+	Ralph Campbell <rcampbell@nvidia.com>,
+	"linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>,
+	"nouveau@lists.freedesktop.org" <nouveau@lists.freedesktop.org>,
+	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+	"dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>,
+	"linux-mm@kvack.org" <linux-mm@kvack.org>,
+	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
+	Ben Skeggs <bskeggs@redhat.com>,
+	"linux-pci@vger.kernel.org" <linux-pci@vger.kernel.org>,
+	Christoph Hellwig <hch@lst.de>
+Subject: Re: [PATCH 18/22] mm: mark DEVICE_PUBLIC as broken
+Message-ID: <20190626054554.GA17798@dhcp22.suse.cz>
+References: <20190613094326.24093-1-hch@lst.de>
+ <20190613094326.24093-19-hch@lst.de>
+ <20190613194430.GY22062@mellanox.com>
+ <a27251ad-a152-f84d-139d-e1a3bf01c153@nvidia.com>
+ <20190613195819.GA22062@mellanox.com>
+ <20190614004314.GD783@iweiny-DESK2.sc.intel.com>
+ <d2b77ea1-7b27-e37d-c248-267a57441374@nvidia.com>
+ <20190619192719.GO9374@mellanox.com>
+ <29f43c79-b454-0477-a799-7850e6571bd3@nvidia.com>
 MIME-Version: 1.0
-In-Reply-To: <438124ff-6838-7ced-044c-ca57a6b9cc91@gmx.de>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <29f43c79-b454-0477-a799-7850e6571bd3@nvidia.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 6/25/19 10:09 AM, Helge Deller wrote:
-> On 20.06.19 07:03, Alexandre Ghiti wrote:
->> Bottom-up mmap scheme is used twice:
->>
->> - for legacy mode, in which mmap_legacy_base and mmap_base are equal.
->>
->> - in case of mmap failure in top-down mode, where there is no need to go
->> through the whole address space again for the bottom-up fallback: the goal
->> of this fallback is to find, as a last resort, space between the top-down
->> mmap base and the stack, which is the only place not covered by the
->> top-down mmap.
->>
->> Then this commit removes the usage of mmap_legacy_base field from parisc
->> code.
->>
->> Signed-off-by: Alexandre Ghiti <alex@ghiti.fr>
-> Boot-tested on parisc and seems to work nicely, thus:
->
-> Acked-by: Helge Deller <deller@gmx.de>
+On Tue 25-06-19 20:15:28, John Hubbard wrote:
+> On 6/19/19 12:27 PM, Jason Gunthorpe wrote:
+> > On Thu, Jun 13, 2019 at 06:23:04PM -0700, John Hubbard wrote:
+> >> On 6/13/19 5:43 PM, Ira Weiny wrote:
+> >>> On Thu, Jun 13, 2019 at 07:58:29PM +0000, Jason Gunthorpe wrote:
+> >>>> On Thu, Jun 13, 2019 at 12:53:02PM -0700, Ralph Campbell wrote:
+> >>>>>
+> >> ...
+> >>> So I think it is ok.  Frankly I was wondering if we should remove the public
+> >>> type altogether but conceptually it seems ok.  But I don't see any users of it
+> >>> so...  should we get rid of it in the code rather than turning the config off?
+> >>>
+> >>> Ira
+> >>
+> >> That seems reasonable. I recall that the hope was for those IBM Power 9
+> >> systems to use _PUBLIC, as they have hardware-based coherent device (GPU)
+> >> memory, and so the memory really is visible to the CPU. And the IBM team
+> >> was thinking of taking advantage of it. But I haven't seen anything on
+> >> that front for a while.
+> > 
+> > Does anyone know who those people are and can we encourage them to
+> > send some patches? :)
+> > 
+> 
+> I asked about this, and it seems that the idea was: DEVICE_PUBLIC was there
+> in order to provide an alternative way to do things (such as migrate memory
+> to and from a device), in case the combination of existing and near-future
+> NUMA APIs was insufficient. This probably came as a follow-up to the early
+> 2017-ish conversations about NUMA, in which the linux-mm recommendation was
+> "try using HMM mechanisms, and if those are inadequate, then maybe we can
+> look at enhancing NUMA so that it has better handling of advanced (GPU-like)
+> devices".
 
-Thanks Helge,
+Yes that was the original idea. It sounds so much better to use a common
+framework rather than awkward special cased cpuless NUMA nodes with
+a weird semantic. User of the neither of the two has shown up so I guess
+that the envisioned HW just didn't materialized. Or has there been a
+completely different approach chosen?
 
-Alex
+> In the end, however, _PUBLIC was never used, nor does anyone in the local
+> (NVIDIA + IBM) kernel vicinity seem to have plans to use it.  So it really
+> does seem safe to remove, although of course it's good to start with 
+> BROKEN and see if anyone pops up and complains.
 
->
-> Helge
->
->
->
->> ---
->>   arch/parisc/kernel/sys_parisc.c | 8 +++-----
->>   1 file changed, 3 insertions(+), 5 deletions(-)
->>
->> diff --git a/arch/parisc/kernel/sys_parisc.c b/arch/parisc/kernel/sys_parisc.c
->> index 5d458a44b09c..e987f3a8eb0b 100644
->> --- a/arch/parisc/kernel/sys_parisc.c
->> +++ b/arch/parisc/kernel/sys_parisc.c
->> @@ -119,7 +119,7 @@ unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr,
->>
->>   	info.flags = 0;
->>   	info.length = len;
->> -	info.low_limit = mm->mmap_legacy_base;
->> +	info.low_limit = mm->mmap_base;
->>   	info.high_limit = mmap_upper_limit(NULL);
->>   	info.align_mask = last_mmap ? (PAGE_MASK & (SHM_COLOUR - 1)) : 0;
->>   	info.align_offset = shared_align_offset(last_mmap, pgoff);
->> @@ -240,13 +240,11 @@ static unsigned long mmap_legacy_base(void)
->>    */
->>   void arch_pick_mmap_layout(struct mm_struct *mm, struct rlimit *rlim_stack)
->>   {
->> -	mm->mmap_legacy_base = mmap_legacy_base();
->> -	mm->mmap_base = mmap_upper_limit(rlim_stack);
->> -
->>   	if (mmap_is_legacy()) {
->> -		mm->mmap_base = mm->mmap_legacy_base;
->> +		mm->mmap_base = mmap_legacy_base();
->>   		mm->get_unmapped_area = arch_get_unmapped_area;
->>   	} else {
->> +		mm->mmap_base = mmap_upper_limit(rlim_stack);
->>   		mm->get_unmapped_area = arch_get_unmapped_area_topdown;
->>   	}
->>   }
->>
+Well, I do not really see much of a difference. Preserving an unused
+code which doesn't have any user in sight just adds a maintenance burden
+whether the code depends on BROKEN or not. We can always revert patches
+which remove the code once a real user shows up.
+-- 
+Michal Hocko
+SUSE Labs
 
