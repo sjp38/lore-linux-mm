@@ -2,156 +2,197 @@ Return-Path: <SRS0=C/CR=UZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3203BC48BD9
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 15:42:42 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 83A7FC48BD3
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 15:45:51 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0452F2177B
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 15:42:41 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0452F2177B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 28D842177B
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 15:45:51 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=Mellanox.com header.i=@Mellanox.com header.b="Z5RQcz7A"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 28D842177B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mellanox.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 87C148E0017; Wed, 26 Jun 2019 11:42:41 -0400 (EDT)
+	id AEB5B8E0018; Wed, 26 Jun 2019 11:45:50 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 82C458E0002; Wed, 26 Jun 2019 11:42:41 -0400 (EDT)
+	id AA50B8E0002; Wed, 26 Jun 2019 11:45:50 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 71B1C8E0017; Wed, 26 Jun 2019 11:42:41 -0400 (EDT)
+	id 963B98E0018; Wed, 26 Jun 2019 11:45:50 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 1C3658E0002
-	for <linux-mm@kvack.org>; Wed, 26 Jun 2019 11:42:41 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id b12so3771238eds.14
-        for <linux-mm@kvack.org>; Wed, 26 Jun 2019 08:42:41 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 447468E0002
+	for <linux-mm@kvack.org>; Wed, 26 Jun 2019 11:45:50 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id m23so3777840edr.7
+        for <linux-mm@kvack.org>; Wed, 26 Jun 2019 08:45:50 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=cwWEfocoodqO9cyrH8VhNzGnokLyp2Y95xLEsBu/ftM=;
-        b=svmQNDcknuhF+UoToQGWHU5a7HWkxMqalCeWnv5MlkCa69cf5zX1Abxg9imZjh5fZQ
-         RwzYyQrSVFUmyu4+WlAPxs9BSVQnBByb1yIkWuZrLHcMIBWv/qOCgU+FwwvFSbgkkHD6
-         2o9iOyLl+IiVqtI1RqUU4iMkOV0+N+D8azBMKrXX3o31KQHyCFt/VCnSWHbhUx6+GWBm
-         UvwbQWRu/wRV/Cai70jvNpgI9A/K3aFUp3y10fjwObcWzdl0IMmHGASUk86DIiLvVr8s
-         aQp+s2RkhU/FfQbI3bw5/MdW7dxVAEpQOz12jy1h+rQmir0Zdf3inJAOxNWlzKPruODM
-         nupw==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAVVXcY9YVX/5rt0Sgv6PPnLmGg29snr1xd7fXf+H0dfilsZDE/C
-	uzEJYKtmuNt2Rk0tzuN0c9wsz3mCYgzUA/uEChFayt6+BY3lcg9GgGIEgKx2UgOql0VGE+Xly8c
-	8Zp9tMpllomIjs8G0/dhJULxK8djBUPGN8cs9664puVUqW1L4Dm4x9xNOKgErYu0=
-X-Received: by 2002:a50:be01:: with SMTP id a1mr6275976edi.287.1561563760675;
-        Wed, 26 Jun 2019 08:42:40 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzfo2Y1QHnVCcc/UNnsMmYbSIkeoo23epU/5MsGoASH3o1ZHCkH2KasGL+w2xm58YJe3OtK
-X-Received: by 2002:a50:be01:: with SMTP id a1mr6275897edi.287.1561563759970;
-        Wed, 26 Jun 2019 08:42:39 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561563759; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
+         :thread-index:date:message-id:references:in-reply-to:accept-language
+         :content-language:content-id:content-transfer-encoding:mime-version;
+        bh=idasF+fNV/2NSNpe05cKLARhKYMfEgGNwaq6PUXzCoA=;
+        b=bPHycxr8NyhupB734pWidF2YPcLiQAZmpTwubqd7YbytPvy0lChX8P4RUedoot/AyV
+         EU9mzwAt6uxj7ICbRpuaB+aD5w3OVoimLBEPuqVxaPFIr7agv6Q7UOP/0FhteEiM/g0d
+         CGRa+Wh+tQjXifxruY1/binxvmV+0lnHkJicJi1BeDl4O+1WMj6+Mu0QGJQ6yr8G0wYb
+         G29D02e0d+++posFgrucGFy07X95qYQmb9E4OhIPXMvrfL1o2L978RHRtv2P+eaLf7aY
+         2YoWGzgG5bA4x7UCeMSls+l53Bhga5/fwFYV9+TU42EC8bCDai2siEmhyARcm1mTCQ/K
+         wLOw==
+X-Gm-Message-State: APjAAAWif9vLSDdyou6oZXMwtAAKGWVm1MQlDSXhHvjWUIbS9dibqnIp
+	kv6/54Vb8E0ouas+X+SzEti0k8yucZsyALYbgwr77Py49E0U1VA10BN4J4Zi5XlfoDyjlf8IcGY
+	3De3g9vrqywe6b9ssdtLG5b5h1mnBnhmXfeF1rvD9B1psQG+wtP69CIvim9Pyb29YMw==
+X-Received: by 2002:a50:ae8f:: with SMTP id e15mr6174516edd.74.1561563949784;
+        Wed, 26 Jun 2019 08:45:49 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxvMQLYT/aMgbh8hfSrvGnUD0/x/tzNGDTxyMyRjvMqDRRfBSB4+86Y6ttIwjtIGNLOyq38
+X-Received: by 2002:a50:ae8f:: with SMTP id e15mr6174449edd.74.1561563949118;
+        Wed, 26 Jun 2019 08:45:49 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561563949; cv=none;
         d=google.com; s=arc-20160816;
-        b=mnA9kMXEzOJiqNcaJFoFcSLnhmkDFgSltaYrI62CH1DuQzmLR9ILTbvljcRoDV+bII
-         vRxZdPZkZnWE1G8cxGIpq6/vmt8sBwj3opVaxBpucWU4yI2RhWCawPrWkSdXC2dmSlyx
-         lrtOkbevZGDelFe01Yif8mX+RsjnJo7LgX9vKQiubGu1bU5Zc/rW5nBQwbM60oA/Fy4m
-         OSxP/DOqz3I7qnPvG5nBD5ekHHdB6eYsGvqofIgSf0nPTyIDbgSiT8jAP4pGx4ler1Wx
-         f+bLFZlMEEq5ZxBxuC0hWx1uw+I0tVjelhRp+pgf6UkYpW9xqJoliEh4jtjBEriH/P2k
-         v7xA==
+        b=LPuvF724JXP722IuhPKqrP4NzBxINQLwjDPS/6Fy8lGbmRO80l63qPvTyo3tCjK3MV
+         n8qRZzg2hajI5xI3QjMwVAOv7vinA/WyWzVQXQVhHmyIyoPbGbbPCNU8/mnkJNUz/Y8+
+         fIiVgrRLBwq+5zYpteDlPQyPoiDjILJWjmJiTEbpWEhMTXEuKIFdyLHP0QjCSCZcOAWV
+         GE6mw5hioCw1bWJJLB1iVt487MpjSkZwJz4Hj+22vIV9y0uPpOUt73LIJKunNA91EFsS
+         U2haUqaJHlGgCK2GPzMJgFsAkX6WL32c0pj8xSwZxSxYyKG0E/qt/+nLKhSQ3IcNpr8s
+         nPSg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=cwWEfocoodqO9cyrH8VhNzGnokLyp2Y95xLEsBu/ftM=;
-        b=V1oxcGegHV7c4BKOrbuxOOnS/NLRRyYmHn1Dca1eYJhwW+Og3rLNJG8QN8j1e3qGQT
-         UCjMUZ8JoGgS3GRdKmtAvst1VWPNY60xWSVg6fby5a7sitCq2UJa7VAUR6cGumN+nUOK
-         R3yMci4ShDChLWpCSNQ+Cj0fOVDNRBmHe/rVufJbwEcnzzWslDzOe1Mfrr/0UJJGmFEA
-         7QpeCK/haXxB+yBr+KaFY2sFd3pFzGce9ngcqGlZFt20ZFLwEo2jXaBb/qcodaPIlYo6
-         KX23h7BuARJJNOLjmcPIicIm6rj1B3eEwzeovRCuhzTONwC/H8/4bcBaNyR5Scm2n5oY
-         9x2Q==
+        h=mime-version:content-transfer-encoding:content-id:content-language
+         :accept-language:in-reply-to:references:message-id:date:thread-index
+         :thread-topic:subject:cc:to:from:dkim-signature;
+        bh=idasF+fNV/2NSNpe05cKLARhKYMfEgGNwaq6PUXzCoA=;
+        b=q0T96QxmSKIAxhE+KsfwbZ/xj5RN+gPap4Y5aQRbl9fGWYmKYLoxc1bJWwAlJ43g5j
+         z46N9vj0022OsprAwfrxGmNAIRgPCg+bY8RHnIBwvRb8ZQA6PKdltuCe47V05+VZ70aD
+         ilhAZHcKODfOnVhLPVgksFVIdqrdM+mf4wd/6OednH/TBO7r8DT/7jHn3vHrOfps/jM7
+         qBMoL3DvJONbCoigB5XQ/4Y4Ly2nfwLnT4ltUqGJVtn4WNR39XoWBetajvUNKFAQ9kqY
+         eGgjYDPOIXgOU7DWBXrqA4qXC7k5d43iKdkNvXOtFZnhhoNIZ42bFYIpLDhomLikhk5J
+         Xg5g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k25si2769731ejp.223.2019.06.26.08.42.39
+       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b=Z5RQcz7A;
+       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.6.49 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
+Received: from EUR04-DB3-obe.outbound.protection.outlook.com (mail-eopbgr60049.outbound.protection.outlook.com. [40.107.6.49])
+        by mx.google.com with ESMTPS id s11si2697710eji.295.2019.06.26.08.45.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Jun 2019 08:42:39 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 26 Jun 2019 08:45:49 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jgg@mellanox.com designates 40.107.6.49 as permitted sender) client-ip=40.107.6.49;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id DB564ABD9;
-	Wed, 26 Jun 2019 15:42:38 +0000 (UTC)
-Date: Wed, 26 Jun 2019 17:42:37 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Alexander Potapenko <glider@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-	Christoph Lameter <cl@linux.com>, Kees Cook <keescook@chromium.org>,
-	Masahiro Yamada <yamada.masahiro@socionext.com>,
-	James Morris <jmorris@namei.org>,
-	"Serge E. Hallyn" <serge@hallyn.com>,
-	Nick Desaulniers <ndesaulniers@google.com>,
-	Kostya Serebryany <kcc@google.com>,
-	Dmitry Vyukov <dvyukov@google.com>,
-	Sandeep Patil <sspatil@android.com>,
-	Laura Abbott <labbott@redhat.com>,
-	Randy Dunlap <rdunlap@infradead.org>, Jann Horn <jannh@google.com>,
-	Mark Rutland <mark.rutland@arm.com>, Marco Elver <elver@google.com>,
-	Qian Cai <cai@lca.pw>,
-	Linux Memory Management List <linux-mm@kvack.org>,
-	linux-security-module <linux-security-module@vger.kernel.org>,
-	Kernel Hardening <kernel-hardening@lists.openwall.com>
-Subject: Re: [PATCH v8 1/2] mm: security: introduce init_on_alloc=1 and
- init_on_free=1 boot options
-Message-ID: <20190626154237.GZ17798@dhcp22.suse.cz>
-References: <20190626121943.131390-1-glider@google.com>
- <20190626121943.131390-2-glider@google.com>
- <20190626144943.GY17798@dhcp22.suse.cz>
- <CAG_fn=Xf5yEuz7JyOt-gmNx1uSM6mmM57_jFxCi+9VPZ4PSwJQ@mail.gmail.com>
+       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b=Z5RQcz7A;
+       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.6.49 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=Mellanox.com;
+ s=selector2;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=idasF+fNV/2NSNpe05cKLARhKYMfEgGNwaq6PUXzCoA=;
+ b=Z5RQcz7A+HJv5tjI2l1kP+sDLCmzjxHl1vyMQxO3dMx7PM00d4r92FStrgemvkhnlGzWwUUg66C9HkrY0PLYqHthEKzjAbm0JVbqTuOs/kr9hCLgpyROYQepZIIVyisHcWHuDE30n0RloKCKvOfAfxUD4KN7XU33B2bCIsCBpUU=
+Received: from VI1PR05MB4141.eurprd05.prod.outlook.com (10.171.182.144) by
+ VI1PR05MB6575.eurprd05.prod.outlook.com (20.179.25.213) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.2008.16; Wed, 26 Jun 2019 15:45:47 +0000
+Received: from VI1PR05MB4141.eurprd05.prod.outlook.com
+ ([fe80::f5d8:df9:731:682e]) by VI1PR05MB4141.eurprd05.prod.outlook.com
+ ([fe80::f5d8:df9:731:682e%5]) with mapi id 15.20.2008.014; Wed, 26 Jun 2019
+ 15:45:47 +0000
+From: Jason Gunthorpe <jgg@mellanox.com>
+To: Christoph Hellwig <hch@infradead.org>
+CC: Mark Rutland <mark.rutland@arm.com>, Robin Murphy <robin.murphy@arm.com>,
+	"linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org"
+	<akpm@linux-foundation.org>, "will.deacon@arm.com" <will.deacon@arm.com>,
+	"catalin.marinas@arm.com" <catalin.marinas@arm.com>,
+	"anshuman.khandual@arm.com" <anshuman.khandual@arm.com>,
+	"linux-arm-kernel@lists.infradead.org"
+	<linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org"
+	<linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+Subject: Re: [PATCH v3 0/4] Devmap cleanups + arm64 support
+Thread-Topic: [PATCH v3 0/4] Devmap cleanups + arm64 support
+Thread-Index: AQHVK/HAM2r3dJ5EjUuvQfApLyHQmKat3lEAgAA0MoCAAAH5AA==
+Date: Wed, 26 Jun 2019 15:45:47 +0000
+Message-ID: <20190626154532.GA3088@mellanox.com>
+References: <cover.1558547956.git.robin.murphy@arm.com>
+ <20190626073533.GA24199@infradead.org>
+ <20190626123139.GB20635@lakrids.cambridge.arm.com>
+ <20190626153829.GA22138@infradead.org>
+In-Reply-To: <20190626153829.GA22138@infradead.org>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+x-clientproxiedby: BYAPR01CA0014.prod.exchangelabs.com (2603:10b6:a02:80::27)
+ To VI1PR05MB4141.eurprd05.prod.outlook.com (2603:10a6:803:4d::16)
+authentication-results: spf=none (sender IP is )
+ smtp.mailfrom=jgg@mellanox.com; 
+x-ms-exchange-messagesentrepresentingtype: 1
+x-originating-ip: [12.199.206.50]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: 395090c3-c108-460c-e2cd-08d6fa4d5b82
+x-ms-office365-filtering-ht: Tenant
+x-microsoft-antispam:
+ BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(4618075)(2017052603328)(7193020);SRVR:VI1PR05MB6575;
+x-ms-traffictypediagnostic: VI1PR05MB6575:
+x-microsoft-antispam-prvs:
+ <VI1PR05MB6575250D31F7320E2C693BC8CFE20@VI1PR05MB6575.eurprd05.prod.outlook.com>
+x-ms-oob-tlc-oobclassifiers: OLM:7219;
+x-forefront-prvs: 00808B16F3
+x-forefront-antispam-report:
+ SFV:NSPM;SFS:(10009020)(376002)(396003)(346002)(136003)(366004)(39860400002)(199004)(189003)(81166006)(25786009)(8676002)(53936002)(476003)(6506007)(81156014)(508600001)(6486002)(54906003)(446003)(71200400001)(6512007)(7416002)(71190400001)(6916009)(11346002)(66556008)(2616005)(4326008)(486006)(64756008)(7736002)(6246003)(66446008)(66066001)(305945005)(66946007)(99286004)(73956011)(66476007)(3846002)(386003)(6116002)(52116002)(76176011)(14454004)(26005)(33656002)(86362001)(36756003)(229853002)(6436002)(8936002)(2906002)(256004)(316002)(102836004)(186003)(68736007)(5660300002)(1076003);DIR:OUT;SFP:1101;SCL:1;SRVR:VI1PR05MB6575;H:VI1PR05MB4141.eurprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
+received-spf: None (protection.outlook.com: mellanox.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info:
+ PO7x2UUHnxQV/A4UKLcEVnD6eJR4Ysj2OBxUB42vJc3dQ95Tq26noIFSHH/c3BEDXNvLIC1YLhjPJAJ9SCxyljVlaJGaZjtsrQflagLvIEbeIbutLKtVj/Zq8aUNdaazTSYPpTGM+nMh80KonObvrCWd96/MeQFkHr8bnaFbZwmRXpZn5NsH/rdIVMeREHr3lmEJGegA+Ciu33JfCqik0gMneY5Nj+1VrVVx2GQupE6hc1rKZ3pqDm/7ahjGLEtzxi5mbF1+4fBpXXLC9lVWZdy9Itn8ouDfUv3jZ7VVv+p3HOwAJqXXZ0FznKWD3fZdbGVeFuCvk1IoSoeCqBM0FvLQnnM40cu2HTx65ap+6noEGGBw5H4B9EzWUy5rXEloAhiqN42y4ab+cu7x9r7CuoemHie6qNwbPknt9MKruXg=
+Content-Type: text/plain; charset="us-ascii"
+Content-ID: <6C512E815C6B3B468056524CEC187B15@eurprd05.prod.outlook.com>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAG_fn=Xf5yEuz7JyOt-gmNx1uSM6mmM57_jFxCi+9VPZ4PSwJQ@mail.gmail.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+X-OriginatorOrg: Mellanox.com
+X-MS-Exchange-CrossTenant-Network-Message-Id: 395090c3-c108-460c-e2cd-08d6fa4d5b82
+X-MS-Exchange-CrossTenant-originalarrivaltime: 26 Jun 2019 15:45:47.7482
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: a652971c-7d2e-4d9b-a6a4-d149256f461b
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-CrossTenant-userprincipalname: jgg@mellanox.com
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: VI1PR05MB6575
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed 26-06-19 17:00:43, Alexander Potapenko wrote:
-> On Wed, Jun 26, 2019 at 4:49 PM Michal Hocko <mhocko@kernel.org> wrote:
-[...]
-> > > @@ -1142,6 +1200,8 @@ static __always_inline bool free_pages_prepare(struct page *page,
-> > >       }
-> > >       arch_free_page(page, order);
-> > >       kernel_poison_pages(page, 1 << order, 0);
-> > > +     if (want_init_on_free())
-> > > +             kernel_init_free_pages(page, 1 << order);
-> >
-> > same here. If you don't want to make this exclusive then you have to
-> > zero before poisoning otherwise you are going to blow up on the poison
-> > check, right?
-> Note that we disable initialization if page poisoning is on.
+On Wed, Jun 26, 2019 at 08:38:29AM -0700, Christoph Hellwig wrote:
+> On Wed, Jun 26, 2019 at 01:31:40PM +0100, Mark Rutland wrote:
+> > On Wed, Jun 26, 2019 at 12:35:33AM -0700, Christoph Hellwig wrote:
+> > > Robin, Andrew:
+> >=20
+> > As a heads-up, Robin is currently on holiday, so this is all down to
+> > Andrew's preference.
+> >=20
+> > > I have a series for the hmm tree, which touches the section size
+> > > bits, and remove device public memory support.
+> > >=20
+> > > It might be best if we include this series in the hmm tree as well
+> > > to avoid conflicts.  Is it ok to include the rebase version of at lea=
+st
+> > > the cleanup part (which looks like it is not required for the actual
+> > > arm64 support) in the hmm tree to avoid conflicts?
+> >=20
+> > Per the cover letter, the arm64 patch has a build dependency on the
+> > others, so that might require a stable brnach for the common prefix.
+>=20
+> I guess we'll just have to live with the merge errors then, as the
+> mm tree is a patch series and thus can't easily use a stable base
+> tree.  That is unlike Andrew wants to pull in the hmm tree as a prep
+> patch for the series.
 
-Ohh, right. Missed that in the init code.
+It looks like the first three patches apply cleanly to hmm.git ..
 
-> As I mentioned on another thread we can eventually merge this code
-> with page poisoning, but right now it's better to make the user decide
-> which of the features they want instead of letting them guess how the
-> combination of the two is going to work.
+So what we can do is base this 4 patch series off rc6 and pull the
+first 3 into hmm and the full 4 into arm.git. We use this workflow often
+with rdma and netdev.
 
-Strictly speaking zeroying is a subset of poisoning. If somebody asks
-for both the poisoning surely satisfies any data leak guarantees
-zeroying would give. So I am not sure we have to really make them
-exclusive wrt. to the configuraion. I will leave that to you but it
-would be better if the code didn't break subtly once the early init
-restriction is removed for one way or another. So either always make
-sure that zeroying is done _before_ poisoning or that you do not zero
-when poisoning. The later sounds the best wrt. the code quality from my
-POV.
+Let me know and I can help orchestate this.
 
--- 
-Michal Hocko
-SUSE Labs
+Jason
 
