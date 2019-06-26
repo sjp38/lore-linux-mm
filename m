@@ -6,103 +6,107 @@ X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
 	SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3E6A7C48BD6
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 13:54:56 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 74083C48BD6
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 13:57:48 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 10E4721670
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 13:54:55 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 10E4721670
+	by mail.kernel.org (Postfix) with ESMTP id 36687214DA
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 13:57:48 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 36687214DA
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7E2958E0003; Wed, 26 Jun 2019 09:54:55 -0400 (EDT)
+	id D84F88E0008; Wed, 26 Jun 2019 09:57:47 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 76B5B8E0002; Wed, 26 Jun 2019 09:54:55 -0400 (EDT)
+	id D36328E0002; Wed, 26 Jun 2019 09:57:47 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 60C648E0003; Wed, 26 Jun 2019 09:54:55 -0400 (EDT)
+	id BD60D8E0008; Wed, 26 Jun 2019 09:57:47 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 09BEF8E0002
-	for <linux-mm@kvack.org>; Wed, 26 Jun 2019 09:54:55 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id m23so3355809edr.7
-        for <linux-mm@kvack.org>; Wed, 26 Jun 2019 06:54:54 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 6CD618E0002
+	for <linux-mm@kvack.org>; Wed, 26 Jun 2019 09:57:47 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id k15so3327290eda.6
+        for <linux-mm@kvack.org>; Wed, 26 Jun 2019 06:57:47 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=xXr3uz6EvKpjzSrBgtJXu2l135EJdGIcBr08dZAq+Fw=;
-        b=eKyycE+nMVPrBpilcYNkLuA+Xkd/IXuXcVUuv++zga82qepQswt9WZibaN5ybfMQce
-         92jBuznxDhBUSwb8VxuuS8AHuhgHS/wUOwism90CKFv+BqkPUwE5R4nXLcHZHvik0weq
-         f85MVeTAdsMz8kOFO4F/P1vXuOmIAR/kHBFx+0PI3H8JlM7ok4DBBZioScKX180JRZ3i
-         lrbhm5KTjlejra8gYqitgL+lSGSHD7357Cn/+wd9ecfOPsgH10EY2RQKvpYTOdyKbdHX
-         6isVORpSM7SzSeLYTElirKsUnw51iPoCFAQ7jXbyu4tSR+nr3d2demticgvwyizf+Z3U
-         dpxw==
+        bh=ryLS7YDAWr+S7CQfV3xFWmFFEEIbqtAo1GchtqBj7IE=;
+        b=kt1K42fqk3q6I1P2ogRMkWJWBEjhxc7NGjAgkT9HYsUZY53/39PfK3GWq8U2TDE3y0
+         Rbm0cpKizZP/AyEDfaijfpL0x3OJ7ahkKQTGEEoBkLqPShcUMQS8fIiecxzj9P4LlPrZ
+         2HYlJrwLgWYQFC5yVfh2NMOOSqoWRnWYDkdBLvuE2fNFER4yMm7NHYs+n3cIeTl03XL4
+         Ad0WSITCuz94zf7V6UAfcqTbcd2BU5L6s9xwXkA1hxIdEcespCbsnCB/09TlwHluI9CN
+         I+vBjPgsUTY5d0aTomVJkQE7FgeVqU/ROGRybsOwvAtnYZfnrdNL07tobf9+a/9qjWFn
+         zd0Q==
 X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAUk9/TSZe5wH4s5zTytno+nfNnZEySMgjsrfrVPRwsCBnS3SCyL
-	ziN6HPGdl/o6VOifLLbTiSXkaC66tpVKex22iZHBIwVzPptw2hF5YeD/cOdNw+75sFa+AYh8uaq
-	Pcwtky6GtqVg/z7p47Cr4AM3DPn1waB0/uvAYsxNyIG2VZcasAA6n7AZRL1jlM+U=
-X-Received: by 2002:a50:9590:: with SMTP id w16mr5620328eda.0.1561557294638;
-        Wed, 26 Jun 2019 06:54:54 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxS5t6eDGoUeJHm2y30mrzQFtLISlkzPp98vlGfIjPY9z19MHbT4yO2YmXgMOTYNY9I7RfJ
-X-Received: by 2002:a50:9590:: with SMTP id w16mr5620263eda.0.1561557293847;
-        Wed, 26 Jun 2019 06:54:53 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561557293; cv=none;
+X-Gm-Message-State: APjAAAXU2QU+9hixigaQOiRkFzZunK0X16ZnhrqhgfXNofVqtI/HyA/m
+	zRtRL9f0T/dlop5kPzHpYT7fdiKFy9TIxO1iemCyupVxJ69R2jJOGPCPcdQEgC7ABsjxRiTd5wv
+	fm3SgiQcw59NtH0amkKRMrRy8wRndNDFyY7RxOPfpFGr7cngK9Coi7D/5QvTbFws=
+X-Received: by 2002:a50:b662:: with SMTP id c31mr5434585ede.252.1561557467011;
+        Wed, 26 Jun 2019 06:57:47 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzKc2J3STqPXvhKJ+VDARuS/VpVA33sfNDvJKpB1Pb3RO0ZjqKLzyE4tgtFbhLYtGphvDAC
+X-Received: by 2002:a50:b662:: with SMTP id c31mr5434525ede.252.1561557466298;
+        Wed, 26 Jun 2019 06:57:46 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561557466; cv=none;
         d=google.com; s=arc-20160816;
-        b=uN1LKmfRaTFXJcChiZjwchN6pMi/Sd2+vsPDhBZ13S59oY7cfx6giu2nQJqhGVP+t8
-         OyVUXUJvrydQ3vc7FTU89h0/Xvq0PKGnEgwkwLZnebJ6z+zmClMn1otuCA+F687z5YNb
-         3392gTeWd6pQMXRxmQWWfIDEZoz1eXOrhTD13vAhX4eSKQQP0KSE5JRTJVfRbmf5yOY4
-         pMe7tLLuDPRHR1x/4LNp1Z0Srnyvk8JJccDo0q/CpEMNk97C+LKXSzjRt1iHX0aYB8F1
-         r+q7PlbTJdPUUHpeEWyHhpBp0gMPzC7WHwj0q5Yan3I7OKU55t6nedKDfaCdNPXgSQXb
-         YADg==
+        b=j7I4iAIqBHLQpXIwwgvZ6w/ZuNA5fbHUakjIdTivkFj3L/xu2y6w4sCeiWRyF0XWji
+         /tsDA7k4BQPOlltwWZjqb2s2XJPQFB6ZCl6qGhV0OktlsgxeOmiKnY0cd1dthVjlRcFP
+         QWYh4Nauf5jCbFC4Gz5UCFW3uq3agm4CAiqkrWgfchpXKsfuQgkn8pazSQTQDJgrGer5
+         bPbAYbOv9yuvXwZFrNj1LbZ+QinM/8gl5X3NpnAbjxZrmTyAvdYHFDyVlfAMIq6xAJz+
+         /T4CLkCe7Gl2Uf/Hz4pPpJ2KyPEnFfz4izkq34/Y8nuli7rk1O/uPb/X1M7CxArKQu2s
+         IEMg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=xXr3uz6EvKpjzSrBgtJXu2l135EJdGIcBr08dZAq+Fw=;
-        b=ABLLIHUu3tBkFc43W0p5m7ZXYdumOVsR8fAITyjih37os4OXOTJFQKbPUzf3WVqfAF
-         2EZIqRnQt8vp8/iGqOMaZbTl7Xq24ScVYOPuMElTQZljtOJSXsLjywI6lOcSYD+dCROo
-         Yq7IHX8voRdWfSO9sI+bryPJyvTtdc+51jA++y7o1nnYV34QZlGYZuHKpd6sTMyl0MkU
-         ScRFy/bXy34gn6jv5lYAThwo48TtC5CZn7yOF1qqKgDSqpqD3XRVUbH9eGG+QLTZOu9w
-         D4y7cURtS9w6aP8FkjVNjdYQ7kU8Ltp6UnOELO2H69Lrc8bGTnYKypGRtfeRwZplv884
-         jgNQ==
+        bh=ryLS7YDAWr+S7CQfV3xFWmFFEEIbqtAo1GchtqBj7IE=;
+        b=jIZEGu8dUInLQv68JfuJFpjRkG4iD6mX6jlzh/Qu3Q/k1oa7IzOrgluwvJxTahENX/
+         Rt7Wn4YCIv85cU0H1WeOKN9kk9oLV8uG2/3r1kTR6F1O5KO5DYFJ4RtxkGyFQgjwH73H
+         xij6Yf4bUGDOiV2Bc5dP7sMnk7ZhVMLK9jFNKy+WHX3uC6fZJ3Bn1JwsC4Jw1msSl68J
+         9GiGNZWbC/oFnlxP1pYei9HlDzYdNhcP5MgTO3mYJJyE78MVBSZNv6vlZtvyY0vLvCKs
+         F7po/DEEtMvSOdV0cjrbMjrWPnu8lfr5V03vR5G87hxsj5FtBR2P6DeY7Qqx0M5F2y7e
+         4Kzg==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id z23si1867885edc.256.2019.06.26.06.54.53
+        by mx.google.com with ESMTPS id t16si3363567eda.244.2019.06.26.06.57.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Jun 2019 06:54:53 -0700 (PDT)
+        Wed, 26 Jun 2019 06:57:46 -0700 (PDT)
 Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
        spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id D2ABDAE3F;
-	Wed, 26 Jun 2019 13:54:52 +0000 (UTC)
-Date: Wed, 26 Jun 2019 15:54:50 +0200
+	by mx1.suse.de (Postfix) with ESMTP id B933AAF05;
+	Wed, 26 Jun 2019 13:57:45 +0000 (UTC)
+Date: Wed, 26 Jun 2019 15:57:44 +0200
 From: Michal Hocko <mhocko@kernel.org>
-To: Barret Rhoden <brho@google.com>
-Cc: linux-mm@kvack.org, Pingfan Liu <kernelfans@gmail.com>,
+To: Pingfan Liu <kernelfans@gmail.com>
+Cc: Qian Cai <cai@lca.pw>, Andrew Morton <akpm@linux-foundation.org>,
+	Barret Rhoden <brho@google.com>,
 	Dave Hansen <dave.hansen@intel.com>,
-	Peter Zijlstra <peterz@infradead.org>, x86@kernel.org,
-	Benjamin Herrenschmidt <benh@kernel.crashing.org>,
-	Michael Ellerman <mpe@ellerman.id.au>,
-	Tony Luck <tony.luck@intel.com>, linuxppc-dev@lists.ozlabs.org,
-	linux-ia64@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>,
-	Ingo Molnar <mingo@elte.hu>
-Subject: Re: [PATCH 1/2] x86, numa: always initialize all possible nodes
-Message-ID: <20190626135450.GW17798@dhcp22.suse.cz>
-References: <20190212095343.23315-1-mhocko@kernel.org>
- <20190212095343.23315-2-mhocko@kernel.org>
- <34f96661-41c2-27cc-422d-5a7aab526f87@google.com>
- <20190502130031.GC29835@dhcp22.suse.cz>
+	Mike Rapoport <rppt@linux.ibm.com>,
+	Peter Zijlstra <peterz@infradead.org>,
+	Michael Ellerman <mpe@ellerman.id.au>, Ingo Molnar <mingo@elte.hu>,
+	Oscar Salvador <osalvador@suse.de>,
+	Andy Lutomirski <luto@kernel.org>,
+	Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org,
+	LKML <linux-kernel@vger.kernel.org>
+Subject: Re: [PATCH -next v2] mm/hotplug: fix a null-ptr-deref during NUMA
+ boot
+Message-ID: <20190626135744.GX17798@dhcp22.suse.cz>
+References: <20190512054829.11899-1-cai@lca.pw>
+ <20190513124112.GH24036@dhcp22.suse.cz>
+ <1561123078.5154.41.camel@lca.pw>
+ <20190621135507.GE3429@dhcp22.suse.cz>
+ <CAFgQCTvSJjzFGGyt_VOvyB46yy6452wach7UmmuY5ZJZ3YZzcg@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190502130031.GC29835@dhcp22.suse.cz>
+In-Reply-To: <CAFgQCTvSJjzFGGyt_VOvyB46yy6452wach7UmmuY5ZJZ3YZzcg@mail.gmail.com>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -110,23 +114,19 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu 02-05-19 09:00:31, Michal Hocko wrote:
-> On Wed 01-05-19 15:12:32, Barret Rhoden wrote:
-> [...]
-> > A more elegant solution may be to avoid registering with sysfs during early
-> > boot, or something else entirely.  But I figured I'd ask for help at this
-> > point.  =)
+On Mon 24-06-19 16:42:20, Pingfan Liu wrote:
+> Hi Michal,
 > 
-> Thanks for the report and an excellent analysis! This is really helpful.
-> I will think about this some more but I am traveling this week. It seems
-> really awkward to register a sysfs file for an empty range. That looks
-> like a bug to me.
+> What about dropping the change of the online definition of your patch,
+> just do the following?
 
-I am sorry, but I didn't get to this for a long time and I am still
-busy. The patch has been dropped from the mm tree (thus linux-next). I
-hope I can revisit this or somebody else will take over and finish this
-work. This is much more trickier than I anticipated unfortunately.
+I am sorry but I am unlikely to find some more time to look into this. I
+am willing to help reviewing but I will not find enough time to focus on
+this to fix up the patch. Are you willing to work on this and finish the
+patch? It is a very tricky area with side effects really hard to see in
+advance but going with a robust fix is definitely worth the effort.
 
+Thanks!
 -- 
 Michal Hocko
 SUSE Labs
