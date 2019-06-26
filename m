@@ -2,196 +2,153 @@ Return-Path: <SRS0=C/CR=UZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,HTML_MESSAGE,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 827DAC48BD3
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 16:42:56 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 72727C48BD9
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 16:56:50 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1B26320644
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 16:42:55 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="sRFIhXyw"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1B26320644
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 40CBD2182B
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 16:56:50 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 40CBD2182B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8EBD68E0003; Wed, 26 Jun 2019 12:42:55 -0400 (EDT)
+	id D00AA8E0003; Wed, 26 Jun 2019 12:56:49 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 89E1F8E0002; Wed, 26 Jun 2019 12:42:55 -0400 (EDT)
+	id CB2E48E0002; Wed, 26 Jun 2019 12:56:49 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 78C828E0003; Wed, 26 Jun 2019 12:42:55 -0400 (EDT)
+	id BED9A8E0003; Wed, 26 Jun 2019 12:56:49 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-vk1-f198.google.com (mail-vk1-f198.google.com [209.85.221.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 552EF8E0002
-	for <linux-mm@kvack.org>; Wed, 26 Jun 2019 12:42:55 -0400 (EDT)
-Received: by mail-vk1-f198.google.com with SMTP id a4so1077367vki.23
-        for <linux-mm@kvack.org>; Wed, 26 Jun 2019 09:42:55 -0700 (PDT)
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id A47EF8E0002
+	for <linux-mm@kvack.org>; Wed, 26 Jun 2019 12:56:49 -0400 (EDT)
+Received: by mail-qk1-f200.google.com with SMTP id 5so3305942qki.2
+        for <linux-mm@kvack.org>; Wed, 26 Jun 2019 09:56:49 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to;
-        bh=XiZ2kvA4jyR/va4UmVyGQlU0d2wFBUuuiuraanZnnLk=;
-        b=KVeNOnJjjHns52RvaeUrKtamdZApaRbEe8xS2X6C3veRbI3ogVBl1NCuceT52WE56I
-         KodDlWYRqAx/H4dWth6/iWR/x4NmlQ+oCAriQK+sRktSv7av5u2y+BzWFgL+wqaf0H5J
-         foZ5vI6+FXv5b3y4T4w8xuPK03PI7DS5qmVzlDbHQv51Q1cm0lMC9Y+iCCHWIutdp4QZ
-         dIwq2+0uCldP2p5bFbOPCXJkHYtaiySyFVPJGDlN59RGXxHf8R6So3GafYs0S1Dypdbf
-         ryDnARandAZB3ByV4WxsMjodLcVXxxZzhRvRQTe0CyGfmTlHklZjEPoVZcpDxGEWw2ps
-         7JSw==
-X-Gm-Message-State: APjAAAWmPuxD/XeLzBKhMcv0wzTEVyAs6c9tYaXmawfhn4CngDMW668C
-	RX4yib1G/Vxg/QT7j5HA6rW8jjjENBBWL6oYRFGKlx5m9k+LzfVb07L/hV2vNi2M7leaROOKFkR
-	ebhxPLT6wkBp4bg7xhzCYLkbt9lXyfMclOV9ASyfweuui60AF62sBpuGy1ovr0t99iQ==
-X-Received: by 2002:a67:c016:: with SMTP id v22mr3827968vsi.107.1561567375133;
-        Wed, 26 Jun 2019 09:42:55 -0700 (PDT)
-X-Received: by 2002:a67:c016:: with SMTP id v22mr3827945vsi.107.1561567374691;
-        Wed, 26 Jun 2019 09:42:54 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561567374; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id;
+        bh=9UtuahWtAhbxhjZ73YxEJ0x/8bfQk01yoJgsV0MQRL8=;
+        b=ZDpTNCVBypkia6Jlp12AtaYLRRfMDghg0IXifSsO48wGvs7Pvn6qNsNcC/T8dXsExS
+         /GnVuAenmXEH1HQNw6Wh9JEa+Rq1Gx1D/yOYTnSnZoOGV9iSyXA/YYoLb+IdeQvZxanr
+         4RKRDaQKybs86QMyG7gxTvRms55VNQkQx1V0St6amYEO6rA0+/Io9nSy/xYpr2eREuep
+         b13AuNvGni8cMWX601G1cv6wmspSDiEpBklDpzPDDHuC7KgbWCq5Jk54I7I1MV/gQ/pK
+         3O5iRh0L+b4f//ERCMrcG6rJ9vW1yw2gBQMscRv+HxE48Ac85nTbpjzSt5YTpZ8CGd0D
+         sdKw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAUDRgWSuFz1bOQrMBvNRAUqjOfq5YjgFTwhGejOFcF3qzNT4Eao
+	u9cbpkk4Uf08Pk6VA/NBD3mb23tiNGjneI/DCLs83SiMwcrO2aKi5/PK4BNqanXCeXf4zO0/nNn
+	refXtXb58Rr4wYE7CQ4Wr1CJp9wLffYhj5OK0aNkyi5cpJ1rXd/pyscjwZup25kj2LA==
+X-Received: by 2002:a0c:d0f6:: with SMTP id b51mr4223953qvh.225.1561568209426;
+        Wed, 26 Jun 2019 09:56:49 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqx4TH6+siDKA5Os3flALhhaTX1pFkUNSUhskX9/u5UxcLX0/zeR4gNbMIFMtbvssreICUM1
+X-Received: by 2002:a0c:d0f6:: with SMTP id b51mr4223915qvh.225.1561568208871;
+        Wed, 26 Jun 2019 09:56:48 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561568208; cv=none;
         d=google.com; s=arc-20160816;
-        b=Gtmyc9jKlRbYZ9EU5V0TIPhBZq/JBAsTCwA3soOKVOk0EHIbrMstvt1EjpDwuz4m73
-         x36LuJth7xrp0uLWqVze551WPYATVHIlXqM7m0DUsOzY99cMnEvpaJCC34WD4UWvXkj5
-         heKo+RDsqvUVzC7h8hbZVQPvJf1/hm8ohsn6KQBqBb+TfUdTsujQHeMu6PJ9wUiaENXi
-         brKipw8QjuxC+t4n0n9dkNd0bm+5oqp0BzyOYAKXnacU3MdJNIbFMmAV6HlKIieCrwcL
-         G94IVZY/47obReQNa35Kee79wALhEyD8orATp+uosw57TLzWraf6xrkznR3ZJ3E5jros
-         EhLw==
+        b=m7acdDEL5fZQUulKeimXKK+E1crY3QVxTTwe9C6knOrYFuTT8dkR7XL5QuYWizAVqF
+         MxsdrUySq0dFKbqBc23SLOrQIuYXpDBQ/RdNPJLXjbT6voSNJzqU5xQ2kabrmnD9sICl
+         n8G6VzjBERIX3GCz2aSCOJeMkoPGb/Ig2vv3RLhstxMLKv9sukMuDiRDxBdmZ0XkJ0cq
+         YKrWCRYC51pmjWjW+mDf96zLAUjr5amQrUUk/xvqudVUT7J1I28WYWdwan/A+js3ievX
+         iUM4FV8V9YhOAevYN+qm/H8XLsr9DDoAAopiFXUPLnR6D0eA69kuimdYOs240TUoz+qO
+         eMIg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=to:subject:message-id:date:from:in-reply-to:references:mime-version
-         :dkim-signature;
-        bh=XiZ2kvA4jyR/va4UmVyGQlU0d2wFBUuuiuraanZnnLk=;
-        b=zhNgFk063bPEEMhZ02tWTQv+gOFQzwm4Ry85/J90fZ1Pr+mxC3odxFTLU7fiF8Vrfa
-         ZpUxlKKdmZM8Vgbx/pUtHR1ROb6t3srW1FwSGs8kUjPU680g5lASIKMUFe6AEemZvKXc
-         4jHnzTG+/KUjUGaqAj9YGSEIjfBiN+UBR/eM+YdMa3CCtOo0gpbzhpjecfLF+huS2B6L
-         RGNFyJKnFkW11g1Hc7qGSv9wGbO8d2PtPhOf7WmVS1Mv8gP6AqCW+cTFSdLyA5cy5Rwd
-         Sb6WMlPAmgz/1yZ9AJu13tlw3Syu02KM6fRv+dq9ZgkBU2zafTg3aVhPC17Fdb+v9AZ+
-         LuHg==
+        h=message-id:date:subject:cc:to:from;
+        bh=9UtuahWtAhbxhjZ73YxEJ0x/8bfQk01yoJgsV0MQRL8=;
+        b=u4W8GxG0vv6kIN6SicTipciCyI0CKRdErCSf8qfUedbTzaj//rbhhOzYumyaOvAvne
+         1mWvstNVC1zzUWe+D5lvR7kHqVjMBxJ5oy2wNkNqeYIyxILnCEBZlTcOH3Agzk2+x5D4
+         fIq4I/WjbdcN3FmeIRDOFP3uh8X0j8eCzjQJtn3l76Lj+ip1HrnXMX0eOnvZaY+uFvVW
+         jjsBA98sWk9Fhx9W9LQDrg9zB3o2clJGpZI8oO/4LV8vEr59C75rQExs22VbyzGTag9/
+         OqDoDHQ6t3wICt6WcF65ZPpviSRYIXQ8B3ABqYFh/CF7uQiHU6GWGTGolMQPLCiI5exf
+         1tzA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=sRFIhXyw;
-       spf=pass (google.com: domain of pankajssuryawanshi@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=pankajssuryawanshi@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id u21sor9410964uap.43.2019.06.26.09.42.54
+       spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id n21si12325888qka.90.2019.06.26.09.56.48
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 26 Jun 2019 09:42:54 -0700 (PDT)
-Received-SPF: pass (google.com: domain of pankajssuryawanshi@gmail.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 26 Jun 2019 09:56:48 -0700 (PDT)
+Received-SPF: pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=sRFIhXyw;
-       spf=pass (google.com: domain of pankajssuryawanshi@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=pankajssuryawanshi@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to;
-        bh=XiZ2kvA4jyR/va4UmVyGQlU0d2wFBUuuiuraanZnnLk=;
-        b=sRFIhXywufBO++TS+ryB1SmYWeVHv+bTFFcIRILUHDOzvGeatbkNkj46qdVrdrvRyM
-         7d5dP8QgB5qcExwwjS/OVDzo9hE6jn0lXPUJ3/3yK+X5zJyhD0qAhG+jLguybKffozzY
-         mNbsBnG4r+z8JQbo0YEyQ0tkwrXpUdB4VPwZKIU6/g7lklauN29RDDXgzMOJVFCawAwV
-         fBwXUsEBRyydcv0GVUTz4LJoMzPm1ZLk7zftxYnq4CC3RgxVbq8HydWG2Jd8DrqUyaXc
-         VCXezd6bXVw016E7zPODVX+GS1D9nSvhyTKNw2Kje1cD2I/z5EplWIqicwedgaSTQqFX
-         yHDQ==
-X-Google-Smtp-Source: APXvYqwcTa3UDAPlUPBUMrH/Y1/nc1WfDoELbdgtmLpz6OTDpqqll6ddgRZ8HLMzaiqPayI6LrkNV1VDhmlf6TReO80=
-X-Received: by 2002:ab0:7848:: with SMTP id y8mr3228942uaq.58.1561567374300;
- Wed, 26 Jun 2019 09:42:54 -0700 (PDT)
-MIME-Version: 1.0
-References: <CACDBo564RoWpi8y2pOxoddnn0s3f3sA-fmNxpiXuxebV5TFBJA@mail.gmail.com>
-In-Reply-To: <CACDBo564RoWpi8y2pOxoddnn0s3f3sA-fmNxpiXuxebV5TFBJA@mail.gmail.com>
-From: Pankaj Suryawanshi <pankajssuryawanshi@gmail.com>
-Date: Wed, 26 Jun 2019 22:12:45 +0530
-Message-ID: <CACDBo55GfomD4yAJ1qaOvdm8EQaD-28=etsRHb39goh+5VAeqw@mail.gmail.com>
-Subject: Re: DMA-API attr - DMA_ATTR_NO_KERNEL_MAPPING
-To: linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>, linux-kernel@vger.kernel.org, 
-	Vlastimil Babka <vbabka@suse.cz>
-Content-Type: multipart/alternative; boundary="000000000000a35b65058c3cbc65"
+       spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx08.intmail.prod.int.phx2.redhat.com [10.5.11.23])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 286DE83F3C;
+	Wed, 26 Jun 2019 16:56:33 +0000 (UTC)
+Received: from llong.com (dhcp-17-85.bos.redhat.com [10.18.17.85])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id C46A119C5B;
+	Wed, 26 Jun 2019 16:56:29 +0000 (UTC)
+From: Waiman Long <longman@redhat.com>
+To: Johannes Weiner <hannes@cmpxchg.org>,
+	Michal Hocko <mhocko@kernel.org>,
+	Vladimir Davydov <vdavydov.dev@gmail.com>,
+	Tejun Heo <tj@kernel.org>
+Cc: linux-kernel@vger.kernel.org,
+	cgroups@vger.kernel.org,
+	linux-mm@kvack.org,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Shakeel Butt <shakeelb@google.com>,
+	Waiman Long <longman@redhat.com>
+Subject: [PATCH] memcg: Add kmem.slabinfo to v2 for debugging purpose
+Date: Wed, 26 Jun 2019 12:56:14 -0400
+Message-Id: <20190626165614.18586-1-longman@redhat.com>
+X-Scanned-By: MIMEDefang 2.84 on 10.5.11.23
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.27]); Wed, 26 Jun 2019 16:56:48 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---000000000000a35b65058c3cbc65
-Content-Type: text/plain; charset="UTF-8"
+With memory cgroup v1, there is a kmem.slabinfo file that can be
+used to view what slabs are allocated to the memory cgroup. There
+is currently no such equivalent in memory cgroup v2. This file can
+be useful for debugging purpose.
 
-[CC: linux kernel and Vlastimil Babka]
+This patch adds an equivalent kmem.slabinfo to v2 with the caveat that
+this file will only show up as ".__DEBUG__.memory.kmem.slabinfo" when the
+"cgroup_debug" parameter is specified in the kernel boot command line.
+This is to avoid cluttering the cgroup v2 interface with files that
+are seldom used by end users.
 
-On Wed, Jun 26, 2019 at 10:11 PM Pankaj Suryawanshi <
-pankajssuryawanshi@gmail.com> wrote:
+Signed-off-by: Waiman Long <longman@redhat.com>
+---
+ mm/memcontrol.c | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)
 
-> Hello,
->
-> I am writing driver in which I used DMA_ATTR_NO_KERNEL_MAPPING attribute
-> for cma allocation using dma_alloc_attr(), as per kernel docs
-> https://www.kernel.org/doc/Documentation/DMA-attributes.txt  buffers
-> allocated with this attribute can be only passed to user space by calling
-> dma_mmap_attrs().
->
-> how can I mapped in kernel space (after dma_alloc_attr with
-> DMA_ATTR_NO_KERNEL_MAPPING ) ?
->
-> For example.
->
-> 1. virtual_addr = dma_alloc_attr(device, size,, phys, GFP_KERNEL,
-> DMA_ATTR_NO_KERNEL_MAPPING );
-> 2. Now i can use phys for driver as physical address and i am using in
-> drivers, working fine.
-> 3. Now i want to use virtual address in kernel space(in some cases virtual
-> address required in my driver), not allow to use virtual_addr in kernel
-> space because DMA_ATTR_NO_KERNEL_MAPPING, How can i mapped again to
-> kernel space ?
->
-> How can i used DMA_ATTR_NO_KERNEL_MAPPING  and mapped some area for
-> kernel space when needed ?
->
-> Is there any apis available ? or improvement is required in linux kernel
-> dma-apis ?
->
-> Regards,
-> Pankaj
->
-
---000000000000a35b65058c3cbc65
-Content-Type: text/html; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-
-<div dir=3D"ltr"><div>[CC: linux kernel and Vlastimil Babka]</div><br><div =
-class=3D"gmail_quote"><div dir=3D"ltr" class=3D"gmail_attr">On Wed, Jun 26,=
- 2019 at 10:11 PM Pankaj Suryawanshi &lt;<a href=3D"mailto:pankajssuryawans=
-hi@gmail.com">pankajssuryawanshi@gmail.com</a>&gt; wrote:<br></div><blockqu=
-ote class=3D"gmail_quote" style=3D"margin:0px 0px 0px 0.8ex;border-left:1px=
- solid rgb(204,204,204);padding-left:1ex"><div dir=3D"ltr">Hello,<br><br>I =
-am writing driver in which I used DMA_ATTR_NO_KERNEL_MAPPING attribute for =
-cma allocation using dma_alloc_attr(), as per kernel docs=C2=A0<a href=3D"h=
-ttps://www.kernel.org/doc/Documentation/DMA-attributes.txt" target=3D"_blan=
-k">https://www.kernel.org/doc/Documentation/DMA-attributes.txt</a>=C2=A0 b<=
-span style=3D"color:rgb(0,0,0);white-space:pre-wrap">uffers allocated with =
-this attribute can be only passed to user space </span><span style=3D"color=
-:rgb(0,0,0);white-space:pre-wrap">by calling dma_mmap_attrs().</span><div><=
-br></div><div><font color=3D"#000000"><span style=3D"white-space:pre-wrap">=
-how can I mapped in kernel space (after dma_alloc_attr with </span></font>D=
-MA_ATTR_NO_KERNEL_MAPPING=C2=A0<span style=3D"white-space:pre-wrap;color:rg=
-b(0,0,0)">) ?</span></div><div><font color=3D"#000000"><span style=3D"white=
--space:pre-wrap"><br></span></font></div><div><font color=3D"#000000"><span=
- style=3D"white-space:pre-wrap">For example.</span></font></div><div><font =
-color=3D"#000000"><span style=3D"white-space:pre-wrap"><br></span></font></=
-div><div><font color=3D"#000000"><span style=3D"white-space:pre-wrap">1. vi=
-rtual_addr =3D dma_alloc_attr(device, size,, phys, GFP_KERNEL, </span></fon=
-t><font color=3D"#000000"><span style=3D"white-space:pre-wrap"> </span></fo=
-nt>DMA_ATTR_NO_KERNEL_MAPPING=C2=A0<span style=3D"color:rgb(0,0,0);white-sp=
-ace:pre-wrap">);</span></div><div><span style=3D"color:rgb(0,0,0);white-spa=
-ce:pre-wrap">2. Now i can use phys for driver as physical address and i am =
-using in drivers, working fine.</span></div><div><span style=3D"color:rgb(0=
-,0,0);white-space:pre-wrap">3. Now i want to use virtual address in kernel =
-space(in some cases virtual address required in my driver), not allow to us=
-e virtual_addr in kernel space because </span><font color=3D"#000000"><span=
- style=3D"white-space:pre-wrap"> </span></font>DMA_ATTR_NO_KERNEL_MAPPING, =
-How can i mapped again to kernel space ?</div><div><span style=3D"color:rgb=
-(0,0,0);white-space:pre-wrap"><br></span></div><div><span style=3D"color:rg=
-b(0,0,0);white-space:pre-wrap">How can i used  </span>DMA_ATTR_NO_KERNEL_MA=
-PPING=C2=A0 and mapped some area for kernel space when needed ?</div><div><=
-br></div><div>Is there any apis available ? or improvement is required in l=
-inux kernel dma-apis ?</div><div><br></div><div>Regards,</div><div>Pankaj</=
-div></div>
-</blockquote></div></div>
-
---000000000000a35b65058c3cbc65--
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index ba9138a4a1de..236554a23f8f 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -5812,6 +5812,22 @@ static struct cftype memory_files[] = {
+ 		.seq_show = memory_oom_group_show,
+ 		.write = memory_oom_group_write,
+ 	},
++#ifdef CONFIG_MEMCG_KMEM
++	{
++		/*
++		 * This file is for debugging purpose only and will show
++		 * up as ".__DEBUG__.memory.kmem.slabinfo" when the
++		 * "cgroup_debug" parameter is specified in the kernel
++		 * boot command line.
++		 */
++		.name = "kmem.slabinfo",
++		.flags = CFTYPE_NOT_ON_ROOT | CFTYPE_DEBUG,
++		.seq_start = memcg_slab_start,
++		.seq_next = memcg_slab_next,
++		.seq_stop = memcg_slab_stop,
++		.seq_show = memcg_slab_show,
++	},
++#endif
+ 	{ }	/* terminate */
+ };
+ 
+-- 
+2.18.1
 
