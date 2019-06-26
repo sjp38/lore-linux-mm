@@ -2,158 +2,188 @@ Return-Path: <SRS0=C/CR=UZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT
+X-Spam-Status: No, score=-11.4 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_IN_DEF_DKIM_WL
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9C733C48BD6
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 14:49:48 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 869BFC48BD3
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 15:00:58 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6ED91205C9
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 14:49:48 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6ED91205C9
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 4097A20663
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 15:00:58 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="DK/n2Vrq"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4097A20663
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DD34F8E000C; Wed, 26 Jun 2019 10:49:47 -0400 (EDT)
+	id BCF268E000F; Wed, 26 Jun 2019 11:00:57 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D831A8E0002; Wed, 26 Jun 2019 10:49:47 -0400 (EDT)
+	id B80288E0002; Wed, 26 Jun 2019 11:00:57 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C4C068E000C; Wed, 26 Jun 2019 10:49:47 -0400 (EDT)
+	id A47968E000F; Wed, 26 Jun 2019 11:00:57 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 7409D8E0002
-	for <linux-mm@kvack.org>; Wed, 26 Jun 2019 10:49:47 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id y3so3551698edm.21
-        for <linux-mm@kvack.org>; Wed, 26 Jun 2019 07:49:47 -0700 (PDT)
+Received: from mail-vs1-f70.google.com (mail-vs1-f70.google.com [209.85.217.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 8158C8E0002
+	for <linux-mm@kvack.org>; Wed, 26 Jun 2019 11:00:57 -0400 (EDT)
+Received: by mail-vs1-f70.google.com with SMTP id g189so539309vsc.19
+        for <linux-mm@kvack.org>; Wed, 26 Jun 2019 08:00:57 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=F1ICB47OhDLdmbIw8ue1wS4VYkILz+T5uVLMeHYjO0Y=;
-        b=OIiBH+hXxbgCn/wH7EMD4aeBHGSm0PP0Lw310jBXsZtLiqqRBL/3MXIAfoxtW8473l
-         QBjyvQTT7C/rXAdkRvVnBHVWg4f7BhWzph4NqCuCYDzjU6m8EHOHLeSqhLYfxmdhGTkR
-         /L8WRN0PqKcF3HMAh1T4qla9cGVGvzx1gNOB80X4AbBVmDy6PoCUiFYiU37/SoYOrUIc
-         CDoBcsJ4NxvqoJGbwZ4MQ3WM/LiuPWcL2QY+wckJBEV0JSFaKZsyJIxZhMqj8kEbRxl3
-         79CgucotS1uuOXyQW+Tr7ulya4jCVAIhsH52FWitVRiqVDy8R34CTTe6u6TNCqtX2PEx
-         +k0Q==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAUrMCjLL5pgixxMGkWt2X6vfbipLydn8UG2kYVfjmwS/uhTLzvo
-	ZWYkh5wDtx4LC2E6Wo4FA+QhiALjlcvl9+LmewQRCitjGnqjXNEiZig/5odyeEYFmoTtPDc8COb
-	Dz3Suqa2WYif0MREz8EU9iQZAQYRzdSh8wMkzOIsC0j24fiM+TiXBQQrGU4M94CA=
-X-Received: by 2002:a50:9762:: with SMTP id d31mr5784732edb.114.1561560587068;
-        Wed, 26 Jun 2019 07:49:47 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz+gqReOQKIlhioPDnOdmsAQLBqfmkdFoL9nWlvsp8YnSdTZ51iwbB2yssWW+4MxUNSs4A7
-X-Received: by 2002:a50:9762:: with SMTP id d31mr5784648edb.114.1561560586215;
-        Wed, 26 Jun 2019 07:49:46 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561560586; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc
+         :content-transfer-encoding;
+        bh=zoBpYP6DnaC2e4XaW1/B4gA/As2GEKNd5dW1F1ry1DA=;
+        b=OJ7D5vUKcbfZnsuBwRbFPLjD6wIgxvx/ozO/FQLX5TXEaS5rLMuJfcf5Y1R3NHYClC
+         q8JHvDZkUJHZKo6/85K3ePdyoqpTImoOkC60g0DJryfx8Au3KBxFe5GkYkKTjFfUSpAy
+         tv2fWV0OZ5WgDgfNgPlZu/wBDI5+6MNeKo83q7VyJ2rFSO8C3ZYQHwaE6Oo/sve5g1C7
+         YZq5Ks8HBEmaw7/SCh2DVC8SJBt34JvA8BnHr4BMfscbvw0WoOhnwj4V+yF+4UqsfiNw
+         RDoWwUQEQz1cdTXNGDcDLfjNYbqtp3uzGVKhrWHBdXjqdsucVbFxU5PkKyJArKl75fHF
+         fBMA==
+X-Gm-Message-State: APjAAAUN7SsDk3G2cOpFl8sVFanchpslCzwRCa30t3zKZL5vU7DS0xNV
+	Hwp1ZoZZ4ULkTexQQWy7g5Ah1HvlBPPiaT8uRqW70b5xNhxT0e/m5lRW/KvpiIjlzON56L9I7sQ
+	U3bl5/269s+6wvoi7pQ3YMXNtU5vEjfgN8eM5r44sdyu5v0leyZfTSL20YYhv72vtjw==
+X-Received: by 2002:a67:ff0a:: with SMTP id v10mr3303380vsp.1.1561561257166;
+        Wed, 26 Jun 2019 08:00:57 -0700 (PDT)
+X-Received: by 2002:a67:ff0a:: with SMTP id v10mr3303332vsp.1.1561561256439;
+        Wed, 26 Jun 2019 08:00:56 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561561256; cv=none;
         d=google.com; s=arc-20160816;
-        b=sKonQ4ArIm4EP2QrHlAjxCELm/aFXbxFGVVqm1ct9Vu8fN72rZ/QBvozTi3XObCN+f
-         lVCmoS3G4zC9RUU08gObbfyliB1zj5PgccWruaBXb0sm4B23iUkdJrfngTVRTycUILRb
-         yQTu+yomsLXa7ldGO2qKOY2wY+N/rhrhbHqOa8YlRqJ6khASVTCwPBCYXwXgENQ0pnwy
-         FGwZTQKWOdhQ91zt197+h/peXJXfdrn29l+DWlLHhIwl0xagIoIz+FcvOrcq8sO5GqYX
-         J2RSVMMPG5uFfjBGLS5RP4iiZWCeVseyRkX92QLRtAJgT+KVUA+wHoe+l1sJrCxG58hB
-         F7qw==
+        b=hRLLovHBig/tYdho1215c3jpObGM9jSHpfGf6ME//WqW4zpp/qM1kwfYIE8hciU7X1
+         7HTikZf7HROoRqp88kUTVaPuP4aY2CtB8xEUnAid5fWSQXeTtjvgKQJenXdbJphR4zZo
+         yVr9N9zSopsJSzunxPMIIk6KnbSxaT2T/VC/uYjhfosRfhiZYm3FOaMGKejBj0pOMnKg
+         XJGTo95Qz7tiV3bFKWXQz29AoZbsOAU6wtWlk2zVzQBaUSYqh2itjDXc4r2k0tzdUPcL
+         RVxf+Ny9UMHXOkfCiW/HfxBciadm1QYDa+RdeGsJ8z5RMs396RfLnSPHt9gFVUgXmclP
+         Xu2Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=F1ICB47OhDLdmbIw8ue1wS4VYkILz+T5uVLMeHYjO0Y=;
-        b=r+k32wLoq1WFIWzueeTeeHd5w38FAmnNJRtgbfZ57fPau0K/Z+VlV/BUpDtmJ7/5rg
-         WsrmfxKHzeWS+6y8KO0vv7sSLb8u4i8OYvGyyChHnyNlbcdYpWERzgRuk0N68cuNcZb6
-         OLF9JrhsUsgTkkJIt2plT1WOFPUtWpe4vj0J/UNh2MehXN9ehp0eFYkhIxxXZd8qh/Mp
-         QDb8PyUnDBt3J1OWl931EPsw3jZXwhCmsZSyftFp+fCvMJwsG4wyIL2ZpeDDAWuzz/yP
-         hId0swuAU9KCag9aU9PnfU1vmk0dpbgXYL4bRnLPrC/W8Mdji7AvEL8znH+EXjXQHolw
-         b6pA==
+        h=content-transfer-encoding:cc:to:subject:message-id:date:from
+         :in-reply-to:references:mime-version:dkim-signature;
+        bh=zoBpYP6DnaC2e4XaW1/B4gA/As2GEKNd5dW1F1ry1DA=;
+        b=Su+0T4e2OuBVCWUxBTFePMzPfrmowMyjeP1XcumI/DI0PKERn3jSn2lQqSHYr6TR3V
+         3LkV5mDHB8gZaSyw0gplDsIxjsGMSooiGFPc7XXzmqFr+7Z0J/Ok+0KUi9sKWZF+tMUt
+         +4gv92JidtCGsg8rfPWy9oTapaQVpG19vtynFcCLwOFq+yZbrhYh2ItR9nVx6AkSnjyw
+         crmhakB0grL9KSS5Zrqk8Bbf4d8zGDV/O1v4cmxxAvIHweDCVnWAPSMZQE43uIejlEcZ
+         pAVbtMLk18aEUecKl9YsoAxWQfW9W2BGf87OufHJAFYvacKD+tNHdo9sMIn9pg4yna6o
+         IpiQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ka18si2718614ejb.151.2019.06.26.07.49.45
+       dkim=pass header.i=@google.com header.s=20161025 header.b="DK/n2Vrq";
+       spf=pass (google.com: domain of glider@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=glider@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id j8sor9220271uad.24.2019.06.26.08.00.56
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Jun 2019 07:49:46 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (Google Transport Security);
+        Wed, 26 Jun 2019 08:00:56 -0700 (PDT)
+Received-SPF: pass (google.com: domain of glider@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 4CFCFAC2E;
-	Wed, 26 Jun 2019 14:49:45 +0000 (UTC)
-Date: Wed, 26 Jun 2019 16:49:43 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Alexander Potapenko <glider@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-	Christoph Lameter <cl@linux.com>, Kees Cook <keescook@chromium.org>,
-	Masahiro Yamada <yamada.masahiro@socionext.com>,
-	James Morris <jmorris@namei.org>,
-	"Serge E. Hallyn" <serge@hallyn.com>,
-	Nick Desaulniers <ndesaulniers@google.com>,
-	Kostya Serebryany <kcc@google.com>,
-	Dmitry Vyukov <dvyukov@google.com>,
-	Sandeep Patil <sspatil@android.com>,
-	Laura Abbott <labbott@redhat.com>,
-	Randy Dunlap <rdunlap@infradead.org>, Jann Horn <jannh@google.com>,
-	Mark Rutland <mark.rutland@arm.com>, Marco Elver <elver@google.com>,
-	Qian Cai <cai@lca.pw>, linux-mm@kvack.org,
-	linux-security-module@vger.kernel.org,
-	kernel-hardening@lists.openwall.com
+       dkim=pass header.i=@google.com header.s=20161025 header.b="DK/n2Vrq";
+       spf=pass (google.com: domain of glider@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=glider@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc:content-transfer-encoding;
+        bh=zoBpYP6DnaC2e4XaW1/B4gA/As2GEKNd5dW1F1ry1DA=;
+        b=DK/n2VrqOoEDzclYHyq2tl89y1S1BefzXcCfPYtMbncmdAEousuPD4nlrlFXjn1yAf
+         0UZ2zw7aNcVImRdErGoO1CbC7dXKUVSHtuP/yzBJwyIo0zemDC+R1hWnWRVjgVrAnU/G
+         cvK2xJ+dmRwfI/NlGzWTm84i2qOlJR71o3B40rbm5P6vctgPwQKEgs1Tg5/t6YaLCHdC
+         NspZwHSWueky8RI+rBqgzac4hPLgVsWXreGq8arKJv49UONak6A2T0SZgr27vzlXESkF
+         A2h4u/1rIlOtZdFXckVdzyVlUD6I+t5bFeMa4UmxkyNAZS24W5IdZKhDlhFU8RIuBuk/
+         acXQ==
+X-Google-Smtp-Source: APXvYqxOM1Qhb4bYwyr4BHkaaqPHuZq394nkXxdn6QI/Fj8/wCimkp9o3YMPWPV8de9K2LGJFGbIpbZSCKxhz9J77fk=
+X-Received: by 2002:ab0:3d2:: with SMTP id 76mr2748402uau.12.1561561255636;
+ Wed, 26 Jun 2019 08:00:55 -0700 (PDT)
+MIME-Version: 1.0
+References: <20190626121943.131390-1-glider@google.com> <20190626121943.131390-2-glider@google.com>
+ <20190626144943.GY17798@dhcp22.suse.cz>
+In-Reply-To: <20190626144943.GY17798@dhcp22.suse.cz>
+From: Alexander Potapenko <glider@google.com>
+Date: Wed, 26 Jun 2019 17:00:43 +0200
+Message-ID: <CAG_fn=Xf5yEuz7JyOt-gmNx1uSM6mmM57_jFxCi+9VPZ4PSwJQ@mail.gmail.com>
 Subject: Re: [PATCH v8 1/2] mm: security: introduce init_on_alloc=1 and
  init_on_free=1 boot options
-Message-ID: <20190626144943.GY17798@dhcp22.suse.cz>
-References: <20190626121943.131390-1-glider@google.com>
- <20190626121943.131390-2-glider@google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190626121943.131390-2-glider@google.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, 
+	Kees Cook <keescook@chromium.org>, Masahiro Yamada <yamada.masahiro@socionext.com>, 
+	James Morris <jmorris@namei.org>, "Serge E. Hallyn" <serge@hallyn.com>, 
+	Nick Desaulniers <ndesaulniers@google.com>, Kostya Serebryany <kcc@google.com>, 
+	Dmitry Vyukov <dvyukov@google.com>, Sandeep Patil <sspatil@android.com>, 
+	Laura Abbott <labbott@redhat.com>, Randy Dunlap <rdunlap@infradead.org>, Jann Horn <jannh@google.com>, 
+	Mark Rutland <mark.rutland@arm.com>, Marco Elver <elver@google.com>, Qian Cai <cai@lca.pw>, 
+	Linux Memory Management List <linux-mm@kvack.org>, 
+	linux-security-module <linux-security-module@vger.kernel.org>, 
+	Kernel Hardening <kernel-hardening@lists.openwall.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed 26-06-19 14:19:42, Alexander Potapenko wrote:
-[...]
-> diff --git a/mm/dmapool.c b/mm/dmapool.c
-> index 8c94c89a6f7e..fe5d33060415 100644
-> --- a/mm/dmapool.c
-> +++ b/mm/dmapool.c
-[...]
-> @@ -428,6 +428,8 @@ void dma_pool_free(struct dma_pool *pool, void *vaddr, dma_addr_t dma)
->  	}
->  
->  	offset = vaddr - page->vaddr;
-> +	if (want_init_on_free())
-> +		memset(vaddr, 0, pool->size);
+On Wed, Jun 26, 2019 at 4:49 PM Michal Hocko <mhocko@kernel.org> wrote:
+>
+> On Wed 26-06-19 14:19:42, Alexander Potapenko wrote:
+> [...]
+> > diff --git a/mm/dmapool.c b/mm/dmapool.c
+> > index 8c94c89a6f7e..fe5d33060415 100644
+> > --- a/mm/dmapool.c
+> > +++ b/mm/dmapool.c
+> [...]
+> > @@ -428,6 +428,8 @@ void dma_pool_free(struct dma_pool *pool, void *vad=
+dr, dma_addr_t dma)
+> >       }
+> >
+> >       offset =3D vaddr - page->vaddr;
+> > +     if (want_init_on_free())
+> > +             memset(vaddr, 0, pool->size);
+>
+> any reason why this is not in DMAPOOL_DEBUG else branch? Why would you
+> want to both zero on free and poison on free?
+This makes sense, thanks.
 
-any reason why this is not in DMAPOOL_DEBUG else branch? Why would you
-want to both zero on free and poison on free?
+> >  #ifdef       DMAPOOL_DEBUG
+> >       if ((dma - page->dma) !=3D offset) {
+> >               spin_unlock_irqrestore(&pool->lock, flags);
+>
+> [...]
+>
+> > @@ -1142,6 +1200,8 @@ static __always_inline bool free_pages_prepare(st=
+ruct page *page,
+> >       }
+> >       arch_free_page(page, order);
+> >       kernel_poison_pages(page, 1 << order, 0);
+> > +     if (want_init_on_free())
+> > +             kernel_init_free_pages(page, 1 << order);
+>
+> same here. If you don't want to make this exclusive then you have to
+> zero before poisoning otherwise you are going to blow up on the poison
+> check, right?
+Note that we disable initialization if page poisoning is on.
+As I mentioned on another thread we can eventually merge this code
+with page poisoning, but right now it's better to make the user decide
+which of the features they want instead of letting them guess how the
+combination of the two is going to work.
+> >       if (debug_pagealloc_enabled())
+> >               kernel_map_pages(page, 1 << order, 0);
+> >
+> --
+> Michal Hocko
+> SUSE Labs
 
->  #ifdef	DMAPOOL_DEBUG
->  	if ((dma - page->dma) != offset) {
->  		spin_unlock_irqrestore(&pool->lock, flags);
 
-[...]
 
-> @@ -1142,6 +1200,8 @@ static __always_inline bool free_pages_prepare(struct page *page,
->  	}
->  	arch_free_page(page, order);
->  	kernel_poison_pages(page, 1 << order, 0);
-> +	if (want_init_on_free())
-> +		kernel_init_free_pages(page, 1 << order);
+--=20
+Alexander Potapenko
+Software Engineer
 
-same here. If you don't want to make this exclusive then you have to
-zero before poisoning otherwise you are going to blow up on the poison
-check, right?
+Google Germany GmbH
+Erika-Mann-Stra=C3=9Fe, 33
+80636 M=C3=BCnchen
 
->  	if (debug_pagealloc_enabled())
->  		kernel_map_pages(page, 1 << order, 0);
->  
--- 
-Michal Hocko
-SUSE Labs
+Gesch=C3=A4ftsf=C3=BChrer: Paul Manicle, Halimah DeLaine Prado
+Registergericht und -nummer: Hamburg, HRB 86891
+Sitz der Gesellschaft: Hamburg
 
