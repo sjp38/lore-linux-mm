@@ -2,172 +2,160 @@ Return-Path: <SRS0=C/CR=UZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DFAE3C48BD3
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 09:20:58 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 46131C48BD3
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 09:48:36 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8DEAD2054F
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 09:20:58 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="Fpo0sQeA"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8DEAD2054F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id F2A362082F
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 09:48:35 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F2A362082F
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 15C948E0003; Wed, 26 Jun 2019 05:20:58 -0400 (EDT)
+	id 5B4736B0003; Wed, 26 Jun 2019 05:48:35 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 10D278E0002; Wed, 26 Jun 2019 05:20:58 -0400 (EDT)
+	id 564D18E0003; Wed, 26 Jun 2019 05:48:35 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id F16428E0003; Wed, 26 Jun 2019 05:20:57 -0400 (EDT)
-X-Delivered-To: Linux-mm@kvack.org
-Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
-	by kanga.kvack.org (Postfix) with ESMTP id D205A8E0002
-	for <Linux-mm@kvack.org>; Wed, 26 Jun 2019 05:20:57 -0400 (EDT)
-Received: by mail-io1-f72.google.com with SMTP id j18so1879796ioj.4
-        for <Linux-mm@kvack.org>; Wed, 26 Jun 2019 02:20:57 -0700 (PDT)
+	id 47B598E0002; Wed, 26 Jun 2019 05:48:35 -0400 (EDT)
+X-Delivered-To: linux-mm@kvack.org
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id F1BD96B0003
+	for <linux-mm@kvack.org>; Wed, 26 Jun 2019 05:48:34 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id m23so2383828edr.7
+        for <linux-mm@kvack.org>; Wed, 26 Jun 2019 02:48:34 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=yWLGrl/2egjAr2UjDXCO9Iz9KQ93uoAPVQBnf/rPQpU=;
-        b=EOYJx7YEUzLqseUOlm9oqmnDAdxZuZpoP3OJPTdbPRBmZf0keFJXQ5Dc8rGRRUTIjC
-         gDHZ7AnZQeh+UJrLCafBs6pEcn/xK+awHE9wd2QS/IRysKCF+m3WCiEWEhBH/BZ4RRCP
-         Sd5IzD9PeF63lt9yetvMbEc9ZDjKTuYBxZ5LffOhRigHj08gcfF+/tPfj7ejWhH8ebZG
-         kE5Ma4M6TNJDsT9LQp7HhOtzxeBaP7FuJWntkZ+QSH546MmdEElHERur67nUMQKJ3Chg
-         hn4TDggJV05JXojjRlMu09I5KliLlT1xrRPfO6sEzi91ceZuY2AowJ2qgFYJ/2t/3wYh
-         pU9Q==
-X-Gm-Message-State: APjAAAUelhgRltGzlnjZykQetU5cy6BPFojJFMltSNl5+V0fDKB4QMcA
-	ZHQKU1ZdWgH2LNdZ1RffWDnliIFK2IAdP4hWDum5KUSH1IwmJZB7JjrfThnC1dfa+HYJgIiuJsz
-	TQHVCpXzVPHPjTkyJrk0jkCjWfvA7jRkuJQoEYDFhjFO5Vt2KvpaqcA+muYcPPURaIw==
-X-Received: by 2002:a6b:dc17:: with SMTP id s23mr3792461ioc.56.1561540857600;
-        Wed, 26 Jun 2019 02:20:57 -0700 (PDT)
-X-Received: by 2002:a6b:dc17:: with SMTP id s23mr3792431ioc.56.1561540857096;
-        Wed, 26 Jun 2019 02:20:57 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561540857; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=rRFQagklTK9A6Qe1ruVIcUORgtYS4vg8lbJALJfIp0Q=;
+        b=DelsnJs/wRzt6Obxb03pFrkOCCi6t1smteQzwjL9pIxKquIw6g98jhLPbKtmvc2Txt
+         KwrDuWs3hMGHDgfUt6LO2r/1uI83ku0Cs30Ijsk/hIMalFgT4bljZpdjRuLUdh0B1NGI
+         PGRNRNiGzbuRXSjXEym2DxcGhtsqQM/9e5Zn1OFa0DVvPva7mJnlNpqbb5br1pb0YS9K
+         tonG0AmnnrmoVDHOv1pRjvjZK7KFzf/wadNkSDQG85AaIa3KWDnhJlLvbuX4czOmHVYA
+         xM1miFlymf2k42kMu2wHB/q6HMOs5+0j5/op+i+9Lst/P3I2hiMgic/FJGtXfwsrWdue
+         FeOQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
+X-Gm-Message-State: APjAAAXZ4N1MrhUefN43zxjRcVjSBIaFhPgWni7uMVk2H8x/8OUmmzYV
+	Ki70u/sa2LD7/NAqdrZMjLCmIrk5mx+Dzlu2qb7msquGHCp2GICdivedBESGzXPExDLs0PkWORN
+	1CTmUKgBfx5ox0qtp3W4YYKZsRyhrcS4Ty3wqTChlCXkadf3xDS8B2PbUatLMMH+RhA==
+X-Received: by 2002:a50:b104:: with SMTP id k4mr3959658edd.75.1561542514551;
+        Wed, 26 Jun 2019 02:48:34 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxaSQnMP96uWjp/+1iPE7LNvu2kkz0OyUxhpg93oFA0BfAi5i1OLtPpFby4yjfgAUvS3eMn
+X-Received: by 2002:a50:b104:: with SMTP id k4mr3959580edd.75.1561542513752;
+        Wed, 26 Jun 2019 02:48:33 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561542513; cv=none;
         d=google.com; s=arc-20160816;
-        b=MMl4UPuQGInG+++bRLG5SxxCQp4uTaVieNisNPEswNKw9kmTHxOKCZ+sTrhJs6wFdR
-         0TtyAdOwO28SzvZyXY9HIig4YDayf89pcuMTh2zuupCk/bKqpzPgpzr4pyl4kIhIv9uw
-         by8PJp41SSeQniFGgO0aupfY78JAlgNqLtOXClnfZqFUfSOsbJ2A1grfFXNI1uQj0nUp
-         0NtLY9AsvkbNZf1b4G3oTOr4CxE9kJmjIO7NGtk5Zyhn9JGkZZ0USJ6bNsbYaSMjqGnW
-         Tz2+Go7DQCzdlnr4RSDI3U/VLCpDpcsOxk5qx4e9yZ2iOiEK2FPiMcU+JNxWeWtCOSXx
-         MCNg==
+        b=e634W4WSxgeqJTd17834L8ELzz6hLM2okJRfCqNNYhpV8kPTMHuKPGc+Yb2+8aN35j
+         3EeOgKPqUOwkmLMR/vsPKceAbXxHFlwvuoBwV3yT0VBI6LjAMWUTKjX52pk9dUylWofP
+         Qy56jBzf78CP93NOgjM7v27ht5MhLx6qNU/3LT90hvYyAbkv0PrPA0BN9y5gR14y4LbI
+         FLCT0QNuup1nJaksGSga7dxshjh/l9/qB6S/61hNIgjxsmBbCHLZLZP+wz+5jZ/dGc+M
+         Wll9ahAzAvtEXMDC5ZeyCHhJkV6ciYKqwCwOgT4wejzjDWAoDFQiDDCfe/DollPAI2uG
+         pQ4A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=yWLGrl/2egjAr2UjDXCO9Iz9KQ93uoAPVQBnf/rPQpU=;
-        b=IcmjQw4kGk7phgegfEcwNLaTwfSGSKB+drzUOkRn4no/IhY+pSQFeP/9jBppXPNqYq
-         ++5Yq3DrLn8MthDBnnhHpaHFhbU9koxv9BJgCcCKGPxpVacNHQSClXuQYP4eiAGNJi82
-         krsgLKuARjx1NZiE5fI4lu/YwE0+wzHlWl9JEjaEsdluKGkxHKhtq1VC3Y+3ie3o6cdG
-         4qY+Nj5+/GavtkN7zlps95pBawn1+oIMFiMhzWKYxPC2WUkpo0LhSU5R9FKg503IiZbA
-         6nm+OUOJQycOVUYADXNVZb4LzLXTGZA07it1deojDQB8g/fUNwPQkcngE0tmb7Qktnvw
-         gl6w==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=rRFQagklTK9A6Qe1ruVIcUORgtYS4vg8lbJALJfIp0Q=;
+        b=XiJJS70md32wG2ASiE1TEWzHkJ7vqxTI4rzk7Pz6gtZewfy1fc1Pf8jOjWFKysET5E
+         HDKUFq2UfEaei8rOzr//8chLo7oAzMSS/juzT39jtTuT0CNnRROSzjibtBpInUSLVJXk
+         nVNFLJ6af+Qbf5TztkyZg5vBT1Pr/bmA4ZCnWenkQB5NllMafBa05peHBADd6okkQFFm
+         Hd8CYQmmhShESqaJU2BZCnUP//o8czEfDVKkqfUvpLS55bLMOWBWH/weO52Dn8BHNyka
+         EUNJESQT78hU1mKoTUfElwggRiDDkxgYKWoKJbau39qrwV0GegwSjF870yE5a5K/NZUd
+         Xsxg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Fpo0sQeA;
-       spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id a24sor12521199iod.40.2019.06.26.02.20.57
-        for <Linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 26 Jun 2019 02:20:57 -0700 (PDT)
-Received-SPF: pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id q51si3056645eda.207.2019.06.26.02.48.33
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 26 Jun 2019 02:48:33 -0700 (PDT)
+Received-SPF: pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Fpo0sQeA;
-       spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=yWLGrl/2egjAr2UjDXCO9Iz9KQ93uoAPVQBnf/rPQpU=;
-        b=Fpo0sQeA3/Tgp0c/1mafklMBLg6jSyrxQxe44Ed9S6n7lVvYDoV6L06pna8ZEAMUts
-         K8Ixtm2yL/rwJ4iPi3IiPnZip8oHbXYXGNbVK6OkLNtHlqCDku3E8sJT/Mr4jrGyDtxg
-         T44cN0rry6IaATkchMQQrmB6MnA7mJmWfPnQoLHmV1QqbUc8TdNkw9/VhKJ1MVv3ElSf
-         EXifh0SKHi4+edEQtq0strFRMNchuRQ98XpQxm/WDySH51CVXBZSew8F3GZJ9skiPNTo
-         JOcvF6HYHnoUGuGVsjyMkWfclzUoPNJGMla7zXbGutkg/NvJU8+5HMgNu7Fn0Q333oaO
-         j2zg==
-X-Google-Smtp-Source: APXvYqy6U2utBeNKdNTf32j/0dK1Qo8sVgZz8kHlz7QzVIdIazEytRzIlyZ/6EwmqGioWHrlm9s/W32c0UHdayas8ko=
-X-Received: by 2002:a6b:4107:: with SMTP id n7mr3493139ioa.12.1561540856871;
- Wed, 26 Jun 2019 02:20:56 -0700 (PDT)
+       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id BAF37AF0C;
+	Wed, 26 Jun 2019 09:48:32 +0000 (UTC)
+Date: Wed, 26 Jun 2019 11:48:29 +0200
+From: Oscar Salvador <osalvador@suse.de>
+To: David Hildenbrand <david@redhat.com>
+Cc: akpm@linux-foundation.org, mhocko@suse.com, dan.j.williams@intel.com,
+	pasha.tatashin@soleen.com, Jonathan.Cameron@huawei.com,
+	anshuman.khandual@arm.com, vbabka@suse.cz,
+	"linux-mm@kvack.org" <linux-mm@kvack.org>,
+	Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH v2 3/5] mm,memory_hotplug: Introduce Vmemmap page helpers
+Message-ID: <20190626094823.GA457@linux>
+References: <20190625075227.15193-1-osalvador@suse.de>
+ <20190625075227.15193-4-osalvador@suse.de>
+ <649ae422-9be8-8d2f-4e8e-f08c1ca9244f@redhat.com>
 MIME-Version: 1.0
-References: <1561471999-6688-1-git-send-email-kernelfans@gmail.com> <20190625175144.GA13219@iweiny-DESK2.sc.intel.com>
-In-Reply-To: <20190625175144.GA13219@iweiny-DESK2.sc.intel.com>
-From: Pingfan Liu <kernelfans@gmail.com>
-Date: Wed, 26 Jun 2019 17:20:44 +0800
-Message-ID: <CAFgQCTt4SN8EfbqV2ZhK_SEeQOsGFgNW5zTjc7JUkcCNNspuaQ@mail.gmail.com>
-Subject: Re: [PATCHv3] mm/gup: speed up check_and_migrate_cma_pages() on huge page
-To: Ira Weiny <ira.weiny@intel.com>
-Cc: Linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, 
-	Mike Rapoport <rppt@linux.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, 
-	Thomas Gleixner <tglx@linutronix.de>, John Hubbard <jhubbard@nvidia.com>, 
-	"Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>, Christoph Hellwig <hch@lst.de>, 
-	Keith Busch <keith.busch@intel.com>, Mike Kravetz <mike.kravetz@oracle.com>, 
-	LKML <Linux-kernel@vger.kernel.org>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <649ae422-9be8-8d2f-4e8e-f08c1ca9244f@redhat.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jun 26, 2019 at 1:51 AM Ira Weiny <ira.weiny@intel.com> wrote:
->
-> On Tue, Jun 25, 2019 at 10:13:19PM +0800, Pingfan Liu wrote:
-> > Both hugetlb and thp locate on the same migration type of pageblock, since
-> > they are allocated from a free_list[]. Based on this fact, it is enough to
-> > check on a single subpage to decide the migration type of the whole huge
-> > page. By this way, it saves (2M/4K - 1) times loop for pmd_huge on x86,
-> > similar on other archs.
-> >
-> > Furthermore, when executing isolate_huge_page(), it avoid taking global
-> > hugetlb_lock many times, and meanless remove/add to the local link list
-> > cma_page_list.
-> >
-> > Signed-off-by: Pingfan Liu <kernelfans@gmail.com>
-> > Cc: Andrew Morton <akpm@linux-foundation.org>
-> > Cc: Ira Weiny <ira.weiny@intel.com>
-> > Cc: Mike Rapoport <rppt@linux.ibm.com>
-> > Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> > Cc: Thomas Gleixner <tglx@linutronix.de>
-> > Cc: John Hubbard <jhubbard@nvidia.com>
-> > Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-> > Cc: Christoph Hellwig <hch@lst.de>
-> > Cc: Keith Busch <keith.busch@intel.com>
-> > Cc: Mike Kravetz <mike.kravetz@oracle.com>
-> > Cc: Linux-kernel@vger.kernel.org
-> > ---
-> > v2 -> v3: fix page order to size convertion
-> >
-> >  mm/gup.c | 19 ++++++++++++-------
-> >  1 file changed, 12 insertions(+), 7 deletions(-)
-> >
-> > diff --git a/mm/gup.c b/mm/gup.c
-> > index ddde097..03cc1f4 100644
-> > --- a/mm/gup.c
-> > +++ b/mm/gup.c
-> > @@ -1342,19 +1342,22 @@ static long check_and_migrate_cma_pages(struct task_struct *tsk,
-> >       LIST_HEAD(cma_page_list);
-> >
-> >  check_again:
-> > -     for (i = 0; i < nr_pages; i++) {
-> > +     for (i = 0; i < nr_pages;) {
-> > +
-> > +             struct page *head = compound_head(pages[i]);
-> > +             long step = 1;
-> > +
-> > +             if (PageCompound(head))
-> > +                     step = 1 << compound_order(head) - (pages[i] - head);
->
-> Check your precedence here.
->
->         step = (1 << compound_order(head)) - (pages[i] - head);
-OK.
+On Tue, Jun 25, 2019 at 12:28:56PM +0200, David Hildenbrand wrote:
+> > +static __always_inline void __ClearPageVmemmap(struct page *page)
+> > +{
+> 
+> Should we VM_BUG_ON in case !PG_reserved || pg->mapping != VMEMMAP_PAGE ?
 
-Thanks,
-Pingfan
+We can do that, just for extra protection.
+
+> 
+> > +	__ClearPageReserved(page);
+> > +	page->mapping = NULL;
+> > +}
+> > +
+> > +static __always_inline void __SetPageVmemmap(struct page *page)
+> > +{
+> 
+> Should we VM_BUG_ON in case PG_reserved || pg->mapping != NULL ?
+
+ditto.
+
+> 
+> > +	__SetPageReserved(page);
+> > +	page->mapping = (void *)VMEMMAP_PAGE;
+> > +}
+> > +
+> > +static __always_inline struct page *vmemmap_get_head(struct page *page)
+> > +{
+> > +	return (struct page *)page->freelist;
+> 
+> freelist is a "slab, slob and slub" concept (reading
+> include/linux/mm_types.h). page->mapping is a "Page cache and anonymous
+> pages" concept. Hmmm...
+
+Yeah.
+In an early stage, I thought about constructing vmemmap pages the same way
+we construct compound pages, so we can leverage the APIs that we already have.
+
+For some reason I did not go further with that, but I will investigate in that
+direction.
+
+> I wonder if using a page type would be appropriate here instead. Then,
+> define a new sub-structure within "struct page" that describes what you
+> actually want (instead of reusing ->private and ->mapping). Just an
+> idea, we have to find out if that is possible.
+> 
+> vmemmap_get_head() smells like __GFP_COMP, but of course, these vmemmap
+> pages never saw the buddy. But sounds like you want a similar concept.
+
+Thanks for the feedback.
+I will take a look at it.
+
+-- 
+Oscar Salvador
+SUSE L3
 
