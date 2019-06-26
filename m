@@ -2,362 +2,354 @@ Return-Path: <SRS0=C/CR=UZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E96C9C48BD9
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 18:15:54 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0FCCFC48BD6
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 18:18:29 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 970BD21743
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 18:15:54 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id AA7F220656
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 18:18:28 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="ZZUnoMA/"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 970BD21743
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
+	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="T+UpPVnW"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AA7F220656
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2D9D16B0003; Wed, 26 Jun 2019 14:15:54 -0400 (EDT)
+	id 4FC416B0003; Wed, 26 Jun 2019 14:18:28 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 28B828E0003; Wed, 26 Jun 2019 14:15:54 -0400 (EDT)
+	id 4B50D8E0003; Wed, 26 Jun 2019 14:18:28 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 17C318E0002; Wed, 26 Jun 2019 14:15:54 -0400 (EDT)
+	id 374978E0002; Wed, 26 Jun 2019 14:18:28 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id EAC196B0003
-	for <linux-mm@kvack.org>; Wed, 26 Jun 2019 14:15:53 -0400 (EDT)
-Received: by mail-qt1-f200.google.com with SMTP id 97so3813122qtb.16
-        for <linux-mm@kvack.org>; Wed, 26 Jun 2019 11:15:53 -0700 (PDT)
+Received: from mail-yw1-f72.google.com (mail-yw1-f72.google.com [209.85.161.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 113B56B0003
+	for <linux-mm@kvack.org>; Wed, 26 Jun 2019 14:18:28 -0400 (EDT)
+Received: by mail-yw1-f72.google.com with SMTP id r67so6464570ywg.7
+        for <linux-mm@kvack.org>; Wed, 26 Jun 2019 11:18:28 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:message-id:subject:from:to:cc
-         :date:in-reply-to:references:mime-version:content-transfer-encoding;
-        bh=owsUYixQqs2bCy4E9biTsLv5zZvUd0Q6DzJVujrTfmo=;
-        b=TBvQvvZsXsAkiMHPgvC9jqis5HSVdG9o2yQUW6swnToGydyPVLVnI2KgK4OpJq42HN
-         hpo+ZtOrPISq4LE4RxoeAtL+lkLzobxlkZDQOL/ECDuWVx6/eC5WQqVzNwYmtJX5BVFt
-         nv68RJ/dxC4ZRjB6C2s/3g+tq4c240jxZRXm5QvOIXVwTOu1crPHoDhT90DjyRGtQN8U
-         k4xI6JJqeylU7L6RR7MXi7VQvFTqP1sVmnFpMl0/z0NiloWIwMxgpKNxBMKcsiEhOcyf
-         ZLeoH48tEgPFNYJM4CZDD6g3WUYxydKTxbxpXWvzS0YVqcBizLHGAXS/vOSVZnHg/btw
-         QqJg==
-X-Gm-Message-State: APjAAAVS+AEyHWz7d22Ds1hdT4U46MczUK0wFNGwL/WtMcybpIzUohwa
-	UWfBmKfh7GZLVv6sBzrwOSyKjofMZBsVEhQkJAIyzgMw+HDYhLjeLHsahTkP/QrVb3z/4lE/XMW
-	mV0rdmFNdgLzIGdu9yucN9ko7kUlKS869+d9mOCacmuKj/Nmnb8gDUZLdJGT11M6O+g==
-X-Received: by 2002:a37:6442:: with SMTP id y63mr4956320qkb.377.1561572953664;
-        Wed, 26 Jun 2019 11:15:53 -0700 (PDT)
-X-Received: by 2002:a37:6442:: with SMTP id y63mr4956252qkb.377.1561572952774;
-        Wed, 26 Jun 2019 11:15:52 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561572952; cv=none;
+        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding:dkim-signature;
+        bh=cYapjH49w+mpLgSg9Urbt+jP21Tl5ENB43gy2XeqD5U=;
+        b=UAz6KNr18UPBPsHBlgEAqyF9G1Z2MvJDo8xYLitNdvfPU2Lo+ireKoTn1qgJfwZcT1
+         VskhBuDi1nqneB707zpd9ptxYTfQErf0IxnHuRupv5kkifcRv/kll/2DZ3wnIi6FAmUO
+         VcTVj0fwDD4Kl2hQaZr+o6mrXeXU4NV8RcK4Mujp54fgBzRRZt7FnigE+bRSA7QJxV7T
+         euBuNb03GsY2cGxm02jEggRTFh5J4zjiH4NH7jR4D+7mEgs6fHM+2PTGlwCQd4KjHcrh
+         6YYIr4rFb5fEuL84ba0NP1vWRPRJJpsn1FG77hX2GAL5EoRd35+jnygIZCsXaCw7aLTq
+         KV8w==
+X-Gm-Message-State: APjAAAX7UW0PAz6fomqBt4TZ7akwmEo80s86kKe/QKwWsnydxTGV5HYm
+	6E2++2xtHlAX0z32ZHGufEQ214sLFwigd73pFixvIljZFDIX6vexSK8nEQw64XWyadmG0jJ6zIk
+	51QdPxqWQEnlwneatEu7wVjvZazsOmCNUdJG1ueSJ8rm03wyqGEg3YOcTa4fBAlK0cA==
+X-Received: by 2002:a25:dd7:: with SMTP id 206mr3719588ybn.98.1561573107747;
+        Wed, 26 Jun 2019 11:18:27 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyBE3ukiVw83IV7ciJ63VeOkc/tW9JkTNyXUVelWsnsIqGxn3VwoSsYHv8cAWY6LGC8uqAf
+X-Received: by 2002:a25:dd7:: with SMTP id 206mr3719537ybn.98.1561573106949;
+        Wed, 26 Jun 2019 11:18:26 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561573106; cv=none;
         d=google.com; s=arc-20160816;
-        b=eVMfmRA6PvD7aJf53Rc4IvhcOSjBE6vXbsfFfkfkGa7ObW7yMbi9BOvEIMSNkE5u6F
-         9ynt7cuQChb0+LJDkBw1UfHsXMKDTb6mtvNbo4XVboyYPUSRH3THUi2/053LmNevh2jX
-         MQGcu0qbQEfcuy0bxwOYq0gg1pd471W3HaoYHC+cyZe+HWqb905stPcXLChKrRBXjSAX
-         ZjW4QsOLG/Lt2a3ZzX7kEJrJslPJBdnqDKW5be/x/n8LWYqRig9H/5Aa8TlyMQ4y2Ivc
-         Wbcv1lp6MTmiu1QeiYU8m8BF2h3WN/uMZKIGSbVl0OETvVVDdZadDL3x3ylX5csw8xTk
-         I7vg==
+        b=SLvDljP4V/AK8ApwDheS8NUlYQAd6zbZinwuj4wKLGcwmgvJ/8vwKOZQZQO6Dwjx7x
+         BcgOnz9yiJOTJAtdan5ZgZh4P00kaCiG9zfZ+Xcla0p884nu5QzkX4oK9v8WZNqzlO1m
+         em4LWHbCnQIKjHwrkmoINKWvgUvk4WG3Bh514bPR6cP3OHg4YFM96WMttBsAR3bCJIko
+         aI7Pl1rH03qQVwo0e6t3PF+NL+uFa+wOGzxlOOdimyW85LkPoiH5EtPYmwPvLosVPi3e
+         kBXj9BxYwYkheZeO91md0btnilWYB86dmVPK6KnsBYOsLWpw2y/izEJl3WOdGIeBBW6Z
+         LcNQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to:date
-         :cc:to:from:subject:message-id:dkim-signature;
-        bh=owsUYixQqs2bCy4E9biTsLv5zZvUd0Q6DzJVujrTfmo=;
-        b=fkq72bczE8hbEBLVJL+kR8XyE/zzceyVU/WaB5yQ7bXbTVZYpJzIv7/aOAcX8PGoK5
-         bm6J9HYAGtrKt1azRxbzO8JkcmNCRCBpYcZJevkVSRwY6Z+s/TqJwovuVRSNkx+uFU71
-         9TmDSydPZ4kz0DpKxVeaE480xL4Ogn/jvFsmTK3KkzC3Ve0BPEVyThzqcoaIEu32s9Eu
-         7LM2caG2wIY0X59kmsZmhWFvGPzZm0x3NqvIhfNfcMsLl1NX1gw0x/GUMAPAaYS8nOgv
-         IxKdH79q2NSrnlqmK8RyBnEylAHhEN7W377N4H9WtsTkMfgYUJ/p0FN7iPqGLeyosfHc
-         v+Pw==
+        h=dkim-signature:content-transfer-encoding:content-language
+         :in-reply-to:mime-version:user-agent:date:message-id:from:references
+         :cc:to:subject;
+        bh=cYapjH49w+mpLgSg9Urbt+jP21Tl5ENB43gy2XeqD5U=;
+        b=E2TBrGVPFlcHHm2mfWLN9YKOpiZxCnOS8uoCMEM6+pocwU++rfqVPsrUAtFwX8Tb80
+         /LDqF7lP3Zt8X1epf+khS7GF5SSGaHKXxUCFYr59ks05tB6LPObEsHggqC+gB91y/qd0
+         PUsdF47KojxGMNhWuEVkN3P/mKYThLuab1o3sEU8V9EC6ZSsrXOTpgTYzpwONbLrTrcq
+         zDPJbk75SJ69q5eEmh2pSTqT8tzdeJAY0WwUfnGAjMWrWX8BOb/LRgydg3gsS7ay9FU2
+         YFq7WtHjOpRXBn4PQ8chMXDQJIe0TUMOPtb4bj+O0k9cYyy5XdPOryR8ziHhlGsPXR37
+         tlrg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b="ZZUnoMA/";
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id j55sor170717qvc.39.2019.06.26.11.15.52
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=T+UpPVnW;
+       spf=pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.65 as permitted sender) smtp.mailfrom=rcampbell@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
+        by mx.google.com with ESMTPS id l184si6903104ywf.271.2019.06.26.11.18.26
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 26 Jun 2019 11:15:52 -0700 (PDT)
-Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b="ZZUnoMA/";
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=lca.pw; s=google;
-        h=message-id:subject:from:to:cc:date:in-reply-to:references
-         :mime-version:content-transfer-encoding;
-        bh=owsUYixQqs2bCy4E9biTsLv5zZvUd0Q6DzJVujrTfmo=;
-        b=ZZUnoMA/xDtbNjQ+fsacwZIh9VnJGWcfpIf5xbvFQvv4epAedFTnuFdNsj9UZhdBkb
-         kkQqeK4eDdajfKwX5DqK0qwrbCkhkPqFXqjVRnjpV1vZ6cQeEFb6DBnn55PkSfoO6gHB
-         SuZ23lupZFhr/0PceQKGbVJSsZz0UCtZbTBbQoH2AmD92E8mRQy8mmF24pwHa9OK/zuf
-         ZztYlNXjM9/4fJf7hzC34KsTd9cmqwX3Mtfl6hr2DgEhyL2EWpjqVtAbYiaeAUdWW41E
-         pVWX1xOPBp4slJVTRUJ9wRbjMRRqMfeqriH/gDZdVKrEhP3axZ2en7daCdzHCaegsgKj
-         rMYw==
-X-Google-Smtp-Source: APXvYqzy6XGMDgLuXW150fDNJ+96wvxp08xFTcBmPLr51vxAnlq2rR5aKzFDUqv+aiM43XxogyUBsw==
-X-Received: by 2002:a0c:d1d9:: with SMTP id k25mr4726582qvh.233.1561572952345;
-        Wed, 26 Jun 2019 11:15:52 -0700 (PDT)
-Received: from dhcp-41-57.bos.redhat.com (nat-pool-bos-t.redhat.com. [66.187.233.206])
-        by smtp.gmail.com with ESMTPSA id e125sm9726639qkd.120.2019.06.26.11.15.50
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Jun 2019 11:15:51 -0700 (PDT)
-Message-ID: <1561572949.5154.81.camel@lca.pw>
-Subject: Re: [PATCH v8 1/2] mm: security: introduce init_on_alloc=1 and
- init_on_free=1 boot options
-From: Qian Cai <cai@lca.pw>
-To: Alexander Potapenko <glider@google.com>, Andrew Morton
-	 <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Kees Cook
-	 <keescook@chromium.org>
-Cc: Masahiro Yamada <yamada.masahiro@socionext.com>, Michal Hocko
- <mhocko@kernel.org>, James Morris <jmorris@namei.org>, "Serge E. Hallyn"
- <serge@hallyn.com>, Nick Desaulniers <ndesaulniers@google.com>, Kostya
- Serebryany <kcc@google.com>, Dmitry Vyukov <dvyukov@google.com>, Sandeep
- Patil <sspatil@android.com>,  Laura Abbott <labbott@redhat.com>, Randy
- Dunlap <rdunlap@infradead.org>, Jann Horn <jannh@google.com>,  Mark Rutland
- <mark.rutland@arm.com>, Marco Elver <elver@google.com>, linux-mm@kvack.org,
-  linux-security-module@vger.kernel.org,
- kernel-hardening@lists.openwall.com,  clang-built-linux@googlegroups.com
-Date: Wed, 26 Jun 2019 14:15:49 -0400
-In-Reply-To: <20190626121943.131390-2-glider@google.com>
-References: <20190626121943.131390-1-glider@google.com>
-	 <20190626121943.131390-2-glider@google.com>
-Content-Type: text/plain; charset="UTF-8"
-X-Mailer: Evolution 3.22.6 (3.22.6-10.el7) 
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+        Wed, 26 Jun 2019 11:18:26 -0700 (PDT)
+Received-SPF: pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.65 as permitted sender) client-ip=216.228.121.65;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=T+UpPVnW;
+       spf=pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.65 as permitted sender) smtp.mailfrom=rcampbell@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqpgpgate102.nvidia.com (Not Verified[216.228.121.13]) by hqemgate16.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
+	id <B5d13b6f10000>; Wed, 26 Jun 2019 11:18:25 -0700
+Received: from hqmail.nvidia.com ([172.20.161.6])
+  by hqpgpgate102.nvidia.com (PGP Universal service);
+  Wed, 26 Jun 2019 11:18:25 -0700
+X-PGP-Universal: processed;
+	by hqpgpgate102.nvidia.com on Wed, 26 Jun 2019 11:18:25 -0700
+Received: from rcampbell-dev.nvidia.com (172.20.13.39) by HQMAIL107.nvidia.com
+ (172.20.187.13) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Wed, 26 Jun
+ 2019 18:18:23 +0000
+Subject: Re: [PATCH v4 hmm 12/12] mm/hmm: Fix error flows in
+ hmm_invalidate_range_start
+To: Jason Gunthorpe <jgg@ziepe.ca>, Jerome Glisse <jglisse@redhat.com>, "John
+ Hubbard" <jhubbard@nvidia.com>, <Felix.Kuehling@amd.com>
+CC: <linux-rdma@vger.kernel.org>, <linux-mm@kvack.org>, Andrea Arcangeli
+	<aarcange@redhat.com>, <dri-devel@lists.freedesktop.org>,
+	<amd-gfx@lists.freedesktop.org>, Ben Skeggs <bskeggs@redhat.com>, "Christoph
+ Hellwig" <hch@lst.de>, Philip Yang <Philip.Yang@amd.com>, Ira Weiny
+	<ira.weiny@intel.com>, Jason Gunthorpe <jgg@mellanox.com>
+References: <20190624210110.5098-1-jgg@ziepe.ca>
+ <20190624210110.5098-13-jgg@ziepe.ca>
+X-Nvconfidentiality: public
+From: Ralph Campbell <rcampbell@nvidia.com>
+Message-ID: <035fa354-6caa-3738-b84d-20804813009a@nvidia.com>
+Date: Wed, 26 Jun 2019 11:18:23 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.0
+MIME-Version: 1.0
+In-Reply-To: <20190624210110.5098-13-jgg@ziepe.ca>
+X-Originating-IP: [172.20.13.39]
+X-ClientProxiedBy: HQMAIL103.nvidia.com (172.20.187.11) To
+ HQMAIL107.nvidia.com (172.20.187.13)
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
+	t=1561573105; bh=cYapjH49w+mpLgSg9Urbt+jP21Tl5ENB43gy2XeqD5U=;
+	h=X-PGP-Universal:Subject:To:CC:References:X-Nvconfidentiality:From:
+	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
+	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
+	 Content-Transfer-Encoding;
+	b=T+UpPVnWywyEnsAY8yH8FmNePn8+ExP7J5i/rd/ELTGbm3iwXkz726U/UZsZ/ZzLr
+	 eWJ3bBzDBIkWNht0+2fGMfK5t1ew2XnTyEYv9+EiXZBi7FxGjfsRVervLRjZvhM15o
+	 Q8pIIKXKvSBx0gw70zrGn3mxkDos8O+HvYcpQl6Ca7ADmhB6m1w3DYStKBP0DeHE3G
+	 Fj0JkJpoog3uvEq6+42SGFjW20IY27qegm+qjH/km1KatzyW8fX5cRv67UJxW7kYBe
+	 XpJDp350CdiDG6Uh9m21g7QVn0/RTQDzu9Ad9/ffUuTE70megt8N0+wSJyAWDZJldF
+	 efBGJNPDCEolA==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2019-06-26 at 14:19 +0200, Alexander Potapenko wrote:
-> The new options are needed to prevent possible information leaks and
-> make control-flow bugs that depend on uninitialized values more
-> deterministic.
+
+On 6/24/19 2:01 PM, Jason Gunthorpe wrote:
+> From: Jason Gunthorpe <jgg@mellanox.com>
 > 
-> This is expected to be on-by-default on Android and Chrome OS. And it
-> gives the opportunity for anyone else to use it under distros too via
-> the boot args. (The init_on_free feature is regularly requested by
-> folks where memory forensics is included in their threat models.)
+> If the trylock on the hmm->mirrors_sem fails the function will return
+> without decrementing the notifiers that were previously incremented. Since
+> the caller will not call invalidate_range_end() on EAGAIN this will result
+> in notifiers becoming permanently incremented and deadlock.
 > 
-> init_on_alloc=1 makes the kernel initialize newly allocated pages and heap
-> objects with zeroes. Initialization is done at allocation time at the
-> places where checks for __GFP_ZERO are performed.
+> If the sync_cpu_device_pagetables() required blocking the function will
+> not return EAGAIN even though the device continues to touch the
+> pages. This is a violation of the mmu notifier contract.
 > 
-> init_on_free=1 makes the kernel initialize freed pages and heap objects
-> with zeroes upon their deletion. This helps to ensure sensitive data
-> doesn't leak via use-after-free accesses.
+> Switch, and rename, the ranges_lock to a spin lock so we can reliably
+> obtain it without blocking during error unwind.
 > 
-> Both init_on_alloc=1 and init_on_free=1 guarantee that the allocator
-> returns zeroed memory. The two exceptions are slab caches with
-> constructors and SLAB_TYPESAFE_BY_RCU flag. Those are never
-> zero-initialized to preserve their semantics.
+> The error unwind is necessary since the notifiers count must be held
+> incremented across the call to sync_cpu_device_pagetables() as we cannot
+> allow the range to become marked valid by a parallel
+> invalidate_start/end() pair while doing sync_cpu_device_pagetables().
 > 
-> Both init_on_alloc and init_on_free default to zero, but those defaults
-> can be overridden with CONFIG_INIT_ON_ALLOC_DEFAULT_ON and
-> CONFIG_INIT_ON_FREE_DEFAULT_ON.
-> 
-> If either SLUB poisoning or page poisoning is enabled, we disable
-> init_on_alloc and init_on_free so that initialization doesn't interfere
-> with debugging.
-> 
-> Slowdown for the new features compared to init_on_free=0,
-> init_on_alloc=0:
-> 
-> hackbench, init_on_free=1:  +7.62% sys time (st.err 0.74%)
-> hackbench, init_on_alloc=1: +7.75% sys time (st.err 2.14%)
-> 
-> Linux build with -j12, init_on_free=1:  +8.38% wall time (st.err 0.39%)
-> Linux build with -j12, init_on_free=1:  +24.42% sys time (st.err 0.52%)
-> Linux build with -j12, init_on_alloc=1: -0.13% wall time (st.err 0.42%)
-> Linux build with -j12, init_on_alloc=1: +0.57% sys time (st.err 0.40%)
-> 
-> The slowdown for init_on_free=0, init_on_alloc=0 compared to the
-> baseline is within the standard error.
-> 
-> The new features are also going to pave the way for hardware memory
-> tagging (e.g. arm64's MTE), which will require both on_alloc and on_free
-> hooks to set the tags for heap objects. With MTE, tagging will have the
-> same cost as memory initialization.
-> 
-> Although init_on_free is rather costly, there are paranoid use-cases where
-> in-memory data lifetime is desired to be minimized. There are various
-> arguments for/against the realism of the associated threat models, but
-> given that we'll need the infrastructure for MTE anyway, and there are
-> people who want wipe-on-free behavior no matter what the performance cost,
-> it seems reasonable to include it in this series.
-> 
-> Signed-off-by: Alexander Potapenko <glider@google.com>
-> Acked-by: Kees Cook <keescook@chromium.org>
-> To: Andrew Morton <akpm@linux-foundation.org>
-> To: Christoph Lameter <cl@linux.com>
-> To: Kees Cook <keescook@chromium.org>
-> Cc: Masahiro Yamada <yamada.masahiro@socionext.com>
-> Cc: Michal Hocko <mhocko@kernel.org>
-> Cc: James Morris <jmorris@namei.org>
-> Cc: "Serge E. Hallyn" <serge@hallyn.com>
-> Cc: Nick Desaulniers <ndesaulniers@google.com>
-> Cc: Kostya Serebryany <kcc@google.com>
-> Cc: Dmitry Vyukov <dvyukov@google.com>
-> Cc: Sandeep Patil <sspatil@android.com>
-> Cc: Laura Abbott <labbott@redhat.com>
-> Cc: Randy Dunlap <rdunlap@infradead.org>
-> Cc: Jann Horn <jannh@google.com>
-> Cc: Mark Rutland <mark.rutland@arm.com>
-> Cc: Marco Elver <elver@google.com>
-> Cc: Qian Cai <cai@lca.pw>
-> Cc: linux-mm@kvack.org
-> Cc: linux-security-module@vger.kernel.org
-> Cc: kernel-hardening@lists.openwall.com
-> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> Signed-off-by: Jason Gunthorpe <jgg@mellanox.com>
+> Reviewed-by: Ralph Campbell <rcampbell@nvidia.com>
+> Reviewed-by: Christoph Hellwig <hch@lst.de>
+> Tested-by: Philip Yang <Philip.Yang@amd.com>
 > ---
->  v2:
->   - unconditionally initialize pages in kernel_init_free_pages()
->   - comment from Randy Dunlap: drop 'default false' lines from
-> Kconfig.hardening
->  v3:
->   - don't call kernel_init_free_pages() from memblock_free_pages()
->   - adopted some Kees' comments for the patch description
->  v4:
->   - use NULL instead of 0 in slab_alloc_node() (found by kbuild test robot)
->   - don't write to NULL object in slab_alloc_node() (found by Android
->     testing)
->  v5:
->   - adjusted documentation wording as suggested by Kees
->   - disable SLAB_POISON if auto-initialization is on
->   - don't wipe RCU cache allocations made without __GFP_ZERO
->   - dropped SLOB support
->  v7:
->   - rebase the patch, added the Acked-by: tag
->  v8:
->   - addressed comments by Michal Hocko: revert kernel/kexec_core.c and
->     apply initialization in dma_pool_free()
->   - disable init_on_alloc/init_on_free if slab poisoning or page
->     poisoning are enabled, as requested by Qian Cai
->   - skip the redzone when initializing a freed heap object, as requested
->     by Qian Cai and Kees Cook
->   - use s->offset to address the freeptr (suggested by Kees Cook)
->   - updated the patch description, added Signed-off-by: tag
-> ---
->  .../admin-guide/kernel-parameters.txt         |  9 +++
->  drivers/infiniband/core/uverbs_ioctl.c        |  2 +-
->  include/linux/mm.h                            | 22 ++++++
->  mm/dmapool.c                                  |  4 +-
->  mm/page_alloc.c                               | 71 +++++++++++++++++--
->  mm/slab.c                                     | 16 ++++-
->  mm/slab.h                                     | 19 +++++
->  mm/slub.c                                     | 43 +++++++++--
->  net/core/sock.c                               |  2 +-
->  security/Kconfig.hardening                    | 29 ++++++++
->  10 files changed, 199 insertions(+), 18 deletions(-)
+>   include/linux/hmm.h |  2 +-
+>   mm/hmm.c            | 72 +++++++++++++++++++++++++++------------------
+>   2 files changed, 45 insertions(+), 29 deletions(-)
 > 
-> diff --git a/Documentation/admin-guide/kernel-parameters.txt
-> b/Documentation/admin-guide/kernel-parameters.txt
-> index 138f6664b2e2..84ee1121a2b9 100644
-> --- a/Documentation/admin-guide/kernel-parameters.txt
-> +++ b/Documentation/admin-guide/kernel-parameters.txt
-> @@ -1673,6 +1673,15 @@
->  
->  	initrd=		[BOOT] Specify the location of the initial
-> ramdisk
->  
-> +	init_on_alloc=	[MM] Fill newly allocated pages and heap
-> objects with
-> +			zeroes.
-> +			Format: 0 | 1
-> +			Default set by CONFIG_INIT_ON_ALLOC_DEFAULT_ON.
-> +
-> +	init_on_free=	[MM] Fill freed pages and heap objects with
-> zeroes.
-> +			Format: 0 | 1
-> +			Default set by CONFIG_INIT_ON_FREE_DEFAULT_ON.
-> +
->  	init_pkru=	[x86] Specify the default memory protection keys
-> rights
->  			register contents for all processes.  0x55555554 by
->  			default (disallow access to all but pkey 0).  Can
-> diff --git a/drivers/infiniband/core/uverbs_ioctl.c
-> b/drivers/infiniband/core/uverbs_ioctl.c
-> index 829b0c6944d8..61758201d9b2 100644
-> --- a/drivers/infiniband/core/uverbs_ioctl.c
-> +++ b/drivers/infiniband/core/uverbs_ioctl.c
-> @@ -127,7 +127,7 @@ __malloc void *_uverbs_alloc(struct uverbs_attr_bundle
-> *bundle, size_t size,
->  	res = (void *)pbundle->internal_buffer + pbundle->internal_used;
->  	pbundle->internal_used =
->  		ALIGN(new_used, sizeof(*pbundle->internal_buffer));
-> -	if (flags & __GFP_ZERO)
-> +	if (want_init_on_alloc(flags))
->  		memset(res, 0, size);
->  	return res;
->  }
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index dd0b5f4e1e45..96be2604f313 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -2696,6 +2696,28 @@ static inline void kernel_poison_pages(struct page
-> *page, int numpages,
->  					int enable) { }
->  #endif
->  
-> +#ifdef CONFIG_INIT_ON_ALLOC_DEFAULT_ON
-> +DECLARE_STATIC_KEY_TRUE(init_on_alloc);
-> +#else
-> +DECLARE_STATIC_KEY_FALSE(init_on_alloc);
-> +#endif
-> +static inline bool want_init_on_alloc(gfp_t flags)
+> diff --git a/include/linux/hmm.h b/include/linux/hmm.h
+> index bf013e96525771..0fa8ea34ccef6d 100644
+> --- a/include/linux/hmm.h
+> +++ b/include/linux/hmm.h
+> @@ -86,7 +86,7 @@
+>   struct hmm {
+>   	struct mm_struct	*mm;
+>   	struct kref		kref;
+> -	struct mutex		lock;
+> +	spinlock_t		ranges_lock;
+>   	struct list_head	ranges;
+>   	struct list_head	mirrors;
+>   	struct mmu_notifier	mmu_notifier;
+> diff --git a/mm/hmm.c b/mm/hmm.c
+> index b224ea635a7716..89549eac03d506 100644
+> --- a/mm/hmm.c
+> +++ b/mm/hmm.c
+> @@ -64,7 +64,7 @@ static struct hmm *hmm_get_or_create(struct mm_struct *mm)
+>   	init_rwsem(&hmm->mirrors_sem);
+>   	hmm->mmu_notifier.ops = NULL;
+>   	INIT_LIST_HEAD(&hmm->ranges);
+> -	mutex_init(&hmm->lock);
+> +	spin_lock_init(&hmm->ranges_lock);
+>   	kref_init(&hmm->kref);
+>   	hmm->notifiers = 0;
+>   	hmm->mm = mm;
+> @@ -144,6 +144,23 @@ static void hmm_release(struct mmu_notifier *mn, struct mm_struct *mm)
+>   	hmm_put(hmm);
+>   }
+>   
+> +static void notifiers_decrement(struct hmm *hmm)
 > +{
-> +	if (static_branch_unlikely(&init_on_alloc))
-> +		return true;
-> +	return flags & __GFP_ZERO;
+> +	lockdep_assert_held(&hmm->ranges_lock);
+> +
+
+Why not acquire the lock here and release at the end instead
+of asserting the lock is held?
+It looks like everywhere notifiers_decrement() is called does
+that.
+
+> +	hmm->notifiers--;
+> +	if (!hmm->notifiers) {
+> +		struct hmm_range *range;
+> +
+> +		list_for_each_entry(range, &hmm->ranges, list) {
+> +			if (range->valid)
+> +				continue;
+> +			range->valid = true;
+> +		}
+> +		wake_up_all(&hmm->wq);
+> +	}
 > +}
 > +
-> +#ifdef CONFIG_INIT_ON_FREE_DEFAULT_ON
-> +DECLARE_STATIC_KEY_TRUE(init_on_free);
-> +#else
-> +DECLARE_STATIC_KEY_FALSE(init_on_free);
-> +#endif
-> +static inline bool want_init_on_free(void)
-> +{
-> +	return static_branch_unlikely(&init_on_free);
-> +}
+>   static int hmm_invalidate_range_start(struct mmu_notifier *mn,
+>   			const struct mmu_notifier_range *nrange)
+>   {
+> @@ -151,6 +168,7 @@ static int hmm_invalidate_range_start(struct mmu_notifier *mn,
+>   	struct hmm_mirror *mirror;
+>   	struct hmm_update update;
+>   	struct hmm_range *range;
+> +	unsigned long flags;
+>   	int ret = 0;
+>   
+>   	if (!kref_get_unless_zero(&hmm->kref))
+> @@ -161,12 +179,7 @@ static int hmm_invalidate_range_start(struct mmu_notifier *mn,
+>   	update.event = HMM_UPDATE_INVALIDATE;
+>   	update.blockable = mmu_notifier_range_blockable(nrange);
+>   
+> -	if (mmu_notifier_range_blockable(nrange))
+> -		mutex_lock(&hmm->lock);
+> -	else if (!mutex_trylock(&hmm->lock)) {
+> -		ret = -EAGAIN;
+> -		goto out;
+> -	}
+> +	spin_lock_irqsave(&hmm->ranges_lock, flags);
+>   	hmm->notifiers++;
+>   	list_for_each_entry(range, &hmm->ranges, list) {
+>   		if (update.end < range->start || update.start >= range->end)
+> @@ -174,7 +187,7 @@ static int hmm_invalidate_range_start(struct mmu_notifier *mn,
+>   
+>   		range->valid = false;
+>   	}
+> -	mutex_unlock(&hmm->lock);
+> +	spin_unlock_irqrestore(&hmm->ranges_lock, flags);
+>   
+>   	if (mmu_notifier_range_blockable(nrange))
+>   		down_read(&hmm->mirrors_sem);
+> @@ -182,16 +195,26 @@ static int hmm_invalidate_range_start(struct mmu_notifier *mn,
+>   		ret = -EAGAIN;
+>   		goto out;
+>   	}
 > +
->  extern bool _debug_pagealloc_enabled;
->  
->  static inline bool debug_pagealloc_enabled(void)
-
-Do those really necessary need to be static keys?
-
-Adding either init_on_free=0 or init_on_alloc=0 to the kernel cmdline will
-generate a warning with kernels built with clang.
-
-[    0.000000] static_key_disable(): static key 'init_on_free+0x0/0x4' used
-before call to jump_label_init()
-[    0.000000] WARNING: CPU: 0 PID: 0 at ./include/linux/jump_label.h:317
-early_init_on_free+0x1c0/0x200
-[    0.000000] Modules linked in:
-[    0.000000] CPU: 0 PID: 0 Comm: swapper Not tainted 5.2.0-rc6-next-20190626+
-#9
-[    0.000000] pstate: 60000089 (nZCv daIf -PAN -UAO)
-[    0.000000] pc : early_init_on_free+0x1c0/0x200
-[    0.000000] lr : early_init_on_free+0x1c0/0x200
-[    0.000000] sp : ffff100012c07df0
-[    0.000000] x29: ffff100012c07e20 x28: ffff1000110a01ec 
-[    0.000000] x27: 000000000000005f x26: ffff100011716cd0 
-[    0.000000] x25: ffff100010d36166 x24: ffff100010d3615d 
-[    0.000000] x23: ffff100010d364b5 x22: ffff1000117164a0 
-[    0.000000] x21: 0000000000000000 x20: 0000000000000000 
-[    0.000000] x19: 0000000000000000 x18: 000000000000002e 
-[    0.000000] x17: 000000000000000f x16: 0000000000000040 
-[    0.000000] x15: 0000000000000000 x14: 6c61632065726f66 
-[    0.000000] x13: 6562206465737520 x12: 273478302f307830 
-[    0.000000] x11: 0000000000000000 x10: 0000000000000000 
-[    0.000000] x9 : 0000000000000000 x8 : 0000000000000000 
-[    0.000000] x7 : 6d756a206f74206c x6 : ffff100014426625 
-[    0.000000] x5 : ffff100012c07b28 x4 : 0000000000000007 
-[    0.000000] x3 : ffff1000101aadf4 x2 : 0000000000000001 
-[    0.000000] x1 : 0000000000000001 x0 : 000000000000005d 
-[    0.000000] Call trace:
-[    0.000000]  early_init_on_free+0x1c0/0x200
-[    0.000000]  do_early_param+0xd0/0x104
-[    0.000000]  parse_args+0x1f0/0x524
-[    0.000000]  parse_early_param+0x70/0x8c
-[    0.000000]  setup_arch+0xa8/0x268
-[    0.000000]  start_kernel+0x80/0x560
+>   	list_for_each_entry(mirror, &hmm->mirrors, list) {
+> -		int ret;
+> +		int rc;
+>   
+> -		ret = mirror->ops->sync_cpu_device_pagetables(mirror, &update);
+> -		if (!update.blockable && ret == -EAGAIN)
+> +		rc = mirror->ops->sync_cpu_device_pagetables(mirror, &update);
+> +		if (rc) {
+> +			if (WARN_ON(update.blockable || rc != -EAGAIN))
+> +				continue;
+> +			ret = -EAGAIN;
+>   			break;
+> +		}
+>   	}
+>   	up_read(&hmm->mirrors_sem);
+>   
+>   out:
+> +	if (ret) {
+> +		spin_lock_irqsave(&hmm->ranges_lock, flags);
+> +		notifiers_decrement(hmm);
+> +		spin_unlock_irqrestore(&hmm->ranges_lock, flags);
+> +	}
+>   	hmm_put(hmm);
+>   	return ret;
+>   }
+> @@ -200,23 +223,14 @@ static void hmm_invalidate_range_end(struct mmu_notifier *mn,
+>   			const struct mmu_notifier_range *nrange)
+>   {
+>   	struct hmm *hmm = container_of(mn, struct hmm, mmu_notifier);
+> +	unsigned long flags;
+>   
+>   	if (!kref_get_unless_zero(&hmm->kref))
+>   		return;
+>   
+> -	mutex_lock(&hmm->lock);
+> -	hmm->notifiers--;
+> -	if (!hmm->notifiers) {
+> -		struct hmm_range *range;
+> -
+> -		list_for_each_entry(range, &hmm->ranges, list) {
+> -			if (range->valid)
+> -				continue;
+> -			range->valid = true;
+> -		}
+> -		wake_up_all(&hmm->wq);
+> -	}
+> -	mutex_unlock(&hmm->lock);
+> +	spin_lock_irqsave(&hmm->ranges_lock, flags);
+> +	notifiers_decrement(hmm);
+> +	spin_unlock_irqrestore(&hmm->ranges_lock, flags);
+>   
+>   	hmm_put(hmm);
+>   }
+> @@ -868,6 +882,7 @@ int hmm_range_register(struct hmm_range *range,
+>   {
+>   	unsigned long mask = ((1UL << page_shift) - 1UL);
+>   	struct hmm *hmm = mirror->hmm;
+> +	unsigned long flags;
+>   
+>   	range->valid = false;
+>   	range->hmm = NULL;
+> @@ -886,7 +901,7 @@ int hmm_range_register(struct hmm_range *range,
+>   		return -EFAULT;
+>   
+>   	/* Initialize range to track CPU page table updates. */
+> -	mutex_lock(&hmm->lock);
+> +	spin_lock_irqsave(&hmm->ranges_lock, flags);
+>   
+>   	range->hmm = hmm;
+>   	kref_get(&hmm->kref);
+> @@ -898,7 +913,7 @@ int hmm_range_register(struct hmm_range *range,
+>   	 */
+>   	if (!hmm->notifiers)
+>   		range->valid = true;
+> -	mutex_unlock(&hmm->lock);
+> +	spin_unlock_irqrestore(&hmm->ranges_lock, flags);
+>   
+>   	return 0;
+>   }
+> @@ -914,10 +929,11 @@ EXPORT_SYMBOL(hmm_range_register);
+>   void hmm_range_unregister(struct hmm_range *range)
+>   {
+>   	struct hmm *hmm = range->hmm;
+> +	unsigned long flags;
+>   
+> -	mutex_lock(&hmm->lock);
+> +	spin_lock_irqsave(&hmm->ranges_lock, flags);
+>   	list_del_init(&range->list);
+> -	mutex_unlock(&hmm->lock);
+> +	spin_unlock_irqrestore(&hmm->ranges_lock, flags);
+>   
+>   	/* Drop reference taken by hmm_range_register() */
+>   	mmput(hmm->mm);
+> 
 
