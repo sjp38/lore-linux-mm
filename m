@@ -2,139 +2,126 @@ Return-Path: <SRS0=C/CR=UZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.0 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DFC47C48BD3
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 06:59:41 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2FA7DC48BD6
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 07:35:38 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B38F72086D
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 06:59:40 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B38F72086D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id CE5F7208E3
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 07:35:37 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="FEIrxw0f"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CE5F7208E3
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 856E98E0005; Wed, 26 Jun 2019 02:59:40 -0400 (EDT)
+	id 35AD96B0003; Wed, 26 Jun 2019 03:35:37 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8075A8E0002; Wed, 26 Jun 2019 02:59:40 -0400 (EDT)
+	id 30BB48E0003; Wed, 26 Jun 2019 03:35:37 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6F71D8E0005; Wed, 26 Jun 2019 02:59:40 -0400 (EDT)
+	id 1F9F08E0002; Wed, 26 Jun 2019 03:35:37 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 1E3BB8E0002
-	for <linux-mm@kvack.org>; Wed, 26 Jun 2019 02:59:40 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id a5so1705389edx.12
-        for <linux-mm@kvack.org>; Tue, 25 Jun 2019 23:59:40 -0700 (PDT)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id DB8E36B0003
+	for <linux-mm@kvack.org>; Wed, 26 Jun 2019 03:35:36 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id i35so1074882pgi.18
+        for <linux-mm@kvack.org>; Wed, 26 Jun 2019 00:35:36 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=9JZitHP6eJRgaj75NXXVVCbPBeJLVjtAlNYNgc56J5M=;
-        b=ZJovR+nwExXG7dj6wnDNFNcmtUvcih7oWTTWcmzIt+WEx7rzZyxe0c/Pucm/F3+nkV
-         kzrLwTkX0n638TrPXHVOh2sEOyeemyreaSVeTlBd0R7L/DDb3FmTyTVhJ2nVrlW+u1KD
-         IZfq54tVVQM+Lk7xdAhSvzcAaOVQyUbE2OUHMZOt+5c4g0NdUdPslqkPBVP0XrFyCcft
-         fyqA7XyWFtbji3z/SEsHkX8DqUfX+rtBsSvsOeFBJQfQHS6/cQl6VrRFLLDZaU8YSJvS
-         jdurbpuYsWwwqI6Ggl5BUjW36Gl1uueWyu4Yak3p/hR3L0/5ue3ONKrqi5ZL4meFhZNh
-         7aAQ==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAWB3fkmaBe62bux7J+N9bR/bopUIAXSpP93hVqhAmvPOqXj08Dn
-	6AiOS4SAkrWT8NSk+K1+Ys3yxUsB8owp6GAJAKxdebwyD6SYfk6uoNv7FKBWzUOJLdFgYJFZBFj
-	LXDeD9+eA3BrXBx1BN6q1HJ+HrFlNHFeR3dd7gYUfxNZN5L8sam6/6/zNaiJu8SE=
-X-Received: by 2002:a17:906:365a:: with SMTP id r26mr2504388ejb.128.1561532379702;
-        Tue, 25 Jun 2019 23:59:39 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqx2Ktg6wviKckie1YZlPvw1+jItVFBVCtlSbCKq8N0I9Xj29JvtO34QvtD3yrqucr33ySZv
-X-Received: by 2002:a17:906:365a:: with SMTP id r26mr2504346ejb.128.1561532378974;
-        Tue, 25 Jun 2019 23:59:38 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561532378; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=lDmlG4QlTTriJzFXWbGaRSBBFeeq9DSPhk5L2uu/dys=;
+        b=fsCcY5bfETFyy7259eNaGDIUcIzwdEP6GLyZ5BdL/XJd8BhE1DaDX+hK5LA/GdXP5E
+         o3BZgdjYufT+jhgD/XUU8JJ9zoIZgqbUnjud8/e1fHbXeuzaStM9QvmcQA6PccsUiNxz
+         Az5jrZMWh65c5SUhUyT/u+Kl/6c0ujtIrpVWVTHJEOYXm+lwrQPT1xq/g8pXBnqIuEMq
+         LiC27qiQbbFMl7swX3UB60ql9eV4T4NdSv5JkrWU8reC/pUV7YAPAKaZZnYQ/NMq7Bi8
+         slk5gIMrm/+WWWP/liysH+sBcAwr+rr8n8b1tgd1BXBT45v39y8n9xgo7U0ZaKc8D3pU
+         zWnA==
+X-Gm-Message-State: APjAAAX5vj3b7htY0FH+vADhfHCdspzT8uEofd1jPAyE5pWXBe9Ov8OM
+	Bwx9940G6m2J0DsQXeRXdHUjEEHfvtyEphvXTkOaM79GgjjeJITvOtgXm3SKI3+fHxVdC6RvpCT
+	xIAifbJ4am8DsgYZSNzHicCk9Ppa+ci64vyuHFXW+JX9alLY80IYFlhCnlY/xiUAqRg==
+X-Received: by 2002:a63:fa4e:: with SMTP id g14mr1540432pgk.237.1561534536310;
+        Wed, 26 Jun 2019 00:35:36 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqz0UW93admr1RGCSgZGUHDVdNX7G3nkjJFbDEs0m6lIawuXSiaPZDCvJ47/OZUjJY0MjOm/
+X-Received: by 2002:a63:fa4e:: with SMTP id g14mr1540370pgk.237.1561534535421;
+        Wed, 26 Jun 2019 00:35:35 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561534535; cv=none;
         d=google.com; s=arc-20160816;
-        b=lDFUqcT869b5h4qEcVi/sBPbkls7H+qV61sJ56Xl5BAaUeOOAQnf5aKP5WQoJD+PjG
-         zBVY3ACtFW4Rtw8odpoxF1toBAbH5eKN7zj7aF7OTCexTLPW7XDE2h0oJzdVz7NnVefp
-         4QXRCXSggYBhbBq6aGKz9N5YCqZIYRxVdM6dPN/j2sG9cSfhGU9ZQAd+sJAad8GSHyIH
-         hiGoHKmLvkLWaD04GEJjVSHWxHW6Aetgr7EB/988hrIxjYMVzvdCI5O8XymFnHKWdBAs
-         Z+D4BKM2v+qeQzgOrf37vF8tJPV0DuUPdC1vfB8mZGx7BBhIWDYeY3BZAcDMZZPsP62Z
-         jjOw==
+        b=lgRyIJfh/TwgmhZJ7w003wzmsVDgMFSFXlsxPF5NdbN8iEpuViOjbIXS4MAc6loYc4
+         jfXOaUTx9KYezKwdDaNDeL/07Hh7Lf0bCVtfE3mMtDNI+jc+A5aYr3tCly4AiS+YLeUR
+         orpTu2I9Ifcam8YR7W8X/rrzlums52fqFY7Vj8pijy8z359B9VBS7KJ+wQUNhuAk60Mg
+         xrlxTgukXNJ2gu7JppNtIviQzB9Y9z5TA7UhiesX3B/I3Dkq6yD+CI7cpP0/wx0ARZxE
+         8dqYSz7CD192ZQcOGzCsBB/xxLSBx3dNat2Y48uS/+8/z7ULiTmLWMy2H3J7nS72ki9J
+         Uj9w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=9JZitHP6eJRgaj75NXXVVCbPBeJLVjtAlNYNgc56J5M=;
-        b=V68o31ZdWSNi9uBULgAjvGEw6uJoBpVhP1K5/BVaw0Be28EXKHrHXprirM3ffd2a5j
-         coH4YipW97+QP+oBW1tlCICx7j/bpAASh9FFqJ8a9OqnZOR528vHuv2DrlPOIw21wwg8
-         TTiSDTnpEviyaSVmDdBgdoO/gf8YGSXamzzBUSqCoOUHxx7oD7afnoPhPzBcSeEb2Dm/
-         87T3XHJN0i6NZelNOjT7Sibtt3Wo7jqZQ8iH8LZK2YsWs0HcakjrPJcRG6ukm65p9pFH
-         cIXLRcYlEPQcILwIiDqcC7BerYsnYtvVywMVlQreHfAy/8n88WC8D6IzgwuL9JOhz2dx
-         zZpw==
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=lDmlG4QlTTriJzFXWbGaRSBBFeeq9DSPhk5L2uu/dys=;
+        b=dnlznGchnC1BkWwarq7QqfgNVxusZ4AeRFULRqdFtVFze5ljQ1t+nUqkItSLljqiTY
+         GcRaOWY181Ysu3+rWm52Hq1lZg+iSU+6wnYV4X9ffANppdIiIeWzBYarpI3shrodtItq
+         J73ws72eBD8i9Ug6QGR4bouZPDoVcqHFYsYIzqfGTCblXhpyxqsxx7CGmnQwnkVDe/QM
+         2/2HUP9wTKoaD8AGjsBj/8OxPiNXMc2Na1RQSrH1BZkAinaBz01AHmUBQyieG9IF+DRk
+         KXrqWGR8NnpRLEe3NzX/f7mheszTLC9xST+XXMtChIsJIe+5w2/c3nBxVGTujp12HN1T
+         Kmyg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id la8si2091353ejb.359.2019.06.25.23.59.38
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=FEIrxw0f;
+       spf=pass (google.com: best guess record for domain of batv+ab1f803c58217d155be4+5785+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+ab1f803c58217d155be4+5785+infradead.org+hch@bombadil.srs.infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id cl14si2704972plb.341.2019.06.26.00.35.34
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 25 Jun 2019 23:59:38 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Wed, 26 Jun 2019 00:35:34 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of batv+ab1f803c58217d155be4+5785+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 94530AC83;
-	Wed, 26 Jun 2019 06:59:38 +0000 (UTC)
-Date: Wed, 26 Jun 2019 08:59:35 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Alastair D'Silva <alastair@d-silva.org>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	"Rafael J. Wysocki" <rafael@kernel.org>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Pavel Tatashin <pasha.tatashin@oracle.com>,
-	Oscar Salvador <osalvador@suse.de>,
-	Mike Rapoport <rppt@linux.ibm.com>, Baoquan He <bhe@redhat.com>,
-	Qian Cai <cai@lca.pw>, Logan Gunthorpe <logang@deltatee.com>,
-	linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Subject: Re: [PATCH v2 2/3] mm: don't hide potentially null memmap pointer in
- sparse_remove_one_section
-Message-ID: <20190626065935.GL17798@dhcp22.suse.cz>
-References: <20190626061124.16013-1-alastair@au1.ibm.com>
- <20190626061124.16013-3-alastair@au1.ibm.com>
- <20190626062344.GG17798@dhcp22.suse.cz>
- <edac179f0626a6e0bd91922d876934abf1b9bb19.camel@d-silva.org>
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=FEIrxw0f;
+       spf=pass (google.com: best guess record for domain of batv+ab1f803c58217d155be4+5785+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+ab1f803c58217d155be4+5785+infradead.org+hch@bombadil.srs.infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
+	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=lDmlG4QlTTriJzFXWbGaRSBBFeeq9DSPhk5L2uu/dys=; b=FEIrxw0fA7wZ2Dgvq5SBxdVmN
+	yhPyT0gCj6Bxbl/m8JShCPjIBGhfUFMREoijyGu6CGikjCKKCpf0b2qqwRam7jR/hlWuYyDPM14ds
+	bqUfT5iAeCLEabNpYahNp1jcOmxfA6iSmh2JpyOpAGQyjm/PM5Ydk9rf9HcVKqWWmuf4OJHVZc+6D
+	rl69Hx7yZb+nynPThSA+wG+PtBSuSdLyPqJw9ARsh/w+6FRPip840hneIcWRmm0HUdymEGBFaMQnZ
+	LldmT8tVf34HugoPD5imjld6/n5Hh1p8tAsqrTrCSR7iV3Rjlzy3Ea9+xB76jwxTfsxNP6/h0qr0F
+	y1s4FQJ5Q==;
+Received: from hch by bombadil.infradead.org with local (Exim 4.92 #3 (Red Hat Linux))
+	id 1hg2Sr-0007dW-2T; Wed, 26 Jun 2019 07:35:33 +0000
+Date: Wed, 26 Jun 2019 00:35:33 -0700
+From: Christoph Hellwig <hch@infradead.org>
+To: Robin Murphy <robin.murphy@arm.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, will.deacon@arm.com,
+	catalin.marinas@arm.com, anshuman.khandual@arm.com,
+	linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org,
+	Jason Gunthorpe <jgg@mellanox.com>, Michal Hocko <mhocko@suse.com>
+Subject: Re: [PATCH v3 0/4] Devmap cleanups + arm64 support
+Message-ID: <20190626073533.GA24199@infradead.org>
+References: <cover.1558547956.git.robin.murphy@arm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <edac179f0626a6e0bd91922d876934abf1b9bb19.camel@d-silva.org>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <cover.1558547956.git.robin.murphy@arm.com>
+User-Agent: Mutt/1.11.4 (2019-03-13)
+X-SRS-Rewrite: SMTP reverse-path rewritten from <hch@infradead.org> by bombadil.infradead.org. See http://www.infradead.org/rpr.html
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed 26-06-19 16:30:55, Alastair D'Silva wrote:
-> On Wed, 2019-06-26 at 08:23 +0200, Michal Hocko wrote:
-> > On Wed 26-06-19 16:11:22, Alastair D'Silva wrote:
-> > > From: Alastair D'Silva <alastair@d-silva.org>
-> > > 
-> > > By adding offset to memmap before passing it in to
-> > > clear_hwpoisoned_pages,
-> > > we hide a potentially null memmap from the null check inside
-> > > clear_hwpoisoned_pages.
-> > > 
-> > > This patch passes the offset to clear_hwpoisoned_pages instead,
-> > > allowing
-> > > memmap to successfully peform it's null check.
-> > 
-> > Same issue with the changelog as the previous patch (missing WHY).
-> > 
-> 
-> The first paragraph explains what the problem is with the existing code
-> (same applies to 1/3 too).
+Robin, Andrew:
 
-Under what conditions that happens? Is this a theoretical problem or can
-you hit this by a (buggy) code? Please be much more specific.
+I have a series for the hmm tree, which touches the section size
+bits, and remove device public memory support.
 
--- 
-Michal Hocko
-SUSE Labs
+It might be best if we include this series in the hmm tree as well
+to avoid conflicts.  Is it ok to include the rebase version of at least
+the cleanup part (which looks like it is not required for the actual
+arm64 support) in the hmm tree to avoid conflicts?
 
