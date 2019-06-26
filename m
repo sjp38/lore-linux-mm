@@ -2,110 +2,114 @@ Return-Path: <SRS0=C/CR=UZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 65401C48BD3
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 23:15:41 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A1CE7C48BD6
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 23:28:39 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 28DDE2184C
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 23:15:41 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 485F3217D8
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 23:28:39 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="uTJS3ibn"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 28DDE2184C
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="zmegpjl0"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 485F3217D8
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B47036B0003; Wed, 26 Jun 2019 19:15:40 -0400 (EDT)
+	id BD9466B0003; Wed, 26 Jun 2019 19:28:38 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AF6D88E0003; Wed, 26 Jun 2019 19:15:40 -0400 (EDT)
+	id B88D68E0003; Wed, 26 Jun 2019 19:28:38 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A0C788E0002; Wed, 26 Jun 2019 19:15:40 -0400 (EDT)
-X-Delivered-To: Linux-mm@kvack.org
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 6733C6B0003
-	for <Linux-mm@kvack.org>; Wed, 26 Jun 2019 19:15:40 -0400 (EDT)
-Received: by mail-pl1-f199.google.com with SMTP id b24so232099plz.20
-        for <Linux-mm@kvack.org>; Wed, 26 Jun 2019 16:15:40 -0700 (PDT)
+	id A780D8E0002; Wed, 26 Jun 2019 19:28:38 -0400 (EDT)
+X-Delivered-To: linux-mm@kvack.org
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D5D86B0003
+	for <linux-mm@kvack.org>; Wed, 26 Jun 2019 19:28:38 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id h27so231313pfq.17
+        for <linux-mm@kvack.org>; Wed, 26 Jun 2019 16:28:38 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=GKskHS9ZrMmpTl7HXRgGF9dvlX1SkdCEtudhd+dfdKc=;
-        b=l+92GZoevPNwbrO2SpELGmFbavp3kAEPpj4fRHC8nbptcyO6aZDriaoOEcjIa1mrwE
-         aBPU71Su4Kh4eK+y1fSBk0OeFsL0OYOcwDZLFZjKyh4mRadxj4vI0Z9x4IIF6WXXKunl
-         7EcEuUG+4OQSsuV6fY6cw94U2ZnWkk6+swqP+Rz9KB/VTU/VT8H1sGoYUi2bY3tfSiUz
-         bjiuxCuzr0sBwGWmEnfmrStYvYmudW/HXQvrlPc9f5DIGFUIWkjFG/QjTx5n3p+JWRh0
-         7W2xvJ9l2wiv/NBQTx31gsayVyXSIrFiTscBonLpyV+ALooCndoV+Ohngwsx2H+yQdGy
-         2QTw==
-X-Gm-Message-State: APjAAAWO0+CV3b55yMAk1kFchYx+ie76A7OWstk9AJ1WiimEjzX+2AmT
-	o3f4tmerWD3llQjOO6m8zqkj1X8hqzg4OOk5B302+i0Df69ei58I/zirD0yQhaX5GSrrBbKHPk7
-	dI4vZe+3G04OtlC4wNLf6hQnhyhP/6CObUdrZyIrU9X1fAdWvnW8tf33qqpgg/vXftw==
-X-Received: by 2002:a63:61cb:: with SMTP id v194mr440744pgb.95.1561590939927;
-        Wed, 26 Jun 2019 16:15:39 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz/jkpm7rS0bsF4uSn+A5K+ZF9owe2PW6eC4Ll4ur6xSz4cRaRhR3z4aubOECaTManrmmPC
-X-Received: by 2002:a63:61cb:: with SMTP id v194mr440708pgb.95.1561590939226;
-        Wed, 26 Jun 2019 16:15:39 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561590939; cv=none;
+        bh=gXeunDalFpMfH98V7l4lLnV8cjyh/Jd2FfSneJttMwI=;
+        b=KJJ3eMvQvPlWDV9wouRpA+/cCO9leAVneaUm8ye/dzPmWliWQhar6C/VUbZG+Vg0P/
+         btNkYLt0DXa/zE5o+9epUN4F3Nq7iFioFYP1DkQNxdSUyN0GgVK5YlrEHWtasgqxoNjU
+         aT3nsnhGlkHsw3IihIE4we8I1tE/YUyjUwJxWFO05RUDb49bg78MCJ3zIr/0/vl2fu85
+         ju8BUTSR5FdO5blINCW+cfj9CgL3kFDxvYTqUm0aN/BSo782tqSHFvN4S7Htkq/WR7zE
+         1tNVpkqkJu4NAyXzBcZsdxkoLFEuml5d3Gn52ZNNVFKPwTStRCYCSn6UEBqQl9ktENBP
+         Mgkw==
+X-Gm-Message-State: APjAAAUabOjKGD9Xb4CpXOdXIFUsAdbItGGZ0cypukEYBL76fVtzUw5t
+	63aQp1VHBsRe4F7g7bDjBThQ/wty2hog8fOGD+sgmNg7J8N1aQIS1zLPypT1Q37QEtbkYoXTsvc
+	fsAh8hnM0020ymI7AiV7A2DYeJSs3Xw5G+BmbYXCEAejAbaI8E5i1zM4n2F2p/8fmoQ==
+X-Received: by 2002:a17:902:aa5:: with SMTP id 34mr839212plp.166.1561591717958;
+        Wed, 26 Jun 2019 16:28:37 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw/4GccYkPZ8xqH3HcjWTDIoeiNUL3WJD3CR1Pht1P/cC7Q1RvUrFYzyr43WvoQ7iTiar08
+X-Received: by 2002:a17:902:aa5:: with SMTP id 34mr839150plp.166.1561591717192;
+        Wed, 26 Jun 2019 16:28:37 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561591717; cv=none;
         d=google.com; s=arc-20160816;
-        b=d+gsKfgs9pQupuIMqPoarpmBtbh3s9CoANq+aUkrJOVrl61Qn0XfdDHYHe+5kFN+n8
-         JX1k3cnmgRbr9wzy5ahUuznWCNVhRNZiWOpEA8Cf5TQxooisRcAFq5zwxBGOz1hQy/Gl
-         c7wh3gviIlVKIXO9CPS6f9hQ6MXXSo3IQVy2KAkZk8B0LZJfidMHx6j/rkZ2r2lvBXG1
-         TgRpVsWG/f0PcSGK/rhiUGfViJfNeevGj6o5vqdZZ4R9kl2AXp/whUOJWx7P+kYO0TY8
-         zY6Z3+btJbQQ2bioGg/piEKpONU4kcZssIFTGvU3S4V1p8HhHS/uW0MpohtCKUWUcaL8
-         xH0A==
+        b=Jp+bv2HlzW6+2kqBsmmIAGfH60L0MYb3AKeeMvOKOQdIH+VyRVP+tpOh5uKyZVtXMo
+         kCguV8rOz6GZ40m3rjhG0CHz60N6GaGnLShtAShOnSsB/hErTlOtNkjjjuHy86g5AuQb
+         BU/gm8v4z1u4/3TnKtRGv0QyAa4PojaOPZk+h/GL2oz5LEWe6T9BqpLsz0VT1+CRm66I
+         Vr/gdcPU0Y7Go6vEljMK0V7Y6YkUtOEoHvTRSru7QmMPPSh1l98AnV1fZ1oqq2Ta6FF+
+         9u0lw1bnpw+1V/dZM6236dQsgGTLH9LJ5GXAkC8+XRz7BfvOd2aggS9Y3K368IsR5BV1
+         zTbQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=GKskHS9ZrMmpTl7HXRgGF9dvlX1SkdCEtudhd+dfdKc=;
-        b=MvLHetTKILHMlK6Xs7g+dVmcxZd8Wbk+uBZFPcLx+jwirvdNr0VbrL+RjiUMbIoqqP
-         aX0MnZ+/oH2aNBzpsDQNnR5a4p9DqwhpOC0XxcRDKu0mpcPCwS94vmLyG/clYm4+N5K0
-         1bTUZP9CfuUXDyQ+pqAOp39L48LA6WVUzPRF2mbI2S2GV2rIbFPP4ZXjkLu64etaOHRC
-         WwdHKckiPRCi31v42TZyGO1LcqEzyPlklf3Q/8qtchk7zihUM1558ysDaGL1NdjXaBFS
-         7pAWmOFfy9Yp37tNmbXPIXBRJoIHvaj09Q0JgkES03GJvnJj+OwqoLInAEz9SSpbM5kU
-         Fr0g==
+        bh=gXeunDalFpMfH98V7l4lLnV8cjyh/Jd2FfSneJttMwI=;
+        b=bDP4eUij9lDuM1BxLS/QC2OK+ukiVnJeiIP7IjqohnZg9mi80CsK4DALZWpEwX3+Vf
+         RTO21MLvzl9jIcVcQQQgmwjpl1gwen8engxV+o2ToJiC4cRPbNJkQmgG2DdqCKvnqOYl
+         RGBMZq5Fk12+oVSsHWFnFpREWoI1fatHDh+T3eJue34X2q1dwePkuiuWY+of89caTSm9
+         9yxEb5/IrcA9LMIgtod3po/HA0WoaVCBXC1Hjl/jyHhUJ8rrle0nDIDPS49W+rlaybEd
+         rSb2JsXQeA7N0kNQrTt88rmAGHzq9r3eASwzRDsNXvl/U9toqV7Mw/KUHT17oH5Dkfyo
+         4iNA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=uTJS3ibn;
+       dkim=pass header.i=@kernel.org header.s=default header.b=zmegpjl0;
        spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id g1si457765plp.406.2019.06.26.16.15.39
-        for <Linux-mm@kvack.org>
+        by mx.google.com with ESMTPS id e21si363335pgh.571.2019.06.26.16.28.37
+        for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Jun 2019 16:15:39 -0700 (PDT)
+        Wed, 26 Jun 2019 16:28:37 -0700 (PDT)
 Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=uTJS3ibn;
+       dkim=pass header.i=@kernel.org header.s=default header.b=zmegpjl0;
        spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
 Received: from localhost.localdomain (c-73-223-200-170.hsd1.ca.comcast.net [73.223.200.170])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 54CF421738;
-	Wed, 26 Jun 2019 23:15:38 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTPSA id 11ECE214DA;
+	Wed, 26 Jun 2019 23:28:36 +0000 (UTC)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1561590938;
-	bh=0Jq+Gi01hm8xr98U/7QJrcZzZaNW00Tq+R6w9xmYElM=;
+	s=default; t=1561591716;
+	bh=bvxU9GtnxrSS6JL5vSuxzibwl2B9AdNA5bQBLj2CaHo=;
 	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
-	b=uTJS3ibnxftVoPyYA/8YeyMEeGDcIszJf5JIXpLQcw3XJInC4JVGwHZV/uQlqMf+q
-	 kVzlgurXyK9w99/0YaZ4Z2EpTw90T7hdzuVlfHQS0VhWvnNeoAe5hv+YeENsvtfKlF
-	 gqqDW8oXyejimuteeE6l7sSE4DgKyE+XRRi0l/Oc=
-Date: Wed, 26 Jun 2019 16:15:37 -0700
+	b=zmegpjl0RaiGNlS93NVud3hTVj0twmtsxSir+O4KVOYh5+Vxzeaoc1YAvUKF3f2na
+	 9F1F4ANmd9ITzobFe0KSzL85XYPqL1ZmzSjigvfJe/ej50so4Sd4RwAxntdbVjEX1/
+	 h3edJ8Doi2xX1X0wWnUsOQrr70SVJqduegIQBWf4=
+Date: Wed, 26 Jun 2019 16:28:35 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-To: Pingfan Liu <kernelfans@gmail.com>
-Cc: Linux-mm@kvack.org, Ira Weiny <ira.weiny@intel.com>, Mike Rapoport
- <rppt@linux.ibm.com>, "Kirill A. Shutemov"
- <kirill.shutemov@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>,
- John Hubbard <jhubbard@nvidia.com>, "Aneesh Kumar K.V"
- <aneesh.kumar@linux.ibm.com>, Christoph Hellwig <hch@lst.de>, Keith Busch
- <keith.busch@intel.com>, Mike Kravetz <mike.kravetz@oracle.com>,
- Linux-kernel@vger.kernel.org
-Subject: Re: [PATCHv4] mm/gup: speed up check_and_migrate_cma_pages() on
- huge page
-Message-Id: <20190626161537.ae9fcca4f727c12b2a44b471@linux-foundation.org>
-In-Reply-To: <1561554600-5274-1-git-send-email-kernelfans@gmail.com>
-References: <1561554600-5274-1-git-send-email-kernelfans@gmail.com>
+To: Alexander Potapenko <glider@google.com>
+Cc: Christoph Lameter <cl@linux.com>, Kees Cook <keescook@chromium.org>,
+ Masahiro Yamada <yamada.masahiro@socionext.com>, Michal Hocko
+ <mhocko@kernel.org>, James Morris <jmorris@namei.org>, "Serge E. Hallyn"
+ <serge@hallyn.com>, Nick Desaulniers <ndesaulniers@google.com>, Kostya
+ Serebryany <kcc@google.com>, Dmitry Vyukov <dvyukov@google.com>, Sandeep
+ Patil <sspatil@android.com>, Laura Abbott <labbott@redhat.com>, Randy
+ Dunlap <rdunlap@infradead.org>, Jann Horn <jannh@google.com>, Mark Rutland
+ <mark.rutland@arm.com>, Marco Elver <elver@google.com>, Qian Cai
+ <cai@lca.pw>, linux-mm@kvack.org, linux-security-module@vger.kernel.org,
+ kernel-hardening@lists.openwall.com
+Subject: Re: [PATCH v8 1/2] mm: security: introduce init_on_alloc=1 and
+ init_on_free=1 boot options
+Message-Id: <20190626162835.0947684d36ef01639f969232@linux-foundation.org>
+In-Reply-To: <20190626121943.131390-2-glider@google.com>
+References: <20190626121943.131390-1-glider@google.com>
+	<20190626121943.131390-2-glider@google.com>
 X-Mailer: Sylpheed 3.5.1 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
@@ -116,43 +120,24 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 26 Jun 2019 21:10:00 +0800 Pingfan Liu <kernelfans@gmail.com> wrote:
+On Wed, 26 Jun 2019 14:19:42 +0200 Alexander Potapenko <glider@google.com> wrote:
 
-> Both hugetlb and thp locate on the same migration type of pageblock, since
-> they are allocated from a free_list[]. Based on this fact, it is enough to
-> check on a single subpage to decide the migration type of the whole huge
-> page. By this way, it saves (2M/4K - 1) times loop for pmd_huge on x86,
-> similar on other archs.
-> 
-> Furthermore, when executing isolate_huge_page(), it avoid taking global
-> hugetlb_lock many times, and meanless remove/add to the local link list
-> cma_page_list.
-> 
-> ...
->
-> --- a/mm/gup.c
-> +++ b/mm/gup.c
-> @@ -1342,19 +1342,22 @@ static long check_and_migrate_cma_pages(struct task_struct *tsk,
->  	LIST_HEAD(cma_page_list);
->  
->  check_again:
-> -	for (i = 0; i < nr_pages; i++) {
-> +	for (i = 0; i < nr_pages;) {
-> +
-> +		struct page *head = compound_head(pages[i]);
-> +		long step = 1;
-> +
-> +		if (PageCompound(head))
+>  v8:
+>   - addressed comments by Michal Hocko: revert kernel/kexec_core.c and
+>     apply initialization in dma_pool_free()
+>   - disable init_on_alloc/init_on_free if slab poisoning or page
+>     poisoning are enabled, as requested by Qian Cai
+>   - skip the redzone when initializing a freed heap object, as requested
+>     by Qian Cai and Kees Cook
+>   - use s->offset to address the freeptr (suggested by Kees Cook)
+>   - updated the patch description, added Signed-off-by: tag
 
-I suspect this would work correctly if the PageCompound test was simply
-removed.  Not that I'm really suggesting that it be removed - dunno.
+v8 failed to incorporate 
 
-> +			step = (1 << compound_order(head)) - (pages[i] - head);
+https://ozlabs.org/~akpm/mmots/broken-out/mm-security-introduce-init_on_alloc=1-and-init_on_free=1-boot-options-fix.patch
+and
+https://ozlabs.org/~akpm/mmots/broken-out/mm-security-introduce-init_on_alloc=1-and-init_on_free=1-boot-options-fix-2.patch
 
-I don't understand this statement.  Why does the position of this page
-in the pages[] array affect anything?  There's an assumption about the
-contents of the skipped pages, I assume.
-
-Could we please get a comment in here whcih fully explains the logic
-and any assumptions?
+it's conventional to incorporate such fixes when preparing a new
+version of a patch.
 
