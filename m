@@ -7,78 +7,78 @@ X-Spam-Status: No, score=-8.5 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
 	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 973F7C48BD6
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 12:28:58 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0645DC48BD8
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 12:29:02 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 466992063F
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 12:28:58 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id B59B92063F
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 12:29:01 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="bL49WJDD"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 466992063F
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="qeW+utdJ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B59B92063F
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 95E7B8E001E; Wed, 26 Jun 2019 08:28:34 -0400 (EDT)
+	id 564FF8E001F; Wed, 26 Jun 2019 08:28:36 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8979A8E0005; Wed, 26 Jun 2019 08:28:34 -0400 (EDT)
+	id 4C7E48E0005; Wed, 26 Jun 2019 08:28:36 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 73AEA8E001E; Wed, 26 Jun 2019 08:28:34 -0400 (EDT)
+	id 344F58E001F; Wed, 26 Jun 2019 08:28:36 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 2FEA68E0005
-	for <linux-mm@kvack.org>; Wed, 26 Jun 2019 08:28:34 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id u21so1663002pfn.15
-        for <linux-mm@kvack.org>; Wed, 26 Jun 2019 05:28:34 -0700 (PDT)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E8BC28E0005
+	for <linux-mm@kvack.org>; Wed, 26 Jun 2019 08:28:35 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id q2so1352829plr.19
+        for <linux-mm@kvack.org>; Wed, 26 Jun 2019 05:28:35 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=1EWGF/F6e1vBHfjAA6nX1LYEAAsLgFm61+exsZF7p+E=;
-        b=crFYw/HXXrkYdzvkU1AQPD4qS2z1GErWMghZo2+4VHQez/bI7qjTx6dgR2LX6P5kb8
-         wJux8acB04Yt1VclLkKI4nvPaxptqGVI3mpQWQQXzJucpiKlolYl+Uy8j/jefMJ3r/O1
-         CP4LlvCYmKcj7Q8tZp+bwlvIC849xUEmU6eYiN0eznJLn+v752jym5/h+HNAnxyQiTyI
-         oyqeNeNj1k08f1pq9qWrQRT6tAUAbAh3uSTB1pF8n06Adz+S09apKnjboSUqmpkwCDpc
-         602RtDfJqenj9Neu4Pb1ULwSfNEUko1bzf0k3fdrdRCBnrTtUQ/CfCxjbfpJVYJOOoig
-         ouDw==
-X-Gm-Message-State: APjAAAUsk1yRCfZ+ZViYg7Iwrwu+Bh0uoeYWLpuJvyyFUlcJOqXRxFgk
-	9NDVS0Srew9wzdTXDX8lUvSg5Ftx/C+T5bik8P4CBpDJR6EJtActQQegIeTPPFFv/486FRYDnXl
-	9vYrJpjxm25ELB6GpCKaYmP7jNqgiKO/Vh959HvY6SSAsy+l9Fxj8DMZuYnbqxSk=
-X-Received: by 2002:a65:6204:: with SMTP id d4mr2751146pgv.104.1561552113734;
-        Wed, 26 Jun 2019 05:28:33 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwqjGVuQmh+MPUpdaUYdBORVdS2rzTkBGo3XAzASLcOc+E9KsxpmKGAI6OUBu105TckwlFI
-X-Received: by 2002:a65:6204:: with SMTP id d4mr2751060pgv.104.1561552112448;
-        Wed, 26 Jun 2019 05:28:32 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561552112; cv=none;
+        bh=8c7Qw79j4iTVfYu8BDZ4XSZccS1fj4ydMQxMOZ0rYRM=;
+        b=SmazmG2E+o4I4dFOsu8r9Qe7qDokUC0XQpOpoy82t7vgWjN4ZrnGY+u9ELWguH3yco
+         GQHn8UhifxE77lE6nJRgLskaqnDcoMuk9t6+hUmvt1J/kR1jOB6QtkrfJOtiPb2TYjV1
+         ZGzEpG1Np9WmpJhoDzSjQzi/w3AbS4Yx5q3hnV/vYVPb6NEH19zgArO1fzN8F6mqgfNr
+         V+ieTTmSzYdYmLU+NtsUFQVIAQq/toqHXP2cVpQSCaY3ZV6MNQjq/yHLoHix5pUV2fgy
+         aRloEB0A0v8sjFaGuzr6ZDbgrPOd6Z+5eaPwf5tXkWR4XSyGxvSFd6NB6Q4O9BUjsn5u
+         TMhw==
+X-Gm-Message-State: APjAAAXOCd0diysW8kMsYK/z+RF65nnNgr3ZvQPXrzvUQi3ruyyT7sU2
+	gRr1lkikBxkTL2aDPXyAktFnz4h9RFXG7fpXNb/tAgUGs8lBKXqFGKRr7qP7i4IBTSU140vH4Ff
+	MO9YYlMZjlkKANtquCU6sA6NFJc/XcjxkABSSNJ7rUBy39UJyWTCVbQu3aDIHiDc=
+X-Received: by 2002:a65:5c8c:: with SMTP id a12mr2734268pgt.255.1561552115435;
+        Wed, 26 Jun 2019 05:28:35 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzzqFUCByEVVHcgIvOCGPgzTDdjj0kfhFcBG3mV8Y0bh9L+ORY5wpcc04a/3FRDCaCXo+Wo
+X-Received: by 2002:a65:5c8c:: with SMTP id a12mr2734202pgt.255.1561552114516;
+        Wed, 26 Jun 2019 05:28:34 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561552114; cv=none;
         d=google.com; s=arc-20160816;
-        b=s3dsDeTBMxnIatyz9k/lxwd8FcX7j4wOe6kpcjTrqtIVONj11XRvZQV0U+jLqHS/iD
-         Q2UBuxBAsaaMqfjh1+aioZZC+d1YHVcdoz3xI56+UFv+X+9dcVK1J8voO8fOwGhlKAAI
-         CLi1KBhYs9dtg05ITzV3LdBhBd5pHsoT2Q+tzOlsoSipJDXvt7ADDSqcG1m/MfOu+TRX
-         vkF+Vl2kATBh5vYe3LbguUjplLU8rVJr8rlUxfk1D8BqfGAQIPwYFmL3ymFAvJ1Fce1s
-         J4qQW2p0n2KhKhCfSI9X0mF20CxHeZZc4qQbWdyTU+SJLnAvsLme8/6ZwwlZy35Epb2R
-         Tufw==
+        b=Ys7ZIJrkX/Sb59cNDBLayVUEiekJFM3e8rebaGhf/urGiA/dZ9SGEHxv77cUfinqRl
+         icHRizq+p4Flw0YjDX+DUCsY1DluyOwIvUZEWDRvCLImcTN/HrtOhk3ogNQ5N3byw2Zu
+         9iZ63c4Z1H+CMdF93HMhI2UFi/aBgvRXbrLQh5KKf47G2DUBmtYoEKjg6/DYfOyRf2L2
+         PEzCImhfwLjCQT9pUgfCVJGJxm9C5mU0fIXa6vmFdfaezGbLKga37WQt97+/SK1p/8Jc
+         T//MKlbTAVariKMuhwTymrrR3JVSZtH4Ipfp0g2Lsleg7D5s17++POMSoTh6TJPTgZlc
+         priw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=1EWGF/F6e1vBHfjAA6nX1LYEAAsLgFm61+exsZF7p+E=;
-        b=ZT9WkFTB1cNxQHKSmoKeiW2RgfkuQbuVMURJV+8aLBNdHialWUIet9Jf8joZxYG13g
-         7sx8eCNzSYxjXzcxEOC8Cf89MEVl9J9schh59Dh0/FpzVOcOm41QUgIBb0/ae9m4tIxO
-         32soki3WirzebW50NY9yv+25XCOXxgc2zldjaV6I6zz2B3yCyaUiYU0to2OFEtVoTtKo
-         Xppamik+YiDrs8InhxmL6gWsdsBVjIga7ALKBVY5ayHbARsBd6OSudLyB+Hv3EMWwjTE
-         p3BrajrGktUIwOQ//OeqT2wZPQ0fZaDtlBl9jWst4K8KN83znwLi5+e54U/P/zGZw/5N
-         44aA==
+        bh=8c7Qw79j4iTVfYu8BDZ4XSZccS1fj4ydMQxMOZ0rYRM=;
+        b=lCHxzpLuOlrlgWxcckzvv21NbEA8TzGe6+xiVLqxQNxixYWFFomv2lgGc+HTsjP+3R
+         PqDCqZ26wkPCl6wSLoXOHNLpBRDFvtqdr0AZ5kja44sSxScKItH6l8KUxtlhZHSnnMK4
+         mC9WvDz+TwJhvl+UOHC0KnpSqE82wnm1dBzFdt9WKk0H5CyN4y5/lm/1htYjp3FcnG6F
+         dsm4PEZ+hvPpnxwvcapKjMH5+d4gqquOx5ScjyYQbftdjfSYMd+upHBBPcTuT8GPq1oK
+         JQEIRvIedgM1iUVgGNt/p04iBWBw6yxresUDcUrf6vQI/n0gR1NQdoF0ES7PBdNxqWIw
+         e2VA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=bL49WJDD;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=qeW+utdJ;
        spf=pass (google.com: best guess record for domain of batv+ab1f803c58217d155be4+5785+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+ab1f803c58217d155be4+5785+infradead.org+hch@bombadil.srs.infradead.org
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id y10si1877630pjr.21.2019.06.26.05.28.32
+        by mx.google.com with ESMTPS id y134si18040826pfc.285.2019.06.26.05.28.34
         for <linux-mm@kvack.org>
         (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Wed, 26 Jun 2019 05:28:32 -0700 (PDT)
+        Wed, 26 Jun 2019 05:28:34 -0700 (PDT)
 Received-SPF: pass (google.com: best guess record for domain of batv+ab1f803c58217d155be4+5785+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=bL49WJDD;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=qeW+utdJ;
        spf=pass (google.com: best guess record for domain of batv+ab1f803c58217d155be4+5785+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+ab1f803c58217d155be4+5785+infradead.org+hch@bombadil.srs.infradead.org
 DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	d=infradead.org; s=bombadil.20170209; h=Content-Transfer-Encoding:
@@ -86,15 +86,15 @@ DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	:Reply-To:Content-Type:Content-ID:Content-Description:Resent-Date:Resent-From
 	:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:List-Help:
 	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	bh=1EWGF/F6e1vBHfjAA6nX1LYEAAsLgFm61+exsZF7p+E=; b=bL49WJDDJc3uz+E3Tq04Tm5aOh
-	6UKiHfGJ4xc1EdjM+wIO+4O7TabN+U+mE4CUE7GVW/6hNT1G25p6zM6t2nVmATDNy70CoTYKvUXYh
-	h63gBbqAnP0fS/lvCqryLq3sJaRMn4yQ/kLLVV4MhA9L5yzp96EXF7zgv5NJOti4WMo+m7s82bMJK
-	tcjaFPnwpZ0KnnQ9gPRDwYlIZplqIULbGZnpwlX73gmGQjQ6zUyUid/upr/R6McnyA6o8yC/58lCE
-	OCyyeu7FUxcUuZa0aNWyNmTN2ebeV0grSQhN82z/PKk4I5ke7M0SV3GzBYODNCZUs6sDgaWMbxtfQ
-	or4ndx9w==;
+	bh=8c7Qw79j4iTVfYu8BDZ4XSZccS1fj4ydMQxMOZ0rYRM=; b=qeW+utdJvjdhQsheXW/BJJc+6E
+	Je3Qw7KX8yqGRD61b+aMkwDnKhRl79dbPTB2oSJS9EJkkp6B04gH0AKwiMVXmZSWXedEVwmeZuHtd
+	rxfolj9Lb0kntloPPle3ysnemn+eVNPk1PVLI65krTeg8f8ixCclNzvQ1VMgjJNdcaSfpbGEE5JqZ
+	LdQuIQpaH4WpWeh96t9pFdDMHn8Nlh1iBjfjdCn7Tu5xaSa1u8SC412S343cnc/TFWSgHhCX2D4kz
+	T8P1Ggyzn7yKEs00DA9YZRe2O9RSSxL1RnyDktKkewIGQSovonLhKuAUk0FzNPPqOPnS9qC33UPWA
+	glFwMabA==;
 Received: from clnet-p19-102.ikbnet.co.at ([83.175.77.102] helo=localhost)
 	by bombadil.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
-	id 1hg72E-0001cj-Jv; Wed, 26 Jun 2019 12:28:23 +0000
+	id 1hg72M-0001fg-QA; Wed, 26 Jun 2019 12:28:31 +0000
 From: Christoph Hellwig <hch@lst.de>
 To: Dan Williams <dan.j.williams@intel.com>,
 	=?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
@@ -106,9 +106,9 @@ Cc: linux-mm@kvack.org,
 	linux-nvdimm@lists.01.org,
 	linux-pci@vger.kernel.org,
 	linux-kernel@vger.kernel.org
-Subject: [PATCH 21/25] mm: remove hmm_devmem_add
-Date: Wed, 26 Jun 2019 14:27:20 +0200
-Message-Id: <20190626122724.13313-22-hch@lst.de>
+Subject: [PATCH 24/25] mm: remove the HMM config option
+Date: Wed, 26 Jun 2019 14:27:23 +0200
+Message-Id: <20190626122724.13313-25-hch@lst.de>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190626122724.13313-1-hch@lst.de>
 References: <20190626122724.13313-1-hch@lst.de>
@@ -121,312 +121,148 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-There isn't really much value add in the hmm_devmem_add wrapper and
-more, as using devm_memremap_pages directly now is just as simple.
+All the mm/hmm.c code is better keyed off HMM_MIRROR.  Also let nouveau
+depend on it instead of the mix of a dummy dependency symbol plus the
+actually selected one.  Drop various odd dependencies, as the code is
+pretty portable.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
-Reviewed-by: Jason Gunthorpe <jgg@mellanox.com>
 ---
- Documentation/vm/hmm.rst |  26 --------
- include/linux/hmm.h      | 129 ---------------------------------------
- mm/hmm.c                 | 110 ---------------------------------
- 3 files changed, 265 deletions(-)
+ drivers/gpu/drm/nouveau/Kconfig |  3 +--
+ include/linux/hmm.h             |  5 +----
+ include/linux/mm_types.h        |  2 +-
+ mm/Kconfig                      | 27 ++++-----------------------
+ mm/Makefile                     |  2 +-
+ mm/hmm.c                        |  2 --
+ 6 files changed, 8 insertions(+), 33 deletions(-)
 
-diff --git a/Documentation/vm/hmm.rst b/Documentation/vm/hmm.rst
-index 7cdf7282e022..50e1380950a9 100644
---- a/Documentation/vm/hmm.rst
-+++ b/Documentation/vm/hmm.rst
-@@ -329,32 +329,6 @@ directly using struct page for device memory which left most kernel code paths
- unaware of the difference. We only need to make sure that no one ever tries to
- map those pages from the CPU side.
+diff --git a/drivers/gpu/drm/nouveau/Kconfig b/drivers/gpu/drm/nouveau/Kconfig
+index 6303d203ab1d..66c839d8e9d1 100644
+--- a/drivers/gpu/drm/nouveau/Kconfig
++++ b/drivers/gpu/drm/nouveau/Kconfig
+@@ -84,11 +84,10 @@ config DRM_NOUVEAU_BACKLIGHT
  
--HMM provides a set of helpers to register and hotplug device memory as a new
--region needing a struct page. This is offered through a very simple API::
--
-- struct hmm_devmem *hmm_devmem_add(const struct hmm_devmem_ops *ops,
--                                   struct device *device,
--                                   unsigned long size);
-- void hmm_devmem_remove(struct hmm_devmem *devmem);
--
--The hmm_devmem_ops is where most of the important things are::
--
-- struct hmm_devmem_ops {
--     void (*free)(struct hmm_devmem *devmem, struct page *page);
--     int (*fault)(struct hmm_devmem *devmem,
--                  struct vm_area_struct *vma,
--                  unsigned long addr,
--                  struct page *page,
--                  unsigned flags,
--                  pmd_t *pmdp);
-- };
--
--The first callback (free()) happens when the last reference on a device page is
--dropped. This means the device page is now free and no longer used by anyone.
--The second callback happens whenever the CPU tries to access a device page
--which it cannot do. This second callback must trigger a migration back to
--system memory.
--
- 
- Migration to and from device memory
- ===================================
+ config DRM_NOUVEAU_SVM
+ 	bool "(EXPERIMENTAL) Enable SVM (Shared Virtual Memory) support"
+-	depends on ARCH_HAS_HMM
+ 	depends on DEVICE_PRIVATE
+ 	depends on DRM_NOUVEAU
++	depends on HMM_MIRROR
+ 	depends on STAGING
+-	select HMM_MIRROR
+ 	default n
+ 	help
+ 	  Say Y here if you want to enable experimental support for
 diff --git a/include/linux/hmm.h b/include/linux/hmm.h
-index 1d55b7ea2da6..86aa4ec3404c 100644
+index 3d00e9550e77..b697496e85ba 100644
 --- a/include/linux/hmm.h
 +++ b/include/linux/hmm.h
-@@ -585,135 +585,6 @@ static inline void hmm_mm_init(struct mm_struct *mm) {}
- #endif /* IS_ENABLED(CONFIG_HMM_MIRROR) */
+@@ -62,7 +62,7 @@
+ #include <linux/kconfig.h>
+ #include <asm/pgtable.h>
  
- #if IS_ENABLED(CONFIG_DEVICE_PRIVATE)
--struct hmm_devmem;
+-#if IS_ENABLED(CONFIG_HMM)
++#ifdef CONFIG_HMM_MIRROR
+ 
+ #include <linux/device.h>
+ #include <linux/migrate.h>
+@@ -332,9 +332,6 @@ static inline uint64_t hmm_pfn_from_pfn(const struct hmm_range *range,
+ 	return hmm_device_entry_from_pfn(range, pfn);
+ }
+ 
 -
--/*
-- * struct hmm_devmem_ops - callback for ZONE_DEVICE memory events
-- *
-- * @free: call when refcount on page reach 1 and thus is no longer use
-- * @fault: call when there is a page fault to unaddressable memory
-- *
-- * Both callback happens from page_free() and page_fault() callback of struct
-- * dev_pagemap respectively. See include/linux/memremap.h for more details on
-- * those.
-- *
-- * The hmm_devmem_ops callback are just here to provide a coherent and
-- * uniq API to device driver and device driver should not register their
-- * own page_free() or page_fault() but rely on the hmm_devmem_ops call-
-- * back.
-- */
--struct hmm_devmem_ops {
--	/*
--	 * free() - free a device page
--	 * @devmem: device memory structure (see struct hmm_devmem)
--	 * @page: pointer to struct page being freed
--	 *
--	 * Call back occurs whenever a device page refcount reach 1 which
--	 * means that no one is holding any reference on the page anymore
--	 * (ZONE_DEVICE page have an elevated refcount of 1 as default so
--	 * that they are not release to the general page allocator).
--	 *
--	 * Note that callback has exclusive ownership of the page (as no
--	 * one is holding any reference).
--	 */
--	void (*free)(struct hmm_devmem *devmem, struct page *page);
--	/*
--	 * fault() - CPU page fault or get user page (GUP)
--	 * @devmem: device memory structure (see struct hmm_devmem)
--	 * @vma: virtual memory area containing the virtual address
--	 * @addr: virtual address that faulted or for which there is a GUP
--	 * @page: pointer to struct page backing virtual address (unreliable)
--	 * @flags: FAULT_FLAG_* (see include/linux/mm.h)
--	 * @pmdp: page middle directory
--	 * Returns: VM_FAULT_MINOR/MAJOR on success or one of VM_FAULT_ERROR
--	 *   on error
--	 *
--	 * The callback occurs whenever there is a CPU page fault or GUP on a
--	 * virtual address. This means that the device driver must migrate the
--	 * page back to regular memory (CPU accessible).
--	 *
--	 * The device driver is free to migrate more than one page from the
--	 * fault() callback as an optimization. However if device decide to
--	 * migrate more than one page it must always priotirize the faulting
--	 * address over the others.
--	 *
--	 * The struct page pointer is only given as an hint to allow quick
--	 * lookup of internal device driver data. A concurrent migration
--	 * might have already free that page and the virtual address might
--	 * not longer be back by it. So it should not be modified by the
--	 * callback.
--	 *
--	 * Note that mmap semaphore is held in read mode at least when this
--	 * callback occurs, hence the vma is valid upon callback entry.
--	 */
--	vm_fault_t (*fault)(struct hmm_devmem *devmem,
--		     struct vm_area_struct *vma,
--		     unsigned long addr,
--		     const struct page *page,
--		     unsigned int flags,
--		     pmd_t *pmdp);
--};
 -
--/*
-- * struct hmm_devmem - track device memory
-- *
-- * @completion: completion object for device memory
-- * @pfn_first: first pfn for this resource (set by hmm_devmem_add())
-- * @pfn_last: last pfn for this resource (set by hmm_devmem_add())
-- * @resource: IO resource reserved for this chunk of memory
-- * @pagemap: device page map for that chunk
-- * @device: device to bind resource to
-- * @ops: memory operations callback
-- * @ref: per CPU refcount
-- * @page_fault: callback when CPU fault on an unaddressable device page
-- *
-- * This an helper structure for device drivers that do not wish to implement
-- * the gory details related to hotplugging new memoy and allocating struct
-- * pages.
-- *
-- * Device drivers can directly use ZONE_DEVICE memory on their own if they
-- * wish to do so.
-- *
-- * The page_fault() callback must migrate page back, from device memory to
-- * system memory, so that the CPU can access it. This might fail for various
-- * reasons (device issues,  device have been unplugged, ...). When such error
-- * conditions happen, the page_fault() callback must return VM_FAULT_SIGBUS and
-- * set the CPU page table entry to "poisoned".
-- *
-- * Note that because memory cgroup charges are transferred to the device memory,
-- * this should never fail due to memory restrictions. However, allocation
-- * of a regular system page might still fail because we are out of memory. If
-- * that happens, the page_fault() callback must return VM_FAULT_OOM.
-- *
-- * The page_fault() callback can also try to migrate back multiple pages in one
-- * chunk, as an optimization. It must, however, prioritize the faulting address
-- * over all the others.
-- */
--
--struct hmm_devmem {
--	struct completion		completion;
--	unsigned long			pfn_first;
--	unsigned long			pfn_last;
--	struct resource			*resource;
--	struct device			*device;
--	struct dev_pagemap		pagemap;
--	const struct hmm_devmem_ops	*ops;
--	struct percpu_ref		ref;
--};
--
--/*
-- * To add (hotplug) device memory, HMM assumes that there is no real resource
-- * that reserves a range in the physical address space (this is intended to be
-- * use by unaddressable device memory). It will reserve a physical range big
-- * enough and allocate struct page for it.
-- *
-- * The device driver can wrap the hmm_devmem struct inside a private device
-- * driver struct.
-- */
--struct hmm_devmem *hmm_devmem_add(const struct hmm_devmem_ops *ops,
--				  struct device *device,
--				  unsigned long size);
--
+-#if IS_ENABLED(CONFIG_HMM_MIRROR)
  /*
-  * hmm_devmem_page_set_drvdata - set per-page driver data field
+  * Mirroring: how to synchronize device page table with CPU page table.
   *
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index f33a1289c101..8d37182f8dbe 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -501,7 +501,7 @@ struct mm_struct {
+ #endif
+ 		struct work_struct async_put_work;
+ 
+-#if IS_ENABLED(CONFIG_HMM)
++#ifdef CONFIG_HMM_MIRROR
+ 		/* HMM needs to track a few things per mm */
+ 		struct hmm *hmm;
+ #endif
+diff --git a/mm/Kconfig b/mm/Kconfig
+index eecf037a54b3..1e426c26b1d6 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -669,37 +669,18 @@ config ZONE_DEVICE
+ 
+ 	  If FS_DAX is enabled, then say Y.
+ 
+-config ARCH_HAS_HMM_MIRROR
+-	bool
+-	default y
+-	depends on (X86_64 || PPC64)
+-	depends on MMU && 64BIT
+-
+-config ARCH_HAS_HMM
+-	bool
+-	depends on (X86_64 || PPC64)
+-	depends on ZONE_DEVICE
+-	depends on MMU && 64BIT
+-	depends on MEMORY_HOTPLUG
+-	depends on MEMORY_HOTREMOVE
+-	depends on SPARSEMEM_VMEMMAP
+-	default y
+-
+ config MIGRATE_VMA_HELPER
+ 	bool
+ 
+ config DEV_PAGEMAP_OPS
+ 	bool
+ 
+-config HMM
+-	bool
+-	select MMU_NOTIFIER
+-	select MIGRATE_VMA_HELPER
+-
+ config HMM_MIRROR
+ 	bool "HMM mirror CPU page table into a device page table"
+-	depends on ARCH_HAS_HMM
+-	select HMM
++	depends on (X86_64 || PPC64)
++	depends on MMU && 64BIT
++	select MMU_NOTIFIER
++	select MIGRATE_VMA_HELPER
+ 	help
+ 	  Select HMM_MIRROR if you want to mirror range of the CPU page table of a
+ 	  process into a device page table. Here, mirror means "keep synchronized".
+diff --git a/mm/Makefile b/mm/Makefile
+index ac5e5ba78874..91c99040065c 100644
+--- a/mm/Makefile
++++ b/mm/Makefile
+@@ -102,5 +102,5 @@ obj-$(CONFIG_FRAME_VECTOR) += frame_vector.o
+ obj-$(CONFIG_DEBUG_PAGE_REF) += debug_page_ref.o
+ obj-$(CONFIG_HARDENED_USERCOPY) += usercopy.o
+ obj-$(CONFIG_PERCPU_STATS) += percpu-stats.o
+-obj-$(CONFIG_HMM) += hmm.o
++obj-$(CONFIG_HMM_MIRROR) += hmm.o
+ obj-$(CONFIG_MEMFD_CREATE) += memfd.o
 diff --git a/mm/hmm.c b/mm/hmm.c
-index fdbd48771292..90ca0cdab9db 100644
+index 90ca0cdab9db..d62ce64d6bca 100644
 --- a/mm/hmm.c
 +++ b/mm/hmm.c
-@@ -1327,113 +1327,3 @@ long hmm_range_dma_unmap(struct hmm_range *range,
+@@ -25,7 +25,6 @@
+ #include <linux/mmu_notifier.h>
+ #include <linux/memory_hotplug.h>
+ 
+-#if IS_ENABLED(CONFIG_HMM_MIRROR)
+ static const struct mmu_notifier_ops hmm_mmu_notifier_ops;
+ 
+ static inline struct hmm *mm_get_hmm(struct mm_struct *mm)
+@@ -1326,4 +1325,3 @@ long hmm_range_dma_unmap(struct hmm_range *range,
+ 	return cpages;
  }
  EXPORT_SYMBOL(hmm_range_dma_unmap);
- #endif /* IS_ENABLED(CONFIG_HMM_MIRROR) */
--
--
--#if IS_ENABLED(CONFIG_DEVICE_PRIVATE)
--static void hmm_devmem_ref_release(struct percpu_ref *ref)
--{
--	struct hmm_devmem *devmem;
--
--	devmem = container_of(ref, struct hmm_devmem, ref);
--	complete(&devmem->completion);
--}
--
--static void hmm_devmem_ref_exit(struct dev_pagemap *pgmap)
--{
--	struct hmm_devmem *devmem;
--
--	devmem = container_of(pgmap, struct hmm_devmem, pagemap);
--	wait_for_completion(&devmem->completion);
--	percpu_ref_exit(pgmap->ref);
--}
--
--static void hmm_devmem_ref_kill(struct dev_pagemap *pgmap)
--{
--	percpu_ref_kill(pgmap->ref);
--}
--
--static vm_fault_t hmm_devmem_migrate_to_ram(struct vm_fault *vmf)
--{
--	struct hmm_devmem *devmem =
--		container_of(vmf->page->pgmap, struct hmm_devmem, pagemap);
--
--	return devmem->ops->fault(devmem, vmf->vma, vmf->address, vmf->page,
--			vmf->flags, vmf->pmd);
--}
--
--static void hmm_devmem_free(struct page *page)
--{
--	struct hmm_devmem *devmem =
--		container_of(page->pgmap, struct hmm_devmem, pagemap);
--
--	devmem->ops->free(devmem, page);
--}
--
--static const struct dev_pagemap_ops hmm_pagemap_ops = {
--	.page_free		= hmm_devmem_free,
--	.kill			= hmm_devmem_ref_kill,
--	.cleanup		= hmm_devmem_ref_exit,
--	.migrate_to_ram		= hmm_devmem_migrate_to_ram,
--};
--
--/*
-- * hmm_devmem_add() - hotplug ZONE_DEVICE memory for device memory
-- *
-- * @ops: memory event device driver callback (see struct hmm_devmem_ops)
-- * @device: device struct to bind the resource too
-- * @size: size in bytes of the device memory to add
-- * Returns: pointer to new hmm_devmem struct ERR_PTR otherwise
-- *
-- * This function first finds an empty range of physical address big enough to
-- * contain the new resource, and then hotplugs it as ZONE_DEVICE memory, which
-- * in turn allocates struct pages. It does not do anything beyond that; all
-- * events affecting the memory will go through the various callbacks provided
-- * by hmm_devmem_ops struct.
-- *
-- * Device driver should call this function during device initialization and
-- * is then responsible of memory management. HMM only provides helpers.
-- */
--struct hmm_devmem *hmm_devmem_add(const struct hmm_devmem_ops *ops,
--				  struct device *device,
--				  unsigned long size)
--{
--	struct hmm_devmem *devmem;
--	void *result;
--	int ret;
--
--	devmem = devm_kzalloc(device, sizeof(*devmem), GFP_KERNEL);
--	if (!devmem)
--		return ERR_PTR(-ENOMEM);
--
--	init_completion(&devmem->completion);
--	devmem->pfn_first = -1UL;
--	devmem->pfn_last = -1UL;
--	devmem->resource = NULL;
--	devmem->device = device;
--	devmem->ops = ops;
--
--	ret = percpu_ref_init(&devmem->ref, &hmm_devmem_ref_release,
--			      0, GFP_KERNEL);
--	if (ret)
--		return ERR_PTR(ret);
--
--	devmem->resource = devm_request_free_mem_region(device, &iomem_resource,
--			size);
--	if (IS_ERR(devmem->resource))
--		return ERR_CAST(devmem->resource);
--	devmem->pfn_first = devmem->resource->start >> PAGE_SHIFT;
--	devmem->pfn_last = devmem->pfn_first +
--			   (resource_size(devmem->resource) >> PAGE_SHIFT);
--
--	devmem->pagemap.type = MEMORY_DEVICE_PRIVATE;
--	devmem->pagemap.res = *devmem->resource;
--	devmem->pagemap.ops = &hmm_pagemap_ops;
--	devmem->pagemap.ref = &devmem->ref;
--
--	result = devm_memremap_pages(devmem->device, &devmem->pagemap);
--	if (IS_ERR(result))
--		return result;
--	return devmem;
--}
--EXPORT_SYMBOL_GPL(hmm_devmem_add);
--#endif /* CONFIG_DEVICE_PRIVATE  */
+-#endif /* IS_ENABLED(CONFIG_HMM_MIRROR) */
 -- 
 2.20.1
 
