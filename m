@@ -2,156 +2,168 @@ Return-Path: <SRS0=C/CR=UZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.7 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	UNWANTED_LANGUAGE_BODY,URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 721BEC4646B
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 06:24:33 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E35E8C4646B
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 06:27:53 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 35D902085A
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 06:24:33 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 35D902085A
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 9BF9C208E3
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 06:27:53 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (4096-bit key) header.d=d-silva.org header.i=@d-silva.org header.b="Q21Tz7lR"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9BF9C208E3
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=d-silva.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D53DC8E0007; Wed, 26 Jun 2019 02:24:32 -0400 (EDT)
+	id 451906B0003; Wed, 26 Jun 2019 02:27:53 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D03E38E0002; Wed, 26 Jun 2019 02:24:32 -0400 (EDT)
+	id 401618E0005; Wed, 26 Jun 2019 02:27:53 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C1B078E0007; Wed, 26 Jun 2019 02:24:32 -0400 (EDT)
+	id 2EFB08E0002; Wed, 26 Jun 2019 02:27:53 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 734008E0002
-	for <linux-mm@kvack.org>; Wed, 26 Jun 2019 02:24:32 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id a5so1573931edx.12
-        for <linux-mm@kvack.org>; Tue, 25 Jun 2019 23:24:32 -0700 (PDT)
+Received: from mail-yw1-f69.google.com (mail-yw1-f69.google.com [209.85.161.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 1115D6B0003
+	for <linux-mm@kvack.org>; Wed, 26 Jun 2019 02:27:53 -0400 (EDT)
+Received: by mail-yw1-f69.google.com with SMTP id 75so2938837ywb.3
+        for <linux-mm@kvack.org>; Tue, 25 Jun 2019 23:27:53 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=ixbkhMjrvN4fyamwYxcbOCGRSUAVx754wX2dY3eqNS0=;
-        b=bsPl43J/RM/g07REB6B86Dxmt9x2lLbsPbLA5bAb5CJu4MqfFKLEA4zodwx1qtkSKA
-         hbPgf+F2vTDIXR6HcMnvXXCT70S5q9VT0DDYaRpH38ppgxjdHs28IMfzCRnZLlyUh0qh
-         ms1w8Azm7IHM4UaSU2ht4kBgUKRQKsskk0hX4wPB2D2R8LaOsk3N+QM1eSX3r8Q7n4+d
-         heT2NzT1Og7P0Kv5tBupJOwH4TPOsbS5wzuKggcfYS6yl8ecxGqJlyOmvkTbe98BwrqS
-         zvP20/Ll8kzxdS2Q1y/GVJCXkFzORcMbrqvTT00vIhzrRwbZe6dgIHHBvMG00WYwE2r0
-         zefA==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAVoK20miXedCjVaWJGdIlZNOTiiPktZOXEwLgD9mQFk2NnIOPf2
-	yBGQs0D2H7KKmeJnMRefORRXPC/n6Kv8l7VHCHZMCpRJLhpiVkIYjszwhOE8+MOehWtS+we0AUg
-	wi+mOF4KY4vP8EABCqU8Su34HHsdK5cuIdbBiqiEonX3C2AkPZVPf5hBBSk/gHLE=
-X-Received: by 2002:a50:9f81:: with SMTP id c1mr3054277edf.140.1561530272054;
-        Tue, 25 Jun 2019 23:24:32 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxvnWdM7d8O/Ofkzh2MxmNx9Z5/yv6TYYeraagIMA0n5oopnmSZmab9CkpruI9yVNlgAq8z
-X-Received: by 2002:a50:9f81:: with SMTP id c1mr3054232edf.140.1561530271435;
-        Tue, 25 Jun 2019 23:24:31 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561530271; cv=none;
+        h=x-gm-message-state:dkim-signature:message-id:subject:from:to:cc
+         :date:in-reply-to:references:user-agent:mime-version
+         :content-transfer-encoding;
+        bh=bKtMuDo5CBGijAA2QTa7J4u84nOp4WnkLSmd5PHCa6c=;
+        b=hzWj4jY6JA3ixASjAlIl0xFrOouPZwfNwnrDTP0Z0W/Wp12tImiDzO2ICROACHxKaS
+         zTnKnFnQGpRkx+aBC/moYAbZ72yngEUBc7Jth1bBKtx1TblTwNs+HetR59FuFJbW6q9B
+         RR9E5lkH115VJJhAKFcA1oGFbEtG/66kHR1XTXLWkB9dUb43+GbhM7uLHCAP5T3YEx3E
+         3yAWWcjXGt/QWmS1iAdDNkfVZAQxbzUktMZYhMhfLBzOjcUKjFFArV3BYyFO5q1eBUgd
+         1hbfPpzOqxw0RpH6yrAMU0HVyXrE7XOET3rQThjFWuffBB95qhg7pSlrIcWSFTtvBSu9
+         UrnA==
+X-Gm-Message-State: APjAAAX6lk3nw29JbfqprhVx6NS1gSx7MlBEQ9Fl0JKIe+lUcq1TnxVK
+	AuSsCuJXSsHL4c7AoUpEQR+5nhjOaSLvUvDbQIJqYhAeSVIXO12Nvs28FqO9g/1cXJxntvkx7Ui
+	uSwml/I1OCULeOrSbWI8F84d16Mn9BgTng+loux6r094WZvB4qzaObl8VJ+tGEuuivw==
+X-Received: by 2002:a81:794f:: with SMTP id u76mr1545927ywc.438.1561530472762;
+        Tue, 25 Jun 2019 23:27:52 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxrKetUB6Z2SfYBd3DP0J9b0xjJhCBMX8jo8rUvWNGr93D+Hy3jkYSp5zfZkVWS6fcQVMwT
+X-Received: by 2002:a81:794f:: with SMTP id u76mr1545915ywc.438.1561530472237;
+        Tue, 25 Jun 2019 23:27:52 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561530472; cv=none;
         d=google.com; s=arc-20160816;
-        b=ydHgf5fTaGGd4vA01rfY2oeBpWR2aD0Pj6YBf87Pz54wkTdKMPhdnn4XafRvL/44FM
-         rV5b2Zc3F/RXrCKlIIgkXUgFKFfplLoh/PJ4iQQWVmjrlEEyNYoE/rnXA/I4CHl6BnFn
-         pR6sxR1YxZrlrRYVUj67sxeqoVoM/Qw+0R1cUBOhVnevFkODY27Jo7s7rAlJ4l1rOD3E
-         xO6EHZAYzl+eaEmRQYtWAeG3cbxzIDJ+0boxBk/pqQJehfEM3cPo8wkwvb2Pm2FldkPT
-         85r9cO9FtymvzE45L73YsgvjCbOKKf468mCRurjLNyXr/uMBEwSNOIHqHbCdnxYItaxN
-         jT6w==
+        b=bY/9FtlI+1nZknGtmsR54xAtUVejxmAUmHX9XVpA4AVkvf7D0s9irDXdduFHJoiIbC
+         DRluTdV0Z115CcWWHRNLz+alRY7oPTc3knXeIf+moBXyOVIuwUiFXhByygelVGDEK3jR
+         +7IIAp/N7xukWo/JACyMAljY0zutHP5tOm63GjCcOhl2/G7eMW3/ZcRTwmYvD0jZjIfn
+         oaIJ4ja8MwpfUje2bsCEJPP1GeCCBkuT7Sn0pMEe11oUEUYjTRKogRitUi+Q9Fzi0Vfc
+         XEIukRj7cO+5LGYLVsxzGlVZu4GtEXJemaIhTfEqIBsSXcRnDs7qkS4zzz03RIoy1JnL
+         ARMw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=ixbkhMjrvN4fyamwYxcbOCGRSUAVx754wX2dY3eqNS0=;
-        b=PIc55bu9kUPp1uyFQ4wNsSJacTu4itSEyOn06+eQ1dXlN3z0do32t/CW8JVo4dEm/+
-         l91XT6dSYFX3+ho+gXTQZcTfykWQS9oS1Mq9+ioZHH7N3pF/U08A+/+6K8ecuCA8Edvd
-         qJKUDFq+OO7K3J9hpca+Qn3ExMImrvO7f/Rw+k6F2eVECPNtIBOwZ67ktlyt/ZzK8SW0
-         j6co/3K1f43lsbMvWe9HeZTac9buBSNvn1wGw9ZwtvOTNXHglTfX3QnZv8mbrAgJeoe+
-         DnqFDwjZ/lvf8ffgFk8Kp2ATeYRZ7SNJz9J5RcLhvCBQA/HFMiSunaGprLNhpHG1hqXL
-         YbBQ==
+        h=content-transfer-encoding:mime-version:user-agent:references
+         :in-reply-to:date:cc:to:from:subject:message-id:dkim-signature;
+        bh=bKtMuDo5CBGijAA2QTa7J4u84nOp4WnkLSmd5PHCa6c=;
+        b=JaXseaIVy0ljjc9RZ2M2DPjZY3oGlR0lJJ3dgpC8zG08O3uUsddBLYKXq0jgIP0AvG
+         ylLcNvS6x5tjw+03GbuXWkJtaWp07GUygiCWIVjhpDk2qMel/cAOLZnd3VpkHWPc7xm3
+         1LbNlCTgy01d/Fl8o/heGUcK/tEZavhZttg2BbDxB0uLo+5m35WxmTf9k+EeUl8LFrFW
+         GcOfCkM9V2KafyK38QxmfXcpWJwd3iuiju9dyOqi0JifngafcJQrvTpPKyIn9l77gqAW
+         Xo8o5ovj6XLl0v3aoh6W36quxvrRHe5ud5DarmZ5fXYhzqNektYBIo6h40Ur5/EKKZhY
+         cXsA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id x11si1858830ejf.153.2019.06.25.23.24.31
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 25 Jun 2019 23:24:31 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+       dkim=pass header.i=@d-silva.org header.s=201810a header.b=Q21Tz7lR;
+       spf=pass (google.com: domain of alastair@d-silva.org designates 66.55.73.32 as permitted sender) smtp.mailfrom=alastair@d-silva.org
+Received: from ushosting.nmnhosting.com (ushosting.nmnhosting.com. [66.55.73.32])
+        by mx.google.com with ESMTP id z15si1358681ybm.157.2019.06.25.23.27.52
+        for <linux-mm@kvack.org>;
+        Tue, 25 Jun 2019 23:27:52 -0700 (PDT)
+Received-SPF: pass (google.com: domain of alastair@d-silva.org designates 66.55.73.32 as permitted sender) client-ip=66.55.73.32;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 011A7AD47;
-	Wed, 26 Jun 2019 06:24:31 +0000 (UTC)
-Date: Wed, 26 Jun 2019 08:24:28 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Alastair D'Silva <alastair@au1.ibm.com>
-Cc: alastair@d-silva.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	"Rafael J. Wysocki" <rafael@kernel.org>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Pavel Tatashin <pasha.tatashin@oracle.com>,
-	Oscar Salvador <osalvador@suse.de>,
-	Mike Rapoport <rppt@linux.ibm.com>, Baoquan He <bhe@redhat.com>,
-	Wei Yang <richard.weiyang@gmail.com>,
-	Logan Gunthorpe <logang@deltatee.com>, linux-kernel@vger.kernel.org,
-	linux-mm@kvack.org
-Subject: Re: [PATCH v2 3/3] mm: Don't manually decrement num_poisoned_pages
-Message-ID: <20190626062428.GH17798@dhcp22.suse.cz>
+       dkim=pass header.i=@d-silva.org header.s=201810a header.b=Q21Tz7lR;
+       spf=pass (google.com: domain of alastair@d-silva.org designates 66.55.73.32 as permitted sender) smtp.mailfrom=alastair@d-silva.org
+Received: from mail2.nmnhosting.com (unknown [202.169.106.97])
+	by ushosting.nmnhosting.com (Postfix) with ESMTPS id 564052DC0076;
+	Wed, 26 Jun 2019 02:27:51 -0400 (EDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=d-silva.org;
+	s=201810a; t=1561530471;
+	bh=OS25pYQAzwyq/F3INQW54JWjpNG6XHKsOQWiwDyVPqw=;
+	h=Subject:From:To:Cc:Date:In-Reply-To:References:From;
+	b=Q21Tz7lR78e1eemh5m852Ojib2t93ty4XFBF7dCSVVis3DHkZzvrUOFHElfcxKdLv
+	 q/t/wHkAcJTNEW0HCTFTfr2/1bFZkpoEXTNoVWPzqKVYTCxmYHZMZrtrNAlVlAbKF/
+	 70JKnrt1+j9MfeFV605Z5onDRpjOz5nNq+BFQr5rekm48xyZnlOnaIkbEXEpwCBl+k
+	 Epz3Vjzb8AjDIU/bLCG8ruewcAhawikBevodxWFoCUuERO64y09eYCcjOndShCmIgT
+	 SjqcBms2oRSr9wG6P2VS7YBLXdMpADrF4xeismseo+DV1As/fdHSyXJ07QRxVB7bF1
+	 h09ETdy6rxazcdLd090RnGVi1a9GVlTeG8Ui2qRxCv4/HkoGO6COIFM8ZM7BIrCUmc
+	 nfzMMShBzd4ZyBHhQJLFTSkb+zPFzWoDkF8OeE5rQW5u0ISLKXuMtBSWVoCSLSIHMl
+	 fmfRiW2EtlIbZOY4ccuXdCY1XQPUYCqfvJoFvko5OXXrCRzwTIX1JUWy4vrDb5p6V/
+	 aN+ixIv4VdyliDdu4t/TRSRV2T8SkMh3WuZv57BpOsjKJ36e5cCJZZHJJ95uJWZGxl
+	 LENT0oVU7VEkN+q3p7xwugpmcPhWPxmOCpFOwgNvjmpHVbsZTz+qnatEKr0PQ6fb7D
+	 G86MLOLS5xE4BFdAZ040YlAQ=
+Received: from adsilva.ozlabs.ibm.com (static-82-10.transact.net.au [122.99.82.10] (may be forged))
+	(authenticated bits=0)
+	by mail2.nmnhosting.com (8.15.2/8.15.2) with ESMTPSA id x5Q6RUtW031358
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NO);
+	Wed, 26 Jun 2019 16:27:45 +1000 (AEST)
+	(envelope-from alastair@d-silva.org)
+Message-ID: <d4af66721ea53ce7df2d45a567d17a30575672b2.camel@d-silva.org>
+Subject: Re: [PATCH v2 1/3] mm: Trigger bug on if a section is not found in
+ __section_nr
+From: "Alastair D'Silva" <alastair@d-silva.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+        "Rafael J. Wysocki"
+ <rafael@kernel.org>,
+        Andrew Morton <akpm@linux-foundation.org>,
+        Pavel
+ Tatashin <pasha.tatashin@oracle.com>,
+        Oscar Salvador <osalvador@suse.de>, Mike Rapoport <rppt@linux.ibm.com>,
+        Baoquan He <bhe@redhat.com>, Wei Yang
+ <richard.weiyang@gmail.com>,
+        Logan Gunthorpe <logang@deltatee.com>, linux-kernel@vger.kernel.org,
+        linux-mm@kvack.org
+Date: Wed, 26 Jun 2019 16:27:30 +1000
+In-Reply-To: <20190626062113.GF17798@dhcp22.suse.cz>
 References: <20190626061124.16013-1-alastair@au1.ibm.com>
- <20190626061124.16013-4-alastair@au1.ibm.com>
+	 <20190626061124.16013-2-alastair@au1.ibm.com>
+	 <20190626062113.GF17798@dhcp22.suse.cz>
+Content-Type: text/plain; charset="UTF-8"
+User-Agent: Evolution 3.32.2 (3.32.2-1.fc30) 
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190626061124.16013-4-alastair@au1.ibm.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+Content-Transfer-Encoding: 7bit
+X-Greylist: Sender succeeded SMTP AUTH, not delayed by milter-greylist-4.6.2 (mail2.nmnhosting.com [10.0.1.20]); Wed, 26 Jun 2019 16:27:47 +1000 (AEST)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed 26-06-19 16:11:23, Alastair D'Silva wrote:
-> From: Alastair D'Silva <alastair@d-silva.org>
+On Wed, 2019-06-26 at 08:21 +0200, Michal Hocko wrote:
+> On Wed 26-06-19 16:11:21, Alastair D'Silva wrote:
+> > From: Alastair D'Silva <alastair@d-silva.org>
+> > 
+> > If a memory section comes in where the physical address is greater
+> > than
+> > that which is managed by the kernel, this function would not
+> > trigger the
+> > bug and instead return a bogus section number.
+> > 
+> > This patch tracks whether the section was actually found, and
+> > triggers the
+> > bug if not.
 > 
-> Use the function written to do it instead.
-
-I am not sure a single line helper is a great win but this makes the
-code consistent at least.
-
-> Signed-off-by: Alastair D'Silva <alastair@d-silva.org>
-
-Acked-by: Michal Hocko <mhocko@suse.com>
-
-> ---
->  mm/sparse.c | 4 +++-
->  1 file changed, 3 insertions(+), 1 deletion(-)
-> 
-> diff --git a/mm/sparse.c b/mm/sparse.c
-> index 1ec32aef5590..d9b3625bfdf0 100644
-> --- a/mm/sparse.c
-> +++ b/mm/sparse.c
-> @@ -11,6 +11,8 @@
->  #include <linux/export.h>
->  #include <linux/spinlock.h>
->  #include <linux/vmalloc.h>
-> +#include <linux/swap.h>
-> +#include <linux/swapops.h>
+> Why do we want/need that? In other words the changelog should contina
+> WHY and WHAT. This one contains only the later one.
 >  
->  #include "internal.h"
->  #include <asm/dma.h>
-> @@ -772,7 +774,7 @@ static void clear_hwpoisoned_pages(struct page *memmap,
->  
->  	for (i = start; i < start + count; i++) {
->  		if (PageHWPoison(&memmap[i])) {
-> -			atomic_long_sub(1, &num_poisoned_pages);
-> +			num_poisoned_pages_dec();
->  			ClearPageHWPoison(&memmap[i]);
->  		}
->  	}
-> -- 
-> 2.21.0
+
+Thanks, I'll update the comment.
+
+During driver development, I tried adding peristent memory at a memory
+address that exceeded the maximum permissable address for the platform.
+
+This caused __section_nr to silently return bogus section numbers,
+rather than complaining.
 
 -- 
-Michal Hocko
-SUSE Labs
+Alastair D'Silva           mob: 0423 762 819
+skype: alastair_dsilva    
+Twitter: @EvilDeece
+blog: http://alastair.d-silva.org
+
 
