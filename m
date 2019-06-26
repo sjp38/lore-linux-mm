@@ -7,77 +7,77 @@ X-Spam-Status: No, score=-8.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	UNPARSEABLE_RELAY,URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A3DBFC48BD6
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 00:04:11 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 154A9C48BD5
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 00:04:16 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6113A20883
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 00:04:11 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6113A20883
+	by mail.kernel.org (Postfix) with ESMTP id BCC9320883
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 00:04:15 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BCC9320883
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 12A636B0003; Tue, 25 Jun 2019 20:04:11 -0400 (EDT)
+	id 6D1056B0006; Tue, 25 Jun 2019 20:04:15 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0DC608E0003; Tue, 25 Jun 2019 20:04:11 -0400 (EDT)
+	id 6A6088E0003; Tue, 25 Jun 2019 20:04:15 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id F33638E0002; Tue, 25 Jun 2019 20:04:10 -0400 (EDT)
+	id 570788E0002; Tue, 25 Jun 2019 20:04:15 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
-	by kanga.kvack.org (Postfix) with ESMTP id CEF186B0003
-	for <linux-mm@kvack.org>; Tue, 25 Jun 2019 20:04:10 -0400 (EDT)
-Received: by mail-ot1-f71.google.com with SMTP id m16so186127otq.13
-        for <linux-mm@kvack.org>; Tue, 25 Jun 2019 17:04:10 -0700 (PDT)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 207FC6B0006
+	for <linux-mm@kvack.org>; Tue, 25 Jun 2019 20:04:15 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id p14so228858plq.1
+        for <linux-mm@kvack.org>; Tue, 25 Jun 2019 17:04:15 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references;
-        bh=PV8bMP2UMNlkx7OeCEesXi507zEmJNhr1YhzchIxGFw=;
-        b=VMcl9yOUwimfyyp1xOlNvatRARN9RV3uuCXNBJ0Ys+IAZCGEk/h7TBqIlT8JwSiqmQ
-         LZoBbGHjFXkG+LNb1Ih0TqCHRwpMxjKZ4cewr47GfOFC3Gl+SsCzbFZh8+h8WH867g0J
-         BZPFkux0b0V9D3mijbx0CfKGVDNQvmAwG8b7fg00D/cp8xqbe5W15shWUEY0Twnq93ZH
-         cRVQcwWBktVo/4dvd3r5R5cTdxspTYSeC7T2RFjihsDONiOxFRVcdiweaXaIwRpWCOoe
-         pO2e8T7disrvyeMY8OQ2Bg/LxEXaKFs81oS0wMtKgH+BWB45F/+5gU+FqDWYXgStKiC/
-         VSzA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.130 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Gm-Message-State: APjAAAW3a7OkZkFhmsUT45tfJwXWu9nrDzPo9tHJjBEwWc6y8DmN+HaF
-	hMewP717WQJesXKRXl9xtG7HQZINt04QcKFiDIwfI57RikbyDV0jM7jslQB3ckLW6ymd7CGnXDT
-	igEXy1IkX3BVaxy1GgAFYzCXf8wjdSDwJB3rio1YPbvps/Y0UQj1v9+zOj9b9U9fARA==
-X-Received: by 2002:a9d:6d06:: with SMTP id o6mr903790otp.225.1561507450605;
-        Tue, 25 Jun 2019 17:04:10 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzR56wkTtXaqlEom5859xW2kOwvna338GM1DBXOUn9wPbz66SYChGqLPVXUqxIKmcs6dUZG
-X-Received: by 2002:a9d:6d06:: with SMTP id o6mr903621otp.225.1561507448071;
-        Tue, 25 Jun 2019 17:04:08 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561507448; cv=none;
+        bh=S797eYnzFdTMMfjZJVlwmlDvblrr20h1Xd/x4lcf5OU=;
+        b=riR+0wkK7nhWCJIwRFfK/0fWlly4F5MJdSLeGNqJ3jywC9f6hFsnxg20sIEr54PSsg
+         nfGC5v2QasUPl5AxsAqXHPgnzOYok1cet7txSBEHqtH5sHoJHpfXv6yFFRJPzTAHe940
+         GLb3Z3z5VoCxMQ0vN+A9qh2IBHskZpEI7/xUoReycGPkRgX1aQyMxEpVhxXMVDbQpkQw
+         tY4ue4zRlusz/SkQH5FmmNXLspRtyhhEDyYRXSjT/rpXOw5Ak6V6iZctPqX5Zgp5rnJM
+         5v6BaaJntLV1o0qN7+uG+RzpjJqJB/cccJzvYyJQkQRkzgQH+JLaXw8TDnSb6O+ncISs
+         oTkg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.37 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Gm-Message-State: APjAAAXKZIPMoAl4G7mTlHfxQIDdjj/T04Bl0B+qfAKXZl2qZ0GBNDOw
+	rObEXSw6QL6aYCx5pNkW5Hjx5zLqinI2YfJuSpLu2SHyxYB7ZFyavMbYVOeyFWEIggan5lJe7ew
+	Qpp/CgZukjRuv3PuDfRD47r5sK1CTqbE5uuWb70i8Nrpln4cO1pSsr6OxxE8sOq0tag==
+X-Received: by 2002:a17:90a:360c:: with SMTP id s12mr704058pjb.30.1561507454736;
+        Tue, 25 Jun 2019 17:04:14 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwm/blPXQZO+JfBS61gPdg8MmNlVLFvlwYjJUYSXc8HOQFZrIaV7aof5RcY8Q0WQRg/UfOJ
+X-Received: by 2002:a17:90a:360c:: with SMTP id s12mr703929pjb.30.1561507453259;
+        Tue, 25 Jun 2019 17:04:13 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561507453; cv=none;
         d=google.com; s=arc-20160816;
-        b=e87tc4+x9cU1umFmds0AkHoP0G24NEDb/JFz8KXa37A54pGmmdRC0SF8Wb1lg1ld/P
-         ukuY9CWpc9bOlpOZVszXwFav5XjVNbP1rafCYFh+vrDfmMSyilSmAmE4tX/3S8oV0xYd
-         FPKsk0YFI/3fCr3XdhXVRsdTijWFX1yC4xWUkxfOnIukSY1Zk/ujEjpXqieOmkrBJSS5
-         e7MK/fVhB3M4uJ8pcFhEfVJe9vy9TxElfEAMiu2qx61WgBAHZKUw9CMuQc5svs2BVeJo
-         jSOv//xFs9tiboblitBfhWJNj6iM8nXq+kC06CsphFTT+y4NRj2WEg2/mXJZqRX5ljSz
-         YKxw==
+        b=oVYUEYqxwLnwlwHIfd9oVxn4i9i1F8KHjq372TO9fnUxbNgh68py/IT/dBH1eZmWjT
+         GFi6o+SDagKzuxqslDagyPoHb3BCo0oVgKEuM94dHsov538jpOSyvl9QSDurdJ4ICv3N
+         JizR4Q2E/PDouyWeWnD5Q/1LL7LzlHacMACoysmpS/8EQPqpykZc/NV4k0vBylXxOd1J
+         X4Yl0n/wB5X8aMQGfOp9GWNYf5beRnadjdShUSxUjZDdOSXGgWnXqhK7WHmuMIsiOlkj
+         OSJnPVThSDqT/p53LNBb3wulBPNIHLwbJqH+OVxHvYRW5k72zxbHkr42lnRG3rW5s7wq
+         Lu5g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=PV8bMP2UMNlkx7OeCEesXi507zEmJNhr1YhzchIxGFw=;
-        b=IJj0ES2tLu3Febf6w1KD2lnSqsbCv/SOPgVMN/HydRNSZRGpzbXMFkuWnxa5N7Wn8T
-         eEAPp2IcV993VhUtHbU98ZYjXJ+2phKVrjy4kstQiCSnZ5T+bq4DVtb9tlNFJWjckqNb
-         J+RGd9WmY1nS3M84hrRmFXKUGYTE4NvyLbIB+z/fDf+mGfGIS8n4i3PNLW+xmTzqSFmP
-         3Nf8//tOpVZxZlnkgExyLQs0wSrMXivaHSSAK3glcyNtm1oBkpKlVy1L4BTQ1sSSeZlR
-         LOP57GA7KgHOSF4zieWTOXvgTy0rSzsGglq2lIEaNEznlwtJ2u9Rov/cSOXyNps3U9aR
-         V9Qw==
+        bh=S797eYnzFdTMMfjZJVlwmlDvblrr20h1Xd/x4lcf5OU=;
+        b=xTTVC7PD+tA4goR5Z5of/ATRnUUsRCh0MaMTCe1HThsM4ctK8A402UCGa0bN0wX0vj
+         6WpbT7tlQY/vg6+NJTk3yb15A1pMZBrxP39apmpLVa4SXFP4MphdifaV4XdHp47cljKt
+         XipR5CcdV5SjZ4kmDI6hL94xRCr9qMQE74ozgg+fp/28NjejL4CQf20tiOqVFKThkp3i
+         idjNU1EA7hEquxNWZDZ1jAbqCvPQ7ZKGE0aZQJCwFGVYTWU4jAFY04B1FU4BdHbCnq1U
+         q0WATpnWz/TIzcqBtPv5JaRHSI/IMhysYmZzJcaIDx0VUi/B6mRyZw2UNbGmCPNK+6xj
+         6Ttw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.130 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.37 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-Received: from out30-130.freemail.mail.aliyun.com (out30-130.freemail.mail.aliyun.com. [115.124.30.130])
-        by mx.google.com with ESMTPS id i20si8385870otr.202.2019.06.25.17.04.06
+Received: from out4437.biz.mail.alibaba.com (out4437.biz.mail.alibaba.com. [47.88.44.37])
+        by mx.google.com with ESMTPS id y135si10968724pfg.200.2019.06.25.17.04.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 25 Jun 2019 17:04:08 -0700 (PDT)
-Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.130 as permitted sender) client-ip=115.124.30.130;
+        Tue, 25 Jun 2019 17:04:13 -0700 (PDT)
+Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.37 as permitted sender) client-ip=47.88.44.37;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.130 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.37 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R151e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01f04446;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=11;SR=0;TI=SMTPD_---0TVCYVJX_1561507375;
+X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R171e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e04395;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=11;SR=0;TI=SMTPD_---0TVCYVJX_1561507375;
 Received: from e19h19392.et15sqa.tbsite.net(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TVCYVJX_1561507375)
           by smtp.aliyun-inc.com(127.0.0.1);
           Wed, 26 Jun 2019 08:03:03 +0800
@@ -93,9 +93,9 @@ To: kirill.shutemov@linux.intel.com,
 Cc: yang.shi@linux.alibaba.com,
 	linux-mm@kvack.org,
 	linux-kernel@vger.kernel.org
-Subject: [v4 PATCH 3/4] mm: shrinker: make shrinker not depend on memcg kmem
-Date: Wed, 26 Jun 2019 08:02:40 +0800
-Message-Id: <1561507361-59349-4-git-send-email-yang.shi@linux.alibaba.com>
+Subject: [v4 PATCH 4/4] mm: thp: make deferred split shrinker memcg aware
+Date: Wed, 26 Jun 2019 08:02:41 +0800
+Message-Id: <1561507361-59349-5-git-send-email-yang.shi@linux.alibaba.com>
 X-Mailer: git-send-email 1.8.3.1
 In-Reply-To: <1561507361-59349-1-git-send-email-yang.shi@linux.alibaba.com>
 References: <1561507361-59349-1-git-send-email-yang.shi@linux.alibaba.com>
@@ -105,14 +105,28 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Currently shrinker is just allocated and can work when memcg kmem is
-enabled.  But, THP deferred split shrinker is not slab shrinker, it
-doesn't make too much sense to have such shrinker depend on memcg kmem.
-It should be able to reclaim THP even though memcg kmem is disabled.
+Currently THP deferred split shrinker is not memcg aware, this may cause
+premature OOM with some configuration. For example the below test would
+run into premature OOM easily:
 
-Introduce a new shrinker flag, SHRINKER_NONSLAB, for non-slab shrinker.
-When memcg kmem is disabled, just such shrinkers can be called in
-shrinking memcg slab.
+$ cgcreate -g memory:thp
+$ echo 4G > /sys/fs/cgroup/memory/thp/memory/limit_in_bytes
+$ cgexec -g memory:thp transhuge-stress 4000
+
+transhuge-stress comes from kernel selftest.
+
+It is easy to hit OOM, but there are still a lot THP on the deferred
+split queue, memcg direct reclaim can't touch them since the deferred
+split shrinker is not memcg aware.
+
+Convert deferred split shrinker memcg aware by introducing per memcg
+deferred split queue.  The THP should be on either per node or per memcg
+deferred split queue if it belongs to a memcg.  When the page is
+immigrated to the other memcg, it will be immigrated to the target
+memcg's deferred split queue too.
+
+Reuse the second tail page's deferred_list for per memcg list since the
+same THP can't be on multiple deferred split queues.
 
 Cc: Kirill Tkhai <ktkhai@virtuozzo.com>
 Cc: Johannes Weiner <hannes@cmpxchg.org>
@@ -124,126 +138,240 @@ Cc: David Rientjes <rientjes@google.com>
 Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
 ---
- include/linux/shrinker.h |  3 ++-
- mm/vmscan.c              | 36 +++++++++++++++++++-----------------
- 2 files changed, 21 insertions(+), 18 deletions(-)
+ include/linux/huge_mm.h    |  9 +++++++
+ include/linux/memcontrol.h |  4 +++
+ include/linux/mm_types.h   |  1 +
+ mm/huge_memory.c           | 63 ++++++++++++++++++++++++++++++++++++++--------
+ mm/memcontrol.c            | 24 ++++++++++++++++++
+ 5 files changed, 90 insertions(+), 11 deletions(-)
 
-diff --git a/include/linux/shrinker.h b/include/linux/shrinker.h
-index 9443caf..9e112d6 100644
---- a/include/linux/shrinker.h
-+++ b/include/linux/shrinker.h
-@@ -69,7 +69,7 @@ struct shrinker {
+diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+index 7cd5c15..7738509 100644
+--- a/include/linux/huge_mm.h
++++ b/include/linux/huge_mm.h
+@@ -250,6 +250,15 @@ static inline bool thp_migration_supported(void)
+ 	return IS_ENABLED(CONFIG_ARCH_ENABLE_THP_MIGRATION);
+ }
  
- 	/* These are for internal use */
- 	struct list_head list;
--#ifdef CONFIG_MEMCG_KMEM
++static inline struct list_head *page_deferred_list(struct page *page)
++{
++	/*
++	 * Global or memcg deferred list in the second tail pages is
++	 * occupied by compound_head.
++	 */
++	return &page[2].deferred_list;
++}
++
+ #else /* CONFIG_TRANSPARENT_HUGEPAGE */
+ #define HPAGE_PMD_SHIFT ({ BUILD_BUG(); 0; })
+ #define HPAGE_PMD_MASK ({ BUILD_BUG(); 0; })
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index 1dcb763..77a313c 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -311,6 +311,10 @@ struct mem_cgroup {
+ 	struct list_head event_list;
+ 	spinlock_t event_list_lock;
+ 
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++	struct deferred_split deferred_split_queue;
++#endif
++
+ 	struct mem_cgroup_per_node *nodeinfo[0];
+ 	/* WARNING: nodeinfo must be the last member here */
+ };
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index 8ec38b1..4eabf80 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -139,6 +139,7 @@ struct page {
+ 		struct {	/* Second tail page of compound page */
+ 			unsigned long _compound_pad_1;	/* compound_head */
+ 			unsigned long _compound_pad_2;
++			/* For both global and memcg */
+ 			struct list_head deferred_list;
+ 		};
+ 		struct {	/* Page table pages */
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 81cf759..b00570d 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -492,11 +492,25 @@ pmd_t maybe_pmd_mkwrite(pmd_t pmd, struct vm_area_struct *vma)
+ 	return pmd;
+ }
+ 
+-static inline struct list_head *page_deferred_list(struct page *page)
 +#ifdef CONFIG_MEMCG
- 	/* ID in shrinker_idr */
- 	int id;
++static inline struct deferred_split *get_deferred_split_queue(struct page *page)
+ {
+-	/* ->lru in the tail pages is occupied by compound_head. */
+-	return &page[2].deferred_list;
++	struct mem_cgroup *memcg = compound_head(page)->mem_cgroup;
++	struct pglist_data *pgdat = NODE_DATA(page_to_nid(page));
++
++	if (memcg)
++		return &memcg->deferred_split_queue;
++	else
++		return &pgdat->deferred_split_queue;
+ }
++#else
++static inline struct deferred_split *get_deferred_split_queue(struct page *page)
++{
++	struct pglist_data *pgdat = NODE_DATA(page_to_nid(page));
++
++	return &pgdat->deferred_split_queue;
++}
++#endif
+ 
+ void prep_transhuge_page(struct page *page)
+ {
+@@ -2658,7 +2672,7 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
+ {
+ 	struct page *head = compound_head(page);
+ 	struct pglist_data *pgdata = NODE_DATA(page_to_nid(head));
+-	struct deferred_split *ds_queue = &pgdata->deferred_split_queue;
++	struct deferred_split *ds_queue = get_deferred_split_queue(page);
+ 	struct anon_vma *anon_vma = NULL;
+ 	struct address_space *mapping = NULL;
+ 	int count, mapcount, extra_pins, ret;
+@@ -2794,8 +2808,7 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
+ 
+ void free_transhuge_page(struct page *page)
+ {
+-	struct pglist_data *pgdata = NODE_DATA(page_to_nid(page));
+-	struct deferred_split *ds_queue = &pgdata->deferred_split_queue;
++	struct deferred_split *ds_queue = get_deferred_split_queue(page);
+ 	unsigned long flags;
+ 
+ 	spin_lock_irqsave(&ds_queue->split_queue_lock, flags);
+@@ -2809,8 +2822,10 @@ void free_transhuge_page(struct page *page)
+ 
+ void deferred_split_huge_page(struct page *page)
+ {
+-	struct pglist_data *pgdata = NODE_DATA(page_to_nid(page));
+-	struct deferred_split *ds_queue = &pgdata->deferred_split_queue;
++	struct deferred_split *ds_queue = get_deferred_split_queue(page);
++#ifdef CONFIG_MEMCG
++	struct mem_cgroup *memcg = compound_head(page)->mem_cgroup;
++#endif
+ 	unsigned long flags;
+ 
+ 	VM_BUG_ON_PAGE(!PageTransHuge(page), page);
+@@ -2820,6 +2835,11 @@ void deferred_split_huge_page(struct page *page)
+ 		count_vm_event(THP_DEFERRED_SPLIT_PAGE);
+ 		list_add_tail(page_deferred_list(page), &ds_queue->split_queue);
+ 		ds_queue->split_queue_len++;
++#ifdef CONFIG_MEMCG
++		if (memcg)
++			memcg_set_shrinker_bit(memcg, page_to_nid(page),
++					       deferred_split_shrinker.id);
++#endif
+ 	}
+ 	spin_unlock_irqrestore(&ds_queue->split_queue_lock, flags);
+ }
+@@ -2827,8 +2847,19 @@ void deferred_split_huge_page(struct page *page)
+ static unsigned long deferred_split_count(struct shrinker *shrink,
+ 		struct shrink_control *sc)
+ {
++	struct deferred_split *ds_queue;
+ 	struct pglist_data *pgdata = NODE_DATA(sc->nid);
+-	struct deferred_split *ds_queue = &pgdata->deferred_split_queue;
++
++#ifdef CONFIG_MEMCG
++	if (!sc->memcg) {
++		ds_queue = &pgdata->deferred_split_queue;
++		return READ_ONCE(ds_queue->split_queue_len);
++	}
++
++	ds_queue = &sc->memcg->deferred_split_queue;
++#else
++	ds_queue = &pgdata->deferred_split_queue;
++#endif
+ 	return READ_ONCE(ds_queue->split_queue_len);
+ }
+ 
+@@ -2836,12 +2867,21 @@ static unsigned long deferred_split_scan(struct shrinker *shrink,
+ 		struct shrink_control *sc)
+ {
+ 	struct pglist_data *pgdata = NODE_DATA(sc->nid);
+-	struct deferred_split *ds_queue = &pgdata->deferred_split_queue;
++	struct deferred_split *ds_queue;
+ 	unsigned long flags;
+ 	LIST_HEAD(list), *pos, *next;
+ 	struct page *page;
+ 	int split = 0;
+ 
++#ifdef CONFIG_MEMCG
++	if (sc->memcg)
++		ds_queue = &sc->memcg->deferred_split_queue;
++	else
++		ds_queue = &pgdata->deferred_split_queue;
++#else
++	ds_queue = &pgdata->deferred_split_queue;
++#endif
++
+ 	spin_lock_irqsave(&ds_queue->split_queue_lock, flags);
+ 	/* Take pin on all head pages to avoid freeing them under us */
+ 	list_for_each_safe(pos, next, &ds_queue->split_queue) {
+@@ -2888,7 +2928,8 @@ static unsigned long deferred_split_scan(struct shrinker *shrink,
+ 	.count_objects = deferred_split_count,
+ 	.scan_objects = deferred_split_scan,
+ 	.seeks = DEFAULT_SEEKS,
+-	.flags = SHRINKER_NUMA_AWARE,
++	.flags = SHRINKER_NUMA_AWARE | SHRINKER_MEMCG_AWARE |
++		 SHRINKER_NONSLAB,
+ };
+ 
+ #ifdef CONFIG_DEBUG_FS
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index ba9138a..5730608 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -4585,6 +4585,11 @@ static struct mem_cgroup *mem_cgroup_alloc(void)
+ #ifdef CONFIG_CGROUP_WRITEBACK
+ 	INIT_LIST_HEAD(&memcg->cgwb_list);
  #endif
-@@ -81,6 +81,7 @@ struct shrinker {
- /* Flags */
- #define SHRINKER_NUMA_AWARE	(1 << 0)
- #define SHRINKER_MEMCG_AWARE	(1 << 1)
-+#define SHRINKER_NONSLAB	(1 << 2)
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++	spin_lock_init(&memcg->deferred_split_queue.split_queue_lock);
++	INIT_LIST_HEAD(&memcg->deferred_split_queue.split_queue);
++	memcg->deferred_split_queue.split_queue_len = 0;
++#endif
+ 	idr_replace(&mem_cgroup_idr, memcg, memcg->id.id);
+ 	return memcg;
+ fail:
+@@ -4955,6 +4960,14 @@ static int mem_cgroup_move_account(struct page *page,
+ 		__mod_memcg_state(to, NR_WRITEBACK, nr_pages);
+ 	}
  
- extern int prealloc_shrinker(struct shrinker *shrinker);
- extern void register_shrinker_prepared(struct shrinker *shrinker);
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 7889f58..187cacb 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -174,8 +174,7 @@ struct scan_control {
- static LIST_HEAD(shrinker_list);
- static DECLARE_RWSEM(shrinker_rwsem);
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++	if (compound && !list_empty(page_deferred_list(page))) {
++		spin_lock(&from->deferred_split_queue.split_queue_lock);
++		list_del_init(page_deferred_list(page));
++		from->deferred_split_queue.split_queue_len--;
++		spin_unlock(&from->deferred_split_queue.split_queue_lock);
++	}
++#endif
+ 	/*
+ 	 * It is safe to change page->mem_cgroup here because the page
+ 	 * is referenced, charged, and isolated - we can't race with
+@@ -4963,6 +4976,17 @@ static int mem_cgroup_move_account(struct page *page,
  
--#ifdef CONFIG_MEMCG_KMEM
--
-+#ifdef CONFIG_MEMCG
- /*
-  * We allow subsystems to populate their shrinker-related
-  * LRU lists before register_shrinker_prepared() is called
-@@ -227,18 +226,7 @@ static void unregister_memcg_shrinker(struct shrinker *shrinker)
- 	idr_remove(&shrinker_idr, id);
- 	up_write(&shrinker_rwsem);
- }
--#else /* CONFIG_MEMCG_KMEM */
--static int prealloc_memcg_shrinker(struct shrinker *shrinker)
--{
--	return 0;
--}
- 
--static void unregister_memcg_shrinker(struct shrinker *shrinker)
--{
--}
--#endif /* CONFIG_MEMCG_KMEM */
--
--#ifdef CONFIG_MEMCG
- static bool global_reclaim(struct scan_control *sc)
- {
- 	return !sc->target_mem_cgroup;
-@@ -293,6 +281,15 @@ static bool memcg_congested(pg_data_t *pgdat,
- 
- }
- #else
-+static int prealloc_memcg_shrinker(struct shrinker *shrinker)
-+{
-+	return 0;
-+}
+ 	/* caller should have done css_get */
+ 	page->mem_cgroup = to;
 +
-+static void unregister_memcg_shrinker(struct shrinker *shrinker)
-+{
-+}
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++	if (compound && list_empty(page_deferred_list(page))) {
++		spin_lock(&to->deferred_split_queue.split_queue_lock);
++		list_add_tail(page_deferred_list(page),
++			      &to->deferred_split_queue.split_queue);
++		to->deferred_split_queue.split_queue_len++;
++		spin_unlock(&to->deferred_split_queue.split_queue_lock);
++	}
++#endif
 +
- static bool global_reclaim(struct scan_control *sc)
- {
- 	return true;
-@@ -579,7 +576,7 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
- 	return freed;
- }
+ 	spin_unlock_irqrestore(&from->move_lock, flags);
  
--#ifdef CONFIG_MEMCG_KMEM
-+#ifdef CONFIG_MEMCG
- static unsigned long shrink_slab_memcg(gfp_t gfp_mask, int nid,
- 			struct mem_cgroup *memcg, int priority)
- {
-@@ -587,7 +584,7 @@ static unsigned long shrink_slab_memcg(gfp_t gfp_mask, int nid,
- 	unsigned long ret, freed = 0;
- 	int i;
- 
--	if (!memcg_kmem_enabled() || !mem_cgroup_online(memcg))
-+	if (!mem_cgroup_online(memcg))
- 		return 0;
- 
- 	if (!down_read_trylock(&shrinker_rwsem))
-@@ -613,6 +610,11 @@ static unsigned long shrink_slab_memcg(gfp_t gfp_mask, int nid,
- 			continue;
- 		}
- 
-+		/* Call non-slab shrinkers even though kmem is disabled */
-+		if (!memcg_kmem_enabled() &&
-+		    !(shrinker->flags & SHRINKER_NONSLAB))
-+			continue;
-+
- 		ret = do_shrink_slab(&sc, shrinker, priority);
- 		if (ret == SHRINK_EMPTY) {
- 			clear_bit(i, map->map);
-@@ -649,13 +651,13 @@ static unsigned long shrink_slab_memcg(gfp_t gfp_mask, int nid,
- 	up_read(&shrinker_rwsem);
- 	return freed;
- }
--#else /* CONFIG_MEMCG_KMEM */
-+#else /* CONFIG_MEMCG */
- static unsigned long shrink_slab_memcg(gfp_t gfp_mask, int nid,
- 			struct mem_cgroup *memcg, int priority)
- {
- 	return 0;
- }
--#endif /* CONFIG_MEMCG_KMEM */
-+#endif /* CONFIG_MEMCG */
- 
- /**
-  * shrink_slab - shrink slab caches
+ 	ret = 0;
 -- 
 1.8.3.1
 
