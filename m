@@ -8,100 +8,100 @@ X-Spam-Status: No, score=-16.4 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
 	USER_AGENT_GIT,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 347C5C48BD9
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 14:28:08 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7DB98C48BD9
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 14:28:11 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D255721670
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 14:28:07 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 3BA602133F
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 14:28:11 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="u/9U+nio"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D255721670
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="Rpe/+hhA"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3BA602133F
 Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 731CB8E0014; Wed, 26 Jun 2019 10:28:07 -0400 (EDT)
+	id 929588E0015; Wed, 26 Jun 2019 10:28:10 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6687E8E0002; Wed, 26 Jun 2019 10:28:07 -0400 (EDT)
+	id 8DB2F8E0002; Wed, 26 Jun 2019 10:28:10 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 50BB48E0014; Wed, 26 Jun 2019 10:28:07 -0400 (EDT)
+	id 7F17D8E0015; Wed, 26 Jun 2019 10:28:10 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ua1-f70.google.com (mail-ua1-f70.google.com [209.85.222.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F9738E0002
-	for <linux-mm@kvack.org>; Wed, 26 Jun 2019 10:28:07 -0400 (EDT)
-Received: by mail-ua1-f70.google.com with SMTP id a29so242692uah.8
-        for <linux-mm@kvack.org>; Wed, 26 Jun 2019 07:28:07 -0700 (PDT)
+Received: from mail-yw1-f70.google.com (mail-yw1-f70.google.com [209.85.161.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C5C08E0002
+	for <linux-mm@kvack.org>; Wed, 26 Jun 2019 10:28:10 -0400 (EDT)
+Received: by mail-yw1-f70.google.com with SMTP id o135so5227093ywo.16
+        for <linux-mm@kvack.org>; Wed, 26 Jun 2019 07:28:10 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:in-reply-to:message-id
          :mime-version:references:subject:from:to:cc;
-        bh=3eGEWBsY8dqF2V6DSZ5u38cqY6eLJM9O9Aa4+MoaYxw=;
-        b=T1lUMGtWFiAZn1MYhUM0cKO/6yhm/rxR6box+5QA6XyFdCkjBlopvvJzf9rlmrggff
-         SKSSRyFjrHaiOffU2daPpI/xwRxqmku3+yheQAIzDOx3avOBwddJO9dLxJIXXKmOV2JC
-         38b3PAPjlqmO/5VXKfP0fG3KaUUqXfVJV8wrv8juMXvECFeZniN2iO1KhVCt272xXAFY
-         U/JthH2qOqKLV6xhJ13iEJVZBGAvFcWZ6ifY4W8HVrN5iHbPcfM5e6mcS/xWEdUwZcNb
-         dN1+e9YD+uMx1vrPv+rYA1OECSdQOjbEiQIp5Yg5fyKsfle8WxELqli8qSbkmXg8ucXb
-         gKTA==
-X-Gm-Message-State: APjAAAW0I4G0XGFyIw4h9hBiHRBVXfNk2xzCJhtQ4zM/2zruE+/TT1tu
-	vk2NnxwZEQVszntRxWL4n1tNnmJpvsRrhB1Wz6dNr2Nj0Ty07BPB/yo1rWgyHjCcSBD9Y0kJ2zx
-	+Wj0X9PxMcy6XJu9Y1nOo3RBMBQSvj3x2XwwjyxNhW+klgjHx3CZppBxnoEP2DpqRyQ==
-X-Received: by 2002:a67:e9d9:: with SMTP id q25mr3090762vso.74.1561559286875;
-        Wed, 26 Jun 2019 07:28:06 -0700 (PDT)
-X-Received: by 2002:a67:e9d9:: with SMTP id q25mr3090725vso.74.1561559286272;
-        Wed, 26 Jun 2019 07:28:06 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561559286; cv=none;
+        bh=faSJHauNDZMNHqAQEQyENlJrk267vkTV0fUxMXAvovc=;
+        b=NkSZdG46pCZ3UC3MWeRkRkfXYwm2zPE2HhZpB3jB9ykMABzCzI6t1N9VM76a0KDZ5r
+         onjNd69YtaCqEji1WGcD30WtIWhkOsTvbyVQabWnrOodoXWSwfa7o9pSiKh2bPhEU/9H
+         INs6EDFh/sF2DfIgFEg7xVxKi1LAs/0Ew/MQssI11gIegvtjtYdMBrUgK1jCgjz6mZFJ
+         KVTtm72XGzTTaMpK2ULOxDtLyxlMrKMIH7dKJ9e+dHi9y5xYP/6/PhHNSKMC4ZuPOqWo
+         CO4ClsL5YAs8tEVesqIlRmZZOG83XUAASIb3H0ekUD5HJSbZ13s5d8ixCx/tP+4POn+b
+         T2Ag==
+X-Gm-Message-State: APjAAAV/FQCrDmNAa7KoWMg8pRgG466R/96x/whveqB3Qx7F5BqkBYkZ
+	zwe5yhAeP0YAci/42PFfjyD41pVjsQm1ZptzDGi0g+q6hX9MTOXyrr0vwWoNkX3XXbeEOXmcY2c
+	mG0fgzwf1KHSmHbrPAlhgHYhFs+nkwdxp1gsLPFUfkSKMDAnHJWp2vWcpa+YFZNzZvQ==
+X-Received: by 2002:a25:2f90:: with SMTP id v138mr3016504ybv.238.1561559290080;
+        Wed, 26 Jun 2019 07:28:10 -0700 (PDT)
+X-Received: by 2002:a25:2f90:: with SMTP id v138mr3016469ybv.238.1561559289442;
+        Wed, 26 Jun 2019 07:28:09 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561559289; cv=none;
         d=google.com; s=arc-20160816;
-        b=D2THdBpV8CYu9TCZJypiItEk2UJ9pm5sNiXKr3fcJD/PFzXI5R3VTJxZoyZvsotPxl
-         QsT+BALv6MplipfgR4bAVzVNOMQrLok9uyEKbvul7sFAhwCqc6YzPvX/Pc+rAk1e8dF3
-         /vkLF1R2BYyW9p7AdE9TRWjYMS3vJtYa/ZwyWRy8bUQ8f10UFJ+cQSQT02MINwclAmDw
-         NzafGc9B5CS+k+oQLGV519YTA6NyXGZkMfeTPZmPmdt7dFswL5rnLG7WLGFWANxGk68J
-         vppgUnI25rpx2inlsn0/hVfxaN7wdRGusoNOn0VjqsuL9K9Up+ShLLapcTYoVxBo4Awi
-         8r/g==
+        b=RyrmvlCJ5iuDYZP9xmG5/CjCozqNJCdAvMKu6WyYAD7SlWXv3NYFKyiHpvL6OyRV0n
+         xI/Zo9eFD5lf22yCfeBy6z7CdthtWXIAMqAijY4myB2Oa9192udzbB23tNfugObTuI/k
+         mhLMCVrHOOQOjSaEns7tid6z9QkjeqYxHuz+JY6WYCG2Qq3c9MTbZ8zkbO6RaJWOArPv
+         uNWVcsLzsVBwCjswUB9LZfRM53W8UG21Oq4yNXB+L0aCSUU/h8f4NXwu/G3o970SNSla
+         +u+ShlZ2UC9W5N67H+pZicSAnlh+fVCxW5FQum0cHbG4mv/HPfGWm2SgG/0tEhR0Iip2
+         nF1g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:from:subject:references:mime-version:message-id:in-reply-to
          :date:dkim-signature;
-        bh=3eGEWBsY8dqF2V6DSZ5u38cqY6eLJM9O9Aa4+MoaYxw=;
-        b=i5KayI0oOCYIVUwCecfR1hdU9iRYjEJeVSn93QgB3b1ubNRurqCMngzjhU/nDEJdSh
-         aeen/BImIdRqVcAz0pFgBU5qwYd9zDYXYx2zfMGP1Dmnt5qBqr1Ede0i82LJ7vanbsgQ
-         r2XrpIu/hGMVYwh2E12QRiTRIU7i4MLIAzNhyxwkRvLhblrD2hw+ZsD5Av9WL1HrJMrX
-         v/f7rvlKi1OUy0NCf/NZH5xEjy0UoPyaJvEFfPPV1kFidBeYLrkHLQSf5SLCbn23ejiO
-         MYo4IIG+/M+4QZgfowiWxCA9VrdwcSoF+XxGOycN4cW/yOzKKdlBegivR06Y+pASFvy/
-         SSsw==
+        bh=faSJHauNDZMNHqAQEQyENlJrk267vkTV0fUxMXAvovc=;
+        b=yn564ySOLH7CmRxDF3Mtv0JliRXUYXbUZUs+CoVWQwJmtwrWJlVflLrCQf0fsRhadP
+         hZdr7Ra4GYK36c7F77+G62rUqJucwdHV1G7SjDDUNmRzzYpYZtzhwyNI9TPrwenEJQSU
+         0eA89y4MjK5LRi/beQCU9Isp0MLJeLPCMX8L/COKwbwXtGWeIqn3I6sGiN/SqtL5vyiw
+         n6vt9TyQ/0+FWzP5j6TKgnE+GUki1Qq7pFjoQU4rBSpxlu/0o8f53t2aG5Co9VeOmcfC
+         3Hb0fwIvcbWVBRmYJQw1WC4bUja/EGuc2vnQJ5IOJskZNDAKuj5Nb3NCDqnvVGY0x2oQ
+         5/wA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b="u/9U+nio";
-       spf=pass (google.com: domain of 39yatxqukcdqubluhweewbu.secbydkn-ccalqsa.ehw@flex--elver.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=39YATXQUKCDQUblUhWeeWbU.SecbYdkn-ccalQSa.ehW@flex--elver.bounces.google.com;
+       dkim=pass header.i=@google.com header.s=20161025 header.b="Rpe/+hhA";
+       spf=pass (google.com: domain of 3-yatxqukcdgyfpylaiiafy.wigfchor-ggepuwe.ila@flex--elver.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3-YATXQUKCDgYfpYlaiiafY.Wigfchor-ggepUWe.ila@flex--elver.bounces.google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
-        by mx.google.com with SMTPS id l64sor5409218vkg.23.2019.06.26.07.28.06
+        by mx.google.com with SMTPS id 127sor9863854ybg.106.2019.06.26.07.28.09
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 26 Jun 2019 07:28:06 -0700 (PDT)
-Received-SPF: pass (google.com: domain of 39yatxqukcdqubluhweewbu.secbydkn-ccalqsa.ehw@flex--elver.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
+        Wed, 26 Jun 2019 07:28:09 -0700 (PDT)
+Received-SPF: pass (google.com: domain of 3-yatxqukcdgyfpylaiiafy.wigfchor-ggepuwe.ila@flex--elver.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b="u/9U+nio";
-       spf=pass (google.com: domain of 39yatxqukcdqubluhweewbu.secbydkn-ccalqsa.ehw@flex--elver.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=39YATXQUKCDQUblUhWeeWbU.SecbYdkn-ccalQSa.ehW@flex--elver.bounces.google.com;
+       dkim=pass header.i=@google.com header.s=20161025 header.b="Rpe/+hhA";
+       spf=pass (google.com: domain of 3-yatxqukcdgyfpylaiiafy.wigfchor-ggepuwe.ila@flex--elver.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3-YATXQUKCDgYfpYlaiiafY.Wigfchor-ggepUWe.ila@flex--elver.bounces.google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=google.com; s=20161025;
         h=date:in-reply-to:message-id:mime-version:references:subject:from:to
          :cc;
-        bh=3eGEWBsY8dqF2V6DSZ5u38cqY6eLJM9O9Aa4+MoaYxw=;
-        b=u/9U+nio0GSQlTuwXQJYoLEcLF76o87YU8PcOckc4P78mxdxcX2UHm9EJLgXpLkXI5
-         HQt7VNp7dkReXf/MW6OH7DXj8PZkvAKjLN1R9ZAJ3mJ/d13kIUhoP7HmTZrewr22chyt
-         T309sesiuUjKxYHbwNl0ml81KCv75+HCSipQYmUn34aqKbM465NC1YTY0rRGd/fuqGH4
-         l91CX114soALpbHKmRDF0xGDcGJfDc5o4imbC3mAOQPLzLPWoFHSWX8OvNtpv4uhs/3s
-         7dkzwq+JudTY0lRiJUeHcINv/obrEvTfimyBai//ek9cE1vxy9hLCL9Uji+qwgilNtbz
-         Hzqw==
-X-Google-Smtp-Source: APXvYqztp05jq/iKevbZ1lrkTr3y4FJp0BJcho7hQ2605KOA4eSE2mE8lLNh3stpTm9Ss5/+9xiosgWh9w==
-X-Received: by 2002:a1f:14c1:: with SMTP id 184mr1327869vku.69.1561559285813;
- Wed, 26 Jun 2019 07:28:05 -0700 (PDT)
-Date: Wed, 26 Jun 2019 16:20:13 +0200
+        bh=faSJHauNDZMNHqAQEQyENlJrk267vkTV0fUxMXAvovc=;
+        b=Rpe/+hhAuik4wEKF7ZnhSFTzCJWomnStiupdaRm5p3WH78LIhaqN01wh0/La2gPWd0
+         GiWq87RjANNNVjijGXlI/D5fMC4N2f3aQ6pFE1DkTOd5HtLbPcPyYUoZAXnRJDsX1bUI
+         HqUFzIbq50jIdzQAGS74aQswueJLB6Gj1rTKk9dLogJ+8knw6wW5Dq2QR5NV7avh8n5D
+         CPnMn+dJ4Gy6aUdvTo04WvF/Hj8UgmAZmMypmXnFNRO0cyKFQCWldDBg7rbeuKvkIu2f
+         3x75GlN+HPPBvLh1hinwDSnWPmtIEZ3O5tvDaGybq/sHn4keSYz0bdMNtEu2NdTPDdeQ
+         Eocw==
+X-Google-Smtp-Source: APXvYqyJYKdUcCtVZqyt4moVcnw2f3kYsOmTBBGDeGBkbTpjuw8th3J9bd9qALY9ZOos9usZ38iNTR3hyg==
+X-Received: by 2002:a25:4d55:: with SMTP id a82mr2984762ybb.383.1561559289029;
+ Wed, 26 Jun 2019 07:28:09 -0700 (PDT)
+Date: Wed, 26 Jun 2019 16:20:14 +0200
 In-Reply-To: <20190626142014.141844-1-elver@google.com>
-Message-Id: <20190626142014.141844-5-elver@google.com>
+Message-Id: <20190626142014.141844-6-elver@google.com>
 Mime-Version: 1.0
 References: <20190626142014.141844-1-elver@google.com>
 X-Mailer: git-send-email 2.22.0.410.gd8fdbe21b5-goog
-Subject: [PATCH v3 4/5] mm/slab: Refactor common ksize KASAN logic into slab_common.c
+Subject: [PATCH v3 5/5] mm/kasan: Add object validation in ksize()
 From: Marco Elver <elver@google.com>
 To: elver@google.com
 Cc: linux-kernel@vger.kernel.org, Andrey Ryabinin <aryabinin@virtuozzo.com>, 
@@ -117,11 +117,28 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This refactors common code of ksize() between the various allocators
-into slab_common.c: __ksize() is the allocator-specific implementation
-without instrumentation, whereas ksize() includes the required KASAN
-logic.
+ksize() has been unconditionally unpoisoning the whole shadow memory region
+associated with an allocation. This can lead to various undetected bugs,
+for example, double-kzfree().
 
+Specifically, kzfree() uses ksize() to determine the actual allocation
+size, and subsequently zeroes the memory. Since ksize() used to just
+unpoison the whole shadow memory region, no invalid free was detected.
+
+This patch addresses this as follows:
+
+1. Add a check in ksize(), and only then unpoison the memory region.
+
+2. Preserve kasan_unpoison_slab() semantics by explicitly unpoisoning
+   the shadow memory region using the size obtained from __ksize().
+
+Tested:
+1. With SLAB allocator: a) normal boot without warnings; b) verified the
+   added double-kzfree() is detected.
+2. With SLUB allocator: a) normal boot without warnings; b) verified the
+   added double-kzfree() is detected.
+
+Bugzilla: https://bugzilla.kernel.org/show_bug.cgi?id=199359
 Signed-off-by: Marco Elver <elver@google.com>
 Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>
 Cc: Dmitry Vyukov <dvyukov@google.com>
@@ -137,160 +154,60 @@ Cc: kasan-dev@googlegroups.com
 Cc: linux-kernel@vger.kernel.org
 Cc: linux-mm@kvack.org
 ---
- include/linux/slab.h |  1 +
- mm/slab.c            | 28 ++++++----------------------
- mm/slab_common.c     | 26 ++++++++++++++++++++++++++
- mm/slob.c            |  4 ++--
- mm/slub.c            | 14 ++------------
- 5 files changed, 37 insertions(+), 36 deletions(-)
+ include/linux/kasan.h |  7 +++++--
+ mm/slab_common.c      | 21 ++++++++++++++++++++-
+ 2 files changed, 25 insertions(+), 3 deletions(-)
 
-diff --git a/include/linux/slab.h b/include/linux/slab.h
-index 9449b19c5f10..98c3d12b7275 100644
---- a/include/linux/slab.h
-+++ b/include/linux/slab.h
-@@ -184,6 +184,7 @@ void * __must_check __krealloc(const void *, size_t, gfp_t);
- void * __must_check krealloc(const void *, size_t, gfp_t);
- void kfree(const void *);
- void kzfree(const void *);
+diff --git a/include/linux/kasan.h b/include/linux/kasan.h
+index b40ea104dd36..cc8a03cc9674 100644
+--- a/include/linux/kasan.h
++++ b/include/linux/kasan.h
+@@ -76,8 +76,11 @@ void kasan_free_shadow(const struct vm_struct *vm);
+ int kasan_add_zero_shadow(void *start, unsigned long size);
+ void kasan_remove_zero_shadow(void *start, unsigned long size);
+ 
+-size_t ksize(const void *);
+-static inline void kasan_unpoison_slab(const void *ptr) { ksize(ptr); }
 +size_t __ksize(const void *);
- size_t ksize(const void *);
++static inline void kasan_unpoison_slab(const void *ptr)
++{
++	kasan_unpoison_shadow(ptr, __ksize(ptr));
++}
+ size_t kasan_metadata_size(struct kmem_cache *cache);
  
- #ifdef CONFIG_HAVE_HARDENED_USERCOPY_ALLOCATOR
-diff --git a/mm/slab.c b/mm/slab.c
-index f7117ad9b3a3..394e7c7a285e 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -4204,33 +4204,17 @@ void __check_heap_object(const void *ptr, unsigned long n, struct page *page,
- #endif /* CONFIG_HARDENED_USERCOPY */
- 
- /**
-- * ksize - get the actual amount of memory allocated for a given object
-- * @objp: Pointer to the object
-+ * __ksize -- Uninstrumented ksize.
-  *
-- * kmalloc may internally round up allocations and return more memory
-- * than requested. ksize() can be used to determine the actual amount of
-- * memory allocated. The caller may use this additional memory, even though
-- * a smaller amount of memory was initially specified with the kmalloc call.
-- * The caller must guarantee that objp points to a valid object previously
-- * allocated with either kmalloc() or kmem_cache_alloc(). The object
-- * must not be freed during the duration of the call.
-- *
-- * Return: size of the actual memory used by @objp in bytes
-+ * Unlike ksize(), __ksize() is uninstrumented, and does not provide the same
-+ * safety checks as ksize() with KASAN instrumentation enabled.
-  */
--size_t ksize(const void *objp)
-+size_t __ksize(const void *objp)
- {
--	size_t size;
--
- 	BUG_ON(!objp);
- 	if (unlikely(objp == ZERO_SIZE_PTR))
- 		return 0;
- 
--	size = virt_to_cache(objp)->object_size;
--	/* We assume that ksize callers could use the whole allocated area,
--	 * so we need to unpoison this area.
--	 */
--	kasan_unpoison_shadow(objp, size);
--
--	return size;
-+	return virt_to_cache(objp)->object_size;
- }
--EXPORT_SYMBOL(ksize);
-+EXPORT_SYMBOL(__ksize);
+ bool kasan_save_enable_multi_shot(void);
 diff --git a/mm/slab_common.c b/mm/slab_common.c
-index 58251ba63e4a..b7c6a40e436a 100644
+index b7c6a40e436a..ba4a859261d5 100644
 --- a/mm/slab_common.c
 +++ b/mm/slab_common.c
-@@ -1597,6 +1597,32 @@ void kzfree(const void *p)
- }
- EXPORT_SYMBOL(kzfree);
- 
-+/**
-+ * ksize - get the actual amount of memory allocated for a given object
-+ * @objp: Pointer to the object
-+ *
-+ * kmalloc may internally round up allocations and return more memory
-+ * than requested. ksize() can be used to determine the actual amount of
-+ * memory allocated. The caller may use this additional memory, even though
-+ * a smaller amount of memory was initially specified with the kmalloc call.
-+ * The caller must guarantee that objp points to a valid object previously
-+ * allocated with either kmalloc() or kmem_cache_alloc(). The object
-+ * must not be freed during the duration of the call.
-+ *
-+ * Return: size of the actual memory used by @objp in bytes
-+ */
-+size_t ksize(const void *objp)
-+{
-+	size_t size = __ksize(objp);
-+	/*
-+	 * We assume that ksize callers could use whole allocated area,
-+	 * so we need to unpoison this area.
-+	 */
-+	kasan_unpoison_shadow(objp, size);
-+	return size;
-+}
-+EXPORT_SYMBOL(ksize);
+@@ -1613,7 +1613,26 @@ EXPORT_SYMBOL(kzfree);
+  */
+ size_t ksize(const void *objp)
+ {
+-	size_t size = __ksize(objp);
++	size_t size;
 +
- /* Tracepoints definitions. */
- EXPORT_TRACEPOINT_SYMBOL(kmalloc);
- EXPORT_TRACEPOINT_SYMBOL(kmem_cache_alloc);
-diff --git a/mm/slob.c b/mm/slob.c
-index 84aefd9b91ee..7f421d0ca9ab 100644
---- a/mm/slob.c
-+++ b/mm/slob.c
-@@ -527,7 +527,7 @@ void kfree(const void *block)
- EXPORT_SYMBOL(kfree);
- 
- /* can't use ksize for kmem_cache_alloc memory, only kmalloc */
--size_t ksize(const void *block)
-+size_t __ksize(const void *block)
- {
- 	struct page *sp;
- 	int align;
-@@ -545,7 +545,7 @@ size_t ksize(const void *block)
- 	m = (unsigned int *)(block - align);
- 	return SLOB_UNITS(*m) * SLOB_UNIT;
- }
--EXPORT_SYMBOL(ksize);
-+EXPORT_SYMBOL(__ksize);
- 
- int __kmem_cache_create(struct kmem_cache *c, slab_flags_t flags)
- {
-diff --git a/mm/slub.c b/mm/slub.c
-index cd04dbd2b5d0..05a8d17dd9b2 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -3901,7 +3901,7 @@ void __check_heap_object(const void *ptr, unsigned long n, struct page *page,
- }
- #endif /* CONFIG_HARDENED_USERCOPY */
- 
--static size_t __ksize(const void *object)
-+size_t __ksize(const void *object)
- {
- 	struct page *page;
- 
-@@ -3917,17 +3917,7 @@ static size_t __ksize(const void *object)
- 
- 	return slab_ksize(page->slab_cache);
- }
--
--size_t ksize(const void *object)
--{
--	size_t size = __ksize(object);
--	/* We assume that ksize callers could use whole allocated area,
--	 * so we need to unpoison this area.
--	 */
--	kasan_unpoison_shadow(object, size);
--	return size;
--}
--EXPORT_SYMBOL(ksize);
-+EXPORT_SYMBOL(__ksize);
- 
- void kfree(const void *x)
- {
++	BUG_ON(!objp);
++	/*
++	 * We need to check that the pointed to object is valid, and only then
++	 * unpoison the shadow memory below. We use __kasan_check_read(), to
++	 * generate a more useful report at the time ksize() is called (rather
++	 * than later where behaviour is undefined due to potential
++	 * use-after-free or double-free).
++	 *
++	 * If the pointed to memory is invalid we return 0, to avoid users of
++	 * ksize() writing to and potentially corrupting the memory region.
++	 *
++	 * We want to perform the check before __ksize(), to avoid potentially
++	 * crashing in __ksize() due to accessing invalid metadata.
++	 */
++	if (unlikely(objp == ZERO_SIZE_PTR) || !__kasan_check_read(objp, 1))
++		return 0;
++
++	size = __ksize(objp);
+ 	/*
+ 	 * We assume that ksize callers could use whole allocated area,
+ 	 * so we need to unpoison this area.
 -- 
 2.22.0.410.gd8fdbe21b5-goog
 
