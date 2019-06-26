@@ -7,78 +7,78 @@ X-Spam-Status: No, score=-8.5 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
 	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3654EC48BD8
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 12:28:32 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C829BC48BD8
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 12:28:35 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D53102063F
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 12:28:31 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 836AF2063F
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 12:28:35 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="N//4HeEC"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D53102063F
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="eqf0zYAq"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 836AF2063F
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BA7A48E0018; Wed, 26 Jun 2019 08:28:12 -0400 (EDT)
+	id 89C648E000E; Wed, 26 Jun 2019 08:28:14 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AE15B8E000E; Wed, 26 Jun 2019 08:28:12 -0400 (EDT)
+	id 7D7088E0005; Wed, 26 Jun 2019 08:28:14 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9AB8A8E0018; Wed, 26 Jun 2019 08:28:12 -0400 (EDT)
+	id 5FFA38E000E; Wed, 26 Jun 2019 08:28:14 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 592C08E000E
-	for <linux-mm@kvack.org>; Wed, 26 Jun 2019 08:28:12 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id i35so1517823pgi.18
-        for <linux-mm@kvack.org>; Wed, 26 Jun 2019 05:28:12 -0700 (PDT)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 251008E0005
+	for <linux-mm@kvack.org>; Wed, 26 Jun 2019 08:28:14 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id q14so1682276pff.8
+        for <linux-mm@kvack.org>; Wed, 26 Jun 2019 05:28:14 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=MSqhsOhHHQhh/vRiKblwUI14+k+RDGeRz1Fjt2V0teQ=;
-        b=TasEaDV61rdmVbHsVHqh05pe36oRdzApImoUxR8jPnlQNsE3PGi7xINkduF/QingQy
-         mCSGrdrJwnYoNcPgWpFjkTPMfoduBufePe9J/+qbZvctrqh3nOjjEUUY5k1sZWXhv2p8
-         GaMD7OL2QGJR0E2Y+CuaN5fOyU1vY5m/W1XrRrPCjgKFOqe9czlomoue6ql+pICbQ89N
-         65i7/HfwhfoiOgr71NbYyYBGeneEW0kXWBiJlhYBTrlaUTQykzWI/gW4wVVW/LEs9CPo
-         Hsy/OCtNUEHKnOBQ4VwL5TtZcX2S8NtNhqaica2nA6lzdQvIMDIuFKKL57uoiEhehNY8
-         Nz4g==
-X-Gm-Message-State: APjAAAUI+IXTEptlwRbngIul3DFg//qK7JVXiNGRux+K0mYd8UhFB0uQ
-	UG0eenubPx3IIc7/8nHTuZyHleIeuFWXJRahp1FqzCTqhtF1Ita9f6v/F2BQBvaah2GWbulz611
-	qtRszt8ZhNJcp+lCPgXJkzTciXI2ZNcEUSu0wrlWtr1eQMj3P9NeDAUeRpm4I3+0=
-X-Received: by 2002:a63:2323:: with SMTP id j35mr2758351pgj.166.1561552091915;
-        Wed, 26 Jun 2019 05:28:11 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy7DWOiGDWNNw9oVvn5plMMoKGsxqvIfeNI6hpeUsKDJ5YO+EBj8TJ97+m6lXxLk+Rvg370
-X-Received: by 2002:a63:2323:: with SMTP id j35mr2758287pgj.166.1561552090938;
-        Wed, 26 Jun 2019 05:28:10 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561552090; cv=none;
+        bh=YDLkJcbbU4N/zfzWVPo9ZgCQKX5AsR9fCDGQSDpCCD0=;
+        b=f2nDLqHdAHQ1QiCTWS0J3GV5c9I0weG3Xfhy0guNkwpdfvCtPuNwNNiGZ9yIKNi9yj
+         w5Ij5EfPUhM9Pay0htHVPxi8ZIZBi+mr37NE4RCnrsOaYSU1XV5DpyK0hHrqoZfythdg
+         3PbSnlMWhgwDAlLB4hmBUsg4xxgWrlfpGacj9qq3z+LDvHGfsJlNTxyzCF64JpgAOyPK
+         EvLnJBR+gyvlEcgeJG677pM2dD9/+OsKqrJ3FtQiEKR90sFt8XS875bXcNTltwmTbrQL
+         xQLA3ZhqaQKQXjvCIfRMPIdFk57gJlKqrSMY5ahZUL97xukbBSHq/ZsEwBakJXpmETJL
+         jLMA==
+X-Gm-Message-State: APjAAAWVnh4hAN1hbmQt67CKP+80CVx0g8hjIX1kH7mERouZvkEz+j4Q
+	7goU9/Q8VtO4Mrp10k1i2gp1i0X+5UjSwxL343O6oO9/7MCxWkk08XhTC1hHY4dl3/DCUfkw11o
+	ZZrir6IbgK2lF/18dQkNue70pSfmKZI31Xl36DIWHLrrnDOqUQSCrUi8yWYhVeSE=
+X-Received: by 2002:a63:d0:: with SMTP id 199mr2739226pga.85.1561552093735;
+        Wed, 26 Jun 2019 05:28:13 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzQVdU9Wbq1EbMOCvuaicC7KreR+qQ6VRLnpYDwnbIh36ibFv3MP4c/yODuYAQ+F+QT1H3M
+X-Received: by 2002:a63:d0:: with SMTP id 199mr2739161pga.85.1561552092880;
+        Wed, 26 Jun 2019 05:28:12 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561552092; cv=none;
         d=google.com; s=arc-20160816;
-        b=OqLzZvs4jeqtInJ1XFuy41brz5OXyxpyywvZc9TvkTW+r1aDvgP7hwRKkeSKVs1E4N
-         8ojkXt9EYO3RrHnj+zvg+fwAF0RC8QlR9ehMpGKBpIFaDXlAMSa9zC5EaHJoH6XwB745
-         JS1heKrAnlk8hzz8swTJSDFKoXhGfOViA7KA/fmYlKhV1gJSaczhlo0GqzFtkYAP2+KY
-         gAogqs1T+Xcp2vD58xT5L0BsXxH8PqfJyfuXcO803ktxPWWsr8gpZJ8L28LJpVrDpHBw
-         dYcPPe+kqGpd4YoUUXuwYpddqksbvhoqF+GEWAASCJSxZUU6Wcj2YqOe2KI8fzdNxkor
-         CBJA==
+        b=TV5O/mk6uHIu8ZqJ/mZW5PBF5KEa3kbMTrSGg01tZ2iv+Wa824PkKIxNmO6BJy9hlG
+         Bnh/2L8/nm+BL5sBjQN7+JK+1gmqhjumPVB5TjJRNJxXHT+cPmTZsn/2LZVjvijnZHRw
+         9FcJ9/rW4WK3RPiChH7+dM216Yayn66WYNhf0RJY6IxiKwgcW7rFe9ndCqoDK6S8U6l0
+         Ntxn9wxxlDdAxqHHMpHLMYFFo8pgU5FAciPij0vevRL/t5RRLwFvhRiWJFjzNF3Oyls8
+         X2v5ZJrU/4GQk7t3mk10sF2QtRcwcsWwNusTJQBeKabCbOSrF3R0dJzlXnI/RXMWGyEK
+         Nb7Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=MSqhsOhHHQhh/vRiKblwUI14+k+RDGeRz1Fjt2V0teQ=;
-        b=Wz4o+OLuRtUQHUJAtJj3yB0Qj/tvRMRhocZUeb9b9k/ndGGk8B84JHwuEpmSsOypJm
-         NciKUVkyqd6VQdB8LBPikFiOkzB8BSWZesXC92V7PRand8ox8SlyVXNDUxCodEMfsX7g
-         goJyumyvRjaYMZQfTTrJfbPFyTG1Qy1Gz+bfYct9EYhQ3GnA5uUu8CthPDt1yeKzrUSM
-         OWGUVtthxxomPJlBQuXLR2BL26PNLkgpcVh5gaBkqlfiyHiJ22qxQpjFnXbQzhBxz+bN
-         Z2KPYMySHWevNkpLCnM5XYo1cwEMIVvdT1Lka6YA3NWUsjCrPxyccOERw8IkunKmjvMQ
-         lrUQ==
+        bh=YDLkJcbbU4N/zfzWVPo9ZgCQKX5AsR9fCDGQSDpCCD0=;
+        b=m9lGvb5u7DZHPQIn8Ga5gTXnAMNcLtVH7rEySJhWqlwih1B7mHblhtZUOxHhSOk/ez
+         NxmudoyyQnZ8cxx6swuIn/wS4Yi2MNMBl1fGEhrNzEJYg9cx0tfJENv7ipV47iQWDkfv
+         ZBR28AlDGPwxSF9qzdrAkA7U4XDHRi4+qYJdb4M375X4L9UuqIbtRcVwDR0Dpz61PTD7
+         xGFD4YSSv2P17P1vr5EVORzRNZBgj7iEHyxsKIaACb0RvBdHSt/GoWnW9AJfooQ0LhdL
+         YJR8bmHCq5iNzO0C/+EHLlGA5mRdCaxbNT1rzzb9+09RCWowNM9Ng/BpC0t4sGL2sE4x
+         LmsA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b="N//4HeEC";
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=eqf0zYAq;
        spf=pass (google.com: best guess record for domain of batv+ab1f803c58217d155be4+5785+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+ab1f803c58217d155be4+5785+infradead.org+hch@bombadil.srs.infradead.org
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id v18si3084501ply.276.2019.06.26.05.28.10
+        by mx.google.com with ESMTPS id r34si4278906pgl.141.2019.06.26.05.28.12
         for <linux-mm@kvack.org>
         (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Wed, 26 Jun 2019 05:28:10 -0700 (PDT)
+        Wed, 26 Jun 2019 05:28:12 -0700 (PDT)
 Received-SPF: pass (google.com: best guess record for domain of batv+ab1f803c58217d155be4+5785+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b="N//4HeEC";
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=eqf0zYAq;
        spf=pass (google.com: best guess record for domain of batv+ab1f803c58217d155be4+5785+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+ab1f803c58217d155be4+5785+infradead.org+hch@bombadil.srs.infradead.org
 DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	d=infradead.org; s=bombadil.20170209; h=Content-Transfer-Encoding:
@@ -86,15 +86,15 @@ DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	:Reply-To:Content-Type:Content-ID:Content-Description:Resent-Date:Resent-From
 	:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:List-Help:
 	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	bh=MSqhsOhHHQhh/vRiKblwUI14+k+RDGeRz1Fjt2V0teQ=; b=N//4HeECq3UJOCKX62rkn37gSh
-	ROohrNo4+XO2CypRboXwHfZL+x2pNZEqi/UIkkXTH/PQ3nlapb8sMzHVKe1fHcLMMZzb6wYHCmzyH
-	DDjydit/uxRXm8YaKxHe3ZtRKYidhunf9j4brsDVxF63wuI/6JXONJeVNPHGm5xq7ao/0hJ+pWvNA
-	B389MJkFLJVTCKHUMYaoZaXc109b5oFZFWiSVj2wstJp2EODd1ShO4JNs5qDLmHPnz9nTOowKwXpG
-	kdLfgq9FfnwVfh6DxraUsJMGYBfzTxKILw6eBtZgS+WwfEUfRQeXrnJ0FkZJWo4zlmzPKAZv7ufMy
-	ndCZw/WA==;
+	bh=YDLkJcbbU4N/zfzWVPo9ZgCQKX5AsR9fCDGQSDpCCD0=; b=eqf0zYAqZkZeG8aDStJr1BpZ1P
+	ESvtZ/x6goy5uCLOi8uh5odrF/jDvEPUaqDs779fgL8qsCyiCG2Ery24ccFf7Y0roHYb5/v+BzjZd
+	xvJYhdsaPbrOrKlFB9NzVbHgKqVz953pfvNGqyyv5cMEWoHLfF9YDaBYwCVVotAmsfAouontNfJIt
+	pC/KsdDr1ehz4StOtp3FSfKb+O6soSwumbQYEJcyvsfr9PEr8MVPAAeAHs4HYu/6nrrbmT2tdJj4K
+	nauKDKfBWnolN5vCPrT8Befr6TTsUp5glW5APuxKXXVhJiU6XtHj2xrRMVBIAKAAazFHBbPh/Dc4n
+	j7M/oClg==;
 Received: from clnet-p19-102.ikbnet.co.at ([83.175.77.102] helo=localhost)
 	by bombadil.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
-	id 1hg71y-0001Vr-Ul; Wed, 26 Jun 2019 12:28:07 +0000
+	id 1hg721-0001X8-Jr; Wed, 26 Jun 2019 12:28:10 +0000
 From: Christoph Hellwig <hch@lst.de>
 To: Dan Williams <dan.j.williams@intel.com>,
 	=?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
@@ -106,9 +106,9 @@ Cc: linux-mm@kvack.org,
 	linux-nvdimm@lists.01.org,
 	linux-pci@vger.kernel.org,
 	linux-kernel@vger.kernel.org
-Subject: [PATCH 15/25] memremap: provide an optional internal refcount in struct dev_pagemap
-Date: Wed, 26 Jun 2019 14:27:14 +0200
-Message-Id: <20190626122724.13313-16-hch@lst.de>
+Subject: [PATCH 16/25] device-dax: use the dev_pagemap internal refcount
+Date: Wed, 26 Jun 2019 14:27:15 +0200
+Message-Id: <20190626122724.13313-17-hch@lst.de>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190626122724.13313-1-hch@lst.de>
 References: <20190626122724.13313-1-hch@lst.de>
@@ -121,238 +121,106 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Provide an internal refcounting logic if no ->ref field is provided
-in the pagemap passed into devm_memremap_pages so that callers don't
-have to reinvent it poorly.
+The functionality is identical to the one currently open coded in
+device-dax.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- include/linux/memremap.h          |  4 ++
- kernel/memremap.c                 | 64 ++++++++++++++++++++++++-------
- tools/testing/nvdimm/test/iomap.c | 58 ++++++++++++++++++++++------
- 3 files changed, 101 insertions(+), 25 deletions(-)
+ drivers/dax/dax-private.h |  4 ----
+ drivers/dax/device.c      | 43 ---------------------------------------
+ 2 files changed, 47 deletions(-)
 
-diff --git a/include/linux/memremap.h b/include/linux/memremap.h
-index e25685b878e9..f8a5b2a19945 100644
---- a/include/linux/memremap.h
-+++ b/include/linux/memremap.h
-@@ -95,6 +95,8 @@ struct dev_pagemap_ops {
-  * @altmap: pre-allocated/reserved memory for vmemmap allocations
-  * @res: physical address range covered by @ref
-  * @ref: reference count that pins the devm_memremap_pages() mapping
-+ * @internal_ref: internal reference if @ref is not provided by the caller
-+ * @done: completion for @internal_ref
-  * @dev: host device of the mapping for debug
-  * @data: private data pointer for page_free()
-  * @type: memory type: see MEMORY_* in memory_hotplug.h
-@@ -105,6 +107,8 @@ struct dev_pagemap {
- 	struct vmem_altmap altmap;
- 	struct resource res;
- 	struct percpu_ref *ref;
-+	struct percpu_ref internal_ref;
-+	struct completion done;
- 	struct device *dev;
- 	enum memory_type type;
- 	unsigned int flags;
-diff --git a/kernel/memremap.c b/kernel/memremap.c
-index eee490e7d7e1..bea6f887adad 100644
---- a/kernel/memremap.c
-+++ b/kernel/memremap.c
-@@ -29,7 +29,7 @@ static void devmap_managed_enable_put(void *data)
+diff --git a/drivers/dax/dax-private.h b/drivers/dax/dax-private.h
+index b4177aafbbd1..c915889d1769 100644
+--- a/drivers/dax/dax-private.h
++++ b/drivers/dax/dax-private.h
+@@ -43,8 +43,6 @@ struct dax_region {
+  * @target_node: effective numa node if dev_dax memory range is onlined
+  * @dev - device core
+  * @pgmap - pgmap for memmap setup / lifetime (driver owned)
+- * @ref: pgmap reference count (driver owned)
+- * @cmp: @ref final put completion (driver owned)
+  */
+ struct dev_dax {
+ 	struct dax_region *region;
+@@ -52,8 +50,6 @@ struct dev_dax {
+ 	int target_node;
+ 	struct device dev;
+ 	struct dev_pagemap pgmap;
+-	struct percpu_ref ref;
+-	struct completion cmp;
+ };
  
- static int devmap_managed_enable_get(struct device *dev, struct dev_pagemap *pgmap)
- {
--	if (!pgmap->ops->page_free) {
-+	if (!pgmap->ops || !pgmap->ops->page_free) {
- 		WARN(1, "Missing page_free method\n");
- 		return -EINVAL;
- 	}
-@@ -75,6 +75,24 @@ static unsigned long pfn_next(unsigned long pfn)
- #define for_each_device_pfn(pfn, map) \
- 	for (pfn = pfn_first(map); pfn < pfn_end(map); pfn = pfn_next(pfn))
+ static inline struct dev_dax *to_dev_dax(struct device *dev)
+diff --git a/drivers/dax/device.c b/drivers/dax/device.c
+index b5257038c188..1af823b2fe6b 100644
+--- a/drivers/dax/device.c
++++ b/drivers/dax/device.c
+@@ -14,36 +14,6 @@
+ #include "dax-private.h"
+ #include "bus.h"
  
-+static void dev_pagemap_kill(struct dev_pagemap *pgmap)
-+{
-+	if (pgmap->ops && pgmap->ops->kill)
-+		pgmap->ops->kill(pgmap);
-+	else
-+		percpu_ref_kill(pgmap->ref);
-+}
-+
-+static void dev_pagemap_cleanup(struct dev_pagemap *pgmap)
-+{
-+	if (pgmap->ops && pgmap->ops->cleanup) {
-+		pgmap->ops->cleanup(pgmap);
-+	} else {
-+		wait_for_completion(&pgmap->done);
-+		percpu_ref_exit(pgmap->ref);
-+	}
-+}
-+
- static void devm_memremap_pages_release(void *data)
- {
- 	struct dev_pagemap *pgmap = data;
-@@ -84,10 +102,10 @@ static void devm_memremap_pages_release(void *data)
- 	unsigned long pfn;
- 	int nid;
- 
--	pgmap->ops->kill(pgmap);
-+	dev_pagemap_kill(pgmap);
- 	for_each_device_pfn(pfn, pgmap)
- 		put_page(pfn_to_page(pfn));
--	pgmap->ops->cleanup(pgmap);
-+	dev_pagemap_cleanup(pgmap);
- 
- 	/* pages are dead and unused, undo the arch mapping */
- 	align_start = res->start & ~(SECTION_SIZE - 1);
-@@ -114,20 +132,29 @@ static void devm_memremap_pages_release(void *data)
- 		      "%s: failed to free all reserved pages\n", __func__);
- }
- 
-+static void dev_pagemap_percpu_release(struct percpu_ref *ref)
-+{
-+	struct dev_pagemap *pgmap =
-+		container_of(ref, struct dev_pagemap, internal_ref);
-+
-+	complete(&pgmap->done);
-+}
-+
- /**
-  * devm_memremap_pages - remap and provide memmap backing for the given resource
-  * @dev: hosting device for @res
-  * @pgmap: pointer to a struct dev_pagemap
-  *
-  * Notes:
-- * 1/ At a minimum the res, ref and type and ops members of @pgmap must be
-- *    initialized by the caller before passing it to this function
-+ * 1/ At a minimum the res and type members of @pgmap must be initialized
-+ *    by the caller before passing it to this function
-  *
-  * 2/ The altmap field may optionally be initialized, in which case
-  *    PGMAP_ALTMAP_VALID must be set in pgmap->flags.
-  *
-- * 3/ pgmap->ref must be 'live' on entry and will be killed and reaped
-- *    at devm_memremap_pages_release() time, or if this routine fails.
-+ * 3/ The ref field may optionally be provided, in which pgmap->ref must be
-+ *    'live' on entry and will be killed and reaped at
-+ *    devm_memremap_pages_release() time, or if this routine fails.
-  *
-  * 4/ res is expected to be a host memory range that could feasibly be
-  *    treated as a "System RAM" range, i.e. not a device mmio range, but
-@@ -175,10 +202,21 @@ void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
- 		break;
- 	}
- 
--	if (!pgmap->ref || !pgmap->ops || !pgmap->ops->kill ||
--	    !pgmap->ops->cleanup) {
--		WARN(1, "Missing reference count teardown definition\n");
--		return ERR_PTR(-EINVAL);
-+	if (!pgmap->ref) {
-+		if (pgmap->ops && (pgmap->ops->kill || pgmap->ops->cleanup))
-+			return ERR_PTR(-EINVAL);
-+
-+		init_completion(&pgmap->done);
-+		error = percpu_ref_init(&pgmap->internal_ref,
-+				dev_pagemap_percpu_release, 0, GFP_KERNEL);
-+		if (error)
-+			return ERR_PTR(error);
-+		pgmap->ref = &pgmap->internal_ref;
-+	} else {
-+		if (!pgmap->ops || !pgmap->ops->kill || !pgmap->ops->cleanup) {
-+			WARN(1, "Missing reference count teardown definition\n");
-+			return ERR_PTR(-EINVAL);
-+		}
- 	}
- 
- 	if (need_devmap_managed) {
-@@ -296,8 +334,8 @@ void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
-  err_pfn_remap:
- 	pgmap_array_delete(res);
-  err_array:
--	pgmap->ops->kill(pgmap);
--	pgmap->ops->cleanup(pgmap);
-+	dev_pagemap_kill(pgmap);
-+	dev_pagemap_cleanup(pgmap);
- 	return ERR_PTR(error);
- }
- EXPORT_SYMBOL_GPL(devm_memremap_pages);
-diff --git a/tools/testing/nvdimm/test/iomap.c b/tools/testing/nvdimm/test/iomap.c
-index 82f901569e06..cd040b5abffe 100644
---- a/tools/testing/nvdimm/test/iomap.c
-+++ b/tools/testing/nvdimm/test/iomap.c
-@@ -100,26 +100,60 @@ static void nfit_test_kill(void *_pgmap)
- {
- 	struct dev_pagemap *pgmap = _pgmap;
- 
--	WARN_ON(!pgmap || !pgmap->ref || !pgmap->ops || !pgmap->ops->kill ||
--		!pgmap->ops->cleanup);
--	pgmap->ops->kill(pgmap);
--	pgmap->ops->cleanup(pgmap);
-+	WARN_ON(!pgmap || !pgmap->ref);
-+
-+	if (pgmap->ops && pgmap->ops->kill)
-+		pgmap->ops->kill(pgmap);
-+	else
-+		percpu_ref_kill(pgmap->ref);
-+
-+	if (pgmap->ops && pgmap->ops->cleanup) {
-+		pgmap->ops->cleanup(pgmap);
-+	} else {
-+		wait_for_completion(&pgmap->done);
-+		percpu_ref_exit(pgmap->ref);
-+	}
-+}
-+
-+static void dev_pagemap_percpu_release(struct percpu_ref *ref)
-+{
-+	struct dev_pagemap *pgmap =
-+		container_of(ref, struct dev_pagemap, internal_ref);
-+
-+	complete(&pgmap->done);
- }
- 
- void *__wrap_devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
- {
-+	int error;
- 	resource_size_t offset = pgmap->res.start;
- 	struct nfit_test_resource *nfit_res = get_nfit_res(offset);
- 
--	if (nfit_res) {
--		int rc;
+-static struct dev_dax *ref_to_dev_dax(struct percpu_ref *ref)
+-{
+-	return container_of(ref, struct dev_dax, ref);
+-}
 -
--		rc = devm_add_action_or_reset(dev, nfit_test_kill, pgmap);
--		if (rc)
--			return ERR_PTR(rc);
--		return nfit_res->buf + offset - nfit_res->res.start;
-+	if (!nfit_res)
-+		return devm_memremap_pages(dev, pgmap);
-+
-+	pgmap->dev = dev;
-+	if (!pgmap->ref) {
-+		if (pgmap->ops && (pgmap->ops->kill || pgmap->ops->cleanup))
-+			return ERR_PTR(-EINVAL);
-+
-+		init_completion(&pgmap->done);
-+		error = percpu_ref_init(&pgmap->internal_ref,
-+				dev_pagemap_percpu_release, 0, GFP_KERNEL);
-+		if (error)
-+			return ERR_PTR(error);
-+		pgmap->ref = &pgmap->internal_ref;
-+	} else {
-+		if (!pgmap->ops || !pgmap->ops->kill || !pgmap->ops->cleanup) {
-+			WARN(1, "Missing reference count teardown definition\n");
-+			return ERR_PTR(-EINVAL);
-+		}
- 	}
--	return devm_memremap_pages(dev, pgmap);
-+
-+	error = devm_add_action_or_reset(dev, nfit_test_kill, pgmap);
-+	if (error)
-+		return ERR_PTR(error);
-+	return nfit_res->buf + offset - nfit_res->res.start;
+-static void dev_dax_percpu_release(struct percpu_ref *ref)
+-{
+-	struct dev_dax *dev_dax = ref_to_dev_dax(ref);
+-
+-	dev_dbg(&dev_dax->dev, "%s\n", __func__);
+-	complete(&dev_dax->cmp);
+-}
+-
+-static void dev_dax_percpu_exit(struct dev_pagemap *pgmap)
+-{
+-	struct dev_dax *dev_dax = container_of(pgmap, struct dev_dax, pgmap);
+-
+-	dev_dbg(&dev_dax->dev, "%s\n", __func__);
+-	wait_for_completion(&dev_dax->cmp);
+-	percpu_ref_exit(pgmap->ref);
+-}
+-
+-static void dev_dax_percpu_kill(struct dev_pagemap *pgmap)
+-{
+-	struct dev_dax *dev_dax = container_of(pgmap, struct dev_dax, pgmap);
+-
+-	dev_dbg(&dev_dax->dev, "%s\n", __func__);
+-	percpu_ref_kill(pgmap->ref);
+-}
+-
+ static int check_vma(struct dev_dax *dev_dax, struct vm_area_struct *vma,
+ 		const char *func)
+ {
+@@ -441,11 +411,6 @@ static void dev_dax_kill(void *dev_dax)
+ 	kill_dev_dax(dev_dax);
  }
- EXPORT_SYMBOL_GPL(__wrap_devm_memremap_pages);
  
+-static const struct dev_pagemap_ops dev_dax_pagemap_ops = {
+-	.kill		= dev_dax_percpu_kill,
+-	.cleanup	= dev_dax_percpu_exit,
+-};
+-
+ int dev_dax_probe(struct device *dev)
+ {
+ 	struct dev_dax *dev_dax = to_dev_dax(dev);
+@@ -463,15 +428,7 @@ int dev_dax_probe(struct device *dev)
+ 		return -EBUSY;
+ 	}
+ 
+-	init_completion(&dev_dax->cmp);
+-	rc = percpu_ref_init(&dev_dax->ref, dev_dax_percpu_release, 0,
+-			GFP_KERNEL);
+-	if (rc)
+-		return rc;
+-
+-	dev_dax->pgmap.ref = &dev_dax->ref;
+ 	dev_dax->pgmap.type = MEMORY_DEVICE_DEVDAX;
+-	dev_dax->pgmap.ops = &dev_dax_pagemap_ops;
+ 	addr = devm_memremap_pages(dev, &dev_dax->pgmap);
+ 	if (IS_ERR(addr))
+ 		return PTR_ERR(addr);
 -- 
 2.20.1
 
