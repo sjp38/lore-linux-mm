@@ -2,222 +2,133 @@ Return-Path: <SRS0=C/CR=UZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.0 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 476CFC48BD3
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 17:51:17 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A104BC48BD9
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 17:51:34 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0213F217D7
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 17:51:16 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 68886216FD
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 17:51:34 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="EcEEEMWg"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0213F217D7
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="ObuCZMnJ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 68886216FD
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5AC786B0003; Wed, 26 Jun 2019 13:51:16 -0400 (EDT)
+	id 0A1DC6B0005; Wed, 26 Jun 2019 13:51:34 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 534DE8E0003; Wed, 26 Jun 2019 13:51:16 -0400 (EDT)
+	id 02C4A8E0003; Wed, 26 Jun 2019 13:51:33 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3AE3B8E0002; Wed, 26 Jun 2019 13:51:16 -0400 (EDT)
+	id DE7478E0002; Wed, 26 Jun 2019 13:51:33 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 164B96B0003
-	for <linux-mm@kvack.org>; Wed, 26 Jun 2019 13:51:16 -0400 (EDT)
-Received: by mail-qt1-f197.google.com with SMTP id t11so3763905qtc.9
-        for <linux-mm@kvack.org>; Wed, 26 Jun 2019 10:51:16 -0700 (PDT)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A81F26B0005
+	for <linux-mm@kvack.org>; Wed, 26 Jun 2019 13:51:33 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id c18so2016516pgk.2
+        for <linux-mm@kvack.org>; Wed, 26 Jun 2019 10:51:33 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :organization:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=pJtn37VVzLHGgxTNqg1ZlS6RKLrOq382izwrBCZb3DI=;
-        b=HKSnNJLcDubq1FSQVNDWeW6/pTIi5Zx86TD2AUTV3Cg1PJoxXJqn5GWVSA70RGNFvt
-         jBRycDJ1nhMrEtpBUJSqA5q1SFQG1U5tw/usntLrQwMsxO6Mt8eMs72mofbdTnU8IHd7
-         p3vtfP/7XcWFGDCghnaeL+BNmFSQD7HQGle1Fh6lf3SgEZy4iiwDpZfrqreJrBfOyhvh
-         91/64FY+QowFvMkXp/cEkHKscXfg9ity7dqNTjgNPuL19Crm5JTK6z2hqCnYgsEB98mv
-         Gy8tdPI6x2l+TPhItN82cWhZOF2RlwAT6l35IUtAaFODW5uLcFcPSfRuzJcKZyXTTQi2
-         fUbA==
-X-Gm-Message-State: APjAAAXPtpucz3TazEQH8+jyPRaXFfRY6s18ZFXR2b9m7Dp7Kzh1CNOx
-	m0ud8GM+UX6uXIzFb5iJEi7R8DWbQmwEhl64pE5XYEtdZPEJTTGLAiC65rMj8CH17Gd0o8LCn/l
-	66Znewt4m+gn79ebM3ictWgsQvObFU34uJPsP4N6KCTt83oihkGRjzslLogqGYfH2qw==
-X-Received: by 2002:a0c:b12b:: with SMTP id q40mr4792618qvc.0.1561571475823;
-        Wed, 26 Jun 2019 10:51:15 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxTFOBcphQ5z3i0EiNkgoC67hzrqdrRUyBI/HdYiJAlFyV3I+1DjjDAy/7TaRfvJENqW+/Q
-X-Received: by 2002:a0c:b12b:: with SMTP id q40mr4792578qvc.0.1561571475256;
-        Wed, 26 Jun 2019 10:51:15 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561571475; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=/vs8Egy5g6Si0QhAWTdGb3iiX4UWuX/9RaMs8MRYrk0=;
+        b=IEFHMqskj0GdeUJpQiQZewGkZ1GGdWA0OW5wnwXwRnmISIjXK3sHXQYq45aRjMeGVO
+         SkTiBI6oTHl2tt4g4tSBzIe6MNI20pQUeRhJFlq/wZ3/DAMN57UH3bmyPBoF/Omb6L6v
+         FUoA9x5OysUbZS6L1FOhlGqe8C9nWvkHr5ZS/lKp48CQbzL5vnWHnVhlxzEgK53AZb5g
+         6iPkqLhTuLHSe3A13fU27uLEeT9dMzpMkWlI0LgBisNKKsk54CRhPAPOTtrD1KBKoXjo
+         D/aeR4Zb7VP4b3CCfAiwESwALPdb78vbYkU6hEZorepFosOH2Auk63RKYiQI88XOoMl8
+         LmUg==
+X-Gm-Message-State: APjAAAVmq9ADq5m9121l75r9rUNs6W9ORHG54RXSSj9McVnQu/h1V9Dw
+	BjYHBW7TNTJiw1XL62DQu/WjcMj8+X/Mk+w6iLshzYXlByWukxufgNvXnG24zWOgXLM6Xv1OQjl
+	Wq8e7F8KhX++dlkVClisSPwbOnemsy/t4Id8TyjD/S9Jn4Xgt0pb29Bp/2MCAyPSe1g==
+X-Received: by 2002:a17:90a:9a8d:: with SMTP id e13mr318306pjp.77.1561571493294;
+        Wed, 26 Jun 2019 10:51:33 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzVVYZesTF7baRLzi0YbYxosSE2zat8ficMNHjE0lcfpAXsgfFThFHnXSPbv2Vhy8KZt2//
+X-Received: by 2002:a17:90a:9a8d:: with SMTP id e13mr318254pjp.77.1561571492718;
+        Wed, 26 Jun 2019 10:51:32 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561571492; cv=none;
         d=google.com; s=arc-20160816;
-        b=Oc90p0yDBIqv4shyELgc0Gbhk3cQ9dRUEwBRkaRhhqN7VduZNQnxxb8tAJrgUx3tpZ
-         hZ+XRAhJLlVi5y2Lzvpu+TL7P8p8hCzwAVi7F2Zmiu7b610DDZCQQlEYQ2PhXlTvYY/E
-         u3rbyL6VJ98ZNjdvpbkKP8RTsD4NbRGBZk+ggfdA2mzMoPPv2Te0YZMeK9OWILp4yaqL
-         OswGTZ7F9wpzMQe4rlFYMqQATUmt118hpPPLDKJG1i2UdDwb/QiL26Sv6OWTmXlpsiiP
-         tRY5Y+i4ef82LDLwu4pKLthvGbxipTOqJp6G4c9kE4tM5ZGNMAXG1ZMWnQKlinN07xJp
-         xL9Q==
+        b=ec0Mq+63Z0JYKHsa58xpShXKZo4L8ww5Y0e7nrfuZQxXkXUgx4ZawNgwEOpQWAvOsc
+         fybxQPh3apJJbNvqMRTmuzSsn01Iq8s+s6Eggqfg1ypepEUzw5DWD2h5Mfq6UePMe0dq
+         aEouo3Aw89b81sUn6Q7NW+UgeLk99MmpccqfwXcAhNFlSRktg3kS90rW7/zhSeXM2GW+
+         EmzZqAx2XLnrmxdKxpe4CBN6hu19uPhIdPkrWxBIBYYr2mbr9TTlxr8GklK32MBCcRO9
+         ZEIkdZqDFAJVNSONfETkNFr7SlhISOUJ+BV50k1idai1W+8eKkH13YBvS3ZcerKc8yYd
+         sbkw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:organization:from:references:cc:to
-         :subject:dkim-signature;
-        bh=pJtn37VVzLHGgxTNqg1ZlS6RKLrOq382izwrBCZb3DI=;
-        b=LXfHNtAqdq4/kRepqCIzT2KHrGYYo6EZQfGRmjescx2wCVSuq7WNdSYyp0lQt05z9m
-         /zjANbUGMFVg2yLzS/I8DnSFxZ29d163mD56mU3Wx4WkF1so3lHpl3vOUHUBLN1yLJiz
-         wp1mBtAVGJn5fNklE2DUiMUGQV2R+dvrWr+mtTY89D49c5lnQ7OtZEku3J2AnEIDY5sA
-         iwLDAafif9OKm6Hz1MMwqizfm2mc068n/9FvEXGYs6mG+n1NwaWymNceSAMfkg1DGChA
-         nFycqGqbGMrtenx8LF7DZfc/OgJUVBIZg10QoEDZwpslvyCZUTH5LabAe5BtqopuW5B2
-         hYPA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=/vs8Egy5g6Si0QhAWTdGb3iiX4UWuX/9RaMs8MRYrk0=;
+        b=M1IikyIjhnPna6hZqW/zDbhwQthrIx/LF5sbr/I/zDa37ND1St+jZ2FN9R50Ke1dQY
+         I/S/mRf1vsI+zjkzxhGJWxcNxadySlHiF1M6ripPebUnXfG3F0pGs3azzjimp50TOGq2
+         Z9nUCMmi7hVea393j4TYFplUmz0yZ8pDqpuKE7aq/I8fJWEqn1hDPRGWWEdBhHvl0xEG
+         MlW0PQji8dXIf+4UzschF+WVI/IvVWlbWkaau5gzt0slSHfsUz26NeK1/MerpEYChZlt
+         WT2L9MaEbGBc4jAgt1Yl6DHExgrAgdBgvtyISvG/YpDL5yw2W9t9/F8N0hqVF+ZPrA4t
+         pG1A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=EcEEEMWg;
-       spf=pass (google.com: domain of khalid.aziz@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=khalid.aziz@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id a198si11971848qkg.342.2019.06.26.10.51.14
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=ObuCZMnJ;
+       spf=pass (google.com: best guess record for domain of batv+ab1f803c58217d155be4+5785+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+ab1f803c58217d155be4+5785+infradead.org+hch@bombadil.srs.infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id l70si1237720pge.446.2019.06.26.10.51.32
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Jun 2019 10:51:15 -0700 (PDT)
-Received-SPF: pass (google.com: domain of khalid.aziz@oracle.com designates 156.151.31.85 as permitted sender) client-ip=156.151.31.85;
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Wed, 26 Jun 2019 10:51:32 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of batv+ab1f803c58217d155be4+5785+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=EcEEEMWg;
-       spf=pass (google.com: domain of khalid.aziz@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=khalid.aziz@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
-	by userp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x5QHd3BJ070052;
-	Wed, 26 Jun 2019 17:50:48 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
- references : from : message-id : date : mime-version : in-reply-to :
- content-type : content-transfer-encoding; s=corp-2018-07-02;
- bh=pJtn37VVzLHGgxTNqg1ZlS6RKLrOq382izwrBCZb3DI=;
- b=EcEEEMWgDEbMDuMxTOR2oYeCSXUOQKHZ4+B/a0CiekDLmP8Z1U885QaSBhgXo+/oVJZ3
- SGbnV6cXs+U0YG4HT3njZ/iUUzFIuHHOFK70cZEOdOGApbgKUYX3eCJLdfQ3dKwGSNIl
- owHPVd1m79tjE2KLbk7nGdMWhkLr/F3ZBkkDI9hHrhy/y/e6IptZoUUgS8HTk7grA8Ud
- Bf4hJAICEUZKsbR/1JYmjjWhp4n+uI1QfmV/GKfsvqZ6rJZc12bBVgqeF5v8xkJ16pFz
- 7wdP2Bakv0UvCbjPcmfUTGeqmf+Xk2K6+wWohnQ4b4rai+Y/+koOAVyMxoOJaa/ojH8K NA== 
-Received: from aserp3020.oracle.com (aserp3020.oracle.com [141.146.126.70])
-	by userp2120.oracle.com with ESMTP id 2t9cyqks50-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Wed, 26 Jun 2019 17:50:48 +0000
-Received: from pps.filterd (aserp3020.oracle.com [127.0.0.1])
-	by aserp3020.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x5QHolV1005117;
-	Wed, 26 Jun 2019 17:50:47 GMT
-Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
-	by aserp3020.oracle.com with ESMTP id 2t9p6uwkss-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Wed, 26 Jun 2019 17:50:47 +0000
-Received: from abhmp0005.oracle.com (abhmp0005.oracle.com [141.146.116.11])
-	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x5QHofTs013200;
-	Wed, 26 Jun 2019 17:50:42 GMT
-Received: from [10.65.138.107] (/10.65.138.107)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Wed, 26 Jun 2019 10:50:41 -0700
-Subject: Re: [PATCH v18 10/15] drm/radeon: untag user pointers in
- radeon_gem_userptr_ioctl
-To: Andrey Konovalov <andreyknvl@google.com>,
-        linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org,
-        linux-kernel@vger.kernel.org, amd-gfx@lists.freedesktop.org,
-        dri-devel@lists.freedesktop.org, linux-rdma@vger.kernel.org,
-        linux-media@vger.kernel.org, kvm@vger.kernel.org,
-        linux-kselftest@vger.kernel.org
-Cc: Catalin Marinas <catalin.marinas@arm.com>,
-        Vincenzo Frascino <vincenzo.frascino@arm.com>,
-        Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>,
-        Andrew Morton <akpm@linux-foundation.org>,
-        Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-        Kees Cook <keescook@chromium.org>, Yishai Hadas <yishaih@mellanox.com>,
-        Felix Kuehling <Felix.Kuehling@amd.com>,
-        Alexander Deucher <Alexander.Deucher@amd.com>,
-        Christian Koenig <Christian.Koenig@amd.com>,
-        Mauro Carvalho Chehab <mchehab@kernel.org>,
-        Jens Wiklander <jens.wiklander@linaro.org>,
-        Alex Williamson <alex.williamson@redhat.com>,
-        Leon Romanovsky <leon@kernel.org>,
-        Luc Van Oostenryck <luc.vanoostenryck@gmail.com>,
-        Dave Martin <Dave.Martin@arm.com>, enh <enh@google.com>,
-        Jason Gunthorpe <jgg@ziepe.ca>, Christoph Hellwig <hch@infradead.org>,
-        Dmitry Vyukov <dvyukov@google.com>, Kostya Serebryany <kcc@google.com>,
-        Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>,
-        Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
-        Jacob Bramley <Jacob.Bramley@arm.com>,
-        Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
-        Robin Murphy <robin.murphy@arm.com>,
-        Kevin Brodsky <kevin.brodsky@arm.com>,
-        Szabolcs Nagy <Szabolcs.Nagy@arm.com>
-References: <cover.1561386715.git.andreyknvl@google.com>
- <61d800c35a4f391218fbca6f05ec458557d8d097.1561386715.git.andreyknvl@google.com>
-From: Khalid Aziz <khalid.aziz@oracle.com>
-Organization: Oracle Corp
-Message-ID: <28554e21-04b8-2461-e576-5abe0b53cd59@oracle.com>
-Date: Wed, 26 Jun 2019 11:50:39 -0600
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.0
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=ObuCZMnJ;
+       spf=pass (google.com: best guess record for domain of batv+ab1f803c58217d155be4+5785+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+ab1f803c58217d155be4+5785+infradead.org+hch@bombadil.srs.infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
+	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=/vs8Egy5g6Si0QhAWTdGb3iiX4UWuX/9RaMs8MRYrk0=; b=ObuCZMnJZL8XNKfEkGcnHvqPQ
+	0snBZEHMJeZIlgKormOrFx9XKNZKn33QySiOBBapISItR0gi6ysSoc9ZVrAvT5JH0ueHZqZMyuA+y
+	izLVmercQAhaMcp4j3x985xKi65IjQaHbwJJMqkkU7xHeSx/4nYn3SbcYtle1VLXXJCgG+2cKeyhv
+	YSqVHhTYdnvfShOwnTEnhzxv9QE0MO/ANXi1ljUb8edvZeH4nyR99EXN+gpeUJcDAg/hhxRxKWQhg
+	tGB7O37l3u0XPhaTtCwYKe1W3Z2e3ktVUq+DPh5eltEiqNFJ1ofEPqZPq1qHKtMXUva310T8yKBvq
+	edAHdacLA==;
+Received: from hch by bombadil.infradead.org with local (Exim 4.92 #3 (Red Hat Linux))
+	id 1hgC4x-0004yn-Oh; Wed, 26 Jun 2019 17:51:31 +0000
+Date: Wed, 26 Jun 2019 10:51:31 -0700
+From: Christoph Hellwig <hch@infradead.org>
+To: Pankaj Suryawanshi <pankajssuryawanshi@gmail.com>
+Cc: linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>,
+	linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>,
+	iommu@lists.linux-foundation.org
+Subject: Re: DMA-API attr - DMA_ATTR_NO_KERNEL_MAPPING
+Message-ID: <20190626175131.GA17250@infradead.org>
+References: <CACDBo564RoWpi8y2pOxoddnn0s3f3sA-fmNxpiXuxebV5TFBJA@mail.gmail.com>
+ <CACDBo55GfomD4yAJ1qaOvdm8EQaD-28=etsRHb39goh+5VAeqw@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <61d800c35a4f391218fbca6f05ec458557d8d097.1561386715.git.andreyknvl@google.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: quoted-printable
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9300 signatures=668687
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
- phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
- adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
- engine=8.0.1-1810050000 definitions=main-1906260208
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9300 signatures=668687
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1906260208
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CACDBo55GfomD4yAJ1qaOvdm8EQaD-28=etsRHb39goh+5VAeqw@mail.gmail.com>
+User-Agent: Mutt/1.11.4 (2019-03-13)
+X-SRS-Rewrite: SMTP reverse-path rewritten from <hch@infradead.org> by bombadil.infradead.org. See http://www.infradead.org/rpr.html
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 6/24/19 8:32 AM, Andrey Konovalov wrote:
-> This patch is a part of a series that extends kernel ABI to allow to pa=
-ss
-> tagged user pointers (with the top byte set to something else other tha=
-n
-> 0x00) as syscall arguments.
->=20
-> In radeon_gem_userptr_ioctl() an MMU notifier is set up with a (tagged)=
+On Wed, Jun 26, 2019 at 10:12:45PM +0530, Pankaj Suryawanshi wrote:
+> [CC: linux kernel and Vlastimil Babka]
 
-> userspace pointer. The untagged address should be used so that MMU
-> notifiers for the untagged address get correctly matched up with the ri=
-ght
-> BO. This funcation also calls radeon_ttm_tt_pin_userptr(), which uses
-> provided user pointers for vma lookups, which can only by done with
-> untagged pointers.
->=20
-> This patch untags user pointers in radeon_gem_userptr_ioctl().
->=20
-> Suggested-by: Felix Kuehling <Felix.Kuehling@amd.com>
-> Acked-by: Felix Kuehling <Felix.Kuehling@amd.com>
-> Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
-> ---
+The right list is the list for the DMA mapping subsystem, which is
+iommu@lists.linux-foundation.org.  I've also added that.
 
-Reviewed-by: Khalid Aziz <khalid.aziz@oracle.com>
+> > I am writing driver in which I used DMA_ATTR_NO_KERNEL_MAPPING attribute
+> > for cma allocation using dma_alloc_attr(), as per kernel docs
+> > https://www.kernel.org/doc/Documentation/DMA-attributes.txt  buffers
+> > allocated with this attribute can be only passed to user space by calling
+> > dma_mmap_attrs().
+> >
+> > how can I mapped in kernel space (after dma_alloc_attr with
+> > DMA_ATTR_NO_KERNEL_MAPPING ) ?
 
-
->  drivers/gpu/drm/radeon/radeon_gem.c | 2 ++
->  1 file changed, 2 insertions(+)
->=20
-> diff --git a/drivers/gpu/drm/radeon/radeon_gem.c b/drivers/gpu/drm/rade=
-on/radeon_gem.c
-> index 44617dec8183..90eb78fb5eb2 100644
-> --- a/drivers/gpu/drm/radeon/radeon_gem.c
-> +++ b/drivers/gpu/drm/radeon/radeon_gem.c
-> @@ -291,6 +291,8 @@ int radeon_gem_userptr_ioctl(struct drm_device *dev=
-, void *data,
->  	uint32_t handle;
->  	int r;
-> =20
-> +	args->addr =3D untagged_addr(args->addr);
-> +
->  	if (offset_in_page(args->addr | args->size))
->  		return -EINVAL;
-> =20
->=20
-
+You can't.  And that is the whole point of that API.
 
