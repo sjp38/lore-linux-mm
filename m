@@ -2,142 +2,165 @@ Return-Path: <SRS0=C/CR=UZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A1CE7C48BD6
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 23:28:39 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2C5D9C48BD6
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 23:40:57 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 485F3217D8
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 23:28:39 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id D432321670
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 23:40:56 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="zmegpjl0"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 485F3217D8
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
+	dkim=pass (1024-bit key) header.d=chromium.org header.i=@chromium.org header.b="Cbc//tN1"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D432321670
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chromium.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BD9466B0003; Wed, 26 Jun 2019 19:28:38 -0400 (EDT)
+	id 567236B0003; Wed, 26 Jun 2019 19:40:56 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B88D68E0003; Wed, 26 Jun 2019 19:28:38 -0400 (EDT)
+	id 5171A8E0003; Wed, 26 Jun 2019 19:40:56 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A780D8E0002; Wed, 26 Jun 2019 19:28:38 -0400 (EDT)
+	id 405BC8E0002; Wed, 26 Jun 2019 19:40:56 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 6D5D86B0003
-	for <linux-mm@kvack.org>; Wed, 26 Jun 2019 19:28:38 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id h27so231313pfq.17
-        for <linux-mm@kvack.org>; Wed, 26 Jun 2019 16:28:38 -0700 (PDT)
+Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
+	by kanga.kvack.org (Postfix) with ESMTP id E6D286B0003
+	for <linux-mm@kvack.org>; Wed, 26 Jun 2019 19:40:55 -0400 (EDT)
+Received: by mail-wr1-f71.google.com with SMTP id e8so218912wrw.15
+        for <linux-mm@kvack.org>; Wed, 26 Jun 2019 16:40:55 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=gXeunDalFpMfH98V7l4lLnV8cjyh/Jd2FfSneJttMwI=;
-        b=KJJ3eMvQvPlWDV9wouRpA+/cCO9leAVneaUm8ye/dzPmWliWQhar6C/VUbZG+Vg0P/
-         btNkYLt0DXa/zE5o+9epUN4F3Nq7iFioFYP1DkQNxdSUyN0GgVK5YlrEHWtasgqxoNjU
-         aT3nsnhGlkHsw3IihIE4we8I1tE/YUyjUwJxWFO05RUDb49bg78MCJ3zIr/0/vl2fu85
-         ju8BUTSR5FdO5blINCW+cfj9CgL3kFDxvYTqUm0aN/BSo782tqSHFvN4S7Htkq/WR7zE
-         1tNVpkqkJu4NAyXzBcZsdxkoLFEuml5d3Gn52ZNNVFKPwTStRCYCSn6UEBqQl9ktENBP
-         Mgkw==
-X-Gm-Message-State: APjAAAUabOjKGD9Xb4CpXOdXIFUsAdbItGGZ0cypukEYBL76fVtzUw5t
-	63aQp1VHBsRe4F7g7bDjBThQ/wty2hog8fOGD+sgmNg7J8N1aQIS1zLPypT1Q37QEtbkYoXTsvc
-	fsAh8hnM0020ymI7AiV7A2DYeJSs3Xw5G+BmbYXCEAejAbaI8E5i1zM4n2F2p/8fmoQ==
-X-Received: by 2002:a17:902:aa5:: with SMTP id 34mr839212plp.166.1561591717958;
-        Wed, 26 Jun 2019 16:28:37 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqw/4GccYkPZ8xqH3HcjWTDIoeiNUL3WJD3CR1Pht1P/cC7Q1RvUrFYzyr43WvoQ7iTiar08
-X-Received: by 2002:a17:902:aa5:: with SMTP id 34mr839150plp.166.1561591717192;
-        Wed, 26 Jun 2019 16:28:37 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561591717; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=20lhFHwi567YcDUXje66ZZdTOwufs21R8Ro6+UMNHqw=;
+        b=s2Ns56b0mgwSIXP6KDQqFlCHpW2Ko056o8nGqloDHzYhOs70P1lDl8/ladC3R81qXO
+         UDySuGZNBYRPxXOywxGotqgTxkQ09nGz5EOs2LcsPJc+L++C+weLxwxrr9eEjLP8k/s2
+         Jj/qkwrdXlc8240CALedYzRITypsBwt2vSo88rrHL/fIKqnOMZ96zRUo6eH2yfNrc/NE
+         dbnmGJSQ0S62cjgVU6Tr+ie/0zWXemu4w9yjYmyChdDM7eruq/CPKJt7lziRB8g7yLlf
+         /oCQUXUWrNtjIpwoENgKKW5WuFF+a/RgQdaILTT9xaKkDxuzUwytWy+gm4TcZ5Iugo7m
+         /kEA==
+X-Gm-Message-State: APjAAAUqQvTENyNJHyEIhxpr1FuYrJ6JGp4U3cTqAApnQA28OKkadYCg
+	EOK6eZ3DgVorJLloLVsxt2+8niEik1hFxSmXyjY5wKD6kcTuYYtrkqmxZCBduPwaGF5s4ZIhaBO
+	babDRgTe/aH11DvlRl09BDufvaFC0gOJDaIg54YHXjtO1YZ/ZTD5fI8oQc7yqpvpalA==
+X-Received: by 2002:a5d:5702:: with SMTP id a2mr261518wrv.89.1561592455516;
+        Wed, 26 Jun 2019 16:40:55 -0700 (PDT)
+X-Received: by 2002:a5d:5702:: with SMTP id a2mr261493wrv.89.1561592454846;
+        Wed, 26 Jun 2019 16:40:54 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561592454; cv=none;
         d=google.com; s=arc-20160816;
-        b=Jp+bv2HlzW6+2kqBsmmIAGfH60L0MYb3AKeeMvOKOQdIH+VyRVP+tpOh5uKyZVtXMo
-         kCguV8rOz6GZ40m3rjhG0CHz60N6GaGnLShtAShOnSsB/hErTlOtNkjjjuHy86g5AuQb
-         BU/gm8v4z1u4/3TnKtRGv0QyAa4PojaOPZk+h/GL2oz5LEWe6T9BqpLsz0VT1+CRm66I
-         Vr/gdcPU0Y7Go6vEljMK0V7Y6YkUtOEoHvTRSru7QmMPPSh1l98AnV1fZ1oqq2Ta6FF+
-         9u0lw1bnpw+1V/dZM6236dQsgGTLH9LJ5GXAkC8+XRz7BfvOd2aggS9Y3K368IsR5BV1
-         zTbQ==
+        b=oh9zsXpum7S7JMvVrMi4claqCXDeLNM9fQggoYMss2U17x6VzLxBopoLp7A8RZo5Wv
+         7n3Pni45VQuJiF2QwYVGVgIzww2swPW//j/WB4BskQQM3NZrB9AEVZFcBiB5lXgMB79U
+         aTCurTpdcCFbvLVfs005I0Eza6Bu2z1q/1DmJ1yuU+D3zZdxm85dux0wI14+yzJy6Khf
+         BjUcR5dw6f7XXTUcs/6aFL+YPK9xf5HbOHx4Mupm68wE2cR3CUW9EzoqoGeJ+vmmOuyt
+         eQDPFrWcfGgx/rsxXMH6WumVvPYD4wyWYnA00FeTW9bSzwVJPlClAl0EF3OmyZO4gXRo
+         v8ng==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=gXeunDalFpMfH98V7l4lLnV8cjyh/Jd2FfSneJttMwI=;
-        b=bDP4eUij9lDuM1BxLS/QC2OK+ukiVnJeiIP7IjqohnZg9mi80CsK4DALZWpEwX3+Vf
-         RTO21MLvzl9jIcVcQQQgmwjpl1gwen8engxV+o2ToJiC4cRPbNJkQmgG2DdqCKvnqOYl
-         RGBMZq5Fk12+oVSsHWFnFpREWoI1fatHDh+T3eJue34X2q1dwePkuiuWY+of89caTSm9
-         9yxEb5/IrcA9LMIgtod3po/HA0WoaVCBXC1Hjl/jyHhUJ8rrle0nDIDPS49W+rlaybEd
-         rSb2JsXQeA7N0kNQrTt88rmAGHzq9r3eASwzRDsNXvl/U9toqV7Mw/KUHT17oH5Dkfyo
-         4iNA==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=20lhFHwi567YcDUXje66ZZdTOwufs21R8Ro6+UMNHqw=;
+        b=KzbYdWPATZXAS4zrmZV5jeaYKfvb8eP9uBkCgSZ9wA91DI7txuPZIRm41xO4IGgna/
+         dRa5VZogH+NjtU9iMMRiv4mJIHkiymiMiGVBXVoK8WSUgZsUIplD7PQCN+e/WmR6BX89
+         hlBuETzGb5AZn07QE8Z+0vYtaNHM2iEdmn0/LW7aLMePPuYbX3/AizMPn5kdYFReXNVL
+         XIa14A0e4Nv8a7KwJomzS5L9ajEX6DuE+CcujxFVaemsvFGP+XsrsuEUGl7KmdTK/rZV
+         p6XRK/lN5sjFeYWK9cY3USQMekFvQ9tcZn+E6W9VwF86RYDLaubdQT8YuaHOndC5NJGt
+         HYaw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=zmegpjl0;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id e21si363335pgh.571.2019.06.26.16.28.37
+       dkim=pass header.i=@chromium.org header.s=google header.b="Cbc//tN1";
+       spf=pass (google.com: domain of semenzato@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=semenzato@google.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id s12sor271629wra.32.2019.06.26.16.40.54
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Jun 2019 16:28:37 -0700 (PDT)
-Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        (Google Transport Security);
+        Wed, 26 Jun 2019 16:40:54 -0700 (PDT)
+Received-SPF: pass (google.com: domain of semenzato@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=zmegpjl0;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-Received: from localhost.localdomain (c-73-223-200-170.hsd1.ca.comcast.net [73.223.200.170])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 11ECE214DA;
-	Wed, 26 Jun 2019 23:28:36 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1561591716;
-	bh=bvxU9GtnxrSS6JL5vSuxzibwl2B9AdNA5bQBLj2CaHo=;
-	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
-	b=zmegpjl0RaiGNlS93NVud3hTVj0twmtsxSir+O4KVOYh5+Vxzeaoc1YAvUKF3f2na
-	 9F1F4ANmd9ITzobFe0KSzL85XYPqL1ZmzSjigvfJe/ej50so4Sd4RwAxntdbVjEX1/
-	 h3edJ8Doi2xX1X0wWnUsOQrr70SVJqduegIQBWf4=
-Date: Wed, 26 Jun 2019 16:28:35 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-To: Alexander Potapenko <glider@google.com>
-Cc: Christoph Lameter <cl@linux.com>, Kees Cook <keescook@chromium.org>,
- Masahiro Yamada <yamada.masahiro@socionext.com>, Michal Hocko
- <mhocko@kernel.org>, James Morris <jmorris@namei.org>, "Serge E. Hallyn"
- <serge@hallyn.com>, Nick Desaulniers <ndesaulniers@google.com>, Kostya
- Serebryany <kcc@google.com>, Dmitry Vyukov <dvyukov@google.com>, Sandeep
- Patil <sspatil@android.com>, Laura Abbott <labbott@redhat.com>, Randy
- Dunlap <rdunlap@infradead.org>, Jann Horn <jannh@google.com>, Mark Rutland
- <mark.rutland@arm.com>, Marco Elver <elver@google.com>, Qian Cai
- <cai@lca.pw>, linux-mm@kvack.org, linux-security-module@vger.kernel.org,
- kernel-hardening@lists.openwall.com
-Subject: Re: [PATCH v8 1/2] mm: security: introduce init_on_alloc=1 and
- init_on_free=1 boot options
-Message-Id: <20190626162835.0947684d36ef01639f969232@linux-foundation.org>
-In-Reply-To: <20190626121943.131390-2-glider@google.com>
-References: <20190626121943.131390-1-glider@google.com>
-	<20190626121943.131390-2-glider@google.com>
-X-Mailer: Sylpheed 3.5.1 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+       dkim=pass header.i=@chromium.org header.s=google header.b="Cbc//tN1";
+       spf=pass (google.com: domain of semenzato@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=semenzato@google.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=chromium.org; s=google;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=20lhFHwi567YcDUXje66ZZdTOwufs21R8Ro6+UMNHqw=;
+        b=Cbc//tN1TeEFCOvsoWHFQ4BTpLO+LTWWzgefQZksS9ZLSaczjKhevQAoo0eE9tpFv9
+         aaBLYv+vMpODmAwp6I7hV/dwi3pC8PyxQ9uAlj+Fe7tmD3Qxp/sRQ4apxi1UEeJKK5ea
+         OrOq2WyfO3jxmAP2wlJ3H+2Zhi9YnJ5n5mtBY=
+X-Google-Smtp-Source: APXvYqy1aIv/OnOwSZokpJGQdzynZZKeWgHN1iOxJbCWxys7/eVCl7XYstjOH1Z+ooOvscpx+qxCjqe4kpOYI1PbP/Q=
+X-Received: by 2002:a5d:4909:: with SMTP id x9mr229836wrq.226.1561592453903;
+ Wed, 26 Jun 2019 16:40:53 -0700 (PDT)
+MIME-Version: 1.0
+References: <20190626180429.174569-1-semenzato@chromium.org> <20190626151947.9876bb0ed8b2953813bfa5c6@linux-foundation.org>
+In-Reply-To: <20190626151947.9876bb0ed8b2953813bfa5c6@linux-foundation.org>
+From: Luigi Semenzato <semenzato@chromium.org>
+Date: Wed, 26 Jun 2019 16:40:41 -0700
+Message-ID: <CAA25o9RJb9EJxJTHWqWjkOr+h+FrtowpfB4+_mEY7TUrUXHuNQ@mail.gmail.com>
+Subject: Re: [PATCH 1/1] mm: smaps: split PSS into components
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Yu Zhao <yuzhao@chromium.org>, bgeffon@chromium.org, 
+	Sonny Rao <sonnyrao@chromium.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 26 Jun 2019 14:19:42 +0200 Alexander Potapenko <glider@google.com> wrote:
+On Wed, Jun 26, 2019 at 3:19 PM Andrew Morton <akpm@linux-foundation.org> wrote:
+>
+> On Wed, 26 Jun 2019 11:04:29 -0700 semenzato@chromium.org wrote:
+>
+> > From: Luigi Semenzato <semenzato@chromium.org>
+> >
+> > Report separate components (anon, file, and shmem)
+> > for PSS in smaps_rollup.
+> >
+> > This helps understand and tune the memory manager behavior
+> > in consumer devices, particularly mobile devices.  Many of
+> > them (e.g. chromebooks and Android-based devices) use zram
+> > for anon memory, and perform disk reads for discarded file
+> > pages.  The difference in latency is large (e.g. reading
+> > a single page from SSD is 30 times slower than decompressing
+> > a zram page on one popular device), thus it is useful to know
+> > how much of the PSS is anon vs. file.
+> >
+> > This patch also removes a small code duplication in smaps_account,
+> > which would have gotten worse otherwise.
+> >
+> > Also added missing entry for smaps_rollup in
+> > Documentation/filesystems/proc.txt.
+> >
+> > ...
+> >
+> > -static void __show_smap(struct seq_file *m, const struct mem_size_stats *mss)
+> > +static void __show_smap(struct seq_file *m, const struct mem_size_stats *mss,
+> > +     bool rollup_mode)
+> >  {
+> >       SEQ_PUT_DEC("Rss:            ", mss->resident);
+> >       SEQ_PUT_DEC(" kB\nPss:            ", mss->pss >> PSS_SHIFT);
+> > +     if (rollup_mode) {
+> > +             /*
+> > +              * These are meaningful only for smaps_rollup, otherwise two of
+> > +              * them are zero, and the other one is the same as Pss.
+> > +              */
+> > +             SEQ_PUT_DEC(" kB\nPss_Anon:       ",
+> > +                     mss->pss_anon >> PSS_SHIFT);
+> > +             SEQ_PUT_DEC(" kB\nPss_File:       ",
+> > +                     mss->pss_file >> PSS_SHIFT);
+> > +             SEQ_PUT_DEC(" kB\nPss_Shmem:      ",
+> > +                     mss->pss_shmem >> PSS_SHIFT);
+> > +     }
+>
+> Documentation/filesystems/proc.txt is rather incomplete.  It documents
+> /proc/PID/smaps (seems to be out of date) but doesn't describe the
+> fields in smaps_rollup.
+>
+> Please update Documentation/ABI/testing/procfs-smaps_rollup and please
+> check that it's up-to-date while you're in there.
+>
 
->  v8:
->   - addressed comments by Michal Hocko: revert kernel/kexec_core.c and
->     apply initialization in dma_pool_free()
->   - disable init_on_alloc/init_on_free if slab poisoning or page
->     poisoning are enabled, as requested by Qian Cai
->   - skip the redzone when initializing a freed heap object, as requested
->     by Qian Cai and Kees Cook
->   - use s->offset to address the freeptr (suggested by Kees Cook)
->   - updated the patch description, added Signed-off-by: tag
-
-v8 failed to incorporate 
-
-https://ozlabs.org/~akpm/mmots/broken-out/mm-security-introduce-init_on_alloc=1-and-init_on_free=1-boot-options-fix.patch
-and
-https://ozlabs.org/~akpm/mmots/broken-out/mm-security-introduce-init_on_alloc=1-and-init_on_free=1-boot-options-fix-2.patch
-
-it's conventional to incorporate such fixes when preparing a new
-version of a patch.
+Thank you for noticing the stale/missing docs and sorry that I did not.
+Will email the updated patch shortly.
 
