@@ -1,196 +1,163 @@
-Return-Path: <SRS0=nbyn=UY=kvack.org=owner-linux-mm@kernel.org>
+Return-Path: <SRS0=C/CR=UZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-11.4 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_IN_DEF_DKIM_WL
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	UNPARSEABLE_RELAY,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B0A6DC48BD5
-	for <linux-mm@archiver.kernel.org>; Tue, 25 Jun 2019 23:57:55 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E163CC48BD5
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 00:03:07 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5CE0520869
-	for <linux-mm@archiver.kernel.org>; Tue, 25 Jun 2019 23:57:55 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="bHr9RG0t"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5CE0520869
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	by mail.kernel.org (Postfix) with ESMTP id 88381208CA
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 00:03:07 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 88381208CA
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E27F96B0003; Tue, 25 Jun 2019 19:57:54 -0400 (EDT)
+	id 2FF556B0006; Tue, 25 Jun 2019 20:03:07 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DB2308E0002; Tue, 25 Jun 2019 19:57:54 -0400 (EDT)
+	id 2B1A98E0003; Tue, 25 Jun 2019 20:03:07 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C51CF8E0003; Tue, 25 Jun 2019 19:57:54 -0400 (EDT)
+	id 19F2A8E0002; Tue, 25 Jun 2019 20:03:07 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f70.google.com (mail-yw1-f70.google.com [209.85.161.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 9F6666B0003
-	for <linux-mm@kvack.org>; Tue, 25 Jun 2019 19:57:54 -0400 (EDT)
-Received: by mail-yw1-f70.google.com with SMTP id d135so1149991ywd.0
-        for <linux-mm@kvack.org>; Tue, 25 Jun 2019 16:57:54 -0700 (PDT)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D78C46B0006
+	for <linux-mm@kvack.org>; Tue, 25 Jun 2019 20:03:06 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id 145so343140pfv.18
+        for <linux-mm@kvack.org>; Tue, 25 Jun 2019 17:03:06 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=BYYmoTlsMAXHE1sdf2TkcUfIalvt5FU+r7Wng7vtf2k=;
-        b=Uux/BwMfMm9Ktwl40kWBv+oN71RqGiLw9hm9HpATHBiYQMQwkFufCd+fkNsygkR7Km
-         jMGsxqn2DmJX8t4c/Aybbap5D+vWey81bBZBhMmt/NAWz0oDDahrvThqbK0Ojl57wfrt
-         oQKz79FFH38hiMVHdVCCzL6tL2BO3Ul5BFDqv2lrjjP6+j2MRoDw5GvaBXV3Apz4O2yt
-         R2Q44xoXIlALRfmJwHz5sbSpOznfltDl/YwBlN92n/p22y4/Lb+AUfDhop+L3C+znqpf
-         JIw9FsYHDTDht1BfoSsEQhfgLizdMrYfUW781dKkr6WKYyboqzLXC3fHUSotGbRXkMmx
-         sc3A==
-X-Gm-Message-State: APjAAAWwklo6ippb52X3AlcSpR+DTy3qPfc9W75h4RMtBihtFgtduVcL
-	kv9Gk3oDq6r5QzxjbL9cDp3MU4m6FEW9tr6QOrppMGMUgYD2zsrY9ukRpmI+DeHfXiwoptVYuu2
-	ChY8vuCfxF/bO9iWuA6JmIrsguJPAvmE5RufYKpik2cfX4ewvFFJZ5e76tsG7YAot0w==
-X-Received: by 2002:a81:2596:: with SMTP id l144mr876920ywl.209.1561507074400;
-        Tue, 25 Jun 2019 16:57:54 -0700 (PDT)
-X-Received: by 2002:a81:2596:: with SMTP id l144mr876909ywl.209.1561507073789;
-        Tue, 25 Jun 2019 16:57:53 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561507073; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:in-reply-to:references;
+        bh=6CrxZMPVKtWiO2W03kvINqv+b3cQRf9/AK6f9stpruQ=;
+        b=UZJm2u17PomnP7dKoYQCngG5ZALvms6Wojkq/kF7P85UVMZ4C42+O8OUC52eIIbwVN
+         x5UjEHZu11azqkDf4CJ2CWe/2EG9jmVEgeJ9EODoocOEy1sUpoTlanA9ma3F6VkAbEQO
+         NwaM469HDitwWaSTVnqS/BDpcxwwpuMVDtHwofsrkbk1f4ZVhOC+RHBaUQDjLkgILL5g
+         b/Gtu/Oz6ZhOTuPCMbKSvumgeVlF6zBWX/TlqjP66ErsTv1RlWGPf42C7hjOSCq6rfay
+         MsLW9pRXhSXoKW7pjpfgKyBPH7tKkNddjy5vtQxxHApnG1HbPtI+oWCxaTGcP/2jiUee
+         Z2nA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.44 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Gm-Message-State: APjAAAWvQiLGhO6b/j0hBr1F41myvoT4Lg6tq6RLVnzHE3CXtqKKN6bG
+	uKXHrNMBa9zi9fPGTdJd9K6Sy2leHih2twjlpHbGkZYDOEhoYjkEs631VA6vpjGk6V8zKfvG/LG
+	yrlEzwCKJ2MK8fch1isPZwHTQIDsZNS8VPW0yU1kp4Etq00b1dBG7yEo7iwAwZ9o5qA==
+X-Received: by 2002:a17:90a:bb94:: with SMTP id v20mr680125pjr.88.1561507386452;
+        Tue, 25 Jun 2019 17:03:06 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzMC7hgLkq3aL01USZjA+AH723n4STuvM6QVq66jtAOER3heLIU0Lf+QlqhT6MpvyvM0AUP
+X-Received: by 2002:a17:90a:bb94:: with SMTP id v20mr680030pjr.88.1561507385419;
+        Tue, 25 Jun 2019 17:03:05 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561507385; cv=none;
         d=google.com; s=arc-20160816;
-        b=pvpLwF/bbsGBjjW/Gv70luDLXywpVG+fj7+VDKGGed3jdj5I/wY270zXCkn7CbdN3a
-         ff2wGwRb/9yz+IrmeTfRPHGG7JY/GPKyAFrM8UvE6pIOjFE9P4EAJhGivcbjxov0jeh9
-         hG5pCH0eFfsxLFtwIk0LEwFUe2gzmLay3vMe9oPz8ozVtu7yFJ8Y3JKKW2w5eWhsD/I7
-         QdIST7WIKkiwUicREJNkSizRzyh9ODzVviHDVkb8cemvoexJCe/NyLQ/RwAUd6T7F719
-         541TIqJrMiOq7lYz6rNtiyyHu5U3FoVnBQ7GI4SsuD15Yiytcle90P4Kzh0ulKudVbN9
-         s+Ww==
+        b=glKUNUIUj2oRhr7fq4z7Y9Swd33Wg83jcXllg9kMLdu6zpq0DYBE9c/RxNkFVZImAe
+         ScWKKFjm5zS93W4VhYuvJXAVf08kJoZJlxPXsKNNCDf+TaY4ss1ASoqq5yXanw0buL/b
+         TH18XxeyQpqm0FSzB8SySuz97EmWDJjypRUWfJ+Xq/aVDylb2Fveru9d2m0x2TuXlGKH
+         zitaJcK1m0PXZkZ1+YWmkRgsY2pYrAD7IXC3AbXwXOSy8nCdjoNBU3mJ9F1Z7fYwva11
+         IMk2V+m/sxW9kwLEXFNF++zsiKL94JOfDt1qnVLHOHKFnESByLvQtzebzAfMsnB7GkTO
+         7Rag==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=BYYmoTlsMAXHE1sdf2TkcUfIalvt5FU+r7Wng7vtf2k=;
-        b=F/17fjFP+n6ACY65FbMArxB7kLd7tyZkHTyNybQOQ65GrMfgCqJGVo1h6ftfo1abbX
-         cSHVjAQ+Ek73TkhqgJL3zZt6cvkpdaIALrRBlXgyX+fETPROIdE7qabqyq6KLKAXQCBp
-         ZensXK3pLI8vGTtWeyq9iY6e9JbtXs4SBjtP+GbmBDtJnbt9kBbvRE7CqEsa/V7wvd+z
-         uOn+p2XMZyWhclafZZS50FBqYfIYcX4Zgo/tLKdxEZTescChJ8W45Sfg0FTsHhlv0O9N
-         Jsva08fAUOPHtheQleLGfMPLzVL07zjEROcgEJgLoui8hjJF0rVoVB1z+mqIzp3XRngJ
-         /wUQ==
+        h=references:in-reply-to:message-id:date:subject:cc:to:from;
+        bh=6CrxZMPVKtWiO2W03kvINqv+b3cQRf9/AK6f9stpruQ=;
+        b=rFER6JJ5lF/JUuNVvpEWqRSziQRF1kzXXOZE3ac9RgC7dtjuePF2MMe0s3wsp4gASZ
+         PL2oIGIHh4TMHhT4qDIfZCIqTGe4bGvMy5QaHQotexgsI+U0i4OQeU76ouYY4U36/ccJ
+         o2d1J4yboiOLYuP8qRzZxdTXa3PcLLAb9H2074rixD2Wm9wb/ggk/WK8Vk1bqjwWxvpQ
+         879oDJrvplaa7FyoNxrx4c2ZwsMemsUY9Q3ju/GnIkHG9ANc657AC6/ivwIqha3vWPJ3
+         59mlzH9RvkAVFY8tcMj7WQUawIrsONZYwg+tU+AHkhCrmocerie0RTX8DWtG7RAPQpay
+         HjNQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=bHr9RG0t;
-       spf=pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shakeelb@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q127sor6481916ywb.91.2019.06.25.16.57.53
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.44 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+Received: from out30-44.freemail.mail.aliyun.com (out30-44.freemail.mail.aliyun.com. [115.124.30.44])
+        by mx.google.com with ESMTPS id h12si12067947pfn.171.2019.06.25.17.03.04
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 25 Jun 2019 16:57:53 -0700 (PDT)
-Received-SPF: pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 25 Jun 2019 17:03:05 -0700 (PDT)
+Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.44 as permitted sender) client-ip=115.124.30.44;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=bHr9RG0t;
-       spf=pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shakeelb@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=BYYmoTlsMAXHE1sdf2TkcUfIalvt5FU+r7Wng7vtf2k=;
-        b=bHr9RG0tkfub5JlEPuSlccDNn2kaBl57++YE4B9BvBAfrk/lrYZ49HU1Eo9gNT3ehk
-         fNU3tQP8gui8q9wB/h1Fc81T9JFeVcZUyl03XKjJ8gOzY53YIyIzh/i5zII6JgrWgqIM
-         lkO3DVg7MWoytL4Eb8VJIzvW8QcRR10rlGa08CISiQVyfr2JSdtGwciaMXKI87B1ul24
-         1PRqHKieYqB7Sdn81jUAtFn5JbY1GfrO71H4sWFwdVdgOE9Ns1kODIziZwkcUyqk4eHb
-         Lull0e5SzkFSpJ4SxrKHhM1n+liVt/Q1fOL4ylNWFL6BIl1nlhx95K+44HpmfXZQO1Ma
-         7Swg==
-X-Google-Smtp-Source: APXvYqwLaw1k639FvVXfSfGs08cOnJCQGJfxpqhknTwehsMkT1lTu3zMHVWSGjAgN0vQtarw8VCOzDn0TuQCrm+B3mU=
-X-Received: by 2002:a81:ae0e:: with SMTP id m14mr978096ywh.308.1561507073185;
- Tue, 25 Jun 2019 16:57:53 -0700 (PDT)
-MIME-Version: 1.0
-References: <20190611231813.3148843-1-guro@fb.com> <20190611231813.3148843-9-guro@fb.com>
-In-Reply-To: <20190611231813.3148843-9-guro@fb.com>
-From: Shakeel Butt <shakeelb@google.com>
-Date: Tue, 25 Jun 2019 16:57:42 -0700
-Message-ID: <CALvZod7Z=q9YOGpWjv=EsORCy5dHAz+cDv=4qwD5V5xDv60QEw@mail.gmail.com>
-Subject: Re: [PATCH v7 08/10] mm: rework non-root kmem_cache lifecycle management
-To: Roman Gushchin <guro@fb.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, 
-	Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, 
-	Kernel Team <kernel-team@fb.com>, Johannes Weiner <hannes@cmpxchg.org>, 
-	Waiman Long <longman@redhat.com>
-Content-Type: text/plain; charset="UTF-8"
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.44 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R411e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e04394;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=11;SR=0;TI=SMTPD_---0TVCYVJX_1561507375;
+Received: from e19h19392.et15sqa.tbsite.net(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TVCYVJX_1561507375)
+          by smtp.aliyun-inc.com(127.0.0.1);
+          Wed, 26 Jun 2019 08:03:03 +0800
+From: Yang Shi <yang.shi@linux.alibaba.com>
+To: kirill.shutemov@linux.intel.com,
+	ktkhai@virtuozzo.com,
+	hannes@cmpxchg.org,
+	mhocko@suse.com,
+	hughd@google.com,
+	shakeelb@google.com,
+	rientjes@google.com,
+	akpm@linux-foundation.org
+Cc: yang.shi@linux.alibaba.com,
+	linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Subject: [v4 PATCH 2/4] mm: move mem_cgroup_uncharge out of __page_cache_release()
+Date: Wed, 26 Jun 2019 08:02:39 +0800
+Message-Id: <1561507361-59349-3-git-send-email-yang.shi@linux.alibaba.com>
+X-Mailer: git-send-email 1.8.3.1
+In-Reply-To: <1561507361-59349-1-git-send-email-yang.shi@linux.alibaba.com>
+References: <1561507361-59349-1-git-send-email-yang.shi@linux.alibaba.com>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jun 11, 2019 at 4:18 PM Roman Gushchin <guro@fb.com> wrote:
->
-> Currently each charged slab page holds a reference to the cgroup to
-> which it's charged. Kmem_caches are held by the memcg and are released
-> all together with the memory cgroup. It means that none of kmem_caches
-> are released unless at least one reference to the memcg exists, which
-> is very far from optimal.
->
-> Let's rework it in a way that allows releasing individual kmem_caches
-> as soon as the cgroup is offline, the kmem_cache is empty and there
-> are no pending allocations.
->
-> To make it possible, let's introduce a new percpu refcounter for
-> non-root kmem caches. The counter is initialized to the percpu mode,
-> and is switched to the atomic mode during kmem_cache deactivation. The
-> counter is bumped for every charged page and also for every running
-> allocation. So the kmem_cache can't be released unless all allocations
-> complete.
->
-> To shutdown non-active empty kmem_caches, let's reuse the work queue,
-> previously used for the kmem_cache deactivation. Once the reference
-> counter reaches 0, let's schedule an asynchronous kmem_cache release.
->
-> * I used the following simple approach to test the performance
-> (stolen from another patchset by T. Harding):
->
->     time find / -name fname-no-exist
->     echo 2 > /proc/sys/vm/drop_caches
->     repeat 10 times
->
-> Results:
->
->         orig            patched
->
-> real    0m1.455s        real    0m1.355s
-> user    0m0.206s        user    0m0.219s
-> sys     0m0.855s        sys     0m0.807s
->
-> real    0m1.487s        real    0m1.699s
-> user    0m0.221s        user    0m0.256s
-> sys     0m0.806s        sys     0m0.948s
->
-> real    0m1.515s        real    0m1.505s
-> user    0m0.183s        user    0m0.215s
-> sys     0m0.876s        sys     0m0.858s
->
-> real    0m1.291s        real    0m1.380s
-> user    0m0.193s        user    0m0.198s
-> sys     0m0.843s        sys     0m0.786s
->
-> real    0m1.364s        real    0m1.374s
-> user    0m0.180s        user    0m0.182s
-> sys     0m0.868s        sys     0m0.806s
->
-> real    0m1.352s        real    0m1.312s
-> user    0m0.201s        user    0m0.212s
-> sys     0m0.820s        sys     0m0.761s
->
-> real    0m1.302s        real    0m1.349s
-> user    0m0.205s        user    0m0.203s
-> sys     0m0.803s        sys     0m0.792s
->
-> real    0m1.334s        real    0m1.301s
-> user    0m0.194s        user    0m0.201s
-> sys     0m0.806s        sys     0m0.779s
->
-> real    0m1.426s        real    0m1.434s
-> user    0m0.216s        user    0m0.181s
-> sys     0m0.824s        sys     0m0.864s
->
-> real    0m1.350s        real    0m1.295s
-> user    0m0.200s        user    0m0.190s
-> sys     0m0.842s        sys     0m0.811s
->
-> So it looks like the difference is not noticeable in this test.
->
-> Signed-off-by: Roman Gushchin <guro@fb.com>
-> Acked-by: Vladimir Davydov <vdavydov.dev@gmail.com>
+The later patch would make THP deferred split shrinker memcg aware, but
+it needs page->mem_cgroup information in THP destructor, which is called
+after mem_cgroup_uncharge() now.
 
-Reviewed-by: Shakeel Butt <shakeelb@google.com>
+So, move mem_cgroup_uncharge() from __page_cache_release() to compound
+page destructor, which is called by both THP and other compound pages
+except HugeTLB.  And call it in __put_single_page() for single order
+page.
+
+Suggested-by: "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Kirill Tkhai <ktkhai@virtuozzo.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Shakeel Butt <shakeelb@google.com>
+Cc: David Rientjes <rientjes@google.com>
+Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
+---
+ mm/page_alloc.c | 1 +
+ mm/swap.c       | 2 +-
+ 2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 6c9cf1e..53a7a6c 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -624,6 +624,7 @@ static void bad_page(struct page *page, const char *reason,
+ 
+ void free_compound_page(struct page *page)
+ {
++	mem_cgroup_uncharge(page);
+ 	__free_pages_ok(page, compound_order(page));
+ }
+ 
+diff --git a/mm/swap.c b/mm/swap.c
+index 7ede3ed..170a725 100644
+--- a/mm/swap.c
++++ b/mm/swap.c
+@@ -71,12 +71,12 @@ static void __page_cache_release(struct page *page)
+ 		spin_unlock_irqrestore(&pgdat->lru_lock, flags);
+ 	}
+ 	__ClearPageWaiters(page);
+-	mem_cgroup_uncharge(page);
+ }
+ 
+ static void __put_single_page(struct page *page)
+ {
+ 	__page_cache_release(page);
++	mem_cgroup_uncharge(page);
+ 	free_unref_page(page);
+ }
+ 
+-- 
+1.8.3.1
 
