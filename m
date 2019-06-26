@@ -2,201 +2,160 @@ Return-Path: <SRS0=C/CR=UZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
+X-Spam-Status: No, score=-5.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 905FBC48BD6
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 17:18:29 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6A05DC48BD6
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 17:38:49 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 55F28208E3
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 17:18:29 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 55F28208E3
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 3808921670
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 17:38:49 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3808921670
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E76D06B0003; Wed, 26 Jun 2019 13:18:28 -0400 (EDT)
+	id C43706B0003; Wed, 26 Jun 2019 13:38:48 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E27348E0003; Wed, 26 Jun 2019 13:18:28 -0400 (EDT)
+	id BF4B58E0003; Wed, 26 Jun 2019 13:38:48 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CEECE8E0002; Wed, 26 Jun 2019 13:18:28 -0400 (EDT)
+	id AE45E8E0002; Wed, 26 Jun 2019 13:38:48 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 7DCE46B0003
-	for <linux-mm@kvack.org>; Wed, 26 Jun 2019 13:18:28 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id c27so4043095edn.8
-        for <linux-mm@kvack.org>; Wed, 26 Jun 2019 10:18:28 -0700 (PDT)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7B1576B0003
+	for <linux-mm@kvack.org>; Wed, 26 Jun 2019 13:38:48 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id y5so2194244pfb.20
+        for <linux-mm@kvack.org>; Wed, 26 Jun 2019 10:38:48 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=nHeSEkJXIvoqOJZ+5cOPpc2ISousIbqPGmXMcAzA6Lk=;
-        b=F7CHHO6wiRWRu9wzK6XfHGE3mhBAtHIViTlug7lJUuUk6u6PBe0FqDwxsr3vLq8PFa
-         xYsaD7S5Sm5+A5WuFnraaKNo27292vluRt4OyaiM6w9+VtSR4x6Hucqd/w1xovFNTCWt
-         HYbY4vMgDcpMUJkuAIQeEy94YJxrae1tLnkeBy78IK/+u+34kRtJ2sc9HYW7OGeeQdrq
-         mD8ek4f5CAEUWl0KAOw81iD3vKik2pE0Fd5dK1vmDiMHLrIBKBIFh0c7BYWG5LBcA5kV
-         o8RTTov2iYoxsZ++l3NlLDBOtDuzNB4AVF8OeOv4GgrZ8as6Fk3C4ryGmYSOfemP3kP1
-         MN6w==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-X-Gm-Message-State: APjAAAWZqh2Jpcf1oMrm/Jew4ohu+wlGpYEgOols9D4Z4CbxhzNzSEuC
-	NqD3zqt0ZMlvLHXL6Jg01x86sug8q3B2wnJnK/un0T7tbgvzlPyuBcBG6xs3UOUw0bbZK5d326Q
-	NDFbXciWeU0QHNANXEsNII5oBvTpTbtzi0FzlMxzjDoKUVBYOvpv5cHX4fl94buUIMg==
-X-Received: by 2002:a17:906:66c2:: with SMTP id k2mr5168227ejp.65.1561569508047;
-        Wed, 26 Jun 2019 10:18:28 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyFGg0V5ggS62/EEnK16EKPtsMt6A8tRU0ggJpabDfSGylEEeZYqzqq3V1gLxPk/lbMdhnj
-X-Received: by 2002:a17:906:66c2:: with SMTP id k2mr5168158ejp.65.1561569507246;
-        Wed, 26 Jun 2019 10:18:27 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561569507; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:message-id
+         :subject:from:to:cc:date:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=AqyIU3rWQpzA90sPDOX6SRMhi4r1FKCPLmdXup5eYHs=;
+        b=RLuzqaLGEaHe91rIr7w8qkNzAvI077y5Sz6lcM18vZEPu7fdhw1LOFnI39tssqAONq
+         VfO9gxLfAe40cHAlWpU8EON6bSqesIl6Zu9qqUXEbku6IWWZUMOoL/YcafUAqaWIIB4T
+         a0GHZ0Dw2RgfDT4Gn+fw3HPqdSS20Ok4zZYsiWx+9R/7cqyempb7py7jfahzKw14XEOd
+         GqTFVvZGzaHwghQFdAPaIKcyYan1BDJLpklte3Pqh1vcz34TJedscbt47qPgJs/DFPHi
+         8Z1y/oc2Mim4UvVcUkTTZ8AZbXJaYxwAsI9JdvN0p79sS/2sMIMQiDW4sDMiW4awT3pq
+         ooaQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAWtn1NTFYIlxxceUGTEmOlBBv2wWDXH24G3fAg5GiLeVIKBoXWZ
+	vUEvuEcdrOigE58daCIOcdhqEr5Jds/aARbh7xacf/s7TvMCiLDEik3HwybND/c35vTQNu+s7g+
+	ilgfbJSj5RcaVEhn0xjCMmg/jJTq94Ti0WwIRl4fWSkNVNlPNxBsqpWE57RhrqJjHLg==
+X-Received: by 2002:a17:902:9898:: with SMTP id s24mr6651092plp.226.1561570728135;
+        Wed, 26 Jun 2019 10:38:48 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqx5sqwny9gkJfJmNGucDlw78kP4Nrhrp8cZhuBlN9XNEtJXUbR4VQ804HZwLPiJm1bjdvbI
+X-Received: by 2002:a17:902:9898:: with SMTP id s24mr6651017plp.226.1561570727315;
+        Wed, 26 Jun 2019 10:38:47 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561570727; cv=none;
         d=google.com; s=arc-20160816;
-        b=eiX7vMTE56nngj58EaDHVm/RNbY7skDjFsC3wM1keR2nP73Q5IBOwqWA0AB6etUZ8Q
-         E4wmKMCLBzxPDWrXmJDq0W9UJVon0sPqeGCDbV/B5oW0qlv1gopChrP5jxp8RTMrNDIQ
-         4GVHzd3D3zFJkI02ImXu2R9LU05deSUWv01pa0KuksNJ3Mdv1RZ5idrCT6X8ickHckvp
-         EgOLmhSRNddX1qS7jfeX5aFrIlh8ouzPBTJA0IMpMTgF0Yp/3BaoxzZO/vU9LQSfQ17C
-         0+yfmqM82ITz4eVogPpz3t1fKL50y6f6zg09+ogk5duNa5b1bOpocZet6XB91vS0yAKs
-         MO5w==
+        b=yQX+08+CRZYXH23Bb/EhiXfDCrxRKegoDKmLT5KwHDrNUxAmlM5J9Z3lDTi7zIh4R+
+         xFrm/wBHZihlo/EqbsvlrLPt0FKolS/EGT3iX51CggXR1kCi01t8atCe4R21ETGGKCnq
+         exiX1FyH/41kZC2Ncuh29ixCrv4JAynHMRjNZxdJIjp2WLD9NRajByV1xK/ggSji4Qdg
+         FgRolits1pNW+7XZVIu/NKZjqdPsXDF/DTnkCKswLJ7hNBybndELvCyhslUQ/N5/Knnk
+         49l35G8zPNQBN5HlpM6hNwPXwlAoSRmJvglJTDDE6z3X/ArqOJ78nZIifWBkqWugt+5W
+         xhbw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=nHeSEkJXIvoqOJZ+5cOPpc2ISousIbqPGmXMcAzA6Lk=;
-        b=vu90U8iTNhme0LReD0qnFXjqARdqfedcjLsmvn17mUWUw/Glxk5XP7azxaD81frBtB
-         nIr9ZPv4kX4V29eWj9VGkIyMhjiR4huPaFeys94DEHxzgltZQrhaowPjjC2+sFrKoqBV
-         eP0XCdF6SfqIDQcE7UhDAtTnPWOkpmv3SQLohbtzt3YoE1yZys8iCjRvELtRwiAhqdVx
-         Ic1kDzvzpySREcxgbxO6eADOC1f2u7MuJ6pMNjF9WK+57adLFZ4+5ZGqoO3rq819qI8i
-         C3VWaSjd3RxkSVVbVeqonNR6K9yxparXe1BffypnzMALAf1lG4ASr+qfweruZg445rDQ
-         1odw==
+        h=content-transfer-encoding:mime-version:references:in-reply-to:date
+         :cc:to:from:subject:message-id;
+        bh=AqyIU3rWQpzA90sPDOX6SRMhi4r1FKCPLmdXup5eYHs=;
+        b=flJw9N1o9uQvWEu7n6aPqTOxViqlYLq7raH/s8NgdyrSH089cYhaC+xShdtHQFoSmT
+         2YlsKxi3CgWqeLl+p6IlncrATKGX0kv4/vToOAG9zoqCbmnbTq2ufGTioM2TZgSsS/17
+         k+usNyAwE16xNS43NdscqCx5xickrAtoTtRSZUQSS05s+jOpl8/9lX/moTp730ChRpkH
+         A3irONlRuoJnD1DiY6/2qPKSkR6BNtuU4WO+5QcOnbqtEOyvBXAz5edWJik4RUZ6T46v
+         6gaxQcNbdEWb2jIvoxj6s0unMkcgea8sO3PxSviIGXk5etVPdwYIhgvsLX3cmSEb1KyY
+         GJKw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
-        by mx.google.com with ESMTP id e1si2862719ejb.15.2019.06.26.10.18.26
-        for <linux-mm@kvack.org>;
-        Wed, 26 Jun 2019 10:18:27 -0700 (PDT)
-Received-SPF: pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
+       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id i41si2494581pje.45.2019.06.26.10.38.47
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 26 Jun 2019 10:38:47 -0700 (PDT)
+Received-SPF: pass (google.com: domain of yu-cheng.yu@intel.com designates 192.55.52.43 as permitted sender) client-ip=192.55.52.43;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 3BC85360;
-	Wed, 26 Jun 2019 10:18:26 -0700 (PDT)
-Received: from arrakis.emea.arm.com (arrakis.cambridge.arm.com [10.1.196.78])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 876353F718;
-	Wed, 26 Jun 2019 10:18:21 -0700 (PDT)
-Date: Wed, 26 Jun 2019 18:18:19 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andrey Konovalov <andreyknvl@google.com>,
-	linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org, amd-gfx@lists.freedesktop.org,
-	dri-devel@lists.freedesktop.org, linux-rdma@vger.kernel.org,
-	linux-media@vger.kernel.org, kvm@vger.kernel.org,
-	linux-kselftest@vger.kernel.org,
-	Vincenzo Frascino <vincenzo.frascino@arm.com>,
-	Will Deacon <will.deacon@arm.com>,
-	Mark Rutland <mark.rutland@arm.com>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	Kees Cook <keescook@chromium.org>,
-	Yishai Hadas <yishaih@mellanox.com>,
-	Felix Kuehling <Felix.Kuehling@amd.com>,
-	Alexander Deucher <Alexander.Deucher@amd.com>,
-	Christian Koenig <Christian.Koenig@amd.com>,
-	Mauro Carvalho Chehab <mchehab@kernel.org>,
-	Jens Wiklander <jens.wiklander@linaro.org>,
-	Alex Williamson <alex.williamson@redhat.com>,
-	Leon Romanovsky <leon@kernel.org>,
-	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>,
-	Dave Martin <Dave.Martin@arm.com>,
-	Khalid Aziz <khalid.aziz@oracle.com>, enh <enh@google.com>,
-	Jason Gunthorpe <jgg@ziepe.ca>,
-	Christoph Hellwig <hch@infradead.org>,
-	Dmitry Vyukov <dvyukov@google.com>,
-	Kostya Serebryany <kcc@google.com>,
-	Evgeniy Stepanov <eugenis@google.com>,
-	Lee Smith <Lee.Smith@arm.com>,
-	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
-	Jacob Bramley <Jacob.Bramley@arm.com>,
-	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
-	Robin Murphy <robin.murphy@arm.com>,
-	Kevin Brodsky <kevin.brodsky@arm.com>,
-	Szabolcs Nagy <Szabolcs.Nagy@arm.com>
-Subject: Re: [PATCH v18 00/15] arm64: untag user pointers passed to the kernel
-Message-ID: <20190626171819.GG29672@arrakis.emea.arm.com>
-References: <cover.1561386715.git.andreyknvl@google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <cover.1561386715.git.andreyknvl@google.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from fmsmga001.fm.intel.com ([10.253.24.23])
+  by fmsmga105.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 26 Jun 2019 10:38:46 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.63,420,1557212400"; 
+   d="scan'208";a="183217012"
+Received: from yyu32-desk1.sc.intel.com ([10.144.153.205])
+  by fmsmga001.fm.intel.com with ESMTP; 26 Jun 2019 10:38:46 -0700
+Message-ID: <9f7787e255ef859a39ea87e70132a50572f4db65.camel@intel.com>
+Subject: Re: [PATCH] binfmt_elf: Extract .note.gnu.property from an ELF file
+From: Yu-cheng Yu <yu-cheng.yu@intel.com>
+To: Andy Lutomirski <luto@kernel.org>, Dave Martin <Dave.Martin@arm.com>
+Cc: X86 ML <x86@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Thomas
+ Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, LKML
+ <linux-kernel@vger.kernel.org>, "open list:DOCUMENTATION"
+ <linux-doc@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, linux-arch
+ <linux-arch@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, Arnd
+ Bergmann <arnd@arndb.de>, Balbir Singh <bsingharora@gmail.com>, Cyrill
+ Gorcunov <gorcunov@gmail.com>,  Dave Hansen <dave.hansen@linux.intel.com>,
+ Eugene Syromiatnikov <esyr@redhat.com>, Florian Weimer
+ <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn
+ <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook
+ <keescook@chromium.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit
+ <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek
+ <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, Randy Dunlap
+ <rdunlap@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, 
+ Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>, Szabolcs Nagy
+ <szabolcs.nagy@arm.com>, libc-alpha <libc-alpha@sourceware.org>
+Date: Wed, 26 Jun 2019 10:30:24 -0700
+In-Reply-To: <CALCETrVZCzh+KFCF6ijuf4QEPn=R2gJ8FHLpyFd=n+pNOMMMjA@mail.gmail.com>
+References: <20190501211217.5039-1-yu-cheng.yu@intel.com>
+	 <20190502111003.GO3567@e103592.cambridge.arm.com>
+	 <CALCETrVZCzh+KFCF6ijuf4QEPn=R2gJ8FHLpyFd=n+pNOMMMjA@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+X-Mailer: Evolution 3.28.1-2 
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Andrew,
-
-On Mon, Jun 24, 2019 at 04:32:45PM +0200, Andrey Konovalov wrote:
-> Andrey Konovalov (14):
->   arm64: untag user pointers in access_ok and __uaccess_mask_ptr
->   lib: untag user pointers in strn*_user
->   mm: untag user pointers passed to memory syscalls
->   mm: untag user pointers in mm/gup.c
->   mm: untag user pointers in get_vaddr_frames
->   fs/namespace: untag user pointers in copy_mount_options
->   userfaultfd: untag user pointers
->   drm/amdgpu: untag user pointers
->   drm/radeon: untag user pointers in radeon_gem_userptr_ioctl
->   IB/mlx4: untag user pointers in mlx4_get_umem_mr
->   media/v4l2-core: untag user pointers in videobuf_dma_contig_user_get
->   tee/shm: untag user pointers in tee_shm_register
->   vfio/type1: untag user pointers in vaddr_get_pfn
->   selftests, arm64: add a selftest for passing tagged pointers to kernel
+On Wed, 2019-06-26 at 10:14 -0700, Andy Lutomirski wrote:
+> On Thu, May 2, 2019 at 4:10 AM Dave Martin <Dave.Martin@arm.com> wrote:
+> > 
+> > On Wed, May 01, 2019 at 02:12:17PM -0700, Yu-cheng Yu wrote:
+> > > An ELF file's .note.gnu.property indicates features the executable file
+> > > can support.  For example, the property GNU_PROPERTY_X86_FEATURE_1_AND
+> > > indicates the file supports GNU_PROPERTY_X86_FEATURE_1_IBT and/or
+> > > GNU_PROPERTY_X86_FEATURE_1_SHSTK.
+> > > 
+[...]
 > 
-> Catalin Marinas (1):
->   arm64: Introduce prctl() options to control the tagged user addresses
->     ABI
+> Where did PT_GNU_PROPERTY come from?  Are there actual docs for it?
+> Can someone here tell us what the actual semantics of this new ELF
+> thingy are?  From some searching, it seems like it's kind of an ELF
+> note but kind of not.  An actual description would be fantastic.
 > 
->  arch/arm64/Kconfig                            |  9 +++
->  arch/arm64/include/asm/processor.h            |  8 +++
->  arch/arm64/include/asm/thread_info.h          |  1 +
->  arch/arm64/include/asm/uaccess.h              | 12 +++-
->  arch/arm64/kernel/process.c                   | 72 +++++++++++++++++++
->  .../gpu/drm/amd/amdgpu/amdgpu_amdkfd_gpuvm.c  |  2 +-
->  drivers/gpu/drm/amd/amdgpu/amdgpu_gem.c       |  2 +
->  drivers/gpu/drm/radeon/radeon_gem.c           |  2 +
->  drivers/infiniband/hw/mlx4/mr.c               |  7 +-
->  drivers/media/v4l2-core/videobuf-dma-contig.c |  9 +--
->  drivers/tee/tee_shm.c                         |  1 +
->  drivers/vfio/vfio_iommu_type1.c               |  2 +
->  fs/namespace.c                                |  2 +-
->  fs/userfaultfd.c                              | 22 +++---
->  include/uapi/linux/prctl.h                    |  5 ++
->  kernel/sys.c                                  | 12 ++++
->  lib/strncpy_from_user.c                       |  3 +-
->  lib/strnlen_user.c                            |  3 +-
->  mm/frame_vector.c                             |  2 +
->  mm/gup.c                                      |  4 ++
->  mm/madvise.c                                  |  2 +
->  mm/mempolicy.c                                |  3 +
->  mm/migrate.c                                  |  2 +-
->  mm/mincore.c                                  |  2 +
->  mm/mlock.c                                    |  4 ++
->  mm/mprotect.c                                 |  2 +
->  mm/mremap.c                                   |  7 ++
->  mm/msync.c                                    |  2 +
->  tools/testing/selftests/arm64/.gitignore      |  1 +
->  tools/testing/selftests/arm64/Makefile        | 11 +++
->  .../testing/selftests/arm64/run_tags_test.sh  | 12 ++++
->  tools/testing/selftests/arm64/tags_test.c     | 29 ++++++++
->  32 files changed, 232 insertions(+), 25 deletions(-)
+> Also, I don't think there's any actual requirement that the upstream
+> kernel recognize existing CET-enabled RHEL 8 binaries as being
+> CET-enabled.  I tend to think that RHEL 8 jumped the gun here.  While
+> the upstream kernel should make some reasonble effort to make sure
+> that RHEL 8 binaries will continue to run, I don't see why we need to
+> go out of our way to keep the full set of mitigations available for
+> binaries that were developed against a non-upstream kernel.
+> 
+> In fact, if we handle the legacy bitmap differently from RHEL 8, we
+> may *have* to make sure that we don't recognize existing RHEL 8
+> binaries as CET-enabled.
 
-It looks like we got to an agreement on how to deal with tagged user
-addresses between SPARC ADI and ARM Memory Tagging. If there are no
-other objections, what's your preferred way of getting this series into
--next first and then mainline? Are you ok to merge them into the mm
-tree?
+We have worked out the issue.  Linux will look at only PT_GNU_PROPERTY, which is
+a shortcut pointing directly to .note.gnu.property.  I have an updated patch,
+and will send it out (although it is not yet perfect).
 
-Thanks.
+The Linux gABI extension draft is here: https://github.com/hjl-tools/linux-abi/w
+iki/linux-abi-draft.pdf.
 
--- 
-Catalin
+Yu-cheng
 
