@@ -2,209 +2,317 @@ Return-Path: <SRS0=C/CR=UZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_MUTT autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-8.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1DCE2C48BD9
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 18:01:26 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C9FB6C48BD6
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 18:04:42 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D65EF208E3
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 18:01:25 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D65EF208E3
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 7326B21726
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 18:04:42 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=chromium.org header.i=@chromium.org header.b="jpOJUeZ/"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7326B21726
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chromium.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 701EF6B0003; Wed, 26 Jun 2019 14:01:25 -0400 (EDT)
+	id 097ED6B0003; Wed, 26 Jun 2019 14:04:42 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6B37A8E0003; Wed, 26 Jun 2019 14:01:25 -0400 (EDT)
+	id 049AB8E0003; Wed, 26 Jun 2019 14:04:42 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5A1768E0002; Wed, 26 Jun 2019 14:01:25 -0400 (EDT)
+	id E79E38E0002; Wed, 26 Jun 2019 14:04:41 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 21E1B6B0003
-	for <linux-mm@kvack.org>; Wed, 26 Jun 2019 14:01:25 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id 65so1844457plf.16
-        for <linux-mm@kvack.org>; Wed, 26 Jun 2019 11:01:25 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id AFCDE6B0003
+	for <linux-mm@kvack.org>; Wed, 26 Jun 2019 14:04:41 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id p14so1870487plq.1
+        for <linux-mm@kvack.org>; Wed, 26 Jun 2019 11:04:41 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=svik35W1NsukDvVLNPgzFfv/q3RAdnN3kBobIhH3TrU=;
-        b=GuYPeQpHNrsYCeIZoOKEqZfxhYbcw6PVo+FjPJpJOU7hX1htV4MXQG6/e75/B2VVB3
-         O8ylXvFOFizJsSOHTZo0zP15kWhFbXaIaNZT20WJmO0isLDUlML0/fiZb9XGOtBQ/DkF
-         XGYQVkMBeN+YuR5pHbtArjyW0JTWxLU241wBrfu2OHwNZss4yImfCrd+RHicye9Tfsy0
-         uQD/6YL683puW9MnEtF3vH+Tf9EtdQ4DboclLwlnGJD+8F7meXKgwpAIAZ9UVtE0sUmh
-         0lJXZVQ4UoYE3oXdjiFwQ3TuVctLnV2cLPSboVA9QGejWJFA1VzkQIpF37Gjq0nAUhpi
-         nICg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAVQTkOu7vcVHYTo5BnG8JgtIUMLp1DE2A55S+MrEY8fjGtDXgL1
-	LVDwtB4PggKKBs9mdHyGlADtAeJuHUQwgfiJMoMAjhLgclpyxZAjLKcGkx8O/jhOVZqInxoZcV8
-	EiP3ijOHc0W6aky22X6K/w+C+W3D84y5/OE6dkkx1o3Na8oiiAA/M4piAPEQ9wkQosQ==
-X-Received: by 2002:a17:90a:8c92:: with SMTP id b18mr355895pjo.97.1561572084616;
-        Wed, 26 Jun 2019 11:01:24 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqw9IsrcrSHzcxKbveeCC5x7+GTjW1r5XCYdCx/GwlU5xKhhqSzZocJUSx1ln4uDwAzWfy/p
-X-Received: by 2002:a17:90a:8c92:: with SMTP id b18mr355814pjo.97.1561572083679;
-        Wed, 26 Jun 2019 11:01:23 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561572083; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id:mime-version:content-transfer-encoding;
+        bh=xZqtOCyMzQFdp6VFlt6zwEXeqNexcY0tJ0asBdjWmuA=;
+        b=UuWqkyPjmZlxZ+jyqtTR+egmJDfH43k8rqbbbzo006h+J41OK8kkxCLwlM6ufJ2HvT
+         VgttIF32PyiK3WQlGCGzBYWqz7tJuQzUAbhsRBe1KE3Vv+s6QtG1/plNEBwMf2tzXx7w
+         Ym1ZoJeSQztdtquHSOdf0u6suoa0lU/nOPdGVHWQ1WumPywjLe/eFKpf7NxJEKsGw0cz
+         n9LJ8+bq2Y331x8/ES1GgCLc56ur8z4zL9KsQQYloxAHKagUMGR/4fgJBdf0IH3LvxS0
+         p1hediQiVWKBzLTaGWoY9fvwFMPVKKeI5Z2CKVnxVat+v8KGQlbMOc+oD/hUL/BCjTkL
+         iBoA==
+X-Gm-Message-State: APjAAAUCjhUI02YeiDJizegiLorVcN4w11Rp1PdqwkzUuXYnYL4QLtqy
+	fOxED5c9sfJ7DuSyNDPR4izyUKZFHlbtgYrYtSLkMasM0xEu5927rQQ3sXmt3WSPXhpK13Oy/Km
+	2ADWg0mSBknHAg19xj3MhgArhI3NgnmH2BMSRLa+Yi5QnX9wD7/1SzjuM/xJvSlE7zg==
+X-Received: by 2002:a63:ed13:: with SMTP id d19mr4198603pgi.100.1561572281145;
+        Wed, 26 Jun 2019 11:04:41 -0700 (PDT)
+X-Received: by 2002:a63:ed13:: with SMTP id d19mr4198511pgi.100.1561572280083;
+        Wed, 26 Jun 2019 11:04:40 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561572280; cv=none;
         d=google.com; s=arc-20160816;
-        b=0BNd6wZfOPUQrTTX94W6vUD8e0fF8rlI0YauxqEB83Psi/cSw+efsOXEPDoWQtY272
-         GGPODTgOsZt0AJjzx5iov+Su/QGBvi1RE/2wLfEyf2R8iUsPSMIGPHYHpKLlgvBxB47Q
-         6Pd9ukYV6xt5T9z+bDes4iTGnMnuYDmQGR0KVU95V15GxlM9QmukwSApF7KWq6BxfWIx
-         Fiw72qEMLIaPzWk+43MeaOQEEwLB1ursTSXA2rprrPJFFlCSey/TyEs2fMNRllNssKGe
-         RC7KcFb/B8DuAFZS7shJvvDBWU/JU38iRtAz0JkyALWUpP7MxJkOobwDWExOn2IwNtfB
-         O49g==
+        b=bnAhy3j7cDD3NK4v1cISSDWEEHThz6o5DTdHGf4b8q4cl2Y/9/TA4zD3HrgE1teBl5
+         ibNoN3NczUEbK5heyhg04zbOvT39cz0su+RiVWotNCxBWK8hoFN9BuiQWK3IE9T52V5d
+         Ehz2zL3KlXm7IyBf08OiKAndUETJxKZZ5D4O2W+u+yCKqEdjKXMA6JePE9k9Be+ogRoQ
+         vNDDClEgk+QoHhy4+OiH0K1qvSspJuQmCzxfGbZGuiZ9wFz1NawwSu3qXiUV581M+1mB
+         a08aVA76H+2FZXnot5NCpoWSWdWMOBW1RKOMWrIqDaGCOIykHQshkKHB6yrBO9Xuo2yP
+         ZbQg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=svik35W1NsukDvVLNPgzFfv/q3RAdnN3kBobIhH3TrU=;
-        b=0N0XuJSRRPeAqBz/Uv+g41yW82+SF48nHKp8eER/5PDpBsF9AHv5rAWWFKZm5HJ7Sq
-         ALSI4uJVr2aQY7tlIgZv8JXIqxWMa3IKQaZ5sTiAlWQxlodTgMUFYkG96Qmm4KVI7f24
-         hb5kIDhO6nDf2KpxnWm34/PrztIB3CIf/m5xZrGyWMN6w09AuwgyhHttrXekh0Iu2mjS
-         UjaF5Kmh71386tZOk7AQHNhiae8+oX7NLFPSywrC9DahMTjCmelSLnnx2miuFpnIXp3b
-         o2CN9i814oEov07Blgy9PuNZpJZaCL4tV0/uRD5LkEjeMtCn2XFk9Ea/HF8WumKwpEGD
-         V1Cw==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from:dkim-signature;
+        bh=xZqtOCyMzQFdp6VFlt6zwEXeqNexcY0tJ0asBdjWmuA=;
+        b=0o+2Nwi2cNYUJb/uo5p+F+m++lipupb2KI/j6ksn8KfsDumz8uZQ71lDZus4y6ysKE
+         r/uSbz58P8egTz1Iotbz+MMJ37Y5rvyOij6n+PzC0/Y0eUJC2wTyaJlao2v05abZsbcC
+         Mu814ODR7Ee+4Kt7BQ7estj7SlqvwBNy/O+tvbL7J0lKwfYv5PPC+biSDYA22+aqqTAO
+         ftH1ibH+lm/ksmBtRWasQs4jWAt9NdKCsvsupKjp/kDTlMBRHqxhpBfmj/8lRiKgoEHt
+         p7nYIqA9RvnKlkAQKjZaGIup8cGJvwp+2rDwq+GUlsK9HkK/z/ylFmFUyA3jrg1rfYAv
+         DFOA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id l24si4775014pff.185.2019.06.26.11.01.23
+       dkim=pass header.i=@chromium.org header.s=google header.b="jpOJUeZ/";
+       spf=pass (google.com: domain of semenzato@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=semenzato@chromium.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id bj2sor21243301plb.52.2019.06.26.11.04.39
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Jun 2019 11:01:23 -0700 (PDT)
-Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.24 as permitted sender) client-ip=134.134.136.24;
+        (Google Transport Security);
+        Wed, 26 Jun 2019 11:04:40 -0700 (PDT)
+Received-SPF: pass (google.com: domain of semenzato@chromium.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: UNSCANNABLE
-X-Amp-File-Uploaded: False
-Received: from fmsmga007.fm.intel.com ([10.253.24.52])
-  by orsmga102.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 26 Jun 2019 11:01:23 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.63,420,1557212400"; 
-   d="scan'208";a="164032950"
-Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
-  by fmsmga007.fm.intel.com with ESMTP; 26 Jun 2019 11:01:22 -0700
-Date: Wed, 26 Jun 2019 11:01:22 -0700
-From: Ira Weiny <ira.weiny@intel.com>
-To: Christoph Hellwig <hch@lst.de>
-Cc: Dan Williams <dan.j.williams@intel.com>,
-	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
-	Jason Gunthorpe <jgg@mellanox.com>, Ben Skeggs <bskeggs@redhat.com>,
-	linux-nvdimm@lists.01.org, linux-pci@vger.kernel.org,
-	linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org,
-	linux-mm@kvack.org, nouveau@lists.freedesktop.org
-Subject: Re: [PATCH 08/25] memremap: validate the pagemap type passed to
- devm_memremap_pages
-Message-ID: <20190626180122.GB4605@iweiny-DESK2.sc.intel.com>
-References: <20190626122724.13313-1-hch@lst.de>
- <20190626122724.13313-9-hch@lst.de>
+       dkim=pass header.i=@chromium.org header.s=google header.b="jpOJUeZ/";
+       spf=pass (google.com: domain of semenzato@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=semenzato@chromium.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=chromium.org; s=google;
+        h=from:to:cc:subject:date:message-id:mime-version
+         :content-transfer-encoding;
+        bh=xZqtOCyMzQFdp6VFlt6zwEXeqNexcY0tJ0asBdjWmuA=;
+        b=jpOJUeZ/hUfvktWhirjOVpil5CD5asniu17N0x8tEkehoqK4zx6HeGZwCYnKiobCcI
+         IMn/UFf+I/29uSMdLH/QuUGPhML6QJ/0jCdvu7pCkP6El2rriGuBppKB3VieF30aJy6M
+         zPNERUYu0m6Ruwb2HK34e8japmFkrpA5Ai4NE=
+X-Google-Smtp-Source: APXvYqy/2V+V8B/Bwh0IojGPMXgh6LuOv6Rotywt9YQsXQMdZfzPHS6AXBSOjnrcfzJkq8092TsA+A==
+X-Received: by 2002:a17:902:bc83:: with SMTP id bb3mr7152039plb.56.1561572279410;
+        Wed, 26 Jun 2019 11:04:39 -0700 (PDT)
+Received: from luigi2.sfo.corp.google.com ([2620:0:1002:1005:fea5:a80f:c2ef:91c7])
+        by smtp.gmail.com with ESMTPSA id x26sm25286583pfq.69.2019.06.26.11.04.38
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Wed, 26 Jun 2019 11:04:38 -0700 (PDT)
+From: semenzato@chromium.org
+To: linux-mm@kvack.org,
+	akpm@linux-foundation.org
+Cc: yuzhao@chromium.org,
+	bgeffon@chromium.org,
+	sonnyrao@chromium.org,
+	Luigi Semenzato <semenzato@chromium.org>
+Subject: [PATCH 1/1] mm: smaps: split PSS into components
+Date: Wed, 26 Jun 2019 11:04:29 -0700
+Message-Id: <20190626180429.174569-1-semenzato@chromium.org>
+X-Mailer: git-send-email 2.22.0.410.gd8fdbe21b5-goog
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190626122724.13313-9-hch@lst.de>
-User-Agent: Mutt/1.11.1 (2018-12-01)
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jun 26, 2019 at 02:27:07PM +0200, Christoph Hellwig wrote:
-> Most pgmap types are only supported when certain config options are
-> enabled.  Check for a type that is valid for the current configuration
-> before setting up the pagemap.  For this the usage of the 0 type for
-> device dax gets replaced with an explicit MEMORY_DEVICE_DEVDAX type.
-> 
-> Signed-off-by: Christoph Hellwig <hch@lst.de>
+From: Luigi Semenzato <semenzato@chromium.org>
 
-Reviewed-by: Ira Weiny <ira.weiny@intel.com>
+Report separate components (anon, file, and shmem)
+for PSS in smaps_rollup.
 
-> ---
->  drivers/dax/device.c     |  1 +
->  include/linux/memremap.h |  8 ++++++++
->  kernel/memremap.c        | 22 ++++++++++++++++++++++
->  3 files changed, 31 insertions(+)
-> 
-> diff --git a/drivers/dax/device.c b/drivers/dax/device.c
-> index 8465d12fecba..79014baa782d 100644
-> --- a/drivers/dax/device.c
-> +++ b/drivers/dax/device.c
-> @@ -468,6 +468,7 @@ int dev_dax_probe(struct device *dev)
->  	dev_dax->pgmap.ref = &dev_dax->ref;
->  	dev_dax->pgmap.kill = dev_dax_percpu_kill;
->  	dev_dax->pgmap.cleanup = dev_dax_percpu_exit;
-> +	dev_dax->pgmap.type = MEMORY_DEVICE_DEVDAX;
->  	addr = devm_memremap_pages(dev, &dev_dax->pgmap);
->  	if (IS_ERR(addr))
->  		return PTR_ERR(addr);
-> diff --git a/include/linux/memremap.h b/include/linux/memremap.h
-> index 995c62c5a48b..0c86f2c5ac9c 100644
-> --- a/include/linux/memremap.h
-> +++ b/include/linux/memremap.h
-> @@ -45,13 +45,21 @@ struct vmem_altmap {
->   * wakeup is used to coordinate physical address space management (ex:
->   * fs truncate/hole punch) vs pinned pages (ex: device dma).
->   *
-> + * MEMORY_DEVICE_DEVDAX:
-> + * Host memory that has similar access semantics as System RAM i.e. DMA
-> + * coherent and supports page pinning. In contrast to
-> + * MEMORY_DEVICE_FS_DAX, this memory is access via a device-dax
-> + * character device.
-> + *
->   * MEMORY_DEVICE_PCI_P2PDMA:
->   * Device memory residing in a PCI BAR intended for use with Peer-to-Peer
->   * transactions.
->   */
->  enum memory_type {
-> +	/* 0 is reserved to catch uninitialized type fields */
->  	MEMORY_DEVICE_PRIVATE = 1,
->  	MEMORY_DEVICE_FS_DAX,
-> +	MEMORY_DEVICE_DEVDAX,
->  	MEMORY_DEVICE_PCI_P2PDMA,
->  };
->  
-> diff --git a/kernel/memremap.c b/kernel/memremap.c
-> index 6e1970719dc2..abda62d1e5a3 100644
-> --- a/kernel/memremap.c
-> +++ b/kernel/memremap.c
-> @@ -157,6 +157,28 @@ void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
->  	pgprot_t pgprot = PAGE_KERNEL;
->  	int error, nid, is_ram;
->  
-> +	switch (pgmap->type) {
-> +	case MEMORY_DEVICE_PRIVATE:
-> +		if (!IS_ENABLED(CONFIG_DEVICE_PRIVATE)) {
-> +			WARN(1, "Device private memory not supported\n");
-> +			return ERR_PTR(-EINVAL);
-> +		}
-> +		break;
-> +	case MEMORY_DEVICE_FS_DAX:
-> +		if (!IS_ENABLED(CONFIG_ZONE_DEVICE) ||
-> +		    IS_ENABLED(CONFIG_FS_DAX_LIMITED)) {
-> +			WARN(1, "File system DAX not supported\n");
-> +			return ERR_PTR(-EINVAL);
-> +		}
-> +		break;
-> +	case MEMORY_DEVICE_DEVDAX:
-> +	case MEMORY_DEVICE_PCI_P2PDMA:
-> +		break;
-> +	default:
-> +		WARN(1, "Invalid pgmap type %d\n", pgmap->type);
-> +		break;
-> +	}
-> +
->  	if (!pgmap->ref || !pgmap->kill || !pgmap->cleanup) {
->  		WARN(1, "Missing reference count teardown definition\n");
->  		return ERR_PTR(-EINVAL);
-> -- 
-> 2.20.1
-> 
-> _______________________________________________
-> Linux-nvdimm mailing list
-> Linux-nvdimm@lists.01.org
-> https://lists.01.org/mailman/listinfo/linux-nvdimm
+This helps understand and tune the memory manager behavior
+in consumer devices, particularly mobile devices.  Many of
+them (e.g. chromebooks and Android-based devices) use zram
+for anon memory, and perform disk reads for discarded file
+pages.  The difference in latency is large (e.g. reading
+a single page from SSD is 30 times slower than decompressing
+a zram page on one popular device), thus it is useful to know
+how much of the PSS is anon vs. file.
+
+This patch also removes a small code duplication in smaps_account,
+which would have gotten worse otherwise.
+
+Also added missing entry for smaps_rollup in
+Documentation/filesystems/proc.txt.
+
+Acked-by: Yu Zhao <yuzhao@chromium.org>
+Signed-off-by: Luigi Semenzato <semenzato@chromium.org>
+---
+ Documentation/filesystems/proc.txt |  6 +-
+ fs/proc/task_mmu.c                 | 92 ++++++++++++++++++++----------
+ 2 files changed, 66 insertions(+), 32 deletions(-)
+
+diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
+index 66cad5c86171..b48e85e19877 100644
+--- a/Documentation/filesystems/proc.txt
++++ b/Documentation/filesystems/proc.txt
+@@ -153,9 +153,11 @@ Table 1-1: Process specific entries in /proc
+ 		symbol the task is blocked in - or "0" if not blocked.
+  pagemap	Page table
+  stack		Report full stack trace, enable via CONFIG_STACKTRACE
+- smaps		an extension based on maps, showing the memory consumption of
++ smaps		An extension based on maps, showing the memory consumption of
+ 		each mapping and flags associated with it
+- numa_maps	an extension based on maps, showing the memory locality and
++ smaps_rollup	Accumulated smaps stats for all mappings of the process.  This
++		can be derived from smaps, but is faster and more convenient
++ numa_maps	An extension based on maps, showing the memory locality and
+ 		binding policy as well as mem usage (in pages) of each mapping.
+ ..............................................................................
+ 
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+index 01d4eb0e6bd1..00d110dcd6c2 100644
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -417,17 +417,53 @@ struct mem_size_stats {
+ 	unsigned long shared_hugetlb;
+ 	unsigned long private_hugetlb;
+ 	u64 pss;
++	u64 pss_anon;
++	u64 pss_file;
++	u64 pss_shmem;
+ 	u64 pss_locked;
+ 	u64 swap_pss;
+ 	bool check_shmem_swap;
+ };
+ 
++static void smaps_page_accumulate(struct mem_size_stats *mss,
++		struct page *page, unsigned long size, unsigned long pss,
++		bool dirty, bool locked, bool private)
++{
++	mss->pss += pss;
++
++	if (PageAnon(page))
++		mss->pss_anon += pss;
++	else if (PageSwapBacked(page))
++		mss->pss_shmem += pss;
++	else
++		mss->pss_file += pss;
++
++	if (locked)
++		mss->pss_locked += pss;
++
++	if (dirty || PageDirty(page)) {
++		if (private)
++			mss->private_dirty += size;
++		else
++			mss->shared_dirty += size;
++	} else {
++		if (private)
++			mss->private_clean += size;
++		else
++			mss->shared_clean += size;
++	}
++}
++
+ static void smaps_account(struct mem_size_stats *mss, struct page *page,
+ 		bool compound, bool young, bool dirty, bool locked)
+ {
+ 	int i, nr = compound ? 1 << compound_order(page) : 1;
+ 	unsigned long size = nr * PAGE_SIZE;
+ 
++	/*
++	 * First accumulate quantities that depend only on |size| and the type
++	 * of the compound page.
++	 */
+ 	if (PageAnon(page)) {
+ 		mss->anonymous += size;
+ 		if (!PageSwapBacked(page) && !dirty && !PageDirty(page))
+@@ -440,42 +476,25 @@ static void smaps_account(struct mem_size_stats *mss, struct page *page,
+ 		mss->referenced += size;
+ 
+ 	/*
++	 * Then accumulate quantities that may depend on sharing, or that may
++	 * differ page-by-page.
++	 *
+ 	 * page_count(page) == 1 guarantees the page is mapped exactly once.
+ 	 * If any subpage of the compound page mapped with PTE it would elevate
+ 	 * page_count().
+ 	 */
+ 	if (page_count(page) == 1) {
+-		if (dirty || PageDirty(page))
+-			mss->private_dirty += size;
+-		else
+-			mss->private_clean += size;
+-		mss->pss += (u64)size << PSS_SHIFT;
+-		if (locked)
+-			mss->pss_locked += (u64)size << PSS_SHIFT;
++		smaps_page_accumulate(mss, page, size, size << PSS_SHIFT, dirty,
++			locked, true);
+ 		return;
+ 	}
+-
+ 	for (i = 0; i < nr; i++, page++) {
+ 		int mapcount = page_mapcount(page);
+-		unsigned long pss = (PAGE_SIZE << PSS_SHIFT);
+-
+-		if (mapcount >= 2) {
+-			if (dirty || PageDirty(page))
+-				mss->shared_dirty += PAGE_SIZE;
+-			else
+-				mss->shared_clean += PAGE_SIZE;
+-			mss->pss += pss / mapcount;
+-			if (locked)
+-				mss->pss_locked += pss / mapcount;
+-		} else {
+-			if (dirty || PageDirty(page))
+-				mss->private_dirty += PAGE_SIZE;
+-			else
+-				mss->private_clean += PAGE_SIZE;
+-			mss->pss += pss;
+-			if (locked)
+-				mss->pss_locked += pss;
+-		}
++		unsigned long pss = PAGE_SIZE << PSS_SHIFT;
++		if (mapcount >= 2)
++			pss /= mapcount;
++		smaps_page_accumulate(mss, page, PAGE_SIZE, pss, dirty, locked,
++				      mapcount < 2);
+ 	}
+ }
+ 
+@@ -754,10 +773,23 @@ static void smap_gather_stats(struct vm_area_struct *vma,
+ 		seq_put_decimal_ull_width(m, str, (val) >> 10, 8)
+ 
+ /* Show the contents common for smaps and smaps_rollup */
+-static void __show_smap(struct seq_file *m, const struct mem_size_stats *mss)
++static void __show_smap(struct seq_file *m, const struct mem_size_stats *mss,
++	bool rollup_mode)
+ {
+ 	SEQ_PUT_DEC("Rss:            ", mss->resident);
+ 	SEQ_PUT_DEC(" kB\nPss:            ", mss->pss >> PSS_SHIFT);
++	if (rollup_mode) {
++		/*
++		 * These are meaningful only for smaps_rollup, otherwise two of
++		 * them are zero, and the other one is the same as Pss.
++		 */
++		SEQ_PUT_DEC(" kB\nPss_Anon:       ",
++			mss->pss_anon >> PSS_SHIFT);
++		SEQ_PUT_DEC(" kB\nPss_File:       ",
++			mss->pss_file >> PSS_SHIFT);
++		SEQ_PUT_DEC(" kB\nPss_Shmem:      ",
++			mss->pss_shmem >> PSS_SHIFT);
++	}
+ 	SEQ_PUT_DEC(" kB\nShared_Clean:   ", mss->shared_clean);
+ 	SEQ_PUT_DEC(" kB\nShared_Dirty:   ", mss->shared_dirty);
+ 	SEQ_PUT_DEC(" kB\nPrivate_Clean:  ", mss->private_clean);
+@@ -794,7 +826,7 @@ static int show_smap(struct seq_file *m, void *v)
+ 	SEQ_PUT_DEC(" kB\nMMUPageSize:    ", vma_mmu_pagesize(vma));
+ 	seq_puts(m, " kB\n");
+ 
+-	__show_smap(m, &mss);
++	__show_smap(m, &mss, false);
+ 
+ 	seq_printf(m, "THPeligible:    %d\n", transparent_hugepage_enabled(vma));
+ 
+@@ -841,7 +873,7 @@ static int show_smaps_rollup(struct seq_file *m, void *v)
+ 	seq_pad(m, ' ');
+ 	seq_puts(m, "[rollup]\n");
+ 
+-	__show_smap(m, &mss);
++	__show_smap(m, &mss, true);
+ 
+ 	release_task_mempolicy(priv);
+ 	up_read(&mm->mmap_sem);
+-- 
+2.22.0.410.gd8fdbe21b5-goog
 
