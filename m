@@ -4,81 +4,81 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-8.5 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
 	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1099DC48BD3
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 12:28:17 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B3EB4C48BD3
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 12:28:20 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B487820B1F
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 12:28:16 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 62A3E2063F
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 12:28:20 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="nXboAeYl"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B487820B1F
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="VAr9mXfz"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 62A3E2063F
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9362D8E0014; Wed, 26 Jun 2019 08:28:02 -0400 (EDT)
+	id 20AC38E0015; Wed, 26 Jun 2019 08:28:04 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 897788E000E; Wed, 26 Jun 2019 08:28:02 -0400 (EDT)
+	id 147408E000E; Wed, 26 Jun 2019 08:28:04 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6C83E8E0014; Wed, 26 Jun 2019 08:28:02 -0400 (EDT)
+	id F29EC8E0015; Wed, 26 Jun 2019 08:28:03 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C62BC8E000E
-	for <linux-mm@kvack.org>; Wed, 26 Jun 2019 08:28:01 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id z10so1521779pgf.15
-        for <linux-mm@kvack.org>; Wed, 26 Jun 2019 05:28:01 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B2FF18E000E
+	for <linux-mm@kvack.org>; Wed, 26 Jun 2019 08:28:03 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id q14so1682069pff.8
+        for <linux-mm@kvack.org>; Wed, 26 Jun 2019 05:28:03 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=9nJ/dQhFjQO4BwxUpP2mzPbE9YtD10wJjf4r3VQFN1A=;
-        b=Wvj1Ytunxccu995y1AIZH/PMQ2BkkrdwYllkqfq7fKVzeuBZHdFtM1Y08VIZxZqy13
-         VkUSouM5/0etb+rRARYiHt0vZ7qYC41rj2HT2+CYEOdYXE7pgSVStVbFIAudXrzspjq5
-         pKrteESq74LN6JIWvm8rxQq4BhtEy5iz+hfnF5rfczJmOdWo5Tbsyv/ys0lP0lPPh1q/
-         TqO+K4cID13JbZBVa5qkXT4WCaJo5GH3SZaqAxQo66niPDMWRT3PtZOfa32xf+FSeU58
-         4zHGlQCoR2WiH/9y2EK9tZqMKwErXdLnaxDOEqkrqlHkWi0vHjYJNex/ETA7CW5VYVu4
-         giPA==
-X-Gm-Message-State: APjAAAW1K1KsNVpVur9Kb+QQPhYs5b6h3lhtRNfrlp3ps9MQjSyWBcJx
-	6MnI0ZVUxEpe++hHlHTw7VtS4BRdjSPWS+ZtsNBsgTuEg8yFc87jrR+K4hB1ypnFkROnzi3AGNM
-	6PL8w+KcrCX075lxmP2qc2Ix0Fd7Yby5xhOuctWJL/mSZMwcwDnH61RNvR1u8Q6k=
-X-Received: by 2002:a65:4009:: with SMTP id f9mr2758750pgp.110.1561552081201;
-        Wed, 26 Jun 2019 05:28:01 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxhZZ7qtfZIU9rmfj61ciecnYefYX+HGD6DgGVGXwCo6n7Swxut2f0BXdP1iBMRXFMH6Paj
-X-Received: by 2002:a65:4009:: with SMTP id f9mr2758652pgp.110.1561552079723;
-        Wed, 26 Jun 2019 05:27:59 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561552079; cv=none;
+        bh=eSi3S2UCkxhmCBrnGHmtw81ZNxp9oxJ8kWoR9DuGVFo=;
+        b=qprjIyf4AbeHIGB7k8YHWZeaRoeCDVqKltEDzNFhLVzPYqavlsFnXu+R3D8XkPsx0U
+         2sYxcOuViLkJPRAUlWPPLL5h6OPutTm2PC0SIm6jlrsLYm7VjZustsiejiiMlRQBKTvx
+         CT5nM3YS36BHcMznwP2+FP2BjlDZi7XGfoWNTbCX5pd9sjqxeJ47+VO69O4GZCsNOObG
+         mgR8aX/9bDpiITkc1QQqZ8LJWENakQZOVty9dbDKkoV8VG/uJR4sYyjGqM2vvbnh+mpo
+         qwlyngE+AYHX6mAy+2ORFbe6uVReymfdiz1Le+CFpFPiMR9/U8Of+fuU82tDqCJSm1Z1
+         /sfg==
+X-Gm-Message-State: APjAAAWRUsNwYEBVSuQHSfzb14Hj+E1hs3xOY7yb2BtYsRIfv05+91yh
+	S7MRKstd8hXTgsJjyWCXK3rjsNHyMIqoTMvtsCQDPzt8f3kTM74gRrCd5joEBA03jVfEZ6aFW3Z
+	Lxbl0GKkARR9aRhD7O0knRls3lf3PJSaFD2IZSQMItuB2K34CWq2DEQ+O6WhKn1I=
+X-Received: by 2002:a17:902:404:: with SMTP id 4mr5277573ple.200.1561552083383;
+        Wed, 26 Jun 2019 05:28:03 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwVBbwEtVzC9zvWTWSG03lOn4TiTE5ejCxPZUfj0A2VsVYnMIX2r+aGt//CwjK42NxNo6M3
+X-Received: by 2002:a17:902:404:: with SMTP id 4mr5277511ple.200.1561552082404;
+        Wed, 26 Jun 2019 05:28:02 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561552082; cv=none;
         d=google.com; s=arc-20160816;
-        b=dq2pnBtatNuv320GETDMF7WTOjBxIvBpjBXX5MHWc6euxPFx2zhVEsw0GGsX7c0an3
-         JjhNOw1JQoqu4scvsiYp0IN1IQXzuglgp0EF888OInAXyV+rhKn0wWZ3hzTaXvjOEQSK
-         OEU0NNWYDbmC9eHOGDZh+20d709YyUnTwgl1VxF7eTd7aFY17kAe5Appg2ccMz89u2vk
-         G4cxfXh9zNiQT+i9cR43juAapyHYqNpPLFfbPuGNEw5Uv6Ij6VGXBW3qtd864Y98Pazu
-         NPUyDyk5u+E/NAgsJLeywDkONilqPQOLKG3ak15SJft23I12DqmLGsiPNtL3LHBzrknG
-         puEA==
+        b=YJ7ckoXcxIGIc5H1l36Sw3f9mop9zasG239lmezj2s+YHiJWrfL36Sji1TNUE2NroS
+         gkJNGm6MxMQ4CNNmXAi9WoFs5XWgb1vVb82L7gn5+n5yCSntv/VJVwEZKejzi/ffUrE9
+         fkyTA+a188COGKxRIGK/no+V5AhqFnxCTy4bRSFyuJXLbHEAcsm++aGpo08B7CEfc55n
+         fQbGqbWaHYoqj7kFGgQn3Y7JFpt+W733eumcJTTUzNQCw84M+wwVDBcI2BUvDxWyUC+m
+         LCKzY21f7dB/OppGRVBKtXwp1nGaQDQJh9bfoeXbDLyJwLYeLsXPngUfVdZErozII0/p
+         5SIQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=9nJ/dQhFjQO4BwxUpP2mzPbE9YtD10wJjf4r3VQFN1A=;
-        b=tgBO/SvuIfmh2WvkbaUief6Y7Duw7oM1sM5OddRw9qMKmO4jhblUxzjZ3ZRZGripIw
-         hRLgQxkg40Nnf3Z0M2Lo2OeOIV3XOQ/Jt+JbDoHic7j2aEis8BOv38PozzTGPWiqSy+e
-         Mt9eAQP2gj/qguTETF2IzgSAth3IvtMaMTD+KSsrb5qZwRNExUUdACT5BKPeKGECcyzN
-         th9xH8SUHgbj+0icgshQuKv0L/7n0tR3m53IVXyuy9kb+nZMD3/ordQhNYGK9rnTa97Z
-         d0AAWXEGb76cqd/WIqgnorolwqWVek06fSdN1Bqm35J4ZUElb5ly+W1xxXqsMcWqHZp+
-         bWXQ==
+        bh=eSi3S2UCkxhmCBrnGHmtw81ZNxp9oxJ8kWoR9DuGVFo=;
+        b=JOK8xl1LVpBLx5uXmSLEMZ2J6I5sG3QSzigX1961RL+5k63BvlFgan4gRGC+yiladP
+         Rm4nrQcAtk+tgwsTCqk+Olyl0VVopi1tainpenDUjwXFQh/yvPNv/kFL1mwFKSRmpCjQ
+         9E3SgT1D+TRV+wO17MbH5BVc5K49zJTfhNuV4zvbvd2TyzIpMh9cuoTxdJuSkcEY4ibm
+         YFQExLxQ+IMuc9s3+HRXAOJLZ2tc0aVJQNpLjfjsYtEaEAr81gooCEJqKOUZVzB1QGiX
+         frfDUOjq5pemjhyY4p1wT9qiwQ9d241mZy8ebfryRKCW0/A5CMAdM8+RsnQviTUFfhu9
+         QobA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=nXboAeYl;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=VAr9mXfz;
        spf=pass (google.com: best guess record for domain of batv+ab1f803c58217d155be4+5785+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+ab1f803c58217d155be4+5785+infradead.org+hch@bombadil.srs.infradead.org
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id g32si2007853pje.38.2019.06.26.05.27.59
+        by mx.google.com with ESMTPS id a4si1386797pjh.87.2019.06.26.05.28.02
         for <linux-mm@kvack.org>
         (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Wed, 26 Jun 2019 05:27:59 -0700 (PDT)
+        Wed, 26 Jun 2019 05:28:02 -0700 (PDT)
 Received-SPF: pass (google.com: best guess record for domain of batv+ab1f803c58217d155be4+5785+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=nXboAeYl;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=VAr9mXfz;
        spf=pass (google.com: best guess record for domain of batv+ab1f803c58217d155be4+5785+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+ab1f803c58217d155be4+5785+infradead.org+hch@bombadil.srs.infradead.org
 DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	d=infradead.org; s=bombadil.20170209; h=Content-Transfer-Encoding:
@@ -86,15 +86,15 @@ DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	:Reply-To:Content-Type:Content-ID:Content-Description:Resent-Date:Resent-From
 	:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:List-Help:
 	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	bh=9nJ/dQhFjQO4BwxUpP2mzPbE9YtD10wJjf4r3VQFN1A=; b=nXboAeYlCcF/zPpOPlIZvUmrzJ
-	BTlirQHtzX2iEb6BKwv8oq08WeXcTesdjieof8gl0uUgUWf5wEdBkuVebpF9RqaOiPevnhYkIEcS/
-	pjaCaLjEHzt59FXX1qkUyQpExIuKbtyBv5IFulvM7w8K8rC84x4zezBXBYaW46dojoBmGnMVwjqUm
-	nF8nfnPRrptXmw0i78mJw+0WcV0vVd9wCisBHxjXgkqM0ANgfmKVYJu2eVwWDcB7vrAgI1scU5arC
-	9u78bHoi+wBhSxalLJDEDSdhTQj5G8zS5OswD85z75fNDbwF+X49HHWs6BF57YsOZsFjyLfoem3ay
-	xQHtzn2Q==;
+	bh=eSi3S2UCkxhmCBrnGHmtw81ZNxp9oxJ8kWoR9DuGVFo=; b=VAr9mXfz7cA+wOHeq9MHRYNO/Z
+	Tw/udMQowLV+trSw45gnqEt0HZNhWG7lVgavlyWH7jsxvhGv9JgYvbk4lz7GD2//xNo/lo8m5agAs
+	GxbGTWyz4pMQYv0hMGA19IuNlfi5HbAxp8MprYgFCBettSw3l032ywNQ0jbdWLeDaKHaJvhULeKQT
+	YE6yKAU+ZSd0HR+Jw67bWZty6cwjOAyK2xSnjiJD5uG7aol2AxKoP2n3PoM6gDA2aswJclMgxpg87
+	4+Uygu7KZHfUC/zlgwWL5vJgddLEwVi4vJPg1q+Mz7uahZKqAZw4H1L+/SVnzz4/d8xL31Zgdt49k
+	cHkty14w==;
 Received: from clnet-p19-102.ikbnet.co.at ([83.175.77.102] helo=localhost)
 	by bombadil.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
-	id 1hg71o-0001RJ-D7; Wed, 26 Jun 2019 12:27:56 +0000
+	id 1hg71q-0001T6-VB; Wed, 26 Jun 2019 12:27:59 +0000
 From: Christoph Hellwig <hch@lst.de>
 To: Dan Williams <dan.j.williams@intel.com>,
 	=?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
@@ -105,10 +105,11 @@ Cc: linux-mm@kvack.org,
 	dri-devel@lists.freedesktop.org,
 	linux-nvdimm@lists.01.org,
 	linux-pci@vger.kernel.org,
-	linux-kernel@vger.kernel.org
-Subject: [PATCH 11/25] memremap: lift the devmap_enable manipulation into devm_memremap_pages
-Date: Wed, 26 Jun 2019 14:27:10 +0200
-Message-Id: <20190626122724.13313-12-hch@lst.de>
+	linux-kernel@vger.kernel.org,
+	Ralph Campbell <rcampbell@nvidia.com>
+Subject: [PATCH 12/25] memremap: add a migrate_to_ram method to struct dev_pagemap_ops
+Date: Wed, 26 Jun 2019 14:27:11 +0200
+Message-Id: <20190626122724.13313-13-hch@lst.de>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190626122724.13313-1-hch@lst.de>
 References: <20190626122724.13313-1-hch@lst.de>
@@ -121,217 +122,215 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Just check if there is a ->page_free operation set and take care of the
-static key enable, as well as the put using device managed resources.
-Also check that a ->page_free is provided for the pgmaps types that
-require it, and check for a valid type as well while we are at it.
-
-Note that this also fixes the fact that hmm never called
-dev_pagemap_put_ops and thus would leave the slow path enabled forever,
-even after a device driver unload or disable.
+This replaces the hacky ->fault callback, which is currently directly
+called from common code through a hmm specific data structure as an
+exercise in layering violations.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
+Reviewed-by: Ralph Campbell <rcampbell@nvidia.com>
 ---
- drivers/nvdimm/pmem.c | 23 +++--------------
- include/linux/mm.h    | 10 --------
- kernel/memremap.c     | 59 +++++++++++++++++++++++++++----------------
- mm/hmm.c              |  2 --
- 4 files changed, 41 insertions(+), 53 deletions(-)
+ include/linux/hmm.h      |  6 ------
+ include/linux/memremap.h |  6 ++++++
+ include/linux/swapops.h  | 15 ---------------
+ kernel/memremap.c        | 35 ++++-------------------------------
+ mm/hmm.c                 | 13 +++++--------
+ mm/memory.c              |  9 ++-------
+ 6 files changed, 17 insertions(+), 67 deletions(-)
 
-diff --git a/drivers/nvdimm/pmem.c b/drivers/nvdimm/pmem.c
-index 9dac48359353..48767171a4df 100644
---- a/drivers/nvdimm/pmem.c
-+++ b/drivers/nvdimm/pmem.c
-@@ -334,11 +334,6 @@ static void pmem_release_disk(void *__pmem)
- 	put_disk(pmem->disk);
- }
+diff --git a/include/linux/hmm.h b/include/linux/hmm.h
+index 44a5ac738bb5..ba19c19e24ed 100644
+--- a/include/linux/hmm.h
++++ b/include/linux/hmm.h
+@@ -692,11 +692,6 @@ struct hmm_devmem_ops {
+  * chunk, as an optimization. It must, however, prioritize the faulting address
+  * over all the others.
+  */
+-typedef vm_fault_t (*dev_page_fault_t)(struct vm_area_struct *vma,
+-				unsigned long addr,
+-				const struct page *page,
+-				unsigned int flags,
+-				pmd_t *pmdp);
  
--static void pmem_release_pgmap_ops(void *__pgmap)
--{
--	dev_pagemap_put_ops();
--}
--
- static void pmem_pagemap_page_free(struct page *page, void *data)
- {
- 	wake_up_var(&page->_refcount);
-@@ -350,16 +345,6 @@ static const struct dev_pagemap_ops fsdax_pagemap_ops = {
- 	.cleanup		= pmem_pagemap_cleanup,
+ struct hmm_devmem {
+ 	struct completion		completion;
+@@ -707,7 +702,6 @@ struct hmm_devmem {
+ 	struct dev_pagemap		pagemap;
+ 	const struct hmm_devmem_ops	*ops;
+ 	struct percpu_ref		ref;
+-	dev_page_fault_t		page_fault;
  };
  
--static int setup_pagemap_fsdax(struct device *dev, struct dev_pagemap *pgmap)
--{
--	dev_pagemap_get_ops();
--	if (devm_add_action_or_reset(dev, pmem_release_pgmap_ops, pgmap))
--		return -ENOMEM;
--	pgmap->type = MEMORY_DEVICE_FS_DAX;
--	pgmap->ops = &fsdax_pagemap_ops;
--	return 0;
--}
--
- static int pmem_attach_disk(struct device *dev,
- 		struct nd_namespace_common *ndns)
- {
-@@ -415,8 +400,8 @@ static int pmem_attach_disk(struct device *dev,
- 	pmem->pfn_flags = PFN_DEV;
- 	pmem->pgmap.ref = &q->q_usage_counter;
- 	if (is_nd_pfn(dev)) {
--		if (setup_pagemap_fsdax(dev, &pmem->pgmap))
--			return -ENOMEM;
-+		pmem->pgmap.type = MEMORY_DEVICE_FS_DAX;
-+		pmem->pgmap.ops = &fsdax_pagemap_ops;
- 		addr = devm_memremap_pages(dev, &pmem->pgmap);
- 		pfn_sb = nd_pfn->pfn_sb;
- 		pmem->data_offset = le64_to_cpu(pfn_sb->dataoff);
-@@ -428,8 +413,8 @@ static int pmem_attach_disk(struct device *dev,
- 	} else if (pmem_should_map_pages(dev)) {
- 		memcpy(&pmem->pgmap.res, &nsio->res, sizeof(pmem->pgmap.res));
- 		pmem->pgmap.altmap_valid = false;
--		if (setup_pagemap_fsdax(dev, &pmem->pgmap))
--			return -ENOMEM;
-+		pmem->pgmap.type = MEMORY_DEVICE_FS_DAX;
-+		pmem->pgmap.ops = &fsdax_pagemap_ops;
- 		addr = devm_memremap_pages(dev, &pmem->pgmap);
- 		pmem->pfn_flags |= PFN_MAP;
- 		memcpy(&bb_res, &pmem->pgmap.res, sizeof(bb_res));
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 6e4b9be08b13..aa3970291cdf 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -932,8 +932,6 @@ static inline bool is_zone_device_page(const struct page *page)
- #endif
+ /*
+diff --git a/include/linux/memremap.h b/include/linux/memremap.h
+index b8666a0d8665..ac985bd03a7f 100644
+--- a/include/linux/memremap.h
++++ b/include/linux/memremap.h
+@@ -80,6 +80,12 @@ struct dev_pagemap_ops {
+ 	 * Wait for refcount in struct dev_pagemap to be idle and reap it.
+ 	 */
+ 	void (*cleanup)(struct dev_pagemap *pgmap);
++
++	/*
++	 * Used for private (un-addressable) device memory only.  Must migrate
++	 * the page back to a CPU accessible page.
++	 */
++	vm_fault_t (*migrate_to_ram)(struct vm_fault *vmf);
+ };
  
- #ifdef CONFIG_DEV_PAGEMAP_OPS
--void dev_pagemap_get_ops(void);
--void dev_pagemap_put_ops(void);
- void __put_devmap_managed_page(struct page *page);
- DECLARE_STATIC_KEY_FALSE(devmap_managed_key);
- static inline bool put_devmap_managed_page(struct page *page)
-@@ -973,14 +971,6 @@ static inline bool is_pci_p2pdma_page(const struct page *page)
- #endif /* CONFIG_PCI_P2PDMA */
- 
- #else /* CONFIG_DEV_PAGEMAP_OPS */
--static inline void dev_pagemap_get_ops(void)
--{
--}
--
--static inline void dev_pagemap_put_ops(void)
--{
--}
--
- static inline bool put_devmap_managed_page(struct page *page)
+ /**
+diff --git a/include/linux/swapops.h b/include/linux/swapops.h
+index 4d961668e5fc..15bdb6fe71e5 100644
+--- a/include/linux/swapops.h
++++ b/include/linux/swapops.h
+@@ -129,12 +129,6 @@ static inline struct page *device_private_entry_to_page(swp_entry_t entry)
  {
- 	return false;
+ 	return pfn_to_page(swp_offset(entry));
+ }
+-
+-vm_fault_t device_private_entry_fault(struct vm_area_struct *vma,
+-		       unsigned long addr,
+-		       swp_entry_t entry,
+-		       unsigned int flags,
+-		       pmd_t *pmdp);
+ #else /* CONFIG_DEVICE_PRIVATE */
+ static inline swp_entry_t make_device_private_entry(struct page *page, bool write)
+ {
+@@ -164,15 +158,6 @@ static inline struct page *device_private_entry_to_page(swp_entry_t entry)
+ {
+ 	return NULL;
+ }
+-
+-static inline vm_fault_t device_private_entry_fault(struct vm_area_struct *vma,
+-				     unsigned long addr,
+-				     swp_entry_t entry,
+-				     unsigned int flags,
+-				     pmd_t *pmdp)
+-{
+-	return VM_FAULT_SIGBUS;
+-}
+ #endif /* CONFIG_DEVICE_PRIVATE */
+ 
+ #ifdef CONFIG_MIGRATION
 diff --git a/kernel/memremap.c b/kernel/memremap.c
-index 00c1ceb60c19..3219a4c91d07 100644
+index 3219a4c91d07..c06a5487dda7 100644
 --- a/kernel/memremap.c
 +++ b/kernel/memremap.c
-@@ -17,6 +17,35 @@ static DEFINE_XARRAY(pgmap_array);
+@@ -11,7 +11,6 @@
+ #include <linux/types.h>
+ #include <linux/wait_bit.h>
+ #include <linux/xarray.h>
+-#include <linux/hmm.h>
+ 
+ static DEFINE_XARRAY(pgmap_array);
  #define SECTION_MASK ~((1UL << PA_SECTION_SHIFT) - 1)
- #define SECTION_SIZE (1UL << PA_SECTION_SHIFT)
+@@ -46,36 +45,6 @@ static int devmap_managed_enable_get(struct device *dev, struct dev_pagemap *pgm
+ }
+ #endif /* CONFIG_DEV_PAGEMAP_OPS */
  
-+#ifdef CONFIG_DEV_PAGEMAP_OPS
-+DEFINE_STATIC_KEY_FALSE(devmap_managed_key);
-+EXPORT_SYMBOL(devmap_managed_key);
-+static atomic_t devmap_managed_enable;
-+
-+static void devmap_managed_enable_put(void *data)
-+{
-+	if (atomic_dec_and_test(&devmap_managed_enable))
-+		static_branch_disable(&devmap_managed_key);
-+}
-+
-+static int devmap_managed_enable_get(struct device *dev, struct dev_pagemap *pgmap)
-+{
-+	if (!pgmap->ops->page_free) {
-+		WARN(1, "Missing page_free method\n");
-+		return -EINVAL;
-+	}
-+
-+	if (atomic_inc_return(&devmap_managed_enable) == 1)
-+		static_branch_enable(&devmap_managed_key);
-+	return devm_add_action_or_reset(dev, devmap_managed_enable_put, NULL);
-+}
-+#else
-+static int devmap_managed_enable_get(struct device *dev, struct dev_pagemap *pgmap)
-+{
-+	return -EINVAL;
-+}
-+#endif /* CONFIG_DEV_PAGEMAP_OPS */
-+
- #if IS_ENABLED(CONFIG_DEVICE_PRIVATE)
- vm_fault_t device_private_entry_fault(struct vm_area_struct *vma,
- 		       unsigned long addr,
-@@ -156,6 +185,7 @@ void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
- 	};
- 	pgprot_t pgprot = PAGE_KERNEL;
- 	int error, nid, is_ram;
-+	bool need_devmap_managed = true;
- 
- 	switch (pgmap->type) {
- 	case MEMORY_DEVICE_PRIVATE:
-@@ -173,6 +203,7 @@ void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
- 		break;
- 	case MEMORY_DEVICE_DEVDAX:
- 	case MEMORY_DEVICE_PCI_P2PDMA:
-+		need_devmap_managed = false;
- 		break;
- 	default:
- 		WARN(1, "Invalid pgmap type %d\n", pgmap->type);
-@@ -185,6 +216,12 @@ void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
- 		return ERR_PTR(-EINVAL);
- 	}
- 
-+	if (need_devmap_managed) {
-+		error = devmap_managed_enable_get(dev, pgmap);
-+		if (error)
-+			return ERR_PTR(error);
-+	}
-+
- 	align_start = res->start & ~(SECTION_SIZE - 1);
- 	align_size = ALIGN(res->start + resource_size(res), SECTION_SIZE)
- 		- align_start;
-@@ -351,28 +388,6 @@ struct dev_pagemap *get_dev_pagemap(unsigned long pfn,
- EXPORT_SYMBOL_GPL(get_dev_pagemap);
- 
- #ifdef CONFIG_DEV_PAGEMAP_OPS
--DEFINE_STATIC_KEY_FALSE(devmap_managed_key);
--EXPORT_SYMBOL(devmap_managed_key);
--static atomic_t devmap_enable;
--
--/*
-- * Toggle the static key for ->page_free() callbacks when dev_pagemap
-- * pages go idle.
-- */
--void dev_pagemap_get_ops(void)
+-#if IS_ENABLED(CONFIG_DEVICE_PRIVATE)
+-vm_fault_t device_private_entry_fault(struct vm_area_struct *vma,
+-		       unsigned long addr,
+-		       swp_entry_t entry,
+-		       unsigned int flags,
+-		       pmd_t *pmdp)
 -{
--	if (atomic_inc_return(&devmap_enable) == 1)
--		static_branch_enable(&devmap_managed_key);
--}
--EXPORT_SYMBOL_GPL(dev_pagemap_get_ops);
+-	struct page *page = device_private_entry_to_page(entry);
+-	struct hmm_devmem *devmem;
 -
--void dev_pagemap_put_ops(void)
--{
--	if (atomic_dec_and_test(&devmap_enable))
--		static_branch_disable(&devmap_managed_key);
--}
--EXPORT_SYMBOL_GPL(dev_pagemap_put_ops);
+-	devmem = container_of(page->pgmap, typeof(*devmem), pagemap);
 -
- void __put_devmap_managed_page(struct page *page)
+-	/*
+-	 * The page_fault() callback must migrate page back to system memory
+-	 * so that CPU can access it. This might fail for various reasons
+-	 * (device issue, device was unsafely unplugged, ...). When such
+-	 * error conditions happen, the callback must return VM_FAULT_SIGBUS.
+-	 *
+-	 * Note that because memory cgroup charges are accounted to the device
+-	 * memory, this should never fail because of memory restrictions (but
+-	 * allocation of regular system page might still fail because we are
+-	 * out of memory).
+-	 *
+-	 * There is a more in-depth description of what that callback can and
+-	 * cannot do, in include/linux/memremap.h
+-	 */
+-	return devmem->page_fault(vma, addr, page, flags, pmdp);
+-}
+-#endif /* CONFIG_DEVICE_PRIVATE */
+-
+ static void pgmap_array_delete(struct resource *res)
  {
- 	int count = page_ref_dec_return(page);
+ 	xa_store_range(&pgmap_array, PHYS_PFN(res->start), PHYS_PFN(res->end),
+@@ -193,6 +162,10 @@ void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
+ 			WARN(1, "Device private memory not supported\n");
+ 			return ERR_PTR(-EINVAL);
+ 		}
++		if (!pgmap->ops || !pgmap->ops->migrate_to_ram) {
++			WARN(1, "Missing migrate_to_ram method\n");
++			return ERR_PTR(-EINVAL);
++		}
+ 		break;
+ 	case MEMORY_DEVICE_FS_DAX:
+ 		if (!IS_ENABLED(CONFIG_ZONE_DEVICE) ||
 diff --git a/mm/hmm.c b/mm/hmm.c
-index 987793fba923..5b0bd5f6a74f 100644
+index 5b0bd5f6a74f..96633ee066d8 100644
 --- a/mm/hmm.c
 +++ b/mm/hmm.c
-@@ -1415,8 +1415,6 @@ struct hmm_devmem *hmm_devmem_add(const struct hmm_devmem_ops *ops,
- 	void *result;
- 	int ret;
+@@ -1366,15 +1366,12 @@ static void hmm_devmem_ref_kill(struct dev_pagemap *pgmap)
+ 	percpu_ref_kill(pgmap->ref);
+ }
  
--	dev_pagemap_get_ops();
--
- 	devmem = devm_kzalloc(device, sizeof(*devmem), GFP_KERNEL);
- 	if (!devmem)
- 		return ERR_PTR(-ENOMEM);
+-static vm_fault_t hmm_devmem_fault(struct vm_area_struct *vma,
+-			    unsigned long addr,
+-			    const struct page *page,
+-			    unsigned int flags,
+-			    pmd_t *pmdp)
++static vm_fault_t hmm_devmem_migrate_to_ram(struct vm_fault *vmf)
+ {
+-	struct hmm_devmem *devmem = page->pgmap->data;
++	struct hmm_devmem *devmem = vmf->page->pgmap->data;
+ 
+-	return devmem->ops->fault(devmem, vma, addr, page, flags, pmdp);
++	return devmem->ops->fault(devmem, vmf->vma, vmf->address, vmf->page,
++			vmf->flags, vmf->pmd);
+ }
+ 
+ static void hmm_devmem_free(struct page *page, void *data)
+@@ -1388,6 +1385,7 @@ static const struct dev_pagemap_ops hmm_pagemap_ops = {
+ 	.page_free		= hmm_devmem_free,
+ 	.kill			= hmm_devmem_ref_kill,
+ 	.cleanup		= hmm_devmem_ref_exit,
++	.migrate_to_ram		= hmm_devmem_migrate_to_ram,
+ };
+ 
+ /*
+@@ -1438,7 +1436,6 @@ struct hmm_devmem *hmm_devmem_add(const struct hmm_devmem_ops *ops,
+ 	devmem->pfn_first = devmem->resource->start >> PAGE_SHIFT;
+ 	devmem->pfn_last = devmem->pfn_first +
+ 			   (resource_size(devmem->resource) >> PAGE_SHIFT);
+-	devmem->page_fault = hmm_devmem_fault;
+ 
+ 	devmem->pagemap.type = MEMORY_DEVICE_PRIVATE;
+ 	devmem->pagemap.res = *devmem->resource;
+diff --git a/mm/memory.c b/mm/memory.c
+index bd21e7063bf0..293d2936fd6c 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -2748,13 +2748,8 @@ vm_fault_t do_swap_page(struct vm_fault *vmf)
+ 			migration_entry_wait(vma->vm_mm, vmf->pmd,
+ 					     vmf->address);
+ 		} else if (is_device_private_entry(entry)) {
+-			/*
+-			 * For un-addressable device memory we call the pgmap
+-			 * fault handler callback. The callback must migrate
+-			 * the page back to some CPU accessible page.
+-			 */
+-			ret = device_private_entry_fault(vma, vmf->address, entry,
+-						 vmf->flags, vmf->pmd);
++			vmf->page = device_private_entry_to_page(entry);
++			ret = vmf->page->pgmap->ops->migrate_to_ram(vmf);
+ 		} else if (is_hwpoison_entry(entry)) {
+ 			ret = VM_FAULT_HWPOISON;
+ 		} else {
 -- 
 2.20.1
 
