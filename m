@@ -2,165 +2,132 @@ Return-Path: <SRS0=C/CR=UZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-15.1 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,MISSING_HEADERS,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_GIT,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 23F86C48BD3
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 13:31:42 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3E6A7C48BD6
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 13:54:56 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D1D472147A
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 13:31:41 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="pG6EmB4J"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D1D472147A
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	by mail.kernel.org (Postfix) with ESMTP id 10E4721670
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 13:54:55 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 10E4721670
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 694A38E0006; Wed, 26 Jun 2019 09:31:41 -0400 (EDT)
+	id 7E2958E0003; Wed, 26 Jun 2019 09:54:55 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6443F8E0002; Wed, 26 Jun 2019 09:31:41 -0400 (EDT)
+	id 76B5B8E0002; Wed, 26 Jun 2019 09:54:55 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 533018E0006; Wed, 26 Jun 2019 09:31:41 -0400 (EDT)
+	id 60C648E0003; Wed, 26 Jun 2019 09:54:55 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E0378E0002
-	for <linux-mm@kvack.org>; Wed, 26 Jun 2019 09:31:41 -0400 (EDT)
-Received: by mail-qk1-f200.google.com with SMTP id i196so2526573qke.20
-        for <linux-mm@kvack.org>; Wed, 26 Jun 2019 06:31:41 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 09BEF8E0002
+	for <linux-mm@kvack.org>; Wed, 26 Jun 2019 09:54:55 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id m23so3355809edr.7
+        for <linux-mm@kvack.org>; Wed, 26 Jun 2019 06:54:54 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:message-id:mime-version
-         :subject:from:cc;
-        bh=8bjGnzvOk0trS3dq8ct7j5ULGWMU+cY7HdYXHhHb7Yo=;
-        b=XwitDBE3tbWnaWjEkW9CKmawo2aCdWUFZPX5tUz2RC8aPSs7O2Fad1nIuOq/3ih4lQ
-         QuTVed1X+Vv550ElKCyoYA46yZz0vbL4Rq+/pDJfsi8DfhUg0OAtmAQt4GYtZcr2YRA7
-         L8L84/MFFdMFG+Oc/rUIkJlHRLBY8P5CicnM51lHj+UUCLbR0YopigAEoIWeKmDI5u+F
-         yqRPjJv4X1a9O2b0rE/Fb9ZRPt8/sa+44ZYKPx4g9642iAPvlRNg+rLKNYieicHZ08SJ
-         Z9jYAz6OHvC8e+bcZL6uiBcfxr96gqHjP0b49Gc4dncjEbMjDFAErhrJ1g96daAbMKMO
-         jBXA==
-X-Gm-Message-State: APjAAAW54GpVuclra9Ous0vL+Sm0yl6svtTSk4ZOKTeo5nfRGROQo2GC
-	YT93JGaymtITSu1Q41L1Hxg5IuVE+zZKalj3yVr/bf0fFkPi2nmvTMsiKnz9xCRMjugYNESbTXn
-	l1OJLPRan7s/Du9Y0wycHbHhSQUIwhtf9ckO17nL4C3dRrcKCRk20EoMJrbGTfT64gw==
-X-Received: by 2002:a37:be41:: with SMTP id o62mr3942171qkf.356.1561555900858;
-        Wed, 26 Jun 2019 06:31:40 -0700 (PDT)
-X-Received: by 2002:a37:be41:: with SMTP id o62mr3942120qkf.356.1561555900281;
-        Wed, 26 Jun 2019 06:31:40 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561555900; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=xXr3uz6EvKpjzSrBgtJXu2l135EJdGIcBr08dZAq+Fw=;
+        b=eKyycE+nMVPrBpilcYNkLuA+Xkd/IXuXcVUuv++zga82qepQswt9WZibaN5ybfMQce
+         92jBuznxDhBUSwb8VxuuS8AHuhgHS/wUOwism90CKFv+BqkPUwE5R4nXLcHZHvik0weq
+         f85MVeTAdsMz8kOFO4F/P1vXuOmIAR/kHBFx+0PI3H8JlM7ok4DBBZioScKX180JRZ3i
+         lrbhm5KTjlejra8gYqitgL+lSGSHD7357Cn/+wd9ecfOPsgH10EY2RQKvpYTOdyKbdHX
+         6isVORpSM7SzSeLYTElirKsUnw51iPoCFAQ7jXbyu4tSR+nr3d2demticgvwyizf+Z3U
+         dpxw==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAUk9/TSZe5wH4s5zTytno+nfNnZEySMgjsrfrVPRwsCBnS3SCyL
+	ziN6HPGdl/o6VOifLLbTiSXkaC66tpVKex22iZHBIwVzPptw2hF5YeD/cOdNw+75sFa+AYh8uaq
+	Pcwtky6GtqVg/z7p47Cr4AM3DPn1waB0/uvAYsxNyIG2VZcasAA6n7AZRL1jlM+U=
+X-Received: by 2002:a50:9590:: with SMTP id w16mr5620328eda.0.1561557294638;
+        Wed, 26 Jun 2019 06:54:54 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxS5t6eDGoUeJHm2y30mrzQFtLISlkzPp98vlGfIjPY9z19MHbT4yO2YmXgMOTYNY9I7RfJ
+X-Received: by 2002:a50:9590:: with SMTP id w16mr5620263eda.0.1561557293847;
+        Wed, 26 Jun 2019 06:54:53 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561557293; cv=none;
         d=google.com; s=arc-20160816;
-        b=zgtk6Rwy1o2qQmPOofMGlO8ZxXM71DzIc2F3Tgy+DU4+2YfT986FjIB0m7xXrrlftK
-         0px3TiPy10aCZbKGt+VBPLnK55f4RnG4yM1agk08qAA61Vd0SWxWtRN2UqsqxzmjQY+C
-         ka1ercZSFBmZaQ8LLHuoh9cqS5DceD8R1d06i0w5ESKXG7NipXvvXTZ4RSx4LDCsmmjr
-         BfAXyEcflET2A4i6uTb1y3RpZo09z8D9my30sqwTjyL/J6X/85s0KnVk2j2VTZsbrDjj
-         LzlfOaUwLwnH+tamA5EkxLgRuXv44BZO750rbSuoaalH8gZHY/L/h2F7wYsUJBZ07TbV
-         by2A==
+        b=uN1LKmfRaTFXJcChiZjwchN6pMi/Sd2+vsPDhBZ13S59oY7cfx6giu2nQJqhGVP+t8
+         OyVUXUJvrydQ3vc7FTU89h0/Xvq0PKGnEgwkwLZnebJ6z+zmClMn1otuCA+F687z5YNb
+         3392gTeWd6pQMXRxmQWWfIDEZoz1eXOrhTD13vAhX4eSKQQP0KSE5JRTJVfRbmf5yOY4
+         pMe7tLLuDPRHR1x/4LNp1Z0Srnyvk8JJccDo0q/CpEMNk97C+LKXSzjRt1iHX0aYB8F1
+         r+q7PlbTJdPUUHpeEWyHhpBp0gMPzC7WHwj0q5Yan3I7OKU55t6nedKDfaCdNPXgSQXb
+         YADg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:from:subject:mime-version:message-id:date:dkim-signature;
-        bh=8bjGnzvOk0trS3dq8ct7j5ULGWMU+cY7HdYXHhHb7Yo=;
-        b=yQha2ToKrHAibt7lLYpZeiUXzenWCOPuRwXcZJy8TXUg4DQkcZDLWcvVuyKgK4XVBX
-         4y5zt1f/ZlyWkocqD03PI7pYQVDrjMju8BGq5ZBZVVeDXYwUwq3R2bSooePj3twoBJ8K
-         hIHBUpX3YHxtUWebPLYXEzHnRijZJyxJvEbZpPTHHp9oahKDY6yS+sX+iBmA8qwBw1IH
-         fRa5IDWE26GnLgKu4UKXuv5/exD1FB4nm2XKx5dBtKcXPJ4KCKtuaq3JeIdXFShP0V43
-         ImVIjYsRlZOSWSw4QpA2jJUtGqGUh6eyu9sl+lxtTQtjiyTbbZo2S+CaCGPThHO/l5ll
-         jVSg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=xXr3uz6EvKpjzSrBgtJXu2l135EJdGIcBr08dZAq+Fw=;
+        b=ABLLIHUu3tBkFc43W0p5m7ZXYdumOVsR8fAITyjih37os4OXOTJFQKbPUzf3WVqfAF
+         2EZIqRnQt8vp8/iGqOMaZbTl7Xq24ScVYOPuMElTQZljtOJSXsLjywI6lOcSYD+dCROo
+         Yq7IHX8voRdWfSO9sI+bryPJyvTtdc+51jA++y7o1nnYV34QZlGYZuHKpd6sTMyl0MkU
+         ScRFy/bXy34gn6jv5lYAThwo48TtC5CZn7yOF1qqKgDSqpqD3XRVUbH9eGG+QLTZOu9w
+         D4y7cURtS9w6aP8FkjVNjdYQ7kU8Ltp6UnOELO2H69Lrc8bGTnYKypGRtfeRwZplv884
+         jgNQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=pG6EmB4J;
-       spf=pass (google.com: domain of 3u3mtxqykcn4glidergoogle.comlinux-mmkvack.org@flex--glider.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3u3MTXQYKCN4GLIDERGOOGLE.COMLINUX-MMKVACK.ORG@flex--glider.bounces.google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
-        by mx.google.com with SMTPS id c65sor10204184qkd.151.2019.06.26.06.31.40
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id z23si1867885edc.256.2019.06.26.06.54.53
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 26 Jun 2019 06:31:40 -0700 (PDT)
-Received-SPF: pass (google.com: domain of 3u3mtxqykcn4glidergoogle.comlinux-mmkvack.org@flex--glider.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 26 Jun 2019 06:54:53 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=pG6EmB4J;
-       spf=pass (google.com: domain of 3u3mtxqykcn4glidergoogle.comlinux-mmkvack.org@flex--glider.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3u3MTXQYKCN4GLIDERGOOGLE.COMLINUX-MMKVACK.ORG@flex--glider.bounces.google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=date:message-id:mime-version:subject:from:cc;
-        bh=8bjGnzvOk0trS3dq8ct7j5ULGWMU+cY7HdYXHhHb7Yo=;
-        b=pG6EmB4JyWmb1xBAf71wnFZRfTMBOLKKP1buQyedLYPmy3OgnfGjTqVah/y+AtnzUe
-         1jzOcT03HyL44N/OrE62gMeCUQtoLSFDrD7s1TuFuP271zhW4LyRFKwJ/Xbq+3zimkQA
-         0nSmNQEEdyt+sbmYsZ5hDsPQpaMMpXgqy8EATd+ipYF+uBuXUZyQ/GwsXxQ6F8xWyr+F
-         GXHXkgB/3KDiH4c6JoGGCcoUarzNKAvKtumFSpKu63NY6oGrEhViKOGhssVsqZCdfmP+
-         gY6YK8x40gtSAM3kawrbKEWIChliyTNrWN7l1+2nDdO4oSrmAONs9WdstcaeoyK/+D2J
-         6F4A==
-X-Google-Smtp-Source: APXvYqxQcn10wQs1sqlKnB2gKgagcYTcFN97IdeWXQoWtcdiXTGMnsrqjypknQqr9cfXU5NWRFOtwZzCCx0=
-X-Received: by 2002:a05:620a:1310:: with SMTP id o16mr3746849qkj.196.1561555899983;
- Wed, 26 Jun 2019 06:31:39 -0700 (PDT)
-Date: Wed, 26 Jun 2019 15:31:35 +0200
-Message-Id: <20190626133135.217355-1-glider@google.com>
-Mime-Version: 1.0
-X-Mailer: git-send-email 2.22.0.410.gd8fdbe21b5-goog
-Subject: [PATCH v1] lib/test_meminit.c: minor test fixes
-From: Alexander Potapenko <glider@google.com>
-Cc: Alexander Potapenko <glider@google.com>, Arnd Bergmann <arnd@arndb.de>, Kees Cook <keescook@chromium.org>, 
-	Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
-Content-Type: text/plain; charset="UTF-8"
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id D2ABDAE3F;
+	Wed, 26 Jun 2019 13:54:52 +0000 (UTC)
+Date: Wed, 26 Jun 2019 15:54:50 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: Barret Rhoden <brho@google.com>
+Cc: linux-mm@kvack.org, Pingfan Liu <kernelfans@gmail.com>,
+	Dave Hansen <dave.hansen@intel.com>,
+	Peter Zijlstra <peterz@infradead.org>, x86@kernel.org,
+	Benjamin Herrenschmidt <benh@kernel.crashing.org>,
+	Michael Ellerman <mpe@ellerman.id.au>,
+	Tony Luck <tony.luck@intel.com>, linuxppc-dev@lists.ozlabs.org,
+	linux-ia64@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>,
+	Ingo Molnar <mingo@elte.hu>
+Subject: Re: [PATCH 1/2] x86, numa: always initialize all possible nodes
+Message-ID: <20190626135450.GW17798@dhcp22.suse.cz>
+References: <20190212095343.23315-1-mhocko@kernel.org>
+ <20190212095343.23315-2-mhocko@kernel.org>
+ <34f96661-41c2-27cc-422d-5a7aab526f87@google.com>
+ <20190502130031.GC29835@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190502130031.GC29835@dhcp22.suse.cz>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Fix the following issues in test_meminit.c:
- - |size| in fill_with_garbage_skip() should be signed so that it
- doesn't overflow if it's not aligned on sizeof(*p);
- - fill_with_garbage_skip() should actually skip |skip| bytes;
- - do_kmem_cache_size() should deallocate memory in the RCU case.
+On Thu 02-05-19 09:00:31, Michal Hocko wrote:
+> On Wed 01-05-19 15:12:32, Barret Rhoden wrote:
+> [...]
+> > A more elegant solution may be to avoid registering with sysfs during early
+> > boot, or something else entirely.  But I figured I'd ask for help at this
+> > point.  =)
+> 
+> Thanks for the report and an excellent analysis! This is really helpful.
+> I will think about this some more but I am traveling this week. It seems
+> really awkward to register a sysfs file for an empty range. That looks
+> like a bug to me.
 
-Fixes: 7e659650cbda ("lib: introduce test_meminit module")
-Fixes: 94e8988d91c7 ("lib/test_meminit.c: fix -Wmaybe-uninitialized false positive")
-Signed-off-by: Alexander Potapenko <glider@google.com>
-Cc: Arnd Bergmann <arnd@arndb.de>
-Cc: Kees Cook <keescook@chromium.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org
----
+I am sorry, but I didn't get to this for a long time and I am still
+busy. The patch has been dropped from the mm tree (thus linux-next). I
+hope I can revisit this or somebody else will take over and finish this
+work. This is much more trickier than I anticipated unfortunately.
 
-This patch is relative to the -mm tree
----
- lib/test_meminit.c | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
-
-diff --git a/lib/test_meminit.c b/lib/test_meminit.c
-index 7ae2183ff1f4..62d19f270cad 100644
---- a/lib/test_meminit.c
-+++ b/lib/test_meminit.c
-@@ -38,15 +38,14 @@ static int __init count_nonzero_bytes(void *ptr, size_t size)
- }
- 
- /* Fill a buffer with garbage, skipping |skip| first bytes. */
--static void __init fill_with_garbage_skip(void *ptr, size_t size, size_t skip)
-+static void __init fill_with_garbage_skip(void *ptr, int size, size_t skip)
- {
--	unsigned int *p = (unsigned int *)ptr;
-+	unsigned int *p = (unsigned int *)((char *)ptr + skip);
- 	int i = 0;
- 
--	if (skip) {
--		WARN_ON(skip > size);
--		p += skip;
--	}
-+	WARN_ON(skip > size);
-+	size -= skip;
-+
- 	while (size >= sizeof(*p)) {
- 		p[i] = GARBAGE_INT;
- 		i++;
-@@ -227,6 +226,7 @@ static int __init do_kmem_cache_size(size_t size, bool want_ctor,
- 		if (buf_copy)
- 			memcpy(buf_copy, buf, size);
- 
-+		kmem_cache_free(c, buf);
- 		/*
- 		 * Check that |buf| is intact after kmem_cache_free().
- 		 * |want_zero| is false, because we wrote garbage to
 -- 
-2.22.0.410.gd8fdbe21b5-goog
+Michal Hocko
+SUSE Labs
 
