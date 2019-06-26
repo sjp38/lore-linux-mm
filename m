@@ -2,143 +2,156 @@ Return-Path: <SRS0=C/CR=UZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.0 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 24CAAC48BD9
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 15:38:34 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3203BC48BD9
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 15:42:42 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B32C7217D8
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 15:38:33 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="iqa/5AWM"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B32C7217D8
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	by mail.kernel.org (Postfix) with ESMTP id 0452F2177B
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 15:42:41 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0452F2177B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0DE498E0016; Wed, 26 Jun 2019 11:38:33 -0400 (EDT)
+	id 87C148E0017; Wed, 26 Jun 2019 11:42:41 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 08F188E0002; Wed, 26 Jun 2019 11:38:33 -0400 (EDT)
+	id 82C458E0002; Wed, 26 Jun 2019 11:42:41 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id EBFEB8E0016; Wed, 26 Jun 2019 11:38:32 -0400 (EDT)
+	id 71B1C8E0017; Wed, 26 Jun 2019 11:42:41 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B59E48E0002
-	for <linux-mm@kvack.org>; Wed, 26 Jun 2019 11:38:32 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id e25so2014410pfn.5
-        for <linux-mm@kvack.org>; Wed, 26 Jun 2019 08:38:32 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 1C3658E0002
+	for <linux-mm@kvack.org>; Wed, 26 Jun 2019 11:42:41 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id b12so3771238eds.14
+        for <linux-mm@kvack.org>; Wed, 26 Jun 2019 08:42:41 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=+/or7RUo8RlGi5/xsF/irgqT3ptx8jRXk2ETY+C794o=;
-        b=tXpxSVJ80d+K3wbxlJVU7NT0+c9NS3MS48LaMrU49vAT7U/JRCcBCKi9C9BfFshBXV
-         o2zvyxPTxII42YPIzcZ6DCW1ahg8Uas8LCJjovcNaLxBhbr72XnHP1neYNijfBSjZ7/u
-         O6pFQPA6rCc0i7TibfwVhp4IIxOzRqu5VmY/yxXnPxf48fPLnDhigi4rUrMp6g+vkc93
-         yupTzqGvLi/hP1tId3qPiOvDvpA3+t/FhamG+2OPpuNXAFvzKgMMWV4isHAfJ4e6jllK
-         /SQZSj7jEqpY2WqEMapvZnPffuRu6cCiEAV+zfq91/6JwnnmCD/AXFeaxV/JBN50hxnm
-         VQvg==
-X-Gm-Message-State: APjAAAVn+0Q2YhCCc59cswMx1UIGESrkMsca/pxOOf59WIUHg2m0T8HN
-	p8P9v0LMc3FSofHlUMSr7mPND5DP2yqYh+TT/SjCGr3V6t0zMRaHes3LM4w/7rppZquJzcFhHt6
-	28HowLG0vSjqwHq1o1Knx+z+8x7ZINsMvMSYX7qy2dYuaWhGwHZ7pOrWeua7YAkuP8Q==
-X-Received: by 2002:a17:90b:d8a:: with SMTP id bg10mr5535773pjb.92.1561563512244;
-        Wed, 26 Jun 2019 08:38:32 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzrnxs9RWTcTKWb30ooE931zCsdGcDVoYrMOd0Rk6UsnAV323uMzg03Y91SFOHCz4lOpkVc
-X-Received: by 2002:a17:90b:d8a:: with SMTP id bg10mr5535694pjb.92.1561563511417;
-        Wed, 26 Jun 2019 08:38:31 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561563511; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=cwWEfocoodqO9cyrH8VhNzGnokLyp2Y95xLEsBu/ftM=;
+        b=svmQNDcknuhF+UoToQGWHU5a7HWkxMqalCeWnv5MlkCa69cf5zX1Abxg9imZjh5fZQ
+         RwzYyQrSVFUmyu4+WlAPxs9BSVQnBByb1yIkWuZrLHcMIBWv/qOCgU+FwwvFSbgkkHD6
+         2o9iOyLl+IiVqtI1RqUU4iMkOV0+N+D8azBMKrXX3o31KQHyCFt/VCnSWHbhUx6+GWBm
+         UvwbQWRu/wRV/Cai70jvNpgI9A/K3aFUp3y10fjwObcWzdl0IMmHGASUk86DIiLvVr8s
+         aQp+s2RkhU/FfQbI3bw5/MdW7dxVAEpQOz12jy1h+rQmir0Zdf3inJAOxNWlzKPruODM
+         nupw==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAVVXcY9YVX/5rt0Sgv6PPnLmGg29snr1xd7fXf+H0dfilsZDE/C
+	uzEJYKtmuNt2Rk0tzuN0c9wsz3mCYgzUA/uEChFayt6+BY3lcg9GgGIEgKx2UgOql0VGE+Xly8c
+	8Zp9tMpllomIjs8G0/dhJULxK8djBUPGN8cs9664puVUqW1L4Dm4x9xNOKgErYu0=
+X-Received: by 2002:a50:be01:: with SMTP id a1mr6275976edi.287.1561563760675;
+        Wed, 26 Jun 2019 08:42:40 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzfo2Y1QHnVCcc/UNnsMmYbSIkeoo23epU/5MsGoASH3o1ZHCkH2KasGL+w2xm58YJe3OtK
+X-Received: by 2002:a50:be01:: with SMTP id a1mr6275897edi.287.1561563759970;
+        Wed, 26 Jun 2019 08:42:39 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561563759; cv=none;
         d=google.com; s=arc-20160816;
-        b=ucJ9P3/VVshx4FPzhA1oconbURqRmiXm7VHJNUOqPruXL1K0j8wR5r6vdcbqRmYH+j
-         ipywH8M+caZ7+yQunF1YviDqA/XBgspcsWeX/eVIVOfJH1KzALM/6E95qWqqgXP1BriZ
-         bSDbBtS7Au8DdfBSL0K84rJfoYEanQuHlZe1bWIS6oto4aAqxJzm0A7r+OlHi4ntcKg2
-         Czp0al9eoeqrZgPcZr1bCOQx+FRnEeBJfkdb9VClTAoJ0T46WguMnck0/OOJNXjW4gCX
-         Jy9t+1v89dRHt/G2XknicjIhzxi1jtCJIcGfchTxBshvd48/LjpkbQBnminfq1QQ6uFH
-         Q80w==
+        b=mnA9kMXEzOJiqNcaJFoFcSLnhmkDFgSltaYrI62CH1DuQzmLR9ILTbvljcRoDV+bII
+         vRxZdPZkZnWE1G8cxGIpq6/vmt8sBwj3opVaxBpucWU4yI2RhWCawPrWkSdXC2dmSlyx
+         lrtOkbevZGDelFe01Yif8mX+RsjnJo7LgX9vKQiubGu1bU5Zc/rW5nBQwbM60oA/Fy4m
+         OSxP/DOqz3I7qnPvG5nBD5ekHHdB6eYsGvqofIgSf0nPTyIDbgSiT8jAP4pGx4ler1Wx
+         f+bLFZlMEEq5ZxBxuC0hWx1uw+I0tVjelhRp+pgf6UkYpW9xqJoliEh4jtjBEriH/P2k
+         v7xA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=+/or7RUo8RlGi5/xsF/irgqT3ptx8jRXk2ETY+C794o=;
-        b=blUvN/uvzsu+0P9AlJzRSo0eBTu53qHYXBKtTWM/g05SCveir/JeWLVfooB9JFNQAG
-         9LSIZDUQk7gAOFIkvmci5XpYZqq8NbBuG3ayvhsswOVxRnSori6mgbiSIsudRxX2qsY5
-         MldxKE4P40YWualt7CGaKi9GKTX7YRiFTQGTEBGtx43WxPsdeXSqqJOPuhJz8oqetmao
-         GeG7Biex//Qj7MqbDbZWaCPSveNMhHmoQp0wB86xUz3Ofum/CxiFN5RZHls8l8l4QWqi
-         CxPu16DBFiCkrZbp/kK2GQgg0roI4lHp7ZDF+JG+O3BVKNv+WxhIOCzTs9fwUcQj7BQ9
-         5/lw==
+         :message-id:subject:cc:to:from:date;
+        bh=cwWEfocoodqO9cyrH8VhNzGnokLyp2Y95xLEsBu/ftM=;
+        b=V1oxcGegHV7c4BKOrbuxOOnS/NLRRyYmHn1Dca1eYJhwW+Og3rLNJG8QN8j1e3qGQT
+         UCjMUZ8JoGgS3GRdKmtAvst1VWPNY60xWSVg6fby5a7sitCq2UJa7VAUR6cGumN+nUOK
+         R3yMci4ShDChLWpCSNQ+Cj0fOVDNRBmHe/rVufJbwEcnzzWslDzOe1Mfrr/0UJJGmFEA
+         7QpeCK/haXxB+yBr+KaFY2sFd3pFzGce9ngcqGlZFt20ZFLwEo2jXaBb/qcodaPIlYo6
+         KX23h7BuARJJNOLjmcPIicIm6rj1B3eEwzeovRCuhzTONwC/H8/4bcBaNyR5Scm2n5oY
+         9x2Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b="iqa/5AWM";
-       spf=pass (google.com: best guess record for domain of batv+ab1f803c58217d155be4+5785+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+ab1f803c58217d155be4+5785+infradead.org+hch@bombadil.srs.infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id a10si16356589pgq.194.2019.06.26.08.38.31
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id k25si2769731ejp.223.2019.06.26.08.42.39
         for <linux-mm@kvack.org>
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Wed, 26 Jun 2019 08:38:31 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of batv+ab1f803c58217d155be4+5785+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 26 Jun 2019 08:42:39 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b="iqa/5AWM";
-       spf=pass (google.com: best guess record for domain of batv+ab1f803c58217d155be4+5785+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+ab1f803c58217d155be4+5785+infradead.org+hch@bombadil.srs.infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=+/or7RUo8RlGi5/xsF/irgqT3ptx8jRXk2ETY+C794o=; b=iqa/5AWMRhPrM653o+fAvvzP/
-	3Lu11i5qtEA4ol0XFXBypacKt3hMduvti/cE2K/yNgiQ4JRON9meWX+Po+pL5yBo6NP8FgwZSYEFc
-	Mdj4WQn2vH6kw8etGhdrkBZHybPguu7XHlfgj+JQix/X/BYr1OfCIztMkG8B2KcHQ05PMK0WbemnH
-	v50nvf7jL5fZ2lPZYTnNbtdWlaY7trB2NndBDzJ9Nf+Dm5tLjPQUoHrmoaAT8wTKYmzbFSOO+uUbZ
-	F2Bz/idD0WyKulTxAegisbOggsq6y/MYuNqTHpvvgnVktWlVD18xTtxTQlhbkT6gRspskDQF9ZtLw
-	6G1KTOdiw==;
-Received: from hch by bombadil.infradead.org with local (Exim 4.92 #3 (Red Hat Linux))
-	id 1hgA0D-0006Qo-QY; Wed, 26 Jun 2019 15:38:29 +0000
-Date: Wed, 26 Jun 2019 08:38:29 -0700
-From: Christoph Hellwig <hch@infradead.org>
-To: Mark Rutland <mark.rutland@arm.com>
-Cc: Christoph Hellwig <hch@infradead.org>,
-	Robin Murphy <robin.murphy@arm.com>, linux-mm@kvack.org,
-	akpm@linux-foundation.org, will.deacon@arm.com,
-	catalin.marinas@arm.com, anshuman.khandual@arm.com,
-	linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org,
-	Jason Gunthorpe <jgg@mellanox.com>, Michal Hocko <mhocko@suse.com>
-Subject: Re: [PATCH v3 0/4] Devmap cleanups + arm64 support
-Message-ID: <20190626153829.GA22138@infradead.org>
-References: <cover.1558547956.git.robin.murphy@arm.com>
- <20190626073533.GA24199@infradead.org>
- <20190626123139.GB20635@lakrids.cambridge.arm.com>
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id DB564ABD9;
+	Wed, 26 Jun 2019 15:42:38 +0000 (UTC)
+Date: Wed, 26 Jun 2019 17:42:37 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: Alexander Potapenko <glider@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+	Christoph Lameter <cl@linux.com>, Kees Cook <keescook@chromium.org>,
+	Masahiro Yamada <yamada.masahiro@socionext.com>,
+	James Morris <jmorris@namei.org>,
+	"Serge E. Hallyn" <serge@hallyn.com>,
+	Nick Desaulniers <ndesaulniers@google.com>,
+	Kostya Serebryany <kcc@google.com>,
+	Dmitry Vyukov <dvyukov@google.com>,
+	Sandeep Patil <sspatil@android.com>,
+	Laura Abbott <labbott@redhat.com>,
+	Randy Dunlap <rdunlap@infradead.org>, Jann Horn <jannh@google.com>,
+	Mark Rutland <mark.rutland@arm.com>, Marco Elver <elver@google.com>,
+	Qian Cai <cai@lca.pw>,
+	Linux Memory Management List <linux-mm@kvack.org>,
+	linux-security-module <linux-security-module@vger.kernel.org>,
+	Kernel Hardening <kernel-hardening@lists.openwall.com>
+Subject: Re: [PATCH v8 1/2] mm: security: introduce init_on_alloc=1 and
+ init_on_free=1 boot options
+Message-ID: <20190626154237.GZ17798@dhcp22.suse.cz>
+References: <20190626121943.131390-1-glider@google.com>
+ <20190626121943.131390-2-glider@google.com>
+ <20190626144943.GY17798@dhcp22.suse.cz>
+ <CAG_fn=Xf5yEuz7JyOt-gmNx1uSM6mmM57_jFxCi+9VPZ4PSwJQ@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190626123139.GB20635@lakrids.cambridge.arm.com>
-User-Agent: Mutt/1.11.4 (2019-03-13)
-X-SRS-Rewrite: SMTP reverse-path rewritten from <hch@infradead.org> by bombadil.infradead.org. See http://www.infradead.org/rpr.html
+In-Reply-To: <CAG_fn=Xf5yEuz7JyOt-gmNx1uSM6mmM57_jFxCi+9VPZ4PSwJQ@mail.gmail.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jun 26, 2019 at 01:31:40PM +0100, Mark Rutland wrote:
-> On Wed, Jun 26, 2019 at 12:35:33AM -0700, Christoph Hellwig wrote:
-> > Robin, Andrew:
-> 
-> As a heads-up, Robin is currently on holiday, so this is all down to
-> Andrew's preference.
-> 
-> > I have a series for the hmm tree, which touches the section size
-> > bits, and remove device public memory support.
-> > 
-> > It might be best if we include this series in the hmm tree as well
-> > to avoid conflicts.  Is it ok to include the rebase version of at least
-> > the cleanup part (which looks like it is not required for the actual
-> > arm64 support) in the hmm tree to avoid conflicts?
-> 
-> Per the cover letter, the arm64 patch has a build dependency on the
-> others, so that might require a stable brnach for the common prefix.
+On Wed 26-06-19 17:00:43, Alexander Potapenko wrote:
+> On Wed, Jun 26, 2019 at 4:49 PM Michal Hocko <mhocko@kernel.org> wrote:
+[...]
+> > > @@ -1142,6 +1200,8 @@ static __always_inline bool free_pages_prepare(struct page *page,
+> > >       }
+> > >       arch_free_page(page, order);
+> > >       kernel_poison_pages(page, 1 << order, 0);
+> > > +     if (want_init_on_free())
+> > > +             kernel_init_free_pages(page, 1 << order);
+> >
+> > same here. If you don't want to make this exclusive then you have to
+> > zero before poisoning otherwise you are going to blow up on the poison
+> > check, right?
+> Note that we disable initialization if page poisoning is on.
 
-I guess we'll just have to live with the merge errors then, as the
-mm tree is a patch series and thus can't easily use a stable base
-tree.  That is unlike Andrew wants to pull in the hmm tree as a prep
-patch for the series.
+Ohh, right. Missed that in the init code.
+
+> As I mentioned on another thread we can eventually merge this code
+> with page poisoning, but right now it's better to make the user decide
+> which of the features they want instead of letting them guess how the
+> combination of the two is going to work.
+
+Strictly speaking zeroying is a subset of poisoning. If somebody asks
+for both the poisoning surely satisfies any data leak guarantees
+zeroying would give. So I am not sure we have to really make them
+exclusive wrt. to the configuraion. I will leave that to you but it
+would be better if the code didn't break subtly once the early init
+restriction is removed for one way or another. So either always make
+sure that zeroying is done _before_ poisoning or that you do not zero
+when poisoning. The later sounds the best wrt. the code quality from my
+POV.
+
+-- 
+Michal Hocko
+SUSE Labs
 
