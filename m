@@ -2,259 +2,185 @@ Return-Path: <SRS0=C/CR=UZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.9 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9CEF5C48BD6
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 02:35:48 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 520AFC48BD7
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 03:15:34 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 55540214DA
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 02:35:48 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id D9EF02146E
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Jun 2019 03:15:33 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="Qi2NwHnV"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 55540214DA
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="JWS56c7L"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D9EF02146E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E73986B0006; Tue, 25 Jun 2019 22:35:47 -0400 (EDT)
+	id 4DE896B0003; Tue, 25 Jun 2019 23:15:33 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DFD358E0003; Tue, 25 Jun 2019 22:35:47 -0400 (EDT)
+	id 4912C8E0003; Tue, 25 Jun 2019 23:15:33 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CC3F98E0002; Tue, 25 Jun 2019 22:35:47 -0400 (EDT)
+	id 358398E0002; Tue, 25 Jun 2019 23:15:33 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
-	by kanga.kvack.org (Postfix) with ESMTP id ACE786B0006
-	for <linux-mm@kvack.org>; Tue, 25 Jun 2019 22:35:47 -0400 (EDT)
-Received: by mail-io1-f69.google.com with SMTP id r27so819795iob.14
-        for <linux-mm@kvack.org>; Tue, 25 Jun 2019 19:35:47 -0700 (PDT)
+Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 16F276B0003
+	for <linux-mm@kvack.org>; Tue, 25 Jun 2019 23:15:33 -0400 (EDT)
+Received: by mail-yw1-f71.google.com with SMTP id b63so2018910ywc.12
+        for <linux-mm@kvack.org>; Tue, 25 Jun 2019 20:15:33 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:from:to:cc:date
-         :message-id:in-reply-to:references:user-agent:mime-version
-         :content-transfer-encoding;
-        bh=RDkQFwhFFQ2vI5qz0xIqaf4zf8uM8p//mWlaoaNYF+I=;
-        b=kECuBBOx4Nf/IxXaWq72XJhDxfLqE847S9E5Hwg/zF0J+MZ1blsFGMIjjeN1qFKf0S
-         YUu1dXmZr/sKO0KdsXEJ3cemMqomWfhT/4KR545YgwEK2tAZBs9F1dn6h/xMt/EoVRYL
-         hPgpCj0LPQgBQaBh+PoSlkR7IUpSKrMm1GdhnRlSW+BiIn8w801dD2w9YDh1079M7Tj1
-         MAEDHCi5dGLmuB2e9TWNgGlF09Rp/GEgfLoxD9Qlqk+5zMq8bHBfjKPD2T82Av6h79Sw
-         VfXcT0Gchqr+0C40f7Z3O4MYJFUfQENxMRvI7U0l+d/dLJQ45Neq7WCvz4JjvVHx5i3I
-         BqeA==
-X-Gm-Message-State: APjAAAXBsNtLms5D5uBYhOZjYyxxuKb17QzmK56vCLPqZ8V5jWf0+Des
-	Bl+iBCzPlDbNtXBwLXdTUWRbIf5xX/y1HFlFUxXNOvnm6a64ZITZTVyY6fD8n181Q3Xt+pkKpvM
-	2vy9KbOvveChgyRTcDWsNv0Erm32mvgWQJ/+wx+U3gKFanW36luUZnlZmvZVTSVi1Bw==
-X-Received: by 2002:a02:9991:: with SMTP id a17mr1813944jal.1.1561516547506;
-        Tue, 25 Jun 2019 19:35:47 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyLd4gq05E44Y6lIpL0hb8ZpA9nm+6Kn2Fb91v8I4PplPL8arszhkQi2vNC+Vj1OPVoAnYf
-X-Received: by 2002:a02:9991:: with SMTP id a17mr1813909jal.1.1561516546839;
-        Tue, 25 Jun 2019 19:35:46 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561516546; cv=none;
+        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding:dkim-signature;
+        bh=mFKCj/TnJw3viqoDN0No22dYQzshEvjZPsHuzsScphE=;
+        b=oIOgeXVgabsrPya2Em1TqQC5AVqtEr8LarmOtoiADAjjWP1TnbQE+LcU5HkmxtMP6j
+         hax35QE+pJp1dchG7aU/260jMzjGCNYK1QZ5ntF9Keb+7NLqM64YiszLWRAlvniG8uVH
+         Wl1jeChxiBibBi697/ByfWGtujlq1sWl43/+GTYwuLNlH68SI+HN9rehUWrBwVj2Q0AA
+         59Z8yV3j9fmiV5+u1pXbhUoSN7oyCoDWyuZp6Gj7F1CaZQ1jg0kDm7EEzNknFLMFqUQ7
+         2Gua9W81cEceeColLcQb6Q405ujcqcd4DsWvJXa7MM5cxkl17IsjKBPq9VEq3twinLaT
+         QQDg==
+X-Gm-Message-State: APjAAAVJAYsq7PzHF9nddULSD+33kJIDH425G5oLNjpc27BOORDAY/kU
+	hC10e2iwtnk4MKBFx9tAXfxL1yJzJyj/AsWSynBoWsPtTPCxRY/p20XpAcxdwCSZzNqjyRksQMB
+	jtJMYE6tu4/HptiffEVRgn/ztLCJ1kfDwp1Kag+fgTBFv4q/EtnjmNKBwDZIWAwXOLQ==
+X-Received: by 2002:a81:2981:: with SMTP id p123mr1185202ywp.430.1561518932844;
+        Tue, 25 Jun 2019 20:15:32 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwbfRvLDw9rSsaYF/WWzDac+VX7Bzia9ILDFOKDrEMBCJy96HzxqSDpgganjk9pif+Zj1SV
+X-Received: by 2002:a81:2981:: with SMTP id p123mr1185172ywp.430.1561518932090;
+        Tue, 25 Jun 2019 20:15:32 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561518932; cv=none;
         d=google.com; s=arc-20160816;
-        b=xs6+94X15qhx8/Zuh+wCnnzO7iLFZdjGuIz2I0h3/3UtJUTBV4hLz3x4nc2E83yYx9
-         XpSVucpZ5b5bXOaJhpXCmPY2XZJblqzrBUuwMaO5ovNIaU9DVhyyQ46W0fWHoPtNA7Dc
-         sx1s6sOt0DLUI0Ew3rfNKLqWRGQLcIwgrLAOG8UGHTlHZRMzrE4Y4d0ENxrUMLWbb9eE
-         EZIH0+0qNxK6KPA9Ep/lGQlz8DQXK86qZDyDm2F9WWMvuDA0OuVfwkKwilUKfj9UvE+y
-         SGzi+VCiGNYVwDybLGA3UUTLBiTcYukqzTj1zQKl7Yrdd+WH7zNXtxjlHAckpqXIdKCl
-         3qLw==
+        b=uxtXtDvVNbRmddXVLk/aPmYKqQHGm0alU3YUG2fi3Rkb5gWf9JfBTLxrexS9PeqKMV
+         K3aGkWOdjrci+tJ2tWDx2Ovzd0m2CK8jtKgtTv0eekzG9z9R9x9LJfaiPkMcbLoG5jAA
+         2Z+XMCYn/6J8BomO4sx+nRUXDq+boCgvJpf3a/uhfz1pgzmZluaqZWlLjcU+XQwQXwEq
+         vaQH0CokAnWA/JYWDPxEgbtUmn3jXe+XjXArOH6aEPM0PvHoJLtkTV6EBZ3vni1XzN0m
+         SGEPyYHfCJRP0ewtIVl7E3U0Ng/6cEaXFNwF55EQD05txEbmuoDKSEKit5FdzytbPWsp
+         zYiA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:user-agent:references
-         :in-reply-to:message-id:date:cc:to:from:subject:dkim-signature;
-        bh=RDkQFwhFFQ2vI5qz0xIqaf4zf8uM8p//mWlaoaNYF+I=;
-        b=I9VGUxX5n+QtjUNuKpzdTuRQL+9Pqkuy2r6GcrkyXQesxtREY+s3S+l/68DlKweUUa
-         H8bWfrUyMruunS/RnYUJhRhvbbbwfcbBvp8D0fqPavr4GA3PWhwEvskWuwWnQYuhlF43
-         j4Qf4LsymZ04U9OiaLtPfeQdKifvt333WSQzVQZOGxWOuIVBXfXlxbo+FZTiu1iKDSrO
-         NP4b2uKpmRH34wyX71T7xRmMRGKgE2PaxfH7s2fzvpxefs8+U16N6XiLVN1U8kTHiWbl
-         w2pL+CGIcH7L90rIkDjcldngmBPYHk19vnKtIGwriTj+fHbMSlM3PWMB62atGEeio2aF
-         xzHg==
+        h=dkim-signature:content-transfer-encoding:content-language
+         :in-reply-to:mime-version:user-agent:date:message-id:from:references
+         :cc:to:subject;
+        bh=mFKCj/TnJw3viqoDN0No22dYQzshEvjZPsHuzsScphE=;
+        b=gNq0e3BjUMXkqfAoztf1axoRpjjBrJuNJMbguUUINN3gxyiEIUp8k1qYu6a01rQETG
+         okFEvDtCz6mZrKKfFA+ce5NWGykrNXDiyXXPkuPYLQFTGxVoDDAnNx3sxO6I0IkPqucq
+         9B4WTcMaRNMsJ4JgSKBL83MfdkFUhl3oicuqwndj+epcFc37sRONIa0++5wvnHq11LGO
+         rGWo+Hbdc77tFsQMLmVYhMoqvnnn1ps8/5m1xy2lzXYk8NafDiOJ2wTjstnQYBisGTb2
+         H7P5ngdG3B8YcFj/yi3zROKINknc4uJeM1LHUzeEQPvFgdzYTuRdCONTMcOCPG2XkeLg
+         bOqA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=Qi2NwHnV;
-       spf=pass (google.com: domain of darrick.wong@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=darrick.wong@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id w3si20885759iot.79.2019.06.25.19.35.46
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=JWS56c7L;
+       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.65 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
+        by mx.google.com with ESMTPS id 10si2192785ybj.166.2019.06.25.20.15.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 25 Jun 2019 19:35:46 -0700 (PDT)
-Received-SPF: pass (google.com: domain of darrick.wong@oracle.com designates 156.151.31.86 as permitted sender) client-ip=156.151.31.86;
+        Tue, 25 Jun 2019 20:15:32 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.65 as permitted sender) client-ip=216.228.121.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=Qi2NwHnV;
-       spf=pass (google.com: domain of darrick.wong@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=darrick.wong@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
-	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x5Q2Z0Zp120740;
-	Wed, 26 Jun 2019 02:35:36 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : from : to :
- cc : date : message-id : in-reply-to : references : mime-version :
- content-type : content-transfer-encoding; s=corp-2018-07-02;
- bh=RDkQFwhFFQ2vI5qz0xIqaf4zf8uM8p//mWlaoaNYF+I=;
- b=Qi2NwHnVvWi7uetKAFrtDLbEc7vBEztBO544xnn041sSZ7Fd3ocayxJrgUVLY5aWK0nf
- Ite4JKYpy0UTn6/XETb7boW3RhaAdXiKa1fL2V5TysE/aV9BaTPrGmv7gGnaw4E3aPVd
- h1eAr0iXSQgZ8bt1cz+Y/aA8/0mIndivv/2HisCjrSY7yBaaGjEge4/5om9TBbv2jvW3
- eOfa1J2vXFZDfhPdb+EttM0EV/jAq/YuGxJoz8dMa6tkFMJao88u3rFVpg9bj4ZNDBKS
- k6bGwT+rfiYQyJ1DPmadzn9S646qAfU1gSQw1fIjxewe/fI4Upnp6HJpT25nXB2TRGu8 EA== 
-Received: from userp3020.oracle.com (userp3020.oracle.com [156.151.31.79])
-	by userp2130.oracle.com with ESMTP id 2t9brt7mt2-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Wed, 26 Jun 2019 02:35:36 +0000
-Received: from pps.filterd (userp3020.oracle.com [127.0.0.1])
-	by userp3020.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x5Q2XQY8081296;
-	Wed, 26 Jun 2019 02:33:36 GMT
-Received: from pps.reinject (localhost [127.0.0.1])
-	by userp3020.oracle.com with ESMTP id 2tat7cjp2n-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=FAIL);
-	Wed, 26 Jun 2019 02:33:36 +0000
-Received: from userp3020.oracle.com (userp3020.oracle.com [127.0.0.1])
-	by pps.reinject (8.16.0.27/8.16.0.27) with SMTP id x5Q2XZtv081761;
-	Wed, 26 Jun 2019 02:33:35 GMT
-Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
-	by userp3020.oracle.com with ESMTP id 2tat7cjp28-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Wed, 26 Jun 2019 02:33:35 +0000
-Received: from abhmp0002.oracle.com (abhmp0002.oracle.com [141.146.116.8])
-	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x5Q2XY3k021348;
-	Wed, 26 Jun 2019 02:33:34 GMT
-Received: from localhost (/10.159.230.235)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Tue, 25 Jun 2019 19:33:34 -0700
-Subject: [PATCH 5/5] vfs: don't allow writes to swap files
-From: "Darrick J. Wong" <darrick.wong@oracle.com>
-To: matthew.garrett@nebula.com, yuchao0@huawei.com, tytso@mit.edu,
-        darrick.wong@oracle.com, ard.biesheuvel@linaro.org,
-        josef@toxicpanda.com, hch@infradead.org, clm@fb.com,
-        adilger.kernel@dilger.ca, viro@zeniv.linux.org.uk, jack@suse.com,
-        dsterba@suse.com, jaegeuk@kernel.org, jk@ozlabs.org
-Cc: reiserfs-devel@vger.kernel.org, linux-efi@vger.kernel.org,
-        devel@lists.orangefs.org, linux-kernel@vger.kernel.org,
-        linux-f2fs-devel@lists.sourceforge.net, linux-xfs@vger.kernel.org,
-        linux-mm@kvack.org, linux-nilfs@vger.kernel.org,
-        linux-mtd@lists.infradead.org, ocfs2-devel@oss.oracle.com,
-        linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org,
-        linux-btrfs@vger.kernel.org
-Date: Tue, 25 Jun 2019 19:33:31 -0700
-Message-ID: <156151641177.2283603.7806026378321236401.stgit@magnolia>
-In-Reply-To: <156151637248.2283603.8458727861336380714.stgit@magnolia>
-References: <156151637248.2283603.8458727861336380714.stgit@magnolia>
-User-Agent: StGit/0.17.1-dirty
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=JWS56c7L;
+       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.65 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate16.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
+	id <B5d12e3520000>; Tue, 25 Jun 2019 20:15:30 -0700
+Received: from hqmail.nvidia.com ([172.20.161.6])
+  by hqpgpgate101.nvidia.com (PGP Universal service);
+  Tue, 25 Jun 2019 20:15:31 -0700
+X-PGP-Universal: processed;
+	by hqpgpgate101.nvidia.com on Tue, 25 Jun 2019 20:15:31 -0700
+Received: from [10.110.48.28] (10.124.1.5) by HQMAIL107.nvidia.com
+ (172.20.187.13) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Wed, 26 Jun
+ 2019 03:15:29 +0000
+Subject: Re: [PATCH 18/22] mm: mark DEVICE_PUBLIC as broken
+To: Jason Gunthorpe <jgg@mellanox.com>
+CC: Ira Weiny <ira.weiny@intel.com>, Ralph Campbell <rcampbell@nvidia.com>,
+	"linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>,
+	"nouveau@lists.freedesktop.org" <nouveau@lists.freedesktop.org>,
+	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+	"dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>,
+	"linux-mm@kvack.org" <linux-mm@kvack.org>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?=
+	<jglisse@redhat.com>, Ben Skeggs <bskeggs@redhat.com>,
+	"linux-pci@vger.kernel.org" <linux-pci@vger.kernel.org>, Christoph Hellwig
+	<hch@lst.de>
+References: <20190613094326.24093-1-hch@lst.de>
+ <20190613094326.24093-19-hch@lst.de> <20190613194430.GY22062@mellanox.com>
+ <a27251ad-a152-f84d-139d-e1a3bf01c153@nvidia.com>
+ <20190613195819.GA22062@mellanox.com>
+ <20190614004314.GD783@iweiny-DESK2.sc.intel.com>
+ <d2b77ea1-7b27-e37d-c248-267a57441374@nvidia.com>
+ <20190619192719.GO9374@mellanox.com>
+X-Nvconfidentiality: public
+From: John Hubbard <jhubbard@nvidia.com>
+Message-ID: <29f43c79-b454-0477-a799-7850e6571bd3@nvidia.com>
+Date: Tue, 25 Jun 2019 20:15:28 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.1
 MIME-Version: 1.0
+In-Reply-To: <20190619192719.GO9374@mellanox.com>
+X-Originating-IP: [10.124.1.5]
+X-ClientProxiedBy: HQMAIL104.nvidia.com (172.18.146.11) To
+ HQMAIL107.nvidia.com (172.20.187.13)
 Content-Type: text/plain; charset="utf-8"
+Content-Language: en-US
 Content-Transfer-Encoding: 7bit
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9299 signatures=668687
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1906260028
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
+	t=1561518930; bh=mFKCj/TnJw3viqoDN0No22dYQzshEvjZPsHuzsScphE=;
+	h=X-PGP-Universal:Subject:To:CC:References:X-Nvconfidentiality:From:
+	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
+	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
+	 Content-Transfer-Encoding;
+	b=JWS56c7LDNZO2C+L8KR37PAJV/JNwy2VsATo0Y9o97x2OREZOXY1kW16CqdsdCF3p
+	 h75heFhKUb3QKsr9tb1bJDlBPd+kZrKl1GNfPhJxKLLAVmTvovjBcLyjGppIJCVNJz
+	 e/bL0Uz9WCABzn+s82NDbBpQtU8Quft0swt7Nfb9yv1tVnj/v8mVsJUeumTOsJqbpo
+	 ejbFTmycRLy12cjephJ1Av4haOtY2fOQCECnDpWB4huqII/lRxMlc4SxDkKG4nThLq
+	 s7yoeCAPZH4BEFoJuCbXa874ODwp/FlzUTE8v3eEQjQt1UYj/uSTcnPhWHZ0P2eSt5
+	 drw5jV+XaTi+A==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Darrick J. Wong <darrick.wong@oracle.com>
+On 6/19/19 12:27 PM, Jason Gunthorpe wrote:
+> On Thu, Jun 13, 2019 at 06:23:04PM -0700, John Hubbard wrote:
+>> On 6/13/19 5:43 PM, Ira Weiny wrote:
+>>> On Thu, Jun 13, 2019 at 07:58:29PM +0000, Jason Gunthorpe wrote:
+>>>> On Thu, Jun 13, 2019 at 12:53:02PM -0700, Ralph Campbell wrote:
+>>>>>
+>> ...
+>>> So I think it is ok.  Frankly I was wondering if we should remove the public
+>>> type altogether but conceptually it seems ok.  But I don't see any users of it
+>>> so...  should we get rid of it in the code rather than turning the config off?
+>>>
+>>> Ira
+>>
+>> That seems reasonable. I recall that the hope was for those IBM Power 9
+>> systems to use _PUBLIC, as they have hardware-based coherent device (GPU)
+>> memory, and so the memory really is visible to the CPU. And the IBM team
+>> was thinking of taking advantage of it. But I haven't seen anything on
+>> that front for a while.
+> 
+> Does anyone know who those people are and can we encourage them to
+> send some patches? :)
+> 
 
-Don't let userspace write to an active swap file because the kernel
-effectively has a long term lease on the storage and things could get
-seriously corrupted if we let this happen.
+I asked about this, and it seems that the idea was: DEVICE_PUBLIC was there
+in order to provide an alternative way to do things (such as migrate memory
+to and from a device), in case the combination of existing and near-future
+NUMA APIs was insufficient. This probably came as a follow-up to the early
+2017-ish conversations about NUMA, in which the linux-mm recommendation was
+"try using HMM mechanisms, and if those are inadequate, then maybe we can
+look at enhancing NUMA so that it has better handling of advanced (GPU-like)
+devices".
 
-Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
----
- fs/attr.c     |    3 +++
- mm/filemap.c  |    3 +++
- mm/memory.c   |    4 +++-
- mm/mmap.c     |    2 ++
- mm/swapfile.c |   15 +++++++++++++--
- 5 files changed, 24 insertions(+), 3 deletions(-)
+In the end, however, _PUBLIC was never used, nor does anyone in the local
+(NVIDIA + IBM) kernel vicinity seem to have plans to use it.  So it really
+does seem safe to remove, although of course it's good to start with 
+BROKEN and see if anyone pops up and complains.
 
-
-diff --git a/fs/attr.c b/fs/attr.c
-index 1fcfdcc5b367..42f4d4fb0631 100644
---- a/fs/attr.c
-+++ b/fs/attr.c
-@@ -236,6 +236,9 @@ int notify_change(struct dentry * dentry, struct iattr * attr, struct inode **de
- 	if (IS_IMMUTABLE(inode))
- 		return -EPERM;
- 
-+	if (IS_SWAPFILE(inode))
-+		return -ETXTBSY;
-+
- 	if ((ia_valid & (ATTR_MODE | ATTR_UID | ATTR_GID | ATTR_TIMES_SET)) &&
- 	    IS_APPEND(inode))
- 		return -EPERM;
-diff --git a/mm/filemap.c b/mm/filemap.c
-index dad85e10f5f8..fd80bc20e30a 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -2938,6 +2938,9 @@ inline ssize_t generic_write_checks(struct kiocb *iocb, struct iov_iter *from)
- 	if (IS_IMMUTABLE(inode))
- 		return -EPERM;
- 
-+	if (IS_SWAPFILE(inode))
-+		return -ETXTBSY;
-+
- 	if (!iov_iter_count(from))
- 		return 0;
- 
-diff --git a/mm/memory.c b/mm/memory.c
-index 4311cfdade90..c04c6a689995 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -2235,7 +2235,9 @@ static vm_fault_t do_page_mkwrite(struct vm_fault *vmf)
- 
- 	vmf->flags = FAULT_FLAG_WRITE|FAULT_FLAG_MKWRITE;
- 
--	if (vmf->vma->vm_file && IS_IMMUTABLE(file_inode(vmf->vma->vm_file)))
-+	if (vmf->vma->vm_file &&
-+	    (IS_IMMUTABLE(file_inode(vmf->vma->vm_file)) ||
-+	     IS_SWAPFILE(file_inode(vmf->vma->vm_file))))
- 		return VM_FAULT_SIGBUS;
- 
- 	ret = vmf->vma->vm_ops->page_mkwrite(vmf);
-diff --git a/mm/mmap.c b/mm/mmap.c
-index ac1e32205237..031807339869 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -1488,6 +1488,8 @@ unsigned long do_mmap(struct file *file, unsigned long addr,
- 					return -EACCES;
- 				if (IS_IMMUTABLE(file_inode(file)))
- 					return -EPERM;
-+				if (IS_SWAPFILE(file_inode(file)))
-+					return -ETXTBSY;
- 			}
- 
- 			/*
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 596ac98051c5..1ca4ee8c2d60 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -3165,6 +3165,19 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
- 	if (error)
- 		goto bad_swap;
- 
-+	/*
-+	 * Flush any pending IO and dirty mappings before we start using this
-+	 * swap file.
-+	 */
-+	if (S_ISREG(inode->i_mode)) {
-+		inode->i_flags |= S_SWAPFILE;
-+		error = inode_drain_writes(inode);
-+		if (error) {
-+			inode->i_flags &= ~S_SWAPFILE;
-+			goto bad_swap;
-+		}
-+	}
-+
- 	mutex_lock(&swapon_mutex);
- 	prio = -1;
- 	if (swap_flags & SWAP_FLAG_PREFER)
-@@ -3185,8 +3198,6 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
- 	atomic_inc(&proc_poll_event);
- 	wake_up_interruptible(&proc_poll_wait);
- 
--	if (S_ISREG(inode->i_mode))
--		inode->i_flags |= S_SWAPFILE;
- 	error = 0;
- 	goto out;
- bad_swap:
+thanks,
+-- 
+John Hubbard
+NVIDIA
 
