@@ -2,182 +2,253 @@ Return-Path: <SRS0=EPqI=U2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A999FC48BE4
-	for <linux-mm@archiver.kernel.org>; Thu, 27 Jun 2019 18:45:11 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 61C4AC48BE4
+	for <linux-mm@archiver.kernel.org>; Thu, 27 Jun 2019 18:49:57 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 797B92075E
-	for <linux-mm@archiver.kernel.org>; Thu, 27 Jun 2019 18:45:11 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 797B92075E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 2ACE5208E3
+	for <linux-mm@archiver.kernel.org>; Thu, 27 Jun 2019 18:49:57 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2ACE5208E3
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=deltatee.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 31EA06B0005; Thu, 27 Jun 2019 14:45:11 -0400 (EDT)
+	id BCDE86B0003; Thu, 27 Jun 2019 14:49:56 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2CF988E0003; Thu, 27 Jun 2019 14:45:11 -0400 (EDT)
+	id B7F718E0003; Thu, 27 Jun 2019 14:49:56 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1984A8E0002; Thu, 27 Jun 2019 14:45:11 -0400 (EDT)
+	id A6C098E0002; Thu, 27 Jun 2019 14:49:56 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id EA6D26B0005
-	for <linux-mm@kvack.org>; Thu, 27 Jun 2019 14:45:10 -0400 (EDT)
-Received: by mail-qt1-f198.google.com with SMTP id 97so3352764qtb.16
-        for <linux-mm@kvack.org>; Thu, 27 Jun 2019 11:45:10 -0700 (PDT)
+Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 880576B0003
+	for <linux-mm@kvack.org>; Thu, 27 Jun 2019 14:49:56 -0400 (EDT)
+Received: by mail-io1-f70.google.com with SMTP id h3so3592351iob.20
+        for <linux-mm@kvack.org>; Thu, 27 Jun 2019 11:49:56 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:organization:message-id:date:user-agent
-         :mime-version:in-reply-to:content-transfer-encoding:content-language;
-        bh=C97BOyLoroY+sjZmkbUJ+oaw9j+XRbWDV51Qy+EJemo=;
-        b=N0V2AV6exzZxkNihbr9yQVaYF8JwOY2OWalUHFP+OYTNK5csNFz6y97O/upWnyRntM
-         Q/ZKO2aTumUuUMyJnZCgPU7TaMqXEnHcMgPhtJIhRmRBmsPnW5u+NLGkQ9+4nqY/vrsI
-         tw1u1w1X8UTyKwboWsoHgQ7pNM3dafgeivaAxeNMcgwyRortTVCSE9JCz3riegHV12IR
-         f+mXKynMoC62+OU67iwsnAf/qEvxN/ZrJUctLR2+J7g8ccBa5Cx3Vc4viLSJRaw9vjPr
-         OxK/7ek62L6dpdpjSLlYX2crrhC8xxMYUu0cLel8GdAnIG/6CXyN3OmzigTSpCxvQ3e0
-         o3ag==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAXwLNh9tDMQJrFH2hKO3BLWPEwdrZqJNcGOjDAzAHZQkbmqb8UY
-	XPV1KX7s1Nf+YXur/o9/bSTyuWKVyUxzffj2j3s9GtUINm8O03dutXRcL5blQpT2kxMsuUxyvK9
-	uUeBE+IVc8lYh4Ip1UBDyiW20ABx+AJBpX5TdFAkG0Vr5VYOvUTrEGWKAZ3o7bYaN0Q==
-X-Received: by 2002:a0c:ae35:: with SMTP id y50mr4610984qvc.204.1561661110711;
-        Thu, 27 Jun 2019 11:45:10 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqw+jVYrd02sqt/J1d6FBSZgw1lkMwyqhF1rMQZDpyVWDLFMiQF9253w58cbzhMhgY3tU9Cc
-X-Received: by 2002:a0c:ae35:: with SMTP id y50mr4610946qvc.204.1561661110169;
-        Thu, 27 Jun 2019 11:45:10 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561661110; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding:subject;
+        bh=6K6g+obhxWmhbEx3WhFMIJ4bLzgnM3IuGyXdgFEaFJY=;
+        b=Iml2olj76xXiQrwTOKVcIjg6zyx+i0aOdHAsqbOUnlXNQejdGwXvkiKcnNAMis8xfK
+         aZ8uPxqonmZzDRqVVJB62AlWvMNOESxpCnvabjL1GVXp8t8kdJ46n3Fc3eQyFzHgrsr2
+         lFSwQurDeuuwUf5Icixd6cPxXf7mjhbBZnmlk4Ocyk6lZMd/5ndphUqIYpYhKpWpAikc
+         vc3u/WJd0HBSz3Cv0d1nnww+skXHhpSZtC0JQPJWntnkCSBZIR94v4YMw1//lX5XLTsS
+         08B5SYDjf2Iura+pF2APbAd2JnGKGlYiQSLiQDJsuoDnhEgSo1ZbkKcg5HhmAD6s/cw3
+         RkVA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of logang@deltatee.com designates 207.54.116.67 as permitted sender) smtp.mailfrom=logang@deltatee.com
+X-Gm-Message-State: APjAAAXhQnwUfnmFssL0+I0lkqPuS3NQSShrAq9y/u89qdE4MDNm6CbW
+	/fyo2bSezZnUT1a3Z83yK5UJr3lY6UelLCzxLswm8Ia7dAx63+VvneRYR3gJMaNk0RRJ9Nj4iHR
+	PSbS+dTX6D0rZh/XsHFm5Seoznk/LExhh/klU0/1dCdmHDpB+Mf1fVAmp4OCmH/cITQ==
+X-Received: by 2002:a6b:3b03:: with SMTP id i3mr6309767ioa.302.1561661396302;
+        Thu, 27 Jun 2019 11:49:56 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyuQdOpE6aOFlJQ3mI98/gxziio7Pmz0A4bMfRuoychqkar0rer3ckE2LHJduad4kCwrfs+
+X-Received: by 2002:a6b:3b03:: with SMTP id i3mr6309712ioa.302.1561661395605;
+        Thu, 27 Jun 2019 11:49:55 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561661395; cv=none;
         d=google.com; s=arc-20160816;
-        b=Ix4DN/GAeNefFj8o4YCB8xtqczFuoR+14pdDglGFZaRy6ERDDbmCR96SNo4ELo+b0u
-         cA6N2Etv17XkMImfg2oA/bO1FCp47xRyXkmBtkXzI+QOkNfpfLuusGrGXd48uYqdbFpe
-         ccVykrEBXWTn1TMqIXpRRhu7flg3m4m4drTskXeYOkKYNJqMbqSWCy3lFPgSK/5wzdhQ
-         dXm/DH1pj5E9gAbvD3lM/BMPG9DetM8JXw4TuUAkj50m65ANi7EZrY6OsHwB4VWuXxoV
-         j+l6RbeF/Oc9TQX5hRIwIOritvVbn0DbEt6trMe0YOMh4LLBD633clfH5B67PCa56vn9
-         MJ4Q==
+        b=pwSWxtKYlPM/Npvl/1Mt52s7/jo5DWMvLGDha7nhs3Zl3qAinyCaJlm1xtnSNV+LWs
+         6KJcoilh0ayqRZEC1yQZfVUwYxAgOiB+3J3SnKWalP1orFIWIQrKdeCWzFxHsEcBjAuw
+         2MCdrRnXaTpbpqFXPJdmpiaZ+FMkLz+SAgcEXKWVxJjtR9KN2jCyQixFFi1dVYbd6OSu
+         KfZDSFmfFhkpFHkZ7XC9CkHRSrDJf4XzVMmFSQ3bcOols4S3zK0uECWw7w4QD0XKhAMN
+         9cQ/RLSykpve8INyDPpH1XJiZF9K5FHFjioprPBBfOTHtl4KeQ+u08nW2+k3DUtdMZit
+         Hp+Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-language:content-transfer-encoding:in-reply-to:mime-version
-         :user-agent:date:message-id:organization:from:references:cc:to
-         :subject;
-        bh=C97BOyLoroY+sjZmkbUJ+oaw9j+XRbWDV51Qy+EJemo=;
-        b=mx0PNPLX8Y6fRGoTnqzJ7EGSsFSbykrCoHKXbkJfX4TlTA02g5Dv4CHIJRH5SKE5uj
-         3PnOI0sU05SCWPFwUAoeXnfqL8JSBZ9w20QT0Ci2JM75N29wBhl83WCEAjpXedN63kr0
-         b9kuBenbUd78STWrl0u1OKAkpHnmDeDGUBiSCO3dplEf+BJKaZgpdTPWBhU/RUVjndqd
-         609b3Kd+LHc3clY9FY1ekOVYz2r8d0cLYP+kplWGd/92zW2b0F7o7upHsQDvRvpCTute
-         W/YldFeGbJ/VIQ0lbrXHhhuHiQ9Q5J7fOeEJxDiFoO97uv8/+SLao+NPa3nkHBHZ1TMF
-         smig==
+        h=subject:content-transfer-encoding:content-language:in-reply-to
+         :mime-version:user-agent:date:message-id:from:references:cc:to;
+        bh=6K6g+obhxWmhbEx3WhFMIJ4bLzgnM3IuGyXdgFEaFJY=;
+        b=nx6asmD3DIAAUt7guzazhZwAlrB8TEGRmrcBgC8vZYMgzKPrzpSNqON0N+s91x/jI8
+         U5COUqtyJ7sRGWSPQhRdCP0Ic4phBGtXxg+Qjgt0i+n9fabSbHiAOZITB1OYXcN7Iyxy
+         kX/K5PR1Q0VBicZBPJpcfPtD9UhNYz9iNRUGCaM+oR5gk8GoDzgb5xGYPuoJhTFvoYXX
+         ZEc8PxoGWVJN2myxCP46dOmZfPOg1ZcAtnv8lgmrg9/ekUulDs4ZbzU5VxeqCXUWkVGG
+         6bX+gj7yWn2eISaxedoFJEpJiRWmM1i6gCik0Do27QlIMAFHyz7vILIbJJc5L+Qplq+H
+         O62A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id z37si2293254qth.274.2019.06.27.11.45.10
+       spf=pass (google.com: domain of logang@deltatee.com designates 207.54.116.67 as permitted sender) smtp.mailfrom=logang@deltatee.com
+Received: from ale.deltatee.com (ale.deltatee.com. [207.54.116.67])
+        by mx.google.com with ESMTPS id i10si799949iol.68.2019.06.27.11.49.55
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 27 Jun 2019 11:45:10 -0700 (PDT)
-Received-SPF: pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 27 Jun 2019 11:49:55 -0700 (PDT)
+Received-SPF: pass (google.com: domain of logang@deltatee.com designates 207.54.116.67 as permitted sender) client-ip=207.54.116.67;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 39072C05168F;
-	Thu, 27 Jun 2019 18:45:04 +0000 (UTC)
-Received: from llong.remote.csb (dhcp-17-85.bos.redhat.com [10.18.17.85])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 140405C1B4;
-	Thu, 27 Jun 2019 18:45:00 +0000 (UTC)
-Subject: Re: [PATCH-next] mm, memcg: Add ":deact" tag for reparented kmem
- caches in memcg_slabinfo
-To: Roman Gushchin <guro@fb.com>
-Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>,
- David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>,
- Andrew Morton <akpm@linux-foundation.org>,
- "linux-mm@kvack.org" <linux-mm@kvack.org>,
- "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
- Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>,
- Shakeel Butt <shakeelb@google.com>, Vladimir Davydov <vdavydov.dev@gmail.com>
-References: <20190621173005.31514-1-longman@redhat.com>
- <20190626195757.GB24698@tower.DHCP.thefacebook.com>
-From: Waiman Long <longman@redhat.com>
-Organization: Red Hat
-Message-ID: <cc7a0ac0-6f3a-4d0a-54b2-7387400aeb8c@redhat.com>
-Date: Thu, 27 Jun 2019 14:45:00 -0400
+       spf=pass (google.com: domain of logang@deltatee.com designates 207.54.116.67 as permitted sender) smtp.mailfrom=logang@deltatee.com
+Received: from s01061831bf6ec98c.cg.shawcable.net ([68.147.80.180] helo=[192.168.6.132])
+	by ale.deltatee.com with esmtpsa (TLS1.2:ECDHE_RSA_AES_128_GCM_SHA256:128)
+	(Exim 4.89)
+	(envelope-from <logang@deltatee.com>)
+	id 1hgZSz-0004rJ-D3; Thu, 27 Jun 2019 12:49:54 -0600
+To: Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>,
+ =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>,
+ Jason Gunthorpe <jgg@mellanox.com>, Ben Skeggs <bskeggs@redhat.com>
+Cc: linux-nvdimm@lists.01.org, linux-pci@vger.kernel.org,
+ linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org,
+ linux-mm@kvack.org, nouveau@lists.freedesktop.org
+References: <20190626122724.13313-1-hch@lst.de>
+ <20190626122724.13313-18-hch@lst.de>
+From: Logan Gunthorpe <logang@deltatee.com>
+Message-ID: <580609fd-5ef2-bae4-e8f8-adc1eb0314a1@deltatee.com>
+Date: Thu, 27 Jun 2019 12:49:47 -0600
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.0
+ Thunderbird/60.7.2
 MIME-Version: 1.0
-In-Reply-To: <20190626195757.GB24698@tower.DHCP.thefacebook.com>
+In-Reply-To: <20190626122724.13313-18-hch@lst.de>
 Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
 Content-Language: en-US
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.31]); Thu, 27 Jun 2019 18:45:09 +0000 (UTC)
+Content-Transfer-Encoding: 7bit
+X-SA-Exim-Connect-IP: 68.147.80.180
+X-SA-Exim-Rcpt-To: nouveau@lists.freedesktop.org, linux-mm@kvack.org, dri-devel@lists.freedesktop.org, linux-kernel@vger.kernel.org, linux-pci@vger.kernel.org, linux-nvdimm@lists.01.org, bskeggs@redhat.com, jgg@mellanox.com, jglisse@redhat.com, dan.j.williams@intel.com, hch@lst.de
+X-SA-Exim-Mail-From: logang@deltatee.com
+Subject: Re: [PATCH 17/25] PCI/P2PDMA: use the dev_pagemap internal refcount
+X-SA-Exim-Version: 4.2.1 (built Tue, 02 Aug 2016 21:08:31 +0000)
+X-SA-Exim-Scanned: Yes (on ale.deltatee.com)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 6/26/19 3:58 PM, Roman Gushchin wrote:
-> On Fri, Jun 21, 2019 at 01:30:05PM -0400, Waiman Long wrote:
->> With Roman's kmem cache reparent patch, multiple kmem caches of the same
->> type can be seen attached to the same memcg id. All of them, except
->> maybe one, are reparent'ed kmem caches. It can be useful to tag those
->> reparented caches by adding a new slab flag "SLAB_DEACTIVATED" to those
->> kmem caches that will be reparent'ed if it cannot be destroyed completely.
->>
->> For the reparent'ed memcg kmem caches, the tag ":deact" will now be
->> shown in <debugfs>/memcg_slabinfo.
->>
->> Signed-off-by: Waiman Long <longman@redhat.com>
-> Hi Waiman!
->
-> Sorry for the late reply. The patch overall looks good to me,
-> except one nit. Please feel free to use my ack:
-> Acked-by: Roman Gushchin <guro@fb.com>
->
->> ---
->>  include/linux/slab.h |  4 ++++
->>  mm/slab.c            |  1 +
->>  mm/slab_common.c     | 14 ++++++++------
->>  mm/slub.c            |  1 +
->>  4 files changed, 14 insertions(+), 6 deletions(-)
->>
->> diff --git a/include/linux/slab.h b/include/linux/slab.h
->> index fecf40b7be69..19ab1380f875 100644
->> --- a/include/linux/slab.h
->> +++ b/include/linux/slab.h
->> @@ -116,6 +116,10 @@
->>  /* Objects are reclaimable */
->>  #define SLAB_RECLAIM_ACCOUNT	((slab_flags_t __force)0x00020000U)
->>  #define SLAB_TEMPORARY		SLAB_RECLAIM_ACCOUNT	/* Objects are short-lived */
->> +
->> +/* Slab deactivation flag */
->> +#define SLAB_DEACTIVATED	((slab_flags_t __force)0x10000000U)
->> +
->>  /*
->>   * ZERO_SIZE_PTR will be returned for zero sized kmalloc requests.
->>   *
->> diff --git a/mm/slab.c b/mm/slab.c
->> index a2e93adf1df0..e8c7743fc283 100644
->> --- a/mm/slab.c
->> +++ b/mm/slab.c
->> @@ -2245,6 +2245,7 @@ int __kmem_cache_shrink(struct kmem_cache *cachep)
->>  #ifdef CONFIG_MEMCG
->>  void __kmemcg_cache_deactivate(struct kmem_cache *cachep)
->>  {
->> +	cachep->flags |= SLAB_DEACTIVATED;
-> A nit: it can be done from kmemcg_cache_deactivate() instead,
-> and then you don't have to do it in slab and slub separately.
->
-> Since it's not slab- or slub-specific code, it'd be better, IMO,
-> to put it into slab_common.c.
 
-Thanks for the suggestion.
 
-You are right. It will be cleaner to set the flag in
-kmemcg_cache_deactivate(). I have just sent out a v2 patch to do that.
+On 2019-06-26 6:27 a.m., Christoph Hellwig wrote:
+> The functionality is identical to the one currently open coded in
+> p2pdma.c.
+> 
+> Signed-off-by: Christoph Hellwig <hch@lst.de>
 
-Cheers,
-Longman
+Reviewed-by: Logan Gunthorpe <logang@deltatee.com>
+
+Also, for the P2PDMA changes in this series:
+
+Tested-by: Logan Gunthorpe <logang@deltatee.com>
+
+I've ran this series through my simple P2PDMA tests.
+
+Logan
+
+> ---
+>  drivers/pci/p2pdma.c | 57 ++++----------------------------------------
+>  1 file changed, 4 insertions(+), 53 deletions(-)
+> 
+> diff --git a/drivers/pci/p2pdma.c b/drivers/pci/p2pdma.c
+> index ebd8ce3bba2e..608f84df604a 100644
+> --- a/drivers/pci/p2pdma.c
+> +++ b/drivers/pci/p2pdma.c
+> @@ -24,12 +24,6 @@ struct pci_p2pdma {
+>  	bool p2pmem_published;
+>  };
+>  
+> -struct p2pdma_pagemap {
+> -	struct dev_pagemap pgmap;
+> -	struct percpu_ref ref;
+> -	struct completion ref_done;
+> -};
+> -
+>  static ssize_t size_show(struct device *dev, struct device_attribute *attr,
+>  			 char *buf)
+>  {
+> @@ -78,32 +72,6 @@ static const struct attribute_group p2pmem_group = {
+>  	.name = "p2pmem",
+>  };
+>  
+> -static struct p2pdma_pagemap *to_p2p_pgmap(struct percpu_ref *ref)
+> -{
+> -	return container_of(ref, struct p2pdma_pagemap, ref);
+> -}
+> -
+> -static void pci_p2pdma_percpu_release(struct percpu_ref *ref)
+> -{
+> -	struct p2pdma_pagemap *p2p_pgmap = to_p2p_pgmap(ref);
+> -
+> -	complete(&p2p_pgmap->ref_done);
+> -}
+> -
+> -static void pci_p2pdma_percpu_kill(struct dev_pagemap *pgmap)
+> -{
+> -	percpu_ref_kill(pgmap->ref);
+> -}
+> -
+> -static void pci_p2pdma_percpu_cleanup(struct dev_pagemap *pgmap)
+> -{
+> -	struct p2pdma_pagemap *p2p_pgmap =
+> -		container_of(pgmap, struct p2pdma_pagemap, pgmap);
+> -
+> -	wait_for_completion(&p2p_pgmap->ref_done);
+> -	percpu_ref_exit(&p2p_pgmap->ref);
+> -}
+> -
+>  static void pci_p2pdma_release(void *data)
+>  {
+>  	struct pci_dev *pdev = data;
+> @@ -153,11 +121,6 @@ static int pci_p2pdma_setup(struct pci_dev *pdev)
+>  	return error;
+>  }
+>  
+> -static const struct dev_pagemap_ops pci_p2pdma_pagemap_ops = {
+> -	.kill		= pci_p2pdma_percpu_kill,
+> -	.cleanup	= pci_p2pdma_percpu_cleanup,
+> -};
+> -
+>  /**
+>   * pci_p2pdma_add_resource - add memory for use as p2p memory
+>   * @pdev: the device to add the memory to
+> @@ -171,7 +134,6 @@ static const struct dev_pagemap_ops pci_p2pdma_pagemap_ops = {
+>  int pci_p2pdma_add_resource(struct pci_dev *pdev, int bar, size_t size,
+>  			    u64 offset)
+>  {
+> -	struct p2pdma_pagemap *p2p_pgmap;
+>  	struct dev_pagemap *pgmap;
+>  	void *addr;
+>  	int error;
+> @@ -194,26 +156,15 @@ int pci_p2pdma_add_resource(struct pci_dev *pdev, int bar, size_t size,
+>  			return error;
+>  	}
+>  
+> -	p2p_pgmap = devm_kzalloc(&pdev->dev, sizeof(*p2p_pgmap), GFP_KERNEL);
+> -	if (!p2p_pgmap)
+> +	pgmap = devm_kzalloc(&pdev->dev, sizeof(*pgmap), GFP_KERNEL);
+> +	if (!pgmap)
+>  		return -ENOMEM;
+> -
+> -	init_completion(&p2p_pgmap->ref_done);
+> -	error = percpu_ref_init(&p2p_pgmap->ref,
+> -			pci_p2pdma_percpu_release, 0, GFP_KERNEL);
+> -	if (error)
+> -		goto pgmap_free;
+> -
+> -	pgmap = &p2p_pgmap->pgmap;
+> -
+>  	pgmap->res.start = pci_resource_start(pdev, bar) + offset;
+>  	pgmap->res.end = pgmap->res.start + size - 1;
+>  	pgmap->res.flags = pci_resource_flags(pdev, bar);
+> -	pgmap->ref = &p2p_pgmap->ref;
+>  	pgmap->type = MEMORY_DEVICE_PCI_P2PDMA;
+>  	pgmap->pci_p2pdma_bus_offset = pci_bus_address(pdev, bar) -
+>  		pci_resource_start(pdev, bar);
+> -	pgmap->ops = &pci_p2pdma_pagemap_ops;
+>  
+>  	addr = devm_memremap_pages(&pdev->dev, pgmap);
+>  	if (IS_ERR(addr)) {
+> @@ -224,7 +175,7 @@ int pci_p2pdma_add_resource(struct pci_dev *pdev, int bar, size_t size,
+>  	error = gen_pool_add_owner(pdev->p2pdma->pool, (unsigned long)addr,
+>  			pci_bus_address(pdev, bar) + offset,
+>  			resource_size(&pgmap->res), dev_to_node(&pdev->dev),
+> -			&p2p_pgmap->ref);
+> +			pgmap->ref);
+>  	if (error)
+>  		goto pages_free;
+>  
+> @@ -236,7 +187,7 @@ int pci_p2pdma_add_resource(struct pci_dev *pdev, int bar, size_t size,
+>  pages_free:
+>  	devm_memunmap_pages(&pdev->dev, pgmap);
+>  pgmap_free:
+> -	devm_kfree(&pdev->dev, p2p_pgmap);
+> +	devm_kfree(&pdev->dev, pgmap);
+>  	return error;
+>  }
+>  EXPORT_SYMBOL_GPL(pci_p2pdma_add_resource);
+> 
 
