@@ -2,149 +2,157 @@ Return-Path: <SRS0=EPqI=U2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=0.9 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	FSL_HELO_FAKE,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0017FC4321A
-	for <linux-mm@archiver.kernel.org>; Thu, 27 Jun 2019 21:32:28 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 81278C5B577
+	for <linux-mm@archiver.kernel.org>; Thu, 27 Jun 2019 23:12:22 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A97F4208E3
-	for <linux-mm@archiver.kernel.org>; Thu, 27 Jun 2019 21:32:28 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A97F4208E3
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 2A3FE2133F
+	for <linux-mm@archiver.kernel.org>; Thu, 27 Jun 2019 23:12:21 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="JSk4Hdvq"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2A3FE2133F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5125A6B0003; Thu, 27 Jun 2019 17:32:28 -0400 (EDT)
+	id 84B576B0005; Thu, 27 Jun 2019 19:12:21 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4C25D8E0003; Thu, 27 Jun 2019 17:32:28 -0400 (EDT)
+	id 7FAC18E0003; Thu, 27 Jun 2019 19:12:21 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3B1398E0002; Thu, 27 Jun 2019 17:32:28 -0400 (EDT)
+	id 6EA768E0002; Thu, 27 Jun 2019 19:12:21 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 1B0856B0003
-	for <linux-mm@kvack.org>; Thu, 27 Jun 2019 17:32:28 -0400 (EDT)
-Received: by mail-qt1-f200.google.com with SMTP id s22so3810177qtb.22
-        for <linux-mm@kvack.org>; Thu, 27 Jun 2019 14:32:28 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 37FDF6B0005
+	for <linux-mm@kvack.org>; Thu, 27 Jun 2019 19:12:21 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id k19so2113343pgl.0
+        for <linux-mm@kvack.org>; Thu, 27 Jun 2019 16:12:21 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:organization:message-id:date:user-agent
-         :mime-version:in-reply-to:content-transfer-encoding:content-language;
-        bh=CP7aLAnfYTbOJpGmh7JL6TuaJuswBWhgp3QhrdQbne4=;
-        b=rxVWFViYKJoYdIw334rBSSsaZ+wD+P8WHDorcjmR4SCfTxSTYm0MtJnyyQeU2LQRXL
-         Lau8gPEW0l9KDn/zO+Ss6r1cLhXDeaeKR6YCxQ+khMMopXu24NhDhsgYPGJblqdRIbAq
-         +I9t2qnxjon5saEHcsPHpW/hXo5SvDDQAzLrvEFPurwT0WIkCsmv2WI4sxDvv+e7L/Fx
-         TX/PJURCJMkXyiJC4hbBh6wbM7e4himlfsnJo/Un7dwDqGN7HQL2h0puK0GQ8CqXij+w
-         HoiKKD8D1+FEAt8Zc+8LrBhQa9iT+dQLRUGUJTvdXOtxJXysnCHNq5oXiUBlubr1rq1g
-         oS/Q==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAUBQ6dcZQHazA0UAc8onLv59xKjJasn24k+9I8oVHR9aQVSM4WR
-	ukRmc5hMdWN8B359GkdAP8rdqf7dLD0zbU/aTM75GaY+VKjk3uonSYjCLpKTYs2olxKy4yYVZ+o
-	C8jJTS50SWxfJyn1dpADfDtAHxft4cnP879BgfwWFsAQoZdUm61IhzUiUR9WIafBhdw==
-X-Received: by 2002:ae9:eb96:: with SMTP id b144mr5214082qkg.321.1561671147914;
-        Thu, 27 Jun 2019 14:32:27 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwn3YVzMH1/qdW9j4/XGouD3arI0NffGsIRojkPpcNczzWcHc5e3z8Ut7hup0LgFqgJPqLd
-X-Received: by 2002:ae9:eb96:: with SMTP id b144mr5214049qkg.321.1561671147473;
-        Thu, 27 Jun 2019 14:32:27 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561671147; cv=none;
+        h=x-gm-message-state:dkim-signature:sender:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=3K8ZEEArtsKiEJ5I7k4SQLYx/luEOe5+arx+qBgdSFA=;
+        b=Ie7mPMel/yd4aC5KRVeiltiT56y1PNpcf9FWj+32DoFmiTt9roW5SP/TW9I7BjIPcx
+         YbuAjjAaAmQHjC50iZl470AurUdpTXYLq7D2JwffFraRUduinZ5xApYs58ybghnYglOz
+         UV41b5/cBd2+xxtrPcXvCsOEjcyanQoKnTjEH6ttzvxkAqjvdb7HIO+P2LJuru/zJhNo
+         GTekOe/1VaoRrKk+JfYO2pBQqgLfZEISTanuC5lXBFl8RafPosvfDIb1JpputtG+4h3h
+         eqytfCWnxny1tVznBgGx0dIqRjaGEzkf4qhGhDe13OY4Si2qiwis9PLuppZqJfifX8Hd
+         GMIQ==
+X-Gm-Message-State: APjAAAUHfBEn8uwqKFyLqxYM0KivIRC/Z2s4noS2L+wCOpI2LVDVL1mT
+	djOB8ix+UIc0mUyACxtk8Cwkiw+xkIsLflEQB2I6RzMApgJbQybpwg1WLLlKvBBIEr3Rgk1TT0x
+	lEGByEALYhSUD4WH/qXJpvt9Jud8C9ozElZ3cjDsGEKvg9/E02Gf/ZnMZ9a5nxBQ=
+X-Received: by 2002:a17:90a:8a8e:: with SMTP id x14mr8832163pjn.103.1561677140740;
+        Thu, 27 Jun 2019 16:12:20 -0700 (PDT)
+X-Received: by 2002:a17:90a:8a8e:: with SMTP id x14mr8832065pjn.103.1561677139600;
+        Thu, 27 Jun 2019 16:12:19 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561677139; cv=none;
         d=google.com; s=arc-20160816;
-        b=SBCXKAbNSwHkdPT4mDgBFs5JUklQUTXqmPSgV2dovCu1qjsulUt3lKaMtHXHoGPUBA
-         rIpKDrxis0qzObLEZVPfQRTP8oqMK0vn1DmxfqGRsTtpxOvqzUSd4ZiFtkDcu70UPXsZ
-         heq7PmrALcfMRpARz7DPIuT6ENOs1M/z6YlBilL5jue7nYdzhqwfgq9QSRP1qEO3nHkx
-         ps0imIZOl/hF5vxij2PYJTceHiePjTkQ+BoBULoFSVHlq4ou61pcnE6fBHLqQ8wrjzUp
-         D8p3ddSQIblwSD/E3sA07lKMp1UnH0SpvW6m0gDiwBPU9m8LRsgoPH9g3dcMhJ5pZgWC
-         U0Dg==
+        b=kjmlXawusDOoPBhe9onRkX7fEsGv+KPJ+ewInQBjxt9TbaZKi7ELo/SesverqvO+8P
+         yop+aq2dU7C0sIAwKnk3oK434g5uxvMNSvgZHxXUfM6AzIH8ZhMt/WcRvipm1jnEnYkF
+         uq7VUK4H/EVvpit2Wk3WNqEVt6atq7YL4Z7qocYMAoSIwYQkdn3VcU2ZXWNEhKzzrbAg
+         0D3ChfKBqiNDONM9cFVQ5N7o+kWQ7Ry+4kZPa+jijHe67cjDJOW6l+DdndWG3u+Vrezy
+         S7/eUCGBbRG3BKRa2C88K+Yj+UDrItqCalcak2k+Mi0jI3TGlCciym9oppPfPxoAxp9B
+         3LPw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-language:content-transfer-encoding:in-reply-to:mime-version
-         :user-agent:date:message-id:organization:from:references:cc:to
-         :subject;
-        bh=CP7aLAnfYTbOJpGmh7JL6TuaJuswBWhgp3QhrdQbne4=;
-        b=Eb/TMce/alCkV+G3MFtGLjgQGcRv3DOn1uI6u7oK/qsOS/8pTOPc5mgctgtkNsNjOf
-         a2fMBw6VQjptgLEpocHugQAhk3XMwUqPCHM9UO1bAgBRP7QY68SLV2Vctr/EXmd/aMK7
-         Jszjsq1Na/EG0P9wuT4Zho2yBWdMyLz+Uaoa9qPnFpbD5S/WGBADwDZuGsHm9YjLxFnR
-         eBgRuEqhXbl5hD1TVGZHmSopTkngrpYHb4M+QnpQhLEx4HClRNTcP/Z44/zs4Bi36fXV
-         qdvCFYmFBWzxCvVRbvM7ytp45yIXNj6YDuHT8+1jOnmIi3dAnYLrn1S1wJ7/frKies4d
-         8V0Q==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date:sender:dkim-signature;
+        bh=3K8ZEEArtsKiEJ5I7k4SQLYx/luEOe5+arx+qBgdSFA=;
+        b=mpFuu195b9r3vuBYCKLn2FtpGQlBXKwepebdi8MzO2kzz22M/v3lqmgeCV8m/Xe+FI
+         UN3nsyfi4KTqYdgde4l7YoJqCZmsbxxvVQ0McScwSaN57L3N3K7JmbpniPopirXkpmop
+         gpzA0Bbo2Kc7tCB30KXOObxgWDhhQH4w+VNJgvFIBEqJdNGZyCB/FankgWpCbfMdKBrh
+         uBotwf8iiqATBNf35z/V4DS/iyvf/pXjLlminZmvaqyN/2+KYRGtYvyIz1G4RlbzWCFa
+         4WV67PPSk8V7PawGkUQMEX7PudDvm/STa8Cx8RNyKi5y7YamAYfEUJN9sUDEkbKFOMHO
+         wqbA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id c4si267214qvu.107.2019.06.27.14.32.27
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=JSk4Hdvq;
+       spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id j11sor232607pjn.7.2019.06.27.16.12.19
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 27 Jun 2019 14:32:27 -0700 (PDT)
-Received-SPF: pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (Google Transport Security);
+        Thu, 27 Jun 2019 16:12:19 -0700 (PDT)
+Received-SPF: pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id CBC2558E5C;
-	Thu, 27 Jun 2019 21:32:06 +0000 (UTC)
-Received: from llong.remote.csb (dhcp-17-85.bos.redhat.com [10.18.17.85])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 28CB85D9D2;
-	Thu, 27 Jun 2019 21:31:59 +0000 (UTC)
-Subject: Re: [PATCH 2/2] mm, slab: Extend vm/drop_caches to shrink kmem slabs
-To: Roman Gushchin <guro@fb.com>
-Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>,
- David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>,
- Andrew Morton <akpm@linux-foundation.org>,
- Alexander Viro <viro@zeniv.linux.org.uk>, Jonathan Corbet <corbet@lwn.net>,
- Luis Chamberlain <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>,
- Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>,
- Vladimir Davydov <vdavydov.dev@gmail.com>,
- "linux-mm@kvack.org" <linux-mm@kvack.org>,
- "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>,
- "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>,
- "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>,
- "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
- Shakeel Butt <shakeelb@google.com>, Andrea Arcangeli <aarcange@redhat.com>
-References: <20190624174219.25513-1-longman@redhat.com>
- <20190624174219.25513-3-longman@redhat.com>
- <20190626201900.GC24698@tower.DHCP.thefacebook.com>
- <063752b2-4f1a-d198-36e7-3e642d4fcf19@redhat.com>
- <20190627212419.GA25233@tower.DHCP.thefacebook.com>
-From: Waiman Long <longman@redhat.com>
-Organization: Red Hat
-Message-ID: <73f18141-7e74-9630-06ff-ac8cf9688e6e@redhat.com>
-Date: Thu, 27 Jun 2019 17:31:58 -0400
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.0
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=JSk4Hdvq;
+       spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=sender:date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:content-transfer-encoding:in-reply-to
+         :user-agent;
+        bh=3K8ZEEArtsKiEJ5I7k4SQLYx/luEOe5+arx+qBgdSFA=;
+        b=JSk4HdvqruT+eRFKcMzKF4cuqUMKAFW0JmLoEPitz4V9TYrtKEJX4lFAYbPrn+53Sr
+         iScOFwvbVbYQmM0y8f/WY1EJOSMQYHxuToZnJjChnKzKTZFqMoTt5HBG3WLdxnDjc38m
+         a64MaJrlM59WDcPpUi603vXqz1z5jxeJIA6WVnx3wdmiGFtIrrhJJl0wbw+/zI2tItVS
+         2WFm+5OmdgiY+zckFV8E0k+HtY/mr56quNTtxkI5cjogi4SpVGiwHjZQIAKP68nearBn
+         gle5TBra9FVnkjUV0vdkG42M04Pu3Ydc95ZQLipUDBCMbx1qIczM3Mj5HCiYQLeXM6f9
+         0MUQ==
+X-Google-Smtp-Source: APXvYqxtn9cf+kC5zwOASaw1d/Oo8w/GiSK/V2r2g0NRoYK4Nj3w5dEEjSiS3BxhR2Cs1b8xLtShlA==
+X-Received: by 2002:a17:90a:fa18:: with SMTP id cm24mr8869128pjb.120.1561677138694;
+        Thu, 27 Jun 2019 16:12:18 -0700 (PDT)
+Received: from google.com ([2401:fa00:d:0:98f1:8b3d:1f37:3e8])
+        by smtp.gmail.com with ESMTPSA id x23sm154864pfo.112.2019.06.27.16.12.13
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Thu, 27 Jun 2019 16:12:17 -0700 (PDT)
+Date: Fri, 28 Jun 2019 08:12:11 +0900
+From: Minchan Kim <minchan@kernel.org>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+	linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>,
+	linux-api@vger.kernel.org, Michal Hocko <mhocko@suse.com>,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	Tim Murray <timmurray@google.com>,
+	Joel Fernandes <joel@joelfernandes.org>,
+	Suren Baghdasaryan <surenb@google.com>,
+	Daniel Colascione <dancol@google.com>,
+	Shakeel Butt <shakeelb@google.com>, Sonny Rao <sonnyrao@google.com>,
+	oleksandr@redhat.com, hdanton@sina.com, lizeb@google.com,
+	Dave Hansen <dave.hansen@intel.com>,
+	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: Re: [PATCH v3 0/5] Introduce MADV_COLD and MADV_PAGEOUT
+Message-ID: <20190627231211.GA33052@google.com>
+References: <20190627115405.255259-1-minchan@kernel.org>
+ <20190627180601.xcppuzia3gk57lq2@box>
 MIME-Version: 1.0
-In-Reply-To: <20190627212419.GA25233@tower.DHCP.thefacebook.com>
 Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.39]); Thu, 27 Jun 2019 21:32:26 +0000 (UTC)
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20190627180601.xcppuzia3gk57lq2@box>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 6/27/19 5:24 PM, Roman Gushchin wrote:
->>> 2) what's your long-term vision here? do you think that we need to shrink
->>>    kmem_caches periodically, depending on memory pressure? how a user
->>>    will use this new sysctl?
->> Shrinking the kmem caches under extreme memory pressure can be one way
->> to free up extra pages, but the effect will probably be temporary.
->>> What's the problem you're trying to solve in general?
->> At least for the slub allocator, shrinking the caches allow the number
->> of active objects reported in slabinfo to be more accurate. In addition,
->> this allow to know the real slab memory consumption. I have been working
->> on a BZ about continuous memory leaks with a container based workloads.
->> The ability to shrink caches allow us to get a more accurate memory
->> consumption picture. Another alternative is to turn on slub_debug which
->> will then disables all the per-cpu slabs.
-> I see... I agree with Michal here, that extending drop_caches sysctl isn't
-> the best idea. Isn't it possible to achieve the same effect using slub sysfs?
+On Thu, Jun 27, 2019 at 09:06:01PM +0300, Kirill A. Shutemov wrote:
+> On Thu, Jun 27, 2019 at 08:54:00PM +0900, Minchan Kim wrote:
+> > - Problem
+> > 
+> > Naturally, cached apps were dominant consumers of memory on the system.
+> > However, they were not significant consumers of swap even though they are
+> > good candidate for swap. Under investigation, swapping out only begins
+> > once the low zone watermark is hit and kswapd wakes up, but the overall
+> > allocation rate in the system might trip lmkd thresholds and cause a cached
+> > process to be killed(we measured performance swapping out vs. zapping the
+> > memory by killing a process. Unsurprisingly, zapping is 10x times faster
+> > even though we use zram which is much faster than real storage) so kill
+> > from lmkd will often satisfy the high zone watermark, resulting in very
+> > few pages actually being moved to swap.
+> 
+> Maybe we should look if we do The Right Thing™ at system-wide level before
+> introducing new API? How changing swappiness affects your workloads? What
+> is swappiness value in your setup?
 
-Yes, using the slub sysfs interface can be a possible alternative.
+It was 100. Even, I tried 150 and 200 with simple hack of swappiness.
+However, it caused too excessive swpout.
 
-Cheers,
-Longman
+Anyway, systen-level tune is generally good but if process has hint, that
+should work better and that's why advise API is.
 
