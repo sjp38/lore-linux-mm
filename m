@@ -7,79 +7,79 @@ X-Spam-Status: No, score=-8.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0FC6AC48BD7
-	for <linux-mm@archiver.kernel.org>; Thu, 27 Jun 2019 12:48:58 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4A495C48BD6
+	for <linux-mm@archiver.kernel.org>; Thu, 27 Jun 2019 12:49:06 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C7124208CB
-	for <linux-mm@archiver.kernel.org>; Thu, 27 Jun 2019 12:48:57 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C7124208CB
+	by mail.kernel.org (Postfix) with ESMTP id 1AA5B20B7C
+	for <linux-mm@archiver.kernel.org>; Thu, 27 Jun 2019 12:49:05 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1AA5B20B7C
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6C1358E0005; Thu, 27 Jun 2019 08:48:57 -0400 (EDT)
+	id 9801F8E0006; Thu, 27 Jun 2019 08:49:05 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 671348E0002; Thu, 27 Jun 2019 08:48:57 -0400 (EDT)
+	id 9309F8E0002; Thu, 27 Jun 2019 08:49:05 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 53A888E0005; Thu, 27 Jun 2019 08:48:57 -0400 (EDT)
+	id 7F8A38E0006; Thu, 27 Jun 2019 08:49:05 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 051AC8E0002
-	for <linux-mm@kvack.org>; Thu, 27 Jun 2019 08:48:57 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id b12so5842386ede.23
-        for <linux-mm@kvack.org>; Thu, 27 Jun 2019 05:48:56 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 32B1E8E0002
+	for <linux-mm@kvack.org>; Thu, 27 Jun 2019 08:49:05 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id b12so5933747eds.14
+        for <linux-mm@kvack.org>; Thu, 27 Jun 2019 05:49:05 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references;
-        bh=2APgeHYnutXdYYmTsqWOD8uiQafZaBV9fNuwPegTkFw=;
-        b=rkoTTD2w0SzSi8+ka2wYFFvXtWhmoyzA59QrnAqeGscr3H+KfbIcMS1tsRRPUkyVRV
-         JbWGKk6b2+HHP4CAjMVXg/NkAaNEsxRTA8pIdj81bZWxPS3BG3DAoOlERl//tR3IhPBy
-         FYk1p7EPhJdD8b4bQNAp3Wnmh3/flLdJdDaHWXJiRmfxmVbsrNSlZOiUwlJrv6xqgatF
-         82/Xz4T0vpxetO8b83Bkfgn0ux10ok3iJaM8h5hV9CR1fYGGF37/DBlb3pcpjENIpGyU
-         3JHPaHNpTd5nacikUaJv5QH9hg01cMcZLDAc1ZsEITWWuCed1LqSFBFALt3nKWcyJgev
-         urgQ==
+        bh=x6XANZwp5VZn+8KE2+iRF2A5g4k87x82PXIrGcZQQkE=;
+        b=j2ElNvuIWIuCA1y95I2poQwql9Zacxm5slmDJAlhoHrZLecDd7LkqVtRWl7j9k28ak
+         vZc8dUV2AR/PnhGq4tfmOtZccNfNTFGMlU0ShkkIDXP28dTzz+fO6pP03py+xapQKEJ5
+         L+iTHoonL5skX5TOy3ZE99B7oNrZtuOLiet+HNMf7pxfmqdcO+1e4c8FFunPALuluRY4
+         HxRCw701QEkuWXlwCY6cJVFd5K56U1I0DjZrq49rhNwL70EFyxdki72dKKhBzJi06itQ
+         HCHHXmotwMvGQECs9+3OjvXcwvvza6u7Lo0sLgbLB0Ywqfl5t4tTjTRBiZERdkHIiwnE
+         GWCQ==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-X-Gm-Message-State: APjAAAX5k3EkscNYMeTf205AEO2ncuBeJYB0v0aebk49Ne0keOUy3Tcs
-	mvGEX+ENL1ZIg4OoKIPVHJOUbbKJ78TdAlwBh5bMTicFu3G3hp7lz9YBYSk7Vb++XcsG5bJEt1Y
-	m1WT1tqwmAfdaZUYF+l8yyb57PB3wlIDb7OLu0RUNPxx5uTQ0W0m/8aZG7QrPebAfsw==
-X-Received: by 2002:a50:cac9:: with SMTP id f9mr3954126edi.51.1561639736575;
-        Thu, 27 Jun 2019 05:48:56 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxnZqFNKz4ZCWaxmWCTSoozwEvpjSX4cXuN+VitXL5IDsdG8A4UY/hj/bVvxgICSdtKBlSC
-X-Received: by 2002:a50:cac9:: with SMTP id f9mr3954065edi.51.1561639735703;
-        Thu, 27 Jun 2019 05:48:55 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561639735; cv=none;
+X-Gm-Message-State: APjAAAUnevzwjHHrkHx8ZzMGxITDdee4zAPM9JWgQv2okK2ypxRvhGvP
+	Gh8mYEkSMX+MkoVR2sG2+X1qsfdZelS7WyqcpcdHT3yoWHsU3mzcVuCJayEP2QK1Jui1X/qGmy+
+	6LDftuGNI297bksiqVWQtW3gT8bTIaVxiwE3VWvfSuYMRyJBCSfRaw27v743ecos4uw==
+X-Received: by 2002:a17:906:1510:: with SMTP id b16mr2940991ejd.25.1561639744768;
+        Thu, 27 Jun 2019 05:49:04 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyObDSQMYNJcFwI/jc+7ME5vlR7bOmPgo/ZWsBLuNloq/u0VhjJGr8DgoD1ahl1ao8Rk7ig
+X-Received: by 2002:a17:906:1510:: with SMTP id b16mr2940943ejd.25.1561639743892;
+        Thu, 27 Jun 2019 05:49:03 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561639743; cv=none;
         d=google.com; s=arc-20160816;
-        b=cylqSP25Gr/PEL4++eu7JeWlXL7r/gQs6QKgZUtC4T1Gi7DOkFaHS0cPFzqU8uRu9R
-         Tm/XV8Uz9Whl6xgFusQ7bUtWEfhLF0nJenkvgC+750EIhQePFQ+ZwFKctlAwEu4iHrgt
-         fg9Nsm5geO1TnFTEUKCriIvFXk+JESsHdedZUy/2oIGc0jwLGvLgaJGzWRt5MvA8E24k
-         TBMttcS5Jc2zAqKCLM5zsoWjkePU8LVW5/OOrrD+q0XZQr6GWa0o7VhJVpMR86/rtDyk
-         53E79+BgiIJulDu/7XIxlh/oLXoKsINqCyzRmCwaDHkZu2kkuYqqIABWDKN1fmMpPle0
-         Ca2Q==
+        b=Mw9VTWhZjitknx8KpC/ogVPLvr21ayc1c03zciz+3Tvy/Kvy8H6cvrlTeofEALj/ZD
+         kb3cp1yQowC7LKeH8sjXQNDNRC8yEsA7fB4cmb1MM585TvVECt3cS7K8nBRy1qjQC6y7
+         js+XoGde3z/ldQR7soBqhH+jnw1q+muqbI3Uu5WBBCJsVXuMAFEaeov6XLsGGqUgGWF3
+         lZKhSWcF7eLeHRHzCVY1Y++XaQMVH35eYRy78BLXmpZgSRHgB6b8vUoQQpFZG/lQOmNB
+         UhupgI6NFV1fVIprNEofE8/uU7MeBv3rO4d8JxrweDaOhOB8vcm/VgQmyA/g4Od1D8lS
+         UsdQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=2APgeHYnutXdYYmTsqWOD8uiQafZaBV9fNuwPegTkFw=;
-        b=b1ct2BCY5v4Q7SqwmWQH8vNmccKtT9NWSnBDWTaQPNXC++UvOQ9SqHOqBOaN1+H7f6
-         eN35TQZqktpfR18ht4W1LiMTrQ3TrcaueY33BEsMEYK9DYSTSsEm2s+jlGWm1ja3L27k
-         5Jf2jxz6YLY31k8pMtLLvulpJfDpDsWTyog0DbRZaZF27i0GvkfzlvnPz3RAyJhSXY9k
-         RaunPgTBh777TJi2Nfi5U22U4I94SHoHFZGiWa+CbmWMRxPyU95y/ovNNx1oZ3H/P8s+
-         y7ceeZaicQ0/LjTmGuRRBBHGG/mt8Uc+76cVMyFg1d69l+iIY0xfo9yqYlqpx1liBSa6
-         lm/w==
+        bh=x6XANZwp5VZn+8KE2+iRF2A5g4k87x82PXIrGcZQQkE=;
+        b=I/3lJ75p+nmqB0rRSRykM+qcQqYigyfa14ofdL+Z+EKFP42RZitXGlcSl2z9B+bxBs
+         RbCDjIvTb5RCkO+Fh9Ei6eTdbkcgZlpm1/95s94IKpd0brlWOB99bKlrgeIcbGQOlIcL
+         fCqZu14m5FoIzs/ltrnxzpN8+qfBt5OflalP+TV4Oxo4ITrTxeJr0sk2NtqPINQJX7I0
+         0DpCUpxb/qEXxeKcwmRd710oYxcMqt14Ne4dxIDNVySaPYmxgwgGzt26BxSPlrCuhw/x
+         QlSwMM8Gpk68i5Tv0OOVsYA85FZAz86lu7D47uPlHKHlqsDOfqFzb2sRvfKJRl3DiItj
+         TczQ==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
 Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
-        by mx.google.com with ESMTP id k2si1524848ejb.187.2019.06.27.05.48.55
+        by mx.google.com with ESMTP id op8si1374184ejb.193.2019.06.27.05.49.03
         for <linux-mm@kvack.org>;
-        Thu, 27 Jun 2019 05:48:55 -0700 (PDT)
+        Thu, 27 Jun 2019 05:49:03 -0700 (PDT)
 Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
 Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id BDB732B;
-	Thu, 27 Jun 2019 05:48:54 -0700 (PDT)
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 13BFD2B;
+	Thu, 27 Jun 2019 05:49:03 -0700 (PDT)
 Received: from p8cg001049571a15.arm.com (unknown [10.163.1.20])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPA id 7A9973F718;
-	Thu, 27 Jun 2019 05:48:51 -0700 (PDT)
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPA id C121B3F718;
+	Thu, 27 Jun 2019 05:48:59 -0700 (PDT)
 From: Anshuman Khandual <anshuman.khandual@arm.com>
 To: linux-mm@kvack.org
 Cc: Anshuman Khandual <anshuman.khandual@arm.com>,
@@ -90,9 +90,9 @@ Cc: Anshuman Khandual <anshuman.khandual@arm.com>,
 	Suzuki Poulose <suzuki.poulose@arm.com>,
 	linux-arm-kernel@lists.infradead.org,
 	linux-kernel@vger.kernel.org
-Subject: [RFC 1/2] arm64/mm: Change THP helpers to comply with generic MM semantics
-Date: Thu, 27 Jun 2019 18:18:15 +0530
-Message-Id: <1561639696-16361-2-git-send-email-anshuman.khandual@arm.com>
+Subject: [RFC 2/2] arm64/mm: Enable THP migration without split
+Date: Thu, 27 Jun 2019 18:18:16 +0530
+Message-Id: <1561639696-16361-3-git-send-email-anshuman.khandual@arm.com>
 X-Mailer: git-send-email 2.7.4
 In-Reply-To: <1561639696-16361-1-git-send-email-anshuman.khandual@arm.com>
 References: <1561639696-16361-1-git-send-email-anshuman.khandual@arm.com>
@@ -102,61 +102,15 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-pmd_present() and pmd_trans_huge() are expected to behave in the following
-manner during various phases of a given PMD. It is derived from a previous
-detailed discussion on this topic [1] and present THP documentation [2].
+In certain page migration situations a THP page can be migrated without
+being split into it's constituent normal pages. This not only saves time
+required to split the THP page later to be put back when required but also
+saves an wider address range translation from the existing huge TLB entry
+reducing future page fault costs.
 
-pmd_present(pmd):
-
-- Returns true if pmd refers to system RAM with a valid pmd_page(pmd)
-- Returns false if pmd does not refer to system RAM - Invalid pmd_page(pmd)
-
-pmd_trans_huge(pmd):
-
-- Returns true if pmd refers to system RAM and is a trans huge mapping
-
--------------------------------------------------------------------------
-|	PMD states	|	pmd_present	|	pmd_trans_huge	|
--------------------------------------------------------------------------
-|	Mapped		|	Yes		|	Yes		|
--------------------------------------------------------------------------
-|	Splitting	|	Yes		|	Yes		|
--------------------------------------------------------------------------
-|	Migration/Swap	|	No		|	No		|
--------------------------------------------------------------------------
-
-The problem:
-
-PMD is first invalidated with pmdp_invalidate() before it's splitting. This
-invalidation clears PMD_SECT_VALID as below.
-
-PMD Split -> pmdp_invalidate() -> pmd_mknotpresent -> Clears PMD_SECT_VALID
-
-Once PMD_SECT_VALID gets cleared, it results in pmd_present() return false
-on the PMD entry. It will need another bit apart from PMD_SECT_VALID to re-
-affirm pmd_present() as true during the THP split process. To comply with
-above mentioned semantics, pmd_trans_huge() should also check pmd_present()
-first before testing presence of an actual transparent huge mapping.
-
-The solution:
-
-Ideally PMD_TYPE_SECT should have been used here instead. But it shares the
-bit position with PMD_SECT_VALID which is used for THP invalidation. Hence
-it will not be there for pmd_present() check after pmdp_invalidate().
-
-PTE_SPECIAL never gets used for PMD mapping i.e there is no pmd_special().
-Hence this bit can be set on the PMD entry during invalidation which can
-help in making pmd_present() return true and in recognizing the fact that
-it still points to memory.
-
-This bit is transient. During the split is process it will be overridden
-by a page table page representing the normal pages in place of erstwhile
-huge page. Other pmdp_invalidate() callers always write a fresh PMD value
-on the entry overriding this transient PTE_SPECIAL making it safe. In the
-past former pmd_[mk]splitting() functions used PTE_SPECIAL.
-
-[1]: https://lkml.org/lkml/2018/10/17/231
-[2]: https://www.kernel.org/doc/Documentation/vm/transhuge.txt
+The previous patch changed the THP helper functions which now complies with
+the generic MM semantics clearing the path for THP migration support. Hence
+just enable it.
 
 Cc: Catalin Marinas <catalin.marinas@arm.com>
 Cc: Will Deacon <will@kernel.org>
@@ -168,61 +122,41 @@ Cc: linux-kernel@vger.kernel.org
 
 Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
 ---
- arch/arm64/include/asm/pgtable.h | 27 ++++++++++++++++++++++++---
- 1 file changed, 24 insertions(+), 3 deletions(-)
+ arch/arm64/Kconfig               | 4 ++++
+ arch/arm64/include/asm/pgtable.h | 5 +++++
+ 2 files changed, 9 insertions(+)
 
+diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
+index 0758d89..27bd8c4 100644
+--- a/arch/arm64/Kconfig
++++ b/arch/arm64/Kconfig
+@@ -1589,6 +1589,10 @@ config ARCH_ENABLE_HUGEPAGE_MIGRATION
+ 	def_bool y
+ 	depends on HUGETLB_PAGE && MIGRATION
+ 
++config ARCH_ENABLE_THP_MIGRATION
++	def_bool y
++	depends on TRANSPARENT_HUGEPAGE
++
+ menu "Power management options"
+ 
+ source "kernel/power/Kconfig"
 diff --git a/arch/arm64/include/asm/pgtable.h b/arch/arm64/include/asm/pgtable.h
-index 87a4b2d..90d4e24 100644
+index 90d4e24..4860573 100644
 --- a/arch/arm64/include/asm/pgtable.h
 +++ b/arch/arm64/include/asm/pgtable.h
-@@ -368,15 +368,31 @@ static inline int pmd_protnone(pmd_t pmd)
- }
- #endif
+@@ -851,6 +851,11 @@ static inline pmd_t pmdp_establish(struct vm_area_struct *vma,
+ #define __pte_to_swp_entry(pte)	((swp_entry_t) { pte_val(pte) })
+ #define __swp_entry_to_pte(swp)	((pte_t) { (swp).val })
  
-+static inline int pmd_present(pmd_t pmd)
-+{
-+	if (pte_present(pmd_pte(pmd)))
-+		return 1;
-+
-+	return pte_special(pmd_pte(pmd));
-+}
++#ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
++#define __pmd_to_swp_entry(pmd)        ((swp_entry_t) { pmd_val(pmd) })
++#define __swp_entry_to_pmd(swp)        __pmd((swp).val)
++#endif
 +
  /*
-  * THP definitions.
-  */
- 
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
--#define pmd_trans_huge(pmd)	(pmd_val(pmd) && !(pmd_val(pmd) & PMD_TABLE_BIT))
-+static inline int pmd_trans_huge(pmd_t pmd)
-+{
-+	if (!pmd_val(pmd))
-+		return 0;
-+
-+	if (!pmd_present(pmd))
-+		return 0;
-+
-+	return !(pmd_val(pmd) & PMD_TABLE_BIT);
-+}
- #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
- 
--#define pmd_present(pmd)	pte_present(pmd_pte(pmd))
- #define pmd_dirty(pmd)		pte_dirty(pmd_pte(pmd))
- #define pmd_young(pmd)		pte_young(pmd_pte(pmd))
- #define pmd_valid(pmd)		pte_valid(pmd_pte(pmd))
-@@ -386,7 +402,12 @@ static inline int pmd_protnone(pmd_t pmd)
- #define pmd_mkclean(pmd)	pte_pmd(pte_mkclean(pmd_pte(pmd)))
- #define pmd_mkdirty(pmd)	pte_pmd(pte_mkdirty(pmd_pte(pmd)))
- #define pmd_mkyoung(pmd)	pte_pmd(pte_mkyoung(pmd_pte(pmd)))
--#define pmd_mknotpresent(pmd)	(__pmd(pmd_val(pmd) & ~PMD_SECT_VALID))
-+
-+static inline pmd_t pmd_mknotpresent(pmd_t pmd)
-+{
-+	pmd = pte_pmd(pte_mkspecial(pmd_pte(pmd)));
-+	return __pmd(pmd_val(pmd) & ~PMD_SECT_VALID);
-+}
- 
- #define pmd_thp_or_huge(pmd)	(pmd_huge(pmd) || pmd_trans_huge(pmd))
- 
+  * Ensure that there are not more swap files than can be encoded in the kernel
+  * PTEs.
 -- 
 2.7.4
 
