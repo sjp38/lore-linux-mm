@@ -2,169 +2,228 @@ Return-Path: <SRS0=EPqI=U2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B9C85C48BD6
-	for <linux-mm@archiver.kernel.org>; Thu, 27 Jun 2019 06:15:40 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1BDFDC48BD6
+	for <linux-mm@archiver.kernel.org>; Thu, 27 Jun 2019 06:32:08 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 86177204FD
-	for <linux-mm@archiver.kernel.org>; Thu, 27 Jun 2019 06:15:40 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 86177204FD
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 7C77C20656
+	for <linux-mm@archiver.kernel.org>; Thu, 27 Jun 2019 06:32:07 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="LCuuA8yK";
+	dkim=pass (1024-bit key) header.d=fb.onmicrosoft.com header.i=@fb.onmicrosoft.com header.b="toe00VUw"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7C77C20656
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 243A56B0003; Thu, 27 Jun 2019 02:15:39 -0400 (EDT)
+	id DA87B8E0003; Thu, 27 Jun 2019 02:32:06 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1F4208E0003; Thu, 27 Jun 2019 02:15:39 -0400 (EDT)
+	id D5A2C8E0002; Thu, 27 Jun 2019 02:32:06 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0BC028E0002; Thu, 27 Jun 2019 02:15:39 -0400 (EDT)
+	id BF8F18E0003; Thu, 27 Jun 2019 02:32:06 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id AEC286B0003
-	for <linux-mm@kvack.org>; Thu, 27 Jun 2019 02:15:38 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id k15so5210137eda.6
-        for <linux-mm@kvack.org>; Wed, 26 Jun 2019 23:15:38 -0700 (PDT)
+Received: from mail-yw1-f70.google.com (mail-yw1-f70.google.com [209.85.161.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 98D568E0002
+	for <linux-mm@kvack.org>; Thu, 27 Jun 2019 02:32:06 -0400 (EDT)
+Received: by mail-yw1-f70.google.com with SMTP id f11so1796555ywc.4
+        for <linux-mm@kvack.org>; Wed, 26 Jun 2019 23:32:06 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=HS5i53Hat81fRjUsVulXEOB2b8vHNdtbUcLw5grdKPE=;
-        b=R1QGT4lGDt+gfoSpKtU8QoRS1SH0c8G7UxsnNRafGBsRHEQKDJDHPNOm3B8GdrQacY
-         04L8rAGuJ33ruBBLT4H94g5giInGzF336qQyiGpovgKXSKSrkAmQFqJ4jxkttKlqhRLa
-         MMj+4YB8FdUkhjdDagFpi0zEM+rXdWdsMjW25U12Ug9QqTOQxvaqYGNWz1gp/zR0C8qY
-         bSwy9fn4M1vVDBO0l7dFUbUwLZuvCZDzrfO4pYHwOHUc0+UZmqD98Bo70SWQygTC5kYh
-         wUrj9PK2ViBZTFauF1M2M+PM1gdpsAoxJBQVdBDBhWSAPXBQXUH3H0yFZiZ1CcC0M781
-         ZJHQ==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAUcVrR58nVa0YAmCN3zDliHDP6Galhew0Qb89YzefYLf0jIxvGh
-	5mB6dPjgfEoHVJGAyiH/rleTzdYbaao+yfL0X3SyAJVQcFKlov2yEkzmshMAyy9SMLH9bEJjg9C
-	ErUnjCaiuM/3Kag7IvLo/taPCvT1u3zisJ4oP/axJqjt8RwDY/t6+qxvSMf6Rito=
-X-Received: by 2002:a50:f599:: with SMTP id u25mr2008988edm.195.1561616138273;
-        Wed, 26 Jun 2019 23:15:38 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzGTMVL8RATHBRXkC4EWSPNkaTUCmxh+/J2VfxBZceEpB6qujfhtOLU/dwEdL0+OTo8Gtgl
-X-Received: by 2002:a50:f599:: with SMTP id u25mr2008926edm.195.1561616137428;
-        Wed, 26 Jun 2019 23:15:37 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561616137; cv=none;
+        h=x-gm-message-state:dkim-signature:dkim-signature:from:to:cc:subject
+         :thread-topic:thread-index:date:message-id:references:in-reply-to
+         :accept-language:content-language:content-id
+         :content-transfer-encoding:mime-version;
+        bh=h8pU6xF38JB3r9LlEsuLt4wH985rRUbhoyuS6lhAxts=;
+        b=JRYMB3nZq2LZ4nRWiMwfIAwboPP75r08gujCn3OMG+jSkcDQFMQmxRp0kTcNg+z1K2
+         T5+si2zMFepFKItUz2CUTSkcm/RAqcO/5DAjp4O+mGT2PfGV0ZwEVOmPbIMbWIfdHLA4
+         rcWtIwk1xc8WO8r1kNCSEws/IXh+ZwXV2PVvBMJV0n64RxX0ux7xDUrw5cZTXwhZdpQj
+         fRQ3U2lF0sRkt5DTfFWriHILal96De2nc/jybWjQoGTaJRZCIzbPwTa4i9F2TSt7UiCm
+         Co+hovGCEfnNgVNRuJREwX3FeVq4nCtfPFRPIlPsue0T8+Ja9bfUt/fwmosRkjaCGSdJ
+         OHNQ==
+X-Gm-Message-State: APjAAAVjGpVxbE9+4TBUrEIXQGY97G2pp4KzqcwsAVm71znhCv8Dz9c+
+	mC8LXXUsCxuwM3otI9beicrGo2pZ3VmIWaa0CpDn6kbpMT3GSTvt5/6BRpIC35zMyc8nNKnFWFG
+	HWKXC889pMlyuvn1XC2jXquf5gvnaT0DH/JWZSdtA1++fdX0lzP2+hm2hMlOivvNyVw==
+X-Received: by 2002:a0d:f944:: with SMTP id j65mr1130910ywf.331.1561617126260;
+        Wed, 26 Jun 2019 23:32:06 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzk8tn8bDyXnlzmNtbjL9Px8catzF1+q749bMW4EMRV2STAG0BnFn3xHMIa/ek3M6lzI0mf
+X-Received: by 2002:a0d:f944:: with SMTP id j65mr1130885ywf.331.1561617125640;
+        Wed, 26 Jun 2019 23:32:05 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561617125; cv=none;
         d=google.com; s=arc-20160816;
-        b=wfkXjqwKcOtyiYzJMy3K1w+wkssWnMnykAaiLePiE6rcrBICgjhUyhiGvs0SBdJwaI
-         8DaTcygtuqapOMVYK9vAUspUuVGCtfZgSjuxhCnMA4DYRuoQHwBK1XoomYx3C81RsHxc
-         Nw52OyiwEwFnHTLMOTwt4EVE0+uBbgDPWxXjRZTQdmLdFs3/mk2l0fjRKP/TgVHR2BeB
-         4fToH2v+UrQbMycge4ttsMzPfTUu1jba4RSGNedHzgCVsU444M1u3jK7Z8gU/HU67hXh
-         yfbvC2I0028cYx3CV2PkSXoSfjy3hwRosBje6jlkp7ZNmEGtNKZD+W+XSbhA7Vr//Ey2
-         c7fA==
+        b=u7qEj/COrpvAQFeP4g5lC0W3QtD1lYXaAlX4yWUj9eFt+lyrrSqOVQjn8+momvrzl9
+         d5MNpxiPDHjIjz88dCGXek9JqUpx6pz0Wy4kfilGncN33U0aGPo9E3SubWb4akLCE2GC
+         vLYdKWyN6uu7xy4+kXEFlsafLyVODenx3XuuMEiwcm8YFTqw8AVvK6dAj+yK/i/YPjIA
+         t6JEgRvTA1HqW5zzGveHWX3Il9Gi24/PkgYnYGZyhKPU4lE2Bslm3+iCo8aNTWeTFJbY
+         IWHB6I6bGgqaDUK8HNK5gB1081/pX0tmgAeuTaCMEmM5ieKjRXRdxpJ5lphaXqGGw6jj
+         qisA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date;
-        bh=HS5i53Hat81fRjUsVulXEOB2b8vHNdtbUcLw5grdKPE=;
-        b=t2TSXohsO7ZMuU+5rTHQ5Bp4TsC8Jg1E2Wo04M6QZypufxYWrNvtkj4vV59kbEcpqU
-         FhyOPhTpn+/vERFFYzIDYS3Hsxuwz0FCAN3iPyAqJTTWiEhMV/muMZWmYWcLANkaTDZg
-         cbda6gHbP8ucB0dZc6n6t22qr5t01XHgze/UVczTbHODGwrx2Oc9VUdRlOxr5el1UwPm
-         IPqGshPuY+ybAGHi8ChU78uUIv1fXu2leZSasMgw/I7bh7BzDpaoCoBIZombFn86oTsF
-         p4GPzaESS3CODLsp1Kx5V7EHsy8RMhaMenTqPtFsLVvmlbidfqPDHZM+7Y1o0KKfytLl
-         DDzg==
+        h=mime-version:content-transfer-encoding:content-id:content-language
+         :accept-language:in-reply-to:references:message-id:date:thread-index
+         :thread-topic:subject:cc:to:from:dkim-signature:dkim-signature;
+        bh=h8pU6xF38JB3r9LlEsuLt4wH985rRUbhoyuS6lhAxts=;
+        b=erdIkp/foA+/MnIvhlIT/CaAX0uNvXfZl2DVTB4sYjItkEXoLVwCHdf8sgE+BPDWqa
+         Zwo8LPRAno3PBp7JbisGmZ6FP8h0TzIBQiBWirRm61qvkRSzq3NlxVZ1NUO1pjBDRmUt
+         9HROIVUV7CyLN1ugjGqObDTRujMJOaH6y8cvgHRmfncvTDKNeZh0Vu4ABA3yG38AMaYz
+         eHV+mNfhsDRkt4gb/qgUjKNtEORIPoLIj1aqwDdwfEqRjHcG/z+SajoR9GOOMokClgXF
+         4dqA7FaS1kUfkSPcyUO2TvaM0+xz2NWzhKBW9Aj8Z5UnC1eQzaHsj557HWwjyqVzDRKg
+         EM6A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f17si998760eda.220.2019.06.26.23.15.37
+       dkim=pass header.i=@fb.com header.s=facebook header.b=LCuuA8yK;
+       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-onmicrosoft-com header.b=toe00VUw;
+       spf=pass (google.com: domain of prvs=1081063969=songliubraving@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=1081063969=songliubraving@fb.com";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id l20si472826ywc.428.2019.06.26.23.32.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Jun 2019 23:15:37 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Wed, 26 Jun 2019 23:32:05 -0700 (PDT)
+Received-SPF: pass (google.com: domain of prvs=1081063969=songliubraving@fb.com designates 67.231.145.42 as permitted sender) client-ip=67.231.145.42;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 21908AEB8;
-	Thu, 27 Jun 2019 06:15:36 +0000 (UTC)
-Date: Thu, 27 Jun 2019 08:15:34 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Kees Cook <keescook@chromium.org>
-Cc: Qian Cai <cai@lca.pw>, Catalin Marinas <catalin.marinas@arm.com>,
-	Ard Biesheuvel <ard.biesheuvel@linaro.org>,
-	Alexander Potapenko <glider@google.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Christoph Lameter <cl@linux.com>,
-	Masahiro Yamada <yamada.masahiro@socionext.com>,
-	James Morris <jmorris@namei.org>,
-	"Serge E. Hallyn" <serge@hallyn.com>,
-	Nick Desaulniers <ndesaulniers@google.com>,
-	Kostya Serebryany <kcc@google.com>,
-	Dmitry Vyukov <dvyukov@google.com>,
-	Sandeep Patil <sspatil@android.com>,
-	Laura Abbott <labbott@redhat.com>,
-	Randy Dunlap <rdunlap@infradead.org>, Jann Horn <jannh@google.com>,
-	Mark Rutland <mark.rutland@arm.com>, Marco Elver <elver@google.com>,
-	linux-mm@kvack.org, linux-security-module@vger.kernel.org,
-	kernel-hardening@lists.openwall.com,
-	clang-built-linux@googlegroups.com
-Subject: Re: [PATCH v8 1/2] mm: security: introduce init_on_alloc=1 and
- init_on_free=1 boot options
-Message-ID: <20190627061534.GA17798@dhcp22.suse.cz>
-References: <20190626121943.131390-1-glider@google.com>
- <20190626121943.131390-2-glider@google.com>
- <1561572949.5154.81.camel@lca.pw>
- <201906261303.020ADC9@keescook>
+       dkim=pass header.i=@fb.com header.s=facebook header.b=LCuuA8yK;
+       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-onmicrosoft-com header.b=toe00VUw;
+       spf=pass (google.com: domain of prvs=1081063969=songliubraving@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=1081063969=songliubraving@fb.com";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
+Received: from pps.filterd (m0044010.ppops.net [127.0.0.1])
+	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x5R6UKfm025319;
+	Wed, 26 Jun 2019 23:31:29 -0700
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
+ : date : message-id : references : in-reply-to : content-type : content-id
+ : content-transfer-encoding : mime-version; s=facebook;
+ bh=h8pU6xF38JB3r9LlEsuLt4wH985rRUbhoyuS6lhAxts=;
+ b=LCuuA8yKcAhk7DukG7j+j0QQSZ8q3DLfcshEEep9vv5NPQj6/TfmwTQXEdRMMdc8+L8C
+ syHsc56iIFIJeos5/pd/T4RwNqIRvokxaV+qpjOoQpiEobrLZCcTFf7l8MDCdk7u6xAm
+ YIqBqf9+21IefoSpZRdpVBm6UA+jk7hhYtY= 
+Received: from maileast.thefacebook.com ([163.114.130.16])
+	by mx0a-00082601.pphosted.com with ESMTP id 2tcgav9h16-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128 verify=NOT);
+	Wed, 26 Jun 2019 23:31:29 -0700
+Received: from ash-exopmbx101.TheFacebook.com (2620:10d:c0a8:82::b) by
+ ash-exhub104.TheFacebook.com (2620:10d:c0a8:82::d) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) id
+ 15.1.1713.5; Wed, 26 Jun 2019 23:31:28 -0700
+Received: from ash-exhub203.TheFacebook.com (2620:10d:c0a8:83::5) by
+ ash-exopmbx101.TheFacebook.com (2620:10d:c0a8:82::b) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) id
+ 15.1.1713.5; Wed, 26 Jun 2019 23:31:28 -0700
+Received: from NAM05-CO1-obe.outbound.protection.outlook.com (100.104.31.183)
+ by o365-in.thefacebook.com (100.104.36.102) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256) id 15.1.1713.5
+ via Frontend Transport; Wed, 26 Jun 2019 23:31:28 -0700
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.onmicrosoft.com;
+ s=selector1-fb-onmicrosoft-com;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=h8pU6xF38JB3r9LlEsuLt4wH985rRUbhoyuS6lhAxts=;
+ b=toe00VUwFum1VsoZ3radHSBd36BaaFmuWFVSXLilMCk8VKR/ONCp9SX6mIM/jGMSHaDWEUTY4ufzs05lbfl9yrcdR5IMpz8/6MDdDTUHk8GJmiJ0LbaoB3oKNqiGHfe9fyv4r9Kem294GxflBANlbOetF17rgRKBtXDmlhFU6ug=
+Received: from MWHPR15MB1165.namprd15.prod.outlook.com (10.175.3.22) by
+ MWHPR15MB1951.namprd15.prod.outlook.com (10.175.9.12) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.2008.16; Thu, 27 Jun 2019 06:31:26 +0000
+Received: from MWHPR15MB1165.namprd15.prod.outlook.com
+ ([fe80::400e:e329:ea98:aa0d]) by MWHPR15MB1165.namprd15.prod.outlook.com
+ ([fe80::400e:e329:ea98:aa0d%6]) with mapi id 15.20.2008.018; Thu, 27 Jun 2019
+ 06:31:26 +0000
+From: Song Liu <songliubraving@fb.com>
+To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>,
+        Andrew Morton
+	<akpm@linux-foundation.org>
+CC: LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>,
+        Matthew Wilcox <matthew.wilcox@oracle.com>,
+        "Kirill A. Shutemov"
+	<kirill.shutemov@linux.intel.com>,
+        Peter Zijlstra <peterz@infradead.org>, Oleg Nesterov <oleg@redhat.com>,
+        Steven Rostedt <rostedt@goodmis.org>,
+        Kernel
+ Team <Kernel-team@fb.com>,
+        "william.kucharski@oracle.com"
+	<william.kucharski@oracle.com>
+Subject: Re: [PATCH v7 4/4] uprobe: use FOLL_SPLIT_PMD instead of FOLL_SPLIT
+Thread-Topic: [PATCH v7 4/4] uprobe: use FOLL_SPLIT_PMD instead of FOLL_SPLIT
+Thread-Index: AQHVK7E785+oCFqbhUC2jl0BeioYsaatcZEAgAGa74A=
+Date: Thu, 27 Jun 2019 06:31:26 +0000
+Message-ID: <AE9CD0A1-14EB-4919-B14F-23B077C57891@fb.com>
+References: <20190625235325.2096441-1-songliubraving@fb.com>
+ <20190625235325.2096441-5-songliubraving@fb.com>
+ <20190626060038.GB9158@linux.vnet.ibm.com>
+In-Reply-To: <20190626060038.GB9158@linux.vnet.ibm.com>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach: 
+X-MS-TNEF-Correlator: 
+x-mailer: Apple Mail (2.3445.104.11)
+x-originating-ip: [2620:10d:c090:180::1:6ea5]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: 2880b3e6-e60d-4289-66fa-08d6fac914f6
+x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(2017052603328)(7193020);SRVR:MWHPR15MB1951;
+x-ms-traffictypediagnostic: MWHPR15MB1951:
+x-microsoft-antispam-prvs: <MWHPR15MB1951FA57F2B389231202505BB3FD0@MWHPR15MB1951.namprd15.prod.outlook.com>
+x-ms-oob-tlc-oobclassifiers: OLM:8882;
+x-forefront-prvs: 008184426E
+x-forefront-antispam-report: SFV:NSPM;SFS:(10019020)(376002)(39860400002)(396003)(366004)(346002)(136003)(199004)(189003)(68736007)(53546011)(6506007)(76176011)(36756003)(305945005)(8936002)(7736002)(6246003)(6486002)(186003)(6436002)(14454004)(229853002)(57306001)(4326008)(66446008)(64756008)(66556008)(66476007)(73956011)(102836004)(76116006)(316002)(99286004)(54906003)(110136005)(66946007)(25786009)(6116002)(4744005)(33656002)(5660300002)(50226002)(86362001)(8676002)(81156014)(81166006)(478600001)(6512007)(2906002)(71190400001)(71200400001)(53936002)(46003)(7416002)(11346002)(2616005)(486006)(476003)(446003)(14444005)(256004);DIR:OUT;SFP:1102;SCL:1;SRVR:MWHPR15MB1951;H:MWHPR15MB1165.namprd15.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
+received-spf: None (protection.outlook.com: fb.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info: hG+2Udvs0PDKgyESMlOCFnBsWbcJUdh09mID884t3JnFcFu/jA/TjncZLvFQdHNNnKWYBwaHAxPehm1Z9VE8rcb3peOPA7WQwUrHI4kjMeAGGc4MqPpda0vG/sJjnGj8M7II1cbaWqo+1w6v7bayVexgqKj40ex4601kULRxPSyYvypBKK5FshLHpXNlQEh4O7lv8Kxw7jqCV1cgEtw+eOvlBWjA/VaskOwJGB+QyNelqgU1zHHKcM466m3D0Vq0qO9Nk00AVDuxc24hTPWs9WXFnzAx4grh/+gxo9tKWC3MFMojV+PrvN7UPOlmcPvl4WoMVyAtqODGtQgUvw06JOfqKarmVGkuIwUznAXrbw79N/KwX3wgSY8YDwK1nX/hwsn7cSxunE1Y4DEJXFvcA4CJ96XqSQ3PkswPnz2tYXs=
+Content-Type: text/plain; charset="us-ascii"
+Content-ID: <902646C75C382B46BB3D455B995697F5@namprd15.prod.outlook.com>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <201906261303.020ADC9@keescook>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+X-MS-Exchange-CrossTenant-Network-Message-Id: 2880b3e6-e60d-4289-66fa-08d6fac914f6
+X-MS-Exchange-CrossTenant-originalarrivaltime: 27 Jun 2019 06:31:26.5305
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: 8ae927fe-1255-47a7-a2af-5f3a069daaa2
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-CrossTenant-userprincipalname: songliubraving@fb.com
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: MWHPR15MB1951
+X-OriginatorOrg: fb.com
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-06-27_02:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=fb_default_notspam policy=fb_default score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1011 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=954 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1906270074
+X-FB-Internal: deliver
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed 26-06-19 13:23:34, Kees Cook wrote:
-> On Wed, Jun 26, 2019 at 02:15:49PM -0400, Qian Cai wrote:
-> > On Wed, 2019-06-26 at 14:19 +0200, Alexander Potapenko wrote:
-> > > Both init_on_alloc and init_on_free default to zero, but those defaults
-> > > can be overridden with CONFIG_INIT_ON_ALLOC_DEFAULT_ON and
-> > > CONFIG_INIT_ON_FREE_DEFAULT_ON.
-> > > [...]
-> > > +static int __init early_init_on_alloc(char *buf)
-> > > +{
-> > > +	int ret;
-> > > +	bool bool_result;
-> > > +
-> > > +	if (!buf)
-> > > +		return -EINVAL;
-> > > +	ret = kstrtobool(buf, &bool_result);
-> > > +	if (bool_result)
-> > > +		static_branch_enable(&init_on_alloc);
-> > > +	else
-> > > +		static_branch_disable(&init_on_alloc);
-> > > +	return ret;
-> > > +}
-> > > +early_param("init_on_alloc", early_init_on_alloc);
-> > 
-> > Do those really necessary need to be static keys?
-> > 
-> > Adding either init_on_free=0 or init_on_alloc=0 to the kernel cmdline will
-> > generate a warning with kernels built with clang.
-> > 
-> > [    0.000000] static_key_disable(): static key 'init_on_free+0x0/0x4' used
-> > before call to jump_label_init()
-> > [    0.000000] WARNING: CPU: 0 PID: 0 at ./include/linux/jump_label.h:317
-> > early_init_on_free+0x1c0/0x200
-> > [    0.000000] Modules linked in:
-> > [    0.000000] CPU: 0 PID: 0 Comm: swapper Not tainted 5.2.0-rc6-next-20190626+
-> > #9
-> > [    0.000000] pstate: 60000089 (nZCv daIf -PAN -UAO)
-> 
-> I think the issue here is that arm64 doesn't initialize static keys
-> early enough.
 
-This sounds familiar: http://lkml.kernel.org/r/CABXOdTd-cqHM_feAO1tvwn4Z=kM6WHKYAbDJ7LGfMvRPRPG7GA@mail.gmail.com
--- 
-Michal Hocko
-SUSE Labs
+
+> On Jun 25, 2019, at 11:00 PM, Srikar Dronamraju <srikar@linux.vnet.ibm.co=
+m> wrote:
+>=20
+> * Song Liu <songliubraving@fb.com> [2019-06-25 16:53:25]:
+>=20
+>> This patches uses newly added FOLL_SPLIT_PMD in uprobe. This enables eas=
+y
+>> regroup of huge pmd after the uprobe is disabled (in next patch).
+>>=20
+>> Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+>> Signed-off-by: Song Liu <songliubraving@fb.com>
+>> ---
+>> kernel/events/uprobes.c | 6 ++----
+>> 1 file changed, 2 insertions(+), 4 deletions(-)
+>=20
+> Looks good to me.
+>=20
+> Reviewed-by: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+
+Thanks Srikar!
+
+I guess these 4 patches are ready to go?=20
+
+Hi Andrew,=20
+
+Could you please route them via the mm tree?=20
+
+Thanks,
+Song
+
 
