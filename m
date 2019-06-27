@@ -2,134 +2,138 @@ Return-Path: <SRS0=EPqI=U2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.7 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_NEOMUTT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 72349C48BD6
-	for <linux-mm@archiver.kernel.org>; Thu, 27 Jun 2019 12:46:29 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id EF0B6C48BD6
+	for <linux-mm@archiver.kernel.org>; Thu, 27 Jun 2019 12:48:44 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0BCD52083B
-	for <linux-mm@archiver.kernel.org>; Thu, 27 Jun 2019 12:46:28 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="Ph8a0a5y"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0BCD52083B
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=shutemov.name
+	by mail.kernel.org (Postfix) with ESMTP id BE0F82083B
+	for <linux-mm@archiver.kernel.org>; Thu, 27 Jun 2019 12:48:44 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BE0F82083B
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5D88C6B0003; Thu, 27 Jun 2019 08:46:28 -0400 (EDT)
+	id 5D7798E0003; Thu, 27 Jun 2019 08:48:44 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 589E48E0003; Thu, 27 Jun 2019 08:46:28 -0400 (EDT)
+	id 588D08E0002; Thu, 27 Jun 2019 08:48:44 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4790F8E0002; Thu, 27 Jun 2019 08:46:28 -0400 (EDT)
+	id 475E98E0003; Thu, 27 Jun 2019 08:48:44 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id EADE16B0003
-	for <linux-mm@kvack.org>; Thu, 27 Jun 2019 08:46:27 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id b33so5881981edc.17
-        for <linux-mm@kvack.org>; Thu, 27 Jun 2019 05:46:27 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 0D3198E0002
+	for <linux-mm@kvack.org>; Thu, 27 Jun 2019 08:48:44 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id f19so5870796edv.16
+        for <linux-mm@kvack.org>; Thu, 27 Jun 2019 05:48:44 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=QcDk5zUKbz23dkSjNBVXwjq0i8xHM9vtNbHjMMC6vV0=;
-        b=g45VS6Zr5glr8GALy5fruRJ29yKlnzPv2Uo9C2gcKBfCxsKOcIOiwwgzOr4ZtKjGPF
-         UlMoSDNouX8W0l3nI4+pQM/SyTbAN8JH4Nb5fgwkOYnggxYR/K172nyOodzVjtjNFgWt
-         kTey18uORCMewLJCVDjXd3ezssgC/nQe92YESe+gAGvmzQzCD7VHv4SBd7VJ0OAzPk/m
-         rH6vxJ9n4ZiKNyoWnKVXL+BvkrrccE1GV72F3CrrGBKuBblg60ZV9d/6254vxacYdwaC
-         Qe/tEpRl3rJA0Xr+IupUxOYYaOhvV/5NK63PyBc9dHuBlQWz3hrZQOwFferipgd8WMvU
-         VqcQ==
-X-Gm-Message-State: APjAAAX9TlWRa/fqdLaQtSdSsBbo3DgyrUxVgVLd/54biEN41rtRq4Ay
-	qPtwjWi6ZasWxXMOjcNdkKX3DR8M1NHuit0wV4OmJAw/026/slz9Bbfwf8QeHiYVgNswOsJOUHc
-	wZmBdiOznE/klHkh2mmBMOfKRdbvfE7+dQeoed4HliJSCJ4dhfK1yiJCrFRT205gamQ==
-X-Received: by 2002:a50:92cd:: with SMTP id l13mr3902021eda.136.1561639587547;
-        Thu, 27 Jun 2019 05:46:27 -0700 (PDT)
-X-Received: by 2002:a50:92cd:: with SMTP id l13mr3901953eda.136.1561639586731;
-        Thu, 27 Jun 2019 05:46:26 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561639586; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id;
+        bh=vX0WNZwdF3DW0KTKR0Wkmszsjql33DA2/oAzcqt2JrA=;
+        b=cILEm+zn/1cHROTwnYsE/AAIuXkLkEBkW92qo3SzUoSBjGMOqJA4wi6LG2Y9h7gOE8
+         ZrDTgvG4dXVC+tpFiCW8PgJpCsL8pnB4tnMo2OaxwzKtDpEABuMoSCOO3EIJr5Uh1rP6
+         Ib0AFNqSQyTTt54WtFrhw3xUfNIXqUMGO5wx3V/G/GUg2N5lYrtVoDdP9baHwsTdVlq/
+         h9ygpU5UT+QEg3d3HEqNEZ6ArrKupWJ52Ni6c1raGUvRZzB0fyMCHkHCMV/eVLkPAqjr
+         4fEYmGqcNzdyoiz/ruPMMRRnrOBWyX6xJTV2PUydF/VaXQ2eUBXr0dX3qDDDHbgcvc31
+         U1tQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+X-Gm-Message-State: APjAAAVy1/aA/4IevKQgCfBhU5NOSBof46hJNEQTwy6BVLZz4Q+If8uA
+	dyZcjRhw6wxiJd6f3MHGzjHbbV9JpVaOlcw38FjT07Z8I0IfaWr/Qj0tuTfiaZM23dMfLo0yF71
+	6Q3DrpD7MGHPP6anprJsZW2llUdbm8wx48RHFfkyh6AabjOQIvE6PivKLXe4cACfCDA==
+X-Received: by 2002:a50:c8c3:: with SMTP id k3mr3893773edh.189.1561639723505;
+        Thu, 27 Jun 2019 05:48:43 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzrLfe4PvSKQLEQqrN3rv4PKCAmBBT63nuVa80eRIK3XXUBTzFnM1Uhy3Grw1Y19sswFQvz
+X-Received: by 2002:a50:c8c3:: with SMTP id k3mr3893721edh.189.1561639722771;
+        Thu, 27 Jun 2019 05:48:42 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561639722; cv=none;
         d=google.com; s=arc-20160816;
-        b=mxiyKeg/uo6a5NSmJ1MboEx98z/iUD9Y7hq8rZQHdAcoEdiy7Tc2XhlFFav2+hg3xt
-         cqf1ReVqByevbIMcqBO1yk2N42u0M0kYIwJNaKtHEuQ/Jbf8uiR+vNDBPUG/0BKiG/s0
-         BIHlDRfRty/y8cuWkyjQbCokIJNyexpRahzTkKwPnSIVDRVH59zxdsJl436dDya0Gx4e
-         QhdTrfgyge8tRSi14jxborSakptT0cxHS99tSVd0uvKOGbhwlTlnk2E/ebByvJprTSBQ
-         Lja6i1QbZtL2+fbhSre+1uCKBYh4y7KCYj0+GjBlc4/ugOLght/CGvqAzNdCOQYILrdt
-         iR9Q==
+        b=eCWcKsw/7WdUWjCXBsPQ+fSa88yVimHPKdD3qgYt5KRyOAtggLXfSjM9QSpDNTNqHE
+         k+OwCdRFavGUrtSiKdd1xWFSlkn5M96m3aWrmojXZrUkzFuwjhS134ztECqIMnAxeurH
+         usatM+7PwO0vPa1LJFRfElHi/MQ/yfhjc0pTJUM+zkSP85wTngOzPvbg7oy3ZhhBhOjZ
+         0GVkfzxepEV/1j6nVenzt6f/4rbUc/5Is5WG3RxMNK1QpXna7ppoLy/jmyon8EeK4dkD
+         KuKHJcMJy1GKmQXXEcvbkpxId7r7IElsmB/aAwJJKlbw+gudH/av/rCiaJ4epF4YOIA0
+         72fw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=QcDk5zUKbz23dkSjNBVXwjq0i8xHM9vtNbHjMMC6vV0=;
-        b=HDnesWUZMSmqfbCrQyrpQGl5ScvPs7C6mbMhLJofs3w/DrRDGp7CWSuqst8xkJdvSk
-         lDnSET0r0gn4BH+la+3A1jEgTEvNUd/ac6gOZJs5NV7YhWilSb0FoUgwwR97T/WLoRw1
-         Xhx1ehdSvg945nubsAgiMbxTVhixCUfv1ESyDmBjR78o5uYXig2McqV/OCItBap2oA+z
-         o2AtjwLjG3wVrk29oemyGbu5Uz1n6a0aEwVpJV3iAhDGH9r7X8H53UL8W4h2Qo1IdP5P
-         zUqxy9fSX6TZ4pym+1AE58oZLxCYQDl6e5H7dsSsk9caprSlOIy8jO+x/h2RMWYm0bvS
-         ZyOQ==
+        h=message-id:date:subject:cc:to:from;
+        bh=vX0WNZwdF3DW0KTKR0Wkmszsjql33DA2/oAzcqt2JrA=;
+        b=eUTl6QKyb14m+1JIkOxYWPHW5rg8nwjO4lcB4r7DxV1djQz/2iXCz+2oIYPaFbI5qs
+         DfCAm5neHZOGvKrb8EDomUXourTRMzJGEB99DDpzLb4hUDGh5lNk3D6B4q38Pu4z6fgi
+         /skFMZEDFwqadXEYANcxtnVFrStZVM/AqlVGOAH6WNe2/3WK1Kr/nxRrtGduDFSDah9H
+         HUiiXvnprC64QtYaby7znsz/qSX30dGHUeVS0kxjY7UcWnkrFWgO6HXyXquA6x6tfeaq
+         8/Y/KvaccxhHIsD085Gtg2fyPTqj1ZA6wey5Di3Bsm7pTo/C4l8fejhPE5QWYbM9GhFd
+         tdxA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=Ph8a0a5y;
-       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d16sor2116838eda.20.2019.06.27.05.46.26
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 27 Jun 2019 05:46:26 -0700 (PDT)
-Received-SPF: neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) client-ip=209.85.220.65;
+       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
+        by mx.google.com with ESMTP id y6si1386344ejp.270.2019.06.27.05.48.42
+        for <linux-mm@kvack.org>;
+        Thu, 27 Jun 2019 05:48:42 -0700 (PDT)
+Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=Ph8a0a5y;
-       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=shutemov-name.20150623.gappssmtp.com; s=20150623;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=QcDk5zUKbz23dkSjNBVXwjq0i8xHM9vtNbHjMMC6vV0=;
-        b=Ph8a0a5yHbRPhclO3Pn0KnYkbHmqZJ1TzgavGNPl8lmeqhJTJc84xPfvgYwIEtmpAJ
-         SLUBBxlcsWcu+FQLeGK2WBfqjvVNdPyCSw5uxBpm/DHLWwg6ht4aR7x0iOdbABcWIihQ
-         wRNHBiJrT+zuLgpTm1MbLIaqKSi2JTrCJHxM7CkX09ypWgFJpJ4b4xqX00fWg+NBj175
-         V7xJ+dVSS9ieTZq8jeuaAVG7c45OdqBRFsyCmrAD+BAy/yBT2KC/Homx61Vz7PAGYIeL
-         7oTqvW3rLlxDu9ZaKffB5hPvoQHEQthc7VBSVJ0OTK1xXMRCB1wzy+2+JrC9R38OptSn
-         mGQA==
-X-Google-Smtp-Source: APXvYqx8PviEpESGoaGFrEkuGJDnDhMWSIld5rUq0chtQKwTslTti67hACIPECZQNkq5ZBizPpaPOw==
-X-Received: by 2002:a50:976d:: with SMTP id d42mr3969822edb.77.1561639586109;
-        Thu, 27 Jun 2019 05:46:26 -0700 (PDT)
-Received: from box.localdomain ([86.57.175.117])
-        by smtp.gmail.com with ESMTPSA id c48sm735496edb.10.2019.06.27.05.46.25
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 27 Jun 2019 05:46:25 -0700 (PDT)
-Received: by box.localdomain (Postfix, from userid 1000)
-	id 2E04A103F66; Thu, 27 Jun 2019 15:46:24 +0300 (+03)
-Date: Thu, 27 Jun 2019 15:46:24 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-To: Song Liu <songliubraving@fb.com>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org,
-	linux-kernel@vger.kernel.org, matthew.wilcox@oracle.com,
-	kirill.shutemov@linux.intel.com, kernel-team@fb.com,
-	william.kucharski@oracle.com, akpm@linux-foundation.org,
-	hdanton@sina.com
-Subject: Re: [PATCH v9 0/6] Enable THP for text section of non-shmem files
-Message-ID: <20190627124624.uzu5trpfcdcz5uzz@box>
-References: <20190625001246.685563-1-songliubraving@fb.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190625001246.685563-1-songliubraving@fb.com>
-User-Agent: NeoMutt/20180716
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000019, version=1.2.4
+       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id DF6942B;
+	Thu, 27 Jun 2019 05:48:41 -0700 (PDT)
+Received: from p8cg001049571a15.arm.com (unknown [10.163.1.20])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPA id 9656E3F718;
+	Thu, 27 Jun 2019 05:48:38 -0700 (PDT)
+From: Anshuman Khandual <anshuman.khandual@arm.com>
+To: linux-mm@kvack.org
+Cc: Anshuman Khandual <anshuman.khandual@arm.com>,
+	Catalin Marinas <catalin.marinas@arm.com>,
+	Will Deacon <will@kernel.org>,
+	Mark Rutland <mark.rutland@arm.com>,
+	Marc Zyngier <marc.zyngier@arm.com>,
+	Suzuki Poulose <suzuki.poulose@arm.com>,
+	linux-arm-kernel@lists.infradead.org,
+	linux-kernel@vger.kernel.org
+Subject: [RFC 0/2] arm64/mm: Enable THP migration
+Date: Thu, 27 Jun 2019 18:18:14 +0530
+Message-Id: <1561639696-16361-1-git-send-email-anshuman.khandual@arm.com>
+X-Mailer: git-send-email 2.7.4
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jun 24, 2019 at 05:12:40PM -0700, Song Liu wrote:
-> Please share your comments and suggestions on this.
+This series enables THP migration without split on arm64 by subscribing
+to ARCH_ENABLE_THP_MIGRATION. Before that it modifies arm64 platform THP
+helpers like pmd_present() and pmd_trans_huge() to comply with expected
+generic MM semantics as concluded from a previous discussion [1].
 
-Looks like a great first step to THP in page cache. Thanks!
+Initial THP migration and stress tests look good for various THP sizes. I
+will continue testing this further. But meanwhile looking for some early
+reviews, feedbacks and suggestions on the approach.
 
-Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+This is based on linux-next tree (next-20190626).
 
-THP allocation in the fault path and write support are next goals.
+Question:
+
+Instead of directly using PTE_SPECIAL, would it be better to override the
+same bit as PMD_SPLITTING and create it's associated helpers to make this
+more clear and explicit ?
+
+[1] https://lkml.org/lkml/2018/10/9/220
+
+Cc: Catalin Marinas <catalin.marinas@arm.com>
+Cc: Will Deacon <will@kernel.org>
+Cc: Mark Rutland <mark.rutland@arm.com>
+Cc: Marc Zyngier <marc.zyngier@arm.com>
+Cc: Suzuki Poulose <suzuki.poulose@arm.com>
+Cc: linux-arm-kernel@lists.infradead.org
+Cc: linux-kernel@vger.kernel.org
+
+Anshuman Khandual (2):
+  arm64/mm: Change THP helpers to comply with generic MM semantics
+  arm64/mm: Enable THP migration without split
+
+ arch/arm64/Kconfig               |  4 ++++
+ arch/arm64/include/asm/pgtable.h | 32 +++++++++++++++++++++++++++++---
+ 2 files changed, 33 insertions(+), 3 deletions(-)
 
 -- 
- Kirill A. Shutemov
+2.7.4
 
