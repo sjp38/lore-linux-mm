@@ -2,161 +2,184 @@ Return-Path: <SRS0=EPqI=U2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-10.4 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT,USER_IN_DEF_DKIM_WL
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4A495C48BD6
-	for <linux-mm@archiver.kernel.org>; Thu, 27 Jun 2019 12:49:06 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0457CC48BD7
+	for <linux-mm@archiver.kernel.org>; Thu, 27 Jun 2019 13:03:26 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1AA5B20B7C
-	for <linux-mm@archiver.kernel.org>; Thu, 27 Jun 2019 12:49:05 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1AA5B20B7C
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id ADC3E2053B
+	for <linux-mm@archiver.kernel.org>; Thu, 27 Jun 2019 13:03:25 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="iBxY0ZFg"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org ADC3E2053B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9801F8E0006; Thu, 27 Jun 2019 08:49:05 -0400 (EDT)
+	id 46C208E0007; Thu, 27 Jun 2019 09:03:25 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9309F8E0002; Thu, 27 Jun 2019 08:49:05 -0400 (EDT)
+	id 3F64F8E0002; Thu, 27 Jun 2019 09:03:25 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7F8A38E0006; Thu, 27 Jun 2019 08:49:05 -0400 (EDT)
+	id 2BE778E0007; Thu, 27 Jun 2019 09:03:25 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 32B1E8E0002
-	for <linux-mm@kvack.org>; Thu, 27 Jun 2019 08:49:05 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id b12so5933747eds.14
-        for <linux-mm@kvack.org>; Thu, 27 Jun 2019 05:49:05 -0700 (PDT)
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 092258E0002
+	for <linux-mm@kvack.org>; Thu, 27 Jun 2019 09:03:25 -0400 (EDT)
+Received: by mail-qt1-f197.google.com with SMTP id g56so2304493qte.4
+        for <linux-mm@kvack.org>; Thu, 27 Jun 2019 06:03:25 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:in-reply-to:references;
-        bh=x6XANZwp5VZn+8KE2+iRF2A5g4k87x82PXIrGcZQQkE=;
-        b=j2ElNvuIWIuCA1y95I2poQwql9Zacxm5slmDJAlhoHrZLecDd7LkqVtRWl7j9k28ak
-         vZc8dUV2AR/PnhGq4tfmOtZccNfNTFGMlU0ShkkIDXP28dTzz+fO6pP03py+xapQKEJ5
-         L+iTHoonL5skX5TOy3ZE99B7oNrZtuOLiet+HNMf7pxfmqdcO+1e4c8FFunPALuluRY4
-         HxRCw701QEkuWXlwCY6cJVFd5K56U1I0DjZrq49rhNwL70EFyxdki72dKKhBzJi06itQ
-         HCHHXmotwMvGQECs9+3OjvXcwvvza6u7Lo0sLgbLB0Ywqfl5t4tTjTRBiZERdkHIiwnE
-         GWCQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-X-Gm-Message-State: APjAAAUnevzwjHHrkHx8ZzMGxITDdee4zAPM9JWgQv2okK2ypxRvhGvP
-	Gh8mYEkSMX+MkoVR2sG2+X1qsfdZelS7WyqcpcdHT3yoWHsU3mzcVuCJayEP2QK1Jui1X/qGmy+
-	6LDftuGNI297bksiqVWQtW3gT8bTIaVxiwE3VWvfSuYMRyJBCSfRaw27v743ecos4uw==
-X-Received: by 2002:a17:906:1510:: with SMTP id b16mr2940991ejd.25.1561639744768;
-        Thu, 27 Jun 2019 05:49:04 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyObDSQMYNJcFwI/jc+7ME5vlR7bOmPgo/ZWsBLuNloq/u0VhjJGr8DgoD1ahl1ao8Rk7ig
-X-Received: by 2002:a17:906:1510:: with SMTP id b16mr2940943ejd.25.1561639743892;
-        Thu, 27 Jun 2019 05:49:03 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561639743; cv=none;
+        h=x-gm-message-state:dkim-signature:date:message-id:mime-version
+         :subject:from:to:cc;
+        bh=nkuGlh1b+gHriNiPX/Ra1Bh+mzhPWQ4oquwmkvO30T4=;
+        b=e9jkHvzPh5yXvVpGLG+qwwSjCevy6Zg3lCm4tWUe5vZDdJPCMDW3WIiSc7sMoU8/uu
+         rW3YOHsZh/Z5lbTvSMsw3M/Pg51mmRojTI5IS4AXw+DBuP2HD+nyTr1S/NGExgHjRyfC
+         37zwJYfJ3YAk2vAp65G7TUhYBumvcjtB3FDI8HVxPNH64q0C/KxhP18xZp/bjV35bCpd
+         K2QDmZr3uMwLsbu2+mSCdHoYHjOoXIHjipSm99oeY/iSyXKusBEUOw1Owq0o1awBO0Ip
+         pY2KvhltQqu6kx/93z8soJE9ND95vkhY+8JXLXBWVWKGAZHGLpU2CzzbCEwQ65mqH/Y+
+         0t2g==
+X-Gm-Message-State: APjAAAX9RuLE8EYfE9Jw0BwZRQfJI7xndMpD+rrubL4U++4pARSlWNl/
+	uCKufWRQw53aeLHlulC9erGI46sYLpOrEuKHtZW/kEKZ5iBAuoZXHU97Dd0zYnuXfeKbjiOLfI6
+	FLQkSzbP7tGM8KBDCwHEx10sxvqk0mFylNAR4If53Vi77qAc3L5nSzqGwL09D/ZT+tg==
+X-Received: by 2002:a05:6214:3a5:: with SMTP id m5mr3007717qvy.7.1561640604730;
+        Thu, 27 Jun 2019 06:03:24 -0700 (PDT)
+X-Received: by 2002:a05:6214:3a5:: with SMTP id m5mr3007664qvy.7.1561640604060;
+        Thu, 27 Jun 2019 06:03:24 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561640604; cv=none;
         d=google.com; s=arc-20160816;
-        b=Mw9VTWhZjitknx8KpC/ogVPLvr21ayc1c03zciz+3Tvy/Kvy8H6cvrlTeofEALj/ZD
-         kb3cp1yQowC7LKeH8sjXQNDNRC8yEsA7fB4cmb1MM585TvVECt3cS7K8nBRy1qjQC6y7
-         js+XoGde3z/ldQR7soBqhH+jnw1q+muqbI3Uu5WBBCJsVXuMAFEaeov6XLsGGqUgGWF3
-         lZKhSWcF7eLeHRHzCVY1Y++XaQMVH35eYRy78BLXmpZgSRHgB6b8vUoQQpFZG/lQOmNB
-         UhupgI6NFV1fVIprNEofE8/uU7MeBv3rO4d8JxrweDaOhOB8vcm/VgQmyA/g4Od1D8lS
-         UsdQ==
+        b=s6bwDIGbSvBLARYIv3dsXYLAjAgLqZgkouBqcZq1K06WZEk0xkdEuuP3mydw4lhTwJ
+         5DdJo14aPdSBU3sWAPxpLcsUqPojsCvyAN7f0veXjNE9PTFoLsyef88+8AGGoIFGeEik
+         ByXuOEIOniAFCEEJbazOJKyNLJc7NKyhOf+Xew3KV9cCMek2wOAY771fXZon9eXLHjNo
+         i+FdPcW7N+MHukGf+te8heQW6P78EZX/400TVlfWwPwO3/rIIkMJP6BiWAIUbwdcT9Oy
+         lEqL6rS4KcfoEInuS4Qhbzc9ANM4izGAeE3ajE/xYvTkwNfiHUaL1VRMANRIofXD44KX
+         3kiQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=x6XANZwp5VZn+8KE2+iRF2A5g4k87x82PXIrGcZQQkE=;
-        b=I/3lJ75p+nmqB0rRSRykM+qcQqYigyfa14ofdL+Z+EKFP42RZitXGlcSl2z9B+bxBs
-         RbCDjIvTb5RCkO+Fh9Ei6eTdbkcgZlpm1/95s94IKpd0brlWOB99bKlrgeIcbGQOlIcL
-         fCqZu14m5FoIzs/ltrnxzpN8+qfBt5OflalP+TV4Oxo4ITrTxeJr0sk2NtqPINQJX7I0
-         0DpCUpxb/qEXxeKcwmRd710oYxcMqt14Ne4dxIDNVySaPYmxgwgGzt26BxSPlrCuhw/x
-         QlSwMM8Gpk68i5Tv0OOVsYA85FZAz86lu7D47uPlHKHlqsDOfqFzb2sRvfKJRl3DiItj
-         TczQ==
+        h=cc:to:from:subject:mime-version:message-id:date:dkim-signature;
+        bh=nkuGlh1b+gHriNiPX/Ra1Bh+mzhPWQ4oquwmkvO30T4=;
+        b=oN2NeU+1XxfddlLjIxTjxMkpJ7jHJcsCCIdPLNOIVS3cb6Ff7WInSpHSn23757K9rR
+         oIeNPLOIPI41yBQ0l9+YCn6QGGycBog3uStrujt3hgrc/UMhho2ldR0B3HIykDQzcNHZ
+         m7Y8uI7xuxo1SBmJO47sLHHy+xskI+GkfLsjxrIPeaRfqBFD4I2BUN18SSiDI7BierI1
+         hMDUn4C9ckScqMzngUxrG3vmXEMoZo6NntvXaCjgWVF4gstKmYDnQqKUuGT9CZYe6oO7
+         rQO625myK0B+8E/2ABnVgT33TazUvk2sN5YkqMfT1A0buEBoK6LllhTs4ErX2QQDjggZ
+         8QAA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
-        by mx.google.com with ESMTP id op8si1374184ejb.193.2019.06.27.05.49.03
-        for <linux-mm@kvack.org>;
-        Thu, 27 Jun 2019 05:49:03 -0700 (PDT)
-Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=iBxY0ZFg;
+       spf=pass (google.com: domain of 3m74uxqykcfo8da56j8gg8d6.4gedafmp-eecn24c.gj8@flex--glider.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3m74UXQYKCFo8DA56J8GG8D6.4GEDAFMP-EECN24C.GJ8@flex--glider.bounces.google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
+        by mx.google.com with SMTPS id y187sor1327860qkc.24.2019.06.27.06.03.23
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Thu, 27 Jun 2019 06:03:24 -0700 (PDT)
+Received-SPF: pass (google.com: domain of 3m74uxqykcfo8da56j8gg8d6.4gedafmp-eecn24c.gj8@flex--glider.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 13BFD2B;
-	Thu, 27 Jun 2019 05:49:03 -0700 (PDT)
-Received: from p8cg001049571a15.arm.com (unknown [10.163.1.20])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPA id C121B3F718;
-	Thu, 27 Jun 2019 05:48:59 -0700 (PDT)
-From: Anshuman Khandual <anshuman.khandual@arm.com>
-To: linux-mm@kvack.org
-Cc: Anshuman Khandual <anshuman.khandual@arm.com>,
-	Catalin Marinas <catalin.marinas@arm.com>,
-	Will Deacon <will@kernel.org>,
-	Mark Rutland <mark.rutland@arm.com>,
-	Marc Zyngier <marc.zyngier@arm.com>,
-	Suzuki Poulose <suzuki.poulose@arm.com>,
-	linux-arm-kernel@lists.infradead.org,
-	linux-kernel@vger.kernel.org
-Subject: [RFC 2/2] arm64/mm: Enable THP migration without split
-Date: Thu, 27 Jun 2019 18:18:16 +0530
-Message-Id: <1561639696-16361-3-git-send-email-anshuman.khandual@arm.com>
-X-Mailer: git-send-email 2.7.4
-In-Reply-To: <1561639696-16361-1-git-send-email-anshuman.khandual@arm.com>
-References: <1561639696-16361-1-git-send-email-anshuman.khandual@arm.com>
+       dkim=pass header.i=@google.com header.s=20161025 header.b=iBxY0ZFg;
+       spf=pass (google.com: domain of 3m74uxqykcfo8da56j8gg8d6.4gedafmp-eecn24c.gj8@flex--glider.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3m74UXQYKCFo8DA56J8GG8D6.4GEDAFMP-EECN24C.GJ8@flex--glider.bounces.google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=date:message-id:mime-version:subject:from:to:cc;
+        bh=nkuGlh1b+gHriNiPX/Ra1Bh+mzhPWQ4oquwmkvO30T4=;
+        b=iBxY0ZFgO84nGjeC4loAOGtpGOs9Yd+fQ6I8SutqbHSeU1rnf5JzTtlDWjLJJd0/Nr
+         zxHj+IuFkHMyvyWAC33SPbFZGoTK8algV818k/Q71cVpkVHuMBWJKC2ksgxr8pUJEAaP
+         dutE+V9ZPEuAoDr2MSkkEBS313KEVD9qNR/3caN6hxA6tFWKop/qr1X7z/Lboo8tZQwW
+         I254YFH5T0q6XJAe0Tm+VeVcDZaaB1k/+ZUj+rUz7ui9QpYJ0gGlpps4Mr8zWe3VA6HN
+         icTzVRARAhzNdo2Mw8haBEcLFFm82kBhXJPRKv+9+EU9hoEDndfPYq5OKewAgDwKnu5l
+         kK2Q==
+X-Google-Smtp-Source: APXvYqyb2fwdKxY/0wj7U997eReOnW8Kj1pQxO+Xnu7fYid+NvlrsgBAglMJ1qJ5NwkNSnI/uio1IDG6JGY=
+X-Received: by 2002:a05:620a:35e:: with SMTP id t30mr3084826qkm.1.1561640603625;
+ Thu, 27 Jun 2019 06:03:23 -0700 (PDT)
+Date: Thu, 27 Jun 2019 15:03:14 +0200
+Message-Id: <20190627130316.254309-1-glider@google.com>
+Mime-Version: 1.0
+X-Mailer: git-send-email 2.22.0.410.gd8fdbe21b5-goog
+Subject: [PATCH v9 0/3] add init_on_alloc/init_on_free boot options
+From: Alexander Potapenko <glider@google.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, 
+	Kees Cook <keescook@chromium.org>
+Cc: Alexander Potapenko <glider@google.com>, Masahiro Yamada <yamada.masahiro@socionext.com>, 
+	Michal Hocko <mhocko@kernel.org>, James Morris <jmorris@namei.org>, 
+	"Serge E. Hallyn" <serge@hallyn.com>, Nick Desaulniers <ndesaulniers@google.com>, 
+	Kostya Serebryany <kcc@google.com>, Dmitry Vyukov <dvyukov@google.com>, Sandeep Patil <sspatil@android.com>, 
+	Laura Abbott <labbott@redhat.com>, Randy Dunlap <rdunlap@infradead.org>, Jann Horn <jannh@google.com>, 
+	Mark Rutland <mark.rutland@arm.com>, Marco Elver <elver@google.com>, Qian Cai <cai@lca.pw>, 
+	linux-mm@kvack.org, linux-security-module@vger.kernel.org, 
+	kernel-hardening@lists.openwall.com
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-In certain page migration situations a THP page can be migrated without
-being split into it's constituent normal pages. This not only saves time
-required to split the THP page later to be put back when required but also
-saves an wider address range translation from the existing huge TLB entry
-reducing future page fault costs.
+Provide init_on_alloc and init_on_free boot options.
 
-The previous patch changed the THP helper functions which now complies with
-the generic MM semantics clearing the path for THP migration support. Hence
-just enable it.
+These are aimed at preventing possible information leaks and making the
+control-flow bugs that depend on uninitialized values more deterministic.
 
-Cc: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Will Deacon <will@kernel.org>
+Enabling either of the options guarantees that the memory returned by the
+page allocator and SL[AU]B is initialized with zeroes.
+SLOB allocator isn't supported at the moment, as its emulation of kmem
+caches complicates handling of SLAB_TYPESAFE_BY_RCU caches correctly.
+
+Enabling init_on_free also guarantees that pages and heap objects are
+initialized right after they're freed, so it won't be possible to access
+stale data by using a dangling pointer.
+
+As suggested by Michal Hocko, right now we don't let the heap users to
+disable initialization for certain allocations. There's not enough
+evidence that doing so can speed up real-life cases, and introducing
+ways to opt-out may result in things going out of control.
+
+To: Andrew Morton <akpm@linux-foundation.org>
+To: Christoph Lameter <cl@linux.com>
+To: Kees Cook <keescook@chromium.org>
+Cc: Masahiro Yamada <yamada.masahiro@socionext.com>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: James Morris <jmorris@namei.org>
+Cc: "Serge E. Hallyn" <serge@hallyn.com>
+Cc: Nick Desaulniers <ndesaulniers@google.com>
+Cc: Kostya Serebryany <kcc@google.com>
+Cc: Dmitry Vyukov <dvyukov@google.com>
+Cc: Sandeep Patil <sspatil@android.com>
+Cc: Laura Abbott <labbott@redhat.com>
+Cc: Randy Dunlap <rdunlap@infradead.org>
+Cc: Jann Horn <jannh@google.com>
 Cc: Mark Rutland <mark.rutland@arm.com>
-Cc: Marc Zyngier <marc.zyngier@arm.com>
-Cc: Suzuki Poulose <suzuki.poulose@arm.com>
-Cc: linux-arm-kernel@lists.infradead.org
-Cc: linux-kernel@vger.kernel.org
+Cc: Marco Elver <elver@google.com>
+Cc: Qian Cai <cai@lca.pw>
+Cc: linux-mm@kvack.org
+Cc: linux-security-module@vger.kernel.org
+Cc: kernel-hardening@lists.openwall.com
 
-Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
+Alexander Potapenko (2):
+  mm: security: introduce init_on_alloc=1 and init_on_free=1 boot
+    options
+  mm: init: report memory auto-initialization features at boot time
+
+ .../admin-guide/kernel-parameters.txt         |  9 +++
+ drivers/infiniband/core/uverbs_ioctl.c        |  2 +-
+ include/linux/mm.h                            | 24 +++++++
+ init/main.c                                   | 24 +++++++
+ mm/dmapool.c                                  |  4 +-
+ mm/page_alloc.c                               | 71 +++++++++++++++++--
+ mm/slab.c                                     | 16 ++++-
+ mm/slab.h                                     | 20 ++++++
+ mm/slub.c                                     | 41 +++++++++--
+ net/core/sock.c                               |  2 +-
+ security/Kconfig.hardening                    | 29 ++++++++
+ 11 files changed, 224 insertions(+), 18 deletions(-)
 ---
- arch/arm64/Kconfig               | 4 ++++
- arch/arm64/include/asm/pgtable.h | 5 +++++
- 2 files changed, 9 insertions(+)
-
-diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-index 0758d89..27bd8c4 100644
---- a/arch/arm64/Kconfig
-+++ b/arch/arm64/Kconfig
-@@ -1589,6 +1589,10 @@ config ARCH_ENABLE_HUGEPAGE_MIGRATION
- 	def_bool y
- 	depends on HUGETLB_PAGE && MIGRATION
- 
-+config ARCH_ENABLE_THP_MIGRATION
-+	def_bool y
-+	depends on TRANSPARENT_HUGEPAGE
-+
- menu "Power management options"
- 
- source "kernel/power/Kconfig"
-diff --git a/arch/arm64/include/asm/pgtable.h b/arch/arm64/include/asm/pgtable.h
-index 90d4e24..4860573 100644
---- a/arch/arm64/include/asm/pgtable.h
-+++ b/arch/arm64/include/asm/pgtable.h
-@@ -851,6 +851,11 @@ static inline pmd_t pmdp_establish(struct vm_area_struct *vma,
- #define __pte_to_swp_entry(pte)	((swp_entry_t) { pte_val(pte) })
- #define __swp_entry_to_pte(swp)	((pte_t) { (swp).val })
- 
-+#ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
-+#define __pmd_to_swp_entry(pmd)        ((swp_entry_t) { pmd_val(pmd) })
-+#define __swp_entry_to_pmd(swp)        __pmd((swp).val)
-+#endif
-+
- /*
-  * Ensure that there are not more swap files than can be encoded in the kernel
-  * PTEs.
+ v3: dropped __GFP_NO_AUTOINIT patches
+ v5: dropped support for SLOB allocator, handle SLAB_TYPESAFE_BY_RCU
+ v6: changed wording in boot-time message
+ v7: dropped the test_meminit.c patch (picked by Andrew Morton already),
+     minor wording changes
+ v8: fixes for interoperability with other heap debugging features
+ v9: added support for page/slab poisoning
 -- 
-2.7.4
+2.22.0.410.gd8fdbe21b5-goog
 
