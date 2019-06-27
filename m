@@ -2,312 +2,198 @@ Return-Path: <SRS0=EPqI=U2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.2 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
-	SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D886AC48BE4
-	for <linux-mm@archiver.kernel.org>; Thu, 27 Jun 2019 18:41:34 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9312AC48BE4
+	for <linux-mm@archiver.kernel.org>; Thu, 27 Jun 2019 18:44:10 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 903802064A
-	for <linux-mm@archiver.kernel.org>; Thu, 27 Jun 2019 18:41:34 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=cmpxchg-org.20150623.gappssmtp.com header.i=@cmpxchg-org.20150623.gappssmtp.com header.b="UDng4QJM"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 903802064A
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=cmpxchg.org
+	by mail.kernel.org (Postfix) with ESMTP id 6AD0E2075E
+	for <linux-mm@archiver.kernel.org>; Thu, 27 Jun 2019 18:44:10 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6AD0E2075E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 14D1B6B0003; Thu, 27 Jun 2019 14:41:34 -0400 (EDT)
+	id 061086B0003; Thu, 27 Jun 2019 14:44:10 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 12F998E0003; Thu, 27 Jun 2019 14:41:34 -0400 (EDT)
+	id F2CD08E0003; Thu, 27 Jun 2019 14:44:09 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 03B868E0002; Thu, 27 Jun 2019 14:41:34 -0400 (EDT)
+	id E1A898E0002; Thu, 27 Jun 2019 14:44:09 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D8D826B0003
-	for <linux-mm@kvack.org>; Thu, 27 Jun 2019 14:41:33 -0400 (EDT)
-Received: by mail-qk1-f197.google.com with SMTP id v4so3437554qkj.10
-        for <linux-mm@kvack.org>; Thu, 27 Jun 2019 11:41:33 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id BDA726B0003
+	for <linux-mm@kvack.org>; Thu, 27 Jun 2019 14:44:09 -0400 (EDT)
+Received: by mail-qk1-f197.google.com with SMTP id z13so3445295qka.15
+        for <linux-mm@kvack.org>; Thu, 27 Jun 2019 11:44:09 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=Zp2l4O4LWB1oYN3F7c8FUspudG1FPkSVquIdBgKKNr8=;
-        b=cTbC54y1ZDCTk3pUSukxuDazfBU6GloYD2sxgx363fin+797wJoXL3WUx4cTm0NlCQ
-         H0lrlUJpqrdkVxVJo09/f8k8KniOi1ZARS8hn2D5JjSQMBEwBwZEJ909FGn9f9V1Yzzm
-         pTvyrjoMxS+Ed5jWu9bNNcSWRE3SRfkmfL4Q4zODGnD749/Q24b/65R+yTfCXSmMvYg2
-         g+Mv5VW9QecF9KIIR2/fkJMWErwYapuERid/B0Xip7C1tneh8eBZsC/8xkR0MK6kXU/+
-         beG+14FSEfEEEDALgz+tAqwDHUUx8iZg+e5OyrH7kU8OjsAKo6bUNCQ2IN2dnHMUpVeb
-         n/9w==
-X-Gm-Message-State: APjAAAWsSPoKupEZv0ovB832arNT6lcW84wGrvbt4Kcumc7v+vEn/bwN
-	L/vNs0UsQJTk8WbptR8mNx4utk00y7JX2eEDVdXmahiB8tgfueDGEwhslzefb0dm5rj7vhlJxN4
-	n7FHCtXvdf518jKt0cksRLwpRE31iPVYPAl1h6jDgjexGOf5vVOOqJl7YkYIW4HHC6A==
-X-Received: by 2002:a0c:d237:: with SMTP id m52mr4394029qvh.160.1561660893556;
-        Thu, 27 Jun 2019 11:41:33 -0700 (PDT)
-X-Received: by 2002:a0c:d237:: with SMTP id m52mr4393960qvh.160.1561660892588;
-        Thu, 27 Jun 2019 11:41:32 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561660892; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id;
+        bh=5eXF8HrcHLv0bUZt40sU/7oY+axHQovPmK50YAhtR10=;
+        b=Ij7ra0yl1Zeed/YLVYYbqwDDg5fa3yDQ51NeCjgGbdZ0WC+aCwc+at00yP4T2Sjpju
+         qzkek2/NPHo0JYe7zCQ33BCRIaH2mFwYXIseNenLFe2ZtFX0Qiu7uJqt2bbRg9+6vZx9
+         5mKXlYCVaw0FboA072mq6sHIC6f9TX0Pk9PX71r7P+u5+J/SGvVdN7Q5PDRRt62TvCCt
+         sZ12+5CwqPnjfZ2jwm0hkrNibKiWI1Or2e6gyTnHdadTtXki1HqpdVBG0IbRVEnIBRzA
+         NzTXLu/HdWUw5yneBLPUmZ7wCIsDBRpCZLVpk4FvkKOpLqnS8btYfhwJn+I+VLVF5NFm
+         yqwA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAW4D1i8f5WBZYc6yw/jusGvUUlOx74eaKRlIjy8MnN/LPazJT4X
+	uZHnDNveq8PSh3253mJtQbX5aewfRPZG24di9hP2w/g1x1WIF1s5RjOBkQKyT5w3S9F+a2PhFu3
+	5dtFQBYG7eiC3NcjdI8LE8k7mS4WXiChhC1KPP+8iiq7+RkNMDh/djWxKmB8j9ywCdQ==
+X-Received: by 2002:a37:96c4:: with SMTP id y187mr4855524qkd.462.1561661049564;
+        Thu, 27 Jun 2019 11:44:09 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxDMO5GH/6GE98aWtDM+fnrNSDJ+qAG5wp9pUSM+KS7jPlWdKrg0AHZyREWe9bk1I8fomkE
+X-Received: by 2002:a37:96c4:: with SMTP id y187mr4855453qkd.462.1561661048304;
+        Thu, 27 Jun 2019 11:44:08 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561661048; cv=none;
         d=google.com; s=arc-20160816;
-        b=khwQ+7DQMQ1pfAweTBb4Q3b3Y0t3GARSFRRZvkz/QF42v31EbAELl9orIfqtSPv8u9
-         tH+rAq8Km0jdUm0/jnSoBezO3ucqqhg6QgIu3zu7M4VMhgeAoH4Eo/JoiMZyOxIXk0ig
-         30VYi7Vhn29WYy/Fug0Nm6K/xdhxs4y05MYTVsx1AMpGBnPen/LeA62ZUe5UhnZr86Om
-         HSoVNEsPkLLoFNSnxoTb+kvrKGjhMGkMwK3dLihmDwN3KRjkbgqwqAxHyQcMPUDGmHSK
-         9/M4Hup1mIW5DI+hCbNdqZ2iP3uOXc1Qb1N5g0yn1Y4yITgY7nMF6z3ER5yKMpWZVgwQ
-         u5Tw==
+        b=egVAB+r0DRRPJ8wrSDQU0XGxoOzsxLDvzPE515CCbCXNttIH97Z8d77FeNA8zqM4p+
+         v4TjFMuhgfeoinX8Yrv/er4ldZZ7VWjIRlgRHPh0P6/XJ8qBL4QvoMq6+o5IZLHi2PBl
+         G47XzfnPTnD7zbXld4oE58qvIDU0SD2XKzGZ7E9eKtDsYq6ssyrFcc/MDAQ9Ncr8Bhxl
+         NGQ/TdTYm6XnKQ+ITrM0PhSC3Yqb6+YfpIjZlnfLrHb6a7azWYalRlh1eMGNEViKCMxn
+         i9z6m2sDHIQFTjP2GTMbZkm8WIUE+gtZ8/QbAhz74l0EAQuzOFvUnQtMpKR1zSLcRQOS
+         c0lA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=Zp2l4O4LWB1oYN3F7c8FUspudG1FPkSVquIdBgKKNr8=;
-        b=UaiRg1g1q6Mk4Qkwt2vv8e3V2yP5NXpPZxImnEWFNmnxXxKlqUs5LN+Sy2pbMJbutF
-         7NRJ021m1KX5KV2f+iSqEEsyfdvtkbfrupAxoUqIzndHkqrGEjR2rV9GnXrnbr6F+jJi
-         bjdXlyBAJxVdMRwEzSKP4DKv5ptuYtKD/XZjy9AS1puUA6DCq2xfLoEmzE0TDty9F3TE
-         YeJ1VE5ijjjP8BkUmAW/nhCDdTeyg1UpOUc++gg3ilxzapFpH4eB2UJ/5x7LjZTtvRGF
-         +7K55aePWHEK9VWRygojQnIto2SshH1dO7wm4XTXQfrPo2qd7x1wPSn18vaS6L7Q9zXr
-         VLzg==
+        h=message-id:date:subject:cc:to:from;
+        bh=5eXF8HrcHLv0bUZt40sU/7oY+axHQovPmK50YAhtR10=;
+        b=FlJiYim0YMs9uqwyDs/mFyG+/VB33RfPgi0nx4ZFsYSZRIvlnevbeDwrw+JNghaEgq
+         MFYbhA5lYVwmUZcgBz7vdKRlB0hcyTSsFktW+/6UhJE+UK5Is04yI0spJXREzTwWCo96
+         5omXMtbppbYxCxMmLk0Pv6u0M+Vz2LSgm7m/gJ765pe3d+dfsLi4Uqg88fpnKNFi3Niw
+         xVRl2hydDGutzTA238kqKmhelkIvVzuAAtPYwnBvrE3lNZys+c86e2+dQvvuKB90bqUV
+         eWP5628I7LpXMKRbauEes4fHLUD1cYxa/k9P2HQhp/a53+k0w/KdJzfs0ec4Z6xMii8u
+         xRUA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=UDng4QJM;
-       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id e3sor1886362qkl.6.2019.06.27.11.41.25
+       spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id d30si16956qve.15.2019.06.27.11.44.08
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 27 Jun 2019 11:41:26 -0700 (PDT)
-Received-SPF: pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 27 Jun 2019 11:44:08 -0700 (PDT)
+Received-SPF: pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=UDng4QJM;
-       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=cmpxchg-org.20150623.gappssmtp.com; s=20150623;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=Zp2l4O4LWB1oYN3F7c8FUspudG1FPkSVquIdBgKKNr8=;
-        b=UDng4QJMv1LWzYnKCztVQrCNsQ7Xm4otaD1vwxegRokBDPjtcWCzhLj1b0tPvoH+5G
-         e/wZZXygpBylg98sPuyuv5mbBgHjHPIhEGIY/4sXfGrI6hEsUakCdci1fKEcwYL664EC
-         Ltd0eFTtccFg22S/AnCRO2+x3kM7m3mE76PbjYGJA3XX88l8d1RfTL8naCRYhwRRt0hN
-         kyZi2ZsrwRjkdf7keArGTkmIEQdAUv5kF+i4bxZDaZkTJbnUfBtuvb8kgZ4DSAN0ClWA
-         9uUXZkU+VDLLI8Wljm/1SQ0dpnn2hWHmINCPPoWh84Ec+rb3cevpyvhRbTvWyf7P5pkm
-         ioRQ==
-X-Google-Smtp-Source: APXvYqzuAHF37eGCzmzOTvKs0gfWaevOeNG3BEuhoGjpmd7NajpcCkq1aEtP0oryKkwjtmcGiGqZAA==
-X-Received: by 2002:a05:620a:13b9:: with SMTP id m25mr5020959qki.246.1561660885669;
-        Thu, 27 Jun 2019 11:41:25 -0700 (PDT)
-Received: from localhost (pool-108-27-252-85.nycmny.fios.verizon.net. [108.27.252.85])
-        by smtp.gmail.com with ESMTPSA id t29sm1418301qtt.42.2019.06.27.11.41.24
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Thu, 27 Jun 2019 11:41:24 -0700 (PDT)
-Date: Thu, 27 Jun 2019 14:41:23 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-To: Kuo-Hsin Yang <vovoy@chromium.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-	Michal Hocko <mhocko@suse.com>, Sonny Rao <sonnyrao@chromium.org>,
-	linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Subject: Re: [PATCH] mm: vmscan: fix not scanning anonymous pages when
- detecting file refaults
-Message-ID: <20190627184123.GA11181@cmpxchg.org>
-References: <20190619080835.GA68312@google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190619080835.GA68312@google.com>
-User-Agent: Mutt/1.12.0 (2019-05-25)
+       spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 64712C05B1CD;
+	Thu, 27 Jun 2019 18:43:46 +0000 (UTC)
+Received: from llong.com (dhcp-17-85.bos.redhat.com [10.18.17.85])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 8CCD160126;
+	Thu, 27 Jun 2019 18:43:37 +0000 (UTC)
+From: Waiman Long <longman@redhat.com>
+To: Christoph Lameter <cl@linux.com>,
+	Pekka Enberg <penberg@kernel.org>,
+	David Rientjes <rientjes@google.com>,
+	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
+	Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org,
+	Michal Hocko <mhocko@kernel.org>,
+	Roman Gushchin <guro@fb.com>,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	Shakeel Butt <shakeelb@google.com>,
+	Vladimir Davydov <vdavydov.dev@gmail.com>,
+	Waiman Long <longman@redhat.com>
+Subject: [PATCH-next v2] mm, memcg: Add ":deact" tag for reparented kmem caches in memcg_slabinfo
+Date: Thu, 27 Jun 2019 14:43:24 -0400
+Message-Id: <20190627184324.5875-1-longman@redhat.com>
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.32]); Thu, 27 Jun 2019 18:44:02 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jun 19, 2019 at 04:08:35PM +0800, Kuo-Hsin Yang wrote:
-> When file refaults are detected and there are many inactive file pages,
-> the system never reclaim anonymous pages, the file pages are dropped
-> aggressively when there are still a lot of cold anonymous pages and
-> system thrashes. This issue impacts the performance of applications with
-> large executable, e.g. chrome.
-> 
-> When file refaults are detected. inactive_list_is_low() may return
-> different values depends on the actual_reclaim parameter, the following
-> 2 conditions could be satisfied at the same time.
-> 
-> 1) inactive_list_is_low() returns false in get_scan_count() to trigger
->    scanning file lists only.
-> 2) inactive_list_is_low() returns true in shrink_list() to allow
->    scanning active file list.
-> 
-> In that case vmscan would only scan file lists, and as active file list
-> is also scanned, inactive_list_is_low() may keep returning false in
-> get_scan_count() until file cache is very low.
-> 
-> Before commit 2a2e48854d70 ("mm: vmscan: fix IO/refault regression in
-> cache workingset transition"), inactive_list_is_low() never returns
-> different value in get_scan_count() and shrink_list() in one
-> shrink_node_memcg() run. The original design should be that when
-> inactive_list_is_low() returns false for file lists, vmscan only scan
-> inactive file list. As only inactive file list is scanned,
-> inactive_list_is_low() would soon return true.
-> 
-> This patch makes the return value of inactive_list_is_low() independent
-> of actual_reclaim.
-> 
-> The problem can be reproduced by the following test program.
-> 
-> ---8<---
-> void fallocate_file(const char *filename, off_t size)
-> {
-> 	struct stat st;
-> 	int fd;
-> 
-> 	if (!stat(filename, &st) && st.st_size >= size)
-> 		return;
-> 
-> 	fd = open(filename, O_WRONLY | O_CREAT, 0600);
-> 	if (fd < 0) {
-> 		perror("create file");
-> 		exit(1);
-> 	}
-> 	if (posix_fallocate(fd, 0, size)) {
-> 		perror("fallocate");
-> 		exit(1);
-> 	}
-> 	close(fd);
-> }
-> 
-> long *alloc_anon(long size)
-> {
-> 	long *start = malloc(size);
-> 	memset(start, 1, size);
-> 	return start;
-> }
-> 
-> long access_file(const char *filename, long size, long rounds)
-> {
-> 	int fd, i;
-> 	volatile char *start1, *end1, *start2;
-> 	const int page_size = getpagesize();
-> 	long sum = 0;
-> 
-> 	fd = open(filename, O_RDONLY);
-> 	if (fd == -1) {
-> 		perror("open");
-> 		exit(1);
-> 	}
-> 
-> 	/*
-> 	 * Some applications, e.g. chrome, use a lot of executable file
-> 	 * pages, map some of the pages with PROT_EXEC flag to simulate
-> 	 * the behavior.
-> 	 */
-> 	start1 = mmap(NULL, size / 2, PROT_READ | PROT_EXEC, MAP_SHARED,
-> 		      fd, 0);
-> 	if (start1 == MAP_FAILED) {
-> 		perror("mmap");
-> 		exit(1);
-> 	}
-> 	end1 = start1 + size / 2;
-> 
-> 	start2 = mmap(NULL, size / 2, PROT_READ, MAP_SHARED, fd, size / 2);
-> 	if (start2 == MAP_FAILED) {
-> 		perror("mmap");
-> 		exit(1);
-> 	}
-> 
-> 	for (i = 0; i < rounds; ++i) {
-> 		struct timeval before, after;
-> 		volatile char *ptr1 = start1, *ptr2 = start2;
-> 		gettimeofday(&before, NULL);
-> 		for (; ptr1 < end1; ptr1 += page_size, ptr2 += page_size)
-> 			sum += *ptr1 + *ptr2;
-> 		gettimeofday(&after, NULL);
-> 		printf("File access time, round %d: %f (sec)\n", i,
-> 		       (after.tv_sec - before.tv_sec) +
-> 		       (after.tv_usec - before.tv_usec) / 1000000.0);
-> 	}
-> 	return sum;
-> }
-> 
-> int main(int argc, char *argv[])
-> {
-> 	const long MB = 1024 * 1024;
-> 	long anon_mb, file_mb, file_rounds;
-> 	const char filename[] = "large";
-> 	long *ret1;
-> 	long ret2;
-> 
-> 	if (argc != 4) {
-> 		printf("usage: thrash ANON_MB FILE_MB FILE_ROUNDS\n");
-> 		exit(0);
-> 	}
-> 	anon_mb = atoi(argv[1]);
-> 	file_mb = atoi(argv[2]);
-> 	file_rounds = atoi(argv[3]);
-> 
-> 	fallocate_file(filename, file_mb * MB);
-> 	printf("Allocate %ld MB anonymous pages\n", anon_mb);
-> 	ret1 = alloc_anon(anon_mb * MB);
-> 	printf("Access %ld MB file pages\n", file_mb);
-> 	ret2 = access_file(filename, file_mb * MB, file_rounds);
-> 	printf("Print result to prevent optimization: %ld\n",
-> 	       *ret1 + ret2);
-> 	return 0;
-> }
-> ---8<---
-> 
-> Running the test program on 2GB RAM VM with kernel 5.2.0-rc5, the
-> program fills ram with 2048 MB memory, access a 200 MB file for 10
-> times. Without this patch, the file cache is dropped aggresively and
-> every access to the file is from disk.
-> 
->   $ ./thrash 2048 200 10
->   Allocate 2048 MB anonymous pages
->   Access 200 MB file pages
->   File access time, round 0: 2.489316 (sec)
->   File access time, round 1: 2.581277 (sec)
->   File access time, round 2: 2.487624 (sec)
->   File access time, round 3: 2.449100 (sec)
->   File access time, round 4: 2.420423 (sec)
->   File access time, round 5: 2.343411 (sec)
->   File access time, round 6: 2.454833 (sec)
->   File access time, round 7: 2.483398 (sec)
->   File access time, round 8: 2.572701 (sec)
->   File access time, round 9: 2.493014 (sec)
-> 
-> With this patch, these file pages can be cached.
-> 
->   $ ./thrash 2048 200 10
->   Allocate 2048 MB anonymous pages
->   Access 200 MB file pages
->   File access time, round 0: 2.475189 (sec)
->   File access time, round 1: 2.440777 (sec)
->   File access time, round 2: 2.411671 (sec)
->   File access time, round 3: 1.955267 (sec)
->   File access time, round 4: 0.029924 (sec)
->   File access time, round 5: 0.000808 (sec)
->   File access time, round 6: 0.000771 (sec)
->   File access time, round 7: 0.000746 (sec)
->   File access time, round 8: 0.000738 (sec)
->   File access time, round 9: 0.000747 (sec)
-> 
-> Fixes: 2a2e48854d70 ("mm: vmscan: fix IO/refault regression in cache workingset transition")
-> Signed-off-by: Kuo-Hsin Yang <vovoy@chromium.org>
+With Roman's kmem cache reparent patch, multiple kmem caches of the same
+type can be seen attached to the same memcg id. All of them, except
+maybe one, are reparent'ed kmem caches. It can be useful to tag those
+reparented caches by adding a new slab flag "SLAB_DEACTIVATED" to those
+kmem caches that will be reparent'ed if it cannot be destroyed completely.
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+For the reparent'ed memcg kmem caches, the tag ":deact" will now be
+shown in <debugfs>/memcg_slabinfo.
 
-Your change makes sense - we should indeed not force cache trimming
-only while the page cache is experiencing refaults.
+[v2: Set the flag in the common code as suggested by Roman.]
 
-I can't say I fully understand the changelog, though. The problem of
-forcing cache trimming while there is enough page cache is older than
-the commit you refer to. It could be argued that this commit is
-incomplete - it could have added refault detection not just to
-inactive:active file balancing, but also the file:anon balancing; but
-it didn't *cause* this problem.
+Signed-off-by: Waiman Long <longman@redhat.com>
+Reviewed-by: Shakeel Butt <shakeelb@google.com>
+Acked-by: Roman Gushchin <guro@fb.com>
+---
+ include/linux/slab.h |  4 ++++
+ mm/slab_common.c     | 15 +++++++++------
+ 2 files changed, 13 insertions(+), 6 deletions(-)
 
-Shouldn't this be
-
-Fixes: e9868505987a ("mm,vmscan: only evict file pages when we have plenty")
-Fixes: 7c5bd705d8f9 ("mm: memcg: only evict file pages when we have plenty")
-
-instead?
+diff --git a/include/linux/slab.h b/include/linux/slab.h
+index fecf40b7be69..19ab1380f875 100644
+--- a/include/linux/slab.h
++++ b/include/linux/slab.h
+@@ -116,6 +116,10 @@
+ /* Objects are reclaimable */
+ #define SLAB_RECLAIM_ACCOUNT	((slab_flags_t __force)0x00020000U)
+ #define SLAB_TEMPORARY		SLAB_RECLAIM_ACCOUNT	/* Objects are short-lived */
++
++/* Slab deactivation flag */
++#define SLAB_DEACTIVATED	((slab_flags_t __force)0x10000000U)
++
+ /*
+  * ZERO_SIZE_PTR will be returned for zero sized kmalloc requests.
+  *
+diff --git a/mm/slab_common.c b/mm/slab_common.c
+index 146d8eaa639c..464faaa9fd81 100644
+--- a/mm/slab_common.c
++++ b/mm/slab_common.c
+@@ -771,6 +771,7 @@ static void kmemcg_cache_deactivate(struct kmem_cache *s)
+ 		return;
+ 
+ 	__kmemcg_cache_deactivate(s);
++	s->flags |= SLAB_DEACTIVATED;
+ 
+ 	/*
+ 	 * memcg_kmem_wq_lock is used to synchronize memcg_params.dying
+@@ -1533,7 +1534,7 @@ static int memcg_slabinfo_show(struct seq_file *m, void *unused)
+ 	struct slabinfo sinfo;
+ 
+ 	mutex_lock(&slab_mutex);
+-	seq_puts(m, "# <name> <css_id[:dead]> <active_objs> <num_objs>");
++	seq_puts(m, "# <name> <css_id[:dead|deact]> <active_objs> <num_objs>");
+ 	seq_puts(m, " <active_slabs> <num_slabs>\n");
+ 	list_for_each_entry(s, &slab_root_caches, root_caches_node) {
+ 		/*
+@@ -1544,22 +1545,24 @@ static int memcg_slabinfo_show(struct seq_file *m, void *unused)
+ 
+ 		memset(&sinfo, 0, sizeof(sinfo));
+ 		get_slabinfo(s, &sinfo);
+-		seq_printf(m, "%-17s root      %6lu %6lu %6lu %6lu\n",
++		seq_printf(m, "%-17s root       %6lu %6lu %6lu %6lu\n",
+ 			   cache_name(s), sinfo.active_objs, sinfo.num_objs,
+ 			   sinfo.active_slabs, sinfo.num_slabs);
+ 
+ 		for_each_memcg_cache(c, s) {
+ 			struct cgroup_subsys_state *css;
+-			char *dead = "";
++			char *status = "";
+ 
+ 			css = &c->memcg_params.memcg->css;
+ 			if (!(css->flags & CSS_ONLINE))
+-				dead = ":dead";
++				status = ":dead";
++			else if (c->flags & SLAB_DEACTIVATED)
++				status = ":deact";
+ 
+ 			memset(&sinfo, 0, sizeof(sinfo));
+ 			get_slabinfo(c, &sinfo);
+-			seq_printf(m, "%-17s %4d%5s %6lu %6lu %6lu %6lu\n",
+-				   cache_name(c), css->id, dead,
++			seq_printf(m, "%-17s %4d%-6s %6lu %6lu %6lu %6lu\n",
++				   cache_name(c), css->id, status,
+ 				   sinfo.active_objs, sinfo.num_objs,
+ 				   sinfo.active_slabs, sinfo.num_slabs);
+ 		}
+-- 
+2.18.1
 
