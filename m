@@ -2,143 +2,177 @@ Return-Path: <SRS0=EPqI=U2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CB5D4C48BD6
-	for <linux-mm@archiver.kernel.org>; Thu, 27 Jun 2019 16:24:01 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E2BAEC48BD6
+	for <linux-mm@archiver.kernel.org>; Thu, 27 Jun 2019 16:26:34 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 85DBC2133F
-	for <linux-mm@archiver.kernel.org>; Thu, 27 Jun 2019 16:24:01 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 96FE42133F
+	for <linux-mm@archiver.kernel.org>; Thu, 27 Jun 2019 16:26:34 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=chromium.org header.i=@chromium.org header.b="gSaPGz9S"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 85DBC2133F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chromium.org
+	dkim=pass (1024-bit key) header.d=Mellanox.com header.i=@Mellanox.com header.b="MHijS0oY"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 96FE42133F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mellanox.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1DA8C6B0003; Thu, 27 Jun 2019 12:24:01 -0400 (EDT)
+	id 2E97D6B0003; Thu, 27 Jun 2019 12:26:34 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1649A8E0005; Thu, 27 Jun 2019 12:24:01 -0400 (EDT)
+	id 29B118E0005; Thu, 27 Jun 2019 12:26:34 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 003F58E0002; Thu, 27 Jun 2019 12:24:00 -0400 (EDT)
+	id 13BCA8E0002; Thu, 27 Jun 2019 12:26:34 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id BE08B6B0003
-	for <linux-mm@kvack.org>; Thu, 27 Jun 2019 12:24:00 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id y5so1870446pfb.20
-        for <linux-mm@kvack.org>; Thu, 27 Jun 2019 09:24:00 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id B84816B0003
+	for <linux-mm@kvack.org>; Thu, 27 Jun 2019 12:26:33 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id s5so6395768eda.10
+        for <linux-mm@kvack.org>; Thu, 27 Jun 2019 09:26:33 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to;
-        bh=/8WNz6km09cjJozBXv1ttJOzdwKWqBjOCAwXZrmYZQY=;
-        b=Mh34PvSckwiKDoEi4NIZV2mPPbgxRg7NwQ0E4B0rJ4rH9SUDUXta+JDhLSleOHc0nS
-         PFQgFh0gx/9J/xJiG090jgDYqzIkeI48uGDxwsAu/8OhHvDLQg+f6b/De4WYm9mvW8Iy
-         AT6aVxHC4eF0wIU4lo+merjZ7/H6kMSqAx2So/O+xLxP1IomCCeiCNCvzIW1IsjhIDb9
-         eUi1AdX5t47iez5D1fzcjQeO1x2UGM1ZfYWVvdWG2YVKNgw5V7sj4HbWobyICMOury6Z
-         WJPYwk3XMelSr13f+7tDkI3joFrlr+Vvtr+xPw5PTWLQUQGQOtbxP1Gb22i3kBwVV2SL
-         UeqA==
-X-Gm-Message-State: APjAAAVqGs9BGz8jwV5yYbsNGlJc8SZnocF2m6esT0vJ7jG1qCr4eS+5
-	/G+0y6Gan7tuXlkLeRPlMZEtwdmOeW6R5FK4vP++pUFErVgBIkG8XXICKGLhUMBW05yKAyom3NU
-	qcGgOJ7B6MQ/SWk91NJ4uwLziVi22/tff90s4DeZSDgt9q0RTHmKMukgyHy4189Dw5Q==
-X-Received: by 2002:a17:90a:2743:: with SMTP id o61mr7027137pje.59.1561652640413;
-        Thu, 27 Jun 2019 09:24:00 -0700 (PDT)
-X-Received: by 2002:a17:90a:2743:: with SMTP id o61mr7027091pje.59.1561652639817;
-        Thu, 27 Jun 2019 09:23:59 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561652639; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
+         :thread-index:date:message-id:references:in-reply-to:accept-language
+         :content-language:content-id:content-transfer-encoding:mime-version;
+        bh=Jq7Cu3ouaiLqX0IyGygS1qxPemZhEAEBbrhyRDwG1Is=;
+        b=bnWlTrR5gfp3zc6agVpeWnZEA2JtSy0MqBua8jGDoDw+7QkOpqgl+Qu4q3qe41V+SM
+         f386gj+YxkPCO7/4Z9ha8HQmlorsoINfzDuvwxDKx5QCkncO8ADYyaQwLQbNbahHF9p4
+         +YJ593WklW90eFCry+MEyh0r0mRfx9IB9DJAk/EsCmpkzBfHo3FYHWMynGga8U62+JkH
+         Gm6+MndzXpHmCY8WyBljByIynyMLWblQB0vJWcAIUNXXWRWudgbXSIQAm3TbkbAvTOSR
+         VfYKmNUAhlL14/th7EFfASwF97tnuYbBGYjiVBdRGd9qaJsphzNWytDH30ijx17O84Nf
+         yuHA==
+X-Gm-Message-State: APjAAAWu9pEjAR9eyMxkaiNZSPFgnbR+3XOB7fhdANevdATFw3dJSFIZ
+	4RoPWPCUpVJ7QxyeQwSXGy15TYeEe1WPbkhZuWV1daOngtaAdv6ZUBXnVPA0ucAZoTbTpfMIoU7
+	vO0oGS1hEfSF9NnPCU7m0q6+8d2dfYuPLKPOSiZsfEPfS3bqzO9lNtaERhXRsYw1GJg==
+X-Received: by 2002:a17:906:27c7:: with SMTP id k7mr4076889ejc.91.1561652793288;
+        Thu, 27 Jun 2019 09:26:33 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxQrSUimp5PpfE32G7I9g5gpXzIrJFTbZW8qIIWnarhhjXRY9GdXaU88KoL7tfNE0kFL4CC
+X-Received: by 2002:a17:906:27c7:: with SMTP id k7mr4076852ejc.91.1561652792653;
+        Thu, 27 Jun 2019 09:26:32 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561652792; cv=none;
         d=google.com; s=arc-20160816;
-        b=zN9Ml+PphMTLEDqyRUoNJmvM6FbU1Ft9UNH2KO2EMB8Vjq3Ygww8wwl2Hjg0ODOTQb
-         5kK+lX7ot4+fTZhzxkPVH6zLocYjNq8YvnEJ06ane+fEak/TQpdFuRU4dwAxdNO/hc3m
-         ALQhNwiGg71si4ypMHCbL2TDyvXdQK+U0TeBOXrZl2Q2nIYKJdxfbzS39Uc4noaHOj91
-         EBxG1fxeUnEh0CQa4iyeFC9jamLnK/4Y0o4pnShRFXujAaSXYrCqT5gw5qufni24YFAR
-         MRCe7uiHlsON8BZSy2PEM0nt66o5ShY6jgam19GHed1U9VrN/kV45hPcy6Tt1dsq2p5X
-         A5+A==
+        b=qs7HxLK0SG1UJhH2/c6q2jg4YIEXchqBy9LDbb/0nCbLoKjB1OLTcHgSbeoAfkeHeL
+         uwI+uIDhnYCUyZsNAwQwH6iG2p6FYsN1BaSzISZrSh/ut6tXqP/lmSctXhd1ZPVWl2oa
+         Dq17bFW2w/tCtxvtPcd0nmQzYDTeerYsgRQFbmGX1ZzxK2qmkop2eC8q4GL9g8LJmYAQ
+         gZyL0qL0hc4k4xJrANLZGu0f8arZ4leRtUG4KUOiyDFFGLk3qD2UaRbN7pN22yGDV2RJ
+         VhwH0fZuBS+gBuHo6ijcmf3EhKW295Xrkx7bBgRP0TsAW2igzop0dkVPqqkSks9L+4ZN
+         y1Nw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=in-reply-to:content-disposition:mime-version:references:message-id
-         :subject:cc:to:from:date:dkim-signature;
-        bh=/8WNz6km09cjJozBXv1ttJOzdwKWqBjOCAwXZrmYZQY=;
-        b=mlwdaeraj1tv/wzyU3B4++M7tCZ17CX9qQSaah0u70C4kbs7rMS0PjjMGJST4qG9dj
-         xqwInO1ZCLzQ1GiOxR8iF9XvT7wdr1BfLJLHDk2utERvreCxb0w4WVsYPco+CTZLcTej
-         /aLjANCsTB2BNDFtIVBwMgi6iUeT+6bWVNiZ5Y2idLvyBhEitOqY49ra769u+wnyeQf/
-         gueownldeVRH7GEx2k8ZMHnShS7Wov681Ws8MkPvUuoT2npH5vIgJBStNJAVP4QBDOQY
-         2WNXBx0ucp1tzosY/JiHv/5ViZMg/jwgCm6UJdeYcxUOGyYtWLntP7BghZ8oKkOf0oJx
-         wlLw==
+        h=mime-version:content-transfer-encoding:content-id:content-language
+         :accept-language:in-reply-to:references:message-id:date:thread-index
+         :thread-topic:subject:cc:to:from:dkim-signature;
+        bh=Jq7Cu3ouaiLqX0IyGygS1qxPemZhEAEBbrhyRDwG1Is=;
+        b=B8fXoWm0nVHuan+eQR3lRiyn5VnRYzVLzNJUywr1LKDkADLJea+ikY52zuo9uLXMa2
+         D0CE3r+rr1wOJKvxG8+jYbgU1r8coTpFgdC5NW5Il8TnHevt60t8ewVO4LIEZIerSljM
+         r49451STE7IHprt7qJQUfUnt8hJkJOZnU9/r/tbhNt5RIuLqWjk09GmYIr5yD/gVc7sP
+         1LsK4s25foiel/lap/kLe9u0ggVCfxi2SXGtO7+RGUa1UBDi5eMRY0Co5my6DoLolqai
+         ePX6smTI3hmeXXvyqdj4daWmnjhHq2T14gfU3VPoMzw1OsUxs4s//K2xt7c0pfBa7Enq
+         bTBQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@chromium.org header.s=google header.b=gSaPGz9S;
-       spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id s12sor2989946plr.24.2019.06.27.09.23.59
+       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b=MHijS0oY;
+       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.1.72 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
+Received: from EUR02-HE1-obe.outbound.protection.outlook.com (mail-eopbgr10072.outbound.protection.outlook.com. [40.107.1.72])
+        by mx.google.com with ESMTPS id f17si2420665eda.220.2019.06.27.09.26.32
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 27 Jun 2019 09:23:59 -0700 (PDT)
-Received-SPF: pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 27 Jun 2019 09:26:32 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jgg@mellanox.com designates 40.107.1.72 as permitted sender) client-ip=40.107.1.72;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@chromium.org header.s=google header.b=gSaPGz9S;
-       spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=chromium.org; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to;
-        bh=/8WNz6km09cjJozBXv1ttJOzdwKWqBjOCAwXZrmYZQY=;
-        b=gSaPGz9S5mfM2IyW50EIddVjXzosJmFwIvLy5/3d96Mmi9TwrjccATn1f1RZjIlMFe
-         g6G3RU+uVrFmGFVIUCd9KSLCraVscKPuB43D5SpFa4Cv14trV2iOCfUw1w+dnm1He+No
-         Zzm+bbolLanUL6IWtcmRDluyh9DqPXsyiUfrY=
-X-Google-Smtp-Source: APXvYqzwszuLB5KUZT0GR9HWRZ7xGjWVY5pOYkuBOrrtrH5Vd2d27l5XG9aT2UNpuYPJaeE7Xhvg+A==
-X-Received: by 2002:a17:90a:cf0d:: with SMTP id h13mr7015152pju.63.1561652639486;
-        Thu, 27 Jun 2019 09:23:59 -0700 (PDT)
-Received: from www.outflux.net (smtp.outflux.net. [198.145.64.163])
-        by smtp.gmail.com with ESMTPSA id a3sm6766104pje.3.2019.06.27.09.23.58
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 27 Jun 2019 09:23:58 -0700 (PDT)
-Date: Thu, 27 Jun 2019 09:23:57 -0700
-From: Kees Cook <keescook@chromium.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Qian Cai <cai@lca.pw>, Catalin Marinas <catalin.marinas@arm.com>,
-	Ard Biesheuvel <ard.biesheuvel@linaro.org>,
-	Alexander Potapenko <glider@google.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Christoph Lameter <cl@linux.com>,
-	Masahiro Yamada <yamada.masahiro@socionext.com>,
-	James Morris <jmorris@namei.org>,
-	"Serge E. Hallyn" <serge@hallyn.com>,
-	Nick Desaulniers <ndesaulniers@google.com>,
-	Kostya Serebryany <kcc@google.com>,
-	Dmitry Vyukov <dvyukov@google.com>,
-	Sandeep Patil <sspatil@android.com>,
-	Laura Abbott <labbott@redhat.com>,
-	Randy Dunlap <rdunlap@infradead.org>, Jann Horn <jannh@google.com>,
-	Mark Rutland <mark.rutland@arm.com>, Marco Elver <elver@google.com>,
-	linux-mm@kvack.org, linux-security-module@vger.kernel.org,
-	kernel-hardening@lists.openwall.com,
-	clang-built-linux@googlegroups.com
-Subject: Re: [PATCH v8 1/2] mm: security: introduce init_on_alloc=1 and
- init_on_free=1 boot options
-Message-ID: <201906270923.C73BAD213@keescook>
-References: <20190626121943.131390-1-glider@google.com>
- <20190626121943.131390-2-glider@google.com>
- <1561572949.5154.81.camel@lca.pw>
- <201906261303.020ADC9@keescook>
- <20190627061534.GA17798@dhcp22.suse.cz>
+       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b=MHijS0oY;
+       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.1.72 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=Mellanox.com;
+ s=selector2;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=Jq7Cu3ouaiLqX0IyGygS1qxPemZhEAEBbrhyRDwG1Is=;
+ b=MHijS0oYLxu5vC+EWNq92BwDqgOvHOLP1gLfS8iXKfrGgNfN9WJTK0hB1ynANWCXGoyqlhu0/QlDM533DGiRJA+Rh+Ea6zZVzIf52jqvqrhNwaRr/zhF2HfgU1T3QeUrRV+nyqmmEfeQaLdmZjCRPEQiJmdvd19qZeQoanou9uE=
+Received: from VI1PR05MB4141.eurprd05.prod.outlook.com (10.171.182.144) by
+ VI1PR05MB6032.eurprd05.prod.outlook.com (20.178.127.217) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.2008.16; Thu, 27 Jun 2019 16:26:31 +0000
+Received: from VI1PR05MB4141.eurprd05.prod.outlook.com
+ ([fe80::f5d8:df9:731:682e]) by VI1PR05MB4141.eurprd05.prod.outlook.com
+ ([fe80::f5d8:df9:731:682e%5]) with mapi id 15.20.2008.014; Thu, 27 Jun 2019
+ 16:26:31 +0000
+From: Jason Gunthorpe <jgg@mellanox.com>
+To: Christoph Hellwig <hch@lst.de>
+CC: Dan Williams <dan.j.williams@intel.com>,
+	=?iso-8859-1?Q?J=E9r=F4me_Glisse?= <jglisse@redhat.com>, Ben Skeggs
+	<bskeggs@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>,
+	"nouveau@lists.freedesktop.org" <nouveau@lists.freedesktop.org>,
+	"dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>,
+	"linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>,
+	"linux-pci@vger.kernel.org" <linux-pci@vger.kernel.org>,
+	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+Subject: Re: [PATCH 20/25] mm: remove hmm_vma_alloc_locked_page
+Thread-Topic: [PATCH 20/25] mm: remove hmm_vma_alloc_locked_page
+Thread-Index: AQHVLBqmxPw5VkIwH0Gf/TUCNUoY46avseoA
+Date: Thu, 27 Jun 2019 16:26:31 +0000
+Message-ID: <20190627162624.GE9499@mellanox.com>
+References: <20190626122724.13313-1-hch@lst.de>
+ <20190626122724.13313-21-hch@lst.de>
+In-Reply-To: <20190626122724.13313-21-hch@lst.de>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+x-clientproxiedby: BYAPR08CA0045.namprd08.prod.outlook.com
+ (2603:10b6:a03:117::22) To VI1PR05MB4141.eurprd05.prod.outlook.com
+ (2603:10a6:803:4d::16)
+authentication-results: spf=none (sender IP is )
+ smtp.mailfrom=jgg@mellanox.com; 
+x-ms-exchange-messagesentrepresentingtype: 1
+x-originating-ip: [12.199.206.50]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: 01f337c1-21dc-4ca8-4b59-08d6fb1c364d
+x-ms-office365-filtering-ht: Tenant
+x-microsoft-antispam:
+ BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(4618075)(2017052603328)(7193020);SRVR:VI1PR05MB6032;
+x-ms-traffictypediagnostic: VI1PR05MB6032:
+x-microsoft-antispam-prvs:
+ <VI1PR05MB6032F49F38A52C3FBF316643CFFD0@VI1PR05MB6032.eurprd05.prod.outlook.com>
+x-ms-oob-tlc-oobclassifiers: OLM:2733;
+x-forefront-prvs: 008184426E
+x-forefront-antispam-report:
+ SFV:NSPM;SFS:(10009020)(979002)(376002)(39860400002)(346002)(136003)(396003)(366004)(189003)(199004)(6506007)(26005)(6916009)(64756008)(186003)(6486002)(36756003)(71200400001)(71190400001)(25786009)(86362001)(73956011)(66446008)(66556008)(33656002)(4326008)(4744005)(66946007)(8676002)(7416002)(14454004)(66476007)(1076003)(476003)(81156014)(478600001)(256004)(102836004)(6512007)(5660300002)(486006)(305945005)(7736002)(6116002)(229853002)(316002)(6246003)(54906003)(2906002)(66066001)(68736007)(8936002)(99286004)(3846002)(76176011)(11346002)(386003)(53936002)(6436002)(81166006)(52116002)(2616005)(446003)(969003)(989001)(999001)(1009001)(1019001);DIR:OUT;SFP:1101;SCL:1;SRVR:VI1PR05MB6032;H:VI1PR05MB4141.eurprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
+received-spf: None (protection.outlook.com: mellanox.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info:
+ /wKHS2Wcqi+iX24iwXUD8ArjOm9W3DfrSJrbk8SW/dAF176EK8nGoG4iNVHmTibsz8VHuwClL+aIp65i7lxuQFO0AyDfq1V2xvjK5FVX/MwyJYhX6TOLkhroZJnvUb7+7rShZFQgt6bdixcvylD0nFpEoLmiK0WQTscQ97Vo5fRqIQdB3kKUMLmzp2v2JaYLOZhH8r5TXLJjb7Uhg+msPNpdbraZXFXiZPJ2rRRj32tBOf0GDwdkC2O9ShEeGhfCSSeWRBx4KKxSthRvRvfsGDmJv0kCUnxe5qdCK8L8ZX2Y7wi8CdVGcYCjXQi60vtDNxoZSvNpX5+PtYKr0i2Nms3pwYQejTxXaODp1CJe4Zmd73q3oBdnP5VavdWarJU0x5j3pUWp0a1Hyvjq+0lAU7UmpENfOR3TZebAbITisM0=
+Content-Type: text/plain; charset="iso-8859-1"
+Content-ID: <6EDBED9EAD9A054886AF3DDD66AD8103@eurprd05.prod.outlook.com>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190627061534.GA17798@dhcp22.suse.cz>
+X-OriginatorOrg: Mellanox.com
+X-MS-Exchange-CrossTenant-Network-Message-Id: 01f337c1-21dc-4ca8-4b59-08d6fb1c364d
+X-MS-Exchange-CrossTenant-originalarrivaltime: 27 Jun 2019 16:26:31.1693
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: a652971c-7d2e-4d9b-a6a4-d149256f461b
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-CrossTenant-userprincipalname: jgg@mellanox.com
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: VI1PR05MB6032
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jun 27, 2019 at 08:15:34AM +0200, Michal Hocko wrote:
-> This sounds familiar: http://lkml.kernel.org/r/CABXOdTd-cqHM_feAO1tvwn4Z=kM6WHKYAbDJ7LGfMvRPRPG7GA@mail.gmail.com
+On Wed, Jun 26, 2019 at 02:27:19PM +0200, Christoph Hellwig wrote:
+> The only user of it has just been removed, and there wasn't really any ne=
+ed
+> to wrap a basic memory allocator to start with.
+>=20
+> Signed-off-by: Christoph Hellwig <hch@lst.de>
+> ---
+>  include/linux/hmm.h |  3 ---
+>  mm/hmm.c            | 14 --------------
+>  2 files changed, 17 deletions(-)
 
-Your memory is better than mine! I entirely forgot about this and it was
-only 2 months ago. Whoops. :P
+Reviewed-by: Jason Gunthorpe <jgg@mellanox.com>
 
--- 
-Kees Cook
+Jason
 
