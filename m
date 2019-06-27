@@ -2,166 +2,235 @@ Return-Path: <SRS0=EPqI=U2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
+X-Spam-Status: No, score=-0.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A9F98C48BD6
-	for <linux-mm@archiver.kernel.org>; Thu, 27 Jun 2019 06:41:10 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D17ACC48BD7
+	for <linux-mm@archiver.kernel.org>; Thu, 27 Jun 2019 07:51:20 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 69BA220843
-	for <linux-mm@archiver.kernel.org>; Thu, 27 Jun 2019 06:41:10 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 69BA220843
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 454B92082F
+	for <linux-mm@archiver.kernel.org>; Thu, 27 Jun 2019 07:51:20 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 454B92082F
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 00CE38E0003; Thu, 27 Jun 2019 02:41:10 -0400 (EDT)
+	id A39416B0003; Thu, 27 Jun 2019 03:51:19 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id EFFBB8E0002; Thu, 27 Jun 2019 02:41:09 -0400 (EDT)
+	id 9EA7D8E0003; Thu, 27 Jun 2019 03:51:19 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DEE8F8E0003; Thu, 27 Jun 2019 02:41:09 -0400 (EDT)
+	id 8B2418E0002; Thu, 27 Jun 2019 03:51:19 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 8DD398E0002
-	for <linux-mm@kvack.org>; Thu, 27 Jun 2019 02:41:09 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id m23so5290701edr.7
-        for <linux-mm@kvack.org>; Wed, 26 Jun 2019 23:41:09 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 3835D6B0003
+	for <linux-mm@kvack.org>; Thu, 27 Jun 2019 03:51:19 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id d27so5392545eda.9
+        for <linux-mm@kvack.org>; Thu, 27 Jun 2019 00:51:19 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=JqmmJgjjm71fQUdcGGiSYjLqQsBuM9ywnuoEhWHLi3k=;
-        b=nltwjmKfJa650qqRfSyvHpNHTqIpH/aTtUR5Xeqm++lAGoJnZGq4/7j7d+oce0AfXq
-         rDwG3GpFagi1e5mgkDPYHt9oKBWG6M1pcxUdoFoAuhY94A9PSNeezJa33WD39OifowUC
-         Zaq1FprRKoEbTwsO0qCr8Ca6x/k2gNcUXk6PVT98nfoK9zgEYOJ4L7NCGGuBFCKDUvLJ
-         Zja1SEuk4mFh47r9yj0LVG1sEZc8aqq79URNKjBIELvidMRabLQHmepnOCEQAkEgb0al
-         nNzNdVQ+n+atrWvER5/WLDqc2t8qYC4Vj4ik9O+EgymaVPvj/N97K6wNyYTJKgE+Ind1
-         zkTw==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAVHgzaP5PJf+Mna5xWLYVP7zV0YXXPpyZKOYLFNRtFUEGWftSxB
-	tMySnWC7iyzV8Jp01JvDY0Y4mEfUuQU0Hp2YRkd8ETvKIia9/DbGj6GCsKCqhgLl+uo+AQkaEsx
-	f310ly7+kYAXhmlUvifU8l+azA+ILkkDbUlswqi8LsoCIkccWp8mTtrypoba3Ky4=
-X-Received: by 2002:a17:906:414:: with SMTP id d20mr1619408eja.275.1561617669128;
-        Wed, 26 Jun 2019 23:41:09 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqw59uX3J/Dg6BYNzu+nwt/KdWlPj1X5ZAPJ8/sk2mlP6dRFN9VK5F2JAmTHLOojeTC+kxZW
-X-Received: by 2002:a17:906:414:: with SMTP id d20mr1619362eja.275.1561617668285;
-        Wed, 26 Jun 2019 23:41:08 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561617668; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=CsPS7IeUfBbUbuWVeFvvX7i5b4V1bVAIZDGbMLh6qAQ=;
+        b=cs2mCNu6zi0okd2K9BsVzLQF3EEkf9IdwMUa0O3X+aymt6Vld0jOLE8phc2RMd82+h
+         PNo6QZRuFDh3Ug+BUBXf+gWEn4IASUsa+uvpzH+xlArxqD7VlVdXqph1yVpSAXjbBXFV
+         8wz52C1MYmR6Xh80gwrls+FLcRmud9HW6L/nFe7bYAsCrX+zf1ez+B8P32YV8Q+VYPw1
+         XRuchQnD3vrNF5X/WQFI/4bh6XgBPEaEjR+0Z1D91yT/y22awjfWk1lTCqhbqneME5on
+         cItdZCw4NKi/AMN8ddCBZUHEIgpXSt/oyJNG7FgwBGoJD+Sb6KQmy37eWQ1O/bFCaUjO
+         pVOQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+X-Gm-Message-State: APjAAAWrJhU03VDxl0kpXbCEAgcXp7wNq/Bp8RoVuMh/WFMeSE3REfNK
+	BhVLUpRXiGgkYD+N5uvKQqBTKwCQiR7D28Laj8CKAx6AqLBwkrT6IGhKYp27mZSs97YjmtIKKDd
+	M8QpuSqG8awnzqWNFIqzvdZmLfEu8J8r3kWYAiiXHCDZRY94rpzVcbCaoId6mTEa+Nw==
+X-Received: by 2002:aa7:de0e:: with SMTP id h14mr2447759edv.36.1561621878802;
+        Thu, 27 Jun 2019 00:51:18 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwISo+oJbb3t6yz79tbS5IQ6A1b2j544AM5zWrG/A71kErM/IVPrNC5bfViX88QjM9auKqk
+X-Received: by 2002:aa7:de0e:: with SMTP id h14mr2447697edv.36.1561621877995;
+        Thu, 27 Jun 2019 00:51:17 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561621877; cv=none;
         d=google.com; s=arc-20160816;
-        b=BjqWQdeDUCEmVVjzjYS25V7Y1ROLu3XggSPqt9IBqBTvCnlO+rmtpT5R9ZgrjjaDQH
-         c3ODHy1YmDE8eH2b5h0RMgWDTsmVYM8CZKjauVFtHIKE0PzQz4zB/gK/ydwnGhCzBbPn
-         iw8Lnoz2gbRaZSfbnzvoNtgAHk6Or4GLMVWZlEtftjOYTgAxiuuG6z397ko+AIzcT68i
-         ZVF1SwpxaZ70lpLf3f3Ky2mycb8cki6l8QLGx2Lldd5m6sRgow9h0DVvFVEtauVSmccv
-         7vomRcU7ZIaxTn6ib3kC06/Y19Zd4BXO/Ll/fObqvPDf7sBJuBS0zTWVj96d/YPZ1Jmx
-         px+Q==
+        b=u6AzZ5kD6olyIy6alM1tUSp+BTtWjSVu6XvKSUriQGxUlfBo/kG5ms3QPzQntHQ+3A
+         f3Fg0Ea4kYDSyRVCv9H7FHAOfKN8JE4oOXpVfU5doNHT1uAi9gSSEdmI6GoGFlD9SqVP
+         q4IebpJEQWkFJWHhr3Lzzwe/QnrXdNZXZjGygNWEa0CpYL6EQ+SOLtFpKA1qr5gWIOAb
+         sGYBtn6kL5K2InSGmANUnTWKHbXg9VgzYz5vLzgJjcb6NvfcIEyaUJ1RDME68aheIYzN
+         V/rj891KncX2vqwhB/2xiMBTcPhpVFyYNDACjifVAdPL+BjSish5u1TI7yNgLJY0O32N
+         Wz6Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date;
-        bh=JqmmJgjjm71fQUdcGGiSYjLqQsBuM9ywnuoEhWHLi3k=;
-        b=RrbvIiDdS+AHwDCg6gv1JY+ze+Uk8OShbez/zPbQXPSuDldZVNeCekENPLQpeprmxX
-         s2h9/3lpJ+3LCGAf5uyy2+0kQBsw8lKUr/JWcDQG6mtVGljZPEQqSQt5wftJ0W6LszqM
-         0R9cYl7vjfECF//v/BjZEfSBEn+6N2L4bYpERnv+LcmaEOc0BdwW+SGI96AIQ1qvjzdK
-         XGVa8loC60vVyZC1owMjTV8h/2c4Fn7AsZ+rUR3IF171JdIk0prbzaxxEajmmtwNYRy0
-         bS4wKzUzcixpzjSEBALicZSQyAKwoLE3KKXQMkFtdmsTHoVZcsty9RrTX5xaprBXBvsg
-         UZSQ==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
+         :subject;
+        bh=CsPS7IeUfBbUbuWVeFvvX7i5b4V1bVAIZDGbMLh6qAQ=;
+        b=O85z4BTtITnZs3TuKn/66fW1JgdbBOaDFYn1cHcjzMIhyoduohUfIFPEHvkuAEhTGy
+         j6VZ+bbWF/hIEHwnX+Vy4VrvtvGZUdwoWVXh7d9t77IVhmutkmEOPQ4HTyXzm8XlTU0c
+         N0c+7i5J8lS2B6SdRbxPWxwTAissRWFvLINBgMO1CkYkQxsfkFNOAner7Q2S650t4Nmt
+         nout9ohIz5JIh82vuCcsg9m6xNZQgG0H/MqBY0s7IWOiWjuz9KTGROvyKIQ/sMbelUx5
+         tr3BC3mF8XXSKkQbuU56KgDF+o4WwPeFvb8FiiEezgUF95X3WyVQe3Zh/TNYaxE0WmWa
+         zRFg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id p6si1125830eda.198.2019.06.26.23.41.08
+        by mx.google.com with ESMTPS id y56si1187554edd.369.2019.06.27.00.51.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Jun 2019 23:41:08 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Thu, 27 Jun 2019 00:51:17 -0700 (PDT)
+Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 4E3F7AFAE;
-	Thu, 27 Jun 2019 06:41:07 +0000 (UTC)
-Date: Thu, 27 Jun 2019 08:41:06 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Christoph Hellwig <hch@lst.de>,
-	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
-	Jason Gunthorpe <jgg@mellanox.com>, Ben Skeggs <bskeggs@redhat.com>,
-	Linux MM <linux-mm@kvack.org>, nouveau@lists.freedesktop.org,
-	Maling list - DRI developers <dri-devel@lists.freedesktop.org>,
-	linux-nvdimm <linux-nvdimm@lists.01.org>, linux-pci@vger.kernel.org,
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
-Subject: Re: [PATCH 05/22] mm: export alloc_pages_vma
-Message-ID: <20190627064106.GC17798@dhcp22.suse.cz>
-References: <20190613094326.24093-6-hch@lst.de>
- <20190620191733.GH12083@dhcp22.suse.cz>
- <CAPcyv4h9+Ha4FVrvDAe-YAr1wBOjc4yi7CAzVuASv=JCxPcFaw@mail.gmail.com>
- <20190625072317.GC30350@lst.de>
- <20190625150053.GJ11400@dhcp22.suse.cz>
- <CAPcyv4j1e5dbBHnc+wmtsNUyFbMK_98WxHNwuD_Vxo4dX9Ce=Q@mail.gmail.com>
- <20190625190038.GK11400@dhcp22.suse.cz>
- <CAPcyv4hU13v7dSQpF0WTQTxQM3L3UsHMUhsFMVz7i4UGLoM89g@mail.gmail.com>
- <20190626054645.GB17798@dhcp22.suse.cz>
- <CAPcyv4jLK2F2UHqbwp4bCEiB7tL8sVsr775egKMmJvfZG+W+NQ@mail.gmail.com>
+	by mx1.suse.de (Postfix) with ESMTP id 02F09ACE1;
+	Thu, 27 Jun 2019 07:51:16 +0000 (UTC)
+Subject: Re: [PATCH] mm/mempolicy: Fix an incorrect rebind node in
+ mpol_rebind_nodemask
+To: Andrew Morton <akpm@linux-foundation.org>,
+ zhong jiang <zhongjiang@huawei.com>
+Cc: osalvador@suse.de, khandual@linux.vnet.ibm.com, mhocko@suse.com,
+ mgorman@techsingularity.net, aarcange@redhat.com, rcampbell@nvidia.com,
+ linux-mm@kvack.org, linux-kernel@vger.kernel.org
+References: <1558768043-23184-1-git-send-email-zhongjiang@huawei.com>
+ <20190525112851.ee196bcbbc33bf9e0d869236@linux-foundation.org>
+ <2ff829ea-1d74-9d4b-8501-e9c2ebdc36ef@suse.cz> <5CEBECF9.2060500@huawei.com>
+ <20190626205711.379c61b9cdfb9f43ae71c844@linux-foundation.org>
+From: Vlastimil Babka <vbabka@suse.cz>
+Openpgp: preference=signencrypt
+Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
+ 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
+Message-ID: <f78c56a0-badf-c9f7-6421-e492f4978bf6@suse.cz>
+Date: Thu, 27 Jun 2019 09:47:41 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CAPcyv4jLK2F2UHqbwp4bCEiB7tL8sVsr775egKMmJvfZG+W+NQ@mail.gmail.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190626205711.379c61b9cdfb9f43ae71c844@linux-foundation.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed 26-06-19 09:14:32, Dan Williams wrote:
-> On Tue, Jun 25, 2019 at 10:46 PM Michal Hocko <mhocko@kernel.org> wrote:
-> >
-> > On Tue 25-06-19 12:52:18, Dan Williams wrote:
-> > [...]
-> > > > Documentation/process/stable-api-nonsense.rst
-> > >
-> > > That document has failed to preclude symbol export fights in the past
-> > > and there is a reasonable argument to try not to retract functionality
-> > > that had been previously exported regardless of that document.
-> >
-> > Can you point me to any specific example where this would be the case
-> > for the core kernel symbols please?
+On 6/27/19 5:57 AM, Andrew Morton wrote:
+> On Mon, 27 May 2019 21:58:17 +0800 zhong jiang <zhongjiang@huawei.com> wrote:
 > 
-> The most recent example that comes to mind was the thrash around
-> __kernel_fpu_{begin,end} [1].
-
-Well, this seems more like a disagreement over a functionality that has
-reduced its visibility rather than enforcement of a specific API. And I
-do agree that the above document states that this is perfectly
-legitimate and no out-of-tree code can rely on _any_ functionality to be
-preserved.
-
-On the other hand, I am not really surprised about the discussion
-because d63e79b114c02 is a mere clean up not explaining why the
-functionality should be restricted to GPL only code. So there certainly
-is a room for clarification. Especially when the code has been exported
-without this restriction in the past (see 8546c008924d5). So to me this
-sounds more like a usual EXPORT_SYMBOL{_GPL} mess.
-
-In any case I really do not see any relation to the maintenance cost
-here. GPL symbols are not in any sense more stable than any other
-exported symbol. They can change at any time. The only maintenance
-burden is to update all _in_kernel_ users of the said symbol. Any
-out-of-tree code is on its own to deal with this. Full stop.
-
-GPL or non-GPL symbols are solely to define a scope of the usage.
-Nothing less and nothing more.
-
-> I referenced that when debating _GPL symbol policy with Jérôme [2].
+>> On 2019/5/27 20:23, Vlastimil Babka wrote:
+>>> On 5/25/19 8:28 PM, Andrew Morton wrote:
+>>>> (Cc Vlastimil)
+>>> Oh dear, 2 years and I forgot all the details about how this works.
+>>>
+>>>> On Sat, 25 May 2019 15:07:23 +0800 zhong jiang <zhongjiang@huawei.com> wrote:
+>>>>
+>>>>> We bind an different node to different vma, Unluckily,
+>>>>> it will bind different vma to same node by checking the /proc/pid/numa_maps.   
+>>>>> Commit 213980c0f23b ("mm, mempolicy: simplify rebinding mempolicies when updating cpusets")
+>>>>> has introduced the issue.  when we change memory policy by seting cpuset.mems,
+>>>>> A process will rebind the specified policy more than one times. 
+>>>>> if the cpuset_mems_allowed is not equal to user specified nodes. hence the issue will trigger.
+>>>>> Maybe result in the out of memory which allocating memory from same node.
+>>> I have a hard time understanding what the problem is. Could you please
+>>> write it as a (pseudo) reproducer? I.e. an example of the process/admin
+>>> mempolicy/cpuset actions that have some wrong observed results vs the
+>>> correct expected result.
+>> Sorry, I havn't an testcase to reproduce the issue. At first, It was disappeared by
+>> my colleague to configure the xml to start an vm.  To his suprise, The bind mempolicy
+>> doesn't work.
 > 
-> [1]: https://lore.kernel.org/lkml/20190522100959.GA15390@kroah.com/
-> [2]: https://lore.kernel.org/lkml/CAPcyv4gb+r==riKFXkVZ7gGdnKe62yBmZ7xOa4uBBByhnK9Tzg@mail.gmail.com/
+> So... what do we do with this patch?
+> 
+>> Thanks,
+>> zhong jiang
+>>>>> --- a/mm/mempolicy.c
+>>>>> +++ b/mm/mempolicy.c
+>>>>> @@ -345,7 +345,7 @@ static void mpol_rebind_nodemask(struct mempolicy *pol, const nodemask_t *nodes)
+>>>>>  	else {
+>>>>>  		nodes_remap(tmp, pol->v.nodes,pol->w.cpuset_mems_allowed,
+>>>>>  								*nodes);
+>>>>> -		pol->w.cpuset_mems_allowed = tmp;
+>>>>> +		pol->w.cpuset_mems_allowed = *nodes;
+>>> Looks like a mechanical error on my side when removing the code for
+>>> step1+step2 rebinding. Before my commit there was
+>>>
+>>> pol->w.cpuset_mems_allowed = step ? tmp : *nodes;
+>>>
+>>> Since 'step' was removed and thus 0, I should have used *nodes indeed.
+>>> Thanks for catching that.
+> 
+> Was that an ack?
 
--- 
-Michal Hocko
-SUSE Labs
+The fix should be fine, but the description is vague. I'll try to
+improve it.
+
+>>>>>  	}
+>>>>>  
+>>>>>  	if (nodes_empty(tmp))
+>>>> hm, I'm not surprised the code broke.  What the heck is going on in
+>>>> there?  It used to have a perfunctory comment, but Vlastimil deleted
+>>>> it.
+>>> Yeah the comment was specific for the case that was being removed.
+>>>
+>>>> Could someone please propose a comment for the above code block
+>>>> explaining why we're doing what we do?
+>>> I'll have to relearn this first...
+>>>
+>>>
+>>
 
