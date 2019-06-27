@@ -2,146 +2,137 @@ Return-Path: <SRS0=EPqI=U2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 08274C5B576
-	for <linux-mm@archiver.kernel.org>; Thu, 27 Jun 2019 20:59:34 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 70229C4321A
+	for <linux-mm@archiver.kernel.org>; Thu, 27 Jun 2019 21:03:30 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CF3CF20B7C
-	for <linux-mm@archiver.kernel.org>; Thu, 27 Jun 2019 20:59:33 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CF3CF20B7C
+	by mail.kernel.org (Postfix) with ESMTP id 22A162075E
+	for <linux-mm@archiver.kernel.org>; Thu, 27 Jun 2019 21:03:29 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 22A162075E
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 689F86B0003; Thu, 27 Jun 2019 16:59:33 -0400 (EDT)
+	id 7713E6B0005; Thu, 27 Jun 2019 17:03:29 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 63A1D8E0003; Thu, 27 Jun 2019 16:59:33 -0400 (EDT)
+	id 7226E8E0003; Thu, 27 Jun 2019 17:03:29 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 54FD68E0002; Thu, 27 Jun 2019 16:59:33 -0400 (EDT)
+	id 5C2DE8E0002; Thu, 27 Jun 2019 17:03:29 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 341336B0003
-	for <linux-mm@kvack.org>; Thu, 27 Jun 2019 16:59:33 -0400 (EDT)
-Received: by mail-qk1-f199.google.com with SMTP id c207so3887068qkb.11
-        for <linux-mm@kvack.org>; Thu, 27 Jun 2019 13:59:33 -0700 (PDT)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 3A9C16B0005
+	for <linux-mm@kvack.org>; Thu, 27 Jun 2019 17:03:29 -0400 (EDT)
+Received: by mail-qt1-f198.google.com with SMTP id z6so3758985qtj.7
+        for <linux-mm@kvack.org>; Thu, 27 Jun 2019 14:03:29 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
          :references:from:organization:message-id:date:user-agent
          :mime-version:in-reply-to:content-transfer-encoding:content-language;
-        bh=j09t1oNe1xrcwM9PCr/Xf9jFeI/a2JEDFhFgPvgAEcg=;
-        b=sbVPIDaXd9YK6OO+weIIAJCIuhz9qwWve7XhPBXwSkAeVHLqx9khRbrigi64cHc1Pg
-         J42n8RKg+1DZ1hT6pwZ7YCh7IO9dsyMswiEjuX4MdD3zseWd12NoQHhlpY3e6YZdeQRD
-         0SPr6kTeRiPaBOru/kGmdRrF1W9tFw+5VC/EOHUkdSNiz94VPZnP+Q5N0wSI7KUUZ+ED
-         c8zjjCEzAsMXBAK3rsGS+mHFqEOSzjYAsXSe49M7+Y/0Itt+BIUILX9WacYrjvpYnSu5
-         va6RVejUU1C+l7OACfthIOVJH9ZVHAnYMYlytSze02ClaSF2EmK9xPH9I0zF8ff1itIu
-         dTHA==
+        bh=w6Zk2X1UotXBBdbiqYU/9wWxwQErmet13FPhuMOM6+c=;
+        b=gW6Mu2DizPFMvCZXYMBpueaHhbGAC0XGujZfL2cAFxJJluVVUv1XBKE4paBKVac3pp
+         +lxhog1cN5n56bOsgfNM9BCmBJaz8bgEbSDZrwbuI5Mm0peFbbduXAlXw7KjgEAVjG/K
+         SyouYjNLwINZwalKjzBeCOQVRXnAwDwcZce+pOWTybG/CyHC8qDDiUReLoeeRJTMwSsB
+         jFfPF6ccfE1H7eGDm9aqTRj9sOZqZ4G1TKjTrNp+90JSSC8BNOrEQU2XML/bYiA+7Swq
+         WKVLnhu7Y9McUb6x5+OjBNq88OH8hd6em86ltK4S/QyyyljEX/wXH6cRpGd75yx9QUOY
+         CXeg==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAX+HfiKV5EKX97y+iJ+gcJYneARJKp0APVsOKE6BQW/zS/XIIXK
-	QhiS2I/KNh5+bZYw9TeeFOzUFPYWZMdJBvcCon0MIe/9K4F4Ok2eCnd8vfImO7x7sFlYPqGDCH3
-	oP5IAFua1zGdUPGM3NIoyh0Xh+rHgOwjsKsTCaeWsPOv7R5ryDiEjtHib2D89FbtQ3w==
-X-Received: by 2002:a0c:88a6:: with SMTP id 35mr4414079qvn.63.1561669172975;
-        Thu, 27 Jun 2019 13:59:32 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzkZGSK6Fx5IO9I+z3zOu0lhCCpvpUWexnEw7Sq4FvFn93ACz+iuFuJbuSU2MawQpz0SAHG
-X-Received: by 2002:a0c:88a6:: with SMTP id 35mr4414042qvn.63.1561669172410;
-        Thu, 27 Jun 2019 13:59:32 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561669172; cv=none;
+X-Gm-Message-State: APjAAAW/4CV5+GISb/PwMLZCEfNJjoo60pJMPolo1FhJHwz6Y7aKhWef
+	s8Ee0g6k2siCefKycZ/ekPUCxMEG/BWkK52Hv3byyc6wpSjzR832/wSUA0RLdqBomP4dsrwuoDn
+	9bE2i+1P/6guM0q0il6+ctJM17NTGA0NJt+n9N5laNcx5swPBtbQRb6huMuHbcMkB5g==
+X-Received: by 2002:ac8:2bf1:: with SMTP id n46mr5041475qtn.372.1561669409030;
+        Thu, 27 Jun 2019 14:03:29 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqycedzOYQoGuaWpQUcmSr2R6/fg5Tqy3mTgQ3pPrvqKa7nZuNQdmxaVrJ/VhFyPhO58f+VF
+X-Received: by 2002:ac8:2bf1:: with SMTP id n46mr5041435qtn.372.1561669408524;
+        Thu, 27 Jun 2019 14:03:28 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561669408; cv=none;
         d=google.com; s=arc-20160816;
-        b=z8rmF0oNM3Exc/cpbS7Qh2rtHh0j1E8fnpEh2PMZCFexkS/sT1wr6EonvBBBbr06+3
-         9CVh2DZV5n2A1Uh/m06XSXe6Gfx66M4KSBr2EZg7VNwtfMiA+GxWPYCsCLF2+MTKVEmm
-         L475Y2ndKLyCi8yGMVhZzEQF7foZdECEemRrfXvQk5UPdSZiWt/kB6NqFF98CJF/z1QS
-         oHwttE2iNouJ2svKjUhqk0Jt4LDovy86XygTJfrwPEcGck6BM1fBITZ0HpZZLfcD1hHf
-         LaXejQ6JMygF/+rVr96AJRf6M96KRefcXmjbJJ0cGrFOgITsxKJfqJjPCNE8yNYjcw+r
-         MGAA==
+        b=vQ1pbo9OWXaLEtXwmSU0e2jb8K1e/8nkbWiRYpK3wPuKPZVc3welUi1r/BcNYpfCD/
+         jUhjOlxXnSVzYp68WA5jUeFtj7tnLOwl04sxGj8/nLg/F85PIxm5+nQa2zdiU77NGpJl
+         FleQ9Qc9qkAMd8ifOOOD6Bcj75rkB2MD5H5jRI4dvZJQmqAo+0vMIInzIlV9XKz+YTO1
+         nREsAv47m9IH3WnMiQ58nAaeH6ev7MJ3TUHOPtFhn17VPCoouBRcxymBqMc99m9t/AeE
+         ZiNse7AGMvREc/3J7uF2pqxvu6e2LFqJDn6rHetqGLk9fc5CFZkxwJI0LgYmixLWVajn
+         OBqg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-language:content-transfer-encoding:in-reply-to:mime-version
          :user-agent:date:message-id:organization:from:references:cc:to
          :subject;
-        bh=j09t1oNe1xrcwM9PCr/Xf9jFeI/a2JEDFhFgPvgAEcg=;
-        b=yOQPquIzTjUZHtJHjiEGDlMJIE/HcLHZVb3cgyn9uMPivsGIJSOqGdU2wbqbM2Ef4h
-         XbHJZoj63dC/0nyFo3FKmYZhc0BI5NOTV2nr/eUwT0j58zc4NpuZ4NPBjIypcI7YMBpb
-         D2h6fKu7WsketvvBB88XN3RJlRdf+BgZhCwckjCquKq7sFcIExp4M4Uwx4ibR2YeeSWK
-         VPMeWve/xibm2VISS0Y2UqDqn8l+kI4MTX6QrKmeTxmcTcGLrzY+THWm/zgUmJfa1ZGR
-         EFkb178Wc9DWYtxIl8+IdOUxxH6hpRngYKf9vCp47pC5JvMPGGLbrk7bc5ySQfswCwG7
-         gBGQ==
+        bh=w6Zk2X1UotXBBdbiqYU/9wWxwQErmet13FPhuMOM6+c=;
+        b=qocEkzHOdtvEkcRRUxhDCx5Su1R57i7w+VbyCgLywLse1JSa5hKvAWUjRMk4pbKrqy
+         HgHq0XjkSY8/lvX7rKQPhRkkDqKKCfLhw4d88rTgytWuDakP4BzCPMDwdK2a+HEb6llO
+         M8qFBoBDeiu30qfVbl3K3kUWMCeLrc1VCoWYXavZRvlOj8NR4vL4ccuxnY4nZBu4HFMk
+         XroUYffcqGjs9szWDGDMyl2EOMOiQgHv3WuWbbiTZXzN8vAXSiY/S42eJFm/lLIBf7bs
+         iEt1m0FWsouW3gx3vYwEBg+qOEUFJ7JQfpduOUkYIgBFPm6X5bnLSLr3QPDjAYJDEXtD
+         TijA==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id n2si209526qkd.208.2019.06.27.13.59.32
+        by mx.google.com with ESMTPS id c80si224180qke.221.2019.06.27.14.03.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 27 Jun 2019 13:59:32 -0700 (PDT)
+        Thu, 27 Jun 2019 14:03:28 -0700 (PDT)
 Received-SPF: pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
+Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id A2BD930BB37D;
-	Thu, 27 Jun 2019 20:59:26 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id CAEA6308620B;
+	Thu, 27 Jun 2019 21:03:10 +0000 (UTC)
 Received: from llong.remote.csb (dhcp-17-85.bos.redhat.com [10.18.17.85])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id C3273544ED;
-	Thu, 27 Jun 2019 20:59:24 +0000 (UTC)
-Subject: Re: [PATCH] memcg: Add kmem.slabinfo to v2 for debugging purpose
-To: Tejun Heo <tj@kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>,
- Vladimir Davydov <vdavydov.dev@gmail.com>, linux-kernel@vger.kernel.org,
- cgroups@vger.kernel.org, linux-mm@kvack.org,
- Andrew Morton <akpm@linux-foundation.org>, Shakeel Butt <shakeelb@google.com>
-References: <20190626165614.18586-1-longman@redhat.com>
- <20190627142024.GW657710@devbig004.ftw2.facebook.com>
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 24CD61001284;
+	Thu, 27 Jun 2019 21:03:07 +0000 (UTC)
+Subject: Re: [PATCH 1/2] mm, memcontrol: Add memcg_iterate_all()
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>,
+ David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>,
+ Andrew Morton <akpm@linux-foundation.org>,
+ Alexander Viro <viro@zeniv.linux.org.uk>, Jonathan Corbet <corbet@lwn.net>,
+ Luis Chamberlain <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>,
+ Johannes Weiner <hannes@cmpxchg.org>,
+ Vladimir Davydov <vdavydov.dev@gmail.com>, linux-mm@kvack.org,
+ linux-doc@vger.kernel.org, linux-fsdevel@vger.kernel.org,
+ cgroups@vger.kernel.org, linux-kernel@vger.kernel.org,
+ Roman Gushchin <guro@fb.com>, Shakeel Butt <shakeelb@google.com>,
+ Andrea Arcangeli <aarcange@redhat.com>
+References: <20190624174219.25513-1-longman@redhat.com>
+ <20190624174219.25513-2-longman@redhat.com>
+ <20190627150746.GD5303@dhcp22.suse.cz>
 From: Waiman Long <longman@redhat.com>
 Organization: Red Hat
-Message-ID: <afc95bfa-d913-b834-c4b7-39839e7a902d@redhat.com>
-Date: Thu, 27 Jun 2019 16:59:24 -0400
+Message-ID: <2213070d-34c3-4f40-d780-ac371a9cbbbe@redhat.com>
+Date: Thu, 27 Jun 2019 17:03:06 -0400
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.7.0
 MIME-Version: 1.0
-In-Reply-To: <20190627142024.GW657710@devbig004.ftw2.facebook.com>
+In-Reply-To: <20190627150746.GD5303@dhcp22.suse.cz>
 Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
 Content-Language: en-US
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.49]); Thu, 27 Jun 2019 20:59:31 +0000 (UTC)
+X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.42]); Thu, 27 Jun 2019 21:03:17 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 6/27/19 10:20 AM, Tejun Heo wrote:
-> Hello, Waiman.
->
-> On Wed, Jun 26, 2019 at 12:56:14PM -0400, Waiman Long wrote:
->> With memory cgroup v1, there is a kmem.slabinfo file that can be
->> used to view what slabs are allocated to the memory cgroup. There
->> is currently no such equivalent in memory cgroup v2. This file can
->> be useful for debugging purpose.
->>
->> This patch adds an equivalent kmem.slabinfo to v2 with the caveat that
->> this file will only show up as ".__DEBUG__.memory.kmem.slabinfo" when the
->> "cgroup_debug" parameter is specified in the kernel boot command line.
->> This is to avoid cluttering the cgroup v2 interface with files that
->> are seldom used by end users.
-> Can you please take a look at drgn?
->
->   https://github.com/osandov/drgn
->
-> Baking in debug interface files always is limited and nasty and drgn
-> can get you way more flexible debugging / monitoring tool w/o having
-> to bake in anything into the kernel.  For an example, please take a
-> look at
->
->   https://lore.kernel.org/bpf/20190614015620.1587672-10-tj@kernel.org/
->
-> Thanks.
->
-Thanks for the information. Will take a serious look at that.
+On 6/27/19 11:07 AM, Michal Hocko wrote:
+> On Mon 24-06-19 13:42:18, Waiman Long wrote:
+>> Add a memcg_iterate_all() function for iterating all the available
+>> memory cgroups and call the given callback function for each of the
+>> memory cgruops.
+> Why is a trivial wrapper any better than open coded usage of the
+> iterator?
+
+Because the iterator is only defined within memcontrol.c. So an
+alternative may be to put the iterator into a header file that can be
+used by others. Will take a look at that.
 
 Cheers,
 Longman
