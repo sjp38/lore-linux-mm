@@ -2,168 +2,149 @@ Return-Path: <SRS0=EPqI=U2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-0.7 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 84157C46478
-	for <linux-mm@archiver.kernel.org>; Thu, 27 Jun 2019 21:16:21 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 79DD4C4321A
+	for <linux-mm@archiver.kernel.org>; Thu, 27 Jun 2019 21:22:56 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 48C10208CB
-	for <linux-mm@archiver.kernel.org>; Thu, 27 Jun 2019 21:16:21 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 48C10208CB
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 3A2A420828
+	for <linux-mm@archiver.kernel.org>; Thu, 27 Jun 2019 21:22:56 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="JtErswGh"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3A2A420828
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D82966B0003; Thu, 27 Jun 2019 17:16:20 -0400 (EDT)
+	id B81416B0003; Thu, 27 Jun 2019 17:22:55 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D5A5E8E0003; Thu, 27 Jun 2019 17:16:20 -0400 (EDT)
+	id B31348E0003; Thu, 27 Jun 2019 17:22:55 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C483A8E0002; Thu, 27 Jun 2019 17:16:20 -0400 (EDT)
+	id A20B78E0002; Thu, 27 Jun 2019 17:22:55 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A5AEB6B0003
-	for <linux-mm@kvack.org>; Thu, 27 Jun 2019 17:16:20 -0400 (EDT)
-Received: by mail-qt1-f197.google.com with SMTP id s9so3790864qtn.14
-        for <linux-mm@kvack.org>; Thu, 27 Jun 2019 14:16:20 -0700 (PDT)
+Received: from mail-oi1-f200.google.com (mail-oi1-f200.google.com [209.85.167.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 762556B0003
+	for <linux-mm@kvack.org>; Thu, 27 Jun 2019 17:22:55 -0400 (EDT)
+Received: by mail-oi1-f200.google.com with SMTP id f19so1586434oib.4
+        for <linux-mm@kvack.org>; Thu, 27 Jun 2019 14:22:55 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:organization:message-id:date:user-agent
-         :mime-version:in-reply-to:content-transfer-encoding:content-language;
-        bh=3evReopxioqJv9N92w6GNkBk5zeUjMeE5khMQzKKTBs=;
-        b=q2uk8q1Ov8XmgSl3og3JgpViasyLEZlV9Q5u1RHf8Rz+yeFcm4xCXeSqpsI03nfzO8
-         BgQ3W6BcD7qwqWcjPeVCsyyCzSgh4mPBDqmPS2sLoxY5E0IXdRFVajt2j5b0jQFD43Pg
-         Q7E/YbZkJTR9z3igI8yxcaf7FbtBq//DEW6CjZ1jLQmbEz4brqNEBLR0S8rQ1p6Uh0Lg
-         O1/8XY5UsVw01xHHTsUznebLjherhaIXoTqaDHbUqSYmjWy6ZhONsrHcu3qEqKIX9oRq
-         xv7y8ouBmSStUPZiidYNZK27e22ECmlLqvr1YZhZU61rTZw36dsmX76niKKpKlS2B01r
-         8ePA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAXBNkplonnrd5rcC0nlGWUxOyTCTuNi+Hk2t1zME+2yqr7lb/x1
-	ev3b48013tDYU2ljjaLIqcjdLsiR2T21cCaiKzLE3zJqh+A0f6tFGCwitSOZRqyHXPsO5eJhzGK
-	t7Rhf5Q4kReFfphNva06+Li0X7jlvhbV6sYggPMlf0R8k4ZEuVTtEyep08POxUBSfGg==
-X-Received: by 2002:a37:5445:: with SMTP id i66mr5634310qkb.369.1561670180458;
-        Thu, 27 Jun 2019 14:16:20 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwucnjZdD+BOIlTdQI9PvWOaKMKrznncqjeCombonA/iwitrj3BVbgmXHEI6t3enG6CVdZC
-X-Received: by 2002:a37:5445:: with SMTP id i66mr5634268qkb.369.1561670179968;
-        Thu, 27 Jun 2019 14:16:19 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561670179; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=x3+/AfxLXuFdTRt+wVJ5N88Fn0d7Jt0QcG3rrM/CFYA=;
+        b=W+/S/5iDKUf2TuzBqGmhG6vDDwDbwFS+mmCz5XFSu46+yp8b0UND/e57/mKPqsY/Os
+         ENIqQvrqAvOGfTMYtF+2KBtxSeXMzp/TVKrxoYYkWMpczwXwvIvDBqX57HqghSMeBsYU
+         o2Wrx6d4gMTb3+FlG8XWtlDaP86X+TDTK/gycQbUmP8CbizoLhIZNxpqCmi9/5DvrXRY
+         S3mRYU0Pt7XV1jsvEIBsA1P+KhAGQwLrnyyL06aBzYiARPLmZP2EQSCCduwTJ7Rk5jFr
+         fZh5duAtLJhMlIgM0OW5Z1Q08O9lhDEmR44NeLdSAAzSZDc+8iyqJkD4H0wZQpK/q24d
+         KEYQ==
+X-Gm-Message-State: APjAAAV4oBiVD4nYs4a6+K9Em4fMdNKKEZm56CNCqsBEqHmeug8xQmHP
+	oDe9oXaY4q2GU4PL7EuwHb9+kZ7OtKypXOIJxJQpqn03QdHFd/fSJ8Tqx0BbItckodKRmHhqWr8
+	DhqJhVwoGzGTpcpOohjjvNFA4jp0ilFNROvgUyjYojQDYb7QF507PuNjJd4WXF8nKag==
+X-Received: by 2002:a05:6830:c9:: with SMTP id x9mr5073513oto.332.1561670575080;
+        Thu, 27 Jun 2019 14:22:55 -0700 (PDT)
+X-Received: by 2002:a05:6830:c9:: with SMTP id x9mr5073462oto.332.1561670574200;
+        Thu, 27 Jun 2019 14:22:54 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561670574; cv=none;
         d=google.com; s=arc-20160816;
-        b=G1uWGCDX2zz087ALHWerzsAP5TdLr0SFIRh2BU3tbhw01YT9QGIsued4P33Rb6jnrR
-         VN+8vOaJUq1/lohjbO29/lN0Z9w10TETy4ExBn0UfgH0Q6wLEsPwcp9mo/0PpRL5wiNk
-         tGtwJX8IR+dQ8ZDXRKLJl6mI90xFVolR4Q38s0GAleaTpcK5i017N28iz+RPDwaP1RA6
-         ro7QNeoWrYfOEvGqV5745Rau+WlJ3J9cbJDQlRTqt9GaxYp5VhZBI4QUnoKM3gpGbcfV
-         Jc06cWTVatmHFstFhYqyUXGwCpaJzk6nDXCRAHgauPxbRhLYO4WgGnIyoOCWlyY30qpP
-         Se5A==
+        b=f/DmZibHQ/ppAq3ns4zpcj5Y/CrdTDu7PEM8eFARNYvDG25BwRVqsW89HrTL2Bs4Yt
+         iTagd8qigRCkzy002r56cGyFpEi0AxnzTaMBAJe+vJQEwB4xdvufnPlJzuQrt7nEfCJ1
+         QAqb33i60wieQwA66KMChZDg4qFiOa1491xTk/EOhoWP43duBXKny4R5eV7s5Nezkh28
+         OlMHFu4Fpu5knMXGH/dd9/Tpr/nggPKPYKP4CbRfF1gE/l9o2ZUptAAglRnVPpkgrJ/F
+         +G7dQbGLnBI3NPmq76Gs3bBr9nTTytfim3/2DZt8mqQmBa+1tmGI5GwNmyZnJVt3ka88
+         Pqeg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-language:content-transfer-encoding:in-reply-to:mime-version
-         :user-agent:date:message-id:organization:from:references:cc:to
-         :subject;
-        bh=3evReopxioqJv9N92w6GNkBk5zeUjMeE5khMQzKKTBs=;
-        b=p5oCXN0X1+heUOVjmENjUaymxtwRA4nPuNCkiS2MArYCEs5xcnmVGnN/xMo/DNgZx6
-         asSrvik5oJYW2S+sC7RGpL6C1COeRORcLlIqyEmez7DTpKgulPyczQLmyANwkwVW80Jy
-         Y1sDPUDM3h8Rhl9DDahSFlpuLuswME0jKrTk4KPHZB6XF3qiBtdLDrQBzulWnK6eYXNp
-         u0F1N7bhVALuvNNEaHzHUmVztlGex1bppBZ51cXT47mAknIExUpuhjL/nmlrXCSiHNMo
-         eRkgzBGmjOgSnKqeAVqDvPWmuaUlhT8NTg/oGlc37mK4ERB1zTBLPKruD01MhylcmEAq
-         VX9w==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=x3+/AfxLXuFdTRt+wVJ5N88Fn0d7Jt0QcG3rrM/CFYA=;
+        b=kqWItYStAJb98VKEWgN+vgpHhzG0p1vyaPWms9JypaNcWbDtcpVFccp5tsYvj1Y54D
+         rCLrowXWUOsTEqUhNEvObxrQStOYAlU8/pz0pWMvQwwGli0SD1/Ib5HCHSCfejO0do5f
+         WWWuWmndWugJ22N/ETfh3s8nNDtOw/Hbf98mFJiEnGZSVUTxHehqxdLtGcve7igFZYjm
+         eFAnHQ+fd7M5zAzbwYj0Gd6N1C9vv9ELRI/EGpI7dodIZhOjMX+udnq0gfMCRAxYA3nf
+         cbkIU5Jr4iV5bq88w7qqcpH75OJwiKOeXrOMllUEMPqNK+J4MdxsJTIgSuP5tjhJk/JV
+         Dr/Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id t53si176656qte.224.2019.06.27.14.16.19
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=JtErswGh;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id h194sor125590oib.133.2019.06.27.14.22.53
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 27 Jun 2019 14:16:19 -0700 (PDT)
-Received-SPF: pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (Google Transport Security);
+        Thu, 27 Jun 2019 14:22:53 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 764DE3082A28;
-	Thu, 27 Jun 2019 21:16:13 +0000 (UTC)
-Received: from llong.remote.csb (dhcp-17-85.bos.redhat.com [10.18.17.85])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 7EC455C1B4;
-	Thu, 27 Jun 2019 21:16:04 +0000 (UTC)
-Subject: Re: [PATCH 2/2] mm, slab: Extend vm/drop_caches to shrink kmem slabs
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>,
- David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>,
- Andrew Morton <akpm@linux-foundation.org>,
- Alexander Viro <viro@zeniv.linux.org.uk>, Jonathan Corbet <corbet@lwn.net>,
- Luis Chamberlain <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>,
- Johannes Weiner <hannes@cmpxchg.org>,
- Vladimir Davydov <vdavydov.dev@gmail.com>, linux-mm@kvack.org,
- linux-doc@vger.kernel.org, linux-fsdevel@vger.kernel.org,
- cgroups@vger.kernel.org, linux-kernel@vger.kernel.org,
- Roman Gushchin <guro@fb.com>, Shakeel Butt <shakeelb@google.com>,
- Andrea Arcangeli <aarcange@redhat.com>
-References: <20190624174219.25513-1-longman@redhat.com>
- <20190624174219.25513-3-longman@redhat.com>
- <20190627151506.GE5303@dhcp22.suse.cz>
-From: Waiman Long <longman@redhat.com>
-Organization: Red Hat
-Message-ID: <5cb05d2c-39a7-f138-b0b9-4b03d6008999@redhat.com>
-Date: Thu, 27 Jun 2019 17:16:04 -0400
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.0
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=JtErswGh;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=intel-com.20150623.gappssmtp.com; s=20150623;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=x3+/AfxLXuFdTRt+wVJ5N88Fn0d7Jt0QcG3rrM/CFYA=;
+        b=JtErswGhYDCrNfECuAxOCOEYWix8XG5/JXokcc4VzGBzvI/VkBg2osv2Vfd1YgD00G
+         zE3E2Ho8y5Rhx0feStd4vbr6fQAxsfG4Nv5BPQm7jBEqo8BCOCXIu/4vhxUCDR29BQ+U
+         OLa77XjjP0Pm69hLirNXv/ftJEeFm2u11Pr3wkRrdSGxl28uHh1lWjlkhkChxCFSzuQr
+         c5dumHc4sU+K0juZy4Sj6VXj/uQ6kLWl33HbWH9Y5TGQ7rw7vksCHAsfCxblpx1AkLnM
+         LPlF8cwYtS1Q06JBzBTUzKidcFSmV8BteXYxDnFcoAX+1FYM8DQl8UDccYpstyCu0Q6d
+         /OGQ==
+X-Google-Smtp-Source: APXvYqx7n5SoatNrD/f6URkFx2YC8fws4Ygfo/qo5bOAO4OD2enVvoI0R9bsVc0OVj1JFlqOFkvvecYbXNjpEzBEU1w=
+X-Received: by 2002:aca:fc50:: with SMTP id a77mr3511395oii.0.1561670572927;
+ Thu, 27 Jun 2019 14:22:52 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20190627151506.GE5303@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.45]); Thu, 27 Jun 2019 21:16:19 +0000 (UTC)
+References: <20190627141953.GC3624@swarm07>
+In-Reply-To: <20190627141953.GC3624@swarm07>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Thu, 27 Jun 2019 14:22:42 -0700
+Message-ID: <CAPcyv4h=MoP4GSF8xRULy54K7Rt9g2pnF3Xw0BNPRyYf5fKs0A@mail.gmail.com>
+Subject: Re: A write error on converting dax0.0 to kmem
+To: heysid@ajou.ac.kr
+Cc: Dave Hansen <dave.hansen@intel.com>, Linux MM <linux-mm@kvack.org>, jsahn@ajou.ac.kr, 
+	linux-nvdimm <linux-nvdimm@lists.01.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 6/27/19 11:15 AM, Michal Hocko wrote:
-> On Mon 24-06-19 13:42:19, Waiman Long wrote:
->> With the slub memory allocator, the numbers of active slab objects
->> reported in /proc/slabinfo are not real because they include objects
->> that are held by the per-cpu slab structures whether they are actually
->> used or not.  The problem gets worse the more CPUs a system have. For
->> instance, looking at the reported number of active task_struct objects,
->> one will wonder where all the missing tasks gone.
->>
->> I know it is hard and costly to get a real count of active objects.
-> What exactly is expensive? Why cannot slabinfo reduce the number of
-> active objects by per-cpu cached objects?
+[ this is on-topic for linux-nvdimm, but likely off-topic for
+linux-mm. I leave it cc'd for now ]
+
+On Thu, Jun 27, 2019 at 7:20 AM Won-Kyo Choe <heysid@ajou.ac.kr> wrote:
 >
-The number of cachelines that needs to be accessed in order to get an
-accurate count will be much higher if we need to iterate through all the
-per-cpu structures. In addition, accessing the per-cpu partial list will
-be racy.
-
-
->> So
->> I am not advocating for that. Instead, this patch extends the
->> /proc/sys/vm/drop_caches sysctl parameter by using a new bit (bit 3)
->> to shrink all the kmem slabs which will flush out all the slabs in the
->> per-cpu structures and give a more accurate view of how much memory are
->> really used up by the active slab objects. This is a costly operation,
->> of course, but it gives a way to have a clearer picture of the actual
->> number of slab objects used, if the need arises.
-> drop_caches is a terrible interface. It destroys all the caching and
-> people are just too easy in using it to solve any kind of problem they
-> think they might have and cause others they might not see immediately.
-> I am strongly discouraging anybody - except for some tests which really
-> do want to see reproducible results without cache effects - from using
-> this interface and therefore I am not really happy to paper over
-> something that might be a real problem with yet another mode. If SLUB
-> indeed caches too aggressively on large machines then this should be
-> fixed.
+> Hi, Dave. I hope this message is sent appropriately in this time.
 >
-OK, as explained in another thread, the main reason for doing this patch
-is to be able to do more accurate measurement of changes in kmem cache
-memory consumption. Yes, I do agree that drop_caches is not a general
-purpose interface that should be used lightly.
+> We've recently got a new machine which contains Optane DC memory and
+> tried to use your patch set[1] in a recent kernel version(5.1.15).
+> Unfortunately, we've failed on the last step[2] that describes
+> converting device-dax driver as kmem. The main error is "echo: write error: No such device".
+> We are certain that there must be a device and it should be recognized
+> since we can see it in a path "/dev/dax0.0", however, somehow it keeps saying that error.
+>
+> We've followed all your steps in the first patch[1] except a step about qemu configuration
+> since we already have a persistent memory. We even checked that there is a region
+> mapped with persistent memory from a command, `dmesg | grep e820` described in below.
+>
+> BIOS-e820: [mem 0x0000000880000000-0x00000027ffffffff] persistent (type 7)
+>
+> As the address is shown above, the thing is that in the qemu, the region is set as
+> persistent (type 12) but in the native machine, it says persistent (type 7).
+> We've still tried to find what type means and we simply guess that this is one
+> of the reasons why we are not able to set the device as kmem.
+>
+> We'd like to know why this error comes up and how can we handle this problem.
+> We would really appreciate it if you are able to little bit help us.
 
-Cheers,
-Longman
+Before digging deeper let's first verify that you have switched
+device-dax from using "class" devices to using "bus" devices. Yes,
+that step is not included in the changelog instructions. Here is a man
+page for a tool that can automate some of the steps for you:
+
+http://pmem.io/ndctl/daxctl-migrate-device-model.html
+
+You can validate that you're in "bus" mode by making sure a "dax0.0"
+link appears under "/sys/bus/dax/devices".
 
