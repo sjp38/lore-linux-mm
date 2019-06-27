@@ -2,232 +2,183 @@ Return-Path: <SRS0=EPqI=U2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-16.4 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT,
-	USER_IN_DEF_DKIM_WL autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.4 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CEB79C48BD6
-	for <linux-mm@archiver.kernel.org>; Thu, 27 Jun 2019 13:03:36 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CC66EC48BD7
+	for <linux-mm@archiver.kernel.org>; Thu, 27 Jun 2019 13:09:21 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 83E812053B
-	for <linux-mm@archiver.kernel.org>; Thu, 27 Jun 2019 13:03:36 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 918222084B
+	for <linux-mm@archiver.kernel.org>; Thu, 27 Jun 2019 13:09:21 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="t+pfh+q2"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 83E812053B
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="EMPAztye"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 918222084B
 Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 333988E0009; Thu, 27 Jun 2019 09:03:36 -0400 (EDT)
+	id 308CA8E000A; Thu, 27 Jun 2019 09:09:21 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2BD2F8E0002; Thu, 27 Jun 2019 09:03:36 -0400 (EDT)
+	id 2B8DD8E0002; Thu, 27 Jun 2019 09:09:21 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 15F468E0009; Thu, 27 Jun 2019 09:03:36 -0400 (EDT)
+	id 1A80D8E000A; Thu, 27 Jun 2019 09:09:21 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-vs1-f72.google.com (mail-vs1-f72.google.com [209.85.217.72])
-	by kanga.kvack.org (Postfix) with ESMTP id DDBCE8E0002
-	for <linux-mm@kvack.org>; Thu, 27 Jun 2019 09:03:35 -0400 (EDT)
-Received: by mail-vs1-f72.google.com with SMTP id x140so688380vsc.0
-        for <linux-mm@kvack.org>; Thu, 27 Jun 2019 06:03:35 -0700 (PDT)
+Received: from mail-vk1-f200.google.com (mail-vk1-f200.google.com [209.85.221.200])
+	by kanga.kvack.org (Postfix) with ESMTP id EC7F58E0002
+	for <linux-mm@kvack.org>; Thu, 27 Jun 2019 09:09:20 -0400 (EDT)
+Received: by mail-vk1-f200.google.com with SMTP id b85so656963vke.22
+        for <linux-mm@kvack.org>; Thu, 27 Jun 2019 06:09:20 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:in-reply-to:message-id
-         :mime-version:references:subject:from:to:cc;
-        bh=OTM/dBWKP5pXAZwQDJU1YbjuxxUPU+6Vr1IAcbjuDVo=;
-        b=OCF23Pr17AXTF5/a5RkM1HLEq8IFK29XZ/7ie+p3H9rFn6Trupt5HlVTqcNymJDTPI
-         A3DrwT4dNwEkOYFFYYgSQ5AJ9y7NXxiJFhYK9wthISoU/t1HxbGs1XnboI/yTdY18ahj
-         KPsymX2iE3xm8FPaLDTgVYkNGqOLJgGp5iSSo/OlCefmWVyfJ1jZ6nKg//myyTscqgsU
-         3ekdClc7cLuUX9Y//6sG4zC8Fj79JMxjlEDyruOqaHq9SpD9/ZgCDc2FY1tQV/d5Luwx
-         p83OuxHRxS5P0PNDK+RKiHODs34JY7pukCsw5uwUTaRUxNAGWZmiIa1GuEVnit6ZBPIX
-         8RMQ==
-X-Gm-Message-State: APjAAAV5e/eqQzYjClCilmf4L5b+WYpcpopNr+G5+lANZ4a0IzN3wP3a
-	v6gFUDCDO2lobdtdCotmBlbAMEPxuAmZLmoXO9ApunZOxArrwhZlpOetQLcggL58pds9LkFEj9c
-	kQchFhVPkjgFHdaBxuJu8gVYFdRJMwHWwwbdr8PvSt+WLM9v67+UI9+MJwR+6S4P/MQ==
-X-Received: by 2002:a67:8ec6:: with SMTP id q189mr2398989vsd.43.1561640615427;
-        Thu, 27 Jun 2019 06:03:35 -0700 (PDT)
-X-Received: by 2002:a67:8ec6:: with SMTP id q189mr2398856vsd.43.1561640613097;
-        Thu, 27 Jun 2019 06:03:33 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561640613; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc
+         :content-transfer-encoding;
+        bh=+GEy0GowFU+uQq8TtB0z8xaih9ptN5Q3IEiqpuelFDs=;
+        b=rtYv9Uo2rsLp+UK+rQ1DwJbfCn3ML6zXKYxBdjBc573RcHOGc/3CBktOS7dqtpziN3
+         3LI5My/PMCmJZQXXcIkr4JLw8cy9IMNAsepm61zrfGAg95Z74GwfLmZEzi2yoUkCYXmR
+         ZgQF8yVrDyUOLX1Y0KcTu59+35I2yiukNmWIg9vyr8kFGQPkNbZF/mnuinsYwlPyzHwq
+         5KHRip5k34nWqeMW5QyHylM7ViiT4pmQliRZbBXHDfwduc9mNGxiCc0bxnREXq8xU9X3
+         pDtnKI9N63T/gtCWw5Vbdwh5syKUiAugaz31qNQdgtbB6/P4mcLya6sR7gquJSWA8loO
+         C7eA==
+X-Gm-Message-State: APjAAAV+j9tGD/qxr1/G7MA0EMtFJImOPb/VI0XKrvTHckWkYDM3T2gZ
+	S9bpOzeABA0a1eLCBsRea0w/5gZDgY1pAVV8KQ9aCMKjchF3j5cppqH5WkRJUvM/dNNmSnj/P6i
+	IJaHzrksErBDi1bjjYc2sKOtfq5A56pG+JJedbxXogEutMP3kOxm8uRWyXwm4wJfUXA==
+X-Received: by 2002:a1f:9390:: with SMTP id v138mr1337059vkd.48.1561640960648;
+        Thu, 27 Jun 2019 06:09:20 -0700 (PDT)
+X-Received: by 2002:a1f:9390:: with SMTP id v138mr1337030vkd.48.1561640959900;
+        Thu, 27 Jun 2019 06:09:19 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561640959; cv=none;
         d=google.com; s=arc-20160816;
-        b=CZVy8ikLE4hehos58+SeaQ7v2JHaX8RZTfO9i1lK8If3A7/1UC3wfqIT360RBHMqt4
-         h1ZqiYbveoOCjVTNIjXdON7k1Ig+0OEHXT0A4jKTPjf+OfKYNbYzBCSW1cqzQJ1t1Lsh
-         ttX1eh8TDSGNlfkCwemSqmjvcELafUEq5CGPf8ZD9mpXK/S2Ghui1s0zy5hIjCGClivl
-         R1Xh8dLqgrxGTbZagUJgRqeWytufIYu091/cuCjW7/HA2vOaoR67dDnWzNQS8s4rHB8T
-         Uf7SLRSmyIV8cXYMNxThX7acgEy9wGO+imIqmD52/4Pz1eWrUyfs4nrBxcWgsFSaUAkf
-         t0iQ==
+        b=DTYdd2SUK/H62JAy/gQDy7IoAIZNERGTZb5plhvnXF/QnF74QCGa2/AIV+aDFDM76Q
+         0Zuzl53j9NvxXEDmKvsBhvwMKkxI5XilxaMaaNXcHlNj58POdAjRvIzQJVzAlO4cS97h
+         1LUIh2LvB01cNWP8B5Z11euDWCs1bvdp3rtxFUDYks06ovJ4WKyQmwV5eZRSYN0/tSNO
+         g0a2njEI+D1UR2V2SKuwMjmnaosUPz6CealgPSi/0wj/qrnMgZxRbXLcHaemY1oMFdJ5
+         nkEVDgCeFWs6/O93ZHYev51/PeHoq/NKOAaaObRg4uh/0HQUB8NAUQr1ypX31ztBLTLu
+         j3uQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:from:subject:references:mime-version:message-id:in-reply-to
-         :date:dkim-signature;
-        bh=OTM/dBWKP5pXAZwQDJU1YbjuxxUPU+6Vr1IAcbjuDVo=;
-        b=kbb2wMCI5LDp/i+RBKorIR5yWr8tKIzl4z+CLC5izX2W+kkWhwJfYMiJJT3D+xlR0j
-         OInzNuL0i9UjSnPzSAa8s/UTT4xILARCL3AtQrcBOsdruLtdLAtzgh4mvr1Jy/sZ8alM
-         fmfxizPztb3awCwgxh8+iY/VyqFalHSAhs2w5A2bSNv1uBj8r7YBpVc8GTKraLC9aJ9y
-         944T4pT7d20Qvl2DsZeybzNaSy1/LYQgesW0Xw2oBAuLrfOkI0QimSvrvDxqmqtqP+da
-         m3/5bpgRWJNj3c4VXZAv56rSig8ivbgpf6Y8Jgd4KvaPCO3Uq5CjkxoUwHh+JZudrVY3
-         aswg==
+        h=content-transfer-encoding:cc:to:subject:message-id:date:from
+         :in-reply-to:references:mime-version:dkim-signature;
+        bh=+GEy0GowFU+uQq8TtB0z8xaih9ptN5Q3IEiqpuelFDs=;
+        b=mzfirYg54kvCp4HGdsp73VGSGmQmJek5u8vpUi+PpeR5XGCVnVPY9uiUJqR+puDWZ4
+         wT1HU7HrTLN9U3yYsMp8JBtedtFFDonqk9pz4Q6108tKJOYZTCX75+SHm9+hy5dOYl64
+         DQADp0XaT/0Vi6OR/d4Q8N25IGRHKO6AWrN3EcLHu7f71cQnviYnH3mZkjQ9KTR/3sLV
+         xTdWN3o98SvQm/I60nw9tWj5QIAg2ZLugxQm4bzQA+FIXmrJJHz9HHvJQVyYp3011Qit
+         yVfnPAWff51qe3+eHvsq6YPhzZWVlOzpiQiFNcSjK/WNWgGvI80ueFpXIIpw/MlpIG5O
+         4RYw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=t+pfh+q2;
-       spf=pass (google.com: domain of 3pl4uxqykcgmhmjefshpphmf.dpnmjovy-nnlwbdl.psh@flex--glider.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3pL4UXQYKCGMHMJEFSHPPHMF.DPNMJOVY-NNLWBDL.PSH@flex--glider.bounces.google.com;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=EMPAztye;
+       spf=pass (google.com: domain of glider@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=glider@google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
-        by mx.google.com with SMTPS id m185sor1041784vsd.100.2019.06.27.06.03.32
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id m12sor1069506uao.68.2019.06.27.06.09.19
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 27 Jun 2019 06:03:33 -0700 (PDT)
-Received-SPF: pass (google.com: domain of 3pl4uxqykcgmhmjefshpphmf.dpnmjovy-nnlwbdl.psh@flex--glider.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
+        Thu, 27 Jun 2019 06:09:19 -0700 (PDT)
+Received-SPF: pass (google.com: domain of glider@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=t+pfh+q2;
-       spf=pass (google.com: domain of 3pl4uxqykcgmhmjefshpphmf.dpnmjovy-nnlwbdl.psh@flex--glider.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3pL4UXQYKCGMHMJEFSHPPHMF.DPNMJOVY-NNLWBDL.PSH@flex--glider.bounces.google.com;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=EMPAztye;
+       spf=pass (google.com: domain of glider@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=glider@google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=google.com; s=20161025;
-        h=date:in-reply-to:message-id:mime-version:references:subject:from:to
-         :cc;
-        bh=OTM/dBWKP5pXAZwQDJU1YbjuxxUPU+6Vr1IAcbjuDVo=;
-        b=t+pfh+q2u5DSP6mSeIK1r67ErcoQ4NQ8UsM5O9mGBYMiMCyv5PvcnnHkKNL/S8BSql
-         eOA0/MWF7e5MR4sM/kFj2EDJhvTYzaDf++QwCyebCHUw/KNaIzSHf5WKn4Dt6RpqL+ql
-         DmRJwW/0Je2MaVg41STn0p9q/VP9o0K/qRm0CtcgkzfRUbMccg2EyCxV0U/JM9UsEnlO
-         g62cz0FUurVCddNaeP0ka5lwPT55dY+FEab2GfRuP0XKPq/hulqwOgsctIchPeVNa1M3
-         ZUJnDFJoRj5ZCGnNG2BOWe67YpXjddedZW0akWlAupL03a82Bk0h6zX7lm6X6NrlCOXf
-         4+1A==
-X-Google-Smtp-Source: APXvYqzHT3CTIJYzDrs0X3XZhQ1nNpPSVhzaXrDUP0P/c7kcHUZJG8WqtMpRqCMlOADbxQ/YidQWVk8aekg=
-X-Received: by 2002:a67:bb18:: with SMTP id m24mr1257345vsn.201.1561640612036;
- Thu, 27 Jun 2019 06:03:32 -0700 (PDT)
-Date: Thu, 27 Jun 2019 15:03:16 +0200
-In-Reply-To: <20190627130316.254309-1-glider@google.com>
-Message-Id: <20190627130316.254309-3-glider@google.com>
-Mime-Version: 1.0
-References: <20190627130316.254309-1-glider@google.com>
-X-Mailer: git-send-email 2.22.0.410.gd8fdbe21b5-goog
-Subject: [PATCH v9 2/2] mm: init: report memory auto-initialization features
- at boot time
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc:content-transfer-encoding;
+        bh=+GEy0GowFU+uQq8TtB0z8xaih9ptN5Q3IEiqpuelFDs=;
+        b=EMPAztyeJD8w4tcBaVeombkZujMeYNTsJ7eaSZC9f/YoNsl84xyhDO4M73FyMmjA/x
+         t5N4V/SYNJGu8aRCWbdfkZuL0gmN6Wgsx5IiESN3D5cmEWh1+qccSYhaDxN/fjQrz5Jj
+         Cmx2Loy9qjuSXQ4c1Xk6qnfHtYBKzCGdneCzQmv777wUvbWV+GjeS64FIN8TGVu5kjI3
+         cB8Y4DCxGroHXSrRmB1f6VKjKprKpC5G6gqTdPHTtnquOGPC1Bg5sg8J02NNcNrwL5Ku
+         Y7AExdNBks6Anahq3UGPKqAJm/MXezvkzfSwn+pSQixXTQgFZClv7wnEHCzFUPX1MZUn
+         6o4w==
+X-Google-Smtp-Source: APXvYqyybVeF02FV7oyRIEy9deXhVNP2OXv1ccgGnq0QB34Ix3HStMP+1vnMzbMN3do7c59wTe80K7fkjXUNi2zvrCQ=
+X-Received: by 2002:ab0:3d2:: with SMTP id 76mr2215849uau.12.1561640958978;
+ Thu, 27 Jun 2019 06:09:18 -0700 (PDT)
+MIME-Version: 1.0
+References: <20190626121943.131390-1-glider@google.com> <20190626121943.131390-2-glider@google.com>
+ <20190626144943.GY17798@dhcp22.suse.cz> <CAG_fn=Xf5yEuz7JyOt-gmNx1uSM6mmM57_jFxCi+9VPZ4PSwJQ@mail.gmail.com>
+ <20190626154237.GZ17798@dhcp22.suse.cz>
+In-Reply-To: <20190626154237.GZ17798@dhcp22.suse.cz>
 From: Alexander Potapenko <glider@google.com>
-To: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>
-Cc: Alexander Potapenko <glider@google.com>, Kees Cook <keescook@chromium.org>, 
-	Dmitry Vyukov <dvyukov@google.com>, James Morris <jmorris@namei.org>, Jann Horn <jannh@google.com>, 
-	Kostya Serebryany <kcc@google.com>, Laura Abbott <labbott@redhat.com>, Mark Rutland <mark.rutland@arm.com>, 
-	Masahiro Yamada <yamada.masahiro@socionext.com>, Matthew Wilcox <willy@infradead.org>, 
-	Nick Desaulniers <ndesaulniers@google.com>, Randy Dunlap <rdunlap@infradead.org>, 
-	Sandeep Patil <sspatil@android.com>, "Serge E. Hallyn" <serge@hallyn.com>, 
-	Souptick Joarder <jrdr.linux@gmail.com>, Marco Elver <elver@google.com>, 
-	Kaiwan N Billimoria <kaiwan@kaiwantech.com>, kernel-hardening@lists.openwall.com, 
-	linux-mm@kvack.org, linux-security-module@vger.kernel.org
+Date: Thu, 27 Jun 2019 15:09:06 +0200
+Message-ID: <CAG_fn=V4SZwu50LCZq+2Fa-zAZmQ+X-80vxzN-MGJZdjpFpjhw@mail.gmail.com>
+Subject: Re: [PATCH v8 1/2] mm: security: introduce init_on_alloc=1 and
+ init_on_free=1 boot options
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, 
+	Kees Cook <keescook@chromium.org>, Masahiro Yamada <yamada.masahiro@socionext.com>, 
+	James Morris <jmorris@namei.org>, "Serge E. Hallyn" <serge@hallyn.com>, 
+	Nick Desaulniers <ndesaulniers@google.com>, Kostya Serebryany <kcc@google.com>, 
+	Dmitry Vyukov <dvyukov@google.com>, Sandeep Patil <sspatil@android.com>, 
+	Laura Abbott <labbott@redhat.com>, Randy Dunlap <rdunlap@infradead.org>, Jann Horn <jannh@google.com>, 
+	Mark Rutland <mark.rutland@arm.com>, Marco Elver <elver@google.com>, Qian Cai <cai@lca.pw>, 
+	Linux Memory Management List <linux-mm@kvack.org>, 
+	linux-security-module <linux-security-module@vger.kernel.org>, 
+	Kernel Hardening <kernel-hardening@lists.openwall.com>
 Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Print the currently enabled stack and heap initialization modes.
+On Wed, Jun 26, 2019 at 5:42 PM Michal Hocko <mhocko@kernel.org> wrote:
+>
+> On Wed 26-06-19 17:00:43, Alexander Potapenko wrote:
+> > On Wed, Jun 26, 2019 at 4:49 PM Michal Hocko <mhocko@kernel.org> wrote:
+> [...]
+> > > > @@ -1142,6 +1200,8 @@ static __always_inline bool free_pages_prepar=
+e(struct page *page,
+> > > >       }
+> > > >       arch_free_page(page, order);
+> > > >       kernel_poison_pages(page, 1 << order, 0);
+> > > > +     if (want_init_on_free())
+> > > > +             kernel_init_free_pages(page, 1 << order);
+> > >
+> > > same here. If you don't want to make this exclusive then you have to
+> > > zero before poisoning otherwise you are going to blow up on the poiso=
+n
+> > > check, right?
+> > Note that we disable initialization if page poisoning is on.
+>
+> Ohh, right. Missed that in the init code.
+>
+> > As I mentioned on another thread we can eventually merge this code
+> > with page poisoning, but right now it's better to make the user decide
+> > which of the features they want instead of letting them guess how the
+> > combination of the two is going to work.
+>
+> Strictly speaking zeroying is a subset of poisoning. If somebody asks
+> for both the poisoning surely satisfies any data leak guarantees
+> zeroying would give. So I am not sure we have to really make them
+> exclusive wrt. to the configuraion. I will leave that to you but it
+> would be better if the code didn't break subtly once the early init
+> restriction is removed for one way or another. So either always make
+> sure that zeroying is done _before_ poisoning or that you do not zero
+> when poisoning. The later sounds the best wrt. the code quality from my
+> POV.
+I somewhat liked the idea of always having zero-initialized page/heap
+memory if init_on_{alloc,free} is on.
+But in production mode we won't have page or slab poisoning anyway,
+and for debugging this doesn't really matter much.
+I've sent v9 with poisoning support added.
+> --
+> Michal Hocko
+> SUSE Labs
 
-Stack initialization is enabled by a config flag, while heap
-initialization is configured at boot time with defaults being set
-in the config. It's more convenient for the user to have all information
-about these hardening measures in one place at boot, so the user can
-reason about the expected behavior of the running system.
 
-The possible options for stack are:
- - "all" for CONFIG_INIT_STACK_ALL;
- - "byref_all" for CONFIG_GCC_PLUGIN_STRUCTLEAK_BYREF_ALL;
- - "byref" for CONFIG_GCC_PLUGIN_STRUCTLEAK_BYREF;
- - "__user" for CONFIG_GCC_PLUGIN_STRUCTLEAK_USER;
- - "off" otherwise.
 
-Depending on the values of init_on_alloc and init_on_free boottime
-options we also report "heap alloc" and "heap free" as "on"/"off".
+--=20
+Alexander Potapenko
+Software Engineer
 
-In the init_on_free mode initializing pages at boot time may take a
-while, so print a notice about that as well. This depends on how much
-memory is installed, the memory bandwidth, etc.
-On a relatively modern x86 system, it takes about 0.75s/GB to wipe all
-memory:
+Google Germany GmbH
+Erika-Mann-Stra=C3=9Fe, 33
+80636 M=C3=BCnchen
 
-  [    0.418722] mem auto-init: stack:byref_all, heap alloc:off, heap free:on
-  [    0.419765] mem auto-init: clearing system memory may take some time...
-  [   12.376605] Memory: 16408564K/16776672K available (14339K kernel code, 1397K rwdata, 3756K rodata, 1636K init, 11460K bss, 368108K reserved, 0K cma-reserved)
-
-Signed-off-by: Alexander Potapenko <glider@google.com>
-Suggested-by: Kees Cook <keescook@chromium.org>
-Acked-by: Kees Cook <keescook@chromium.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Dmitry Vyukov <dvyukov@google.com>
-Cc: James Morris <jmorris@namei.org>
-Cc: Jann Horn <jannh@google.com>
-Cc: Kostya Serebryany <kcc@google.com>
-Cc: Laura Abbott <labbott@redhat.com>
-Cc: Mark Rutland <mark.rutland@arm.com>
-Cc: Masahiro Yamada <yamada.masahiro@socionext.com>
-Cc: Matthew Wilcox <willy@infradead.org>
-Cc: Nick Desaulniers <ndesaulniers@google.com>
-Cc: Randy Dunlap <rdunlap@infradead.org>
-Cc: Sandeep Patil <sspatil@android.com>
-Cc: "Serge E. Hallyn" <serge@hallyn.com>
-Cc: Souptick Joarder <jrdr.linux@gmail.com>
-Cc: Marco Elver <elver@google.com>
-Cc: Kaiwan N Billimoria <kaiwan@kaiwantech.com>
-Cc: kernel-hardening@lists.openwall.com
-Cc: linux-mm@kvack.org
-Cc: linux-security-module@vger.kernel.org
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-
----
- v6:
- - update patch description, fixed message about clearing memory
- v7:
- - rebase the patch, add the Acked-by: tag;
- - more description updates as suggested by Kees;
- - make report_meminit() static.
- v8:
- - added the Signed-off-by: tag
----
- init/main.c | 24 ++++++++++++++++++++++++
- 1 file changed, 24 insertions(+)
-
-diff --git a/init/main.c b/init/main.c
-index 66a196c5e4c3..ff5803b0841c 100644
---- a/init/main.c
-+++ b/init/main.c
-@@ -520,6 +520,29 @@ static inline void initcall_debug_enable(void)
- }
- #endif
- 
-+/* Report memory auto-initialization states for this boot. */
-+static void __init report_meminit(void)
-+{
-+	const char *stack;
-+
-+	if (IS_ENABLED(CONFIG_INIT_STACK_ALL))
-+		stack = "all";
-+	else if (IS_ENABLED(CONFIG_GCC_PLUGIN_STRUCTLEAK_BYREF_ALL))
-+		stack = "byref_all";
-+	else if (IS_ENABLED(CONFIG_GCC_PLUGIN_STRUCTLEAK_BYREF))
-+		stack = "byref";
-+	else if (IS_ENABLED(CONFIG_GCC_PLUGIN_STRUCTLEAK_USER))
-+		stack = "__user";
-+	else
-+		stack = "off";
-+
-+	pr_info("mem auto-init: stack:%s, heap alloc:%s, heap free:%s\n",
-+		stack, want_init_on_alloc(GFP_KERNEL) ? "on" : "off",
-+		want_init_on_free() ? "on" : "off");
-+	if (want_init_on_free())
-+		pr_info("mem auto-init: clearing system memory may take some time...\n");
-+}
-+
- /*
-  * Set up kernel memory allocators
-  */
-@@ -530,6 +553,7 @@ static void __init mm_init(void)
- 	 * bigger than MAX_ORDER unless SPARSEMEM.
- 	 */
- 	page_ext_init_flatmem();
-+	report_meminit();
- 	mem_init();
- 	kmem_cache_init();
- 	pgtable_init();
--- 
-2.22.0.410.gd8fdbe21b5-goog
+Gesch=C3=A4ftsf=C3=BChrer: Paul Manicle, Halimah DeLaine Prado
+Registergericht und -nummer: Hamburg, HRB 86891
+Sitz der Gesellschaft: Hamburg
 
