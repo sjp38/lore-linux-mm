@@ -2,175 +2,163 @@ Return-Path: <SRS0=EPqI=U2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 42CDBC48BD6
-	for <linux-mm@archiver.kernel.org>; Thu, 27 Jun 2019 15:35:43 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7966DC48BD6
+	for <linux-mm@archiver.kernel.org>; Thu, 27 Jun 2019 15:53:31 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id F193620659
-	for <linux-mm@archiver.kernel.org>; Thu, 27 Jun 2019 15:35:42 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F193620659
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.com
+	by mail.kernel.org (Postfix) with ESMTP id 269EA2063F
+	for <linux-mm@archiver.kernel.org>; Thu, 27 Jun 2019 15:53:30 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=chromium.org header.i=@chromium.org header.b="XycpPK1C"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 269EA2063F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chromium.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8B5C76B0006; Thu, 27 Jun 2019 11:35:42 -0400 (EDT)
+	id 8CF226B0003; Thu, 27 Jun 2019 11:53:30 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 865898E0003; Thu, 27 Jun 2019 11:35:42 -0400 (EDT)
+	id 87EDC8E0003; Thu, 27 Jun 2019 11:53:30 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 77AEE8E0002; Thu, 27 Jun 2019 11:35:42 -0400 (EDT)
+	id 746B18E0002; Thu, 27 Jun 2019 11:53:30 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 2C0856B0006
-	for <linux-mm@kvack.org>; Thu, 27 Jun 2019 11:35:42 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id i44so6280813eda.3
-        for <linux-mm@kvack.org>; Thu, 27 Jun 2019 08:35:42 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 400936B0003
+	for <linux-mm@kvack.org>; Thu, 27 Jun 2019 11:53:30 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id c17so1812899pfb.21
+        for <linux-mm@kvack.org>; Thu, 27 Jun 2019 08:53:30 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=6jxBP+iKalMuiz1S8ncMayXUZuReUQzPRBalKlw+MpI=;
-        b=Acrr9x/hY5aOpkRMVOFhSK0hhMrYRQIaOnVznQNWLYNHTdJaJxtk6Q0zKyN6rBu/ni
-         zRXyJsDNLuV5wVtIyUBPxcZBq/1CQKtxhUisV1FtExh+bSRKWaNMEkLe3NxNf2lIQKZa
-         jCnOpWv9q92kA11z3hTK+ELqm7I54qRLV6Po8860YigZI268lZMMGpmKjWXMpI+6LyxR
-         HnnAx7pHwzhf73CZyJPBVmBM0Y90a+eoFEHRQG2E0omn2KOVwMIcKvkzP2qf5ScYfaBf
-         nm8rP4Wwl62SGr7nR4icsHd4iTqQWg4HbQHjHSosHu/6FWt8Gn5iHeaXGEXDJaZTVDJP
-         PvVQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jgross@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=jgross@suse.com
-X-Gm-Message-State: APjAAAXumA/KL18XYBtdSaapV0r173Z0beYWnw3F14R+VbYb0h5hfQah
-	oFlQ0brQOKdY5ItXN9D3DgP41cM60eARMuM9Kr4zVjhUNIjh22Sb2NiXIaIoNirGbTfNXNwV7nA
-	Z+OodaYakcxBwkfI9MhKGu+nVWmcX8DfjPZskzLqHnCEe8fywUgCN9L9iA6x4XHgaDQ==
-X-Received: by 2002:a17:906:3497:: with SMTP id g23mr3881494ejb.70.1561649741741;
-        Thu, 27 Jun 2019 08:35:41 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxZyDvvMORUejIHqZYhjYVsokhSFqBS3dQEYp02ByJ76Cdt7vCHUQ6lJ002XSvpVZaaPIZO
-X-Received: by 2002:a17:906:3497:: with SMTP id g23mr3881404ejb.70.1561649740794;
-        Thu, 27 Jun 2019 08:35:40 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561649740; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to;
+        bh=IB0Lsqqxe3Za1ul6K6Pq1h1ixj5UtpjRHMz7zj1j1YM=;
+        b=B9FY3s8ODwzL09GxlmMTQlA41zl5hRK/dfog4D+MKiE5+O5qV+nBHcxdE7fp0fSyRL
+         hZGAJLTl8XanVWh1sK6183bYWhAeGgR+HhhTWV/lcWYFceVojGyKmytEXkzM5lzv3afU
+         S7PGPUIjH+PzgGWNv528I8XkaNzZrKceNzggJrZrAu1XmbqxfaCE1nimtvjAE144y10f
+         khXI3scWoDG0H2beBO1txIrOF5YF0rMZ/nISJFbUHvu6/ShBhmADMu4YAAqsmPEVNIEm
+         UPLbd2Y8vceEeNXejF6QOXuSmFpcXj2fthxR2t/tvqnFtnzbWA6sL6sL/tI3W8Bp003L
+         malw==
+X-Gm-Message-State: APjAAAXUB0ViSHRxeiYKHcoxvOVa8XyAAHQ6/PrXdOfmR3jxOvrh20Vs
+	RamWCTRk8j/A/uoHlaneAcvYFFytQKwxU26nx39YE3czIvYAlJZp+Py3Ch8mYjMi33g6l6D1m/8
+	FCWusJ5bxVmPH8bl30vXUILEFosqTdMaA7K2bPa+bPoSJkyMpOr3uI7O1N61DxoSSTQ==
+X-Received: by 2002:a17:902:684:: with SMTP id 4mr5513067plh.138.1561650809793;
+        Thu, 27 Jun 2019 08:53:29 -0700 (PDT)
+X-Received: by 2002:a17:902:684:: with SMTP id 4mr5512978plh.138.1561650808825;
+        Thu, 27 Jun 2019 08:53:28 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561650808; cv=none;
         d=google.com; s=arc-20160816;
-        b=g26SN95hia2gfv56lCd0uvmCjP4+tRAeu8ZFCU1MRPNP4jGmx2XXz4vA1xKsAeubTo
-         wAqjZrMWXcDJau3jhxuSeL2DL/c/Lc1sM2yod7q30XbmBDxyKRWD3uRan0w1iPxF8Sdq
-         vmAoINAxzW/FhCct7jfajnKAmOXpc+tlSomIh+e7fppiPb8GW3O4nHFe6FqTl9kOcgmN
-         OqIhE98/o6CzL/ST7Tc8+DoPj7RAuY4lj17DSYqgPq6FQ4lG4h/GtQO1AAYRqhc3fuRu
-         hEJAfn+mUeIzOegTuhw9P1zosB7dzYTCMgR/m1QX5V0wTpY290YgvoU9HDuuYADX/dJN
-         XYfw==
+        b=T2rMLv+P0xyLP9J/5dLmiYFrq+G09cTVoxRkqCicTyxL/wHhy8/BSvPEERSwyiH40x
+         5QgaOXa/VTloT/imWveLIWYA3yWewHdIv1LZYRZiRO0pI8nuId/+jHaFpalNjfNZ0jHZ
+         abD7Vq/W/V6odgKyRhbeG4pZJXFQOkUGRPdmEz86gogTFFGSgl1IZ/xZVqZAFOrsWJhT
+         fGeWb0PLx/Mu8h2f4GczXLqeK0FHZ9ceZafVoa75Qj5KqDteffK1ChObHyr44CHgdHUK
+         Up2J0O2NhjxG+Wq0hoRdoQIYa0EGmKjEZisS+jmjsGEgXTJatV+EIOT6jkyJ7zxpC6J1
+         lRyg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=6jxBP+iKalMuiz1S8ncMayXUZuReUQzPRBalKlw+MpI=;
-        b=HlDwclN5qM3SgqC6bp3yz9OzakcHS3JpofCiWYUjpFtW8xF7Pgy4sWHrCELKixYqqV
-         ImKOEusQnBcth9damyknVi4zH9foBDmZ/YA0j8BedCiF63a1zumOsQPLVsvYa1vOynfx
-         /EDfOUCE0NjD7UpAFoS+avoWv9ooo/8+ZPfduvWp6YvFU89DRmKrfGKk7lXwknpy/x0u
-         bJkSmOIzCTP0ederf3c3xn+xcH4EPsityIYclqr7eKQnErWqu62tWxgJ9AfWVbjeY68c
-         2wXR8QjuXypfnEt01dIBR4L4AlBiW1w0ZkrtsYP3zCGV58gmDhiIArh84G/i49SrGLnc
-         2Ieg==
+        h=in-reply-to:content-disposition:mime-version:references:message-id
+         :subject:cc:to:from:date:dkim-signature;
+        bh=IB0Lsqqxe3Za1ul6K6Pq1h1ixj5UtpjRHMz7zj1j1YM=;
+        b=pG39eamkj5hqPGKiQFTZHHCMk71JgZcKJEfTHrqjhZglNk4Q/bcW6frO113gW9aqJ2
+         dxyQbGpRB93Rj2CF0gbFPWfUIVZZ1oyY1DbtkHITcT8/lb+BL7L44b/7wx2zmhq86H2b
+         M/JfK4hce6QCoLWrhWqGAKbv/05lyrRkVPF5GfYpeCzfvN1e9WAaA1D2FT4z6mnGzlGW
+         3uqpeaG7eUnXrpR8reUpXDTXZzOzJ760Ei/MtlEp5EZ55BWaMh+HxZVVhsO8eyaKuELA
+         stMw4arnRvJaoS3RLPAOmv4JNwBgK2l7CqVUzY1af62xLct7ClcI8P8xwo82LRuw45Jb
+         ynTw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jgross@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=jgross@suse.com
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id d48si2255493eda.214.2019.06.27.08.35.40
+       dkim=pass header.i=@chromium.org header.s=google header.b=XycpPK1C;
+       spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id cu14sor6049975pjb.27.2019.06.27.08.53.28
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 27 Jun 2019 08:35:40 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jgross@suse.com designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (Google Transport Security);
+        Thu, 27 Jun 2019 08:53:28 -0700 (PDT)
+Received-SPF: pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jgross@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=jgross@suse.com
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 50103ABC4;
-	Thu, 27 Jun 2019 15:35:40 +0000 (UTC)
-Subject: Re: [Xen-devel] [PATCH] mm: fix regression with deferred struct page
- init
-To: xen-devel@lists.xenproject.org, linux-mm@kvack.org,
- linux-kernel@vger.kernel.org
-Cc: Alexander Duyck <alexander.h.duyck@linux.intel.com>,
- Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>,
- pasha.tatashin@soleen.com, rppt@linux.ibm.com
-References: <20190620160821.4210-1-jgross@suse.com>
- <79797c17-58d6-b09c-3aad-73e375a7f208@suse.com>
-From: Juergen Gross <jgross@suse.com>
-Message-ID: <a9b02905-8b4f-48ac-8638-8ff99bd3b0e6@suse.com>
-Date: Thu, 27 Jun 2019 17:35:39 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.0
+       dkim=pass header.i=@chromium.org header.s=google header.b=XycpPK1C;
+       spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=chromium.org; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to;
+        bh=IB0Lsqqxe3Za1ul6K6Pq1h1ixj5UtpjRHMz7zj1j1YM=;
+        b=XycpPK1CI5JMKTpIwljMWofpXCFUnjuMSbTxvj3tSwU+N6pesTsiguF6tXP2YOv/RK
+         0SV0Pc++fA7yQT4iMOsmk5EaUwppi2O0YX2prmAFBNEKsX2gYDmiJ5Ry7PHA3n5rVq31
+         kbGxWSIcc0U2t95vEEjJWLkRnyUBsNj/UQg2A=
+X-Google-Smtp-Source: APXvYqzyQ8VhCfbGmiP5t6hfyuPjbzTLkDZwV/chxJREBt2vwgawqo7kscJ4w+dvLcJmYjU/wFp1aw==
+X-Received: by 2002:a17:90a:ad41:: with SMTP id w1mr6845225pjv.52.1561650808121;
+        Thu, 27 Jun 2019 08:53:28 -0700 (PDT)
+Received: from www.outflux.net (smtp.outflux.net. [198.145.64.163])
+        by smtp.gmail.com with ESMTPSA id b8sm8013075pff.20.2019.06.27.08.53.27
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 27 Jun 2019 08:53:27 -0700 (PDT)
+Date: Thu, 27 Jun 2019 08:53:26 -0700
+From: Kees Cook <keescook@chromium.org>
+To: Andy Lutomirski <luto@kernel.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>,
+	Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org,
+	Florian Weimer <fweimer@redhat.com>, Jann Horn <jannh@google.com>
+Subject: Re: [PATCH] mm/gup: Remove some BUG_ONs from get_gate_page()
+Message-ID: <201906270853.CB6DA7BC8@keescook>
+References: <a1d9f4efb75b9d464e59fd6af00104b21c58f6f7.1561610798.git.luto@kernel.org>
 MIME-Version: 1.0
-In-Reply-To: <79797c17-58d6-b09c-3aad-73e375a7f208@suse.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: de-DE
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <a1d9f4efb75b9d464e59fd6af00104b21c58f6f7.1561610798.git.luto@kernel.org>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 25.06.19 10:25, Juergen Gross wrote:
-> Gentle ping.
+On Wed, Jun 26, 2019 at 09:47:30PM -0700, Andy Lutomirski wrote:
+> If we end up without a PGD or PUD entry backing the gate area, don't
+> BUG -- just fail gracefully.
 > 
-> I'd really like to have that in 5.2 in order to avoid the regression
-> introduced with 5.2-rc1.
+> It's not entirely implausible that this could happen some day on
+> x86.  It doesn't right now even with an execute-only emulated
+> vsyscall page because the fixmap shares the PUD, but the core mm
+> code shouldn't rely on that particular detail to avoid OOPSing.
+> 
+> Signed-off-by: Andy Lutomirski <luto@kernel.org>
 
-Adding some maintainers directly...
+Reviewed-by: Kees Cook <keescook@chromium.org>
 
+-Kees
 
-Juergen
+> ---
+>  mm/gup.c | 9 ++++++---
+>  1 file changed, 6 insertions(+), 3 deletions(-)
+> 
+> diff --git a/mm/gup.c b/mm/gup.c
+> index ddde097cf9e4..9883b598fd6f 100644
+> --- a/mm/gup.c
+> +++ b/mm/gup.c
+> @@ -585,11 +585,14 @@ static int get_gate_page(struct mm_struct *mm, unsigned long address,
+>  		pgd = pgd_offset_k(address);
+>  	else
+>  		pgd = pgd_offset_gate(mm, address);
+> -	BUG_ON(pgd_none(*pgd));
+> +	if (pgd_none(*pgd))
+> +		return -EFAULT;
+>  	p4d = p4d_offset(pgd, address);
+> -	BUG_ON(p4d_none(*p4d));
+> +	if (p4d_none(*p4d))
+> +		return -EFAULT;
+>  	pud = pud_offset(p4d, address);
+> -	BUG_ON(pud_none(*pud));
+> +	if (pud_none(*pud))
+> +		return -EFAULT;
+>  	pmd = pmd_offset(pud, address);
+>  	if (!pmd_present(*pmd))
+>  		return -EFAULT;
+> -- 
+> 2.21.0
+> 
 
-> 
-> 
-> Juergen
-> 
-> On 20.06.19 18:08, Juergen Gross wrote:
->> Commit 0e56acae4b4dd4a9 ("mm: initialize MAX_ORDER_NR_PAGES at a time
->> instead of doing larger sections") is causing a regression on some
->> systems when the kernel is booted as Xen dom0.
->>
->> The system will just hang in early boot.
->>
->> Reason is an endless loop in get_page_from_freelist() in case the first
->> zone looked at has no free memory. deferred_grow_zone() is always
->> returning true due to the following code snipplet:
->>
->>    /* If the zone is empty somebody else may have cleared out the zone */
->>    if (!deferred_init_mem_pfn_range_in_zone(&i, zone, &spfn, &epfn,
->>                                             first_deferred_pfn)) {
->>            pgdat->first_deferred_pfn = ULONG_MAX;
->>            pgdat_resize_unlock(pgdat, &flags);
->>            return true;
->>    }
->>
->> This in turn results in the loop as get_page_from_freelist() is
->> assuming forward progress can be made by doing some more struct page
->> initialization.
->>
->> Cc: Alexander Duyck <alexander.h.duyck@linux.intel.com>
->> Fixes: 0e56acae4b4dd4a9 ("mm: initialize MAX_ORDER_NR_PAGES at a time 
->> instead of doing larger sections")
->> Suggested-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
->> Signed-off-by: Juergen Gross <jgross@suse.com>
->> ---
->>   mm/page_alloc.c | 3 ++-
->>   1 file changed, 2 insertions(+), 1 deletion(-)
->>
->> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->> index d66bc8abe0af..8e3bc949ebcc 100644
->> --- a/mm/page_alloc.c
->> +++ b/mm/page_alloc.c
->> @@ -1826,7 +1826,8 @@ deferred_grow_zone(struct zone *zone, unsigned 
->> int order)
->>                            first_deferred_pfn)) {
->>           pgdat->first_deferred_pfn = ULONG_MAX;
->>           pgdat_resize_unlock(pgdat, &flags);
->> -        return true;
->> +        /* Retry only once. */
->> +        return first_deferred_pfn != ULONG_MAX;
->>       }
->>       /*
->>
-> 
-> 
-> _______________________________________________
-> Xen-devel mailing list
-> Xen-devel@lists.xenproject.org
-> https://lists.xenproject.org/mailman/listinfo/xen-devel
+-- 
+Kees Cook
 
