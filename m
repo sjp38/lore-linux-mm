@@ -2,165 +2,130 @@ Return-Path: <SRS0=EPqI=U2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9FA9BC48BD9
-	for <linux-mm@archiver.kernel.org>; Thu, 27 Jun 2019 16:44:09 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BFFD1C48BD9
+	for <linux-mm@archiver.kernel.org>; Thu, 27 Jun 2019 16:53:53 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5A63B2147A
-	for <linux-mm@archiver.kernel.org>; Thu, 27 Jun 2019 16:44:09 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="geImDuUK"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5A63B2147A
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
+	by mail.kernel.org (Postfix) with ESMTP id 70B622133F
+	for <linux-mm@archiver.kernel.org>; Thu, 27 Jun 2019 16:53:53 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 70B622133F
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D8BE16B0003; Thu, 27 Jun 2019 12:44:08 -0400 (EDT)
+	id DD2E96B0003; Thu, 27 Jun 2019 12:53:52 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D3DCC8E0003; Thu, 27 Jun 2019 12:44:08 -0400 (EDT)
+	id D84048E0003; Thu, 27 Jun 2019 12:53:52 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C05A18E0002; Thu, 27 Jun 2019 12:44:08 -0400 (EDT)
+	id C71CE8E0002; Thu, 27 Jun 2019 12:53:52 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 9F7C76B0003
-	for <linux-mm@kvack.org>; Thu, 27 Jun 2019 12:44:08 -0400 (EDT)
-Received: by mail-qt1-f200.google.com with SMTP id y19so3021433qtm.0
-        for <linux-mm@kvack.org>; Thu, 27 Jun 2019 09:44:08 -0700 (PDT)
+Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 8CF306B0003
+	for <linux-mm@kvack.org>; Thu, 27 Jun 2019 12:53:52 -0400 (EDT)
+Received: by mail-wm1-f70.google.com with SMTP id f189so892076wme.5
+        for <linux-mm@kvack.org>; Thu, 27 Jun 2019 09:53:52 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:message-id:subject:from:to:cc
-         :date:in-reply-to:references:mime-version:content-transfer-encoding;
-        bh=w2BmOlVfFwkgLZSQC1w8R20Owu5XUJlV/BzLLVY15k0=;
-        b=AoG9ks5sntIwdqiMz7Ztl0vN05CCDvE2rVii8/jO/venLsCtryMf4oUMPQA8bfHOEX
-         qnAgkp43WusXbcap8jgIxZ5ofbpraIZJ/+hxP9p+MTl3gwZ7Osmmtj5SpvVZ8D8r3L+m
-         h2ft+Z7th57pTw3/pVz2cdQfHKAy5Nt7ZXSLPb0woVA1biKRMyIvM3Kfq/1DPSCIOtGb
-         zp7VUWAzhujhEx0iiOgRmLnOIk3ekwyYalB8pK0LUB8U0OEVkKgHYL9Q3v+g1hEYEzVg
-         IXKJdvP6ybH49fhfWHoZmz1zg/zF8xkqKb1cRxjGWV7CSHQbk9i3urqD2XsxwJYw8RaL
-         2Qog==
-X-Gm-Message-State: APjAAAVCgvyg26neEHknUc1KtIIKzi2yMriRSc7Y+R2BmMT1dbD6fSTz
-	4DJJMqUQ878vIKtvczOwHBmRJgvkURt6l8tWk0sCVK5KMi8yIurwUGRjL1BLthNyx2vI+kV1jgI
-	R+mjEu/6GSkUqd/aqIuVBVACGP3mMBA16I/1rQHEj1Lc6c4Z30T41m1I64WZWuRYclg==
-X-Received: by 2002:a37:98c3:: with SMTP id a186mr4375910qke.498.1561653848393;
-        Thu, 27 Jun 2019 09:44:08 -0700 (PDT)
-X-Received: by 2002:a37:98c3:: with SMTP id a186mr4375866qke.498.1561653847838;
-        Thu, 27 Jun 2019 09:44:07 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561653847; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=xU/whg26sgUfF+Dq0O8Uj10RgLXDjiGOor0v0A6Ejxg=;
+        b=i/e6DVL4vRVo8g3LTEAsYL0JZz4Eid5F2li1j4NW7QohY+haVcAv+Uz8MZIdUIUsCO
+         dXhrxp2BueEfzg0NS8eipCHn3DPHy4C++I1m6yxKRO2QNl2uS469FqLwDCu9Ji2BaqPS
+         E2b+TLNN7lAirHWuJYUOjTtf2oGYaOHK11bS+9/OtOgTC5n4/h+Mp6/wK2WB0+s6k3Ba
+         hG2cRKuxtGcb9xqwpUETDSaQqNDvUF1WFDtKslcOZvy77XfpKJBwE7oDguizDRln3/qu
+         w2QLOkfGxsqyqJE8XzmCSEeBeIKmVGyhGeiRWjpCxddc4zNFAqvM4gA4Cnvxf2q2igpm
+         FmiQ==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 213.95.11.210 is neither permitted nor denied by best guess record for domain of hch@lst.de) smtp.mailfrom=hch@lst.de
+X-Gm-Message-State: APjAAAXdp6dBVZTS0UtIwsaz1+JGD1gla8y3zUq0YLin8jmSUWaHg9YY
+	6U+HBhGUHfqkljxnDBF2JrA5v6/HUu/FD4aNyz5dRftdlGT/i5MQGx7Z6QLCTBZh2QUO9XDCW7W
+	Bo6Kn5imnX2hhF71YFRIcf4XjzOVG2ayq6jAoyMZtgsU/g7MKZ1uZVj0SgPZipZc=
+X-Received: by 2002:a7b:c202:: with SMTP id x2mr3684289wmi.49.1561654432089;
+        Thu, 27 Jun 2019 09:53:52 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxhMq5CIupk5EC2lECby9Guaz6cVOApAD7y2Is6IHUdnBbfngBomRyxjEu+L+EUVGsNA0SZ
+X-Received: by 2002:a7b:c202:: with SMTP id x2mr3684254wmi.49.1561654431439;
+        Thu, 27 Jun 2019 09:53:51 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561654431; cv=none;
         d=google.com; s=arc-20160816;
-        b=iCj0eSQWpxZ3+97gqaYUV6RNUXl57oCTECIPuafw/9GnVCc6BunCaHp5mCNYPggLIq
-         p6qVgUCtA8EJ1HfLFc1I5xue8x8zD8p7Km/Y+18PtUbsoZHC/R21QKb/l7Xi3lqZy8xM
-         Rl0UAY4eNsF752gzHV17YWHc5RiQNtdlvk6oLHNZZG7oy2Ao7KtoFlvu9g9idxhpEsGQ
-         /iJObjDA/8tZNZyKHLg9crOT9/XCLEVvQyYMRt5Dpi/Ns6Lnt0hnE72IO4hhaZJfsKGP
-         hhDnxPWaFf25oTW5qx+sVtU5QApyuyEfzYxYDb6cvJQ4dSjJd4WnctntlUDoipX1hNWI
-         jnhQ==
+        b=0YS/7NH8P0IRKlLRgAdcFK7oFfqnOsgTZCJVDgIJI4ycItBZ/+LYUM7yUxgEcUXY0K
+         lGencDGcQ18rDiMH1UmIyEkLIeRW3exJGIKIsnfsbDTEQTqay6qUH+hp73bx8QZs68vj
+         KUCJqp71MRRDY1CJBC8V72rhms0S1G3gD6kUmguUDDsmttPAxA98Xhsp1d7CtGnwmx5+
+         KpoWfmm7DcS7/KYkS/UWxbrDCqcDBxJTe3Ktdq8BQ/ZlyxK9EspKWiJhHJ2AcYIggZWw
+         XO8iSg9v98rbI9UaZNlB01a554ukiEkeBA3LGxpEAGb0wFuSR6n/4PU74RSt9SjWur2r
+         3dow==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to:date
-         :cc:to:from:subject:message-id:dkim-signature;
-        bh=w2BmOlVfFwkgLZSQC1w8R20Owu5XUJlV/BzLLVY15k0=;
-        b=adqS9M0913IbXDSZ0F8RSv0P3Vc8h4FOsHzcYtXUxVTEff4dr9+bNcKvLUiSO7jdf3
-         fCkaV3x0htcM+iPOkue0Epd6fmKi7NVe7hGZTrlX41gN4eIdq2RSTMosQ0e1x3GyUHOC
-         XQ7Dd1vjuyIGmRB6UiqVVEDlb93Kt5NIX5GuVahzpt+undN0CbMM7oaiaNOe8C2kwnRU
-         XDFM3bMcAhbuj7SZt2H4utXKXeQraYJu53s8IyyLJow4DJ009+yKh8Kn5/FAzWIaOaHY
-         CAfH/+H6cM0hm3L33kjNYOM5ddJn9eOhkqoEcFPEN7/eaNUjs03oRKSaMM7t0VHSd/X+
-         4qKQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=xU/whg26sgUfF+Dq0O8Uj10RgLXDjiGOor0v0A6Ejxg=;
+        b=IRAPnG0JbVImndRbd9qNVYgi/3PZra/sPxyvOVREcsaQp25BHMfo3D47G2urmpJwoc
+         tXQfGcPC0PgFXzEIU7HU8Seu3lbJfYYvTerFu464cTZvzNvHeSvY8rMs9kzcU0MPcywB
+         QyPsXMOhYS+WdrQ1BMrryFuFowWcp7BqdkpD9K8gbhOQI4TBJnGdslqihiheQpHjiF4q
+         eM7jhFwL4VGRhy3KzPc/1insl15zbkuUn0R+BT02frKNW85ujcPqjicCTDZaBUFSARl8
+         cAL6hfVFIjFxezXV0YOPP8obd9328UPTPavPEYcm876/w44rNR/rXgcmc6CycqD/F8aa
+         32JQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b=geImDuUK;
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i6sor1767647qkc.47.2019.06.27.09.44.07
+       spf=neutral (google.com: 213.95.11.210 is neither permitted nor denied by best guess record for domain of hch@lst.de) smtp.mailfrom=hch@lst.de
+Received: from newverein.lst.de ([213.95.11.210])
+        by mx.google.com with ESMTPS id b3si116265wmd.52.2019.06.27.09.53.51
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 27 Jun 2019 09:44:07 -0700 (PDT)
-Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b=geImDuUK;
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=lca.pw; s=google;
-        h=message-id:subject:from:to:cc:date:in-reply-to:references
-         :mime-version:content-transfer-encoding;
-        bh=w2BmOlVfFwkgLZSQC1w8R20Owu5XUJlV/BzLLVY15k0=;
-        b=geImDuUK3nzgaKe4rg1kDwEEwfUdwvxURv/YU09DF9oFlWMFeIGMHkNFo+kl+Mvfgp
-         3NO8fx+rX1WWjRagnKQMMJXa7pZt+GIeetEEtjHApswcGjlKc+gxyDCKrAzKCe62curu
-         iW3bdzqK2OkSXzpeeJRpbwoTJgCh3u5Amano2cgvcnouqqXbiCvwAk366bvP8GkEgKAY
-         1XYyATJFDwDk7/D++da1v3yBiCjkjfVbCeUbPEqBas4q+imDOQ1Gp08PVnQ835YTl4e3
-         KVWwxlF+N5UDMQYpCb+jztRgrugr2eMpS3t4p9tRj4wNkE5ZVAADfT74LIah+lTkfQlG
-         fWcA==
-X-Google-Smtp-Source: APXvYqy634RuieC+fz/WCPxqpxiLBIdyBILOYC+PwsQcQ+t7LBPTDYlzrhZfeWGzOYF9AbMHbkQZYQ==
-X-Received: by 2002:a37:5d07:: with SMTP id r7mr4294931qkb.4.1561653847500;
-        Thu, 27 Jun 2019 09:44:07 -0700 (PDT)
-Received: from dhcp-41-57.bos.redhat.com (nat-pool-bos-t.redhat.com. [66.187.233.206])
-        by smtp.gmail.com with ESMTPSA id f3sm1180627qkb.58.2019.06.27.09.44.05
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 27 Jun 2019 09:44:06 -0700 (PDT)
-Message-ID: <1561653844.5154.87.camel@lca.pw>
-Subject: Re: [PATCH v9 1/2] mm: security: introduce init_on_alloc=1 and
- init_on_free=1 boot options
-From: Qian Cai <cai@lca.pw>
-To: Kees Cook <keescook@chromium.org>
-Cc: Alexander Potapenko <glider@google.com>, Andrew Morton
- <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Masahiro
- Yamada <yamada.masahiro@socionext.com>, Michal Hocko <mhocko@kernel.org>,
- James Morris <jmorris@namei.org>, "Serge E. Hallyn" <serge@hallyn.com>,
- Nick Desaulniers <ndesaulniers@google.com>, Kostya Serebryany
- <kcc@google.com>, Dmitry Vyukov <dvyukov@google.com>, Sandeep Patil
- <sspatil@android.com>, Laura Abbott <labbott@redhat.com>, Randy Dunlap
- <rdunlap@infradead.org>, Jann Horn <jannh@google.com>, Mark Rutland
- <mark.rutland@arm.com>, Marco Elver <elver@google.com>, linux-mm@kvack.org,
- linux-security-module@vger.kernel.org,  kernel-hardening@lists.openwall.com
-Date: Thu, 27 Jun 2019 12:44:04 -0400
-In-Reply-To: <201906270926.02AAEE93@keescook>
-References: <20190627130316.254309-1-glider@google.com>
-	 <20190627130316.254309-2-glider@google.com>
-	 <1561641911.5154.85.camel@lca.pw> <201906270926.02AAEE93@keescook>
-Content-Type: text/plain; charset="UTF-8"
-X-Mailer: Evolution 3.22.6 (3.22.6-10.el7) 
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        Thu, 27 Jun 2019 09:53:51 -0700 (PDT)
+Received-SPF: neutral (google.com: 213.95.11.210 is neither permitted nor denied by best guess record for domain of hch@lst.de) client-ip=213.95.11.210;
+Authentication-Results: mx.google.com;
+       spf=neutral (google.com: 213.95.11.210 is neither permitted nor denied by best guess record for domain of hch@lst.de) smtp.mailfrom=hch@lst.de
+Received: by newverein.lst.de (Postfix, from userid 2407)
+	id 4B57968C4E; Thu, 27 Jun 2019 18:53:49 +0200 (CEST)
+Date: Thu, 27 Jun 2019 18:53:49 +0200
+From: Christoph Hellwig <hch@lst.de>
+To: Jason Gunthorpe <jgg@mellanox.com>
+Cc: Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>,
+	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
+	Ben Skeggs <bskeggs@redhat.com>,
+	"linux-mm@kvack.org" <linux-mm@kvack.org>,
+	"nouveau@lists.freedesktop.org" <nouveau@lists.freedesktop.org>,
+	"dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>,
+	"linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>,
+	"linux-pci@vger.kernel.org" <linux-pci@vger.kernel.org>,
+	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+	Ralph Campbell <rcampbell@nvidia.com>
+Subject: Re: [PATCH 12/25] memremap: add a migrate_to_ram method to struct
+ dev_pagemap_ops
+Message-ID: <20190627165349.GB10652@lst.de>
+References: <20190626122724.13313-1-hch@lst.de> <20190626122724.13313-13-hch@lst.de> <20190627162439.GD9499@mellanox.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190627162439.GD9499@mellanox.com>
+User-Agent: Mutt/1.5.17 (2007-11-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2019-06-27 at 09:29 -0700, Kees Cook wrote:
-> On Thu, Jun 27, 2019 at 09:25:11AM -0400, Qian Cai wrote:
-> > On Thu, 2019-06-27 at 15:03 +0200, Alexander Potapenko wrote:
-> > > +static int __init early_init_on_alloc(char *buf)
-> > > +{
-> > > +	int ret;
-> > > +	bool bool_result;
-> > > +
-> > > +	if (!buf)
-> > > +		return -EINVAL;
-> > > +	ret = kstrtobool(buf, &bool_result);
-> > > +	if (bool_result && IS_ENABLED(CONFIG_PAGE_POISONING))
-> > > +		pr_warn("mem auto-init: CONFIG_PAGE_POISONING is on, will
-> > > take precedence over init_on_alloc\n");
-> > 
-> > I don't like the warning here. It makes people think it is bug that need to
-> > be
-> > fixed, but actually it is just information. People could enable both in a
-> > debug
-> > kernel.
+On Thu, Jun 27, 2019 at 04:29:45PM +0000, Jason Gunthorpe wrote:
+> I'ver heard there are some other use models for fault() here beyond
+> migrate to ram, but we can rename it if we ever see them.
+
+Well, it absolutely needs to migrate to some piece of addressable
+and coherent memory, so ram might be a nice shortcut for that.
+
+> > +static vm_fault_t hmm_devmem_migrate_to_ram(struct vm_fault *vmf)
+> >  {
+> > -	struct hmm_devmem *devmem = page->pgmap->data;
+> > +	struct hmm_devmem *devmem = vmf->page->pgmap->data;
+> >  
+> > -	return devmem->ops->fault(devmem, vma, addr, page, flags, pmdp);
+> > +	return devmem->ops->fault(devmem, vmf->vma, vmf->address, vmf->page,
+> > +			vmf->flags, vmf->pmd);
+> >  }
 > 
-> How would you suggest it be adjusted? Should it be silent, or be
-> switched to pr_info()?
+> Next cycle we should probably rename this fault to migrate_to_ram as
+> well and pass in the vmf..
 
-pr_info() sounds more reasonable to me, so people don't need to guess the
-correct behavior. Ideally, CONFIG_PAGE_POISONING should be  renamed to something
-like CONFIG_INIT_ON_FREE_CHECK, and it only does the checking part if enabled,
-and init_on_free will gain an ability to poison a pattern other than 0.
-
-Also, there might be some rooms to consolidate with SLAB_POSION as well.
-
-> 
-> Also, doesn't this need to check "want_page_poisoning", not just
-> CONFIG_PAGE_POISONING? Perhaps just leave the warning out entirely?
-> 
-
-Yes, only checking CONFIG_PAGE_POISONING is not enough, and need to check
-page_poisoning_enabled().
+That ->fault op goes away entirely in one of the next patches in the
+series.
 
