@@ -2,151 +2,248 @@ Return-Path: <SRS0=EPqI=U2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BDFF0C48BD7
-	for <linux-mm@archiver.kernel.org>; Thu, 27 Jun 2019 15:15:11 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 39264C48BD6
+	for <linux-mm@archiver.kernel.org>; Thu, 27 Jun 2019 15:31:38 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8A27C20B1F
-	for <linux-mm@archiver.kernel.org>; Thu, 27 Jun 2019 15:15:11 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8A27C20B1F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id E2ACE2064A
+	for <linux-mm@archiver.kernel.org>; Thu, 27 Jun 2019 15:31:37 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="ZYF+qGGa"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E2ACE2064A
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0D5226B0003; Thu, 27 Jun 2019 11:15:11 -0400 (EDT)
+	id 70A636B0006; Thu, 27 Jun 2019 11:31:37 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0865A8E0003; Thu, 27 Jun 2019 11:15:11 -0400 (EDT)
+	id 693F58E0003; Thu, 27 Jun 2019 11:31:37 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id EB7B78E0002; Thu, 27 Jun 2019 11:15:10 -0400 (EDT)
+	id 535168E0002; Thu, 27 Jun 2019 11:31:37 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 9AEB16B0003
-	for <linux-mm@kvack.org>; Thu, 27 Jun 2019 11:15:10 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id c27so6248831edn.8
-        for <linux-mm@kvack.org>; Thu, 27 Jun 2019 08:15:10 -0700 (PDT)
+Received: from mail-yw1-f69.google.com (mail-yw1-f69.google.com [209.85.161.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 2CE406B0006
+	for <linux-mm@kvack.org>; Thu, 27 Jun 2019 11:31:37 -0400 (EDT)
+Received: by mail-yw1-f69.google.com with SMTP id p18so3565902ywe.17
+        for <linux-mm@kvack.org>; Thu, 27 Jun 2019 08:31:37 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=7OR3WboDdjwMiZvKMKTbKP7KeumlfsgbRe9s5up+hVc=;
-        b=LTAEbMk5rdMFWeiGHYQTPTgkFBM4gfBg7pAfTU0Z+Cx/1qkN19MHeeU0mW+9DbPH+F
-         DRAci5F3C8tDDyo6ARlydtiNFDI7sGp79UuC7TcYJlgUof3J8QhXENFzS4xL/XFy4NJe
-         pJpaxaGOoFC2djJur26pZqFcj+owpy+57r+ILJjf4889HZLQiNIDy1UsAbdIV5qfudRD
-         JyBchMo9J0uQ9oezQwzLnhKtFbxwmmkgMKWWnMzbjnSFdsi1opRVQF4U5YHK1j1goaKw
-         jzl0LErwKLuPYDmuEf4+2+3tx1hYjpfiABvOVOPBuBD1Qt8bb0m7/hiF7aWGMlDRfhJE
-         uJtg==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAXIUporp4g7rLy4I57GkqrI5++dcICNeLCFMe490EtLNDbbpbYW
-	d4uBfrS0n3KPwvgcKVKZdgWqJqv7OVb4L25nxvMpenPUaLrIAV0aJcTYbURJWKYwAmFluvfRJTf
-	1F9lFZ6n9EMximqmE32Oo4Z9+dVTHr6hiVualg6PVewgeSA33ZIZccu+FpHIZ6dQ=
-X-Received: by 2002:a17:906:3043:: with SMTP id d3mr3698708ejd.93.1561648510145;
-        Thu, 27 Jun 2019 08:15:10 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxQR2SdzhGp1qzi11YsSYxU+LhCZqHK7BWX9KGO7CUCKNJJg19AteBiGNV+frthA2VCLQMR
-X-Received: by 2002:a17:906:3043:: with SMTP id d3mr3698614ejd.93.1561648509221;
-        Thu, 27 Jun 2019 08:15:09 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561648509; cv=none;
+        h=x-gm-message-state:from:to:cc:subject:date:message-id:in-reply-to
+         :references:mime-version:dkim-signature;
+        bh=vDxVQVvJQ3+Sqi/Q2QIRj6FMeyjJ9wfmkbAsVSsgX7w=;
+        b=POBFuEdtdykV1SWLv/ixq3ZDKQxUGS140vGvsCnbq7HqwDCib3aaOHc3159AhWt0MP
+         99pSzE8/LGNNCZKcgPpmyu7/IzS1lXYJeq2KNbTSIMxnzLff8kTHHXg7TwQ+y/jDGVo3
+         lIjO1zxtVUZJRCtdzTQ6K+eCVonUBcGThgmdQdNd+wWyeT5DaEIx3UQ3H9Gc4SlzoNNV
+         Ngto+bToHVKu+ibf2UrQ8SeVnTrHqVizKGP3TcVCrspb07gI9o4QGfrCgSk2VGK/pqIE
+         odz8sdgXhq4ggKK/Fhq1aKhufwQVz5FiWrpTEvD08ovn0luHGns2wy+w3RlFybEd1C0r
+         o3uw==
+X-Gm-Message-State: APjAAAUp1DidxoW2q/A7ST2EVvbz8RfmYfaGm3EUcUUIIk5mmDKT8ZYS
+	72j1He4Q5YHHxXEWUaxAiLeWOYsgC7HFasn8gvvhxQ5YhKPdrNnxJEUZHnk9aeqSRv3I+q/d9yk
+	1SMGEyLnlcNAfHG4fGt9DKpSGtSuDW1h0DABDzyKCN6/1IGDcwm0WtqcrbWOyiiFXRw==
+X-Received: by 2002:a25:bf85:: with SMTP id l5mr3073581ybk.45.1561649496872;
+        Thu, 27 Jun 2019 08:31:36 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzT1daJyP8toefdcpeDgm5LzqXnu9lnLkmGgrW2cYQiSFZoyyKyM9DK+Z/B7eHU6x/E9jkv
+X-Received: by 2002:a25:bf85:: with SMTP id l5mr3073526ybk.45.1561649496081;
+        Thu, 27 Jun 2019 08:31:36 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561649496; cv=none;
         d=google.com; s=arc-20160816;
-        b=CS8x6oz1IGhDQlPpM8Ngkb32vL++WOv2bNQJiv9C1rAgM8cDBzSsLzOsx5GQbZk/vB
-         Fr0arqSCOSn7/Gpsb8o1xA6dcIMDA8NAyJMbvJ+ne/6nhFY7lqyhW4mETKscBMiTlEb9
-         JWng2P1HZrJwSimWTd7tNcyTbVq+uzysEzWpXzK18hu0NlKzErAmvabR7IjNrncRgizl
-         2s7MAix6OC3ltv8tfrJn57eZryv5rTYE8iHFXGFQKdkHM/YT1wQ0PHp6fX3iqSz/jtOo
-         21Yaag3PhWMUpyJ8M4TCkGYRO20R9hApG37JQ9+HjR3UydEr9Bbm/5KzUQ6XbRc073Rf
-         7CvQ==
+        b=bwP8zbr9fIyfzyqln6tKl2J57cKs3po6Bp8IV5pR9cSUDiPCOWqaMrOrfGuhdkLTL7
+         3vruy9wK1a99mq+dwUkPZSphkxe4BVwMAizdxoYthtD1+Z6TWT6oi52FL2XhhPzZhsi3
+         oQtNOzq8mxTVATcx0XWTG/bsKTNVLRHD0AaP/IIuIOaJ5T3RP51omKOmIpyiQcLPvY5o
+         peA15f6ooPm0RDGSJnnMykxvSIfSoV6DrlXHTiK2WT3kkh2rUL8DoF9WpBXqJPCJ1YWj
+         uo3LBvPlmE046+3b3g3iCjYeS2oW5vlGhvtMf0vqdqmlG+7v9N2P/IEtOVp34mOjqUVi
+         B6Nw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=7OR3WboDdjwMiZvKMKTbKP7KeumlfsgbRe9s5up+hVc=;
-        b=zAH9kFG4UMsbgSxjy+I8JduCOQ72iLqcCzIjxQ3A8hG5hBjIbvJRxDArRixNfS0cM+
-         VK+SEh2KLBBgqGN6vkEvzWcWCYRqfnfo7ghENQS/cOEaxwDf/YE823zemk5ObMlgq7uW
-         6QXQ2muR7daaM2MdIayPsoU3UsMbrEumBtkxCEtCtJKKotBP1wJAFUgA7J4TM2qirGqN
-         8NYe2ccbw6iNTEWF/a141rCJqFh7fbl2xG4oIth/B6HHGCN+XszuqJ8q65UqibYpZr/q
-         BDPZ+sbcEwCI6f7qaZMGXD59MycTtElgcjoY9U99czogu9NDlWj8VCpS6MorX++TmoTP
-         AD1w==
+        h=dkim-signature:mime-version:references:in-reply-to:message-id:date
+         :subject:cc:to:from;
+        bh=vDxVQVvJQ3+Sqi/Q2QIRj6FMeyjJ9wfmkbAsVSsgX7w=;
+        b=nv/QB/DbbQKbOBx3jXONbalWPJGpm/0oYBn+ou4p/g9qvVSAnUJTT3spV3zN03vUA7
+         /aRO9mQNpnWFGdBUEWffIk28E8XpdL+OM7dj+HE5fWIuftgTKFFfnsobEWXvzrcAN1Gm
+         AUtknlG4DBAwsnW7IvckKT69gewpc938FeNjD2/ugPSWeHeSaNGXHWpLsIDO3ic0fZih
+         kvPFtDCrzuo6xXDyY1waUWLlkpaJHLK3E2z5DJTX67osKsai1htLQGMpH1uzLR8RhGnL
+         Gu6RJSi6FowF4Ks9djftF3fs4rp9JY2vsaWCQi4n/zMkqS2M0cZSc2QTNWWPQSqozSns
+         0PsQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id d16si2106149ede.18.2019.06.27.08.15.09
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=ZYF+qGGa;
+       spf=pass (google.com: domain of ziy@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=ziy@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com. [216.228.121.143])
+        by mx.google.com with ESMTPS id y4si16826yba.80.2019.06.27.08.31.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 27 Jun 2019 08:15:09 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Thu, 27 Jun 2019 08:31:36 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ziy@nvidia.com designates 216.228.121.143 as permitted sender) client-ip=216.228.121.143;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id A290BABC4;
-	Thu, 27 Jun 2019 15:15:08 +0000 (UTC)
-Date: Thu, 27 Jun 2019 17:15:06 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Waiman Long <longman@redhat.com>
-Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>,
-	David Rientjes <rientjes@google.com>,
-	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Alexander Viro <viro@zeniv.linux.org.uk>,
-	Jonathan Corbet <corbet@lwn.net>,
-	Luis Chamberlain <mcgrof@kernel.org>,
-	Kees Cook <keescook@chromium.org>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	Vladimir Davydov <vdavydov.dev@gmail.com>, linux-mm@kvack.org,
-	linux-doc@vger.kernel.org, linux-fsdevel@vger.kernel.org,
-	cgroups@vger.kernel.org, linux-kernel@vger.kernel.org,
-	Roman Gushchin <guro@fb.com>, Shakeel Butt <shakeelb@google.com>,
-	Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 2/2] mm, slab: Extend vm/drop_caches to shrink kmem slabs
-Message-ID: <20190627151506.GE5303@dhcp22.suse.cz>
-References: <20190624174219.25513-1-longman@redhat.com>
- <20190624174219.25513-3-longman@redhat.com>
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=ZYF+qGGa;
+       spf=pass (google.com: domain of ziy@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=ziy@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate14.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
+	id <B5d14e1540002>; Thu, 27 Jun 2019 08:31:32 -0700
+Received: from hqmail.nvidia.com ([172.20.161.6])
+  by hqpgpgate101.nvidia.com (PGP Universal service);
+  Thu, 27 Jun 2019 08:31:34 -0700
+X-PGP-Universal: processed;
+	by hqpgpgate101.nvidia.com on Thu, 27 Jun 2019 08:31:34 -0700
+Received: from [10.2.163.244] (172.20.13.39) by HQMAIL107.nvidia.com
+ (172.20.187.13) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Thu, 27 Jun
+ 2019 15:31:33 +0000
+From: Zi Yan <ziy@nvidia.com>
+To: Anshuman Khandual <anshuman.khandual@arm.com>
+CC: <linux-mm@kvack.org>, Catalin Marinas <catalin.marinas@arm.com>, Will
+ Deacon <will@kernel.org>, Mark Rutland <mark.rutland@arm.com>, Marc Zyngier
+	<marc.zyngier@arm.com>, Suzuki Poulose <suzuki.poulose@arm.com>,
+	<linux-arm-kernel@lists.infradead.org>, <linux-kernel@vger.kernel.org>
+Subject: Re: [RFC 1/2] arm64/mm: Change THP helpers to comply with generic MM
+ semantics
+Date: Thu, 27 Jun 2019 11:31:31 -0400
+X-Mailer: MailMate (1.12.5r5643)
+Message-ID: <7F685152-7C6C-4E99-99DF-03DDD03D6094@nvidia.com>
+In-Reply-To: <1561639696-16361-2-git-send-email-anshuman.khandual@arm.com>
+References: <1561639696-16361-1-git-send-email-anshuman.khandual@arm.com>
+ <1561639696-16361-2-git-send-email-anshuman.khandual@arm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190624174219.25513-3-longman@redhat.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+X-Originating-IP: [172.20.13.39]
+X-ClientProxiedBy: HQMAIL107.nvidia.com (172.20.187.13) To
+ HQMAIL107.nvidia.com (172.20.187.13)
+Content-Type: multipart/signed;
+	boundary="=_MailMate_B99B95B9-F3F7-4559-91D4-01BCFC794027_=";
+	micalg=pgp-sha512; protocol="application/pgp-signature"
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
+	t=1561649492; bh=vDxVQVvJQ3+Sqi/Q2QIRj6FMeyjJ9wfmkbAsVSsgX7w=;
+	h=X-PGP-Universal:From:To:CC:Subject:Date:X-Mailer:Message-ID:
+	 In-Reply-To:References:MIME-Version:X-Originating-IP:
+	 X-ClientProxiedBy:Content-Type;
+	b=ZYF+qGGah37ytxxKVO/Snol52FyL17Y5EeBAZdecBKuQZZ/ypxmCOma8lPQTFPPbU
+	 SmwaYsAHf6HqDRaSqmByfCgjrFwR5W6v3EA9G0kyqu2sRSR3A247kZkKBOyJd2e9q8
+	 X3l2fk0vzPNx/6HDJLRcV9QqEvI7NtedkdxPV8QykTjddZgM6dgrJg7H5gWPe/4pqN
+	 Rzr2cUvvgMTyPZ+TRFvuEd4/4dH2jdO5G2bJJX5du8ciX7Q0wHRIRthELuNqRGLMc+
+	 u1HSa7SJiKz3fk/1IsEuoICh1HzNqxSG/pg4dsrw1IDg4QGfNHUe2tGZYVrsf2KI+E
+	 0nFCTVBs4M5jQ==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon 24-06-19 13:42:19, Waiman Long wrote:
-> With the slub memory allocator, the numbers of active slab objects
-> reported in /proc/slabinfo are not real because they include objects
-> that are held by the per-cpu slab structures whether they are actually
-> used or not.  The problem gets worse the more CPUs a system have. For
-> instance, looking at the reported number of active task_struct objects,
-> one will wonder where all the missing tasks gone.
-> 
-> I know it is hard and costly to get a real count of active objects.
+--=_MailMate_B99B95B9-F3F7-4559-91D4-01BCFC794027_=
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 
-What exactly is expensive? Why cannot slabinfo reduce the number of
-active objects by per-cpu cached objects?
+On 27 Jun 2019, at 8:48, Anshuman Khandual wrote:
 
-> So
-> I am not advocating for that. Instead, this patch extends the
-> /proc/sys/vm/drop_caches sysctl parameter by using a new bit (bit 3)
-> to shrink all the kmem slabs which will flush out all the slabs in the
-> per-cpu structures and give a more accurate view of how much memory are
-> really used up by the active slab objects. This is a costly operation,
-> of course, but it gives a way to have a clearer picture of the actual
-> number of slab objects used, if the need arises.
+> pmd_present() and pmd_trans_huge() are expected to behave in the follow=
+ing
+> manner during various phases of a given PMD. It is derived from a previ=
+ous
+> detailed discussion on this topic [1] and present THP documentation [2]=
+=2E
+>
+> pmd_present(pmd):
+>
+> - Returns true if pmd refers to system RAM with a valid pmd_page(pmd)
+> - Returns false if pmd does not refer to system RAM - Invalid pmd_page(=
+pmd)
+>
+> pmd_trans_huge(pmd):
+>
+> - Returns true if pmd refers to system RAM and is a trans huge mapping
+>
+> -----------------------------------------------------------------------=
+--
+> |	PMD states	|	pmd_present	|	pmd_trans_huge	|
+> -----------------------------------------------------------------------=
+--
+> |	Mapped		|	Yes		|	Yes		|
+> -----------------------------------------------------------------------=
+--
+> |	Splitting	|	Yes		|	Yes		|
+> -----------------------------------------------------------------------=
+--
+> |	Migration/Swap	|	No		|	No		|
+> -----------------------------------------------------------------------=
+--
+>
+> The problem:
+>
+> PMD is first invalidated with pmdp_invalidate() before it's splitting. =
+This
+> invalidation clears PMD_SECT_VALID as below.
+>
+> PMD Split -> pmdp_invalidate() -> pmd_mknotpresent -> Clears PMD_SECT_V=
+ALID
+>
+> Once PMD_SECT_VALID gets cleared, it results in pmd_present() return fa=
+lse
+> on the PMD entry. It will need another bit apart from PMD_SECT_VALID to=
+ re-
+> affirm pmd_present() as true during the THP split process. To comply wi=
+th
+> above mentioned semantics, pmd_trans_huge() should also check pmd_prese=
+nt()
+> first before testing presence of an actual transparent huge mapping.
+>
+> The solution:
+>
+> Ideally PMD_TYPE_SECT should have been used here instead. But it shares=
+ the
+> bit position with PMD_SECT_VALID which is used for THP invalidation. He=
+nce
+> it will not be there for pmd_present() check after pmdp_invalidate().
+>
+> PTE_SPECIAL never gets used for PMD mapping i.e there is no pmd_special=
+().
+> Hence this bit can be set on the PMD entry during invalidation which ca=
+n
+> help in making pmd_present() return true and in recognizing the fact th=
+at
+> it still points to memory.
+>
+> This bit is transient. During the split is process it will be overridde=
+n
+> by a page table page representing the normal pages in place of erstwhil=
+e
+> huge page. Other pmdp_invalidate() callers always write a fresh PMD val=
+ue
+> on the entry overriding this transient PTE_SPECIAL making it safe. In t=
+he
+> past former pmd_[mk]splitting() functions used PTE_SPECIAL.
+>
+> [1]: https://lkml.org/lkml/2018/10/17/231
 
-drop_caches is a terrible interface. It destroys all the caching and
-people are just too easy in using it to solve any kind of problem they
-think they might have and cause others they might not see immediately.
-I am strongly discouraging anybody - except for some tests which really
-do want to see reproducible results without cache effects - from using
-this interface and therefore I am not really happy to paper over
-something that might be a real problem with yet another mode. If SLUB
-indeed caches too aggressively on large machines then this should be
-fixed.
+Just want to point out that lkml.org link might not be stable.
+This one would be better: https://lore.kernel.org/linux-mm/20181017020930=
+=2EGN30832@redhat.com/
 
--- 
-Michal Hocko
-SUSE Labs
+
+=E2=80=94
+Best Regards,
+Yan Zi
+
+--=_MailMate_B99B95B9-F3F7-4559-91D4-01BCFC794027_=
+Content-Description: OpenPGP digital signature
+Content-Disposition: attachment; filename="signature.asc"
+Content-Type: application/pgp-signature; name="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+
+iQJDBAEBCgAtFiEEh7yFAW3gwjwQ4C9anbJR82th+ooFAl0U4VMPHHppeUBudmlk
+aWEuY29tAAoJEJ2yUfNrYfqKinUQAKM0LtiOpKq090Um2I0uGfI6LhFiYxu0mTu4
+xn54F2sm6WjyH7iXsUexLGkOIwz2wVyY6htmKPWk6uyoP+GtvdFa8x9FGoQrvH0t
+wa3NoM4fFa39jUu74HaUkBYZiRNgGJr5t4M5cAOTJ/um/KsCJRfnKDsIwCcysheF
+tsvGoMZX6zzbwtbYscjvIiGlYQOXFYqdt7T5RFX7p8+k7ZG9/wyjmR3filj5kqFW
+O6sTBHLVeCftBTggC9Qkn1BjC1smHBNiAm/yYG1wyLnZKyjCkVdFq4b/d2QIFS2a
+BdyOPfETSAOYP/+PlmiISqaVgKxYh6pP7w1qUtJjt2Kag29cFboTHVJAnDduO/6P
+JU+KLKKH54Bb82r6naLkEttksDBc+xZ9iPiso1FxyDnfyawo+eIji0luRaKeigxK
+4lDTEqywX/VonL6VAc0pEJ/ZwQMPTIqr726ssWI3x99SwuZphPFjUv+b2z70bQTj
+Ra/rfXGCIlHI0malYTsqyoLJ8z3kkflpyC/QPq5VmKR7dlJp8jSK92u0VkDWm596
+QqI8lXd79EQ8s3DoRJwr5g8MI7mgmn5yGK0/r8XjElxZ+imK92otyJsrzLZTBcba
+JSi1Za+UfoWzZgJZA38HfglnOJoFXikAWnMKVuKF0JvKHCPERZubmBtwFM5SSL9u
+Y+dCDneI
+=jqdz
+-----END PGP SIGNATURE-----
+
+--=_MailMate_B99B95B9-F3F7-4559-91D4-01BCFC794027_=--
 
