@@ -2,204 +2,167 @@ Return-Path: <SRS0=EPqI=U2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 33B03C48BDA
-	for <linux-mm@archiver.kernel.org>; Thu, 27 Jun 2019 00:06:24 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B3EEDC48BD6
+	for <linux-mm@archiver.kernel.org>; Thu, 27 Jun 2019 00:20:21 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E0AAB20815
-	for <linux-mm@archiver.kernel.org>; Thu, 27 Jun 2019 00:06:23 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 73C7620663
+	for <linux-mm@archiver.kernel.org>; Thu, 27 Jun 2019 00:20:21 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=canb.auug.org.au header.i=@canb.auug.org.au header.b="g9H0EqGd"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E0AAB20815
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=canb.auug.org.au
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="P3G+XDC9"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 73C7620663
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 700366B0003; Wed, 26 Jun 2019 20:06:23 -0400 (EDT)
+	id 103346B0003; Wed, 26 Jun 2019 20:20:21 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6BA808E0003; Wed, 26 Jun 2019 20:06:23 -0400 (EDT)
+	id 0B4468E0003; Wed, 26 Jun 2019 20:20:21 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 503748E0002; Wed, 26 Jun 2019 20:06:23 -0400 (EDT)
-X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 13C666B0003
-	for <linux-mm@kvack.org>; Wed, 26 Jun 2019 20:06:23 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id x3so227291pgp.8
-        for <linux-mm@kvack.org>; Wed, 26 Jun 2019 17:06:23 -0700 (PDT)
+	id F0A668E0002; Wed, 26 Jun 2019 20:20:20 -0400 (EDT)
+X-Delivered-To: Linux-mm@kvack.org
+Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
+	by kanga.kvack.org (Postfix) with ESMTP id D1A296B0003
+	for <Linux-mm@kvack.org>; Wed, 26 Jun 2019 20:20:20 -0400 (EDT)
+Received: by mail-io1-f69.google.com with SMTP id j18so540517ioj.4
+        for <Linux-mm@kvack.org>; Wed, 26 Jun 2019 17:20:20 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:in-reply-to:references:mime-version;
-        bh=yvv2xnA6HSsaDM0hNLpCq5cOsPLEOcjtp6Gg5uV6AQ0=;
-        b=Dl03Tjy7oCY415u27Cm6vQRmMXJzlNOjVMWprb65EBIVO8HTiMfhdGTp9QUtoey8oN
-         rjbmk0lEHYaIvyPKGiCZPpujP62sFQi+yoM69lVYc0kljwBeq5J2NNbVqX8jNAmNJ8l0
-         NKfyHyqm6J3IwvNXnE/ZdccQJnz7QUFc/PB22GASb4lCAVHVptN5ifxd2a24CGQo4Ok8
-         kYFnsvJNk6JiuRuMtmSLQjlauMSy6HOfS0UjmLrIH2wy01S1y/xdksKcMk4z8dnQ/x3C
-         9zzgUeYXIHu/tiS69PdEV7+t9Pwz21jtSE6JEKOK0kOiadNcSt9IsSS08HcbObDPaDRS
-         lpiw==
-X-Gm-Message-State: APjAAAVUwuSgbvDOJ1ke86x5iHzvbfS4XZbyfV3kvUxlmAFrtn7yY54m
-	uhEcLiHjuW7mTTzuWSROcZowg416xd3G5MOlvUnD6g5o1I1peqf6AYE4m3YP+Vkg0zCTLbWHRtp
-	uq9m/6AOEmZIKDz2wbLAtIi+I75voYNxfTxKipHIyrnJMXJ6ztIKF1SazbFaNQ1uz0Q==
-X-Received: by 2002:a17:90a:30e4:: with SMTP id h91mr2099520pjb.37.1561593982668;
-        Wed, 26 Jun 2019 17:06:22 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwEvBiXVkwCXmYcLAm9iKyFeWiCxldhFJ07IzVFpV8ZEgcJ8rROemjjboWb34n5tKGl7GpB
-X-Received: by 2002:a17:90a:30e4:: with SMTP id h91mr2099457pjb.37.1561593981929;
-        Wed, 26 Jun 2019 17:06:21 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561593981; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=J0fxw6N73maQ02G9biYfnSH2j9AnglVamO/dzWb0ntQ=;
+        b=QC99NGnopbhO090oB8KSmgNiUATrz7MlJG5j8cTgUkTqZOktvkKI99sanRUSHlZ/uS
+         RnY1jZTq1Xrw5d6KJuNBPkf7WEhGqReH/C+xvf4sQ9eqqVgqRkBeXuGAicG1X3Kal+6l
+         0z6f3ky/4aaGL59SfsHQRjhvi5KriDcFP/g5aNGFV1bzFX0qx8WXxxWSO1bz9e1qO0Me
+         hRnComr/1F2dL1J6adjb8aK+3mwDSJWs92Lj40F/pxWH+nmWtDxg+vmNa2HvdBvH7WGa
+         LU29Fi0K50hIrLcTA7CKaQAvgqkfEyReGApGLfuFbbM/Z3nW23lfuBVOqk3zsawpIEvB
+         pNMQ==
+X-Gm-Message-State: APjAAAUISYyueNVkRCbPCxfOfQZeTi14N/tARLiIy/EMQdMMzse7QgFh
+	c3NA2sXCwcehbJ8A6PzCiDUucdS5fVgTD2z5oL8C0L2A2hTXKhVp2BxGYSLZbMatM8N4nxUtqrF
+	88vZL2UmbXQIChUwGBT54vCEpqlBZEZVujyOgQoO9ItEdpk6ncYA41uAVS8gRm8XJUw==
+X-Received: by 2002:a6b:f607:: with SMTP id n7mr1175456ioh.263.1561594820602;
+        Wed, 26 Jun 2019 17:20:20 -0700 (PDT)
+X-Received: by 2002:a6b:f607:: with SMTP id n7mr1175417ioh.263.1561594820007;
+        Wed, 26 Jun 2019 17:20:20 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561594820; cv=none;
         d=google.com; s=arc-20160816;
-        b=y8iiNLsnZE1GH0J6kZX+dhR57YxGL3OxHnNduZ57L6ZryMoLq86nkzCBV00u4Nbbhx
-         LJsQ/aMdXX53sjsWs2TT4iRE6pOxVFof2+i9w3mva4CnG/DVkcJ06a4nXfkEFVd7wlcy
-         ZEjP4OXwp3wE2UrrgjBnXmXtPOQeJ03xzHwlLd0AoRhFHJjWmlWmUIHPF8LNTh5H1qeM
-         nCjqybhetEH9PC6qHC0jOtmrMfC/643JlyPjzTHEpfMoEOoSCkFQiYrxjw+tyfKcK98J
-         anZfLav5vRRmgG7neFA+dhaMIWEMKm7J/QLQDgj9ewXWZR/c0/4R8e2kWQk7Vlo+tjtF
-         3aVg==
+        b=jRySSA7QJMkO8XvguC0xOX1Ym50hydjgn1P8i8UaGJhBYZJFy0xUcA6NMlZY9TLx5x
+         HDAqVax84cxpOjooAPw9mXq4cMbDtfvtRnx24nYzqYJwzmY6Ec+2lEYCq9eang+0IWcQ
+         IhiqqGswoanP1subW2GaEbpV2wGr32a0n9THYEDOjMTHFVQsdJj3qUIWYhmcjZYszsft
+         Qm67MyUeWBLCOT31JV22ZAKGCBZVzEjmo3Q+/oLirVsbbbciGRqnVrmvRZ1D0HyYyQS+
+         Y3oMTh07TS/beQQCTXFMsW8dKgBmNViccA5QDh9EUOl+q/Uj/zCpxLweY8ZTbogaUHFs
+         TEzQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:references:in-reply-to:message-id:subject:cc:to:from
-         :date:dkim-signature;
-        bh=yvv2xnA6HSsaDM0hNLpCq5cOsPLEOcjtp6Gg5uV6AQ0=;
-        b=HHMGEpLBUfaq2cAW7uIDEWxP2ov/160rZppYRt3Ri6c0Sn1UEC0ix+p3U+AP9BHbTZ
-         xv2UZ8grmR3B1uKIE+6zyDy2EErFQSl/rXHIi8dJ8O7GKRqxnd6yNFpIVtu9QkdvCRFt
-         POw5LEi1TrJ3F2rzbiiWcVlDteSsxbQ7O4bZMrbrslNSTSx88Xp3/lJqJ9ElzooF7Dl9
-         NbY3YftYkMbbSPJfGsysEtH2rC9nUhDr55IT2kobdFP6fzYaXAVsdcBFhPWJWnx48VTQ
-         Fd7zb/9luTvI/ZdanBPuHWOIJlfC0U1bDUGXTxC2/UwQ0haGwI/yG6OYnbSfUqthD4G0
-         D4bQ==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=J0fxw6N73maQ02G9biYfnSH2j9AnglVamO/dzWb0ntQ=;
+        b=BvFSEvX3TKvXTk4s7nIWFP4DQz6JrsN/8Lk3Xljutb0BA/YEXbR1YHQdNHzkUwjbDR
+         ozgfcpPDtq1dZ/0rBQbk+T86NATlPjtnLNzTFlcWfdHL/2hBibjPGF1BkG/+mif00mAo
+         LTX8Z/f/8skc/aCdYGodcEy2v6EIA8abgtxjg9Y0O4Q9alSi5dz2pHllzRGYWmD6z7n1
+         A6FxYAv97jQY8j4xtSZfuHvSAjlXC628ACCtuzvevS7A0dr4ZpsTR3mB2+L9gb7Uuc7b
+         nss4lM8NBM1ObnW+ZSvGcAD/z9uCT/Eg2fDXv/AvkKnGCJsM3bPrQPDWvgHY7uaesYlV
+         1LzQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@canb.auug.org.au header.s=201702 header.b=g9H0EqGd;
-       spf=pass (google.com: domain of sfr@canb.auug.org.au designates 203.11.71.1 as permitted sender) smtp.mailfrom=sfr@canb.auug.org.au
-Received: from ozlabs.org (ozlabs.org. [203.11.71.1])
-        by mx.google.com with ESMTPS id y3si478836pgi.125.2019.06.26.17.06.21
-        for <linux-mm@kvack.org>
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Wed, 26 Jun 2019 17:06:21 -0700 (PDT)
-Received-SPF: pass (google.com: domain of sfr@canb.auug.org.au designates 203.11.71.1 as permitted sender) client-ip=203.11.71.1;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=P3G+XDC9;
+       spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id n6sor345023ioj.24.2019.06.26.17.20.19
+        for <Linux-mm@kvack.org>
+        (Google Transport Security);
+        Wed, 26 Jun 2019 17:20:20 -0700 (PDT)
+Received-SPF: pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@canb.auug.org.au header.s=201702 header.b=g9H0EqGd;
-       spf=pass (google.com: domain of sfr@canb.auug.org.au designates 203.11.71.1 as permitted sender) smtp.mailfrom=sfr@canb.auug.org.au
-Received: from authenticated.ozlabs.org (localhost [127.0.0.1])
-	(using TLSv1.3 with cipher TLS_AES_256_GCM_SHA384 (256/256 bits)
-	 key-exchange ECDHE (P-256) server-signature RSA-PSS (4096 bits) server-digest SHA256)
-	(No client certificate requested)
-	by mail.ozlabs.org (Postfix) with ESMTPSA id 45Z0YP74Bsz9s3l;
-	Thu, 27 Jun 2019 10:06:17 +1000 (AEST)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=canb.auug.org.au;
-	s=201702; t=1561593978;
-	bh=8Hr8+8sV64MiYrtvdI2lrD9HaUyy8PmtsfdtCacMw54=;
-	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
-	b=g9H0EqGdNbqlbtj25nvoH/11hrDm8DuMaOp1WI2LIIcnmMWaYtU7IDhdzf63mWfUi
-	 ol8nRp003otS79GiD1mz9pfHW9SYHi3ndgpmfqmIom1GKo6YfExsGeJet7CdAxlst1
-	 d4jYVioAs9+LNVT8/+zGe17hND8oy9RK9Dp3LI124Qgkjbj5CD+UuWerqnY5wnxZUT
-	 4b/BFhZvU464RccRBcYJ7lOjjTWMNoSKec3cK7S++SCAWsOq45UdHKwwRijv3mLgpA
-	 IqvHH2J76vNfh2Jt23VRpL/IiYb/CQBVft3fZm6oXSh4kKzbCzYiZhAkco0w2mowg9
-	 FMfDj5RvPZK9w==
-Date: Thu, 27 Jun 2019 10:06:17 +1000
-From: Stephen Rothwell <sfr@canb.auug.org.au>
-To: Anshuman Khandual <anshuman.khandual@arm.com>
-Cc: linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>,
- Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>,
- "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>, Nicholas Piggin
- <npiggin@gmail.com>, Andrew Morton <akpm@linux-foundation.org>,
- linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org,
- linux-next@vger.kernel.org
-Subject: Re: [PATCH] powerpc/64s/radix: Define arch_ioremap_p4d_supported()
-Message-ID: <20190627100617.74c74e79@canb.auug.org.au>
-In-Reply-To: <1561555260-17335-1-git-send-email-anshuman.khandual@arm.com>
-References: <1561555260-17335-1-git-send-email-anshuman.khandual@arm.com>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=P3G+XDC9;
+       spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=J0fxw6N73maQ02G9biYfnSH2j9AnglVamO/dzWb0ntQ=;
+        b=P3G+XDC9VgTBzI6prnBC/uoupIscWeaFkykn0frPLnMoX27cY2wFBV4KE7fIl3B+5J
+         0Fvi+As/bWtZj6GcKHwonh2Z/Gor1tPnxU6kd00O5xdUATX/7HvAI+TVp/lbRJUmGhBk
+         vKmKNwNm9oLF9QFkwzhC/uTg8G6BG5naJs+h6NSi9EQCdelKoxb4dkW1luyMdMDL/eeU
+         TqGCAZVJw8jRExmpDzTalZhG9hyKFvPVn9+MPtVAphy7aWsuBc50dlugLXzefc5TrD8C
+         8h9it1TEvX7GNchKEq+QDfj/IT9DTWPDC7HvV36wmOD4SOTQRBRuW1Wneijl89RM0HzN
+         n6DQ==
+X-Google-Smtp-Source: APXvYqzZUD3KYaX5KnFZWHBBrVKwteLRfw/EGBDdzcHQz8rb2VLtjI8X4yhzXDL2yWbtb851BY9X/DPvVjlSOBVxMIg=
+X-Received: by 2002:a6b:6f06:: with SMTP id k6mr1220728ioc.32.1561594819720;
+ Wed, 26 Jun 2019 17:20:19 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha256;
- boundary="Sig_/n9_h8L+fKQmZXfOCydxkhZu"; protocol="application/pgp-signature"
+References: <1561554600-5274-1-git-send-email-kernelfans@gmail.com> <20190626161537.ae9fcca4f727c12b2a44b471@linux-foundation.org>
+In-Reply-To: <20190626161537.ae9fcca4f727c12b2a44b471@linux-foundation.org>
+From: Pingfan Liu <kernelfans@gmail.com>
+Date: Thu, 27 Jun 2019 08:20:07 +0800
+Message-ID: <CAFgQCTubW0GsYmJUfitd=B_a0JhiyFXHXx9sGzq-AWDP2hg+nA@mail.gmail.com>
+Subject: Re: [PATCHv4] mm/gup: speed up check_and_migrate_cma_pages() on huge page
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linux-mm@kvack.org, Ira Weiny <ira.weiny@intel.com>, 
+	Mike Rapoport <rppt@linux.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, 
+	Thomas Gleixner <tglx@linutronix.de>, John Hubbard <jhubbard@nvidia.com>, 
+	"Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>, Christoph Hellwig <hch@lst.de>, 
+	Keith Busch <keith.busch@intel.com>, Mike Kravetz <mike.kravetz@oracle.com>, 
+	LKML <Linux-kernel@vger.kernel.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---Sig_/n9_h8L+fKQmZXfOCydxkhZu
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: quoted-printable
-
-Hi Anshuman,
-
-On Wed, 26 Jun 2019 18:51:00 +0530 Anshuman Khandual <anshuman.khandual@arm=
-.com> wrote:
+On Thu, Jun 27, 2019 at 7:15 AM Andrew Morton <akpm@linux-foundation.org> wrote:
 >
-> Recent core ioremap changes require HAVE_ARCH_HUGE_VMAP subscribing archs
-> provide arch_ioremap_p4d_supported() failing which will result in a build
-> failure like the following.
->=20
-> ld: lib/ioremap.o: in function `.ioremap_huge_init':
-> ioremap.c:(.init.text+0x3c): undefined reference to
-> `.arch_ioremap_p4d_supported'
->=20
-> This defines a stub implementation for arch_ioremap_p4d_supported() keepi=
-ng
-> it disabled for now to fix the build problem.
->=20
-> Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-> Cc: Paul Mackerras <paulus@samba.org>
-> Cc: Michael Ellerman <mpe@ellerman.id.au>
-> Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-> Cc: Nicholas Piggin <npiggin@gmail.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Stephen Rothwell <sfr@canb.auug.org.au>
-> Cc: linuxppc-dev@lists.ozlabs.org
-> Cc: linux-kernel@vger.kernel.org
-> Cc: linux-next@vger.kernel.org
->=20
-> Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
-> ---
-> This has been just build tested and fixes the problem reported earlier.
->=20
->  arch/powerpc/mm/book3s64/radix_pgtable.c | 5 +++++
->  1 file changed, 5 insertions(+)
->=20
-> diff --git a/arch/powerpc/mm/book3s64/radix_pgtable.c b/arch/powerpc/mm/b=
-ook3s64/radix_pgtable.c
-> index 8904aa1..c81da88 100644
-> --- a/arch/powerpc/mm/book3s64/radix_pgtable.c
-> +++ b/arch/powerpc/mm/book3s64/radix_pgtable.c
-> @@ -1124,6 +1124,11 @@ void radix__ptep_modify_prot_commit(struct vm_area=
-_struct *vma,
->  	set_pte_at(mm, addr, ptep, pte);
->  }
-> =20
-> +int __init arch_ioremap_p4d_supported(void)
-> +{
-> +	return 0;
-> +}
-> +
->  int __init arch_ioremap_pud_supported(void)
->  {
->  	/* HPT does not cope with large pages in the vmalloc area */
-> --=20
-> 2.7.4
->=20
+> On Wed, 26 Jun 2019 21:10:00 +0800 Pingfan Liu <kernelfans@gmail.com> wrote:
+>
+> > Both hugetlb and thp locate on the same migration type of pageblock, since
+> > they are allocated from a free_list[]. Based on this fact, it is enough to
+> > check on a single subpage to decide the migration type of the whole huge
+> > page. By this way, it saves (2M/4K - 1) times loop for pmd_huge on x86,
+> > similar on other archs.
+> >
+> > Furthermore, when executing isolate_huge_page(), it avoid taking global
+> > hugetlb_lock many times, and meanless remove/add to the local link list
+> > cma_page_list.
+> >
+> > ...
+> >
+> > --- a/mm/gup.c
+> > +++ b/mm/gup.c
+> > @@ -1342,19 +1342,22 @@ static long check_and_migrate_cma_pages(struct task_struct *tsk,
+> >       LIST_HEAD(cma_page_list);
+> >
+> >  check_again:
+> > -     for (i = 0; i < nr_pages; i++) {
+> > +     for (i = 0; i < nr_pages;) {
+> > +
+> > +             struct page *head = compound_head(pages[i]);
+> > +             long step = 1;
+> > +
+> > +             if (PageCompound(head))
+>
+> I suspect this would work correctly if the PageCompound test was simply
+> removed.  Not that I'm really suggesting that it be removed - dunno.
+Yes, you are right. compound_order() can safely run on normal page,
+which means we can drop the check PageCompound().
 
-I will add that as a merge resolution patch for the akpm-current tree
-merge today.
+>
+> > +                     step = (1 << compound_order(head)) - (pages[i] - head);
+>
+> I don't understand this statement.  Why does the position of this page
+> in the pages[] array affect anything?  There's an assumption about the
+> contents of the skipped pages, I assume.
+Because gup may start from a tail page.
+>
+> Could we please get a comment in here whcih fully explains the logic
+> and any assumptions?
+Sure, I will.
 
---=20
-Cheers,
-Stephen Rothwell
-
---Sig_/n9_h8L+fKQmZXfOCydxkhZu
-Content-Type: application/pgp-signature
-Content-Description: OpenPGP digital signature
-
------BEGIN PGP SIGNATURE-----
-
-iQEzBAEBCAAdFiEENIC96giZ81tWdLgKAVBC80lX0GwFAl0UCHkACgkQAVBC80lX
-0GzSRwf7BzDnZme1lz1V4QMONN1IuVY+pZX1QXKrRyb02gfpevX+bps5fVXU900w
-Ba2QoMMkdVL042M4+W390SZxydX+BTcEfgxSgEFxQNKNv+3qolu6YKdQGszWhl5y
-8I6VTUln4K3U+5QrEsx2GOfr+TP1ktGlrDQRvn58tkfr0GBy8eu5VvKMM+3zyh/L
-iYqND4uA2ufFY550R3KI9uCh2y7nbaOIm6GWqIiBmwEQBiRctcL1EQMuKqQii938
-bFS8SbP7WHkdRGB9L6AMACbjEPGLPwWodrMd0oA1yhcfYz38wkIJPVrI1cTmltS0
-jmhRFG6gblzMWAbvnlBmbS3Zrs33bg==
-=UR4X
------END PGP SIGNATURE-----
-
---Sig_/n9_h8L+fKQmZXfOCydxkhZu--
+Thanks,
+  Pingfan
+>
 
