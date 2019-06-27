@@ -2,232 +2,169 @@ Return-Path: <SRS0=EPqI=U2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4FEE2C48BD7
-	for <linux-mm@archiver.kernel.org>; Thu, 27 Jun 2019 16:07:12 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id EE636C48BD7
+	for <linux-mm@archiver.kernel.org>; Thu, 27 Jun 2019 16:18:25 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 068EB20659
-	for <linux-mm@archiver.kernel.org>; Thu, 27 Jun 2019 16:07:11 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id A1B6220659
+	for <linux-mm@archiver.kernel.org>; Thu, 27 Jun 2019 16:18:25 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=chromium.org header.i=@chromium.org header.b="ZM5jrqkf"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 068EB20659
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chromium.org
+	dkim=pass (1024-bit key) header.d=Mellanox.com header.i=@Mellanox.com header.b="J2dMlcNP"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A1B6220659
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mellanox.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 911E98E0003; Thu, 27 Jun 2019 12:07:11 -0400 (EDT)
+	id 2A3B18E0005; Thu, 27 Jun 2019 12:18:25 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8C3B98E0002; Thu, 27 Jun 2019 12:07:11 -0400 (EDT)
+	id 252258E0002; Thu, 27 Jun 2019 12:18:25 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 765628E0003; Thu, 27 Jun 2019 12:07:11 -0400 (EDT)
+	id 11AB18E0005; Thu, 27 Jun 2019 12:18:25 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 3C7358E0002
-	for <linux-mm@kvack.org>; Thu, 27 Jun 2019 12:07:11 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id i26so1832961pfo.22
-        for <linux-mm@kvack.org>; Thu, 27 Jun 2019 09:07:11 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id B7F4B8E0002
+	for <linux-mm@kvack.org>; Thu, 27 Jun 2019 12:18:24 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id b21so6345502edt.18
+        for <linux-mm@kvack.org>; Thu, 27 Jun 2019 09:18:24 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to;
-        bh=YubArmml1h3da19oo14hDKUh4iUk2iId9IFXcb+lgfE=;
-        b=eiK6ANImVfuo7uMWHcGEreAMtQ3xDFJ4ZQFKfvKgB2aEd5eZnYbFELGZLLdmo+gAIt
-         RG0r10Qd2X5AhS5KnipyQiGqDLzQ4B17qgK3B27snDU6zrUZjKBcQYDSvxjr9hJFYd0P
-         N5Z70W3Zx7rh3zF51PWDWKVhbII8wQLBc86pfCsCRDiEkyuX3yWmHAphjQhVfl4Z8APZ
-         eS9sX/ob1KA+AkT/CRX3bf07XyBil4/fqeR6tigXbRHm168i5EECbuL9yUE9jrcwZasG
-         iXCxT4v1nr6Usi6Vt7vEwTUlmwCdUxHTi+YbRoXww0HBU8qHOE4hm+fY/dDxYVnMBb+h
-         glAw==
-X-Gm-Message-State: APjAAAVhZnWeVsIxzOnDiCdWMXYeRmhwQGbWVIv0ISizP6TWKB+eB67Z
-	nxtV0OtUXwR88eNse80KdxtW9x5dPOVyFHBZvPkya4DaDOgrxJwj64tjg3vDO1DF0ZzYEAMAvbY
-	y0GIabSG4sbNuyZvyNCMpegIoi1IVwoCHKyglLYT9RNelAYans/6jUbYcWgjaKleiZA==
-X-Received: by 2002:a17:90a:cb81:: with SMTP id a1mr6756875pju.81.1561651630888;
-        Thu, 27 Jun 2019 09:07:10 -0700 (PDT)
-X-Received: by 2002:a17:90a:cb81:: with SMTP id a1mr6756806pju.81.1561651630177;
-        Thu, 27 Jun 2019 09:07:10 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561651630; cv=none;
-        d=google.com; s=arc-20160816;
-        b=u503gfRL5v2oAPalLrg3lU2HjqGGXogealqyZKqgGAw9+Wts0mb0EKQz5CY+UnD5u8
-         szcj1nC6jgjI7gDD+ZeR8zGmb4aYGySuFABBFKuVXNlbwhNai5ZshXJyDpza7jTkf7y6
-         LDQx2ph6CFrrtbf2sHWOPZYXXRjlABXtWJq6/fsnAsTgVM2I6qh7MLOCyN0M86YC+7uE
-         4+g7udi/9FjkWgUKtcd0xz1sX5lxSLDJ+EYD49nUb/qx2Vbd0rgzU3aZ3XeTOtlMjZ6q
-         KIIGmK19u3WpCQN74MPfRt5SlVM7cvvQG7n34FPm6m+h3uPv0rgU0Ub2to+2Uycc5tCR
-         QhHA==
-ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=in-reply-to:content-disposition:mime-version:references:message-id
-         :subject:cc:to:from:date:dkim-signature;
-        bh=YubArmml1h3da19oo14hDKUh4iUk2iId9IFXcb+lgfE=;
-        b=uFDNnrdkebgfgqN8Arr72BjgMjo+XIVEovBGTGJEe4eMkDkmUBhmUkJc4ENOGmULfG
-         jx10d7ZdSD4FzAREPmYd2fYwr24WR8eGNxFyE59vRp32VYaGH6GrFr8PcAeGE5U6GbU4
-         F9v2yDge0xb13EJZ4fOd7+rvuxTzjb1NJ6lrWZVZMWpKpn0sMZDyTsZOL47VJYK8ZKtB
-         9GDKcr+OHA7REhXNOdxme3dMTkkLeXsQZEm3OYXzzChJUUXFV/QRcHwF64zecnsJeUmn
-         Bov7/0fXh/koh9mAA0eZ1sX3R2aamNFsZA09XjnH4SflLnif1EmP2cv1cT5H5unhRCov
-         WnAA==
-ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@chromium.org header.s=google header.b=ZM5jrqkf;
-       spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g6sor2958822pll.17.2019.06.27.09.07.10
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
+         :thread-index:date:message-id:references:in-reply-to:accept-language
+         :content-language:content-id:content-transfer-encoding:mime-version;
+        bh=UQKJZidBThddtQhWQZohKcjkCp3iYRBt7c0S6siQ09M=;
+        b=j2Q37yOGwB48qDAi2+33he6MfAsvc8n7rVivcxIf667eTSQOFvSaqdPMQ5UB6w6ejh
+         5b8L+k3zSmWIhCqFFndDZzZh5b/BEaH7yACt+UryJ7r3nAsRKRFnve2tqZ0q4JgBFeC+
+         N6Owr6pp9DBxfr04Ge1YAF9zcg0V4Z4zq2ctTSbwIm6RHbqGnbeIPibHneDG9li4WG8D
+         8NRwO+GHRtwmkdG1sOEJvIsoI6v0ZmMao+d7z4bc/MeLOFn4/+MGq8ubZ1sKUuowjX5/
+         K64XhzpEtHBVsenbD8n7/63OLolFRs7rfPycG0Y7i+7gTBsgU3+Tjbij26TRXznpKdZv
+         VrMw==
+X-Gm-Message-State: APjAAAXZpWsgMZxB4h80HW1wj07Z07XYvW1dOwz4XgaVRYQiGIgOqbK7
+	KfBrCBN1eJ+I3NUyiaiQb6vQ7ELyQevkqcr4mgfcy45mVzwtkDDcYUVaXSvSooPjJGRTusoyrIg
+	OEKNJS1jDOkMlYEPMO8NGMaaJfrwjNSPtvtuYx3z3Dm8XKnzEIWoEs/LGq3J9Tavh0Q==
+X-Received: by 2002:aa7:da03:: with SMTP id r3mr5385237eds.130.1561652304223;
+        Thu, 27 Jun 2019 09:18:24 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwI+imzDn3uJhhTCo6WTzUfpjym1dd4Bv+79FJOu7oF4cvgHPo3zbHzpzEnOewllQcKD3mV
+X-Received: by 2002:aa7:da03:: with SMTP id r3mr5385171eds.130.1561652303596;
+        Thu, 27 Jun 2019 09:18:23 -0700 (PDT)
+Received: from EUR03-AM5-obe.outbound.protection.outlook.com (mail-eopbgr30058.outbound.protection.outlook.com. [40.107.3.58])
+        by mx.google.com with ESMTPS id m20si1839286ejb.67.2019.06.27.09.18.23
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 27 Jun 2019 09:07:10 -0700 (PDT)
-Received-SPF: pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 27 Jun 2019 09:18:23 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jgg@mellanox.com designates 40.107.3.58 as permitted sender) client-ip=40.107.3.58;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@chromium.org header.s=google header.b=ZM5jrqkf;
-       spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=chromium.org; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to;
-        bh=YubArmml1h3da19oo14hDKUh4iUk2iId9IFXcb+lgfE=;
-        b=ZM5jrqkf1YPQbShg55KDMRK1AN3BPBhV1rfjC02j8tBiDqKSXL/oWs7V6cvjIBQTns
-         uLwb7Xo2dWd0Jxc2Y8eQwBFXKoFJM7ycdsQnAwlvl1hiwA5fYeI5fJKCqY80nLPYmovI
-         JpC6AI+aU7O+uTMLz8MZXgL42KaRt7ZabJkNM=
-X-Google-Smtp-Source: APXvYqxIq0TpaZ0zSQZtZhkI/74V37DVi1HouI3w6I5BzO0yXzYiL7aJZqJNRqs/ejob+/YzW1mf5g==
-X-Received: by 2002:a17:902:4222:: with SMTP id g31mr5760668pld.41.1561651629814;
-        Thu, 27 Jun 2019 09:07:09 -0700 (PDT)
-Received: from www.outflux.net (smtp.outflux.net. [198.145.64.163])
-        by smtp.gmail.com with ESMTPSA id f10sm3514357pfd.151.2019.06.27.09.07.08
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 27 Jun 2019 09:07:08 -0700 (PDT)
-Date: Thu, 27 Jun 2019 09:07:08 -0700
-From: Kees Cook <keescook@chromium.org>
-To: Marco Elver <elver@google.com>
-Cc: linux-kernel@vger.kernel.org, Andrey Ryabinin <aryabinin@virtuozzo.com>,
-	Dmitry Vyukov <dvyukov@google.com>,
-	Alexander Potapenko <glider@google.com>,
-	Andrey Konovalov <andreyknvl@google.com>,
-	Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>,
-	David Rientjes <rientjes@google.com>,
-	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Mark Rutland <mark.rutland@arm.com>, kasan-dev@googlegroups.com,
-	linux-mm@kvack.org
-Subject: Re: [PATCH v4 5/5] mm/kasan: Add object validation in ksize()
-Message-ID: <201906270906.9EE619600@keescook>
-References: <20190627094445.216365-1-elver@google.com>
- <20190627094445.216365-6-elver@google.com>
+       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b=J2dMlcNP;
+       arc=fail (signature failed);
+       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.3.58 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
+ARC-Seal: i=1; a=rsa-sha256; s=testarcselector01; d=microsoft.com; cv=none;
+ b=LBJCwUQhZNZ7JO6Lm19Nly1Wj8bCpXKqTCKdgBXsd6H55hzx7W1wAb6hUJJrD5FqcHqpTPQWmGOjeeJB8iX/pkbU1eeUm2bF+4gSiCpHD3NQDYjzq9HHS7zfgVocvCuAlQZQxkhvFkyt3jKqK1xJXCcqBX6vSIItewtdUWpzMPc=
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=microsoft.com;
+ s=testarcselector01;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=UQKJZidBThddtQhWQZohKcjkCp3iYRBt7c0S6siQ09M=;
+ b=UtnblwRey3svlmUCbu+2ebcVAuSz5M+zsn+H8ORaEAtxvjgk96dUT6WBtbwkfbuiBC3bcUK96/X+QfQh7GO/4zgdibmsu0eYLFCKZzvsQlth1qResb22s9dFROK5zbAkTX5ZOcpgmeXJbziLc3phdsi3SLaNm0i00WScr2FO9xE=
+ARC-Authentication-Results: i=1; test.office365.com
+ 1;spf=none;dmarc=none;dkim=none;arc=none
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=Mellanox.com;
+ s=selector2;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=UQKJZidBThddtQhWQZohKcjkCp3iYRBt7c0S6siQ09M=;
+ b=J2dMlcNPZlD5N3vpQW1JjZMZcMPSA86ZsmMs/EA5ArN364tGhM/lbJBxFeL8QjH9sUmtmFktOVRL7mywOKEaFOcd259xase/Xs5EwItur4p4WBEUMAcCj0JbdS9MN5foY/pEt0x+MnDGkFVMwyd7bcVx8mwkr8hnhSOMGkaySa4=
+Received: from VI1PR05MB4141.eurprd05.prod.outlook.com (10.171.182.144) by
+ VI1PR05MB5886.eurprd05.prod.outlook.com (20.178.125.203) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.2008.16; Thu, 27 Jun 2019 16:18:22 +0000
+Received: from VI1PR05MB4141.eurprd05.prod.outlook.com
+ ([fe80::f5d8:df9:731:682e]) by VI1PR05MB4141.eurprd05.prod.outlook.com
+ ([fe80::f5d8:df9:731:682e%5]) with mapi id 15.20.2008.014; Thu, 27 Jun 2019
+ 16:18:22 +0000
+From: Jason Gunthorpe <jgg@mellanox.com>
+To: Christoph Hellwig <hch@lst.de>
+CC: Dan Williams <dan.j.williams@intel.com>,
+	=?iso-8859-1?Q?J=E9r=F4me_Glisse?= <jglisse@redhat.com>, Ben Skeggs
+	<bskeggs@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>,
+	"nouveau@lists.freedesktop.org" <nouveau@lists.freedesktop.org>,
+	"dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>,
+	"linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>,
+	"linux-pci@vger.kernel.org" <linux-pci@vger.kernel.org>,
+	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, John Hubbard
+	<jhubbard@nvidia.com>, Michal Hocko <mhocko@suse.com>
+Subject: Re: [PATCH 03/25] mm: remove hmm_devmem_add_resource
+Thread-Topic: [PATCH 03/25] mm: remove hmm_devmem_add_resource
+Thread-Index: AQHVLBqRvJE5RWoAFEuwP/I4qHQ7paavr6GA
+Date: Thu, 27 Jun 2019 16:18:22 +0000
+Message-ID: <20190627161813.GB9499@mellanox.com>
+References: <20190626122724.13313-1-hch@lst.de>
+ <20190626122724.13313-4-hch@lst.de>
+In-Reply-To: <20190626122724.13313-4-hch@lst.de>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+x-clientproxiedby: BYAPR02CA0011.namprd02.prod.outlook.com
+ (2603:10b6:a02:ee::24) To VI1PR05MB4141.eurprd05.prod.outlook.com
+ (2603:10a6:803:4d::16)
+authentication-results: spf=none (sender IP is )
+ smtp.mailfrom=jgg@mellanox.com; 
+x-ms-exchange-messagesentrepresentingtype: 1
+x-originating-ip: [12.199.206.50]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: 9c526e6d-f839-4214-2861-08d6fb1b12e9
+x-ms-office365-filtering-ht: Tenant
+x-microsoft-antispam:
+ BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(4618075)(2017052603328)(7193020);SRVR:VI1PR05MB5886;
+x-ms-traffictypediagnostic: VI1PR05MB5886:
+x-microsoft-antispam-prvs:
+ <VI1PR05MB5886C35E617535FD2443239DCFFD0@VI1PR05MB5886.eurprd05.prod.outlook.com>
+x-ms-oob-tlc-oobclassifiers: OLM:6430;
+x-forefront-prvs: 008184426E
+x-forefront-antispam-report:
+ SFV:NSPM;SFS:(10009020)(136003)(366004)(346002)(396003)(376002)(39860400002)(199004)(189003)(6436002)(66556008)(81166006)(99286004)(2616005)(3846002)(8936002)(6512007)(33656002)(6246003)(68736007)(4326008)(102836004)(53936002)(4744005)(8676002)(6486002)(73956011)(86362001)(81156014)(66946007)(478600001)(5660300002)(36756003)(54906003)(1076003)(186003)(66446008)(25786009)(66066001)(316002)(229853002)(71190400001)(76176011)(6116002)(26005)(66476007)(476003)(2906002)(7736002)(446003)(386003)(52116002)(14454004)(6916009)(256004)(305945005)(486006)(64756008)(11346002)(6506007)(7416002)(71200400001);DIR:OUT;SFP:1101;SCL:1;SRVR:VI1PR05MB5886;H:VI1PR05MB4141.eurprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
+received-spf: None (protection.outlook.com: mellanox.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info:
+ MPZH6fxej22oS7mLYEZmxFyn20waja4eRFeHmir8gtV1hjF9WJIgHwtjY4C36d2npItR/CWyxfgPjCQ+e19S8i/WruQpqNIHjrH8CZ+IYxP/SAf5mBH7mWcVbuKjO5vst38yOem1FSeiQc+UM2HMfjmCGzZa1IsRZcLs0/bJZFvSDMd7v8/irZB5vT9QtJv1uBJ3h7xdhz/QMy1Uw26YL0jRvCcMQ/atQgGDIJsmelkfWdS/PbSyMm+AYLLH079WJ+KZtdpsYfSGGYocok7klunoms3nZiojM8Wl2c8TBBunzsbCb3Y4kJbM5C/sD1C0N8RqfQHigF8REGgBv/QvoepFXUnYnPM6uoUomO356Lzf/kFxS5R31l4fpw9RbxA78tBT/LQENWHD6dP3CjqH5nHlGfE0H/4aTEuIRyx7Vjo=
+Content-Type: text/plain; charset="iso-8859-1"
+Content-ID: <0E26856B4495E64E8EFED3F814341B4B@eurprd05.prod.outlook.com>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190627094445.216365-6-elver@google.com>
+X-OriginatorOrg: Mellanox.com
+X-MS-Exchange-CrossTenant-Network-Message-Id: 9c526e6d-f839-4214-2861-08d6fb1b12e9
+X-MS-Exchange-CrossTenant-originalarrivaltime: 27 Jun 2019 16:18:22.2670
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: a652971c-7d2e-4d9b-a6a4-d149256f461b
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-CrossTenant-userprincipalname: jgg@mellanox.com
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: VI1PR05MB5886
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jun 27, 2019 at 11:44:45AM +0200, Marco Elver wrote:
-> ksize() has been unconditionally unpoisoning the whole shadow memory region
-> associated with an allocation. This can lead to various undetected bugs,
-> for example, double-kzfree().
-> 
-> Specifically, kzfree() uses ksize() to determine the actual allocation
-> size, and subsequently zeroes the memory. Since ksize() used to just
-> unpoison the whole shadow memory region, no invalid free was detected.
-> 
-> This patch addresses this as follows:
-> 
-> 1. Add a check in ksize(), and only then unpoison the memory region.
-> 
-> 2. Preserve kasan_unpoison_slab() semantics by explicitly unpoisoning
->    the shadow memory region using the size obtained from __ksize().
-> 
-> Tested:
-> 1. With SLAB allocator: a) normal boot without warnings; b) verified the
->    added double-kzfree() is detected.
-> 2. With SLUB allocator: a) normal boot without warnings; b) verified the
->    added double-kzfree() is detected.
-> 
-> Bugzilla: https://bugzilla.kernel.org/show_bug.cgi?id=199359
-> Signed-off-by: Marco Elver <elver@google.com>
-
-Acked-by: Kees Cook <keescook@chromium.org>
-
--Kees
-
-> Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>
-> Cc: Dmitry Vyukov <dvyukov@google.com>
-> Cc: Alexander Potapenko <glider@google.com>
-> Cc: Andrey Konovalov <andreyknvl@google.com>
-> Cc: Christoph Lameter <cl@linux.com>
-> Cc: Pekka Enberg <penberg@kernel.org>
-> Cc: David Rientjes <rientjes@google.com>
-> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Mark Rutland <mark.rutland@arm.com>
-> Cc: Kees Cook <keescook@chromium.org>
-> Cc: kasan-dev@googlegroups.com
-> Cc: linux-kernel@vger.kernel.org
-> Cc: linux-mm@kvack.org
+On Wed, Jun 26, 2019 at 02:27:02PM +0200, Christoph Hellwig wrote:
+> This function has never been used since it was first added to the kernel
+> more than a year and a half ago, and if we ever grow a consumer of the
+> MEMORY_DEVICE_PUBLIC infrastructure it can easily use devm_memremap_pages
+> directly.
+>=20
+> Signed-off-by: Christoph Hellwig <hch@lst.de>
+> Reviewed-by: Jason Gunthorpe <jgg@mellanox.com>
+> Reviewed-by: John Hubbard <jhubbard@nvidia.com>
+> Acked-by: Michal Hocko <mhocko@suse.com>
 > ---
-> v4:
-> * Prefer WARN_ON_ONCE() instead of BUG_ON().
-> ---
->  include/linux/kasan.h |  7 +++++--
->  mm/slab_common.c      | 22 +++++++++++++++++++++-
->  2 files changed, 26 insertions(+), 3 deletions(-)
-> 
-> diff --git a/include/linux/kasan.h b/include/linux/kasan.h
-> index b40ea104dd36..cc8a03cc9674 100644
-> --- a/include/linux/kasan.h
-> +++ b/include/linux/kasan.h
-> @@ -76,8 +76,11 @@ void kasan_free_shadow(const struct vm_struct *vm);
->  int kasan_add_zero_shadow(void *start, unsigned long size);
->  void kasan_remove_zero_shadow(void *start, unsigned long size);
->  
-> -size_t ksize(const void *);
-> -static inline void kasan_unpoison_slab(const void *ptr) { ksize(ptr); }
-> +size_t __ksize(const void *);
-> +static inline void kasan_unpoison_slab(const void *ptr)
-> +{
-> +	kasan_unpoison_shadow(ptr, __ksize(ptr));
-> +}
->  size_t kasan_metadata_size(struct kmem_cache *cache);
->  
->  bool kasan_save_enable_multi_shot(void);
-> diff --git a/mm/slab_common.c b/mm/slab_common.c
-> index b7c6a40e436a..a09bb10aa026 100644
-> --- a/mm/slab_common.c
-> +++ b/mm/slab_common.c
-> @@ -1613,7 +1613,27 @@ EXPORT_SYMBOL(kzfree);
->   */
->  size_t ksize(const void *objp)
->  {
-> -	size_t size = __ksize(objp);
-> +	size_t size;
-> +
-> +	if (WARN_ON_ONCE(!objp))
-> +		return 0;
-> +	/*
-> +	 * We need to check that the pointed to object is valid, and only then
-> +	 * unpoison the shadow memory below. We use __kasan_check_read(), to
-> +	 * generate a more useful report at the time ksize() is called (rather
-> +	 * than later where behaviour is undefined due to potential
-> +	 * use-after-free or double-free).
-> +	 *
-> +	 * If the pointed to memory is invalid we return 0, to avoid users of
-> +	 * ksize() writing to and potentially corrupting the memory region.
-> +	 *
-> +	 * We want to perform the check before __ksize(), to avoid potentially
-> +	 * crashing in __ksize() due to accessing invalid metadata.
-> +	 */
-> +	if (unlikely(objp == ZERO_SIZE_PTR) || !__kasan_check_read(objp, 1))
-> +		return 0;
-> +
-> +	size = __ksize(objp);
->  	/*
->  	 * We assume that ksize callers could use whole allocated area,
->  	 * so we need to unpoison this area.
-> -- 
-> 2.22.0.410.gd8fdbe21b5-goog
-> 
+>  include/linux/hmm.h |  3 ---
+>  mm/hmm.c            | 50 ---------------------------------------------
+>  2 files changed, 53 deletions(-)
 
--- 
-Kees Cook
+This should be squashed to the new earlier patch?
+
+Jason
 
