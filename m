@@ -2,158 +2,185 @@ Return-Path: <SRS0=7Cer=U3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=0.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,FSL_HELO_FAKE,HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
-	autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-11.4 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT,USER_IN_DEF_DKIM_WL autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5B4A7C5B57A
-	for <linux-mm@archiver.kernel.org>; Fri, 28 Jun 2019 08:45:03 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 35A21C5B57A
+	for <linux-mm@archiver.kernel.org>; Fri, 28 Jun 2019 09:31:38 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id F0F5E2083B
-	for <linux-mm@archiver.kernel.org>; Fri, 28 Jun 2019 08:45:02 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id E38A120665
+	for <linux-mm@archiver.kernel.org>; Fri, 28 Jun 2019 09:31:37 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=chromium.org header.i=@chromium.org header.b="NJhiRaFT"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F0F5E2083B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chromium.org
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="CR3gJDc6"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E38A120665
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 871DE8E0002; Fri, 28 Jun 2019 04:45:01 -0400 (EDT)
+	id 7B2B96B0003; Fri, 28 Jun 2019 05:31:37 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 821FE6B0006; Fri, 28 Jun 2019 04:45:01 -0400 (EDT)
+	id 7630F8E0003; Fri, 28 Jun 2019 05:31:37 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 739328E0002; Fri, 28 Jun 2019 04:45:01 -0400 (EDT)
+	id 679FC8E0002; Fri, 28 Jun 2019 05:31:37 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 3FC426B0003
-	for <linux-mm@kvack.org>; Fri, 28 Jun 2019 04:45:01 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id 30so2840230pgk.16
-        for <linux-mm@kvack.org>; Fri, 28 Jun 2019 01:45:01 -0700 (PDT)
+Received: from mail-ua1-f71.google.com (mail-ua1-f71.google.com [209.85.222.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 47FBC6B0003
+	for <linux-mm@kvack.org>; Fri, 28 Jun 2019 05:31:37 -0400 (EDT)
+Received: by mail-ua1-f71.google.com with SMTP id z42so781726uac.10
+        for <linux-mm@kvack.org>; Fri, 28 Jun 2019 02:31:37 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=9cCBNQ/DLgtpUPdtAQUtvcyuKyE7Z8O611WKPmcesJs=;
-        b=nWUG6szSaco6CZF3XJUJjIg38TukajBsztzTfA+Bt3eiJS51DbQd26T8cF+N/uukgB
-         qhMtNT6NqYILzmMdxWNq7BQzbIsUUlZA1hrvEUfwa6P8sgIFCE/e87oT/Q4AgND7aKlJ
-         mcgx+PIM/eCJVmZYLQ2S1XOeVyZypzVh9lrGjLgWH0WbH8PaDZaowiw8QUtFmpLPDTks
-         umjENBgpnK46x0+5pQdMXaS8Hw6BrXKFcO7O4A/e2Ji+G/2bQFimXWob6y65WTrjTNEn
-         ikfzWfG2hHRz/n/GcjyY5kPSku6PigTeUUWHbd7j2iGu1zwMDTNAoagEczGkx5s142mI
-         lAnA==
-X-Gm-Message-State: APjAAAW7O9dmGx2Bamk1nq5PlH5MHh2MkzgrTLitksUM/N0lG4pTcDIb
-	v1GkghhaEXlRHWaYq3+zcRounsWLPSiQb6eNrIxuS62qeWzrp5mtbdOVKPfsiUqZeeZBF+PJztW
-	EhxCp/10y7x9C+cdRNhgBNTyWRDvM6XaElIR+OjztyH7T6xFGoW/w0H/K8j8XSjVyJw==
-X-Received: by 2002:a17:902:a414:: with SMTP id p20mr9619780plq.187.1561711500808;
-        Fri, 28 Jun 2019 01:45:00 -0700 (PDT)
-X-Received: by 2002:a17:902:a414:: with SMTP id p20mr9619723plq.187.1561711500037;
-        Fri, 28 Jun 2019 01:45:00 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561711500; cv=none;
+        h=x-gm-message-state:dkim-signature:date:message-id:mime-version
+         :subject:from:to:cc;
+        bh=yltp3Nr5hoDNAZ2OFPn4NI5Rzn3a2yDgIbIXrha4iaM=;
+        b=eyn5QL+5upP4lutFA+hEFWHiRcJnFTyc8vWENpTWRY022zzVFH+LT4UPMl7Mi67Yzd
+         1BR0TgLi9DHSAERCFgW0R6GF65b6NccJgDsWtn/c04PWz7GvX0WN4WO+jw4Yfw8aSwws
+         kOR7DYXJ1k7P1e2OMD56ckcoiPV4DniRCRJPX/4t8s8qyv9qOq0Vk7v8hRl3fRS+KrIc
+         007PUkWz86oEhmQ3IPpipsM+jwYIDsYmxas9nD950DfJ8Uf5mf4qoJ+j3b6CsI+WDgVy
+         BoCx86+Fi4iBvDro3Am5VxOwezR67w5YlhxjNtVk5JiLwSGn0p7u00EoGb5p1tvO2+E6
+         pTSA==
+X-Gm-Message-State: APjAAAWrDXxwZ/PSSrCije7YprE5Y1hlKm/DYF7R5dwaRkdy8ahBXTJv
+	v2UaBPMJWBzf46yGalP6idOj4heATiDlpWA1vua7FJVVUdj6r8+k55sRsSZU26HSS1vs3pKZSud
+	20IXKkzG766k76wK+53R1tOtclwC5MLvTP5ybeFJrRgF3YmIKcU48HtpCu2mnM5PQCA==
+X-Received: by 2002:a67:dd0a:: with SMTP id y10mr5092488vsj.93.1561714296921;
+        Fri, 28 Jun 2019 02:31:36 -0700 (PDT)
+X-Received: by 2002:a67:dd0a:: with SMTP id y10mr5092455vsj.93.1561714296154;
+        Fri, 28 Jun 2019 02:31:36 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561714296; cv=none;
         d=google.com; s=arc-20160816;
-        b=Lp68DEggu+cbaFvy87ZhMHTkuCV51kG4XtI42QDDMJfBdVFnJq8tRwnGQNwxF52HZ8
-         +TpG0jAmru0GDrrnt8oCIqqare3Y2w92FfKhtVXcSy4y9/sgsUW+J2p1+WCNBzA1epBN
-         lyzmsUTSVVtHNAvvw+Q7WaH84Sj4CXrLGt08+VBAjTk64Vw/C9G3aNoP7LzmcE8nR4QE
-         sDQIP6X3UkkVgEpFjWsGZlSH2EpW+ZJL18Gq90IELRjqQk/u+w0UTSmdcqvoddVeNbCK
-         bi961gG6uoWuMKbyNYSDL85vHta2sB9RLPjOmB23CvxQLoDFtq7kPIJw02g/uKKnhsAp
-         f3sA==
+        b=Ic2EjQlXlxyeexeu+T6AkoOn0RbIFtYTPvwxe32p9CcMu5pWsQHainGDwaigs4834r
+         O5CMugOGzFbroii73IcJw1l94AQVjeF/u7/UpL0cZeuv9/K796NpTE6a8nOSERAtZnxO
+         sDjAtntNjYpOPd0ArfhOkYcYCppyI6s1fHPccvkoSMC3uJtChggfldQsI11a+9FaCyPz
+         lu0rNNKr7OhaaSA7DwF1okaK5/ta4pmcaAnCX7+G5O+dua2yzlQ8S6MPxAVB+qe9AJNd
+         FJ8DU1m0pt3JEkzg59PO1soSxjjgaCFox34LhOdlV6TBnfObsgGbK7HPzXKrF78kZ+aC
+         T+aw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=9cCBNQ/DLgtpUPdtAQUtvcyuKyE7Z8O611WKPmcesJs=;
-        b=hxvalf49fLac0qMbOv6tuV5XDieX8KeLoZmV7Gevmlrdgu0SODqE+XQbjjUhXtrgf/
-         IlJAsXKsSQWOYm2Cy3tICd6rPIAxZL6dIqk/vV1kbL8+b4GGXmZqdjsPju1Tcug9ftaf
-         VWu2nZFbU8kx7HxmAKo65qpwdpVspoZ1vZjzo/MaV3qEc7mO0JELDqff3ZhaorIMKNON
-         lWKmt2bZzgmh6+WMUq0rLf3esUTN+cvthxt0sTxl4wnGWeiAHoT5/hQ6xMlsQB0GNHET
-         r61LxIfvwAqYuSZSXX3xAeW1EzuP/rqtBQQAPBGx3G7d8OUAuTKdNlZNJb8RCg/8OMuH
-         X0wg==
+        h=cc:to:from:subject:mime-version:message-id:date:dkim-signature;
+        bh=yltp3Nr5hoDNAZ2OFPn4NI5Rzn3a2yDgIbIXrha4iaM=;
+        b=SlaWB2hgtokoUkBXhQ6J2V73wMJxUgfL3vdjgdmnXObszEU7ibBXXp4z+jCFJ8Xcop
+         TAmMWcCQBA2jc9GPWE5CurReA424QAsNuRlwrtFgzeMe/8TJ64AkrIY/Kli2PAM99jBl
+         FpaATurz4eV9+H8TkyAOXkFXM/+wLRikwP7UFRs9s814dlfpd9ab/PoWuA6rNHV/hEhT
+         MH+qqdZQHxJ6ngnufGd2YsKFzbDitGZzC540QAwlCqx1+qETjIFRfnM1NoUCKscTEtjb
+         wPLdTOar8JoIMwzjE0cyxSBc5fUBUvFd6J6b5eR8SUtyGu90JZ8MOwkAiB47ukGFLV1h
+         UnrA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@chromium.org header.s=google header.b=NJhiRaFT;
-       spf=pass (google.com: domain of vovoy@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=vovoy@chromium.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u13sor1614991pjx.25.2019.06.28.01.44.59
+       dkim=pass header.i=@google.com header.s=20161025 header.b=CR3gJDc6;
+       spf=pass (google.com: domain of 3d94vxqykchoejgbcpemmejc.amkjglsv-kkityai.mpe@flex--glider.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3d94VXQYKCHoejgbcpemmejc.amkjglsv-kkitYai.mpe@flex--glider.bounces.google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
+        by mx.google.com with SMTPS id j142sor487699vke.43.2019.06.28.02.31.35
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 28 Jun 2019 01:45:00 -0700 (PDT)
-Received-SPF: pass (google.com: domain of vovoy@chromium.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Fri, 28 Jun 2019 02:31:36 -0700 (PDT)
+Received-SPF: pass (google.com: domain of 3d94vxqykchoejgbcpemmejc.amkjglsv-kkityai.mpe@flex--glider.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@chromium.org header.s=google header.b=NJhiRaFT;
-       spf=pass (google.com: domain of vovoy@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=vovoy@chromium.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
+       dkim=pass header.i=@google.com header.s=20161025 header.b=CR3gJDc6;
+       spf=pass (google.com: domain of 3d94vxqykchoejgbcpemmejc.amkjglsv-kkityai.mpe@flex--glider.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3d94VXQYKCHoejgbcpemmejc.amkjglsv-kkitYai.mpe@flex--glider.bounces.google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=chromium.org; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=9cCBNQ/DLgtpUPdtAQUtvcyuKyE7Z8O611WKPmcesJs=;
-        b=NJhiRaFTwbXgWwYMuOKzcTTAPu8tvSUXftkWjd2iiLgQl4WJT7WRsvULRO5tF8PluC
-         Nn+xvF88SuY6E/ZeAT3axrY8RuBSq8aQZRGAiy3DZuNjp2jnGcFdj/vf3GXwc4KU26Zj
-         mspXga43P9yxdB55hXqpNtLBeXU2cevRPgdoY=
-X-Google-Smtp-Source: APXvYqzcWsGydcd1oia93mChuGAQogjZoToWpbbXL8r2Y5MYqx/PPB/llrSa3dFB1zoTvtb0iZ0Rew==
-X-Received: by 2002:a17:90a:b104:: with SMTP id z4mr11674941pjq.102.1561711499289;
-        Fri, 28 Jun 2019 01:44:59 -0700 (PDT)
-Received: from google.com ([2401:fa00:1:b:d89e:cfa6:3c8:e61b])
-        by smtp.gmail.com with ESMTPSA id s20sm670784pfe.169.2019.06.28.01.44.57
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Fri, 28 Jun 2019 01:44:58 -0700 (PDT)
-Date: Fri, 28 Jun 2019 16:44:55 +0800
-From: Vovo Yang <vovoy@chromium.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Michal Hocko <mhocko@suse.com>, Sonny Rao <sonnyrao@chromium.org>,
-	linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Subject: Re: [PATCH] mm: vmscan: fix not scanning anonymous pages when
- detecting file refaults
-Message-ID: <20190628084455.GA59379@google.com>
-References: <20190619080835.GA68312@google.com>
- <20190627184123.GA11181@cmpxchg.org>
- <20190628065138.GA251482@google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190628065138.GA251482@google.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+        d=google.com; s=20161025;
+        h=date:message-id:mime-version:subject:from:to:cc;
+        bh=yltp3Nr5hoDNAZ2OFPn4NI5Rzn3a2yDgIbIXrha4iaM=;
+        b=CR3gJDc6z07Wkkp9RjMwVFQC4vw0FiFVhhdFCWnKVWL5Udpul5ft0d9yYfYyL0KRwe
+         YvRi1l9qjXnTB1P0zT35j66EcCqiwt6K3lfL4hLf0IxNBq2QL1KE2AMHzxaMEf2pgvsa
+         571ff3tO8S3tYjKNFZVANKIKaZn9uaXtksbv1SzPsNibM/a44Z0owTk9AjxE3nwh3fF9
+         zQk8l8HyUsb1klLlMbqWf3aQOJZep/CGW7FwnLbg6WnsVIJkgt+uSVwepXRg/npeC29A
+         uo2u96SMp7B/7q8EsHK9npvcHWfcoiwa2m0AVxrdmIMyzWADc776p/OtlxIbNBF1gmvZ
+         ASqA==
+X-Google-Smtp-Source: APXvYqzAImN3IyFkxzATucMUrAj64yrEoBQxTycRYblSPKjSiOfq+yF5DcKQlNTMfZ1GTbPhBbh9+vm2v60=
+X-Received: by 2002:a1f:728b:: with SMTP id n133mr3319864vkc.84.1561714295487;
+ Fri, 28 Jun 2019 02:31:35 -0700 (PDT)
+Date: Fri, 28 Jun 2019 11:31:29 +0200
+Message-Id: <20190628093131.199499-1-glider@google.com>
+Mime-Version: 1.0
+X-Mailer: git-send-email 2.22.0.410.gd8fdbe21b5-goog
+Subject: [PATCH v10 0/3] add init_on_alloc/init_on_free boot options
+From: Alexander Potapenko <glider@google.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, 
+	Kees Cook <keescook@chromium.org>
+Cc: Alexander Potapenko <glider@google.com>, Masahiro Yamada <yamada.masahiro@socionext.com>, 
+	Michal Hocko <mhocko@kernel.org>, James Morris <jmorris@namei.org>, 
+	"Serge E. Hallyn" <serge@hallyn.com>, Nick Desaulniers <ndesaulniers@google.com>, 
+	Kostya Serebryany <kcc@google.com>, Dmitry Vyukov <dvyukov@google.com>, Sandeep Patil <sspatil@android.com>, 
+	Laura Abbott <labbott@redhat.com>, Randy Dunlap <rdunlap@infradead.org>, Jann Horn <jannh@google.com>, 
+	Mark Rutland <mark.rutland@arm.com>, Marco Elver <elver@google.com>, Qian Cai <cai@lca.pw>, 
+	linux-mm@kvack.org, linux-security-module@vger.kernel.org, 
+	kernel-hardening@lists.openwall.com
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jun 28, 2019 at 03:51:38PM +0900, Minchan Kim wrote:
-> Hi Johannes,
-> 
-> On Thu, Jun 27, 2019 at 02:41:23PM -0400, Johannes Weiner wrote:
-> > 
-> > Acked-by: Johannes Weiner <hannes@cmpxchg.org>
-> > 
-> > Your change makes sense - we should indeed not force cache trimming
-> > only while the page cache is experiencing refaults.
-> > 
-> > I can't say I fully understand the changelog, though. The problem of
-> 
-> I guess the point of the patch is "actual_reclaim" paramter made divergency
-> to balance file vs. anon LRU in get_scan_count. Thus, it ends up scanning
-> file LRU active/inactive list at file thrashing state.
-> 
-> So, Fixes: 2a2e48854d70 ("mm: vmscan: fix IO/refault regression in cache workingset transition")
-> would make sense to me since it introduces the parameter.
-> 
+Provide init_on_alloc and init_on_free boot options.
 
-Thanks for the review and explanation, I will update the changelog to
-make it clear.
+These are aimed at preventing possible information leaks and making the
+control-flow bugs that depend on uninitialized values more deterministic.
 
-> > forcing cache trimming while there is enough page cache is older than
-> > the commit you refer to. It could be argued that this commit is
-> > incomplete - it could have added refault detection not just to
-> > inactive:active file balancing, but also the file:anon balancing; but
-> > it didn't *cause* this problem.
-> > 
-> > Shouldn't this be
-> > 
-> > Fixes: e9868505987a ("mm,vmscan: only evict file pages when we have plenty")
-> > Fixes: 7c5bd705d8f9 ("mm: memcg: only evict file pages when we have plenty")
-> 
-> That would affect, too but it would be trouble to have stable backport
-> since we don't have refault machinery in there.
+Enabling either of the options guarantees that the memory returned by the
+page allocator and SL[AU]B is initialized with zeroes.
+SLOB allocator isn't supported at the moment, as its emulation of kmem
+caches complicates handling of SLAB_TYPESAFE_BY_RCU caches correctly.
+
+Enabling init_on_free also guarantees that pages and heap objects are
+initialized right after they're freed, so it won't be possible to access
+stale data by using a dangling pointer.
+
+As suggested by Michal Hocko, right now we don't let the heap users to
+disable initialization for certain allocations. There's not enough
+evidence that doing so can speed up real-life cases, and introducing
+ways to opt-out may result in things going out of control.
+
+To: Andrew Morton <akpm@linux-foundation.org>
+To: Christoph Lameter <cl@linux.com>
+To: Kees Cook <keescook@chromium.org>
+Cc: Masahiro Yamada <yamada.masahiro@socionext.com>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: James Morris <jmorris@namei.org>
+Cc: "Serge E. Hallyn" <serge@hallyn.com>
+Cc: Nick Desaulniers <ndesaulniers@google.com>
+Cc: Kostya Serebryany <kcc@google.com>
+Cc: Dmitry Vyukov <dvyukov@google.com>
+Cc: Sandeep Patil <sspatil@android.com>
+Cc: Laura Abbott <labbott@redhat.com>
+Cc: Randy Dunlap <rdunlap@infradead.org>
+Cc: Jann Horn <jannh@google.com>
+Cc: Mark Rutland <mark.rutland@arm.com>
+Cc: Marco Elver <elver@google.com>
+Cc: Qian Cai <cai@lca.pw>
+Cc: linux-mm@kvack.org
+Cc: linux-security-module@vger.kernel.org
+Cc: kernel-hardening@lists.openwall.com
+
+Alexander Potapenko (2):
+  mm: security: introduce init_on_alloc=1 and init_on_free=1 boot
+    options
+  mm: init: report memory auto-initialization features at boot time
+
+ .../admin-guide/kernel-parameters.txt         |  9 +++
+ drivers/infiniband/core/uverbs_ioctl.c        |  2 +-
+ include/linux/mm.h                            | 24 +++++++
+ init/main.c                                   | 24 +++++++
+ mm/dmapool.c                                  |  4 +-
+ mm/page_alloc.c                               | 71 +++++++++++++++++--
+ mm/slab.c                                     | 16 ++++-
+ mm/slab.h                                     | 20 ++++++
+ mm/slub.c                                     | 40 +++++++++--
+ net/core/sock.c                               |  2 +-
+ security/Kconfig.hardening                    | 29 ++++++++
+ 11 files changed, 223 insertions(+), 18 deletions(-)
+---
+ v3: dropped __GFP_NO_AUTOINIT patches
+ v5: dropped support for SLOB allocator, handle SLAB_TYPESAFE_BY_RCU
+ v6: changed wording in boot-time message
+ v7: dropped the test_meminit.c patch (picked by Andrew Morton already),
+     minor wording changes
+ v8: fixes for interoperability with other heap debugging features
+ v9: added support for page/slab poisoning
+ v10: changed pr_warn() to pr_info(), added Acked-by: tags
+-- 
+2.22.0.410.gd8fdbe21b5-goog
 
