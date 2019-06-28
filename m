@@ -2,405 +2,195 @@ Return-Path: <SRS0=7Cer=U3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-9.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C058DC4321A
-	for <linux-mm@archiver.kernel.org>; Fri, 28 Jun 2019 19:49:26 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5D470C5B579
+	for <linux-mm@archiver.kernel.org>; Fri, 28 Jun 2019 19:50:30 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3868C20828
-	for <linux-mm@archiver.kernel.org>; Fri, 28 Jun 2019 19:49:26 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="JkqT59IE"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3868C20828
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 2BA0020828
+	for <linux-mm@archiver.kernel.org>; Fri, 28 Jun 2019 19:50:30 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2BA0020828
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9DA806B0003; Fri, 28 Jun 2019 15:49:25 -0400 (EDT)
+	id A9C2E6B0003; Fri, 28 Jun 2019 15:50:29 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 98B478E0003; Fri, 28 Jun 2019 15:49:25 -0400 (EDT)
+	id A4E358E0003; Fri, 28 Jun 2019 15:50:29 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 89F678E0002; Fri, 28 Jun 2019 15:49:25 -0400 (EDT)
+	id 962478E0002; Fri, 28 Jun 2019 15:50:29 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f78.google.com (mail-io1-f78.google.com [209.85.166.78])
-	by kanga.kvack.org (Postfix) with ESMTP id 68BA76B0003
-	for <linux-mm@kvack.org>; Fri, 28 Jun 2019 15:49:25 -0400 (EDT)
-Received: by mail-io1-f78.google.com with SMTP id n4so7821210ioc.0
-        for <linux-mm@kvack.org>; Fri, 28 Jun 2019 12:49:25 -0700 (PDT)
+Received: from mail-pf1-f205.google.com (mail-pf1-f205.google.com [209.85.210.205])
+	by kanga.kvack.org (Postfix) with ESMTP id 62DE76B0003
+	for <linux-mm@kvack.org>; Fri, 28 Jun 2019 15:50:29 -0400 (EDT)
+Received: by mail-pf1-f205.google.com with SMTP id x18so4524377pfj.4
+        for <linux-mm@kvack.org>; Fri, 28 Jun 2019 12:50:29 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=yyGQbOICu865VAL3WfBuIMEgZs6PIT7zz9ZwKAw1Ius=;
-        b=KCyJCqj6HsP/RgRuhXxPYSVKURYy2+HhFGiHoQfbL0UrrV/dn5eCxD9ueksRUTCrD9
-         zC6fGxk2hZAcmhdkYzthcJauEJvzSPqgEp8R6dGjLMZpOtFoAH88oHAyvaJe6BGQlqNM
-         M++k4CbNnkktmaQmwA8+Og5utKmTMxZYqegPEO3XLB0yi75hCaoQhimdraqqBghR0HRI
-         3QHhDgEG7BWLF3LWNFN/juOEv9x1Tde1DS9i+FCvIiMCn2xcYIckmLr5GLKLfYWmOei5
-         IpTMt1+Els1H/XMc7/wld0cweUmuAltryJJNrXDSg0FRah0i0zhfOcZmJ31XaIp1+oMY
-         wGKg==
-X-Gm-Message-State: APjAAAWaNnoJ92a5sS6EH6zPFzefJULNkEN6jGCHejInFGhvtPFWjH0l
-	WWjnDfuEc6l2TFYlS35zGldCu0hBPzIwinD3EGkV6c+5OzRabM/oT3qRQw5xQRg6ouZNejnohNE
-	v1Kp3Rg49dB6vOpVmEEBWNPNhUpl2oSu/2JyLyErBBliH65s+TMiLfo8O2ATorQdUkQ==
-X-Received: by 2002:a5d:9703:: with SMTP id h3mr7876931iol.152.1561751365123;
-        Fri, 28 Jun 2019 12:49:25 -0700 (PDT)
-X-Received: by 2002:a5d:9703:: with SMTP id h3mr7876859iol.152.1561751364160;
-        Fri, 28 Jun 2019 12:49:24 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561751364; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id;
+        bh=OdQ9J3Abw5fE03GEt4uo8Rr+djgBr/SQIpVAY9l/fgk=;
+        b=aczoCJGg4bYp3cCkrZmzPj9G44zZFwX+oz9LODOilanAowBQiWh8VUWN31W8xMjX8J
+         VA2f7wFB7M6KawKFjgNe/WSprEQ0l4T+tdjE+pzfhMjhk8All8BjrqRR1VtFC+XvR5f7
+         uS/7Hy66tppGLVdoM1FwZJ2oRYoaMuWqtiTF5KLZ1Ggmoiif72o/1hOaD6gNSdPfy4Ce
+         B+XFyCXlUHUiEFG1r0+DX5HPkqKp3CTvdD7krvQZ9UEZM13mP6wqntj9TEVsH6iT7Nzu
+         SH3ChWmo3jFzOuC5XUvsH7FQDTfN0aiUr8225I/jCH8GDLhonKCv1LwcZHu9/LxVfIP6
+         OG9Q==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAXUTfYQGmx3MvNMKoG5IECOlfSwNJxW1dZBd//MXG+T9aK8/IKj
+	4TIJDQN18MPIYzp6yeIzbS9aEAJs+bTnKVbQ+HEa8apjwHHj3zwIx6A1xLE1Z5aZMeIT29QzeLP
+	m+UIa81OllSMpGXhZEol0U5rR22xoSnHQN0hT51rrUM5FLTksHLJY3eRUqDBUPL0rSQ==
+X-Received: by 2002:a17:902:a517:: with SMTP id s23mr13442502plq.306.1561751428989;
+        Fri, 28 Jun 2019 12:50:28 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzbkaXg8SPDy9ghnQAZmkx1LhpR/nmBQMBGuzhC1kvGnh6vh1+KPwdDWqsGTMSzhAsn+7VZ
+X-Received: by 2002:a17:902:a517:: with SMTP id s23mr13442434plq.306.1561751428198;
+        Fri, 28 Jun 2019 12:50:28 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561751428; cv=none;
         d=google.com; s=arc-20160816;
-        b=SlxRehPihliajCFk7xPzhWgaeYkhPHbDWWPP92CX7wIWHQYj1vP/FNt34RXQlrLdvK
-         rvm7t8kHYIZHQ8leMbywQwirePj/IKoQdsW0cSSr3l/54YtJSLkrg9/LDOcJcyd0WUW7
-         IALc4Ny0NGkNMURl4sexB/M9db0q8JNrrmSVDP5zvIDg5En/Db4PgRIrRL88pkEKe+DM
-         VnvNv/5+Po0Ri8BF5vWsTu06yQxhEKRybCyZ0BNKVOJZxJUBB9icmRVjQLnh81CEtkgd
-         6doxAvMf599yo87l2yhcefNYETmI5JPO1SzU2oK2qbRv30BbeJciQo578AM5edXfMssf
-         SQtQ==
+        b=ku0GQnHmy7icv1RnYWoG0dM0EsGRyVrAH2HQGOf3JbBEObZOv0UfDEDwSHA8jz62Gl
+         NMWroLUIQGeoi8s2HBaUI4/bzIrNXy8AvzTG3Xg8/QO8YG/0b3k+Hk3txNNIctRrvgRf
+         0jeH+bIxH/q/G0XahgO+pZ/elkR7P/pmOanR09iLxuFXjKUao6rZ0FLZKxo9XOTJpXIE
+         IAhWvc0d/3ycKy3xR4BMXoXFwdq3VACKJYinTlsP25AbOvoNpJO5aVgSLJ36fkC++GGh
+         Vj9MZcNJb6aQqOyyJ5mQ+DmjLflGkgD5eyVyqMqYSkE2guiPzmDAJIuYJb0jZM3BQ1jS
+         N46Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=yyGQbOICu865VAL3WfBuIMEgZs6PIT7zz9ZwKAw1Ius=;
-        b=wWJGnp8tF6jwXTdsVouXQonIip5P2YL+mTjwu1gK2KuXsCDLbq3xUf4+aQ7t8/YUkz
-         r2tzbxHhygfcWmkJMU9PPLB/KFVwXZTRr4QfV0Mx930/euBveFLtP7mmJjxTnIUycE6V
-         i/QeU+zvG/QgUA+HISJ8gOsAWt0nhA9tBJutxmSceECQt84amQ1OtY2lN/RNA1L7I5Tg
-         nEmVNT1FB5OXZlBNQuOlvhyQ3o26ofipXSD640+wMQ7Qby4SOeggUAK8VJzLAp+7IC3m
-         PbYvaw2JBGQJmTtPayTw4CC/+MCHYrHgQYhicsuXBEW+wWrZFeONq8+2JfrBY5tIb88p
-         rFxw==
+        h=message-id:date:subject:cc:to:from;
+        bh=OdQ9J3Abw5fE03GEt4uo8Rr+djgBr/SQIpVAY9l/fgk=;
+        b=d/BUsB+CpR2zFDvVjLw0iVV/Lr/BOYOe2rZ0ZjNOB+U1sEgyDJdr+z+wkNgV6TsEFx
+         hOcn4pyxjdmPIMzyFgEK4NV9jiAmB6UrnkflQqDHNAexet0Yh6AOeZj6jn7fvwDJ5V+3
+         T0YUk13KNdBOTr0uYSaH7cH+S+8UkbnhQ/+4d1h1i3s9NL5xjLvRMeOCLWb1BmF0SUwx
+         KgAjUyV715jFRJKLd3J6MBrfXWREWbwHUITxz0yOHqjouu6TAuwKHS3FRDat+3fC4IDG
+         vaQcWyRGoYfKAioSM6Mdw1Kn/R/VfJOu5LYmj7cmCWmH+p49MqygQVAPbbFj1XwmUYK9
+         0ypQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=JkqT59IE;
-       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y137sor2706930iof.73.2019.06.28.12.49.23
+       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id cd3si3020212plb.228.2019.06.28.12.50.28
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 28 Jun 2019 12:49:24 -0700 (PDT)
-Received-SPF: pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 28 Jun 2019 12:50:28 -0700 (PDT)
+Received-SPF: pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.65 as permitted sender) client-ip=134.134.136.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=JkqT59IE;
-       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=yyGQbOICu865VAL3WfBuIMEgZs6PIT7zz9ZwKAw1Ius=;
-        b=JkqT59IEWrKV78KBkgZo9Ndx7Bpm2aoAvA7F1k1pawzLor4/NffJdiQvDL6LLNzZ90
-         k2UzqvD0AJRCD+kYbKZ4HJDLZUlBAyb1m0tK3hAX1p44IyAFiffeNv4X6yJPU6jOsKkK
-         sMcRuvzuwAYEKPVz4AAP3j/blKztojOift+o8TsiqkQc8SNfNrnXmRwsoe/Q670W9guS
-         q2a5QLhq8G1iBenVuQ9LQWqKxmQOBl1aJcjpbvFdGv77FSeALyYmhP6CoMiWEYW/O5w2
-         TbeB7WUT8koFeZJQ66v3cRQHftPqAKP7CNLa9urFX86r81Q53pqSpa9P2Dhw4NtYC88S
-         +YzQ==
-X-Google-Smtp-Source: APXvYqwhrHo/W1nrbh50tbjbaM6e2639iaeQkYqCSOUx1E8YTlwQqRoMG/DwgwvY1AI1IgbPSbuDKpbNRcWF/HxwUO4=
-X-Received: by 2002:a6b:b790:: with SMTP id h138mr12378906iof.64.1561751363440;
- Fri, 28 Jun 2019 12:49:23 -0700 (PDT)
-MIME-Version: 1.0
-References: <20190619222922.1231.27432.stgit@localhost.localdomain>
- <20190619223302.1231.51136.stgit@localhost.localdomain> <7d959202-b2cd-fe24-5b3c-84e159eafe0a@redhat.com>
-In-Reply-To: <7d959202-b2cd-fe24-5b3c-84e159eafe0a@redhat.com>
-From: Alexander Duyck <alexander.duyck@gmail.com>
-Date: Fri, 28 Jun 2019 12:49:11 -0700
-Message-ID: <CAKgT0UfNFbAs=1o_DMHRQScDKP8qLnmOGtgfUhjk3_Jupbwf6w@mail.gmail.com>
-Subject: Re: [PATCH v1 1/6] mm: Adjust shuffle code to allow for future coalescing
-To: David Hildenbrand <david@redhat.com>
-Cc: Nitesh Narayan Lal <nitesh@redhat.com>, kvm list <kvm@vger.kernel.org>, 
-	"Michael S. Tsirkin" <mst@redhat.com>, Dave Hansen <dave.hansen@intel.com>, 
-	LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, 
-	Andrew Morton <akpm@linux-foundation.org>, Yang Zhang <yang.zhang.wz@gmail.com>, pagupta@redhat.com, 
-	Rik van Riel <riel@surriel.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, lcapitulino@redhat.com, 
-	wei.w.wang@intel.com, Andrea Arcangeli <aarcange@redhat.com>, 
-	Paolo Bonzini <pbonzini@redhat.com>, dan.j.williams@intel.com, 
-	Alexander Duyck <alexander.h.duyck@linux.intel.com>
-Content-Type: text/plain; charset="UTF-8"
+       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from fmsmga007.fm.intel.com ([10.253.24.52])
+  by orsmga103.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 28 Jun 2019 12:50:27 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.63,428,1557212400"; 
+   d="scan'208";a="164756004"
+Received: from yyu32-desk1.sc.intel.com ([10.144.153.205])
+  by fmsmga007.fm.intel.com with ESMTP; 28 Jun 2019 12:50:26 -0700
+From: Yu-cheng Yu <yu-cheng.yu@intel.com>
+To: x86@kernel.org,
+	"H. Peter Anvin" <hpa@zytor.com>,
+	Thomas Gleixner <tglx@linutronix.de>,
+	Ingo Molnar <mingo@redhat.com>,
+	linux-kernel@vger.kernel.org,
+	linux-doc@vger.kernel.org,
+	linux-mm@kvack.org,
+	linux-arch@vger.kernel.org,
+	linux-api@vger.kernel.org,
+	Arnd Bergmann <arnd@arndb.de>,
+	Andy Lutomirski <luto@amacapital.net>,
+	Balbir Singh <bsingharora@gmail.com>,
+	Borislav Petkov <bp@alien8.de>,
+	Cyrill Gorcunov <gorcunov@gmail.com>,
+	Dave Hansen <dave.hansen@linux.intel.com>,
+	Eugene Syromiatnikov <esyr@redhat.com>,
+	Florian Weimer <fweimer@redhat.com>,
+	"H.J. Lu" <hjl.tools@gmail.com>,
+	Jann Horn <jannh@google.com>,
+	Jonathan Corbet <corbet@lwn.net>,
+	Kees Cook <keescook@chromium.org>,
+	Mike Kravetz <mike.kravetz@oracle.com>,
+	Nadav Amit <nadav.amit@gmail.com>,
+	Oleg Nesterov <oleg@redhat.com>,
+	Pavel Machek <pavel@ucw.cz>,
+	Peter Zijlstra <peterz@infradead.org>,
+	Randy Dunlap <rdunlap@infradead.org>,
+	"Ravi V. Shankar" <ravi.v.shankar@intel.com>,
+	Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>,
+	Dave Martin <Dave.Martin@arm.com>
+Cc: Yu-cheng Yu <yu-cheng.yu@intel.com>
+Subject: [RFC PATCH 1/3] mm: Introduce VM_IBT for CET legacy code bitmap
+Date: Fri, 28 Jun 2019 12:41:56 -0700
+Message-Id: <20190628194158.2431-1-yu-cheng.yu@intel.com>
+X-Mailer: git-send-email 2.17.1
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jun 25, 2019 at 12:56 AM David Hildenbrand <david@redhat.com> wrote:
->
-> On 20.06.19 00:33, Alexander Duyck wrote:
-> > From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
-> >
-> > This patch is meant to move the head/tail adding logic out of the shuffle
-> > code and into the __free_one_page function since ultimately that is where
-> > it is really needed anyway. By doing this we should be able to reduce the
-> > overhead and can consolidate all of the list addition bits in one spot.
-> >
-> > Signed-off-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
-> > ---
-> >  include/linux/mmzone.h |   12 --------
-> >  mm/page_alloc.c        |   70 +++++++++++++++++++++++++++---------------------
-> >  mm/shuffle.c           |   24 ----------------
-> >  mm/shuffle.h           |   35 ++++++++++++++++++++++++
-> >  4 files changed, 74 insertions(+), 67 deletions(-)
-> >
-> > diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> > index 427b79c39b3c..4c07af2cfc2f 100644
-> > --- a/include/linux/mmzone.h
-> > +++ b/include/linux/mmzone.h
-> > @@ -116,18 +116,6 @@ static inline void add_to_free_area_tail(struct page *page, struct free_area *ar
-> >       area->nr_free++;
-> >  }
-> >
-> > -#ifdef CONFIG_SHUFFLE_PAGE_ALLOCATOR
-> > -/* Used to preserve page allocation order entropy */
-> > -void add_to_free_area_random(struct page *page, struct free_area *area,
-> > -             int migratetype);
-> > -#else
-> > -static inline void add_to_free_area_random(struct page *page,
-> > -             struct free_area *area, int migratetype)
-> > -{
-> > -     add_to_free_area(page, area, migratetype);
-> > -}
-> > -#endif
-> > -
-> >  /* Used for pages which are on another list */
-> >  static inline void move_to_free_area(struct page *page, struct free_area *area,
-> >                            int migratetype)
-> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > index f4651a09948c..ec344ce46587 100644
-> > --- a/mm/page_alloc.c
-> > +++ b/mm/page_alloc.c
-> > @@ -830,6 +830,36 @@ static inline struct capture_control *task_capc(struct zone *zone)
-> >  #endif /* CONFIG_COMPACTION */
-> >
-> >  /*
-> > + * If this is not the largest possible page, check if the buddy
-> > + * of the next-highest order is free. If it is, it's possible
-> > + * that pages are being freed that will coalesce soon. In case,
-> > + * that is happening, add the free page to the tail of the list
-> > + * so it's less likely to be used soon and more likely to be merged
-> > + * as a higher order page
-> > + */
-> > +static inline bool
-> > +buddy_merge_likely(unsigned long pfn, unsigned long buddy_pfn,
-> > +                struct page *page, unsigned int order)
-> > +{
-> > +     struct page *higher_page, *higher_buddy;
-> > +     unsigned long combined_pfn;
-> > +
-> > +     if (is_shuffle_order(order) || order >= (MAX_ORDER - 2))
->
-> My intuition tells me you can drop the () around "MAX_ORDER - 2"
+The previous discussion of the IBT legacy code bitmap is here:
 
-I dunno, I always kind of prefer to use the parenthesis in these cases
-for readability. I suppose I can drop it though.
+    https://lkml.org/lkml/2019/6/6/1032
 
-> > +             return false;
->
-> Guess the "is_shuffle_order(order)" check should rather be performed by
-> the caller, before calling this function.
+When CET Indirect Branch Tracking (IBT) is enabled, the processor expects
+every branch target is an ENDBR instruction, or the target's address is
+marked as legacy in the legacy code bitmap.  The bitmap covers the whole
+user-mode address space (TASK_SIZE_MAX for 64-bit, TASK_SIZE for IA32),
+and each bit represents one page of linear address range.
 
-I could do that, however I am not sure it adds much. I am pretty sure
-the resultant code would be the same. Where things would be a bit more
-complicated is that I would then have to probably look at adding a
-variable to trap the output of is_shuffle_tail_page or
-buddy_merge_likely.
+This patch introduces VM_IBT for the bitmap.
 
-> > +
-> > +     if (!pfn_valid_within(buddy_pfn))
-> > +             return false;
-> > +
-> > +     combined_pfn = buddy_pfn & pfn;
-> > +     higher_page = page + (combined_pfn - pfn);
-> > +     buddy_pfn = __find_buddy_pfn(combined_pfn, order + 1);
-> > +     higher_buddy = higher_page + (buddy_pfn - combined_pfn);
-> > +
-> > +     return pfn_valid_within(buddy_pfn) &&
-> > +            page_is_buddy(higher_page, higher_buddy, order + 1);
-> > +}
-> > +
-> > +/*
-> >   * Freeing function for a buddy system allocator.
-> >   *
-> >   * The concept of a buddy system is to maintain direct-mapped table
-> > @@ -858,11 +888,12 @@ static inline void __free_one_page(struct page *page,
-> >               struct zone *zone, unsigned int order,
-> >               int migratetype)
-> >  {
-> > -     unsigned long combined_pfn;
-> > +     struct capture_control *capc = task_capc(zone);
-> >       unsigned long uninitialized_var(buddy_pfn);
-> > -     struct page *buddy;
-> > +     unsigned long combined_pfn;
-> > +     struct free_area *area;
-> >       unsigned int max_order;
-> > -     struct capture_control *capc = task_capc(zone);
-> > +     struct page *buddy;
-> >
-> >       max_order = min_t(unsigned int, MAX_ORDER, pageblock_order + 1);
-> >
-> > @@ -931,35 +962,12 @@ static inline void __free_one_page(struct page *page,
-> >  done_merging:
-> >       set_page_order(page, order);
-> >
-> > -     /*
-> > -      * If this is not the largest possible page, check if the buddy
-> > -      * of the next-highest order is free. If it is, it's possible
-> > -      * that pages are being freed that will coalesce soon. In case,
-> > -      * that is happening, add the free page to the tail of the list
-> > -      * so it's less likely to be used soon and more likely to be merged
-> > -      * as a higher order page
-> > -      */
-> > -     if ((order < MAX_ORDER-2) && pfn_valid_within(buddy_pfn)
-> > -                     && !is_shuffle_order(order)) {
-> > -             struct page *higher_page, *higher_buddy;
-> > -             combined_pfn = buddy_pfn & pfn;
-> > -             higher_page = page + (combined_pfn - pfn);
-> > -             buddy_pfn = __find_buddy_pfn(combined_pfn, order + 1);
-> > -             higher_buddy = higher_page + (buddy_pfn - combined_pfn);
-> > -             if (pfn_valid_within(buddy_pfn) &&
-> > -                 page_is_buddy(higher_page, higher_buddy, order + 1)) {
-> > -                     add_to_free_area_tail(page, &zone->free_area[order],
-> > -                                           migratetype);
-> > -                     return;
-> > -             }
-> > -     }
-> > -
-> > -     if (is_shuffle_order(order))
-> > -             add_to_free_area_random(page, &zone->free_area[order],
-> > -                             migratetype);
-> > +     area = &zone->free_area[order];
-> > +     if (buddy_merge_likely(pfn, buddy_pfn, page, order) ||
-> > +         is_shuffle_tail_page(order))
-> > +             add_to_free_area_tail(page, area, migratetype);
->
-> I would prefer here something like
->
-> if (is_shuffle_order(order)) {
->         if (add_shuffle_order_to_tail(order))
->                 add_to_free_area_tail(page, area, migratetype);
->         else
->                 add_to_free_area(page, area, migratetype);
-> } else if (buddy_merge_likely(pfn, buddy_pfn, page, order)) {
->         add_to_free_area_tail(page, area, migratetype);
-> } else {
->         add_to_free_area(page, area, migratetype);
-> }
->
-> dropping "is_shuffle_order()" from buddy_merge_likely()
->
-> Especially, the name "is_shuffle_tail_page(order)" suggests that you are
-> passing a page.
+Signed-off-by: Yu-cheng Yu <yu-cheng.yu@intel.com>
+---
+ fs/proc/task_mmu.c | 3 +++
+ include/linux/mm.h | 8 ++++++++
+ 2 files changed, 11 insertions(+)
 
-Okay, I can look at renaming that. I will probably look at just using
-a variable instead of nesting the if statements like that. Otherwise
-that is going to get pretty messy fairly quickly.
-
-> >       else
-> > -             add_to_free_area(page, &zone->free_area[order], migratetype);
-> > -
-> > +             add_to_free_area(page, area, migratetype);
-> >  }
-> >
-> >  /*
-> > diff --git a/mm/shuffle.c b/mm/shuffle.c
-> > index 3ce12481b1dc..55d592e62526 100644
-> > --- a/mm/shuffle.c
-> > +++ b/mm/shuffle.c
-> > @@ -4,7 +4,6 @@
-> >  #include <linux/mm.h>
-> >  #include <linux/init.h>
-> >  #include <linux/mmzone.h>
-> > -#include <linux/random.h>
-> >  #include <linux/moduleparam.h>
-> >  #include "internal.h"
-> >  #include "shuffle.h"
-> > @@ -182,26 +181,3 @@ void __meminit __shuffle_free_memory(pg_data_t *pgdat)
-> >       for (z = pgdat->node_zones; z < pgdat->node_zones + MAX_NR_ZONES; z++)
-> >               shuffle_zone(z);
-> >  }
-> > -
-> > -void add_to_free_area_random(struct page *page, struct free_area *area,
-> > -             int migratetype)
-> > -{
-> > -     static u64 rand;
-> > -     static u8 rand_bits;
-> > -
-> > -     /*
-> > -      * The lack of locking is deliberate. If 2 threads race to
-> > -      * update the rand state it just adds to the entropy.
-> > -      */
-> > -     if (rand_bits == 0) {
-> > -             rand_bits = 64;
-> > -             rand = get_random_u64();
-> > -     }
-> > -
-> > -     if (rand & 1)
-> > -             add_to_free_area(page, area, migratetype);
-> > -     else
-> > -             add_to_free_area_tail(page, area, migratetype);
-> > -     rand_bits--;
-> > -     rand >>= 1;
-> > -}
-> > diff --git a/mm/shuffle.h b/mm/shuffle.h
-> > index 777a257a0d2f..3f4edb60a453 100644
-> > --- a/mm/shuffle.h
-> > +++ b/mm/shuffle.h
-> > @@ -3,6 +3,7 @@
-> >  #ifndef _MM_SHUFFLE_H
-> >  #define _MM_SHUFFLE_H
-> >  #include <linux/jump_label.h>
-> > +#include <linux/random.h>
-> >
-> >  /*
-> >   * SHUFFLE_ENABLE is called from the command line enabling path, or by
-> > @@ -43,6 +44,35 @@ static inline bool is_shuffle_order(int order)
-> >               return false;
-> >       return order >= SHUFFLE_ORDER;
-> >  }
-> > +
-> > +static inline bool is_shuffle_tail_page(int order)
-> > +{
-> > +     static u64 rand;
-> > +     static u8 rand_bits;
-> > +     u64 rand_old;
-> > +
-> > +     if (!is_shuffle_order(order))
-> > +             return false;
-> > +
-> > +     /*
-> > +      * The lack of locking is deliberate. If 2 threads race to
-> > +      * update the rand state it just adds to the entropy.
-> > +      */
-> > +     if (rand_bits-- == 0) {
-> > +             rand_bits = 64;
-> > +             rand = get_random_u64();
-> > +     }
-> > +
-> > +     /*
-> > +      * Test highest order bit while shifting our random value. This
-> > +      * should result in us testing for the carry flag following the
-> > +      * shift.
-> > +      */
-> > +     rand_old = rand;
-> > +     rand <<= 1;
-> > +
-> > +     return rand < rand_old;
-> > +}
-> >  #else
-> >  static inline void shuffle_free_memory(pg_data_t *pgdat)
-> >  {
-> > @@ -60,5 +90,10 @@ static inline bool is_shuffle_order(int order)
-> >  {
-> >       return false;
-> >  }
-> > +
-> > +static inline bool is_shuffle_tail_page(int order)
-> > +{
-> > +     return false;
-> > +}
-> >  #endif
-> >  #endif /* _MM_SHUFFLE_H */
-> >
->
->
-> --
->
-> Thanks,
->
-> David / dhildenb
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+index 66725e262a77..d707390285d3 100644
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -663,6 +663,9 @@ static void show_smap_vma_flags(struct seq_file *m, struct vm_area_struct *vma)
+ #endif /* CONFIG_ARCH_HAS_PKEYS */
+ #ifdef CONFIG_X86_INTEL_SHADOW_STACK_USER
+ 		[ilog2(VM_SHSTK)]	= "ss",
++#endif
++#ifdef CONFIG_X86_INTEL_BRANCH_TRACKING_USER
++		[ilog2(VM_IBT)]		= "bt",
+ #endif
+ 	};
+ 	size_t i;
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 921bae5fa7ab..a8da5bdfd7c9 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -299,12 +299,14 @@ extern unsigned int kobjsize(const void *objp);
+ #define VM_HIGH_ARCH_BIT_3	35	/* bit only usable on 64-bit architectures */
+ #define VM_HIGH_ARCH_BIT_4	36	/* bit only usable on 64-bit architectures */
+ #define VM_HIGH_ARCH_BIT_5	37	/* bit only usable on 64-bit architectures */
++#define VM_HIGH_ARCH_BIT_6	38	/* bit only usable on 64-bit architectures */
+ #define VM_HIGH_ARCH_0	BIT(VM_HIGH_ARCH_BIT_0)
+ #define VM_HIGH_ARCH_1	BIT(VM_HIGH_ARCH_BIT_1)
+ #define VM_HIGH_ARCH_2	BIT(VM_HIGH_ARCH_BIT_2)
+ #define VM_HIGH_ARCH_3	BIT(VM_HIGH_ARCH_BIT_3)
+ #define VM_HIGH_ARCH_4	BIT(VM_HIGH_ARCH_BIT_4)
+ #define VM_HIGH_ARCH_5	BIT(VM_HIGH_ARCH_BIT_5)
++#define VM_HIGH_ARCH_6	BIT(VM_HIGH_ARCH_BIT_6)
+ #endif /* CONFIG_ARCH_USES_HIGH_VMA_FLAGS */
+ 
+ #ifdef CONFIG_ARCH_HAS_PKEYS
+@@ -348,6 +350,12 @@ extern unsigned int kobjsize(const void *objp);
+ # define VM_SHSTK	VM_NONE
+ #endif
+ 
++#ifdef CONFIG_X86_INTEL_BRANCH_TRACKING_USER
++# define VM_IBT		VM_HIGH_ARCH_6
++#else
++# define VM_IBT		VM_NONE
++#endif
++
+ #ifndef VM_GROWSUP
+ # define VM_GROWSUP	VM_NONE
+ #endif
+-- 
+2.17.1
 
