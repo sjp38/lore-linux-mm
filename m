@@ -3,102 +3,102 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DE618C5B57A
-	for <linux-mm@archiver.kernel.org>; Fri, 28 Jun 2019 03:44:28 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 96820C5B579
+	for <linux-mm@archiver.kernel.org>; Fri, 28 Jun 2019 03:46:14 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8B24F214AF
-	for <linux-mm@archiver.kernel.org>; Fri, 28 Jun 2019 03:44:28 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8B24F214AF
+	by mail.kernel.org (Postfix) with ESMTP id 66CD0208CB
+	for <linux-mm@archiver.kernel.org>; Fri, 28 Jun 2019 03:46:14 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 66CD0208CB
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D47626B0003; Thu, 27 Jun 2019 23:44:27 -0400 (EDT)
+	id E582D8E0003; Thu, 27 Jun 2019 23:46:13 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CD1758E0003; Thu, 27 Jun 2019 23:44:27 -0400 (EDT)
+	id E073D8E0002; Thu, 27 Jun 2019 23:46:13 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BBFAF8E0002; Thu, 27 Jun 2019 23:44:27 -0400 (EDT)
+	id CF6938E0003; Thu, 27 Jun 2019 23:46:13 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 6A48E6B0003
-	for <linux-mm@kvack.org>; Thu, 27 Jun 2019 23:44:27 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id k15so7486651eda.6
-        for <linux-mm@kvack.org>; Thu, 27 Jun 2019 20:44:27 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 7FFDB8E0002
+	for <linux-mm@kvack.org>; Thu, 27 Jun 2019 23:46:13 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id i44so7539482eda.3
+        for <linux-mm@kvack.org>; Thu, 27 Jun 2019 20:46:13 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
          :references:from:message-id:date:user-agent:mime-version:in-reply-to
          :content-language:content-transfer-encoding;
-        bh=rPd/a1hxAx0pDuqaGJdZpy8wumLFkZlHwpe3baOpt3g=;
-        b=RtO5j+8EoLnZ+vYelRg28JgQns0srSO/Bo5pAZzmDzJJ/+H/guinNoVvDhKx5/RJbe
-         6ggtU3Hb7s5Wz7TOZoXwjLnSrdyD0vlsKr26ht8y9F6bM+ZymQPLckaPL4AkRc8VxOxA
-         cECrIUBm1rPsotKzxMceQpxdQUszXFDOfjUz9jF1ygFAHHevGn0JcJgQ4g83Am5utwDD
-         D7j3kA+pkgjN5RZLlsGqXcjWQ5nfhvrYc0a42tEQCsRvtPqWFsXfayrL8SBoYfvivWgG
-         1uErcCKoRLd7jr76ugMgSFPRUnqGvw1kZrsOA6x1P+zCagiv3WyRiZmLMB8FSnRit+uK
-         1U8A==
+        bh=ju8OuMo6rKWWMo8SB9IJ5VSwe5x4wFBzk9/4asH/CuI=;
+        b=TteSNNA987MQb1Ub3LrtY/hrmpsw2rututIszMKytkOwLiuCvQb/eDOgvBOba/NJsm
+         qw4P5PEHX3DKLkih4rqUl1qW1gzCiTzNFgA0+KcnCfNxaxkojtctjovjmZFd4QYMrvqN
+         4XbGCHakakMeyoahyTePQeNrVaS9Yfvhw8gjP+k5LBjJ2o5uDBKUs5uU4g+h7y3UYvU+
+         CaPrMKw3s4GXB8aTXtS9robeJXoHH8SXedLJoSDHzjLvK+w68jEXORJvFKdZdaDLj8g/
+         YhC5BbYS5x6GlzemAQHhtFxEBMc6mPYlUoIUk6/i/FLJgeLlpzVhjgUaceuzvhosIEGy
+         C9og==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-X-Gm-Message-State: APjAAAW8DF7XTSd9TI+aRG2EA8Ipz7lw6AoevLiCJmxh8dlfxwoJsgdo
-	vNvkYJIEV+PlvzgWDyPbJ0VfW/e4mCQj9t0qcU8AtaqfJAEj2tCltjMCIV5mvXqbZARpc3dng2u
-	CGGdfn3nG0hBH8k3ZQpzybZt4mwC21xQ6Pk3yzJgb5Q3cwQRUYf9yWHMZzWwjBQ5rrg==
-X-Received: by 2002:a50:9832:: with SMTP id g47mr8363604edb.282.1561693467017;
-        Thu, 27 Jun 2019 20:44:27 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqx6ERwEIXl/ha//T+T8e+HPEOydWSHnkc0B2o23mImXylLg8/B6XBRCP2GqUBLdBWJ0CXpg
-X-Received: by 2002:a50:9832:: with SMTP id g47mr8363562edb.282.1561693466285;
-        Thu, 27 Jun 2019 20:44:26 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561693466; cv=none;
+X-Gm-Message-State: APjAAAXSGvrNQB50RfPa/8IbAV8bBisktG2LjwHqP8QZlbQcJ1GaKuOG
+	8xoYZvj2NXFh4YbBaWgi0J0WvIxCwIMUxrjRJbNqar0f8ahJBHispSqTWAW1k2bz+ZiZ9U8F14O
+	1sRL0Zukl3YA3wTYpwyN5DFxGBe4uJV3VMbQvDgIOtPixE19J4TUmkU/4XqCAkH9LKw==
+X-Received: by 2002:a17:906:1e04:: with SMTP id g4mr6552543ejj.48.1561693573020;
+        Thu, 27 Jun 2019 20:46:13 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxzSOIbIqvPs4kY7r+mwPs4bEqGgCRg9z30oXKL419LKgrZmjp4YCs0n1SRic4NTiaNkIFm
+X-Received: by 2002:a17:906:1e04:: with SMTP id g4mr6552493ejj.48.1561693571964;
+        Thu, 27 Jun 2019 20:46:11 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561693571; cv=none;
         d=google.com; s=arc-20160816;
-        b=Coqkpk5CbMfMf3kaxs5dKZ5x2fWE/bbVIX1g8+2b0MdTs1U+H4EgrJeKlGF8QxKL8E
-         dfZ+eyWs9K1kI662MEeqvyflGjwqSNXAE3X1XHq3VSsrTiiQd+cfcR9XAW3a7hoPCasL
-         OR7DVUSoXcFWV6Zy9SdOT7DmQa0zsA1uZjRgpYk5ST62gCqEiT6dSyE02ZqC5inq/seb
-         DsaZ/4T1EbXadYqPVn6MoNlexUL/YKbrVm7nE9NYVrMbG42JnbcUWiH53Ngmc4RE/q6S
-         nlx967hrXfeWWqwIuoRuh7tsSile3fIEazFpNP5J8svHKEygnzsIkfY4rB8QD0b1eImh
-         8qRA==
+        b=T880ohI+QCoH/2IpCI1v2h5gBQw6AOuht1mQ9wYNqQ7WTAQO1sWTQmZIOR+CX0f2Zs
+         zGWMKSYSDW2/PNSvMU/6qNjqVNoESa76w0fXHxNpEuwolo808QmL7uUSyu0lQoJjjg4t
+         EEVO+WIb+BdSM7dD1n0x5z9vNZSAMIPYtQKwcL/J0B19DSHgIJshTyLCfALRJLxvXWGG
+         so0+VcF8JrnL1w06gt1zza5owFgGaDlcDilzKMNLNR+ZvKZ0jUjPANzUUqolDU567sa2
+         xXgagTNpdFQqJBch/k2N5EiMW+OwuqRyPXypftVanV82PNROarPp2zrWv2iuHtfU1nZq
+         zGyQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
          :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=rPd/a1hxAx0pDuqaGJdZpy8wumLFkZlHwpe3baOpt3g=;
-        b=Gp1nlzIvOoygOsRvI2ic2mxy3/JwFBvVa3yGwn5Gi6qfkkNR2xucw1D7p0TQdGTD/i
-         iryODRIX9/NeKnmZ3vSrtj55EfekAN9DjQZ8vz9FWhBUl1kJQKBEMByXbE6lEgsGp8cP
-         3RKu3iDH6hr+Zdp7hWh2XwqnWm8H9Aen44t9nFhMRiCZiPCjYgfNKhU2sDrvvleCY6Bo
-         b2weP4GiP7zOVCroIR1j6pZ50IgANLrIsAm1U/Kc+u+Jyso6DOU+hWmaBJ9JnXoX9ods
-         Jkkq6u2sFg/CdI93bkQb47sST/1JMDZoJa2nHSPxIepMowz5ghOKjys77cyk2QZLdbyK
-         OjkA==
+        bh=ju8OuMo6rKWWMo8SB9IJ5VSwe5x4wFBzk9/4asH/CuI=;
+        b=kPNOjygmBORF2gQR9E5FZEaMfV/6IzjWrWbgulWotNsgIVcK5oLlyI+r2PVO3B4vYw
+         gmATIOWWHvWBinfDjCcSs76y+6s+T7ocUSNzf2H8Xw/1Rml0yAumzR7B9PXCCalhMEe9
+         KWEohQs9CeowjKmbYHH8ZXv3F2F5XDmAl+pov5qMvlo+toT4fIfZXj57fh4/3mLhMrVM
+         dJYeZt+PISy9GoMJa0zLX0skY55O2yxqmDDy/LwzH+rHM5pl2+HYZDpMsQj9tggCNQpn
+         0elMjFZXZUoEsEEwaN9RzPzgFMPSmi+EOHujuAZBz6pYhNaXv0kU9acJdsZbzlLdGO3/
+         G8dA==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
 Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
-        by mx.google.com with ESMTP id v1si576879ejd.397.2019.06.27.20.44.25
+        by mx.google.com with ESMTP id g34si962003edb.182.2019.06.27.20.46.11
         for <linux-mm@kvack.org>;
-        Thu, 27 Jun 2019 20:44:25 -0700 (PDT)
+        Thu, 27 Jun 2019 20:46:11 -0700 (PDT)
 Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
 Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id BC1A92B;
-	Thu, 27 Jun 2019 20:44:24 -0700 (PDT)
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id EEEA72B;
+	Thu, 27 Jun 2019 20:46:10 -0700 (PDT)
 Received: from [10.162.40.144] (p8cg001049571a15.blr.arm.com [10.162.40.144])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 2BE923F706;
-	Thu, 27 Jun 2019 20:44:20 -0700 (PDT)
-Subject: Re: [PATCH] powerpc/64s/radix: Define arch_ioremap_p4d_supported()
-To: Michael Ellerman <mpe@ellerman.id.au>, linux-mm@kvack.org
-Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>,
- Paul Mackerras <paulus@samba.org>,
- "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>,
- Nicholas Piggin <npiggin@gmail.com>,
- Andrew Morton <akpm@linux-foundation.org>,
- Stephen Rothwell <sfr@canb.auug.org.au>, linuxppc-dev@lists.ozlabs.org,
- linux-kernel@vger.kernel.org, linux-next@vger.kernel.org
-References: <1561555260-17335-1-git-send-email-anshuman.khandual@arm.com>
- <87d0iztz0f.fsf@concordia.ellerman.id.au>
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 965093F706;
+	Thu, 27 Jun 2019 20:46:08 -0700 (PDT)
+Subject: Re: [RFC 1/2] arm64/mm: Change THP helpers to comply with generic MM
+ semantics
+To: Zi Yan <ziy@nvidia.com>
+Cc: linux-mm@kvack.org, Catalin Marinas <catalin.marinas@arm.com>,
+ Will Deacon <will@kernel.org>, Mark Rutland <mark.rutland@arm.com>,
+ Marc Zyngier <marc.zyngier@arm.com>, Suzuki Poulose
+ <suzuki.poulose@arm.com>, linux-arm-kernel@lists.infradead.org,
+ linux-kernel@vger.kernel.org
+References: <1561639696-16361-1-git-send-email-anshuman.khandual@arm.com>
+ <1561639696-16361-2-git-send-email-anshuman.khandual@arm.com>
+ <7F685152-7C6C-4E99-99DF-03DDD03D6094@nvidia.com>
 From: Anshuman Khandual <anshuman.khandual@arm.com>
-Message-ID: <6d201cb8-4c39-b7ea-84e6-f84607cc8b4f@arm.com>
-Date: Fri, 28 Jun 2019 09:14:46 +0530
+Message-ID: <5c490be8-5ac1-0a3a-32cf-d4e692fc59b5@arm.com>
+Date: Fri, 28 Jun 2019 09:16:35 +0530
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
  Thunderbird/52.9.1
 MIME-Version: 1.0
-In-Reply-To: <87d0iztz0f.fsf@concordia.ellerman.id.au>
+In-Reply-To: <7F685152-7C6C-4E99-99DF-03DDD03D6094@nvidia.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
@@ -110,36 +110,66 @@ List-ID: <linux-mm.kvack.org>
 
 
 
-On 06/27/2019 10:18 AM, Michael Ellerman wrote:
-> Anshuman Khandual <anshuman.khandual@arm.com> writes:
->> Recent core ioremap changes require HAVE_ARCH_HUGE_VMAP subscribing archs
->> provide arch_ioremap_p4d_supported() failing which will result in a build
->> failure like the following.
+On 06/27/2019 09:01 PM, Zi Yan wrote:
+> On 27 Jun 2019, at 8:48, Anshuman Khandual wrote:
+> 
+>> pmd_present() and pmd_trans_huge() are expected to behave in the following
+>> manner during various phases of a given PMD. It is derived from a previous
+>> detailed discussion on this topic [1] and present THP documentation [2].
 >>
->> ld: lib/ioremap.o: in function `.ioremap_huge_init':
->> ioremap.c:(.init.text+0x3c): undefined reference to
->> `.arch_ioremap_p4d_supported'
+>> pmd_present(pmd):
 >>
->> This defines a stub implementation for arch_ioremap_p4d_supported() keeping
->> it disabled for now to fix the build problem.
+>> - Returns true if pmd refers to system RAM with a valid pmd_page(pmd)
+>> - Returns false if pmd does not refer to system RAM - Invalid pmd_page(pmd)
+>>
+>> pmd_trans_huge(pmd):
+>>
+>> - Returns true if pmd refers to system RAM and is a trans huge mapping
+>>
+>> -------------------------------------------------------------------------
+>> |	PMD states	|	pmd_present	|	pmd_trans_huge	|
+>> -------------------------------------------------------------------------
+>> |	Mapped		|	Yes		|	Yes		|
+>> -------------------------------------------------------------------------
+>> |	Splitting	|	Yes		|	Yes		|
+>> -------------------------------------------------------------------------
+>> |	Migration/Swap	|	No		|	No		|
+>> -------------------------------------------------------------------------
+>>
+>> The problem:
+>>
+>> PMD is first invalidated with pmdp_invalidate() before it's splitting. This
+>> invalidation clears PMD_SECT_VALID as below.
+>>
+>> PMD Split -> pmdp_invalidate() -> pmd_mknotpresent -> Clears PMD_SECT_VALID
+>>
+>> Once PMD_SECT_VALID gets cleared, it results in pmd_present() return false
+>> on the PMD entry. It will need another bit apart from PMD_SECT_VALID to re-
+>> affirm pmd_present() as true during the THP split process. To comply with
+>> above mentioned semantics, pmd_trans_huge() should also check pmd_present()
+>> first before testing presence of an actual transparent huge mapping.
+>>
+>> The solution:
+>>
+>> Ideally PMD_TYPE_SECT should have been used here instead. But it shares the
+>> bit position with PMD_SECT_VALID which is used for THP invalidation. Hence
+>> it will not be there for pmd_present() check after pmdp_invalidate().
+>>
+>> PTE_SPECIAL never gets used for PMD mapping i.e there is no pmd_special().
+>> Hence this bit can be set on the PMD entry during invalidation which can
+>> help in making pmd_present() return true and in recognizing the fact that
+>> it still points to memory.
+>>
+>> This bit is transient. During the split is process it will be overridden
+>> by a page table page representing the normal pages in place of erstwhile
+>> huge page. Other pmdp_invalidate() callers always write a fresh PMD value
+>> on the entry overriding this transient PTE_SPECIAL making it safe. In the
+>> past former pmd_[mk]splitting() functions used PTE_SPECIAL.
+>>
+>> [1]: https://lkml.org/lkml/2018/10/17/231
 > 
-> The easiest option is for this to be folded into your patch that creates
-> the requirement for arch_ioremap_p4d_supported().
-> 
-> Andrew might do that for you, or you could send a v2.
-> 
-> This looks fine from a powerpc POV:
-> 
-> Acked-by: Michael Ellerman <mpe@ellerman.id.au>
-> 
-> cheers
+> Just want to point out that lkml.org link might not be stable.
+> This one would be better: https://lore.kernel.org/linux-mm/20181017020930.GN30832@redhat.com/
 
-Hello Stephen/Michael/Andrew,
-
-On linux-next (next-20190627) this change has already been applied though a
-merge commit 153083a99fe431 ("Merge branch 'akpm-current/current'"). So we
-are good on this ? Or shall I send out a V2 for the original patch. Please
-suggest. Thank you.
-
-- Anshuman
+Sure will update the link in the commit. Thanks !
 
