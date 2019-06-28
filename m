@@ -2,291 +2,343 @@ Return-Path: <SRS0=7Cer=U3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-0.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B6552C4321A
-	for <linux-mm@archiver.kernel.org>; Fri, 28 Jun 2019 18:23:00 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1B017C5B57A
+	for <linux-mm@archiver.kernel.org>; Fri, 28 Jun 2019 18:25:55 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5F65320828
-	for <linux-mm@archiver.kernel.org>; Fri, 28 Jun 2019 18:23:00 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id C306B20828
+	for <linux-mm@archiver.kernel.org>; Fri, 28 Jun 2019 18:25:54 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="eDYJem0e"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5F65320828
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="r6+g2L5r"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C306B20828
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C8B0B6B0003; Fri, 28 Jun 2019 14:22:59 -0400 (EDT)
+	id 621596B0006; Fri, 28 Jun 2019 14:25:54 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C3C0A8E0003; Fri, 28 Jun 2019 14:22:59 -0400 (EDT)
+	id 5D21A8E0003; Fri, 28 Jun 2019 14:25:54 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B026F8E0002; Fri, 28 Jun 2019 14:22:59 -0400 (EDT)
+	id 4988E8E0002; Fri, 28 Jun 2019 14:25:54 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f78.google.com (mail-io1-f78.google.com [209.85.166.78])
-	by kanga.kvack.org (Postfix) with ESMTP id 902226B0003
-	for <linux-mm@kvack.org>; Fri, 28 Jun 2019 14:22:59 -0400 (EDT)
-Received: by mail-io1-f78.google.com with SMTP id h4so7573510iol.5
-        for <linux-mm@kvack.org>; Fri, 28 Jun 2019 11:22:59 -0700 (PDT)
+Received: from mail-io1-f79.google.com (mail-io1-f79.google.com [209.85.166.79])
+	by kanga.kvack.org (Postfix) with ESMTP id 25B6C6B0006
+	for <linux-mm@kvack.org>; Fri, 28 Jun 2019 14:25:54 -0400 (EDT)
+Received: by mail-io1-f79.google.com with SMTP id i133so7526760ioa.11
+        for <linux-mm@kvack.org>; Fri, 28 Jun 2019 11:25:54 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=lc3OI8QfKibL21v6cTP/3xd9sh8KexW4QRlrEctAsqc=;
-        b=D96hSSFB8JAFtNShrV8Y3bY+w13kLUhTPmfpcbObAUdbTo6eyfvW7M/uYYDfbdRaEi
-         8ghnqg3B2lWZGA5UPpKzlLEMuxZvlxqzUjHpHLQMhKXVJDew7V2fx1kRYOZUMJxW/D7Z
-         ftw41ld0DaiuPP1dmhTVXhCTv8I9baq5ohcimFYyTYZ3y6cDtfYdjTu2gBSr5lm9VCVD
-         61hYOo0ig0F4jprxOR3OEJG4oN9iXbwvgidhNhj07mgiN2qYYEEcbg7jc6B8NobHx9hh
-         eG9+RKNph4HadA1zhbejCs28FFDkvrg4G5Tm9Lx4iKCdK5e4x9zXLQL9sl7fCN1qbqBn
-         73Cw==
-X-Gm-Message-State: APjAAAXVnH95zOvXRehFFNm+fWpdHONeOvgtBMUHiD1+qq0zbVBfQ8LP
-	SV9xxi9IBf43i699ypQ5Jty2QZUtoYdHiIFFypSz/JnQLQMlpWsEbN/JAB4XsHogxHMLyllWI9W
-	p5wyvFW7K7tzaEtEfO1X2JCUSFhbTe9HLmW3QXcDsTNOlrxHxQ+QAJLXGhN8loDaeOg==
-X-Received: by 2002:a5d:8f99:: with SMTP id l25mr12091015iol.92.1561746179222;
-        Fri, 28 Jun 2019 11:22:59 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzLp126UkyNKPChdEG1qiLyFkxfkxXsgJEtPmA5R5Ockl9zpHlgeaEFl8l1KaSrCDv35vJs
-X-Received: by 2002:a5d:8f99:: with SMTP id l25mr12090903iol.92.1561746177666;
-        Fri, 28 Jun 2019 11:22:57 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561746177; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=NdjWQOf/yOx5ZW0w8+A5hA2av2WUhbolbuF5akIF1VY=;
+        b=U97tab0NqaQNTMVl5UDCzDMfqA3lBgacJeCs1UbGXuB+/2Kst8QfdaLHvHTnSG7N6r
+         xKuqWS9Dh6mZwnV427SqsXX8cqt9AqnF1glos6YvZGxdzXLfaAz5ZyELbyieLEhi1fGs
+         dxdYHDSchlmIx0Dn7mM4TGl7PNUNEANn/L+qJCbT6z3+27N/VhrlknW39hSUYCZQt11J
+         iFOXyhClEI+9JT5Y5ykk61Wjs01jNs9imk1neHmJHOX04BLdsUMIe9nWd0gyO2WGDbEU
+         CNRGKQTH/V4sRzCZQOqrOzjta9gg1VHAgK8J5C2trwBA72BGLZjtOuaJqke24jJd4edw
+         blTg==
+X-Gm-Message-State: APjAAAVCnbG85J9rL3yptEcHEhX4CTuqIYBeYvf96wJZKht2TTazx8Bp
+	uny+6213XCGogrFVcotRH9YEI2z/Pdz1xOpn3wCfGiTF/qGWC0K1zTQmWDMmUB1De2ApEOsOnMg
+	RbOPaPnlMm9LttI/LTDHln0T6I8AJ/Jp1XtroXU88DZoa5MSB4wUN449nVyNqbrpO9g==
+X-Received: by 2002:a5d:8404:: with SMTP id i4mr8693817ion.146.1561746353841;
+        Fri, 28 Jun 2019 11:25:53 -0700 (PDT)
+X-Received: by 2002:a5d:8404:: with SMTP id i4mr8693743ion.146.1561746352819;
+        Fri, 28 Jun 2019 11:25:52 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561746352; cv=none;
         d=google.com; s=arc-20160816;
-        b=VcwR1hlV9fJhkpYT0bjYFdU9p2zO6lWdvOit5m8uDHj8H8oGRRTcJDqXm+eHsy9KDI
-         J0VZbyDLULTINiuVR8bWuqZ4A6kBiMLx4BKvwGcCPAdaBnUdO/+IbRx4UsGxYU2EYnAR
-         W3mL0VtEEdg4Q/EFW1P6vzcUlMZkVwsW+mNCsvP6O3LGBrLTSHYHHOM1tw/dtOdx/nHA
-         biXN69Lis44lyQcx9oIbENIGoLXGA0TnTOjKnrzrQXhM3QrvCUuG1qugML3hjg5KzTOJ
-         FPACS8Fdj1xrpKvVpaxjEhOgNBr+mMczvuMg9vRH2hApdQ4llabAKeoBuWZiB3h7T7Tk
-         DkgA==
+        b=rRlYL8/pxvBHzcQVrWTQ1JnI3Yrn+uZEzEj2CP97lx80Ve1WvbpLxHLvUKsh2TNpnj
+         pknsV9Rd4JY3Q4tU1eC3TzzfrkWxJ9MU1YFfTu7kKMhRyFu+LdStNoADpkZl9TrrtZfi
+         09ro9MNMzsM7mmOXECDMwZJm2uQQ34Wv1RJl9dO/8rSewVPA6+s96ky5wSa/LkI/00Tr
+         9O1o2SG+o5v1pxG/aeaYNJJ4b1Bjav6H7oaTpTV5nEbuJadxiBWh7xnxrN1L4M5DOkTD
+         RvictBuwNmPMoCdrgw7M31P/S2Dy4AR/FXdh3XBW8YKHr9252YTUjMiAVTZPnDneQ11a
+         3O6Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject
-         :dkim-signature;
-        bh=lc3OI8QfKibL21v6cTP/3xd9sh8KexW4QRlrEctAsqc=;
-        b=nJRZr3L9reMPuKKIhMNMtSuQMKKPms4nbf0tq3bev/wB7kmb/KOmSeAXUAwFQSzJuX
-         9t1WVk9VhTMHCp0DFJrBJ2qtcWDKPZ8glmRrJYCePDwTUXAI4r95pEG1j1HAnfGD4Kcs
-         TYFkqJMYvXSs2as3NBWj2hp/o7eB4dgBJAWBFLJhWMdKieMZMcCf6TbyyRcKk25dOEjp
-         tvOmN/jaNBhfknAQClU3/QdrZljb9FqBr8rjOduEDrY1KUN+5oxdT7WNXUJiSgduykrh
-         eXSJKLfR1pc4R1fYO0g8lg0k+jFKTv3FwY4mjkKso1PLeg+QQBR7MqPaoGep/4oGKuC/
-         vsBg==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=NdjWQOf/yOx5ZW0w8+A5hA2av2WUhbolbuF5akIF1VY=;
+        b=z9Gh07AKj71TBETn6gYHpvkLhFjmsh/Rcn+dR2pBHNCrQMyxo9i/715W+gxguRMiLn
+         v/dg7UMnrBLvSW6zyZ7CoM5tNyvhfHudhtUsR8NcUDfFgDzuhhTpd+8woDw+b0R8N6ep
+         X+LEYmxkLXmLeZsCTiPACu9JAczqQyoG5Gme395MCypBZYApkVlGU6NuVUervuHlI9JM
+         vnuMLsBdkldjouYayNXjBP+F6+2f1l7IKIpomn/wZhPA6cnkvpGUgyCaE7Qa9sZGE3W3
+         gmrUW3wu9kouKwni8HHr+4ypDeODJO5AijBbZfrg/xxwjup0OfgkzALlbKjo+ikqXmx8
+         xhTw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=eDYJem0e;
-       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 141.146.126.78 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
-        by mx.google.com with ESMTPS id v67si4557391iod.93.2019.06.28.11.22.57
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=r6+g2L5r;
+       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id b12sor2542813iof.42.2019.06.28.11.25.52
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 28 Jun 2019 11:22:57 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mike.kravetz@oracle.com designates 141.146.126.78 as permitted sender) client-ip=141.146.126.78;
+        (Google Transport Security);
+        Fri, 28 Jun 2019 11:25:52 -0700 (PDT)
+Received-SPF: pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=eDYJem0e;
-       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 141.146.126.78 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (aserp2120.oracle.com [127.0.0.1])
-	by aserp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x5SIJMn3017152;
-	Fri, 28 Jun 2019 18:22:52 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
- references : from : message-id : date : mime-version : in-reply-to :
- content-type : content-transfer-encoding; s=corp-2018-07-02;
- bh=lc3OI8QfKibL21v6cTP/3xd9sh8KexW4QRlrEctAsqc=;
- b=eDYJem0eS4CQmZrC8shtxKv0HIxFR58yfhYDr2qrtgB64vTbE/K7CFUnz3UG/wwUwUSz
- dRj7lenowWBIj5m8hNdt/idQqU0pv2c7zQq895OrvRIUKK3spmfKTHLjsBo0M1MnPg2X
- 4kIawOTN2pEiVRrqCO3tDM6uDrx/JZpZCAy9L94d/v4YC+pGShhsBqkxCKYBwZdEBcbr
- y3gFGSDB++yBUlrv0VboSiTbA6WNtI5VzT1rjROUJaiP3JCsHI0RvmwhZrrTFCHTHJ5F
- rc1rsm5LHX0roXZx6xVbNyarMeDnfsURXKw6YsHxI4ML3svP2sWDsvnhJIqj0bGcxPLU Sw== 
-Received: from aserp3020.oracle.com (aserp3020.oracle.com [141.146.126.70])
-	by aserp2120.oracle.com with ESMTP id 2t9c9q71ds-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Fri, 28 Jun 2019 18:22:52 +0000
-Received: from pps.filterd (aserp3020.oracle.com [127.0.0.1])
-	by aserp3020.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x5SIKqbp123993;
-	Fri, 28 Jun 2019 18:20:52 GMT
-Received: from aserv0122.oracle.com (aserv0122.oracle.com [141.146.126.236])
-	by aserp3020.oracle.com with ESMTP id 2t9p6w1x0v-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Fri, 28 Jun 2019 18:20:52 +0000
-Received: from abhmp0018.oracle.com (abhmp0018.oracle.com [141.146.116.24])
-	by aserv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x5SIKi58018231;
-	Fri, 28 Jun 2019 18:20:44 GMT
-Received: from [192.168.1.222] (/71.63.128.209)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Fri, 28 Jun 2019 11:20:43 -0700
-Subject: Re: [Question] Should direct reclaim time be bounded?
-To: Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>,
-        linux-kernel <linux-kernel@vger.kernel.org>,
-        Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>,
-        Johannes Weiner <hannes@cmpxchg.org>
-References: <d38a095e-dc39-7e82-bb76-2c9247929f07@oracle.com>
- <20190423071953.GC25106@dhcp22.suse.cz>
- <eac582cf-2f76-4da1-1127-6bb5c8c959e4@oracle.com>
- <04329fea-cd34-4107-d1d4-b2098ebab0ec@suse.cz>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <dede2f84-90bf-347a-2a17-fb6b521bf573@oracle.com>
-Date: Fri, 28 Jun 2019 11:20:42 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.1
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=r6+g2L5r;
+       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=NdjWQOf/yOx5ZW0w8+A5hA2av2WUhbolbuF5akIF1VY=;
+        b=r6+g2L5rqKXu/g2S/ETP5H5BKttxzeG1ZI4/XWzYLvYRQV+Zj9x4T0uwmtGvOCGP+5
+         tVaRuyUEBs+IAwv3AUvHUkV9KJuitmmge9/AxAuuuPZ5QXRpZxzb9Av8lTTH7i+hNUnl
+         seii6jde8L44EbD8745YRip2UWXJcO75TSe4wVh/GE8bjUSnS/pQoZglMROqaRkJiCbG
+         NCLjDDpCDqERsEBiyGENkIHlbUDnPLctc16eenGCSzDpO+Q/sWpv7F/y4l78429gZT58
+         f+Hqmi+ulRNn96GPWtDS9mdK/xEDSmroi376Jp55zW323JkYbQLJHyi4mFTUUn5aoJ+9
+         3LZg==
+X-Google-Smtp-Source: APXvYqzsCCS7suEEDv1ctetOh+HYaqDjC7aQq+cRFaNaEWH1OHFRfIz+86nsi4xUSxd/kmrgVnuVAXElrYURYb/lrnY=
+X-Received: by 2002:a6b:b790:: with SMTP id h138mr11996522iof.64.1561746352253;
+ Fri, 28 Jun 2019 11:25:52 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <04329fea-cd34-4107-d1d4-b2098ebab0ec@suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9302 signatures=668688
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
- phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
- adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
- engine=8.0.1-1810050000 definitions=main-1906280206
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9302 signatures=668688
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1011
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1906280207
+References: <20190603170306.49099-1-nitesh@redhat.com> <20190603140304-mutt-send-email-mst@kernel.org>
+ <afac6f92-74f5-4580-0303-12b7374e5011@redhat.com> <CAKgT0UdK2v+xTwzjLfc69Baz0iDp7GnGRdUacQPue5XHFfQxHg@mail.gmail.com>
+ <cc20a6d2-9e95-3de4-301a-f2a6a5b025e4@redhat.com>
+In-Reply-To: <cc20a6d2-9e95-3de4-301a-f2a6a5b025e4@redhat.com>
+From: Alexander Duyck <alexander.duyck@gmail.com>
+Date: Fri, 28 Jun 2019 11:25:41 -0700
+Message-ID: <CAKgT0UfMGXQWzS7=UVquCPECEpPZ1DHzmoH9aOz=r-Di=OKFrA@mail.gmail.com>
+Subject: Re: [RFC][Patch v10 0/2] mm: Support for page hinting
+To: Nitesh Narayan Lal <nitesh@redhat.com>
+Cc: "Michael S. Tsirkin" <mst@redhat.com>, kvm list <kvm@vger.kernel.org>, 
+	LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, 
+	Paolo Bonzini <pbonzini@redhat.com>, lcapitulino@redhat.com, pagupta@redhat.com, 
+	wei.w.wang@intel.com, Yang Zhang <yang.zhang.wz@gmail.com>, 
+	Rik van Riel <riel@surriel.com>, David Hildenbrand <david@redhat.com>, dodgen@google.com, 
+	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, dhildenb@redhat.com, 
+	Andrea Arcangeli <aarcange@redhat.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 4/24/19 7:35 AM, Vlastimil Babka wrote:
-> On 4/23/19 6:39 PM, Mike Kravetz wrote:
->>> That being said, I do not think __GFP_RETRY_MAYFAIL is wrong here. It
->>> looks like there is something wrong in the reclaim going on.
->>
->> Ok, I will start digging into that.  Just wanted to make sure before I got
->> into it too deep.
->>
->> BTW - This is very easy to reproduce.  Just try to allocate more huge pages
->> than will fit into memory.  I see this 'reclaim taking forever' behavior on
->> v5.1-rc5-mmotm-2019-04-19-14-53.  Looks like it was there in v5.0 as well.
-> 
-> I'd suspect this in should_continue_reclaim():
-> 
->         /* Consider stopping depending on scan and reclaim activity */
->         if (sc->gfp_mask & __GFP_RETRY_MAYFAIL) {
->                 /*
->                  * For __GFP_RETRY_MAYFAIL allocations, stop reclaiming if the
->                  * full LRU list has been scanned and we are still failing
->                  * to reclaim pages. This full LRU scan is potentially
->                  * expensive but a __GFP_RETRY_MAYFAIL caller really wants to succeed
->                  */
->                 if (!nr_reclaimed && !nr_scanned)
->                         return false;
-> 
-> And that for some reason, nr_scanned never becomes zero. But it's hard
-> to figure out through all the layers of functions :/
+On Tue, Jun 25, 2019 at 10:32 AM Nitesh Narayan Lal <nitesh@redhat.com> wrote:
+>
+> On 6/25/19 1:10 PM, Alexander Duyck wrote:
+> > On Tue, Jun 25, 2019 at 7:49 AM Nitesh Narayan Lal <nitesh@redhat.com> wrote:
+> >>
+> >> On 6/3/19 2:04 PM, Michael S. Tsirkin wrote:
+> >>> On Mon, Jun 03, 2019 at 01:03:04PM -0400, Nitesh Narayan Lal wrote:
+> >>>> This patch series proposes an efficient mechanism for communicating free memory
+> >>>> from a guest to its hypervisor. It especially enables guests with no page cache
+> >>>> (e.g., nvdimm, virtio-pmem) or with small page caches (e.g., ram > disk) to
+> >>>> rapidly hand back free memory to the hypervisor.
+> >>>> This approach has a minimal impact on the existing core-mm infrastructure.
+> >>> Could you help us compare with Alex's series?
+> >>> What are the main differences?
+> >> Results on comparing the benefits/performance of Alexander's v1
+> >> (bubble-hinting)[1], Page-Hinting (includes some of the upstream
+> >> suggested changes on v10) over an unmodified Kernel.
+> >>
+> >> Test1 - Number of guests that can be launched without swap usage.
+> >> Guest size: 5GB
+> >> Cores: 4
+> >> Total NUMA Node Memory ~ 15 GB (All guests are running on a single node)
+> >> Process: Guest is launched sequentially after running an allocation
+> >> program with 4GB request.
+> >>
+> >> Results:
+> >> unmodified kernel: 2 guests without swap usage and 3rd guest with a swap
+> >> usage of 2.3GB.
+> >> bubble-hinting v1: 4 guests without swap usage and 5th guest with a swap
+> >> usage of 1MB.
+> >> Page-hinting: 5 guests without swap usage and 6th guest with a swap
+> >> usage of 8MB.
+> >>
+> >>
+> >> Test2 - Memhog execution time
+> >> Guest size: 6GB
+> >> Cores: 4
+> >> Total NUMA Node Memory ~ 15 GB (All guests are running on a single node)
+> >> Process: 3 guests are launched and "time memhog 6G" is launched in each
+> >> of them sequentially.
+> >>
+> >> Results:
+> >> unmodified kernel: Guest1-40s, Guest2-1m5s, Guest3-6m38s (swap usage at
+> >> the end-3.6G)
+> >> bubble-hinting v1: Guest1-32s, Guest2-58s, Guest3-35s (swap usage at the
+> >> end-0)
+> >> Page-hinting: Guest1-42s, Guest2-47s, Guest3-32s (swap usage at the end-0)
+> >>
+> >>
+> >> Test3 - Will-it-scale's page_fault1
+> >> Guest size: 6GB
+> >> Cores: 24
+> >> Total NUMA Node Memory ~ 15 GB (All guests are running on a single node)
+> >>
+> >> unmodified kernel:
+> >> tasks,processes,processes_idle,threads,threads_idle,linear
+> >> 0,0,100,0,100,0
+> >> 1,459168,95.83,459315,95.83,459315
+> >> 2,956272,91.68,884643,91.72,918630
+> >> 3,1407811,87.53,1267948,87.69,1377945
+> >> 4,1755744,83.39,1562471,83.73,1837260
+> >> 5,2056741,79.24,1812309,80.00,2296575
+> >> 6,2393759,75.09,2025719,77.02,2755890
+> >> 7,2754403,70.95,2238180,73.72,3215205
+> >> 8,2947493,66.81,2369686,70.37,3674520
+> >> 9,3063579,62.68,2321148,68.84,4133835
+> >> 10,3229023,58.54,2377596,65.84,4593150
+> >> 11,3337665,54.40,2429818,64.01,5052465
+> >> 12,3255140,50.28,2395070,61.63,5511780
+> >> 13,3260721,46.11,2402644,59.77,5971095
+> >> 14,3210590,42.02,2390806,57.46,6430410
+> >> 15,3164811,37.88,2265352,51.39,6889725
+> >> 16,3144764,33.77,2335028,54.07,7349040
+> >> 17,3128839,29.63,2328662,49.52,7808355
+> >> 18,3133344,25.50,2301181,48.01,8267670
+> >> 19,3135979,21.38,2343003,43.66,8726985
+> >> 20,3136448,17.27,2306109,40.81,9186300
+> >> 21,3130324,13.16,2403688,35.84,9645615
+> >> 22,3109883,9.04,2290808,36.24,10104930
+> >> 23,3136805,4.94,2263818,35.43,10564245
+> >> 24,3118949,0.78,2252891,31.03,11023560
+> >>
+> >> bubble-hinting v1:
+> >> tasks,processes,processes_idle,threads,threads_idle,linear
+> >> 0,0,100,0,100,0
+> >> 1,292183,95.83,292428,95.83,292428
+> >> 2,540606,91.67,501887,91.91,584856
+> >> 3,821748,87.53,735244,88.31,877284
+> >> 4,1033782,83.38,839925,85.59,1169712
+> >> 5,1261352,79.25,896464,83.86,1462140
+> >> 6,1459544,75.12,1050094,80.93,1754568
+> >> 7,1686537,70.97,1112202,79.23,2046996
+> >> 8,1866892,66.83,1083571,78.48,2339424
+> >> 9,2056887,62.72,1101660,77.94,2631852
+> >> 10,2252955,58.57,1097439,77.36,2924280
+> >> 11,2413907,54.40,1088583,76.72,3216708
+> >> 12,2596504,50.35,1117474,76.01,3509136
+> >> 13,2715338,46.21,1087666,75.32,3801564
+> >> 14,2861697,42.08,1084692,74.35,4093992
+> >> 15,2964620,38.02,1087910,73.40,4386420
+> >> 16,3065575,33.84,1099406,71.07,4678848
+> >> 17,3107674,29.76,1056948,71.36,4971276
+> >> 18,3144963,25.71,1094883,70.14,5263704
+> >> 19,3173468,21.61,1073049,66.21,5556132
+> >> 20,3173233,17.55,1072417,67.16,5848560
+> >> 21,3209710,13.37,1079147,65.64,6140988
+> >> 22,3182958,9.37,1085872,65.95,6433416
+> >> 23,3200747,5.23,1076414,59.40,6725844
+> >> 24,3181699,1.04,1051233,65.62,7018272
+> >>
+> >> Page-hinting:
+> >> tasks,processes,processes_idle,threads,threads_idle,linear
+> >> 0,0,100,0,100,0
+> >> 1,467693,95.83,467970,95.83,467970
+> >> 2,967860,91.68,895883,91.70,935940
+> >> 3,1408191,87.53,1279602,87.68,1403910
+> >> 4,1766250,83.39,1557224,83.93,1871880
+> >> 5,2124689,79.24,1834625,80.35,2339850
+> >> 6,2413514,75.10,1989557,77.00,2807820
+> >> 7,2644648,70.95,2158055,73.73,3275790
+> >> 8,2896483,66.81,2305785,70.85,3743760
+> >> 9,3157796,62.67,2304083,69.49,4211730
+> >> 10,3251633,58.53,2379589,66.43,4679700
+> >> 11,3313704,54.41,2349310,64.76,5147670
+> >> 12,3285612,50.30,2362013,62.63,5615640
+> >> 13,3207275,46.17,2377760,59.94,6083610
+> >> 14,3221727,42.02,2416278,56.70,6551580
+> >> 15,3194781,37.91,2334552,54.96,7019550
+> >> 16,3211818,33.78,2399077,52.75,7487520
+> >> 17,3172664,29.65,2337660,50.27,7955490
+> >> 18,3177152,25.49,2349721,47.02,8423460
+> >> 19,3149924,21.36,2319286,40.16,8891430
+> >> 20,3166910,17.30,2279719,43.23,9359400
+> >> 21,3159464,13.19,2342849,34.84,9827370
+> >> 22,3167091,9.06,2285156,37.97,10295340
+> >> 23,3174137,4.96,2365448,33.74,10763310
+> >> 24,3161629,0.86,2253813,32.38,11231280
+> >>
+> >>
+> >> Test4: Netperf
+> >> Guest size: 5GB
+> >> Cores: 4
+> >> Total NUMA Node Memory ~ 15 GB (All guests are running on a single node)
+> >> Netserver: Running on core 0
+> >> Netperf: Running on core 1
+> >> Recv Socket Size bytes: 131072
+> >> Send Socket Size bytes:16384
+> >> Send Message Size bytes:1000000000
+> >> Time: 900s
+> >> Process: netperf is run 3 times sequentially in the same guest with the
+> >> same inputs mentioned above and throughput (10^6bits/sec) is observed.
+> >> unmodified kernel: 1st Run-14769.60, 2nd Run-14849.18, 3rd Run-14842.02
+> >> bubble-hinting v1: 1st Run-13441.77, 2nd Run-13487.81, 3rd Run-13503.87
+> >> Page-hinting: 1st Run-14308.20, 2nd Run-14344.36, 3rd Run-14450.07
+> >>
+> >> Drawback with bubble-hinting:
+> >> More invasive.
+> >>
+> >> Drawback with page-hinting:
+> >> Additional bitmap required, including growing/shrinking the bitmap on
+> >> memory hotplug.
+> >>
+> >>
+> >> [1] https://lkml.org/lkml/2019/6/19/926
+> > Any chance you could provide a .config for your kernel? I'm wondering
+> > what is different between the two as it seems like you are showing a
+> > significant regression in terms of performance for the bubble
+> > hinting/aeration approach versus a stock kernel without the patches
+> > and that doesn't match up with what I have been seeing.
+> I have attached the config which I was using.
 
-I got back to looking into the direct reclaim/compaction stalls when
-trying to allocate huge pages.  As previously mentioned, the code is
-looping for a long time in shrink_node().  The routine
-should_continue_reclaim() returns true perhaps more often than it should.
+Were all of these runs with the same config? I ask because I noticed
+the config you provided had a number of quite expensive memory debug
+options enabled:
 
-As Vlastmil guessed, my debug code output below shows nr_scanned is remaining
-non-zero for quite a while.  This was on v5.2-rc6.
+#
+# Memory Debugging
+#
+CONFIG_PAGE_EXTENSION=y
+CONFIG_DEBUG_PAGEALLOC=y
+CONFIG_DEBUG_PAGEALLOC_ENABLE_DEFAULT=y
+CONFIG_PAGE_OWNER=y
+# CONFIG_PAGE_POISONING is not set
+CONFIG_DEBUG_PAGE_REF=y
+# CONFIG_DEBUG_RODATA_TEST is not set
+CONFIG_DEBUG_OBJECTS=y
+# CONFIG_DEBUG_OBJECTS_SELFTEST is not set
+# CONFIG_DEBUG_OBJECTS_FREE is not set
+# CONFIG_DEBUG_OBJECTS_TIMERS is not set
+# CONFIG_DEBUG_OBJECTS_WORK is not set
+# CONFIG_DEBUG_OBJECTS_RCU_HEAD is not set
+# CONFIG_DEBUG_OBJECTS_PERCPU_COUNTER is not set
+CONFIG_DEBUG_OBJECTS_ENABLE_DEFAULT=1
+CONFIG_SLUB_DEBUG_ON=y
+# CONFIG_SLUB_STATS is not set
+CONFIG_HAVE_DEBUG_KMEMLEAK=y
+CONFIG_DEBUG_KMEMLEAK=y
+CONFIG_DEBUG_KMEMLEAK_EARLY_LOG_SIZE=400
+# CONFIG_DEBUG_KMEMLEAK_TEST is not set
+# CONFIG_DEBUG_KMEMLEAK_DEFAULT_OFF is not set
+CONFIG_DEBUG_KMEMLEAK_AUTO_SCAN=y
+CONFIG_DEBUG_STACK_USAGE=y
+CONFIG_DEBUG_VM=y
+# CONFIG_DEBUG_VM_VMACACHE is not set
+# CONFIG_DEBUG_VM_RB is not set
+# CONFIG_DEBUG_VM_PGFLAGS is not set
+CONFIG_ARCH_HAS_DEBUG_VIRTUAL=y
+CONFIG_DEBUG_VIRTUAL=y
+CONFIG_DEBUG_MEMORY_INIT=y
+CONFIG_DEBUG_PER_CPU_MAPS=y
+CONFIG_HAVE_ARCH_KASAN=y
+CONFIG_CC_HAS_KASAN_GENERIC=y
+# CONFIG_KASAN is not set
+CONFIG_KASAN_STACK=1
+# end of Memory Debugging
 
-To help determine what is happening, I added a counter to determine how many
-times should_continue_reclaim was returning true within one calling context
-from shrink_node.  Every 1,000,000 calls, I set a 'debug flag' to get a little
-more information about what is happening before the next call.  Here is output
-from debug code with some comments about what the debug code is showing.
-
-[ 1477.583859] ***should_continue_reclaim: setting debug_nr_scanned call 1000000
-[ 1477.584698] shrink_inactive_list: nr_taken 1 =  isolate_lru_pages(1, ...
-
-shrink_node calls shrink_node_memcg which calls shrink_list.  shrink_list
-can increment sc->nr_scanned which is used to compute the value of nr_scanned
-passed to should_continue_reclaim.  Here, we see that only one page is
-isolated for potential reclaim.
-
-[ 1477.585465] shrink_page_list: goto activate_locked 4
-
-shrink_page_list determines that the page can not be reclaimed.  The following
-code in shrink_page_list determines this.
-
-                if (page_has_private(page)) {
-                        if (!try_to_release_page(page, sc->gfp_mask))
-{
-/* Obviously, my debug code. */
-if (sc->debug_nr_scanned)
-  printk("shrink_page_list: goto activate_locked 4\n");
-                                goto activate_locked;
-}
-
-[ 1477.586044] shrink_inactive_list: nr_reclaimed = 0
-
-The bottom line is that page is not reclaimed.  But, it was 'scanned' so ..
-
-[ 1477.586627] ***should_continue_reclaim: sc->nr_reclaimed 9 pages_for_compaction  1024
-[ 1477.587546]            nr_reclaimed 0, nr_scanned 1
-
-should_continue_reclaim is called with nr_reclaimed 0, nr_scanned 1
-
-[ 1477.588124]            inactive_lru_pages 1 sc->nr_scanned 1000001
-
-Since sc->nr_scanned is 1000001 for 1000001 calls, it looks like we scanned
-one page each time.
-
-Additional similar output without comments.
-
-[ 1511.200515] ***should_continue_reclaim: setting debug_nr_scanned call 2000000
-[ 1511.201581] shrink_inactive_list: nr_taken 1 =  isolate_lru_pages(1, ...
-[ 1511.202615] shrink_page_list: goto activate_locked 4
-[ 1511.203561] shrink_inactive_list: nr_reclaimed = 0
-[ 1511.204422] ***should_continue_reclaim: sc->nr_reclaimed 10 pages_for_compaction  1024
-[ 1511.205785]            nr_reclaimed 0, nr_scanned 1
-[ 1511.206569]            inactive_lru_pages 1 sc->nr_scanned 2000001
-[ 1543.982310] ***should_continue_reclaim: setting debug_nr_scanned call 3000000
-[ 1543.983692] shrink_inactive_list: nr_taken 1 =  isolate_lru_pages(1, ...
-[ 1543.984645] shrink_page_list: goto activate_locked 4
-[ 1543.985405] shrink_inactive_list: nr_reclaimed = 0
-[ 1543.986386] ***should_continue_reclaim: sc->nr_reclaimed 11 pages_for_compaction  1024
-[ 1543.987662]            nr_reclaimed 0, nr_scanned 1
-[ 1543.988423]            inactive_lru_pages 1 sc->nr_scanned 3000001
-[ 1577.104923] ***should_continue_reclaim: setting debug_nr_scanned call 4000000
-[ 1577.105857] shrink_inactive_list: nr_taken 1 =  isolate_lru_pages(1, ...
-[ 1577.106752] shrink_page_list: goto activate_locked 4
-[ 1577.107454] shrink_inactive_list: nr_reclaimed = 0
-[ 1577.108163] ***should_continue_reclaim: sc->nr_reclaimed 11 pages_for_compaction  1024
-[ 1577.109423]            nr_reclaimed 0, nr_scanned 1
-[ 1577.110205]            inactive_lru_pages 1 sc->nr_scanned 4000001
-[ 1614.075236] ***should_continue_reclaim: setting debug_nr_scanned call 5000000
-[ 1614.076375] shrink_inactive_list: nr_taken 1 =  isolate_lru_pages(1, ...
-[ 1614.077410] shrink_page_list: goto activate_locked 4
-[ 1614.078210] shrink_inactive_list: nr_reclaimed = 0
-[ 1614.078913] ***should_continue_reclaim: sc->nr_reclaimed 13 pages_for_compaction  1024
-[ 1614.079907]            nr_reclaimed 0, nr_scanned 1
-[ 1614.080496]            inactive_lru_pages 1 sc->nr_scanned 5000001
-[ 1650.360466] ***should_continue_reclaim: setting debug_nr_scanned call 6000000
-[ 1650.361342] shrink_inactive_list: nr_taken 1 =  isolate_lru_pages(1, ...
-[ 1650.362147] shrink_page_list: goto activate_locked 4
-[ 1650.362759] shrink_inactive_list: nr_reclaimed = 0
-[ 1650.363685] ***should_continue_reclaim: sc->nr_reclaimed 13 pages_for_compaction  1024
-[ 1650.364648]            nr_reclaimed 0, nr_scanned 1
-[ 1650.365222]            inactive_lru_pages 0 sc->nr_scanned 6000001
-[ 1685.061380] ***should_continue_reclaim: setting debug_nr_scanned call 7000000
-[ 1685.062529] shrink_inactive_list: nr_taken 1 =  isolate_lru_pages(1, ...
-[ 1685.063615] shrink_page_list: goto activate_locked 4
-[ 1685.064439] shrink_inactive_list: nr_reclaimed = 0
-[ 1685.065244] ***should_continue_reclaim: sc->nr_reclaimed 14 pages_for_compaction  1024
-[ 1685.066536]            nr_reclaimed 0, nr_scanned 1
-[ 1685.067356]            inactive_lru_pages 1 sc->nr_scanned 7000001
-[ 1719.103176] ***should_continue_reclaim: setting debug_nr_scanned call 8000000
-[ 1719.104206] shrink_inactive_list: nr_taken 1 =  isolate_lru_pages(1, ...
-[ 1719.105117] shrink_page_list: goto activate_locked 4
-[ 1719.105781] shrink_inactive_list: nr_reclaimed = 0
-[ 1719.106475] ***should_continue_reclaim: sc->nr_reclaimed 15 pages_for_compaction  1024
-[ 1719.107499]            nr_reclaimed 0, nr_scanned 1
-[ 1719.108129]            inactive_lru_pages 1 sc->nr_scanned 8000001
-[ 1743.911025] ***should_continue_reclaim: false after 8711717 calls !nr_reclaimed && !nr_scanned
-
-Note that we do reclaim a 'few' pages along the way.  After 8711717 calls
-should_continue_reclaim finally hits the condition where (!nr_reclaimed &&
-!nr_scanned) and returns false.  We were stuck looping in shrink node for
-about 5 minutes.
-
-Any additional insight, suggestions for additional debug, etc. would be
-appreciated.
--- 
-Mike Kravetz
+When I went through and enabled these then my results for the bubble
+hinting matched pretty closely to what you reported. However, when I
+compiled without the patches and this config enabled the results were
+still about what was reported with the bubble hinting but were maybe
+5% improved. I'm just wondering if you were doing some additional
+debugging and left those options enabled for the bubble hinting test
+run.
 
