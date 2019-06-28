@@ -2,150 +2,116 @@ Return-Path: <SRS0=7Cer=U3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D601EC4321A
-	for <linux-mm@archiver.kernel.org>; Fri, 28 Jun 2019 05:47:40 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D9F16C4321A
+	for <linux-mm@archiver.kernel.org>; Fri, 28 Jun 2019 06:17:18 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9645E214AF
-	for <linux-mm@archiver.kernel.org>; Fri, 28 Jun 2019 05:47:40 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=sifive.com header.i=@sifive.com header.b="lmpx8dS8"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9645E214AF
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=sifive.com
+	by mail.kernel.org (Postfix) with ESMTP id 8C8962070D
+	for <linux-mm@archiver.kernel.org>; Fri, 28 Jun 2019 06:17:18 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8C8962070D
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=units.it
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 378616B0006; Fri, 28 Jun 2019 01:47:40 -0400 (EDT)
+	id 02E136B0003; Fri, 28 Jun 2019 02:17:17 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 328178E0003; Fri, 28 Jun 2019 01:47:40 -0400 (EDT)
+	id EFA408E0003; Fri, 28 Jun 2019 02:17:16 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1EFA38E0002; Fri, 28 Jun 2019 01:47:40 -0400 (EDT)
+	id DC01D8E0002; Fri, 28 Jun 2019 02:17:16 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 020E76B0006
-	for <linux-mm@kvack.org>; Fri, 28 Jun 2019 01:47:40 -0400 (EDT)
-Received: by mail-io1-f70.google.com with SMTP id j18so5389022ioj.4
-        for <linux-mm@kvack.org>; Thu, 27 Jun 2019 22:47:39 -0700 (PDT)
+Received: from mail-lj1-f198.google.com (mail-lj1-f198.google.com [209.85.208.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 961176B0003
+	for <linux-mm@kvack.org>; Fri, 28 Jun 2019 02:17:16 -0400 (EDT)
+Received: by mail-lj1-f198.google.com with SMTP id o9so1217886ljg.11
+        for <linux-mm@kvack.org>; Thu, 27 Jun 2019 23:17:16 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :in-reply-to:message-id:references:user-agent:mime-version;
-        bh=JonNVAGavnRlJhh68LVsFtVqprQdtcLj2PTjdYw2e9k=;
-        b=U6WM68L7R1LOZxhEAzNqCrH6eq7NresEp+7uDlV0wBNP7tc5DfpjijfiDXdQ9rK0uO
-         L3EdJ/aMGpQcK0fMHQ9i1gg7sgF2Ece+gYb/rdKzhTSSoO0HVFvnzJlPHnFpw1J8DVz4
-         YDVZ8XqhivVi3qVD6VThXFOJqCEvulhUlF+g82NIEVpWRDRQkA3iRq/ao088aL5vX4wj
-         7ULSRaApYHpeqXzWnWGemtV2PlhTiuI0RplweHejoJvBSyHLKI8e4IfDI73JDKzYskFA
-         WUkhIncpcNOK6MGUGdjSpFag2vSAKudeYcHictAxk3mAY3tffebUMf8QYM+LOw8O9bUY
-         nvAw==
-X-Gm-Message-State: APjAAAVGXRK8/itXBTpWmkJ0AuAZ64oVjy2pwBDJ5dQxuBvt2Q1AJFqr
-	0RTEkN9AK4cBrh08Y6rm6cxYbCns7x2g4I0+uS7uLrOHlnXH9CLQpygPImZhd3Fy95B+7XyDFln
-	9drU5hKh9FaFOLt+UgBceR81xLlr2Fj2PXkOJVa8qyX392KW79UQb+qb9cPNGZ1wwLQ==
-X-Received: by 2002:a05:6638:605:: with SMTP id g5mr9714121jar.110.1561700859834;
-        Thu, 27 Jun 2019 22:47:39 -0700 (PDT)
-X-Received: by 2002:a05:6638:605:: with SMTP id g5mr9714069jar.110.1561700859158;
-        Thu, 27 Jun 2019 22:47:39 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561700859; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:to:from:cc
+         :subject:in-reply-to:mime-version:content-id
+         :content-transfer-encoding:date:message-id;
+        bh=fRytH9Gq+nPrWerGKX8EZeg1z5oEqUgArcOcPWmw9WI=;
+        b=brrRpuvxWuX1SnT8QTJ5Kx0e4vaNFLw4bG2cC58WYKyrk8VjEmbkkvLHuzwcBFndxw
+         F5CLJnsOujNZXLWfixNw6sqfai4rcdd5iEgBq5jJ5oT8MkvTFHAkTWRAd+FZp5UtBsP3
+         cxzQGIxKoqgqOQft1XPNRCRLQ5qZQF6uZ5TCxD9i2qhrt81FM6D4uC728YJH3VRwhVk4
+         DdInsru3wet1M+dg09OEPtiz2NHr5Fz6jooOpcIKn2gG9tT5cqyYFz0PfekxQgOYkRNa
+         UPWu6rkmf3bDpYmx/TE3f+B1efbBEEQAgqokP6WsbrYc7KTl6CBMCEwixO1apWmiAv+s
+         Rz/A==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of balducci@units.it designates 140.105.55.81 as permitted sender) smtp.mailfrom=balducci@units.it
+X-Gm-Message-State: APjAAAV+l+ghTACKR1gofLHJjUc7J/U2SWzJHQuYtuA75/av+4XMXmKN
+	TBwKuWA3N68HjvL/adtsoiGKOr48Hl8YdCWy3nK1+HIXmFmOiUTCBxCmEwqEDJW7bwdBkEquQZh
+	emQiZRy3ovlguRKA5PB8VRqYq7sR7E9q4eFYhXkDrjURc4qrzDUQfmarfl9cXQ6zCkA==
+X-Received: by 2002:a2e:95d5:: with SMTP id y21mr4849201ljh.84.1561702636004;
+        Thu, 27 Jun 2019 23:17:16 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxh+Ky+DMHWAML5R2/BnxFNI/YwTIrWb/lnKHeCwrjT8+oIzFbKF0+xqA31sT/Bxs8E8S75
+X-Received: by 2002:a2e:95d5:: with SMTP id y21mr4849165ljh.84.1561702635225;
+        Thu, 27 Jun 2019 23:17:15 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561702635; cv=none;
         d=google.com; s=arc-20160816;
-        b=MIXw/AiPUvIIYNSF8e1rEPMkisHNRWhh+yrbaIc/3Y17OL9siPrCtK51nGSKTbZlxk
-         fNp9cPaXdMsWSJB3xZcNrD1jYrSe0dOMlCCKCO9ZaMB0A40C9yZYAuNWM7deceZ8eUew
-         PGKWGFKT50zAN/zX206M0AU8Kv5Ld7DJvj0SFRXxNLbIZQqd+YrgSDdBexJODWXgxH4Q
-         cml8PddylXaiZHU+gBEPjWunJ2eyPxjhf4jYoI0tuhEMcrbK4KdPZUiktX3koq3hKQMG
-         Hv/e5yQPXUrj27H5wCQAALAvBGHYbRdrSM/mM7GFxwxYjgxY2ZkeYmfLB4wIETlklzOQ
-         jTMg==
+        b=No6J6YN7DXrmlMXMRsurKgWTSVq1YxWgSNxQTff8vnobmhmdrMLgvdYDlRcSI/PSxO
+         myvuIpTy8lCkaypPqKrBZmnmR7sIQSdBav7uwD5wwn3PveL+bkz5z0bui9LkooY3v+t2
+         ZbeTa6l8Umf7sRJeyxUpfqpWRsHLS0UCfyTHvRYcoyuc4hXP2kHC6t8qc3ytYApXk9F/
+         GtI9Mqaf87eq+5R8/pNNL263oBfY+ZLzITWPnNHPGGD0Y2/ePca4D/vcspEH6F71FkWx
+         V9SOLzBdYEZ2x+duy+kB7d5da74FEg3b+SHoYLLr9dNGPlWdKjUWTlqMuuuNRBcXqXJ0
+         4+og==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:user-agent:references:message-id:in-reply-to:subject
-         :cc:to:from:date:dkim-signature;
-        bh=JonNVAGavnRlJhh68LVsFtVqprQdtcLj2PTjdYw2e9k=;
-        b=jnqxLDHnwPOBe3RCNZmYMgdY/ET4/AnF036SUnO6qPpBmLn60WEkfekjKeRvgyMEj4
-         5etR6zutCF7jMedM94hGFO76ilevu42rQyZjR5q9gdk1IKAo6ryo7ujxdCrxVnR0dx5a
-         vXJuxw4v+l2FcCoZxj3cZyGUnUc7AlvrwRg9Q9raUFlnY8Z5neAd7Swo536TrzAXBpR0
-         zjHGzKmqQwp9w/XI6zBPo6NzbtjGnGpkzh68BzU3zHKvWJ/pOqk5q0udcS6IPa4YvHsf
-         Wl7T/I7ZI8Inj3iAlJi74ZiSRS4nRHWNRejbCK1Ej3Tae6D2UD90ZYfeicTRgImtVmar
-         lzrA==
+        h=message-id:date:content-transfer-encoding:content-id:mime-version
+         :in-reply-to:subject:cc:from:to;
+        bh=fRytH9Gq+nPrWerGKX8EZeg1z5oEqUgArcOcPWmw9WI=;
+        b=eguYcGRkqKvr+s02pZfzaWva62IyUckvwyDSj/O71Skfgjy8NSlNl34aLmggh+Ljf3
+         fFUaqRsYDjf7R4IVDTOHw2KFpLXI6vlI7edqd+AYntlYaO7xBtoU/qyPfZ11S8m9VCtZ
+         CwQb6q0HEE3/W/PJnQ6LPmGXwwRWsqlnHaol3H7zuvqqWQ07oe6dJvcDT6UDJuuBLWbr
+         rXlgaBKlgx9m/wutttruWp3RJVLuQXPGLzhBZTX26nPsKEPUrlv7eUIbwQEvdELLDOqj
+         GOQG8LQSGDrebayWSwaqWo1A5WTQomRCFBXWvHNoQz+HD5hpyE8TnbidX+GbSziQKUKg
+         u5lA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@sifive.com header.s=google header.b=lmpx8dS8;
-       spf=pass (google.com: domain of paul.walmsley@sifive.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=paul.walmsley@sifive.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z9sor978872iop.12.2019.06.27.22.47.39
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 27 Jun 2019 22:47:39 -0700 (PDT)
-Received-SPF: pass (google.com: domain of paul.walmsley@sifive.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+       spf=pass (google.com: domain of balducci@units.it designates 140.105.55.81 as permitted sender) smtp.mailfrom=balducci@units.it
+Received: from dschgrazlin2.units.it (dschgrazlin2.univ.trieste.it. [140.105.55.81])
+        by mx.google.com with ESMTP id u3si1191439lji.232.2019.06.27.23.17.14
+        for <linux-mm@kvack.org>;
+        Thu, 27 Jun 2019 23:17:15 -0700 (PDT)
+Received-SPF: pass (google.com: domain of balducci@units.it designates 140.105.55.81 as permitted sender) client-ip=140.105.55.81;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@sifive.com header.s=google header.b=lmpx8dS8;
-       spf=pass (google.com: domain of paul.walmsley@sifive.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=paul.walmsley@sifive.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=sifive.com; s=google;
-        h=date:from:to:cc:subject:in-reply-to:message-id:references
-         :user-agent:mime-version;
-        bh=JonNVAGavnRlJhh68LVsFtVqprQdtcLj2PTjdYw2e9k=;
-        b=lmpx8dS8SmmI+bod4CIGHygIhMfXqrGVR8dl/YJdRJFestIpTr/2lSxlvkarvtECIz
-         jx6ZaHJ4aIqG/48rZvDj+pl6lnRoAg9OZ9mxYeLRu+N9SYpUGe3wfh4MU68CNNoASNHc
-         CGNxA2syIdCf+HG0oxmfLEi5SFjUdX3hg9TniJxA+g7sQYNxfgMtpYyJie9GQC9bxwvC
-         cReJnEEoKLA8nTHOoZ5SvxX9pXWN/Xc6nNnzVxLP0Q0BGFsjFwe1RkKw61gfOyGVyCmv
-         qoJTVQu/+2v//+Sk7Cwc3qJ9hw8ZgudhaYDERLiqQNqOdyIAwuu6iSAeKjQ6bW/nLZQu
-         bTRw==
-X-Google-Smtp-Source: APXvYqxSBxEznv5crFBLQNZa0Y7NNPYl7akgvsmNh/b7ftqbAIdgqF6gL+AZSuyVieJq0WKR7ZDQsQ==
-X-Received: by 2002:a5d:8195:: with SMTP id u21mr9407119ion.260.1561700858671;
-        Thu, 27 Jun 2019 22:47:38 -0700 (PDT)
-Received: from localhost (c-73-95-159-87.hsd1.co.comcast.net. [73.95.159.87])
-        by smtp.gmail.com with ESMTPSA id t4sm1064999ioj.26.2019.06.27.22.47.38
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Thu, 27 Jun 2019 22:47:38 -0700 (PDT)
-Date: Thu, 27 Jun 2019 22:47:37 -0700 (PDT)
-From: Paul Walmsley <paul.walmsley@sifive.com>
-X-X-Sender: paulw@viisi.sifive.com
-To: Atish Patra <atish.patra@wdc.com>, Ingo Molnar <mingo@redhat.com>
-cc: linux-kernel@vger.kernel.org, Christoph Hellwig <hch@infradead.org>, 
-    Albert Ou <aou@eecs.berkeley.edu>, Thomas Gleixner <tglx@linutronix.de>, 
-    Kees Cook <keescook@chromium.org>, Changbin Du <changbin.du@intel.com>, 
-    Anup Patel <anup@brainfault.org>, Palmer Dabbelt <palmer@sifive.com>, 
-    "maintainer:X86 ARCHITECTURE 32-BIT AND 64-BIT" <x86@kernel.org>, 
-    linux-mm@kvack.org, Borislav Petkov <bp@alien8.de>, 
-    Vlastimil Babka <vbabka@suse.cz>, Gary Guo <gary@garyguo.net>, 
-    "H. Peter Anvin" <hpa@zytor.com>, 
-    Andrew Morton <akpm@linux-foundation.org>, linux-riscv@lists.infradead.org, 
-    Luc Van Oostenryck <luc.vanoostenryck@gmail.com>
-Subject: Re: [PATCH v3 1/3] x86: Move DEBUG_TLBFLUSH option.
-In-Reply-To: <20190429212750.26165-2-atish.patra@wdc.com>
-Message-ID: <alpine.DEB.2.21.9999.1906272236550.3867@viisi.sifive.com>
-References: <20190429212750.26165-1-atish.patra@wdc.com> <20190429212750.26165-2-atish.patra@wdc.com>
-User-Agent: Alpine 2.21.9999 (DEB 301 2018-08-15)
+       spf=pass (google.com: domain of balducci@units.it designates 140.105.55.81 as permitted sender) smtp.mailfrom=balducci@units.it
+Received: from dschgrazlin2.units.it (loopback [127.0.0.1])
+	by dschgrazlin2.units.it (8.15.2/8.15.2) with ESMTP id x5S6GldK015323;
+	Fri, 28 Jun 2019 08:16:47 +0200
+To: bugzilla-daemon@bugzilla.kernel.org
+From: balducci@units.it
+CC: linux-mm@kvack.org, akpm@linux-foundation.org
+Subject: Re: [Bug 203715] BUG: unable to handle kernel NULL pointer dereference under stress (possibly related to https://lkml.org/lkml/2019/5/24/292 ?)
+In-reply-to: Your message of "Tue, 25 Jun 2019 12:13:52 -0000."
+             <bug-203715-9581-Ws6dSkF6YF@https.bugzilla.kernel.org/>
+X-Mailer: MH-E 8.6+git; nmh 1.7.1; GNU Emacs 26.2.90
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+Content-Type: text/plain; charset="us-ascii"
+Content-ID: <15321.1561702631.1@dschgrazlin2.units.it>
+Content-Transfer-Encoding: quoted-printable
+Date: Fri, 28 Jun 2019 08:16:47 +0200
+Message-ID: <15322.1561702631@dschgrazlin2.units.it>
+X-Greylist: inspected by milter-greylist-4.6.2 (dschgrazlin2.units.it [0.0.0.0]); Fri, 28 Jun 2019 08:16:47 +0200 (CEST) for IP:'127.0.0.1' DOMAIN:'loopback' HELO:'dschgrazlin2.units.it' FROM:'balducci@units.it' RCPT:''
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.6.2 (dschgrazlin2.units.it [0.0.0.0]); Fri, 28 Jun 2019 08:16:47 +0200 (CEST)
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.002502, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 29 Apr 2019, Atish Patra wrote:
+> That's fine. Thanks for doing the preliminary test and either report a p=
+roble
+> m
+> or close the bug whenever you feel it's appropriate.
 
-> CONFIG_DEBUG_TLBFLUSH was added in
-> 
-> 'commit 3df3212f9722 ("x86/tlb: add tlb_flushall_shift knob into debugfs")'
-> to support tlb_flushall_shift knob. The knob was removed in
-> 
-> 'commit e9f4e0a9fe27 ("x86/mm: Rip out complicated, out-of-date, buggy
-> TLB flushing")'.
-> However, the debug option was never removed from Kconfig. It was reused
-> in commit
-> 
-> '9824cf9753ec ("mm: vmstats: tlb flush counters")'
-> but the commit text was never updated accordingly.
-> 
-> Update the Kconfig option description as per its current usage.
-> 
-> Take this opportunity to make this kconfig option a common option as it
-> touches the common vmstat code. Introduce another arch specific config
-> HAVE_ARCH_DEBUG_TLBFLUSH that can be selected to enable this config.
+OK: I've performed a number of tests and all passed fine, so I close
+this
 
-Looks like this one still needs to be merged or acked by one of the x86 
-maintainers?
+the problem seems to be solved, AFAICS, at least since 5.1.14 (I have
+run the tests with both 5.1.14 and 5.1.15)
 
+thanks again for your valuable help and work
 
-- Paul
+ciao
+-g
 
