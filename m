@@ -2,102 +2,114 @@ Return-Path: <SRS0=7Cer=U3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,FSL_HELO_FAKE,HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 936E1C5B579
-	for <linux-mm@archiver.kernel.org>; Fri, 28 Jun 2019 10:20:16 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5FB4BC5B57A
+	for <linux-mm@archiver.kernel.org>; Fri, 28 Jun 2019 11:16:34 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6482220645
-	for <linux-mm@archiver.kernel.org>; Fri, 28 Jun 2019 10:20:14 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6482220645
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 0B2AB208C4
+	for <linux-mm@archiver.kernel.org>; Fri, 28 Jun 2019 11:16:33 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=chromium.org header.i=@chromium.org header.b="CLpGl7MV"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0B2AB208C4
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chromium.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E45296B0003; Fri, 28 Jun 2019 06:20:09 -0400 (EDT)
+	id 8C2546B0003; Fri, 28 Jun 2019 07:16:33 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DF53E8E0003; Fri, 28 Jun 2019 06:20:09 -0400 (EDT)
+	id 872558E0003; Fri, 28 Jun 2019 07:16:33 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CE3658E0002; Fri, 28 Jun 2019 06:20:09 -0400 (EDT)
+	id 761158E0002; Fri, 28 Jun 2019 07:16:33 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D28A6B0003
-	for <linux-mm@kvack.org>; Fri, 28 Jun 2019 06:20:09 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id b21so8647684edt.18
-        for <linux-mm@kvack.org>; Fri, 28 Jun 2019 03:20:09 -0700 (PDT)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 404816B0003
+	for <linux-mm@kvack.org>; Fri, 28 Jun 2019 07:16:33 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id 5so3687072pff.11
+        for <linux-mm@kvack.org>; Fri, 28 Jun 2019 04:16:33 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=QZ0ly4oUftyR5ySntFBwDP3USgH45/JIGMJo3GowvVQ=;
-        b=cdjQHSRskSMpcE3p/frU6iL45+mLSGdQEUFTUqUZh8r5B32usA6GOd1GkU57z6ocEi
-         zq8wOLaHjflTxRoPPPWLrTWtlKOt5aXQB+JvYutlou8GyeJhcq47PbNhxYZpObqiv6t4
-         BS8R3QVR2WOQFiiXZU10fc3xUtky/F3MnqGAkFD6IfsZ1V2bRjfaWnFcNxIrHPEFbTS6
-         byo94GHMvybXFMZEww4ZSP7UUAWDkDBsfJwr5A9FCXvjSjhmTMwS2wfhs/kDsH/ILLv5
-         YGqEVqqUfGGdVr9p3/uyydVf1xF1JTLFBkBdrsrZULl6QXQBnUdCgBDTm5EqG+mJV3YR
-         Hxcg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-X-Gm-Message-State: APjAAAXm07E+T4U6Xxruny8ArVX3MGNGR+DrU3nSXb3f6/P7FqTAuA9b
-	I/yDZQdLvUqM69ey6o3o51Wqd0gCYs16zjfcjF3xuvTQa2qJthgr4HntRu7/zZIgEvZ7tT2JDuV
-	5X4vMYobs1EpW9E6Ltubu2D/rX+zRphzj7KvNAlYx/Y6Vk/ad4E1AU/C4YFGXjXsmRQ==
-X-Received: by 2002:a17:906:2f15:: with SMTP id v21mr7974251eji.113.1561717208958;
-        Fri, 28 Jun 2019 03:20:08 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxtNIW1NU8CTFEVqqyxmo82diUteRR/w/CXHdEe9AuHyuidCAp81qkNciMeDpYt1dG8YzT/
-X-Received: by 2002:a17:906:2f15:: with SMTP id v21mr7974177eji.113.1561717208079;
-        Fri, 28 Jun 2019 03:20:08 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561717208; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:mime-version:content-disposition:in-reply-to:user-agent;
+        bh=9sipjHExFeuV0K4UVRepUa+lADx+MbUcc8ZZsr0g1z8=;
+        b=bvcxq+CGQc5SzQup0hFHOcuUFJ9ebQugWxSC2Cam+PGGbLL9vVburIPjzxiQRkbGzf
+         vcHIYWLfblhyyoo9fDuMK9uLDOceKRV5aIa0akXWeHVuVqPOF+xMnW3uRceD3297zygg
+         FENpN2Vfw1D2pMu+3omr1su9oaVT8Ewq5EyJZF5+Tny+tc6Q8WOlC9kxaPHDeyRDtH9j
+         iTsOB9hizTsynWaL/Hunt0rExYuSS8YRLjw7AtoZlOBW5XUugzG7NVV9s5+CipILDwn6
+         p7bT+VrGfe1XzenZKwVCtbF9oDz/kOzbj24svuEFJeIsWjje2pVuAKSfNtxK1MYtjNM4
+         l9HA==
+X-Gm-Message-State: APjAAAV59o/BdvYyZkWqeDAGTM51Texc3hGAIrO+mQzdFF4hoFWqCr/p
+	A5peACVakrqMVqn2CfujHTj2yk4RL7WipZJi6A1zmM/78gCfXnbmsfJVSWo0ggv+3PeOofPAHNf
+	GWKaa/MhBaPaw/alV2kbMw5Yobxn6K2dIs20qwj1JKTZxUe2JIHJ3asZBR8AlDYfgYA==
+X-Received: by 2002:a63:f807:: with SMTP id n7mr9090560pgh.119.1561720592688;
+        Fri, 28 Jun 2019 04:16:32 -0700 (PDT)
+X-Received: by 2002:a63:f807:: with SMTP id n7mr9090461pgh.119.1561720591441;
+        Fri, 28 Jun 2019 04:16:31 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561720591; cv=none;
         d=google.com; s=arc-20160816;
-        b=s9Bm1k7z6gfvPDC4cBiTrt7MIeW9qKTPcVM5/rgm+dKpfllpHtoNshH/PJmylkHik4
-         rberN2t+PdaeQQMkQ07oMU3e7DQtQFtNiNQqcz6HzirtWBLpuzpRpQ/d6kadR5fXQT2B
-         mu+E7KBCt+jhiBncm1UvSpAwORRM4Zu09N+PAH/B4dweDOPePh5RbgvP+YouHYOoP6m7
-         PFne+BSPhBd9dfmcqxi+RMSDdkNPopIeCEAtOJGx20ofX+S5iT0Bx2Rtfx61tBLdDQvL
-         2c7A0PBAQC2wJg9rZvSRIB4e4f3RbGBAMiaGB/8OmNC8GdasFJlA1glW1lRWboO7iua2
-         GvGA==
+        b=EjpMzP+yZH1gZM+IJVu9oX0r51GCgOl8zxCiu4dQkl3L8PIm0clIlKFD0t92QGJYut
+         xi/JVmJGWDuYfU+KtWuPGTiwkX7qRvYvX4DpCwhZfgnZvYtFF8cxIMrIOCXAhe2GMqGX
+         dBW2fxIBFSdeH5RnYuRjW7pKQ+VRfIgg0I/ye6SrXb0Wc133oANDv6hkaAnXiocyUDsZ
+         pNSBKRSfHwqQH7AB+OD3vTFC8w2IbWhvS+ImYBTZ8EeVVOUbDbhFZWoY9MVkgEzfeqfk
+         +5Xnutj5GfXBKYJpXjgjixG8lKZ0D71jpByPfHFtamAOkgpOcSsQ47leg31tU8+Uxe7F
+         WG2g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=QZ0ly4oUftyR5ySntFBwDP3USgH45/JIGMJo3GowvVQ=;
-        b=YbcHG9TOOzpYlyqZTMZfnRzYwjdPtUg2KRbu2aZaR0UB+rQloMhcGYnEZEA5njmV/J
-         +YHhm+e26b2yQT9A5kB5md4WwdKSwR3dA2qa4nuFWuUMwxyeIENNKFhj/u18fIfXeZ14
-         xfG39jq5lwNUce98qPrnhRLss/LzQXyBopEAYk+TQzi63XsKy6i7N+8hJyHxqj5oUmPS
-         CiKJO39EAu0OhUkPBXRC25ZePjsi8hqIe4OdCeTy/VCzewxlJ/txe7ShvqqtfUstFykv
-         UQuPxpE6Byv0zgynmbje1RE9lS9Ba8zuFTngBoxlq5P++KxDuU+PkkrBJNLvAqsc9AsD
-         wnEA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:message-id
+         :subject:cc:to:from:date:dkim-signature;
+        bh=9sipjHExFeuV0K4UVRepUa+lADx+MbUcc8ZZsr0g1z8=;
+        b=VQ3rKhm6/NXVBIRLf0TTP86b3Ku7mo4BwId7CW+L01V5JEi8l0649hcZlU92zTgas9
+         jNN7YS1kfAAAMa+TryPTDFdVGJQ4QUU6qixZ0a1qdZQR28EWvyTYiuFi2IzUFpbJMvfp
+         HfJZvAmOWJNPIngD1OanM1VSXPDFanTlNbuFpVKsHhgOd41C5CSb6MR8pgENzdzMwoz2
+         xQDy+1EpJp0wE7zxvfoXSHCeyhBV0pl0VYoIKUxB9EGVOhaef7aFf9itDTGXoWCevb/q
+         EqeaCbCMa6666thMsvRz+XE16eEuRYiMQJPOAJaA9Jx7tuLCy8153nieXMnPEyUKBX+l
+         fbuw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
-        by mx.google.com with ESMTP id w24si1157365ejv.209.2019.06.28.03.20.07
-        for <linux-mm@kvack.org>;
-        Fri, 28 Jun 2019 03:20:08 -0700 (PDT)
-Received-SPF: pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
+       dkim=pass header.i=@chromium.org header.s=google header.b=CLpGl7MV;
+       spf=pass (google.com: domain of vovoy@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=vovoy@chromium.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id w61sor2153422plb.47.2019.06.28.04.16.31
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Fri, 28 Jun 2019 04:16:31 -0700 (PDT)
+Received-SPF: pass (google.com: domain of vovoy@chromium.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 1ED6828;
-	Fri, 28 Jun 2019 03:20:07 -0700 (PDT)
-Received: from arrakis.emea.arm.com (arrakis.cambridge.arm.com [10.1.196.78])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id F05873F718;
-	Fri, 28 Jun 2019 03:20:05 -0700 (PDT)
-Date: Fri, 28 Jun 2019 11:20:03 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-To: Anshuman Khandual <anshuman.khandual@arm.com>
-Cc: linux-mm@kvack.org, Will Deacon <will@kernel.org>,
-	Mark Rutland <mark.rutland@arm.com>,
-	Marc Zyngier <marc.zyngier@arm.com>,
-	Suzuki Poulose <suzuki.poulose@arm.com>,
-	linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org
-Subject: Re: [RFC 1/2] arm64/mm: Change THP helpers to comply with generic MM
- semantics
-Message-ID: <20190628102003.GA56463@arrakis.emea.arm.com>
-References: <1561639696-16361-1-git-send-email-anshuman.khandual@arm.com>
- <1561639696-16361-2-git-send-email-anshuman.khandual@arm.com>
+       dkim=pass header.i=@chromium.org header.s=google header.b=CLpGl7MV;
+       spf=pass (google.com: domain of vovoy@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=vovoy@chromium.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=chromium.org; s=google;
+        h=date:from:to:cc:subject:message-id:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=9sipjHExFeuV0K4UVRepUa+lADx+MbUcc8ZZsr0g1z8=;
+        b=CLpGl7MVAA5z/efotkyK3c2z4dD4AyInMNHT0tUmc4cqfeE8y9vwvj39u7b2zrD+et
+         tCIRt/5GhFSMwXDep80CHeU3SqpJ28HmcmX/uBjE/EUvGWpWdB574k6n2+lJjixspJXt
+         +YP6iNPdTakoR7dOl9eV/8GCUDGT7GwROXAus=
+X-Google-Smtp-Source: APXvYqwFBxOXRwJS5o/s0J9UhYNxGdQOVXQ/vWFl+RQQGuFDJp2kNVy5jlupPWRbnXu8ylFSsIEXdQ==
+X-Received: by 2002:a17:902:b20c:: with SMTP id t12mr11043488plr.285.1561720590639;
+        Fri, 28 Jun 2019 04:16:30 -0700 (PDT)
+Received: from google.com ([2401:fa00:1:b:d89e:cfa6:3c8:e61b])
+        by smtp.gmail.com with ESMTPSA id n184sm1893411pfn.21.2019.06.28.04.16.28
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Fri, 28 Jun 2019 04:16:30 -0700 (PDT)
+Date: Fri, 28 Jun 2019 19:16:27 +0800
+From: Kuo-Hsin Yang <vovoy@chromium.org>
+To: Andrew Morton <akpm@linux-foundation.org>,
+	Johannes Weiner <hannes@cmpxchg.org>
+Cc: Minchan Kim <minchan@kernel.org>, Michal Hocko <mhocko@suse.com>,
+	Sonny Rao <sonnyrao@chromium.org>, linux-kernel@vger.kernel.org,
+	linux-mm@kvack.org
+Subject: [PATCH v2] mm: vmscan: fix not scanning anonymous pages when
+ detecting file refaults
+Message-ID: <20190628111627.GA107040@google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1561639696-16361-2-git-send-email-anshuman.khandual@arm.com>
+In-Reply-To: <20190619080835.GA68312@google.com>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -105,76 +117,203 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Anshuman,
+When file refaults are detected and there are many inactive file pages,
+the system never reclaim anonymous pages, the file pages are dropped
+aggressively when there are still a lot of cold anonymous pages and
+system thrashes.  This issue impacts the performance of applications
+with large executable, e.g. chrome.
 
-On Thu, Jun 27, 2019 at 06:18:15PM +0530, Anshuman Khandual wrote:
-> pmd_present() and pmd_trans_huge() are expected to behave in the following
-> manner during various phases of a given PMD. It is derived from a previous
-> detailed discussion on this topic [1] and present THP documentation [2].
-> 
-> pmd_present(pmd):
-> 
-> - Returns true if pmd refers to system RAM with a valid pmd_page(pmd)
-> - Returns false if pmd does not refer to system RAM - Invalid pmd_page(pmd)
-> 
-> pmd_trans_huge(pmd):
-> 
-> - Returns true if pmd refers to system RAM and is a trans huge mapping
-> 
-> -------------------------------------------------------------------------
-> |	PMD states	|	pmd_present	|	pmd_trans_huge	|
-> -------------------------------------------------------------------------
-> |	Mapped		|	Yes		|	Yes		|
-> -------------------------------------------------------------------------
-> |	Splitting	|	Yes		|	Yes		|
-> -------------------------------------------------------------------------
-> |	Migration/Swap	|	No		|	No		|
-> -------------------------------------------------------------------------
+Commit 2a2e48854d70 ("mm: vmscan: fix IO/refault regression in cache
+workingset transition") introduced actual_reclaim parameter.  When file
+refaults are detected, inactive_list_is_low() may return different
+values depends on the actual_reclaim parameter.  Vmscan would only scan
+active/inactive file lists at file thrashing state when the following 2
+conditions are satisfied.
 
-Before we actually start fixing this, I would strongly suggest that you
-add a boot selftest (see lib/Kconfig.debug for other similar cases)
-which checks the consistency of the page table macros w.r.t. the
-expected mm semantics. Once the mm maintainers agreed with the
-semantics, it will really help architecture maintainers in implementing
-them correctly.
+1) inactive_list_is_low() returns false in get_scan_count() to trigger
+   scanning file lists only.
+2) inactive_list_is_low() returns true in shrink_list() to allow
+   scanning active file list.
 
-You wouldn't need actual page tables, just things like assertions on
-pmd_trans_huge(pmd_mkhuge(pmd)) == true. You could go further and have
-checks on pmdp_invalidate(&dummy_vma, dummy_addr, &dummy_pmd) with the
-dummy_* variables on the stack.
+This patch makes the return value of inactive_list_is_low() independent
+of actual_reclaim and rename the parameter back to trace.
 
-> The problem:
-> 
-> PMD is first invalidated with pmdp_invalidate() before it's splitting. This
-> invalidation clears PMD_SECT_VALID as below.
-> 
-> PMD Split -> pmdp_invalidate() -> pmd_mknotpresent -> Clears PMD_SECT_VALID
-> 
-> Once PMD_SECT_VALID gets cleared, it results in pmd_present() return false
-> on the PMD entry.
+The problem can be reproduced by the following test program.
 
-I think that's an inconsistency in the expected semantics here. Do you
-mean that pmd_present(pmd_mknotpresent(pmd)) should be true? If not, do
-we need to implement our own pmdp_invalidate() or change the generic one
-to set a "special" bit instead of just a pmd_mknotpresent?
+---8<---
+void fallocate_file(const char *filename, off_t size)
+{
+	struct stat st;
+	int fd;
 
-> +static inline int pmd_present(pmd_t pmd)
-> +{
-> +	if (pte_present(pmd_pte(pmd)))
-> +		return 1;
-> +
-> +	return pte_special(pmd_pte(pmd));
-> +}
-[...]
-> +static inline pmd_t pmd_mknotpresent(pmd_t pmd)
-> +{
-> +	pmd = pte_pmd(pte_mkspecial(pmd_pte(pmd)));
-> +	return __pmd(pmd_val(pmd) & ~PMD_SECT_VALID);
-> +}
+	if (!stat(filename, &st) && st.st_size >= size)
+		return;
 
-I'm not sure I agree with the semantics here where pmd_mknotpresent()
-does not actually make pmd_present() == false.
+	fd = open(filename, O_WRONLY | O_CREAT, 0600);
+	if (fd < 0) {
+		perror("create file");
+		exit(1);
+	}
+	if (posix_fallocate(fd, 0, size)) {
+		perror("fallocate");
+		exit(1);
+	}
+	close(fd);
+}
 
+long *alloc_anon(long size)
+{
+	long *start = malloc(size);
+	memset(start, 1, size);
+	return start;
+}
+
+long access_file(const char *filename, long size, long rounds)
+{
+	int fd, i;
+	volatile char *start1, *end1, *start2;
+	const int page_size = getpagesize();
+	long sum = 0;
+
+	fd = open(filename, O_RDONLY);
+	if (fd == -1) {
+		perror("open");
+		exit(1);
+	}
+
+	/*
+	 * Some applications, e.g. chrome, use a lot of executable file
+	 * pages, map some of the pages with PROT_EXEC flag to simulate
+	 * the behavior.
+	 */
+	start1 = mmap(NULL, size / 2, PROT_READ | PROT_EXEC, MAP_SHARED,
+		      fd, 0);
+	if (start1 == MAP_FAILED) {
+		perror("mmap");
+		exit(1);
+	}
+	end1 = start1 + size / 2;
+
+	start2 = mmap(NULL, size / 2, PROT_READ, MAP_SHARED, fd, size / 2);
+	if (start2 == MAP_FAILED) {
+		perror("mmap");
+		exit(1);
+	}
+
+	for (i = 0; i < rounds; ++i) {
+		struct timeval before, after;
+		volatile char *ptr1 = start1, *ptr2 = start2;
+		gettimeofday(&before, NULL);
+		for (; ptr1 < end1; ptr1 += page_size, ptr2 += page_size)
+			sum += *ptr1 + *ptr2;
+		gettimeofday(&after, NULL);
+		printf("File access time, round %d: %f (sec)\n", i,
+		       (after.tv_sec - before.tv_sec) +
+		       (after.tv_usec - before.tv_usec) / 1000000.0);
+	}
+	return sum;
+}
+
+int main(int argc, char *argv[])
+{
+	const long MB = 1024 * 1024;
+	long anon_mb, file_mb, file_rounds;
+	const char filename[] = "large";
+	long *ret1;
+	long ret2;
+
+	if (argc != 4) {
+		printf("usage: thrash ANON_MB FILE_MB FILE_ROUNDS\n");
+		exit(0);
+	}
+	anon_mb = atoi(argv[1]);
+	file_mb = atoi(argv[2]);
+	file_rounds = atoi(argv[3]);
+
+	fallocate_file(filename, file_mb * MB);
+	printf("Allocate %ld MB anonymous pages\n", anon_mb);
+	ret1 = alloc_anon(anon_mb * MB);
+	printf("Access %ld MB file pages\n", file_mb);
+	ret2 = access_file(filename, file_mb * MB, file_rounds);
+	printf("Print result to prevent optimization: %ld\n",
+	       *ret1 + ret2);
+	return 0;
+}
+---8<---
+
+Running the test program on 2GB RAM VM with kernel 5.2.0-rc5, the
+program fills ram with 2048 MB memory, access a 200 MB file for 10
+times.  Without this patch, the file cache is dropped aggresively and
+every access to the file is from disk.
+
+  $ ./thrash 2048 200 10
+  Allocate 2048 MB anonymous pages
+  Access 200 MB file pages
+  File access time, round 0: 2.489316 (sec)
+  File access time, round 1: 2.581277 (sec)
+  File access time, round 2: 2.487624 (sec)
+  File access time, round 3: 2.449100 (sec)
+  File access time, round 4: 2.420423 (sec)
+  File access time, round 5: 2.343411 (sec)
+  File access time, round 6: 2.454833 (sec)
+  File access time, round 7: 2.483398 (sec)
+  File access time, round 8: 2.572701 (sec)
+  File access time, round 9: 2.493014 (sec)
+
+With this patch, these file pages can be cached.
+
+  $ ./thrash 2048 200 10
+  Allocate 2048 MB anonymous pages
+  Access 200 MB file pages
+  File access time, round 0: 2.475189 (sec)
+  File access time, round 1: 2.440777 (sec)
+  File access time, round 2: 2.411671 (sec)
+  File access time, round 3: 1.955267 (sec)
+  File access time, round 4: 0.029924 (sec)
+  File access time, round 5: 0.000808 (sec)
+  File access time, round 6: 0.000771 (sec)
+  File access time, round 7: 0.000746 (sec)
+  File access time, round 8: 0.000738 (sec)
+  File access time, round 9: 0.000747 (sec)
+
+Fixes: 2a2e48854d70 ("mm: vmscan: fix IO/refault regression in cache workingset transition")
+Signed-off-by: Kuo-Hsin Yang <vovoy@chromium.org>
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+---
+ mm/vmscan.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 7889f583ced9f..da0b97204372e 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2125,7 +2125,7 @@ static void shrink_active_list(unsigned long nr_to_scan,
+  *   10TB     320        32GB
+  */
+ static bool inactive_list_is_low(struct lruvec *lruvec, bool file,
+-				 struct scan_control *sc, bool actual_reclaim)
++				 struct scan_control *sc, bool trace)
+ {
+ 	enum lru_list active_lru = file * LRU_FILE + LRU_ACTIVE;
+ 	struct pglist_data *pgdat = lruvec_pgdat(lruvec);
+@@ -2151,7 +2151,7 @@ static bool inactive_list_is_low(struct lruvec *lruvec, bool file,
+ 	 * rid of the stale workingset quickly.
+ 	 */
+ 	refaults = lruvec_page_state_local(lruvec, WORKINGSET_ACTIVATE);
+-	if (file && actual_reclaim && lruvec->refaults != refaults) {
++	if (file && lruvec->refaults != refaults) {
+ 		inactive_ratio = 0;
+ 	} else {
+ 		gb = (inactive + active) >> (30 - PAGE_SHIFT);
+@@ -2161,7 +2161,7 @@ static bool inactive_list_is_low(struct lruvec *lruvec, bool file,
+ 			inactive_ratio = 1;
+ 	}
+ 
+-	if (actual_reclaim)
++	if (trace)
+ 		trace_mm_vmscan_inactive_list_is_low(pgdat->node_id, sc->reclaim_idx,
+ 			lruvec_lru_size(lruvec, inactive_lru, MAX_NR_ZONES), inactive,
+ 			lruvec_lru_size(lruvec, active_lru, MAX_NR_ZONES), active,
 -- 
-Catalin
+2.22.0.410.gd8fdbe21b5-goog
 
