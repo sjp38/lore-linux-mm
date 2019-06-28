@@ -2,155 +2,158 @@ Return-Path: <SRS0=7Cer=U3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
-	autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3447BC4321A
-	for <linux-mm@archiver.kernel.org>; Fri, 28 Jun 2019 03:59:43 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A9ADAC5B578
+	for <linux-mm@archiver.kernel.org>; Fri, 28 Jun 2019 04:10:24 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D88C02070D
-	for <linux-mm@archiver.kernel.org>; Fri, 28 Jun 2019 03:59:42 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 7086F20656
+	for <linux-mm@archiver.kernel.org>; Fri, 28 Jun 2019 04:10:24 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="Kkh8QnWI"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D88C02070D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (2048-bit key) header.d=canb.auug.org.au header.i=@canb.auug.org.au header.b="ZgAP40Fd"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7086F20656
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=canb.auug.org.au
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 748CA8E0003; Thu, 27 Jun 2019 23:59:42 -0400 (EDT)
+	id 126418E0003; Fri, 28 Jun 2019 00:10:24 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6F8FD8E0002; Thu, 27 Jun 2019 23:59:42 -0400 (EDT)
+	id 0AFCA8E0002; Fri, 28 Jun 2019 00:10:24 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 60DDF8E0003; Thu, 27 Jun 2019 23:59:42 -0400 (EDT)
-X-Delivered-To: Linux-mm@kvack.org
-Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 43F368E0002
-	for <Linux-mm@kvack.org>; Thu, 27 Jun 2019 23:59:42 -0400 (EDT)
-Received: by mail-io1-f70.google.com with SMTP id r27so5090597iob.14
-        for <Linux-mm@kvack.org>; Thu, 27 Jun 2019 20:59:42 -0700 (PDT)
+	id E92778E0003; Fri, 28 Jun 2019 00:10:23 -0400 (EDT)
+X-Delivered-To: linux-mm@kvack.org
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B2A588E0002
+	for <linux-mm@kvack.org>; Fri, 28 Jun 2019 00:10:23 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id x10so2999653pfa.23
+        for <linux-mm@kvack.org>; Thu, 27 Jun 2019 21:10:23 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=Cs/BCNc/RCyeiUvf3Dd7XA6XNw70/7ZfOeMlzKTDfTw=;
-        b=NtlgFi+Xp5i+wABcTCS7kKbwPgzi7KH64XDJ5beC0cp0qaNYSfmkONk/q1OMvyaCmf
-         SNfwR6nr4PrnT6xQRp27UPZCUAsWsINHP5H0ht6GGLywLkj6c0A4H7LNJOYl2FlnezPX
-         Z5+UK4mekb8FXyZxteFGNjyBoAFGBlpjVtOinmg5LJdIIpoAgck5r0+AjGDCOdnLZMVJ
-         UYEsHXiVVnvZT93UjKmiTqJ7Q8b7g7XkxLwGsiy6zBi1MpwudM7p1oCRzCHEvbDXqrzP
-         hNVp3/C0Fzc3KaM5Bi9nQ5vE6rvtEPfzmg3HktADqw3vGxfPdlznWjm/bLZdAjMB/oml
-         670w==
-X-Gm-Message-State: APjAAAUS9nGEC6WN3FTXa6ZkTlS9gllEBL1yPReSIloF3r5h/02vu9Iz
-	8qCvZ1fzElnQSsH5xOpqp/mCTvv30q9d5SImthAiPfeeR8P9LFwzvXx5VQCT0ZJdmabWL+smAGS
-	GlGYJku/KnS65Sj760iNQ4/SQw13R1WnYap8aurFkxNuQCGTckhbHDvKEpBknfhZyIA==
-X-Received: by 2002:a5e:c00a:: with SMTP id u10mr8445749iol.24.1561694381981;
-        Thu, 27 Jun 2019 20:59:41 -0700 (PDT)
-X-Received: by 2002:a5e:c00a:: with SMTP id u10mr8445713iol.24.1561694381333;
-        Thu, 27 Jun 2019 20:59:41 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561694381; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:in-reply-to:references:mime-version;
+        bh=I55zkrMesqKne3KNEzZE8U42iz5xAdNYBrsAy1XmwNg=;
+        b=oKNOv4cfuJMML6+J+olxBEDr4ZSoKX68zozjX21QM4VdXD3K1oILoSSFBS9Ed4rrq4
+         79ciGPr7QKVbsgg48veusLT40Yo0LGUIkNSq0ynlTbnVMmEzenruv522KO1buZQGt0Xy
+         wK22FNB3lvzD+it4TyZDiQiSs47Y/w4PankSJ3Rx4rUx/XTtS6S2EJ8ozROr2G4TSPzk
+         laj2FQnNlzIU2RNDLTOS9PKsaGu6ik4ak7GNR5ZI5B+cbvTagrZaSLp/OlE4LVOyyDu8
+         7n0RdNyH6yAztoyycFtP0FTMliM6W3GAt5J842EToagTHyz2BrFpguN+PyMWU1DdEfM2
+         fVbg==
+X-Gm-Message-State: APjAAAXYav6ElMqAF5rQP2GHH0GxFoRBJ83LvyjNPQCH7fa91z8RNGX3
+	6LcNIpznNCnicS08SP+YrKz2arO3kNc2KothYpSG6ego1BHIuZJnzLBsQhuF6N1aK2vCSyzhyA7
+	AsqGLkajvKBH5g9yYqrAsIFYaeiGYaKFlFTRyIiqVxo0F/6JNQrBrQWbP6DYvyVllIA==
+X-Received: by 2002:a17:90a:2486:: with SMTP id i6mr10317735pje.125.1561695023263;
+        Thu, 27 Jun 2019 21:10:23 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyo4aaZCcTNPpfoopwB1DbIzzr+6cRSbz48qXG13cntbFWfKvBfGBM1FurGZslmUIN2FifF
+X-Received: by 2002:a17:90a:2486:: with SMTP id i6mr10317680pje.125.1561695022674;
+        Thu, 27 Jun 2019 21:10:22 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561695022; cv=none;
         d=google.com; s=arc-20160816;
-        b=NIOIQ2Jz3NqXobzELm4XHQob/byRCqZAblrPWXNiIdEBE8yE7jJmzD4Lpf1WN///Kr
-         dPzpYe8M/jdIsMzuuhIC+n5yjchXe45flKCguiooCgXORywFFxaUtofLnKJ/oQTVeH+6
-         sRHJTP0ieH7x+2A+XRB/ANLm5j0IXWPXSBLApd9oC0fB0VwtVlVbSwKyzj3X35F9SFxg
-         Wi6hdWClcbp80bv+zZ3/Jji5zpLdoKgYBnrpHvBsmaIGaTNIds4y+AIB+wvNZGpsV+HQ
-         5veTkfiCLfI65uhVj8QakmEYw303d+JHIv+AWcP9Y+dgl7zGqqxmdgsIthlap3+3r649
-         00ZA==
+        b=p1+AEI+aaZ9KaZCb3zPDvSGZ8rwnf+UnkAdPYdyWyGFHBFeYKDt8NJxWo5svINmFZs
+         PqFIo6vD8mR7NMwn8/4YDnmzujRmTS0F2quoLiVxrS7RiVjKCF1DSterLXOwcbcZtChj
+         jjbiryr7I5luIur0MTbVzvh8UlppbVdw50csaAIYLVnCca+suYFGxvAC7IuFzVECvB19
+         ROTVraiXpwCvDEurOLXsNm76tMnS3VVZeQ8+FJeJ2BX01EKUIIlFdDpGJcwpftsE6v/c
+         5ZRw3vkJdrUFrs20p3zE26vYi9EXAyn/hBhBKCnlri4Q9LeKK3HqemdrKMAQP5e/HfIy
+         rtdQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=Cs/BCNc/RCyeiUvf3Dd7XA6XNw70/7ZfOeMlzKTDfTw=;
-        b=fIH7ipTJJZOGkRDUyUDFzLT+rsrQj0ayRB3T+yrp25NFTpF2NpXABjIZ7N87LYxP70
-         UjrAjm7AEj8zTC1IMu37UhUboKrbimAIih1oY0lfUFCYxDxgKDfjQRB2Svjo7+oTm4YK
-         w4CkYyRG1Ukjk5datjoxowaVGT/lVuQ/+zQOqpYgoeIgjnm8VlW/AVo3KJHnvk3knD6D
-         2Q5MnZ9WiQz2tQnStNDLv1WcPxNM0w1VlbqH0J+irmIJnj+jh9jAPuDQfmEqU0WM4bOW
-         /8+Ag1ZeQ6ch2NpkJui3qj0wNHo8Upf7pGlm4mP/kpxKFqAyyOysBXQFk+A7l6GHkbnJ
-         CQ3A==
+        h=mime-version:references:in-reply-to:message-id:subject:cc:to:from
+         :date:dkim-signature;
+        bh=I55zkrMesqKne3KNEzZE8U42iz5xAdNYBrsAy1XmwNg=;
+        b=ZmRzHG2eVsnBl/DDK0uqQ5xBPkxQpCHkVlBIT9KJpbs/tj7+1gFebBYBTKl6M9/Dxq
+         GQcdUdQ5FHUwxRqzqlmqwK35y+qz0kIFpQ8qr16sKmRje/O/w6mq+8NgjAKnFbd0hA/D
+         Ku+yMmHTQ2XAXxqMQCJCwnAT4XSvJdW/iXZ+dd70YSUOZyWhe6HjoIxJtZCsZ/1RPjDL
+         r2ASvsnUg4njjkvJwNcNjITNo+KgNbXWUIYXHBpx+2BiIWme5EppmSNY7yfqUtcu8fwL
+         V0fHo29dkwhS+PUJED0xFpBAYmid5eTKLdXP6gJU1EiWXWWqcNJ3OnoS8I5BNl+y/8rw
+         Y4Bw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Kkh8QnWI;
-       spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id n31sor2161631jac.0.2019.06.27.20.59.41
-        for <Linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 27 Jun 2019 20:59:41 -0700 (PDT)
-Received-SPF: pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
+       dkim=pass header.i=@canb.auug.org.au header.s=201702 header.b=ZgAP40Fd;
+       spf=pass (google.com: domain of sfr@canb.auug.org.au designates 2401:3900:2:1::2 as permitted sender) smtp.mailfrom=sfr@canb.auug.org.au
+Received: from ozlabs.org (bilbo.ozlabs.org. [2401:3900:2:1::2])
+        by mx.google.com with ESMTPS id b20si1185106pfo.108.2019.06.27.21.10.22
+        for <linux-mm@kvack.org>
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Thu, 27 Jun 2019 21:10:22 -0700 (PDT)
+Received-SPF: pass (google.com: domain of sfr@canb.auug.org.au designates 2401:3900:2:1::2 as permitted sender) client-ip=2401:3900:2:1::2;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Kkh8QnWI;
-       spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=Cs/BCNc/RCyeiUvf3Dd7XA6XNw70/7ZfOeMlzKTDfTw=;
-        b=Kkh8QnWIzrZazVljg6hBsx7W/ZP0eBr1ejVjQyHZVuyvnJ6opqO1Z13W5iz5qwZfcj
-         H0lYWcBOzr76HbMzjj9mSOh7bOMz8gIv2Mc8LAsLOX1h/MbSQcUX+u0P7/MCrytmMmf1
-         LP6QAlNDiOPI4CvLDKDvIhwWm+6F4zDZ/QIV2jsOeWikKn5H8nTXUpxnPFDi+tADdELb
-         wftLrz7FO1ZOq0s5Vc8glGunRKW99QX4s7hsFHySk3XEKUzqbNXquuqnZrDKU6fKvAgc
-         +PVk85g3fniAVaasVO0H0eME/b4zu2fMzz+50cj1nNgjd2/g2/SKXK8IT1YVcTH0vSHL
-         pMXA==
-X-Google-Smtp-Source: APXvYqyY3ydiSQhtYGah1iASt/iBOIbXr1KVVwN5LrQiYQZl9AUwyMpJlNcyVhrRfjf43MZT+WCGvVS8crgLy/UEH1M=
-X-Received: by 2002:a02:c6b8:: with SMTP id o24mr9180808jan.80.1561694381133;
- Thu, 27 Jun 2019 20:59:41 -0700 (PDT)
+       dkim=pass header.i=@canb.auug.org.au header.s=201702 header.b=ZgAP40Fd;
+       spf=pass (google.com: domain of sfr@canb.auug.org.au designates 2401:3900:2:1::2 as permitted sender) smtp.mailfrom=sfr@canb.auug.org.au
+Received: from authenticated.ozlabs.org (localhost [127.0.0.1])
+	(using TLSv1.3 with cipher TLS_AES_256_GCM_SHA384 (256/256 bits)
+	 key-exchange ECDHE (P-256) server-signature RSA-PSS (4096 bits) server-digest SHA256)
+	(No client certificate requested)
+	by mail.ozlabs.org (Postfix) with ESMTPSA id 45ZjwW4qpwz9s3Z;
+	Fri, 28 Jun 2019 14:10:19 +1000 (AEST)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=canb.auug.org.au;
+	s=201702; t=1561695020;
+	bh=I55zkrMesqKne3KNEzZE8U42iz5xAdNYBrsAy1XmwNg=;
+	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
+	b=ZgAP40FdlZjb2yEhOECndGyeLh1QfrT2/DbfoBVqZy3lC+bAJCo+Xa28DynCRqdBn
+	 EUS89x1QjDGxmVnVe7ZSwoduC5otYHiMeR5FCaZCyJxoRiLzyElm9QP6nbisMT1DA6
+	 mrEa5DsH3PUg03A5Q2OOWbBhMGRpHo8Wy4oSV3DJYLttTIfBpFtCAhIAvMCTwCEBHS
+	 +RWL7nKUZVjDDh3uYaOytL5fBnRaGws9jyD2r2DPCL3QRFM1/n8qer7OgkUSoY2SYC
+	 jSrshrGn+4SJ5ZeN+eZeW0WwppwwSdBvJwETBB3smrnqwEdB2ncwdYCClO5bSk0YN9
+	 OtGx6H4eqjorw==
+Date: Fri, 28 Jun 2019 14:10:18 +1000
+From: Stephen Rothwell <sfr@canb.auug.org.au>
+To: Anshuman Khandual <anshuman.khandual@arm.com>
+Cc: Michael Ellerman <mpe@ellerman.id.au>, linux-mm@kvack.org, Benjamin
+ Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras
+ <paulus@samba.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>,
+ Nicholas Piggin <npiggin@gmail.com>, Andrew Morton
+ <akpm@linux-foundation.org>, linuxppc-dev@lists.ozlabs.org,
+ linux-kernel@vger.kernel.org, linux-next@vger.kernel.org
+Subject: Re: [PATCH] powerpc/64s/radix: Define arch_ioremap_p4d_supported()
+Message-ID: <20190628141018.5ad2603d@canb.auug.org.au>
+In-Reply-To: <6d201cb8-4c39-b7ea-84e6-f84607cc8b4f@arm.com>
+References: <1561555260-17335-1-git-send-email-anshuman.khandual@arm.com>
+	<87d0iztz0f.fsf@concordia.ellerman.id.au>
+	<6d201cb8-4c39-b7ea-84e6-f84607cc8b4f@arm.com>
 MIME-Version: 1.0
-References: <1561612545-28997-1-git-send-email-kernelfans@gmail.com> <20190627162511.1cf10f5b04538c955c329408@linux-foundation.org>
-In-Reply-To: <20190627162511.1cf10f5b04538c955c329408@linux-foundation.org>
-From: Pingfan Liu <kernelfans@gmail.com>
-Date: Fri, 28 Jun 2019 11:59:29 +0800
-Message-ID: <CAFgQCTsO6WOef1v69J3+Vx-AuU8pPVeJSTjrf04VQum=YXEk2w@mail.gmail.com>
-Subject: Re: [PATCHv5] mm/gup: speed up check_and_migrate_cma_pages() on huge page
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linux-mm@kvack.org, Ira Weiny <ira.weiny@intel.com>, 
-	Mike Rapoport <rppt@linux.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, 
-	Thomas Gleixner <tglx@linutronix.de>, John Hubbard <jhubbard@nvidia.com>, 
-	"Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>, Christoph Hellwig <hch@lst.de>, 
-	Keith Busch <keith.busch@intel.com>, Mike Kravetz <mike.kravetz@oracle.com>, 
-	LKML <Linux-kernel@vger.kernel.org>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: multipart/signed; micalg=pgp-sha256;
+ boundary="Sig_/wq/1diQb=+V7OS3bGVMftw9"; protocol="application/pgp-signature"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jun 28, 2019 at 7:25 AM Andrew Morton <akpm@linux-foundation.org> wrote:
->
-> On Thu, 27 Jun 2019 13:15:45 +0800 Pingfan Liu <kernelfans@gmail.com> wrote:
->
-> > Both hugetlb and thp locate on the same migration type of pageblock, since
-> > they are allocated from a free_list[]. Based on this fact, it is enough to
-> > check on a single subpage to decide the migration type of the whole huge
-> > page. By this way, it saves (2M/4K - 1) times loop for pmd_huge on x86,
-> > similar on other archs.
-> >
-> > Furthermore, when executing isolate_huge_page(), it avoid taking global
-> > hugetlb_lock many times, and meanless remove/add to the local link list
-> > cma_page_list.
-> >
->
-> Thanks, looks good to me.  Have any timing measurements been taken?
-Not yet. It is a little hard to force huge page to be allocated CMA
-area. Should I provide the measurements?
->
-> > ...
-> >
-> > --- a/mm/gup.c
-> > +++ b/mm/gup.c
-> > @@ -1336,25 +1336,30 @@ static long check_and_migrate_cma_pages(struct task_struct *tsk,
-> >                                       struct vm_area_struct **vmas,
-> >                                       unsigned int gup_flags)
-> >  {
-> > -     long i;
-> > +     long i, step;
->
-> I'll make these variables unsigned long - to match nr_pages and because
-> we have no need for them to be negative.
-OK, will fix it.
+--Sig_/wq/1diQb=+V7OS3bGVMftw9
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: quoted-printable
 
-Thanks,
-  Pingfan
+Hi Anshuman,
+
+On Fri, 28 Jun 2019 09:14:46 +0530 Anshuman Khandual <anshuman.khandual@arm=
+.com> wrote:
 >
-> > ...
+> On linux-next (next-20190627) this change has already been applied though=
+ a
+> merge commit 153083a99fe431 ("Merge branch 'akpm-current/current'"). So we
+> are good on this ? Or shall I send out a V2 for the original patch. Please
+> suggest. Thank you.
+
+Please send Andrew a v2.
+
+--=20
+Cheers,
+Stephen Rothwell
+
+--Sig_/wq/1diQb=+V7OS3bGVMftw9
+Content-Type: application/pgp-signature
+Content-Description: OpenPGP digital signature
+
+-----BEGIN PGP SIGNATURE-----
+
+iQEzBAEBCAAdFiEENIC96giZ81tWdLgKAVBC80lX0GwFAl0VkyoACgkQAVBC80lX
+0Gw6+gf/Y06x3WT9WXSTWwMk6GeiltDHujuBd130HVkWnVGWvwg8RQc9/VfvqINS
+XV0T6wzeSBWrWx5oPcbhTjvWy6a69nYs6x4gxHE9WUWyg5NVK8qFwhQ7h7oQEgDq
+hHSxZ29YSp8yx1SN/JG7Lsebpkfo8JHbSLI6e7icI4odv/D/p6WeOgJI2cIGvkkb
+PJaw6nO/shGvtqI9VyLHlcut0Ay42x4/jvXwrPyZWYJpdJ6I2ssw2tXFNzMHAiJa
+k5Hj69KXCXolZ7fZlYUmf+zMA0EcMvGIWjoa/rwSZYwnrRc0mYAMburImlu4FnCT
+u+TtTQ6frusmg5BqSfuN3Z7I9nFz7Q==
+=PTBt
+-----END PGP SIGNATURE-----
+
+--Sig_/wq/1diQb=+V7OS3bGVMftw9--
 
