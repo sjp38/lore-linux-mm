@@ -2,80 +2,81 @@ Return-Path: <SRS0=7Cer=U3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+X-Spam-Status: No, score=-5.4 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no version=3.4.0
+	UNWANTED_LANGUAGE_BODY,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 65480C4646D
-	for <linux-mm@archiver.kernel.org>; Fri, 28 Jun 2019 11:29:26 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id AC4E4C4321A
+	for <linux-mm@archiver.kernel.org>; Fri, 28 Jun 2019 11:29:57 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0773E2086D
-	for <linux-mm@archiver.kernel.org>; Fri, 28 Jun 2019 11:29:25 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0773E2086D
+	by mail.kernel.org (Postfix) with ESMTP id 635302086D
+	for <linux-mm@archiver.kernel.org>; Fri, 28 Jun 2019 11:29:57 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 635302086D
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7A7A96B0003; Fri, 28 Jun 2019 07:29:25 -0400 (EDT)
+	id CFE618E0003; Fri, 28 Jun 2019 07:29:56 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 757648E0003; Fri, 28 Jun 2019 07:29:25 -0400 (EDT)
+	id CD60B8E0002; Fri, 28 Jun 2019 07:29:56 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6460B8E0002; Fri, 28 Jun 2019 07:29:25 -0400 (EDT)
+	id BC55A8E0003; Fri, 28 Jun 2019 07:29:56 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 44E786B0003
-	for <linux-mm@kvack.org>; Fri, 28 Jun 2019 07:29:25 -0400 (EDT)
-Received: by mail-qk1-f199.google.com with SMTP id z13so6050635qka.15
-        for <linux-mm@kvack.org>; Fri, 28 Jun 2019 04:29:25 -0700 (PDT)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 9BFD68E0002
+	for <linux-mm@kvack.org>; Fri, 28 Jun 2019 07:29:56 -0400 (EDT)
+Received: by mail-qt1-f198.google.com with SMTP id r58so5732049qtb.5
+        for <linux-mm@kvack.org>; Fri, 28 Jun 2019 04:29:56 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
          :references:from:openpgp:autocrypt:organization:message-id:date
          :user-agent:mime-version:in-reply-to:content-language
          :content-transfer-encoding;
-        bh=m65/tU0/R4f8OCzqodtlB/LfvyMLjqzT5keOlcEAvlM=;
-        b=H78WzkC2VJ4J2I1PzYuJ7v5kMk1GrXTfzwsnZo/b/dIh1H7KGEH9Oim++cciy7JixJ
-         dkFbxqJWYyiZ0ZbgAII9DZkDsPahI7kPNITTndmD7WP5mWkNWkY/RlpxBKp//G5G9pvY
-         E3dpMhCU3emvpKtzHGOFzUVp4SAzq+FEgPlqDh+OAu1e+jHkOTsQCpKr/uUxilNfvl9D
-         W2rAUNCo1+DR9D948Y4TYCyZ2PLNQ6WblKPr2DXiEzl15BJc9nFBuwb0ODCJE3wn2zZr
-         RjINelTIm8la973Ujiq2QcJQT6vSOsrOBV9PNxCgB9nHh+oRXBXNO3lSOH3ZVxNPH+lF
-         yB2Q==
+        bh=9N3YmxfxcYmw78pnEBnG3Z1sGSJwHPzw7xZDRkBg79Y=;
+        b=Ee3YR9BeUt2mF/i4PePlhBiEjRMUNKsfeBm9LOSnP05knK+T8PHIFUApsWBfhaFCVU
+         b8+lwa4LHqSnPJFj5nfYjlJf7aQ6VAGldUVBpcnBzl/q1iEuLNrTTcjOuJytjIzOr9ZM
+         0BCE+nK7sWNtL9yAq7+Vdrtr+kcZqcwwBbFFVhNDJCieiK3uTW5tTnCcr+WFlXVJKnDh
+         /P18EDZi2zLvLyaEQUxddDSJI7UhSNMtSeH3OhrhArORku35T80zGEvQaLq/DKqweqRR
+         9yoPk5fZVuDhbQmw8hz9nTtOSwmbZCmZoxk0lomhZ5ggsIUtqAPVWCUsrxNCwbUIlmVL
+         V5cA==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAUk9EuvgAqWDC8FRZ6m2Kot4Ns0lsU+ftum2XkJZskv5Pu8r8tV
-	oqIoOvQen2SeL/WJcASdfKpdJQRC1N4NbGYvb4PTiNpAr83T7wL74RUbKBtI440ygmdniRynikr
-	wzG6HNnxt7miwRvxxJ7fJPk4M5/DpxEDp8zSWDPSSUelMFoLlROW2h92OCo9jCFGtNg==
-X-Received: by 2002:a0c:afeb:: with SMTP id t40mr7681780qvc.28.1561721365050;
-        Fri, 28 Jun 2019 04:29:25 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxbzAGWZSwgkoiSWISeco3twy9QkmMFid3m0aHXx2Q5723eWCG0a7kPMJgyJkAvby5kGXE6
-X-Received: by 2002:a0c:afeb:: with SMTP id t40mr7681752qvc.28.1561721364483;
-        Fri, 28 Jun 2019 04:29:24 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561721364; cv=none;
+X-Gm-Message-State: APjAAAWi8ycFi9fTniOIfoWYJU2xqtAE0PUDrS7HvAknY6XbaLEd6R44
+	M0klWvSzh6naLbOxZ1Wo5ksUBk+mpPzxlx+iI42AoWODEOMQZmP5KwgrMLC1WjQsoMl2xW89axO
+	U1XW1o36GKhRKJ4qc57Sn7bTsqeNLqyazDURHAKRgy4crq6JCiOO7787qKsVa/Dm1BQ==
+X-Received: by 2002:a37:783:: with SMTP id 125mr8132057qkh.0.1561721396450;
+        Fri, 28 Jun 2019 04:29:56 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxYBIdxJe9mADZwSE+V5DBa3QKN7gEy4S2rchYIQhjqF+WksygXQCfv1Pcmc/LTdO9vgV95
+X-Received: by 2002:a37:783:: with SMTP id 125mr8132032qkh.0.1561721395981;
+        Fri, 28 Jun 2019 04:29:55 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561721395; cv=none;
         d=google.com; s=arc-20160816;
-        b=z7LdpnwUx8YLJtUOVfF+VmgnNw2GiWAJVOE2vDph3z+H+QkdqzH41+GWLYdeEQ3Bmd
-         gu53G7mcD7AMJ39dja8HU5J1n0xJ32yPrPvwdapaFxKtmGvzPydsthgSSk4v66+T8ucl
-         0gMKLl3z/pNZxP8Xrtsi/YHt+YyGCiKLlQuwK4fnYcVYEdjpOSojw8NtkgyCSDarwuTJ
-         pMogShXoZ8gNdiU4abxF2+p628iEzLzhyU1HK3R4kf6a2x5w8VWkcD/EW/nkfw0lxTXp
-         MVOoq1bql71onG5Gnnz3ovVhM9w41rWsIl1L4Czg+ru36O/EyxinhV3UJvzQJ5JaJzM0
-         LO1Q==
+        b=AMzkckQ/32c6lsOD47cYf+TCUmruyku1TjO0pFT7oKUfxjw3gP8N+QG0UrBcxqQNdu
+         SVrjH8QeqNqmPzb71ryzgrqIcgZhzwuZ5P8ESyeCxRH19gm7IVIxAdIml6Mq1npNWX4A
+         /TRwJ5l6Wcctme/xYGjI1LJObzFJyBW9cJmv2rjuyRTZA3dGFdyPPqkbvcutiyb8cvKG
+         fvLg3vvnVP6cTDr8/IAyZSbIvg35nA8FzMgznP/2GBtwrGVu1VMC6uyizAQnPS9RClH9
+         I283PTxDeMpKTnL+925Y08SEV1e3ZIYOcmVXnib3Z1+Sveiy+u4XfcxaPwy9jLbe4SJy
+         NZXg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
          :user-agent:date:message-id:organization:autocrypt:openpgp:from
          :references:cc:to:subject;
-        bh=m65/tU0/R4f8OCzqodtlB/LfvyMLjqzT5keOlcEAvlM=;
-        b=dGNXqV1w9FVYvn7NfolbntWVsaErDnIgNN0HygqoXAZaIksy19lc74U1ep8LpwMCBn
-         FhaeQWLPN0Dvqvxot3vace9HhrR8z4QNmnioCtXVMVcfPvvIS2jgDCbRns5f6QPB0ulp
-         ZV97AWs6govKNKKrfhchOpJOG70s2EhnVw6sZIVWKfBqSft8z8SdIeH2kh6gmiq1AfXV
-         rTFHpATsWKTzqVEQet45D86MenzbtwaDzwzIfjvLD4/Qb6DumM5fpYEJBdiuUcHySsPN
-         Tj6zUeBbvIWGsOinA/r1Y/8LR5cMRQhYY6Ak2K8t4zMCbSFhAmGoUPJqrqy67cGxwAnG
-         QO9g==
+        bh=9N3YmxfxcYmw78pnEBnG3Z1sGSJwHPzw7xZDRkBg79Y=;
+        b=pI97n9KrtMvesvNW8GsAupYOaqyZms7+h4PPDJnIlrObpCNOJ19FjT9nXt3QCYvA8k
+         PjBhdHi66QgYh73/Ezo9FVxo/0rJdXRerjtyu1GEz8QcxbYEOENV+++WyuNmhlk1V6cc
+         HWyt/UTKplOMaInr1hCk1Cf0SoJuUDwvyhbF5FQjLuBAuGm39idIHoZbZgyDPH2IVqOC
+         QcP+0FyvV1tgYXw+w3FUI1XsvM+M1OKgFFJljaw2gZvRVB19sEMSwft2XypZXlOg9eqo
+         eVt90j8fNea6ylBho7zcJU6Q+6awrZU0cHVBEjlx9bNcZZEwYpYr4za8ZUTYm94mRHnS
+         O90A==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id k129si1683966qkc.35.2019.06.28.04.29.24
+        by mx.google.com with ESMTPS id 18si1574742qvt.198.2019.06.28.04.29.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 28 Jun 2019 04:29:24 -0700 (PDT)
+        Fri, 28 Jun 2019 04:29:55 -0700 (PDT)
 Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
@@ -83,13 +84,12 @@ Authentication-Results: mx.google.com;
 Received: from smtp.corp.redhat.com (int-mx08.intmail.prod.int.phx2.redhat.com [10.5.11.23])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 75D27307D90F;
-	Fri, 28 Jun 2019 11:29:23 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id 19ED1308427C;
+	Fri, 28 Jun 2019 11:29:55 +0000 (UTC)
 Received: from [10.36.116.156] (ovpn-116-156.ams2.redhat.com [10.36.116.156])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 7FAA319C70;
-	Fri, 28 Jun 2019 11:29:20 +0000 (UTC)
-Subject: Re: [PATCH v2 2/3] mm: don't hide potentially null memmap pointer in
- sparse_remove_one_section
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 398F11A92D;
+	Fri, 28 Jun 2019 11:29:51 +0000 (UTC)
+Subject: Re: [PATCH v2 3/3] mm: Don't manually decrement num_poisoned_pages
 To: Alastair D'Silva <alastair@au1.ibm.com>, alastair@d-silva.org
 Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
  "Rafael J. Wysocki" <rafael@kernel.org>,
@@ -97,10 +97,10 @@ Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
  Pavel Tatashin <pasha.tatashin@oracle.com>,
  Oscar Salvador <osalvador@suse.de>, Michal Hocko <mhocko@suse.com>,
  Mike Rapoport <rppt@linux.ibm.com>, Baoquan He <bhe@redhat.com>,
- Qian Cai <cai@lca.pw>, Logan Gunthorpe <logang@deltatee.com>,
+ Wei Yang <richard.weiyang@gmail.com>, Logan Gunthorpe <logang@deltatee.com>,
  linux-kernel@vger.kernel.org, linux-mm@kvack.org
 References: <20190626061124.16013-1-alastair@au1.ibm.com>
- <20190626061124.16013-3-alastair@au1.ibm.com>
+ <20190626061124.16013-4-alastair@au1.ibm.com>
 From: David Hildenbrand <david@redhat.com>
 Openpgp: preference=signencrypt
 Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
@@ -147,17 +147,17 @@ Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
  +8Umfre0Xt4713VxMygW0PnQt5aSQdMD58jHFxTk092mU+yIHj5LeYgvwSgZN4airXk5yRXl
  SE+xAvmumFBY
 Organization: Red Hat GmbH
-Message-ID: <f21cff93-bc5c-f86f-b782-5ce0900f7d78@redhat.com>
-Date: Fri, 28 Jun 2019 13:29:19 +0200
+Message-ID: <7b087c07-9bf3-6668-b55c-06b11a08f0c6@redhat.com>
+Date: Fri, 28 Jun 2019 13:29:50 +0200
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.7.0
 MIME-Version: 1.0
-In-Reply-To: <20190626061124.16013-3-alastair@au1.ibm.com>
+In-Reply-To: <20190626061124.16013-4-alastair@au1.ibm.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 X-Scanned-By: MIMEDefang 2.84 on 10.5.11.23
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.48]); Fri, 28 Jun 2019 11:29:23 +0000 (UTC)
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.40]); Fri, 28 Jun 2019 11:29:55 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
@@ -167,69 +167,38 @@ List-ID: <linux-mm.kvack.org>
 On 26.06.19 08:11, Alastair D'Silva wrote:
 > From: Alastair D'Silva <alastair@d-silva.org>
 > 
-> By adding offset to memmap before passing it in to clear_hwpoisoned_pages,
-> we hide a potentially null memmap from the null check inside
-> clear_hwpoisoned_pages.
-> 
-> This patch passes the offset to clear_hwpoisoned_pages instead, allowing
-> memmap to successfully peform it's null check.
+> Use the function written to do it instead.
 > 
 > Signed-off-by: Alastair D'Silva <alastair@d-silva.org>
 > ---
->  mm/sparse.c | 10 ++++++----
->  1 file changed, 6 insertions(+), 4 deletions(-)
+>  mm/sparse.c | 4 +++-
+>  1 file changed, 3 insertions(+), 1 deletion(-)
 > 
 > diff --git a/mm/sparse.c b/mm/sparse.c
-> index 57a1a3d9c1cf..1ec32aef5590 100644
+> index 1ec32aef5590..d9b3625bfdf0 100644
 > --- a/mm/sparse.c
 > +++ b/mm/sparse.c
-> @@ -753,7 +753,8 @@ int __meminit sparse_add_one_section(int nid, unsigned long start_pfn,
+> @@ -11,6 +11,8 @@
+>  #include <linux/export.h>
+>  #include <linux/spinlock.h>
+>  #include <linux/vmalloc.h>
+> +#include <linux/swap.h>
+> +#include <linux/swapops.h>
 >  
->  #ifdef CONFIG_MEMORY_HOTREMOVE
->  #ifdef CONFIG_MEMORY_FAILURE
-> -static void clear_hwpoisoned_pages(struct page *memmap, int nr_pages)
-> +static void clear_hwpoisoned_pages(struct page *memmap,
-> +		unsigned long start, unsigned long count)
->  {
->  	int i;
+>  #include "internal.h"
+>  #include <asm/dma.h>
+> @@ -772,7 +774,7 @@ static void clear_hwpoisoned_pages(struct page *memmap,
 >  
-> @@ -769,7 +770,7 @@ static void clear_hwpoisoned_pages(struct page *memmap, int nr_pages)
->  	if (atomic_long_read(&num_poisoned_pages) == 0)
->  		return;
->  
-> -	for (i = 0; i < nr_pages; i++) {
-> +	for (i = start; i < start + count; i++) {
-
-start and count are unsigned long's, i is an int.
-
-Besides that
-
-Acked-by: David Hildenbrand <david@redhat.com>
-
+>  	for (i = start; i < start + count; i++) {
 >  		if (PageHWPoison(&memmap[i])) {
->  			atomic_long_sub(1, &num_poisoned_pages);
+> -			atomic_long_sub(1, &num_poisoned_pages);
+> +			num_poisoned_pages_dec();
 >  			ClearPageHWPoison(&memmap[i]);
-> @@ -777,7 +778,8 @@ static void clear_hwpoisoned_pages(struct page *memmap, int nr_pages)
+>  		}
 >  	}
->  }
->  #else
-> -static inline void clear_hwpoisoned_pages(struct page *memmap, int nr_pages)
-> +static inline void clear_hwpoisoned_pages(struct page *memmap,
-> +		unsigned long start, unsigned long count)
->  {
->  }
->  #endif
-> @@ -824,7 +826,7 @@ void sparse_remove_one_section(struct zone *zone, struct mem_section *ms,
->  		ms->pageblock_flags = NULL;
->  	}
->  
-> -	clear_hwpoisoned_pages(memmap + map_offset,
-> +	clear_hwpoisoned_pages(memmap, map_offset,
->  			PAGES_PER_SECTION - map_offset);
->  	free_section_usemap(memmap, usemap, altmap);
->  }
 > 
 
+Reviewed-by: David Hildenbrand <david@redhat.com>
 
 -- 
 
