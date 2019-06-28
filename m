@@ -2,474 +2,177 @@ Return-Path: <SRS0=7Cer=U3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
-	autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-14.4 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_IN_DEF_DKIM_WL
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 65732C4321A
-	for <linux-mm@archiver.kernel.org>; Fri, 28 Jun 2019 19:14:59 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7388EC4321A
+	for <linux-mm@archiver.kernel.org>; Fri, 28 Jun 2019 19:27:27 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1FD942083B
-	for <linux-mm@archiver.kernel.org>; Fri, 28 Jun 2019 19:14:59 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1FD942083B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 202AB208C4
+	for <linux-mm@archiver.kernel.org>; Fri, 28 Jun 2019 19:27:27 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="vt7AoMwr"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 202AB208C4
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D4E316B0005; Fri, 28 Jun 2019 15:14:57 -0400 (EDT)
+	id A865F6B0003; Fri, 28 Jun 2019 15:27:26 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D02B58E0003; Fri, 28 Jun 2019 15:14:57 -0400 (EDT)
+	id A105B8E0003; Fri, 28 Jun 2019 15:27:26 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B05CA8E0002; Fri, 28 Jun 2019 15:14:57 -0400 (EDT)
+	id 924868E0002; Fri, 28 Jun 2019 15:27:26 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f205.google.com (mail-qk1-f205.google.com [209.85.222.205])
-	by kanga.kvack.org (Postfix) with ESMTP id 917F56B0005
-	for <linux-mm@kvack.org>; Fri, 28 Jun 2019 15:14:57 -0400 (EDT)
-Received: by mail-qk1-f205.google.com with SMTP id j128so7462504qkd.23
-        for <linux-mm@kvack.org>; Fri, 28 Jun 2019 12:14:57 -0700 (PDT)
+Received: from mail-yb1-f200.google.com (mail-yb1-f200.google.com [209.85.219.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C2C36B0003
+	for <linux-mm@kvack.org>; Fri, 28 Jun 2019 15:27:26 -0400 (EDT)
+Received: by mail-yb1-f200.google.com with SMTP id u9so11824739ybb.14
+        for <linux-mm@kvack.org>; Fri, 28 Jun 2019 12:27:26 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:organization:message-id:date
-         :user-agent:mime-version:in-reply-to;
-        bh=kA3qFJl6Vxcv4EgmpK9dCWpg3uQuDAkd57EhRpo0Gck=;
-        b=N8tFTFx90C2BoTJi+YRx5HSeTZmCDrWGVd9gYHiGuGok1IrF/+O56kbI+pmq2HCqRe
-         AWbIxJ8IW2ZV5tBOjZsUNVxcjkrwFnKjJaRF3XKyAkQtPmH6XaH3RUkT0p3LO/CvfpJ7
-         9Vctc18gtuUXW6vqIloLPqQMHPB821Lv75XHBYhMbYKTu/ClrJ9v3wBcdmjGFTQ5Vluc
-         kHwSVjqDEZuL/F2Ic+3ojWkg0vwLpaqOcKb21lipqsaUFYNxOwt4XXgnEIYbFGLjl98M
-         SkdwMCrGqP7ZfRje/vXMOM8WnIuU2/pX3k5Ewm+aAAkFSEFfDLO6LzxgHluxfMgjKVL4
-         B/Dg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAV8+Yqdq56hLVYrSBdA++OAy2ezb84cDFNRSoxz6hVVj+D50Sfh
-	gbG+E6tkNzyIApyhdz5vxnPxtPa5hcqV/6SJrnVZBM/SMplicHSR51NF2pSm4Rji5IgdPr7SYM3
-	wV5OuWMzzcwtcbwCkh7S8WWSqc+xiP5sgDx9LXjS/2K7hAiOnuc0P/bnBx7/hF2YpnQ==
-X-Received: by 2002:a37:8c7:: with SMTP id 190mr10486338qki.373.1561749297341;
-        Fri, 28 Jun 2019 12:14:57 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxmOZVmy6fWF72fvBBZnT8xEEAomSOaH58nyVTITRhrjNocV82sZOzVns8za6kcQYKqVN8Y
-X-Received: by 2002:a37:8c7:: with SMTP id 190mr10486263qki.373.1561749296286;
-        Fri, 28 Jun 2019 12:14:56 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561749296; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=TvUXywiG0f7bCL3wZmKqPPbl6x6Ilq7Dj7JuFch+QdI=;
+        b=ue0ogv9ykOEaE2kmzTFr2jOMguVsLAkBrCMd9isvog3ugkfGdxK69I/AG4sF08Gb4+
+         Kv2m+h1WQgNYL79OLKdRmsEy3kZH+kpaK0q1daCVx/bYvNoUCtUNFzZG1Y+mtF0Bd81h
+         yw6/XIGjdjkzI6WC29WzWn1/icpT7KpIQy0QKW4S9K2evtFUHejExEjzepyiz8hEMh59
+         ex6WOrWmixa9YA1OeL3eFzmGQ0tLZpWdXQCb6g5qY7qo0+Y8PWHtRGXdklO0aiE3w4fw
+         9LZjNVc7+u8KQBjGBczlT4Wq2PWHcqvoCeglSXLjtohkA4o5XPwpQ/kn3alW2MKFnh3v
+         YQSg==
+X-Gm-Message-State: APjAAAW3EJC20ECAK/pev2dBArFvOiCsKCyCo5YKuXwZA7lUAiY1RzKK
+	i7pBSgwBkx5t/sCrGBRAC4vNKGUW+hrIWTUwOKV5P+1VU4q7nE3TJkzovLAevei64VZ1gEI6YlI
+	AoDTLuUbUIAJRxIfgxZ5cngkqVLE+i3jOQHU2PM2BHN0wYR83VTlOAMSjGv2nUVbneQ==
+X-Received: by 2002:a81:a603:: with SMTP id d3mr7110700ywh.87.1561750046133;
+        Fri, 28 Jun 2019 12:27:26 -0700 (PDT)
+X-Received: by 2002:a81:a603:: with SMTP id d3mr7110685ywh.87.1561750045482;
+        Fri, 28 Jun 2019 12:27:25 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561750045; cv=none;
         d=google.com; s=arc-20160816;
-        b=UwxRZ1HT4/MOdQpdOV6RD/GGgCrbDan1gaBz+nN9mid2Q8P1pOYUzvAawC0jHKzjd7
-         OOEfmU5ZhOMRFqIO2FqQ6WCzaoG/boeZn3i+AXAHF0Y3WEqrXoBuiSlRsSiZvyKR7iS2
-         JGntU89bFlpF9CToY5bT1xyLy9F8Lq6QTx6BYEra6ReJRVyxBTBmX8eK+KjLFHyXlTCQ
-         xoktr1r9YbzqBUen3uwW583Dh1C2VZQjFEsHfUINGrX1gasfDfVd5WxHzv3iKMdqjKva
-         dqtNsteTthcOOGtDlG8jw6WhkRi1Jv+XxXUOnStSWqSFUgBZSfC3v55FyUVccPPMVcby
-         6aCg==
+        b=rGF69bW9Lcr2z8qbLxlU0pvk71sWZ7jC8+zZ9RP/ZzGfwAFpQyWtaRfH3gmgOz06wj
+         DcpK3+W3XRBaWUw/U9oru2Eh6QVu+B7V3q0tPAOiXweV7ElpYJLUB1/kz+NwedXOWYpb
+         2IS1Uj298Bu4onlLPpn8C0rXpH8dthuQ+J+ymMifPaHer/A2xQBAPILsejrH10B60Nmr
+         MxK+rIqx34+ZIRtd0kCpnQPsTdv+ryLw6RpfITqTUQb/FmVcrhvNd8Nj0UUn7rho2f8K
+         SDsfMPT0ucJrs6R/Dw+bQCjDYEulcFrRQE56wpAsS7+8+L3mM3S6WesnfLSnbCeuTvSo
+         hg9Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=in-reply-to:mime-version:user-agent:date:message-id:organization
-         :autocrypt:openpgp:from:references:cc:to:subject;
-        bh=kA3qFJl6Vxcv4EgmpK9dCWpg3uQuDAkd57EhRpo0Gck=;
-        b=xVcRAgbvmudVUmW1w9W+nwjL9V1bXA3Z/IvNE7Tq9rQjQZNlIZXbG5RmdRKdFKpcmi
-         eTj59o1P1ZtfeuR7xgYFj6VT9LitbhbUHrkdG4ieUD86PdLZ3I1YqF7qSL01H7BouYhG
-         e3s3b39SOkbRjeGjyvgiMdq3bnVHto+rIO1Zk46VjvzLCicj0x/TwmCJg4NdkD+ax6QY
-         s5AOExQetIgfp72jqK+qgTnLFLM3pZ4DQSEFyETBoHrQ9gnVEikphkmeminnbKQAm5K2
-         2/Gy0mUWlaDmFsf1PqVxkrlmVPrIwetAGJjA9iOCLL/EkRmXZQ9C6Hb6dxSnaeaRtxlI
-         sACg==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=TvUXywiG0f7bCL3wZmKqPPbl6x6Ilq7Dj7JuFch+QdI=;
+        b=HLHaChLmFTmjVIHETSb9W3sK21/vk2BwlJmhk9rLVDD14G7Il/sRhl23rD2DPKIZo9
+         +18RyptyGs+fj5+hcEDeC2VzkFC+1uZ/kyh2mBVtkTkDNTPP0F6X2ykX+f/U3mnr8fve
+         y1JYlqcJuv0Vr/JQ5wHltN5wDyn/cU+6laQ06ax8wH3j7ysApxYE+8q+0EK97pMYRB92
+         YDKkuVx2OBRRIG2zZmK5fm/2d2OxxlEAvK3Wslwh37AVoPc3SdQBYpo+4XiqumGccLAJ
+         MbfI5yI0JCBhmWweN2VJmtpGx27g8ucmd2nvJ/bxeMSYOpTtGIBMGmtdEXIG6Vl+PBZQ
+         p2dw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id i3si2257979qte.293.2019.06.28.12.14.56
+       dkim=pass header.i=@google.com header.s=20161025 header.b=vt7AoMwr;
+       spf=pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shakeelb@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id o194sor1737744ywo.122.2019.06.28.12.27.25
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 28 Jun 2019 12:14:56 -0700 (PDT)
-Received-SPF: pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (Google Transport Security);
+        Fri, 28 Jun 2019 12:27:25 -0700 (PDT)
+Received-SPF: pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx08.intmail.prod.int.phx2.redhat.com [10.5.11.23])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 570DF81F2F;
-	Fri, 28 Jun 2019 19:14:40 +0000 (UTC)
-Received: from [10.40.204.22] (ovpn-204-22.brq.redhat.com [10.40.204.22])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id A352C19C59;
-	Fri, 28 Jun 2019 19:13:37 +0000 (UTC)
-Subject: Re: [RFC][Patch v10 0/2] mm: Support for page hinting
-To: Alexander Duyck <alexander.duyck@gmail.com>
-Cc: "Michael S. Tsirkin" <mst@redhat.com>, kvm list <kvm@vger.kernel.org>,
- LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>,
- Paolo Bonzini <pbonzini@redhat.com>, lcapitulino@redhat.com,
- pagupta@redhat.com, wei.w.wang@intel.com,
- Yang Zhang <yang.zhang.wz@gmail.com>, Rik van Riel <riel@surriel.com>,
- David Hildenbrand <david@redhat.com>, dodgen@google.com,
- Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, dhildenb@redhat.com,
- Andrea Arcangeli <aarcange@redhat.com>
-References: <20190603170306.49099-1-nitesh@redhat.com>
- <20190603140304-mutt-send-email-mst@kernel.org>
- <afac6f92-74f5-4580-0303-12b7374e5011@redhat.com>
- <CAKgT0UdK2v+xTwzjLfc69Baz0iDp7GnGRdUacQPue5XHFfQxHg@mail.gmail.com>
- <cc20a6d2-9e95-3de4-301a-f2a6a5b025e4@redhat.com>
- <CAKgT0UfMGXQWzS7=UVquCPECEpPZ1DHzmoH9aOz=r-Di=OKFrA@mail.gmail.com>
-From: Nitesh Narayan Lal <nitesh@redhat.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=nitesh@redhat.com; prefer-encrypt=mutual; keydata=
- mQINBFl4pQoBEADT/nXR2JOfsCjDgYmE2qonSGjkM1g8S6p9UWD+bf7YEAYYYzZsLtbilFTe
- z4nL4AV6VJmC7dBIlTi3Mj2eymD/2dkKP6UXlliWkq67feVg1KG+4UIp89lFW7v5Y8Muw3Fm
- uQbFvxyhN8n3tmhRe+ScWsndSBDxYOZgkbCSIfNPdZrHcnOLfA7xMJZeRCjqUpwhIjxQdFA7
- n0s0KZ2cHIsemtBM8b2WXSQG9CjqAJHVkDhrBWKThDRF7k80oiJdEQlTEiVhaEDURXq+2XmG
- jpCnvRQDb28EJSsQlNEAzwzHMeplddfB0vCg9fRk/kOBMDBtGsTvNT9OYUZD+7jaf0gvBvBB
- lbKmmMMX7uJB+ejY7bnw6ePNrVPErWyfHzR5WYrIFUtgoR3LigKnw5apzc7UIV9G8uiIcZEn
- C+QJCK43jgnkPcSmwVPztcrkbC84g1K5v2Dxh9amXKLBA1/i+CAY8JWMTepsFohIFMXNLj+B
- RJoOcR4HGYXZ6CAJa3Glu3mCmYqHTOKwezJTAvmsCLd3W7WxOGF8BbBjVaPjcZfavOvkin0u
- DaFvhAmrzN6lL0msY17JCZo046z8oAqkyvEflFbC0S1R/POzehKrzQ1RFRD3/YzzlhmIowkM
- BpTqNBeHEzQAlIhQuyu1ugmQtfsYYq6FPmWMRfFPes/4JUU/PQARAQABtCVOaXRlc2ggTmFy
- YXlhbiBMYWwgPG5pbGFsQHJlZGhhdC5jb20+iQI9BBMBCAAnBQJZeKUKAhsjBQkJZgGABQsJ
- CAcCBhUICQoLAgQWAgMBAh4BAheAAAoJEKOGQNwGMqM56lEP/A2KMs/pu0URcVk/kqVwcBhU
- SnvB8DP3lDWDnmVrAkFEOnPX7GTbactQ41wF/xwjwmEmTzLrMRZpkqz2y9mV0hWHjqoXbOCS
- 6RwK3ri5e2ThIPoGxFLt6TrMHgCRwm8YuOSJ97o+uohCTN8pmQ86KMUrDNwMqRkeTRW9wWIQ
- EdDqW44VwelnyPwcmWHBNNb1Kd8j3xKlHtnS45vc6WuoKxYRBTQOwI/5uFpDZtZ1a5kq9Ak/
- MOPDDZpd84rqd+IvgMw5z4a5QlkvOTpScD21G3gjmtTEtyfahltyDK/5i8IaQC3YiXJCrqxE
- r7/4JMZeOYiKpE9iZMtS90t4wBgbVTqAGH1nE/ifZVAUcCtycD0f3egX9CHe45Ad4fsF3edQ
- ESa5tZAogiA4Hc/yQpnnf43a3aQ67XPOJXxS0Qptzu4vfF9h7kTKYWSrVesOU3QKYbjEAf95
- NewF9FhAlYqYrwIwnuAZ8TdXVDYt7Z3z506//sf6zoRwYIDA8RDqFGRuPMXUsoUnf/KKPrtR
- ceLcSUP/JCNiYbf1/QtW8S6Ca/4qJFXQHp0knqJPGmwuFHsarSdpvZQ9qpxD3FnuPyo64S2N
- Dfq8TAeifNp2pAmPY2PAHQ3nOmKgMG8Gn5QiORvMUGzSz8Lo31LW58NdBKbh6bci5+t/HE0H
- pnyVf5xhNC/FuQINBFl4pQoBEACr+MgxWHUP76oNNYjRiNDhaIVtnPRqxiZ9v4H5FPxJy9UD
- Bqr54rifr1E+K+yYNPt/Po43vVL2cAyfyI/LVLlhiY4yH6T1n+Di/hSkkviCaf13gczuvgz4
- KVYLwojU8+naJUsiCJw01MjO3pg9GQ+47HgsnRjCdNmmHiUQqksMIfd8k3reO9SUNlEmDDNB
- XuSzkHjE5y/R/6p8uXaVpiKPfHoULjNRWaFc3d2JGmxJpBdpYnajoz61m7XJlgwl/B5Ql/6B
- dHGaX3VHxOZsfRfugwYF9CkrPbyO5PK7yJ5vaiWre7aQ9bmCtXAomvF1q3/qRwZp77k6i9R3
- tWfXjZDOQokw0u6d6DYJ0Vkfcwheg2i/Mf/epQl7Pf846G3PgSnyVK6cRwerBl5a68w7xqVU
- 4KgAh0DePjtDcbcXsKRT9D63cfyfrNE+ea4i0SVik6+N4nAj1HbzWHTk2KIxTsJXypibOKFX
- 2VykltxutR1sUfZBYMkfU4PogE7NjVEU7KtuCOSAkYzIWrZNEQrxYkxHLJsWruhSYNRsqVBy
- KvY6JAsq/i5yhVd5JKKU8wIOgSwC9P6mXYRgwPyfg15GZpnw+Fpey4bCDkT5fMOaCcS+vSU1
- UaFmC4Ogzpe2BW2DOaPU5Ik99zUFNn6cRmOOXArrryjFlLT5oSOe4IposgWzdwARAQABiQIl
- BBgBCAAPBQJZeKUKAhsMBQkJZgGAAAoJEKOGQNwGMqM5ELoP/jj9d9gF1Al4+9bngUlYohYu
- 0sxyZo9IZ7Yb7cHuJzOMqfgoP4tydP4QCuyd9Q2OHHL5AL4VFNb8SvqAxxYSPuDJTI3JZwI7
- d8JTPKwpulMSUaJE8ZH9n8A/+sdC3CAD4QafVBcCcbFe1jifHmQRdDrvHV9Es14QVAOTZhnJ
- vweENyHEIxkpLsyUUDuVypIo6y/Cws+EBCWt27BJi9GH/EOTB0wb+2ghCs/i3h8a+bi+bS7L
- FCCm/AxIqxRurh2UySn0P/2+2eZvneJ1/uTgfxnjeSlwQJ1BWzMAdAHQO1/lnbyZgEZEtUZJ
- x9d9ASekTtJjBMKJXAw7GbB2dAA/QmbA+Q+Xuamzm/1imigz6L6sOt2n/X/SSc33w8RJUyor
- SvAIoG/zU2Y76pKTgbpQqMDmkmNYFMLcAukpvC4ki3Sf086TdMgkjqtnpTkEElMSFJC8npXv
- 3QnGGOIfFug/qs8z03DLPBz9VYS26jiiN7QIJVpeeEdN/LKnaz5LO+h5kNAyj44qdF2T2AiF
- HxnZnxO5JNP5uISQH3FjxxGxJkdJ8jKzZV7aT37sC+Rp0o3KNc+GXTR+GSVq87Xfuhx0LRST
- NK9ZhT0+qkiN7npFLtNtbzwqaqceq3XhafmCiw8xrtzCnlB/C4SiBr/93Ip4kihXJ0EuHSLn
- VujM7c/b4pps
-Organization: Red Hat Inc,
-Message-ID: <99820c01-9016-7262-af11-cd789d10f8e7@redhat.com>
-Date: Fri, 28 Jun 2019 15:13:09 -0400
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.1
+       dkim=pass header.i=@google.com header.s=20161025 header.b=vt7AoMwr;
+       spf=pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shakeelb@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=TvUXywiG0f7bCL3wZmKqPPbl6x6Ilq7Dj7JuFch+QdI=;
+        b=vt7AoMwrNcWqMkfexaU6xlBIiiJMEym5gtlszE1wfAtxsaHc1nUkstrKx+VfeTOdW4
+         jQapxfMfdVK3Kha0PgKtzyz67iZqe3RpRtmY8sqR0qFSYnjgzcmPDH0oBxumTHL7rpPw
+         nYmM/KbsDPwQWESafxthWv+EoEX8OBpvv+0JkYtwBtgXKpikXgGKVH8FznIk7SA7Qijn
+         OH47owMfMltuYy1/N6QD/WhAOZGseF75WthtolK2ck54xcf0GFpr4l1YJiVcBYg29F13
+         8MZF9RT5I9torHdvXAJeC8N9iKGeudMzvl8gW8wkxVdskrvnbXbAqjxQfWdKBQ0SzIm+
+         27KA==
+X-Google-Smtp-Source: APXvYqyeNqvAsUAnD2/zSmW+uHs3PMxd0RthI9aXZomvVE0l90UkfP/cn8j691rqydeWakodWOrph9gJGKwfB7MrDG0=
+X-Received: by 2002:a81:ae0e:: with SMTP id m14mr7609987ywh.308.1561750044891;
+ Fri, 28 Jun 2019 12:27:24 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <CAKgT0UfMGXQWzS7=UVquCPECEpPZ1DHzmoH9aOz=r-Di=OKFrA@mail.gmail.com>
-Content-Type: multipart/signed; micalg=pgp-sha256;
- protocol="application/pgp-signature";
- boundary="lU1JB5kvQbpQdsyUzj5WhTdhSNfcmr6CO"
-X-Scanned-By: MIMEDefang 2.84 on 10.5.11.23
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.27]); Fri, 28 Jun 2019 19:14:45 +0000 (UTC)
+References: <20190628015520.13357-1-shakeelb@google.com> <6e28c8ce-96e1-5a1e-bd06-d1df5856094e@linux.alibaba.com>
+In-Reply-To: <6e28c8ce-96e1-5a1e-bd06-d1df5856094e@linux.alibaba.com>
+From: Shakeel Butt <shakeelb@google.com>
+Date: Fri, 28 Jun 2019 12:27:13 -0700
+Message-ID: <CALvZod6sDHNwTbUPSnBdj4bEG1gT1BDgwD=f=MrDOAx4yVuRiQ@mail.gmail.com>
+Subject: Re: [PATCH] mm, vmscan: prevent useless kswapd loops
+To: Yang Shi <yang.shi@linux.alibaba.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, 
+	Michal Hocko <mhocko@suse.com>, Andrew Morton <akpm@linux-foundation.org>, 
+	Vlastimil Babka <vbabka@suse.cz>, Hillf Danton <hdanton@sina.com>, Roman Gushchin <guro@fb.com>, 
+	Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This is an OpenPGP/MIME signed message (RFC 4880 and 3156)
---lU1JB5kvQbpQdsyUzj5WhTdhSNfcmr6CO
-Content-Type: multipart/mixed; boundary="HhRpdBCks84lltSvMQMBSOmQhDS5tB8BY";
- protected-headers="v1"
-From: Nitesh Narayan Lal <nitesh@redhat.com>
-To: Alexander Duyck <alexander.duyck@gmail.com>
-Cc: "Michael S. Tsirkin" <mst@redhat.com>, kvm list <kvm@vger.kernel.org>,
- LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>,
- Paolo Bonzini <pbonzini@redhat.com>, lcapitulino@redhat.com,
- pagupta@redhat.com, wei.w.wang@intel.com,
- Yang Zhang <yang.zhang.wz@gmail.com>, Rik van Riel <riel@surriel.com>,
- David Hildenbrand <david@redhat.com>, dodgen@google.com,
- Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, dhildenb@redhat.com,
- Andrea Arcangeli <aarcange@redhat.com>
-Message-ID: <99820c01-9016-7262-af11-cd789d10f8e7@redhat.com>
-Subject: Re: [RFC][Patch v10 0/2] mm: Support for page hinting
-References: <20190603170306.49099-1-nitesh@redhat.com>
- <20190603140304-mutt-send-email-mst@kernel.org>
- <afac6f92-74f5-4580-0303-12b7374e5011@redhat.com>
- <CAKgT0UdK2v+xTwzjLfc69Baz0iDp7GnGRdUacQPue5XHFfQxHg@mail.gmail.com>
- <cc20a6d2-9e95-3de4-301a-f2a6a5b025e4@redhat.com>
- <CAKgT0UfMGXQWzS7=UVquCPECEpPZ1DHzmoH9aOz=r-Di=OKFrA@mail.gmail.com>
-In-Reply-To: <CAKgT0UfMGXQWzS7=UVquCPECEpPZ1DHzmoH9aOz=r-Di=OKFrA@mail.gmail.com>
-
---HhRpdBCks84lltSvMQMBSOmQhDS5tB8BY
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
-Content-Language: en-US
-
-
-On 6/28/19 2:25 PM, Alexander Duyck wrote:
-> On Tue, Jun 25, 2019 at 10:32 AM Nitesh Narayan Lal <nitesh@redhat.com>=
- wrote:
->> On 6/25/19 1:10 PM, Alexander Duyck wrote:
->>> On Tue, Jun 25, 2019 at 7:49 AM Nitesh Narayan Lal <nitesh@redhat.com=
-> wrote:
->>>> On 6/3/19 2:04 PM, Michael S. Tsirkin wrote:
->>>>> On Mon, Jun 03, 2019 at 01:03:04PM -0400, Nitesh Narayan Lal wrote:=
-
->>>>>> This patch series proposes an efficient mechanism for communicatin=
-g free memory
->>>>>> from a guest to its hypervisor. It especially enables guests with =
-no page cache
->>>>>> (e.g., nvdimm, virtio-pmem) or with small page caches (e.g., ram >=
- disk) to
->>>>>> rapidly hand back free memory to the hypervisor.
->>>>>> This approach has a minimal impact on the existing core-mm infrast=
-ructure.
->>>>> Could you help us compare with Alex's series?
->>>>> What are the main differences?
->>>> Results on comparing the benefits/performance of Alexander's v1
->>>> (bubble-hinting)[1], Page-Hinting (includes some of the upstream
->>>> suggested changes on v10) over an unmodified Kernel.
->>>>
->>>> Test1 - Number of guests that can be launched without swap usage.
->>>> Guest size: 5GB
->>>> Cores: 4
->>>> Total NUMA Node Memory ~ 15 GB (All guests are running on a single n=
-ode)
->>>> Process: Guest is launched sequentially after running an allocation
->>>> program with 4GB request.
->>>>
->>>> Results:
->>>> unmodified kernel: 2 guests without swap usage and 3rd guest with a =
-swap
->>>> usage of 2.3GB.
->>>> bubble-hinting v1: 4 guests without swap usage and 5th guest with a =
-swap
->>>> usage of 1MB.
->>>> Page-hinting: 5 guests without swap usage and 6th guest with a swap
->>>> usage of 8MB.
->>>>
->>>>
->>>> Test2 - Memhog execution time
->>>> Guest size: 6GB
->>>> Cores: 4
->>>> Total NUMA Node Memory ~ 15 GB (All guests are running on a single n=
-ode)
->>>> Process: 3 guests are launched and "time memhog 6G" is launched in e=
-ach
->>>> of them sequentially.
->>>>
->>>> Results:
->>>> unmodified kernel: Guest1-40s, Guest2-1m5s, Guest3-6m38s (swap usage=
- at
->>>> the end-3.6G)
->>>> bubble-hinting v1: Guest1-32s, Guest2-58s, Guest3-35s (swap usage at=
- the
->>>> end-0)
->>>> Page-hinting: Guest1-42s, Guest2-47s, Guest3-32s (swap usage at the =
-end-0)
->>>>
->>>>
->>>> Test3 - Will-it-scale's page_fault1
->>>> Guest size: 6GB
->>>> Cores: 24
->>>> Total NUMA Node Memory ~ 15 GB (All guests are running on a single n=
-ode)
->>>>
->>>> unmodified kernel:
->>>> tasks,processes,processes_idle,threads,threads_idle,linear
->>>> 0,0,100,0,100,0
->>>> 1,459168,95.83,459315,95.83,459315
->>>> 2,956272,91.68,884643,91.72,918630
->>>> 3,1407811,87.53,1267948,87.69,1377945
->>>> 4,1755744,83.39,1562471,83.73,1837260
->>>> 5,2056741,79.24,1812309,80.00,2296575
->>>> 6,2393759,75.09,2025719,77.02,2755890
->>>> 7,2754403,70.95,2238180,73.72,3215205
->>>> 8,2947493,66.81,2369686,70.37,3674520
->>>> 9,3063579,62.68,2321148,68.84,4133835
->>>> 10,3229023,58.54,2377596,65.84,4593150
->>>> 11,3337665,54.40,2429818,64.01,5052465
->>>> 12,3255140,50.28,2395070,61.63,5511780
->>>> 13,3260721,46.11,2402644,59.77,5971095
->>>> 14,3210590,42.02,2390806,57.46,6430410
->>>> 15,3164811,37.88,2265352,51.39,6889725
->>>> 16,3144764,33.77,2335028,54.07,7349040
->>>> 17,3128839,29.63,2328662,49.52,7808355
->>>> 18,3133344,25.50,2301181,48.01,8267670
->>>> 19,3135979,21.38,2343003,43.66,8726985
->>>> 20,3136448,17.27,2306109,40.81,9186300
->>>> 21,3130324,13.16,2403688,35.84,9645615
->>>> 22,3109883,9.04,2290808,36.24,10104930
->>>> 23,3136805,4.94,2263818,35.43,10564245
->>>> 24,3118949,0.78,2252891,31.03,11023560
->>>>
->>>> bubble-hinting v1:
->>>> tasks,processes,processes_idle,threads,threads_idle,linear
->>>> 0,0,100,0,100,0
->>>> 1,292183,95.83,292428,95.83,292428
->>>> 2,540606,91.67,501887,91.91,584856
->>>> 3,821748,87.53,735244,88.31,877284
->>>> 4,1033782,83.38,839925,85.59,1169712
->>>> 5,1261352,79.25,896464,83.86,1462140
->>>> 6,1459544,75.12,1050094,80.93,1754568
->>>> 7,1686537,70.97,1112202,79.23,2046996
->>>> 8,1866892,66.83,1083571,78.48,2339424
->>>> 9,2056887,62.72,1101660,77.94,2631852
->>>> 10,2252955,58.57,1097439,77.36,2924280
->>>> 11,2413907,54.40,1088583,76.72,3216708
->>>> 12,2596504,50.35,1117474,76.01,3509136
->>>> 13,2715338,46.21,1087666,75.32,3801564
->>>> 14,2861697,42.08,1084692,74.35,4093992
->>>> 15,2964620,38.02,1087910,73.40,4386420
->>>> 16,3065575,33.84,1099406,71.07,4678848
->>>> 17,3107674,29.76,1056948,71.36,4971276
->>>> 18,3144963,25.71,1094883,70.14,5263704
->>>> 19,3173468,21.61,1073049,66.21,5556132
->>>> 20,3173233,17.55,1072417,67.16,5848560
->>>> 21,3209710,13.37,1079147,65.64,6140988
->>>> 22,3182958,9.37,1085872,65.95,6433416
->>>> 23,3200747,5.23,1076414,59.40,6725844
->>>> 24,3181699,1.04,1051233,65.62,7018272
->>>>
->>>> Page-hinting:
->>>> tasks,processes,processes_idle,threads,threads_idle,linear
->>>> 0,0,100,0,100,0
->>>> 1,467693,95.83,467970,95.83,467970
->>>> 2,967860,91.68,895883,91.70,935940
->>>> 3,1408191,87.53,1279602,87.68,1403910
->>>> 4,1766250,83.39,1557224,83.93,1871880
->>>> 5,2124689,79.24,1834625,80.35,2339850
->>>> 6,2413514,75.10,1989557,77.00,2807820
->>>> 7,2644648,70.95,2158055,73.73,3275790
->>>> 8,2896483,66.81,2305785,70.85,3743760
->>>> 9,3157796,62.67,2304083,69.49,4211730
->>>> 10,3251633,58.53,2379589,66.43,4679700
->>>> 11,3313704,54.41,2349310,64.76,5147670
->>>> 12,3285612,50.30,2362013,62.63,5615640
->>>> 13,3207275,46.17,2377760,59.94,6083610
->>>> 14,3221727,42.02,2416278,56.70,6551580
->>>> 15,3194781,37.91,2334552,54.96,7019550
->>>> 16,3211818,33.78,2399077,52.75,7487520
->>>> 17,3172664,29.65,2337660,50.27,7955490
->>>> 18,3177152,25.49,2349721,47.02,8423460
->>>> 19,3149924,21.36,2319286,40.16,8891430
->>>> 20,3166910,17.30,2279719,43.23,9359400
->>>> 21,3159464,13.19,2342849,34.84,9827370
->>>> 22,3167091,9.06,2285156,37.97,10295340
->>>> 23,3174137,4.96,2365448,33.74,10763310
->>>> 24,3161629,0.86,2253813,32.38,11231280
->>>>
->>>>
->>>> Test4: Netperf
->>>> Guest size: 5GB
->>>> Cores: 4
->>>> Total NUMA Node Memory ~ 15 GB (All guests are running on a single n=
-ode)
->>>> Netserver: Running on core 0
->>>> Netperf: Running on core 1
->>>> Recv Socket Size bytes: 131072
->>>> Send Socket Size bytes:16384
->>>> Send Message Size bytes:1000000000
->>>> Time: 900s
->>>> Process: netperf is run 3 times sequentially in the same guest with =
-the
->>>> same inputs mentioned above and throughput (10^6bits/sec) is observe=
-d.
->>>> unmodified kernel: 1st Run-14769.60, 2nd Run-14849.18, 3rd Run-14842=
-=2E02
->>>> bubble-hinting v1: 1st Run-13441.77, 2nd Run-13487.81, 3rd Run-13503=
-=2E87
->>>> Page-hinting: 1st Run-14308.20, 2nd Run-14344.36, 3rd Run-14450.07
->>>>
->>>> Drawback with bubble-hinting:
->>>> More invasive.
->>>>
->>>> Drawback with page-hinting:
->>>> Additional bitmap required, including growing/shrinking the bitmap o=
-n
->>>> memory hotplug.
->>>>
->>>>
->>>> [1] https://lkml.org/lkml/2019/6/19/926
->>> Any chance you could provide a .config for your kernel? I'm wondering=
-
->>> what is different between the two as it seems like you are showing a
->>> significant regression in terms of performance for the bubble
->>> hinting/aeration approach versus a stock kernel without the patches
->>> and that doesn't match up with what I have been seeing.
->> I have attached the config which I was using.
-> Were all of these runs with the same config? I ask because I noticed
-> the config you provided had a number of quite expensive memory debug
-> options enabled:
-Yes, memory debugging configs were enabled for all the cases.
+On Fri, Jun 28, 2019 at 11:53 AM Yang Shi <yang.shi@linux.alibaba.com> wrote:
 >
-> #
-> # Memory Debugging
-> #
-> CONFIG_PAGE_EXTENSION=3Dy
-> CONFIG_DEBUG_PAGEALLOC=3Dy
-> CONFIG_DEBUG_PAGEALLOC_ENABLE_DEFAULT=3Dy
-> CONFIG_PAGE_OWNER=3Dy
-> # CONFIG_PAGE_POISONING is not set
-> CONFIG_DEBUG_PAGE_REF=3Dy
-> # CONFIG_DEBUG_RODATA_TEST is not set
-> CONFIG_DEBUG_OBJECTS=3Dy
-> # CONFIG_DEBUG_OBJECTS_SELFTEST is not set
-> # CONFIG_DEBUG_OBJECTS_FREE is not set
-> # CONFIG_DEBUG_OBJECTS_TIMERS is not set
-> # CONFIG_DEBUG_OBJECTS_WORK is not set
-> # CONFIG_DEBUG_OBJECTS_RCU_HEAD is not set
-> # CONFIG_DEBUG_OBJECTS_PERCPU_COUNTER is not set
-> CONFIG_DEBUG_OBJECTS_ENABLE_DEFAULT=3D1
-> CONFIG_SLUB_DEBUG_ON=3Dy
-> # CONFIG_SLUB_STATS is not set
-> CONFIG_HAVE_DEBUG_KMEMLEAK=3Dy
-> CONFIG_DEBUG_KMEMLEAK=3Dy
-> CONFIG_DEBUG_KMEMLEAK_EARLY_LOG_SIZE=3D400
-> # CONFIG_DEBUG_KMEMLEAK_TEST is not set
-> # CONFIG_DEBUG_KMEMLEAK_DEFAULT_OFF is not set
-> CONFIG_DEBUG_KMEMLEAK_AUTO_SCAN=3Dy
-> CONFIG_DEBUG_STACK_USAGE=3Dy
-> CONFIG_DEBUG_VM=3Dy
-> # CONFIG_DEBUG_VM_VMACACHE is not set
-> # CONFIG_DEBUG_VM_RB is not set
-> # CONFIG_DEBUG_VM_PGFLAGS is not set
-> CONFIG_ARCH_HAS_DEBUG_VIRTUAL=3Dy
-> CONFIG_DEBUG_VIRTUAL=3Dy
-> CONFIG_DEBUG_MEMORY_INIT=3Dy
-> CONFIG_DEBUG_PER_CPU_MAPS=3Dy
-> CONFIG_HAVE_ARCH_KASAN=3Dy
-> CONFIG_CC_HAS_KASAN_GENERIC=3Dy
-> # CONFIG_KASAN is not set
-> CONFIG_KASAN_STACK=3D1
-> # end of Memory Debugging
 >
-> When I went through and enabled these then my results for the bubble
-> hinting matched pretty closely to what you reported. However, when I
-> compiled without the patches and this config enabled the results were
-> still about what was reported with the bubble hinting but were maybe
-> 5% improved. I'm just wondering if you were doing some additional
-> debugging and left those options enabled for the bubble hinting test
-> run.
-I have the same set of debugging options enabled for all three cases
-reported.
---=20
-Thanks
-Nitesh
+>
+> On 6/27/19 6:55 PM, Shakeel Butt wrote:
+> > On production we have noticed hard lockups on large machines running
+> > large jobs due to kswaps hoarding lru lock within isolate_lru_pages when
+> > sc->reclaim_idx is 0 which is a small zone. The lru was couple hundred
+> > GiBs and the condition (page_zonenum(page) > sc->reclaim_idx) in
+> > isolate_lru_pages was basically skipping GiBs of pages while holding the
+> > LRU spinlock with interrupt disabled.
+> >
+> > On further inspection, it seems like there are two issues:
+> >
+> > 1) If the kswapd on the return from balance_pgdat() could not sleep
+> > (maybe all zones are still unbalanced), the classzone_idx is set to 0,
+> > unintentionally, and the whole reclaim cycle of kswapd will try to reclaim
+> > only the lowest and smallest zone while traversing the whole memory.
+> >
+> > 2) Fundamentally isolate_lru_pages() is really bad when the allocation
+> > has woken kswapd for a smaller zone on a very large machine running very
+> > large jobs. It can hoard the LRU spinlock while skipping over 100s of
+> > GiBs of pages.
+> >
+> > This patch only fixes the (1). The (2) needs a more fundamental solution.
+> >
+> > Fixes: e716f2eb24de ("mm, vmscan: prevent kswapd sleeping prematurely
+> > due to mismatched classzone_idx")
+> > Signed-off-by: Shakeel Butt <shakeelb@google.com>
+> > ---
+> >   mm/vmscan.c | 2 +-
+> >   1 file changed, 1 insertion(+), 1 deletion(-)
+> >
+> > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > index 9e3292ee5c7c..786dacfdfe29 100644
+> > --- a/mm/vmscan.c
+> > +++ b/mm/vmscan.c
+> > @@ -3908,7 +3908,7 @@ static int kswapd(void *p)
+> >
+> >               /* Read the new order and classzone_idx */
+> >               alloc_order = reclaim_order = pgdat->kswapd_order;
+> > -             classzone_idx = kswapd_classzone_idx(pgdat, 0);
+> > +             classzone_idx = kswapd_classzone_idx(pgdat, classzone_idx);
+>
+> I'm a little bit confused by the fix. What happen if kswapd is waken for
+> a lower zone? It looks kswapd may just reclaim the higher zone instead
+> of the lower zone?
+>
+> For example, after bootup, classzone_idx should be (MAX_NR_ZONES - 1),
+> if GFP_DMA is used for allocation and kswapd is waken up for ZONE_DMA,
+> kswapd_classzone_idx would still return (MAX_NR_ZONES - 1) since
+> kswapd_classzone_idx(pgdat, classzone_idx) returns the max classzone_idx.
+>
 
+Indeed you are right. I think kswapd_classzone_idx() is too much
+convoluted. It has different semantics when called from the wakers
+than when called from kswapd(). Let me see if we can decouple the
+logic in this function based on the context (or have two separate
+functions for both contexts).
 
---HhRpdBCks84lltSvMQMBSOmQhDS5tB8BY--
-
---lU1JB5kvQbpQdsyUzj5WhTdhSNfcmr6CO
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: OpenPGP digital signature
-Content-Disposition: attachment; filename="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-
-iQIzBAEBCAAdFiEEkXcoRVGaqvbHPuAGo4ZA3AYyozkFAl0WZsUACgkQo4ZA3AYy
-ozm7mBAAnIAAbdeZafZYiHazscBaLkB/JTCJ9I0m/pKncHlLFElzKzOwr/Kh8fp2
-RaNBIjTX8ccerjdGR9UsAb/87xmCrDhp+hpA+A//frFEBZh5bD6zHy00BsqHX9vM
-CubZsLPSmskIR3r8x0TbRBiZJ94fHbj2NPJRaU7AZopxnmuGPdiM6m/3Pw17UhXa
-O6QsDNtxesfu5F18+BaNTe+LU1ly738C6xTkDlyTiPwnfixHxoP7oFPre8H0SgCA
-IHY1PSYFryUEVoSyzDD4BN96rCLhwxwnPbid2MrvHu1ahIbFNSP/OnhHEHw0Cnil
-QKSSyCq4vjftLP0R7wlq+VwnUZ0XoF5R/gLMEv0mbTQtbqSwWscSClvPcnedJbh7
-lPx9O2HPAe12Ge0xFeZUBqBbio2Wr5u6k4i4mIZZLdL/qEb0w0p3l1aei02qRrlD
-i96vfMnga/oxKloqEZZfZPNroWhOowsc8RztkKK9FXAsauEIcT0EmtmJs1UKrEDb
-yhaKcKtjcA8uw8gINwXoQTVeIel0TMWGyU0izO9gcAUmn6hW1fiHj0GmTfmVbOXS
-jrhMyO7B293jQq2DHH4TRd/YLNaW2qtOsAJn3ME/QfkMME+WsIhXulK4W35z3ZoB
-833u1NXVHeMk/qEXBbWEk7OD4Qdngo3PiX3gvOk6vBB15X4TPCQ=
-=CLM+
------END PGP SIGNATURE-----
-
---lU1JB5kvQbpQdsyUzj5WhTdhSNfcmr6CO--
+thanks,
+Shakeel
 
