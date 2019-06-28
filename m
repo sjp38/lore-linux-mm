@@ -2,105 +2,110 @@ Return-Path: <SRS0=7Cer=U3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.4 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	UNWANTED_LANGUAGE_BODY,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id AC4E4C4321A
-	for <linux-mm@archiver.kernel.org>; Fri, 28 Jun 2019 11:29:57 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id EEC15C4321A
+	for <linux-mm@archiver.kernel.org>; Fri, 28 Jun 2019 11:37:18 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 635302086D
-	for <linux-mm@archiver.kernel.org>; Fri, 28 Jun 2019 11:29:57 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 635302086D
+	by mail.kernel.org (Postfix) with ESMTP id A1A2E20645
+	for <linux-mm@archiver.kernel.org>; Fri, 28 Jun 2019 11:37:18 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A1A2E20645
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CFE618E0003; Fri, 28 Jun 2019 07:29:56 -0400 (EDT)
+	id 41F038E0003; Fri, 28 Jun 2019 07:37:18 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CD60B8E0002; Fri, 28 Jun 2019 07:29:56 -0400 (EDT)
+	id 3D0488E0002; Fri, 28 Jun 2019 07:37:18 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BC55A8E0003; Fri, 28 Jun 2019 07:29:56 -0400 (EDT)
+	id 2BE6B8E0003; Fri, 28 Jun 2019 07:37:18 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 9BFD68E0002
-	for <linux-mm@kvack.org>; Fri, 28 Jun 2019 07:29:56 -0400 (EDT)
-Received: by mail-qt1-f198.google.com with SMTP id r58so5732049qtb.5
-        for <linux-mm@kvack.org>; Fri, 28 Jun 2019 04:29:56 -0700 (PDT)
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 0AB9D8E0002
+	for <linux-mm@kvack.org>; Fri, 28 Jun 2019 07:37:18 -0400 (EDT)
+Received: by mail-qk1-f199.google.com with SMTP id c207so6081584qkb.11
+        for <linux-mm@kvack.org>; Fri, 28 Jun 2019 04:37:18 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
          :references:from:openpgp:autocrypt:organization:message-id:date
          :user-agent:mime-version:in-reply-to:content-language
          :content-transfer-encoding;
-        bh=9N3YmxfxcYmw78pnEBnG3Z1sGSJwHPzw7xZDRkBg79Y=;
-        b=Ee3YR9BeUt2mF/i4PePlhBiEjRMUNKsfeBm9LOSnP05knK+T8PHIFUApsWBfhaFCVU
-         b8+lwa4LHqSnPJFj5nfYjlJf7aQ6VAGldUVBpcnBzl/q1iEuLNrTTcjOuJytjIzOr9ZM
-         0BCE+nK7sWNtL9yAq7+Vdrtr+kcZqcwwBbFFVhNDJCieiK3uTW5tTnCcr+WFlXVJKnDh
-         /P18EDZi2zLvLyaEQUxddDSJI7UhSNMtSeH3OhrhArORku35T80zGEvQaLq/DKqweqRR
-         9yoPk5fZVuDhbQmw8hz9nTtOSwmbZCmZoxk0lomhZ5ggsIUtqAPVWCUsrxNCwbUIlmVL
-         V5cA==
+        bh=d7uQFoih6avPf22aLAk/kXLh+VrxPbBOHBQ7tX/ydtQ=;
+        b=YpkY5iRGr6WQ14W6UAfND7PJxPcTrBCDAiRWUNFs+gi44JrtMdpBC0WwvHrzYGiudl
+         z0Wljei790h2G8phyBB3+YVma6LFeIV1votptG9XMFv5O/Xhc0wLZz1SBpyxdY6LOWC6
+         TZkCCX8ZjmNiHAS9ix/yKnkQp8Z8RdJl5nDfSSaDZO/IzyU1p4TMREzXu/gfbFV+a8Yu
+         Ctfd5Fd5lH7yT86MWpJhPc46WdQ69+6C6pmzRM01is7+rRNwpeGLH/bjfMCHYWNqTa0p
+         YV84xsmtn+GyHMt52tjc9+rTnxav7LyD3mKD6cV2AEbZlDwECFVlMD5PWJG8Lhh8mz5h
+         Pl+g==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAWi8ycFi9fTniOIfoWYJU2xqtAE0PUDrS7HvAknY6XbaLEd6R44
-	M0klWvSzh6naLbOxZ1Wo5ksUBk+mpPzxlx+iI42AoWODEOMQZmP5KwgrMLC1WjQsoMl2xW89axO
-	U1XW1o36GKhRKJ4qc57Sn7bTsqeNLqyazDURHAKRgy4crq6JCiOO7787qKsVa/Dm1BQ==
-X-Received: by 2002:a37:783:: with SMTP id 125mr8132057qkh.0.1561721396450;
-        Fri, 28 Jun 2019 04:29:56 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxYBIdxJe9mADZwSE+V5DBa3QKN7gEy4S2rchYIQhjqF+WksygXQCfv1Pcmc/LTdO9vgV95
-X-Received: by 2002:a37:783:: with SMTP id 125mr8132032qkh.0.1561721395981;
-        Fri, 28 Jun 2019 04:29:55 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561721395; cv=none;
+X-Gm-Message-State: APjAAAWEGl8fYD6Hci/IoCf2sDBeDeon6n6c7SHuNr5XRmj/auLKJKqE
+	pWV1Lm4ZGwFQnFqhpwckQHYBIPmL0aCS/GvE/S4f3kqgtmyxt2KEXabYnxJGIoewcZaTbdqYOgW
+	KVegb+7oO5Ati45kWM0oXPyOOlHq8E1yFgS2bXisiItz06GALRZwV71uXqmVpvNAT4Q==
+X-Received: by 2002:a37:4ac3:: with SMTP id x186mr7856410qka.138.1561721837833;
+        Fri, 28 Jun 2019 04:37:17 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwjb/T8f3TTlE9pATHem1l1bFUd2c+I1FD7NHfJR/PyVasA916mTi5q8eiQta9gCJBy6XRg
+X-Received: by 2002:a37:4ac3:: with SMTP id x186mr7856377qka.138.1561721837309;
+        Fri, 28 Jun 2019 04:37:17 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561721837; cv=none;
         d=google.com; s=arc-20160816;
-        b=AMzkckQ/32c6lsOD47cYf+TCUmruyku1TjO0pFT7oKUfxjw3gP8N+QG0UrBcxqQNdu
-         SVrjH8QeqNqmPzb71ryzgrqIcgZhzwuZ5P8ESyeCxRH19gm7IVIxAdIml6Mq1npNWX4A
-         /TRwJ5l6Wcctme/xYGjI1LJObzFJyBW9cJmv2rjuyRTZA3dGFdyPPqkbvcutiyb8cvKG
-         fvLg3vvnVP6cTDr8/IAyZSbIvg35nA8FzMgznP/2GBtwrGVu1VMC6uyizAQnPS9RClH9
-         I283PTxDeMpKTnL+925Y08SEV1e3ZIYOcmVXnib3Z1+Sveiy+u4XfcxaPwy9jLbe4SJy
-         NZXg==
+        b=KqHQ+wnZ/mape3lVv7vNWHOCnLjD1QOnXIO7h7rsHZpSllhtfVNnaw35BapBAB8oB+
+         I5KsR6ci3AXofjR4e3YFvQYvvUhiWZqvyUWiZAsj2jBGzz+Qx6iw5RVzuf4ZYjF3gTsT
+         GauEsyM1fnlgoRbSgkX1wjIawP3L3w6WXgjGIktfrmxuqY/reU8EGKSMTAF7k8zMACej
+         D/38CpxDt7e4F0+7T+NRtGX9yc0gw5CrxPZgnR5z6igUPpUXN4jqBrU7SxH61Y8V26cy
+         gVRMzNDaZ4aH4nT9PQuwWSpuQr9a1N1Njvvg3t28nTgSbv+/lUdEEyljjYcPfM1Eci9l
+         Wybg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
          :user-agent:date:message-id:organization:autocrypt:openpgp:from
          :references:cc:to:subject;
-        bh=9N3YmxfxcYmw78pnEBnG3Z1sGSJwHPzw7xZDRkBg79Y=;
-        b=pI97n9KrtMvesvNW8GsAupYOaqyZms7+h4PPDJnIlrObpCNOJ19FjT9nXt3QCYvA8k
-         PjBhdHi66QgYh73/Ezo9FVxo/0rJdXRerjtyu1GEz8QcxbYEOENV+++WyuNmhlk1V6cc
-         HWyt/UTKplOMaInr1hCk1Cf0SoJuUDwvyhbF5FQjLuBAuGm39idIHoZbZgyDPH2IVqOC
-         QcP+0FyvV1tgYXw+w3FUI1XsvM+M1OKgFFJljaw2gZvRVB19sEMSwft2XypZXlOg9eqo
-         eVt90j8fNea6ylBho7zcJU6Q+6awrZU0cHVBEjlx9bNcZZEwYpYr4za8ZUTYm94mRHnS
-         O90A==
+        bh=d7uQFoih6avPf22aLAk/kXLh+VrxPbBOHBQ7tX/ydtQ=;
+        b=vmY83gqEUp7VIwMYmdjNzM0ikFal2dHRu+bqWmJAnTV0bsLViIGnjOfX1Sm8ws2/V5
+         XWrasK2LVk6DhxmpM9znbMhBK5yGv1UqoBWP5rtNxuyulyRUIqk9LkO3SyuooBf0Jrvk
+         7jRnnFQ2SvTsUhiZfmYOSHCV1odAr/Y+TjCoCLW69C4zt+o7ITGvvegUFEhTLj7dF2xL
+         Vq8mN/lm8MAZVmbA2SkX+Rm822e15cc7BN18jGJVH0rGLcbF9GbWHu9FyS1QVSHGC1f1
+         LcmRkzlCWMMMVFOi9EOLsR20fSat+L5Y7RGiXhk/fyCNZnlkRIJZOhsM2xe+YbZMSQ5T
+         Dk7g==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 18si1574742qvt.198.2019.06.28.04.29.55
+        by mx.google.com with ESMTPS id b52si1550570qtk.327.2019.06.28.04.37.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 28 Jun 2019 04:29:55 -0700 (PDT)
+        Fri, 28 Jun 2019 04:37:17 -0700 (PDT)
 Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx08.intmail.prod.int.phx2.redhat.com [10.5.11.23])
+Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 19ED1308427C;
-	Fri, 28 Jun 2019 11:29:55 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id 4C1C687620;
+	Fri, 28 Jun 2019 11:37:11 +0000 (UTC)
 Received: from [10.36.116.156] (ovpn-116-156.ams2.redhat.com [10.36.116.156])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 398F11A92D;
-	Fri, 28 Jun 2019 11:29:51 +0000 (UTC)
-Subject: Re: [PATCH v2 3/3] mm: Don't manually decrement num_poisoned_pages
-To: Alastair D'Silva <alastair@au1.ibm.com>, alastair@d-silva.org
+	by smtp.corp.redhat.com (Postfix) with ESMTP id B82C7608CA;
+	Fri, 28 Jun 2019 11:37:08 +0000 (UTC)
+Subject: Re: [PATCH v2 1/3] mm: Trigger bug on if a section is not found in
+ __section_nr
+To: Michal Hocko <mhocko@kernel.org>, Alastair D'Silva <alastair@d-silva.org>
 Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
  "Rafael J. Wysocki" <rafael@kernel.org>,
  Andrew Morton <akpm@linux-foundation.org>,
  Pavel Tatashin <pasha.tatashin@oracle.com>,
- Oscar Salvador <osalvador@suse.de>, Michal Hocko <mhocko@suse.com>,
- Mike Rapoport <rppt@linux.ibm.com>, Baoquan He <bhe@redhat.com>,
- Wei Yang <richard.weiyang@gmail.com>, Logan Gunthorpe <logang@deltatee.com>,
- linux-kernel@vger.kernel.org, linux-mm@kvack.org
+ Oscar Salvador <osalvador@suse.de>, Mike Rapoport <rppt@linux.ibm.com>,
+ Baoquan He <bhe@redhat.com>, Wei Yang <richard.weiyang@gmail.com>,
+ Logan Gunthorpe <logang@deltatee.com>, linux-kernel@vger.kernel.org,
+ linux-mm@kvack.org
 References: <20190626061124.16013-1-alastair@au1.ibm.com>
- <20190626061124.16013-4-alastair@au1.ibm.com>
+ <20190626061124.16013-2-alastair@au1.ibm.com>
+ <20190626062113.GF17798@dhcp22.suse.cz>
+ <d4af66721ea53ce7df2d45a567d17a30575672b2.camel@d-silva.org>
+ <20190626065751.GK17798@dhcp22.suse.cz>
+ <e66e43b1fdfbff94ab23a23c48aa6cbe210a3131.camel@d-silva.org>
+ <20190627080724.GK17798@dhcp22.suse.cz>
 From: David Hildenbrand <david@redhat.com>
 Openpgp: preference=signencrypt
 Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
@@ -147,58 +152,81 @@ Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
  +8Umfre0Xt4713VxMygW0PnQt5aSQdMD58jHFxTk092mU+yIHj5LeYgvwSgZN4airXk5yRXl
  SE+xAvmumFBY
 Organization: Red Hat GmbH
-Message-ID: <7b087c07-9bf3-6668-b55c-06b11a08f0c6@redhat.com>
-Date: Fri, 28 Jun 2019 13:29:50 +0200
+Message-ID: <634a6b8e-3113-f0af-f8d3-9b766f8cd376@redhat.com>
+Date: Fri, 28 Jun 2019 13:37:07 +0200
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.7.0
 MIME-Version: 1.0
-In-Reply-To: <20190626061124.16013-4-alastair@au1.ibm.com>
+In-Reply-To: <20190627080724.GK17798@dhcp22.suse.cz>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-Scanned-By: MIMEDefang 2.84 on 10.5.11.23
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.40]); Fri, 28 Jun 2019 11:29:55 +0000 (UTC)
+Content-Transfer-Encoding: 8bit
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.26]); Fri, 28 Jun 2019 11:37:16 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 26.06.19 08:11, Alastair D'Silva wrote:
-> From: Alastair D'Silva <alastair@d-silva.org>
+On 27.06.19 10:10, Michal Hocko wrote:
+> On Thu 27-06-19 10:50:57, Alastair D'Silva wrote:
+>> On Wed, 2019-06-26 at 08:57 +0200, Michal Hocko wrote:
+>>> On Wed 26-06-19 16:27:30, Alastair D'Silva wrote:
+>>>> On Wed, 2019-06-26 at 08:21 +0200, Michal Hocko wrote:
+>>>>> On Wed 26-06-19 16:11:21, Alastair D'Silva wrote:
+>>>>>> From: Alastair D'Silva <alastair@d-silva.org>
+>>>>>>
+>>>>>> If a memory section comes in where the physical address is
+>>>>>> greater
+>>>>>> than
+>>>>>> that which is managed by the kernel, this function would not
+>>>>>> trigger the
+>>>>>> bug and instead return a bogus section number.
+>>>>>>
+>>>>>> This patch tracks whether the section was actually found, and
+>>>>>> triggers the
+>>>>>> bug if not.
+>>>>>
+>>>>> Why do we want/need that? In other words the changelog should
+>>>>> contina
+>>>>> WHY and WHAT. This one contains only the later one.
+>>>>>  
+>>>>
+>>>> Thanks, I'll update the comment.
+>>>>
+>>>> During driver development, I tried adding peristent memory at a
+>>>> memory
+>>>> address that exceeded the maximum permissable address for the
+>>>> platform.
+>>>>
+>>>> This caused __section_nr to silently return bogus section numbers,
+>>>> rather than complaining.
+>>>
+>>> OK, I see, but is an additional code worth it for the non-development
+>>> case? I mean why should we be testing for something that shouldn't
+>>> happen normally? Is it too easy to get things wrong or what is the
+>>> underlying reason to change it now?
+>>>
+>>
+>> It took me a while to identify what the problem was - having the BUG_ON
+>> would have saved me a few hours.
+>>
+>> I'm happy to just have the BUG_ON 'nd drop the new error return (I
+>> added that in response to Mike Rapoport's comment that the original
+>> patch would still return a bogus section number).
 > 
-> Use the function written to do it instead.
-> 
-> Signed-off-by: Alastair D'Silva <alastair@d-silva.org>
-> ---
->  mm/sparse.c | 4 +++-
->  1 file changed, 3 insertions(+), 1 deletion(-)
-> 
-> diff --git a/mm/sparse.c b/mm/sparse.c
-> index 1ec32aef5590..d9b3625bfdf0 100644
-> --- a/mm/sparse.c
-> +++ b/mm/sparse.c
-> @@ -11,6 +11,8 @@
->  #include <linux/export.h>
->  #include <linux/spinlock.h>
->  #include <linux/vmalloc.h>
-> +#include <linux/swap.h>
-> +#include <linux/swapops.h>
->  
->  #include "internal.h"
->  #include <asm/dma.h>
-> @@ -772,7 +774,7 @@ static void clear_hwpoisoned_pages(struct page *memmap,
->  
->  	for (i = start; i < start + count; i++) {
->  		if (PageHWPoison(&memmap[i])) {
-> -			atomic_long_sub(1, &num_poisoned_pages);
-> +			num_poisoned_pages_dec();
->  			ClearPageHWPoison(&memmap[i]);
->  		}
->  	}
-> 
+> Well, BUG_ON is about the worst way to handle an incorrect input. You
+> really do not want to put a production environment down just because
+> there is a bug in a driver, right? There are still many {VM_}BUG_ONs
+> in the tree and there is a general trend to get rid of many of them
+> rather than adding new ones.
 
-Reviewed-by: David Hildenbrand <david@redhat.com>
+VM_BUG_ON is only really active with CONFIG_DEBUG_VM. On
+!CONFIG_DEBUG_VM it translated to BUILD_BUG_ON_INVALID(), which is a
+compile-time only check.
+
+Or am I missing something?
 
 -- 
 
