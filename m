@@ -2,113 +2,110 @@ Return-Path: <SRS0=7Cer=U3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
-	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2B24DC5B57A
-	for <linux-mm@archiver.kernel.org>; Fri, 28 Jun 2019 16:27:58 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A931FC4321A
+	for <linux-mm@archiver.kernel.org>; Fri, 28 Jun 2019 16:29:36 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C7B5D20828
-	for <linux-mm@archiver.kernel.org>; Fri, 28 Jun 2019 16:27:57 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 61DB22083B
+	for <linux-mm@archiver.kernel.org>; Fri, 28 Jun 2019 16:29:36 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="cOaWk12t"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C7B5D20828
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="qtBdXq0X"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 61DB22083B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 36BB66B0003; Fri, 28 Jun 2019 12:27:57 -0400 (EDT)
+	id 05D248E0003; Fri, 28 Jun 2019 12:29:36 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 31D358E0003; Fri, 28 Jun 2019 12:27:57 -0400 (EDT)
+	id 00E5B8E0002; Fri, 28 Jun 2019 12:29:35 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1E59B8E0002; Fri, 28 Jun 2019 12:27:57 -0400 (EDT)
+	id E181C8E0003; Fri, 28 Jun 2019 12:29:35 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-oi1-f199.google.com (mail-oi1-f199.google.com [209.85.167.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E96836B0003
-	for <linux-mm@kvack.org>; Fri, 28 Jun 2019 12:27:56 -0400 (EDT)
-Received: by mail-oi1-f199.google.com with SMTP id y81so2760673oig.19
-        for <linux-mm@kvack.org>; Fri, 28 Jun 2019 09:27:56 -0700 (PDT)
+Received: from mail-vs1-f69.google.com (mail-vs1-f69.google.com [209.85.217.69])
+	by kanga.kvack.org (Postfix) with ESMTP id C0D148E0002
+	for <linux-mm@kvack.org>; Fri, 28 Jun 2019 12:29:35 -0400 (EDT)
+Received: by mail-vs1-f69.google.com with SMTP id j186so2054495vsc.11
+        for <linux-mm@kvack.org>; Fri, 28 Jun 2019 09:29:35 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=1m5eUNW/8O3Uia+UgF1DOs7nZbA/5lPFN6ZbyXe0/Ls=;
-        b=VtoOdBSpwpPl3faPlPOLw1kLqmN7WOql1ocLWy6wm2ffvecVCm6JCUJtDD4tG2Pd6t
-         Cq5TJcBfTABLMldrmfYwJmPv5i2ucQQoAhGGTFpLqEgfyliwZ1oXs2xRXjbe7Bjc6T4y
-         hk3BWApWwpSXwr4tuHnmcqwCo+eMMqfGfHK1Cnl/vY1MTSDw3MynkIkasfrkujWWCEkk
-         4fcAH6ACynsz2sBZzM3zgsXaAcnx96/F9DNrb15BWt/p0JprvPrksGPe2oRIOZPkN/SP
-         dVCMF6exhk+ZTY03ddsJVjAlNSg7D75gekLmYuCJEii5ZncMx2bsp/lHa6WjU/sGbuua
-         qYdw==
-X-Gm-Message-State: APjAAAXVcAthQuu1yQQiXAEkAiSimnGFR21vDiqHmNvJLIhujrkQ5f0Y
-	E/i75ZD/nrNlirjg+n2X0FAXyuXVM3zzuyUSX/sxxSrjto6ueb/Sf93VRExHOqJATZ5E6jaspA9
-	ziYUk+kD6MJrYfCaZasN1j+/sILYrY3PoBrQ2m8rKWWudbSZJ6cQTMTeORvAt3VRC8g==
-X-Received: by 2002:a9d:6659:: with SMTP id q25mr8362184otm.272.1561739276589;
-        Fri, 28 Jun 2019 09:27:56 -0700 (PDT)
-X-Received: by 2002:a9d:6659:: with SMTP id q25mr8362137otm.272.1561739275832;
-        Fri, 28 Jun 2019 09:27:55 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561739275; cv=none;
+        bh=bKHVDCcXPiE05peODNTqmlPBXDlbWR2UFo/K1we8S9c=;
+        b=BTpiZMBFnDgftbCWD4S1rmKZ4Cdp035FjACzfR9KHMhQxdpys7S0B3xGdYt1L/v2ae
+         zd5PUasHSWdqhYg72H4BwBH1K5YmDw4KEWnSDBTZ8SJIf51zYmf4ZQp9oWTXRxY69EFX
+         RXe1mX2ms4Ulbst7ctZ6qpTl5JRdXUD8cMsXbRFG+y7wgg4HGqNE8La6cGFv+nPywLvB
+         5x3gZMclpq9ozZ0Lz27zoYjkmQ+mIPIJe62/otzG7JFprJNR7p24xY+7ZnWP42QbwjDi
+         sylKGWscyl/2EazgiEJTt8XFJ64btgDFDyN94TBqImZIA0ipk7Vn4xF92VJnLdcl3TZP
+         lRZQ==
+X-Gm-Message-State: APjAAAUKe7JXLfDswQ7sWl2TfEb7yKS5Yvd4U5pdeBeHV23esIDCHyST
+	+wnmCedcfik3PAVQ7X49WmJ1/JZLp34XBsgGRpJ//3RpHoJQ8vWRrd4oywHphmFgZ5QAp1R5szY
+	h8bSx2b0o6m4n32wwS2Fmg4CwNPpooLfcbbqW4GX/9YDM+pPWJsQHVHvlXpTrrkcxYA==
+X-Received: by 2002:a9f:2e0e:: with SMTP id t14mr3523465uaj.119.1561739375429;
+        Fri, 28 Jun 2019 09:29:35 -0700 (PDT)
+X-Received: by 2002:a9f:2e0e:: with SMTP id t14mr3523432uaj.119.1561739374883;
+        Fri, 28 Jun 2019 09:29:34 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561739374; cv=none;
         d=google.com; s=arc-20160816;
-        b=xLZ6EzbiLIOmvWID2nR1W/681WUANTcXehLsMDG7nWpb0YhSzsFw2BYKZmDsnBtodM
-         6gH5TozXL5P945wxuKOHFCzNly+1Nbrw3dlqIH9nit1X7L6eNhNnuTJCCzVV1wpG+4rv
-         hoFK9KxKKvpBew90OJIlerY+nYYWGRPTU+X/Vc5J4op+zeXmAGw4cizOaIYj7+3w2Kwz
-         1bwLy+A96vno+Fh4DSeh9L519jfoZAFxrx/UHe5UveeONVrs5XdtDhcKyFZSq5ZNgfEy
-         vaJ/WUuyRYMdK32tOWlz4Nu4UUndtnOhP2ZRNZ2lM9rSnqkrWdBkeUy0luvg3977v++k
-         W0sQ==
+        b=u4reFbbxMw7rMwD13zhGiTeYqO7/Em+Gkl0pewyuGQ8O714DMkVPYR9Aa9S04GLoii
+         CoJGc/YPSb72SsMIoEUnZrQPJ0OLbOJw8MSQCUSC6B75b6a2w3NGulxx2DfamRCjMAJl
+         ibqbHAU9Ban0GFWAkeGZES/ZsFZVj36rm3H/ta8GU3fj4/JHI1tGan2RNNz/Vi+8EZjE
+         7/aiQPXzPfz4TPV4YtGaSC6/0mm1kCEVa/+PmBf8w2EL5a6QP2Z7NkQByPvIi3YYA8kN
+         pTQdk1Iuy5c811zT5K8wWoGzx15UlxfJEnmqPCbb6RfIHFwoNUNjCWthNtXgtlWD4wsu
+         dreA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=1m5eUNW/8O3Uia+UgF1DOs7nZbA/5lPFN6ZbyXe0/Ls=;
-        b=hin6NIVadPj+9RRJkiQNv4nnLCgkgYSMIY2qflcCHDIG3T/jfTD1d69tnwckgfk1Px
-         c72UdAugE+3OpJkoAevRuzzyMoraC2TRFuk8e7BygPie/jHb2+FmZhl4BkUyjov2t2cc
-         JFGDz+Qnqcvr5HpaSCk7PCxk3sen9vvs617620JM03Rmb8dKDp8GhMT9eqfVpVVaUxFJ
-         bP/Anp8qLtd3p4yEBhkN3dXRly1EEUel8pa+lcSih3ENuVP//1v51DBr1Nn64MgNmL9Y
-         UGAZ1+DlFexaRkgCNYvMfQ3VKDT68s+UqTXKHfUAulNqoKTKA7gxDYKOld16ytnn6ppb
-         5wHA==
+        bh=bKHVDCcXPiE05peODNTqmlPBXDlbWR2UFo/K1we8S9c=;
+        b=n9gF9bd0ae4MbwQZXdAKTVfarbPknQazsOh80t4BSM9HIx9wuK+ISdQn7sjH2JQvfY
+         CoHVN2uKOfC5HReRBKLJOAsKkscfAI+BjrlmGg/Q6JuQegMHlcZHP9eIEKGL07FeJ7uR
+         I8BpY8rg1YpZMmK4KCIQlkJyHrV80r3o1FNA7xbZ2HiYcRq6voAkSFpyWnPRgBtAKD1K
+         F7QAujj/oZeD1+/SWp4zg+uG3lmcDoIbBYj30J4cs00wA70TBv1Eby9y32EMaSQggkWi
+         E/PcXkYntpmObY/75Dgujswpol3vGkC8bImsX19CgRZzBni/BoPO9zOcN1hwOOQ7lO/e
+         76Kw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=cOaWk12t;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=qtBdXq0X;
+       spf=pass (google.com: domain of pankajssuryawanshi@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=pankajssuryawanshi@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 98sor1478808oti.90.2019.06.28.09.27.55
+        by mx.google.com with SMTPS id c23sor1468926uaq.59.2019.06.28.09.29.34
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 28 Jun 2019 09:27:55 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Fri, 28 Jun 2019 09:29:34 -0700 (PDT)
+Received-SPF: pass (google.com: domain of pankajssuryawanshi@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=cOaWk12t;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=qtBdXq0X;
+       spf=pass (google.com: domain of pankajssuryawanshi@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=pankajssuryawanshi@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=intel-com.20150623.gappssmtp.com; s=20150623;
+        d=gmail.com; s=20161025;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=1m5eUNW/8O3Uia+UgF1DOs7nZbA/5lPFN6ZbyXe0/Ls=;
-        b=cOaWk12t9PR+wM1gV05bVlfR0S1JSjfvb0hJ6JHo5ppfgDNgrz3BIflcx5b+w4agLb
-         brYamehqIiFRGAjIKCUe6+Q53dn3hCuKVsdvquxg1/zCaxiJNgcnspoK9aZ9PKMXCUax
-         piwsxxk5ZVG0/OrqNggRtsNENyTRYeAIsTv0w6rRIv8xEx0MB8nULTH+IB0NC3xJ3BeI
-         w9h4nLRfPNokhqWP61aJrHtY0lfJBXalafI60Q5aBVAiBp99b8Xbt//EkmWeTAvVPTH8
-         cyXy8F6iRDlqKv+0BbiPuN3y3R6N6GvMZWeSpv1agBiqh/rGomhhdkAUvQejKMcw69mS
-         wn1A==
-X-Google-Smtp-Source: APXvYqzpE+Kqyx1ivu95dqxD5Xmw+1dAtjgOIlYl2JIyAfPlIWR3aLAm88Jb4Ju/vM/swOByZ/3NEnMvyOQmHp503wY=
-X-Received: by 2002:a9d:7248:: with SMTP id a8mr9100984otk.363.1561739275009;
- Fri, 28 Jun 2019 09:27:55 -0700 (PDT)
+        bh=bKHVDCcXPiE05peODNTqmlPBXDlbWR2UFo/K1we8S9c=;
+        b=qtBdXq0XLD8BVGshscddAtfmjvkM+6vEB2fci5h7bCZ4QPj0ESqwfWXwFxyvi/bgia
+         kVGVlU7Y0ZWBE++KzRXh3A/3Gu2lZ6RKr5PHf9WlBNxfOS/5/Wksj1RUTJ3ZKca12D/4
+         ANk8oVjWBNAZ/5GUBCJqzKYf2rE9XPxBdJRUy5pynMcNABwPp+fWCNWF5kWfpv7cLuLn
+         vsaPOk1Yunt+fZc8Mu0zuBdVCGK6Qg2DiX1apJzz/2NKU4KK3bNQNLYP9dAJ/JRswrfv
+         VGLqYs5PjFjamcmAkCZV8ESowBAs/QIf/5reFutLohfqT+K9aTmiLimgGzHTcp7qqn+t
+         Hmrw==
+X-Google-Smtp-Source: APXvYqydPIyXvwKpPrZ8ZcD8HVaLsCpFTpEJpv8to51zjquBaIgU+1LKqb+TWKruUHtHlmYHoUFwJbecHP4cb9e2WiU=
+X-Received: by 2002:ab0:67d6:: with SMTP id w22mr339818uar.68.1561739374480;
+ Fri, 28 Jun 2019 09:29:34 -0700 (PDT)
 MIME-Version: 1.0
-References: <20190626122724.13313-1-hch@lst.de> <20190626122724.13313-17-hch@lst.de>
- <20190628153827.GA5373@mellanox.com>
-In-Reply-To: <20190628153827.GA5373@mellanox.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Fri, 28 Jun 2019 09:27:44 -0700
-Message-ID: <CAPcyv4joSiFMeYq=D08C-QZSkHz0kRpvRfseNQWrN34Rrm+S7g@mail.gmail.com>
-Subject: Re: [PATCH 16/25] device-dax: use the dev_pagemap internal refcount
-To: Jason Gunthorpe <jgg@mellanox.com>
-Cc: Christoph Hellwig <hch@lst.de>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, 
-	Ben Skeggs <bskeggs@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, 
-	"nouveau@lists.freedesktop.org" <nouveau@lists.freedesktop.org>, 
-	"dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>, 
-	"linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, 
-	"linux-pci@vger.kernel.org" <linux-pci@vger.kernel.org>, 
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+References: <CACDBo564RoWpi8y2pOxoddnn0s3f3sA-fmNxpiXuxebV5TFBJA@mail.gmail.com>
+ <CACDBo55GfomD4yAJ1qaOvdm8EQaD-28=etsRHb39goh+5VAeqw@mail.gmail.com> <20190626175131.GA17250@infradead.org>
+In-Reply-To: <20190626175131.GA17250@infradead.org>
+From: Pankaj Suryawanshi <pankajssuryawanshi@gmail.com>
+Date: Fri, 28 Jun 2019 21:59:25 +0530
+Message-ID: <CACDBo56fNVxVyNEGtKM+2R0X7DyZrrHMQr6Yw4NwJ6USjD5Png@mail.gmail.com>
+Subject: Re: DMA-API attr - DMA_ATTR_NO_KERNEL_MAPPING
+To: Christoph Hellwig <hch@infradead.org>
+Cc: linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>, linux-kernel@vger.kernel.org, 
+	Vlastimil Babka <vbabka@suse.cz>, iommu@lists.linux-foundation.org
 Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -116,28 +113,33 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jun 28, 2019 at 8:39 AM Jason Gunthorpe <jgg@mellanox.com> wrote:
+On Wed, Jun 26, 2019 at 11:21 PM Christoph Hellwig <hch@infradead.org> wrote:
 >
-> On Wed, Jun 26, 2019 at 02:27:15PM +0200, Christoph Hellwig wrote:
-> > The functionality is identical to the one currently open coded in
-> > device-dax.
-> >
-> > Signed-off-by: Christoph Hellwig <hch@lst.de>
-> > Reviewed-by: Ira Weiny <ira.weiny@intel.com>
-> > ---
-> >  drivers/dax/dax-private.h |  4 ----
-> >  drivers/dax/device.c      | 43 ---------------------------------------
-> >  2 files changed, 47 deletions(-)
+> On Wed, Jun 26, 2019 at 10:12:45PM +0530, Pankaj Suryawanshi wrote:
+> > [CC: linux kernel and Vlastimil Babka]
 >
-> DanW: I think this series has reached enough review, did you want
-> to ack/test any further?
+> The right list is the list for the DMA mapping subsystem, which is
+> iommu@lists.linux-foundation.org.  I've also added that.
 >
-> This needs to land in hmm.git soon to make the merge window.
+> > > I am writing driver in which I used DMA_ATTR_NO_KERNEL_MAPPING attribute
+> > > for cma allocation using dma_alloc_attr(), as per kernel docs
+> > > https://www.kernel.org/doc/Documentation/DMA-attributes.txt  buffers
+> > > allocated with this attribute can be only passed to user space by calling
+> > > dma_mmap_attrs().
+> > >
+> > > how can I mapped in kernel space (after dma_alloc_attr with
+> > > DMA_ATTR_NO_KERNEL_MAPPING ) ?
+>
+> You can't.  And that is the whole point of that API.
 
-I was awaiting a decision about resolving the collision with Ira's
-patch before testing the final result again [1]. You can go ahead and
-add my reviewed-by for the series, but my tested-by should be on the
-final state of the series.
+1. We can again mapped in kernel space using dma_remap() api , because
+when we are using  DMA_ATTR_NO_KERNEL_MAPPING for dma_alloc_attr it
+returns the page as virtual address(in case of CMA) so we can mapped
+it again using dma_remap().
 
-[1]: https://lore.kernel.org/lkml/CAPcyv4gTOf+EWzSGrFrh2GrTZt5HVR=e+xicUKEpiy57px8J+w@mail.gmail.com/
+2. We can mapped in kernel space using vmap() as used for ion-cma
+https://github.com/torvalds/linux/tree/master/drivers/staging/android/ion
+ as used in function ion_heap_map_kernel().
+
+Please let me know if i am missing anything.
 
