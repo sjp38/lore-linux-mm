@@ -2,171 +2,181 @@ Return-Path: <SRS0=7Cer=U3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+X-Spam-Status: No, score=-3.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham
-	autolearn_force=no version=3.4.0
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C0656C4646D
-	for <linux-mm@archiver.kernel.org>; Fri, 28 Jun 2019 16:37:16 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 39476C4321A
+	for <linux-mm@archiver.kernel.org>; Fri, 28 Jun 2019 17:02:30 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7B4F5208CB
-	for <linux-mm@archiver.kernel.org>; Fri, 28 Jun 2019 16:37:16 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id DC70E20645
+	for <linux-mm@archiver.kernel.org>; Fri, 28 Jun 2019 17:02:29 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=wdc.com header.i=@wdc.com header.b="JCidRKGf"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7B4F5208CB
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=wdc.com
+	dkim=pass (1024-bit key) header.d=Mellanox.com header.i=@Mellanox.com header.b="EEFB2bfz"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DC70E20645
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mellanox.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id F25D08E0003; Fri, 28 Jun 2019 12:37:15 -0400 (EDT)
+	id 6128C6B0003; Fri, 28 Jun 2019 13:02:29 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id EFD8D8E0002; Fri, 28 Jun 2019 12:37:15 -0400 (EDT)
+	id 5C1A88E0003; Fri, 28 Jun 2019 13:02:29 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E12F28E0003; Fri, 28 Jun 2019 12:37:15 -0400 (EDT)
+	id 48A838E0002; Fri, 28 Jun 2019 13:02:29 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id AA39D8E0002
-	for <linux-mm@kvack.org>; Fri, 28 Jun 2019 12:37:15 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id e25so4232300pfn.5
-        for <linux-mm@kvack.org>; Fri, 28 Jun 2019 09:37:15 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id F0A1B6B0003
+	for <linux-mm@kvack.org>; Fri, 28 Jun 2019 13:02:28 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id y24so9937138edb.1
+        for <linux-mm@kvack.org>; Fri, 28 Jun 2019 10:02:28 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:ironport-sdr:ironport-sdr:subject
-         :to:cc:references:from:message-id:date:user-agent:mime-version
-         :in-reply-to:content-language:content-transfer-encoding;
-        bh=0pzbWUeVsfjE9BdYrrtWhCa67uI2Ig3SpxTxPTx6Clo=;
-        b=nxHdwuxK179D3Q/cof9L1ftGyHpTpad6ItKD2sNgdT9yWwHgm8ibek+3EdCt1viaZb
-         k4O3XwqecrOUewj5fQgSK7S7DoPuyh7cmgrOCfrjkXaVFrUD1vqIF7LhV1tuJBlB/Ewl
-         arkRf+3I7eY7IEoOTioFVlx1SjkOH0tlWdU1LMxwYMu1jDWKEjKEQHkxq9o2y87GnuPS
-         jw9eLKH+KAFOSqVFHG5qgvZlBspsmma69TgxvBGL74LMmatKV96TIp4N9KmwOOCTMN3z
-         XUxbXpe0p/bvizcGMVN0cg7R6aZuir85sZCMKbvqqqYysDQWzGnAkuFaLtsP8K5wwN6l
-         qBxQ==
-X-Gm-Message-State: APjAAAV45sEcmt7pxN28bN+Cn2VkeFagCd2sS/rUYVEtj8oTP8uZoVRI
-	lL28//myueJQSrrrfSMvgi3vc8eTLzNskECPLAm9oy0e2aqJIB3rz+9kkn3TOSgPHuMaXP9e3JJ
-	aDmXAgHguQeZiLmmTS37GO0j6R5/m5S4VHZIiQF/MPOYlMg/4bYf9Y3xmL9kfgirNBQ==
-X-Received: by 2002:a65:55ca:: with SMTP id k10mr10264170pgs.14.1561739835139;
-        Fri, 28 Jun 2019 09:37:15 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwPOh0xrG92/lrsptxA5TVIyhCA/zrcsIT5D0qG7S9UewdkBjt3fcFoc46Twx22v4nuffaX
-X-Received: by 2002:a65:55ca:: with SMTP id k10mr10264121pgs.14.1561739834570;
-        Fri, 28 Jun 2019 09:37:14 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561739834; cv=none;
-        d=google.com; s=arc-20160816;
-        b=Z8Mqs6m5uyY7B7P+6GDeCI1bWpdzu7lO1jyCiMLLgo/NuEe9icYURrhwxLySACyFAI
-         q35TXP0knYmtFcLD+yZEoOgiZ3twUBb6rBGKLrOw31mYiS1qLIRFshojQOMJgBd4iWZx
-         6CVI+ml+SDYY2kGmPyT8V4dJx9pbJOTe/BGe3pQ399BWqyWCYrljgUTor8j4hHte7wRc
-         3DAfHcES/V63z6hg15wRmZnZrZ+mrwtcrT8d3cNFisI2swEwx9JheZ46B2bI4rw7f8pw
-         mZ1f/2jTt9qT63zt+qp+/DMADywiy1wrto4aWBosASHNiJGlhAE99G9p5AeTCK+FNqFJ
-         T4pg==
-ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject
-         :ironport-sdr:ironport-sdr:dkim-signature;
-        bh=0pzbWUeVsfjE9BdYrrtWhCa67uI2Ig3SpxTxPTx6Clo=;
-        b=ZY87pUEwN7M6raGs3+sqc9BnfCMGUUgKanVhz/CmAPvRvNHSwaiHKUIYonpEeejD70
-         HMGXL50a2BgXh7dukNsyGL2Vmh/XieW5jzTDihne6qBUU+oKGF+vt3yai160LIYId0q9
-         diUr39c8zPZCOpFm9569Gs6FOVIUwcv4p2K8ZpBidcUuiOIJLKp4JGOITBpTak4eVxow
-         xYz9Zi18DtCcpa5HqwmwKKxR6vfhMLHyGadRckLdfrdVtBPKHwGSLSJq48ZuDnX0UQds
-         CvQL5MoIOkcd5BU/GCRMF388OpPiQkU0EvaL6wHTv7suxyWJe4Yi94QjRa2X1lm9Za95
-         Akxw==
-ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@wdc.com header.s=dkim.wdc.com header.b=JCidRKGf;
-       spf=pass (google.com: domain of prvs=0752b0550=atish.patra@wdc.com designates 216.71.153.141 as permitted sender) smtp.mailfrom="prvs=0752b0550=atish.patra@wdc.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=wdc.com
-Received: from esa3.hgst.iphmx.com (esa3.hgst.iphmx.com. [216.71.153.141])
-        by mx.google.com with ESMTPS id j6si3135044pfi.240.2019.06.28.09.37.14
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
+         :thread-index:date:message-id:references:in-reply-to:accept-language
+         :content-language:content-id:content-transfer-encoding:mime-version;
+        bh=4jwEvvXUPY88v4ZIhjZnxTRkKIFmTLxalBf1YgUdmjQ=;
+        b=nkjpHnlGuGHLkjTkKiPJ3xKACVOAVz6y0bwiRMpQn0YGYvmfCaYo0UuFk1P1y8xtIY
+         RPSxmwtKew+MJG1wJQxp9rUyq/XsQ4JICRBElOwRhjGJK7MY8E6bguTPCHmtY69bHwKw
+         0nazX7isGkufUpiJdnQyqcjZI8RmSQRB/hc9/rjL8d35HHJhOo3HMAgDcVHyNdoEr+lR
+         RWf1L4vDLzveQYjB9rNIvn8w1oJKSO2txiNJ3ZXBIfcHKpH81AuwmHZDEDK4y6Sfqxn4
+         8FmgobVX5sXzcCJWHxmYtNf+RO4tyeZh/BogiVxe0aGSrVYOBcs6jCZBw0AkAlz+bGKa
+         AO2w==
+X-Gm-Message-State: APjAAAVy1bY4PYUIx4OsGT/5fqGimGfY9p9Y+O6p+S3Uj1QuTku5bEAz
+	vicCQJfEITxLe5AFz+rweB8zbIEEdyk85tePWrb8wdCMLBK9cKc2J1BrlrQqc9mbni446xS3gub
+	Kshw38OSz/q66lWRTjne4XMjwAmgvrRoYbtnZgVLMw9v74yvy9fHCWQPqeQRUb/rTMg==
+X-Received: by 2002:aa7:d28a:: with SMTP id w10mr12649262edq.251.1561741348576;
+        Fri, 28 Jun 2019 10:02:28 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxTqePNc+BYOusYKk3Njt2utaP6VfJGcgsJMrBXtQS0oY6Czkc4b22a/MdE4jEtOtA8fIYw
+X-Received: by 2002:aa7:d28a:: with SMTP id w10mr12649162edq.251.1561741347792;
+        Fri, 28 Jun 2019 10:02:27 -0700 (PDT)
+Received: from EUR04-DB3-obe.outbound.protection.outlook.com (mail-eopbgr60053.outbound.protection.outlook.com. [40.107.6.53])
+        by mx.google.com with ESMTPS id 43si2732514edz.258.2019.06.28.10.02.27
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 28 Jun 2019 09:37:14 -0700 (PDT)
-Received-SPF: pass (google.com: domain of prvs=0752b0550=atish.patra@wdc.com designates 216.71.153.141 as permitted sender) client-ip=216.71.153.141;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 28 Jun 2019 10:02:27 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jgg@mellanox.com designates 40.107.6.53 as permitted sender) client-ip=40.107.6.53;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@wdc.com header.s=dkim.wdc.com header.b=JCidRKGf;
-       spf=pass (google.com: domain of prvs=0752b0550=atish.patra@wdc.com designates 216.71.153.141 as permitted sender) smtp.mailfrom="prvs=0752b0550=atish.patra@wdc.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=wdc.com
-DKIM-Signature: v=1; a=rsa-sha256; c=simple/simple;
-  d=wdc.com; i=@wdc.com; q=dns/txt; s=dkim.wdc.com;
-  t=1561739834; x=1593275834;
-  h=subject:to:cc:references:from:message-id:date:
-   mime-version:in-reply-to:content-transfer-encoding;
-  bh=db7Orwu5Rlutfa6PAdjI+6aa+OUGxvhoykOatgCpUZc=;
-  b=JCidRKGftKQlAM+INTD/sKTgfVwV5q4IHy7Cjnuhd153u3iyEfMIzmVi
-   XOHtQ2IR3hsKYNsFs47QOUq0/JtTPPMc+bG5DbCHqsS4j8I9JdPJHge9I
-   sDgQLe3ya3f9OOgVs9ldjR5DadUBnYexZ7jW7lxW/ztGj1B+8BVqpkzs8
-   9LwF5U+YmtppzYrMcBe+j10b+VIK9L1O0p6NmbNiBs+IQlvPZwPsyDbz/
-   1csdGAjUdjnwMA8h3g0s5B6FTBJ+TZoVputCg4l8aTadjtEhrfSDgCkQD
-   bv4XTq0x4O+KVwIAhzGfeC1i7I62T0HteE4cvqeg6WPfs9zazSDiNbmPy
-   Q==;
-X-IronPort-AV: E=Sophos;i="5.63,428,1557158400"; 
-   d="scan'208";a="116660306"
-Received: from h199-255-45-14.hgst.com (HELO uls-op-cesaep01.wdc.com) ([199.255.45.14])
-  by ob1.hgst.iphmx.com with ESMTP; 29 Jun 2019 00:37:14 +0800
-IronPort-SDR: SXVPzR84g6nB/m0cDen5j5ZKwJh7XkZNA3TWfbivr9drbCD/buOdbwhOOzpwUXcDkQmnp0ujR5
- ouvy58UHwSUGXJakmGF3MA9/m6TTFd9KKjGmRrGOHtlA+DzBQtYwNz09eqehnKZ0sPdeWH4eos
- MM8Jd4q11iloB7OAXS1owCItL1kc8RXiOanTiGoFyBQfRuFoVi13IUNS/xG110h3U8fOwY4MMd
- kv5xk4cvpibBSTnsskk+KNBmK9FLdAnu017juh77Ue/BBTqqsX3iJXRUKE1HsTwdtnDI2Xy77j
- i0Z/jMU3uJp7rLvsOrNIMCI0
-Received: from uls-op-cesaip02.wdc.com ([10.248.3.37])
-  by uls-op-cesaep01.wdc.com with ESMTP; 28 Jun 2019 09:36:19 -0700
-IronPort-SDR: zdGYV+32eoQxixNUhCnJQ/Jkykro8Xn/bw1cwETlQY+5R3YMoipyYF4pLZ5CWan9ZZ0xuUmf5t
- qvKj/D5Xi+512cbwiuTqO5mohj37tvnm5Q8WbAz256vDOi8FBrC8hKBw0/ASDs36/cS507X714
- B1WZ3E0J+7heFw+4mlijGA+unvPLtch5XoffCFGHJp/V5LcFy128Z+Bvr3M6xq1TJelIhbrWlS
- 8IxpFhuQToMKTnJZ/q4EUpRepTkzQcTuSwfsj5XNdrAL3LHwYZtNSNttKp1nm31PaOsn8UjxPa
- mPk=
-Received: from usa002665.ad.shared (HELO [10.225.100.130]) ([10.225.100.130])
-  by uls-op-cesaip02.wdc.com with ESMTP; 28 Jun 2019 09:37:14 -0700
-Subject: Re: [PATCH v3 3/3] RISC-V: Update tlb flush counters
-To: Paul Walmsley <paul.walmsley@sifive.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
- Christoph Hellwig <hch@infradead.org>, Albert Ou <aou@eecs.berkeley.edu>,
- Thomas Gleixner <tglx@linutronix.de>, Kees Cook <keescook@chromium.org>,
- Changbin Du <changbin.du@intel.com>, Anup Patel <anup@brainfault.org>,
- Palmer Dabbelt <palmer@sifive.com>,
- "maintainer:X86 ARCHITECTURE 32-BIT AND 64-BIT" <x86@kernel.org>,
- "linux-mm@kvack.org" <linux-mm@kvack.org>, Ingo Molnar <mingo@redhat.com>,
- Borislav Petkov <bp@alien8.de>, Vlastimil Babka <vbabka@suse.cz>,
- Gary Guo <gary@garyguo.net>, "H. Peter Anvin" <hpa@zytor.com>,
- Andrew Morton <akpm@linux-foundation.org>,
- "linux-riscv@lists.infradead.org" <linux-riscv@lists.infradead.org>,
- Luc Van Oostenryck <luc.vanoostenryck@gmail.com>
-References: <20190429212750.26165-1-atish.patra@wdc.com>
- <20190429212750.26165-4-atish.patra@wdc.com>
- <alpine.DEB.2.21.9999.1906272243530.3867@viisi.sifive.com>
-From: Atish Patra <atish.patra@wdc.com>
-Message-ID: <d79430e8-20c0-d9b1-c72c-6d116f9e03db@wdc.com>
-Date: Fri, 28 Jun 2019 09:37:12 -0700
-User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14; rv:60.0)
- Gecko/20100101 Thunderbird/60.7.2
-MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.21.9999.1906272243530.3867@viisi.sifive.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
+       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b=EEFB2bfz;
+       arc=fail (signature failed);
+       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.6.53 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
+ARC-Seal: i=1; a=rsa-sha256; s=testarcselector01; d=microsoft.com; cv=none;
+ b=IxczjIUX47SlEfJYKoaREQQKFOfyym85joRLApmCR72W4WGLYtBNjfYt1kxQyub6qzLLShmH72FrtV23LqP3o8iX6ar3HpsJuMEiNoUowvo0XYBkV5LGx5T5w13p54XHvsXlDZPBmGU58fljMIHP63QztpW/l4QS5EeffMnUX9U=
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=microsoft.com;
+ s=testarcselector01;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=4jwEvvXUPY88v4ZIhjZnxTRkKIFmTLxalBf1YgUdmjQ=;
+ b=IL2dXY4OhYgLg4sz80I+UjCUNx0tbxM2db9p8Rj4GEi73Vbn2LoNrBd/QesM81z5Ewvi3FE100nrUYiPwNTMPiHPmekoSRVEviuvM7KW0NlnEllbySczlJfJn83hESXfDbtCK79uD9CqMfHEZwdIQ7KNOs6MSDDDZJEMfkTi0jo=
+ARC-Authentication-Results: i=1; test.office365.com
+ 1;spf=none;dmarc=none;dkim=none;arc=none
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=Mellanox.com;
+ s=selector2;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=4jwEvvXUPY88v4ZIhjZnxTRkKIFmTLxalBf1YgUdmjQ=;
+ b=EEFB2bfzg7R35ekPU9Is2C89hjDR2HVzz4USps+O4m1NTKt+eYNlqIRj3E2ge6F/POzMOyUDha3b1hEf+LsigHTYKKrxng13GVQrHo6GM6Ax0e6+cdYdlpzyfuAMTKZ8Mfl0hly1OH3BuZGrWaCybS6QbzW/MMtLrT/8xaiY6rc=
+Received: from VI1PR05MB4141.eurprd05.prod.outlook.com (10.171.182.144) by
+ VI1PR05MB6255.eurprd05.prod.outlook.com (20.178.205.93) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.2008.16; Fri, 28 Jun 2019 17:02:26 +0000
+Received: from VI1PR05MB4141.eurprd05.prod.outlook.com
+ ([fe80::f5d8:df9:731:682e]) by VI1PR05MB4141.eurprd05.prod.outlook.com
+ ([fe80::f5d8:df9:731:682e%5]) with mapi id 15.20.2008.014; Fri, 28 Jun 2019
+ 17:02:25 +0000
+From: Jason Gunthorpe <jgg@mellanox.com>
+To: Dan Williams <dan.j.williams@intel.com>
+CC: Christoph Hellwig <hch@lst.de>, =?iso-8859-1?Q?J=E9r=F4me_Glisse?=
+	<jglisse@redhat.com>, Ben Skeggs <bskeggs@redhat.com>, "linux-mm@kvack.org"
+	<linux-mm@kvack.org>, "nouveau@lists.freedesktop.org"
+	<nouveau@lists.freedesktop.org>, "dri-devel@lists.freedesktop.org"
+	<dri-devel@lists.freedesktop.org>, "linux-nvdimm@lists.01.org"
+	<linux-nvdimm@lists.01.org>, "linux-pci@vger.kernel.org"
+	<linux-pci@vger.kernel.org>, "linux-kernel@vger.kernel.org"
+	<linux-kernel@vger.kernel.org>
+Subject: Re: [PATCH 16/25] device-dax: use the dev_pagemap internal refcount
+Thread-Topic: [PATCH 16/25] device-dax: use the dev_pagemap internal refcount
+Thread-Index: AQHVLBqgvimki3zmIk2l4xtSxGbkyKaxNtmAgAANxQCAAAmqgA==
+Date: Fri, 28 Jun 2019 17:02:25 +0000
+Message-ID: <20190628170219.GA3608@mellanox.com>
+References: <20190626122724.13313-1-hch@lst.de>
+ <20190626122724.13313-17-hch@lst.de> <20190628153827.GA5373@mellanox.com>
+ <CAPcyv4joSiFMeYq=D08C-QZSkHz0kRpvRfseNQWrN34Rrm+S7g@mail.gmail.com>
+In-Reply-To:
+ <CAPcyv4joSiFMeYq=D08C-QZSkHz0kRpvRfseNQWrN34Rrm+S7g@mail.gmail.com>
+Accept-Language: en-US
 Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+x-clientproxiedby: BYAPR21CA0002.namprd21.prod.outlook.com
+ (2603:10b6:a03:114::12) To VI1PR05MB4141.eurprd05.prod.outlook.com
+ (2603:10a6:803:4d::16)
+authentication-results: spf=none (sender IP is )
+ smtp.mailfrom=jgg@mellanox.com; 
+x-ms-exchange-messagesentrepresentingtype: 1
+x-originating-ip: [76.14.1.154]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: dca8a338-cacd-4cc5-0d77-08d6fbea6507
+x-ms-office365-filtering-ht: Tenant
+x-microsoft-antispam:
+ BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(4618075)(2017052603328)(7193020);SRVR:VI1PR05MB6255;
+x-ms-traffictypediagnostic: VI1PR05MB6255:
+x-microsoft-antispam-prvs:
+ <VI1PR05MB62553740A223896F85BB96E0CFFC0@VI1PR05MB6255.eurprd05.prod.outlook.com>
+x-ms-oob-tlc-oobclassifiers: OLM:8882;
+x-forefront-prvs: 00826B6158
+x-forefront-antispam-report:
+ SFV:NSPM;SFS:(10009020)(4636009)(376002)(366004)(346002)(396003)(136003)(39860400002)(189003)(199004)(66446008)(8936002)(6916009)(6436002)(66556008)(33656002)(476003)(53546011)(305945005)(186003)(66066001)(64756008)(3846002)(54906003)(11346002)(26005)(6486002)(6116002)(2906002)(36756003)(68736007)(478600001)(7736002)(14454004)(316002)(486006)(2616005)(86362001)(53936002)(4326008)(5660300002)(71200400001)(52116002)(73956011)(6246003)(446003)(66476007)(1076003)(81156014)(99286004)(6512007)(81166006)(6506007)(76176011)(8676002)(25786009)(256004)(71190400001)(386003)(7416002)(66946007)(102836004)(229853002);DIR:OUT;SFP:1101;SCL:1;SRVR:VI1PR05MB6255;H:VI1PR05MB4141.eurprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
+received-spf: None (protection.outlook.com: mellanox.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info:
+ 1/O3iWmC49vqkfTuIb6GxfWPtwbqlTXEwu/cBsHqgZFr2n42TM+T/WLayFGiGhm+ClF7k7H7WUE5ScOm5f7mNwpOaJ2m6+C/qIgtmbduzmKBWANaB4Y6zJk2MXtcp/2cDewi2NNgVZMcdqG+shOFEZviCpMTl8VgoJwlcdSKhcbH3SB44zT3BumCqIU+JKIVw/udzgLHzpk/eZIEwaRxWtsKiG4ZAXBrn/TKiIsN/R2nelXN904cX8vuCjLBox1h4WQpnKa9WZYuy0Mo3i5a1DTUxZ9YeAVXwwoc99ba/G4FOOLxcYGnK1rN22ApkFcP+1qbQMRlchBa3NqffF8YBZvd9af8O0rVEqn6WhFeIyMn2zFyJFtulrLXO6EmInoYzncEs54QmipsPRyLPFYFYGOGNuqU9O92ImK00scWKAY=
+Content-Type: text/plain; charset="iso-8859-1"
+Content-ID: <F315CA51D2C30A40AD4C5447E0263858@eurprd05.prod.outlook.com>
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
+X-OriginatorOrg: Mellanox.com
+X-MS-Exchange-CrossTenant-Network-Message-Id: dca8a338-cacd-4cc5-0d77-08d6fbea6507
+X-MS-Exchange-CrossTenant-originalarrivaltime: 28 Jun 2019 17:02:25.8791
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: a652971c-7d2e-4d9b-a6a4-d149256f461b
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-CrossTenant-userprincipalname: jgg@mellanox.com
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: VI1PR05MB6255
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 6/27/19 10:47 PM, Paul Walmsley wrote:
-> On Mon, 29 Apr 2019, Atish Patra wrote:
-> 
->> The TLB flush counters under vmstat seems to be very helpful while
->> debugging TLB flush performance in RISC-V.
->>
->> Update the counters in every TLB flush methods respectively.
->>
->> Signed-off-by: Atish Patra <atish.patra@wdc.com>
-> 
-> This one doesn't apply any longer.  Care to update and repost?
-> 
-> 
-> - Paul
-> 
+On Fri, Jun 28, 2019 at 09:27:44AM -0700, Dan Williams wrote:
+> On Fri, Jun 28, 2019 at 8:39 AM Jason Gunthorpe <jgg@mellanox.com> wrote:
+> >
+> > On Wed, Jun 26, 2019 at 02:27:15PM +0200, Christoph Hellwig wrote:
+> > > The functionality is identical to the one currently open coded in
+> > > device-dax.
+> > >
+> > > Signed-off-by: Christoph Hellwig <hch@lst.de>
+> > > Reviewed-by: Ira Weiny <ira.weiny@intel.com>
+> > >  drivers/dax/dax-private.h |  4 ----
+> > >  drivers/dax/device.c      | 43 -------------------------------------=
+--
+> > >  2 files changed, 47 deletions(-)
+> >
+> > DanW: I think this series has reached enough review, did you want
+> > to ack/test any further?
+> >
+> > This needs to land in hmm.git soon to make the merge window.
+>=20
+> I was awaiting a decision about resolving the collision with Ira's
+> patch before testing the final result again [1]. You can go ahead and
+> add my reviewed-by for the series, but my tested-by should be on the
+> final state of the series.
 
-Yeah. The baseline patch (Gary's patch) was not accepted. I will rebase 
-it on top of master and resend.
+The conflict looks OK to me, I think we can let Andrew and Linus
+resolve it.
 
--- 
-Regards,
-Atish
+Thanks,
+Jason
 
