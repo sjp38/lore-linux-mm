@@ -2,113 +2,117 @@ Return-Path: <SRS0=7Cer=U3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=0.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,FSL_HELO_FAKE,HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CEFA3C4321A
-	for <linux-mm@archiver.kernel.org>; Fri, 28 Jun 2019 07:31:33 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5B4A7C5B57A
+	for <linux-mm@archiver.kernel.org>; Fri, 28 Jun 2019 08:45:03 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 99B852064A
-	for <linux-mm@archiver.kernel.org>; Fri, 28 Jun 2019 07:31:33 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 99B852064A
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id F0F5E2083B
+	for <linux-mm@archiver.kernel.org>; Fri, 28 Jun 2019 08:45:02 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=chromium.org header.i=@chromium.org header.b="NJhiRaFT"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F0F5E2083B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chromium.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2B5DA6B0003; Fri, 28 Jun 2019 03:31:33 -0400 (EDT)
+	id 871DE8E0002; Fri, 28 Jun 2019 04:45:01 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 23F3D8E0003; Fri, 28 Jun 2019 03:31:33 -0400 (EDT)
+	id 821FE6B0006; Fri, 28 Jun 2019 04:45:01 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 107668E0002; Fri, 28 Jun 2019 03:31:33 -0400 (EDT)
+	id 739328E0002; Fri, 28 Jun 2019 04:45:01 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B3D9A6B0003
-	for <linux-mm@kvack.org>; Fri, 28 Jun 2019 03:31:32 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id m23so8146953edr.7
-        for <linux-mm@kvack.org>; Fri, 28 Jun 2019 00:31:32 -0700 (PDT)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 3FC426B0003
+	for <linux-mm@kvack.org>; Fri, 28 Jun 2019 04:45:01 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id 30so2840230pgk.16
+        for <linux-mm@kvack.org>; Fri, 28 Jun 2019 01:45:01 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=XeQouqUJAzpEqvuzyif/2fBCLtdFeOZ7ChHqCkDtlwM=;
-        b=niDCyKz65A5cCz1QWOTFR187pP3zwwUZU7zzzJw67mOFPNrLr7766C4PC9cKtK0oMR
-         s40yPCYrKUuOF8XlrNav8NtuV7lXGM0E1yowWPaAqxXjJ5OGzbpnP68kgbXWAUSDmi5s
-         lXucdTs3UPnd5CuKY82rjEUu44C7oKaohs7vexy7jnFIq8+ey7bOcGG3w5iqELxkXUgC
-         OFlwFqgu7JH9NcEHWsendZrG3/olKFnVMN1K5v3WmXJ9XwAQWQlamxeHk6BuKU+GBDbm
-         xkHQnquz7RnRYf9Mg4hno6CP5yYEg/lnd5ax0Tm72n/Y3YDjRAfEKhOg9jRqiAh3dYCs
-         M4bw==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAV5dcquQXn+MdLsswijjA8gzNPyBa/bFkWbxE04GG4BAwCLGSb2
-	PRn5FQe2zM4mI3jEltfR8TAwTGmYcXmn7/+p+BqkdfnzWd/qH1BIN16509IwA9XiIF8Y/4jo547
-	oK2fFYZoENgIfcFK1LNrEJw3rrTzRAKEbZxiYNzs+6F5obnHRJ9Q39z6yrmeaDIs=
-X-Received: by 2002:aa7:c14f:: with SMTP id r15mr9495616edp.116.1561707092294;
-        Fri, 28 Jun 2019 00:31:32 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzsVs4jLdgPmSMVhey2kFSJQxq8OK1GBXzt4ctv4ElKrim6x17sVxlSyUv7Q9YDlmRIHVek
-X-Received: by 2002:aa7:c14f:: with SMTP id r15mr9495554edp.116.1561707091487;
-        Fri, 28 Jun 2019 00:31:31 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561707091; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=9cCBNQ/DLgtpUPdtAQUtvcyuKyE7Z8O611WKPmcesJs=;
+        b=nWUG6szSaco6CZF3XJUJjIg38TukajBsztzTfA+Bt3eiJS51DbQd26T8cF+N/uukgB
+         qhMtNT6NqYILzmMdxWNq7BQzbIsUUlZA1hrvEUfwa6P8sgIFCE/e87oT/Q4AgND7aKlJ
+         mcgx+PIM/eCJVmZYLQ2S1XOeVyZypzVh9lrGjLgWH0WbH8PaDZaowiw8QUtFmpLPDTks
+         umjENBgpnK46x0+5pQdMXaS8Hw6BrXKFcO7O4A/e2Ji+G/2bQFimXWob6y65WTrjTNEn
+         ikfzWfG2hHRz/n/GcjyY5kPSku6PigTeUUWHbd7j2iGu1zwMDTNAoagEczGkx5s142mI
+         lAnA==
+X-Gm-Message-State: APjAAAW7O9dmGx2Bamk1nq5PlH5MHh2MkzgrTLitksUM/N0lG4pTcDIb
+	v1GkghhaEXlRHWaYq3+zcRounsWLPSiQb6eNrIxuS62qeWzrp5mtbdOVKPfsiUqZeeZBF+PJztW
+	EhxCp/10y7x9C+cdRNhgBNTyWRDvM6XaElIR+OjztyH7T6xFGoW/w0H/K8j8XSjVyJw==
+X-Received: by 2002:a17:902:a414:: with SMTP id p20mr9619780plq.187.1561711500808;
+        Fri, 28 Jun 2019 01:45:00 -0700 (PDT)
+X-Received: by 2002:a17:902:a414:: with SMTP id p20mr9619723plq.187.1561711500037;
+        Fri, 28 Jun 2019 01:45:00 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561711500; cv=none;
         d=google.com; s=arc-20160816;
-        b=MzPsNcQSCrz3YvfdBdKm/w51Gg3MHjW8wVF2Dfle5e0mcmbmkbUUuTfG8mciijLuLB
-         U2RF31ZSM1sk45Vpgwdtz9Rkvka43yEzYKimLHYpYQGqSkkEjDNvx8RDLi+B/zE3CXa2
-         odPeaQasem+KqX81LYbliXrRqW5nkwlMO6yANj3PxQO/EeUYLWSVeaVT9/+8s6SB8vLa
-         oP8NEe85+oVefwMQ5zYgdzgrwkgCL3kfyZ4itFqphEdqFoc2P5E/O8YgGklPDON4OHcN
-         U61BxGcoX6ZrDjrifq1mP0dXVYU6gA70CjxrqaDXvrtdO8M7Wqf88K0IEYp3qTYMnTFT
-         XFyA==
+        b=Lp68DEggu+cbaFvy87ZhMHTkuCV51kG4XtI42QDDMJfBdVFnJq8tRwnGQNwxF52HZ8
+         +TpG0jAmru0GDrrnt8oCIqqare3Y2w92FfKhtVXcSy4y9/sgsUW+J2p1+WCNBzA1epBN
+         lyzmsUTSVVtHNAvvw+Q7WaH84Sj4CXrLGt08+VBAjTk64Vw/C9G3aNoP7LzmcE8nR4QE
+         sDQIP6X3UkkVgEpFjWsGZlSH2EpW+ZJL18Gq90IELRjqQk/u+w0UTSmdcqvoddVeNbCK
+         bi961gG6uoWuMKbyNYSDL85vHta2sB9RLPjOmB23CvxQLoDFtq7kPIJw02g/uKKnhsAp
+         f3sA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=XeQouqUJAzpEqvuzyif/2fBCLtdFeOZ7ChHqCkDtlwM=;
-        b=VhBKpRF1OVSMRxLEnwUgmr9RTTSIxY0KW/7SwDLvgbINCajV3evaSegjCfsMgTnwRR
-         tdTUWbY/WQwh02B/ek5oiGIebtMGRptZRlXXJcZ403j9nOUpJyxNqkg+RUAUaxlM5zY8
-         r8a0fdIcxPeSpvm/0gvYsHPyhFRFgJT3lDMnMK20Fh/YiN744Mh94JcniXKl/7TZUFiL
-         ixl90GPA4RQYNey0yhM3BP6/0pPpIzwvL1eTEi3X44UqXfmKNdRoiTEp9a10T76wlP0v
-         flZ1Plc31ai/7BiLT4z+mG5gm6GVEtB5orPDU0t6YXbNGxi4PpbroaPkXNGA8oAadfTH
-         g9hw==
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=9cCBNQ/DLgtpUPdtAQUtvcyuKyE7Z8O611WKPmcesJs=;
+        b=hxvalf49fLac0qMbOv6tuV5XDieX8KeLoZmV7Gevmlrdgu0SODqE+XQbjjUhXtrgf/
+         IlJAsXKsSQWOYm2Cy3tICd6rPIAxZL6dIqk/vV1kbL8+b4GGXmZqdjsPju1Tcug9ftaf
+         VWu2nZFbU8kx7HxmAKo65qpwdpVspoZ1vZjzo/MaV3qEc7mO0JELDqff3ZhaorIMKNON
+         lWKmt2bZzgmh6+WMUq0rLf3esUTN+cvthxt0sTxl4wnGWeiAHoT5/hQ6xMlsQB0GNHET
+         r61LxIfvwAqYuSZSXX3xAeW1EzuP/rqtBQQAPBGx3G7d8OUAuTKdNlZNJb8RCg/8OMuH
+         X0wg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l18si880374ejp.37.2019.06.28.00.31.31
+       dkim=pass header.i=@chromium.org header.s=google header.b=NJhiRaFT;
+       spf=pass (google.com: domain of vovoy@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=vovoy@chromium.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id u13sor1614991pjx.25.2019.06.28.01.44.59
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 28 Jun 2019 00:31:31 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (Google Transport Security);
+        Fri, 28 Jun 2019 01:45:00 -0700 (PDT)
+Received-SPF: pass (google.com: domain of vovoy@chromium.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id D3DF7B167;
-	Fri, 28 Jun 2019 07:31:30 +0000 (UTC)
-Date: Fri, 28 Jun 2019 09:31:28 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Waiman Long <longman@redhat.com>
-Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>,
-	David Rientjes <rientjes@google.com>,
-	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
+       dkim=pass header.i=@chromium.org header.s=google header.b=NJhiRaFT;
+       spf=pass (google.com: domain of vovoy@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=vovoy@chromium.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=chromium.org; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=9cCBNQ/DLgtpUPdtAQUtvcyuKyE7Z8O611WKPmcesJs=;
+        b=NJhiRaFTwbXgWwYMuOKzcTTAPu8tvSUXftkWjd2iiLgQl4WJT7WRsvULRO5tF8PluC
+         Nn+xvF88SuY6E/ZeAT3axrY8RuBSq8aQZRGAiy3DZuNjp2jnGcFdj/vf3GXwc4KU26Zj
+         mspXga43P9yxdB55hXqpNtLBeXU2cevRPgdoY=
+X-Google-Smtp-Source: APXvYqzcWsGydcd1oia93mChuGAQogjZoToWpbbXL8r2Y5MYqx/PPB/llrSa3dFB1zoTvtb0iZ0Rew==
+X-Received: by 2002:a17:90a:b104:: with SMTP id z4mr11674941pjq.102.1561711499289;
+        Fri, 28 Jun 2019 01:44:59 -0700 (PDT)
+Received: from google.com ([2401:fa00:1:b:d89e:cfa6:3c8:e61b])
+        by smtp.gmail.com with ESMTPSA id s20sm670784pfe.169.2019.06.28.01.44.57
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Fri, 28 Jun 2019 01:44:58 -0700 (PDT)
+Date: Fri, 28 Jun 2019 16:44:55 +0800
+From: Vovo Yang <vovoy@chromium.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>,
 	Andrew Morton <akpm@linux-foundation.org>,
-	Alexander Viro <viro@zeniv.linux.org.uk>,
-	Jonathan Corbet <corbet@lwn.net>,
-	Luis Chamberlain <mcgrof@kernel.org>,
-	Kees Cook <keescook@chromium.org>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	Vladimir Davydov <vdavydov.dev@gmail.com>, linux-mm@kvack.org,
-	linux-doc@vger.kernel.org, linux-fsdevel@vger.kernel.org,
-	cgroups@vger.kernel.org, linux-kernel@vger.kernel.org,
-	Roman Gushchin <guro@fb.com>, Shakeel Butt <shakeelb@google.com>,
-	Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 2/2] mm, slab: Extend vm/drop_caches to shrink kmem slabs
-Message-ID: <20190628073128.GC2751@dhcp22.suse.cz>
-References: <20190624174219.25513-1-longman@redhat.com>
- <20190624174219.25513-3-longman@redhat.com>
- <20190627151506.GE5303@dhcp22.suse.cz>
- <5cb05d2c-39a7-f138-b0b9-4b03d6008999@redhat.com>
+	Michal Hocko <mhocko@suse.com>, Sonny Rao <sonnyrao@chromium.org>,
+	linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Subject: Re: [PATCH] mm: vmscan: fix not scanning anonymous pages when
+ detecting file refaults
+Message-ID: <20190628084455.GA59379@google.com>
+References: <20190619080835.GA68312@google.com>
+ <20190627184123.GA11181@cmpxchg.org>
+ <20190628065138.GA251482@google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <5cb05d2c-39a7-f138-b0b9-4b03d6008999@redhat.com>
+In-Reply-To: <20190628065138.GA251482@google.com>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -116,29 +120,40 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu 27-06-19 17:16:04, Waiman Long wrote:
-> On 6/27/19 11:15 AM, Michal Hocko wrote:
-> > On Mon 24-06-19 13:42:19, Waiman Long wrote:
-> >> With the slub memory allocator, the numbers of active slab objects
-> >> reported in /proc/slabinfo are not real because they include objects
-> >> that are held by the per-cpu slab structures whether they are actually
-> >> used or not.  The problem gets worse the more CPUs a system have. For
-> >> instance, looking at the reported number of active task_struct objects,
-> >> one will wonder where all the missing tasks gone.
-> >>
-> >> I know it is hard and costly to get a real count of active objects.
-> > What exactly is expensive? Why cannot slabinfo reduce the number of
-> > active objects by per-cpu cached objects?
-> >
-> The number of cachelines that needs to be accessed in order to get an
-> accurate count will be much higher if we need to iterate through all the
-> per-cpu structures. In addition, accessing the per-cpu partial list will
-> be racy.
+On Fri, Jun 28, 2019 at 03:51:38PM +0900, Minchan Kim wrote:
+> Hi Johannes,
+> 
+> On Thu, Jun 27, 2019 at 02:41:23PM -0400, Johannes Weiner wrote:
+> > 
+> > Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+> > 
+> > Your change makes sense - we should indeed not force cache trimming
+> > only while the page cache is experiencing refaults.
+> > 
+> > I can't say I fully understand the changelog, though. The problem of
+> 
+> I guess the point of the patch is "actual_reclaim" paramter made divergency
+> to balance file vs. anon LRU in get_scan_count. Thus, it ends up scanning
+> file LRU active/inactive list at file thrashing state.
+> 
+> So, Fixes: 2a2e48854d70 ("mm: vmscan: fix IO/refault regression in cache workingset transition")
+> would make sense to me since it introduces the parameter.
+> 
 
-Why is all that a problem for a root only interface that should be used
-quite rarely (it is not something that you should be reading hundreds
-time per second, right)?
--- 
-Michal Hocko
-SUSE Labs
+Thanks for the review and explanation, I will update the changelog to
+make it clear.
+
+> > forcing cache trimming while there is enough page cache is older than
+> > the commit you refer to. It could be argued that this commit is
+> > incomplete - it could have added refault detection not just to
+> > inactive:active file balancing, but also the file:anon balancing; but
+> > it didn't *cause* this problem.
+> > 
+> > Shouldn't this be
+> > 
+> > Fixes: e9868505987a ("mm,vmscan: only evict file pages when we have plenty")
+> > Fixes: 7c5bd705d8f9 ("mm: memcg: only evict file pages when we have plenty")
+> 
+> That would affect, too but it would be trouble to have stable backport
+> since we don't have refault machinery in there.
 
