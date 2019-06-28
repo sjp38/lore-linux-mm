@@ -2,393 +2,138 @@ Return-Path: <SRS0=7Cer=U3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-3.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3DD4DC4321A
-	for <linux-mm@archiver.kernel.org>; Fri, 28 Jun 2019 19:50:34 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 12EB6C4321A
+	for <linux-mm@archiver.kernel.org>; Fri, 28 Jun 2019 19:55:34 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E959C214DA
-	for <linux-mm@archiver.kernel.org>; Fri, 28 Jun 2019 19:50:33 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E959C214DA
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id C4B4D2086D
+	for <linux-mm@archiver.kernel.org>; Fri, 28 Jun 2019 19:55:33 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="LbcNP/Np"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C4B4D2086D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7B7A68E0002; Fri, 28 Jun 2019 15:50:30 -0400 (EDT)
+	id 6C74D6B0003; Fri, 28 Jun 2019 15:55:33 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7906C6B0007; Fri, 28 Jun 2019 15:50:30 -0400 (EDT)
+	id 69F1D8E0003; Fri, 28 Jun 2019 15:55:33 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5B8058E0005; Fri, 28 Jun 2019 15:50:30 -0400 (EDT)
+	id 5B4CD8E0002; Fri, 28 Jun 2019 15:55:33 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f206.google.com (mail-pg1-f206.google.com [209.85.215.206])
-	by kanga.kvack.org (Postfix) with ESMTP id 0EBCA8E0002
-	for <linux-mm@kvack.org>; Fri, 28 Jun 2019 15:50:30 -0400 (EDT)
-Received: by mail-pg1-f206.google.com with SMTP id s4so3687999pgr.3
-        for <linux-mm@kvack.org>; Fri, 28 Jun 2019 12:50:30 -0700 (PDT)
+Received: from mail-io1-f80.google.com (mail-io1-f80.google.com [209.85.166.80])
+	by kanga.kvack.org (Postfix) with ESMTP id 3C7006B0003
+	for <linux-mm@kvack.org>; Fri, 28 Jun 2019 15:55:33 -0400 (EDT)
+Received: by mail-io1-f80.google.com with SMTP id y5so7783560ioj.10
+        for <linux-mm@kvack.org>; Fri, 28 Jun 2019 12:55:33 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:in-reply-to:references;
-        bh=K6tDcT/Zxlb1IPyuaXVagUw2ejPvzj84WsTaERkA8wY=;
-        b=mEnXavaloDm3rmnapA4ErdkDOQdI2sKLFtvoq9YRots8oCu5Nn2J4sL7jHEIWb+AL3
-         TAFy/oi/XYPrnP/jucrZqZq5UK7Xbdfpp0oUFwkq+h/zBLurfOjoEJPlozIDHBwVNUeo
-         njAc5JqeqSa1kd8VwtIk8t8OSkgFqsnPVB2Fd45xfA0HrtQE5aY5XiLpLfn6cPr/l+b8
-         UKScbf97oofQOUy0dEtvlq2Jz9mNwRN5hzxZoLgUtwSkNm0Nq+/L7nlyiTURWR4stOfb
-         YBrLHIWo3wuW4ULE0zb+r23+Qwu/sv72pKlD60C7oe72SNWboAcKJWlMFZV3POqgta+f
-         vs9g==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAVCq8JGi4Im6+8In0sKlBPB8V41wvCt9IpmUTFT3+f56aavrojc
-	RHflVmEFV1ck2Z/tjOhBu4/xr3ESs6FlZm4Pwl6o60mvC5D17ZAbVJfwQH2fPubLq+ckvOhNP9n
-	528GQmu0gXuCRNEz3/Af0tRSMQzH8ryQbkEK8QX0KQBvtTqIFzrc4eqKa5Gy6/v3o0A==
-X-Received: by 2002:a63:fd0d:: with SMTP id d13mr11228708pgh.423.1561751429451;
-        Fri, 28 Jun 2019 12:50:29 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzYi5dBix6cFVcCXmTsqH4Li2nzmgqS21d3/LLG9StpMPcTkI//Cn7LlQBHtpwrU2pCmjz9
-X-Received: by 2002:a63:fd0d:: with SMTP id d13mr11228635pgh.423.1561751428391;
-        Fri, 28 Jun 2019 12:50:28 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561751428; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=f2yLYBZUi8BM/4wZmIBqHDnSCICFDY3sNbGxuLsfM0k=;
+        b=EIhyDlNcSPQ7q8qLXmR2GO46kI8/rLWU95tI6wEcrrcdfeQGa1LdR8jhWNhfcrhVdQ
+         GiPoP2OtRN0DHoGRN7U8a+ulvKuHOG82bxgnMhekcw9DCuvN5V/1ysd1WvJt5t6iVh7a
+         K1J7rUO6GgCJLVsEh7lSK6h5uErQHXExzu9AIaUp3Ewl9c4w347RP4bpvaDddCvIPcaU
+         1T5YtY34LQKME5qW1WMM+mgBFtk7hadmA06Mh4U7Bqpaq12Q7csjZ713R42ZfK6tF5BK
+         IrTLArzg2lQyvP+1b8aF0Kzve2zT6mZ+8V7v+1LOtr/4wyLjW/AWuw0bS7ZfJLA5+TnZ
+         zoyw==
+X-Gm-Message-State: APjAAAXCYcXaHbpCg38Ss+cLs808ryEuGEl8mGs91UU6FhZLGa8LvD6a
+	QJLP40EE9+hcsG8sw5JV5bkifUqf3qaZ5bGh3PrCdtnnO2mT36YZYT5+j9ARpGykjKvTFuEsBIl
+	wKWU17Zdb2ilIz7zGPZUx2riO0p1eKrBbwFGnV4ZwC/izZAm9jYCIm0YuwqG9kJuRFg==
+X-Received: by 2002:a05:6638:3e4:: with SMTP id s4mr13698676jaq.141.1561751732986;
+        Fri, 28 Jun 2019 12:55:32 -0700 (PDT)
+X-Received: by 2002:a05:6638:3e4:: with SMTP id s4mr13698626jaq.141.1561751732420;
+        Fri, 28 Jun 2019 12:55:32 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561751732; cv=none;
         d=google.com; s=arc-20160816;
-        b=TuB83tuY6MKqZP0IvDTUpXAekDBX+S4amxpbdey1YNK1dfr+LW37WA6RUF0843jtDP
-         D91YdQCbIlVtV6LPx/a2a0Ix8+/ZK2x1Z131hW6TyfMHN7+gHlz8sPCWdSAxFnkJShIg
-         cyaBtlMf+Ja6wmhQvuRSkyP0kMaamjM+dIWONeUkb7zFIk4zFFQ6EjqJ8w0YG+ILyuLn
-         ZNecsdg8AW6Eim02pptDid1U4g3WbSipztVVBsg3+PdYYZonyyyVFWRFGNKca4jTFvvL
-         Tfd+2+FBPhQAbVg3lPSj40NHkGRG01gmKxda6wRS8STy+q3OtKzF+i6X1f3aOUw0n/4z
-         SMXg==
+        b=gd+W0+r2KWH0Erwl25iVgvQm6l0W13aWjRYsLylwEaOR3dC7qYqE5eelYeANisWX59
+         myEQc2KbXY7zcBvgQYBujdEtMMfzGX5c5LMZLc440P3CakDQi8FmirPCMbKpi+tpoPud
+         XEPnAwvvsol2J7qz1ZAhUwtMPAwAI5wFBRUFV39DQaZJ5hUh/WIxqpzRY0i3o8rtfULE
+         n1aawoXq1Q88Lbi/uRVZvqO8tSwuTTGsD2AKlX44iQJefXF253Bu6LowJwwGSKy5toHD
+         LlZSlzVWDr6dQ997xG3/N/1++atEXxS2vNm9mVWxZzPcHVCfUVGdIvSFE0t5wdBbFlzU
+         dRhQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=K6tDcT/Zxlb1IPyuaXVagUw2ejPvzj84WsTaERkA8wY=;
-        b=bpMfxpWuizkGCQxnRB2YCbmBB31IbRagUpE1H+NA6054FSK1i0syJChX5KqUswYOmc
-         eT4eVY2/enz2m+KEVzLjAh3TrIBKkjGlw2hS8r+qRFwNjzjRkUBLuyLv0nARPhHSWKiW
-         0C9Nd2KzO4NWahwUwxBnCb/dfw/VaUcp7DsNK6Rk3h6MYMxW3qsSmEufs4gSCDGVXQC+
-         rA0ymeKVuOqUcBqsnQGpPWqdubpDoe9ZFRkvRbZfs8JcuX4qAVoXQ3jztfi9sZ6ZFKSI
-         /ygBdKRMNV8oNsYBIkq/sHeN5m2PRgds53ZCNelxmYleOGZ6kjBk7PYJoGVUcxIvalmo
-         K6aw==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=f2yLYBZUi8BM/4wZmIBqHDnSCICFDY3sNbGxuLsfM0k=;
+        b=mbg3+XwKT57lvJApC929UFkkdzrn5tQwEOybFIh6oEOnG4q8wSuQo42mw6nwC1cLRl
+         QtHSQZglz5iZYKfniEKGiw79nAs+CRClZc90N+RCyily5+PEK+sPAUE1nkXUVtSjNUEA
+         sO9ReYt0RBz5lkO2ci2XTKB0joJo8UJjyI3jYEJIysae8dnYfzP2wYxN8Q97LSaEya+S
+         LIcTS0MgO2jVy1879mtztiTMSntvM6VwumMs6x5vkwu8OPhnIW8+uklTUoQABzrwXDxB
+         PJhA70IVEuJHiq860BhfZo/7f2o+un52W/gkyCGWT/1NbzfqXXq+TaHCfc5JJSUdry5U
+         DFww==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id cd3si3020212plb.228.2019.06.28.12.50.28
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b="LbcNP/Np";
+       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id l7sor2725871iok.7.2019.06.28.12.55.32
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 28 Jun 2019 12:50:28 -0700 (PDT)
-Received-SPF: pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.65 as permitted sender) client-ip=134.134.136.65;
+        (Google Transport Security);
+        Fri, 28 Jun 2019 12:55:32 -0700 (PDT)
+Received-SPF: pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from fmsmga007.fm.intel.com ([10.253.24.52])
-  by orsmga103.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 28 Jun 2019 12:50:27 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.63,428,1557212400"; 
-   d="scan'208";a="164756009"
-Received: from yyu32-desk1.sc.intel.com ([10.144.153.205])
-  by fmsmga007.fm.intel.com with ESMTP; 28 Jun 2019 12:50:27 -0700
-From: Yu-cheng Yu <yu-cheng.yu@intel.com>
-To: x86@kernel.org,
-	"H. Peter Anvin" <hpa@zytor.com>,
-	Thomas Gleixner <tglx@linutronix.de>,
-	Ingo Molnar <mingo@redhat.com>,
-	linux-kernel@vger.kernel.org,
-	linux-doc@vger.kernel.org,
-	linux-mm@kvack.org,
-	linux-arch@vger.kernel.org,
-	linux-api@vger.kernel.org,
-	Arnd Bergmann <arnd@arndb.de>,
-	Andy Lutomirski <luto@amacapital.net>,
-	Balbir Singh <bsingharora@gmail.com>,
-	Borislav Petkov <bp@alien8.de>,
-	Cyrill Gorcunov <gorcunov@gmail.com>,
-	Dave Hansen <dave.hansen@linux.intel.com>,
-	Eugene Syromiatnikov <esyr@redhat.com>,
-	Florian Weimer <fweimer@redhat.com>,
-	"H.J. Lu" <hjl.tools@gmail.com>,
-	Jann Horn <jannh@google.com>,
-	Jonathan Corbet <corbet@lwn.net>,
-	Kees Cook <keescook@chromium.org>,
-	Mike Kravetz <mike.kravetz@oracle.com>,
-	Nadav Amit <nadav.amit@gmail.com>,
-	Oleg Nesterov <oleg@redhat.com>,
-	Pavel Machek <pavel@ucw.cz>,
-	Peter Zijlstra <peterz@infradead.org>,
-	Randy Dunlap <rdunlap@infradead.org>,
-	"Ravi V. Shankar" <ravi.v.shankar@intel.com>,
-	Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>,
-	Dave Martin <Dave.Martin@arm.com>
-Cc: Yu-cheng Yu <yu-cheng.yu@intel.com>
-Subject: [RFC PATCH 2/3] Introduce arch_prctl(ARCH_X86_CET_MARK_LEGACY_CODE)
-Date: Fri, 28 Jun 2019 12:41:57 -0700
-Message-Id: <20190628194158.2431-2-yu-cheng.yu@intel.com>
-X-Mailer: git-send-email 2.17.1
-In-Reply-To: <20190628194158.2431-1-yu-cheng.yu@intel.com>
-References: <20190628194158.2431-1-yu-cheng.yu@intel.com>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b="LbcNP/Np";
+       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=f2yLYBZUi8BM/4wZmIBqHDnSCICFDY3sNbGxuLsfM0k=;
+        b=LbcNP/NpYTiLzuG8hu83xxWym0DcCioXNOxYN4/h+QJ/lY70UIce05xClprRUb3M5H
+         Kb5diR2YwHMOhaQmb74WhvzthU3Ow8ao+LLv5dKAFH25WUoGyzO0yrr3bbV1JHSTcY3z
+         +FpAlFco+H2c4S/AawTfTaqbKTbcoYMb1q7P3gbGfcKTJ8gXRwkOUm2mwRr7YaHluPni
+         IObuKWcBf9XhDGZmUlYG+8ULHLTZ4T3ZEgBBaiviHizyEuu+CqlKYnBwR4serz04dKZp
+         kMVH8L1/zuf9P0GaHpJ6mTm0s7InpNwiF8ZbulhJdvBKZAoCC30bCwPrtEz1ptajyizj
+         mLRQ==
+X-Google-Smtp-Source: APXvYqy6jPwUSYsREJwQF0076GQ3zmexyIsNehD14G3SWw4LW7DT42vQGbWcnDIisCJFt4I207HSbpWwNYm7IFe9tZA=
+X-Received: by 2002:a5d:9dc7:: with SMTP id 7mr13024297ioo.237.1561751732065;
+ Fri, 28 Jun 2019 12:55:32 -0700 (PDT)
+MIME-Version: 1.0
+References: <20190619222922.1231.27432.stgit@localhost.localdomain>
+ <20190619223309.1231.16506.stgit@localhost.localdomain> <68ed3507-16dd-2ea3-4a12-09d04a8dd028@intel.com>
+In-Reply-To: <68ed3507-16dd-2ea3-4a12-09d04a8dd028@intel.com>
+From: Alexander Duyck <alexander.duyck@gmail.com>
+Date: Fri, 28 Jun 2019 12:55:21 -0700
+Message-ID: <CAKgT0UcpbU2=RZxam1n84L3XnTqzuBO=S+bkg9R1PQeYUxFYcw@mail.gmail.com>
+Subject: Re: [PATCH v1 2/6] mm: Move set/get_pcppage_migratetype to mmzone.h
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: Nitesh Narayan Lal <nitesh@redhat.com>, kvm list <kvm@vger.kernel.org>, 
+	David Hildenbrand <david@redhat.com>, "Michael S. Tsirkin" <mst@redhat.com>, LKML <linux-kernel@vger.kernel.org>, 
+	linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, 
+	Yang Zhang <yang.zhang.wz@gmail.com>, pagupta@redhat.com, 
+	Rik van Riel <riel@surriel.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, lcapitulino@redhat.com, 
+	wei.w.wang@intel.com, Andrea Arcangeli <aarcange@redhat.com>, 
+	Paolo Bonzini <pbonzini@redhat.com>, dan.j.williams@intel.com, 
+	Alexander Duyck <alexander.h.duyck@linux.intel.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The CET legacy code bitmap covers the whole user-mode address space and is
-located at the top of the user-mode address space.  It is allocated only
-when the first time arch_prctl(ARCH_X86_MARK_LEGACY_CODE) is called from
-an application.
+On Tue, Jun 25, 2019 at 11:28 AM Dave Hansen <dave.hansen@intel.com> wrote:
+>
+> On 6/19/19 3:33 PM, Alexander Duyck wrote:
+> > In order to support page aeration it will be necessary to store and
+> > retrieve the migratetype of a page. To enable that I am moving the set and
+> > get operations for pcppage_migratetype into the mmzone header so that they
+> > can be used when adding or removing pages from the free lists.
+> ...
+> > diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> > index 4c07af2cfc2f..6f8fd5c1a286 100644
+> > --- a/include/linux/mmzone.h
+> > +++ b/include/linux/mmzone.h
+>
+> Not mm/internal.h?
 
-Introduce:
-
-arch_prctl(ARCH_X86_MARK_LEGACY_CODE, unsigned long *buf)
-    Mark an address range as IBT legacy code.
-
-    *buf: starting linear address
-    *(buf + 1): size of the legacy code
-    *(buf + 2): set (1); clear (0)
-
-Signed-off-by: Yu-cheng Yu <yu-cheng.yu@intel.com>
----
- arch/x86/include/asm/cet.h        |   3 +
- arch/x86/include/asm/processor.h  |  13 +++-
- arch/x86/include/uapi/asm/prctl.h |   1 +
- arch/x86/kernel/Makefile          |   2 +-
- arch/x86/kernel/cet_bitmap.c      | 119 ++++++++++++++++++++++++++++++
- arch/x86/kernel/cet_prctl.c       |  15 ++++
- 6 files changed, 151 insertions(+), 2 deletions(-)
- create mode 100644 arch/x86/kernel/cet_bitmap.c
-
-diff --git a/arch/x86/include/asm/cet.h b/arch/x86/include/asm/cet.h
-index 9e613a6598c9..8ca497850f4a 100644
---- a/arch/x86/include/asm/cet.h
-+++ b/arch/x86/include/asm/cet.h
-@@ -4,6 +4,7 @@
- 
- #ifndef __ASSEMBLY__
- #include <linux/types.h>
-+#include <asm/processor.h>
- 
- struct task_struct;
- struct sc_ext;
-@@ -32,6 +33,7 @@ int cet_restore_signal(bool ia32, struct sc_ext *sc);
- int cet_setup_signal(bool ia32, unsigned long rstor, struct sc_ext *sc);
- int cet_setup_ibt(void);
- int cet_setup_ibt_bitmap(unsigned long bitmap, unsigned long size);
-+int cet_mark_legacy_code(unsigned long addr, unsigned long size, unsigned long set);
- void cet_disable_ibt(void);
- #else
- static inline int prctl_cet(int option, unsigned long arg2) { return -EINVAL; }
-@@ -44,6 +46,7 @@ static inline int cet_restore_signal(bool ia32, struct sc_ext *sc) { return -EIN
- static inline int cet_setup_signal(bool ia32, unsigned long rstor,
- 				   struct sc_ext *sc) { return -EINVAL; }
- static inline int cet_setup_ibt(void) { return -EINVAL; }
-+static inline int cet_mark_legacy_code(unsigned long addr, unsigned long size, unsigned long set) { return -EINVAL; }
- static inline void cet_disable_ibt(void) {}
- #endif
- 
-diff --git a/arch/x86/include/asm/processor.h b/arch/x86/include/asm/processor.h
-index 2ae7c1bf4e43..f4600157c73d 100644
---- a/arch/x86/include/asm/processor.h
-+++ b/arch/x86/include/asm/processor.h
-@@ -884,7 +884,18 @@ static inline void spin_lock_prefetch(const void *x)
- #define TASK_SIZE_OF(child)	((test_tsk_thread_flag(child, TIF_ADDR32)) ? \
- 					IA32_PAGE_OFFSET : TASK_SIZE_MAX)
- 
--#define STACK_TOP		TASK_SIZE_LOW
-+#define MMAP_MAX		(unsigned long)(test_thread_flag(TIF_ADDR32) ? \
-+					TASK_SIZE : TASK_SIZE_MAX)
-+
-+#define IBT_BITMAP_SIZE		(round_up(MMAP_MAX, PAGE_SIZE * BITS_PER_BYTE) / \
-+					(PAGE_SIZE * BITS_PER_BYTE))
-+
-+#define IBT_BITMAP_ADDR		(TASK_SIZE - IBT_BITMAP_SIZE)
-+
-+#define STACK_TOP		(TASK_SIZE_LOW < IBT_BITMAP_ADDR - PAGE_SIZE ? \
-+					TASK_SIZE_LOW : \
-+					IBT_BITMAP_ADDR - PAGE_SIZE)
-+
- #define STACK_TOP_MAX		TASK_SIZE_MAX
- 
- #define INIT_THREAD  {						\
-diff --git a/arch/x86/include/uapi/asm/prctl.h b/arch/x86/include/uapi/asm/prctl.h
-index 5eb9aeb5c662..5f670e70dc00 100644
---- a/arch/x86/include/uapi/asm/prctl.h
-+++ b/arch/x86/include/uapi/asm/prctl.h
-@@ -20,5 +20,6 @@
- #define ARCH_X86_CET_ALLOC_SHSTK	0x3004
- #define ARCH_X86_CET_GET_LEGACY_BITMAP	0x3005 /* deprecated */
- #define ARCH_X86_CET_SET_LEGACY_BITMAP	0x3006
-+#define ARCH_X86_CET_MARK_LEGACY_CODE	0x3007
- 
- #endif /* _ASM_X86_PRCTL_H */
-diff --git a/arch/x86/kernel/Makefile b/arch/x86/kernel/Makefile
-index d908c95306fc..754dde1bf9ac 100644
---- a/arch/x86/kernel/Makefile
-+++ b/arch/x86/kernel/Makefile
-@@ -140,7 +140,7 @@ obj-$(CONFIG_UNWINDER_ORC)		+= unwind_orc.o
- obj-$(CONFIG_UNWINDER_FRAME_POINTER)	+= unwind_frame.o
- obj-$(CONFIG_UNWINDER_GUESS)		+= unwind_guess.o
- 
--obj-$(CONFIG_X86_INTEL_CET)		+= cet.o cet_prctl.o
-+obj-$(CONFIG_X86_INTEL_CET)		+= cet.o cet_prctl.o cet_bitmap.o
- 
- ###
- # 64 bit specific files
-diff --git a/arch/x86/kernel/cet_bitmap.c b/arch/x86/kernel/cet_bitmap.c
-new file mode 100644
-index 000000000000..6cb7ac2f66f7
---- /dev/null
-+++ b/arch/x86/kernel/cet_bitmap.c
-@@ -0,0 +1,119 @@
-+/* SPDX-License-Identifier: GPL-2.0 */
-+
-+#include <linux/mm.h>
-+#include <linux/mman.h>
-+#include <linux/bits.h>
-+#include <asm/fpu/internal.h>
-+#include <asm/cet.h>
-+#include <linux/pagemap.h>
-+#include <linux/err.h>
-+#include <asm/vdso.h>
-+
-+static int alloc_bitmap(void)
-+{
-+	unsigned long addr;
-+	u64 msr_ia32_u_cet;
-+
-+	addr = do_mmap_locked(NULL, IBT_BITMAP_ADDR, IBT_BITMAP_SIZE,
-+			      PROT_READ | PROT_WRITE,
-+			      MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED_NOREPLACE,
-+			      VM_IBT | VM_NORESERVE, NULL);
-+
-+	if (IS_ERR((void *)addr))
-+		return addr;
-+
-+	current->thread.cet.ibt_bitmap_addr = addr;
-+	current->thread.cet.ibt_bitmap_size = IBT_BITMAP_SIZE;
-+
-+	modify_fpu_regs_begin();
-+	rdmsrl(MSR_IA32_U_CET, msr_ia32_u_cet);
-+	msr_ia32_u_cet |= (MSR_IA32_CET_LEG_IW_EN | addr);
-+	wrmsrl(MSR_IA32_U_CET, msr_ia32_u_cet);
-+	modify_fpu_regs_end();
-+	return 0;
-+}
-+
-+static int set_user_bits(unsigned long __user *buf, unsigned long buf_size,
-+			 unsigned long start_bit, unsigned long end_bit, unsigned long set)
-+{
-+	unsigned long start_ul, end_ul, total_ul;
-+	int i, j, r;
-+
-+	if (round_up(end_bit, BITS_PER_BYTE) / BITS_PER_BYTE > buf_size)
-+		end_bit = buf_size * BITS_PER_BYTE - 1;
-+
-+	start_ul = start_bit / BITS_PER_LONG;
-+	end_ul = end_bit / BITS_PER_LONG;
-+	total_ul = (end_ul - start_ul + 1);
-+
-+	i = start_bit % BITS_PER_LONG;
-+	j = end_bit % BITS_PER_LONG;
-+
-+	r = 0;
-+	put_user_try {
-+		unsigned long tmp;
-+		unsigned long x;
-+
-+		if (total_ul == 1) {
-+			get_user_ex(tmp, &buf[start_ul]);
-+
-+			if (set != 0)
-+				tmp |= GENMASK(j, i);
-+			else
-+				tmp &= ~GENMASK(j, i);
-+
-+			put_user_ex(tmp, &buf[start_ul]);
-+		} else {
-+			get_user_ex(tmp, &buf[start_ul]);
-+
-+			if (set != 0)
-+				tmp |= GENMASK(BITS_PER_LONG - 1, i);
-+			else
-+				tmp &= ~GENMASK(BITS_PER_LONG - 1, i);
-+
-+			put_user_ex(tmp, &buf[start_ul]);
-+
-+			get_user_ex(tmp, &buf[end_ul]);
-+
-+			if (set != 0)
-+				tmp |= GENMASK(j, 0);
-+			else
-+				tmp &= ~GENMASK(j, 0);
-+
-+			put_user_ex(tmp, &buf[end_ul]);
-+
-+			if (set != 0) {
-+				for (x = start_ul + 1; x < end_ul; x++)
-+					put_user_ex(~0UL, &buf[x]);
-+			} else {
-+				for (x = start_ul + 1; x < end_ul; x++)
-+					put_user_ex(0UL, &buf[x]);
-+			}
-+		}
-+	} put_user_catch(r);
-+
-+	return r;
-+}
-+
-+int cet_mark_legacy_code(unsigned long addr, unsigned long size, unsigned long set)
-+{
-+	unsigned long bitmap_addr, bitmap_size;
-+	int r;
-+
-+	if (!current->thread.cet.ibt_enabled)
-+		return -EINVAL;
-+
-+	if (current->thread.cet.ibt_bitmap_size == 0) {
-+		r = alloc_bitmap();
-+		if (r)
-+			return r;
-+	}
-+
-+	bitmap_addr = current->thread.cet.ibt_bitmap_addr;
-+	bitmap_size = current->thread.cet.ibt_bitmap_size;
-+
-+	r = set_user_bits((unsigned long * __user)bitmap_addr, bitmap_size,
-+			  addr / PAGE_SIZE, (addr + size - 1) / PAGE_SIZE, set);
-+
-+	return r;
-+}
-diff --git a/arch/x86/kernel/cet_prctl.c b/arch/x86/kernel/cet_prctl.c
-index b7f37bbc0dd3..b2b7f462482f 100644
---- a/arch/x86/kernel/cet_prctl.c
-+++ b/arch/x86/kernel/cet_prctl.c
-@@ -68,6 +68,18 @@ static int handle_bitmap(unsigned long arg2)
- 	return cet_setup_ibt_bitmap(addr, size);
- }
- 
-+static int handle_mark_legacy_code(unsigned long arg2)
-+{
-+	unsigned long addr, size, set;
-+
-+	if (get_user(addr, (unsigned long __user *)arg2) ||
-+	    get_user(size, (unsigned long __user *)arg2 + 1) ||
-+	    get_user(set, (unsigned long __user *)arg2 + 2))
-+		return -EFAULT;
-+
-+	return cet_mark_legacy_code(addr, size, set);
-+}
-+
- int prctl_cet(int option, unsigned long arg2)
- {
- 	if (!cpu_x86_cet_enabled())
-@@ -100,6 +112,9 @@ int prctl_cet(int option, unsigned long arg2)
- 	case ARCH_X86_CET_SET_LEGACY_BITMAP:
- 		return handle_bitmap(arg2);
- 
-+	case ARCH_X86_CET_MARK_LEGACY_CODE:
-+		return handle_mark_legacy_code(arg2);
-+
- 	default:
- 		return -EINVAL;
- 	}
--- 
-2.17.1
+Yeah, I can probably move those to there. I just need to pull the call
+to set_pcpage_migratetype out of set_page_aerated and place it in
+aerator_add_to_boundary.
 
