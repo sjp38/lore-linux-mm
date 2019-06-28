@@ -2,152 +2,181 @@ Return-Path: <SRS0=7Cer=U3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.7 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.1 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	FSL_HELO_FAKE,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 55CAFC5B579
-	for <linux-mm@archiver.kernel.org>; Fri, 28 Jun 2019 21:49:38 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7C107C5B579
+	for <linux-mm@archiver.kernel.org>; Fri, 28 Jun 2019 23:34:22 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id F192D2133F
-	for <linux-mm@archiver.kernel.org>; Fri, 28 Jun 2019 21:49:37 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 1978C2083B
+	for <linux-mm@archiver.kernel.org>; Fri, 28 Jun 2019 23:34:21 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=amacapital-net.20150623.gappssmtp.com header.i=@amacapital-net.20150623.gappssmtp.com header.b="Jbtf3SMd"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F192D2133F
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=amacapital.net
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="FuXCRWTA"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1978C2083B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 561336B0003; Fri, 28 Jun 2019 17:49:37 -0400 (EDT)
+	id 6C16F6B0003; Fri, 28 Jun 2019 19:34:21 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 510BD8E0003; Fri, 28 Jun 2019 17:49:37 -0400 (EDT)
+	id 671348E0003; Fri, 28 Jun 2019 19:34:21 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3D8818E0002; Fri, 28 Jun 2019 17:49:37 -0400 (EDT)
+	id 55F4D8E0002; Fri, 28 Jun 2019 19:34:21 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 07A3C6B0003
-	for <linux-mm@kvack.org>; Fri, 28 Jun 2019 17:49:37 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id e16so3812869pga.4
-        for <linux-mm@kvack.org>; Fri, 28 Jun 2019 14:49:36 -0700 (PDT)
+Received: from mail-pg1-f206.google.com (mail-pg1-f206.google.com [209.85.215.206])
+	by kanga.kvack.org (Postfix) with ESMTP id 1BE7D6B0003
+	for <linux-mm@kvack.org>; Fri, 28 Jun 2019 19:34:21 -0400 (EDT)
+Received: by mail-pg1-f206.google.com with SMTP id t2so3907169pgs.21
+        for <linux-mm@kvack.org>; Fri, 28 Jun 2019 16:34:21 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:subject:from
-         :in-reply-to:date:cc:content-transfer-encoding:message-id:references
-         :to;
-        bh=qdZrjeoDNSQsqkyJp6BkgnYTQ7c4BAmADlCHRSbPn3o=;
-        b=O/qbTTMDLWelJ+jHJw0U+15ZYQblpUmRVHmbpB8i+2VU7oy9UEnvlfGdMNlg9gG2ut
-         pCQ9RN3+QNAf7KKMX58FlYQmACRHdgqBEVaPzO0b71bWO4imai+JDL8zaHvuB8zO1Sje
-         MdN2gpGqENH4ZmL01lF/nViTfMQOc6vYan1cOFouuOENL8aGysZDzB6aF9peO+dSCFum
-         OYipx7Iat/B49v558FK23lthh1JvmDQYGaHM+b9QhKotLZvrmWsDkUwb01jXxjiJ8RMF
-         DsklrJYcU8H+GB7zW45uYVwChE2ur9uRspLKwsk37cYbq4HlP9ebQiPHT26w9vckciq6
-         AU/g==
-X-Gm-Message-State: APjAAAWuUVmY4f4WeCcUnPvhQ3/LydSs7D6VrkrXwD7vsurzdvyt3dDp
-	IiSRaWQfDGZpQ6MKdOsIOJ+03P0+Xly8Jep2U/trtgdpzZCmUDARGS7vAKyMtuHMPFGRhWgp/wY
-	+uDL/nsirBms9InnZEMDiFvenUp5U6kN/44xdOQ1sKIRjCuxcaLNH+qI81+XPxuXMIA==
-X-Received: by 2002:a17:902:e282:: with SMTP id cf2mr14232838plb.301.1561758576414;
-        Fri, 28 Jun 2019 14:49:36 -0700 (PDT)
-X-Received: by 2002:a17:902:e282:: with SMTP id cf2mr14232764plb.301.1561758575400;
-        Fri, 28 Jun 2019 14:49:35 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561758575; cv=none;
+        h=x-gm-message-state:dkim-signature:sender:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=KrgrAoIPZ1LQ1VyQOLNmxmRQwkVpu3ldX8C9irBrRvU=;
+        b=eHi1mc6tojyJwQYWYLsVwuRFXFa/d59Ln0gZEwoXnY2WGF/ouE33wRieiETUJC5DKs
+         pXPnyYHbd7RSoWVS+oUwOmoToYr6IWNUjIRE1rKyLrea5yQ/HHA3IExuN57qH5VRGgP7
+         q2sihsNE7I7ffLlO68c1qmlsq8+9O7yv+tzQvtVSDhKr7iKdbPhFotR4OrG4wo6xz2QD
+         kVvKGr1PWyTDCn/eYu75j1eGblfmcY4MknvU+kjZQHLujmfsICdjHpR0e812kmu6a0pF
+         u6pT5Im2PeOx9evgQ1XUklQXMAecNUEx54JpftwCf9VLMH32h0ZsW0QglFR6iaFH/1Sc
+         On2Q==
+X-Gm-Message-State: APjAAAWgCL8E/SmKXyS0NOigKAQ7wO0XuK9XyS/9kEePvtsY/gR5yJVf
+	IAutoBQaF+dtXtmRowZQz4U8LkLl+79BgmLV4XK7i8F1YHkHyy/Mt7cKlgEEFXoEWsAZGWk4fXL
+	ewlAgarAAg4yBFKCE+o8SRpOBpuPg+29EF7T2wU12hvHr8NPVtXrUsQjqvRgimgc=
+X-Received: by 2002:a17:902:27e6:: with SMTP id i35mr14499160plg.190.1561764860591;
+        Fri, 28 Jun 2019 16:34:20 -0700 (PDT)
+X-Received: by 2002:a17:902:27e6:: with SMTP id i35mr14499097plg.190.1561764859668;
+        Fri, 28 Jun 2019 16:34:19 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561764859; cv=none;
         d=google.com; s=arc-20160816;
-        b=H/tx4kpVIfrdtdhRQL0pbqJyVBH3RxuR9JCIIsExyy7yLYv7px2tXVORlP1QE52PWX
-         wDi86CBf+plXQoXr+3E3dEmpk3HSyPeuH6/Zr0M3LPr5jaLgBykzRu1d8NakI6PSVRrD
-         0T3DTiayjpf8h/Io8oUqbZOKZrnrNi1AONgYrlu1CHNkdgG6MfCKe8RXIBW7YyNCYoYP
-         /1yIITDS/Sg49iBm4QERvE5P3YS9YPVgnJ4EBUjwXU8cLNErqLwOrDeG+usn7JQWt/rE
-         4JI/KeZNFk+8H2HU5YyZ6zO055sGhznqTLMxBAZURAvXNs67933PRNZ08sTdTz8+PFGV
-         uK6A==
+        b=Sj3lCcVeHN6EPIIjEjjTGvTB8n7p3zvx521wV6+qGB/83Qrd+P5ozqdfFgg8zsUJmu
+         EswrADNbAIMuA85owyC3Rg+Dk7ZTyG/6xHYjRhtuUaQBjy9RGHKq5rZ3naI8aVrEVafP
+         sLwFn0CiWYG/atKHZLEQ5TfP84byBIrur9Koi2MJjClL6LdwGpcNCexAJg8a1CCSc14q
+         unVV9GH3zgw3uBxH9aPI7jRs0G6ABgWxL0sSaX1uDNYS6UzeuZQGw1ZINNQWBbVqV8of
+         dCipQdr+A6aHDR7AkxrtVC0N1UZHWvUi6YTgkKOOyAa6UubAb1hgZECjP0PPdONJbqc5
+         fyXA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=to:references:message-id:content-transfer-encoding:cc:date
-         :in-reply-to:from:subject:mime-version:dkim-signature;
-        bh=qdZrjeoDNSQsqkyJp6BkgnYTQ7c4BAmADlCHRSbPn3o=;
-        b=dI9tO6YPxhG8P0uSJtIhEoqDn36fDnqjB62sLCtGbkI6POswHlMUpXr9x1FVDRKm7v
-         YWEpa3za7MjpjfS9/ahk1g5gJeqYKP9s3FfRV6rCYhX4adIdrpw781kesRyhCbW0RlyQ
-         VLZwJ7ip2v6DCpR4508ddedgtxxTQnNIYL2vSN9NqoRcDp7x+6KK/RaM9+/02M+9y4FQ
-         QuxzxAtLuk9ewKzdgWEZoG8B/aJCof3VBQCrmcsYg+C4ADWbqDQvh8oPS/wERcYL98RM
-         LLsNgmhjQ8M4enWt4HG4MBZAPOYIKQ2aS1BBJ1fsZlxgxhemEJoKGahtlDf6ndyHwkO3
-         lhcw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:sender:dkim-signature;
+        bh=KrgrAoIPZ1LQ1VyQOLNmxmRQwkVpu3ldX8C9irBrRvU=;
+        b=KmlBmf9+B5wgj5ID4kEF74fgFlGP7qy+q2E7+VQTPmS+YBAQiAzyV6F9Rcfy8ga9Hb
+         fqUpiyUT0PjtZLdEYEQOM9cV5dghWou5yux2WcuBr9rbKoFNP+gGogZRVYhdZTZ5IJej
+         NqZopakDZP5jw3GJ4d4qkW1ikVmRikoMaixK3FJT1+f64GETUt4zqSNM1IkTH2r7kSt9
+         butSl9BKaXv3dYh4WH1K+rgCv/1yQ4qcOIpCdk3xZvbR4OR3PaT6BGJglqZ84wz6D+sV
+         91Cg0l0GvWvifgeqDPixPj545xCgVXWy7u4T5C4wtIqfUTd+rcS3zcOUc4Kps6su88jI
+         lqvA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@amacapital-net.20150623.gappssmtp.com header.s=20150623 header.b=Jbtf3SMd;
-       spf=pass (google.com: domain of luto@amacapital.net designates 209.85.220.65 as permitted sender) smtp.mailfrom=luto@amacapital.net
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=FuXCRWTA;
+       spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q39sor4006622pjb.7.2019.06.28.14.49.35
+        by mx.google.com with SMTPS id z10sor1547767pgc.70.2019.06.28.16.34.19
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 28 Jun 2019 14:49:35 -0700 (PDT)
-Received-SPF: pass (google.com: domain of luto@amacapital.net designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Fri, 28 Jun 2019 16:34:19 -0700 (PDT)
+Received-SPF: pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@amacapital-net.20150623.gappssmtp.com header.s=20150623 header.b=Jbtf3SMd;
-       spf=pass (google.com: domain of luto@amacapital.net designates 209.85.220.65 as permitted sender) smtp.mailfrom=luto@amacapital.net
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=FuXCRWTA;
+       spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=amacapital-net.20150623.gappssmtp.com; s=20150623;
-        h=mime-version:subject:from:in-reply-to:date:cc
-         :content-transfer-encoding:message-id:references:to;
-        bh=qdZrjeoDNSQsqkyJp6BkgnYTQ7c4BAmADlCHRSbPn3o=;
-        b=Jbtf3SMdEjxfXc+d5F8QO1cas1KV2BV1hoJs1qRKJoPwT1GlFe/aVrIguqs8TeA5WL
-         XFjSvXz5JL1mUxkp/yO9dDhKS2J+SdrJ0lxayg7atN068yg4GTjfLZEsHH6mtervlgTu
-         dfdYK9wPBB2jWUqrgrGm8vXuRpOQ+u1Yc96OVeVo3XhBxIwOapG0VhV1rN1dM/PdL3/X
-         bn1SdNRys1EYpFylxcnIXF3WzYpVDimXTzieLOZngZ+kqn3ePeZflspOP3g1t7V/TKhT
-         bcyf3c/YjSwa+06KGllNZms+B+F87dwMlPa8OT/AmVRI2aAmsjsl+ygOc4phTxqIL3Hv
-         VbiA==
-X-Google-Smtp-Source: APXvYqz/YPDWsT7hhTRb2Bm2QEJ3v+KaME0sQBT1mNpk1MmCdOSSpZuy1ArM2RVKH8r8EsILBD1Myg==
-X-Received: by 2002:a17:90a:c504:: with SMTP id k4mr15615755pjt.104.1561758574932;
-        Fri, 28 Jun 2019 14:49:34 -0700 (PDT)
-Received: from ?IPv6:2600:1010:b00c:70fb:70e6:7ca0:457a:d080? ([2600:1010:b00c:70fb:70e6:7ca0:457a:d080])
-        by smtp.gmail.com with ESMTPSA id d123sm3359464pfc.144.2019.06.28.14.49.33
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 28 Jun 2019 14:49:33 -0700 (PDT)
-Content-Type: text/plain;
-	charset=utf-8
-Mime-Version: 1.0 (1.0)
-Subject: Re: [RFC PATCH 1/3] mm: Introduce VM_IBT for CET legacy code bitmap
-From: Andy Lutomirski <luto@amacapital.net>
-X-Mailer: iPhone Mail (16F203)
-In-Reply-To: <20190628194158.2431-1-yu-cheng.yu@intel.com>
-Date: Fri, 28 Jun 2019 14:49:32 -0700
-Cc: x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>,
- Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>,
- linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org,
- linux-arch@vger.kernel.org, linux-api@vger.kernel.org,
- Arnd Bergmann <arnd@arndb.de>, Balbir Singh <bsingharora@gmail.com>,
- Borislav Petkov <bp@alien8.de>, Cyrill Gorcunov <gorcunov@gmail.com>,
- Dave Hansen <dave.hansen@linux.intel.com>,
- Eugene Syromiatnikov <esyr@redhat.com>,
- Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>,
- Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>,
- Kees Cook <keescook@chromium.org>, Mike Kravetz <mike.kravetz@oracle.com>,
- Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>,
- Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>,
- Randy Dunlap <rdunlap@infradead.org>,
- "Ravi V. Shankar" <ravi.v.shankar@intel.com>,
- Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>,
- Dave Martin <Dave.Martin@arm.com>
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <CBB8C19E-7F65-4D43-9783-6383478700A1@amacapital.net>
-References: <20190628194158.2431-1-yu-cheng.yu@intel.com>
-To: Yu-cheng Yu <yu-cheng.yu@intel.com>
+        d=gmail.com; s=20161025;
+        h=sender:date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=KrgrAoIPZ1LQ1VyQOLNmxmRQwkVpu3ldX8C9irBrRvU=;
+        b=FuXCRWTAM+9ahhxbr5qRNj6BgsiLoHnFWtS3E/mbYN3VEM9nacepKLwqukT6/a5DpQ
+         8rGhoiGM77FVD5YSg8amgM2e4bGYcfvJ08VPz2iRAFW1jvApJZis32GTE2YhY2CrzFnP
+         PC+VYJ7ZGK9aw2KYLwsjRaYWsB5cW7yQMB+9w29z9p5XaMDx2Q4u1ua1sLOdrpFU+b37
+         EBXaa+OuUBn754W/1n1g2dWtzETfkn4sIt5Y/iN25C7NyOh3z2jCx+cNqAuK9kol6iOY
+         oLXTY+eCtjUWMYBkPYAGHguhSSluwdMytMAf09GCumQXseLeqXfzkVpgpU1EzbNO/C30
+         qpYw==
+X-Google-Smtp-Source: APXvYqxiEqYGkwyQWFFs2+k+3J5PBRG1DwCuUg4xTvxq530PkTHIrVLX01gAIyt/3/ykcFV26DI/mg==
+X-Received: by 2002:a63:5b1d:: with SMTP id p29mr11179249pgb.297.1561764858832;
+        Fri, 28 Jun 2019 16:34:18 -0700 (PDT)
+Received: from google.com ([2401:fa00:d:0:98f1:8b3d:1f37:3e8])
+        by smtp.gmail.com with ESMTPSA id e6sm3320634pfn.71.2019.06.28.16.34.15
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Fri, 28 Jun 2019 16:34:17 -0700 (PDT)
+Date: Sat, 29 Jun 2019 08:34:13 +0900
+From: Minchan Kim <minchan@kernel.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Kuo-Hsin Yang <vovoy@chromium.org>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Michal Hocko <mhocko@suse.com>, Sonny Rao <sonnyrao@chromium.org>,
+	linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Subject: Re: [PATCH] mm: vmscan: fix not scanning anonymous pages when
+ detecting file refaults
+Message-ID: <20190628233413.GA245333@google.com>
+References: <20190619080835.GA68312@google.com>
+ <20190627184123.GA11181@cmpxchg.org>
+ <20190628065138.GA251482@google.com>
+ <20190628142252.GA17212@cmpxchg.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190628142252.GA17212@cmpxchg.org>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Fri, Jun 28, 2019 at 10:22:52AM -0400, Johannes Weiner wrote:
+> Hi Minchan,
+> 
+> On Fri, Jun 28, 2019 at 03:51:38PM +0900, Minchan Kim wrote:
+> > On Thu, Jun 27, 2019 at 02:41:23PM -0400, Johannes Weiner wrote:
+> > > On Wed, Jun 19, 2019 at 04:08:35PM +0800, Kuo-Hsin Yang wrote:
+> > > > Fixes: 2a2e48854d70 ("mm: vmscan: fix IO/refault regression in cache workingset transition")
+> > > > Signed-off-by: Kuo-Hsin Yang <vovoy@chromium.org>
+> > > 
+> > > Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+> > > 
+> > > Your change makes sense - we should indeed not force cache trimming
+> > > only while the page cache is experiencing refaults.
+> > > 
+> > > I can't say I fully understand the changelog, though. The problem of
+> > 
+> > I guess the point of the patch is "actual_reclaim" paramter made divergency
+> > to balance file vs. anon LRU in get_scan_count. Thus, it ends up scanning
+> > file LRU active/inactive list at file thrashing state.
+> 
+> Look at the patch again. The parameter was only added to retain
+> existing behavior. We *always* did file-only reclaim while thrashing -
+> all the way back to the two commits I mentioned below.
 
+Yeah, I know it that we did force file relcaim if we have enough file LRU.
+What I confused from the description was "actual_reclaim" part.
+Thanks for the pointing out, Johannes. I confirmed it kept the old
+behavior in get_scan_count.
 
-> On Jun 28, 2019, at 12:41 PM, Yu-cheng Yu <yu-cheng.yu@intel.com> wrote:
->=20
-> The previous discussion of the IBT legacy code bitmap is here:
->=20
->    https://lkml.org/lkml/2019/6/6/1032
->=20
-> When CET Indirect Branch Tracking (IBT) is enabled, the processor expects
-> every branch target is an ENDBR instruction, or the target's address is
-> marked as legacy in the legacy code bitmap.  The bitmap covers the whole
-> user-mode address space (TASK_SIZE_MAX for 64-bit, TASK_SIZE for IA32),
-> and each bit represents one page of linear address range.
->=20
-> This patch introduces VM_IBT for the bitmap.
+> 
+> > So, Fixes: 2a2e48854d70 ("mm: vmscan: fix IO/refault regression in cache workingset transition")
+> > would make sense to me since it introduces the parameter.
+> 
+> What is the observable behavior problem that this patch introduced?
+> 
+> > > forcing cache trimming while there is enough page cache is older than
+> > > the commit you refer to. It could be argued that this commit is
+> > > incomplete - it could have added refault detection not just to
+> > > inactive:active file balancing, but also the file:anon balancing; but
+> > > it didn't *cause* this problem.
+> > > 
+> > > Shouldn't this be
+> > > 
+> > > Fixes: e9868505987a ("mm,vmscan: only evict file pages when we have plenty")
+> > > Fixes: 7c5bd705d8f9 ("mm: memcg: only evict file pages when we have plenty")
+> > 
+> > That would affect, too but it would be trouble to have stable backport
+> > since we don't have refault machinery in there.
+> 
+> Hm? The problematic behavior is that we force-scan file while file is
+> thrashing. We can obviously only solve this in kernels that can
+> actually detect thrashing.
 
-There=E2=80=99s no need to allocate a bit for this and to clutter up the fau=
-lt code with special cases. Use _install_special_mapping(), please.  If you n=
-eed to make it more flexible to cover your use case, please do so.
+What I meant is I thought it's -stable material but in there, we don't have
+refault machinery in v3.8.
+I agree this patch fixes above two commits you mentioned so we should use it.
 
