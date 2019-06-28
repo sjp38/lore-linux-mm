@@ -2,158 +2,141 @@ Return-Path: <SRS0=7Cer=U3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A9ADAC5B578
-	for <linux-mm@archiver.kernel.org>; Fri, 28 Jun 2019 04:10:24 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BEA77C4321A
+	for <linux-mm@archiver.kernel.org>; Fri, 28 Jun 2019 04:45:09 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7086F20656
-	for <linux-mm@archiver.kernel.org>; Fri, 28 Jun 2019 04:10:24 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=canb.auug.org.au header.i=@canb.auug.org.au header.b="ZgAP40Fd"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7086F20656
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=canb.auug.org.au
+	by mail.kernel.org (Postfix) with ESMTP id 7100E2070D
+	for <linux-mm@archiver.kernel.org>; Fri, 28 Jun 2019 04:45:09 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7100E2070D
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 126418E0003; Fri, 28 Jun 2019 00:10:24 -0400 (EDT)
+	id E04796B0003; Fri, 28 Jun 2019 00:45:08 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0AFCA8E0002; Fri, 28 Jun 2019 00:10:24 -0400 (EDT)
+	id D8E638E0003; Fri, 28 Jun 2019 00:45:08 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E92778E0003; Fri, 28 Jun 2019 00:10:23 -0400 (EDT)
+	id C2FB88E0002; Fri, 28 Jun 2019 00:45:08 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B2A588E0002
-	for <linux-mm@kvack.org>; Fri, 28 Jun 2019 00:10:23 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id x10so2999653pfa.23
-        for <linux-mm@kvack.org>; Thu, 27 Jun 2019 21:10:23 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 7228B6B0003
+	for <linux-mm@kvack.org>; Fri, 28 Jun 2019 00:45:08 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id c27so7703484edn.8
+        for <linux-mm@kvack.org>; Thu, 27 Jun 2019 21:45:08 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:in-reply-to:references:mime-version;
-        bh=I55zkrMesqKne3KNEzZE8U42iz5xAdNYBrsAy1XmwNg=;
-        b=oKNOv4cfuJMML6+J+olxBEDr4ZSoKX68zozjX21QM4VdXD3K1oILoSSFBS9Ed4rrq4
-         79ciGPr7QKVbsgg48veusLT40Yo0LGUIkNSq0ynlTbnVMmEzenruv522KO1buZQGt0Xy
-         wK22FNB3lvzD+it4TyZDiQiSs47Y/w4PankSJ3Rx4rUx/XTtS6S2EJ8ozROr2G4TSPzk
-         laj2FQnNlzIU2RNDLTOS9PKsaGu6ik4ak7GNR5ZI5B+cbvTagrZaSLp/OlE4LVOyyDu8
-         7n0RdNyH6yAztoyycFtP0FTMliM6W3GAt5J842EToagTHyz2BrFpguN+PyMWU1DdEfM2
-         fVbg==
-X-Gm-Message-State: APjAAAXYav6ElMqAF5rQP2GHH0GxFoRBJ83LvyjNPQCH7fa91z8RNGX3
-	6LcNIpznNCnicS08SP+YrKz2arO3kNc2KothYpSG6ego1BHIuZJnzLBsQhuF6N1aK2vCSyzhyA7
-	AsqGLkajvKBH5g9yYqrAsIFYaeiGYaKFlFTRyIiqVxo0F/6JNQrBrQWbP6DYvyVllIA==
-X-Received: by 2002:a17:90a:2486:: with SMTP id i6mr10317735pje.125.1561695023263;
-        Thu, 27 Jun 2019 21:10:23 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyo4aaZCcTNPpfoopwB1DbIzzr+6cRSbz48qXG13cntbFWfKvBfGBM1FurGZslmUIN2FifF
-X-Received: by 2002:a17:90a:2486:: with SMTP id i6mr10317680pje.125.1561695022674;
-        Thu, 27 Jun 2019 21:10:22 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561695022; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id;
+        bh=FfgNeG37hv04EKofspx0hDFJPuh4IQFpaKJdQSMm0B0=;
+        b=GW+h15473XXwIPNtXzZikeB4P+Dm9FcTmI+BPSeDluM5KA6R0Xb+B5AqH8SzciKeku
+         xlK4pjKeQ5OvryloThFyxS63uR692/l/b1MCYGQWZMuOHC+KFjGYFEOCGOEef2rgMvH9
+         Jo3aQqebvvGxFQnK43CUEZUEc8UwCFNdLbklmiQSYGcBVj5orSypexOe2FPcUZiTCz/h
+         755iEB8bjIF5KRAY81TANbmRf9tnxl6wy+hnH7LeFJQ8zsBcva4uRHjUBgZ8Oc1Iz+AJ
+         8nEAK+f+GZQWT7dYYgBPHngLFpf16qHp4SB6MJBFVavDaj/+WhgSp7uhhPOLphm08uJ4
+         zlXA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+X-Gm-Message-State: APjAAAX27qzYMEqd09J7/O9X6lNm51rdYsKIcUqVklip05XF4q2qfYTB
+	rFqr0LIqbpTnA+8CpARDFG1I+cKzdH4M2rlq5TAcWBTaevKGxKHuQzEEjA0FebYPXVkZgvuyYqi
+	2zJrZPHrNPU9s0Y9vaNqJtM2za1ADR35gIPPJZH4tln11/WekDFH7Orc8403JiFxaBw==
+X-Received: by 2002:a50:91ae:: with SMTP id g43mr8733515eda.279.1561697107949;
+        Thu, 27 Jun 2019 21:45:07 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqziHrbcWBWtNihTjt0Nv6Uz6l+mjQX3cxLl4KIWQORLH+ZuIQeMCWyBEjk69sXvsawXivaz
+X-Received: by 2002:a50:91ae:: with SMTP id g43mr8733462eda.279.1561697107157;
+        Thu, 27 Jun 2019 21:45:07 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561697107; cv=none;
         d=google.com; s=arc-20160816;
-        b=p1+AEI+aaZ9KaZCb3zPDvSGZ8rwnf+UnkAdPYdyWyGFHBFeYKDt8NJxWo5svINmFZs
-         PqFIo6vD8mR7NMwn8/4YDnmzujRmTS0F2quoLiVxrS7RiVjKCF1DSterLXOwcbcZtChj
-         jjbiryr7I5luIur0MTbVzvh8UlppbVdw50csaAIYLVnCca+suYFGxvAC7IuFzVECvB19
-         ROTVraiXpwCvDEurOLXsNm76tMnS3VVZeQ8+FJeJ2BX01EKUIIlFdDpGJcwpftsE6v/c
-         5ZRw3vkJdrUFrs20p3zE26vYi9EXAyn/hBhBKCnlri4Q9LeKK3HqemdrKMAQP5e/HfIy
-         rtdQ==
+        b=j9i0yK3a72eaGjL2mbgs4YtuGwLPmXmzm+x8nQuSJp6o6PBLOT87wMUlKA0GW0eRZh
+         99yK8jRRcnpzaPv2hYV39QE7EFXYqu+WTI+rI8O1zwWgWs0+psvNI98hE0uUY7LqniGb
+         l3HEeV/QaqfaxPdZYF1XwClTOAhs1k4qhqXWvcnnchV4mdjOo2BqmQqTYgty2038kbgb
+         /8aLc0+yr0/ys88heMHQ79p+w/3BQdfdvDM2p8MpGUeZo+KABdJ10Dq2shTyebReYZLW
+         MXZQWJHUEmsa4etJT6k2ZsMWosVJhO5Cbmto2P13dz4144Pw35+b3r/ke64W/SZ4s+J6
+         adxA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:references:in-reply-to:message-id:subject:cc:to:from
-         :date:dkim-signature;
-        bh=I55zkrMesqKne3KNEzZE8U42iz5xAdNYBrsAy1XmwNg=;
-        b=ZmRzHG2eVsnBl/DDK0uqQ5xBPkxQpCHkVlBIT9KJpbs/tj7+1gFebBYBTKl6M9/Dxq
-         GQcdUdQ5FHUwxRqzqlmqwK35y+qz0kIFpQ8qr16sKmRje/O/w6mq+8NgjAKnFbd0hA/D
-         Ku+yMmHTQ2XAXxqMQCJCwnAT4XSvJdW/iXZ+dd70YSUOZyWhe6HjoIxJtZCsZ/1RPjDL
-         r2ASvsnUg4njjkvJwNcNjITNo+KgNbXWUIYXHBpx+2BiIWme5EppmSNY7yfqUtcu8fwL
-         V0fHo29dkwhS+PUJED0xFpBAYmid5eTKLdXP6gJU1EiWXWWqcNJ3OnoS8I5BNl+y/8rw
-         Y4Bw==
+        h=message-id:date:subject:cc:to:from;
+        bh=FfgNeG37hv04EKofspx0hDFJPuh4IQFpaKJdQSMm0B0=;
+        b=fR6pTSCHzrYEN6e6guSBI+WihKh1LMeVnL0qkGLsgyb5gCNaqiwIl7jO7LelZpqU0F
+         S13Rg+mGY8CM7ttMeiAW6EwKAknwfz9S6SpPvRDpW9dGHSHJDlo6S615/fNOs2lPGbId
+         zMvtgjvU4hADewS7dIMN+q4YROclIoxEmvBqpwO1+MEshVARRbFY8S5O+9MDAo1mhVcj
+         C0R0CqcYqgfWnvp0HnXKOkHX3Gu9G00BXqDBUTR5KvURgELMARri77IBt5KdyVd08Ld6
+         ygF2hhxJomxBbJaSo/tEq7uvyHD3UL0MpKJ4XgNdGzeJVsvS5Icvvnui4mVCUDQkQwLN
+         e0Zg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@canb.auug.org.au header.s=201702 header.b=ZgAP40Fd;
-       spf=pass (google.com: domain of sfr@canb.auug.org.au designates 2401:3900:2:1::2 as permitted sender) smtp.mailfrom=sfr@canb.auug.org.au
-Received: from ozlabs.org (bilbo.ozlabs.org. [2401:3900:2:1::2])
-        by mx.google.com with ESMTPS id b20si1185106pfo.108.2019.06.27.21.10.22
-        for <linux-mm@kvack.org>
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Thu, 27 Jun 2019 21:10:22 -0700 (PDT)
-Received-SPF: pass (google.com: domain of sfr@canb.auug.org.au designates 2401:3900:2:1::2 as permitted sender) client-ip=2401:3900:2:1::2;
+       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
+        by mx.google.com with ESMTP id l30si924542edd.139.2019.06.27.21.45.06
+        for <linux-mm@kvack.org>;
+        Thu, 27 Jun 2019 21:45:07 -0700 (PDT)
+Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@canb.auug.org.au header.s=201702 header.b=ZgAP40Fd;
-       spf=pass (google.com: domain of sfr@canb.auug.org.au designates 2401:3900:2:1::2 as permitted sender) smtp.mailfrom=sfr@canb.auug.org.au
-Received: from authenticated.ozlabs.org (localhost [127.0.0.1])
-	(using TLSv1.3 with cipher TLS_AES_256_GCM_SHA384 (256/256 bits)
-	 key-exchange ECDHE (P-256) server-signature RSA-PSS (4096 bits) server-digest SHA256)
-	(No client certificate requested)
-	by mail.ozlabs.org (Postfix) with ESMTPSA id 45ZjwW4qpwz9s3Z;
-	Fri, 28 Jun 2019 14:10:19 +1000 (AEST)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=canb.auug.org.au;
-	s=201702; t=1561695020;
-	bh=I55zkrMesqKne3KNEzZE8U42iz5xAdNYBrsAy1XmwNg=;
-	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
-	b=ZgAP40FdlZjb2yEhOECndGyeLh1QfrT2/DbfoBVqZy3lC+bAJCo+Xa28DynCRqdBn
-	 EUS89x1QjDGxmVnVe7ZSwoduC5otYHiMeR5FCaZCyJxoRiLzyElm9QP6nbisMT1DA6
-	 mrEa5DsH3PUg03A5Q2OOWbBhMGRpHo8Wy4oSV3DJYLttTIfBpFtCAhIAvMCTwCEBHS
-	 +RWL7nKUZVjDDh3uYaOytL5fBnRaGws9jyD2r2DPCL3QRFM1/n8qer7OgkUSoY2SYC
-	 jSrshrGn+4SJ5ZeN+eZeW0WwppwwSdBvJwETBB3smrnqwEdB2ncwdYCClO5bSk0YN9
-	 OtGx6H4eqjorw==
-Date: Fri, 28 Jun 2019 14:10:18 +1000
-From: Stephen Rothwell <sfr@canb.auug.org.au>
-To: Anshuman Khandual <anshuman.khandual@arm.com>
-Cc: Michael Ellerman <mpe@ellerman.id.au>, linux-mm@kvack.org, Benjamin
- Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras
- <paulus@samba.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>,
- Nicholas Piggin <npiggin@gmail.com>, Andrew Morton
- <akpm@linux-foundation.org>, linuxppc-dev@lists.ozlabs.org,
- linux-kernel@vger.kernel.org, linux-next@vger.kernel.org
-Subject: Re: [PATCH] powerpc/64s/radix: Define arch_ioremap_p4d_supported()
-Message-ID: <20190628141018.5ad2603d@canb.auug.org.au>
-In-Reply-To: <6d201cb8-4c39-b7ea-84e6-f84607cc8b4f@arm.com>
-References: <1561555260-17335-1-git-send-email-anshuman.khandual@arm.com>
-	<87d0iztz0f.fsf@concordia.ellerman.id.au>
-	<6d201cb8-4c39-b7ea-84e6-f84607cc8b4f@arm.com>
-MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha256;
- boundary="Sig_/wq/1diQb=+V7OS3bGVMftw9"; protocol="application/pgp-signature"
+       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 0E51F344;
+	Thu, 27 Jun 2019 21:45:06 -0700 (PDT)
+Received: from p8cg001049571a15.blr.arm.com (p8cg001049571a15.blr.arm.com [10.162.40.144])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPA id 3F65A3F706;
+	Thu, 27 Jun 2019 21:45:02 -0700 (PDT)
+From: Anshuman Khandual <anshuman.khandual@arm.com>
+To: linux-mm@kvack.org
+Cc: Anshuman Khandual <anshuman.khandual@arm.com>,
+	Catalin Marinas <catalin.marinas@arm.com>,
+	Will Deacon <will.deacon@arm.com>,
+	Mark Rutland <mark.rutland@arm.com>,
+	Tony Luck <tony.luck@intel.com>,
+	Fenghua Yu <fenghua.yu@intel.com>,
+	Dave Hansen <dave.hansen@linux.intel.com>,
+	Andy Lutomirski <luto@kernel.org>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	linux-arm-kernel@lists.infradead.org,
+	linux-ia64@vger.kernel.org,
+	x86@kernel.org,
+	linux-kernel@vger.kernel.org
+Subject: [RFC 0/2] arm64: Enable vmemmap from device memory
+Date: Fri, 28 Jun 2019 10:14:41 +0530
+Message-Id: <1561697083-7329-1-git-send-email-anshuman.khandual@arm.com>
+X-Mailer: git-send-email 2.7.4
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---Sig_/wq/1diQb=+V7OS3bGVMftw9
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: quoted-printable
+This series enables vmemmap mapping allocation from device memory ranges on
+arm64. Before that it enables vmemmap_populate_basepages() to accommodate
+struct vmem_altmap based requests.
 
-Hi Anshuman,
+This series is based on linux next (next-20190613) along with v6 arm64
+hot-remove series [1]. 
 
-On Fri, 28 Jun 2019 09:14:46 +0530 Anshuman Khandual <anshuman.khandual@arm=
-.com> wrote:
->
-> On linux-next (next-20190627) this change has already been applied though=
- a
-> merge commit 153083a99fe431 ("Merge branch 'akpm-current/current'"). So we
-> are good on this ? Or shall I send out a V2 for the original patch. Please
-> suggest. Thank you.
+[1] https://lkml.org/lkml/2019/6/19/3
 
-Please send Andrew a v2.
+Cc: Catalin Marinas <catalin.marinas@arm.com>
+Cc: Will Deacon <will.deacon@arm.com>
+Cc: Mark Rutland <mark.rutland@arm.com>
+Cc: Tony Luck <tony.luck@intel.com>
+Cc: Fenghua Yu <fenghua.yu@intel.com>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Andy Lutomirski <luto@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-arm-kernel@lists.infradead.org
+Cc: linux-ia64@vger.kernel.org
+Cc: x86@kernel.org
+Cc: linux-kernel@vger.kernel.org
 
---=20
-Cheers,
-Stephen Rothwell
+Anshuman Khandual (2):
+  mm/sparsemem: Add vmem_altmap support in vmemmap_populate_basepages()
+  arm64/mm: Enable device memory allocation and free for vmemmap mapping
 
---Sig_/wq/1diQb=+V7OS3bGVMftw9
-Content-Type: application/pgp-signature
-Content-Description: OpenPGP digital signature
+ arch/arm64/mm/mmu.c      | 57 +++++++++++++++++++++++++++++++-----------------
+ arch/ia64/mm/discontig.c |  2 +-
+ arch/x86/mm/init_64.c    |  4 ++--
+ include/linux/mm.h       |  5 +++--
+ mm/sparse-vmemmap.c      | 16 +++++++++-----
+ 5 files changed, 54 insertions(+), 30 deletions(-)
 
------BEGIN PGP SIGNATURE-----
-
-iQEzBAEBCAAdFiEENIC96giZ81tWdLgKAVBC80lX0GwFAl0VkyoACgkQAVBC80lX
-0Gw6+gf/Y06x3WT9WXSTWwMk6GeiltDHujuBd130HVkWnVGWvwg8RQc9/VfvqINS
-XV0T6wzeSBWrWx5oPcbhTjvWy6a69nYs6x4gxHE9WUWyg5NVK8qFwhQ7h7oQEgDq
-hHSxZ29YSp8yx1SN/JG7Lsebpkfo8JHbSLI6e7icI4odv/D/p6WeOgJI2cIGvkkb
-PJaw6nO/shGvtqI9VyLHlcut0Ay42x4/jvXwrPyZWYJpdJ6I2ssw2tXFNzMHAiJa
-k5Hj69KXCXolZ7fZlYUmf+zMA0EcMvGIWjoa/rwSZYwnrRc0mYAMburImlu4FnCT
-u+TtTQ6frusmg5BqSfuN3Z7I9nFz7Q==
-=PTBt
------END PGP SIGNATURE-----
-
---Sig_/wq/1diQb=+V7OS3bGVMftw9--
+-- 
+2.7.4
 
