@@ -2,306 +2,165 @@ Return-Path: <SRS0=7Cer=U3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CB9DEC4321A
-	for <linux-mm@archiver.kernel.org>; Fri, 28 Jun 2019 14:32:09 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id EEADCC5B57A
+	for <linux-mm@archiver.kernel.org>; Fri, 28 Jun 2019 15:17:55 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 763F8205C9
-	for <linux-mm@archiver.kernel.org>; Fri, 28 Jun 2019 14:32:09 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=cmpxchg-org.20150623.gappssmtp.com header.i=@cmpxchg-org.20150623.gappssmtp.com header.b="rdY63TdC"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 763F8205C9
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=cmpxchg.org
+	by mail.kernel.org (Postfix) with ESMTP id BCD28208E3
+	for <linux-mm@archiver.kernel.org>; Fri, 28 Jun 2019 15:17:55 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BCD28208E3
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 151C18E0003; Fri, 28 Jun 2019 10:32:09 -0400 (EDT)
+	id 575CB6B0005; Fri, 28 Jun 2019 11:17:55 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 103448E0002; Fri, 28 Jun 2019 10:32:09 -0400 (EDT)
+	id 5267B8E0003; Fri, 28 Jun 2019 11:17:55 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id F34C38E0003; Fri, 28 Jun 2019 10:32:08 -0400 (EDT)
+	id 3EE4A8E0002; Fri, 28 Jun 2019 11:17:55 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D24198E0002
-	for <linux-mm@kvack.org>; Fri, 28 Jun 2019 10:32:08 -0400 (EDT)
-Received: by mail-qt1-f198.google.com with SMTP id v58so6264072qta.2
-        for <linux-mm@kvack.org>; Fri, 28 Jun 2019 07:32:08 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E6E9C6B0005
+	for <linux-mm@kvack.org>; Fri, 28 Jun 2019 11:17:54 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id y24so9615050edb.1
+        for <linux-mm@kvack.org>; Fri, 28 Jun 2019 08:17:54 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=CfBxdKK+RW6h34KCEm0a8LsqSSwL+A0Ki+xU4tcOBSU=;
-        b=VVXmVxQLCpBmhBgsX/DM/xEr0h5RvroLA1iPXKrbXZQ8nv0V74f8AmOPOsPmcw3x7M
-         772o24SLaroBemNQ1ja79SFohHK6R0bN5HgnMIooDSBzHWzgV0UhTdzsplBQurzJXKAA
-         v7QdvoDvHmZPSL/TAc5WEp8lPb5JbxXk3wuFHcFY8GAJ74ZpFJGZpwRcSdpeyyidRR3y
-         pA27DUhvBK0sjbFE9exZIf9JgK+98DkCtvQGMUbZk5r7NKnUqR8RIPdbTQBysJNcI3fP
-         cAWsW86ZibeyoT+I1bfgfjIBXiVERH6CK6LfGtjfa0f56j18rfPLJIqKWOD2WyW6J3Jy
-         Y3hA==
-X-Gm-Message-State: APjAAAW2RPZk5U+7lbJl1mnzE8uhb+Rd4xxhUFYA8GHEsLhzA6jhVNBq
-	fjOfC/tMTtcWrYgj06zqLJ6l4JZVE0uN/yVrIHdETgwUYw6c93WRWF3gnQJaZUQLiG7hx0cqY1k
-	l2n8N9s3bu0Tg+EiwgSpmUqmP1YDV2Y6jcwkwpOJ+ZSEOaA/sYOJmNDhwI4JlFb3BZQ==
-X-Received: by 2002:ac8:25e7:: with SMTP id f36mr8385417qtf.139.1561732328616;
-        Fri, 28 Jun 2019 07:32:08 -0700 (PDT)
-X-Received: by 2002:ac8:25e7:: with SMTP id f36mr8385345qtf.139.1561732327735;
-        Fri, 28 Jun 2019 07:32:07 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561732327; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=npEr+LbiEzoYw5ycUUVkBss4xo28xXmr/XcAh8bcn5k=;
+        b=IaZv2j5fmso8ey/acOTgYvgscPCUzoXUJ7XItT6aapUDHNfgFnFxGHJCIFnTT75mE+
+         MypqH24Kcu3p000wdXV0l7o82JH/aiFplWvbMUny1+7r5BTa7Q0XLDsBHocXIKAminU7
+         NzGVZA6JDLWr6DPNziptE/so7f+2vnb8PLOBUZtNk7sktSrntypugLpbUsIr4ITkX3/u
+         MjAOVr5xZ5+T8kuRoDXTdiQ5mhz8Z8t61Bmu2ga81LBVt1QQz0ob87fe9L1Qbv7OYz0S
+         SiX0GwjVoM9hM1EPJ4cOmDnuVmYRbB59a/qoexJ0n2HNiOmZ87Kwxx89PIig7OxhL8Bx
+         4t2Q==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAXciN+2HPxAUueWG2XzUcbxVaMu+HcrwsdPwWpHQJp2X3CSQCqJ
+	h1DqbUZcYps7P4isf0N6xHu2ZG5Wnp8cGcgt/fcAPVHoZKB3gBfl8LioCBxehSr8q+ZTmX6OzKQ
+	fr2XgGMj4v4o28NVtYKVQPbone4QBTVXksSy+O7/KaWG5y5AqIrzqx96KIEkM9Kk=
+X-Received: by 2002:a17:906:2e59:: with SMTP id r25mr8992514eji.293.1561735074508;
+        Fri, 28 Jun 2019 08:17:54 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzhfE2BlgjyU8BWJ+vMOhfNZ6jLlj/kBcW7FWYNMTQZE22xAOeD0olXz79ED/T7Y4Cbi0W5
+X-Received: by 2002:a17:906:2e59:: with SMTP id r25mr8992417eji.293.1561735073339;
+        Fri, 28 Jun 2019 08:17:53 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561735073; cv=none;
         d=google.com; s=arc-20160816;
-        b=KcK3eCOymUb5f7hOLY/shd355MSvluJelsnWVy+bBZ3amL4c13rODW/Fopm0oOw/TK
-         Mgyc9Q98gXwPwAARzFUhArNToNHjnymaM+Ms8cqLrhWT8QnoYD6NX0fPhdawNvqcb5a2
-         Xq3ATKO57z7F9zg4vGtal21i6LuawS8a1UpqjZG9Rk4WPtimSVkgrv+Tbi/WpaQLhvhk
-         ZYyismMxKhVt/pZMoa6z1mpLuYcfhUSHwgxhZfdFfV2anSC3UY8fhgzx4331hT7B7G2q
-         jz4JxjtPDzRuwd4ldEL/MuZb19gU3gTn70WkRQbsDU+gZJLfQgHk5/oYseT6kGyZiWqT
-         66WA==
+        b=TzOBMGrzlCfGpTdv1oWTx83K2HDG/wpjudH8GF6Y9Ct8D6GLIwDTe7bDuMvrVrkVES
+         /Du5fBqlqFzOne1h/ybN4/dQvbJfeM79c6yNqL4Oegjo6B6nlmDiZYegwlDfN+5xINXc
+         aqvBrLbwIDiZWcYEEi7TmZdB1fFSGsV1NdNCw7ik9Ywy8akW8W5nMFW56lPC99DJDNqA
+         6QRQv4bSqzVd9sOKetkvpSPdGVJRDYlxrwALitDdja4G7dFIxPeYHr3faWjSfHzrWOvR
+         Nu+Vh2nrHq4j+RTSg8yW8qI2uF3Yx8M6TK2VIrtVNCqg8JFugLsN3yIBaYgari4TIzkU
+         2DNg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=CfBxdKK+RW6h34KCEm0a8LsqSSwL+A0Ki+xU4tcOBSU=;
-        b=uPSU8GGgFGU0FZKHN4ZL4R9GxbWZBwZyKd/zmGb+T7sZBOJmlQDBhW6KBKke6Tszcn
-         feb0u15yjarT4LdInoaQnlgVl2IrhZAM7s7rc7y/PxZ3hsVjOLNREjoE56zvjkW//fbX
-         Xr3BSgtQ+uTcmLeXtz+WG51kcNSp5kuDHecBLaPEk1kLBcXpnde6GFjq1C3BlwK+erPF
-         RQzlvKx8RUXoCyv/uGjpUo/Th6H+Nu1Wxs+9rhRD4CofO9WvzAclwKLg/Or9li0I8OGn
-         O0aloz9hXi2jImgMPQ06+f8KXcL40XPRFJVGKrdBSwlHjeTwuBg6X3cZLVBV9Tmigqvn
-         wkKQ==
+         :message-id:subject:cc:to:from:date;
+        bh=npEr+LbiEzoYw5ycUUVkBss4xo28xXmr/XcAh8bcn5k=;
+        b=DUjC2AsIREYi9dF102jCcXsaxWw0ZhbyPjUjhLJR22QQyJGi8ztorEiro1QfPztE5Z
+         PYnQ3BMGs2/BQ7qYphk6EC0xcuBQkMUjKqGHPAcFdQUFtQGQzwTsFS/QlYoUCo42goQe
+         JGojeQOcGE1xYimpXr9fnGb4m9AQPoK/x3DdKST9FWmth3/Ah4A3NQtNCsmM9stfExrG
+         Df7EmzmpE5bqCA3AmOl8L8kdoJJE/rZTtY95fe5Pjs/hmkCs7o+7KC0RJ+SfU/xAPRJV
+         4jVT7r6vbi7Yjh41XSB/7VKWNEGv+ww3jBeqRycv1rWfIUlieY/lSgnmwiX0aAUCwsQx
+         u23g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=rdY63TdC;
-       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i47sor2033401qvi.54.2019.06.28.07.32.03
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id s42si2277238edb.446.2019.06.28.08.17.53
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 28 Jun 2019 07:32:03 -0700 (PDT)
-Received-SPF: pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 28 Jun 2019 08:17:53 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=rdY63TdC;
-       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=cmpxchg-org.20150623.gappssmtp.com; s=20150623;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=CfBxdKK+RW6h34KCEm0a8LsqSSwL+A0Ki+xU4tcOBSU=;
-        b=rdY63TdCLzqf1IoUW+uJOW10qLkglQwr+qkcRV/yAxEkJjmolhBiG0qlwKTtKHQHZc
-         m/Tg/DeM43wkROSwiJw6jgVBloQOM1ZZLBrjxYhT89sTAH6k/JhjmZbf1Zu9BWcEkYPK
-         FIlB8PRsrHtOt2ZaphrytIdPKnN7xGylZTPlq+SBJBPvTz6BN07/2l4ZTD70yITZz5dz
-         xfJ6q54mRL/W5hBbk1E2NDFc/mvY+XUQxi8lDmUkJo7EL2xYR/IwqDe6OOgvOyS0t0s2
-         7AR1qzpAlDeABChjkFFp9QdzBzluYFygp+BH8MMUfEHnzuSp34Pe3ZEmQNj4riKB1Kht
-         NbdQ==
-X-Google-Smtp-Source: APXvYqyb7+naelNcLjxlj+hk/ascFI/dJST0XLT4HuP0CSw8DZGvpk4lsZtj7sgeA1s/YIsPKlV5QQ==
-X-Received: by 2002:a0c:880f:: with SMTP id 15mr8218923qvl.126.1561732322885;
-        Fri, 28 Jun 2019 07:32:02 -0700 (PDT)
-Received: from localhost (pool-108-27-252-85.nycmny.fios.verizon.net. [108.27.252.85])
-        by smtp.gmail.com with ESMTPSA id s134sm1230855qke.51.2019.06.28.07.32.02
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Fri, 28 Jun 2019 07:32:02 -0700 (PDT)
-Date: Fri, 28 Jun 2019 10:32:01 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-To: Kuo-Hsin Yang <vovoy@chromium.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-	Minchan Kim <minchan@kernel.org>, Michal Hocko <mhocko@suse.com>,
-	Sonny Rao <sonnyrao@chromium.org>, linux-kernel@vger.kernel.org,
-	linux-mm@kvack.org
-Subject: Re: [PATCH v2] mm: vmscan: fix not scanning anonymous pages when
- detecting file refaults
-Message-ID: <20190628143201.GB17212@cmpxchg.org>
-References: <20190619080835.GA68312@google.com>
- <20190628111627.GA107040@google.com>
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 6AD17ACB4;
+	Fri, 28 Jun 2019 15:17:52 +0000 (UTC)
+Date: Fri, 28 Jun 2019 17:17:49 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: Juergen Gross <jgross@suse.com>
+Cc: xen-devel@lists.xenproject.org, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org,
+	Alexander Duyck <alexander.h.duyck@linux.intel.com>
+Subject: Re: [PATCH] mm: fix regression with deferred struct page init
+Message-ID: <20190628151749.GA2880@dhcp22.suse.cz>
+References: <20190620160821.4210-1-jgross@suse.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190628111627.GA107040@google.com>
-User-Agent: Mutt/1.12.0 (2019-05-25)
+In-Reply-To: <20190620160821.4210-1-jgross@suse.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jun 28, 2019 at 07:16:27PM +0800, Kuo-Hsin Yang wrote:
-> When file refaults are detected and there are many inactive file pages,
-> the system never reclaim anonymous pages, the file pages are dropped
-> aggressively when there are still a lot of cold anonymous pages and
-> system thrashes.  This issue impacts the performance of applications
-> with large executable, e.g. chrome.
+On Thu 20-06-19 18:08:21, Juergen Gross wrote:
+> Commit 0e56acae4b4dd4a9 ("mm: initialize MAX_ORDER_NR_PAGES at a time
+> instead of doing larger sections") is causing a regression on some
+> systems when the kernel is booted as Xen dom0.
+> 
+> The system will just hang in early boot.
+> 
+> Reason is an endless loop in get_page_from_freelist() in case the first
+> zone looked at has no free memory. deferred_grow_zone() is always
 
-This is good.
+Could you explain how we ended up with the zone having no memory? Is
+xen "stealing" memblock memory without adding it to memory.reserved?
+In other words, how do we end up with an empty zone that has non zero
+end_pfn?
 
-> Commit 2a2e48854d70 ("mm: vmscan: fix IO/refault regression in cache
-> workingset transition") introduced actual_reclaim parameter.  When file
-> refaults are detected, inactive_list_is_low() may return different
-> values depends on the actual_reclaim parameter.  Vmscan would only scan
-> active/inactive file lists at file thrashing state when the following 2
-> conditions are satisfied.
+> returning true due to the following code snipplet:
 > 
-> 1) inactive_list_is_low() returns false in get_scan_count() to trigger
->    scanning file lists only.
-> 2) inactive_list_is_low() returns true in shrink_list() to allow
->    scanning active file list.
+>   /* If the zone is empty somebody else may have cleared out the zone */
+>   if (!deferred_init_mem_pfn_range_in_zone(&i, zone, &spfn, &epfn,
+>                                            first_deferred_pfn)) {
+>           pgdat->first_deferred_pfn = ULONG_MAX;
+>           pgdat_resize_unlock(pgdat, &flags);
+>           return true;
+>   }
 > 
-> This patch makes the return value of inactive_list_is_low() independent
-> of actual_reclaim and rename the parameter back to trace.
+> This in turn results in the loop as get_page_from_freelist() is
+> assuming forward progress can be made by doing some more struct page
+> initialization.
 
-This is not. The root cause for the problem you describe isn't the
-patch you point to. The root cause is our decision to force-scan the
-file LRU based on relative inactive:active size alone, without taking
-file thrashing into account at all. This is a much older problem.
+The patch looks correct. The code is subtle but the comment helps.
 
-After the referenced patch, we're taking thrashing into account when
-deciding whether to deactivate active file pages or not. To solve the
-problem pointed out here, we can extend that same principle to the
-decision whether to force-scan files and skip the anon LRUs.
+> Cc: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+> Fixes: 0e56acae4b4dd4a9 ("mm: initialize MAX_ORDER_NR_PAGES at a time instead of doing larger sections")
+> Suggested-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+> Signed-off-by: Juergen Gross <jgross@suse.com>
 
-The patch you're pointing to isn't the culprit. On the contrary, it
-provides the infrastructure to solve a much older problem.
+Acked-by: Michal Hocko <mhocko@suse.com>
+> ---
+>  mm/page_alloc.c | 3 ++-
+>  1 file changed, 2 insertions(+), 1 deletion(-)
+> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index d66bc8abe0af..8e3bc949ebcc 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -1826,7 +1826,8 @@ deferred_grow_zone(struct zone *zone, unsigned int order)
+>  						 first_deferred_pfn)) {
+>  		pgdat->first_deferred_pfn = ULONG_MAX;
+>  		pgdat_resize_unlock(pgdat, &flags);
+> -		return true;
+> +		/* Retry only once. */
+> +		return first_deferred_pfn != ULONG_MAX;
+>  	}
+>  
+>  	/*
+> -- 
+> 2.16.4
 
-> The problem can be reproduced by the following test program.
-> 
-> ---8<---
-> void fallocate_file(const char *filename, off_t size)
-> {
-> 	struct stat st;
-> 	int fd;
-> 
-> 	if (!stat(filename, &st) && st.st_size >= size)
-> 		return;
-> 
-> 	fd = open(filename, O_WRONLY | O_CREAT, 0600);
-> 	if (fd < 0) {
-> 		perror("create file");
-> 		exit(1);
-> 	}
-> 	if (posix_fallocate(fd, 0, size)) {
-> 		perror("fallocate");
-> 		exit(1);
-> 	}
-> 	close(fd);
-> }
-> 
-> long *alloc_anon(long size)
-> {
-> 	long *start = malloc(size);
-> 	memset(start, 1, size);
-> 	return start;
-> }
-> 
-> long access_file(const char *filename, long size, long rounds)
-> {
-> 	int fd, i;
-> 	volatile char *start1, *end1, *start2;
-> 	const int page_size = getpagesize();
-> 	long sum = 0;
-> 
-> 	fd = open(filename, O_RDONLY);
-> 	if (fd == -1) {
-> 		perror("open");
-> 		exit(1);
-> 	}
-> 
-> 	/*
-> 	 * Some applications, e.g. chrome, use a lot of executable file
-> 	 * pages, map some of the pages with PROT_EXEC flag to simulate
-> 	 * the behavior.
-> 	 */
-> 	start1 = mmap(NULL, size / 2, PROT_READ | PROT_EXEC, MAP_SHARED,
-> 		      fd, 0);
-> 	if (start1 == MAP_FAILED) {
-> 		perror("mmap");
-> 		exit(1);
-> 	}
-> 	end1 = start1 + size / 2;
-> 
-> 	start2 = mmap(NULL, size / 2, PROT_READ, MAP_SHARED, fd, size / 2);
-> 	if (start2 == MAP_FAILED) {
-> 		perror("mmap");
-> 		exit(1);
-> 	}
-> 
-> 	for (i = 0; i < rounds; ++i) {
-> 		struct timeval before, after;
-> 		volatile char *ptr1 = start1, *ptr2 = start2;
-> 		gettimeofday(&before, NULL);
-> 		for (; ptr1 < end1; ptr1 += page_size, ptr2 += page_size)
-> 			sum += *ptr1 + *ptr2;
-> 		gettimeofday(&after, NULL);
-> 		printf("File access time, round %d: %f (sec)\n", i,
-> 		       (after.tv_sec - before.tv_sec) +
-> 		       (after.tv_usec - before.tv_usec) / 1000000.0);
-> 	}
-> 	return sum;
-> }
-> 
-> int main(int argc, char *argv[])
-> {
-> 	const long MB = 1024 * 1024;
-> 	long anon_mb, file_mb, file_rounds;
-> 	const char filename[] = "large";
-> 	long *ret1;
-> 	long ret2;
-> 
-> 	if (argc != 4) {
-> 		printf("usage: thrash ANON_MB FILE_MB FILE_ROUNDS\n");
-> 		exit(0);
-> 	}
-> 	anon_mb = atoi(argv[1]);
-> 	file_mb = atoi(argv[2]);
-> 	file_rounds = atoi(argv[3]);
-> 
-> 	fallocate_file(filename, file_mb * MB);
-> 	printf("Allocate %ld MB anonymous pages\n", anon_mb);
-> 	ret1 = alloc_anon(anon_mb * MB);
-> 	printf("Access %ld MB file pages\n", file_mb);
-> 	ret2 = access_file(filename, file_mb * MB, file_rounds);
-> 	printf("Print result to prevent optimization: %ld\n",
-> 	       *ret1 + ret2);
-> 	return 0;
-> }
-> ---8<---
-> 
-> Running the test program on 2GB RAM VM with kernel 5.2.0-rc5, the
-> program fills ram with 2048 MB memory, access a 200 MB file for 10
-> times.  Without this patch, the file cache is dropped aggresively and
-> every access to the file is from disk.
-> 
->   $ ./thrash 2048 200 10
->   Allocate 2048 MB anonymous pages
->   Access 200 MB file pages
->   File access time, round 0: 2.489316 (sec)
->   File access time, round 1: 2.581277 (sec)
->   File access time, round 2: 2.487624 (sec)
->   File access time, round 3: 2.449100 (sec)
->   File access time, round 4: 2.420423 (sec)
->   File access time, round 5: 2.343411 (sec)
->   File access time, round 6: 2.454833 (sec)
->   File access time, round 7: 2.483398 (sec)
->   File access time, round 8: 2.572701 (sec)
->   File access time, round 9: 2.493014 (sec)
-> 
-> With this patch, these file pages can be cached.
-> 
->   $ ./thrash 2048 200 10
->   Allocate 2048 MB anonymous pages
->   Access 200 MB file pages
->   File access time, round 0: 2.475189 (sec)
->   File access time, round 1: 2.440777 (sec)
->   File access time, round 2: 2.411671 (sec)
->   File access time, round 3: 1.955267 (sec)
->   File access time, round 4: 0.029924 (sec)
->   File access time, round 5: 0.000808 (sec)
->   File access time, round 6: 0.000771 (sec)
->   File access time, round 7: 0.000746 (sec)
->   File access time, round 8: 0.000738 (sec)
->   File access time, round 9: 0.000747 (sec)
-
-This is all good again.
-
-> Fixes: 2a2e48854d70 ("mm: vmscan: fix IO/refault regression in cache workingset transition")
-
-Please replace this line with the two Fixes: lines that I provided
-earlier in this thread.
-
-Thanks.
+-- 
+Michal Hocko
+SUSE Labs
 
