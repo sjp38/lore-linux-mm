@@ -2,122 +2,125 @@ Return-Path: <SRS0=BwCX=U4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D2341C5B57B
-	for <linux-mm@archiver.kernel.org>; Sat, 29 Jun 2019 23:45:09 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BDE1FC5B57B
+	for <linux-mm@archiver.kernel.org>; Sat, 29 Jun 2019 23:52:05 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7D679217D7
-	for <linux-mm@archiver.kernel.org>; Sat, 29 Jun 2019 23:45:09 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 63C3621743
+	for <linux-mm@archiver.kernel.org>; Sat, 29 Jun 2019 23:52:05 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="L9zsQCD3"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7D679217D7
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="VOuG3yeR"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 63C3621743
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 259DC6B0006; Sat, 29 Jun 2019 19:45:09 -0400 (EDT)
+	id D76A86B0006; Sat, 29 Jun 2019 19:52:04 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 209528E0003; Sat, 29 Jun 2019 19:45:09 -0400 (EDT)
+	id D27098E0003; Sat, 29 Jun 2019 19:52:04 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0D0D78E0002; Sat, 29 Jun 2019 19:45:09 -0400 (EDT)
+	id C3F728E0002; Sat, 29 Jun 2019 19:52:04 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-pl1-f207.google.com (mail-pl1-f207.google.com [209.85.214.207])
-	by kanga.kvack.org (Postfix) with ESMTP id CBBB26B0006
-	for <linux-mm@kvack.org>; Sat, 29 Jun 2019 19:45:08 -0400 (EDT)
-Received: by mail-pl1-f207.google.com with SMTP id x23so2498351plm.19
-        for <linux-mm@kvack.org>; Sat, 29 Jun 2019 16:45:08 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 895C66B0006
+	for <linux-mm@kvack.org>; Sat, 29 Jun 2019 19:52:04 -0400 (EDT)
+Received: by mail-pl1-f207.google.com with SMTP id 91so5442262pla.7
+        for <linux-mm@kvack.org>; Sat, 29 Jun 2019 16:52:04 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=jGY0WqKqadyH+XHv8Sy1BRyYmnp1DIN9zkJBp6x16yE=;
-        b=udGwKZ7I/YdSTUKE84oH9dz9mG/nuKovDj/5FlYmyf4SjiR1PQVHhnwZQSiSNXtPHd
-         z/MjTMdrDQCI8OhVvNSP3YZpmbLW5dh1wT4L2J4WZqiirq5gSJQo81/vmtBlBPj+OYAV
-         9+j5BswJVz5v8yDHz1V07f72FCZ20IhhFMIEw2ANvZWKqtZ5i4YDLv5eUdNOEJUWcQXv
-         341eo+DskI83NrFuHO7ek4xQh4P4KeyVXZDBcW9EDr1bhJ/w90fcezDRdDEAykUK7bVK
-         slyEcZrpFUF4hEBeozQq+D/+o/xPtV1YauwNcm/CbuEV/qN08u/4iEBxw6Oqkez7Vkua
-         Zs8A==
-X-Gm-Message-State: APjAAAVMvyRX54rv5MyfBGS0PqpRTTIV1gISc4iM0QBr9xx1q4/azqA7
-	JGWmcZqOq9N6tWol74mAHLzyM4cGiwbMZyv0hFtxvCAfpUBC1Avdqs6qnoBxPXw19OPiCwCHkd2
-	X5f9KK4tH9kSnCW+gwsSLK8KLXax2s/sy+y9voDt+NdLSdHpkEBZyIgneQ2IU6NXQPw==
-X-Received: by 2002:a63:6f8d:: with SMTP id k135mr16760061pgc.118.1561851908398;
-        Sat, 29 Jun 2019 16:45:08 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyP2gsG57EFTxdAflCoTqxRWbnecYUfmQUqPDOYDn3hnLWY2wGPDRIScNjgUFBGlKGFkKJU
-X-Received: by 2002:a63:6f8d:: with SMTP id k135mr16760009pgc.118.1561851907596;
-        Sat, 29 Jun 2019 16:45:07 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561851907; cv=none;
+        bh=nP4lp/e6AIs94o4YYLZYg3jH19AwRg6rp3ToZBgb4Xc=;
+        b=Ff7rxC1HIE/ztDgPxH9HccX3G6gWlZhIfy3v2bhQr1xtRdqUSt5Tc5aLw59XhlYPXK
+         vovybAC2PQQOstL3p6MaNyZYgqZNNlu5lEyohZKR5h6Wgb6O+SUoLCIt6Bwfzv2XTBy2
+         c8gpT3x7WSw0pT3D3+b/iDfp96bjroZCybKWGfhJ5xhAlqt1IXbWff53XUVV9qLqw1Z1
+         kSQA2hh+tHzlou4raAVx1OusWWvJ4+lbf6Zcx8q5eMryXqu0vwqUSE3eOcS4OfY9715i
+         sggrSf4fZK4ksRxGKqOjM3zBW6ogs2R1CcbwssL3AQjeMxWFxph8g2aLxJ8un+68jLEp
+         bsjQ==
+X-Gm-Message-State: APjAAAXj3zPZv8DlhjxqeOhPfyHoKbM1PcIpu5dzsUnIGVMa4aUxZWqt
+	p02DjJQ5e28lC8JGlQfySaZjgqKh1YKSpJ4b/UEMO59nTG4gIHqsJgW+dFNS330mCAJRK+UZIAX
+	lt62bglB6vVs1kGuUmPJtn8k3+72XV3i0djywIY4ZMXV59PEAsi8Hstnu9XTJeLFBJw==
+X-Received: by 2002:a17:902:6a88:: with SMTP id n8mr20331741plk.70.1561852324240;
+        Sat, 29 Jun 2019 16:52:04 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqx6R+guRam+z/+bTyx8r2M5V1t6MDkeLFpPDOX9rkQl1ir3xtA8qrq6ZkNV+PvLkK62WeE2
+X-Received: by 2002:a17:902:6a88:: with SMTP id n8mr20331706plk.70.1561852323497;
+        Sat, 29 Jun 2019 16:52:03 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561852323; cv=none;
         d=google.com; s=arc-20160816;
-        b=YBf+1RgbRqpb6qBPSyFq0vlX3uUASBlBK/osjilNX+iM6Zm86serO9Nm1Un85/9lGE
-         kt1zmUvecW+JmsznML7ZqtvLkNiOQGdBkaPb+UfVuejDie2DjyOG2MB34owzZ2cy4DAM
-         HhmC9UbI8Sml7FqyM5+NwdgMjnjebj3lXy9d82JGiXlk24+u91TqOGb5IRk9811VVoPL
-         gTCPe92txAuu49Exq/g4K/X+9NJHhuPmiscifa025mwwrsb7zdkMUDRmn45qCOjjEdTP
-         YnS9xp6WubSCrx2Y/X4lnd8r780E75we3sa/M7BxSjS/ylwSkpHeTaOy+FNJIYIFTo0B
-         XMHQ==
+        b=gMxtNLXEICunGb4TCF3wpOwslT4WPRbZuv5L6+4a4IGwpX1OODVsAsnRU5RYcxa85M
+         CahEz6kraCW2hRwbiZne60Kf3wPpbxZRujmYKBRH/072PM1tSU5zAs4UTyT9NCbkkHEI
+         T7MZw2Ps57bq0fHQv8ZAQ96uEtAYlXSr63Jq4ndzsuWmdraAR91/v03bNXkBMv+YDnp0
+         oRMVPcf3BXoX2wgfVvPo0ecwvbvwxwYFiDsY1Gz6YzeVCnrJWv4pOHYHX+E4gAwrXOWz
+         +fkBX4HUiCWv4Syaib+f02S9fzjhk+nIFt3kw7ywmfGbjUO2EaoZBDQl8tUpyjFnf9oy
+         4Rgw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=jGY0WqKqadyH+XHv8Sy1BRyYmnp1DIN9zkJBp6x16yE=;
-        b=G408z9mkoiWlIVynyRx6LgnDO4sd4klWs+Z04d7EWvNjJCURL2+vJu6qAg8la5JKrk
-         cB27HHCk2zDVxpW+qzLf+PbdRyCpx07isIXddwcywRRt7XyLGzRB9moyBx71EqJx9hsO
-         CT3E9EPxseekwg0B+2BdDUzRrM93luNeFnEKrMt5BXKHMUDuA1RkxsYJ6FD6Dmdmppgc
-         HnMjB4C9kp+8EnekpmdMzE+k4eKpK+gMQweTfS44jG3Sj94ewFPQmsnwx4KzwsEYCdzZ
-         4Vl5f0v4ZI8JfbJKU6Ds4SvlvUuWl92EXG7QKKi5rIMsrluMPNp8FBagWj1YMkr8XHxh
-         TlOg==
+        bh=nP4lp/e6AIs94o4YYLZYg3jH19AwRg6rp3ToZBgb4Xc=;
+        b=BmZ1AB8XykENMwLNCneHNmQlJ1Xg12NpwfJ6wD2oNVyJ3NpVIzJ4jPwZSIumjZTHrF
+         kqS87eMD9hKSwJgpyMHTk0SIwKkbFYdF+9NL4oQT+oR72v3e/cHaNbk5x/4aHB3KGApv
+         hl1DJMO4gh/v6l8l7CyOE+YOQrnUu7P72njQv1mw1qeVHKQU6txbQeWzuuFfbIATEPBY
+         HZ0cxp2nQxouSnVUrs5zdUlZJz21+aFEeO+XlpyhuDimXH22vX39zXn2ttWzIaQOHZLP
+         h2L7HmJuYS1hCL6CRObG2JzetV+ZWRN/o5N/80YXkSQn2U9rm9uo0TRiCjj23t3FmyWv
+         aZVw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=L9zsQCD3;
+       dkim=pass header.i=@kernel.org header.s=default header.b=VOuG3yeR;
        spf=pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=luto@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id a14si5875098pgm.206.2019.06.29.16.45.07
+        by mx.google.com with ESMTPS id e12si6194358pgs.34.2019.06.29.16.52.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 29 Jun 2019 16:45:07 -0700 (PDT)
+        Sat, 29 Jun 2019 16:52:03 -0700 (PDT)
 Received-SPF: pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=L9zsQCD3;
+       dkim=pass header.i=@kernel.org header.s=default header.b=VOuG3yeR;
        spf=pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=luto@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail-wm1-f47.google.com (mail-wm1-f47.google.com [209.85.128.47])
+Received: from mail-wm1-f52.google.com (mail-wm1-f52.google.com [209.85.128.52])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 10A6C217F4
-	for <linux-mm@kvack.org>; Sat, 29 Jun 2019 23:45:07 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTPSA id D11412183F
+	for <linux-mm@kvack.org>; Sat, 29 Jun 2019 23:52:02 +0000 (UTC)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1561851907;
-	bh=NO9SldPrvEHCV9L05HomDu1WyC6FUgdLlHc97KSTRsQ=;
+	s=default; t=1561852323;
+	bh=6zNQnfiowkbQ8h6I1Y7teWbbkPJhz6He7iJKmvs4QWA=;
 	h=References:In-Reply-To:From:Date:Subject:To:Cc:From;
-	b=L9zsQCD3SME4yCdiZ91gR5mu3dTU7iHytvauDPWLVWJ5PVYhrkz4Xa1e7uv4wAgV3
-	 dn6A6uxhscIfZ/fM0Q/M50uV8Zprd9O/fI/u2BZF1R7eLQPpJWxVUZ9macy7ZQ9u1d
-	 B6qcP8VfgVBU5+U66FxTgTcWis+nQEC2Uneo6t/g=
-Received: by mail-wm1-f47.google.com with SMTP id c6so12285048wml.0
-        for <linux-mm@kvack.org>; Sat, 29 Jun 2019 16:45:06 -0700 (PDT)
-X-Received: by 2002:a1c:9a53:: with SMTP id c80mr11059844wme.173.1561851905663;
- Sat, 29 Jun 2019 16:45:05 -0700 (PDT)
+	b=VOuG3yeRXBw73ehV65Jk05S6ykpdaWN2++D3t48FGNnRIpDyvwGQ/O+9+jEcQ2kLh
+	 vJaCio+aAWmRuF+Q74veK48algDDWoAePRXa6sfpOSPcNYY4cIAvDYMztVQaxLrq6F
+	 GUxAMYw40KHXc3GwNPQztaUlUU75iWpM7vkEfIdA=
+Received: by mail-wm1-f52.google.com with SMTP id s3so12362486wms.2
+        for <linux-mm@kvack.org>; Sat, 29 Jun 2019 16:52:02 -0700 (PDT)
+X-Received: by 2002:a7b:c450:: with SMTP id l16mr12352705wmi.0.1561852321259;
+ Sat, 29 Jun 2019 16:52:01 -0700 (PDT)
 MIME-Version: 1.0
-References: <20190628194158.2431-1-yu-cheng.yu@intel.com> <20190628194158.2431-3-yu-cheng.yu@intel.com>
-In-Reply-To: <20190628194158.2431-3-yu-cheng.yu@intel.com>
+References: <20190501211217.5039-1-yu-cheng.yu@intel.com> <20190502111003.GO3567@e103592.cambridge.arm.com>
+ <CALCETrVZCzh+KFCF6ijuf4QEPn=R2gJ8FHLpyFd=n+pNOMMMjA@mail.gmail.com> <87ef3fweoq.fsf@oldenburg2.str.redhat.com>
+In-Reply-To: <87ef3fweoq.fsf@oldenburg2.str.redhat.com>
 From: Andy Lutomirski <luto@kernel.org>
-Date: Sat, 29 Jun 2019 16:44:54 -0700
-X-Gmail-Original-Message-ID: <CALCETrXsXXJWTSJxUO8YxHUo=QJKmHyJa7iz+jOBjWMRhno4rA@mail.gmail.com>
-Message-ID: <CALCETrXsXXJWTSJxUO8YxHUo=QJKmHyJa7iz+jOBjWMRhno4rA@mail.gmail.com>
-Subject: Re: [RFC PATCH 3/3] Prevent user from writing to IBT bitmap.
-To: Yu-cheng Yu <yu-cheng.yu@intel.com>
-Cc: X86 ML <x86@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, 
-	Ingo Molnar <mingo@redhat.com>, LKML <linux-kernel@vger.kernel.org>, 
+Date: Sat, 29 Jun 2019 16:51:50 -0700
+X-Gmail-Original-Message-ID: <CALCETrUPJXW7An9EBaRQLppB3vHEQFfYP1o8h-4PSFcZt5Pa2A@mail.gmail.com>
+Message-ID: <CALCETrUPJXW7An9EBaRQLppB3vHEQFfYP1o8h-4PSFcZt5Pa2A@mail.gmail.com>
+Subject: Re: [PATCH] binfmt_elf: Extract .note.gnu.property from an ELF file
+To: Florian Weimer <fweimer@redhat.com>
+Cc: Andy Lutomirski <luto@kernel.org>, Dave Martin <Dave.Martin@arm.com>, 
+	Yu-cheng Yu <yu-cheng.yu@intel.com>, X86 ML <x86@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, 
+	Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, 
+	LKML <linux-kernel@vger.kernel.org>, 
 	"open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, 
 	linux-arch <linux-arch@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, 
-	Arnd Bergmann <arnd@arndb.de>, Balbir Singh <bsingharora@gmail.com>, Borislav Petkov <bp@alien8.de>, 
+	Arnd Bergmann <arnd@arndb.de>, Balbir Singh <bsingharora@gmail.com>, 
 	Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, 
-	Eugene Syromiatnikov <esyr@redhat.com>, Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, 
-	Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>, 
+	Eugene Syromiatnikov <esyr@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, 
+	Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>, 
 	Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, 
 	Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, 
 	Randy Dunlap <rdunlap@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, 
-	Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>, Dave Martin <Dave.Martin@arm.com>
+	Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>, Szabolcs Nagy <szabolcs.nagy@arm.com>, 
+	libc-alpha <libc-alpha@sourceware.org>
 Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -125,32 +128,43 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jun 28, 2019 at 12:50 PM Yu-cheng Yu <yu-cheng.yu@intel.com> wrote:
+On Thu, Jun 27, 2019 at 2:39 AM Florian Weimer <fweimer@redhat.com> wrote:
 >
-> The IBT bitmap is visiable from user-mode, but not writable.
+> * Andy Lutomirski:
 >
-> Signed-off-by: Yu-cheng Yu <yu-cheng.yu@intel.com>
+> > Also, I don't think there's any actual requirement that the upstream
+> > kernel recognize existing CET-enabled RHEL 8 binaries as being
+> > CET-enabled.  I tend to think that RHEL 8 jumped the gun here.
 >
-> ---
->  arch/x86/mm/fault.c | 7 +++++++
->  1 file changed, 7 insertions(+)
+> The ABI was supposed to be finalized and everyone involved thought it
+> had been reviewed by the GNU gABI community and other interested
+> parties.  It had been included in binutils for several releases.
 >
-> diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
-> index 59f4f66e4f2e..231196abb62e 100644
-> --- a/arch/x86/mm/fault.c
-> +++ b/arch/x86/mm/fault.c
-> @@ -1454,6 +1454,13 @@ void do_user_addr_fault(struct pt_regs *regs,
->          * we can handle it..
->          */
->  good_area:
-> +#define USER_MODE_WRITE (FAULT_FLAG_WRITE | FAULT_FLAG_USER)
-> +       if (((flags & USER_MODE_WRITE)  == USER_MODE_WRITE) &&
-> +           (vma->vm_flags & VM_IBT)) {
-> +               bad_area_access_error(regs, hw_error_code, address, vma);
-> +               return;
-> +       }
-> +
+> From my point of view, the kernel is just a consumer of the ABI.  The
+> kernel would not change an instruction encoding if it doesn't like it
+> for some reason, either.
 
-Just make the VMA have VM_WRITE and VM_MAYWRITE clear.  No new code
-like this should be required.
+I read the only relevant gABI thing I could find easily, and it seems
+to document the "gnu property" thing.  I have no problem with that.
+
+>
+> > While the upstream kernel should make some reasonble effort to make
+> > sure that RHEL 8 binaries will continue to run, I don't see why we
+> > need to go out of our way to keep the full set of mitigations
+> > available for binaries that were developed against a non-upstream
+> > kernel.
+>
+> They were developed against the ABI specification.
+>
+> I do not have a strong opinion what the kernel should do going forward.
+> I just want to make clear what happened.
+
+I admit that I'm not really clear on exactly what RHEL 8 shipped.
+Some of this stuff is very much an ELF ABI that belongs to the
+toolchain, but some if it is kernel API.  For example, the IBT legacy
+bitmap API is very much in flux, and I don't think anything credible
+has been submitted for upstream inclusion.  Does RHEL 8's glibc
+attempt to cope with the case where some libraries are CET-compatible
+and some are not?  If so, how does this work?  What, if any, services
+does the RHEL 8 kernel provide in this direction?
 
