@@ -2,83 +2,83 @@ Return-Path: <SRS0=BwCX=U4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E6E8CC5B577
-	for <linux-mm@archiver.kernel.org>; Sat, 29 Jun 2019 19:06:53 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 61651C5B57B
+	for <linux-mm@archiver.kernel.org>; Sat, 29 Jun 2019 22:30:18 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 85564216FD
-	for <linux-mm@archiver.kernel.org>; Sat, 29 Jun 2019 19:06:53 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 85564216FD
+	by mail.kernel.org (Postfix) with ESMTP id E1317214DA
+	for <linux-mm@archiver.kernel.org>; Sat, 29 Jun 2019 22:30:17 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E1317214DA
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=zeniv.linux.org.uk
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 01DEC6B0003; Sat, 29 Jun 2019 15:06:53 -0400 (EDT)
+	id 3EF5E6B0003; Sat, 29 Jun 2019 18:30:17 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id F362A8E0003; Sat, 29 Jun 2019 15:06:52 -0400 (EDT)
+	id 3793A8E0003; Sat, 29 Jun 2019 18:30:17 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E26A18E0002; Sat, 29 Jun 2019 15:06:52 -0400 (EDT)
+	id 219D98E0002; Sat, 29 Jun 2019 18:30:17 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f79.google.com (mail-wr1-f79.google.com [209.85.221.79])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A6BA6B0003
-	for <linux-mm@kvack.org>; Sat, 29 Jun 2019 15:06:52 -0400 (EDT)
-Received: by mail-wr1-f79.google.com with SMTP id l9so3872965wrr.0
-        for <linux-mm@kvack.org>; Sat, 29 Jun 2019 12:06:52 -0700 (PDT)
+Received: from mail-wr1-f78.google.com (mail-wr1-f78.google.com [209.85.221.78])
+	by kanga.kvack.org (Postfix) with ESMTP id C30B66B0003
+	for <linux-mm@kvack.org>; Sat, 29 Jun 2019 18:30:16 -0400 (EDT)
+Received: by mail-wr1-f78.google.com with SMTP id n8so3979458wrx.14
+        for <linux-mm@kvack.org>; Sat, 29 Jun 2019 15:30:16 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent:sender;
-        bh=myFSFOownYHAiy1Yl2egmGV8Yzjo/yX7QKOXiNocZ2U=;
-        b=L0yC8wz8B2VKJT6FbsnmpbTSFsJVt7mp8nCWN9sosDzl5mQevhasi9ofTgtQiXSJdn
-         U2knEpoTiY/Lf/a0I8Sb7Hb6x53PyzUelPzfrLSmlqz1PBYKC1m+ZmOfM07XQ9/WLLmT
-         pS4mLPzgc0U7pJsrsyKMZ2wHYCONgmCaAe06DeIo91i9BJgeq/otAxztaXSK3YTBy2dh
-         si3LgjSQSvFZIMIgi+NRcYfo0evS7IpUzORMCq3oVId/QylbR/PFFK8ZX99AAysfim1Y
-         eqvxZMRftzpzEty6lQY8E0OJiqjxvC22R6OUzU6/jgq9MzhNbGLWM/sJ8ITpzNA/x5Km
-         lG8Q==
+        bh=ZYY8bxAWyZkYIEqP7zqiLEy6/DUnxDj3hYV+5/uACUg=;
+        b=ApJna1NAlB5hdoKjQRH8pjt8W23f4nErGw39RWb9F9q3u7TyFMKeSvIKKYa0e6TxFr
+         KYBKl41vZIuKAc7EiRM617AFBYbHPQhRchp3Ft252XQFmek+xbjJ8W4ay5R/zbig+nX8
+         BCfidSmzzAbfV7mSlmcuvJp8OH9W5YzFczXhctbDzQj0Jx9Xw3mc0OMaNuV5w6+vZuDQ
+         j4QfRH/WCggtU9YVJoT6QLC6js9KMzRusuKeCfhu5KllmYdxP9kbqlv9z1wiPARw5DeU
+         6jQWnDjosFRWuJbnePhhoF8k2E7EXM6eZvaeU5VeUEW2ixZA0fzBnJZcnU9cQwrw3lNe
+         bMPQ==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of viro@ftp.linux.org.uk designates 195.92.253.2 as permitted sender) smtp.mailfrom=viro@ftp.linux.org.uk
-X-Gm-Message-State: APjAAAUiprVTLv9ScZlEu0bknhmQ+7WGA/V1x+KOC2qelrEDYnvrs28b
-	iVwMd2BkseI1BP+3xlpQlm1pwOas2tkv+Md07VWNSq/4RP288WR07H5p8mt3PlTQW1iPEzka97u
-	aQZqTq97KNXDOtXZ11HVZqcP32Qkq3/XVyxi536uR4V8wbobIiEFM9xr7Xc9ViR5gEg==
-X-Received: by 2002:a1c:9a46:: with SMTP id c67mr10974467wme.11.1561835212043;
-        Sat, 29 Jun 2019 12:06:52 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxwxppCp6lxTFGHB/SLqzTgUxcFdOvDKZTFu+HSmPKSBJvXJFfnptWIpX//BDunKY38qSUI
-X-Received: by 2002:a1c:9a46:: with SMTP id c67mr10974447wme.11.1561835210889;
-        Sat, 29 Jun 2019 12:06:50 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561835210; cv=none;
+X-Gm-Message-State: APjAAAWVsYVmPNiMcCv5QOT7xt84i666vIVINIcTeq3h39MOffsecaDm
+	jPA1yCdW4oJMI+XEyBldV3qDHrLZ7eBhI/UKaJ2HOusfW/0cgDNGjpu4K2DS7Wj6ollL0SnLiSl
+	iZ+XLOPZxRcbJ6AuUxYjjmDCPYTmAnkdkfFGJt1gZREADOKUEacBC4GAzRzULQsYeSg==
+X-Received: by 2002:adf:90e7:: with SMTP id i94mr11852751wri.213.1561847415939;
+        Sat, 29 Jun 2019 15:30:15 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwDYbqDRA4N0UmT+urK2t8Ps8lmJqIFkpDOfqbKMlaOV5JK9MwEWnMTf1otmMbfluYfVC+F
+X-Received: by 2002:adf:90e7:: with SMTP id i94mr11852718wri.213.1561847414867;
+        Sat, 29 Jun 2019 15:30:14 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561847414; cv=none;
         d=google.com; s=arc-20160816;
-        b=EzAb3cRi/vTdiqzd4uk6LnkpatEnucYim3VqTuWsZhu4vwRJEjplw+StrDgBvNUKDW
-         MrKyy05p8yshwIoNpWSqUk99KRwkaPckwztzZItvPIk67DQn/va7EDZD1spQWjSH+rDj
-         wz1LQCKq6wutGeS+PR2LkTZkGu6dJOSwAA896RA3Muq/hCHMRF5/scL24eHZ1KrPsGBA
-         /LDZIVQhZ+m3yPgKiitc4jwVA8cPyQbmkQN/HgDoSnOV+LLa8wQc5cwA2DLwK88+Ot8h
-         heNHIAn7Yw6LgLqhhdui8eMiX91JOvGJ9v3dKNtqOgsdz6A5pLjgy4OTjC1S3eUHcQfz
-         fJxw==
+        b=x7RLKI5rX5+e3luey/iIEV0I0abIS2Zsp74P+9YayRtfR12KN2g122F61aSTRauSdu
+         JqT1UzPOCFXBuGH2j+9ikr9xSYLsNBNW62bWQSzEoF3kGUc1b9zmXvmojNOFlf7chatF
+         fd6WTDpblLz6MmSDLaeMPoBXLRQgoMpmgDFfLmUQFDITFAsSZZ5iq1/f9WrCbrZEyeHG
+         YYh2hf+TX82K6Xkd3GJ/FsXTZ5sxU5fV7yFsHNkMKAMShD9r/E6iWGk1BcpK9Usj9YDB
+         xsrwRWqGNQM9z+tdY6Bt6kKzD2UqW7q7VlYE515UTw3HjqSjgEeKtslKA0RgDP4IDO60
+         +EtQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=sender:user-agent:in-reply-to:content-disposition:mime-version
          :references:message-id:subject:cc:to:from:date;
-        bh=myFSFOownYHAiy1Yl2egmGV8Yzjo/yX7QKOXiNocZ2U=;
-        b=nu3Pj0dfJ6CQdjX7T4eJwTsZgJsWJow+OG3CHlTwYjlj7Lb6tKZ3U2xe22Rp4qJUoN
-         u1tML876aW9AN1/aGG7KQyFooS8BJTko5SQZBbUk5x5kyoJFC+tLbWyR4HP0odDq2YLm
-         HAaEfxjt6JnVnYdZk0XM+mRnnI4pl1gO3WxUOfAQTs984klS1mprKQVTTqCLiEvxso8g
-         T1kBWs8V13gJiam8u8BJQLEC3iW8HZYwpZQghyfl+hYyzEmEJewbZVuRnenznpQl5PCh
-         VEZh6SuzT4djvXOM+zkx57IwReuI3e3VfHSU2d1HfDWCSeiQeyztz82yEwqkZ2N6wMci
-         WhCw==
+        bh=ZYY8bxAWyZkYIEqP7zqiLEy6/DUnxDj3hYV+5/uACUg=;
+        b=mb05bopcP3vKhFi8BJiqjawYksCB3spPiLSE7VkWH0fikkURum5Jca9JGn5ApA4Gh/
+         3aP6GovNRQD/38xsM2AJL9Cz6x65mMLr49SGA/Y7s7NBl86SiKpdIRdwNXNIEgCXQSF5
+         hibF8CvFfU/GM/e0K8rYvDQWUx65RhJcOTqY7cfoveBsQ+TzcgL9wcmYIfDNRMT6HMps
+         if1EHEEDsR46CV2vGKL2PCXDhgSHBRWKSbaWll4+neeib4dVFDRLdZle8DWzIlzePb10
+         HeEVtsFzEhqREl3v3s4B60EMtiznSnRgsxUx+RSX/Mke44hi9pjVQ5BL8TDqBTFD+hos
+         pIaQ==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: best guess record for domain of viro@ftp.linux.org.uk designates 195.92.253.2 as permitted sender) smtp.mailfrom=viro@ftp.linux.org.uk
 Received: from ZenIV.linux.org.uk (zeniv.linux.org.uk. [195.92.253.2])
-        by mx.google.com with ESMTPS id d4si4186711wrj.445.2019.06.29.12.06.50
+        by mx.google.com with ESMTPS id r203si3900922wma.195.2019.06.29.15.30.14
         for <linux-mm@kvack.org>
         (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Sat, 29 Jun 2019 12:06:50 -0700 (PDT)
+        Sat, 29 Jun 2019 15:30:14 -0700 (PDT)
 Received-SPF: pass (google.com: best guess record for domain of viro@ftp.linux.org.uk designates 195.92.253.2 as permitted sender) client-ip=195.92.253.2;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: best guess record for domain of viro@ftp.linux.org.uk designates 195.92.253.2 as permitted sender) smtp.mailfrom=viro@ftp.linux.org.uk
 Received: from viro by ZenIV.linux.org.uk with local (Exim 4.92 #3 (Red Hat Linux))
-	id 1hhIg4-0007QN-HD; Sat, 29 Jun 2019 19:06:24 +0000
-Date: Sat, 29 Jun 2019 20:06:24 +0100
+	id 1hhLqr-0002yp-RA; Sat, 29 Jun 2019 22:29:45 +0000
+Date: Sat, 29 Jun 2019 23:29:45 +0100
 From: Al Viro <viro@zeniv.linux.org.uk>
 To: Linus Torvalds <torvalds@linux-foundation.org>
 Cc: "Tobin C. Harding" <tobin@kernel.org>,
@@ -102,7 +102,7 @@ Cc: "Tobin C. Harding" <tobin@kernel.org>,
 	linux-kernel@vger.kernel.org
 Subject: Re: shrink_dentry_list() logics change (was Re: [RFC PATCH v3 14/15]
  dcache: Implement partial shrink via Slab Movable Objects)
-Message-ID: <20190629190624.GU17978@ZenIV.linux.org.uk>
+Message-ID: <20190629222945.GW17978@ZenIV.linux.org.uk>
 References: <20190411013441.5415-1-tobin@kernel.org>
  <20190411013441.5415-15-tobin@kernel.org>
  <20190411023322.GD2217@ZenIV.linux.org.uk>
@@ -111,10 +111,11 @@ References: <20190411013441.5415-1-tobin@kernel.org>
  <20190411210200.GH2217@ZenIV.linux.org.uk>
  <20190629040844.GS17978@ZenIV.linux.org.uk>
  <20190629043803.GT17978@ZenIV.linux.org.uk>
+ <20190629190624.GU17978@ZenIV.linux.org.uk>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190629043803.GT17978@ZenIV.linux.org.uk>
+In-Reply-To: <20190629190624.GU17978@ZenIV.linux.org.uk>
 User-Agent: Mutt/1.11.3 (2019-02-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -122,65 +123,226 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Jun 29, 2019 at 05:38:03AM +0100, Al Viro wrote:
+On Sat, Jun 29, 2019 at 08:06:24PM +0100, Al Viro wrote:
+> I wonder if after the "no evictable candidates, but something
+> on other's shrink lists" we ought to do something along the
+> lines of
+> 	rcu_read_lock
+> 	walk it, doing
+> 		if dentry has zero refcount
+> 			if it's not on a shrink list,
+> 				move it to ours
+> 			else
+> 				store its address in 'victim'
+> 				end the walk
+> 	if no victim found
+> 		rcu_read_unlock
+> 	else
+> 		lock victim for __dentry_kill
+> 		rcu_read_unlock
+> 		if it's still alive
+> 			if it's not IS_ROOT
+> 				if parent is not on shrink list
+> 					decrement parent's refcount
+> 					put it on our list
+> 				else
+> 					decrement parent's refcount
+> 			__dentry_kill(victim)
+> 		else
+> 			unlock
+> 	if our list is non-empty
+> 		shrink_dentry_list on it
+> in there...
 
-> PS: the problem is not gone in the next iteration of the patchset in
-> question.  The patch I'm proposing (including dput_to_list() and _ONLY_
-> compile-tested) follows.  Comments?
+Like this (again, only build-tested):
 
-FWIW, there's another unpleasantness in the whole thing.  Suppose we have
-picked a page full of dentries, all with refcount 0.  We decide to
-evict all of them.  As it turns out, they are from two filesystems.
-Filesystem 1 is NFS on a server, with currently downed hub on the way
-to it.  Filesystem 2 is local.  We attempt to evict an NFS dentry and
-get stuck - tons of dirty data with no way to flush them on server.
-In the meanwhile, admin tries to unmount the local filesystem.  And
-gets stuck as well, since umount can't do anything to its dentries
-that happen to sit in our shrink list.
+Teach shrink_dcache_parent() to cope with mixed-filesystem shrink lists
 
-I wonder if the root of problem here isn't in shrink_dcache_for_umount();
-all it really needs is to have everything on that fs with refcount 0
-dragged through __dentry_kill().  If something had been on a shrink
-list, __dentry_kill() will just leave behind a struct dentry completely
-devoid of any connection to superblock, other dentries, filesystem
-type, etc. - it's just a piece of memory that won't be freed until
-the owner of shrink list finally gets around to it.  Which can happen
-at any point - all they'll do to it is dentry_free(), and that doesn't
-need any fs-related data structures.
+Currently, running into a shrink list that contains dentries from different
+filesystems can cause several unpleasant things for shrink_dcache_parent()
+and for umount(2).
 
-The logics in shrink_dcache_parent() is
-	collect everything evictable into a shrink list
-	if anything found - kick it out and repeat the scan
-	otherwise, if something had been on other's shrink list
-		repeat the scan
+The first problem is that there's a window during shrink_dentry_list() between
+__dentry_kill() takes a victim out and dropping reference to its parent.  During
+that window the parent looks like a genuine busy dentry.  shrink_dcache_parent()
+(or, worse yet, shrink_dcache_for_umount()) coming at that time will see no
+eviction candidates and no indication that it needs to wait for some
+shrink_dentry_list() to proceed further.
 
-I wonder if after the "no evictable candidates, but something
-on other's shrink lists" we ought to do something along the
-lines of
-	rcu_read_lock
-	walk it, doing
-		if dentry has zero refcount
-			if it's not on a shrink list,
-				move it to ours
-			else
-				store its address in 'victim'
-				end the walk
-	if no victim found
-		rcu_read_unlock
-	else
-		lock victim for __dentry_kill
-		rcu_read_unlock
-		if it's still alive
-			if it's not IS_ROOT
-				if parent is not on shrink list
-					decrement parent's refcount
-					put it on our list
-				else
-					decrement parent's refcount
-			__dentry_kill(victim)
-		else
-			unlock
-	if our list is non-empty
-		shrink_dentry_list on it
-in there...
+That applies for any shrink list that might intersect with the subtree we are
+trying to shrink; the only reason it does not blow on umount(2) in the mainline
+is that we unregister the memory shrinker before hitting shrink_dcache_for_umount().
+
+Another problem happens if something in a mixed-filesystem shrink list gets
+be stuck in e.g. iput(), getting umount of unrelated fs to spin waiting for
+the stuck shrinker to get around to our dentries.
+
+Solution:
+	1) have shrink_dentry_list() decrement the parent's refcount and
+make sure it's on a shrink list (ours unless it already had been on some
+other) before calling __dentry_kill().  That eliminates the window when
+shrink_dcache_parent() would've blown past the entire subtree without
+noticing anything with zero refcount not on shrink lists.
+	2) when shrink_dcache_parent() has found no eviction candidates,
+but some dentries are still sitting on shrink lists, rather than
+repeating the scan in hope that shrinkers have progressed, scan looking
+for something on shrink lists with zero refcount.  If such a thing is
+found, grab rcu_read_lock() and stop the scan, with caller locking
+it for eviction, dropping out of RCU and doing __dentry_kill(), with
+the same treatment for parent as shrink_dentry_list() would do.
+
+Note that right now mixed-filesystem shrink lists do not occur, so this
+is not a mainline bug.  Howevere, there's a bunch of uses for such
+beasts (e.g. the "try and evict everything we can out of given page"
+patches; there are potential uses in mount-related code, considerably
+simplifying the life in fs/namespace.c, etc.)
+
+Signed-off-by: Al Viro <viro@zeniv.linux.org.uk>
+---
+
+diff --git a/fs/dcache.c b/fs/dcache.c
+index 8136bda27a1f..43480f516329 100644
+--- a/fs/dcache.c
++++ b/fs/dcache.c
+@@ -860,6 +860,32 @@ void dput(struct dentry *dentry)
+ }
+ EXPORT_SYMBOL(dput);
+ 
++static void __dput_to_list(struct dentry *dentry, struct list_head *list)
++__must_hold(&dentry->d_lock)
++{
++	if (dentry->d_flags & DCACHE_SHRINK_LIST) {
++		/* let the owner of the list it's on deal with it */
++		--dentry->d_lockref.count;
++	} else {
++		if (dentry->d_flags & DCACHE_LRU_LIST)
++			d_lru_del(dentry);
++		if (!--dentry->d_lockref.count)
++			d_shrink_add(dentry, list);
++	}
++}
++
++void dput_to_list(struct dentry *dentry, struct list_head *list)
++{
++	rcu_read_lock();
++	if (likely(fast_dput(dentry))) {
++		rcu_read_unlock();
++		return;
++	}
++	rcu_read_unlock();
++	if (!retain_dentry(dentry))
++		__dput_to_list(dentry, list);
++	spin_unlock(&dentry->d_lock);
++}
+ 
+ /* This must be called with d_lock held */
+ static inline void __dget_dlock(struct dentry *dentry)
+@@ -1088,18 +1114,9 @@ static void shrink_dentry_list(struct list_head *list)
+ 		rcu_read_unlock();
+ 		d_shrink_del(dentry);
+ 		parent = dentry->d_parent;
++		if (parent != dentry)
++			__dput_to_list(parent, list);
+ 		__dentry_kill(dentry);
+-		if (parent == dentry)
+-			continue;
+-		/*
+-		 * We need to prune ancestors too. This is necessary to prevent
+-		 * quadratic behavior of shrink_dcache_parent(), but is also
+-		 * expected to be beneficial in reducing dentry cache
+-		 * fragmentation.
+-		 */
+-		dentry = parent;
+-		while (dentry && !lockref_put_or_lock(&dentry->d_lockref))
+-			dentry = dentry_kill(dentry);
+ 	}
+ }
+ 
+@@ -1444,8 +1461,11 @@ int d_set_mounted(struct dentry *dentry)
+ 
+ struct select_data {
+ 	struct dentry *start;
++	union {
++		long found;
++		struct dentry *victim;
++	};
+ 	struct list_head dispose;
+-	int found;
+ };
+ 
+ static enum d_walk_ret select_collect(void *_data, struct dentry *dentry)
+@@ -1477,6 +1497,37 @@ static enum d_walk_ret select_collect(void *_data, struct dentry *dentry)
+ 	return ret;
+ }
+ 
++static enum d_walk_ret select_collect2(void *_data, struct dentry *dentry)
++{
++	struct select_data *data = _data;
++	enum d_walk_ret ret = D_WALK_CONTINUE;
++
++	if (data->start == dentry)
++		goto out;
++
++	if (dentry->d_flags & DCACHE_SHRINK_LIST) {
++		if (!dentry->d_lockref.count) {
++			rcu_read_lock();
++			data->victim = dentry;
++			return D_WALK_QUIT;
++		}
++	} else {
++		if (dentry->d_flags & DCACHE_LRU_LIST)
++			d_lru_del(dentry);
++		if (!dentry->d_lockref.count)
++			d_shrink_add(dentry, &data->dispose);
++	}
++	/*
++	 * We can return to the caller if we have found some (this
++	 * ensures forward progress). We'll be coming back to find
++	 * the rest.
++	 */
++	if (!list_empty(&data->dispose))
++		ret = need_resched() ? D_WALK_QUIT : D_WALK_NORETRY;
++out:
++	return ret;
++}
++
+ /**
+  * shrink_dcache_parent - prune dcache
+  * @parent: parent of entries to prune
+@@ -1486,12 +1537,9 @@ static enum d_walk_ret select_collect(void *_data, struct dentry *dentry)
+ void shrink_dcache_parent(struct dentry *parent)
+ {
+ 	for (;;) {
+-		struct select_data data;
++		struct select_data data = {.start = parent};
+ 
+ 		INIT_LIST_HEAD(&data.dispose);
+-		data.start = parent;
+-		data.found = 0;
+-
+ 		d_walk(parent, &data, select_collect);
+ 
+ 		if (!list_empty(&data.dispose)) {
+@@ -1502,6 +1550,21 @@ void shrink_dcache_parent(struct dentry *parent)
+ 		cond_resched();
+ 		if (!data.found)
+ 			break;
++		d_walk(parent, &data, select_collect2);
++		if (data.victim) {
++			struct dentry *parent;
++			if (!shrink_lock_dentry(data.victim)) {
++				rcu_read_unlock();
++			} else {
++				rcu_read_unlock();
++				parent = data.victim->d_parent;
++				if (parent != data.victim)
++					__dput_to_list(parent, &data.dispose);
++				__dentry_kill(data.victim);
++			}
++		}
++		if (!list_empty(&data.dispose))
++			shrink_dentry_list(&data.dispose);
+ 	}
+ }
+ EXPORT_SYMBOL(shrink_dcache_parent);
 
