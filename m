@@ -1,310 +1,212 @@
-Return-Path: <SRS0=7Cer=U3=kvack.org=owner-linux-mm@kernel.org>
+Return-Path: <SRS0=BwCX=U4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=0.9 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	FSL_HELO_FAKE,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1
-	autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id EE067C46478
-	for <linux-mm@archiver.kernel.org>; Fri, 28 Jun 2019 23:36:57 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 51F8FC4321A
+	for <linux-mm@archiver.kernel.org>; Sat, 29 Jun 2019 01:26:56 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A0FA1208E3
-	for <linux-mm@archiver.kernel.org>; Fri, 28 Jun 2019 23:36:57 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id D34D1208E3
+	for <linux-mm@archiver.kernel.org>; Sat, 29 Jun 2019 01:26:55 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="auuXTBi0"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A0FA1208E3
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	dkim=pass (1024-bit key) header.d=Mellanox.com header.i=@Mellanox.com header.b="MPuo611V"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D34D1208E3
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mellanox.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 364386B0006; Fri, 28 Jun 2019 19:36:57 -0400 (EDT)
+	id 4BF366B0003; Fri, 28 Jun 2019 21:26:55 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 314118E0003; Fri, 28 Jun 2019 19:36:57 -0400 (EDT)
+	id 46F508E0003; Fri, 28 Jun 2019 21:26:55 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2034E8E0002; Fri, 28 Jun 2019 19:36:57 -0400 (EDT)
+	id 3378C8E0002; Fri, 28 Jun 2019 21:26:55 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f206.google.com (mail-pf1-f206.google.com [209.85.210.206])
-	by kanga.kvack.org (Postfix) with ESMTP id DB22C6B0006
-	for <linux-mm@kvack.org>; Fri, 28 Jun 2019 19:36:56 -0400 (EDT)
-Received: by mail-pf1-f206.google.com with SMTP id i26so4816430pfo.22
-        for <linux-mm@kvack.org>; Fri, 28 Jun 2019 16:36:56 -0700 (PDT)
+Received: from mail-ed1-f79.google.com (mail-ed1-f79.google.com [209.85.208.79])
+	by kanga.kvack.org (Postfix) with ESMTP id D805B6B0003
+	for <linux-mm@kvack.org>; Fri, 28 Jun 2019 21:26:54 -0400 (EDT)
+Received: by mail-ed1-f79.google.com with SMTP id n49so10841149edd.15
+        for <linux-mm@kvack.org>; Fri, 28 Jun 2019 18:26:54 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:sender:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=BxQTWfA+pGOhec8YtZRoZCqOQIjDs3oLABCnEe7lVs8=;
-        b=ADXLxAkpuXZiwy+a39ZjuZecMXNlPly+lOCYjOt6vfHN82JYOnSx9/sqhd0tkFmO71
-         od2xZHlHn/PvaNxSEFeAwQ6bzDpfyz2Bm8utXHVK/VxdRcNzjQdnLp9JFXiLq6Yb/rcI
-         EmFBqTV3HUfdc48b7c5sN2Ft+PIpTWR++k7P2yXke7N4L8MttDcWYUqffDpO4hWnyzYL
-         gySu8cy0OSR4WohdDTTWtkikJak65p6hL9yGXY4nTxPk+pPy6nhXyLZKePe5znkUw2qc
-         0YHeLaYUV2kWlBsfRzQadlMe4sPPkRn4BqtgRV5GReG4lvoaLme3N9T5gilWAikhR4q/
-         Ao9A==
-X-Gm-Message-State: APjAAAWZBxaHclp0EkE+UYFqCyHlHLWonc1YQgD4NM+Puso9SbGAKasK
-	GLyhNu40DqWXsVzksR7izGuzC14RZwGWMEyd/BUSqBjf1RLplsS9fT0otUMUi2PCn31WUDrIkIE
-	/nTe2M0Z+fn4QvP0LONMef/sarONIs6kaLZ6S7JzwyOHuq8HyofDLQrK3/WbXGbI=
-X-Received: by 2002:a63:1950:: with SMTP id 16mr11661266pgz.312.1561765016292;
-        Fri, 28 Jun 2019 16:36:56 -0700 (PDT)
-X-Received: by 2002:a63:1950:: with SMTP id 16mr11661205pgz.312.1561765015219;
-        Fri, 28 Jun 2019 16:36:55 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561765015; cv=none;
-        d=google.com; s=arc-20160816;
-        b=lhP6DMf/V1nCrUrjHH5g72+BYx9LW56mAkMNkYyoXeqK0SSKXEZwA00dF5GAZbtzXM
-         fMjgRPjGSE0UGEzc2YyUMKJOCVe0uVOM00CB7vGHjO0fsxqIKpqt2yb2NtPzGNkxZ6DJ
-         fJmtlZLdsX53CCaeFFyVq2rk9SoaBR6Jqgr+VJQ0a4gLgJl+jz2Il4iswEm3M3kQnD2T
-         9br1GTBYBA90/t/C6wNyNMmrvlO78sBfy+qA8g3HB6oNo8N9aFbsfPANPQsmIUnCyasO
-         20uYbIXec6ybu5ecihPndgCNCTxvO/szikohJQL6TO6jG1iTvhc4lEvFHXyMH2+rDP+K
-         X99w==
-ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:sender:dkim-signature;
-        bh=BxQTWfA+pGOhec8YtZRoZCqOQIjDs3oLABCnEe7lVs8=;
-        b=KZSUwLgHb/TywwUeRwuDbu6dYPnIrQLeS0wIJGNWxOm62oaKDZoD2vnIy/XHyAOHSb
-         8hxUSB+KB4R2jBMSlidHG3Ha656mbYndb/Uqw+lBvwT6vezb0F3GN1nzvcCYj0QEU/0G
-         qVici5Udqcrg96AmgB2E9DF1PIpIXA5thZ14CHORdnYq+0BxTeKteULfNNXRQ1fk/4O6
-         e7/VjRTPUPdYBPZ/ubNgKdTYlClvyNo/t1rOLInX24nI4abZgp7tCKFgUI08i6G6tWqN
-         QhAUjDKPTTRYrdYESdrg+PaGacz0LLlPNlKteb3Lmf39aAb2milAwFS2xyWwo772ghd6
-         vcOg==
-ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=auuXTBi0;
-       spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v10sor2530582pjy.12.2019.06.28.16.36.55
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
+         :thread-index:date:message-id:references:in-reply-to:accept-language
+         :content-language:content-id:content-transfer-encoding:mime-version;
+        bh=Ag+6jEF+F6+OokBA0HD2aBHg7vs3K7kaRFcBJ0RKsFU=;
+        b=JIaqN1O067OYHmk0o9OKm/93mDbQYUfw2TERaOnw9VUuTWQaxMBu2RQobXl+rVurDs
+         ln+Aaf4D5O0ccsc/FQvSMdkB1eUMoVXJMZcJXWElKoo15SjUNBol4odUCNeC9cnsXA9I
+         I3BY5+le69sJW26iVkp2kj1PYX+uXOeNM5ObDUd+8sKwK5Ymb2QaplI+YFMHQP1wnlhf
+         BjU3XAkTqk580HwjIpIeXMwnlcFCDC/dlL4oMkKvOIma7MpjDO5kc2TLqGzxHc+dcsTi
+         BuqDIhAtwu4T3UpshozmYs0ZgLZPr58kstkVLpayJ+2Yq7tPXSihOnrHlNL5bdydyeV7
+         KRPw==
+X-Gm-Message-State: APjAAAWGB5DrbnHhHapXY+3f8gezutMXUM3PCeoHsH1uNzE3Smlhbs2S
+	M/SI3FoTsh9qU3ouOHa6bVCHZYzEvc2/dJErFE/0bq0kg4/ALaztpolI8+vo60ussLVKTS3Rf8I
+	DOTYGRwvcv0wFzcdYVVeLVfXDykR5CjBIY/kUdeBrI272ipPrFbP7Sy3hdmB4hUuMiA==
+X-Received: by 2002:a50:b6e6:: with SMTP id f35mr15037220ede.82.1561771614345;
+        Fri, 28 Jun 2019 18:26:54 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyddMAmVjNxwSQOMQ5TMutgmhq2BlyNGV4CSveOL73eq5URVuK1d2kIev1AxbaP/KA0tGfg
+X-Received: by 2002:a50:b6e6:: with SMTP id f35mr15037170ede.82.1561771613377;
+        Fri, 28 Jun 2019 18:26:53 -0700 (PDT)
+Received: from EUR02-AM5-obe.outbound.protection.outlook.com (mail-eopbgr00052.outbound.protection.outlook.com. [40.107.0.52])
+        by mx.google.com with ESMTPS id b14si2506830ejb.289.2019.06.28.18.26.53
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 28 Jun 2019 16:36:55 -0700 (PDT)
-Received-SPF: pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 28 Jun 2019 18:26:53 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jgg@mellanox.com designates 40.107.0.52 as permitted sender) client-ip=40.107.0.52;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=auuXTBi0;
-       spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=sender:date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=BxQTWfA+pGOhec8YtZRoZCqOQIjDs3oLABCnEe7lVs8=;
-        b=auuXTBi0OjtKxWrH6Z3+ZW5VWnMWC6MyYHZdeISAPOpSLTyB8RUQFmGSHZANYSK8sL
-         ZnaWUnCkCqne6SiUqPvtHM3O4f305i+872md+ubiJXwxGQYiWpZQt9kcDO33GfyfVOCb
-         yt2T3T5OebQxZxX4o8WmFo+TCa2T2bOA4sE21sMc6tTeSbU0R4vbRzO1DDpqWS9XJf1P
-         4YvM54FHkNj7qnCaGOTTAUF41xC4qhKfL9HH/nS0O0hnkbfe4eVShgq+qn2ZukU74l/W
-         l44AF/kdt2XxL+kTkgOoQuRQ1QJcueUSY5Cg/4pKEQeThBwvCTVejKG0GOYmiFUR5J6N
-         zeXw==
-X-Google-Smtp-Source: APXvYqy6BAp377tyW2awFGUZjqd5vEeQlSty8FfgKNggWq4FLk2DqkghXvhSoGtrMG4be/LVo/TnDw==
-X-Received: by 2002:a17:90a:d14a:: with SMTP id t10mr16232020pjw.85.1561765014755;
-        Fri, 28 Jun 2019 16:36:54 -0700 (PDT)
-Received: from google.com ([2401:fa00:d:0:98f1:8b3d:1f37:3e8])
-        by smtp.gmail.com with ESMTPSA id p1sm3470593pff.74.2019.06.28.16.36.51
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Fri, 28 Jun 2019 16:36:53 -0700 (PDT)
-Date: Sat, 29 Jun 2019 08:36:49 +0900
-From: Minchan Kim <minchan@kernel.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Kuo-Hsin Yang <vovoy@chromium.org>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Michal Hocko <mhocko@suse.com>, Sonny Rao <sonnyrao@chromium.org>,
-	linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Subject: Re: [PATCH v2] mm: vmscan: fix not scanning anonymous pages when
- detecting file refaults
-Message-ID: <20190628233649.GB245333@google.com>
-References: <20190619080835.GA68312@google.com>
- <20190628111627.GA107040@google.com>
- <20190628143201.GB17212@cmpxchg.org>
+       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b=MPuo611V;
+       arc=fail (signature failed);
+       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.0.52 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
+ARC-Seal: i=1; a=rsa-sha256; s=testarcselector01; d=microsoft.com; cv=none;
+ b=dVU6EjM1E6sxjJV1Gh08uUh3hZgW2aEc3e8MWgnCa9z6NxRGFGvtE7dWjc9FxlA/7ipboaqtDXPFEFThrX4PxN5qxzddkagn8ddx1o5zIMzfdghpojVylG2Om7rg7DnxYSxLS6Xl/KfP1nZyIOEIPifQI53fHKgyz1bmOKJ+5/o=
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=microsoft.com;
+ s=testarcselector01;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=Ag+6jEF+F6+OokBA0HD2aBHg7vs3K7kaRFcBJ0RKsFU=;
+ b=gLDGta1UziHzN+lOtMnklHQ0EMwk4eYGvLcbFeEPT5xSQi3/iPL576mUPDvv+iYx2ljTU16wD9cbdliG2Dx4BDn7CETMKLq+VUMUp0Yk0y3DlOjIz0uHLbxxx/c2p+PGR/AvgPRk549l9iF9JyuvPxQDJdXsk7R1wX0HVbxN3r8=
+ARC-Authentication-Results: i=1; test.office365.com
+ 1;spf=none;dmarc=none;dkim=none;arc=none
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=Mellanox.com;
+ s=selector2;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=Ag+6jEF+F6+OokBA0HD2aBHg7vs3K7kaRFcBJ0RKsFU=;
+ b=MPuo611VLENAsSCMac887wZ1q0uSeQOnghN9SEksR5gFupwSEJ2wwRL4Ls5ezorPjSn6v8AsZL/38HHQSaI4P/Gj44T0KFJMh4Ui1GYOTWBmgG7cwtOsDlMLo+i2RxpYJM6y4Hycvx1E0vcUeSwXcpmwi09TElAmHUVDagX7Afk=
+Received: from DB7PR05MB4138.eurprd05.prod.outlook.com (52.135.129.16) by
+ DB7PR05MB5448.eurprd05.prod.outlook.com (20.177.123.217) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.2008.16; Sat, 29 Jun 2019 01:26:51 +0000
+Received: from DB7PR05MB4138.eurprd05.prod.outlook.com
+ ([fe80::9115:7752:2368:e7ec]) by DB7PR05MB4138.eurprd05.prod.outlook.com
+ ([fe80::9115:7752:2368:e7ec%4]) with mapi id 15.20.2008.017; Sat, 29 Jun 2019
+ 01:26:51 +0000
+From: Jason Gunthorpe <jgg@mellanox.com>
+To: Jerome Glisse <jglisse@redhat.com>, Ralph Campbell <rcampbell@nvidia.com>,
+	John Hubbard <jhubbard@nvidia.com>, "Felix.Kuehling@amd.com"
+	<Felix.Kuehling@amd.com>
+CC: "linux-rdma@vger.kernel.org" <linux-rdma@vger.kernel.org>,
+	"linux-mm@kvack.org" <linux-mm@kvack.org>, Andrea Arcangeli
+	<aarcange@redhat.com>, "dri-devel@lists.freedesktop.org"
+	<dri-devel@lists.freedesktop.org>, "amd-gfx@lists.freedesktop.org"
+	<amd-gfx@lists.freedesktop.org>, Ben Skeggs <bskeggs@redhat.com>, Christoph
+ Hellwig <hch@lst.de>, Philip Yang <Philip.Yang@amd.com>, Ira Weiny
+	<ira.weiny@intel.com>
+Subject: Re: [PATCH v4 hmm 00/12]
+Thread-Topic: [PATCH v4 hmm 00/12]
+Thread-Index: AQHVKtAUPOKL68Liy0elJQpXS2vDJqax3ckA
+Date: Sat, 29 Jun 2019 01:26:51 +0000
+Message-ID: <20190629012642.GA22386@mellanox.com>
+References: <20190624210110.5098-1-jgg@ziepe.ca>
+In-Reply-To: <20190624210110.5098-1-jgg@ziepe.ca>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+x-clientproxiedby: YTXPR0101CA0061.CANPRD01.PROD.OUTLOOK.COM
+ (2603:10b6:b00:1::38) To DB7PR05MB4138.eurprd05.prod.outlook.com
+ (2603:10a6:5:23::16)
+authentication-results: spf=none (sender IP is )
+ smtp.mailfrom=jgg@mellanox.com; 
+x-ms-exchange-messagesentrepresentingtype: 1
+x-originating-ip: [207.164.2.174]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: f3cd0919-d863-4e93-f241-08d6fc30dc17
+x-ms-office365-filtering-ht: Tenant
+x-microsoft-antispam:
+ BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(4618075)(2017052603328)(7193020);SRVR:DB7PR05MB5448;
+x-ms-traffictypediagnostic: DB7PR05MB5448:
+x-microsoft-antispam-prvs:
+ <DB7PR05MB5448226E2534D95BB92B52B0CFFF0@DB7PR05MB5448.eurprd05.prod.outlook.com>
+x-ms-oob-tlc-oobclassifiers: OLM:10000;
+x-forefront-prvs: 0083A7F08A
+x-forefront-antispam-report:
+ SFV:NSPM;SFS:(10009020)(4636009)(396003)(366004)(376002)(39850400004)(136003)(346002)(54164003)(189003)(199004)(7416002)(11346002)(66066001)(36756003)(68736007)(25786009)(26005)(4326008)(71190400001)(446003)(6506007)(14444005)(33656002)(256004)(486006)(316002)(478600001)(2616005)(54906003)(2501003)(102836004)(110136005)(66556008)(99286004)(71200400001)(386003)(2906002)(66446008)(305945005)(73956011)(3846002)(64756008)(86362001)(476003)(8936002)(14454004)(66476007)(52116002)(6246003)(7736002)(229853002)(81156014)(6486002)(81166006)(53936002)(5660300002)(8676002)(66946007)(76176011)(6116002)(6512007)(1076003)(6436002)(186003);DIR:OUT;SFP:1101;SCL:1;SRVR:DB7PR05MB5448;H:DB7PR05MB4138.eurprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
+received-spf: None (protection.outlook.com: mellanox.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info:
+ uNvFoRmVGDVSHhDEFJZzAgE/XcB/C+Ez+jYnevegu9gBRMSBrlSAD+espuT54aQNqZA97MiUgQoBSQAgl7WGN2tX5rEpdQ96Is1Pz2p9HZmhKMg98vQjAcPXCmOV882cuwrIEIG7qpZ4WGaJsOQ9dSpdFtCA9ODIWadC3lwLDUR/eRWpNOcAs2DFnvz2HTONoOkTA8aXwOBQ57O5cvYS7/DoDtZR0V1eYh++iVVUHMJVh3DXAwoBEYEF3I2pbO4/nVsUK7FmvB/BWEOOOujyX1eLttwYF9w8vhgJpLgLCsB7oyBhMdFJj/UgTrgPXJUrTbfpS1uca3TgeXNSyH5QjVCYvBymRtS91AkpT5mg8T5Yivan29Dwpm5C21eA5OoKL/5HL1g9cjXhDxUmD6y1qXLKOuOQBL9gT3T60TFI02U=
+Content-Type: text/plain; charset="us-ascii"
+Content-ID: <381E97B2C5DFB24EBF1D7DB5781C70C6@eurprd05.prod.outlook.com>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190628143201.GB17212@cmpxchg.org>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+X-OriginatorOrg: Mellanox.com
+X-MS-Exchange-CrossTenant-Network-Message-Id: f3cd0919-d863-4e93-f241-08d6fc30dc17
+X-MS-Exchange-CrossTenant-originalarrivaltime: 29 Jun 2019 01:26:51.2633
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: a652971c-7d2e-4d9b-a6a4-d149256f461b
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-CrossTenant-userprincipalname: jgg@mellanox.com
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: DB7PR05MB5448
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jun 28, 2019 at 10:32:01AM -0400, Johannes Weiner wrote:
-> On Fri, Jun 28, 2019 at 07:16:27PM +0800, Kuo-Hsin Yang wrote:
-> > When file refaults are detected and there are many inactive file pages,
-> > the system never reclaim anonymous pages, the file pages are dropped
-> > aggressively when there are still a lot of cold anonymous pages and
-> > system thrashes.  This issue impacts the performance of applications
-> > with large executable, e.g. chrome.
-> 
-> This is good.
-> 
-> > Commit 2a2e48854d70 ("mm: vmscan: fix IO/refault regression in cache
-> > workingset transition") introduced actual_reclaim parameter.  When file
-> > refaults are detected, inactive_list_is_low() may return different
-> > values depends on the actual_reclaim parameter.  Vmscan would only scan
-> > active/inactive file lists at file thrashing state when the following 2
-> > conditions are satisfied.
-> > 
-> > 1) inactive_list_is_low() returns false in get_scan_count() to trigger
-> >    scanning file lists only.
-> > 2) inactive_list_is_low() returns true in shrink_list() to allow
-> >    scanning active file list.
-> > 
-> > This patch makes the return value of inactive_list_is_low() independent
-> > of actual_reclaim and rename the parameter back to trace.
-> 
-> This is not. The root cause for the problem you describe isn't the
-> patch you point to. The root cause is our decision to force-scan the
-> file LRU based on relative inactive:active size alone, without taking
-> file thrashing into account at all. This is a much older problem.
-> 
-> After the referenced patch, we're taking thrashing into account when
-> deciding whether to deactivate active file pages or not. To solve the
-> problem pointed out here, we can extend that same principle to the
-> decision whether to force-scan files and skip the anon LRUs.
-> 
-> The patch you're pointing to isn't the culprit. On the contrary, it
-> provides the infrastructure to solve a much older problem.
-> 
-> > The problem can be reproduced by the following test program.
-> > 
-> > ---8<---
-> > void fallocate_file(const char *filename, off_t size)
-> > {
-> > 	struct stat st;
-> > 	int fd;
-> > 
-> > 	if (!stat(filename, &st) && st.st_size >= size)
-> > 		return;
-> > 
-> > 	fd = open(filename, O_WRONLY | O_CREAT, 0600);
-> > 	if (fd < 0) {
-> > 		perror("create file");
-> > 		exit(1);
-> > 	}
-> > 	if (posix_fallocate(fd, 0, size)) {
-> > 		perror("fallocate");
-> > 		exit(1);
-> > 	}
-> > 	close(fd);
-> > }
-> > 
-> > long *alloc_anon(long size)
-> > {
-> > 	long *start = malloc(size);
-> > 	memset(start, 1, size);
-> > 	return start;
-> > }
-> > 
-> > long access_file(const char *filename, long size, long rounds)
-> > {
-> > 	int fd, i;
-> > 	volatile char *start1, *end1, *start2;
-> > 	const int page_size = getpagesize();
-> > 	long sum = 0;
-> > 
-> > 	fd = open(filename, O_RDONLY);
-> > 	if (fd == -1) {
-> > 		perror("open");
-> > 		exit(1);
-> > 	}
-> > 
-> > 	/*
-> > 	 * Some applications, e.g. chrome, use a lot of executable file
-> > 	 * pages, map some of the pages with PROT_EXEC flag to simulate
-> > 	 * the behavior.
-> > 	 */
-> > 	start1 = mmap(NULL, size / 2, PROT_READ | PROT_EXEC, MAP_SHARED,
-> > 		      fd, 0);
-> > 	if (start1 == MAP_FAILED) {
-> > 		perror("mmap");
-> > 		exit(1);
-> > 	}
-> > 	end1 = start1 + size / 2;
-> > 
-> > 	start2 = mmap(NULL, size / 2, PROT_READ, MAP_SHARED, fd, size / 2);
-> > 	if (start2 == MAP_FAILED) {
-> > 		perror("mmap");
-> > 		exit(1);
-> > 	}
-> > 
-> > 	for (i = 0; i < rounds; ++i) {
-> > 		struct timeval before, after;
-> > 		volatile char *ptr1 = start1, *ptr2 = start2;
-> > 		gettimeofday(&before, NULL);
-> > 		for (; ptr1 < end1; ptr1 += page_size, ptr2 += page_size)
-> > 			sum += *ptr1 + *ptr2;
-> > 		gettimeofday(&after, NULL);
-> > 		printf("File access time, round %d: %f (sec)\n", i,
-> > 		       (after.tv_sec - before.tv_sec) +
-> > 		       (after.tv_usec - before.tv_usec) / 1000000.0);
-> > 	}
-> > 	return sum;
-> > }
-> > 
-> > int main(int argc, char *argv[])
-> > {
-> > 	const long MB = 1024 * 1024;
-> > 	long anon_mb, file_mb, file_rounds;
-> > 	const char filename[] = "large";
-> > 	long *ret1;
-> > 	long ret2;
-> > 
-> > 	if (argc != 4) {
-> > 		printf("usage: thrash ANON_MB FILE_MB FILE_ROUNDS\n");
-> > 		exit(0);
-> > 	}
-> > 	anon_mb = atoi(argv[1]);
-> > 	file_mb = atoi(argv[2]);
-> > 	file_rounds = atoi(argv[3]);
-> > 
-> > 	fallocate_file(filename, file_mb * MB);
-> > 	printf("Allocate %ld MB anonymous pages\n", anon_mb);
-> > 	ret1 = alloc_anon(anon_mb * MB);
-> > 	printf("Access %ld MB file pages\n", file_mb);
-> > 	ret2 = access_file(filename, file_mb * MB, file_rounds);
-> > 	printf("Print result to prevent optimization: %ld\n",
-> > 	       *ret1 + ret2);
-> > 	return 0;
-> > }
-> > ---8<---
-> > 
-> > Running the test program on 2GB RAM VM with kernel 5.2.0-rc5, the
-> > program fills ram with 2048 MB memory, access a 200 MB file for 10
-> > times.  Without this patch, the file cache is dropped aggresively and
-> > every access to the file is from disk.
-> > 
-> >   $ ./thrash 2048 200 10
-> >   Allocate 2048 MB anonymous pages
-> >   Access 200 MB file pages
-> >   File access time, round 0: 2.489316 (sec)
-> >   File access time, round 1: 2.581277 (sec)
-> >   File access time, round 2: 2.487624 (sec)
-> >   File access time, round 3: 2.449100 (sec)
-> >   File access time, round 4: 2.420423 (sec)
-> >   File access time, round 5: 2.343411 (sec)
-> >   File access time, round 6: 2.454833 (sec)
-> >   File access time, round 7: 2.483398 (sec)
-> >   File access time, round 8: 2.572701 (sec)
-> >   File access time, round 9: 2.493014 (sec)
-> > 
-> > With this patch, these file pages can be cached.
-> > 
-> >   $ ./thrash 2048 200 10
-> >   Allocate 2048 MB anonymous pages
-> >   Access 200 MB file pages
-> >   File access time, round 0: 2.475189 (sec)
-> >   File access time, round 1: 2.440777 (sec)
-> >   File access time, round 2: 2.411671 (sec)
-> >   File access time, round 3: 1.955267 (sec)
-> >   File access time, round 4: 0.029924 (sec)
-> >   File access time, round 5: 0.000808 (sec)
-> >   File access time, round 6: 0.000771 (sec)
-> >   File access time, round 7: 0.000746 (sec)
-> >   File access time, round 8: 0.000738 (sec)
-> >   File access time, round 9: 0.000747 (sec)
-> 
-> This is all good again.
-> 
-> > Fixes: 2a2e48854d70 ("mm: vmscan: fix IO/refault regression in cache workingset transition")
-> 
-> Please replace this line with the two Fixes: lines that I provided
-> earlier in this thread.
+On Mon, Jun 24, 2019 at 06:00:58PM -0300, Jason Gunthorpe wrote:
+> From: Jason Gunthorpe <jgg@mellanox.com>
+>=20
+> This patch series arised out of discussions with Jerome when looking at t=
+he
+> ODP changes, particularly informed by use after free races we have alread=
+y
+> found and fixed in the ODP code (thanks to syzkaller) working with mmu
+> notifiers, and the discussion with Ralph on how to resolve the lifetime m=
+odel.
+>=20
+> Overall this brings in a simplified locking scheme and easy to explain
+> lifetime model:
+>=20
+>  If a hmm_range is valid, then the hmm is valid, if a hmm is valid then t=
+he mm
+>  is allocated memory.
+>=20
+>  If the mm needs to still be alive (ie to lock the mmap_sem, find a vma, =
+etc)
+>  then the mmget must be obtained via mmget_not_zero().
+>=20
+> The use of unlocked reads on 'hmm->dead' are also eliminated in favour of
+> using standard mmget() locking to prevent the mm from being released. Man=
+y of
+> the debugging checks of !range->hmm and !hmm->mm are dropped in favour of
+> poison - which is much clearer as to the lifetime intent.
+>=20
+> The trailing patches are just some random cleanups I noticed when reviewi=
+ng
+> this code.
+>=20
+> I'll apply this in the next few days - the only patch that doesn't have e=
+nough
+> Reviewed-bys is 'mm/hmm: Remove confusing comment and logic from hmm_rele=
+ase',
+> which had alot of questions, I still think it is good. If people really d=
+on't
+> like it I'll drop it.
+>=20
+> Thanks to everyone who took time to look at this!
+>=20
+> Jason Gunthorpe (12):
+>   mm/hmm: fix use after free with struct hmm in the mmu notifiers
+>   mm/hmm: Use hmm_mirror not mm as an argument for hmm_range_register
+>   mm/hmm: Hold a mmgrab from hmm to mm
+>   mm/hmm: Simplify hmm_get_or_create and make it reliable
+>   mm/hmm: Remove duplicate condition test before wait_event_timeout
+>   mm/hmm: Do not use list*_rcu() for hmm->ranges
+>   mm/hmm: Hold on to the mmget for the lifetime of the range
+>   mm/hmm: Use lockdep instead of comments
+>   mm/hmm: Remove racy protection against double-unregistration
+>   mm/hmm: Poison hmm_range during unregister
+>   mm/hmm: Remove confusing comment and logic from hmm_release
+>   mm/hmm: Fix error flows in hmm_invalidate_range_start
 
-Can't we have "Cc: <stable@vger.kernel.org> # 4.12+" so we have fix kernels which has
-thrashing/workingset transition detection?
+I think we are done now, so applied to hmm.git, thank you to everyone.
+
+I expect some conflicts in linux-next with the AMD DRM driver, we need
+to decide how to handle them.
+
+Jason
 
