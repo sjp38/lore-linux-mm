@@ -2,147 +2,158 @@ Return-Path: <SRS0=BwCX=U4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9545AC4321A
-	for <linux-mm@archiver.kernel.org>; Sat, 29 Jun 2019 11:25:13 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C119AC4321A
+	for <linux-mm@archiver.kernel.org>; Sat, 29 Jun 2019 14:25:31 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 45FC220828
-	for <linux-mm@archiver.kernel.org>; Sat, 29 Jun 2019 11:25:13 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 45FC220828
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=I-love.SAKURA.ne.jp
+	by mail.kernel.org (Postfix) with ESMTP id 47696214AF
+	for <linux-mm@archiver.kernel.org>; Sat, 29 Jun 2019 14:25:31 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="Wmn42cCj"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 47696214AF
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8CB446B0003; Sat, 29 Jun 2019 07:25:12 -0400 (EDT)
+	id A64396B0003; Sat, 29 Jun 2019 10:25:30 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 87A558E0003; Sat, 29 Jun 2019 07:25:12 -0400 (EDT)
+	id A3AFF8E0003; Sat, 29 Jun 2019 10:25:30 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7911B8E0002; Sat, 29 Jun 2019 07:25:12 -0400 (EDT)
+	id 92A018E0002; Sat, 29 Jun 2019 10:25:30 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f206.google.com (mail-pg1-f206.google.com [209.85.215.206])
-	by kanga.kvack.org (Postfix) with ESMTP id 433486B0003
-	for <linux-mm@kvack.org>; Sat, 29 Jun 2019 07:25:12 -0400 (EDT)
-Received: by mail-pg1-f206.google.com with SMTP id u4so838503pgb.20
-        for <linux-mm@kvack.org>; Sat, 29 Jun 2019 04:25:12 -0700 (PDT)
+Received: from mail-wr1-f78.google.com (mail-wr1-f78.google.com [209.85.221.78])
+	by kanga.kvack.org (Postfix) with ESMTP id 47DFB6B0003
+	for <linux-mm@kvack.org>; Sat, 29 Jun 2019 10:25:30 -0400 (EDT)
+Received: by mail-wr1-f78.google.com with SMTP id e8so3641316wrw.15
+        for <linux-mm@kvack.org>; Sat, 29 Jun 2019 07:25:30 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id;
-        bh=bcptAn60yozY9FO9Bsz3DV1ARxK/t4vX2HlD6mBoQAs=;
-        b=oohKzahvV7JQTCdShieh9vb/DKOeKnNIHoRDT95V3zABIFAk6bfT+daL0zBqOXJ64l
-         ffvCER/QHqaX4SJN753fajeCvzUbKSHwwSwmQn4nds7GnKWX1T9fXmA56uQXanuzY918
-         Ts9JVThYUqcJ31nTzQCUt1sNMvdbZB1gBveje4vag2Uq2Ubjg3RUKY6TH/cRwRCfPJSr
-         CGdYgDKhZnJrX75YZ8NVNXs2AntJ8c9QE1wFxjIQM98IyzmoUnPGT0vMRVpLF5noUbfK
-         +iVSjlC30EnwzohXxLyjQCzo7qI/uSUQjYshAPEIygaRdeiOpIyrQzsEOstqgJE9zqwf
-         olUw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
-X-Gm-Message-State: APjAAAXxKDFXGTcaq3I8i7URLjNemAYDUxP2UTDfTcavzCI/iLKUdX/l
-	NgZcbFYj4us0BpGw4YG7Zy1dLFal7YPve6mjvtat7LMezJv7022cI5G8KKpmqUS8VAzqwBbx+Fb
-	82lF4De22mfSPYqvCW4sggcBobLps+u8+kT+CEgJjTba9WvJiGO4i/uqIPgk0nmJx5g==
-X-Received: by 2002:a17:902:2aa8:: with SMTP id j37mr16443298plb.316.1561807511824;
-        Sat, 29 Jun 2019 04:25:11 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzkd59q09sXvIfKd1o1s3gP9W11sfO7vtNom++OjGeR5t3pyQhJ9JxkOGgNcKDUWbxplq5o
-X-Received: by 2002:a17:902:2aa8:: with SMTP id j37mr16443231plb.316.1561807510721;
-        Sat, 29 Jun 2019 04:25:10 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561807510; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=tSfTfCg1RYrQS9+orWf92BVXcSGyjMupz270+2KJ+Us=;
+        b=oJ/+101XceJX3awrKL7EC1lcJv7nN2aSnpTwmahrxWIRrLfgpgk5I0XOoDuQMbUNM7
+         dGLApM/wdxMPoMJUFCyUhpsFRrWlgRRe2gXgdBjlNSMw7eQLfoxntFVMzO/wsVZXjri7
+         lj6IFtiQhD8Zx9NqeoQW+TOxmiad0Mvxal9mwoxbYRQVlheuI8kQxSgnv7t6SFLwZ0YO
+         HQR1HqjAQdUxcLeCn/s0Tf3pll2dX/jA3gxEhJeOekP9mZf8/RTAZUK+XEyd90Xggk21
+         6+GlU1qO9GA00zK43yWpaY35fsBNg7rk3yaxu5E9WQhDJ+9n0T7sk7dcCPg6HMXdDYzh
+         4cPQ==
+X-Gm-Message-State: APjAAAVnEuvmWpWfqeNg6Tsvk44VmFL7Wh1aug3XspR09Fm94ZHWZnm3
+	BLWHMC6ubLD/x+aSazHIw1UPSlAZazA+gDiSmsGPCHIiXJd+Jw9lgVBtqGsi9RA5l4RIYX1Db7e
+	6QE4+WUbgSDZRvcyR/XWJNeS4WZiEGVGfZRYWC2E1dygQvRf/r4EuezYO8BAKhexGaw==
+X-Received: by 2002:a5d:6a90:: with SMTP id s16mr12338826wru.288.1561818329630;
+        Sat, 29 Jun 2019 07:25:29 -0700 (PDT)
+X-Received: by 2002:a5d:6a90:: with SMTP id s16mr12338797wru.288.1561818328788;
+        Sat, 29 Jun 2019 07:25:28 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561818328; cv=none;
         d=google.com; s=arc-20160816;
-        b=Hg4DaYFHhDpznnBXL5AqqTBztUcuWaJxQzMeCsgydOdOy1i9gmEFtlHOkqERERk3Bj
-         KMAxhuKVKf25xcbyspstz39JjYXCVGUmoFAJ3pnDitqd9ynsyBN0jxiwu98xcBjQoCdW
-         0xhtrAVXqWvA0Eiyw1EZ3/FjdQqrtZWhe9yBKYbPvoTAnIwtwzlKROhNG6BwQwMA7Mfm
-         Ao565OYLYYNNO8/3OApMbFKxtmCO2+dK/c82dOC7qMGEKMKb6hH7dR+j9Npcr7zPsSJ/
-         NI3CqHBJZmiOTL5exS+ZTSmoVlzzifahX0mLpsgA5ztCo67nDp07teo0AgAsTgZqNr3d
-         2xaA==
+        b=YDM+NkRYTo0x86BKFuFY3YlLiPAfftMJ4H2hMv8kLNGOq2rV9gEkla52r45llxgpD0
+         n7nLTKVDDHUqYcxC4qjvabdUII2xMDnE+kjXQnsDN0fv2XvJj/tWbMDt6ZsXTsLF+JP1
+         1BNG9SbCsm3eHagoj2hm+Y16RBCnHIbuMWWO3RWBfMpVZTDnyiyzOsgXpCrilpPhV/kg
+         wEcRC5d76qHGYA6Jp+GvESLzpCSkVyfZypyVtT2XVJ80MS4f/KRZPzaMmjiDWEuyikUm
+         IFWPWmkcg95aoCbc3ljbm46DfqYDhy8cfziCEzEQlpgv91ogYUb02Dc6zNlhHQEdt0j6
+         ei1Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:date:subject:cc:to:from;
-        bh=bcptAn60yozY9FO9Bsz3DV1ARxK/t4vX2HlD6mBoQAs=;
-        b=LWwOdIdxy1pHcScVlFI13CHKwS92Nz+6DAmtuhGJy73xnNP9Sks1roi3k32bZ6SswR
-         yd4GnYYZROF2jfvlfer05bZ+QJ4nruHhrp91sWZqa72MoMgOkDTRdFo7/rRUBRNatAfl
-         jeuzYgu6AkVzQYTs3CY/FyPah5LRrkVblMvXXanwosVS5JoGZzoBhWUiv0ptKFciBCgf
-         oA1wMWA4cdhYy7A6HQjPKjlVTqT9NQ0t3o1jH3nL/n8JnWD5gKSwAMuksm8drmzO3d/G
-         QyclXKx6lf67irRQm4aVDdxNL1SC8CMHzhoFfD/jbE1GbmnPxVkgv16DHUGazoSfmzdb
-         O+jw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=tSfTfCg1RYrQS9+orWf92BVXcSGyjMupz270+2KJ+Us=;
+        b=kgDxfY+I3AhlP04pCeaQ/aVs/5/0Ac6+9MVVDGuSflqck/c8JIKtLWbMKfdBz3hXTR
+         EUrGQtUK80/iQrUSiqnDugQJvKHonDR2cPBpSbZBPLjqjTRUshXzP+7Os0o7/ueBdHaF
+         flsr1ZxIi7Q+b2vrPYSOx4izEqe2ZD+jMDjG+kX3CJyd/+hwZJlHwJM2A82GHqGpNkiB
+         SWbGBeEcgszNyu8H270ikfyUM8+bKlY27YMLgcKceghBvkz5x/oRFj5gNTG+KfrCbIRk
+         uXascu3O8aKwE6Egoksd9xfvDdxf7OhunNtu1sO+4439B4rnoY1hXEPuIH73lwkp/JZS
+         o2LQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id p125si5293888pfp.35.2019.06.29.04.25.10
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Wmn42cCj;
+       spf=pass (google.com: domain of adobriyan@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=adobriyan@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id z139sor2874014wmc.25.2019.06.29.07.25.28
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 29 Jun 2019 04:25:10 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) client-ip=202.181.97.72;
+        (Google Transport Security);
+        Sat, 29 Jun 2019 07:25:28 -0700 (PDT)
+Received-SPF: pass (google.com: domain of adobriyan@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
-Received: from fsav304.sakura.ne.jp (fsav304.sakura.ne.jp [153.120.85.135])
-	by www262.sakura.ne.jp (8.15.2/8.15.2) with ESMTP id x5TBOlxC054115;
-	Sat, 29 Jun 2019 20:24:47 +0900 (JST)
-	(envelope-from penguin-kernel@I-love.SAKURA.ne.jp)
-Received: from www262.sakura.ne.jp (202.181.97.72)
- by fsav304.sakura.ne.jp (F-Secure/fsigk_smtp/530/fsav304.sakura.ne.jp);
- Sat, 29 Jun 2019 20:24:47 +0900 (JST)
-X-Virus-Status: clean(F-Secure/fsigk_smtp/530/fsav304.sakura.ne.jp)
-Received: from ccsecurity.localdomain (softbank126012062002.bbtec.net [126.12.62.2])
-	(authenticated bits=0)
-	by www262.sakura.ne.jp (8.15.2/8.15.2) with ESMTPSA id x5TBOgA9054083
-	(version=TLSv1.2 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=NO);
-	Sat, 29 Jun 2019 20:24:47 +0900 (JST)
-	(envelope-from penguin-kernel@I-love.SAKURA.ne.jp)
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-To: Michal Hocko <mhocko@kernel.org>, Shakeel Butt <shakeelb@google.com>
-Cc: linux-mm@kvack.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Subject: [PATCH] mm: mempolicy: don't select exited threads as OOM victims
-Date: Sat, 29 Jun 2019 20:24:34 +0900
-Message-Id: <1561807474-10317-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-X-Mailer: git-send-email 1.8.3.1
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Wmn42cCj;
+       spf=pass (google.com: domain of adobriyan@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=adobriyan@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=tSfTfCg1RYrQS9+orWf92BVXcSGyjMupz270+2KJ+Us=;
+        b=Wmn42cCjIZF370922nlT8XBZNT0vFC3qdUoivrJz5yLafRIjdx1Vw+bUvno+QUBVO5
+         oMyQcmwqGx4DE3Y07CmSTM0IATWqZAW8kgg+hDEKwh+1CP4NznlAWonwVsCaGpQLaVCV
+         I2vA/VdkUZjqS9WvauRGJBO3Xjdwe01bpXzqQP8wAMh3LJ6yI1E5Z9SfpRw+TuNVA5cx
+         Mol2Xo2HUenKPsAtO6b1Hxjmm06+PdB0ii0cFoQihuSTWnRJjwjpf6NZuH7lsl3/21RK
+         LnPOrpaBytkjll+vsC5zrv5VKacw2e2sTlF82+ldUSC/dM1uFOjAFEnxgQGkqlBXSG7l
+         +TOw==
+X-Google-Smtp-Source: APXvYqzYjeGlAIXCK0Otnr3tBdPOmwP6gFHgUXBBLaR5nRWD1D7mhQsGKJ7ZXMMjG4yeTA5UDqjZKg==
+X-Received: by 2002:a1c:dc46:: with SMTP id t67mr9957034wmg.159.1561818328264;
+        Sat, 29 Jun 2019 07:25:28 -0700 (PDT)
+Received: from avx2 ([46.53.248.49])
+        by smtp.gmail.com with ESMTPSA id g123sm3503855wme.12.2019.06.29.07.25.26
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 29 Jun 2019 07:25:27 -0700 (PDT)
+Date: Sat, 29 Jun 2019 17:25:10 +0300
+From: Alexey Dobriyan <adobriyan@gmail.com>
+To: Andreas Dilger <adilger@dilger.ca>
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+	Shyam Saini <shyam.saini@amarulasolutions.com>,
+	kernel-hardening@lists.openwall.com, linux-kernel@vger.kernel.org,
+	keescook@chromium.org, linux-arm-kernel@lists.infradead.org,
+	linux-mips@vger.kernel.org, intel-gvt-dev@lists.freedesktop.org,
+	intel-gfx@lists.freedesktop.org, dri-devel@lists.freedesktop.org,
+	netdev@vger.kernel.org, linux-ext4 <linux-ext4@vger.kernel.org>,
+	devel@lists.orangefs.org, linux-mm@kvack.org,
+	linux-sctp@vger.kernel.org, bpf@vger.kernel.org,
+	kvm@vger.kernel.org, mayhs11saini@gmail.com
+Subject: Re: [PATCH V2] include: linux: Regularise the use of FIELD_SIZEOF
+ macro
+Message-ID: <20190629142510.GA10629@avx2>
+References: <20190611193836.2772-1-shyam.saini@amarulasolutions.com>
+ <20190611134831.a60c11f4b691d14d04a87e29@linux-foundation.org>
+ <6DCAE4F8-3BEC-45F2-A733-F4D15850B7F3@dilger.ca>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <6DCAE4F8-3BEC-45F2-A733-F4D15850B7F3@dilger.ca>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Since mpol_put_task_policy() in do_exit() sets mempolicy = NULL,
-mempolicy_nodemask_intersects() considers exited threads (e.g. a process
-with dying leader and live threads) as eligible. But it is possible that
-all of live threads are still ineligible.
+On Tue, Jun 11, 2019 at 03:00:10PM -0600, Andreas Dilger wrote:
+> On Jun 11, 2019, at 2:48 PM, Andrew Morton <akpm@linux-foundation.org> wrote:
+> > 
+> > On Wed, 12 Jun 2019 01:08:36 +0530 Shyam Saini <shyam.saini@amarulasolutions.com> wrote:
 
-Since has_intersects_mems_allowed() returns true as soon as one of threads
-is considered eligible, mempolicy_nodemask_intersects() needs to consider
-exited threads as ineligible. Since exit_mm() in do_exit() sets mm = NULL
-before mpol_put_task_policy() sets mempolicy = NULL, we can exclude exited
-threads by checking whether mm is NULL.
+> I did a check, and FIELD_SIZEOF() is used about 350x, while sizeof_field()
+> is about 30x, and SIZEOF_FIELD() is only about 5x.
+> 
+> That said, I'm much more in favour of "sizeof_field()" or "sizeof_member()"
+> than FIELD_SIZEOF().  Not only does that better match "offsetof()", with
+> which it is closely related, but is also closer to the original "sizeof()".
+> 
+> Since this is a rather trivial change, it can be split into a number of
+> patches to get approval/landing via subsystem maintainers, and there is no
+> huge urgency to remove the original macros until the users are gone.  It
+> would make sense to remove SIZEOF_FIELD() and sizeof_field() quickly so
+> they don't gain more users, and the remaining FIELD_SIZEOF() users can be
+> whittled away as the patches come through the maintainer trees.
 
-While at it, since mempolicy_nodemask_intersects() is called by only
-has_intersects_mems_allowed(), it is guaranteed that mask != NULL.
+The signature should be
 
-BTW, are there processes where some of threads use MPOL_{BIND,INTERLEAVE}
-and the rest do not use MPOL_{BIND,INTERLEAVE} ? If no, we can use
-find_lock_task_mm() instead of for_each_thread() for mask != NULL case
-in has_intersects_mems_allowed().
+	sizeof_member(T, m)
 
-Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
----
- mm/mempolicy.c | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
-
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index 01600d8..938f0a0 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -1974,11 +1974,10 @@ bool mempolicy_nodemask_intersects(struct task_struct *tsk,
- 					const nodemask_t *mask)
- {
- 	struct mempolicy *mempolicy;
--	bool ret = true;
-+	bool ret;
- 
--	if (!mask)
--		return ret;
- 	task_lock(tsk);
-+	ret = tsk->mm;
- 	mempolicy = tsk->mempolicy;
- 	if (!mempolicy)
- 		goto out;
--- 
-1.8.3.1
+it is proper English,
+it is lowercase, so is easier to type,
+it uses standard term (member, not field),
+it blends in with standard "sizeof" operator,
 
