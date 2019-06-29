@@ -6,79 +6,79 @@ X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
 	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 61651C5B57B
-	for <linux-mm@archiver.kernel.org>; Sat, 29 Jun 2019 22:30:18 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 99B78C5B57B
+	for <linux-mm@archiver.kernel.org>; Sat, 29 Jun 2019 22:34:24 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E1317214DA
-	for <linux-mm@archiver.kernel.org>; Sat, 29 Jun 2019 22:30:17 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E1317214DA
+	by mail.kernel.org (Postfix) with ESMTP id 437D3214DA
+	for <linux-mm@archiver.kernel.org>; Sat, 29 Jun 2019 22:34:24 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 437D3214DA
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=zeniv.linux.org.uk
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3EF5E6B0003; Sat, 29 Jun 2019 18:30:17 -0400 (EDT)
+	id D3C366B0003; Sat, 29 Jun 2019 18:34:23 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3793A8E0003; Sat, 29 Jun 2019 18:30:17 -0400 (EDT)
+	id D121D8E0003; Sat, 29 Jun 2019 18:34:23 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 219D98E0002; Sat, 29 Jun 2019 18:30:17 -0400 (EDT)
+	id C02738E0002; Sat, 29 Jun 2019 18:34:23 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f78.google.com (mail-wr1-f78.google.com [209.85.221.78])
-	by kanga.kvack.org (Postfix) with ESMTP id C30B66B0003
-	for <linux-mm@kvack.org>; Sat, 29 Jun 2019 18:30:16 -0400 (EDT)
-Received: by mail-wr1-f78.google.com with SMTP id n8so3979458wrx.14
-        for <linux-mm@kvack.org>; Sat, 29 Jun 2019 15:30:16 -0700 (PDT)
+Received: from mail-wr1-f77.google.com (mail-wr1-f77.google.com [209.85.221.77])
+	by kanga.kvack.org (Postfix) with ESMTP id 72CE06B0003
+	for <linux-mm@kvack.org>; Sat, 29 Jun 2019 18:34:23 -0400 (EDT)
+Received: by mail-wr1-f77.google.com with SMTP id e6so3963960wrv.20
+        for <linux-mm@kvack.org>; Sat, 29 Jun 2019 15:34:23 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent:sender;
-        bh=ZYY8bxAWyZkYIEqP7zqiLEy6/DUnxDj3hYV+5/uACUg=;
-        b=ApJna1NAlB5hdoKjQRH8pjt8W23f4nErGw39RWb9F9q3u7TyFMKeSvIKKYa0e6TxFr
-         KYBKl41vZIuKAc7EiRM617AFBYbHPQhRchp3Ft252XQFmek+xbjJ8W4ay5R/zbig+nX8
-         BCfidSmzzAbfV7mSlmcuvJp8OH9W5YzFczXhctbDzQj0Jx9Xw3mc0OMaNuV5w6+vZuDQ
-         j4QfRH/WCggtU9YVJoT6QLC6js9KMzRusuKeCfhu5KllmYdxP9kbqlv9z1wiPARw5DeU
-         6jQWnDjosFRWuJbnePhhoF8k2E7EXM6eZvaeU5VeUEW2ixZA0fzBnJZcnU9cQwrw3lNe
-         bMPQ==
+        bh=rp8j40SoRkzCKQdEcuJO9PM/MWN5Mli3bf34V1KXVGo=;
+        b=HtgIH6WykfKgpSSn4c/ZRUKfrMzM0+jZBCZfz68L+wBODJTCtEU8I3cg/v8BhPXcOu
+         CvEXE2m+wnmINmFHfdlBVqVd8RHiUmN9ah1dVMk/dk8k4fgL++2rtEhiE9NbgkKo+50q
+         3roE9dNkq+3xBURW3VBLQQJT7XB3nSUjhx5vW5s2I9An5UUL/91OuhLKZ3K3D7+krTNS
+         1+fJZpLB5jVZr6uCPsx94CSqBZHrEb3RGYIRInf0A24imPnyjqrsxImKgagJvXhmcDK8
+         pLEI87Fw2e1E5ldFjOoWdrEqyDSi8HEk2GtsMi4C/55pyE104YkWgZRUZeD+tRmAU5dL
+         48gA==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of viro@ftp.linux.org.uk designates 195.92.253.2 as permitted sender) smtp.mailfrom=viro@ftp.linux.org.uk
-X-Gm-Message-State: APjAAAWVsYVmPNiMcCv5QOT7xt84i666vIVINIcTeq3h39MOffsecaDm
-	jPA1yCdW4oJMI+XEyBldV3qDHrLZ7eBhI/UKaJ2HOusfW/0cgDNGjpu4K2DS7Wj6ollL0SnLiSl
-	iZ+XLOPZxRcbJ6AuUxYjjmDCPYTmAnkdkfFGJt1gZREADOKUEacBC4GAzRzULQsYeSg==
-X-Received: by 2002:adf:90e7:: with SMTP id i94mr11852751wri.213.1561847415939;
-        Sat, 29 Jun 2019 15:30:15 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwDYbqDRA4N0UmT+urK2t8Ps8lmJqIFkpDOfqbKMlaOV5JK9MwEWnMTf1otmMbfluYfVC+F
-X-Received: by 2002:adf:90e7:: with SMTP id i94mr11852718wri.213.1561847414867;
-        Sat, 29 Jun 2019 15:30:14 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561847414; cv=none;
+X-Gm-Message-State: APjAAAWDqnfaw9ELCMomWv8fcW3EPMvaQdTygNV1ePF2btLTWk5CK0fg
+	lwWWta1oJJ4uMaCZoUyyRO5yGldjn3ZQmK7G/CnZwfkNlrYKcJtGCtMQ97z8gmMYzmbh4x7dw4y
+	K5B98y0MNGOPZI3rocUsQlVQO4NH16xJXRGNsdjUQHAsiOY8xjgxjd2RWfF9ntcGO+Q==
+X-Received: by 2002:a05:600c:118a:: with SMTP id i10mr11328661wmf.162.1561847662910;
+        Sat, 29 Jun 2019 15:34:22 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyUPkyq4qFyJYVm4sFoJc8hx2SmmQVqJCaKGhMWIg12fI+EUzIw1cxBMHTJjD2fAJdeWdlG
+X-Received: by 2002:a05:600c:118a:: with SMTP id i10mr11328642wmf.162.1561847661936;
+        Sat, 29 Jun 2019 15:34:21 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561847661; cv=none;
         d=google.com; s=arc-20160816;
-        b=x7RLKI5rX5+e3luey/iIEV0I0abIS2Zsp74P+9YayRtfR12KN2g122F61aSTRauSdu
-         JqT1UzPOCFXBuGH2j+9ikr9xSYLsNBNW62bWQSzEoF3kGUc1b9zmXvmojNOFlf7chatF
-         fd6WTDpblLz6MmSDLaeMPoBXLRQgoMpmgDFfLmUQFDITFAsSZZ5iq1/f9WrCbrZEyeHG
-         YYh2hf+TX82K6Xkd3GJ/FsXTZ5sxU5fV7yFsHNkMKAMShD9r/E6iWGk1BcpK9Usj9YDB
-         xsrwRWqGNQM9z+tdY6Bt6kKzD2UqW7q7VlYE515UTw3HjqSjgEeKtslKA0RgDP4IDO60
-         +EtQ==
+        b=m9V6aAwxlxHVE5SMvjZkdmdKnqqwSlf4OWz2Dhdx7Jaxg69FxS7UmG4vYy2cuNfBVZ
+         lriZiLjfXs6kS4G5wTutP7scWsU2XrbfwUlvT0L+yWl6hFcTkSjaoCdPEDe0beIoeRD1
+         gMIoKSOqUIhrUTwSxNB2GzaLvMzGuai5AX7c08h7GjD5ByAhx6j/jppYEattjHdtk97K
+         gWRwgDHSY9yP0V/p4TB+qfqLaE/nQfE5k/XLT+NfVsnWzTixrBxDftY2CGAYKr9NHvjQ
+         J9pYIhy+Asuit/RZkf7zlqUahxqOGPlPbdAatoQvNzOq216Qslm6afy+HFIpMh3gDPt7
+         ORgQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=sender:user-agent:in-reply-to:content-disposition:mime-version
          :references:message-id:subject:cc:to:from:date;
-        bh=ZYY8bxAWyZkYIEqP7zqiLEy6/DUnxDj3hYV+5/uACUg=;
-        b=mb05bopcP3vKhFi8BJiqjawYksCB3spPiLSE7VkWH0fikkURum5Jca9JGn5ApA4Gh/
-         3aP6GovNRQD/38xsM2AJL9Cz6x65mMLr49SGA/Y7s7NBl86SiKpdIRdwNXNIEgCXQSF5
-         hibF8CvFfU/GM/e0K8rYvDQWUx65RhJcOTqY7cfoveBsQ+TzcgL9wcmYIfDNRMT6HMps
-         if1EHEEDsR46CV2vGKL2PCXDhgSHBRWKSbaWll4+neeib4dVFDRLdZle8DWzIlzePb10
-         HeEVtsFzEhqREl3v3s4B60EMtiznSnRgsxUx+RSX/Mke44hi9pjVQ5BL8TDqBTFD+hos
-         pIaQ==
+        bh=rp8j40SoRkzCKQdEcuJO9PM/MWN5Mli3bf34V1KXVGo=;
+        b=YDe5+GYywjjpG4T6MOFjHI85zIz5NSH0oHYtqq2ny0E+r16VzV7arrblOjOwkRrKrb
+         9DHw5hrPUtZeOc4o1GM4nTN5MSPAvTn2Ev7mqIHIDXrlKI6k7it1Z5oA+gDX6agp+tnF
+         ERsMv+khf5kHJD14A4h55F8Fc2EqDFYvWXf4hj6Dq1nVv9OGpd8SnKBCnBFlfpIkAIZV
+         b6HHdIqOwa8/HfNIsLNTGHkkynFLqGWFbDErNxEY1hFagRNOTBgkSTi18bKxVWAypyDx
+         tu2nvrJyqPSJxbiETm6oLA94ReUE7djJD3RWvREm9w9tjvb4At066KdbNxqdfhFrKwEP
+         Akxg==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: best guess record for domain of viro@ftp.linux.org.uk designates 195.92.253.2 as permitted sender) smtp.mailfrom=viro@ftp.linux.org.uk
 Received: from ZenIV.linux.org.uk (zeniv.linux.org.uk. [195.92.253.2])
-        by mx.google.com with ESMTPS id r203si3900922wma.195.2019.06.29.15.30.14
+        by mx.google.com with ESMTPS id v188si4099886wmg.155.2019.06.29.15.34.21
         for <linux-mm@kvack.org>
         (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Sat, 29 Jun 2019 15:30:14 -0700 (PDT)
+        Sat, 29 Jun 2019 15:34:21 -0700 (PDT)
 Received-SPF: pass (google.com: best guess record for domain of viro@ftp.linux.org.uk designates 195.92.253.2 as permitted sender) client-ip=195.92.253.2;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: best guess record for domain of viro@ftp.linux.org.uk designates 195.92.253.2 as permitted sender) smtp.mailfrom=viro@ftp.linux.org.uk
 Received: from viro by ZenIV.linux.org.uk with local (Exim 4.92 #3 (Red Hat Linux))
-	id 1hhLqr-0002yp-RA; Sat, 29 Jun 2019 22:29:45 +0000
-Date: Sat, 29 Jun 2019 23:29:45 +0100
+	id 1hhLv0-00037Q-Th; Sat, 29 Jun 2019 22:34:02 +0000
+Date: Sat, 29 Jun 2019 23:34:02 +0100
 From: Al Viro <viro@zeniv.linux.org.uk>
 To: Linus Torvalds <torvalds@linux-foundation.org>
 Cc: "Tobin C. Harding" <tobin@kernel.org>,
@@ -102,7 +102,7 @@ Cc: "Tobin C. Harding" <tobin@kernel.org>,
 	linux-kernel@vger.kernel.org
 Subject: Re: shrink_dentry_list() logics change (was Re: [RFC PATCH v3 14/15]
  dcache: Implement partial shrink via Slab Movable Objects)
-Message-ID: <20190629222945.GW17978@ZenIV.linux.org.uk>
+Message-ID: <20190629223402.GX17978@ZenIV.linux.org.uk>
 References: <20190411013441.5415-1-tobin@kernel.org>
  <20190411013441.5415-15-tobin@kernel.org>
  <20190411023322.GD2217@ZenIV.linux.org.uk>
@@ -112,10 +112,11 @@ References: <20190411013441.5415-1-tobin@kernel.org>
  <20190629040844.GS17978@ZenIV.linux.org.uk>
  <20190629043803.GT17978@ZenIV.linux.org.uk>
  <20190629190624.GU17978@ZenIV.linux.org.uk>
+ <20190629222945.GW17978@ZenIV.linux.org.uk>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190629190624.GU17978@ZenIV.linux.org.uk>
+In-Reply-To: <20190629222945.GW17978@ZenIV.linux.org.uk>
 User-Agent: Mutt/1.11.3 (2019-02-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -123,38 +124,10 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Jun 29, 2019 at 08:06:24PM +0100, Al Viro wrote:
-> I wonder if after the "no evictable candidates, but something
-> on other's shrink lists" we ought to do something along the
-> lines of
-> 	rcu_read_lock
-> 	walk it, doing
-> 		if dentry has zero refcount
-> 			if it's not on a shrink list,
-> 				move it to ours
-> 			else
-> 				store its address in 'victim'
-> 				end the walk
-> 	if no victim found
-> 		rcu_read_unlock
-> 	else
-> 		lock victim for __dentry_kill
-> 		rcu_read_unlock
-> 		if it's still alive
-> 			if it's not IS_ROOT
-> 				if parent is not on shrink list
-> 					decrement parent's refcount
-> 					put it on our list
-> 				else
-> 					decrement parent's refcount
-> 			__dentry_kill(victim)
-> 		else
-> 			unlock
-> 	if our list is non-empty
-> 		shrink_dentry_list on it
-> in there...
+On Sat, Jun 29, 2019 at 11:29:45PM +0100, Al Viro wrote:
 
-Like this (again, only build-tested):
+> Like this (again, only build-tested):
+... and with obvious braino fixed,
 
 Teach shrink_dcache_parent() to cope with mixed-filesystem shrink lists
 
@@ -178,12 +151,12 @@ be stuck in e.g. iput(), getting umount of unrelated fs to spin waiting for
 the stuck shrinker to get around to our dentries.
 
 Solution:
-	1) have shrink_dentry_list() decrement the parent's refcount and
+    1) have shrink_dentry_list() decrement the parent's refcount and
 make sure it's on a shrink list (ours unless it already had been on some
 other) before calling __dentry_kill().  That eliminates the window when
 shrink_dcache_parent() would've blown past the entire subtree without
 noticing anything with zero refcount not on shrink lists.
-	2) when shrink_dcache_parent() has found no eviction candidates,
+    2) when shrink_dcache_parent() has found no eviction candidates,
 but some dentries are still sitting on shrink lists, rather than
 repeating the scan in hope that shrinkers have progressed, scan looking
 for something on shrink lists with zero refcount.  If such a thing is
@@ -201,7 +174,7 @@ Signed-off-by: Al Viro <viro@zeniv.linux.org.uk>
 ---
 
 diff --git a/fs/dcache.c b/fs/dcache.c
-index 8136bda27a1f..43480f516329 100644
+index 8136bda27a1f..4b50e09ee950 100644
 --- a/fs/dcache.c
 +++ b/fs/dcache.c
 @@ -860,6 +860,32 @@ void dput(struct dentry *dentry)
@@ -323,10 +296,11 @@ index 8136bda27a1f..43480f516329 100644
  		d_walk(parent, &data, select_collect);
  
  		if (!list_empty(&data.dispose)) {
-@@ -1502,6 +1550,21 @@ void shrink_dcache_parent(struct dentry *parent)
+@@ -1502,6 +1550,22 @@ void shrink_dcache_parent(struct dentry *parent)
  		cond_resched();
  		if (!data.found)
  			break;
++		data.victim = NULL;
 +		d_walk(parent, &data, select_collect2);
 +		if (data.victim) {
 +			struct dentry *parent;
@@ -345,4 +319,17 @@ index 8136bda27a1f..43480f516329 100644
  	}
  }
  EXPORT_SYMBOL(shrink_dcache_parent);
+diff --git a/fs/internal.h b/fs/internal.h
+index 0010889f2e85..68f132cf2664 100644
+--- a/fs/internal.h
++++ b/fs/internal.h
+@@ -160,6 +160,7 @@ extern int d_set_mounted(struct dentry *dentry);
+ extern long prune_dcache_sb(struct super_block *sb, struct shrink_control *sc);
+ extern struct dentry *d_alloc_cursor(struct dentry *);
+ extern struct dentry * d_alloc_pseudo(struct super_block *, const struct qstr *);
++extern void dput_to_list(struct dentry *, struct list_head *);
+ 
+ /*
+  * read_write.c
+
 
