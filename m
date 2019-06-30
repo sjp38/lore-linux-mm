@@ -2,170 +2,159 @@ Return-Path: <SRS0=QnEd=U5=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_GIT autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 61072C5B576
-	for <linux-mm@archiver.kernel.org>; Sun, 30 Jun 2019 04:40:52 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0A70BC5B57E
+	for <linux-mm@archiver.kernel.org>; Sun, 30 Jun 2019 07:57:24 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EA2B3206A2
-	for <linux-mm@archiver.kernel.org>; Sun, 30 Jun 2019 04:40:51 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EA2B3206A2
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 9E3BC208E3
+	for <linux-mm@archiver.kernel.org>; Sun, 30 Jun 2019 07:57:23 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="MDOAghVf"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9E3BC208E3
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 65DF76B0003; Sun, 30 Jun 2019 00:40:50 -0400 (EDT)
+	id 050DB6B0003; Sun, 30 Jun 2019 03:57:23 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 60DAC8E0003; Sun, 30 Jun 2019 00:40:50 -0400 (EDT)
+	id 000538E0003; Sun, 30 Jun 2019 03:57:22 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4D86A8E0002; Sun, 30 Jun 2019 00:40:50 -0400 (EDT)
+	id DE3308E0002; Sun, 30 Jun 2019 03:57:22 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f80.google.com (mail-ed1-f80.google.com [209.85.208.80])
-	by kanga.kvack.org (Postfix) with ESMTP id 00BE66B0003
-	for <linux-mm@kvack.org>; Sun, 30 Jun 2019 00:40:50 -0400 (EDT)
-Received: by mail-ed1-f80.google.com with SMTP id y3so13404668edm.21
-        for <linux-mm@kvack.org>; Sat, 29 Jun 2019 21:40:49 -0700 (PDT)
+Received: from mail-pf1-f208.google.com (mail-pf1-f208.google.com [209.85.210.208])
+	by kanga.kvack.org (Postfix) with ESMTP id A5FCC6B0003
+	for <linux-mm@kvack.org>; Sun, 30 Jun 2019 03:57:22 -0400 (EDT)
+Received: by mail-pf1-f208.google.com with SMTP id u21so6704276pfn.15
+        for <linux-mm@kvack.org>; Sun, 30 Jun 2019 00:57:22 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:subject
-         :to:cc:references:message-id:date:user-agent:mime-version
-         :in-reply-to:content-language:content-transfer-encoding;
-        bh=tuWaEnwN9yE4g1QwgaGCgWIC2IM105I5Nc4PIF0YlVI=;
-        b=llkyQWWMr8uTk6nIxqcd4oePVx3gt3jhOsYrQjliIWxRoG9FvNW1rLXibQn0a20j4i
-         TwabC6AyQd8m8ZTWimEvIdgdHQJDTqENGKeHpVOCy5WrabxbLfPPhkT+yITtCTAVpsU8
-         H+FKT9YIZJhwaBYRVlBGBs2ut4TjtSWv1LrqpaLv+7cKtq7OZA4iRHGll56e4FlySWdl
-         fGU70XcyVitts7GeQXLa9O0Y2VHLfYKSuXYwSV00YQfD/kjAFOCOQINfLq+5SxvYFaq4
-         +qYBWiebiE0spO2iCWXt7awjZPSdWkcq7R7/E3BGtwsnZpb5V9Iz70HyLm30P87lYdCZ
-         O69Q==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-X-Gm-Message-State: APjAAAW2by/dR9xSUvwFevrE/X/RuFc6g00N6s6qObDqYnUlBsjMNoO7
-	ouwaaSDxjRfV8REjOJQzLYz2p43XDuRr4a6Bjv7CA/x7TNXNJDCpsaBMtRB8enqfs4wI4aX1Jje
-	gN2naoYJ7zgCBEADlqzFWlEBjZRz9v7Mv7/IlgFBvx5NCZkP5ollN15GAAH5WATsrWw==
-X-Received: by 2002:a50:e718:: with SMTP id a24mr20811548edn.91.1561869649486;
-        Sat, 29 Jun 2019 21:40:49 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyRKVETObeHQjNfXUq80mVmZE7Yh8kuI5m80kx5532qHgmO2dBIRC9tstbxC08zO6aYLVvm
-X-Received: by 2002:a50:e718:: with SMTP id a24mr20811491edn.91.1561869648627;
-        Sat, 29 Jun 2019 21:40:48 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561869648; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id:mime-version:content-transfer-encoding;
+        bh=Zot35M/uaWueI3Zn11kPJ6IoYKlYtkLl9I4J6OvDMjU=;
+        b=ueo9ibWzFvr7e9dF+bF1B+QGmvGN/2YUc+btDgm9bjwZBSY/+NO6Hmi4lmu4JLSqNK
+         vbFWXTICyGY7e+iJElMuqX03fIEiEhjKR/+G1+Fg4nbHvi+aHjcWgoc+VUMIPZEp/tRt
+         rVnNfFNM7BhIRvedJ6+Iew7vctoLEWfIW4DPLdoB5RkLkyammjE4gGc+4mz/5cmsgHmL
+         32fVpfeKMCY8QywLhjbOX/0fYA8CAWzAL1WpNdVtFDBsofY5XQ3Ha2u/neLsv/VcSrqq
+         ex6ihjk8dnH9yubLRSrryv6So1bc7Px6KXE1503QjE31wSKTc1HPYc0LOM9Pac4eYLAD
+         JEKg==
+X-Gm-Message-State: APjAAAX7yVDb9zWa2ntKnDhbOPyogtsXfsaKuB8NFtDTIPe6EnfKJJFd
+	hK+lzSpnWvx4HfnBIkNFEzbJsJam7SNvysDyLRKaS+HYJlNuZ30qnLE+NjliZRhwRJ2JtzJ+0uL
+	bt92eg/QrlzcbYEj+Qx88L8OQaFU5oVYN0qidAJFV48peI00fnEmPPr5ZiYJyhf+WQQ==
+X-Received: by 2002:a17:90a:23ce:: with SMTP id g72mr23788025pje.77.1561881442182;
+        Sun, 30 Jun 2019 00:57:22 -0700 (PDT)
+X-Received: by 2002:a17:90a:23ce:: with SMTP id g72mr23787949pje.77.1561881440304;
+        Sun, 30 Jun 2019 00:57:20 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561881440; cv=none;
         d=google.com; s=arc-20160816;
-        b=KhAS7lAVAtxkH/pbRpPx7tENzVA/Z3wm7z//8ZRoQJ0q4WXS0iefPNFrehZy0XPavR
-         8BiCiZpA+I8DeFV8f/Wt0Av7u4MDn2VOVtyWFE96gVWPp6eiop6pF29RaIxhSfIOYmDw
-         9PhNEGc7eNgFvGZJ3bKuPBZHLGXXwGemrnR9oUtdglkhoUxglSWo/DskPC6d+C6wHW3C
-         6rOkBJoFEdvSWsIURP60jc0P3y9VJztpPVoWMgOwJlXpYSK3kH72LiODAOrDAGlBeiFC
-         i65Lli11rr9n8d6Vfd+DnJT/qXFdu7xCzr9nVsWWVJ9kYsmCAFrYlOn74NktWcXI5P3A
-         /mTA==
+        b=jkpI66F15DU7A6mwcQQzmJcY475VRXIeLersx7UPt4o+6t3WEWQzX5jrxYCC8wKYm0
+         wRQaIFamTJwllt2emgZtypzDuW9rP108p3OprS2oqQSIhaRniWLG4Al1dTJcElFL+G4F
+         Gg2Qpq9CEU9A8QskfbrOexREGsr9Cv0Urh6HydOpEQ6Pjdqn2YRB2rXuGAfPHa3+qFW5
+         9WHHFjz3PcHdGj6YrPVz7Gui7XRQmKKWkWSUQy7pz2glpJBFtGLSjaBDC61S65HaPHzD
+         5wN7bHJT+/ZxWUJ6gFcUv0yYcCLxLzCtuworpy9QtRfpyLOKBhWjeqD50ITOo4adRnfn
+         If8A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:references:cc:to:subject:from;
-        bh=tuWaEnwN9yE4g1QwgaGCgWIC2IM105I5Nc4PIF0YlVI=;
-        b=NogdhzGQ3OlZnX5x+7gQjyoNglMm2ikJQg//mMo9r6C85CZxoDMCKr5oaWmhA41wlB
-         rkEhe7SbSADEnrnQhylVInS5sy8uWCns8/anzzX3KLfk0p+sx2Ch63mgCGjmK4P/el/T
-         Ko3jc1+A+U8weujbgHgLcoy1FmIbPK7RNNsE//K/DmPC+LaV2DZG0kO6X2XWe7KKYoDU
-         8dagM/myoazYmQUQcQ8rgl25rxjJZArZpJ9yzbJwwu8soK6Yy5WKAdsPJn2AZKQz3FyY
-         QGvmZf+AURHCodRnkmpVKi+dnyUcLj8/zHMXy4vEpKoVqtWroE3PHCRc0oqSZy+WKD3B
-         PY9g==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from:dkim-signature;
+        bh=Zot35M/uaWueI3Zn11kPJ6IoYKlYtkLl9I4J6OvDMjU=;
+        b=OmW1Lw4+Ny+53iiovhbjz/z86ulZTtHEKu0W5QskAomzfIRDtUPgvnZhVWUcWGGqBS
+         MpIXf3m1CozfBCHBG+2yne2ClxxBFIK4L8tm38wzt6R1BwJoyfvilZoaJGtWXvkC15Pz
+         ppJQAoIghrUBX1NGTKh5butpfibgtFbxSsowl0f8LtLaLT6pWPXSXg8sERUZLhz1aQiw
+         90yDA0GmV3v0lcPpEz7ZKUdkStcU+6bepZ1HK09QUItFGK6imK2eu8/A8w67fv0IFQIs
+         /WWeSl85Tr8xaajKjrqbtaFFeTygJYZ5ncYb7aRuWstYYkaBUyY5UXceQCgSISOR/IDv
+         X+nQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
-        by mx.google.com with ESMTP id c49si5732634eda.166.2019.06.29.21.40.48
-        for <linux-mm@kvack.org>;
-        Sat, 29 Jun 2019 21:40:48 -0700 (PDT)
-Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=MDOAghVf;
+       spf=pass (google.com: domain of lpf.vector@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=lpf.vector@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id d18sor3052295pgo.60.2019.06.30.00.57.20
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Sun, 30 Jun 2019 00:57:20 -0700 (PDT)
+Received-SPF: pass (google.com: domain of lpf.vector@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 5A8E728;
-	Sat, 29 Jun 2019 21:40:47 -0700 (PDT)
-Received: from [192.168.0.129] (unknown [172.31.20.19])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 5ECD73F706;
-	Sat, 29 Jun 2019 21:40:37 -0700 (PDT)
-From: Anshuman Khandual <anshuman.khandual@arm.com>
-Subject: Re: [PATCH] mm: Generalize and rename notify_page_fault() as
- kprobe_page_fault()
-To: Guenter Roeck <linux@roeck-us.net>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
- Mark Rutland <mark.rutland@arm.com>, Michal Hocko <mhocko@suse.com>,
- linux-ia64@vger.kernel.org, linux-sh@vger.kernel.org,
- Peter Zijlstra <peterz@infradead.org>,
- Catalin Marinas <catalin.marinas@arm.com>,
- Dave Hansen <dave.hansen@linux.intel.com>, Will Deacon
- <will.deacon@arm.com>, Paul Mackerras <paulus@samba.org>,
- sparclinux@vger.kernel.org, Stephen Rothwell <sfr@canb.auug.org.au>,
- linux-s390@vger.kernel.org, Yoshinori Sato <ysato@users.sourceforge.jp>,
- Michael Ellerman <mpe@ellerman.id.au>, x86@kernel.org,
- Russell King <linux@armlinux.org.uk>, Matthew Wilcox <willy@infradead.org>,
- Ingo Molnar <mingo@redhat.com>, James Hogan <jhogan@kernel.org>,
- linux-snps-arc@lists.infradead.org, Fenghua Yu <fenghua.yu@intel.com>,
- Andrey Konovalov <andreyknvl@google.com>, Andy Lutomirski <luto@kernel.org>,
- Thomas Gleixner <tglx@linutronix.de>, linux-arm-kernel@lists.infradead.org,
- Christophe Leroy <christophe.leroy@c-s.fr>, Tony Luck <tony.luck@intel.com>,
- Heiko Carstens <heiko.carstens@de.ibm.com>,
- Vineet Gupta <vgupta@synopsys.com>, linux-mips@vger.kernel.org,
- Ralf Baechle <ralf@linux-mips.org>, Paul Burton <paul.burton@mips.com>,
- Martin Schwidefsky <schwidefsky@de.ibm.com>,
- Andrew Morton <akpm@linux-foundation.org>, linuxppc-dev@lists.ozlabs.org,
- "David S. Miller" <davem@davemloft.net>
-References: <1560420444-25737-1-git-send-email-anshuman.khandual@arm.com>
- <20190629145009.GA28613@roeck-us.net>
-Message-ID: <78863cd0-8cb5-c4fd-ed06-b1136bdbb6ef@arm.com>
-Date: Sun, 30 Jun 2019 10:11:03 +0530
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
- Thunderbird/52.9.1
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=MDOAghVf;
+       spf=pass (google.com: domain of lpf.vector@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=lpf.vector@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=from:to:cc:subject:date:message-id:mime-version
+         :content-transfer-encoding;
+        bh=Zot35M/uaWueI3Zn11kPJ6IoYKlYtkLl9I4J6OvDMjU=;
+        b=MDOAghVfP0e9bM/YbPeMmPhQMwo21Fzh3ULYKrYMmY51cSPsMd0TKeTq2mz0MMAQqh
+         2FxILl8UP4nlrKoUX1a2KqBTRUVC21XguujryIxOEmbrKUhiJXlZuDumw8UMmP/Wy6zf
+         X56oMJ4bEzANTKRWLKZs6gUUMFh00IBTpWHmvmMUTR5NuL/45yh9AjzHHMyvI1qi28bg
+         jPvu93egb0PNGacqq0d7lfCrRJC1N9HDSYGv6k81Jjnwt/eRYqe1rRMAA9mokS7ubI2H
+         9xT3VZtB9lXk8hW8a1r9Mk2+yYBTBNwiJGntmIKAc8fEtazTjLIxl2CT2Y6oAGt4g6GF
+         ElLw==
+X-Google-Smtp-Source: APXvYqycBX9TRWgleMymlOn1K6bwXz8ht5R8eZXbow/n8eSDdBMe0GA1g+zblHybHoTG7dMX1EbwYw==
+X-Received: by 2002:a65:4085:: with SMTP id t5mr18419154pgp.109.1561881439844;
+        Sun, 30 Jun 2019 00:57:19 -0700 (PDT)
+Received: from localhost.localdomain.localdomain ([2408:823c:c11:648:b8c3:8577:bf2f:2])
+        by smtp.gmail.com with ESMTPSA id w10sm5989637pgs.32.2019.06.30.00.57.11
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Sun, 30 Jun 2019 00:57:19 -0700 (PDT)
+From: Pengfei Li <lpf.vector@gmail.com>
+To: akpm@linux-foundation.org,
+	peterz@infradead.org,
+	urezki@gmail.com
+Cc: rpenyaev@suse.de,
+	mhocko@suse.com,
+	guro@fb.com,
+	aryabinin@virtuozzo.com,
+	rppt@linux.ibm.com,
+	mingo@kernel.org,
+	rick.p.edgecombe@intel.com,
+	linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org,
+	Pengfei Li <lpf.vector@gmail.com>
+Subject: [PATCH 0/5] mm/vmalloc.c: improve readability and rewrite vmap_area
+Date: Sun, 30 Jun 2019 15:56:45 +0800
+Message-Id: <20190630075650.8516-1-lpf.vector@gmail.com>
+X-Mailer: git-send-email 2.21.0
 MIME-Version: 1.0
-In-Reply-To: <20190629145009.GA28613@roeck-us.net>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hello Guenter,
+Hi,
 
-On 06/29/2019 08:20 PM, Guenter Roeck wrote:
-> Hi,
-> 
-> On Thu, Jun 13, 2019 at 03:37:24PM +0530, Anshuman Khandual wrote:
->> Architectures which support kprobes have very similar boilerplate around
->> calling kprobe_fault_handler(). Use a helper function in kprobes.h to unify
->> them, based on the x86 code.
->>
->> This changes the behaviour for other architectures when preemption is
->> enabled. Previously, they would have disabled preemption while calling the
->> kprobe handler. However, preemption would be disabled if this fault was
->> due to a kprobe, so we know the fault was not due to a kprobe handler and
->> can simply return failure.
->>
->> This behaviour was introduced in the commit a980c0ef9f6d ("x86/kprobes:
->> Refactor kprobes_fault() like kprobe_exceptions_notify()")
->>
-> 
-> With this patch applied, parisc:allmodconfig images no longer build.
-> 
-> In file included from arch/parisc/mm/fixmap.c:8:
-> include/linux/kprobes.h: In function 'kprobe_page_fault':
-> include/linux/kprobes.h:477:9: error:
-> 	implicit declaration of function 'kprobe_fault_handler'; did you mean 'kprobe_page_fault'?
+This series of patches is to reduce the size of struct vmap_area.
 
-Yikes.. Arch parisc does not even define (unlike mips which did but never exported)
-now required function kprobe_fault_handler() when CONFIG_KPROBES is enabled.
+Since the members of struct vmap_area are not being used at the same time,
+it is possible to reduce its size by placing several members that are not
+used at the same time in a union.
 
-I believe rather than defining one stub version only for parsic it would be better
-to have an weak symbol generic stub definition for kprobe_fault_handler() in file
-include/linux/kprobes.h when CONFIG_KPROBES is enabled along side the other stub
-definition when !CONFIG_KPROBES. But arch which wants to use kprobe_page_fault()
-cannot use stub kprobe_fault_handler() definition and will have to provide one.
-I will probably add a comment regarding this.
+The first 4 patches did some preparatory work for this and improved
+readability.
 
-> 
-> Reverting the patch fixes the problem.
-> 
-> Guenter
-> 
+The fifth patch is the main patch, it did the work of rewriting vmap_area.
 
-Thanks for reporting the problem.
+More details can be obtained from the commit message.
+
+Thanks,
+
+Pengfei
+
+Pengfei Li (5):
+  mm/vmalloc.c: Introduce a wrapper function of insert_vmap_area()
+  mm/vmalloc.c: Introduce a wrapper function of
+    insert_vmap_area_augment()
+  mm/vmalloc.c: Rename function __find_vmap_area() for readability
+  mm/vmalloc.c: Modify function merge_or_add_vmap_area() for readability
+  mm/vmalloc.c: Rewrite struct vmap_area to reduce its size
+
+ include/linux/vmalloc.h |  28 +++++---
+ mm/vmalloc.c            | 144 +++++++++++++++++++++++++++-------------
+ 2 files changed, 117 insertions(+), 55 deletions(-)
+
+-- 
+2.21.0
 
