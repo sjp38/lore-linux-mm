@@ -1,170 +1,171 @@
-Return-Path: <SRS0=BwCX=U4=kvack.org=owner-linux-mm@kernel.org>
+Return-Path: <SRS0=QnEd=U5=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
-	autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BDE1FC5B57B
-	for <linux-mm@archiver.kernel.org>; Sat, 29 Jun 2019 23:52:05 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 61072C5B576
+	for <linux-mm@archiver.kernel.org>; Sun, 30 Jun 2019 04:40:52 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 63C3621743
-	for <linux-mm@archiver.kernel.org>; Sat, 29 Jun 2019 23:52:05 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="VOuG3yeR"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 63C3621743
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id EA2B3206A2
+	for <linux-mm@archiver.kernel.org>; Sun, 30 Jun 2019 04:40:51 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EA2B3206A2
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D76A86B0006; Sat, 29 Jun 2019 19:52:04 -0400 (EDT)
+	id 65DF76B0003; Sun, 30 Jun 2019 00:40:50 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D27098E0003; Sat, 29 Jun 2019 19:52:04 -0400 (EDT)
+	id 60DAC8E0003; Sun, 30 Jun 2019 00:40:50 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C3F728E0002; Sat, 29 Jun 2019 19:52:04 -0400 (EDT)
+	id 4D86A8E0002; Sun, 30 Jun 2019 00:40:50 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f207.google.com (mail-pl1-f207.google.com [209.85.214.207])
-	by kanga.kvack.org (Postfix) with ESMTP id 895C66B0006
-	for <linux-mm@kvack.org>; Sat, 29 Jun 2019 19:52:04 -0400 (EDT)
-Received: by mail-pl1-f207.google.com with SMTP id 91so5442262pla.7
-        for <linux-mm@kvack.org>; Sat, 29 Jun 2019 16:52:04 -0700 (PDT)
+Received: from mail-ed1-f80.google.com (mail-ed1-f80.google.com [209.85.208.80])
+	by kanga.kvack.org (Postfix) with ESMTP id 00BE66B0003
+	for <linux-mm@kvack.org>; Sun, 30 Jun 2019 00:40:50 -0400 (EDT)
+Received: by mail-ed1-f80.google.com with SMTP id y3so13404668edm.21
+        for <linux-mm@kvack.org>; Sat, 29 Jun 2019 21:40:49 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=nP4lp/e6AIs94o4YYLZYg3jH19AwRg6rp3ToZBgb4Xc=;
-        b=Ff7rxC1HIE/ztDgPxH9HccX3G6gWlZhIfy3v2bhQr1xtRdqUSt5Tc5aLw59XhlYPXK
-         vovybAC2PQQOstL3p6MaNyZYgqZNNlu5lEyohZKR5h6Wgb6O+SUoLCIt6Bwfzv2XTBy2
-         c8gpT3x7WSw0pT3D3+b/iDfp96bjroZCybKWGfhJ5xhAlqt1IXbWff53XUVV9qLqw1Z1
-         kSQA2hh+tHzlou4raAVx1OusWWvJ4+lbf6Zcx8q5eMryXqu0vwqUSE3eOcS4OfY9715i
-         sggrSf4fZK4ksRxGKqOjM3zBW6ogs2R1CcbwssL3AQjeMxWFxph8g2aLxJ8un+68jLEp
-         bsjQ==
-X-Gm-Message-State: APjAAAXj3zPZv8DlhjxqeOhPfyHoKbM1PcIpu5dzsUnIGVMa4aUxZWqt
-	p02DjJQ5e28lC8JGlQfySaZjgqKh1YKSpJ4b/UEMO59nTG4gIHqsJgW+dFNS330mCAJRK+UZIAX
-	lt62bglB6vVs1kGuUmPJtn8k3+72XV3i0djywIY4ZMXV59PEAsi8Hstnu9XTJeLFBJw==
-X-Received: by 2002:a17:902:6a88:: with SMTP id n8mr20331741plk.70.1561852324240;
-        Sat, 29 Jun 2019 16:52:04 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqx6R+guRam+z/+bTyx8r2M5V1t6MDkeLFpPDOX9rkQl1ir3xtA8qrq6ZkNV+PvLkK62WeE2
-X-Received: by 2002:a17:902:6a88:: with SMTP id n8mr20331706plk.70.1561852323497;
-        Sat, 29 Jun 2019 16:52:03 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561852323; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:subject
+         :to:cc:references:message-id:date:user-agent:mime-version
+         :in-reply-to:content-language:content-transfer-encoding;
+        bh=tuWaEnwN9yE4g1QwgaGCgWIC2IM105I5Nc4PIF0YlVI=;
+        b=llkyQWWMr8uTk6nIxqcd4oePVx3gt3jhOsYrQjliIWxRoG9FvNW1rLXibQn0a20j4i
+         TwabC6AyQd8m8ZTWimEvIdgdHQJDTqENGKeHpVOCy5WrabxbLfPPhkT+yITtCTAVpsU8
+         H+FKT9YIZJhwaBYRVlBGBs2ut4TjtSWv1LrqpaLv+7cKtq7OZA4iRHGll56e4FlySWdl
+         fGU70XcyVitts7GeQXLa9O0Y2VHLfYKSuXYwSV00YQfD/kjAFOCOQINfLq+5SxvYFaq4
+         +qYBWiebiE0spO2iCWXt7awjZPSdWkcq7R7/E3BGtwsnZpb5V9Iz70HyLm30P87lYdCZ
+         O69Q==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+X-Gm-Message-State: APjAAAW2by/dR9xSUvwFevrE/X/RuFc6g00N6s6qObDqYnUlBsjMNoO7
+	ouwaaSDxjRfV8REjOJQzLYz2p43XDuRr4a6Bjv7CA/x7TNXNJDCpsaBMtRB8enqfs4wI4aX1Jje
+	gN2naoYJ7zgCBEADlqzFWlEBjZRz9v7Mv7/IlgFBvx5NCZkP5ollN15GAAH5WATsrWw==
+X-Received: by 2002:a50:e718:: with SMTP id a24mr20811548edn.91.1561869649486;
+        Sat, 29 Jun 2019 21:40:49 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyRKVETObeHQjNfXUq80mVmZE7Yh8kuI5m80kx5532qHgmO2dBIRC9tstbxC08zO6aYLVvm
+X-Received: by 2002:a50:e718:: with SMTP id a24mr20811491edn.91.1561869648627;
+        Sat, 29 Jun 2019 21:40:48 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561869648; cv=none;
         d=google.com; s=arc-20160816;
-        b=gMxtNLXEICunGb4TCF3wpOwslT4WPRbZuv5L6+4a4IGwpX1OODVsAsnRU5RYcxa85M
-         CahEz6kraCW2hRwbiZne60Kf3wPpbxZRujmYKBRH/072PM1tSU5zAs4UTyT9NCbkkHEI
-         T7MZw2Ps57bq0fHQv8ZAQ96uEtAYlXSr63Jq4ndzsuWmdraAR91/v03bNXkBMv+YDnp0
-         oRMVPcf3BXoX2wgfVvPo0ecwvbvwxwYFiDsY1Gz6YzeVCnrJWv4pOHYHX+E4gAwrXOWz
-         +fkBX4HUiCWv4Syaib+f02S9fzjhk+nIFt3kw7ywmfGbjUO2EaoZBDQl8tUpyjFnf9oy
-         4Rgw==
+        b=KhAS7lAVAtxkH/pbRpPx7tENzVA/Z3wm7z//8ZRoQJ0q4WXS0iefPNFrehZy0XPavR
+         8BiCiZpA+I8DeFV8f/Wt0Av7u4MDn2VOVtyWFE96gVWPp6eiop6pF29RaIxhSfIOYmDw
+         9PhNEGc7eNgFvGZJ3bKuPBZHLGXXwGemrnR9oUtdglkhoUxglSWo/DskPC6d+C6wHW3C
+         6rOkBJoFEdvSWsIURP60jc0P3y9VJztpPVoWMgOwJlXpYSK3kH72LiODAOrDAGlBeiFC
+         i65Lli11rr9n8d6Vfd+DnJT/qXFdu7xCzr9nVsWWVJ9kYsmCAFrYlOn74NktWcXI5P3A
+         /mTA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=nP4lp/e6AIs94o4YYLZYg3jH19AwRg6rp3ToZBgb4Xc=;
-        b=BmZ1AB8XykENMwLNCneHNmQlJ1Xg12NpwfJ6wD2oNVyJ3NpVIzJ4jPwZSIumjZTHrF
-         kqS87eMD9hKSwJgpyMHTk0SIwKkbFYdF+9NL4oQT+oR72v3e/cHaNbk5x/4aHB3KGApv
-         hl1DJMO4gh/v6l8l7CyOE+YOQrnUu7P72njQv1mw1qeVHKQU6txbQeWzuuFfbIATEPBY
-         HZ0cxp2nQxouSnVUrs5zdUlZJz21+aFEeO+XlpyhuDimXH22vX39zXn2ttWzIaQOHZLP
-         h2L7HmJuYS1hCL6CRObG2JzetV+ZWRN/o5N/80YXkSQn2U9rm9uo0TRiCjj23t3FmyWv
-         aZVw==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:references:cc:to:subject:from;
+        bh=tuWaEnwN9yE4g1QwgaGCgWIC2IM105I5Nc4PIF0YlVI=;
+        b=NogdhzGQ3OlZnX5x+7gQjyoNglMm2ikJQg//mMo9r6C85CZxoDMCKr5oaWmhA41wlB
+         rkEhe7SbSADEnrnQhylVInS5sy8uWCns8/anzzX3KLfk0p+sx2Ch63mgCGjmK4P/el/T
+         Ko3jc1+A+U8weujbgHgLcoy1FmIbPK7RNNsE//K/DmPC+LaV2DZG0kO6X2XWe7KKYoDU
+         8dagM/myoazYmQUQcQ8rgl25rxjJZArZpJ9yzbJwwu8soK6Yy5WKAdsPJn2AZKQz3FyY
+         QGvmZf+AURHCodRnkmpVKi+dnyUcLj8/zHMXy4vEpKoVqtWroE3PHCRc0oqSZy+WKD3B
+         PY9g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=VOuG3yeR;
-       spf=pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=luto@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id e12si6194358pgs.34.2019.06.29.16.52.03
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 29 Jun 2019 16:52:03 -0700 (PDT)
-Received-SPF: pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
+        by mx.google.com with ESMTP id c49si5732634eda.166.2019.06.29.21.40.48
+        for <linux-mm@kvack.org>;
+        Sat, 29 Jun 2019 21:40:48 -0700 (PDT)
+Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=VOuG3yeR;
-       spf=pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=luto@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail-wm1-f52.google.com (mail-wm1-f52.google.com [209.85.128.52])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id D11412183F
-	for <linux-mm@kvack.org>; Sat, 29 Jun 2019 23:52:02 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1561852323;
-	bh=6zNQnfiowkbQ8h6I1Y7teWbbkPJhz6He7iJKmvs4QWA=;
-	h=References:In-Reply-To:From:Date:Subject:To:Cc:From;
-	b=VOuG3yeRXBw73ehV65Jk05S6ykpdaWN2++D3t48FGNnRIpDyvwGQ/O+9+jEcQ2kLh
-	 vJaCio+aAWmRuF+Q74veK48algDDWoAePRXa6sfpOSPcNYY4cIAvDYMztVQaxLrq6F
-	 GUxAMYw40KHXc3GwNPQztaUlUU75iWpM7vkEfIdA=
-Received: by mail-wm1-f52.google.com with SMTP id s3so12362486wms.2
-        for <linux-mm@kvack.org>; Sat, 29 Jun 2019 16:52:02 -0700 (PDT)
-X-Received: by 2002:a7b:c450:: with SMTP id l16mr12352705wmi.0.1561852321259;
- Sat, 29 Jun 2019 16:52:01 -0700 (PDT)
+       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 5A8E728;
+	Sat, 29 Jun 2019 21:40:47 -0700 (PDT)
+Received: from [192.168.0.129] (unknown [172.31.20.19])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 5ECD73F706;
+	Sat, 29 Jun 2019 21:40:37 -0700 (PDT)
+From: Anshuman Khandual <anshuman.khandual@arm.com>
+Subject: Re: [PATCH] mm: Generalize and rename notify_page_fault() as
+ kprobe_page_fault()
+To: Guenter Roeck <linux@roeck-us.net>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+ Mark Rutland <mark.rutland@arm.com>, Michal Hocko <mhocko@suse.com>,
+ linux-ia64@vger.kernel.org, linux-sh@vger.kernel.org,
+ Peter Zijlstra <peterz@infradead.org>,
+ Catalin Marinas <catalin.marinas@arm.com>,
+ Dave Hansen <dave.hansen@linux.intel.com>, Will Deacon
+ <will.deacon@arm.com>, Paul Mackerras <paulus@samba.org>,
+ sparclinux@vger.kernel.org, Stephen Rothwell <sfr@canb.auug.org.au>,
+ linux-s390@vger.kernel.org, Yoshinori Sato <ysato@users.sourceforge.jp>,
+ Michael Ellerman <mpe@ellerman.id.au>, x86@kernel.org,
+ Russell King <linux@armlinux.org.uk>, Matthew Wilcox <willy@infradead.org>,
+ Ingo Molnar <mingo@redhat.com>, James Hogan <jhogan@kernel.org>,
+ linux-snps-arc@lists.infradead.org, Fenghua Yu <fenghua.yu@intel.com>,
+ Andrey Konovalov <andreyknvl@google.com>, Andy Lutomirski <luto@kernel.org>,
+ Thomas Gleixner <tglx@linutronix.de>, linux-arm-kernel@lists.infradead.org,
+ Christophe Leroy <christophe.leroy@c-s.fr>, Tony Luck <tony.luck@intel.com>,
+ Heiko Carstens <heiko.carstens@de.ibm.com>,
+ Vineet Gupta <vgupta@synopsys.com>, linux-mips@vger.kernel.org,
+ Ralf Baechle <ralf@linux-mips.org>, Paul Burton <paul.burton@mips.com>,
+ Martin Schwidefsky <schwidefsky@de.ibm.com>,
+ Andrew Morton <akpm@linux-foundation.org>, linuxppc-dev@lists.ozlabs.org,
+ "David S. Miller" <davem@davemloft.net>
+References: <1560420444-25737-1-git-send-email-anshuman.khandual@arm.com>
+ <20190629145009.GA28613@roeck-us.net>
+Message-ID: <78863cd0-8cb5-c4fd-ed06-b1136bdbb6ef@arm.com>
+Date: Sun, 30 Jun 2019 10:11:03 +0530
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
+ Thunderbird/52.9.1
 MIME-Version: 1.0
-References: <20190501211217.5039-1-yu-cheng.yu@intel.com> <20190502111003.GO3567@e103592.cambridge.arm.com>
- <CALCETrVZCzh+KFCF6ijuf4QEPn=R2gJ8FHLpyFd=n+pNOMMMjA@mail.gmail.com> <87ef3fweoq.fsf@oldenburg2.str.redhat.com>
-In-Reply-To: <87ef3fweoq.fsf@oldenburg2.str.redhat.com>
-From: Andy Lutomirski <luto@kernel.org>
-Date: Sat, 29 Jun 2019 16:51:50 -0700
-X-Gmail-Original-Message-ID: <CALCETrUPJXW7An9EBaRQLppB3vHEQFfYP1o8h-4PSFcZt5Pa2A@mail.gmail.com>
-Message-ID: <CALCETrUPJXW7An9EBaRQLppB3vHEQFfYP1o8h-4PSFcZt5Pa2A@mail.gmail.com>
-Subject: Re: [PATCH] binfmt_elf: Extract .note.gnu.property from an ELF file
-To: Florian Weimer <fweimer@redhat.com>
-Cc: Andy Lutomirski <luto@kernel.org>, Dave Martin <Dave.Martin@arm.com>, 
-	Yu-cheng Yu <yu-cheng.yu@intel.com>, X86 ML <x86@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, 
-	Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, 
-	LKML <linux-kernel@vger.kernel.org>, 
-	"open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, 
-	linux-arch <linux-arch@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, 
-	Arnd Bergmann <arnd@arndb.de>, Balbir Singh <bsingharora@gmail.com>, 
-	Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, 
-	Eugene Syromiatnikov <esyr@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, 
-	Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>, 
-	Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, 
-	Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, 
-	Randy Dunlap <rdunlap@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, 
-	Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>, Szabolcs Nagy <szabolcs.nagy@arm.com>, 
-	libc-alpha <libc-alpha@sourceware.org>
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20190629145009.GA28613@roeck-us.net>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jun 27, 2019 at 2:39 AM Florian Weimer <fweimer@redhat.com> wrote:
->
-> * Andy Lutomirski:
->
-> > Also, I don't think there's any actual requirement that the upstream
-> > kernel recognize existing CET-enabled RHEL 8 binaries as being
-> > CET-enabled.  I tend to think that RHEL 8 jumped the gun here.
->
-> The ABI was supposed to be finalized and everyone involved thought it
-> had been reviewed by the GNU gABI community and other interested
-> parties.  It had been included in binutils for several releases.
->
-> From my point of view, the kernel is just a consumer of the ABI.  The
-> kernel would not change an instruction encoding if it doesn't like it
-> for some reason, either.
+Hello Guenter,
 
-I read the only relevant gABI thing I could find easily, and it seems
-to document the "gnu property" thing.  I have no problem with that.
+On 06/29/2019 08:20 PM, Guenter Roeck wrote:
+> Hi,
+> 
+> On Thu, Jun 13, 2019 at 03:37:24PM +0530, Anshuman Khandual wrote:
+>> Architectures which support kprobes have very similar boilerplate around
+>> calling kprobe_fault_handler(). Use a helper function in kprobes.h to unify
+>> them, based on the x86 code.
+>>
+>> This changes the behaviour for other architectures when preemption is
+>> enabled. Previously, they would have disabled preemption while calling the
+>> kprobe handler. However, preemption would be disabled if this fault was
+>> due to a kprobe, so we know the fault was not due to a kprobe handler and
+>> can simply return failure.
+>>
+>> This behaviour was introduced in the commit a980c0ef9f6d ("x86/kprobes:
+>> Refactor kprobes_fault() like kprobe_exceptions_notify()")
+>>
+> 
+> With this patch applied, parisc:allmodconfig images no longer build.
+> 
+> In file included from arch/parisc/mm/fixmap.c:8:
+> include/linux/kprobes.h: In function 'kprobe_page_fault':
+> include/linux/kprobes.h:477:9: error:
+> 	implicit declaration of function 'kprobe_fault_handler'; did you mean 'kprobe_page_fault'?
 
->
-> > While the upstream kernel should make some reasonble effort to make
-> > sure that RHEL 8 binaries will continue to run, I don't see why we
-> > need to go out of our way to keep the full set of mitigations
-> > available for binaries that were developed against a non-upstream
-> > kernel.
->
-> They were developed against the ABI specification.
->
-> I do not have a strong opinion what the kernel should do going forward.
-> I just want to make clear what happened.
+Yikes.. Arch parisc does not even define (unlike mips which did but never exported)
+now required function kprobe_fault_handler() when CONFIG_KPROBES is enabled.
 
-I admit that I'm not really clear on exactly what RHEL 8 shipped.
-Some of this stuff is very much an ELF ABI that belongs to the
-toolchain, but some if it is kernel API.  For example, the IBT legacy
-bitmap API is very much in flux, and I don't think anything credible
-has been submitted for upstream inclusion.  Does RHEL 8's glibc
-attempt to cope with the case where some libraries are CET-compatible
-and some are not?  If so, how does this work?  What, if any, services
-does the RHEL 8 kernel provide in this direction?
+I believe rather than defining one stub version only for parsic it would be better
+to have an weak symbol generic stub definition for kprobe_fault_handler() in file
+include/linux/kprobes.h when CONFIG_KPROBES is enabled along side the other stub
+definition when !CONFIG_KPROBES. But arch which wants to use kprobe_page_fault()
+cannot use stub kprobe_fault_handler() definition and will have to provide one.
+I will probably add a comment regarding this.
+
+> 
+> Reverting the patch fixes the problem.
+> 
+> Guenter
+> 
+
+Thanks for reporting the problem.
 
