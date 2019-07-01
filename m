@@ -2,175 +2,209 @@ Return-Path: <SRS0=jfnU=U6=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-17.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT,
+	USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 75543C06510
-	for <linux-mm@archiver.kernel.org>; Mon,  1 Jul 2019 17:21:00 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D80CDC0650E
+	for <linux-mm@archiver.kernel.org>; Mon,  1 Jul 2019 17:31:18 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 178802146F
-	for <linux-mm@archiver.kernel.org>; Mon,  1 Jul 2019 17:20:59 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 8F7F221479
+	for <linux-mm@archiver.kernel.org>; Mon,  1 Jul 2019 17:31:18 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=plexistor-com.20150623.gappssmtp.com header.i=@plexistor-com.20150623.gappssmtp.com header.b="1wUdmopY"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 178802146F
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=plexistor.com
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="SYl2HFPL"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8F7F221479
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 84E446B0003; Mon,  1 Jul 2019 13:20:59 -0400 (EDT)
+	id 2EF2C6B0006; Mon,  1 Jul 2019 13:31:18 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7FF2C8E0003; Mon,  1 Jul 2019 13:20:59 -0400 (EDT)
+	id 2A0608E0003; Mon,  1 Jul 2019 13:31:18 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 715028E0002; Mon,  1 Jul 2019 13:20:59 -0400 (EDT)
+	id 1B5E28E0002; Mon,  1 Jul 2019 13:31:18 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wm1-f79.google.com (mail-wm1-f79.google.com [209.85.128.79])
-	by kanga.kvack.org (Postfix) with ESMTP id 28BD86B0003
-	for <linux-mm@kvack.org>; Mon,  1 Jul 2019 13:20:59 -0400 (EDT)
-Received: by mail-wm1-f79.google.com with SMTP id v125so100243wme.5
-        for <linux-mm@kvack.org>; Mon, 01 Jul 2019 10:20:59 -0700 (PDT)
+Received: from mail-qk1-f206.google.com (mail-qk1-f206.google.com [209.85.222.206])
+	by kanga.kvack.org (Postfix) with ESMTP id EF0DA6B0006
+	for <linux-mm@kvack.org>; Mon,  1 Jul 2019 13:31:17 -0400 (EDT)
+Received: by mail-qk1-f206.google.com with SMTP id d62so14166602qke.21
+        for <linux-mm@kvack.org>; Mon, 01 Jul 2019 10:31:17 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=RMtO9zTMwULPwpFiTkeooNGzR9zKo/UB7YgL+t4fgzA=;
-        b=Qlgo2+TWCRckaiwbbp8HfjIiGNJAtjbH+36qsp7m5ZWq8kSZeaDOkjIDyriQQBpxKh
-         jWAIOO+0YBcM9V+Js6pO4+ULUMsq6ZzhmZYLDe8+vpjoA5DioLXdFQZNdpLa4LeycDfS
-         EFEmou4+a+dUV4AGp2RbAvQUE6KipYaQ2cDsj4Rot7iG1KpZFgUeTGrtxf7PzWTchBAL
-         8deULoN5xVGRn1tQIe+n2Rb5fIwAGqqDAUc1V23TSNKO9HKJQQ7GuE6mIFyMFnXhzqIn
-         InIJd+VXzQLuyq8O2sDuk/T4Sn+qsJLue1Dvdv2uh/szTLk8ymNw+opl5NPLGR8UJpip
-         1EOw==
-X-Gm-Message-State: APjAAAVga2HvL98EIsAeGk77iFq2oYYREDO6S2hlYTe6ZBidg45m+XyR
-	6fnqizUqSmmyCS2cs9CswFKvZ/F8KUUfm1aiHkEB9wW2kdfiE4YWgwuhYSXJhxEdalvjkbirycw
-	460NyFnw4XPG5KX8/zVQx/8dLM3Lwq0sXbqny6sk5cU5XJiHuYZtbUYWyZUw033z7IQ==
-X-Received: by 2002:a5d:4090:: with SMTP id o16mr744115wrp.292.1562001658429;
-        Mon, 01 Jul 2019 10:20:58 -0700 (PDT)
-X-Received: by 2002:a5d:4090:: with SMTP id o16mr744069wrp.292.1562001657500;
-        Mon, 01 Jul 2019 10:20:57 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562001657; cv=none;
+        h=x-gm-message-state:dkim-signature:date:message-id:mime-version
+         :subject:from:to:cc;
+        bh=57FXAe/wgMHkImrRgxBMfz6F69lw3WXfZi6uoGW6nJo=;
+        b=SZJXpvjXnviVbTOp5v+LEuj26jqxIj/f87poKM/1nc61PPr5vZ0D7CRDsgMy0xN38T
+         VGaxuejdIxfQB6rsVjqLMWsjenCB1GPWG0zRlZv9Dbw7fsDqpcpQyjqUPHcTYj8mRRza
+         s1K+P8iuGdyDcNCtKPYlv+vkc7CJuCrS7a5k/zW1QguGXwQSXz0M9Bq4lk6Au1gz9Y4n
+         NtAiPrjycz4sCzjGUlQlihCmxHnLTUz6KKIN/blMos1oWhaLOqHPyG8MipqYxDH1aW1o
+         3oEjGIPMPT9sNQO5VePeArUpRq+u5TW3/R/du8uLoR1jqUICvvO4Zra1O8lbkR1boZyj
+         GsFQ==
+X-Gm-Message-State: APjAAAVNaSGFhw5TK2LnVytPX2jJvYxtS4ozvvYQvxBz+ZB2M32r7dy1
+	LJv5jr+7mj0FLQf9nfJaBOHd/eaKeXj48L9bKKAMo8PdpTBQFZFYmJLFbnKe/tN2E5Y+TuAEKqw
+	p0LetUnyzgh3CD9Tf3HnJL5/OUnt+zcgC30exKPYyvjgtdT7gJXepTKMX/MEay5ezHQ==
+X-Received: by 2002:a05:620a:1ee:: with SMTP id x14mr21924596qkn.70.1562002277732;
+        Mon, 01 Jul 2019 10:31:17 -0700 (PDT)
+X-Received: by 2002:a05:620a:1ee:: with SMTP id x14mr21924542qkn.70.1562002277071;
+        Mon, 01 Jul 2019 10:31:17 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562002277; cv=none;
         d=google.com; s=arc-20160816;
-        b=I54z2Ix/2Dr6XSzjy5CwE0dVZo5M08bZvRDwjxGB5KSuvKVazj3QQe8MRDOqbSQRy3
-         5yK3LTGvUZK75G2T0fMfSQ8lJnHdVLn6I/7pcLISAFyJUX9AadplEcF4HYTZzLyOayQS
-         tQwr24ll/o+LCugPXKh4qUOs3RiO8Ezjd7B8iRlLopruG+Yyo+sBB8QslfHUPCVuFSXD
-         ZXrz44WWJnhN0bV3YBuvyv+XArK+CV/dlZkeTI8+E9fwM92MQHmiA9IXlJglRPFobZbu
-         4zGl1l8segC5oQNBFPhMVAdFcCEVjuRmYMReV1R1ZA2D4hJs9oJEEIAKUoW+2o526VnV
-         VvNQ==
+        b=zdvTAmm0Uf1zFlfvG7rp+CSIREexRuHO3RVL+iUgsTXukMhDNUXPyAaRjFr7zBbxSs
+         p88Dp8PuHS7ib0RstNLBg73OcSW3OvGK9w1wPlHQRRWmjEHMRPhEdD5UFjHnWJELq643
+         UY3hNEAtx3D/YaAlMv2eF5DWkSbgAFNDORJOMJ2NkHUb11ZQA66LY+dLGiSVoTxWsPNE
+         CWBktRHuEUvmRvx+HFQBAaznXP+PAYYlggR557266R6iQe78OX/HfmuwzNkBCClocGZs
+         qXGcg1Z2ChzY0DqcBRGnxe8o0fpUjCC8Q25hyAENN/IaXL21BIWJL0/66u1EGLYXBa+P
+         cgEg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject
-         :dkim-signature;
-        bh=RMtO9zTMwULPwpFiTkeooNGzR9zKo/UB7YgL+t4fgzA=;
-        b=Jf43OLrEYweZ2XsvTHn6jcMGbgjRZBdFi3YMWSs4L98NUOGWdD0VO+fTmyoIMKUXkf
-         TcG3/7jYAbkwlyLVi3QElyj0V7NHyTzdOAMLFDsg9KJTFWZ1jYrehb9SG++XFfGvOU96
-         Mo+bPAU/UXcxvOGnxjGPb41TFZNj/HKMXSe0Xao9tXAyj3+WXpxhtCkJ59DouNhtviNF
-         TzrU+PVWuEHVW5agc1XZ5i7WDKImpjPHLbteohleD2Lf/WgejcuUyZ7+lQSqGwv1Mj+n
-         bSMI4SwFxXZ0iQ1Jnb3uRaOSKGcQCPdXvEcWcEUMjwVQOQFEiiXOR5pizPHC5MBzUJhV
-         y0+Q==
+        h=cc:to:from:subject:mime-version:message-id:date:dkim-signature;
+        bh=57FXAe/wgMHkImrRgxBMfz6F69lw3WXfZi6uoGW6nJo=;
+        b=zXtF3Tn/czDlWumftmpkv9lk2tupUC+gDC9bv4Kc9H643M92rZgrywiDDuxNXaQIN1
+         rCq/dsyrNF8qaOfkelC2eH6VNXCmLMR2oHKcjHvwIQibXAzQ6lYM70Knitw6pc6jh7Ph
+         IgfTqDPyZCUuquzzAjaLWicwRvGUKUQ1eS39meKKoJEsPqI5RgOMVhTOAthbR0+OLzmC
+         qnGQD9vUPMJDiA/QwzCw9U5PEWQL0G3xwW2TyHg9lexrjfiKTxCZzk2DlpdxsWkKC1SV
+         wQyrlWGswudgPmAMD9fuy8o7N5U0L3/eNCCcdTmkJn6o2WEfvRbdew6ucxt9mwIl9ebI
+         ZAvw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@plexistor-com.20150623.gappssmtp.com header.s=20150623 header.b=1wUdmopY;
-       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of boaz@plexistor.com) smtp.mailfrom=boaz@plexistor.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v2sor160365wma.3.2019.07.01.10.20.57
+       dkim=pass header.i=@google.com header.s=20161025 header.b=SYl2HFPL;
+       spf=pass (google.com: domain of 3zemaxqokcemmjsw3gzwsxlttlqj.htrqnsz2-rrp0fhp.twl@flex--henryburns.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3ZEMaXQoKCEMmjsw3gzwsxlttlqj.htrqnsz2-rrp0fhp.twl@flex--henryburns.bounces.google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
+        by mx.google.com with SMTPS id o10sor15160751qte.26.2019.07.01.10.31.16
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 01 Jul 2019 10:20:57 -0700 (PDT)
-Received-SPF: neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of boaz@plexistor.com) client-ip=209.85.220.65;
+        Mon, 01 Jul 2019 10:31:17 -0700 (PDT)
+Received-SPF: pass (google.com: domain of 3zemaxqokcemmjsw3gzwsxlttlqj.htrqnsz2-rrp0fhp.twl@flex--henryburns.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@plexistor-com.20150623.gappssmtp.com header.s=20150623 header.b=1wUdmopY;
-       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of boaz@plexistor.com) smtp.mailfrom=boaz@plexistor.com
+       dkim=pass header.i=@google.com header.s=20161025 header.b=SYl2HFPL;
+       spf=pass (google.com: domain of 3zemaxqokcemmjsw3gzwsxlttlqj.htrqnsz2-rrp0fhp.twl@flex--henryburns.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3ZEMaXQoKCEMmjsw3gzwsxlttlqj.htrqnsz2-rrp0fhp.twl@flex--henryburns.bounces.google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=plexistor-com.20150623.gappssmtp.com; s=20150623;
-        h=subject:to:cc:references:from:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=RMtO9zTMwULPwpFiTkeooNGzR9zKo/UB7YgL+t4fgzA=;
-        b=1wUdmopYsOTGEBPctCCQBJNp/Weny3U0OdMAgIX7XMpDLNjX7yi2BQKVOeIOZfgf1b
-         I2dQPvs1YcMd4MKfGasxoR1vUF57n1uWvGfOwCBn+dFFXqdtzk7+nDTMfgxaIC1cMqAd
-         CyXSD5wWJrsSE7f66iNNQpS8suPAgj9SNlBFoRgvaYPLl2O9hulyvjxbO8s6Guhj4y1S
-         Nf6nnLqhsslQUJQ8lQjHCR002MedRLPvKNFje/NywIlwBVxr1dbYLS/Ag6d45MoLEFLA
-         TB43Jl9ECXn6C3ClznsgSlBckfDR8AQM1se/327D0FreZlmY9S9DkHpcHai8gVFUiAbk
-         jAnQ==
-X-Google-Smtp-Source: APXvYqyJIZEjZ99B+K6R50DPm7lq0IHr/E/1lfJMHdrHDPCDWuYMn1JV6lQAB5xdWdZjMaq23hnwbA==
-X-Received: by 2002:a1c:f009:: with SMTP id a9mr234245wmb.32.1562001657000;
-        Mon, 01 Jul 2019 10:20:57 -0700 (PDT)
-Received: from [10.68.217.182] ([217.70.211.18])
-        by smtp.googlemail.com with ESMTPSA id q193sm269299wme.8.2019.07.01.10.20.53
-        (version=TLS1_3 cipher=AEAD-AES128-GCM-SHA256 bits=128/128);
-        Mon, 01 Jul 2019 10:20:56 -0700 (PDT)
-Subject: Re: [PATCH v6 0/4] vfs: make immutable files actually immutable
-To: "Darrick J. Wong" <darrick.wong@oracle.com>, matthew.garrett@nebula.com,
- yuchao0@huawei.com, tytso@mit.edu, ard.biesheuvel@linaro.org,
- josef@toxicpanda.com, hch@infradead.org, clm@fb.com,
- adilger.kernel@dilger.ca, viro@zeniv.linux.org.uk, jack@suse.com,
- dsterba@suse.com, jaegeuk@kernel.org, jk@ozlabs.org
-Cc: reiserfs-devel@vger.kernel.org, linux-efi@vger.kernel.org,
- devel@lists.orangefs.org, linux-kernel@vger.kernel.org,
- linux-f2fs-devel@lists.sourceforge.net, linux-xfs@vger.kernel.org,
- linux-mm@kvack.org, linux-nilfs@vger.kernel.org,
- linux-mtd@lists.infradead.org, ocfs2-devel@oss.oracle.com,
- linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org,
- linux-btrfs@vger.kernel.org
-References: <156174687561.1557469.7505651950825460767.stgit@magnolia>
-From: Boaz Harrosh <boaz@plexistor.com>
-Message-ID: <72f01c73-a1eb-efde-58fa-7667221255c7@plexistor.com>
-Date: Mon, 1 Jul 2019 20:20:51 +0300
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.1
-MIME-Version: 1.0
-In-Reply-To: <156174687561.1557469.7505651950825460767.stgit@magnolia>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-MW
-Content-Transfer-Encoding: 7bit
+        d=google.com; s=20161025;
+        h=date:message-id:mime-version:subject:from:to:cc;
+        bh=57FXAe/wgMHkImrRgxBMfz6F69lw3WXfZi6uoGW6nJo=;
+        b=SYl2HFPLHC4vO1l86HKGG+KsnA3p3ugT/bhNQ/ORJtqVZc8wQfosqv55sqkPjCue2f
+         7e+f0w+fwy4nCLJm+aSX0gjcTPTFuslk7RJ2coLvl4tv42WYnQaSVWoyeshxUbGcyoO4
+         hhD0T0RPIoAUdBGs62mRr5atpiOg14m1NCtJjHk47BVcRRY/tyaLMM7grU8ZMoLNJZwx
+         IcepxW70TRfXeKJAeFoYS7BQzeBLr9pEERYN8p01Y1/ZagLCW5l8l5vOesfkxnJcd8au
+         EhxOm/nyih6HRvFbzX+vkO9xWXLQ+vCqk6tmWeWdmKAGMqonEnvKkeksITidwsCJDq9F
+         iQEA==
+X-Google-Smtp-Source: APXvYqwzE7/6t/styf6kTpX++BJRIsoo5TiY7JuE7+CzfD2WEAoCByH3gCWAWT1gJmZrbbugH9SfdK0LrtM8ZHGQ
+X-Received: by 2002:ac8:fbb:: with SMTP id b56mr2584122qtk.324.1562002276640;
+ Mon, 01 Jul 2019 10:31:16 -0700 (PDT)
+Date: Mon,  1 Jul 2019 10:30:42 -0700
+Message-Id: <20190701173042.221453-1-henryburns@google.com>
+Mime-Version: 1.0
+X-Mailer: git-send-email 2.22.0.410.gd8fdbe21b5-goog
+Subject: [PATCH] mm/z3fold: Fix z3fold_buddy_slots use after free
+From: Henry Burns <henryburns@google.com>
+To: Vitaly Wool <vitalywool@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Matthew Wilcox <mawilcox@microsoft.com>, Vitaly Vul <vitaly.vul@sony.com>, 
+	Mike Rapoport <rppt@linux.vnet.ibm.com>, Xidong Wang <wangxidong_97@163.com>, 
+	Shakeel Butt <shakeelb@google.com>, Jonathan Adams <jwadams@google.com>, linux-mm@kvack.org, 
+	linux-kernel@vger.kernel.org, Henry Burns <henryburns@google.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 28/06/2019 21:34, Darrick J. Wong wrote:
-> Hi all,
-> 
-> The chattr(1) manpage has this to say about the immutable bit that
-> system administrators can set on files:
-> 
-> "A file with the 'i' attribute cannot be modified: it cannot be deleted
-> or renamed, no link can be created to this file, most of the file's
-> metadata can not be modified, and the file can not be opened in write
-> mode."
-> 
-> Given the clause about how the file 'cannot be modified', it is
-> surprising that programs holding writable file descriptors can continue
-> to write to and truncate files after the immutable flag has been set,
-> but they cannot call other things such as utimes, fallocate, unlink,
-> link, setxattr, or reflink.
-> 
-> Since the immutable flag is only settable by administrators, resolve
-> this inconsistent behavior in favor of the documented behavior -- once
-> the flag is set, the file cannot be modified, period.  We presume that
-> administrators must be trusted to know what they're doing, and that
-> cutting off programs with writable fds will probably break them.
-> 
+Running z3fold stress testing with address sanitization
+showed zhdr->slots was being used after it was freed.
 
-This effort sounds very logical to me and sound. But are we allowed to
-do it? IE: Is it not breaking ABI. I do agree previous ABI was evil but
-are we allowed to break it?
+z3fold_free(z3fold_pool, handle)
+  free_handle(handle)
+    kmem_cache_free(pool->c_handle, zhdr->slots)
+  release_z3fold_page_locked_list(kref)
+    __release_z3fold_page(zhdr, true)
+      zhdr_to_pool(zhdr)
+        slots_to_pool(zhdr->slots)  *BOOM*
 
-I would not mind breaking it if %99.99 of the time the immutable bit
-was actually set manually by a human administrator. But what if there
-are automated systems that set it relying on the current behaviour?
+Instead we split free_handle into two functions, release_handle()
+and free_slots(). We use release_handle() in place of free_handle(),
+and use free_slots() to call kmem_cache_free() after
+__release_z3fold_page() is done.
 
-For example I have a very distant and vague recollection of a massive
-camera capture system, that was DMAing directly to file (splice). And setting
-the immutable bit right away on start. Then once the capture is done
-(capture file recycled) the file becomes immutable. Such program is now
-broken. Who's fault is it?
+Fixes: 7c2b8baa61fe  ("mm/z3fold.c: add structure for buddy handles")
+Signed-off-by: Henry Burns <henryburns@google.com>
+---
+ mm/z3fold.c | 33 ++++++++++++++-------------------
+ 1 file changed, 14 insertions(+), 19 deletions(-)
 
-I'm totally not sure and maybe you are right. But have you made a
-survey of the majority of immutable uses, and are positive that
-the guys are not broken after this change?
-
-For me this is kind of scary. Yes I am known to be a SW coward ;-)
-
-Thanks
-Boaz
+diff --git a/mm/z3fold.c b/mm/z3fold.c
+index f7993ff778df..e174d1549734 100644
+--- a/mm/z3fold.c
++++ b/mm/z3fold.c
+@@ -213,31 +213,24 @@ static inline struct z3fold_buddy_slots *handle_to_slots(unsigned long handle)
+ 	return (struct z3fold_buddy_slots *)(handle & ~(SLOTS_ALIGN - 1));
+ }
+ 
+-static inline void free_handle(unsigned long handle)
++static inline void release_handle(unsigned long handle)
+ {
+-	struct z3fold_buddy_slots *slots;
+-	int i;
+-	bool is_free;
+-
+ 	if (handle & (1 << PAGE_HEADLESS))
+ 		return;
+ 
+ 	WARN_ON(*(unsigned long *)handle == 0);
+ 	*(unsigned long *)handle = 0;
+-	slots = handle_to_slots(handle);
+-	is_free = true;
+-	for (i = 0; i <= BUDDY_MASK; i++) {
+-		if (slots->slot[i]) {
+-			is_free = false;
+-			break;
+-		}
+-	}
++}
+ 
+-	if (is_free) {
+-		struct z3fold_pool *pool = slots_to_pool(slots);
++/* At this point all of the slots should be empty */
++static inline void free_slots(struct z3fold_buddy_slots *slots)
++{
++	struct z3fold_pool *pool = slots_to_pool(slots);
++	int i;
+ 
+-		kmem_cache_free(pool->c_handle, slots);
+-	}
++	for (i = 0; i <= BUDDY_MASK; i++)
++		VM_BUG_ON(slots->slot[i]);
++	kmem_cache_free(pool->c_handle, slots);
+ }
+ 
+ static struct dentry *z3fold_do_mount(struct file_system_type *fs_type,
+@@ -431,7 +424,8 @@ static inline struct z3fold_pool *zhdr_to_pool(struct z3fold_header *zhdr)
+ static void __release_z3fold_page(struct z3fold_header *zhdr, bool locked)
+ {
+ 	struct page *page = virt_to_page(zhdr);
+-	struct z3fold_pool *pool = zhdr_to_pool(zhdr);
++	struct z3fold_buddy_slots *slots = zhdr->slots;
++	struct z3fold_pool *pool = slots_to_pool(slots);
+ 
+ 	WARN_ON(!list_empty(&zhdr->buddy));
+ 	set_bit(PAGE_STALE, &page->private);
+@@ -442,6 +436,7 @@ static void __release_z3fold_page(struct z3fold_header *zhdr, bool locked)
+ 	spin_unlock(&pool->lock);
+ 	if (locked)
+ 		z3fold_page_unlock(zhdr);
++	free_slots(slots);
+ 	spin_lock(&pool->stale_lock);
+ 	list_add(&zhdr->buddy, &pool->stale);
+ 	queue_work(pool->release_wq, &pool->work);
+@@ -1009,7 +1004,7 @@ static void z3fold_free(struct z3fold_pool *pool, unsigned long handle)
+ 		return;
+ 	}
+ 
+-	free_handle(handle);
++	release_handle(handle);
+ 	if (kref_put(&zhdr->refcount, release_z3fold_page_locked_list)) {
+ 		atomic64_dec(&pool->pages_nr);
+ 		return;
+-- 
+2.22.0.410.gd8fdbe21b5-goog
 
