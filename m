@@ -2,149 +2,152 @@ Return-Path: <SRS0=jfnU=U6=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-7.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CDDF2C0650E
-	for <linux-mm@archiver.kernel.org>; Mon,  1 Jul 2019 14:04:37 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8A72AC4646D
+	for <linux-mm@archiver.kernel.org>; Mon,  1 Jul 2019 14:09:51 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 988282173E
-	for <linux-mm@archiver.kernel.org>; Mon,  1 Jul 2019 14:04:37 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 988282173E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 5919421721
+	for <linux-mm@archiver.kernel.org>; Mon,  1 Jul 2019 14:09:51 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5919421721
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2EEE08E0003; Mon,  1 Jul 2019 10:04:37 -0400 (EDT)
+	id E84A28E0005; Mon,  1 Jul 2019 10:09:50 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2A0268E0002; Mon,  1 Jul 2019 10:04:37 -0400 (EDT)
+	id E5C8C8E0002; Mon,  1 Jul 2019 10:09:50 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 167CB8E0003; Mon,  1 Jul 2019 10:04:37 -0400 (EDT)
+	id D97FB8E0005; Mon,  1 Jul 2019 10:09:50 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f80.google.com (mail-ed1-f80.google.com [209.85.208.80])
-	by kanga.kvack.org (Postfix) with ESMTP id BE9498E0002
-	for <linux-mm@kvack.org>; Mon,  1 Jul 2019 10:04:36 -0400 (EDT)
-Received: by mail-ed1-f80.google.com with SMTP id b33so16845526edc.17
-        for <linux-mm@kvack.org>; Mon, 01 Jul 2019 07:04:36 -0700 (PDT)
+Received: from mail-ed1-f77.google.com (mail-ed1-f77.google.com [209.85.208.77])
+	by kanga.kvack.org (Postfix) with ESMTP id 8ED3D8E0002
+	for <linux-mm@kvack.org>; Mon,  1 Jul 2019 10:09:50 -0400 (EDT)
+Received: by mail-ed1-f77.google.com with SMTP id l26so16965075eda.2
+        for <linux-mm@kvack.org>; Mon, 01 Jul 2019 07:09:50 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=VT2epvKVE0YN6pZ3f9gcT8fF8272T/apqXmry1qq8C4=;
-        b=hF+4XwlhEn6OFZK02Mc/bn5uEV7fya8Y45nBIAJT15LqgOXVMNN9tjsMNL+qsWomd5
-         BLZDI6bEBIkl+OsLT1iapICWLr/z4/qXvxJZBLqBAQcjEZ94rhIPhnvvG+1t6O/tSK1D
-         k6MMmVtoLfCjEq6zzQ7vl73+YlRpIvx6JBcv8kbNVRqOl6TwLk24QnBxzBEG33428vbm
-         M6J7qAxdPaiq/U7gmAA/MsInsFyVEX6ZAGG//p7uI7gICjpmk/mg9B8JWrnMzhsUJpv8
-         IewumzMAZc1x7BsxPgEBFP8BIGNESjoc/Ew3mAnZa+/IML1cCx/xE8w7K2YJ+yfs00bG
-         LG0Q==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAU09uI98v0d4ILlYv33i3I9JWJ1wdUK0zZ6m/lPbn3WNtyMZWLz
-	MWYYhQsfyWNLPsjyKhI3UB1LU9Cl8eWxMizwJuD1GcUZ3khVt1k4ZLYBJtluK4xjZhQFVI6slbz
-	0soo2Ie4zXuUBY5k7D04d43dSrUg+19USevPibzllrrXlP283A4LL2ulhJHIKRPY=
-X-Received: by 2002:a50:b362:: with SMTP id r31mr29932003edd.14.1561989876313;
-        Mon, 01 Jul 2019 07:04:36 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzyRNyBxtRaRLD3M9GelWcsLCDp2BRrQBI21wbHsjQ1JosF6DJDEBvMhLHXp0js2VrY9fZG
-X-Received: by 2002:a50:b362:: with SMTP id r31mr29931889edd.14.1561989875474;
-        Mon, 01 Jul 2019 07:04:35 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561989875; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=A81OVS1KDh7qO0tzRmGTsGOsFereGYPuzxYasHMR3R4=;
+        b=UOPx+M8oLAhlL0cgW1yYLvgkmkhmAOEDyM3Iw2EEQqKQxCQaX+GF5bSTwLzm4JIR9J
+         tIR9ALo3C5CAvLoUK/Sj0sr3NKL+RnU0XlXVh1fBExW0PEn5YuefPM97MTaHWuApp5Fq
+         PdZ+l58pRE1uH2C3dM0i9qwaDZ2w/TO5UQiffH1kE+/WQqE8sbIfHS0eERiAi/FroSDD
+         XGFwsjFjMPa0QBru4jv9AqmiwbyopkYfcmV5KuiJpkzbRjDrngkXTEhuHYpDsRUbS0FG
+         khSMOIfW+F0xFFqswqoExCLnvXKn2CeeJrtILvy14HdOYtJPmRRwCrKuzKJEFhJFJBSt
+         e7jA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of robin.murphy@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=robin.murphy@arm.com
+X-Gm-Message-State: APjAAAWZhpyBpsSZh9A+3c+MpQkXdZHl1CT9DnmBp6bL99TGwWPancea
+	Kva/TDvLLd+VeE2xg+akjl5cSowfO9lpC+ENPd0q2i4ALvuuuGO1yMvwbBMZyc+0Pk22lC0qLo1
+	CNGjgDcpeGiGhM6DkXraBZYEknG4OTM3iS9gjLyYHkmIjdS1juxzCLDyrHvK/UkrNwQ==
+X-Received: by 2002:a17:906:3419:: with SMTP id c25mr5060305ejb.305.1561990190133;
+        Mon, 01 Jul 2019 07:09:50 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwwL4nC/fgJw8kkqzUTw6GN1ipcTL2UGDY54fPtPCUgC7qtRpL5KEV95GV68X+gLQANAnp0
+X-Received: by 2002:a17:906:3419:: with SMTP id c25mr5060225ejb.305.1561990189320;
+        Mon, 01 Jul 2019 07:09:49 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561990189; cv=none;
         d=google.com; s=arc-20160816;
-        b=fbAL1PX18QppJxr3d3M4wW/otT/qR2krc8L/Hh7NYKWKEP54JfNaU9kV+b4Sg5Y62O
-         mfBp8GWlYgQlyfAfh1NtxhYjM2JF4kkjfyUYcnBDwDgv8LyDKpZaZv6+6atuq4Y2kiqz
-         KUTbCTmsUkc0RJFwDTKPK1i8r3I+6WYHBAcjhZMvQcH7jPbFhAw/GDa0z7gDdaODMBGz
-         oxXbLSF9b/CGTcw3yImShQr1F/FQYx896caSLlIRhEJxkqUzd3865eS6Oaqvo+7lMl/2
-         Af1kMP9udPRfOn0ln1+wzcUd2RQQSt2/AkTIGnjbMCJGWxDY5S9/8R2jl6Lv2c2PNu2t
-         h92A==
+        b=jO1x6gooRdpqDoeC18T3rkMb80kBn0uIcvROAI9zfM2vH+1ijce9Edom1036Dk3Vhm
+         CEqgHAd5+2mVPazJkBpz4hyz4XYEgg562nJ1A0lwk0RxfSSnYTAwJp3IB3EHlD8H/t0J
+         QN10T5LF5tEHqfWoITA8MDBstHExsfe7uyIzA6bdMLiywlRfp7v77ZRabGLtAwgA2aZo
+         htB6ctr5oTtG3YSw1ng1QvQFVxwGPi7m4/WxE5U+yjfwMD9WY2SUsDzZYlMIqXgx5oCI
+         O5Ypk0DWWuQfdF3w5eg+gMCDJNY5Gt6qwqdl6EP9Fc9RMKpkeqkUFH1TyvOPymPm7dAR
+         MBew==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=VT2epvKVE0YN6pZ3f9gcT8fF8272T/apqXmry1qq8C4=;
-        b=0R7GDL8JBfPAvRP3AsfKwBD64KHkg8hRPpUN1ojkryWxDuAdJb7TEfMUaQ/xLSYEY3
-         rUP9JwQJ29SZ07fsLxO5E2pP3vVsM8RgbqDeOSq4kP4am1IfHQOA+lA1GXXoF6rdmF5g
-         p2kF+pBM2I7qrmezqQ2WCvwcEYjKwsuF2eu0MFtmmDSUD08iElcQbmgnX2forheeFk6o
-         Gj6tzyZ18jyB6PaXTaSqSXraOZ5dj2cyET1cc2o7jKUa/11r5yayBu84VigPUiYVwTo/
-         7bM+lJsXMNT8D78fMAaSrmmWHPm6asZLyUPVqLXdhBrwNZa8uWR2NvVdOMocWJtP2c5V
-         Wmbw==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=A81OVS1KDh7qO0tzRmGTsGOsFereGYPuzxYasHMR3R4=;
+        b=GWQfbZqazC2WjemCdxucinX9wJsS7dm7Sn+314rHFsVHy5bkT0fj9bs/usURgOHBgE
+         EZBdD2037FHKFr7sUKS+XktyxQAzGT71niXWRebLghSpQ/Qh/yZ2F548/hUu4qWRWAJx
+         KJYmepZglyLHw9OD4SnDtQ1h+sPg7PaoUBD4Gcygm1GLTuVzpdZUakmVOY0oRvk8Xxs7
+         OoGJ5POlxYMpuq4OWZrQ7G8r1B4rO8jUEV9LRMhw02ufQTWZY5JNy+acnPsL2NJCfanS
+         SkDGNQcXy+jUtqD072D+WVh5Oe6gys66HGOeBK/ew0vl/4O4ynaixCq66TMrZa6yomJz
+         GD7A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id d52si8699164edb.161.2019.07.01.07.04.35
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 01 Jul 2019 07:04:35 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+       spf=pass (google.com: best guess record for domain of robin.murphy@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=robin.murphy@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
+        by mx.google.com with ESMTP id p12si9905521eda.385.2019.07.01.07.09.49
+        for <linux-mm@kvack.org>;
+        Mon, 01 Jul 2019 07:09:49 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of robin.murphy@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id D7AEBB016;
-	Mon,  1 Jul 2019 14:04:34 +0000 (UTC)
-Date: Mon, 1 Jul 2019 16:04:34 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: Shakeel Butt <shakeelb@google.com>, linux-mm@kvack.org
-Subject: Re: [PATCH] mm: mempolicy: don't select exited threads as OOM victims
-Message-ID: <20190701140434.GA6376@dhcp22.suse.cz>
-References: <1561807474-10317-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20190701111708.GP6376@dhcp22.suse.cz>
- <15099126-5d0f-51eb-7134-46c5c2db3bf0@i-love.sakura.ne.jp>
- <20190701131736.GX6376@dhcp22.suse.cz>
- <ecc63818-701f-403e-4d15-08c3f8aea8fb@i-love.sakura.ne.jp>
- <20190701134859.GZ6376@dhcp22.suse.cz>
- <a78dbba0-262e-87c5-e278-9e17cf9a63f7@i-love.sakura.ne.jp>
+       spf=pass (google.com: best guess record for domain of robin.murphy@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=robin.murphy@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 75D6E344;
+	Mon,  1 Jul 2019 07:09:48 -0700 (PDT)
+Received: from [10.1.197.57] (e110467-lin.cambridge.arm.com [10.1.197.57])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 82FB63F246;
+	Mon,  1 Jul 2019 07:09:47 -0700 (PDT)
+Subject: Re: DMA-API attr - DMA_ATTR_NO_KERNEL_MAPPING
+To: Pankaj Suryawanshi <pankajssuryawanshi@gmail.com>,
+ Christoph Hellwig <hch@infradead.org>
+Cc: linux-mm@kvack.org, iommu@lists.linux-foundation.org,
+ linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>,
+ Michal Hocko <mhocko@kernel.org>
+References: <CACDBo564RoWpi8y2pOxoddnn0s3f3sA-fmNxpiXuxebV5TFBJA@mail.gmail.com>
+ <CACDBo55GfomD4yAJ1qaOvdm8EQaD-28=etsRHb39goh+5VAeqw@mail.gmail.com>
+ <20190626175131.GA17250@infradead.org>
+ <CACDBo56fNVxVyNEGtKM+2R0X7DyZrrHMQr6Yw4NwJ6USjD5Png@mail.gmail.com>
+From: Robin Murphy <robin.murphy@arm.com>
+Message-ID: <c9fe4253-5698-a226-c643-32a21df8520a@arm.com>
+Date: Mon, 1 Jul 2019 15:09:46 +0100
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <a78dbba0-262e-87c5-e278-9e17cf9a63f7@i-love.sakura.ne.jp>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <CACDBo56fNVxVyNEGtKM+2R0X7DyZrrHMQr6Yw4NwJ6USjD5Png@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-GB
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon 01-07-19 22:56:12, Tetsuo Handa wrote:
-> On 2019/07/01 22:48, Michal Hocko wrote:
-> > On Mon 01-07-19 22:38:58, Tetsuo Handa wrote:
-> >> On 2019/07/01 22:17, Michal Hocko wrote:
-> >>> On Mon 01-07-19 22:04:22, Tetsuo Handa wrote:
-> >>>> But I realized that this patch was too optimistic. We need to wait for mm-less
-> >>>> threads until MMF_OOM_SKIP is set if the process was already an OOM victim.
-> >>>
-> >>> If the process is an oom victim then _all_ threads are so as well
-> >>> because that is the address space property. And we already do check that
-> >>> before reaching oom_badness IIRC. So what is the actual problem you are
-> >>> trying to solve here?
-> >>
-> >> I'm talking about behavioral change after tsk became an OOM victim.
-> >>
-> >> If tsk->signal->oom_mm != NULL, we have to wait for MMF_OOM_SKIP even if
-> >> tsk->mm == NULL. Otherwise, the OOM killer selects next OOM victim as soon as
-> >> oom_unkillable_task() returned true because has_intersects_mems_allowed() returned
-> >> false because mempolicy_nodemask_intersects() returned false because all thread's
-> >> mm became NULL (despite tsk->signal->oom_mm != NULL).
-> > 
-> > OK, I finally got your point. It was not clear that you are referring to
-> > the code _after_ the patch you are proposing. You are indeed right that
-> > this would have a side effect that an additional victim could be
-> > selected even though the current process hasn't terminated yet. Sigh,
-> > another example how the whole thing is subtle so I retract my Ack and
-> > request a real life example of where this matters before we think about
-> > a proper fix and make the code even more complex.
-> > 
+On 28/06/2019 17:29, Pankaj Suryawanshi wrote:
+> On Wed, Jun 26, 2019 at 11:21 PM Christoph Hellwig <hch@infradead.org> wrote:
+>>
+>> On Wed, Jun 26, 2019 at 10:12:45PM +0530, Pankaj Suryawanshi wrote:
+>>> [CC: linux kernel and Vlastimil Babka]
+>>
+>> The right list is the list for the DMA mapping subsystem, which is
+>> iommu@lists.linux-foundation.org.  I've also added that.
+>>
+>>>> I am writing driver in which I used DMA_ATTR_NO_KERNEL_MAPPING attribute
+>>>> for cma allocation using dma_alloc_attr(), as per kernel docs
+>>>> https://www.kernel.org/doc/Documentation/DMA-attributes.txt  buffers
+>>>> allocated with this attribute can be only passed to user space by calling
+>>>> dma_mmap_attrs().
+>>>>
+>>>> how can I mapped in kernel space (after dma_alloc_attr with
+>>>> DMA_ATTR_NO_KERNEL_MAPPING ) ?
+>>
+>> You can't.  And that is the whole point of that API.
 > 
-> Instead of checking for mm != NULL, can we move mpol_put_task_policy() from
-> do_exit() to __put_task_struct() ? That change will (if it is safe to do)
-> prevent exited threads from setting mempolicy = NULL (and confusing
-> mempolicy_nodemask_intersects() due to mempolicy == NULL).
+> 1. We can again mapped in kernel space using dma_remap() api , because
+> when we are using  DMA_ATTR_NO_KERNEL_MAPPING for dma_alloc_attr it
+> returns the page as virtual address(in case of CMA) so we can mapped
+> it again using dma_remap().
 
-I am sorry but I would have to study it much more and I am not convinced
-the time spent on it would be well spent.
+No, you really can't. A caller of dma_alloc_attrs(..., 
+DMA_ATTR_NO_KERNEL_MAPPING) cannot make any assumptions about the void* 
+it returns, other than that it must be handed back to dma_free_attrs() 
+later. The implementation is free to ignore the flag and give back a 
+virtual mapping anyway. Any driver which depends on how one particular 
+implementation on one particular platform happens to behave today is, 
+essentially, wrong.
 
--- 
-Michal Hocko
-SUSE Labs
+> 2. We can mapped in kernel space using vmap() as used for ion-cma
+> https://github.com/torvalds/linux/tree/master/drivers/staging/android/ion
+>   as used in function ion_heap_map_kernel().
+> 
+> Please let me know if i am missing anything.
+
+If you want a kernel mapping, *don't* explicitly request not to have a 
+kernel mapping in the first place. It's that simple.
+
+Robin.
 
