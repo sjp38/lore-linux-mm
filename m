@@ -7,78 +7,78 @@ X-Spam-Status: No, score=-9.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
 	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id F029FC5B578
-	for <linux-mm@archiver.kernel.org>; Mon,  1 Jul 2019 06:21:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6B07DC5B578
+	for <linux-mm@archiver.kernel.org>; Mon,  1 Jul 2019 06:21:30 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A9930212F5
-	for <linux-mm@archiver.kernel.org>; Mon,  1 Jul 2019 06:21:27 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 254E42145D
+	for <linux-mm@archiver.kernel.org>; Mon,  1 Jul 2019 06:21:30 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="o95YPE7E"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A9930212F5
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="Sh+xg97C"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 254E42145D
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3B33D6B0266; Mon,  1 Jul 2019 02:21:13 -0400 (EDT)
+	id D74F46B0269; Mon,  1 Jul 2019 02:21:14 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 315948E000E; Mon,  1 Jul 2019 02:21:13 -0400 (EDT)
+	id CFD1A8E000E; Mon,  1 Jul 2019 02:21:14 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 13DED8E000D; Mon,  1 Jul 2019 02:21:13 -0400 (EDT)
+	id B52BB8E000D; Mon,  1 Jul 2019 02:21:14 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f206.google.com (mail-pg1-f206.google.com [209.85.215.206])
-	by kanga.kvack.org (Postfix) with ESMTP id C5D046B0266
-	for <linux-mm@kvack.org>; Mon,  1 Jul 2019 02:21:12 -0400 (EDT)
-Received: by mail-pg1-f206.google.com with SMTP id w5so2765407pgs.5
-        for <linux-mm@kvack.org>; Sun, 30 Jun 2019 23:21:12 -0700 (PDT)
+Received: from mail-pg1-f207.google.com (mail-pg1-f207.google.com [209.85.215.207])
+	by kanga.kvack.org (Postfix) with ESMTP id 5B6F16B0269
+	for <linux-mm@kvack.org>; Mon,  1 Jul 2019 02:21:14 -0400 (EDT)
+Received: by mail-pg1-f207.google.com with SMTP id s195so7030531pgs.13
+        for <linux-mm@kvack.org>; Sun, 30 Jun 2019 23:21:14 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=tWgCV0T5gyBBloZRaADn3Gi+6+ID0uvOOaOC/BREjAY=;
-        b=PbXp8azU6UMtRuXFLSXEhg0/X/bPDQKhwptUCGPuE1AmfFEhIo7e8rtPboBfNC0gQZ
-         v8dOKbkEtTUYKpI2j6QB5lclHnM/fI3v30MDk/wAfl0UVCNqJ0uPh76qvZA9jkQhxTIT
-         B8G3tA8czeoiQiyNxdVu63DaVCA8AA7qQGgT7UovwuhHWTP57/9XcpgTKbM+TCM3NE89
-         FnPL0NNDF7YANJsF2bwxznPDnedW9y6tIGbfhDLaZQTxMXfb9BE3mqpOKUxm02zirSCY
-         ne5ti1nql7rvDplf/KT3l716zn3fC5UVT0aJ8owovRHWzXTXvvTLoloM+ToJ+SCD3Fxb
-         58Ag==
-X-Gm-Message-State: APjAAAUMtgcPhrt92B+FVEin8cYfhy6c4uGSSco8+JnV5QniIUl/HW6x
-	8jG/SBrHHqyE8/39X4PMQo9LXzq96K4Egru8qsOggfsPWmEHOHvKZR6agOXJ4aVlCByyVo8VGYB
-	MWI4ffGCHUTC09+Q6DX6fzU1bVR6u1MtuNPCcHJkMxxy8v/2arYYdHNcRLgWevTI=
-X-Received: by 2002:a65:5c88:: with SMTP id a8mr22562716pgt.388.1561962072253;
-        Sun, 30 Jun 2019 23:21:12 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxO+ETh6nyTjwkz7AbgnCaJUYSnXRbM/dGspDahbks44PRpC8StKZa82bQfDEwRDBPt1kJh
-X-Received: by 2002:a65:5c88:: with SMTP id a8mr22562629pgt.388.1561962070881;
-        Sun, 30 Jun 2019 23:21:10 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561962070; cv=none;
+        bh=pfzb7DKQGxSim4j5P5NViAehCYDnD7twhlehxZF4/mk=;
+        b=Zw6VShdveEEhk2CYkFFAmxDzpjK+DpY6ZOPJf25GPPvdRSpB/lLsI1dh4PrT1NQ3WW
+         xBhMdMzyIkD03wrzq3tgE3HgmjCK9aFEj27FdEnOFrYO6JMcXJCxTdfTuZKAD/9fQhI8
+         NzTW4ZubZbRFHzhfE/o7BtIChKC3Ff2X1DpXXZ8BhKmFxeMzKO/nPFEKAa0R58dE2EWE
+         ZnOL+gCDVx0EJzHZ3lMdyq7uBX5SzgnlWIRtmF1nvxzTnIJQrF/oYkXtItoeYEd3QbJS
+         /j8gYJZKgRR+Ll86b4sdCC4/WIPL6a1ue/bsJCLtbGRy2su/reosZVoQU7OtOm4gNS+Y
+         yxVw==
+X-Gm-Message-State: APjAAAUKabBDpan/ID5Yn1n9CKgzvRhc3vpVJ6tYKKcOxRh+X0wgta+A
+	hZ+6tTs9E1bt85zsA6ngxOpc0ZD8Q+PIzycJbHzfB9YjbSbDjvFCuONtQsWV1RvZLTQvcAMnTRH
+	GsEaPtjvrFOPjAHSb527cWKTNhh/qXadvncqJ9IjCrZKIh4ji9cS/MYUcTsX8eb8=
+X-Received: by 2002:a63:62c5:: with SMTP id w188mr11577470pgb.129.1561962073969;
+        Sun, 30 Jun 2019 23:21:13 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyAeZ7TbJMTPYC6IAZK4FDBS07Jvwe7mpvRv2DR2DzhFbcH0ztrdMrW9nQZMCNZ6RfclRL4
+X-Received: by 2002:a63:62c5:: with SMTP id w188mr11577412pgb.129.1561962073143;
+        Sun, 30 Jun 2019 23:21:13 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561962073; cv=none;
         d=google.com; s=arc-20160816;
-        b=nb86xEbQxWhLdB0dOb4ONSIO+Fsd3Y/U3FERAk85npa9Zm+TP5bluJN58skrgXjL/E
-         9+N2vDQQ/6uIZg0SpeH3hj/Og4nR9NmaGo6aJsBKRqzJ6lxbRy1gL+b4SxTe+8enHld0
-         GEcRBKSAmzTtfkyVrGM9GLtgGmKMdiMzUrDgBqAwrezurGmHbc1Wn+qkw0upe1lbIPm9
-         k4mFkuDnCTrfRehFv5Xx8zWGClRtOHv766dAAype1R/1lyom8v9Ul5TaW4oBJrZvKXbz
-         BHluv72dSvO5zP8geF6F2cvPAiQcD1SII/115du0CytZ5tTMGDZ4qCdvJQAf1eqnApgv
-         KXcw==
+        b=qUuD7qsPhWNdwiB0zban7Xj5DxHyTvYx/JgWmvQOHmkevNCuoW6WM2oU4Z2DaBHS3j
+         ow7Xqw0E3r7LkeMjU254QjVAzeDj2H8YNqzr+AuTXxauAer/oQ6ktjXlWQ+BNrKpNfDw
+         d0OJ/h0P+FmoY7FtmQ4rVf7drD95aSluH1iaDOyqe2D7Ox6XIT9Ne69zAefT2nC6VxcF
+         Sv1LFwvMWuH3kPM22E8TvwSmpu29L/VAAXxN+KVVkSJrt8iYhW+NL8HRDM6xDwfqYtlo
+         TYQL3a1I2D1YDmJZ21Z7GlUAwFUwuB5NonoPrcwXTd+yfocES3fLZJmTIv2gJTChpAi5
+         RrvQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=tWgCV0T5gyBBloZRaADn3Gi+6+ID0uvOOaOC/BREjAY=;
-        b=scOp9+QJ8xIzScRWAq68aVuCj5tmiDYKtJ7tbQdlsl9PYfRg2kUyCvX9ttDKNVy8wD
-         UfGT/+kOXtU565CpC7AcYJIMY4BcfskW7lsh6TOwJn26mJ8+Z7NNIauEerTSe1c+OJs2
-         isi01ELa58n4yUBownWNkd0+CWVYFN1FVLYXEIXsEDSp5kb9pXmWY+FCIX2UZZJ8wDRY
-         ptab2aSfG3sQj3Cefcmv+wQRUCE0/eb8PofPmRrCjuAayxV08tmFXkGbiD/Xrkd4asao
-         6XrO/RNRyPK5TztVpNz2G9cX0/NZJNHlclKNQSED03PRIUgGmKxUAZuxSn8O21EiO8nM
-         Zzig==
+        bh=pfzb7DKQGxSim4j5P5NViAehCYDnD7twhlehxZF4/mk=;
+        b=gXzpDMjkHjoS4YdsnV2ikognKdBbYFw6AtLxU+qcvTw9tS+3fcOaBR2ta/veGRqrY6
+         cb+YCnsQ36IsfuI1CYthMAWy/l6dEuI841gVkTtJBp7bUICW47owBICdhgAlY4YTEZRq
+         jMjjSu2hrm6+3vEek59gEKl2NGhEpPIhmEYP7v1KMWsyYwe/dfBrw9k2stUeeyFK4XNI
+         R8/t6zA1RjFsluRhEL0w3i3q+O6fw6/w97M1q7qhPqscACK2+vz+gFDMNkLkZUYqF7Vg
+         1xoiyhPy+f2uPNcBfaGFAAPxhEK2Tna5pj7mzgmpzzPqAfLh4cSExLMrAnA1AdHPn7eX
+         wwZw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=o95YPE7E;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=Sh+xg97C;
        spf=pass (google.com: best guess record for domain of batv+bb02ddf78a79a38d855c+5790+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+bb02ddf78a79a38d855c+5790+infradead.org+hch@bombadil.srs.infradead.org
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id j124si10763234pfb.151.2019.06.30.23.21.10
+        by mx.google.com with ESMTPS id s24si10371036pfh.227.2019.06.30.23.21.13
         for <linux-mm@kvack.org>
         (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Sun, 30 Jun 2019 23:21:10 -0700 (PDT)
+        Sun, 30 Jun 2019 23:21:13 -0700 (PDT)
 Received-SPF: pass (google.com: best guess record for domain of batv+bb02ddf78a79a38d855c+5790+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=o95YPE7E;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=Sh+xg97C;
        spf=pass (google.com: best guess record for domain of batv+bb02ddf78a79a38d855c+5790+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+bb02ddf78a79a38d855c+5790+infradead.org+hch@bombadil.srs.infradead.org
 DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	d=infradead.org; s=bombadil.20170209; h=Content-Transfer-Encoding:
@@ -86,15 +86,15 @@ DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	:Reply-To:Content-Type:Content-ID:Content-Description:Resent-Date:Resent-From
 	:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:List-Help:
 	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	bh=tWgCV0T5gyBBloZRaADn3Gi+6+ID0uvOOaOC/BREjAY=; b=o95YPE7Ed8kykY6bfvr4aZ6u4a
-	iqVj/FoZrabOP8GDjgVj/9kqBGTTn4CmRLeIxb1rNW3VxoSW4AVNy/eAyP4qrIvkxkbxj+rI/Pvok
-	RmFYJ5q7h6/x66KlLFTEjo/16kYV8FBai9C7tW5NgGcfwfE+rgvK/NKditEuH0Fv6LFdrnBsnb9Cz
-	3jCoRpM3l4EDwQLfGOFXE5x/awO4QWFV3Iwjwsar5N34jJAtY9I4Ge806rGwjeZ32tkVsqr4SKF5i
-	+B8R6m57E3Hu5awfYglSUsyp/80U+lJGXdAGb9+ckm2WeqWt4HoRPT4Z475oxzhHiwLHg1y7KmucZ
-	WnLoHtpA==;
+	bh=pfzb7DKQGxSim4j5P5NViAehCYDnD7twhlehxZF4/mk=; b=Sh+xg97CAaxfCofmcqXvvWAphg
+	/FC2T86IXntWnlzo7VNQ0a7nvzkSU5M8Vor1yTinwL8XHWySWdAmf559BGxhLygWpZkXa+jWcNQpF
+	yiqysTo4IQb6Xpt1GUM99QV4WcYAL16tbM/uA/Iri95ouR7gdrojQ0Q1FFO88taxm3tHE0W2P75Ls
+	uFALgpav78FJe/L2HvoUQuW9Nx75lFKVz+WQqk7Svyo2Nz6faU7+QmTVPfGCiVaW1HVgnmdn0SnRa
+	bWnACDf6hys4JLjnsuvv+pNy9oG68GRh5KBdYs5IrjoRydXBE/posTx59K1lsO1UsoEGdwy2Of8G0
+	zfk6CmHg==;
 Received: from [46.140.178.35] (helo=localhost)
 	by bombadil.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
-	id 1hhpgZ-0003OJ-Fg; Mon, 01 Jul 2019 06:21:07 +0000
+	id 1hhpgb-0003W2-Ks; Mon, 01 Jul 2019 06:21:09 +0000
 From: Christoph Hellwig <hch@lst.de>
 To: Dan Williams <dan.j.williams@intel.com>,
 	=?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
@@ -107,9 +107,9 @@ Cc: Ira Weiny <ira.weiny@intel.com>,
 	linux-nvdimm@lists.01.org,
 	linux-pci@vger.kernel.org,
 	linux-kernel@vger.kernel.org
-Subject: [PATCH 20/22] mm: move hmm_vma_fault to nouveau
-Date: Mon,  1 Jul 2019 08:20:18 +0200
-Message-Id: <20190701062020.19239-21-hch@lst.de>
+Subject: [PATCH 21/22] nouveau: unlock mmap_sem on all errors from nouveau_range_fault
+Date: Mon,  1 Jul 2019 08:20:19 +0200
+Message-Id: <20190701062020.19239-22-hch@lst.de>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190701062020.19239-1-hch@lst.de>
 References: <20190701062020.19239-1-hch@lst.de>
@@ -122,160 +122,63 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-hmm_vma_fault is marked as a legacy API to get rid of, but quite suites
-the current nouvea flow.  Move it to the only user in preparation for
-fixing a locking bug involving caller and callee.
+Currently nouveau_svm_fault expects nouveau_range_fault to never unlock
+mmap_sem, but the latter unlocks it for a random selection of error
+codes. Fix this up by always unlocking mmap_sem for non-zero return
+values in nouveau_range_fault, and only unlocking it in the caller
+for successful returns.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- drivers/gpu/drm/nouveau/nouveau_svm.c | 54 ++++++++++++++++++++++++++-
- include/linux/hmm.h                   | 54 ---------------------------
- 2 files changed, 53 insertions(+), 55 deletions(-)
+ drivers/gpu/drm/nouveau/nouveau_svm.c | 15 ++++++++-------
+ 1 file changed, 8 insertions(+), 7 deletions(-)
 
 diff --git a/drivers/gpu/drm/nouveau/nouveau_svm.c b/drivers/gpu/drm/nouveau/nouveau_svm.c
-index 9d40114d7949..e831f4184a17 100644
+index e831f4184a17..c0cf7aeaefb3 100644
 --- a/drivers/gpu/drm/nouveau/nouveau_svm.c
 +++ b/drivers/gpu/drm/nouveau/nouveau_svm.c
-@@ -36,6 +36,13 @@
- #include <linux/sort.h>
- #include <linux/hmm.h>
- 
-+/*
-+ * When waiting for mmu notifiers we need some kind of time out otherwise we
-+ * could potentialy wait for ever, 1000ms ie 1s sounds like a long time to
-+ * wait already.
-+ */
-+#define NOUVEAU_RANGE_FAULT_TIMEOUT 1000
-+
- struct nouveau_svm {
- 	struct nouveau_drm *drm;
- 	struct mutex mutex;
-@@ -475,6 +482,51 @@ nouveau_svm_fault_cache(struct nouveau_svm *svm,
- 		fault->inst, fault->addr, fault->access);
- }
- 
-+static int
-+nouveau_range_fault(struct hmm_mirror *mirror, struct hmm_range *range,
-+		    bool block)
-+{
-+	long ret;
-+
-+	/*
-+	 * With the old API the driver must set each individual entries with
-+	 * the requested flags (valid, write, ...). So here we set the mask to
-+	 * keep intact the entries provided by the driver and zero out the
-+	 * default_flags.
-+	 */
-+	range->default_flags = 0;
-+	range->pfn_flags_mask = -1UL;
-+
-+	ret = hmm_range_register(range, mirror,
-+				 range->start, range->end,
-+				 PAGE_SHIFT);
-+	if (ret)
-+		return (int)ret;
-+
-+	if (!hmm_range_wait_until_valid(range, NOUVEAU_RANGE_FAULT_TIMEOUT)) {
-+		/*
-+		 * The mmap_sem was taken by driver we release it here and
-+		 * returns -EAGAIN which correspond to mmap_sem have been
-+		 * drop in the old API.
-+		 */
-+		up_read(&range->vma->vm_mm->mmap_sem);
-+		return -EAGAIN;
-+	}
-+
-+	ret = hmm_range_fault(range, block);
-+	if (ret <= 0) {
-+		if (ret == -EBUSY || !ret) {
-+			/* Same as above, drop mmap_sem to match old API. */
-+			up_read(&range->vma->vm_mm->mmap_sem);
-+			ret = -EBUSY;
-+		} else if (ret == -EAGAIN)
-+			ret = -EBUSY;
-+		hmm_range_unregister(range);
-+		return ret;
-+	}
-+	return 0;
-+}
-+
- static int
- nouveau_svm_fault(struct nvif_notify *notify)
- {
-@@ -649,7 +701,7 @@ nouveau_svm_fault(struct nvif_notify *notify)
- 		range.values = nouveau_svm_pfn_values;
- 		range.pfn_shift = NVIF_VMM_PFNMAP_V0_ADDR_SHIFT;
- again:
--		ret = hmm_vma_fault(&svmm->mirror, &range, true);
-+		ret = nouveau_range_fault(&svmm->mirror, &range, true);
- 		if (ret == 0) {
- 			mutex_lock(&svmm->mutex);
- 			if (!hmm_range_unregister(&range)) {
-diff --git a/include/linux/hmm.h b/include/linux/hmm.h
-index 4b185d286c3b..3457cf9182e5 100644
---- a/include/linux/hmm.h
-+++ b/include/linux/hmm.h
-@@ -478,60 +478,6 @@ long hmm_range_dma_unmap(struct hmm_range *range,
- 			 dma_addr_t *daddrs,
- 			 bool dirty);
- 
--/*
-- * HMM_RANGE_DEFAULT_TIMEOUT - default timeout (ms) when waiting for a range
-- *
-- * When waiting for mmu notifiers we need some kind of time out otherwise we
-- * could potentialy wait for ever, 1000ms ie 1s sounds like a long time to
-- * wait already.
-- */
--#define HMM_RANGE_DEFAULT_TIMEOUT 1000
--
--/* This is a temporary helper to avoid merge conflict between trees. */
--static inline int hmm_vma_fault(struct hmm_mirror *mirror,
--				struct hmm_range *range, bool block)
--{
--	long ret;
--
--	/*
--	 * With the old API the driver must set each individual entries with
--	 * the requested flags (valid, write, ...). So here we set the mask to
--	 * keep intact the entries provided by the driver and zero out the
--	 * default_flags.
--	 */
--	range->default_flags = 0;
--	range->pfn_flags_mask = -1UL;
--
--	ret = hmm_range_register(range, mirror,
--				 range->start, range->end,
--				 PAGE_SHIFT);
+@@ -500,8 +500,10 @@ nouveau_range_fault(struct hmm_mirror *mirror, struct hmm_range *range,
+ 	ret = hmm_range_register(range, mirror,
+ 				 range->start, range->end,
+ 				 PAGE_SHIFT);
 -	if (ret)
--		return (int)ret;
--
--	if (!hmm_range_wait_until_valid(range, HMM_RANGE_DEFAULT_TIMEOUT)) {
--		/*
--		 * The mmap_sem was taken by driver we release it here and
--		 * returns -EAGAIN which correspond to mmap_sem have been
--		 * drop in the old API.
--		 */
--		up_read(&range->vma->vm_mm->mmap_sem);
--		return -EAGAIN;
--	}
--
--	ret = hmm_range_fault(range, block);
--	if (ret <= 0) {
++	if (ret) {
++		up_read(&range->vma->vm_mm->mmap_sem);
+ 		return (int)ret;
++	}
+ 
+ 	if (!hmm_range_wait_until_valid(range, NOUVEAU_RANGE_FAULT_TIMEOUT)) {
+ 		/*
+@@ -515,15 +517,14 @@ nouveau_range_fault(struct hmm_mirror *mirror, struct hmm_range *range,
+ 
+ 	ret = hmm_range_fault(range, block);
+ 	if (ret <= 0) {
 -		if (ret == -EBUSY || !ret) {
 -			/* Same as above, drop mmap_sem to match old API. */
 -			up_read(&range->vma->vm_mm->mmap_sem);
 -			ret = -EBUSY;
 -		} else if (ret == -EAGAIN)
--			ret = -EBUSY;
--		hmm_range_unregister(range);
--		return ret;
--	}
--	return 0;
--}
--
- /* Below are for HMM internal use only! Not to be used by device driver! */
- static inline void hmm_mm_init(struct mm_struct *mm)
- {
++		if (ret == 0)
+ 			ret = -EBUSY;
++		if (ret != -EAGAIN)
++			up_read(&range->vma->vm_mm->mmap_sem);
+ 		hmm_range_unregister(range);
+ 		return ret;
+ 	}
++
+ 	return 0;
+ }
+ 
+@@ -718,8 +719,8 @@ nouveau_svm_fault(struct nvif_notify *notify)
+ 						NULL);
+ 			svmm->vmm->vmm.object.client->super = false;
+ 			mutex_unlock(&svmm->mutex);
++			up_read(&svmm->mm->mmap_sem);
+ 		}
+-		up_read(&svmm->mm->mmap_sem);
+ 
+ 		/* Cancel any faults in the window whose pages didn't manage
+ 		 * to keep their valid bit, or stay writeable when required.
 -- 
 2.20.1
 
