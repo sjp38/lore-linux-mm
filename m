@@ -7,120 +7,120 @@ X-Spam-Status: No, score=-10.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 91A22C06510
-	for <linux-mm@archiver.kernel.org>; Mon,  1 Jul 2019 21:57:59 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 774D8C5B578
+	for <linux-mm@archiver.kernel.org>; Mon,  1 Jul 2019 21:58:06 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4087B206E0
-	for <linux-mm@archiver.kernel.org>; Mon,  1 Jul 2019 21:57:59 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 3C3F320652
+	for <linux-mm@archiver.kernel.org>; Mon,  1 Jul 2019 21:58:06 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=wdc.com header.i=@wdc.com header.b="KADS1dQg"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4087B206E0
+	dkim=pass (2048-bit key) header.d=wdc.com header.i=@wdc.com header.b="ZZIFA9HV"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3C3F320652
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=wdc.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E5DA18E0005; Mon,  1 Jul 2019 17:57:58 -0400 (EDT)
+	id D4BF18E0006; Mon,  1 Jul 2019 17:58:05 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E0EF78E0002; Mon,  1 Jul 2019 17:57:58 -0400 (EDT)
+	id CFBF88E0002; Mon,  1 Jul 2019 17:58:05 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CFE0B8E0005; Mon,  1 Jul 2019 17:57:58 -0400 (EDT)
+	id B9DD58E0006; Mon,  1 Jul 2019 17:58:05 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f206.google.com (mail-pg1-f206.google.com [209.85.215.206])
-	by kanga.kvack.org (Postfix) with ESMTP id 9BE6B8E0002
-	for <linux-mm@kvack.org>; Mon,  1 Jul 2019 17:57:58 -0400 (EDT)
-Received: by mail-pg1-f206.google.com with SMTP id x19so8326198pgx.1
-        for <linux-mm@kvack.org>; Mon, 01 Jul 2019 14:57:58 -0700 (PDT)
+Received: from mail-pl1-f205.google.com (mail-pl1-f205.google.com [209.85.214.205])
+	by kanga.kvack.org (Postfix) with ESMTP id 82E728E0002
+	for <linux-mm@kvack.org>; Mon,  1 Jul 2019 17:58:05 -0400 (EDT)
+Received: by mail-pl1-f205.google.com with SMTP id 59so7879648plb.14
+        for <linux-mm@kvack.org>; Mon, 01 Jul 2019 14:58:05 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:ironport-sdr:ironport-sdr:from:to
          :cc:subject:date:message-id:in-reply-to:references;
-        bh=XgWwsa61aZBxJ2BDh3Q0RgZD8d2w9bfc/L2B41XFq4E=;
-        b=pjjpav9qeoDzLj69y3pmjutbUQl99bs9FXBwQdWpb4no3TSycmSgf7f/wjPd3Ytf+S
-         68hf0wApzmcNbMNMvUKVgJRCKyzGtfoyFhGnuPA8eIZKc7uu5DQh11usKk1it/JFJDdp
-         5Aq6WlWwIZ2FU984R7aDSEEq2VVQqfJ1hxscBDdE/rypQRMiOeFtcNFv0hX/YkHpZJWk
-         mB7CFMyklIMJolP2r78DrQR0YdmbJj/ga8o81ihZ2NYGLIwx7kz+N95Aap+NDH65SJao
-         OAtPRdeCjGpgdlT/AOdKRgXl+jAKK+IN+UkjAJKhv8yHVjrysUuJrMz0AyJbV8Hq++iI
-         b9mw==
-X-Gm-Message-State: APjAAAVHfSiWesstqNn5sC6qUHcDSA251G2M4V4XnP9f1n0DaclC1agy
-	yVnAxwE9AHrvM11MVRDk/j9HCp4USlX4OElU4GAzRfiyttAWTCJtgROqLJbDjRr8w/VpijIcNP4
-	oBSHlHQYTeKzU/x/jjg1LJa/ZEkOZBmsp9jkoWTUc3i2B986qwFVSJfG0EDAU5wNqOg==
-X-Received: by 2002:a63:4d4a:: with SMTP id n10mr26347356pgl.396.1562018278264;
-        Mon, 01 Jul 2019 14:57:58 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy56B7Lyz+JN2zNjYPX6KwgkHeargLXL/VeijlTNQRi4sslNZItdnBz/z1GBSk3YHSd7Srn
-X-Received: by 2002:a63:4d4a:: with SMTP id n10mr26347320pgl.396.1562018277415;
-        Mon, 01 Jul 2019 14:57:57 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562018277; cv=none;
+        bh=Rz22BLRkwdteKQIL4HVAbq/33QcMnCT9Tx0pA4ANBrI=;
+        b=Np02RTCLz2YepTAo79p+6W6lwkDb7Z8uXIqu47YCjBL43A9vXIZSG7/YXBNBwW/jAM
+         QM0T4HMZZGDhumUhPnVxepI8NrEJglP4QhEusC7O8lfYmIkfENqDQcfqobcMeT6AakGh
+         e0ZCAJqWaO5EtayfPIqNcXUpC9z8dEYDL74vKGTMabLKB4vBL4AE/2/9DEopIrP9TlmR
+         eHmAZkDIOHSVOwwccIZomLzi8EMwYnioAhwCVPMoCHbJiz3LHs3dOuejphJzdiIfGRh3
+         qtxvHr19U/om+zGLLmbDENCtNpeomxawYGIceDdFR/2lPpPETqPG2m+MjFM7L8HRmGls
+         nf7A==
+X-Gm-Message-State: APjAAAXT41HR7Bd9cjHlf1QqWr6PhAaLQiBOfiebMbBarASm/mX7FyWR
+	/hueh3jknOSUs3BwPm4veMG5rLWA+I252M+lzSK34Pyd8SePxqiMMBPJj3o3aWTyvsDNaXZNTas
+	ILYfWXrgMzrTaJyt0bc90RGwgxvmsZ4GJJah0/hg8hfuoJFH4O+9Jt3i4QOXRqaLc8w==
+X-Received: by 2002:a17:90a:2525:: with SMTP id j34mr1654170pje.11.1562018285223;
+        Mon, 01 Jul 2019 14:58:05 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwqum+Gbt12hxHcva0fVt5dsQ6pppzAkwOt4H8WM777VVqoy8YE/TiWzALlf5CAHmLOwDcu
+X-Received: by 2002:a17:90a:2525:: with SMTP id j34mr1654130pje.11.1562018284595;
+        Mon, 01 Jul 2019 14:58:04 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562018284; cv=none;
         d=google.com; s=arc-20160816;
-        b=dxxczMoYYEpZVvFwtzastbv2sjqUzLnOX0S/9TzF4VwwYxFn+13I1foNpk21g86xgl
-         yoUSwTFCj5RupkDV5pfpDy0Mea7cZDYW614Ti+xlLaKYvnOYdetH/Dph/5FAji8Q4Qkp
-         Ff/EnhBFD0am6wWdeoJMusKaM7MJWCJadBiK+ED3rzVFL3KTgrhn8vNfGyoW8crEoFGc
-         yk080xOQx9Z/97/lH+iF1WnH5cUitE+DQhJKkx4WrpQ4xwh6OSrh85X6zxQvX1Lt3usJ
-         gg3wkTYMv7MFdtM/sVXNPd42Ph8FKSuaoNwDoNhJCAzheV76iZRdPjEK7j3ImbxcZAQI
-         7NiQ==
+        b=jlK3vX2J36hOa1E4kijG9dmR5KEhBgom4SWZV0b7q42sZcmCgucuSIIhAyQWA7QHa9
+         GcmVKzBrEBRU8xQ+SKfRvI93xAQmha1f6UcZjWqrLOkPEiDWFFr3360eQtbEPGds5tM7
+         pk3G5kUh4TF3L3bXn+VSd2dhGp7Vw/FbNu1tjsUR4z4B+x0X/OFY7I09MNdYrdV805h3
+         vUcwEe8II7TU1m0A3PeM8FsDFPLXxE4AjjMPLPoQ5tCJ74ftgsVd3QbMrbRL1hs/3ke+
+         YZJHu3B0nP5iCIkHQd5WYV6LPtbR79et2GkpidmVX5khlG/YiFYEZAAnswPufYlBdqzQ
+         j4Zg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from
          :ironport-sdr:ironport-sdr:dkim-signature;
-        bh=XgWwsa61aZBxJ2BDh3Q0RgZD8d2w9bfc/L2B41XFq4E=;
-        b=X7+MgA4H1rIv5WhdTaQmAtj7nQyD477E0V3aiV8sJHIAFf9ysa8l9O70HOheiNw1PO
-         9tNbHwKUK/Is1nqH4GmmbUQsSdR5WKYULOLf0YKpnTAR9As9SS4g0HDQtluujTTts52K
-         8mscIVvXtfHRJoQuksCHjCKcG3I831cNcxLk0Gi0Lq8+MQsSikwrUD4VTiy06s8C7QvQ
-         CFEAR9ChebpfXD5sHf9mO/RnClEO8yPaz6jtouIdRaJSa5jzG6AyGVTfzqY7m65u4btq
-         ucfqDlMmAoZ3/TKyLMTQmYs+LdafW0JTdqm+Gr+SwU6W6l4e9JUNiPf6WH5ZckN+dqXg
-         lHqg==
+        bh=Rz22BLRkwdteKQIL4HVAbq/33QcMnCT9Tx0pA4ANBrI=;
+        b=MD7hSnfHwwltYlCCei+Sk5AdJQWkaBecSLhEtCIYWlvFf+/t6LoBUOuKq7hMsGdDAg
+         Um41qwhwU5yzu8pXlTV3awECVj+cBmBIj9ioB6qVkBfkWIzOjn+Y245zNe1EFkcvo6e2
+         wJWmMG74/a5KM58SKtf7lZnqBNA4/cBBk9rQBj2XVpE/liNSji6pjhhxe+6VK++qh/aN
+         8joRJwWcAr1zuN4Vi8heAHPulJVkaWzig2x7jwN8ORJbUP2gXRGwQotgRafBYVEQ8xOf
+         uJ8Qyd/a768X82OpeL1Jxrj5z0PMytnRWQEDIBeOQJsyDkyQYesZx/JTLePnHxaYDkog
+         +EUQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@wdc.com header.s=dkim.wdc.com header.b=KADS1dQg;
-       spf=pass (google.com: domain of prvs=0789f8ff9=chaitanya.kulkarni@wdc.com designates 68.232.141.245 as permitted sender) smtp.mailfrom="prvs=0789f8ff9=chaitanya.kulkarni@wdc.com";
+       dkim=pass header.i=@wdc.com header.s=dkim.wdc.com header.b=ZZIFA9HV;
+       spf=pass (google.com: domain of prvs=0789f8ff9=chaitanya.kulkarni@wdc.com designates 216.71.153.144 as permitted sender) smtp.mailfrom="prvs=0789f8ff9=chaitanya.kulkarni@wdc.com";
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=wdc.com
-Received: from esa1.hgst.iphmx.com (esa1.hgst.iphmx.com. [68.232.141.245])
-        by mx.google.com with ESMTPS id q75si11016093pgq.538.2019.07.01.14.57.57
+Received: from esa5.hgst.iphmx.com (esa5.hgst.iphmx.com. [216.71.153.144])
+        by mx.google.com with ESMTPS id q39si596559pjc.55.2019.07.01.14.58.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 01 Jul 2019 14:57:57 -0700 (PDT)
-Received-SPF: pass (google.com: domain of prvs=0789f8ff9=chaitanya.kulkarni@wdc.com designates 68.232.141.245 as permitted sender) client-ip=68.232.141.245;
+        Mon, 01 Jul 2019 14:58:04 -0700 (PDT)
+Received-SPF: pass (google.com: domain of prvs=0789f8ff9=chaitanya.kulkarni@wdc.com designates 216.71.153.144 as permitted sender) client-ip=216.71.153.144;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@wdc.com header.s=dkim.wdc.com header.b=KADS1dQg;
-       spf=pass (google.com: domain of prvs=0789f8ff9=chaitanya.kulkarni@wdc.com designates 68.232.141.245 as permitted sender) smtp.mailfrom="prvs=0789f8ff9=chaitanya.kulkarni@wdc.com";
+       dkim=pass header.i=@wdc.com header.s=dkim.wdc.com header.b=ZZIFA9HV;
+       spf=pass (google.com: domain of prvs=0789f8ff9=chaitanya.kulkarni@wdc.com designates 216.71.153.144 as permitted sender) smtp.mailfrom="prvs=0789f8ff9=chaitanya.kulkarni@wdc.com";
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=wdc.com
 DKIM-Signature: v=1; a=rsa-sha256; c=simple/simple;
   d=wdc.com; i=@wdc.com; q=dns/txt; s=dkim.wdc.com;
-  t=1562018277; x=1593554277;
+  t=1562018284; x=1593554284;
   h=from:to:cc:subject:date:message-id:in-reply-to:
    references;
-  bh=MbHOnCWpKU9OhNQ3wNRN8l4gA1/62SoaCYINRxhsjOE=;
-  b=KADS1dQg4EU8mbhayi4lwtDMVqy1/AZq7XFlZ0iE2MZq93d3hNbrTWlL
-   mLtH4gklBoX+iXQOE0f6PiuSdl5xN6sewsBYu5sJx180CvwQzCSC5WWIL
-   vX66LVl8ju69JpJueAnZN5PjuH0yQ/4o1Y1OqfjPkIQ8a7YDTZSXmYNE+
-   0K7aJeHvWizPSjGbAYz0ex3sgXj2BhUPLDPu5CDVEnpBbunPDOpJt3vGw
-   VwOABnPAN3QHh/kBdVJUGyIEAMN1ji1crbYs4krByxz7GUPIfIcj2/JeS
-   9MlVySUBYlhFni5o0CzChLLYuDsGoJKPPv0OdWJ0BjLVZyIDh8vv8MKqp
-   g==;
+  bh=SM4vBhjIMuIjQIIkPMmNSjGDUMbO4rTKMZzMc8UskaU=;
+  b=ZZIFA9HVeSYt9Y8HlXxKic9FrxKeWNYAzpDjhnh8guDtK9L7jXKwK6Wm
+   w105ZKNaZzep5NMpbluGb1G7bojNk5D90MDLORDtaqMxz16dShWHpfPON
+   THSSTYs7mCdkLDF9LxOpdZ5tWTpzwaP6fBLVAvRUjeKlYfh8FMhDmSXEE
+   8Sz084LfWBifFBxlMbxMBv0Ox0PquI8W/UbS8Xalo+TYS2RBCRY+polIS
+   t68MZQDLxytiaRyPN9TPjSYGcNVX0Cfzt6diGVhrp8NR2Jh8Bq8KeUzzg
+   dUzY7QPNKoq7mvHYHrsn3koDjEwSu5eoF4qzAkFAuJKICs9uFek1/Yx7b
+   Q==;
 X-IronPort-AV: E=Sophos;i="5.63,440,1557158400"; 
-   d="scan'208";a="218377243"
-Received: from h199-255-45-14.hgst.com (HELO uls-op-cesaep01.wdc.com) ([199.255.45.14])
-  by ob1.hgst.iphmx.com with ESMTP; 02 Jul 2019 05:57:56 +0800
-IronPort-SDR: uOCNjcB0VeIAXzsYZ0vqGaLmBbdvmEYbsbhef4UJCj+xdD3inJpUD5T6JGiBRTlbB4G800KN8o
- /6jvcQPqtbmkJFRCci+WM65IXEl/oBa0TP797chQ0fPwqBeR8ZL+kHhLnqdPHd5HgRQZsgCCiO
- 1r1dCCV2Ug6HHoUwbXKAdDgkZAC7h2flGLmfzDwSsm7YjFaQzOB5LEe6VXbHPEE6gdYTPCsBp8
- gxmdWH+KYQNMtNF4Mqv7w0pbGsSMR4eJ47r+5PxiW+jpL9rRGwwDOUHDjGR5Wu+p22+i/iqMXb
- mOBnoTz70NisaT8JOIqjxVsq
+   d="scan'208";a="113190459"
+Received: from h199-255-45-15.hgst.com (HELO uls-op-cesaep02.wdc.com) ([199.255.45.15])
+  by ob1.hgst.iphmx.com with ESMTP; 02 Jul 2019 05:58:04 +0800
+IronPort-SDR: Pe/XRq8dFo9R6f/s3JFaCg3zrjbfWhREBV6UkkVkJIhqpxpMiIQOUexbyjMbj1u7HPSi8AB4SQ
+ D6TWFgq1urJHsH1CJ6zQzU4zODA/uAO+JZ5bm45f6xOitB6RV5MfkQI+qfDSafdozLThxVnpWD
+ rJbhy4bJs1zVbNxUdmOMdYmWzfOtm5VBW80jPKKgqMtg52XBPuTip+82c+g3T+t6caT9OdPEst
+ nMSpftaHYAQX3NTYF9y0hoNw1jULxMCg8IrgxOZvnRIPaBjL3s/W8g0Grl7YQ9MjVf7fgqCpEG
+ tc4oxyMGwiBr0H97PCECmpYY
 Received: from uls-op-cesaip02.wdc.com ([10.248.3.37])
-  by uls-op-cesaep01.wdc.com with ESMTP; 01 Jul 2019 14:56:57 -0700
-IronPort-SDR: CL+xf59TlgjtZyTlFRdcDLuFt75xQy3gXKfSxFmbCWJT5LpCjDOhLvVhJA8iyfcFX8teiNIU61
- JS6nyhX2Ks1O0rTthsOcqUEA8YwUv0TSYQVGKXjnChLzxvglb4z6E2l2b22Mx69PqCKDUgabxq
- z+flC2nm/UzUtye/ZE8/A8OzzamaJyVuGujFyj+kM5z3Ul371Uu9BPqEO6baKu5HavSUMM/V2z
- T3UMAzRyJNRY+iQgrLC/LgbFgJNzaxW0R7TuHnASZhh7TGWl6LIKon4o4jEMddBsNPFxtsL3Cn
- T7w=
+  by uls-op-cesaep02.wdc.com with ESMTP; 01 Jul 2019 14:57:07 -0700
+IronPort-SDR: e+BRmQAwH57/flmFvsQ6Pi8GWmwJl0oZ71gtjgNdmCq2EN3CldpqQ1InjNWVtGq0B1oBeOBsd+
+ kFszZuOSH18RLPIwDQuKI4Xt94EU0l8vAv40wQPezVoRtOtGcS3DhfqFKo3eZoEEF7cqOlXdaL
+ bv1kLKT8vZz+a1WGE8clxQDtDrXl/ApwMerjBGhUmCmmTEmTFNhoRp6K1sboM6C2xXyBHPjxmY
+ h9eYIBUbtUcMBrxqcroJweQRK4ZibJt9YOvzlfmlJ5tyPVhAc+V2PrYsnrLymBfxnDADKmxVAS
+ QQI=
 Received: from cvenusqemu.hgst.com ([10.202.66.73])
-  by uls-op-cesaip02.wdc.com with ESMTP; 01 Jul 2019 14:57:57 -0700
+  by uls-op-cesaip02.wdc.com with ESMTP; 01 Jul 2019 14:58:04 -0700
 From: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
 To: linux-mm@kvack.org,
 	linux-block@vger.kernel.org
 Cc: bvanassche@acm.org,
 	axboe@kernel.dk,
 	Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
-Subject: [PATCH 3/5] block: allow block_dump to print all REQ_OP_XXX
-Date: Mon,  1 Jul 2019 14:57:24 -0700
-Message-Id: <20190701215726.27601-4-chaitanya.kulkarni@wdc.com>
+Subject: [PATCH 4/5] mm: update block_dump comment
+Date: Mon,  1 Jul 2019 14:57:25 -0700
+Message-Id: <20190701215726.27601-5-chaitanya.kulkarni@wdc.com>
 X-Mailer: git-send-email 2.17.0
 In-Reply-To: <20190701215726.27601-1-chaitanya.kulkarni@wdc.com>
 References: <20190701215726.27601-1-chaitanya.kulkarni@wdc.com>
@@ -130,67 +130,29 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-In the current implementation when block_dump is enabled we only report
-bios with data. In this way we are not logging the REQ_OP_WRITE_ZEROES,
-REQ_OP_DISCARD or any other operations without data etc.
-
-This patch allows all bios with and without data to be reported when
-block_dump is enabled and adjust the existing code.
+With respect to the changes in the submit_bio() in the earlier patch
+now we report all the REQ_OP_XXX associated with bio along with
+REQ_OP_READ and REQ_OP_WRITE (READ/WRITE). Update the following
+comment for block_dump variable to reflect the change.
 
 Signed-off-by: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
 ---
----
- block/blk-core.c | 21 ++++++++++-----------
- 1 file changed, 10 insertions(+), 11 deletions(-)
+ mm/page-writeback.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/block/blk-core.c b/block/blk-core.c
-index 5143a8e19b63..9855c5d5027d 100644
---- a/block/blk-core.c
-+++ b/block/blk-core.c
-@@ -1127,17 +1127,15 @@ EXPORT_SYMBOL_GPL(direct_make_request);
+diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+index bdbe8b6b1225..ef299f95349f 100644
+--- a/mm/page-writeback.c
++++ b/mm/page-writeback.c
+@@ -109,7 +109,7 @@ EXPORT_SYMBOL_GPL(dirty_writeback_interval);
+ unsigned int dirty_expire_interval = 30 * 100; /* centiseconds */
+ 
+ /*
+- * Flag that makes the machine dump writes/reads and block dirtyings.
++ * Flag that makes the machine dump block layer requests and block dirtyings.
   */
- blk_qc_t submit_bio(struct bio *bio)
- {
-+	unsigned int count = bio_sectors(bio);
- 	/*
- 	 * If it's a regular read/write or a barrier with data attached,
- 	 * go through the normal accounting stuff before submission.
- 	 */
- 	if (bio_has_data(bio)) {
--		unsigned int count;
+ int block_dump;
  
- 		if (unlikely(bio_op(bio) == REQ_OP_WRITE_SAME))
- 			count = queue_logical_block_size(bio->bi_disk->queue) >> 9;
--		else
--			count = bio_sectors(bio);
- 
- 		if (op_is_write(bio_op(bio))) {
- 			count_vm_events(PGPGOUT, count);
-@@ -1145,15 +1143,16 @@ blk_qc_t submit_bio(struct bio *bio)
- 			task_io_account_read(bio->bi_iter.bi_size);
- 			count_vm_events(PGPGIN, count);
- 		}
-+	}
- 
--		if (unlikely(block_dump)) {
--			char b[BDEVNAME_SIZE];
--			printk(KERN_DEBUG "%s(%d): %s block %Lu on %s (%u sectors)\n",
--			current->comm, task_pid_nr(current),
--				blk_op_str(bio_op(bio)),
--				(unsigned long long)bio->bi_iter.bi_sector,
--				bio_devname(bio, b), count);
--		}
-+	if (unlikely(block_dump)) {
-+		char b[BDEVNAME_SIZE];
-+
-+		printk(KERN_DEBUG "%s(%d): %s block %Lu on %s (%u sectors)\n",
-+		current->comm, task_pid_nr(current),
-+			blk_op_str(bio_op(bio)),
-+			(unsigned long long)bio->bi_iter.bi_sector,
-+			bio_devname(bio, b), count);
- 	}
- 
- 	return generic_make_request(bio);
 -- 
 2.21.0
 
