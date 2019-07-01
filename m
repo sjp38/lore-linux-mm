@@ -2,227 +2,193 @@ Return-Path: <SRS0=jfnU=U6=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY,USER_AGENT_SANE_2
-	autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 42FA0C0650E
-	for <linux-mm@archiver.kernel.org>; Mon,  1 Jul 2019 09:56:44 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6D384C0650E
+	for <linux-mm@archiver.kernel.org>; Mon,  1 Jul 2019 09:57:18 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EAE3020881
-	for <linux-mm@archiver.kernel.org>; Mon,  1 Jul 2019 09:56:43 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EAE3020881
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=mediatek.com
+	by mail.kernel.org (Postfix) with ESMTP id 2DC3220881
+	for <linux-mm@archiver.kernel.org>; Mon,  1 Jul 2019 09:57:18 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2DC3220881
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 867936B0006; Mon,  1 Jul 2019 05:56:43 -0400 (EDT)
+	id C0F9B8E0002; Mon,  1 Jul 2019 05:57:17 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8165C8E0003; Mon,  1 Jul 2019 05:56:43 -0400 (EDT)
+	id BB7866B0008; Mon,  1 Jul 2019 05:57:17 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 705BE8E0002; Mon,  1 Jul 2019 05:56:43 -0400 (EDT)
+	id A62E08E0002; Mon,  1 Jul 2019 05:57:17 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f208.google.com (mail-pg1-f208.google.com [209.85.215.208])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A1F46B0006
-	for <linux-mm@kvack.org>; Mon,  1 Jul 2019 05:56:43 -0400 (EDT)
-Received: by mail-pg1-f208.google.com with SMTP id b10so7327357pgb.22
-        for <linux-mm@kvack.org>; Mon, 01 Jul 2019 02:56:43 -0700 (PDT)
+Received: from mail-ed1-f77.google.com (mail-ed1-f77.google.com [209.85.208.77])
+	by kanga.kvack.org (Postfix) with ESMTP id 5A4526B0007
+	for <linux-mm@kvack.org>; Mon,  1 Jul 2019 05:57:17 -0400 (EDT)
+Received: by mail-ed1-f77.google.com with SMTP id c27so16515470edn.8
+        for <linux-mm@kvack.org>; Mon, 01 Jul 2019 02:57:17 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:message-id
-         :subject:from:to:cc:date:in-reply-to:references
-         :content-transfer-encoding:mime-version;
-        bh=QB5uWgD3NO3VbFr/pONkbxLISPnIjp30M+44zmcUrV0=;
-        b=qMjGcDRiUY02ew/eZV18iyzas86/5nqi4SX02yFWYJpDddt/B5GcCbW+lTKlmV3DaD
-         WfKs7HEzWXKQkIhLNpSQBuZSZWc/UZp7WR66iNruZkSKJo4B02DkHWCrous5Jd1QmvlH
-         02DtL891iQIivIZy5uAsnAcg9S9mA/ozVBqu7zU9ewQ7aY3BX1tLmTtmMf4fG9X2WwNe
-         hhSm1NNwhIKRrOcxLUEmNny666COZCisTfRxK7oB7SCHnPhEAdbXzVKWUPlTG2NpEGdi
-         n51vo4Hy9d3MvvD5nkL8vTiVEFBOqnQavs1EhDP46SOlYCjSt/UvIA0oBvmb3B6Z6hJd
-         VgEQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of walter-zh.wu@mediatek.com designates 210.61.82.183 as permitted sender) smtp.mailfrom=walter-zh.wu@mediatek.com
-X-Gm-Message-State: APjAAAW88KuSbcc06snP9I7ZDyjT/HhGlA3kjUyadYTFYtsM+RWck7Kk
-	3zfstMt0lDbgyPGksZ6CQvYw4HV43GisiRtG3wJIszePi8JQn/iirUHpXbzLBv9lRhRvRjTXxg7
-	5hSWSQEpanDuTWPqvUUp7ZhvwS3EFbufgmveDDKRj7BQljr0knd5guFe24OCKjA4+rw==
-X-Received: by 2002:a17:90a:24ac:: with SMTP id i41mr29947591pje.124.1561975002727;
-        Mon, 01 Jul 2019 02:56:42 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzhn/EtPyqU+Om5P624wd30GcI0/DLAo/girogO7j7BT1I9UODe10S15faEiaW7QFNBLC56
-X-Received: by 2002:a17:90a:24ac:: with SMTP id i41mr29947481pje.124.1561975001401;
-        Mon, 01 Jul 2019 02:56:41 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561975001; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=1iauxxUfIEGvJQUGVUPb5P6hHu4AmvRVZSXROty2v8A=;
+        b=iec9c4WBO3Dadc6Iix2kYYKXK6eSGg9YtFTsqwXK2kiGljIglwyxRO3bbtayDay7M/
+         yG/QXcPuGjNkoJK394CPltQcQRm8MGbS1hSVLk3KDNBjUJUVAYF8s6ImryCH7gl8nu9e
+         2djWza7bAXEl88qPBYS6M7s63655xv6LiC6U/tI+OfllFy5a+hQeTQaVdzxVOpd5IYDg
+         l8M4XFBRJKITEE85bUpbKDfHPtPT/GQL55mOn6nf2+OOE2nSFPo2gU5igJU7hJUowUlT
+         MJXLbc5hKSBEDx1EVsSypjv7GTByyMFfq29HG6J/68Dvf6ZsfvrXerMq+OQTlZ2S6ylS
+         PC+g==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of steven.price@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=steven.price@arm.com
+X-Gm-Message-State: APjAAAUlgsKOl7AlAHAVApydLBkfsGNd5c0BgRlojpKE9C/Y40PvEOYS
+	sH+7p2QxrYHpquZQc7seIlqraxzZVYUCYghUlZZVwlvRaSZFXyEeYYByhrNoGrthccYwk2amJcq
+	OeISujyAKXkp7/PidwoCcK3ezEaIlfyXox3Q31ROp/JlvHRj7YwJIdsuI23ZV7/Za3Q==
+X-Received: by 2002:a17:906:e009:: with SMTP id cu9mr22180476ejb.267.1561975036942;
+        Mon, 01 Jul 2019 02:57:16 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqztDQANrrWTWnYedM6Bf7HQNhEci6aY8afpLvodIXu1uJimSMlT9tuv7jTaTOUGVg3qzVAT
+X-Received: by 2002:a17:906:e009:: with SMTP id cu9mr22180406ejb.267.1561975035831;
+        Mon, 01 Jul 2019 02:57:15 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561975035; cv=none;
         d=google.com; s=arc-20160816;
-        b=w1ddVjfr0KthUlxhcr9GENSNWurQSYCWmkZIBD9LBoWtbobEYe+rFLQAAHQO1ir1KD
-         MogpCUtLD2aucEFWMy0z649jAr+N8pjX71JtN7Wni03ZrIMnloa1iipWzqrHY/9vjkjP
-         oRjMVdMB+IDG4Ya5pUPbuI1Ix6woeNThVJYLoIZmoWzQRukF/GR8GTLAr6ejiJeRf0db
-         sP4tLvSAB/3SMUKIBQ4OPGM6NBn5wPrOBSc8XLo38r4M4/gCK0ZnV/2jcbTAyONhhcyT
-         KehZWR9h9s9yzmXAy16a3iP7L7Ud6JVZ14ThIinfI7vtJCoKHnYlTOmBRMuVSucHMQb7
-         4qlA==
+        b=imvwHr0Jmh4GSxVWClDLFi+q3ooFz4xeymSXEdnwV7pT18JNZHjSluYMywltD6USO7
+         5HR4Ue5xl1LfzITcN42orKGhoxlxk+38HcPxmg7BrJ/uGGfokNPW2HQfA7L3poZ8d6qI
+         Hq5/DYw8sQvzW0+N8De1fJWtHFlsJjzltM7XoGVxQIRidJCCE0hAsWe36dBHXUUx48Cq
+         ypiIOdx4+FGB/u+rMhCIwIqzRTLuaZZl0sIWcyws9FjHFSg2jXTj5dCxoc7lgszP4hy/
+         QITMtQtCcQaUWuIbVmZ7HsXMdcqlddoqXESicWcz0MNZXV77GI+5rJeNAC73ahci0GIM
+         nAsg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:references:in-reply-to:date
-         :cc:to:from:subject:message-id;
-        bh=QB5uWgD3NO3VbFr/pONkbxLISPnIjp30M+44zmcUrV0=;
-        b=xwHKKiJyFW+nDnxCZXH86o8iKf/t4OrGSKxeuVFRXVqN4VJeuuJ2fXBDGVXYPtqm0w
-         tUWgDlt8mxWTzeOqcC+888WOca47F2a1qqTKwlfJTY0S5yg7oPrgUf18Sy+pmZ/h6vDC
-         7FyhlT3Px8+qDFtoY+dbLkpcDmw0BV3zmQS9VNfizEJHsJ97gb9mdypYZz/4qDtLU40g
-         GraTuWOZn+GIdhepm9t/HXV06Jlswutx240V4qFvumS1p70fTe7g1g028m3mZBfzKaE6
-         SaWkBGzEMZ2hgnvCQxQyRW8Gcvs8xZaa8MO50nsiRNyVj1f9FDY1lyF++fkK2cEx1cPM
-         FyYA==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=1iauxxUfIEGvJQUGVUPb5P6hHu4AmvRVZSXROty2v8A=;
+        b=Jjg7bUfyRU7KMqeHMJfKu1JxA5kWYIOjdqdLqD2ubk6YBPSYjzYDtsayif28I8JV3G
+         fBEfWLf9D00jWMLRq4OYXxlGaBJEmBWNEXvVyYZpBufy/lAvm9KLOk2jNXHxpcYgcQIe
+         naY1IN1A75hX/pwNaiUGmdHyCUfh/Nrc7IdRhwG6imBiRKr14qDIuJcr4bjmP+bEw4GB
+         ZE2wIaCNzAm8W8w3FrG9oXw5MfCAbnGIGn6KItBB6ybZarV33vmAt4+x2dB7ly6oUCmY
+         EBSDj8G7BL65qYn6msTZPZuxhGXLcQCYzwaGX3+unVAy/luXMYrrbRU9HJCRk1SbGm/s
+         +yAg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of walter-zh.wu@mediatek.com designates 210.61.82.183 as permitted sender) smtp.mailfrom=walter-zh.wu@mediatek.com
-Received: from mailgw01.mediatek.com ([210.61.82.183])
-        by mx.google.com with ESMTPS id d13si9584516pgl.545.2019.07.01.02.56.40
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 01 Jul 2019 02:56:41 -0700 (PDT)
-Received-SPF: pass (google.com: domain of walter-zh.wu@mediatek.com designates 210.61.82.183 as permitted sender) client-ip=210.61.82.183;
+       spf=pass (google.com: best guess record for domain of steven.price@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=steven.price@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
+        by mx.google.com with ESMTP id b14si6608539ejb.289.2019.07.01.02.57.15
+        for <linux-mm@kvack.org>;
+        Mon, 01 Jul 2019 02:57:15 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of steven.price@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of walter-zh.wu@mediatek.com designates 210.61.82.183 as permitted sender) smtp.mailfrom=walter-zh.wu@mediatek.com
-X-UUID: 73d37207a7e94239abcbabbd212a7df5-20190701
-X-UUID: 73d37207a7e94239abcbabbd212a7df5-20190701
-Received: from mtkcas09.mediatek.inc [(172.21.101.178)] by mailgw01.mediatek.com
-	(envelope-from <walter-zh.wu@mediatek.com>)
-	(mhqrelay.mediatek.com ESMTP with TLS)
-	with ESMTP id 1208537169; Mon, 01 Jul 2019 17:56:37 +0800
-Received: from mtkcas08.mediatek.inc (172.21.101.126) by
- mtkmbs07n1.mediatek.inc (172.21.101.16) with Microsoft SMTP Server (TLS) id
- 15.0.1395.4; Mon, 1 Jul 2019 17:56:36 +0800
-Received: from [172.21.84.99] (172.21.84.99) by mtkcas08.mediatek.inc
- (172.21.101.73) with Microsoft SMTP Server id 15.0.1395.4 via Frontend
- Transport; Mon, 1 Jul 2019 17:56:35 +0800
-Message-ID: <1561974995.18866.1.camel@mtksdccf07>
-Subject: Re: [PATCH v3] kasan: add memory corruption identification for
- software tag-based mode
-From: Walter Wu <walter-zh.wu@mediatek.com>
-To: Dmitry Vyukov <dvyukov@google.com>
-CC: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko
-	<glider@google.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg
-	<penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim
-	<iamjoonsoo.kim@lge.com>, Matthias Brugger <matthias.bgg@gmail.com>, "Martin
- Schwidefsky" <schwidefsky@de.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Vasily
- Gorbik" <gor@linux.ibm.com>, Andrey Konovalov <andreyknvl@google.com>, "Jason
- A . Donenfeld" <Jason@zx2c4.com>, Miles Chen <miles.chen@mediatek.com>,
-	kasan-dev <kasan-dev@googlegroups.com>, LKML <linux-kernel@vger.kernel.org>,
-	Linux-MM <linux-mm@kvack.org>, Linux ARM
-	<linux-arm-kernel@lists.infradead.org>, <linux-mediatek@lists.infradead.org>,
-	wsd_upstream <wsd_upstream@mediatek.com>
-Date: Mon, 1 Jul 2019 17:56:35 +0800
-In-Reply-To: <1560774735.15814.54.camel@mtksdccf07>
-References: <20190613081357.1360-1-walter-zh.wu@mediatek.com>
-	 <da7591c9-660d-d380-d59e-6d70b39eaa6b@virtuozzo.com>
-	 <1560447999.15814.15.camel@mtksdccf07>
-	 <1560479520.15814.34.camel@mtksdccf07>
-	 <1560744017.15814.49.camel@mtksdccf07>
-	 <CACT4Y+Y3uS59rXf92ByQuFK_G4v0H8NNnCY1tCbr4V+PaZF3ag@mail.gmail.com>
-	 <1560774735.15814.54.camel@mtksdccf07>
-Content-Type: text/plain; charset="UTF-8"
-X-Mailer: Evolution 3.2.3-0ubuntu6 
-Content-Transfer-Encoding: 7bit
+       spf=pass (google.com: best guess record for domain of steven.price@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=steven.price@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id CCCC92B;
+	Mon,  1 Jul 2019 02:57:14 -0700 (PDT)
+Received: from [10.1.196.133] (e112269-lin.cambridge.arm.com [10.1.196.133])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 8156A3F718;
+	Mon,  1 Jul 2019 02:57:10 -0700 (PDT)
+Subject: Re: [PATCH v2 1/3] arm64: mm: Add p?d_large() definitions
+To: Nicholas Piggin <npiggin@gmail.com>,
+ "linux-mm @ kvack . org" <linux-mm@kvack.org>
+Cc: Christophe Leroy <christophe.leroy@c-s.fr>,
+ Mark Rutland <mark.rutland@arm.com>,
+ Anshuman Khandual <anshuman.khandual@arm.com>,
+ Catalin Marinas <catalin.marinas@arm.com>,
+ Ard Biesheuvel <ard.biesheuvel@linaro.org>, Will Deacon
+ <will.deacon@arm.com>, Andrew Morton <akpm@linux-foundation.org>,
+ "linuxppc-dev @ lists . ozlabs . org" <linuxppc-dev@lists.ozlabs.org>,
+ "linux-arm-kernel @ lists . infradead . org"
+ <linux-arm-kernel@lists.infradead.org>
+References: <20190701064026.970-1-npiggin@gmail.com>
+ <20190701064026.970-2-npiggin@gmail.com>
+From: Steven Price <steven.price@arm.com>
+Message-ID: <0a3e0833-908d-b7eb-e6e7-6413b2e37094@arm.com>
+Date: Mon, 1 Jul 2019 10:57:09 +0100
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.2
 MIME-Version: 1.0
-X-MTK: N
+In-Reply-To: <20190701064026.970-2-npiggin@gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-GB
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2019-06-17 at 20:32 +0800, Walter Wu wrote:
-> On Mon, 2019-06-17 at 13:57 +0200, Dmitry Vyukov wrote:
-> > On Mon, Jun 17, 2019 at 6:00 AM Walter Wu <walter-zh.wu@mediatek.com> wrote:
-> > >
-> > > On Fri, 2019-06-14 at 10:32 +0800, Walter Wu wrote:
-> > > > On Fri, 2019-06-14 at 01:46 +0800, Walter Wu wrote:
-> > > > > On Thu, 2019-06-13 at 15:27 +0300, Andrey Ryabinin wrote:
-> > > > > >
-> > > > > > On 6/13/19 11:13 AM, Walter Wu wrote:
-> > > > > > > This patch adds memory corruption identification at bug report for
-> > > > > > > software tag-based mode, the report show whether it is "use-after-free"
-> > > > > > > or "out-of-bound" error instead of "invalid-access" error.This will make
-> > > > > > > it easier for programmers to see the memory corruption problem.
-> > > > > > >
-> > > > > > > Now we extend the quarantine to support both generic and tag-based kasan.
-> > > > > > > For tag-based kasan, the quarantine stores only freed object information
-> > > > > > > to check if an object is freed recently. When tag-based kasan reports an
-> > > > > > > error, we can check if the tagged addr is in the quarantine and make a
-> > > > > > > good guess if the object is more like "use-after-free" or "out-of-bound".
-> > > > > > >
-> > > > > >
-> > > > > >
-> > > > > > We already have all the information and don't need the quarantine to make such guess.
-> > > > > > Basically if shadow of the first byte of object has the same tag as tag in pointer than it's out-of-bounds,
-> > > > > > otherwise it's use-after-free.
-> > > > > >
-> > > > > > In pseudo-code it's something like this:
-> > > > > >
-> > > > > > u8 object_tag = *(u8 *)kasan_mem_to_shadow(nearest_object(cacche, page, access_addr));
-> > > > > >
-> > > > > > if (access_addr_tag == object_tag && object_tag != KASAN_TAG_INVALID)
-> > > > > >   // out-of-bounds
-> > > > > > else
-> > > > > >   // use-after-free
-> > > > >
-> > > > > Thanks your explanation.
-> > > > > I see, we can use it to decide corruption type.
-> > > > > But some use-after-free issues, it may not have accurate free-backtrace.
-> > > > > Unfortunately in that situation, free-backtrace is the most important.
-> > > > > please see below example
-> > > > >
-> > > > > In generic KASAN, it gets accurate free-backrace(ptr1).
-> > > > > In tag-based KASAN, it gets wrong free-backtrace(ptr2). It will make
-> > > > > programmer misjudge, so they may not believe tag-based KASAN.
-> > > > > So We provide this patch, we hope tag-based KASAN bug report is the same
-> > > > > accurate with generic KASAN.
-> > > > >
-> > > > > ---
-> > > > >     ptr1 = kmalloc(size, GFP_KERNEL);
-> > > > >     ptr1_free(ptr1);
-> > > > >
-> > > > >     ptr2 = kmalloc(size, GFP_KERNEL);
-> > > > >     ptr2_free(ptr2);
-> > > > >
-> > > > >     ptr1[size] = 'x';  //corruption here
-> > > > >
-> > > > >
-> > > > > static noinline void ptr1_free(char* ptr)
-> > > > > {
-> > > > >     kfree(ptr);
-> > > > > }
-> > > > > static noinline void ptr2_free(char* ptr)
-> > > > > {
-> > > > >     kfree(ptr);
-> > > > > }
-> > > > > ---
-> > > > >
-> > > > We think of another question about deciding by that shadow of the first
-> > > > byte.
-> > > > In tag-based KASAN, it is immediately released after calling kfree(), so
-> > > > the slub is easy to be used by another pointer, then it will change
-> > > > shadow memory to the tag of new pointer, it will not be the
-> > > > KASAN_TAG_INVALID, so there are many false negative cases, especially in
-> > > > small size allocation.
-> > > >
-> > > > Our patch is to solve those problems. so please consider it, thanks.
-> > > >
-> > > Hi, Andrey and Dmitry,
-> > >
-> > > I am sorry to bother you.
-> > > Would you tell me what you think about this patch?
-> > > We want to use tag-based KASAN, so we hope its bug report is clear and
-> > > correct as generic KASAN.
-> > >
-> > > Thanks your review.
-> > > Walter
-> > 
-> > Hi Walter,
-> > 
-> > I will probably be busy till the next week. Sorry for delays.
+On 01/07/2019 07:40, Nicholas Piggin wrote:
+> walk_page_range() is going to be allowed to walk page tables other than
+> those of user space. For this it needs to know when it has reached a
+> 'leaf' entry in the page tables. This information will be provided by the
+> p?d_large() functions/macros.
 > 
-> It's ok. Thanks your kindly help.
-> I hope I can contribute to tag-based KASAN. It is a very important tool
-> for us.
+> For arm64, we already have p?d_sect() macros which we can reuse for
+> p?d_large().
+> 
+> pud_sect() is defined as a dummy function when CONFIG_PGTABLE_LEVELS < 3
+> or CONFIG_ARM64_64K_PAGES is defined. However when the kernel is
+> configured this way then architecturally it isn't allowed to have a
+> large page that this level, and any code using these page walking macros
+> is implicitly relying on the page size/number of levels being the same as
+> the kernel. So it is safe to reuse this for p?d_large() as it is an
+> architectural restriction.
+> 
+> Cc: Catalin Marinas <catalin.marinas@arm.com>
+> Cc: Will Deacon <will.deacon@arm.com>
+> Signed-off-by: Steven Price <steven.price@arm.com>
 
-Hi, Dmitry,
+Hi Nicolas,
 
-Would you have free time to discuss this patch together?
-Thanks.
+This appears to my patch which I originally posted as part of converting
+x86/arm64 to use a generic page walk code[1]. I'm not sure that this
+patch makes much sense on its own, in particular it was working up to
+having a generic macro[2] which means the _large() macros could be used
+across all architectures.
 
-Walter
+Also as a matter of courtesy please can you ensure the authorship
+information is preserved when posting other people's patches (there
+should be a From: line with my name on). You should also include your
+own Signed-off-by: line (see submitting-patches[3]) after mine.
+
+Apologies to anyone that has been following my patch series, I've been
+on holiday so not actively working on it. My aim is to combine the
+series with a generic ptdump implementation[4] which should improve the
+diff state. I should be able to post that in the next few weeks.
+
+Thanks,
+
+Steve
+
+[1] Series: https://patchwork.kernel.org/cover/10883885/
+    Last posting of this patch:
+	https://patchwork.kernel.org/patch/10883899/
+
+[2] https://patchwork.kernel.org/patch/10883965/
+
+[3]
+https://www.kernel.org/doc/html/latest/process/submitting-patches.html#developer-s-certificate-of-origin-1-1
+
+[4] RFC version here:
+https://lore.kernel.org/lkml/20190417143423.26665-1-steven.price@arm.com/
+
+> ---
+>  arch/arm64/include/asm/pgtable.h | 2 ++
+>  1 file changed, 2 insertions(+)
+> 
+> diff --git a/arch/arm64/include/asm/pgtable.h b/arch/arm64/include/asm/pgtable.h
+> index fca26759081a..0e973201bc16 100644
+> --- a/arch/arm64/include/asm/pgtable.h
+> +++ b/arch/arm64/include/asm/pgtable.h
+> @@ -417,6 +417,7 @@ extern pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
+>  				 PMD_TYPE_TABLE)
+>  #define pmd_sect(pmd)		((pmd_val(pmd) & PMD_TYPE_MASK) == \
+>  				 PMD_TYPE_SECT)
+> +#define pmd_large(pmd)		pmd_sect(pmd)
+>  
+>  #if defined(CONFIG_ARM64_64K_PAGES) || CONFIG_PGTABLE_LEVELS < 3
+>  #define pud_sect(pud)		(0)
+> @@ -499,6 +500,7 @@ static inline void pte_unmap(pte_t *pte) { }
+>  #define pud_none(pud)		(!pud_val(pud))
+>  #define pud_bad(pud)		(!(pud_val(pud) & PUD_TABLE_BIT))
+>  #define pud_present(pud)	pte_present(pud_pte(pud))
+> +#define pud_large(pud)		pud_sect(pud)
+>  #define pud_valid(pud)		pte_valid(pud_pte(pud))
+>  
+>  static inline void set_pud(pud_t *pudp, pud_t pud)
+> 
 
