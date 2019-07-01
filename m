@@ -2,87 +2,87 @@ Return-Path: <SRS0=jfnU=U6=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 90829C06511
-	for <linux-mm@archiver.kernel.org>; Mon,  1 Jul 2019 12:46:32 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5A590C0650E
+	for <linux-mm@archiver.kernel.org>; Mon,  1 Jul 2019 12:47:20 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 370DE2053B
-	for <linux-mm@archiver.kernel.org>; Mon,  1 Jul 2019 12:46:32 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 370DE2053B
+	by mail.kernel.org (Postfix) with ESMTP id 269F22053B
+	for <linux-mm@archiver.kernel.org>; Mon,  1 Jul 2019 12:47:20 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 269F22053B
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A55D96B0003; Mon,  1 Jul 2019 08:46:31 -0400 (EDT)
+	id AA3B36B0005; Mon,  1 Jul 2019 08:47:19 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A06858E0003; Mon,  1 Jul 2019 08:46:31 -0400 (EDT)
+	id A54398E0003; Mon,  1 Jul 2019 08:47:19 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8CE7C8E0002; Mon,  1 Jul 2019 08:46:31 -0400 (EDT)
+	id 96A138E0002; Mon,  1 Jul 2019 08:47:19 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f79.google.com (mail-ed1-f79.google.com [209.85.208.79])
-	by kanga.kvack.org (Postfix) with ESMTP id 3E3A66B0003
-	for <linux-mm@kvack.org>; Mon,  1 Jul 2019 08:46:31 -0400 (EDT)
-Received: by mail-ed1-f79.google.com with SMTP id l26so16819007eda.2
-        for <linux-mm@kvack.org>; Mon, 01 Jul 2019 05:46:31 -0700 (PDT)
+Received: from mail-ed1-f80.google.com (mail-ed1-f80.google.com [209.85.208.80])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A6AE6B0005
+	for <linux-mm@kvack.org>; Mon,  1 Jul 2019 08:47:19 -0400 (EDT)
+Received: by mail-ed1-f80.google.com with SMTP id s7so16706978edb.19
+        for <linux-mm@kvack.org>; Mon, 01 Jul 2019 05:47:19 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=R4XVBQgIOSu7swuRG4xbBWrK6TxZBP3ZKgDOfbSeafs=;
-        b=TuihZ71PtZ76+fOoTElT+A9zSDHorDLhCabPIvdgaTc5mbY7cbaG373shaMthLNkWR
-         OKahKoK+n0Nfr3UmU4WHdAlTgxTgw29mBTlH1m7sozeQT2AMbPs71ZoXOYpLFeG7EwVK
-         cb8kPxYIrvVFjhFp2a0ZtUkV1lUe+jlEmKWvcyAG1CpqDSgNw4gki1zrvr+Kb49g89wl
-         Nd0R20tlY5lQnqytvT+rtiHYToPNUcwM3mdVIsX5JL0K8fzU7BELjYL6NY2CxCWAQrjb
-         iIKa+qmdtkMKu3d7SFO3PTkvIO7qEdhl4NPgGkQgp+UJzkYRt0cNoLnZ1Tf1iyLq5KDX
-         4TEw==
+        bh=d5pLMdETv6HIPOwvN7upABLr86gmjbj8sBZkVkvkY1k=;
+        b=N2qzJ4HkgouVk0KsKbMQxr4TTJJi9Jk1XkPZ4gzwPwpnKdR9Z67PBDEZOCYxaVbs0O
+         zZXL1pKc+wYeBjSh4cHT6rppvL/Plq3q4DO5OzBmbEclM38tjJQX/ts3zhqYI/AJUX/8
+         pw5b+rT7DKSmcdUaYhqwPdz3PR+/iR/6RnCj/yWKkpHKsDQODGq5XPZb+rWvqIom1IXt
+         1YD6CofSt88JQLf8JCefCr0QYMTdwC4N6gXgI3x1c+3fZyYrL67bwo19oQWTk7WohIDW
+         OxvjKYmV+KCpp072gfYb3uDQcF7vJCUWh0qG6qS6/5/CyPLIQwY3yQ3l9eKAW+LYljh5
+         g6fg==
 X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAXcNz6kkJofbKh8olWlpkMUnU25O6+C3lHi9b2VtYkETaOBeLgY
-	x+3k+wIr8H3l2qiIZJ0ZFIPe9fMTKUl4JedcTkilvVd2csKRO+hTLQWZ2ZLeex7FfSNAL/p8L39
-	vJu2CUudX11N7dMSIW2TuzlGlmtWAy7SxxEDEjVIr+SQ8q6KtvAOEHYc+iPiLrv4=
-X-Received: by 2002:a50:9846:: with SMTP id h6mr28083803edb.263.1561985190752;
-        Mon, 01 Jul 2019 05:46:30 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzgHib82M8dscaza//AMhKljVp0LJVoaPcTd4zawL3RSSRSAIc+HI7gO/OgJQ7DeA1SGDNj
-X-Received: by 2002:a50:9846:: with SMTP id h6mr28083715edb.263.1561985189528;
-        Mon, 01 Jul 2019 05:46:29 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561985189; cv=none;
+X-Gm-Message-State: APjAAAW8FZ3dB8h5+oVIDUR2uggpw8tpPlly1ZvvJmXtryWfIz0mDQXr
+	05y1Fvc6KaqWb+2udO7AXbTUYT9+cU9HV3UWIRUyQ3oiABeN2C30EjlapZhdhn79ET9DdBPhdks
+	xTQY8aer/tEdjo1Ah5AYJKsb/xAIOXprlhCElmliUyJFE40wYhzsRiscnlwElVX4=
+X-Received: by 2002:a50:91e5:: with SMTP id h34mr28260331eda.72.1561985238854;
+        Mon, 01 Jul 2019 05:47:18 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzRIa4t2HBtwbREGvU/3xqpOk/ZLwx+rf1crix75DBXQ5SrkDUiT+eGF5gv7WuqBB2oVW3i
+X-Received: by 2002:a50:91e5:: with SMTP id h34mr28260271eda.72.1561985238119;
+        Mon, 01 Jul 2019 05:47:18 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561985238; cv=none;
         d=google.com; s=arc-20160816;
-        b=vJRLb1BdiSpi/Ft66bd4a8zz1y4whkpz7zGGfKhmpryd+8oY9aNkpjHn70/P+8yHlH
-         9Vv0U6SIhAs3cgpdMpSduj+RpYBv18R0MhF/roGOLH9sJRnkp1y9wvPz/MuOAi1taW87
-         xt9rdjrdX4i1ivGhUAsOy/E5pyj3wAl4L/96cy5BbtySY7OMfX/a50ovMkyDyqa7q7TJ
-         ViYmcav89rtfWGIiA6JUla5u3HK7vLkuatKv3mdgB72lCjbZSjs1gQrHZ485iT892eYX
-         udAq+g3eB+f413LdDevw4o2xlB7meqhHrhbIzoBjhCO4fKW5FJdSPdFkDPpe5Pi1Hgo/
-         uGLg==
+        b=STS2rxGLPLEhT/EXCSeYwZI8T2CsBdkGiBim6zJMF2dHUpB1QC5XyrReKO0Lsbk3ia
+         /sCGUHAFOMdEcoJWMN6k9zA4hk5aLdwkkVR0n+Aktp977MSZR4mJ4BmEri+fUythCbVJ
+         m41CzMYLEUJdB9ckAJ8tYfEGZAsYDJNT9zwxrpRFK7c8lmBbUdQRetk4266hINIrq0Kj
+         SsKO8P2mGVqc/nDm3FgYZghyOnwQIaP/WbF5VXNt4cw1POOuiAFZlyr0KX49oWn0hNob
+         2ZjblwGGJJNUQIV1Du5roBrzOXppGOCJSzSKzBbsli6FObur9eIFtx4D/0hnQuauJUJJ
+         sFhw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=R4XVBQgIOSu7swuRG4xbBWrK6TxZBP3ZKgDOfbSeafs=;
-        b=vuHgeSvn4xh44/GJmOHamk94VJ7loIHvMXbQL4oTllkesl74AsI9DDbYcPkSDfrbVL
-         QiWsIKp4GEizKypMmXuP+oN8uUsBmj9wLiLENBL4fxLJ7sEqMGhPaGMVBc76QUSzIrs5
-         NXWkB12CoHKjT6cBpeLcwu+e/YQLYyeTjwShdfjNu5sVX3JfpRAIStvTfGRCyp+I64u2
-         dlKtLTzqMJfeI4dVGwQGQvfloTzFossPF1crfUn5uHWTJcKTZZrdyDrbxksvIPjJGUXS
-         7SPrOnGrJ6sfBceUobWKXjvY0CsiBEYYqEqNE0pXjeCOZb5aCwnf6SDrV0oUOMzmOICu
-         HjlQ==
+        bh=d5pLMdETv6HIPOwvN7upABLr86gmjbj8sBZkVkvkY1k=;
+        b=HuChFCw/JXrQY4HDr2JuVZJ4H2sook8wEGU63HxRfp3pijGVfCe5t1nj5DWkFny6hr
+         Ut6gaidUKMAqoJ4bdnJ+/6Bt/jyb9mNKnIk1/BQn/4L/QyVOOzhdd1Rp7HOXOhR8OnOz
+         vcKiPe8Q6VminPo+pJDkZrHPzgqvqQQh3ZiVRygExGA3CKK7LfI1SSmnGSEIpPABQzLL
+         hGWDCZL0q0hbN7rOnWbChrnTsYfSbcbKEM3iKI2Mxdik6mHPmDNFMaWG8v47kyBwFWBn
+         l/wgPWVMleonHNcCFnUQUAXDT3ntxjATDHdj7M6qHJ4+Tl9U+TYUzY3ZPq5zyZYadsiR
+         /e9w==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e20si7264244ejb.77.2019.07.01.05.46.29
+        by mx.google.com with ESMTPS id a45si9205842edc.332.2019.07.01.05.47.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 01 Jul 2019 05:46:29 -0700 (PDT)
+        Mon, 01 Jul 2019 05:47:18 -0700 (PDT)
 Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
        spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id B4AF5AEF5;
-	Mon,  1 Jul 2019 12:46:28 +0000 (UTC)
-Date: Mon, 1 Jul 2019 14:46:28 +0200
+	by mx1.suse.de (Postfix) with ESMTP id B8ACFAEF5;
+	Mon,  1 Jul 2019 12:47:17 +0000 (UTC)
+Date: Mon, 1 Jul 2019 14:47:17 +0200
 From: Michal Hocko <mhocko@kernel.org>
 To: David Hildenbrand <david@redhat.com>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
@@ -97,16 +97,15 @@ Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
 	Mike Rapoport <rppt@linux.vnet.ibm.com>,
 	Vasily Gorbik <gor@linux.ibm.com>,
 	Oscar Salvador <osalvador@suse.com>
-Subject: Re: [PATCH v3 02/11] s390x/mm: Fail when an altmap is used for
- arch_add_memory()
-Message-ID: <20190701124628.GT6376@dhcp22.suse.cz>
+Subject: Re: [PATCH v3 03/11] s390x/mm: Implement arch_remove_memory()
+Message-ID: <20190701124717.GU6376@dhcp22.suse.cz>
 References: <20190527111152.16324-1-david@redhat.com>
- <20190527111152.16324-3-david@redhat.com>
- <20190701074306.GC6376@dhcp22.suse.cz>
+ <20190527111152.16324-4-david@redhat.com>
+ <20190701074503.GD6376@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190701074306.GC6376@dhcp22.suse.cz>
+In-Reply-To: <20190701074503.GD6376@dhcp22.suse.cz>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -114,19 +113,61 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon 01-07-19 09:43:06, Michal Hocko wrote:
-> On Mon 27-05-19 13:11:43, David Hildenbrand wrote:
-> > ZONE_DEVICE is not yet supported, fail if an altmap is passed, so we
-> > don't forget arch_add_memory()/arch_remove_memory() when unlocking
-> > support.
+On Mon 01-07-19 09:45:03, Michal Hocko wrote:
+> On Mon 27-05-19 13:11:44, David Hildenbrand wrote:
+> > Will come in handy when wanting to handle errors after
+> > arch_add_memory().
 > 
-> Why do we need this? Sure ZONE_DEVICE is not supported for s390 and so
-> might be the case for other arches which support hotplug. I do not see
-> much point in adding warning to each of them.
+> I do not understand this. Why do you add a code for something that is
+> not possible on this HW (based on the comment - is it still valid btw?)
 
-I would drop this one. If there is a strong reason to have something
-like that it should come with a better explanation and it can be done on
-top.
+Same as the previous patch (drop it).
+
+> > Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
+> > Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
+> > Cc: Andrew Morton <akpm@linux-foundation.org>
+> > Cc: Michal Hocko <mhocko@suse.com>
+> > Cc: Mike Rapoport <rppt@linux.vnet.ibm.com>
+> > Cc: David Hildenbrand <david@redhat.com>
+> > Cc: Vasily Gorbik <gor@linux.ibm.com>
+> > Cc: Oscar Salvador <osalvador@suse.com>
+> > Signed-off-by: David Hildenbrand <david@redhat.com>
+> > ---
+> >  arch/s390/mm/init.c | 13 +++++++------
+> >  1 file changed, 7 insertions(+), 6 deletions(-)
+> > 
+> > diff --git a/arch/s390/mm/init.c b/arch/s390/mm/init.c
+> > index d552e330fbcc..14955e0a9fcf 100644
+> > --- a/arch/s390/mm/init.c
+> > +++ b/arch/s390/mm/init.c
+> > @@ -243,12 +243,13 @@ int arch_add_memory(int nid, u64 start, u64 size,
+> >  void arch_remove_memory(int nid, u64 start, u64 size,
+> >  			struct vmem_altmap *altmap)
+> >  {
+> > -	/*
+> > -	 * There is no hardware or firmware interface which could trigger a
+> > -	 * hot memory remove on s390. So there is nothing that needs to be
+> > -	 * implemented.
+> > -	 */
+> > -	BUG();
+> > +	unsigned long start_pfn = start >> PAGE_SHIFT;
+> > +	unsigned long nr_pages = size >> PAGE_SHIFT;
+> > +	struct zone *zone;
+> > +
+> > +	zone = page_zone(pfn_to_page(start_pfn));
+> > +	__remove_pages(zone, start_pfn, nr_pages, altmap);
+> > +	vmem_remove_mapping(start, size);
+> >  }
+> >  #endif
+> >  #endif /* CONFIG_MEMORY_HOTPLUG */
+> > -- 
+> > 2.20.1
+> > 
+> 
+> -- 
+> Michal Hocko
+> SUSE Labs
+
 -- 
 Michal Hocko
 SUSE Labs
