@@ -4,81 +4,81 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-9.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
 	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 85D79C06510
-	for <linux-mm@archiver.kernel.org>; Mon,  1 Jul 2019 06:20:49 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id EFCB2C5B578
+	for <linux-mm@archiver.kernel.org>; Mon,  1 Jul 2019 06:20:51 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3FE112146E
-	for <linux-mm@archiver.kernel.org>; Mon,  1 Jul 2019 06:20:49 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id AA5FC20B7C
+	for <linux-mm@archiver.kernel.org>; Mon,  1 Jul 2019 06:20:51 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="VeakI5P9"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3FE112146E
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="pvfk1jdk"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AA5FC20B7C
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E3BD68E0003; Mon,  1 Jul 2019 02:20:40 -0400 (EDT)
+	id A8DF88E0005; Mon,  1 Jul 2019 02:20:42 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D72AB6B000C; Mon,  1 Jul 2019 02:20:40 -0400 (EDT)
+	id A19F16B000C; Mon,  1 Jul 2019 02:20:42 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C17DC8E0003; Mon,  1 Jul 2019 02:20:40 -0400 (EDT)
+	id 77F368E0005; Mon,  1 Jul 2019 02:20:42 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f206.google.com (mail-pl1-f206.google.com [209.85.214.206])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D69E6B0008
-	for <linux-mm@kvack.org>; Mon,  1 Jul 2019 02:20:40 -0400 (EDT)
-Received: by mail-pl1-f206.google.com with SMTP id 91so6750164pla.7
-        for <linux-mm@kvack.org>; Sun, 30 Jun 2019 23:20:40 -0700 (PDT)
+Received: from mail-pl1-f207.google.com (mail-pl1-f207.google.com [209.85.214.207])
+	by kanga.kvack.org (Postfix) with ESMTP id 3B8AA6B0008
+	for <linux-mm@kvack.org>; Mon,  1 Jul 2019 02:20:42 -0400 (EDT)
+Received: by mail-pl1-f207.google.com with SMTP id u10so6739087plq.21
+        for <linux-mm@kvack.org>; Sun, 30 Jun 2019 23:20:42 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=jmOMWk7PIhlkuWmnGeQ5B09Y2pWhYhYuU69m57P7xOY=;
-        b=kJ8A/GJPy/2whpuOTdYGPJk3nsZ8X42vptx32qg29FDsF4nl5TrFcHouJ0d/79pxsg
-         fGNUBLRLXPNR6jY9Skmap6SMesJjd5ntHUFHlE+T2evnalVzBGvEpE/57oAoEfqEZb/w
-         jZPQKesotvXEDRxW47QN3lVr5RlpL9kAH3W4Jl/BiM66IRyjx2nLIbdzGhY064tjUh2v
-         ofNw+awpq7hi5Q452yqVrm9hleWZNB7mAajP8LlfruneTAlTt4jgYSieaRbvCPak1bkl
-         HGAkASoOiFLDuajQclRqwhvs8zm03QTj99O48pJvJaWAAXcNuUM9tqKQEZH8Darw4bfl
-         fDhg==
-X-Gm-Message-State: APjAAAVkLYXqTNsX2URPGOltNiTxQfvcqpGU7p2I/BgqSl55+dpqf9E7
-	QL4GeBF7Gl484HVcBd42HpOYjdo4uy075HmgPPCqC8JwEwEkAYGDcbjbQ+aeAOMSJNwzu/LL5/u
-	rfIJht7MspBgmOnU//JHN4MMPrYgWWdcOQUDPxqM7exIALZlTxDgbS3L5i4zqGUA=
-X-Received: by 2002:a17:902:684:: with SMTP id 4mr27135835plh.138.1561962040116;
+        bh=WF4tHB/Skt9G3b9J2cGNsUS+Db4fSie+CUUuGe98tR0=;
+        b=Xf27sWLCQ1ksKWOCPHP/AQAnt9tXWvtjEy4DBgQHOd3IkojbhCFKEAZNZSOsFRdt/+
+         Uy2IpuSCt2uKLlhv4QQA21evBMJombebGoJ6tqoe0vQP8byeCjovjN5aoJLQrcPRidUd
+         IIjYAVrIiSAnoNgLWmRRggG1dA+0kck2PPZ3J+cXtylngsqU+wBIlDW/OYbXhezDvtjz
+         0DetRY66676//7XwVrhDE+7yKwxu+50I9oJl8H/n/LDULfT5ptMVuMHmDD7BNoCwxzL9
+         oj5wAulOCPU+ZdHpojYXdxNtoXB/zX7j8XnAZoGq3QrS9CtONNx/d7ZWPEd2TLN8tWQo
+         oW9g==
+X-Gm-Message-State: APjAAAWZGKjmmksU8GvjDeHO4Gn1w9o7UgACzUoGVxCoxBx8xKD9YD8N
+	P1g+JC1UsP7v5Dpu+dwXDT7BdcfpG6bC8uAwuhoooZ7GPHAWGiOsTiI7JHK9ST14o2eIBk9h3PC
+	+hUWc5nTELGwaGqEiCPjM9SvuUMB3Wa8gptdNDaPr9fWz9n4+mSBypcfv+ZcZtHs=
+X-Received: by 2002:a63:7b18:: with SMTP id w24mr19688945pgc.328.1561962041827;
+        Sun, 30 Jun 2019 23:20:41 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxiNYcahBUit8KDMOfKVM9YwfKRdyyfiby8v98qJOvm2FzdqoTxz3J3V/s3Fdd0uR+i04YM
+X-Received: by 2002:a63:7b18:: with SMTP id w24mr19688886pgc.328.1561962040987;
         Sun, 30 Jun 2019 23:20:40 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyRIu+Uz2yHNXE4HHyiTlqM8P1b1bTNhaini7Nhhz89H8UvG8+5wCo3k/LN2JdsZ74hXOPD
-X-Received: by 2002:a17:902:684:: with SMTP id 4mr27135774plh.138.1561962039358;
-        Sun, 30 Jun 2019 23:20:39 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561962039; cv=none;
+ARC-Seal: i=1; a=rsa-sha256; t=1561962040; cv=none;
         d=google.com; s=arc-20160816;
-        b=dSXt5hGFDULT1awjHU+pxRfkq6eQJFjUUavo6DQxvKNHOMuaOGiHN20cITzoYD6nkQ
-         Ggg029dIs+E0DI8aTv9f5gTrf3pZDsBtrKtaZjw6d7cTzsm4sILrSF8pBpYxP01hoDbS
-         60qVVv5YNMloqkL7jNj9vZSZS6jAAjzz9HNbHCufk/UJg3QLTQdYGck1nlt2ZFLjBl64
-         /AWCUiWyqV4pWLKAZA9QUu2KWVhKRB77xuAn8drmhdiK4HQN8zt0JEL2z2RD+YwjhNUr
-         kRqRJ4Fl+v/4Jde2t2GZrjBu0y2nS613RDu2R+VciCqwg2YVzXQZKPF9hK2l7MxDLYKI
-         UvXA==
+        b=rBjDXNBApiIjwN5uLUbOAyoXkC/cvo0bFPreWSOHhvS4/t+pB+t7c1DuO0UDDaauFJ
+         4CWRdGDl1n3MmDcmFds4vDwjkz5Kz2BQMzRzLscJ1PBmwgVb1UJPmafuYTiGriP0GkhD
+         jKGD+8m3o9FsHhgAjJ4A53HvmpdUklm7o0snt3YZOkHcIoUvPGT+ktcu3BKR/CG9lax/
+         pyYapPyEHM245+i1JF3xWtt2wLWYCLExggy8cJ8F9bGTqzSlLLCrUmEmwtjxYV0qt3rr
+         iw4bkhtDlGj1ku/vy5X26rmK3PM8yodtC1WoQSWuIFYRtcqsDJIvdyglyRQg7oByGrm0
+         FttA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=jmOMWk7PIhlkuWmnGeQ5B09Y2pWhYhYuU69m57P7xOY=;
-        b=FpoRCd8z0IcCIGqDfRODZ4p5noc5IxCgqiqRiGwLRK/dnNWhpRUaA/TiLxA4IN5RJ1
-         3+yWe2e/sySYP+60YHXBTtAtsq+vHQYepMDLWiEaHkbr1NfwIpcDtCxz1g7PS3cL27X3
-         wX+VevkoSk7zNP1A09h74zqMajm812iJJblA87U3BuVYDbQTqzDXR7TuUTbhw5c29Ja6
-         xowlxN+spY5HZI7TADkNODrvuNGQSTicqsBxZcomfutpcsofDiGdh/WQQHEeg18LOkpR
-         8LICUPzXUx58xZTZgc5hD5z4PdN7T2AZMi14jx5OSGUXqbs3z2dnwyEDuUZQ4q4l5dxC
-         6V0A==
+        bh=WF4tHB/Skt9G3b9J2cGNsUS+Db4fSie+CUUuGe98tR0=;
+        b=e0csCYBxq/jTPi9EgiE8L5iQ91zH2w3pEiPXX+oIRVgyv4BN2RR3x8JrtXcMpdqqLd
+         FdwyVurX//fIRjYVA23NomCcKFkWyyL4fnBfi6L7hwQh+/9TV5e35nI+W3cQ4uLFoNE/
+         SKNkdtdmgz1IURaNVh6Kd6kj5SpHnbM+SJ47qky8Xam8drfbuDAWh6r3DRoSGO5uH8JA
+         5EWQ4bk7OEtIy5IWaOwrFc7dDN1ro8MBuIwAJWGtkl7EJo9TBlB7l8w0cLP15a9P/dIQ
+         4+nuviff/5/p3/rN3zLCXha8v32u2DhoQzY5Nte5UwjFmjNsUhCwgb/1MrXQWD7/RLH1
+         aS3g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=VeakI5P9;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=pvfk1jdk;
        spf=pass (google.com: best guess record for domain of batv+bb02ddf78a79a38d855c+5790+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+bb02ddf78a79a38d855c+5790+infradead.org+hch@bombadil.srs.infradead.org
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id r1si9958528plb.147.2019.06.30.23.20.39
+        by mx.google.com with ESMTPS id d31si9670610pla.393.2019.06.30.23.20.40
         for <linux-mm@kvack.org>
         (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Sun, 30 Jun 2019 23:20:39 -0700 (PDT)
+        Sun, 30 Jun 2019 23:20:40 -0700 (PDT)
 Received-SPF: pass (google.com: best guess record for domain of batv+bb02ddf78a79a38d855c+5790+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=VeakI5P9;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=pvfk1jdk;
        spf=pass (google.com: best guess record for domain of batv+bb02ddf78a79a38d855c+5790+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+bb02ddf78a79a38d855c+5790+infradead.org+hch@bombadil.srs.infradead.org
 DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	d=infradead.org; s=bombadil.20170209; h=Content-Transfer-Encoding:
@@ -86,15 +86,15 @@ DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	:Reply-To:Content-Type:Content-ID:Content-Description:Resent-Date:Resent-From
 	:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:List-Help:
 	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	bh=jmOMWk7PIhlkuWmnGeQ5B09Y2pWhYhYuU69m57P7xOY=; b=VeakI5P9w+GmafWP63j4toaMHW
-	VtQ719iF507yMzRYvJH0O7ViWtHiRqxBzk4XV1VWHJuDRmKATRqv5uGO1bPQ/HjcmlnGj7Hmo8iiO
-	1Jaor2NciDsSBC5DuE2m4oqWrc6z9Q0LAYh8TJTLsIGN6X/B4UbOGhJ+wyuNhBwFIbIedO/YeaHx+
-	+7FXU5AlPz98ULQTY91XtdepAVFhjM6WLqNvX1tjPU1WEnad36P3axRqnJ94+cx8eGn3NV1QCwU4H
-	CUo3rFW7bBw/VsDVLa9ixH7iz3Sd/EzrpcPBK027xnR2Ky3UcG4pmQOE9WaaDPVU5IIK0HRwIAjrl
-	Dky3elEw==;
+	bh=WF4tHB/Skt9G3b9J2cGNsUS+Db4fSie+CUUuGe98tR0=; b=pvfk1jdkUzEbDkGH+OR9rAHyIe
+	kR8atU5kSv/EQToxLIjdsRba/jDPvJY79AkV5c9POhc8OEOnkOYGx3sDbU9BQX4OTpjP1OiMwNB8G
+	Mr3B1wZ6mvB0ReFKDK9kAyOrFR3cFOU1pOOJAA2HuLhksS4VANVCw0zg1mFE13Q21vRUPTpXy0agl
+	klOHn1A4qhv0abiLTq348XVdq3wl/B8i7Pzq6GmWavPxglIVnsTMy1yx8Hd9yBWwpnQDb2cCQUB5/
+	Of51BOJ0vhGHXiGXtGHuj8RzNUSqCPrQXBAMst2TA75JLvCwMCyYDnCASQb0SyEWfjXv+/n3G60Re
+	6sNUsc+Q==;
 Received: from [46.140.178.35] (helo=localhost)
 	by bombadil.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
-	id 1hhpg3-0002uL-My; Mon, 01 Jul 2019 06:20:36 +0000
+	id 1hhpg6-0002vW-0H; Mon, 01 Jul 2019 06:20:38 +0000
 From: Christoph Hellwig <hch@lst.de>
 To: Dan Williams <dan.j.williams@intel.com>,
 	=?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
@@ -107,12 +107,12 @@ Cc: Ira Weiny <ira.weiny@intel.com>,
 	linux-nvdimm@lists.01.org,
 	linux-pci@vger.kernel.org,
 	linux-kernel@vger.kernel.org,
-	John Hubbard <jhubbard@nvidia.com>,
 	Ralph Campbell <rcampbell@nvidia.com>,
+	John Hubbard <jhubbard@nvidia.com>,
 	Philip Yang <Philip.Yang@amd.com>
-Subject: [PATCH 06/22] mm/hmm: fix use after free with struct hmm in the mmu notifiers
-Date: Mon,  1 Jul 2019 08:20:04 +0200
-Message-Id: <20190701062020.19239-7-hch@lst.de>
+Subject: [PATCH 07/22] mm/hmm: Use hmm_mirror not mm as an argument for hmm_range_register
+Date: Mon,  1 Jul 2019 08:20:05 +0200
+Message-Id: <20190701062020.19239-8-hch@lst.de>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190701062020.19239-1-hch@lst.de>
 References: <20190701062020.19239-1-hch@lst.de>
@@ -127,126 +127,115 @@ List-ID: <linux-mm.kvack.org>
 
 From: Jason Gunthorpe <jgg@mellanox.com>
 
-mmu_notifier_unregister_no_release() is not a fence and the mmu_notifier
-system will continue to reference hmm->mn until the srcu grace period
-expires.
+Ralph observes that hmm_range_register() can only be called by a driver
+while a mirror is registered. Make this clear in the API by passing in the
+mirror structure as a parameter.
 
-Resulting in use after free races like this:
+This also simplifies understanding the lifetime model for struct hmm, as
+the hmm pointer must be valid as part of a registered mirror so all we
+need in hmm_register_range() is a simple kref_get.
 
-         CPU0                                     CPU1
-                                               __mmu_notifier_invalidate_range_start()
-                                                 srcu_read_lock
-                                                 hlist_for_each ()
-                                                   // mn == hmm->mn
-hmm_mirror_unregister()
-  hmm_put()
-    hmm_free()
-      mmu_notifier_unregister_no_release()
-         hlist_del_init_rcu(hmm-mn->list)
-			                           mn->ops->invalidate_range_start(mn, range);
-					             mm_get_hmm()
-      mm->hmm = NULL;
-      kfree(hmm)
-                                                     mutex_lock(&hmm->lock);
-
-Use SRCU to kfree the hmm memory so that the notifiers can rely on hmm
-existing. Get the now-safe hmm struct through container_of and directly
-check kref_get_unless_zero to lock it against free.
-
+Suggested-by: Ralph Campbell <rcampbell@nvidia.com>
 Signed-off-by: Jason Gunthorpe <jgg@mellanox.com>
-Reviewed-by: Ira Weiny <ira.weiny@intel.com>
 Reviewed-by: John Hubbard <jhubbard@nvidia.com>
 Reviewed-by: Ralph Campbell <rcampbell@nvidia.com>
+Reviewed-by: Ira Weiny <ira.weiny@intel.com>
 Reviewed-by: Christoph Hellwig <hch@lst.de>
 Tested-by: Philip Yang <Philip.Yang@amd.com>
 ---
- include/linux/hmm.h |  1 +
- mm/hmm.c            | 23 +++++++++++++++++------
- 2 files changed, 18 insertions(+), 6 deletions(-)
+ drivers/gpu/drm/nouveau/nouveau_svm.c |  2 +-
+ include/linux/hmm.h                   |  7 ++++---
+ mm/hmm.c                              | 13 ++++---------
+ 3 files changed, 9 insertions(+), 13 deletions(-)
 
+diff --git a/drivers/gpu/drm/nouveau/nouveau_svm.c b/drivers/gpu/drm/nouveau/nouveau_svm.c
+index 93ed43c413f0..8c92374afcf2 100644
+--- a/drivers/gpu/drm/nouveau/nouveau_svm.c
++++ b/drivers/gpu/drm/nouveau/nouveau_svm.c
+@@ -649,7 +649,7 @@ nouveau_svm_fault(struct nvif_notify *notify)
+ 		range.values = nouveau_svm_pfn_values;
+ 		range.pfn_shift = NVIF_VMM_PFNMAP_V0_ADDR_SHIFT;
+ again:
+-		ret = hmm_vma_fault(&range, true);
++		ret = hmm_vma_fault(&svmm->mirror, &range, true);
+ 		if (ret == 0) {
+ 			mutex_lock(&svmm->mutex);
+ 			if (!hmm_vma_range_done(&range)) {
 diff --git a/include/linux/hmm.h b/include/linux/hmm.h
-index 7007123842ba..cb01cf1fa3c0 100644
+index cb01cf1fa3c0..1fba6979adf4 100644
 --- a/include/linux/hmm.h
 +++ b/include/linux/hmm.h
-@@ -93,6 +93,7 @@ struct hmm {
- 	struct mmu_notifier	mmu_notifier;
- 	struct rw_semaphore	mirrors_sem;
- 	wait_queue_head_t	wq;
-+	struct rcu_head		rcu;
- 	long			notifiers;
- 	bool			dead;
- };
+@@ -496,7 +496,7 @@ static inline bool hmm_mirror_mm_is_alive(struct hmm_mirror *mirror)
+  * Please see Documentation/vm/hmm.rst for how to use the range API.
+  */
+ int hmm_range_register(struct hmm_range *range,
+-		       struct mm_struct *mm,
++		       struct hmm_mirror *mirror,
+ 		       unsigned long start,
+ 		       unsigned long end,
+ 		       unsigned page_shift);
+@@ -532,7 +532,8 @@ static inline bool hmm_vma_range_done(struct hmm_range *range)
+ }
+ 
+ /* This is a temporary helper to avoid merge conflict between trees. */
+-static inline int hmm_vma_fault(struct hmm_range *range, bool block)
++static inline int hmm_vma_fault(struct hmm_mirror *mirror,
++				struct hmm_range *range, bool block)
+ {
+ 	long ret;
+ 
+@@ -545,7 +546,7 @@ static inline int hmm_vma_fault(struct hmm_range *range, bool block)
+ 	range->default_flags = 0;
+ 	range->pfn_flags_mask = -1UL;
+ 
+-	ret = hmm_range_register(range, range->vma->vm_mm,
++	ret = hmm_range_register(range, mirror,
+ 				 range->start, range->end,
+ 				 PAGE_SHIFT);
+ 	if (ret)
 diff --git a/mm/hmm.c b/mm/hmm.c
-index 826816ab2377..f6956d78e3cb 100644
+index f6956d78e3cb..22a97ada108b 100644
 --- a/mm/hmm.c
 +++ b/mm/hmm.c
-@@ -104,6 +104,11 @@ static struct hmm *hmm_get_or_create(struct mm_struct *mm)
- 	return NULL;
- }
- 
-+static void hmm_free_rcu(struct rcu_head *rcu)
-+{
-+	kfree(container_of(rcu, struct hmm, rcu));
-+}
-+
- static void hmm_free(struct kref *kref)
+@@ -914,13 +914,13 @@ static void hmm_pfns_clear(struct hmm_range *range,
+  * Track updates to the CPU page table see include/linux/hmm.h
+  */
+ int hmm_range_register(struct hmm_range *range,
+-		       struct mm_struct *mm,
++		       struct hmm_mirror *mirror,
+ 		       unsigned long start,
+ 		       unsigned long end,
+ 		       unsigned page_shift)
  {
- 	struct hmm *hmm = container_of(kref, struct hmm, kref);
-@@ -116,7 +121,7 @@ static void hmm_free(struct kref *kref)
- 		mm->hmm = NULL;
- 	spin_unlock(&mm->page_table_lock);
+ 	unsigned long mask = ((1UL << page_shift) - 1UL);
+-	struct hmm *hmm;
++	struct hmm *hmm = mirror->hmm;
  
--	kfree(hmm);
-+	mmu_notifier_call_srcu(&hmm->rcu, hmm_free_rcu);
- }
+ 	range->valid = false;
+ 	range->hmm = NULL;
+@@ -934,20 +934,15 @@ int hmm_range_register(struct hmm_range *range,
+ 	range->start = start;
+ 	range->end = end;
  
- static inline void hmm_put(struct hmm *hmm)
-@@ -144,10 +149,14 @@ void hmm_mm_destroy(struct mm_struct *mm)
+-	hmm = hmm_get_or_create(mm);
+-	if (!hmm)
+-		return -EFAULT;
+-
+ 	/* Check if hmm_mm_destroy() was call. */
+-	if (hmm->mm == NULL || hmm->dead) {
+-		hmm_put(hmm);
++	if (hmm->mm == NULL || hmm->dead)
+ 		return -EFAULT;
+-	}
  
- static void hmm_release(struct mmu_notifier *mn, struct mm_struct *mm)
- {
--	struct hmm *hmm = mm_get_hmm(mm);
-+	struct hmm *hmm = container_of(mn, struct hmm, mmu_notifier);
- 	struct hmm_mirror *mirror;
- 	struct hmm_range *range;
- 
-+	/* Bail out if hmm is in the process of being freed */
-+	if (!kref_get_unless_zero(&hmm->kref))
-+		return;
-+
- 	/* Report this HMM as dying. */
- 	hmm->dead = true;
- 
-@@ -185,13 +194,14 @@ static void hmm_release(struct mmu_notifier *mn, struct mm_struct *mm)
- static int hmm_invalidate_range_start(struct mmu_notifier *mn,
- 			const struct mmu_notifier_range *nrange)
- {
--	struct hmm *hmm = mm_get_hmm(nrange->mm);
-+	struct hmm *hmm = container_of(mn, struct hmm, mmu_notifier);
- 	struct hmm_mirror *mirror;
- 	struct hmm_update update;
- 	struct hmm_range *range;
- 	int ret = 0;
- 
--	VM_BUG_ON(!hmm);
-+	if (!kref_get_unless_zero(&hmm->kref))
-+		return 0;
- 
- 	update.start = nrange->start;
- 	update.end = nrange->end;
-@@ -236,9 +246,10 @@ static int hmm_invalidate_range_start(struct mmu_notifier *mn,
- static void hmm_invalidate_range_end(struct mmu_notifier *mn,
- 			const struct mmu_notifier_range *nrange)
- {
--	struct hmm *hmm = mm_get_hmm(nrange->mm);
-+	struct hmm *hmm = container_of(mn, struct hmm, mmu_notifier);
- 
--	VM_BUG_ON(!hmm);
-+	if (!kref_get_unless_zero(&hmm->kref))
-+		return;
- 
+ 	/* Initialize range to track CPU page table updates. */
  	mutex_lock(&hmm->lock);
- 	hmm->notifiers--;
+ 
+ 	range->hmm = hmm;
++	kref_get(&hmm->kref);
+ 	list_add_rcu(&range->list, &hmm->ranges);
+ 
+ 	/*
 -- 
 2.20.1
 
