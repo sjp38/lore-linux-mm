@@ -7,78 +7,78 @@ X-Spam-Status: No, score=-9.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
 	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6B07DC5B578
-	for <linux-mm@archiver.kernel.org>; Mon,  1 Jul 2019 06:21:30 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E3B0BC0650F
+	for <linux-mm@archiver.kernel.org>; Mon,  1 Jul 2019 06:21:32 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 254E42145D
-	for <linux-mm@archiver.kernel.org>; Mon,  1 Jul 2019 06:21:30 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id A0CC8217F9
+	for <linux-mm@archiver.kernel.org>; Mon,  1 Jul 2019 06:21:32 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="Sh+xg97C"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 254E42145D
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="gymyO8jY"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A0CC8217F9
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D74F46B0269; Mon,  1 Jul 2019 02:21:14 -0400 (EDT)
+	id 583AF6B026A; Mon,  1 Jul 2019 02:21:16 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CFD1A8E000E; Mon,  1 Jul 2019 02:21:14 -0400 (EDT)
+	id 535568E000E; Mon,  1 Jul 2019 02:21:16 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B52BB8E000D; Mon,  1 Jul 2019 02:21:14 -0400 (EDT)
+	id 3B48B8E000D; Mon,  1 Jul 2019 02:21:16 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f207.google.com (mail-pg1-f207.google.com [209.85.215.207])
-	by kanga.kvack.org (Postfix) with ESMTP id 5B6F16B0269
-	for <linux-mm@kvack.org>; Mon,  1 Jul 2019 02:21:14 -0400 (EDT)
-Received: by mail-pg1-f207.google.com with SMTP id s195so7030531pgs.13
-        for <linux-mm@kvack.org>; Sun, 30 Jun 2019 23:21:14 -0700 (PDT)
+Received: from mail-pl1-f206.google.com (mail-pl1-f206.google.com [209.85.214.206])
+	by kanga.kvack.org (Postfix) with ESMTP id ECC9A6B026A
+	for <linux-mm@kvack.org>; Mon,  1 Jul 2019 02:21:15 -0400 (EDT)
+Received: by mail-pl1-f206.google.com with SMTP id f2so6765200plr.0
+        for <linux-mm@kvack.org>; Sun, 30 Jun 2019 23:21:15 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=pfzb7DKQGxSim4j5P5NViAehCYDnD7twhlehxZF4/mk=;
-        b=Zw6VShdveEEhk2CYkFFAmxDzpjK+DpY6ZOPJf25GPPvdRSpB/lLsI1dh4PrT1NQ3WW
-         xBhMdMzyIkD03wrzq3tgE3HgmjCK9aFEj27FdEnOFrYO6JMcXJCxTdfTuZKAD/9fQhI8
-         NzTW4ZubZbRFHzhfE/o7BtIChKC3Ff2X1DpXXZ8BhKmFxeMzKO/nPFEKAa0R58dE2EWE
-         ZnOL+gCDVx0EJzHZ3lMdyq7uBX5SzgnlWIRtmF1nvxzTnIJQrF/oYkXtItoeYEd3QbJS
-         /j8gYJZKgRR+Ll86b4sdCC4/WIPL6a1ue/bsJCLtbGRy2su/reosZVoQU7OtOm4gNS+Y
-         yxVw==
-X-Gm-Message-State: APjAAAUKabBDpan/ID5Yn1n9CKgzvRhc3vpVJ6tYKKcOxRh+X0wgta+A
-	hZ+6tTs9E1bt85zsA6ngxOpc0ZD8Q+PIzycJbHzfB9YjbSbDjvFCuONtQsWV1RvZLTQvcAMnTRH
-	GsEaPtjvrFOPjAHSb527cWKTNhh/qXadvncqJ9IjCrZKIh4ji9cS/MYUcTsX8eb8=
-X-Received: by 2002:a63:62c5:: with SMTP id w188mr11577470pgb.129.1561962073969;
-        Sun, 30 Jun 2019 23:21:13 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyAeZ7TbJMTPYC6IAZK4FDBS07Jvwe7mpvRv2DR2DzhFbcH0ztrdMrW9nQZMCNZ6RfclRL4
-X-Received: by 2002:a63:62c5:: with SMTP id w188mr11577412pgb.129.1561962073143;
-        Sun, 30 Jun 2019 23:21:13 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561962073; cv=none;
+        bh=8byVWDDjomwL6qH7S0OtanLtekPodjhPaEDKqBoEUGs=;
+        b=iM+k4TQ9y/HCDiUPetTSk/Q4pvARJD3tFcDnlrh3itLdPJ0Bj03ph0o8ulCLA9PfZp
+         ikb9QqVg0B8ciT0So2lVNrwa/PL+DjocFjUj6YOv+KdOq85iq3TcdyTWepLfV1mPRCAe
+         SWzMwZR1Uav+kLZboPULT/tNK4kYkwCvNrfXYMK9lNb6+cM0/qhL+ZNstrzlXYCN2yHs
+         /M+KoQuT5vtW5CAP6BWZTDy6+MzTu6DUypubgfCwPfWS0cXa/cNxt4KUMhFI3KuPvm9A
+         dtxnp30Ewez31og1whVbv/WTqKxUlaMhMT2mxD96kgt9fvUfIdG0pN7i/xcg4E3+H7/M
+         ZHJw==
+X-Gm-Message-State: APjAAAXigobMBlQcefvFugrWZLSr0UoRMzXScds8AEMyIetiurVtaa/7
+	xVatbhOK5a4zD3ipVDAqOAm4y7im3iixWcN0maJ3boJ6R4Qd3AHwYGN7pwihQn/glrTpcLMwY5G
+	ZgQx1QdBSmrgXNbuuWSxvKgDMkGT1copPN/UA16Nkp/1fcOPHhYCipmc/pIiGRAE=
+X-Received: by 2002:a63:f346:: with SMTP id t6mr23902861pgj.203.1561962075574;
+        Sun, 30 Jun 2019 23:21:15 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzfb1K3by0iHTgkArt2MsTrN9EYQE793rd8KnRhWOCiuzwuEueSzPRbr77tludB9rIKLaTN
+X-Received: by 2002:a63:f346:: with SMTP id t6mr23902776pgj.203.1561962074494;
+        Sun, 30 Jun 2019 23:21:14 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561962074; cv=none;
         d=google.com; s=arc-20160816;
-        b=qUuD7qsPhWNdwiB0zban7Xj5DxHyTvYx/JgWmvQOHmkevNCuoW6WM2oU4Z2DaBHS3j
-         ow7Xqw0E3r7LkeMjU254QjVAzeDj2H8YNqzr+AuTXxauAer/oQ6ktjXlWQ+BNrKpNfDw
-         d0OJ/h0P+FmoY7FtmQ4rVf7drD95aSluH1iaDOyqe2D7Ox6XIT9Ne69zAefT2nC6VxcF
-         Sv1LFwvMWuH3kPM22E8TvwSmpu29L/VAAXxN+KVVkSJrt8iYhW+NL8HRDM6xDwfqYtlo
-         TYQL3a1I2D1YDmJZ21Z7GlUAwFUwuB5NonoPrcwXTd+yfocES3fLZJmTIv2gJTChpAi5
-         RrvQ==
+        b=zQToYprBoLNqdm/mVmx6KBBjGtgm5XqsVsC8ZGIVRE9AVW5OpkWKBSrT+4Tw8gHmy6
+         u5TmwkAehap1HyTITbbw7dLbCuO8wN+c5C0kweIFGzGJdxss9jWuY/c8gcZCMzuH8L+W
+         FLJsnqgm8DgM12q5j0rxR3G59Px25j6JkXqlqfiOzjM0djWko6fVGORWkT9cYcm4QK6B
+         4weaO6a725q3R2LBnp04GEa+ltnE5BVfREc+aZDQWxlFdosAHCS/owJcCTMFl6OH+tOK
+         0+ngFWvbcmBnATF86GJoxc/WIuVfsK8UFwloAvYxPR7nNuv5YTzaSbgVC0ySfqhQcGkJ
+         xDDg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=pfzb7DKQGxSim4j5P5NViAehCYDnD7twhlehxZF4/mk=;
-        b=gXzpDMjkHjoS4YdsnV2ikognKdBbYFw6AtLxU+qcvTw9tS+3fcOaBR2ta/veGRqrY6
-         cb+YCnsQ36IsfuI1CYthMAWy/l6dEuI841gVkTtJBp7bUICW47owBICdhgAlY4YTEZRq
-         jMjjSu2hrm6+3vEek59gEKl2NGhEpPIhmEYP7v1KMWsyYwe/dfBrw9k2stUeeyFK4XNI
-         R8/t6zA1RjFsluRhEL0w3i3q+O6fw6/w97M1q7qhPqscACK2+vz+gFDMNkLkZUYqF7Vg
-         1xoiyhPy+f2uPNcBfaGFAAPxhEK2Tna5pj7mzgmpzzPqAfLh4cSExLMrAnA1AdHPn7eX
-         wwZw==
+        bh=8byVWDDjomwL6qH7S0OtanLtekPodjhPaEDKqBoEUGs=;
+        b=OzrfnIqYAEXVaM1G31kRCokObe4Y01GKMnXWP+yn8ZQtqVvXWBphHaDD2kxom7DC65
+         82RGiUNH6sNXWJBOtF6M7dWpr7ksTkzCDP5Icf1gCwVngbev1qY7VmqpLxWXoa+a9OJF
+         nFZuMP7DplANUw/UX2YI1rrHx9y5ydCAnpnUfJUJw33V6NHDyS/q97OInEsvORqV1zHG
+         tA4wydE0LXYX9rKePbKouAz/+eTEWDoEIPI/X2dlgAFcsz/CUYx1NgxlcmpTVKIo3Sdx
+         yqI69tpJbaSG6JflFATPSxnnPqXYhdX8UyiJiLkOddv1HMarXLeAu5FA7zIU2pF26lF2
+         dx4A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=Sh+xg97C;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=gymyO8jY;
        spf=pass (google.com: best guess record for domain of batv+bb02ddf78a79a38d855c+5790+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+bb02ddf78a79a38d855c+5790+infradead.org+hch@bombadil.srs.infradead.org
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id s24si10371036pfh.227.2019.06.30.23.21.13
+        by mx.google.com with ESMTPS id x12si7260142plo.64.2019.06.30.23.21.14
         for <linux-mm@kvack.org>
         (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Sun, 30 Jun 2019 23:21:13 -0700 (PDT)
+        Sun, 30 Jun 2019 23:21:14 -0700 (PDT)
 Received-SPF: pass (google.com: best guess record for domain of batv+bb02ddf78a79a38d855c+5790+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=Sh+xg97C;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=gymyO8jY;
        spf=pass (google.com: best guess record for domain of batv+bb02ddf78a79a38d855c+5790+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+bb02ddf78a79a38d855c+5790+infradead.org+hch@bombadil.srs.infradead.org
 DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	d=infradead.org; s=bombadil.20170209; h=Content-Transfer-Encoding:
@@ -86,15 +86,15 @@ DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	:Reply-To:Content-Type:Content-ID:Content-Description:Resent-Date:Resent-From
 	:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:List-Help:
 	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	bh=pfzb7DKQGxSim4j5P5NViAehCYDnD7twhlehxZF4/mk=; b=Sh+xg97CAaxfCofmcqXvvWAphg
-	/FC2T86IXntWnlzo7VNQ0a7nvzkSU5M8Vor1yTinwL8XHWySWdAmf559BGxhLygWpZkXa+jWcNQpF
-	yiqysTo4IQb6Xpt1GUM99QV4WcYAL16tbM/uA/Iri95ouR7gdrojQ0Q1FFO88taxm3tHE0W2P75Ls
-	uFALgpav78FJe/L2HvoUQuW9Nx75lFKVz+WQqk7Svyo2Nz6faU7+QmTVPfGCiVaW1HVgnmdn0SnRa
-	bWnACDf6hys4JLjnsuvv+pNy9oG68GRh5KBdYs5IrjoRydXBE/posTx59K1lsO1UsoEGdwy2Of8G0
-	zfk6CmHg==;
+	bh=8byVWDDjomwL6qH7S0OtanLtekPodjhPaEDKqBoEUGs=; b=gymyO8jYdkpQB45FPyoqo5QVRO
+	pxdxLE/pukS1Gk+9MEFhUMYN00wWfJtK9mHMqd13ChvWkK6i3fJFh5i3DGPvBqQ37V8+yF0igt9nN
+	Y9V4N/egahV3v/1fcDcj6gtqMt3/1tKmCmBZNUOPuZDmSMXGT7uyE2F/3McRlbRBhxwK2jh6sWGos
+	ctgD/8HuEKjDbXkk6fDiLK/fGApomgUO2pe9gIo2ZW5OLFiUrBVFWmZ11yFMq+imU7W5vNvpz+ObV
+	JvmhVL1Q0WzgqBRzkrgih94Su6CSqN/FTPUhjuxgRAK49QrB82cKbelNL+xMhaE0alH06JPe6B65V
+	JIyEF0zw==;
 Received: from [46.140.178.35] (helo=localhost)
 	by bombadil.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
-	id 1hhpgb-0003W2-Ks; Mon, 01 Jul 2019 06:21:09 +0000
+	id 1hhpgd-0003Y2-QA; Mon, 01 Jul 2019 06:21:12 +0000
 From: Christoph Hellwig <hch@lst.de>
 To: Dan Williams <dan.j.williams@intel.com>,
 	=?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
@@ -107,9 +107,9 @@ Cc: Ira Weiny <ira.weiny@intel.com>,
 	linux-nvdimm@lists.01.org,
 	linux-pci@vger.kernel.org,
 	linux-kernel@vger.kernel.org
-Subject: [PATCH 21/22] nouveau: unlock mmap_sem on all errors from nouveau_range_fault
-Date: Mon,  1 Jul 2019 08:20:19 +0200
-Message-Id: <20190701062020.19239-22-hch@lst.de>
+Subject: [PATCH 22/22] mm: remove the legacy hmm_pfn_* APIs
+Date: Mon,  1 Jul 2019 08:20:20 +0200
+Message-Id: <20190701062020.19239-23-hch@lst.de>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190701062020.19239-1-hch@lst.de>
 References: <20190701062020.19239-1-hch@lst.de>
@@ -122,63 +122,75 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Currently nouveau_svm_fault expects nouveau_range_fault to never unlock
-mmap_sem, but the latter unlocks it for a random selection of error
-codes. Fix this up by always unlocking mmap_sem for non-zero return
-values in nouveau_range_fault, and only unlocking it in the caller
-for successful returns.
+Switch the one remaining user in nouveau over to its replacement,
+and remove all the wrappers.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- drivers/gpu/drm/nouveau/nouveau_svm.c | 15 ++++++++-------
- 1 file changed, 8 insertions(+), 7 deletions(-)
+ drivers/gpu/drm/nouveau/nouveau_dmem.c |  2 +-
+ include/linux/hmm.h                    | 36 --------------------------
+ 2 files changed, 1 insertion(+), 37 deletions(-)
 
-diff --git a/drivers/gpu/drm/nouveau/nouveau_svm.c b/drivers/gpu/drm/nouveau/nouveau_svm.c
-index e831f4184a17..c0cf7aeaefb3 100644
---- a/drivers/gpu/drm/nouveau/nouveau_svm.c
-+++ b/drivers/gpu/drm/nouveau/nouveau_svm.c
-@@ -500,8 +500,10 @@ nouveau_range_fault(struct hmm_mirror *mirror, struct hmm_range *range,
- 	ret = hmm_range_register(range, mirror,
- 				 range->start, range->end,
- 				 PAGE_SHIFT);
--	if (ret)
-+	if (ret) {
-+		up_read(&range->vma->vm_mm->mmap_sem);
- 		return (int)ret;
-+	}
+diff --git a/drivers/gpu/drm/nouveau/nouveau_dmem.c b/drivers/gpu/drm/nouveau/nouveau_dmem.c
+index 40c47d6a7d78..534069ffe20a 100644
+--- a/drivers/gpu/drm/nouveau/nouveau_dmem.c
++++ b/drivers/gpu/drm/nouveau/nouveau_dmem.c
+@@ -853,7 +853,7 @@ nouveau_dmem_convert_pfn(struct nouveau_drm *drm,
+ 		struct page *page;
+ 		uint64_t addr;
  
- 	if (!hmm_range_wait_until_valid(range, NOUVEAU_RANGE_FAULT_TIMEOUT)) {
- 		/*
-@@ -515,15 +517,14 @@ nouveau_range_fault(struct hmm_mirror *mirror, struct hmm_range *range,
+-		page = hmm_pfn_to_page(range, range->pfns[i]);
++		page = hmm_device_entry_to_page(range, range->pfns[i]);
+ 		if (page == NULL)
+ 			continue;
  
- 	ret = hmm_range_fault(range, block);
- 	if (ret <= 0) {
--		if (ret == -EBUSY || !ret) {
--			/* Same as above, drop mmap_sem to match old API. */
--			up_read(&range->vma->vm_mm->mmap_sem);
--			ret = -EBUSY;
--		} else if (ret == -EAGAIN)
-+		if (ret == 0)
- 			ret = -EBUSY;
-+		if (ret != -EAGAIN)
-+			up_read(&range->vma->vm_mm->mmap_sem);
- 		hmm_range_unregister(range);
- 		return ret;
- 	}
-+
- 	return 0;
+diff --git a/include/linux/hmm.h b/include/linux/hmm.h
+index 3457cf9182e5..9799fde71f2e 100644
+--- a/include/linux/hmm.h
++++ b/include/linux/hmm.h
+@@ -290,42 +290,6 @@ static inline uint64_t hmm_device_entry_from_pfn(const struct hmm_range *range,
+ 		range->flags[HMM_PFN_VALID];
  }
  
-@@ -718,8 +719,8 @@ nouveau_svm_fault(struct nvif_notify *notify)
- 						NULL);
- 			svmm->vmm->vmm.object.client->super = false;
- 			mutex_unlock(&svmm->mutex);
-+			up_read(&svmm->mm->mmap_sem);
- 		}
--		up_read(&svmm->mm->mmap_sem);
- 
- 		/* Cancel any faults in the window whose pages didn't manage
- 		 * to keep their valid bit, or stay writeable when required.
+-/*
+- * Old API:
+- * hmm_pfn_to_page()
+- * hmm_pfn_to_pfn()
+- * hmm_pfn_from_page()
+- * hmm_pfn_from_pfn()
+- *
+- * This are the OLD API please use new API, it is here to avoid cross-tree
+- * merge painfullness ie we convert things to new API in stages.
+- */
+-static inline struct page *hmm_pfn_to_page(const struct hmm_range *range,
+-					   uint64_t pfn)
+-{
+-	return hmm_device_entry_to_page(range, pfn);
+-}
+-
+-static inline unsigned long hmm_pfn_to_pfn(const struct hmm_range *range,
+-					   uint64_t pfn)
+-{
+-	return hmm_device_entry_to_pfn(range, pfn);
+-}
+-
+-static inline uint64_t hmm_pfn_from_page(const struct hmm_range *range,
+-					 struct page *page)
+-{
+-	return hmm_device_entry_from_page(range, page);
+-}
+-
+-static inline uint64_t hmm_pfn_from_pfn(const struct hmm_range *range,
+-					unsigned long pfn)
+-{
+-	return hmm_device_entry_from_pfn(range, pfn);
+-}
+-
+-
+-
+ #if IS_ENABLED(CONFIG_HMM_MIRROR)
+ /*
+  * Mirroring: how to synchronize device page table with CPU page table.
 -- 
 2.20.1
 
