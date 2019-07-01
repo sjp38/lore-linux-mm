@@ -2,105 +2,103 @@ Return-Path: <SRS0=jfnU=U6=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 55EAFC0650E
-	for <linux-mm@archiver.kernel.org>; Mon,  1 Jul 2019 08:52:34 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C7F5AC0650E
+	for <linux-mm@archiver.kernel.org>; Mon,  1 Jul 2019 08:59:24 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 12363208C4
-	for <linux-mm@archiver.kernel.org>; Mon,  1 Jul 2019 08:52:33 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 12363208C4
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 94D55208C4
+	for <linux-mm@archiver.kernel.org>; Mon,  1 Jul 2019 08:59:24 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 94D55208C4
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9A7886B0006; Mon,  1 Jul 2019 04:52:33 -0400 (EDT)
+	id 312ED6B0003; Mon,  1 Jul 2019 04:59:24 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9596C8E0003; Mon,  1 Jul 2019 04:52:33 -0400 (EDT)
+	id 2C3D68E0003; Mon,  1 Jul 2019 04:59:24 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 81F4E8E0002; Mon,  1 Jul 2019 04:52:33 -0400 (EDT)
+	id 1B28F8E0002; Mon,  1 Jul 2019 04:59:24 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f79.google.com (mail-ed1-f79.google.com [209.85.208.79])
-	by kanga.kvack.org (Postfix) with ESMTP id 35C316B0006
-	for <linux-mm@kvack.org>; Mon,  1 Jul 2019 04:52:33 -0400 (EDT)
-Received: by mail-ed1-f79.google.com with SMTP id y3so16360929edm.21
-        for <linux-mm@kvack.org>; Mon, 01 Jul 2019 01:52:33 -0700 (PDT)
+Received: from mail-ed1-f78.google.com (mail-ed1-f78.google.com [209.85.208.78])
+	by kanga.kvack.org (Postfix) with ESMTP id BFE556B0003
+	for <linux-mm@kvack.org>; Mon,  1 Jul 2019 04:59:23 -0400 (EDT)
+Received: by mail-ed1-f78.google.com with SMTP id b33so16353207edc.17
+        for <linux-mm@kvack.org>; Mon, 01 Jul 2019 01:59:23 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=JEej5XKfmDYhCLRfey3JFTW9Om3gnuSkjK+xcG6vL/k=;
-        b=HO/L0J0+YbOYG/gRuLKm1WD4jXtgKPz+3OhrouCmbZmYL5ixzRfFDdvnUlPuQ7V0mf
-         YyyeQ6Dmc/C4ewgGZ0aHmMnclgSUD5mErBIRonK/GYttx5VaANnT493LLIGLmdLBT7YJ
-         r9PSKE0+fqoDgtZGLAkbJU5JOPceHQlPUXH3jpJ9XJxzZQUbYzeKWah4Vz+MKa5D4DJG
-         nEYYCvcSKB2Eqog5Kmo/AojC+NBdUXyICx/+FmPQAarwbsVh/D7s4NYUtkcTEr5MccUU
-         mwpiryKzhiKg6UGWJNa/j5u9y4jjGPJ3EBDDuukeN73s/3kv2VPdsytyf6rvF0WTKyM9
-         liOw==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAVjqj6GFTm4fws9Gz4G0XSTweDzxxzyYdA7U4UpDolaaJSuTtfw
-	zyMPBLidQppFa6i/0a/j5GBwKW83lULKqv8nF3pcfRQ+O/7YIEGh9Uf5G7PFDNFQ+n8gNQovgE8
-	F3qPlJw4n5IZz2FNdLVzzgCqxxJoZSp2FW6CjZw0pB26B5kRdGHPq9Kv4nPoH0jk=
-X-Received: by 2002:aa7:ca41:: with SMTP id j1mr28206295edt.149.1561971152775;
-        Mon, 01 Jul 2019 01:52:32 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxBjNVF+QpVjsYPTijZavNhCd+o5M8wwfZlb8oiFifPtHzZwqohEL4cU1qfpgPw4cB80N5Z
-X-Received: by 2002:aa7:ca41:: with SMTP id j1mr28206252edt.149.1561971152125;
-        Mon, 01 Jul 2019 01:52:32 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1561971152; cv=none;
+        bh=LEGcXfT/HJX4yO3feguoPG0J/A642eUZpfyIoGjGYvI=;
+        b=rMJJKQaX2g8vNPfC9yaZJjga66HpQkMcM8AsAK3ecMWaGBOs9FFWi+7T1LvR/Ukj3o
+         1bdR8xjltVlzdKreqfjcWYD2WJFo/ZpgqqDADYVU+Mwftp2uqklnYZtPU5uo00XCDhuv
+         BGrOPIpkYMkdrmUtVyerX9Q7OTnApXBud5vDhKpqouKxl9PFjMv9OqnilKlKvUXEuGDa
+         6sK5j/Hu+OKRpaTOxiqh0ewTm22fofS3/1RS31TIX3cTbAYfyBLHg5T6hu6wJKo1sCGS
+         2L7IGJqQp/T4Hoh2qCZ4lyucE7s8kyTlGVP5fUy47KKRDOT0S5NDU3rgcjfOj6ko5kgh
+         PvFQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mgorman@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=mgorman@suse.de
+X-Gm-Message-State: APjAAAVTWt5eNPdLa94KLLG88BS/GkXTZmc/N5rdvmMMKPQf81atnPHN
+	vRKatsyqg3ISEos2AvTaAwvf/3KqIzJ/10uSJI2/s5MDZGdGJhNIZmQ7sT3YyPdlqu+2ehiKag4
+	cbtBNQtI8dwI/n6EXzr/+Yq7l82db+0lZ0ykXcheR36my7jygLdbtb72ITO9HaA7xZg==
+X-Received: by 2002:a17:906:2e59:: with SMTP id r25mr21467052eji.293.1561971563346;
+        Mon, 01 Jul 2019 01:59:23 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwvojIvPdr63QNFQndv79oDZjWt7q4kCCeHpVZmjb5BU6sRuDOWiwUEE4oSfnI+YMQR451I
+X-Received: by 2002:a17:906:2e59:: with SMTP id r25mr21467011eji.293.1561971562575;
+        Mon, 01 Jul 2019 01:59:22 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1561971562; cv=none;
         d=google.com; s=arc-20160816;
-        b=wFcjS2vLmxFvrYWebFBqIm2Z3pL20deYsQpoT/u5hr4WMhyz1l9XDKZJVOG3LXCFG6
-         ODfKb7CZtbHnp3RbhsVRQUNNtEs/3owvarfq3PjPERGXzYr3RR4H6GVxsD0SG1JeyYjK
-         gv/qCYxiaBifwRzMs6bCON2qZk2C3Dt1VSlxVfhu5+zr8JIeQPPrKGWTh+tnaSJPkih/
-         6y/ZzOhkxy643TTSxxIo9ycuBmey55jHWoZ9pURVhKn24ogK9vNgnFvaQnnFvpHGFEgb
-         8NPk19emZFsO7Y2ZX+YZHS2RoivO8SmcsJIRuWZeY9GL8UwE4P9zkehAZC9ea3BIAxLG
-         XEuQ==
+        b=bocivSBYGZhrA9sOT4FZ8KiC3LWAOu1kqa+W2rhfy3PTg4TALK7rVTgwGC8xoh09l/
+         CUoi1i01JUP+62ZwlCCjy3/VXo/5fnNbVMC71n56HWkBxIRZ50iOILchnkBeYnpQvnOO
+         RWq0BYVvk+vYqJohxYbEP2jKJSV5mzxKiGWeeSn6jCaCZ+dWWiDOO3wDD+4/dZETRelm
+         3qD4LMe+6Tf9Bp7bcZ1D4xw2eSHmFsvCYofMLlS77X1RKKCuHasnl3IzJ4PFHE9UH3Hw
+         lD5VEq19xsoJyEeqgxZ5ZTsUmyggbK3RkJWF/7wJA/eUmcUWXcGJl5WiMPAp5ug1uJMH
+         N0qw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=JEej5XKfmDYhCLRfey3JFTW9Om3gnuSkjK+xcG6vL/k=;
-        b=TjQP3c+C7bNV901JA9NM00PfVp2Tj5c9k0ggg9S/ivS1UqPgz5bJNV7Rdr4P/VOWTB
-         /+1f4G8S3YRTbIns/1msHoXWm6fR7fLpQRk7ia96M6uAqgjvm/wuuz2awTRM9l8PoK4u
-         CTQhjJWxZN5/tUG0YKR1Ux5ks9ZH5SJMv1gnU/Z9B6GHnodyQlMdPkiAkjgpKopPcUL/
-         czPkY+LMk/wFZJH8t7Fkpdggghse8agITTh8bVVMRJYlnW5p/P2HDg4wph8xmx2JZ4Gt
-         KC6+UqvUFbZc/0SLKPZeTZk2Gr2fuEGGiHGZKglpnFuoU3IMwoA1HNBZtrw6lMo22GGR
-         AscQ==
+        bh=LEGcXfT/HJX4yO3feguoPG0J/A642eUZpfyIoGjGYvI=;
+        b=EcNz59VPVsmr/FKWJPr8jWT+L4t1WsnA577DGgE1W+hikPHcv3Yk90wEQNlaQM0g0k
+         Sk8V8O4GUccXCOs8fIl75U2iMmCCH6Nti5x1DFPVM5iCQaKMKkurh1yOj5y84fTlrn5w
+         j6ZkWSEcYarh72qUO0sPei0de/WFPs1w5lcglMEL5j0CmJrXkZ4fXwxdeW9XLgjsGI4s
+         +NsdxYF0yi9Q4TO9b7rnZvho3xjtV5uHH+j1ytXE+/nLBMpda3QS88u0YSlB+IFbQhOr
+         Hb428NkyNels0Mku3FWvIxEYKJSnGEWgJWgBOKU+JwbiVcCs552S8wMVx+r4UijbDXYd
+         li6A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+       spf=pass (google.com: domain of mgorman@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=mgorman@suse.de
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b12si6918240ejd.385.2019.07.01.01.52.31
+        by mx.google.com with ESMTPS id a49si8445551edd.383.2019.07.01.01.59.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 01 Jul 2019 01:52:32 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Mon, 01 Jul 2019 01:59:22 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mgorman@suse.de designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+       spf=pass (google.com: domain of mgorman@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=mgorman@suse.de
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id AE529AD23;
-	Mon,  1 Jul 2019 08:52:31 +0000 (UTC)
-Date: Mon, 1 Jul 2019 10:52:31 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: David Hildenbrand <david@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
-	linux-ia64@vger.kernel.org, linuxppc-dev@lists.ozlabs.org,
-	linux-s390@vger.kernel.org, linux-sh@vger.kernel.org,
-	linux-arm-kernel@lists.infradead.org, akpm@linux-foundation.org,
-	Dan Williams <dan.j.williams@intel.com>,
-	Wei Yang <richard.weiyang@gmail.com>,
-	Igor Mammedov <imammedo@redhat.com>
-Subject: Re: [PATCH v3 11/11] mm/memory_hotplug: Remove "zone" parameter from
- sparse_remove_one_section
-Message-ID: <20190701085231.GK6376@dhcp22.suse.cz>
-References: <20190527111152.16324-1-david@redhat.com>
- <20190527111152.16324-12-david@redhat.com>
+	by mx1.suse.de (Postfix) with ESMTP id 297ADAD2A;
+	Mon,  1 Jul 2019 08:59:22 +0000 (UTC)
+Date: Mon, 1 Jul 2019 09:59:20 +0100
+From: Mel Gorman <mgorman@suse.de>
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>,
+	"linux-mm@kvack.org" <linux-mm@kvack.org>,
+	linux-kernel <linux-kernel@vger.kernel.org>,
+	Andrea Arcangeli <aarcange@redhat.com>,
+	Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [Question] Should direct reclaim time be bounded?
+Message-ID: <20190701085920.GB2812@suse.de>
+References: <d38a095e-dc39-7e82-bb76-2c9247929f07@oracle.com>
+ <20190423071953.GC25106@dhcp22.suse.cz>
+ <eac582cf-2f76-4da1-1127-6bb5c8c959e4@oracle.com>
+ <04329fea-cd34-4107-d1d4-b2098ebab0ec@suse.cz>
+ <dede2f84-90bf-347a-2a17-fb6b521bf573@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20190527111152.16324-12-david@redhat.com>
+In-Reply-To: <dede2f84-90bf-347a-2a17-fb6b521bf573@oracle.com>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -108,67 +106,49 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon 27-05-19 13:11:52, David Hildenbrand wrote:
-> The parameter is unused, so let's drop it. Memory removal paths should
-> never care about zones. This is the job of memory offlining and will
-> require more refactorings.
+On Fri, Jun 28, 2019 at 11:20:42AM -0700, Mike Kravetz wrote:
+> On 4/24/19 7:35 AM, Vlastimil Babka wrote:
+> > On 4/23/19 6:39 PM, Mike Kravetz wrote:
+> >>> That being said, I do not think __GFP_RETRY_MAYFAIL is wrong here. It
+> >>> looks like there is something wrong in the reclaim going on.
+> >>
+> >> Ok, I will start digging into that.  Just wanted to make sure before I got
+> >> into it too deep.
+> >>
+> >> BTW - This is very easy to reproduce.  Just try to allocate more huge pages
+> >> than will fit into memory.  I see this 'reclaim taking forever' behavior on
+> >> v5.1-rc5-mmotm-2019-04-19-14-53.  Looks like it was there in v5.0 as well.
+> > 
+> > I'd suspect this in should_continue_reclaim():
+> > 
+> >         /* Consider stopping depending on scan and reclaim activity */
+> >         if (sc->gfp_mask & __GFP_RETRY_MAYFAIL) {
+> >                 /*
+> >                  * For __GFP_RETRY_MAYFAIL allocations, stop reclaiming if the
+> >                  * full LRU list has been scanned and we are still failing
+> >                  * to reclaim pages. This full LRU scan is potentially
+> >                  * expensive but a __GFP_RETRY_MAYFAIL caller really wants to succeed
+> >                  */
+> >                 if (!nr_reclaimed && !nr_scanned)
+> >                         return false;
+> > 
+> > And that for some reason, nr_scanned never becomes zero. But it's hard
+> > to figure out through all the layers of functions :/
 > 
-> Reviewed-by: Dan Williams <dan.j.williams@intel.com>
-> Signed-off-by: David Hildenbrand <david@redhat.com>
-
-Acked-by: Michal Hocko <mhocko@suse.com>
-
-> ---
->  include/linux/memory_hotplug.h | 2 +-
->  mm/memory_hotplug.c            | 2 +-
->  mm/sparse.c                    | 4 ++--
->  3 files changed, 4 insertions(+), 4 deletions(-)
+> I got back to looking into the direct reclaim/compaction stalls when
+> trying to allocate huge pages.  As previously mentioned, the code is
+> looping for a long time in shrink_node().  The routine
+> should_continue_reclaim() returns true perhaps more often than it should.
 > 
-> diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
-> index 2f1f87e13baa..1a4257c5f74c 100644
-> --- a/include/linux/memory_hotplug.h
-> +++ b/include/linux/memory_hotplug.h
-> @@ -346,7 +346,7 @@ extern void move_pfn_range_to_zone(struct zone *zone, unsigned long start_pfn,
->  extern bool is_memblock_offlined(struct memory_block *mem);
->  extern int sparse_add_one_section(int nid, unsigned long start_pfn,
->  				  struct vmem_altmap *altmap);
-> -extern void sparse_remove_one_section(struct zone *zone, struct mem_section *ms,
-> +extern void sparse_remove_one_section(struct mem_section *ms,
->  		unsigned long map_offset, struct vmem_altmap *altmap);
->  extern struct page *sparse_decode_mem_map(unsigned long coded_mem_map,
->  					  unsigned long pnum);
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index 82136c5b4c5f..e48ec7b9dee2 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -524,7 +524,7 @@ static void __remove_section(struct zone *zone, struct mem_section *ms,
->  	start_pfn = section_nr_to_pfn((unsigned long)scn_nr);
->  	__remove_zone(zone, start_pfn);
->  
-> -	sparse_remove_one_section(zone, ms, map_offset, altmap);
-> +	sparse_remove_one_section(ms, map_offset, altmap);
->  }
->  
->  /**
-> diff --git a/mm/sparse.c b/mm/sparse.c
-> index d1d5e05f5b8d..1552c855d62a 100644
-> --- a/mm/sparse.c
-> +++ b/mm/sparse.c
-> @@ -800,8 +800,8 @@ static void free_section_usemap(struct page *memmap, unsigned long *usemap,
->  		free_map_bootmem(memmap);
->  }
->  
-> -void sparse_remove_one_section(struct zone *zone, struct mem_section *ms,
-> -		unsigned long map_offset, struct vmem_altmap *altmap)
-> +void sparse_remove_one_section(struct mem_section *ms, unsigned long map_offset,
-> +			       struct vmem_altmap *altmap)
->  {
->  	struct page *memmap = NULL;
->  	unsigned long *usemap = NULL;
-> -- 
-> 2.20.1
+> As Vlastmil guessed, my debug code output below shows nr_scanned is remaining
+> non-zero for quite a while.  This was on v5.2-rc6.
+> 
+
+I think it would be reasonable to have should_continue_reclaim allow an
+exit if scanning at higher priority than DEF_PRIORITY - 2, nr_scanned is
+less than SWAP_CLUSTER_MAX and no pages are being reclaimed.
 
 -- 
-Michal Hocko
+Mel Gorman
 SUSE Labs
 
