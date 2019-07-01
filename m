@@ -5,122 +5,122 @@ X-Spam-Level:
 X-Spam-Status: No, score=-10.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
 	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 774D8C5B578
-	for <linux-mm@archiver.kernel.org>; Mon,  1 Jul 2019 21:58:06 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4B190C5B578
+	for <linux-mm@archiver.kernel.org>; Mon,  1 Jul 2019 21:58:13 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3C3F320652
-	for <linux-mm@archiver.kernel.org>; Mon,  1 Jul 2019 21:58:06 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id EE23A20652
+	for <linux-mm@archiver.kernel.org>; Mon,  1 Jul 2019 21:58:12 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=wdc.com header.i=@wdc.com header.b="ZZIFA9HV"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3C3F320652
+	dkim=pass (2048-bit key) header.d=wdc.com header.i=@wdc.com header.b="HiaK+qya"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EE23A20652
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=wdc.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D4BF18E0006; Mon,  1 Jul 2019 17:58:05 -0400 (EDT)
+	id A173E8E0007; Mon,  1 Jul 2019 17:58:12 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CFBF88E0002; Mon,  1 Jul 2019 17:58:05 -0400 (EDT)
+	id 9C85D8E0002; Mon,  1 Jul 2019 17:58:12 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B9DD58E0006; Mon,  1 Jul 2019 17:58:05 -0400 (EDT)
+	id 8B7858E0007; Mon,  1 Jul 2019 17:58:12 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f205.google.com (mail-pl1-f205.google.com [209.85.214.205])
-	by kanga.kvack.org (Postfix) with ESMTP id 82E728E0002
-	for <linux-mm@kvack.org>; Mon,  1 Jul 2019 17:58:05 -0400 (EDT)
-Received: by mail-pl1-f205.google.com with SMTP id 59so7879648plb.14
-        for <linux-mm@kvack.org>; Mon, 01 Jul 2019 14:58:05 -0700 (PDT)
+Received: from mail-pl1-f206.google.com (mail-pl1-f206.google.com [209.85.214.206])
+	by kanga.kvack.org (Postfix) with ESMTP id 553D38E0002
+	for <linux-mm@kvack.org>; Mon,  1 Jul 2019 17:58:12 -0400 (EDT)
+Received: by mail-pl1-f206.google.com with SMTP id bb9so7899142plb.2
+        for <linux-mm@kvack.org>; Mon, 01 Jul 2019 14:58:12 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:ironport-sdr:ironport-sdr:from:to
          :cc:subject:date:message-id:in-reply-to:references;
-        bh=Rz22BLRkwdteKQIL4HVAbq/33QcMnCT9Tx0pA4ANBrI=;
-        b=Np02RTCLz2YepTAo79p+6W6lwkDb7Z8uXIqu47YCjBL43A9vXIZSG7/YXBNBwW/jAM
-         QM0T4HMZZGDhumUhPnVxepI8NrEJglP4QhEusC7O8lfYmIkfENqDQcfqobcMeT6AakGh
-         e0ZCAJqWaO5EtayfPIqNcXUpC9z8dEYDL74vKGTMabLKB4vBL4AE/2/9DEopIrP9TlmR
-         eHmAZkDIOHSVOwwccIZomLzi8EMwYnioAhwCVPMoCHbJiz3LHs3dOuejphJzdiIfGRh3
-         qtxvHr19U/om+zGLLmbDENCtNpeomxawYGIceDdFR/2lPpPETqPG2m+MjFM7L8HRmGls
-         nf7A==
-X-Gm-Message-State: APjAAAXT41HR7Bd9cjHlf1QqWr6PhAaLQiBOfiebMbBarASm/mX7FyWR
-	/hueh3jknOSUs3BwPm4veMG5rLWA+I252M+lzSK34Pyd8SePxqiMMBPJj3o3aWTyvsDNaXZNTas
-	ILYfWXrgMzrTaJyt0bc90RGwgxvmsZ4GJJah0/hg8hfuoJFH4O+9Jt3i4QOXRqaLc8w==
-X-Received: by 2002:a17:90a:2525:: with SMTP id j34mr1654170pje.11.1562018285223;
-        Mon, 01 Jul 2019 14:58:05 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwqum+Gbt12hxHcva0fVt5dsQ6pppzAkwOt4H8WM777VVqoy8YE/TiWzALlf5CAHmLOwDcu
-X-Received: by 2002:a17:90a:2525:: with SMTP id j34mr1654130pje.11.1562018284595;
-        Mon, 01 Jul 2019 14:58:04 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562018284; cv=none;
+        bh=yhezopFiPHG0c2M8IFRRD4+hJzOPOYJ+sB8spnfElWM=;
+        b=XsYBVwnw4RM4czMMlBgh4wU/A+pkL5tuOKXnaqge+45Zp87fE2TWBcZnZmxn969x15
+         LcDoociQWn777db20YDIulOI/YL2W7Xk3mbDv2rUQjB4fo/B252MXQRRPk/6H+5jjxqs
+         jre1RaVMlNVuxVIInRDtfgpkibGKdonUcHmsAHBu2mR8ezlPfEKB2ZdjT/iuk2wze1x5
+         m2gOPk7Nu9whqxYy7wdDNdOLnB0ECnkqL6p4FtPnjj8Pkif0zehTof3sXAD36jIXOO1y
+         u0srrq/yfBIDzOqw/mR0iXNZDkC7SouzNJyrHA5vY9pqCpfc7+zfaTP3YfISm80viM9D
+         tf6A==
+X-Gm-Message-State: APjAAAVfYMeP43SGFpVTBXU48gxiQJFeBGLYD2vVxQepz3/l6KZ5DtFD
+	+B0rqtNdiYhogClc+p4tXBNsYM/+LdNtHI5+oL9IDJe226j+ARJ8UvGeJpTsdbUHOtRJpUcjRsw
+	kQijeLZr5uwApm54ZBMM8oKYMpBdK2UShM0VsYFgVVPP1XrCcw+4ommsgNiv4zDdBrQ==
+X-Received: by 2002:a17:902:ea:: with SMTP id a97mr31154025pla.182.1562018292018;
+        Mon, 01 Jul 2019 14:58:12 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwY3U+sW1zE+6KCQMEUI+brsOgh+vj5B/75KxGDh7Y0udBHzpWv0L5R4PGU/OZQoxs+3fNB
+X-Received: by 2002:a17:902:ea:: with SMTP id a97mr31153986pla.182.1562018291277;
+        Mon, 01 Jul 2019 14:58:11 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562018291; cv=none;
         d=google.com; s=arc-20160816;
-        b=jlK3vX2J36hOa1E4kijG9dmR5KEhBgom4SWZV0b7q42sZcmCgucuSIIhAyQWA7QHa9
-         GcmVKzBrEBRU8xQ+SKfRvI93xAQmha1f6UcZjWqrLOkPEiDWFFr3360eQtbEPGds5tM7
-         pk3G5kUh4TF3L3bXn+VSd2dhGp7Vw/FbNu1tjsUR4z4B+x0X/OFY7I09MNdYrdV805h3
-         vUcwEe8II7TU1m0A3PeM8FsDFPLXxE4AjjMPLPoQ5tCJ74ftgsVd3QbMrbRL1hs/3ke+
-         YZJHu3B0nP5iCIkHQd5WYV6LPtbR79et2GkpidmVX5khlG/YiFYEZAAnswPufYlBdqzQ
-         j4Zg==
+        b=Vc3qn2rC8Ib5tXBRtAo4ecabULoWB3mWmnx8+h3lZmw8lFORXUy39LLnFlDrsVLGVl
+         tFbgdWaG9tP80zaX8JMeBq6dM/FSUSZxqLg8mZ2uHIK+haWjEzU0tkJ58Ht6VzyIYdjP
+         omMbSroXCCCqIkl3/jYf92hCWcodOCbQ2Wq+cZ24mejecV5pXyda88ly/1Iy9QSe+oD5
+         MC5clswKS58eHlNFYeoDJs5zY1LUgNrEnB/j6k3Cj7FFvXzTAR7jXavAVFgqb/S+aTpA
+         wWGHunusvBlvPm89Jzyjq9FJ0DrJDtC5yOCeVbbvu93wYDQPHrjxYEOjoWsEerawtIdh
+         QPEQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from
          :ironport-sdr:ironport-sdr:dkim-signature;
-        bh=Rz22BLRkwdteKQIL4HVAbq/33QcMnCT9Tx0pA4ANBrI=;
-        b=MD7hSnfHwwltYlCCei+Sk5AdJQWkaBecSLhEtCIYWlvFf+/t6LoBUOuKq7hMsGdDAg
-         Um41qwhwU5yzu8pXlTV3awECVj+cBmBIj9ioB6qVkBfkWIzOjn+Y245zNe1EFkcvo6e2
-         wJWmMG74/a5KM58SKtf7lZnqBNA4/cBBk9rQBj2XVpE/liNSji6pjhhxe+6VK++qh/aN
-         8joRJwWcAr1zuN4Vi8heAHPulJVkaWzig2x7jwN8ORJbUP2gXRGwQotgRafBYVEQ8xOf
-         uJ8Qyd/a768X82OpeL1Jxrj5z0PMytnRWQEDIBeOQJsyDkyQYesZx/JTLePnHxaYDkog
-         +EUQ==
+        bh=yhezopFiPHG0c2M8IFRRD4+hJzOPOYJ+sB8spnfElWM=;
+        b=aJs0vyCmQzfp2uKrP0XiyPkHe7YLDE50kPjc0lpAceZA/qucl86rSFNLJbGidwnKvJ
+         HRRSDVbze2/KfbLW1+0ftYHAD9UIuuCSmlYHqAq/XF+NwN8Gkz3KDfwYYRFotAQo/+CU
+         Iz0wfAZF7IszvvWn90re348ntWA9lOZ1xRwJ6Uz0D09suCLlJeEKU29AUuuxvCdOCbpO
+         eO6d+CNo8D+kJGm9gmAx7SksJg7gzepTWIj/WNTZn273AyZtvKBetzIO3NLLIzdIcWU4
+         iuiLehiKzSMx82XyZfUYf5DMXVX3N6sBxg8n3/zX6qJRhoNzAByIRdjzCIILLxwXKZu1
+         1/iw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@wdc.com header.s=dkim.wdc.com header.b=ZZIFA9HV;
-       spf=pass (google.com: domain of prvs=0789f8ff9=chaitanya.kulkarni@wdc.com designates 216.71.153.144 as permitted sender) smtp.mailfrom="prvs=0789f8ff9=chaitanya.kulkarni@wdc.com";
+       dkim=pass header.i=@wdc.com header.s=dkim.wdc.com header.b=HiaK+qya;
+       spf=pass (google.com: domain of prvs=0789f8ff9=chaitanya.kulkarni@wdc.com designates 216.71.153.141 as permitted sender) smtp.mailfrom="prvs=0789f8ff9=chaitanya.kulkarni@wdc.com";
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=wdc.com
-Received: from esa5.hgst.iphmx.com (esa5.hgst.iphmx.com. [216.71.153.144])
-        by mx.google.com with ESMTPS id q39si596559pjc.55.2019.07.01.14.58.04
+Received: from esa3.hgst.iphmx.com (esa3.hgst.iphmx.com. [216.71.153.141])
+        by mx.google.com with ESMTPS id a36si598675pje.14.2019.07.01.14.58.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 01 Jul 2019 14:58:04 -0700 (PDT)
-Received-SPF: pass (google.com: domain of prvs=0789f8ff9=chaitanya.kulkarni@wdc.com designates 216.71.153.144 as permitted sender) client-ip=216.71.153.144;
+        Mon, 01 Jul 2019 14:58:11 -0700 (PDT)
+Received-SPF: pass (google.com: domain of prvs=0789f8ff9=chaitanya.kulkarni@wdc.com designates 216.71.153.141 as permitted sender) client-ip=216.71.153.141;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@wdc.com header.s=dkim.wdc.com header.b=ZZIFA9HV;
-       spf=pass (google.com: domain of prvs=0789f8ff9=chaitanya.kulkarni@wdc.com designates 216.71.153.144 as permitted sender) smtp.mailfrom="prvs=0789f8ff9=chaitanya.kulkarni@wdc.com";
+       dkim=pass header.i=@wdc.com header.s=dkim.wdc.com header.b=HiaK+qya;
+       spf=pass (google.com: domain of prvs=0789f8ff9=chaitanya.kulkarni@wdc.com designates 216.71.153.141 as permitted sender) smtp.mailfrom="prvs=0789f8ff9=chaitanya.kulkarni@wdc.com";
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=wdc.com
 DKIM-Signature: v=1; a=rsa-sha256; c=simple/simple;
   d=wdc.com; i=@wdc.com; q=dns/txt; s=dkim.wdc.com;
-  t=1562018284; x=1593554284;
+  t=1562018292; x=1593554292;
   h=from:to:cc:subject:date:message-id:in-reply-to:
    references;
-  bh=SM4vBhjIMuIjQIIkPMmNSjGDUMbO4rTKMZzMc8UskaU=;
-  b=ZZIFA9HVeSYt9Y8HlXxKic9FrxKeWNYAzpDjhnh8guDtK9L7jXKwK6Wm
-   w105ZKNaZzep5NMpbluGb1G7bojNk5D90MDLORDtaqMxz16dShWHpfPON
-   THSSTYs7mCdkLDF9LxOpdZ5tWTpzwaP6fBLVAvRUjeKlYfh8FMhDmSXEE
-   8Sz084LfWBifFBxlMbxMBv0Ox0PquI8W/UbS8Xalo+TYS2RBCRY+polIS
-   t68MZQDLxytiaRyPN9TPjSYGcNVX0Cfzt6diGVhrp8NR2Jh8Bq8KeUzzg
-   dUzY7QPNKoq7mvHYHrsn3koDjEwSu5eoF4qzAkFAuJKICs9uFek1/Yx7b
-   Q==;
+  bh=b0wGW7WtfWxUwKfj2wVFwZxNHKIT6iMJAeEE2CY/GA4=;
+  b=HiaK+qyawfwTkLlcPMFVDdCO+lbjrQkpvs+W88RVRTrk7UkD5jqF+XMl
+   FUuaIi6FU7s45v/ReDlqXJQ+xuXtDeEFqwLY7P/JmH9fxex7PHOYNqpPG
+   dv/NwWi80UAnlCc6tzXFKkafNxNJJJ7sYLf1RCS8hsS59/iOg5hUMSJhm
+   Y73uBoiyDaVNCjoYPuNlfSteuZa4lhbZNeApRlcDxTOmW9Vrx7j6SkUBi
+   J0jEH4NLFUxNmCltShAlRsLmli92W2W468Z2Ew0ERITyl+BJf+FG+Ri0W
+   KsIKxesHFngPEYCxCoVW6ybKfVx9brWgJJ4GWoYwv7qTls1SfzygSkcjI
+   w==;
 X-IronPort-AV: E=Sophos;i="5.63,440,1557158400"; 
-   d="scan'208";a="113190459"
+   d="scan'208";a="116844043"
 Received: from h199-255-45-15.hgst.com (HELO uls-op-cesaep02.wdc.com) ([199.255.45.15])
-  by ob1.hgst.iphmx.com with ESMTP; 02 Jul 2019 05:58:04 +0800
-IronPort-SDR: Pe/XRq8dFo9R6f/s3JFaCg3zrjbfWhREBV6UkkVkJIhqpxpMiIQOUexbyjMbj1u7HPSi8AB4SQ
- D6TWFgq1urJHsH1CJ6zQzU4zODA/uAO+JZ5bm45f6xOitB6RV5MfkQI+qfDSafdozLThxVnpWD
- rJbhy4bJs1zVbNxUdmOMdYmWzfOtm5VBW80jPKKgqMtg52XBPuTip+82c+g3T+t6caT9OdPEst
- nMSpftaHYAQX3NTYF9y0hoNw1jULxMCg8IrgxOZvnRIPaBjL3s/W8g0Grl7YQ9MjVf7fgqCpEG
- tc4oxyMGwiBr0H97PCECmpYY
+  by ob1.hgst.iphmx.com with ESMTP; 02 Jul 2019 05:58:11 +0800
+IronPort-SDR: sTyeICXNyASzqaVJh/x7bFc71ryJtwPmzGpR6ru3C844qtZvkTh15I2z1yZJOKlx5WvGRIF2ia
+ 4Ekb7RBw2k4iNBRuDl0TSB0d+caVgWvxr82XzfshorCuGE7XkrsrM5L+hJWR5yFB3MBu1Xz+N9
+ 3eE4B1pE9bII76EphGGieLowwe3oRpyrEICrFP8WtmqBrxTFlN7NVvjR8YQPW7pOlP8qP5/s2V
+ 2q46hZvehEGbFftDa+L4wAoUrQUInkLu1aF8zt6GMWek2bvXMDDv7zxu7pQv1cd1hixhB/L0kt
+ 4i4yK8PAlDYMykR4+tJROiba
 Received: from uls-op-cesaip02.wdc.com ([10.248.3.37])
-  by uls-op-cesaep02.wdc.com with ESMTP; 01 Jul 2019 14:57:07 -0700
-IronPort-SDR: e+BRmQAwH57/flmFvsQ6Pi8GWmwJl0oZ71gtjgNdmCq2EN3CldpqQ1InjNWVtGq0B1oBeOBsd+
- kFszZuOSH18RLPIwDQuKI4Xt94EU0l8vAv40wQPezVoRtOtGcS3DhfqFKo3eZoEEF7cqOlXdaL
- bv1kLKT8vZz+a1WGE8clxQDtDrXl/ApwMerjBGhUmCmmTEmTFNhoRp6K1sboM6C2xXyBHPjxmY
- h9eYIBUbtUcMBrxqcroJweQRK4ZibJt9YOvzlfmlJ5tyPVhAc+V2PrYsnrLymBfxnDADKmxVAS
- QQI=
+  by uls-op-cesaep02.wdc.com with ESMTP; 01 Jul 2019 14:57:13 -0700
+IronPort-SDR: AABjtBQ8ZjxtlIypq0AuDMGuICj3Ru7OQR6RTokwwI5NwnheQDs9XZu6EHSysDkGvnSbjLSLzk
+ svQHsZ3L9KuVfcFTjFKgPOsuSl7tPlG11lsjBb8z5kXGyUSeWfzv8y2JNrHN9XFqAP9GIoh801
+ 6/k7//Wxd+PiVP+eMja3fbegfEx0pWIXUEx/YSComqBkOzV5tvEeCB40Ty18Wl8YUlGpamcA0W
+ YnMn0/OE8nFdC37M/MT1FRhMxXORwaN4jwQ92KCK2O3IsgCDvM1qCknYbY7bB2yB2W4O2NYyqp
+ t5U=
 Received: from cvenusqemu.hgst.com ([10.202.66.73])
-  by uls-op-cesaip02.wdc.com with ESMTP; 01 Jul 2019 14:58:04 -0700
+  by uls-op-cesaip02.wdc.com with ESMTP; 01 Jul 2019 14:58:10 -0700
 From: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
 To: linux-mm@kvack.org,
 	linux-block@vger.kernel.org
 Cc: bvanassche@acm.org,
 	axboe@kernel.dk,
 	Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
-Subject: [PATCH 4/5] mm: update block_dump comment
-Date: Mon,  1 Jul 2019 14:57:25 -0700
-Message-Id: <20190701215726.27601-5-chaitanya.kulkarni@wdc.com>
+Subject: [PATCH 5/5] Documentation/laptop: add block_dump documentation
+Date: Mon,  1 Jul 2019 14:57:26 -0700
+Message-Id: <20190701215726.27601-6-chaitanya.kulkarni@wdc.com>
 X-Mailer: git-send-email 2.17.0
 In-Reply-To: <20190701215726.27601-1-chaitanya.kulkarni@wdc.com>
 References: <20190701215726.27601-1-chaitanya.kulkarni@wdc.com>
@@ -130,29 +130,42 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-With respect to the changes in the submit_bio() in the earlier patch
-now we report all the REQ_OP_XXX associated with bio along with
-REQ_OP_READ and REQ_OP_WRITE (READ/WRITE). Update the following
-comment for block_dump variable to reflect the change.
+This patch updates the block_dump documentation with respect to the
+changes from the earlier patch for submit_bio(). Also we adjust rest of
+the lines to fit with standaed format.
 
 Signed-off-by: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
 ---
- mm/page-writeback.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ Documentation/laptops/laptop-mode.txt | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)
 
-diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-index bdbe8b6b1225..ef299f95349f 100644
---- a/mm/page-writeback.c
-+++ b/mm/page-writeback.c
-@@ -109,7 +109,7 @@ EXPORT_SYMBOL_GPL(dirty_writeback_interval);
- unsigned int dirty_expire_interval = 30 * 100; /* centiseconds */
+diff --git a/Documentation/laptops/laptop-mode.txt b/Documentation/laptops/laptop-mode.txt
+index 1c707fc9b141..d4d72ed677c4 100644
+--- a/Documentation/laptops/laptop-mode.txt
++++ b/Documentation/laptops/laptop-mode.txt
+@@ -101,14 +101,14 @@ a cache miss. The disk can then be spun down in the periods of inactivity.
  
- /*
-- * Flag that makes the machine dump writes/reads and block dirtyings.
-+ * Flag that makes the machine dump block layer requests and block dirtyings.
-  */
- int block_dump;
+ If you want to find out which process caused the disk to spin up, you can
+ gather information by setting the flag /proc/sys/vm/block_dump. When this flag
+-is set, Linux reports all disk read and write operations that take place, and
+-all block dirtyings done to files. This makes it possible to debug why a disk
+-needs to spin up, and to increase battery life even more. The output of
+-block_dump is written to the kernel output, and it can be retrieved using
+-"dmesg". When you use block_dump and your kernel logging level also includes
+-kernel debugging messages, you probably want to turn off klogd, otherwise
+-the output of block_dump will be logged, causing disk activity that is not
+-normally there.
++is set, Linux reports all disk I/O operations along with read and write
++operations that take place, and all block dirtyings done to files. This makes
++it possible to debug why a disk needs to spin up, and to increase battery life
++even more. The output of block_dump is written to the kernel output, and it can
++be retrieved using "dmesg". When you use block_dump and your kernel logging
++level also includes kernel debugging messages, you probably want to turn off
++klogd, otherwise the output of block_dump will be logged, causing disk activity
++that is not normally there.
  
+ 
+ Configuration
 -- 
 2.21.0
 
