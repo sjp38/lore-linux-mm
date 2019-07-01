@@ -2,292 +2,206 @@ Return-Path: <SRS0=jfnU=U6=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_SANE_2 autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-17.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT,
+	USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7196DC0650E
-	for <linux-mm@archiver.kernel.org>; Mon,  1 Jul 2019 19:58:13 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C7AA4C5B578
+	for <linux-mm@archiver.kernel.org>; Mon,  1 Jul 2019 20:19:07 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BF89A21721
-	for <linux-mm@archiver.kernel.org>; Mon,  1 Jul 2019 19:58:12 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BF89A21721
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 7E99821721
+	for <linux-mm@archiver.kernel.org>; Mon,  1 Jul 2019 20:19:07 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="Yzh8zXOg"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7E99821721
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 590B86B0006; Mon,  1 Jul 2019 15:58:12 -0400 (EDT)
+	id 1D7766B0003; Mon,  1 Jul 2019 16:19:07 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 540EE8E0003; Mon,  1 Jul 2019 15:58:12 -0400 (EDT)
+	id 1881F8E0003; Mon,  1 Jul 2019 16:19:07 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4325A8E0002; Mon,  1 Jul 2019 15:58:12 -0400 (EDT)
+	id 076368E0002; Mon,  1 Jul 2019 16:19:07 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f205.google.com (mail-pg1-f205.google.com [209.85.215.205])
-	by kanga.kvack.org (Postfix) with ESMTP id 0B8B46B0006
-	for <linux-mm@kvack.org>; Mon,  1 Jul 2019 15:58:12 -0400 (EDT)
-Received: by mail-pg1-f205.google.com with SMTP id d3so8167278pgc.9
-        for <linux-mm@kvack.org>; Mon, 01 Jul 2019 12:58:12 -0700 (PDT)
+Received: from mail-qt1-f206.google.com (mail-qt1-f206.google.com [209.85.160.206])
+	by kanga.kvack.org (Postfix) with ESMTP id D5EEB6B0003
+	for <linux-mm@kvack.org>; Mon,  1 Jul 2019 16:19:06 -0400 (EDT)
+Received: by mail-qt1-f206.google.com with SMTP id s22so14363116qtb.22
+        for <linux-mm@kvack.org>; Mon, 01 Jul 2019 13:19:06 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:message-id
-         :subject:from:to:cc:date:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=PBYL7uBjA5LkozdWqymdjXhXo0nOKUO6X4DeIa8ofO4=;
-        b=Vs92jogLIrEOSjnyfqCJNWlBsd0WJp6OvVulI5t4VYvQW5Bmu0OWfQ6tu6H46vy3ZM
-         sjfsiAYA6IPCLLVIjpPrnYA5pz5YH1Qa8/DIgV467lr3kT5nZ70Wl57BKuYQI1Cw4oNO
-         q3ijb8tNRQpTBCQgAjZpZ4IxhmVpEzmEvj9Gol3ZFnzqOtCswBomtYglWvJGjoGI+QAC
-         gTKDnJJjjaPI7BTFlwv1EL3etmzVZMa7mrTPeKAkhSQPp0JuJ76z0Y/oZIj0yL5ojzyu
-         LpRZ3X6Jq4DgYa97H37PN+k7PUIdOYRqoWbFP7imjlq9pT2tebW0SeT2N1IPjS7PMkO6
-         7VFw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAVeK7uEO39F30OB4QeIANwr065UCkvzqc1PfHKKMqY3F8bE8A3v
-	CERxL7P4CFHuWT8+rTf1ngcTM5UaPpxbSn0HumGorcSOVy5152KEIKgY+GJ5/U8LrJER6+C9v3g
-	HdY60uipu9bH8POH7ubDR5uQWKfTghB57/jGQegcT4E2+JX7amQVVldPWZlU5+Q9xtg==
-X-Received: by 2002:a17:902:b591:: with SMTP id a17mr29889016pls.96.1562011091687;
-        Mon, 01 Jul 2019 12:58:11 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxwc3os5/t3MAGBgfx4AQa9JPlBHwNg4wA100Dueb9vgWebg0ceWw3A13OQQ0E/Ap0fz08D
-X-Received: by 2002:a17:902:b591:: with SMTP id a17mr29888971pls.96.1562011090950;
-        Mon, 01 Jul 2019 12:58:10 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562011090; cv=none;
+        h=x-gm-message-state:dkim-signature:date:message-id:mime-version
+         :subject:from:to:cc;
+        bh=84Sypx6YzXutjLG+Fp6OjQQKLXcewv+p2Q4pHRZlwKQ=;
+        b=YyVMLlCu2sBx0qfQkY8Z2xQJ/MjTM0zQi+9JhCKbAo1q+9z3qsWniW8w4qllW9MPJ6
+         IOYiuvAz0QYdEqFMocUXCWyETbTpszZnDJhjTJDP69N/Re1jD4om2jmvmrE2QlAyEUw3
+         5dMJmxRyxTt28DZf+AUOzTksNO6dlOCMRnbJ+O81sA7oETbgNY1MwUa+sibxCW/+PMX2
+         H6hw8UhDncZK659AL95dCnAAymjlii+aysDDaqrqrN46vSuVAsPJvRemChCbMtYlkSWB
+         Zf2Dny/nrvJfy5NS4vyAIWGzLlHDZLwkQdxv1FftLZ5veBcteQ+zkBNHXdhmRjvIzuU4
+         xK7g==
+X-Gm-Message-State: APjAAAV4zhkgpZU4mqPtzuEZmUtE2+AULsJuJWpvqJu7Jij1BMHJt5Pb
+	xbAxCSStlaAeU23kkGjnHX4P3NONyGUZLDGoivbvBaK7O4Iwa93XVTATZ3herzM/LJEGpXqZnnu
+	QZAGhwSqUxxFQTNVTSwD3t518ReVTWht0ff+WnDoH1ge1Uu7giefN003Bz4iN1kqP5g==
+X-Received: by 2002:ac8:359a:: with SMTP id k26mr21407264qtb.87.1562012346611;
+        Mon, 01 Jul 2019 13:19:06 -0700 (PDT)
+X-Received: by 2002:ac8:359a:: with SMTP id k26mr21407217qtb.87.1562012345889;
+        Mon, 01 Jul 2019 13:19:05 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562012345; cv=none;
         d=google.com; s=arc-20160816;
-        b=oP/UxwwvLa3DFfjMTuexMlno+cWdnidiGx1ePQej9tfYPRRf/ZridFapHOgEH8eaoz
-         Ipf7q7s/1UuLwL+bt1q4TBaNT93hvElvmmpJd0lSAQAQ7EfG0EeudoZsZ67wUp3apbcY
-         ythNRGJ9cOcE0GbjZWtIZUalChO/tIA029ab6U3hzjxT0hRRHaH0anJK9qQTHwWgrIV9
-         ew9dwOZlF1mj8XJ3Ro5W3g7RE8PETKGO7GYfqh18+LGgd9Fg5JQH936c+KZpjgk2aR45
-         N5Crm2lBXqK2DzbGM2vlMFgabr/J7z5stnUN2chxOJb/gBTLcYdeo4jngN9tvpF+jjJs
-         M8Kw==
+        b=pNQiSJtL73UZebLIWg6WdckH20qXo9qNwy2jcSvZcD2EjpxokMm6X5hm2Wkhy+l/WH
+         oClAYimaZcAZ2GiiXcPSOB4ww0T7HnUdsKvUlgaR/PcaNKwVRk1NgDpoYb0r+u8VwlGB
+         Ae+feBTc71EBT38Q2pdSnfWFEjfyuzx+ihWgV9psfNTz1LZYCJH+BftghzT8+WBJgZFT
+         aUBAaaTqtGyaTCEr6vokbwgePChFDxQB3H9XnSClun56jFk03z6rWWWGMFGDiXrkEjWK
+         yBDpTOQGOiodCIzipyJCForN3w7cQBZ4Y58iSEpHeqV2ILxgQWOBsEvxFmZDDNUYZbfi
+         x9jQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to:date
-         :cc:to:from:subject:message-id;
-        bh=PBYL7uBjA5LkozdWqymdjXhXo0nOKUO6X4DeIa8ofO4=;
-        b=t70LihHtYEV6Rb6H+8Pp1VcHYwv9uYOhC8watLGJkspRn86jbcSLmG3Xty+IdPwMBH
-         68lih5sjaG+RfGVy45hebt4PBKI9Mo2NFHJrNUsqLLO0Ln76fHSjQxOKcu0c3N+strgQ
-         b+Eeo9fAoCDgx2Dc0Mj3axMpRxywUYhcJoh8uZQu1jjQ61+fwyOA04atDW6RQQx9E8iS
-         sKh+L+Qrj2dMAaCMiIl64rIyEvxOuU+NVsnkZ8GT3cZ1GbgXJtNIRbXWGYasOEg5v1nh
-         CTGwvheUeJemX2ry67ii2dd+4xfMew/mrPlXbqd1c5iLYTl7jNDgkPc/XA4k4yCn51MN
-         +F/Q==
+        h=cc:to:from:subject:mime-version:message-id:date:dkim-signature;
+        bh=84Sypx6YzXutjLG+Fp6OjQQKLXcewv+p2Q4pHRZlwKQ=;
+        b=D8aZNxxLWUeSep82Cse5rbt3pVDeKnV+7ewJTs2hUBqoedsXBX1fHfwsdtfNlHUYDO
+         ko62mR91bDLenQ5RqA7AAVRWZMG2hRZSuqd2IwKJEXoLCTNH+WLevwMzApOQRvSpShq3
+         0qwhKQM10qWD46hfoF+W0ZLa41mztQFFOitkbUb/erw5QuTI/b46fjQZWV43IDOWyezw
+         nJss9lxn5ok2x6kkvAzWU+Yfe8YfbuHoN8Q1c2kbqIIqmLdCLXg6QoVxPAmHeZP26N0U
+         bFxlODtuNtn1T6aDXHUGBRKfFDzlwGEqQ8e1TBQbrjuoGk6Ve7CGjqojs4FCh7+OMgAV
+         NE4Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id h18si406106pjt.9.2019.07.01.12.58.10
+       dkim=pass header.i=@google.com header.s=20161025 header.b=Yzh8zXOg;
+       spf=pass (google.com: domain of 3uwoaxqgkcoyapismmtjowwotm.kwutqvcf-uusdiks.wzo@flex--shakeelb.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3uWoaXQgKCOYaPISMMTJOWWOTM.KWUTQVcf-UUSdIKS.WZO@flex--shakeelb.bounces.google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
+        by mx.google.com with SMTPS id v12sor10445295qvj.22.2019.07.01.13.19.05
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 01 Jul 2019 12:58:10 -0700 (PDT)
-Received-SPF: pass (google.com: domain of yu-cheng.yu@intel.com designates 192.55.52.88 as permitted sender) client-ip=192.55.52.88;
+        (Google Transport Security);
+        Mon, 01 Jul 2019 13:19:05 -0700 (PDT)
+Received-SPF: pass (google.com: domain of 3uwoaxqgkcoyapismmtjowwotm.kwutqvcf-uusdiks.wzo@flex--shakeelb.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from fmsmga005.fm.intel.com ([10.253.24.32])
-  by fmsmga101.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 01 Jul 2019 12:58:10 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.63,440,1557212400"; 
-   d="scan'208";a="361947448"
-Received: from yyu32-desk1.sc.intel.com ([10.144.153.205])
-  by fmsmga005.fm.intel.com with ESMTP; 01 Jul 2019 12:58:09 -0700
-Message-ID: <ddba04d98c31963784231869088a37fe3ccefd09.camel@intel.com>
-Subject: Re: [RFC PATCH] binfmt_elf: Extract .note.gnu.property from an ELF
- file
-From: Yu-cheng Yu <yu-cheng.yu@intel.com>
-To: Jann Horn <jannh@google.com>
-Cc: the arch/x86 maintainers <x86@kernel.org>, "H. Peter Anvin"
- <hpa@zytor.com>,  Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar
- <mingo@redhat.com>, kernel list <linux-kernel@vger.kernel.org>, 
- linux-doc@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, linux-arch
- <linux-arch@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, Arnd
- Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir
- Singh <bsingharora@gmail.com>,  Borislav Petkov <bp@alien8.de>, Cyrill
- Gorcunov <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>,
- Eugene Syromiatnikov <esyr@redhat.com>,  Florian Weimer
- <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Jonathan Corbet
- <corbet@lwn.net>, Kees Cook <keescook@chromium.org>, Mike Kravetz
- <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov
- <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra
- <peterz@infradead.org>, Randy Dunlap <rdunlap@infradead.org>, "Ravi V.
- Shankar" <ravi.v.shankar@intel.com>,  Vedvyas Shanbhogue
- <vedvyas.shanbhogue@intel.com>, Dave Martin <Dave.Martin@arm.com>
-Date: Mon, 01 Jul 2019 12:49:51 -0700
-In-Reply-To: <CAG48ez0rHHfcRgiVZf5FP0YOzxsXigvpg6ci790cmiN6PBwkhQ@mail.gmail.com>
-References: <20190628172203.797-1-yu-cheng.yu@intel.com>
-	 <CAG48ez0rHHfcRgiVZf5FP0YOzxsXigvpg6ci790cmiN6PBwkhQ@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-X-Mailer: Evolution 3.28.1-2 
+       dkim=pass header.i=@google.com header.s=20161025 header.b=Yzh8zXOg;
+       spf=pass (google.com: domain of 3uwoaxqgkcoyapismmtjowwotm.kwutqvcf-uusdiks.wzo@flex--shakeelb.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3uWoaXQgKCOYaPISMMTJOWWOTM.KWUTQVcf-UUSdIKS.WZO@flex--shakeelb.bounces.google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=date:message-id:mime-version:subject:from:to:cc;
+        bh=84Sypx6YzXutjLG+Fp6OjQQKLXcewv+p2Q4pHRZlwKQ=;
+        b=Yzh8zXOgoTh4Y2y35gsVwjBlsL0iq7DO4vxOPQH8K09FIwWF1jnMchYv0r6j0H16s4
+         9wtvapiUeosaEMHNaL1sM7Ov6Lug0M0DjBlcmMF/mn0LaA1Nu7fzpWkocnqhJBkt5wKt
+         Fdwxgvm85Q+v9kZVG3P3Ou1Px01nTkz1bZiM4abTqk2sOB8ME6qGyDaJv3qGBKS7SWjQ
+         L0GX29PtLl0HdCaJcZFWFpQe5HkVYOtt5x3/rLhidAqnuCCfMUvY8r7vbyw7+4qpHHLs
+         4GfgA2yeS3jNMRVTDBMrtLj65GE+eQB7PgKncqI9WzyCiWJlTCl3spVU8NU7GQqWqQI6
+         lLpw==
+X-Google-Smtp-Source: APXvYqxgkZaZJswmwq58VQ35alxZ0OR3QeVTdZvsFMBJgWz22qUGoVuP+TUM22fz60QpBxL4jOzsYZ+Z4XRRHw==
+X-Received: by 2002:a0c:9895:: with SMTP id f21mr22633081qvd.123.1562012345435;
+ Mon, 01 Jul 2019 13:19:05 -0700 (PDT)
+Date: Mon,  1 Jul 2019 13:18:47 -0700
+Message-Id: <20190701201847.251028-1-shakeelb@google.com>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+X-Mailer: git-send-email 2.22.0.410.gd8fdbe21b5-goog
+Subject: [PATCH v2] mm, vmscan: prevent useless kswapd loops
+From: Shakeel Butt <shakeelb@google.com>
+To: Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, 
+	Michal Hocko <mhocko@suse.com>, Andrew Morton <akpm@linux-foundation.org>, 
+	Yang Shi <yang.shi@linux.alibaba.com>, Vlastimil Babka <vbabka@suse.cz>, 
+	Hillf Danton <hdanton@sina.com>, Roman Gushchin <guro@fb.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, 
+	Shakeel Butt <shakeelb@google.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2019-07-01 at 21:49 +0200, Jann Horn wrote:
-> On Fri, Jun 28, 2019 at 7:30 PM Yu-cheng Yu <yu-cheng.yu@intel.com> wrote:
-> [...]
-> > In the discussion, we decided to look at only an ELF header's
-> > PT_GNU_PROPERTY, which is a shortcut pointing to the file's
-> > .note.gnu.property.
-> > 
-> > The Linux gABI extension draft is here:
-> > 
-> >     https://github.com/hjl-tools/linux-abi/wiki/linux-abi-draft.pdf.
-> > 
-> > A few existing CET-enabled binary files were built without
-> > PT_GNU_PROPERTY; but those files' .note.gnu.property are checked by
-> > ld-linux, not Linux.  The compatibility impact from this change is
-> > therefore managable.
-> > 
-> > An ELF file's .note.gnu.property indicates features the executable file
-> > can support.  For example, the property GNU_PROPERTY_X86_FEATURE_1_AND
-> > indicates the file supports GNU_PROPERTY_X86_FEATURE_1_IBT and/or
-> > GNU_PROPERTY_X86_FEATURE_1_SHSTK.
-> > 
-> > With this patch, if an arch needs to setup features from ELF properties,
-> > it needs CONFIG_ARCH_USE_GNU_PROPERTY to be set, and specific
-> > arch_parse_property() and arch_setup_property().
-> 
-> [...]
-> > +typedef bool (test_item_fn)(void *buf, u32 *arg, u32 type);
-> > +typedef void *(next_item_fn)(void *buf, u32 *arg, u32 type);
-> > +
-> > +static bool test_property(void *buf, u32 *max_type, u32 pr_type)
-> > +{
-> > +       struct gnu_property *pr = buf;
-> > +
-> > +       /*
-> > +        * Property types must be in ascending order.
-> > +        * Keep track of the max when testing each.
-> > +        */
-> > +       if (pr->pr_type > *max_type)
-> > +               *max_type = pr->pr_type;
-> > +
-> > +       return (pr->pr_type == pr_type);
-> > +}
-> > +
-> > +static void *next_property(void *buf, u32 *max_type, u32 pr_type)
-> > +{
-> > +       struct gnu_property *pr = buf;
-> > +
-> > +       if ((buf + sizeof(*pr) + pr->pr_datasz < buf) ||
-> 
-> This looks like UB to me, see below.
-> 
-> > +           (pr->pr_type > pr_type) ||
-> > +           (pr->pr_type > *max_type))
-> > +               return NULL;
-> > +       else
-> > +               return (buf + sizeof(*pr) + pr->pr_datasz);
-> > +}
-> > +
-> > +/*
-> > + * Scan 'buf' for a pattern; return true if found.
-> > + * *pos is the distance from the beginning of buf to where
-> > + * the searched item or the next item is located.
-> > + */
-> > +static int scan(u8 *buf, u32 buf_size, int item_size, test_item_fn
-> > test_item,
-> > +               next_item_fn next_item, u32 *arg, u32 type, u32 *pos)
-> > +{
-> > +       int found = 0;
-> > +       u8 *p, *max;
-> > +
-> > +       max = buf + buf_size;
-> > +       if (max < buf)
-> > +               return 0;
-> 
-> How can this ever legitimately happen? If it can't, perhaps you meant
-> to put a WARN_ON_ONCE() or something like that here?
-> Also, computing out-of-bounds pointers is UB (section 6.5.6 of C99:
-> "If both the pointer operand and the result point to elements of the
-> same array object, or one past the last element of the array object,
-> the evaluation shall not produce an overflow; otherwise, the behavior
-> is undefined."), and if the addition makes the pointer wrap, that's
-> certainly out of bounds; so I don't think this condition can trigger
-> without UB.
-> 
-> > +
-> > +       p = buf;
-> > +
-> > +       while ((p + item_size < max) && (p + item_size > buf)) {
-> 
-> Again, as far as I know, this is technically UB. Please rewrite this.
-> For example, you could do something like:
-> 
->     while (max - p >= item_size) {
-> 
-> and then make sure that next_item() never computes OOB pointers.
-> 
-> > +               if (test_item(p, arg, type)) {
-> > +                       found = 1;
-> > +                       break;
-> > +               }
-> > +
-> > +               p = next_item(p, arg, type);
-> > +       }
-> > +
-> > +       *pos = (p + item_size <= buf) ? 0 : (u32)(p - buf);
-> > +       return found;
-> > +}
-> > +
-> > +/*
-> > + * Search an NT_GNU_PROPERTY_TYPE_0 for the property of 'pr_type'.
-> > + */
-> > +static int find_property(u32 pr_type, u32 *property, struct file *file,
-> > +                        loff_t file_offset, unsigned long desc_size)
-> > +{
-> > +       u8 *buf;
-> > +       int buf_size;
-> > +
-> > +       u32 buf_pos;
-> > +       unsigned long read_size;
-> > +       unsigned long done;
-> > +       int found = 0;
-> > +       int ret = 0;
-> > +       u32 last_pr = 0;
-> > +
-> > +       *property = 0;
-> > +       buf_pos = 0;
-> > +
-> > +       buf_size = (desc_size > PAGE_SIZE) ? PAGE_SIZE : desc_size;
-> 
-> open-coded min(desc_size, PAGE_SIZE)
-> 
-> > +       buf = kmalloc(buf_size, GFP_KERNEL);
-> > +       if (!buf)
-> > +               return -ENOMEM;
-> > +
-> > +       for (done = 0; done < desc_size; done += buf_pos) {
-> > +               read_size = desc_size - done;
-> > +               if (read_size > buf_size)
-> > +                       read_size = buf_size;
-> > +
-> > +               ret = kernel_read(file, buf, read_size, &file_offset);
-> > +
-> > +               if (ret != read_size)
-> > +                       return (ret < 0) ? ret : -EIO;
-> 
-> This leaks the memory allocated for `buf`.
-> 
-> > +
-> > +               ret = 0;
-> > +               found = scan(buf, read_size, sizeof(struct gnu_property),
-> > +                            test_property, next_property,
-> > +                            &last_pr, pr_type, &buf_pos);
-> > +
-> > +               if ((!buf_pos) || found)
-> > +                       break;
-> > +
-> > +               file_offset += buf_pos - read_size;
-> > +       }
-> 
-> [...]
-> > +       kfree(buf);
-> > +       return ret;
-> > +}
+On production we have noticed hard lockups on large machines running
+large jobs due to kswaps hoarding lru lock within isolate_lru_pages when
+sc->reclaim_idx is 0 which is a small zone. The lru was couple hundred
+GiBs and the condition (page_zonenum(page) > sc->reclaim_idx) in
+isolate_lru_pages was basically skipping GiBs of pages while holding the
+LRU spinlock with interrupt disabled.
 
-I will fix these.
+On further inspection, it seems like there are two issues:
 
-Thanks,
-Yu-cheng
+1) If the kswapd on the return from balance_pgdat() could not sleep
+(i.e. node is still unbalanced), the classzone_idx is unintentionally
+set to 0  and the whole reclaim cycle of kswapd will try to reclaim
+only the lowest and smallest zone while traversing the whole memory.
+
+2) Fundamentally isolate_lru_pages() is really bad when the allocation
+has woken kswapd for a smaller zone on a very large machine running very
+large jobs. It can hoard the LRU spinlock while skipping over 100s of
+GiBs of pages.
+
+This patch only fixes the (1). The (2) needs a more fundamental solution.
+To fix (1), in the kswapd context, if pgdat->kswapd_classzone_idx is
+invalid use the classzone_idx of the previous kswapd loop otherwise use
+the one the waker has requested.
+
+Fixes: e716f2eb24de ("mm, vmscan: prevent kswapd sleeping prematurely
+due to mismatched classzone_idx")
+
+Signed-off-by: Shakeel Butt <shakeelb@google.com>
+---
+Changelog since v1:
+- fixed the patch based on Yang Shi's comment.
+
+ mm/vmscan.c | 27 +++++++++++++++------------
+ 1 file changed, 15 insertions(+), 12 deletions(-)
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 9e3292ee5c7c..eacf87f07afe 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -3760,19 +3760,18 @@ static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)
+ }
+ 
+ /*
+- * pgdat->kswapd_classzone_idx is the highest zone index that a recent
+- * allocation request woke kswapd for. When kswapd has not woken recently,
+- * the value is MAX_NR_ZONES which is not a valid index. This compares a
+- * given classzone and returns it or the highest classzone index kswapd
+- * was recently woke for.
++ * The pgdat->kswapd_classzone_idx is used to pass the highest zone index to be
++ * reclaimed by kswapd from the waker. If the value is MAX_NR_ZONES which is not
++ * a valid index then either kswapd runs for first time or kswapd couldn't sleep
++ * after previous reclaim attempt (node is still unbalanced). In that case
++ * return the zone index of the previous kswapd reclaim cycle.
+  */
+ static enum zone_type kswapd_classzone_idx(pg_data_t *pgdat,
+-					   enum zone_type classzone_idx)
++					   enum zone_type prev_classzone_idx)
+ {
+ 	if (pgdat->kswapd_classzone_idx == MAX_NR_ZONES)
+-		return classzone_idx;
+-
+-	return max(pgdat->kswapd_classzone_idx, classzone_idx);
++		return prev_classzone_idx;
++	return pgdat->kswapd_classzone_idx;
+ }
+ 
+ static void kswapd_try_to_sleep(pg_data_t *pgdat, int alloc_order, int reclaim_order,
+@@ -3908,7 +3907,7 @@ static int kswapd(void *p)
+ 
+ 		/* Read the new order and classzone_idx */
+ 		alloc_order = reclaim_order = pgdat->kswapd_order;
+-		classzone_idx = kswapd_classzone_idx(pgdat, 0);
++		classzone_idx = kswapd_classzone_idx(pgdat, classzone_idx);
+ 		pgdat->kswapd_order = 0;
+ 		pgdat->kswapd_classzone_idx = MAX_NR_ZONES;
+ 
+@@ -3961,8 +3960,12 @@ void wakeup_kswapd(struct zone *zone, gfp_t gfp_flags, int order,
+ 	if (!cpuset_zone_allowed(zone, gfp_flags))
+ 		return;
+ 	pgdat = zone->zone_pgdat;
+-	pgdat->kswapd_classzone_idx = kswapd_classzone_idx(pgdat,
+-							   classzone_idx);
++
++	if (pgdat->kswapd_classzone_idx == MAX_NR_ZONES)
++		pgdat->kswapd_classzone_idx = classzone_idx;
++	else
++		pgdat->kswapd_classzone_idx = max(pgdat->kswapd_classzone_idx,
++						  classzone_idx);
+ 	pgdat->kswapd_order = max(pgdat->kswapd_order, order);
+ 	if (!waitqueue_active(&pgdat->kswapd_wait))
+ 		return;
+-- 
+2.22.0.410.gd8fdbe21b5-goog
 
