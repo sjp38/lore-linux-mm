@@ -2,170 +2,149 @@ Return-Path: <SRS0=jfnU=U6=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-10.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4B190C5B578
-	for <linux-mm@archiver.kernel.org>; Mon,  1 Jul 2019 21:58:13 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B22BAC06510
+	for <linux-mm@archiver.kernel.org>; Mon,  1 Jul 2019 23:32:15 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EE23A20652
-	for <linux-mm@archiver.kernel.org>; Mon,  1 Jul 2019 21:58:12 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 4D2CC21721
+	for <linux-mm@archiver.kernel.org>; Mon,  1 Jul 2019 23:32:15 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=wdc.com header.i=@wdc.com header.b="HiaK+qya"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EE23A20652
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=wdc.com
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="yulAQMWr"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4D2CC21721
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A173E8E0007; Mon,  1 Jul 2019 17:58:12 -0400 (EDT)
+	id BF32E6B0003; Mon,  1 Jul 2019 19:32:14 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9C85D8E0002; Mon,  1 Jul 2019 17:58:12 -0400 (EDT)
+	id BA4918E0003; Mon,  1 Jul 2019 19:32:14 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8B7858E0007; Mon,  1 Jul 2019 17:58:12 -0400 (EDT)
+	id A93448E0002; Mon,  1 Jul 2019 19:32:14 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f206.google.com (mail-pl1-f206.google.com [209.85.214.206])
-	by kanga.kvack.org (Postfix) with ESMTP id 553D38E0002
-	for <linux-mm@kvack.org>; Mon,  1 Jul 2019 17:58:12 -0400 (EDT)
-Received: by mail-pl1-f206.google.com with SMTP id bb9so7899142plb.2
-        for <linux-mm@kvack.org>; Mon, 01 Jul 2019 14:58:12 -0700 (PDT)
+Received: from mail-pl1-f207.google.com (mail-pl1-f207.google.com [209.85.214.207])
+	by kanga.kvack.org (Postfix) with ESMTP id 7266E6B0003
+	for <linux-mm@kvack.org>; Mon,  1 Jul 2019 19:32:14 -0400 (EDT)
+Received: by mail-pl1-f207.google.com with SMTP id i33so7993842pld.15
+        for <linux-mm@kvack.org>; Mon, 01 Jul 2019 16:32:14 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:ironport-sdr:ironport-sdr:from:to
-         :cc:subject:date:message-id:in-reply-to:references;
-        bh=yhezopFiPHG0c2M8IFRRD4+hJzOPOYJ+sB8spnfElWM=;
-        b=XsYBVwnw4RM4czMMlBgh4wU/A+pkL5tuOKXnaqge+45Zp87fE2TWBcZnZmxn969x15
-         LcDoociQWn777db20YDIulOI/YL2W7Xk3mbDv2rUQjB4fo/B252MXQRRPk/6H+5jjxqs
-         jre1RaVMlNVuxVIInRDtfgpkibGKdonUcHmsAHBu2mR8ezlPfEKB2ZdjT/iuk2wze1x5
-         m2gOPk7Nu9whqxYy7wdDNdOLnB0ECnkqL6p4FtPnjj8Pkif0zehTof3sXAD36jIXOO1y
-         u0srrq/yfBIDzOqw/mR0iXNZDkC7SouzNJyrHA5vY9pqCpfc7+zfaTP3YfISm80viM9D
-         tf6A==
-X-Gm-Message-State: APjAAAVfYMeP43SGFpVTBXU48gxiQJFeBGLYD2vVxQepz3/l6KZ5DtFD
-	+B0rqtNdiYhogClc+p4tXBNsYM/+LdNtHI5+oL9IDJe226j+ARJ8UvGeJpTsdbUHOtRJpUcjRsw
-	kQijeLZr5uwApm54ZBMM8oKYMpBdK2UShM0VsYFgVVPP1XrCcw+4ommsgNiv4zDdBrQ==
-X-Received: by 2002:a17:902:ea:: with SMTP id a97mr31154025pla.182.1562018292018;
-        Mon, 01 Jul 2019 14:58:12 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwY3U+sW1zE+6KCQMEUI+brsOgh+vj5B/75KxGDh7Y0udBHzpWv0L5R4PGU/OZQoxs+3fNB
-X-Received: by 2002:a17:902:ea:: with SMTP id a97mr31153986pla.182.1562018291277;
-        Mon, 01 Jul 2019 14:58:11 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562018291; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=O0b2tWO1RIcCmvfvh2lXMb1E+ocfn4SsM4a6s7YsoIo=;
+        b=Jxl5jq5PihMQJpIXre5Y8cUDbQr3IkyUI6FfnuoinVJa2CxEl5H2/1q+JhS2coKLce
+         I9OdZkzv59CmFyUqskqpOwZyVuBnUH2Q3xBxey1OZYYA/Of2kgj8aF3/MIEiNVOsuNjA
+         DydlxhPnn4lO4OOdpuwTJM2EffuS7RDftDmhRYK89dNb2OfUQBJe2CIrmNe2UZkEfCQO
+         JhL+X+ohJ09AocaEv6GhHUMs8tQ5VIQd+PuFDHmzFEO5drzXPqvwQlDKb1SP2L1/nCbp
+         ++x2jS+HnFwk8JBr/azZ4K/7fdz3aaEpgxVR0CCZEvcKYebap4XQ0L8ItZPCaTQZGumL
+         PU8w==
+X-Gm-Message-State: APjAAAVikxotHn22ik9nANyWmsBu5B1GL+52GD6kH0UdRdkX4N5c43c8
+	ZkHUfDoJEfh2JMAaqvzUjjMYiKqOo6H3WZ7NwxOFDFFNjqpU1O0szQap4HqR/7ylGOjvzW5qmF+
+	6EOeOzVP/X52Ojvfgz4GYCL+8eXHeM6xxB+ew184UjouwZ77VgW0aqMBcGvh84Tineg==
+X-Received: by 2002:a65:4347:: with SMTP id k7mr27647596pgq.253.1562023933695;
+        Mon, 01 Jul 2019 16:32:13 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqx7mo9nf4JHN9faJqize7oD3tsHDo4wLN6RLZF/lOOfeC4r4aQNUYVh1nGl16EM7FfNES+q
+X-Received: by 2002:a65:4347:: with SMTP id k7mr27647533pgq.253.1562023932818;
+        Mon, 01 Jul 2019 16:32:12 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562023932; cv=none;
         d=google.com; s=arc-20160816;
-        b=Vc3qn2rC8Ib5tXBRtAo4ecabULoWB3mWmnx8+h3lZmw8lFORXUy39LLnFlDrsVLGVl
-         tFbgdWaG9tP80zaX8JMeBq6dM/FSUSZxqLg8mZ2uHIK+haWjEzU0tkJ58Ht6VzyIYdjP
-         omMbSroXCCCqIkl3/jYf92hCWcodOCbQ2Wq+cZ24mejecV5pXyda88ly/1Iy9QSe+oD5
-         MC5clswKS58eHlNFYeoDJs5zY1LUgNrEnB/j6k3Cj7FFvXzTAR7jXavAVFgqb/S+aTpA
-         wWGHunusvBlvPm89Jzyjq9FJ0DrJDtC5yOCeVbbvu93wYDQPHrjxYEOjoWsEerawtIdh
-         QPEQ==
+        b=UcaXzVlmeZQpTPMUOsRhx2z8pWVOvqv5RcvKnLMe6pb4uXOy+gbjLRBnSbmh5OBTRO
+         T9qgBpLJAcLo5+eOqXBvgf5oql/S/7vMABZgejxkc3fX60PwByWENR8W/69jqFFU3nRr
+         t6adPs1QXCcV8/SHKsY0YRGUHUW/sHRLS/tpxN6Mkjl+8Ufi9bxD6BeHw87hhzLA8miP
+         0hdUGGqsjaUQKXWPEIUgMN+8nDU6xuCLwmDO+/pRDJypWTvd7uCbDO1N5yNaQYUYqV3g
+         M4siJlA5+LgeDkLmM4EeEdGBZhJu8fXw9Rd3WUDYdzfIYpKidmOExFx/vDGlhbp64uiY
+         H29Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=references:in-reply-to:message-id:date:subject:cc:to:from
-         :ironport-sdr:ironport-sdr:dkim-signature;
-        bh=yhezopFiPHG0c2M8IFRRD4+hJzOPOYJ+sB8spnfElWM=;
-        b=aJs0vyCmQzfp2uKrP0XiyPkHe7YLDE50kPjc0lpAceZA/qucl86rSFNLJbGidwnKvJ
-         HRRSDVbze2/KfbLW1+0ftYHAD9UIuuCSmlYHqAq/XF+NwN8Gkz3KDfwYYRFotAQo/+CU
-         Iz0wfAZF7IszvvWn90re348ntWA9lOZ1xRwJ6Uz0D09suCLlJeEKU29AUuuxvCdOCbpO
-         eO6d+CNo8D+kJGm9gmAx7SksJg7gzepTWIj/WNTZn273AyZtvKBetzIO3NLLIzdIcWU4
-         iuiLehiKzSMx82XyZfUYf5DMXVX3N6sBxg8n3/zX6qJRhoNzAByIRdjzCIILLxwXKZu1
-         1/iw==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=O0b2tWO1RIcCmvfvh2lXMb1E+ocfn4SsM4a6s7YsoIo=;
+        b=uGt7izOPLPge/XeDvjUvmVZ8YH88NhPG1AFT+mUyv88/SdoZBopX2eCYo5UJM0Jth/
+         KKh8HpySPh3oGFGjFP1CHc47rIlYdAThC2eKmOh+eAuqtjSPnz/rmzaGjFmUY2t3PbyZ
+         9vzfKW4zga1KqV7zuZAcH9yZbopWsCbZtMh9gRtyZEzrvqFkIBdXpFiVQebBjvBukYTJ
+         Qb4goMYvThJpjxisvRGbZWToaMNyl8Dr6l24BS2FVL8zvvA/yHVL5DJtG788clTbeRmZ
+         7X0Auy+/EHIbasNp9x0Iwh/OTRN0ybkFxUcBcXfpSwNKcO5H9P9ey29ge40x7Sw4MQhW
+         RJFQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@wdc.com header.s=dkim.wdc.com header.b=HiaK+qya;
-       spf=pass (google.com: domain of prvs=0789f8ff9=chaitanya.kulkarni@wdc.com designates 216.71.153.141 as permitted sender) smtp.mailfrom="prvs=0789f8ff9=chaitanya.kulkarni@wdc.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=wdc.com
-Received: from esa3.hgst.iphmx.com (esa3.hgst.iphmx.com. [216.71.153.141])
-        by mx.google.com with ESMTPS id a36si598675pje.14.2019.07.01.14.58.11
+       dkim=pass header.i=@kernel.org header.s=default header.b=yulAQMWr;
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id a17si4188382pfa.45.2019.07.01.16.32.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 01 Jul 2019 14:58:11 -0700 (PDT)
-Received-SPF: pass (google.com: domain of prvs=0789f8ff9=chaitanya.kulkarni@wdc.com designates 216.71.153.141 as permitted sender) client-ip=216.71.153.141;
+        Mon, 01 Jul 2019 16:32:12 -0700 (PDT)
+Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@wdc.com header.s=dkim.wdc.com header.b=HiaK+qya;
-       spf=pass (google.com: domain of prvs=0789f8ff9=chaitanya.kulkarni@wdc.com designates 216.71.153.141 as permitted sender) smtp.mailfrom="prvs=0789f8ff9=chaitanya.kulkarni@wdc.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=wdc.com
-DKIM-Signature: v=1; a=rsa-sha256; c=simple/simple;
-  d=wdc.com; i=@wdc.com; q=dns/txt; s=dkim.wdc.com;
-  t=1562018292; x=1593554292;
-  h=from:to:cc:subject:date:message-id:in-reply-to:
-   references;
-  bh=b0wGW7WtfWxUwKfj2wVFwZxNHKIT6iMJAeEE2CY/GA4=;
-  b=HiaK+qyawfwTkLlcPMFVDdCO+lbjrQkpvs+W88RVRTrk7UkD5jqF+XMl
-   FUuaIi6FU7s45v/ReDlqXJQ+xuXtDeEFqwLY7P/JmH9fxex7PHOYNqpPG
-   dv/NwWi80UAnlCc6tzXFKkafNxNJJJ7sYLf1RCS8hsS59/iOg5hUMSJhm
-   Y73uBoiyDaVNCjoYPuNlfSteuZa4lhbZNeApRlcDxTOmW9Vrx7j6SkUBi
-   J0jEH4NLFUxNmCltShAlRsLmli92W2W468Z2Ew0ERITyl+BJf+FG+Ri0W
-   KsIKxesHFngPEYCxCoVW6ybKfVx9brWgJJ4GWoYwv7qTls1SfzygSkcjI
-   w==;
-X-IronPort-AV: E=Sophos;i="5.63,440,1557158400"; 
-   d="scan'208";a="116844043"
-Received: from h199-255-45-15.hgst.com (HELO uls-op-cesaep02.wdc.com) ([199.255.45.15])
-  by ob1.hgst.iphmx.com with ESMTP; 02 Jul 2019 05:58:11 +0800
-IronPort-SDR: sTyeICXNyASzqaVJh/x7bFc71ryJtwPmzGpR6ru3C844qtZvkTh15I2z1yZJOKlx5WvGRIF2ia
- 4Ekb7RBw2k4iNBRuDl0TSB0d+caVgWvxr82XzfshorCuGE7XkrsrM5L+hJWR5yFB3MBu1Xz+N9
- 3eE4B1pE9bII76EphGGieLowwe3oRpyrEICrFP8WtmqBrxTFlN7NVvjR8YQPW7pOlP8qP5/s2V
- 2q46hZvehEGbFftDa+L4wAoUrQUInkLu1aF8zt6GMWek2bvXMDDv7zxu7pQv1cd1hixhB/L0kt
- 4i4yK8PAlDYMykR4+tJROiba
-Received: from uls-op-cesaip02.wdc.com ([10.248.3.37])
-  by uls-op-cesaep02.wdc.com with ESMTP; 01 Jul 2019 14:57:13 -0700
-IronPort-SDR: AABjtBQ8ZjxtlIypq0AuDMGuICj3Ru7OQR6RTokwwI5NwnheQDs9XZu6EHSysDkGvnSbjLSLzk
- svQHsZ3L9KuVfcFTjFKgPOsuSl7tPlG11lsjBb8z5kXGyUSeWfzv8y2JNrHN9XFqAP9GIoh801
- 6/k7//Wxd+PiVP+eMja3fbegfEx0pWIXUEx/YSComqBkOzV5tvEeCB40Ty18Wl8YUlGpamcA0W
- YnMn0/OE8nFdC37M/MT1FRhMxXORwaN4jwQ92KCK2O3IsgCDvM1qCknYbY7bB2yB2W4O2NYyqp
- t5U=
-Received: from cvenusqemu.hgst.com ([10.202.66.73])
-  by uls-op-cesaip02.wdc.com with ESMTP; 01 Jul 2019 14:58:10 -0700
-From: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
-To: linux-mm@kvack.org,
-	linux-block@vger.kernel.org
-Cc: bvanassche@acm.org,
-	axboe@kernel.dk,
-	Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
-Subject: [PATCH 5/5] Documentation/laptop: add block_dump documentation
-Date: Mon,  1 Jul 2019 14:57:26 -0700
-Message-Id: <20190701215726.27601-6-chaitanya.kulkarni@wdc.com>
-X-Mailer: git-send-email 2.17.0
-In-Reply-To: <20190701215726.27601-1-chaitanya.kulkarni@wdc.com>
-References: <20190701215726.27601-1-chaitanya.kulkarni@wdc.com>
+       dkim=pass header.i=@kernel.org header.s=default header.b=yulAQMWr;
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from localhost.localdomain (c-73-223-200-170.hsd1.ca.comcast.net [73.223.200.170])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id E146821479;
+	Mon,  1 Jul 2019 23:32:11 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1562023932;
+	bh=dBXpbIE1R4CzpTJv8obwrKm6+ibARscFWpAQm9lSQZA=;
+	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
+	b=yulAQMWrcw1P+CopEJYaogBfFneJfl2za6FZd5pFA6D5io9m+xQnEm+yQaDWjdT/Y
+	 9DFHXlk5mdBoyq4T6dTSKA58o6T74Hd/T8dTqYp/w0HOnpZqf6i5nqYGJuQ9bA1XgI
+	 Mo0ZF2H9lZFRsD+XZV8fRh2gemTtyGNq9stOi+ew=
+Date: Mon, 1 Jul 2019 16:32:11 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+To: Henry Burns <henryburns@google.com>
+Cc: Vitaly Wool <vitalywool@gmail.com>, Vitaly Vul <vitaly.vul@sony.com>,
+ Mike Rapoport <rppt@linux.vnet.ibm.com>, Xidong Wang
+ <wangxidong_97@163.com>, Shakeel Butt <shakeelb@google.com>, Jonathan Adams
+ <jwadams@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Subject: Re: [PATCH] mm/z3fold.c: Lock z3fold page before 
+ __SetPageMovable()
+Message-Id: <20190701163211.e9e0f2cf5332c06640e3019d@linux-foundation.org>
+In-Reply-To: <20190701212303.168581-1-henryburns@google.com>
+References: <20190701212303.168581-1-henryburns@google.com>
+X-Mailer: Sylpheed 3.5.1 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This patch updates the block_dump documentation with respect to the
-changes from the earlier patch for submit_bio(). Also we adjust rest of
-the lines to fit with standaed format.
+On Mon,  1 Jul 2019 14:23:03 -0700 Henry Burns <henryburns@google.com> wrote:
 
-Signed-off-by: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
----
- Documentation/laptops/laptop-mode.txt | 16 ++++++++--------
- 1 file changed, 8 insertions(+), 8 deletions(-)
+> __SetPageMovable() expects it's page to be locked, but z3fold.c doesn't
+> lock the page.
 
-diff --git a/Documentation/laptops/laptop-mode.txt b/Documentation/laptops/laptop-mode.txt
-index 1c707fc9b141..d4d72ed677c4 100644
---- a/Documentation/laptops/laptop-mode.txt
-+++ b/Documentation/laptops/laptop-mode.txt
-@@ -101,14 +101,14 @@ a cache miss. The disk can then be spun down in the periods of inactivity.
- 
- If you want to find out which process caused the disk to spin up, you can
- gather information by setting the flag /proc/sys/vm/block_dump. When this flag
--is set, Linux reports all disk read and write operations that take place, and
--all block dirtyings done to files. This makes it possible to debug why a disk
--needs to spin up, and to increase battery life even more. The output of
--block_dump is written to the kernel output, and it can be retrieved using
--"dmesg". When you use block_dump and your kernel logging level also includes
--kernel debugging messages, you probably want to turn off klogd, otherwise
--the output of block_dump will be logged, causing disk activity that is not
--normally there.
-+is set, Linux reports all disk I/O operations along with read and write
-+operations that take place, and all block dirtyings done to files. This makes
-+it possible to debug why a disk needs to spin up, and to increase battery life
-+even more. The output of block_dump is written to the kernel output, and it can
-+be retrieved using "dmesg". When you use block_dump and your kernel logging
-+level also includes kernel debugging messages, you probably want to turn off
-+klogd, otherwise the output of block_dump will be logged, causing disk activity
-+that is not normally there.
- 
- 
- Configuration
--- 
-2.21.0
+So this triggers the VM_BUG_ON_PAGE(!PageLocked(page), page) in
+__SetPageMovable(), yes?
+
+> Following zsmalloc.c's example we call trylock_page() and
+> unlock_page(). Also makes z3fold_page_migrate() assert that newpage is
+> passed in locked, as documentation.
+> 
+> ...
+>
+> --- a/mm/z3fold.c
+> +++ b/mm/z3fold.c
+> @@ -918,7 +918,9 @@ static int z3fold_alloc(struct z3fold_pool *pool, size_t size, gfp_t gfp,
+>  		set_bit(PAGE_HEADLESS, &page->private);
+>  		goto headless;
+>  	}
+> +	WARN_ON(!trylock_page(page));
+
+If this warn triggers then someone else has locked the page.
+
+>	__SetPageMovable(page, pool->inode->i_mapping);
+> + 	unlock_page(page);
+
+and we proceed to undo their lock.  So that other code path will then
+perform an unlock of an unlocked page.  Etcetera.
+
+It would be much much better to do a plain old lock_page() here.  If
+that results in a deadlock then let's find out why and fix it without
+trylock hacks.
+
 
