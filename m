@@ -2,138 +2,145 @@ Return-Path: <SRS0=T9E7=U7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DD137C5B57D
-	for <linux-mm@archiver.kernel.org>; Tue,  2 Jul 2019 21:27:11 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5BC55C5B57D
+	for <linux-mm@archiver.kernel.org>; Tue,  2 Jul 2019 21:33:44 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A0DB0218A3
-	for <linux-mm@archiver.kernel.org>; Tue,  2 Jul 2019 21:27:11 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A0DB0218A3
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=i-love.sakura.ne.jp
+	by mail.kernel.org (Postfix) with ESMTP id 1236F218D1
+	for <linux-mm@archiver.kernel.org>; Tue,  2 Jul 2019 21:33:44 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="RBa6CBZo"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1236F218D1
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 338576B0003; Tue,  2 Jul 2019 17:27:11 -0400 (EDT)
+	id A11B36B0003; Tue,  2 Jul 2019 17:33:43 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2C28D8E0003; Tue,  2 Jul 2019 17:27:11 -0400 (EDT)
+	id 9C2238E0003; Tue,  2 Jul 2019 17:33:43 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 13C538E0001; Tue,  2 Jul 2019 17:27:11 -0400 (EDT)
+	id 8B26B8E0001; Tue,  2 Jul 2019 17:33:43 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id CEB976B0003
-	for <linux-mm@kvack.org>; Tue,  2 Jul 2019 17:27:10 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id d3so183078pgc.9
-        for <linux-mm@kvack.org>; Tue, 02 Jul 2019 14:27:10 -0700 (PDT)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 54D296B0003
+	for <linux-mm@kvack.org>; Tue,  2 Jul 2019 17:33:43 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id d187so197515pga.7
+        for <linux-mm@kvack.org>; Tue, 02 Jul 2019 14:33:43 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=3A2JKYyF6Wow+uyBjAseYYHmwKeOnuwwqwzbEFG4G9s=;
-        b=KpIkfmUlpkoIxmuULtGtwcsjUC8VWKXyMkfZCosqEZqFtXcJDAylDE55dwDE6HffL7
-         05AgEhwCVNaMS0qD6ERygDNOfCvsJOTOsSTY7en7fk8CrjkCi84VAW4Aijg/a1zmE9A3
-         hM/fss6GhU0rbLaceJ3F6YxtD1UQS5/MGe2gEcua7nQbb/vN7KoqcZKuG52WHYcnD2On
-         Kq6OZYIluddFsKVemDVLJ1y4VfRWpkJ9faNxndfnQqMvHgf879KQ0f0j30cbZ1O0x8sp
-         stihSaS8QDK0rQa2s/BaLonpOWnLWVo34yLDbBCo4lr0eQL+Dw+84sLeG+/Gq02BShO7
-         T2sA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
-X-Gm-Message-State: APjAAAV1zoAT76oYy/o1OvXUsKNiH85U8GOA//PZeBV+MrTidbb0DsN1
-	AhqmHO3JPPjwVKEYoi5GhWIfJkZszEk3ckxB6v1RAQfOVhH9BLooc6f4JJUbRs49A2saJEv0Lej
-	i4NogVUGp9tT02M8/AMZDJxMyK0E9tXZGyHNdvhQnBEylxYAFl2qra8pSESee9e3skQ==
-X-Received: by 2002:a17:902:8b82:: with SMTP id ay2mr35151693plb.164.1562102830406;
-        Tue, 02 Jul 2019 14:27:10 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyuP+utd0cm3A4N3hpvL0YPzOZ8VD+OF56xRxzmfdz5ykM/6+HGhYUnUHyL4NdwNV9l4wUF
-X-Received: by 2002:a17:902:8b82:: with SMTP id ay2mr35151655plb.164.1562102829796;
-        Tue, 02 Jul 2019 14:27:09 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562102829; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=gmn4/gRjuuSlk+8UerSlSJop90toIZ+cMx1MNCYSm7o=;
+        b=FWcIg6mafdDQdHufMSadKfPaghJZgkVJVhn305Xxqos8iiVSjZoquq+aXL9HhccuX/
+         EksrMPe7nvRA/p5r41RVRUmjv96e5Ih4SbqSogrdOrcO1MmTY0QkSVN9cgtMrq4l1NWT
+         a9ezzG9naNqMA1qEiSNuE1DzUtweJLaZbfWZymS4nM+pSol6OTCq/tqclKC44qvsS7/W
+         rGWLRGbrc52M+8Jw7QEaD1z/zBSFoBZ6tF8Mm3b3n9TQ/SDuJyys+bVOPP4IowHKkxcG
+         00z63QajCO4y4/f78lZ++4i1PiwYe519s6k3BXB2W0Wz2Abmn3vfd4XOLFsHxJIPfIXQ
+         R36w==
+X-Gm-Message-State: APjAAAXAPWqKpD5n25zG4aZeR/8qXbJJdk2/uuuwPQh1k49aRrSYBPY2
+	iN8GpYryXsw5IIG5vmk5S+upOCJbk+HXv32PQaOix5/bMnftlVPeXsuvJJ1yQb8s7BB91DiiOba
+	1DHkzEZQcf1k+R1nf8pcT7imqO9hpUhkJzf7oaDAAvmFYe7IxCk38zHRrppJDA/ltfQ==
+X-Received: by 2002:a17:90a:228b:: with SMTP id s11mr7799811pjc.23.1562103222903;
+        Tue, 02 Jul 2019 14:33:42 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw01Cth5rKuZJgr/UV88RA+t7VGPG7mQAVT06rVbqjNbbett6jTD3MUotLgEm6C2Ic5vXaq
+X-Received: by 2002:a17:90a:228b:: with SMTP id s11mr7799745pjc.23.1562103222025;
+        Tue, 02 Jul 2019 14:33:42 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562103222; cv=none;
         d=google.com; s=arc-20160816;
-        b=p7QQYKrWz/ulaaXvqFyXB+/zX/OIOrgM6ojfKivGXqV3HHyWU9jo2YPpHqDsfwOT9K
-         rPW+O1dXiFs3m6kff1fmnD44QUiCYhyT/SEe+d+k2GaDPjZwqoZpWqoRB5zjjzI3N+qF
-         Nx7c18nkQhSt7mz4cv6yhJ/iFcUWRqvwXHDTiDsu04hIIMVU+WFzST5TZk0X0YDrQEC6
-         O8P3HVoIFrmcvVt9fBisFwYCkELUda56fcllBtEJLi5vvIsOlmbLpVzspguFWQ3nGtXG
-         /luRWyw9yT16KyYwTYh6bzZRQ4VWb/JFD+c8Hf87PCQZ3gSdiUAvnzKWLuHm0y2HEwYf
-         yGFQ==
+        b=PUk4P2nryg2z3xbgSYDvdKN77TD0k+v7HRbmdjnAgUYod2/5XY+boN8sPZmi8M9oSw
+         7nvqEKHWfQw+feD0L2koJZI2/wqLdIboIA7TkpJsKk6MYcRJeqaKW4wqEn2p9HlABLqE
+         nSDZHmF90pZl/fDN88pJuXgUh2w8tB/BLnxZAOXx/tJKmXsetqvAopAx15cO/ITGxdwD
+         Fs3vXMQSGBAV0Bey4lXz1PbEZl4qBIokXKmF/z/wg9taZb5uLH2yIEuVlwtrfNvx1HFK
+         9o9OY2BTyunA22VZZ4rjVa0Ml6LAOkWKylL5NrD3R3oS9HCijKh4Gcd7brp/e7K00jkH
+         k/Kg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=3A2JKYyF6Wow+uyBjAseYYHmwKeOnuwwqwzbEFG4G9s=;
-        b=0BhcYMBW4yqSH0zw4U2CfDVCQ2/6tpkdn3Mozth+AOHhnqe9yYysOvndD1aqc+dlwa
-         idw+YzUJ1m1CDqNlNMTnOg972qOauRYPWClYzBPDpQ+gunFvvXcGkS4GbpZ1aqp1Vp5O
-         LqRQFJSGDwJXIyOXEfxnhtSvipTktwBfW7JGxhPV8J994vD8wCN1aV/tVhkA7C582+sR
-         ZT1QJjTL9UfAFw1GzAHr+kUtUPe214z3fhM/svc7daPP3QFXQR9sD2AxFM8+NedF2be0
-         rco4I7drFusOZq0Ir4GNVl2I88H1q0rU1boxg+A880ynx+tcVIvHr6qQVDwq072PidyQ
-         y6Sg==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=gmn4/gRjuuSlk+8UerSlSJop90toIZ+cMx1MNCYSm7o=;
+        b=rK94Y+p4MZmnkzhErwDxjvRPpBSquBEIXJF0p1j77PjxsjELY0221ftyps1Zqlq7Gu
+         yqlzxTrUqPXA4D5N30gEd1rNxqhhfCoyO+zsTmP4i1OLXc3Ol7Wp7sIVkMMQVriZImvt
+         0mVEJ3shxetqJinnbadYinVGvlDdpERKO28x9jbqARQsNUQmx+s4YAs3Z9jxlgo2x8/a
+         wXSsVq5f3M1lougwuhoDNQSXDmzf3ck1/XW+8H/6myG/Y9vST0X6Uxx8v84PQKtUrkRI
+         KBCtQOLt9gYzDRW7KUkJ6Ao4+bl9x5rwCy/KsthYlExeXZbE0eKx4EJeik4rRU5dY73Z
+         b9nw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id w9si37587plp.118.2019.07.02.14.27.09
+       dkim=pass header.i=@kernel.org header.s=default header.b=RBa6CBZo;
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id j100si3053145pje.52.2019.07.02.14.33.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 02 Jul 2019 14:27:09 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) client-ip=202.181.97.72;
+        Tue, 02 Jul 2019 14:33:42 -0700 (PDT)
+Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
-Received: from fsav302.sakura.ne.jp (fsav302.sakura.ne.jp [153.120.85.133])
-	by www262.sakura.ne.jp (8.15.2/8.15.2) with ESMTP id x62LR2VM045843;
-	Wed, 3 Jul 2019 06:27:02 +0900 (JST)
-	(envelope-from penguin-kernel@i-love.sakura.ne.jp)
-Received: from www262.sakura.ne.jp (202.181.97.72)
- by fsav302.sakura.ne.jp (F-Secure/fsigk_smtp/530/fsav302.sakura.ne.jp);
- Wed, 03 Jul 2019 06:27:02 +0900 (JST)
-X-Virus-Status: clean(F-Secure/fsigk_smtp/530/fsav302.sakura.ne.jp)
-Received: from [192.168.1.8] (softbank126012062002.bbtec.net [126.12.62.2])
-	(authenticated bits=0)
-	by www262.sakura.ne.jp (8.15.2/8.15.2) with ESMTPSA id x62LQvFp045817
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NO);
-	Wed, 3 Jul 2019 06:27:02 +0900 (JST)
-	(envelope-from penguin-kernel@i-love.sakura.ne.jp)
-Subject: Re: [PATCH] mm: mempolicy: don't select exited threads as OOM victims
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Shakeel Butt <shakeelb@google.com>, linux-mm@kvack.org
-References: <1561807474-10317-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20190701111708.GP6376@dhcp22.suse.cz>
- <15099126-5d0f-51eb-7134-46c5c2db3bf0@i-love.sakura.ne.jp>
- <20190701131736.GX6376@dhcp22.suse.cz>
- <ecc63818-701f-403e-4d15-08c3f8aea8fb@i-love.sakura.ne.jp>
- <20190701134859.GZ6376@dhcp22.suse.cz>
- <a78dbba0-262e-87c5-e278-9e17cf9a63f7@i-love.sakura.ne.jp>
- <20190701140434.GA6376@dhcp22.suse.cz> <20190701141647.GB6376@dhcp22.suse.cz>
- <0d81f46e-0b5f-0792-637f-fa88468f33cf@i-love.sakura.ne.jp>
- <20190702135148.GF978@dhcp22.suse.cz>
-From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Message-ID: <0c26d2d5-19b1-7915-e47e-60d86a946d09@i-love.sakura.ne.jp>
-Date: Wed, 3 Jul 2019 06:26:55 +0900
-User-Agent: Mozilla/5.0 (Windows NT 6.3; WOW64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.2
-MIME-Version: 1.0
-In-Reply-To: <20190702135148.GF978@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+       dkim=pass header.i=@kernel.org header.s=default header.b=RBa6CBZo;
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from akpm3.svl.corp.google.com (unknown [104.133.8.65])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id ED1AE218CA;
+	Tue,  2 Jul 2019 21:33:40 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1562103221;
+	bh=7BKwrn5ZR0EvyKBoBdw71Sjqy+1SUbMyW6AzU7/ufH4=;
+	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
+	b=RBa6CBZoD/h1b3spSkXt/s5mk4/LF71sNM0q6jPS2dnne68logM7RJmnQeYqnoPlk
+	 We4S37hoCXN1vJ/SylpXLdidWn8wQovBsN3zWD/thJwRlA5V0kPWzkSRUxdgTRtCMR
+	 lCSW1e94ZmkPHXhQYrDUGU4rHNsLYjp0UCC4jn8o=
+Date: Tue, 2 Jul 2019 14:33:40 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+To: Waiman Long <longman@redhat.com>
+Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>,
+ David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>,
+ Alexander Viro <viro@zeniv.linux.org.uk>, Jonathan Corbet <corbet@lwn.net>,
+ Luis Chamberlain <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>,
+ Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>,
+ Vladimir Davydov <vdavydov.dev@gmail.com>, linux-mm@kvack.org,
+ linux-doc@vger.kernel.org, linux-fsdevel@vger.kernel.org,
+ cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Roman Gushchin
+ <guro@fb.com>, Shakeel Butt <shakeelb@google.com>, Andrea Arcangeli
+ <aarcange@redhat.com>
+Subject: Re: [PATCH] mm, slab: Extend slab/shrink to shrink all the memcg
+ caches
+Message-Id: <20190702143340.715f771192721f60de1699d7@linux-foundation.org>
+In-Reply-To: <78879b79-1b8f-cdfd-d4fa-610afe5e5d48@redhat.com>
+References: <20190702183730.14461-1-longman@redhat.com>
+	<20190702130318.39d187dc27dbdd9267788165@linux-foundation.org>
+	<78879b79-1b8f-cdfd-d4fa-610afe5e5d48@redhat.com>
+X-Mailer: Sylpheed 3.7.0 (GTK+ 2.24.32; x86_64-pc-linux-gnu)
+Mime-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 2019/07/02 22:51, Michal Hocko wrote:
->>> I do not see any strong reason to keep the current ordering. OOM victim
->>> check is trivial so it shouldn't add a visible overhead for few
->>> unkillable tasks that we might encounter.
->>>
->>
->> Yes if we can tolerate that there can be only one OOM victim for !memcg OOM events
->> (because an OOM victim in a different OOM context will hit "goto abort;" path).
-> 
-> You are right. Considering that we now have a guarantee of a forward
-> progress then this should be tolerateable (a victim in a disjoint
-> numaset will go away and other one can go ahead and trigger its own
-> OOM).
+On Tue, 2 Jul 2019 16:44:24 -0400 Waiman Long <longman@redhat.com> wrote:
 
-But it might take very long period before MMF_OOM_SKIP is set by the OOM reaper
-or exit_mmap(). Until MMF_OOM_SKIP is set, OOM events from disjoint numaset can't
-make forward progress.
+> On 7/2/19 4:03 PM, Andrew Morton wrote:
+> > On Tue,  2 Jul 2019 14:37:30 -0400 Waiman Long <longman@redhat.com> wro=
+te:
+> >
+> >> Currently, a value of '1" is written to /sys/kernel/slab/<slab>/shrink
+> >> file to shrink the slab by flushing all the per-cpu slabs and free
+> >> slabs in partial lists. This applies only to the root caches, though.
+> >>
+> >> Extends this capability by shrinking all the child memcg caches and
+> >> the root cache when a value of '2' is written to the shrink sysfs file.
+> > Why?
+> >
+> > Please fully describe the value of the proposed feature to or users.=20
+> > Always.
+>=20
+> Sure. Essentially, the sysfs shrink interface is not complete. It allows
+> the root cache to be shrunk, but not any of the memcg caches.=A0
+
+But that doesn't describe anything of value.  Who wants to use this,
+and why?  How will it be used?  What are the use-cases?
 
