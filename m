@@ -2,153 +2,207 @@ Return-Path: <SRS0=T9E7=U7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
-	autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A0253C5B578
-	for <linux-mm@archiver.kernel.org>; Tue,  2 Jul 2019 03:07:34 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 120CDC5B578
+	for <linux-mm@archiver.kernel.org>; Tue,  2 Jul 2019 03:16:05 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5F842206A2
-	for <linux-mm@archiver.kernel.org>; Tue,  2 Jul 2019 03:07:34 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id BB253206A2
+	for <linux-mm@archiver.kernel.org>; Tue,  2 Jul 2019 03:16:04 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="Al5//5gO"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5F842206A2
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="Pot1G5l2"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BB253206A2
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DEB736B0006; Mon,  1 Jul 2019 23:07:33 -0400 (EDT)
+	id 4BD0C6B0006; Mon,  1 Jul 2019 23:16:04 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D74C58E0003; Mon,  1 Jul 2019 23:07:33 -0400 (EDT)
+	id 46E898E0003; Mon,  1 Jul 2019 23:16:04 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BC7B38E0002; Mon,  1 Jul 2019 23:07:33 -0400 (EDT)
+	id 334B18E0002; Mon,  1 Jul 2019 23:16:04 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 82F4D6B0006
-	for <linux-mm@kvack.org>; Mon,  1 Jul 2019 23:07:33 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id 6so10026278pfi.6
-        for <linux-mm@kvack.org>; Mon, 01 Jul 2019 20:07:33 -0700 (PDT)
+Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 1639C6B0006
+	for <linux-mm@kvack.org>; Mon,  1 Jul 2019 23:16:04 -0400 (EDT)
+Received: by mail-io1-f70.google.com with SMTP id n8so17239787ioo.21
+        for <linux-mm@kvack.org>; Mon, 01 Jul 2019 20:16:04 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:subject:to:cc
-         :references:in-reply-to:mime-version:user-agent:message-id
-         :content-transfer-encoding;
-        bh=JEjj/PPo3yxC7A/OXv38wkR3+utyXU9OEcFxU+K+Oro=;
-        b=P+X6miRfgqmm0fpul8u5QKbalmFJJgfWjOwQAPnY5D+/tmcW/2GMrMX/3bTEoYMyM4
-         TwR4eOx+FGozsPrPvr/7OX39CIaSqgZd0xf3kA13leRHWQV39AnlwKRRWOZXJz60z7W6
-         T23oa+CWU5hADKeemrST0IoNx1/GTaehng/ER+CkfZBFB3nwegBYnOib/Nea9u8oU3IS
-         aeicPiChRFz4ZZRZW1WhhxVqa4VebkMypUGKD+9ysEZ2iUdCdhw/DgTIKuT+TvYXjMX+
-         U1A3Ic0EHY7ONUoIItXiuc/dp53vH6lKaACmg5WF/CgFIemzfmDTbNhmWQidpOzGRCUl
-         kJJw==
-X-Gm-Message-State: APjAAAWCCvFP4Y4tOuKys3eCWKaLRd1U5wvk0mOhIpbTohwLnt9WAApz
-	4tByWBmSCLssS1yXnSPhRtMv6WKtzr1tv8mJ64f7/4cWl+W+2RXop5Xji7NQ/svGUiFFHTxYGQ+
-	sY8VBuxGT5wKkIKJjqocid2pNr3BujNJWlbFGDEGB6/ErHGYiJGy/1WLDmsnyZK1L7w==
-X-Received: by 2002:a17:902:29c3:: with SMTP id h61mr32226922plb.37.1562036853098;
-        Mon, 01 Jul 2019 20:07:33 -0700 (PDT)
-X-Received: by 2002:a17:902:29c3:: with SMTP id h61mr32226852plb.37.1562036852116;
-        Mon, 01 Jul 2019 20:07:32 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562036852; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+         :message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=g2v0mtMOM4iBYII4Lvz5GUbGDJjPR4J5yr7i/lhr77c=;
+        b=apTb5Qqr3zzTf11ROj3wmlsZm+Pdo+Ss8h1lKHEKfe75eu0RHb0rhl5Vl6ovyN/Kbj
+         mbEiKxTzgKa+qFxxrseHl49gMHcmmjyONuw+9/lekognPzWrXmNZMmKVSerpBzNPvlUz
+         4/7OqH64RNVBM5erFUws5yLAkvAXMVSSPAIViSQ9v30s8vsR2tx4cyDhWbseQ3wIeNt8
+         0eHuHkfoxAY+A8EgGQKkPleOg2QjMxGQuZKP6CIo/ioz0QdHUy2OGpmWVk+wid9Kl69R
+         ieBmpuFhTK2QKjZViBWqupOg0JC2ipj+MyypmlM5nB8msB1TOA4eE/flJ2G2ThAsTwKY
+         yWGA==
+X-Gm-Message-State: APjAAAVOot6Ees5uTA3F7UgO5i2xcfFKkKKl27ygUv6LZJxX0Gpun0bA
+	OhTvDYOXZDeWKJlzzAgtAgHCnkUxwrP4VtGoeZZukU6XEFTHjcV0hHvCD1VYcUCDkmyE3ZiIbAF
+	TDQSUXJwWLKqfz/VOvgqRzBIaNWHywP0Ep9R9/8BWrV34hTlFrjCumwdCzRvxsxBCcg==
+X-Received: by 2002:a02:ac09:: with SMTP id a9mr33904461jao.48.1562037363844;
+        Mon, 01 Jul 2019 20:16:03 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzkPnMKxBt3Kgc2zayLDs+btYRlt+MLZbv6bm4CrNk9kMvBB4fk4s1fmT9r63X+UvhHYPi+
+X-Received: by 2002:a02:ac09:: with SMTP id a9mr33904415jao.48.1562037363065;
+        Mon, 01 Jul 2019 20:16:03 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562037363; cv=none;
         d=google.com; s=arc-20160816;
-        b=v8GCjvnYUrklANmcAMapS7ofFadhW8EvpzSZlt+7/QWGQtddNch83p4frxqis6BfSg
-         jCTVj/l30L1MM3jO0DknaH5eFMGfUaRqIfoHhab0in3khIEU/ZwF9hSc37gm8KFhU8Ai
-         bKUmfKBYS+jEWrlEBzkplafp2t5FwyReEp0SMxqvSkcrOwjdUKdiw0tnDBjnshZmCrL9
-         NMHcUWMJQu5g8GeLqe8qvlsOv8OShKIGCWd+OjppGqj4uBHMRiaqedOoYksV7+p158TM
-         0u83IArMEin6GbA60rVCUyOFJhckifNdwiOq+vQa52sgOQYbEXaotF+34+t9bKJjKu1A
-         aVKg==
+        b=sMGxyG5OYxq6xqRs2R65gb/kzp+0OaSsPMOwUKvlwOWE3GfVhimII7xEune0dKhKY/
+         3nuxH7+Af3KyCk4oCdXcqQr3Qt7prQZbwmB253NNM5ph5jnnJYsMW9SRRQa0Ak/OStcF
+         wm5bi9HP+ZpL2iHz/DGupOhjqZMvZ29tDgr38fnSiNTWpoyYAjMDIEuDlCyUywzhIdIr
+         Q1sjZzVs/wLFKcAHY6AhOH1Hkdu/D4q6MsSPltlvzoutU5qIyERtYAxIBCz1kyTd4Pbp
+         6oEuEod9n/o7/d7qXOi/1mfIh2CyCKIaiBoUdW/okxzSDb0RfTPrTHp08a3H/o5vjn8x
+         nt7g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:message-id:user-agent:mime-version
-         :in-reply-to:references:cc:to:subject:from:date:dkim-signature;
-        bh=JEjj/PPo3yxC7A/OXv38wkR3+utyXU9OEcFxU+K+Oro=;
-        b=TvyEj7HmFuyh8ee33/mTf5hDgzS1SQoNJ/BOtzZ4L7SCdTMqzHmFIyrIb2YC4O5dSu
-         kuxVBc10sprZlQlK8grDESleFio4GxzKV25XiHnW8WC6j2rmZGEzIFmEEmwHbcVzlri9
-         3JPyX4AfxHZYaRW+khcVg77oKVu88aLjgMtw9qCoxWcsQtYRFbn2OyImvEBPHBDW3Apf
-         rnH7lLBIvxwBTQdq5Kh2JiQ6aptt7m2uGZJYopL0Bu/Ra99pyJkMOQCyQt/UpiNrhX9f
-         NFc+JsMCdvSHRwj+AQ8yDiYKAT2tpaUYTN46Mx6NiKkZ4EX1zxP2WPf5WjlUqJc9WWS+
-         3Tjg==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject
+         :dkim-signature;
+        bh=g2v0mtMOM4iBYII4Lvz5GUbGDJjPR4J5yr7i/lhr77c=;
+        b=T+FzT8Swwafgr5wD3ob+wsfK+ql/0OpqnBrwBIuRIwW3eufiGUwZ4gI0nM35toyBj0
+         junJR2K9wUTSgIZ0BLsAQAsMTE5IJn5RjHBdCf0lzL7+40LjYFD5+jIwYVhq8qMMnGXm
+         Vs+5tUBwMG7k49C+CoCGangIcb2sccPqo74Z2MNZ0+MEsDWr/Yp7PIPaCfbs0j1Sg85U
+         o2qg8Ecpgd0OSEu+3JS7paEL2JEkxevOEPSw0m5jYo0O51FkfHOAn3xpqtOUzio/lFed
+         DtDyT9tK6MTmY3qFWRp+ygmY37SavcFkeUVqrwjPK7XZRvvd0gN+vpNTdwvBwsHRapkY
+         45vw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b="Al5//5gO";
-       spf=pass (google.com: domain of npiggin@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=npiggin@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d2sor6383992pfn.15.2019.07.01.20.07.32
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=Pot1G5l2;
+       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 141.146.126.78 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
+        by mx.google.com with ESMTPS id g2si21826125jar.3.2019.07.01.20.16.02
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 01 Jul 2019 20:07:32 -0700 (PDT)
-Received-SPF: pass (google.com: domain of npiggin@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 01 Jul 2019 20:16:03 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mike.kravetz@oracle.com designates 141.146.126.78 as permitted sender) client-ip=141.146.126.78;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b="Al5//5gO";
-       spf=pass (google.com: domain of npiggin@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=npiggin@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=date:from:subject:to:cc:references:in-reply-to:mime-version
-         :user-agent:message-id:content-transfer-encoding;
-        bh=JEjj/PPo3yxC7A/OXv38wkR3+utyXU9OEcFxU+K+Oro=;
-        b=Al5//5gOeoq+S2jUF4fWN70LRFW/gTgt2BAn2B0baRvM15+mvep+e5s4otLVXnFidS
-         xBIE1sEHhvdBjGVQNKvZJxJgS3UdF4SDPQWO2bZ1qZ6vVx4wQIRlG/Q0PHTSe7GdH1CN
-         9cMVFo4aSiPy+/dKIODZEmbH7MLbzA/dmpvmep3x/AmEilTks2v/Y+pWLjIn9LQ0PH9R
-         y3GTlAck0dxdUgSPhIuZPl2WokIMtkaDzckYgT3LAIei69JVQwqvYIY52W+nZxNG0pqj
-         e8Okec5QN1hZ74rwLSruZokYUZf+wjNVH5HrnYrKVrKxKFTKrXBjDp1EUoQxYsO+hF7X
-         1bMg==
-X-Google-Smtp-Source: APXvYqxOVg0HFcmLKK0QMTMU/kWLAUMGqHvjW+x4ulftF7VETnHP5SSk6O+UdayEdNaJVHGmMdn0Lw==
-X-Received: by 2002:a65:6102:: with SMTP id z2mr27238296pgu.194.1562036851675;
-        Mon, 01 Jul 2019 20:07:31 -0700 (PDT)
-Received: from localhost ([175.45.73.101])
-        by smtp.gmail.com with ESMTPSA id f11sm10274123pga.59.2019.07.01.20.07.30
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Mon, 01 Jul 2019 20:07:30 -0700 (PDT)
-Date: Tue, 02 Jul 2019 13:07:11 +1000
-From: Nicholas Piggin <npiggin@gmail.com>
-Subject: Re: Re: [PATCH 1/3] arm64: mm: Add p?d_large() definitions
-To: Steven Price <steven.price@arm.com>, Will Deacon <will@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Anshuman Khandual
-	<anshuman.khandual@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>,
-	Catalin Marinas <catalin.marinas@arm.com>, Christophe Leroy
-	<christophe.leroy@c-s.fr>, linux-arm-kernel@lists.infradead.org,
-	linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, Mark Rutland
-	<mark.rutland@arm.com>, Will Deacon <will.deacon@arm.com>
-References: <20190623094446.28722-1-npiggin@gmail.com>
-	<20190623094446.28722-2-npiggin@gmail.com>
-	<20190701092756.s4u5rdjr7gazvu66@willie-the-truck>
-	<3d002af8-d8cd-f750-132e-12109e1e3039@arm.com>
-	<20190701101510.qup3nd6vm6cbdgjv@willie-the-truck>
-In-Reply-To: <20190701101510.qup3nd6vm6cbdgjv@willie-the-truck>
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=Pot1G5l2;
+       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 141.146.126.78 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from pps.filterd (aserp2120.oracle.com [127.0.0.1])
+	by aserp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x6234unt139052;
+	Tue, 2 Jul 2019 03:16:00 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
+ references : from : message-id : date : mime-version : in-reply-to :
+ content-type : content-transfer-encoding; s=corp-2018-07-02;
+ bh=g2v0mtMOM4iBYII4Lvz5GUbGDJjPR4J5yr7i/lhr77c=;
+ b=Pot1G5l2XAak+Hb7v+Jl5K4MzggYiIz9mI+CQPxrjAzFW8MgddIWMfHjKcCsmcxBAQg6
+ nVTqHdjP8y89kn5u/N0GVR9MRk8c1DsL9VYahZTx119DrG6y6DDpA7F3RnNaVacED521
+ IJkowT/bgcO3cbr0KwJOv3V3EeUxBBy1lKSaVqjmqgh7Q9226npgLAVEiwoa6v4yaTzE
+ o4eWQfbPHC33Up22Jm3wGfCpyBElE+qacOWPbym7HkiU9a8zoNwX2gERtthA57NJSEks
+ XelHk+sQ59mpvYE4n2beYlnb+qhvP/XzSFLCAMD7+kmj5Xbh2OY2x96u4ZEzHCRytZ5q HQ== 
+Received: from userp3030.oracle.com (userp3030.oracle.com [156.151.31.80])
+	by aserp2120.oracle.com with ESMTP id 2te5tbgu8s-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Tue, 02 Jul 2019 03:16:00 +0000
+Received: from pps.filterd (userp3030.oracle.com [127.0.0.1])
+	by userp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x6238LHV178941;
+	Tue, 2 Jul 2019 03:15:59 GMT
+Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
+	by userp3030.oracle.com with ESMTP id 2tebqg8hsq-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Tue, 02 Jul 2019 03:15:59 +0000
+Received: from abhmp0007.oracle.com (abhmp0007.oracle.com [141.146.116.13])
+	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x623Fp7w025613;
+	Tue, 2 Jul 2019 03:15:51 GMT
+Received: from [192.168.1.222] (/71.63.128.209)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Mon, 01 Jul 2019 20:15:51 -0700
+Subject: Re: [Question] Should direct reclaim time be bounded?
+To: Mel Gorman <mgorman@suse.de>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>,
+        "linux-mm@kvack.org" <linux-mm@kvack.org>,
+        linux-kernel <linux-kernel@vger.kernel.org>,
+        Andrea Arcangeli <aarcange@redhat.com>,
+        Johannes Weiner <hannes@cmpxchg.org>
+References: <d38a095e-dc39-7e82-bb76-2c9247929f07@oracle.com>
+ <20190423071953.GC25106@dhcp22.suse.cz>
+ <eac582cf-2f76-4da1-1127-6bb5c8c959e4@oracle.com>
+ <04329fea-cd34-4107-d1d4-b2098ebab0ec@suse.cz>
+ <dede2f84-90bf-347a-2a17-fb6b521bf573@oracle.com>
+ <20190701085920.GB2812@suse.de>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <80036eed-993d-1d24-7ab6-e495f01b1caa@oracle.com>
+Date: Mon, 1 Jul 2019 20:15:50 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.0
 MIME-Version: 1.0
-User-Agent: astroid/0.14.0 (https://github.com/astroidmail/astroid)
-Message-Id: <1562036522.cz5nnz6ri2.astroid@bobo.none>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <20190701085920.GB2812@suse.de>
+Content-Type: text/plain; charset=iso-8859-15
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9305 signatures=668688
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
+ phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
+ adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
+ engine=8.0.1-1810050000 definitions=main-1907020032
+X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9305 signatures=668688
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
+ definitions=main-1907020032
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Will Deacon's on July 1, 2019 8:15 pm:
-> On Mon, Jul 01, 2019 at 11:03:51AM +0100, Steven Price wrote:
->> On 01/07/2019 10:27, Will Deacon wrote:
->> > On Sun, Jun 23, 2019 at 07:44:44PM +1000, Nicholas Piggin wrote:
->> >> walk_page_range() is going to be allowed to walk page tables other th=
-an
->> >> those of user space. For this it needs to know when it has reached a
->> >> 'leaf' entry in the page tables. This information will be provided by=
- the
->> >> p?d_large() functions/macros.
->> >=20
->> > I can't remember whether or not I asked this before, but why not call
->> > this macro p?d_leaf() if that's what it's identifying? "Large" and "hu=
-ge"
->> > are usually synonymous, so I find this naming needlessly confusing bas=
-ed
->> > on this patch in isolation.
+On 7/1/19 1:59 AM, Mel Gorman wrote:
+> On Fri, Jun 28, 2019 at 11:20:42AM -0700, Mike Kravetz wrote:
+>> On 4/24/19 7:35 AM, Vlastimil Babka wrote:
+>>> On 4/23/19 6:39 PM, Mike Kravetz wrote:
+>>>>> That being said, I do not think __GFP_RETRY_MAYFAIL is wrong here. It
+>>>>> looks like there is something wrong in the reclaim going on.
+>>>>
+>>>> Ok, I will start digging into that.  Just wanted to make sure before I got
+>>>> into it too deep.
+>>>>
+>>>> BTW - This is very easy to reproduce.  Just try to allocate more huge pages
+>>>> than will fit into memory.  I see this 'reclaim taking forever' behavior on
+>>>> v5.1-rc5-mmotm-2019-04-19-14-53.  Looks like it was there in v5.0 as well.
+>>>
+>>> I'd suspect this in should_continue_reclaim():
+>>>
+>>>         /* Consider stopping depending on scan and reclaim activity */
+>>>         if (sc->gfp_mask & __GFP_RETRY_MAYFAIL) {
+>>>                 /*
+>>>                  * For __GFP_RETRY_MAYFAIL allocations, stop reclaiming if the
+>>>                  * full LRU list has been scanned and we are still failing
+>>>                  * to reclaim pages. This full LRU scan is potentially
+>>>                  * expensive but a __GFP_RETRY_MAYFAIL caller really wants to succeed
+>>>                  */
+>>>                 if (!nr_reclaimed && !nr_scanned)
+>>>                         return false;
+>>>
+>>> And that for some reason, nr_scanned never becomes zero. But it's hard
+>>> to figure out through all the layers of functions :/
+>>
+>> I got back to looking into the direct reclaim/compaction stalls when
+>> trying to allocate huge pages.  As previously mentioned, the code is
+>> looping for a long time in shrink_node().  The routine
+>> should_continue_reclaim() returns true perhaps more often than it should.
+>>
+>> As Vlastmil guessed, my debug code output below shows nr_scanned is remaining
+>> non-zero for quite a while.  This was on v5.2-rc6.
+>>
+> 
+> I think it would be reasonable to have should_continue_reclaim allow an
+> exit if scanning at higher priority than DEF_PRIORITY - 2, nr_scanned is
+> less than SWAP_CLUSTER_MAX and no pages are being reclaimed.
 
-Those page table macro names are horrible. Large, huge, leaf, wtf?
-They could do with a sensible renaming. But this series just follows
-naming that's alreay there on x86.
+Thanks Mel,
 
-Thanks,
-Nick
-=
+I added such a check to should_continue_reclaim.  However, it does not
+address the issue I am seeing.  In that do-while loop in shrink_node,
+the scan priority is not raised (priority--).  We can enter the loop
+with priority == DEF_PRIORITY and continue to loop for minutes as seen
+in my previous debug output.
+
+-- 
+Mike Kravetz
 
