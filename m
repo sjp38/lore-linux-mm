@@ -2,149 +2,178 @@ Return-Path: <SRS0=T9E7=U7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B8C72C06510
-	for <linux-mm@archiver.kernel.org>; Tue,  2 Jul 2019 10:46:31 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D2A34C06513
+	for <linux-mm@archiver.kernel.org>; Tue,  2 Jul 2019 11:52:13 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7CD1921479
-	for <linux-mm@archiver.kernel.org>; Tue,  2 Jul 2019 10:46:31 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 72B7C2173E
+	for <linux-mm@archiver.kernel.org>; Tue,  2 Jul 2019 11:52:13 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="lHT1gLTx"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7CD1921479
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="TwplpaWz"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 72B7C2173E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 122278E0003; Tue,  2 Jul 2019 06:46:31 -0400 (EDT)
+	id C12336B0003; Tue,  2 Jul 2019 07:52:12 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0D3B88E0001; Tue,  2 Jul 2019 06:46:31 -0400 (EDT)
+	id B9BC18E0003; Tue,  2 Jul 2019 07:52:12 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id F2C038E0003; Tue,  2 Jul 2019 06:46:30 -0400 (EDT)
+	id A64AE8E0001; Tue,  2 Jul 2019 07:52:12 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id BE80E8E0001
-	for <linux-mm@kvack.org>; Tue,  2 Jul 2019 06:46:30 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id 30so9391122pgk.16
-        for <linux-mm@kvack.org>; Tue, 02 Jul 2019 03:46:30 -0700 (PDT)
+Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 7AFF66B0003
+	for <linux-mm@kvack.org>; Tue,  2 Jul 2019 07:52:12 -0400 (EDT)
+Received: by mail-ot1-f70.google.com with SMTP id 20so6975676otv.1
+        for <linux-mm@kvack.org>; Tue, 02 Jul 2019 04:52:12 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=6cBwA3P4pK6o2+nVZ7Vcd7+4pu0xybI+tIRbsYv/qE0=;
-        b=gkLEhNb2EhctztzN6VWUKisXbCFdHF18u4EE7ccfZjn1BkOOorwnLy+E7Ie8z5Zp3Y
-         qaU0iC5iHbTndIoVdOhse30reT8vGac2rroFWkjuwGAsl9pZ7ihP/crX/wBCq/XykdM8
-         t0bw5w9Vrx+rXgYJWNTBNtD+NuJZtH0iS6INj25OR9kWd1ErovDY1w+RpPHuq5ui65bd
-         l5diP66x1WYfLV/tjQQRUWYjr1+ZzQwMUh35IDBgUOQowpjd+CKQCTqXeN23LO1oD2UR
-         /VERCibLBJHXOIH0WvKoQE48RUAREbv5TspgI7TCIakq1hmiLvTuaEiLeeX/KWuwOf7O
-         XCDA==
-X-Gm-Message-State: APjAAAUE3tnS2fQdcrFzC2v6VTyUbeKj3wfPDvVlX2AdO6JTvCZHy2bX
-	Hi8MDvggnpotFdBlAvyvThrS/Y/7o0rpIEuwkMrfnunk3N24ipsIfoOHlpG6Iwqo8ptDdf4vamu
-	U7YbHLAhemD5MoFiI3koDNJbH+xw8k8+0WfZSsiuPfqVceCdPSGm91aci0WM++YiHrw==
-X-Received: by 2002:a17:90a:c596:: with SMTP id l22mr4957331pjt.46.1562064390334;
-        Tue, 02 Jul 2019 03:46:30 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxIZ4Wl+I0hVP2oPCOLitMK7JdKZSW5rsZRQ3eFNR9mTfaXleHO6cKwK1VkZh5zkvCpZHpt
-X-Received: by 2002:a17:90a:c596:: with SMTP id l22mr4957255pjt.46.1562064389462;
-        Tue, 02 Jul 2019 03:46:29 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562064389; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc
+         :content-transfer-encoding;
+        bh=fUAgbAMqKNku6wAR/i42DQOgnry+BJIVEUNtTrD/bls=;
+        b=csGUQG5FbKgtL/cgc9zVLarfTZOvT7VF/Dl1Rqnl/omt7yvh5QB2O1tBuxMv2ibGmO
+         IcvVU2WJp00uaJiyla5driO7NL2orVVxXhNlpo5WtCxt8PUa2hS/J+S/3kop7tuq2NbX
+         d3VYgWoMLRSN8eAHL22MlVq6K7xHCljOHSmkHAh8xdiebg3erg5/5qB6Zyz/X0oMODwG
+         Jffre3lhKUU5wE6RWJaYwiBrUCjtu7B/rLYvbbm24xPPDy/qYW7623NBkZbpGZ2wFr+A
+         L+A+Pm8bjrokkmdFUR+jwjTjyoTHX/dQNdBUPRmmv0tkZENLScjEJpUDAIlc+pIGUlAQ
+         iD5w==
+X-Gm-Message-State: APjAAAVp1ABJyjNDc2T3IArYyPNeeEb4ShkRNN7Mr+B7qTh6ZQALCfQW
+	TW7RmZLrVU1svtB1tGQrK2epzqunw7O3NMb8LrKi45Ye23ZzYkRK1geAlQ5ODRvYJ2OC+pKMchQ
+	kap9x+/RDrscwlxTnhfxrHXJGHi8ZT9y+zgEiVW6Yw0r4gVFLhAZiGeYAtJGxw8UXIw==
+X-Received: by 2002:a9d:73cb:: with SMTP id m11mr22529104otk.276.1562068332061;
+        Tue, 02 Jul 2019 04:52:12 -0700 (PDT)
+X-Received: by 2002:a9d:73cb:: with SMTP id m11mr22529074otk.276.1562068331384;
+        Tue, 02 Jul 2019 04:52:11 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562068331; cv=none;
         d=google.com; s=arc-20160816;
-        b=mEwy0rbjBFcsFqhglTW7K+0cU/vB0ejlCrF0JyCJYt/ELAal8rUmHsoNqzTYsRqCpr
-         uhGwdaZkHB0ehlZbUXCJ2UJoGYB4PbXqicqQ225zfAuqHjzKHYywfXtVPqGTANnvKddd
-         2tDxceqqMBTAjLkPYKKUkCTPnQRWIoDsiv4hZm5USjXCIpkXpGIDVAj4TfLTOaNp6/HX
-         fqDuASWOnZIxPSez4nTVKidLvRAadgLC3lHL//nigMS7IA5wDhYuTb0ksQ7gxpSs1EMC
-         Ol3JyB0kKOX04wEMzcl3GcjEVV9Zhqez5FELeSrYPjQiAgYD3o5VGtkPuiiteKC9o627
-         SCxQ==
+        b=Q+tYfPGXgsmc/mJ2BS/1KksOmGSPT39UTkYrd07+8WmVzowy0U7m5tifPRUWC6YAlu
+         Tb+EG1sugsmDi6/R6vRTt6z6NLG3/eajdslJPFAakP4tXXRGUBLLoLThDkyB3BwMdZ96
+         gWOiK4ubO10BM+MwVgMMzwMlwJksOePiqUVUFKLc9KCKrugftNSf2ilPQO3qYDReb/Zw
+         OmxX5QHni+CvP8ZX5iuiGSkvDxEJvr1x5Gx5x/gWHqoyfZXeZ63MjGfDBpBerg2W701i
+         BPhcpov78lnS8D2rW1RMqcrbRMsO5v5UzondV1T+cxuVVnBwyHH4Or4JZijy26aWnKDe
+         6IsQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=6cBwA3P4pK6o2+nVZ7Vcd7+4pu0xybI+tIRbsYv/qE0=;
-        b=wm+LOAk36Kq/5tiQWBsBzz6jjye43ELMf2n/vjcClj8alIiBq78QPLZCGn/VgaHBVq
-         hINOXfZHZKLbGscMuIwu/XmB0fuBDzL1EowLJWmUrdWnKBJQSCjMWeD6Jvn8R/LVrNQw
-         mWm3ee3pGpOsmiFT/o1XfQb3Ovlys3RO/W467UlqGea1RZ6K93of013ikzkPLIFc8vIG
-         mBuy+n62oDWi5CRv9LDY3jcUqtLpnwPsvTso8A3mEKwx6mKHpb9/Au0o7SHKUCgRQul0
-         YwLfQ/sJFN7pl4PTV22PKGzge82ehGWVeRCj6P50gt1nubdRJKEQ5J5f8koMivrEgN9J
-         43VQ==
+        h=content-transfer-encoding:cc:to:subject:message-id:date:from
+         :in-reply-to:references:mime-version:dkim-signature;
+        bh=fUAgbAMqKNku6wAR/i42DQOgnry+BJIVEUNtTrD/bls=;
+        b=AL5LLPxYIBaeG6oEbjJWlWDdHnlSgeMRgkgrqACtZZomUaR9RUahlcqJOqOYCmcjL0
+         XVyq0ZjGCaewpW9lAaviyxqVYruk2Uj7RH7NIu+bGb3NP4dzCT5BtShsGka7oulDYBN/
+         +4wHzJcTeO2xkWbVVfUwHh/XW1l0gZmxGfyUfMBqo4eYdnP2XH2vxxo7J2EHFVt4sLjM
+         eMmIjtuRyBcBboT4fG1vV64ts2TxK1EOLegyPMx1/9wETwOXpZvwTocuqJ3KTVxHCjf6
+         Vy3pt2yMWMm4m5TiKb2nZ2yfEZVR1lKC5pIcETQZfypqUuLSBcV5PIuKvpeDXa65z6G4
+         eoMg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=lHT1gLTx;
-       spf=pass (google.com: domain of will@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=will@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id c1si12764962pgp.45.2019.07.02.03.46.29
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=TwplpaWz;
+       spf=pass (google.com: domain of lpf.vector@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=lpf.vector@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 40sor7035552otj.175.2019.07.02.04.52.11
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 02 Jul 2019 03:46:29 -0700 (PDT)
-Received-SPF: pass (google.com: domain of will@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        (Google Transport Security);
+        Tue, 02 Jul 2019 04:52:11 -0700 (PDT)
+Received-SPF: pass (google.com: domain of lpf.vector@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=lHT1gLTx;
-       spf=pass (google.com: domain of will@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=will@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from willie-the-truck (236.31.169.217.in-addr.arpa [217.169.31.236])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 1F1912089C;
-	Tue,  2 Jul 2019 10:46:26 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1562064389;
-	bh=d+I6qmH/QCTka+zqQ3WJk0DN02qfJCa2dtx6zDjiFBw=;
-	h=Date:From:To:Cc:Subject:References:In-Reply-To:From;
-	b=lHT1gLTx89TB/WseAPEgeg3jwtTWQV6ml6he79iKQjNFXeKsq2Y/pY0Qx/aENG06K
-	 5DpyVTVBeZpDKR0tWxu8dHhMryM4/aMUuF6qEwhyWZfjnxML3x5zfiPL6RrMGHFpNu
-	 6t0z6xuHoV/H6X4hqAqpwROND3ZAIpBEhas5HSAI=
-Date: Tue, 2 Jul 2019 11:46:24 +0100
-From: Will Deacon <will@kernel.org>
-To: Nicholas Piggin <npiggin@gmail.com>
-Cc: Steven Price <steven.price@arm.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Anshuman Khandual <anshuman.khandual@arm.com>,
-	Ard Biesheuvel <ard.biesheuvel@linaro.org>,
-	Catalin Marinas <catalin.marinas@arm.com>,
-	Christophe Leroy <christophe.leroy@c-s.fr>,
-	linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org,
-	linuxppc-dev@lists.ozlabs.org, Mark Rutland <mark.rutland@arm.com>,
-	Will Deacon <will.deacon@arm.com>
-Subject: Re: Re: [PATCH 1/3] arm64: mm: Add p?d_large() definitions
-Message-ID: <20190702104623.6mgpqt5ns4sj32in@willie-the-truck>
-References: <20190623094446.28722-1-npiggin@gmail.com>
- <20190623094446.28722-2-npiggin@gmail.com>
- <20190701092756.s4u5rdjr7gazvu66@willie-the-truck>
- <3d002af8-d8cd-f750-132e-12109e1e3039@arm.com>
- <20190701101510.qup3nd6vm6cbdgjv@willie-the-truck>
- <1562036522.cz5nnz6ri2.astroid@bobo.none>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=TwplpaWz;
+       spf=pass (google.com: domain of lpf.vector@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=lpf.vector@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc:content-transfer-encoding;
+        bh=fUAgbAMqKNku6wAR/i42DQOgnry+BJIVEUNtTrD/bls=;
+        b=TwplpaWzSJwwXJl/kevHVibUDcoZoN47NijeFdvawHyiqOjNpW3kyU8/UWXglV+VqL
+         hiRnZ+dndcrYdDnKvMQhQNwlOkVtROB+ER9CLEXaOLg6NxsRmwHCN7L/urW2rmnx6lgG
+         2x764ztR3E/QoskDHkEK01aQrf1eJ+7Dz4FJLFUdJXSp+a6/gTDT6xbV5jmWyW3QNYh5
+         eW3/JV/e0PwYcfCRMDGR7Kxu6PJ8NuhdDZ08fzKCTqjIO73e0GJWY7RqCwBWKVf4OhgW
+         rbGUkWqIvgoF+jjDUjtA1fy2kcPQ+JJAZ3K7SdyLMRikwFlGiV/v3GF4zy1VrWN4yZcm
+         HY3A==
+X-Google-Smtp-Source: APXvYqyVo5SJxrDdlm0tkmwJLz8dVGc7228Y1I8ugG05SWKDquXCGm4PbTVv7Y6kqpcpNDqZRAG74O8rxuDWKX/z0o0=
+X-Received: by 2002:a05:6830:2098:: with SMTP id y24mr1506012otq.173.1562068331167;
+ Tue, 02 Jul 2019 04:52:11 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1562036522.cz5nnz6ri2.astroid@bobo.none>
-User-Agent: NeoMutt/20170113 (1.7.2)
+References: <20190630075650.8516-1-lpf.vector@gmail.com> <20190701092037.GL6376@dhcp22.suse.cz>
+In-Reply-To: <20190701092037.GL6376@dhcp22.suse.cz>
+From: oddtux <lpf.vector@gmail.com>
+Date: Tue, 2 Jul 2019 19:51:59 +0800
+Message-ID: <CAD7_sbHzn4PTOvEYw7FVUapQ9xVH4VU8X3WUarrAs1rcvnQFEQ@mail.gmail.com>
+Subject: Re: [PATCH 0/5] mm/vmalloc.c: improve readability and rewrite vmap_area
+To: Michal Hocko <mhocko@kernel.org>
+Cc: akpm@linux-foundation.org, peterz@infradead.org, urezki@gmail.com, 
+	rpenyaev@suse.de, guro@fb.com, aryabinin@virtuozzo.com, rppt@linux.ibm.com, 
+	mingo@kernel.org, rick.p.edgecombe@intel.com, linux-mm@kvack.org, 
+	linux-kernel@vger.kernel.org
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jul 02, 2019 at 01:07:11PM +1000, Nicholas Piggin wrote:
-> Will Deacon's on July 1, 2019 8:15 pm:
-> > On Mon, Jul 01, 2019 at 11:03:51AM +0100, Steven Price wrote:
-> >> On 01/07/2019 10:27, Will Deacon wrote:
-> >> > On Sun, Jun 23, 2019 at 07:44:44PM +1000, Nicholas Piggin wrote:
-> >> >> walk_page_range() is going to be allowed to walk page tables other than
-> >> >> those of user space. For this it needs to know when it has reached a
-> >> >> 'leaf' entry in the page tables. This information will be provided by the
-> >> >> p?d_large() functions/macros.
-> >> > 
-> >> > I can't remember whether or not I asked this before, but why not call
-> >> > this macro p?d_leaf() if that's what it's identifying? "Large" and "huge"
-> >> > are usually synonymous, so I find this naming needlessly confusing based
-> >> > on this patch in isolation.
-> 
-> Those page table macro names are horrible. Large, huge, leaf, wtf?
-> They could do with a sensible renaming. But this series just follows
-> naming that's alreay there on x86.
+Michal Hocko <mhocko@kernel.org> =E4=BA=8E2019=E5=B9=B47=E6=9C=881=E6=97=A5=
+=E5=91=A8=E4=B8=80 =E4=B8=8B=E5=8D=885:20=E5=86=99=E9=81=93=EF=BC=9A
+>
+> On Sun 30-06-19 15:56:45, Pengfei Li wrote:
+> > Hi,
+> >
+> > This series of patches is to reduce the size of struct vmap_area.
+> >
+> > Since the members of struct vmap_area are not being used at the same ti=
+me,
+> > it is possible to reduce its size by placing several members that are n=
+ot
+> > used at the same time in a union.
+> >
+> > The first 4 patches did some preparatory work for this and improved
+> > readability.
+> >
+> > The fifth patch is the main patch, it did the work of rewriting vmap_ar=
+ea.
+> >
+> > More details can be obtained from the commit message.
+>
+> None of the commit messages talk about the motivation. Why do we want to
+> add quite some code to achieve this? How much do we save? This all
+> should be a part of the cover letter.
+>
 
-I realise that, and I wasn't meaning to have a go at you. Just wanted to
-make my opinion clear by having a moan :)
+Hi Michal,
 
-Will
+Thank you for your comments.
+
+Sorry for the commit without any test data.
+I will add motivation and necessary test data in the next version.
+
+Best regards,
+
+Pengfei
+
+> > Thanks,
+> >
+> > Pengfei
+> >
+> > Pengfei Li (5):
+> >   mm/vmalloc.c: Introduce a wrapper function of insert_vmap_area()
+> >   mm/vmalloc.c: Introduce a wrapper function of
+> >     insert_vmap_area_augment()
+> >   mm/vmalloc.c: Rename function __find_vmap_area() for readability
+> >   mm/vmalloc.c: Modify function merge_or_add_vmap_area() for readabilit=
+y
+> >   mm/vmalloc.c: Rewrite struct vmap_area to reduce its size
+> >
+> >  include/linux/vmalloc.h |  28 +++++---
+> >  mm/vmalloc.c            | 144 +++++++++++++++++++++++++++-------------
+> >  2 files changed, 117 insertions(+), 55 deletions(-)
+> >
+> > --
+> > 2.21.0
+>
+> --
+> Michal Hocko
+> SUSE Labs
 
