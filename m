@@ -2,424 +2,672 @@ Return-Path: <SRS0=T9E7=U7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-10.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-13.5 required=3.0
+	tests=HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	MENTIONS_GIT_HOSTING,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 64EF4C06510
-	for <linux-mm@archiver.kernel.org>; Tue,  2 Jul 2019 14:16:51 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 34DF9C06515
+	for <linux-mm@archiver.kernel.org>; Tue,  2 Jul 2019 14:20:17 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1318420665
-	for <linux-mm@archiver.kernel.org>; Tue,  2 Jul 2019 14:16:51 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="niR9yO0Y"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1318420665
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id D56B42183F
+	for <linux-mm@archiver.kernel.org>; Tue,  2 Jul 2019 14:20:16 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D56B42183F
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B322B8E0008; Tue,  2 Jul 2019 10:16:50 -0400 (EDT)
+	id 5D7476B0003; Tue,  2 Jul 2019 10:20:16 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B09468E0001; Tue,  2 Jul 2019 10:16:50 -0400 (EDT)
+	id 560008E0003; Tue,  2 Jul 2019 10:20:16 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9D05F8E0008; Tue,  2 Jul 2019 10:16:50 -0400 (EDT)
+	id 3D9F08E0001; Tue,  2 Jul 2019 10:20:16 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 628C88E0001
-	for <linux-mm@kvack.org>; Tue,  2 Jul 2019 10:16:50 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id i13so1036443pgq.3
-        for <linux-mm@kvack.org>; Tue, 02 Jul 2019 07:16:50 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D66D06B0003
+	for <linux-mm@kvack.org>; Tue,  2 Jul 2019 10:20:15 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id d27so19572524eda.9
+        for <linux-mm@kvack.org>; Tue, 02 Jul 2019 07:20:15 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=CO1HonlQmPbMkXDhRXg7GyAorrH54gcigaOJMEfOSWg=;
-        b=iBUD+lfrphuu5v784jRforRu8meCdBn410Uav3/cBreGT2SnbuDVNKTkz90Rpfb33s
-         tAoP0DJCnZg92iRdxRfcvpoDIm0mtMj2wDOoFns2ZPZS1SkXg+rMCKHDaOpfHFcs8Y+7
-         iWwNMsX7jB0j4kOhQG/fY8WuUHYhiqNfUNFyJ5VkV8GBsiZiHaGMbxMHr5edMnV+zn2H
-         1947zjIM/o85ZPdycBnnJ1S7JK7YHbANMB+uEdeyG6qQScq5mkEwrXKQ3gsFYOpqzRe0
-         B/OKsgKlfDD6PaMiD5bDRKzcouRwHW/MymOtZCT5QC1vcFM1K8ZIdj2TjQooLdbcfqHI
-         0bjw==
-X-Gm-Message-State: APjAAAW5TJrzIEZxisketqg5dQ+Y42Hh95LkHGLntRC6T56WEG22+V2a
-	ktWaJoGZn6qR7c2NFNGpxxRc6VoFCHxNRen8T5e1hKGMkORLCNjYptX/t8J+bteRkFGjR54NHZe
-	1QpOKZ7O3haJJoKq3tSdD5xjMXxaIPRz1Dl+ziIbq/pIKZuVEW/S7NMcTxr3htYHfhA==
-X-Received: by 2002:a17:902:6b44:: with SMTP id g4mr35333954plt.152.1562077010032;
-        Tue, 02 Jul 2019 07:16:50 -0700 (PDT)
-X-Received: by 2002:a17:902:6b44:: with SMTP id g4mr35333863plt.152.1562077008944;
-        Tue, 02 Jul 2019 07:16:48 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562077008; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=N1bQKvAa1B/1FWkAFHigi6z0OOVNRyWnM/hOn3I6fCU=;
+        b=Z6BJpu5aWVl8L6TlHmg5WTfyry1pkgtbwnTWP9CKLzApQDNrWDUnGL4OBpHGCLUr5w
+         3aQvyVGdrYfciiwVwklpbPNiYiijm5SDJhtuxtol0Y4XseO0k5dRDurmHFKgAN7zFS/p
+         M95VzhvG2s1DRZ2IAIOdVrv29sGftLNmyBNqoaojAQNl9oN5GWd6TgoCKnqzIddSO3PL
+         iX2Ks+iqsN1iX28bNxVsJP0mV7rOQNXGVmd95bzuCGeL2Pg0lbylB54N3fy4ABEx/Fiu
+         hJ+F0+i8lXTllXDUB4MXso1Z8VBiN9e+sqqL9hohEUnCcQfshJPTX26zioWFo4oH94JC
+         izlA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.martin@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=Dave.Martin@arm.com
+X-Gm-Message-State: APjAAAWWWzZZjGWUh0sEONs/Xn+acxhmagNEsJ65veJO1tU5rvAr0o8q
+	NvqRdzybjojjR5tUMfRIrfPnn/DAdVG3JJjU+TgN+E4QkM54Q+WN2RGoqsnCBAwJCil8P5l7/2M
+	ne0xWJljHBWZIHi8AYNxM6nLc0hbwL/rAa7H0wYCThcIf9XxKhgmGprotRt9VcRq+Kw==
+X-Received: by 2002:a05:6402:78c:: with SMTP id d12mr36350225edy.160.1562077215276;
+        Tue, 02 Jul 2019 07:20:15 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwV/42WcYe9y34h6WrbfNCMavDbGbnNfMKBEqRP5Li8C83tp0LpUibKvfJ6x929qa+qA3ek
+X-Received: by 2002:a05:6402:78c:: with SMTP id d12mr36350093edy.160.1562077213906;
+        Tue, 02 Jul 2019 07:20:13 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562077213; cv=none;
         d=google.com; s=arc-20160816;
-        b=H8Y9fLMK3TBEOfrNniq6MDE6O4bINp89Z2BuSW2/5RyGg+FLKSXnA2BtRSOlbbX7Bt
-         wHkIYWPwbhZodSDMJac3xP8m0sOcBRAv7k2S3YS096nbK0MHCiTCmtxdW40kah+cQDBh
-         pAKVngT6q3S/r2Lzfc5CoNP6DqGVG+v7f4dP4Cv+tjbQz6kGP2FGe0FRwltNlzezxpfm
-         xDGC3QPAQjR4D792JrqmUl/obQtNknr8DbPP2ipT7HBPFI038S36PDqLhNiRULByFx87
-         2QS4R6JV0G2djuNoN0raOThsOVfk6bG7o0jPeNKfj7LgFimjSPmCm5OSWKuemZiImO1w
-         qdlQ==
+        b=vJIffWd4XnZniWiQ5HboY7h/knTBfKB+wVdVmZurc1DLeh1MXUbvkx9JQwzhkF+jLB
+         yzOb3KK4lLoFDp2zY7tZ+AWGtXJO7YGtgT6ss1b4T+V0n1+396nZkRYKrTSHOBws/Ise
+         dhy6zb6bTJ9GU5dsOOcyLEea4bC5FdIiP1PShuzpIt35TM6pR5Xg8rMVAhTar+9a8fSb
+         Gu95ePB4hKQ95NiIQvqNp5ntnWDyZ0T9wRgRVkvQrrbdBymSvPV0IIvyR9P/k5mSXZKA
+         CH9nOkpOGLgCqnOrmh+f7yfakAf2Uy7hzqrPI+d1laaH9SvllQ1EWnz01Zd2xUyY52Fa
+         Hlsg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=CO1HonlQmPbMkXDhRXg7GyAorrH54gcigaOJMEfOSWg=;
-        b=t7lrgD5vQU0LKhGMCFSUkKiYolIsLcqk7p3IgJuKrz3OLFyAlcdBDjGP8Qzq7XjjLS
-         /flJ4T+6gZx1/uxFCKezhNTIctyROztmFM1fDW/vKjFbJ97kNWWgy/zRFD1i6kU8c2Ql
-         0mwelND5m7YyIZc4EiZrt7AUB7d8/MY9XLgqDpvRyLeonGd5uePjIEAoJifNGpWskDxa
-         /cUA8i1mEXCzkdOfFa32YIlcn+aneebQUjRL4eoEnAL0PaeY7rOU7M/GPYaR1jw4wq8o
-         ivcjMs9B7ckt5SBq9iXVa3rgXVwiI8VP7z6EgjLPvxdlxWH1FLji/1YeK41qG2HkXgcd
-         tC6A==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=N1bQKvAa1B/1FWkAFHigi6z0OOVNRyWnM/hOn3I6fCU=;
+        b=w/GCJZYt9tiijoOX1K58JUqDkEyrq3qTtNybQhVT5WzF6LCwG7/kPW330qxPOt6tOL
+         WRlbuGlAGvQbXZRHDXx5i0pieZ6W+RK4xuzdT5dCePRF7cSf7u/q0uO7ObNYABob5xjc
+         3ztj/nrs9NoyBR0Gp37kcNa3ZhT2kS3Vtz3qfQnLxl1m85s10m1djhAaKku2YF+gub+V
+         +MdBbWHxnNr/E3BxbZKEzTDNoB9Eu4fk4d2bC3HxyeCUPXXbqSZ53beVkKTmgMjeV9zJ
+         1ycQX/Wbgrq7KvDYhIxtTcy9WMrsUbOjwBXIV2NyAVZ+42mRLdoVCfn0i6SPLXu2rog+
+         pKzw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=niR9yO0Y;
-       spf=pass (google.com: domain of lpf.vector@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=lpf.vector@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id a20sor6575963pgm.3.2019.07.02.07.16.48
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 02 Jul 2019 07:16:48 -0700 (PDT)
-Received-SPF: pass (google.com: domain of lpf.vector@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+       spf=pass (google.com: domain of dave.martin@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=Dave.Martin@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
+        by mx.google.com with ESMTP id y9si11143084edb.262.2019.07.02.07.20.13
+        for <linux-mm@kvack.org>;
+        Tue, 02 Jul 2019 07:20:13 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dave.martin@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=niR9yO0Y;
-       spf=pass (google.com: domain of lpf.vector@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=lpf.vector@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=from:to:cc:subject:date:message-id:in-reply-to:references
-         :mime-version:content-transfer-encoding;
-        bh=CO1HonlQmPbMkXDhRXg7GyAorrH54gcigaOJMEfOSWg=;
-        b=niR9yO0Y/6o7iMNZeCRrGiwL+NCvbnvMkK++I7yQezM12HqY5Om9yRWzwzgpOmCDzp
-         3sb9lK454kLeAXM7oZsP6/OtTazGiNWNT542jvQbXsmwSzMkrTMcnUeH6Qe1AnilDLBf
-         AdcBWSskv9foofZdhLVVJVy4K+EuA7/Ar2r7m4tcJJt+aTsY5ooeib84iEsF5Fg4bdpT
-         rkBatzipJ/lY2NhGYA+TwY3w+A4cIACybC+cUjGRoZFC0I0tJc2IxerM2y47NnVm9Q3l
-         5fsPC2Otl/tgrUKoI/pt5S00yDdQYqFWd51+Fz+6xrrmS5QppxCxm0pcKF3FU3oFc5Ft
-         uLxQ==
-X-Google-Smtp-Source: APXvYqzJbwkaxbHtL6VK4vg0aa1y5tweDY+u4FYqKxaFH2XhqHmwVbU5lZzvniumVZ6N9r+MAq6xPg==
-X-Received: by 2002:a63:c508:: with SMTP id f8mr50576pgd.48.1562077008475;
-        Tue, 02 Jul 2019 07:16:48 -0700 (PDT)
-Received: from localhost.localdomain.localdomain ([2408:823c:c11:648:b8c3:8577:bf2f:2])
-        by smtp.gmail.com with ESMTPSA id a5sm744617pjv.21.2019.07.02.07.16.39
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Tue, 02 Jul 2019 07:16:48 -0700 (PDT)
-From: Pengfei Li <lpf.vector@gmail.com>
-To: akpm@linux-foundation.org,
-	peterz@infradead.org,
-	urezki@gmail.com
-Cc: rpenyaev@suse.de,
-	mhocko@suse.com,
-	guro@fb.com,
-	aryabinin@virtuozzo.com,
-	rppt@linux.ibm.com,
-	mingo@kernel.org,
-	rick.p.edgecombe@intel.com,
-	linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org,
-	Pengfei Li <lpf.vector@gmail.com>
-Subject: [PATCH v2 5/5] mm/vmalloc.c: Rewrite struct vmap_area to reduce its size
-Date: Tue,  2 Jul 2019 22:15:41 +0800
-Message-Id: <20190702141541.12635-6-lpf.vector@gmail.com>
-X-Mailer: git-send-email 2.21.0
-In-Reply-To: <20190702141541.12635-1-lpf.vector@gmail.com>
-References: <20190702141541.12635-1-lpf.vector@gmail.com>
+       spf=pass (google.com: domain of dave.martin@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=Dave.Martin@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id B0A2128;
+	Tue,  2 Jul 2019 07:20:12 -0700 (PDT)
+Received: from e103592.cambridge.arm.com (usa-sjc-imap-foss1.foss.arm.com [10.121.207.14])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 07E723F703;
+	Tue,  2 Jul 2019 07:20:08 -0700 (PDT)
+Date: Tue, 2 Jul 2019 15:20:06 +0100
+From: Dave Martin <Dave.Martin@arm.com>
+To: Yu-cheng Yu <yu-cheng.yu@intel.com>
+Cc: x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>,
+	Thomas Gleixner <tglx@linutronix.de>,
+	Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org,
+	linux-doc@vger.kernel.org, linux-mm@kvack.org,
+	linux-arch@vger.kernel.org, linux-api@vger.kernel.org,
+	Arnd Bergmann <arnd@arndb.de>,
+	Andy Lutomirski <luto@amacapital.net>,
+	Balbir Singh <bsingharora@gmail.com>,
+	Borislav Petkov <bp@alien8.de>,
+	Cyrill Gorcunov <gorcunov@gmail.com>,
+	Dave Hansen <dave.hansen@linux.intel.com>,
+	Eugene Syromiatnikov <esyr@redhat.com>,
+	Florian Weimer <fweimer@redhat.com>,
+	"H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>,
+	Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>,
+	Mike Kravetz <mike.kravetz@oracle.com>,
+	Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>,
+	Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>,
+	Randy Dunlap <rdunlap@infradead.org>,
+	"Ravi V. Shankar" <ravi.v.shankar@intel.com>,
+	Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
+Subject: Re: [RFC PATCH] binfmt_elf: Extract .note.gnu.property from an ELF
+ file
+Message-ID: <20190702141959.GP2790@e103592.cambridge.arm.com>
+References: <20190628172203.797-1-yu-cheng.yu@intel.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190628172203.797-1-yu-cheng.yu@intel.com>
+User-Agent: Mutt/1.5.23 (2014-03-12)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Objective
----------
-The current implementation of struct vmap_area wasted space. At the
-determined stage, not all members of the structure will be used.
+On Fri, Jun 28, 2019 at 10:22:03AM -0700, Yu-cheng Yu wrote:
+> This patch was part of the Intel Control-flow Enforcement (CET) series at:
+> 
+>     https://lkml.org/lkml/2019/6/6/1014.
+> 
+> In the discussion, we decided to look at only an ELF header's
+> PT_GNU_PROPERTY, which is a shortcut pointing to the file's
+> .note.gnu.property.
+> 
+> The Linux gABI extension draft is here:
+> 
+>     https://github.com/hjl-tools/linux-abi/wiki/linux-abi-draft.pdf.
+> 
+> A few existing CET-enabled binary files were built without
+> PT_GNU_PROPERTY; but those files' .note.gnu.property are checked by
+> ld-linux, not Linux.  The compatibility impact from this change is
+> therefore managable.
 
-For this problem, this commit places multiple structural members that
-are not being used at the same time into a union to reduce the size
-of the structure.
+That's convenient :)
 
-And local test results show that this commit will not hurt performance.
+> An ELF file's .note.gnu.property indicates features the executable file
+> can support.  For example, the property GNU_PROPERTY_X86_FEATURE_1_AND
+> indicates the file supports GNU_PROPERTY_X86_FEATURE_1_IBT and/or
+> GNU_PROPERTY_X86_FEATURE_1_SHSTK.
+> 
+> With this patch, if an arch needs to setup features from ELF properties,
+> it needs CONFIG_ARCH_USE_GNU_PROPERTY to be set, and specific
+> arch_parse_property() and arch_setup_property().
+> 
+> This work is derived from code provided by H.J. Lu <hjl.tools@gmail.com>.
 
-After applying this commit, sizeof(struct vmap_area) has been reduced
-from 11 words to 8 words.
+Thanks for reworking this ... comments below.
 
-Description
------------
-Members of struct vmap_area are not being used at the same time.
-For example,
-(1)members @flags, @purge_list, and @vm are unused when vmap area is
-in the *FREE* tree;
+> Signed-off-by: Yu-cheng Yu <yu-cheng.yu@intel.com>
+> ---
+>  fs/Kconfig.binfmt        |   3 +
+>  fs/Makefile              |   1 +
+>  fs/binfmt_elf.c          |  20 +++
+>  fs/gnu_property.c        | 279 +++++++++++++++++++++++++++++++++++++++
+>  include/linux/elf.h      |  11 ++
+>  include/uapi/linux/elf.h |  14 ++
+>  6 files changed, 328 insertions(+)
+>  create mode 100644 fs/gnu_property.c
+> 
+> diff --git a/fs/Kconfig.binfmt b/fs/Kconfig.binfmt
+> index f87ddd1b6d72..397138ab305b 100644
+> --- a/fs/Kconfig.binfmt
+> +++ b/fs/Kconfig.binfmt
+> @@ -36,6 +36,9 @@ config COMPAT_BINFMT_ELF
+>  config ARCH_BINFMT_ELF_STATE
+>  	bool
+>  
+> +config ARCH_USE_GNU_PROPERTY
+> +	bool
+> +
+>  config BINFMT_ELF_FDPIC
+>  	bool "Kernel support for FDPIC ELF binaries"
+>  	default y if !BINFMT_ELF
+> diff --git a/fs/Makefile b/fs/Makefile
+> index c9aea23aba56..b69f18c14e09 100644
+> --- a/fs/Makefile
+> +++ b/fs/Makefile
+> @@ -44,6 +44,7 @@ obj-$(CONFIG_BINFMT_ELF)	+= binfmt_elf.o
+>  obj-$(CONFIG_COMPAT_BINFMT_ELF)	+= compat_binfmt_elf.o
+>  obj-$(CONFIG_BINFMT_ELF_FDPIC)	+= binfmt_elf_fdpic.o
+>  obj-$(CONFIG_BINFMT_FLAT)	+= binfmt_flat.o
+> +obj-$(CONFIG_ARCH_USE_GNU_PROPERTY) += gnu_property.o
+>  
+>  obj-$(CONFIG_FS_MBCACHE)	+= mbcache.o
+>  obj-$(CONFIG_FS_POSIX_ACL)	+= posix_acl.o
+> diff --git a/fs/binfmt_elf.c b/fs/binfmt_elf.c
+> index 8264b468f283..cbc6d68f4a18 100644
+> --- a/fs/binfmt_elf.c
+> +++ b/fs/binfmt_elf.c
+> @@ -852,6 +852,21 @@ static int load_elf_binary(struct linux_binprm *bprm)
+>  			}
+>  	}
+>  
+> +	if (interpreter) {
+> +		retval = arch_parse_property(&loc->interp_elf_ex,
+> +					     interp_elf_phdata,
+> +					     interpreter, true,
+> +					     &arch_state);
+> +	} else {
+> +		retval = arch_parse_property(&loc->elf_ex,
+> +					     elf_phdata,
+> +					     bprm->file, false,
+> +					     &arch_state);
+> +	}
+> +
+> +	if (retval)
+> +		goto out_free_dentry;
+> +
+>  	/*
+>  	 * Allow arch code to reject the ELF at this point, whilst it's
+>  	 * still possible to return an error to the code that invoked
+> @@ -1080,6 +1095,11 @@ static int load_elf_binary(struct linux_binprm *bprm)
+>  		goto out_free_dentry;
+>  	}
+>  
+> +	retval = arch_setup_property(&arch_state);
+> +
+> +	if (retval < 0)
+> +		goto out_free_dentry;
+> +
+>  	if (interpreter) {
+>  		unsigned long interp_map_addr = 0;
+>  
+> diff --git a/fs/gnu_property.c b/fs/gnu_property.c
+> new file mode 100644
+> index 000000000000..37cd503a0c48
+> --- /dev/null
+> +++ b/fs/gnu_property.c
+> @@ -0,0 +1,279 @@
+> +/* SPDX-License-Identifier: GPL-2.0-only */
+> +/*
+> + * Extract an ELF file's .note.gnu.property.
+> + *
+> + * The path from the ELF header to the note section is the following:
+> + * elfhdr->elf_phdr->elf_note->property[].
+> + */
+> +
+> +#include <uapi/linux/elf-em.h>
+> +#include <linux/processor.h>
+> +#include <linux/binfmts.h>
+> +#include <linux/elf.h>
+> +#include <linux/slab.h>
+> +#include <linux/fs.h>
+> +#include <linux/uaccess.h>
+> +#include <linux/string.h>
+> +#include <linux/compat.h>
+> +
+> +/*
+> + * The .note.gnu.property layout:
+> + *
+> + *	struct elf_note {
+> + *		u32 n_namesz; --> sizeof(n_name[]); always (4)
+> + *		u32 n_ndescsz;--> sizeof(property[])
+> + *		u32 n_type;   --> always NT_GNU_PROPERTY_TYPE_0 (5)
+> + *	};
+> + *	char n_name[4]; --> always 'GNU\0'
+> + *
+> + *	struct {
+> + *		struct gnu_property {
+> + *			u32 pr_type;
+> + *			u32 pr_datasz;
+> + *		};
+> + *		u8 pr_data[pr_datasz];
+> + *	}[];
+> + */
+> +
+> +typedef bool (test_item_fn)(void *buf, u32 *arg, u32 type);
+> +typedef void *(next_item_fn)(void *buf, u32 *arg, u32 type);
+> +
+> +static bool test_property(void *buf, u32 *max_type, u32 pr_type)
+> +{
+> +	struct gnu_property *pr = buf;
+> +
+> +	/*
+> +	 * Property types must be in ascending order.
+> +	 * Keep track of the max when testing each.
+> +	 */
+> +	if (pr->pr_type > *max_type)
+> +		*max_type = pr->pr_type;
+> +
+> +	return (pr->pr_type == pr_type);
+> +}
+> +
+> +static void *next_property(void *buf, u32 *max_type, u32 pr_type)
+> +{
+> +	struct gnu_property *pr = buf;
+> +
+> +	if ((buf + sizeof(*pr) + pr->pr_datasz < buf) ||
+> +	    (pr->pr_type > pr_type) ||
+> +	    (pr->pr_type > *max_type))
+> +		return NULL;
+> +	else
+> +		return (buf + sizeof(*pr) + pr->pr_datasz);
+> +}
+> +
+> +/*
+> + * Scan 'buf' for a pattern; return true if found.
+> + * *pos is the distance from the beginning of buf to where
+> + * the searched item or the next item is located.
+> + */
+> +static int scan(u8 *buf, u32 buf_size, int item_size, test_item_fn test_item,
+> +		next_item_fn next_item, u32 *arg, u32 type, u32 *pos)
+> +{
+> +	int found = 0;
+> +	u8 *p, *max;
+> +
+> +	max = buf + buf_size;
+> +	if (max < buf)
+> +		return 0;
+> +
+> +	p = buf;
+> +
+> +	while ((p + item_size < max) && (p + item_size > buf)) {
+> +		if (test_item(p, arg, type)) {
+> +			found = 1;
+> +			break;
+> +		}
+> +
+> +		p = next_item(p, arg, type);
+> +	}
+> +
+> +	*pos = (p + item_size <= buf) ? 0 : (u32)(p - buf);
+> +	return found;
+> +}
+> +
+> +/*
+> + * Search an NT_GNU_PROPERTY_TYPE_0 for the property of 'pr_type'.
+> + */
+> +static int find_property(u32 pr_type, u32 *property, struct file *file,
+> +			 loff_t file_offset, unsigned long desc_size)
+> +{
+> +	u8 *buf;
+> +	int buf_size;
+> +
+> +	u32 buf_pos;
+> +	unsigned long read_size;
+> +	unsigned long done;
+> +	int found = 0;
+> +	int ret = 0;
+> +	u32 last_pr = 0;
+> +
+> +	*property = 0;
+> +	buf_pos = 0;
+> +
+> +	buf_size = (desc_size > PAGE_SIZE) ? PAGE_SIZE : desc_size;
+> +	buf = kmalloc(buf_size, GFP_KERNEL);
+> +	if (!buf)
+> +		return -ENOMEM;
+> +
+> +	for (done = 0; done < desc_size; done += buf_pos) {
+> +		read_size = desc_size - done;
+> +		if (read_size > buf_size)
+> +			read_size = buf_size;
+> +
+> +		ret = kernel_read(file, buf, read_size, &file_offset);
 
-(2)members @subtree_max_size and @purge_list are unused when vmap area is
-in the *BUSY* tree and not in the purge list;
+This can be simpler if we just read the whole PT_GNU_PROPERTY segment
+before hand.
 
-(3)members @subtree_max_size and @vm are unused when vmap area is
-in the *BUSY* tree and in the purge list.
+We should set some sanity limit on the size we accept, but I don't think
+it's realistically going to be very big.
 
-Since members @subtree_max_size, @purge_list and @vm are not used
-at the same time, so they can be placed in a union to reduce the
-size of struct vmap_area.
+> +
+> +		if (ret != read_size)
+> +			return (ret < 0) ? ret : -EIO;
+> +
+> +		ret = 0;
+> +		found = scan(buf, read_size, sizeof(struct gnu_property),
+> +			     test_property, next_property,
+> +			     &last_pr, pr_type, &buf_pos);
+> +
+> +		if ((!buf_pos) || found)
+> +			break;
+> +
+> +		file_offset += buf_pos - read_size;
+> +	}
+> +
+> +	if (found) {
+> +		struct gnu_property *pr =
+> +			(struct gnu_property *)(buf + buf_pos);
+> +
+> +		if (pr->pr_datasz == 4) {
+> +			u32 *max =  (u32 *)(buf + read_size);
+> +			u32 *data = (u32 *)((u8 *)pr + sizeof(*pr));
+> +
+> +			if (data + 1 <= max) {
+> +				*property = *data;
+> +			} else {
+> +				file_offset += buf_pos - read_size;
+> +				file_offset += sizeof(*pr);
+> +				ret = kernel_read(file, property, 4,
+> +						  &file_offset);
+> +			}
+> +		}
+> +	}
+> +
+> +	kfree(buf);
+> +	return ret;
+> +}
+> +
+> +/*
+> + * Look at an ELF file's PT_GNU_PROPERTY for the property of pr_type.
+> + *
+> + * Input:
+> + *	file: the file to search;
+> + *	phdr: the file's elf header;
+> + *	phnum: number of entries in phdr;
+> + *	pr_type: the property type.
+> + *
+> + * Output:
+> + *	The property found.
+> + *
+> + * Return:
+> + *	Zero or error.
+> + */
+> +
+> +static int scan_segments_64(struct file *file, struct elf64_phdr *phdr,
+> +			    int phnum, u32 pr_type, u32 *property)
+> +{
+> +	int i, err;
+> +
+> +	err = 0;
+> +
+> +	for (i = 0; i < phnum; i++, phdr++) {
+> +		if (phdr->p_align != 8)
+> +			continue;
+> +
+> +		if (phdr->p_type == PT_GNU_PROPERTY) {
+> +			struct elf64_note n;
+> +			loff_t pos;
+> +
+> +			/* read note header */
+> +			pos = phdr->p_offset;
+> +			err = kernel_read(file, &n, sizeof(n), &pos);
+> +			if (err < sizeof(n))
+> +				return -EIO;
 
-Besides, since PAGE_ALIGNED(va->va_start) is always true, then @flags and
-@va_start can be placed in a union, and @flags use bits below PAGE_SHIFT.
-After that, the value of @va_start can be corrected by masking @flags.
+Should we check n_type and n_name?
 
-Performance Testing
--------------------
+Maybe we don't need to bother if we trust the tools not to put garbage
+on PT_GNU_PROPERTY.  I'm a little concerned that hjl's spec is pretty
+vague on what the PT_GNU_PROPERTY segment should contain (even it it's
+"obvious").
 
-Test procedure
---------------
+> +
+> +			/* find note payload offset */
+> +			pos = phdr->p_offset + round_up(sizeof(n) + n.n_namesz,
+> +							phdr->p_align);
+> +
+> +			err = find_property(pr_type, property, file,
+> +					    pos, n.n_descsz);
+> +			break;
+> +		}
+> +	}
+> +
+> +	return err;
+> +}
+> +
+> +static int scan_segments_32(struct file *file, struct elf32_phdr *phdr,
+> +			    int phnum, u32 pr_type, u32 *property)
+> +{
+> +	int i, err;
+> +
+> +	err = 0;
+> +
+> +	for (i = 0; i < phnum; i++, phdr++) {
+> +		if (phdr->p_align != 4)
+> +			continue;
+> +
+> +		if (phdr->p_type == PT_GNU_PROPERTY) {
 
-Test result
------------
-(1)Base		(5.2.0-rc7)
-Test items			round_1		round_2		round_3
-fix_size_alloc_test		596666 usec	600600 usec	597993 usec
-full_fit_alloc_test		632614 usec	623770 usec	633657 usec
-long_busy_list_alloc_test	8139257 usec	8162904 usec	8234770 usec
-random_size_alloc_test		4332230 usec	4335376 usec	4322771 usec
-fix_align_alloc_test		1184827 usec	1133574 usec	1148328 usec
-random_size_align_alloc_test	1459814 usec	1467915 usec	1465112 usec
-pcpu_alloc_test			92053 usec	93290 usec	92439 usec
+I wonder whether we should stick a printk_once here, along the lines of
+"malformed PT_GNU_PROPERTY note ignored, go fix your toolchain".
 
-(2)Patched	(5.2.0-rc7 + this series of patches)
-Test items			round_1		round_2		round_3
-fix_size_alloc_test		607753 usec	602034 usec	584153 usec
-full_fit_alloc_test		593415 usec	627681 usec	634853 usec
-long_busy_list_alloc_test	8038797 usec	8012176 usec	8152911 usec
-random_size_alloc_test		4304070 usec	4327863 usec	4588769 usec
-fix_align_alloc_test		1122373 usec	1108628 usec	1145592 usec
-random_size_align_alloc_test	1449265 usec	1475160 usec	1479629 usec
-pcpu_alloc_test			93856 usec	91697 usec	92658 usec
+Otherwise, maybe we don't need to bother to check this at all: if the
+toolchain generates bad binaries, it's arguably not our problem?
 
-(3) Average comparison
-Test items			Avg_base		Avg_patched
-fix_size_alloc_test		598419.6667 usec	597980.0000 usec
-full_fit_alloc_test		630013.6667 usec	618649.6667 usec
-long_busy_list_alloc_test	8178977.0000 usec	8067961.3333 usec
-random_size_alloc_test		4330125.6667 usec	4406900.6667 usec
-fix_align_alloc_test		1155576.3333 usec	1125531.0000 usec
-random_size_align_alloc_test	1464280.3333 usec	1468018.0000 usec
-pcpu_alloc_test			92594.0000 usec		92737.0000 usec
+(For example, we don't even bother to check that e_ident[EI_DATA]
+matches the host endianness..., and we don't look at e_ident[EI_VERSION]
+etc.)
 
-(4) Percentage difference
-Test items			(Avg_base - Avg_patched) / Avg_base
-fix_size_alloc_test		0.0735%
-full_fit_alloc_test		1.8038%
-long_busy_list_alloc_test	1.3573%
-random_size_alloc_test		-1.7730%
-fix_align_alloc_test		2.6000%
-random_size_align_alloc_test	-0.2553%
-pcpu_alloc_test			-0.1544%
+		if (phdr->p_type != PT_GNU_PROPERTY)
+			continue;
 
-Result analysis
----------------
-Because the test results vary within a range, we can conclude that this
-commit does not cause a significant impact on performance.
+		if (phdr->p_align != 4) {
+			/* complaining printk */
+			break;
+		}
 
-Signed-off-by: Pengfei Li <lpf.vector@gmail.com>
----
- include/linux/vmalloc.h | 28 ++++++++++----
- mm/vmalloc.c            | 82 +++++++++++++++++++++++++++++++++--------
- 2 files changed, 87 insertions(+), 23 deletions(-)
+		/* handle PT_GNU_PROPERTY */
 
-diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
-index 51e131245379..bc23d59cf5ae 100644
---- a/include/linux/vmalloc.h
-+++ b/include/linux/vmalloc.h
-@@ -48,18 +48,30 @@ struct vm_struct {
- };
- 
- struct vmap_area {
--	unsigned long va_start;
-+	union {
-+		unsigned long va_start;
-+		/*
-+		 * Only used when vmap area is in the *BUSY* tree
-+		 * and not in the purge_list.
-+		 */
-+		unsigned long flags;
-+	};
-+
- 	unsigned long va_end;
- 
--	/*
--	 * Largest available free size in subtree.
--	 */
--	unsigned long subtree_max_size;
--	unsigned long flags;
-+	union {
-+		/* Only used when vmap area is in the *FREE* tree */
-+		unsigned long subtree_max_size;
-+
-+		/* Only used when vmap area is in the vmap_purge_list */
-+		struct llist_node purge_list;
-+
-+		/* Only used when the VM_VM_AREA flag is set */
-+		struct vm_struct *vm;
-+	};
-+
- 	struct rb_node rb_node;         /* address sorted rbtree */
- 	struct list_head list;          /* address sorted list */
--	struct llist_node purge_list;    /* "lazy purge" list */
--	struct vm_struct *vm;
- };
- 
- /*
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index ad117d16af34..c7e59bc54024 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -329,8 +329,50 @@ EXPORT_SYMBOL(vmalloc_to_pfn);
- #define DEBUG_AUGMENT_PROPAGATE_CHECK 0
- #define DEBUG_AUGMENT_LOWEST_MATCH_CHECK 0
- 
--#define VM_LAZY_FREE	0x02
--#define VM_VM_AREA	0x04
-+
-+/*
-+ * For vmap area in the *BUSY* tree, PAGE_ALIGNED(va->va_start)
-+ * is always true.
-+ * This is guaranteed by calling BUG_ON(offset_in_page(size))
-+ * and BUG_ON(!PAGE_ALIGNED(addr)).
-+ * So define MAX_VA_FLAGS_SHIFT as PAGE_SHIFT.
-+ */
-+#define MAX_VA_FLAGS_SHIFT		PAGE_SHIFT
-+
-+enum VA_FlAGS_TYPE {
-+	VM_VM_AREA = 0x1UL,
-+
-+	/*
-+	 * The value of newly added flags should be between
-+	 * VM_VM_AREA and LAST_VMAP_AREA_FLAGS.
-+	 */
-+
-+	LAST_VMAP_AREA_FLAGS = (1UL << MAX_VA_FLAGS_SHIFT)
-+};
-+
-+#define VMAP_AREA_FLAGS_MASK		(~(LAST_VMAP_AREA_FLAGS - 1))
-+
-+/*
-+ * va->flags should be set with this helper function to ensure
-+ * the correctness of the flag being set, instead of directly
-+ * modifying the va->flags.
-+ */
-+static __always_inline void
-+set_va_flags(struct vmap_area *va, enum VA_FlAGS_TYPE flag)
-+{
-+	BUILD_BUG_ON(!is_power_of_2(flag));
-+
-+	BUILD_BUG_ON(flag >= LAST_VMAP_AREA_FLAGS);
-+
-+	va->flags |= flag;
-+}
-+
-+/* Return the correct value of va->va_start by masking flags */
-+static __always_inline unsigned long
-+get_va_start(struct vmap_area *va)
-+{
-+	return (va->va_start & VMAP_AREA_FLAGS_MASK);
-+}
- 
- static DEFINE_SPINLOCK(vmap_area_lock);
- /* Export for kexec only */
-@@ -399,6 +441,11 @@ static void purge_vmap_area_lazy(void);
- static BLOCKING_NOTIFIER_HEAD(vmap_notify_list);
- static unsigned long lazy_max_pages(void);
- 
-+/*
-+ * va->va_start may contain the value of flags when vmap area is in
-+ * the *BUSY* tree, so use the helper function get_va_start() to get
-+ * the value of va_start instead of directly accessing it.
-+ */
- static struct vmap_area *__search_va_in_busy_tree(unsigned long addr)
- {
- 	struct rb_node *n = vmap_area_root.rb_node;
-@@ -407,7 +454,7 @@ static struct vmap_area *__search_va_in_busy_tree(unsigned long addr)
- 		struct vmap_area *va;
- 
- 		va = rb_entry(n, struct vmap_area, rb_node);
--		if (addr < va->va_start)
-+		if (addr < get_va_start(va))
- 			n = n->rb_left;
- 		else if (addr >= va->va_end)
- 			n = n->rb_right;
-@@ -454,9 +501,9 @@ find_va_links(struct vmap_area *va,
- 		 * or full overlaps.
- 		 */
- 		if (va->va_start < tmp_va->va_end &&
--				va->va_end <= tmp_va->va_start)
-+				va->va_end <= get_va_start(tmp_va))
- 			link = &(*link)->rb_left;
--		else if (va->va_end > tmp_va->va_start &&
-+		else if (va->va_end > get_va_start(tmp_va) &&
- 				va->va_start >= tmp_va->va_end)
- 			link = &(*link)->rb_right;
- 		else
-@@ -1079,8 +1126,8 @@ static struct vmap_area *alloc_vmap_area(unsigned long size,
- 
- 	va->va_start = addr;
- 	va->va_end = addr + size;
--	va->flags = 0;
- 	insert_va_to_busy_tree(va);
-+	va->vm = NULL;
- 
- 	spin_unlock(&vmap_area_lock);
- 
-@@ -1872,11 +1919,12 @@ void __init vmalloc_init(void)
- 		if (WARN_ON_ONCE(!va))
- 			continue;
- 
--		va->flags = VM_VM_AREA;
- 		va->va_start = (unsigned long)tmp->addr;
- 		va->va_end = va->va_start + tmp->size;
--		va->vm = tmp;
- 		insert_va_to_busy_tree(va);
-+
-+		set_va_flags(va, VM_VM_AREA);
-+		va->vm = tmp;
- 	}
- 
- 	/*
-@@ -1969,8 +2017,10 @@ static void setup_vmalloc_vm(struct vm_struct *vm, struct vmap_area *va,
- 	vm->addr = (void *)va->va_start;
- 	vm->size = va->va_end - va->va_start;
- 	vm->caller = caller;
-+
-+	set_va_flags(va, VM_VM_AREA);
- 	va->vm = vm;
--	va->flags |= VM_VM_AREA;
-+
- 	spin_unlock(&vmap_area_lock);
- }
- 
-@@ -2102,9 +2152,11 @@ struct vm_struct *remove_vm_area(const void *addr)
- 		struct vm_struct *vm = va->vm;
- 
- 		spin_lock(&vmap_area_lock);
--		va->vm = NULL;
--		va->flags &= ~VM_VM_AREA;
--		va->flags |= VM_LAZY_FREE;
-+		/*
-+		 * Restore the value of va_start by masking flags
-+		 * before adding vmap area to the purge list.
-+		 */
-+		va->va_start = get_va_start(va);
- 		spin_unlock(&vmap_area_lock);
- 
- 		kasan_free_shadow(vm);
-@@ -3412,9 +3464,9 @@ static int s_show(struct seq_file *m, void *p)
- 	 */
- 	if (!(va->flags & VM_VM_AREA)) {
- 		seq_printf(m, "0x%pK-0x%pK %7ld %s\n",
--			(void *)va->va_start, (void *)va->va_end,
--			va->va_end - va->va_start,
--			va->flags & VM_LAZY_FREE ? "unpurged vm_area" : "vm_map_ram");
-+			(void *)get_va_start(va), (void *)va->va_end,
-+			va->va_end - get_va_start(va),
-+			va->vm ? "unpurged vm_area" : "vm_map_ram");
- 
- 		return 0;
- 	}
--- 
-2.21.0
+> +			struct elf32_note n;
+> +			loff_t pos;
+> +
+> +			/* read note header */
+> +			pos = phdr->p_offset;
+> +			err = kernel_read(file, &n, sizeof(n), &pos);
+
+Would it be simpler just to load the whole segment using phdr->p_memsz?
+This would allow us to do just a single kernel_read()?
+
+> +			if (err < sizeof(n))
+> +				return -EIO;
+> +
+> +			/* find note payload offset */
+> +			pos = phdr->p_offset + round_up(sizeof(n) + n.n_namesz,
+> +							phdr->p_align);
+> +
+> +			err = find_property(pr_type, property, file,
+> +					    pos, n.n_descsz);
+> +			break;
+> +		}
+> +	}
+> +
+> +	return err;
+> +}
+
+These two functions look the same except for trivial details.
+
+Can we pass in a pointer to the ELF header, and a void * or union
+pointer for the phdrs?  We already do those tricks for calling
+get_gnu_property() anyway.
+
+> +
+> +int get_gnu_property(void *ehdr_p, void *phdr_p, struct file *f,
+> +		     u32 pr_type, u32 *property)
+
+Do we have to call this every time we want to fetch a property?
+
+This will be costly if there are several properties we want to
+look at.  I can also imagine that some properties will be generic
+while others are arch-specific.
+
+So, if the arch or generic code wants properties, we call this
+from the generic code, and call out to arch and generic hooks to
+handle any properties found.  That way we would only need to do
+this scan once.
+
+> +{
+> +	struct elf64_hdr *ehdr64 = ehdr_p;
+> +	int err = 0;
+> +
+> +	*property = 0;
+> +
+> +	if (ehdr64->e_ident[EI_CLASS] == ELFCLASS64) {
+> +		struct elf64_phdr *phdr64 = phdr_p;
+> +
+> +		err = scan_segments_64(f, phdr64, ehdr64->e_phnum,
+> +				       pr_type, property);
+> +		if (err < 0)
+> +			goto out;
+> +	} else {
+> +		struct elf32_hdr *ehdr32 = ehdr_p;
+> +
+> +		if (ehdr32->e_ident[EI_CLASS] == ELFCLASS32) {
+> +			struct elf32_phdr *phdr32 = phdr_p;
+> +
+> +			err = scan_segments_32(f, phdr32, ehdr32->e_phnum,
+> +					       pr_type, property);
+> +			if (err < 0)
+> +				goto out;
+> +		}
+> +	}
+
+We still do nothing and return 0 if e_ident->[EI_CLASS] is neither
+ELFCLASS32 or ELFCLASS64, which seems a bit odd.
+
+If we think this should never happen, it might be worth sticking a
+WARN() in here and returning an error just in case.
+
+> +
+> +out:
+> +	return err;
+> +}
+> diff --git a/include/linux/elf.h b/include/linux/elf.h
+> index e3649b3e970e..c86cbfd17382 100644
+> --- a/include/linux/elf.h
+> +++ b/include/linux/elf.h
+> @@ -56,4 +56,15 @@ static inline int elf_coredump_extra_notes_write(struct coredump_params *cprm) {
+>  extern int elf_coredump_extra_notes_size(void);
+>  extern int elf_coredump_extra_notes_write(struct coredump_params *cprm);
+>  #endif
+> +
+> +#ifdef CONFIG_ARCH_USE_GNU_PROPERTY
+> +extern int arch_parse_property(void *ehdr, void *phdr, struct file *f,
+> +			       bool inter, struct arch_elf_state *state);
+> +extern int arch_setup_property(struct arch_elf_state *state);
+> +extern int get_gnu_property(void *ehdr_p, void *phdr_p, struct file *f,
+> +			    u32 pr_type, u32 *feature);
+> +#else
+> +#define arch_parse_property(ehdr, phdr, file, inter, state) (0)
+> +#define arch_setup_property(state) (0)
+
+Can we make these fallbacks into static inlines, so that we still get
+argument type checking?
+
+> +#endif
+>  #endif /* _LINUX_ELF_H */
+> diff --git a/include/uapi/linux/elf.h b/include/uapi/linux/elf.h
+> index 34c02e4290fe..530ce08467c2 100644
+> --- a/include/uapi/linux/elf.h
+> +++ b/include/uapi/linux/elf.h
+> @@ -36,6 +36,7 @@ typedef __s64	Elf64_Sxword;
+>  #define PT_LOPROC  0x70000000
+>  #define PT_HIPROC  0x7fffffff
+>  #define PT_GNU_EH_FRAME		0x6474e550
+> +#define PT_GNU_PROPERTY		0x6474e553
+>  
+>  #define PT_GNU_STACK	(PT_LOOS + 0x474e551)
+>  
+> @@ -443,4 +444,17 @@ typedef struct elf64_note {
+>    Elf64_Word n_type;	/* Content type */
+>  } Elf64_Nhdr;
+>  
+> +/* NT_GNU_PROPERTY_TYPE_0 header */
+> +struct gnu_property {
+> +  __u32 pr_type;
+> +  __u32 pr_datasz;
+
+Would it make sense to have
+
+	__u8 pr_data[];
+
+here?
+
+We should also be using the Elf types here for pr_type and pr_datasz.
+
+Maybe we can follow hjl's lead on the definition of the type...
+
+In linux-abi-draft.pdf, we already have
+
+	typedef struct {
+		Elf_Word pr_type;
+		Elf_Word pr_datasz;
+		unsigned char pr_data[PR_DATASZ];
+		unsigned char pr_padding[PR_PADDING];
+	} ElF_Prop;
+
+This doesn't work as a generic definition due to the variable-sized
+arrays, but we can omit pr_padding.  For Linux purposes, __u8 is
+probably preferable to unsigned char for pd_data, which we can leave as
+a flexible array member.
+
+I see no reason not to introduce
+
+typedef __u32 Elf_Word;
+
+somewhere so that we don't have to pointlessly special-case Elf_Prop for
+the 32- and 64-bit cases.
+
+> +};
+> +
+> +/* .note.gnu.property types */
+> +#define GNU_PROPERTY_X86_FEATURE_1_AND		0xc0000002
+> +
+> +/* Bits of GNU_PROPERTY_X86_FEATURE_1_AND */
+> +#define GNU_PROPERTY_X86_FEATURE_1_IBT		0x00000001
+> +#define GNU_PROPERTY_X86_FEATURE_1_SHSTK	0x00000002
+> +
+
+[...]
+
+Cheers
+---Dave
 
