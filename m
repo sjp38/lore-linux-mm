@@ -4,109 +4,119 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
 	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
+	SPF_PASS,URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 49064C5B57D
-	for <linux-mm@archiver.kernel.org>; Tue,  2 Jul 2019 22:24:12 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A60A5C5B57D
+	for <linux-mm@archiver.kernel.org>; Tue,  2 Jul 2019 22:35:39 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 06CF221901
-	for <linux-mm@archiver.kernel.org>; Tue,  2 Jul 2019 22:24:11 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 61AE72190C
+	for <linux-mm@archiver.kernel.org>; Tue,  2 Jul 2019 22:35:39 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="W75jKD/r"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 06CF221901
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="l01hbVKK"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 61AE72190C
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 900D46B0003; Tue,  2 Jul 2019 18:24:11 -0400 (EDT)
+	id E289E6B0003; Tue,  2 Jul 2019 18:35:38 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8B12D8E0003; Tue,  2 Jul 2019 18:24:11 -0400 (EDT)
+	id DD8A68E0003; Tue,  2 Jul 2019 18:35:38 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7A0D88E0001; Tue,  2 Jul 2019 18:24:11 -0400 (EDT)
+	id CC78C8E0001; Tue,  2 Jul 2019 18:35:38 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 412636B0003
-	for <linux-mm@kvack.org>; Tue,  2 Jul 2019 18:24:11 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id p14so177245plq.1
-        for <linux-mm@kvack.org>; Tue, 02 Jul 2019 15:24:11 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 935916B0003
+	for <linux-mm@kvack.org>; Tue,  2 Jul 2019 18:35:38 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id o16so264984pgk.18
+        for <linux-mm@kvack.org>; Tue, 02 Jul 2019 15:35:38 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=7oMrnJGlcjkfiIrlAgqhI4UBNyxzGYdqpTHy9NfcQFQ=;
-        b=eKR41csq0Mo+W2+7t+fOh6g4a5QHK7ZYA55pwBWrknC3FdISEYiVx9Z9UBIuyhnqws
-         Xo9KHUidsFwVufcnJj6nVUJOhmBqHjoMjfXAdekEeX9LXstP1lQ4kRIx4oNVJjI0w9ko
-         /IVJk9boRVflBbtetn5VIgotRupEmdYT0+Fs4T2qcaZTyj7m1EAhO0fGgMUSneFU7fK3
-         sBMSxRTVELibykmyNeIpdDmgH8HRhS3GcyNyYk1cZ3Ks2Di6sBpRHhp7ZUS8uX1A9Gn7
-         S1xIcQYtvGhEj3SiFab8Ccyii9144wRRRvEmD4mg+sBaPs50yNEP3wbBH7O5HO1JyzkA
-         GZmQ==
-X-Gm-Message-State: APjAAAXax0SkBMyEZXs2Gvz7yTw8q6tNRxMDZckq+WM8BHH0EtGgY/AQ
-	V5+A8XkcoUCpHInWowz+1/w8oOQ8mz4dxm6NaTaWcj7u1M/tA+Xfv+aoyzd00hQjTBWG9tFKq6A
-	/VZ/Gh9zK6pklRJGTHu7e/hTuPXJY0CKfbZnxbhM/QYGw6qxoiEmMYKWWUImud5kPgg==
-X-Received: by 2002:a17:90a:2567:: with SMTP id j94mr8205723pje.121.1562106250880;
-        Tue, 02 Jul 2019 15:24:10 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzhYfGa3BiPhSiep0FYdlWaezfX6cXa3C/Anqsc7Db2VPhhq33PejA4zev+cIFZ6cH+JW2a
-X-Received: by 2002:a17:90a:2567:: with SMTP id j94mr8205682pje.121.1562106250273;
-        Tue, 02 Jul 2019 15:24:10 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562106250; cv=none;
+        bh=TxBrVjyIeN7nwx8lCxOCed1iNpKjH1qpjg0sErVxOlo=;
+        b=FnFFRE4m9ZzXuSfrRJgoSAaWkMCnIxlclylUs62lgkpbuxUoRWl04JodcFBemeQuLB
+         /qHOL4NjK+3MNNWwBGK9yLPHrnguY9/+6zEiUekpNGHqXY0/sWDXiTAUAJ/qmg7uXpX2
+         Yj31XYZbgi09sZFUmJ5TvZTbdOc17Eqfw4/OJQ+d21nm6E/AYkIDuDsz+8pu9DP67juZ
+         /onNeOQqukjFPz29Gi9i4rb/fwFoD+WDMghLg+LSSA6jiEMom6YxVflLZM7lkX0v5ib2
+         /s+P6bqWVC1s3PzbN+7AuELRuMtNa3hpnrhxG1meYDS0IO4Mgit6EymrXGVpAAAeGfXE
+         o8FQ==
+X-Gm-Message-State: APjAAAW9Jim1yQuGEfRGL/DexRKqdNHwl3CuAbOiNtAw2+xTUr/to8qZ
+	ncgr3W92kmQI7HTI5cHsuN3J9JmY34nc5kBD8EfuJSAaqiCRltMDgwlPqJGpx4fRd4mhJXr4+vi
+	uVmPEkdVx4K/j+sqgeT5zd3ZGeAD1LPkNn41Nz4PaCecDP/DfVdt09R4U9F7xr3lCew==
+X-Received: by 2002:a17:902:296a:: with SMTP id g97mr37270489plb.115.1562106938295;
+        Tue, 02 Jul 2019 15:35:38 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwhYk14lgTWC0TBFiDQtqfZXN3MjYtCHBw9N4pzfK4XTcT5oNsNH0zn3Ez75chSMtmIYL/j
+X-Received: by 2002:a17:902:296a:: with SMTP id g97mr37270407plb.115.1562106937286;
+        Tue, 02 Jul 2019 15:35:37 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562106937; cv=none;
         d=google.com; s=arc-20160816;
-        b=s0IZ9G5qeBgasbGpdg28tL+bc9HdCLzyJQgAZPbrfR76q5r160fmazcSa1XLiWcKlx
-         AWbu5lf219Az8UDxqbGYWNlpCCWHELZpb/QU+JVAstb0ugrwqADDKHWo4I2HYr6lRMS8
-         Wh2szL+oExN2cR+Rydqg2l0Y3MYkfAK/ZmjBsG5HGtNEA3UoXtDqkW6NLA/UM+Sy3DIk
-         lPA+veccN7vkflTVEorcbmXeYPhu/Eko9MVJR/zY8rcE3uqfst2Gwug3JsCEqhG49Lq1
-         QxXhBti4pkRZvBJE8jyjxFzVBlRu+WHEE5OfPcJ8SZJMH95Q5kgBwa2QMNBjaX8+45YM
-         FLNg==
+        b=eD+p33FkZ2FAhlBaGCE2Dcn5VpqFUo+2E80ggUFq0yqpQM316iq/0dQc0JDQ/Ql7yP
+         0OUlD/yejVHJae3hFJXhXmOhZW9b1Qu/VomQdW7xOPFgkK8HA+mREXS+B/Y2durbF9A+
+         VRvH4vfiMDv944M19untnKxxIQ3PwPaWg4NQFbSfEyOjP6qX3tRq3I5maqTaZ4g3f2y8
+         rVNfV8RgsBX+hJrOqSYed7Fov5WYSMYyJmVNSSXiqDL9O8YtG0ACiaDep9u0K7jfoHbe
+         xQPGunvZj/AhZ6nbCuegPHz1/y2uzSzqRSiZDIuE9I3VcoKznkSoFmSwCWUm5MrPrWrl
+         s4MA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=7oMrnJGlcjkfiIrlAgqhI4UBNyxzGYdqpTHy9NfcQFQ=;
-        b=G7Bf5yQRI+7TzXiftxvMtYLA2ipxjDy8tA8wXJwVegIUDTdT0UOPs+Ia73Yiukx6pN
-         vlTBV/PTeF966dk+3HuG7PpbzRSl6nRTcZKlFs8/4o20uVgS+XrunjTDGX1ZdNp3VWy+
-         s42XYvGCDGNZ5tEPrfvOmZlexdDJOdl+e7L/Eitz8e0En+sUEwoUOzDZ4wBzM+sqJ80V
-         U0kSg0sT6pC+odEtL2Me9pSkZ/M5jP8TYjpEhjhgfKkNzP0+xDOI04lON7Qs9BNDYqmC
-         dlYPKyvCcYjRnyVqXxVKkFuhwI64V05TN/JGStgQaKQ12LSSWefKUb8J9TErrWa9vfT2
-         CXiA==
+        bh=TxBrVjyIeN7nwx8lCxOCed1iNpKjH1qpjg0sErVxOlo=;
+        b=ZrEHOvAj2ze3tfPo6U3AecDM9BvJAusI4zqwXMjOW/QJncww9Sfs5XLjbdpspI25Kf
+         zJv6aaOXdGZURBNughFIPJR+eATPRtNxA/zdUjmk+rCB+2O2WzRP+5PhC9COdmFdZw3M
+         FwLJVupYFDwZk1QMBlj0wFRF+a8dNQDWcLcM1tEKG0eccERhnY9i3DtN5qogP9+YrxXh
+         IPZZ2Ypi2Er5XABI2FCshIcwD2bj3nIlnMRgLkyXUDJXRZWA4/mTaaNDBAMQFc0dLMoa
+         L3x8igSRYIm+ZySfIEhy3VxXozrOPhvHXhPM04jRkYl8qFWYzuKY+J7YS2zjDTTNDheB
+         1uQA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b="W75jKD/r";
+       dkim=pass header.i=@kernel.org header.s=default header.b=l01hbVKK;
        spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id c11si81263pgk.383.2019.07.02.15.24.10
+        by mx.google.com with ESMTPS id r11si4873pjq.108.2019.07.02.15.35.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 02 Jul 2019 15:24:10 -0700 (PDT)
+        Tue, 02 Jul 2019 15:35:37 -0700 (PDT)
 Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b="W75jKD/r";
+       dkim=pass header.i=@kernel.org header.s=default header.b=l01hbVKK;
        spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
 Received: from akpm3.svl.corp.google.com (unknown [104.133.8.65])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 9E41A218E0;
-	Tue,  2 Jul 2019 22:24:09 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTPSA id 6F38A21904;
+	Tue,  2 Jul 2019 22:35:36 +0000 (UTC)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1562106249;
-	bh=paq3rBGRhLW2Qpm44+MevTEqQRAXrHYmPUYx69zxz/M=;
+	s=default; t=1562106936;
+	bh=c/MyoEL1y9iSRH8tUqhzcXV9ntk3My2ap/3Dn7awyKw=;
 	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
-	b=W75jKD/rNzq2PuPQpltd8H0MgbE9WV7KUI0OFTUGJiv4fPwyzhUtfkvdxeVlqOkFL
-	 4b4xWxBzPXNyswEVKmLNwRI3tbXoIQnWMp3m/zqn80P3dgemCD1FV6iQddz/Pfn4vq
-	 yEgltIRFEizLLcYCPK78BUk8j0MPX6sFGN8Y+qYk=
-Date: Tue, 2 Jul 2019 15:24:09 -0700
+	b=l01hbVKK1DS91crh+dWLCuA/4HwJhhjblV3ZmG7+ToSZt2H6+9chb5C6lWKcVbpZT
+	 6yf7b0ESc5qYx1xKDTnqLzeOjjZhZFZwE/7x1lR6/PQ/5qZQPNx1I+vWXKWbwacqes
+	 0uz8JuzySX1Z2Xp+A47oGKzrXsLwsUNXRd+bPFwo=
+Date: Tue, 2 Jul 2019 15:35:35 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-To: Henry Burns <henryburns@google.com>
-Cc: Shakeel Butt <shakeelb@google.com>, Vitaly Wool <vitalywool@gmail.com>,
- Vitaly Vul <vitaly.vul@sony.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>,
- Xidong Wang <wangxidong_97@163.com>, Jonathan Adams <jwadams@google.com>,
- Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
-Subject: Re: [PATCH v2] mm/z3fold.c: Lock z3fold page before
- __SetPageMovable()
-Message-Id: <20190702152409.21c6c3787d125d61fb47840a@linux-foundation.org>
-In-Reply-To: <CAGQXPTiONoPARFTep-kzECtggS+zo2pCivbvPEakRF+qqq9SWA@mail.gmail.com>
-References: <20190702005122.41036-1-henryburns@google.com>
-	<CALvZod5Fb+2mR_KjKq06AHeRYyykZatA4woNt_K5QZNETvw4nw@mail.gmail.com>
-	<CAGQXPTjU0xAWCLTWej8DdZ5TbH91m8GzeiCh5pMJLQajtUGu_g@mail.gmail.com>
-	<20190702141930.e31bf1c07a77514d976ef6e2@linux-foundation.org>
-	<CAGQXPTiONoPARFTep-kzECtggS+zo2pCivbvPEakRF+qqq9SWA@mail.gmail.com>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Christoph Hellwig <hch@lst.de>, Jason Gunthorpe <jgg@mellanox.com>,
+ =?ISO-8859-1?Q?J=E9r=F4me?= Glisse <jglisse@redhat.com>, Ben Skeggs
+ <bskeggs@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>,
+ "nouveau@lists.freedesktop.org" <nouveau@lists.freedesktop.org>,
+ "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>,
+ "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>,
+ "linux-pci@vger.kernel.org" <linux-pci@vger.kernel.org>,
+ "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+Subject: Re: [PATCH 16/25] device-dax: use the dev_pagemap internal refcount
+Message-Id: <20190702153535.228365fea7f0063cceec96cd@linux-foundation.org>
+In-Reply-To: <CAPcyv4h90DAVHbZ4bgvJwpfB8wr2K28oEes6HcdQOpf02+NL=g@mail.gmail.com>
+References: <20190626122724.13313-17-hch@lst.de>
+	<20190628153827.GA5373@mellanox.com>
+	<CAPcyv4joSiFMeYq=D08C-QZSkHz0kRpvRfseNQWrN34Rrm+S7g@mail.gmail.com>
+	<20190628170219.GA3608@mellanox.com>
+	<CAPcyv4ja9DVL2zuxuSup8x3VOT_dKAOS8uBQweE9R81vnYRNWg@mail.gmail.com>
+	<CAPcyv4iWTe=vOXUqkr_CguFrFRqgA7hJSt4J0B3RpuP-Okz0Vw@mail.gmail.com>
+	<20190628182922.GA15242@mellanox.com>
+	<CAPcyv4g+zk9pnLcj6Xvwh-svKM+w4hxfYGikcmuoBAFGCr-HAw@mail.gmail.com>
+	<20190628185152.GA9117@lst.de>
+	<CAPcyv4i+b6bKhSF2+z7Wcw4OUAvb1=m289u9QF8zPwLk402JVg@mail.gmail.com>
+	<20190628190207.GA9317@lst.de>
+	<CAPcyv4h90DAVHbZ4bgvJwpfB8wr2K28oEes6HcdQOpf02+NL=g@mail.gmail.com>
 X-Mailer: Sylpheed 3.7.0 (GTK+ 2.24.32; x86_64-pc-linux-gnu)
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
@@ -117,28 +127,13 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2 Jul 2019 15:17:47 -0700 Henry Burns <henryburns@google.com> wrote:
+On Fri, 28 Jun 2019 12:14:44 -0700 Dan Williams <dan.j.williams@intel.com> wrote:
 
-> > > > > +       if (can_sleep) {
-> > > > > +               lock_page(page);
-> > > > > +               __SetPageMovable(page, pool->inode->i_mapping);
-> > > > > +               unlock_page(page);
-> > > > > +       } else {
-> > > > > +               if (!WARN_ON(!trylock_page(page))) {
-> > > > > +                       __SetPageMovable(page, pool->inode->i_mapping);
-> > > > > +                       unlock_page(page);
-> > > > > +               } else {
-> > > > > +                       pr_err("Newly allocated z3fold page is locked\n");
-> > > > > +                       WARN_ON(1);
+> I believe -mm auto drops patches when they appear in the -next
+> baseline. So it should "just work" to pull it into the series and send
+> it along for -next inclusion.
 
-The WARN_ON will have already warned in this case.
-
-But the whole idea of warning in this case may be undesirable.  We KNOW
-that the warning will sometimes trigger (yes?).  So what's the point in
-scaring users?
-
-Also, pr_err(...)+WARN_ON(1) can basically be replaced with WARN(1, ...)?
-
-> > > > > +               }
-> > > > > +       }
+Yup.  Although it isn't very "auto" - I manually check that the patch
+which turned up in -next was identical to the version which I had.  If
+not, I go find out why...
 
