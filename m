@@ -2,171 +2,179 @@ Return-Path: <SRS0=T9E7=U7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-14.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_IN_DEF_DKIM_WL
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
+	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D94A5C5B578
-	for <linux-mm@archiver.kernel.org>; Tue,  2 Jul 2019 01:17:08 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 604C1C5B578
+	for <linux-mm@archiver.kernel.org>; Tue,  2 Jul 2019 02:55:35 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 90CBD20881
-	for <linux-mm@archiver.kernel.org>; Tue,  2 Jul 2019 01:17:08 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id E3718216C8
+	for <linux-mm@archiver.kernel.org>; Tue,  2 Jul 2019 02:55:34 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="E+IhI3EF"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 90CBD20881
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="OQloBSmL"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E3718216C8
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 256826B0003; Mon,  1 Jul 2019 21:17:08 -0400 (EDT)
+	id 5427E6B0003; Mon,  1 Jul 2019 22:55:34 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 207E98E0003; Mon,  1 Jul 2019 21:17:08 -0400 (EDT)
+	id 4F2C18E0003; Mon,  1 Jul 2019 22:55:34 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0CEB78E0002; Mon,  1 Jul 2019 21:17:08 -0400 (EDT)
+	id 3B9598E0002; Mon,  1 Jul 2019 22:55:34 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f78.google.com (mail-io1-f78.google.com [209.85.166.78])
-	by kanga.kvack.org (Postfix) with ESMTP id E0BCA6B0003
-	for <linux-mm@kvack.org>; Mon,  1 Jul 2019 21:17:07 -0400 (EDT)
-Received: by mail-io1-f78.google.com with SMTP id u25so16899250iol.23
-        for <linux-mm@kvack.org>; Mon, 01 Jul 2019 18:17:07 -0700 (PDT)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 062F46B0003
+	for <linux-mm@kvack.org>; Mon,  1 Jul 2019 22:55:34 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id q11so8231626pll.22
+        for <linux-mm@kvack.org>; Mon, 01 Jul 2019 19:55:33 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=bGcgCNZM2Fneaix4f2ZBOZNpZLRiuOjV16Tk5yHyGgI=;
-        b=E4akBRZo+tJYc6WO6VPZERtc8xcp38b+iZ0EcaUVHYVCv9n2XJCiUf1u4Igi3lGflx
-         7uMzVZ4Gx7V3+KZjel8wCC7tREHw/oQlK0NB7NTl+y1xbJIPsGUjBPenhX7X2fk5uLr/
-         SYaYV/wJyJQhUGaeUjKwTRMrj7WNBgnSIIqk9t7/+G8DNPcTddcAShm7GxNxpNhQHBC3
-         NhQ9CVgaD14If3M9WkOKmwYbYEA9mANo/mG1mXpQTuqYJzhAvH+eJKKoU5kN0HYuCyMN
-         +QGzYv0VlhD8eyrDtOIIX5C0MLysAnnrSe5xirCHj7R+9tk6tdpP5KXsrYjird2eP1Ki
-         64pA==
-X-Gm-Message-State: APjAAAUr7KtIdrXfmEHek+MyvYJaypm3SvWmnokEN/VwvNpzjVGHzWl1
-	5gjYiHnhejXwGbK1MjMBY/+UXmX/sNmXDT0Poq3nuyc05W39Tq8xUaEQ0E3G2MKWXC1IBgFg+OR
-	u725puDIeend+wwoIXHvY2uyRw+XynTLwlfQJZ+xJI8+PZxx5Ubzr5mI+OEqRcm10vQ==
-X-Received: by 2002:a6b:e608:: with SMTP id g8mr2014575ioh.88.1562030227629;
-        Mon, 01 Jul 2019 18:17:07 -0700 (PDT)
-X-Received: by 2002:a6b:e608:: with SMTP id g8mr2014542ioh.88.1562030227009;
-        Mon, 01 Jul 2019 18:17:07 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562030227; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:subject:to:cc
+         :references:in-reply-to:mime-version:user-agent:message-id
+         :content-transfer-encoding;
+        bh=yh72SMFSBekrHMHAzJEsEH43qcxL2exqJGEt88fMstM=;
+        b=XEJSvHI3xmxrIQ4ntJYc/zQvp7bqmvdqJJ4wcHPpitgR/Y3xWWbKwbRWgV6k5tXGSD
+         3DgheDE4b71mvTVpr9aSvu0RyXtExvx+XtZv99yAbr8Yheuu2uqBLKS9Y8I7PwWzaX9W
+         fr8UvOenAiMEw7DFWGyVRCgJk0xzJzBe9qQ3YUAhgZCj8jv13nT1YZDGXSDTPhDVC2im
+         qeu4ZRyYxcJ7zYEqpLmKi+b4E68UGWbGishyX2ImOpOn0qquPSIlJjmhrqg9cmA4THSS
+         Doo6EjLI7WS5lNUekUgbHOABWcIcoBNsEOVAjTeciUQ2xrWONCcUFAhw0ZjX/KbEPvVv
+         226g==
+X-Gm-Message-State: APjAAAWPywl43EyIcBrUSBngeJkWURbr16o6YrCXf81Va/DURzh6NYbn
+	f6Ems3e+yasoTjJ//gti/My0JjTXb/dGfIMfkQdEnc7TfEnykREkpAI9KAKe23ASXyUxGC/Tr48
+	mQtAOWoQyc+E8a1j2bXxAf7/I3oabbf64P424z/FbU/LHyvN8SZh7lRAevld3Dyuc6Q==
+X-Received: by 2002:a17:902:5a4c:: with SMTP id f12mr32698728plm.332.1562036133521;
+        Mon, 01 Jul 2019 19:55:33 -0700 (PDT)
+X-Received: by 2002:a17:902:5a4c:: with SMTP id f12mr32698674plm.332.1562036132743;
+        Mon, 01 Jul 2019 19:55:32 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562036132; cv=none;
         d=google.com; s=arc-20160816;
-        b=Wwd29o/qug5Q049y29hq8/e7n5cL1Rxud3acga679BAS52BIuG0O1vIKpeFfM/IMcz
-         SL77N6ZpGTaop1h8vVaDOnf8U7Af7J7EgIT3iofF+jOkgfCVCVWcXOcLAldbgzj8cXzu
-         1aJRTPW78mNMd6iSr3WFJoVUHw5dQgKRa/LL+fAG2hKR6fBxfBzQ0iB5hNBD7ABeYP/w
-         xWebwfs+F7iVZH63hU8B6cW6ApnAa6cMWSEu8ecG2bU2X2GFR9q7U/UBAPhxLrijiCHM
-         VzKA72IoShtMdXy//x2iNa5Pa48GWQRwOrt0T2pYF80g/szpH0FCkFDNgvTg+Zl5aDUp
-         kKgA==
+        b=axEjMQ2hIUY3qOXY2AIqCOlRuGmKxQJS+4VXKB4DP9VhtLBk+7mC4eOlXnIrANQvyv
+         y3oF/u1FqB42mJB4rbHn21xBYS4RUp8o9gXepBq1VQvryuATph+DEfr5QnHa467R6sPY
+         YqWLLewI5/8BRyd289JSoicj4Kgo1Ihz4+WvjWvgcFzm1p+JpGJ1Y10KRAmAmcSf0FSL
+         1YnmC9u5yVl3eqG5e55rg8XseTrTOA7hAAo+1+p0nyWt82ozc+CHGKFf9d0R/HdaKIUH
+         aLTgAiGz9Q8qUC7EGc1ppuvpIZw8eSExuQJln8VDfwokcqv9kCPI0Ouh9K9K9LdhxcHC
+         q1VQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=bGcgCNZM2Fneaix4f2ZBOZNpZLRiuOjV16Tk5yHyGgI=;
-        b=V+6tb1GmJgydlVlcEhlkBHRbM6zbZtZxeCaYuNLfHIeGbughFp+3Pzxr/Qxv764IhF
-         ozpseQxUYVOx+Ua8TAwW7DxXJ3SqsR7PLx7QEcnPKdMa9CvjStWFL1JtkY44v92ycKG+
-         vay+/5o0JKV1orjx/e9rW8njnadgGiUMxSiTAgQjN/Hsza1dsqZNMGF9kmbJ0KT8Ojxk
-         OsnP491xnUILhnhibbShtKmunPC0KU/KMWgEJlbWMD3TW0wicJsoC9/Psjbs2d6Cx33u
-         U1N0fttrlDcuikni8kMjvFi/JA051MYeOIWyoI4Xd9YDHuHdnpjOWMdQxOusUTxwDsgw
-         SnYQ==
+        h=content-transfer-encoding:message-id:user-agent:mime-version
+         :in-reply-to:references:cc:to:subject:from:date:dkim-signature;
+        bh=yh72SMFSBekrHMHAzJEsEH43qcxL2exqJGEt88fMstM=;
+        b=SZgO1Mdf0UH5/Vhu9yII+yuX27V8DvbGd9wMDFt6ppZWQQgUnZ1YIraC7YZixv6hiS
+         yAgtMFyHB6NQg7b+0ATHbK8y/ubnTMMkC6Km76sLn3QokMg8UbttuYZPUrbkKkIuG6aG
+         4k10pj+TqTPQYzyi09scwlbcDWpmy6xWIbB8yJigqKWfjthS7gGtxL2cWHX7VNETOPRX
+         nig6AboohnNEBi3dJ8ChQNmJcm1xzrPKNAn6mYVMTWSxUW5JP3OgvFDLjl4bOoKAfJxi
+         0vh+U4gFjTjk9+oJysfBAygyirYt/J5/yrhqG7fu/5E9+LImWHnCxWD3qWGlhND5EDIN
+         5l0Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=E+IhI3EF;
-       spf=pass (google.com: domain of henryburns@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=henryburns@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=OQloBSmL;
+       spf=pass (google.com: domain of npiggin@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=npiggin@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id c128sor30940818jac.2.2019.07.01.18.17.06
+        by mx.google.com with SMTPS id e8sor14309778plb.48.2019.07.01.19.55.32
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 01 Jul 2019 18:17:06 -0700 (PDT)
-Received-SPF: pass (google.com: domain of henryburns@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Mon, 01 Jul 2019 19:55:32 -0700 (PDT)
+Received-SPF: pass (google.com: domain of npiggin@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=E+IhI3EF;
-       spf=pass (google.com: domain of henryburns@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=henryburns@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=OQloBSmL;
+       spf=pass (google.com: domain of npiggin@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=npiggin@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=bGcgCNZM2Fneaix4f2ZBOZNpZLRiuOjV16Tk5yHyGgI=;
-        b=E+IhI3EFrprAxwYz5XL+dCV+y22CzQKMuhlzlsky6+02t5cScdlAo3mb1JWWpTE8JK
-         qOiH8sX9JUtanurv+qeY6OyoQdYIumvOrbXWbMONgeUsy3svK67NSEEVHLTUEnq3T93Z
-         WjZDPGzT/Sm2ne1EOi9XJQs5bBTlLyY4StGuUgRBRl43AIlvqC//mFi9EXC7VsIo0Kh3
-         jrQZCZJrfABLTciTv3tMxTQGTBUVHUWqVv938g1y0Q16KV5JwOslf+zytRH6fcmtncNz
-         r6/n3C1dVWSPxwTP7ZDAaOUFkZcs4oCQFhYFOT3zAF2OLakwlo+vH3fKStApBz3cwpI7
-         acHg==
-X-Google-Smtp-Source: APXvYqy7+tj0nUROT403yhSxQDTNTeUEt7vFZMtJl4pXCrWO7ZosVUwEvdbmELi2qgFA1B4FJn4qM+P2QDcjSMHtJI4=
-X-Received: by 2002:a05:6638:3d6:: with SMTP id r22mr31783750jaq.71.1562030226625;
- Mon, 01 Jul 2019 18:17:06 -0700 (PDT)
+        d=gmail.com; s=20161025;
+        h=date:from:subject:to:cc:references:in-reply-to:mime-version
+         :user-agent:message-id:content-transfer-encoding;
+        bh=yh72SMFSBekrHMHAzJEsEH43qcxL2exqJGEt88fMstM=;
+        b=OQloBSmLK7yZ68Nmhh3ZNo6BLX04mI8FD6n8AeTw37MNwj0uMNbWidDAheX5FJ/Znt
+         FRzI3+hb/f6xTgs8hr0qR9TZ9OHETLisz4gXDouc1TOgihYQlbeV4GUgK1BwxOdpvGMc
+         hGQj+HGKUJUHtHB1LSlUfu6YD9ajCK+Jq5Giva1slXFpNcXTmhPFtFKvyolKV+VnvwCs
+         +mcnr4ORNAQD3T8DPa0Izny+94iWrnftJZ5i+foB8mwBago8ICdTU4o6YjGfQgtq2Gjs
+         0fIyhWwDKZdJk7d3KDG2qYX7D/1tuC7vaBUyAchhzuMG+JtMHLXqu3nFv+R8NsJW09zS
+         9omA==
+X-Google-Smtp-Source: APXvYqx4btuHxQBeOFukhSzSKKwHsk18ZBVKxKzevK0qIIRUp7DmMiBws+GtDKL9X7ZhzyJrivZoIg==
+X-Received: by 2002:a17:902:f204:: with SMTP id gn4mr32852271plb.3.1562036132165;
+        Mon, 01 Jul 2019 19:55:32 -0700 (PDT)
+Received: from localhost ([175.45.73.101])
+        by smtp.gmail.com with ESMTPSA id cq4sm769147pjb.23.2019.07.01.19.55.30
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Mon, 01 Jul 2019 19:55:31 -0700 (PDT)
+Date: Tue, 02 Jul 2019 12:55:12 +1000
+From: Nicholas Piggin <npiggin@gmail.com>
+Subject: Re: [PATCH v2 1/3] arm64: mm: Add p?d_large() definitions
+To: "linux-mm @ kvack . org" <linux-mm@kvack.org>, Steven Price
+	<steven.price@arm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Anshuman Khandual
+	<anshuman.khandual@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>,
+	Catalin Marinas <catalin.marinas@arm.com>, Christophe Leroy
+	<christophe.leroy@c-s.fr>, "linux-arm-kernel @ lists . infradead . org"
+	<linux-arm-kernel@lists.infradead.org>, "linuxppc-dev @ lists . ozlabs . org"
+	<linuxppc-dev@lists.ozlabs.org>, Mark Rutland <mark.rutland@arm.com>,
+	Will Deacon <will.deacon@arm.com>
+References: <20190701064026.970-1-npiggin@gmail.com>
+	<20190701064026.970-2-npiggin@gmail.com>
+	<0a3e0833-908d-b7eb-e6e7-6413b2e37094@arm.com>
+In-Reply-To: <0a3e0833-908d-b7eb-e6e7-6413b2e37094@arm.com>
 MIME-Version: 1.0
-References: <20190702005122.41036-1-henryburns@google.com> <CALvZod5Fb+2mR_KjKq06AHeRYyykZatA4woNt_K5QZNETvw4nw@mail.gmail.com>
-In-Reply-To: <CALvZod5Fb+2mR_KjKq06AHeRYyykZatA4woNt_K5QZNETvw4nw@mail.gmail.com>
-From: Henry Burns <henryburns@google.com>
-Date: Mon, 1 Jul 2019 18:16:30 -0700
-Message-ID: <CAGQXPTjU0xAWCLTWej8DdZ5TbH91m8GzeiCh5pMJLQajtUGu_g@mail.gmail.com>
-Subject: Re: [PATCH v2] mm/z3fold.c: Lock z3fold page before __SetPageMovable()
-To: Shakeel Butt <shakeelb@google.com>
-Cc: Vitaly Wool <vitalywool@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, 
-	Vitaly Vul <vitaly.vul@sony.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, 
-	Xidong Wang <wangxidong_97@163.com>, Jonathan Adams <jwadams@google.com>, 
-	Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
-Content-Type: text/plain; charset="UTF-8"
+User-Agent: astroid/0.14.0 (https://github.com/astroidmail/astroid)
+Message-Id: <1562035876.apiyxfrmrw.astroid@bobo.none>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jul 1, 2019 at 6:00 PM Shakeel Butt <shakeelb@google.com> wrote:
->
-> On Mon, Jul 1, 2019 at 5:51 PM Henry Burns <henryburns@google.com> wrote:
-> >
-> > __SetPageMovable() expects it's page to be locked, but z3fold.c doesn't
-> > lock the page. Following zsmalloc.c's example we call trylock_page() and
-> > unlock_page(). Also makes z3fold_page_migrate() assert that newpage is
-> > passed in locked, as documentation.
-> >
-> > Signed-off-by: Henry Burns <henryburns@google.com>
-> > Suggested-by: Vitaly Wool <vitalywool@gmail.com>
-> > ---
-> >  Changelog since v1:
-> >  - Added an if statement around WARN_ON(trylock_page(page)) to avoid
-> >    unlocking a page locked by a someone else.
-> >
-> >  mm/z3fold.c | 6 +++++-
-> >  1 file changed, 5 insertions(+), 1 deletion(-)
-> >
-> > diff --git a/mm/z3fold.c b/mm/z3fold.c
-> > index e174d1549734..6341435b9610 100644
-> > --- a/mm/z3fold.c
-> > +++ b/mm/z3fold.c
-> > @@ -918,7 +918,10 @@ static int z3fold_alloc(struct z3fold_pool *pool, size_t size, gfp_t gfp,
-> >                 set_bit(PAGE_HEADLESS, &page->private);
-> >                 goto headless;
-> >         }
-> > -       __SetPageMovable(page, pool->inode->i_mapping);
-> > +       if (!WARN_ON(!trylock_page(page))) {
-> > +               __SetPageMovable(page, pool->inode->i_mapping);
-> > +               unlock_page(page);
-> > +       }
->
-> Can you please comment why lock_page() is not used here?
-Since z3fold_alloc can be called in atomic or non atomic context,
-calling lock_page() could trigger a number of
-warnings about might_sleep() being called in atomic context. WARN_ON
-should avoid the problem described
-above as well, and in any weird condition where someone else has the
-page lock, we can avoid calling
-__SetPageMovable().
->
-> >         z3fold_page_lock(zhdr);
-> >
-> >  found:
-> > @@ -1325,6 +1328,7 @@ static int z3fold_page_migrate(struct address_space *mapping, struct page *newpa
-> >
-> >         VM_BUG_ON_PAGE(!PageMovable(page), page);
-> >         VM_BUG_ON_PAGE(!PageIsolated(page), page);
-> > +       VM_BUG_ON_PAGE(!PageLocked(newpage), newpage);
-> >
-> >         zhdr = page_address(page);
-> >         pool = zhdr_to_pool(zhdr);
-> > --
-> > 2.22.0.410.gd8fdbe21b5-goog
-> >
+Steven Price's on July 1, 2019 7:57 pm:
+> On 01/07/2019 07:40, Nicholas Piggin wrote:
+>> walk_page_range() is going to be allowed to walk page tables other than
+>> those of user space. For this it needs to know when it has reached a
+>> 'leaf' entry in the page tables. This information will be provided by th=
+e
+>> p?d_large() functions/macros.
+>>=20
+>> For arm64, we already have p?d_sect() macros which we can reuse for
+>> p?d_large().
+>>=20
+>> pud_sect() is defined as a dummy function when CONFIG_PGTABLE_LEVELS < 3
+>> or CONFIG_ARM64_64K_PAGES is defined. However when the kernel is
+>> configured this way then architecturally it isn't allowed to have a
+>> large page that this level, and any code using these page walking macros
+>> is implicitly relying on the page size/number of levels being the same a=
+s
+>> the kernel. So it is safe to reuse this for p?d_large() as it is an
+>> architectural restriction.
+>>=20
+>> Cc: Catalin Marinas <catalin.marinas@arm.com>
+>> Cc: Will Deacon <will.deacon@arm.com>
+>> Signed-off-by: Steven Price <steven.price@arm.com>
+>=20
+> Hi Nicolas,
+>=20
+> This appears to my patch which I originally posted as part of converting
+> x86/arm64 to use a generic page walk code[1].
+
+Hey, yeah it is, I'd intended to mark you as the author but must have
+forgot to change it in git.
+
+> I'm not sure that this
+> patch makes much sense on its own, in particular it was working up to
+> having a generic macro[2] which means the _large() macros could be used
+> across all architectures.
+
+It goes with this series which makes _large macros usable for archs
+that define HUGE_VMAP. I posted the same thing earlier and Anshuman
+noted you'd done it too so I deferred to yours (I thought it would
+go via arm64 tree and that this would just allow Andrew to easily
+reconcile the merge).
+
+If your series is not going upstream this time then the changelog
+probably doesn't make so much sense, so I could just send my version
+to the arm64 tree.
+
+Thanks,
+Nick
+
+=
 
