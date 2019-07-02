@@ -7,191 +7,140 @@ X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
 	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B1764C5B57D
-	for <linux-mm@archiver.kernel.org>; Tue,  2 Jul 2019 06:42:47 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 60393C5B57D
+	for <linux-mm@archiver.kernel.org>; Tue,  2 Jul 2019 07:46:01 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6C2C620881
-	for <linux-mm@archiver.kernel.org>; Tue,  2 Jul 2019 06:42:47 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id ED59D2146F
+	for <linux-mm@archiver.kernel.org>; Tue,  2 Jul 2019 07:46:00 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="rqVQAYL0"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6C2C620881
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="d1R5QsTY"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org ED59D2146F
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BC42D8E0005; Tue,  2 Jul 2019 02:42:43 -0400 (EDT)
+	id 4DEDD6B0005; Tue,  2 Jul 2019 03:46:00 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B72EC8E0002; Tue,  2 Jul 2019 02:42:43 -0400 (EDT)
+	id 48CD48E0003; Tue,  2 Jul 2019 03:46:00 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A61EB8E0005; Tue,  2 Jul 2019 02:42:43 -0400 (EDT)
+	id 37C9E8E0002; Tue,  2 Jul 2019 03:46:00 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 7259A8E0002
-	for <linux-mm@kvack.org>; Tue,  2 Jul 2019 02:42:43 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id x18so10303280pfj.4
-        for <linux-mm@kvack.org>; Mon, 01 Jul 2019 23:42:43 -0700 (PDT)
+Received: from mail-lj1-f200.google.com (mail-lj1-f200.google.com [209.85.208.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C61246B0005
+	for <linux-mm@kvack.org>; Tue,  2 Jul 2019 03:45:59 -0400 (EDT)
+Received: by mail-lj1-f200.google.com with SMTP id o2so3256664lji.14
+        for <linux-mm@kvack.org>; Tue, 02 Jul 2019 00:45:59 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:message-id:subject:from:to:cc
-         :date:in-reply-to:references:user-agent:mime-version
-         :content-transfer-encoding;
-        bh=87XbSGKa5QHQCeUtgWcK1lHAubdPYIITDtUYO85ViuI=;
-        b=Yd7hVcnBlmDHOcHpWKIoyDVEyRpJ4nkB63Por/GrhbHW+QGz0IRUBkMTsOspGi0xdE
-         phqwAL8QmCv+cwU6hdSLyY14apVysFh61TSQ437ICnpXpI9074BW46kZbvkLFPq7gYfi
-         PeBnZMM8IzW7qvECHBu4nQ6UgttOYz+VRY2K4bp0uxjG6XJxrpn/tXxoLJHoNH2+djBu
-         8/er3yyEcXGZAS0BMxvXVImBEmpngcIGDRvX2viVJiOQuxyW2QeSaiJVUv4kHAoJkWNc
-         aqpx+8ibSnR5yy+egsMANh1NXrc1bfpDuajqrAf2inxTvl2ct/smNMe29/mN1cj3GjI6
-         Px2Q==
-X-Gm-Message-State: APjAAAXAc6pLnn1Ib5zU9b3TuI2ARO98riXZ6FsQ4xMoy4dd3ykPke4d
-	3huA86Q/YmvWlUmyzxwibUwGhP9S9ucgNhfrIfNWIWwu9IypOecbtVg1RwCjbpLGMm+roZ/LX5r
-	p82LWazaGnEd8MXSCigU+eraSbVAG43JZaYrOWKVjac6UyyWAVTxOpcOnNMzjvMF79Q==
-X-Received: by 2002:a17:902:29c3:: with SMTP id h61mr33065141plb.37.1562049763084;
-        Mon, 01 Jul 2019 23:42:43 -0700 (PDT)
-X-Received: by 2002:a17:902:29c3:: with SMTP id h61mr33065090plb.37.1562049762187;
-        Mon, 01 Jul 2019 23:42:42 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562049762; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=5IrBPD0J3ThoKKFU4/FQRnog7nkm0QgrOR9tIqfG3FY=;
+        b=YQooR681zGYTeCPCKybZmwDsbfpIA0PDKX+6L23JfV5+WTc8rZmElNn+DfyQzS8YVm
+         NQdTkjGW0C5gr/wCoyWGPbvqGk2g0RSmM673jrKIrrL4aDfnQgjK1c8QGeCyouiq452V
+         XZT0ZsWbAc6yT9EcRa6SvzXMJsgrdWKg+VSE6xhUGHURaVHP7bT/Io4IefupYQPPI+S3
+         G13NZYCiVhToUA6jf3+WfExmfEekRgXwZs9YoJWaX33IF4qh09mwomqiFn2bWxEYxUaD
+         MfWMdU4N9Aq9mHEHs296KqHg3r/iM36ykkVqvTLHar7ZDLpNLgd2oL2bxpdxAeWYTttC
+         v9RQ==
+X-Gm-Message-State: APjAAAVQpC7ZHE9Pd5VKtWm7GU5B2REqbfZQBnEcp6FaqiuNgkQIZjkw
+	YaBU5P042PCnHmhAekGethyLlqTi+84QfIzPcMXDVrMyd1cwlRNPm/xddjKCLUVHe2pVhn2XEMm
+	448koYiFst8MIo/HTBvUmYmP489u7jehCfj9a8gHFxk7WFyOvnEHLz6IVlHTV3joYFQ==
+X-Received: by 2002:a2e:4794:: with SMTP id u142mr16679875lja.222.1562053558945;
+        Tue, 02 Jul 2019 00:45:58 -0700 (PDT)
+X-Received: by 2002:a2e:4794:: with SMTP id u142mr16679833lja.222.1562053558042;
+        Tue, 02 Jul 2019 00:45:58 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562053558; cv=none;
         d=google.com; s=arc-20160816;
-        b=m+Vo3Fp9BlYflCae9PQWudlzGNeHwA9dhLE0ohRY1snYe9rlDFuKACfoicpJxKFslQ
-         2d+9lind1JgimIXivJP8H9htFp845GOGkGnu1NhS52nxokgVHDKeuGyOvlWiGXCV0teh
-         jJfrWraG/man9x0WoUILv6V+PYQNJNpvcqKDQZO5FuMHJGnQ2Arzn0mHHTvuLwDd5HSc
-         PnO2MfFRAF8tyqeAeAmg6WVru6RkUsczfLoZVaWKGysFam4NojGwJeg+hOfxAXWQWk4S
-         WIlk7Ky+0XDq6gYg9XmJja3XYSpD4BdUVhGLohKWtYwa1dIlFMgwcZrzzXNzcBrBCbS1
-         XHtg==
+        b=UHh0RBVDr7XgreAiN3H1Bg+stdfpI/h/YKDNydTBt1vIeNHjtAs29Z34amRLK5IwJZ
+         4+ub6BZ+7AMPkcPynPquSJ+3onB06Q6DozswTcPliPMTLM0+wAKNEJ+w74S3e7rsR+8w
+         ZFF0y09ETzQ1souqD6urf1W7203k7gNgVMzNo2oScW48PbsU/RfwtujgrMvtdtNpssRh
+         cD6Tsp9U/2Rgsg+CL94AkLphh4G+4skuUAxqE+PDfLYBHkNUKd9hCUZ7xaWgCLbWGL8h
+         cIQjii1V34trT4WcKaewlR0X7ZTqALy2pfR5mVapkAuCDhBYBC5dfd4LrG4QU7OjrxoJ
+         4xlQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:user-agent:references
-         :in-reply-to:date:cc:to:from:subject:message-id:dkim-signature;
-        bh=87XbSGKa5QHQCeUtgWcK1lHAubdPYIITDtUYO85ViuI=;
-        b=EVmqSlp3/eCGtm6mf/BcTxfYpBxa463R5EuR/GsCFRQz8zgC+wSRJZyV5kfqSdHPez
-         uoOF8mNOgf9LvwQJf0Bj+kxpMRx6bao/UCRg5dPUR3JJ5d3c34QqYQdsyb6NHUksJYWW
-         ss8BEoF6q49HO8tKdRfobukoGVv9jv0zxYmIlbE+eQ4bdgAOx5lcL+H0jZb7bUt6pBhE
-         VaU3+EJuk/fpXAkfJJsUZK4F+eIFvfFDV4/aFr2pr4ZHdBk8PlKZ3zeCCBjCLEfc01p6
-         gyF3f8RcUFs5FbXt210CRJdENWXU9ULIWd/xsXmI8sXQVksGwBS8tjHK3DmtQ1RjSCUo
-         iuvA==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=5IrBPD0J3ThoKKFU4/FQRnog7nkm0QgrOR9tIqfG3FY=;
+        b=fxnGyrNncn7ua401fsLH2QYYmfiOb3NeDxfJCLsaDZcLkc7SBMmdRAWzSVkI96KvIg
+         rzEB7YmjKCRrDqZRwYhDLSNvdNbzCV6L/m8iY0agq4pViguJk6XNNFtcpQy9igoqax/3
+         Add9BCwCpQefb36aCvXl/IdFLsSIaqkjI0jiLvWdl3yVnBgMqfQ0aRLTZjW+2lcxJ6n5
+         +PXV2t4AO8eNY+41j1GzhHoEHwrVEQ7R9QY9sY1GrIrM4nbiH2rpDf0JRdLqNtNnQwJu
+         EwOvOG0oCfpDzz9hirWCDz2nTrSNPbZEyzLRn9I6beNudxo+fcF7Wp93Z8hllRQASbWO
+         oECQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=rqVQAYL0;
-       spf=pass (google.com: domain of rashmica.g@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=rashmica.g@gmail.com;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=d1R5QsTY;
+       spf=pass (google.com: domain of vitalywool@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=vitalywool@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id j8sor2189539pjz.15.2019.07.01.23.42.42
+        by mx.google.com with SMTPS id x7sor6815888ljj.32.2019.07.02.00.45.57
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 01 Jul 2019 23:42:42 -0700 (PDT)
-Received-SPF: pass (google.com: domain of rashmica.g@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Tue, 02 Jul 2019 00:45:58 -0700 (PDT)
+Received-SPF: pass (google.com: domain of vitalywool@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=rqVQAYL0;
-       spf=pass (google.com: domain of rashmica.g@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=rashmica.g@gmail.com;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=d1R5QsTY;
+       spf=pass (google.com: domain of vitalywool@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=vitalywool@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
-        h=message-id:subject:from:to:cc:date:in-reply-to:references
-         :user-agent:mime-version:content-transfer-encoding;
-        bh=87XbSGKa5QHQCeUtgWcK1lHAubdPYIITDtUYO85ViuI=;
-        b=rqVQAYL03KWvM3yxtAzULV9ROj+5qv4RNm51K8dCwptmKyKYqkznX13vIUUrtbtd7X
-         6i10foW4JDXh3XDnOmEpSSpVWxS7vQI3opSg3vJMYbD2t2aBKXwDpM843lvsWW3sYDOR
-         4PZJCddPZUysCuNNRugCHitmMheStFtavdtokHk0u1nOMaXV0/75dyg1QJxscd0UsGQA
-         36CzpCLMA7v1ZPa2LFdKZa0GvuOtoSHAsnNMLCbWGaXNCGhtqm7qdZ2MPqHFDV4CqS6S
-         r06dYUammP+ccOXWNgAzrJZzTRv5OEoJtBXV3tekmbBI5tBjmC31rih/CQxkQ79CmhWj
-         75QQ==
-X-Google-Smtp-Source: APXvYqx5opPoUVZnjJcNKkQE1Fn7/SKTQBxHrlZeRIrzSEiR5Nhjg0pGDvNnHaiwpg4kRbNXgzTrIg==
-X-Received: by 2002:a17:90a:bc0c:: with SMTP id w12mr3530135pjr.111.1562049761805;
-        Mon, 01 Jul 2019 23:42:41 -0700 (PDT)
-Received: from rashmica.ozlabs.ibm.com ([122.99.82.10])
-        by smtp.googlemail.com with ESMTPSA id w65sm12975112pfw.168.2019.07.01.23.42.37
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Mon, 01 Jul 2019 23:42:41 -0700 (PDT)
-Message-ID: <9143f64391d11aa0f1988e78be9de7ff56e4b30b.camel@gmail.com>
-Subject: Re: [PATCH v2 0/5] Allocate memmap from hotadded memory
-From: Rashmica Gupta <rashmica.g@gmail.com>
-To: David Hildenbrand <david@redhat.com>, Oscar Salvador <osalvador@suse.de>
-Cc: akpm@linux-foundation.org, mhocko@suse.com, dan.j.williams@intel.com, 
-	pasha.tatashin@soleen.com, Jonathan.Cameron@huawei.com, 
-	anshuman.khandual@arm.com, vbabka@suse.cz, linux-mm@kvack.org, 
-	linux-kernel@vger.kernel.org
-Date: Tue, 02 Jul 2019 16:42:34 +1000
-In-Reply-To: <887b902e-063d-a857-d472-f6f69d954378@redhat.com>
-References: <20190625075227.15193-1-osalvador@suse.de>
-	 <2ebfbd36-11bd-9576-e373-2964c458185b@redhat.com>
-	 <20190626080249.GA30863@linux>
-	 <2750c11a-524d-b248-060c-49e6b3eb8975@redhat.com>
-	 <20190626081516.GC30863@linux>
-	 <887b902e-063d-a857-d472-f6f69d954378@redhat.com>
-Content-Type: text/plain; charset="UTF-8"
-User-Agent: Evolution 3.30.5 (3.30.5-1.fc29) 
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=5IrBPD0J3ThoKKFU4/FQRnog7nkm0QgrOR9tIqfG3FY=;
+        b=d1R5QsTYa5MTtTEHHeCBzlMg9hZoSTCrw52r1zZF5ZH3HtRyfd1fMwfCVSWnHKA2kG
+         4yOBQgQwFxAfrJAoRCkpslMVYXq4M4qzZEhhN5eAueF6CDd47bf1YGy7CVMb4QD9NZ6N
+         9FFBS5L6sLobrCnhGda6f/KzikGGytL1t7rQamquIJyhjAVuuWEx7we3wKkf24HvN7Nl
+         6GDP08kRaJ2X8lBBU/kp/7dw40Kwc2TysdxBYOdxkhkWZwSAlHYNiQ6QQDdXumAjceiA
+         re/bUmjD12UwXfzamlmxA5GbyLp1Ijx3uuJh4MGTHoBwxSrc7K+2vWPk15rDH77JGhPb
+         yT2w==
+X-Google-Smtp-Source: APXvYqxJ4w6Wee+ZufWo6q87k8jBVJa0des3If6bhXo6eBuX5YbcNlItTrHcH+egqRL+ObwM7oDMNYBaEiKXghKcdow=
+X-Received: by 2002:a2e:86cc:: with SMTP id n12mr16247419ljj.146.1562053557722;
+ Tue, 02 Jul 2019 00:45:57 -0700 (PDT)
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7bit
+References: <20190701173042.221453-1-henryburns@google.com>
+In-Reply-To: <20190701173042.221453-1-henryburns@google.com>
+From: Vitaly Wool <vitalywool@gmail.com>
+Date: Tue, 2 Jul 2019 10:45:46 +0300
+Message-ID: <CAMJBoFPbRcdZ+NnX17OQ-sOcCwe+ZAsxcDJoR0KDkgBY9WXvpg@mail.gmail.com>
+Subject: Re: [PATCH] mm/z3fold: Fix z3fold_buddy_slots use after free
+To: Henry Burns <henryburns@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <mawilcox@microsoft.com>, 
+	Vitaly Vul <vitaly.vul@sony.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, 
+	Xidong Wang <wangxidong_97@163.com>, Shakeel Butt <shakeelb@google.com>, 
+	Jonathan Adams <jwadams@google.com>, Linux-MM <linux-mm@kvack.org>, 
+	LKML <linux-kernel@vger.kernel.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi David,
+Hi Henry,
 
-Sorry for the late reply.
-
-On Wed, 2019-06-26 at 10:28 +0200, David Hildenbrand wrote:
-> On 26.06.19 10:15, Oscar Salvador wrote:
-> > On Wed, Jun 26, 2019 at 10:11:06AM +0200, David Hildenbrand wrote:
-> > > Back then, I already mentioned that we might have some users that
-> > > remove_memory() they never added in a granularity it wasn't
-> > > added. My
-> > > concerns back then were never fully sorted out.
-> > > 
-> > > arch/powerpc/platforms/powernv/memtrace.c
-> > > 
-> > > - Will remove memory in memory block size chunks it never added
-> > > - What if that memory resides on a DIMM added via
-> > > MHP_MEMMAP_DEVICE?
-> > > 
-> > > Will it at least bail out? Or simply break?
-> > > 
-> > > IOW: I am not yet 100% convinced that MHP_MEMMAP_DEVICE is save
-> > > to be
-> > > introduced.
-> > 
-> > Uhm, I will take a closer look and see if I can clear your
-> > concerns.
-> > TBH, I did not try to use arch/powerpc/platforms/powernv/memtrace.c
-> > yet.
-> > 
-> > I will get back to you once I tried it out.
-> > 
-> 
-> BTW, I consider the code in arch/powerpc/platforms/powernv/memtrace.c
-> very ugly and dangerous.
-
-Yes it would be nice to clean this up.
-
-> We should never allow to manually
-> offline/online pages / hack into memory block states.
-> 
-> What I would want to see here is rather:
-> 
-> 1. User space offlines the blocks to be used
-> 2. memtrace installs a hotplug notifier and hinders the blocks it
-> wants
-> to use from getting onlined.
-> 3. memory is not added/removed/onlined/offlined in memtrace code.
+On Mon, Jul 1, 2019 at 8:31 PM Henry Burns <henryburns@google.com> wrote:
 >
+> Running z3fold stress testing with address sanitization
+> showed zhdr->slots was being used after it was freed.
+>
+> z3fold_free(z3fold_pool, handle)
+>   free_handle(handle)
+>     kmem_cache_free(pool->c_handle, zhdr->slots)
+>   release_z3fold_page_locked_list(kref)
+>     __release_z3fold_page(zhdr, true)
+>       zhdr_to_pool(zhdr)
+>         slots_to_pool(zhdr->slots)  *BOOM*
 
-I remember looking into doing it a similar way. I can't recall the
-details but my issue was probably 'how does userspace indicate to
-the kernel that this memory being offlined should be removed'?
+Thanks for looking into this. I'm not entirely sure I'm all for
+splitting free_handle() but let me think about it.
 
-I don't know the mm code nor how the notifiers work very well so I
-can't quite see how the above would work. I'm assuming memtrace would
-register a hotplug notifier and when memory is offlined from userspace,
-the callback func in memtrace would be called if the priority was high
-enough? But how do we know that the memory being offlined is intended
-for usto touch? Is there a way to offline memory from userspace not
-using sysfs or have I missed something in the sysfs interface?
+> Instead we split free_handle into two functions, release_handle()
+> and free_slots(). We use release_handle() in place of free_handle(),
+> and use free_slots() to call kmem_cache_free() after
+> __release_z3fold_page() is done.
 
-On a second read, perhaps you are assuming that memtrace is used after
-adding new memory at runtime? If so, that is not the case. If not, then
-would you be able to clarify what I'm not seeing?
+A little less intrusive solution would be to move backlink to pool
+from slots back to z3fold_header. Looks like it was a bad idea from
+the start.
 
-Thanks.
-
-> CCing the DEVs.
-> 
+Best regards,
+   Vitaly
 
