@@ -2,150 +2,258 @@ Return-Path: <SRS0=T9E7=U7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5746EC46478
-	for <linux-mm@archiver.kernel.org>; Tue,  2 Jul 2019 16:57:13 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 32B35C06510
+	for <linux-mm@archiver.kernel.org>; Tue,  2 Jul 2019 18:38:22 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id F3875206A3
-	for <linux-mm@archiver.kernel.org>; Tue,  2 Jul 2019 16:57:12 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="ErLvOg6E"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F3875206A3
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	by mail.kernel.org (Postfix) with ESMTP id CCE8F21721
+	for <linux-mm@archiver.kernel.org>; Tue,  2 Jul 2019 18:38:21 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CCE8F21721
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 64BF16B0003; Tue,  2 Jul 2019 12:57:12 -0400 (EDT)
+	id 478AB6B0003; Tue,  2 Jul 2019 14:38:20 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5D5D58E0003; Tue,  2 Jul 2019 12:57:12 -0400 (EDT)
+	id 429BC8E0003; Tue,  2 Jul 2019 14:38:20 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 49E1A8E0001; Tue,  2 Jul 2019 12:57:12 -0400 (EDT)
+	id 318828E0001; Tue,  2 Jul 2019 14:38:20 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 272CE6B0003
-	for <linux-mm@kvack.org>; Tue,  2 Jul 2019 12:57:12 -0400 (EDT)
-Received: by mail-io1-f72.google.com with SMTP id f22so19503101ioj.9
-        for <linux-mm@kvack.org>; Tue, 02 Jul 2019 09:57:12 -0700 (PDT)
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 12EF96B0003
+	for <linux-mm@kvack.org>; Tue,  2 Jul 2019 14:38:20 -0400 (EDT)
+Received: by mail-qt1-f197.google.com with SMTP id g30so17211677qtm.17
+        for <linux-mm@kvack.org>; Tue, 02 Jul 2019 11:38:20 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=d3ruOHdYru6Rpy+BKpMXi/6c+V83W2zZQqeLjuI07mA=;
-        b=CnvuyoH2w1/YEkHKtg0A+1bSSKue6n8PYtJFW8z9gEtFRGgJucWZ//2jgkhqOZqAkA
-         9h9dPfjOchreCIJBoyFjyxx/FDoFSuRg8Pdb7qEzYivfb2/VtwezZFpx+euAkXsm+/Ai
-         aeB0I4rvhLQN/ExyFG8S7WRZKS5aH1oC2XevqZKks9EjR3/++j1PwxreJMzk+91vsOO0
-         zwoncymbNc+U3PNmNPI7YtRuydzN9Ze1CqTw4xBdc4TZeGIx0JB1qq8EHtgvAxjG/7rd
-         UPFIoZ9NNjzUao6XlZg6neJrbLD771ym4bQw+yBox4Pw4mAknhLpVH6B3frSPzsFyHpp
-         Lrxg==
-X-Gm-Message-State: APjAAAXNPtMASG4j9q7JDGq1eRBJPGmuwSlHAu+44FNSd86AAvo5bu4k
-	OQm8zujYLYKVT5+ABDsC327YBw1Nazmyb4XOitl4u82RiwmA3khV5lndzv003Pph6Aah04NgefI
-	yH398mOmPvJggJkyoCDN4kL/iQ3GPq4Qcx3lKfsqiWP8UYkpj3mynm5sVirK6iUmNFg==
-X-Received: by 2002:a5d:9448:: with SMTP id x8mr35765758ior.102.1562086631846;
-        Tue, 02 Jul 2019 09:57:11 -0700 (PDT)
-X-Received: by 2002:a5d:9448:: with SMTP id x8mr35765679ior.102.1562086630962;
-        Tue, 02 Jul 2019 09:57:10 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562086630; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id;
+        bh=AEW55TgtVi2BKt6wgfN3muW8kwr4Eo/kHBzKeJce5lA=;
+        b=P0DXch09oiIjseKpoU8v9XVpP1r2MALwvT8QOuMNADyH3uYeyIfZdbCCM3Y470j6B6
+         QmsdbSKh6F1FsHt8+imHvsGhZR7auYqW/12qKahaAjPRlfVvpzCgauqyuTH22GevDiZD
+         xPyU0i6A5oQX3vKuUn3uQHk651sC3z3S3MDi7H7y8UMiHQF9V63A+EMQY31uQ6IteYos
+         eVFxb7AviMsFXSBDo/9MvLPaEQtDS+Kpxu5vCf0w9WaJoZsb8suk48J8f3+YKFbV9Hej
+         j4DNzAD9a46CijWkemLygQPh86mopthaQXSWHiAdmWOo1Mt8X1k79tksMcILtr9LzQdP
+         uRYg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAV/8vmyiIBgDexn7SHCSpM5/km9q55teEe5r8lM8UBjlmDigLlE
+	If8vNibxk8179ZOauA+y7aRMzM7DaJpE+ntkkdt95EQXs7sQRDyqk8cxpUqC81TNd/p4gCm2JKp
+	ZuGn+eLNnmmQ+67VF0jR1qZiFrPNnAotD8rOuRgSOJOkXno+7Gxq6fWTSpLANwcl1gw==
+X-Received: by 2002:ac8:458d:: with SMTP id l13mr27222530qtn.165.1562092699733;
+        Tue, 02 Jul 2019 11:38:19 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqz5ocso3s1MRmNmEC6R08a2rsTsXuxc/Smj0VhqloAfS7VDsLP5ulIPM4pP3CBto6DuvPP4
+X-Received: by 2002:ac8:458d:: with SMTP id l13mr27222483qtn.165.1562092698926;
+        Tue, 02 Jul 2019 11:38:18 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562092698; cv=none;
         d=google.com; s=arc-20160816;
-        b=tt7mxzzGW3jmBEoEPEIMT1WuESobMDc97WX43U/CmcFExbTJ7R/QMa5AZnbqhhC13K
-         qw+1j1C1EziX8biiRdCs4PAXsXhLWxLD/w4+/G2mhOth8pehdxXg6WD+s81bBDTUztUb
-         gavsNbqUQ6H3uvGOgvVULzn5C7H7SuoBhX7nl4auWqiEqmeRB4qId7z2r/AsfzphZcbQ
-         prz+Jvq+sSVWVTW6lLxdLH0IvRP8hzwUhUTeruCcZOfIwr3pptvEULbE0smhRNrAsTgH
-         ohfqCGrhtquOgZpsgUxMB1WkRwajo0zxhfLWK+ASTXe5x7xvS5d/B+PhGHwN4hafLcts
-         yexg==
+        b=viPUPxS/x4Ubzpi04mY2TSb1d+3yLny8p3UjOgX2JglvX01Dj0cqEm3mVFkfg2Hsd4
+         wWSwLzXZVpt4JhJ5ZptvQ7I8yn4sYF0By/F7COTbssEm1pOj2hJm1haZzs7PyV6e2Bi/
+         Usw1Z+lYyqBQoTHWpi/GtzM7MjsmExTC4vp1xNXAomVWYtF9jJgZ+0Z3zAMyO6CxfiDZ
+         OotK+idLFzRm/0ER4RDgZsdlBdke0b/cICejgT5rlBmWTkQy1qVFV5sqoc06xArYxg+J
+         5Jr0A0XSYOB+fx4Ig8xuxlcFs3/eFcJBpItZF68fPWmylmZyf4AKZgpB3D3hXmX7B+Lp
+         jKvQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=d3ruOHdYru6Rpy+BKpMXi/6c+V83W2zZQqeLjuI07mA=;
-        b=LL4BA62SM40lem0xdhpo6Lt9oXJHAezh9I8xdaDt/k052BxSxCR+2eEurPcI9XBEmb
-         g9vcaimhfM9UAq0FjqGxvdE+E8HFB1XtzyB6qlIOyLWHCha7qaCimeV+64XyqsuI26rD
-         ZoR3ML1HOi6Cv7AWqtj1FyGRYhBRK9uP3j73a8E25jCRGGonihuiQhjWCIeHh8Mj7vQP
-         V73bOBD4twMY+lS5hi3aRJjRIU7JeB6DJsydT3sQ7Sibm/7uEW25aNoUpngQWSFJwORk
-         qfjAVY1C8dpUQOCZirVkrYcLlg7ZLJwEQcw43hmk1UW94D14hjzU27QnfBdEY/bQ1iGW
-         oyGw==
+        h=message-id:date:subject:cc:to:from;
+        bh=AEW55TgtVi2BKt6wgfN3muW8kwr4Eo/kHBzKeJce5lA=;
+        b=IuH3vZjUQ52qaChxby2Xi+C4oVtU7lw6WMXllIMHlCh7uodtj64BaVe8hgJhJ0hXkO
+         a4K9ZVipwHrUsP7MewaHqxhon9MoLy8nV5WTqM/2nym92mND9BYdo+Yvys5jjsBfrG1J
+         3XkU43S+TJA37OQk62P4+UWim6b/QxWUNnMk/X5dHMx6CSeJTxvt3pEKABBH3lhAfUtP
+         aERfsSgfev31qHWkmx066WnuerkguBf6MhMx8E1sHjUDICj4Hb9tUwX2djyAfyzaJ6nw
+         NndPlllAekg2xoyWIScywJ4cktOBCZWSmiDPrnQcYeaW3HwBDtlGif/vjcaeeMT+rP/h
+         yl+w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=ErLvOg6E;
-       spf=pass (google.com: domain of henryburns@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=henryburns@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id k132sor10166831iof.136.2019.07.02.09.57.10
+       spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id 73si1884298qkd.255.2019.07.02.11.38.18
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 02 Jul 2019 09:57:10 -0700 (PDT)
-Received-SPF: pass (google.com: domain of henryburns@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 02 Jul 2019 11:38:18 -0700 (PDT)
+Received-SPF: pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=ErLvOg6E;
-       spf=pass (google.com: domain of henryburns@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=henryburns@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=d3ruOHdYru6Rpy+BKpMXi/6c+V83W2zZQqeLjuI07mA=;
-        b=ErLvOg6Ev6zdphtHAlsPI/i4E1PAFFXuaLmpX6JcmhUUgS/xmdRuySXKCpIRtG+kX1
-         FsBNUdt7zVXIciKH78drKjYo4PYJhD0tQnv5rYwR3/PbGcFitIGiyFOgRNQv0cqHlGeu
-         9y928edF1AI0QN3d9ySA6ju08SKBpvuUyqAVUUTBKxMF/hoGVeig2TwgtMcmDhk5bwON
-         ytRV6TMwbAXFECT+G69te6UyI4Y/HZtbTAL2PPKYiox8zBVdb6HWzEWgwyGh9YaT0+o5
-         RvasPdi/clcVZRh3FzLopILMMo7MJkLlQhmUJLYkDyArxNRZCsan6cYz+PMwXxGZXyRc
-         2XAw==
-X-Google-Smtp-Source: APXvYqy+XdTH/NEg0tFMMzUuM/+XmEQEFt0V0klg3HtEJYTy61ahf+1pdl0T/rIL9bJh57cA1/DbyP6ClHqPxMl8h3w=
-X-Received: by 2002:a5d:9e48:: with SMTP id i8mr22818920ioi.51.1562086630549;
- Tue, 02 Jul 2019 09:57:10 -0700 (PDT)
-MIME-Version: 1.0
-References: <20190701173042.221453-1-henryburns@google.com> <CAMJBoFPbRcdZ+NnX17OQ-sOcCwe+ZAsxcDJoR0KDkgBY9WXvpg@mail.gmail.com>
-In-Reply-To: <CAMJBoFPbRcdZ+NnX17OQ-sOcCwe+ZAsxcDJoR0KDkgBY9WXvpg@mail.gmail.com>
-From: Henry Burns <henryburns@google.com>
-Date: Tue, 2 Jul 2019 09:56:34 -0700
-Message-ID: <CAGQXPTjX=7aD9MQAs2kJthFvPdd3x8Nh53oc=wZCXH_dvDJ=Vg@mail.gmail.com>
-Subject: Re: [PATCH] mm/z3fold: Fix z3fold_buddy_slots use after free
-To: Vitaly Wool <vitalywool@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vitaly Vul <vitaly.vul@sony.com>, 
-	Mike Rapoport <rppt@linux.vnet.ibm.com>, Xidong Wang <wangxidong_97@163.com>, 
-	Shakeel Butt <shakeelb@google.com>, Jonathan Adams <jwadams@google.com>, Linux-MM <linux-mm@kvack.org>, 
-	LKML <linux-kernel@vger.kernel.org>
-Content-Type: text/plain; charset="UTF-8"
+       spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id F1A6B81F31;
+	Tue,  2 Jul 2019 18:37:54 +0000 (UTC)
+Received: from llong.com (dhcp-17-160.bos.redhat.com [10.18.17.160])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 599AA5D968;
+	Tue,  2 Jul 2019 18:37:44 +0000 (UTC)
+From: Waiman Long <longman@redhat.com>
+To: Christoph Lameter <cl@linux.com>,
+	Pekka Enberg <penberg@kernel.org>,
+	David Rientjes <rientjes@google.com>,
+	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Alexander Viro <viro@zeniv.linux.org.uk>,
+	Jonathan Corbet <corbet@lwn.net>,
+	Luis Chamberlain <mcgrof@kernel.org>,
+	Kees Cook <keescook@chromium.org>,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	Michal Hocko <mhocko@kernel.org>,
+	Vladimir Davydov <vdavydov.dev@gmail.com>
+Cc: linux-mm@kvack.org,
+	linux-doc@vger.kernel.org,
+	linux-fsdevel@vger.kernel.org,
+	cgroups@vger.kernel.org,
+	linux-kernel@vger.kernel.org,
+	Roman Gushchin <guro@fb.com>,
+	Shakeel Butt <shakeelb@google.com>,
+	Andrea Arcangeli <aarcange@redhat.com>,
+	Waiman Long <longman@redhat.com>
+Subject: [PATCH] mm, slab: Extend slab/shrink to shrink all the memcg caches
+Date: Tue,  2 Jul 2019 14:37:30 -0400
+Message-Id: <20190702183730.14461-1-longman@redhat.com>
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.25]); Tue, 02 Jul 2019 18:38:13 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jul 2, 2019 at 12:45 AM Vitaly Wool <vitalywool@gmail.com> wrote:
->
-> Hi Henry,
->
-> On Mon, Jul 1, 2019 at 8:31 PM Henry Burns <henryburns@google.com> wrote:
-> >
-> > Running z3fold stress testing with address sanitization
-> > showed zhdr->slots was being used after it was freed.
-> >
-> > z3fold_free(z3fold_pool, handle)
-> >   free_handle(handle)
-> >     kmem_cache_free(pool->c_handle, zhdr->slots)
-> >   release_z3fold_page_locked_list(kref)
-> >     __release_z3fold_page(zhdr, true)
-> >       zhdr_to_pool(zhdr)
-> >         slots_to_pool(zhdr->slots)  *BOOM*
->
-> Thanks for looking into this. I'm not entirely sure I'm all for
-> splitting free_handle() but let me think about it.
->
-> > Instead we split free_handle into two functions, release_handle()
-> > and free_slots(). We use release_handle() in place of free_handle(),
-> > and use free_slots() to call kmem_cache_free() after
-> > __release_z3fold_page() is done.
->
-> A little less intrusive solution would be to move backlink to pool
-> from slots back to z3fold_header. Looks like it was a bad idea from
-> the start.
->
-> Best regards,
->    Vitaly
+Currently, a value of '1" is written to /sys/kernel/slab/<slab>/shrink
+file to shrink the slab by flushing all the per-cpu slabs and free
+slabs in partial lists. This applies only to the root caches, though.
 
-We still want z3fold pages to be movable though. Wouldn't moving
-the backink to the pool from slots to z3fold_header prevent us from
-enabling migration?
+Extends this capability by shrinking all the child memcg caches and
+the root cache when a value of '2' is written to the shrink sysfs file.
+
+On a 4-socket 112-core 224-thread x86-64 system after a parallel kernel
+build, the the amount of memory occupied by slabs before shrinking
+slabs were:
+
+ # grep task_struct /proc/slabinfo
+ task_struct         7114   7296   7744    4    8 : tunables    0    0
+ 0 : slabdata   1824   1824      0
+ # grep "^S[lRU]" /proc/meminfo
+ Slab:            1310444 kB
+ SReclaimable:     377604 kB
+ SUnreclaim:       932840 kB
+
+After shrinking slabs:
+
+ # grep "^S[lRU]" /proc/meminfo
+ Slab:             695652 kB
+ SReclaimable:     322796 kB
+ SUnreclaim:       372856 kB
+ # grep task_struct /proc/slabinfo
+ task_struct         2262   2572   7744    4    8 : tunables    0    0
+ 0 : slabdata    643    643      0
+
+Signed-off-by: Waiman Long <longman@redhat.com>
+---
+ Documentation/ABI/testing/sysfs-kernel-slab | 10 +++--
+ mm/slab.h                                   |  1 +
+ mm/slab_common.c                            | 43 +++++++++++++++++++++
+ mm/slub.c                                   |  2 +
+ 4 files changed, 52 insertions(+), 4 deletions(-)
+
+diff --git a/Documentation/ABI/testing/sysfs-kernel-slab b/Documentation/ABI/testing/sysfs-kernel-slab
+index 29601d93a1c2..2a3d0fc4b4ac 100644
+--- a/Documentation/ABI/testing/sysfs-kernel-slab
++++ b/Documentation/ABI/testing/sysfs-kernel-slab
+@@ -429,10 +429,12 @@ KernelVersion:	2.6.22
+ Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
+ 		Christoph Lameter <cl@linux-foundation.org>
+ Description:
+-		The shrink file is written when memory should be reclaimed from
+-		a cache.  Empty partial slabs are freed and the partial list is
+-		sorted so the slabs with the fewest available objects are used
+-		first.
++		A value of '1' is written to the shrink file when memory should
++		be reclaimed from a cache.  Empty partial slabs are freed and
++		the partial list is sorted so the slabs with the fewest
++		available objects are used first.  When a value of '2' is
++		written, all the corresponding child memory cgroup caches
++		should be shrunk as well.  All other values are invalid.
+ 
+ What:		/sys/kernel/slab/cache/slab_size
+ Date:		May 2007
+diff --git a/mm/slab.h b/mm/slab.h
+index 3b22931bb557..a16b2c7ff4dd 100644
+--- a/mm/slab.h
++++ b/mm/slab.h
+@@ -174,6 +174,7 @@ int __kmem_cache_shrink(struct kmem_cache *);
+ void __kmemcg_cache_deactivate(struct kmem_cache *s);
+ void __kmemcg_cache_deactivate_after_rcu(struct kmem_cache *s);
+ void slab_kmem_cache_release(struct kmem_cache *);
++int kmem_cache_shrink_all(struct kmem_cache *s);
+ 
+ struct seq_file;
+ struct file;
+diff --git a/mm/slab_common.c b/mm/slab_common.c
+index 464faaa9fd81..493697ba1da5 100644
+--- a/mm/slab_common.c
++++ b/mm/slab_common.c
+@@ -981,6 +981,49 @@ int kmem_cache_shrink(struct kmem_cache *cachep)
+ }
+ EXPORT_SYMBOL(kmem_cache_shrink);
+ 
++/**
++ * kmem_cache_shrink_all - shrink a cache and all its memcg children
++ * @s: The root cache to shrink.
++ *
++ * Return: 0 if successful, -EINVAL if not a root cache
++ */
++int kmem_cache_shrink_all(struct kmem_cache *s)
++{
++	struct kmem_cache *c;
++
++	if (!IS_ENABLED(CONFIG_MEMCG_KMEM)) {
++		kmem_cache_shrink(s);
++		return 0;
++	}
++	if (!is_root_cache(s))
++		return -EINVAL;
++
++	/*
++	 * The caller should have a reference to the root cache and so
++	 * we don't need to take the slab_mutex. We have to take the
++	 * slab_mutex, however, to iterate the memcg caches.
++	 */
++	get_online_cpus();
++	get_online_mems();
++	kasan_cache_shrink(s);
++	__kmem_cache_shrink(s);
++
++	mutex_lock(&slab_mutex);
++	for_each_memcg_cache(c, s) {
++		/*
++		 * Don't need to shrink deactivated memcg caches.
++		 */
++		if (s->flags & SLAB_DEACTIVATED)
++			continue;
++		kasan_cache_shrink(c);
++		__kmem_cache_shrink(c);
++	}
++	mutex_unlock(&slab_mutex);
++	put_online_mems();
++	put_online_cpus();
++	return 0;
++}
++
+ bool slab_is_available(void)
+ {
+ 	return slab_state >= UP;
+diff --git a/mm/slub.c b/mm/slub.c
+index a384228ff6d3..5d7b0004c51f 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -5298,6 +5298,8 @@ static ssize_t shrink_store(struct kmem_cache *s,
+ {
+ 	if (buf[0] == '1')
+ 		kmem_cache_shrink(s);
++	else if (buf[0] == '2')
++		kmem_cache_shrink_all(s);
+ 	else
+ 		return -EINVAL;
+ 	return length;
+-- 
+2.18.1
 
