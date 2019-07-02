@@ -2,203 +2,196 @@ Return-Path: <SRS0=T9E7=U7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6884EC5B57D
-	for <linux-mm@archiver.kernel.org>; Tue,  2 Jul 2019 06:17:06 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B1764C5B57D
+	for <linux-mm@archiver.kernel.org>; Tue,  2 Jul 2019 06:42:47 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2269121841
-	for <linux-mm@archiver.kernel.org>; Tue,  2 Jul 2019 06:17:06 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 6C2C620881
+	for <linux-mm@archiver.kernel.org>; Tue,  2 Jul 2019 06:42:47 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (4096-bit key) header.d=d-silva.org header.i=@d-silva.org header.b="kSD9EPjw"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2269121841
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=d-silva.org
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="rqVQAYL0"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6C2C620881
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B3B7B8E0003; Tue,  2 Jul 2019 02:17:05 -0400 (EDT)
+	id BC42D8E0005; Tue,  2 Jul 2019 02:42:43 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AEA208E0002; Tue,  2 Jul 2019 02:17:05 -0400 (EDT)
+	id B72EC8E0002; Tue,  2 Jul 2019 02:42:43 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9B1ED8E0003; Tue,  2 Jul 2019 02:17:05 -0400 (EDT)
+	id A61EB8E0005; Tue,  2 Jul 2019 02:42:43 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 797398E0002
-	for <linux-mm@kvack.org>; Tue,  2 Jul 2019 02:17:05 -0400 (EDT)
-Received: by mail-yw1-f71.google.com with SMTP id d135so1700162ywd.0
-        for <linux-mm@kvack.org>; Mon, 01 Jul 2019 23:17:05 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 7259A8E0002
+	for <linux-mm@kvack.org>; Tue,  2 Jul 2019 02:42:43 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id x18so10303280pfj.4
+        for <linux-mm@kvack.org>; Mon, 01 Jul 2019 23:42:43 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:message-id:subject:from:to:cc
          :date:in-reply-to:references:user-agent:mime-version
          :content-transfer-encoding;
-        bh=dK8DFqvFq+hyqHVE6ARPEuTS5xGx4zYoemsWL1Fo1EA=;
-        b=mVCnmBv1mGnKYYCThN7XAWGufrVoXgLR1iVZjwbPHKJ7LeFpzZ0AESPHWDeU+4kADE
-         O8fmfNKWtyXKpB5YMyY9E+zD0z/QY+RRRQuZZkLgTRODswK6eFmhDDLA2XrqUgPfGVwz
-         y2NJz6mpb4PFBUuwRyHN01VGuk9Bfy5VRWYNjGbMb7lwmqGZrWFeHw+RtLkPXj5yQ9Yo
-         /irYUuyDd/Gc7n+5FHLaki9FfThygzNNPkSF6lAAmWmWuL/ZRXBk6tdTzrQ+nZ+BBH51
-         lbTMZM1bAKMi1rd7jPRaW6j5T9Ah61dtxnnsO/ssQa5HWQTZQzb83ZO0E8nASd+QaSbi
-         pVCg==
-X-Gm-Message-State: APjAAAX+8uInIAMPAr1PS6FcUX+Hpj736kOGd1EA2YLlZbb9yp6a4UFp
-	O0Ol6RAArZMLDlsH678JngljK0TiwkZHJy9JFmA7TraySawGOoBrOpR9BVEVWkWK8yDR+mO0jyr
-	kYZMmlDhvMZuPVpUuCUlbSILcSBuPqoHZxk7M3PCz0b4hX4lQmmfyj4VMmVF5FCqmDw==
-X-Received: by 2002:a81:aa50:: with SMTP id z16mr16193743ywk.278.1562048225165;
-        Mon, 01 Jul 2019 23:17:05 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqydn1KPKBZrb1qlwMELC0+R7KN6wT7LuXVoHvHkUMX0R+3cVaUWpVPLeOO7yw0hmTC3IcOx
-X-Received: by 2002:a81:aa50:: with SMTP id z16mr16193728ywk.278.1562048224523;
-        Mon, 01 Jul 2019 23:17:04 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562048224; cv=none;
+        bh=87XbSGKa5QHQCeUtgWcK1lHAubdPYIITDtUYO85ViuI=;
+        b=Yd7hVcnBlmDHOcHpWKIoyDVEyRpJ4nkB63Por/GrhbHW+QGz0IRUBkMTsOspGi0xdE
+         phqwAL8QmCv+cwU6hdSLyY14apVysFh61TSQ437ICnpXpI9074BW46kZbvkLFPq7gYfi
+         PeBnZMM8IzW7qvECHBu4nQ6UgttOYz+VRY2K4bp0uxjG6XJxrpn/tXxoLJHoNH2+djBu
+         8/er3yyEcXGZAS0BMxvXVImBEmpngcIGDRvX2viVJiOQuxyW2QeSaiJVUv4kHAoJkWNc
+         aqpx+8ibSnR5yy+egsMANh1NXrc1bfpDuajqrAf2inxTvl2ct/smNMe29/mN1cj3GjI6
+         Px2Q==
+X-Gm-Message-State: APjAAAXAc6pLnn1Ib5zU9b3TuI2ARO98riXZ6FsQ4xMoy4dd3ykPke4d
+	3huA86Q/YmvWlUmyzxwibUwGhP9S9ucgNhfrIfNWIWwu9IypOecbtVg1RwCjbpLGMm+roZ/LX5r
+	p82LWazaGnEd8MXSCigU+eraSbVAG43JZaYrOWKVjac6UyyWAVTxOpcOnNMzjvMF79Q==
+X-Received: by 2002:a17:902:29c3:: with SMTP id h61mr33065141plb.37.1562049763084;
+        Mon, 01 Jul 2019 23:42:43 -0700 (PDT)
+X-Received: by 2002:a17:902:29c3:: with SMTP id h61mr33065090plb.37.1562049762187;
+        Mon, 01 Jul 2019 23:42:42 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562049762; cv=none;
         d=google.com; s=arc-20160816;
-        b=NQWXoUioHTh2E22HBMBtH6iq1Wx8MLkchnFYkZbdSA5UT/RshEuY7PByLT+kvX192b
-         lG23/ZcME8Dzj/cS55y88HALBelE4ObReX5NxDH66wI9/FNP2d2pV8O7yUGyP8arzYkv
-         B9Js7VAhx4hzpHZawrar8DMKrrCCY735RpIwdMXR6eaHYjG8ZUsExx0oQ31Ez57Wk9tX
-         S5H161JrzJGZFwjkTg9UmXvle9zAOUWnF38iQf72u4Ysgx7OrjQhsBQUhp79jIwUjKUq
-         +V2QGGAFJp6JD0l4KopLDLJb7OX1ew0ebk7QngnfAMqjdWIlSJLPYhPSZytuFgArZInL
-         1GwA==
+        b=m+Vo3Fp9BlYflCae9PQWudlzGNeHwA9dhLE0ohRY1snYe9rlDFuKACfoicpJxKFslQ
+         2d+9lind1JgimIXivJP8H9htFp845GOGkGnu1NhS52nxokgVHDKeuGyOvlWiGXCV0teh
+         jJfrWraG/man9x0WoUILv6V+PYQNJNpvcqKDQZO5FuMHJGnQ2Arzn0mHHTvuLwDd5HSc
+         PnO2MfFRAF8tyqeAeAmg6WVru6RkUsczfLoZVaWKGysFam4NojGwJeg+hOfxAXWQWk4S
+         WIlk7Ky+0XDq6gYg9XmJja3XYSpD4BdUVhGLohKWtYwa1dIlFMgwcZrzzXNzcBrBCbS1
+         XHtg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:user-agent:references
          :in-reply-to:date:cc:to:from:subject:message-id:dkim-signature;
-        bh=dK8DFqvFq+hyqHVE6ARPEuTS5xGx4zYoemsWL1Fo1EA=;
-        b=BcwvBKcXrAgLHjbciOtdxDJB9DDW9GWCr1Sp83xfhv7Ih68Eun/DKhzkn8xFhdR9ID
-         Ki9Y2xvSJEvjM0RygNotpHk3g24YXnvaS9IND0FtAaDzop9buTMaed0nGiglXWuRIulb
-         6qhcuwk7BreeXUjhx/EVpzmtPKxsSOFG+Rm+PT5PWoMd2VCrSNvKC+yHYZNHUH7bMstV
-         ZVoR+713xurnqYWdNpFFP4m/ueHRcCYHERA3qocNq1S3mMqi0mziQRE9fxY9CFh+9Exl
-         +kJSppeHUEFy0x4zdqBYuNZLCEUgMNEiXhZQvKUmUnFjFyaWSYU4qa1UudIr8o/JWzuz
-         YXtQ==
+        bh=87XbSGKa5QHQCeUtgWcK1lHAubdPYIITDtUYO85ViuI=;
+        b=EVmqSlp3/eCGtm6mf/BcTxfYpBxa463R5EuR/GsCFRQz8zgC+wSRJZyV5kfqSdHPez
+         uoOF8mNOgf9LvwQJf0Bj+kxpMRx6bao/UCRg5dPUR3JJ5d3c34QqYQdsyb6NHUksJYWW
+         ss8BEoF6q49HO8tKdRfobukoGVv9jv0zxYmIlbE+eQ4bdgAOx5lcL+H0jZb7bUt6pBhE
+         VaU3+EJuk/fpXAkfJJsUZK4F+eIFvfFDV4/aFr2pr4ZHdBk8PlKZ3zeCCBjCLEfc01p6
+         gyF3f8RcUFs5FbXt210CRJdENWXU9ULIWd/xsXmI8sXQVksGwBS8tjHK3DmtQ1RjSCUo
+         iuvA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@d-silva.org header.s=201810a header.b=kSD9EPjw;
-       spf=pass (google.com: domain of alastair@d-silva.org designates 66.55.73.32 as permitted sender) smtp.mailfrom=alastair@d-silva.org
-Received: from ushosting.nmnhosting.com (ushosting.nmnhosting.com. [66.55.73.32])
-        by mx.google.com with ESMTP id d3si5284727ywf.374.2019.07.01.23.17.04
-        for <linux-mm@kvack.org>;
-        Mon, 01 Jul 2019 23:17:04 -0700 (PDT)
-Received-SPF: pass (google.com: domain of alastair@d-silva.org designates 66.55.73.32 as permitted sender) client-ip=66.55.73.32;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=rqVQAYL0;
+       spf=pass (google.com: domain of rashmica.g@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=rashmica.g@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id j8sor2189539pjz.15.2019.07.01.23.42.42
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Mon, 01 Jul 2019 23:42:42 -0700 (PDT)
+Received-SPF: pass (google.com: domain of rashmica.g@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@d-silva.org header.s=201810a header.b=kSD9EPjw;
-       spf=pass (google.com: domain of alastair@d-silva.org designates 66.55.73.32 as permitted sender) smtp.mailfrom=alastair@d-silva.org
-Received: from mail2.nmnhosting.com (unknown [202.169.106.97])
-	by ushosting.nmnhosting.com (Postfix) with ESMTPS id 1248A2DC009C;
-	Tue,  2 Jul 2019 02:17:02 -0400 (EDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=d-silva.org;
-	s=201810a; t=1562048223;
-	bh=jmxTkz+xmGtAbS/yxNUR0tOcP0AiHxZIRt4HYUN6bgk=;
-	h=Subject:From:To:Cc:Date:In-Reply-To:References:From;
-	b=kSD9EPjwIJGSwPftuuH7di/739+wc8CPJufU+o7Nxfbv/sW0LijKap+FV5L7IUGNj
-	 Fh3kViYh+G3msOxmrYk9XqF0G8vzK8I0gQgEQd6bNj9+q8oEVSUV2iD8cTcaejcimR
-	 f5fwty3mfgNOE9FoRuiA+LG5q1eG667ByT/ysbwvjtsMGhswLAqOEHzcDUyWzJ7FOO
-	 b+7go36ost7erc7qQcrtKbWKq1Bjl3kF3JrHGslsqhjdpLgzSKihqhTiCelqVG/W6Y
-	 nsiRvodaITT2+dQohTEPyMEdh7yAjyVLQRgaDGbTcQtCYjrPJmkqk6hWS9f/yjV9vG
-	 t4WV+6GEFpJmuwjxRRE44fQIY2v2YkLB502ZdT0bM6H45kNQlPUyNXkJrdGfoG5LQv
-	 X8lqNfUHEj8NMIKO1Q2ceUMdk+/xeYN8vHnMHQZGu/nkvo8H7aFuSaVozHxZruOFBZ
-	 gWth5ksRUmjbFGE87MShayptzaSeFsCq73NZlNW8yLUj601d1h7ouLWlCefXxWojWt
-	 CrBnSX2+yYfthxDIKP6bmPEowSLCwGu492zEFKlAXON4NrodnBBpiBjOS38fmSmJHr
-	 8gN7PFYReFT8Q/qlkbz3ijuIjrUsIlm+PpbWbfiAbyNAwgE0S0+BYlrGM5V0O4sE06
-	 /tvbJOSAf0xysB78lETKU1bU=
-Received: from adsilva.ozlabs.ibm.com (static-82-10.transact.net.au [122.99.82.10] (may be forged))
-	(authenticated bits=0)
-	by mail2.nmnhosting.com (8.15.2/8.15.2) with ESMTPSA id x626GgYG086222
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NO);
-	Tue, 2 Jul 2019 16:16:58 +1000 (AEST)
-	(envelope-from alastair@d-silva.org)
-Message-ID: <caa5673459fef4152e0aea7e1a30d6027a81e652.camel@d-silva.org>
-Subject: Re: [PATCH v2 1/3] mm: Trigger bug on if a section is not found in
- __section_nr
-From: "Alastair D'Silva" <alastair@d-silva.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-        "Rafael J. Wysocki"
- <rafael@kernel.org>,
-        Andrew Morton <akpm@linux-foundation.org>,
-        Pavel
- Tatashin <pasha.tatashin@oracle.com>,
-        Oscar Salvador <osalvador@suse.de>, Mike Rapoport <rppt@linux.ibm.com>,
-        Baoquan He <bhe@redhat.com>, Wei Yang
- <richard.weiyang@gmail.com>,
-        Logan Gunthorpe <logang@deltatee.com>, linux-kernel@vger.kernel.org,
-        linux-mm@kvack.org
-Date: Tue, 02 Jul 2019 16:16:42 +1000
-In-Reply-To: <20190702061310.GA978@dhcp22.suse.cz>
-References: <20190626061124.16013-1-alastair@au1.ibm.com>
-	 <20190626061124.16013-2-alastair@au1.ibm.com>
-	 <20190626062113.GF17798@dhcp22.suse.cz>
-	 <d4af66721ea53ce7df2d45a567d17a30575672b2.camel@d-silva.org>
-	 <20190626065751.GK17798@dhcp22.suse.cz>
-	 <e66e43b1fdfbff94ab23a23c48aa6cbe210a3131.camel@d-silva.org>
-	 <20190627080724.GK17798@dhcp22.suse.cz>
-	 <833b9675bc363342827cb8f7c76ebb911f7f960d.camel@d-silva.org>
-	 <20190701104658.GA6549@dhcp22.suse.cz>
-	 <7f0ac9250e6fe6318aaf0685be56b121a978ce1b.camel@d-silva.org>
-	 <20190702061310.GA978@dhcp22.suse.cz>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=rqVQAYL0;
+       spf=pass (google.com: domain of rashmica.g@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=rashmica.g@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=message-id:subject:from:to:cc:date:in-reply-to:references
+         :user-agent:mime-version:content-transfer-encoding;
+        bh=87XbSGKa5QHQCeUtgWcK1lHAubdPYIITDtUYO85ViuI=;
+        b=rqVQAYL03KWvM3yxtAzULV9ROj+5qv4RNm51K8dCwptmKyKYqkznX13vIUUrtbtd7X
+         6i10foW4JDXh3XDnOmEpSSpVWxS7vQI3opSg3vJMYbD2t2aBKXwDpM843lvsWW3sYDOR
+         4PZJCddPZUysCuNNRugCHitmMheStFtavdtokHk0u1nOMaXV0/75dyg1QJxscd0UsGQA
+         36CzpCLMA7v1ZPa2LFdKZa0GvuOtoSHAsnNMLCbWGaXNCGhtqm7qdZ2MPqHFDV4CqS6S
+         r06dYUammP+ccOXWNgAzrJZzTRv5OEoJtBXV3tekmbBI5tBjmC31rih/CQxkQ79CmhWj
+         75QQ==
+X-Google-Smtp-Source: APXvYqx5opPoUVZnjJcNKkQE1Fn7/SKTQBxHrlZeRIrzSEiR5Nhjg0pGDvNnHaiwpg4kRbNXgzTrIg==
+X-Received: by 2002:a17:90a:bc0c:: with SMTP id w12mr3530135pjr.111.1562049761805;
+        Mon, 01 Jul 2019 23:42:41 -0700 (PDT)
+Received: from rashmica.ozlabs.ibm.com ([122.99.82.10])
+        by smtp.googlemail.com with ESMTPSA id w65sm12975112pfw.168.2019.07.01.23.42.37
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Mon, 01 Jul 2019 23:42:41 -0700 (PDT)
+Message-ID: <9143f64391d11aa0f1988e78be9de7ff56e4b30b.camel@gmail.com>
+Subject: Re: [PATCH v2 0/5] Allocate memmap from hotadded memory
+From: Rashmica Gupta <rashmica.g@gmail.com>
+To: David Hildenbrand <david@redhat.com>, Oscar Salvador <osalvador@suse.de>
+Cc: akpm@linux-foundation.org, mhocko@suse.com, dan.j.williams@intel.com, 
+	pasha.tatashin@soleen.com, Jonathan.Cameron@huawei.com, 
+	anshuman.khandual@arm.com, vbabka@suse.cz, linux-mm@kvack.org, 
+	linux-kernel@vger.kernel.org
+Date: Tue, 02 Jul 2019 16:42:34 +1000
+In-Reply-To: <887b902e-063d-a857-d472-f6f69d954378@redhat.com>
+References: <20190625075227.15193-1-osalvador@suse.de>
+	 <2ebfbd36-11bd-9576-e373-2964c458185b@redhat.com>
+	 <20190626080249.GA30863@linux>
+	 <2750c11a-524d-b248-060c-49e6b3eb8975@redhat.com>
+	 <20190626081516.GC30863@linux>
+	 <887b902e-063d-a857-d472-f6f69d954378@redhat.com>
 Content-Type: text/plain; charset="UTF-8"
-User-Agent: Evolution 3.32.2 (3.32.2-1.fc30) 
+User-Agent: Evolution 3.30.5 (3.30.5-1.fc29) 
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-X-Greylist: Sender succeeded SMTP AUTH, not delayed by milter-greylist-4.6.2 (mail2.nmnhosting.com [10.0.1.20]); Tue, 02 Jul 2019 16:16:59 +1000 (AEST)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2019-07-02 at 08:13 +0200, Michal Hocko wrote:
-> On Tue 02-07-19 14:13:25, Alastair D'Silva wrote:
-> > On Mon, 2019-07-01 at 12:46 +0200, Michal Hocko wrote:
-> > > On Fri 28-06-19 10:46:28, Alastair D'Silva wrote:
-> > > [...]
-> > > > Given that there is already a VM_BUG_ON in the code, how do you
-> > > > feel
-> > > > about broadening the scope from 'VM_BUG_ON(!root)' to
-> > > > 'VM_BUG_ON(!root
-> > > > > > (root_nr == NR_SECTION_ROOTS))'?
+Hi David,
+
+Sorry for the late reply.
+
+On Wed, 2019-06-26 at 10:28 +0200, David Hildenbrand wrote:
+> On 26.06.19 10:15, Oscar Salvador wrote:
+> > On Wed, Jun 26, 2019 at 10:11:06AM +0200, David Hildenbrand wrote:
+> > > Back then, I already mentioned that we might have some users that
+> > > remove_memory() they never added in a granularity it wasn't
+> > > added. My
+> > > concerns back then were never fully sorted out.
 > > > 
-> > > As far as I understand the existing VM_BUG_ON will hit when the
-> > > mem_section tree gets corrupted. This is a different situation to
-> > > an
-> > > incorrect section given so I wouldn't really mix those two. And I
-> > > still
-> > > do not see much point to protect from unexpected input parameter
-> > > as
-> > > this
-> > > is internal function as already pointed out.
+> > > arch/powerpc/platforms/powernv/memtrace.c
 > > > 
+> > > - Will remove memory in memory block size chunks it never added
+> > > - What if that memory resides on a DIMM added via
+> > > MHP_MEMMAP_DEVICE?
+> > > 
+> > > Will it at least bail out? Or simply break?
+> > > 
+> > > IOW: I am not yet 100% convinced that MHP_MEMMAP_DEVICE is save
+> > > to be
+> > > introduced.
 > > 
-> > Hi Michael,
+> > Uhm, I will take a closer look and see if I can clear your
+> > concerns.
+> > TBH, I did not try to use arch/powerpc/platforms/powernv/memtrace.c
+> > yet.
 > > 
-> > I was able to hit this problem as the system firmware had assigned
-> > the
-> > prototype pmem device an address range above the 128TB limit that
-> > we
-> > originally supported. This has since been lifted to 2PB with patch
-> > 4ffe713b7587b14695c9bec26a000fc88ef54895.
+> > I will get back to you once I tried it out.
 > > 
-> > As it stands, we cannot move this range lower as the high bits are
-> > dictated by the location the card is connected.
-> > 
-> > Since the physical address of the memory is not controlled by the
-> > kernel, I believe we should catch (or at least make it easy to
-> > debug)
-> > the sitution where external firmware allocates physical addresses
-> > beyond that which the kernel supports.
 > 
-> Just make it clear, I am not against a sanitization. I am objecting
-> to
-> put it into __section_nr because this is way too late. As already
-> explained, you already must have a bogus mem_section object in hand.
-> Why cannot you add a sanity check right there when the memory is
-> added?
-> Either when the section is registered or even sooner in
-> arch_add_memory.
+> BTW, I consider the code in arch/powerpc/platforms/powernv/memtrace.c
+> very ugly and dangerous.
+
+Yes it would be nice to clean this up.
+
+> We should never allow to manually
+> offline/online pages / hack into memory block states.
 > 
+> What I would want to see here is rather:
+> 
+> 1. User space offlines the blocks to be used
+> 2. memtrace installs a hotplug notifier and hinders the blocks it
+> wants
+> to use from getting onlined.
+> 3. memory is not added/removed/onlined/offlined in memtrace code.
+>
 
-Good point, I was thinking of a libnvdimm enhancement to check that the
-end address is in range, but a more generic solution is better.
+I remember looking into doing it a similar way. I can't recall the
+details but my issue was probably 'how does userspace indicate to
+the kernel that this memory being offlined should be removed'?
 
--- 
-Alastair D'Silva           mob: 0423 762 819
-skype: alastair_dsilva    
-Twitter: @EvilDeece
-blog: http://alastair.d-silva.org
+I don't know the mm code nor how the notifiers work very well so I
+can't quite see how the above would work. I'm assuming memtrace would
+register a hotplug notifier and when memory is offlined from userspace,
+the callback func in memtrace would be called if the priority was high
+enough? But how do we know that the memory being offlined is intended
+for usto touch? Is there a way to offline memory from userspace not
+using sysfs or have I missed something in the sysfs interface?
 
+On a second read, perhaps you are assuming that memtrace is used after
+adding new memory at runtime? If so, that is not the case. If not, then
+would you be able to clarify what I'm not seeing?
+
+Thanks.
+
+> CCing the DEVs.
+> 
 
