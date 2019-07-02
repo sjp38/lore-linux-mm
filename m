@@ -2,164 +2,164 @@ Return-Path: <SRS0=T9E7=U7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
-	SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0DD33C5B57D
-	for <linux-mm@archiver.kernel.org>; Tue,  2 Jul 2019 23:18:02 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1F8B2C5B57D
+	for <linux-mm@archiver.kernel.org>; Tue,  2 Jul 2019 23:27:16 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C1AF021BE2
-	for <linux-mm@archiver.kernel.org>; Tue,  2 Jul 2019 23:18:01 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id CF39D219BE
+	for <linux-mm@archiver.kernel.org>; Tue,  2 Jul 2019 23:27:15 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="OuN/4pti"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C1AF021BE2
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="tKlI879d"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CF39D219BE
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=roeck-us.net
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3CEF06B0003; Tue,  2 Jul 2019 19:18:01 -0400 (EDT)
+	id 5EB026B0003; Tue,  2 Jul 2019 19:27:15 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3A70B8E0003; Tue,  2 Jul 2019 19:18:01 -0400 (EDT)
+	id 59B078E0003; Tue,  2 Jul 2019 19:27:15 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2BD3D8E0001; Tue,  2 Jul 2019 19:18:01 -0400 (EDT)
+	id 48A978E0001; Tue,  2 Jul 2019 19:27:15 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 02CE06B0003
-	for <linux-mm@kvack.org>; Tue,  2 Jul 2019 19:18:01 -0400 (EDT)
-Received: by mail-oi1-f197.google.com with SMTP id w123so228980oie.21
-        for <linux-mm@kvack.org>; Tue, 02 Jul 2019 16:18:00 -0700 (PDT)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F6E96B0003
+	for <linux-mm@kvack.org>; Tue,  2 Jul 2019 19:27:15 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id e7so239885plt.13
+        for <linux-mm@kvack.org>; Tue, 02 Jul 2019 16:27:15 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=u5UwRiHjXkEAlhFHmvxN8ePNlS4fXC/47jr2WEGpIzo=;
-        b=l7eH8R4Y3a5doiQsBHTkrwGcMCjmI/0s0S1JMenTKbietz4G2YJTuQM2kFiujdQYEa
-         oC4MW2D+iLObEerH4agSrSo0dZeJlpOte9R5xgaDKrI60dLN78Du1sQU6n/JdJ6l73zA
-         zZsq/koQ1w/IYTyC4uwRnnOZ2jFe39/DEHpaqCw1Gl1ILm8eVu+wqt2Obt7eJDzV/Rva
-         eK4ILr9sh1i+qohjRy6wSidJ2/likSbbMW1fw7BKbzUV3WLnwyZhQENXQKVIBGDKOq4X
-         wh6BRSza2vnjpnIxGI1Url9fWyzoZCslRATYXFHCnKX0pZRVPT6h/zvmPfdjFVj3E9Zk
-         mkdg==
-X-Gm-Message-State: APjAAAU6f1wc5xT8M/rBX3d/Jx9mxbyyi6ipJLv7mq9ZEPb7X5l8uDAq
-	HEtJaQ+Ga6ZNJIbigu4mpdCMR+Aiygxe2ewgohBGKxKrWKBFMd6FNqQiuyVHGxcEQPRVydtOL7H
-	iWaZRnLFpxkajpxUnzaF9tMKxCB2J6YcsuDPpVeWgRNZmIflGErYEAa+I98PQxq9gww==
-X-Received: by 2002:aca:ac4d:: with SMTP id v74mr1390883oie.66.1562109480612;
-        Tue, 02 Jul 2019 16:18:00 -0700 (PDT)
-X-Received: by 2002:aca:ac4d:: with SMTP id v74mr1390853oie.66.1562109479861;
-        Tue, 02 Jul 2019 16:17:59 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562109479; cv=none;
+        h=x-gm-message-state:dkim-signature:sender:subject:to:cc:references
+         :from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=sIW4c2nsoK1zg9iPJ9PWWFYICxxuZVhWWS0PGONCcT8=;
+        b=JAtDxV8jb09Gm83Foa0IeAeLut0ldRSJzvLkszhTrE2sRDVetsfPvdjt1JZ2dRBjJe
+         8vLMCHNATr/EhZ1QoAk+zMF9zw+ZJaxRJrNi/JZzccISK+8imo7uNIOq+++3iKxFYuWp
+         i8jytLoNxMfMLmo4Drm5BCfK96udgicZ5ZZaZxIBNhJ8OzCiZxss2q3l3QxWuoYCx6zy
+         eQpbbdpSgLPjxGSYAJSvrvRarpOSrr8OliElafgxTxAhmzykLWpRhV86ht93ZZB30HMy
+         lfi+aiR3632Muexj1nUp8kTkfL2TJaj/vqCVgVNUik7/SlkVtwOjy2mDcJ79Z2MhDZRb
+         SWEQ==
+X-Gm-Message-State: APjAAAUFzdDZR97bM9so+wxngy/EpDyQscWRiBrMUbSTOwecV6M+T2gn
+	q/UBybVAUmZdGsgtgAhy5b0/qv8562RZSuOgtV2k46FAZY7V8PHH9TCa61lpNT6bsVXXy/0e5EK
+	B4TBP6JYQxiIVNJPkOg39lyW6ez5y6/VEXz8RvDUNGDlVPC06gPE52VofveYL5Qc=
+X-Received: by 2002:a17:902:2aab:: with SMTP id j40mr36523746plb.76.1562110034725;
+        Tue, 02 Jul 2019 16:27:14 -0700 (PDT)
+X-Received: by 2002:a17:902:2aab:: with SMTP id j40mr36523695plb.76.1562110033924;
+        Tue, 02 Jul 2019 16:27:13 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562110033; cv=none;
         d=google.com; s=arc-20160816;
-        b=k3Zbxs1mwAY+FFhVzx9conYW3+V4bLS4dbWlyLX5sofFb5u+cp9VHyXH2B3wdpBNeV
-         BAQJyZ44HaKp4IQiTEEEr9FgebYQX4fYpuWYIfSv78hlTefS/ZOvk4EoIZU7PStFsxXC
-         RFVKL+rRLKAsjg9PW4MjQZxfamvHPN9P7vTZCFebrtqLExP30lZ7EB9l3K5XCf4iCJS1
-         gAohfZ7YlQZes44mMXzES9xb9eDSqYYtYib30MZgHzOuLhTymHxb0Gp8ZSDalRdeV/VM
-         iTJIkuT8zhsIyn2vQ6jKlxYhDFTktNaV8APyHy6tFMz66uATKlpQhf9u6KGVqrrStx/g
-         gysg==
+        b=sZqWjHAW/6xBKisN7MZcRA23dKgIkNZjw/ZxEZEfobDwsKCxWQP5Ti+/fkVGgELt7j
+         6Uq+qBotWSrOVVLKSEVxDdCvRjc06rO+aWm3z2uE60oDjN6SSVUEYUJRZ8hZ/RHGtWco
+         zOArOal4lXgVyazIeDN+IsuJGDPvQ4s6Qdd9E6OsxHm09br3xBJmrEET925wbZk5JOY0
+         dtoogHdwxC/9wP2udGxMpyEvqbfVhk+Eclh1oLcfLuNb44oMGIjBvszoHu/kae7loi68
+         A7hiHQne5C7wL3WF1ueHz1wLlaFUZ1j48PRa8HgEY3OF9Qt/WdQlmW9A4A6TKjsuD6TR
+         n4ww==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=u5UwRiHjXkEAlhFHmvxN8ePNlS4fXC/47jr2WEGpIzo=;
-        b=ltpYRfOu8aMznacu/y0OJ/9yCYjvD0CCYYEeZ9luNVOz/Hpm/GY1oNkoxqv2RPFxU0
-         6nJEiQmvek97nHwQDAfIsLF5P1Yi9/DfHsW5c56cXtmiyiu3CuU/kF5Y/zx9FH0zV0xr
-         3FI1gF7LARr/A6MvBPef2GVN0ScIR6b3lQwFXfKIxw5gotS82r/rfsfBlITj4eGs5l+r
-         2s48lFDopaHl0cS6zV/mBWPPhDpCoqf9LBS9MYe5fK0wFIRCR+/n+auJvgd6e4fTgaz/
-         v8PlfAuycBbCcSfs2CCUp3DfpIIG6o/DBwrOu4wkexgizLH3GYfiJ8i8x1UhHVGEY1h4
-         iJdw==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject:sender
+         :dkim-signature;
+        bh=sIW4c2nsoK1zg9iPJ9PWWFYICxxuZVhWWS0PGONCcT8=;
+        b=HuGqII2etFyAzFI5SUHDTHb9bFi2z++BE7qOclPxfKYGI9U1dEGdHljnYN3FZFinLm
+         RGjb1xyJtFctP/4OE8pWfpYEGJfA3jOBarQwpwDKHPC+oqoe+D2Jce5Jz8GLtmtABMl/
+         NhWiahoxm8FpBIoFMzIPsAV2KaRHvbjhqJDWTXAGFkFuZ+R/l6elN6mWkBtqkug5IbTC
+         VfaGECp5ca+kOnts3tWWI37guIqFI8uii96D0XbxwVthG1pxnInJH1DsNyzQfqAxN5XB
+         0FsixYcw8Uj5hAnIGZZmrMwvMdC5sTJzXHe7AblegJ4CUNKckTkVHuMu/TmnrCmF+ow2
+         KIYQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b="OuN/4pti";
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=tKlI879d;
+       spf=pass (google.com: domain of groeck7@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=groeck7@gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id k19sor76421oig.161.2019.07.02.16.17.59
+        by mx.google.com with SMTPS id 101sor648127plf.70.2019.07.02.16.27.13
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 02 Jul 2019 16:17:59 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Tue, 02 Jul 2019 16:27:13 -0700 (PDT)
+Received-SPF: pass (google.com: domain of groeck7@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b="OuN/4pti";
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=tKlI879d;
+       spf=pass (google.com: domain of groeck7@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=groeck7@gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=intel-com.20150623.gappssmtp.com; s=20150623;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=u5UwRiHjXkEAlhFHmvxN8ePNlS4fXC/47jr2WEGpIzo=;
-        b=OuN/4ptiyR+plJoUbh14HMfrLiUOlvumFP0tzROycbsFqfygYxNO3xqFi028k9qP6U
-         2hsxYQ/2r3+ffTRQvqv/sCf8RYf+3AvuvLqH7ogDKbeVFyv/k7MsfBkCxG4uRyEvLytD
-         3hBMhCKOWYcfttKhsfT8Y19T3NlQHBTeuu1o3bC0SKi1LDuyTUAXjHnls8TPzw595KLC
-         nNTom92Iwyk5ROjrmSXSDkHChpxbNbnGWGRWyw3laBL4fIp/E7U50dYgr8AGkfNKV1ux
-         j9NiIvFe4orlhguGifJ7Su4YhO973/sL8kBVtipoBIsWxN1zYFyjnK/YO/aROHHw66yH
-         203w==
-X-Google-Smtp-Source: APXvYqyLlYpHy9+AMc/X38t5BFMinZJQ01XTqDg0vHmjdWTN0eXoTzXdkzMkhqYvcnewmJArWXl9rZoSGD4d6S4ISik=
-X-Received: by 2002:aca:ec82:: with SMTP id k124mr4183998oih.73.1562109479302;
- Tue, 02 Jul 2019 16:17:59 -0700 (PDT)
+        d=gmail.com; s=20161025;
+        h=sender:subject:to:cc:references:from:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=sIW4c2nsoK1zg9iPJ9PWWFYICxxuZVhWWS0PGONCcT8=;
+        b=tKlI879d6GOCn5/viRbA8CB+2LHjMm+LHx8vu35g2JtHmWRh1MS1K2Oq0gOO4uanyd
+         c15xofeqIVhd7SStkRQtGGQG8ogXRpToC2cmZoqBYxGBLvl9kjjYZ0xuo8mFYG1VEsLy
+         ikmPD7gHqGybsUQltdIn7Jjmkd2wmRlohhi8jmnbU3YIPRnW77+JMRLFQ8emQ6GOC9vD
+         mkgfNh+CChWY9/02UtCZY5Z4d/iptGSMjM4I4uAS4y3vUxK4UYVODhXk0yUlEZGc668+
+         VgBtNszBl2lr0RVPKRfw91a/mbIqdV4lCzbBpKDNJSCzW2vG9+iNlMhl4b9cvPnPb3/T
+         F3hg==
+X-Google-Smtp-Source: APXvYqyoBXu4AyqKJhdPuz9LblEnnUpotkfLl9gMkZHnkxwo6EMqYJPvNrNLG2nCtlyB3nXPt7OwmA==
+X-Received: by 2002:a17:902:467:: with SMTP id 94mr37806898ple.131.1562110033549;
+        Tue, 02 Jul 2019 16:27:13 -0700 (PDT)
+Received: from server.roeck-us.net ([2600:1700:e321:62f0:329c:23ff:fee3:9d7c])
+        by smtp.gmail.com with ESMTPSA id v22sm186381pgk.69.2019.07.02.16.27.11
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 02 Jul 2019 16:27:12 -0700 (PDT)
+Subject: Re: [PATCH -next] mm: Mark undo_dev_pagemap as __maybe_unused
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, Stephen Rothwell <sfr@canb.auug.org.au>,
+ Robin Murphy <robin.murphy@arm.com>, linux-kernel@vger.kernel.org,
+ "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+References: <1562072523-22311-1-git-send-email-linux@roeck-us.net>
+ <20190702135418.ce51c988e88ca0d9546a2a11@linux-foundation.org>
+From: Guenter Roeck <linux@roeck-us.net>
+Message-ID: <fa5137e4-478a-94b6-f0ae-28d48f53825e@roeck-us.net>
+Date: Tue, 2 Jul 2019 16:27:10 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.1
 MIME-Version: 1.0
-References: <20190701062020.19239-1-hch@lst.de> <20190701082517.GA22461@lst.de>
- <20190702184201.GO31718@mellanox.com>
-In-Reply-To: <20190702184201.GO31718@mellanox.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Tue, 2 Jul 2019 16:17:48 -0700
-Message-ID: <CAPcyv4iWXJ-c7LahPD=Qt4RuDNTU7w_8HjsitDuj3cxngzb56g@mail.gmail.com>
-Subject: Re: dev_pagemap related cleanups v4
-To: Jason Gunthorpe <jgg@mellanox.com>
-Cc: Christoph Hellwig <hch@lst.de>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, 
-	Ben Skeggs <bskeggs@redhat.com>, Ira Weiny <ira.weiny@intel.com>, 
-	"linux-mm@kvack.org" <linux-mm@kvack.org>, 
-	"nouveau@lists.freedesktop.org" <nouveau@lists.freedesktop.org>, 
-	"dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>, 
-	"linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, 
-	"linux-pci@vger.kernel.org" <linux-pci@vger.kernel.org>, 
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20190702135418.ce51c988e88ca0d9546a2a11@linux-foundation.org>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jul 2, 2019 at 11:42 AM Jason Gunthorpe <jgg@mellanox.com> wrote:
->
-> On Mon, Jul 01, 2019 at 10:25:17AM +0200, Christoph Hellwig wrote:
-> > And I've demonstrated that I can't send patch series..  While this
-> > has all the right patches, it also has the extra patches already
-> > in the hmm tree, and four extra patches I wanted to send once
-> > this series is merged.  I'll give up for now, please use the git
-> > url for anything serious, as it contains the right thing.
->
-> Okay, I sorted it all out and temporarily put it here:
->
-> https://github.com/jgunthorpe/linux/commits/hmm
->
-> Bit involved job:
-> - Took Ira's v4 patch into hmm.git and confirmed it matches what
->   Andrew has in linux-next after all the fixups
-> - Checked your github v4 and the v3 that hit the mailing list were
->   substantially similar (I never did get a clean v4) and largely
->   went with the github version
-> - Based CH's v4 series on -rc7 and put back the removal hunk in swap.c
->   so it compiles
-> - Merge'd CH's series to hmm.git and fixed all the conflicts with Ira
->   and Ralph's patches (such that swap.c remains unchanged)
-> - Added Dan's ack's and tested-by's
+On 7/2/19 1:54 PM, Andrew Morton wrote:
+> On Tue,  2 Jul 2019 06:02:03 -0700 Guenter Roeck <linux@roeck-us.net> wrote:
+> 
+>> Several mips builds generate the following build warning.
+>>
+>> mm/gup.c:1788:13: warning: 'undo_dev_pagemap' defined but not used
+>>
+>> The function is declared unconditionally but only called from behind
+>> various ifdefs. Mark it __maybe_unused.
+>>
+>> ...
+>>
+>> --- a/mm/gup.c
+>> +++ b/mm/gup.c
+>> @@ -1785,7 +1785,8 @@ static inline pte_t gup_get_pte(pte_t *ptep)
+>>   }
+>>   #endif /* CONFIG_GUP_GET_PTE_LOW_HIGH */
+>>   
+>> -static void undo_dev_pagemap(int *nr, int nr_start, struct page **pages)
+>> +static void __maybe_unused undo_dev_pagemap(int *nr, int nr_start,
+>> +					    struct page **pages)
+>>   {
+>>   	while ((*nr) - nr_start) {
+>>   		struct page *page = pages[--(*nr)];
+> 
+> It's not our preferred way of doing it but yes, it would be a bit of a
+> mess and a bit of a maintenance burden to get the ifdefs correct.
+> 
+That is why I did it here. I understand that some maintainers don't like it,
+and I noticed that it wasn't used elsewhere in the file, but it seemed to be
+to most straightforward solution.
 
-Looks good. Test merge (with some collisions, see below) also passes
-my test suite.
+> And really, __maybe_unused isn't a bad way at all - it ensures that the
+> function always gets build-tested and the compiler will remove it so we
+> don't have to play the chase-the-ifdefs game.
+> 
+Yes, it does have its advantages. I like it myself, but usually I would not
+impose my opinion on others. In this case, anything else would have been
+quite awkward and be prone to never-ending adjustments.
 
->
-> I think this fairly closely follows what was posted to the mailing
-> list.
->
-> As it was more than a simple 'git am', I'll let it sit on github until
-> I hear OK's then I'll move it to kernel.org's hmm.git and it will hit
-> linux-next. 0-day should also run on this whole thing from my github.
->
-> What I know is outstanding:
->  - The conflicting ARM patches, I understand Andrew will handle these
->    post-linux-next
->  - The conflict with AMD GPU in -next, I am waiting to hear from AMD
-
-Just a heads up that this also collides with the "sub-section" patches
-in Andrew's tree. The resolution is straightforward, mostly just
-colliding updates to arch_{add,remove}_memory() call sites in
-kernel/memremap.c and collisions with pgmap_altmap() usage.
+Thanks,
+Guenter
 
