@@ -2,207 +2,154 @@ Return-Path: <SRS0=T9E7=U7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 120CDC5B578
-	for <linux-mm@archiver.kernel.org>; Tue,  2 Jul 2019 03:16:05 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E9F7AC5B578
+	for <linux-mm@archiver.kernel.org>; Tue,  2 Jul 2019 03:34:05 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BB253206A2
-	for <linux-mm@archiver.kernel.org>; Tue,  2 Jul 2019 03:16:04 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="Pot1G5l2"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BB253206A2
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	by mail.kernel.org (Postfix) with ESMTP id A9C8221479
+	for <linux-mm@archiver.kernel.org>; Tue,  2 Jul 2019 03:34:05 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A9C8221479
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4BD0C6B0006; Mon,  1 Jul 2019 23:16:04 -0400 (EDT)
+	id 3EB986B0005; Mon,  1 Jul 2019 23:34:05 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 46E898E0003; Mon,  1 Jul 2019 23:16:04 -0400 (EDT)
+	id 376B28E0003; Mon,  1 Jul 2019 23:34:05 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 334B18E0002; Mon,  1 Jul 2019 23:16:04 -0400 (EDT)
+	id 1EF568E0002; Mon,  1 Jul 2019 23:34:05 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 1639C6B0006
-	for <linux-mm@kvack.org>; Mon,  1 Jul 2019 23:16:04 -0400 (EDT)
-Received: by mail-io1-f70.google.com with SMTP id n8so17239787ioo.21
-        for <linux-mm@kvack.org>; Mon, 01 Jul 2019 20:16:04 -0700 (PDT)
+Received: from mail-yw1-f72.google.com (mail-yw1-f72.google.com [209.85.161.72])
+	by kanga.kvack.org (Postfix) with ESMTP id ECA1B6B0005
+	for <linux-mm@kvack.org>; Mon,  1 Jul 2019 23:34:04 -0400 (EDT)
+Received: by mail-yw1-f72.google.com with SMTP id y205so1511599ywy.19
+        for <linux-mm@kvack.org>; Mon, 01 Jul 2019 20:34:04 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=g2v0mtMOM4iBYII4Lvz5GUbGDJjPR4J5yr7i/lhr77c=;
-        b=apTb5Qqr3zzTf11ROj3wmlsZm+Pdo+Ss8h1lKHEKfe75eu0RHb0rhl5Vl6ovyN/Kbj
-         mbEiKxTzgKa+qFxxrseHl49gMHcmmjyONuw+9/lekognPzWrXmNZMmKVSerpBzNPvlUz
-         4/7OqH64RNVBM5erFUws5yLAkvAXMVSSPAIViSQ9v30s8vsR2tx4cyDhWbseQ3wIeNt8
-         0eHuHkfoxAY+A8EgGQKkPleOg2QjMxGQuZKP6CIo/ioz0QdHUy2OGpmWVk+wid9Kl69R
-         ieBmpuFhTK2QKjZViBWqupOg0JC2ipj+MyypmlM5nB8msB1TOA4eE/flJ2G2ThAsTwKY
-         yWGA==
-X-Gm-Message-State: APjAAAVOot6Ees5uTA3F7UgO5i2xcfFKkKKl27ygUv6LZJxX0Gpun0bA
-	OhTvDYOXZDeWKJlzzAgtAgHCnkUxwrP4VtGoeZZukU6XEFTHjcV0hHvCD1VYcUCDkmyE3ZiIbAF
-	TDQSUXJwWLKqfz/VOvgqRzBIaNWHywP0Ep9R9/8BWrV34hTlFrjCumwdCzRvxsxBCcg==
-X-Received: by 2002:a02:ac09:: with SMTP id a9mr33904461jao.48.1562037363844;
-        Mon, 01 Jul 2019 20:16:03 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzkPnMKxBt3Kgc2zayLDs+btYRlt+MLZbv6bm4CrNk9kMvBB4fk4s1fmT9r63X+UvhHYPi+
-X-Received: by 2002:a02:ac09:: with SMTP id a9mr33904415jao.48.1562037363065;
-        Mon, 01 Jul 2019 20:16:03 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562037363; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:in-reply-to:references:date:mime-version:message-id;
+        bh=SsukyqT7aa9hL3VMDZOys8cGXk1QoLyMoYZQeS81ZdU=;
+        b=MynFwTQdw7wnylyuVuKY4sKOBOTHV3HGOi37zlSdxXLnS34hPDvw2xwIz3OtXLpX9T
+         q7Z9tGFp0KdvgzAGMVdqeY7XuyzcPpSJvSFYLr5gR5HMB2ErhSMbQkWaBAoP2Xa5w0pw
+         AehIsyXL0GrusD0ZqjytrU+whMf8UwNS+X0OdK1VGDOWARyd11e+rDdF22hRtRK0Kwuk
+         cgESayTzdJBl9aBm8R267M4QIUZevDP887EeFdnCKbEN61x658oghjymOz6emXZnB1i3
+         NaQY9dH44nWiFBV824I85Y7PJ25U0/bEWsytbPE+PUKsV/m7yGN7Gl62Jlothw/RiX9Z
+         HrEw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: APjAAAXgazQyYDKvYkMr/cMTEJFks3PyFdkUM6WYJ/rrh4FDTqhujr/T
+	NMsAqCreAh7VYhgU8WpXpwQcAqcxU6MdTZtRGebERJg84AYddr2NhKyNhfdGXLW/wO4Zz4hfcxi
+	MxhY9HDGo5nkOtrcIb8XDQ6p9td0r9MEdd5MTvSWxnCaZczwqCjACP2BctqG70mP8fQ==
+X-Received: by 2002:a25:358a:: with SMTP id c132mr17943364yba.36.1562038444643;
+        Mon, 01 Jul 2019 20:34:04 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqy18bmq9X1+f92GzfyaIh+cy4Yjcp0+uIOO48HnjD0npTxOoJ73QP2UWSr6tRx1F4bIbrwC
+X-Received: by 2002:a25:358a:: with SMTP id c132mr17943347yba.36.1562038444080;
+        Mon, 01 Jul 2019 20:34:04 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562038444; cv=none;
         d=google.com; s=arc-20160816;
-        b=sMGxyG5OYxq6xqRs2R65gb/kzp+0OaSsPMOwUKvlwOWE3GfVhimII7xEune0dKhKY/
-         3nuxH7+Af3KyCk4oCdXcqQr3Qt7prQZbwmB253NNM5ph5jnnJYsMW9SRRQa0Ak/OStcF
-         wm5bi9HP+ZpL2iHz/DGupOhjqZMvZ29tDgr38fnSiNTWpoyYAjMDIEuDlCyUywzhIdIr
-         Q1sjZzVs/wLFKcAHY6AhOH1Hkdu/D4q6MsSPltlvzoutU5qIyERtYAxIBCz1kyTd4Pbp
-         6oEuEod9n/o7/d7qXOi/1mfIh2CyCKIaiBoUdW/okxzSDb0RfTPrTHp08a3H/o5vjn8x
-         nt7g==
+        b=NxwRCoUZrQa5pu7qRzZl17L1bI7IVLDRCeykoEaB01okX95vSu2jIu0F5SaDr+N5fr
+         x+3zs7fGHEU1tT9ojHx1R4c6QjdOl3I0hQRVSYUS9x4qhbMpEIpvKXhgVsWbdllzvzQu
+         6k4xgvQB2VBA1tKwO3VzIyoI7hZOWvJSAylDUZfBat00whjTyWhoX0mNhuQy/tSFvt6l
+         uzg0/0fc2MXXQTkSi9eRqSb5ptbZtVKe8a+jtav+xmItdmcdKKw0aQzNLFit2neLD8PW
+         I+bykDBSSPv8vddgOQgBlZ8cUpHeTVQZ7c7YxwwfYMub96D/LIxYYAWtwojyb7valap5
+         7KtA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject
-         :dkim-signature;
-        bh=g2v0mtMOM4iBYII4Lvz5GUbGDJjPR4J5yr7i/lhr77c=;
-        b=T+FzT8Swwafgr5wD3ob+wsfK+ql/0OpqnBrwBIuRIwW3eufiGUwZ4gI0nM35toyBj0
-         junJR2K9wUTSgIZ0BLsAQAsMTE5IJn5RjHBdCf0lzL7+40LjYFD5+jIwYVhq8qMMnGXm
-         Vs+5tUBwMG7k49C+CoCGangIcb2sccPqo74Z2MNZ0+MEsDWr/Yp7PIPaCfbs0j1Sg85U
-         o2qg8Ecpgd0OSEu+3JS7paEL2JEkxevOEPSw0m5jYo0O51FkfHOAn3xpqtOUzio/lFed
-         DtDyT9tK6MTmY3qFWRp+ygmY37SavcFkeUVqrwjPK7XZRvvd0gN+vpNTdwvBwsHRapkY
-         45vw==
+        h=message-id:mime-version:date:references:in-reply-to:subject:cc:to
+         :from;
+        bh=SsukyqT7aa9hL3VMDZOys8cGXk1QoLyMoYZQeS81ZdU=;
+        b=VaO0A3hf0erc0WZ1URemgUA4zM1LREppGS/6MeqPjZZT2d1THcOJGkoMPUy8xbTQY8
+         vXT1Ertz318X9639gtxfFf6m5JMKQU7GMHNnac2Y+R+DN94QDLqtiaNv4avEjH2wG/ZP
+         NblkMW2HxpK12JJYZISNIXi57Sl1SP6zOBXYm6aiPeL/4Qqnxr2DiDgzdCayWzHlVmtl
+         PlgoiJP0bw2jBwW2ZMTQZFIfiWRLMJq5lOk+ilvsZzCy9bRFbDz8rcWrfb3afRRna5BO
+         Mby1WfmsBF2Zj+lj5GQ4w8zaBV3Kyw5bQKJyZo34BtPRicxsJmGZBAcvq3hHnqlRLkHi
+         cHJg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=Pot1G5l2;
-       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 141.146.126.78 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
-        by mx.google.com with ESMTPS id g2si21826125jar.3.2019.07.01.20.16.02
+       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id l139si5193563ywl.22.2019.07.01.20.34.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 01 Jul 2019 20:16:03 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mike.kravetz@oracle.com designates 141.146.126.78 as permitted sender) client-ip=141.146.126.78;
+        Mon, 01 Jul 2019 20:34:04 -0700 (PDT)
+Received-SPF: pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=Pot1G5l2;
-       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 141.146.126.78 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (aserp2120.oracle.com [127.0.0.1])
-	by aserp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x6234unt139052;
-	Tue, 2 Jul 2019 03:16:00 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
- references : from : message-id : date : mime-version : in-reply-to :
- content-type : content-transfer-encoding; s=corp-2018-07-02;
- bh=g2v0mtMOM4iBYII4Lvz5GUbGDJjPR4J5yr7i/lhr77c=;
- b=Pot1G5l2XAak+Hb7v+Jl5K4MzggYiIz9mI+CQPxrjAzFW8MgddIWMfHjKcCsmcxBAQg6
- nVTqHdjP8y89kn5u/N0GVR9MRk8c1DsL9VYahZTx119DrG6y6DDpA7F3RnNaVacED521
- IJkowT/bgcO3cbr0KwJOv3V3EeUxBBy1lKSaVqjmqgh7Q9226npgLAVEiwoa6v4yaTzE
- o4eWQfbPHC33Up22Jm3wGfCpyBElE+qacOWPbym7HkiU9a8zoNwX2gERtthA57NJSEks
- XelHk+sQ59mpvYE4n2beYlnb+qhvP/XzSFLCAMD7+kmj5Xbh2OY2x96u4ZEzHCRytZ5q HQ== 
-Received: from userp3030.oracle.com (userp3030.oracle.com [156.151.31.80])
-	by aserp2120.oracle.com with ESMTP id 2te5tbgu8s-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Tue, 02 Jul 2019 03:16:00 +0000
-Received: from pps.filterd (userp3030.oracle.com [127.0.0.1])
-	by userp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x6238LHV178941;
-	Tue, 2 Jul 2019 03:15:59 GMT
-Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
-	by userp3030.oracle.com with ESMTP id 2tebqg8hsq-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Tue, 02 Jul 2019 03:15:59 +0000
-Received: from abhmp0007.oracle.com (abhmp0007.oracle.com [141.146.116.13])
-	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x623Fp7w025613;
-	Tue, 2 Jul 2019 03:15:51 GMT
-Received: from [192.168.1.222] (/71.63.128.209)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Mon, 01 Jul 2019 20:15:51 -0700
-Subject: Re: [Question] Should direct reclaim time be bounded?
-To: Mel Gorman <mgorman@suse.de>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>,
-        "linux-mm@kvack.org" <linux-mm@kvack.org>,
-        linux-kernel <linux-kernel@vger.kernel.org>,
-        Andrea Arcangeli <aarcange@redhat.com>,
-        Johannes Weiner <hannes@cmpxchg.org>
-References: <d38a095e-dc39-7e82-bb76-2c9247929f07@oracle.com>
- <20190423071953.GC25106@dhcp22.suse.cz>
- <eac582cf-2f76-4da1-1127-6bb5c8c959e4@oracle.com>
- <04329fea-cd34-4107-d1d4-b2098ebab0ec@suse.cz>
- <dede2f84-90bf-347a-2a17-fb6b521bf573@oracle.com>
- <20190701085920.GB2812@suse.de>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <80036eed-993d-1d24-7ab6-e495f01b1caa@oracle.com>
-Date: Mon, 1 Jul 2019 20:15:50 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.0
+       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x623X9O8122282
+	for <linux-mm@kvack.org>; Mon, 1 Jul 2019 23:34:03 -0400
+Received: from e06smtp02.uk.ibm.com (e06smtp02.uk.ibm.com [195.75.94.98])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2tfx8y2asr-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 01 Jul 2019 23:34:03 -0400
+Received: from localhost
+	by e06smtp02.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
+	Tue, 2 Jul 2019 04:34:02 +0100
+Received: from b06avi18626390.portsmouth.uk.ibm.com (9.149.26.192)
+	by e06smtp02.uk.ibm.com (192.168.101.132) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Tue, 2 Jul 2019 04:33:58 +0100
+Received: from d06av22.portsmouth.uk.ibm.com (d06av22.portsmouth.uk.ibm.com [9.149.105.58])
+	by b06avi18626390.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x623Xk7G33030492
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Tue, 2 Jul 2019 03:33:46 GMT
+Received: from d06av22.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 763C64C046;
+	Tue,  2 Jul 2019 03:33:57 +0000 (GMT)
+Received: from d06av22.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 2857A4C044;
+	Tue,  2 Jul 2019 03:33:56 +0000 (GMT)
+Received: from skywalker.linux.ibm.com (unknown [9.85.91.212])
+	by d06av22.portsmouth.uk.ibm.com (Postfix) with ESMTP;
+	Tue,  2 Jul 2019 03:33:55 +0000 (GMT)
+X-Mailer: emacs 26.2 (via feedmail 11-beta-1 I)
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: dan.j.williams@intel.com, linux-nvdimm@lists.01.org, linux-mm@kvack.org,
+        linuxppc-dev@lists.ozlabs.org
+Subject: Re: [PATCH] mm/nvdimm: Add is_ioremap_addr and use that to check ioremap address
+In-Reply-To: <20190701165152.7a55299eb670b0ca326f24dd@linux-foundation.org>
+References: <20190701134038.14165-1-aneesh.kumar@linux.ibm.com> <20190701165152.7a55299eb670b0ca326f24dd@linux-foundation.org>
+Date: Tue, 02 Jul 2019 09:03:54 +0530
 MIME-Version: 1.0
-In-Reply-To: <20190701085920.GB2812@suse.de>
-Content-Type: text/plain; charset=iso-8859-15
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9305 signatures=668688
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
- phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
- adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
- engine=8.0.1-1810050000 definitions=main-1907020032
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9305 signatures=668688
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1907020032
+Content-Type: text/plain
+X-TM-AS-GCONF: 00
+x-cbid: 19070203-0008-0000-0000-000002F8F824
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19070203-0009-0000-0000-000022663F0B
+Message-Id: <87r2792jq5.fsf@linux.ibm.com>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-07-02_02:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=706 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1907020036
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 7/1/19 1:59 AM, Mel Gorman wrote:
-> On Fri, Jun 28, 2019 at 11:20:42AM -0700, Mike Kravetz wrote:
->> On 4/24/19 7:35 AM, Vlastimil Babka wrote:
->>> On 4/23/19 6:39 PM, Mike Kravetz wrote:
->>>>> That being said, I do not think __GFP_RETRY_MAYFAIL is wrong here. It
->>>>> looks like there is something wrong in the reclaim going on.
->>>>
->>>> Ok, I will start digging into that.  Just wanted to make sure before I got
->>>> into it too deep.
->>>>
->>>> BTW - This is very easy to reproduce.  Just try to allocate more huge pages
->>>> than will fit into memory.  I see this 'reclaim taking forever' behavior on
->>>> v5.1-rc5-mmotm-2019-04-19-14-53.  Looks like it was there in v5.0 as well.
->>>
->>> I'd suspect this in should_continue_reclaim():
->>>
->>>         /* Consider stopping depending on scan and reclaim activity */
->>>         if (sc->gfp_mask & __GFP_RETRY_MAYFAIL) {
->>>                 /*
->>>                  * For __GFP_RETRY_MAYFAIL allocations, stop reclaiming if the
->>>                  * full LRU list has been scanned and we are still failing
->>>                  * to reclaim pages. This full LRU scan is potentially
->>>                  * expensive but a __GFP_RETRY_MAYFAIL caller really wants to succeed
->>>                  */
->>>                 if (!nr_reclaimed && !nr_scanned)
->>>                         return false;
->>>
->>> And that for some reason, nr_scanned never becomes zero. But it's hard
->>> to figure out through all the layers of functions :/
->>
->> I got back to looking into the direct reclaim/compaction stalls when
->> trying to allocate huge pages.  As previously mentioned, the code is
->> looping for a long time in shrink_node().  The routine
->> should_continue_reclaim() returns true perhaps more often than it should.
->>
->> As Vlastmil guessed, my debug code output below shows nr_scanned is remaining
->> non-zero for quite a while.  This was on v5.2-rc6.
->>
-> 
-> I think it would be reasonable to have should_continue_reclaim allow an
-> exit if scanning at higher priority than DEF_PRIORITY - 2, nr_scanned is
-> less than SWAP_CLUSTER_MAX and no pages are being reclaimed.
+Andrew Morton <akpm@linux-foundation.org> writes:
 
-Thanks Mel,
+> On Mon,  1 Jul 2019 19:10:38 +0530 "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com> wrote:
+>
+>> Architectures like powerpc use different address range to map ioremap
+>> and vmalloc range. The memunmap() check used by the nvdimm layer was
+>> wrongly using is_vmalloc_addr() to check for ioremap range which fails for
+>> ppc64. This result in ppc64 not freeing the ioremap mapping. The side effect
+>> of this is an unbind failure during module unload with papr_scm nvdimm driver
+>
+> The patch applies to 5.1.  Does it need a Fixes: and a Cc:stable?
 
-I added such a check to should_continue_reclaim.  However, it does not
-address the issue I am seeing.  In that do-while loop in shrink_node,
-the scan priority is not raised (priority--).  We can enter the loop
-with priority == DEF_PRIORITY and continue to loop for minutes as seen
-in my previous debug output.
+Actually, we want it to be backported to an older kernel possibly one
+that added papr-scm driver, b5beae5e224f ("powerpc/pseries: Add driver
+for PAPR SCM regions"). But that doesn't apply easily. It does apply
+without conflicts to 5.0
 
--- 
-Mike Kravetz
+-aneesh
 
