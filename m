@@ -2,231 +2,192 @@ Return-Path: <SRS0=T9E7=U7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
 	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 32436C5B57D
-	for <linux-mm@archiver.kernel.org>; Tue,  2 Jul 2019 22:59:19 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0963EC5B57D
+	for <linux-mm@archiver.kernel.org>; Tue,  2 Jul 2019 22:59:21 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DB33321976
-	for <linux-mm@archiver.kernel.org>; Tue,  2 Jul 2019 22:59:18 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id AF20721985
+	for <linux-mm@archiver.kernel.org>; Tue,  2 Jul 2019 22:59:20 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="uHdrGlf4"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DB33321976
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
+	dkim=pass (1024-bit key) header.d=Mellanox.com header.i=@Mellanox.com header.b="gSzqYBar"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AF20721985
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mellanox.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 75F5A6B0003; Tue,  2 Jul 2019 18:59:18 -0400 (EDT)
+	id 4A0686B0005; Tue,  2 Jul 2019 18:59:20 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 710D48E0003; Tue,  2 Jul 2019 18:59:18 -0400 (EDT)
+	id 4797A8E0003; Tue,  2 Jul 2019 18:59:20 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5FEBE8E0001; Tue,  2 Jul 2019 18:59:18 -0400 (EDT)
+	id 318ED8E0001; Tue,  2 Jul 2019 18:59:20 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 27E816B0003
-	for <linux-mm@kvack.org>; Tue,  2 Jul 2019 18:59:18 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id bb9so213811plb.2
-        for <linux-mm@kvack.org>; Tue, 02 Jul 2019 15:59:18 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id EC89A6B0005
+	for <linux-mm@kvack.org>; Tue,  2 Jul 2019 18:59:19 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id y24so318204edb.1
+        for <linux-mm@kvack.org>; Tue, 02 Jul 2019 15:59:19 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=YRdEYXf7iBoKRaygqXfSS83oWB6USBUloCOVNYOwqlU=;
-        b=Po438Vmuk08HvY4WQwrp4bQRjcOg/jSBpYH/mXx+ELArf4psLLT0eMXvRDkN+1tmfa
-         K+wpOWXVaEOivshZzDze3do/REK9/CKSsIJS/Axnvv+PvEkn7pRuTe2QerQkyxUOa1t3
-         wdezd/8Qu3CwTBd16/DvDYaqb3/OqOPyf0OH1+UE74wR5nXzxEuoevcmspt3MqHgN0qV
-         P3C6gw/iXxJYdYUlfQcP5+3frxKdfvCJhhq8Mi06A9b3lILSiG57QOiG2JNGdnch1foc
-         sfLkyGmF8DAaP/inT+zdhDcb3UNewA09EQRPArjUU6wpVn1K8aEyB6Feq0yOhqwqz434
-         /6LQ==
-X-Gm-Message-State: APjAAAWZV1dUV7simZ+Leji7Zk55p7Oi7ylkTAiK2mc/sebTNryceWDx
-	lctPQ0za07mVXNcSoh6HXfbuGDXHBu3hhQEDnWH5xVU6wfuHgCtPbj1HuF4hjrrJ1gqkHmk15wZ
-	KYeNcF7DxPnhHrIKPaZgm1zY/nPaxxO4ibAeAn07yJbHVlIHKft1VTRy+z1ZMpUAJOg==
-X-Received: by 2002:a17:90a:2525:: with SMTP id j34mr8608182pje.11.1562108357746;
-        Tue, 02 Jul 2019 15:59:17 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy+IBWv7JQ1cBDMpRDNMfaLOnyReI3jHm55Z04ylO56VT6m/ZisWgWLMNU//kdmphhPu9a6
-X-Received: by 2002:a17:90a:2525:: with SMTP id j34mr8608142pje.11.1562108356867;
-        Tue, 02 Jul 2019 15:59:16 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562108356; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
+         :thread-index:date:message-id:references:in-reply-to:accept-language
+         :content-language:content-id:content-transfer-encoding:mime-version;
+        bh=yJtGx4PkCuRACTU0P1T4Qum92TEAZ9p57W6xppYw/7w=;
+        b=HPPxoFh94uQVXMXRj7WSrzt7emhnfA3WR+7FpSsnPpcCrY2R7CrDnrrZwtrSgFDh6z
+         /5J/+bDf5lGLywy7WL+PeLAtHAMCU3xjAEMFk8EvtGMfn/rzrDiF7l1wvKMvUz/lNHpw
+         gPUAqrf5PiFcM8Ed01I61uXHsmLtmyW0mz0t875UKBW88DHL22YR4bsSKF/qW9s84unb
+         V8u3iEhVXfPprTCudmzWv8FCIW6moBOYxKj6OF+A0XWauiFERE/1HD+F182s24J3w291
+         09h2jk5NA1pgPBfZN9UC2c+okbHUow4Sq7IVOqegKGAqVEG30MTPVKhxnllD6nUikRnE
+         itlg==
+X-Gm-Message-State: APjAAAXBQxB8eMPN52q3sTEpcLM3Tl1u1M8fSMdvbfV17+PjW6EDDzEw
+	yFRFfK6YRwkefkb0uh9+cLZFMlKUrVFgM2qNLFEZlose5TAqCfYBzSPmAiAve1B850AnZBL3BD0
+	fJkwZpjOdKrtTSRrfCNOsTL5RHK9KgCWOqdW9nDO7t1D3oxqWlxooBj3yJzx+2PVE2w==
+X-Received: by 2002:a17:906:a952:: with SMTP id hh18mr31184886ejb.289.1562108359487;
+        Tue, 02 Jul 2019 15:59:19 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzwBam8e1VdpIZABTAhjS2YzLnrvNKXZ7BgkUjvpGgxCaratrjBAsg3PL6HlhxfmQsQ7efw
+X-Received: by 2002:a17:906:a952:: with SMTP id hh18mr31184858ejb.289.1562108358790;
+        Tue, 02 Jul 2019 15:59:18 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562108358; cv=none;
         d=google.com; s=arc-20160816;
-        b=zdvvI6d1F1rBscG0r7bxvBG84ptx0XqO7w/Nu1iBg4FJONJU0D7KInhbM9tN10WUr6
-         IXkcwsWyWWSPQt7yqQ7p9CUcqr4Y3oY4zRnBHxo3gBhlZ8vTyvZVW823wqvPS6V9nErP
-         PSwWnk4EwpT3Q9+Rzws1rg7mwLi4lg4HldxIOaQfqDjxBTSLzNQhX8+6xo1hwKB9IV3z
-         BHrGOYITlEgRUsA95CDbl9uQWvehNhznmS5Cte7gkhL/T/p72szAjs+MNeKBQEHR2K1H
-         ggJYU6IC4n4J4Prgq7aedLiOCdwMT8IM1sGiyzW4s9wys5ncLwOVTrCCXMgBYlqEJH3o
-         22Wg==
+        b=P5TvcvEzByRibawatUWXTnGThhnb1uY78JCveBq1btQWS5ivxKL5nnwkeI9zRoYuEP
+         x7hW9stLsJoiYkFbU26f56Rg1YHpfTRhl41QetjcBndtyZhuFSqhpJFZEEmshk3Hqpsf
+         bTFV3vRPRqvcWgzIZ3PQyjJ0rj9gt4YeeVgQ/IeHHMhJljmW6fNDhDiSfFT8Se7bzkQl
+         XYXCYiMKGVUanxCCZcs67Hj9ZaVsV7JiONhObDnnMIOzoMTM/piLVIfHYI0eDbGu7NGg
+         /F3mhLtNv6hOwkqUORtxTtuUVKEDTPa2Ehr0ptW2cItwQR6AdlOC/rYjCdQAo0B3gCz3
+         /fvQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=YRdEYXf7iBoKRaygqXfSS83oWB6USBUloCOVNYOwqlU=;
-        b=Rm39K6BjHtvWhOd5X2wy1BH+0iv0vHVtJTkHb2vC1bTltgYvLQrzXLnTQeKhLc8zsE
-         7TdA/7jJyRP50ka6g2lZgpVtRZBiVG7+fvrli/kE/UpqDSRWwv409kOGC2l5SCmWsK1Y
-         pkePxIgE78DeMvhwcqVKvEawo/H5BEdkgmiMZLhTvPFb6k5ZgXEBByAAkOSu5w+7c4rL
-         7+wg6oxr2f7y6uXEE7zBSpv9CJjG/rppBn785j0OujjhmW0cNlHRqiOjmhycPwrDEKbp
-         csQ9uEq7Mfysy0TWoCvKV98jSo3etXjB0JMh8Z6p/twN5Fmc+GV1IwoYpYyvhmAs0q2B
-         tz+w==
+        h=mime-version:content-transfer-encoding:content-id:content-language
+         :accept-language:in-reply-to:references:message-id:date:thread-index
+         :thread-topic:subject:cc:to:from:dkim-signature;
+        bh=yJtGx4PkCuRACTU0P1T4Qum92TEAZ9p57W6xppYw/7w=;
+        b=L/3CKwkWslQ3YTpGRaqsGi7pl/Z6U+AXxLhY7Tsg/i18gWub/vQM0/r54NE2ToyzDn
+         tchX4f/pDQMKOEMGw+vkWi3Zh1Ozg5EiIFixkx6zxup7X3AfkVXi7mLUHEn0DanUFc8Z
+         G8C6FHZe+xOavEOtMklzIM4ZMTcmOJRi9q3STAWc/VT4bipSCCufHfEg259BYKNR4cmo
+         o1u7C86/oalyMSNYNhRf8MUqbVdEf3C+THrofPaim2i/j6EiwxfiLGqqLQUNquF968/M
+         JrPHLD5rZVF+W1xtlaTD/JZLEk4kynYTlPpt2F1kNHXQcw/xLcDwJjp694lGVgCTvjK9
+         Yliw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=uHdrGlf4;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id f20si137446pgv.448.2019.07.02.15.59.16
+       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b=gSzqYBar;
+       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.6.72 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
+Received: from EUR04-DB3-obe.outbound.protection.outlook.com (mail-eopbgr60072.outbound.protection.outlook.com. [40.107.6.72])
+        by mx.google.com with ESMTPS id f6si293315edx.449.2019.07.02.15.59.18
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 02 Jul 2019 15:59:16 -0700 (PDT)
-Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 02 Jul 2019 15:59:18 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jgg@mellanox.com designates 40.107.6.72 as permitted sender) client-ip=40.107.6.72;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=uHdrGlf4;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-Received: from akpm3.svl.corp.google.com (unknown [104.133.8.65])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id B896A21954;
-	Tue,  2 Jul 2019 22:59:15 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1562108356;
-	bh=iRu3VNOe2UUsUii+YtWwRL9+vOwU1d4+9aIcTU3Xflk=;
-	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
-	b=uHdrGlf41wDBUbR8nmq0GhdtDDlZO0yuNmpD6khamveWRyuhExuvwehPTjqBHRhwz
-	 hDCshEIl1r1SB5ixh6T2DjLlZDgTJZoi1YP+DJAcIwZJ/5+Z5eQBeYolBp+HAyle8g
-	 EOSCdB/5O0adv8tI4NTLTlB43TBtChALpoIMg8Ho=
-Date: Tue, 2 Jul 2019 15:59:15 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-To: Alexander Potapenko <glider@google.com>
-Cc: Christoph Lameter <cl@linux.com>, Kees Cook <keescook@chromium.org>,
- Michal Hocko <mhocko@suse.com>, James Morris
- <jamorris@linux.microsoft.com>, Masahiro Yamada
- <yamada.masahiro@socionext.com>, Michal Hocko <mhocko@kernel.org>, James
- Morris <jmorris@namei.org>, "Serge E. Hallyn" <serge@hallyn.com>, Nick
- Desaulniers <ndesaulniers@google.com>, Kostya Serebryany <kcc@google.com>,
- Dmitry Vyukov <dvyukov@google.com>, Sandeep Patil <sspatil@android.com>,
- Laura Abbott <labbott@redhat.com>, Randy Dunlap <rdunlap@infradead.org>,
- Jann Horn <jannh@google.com>, Mark Rutland <mark.rutland@arm.com>, Marco
- Elver <elver@google.com>, Qian Cai <cai@lca.pw>, linux-mm@kvack.org,
- linux-security-module@vger.kernel.org, kernel-hardening@lists.openwall.com
-Subject: Re: [PATCH v10 1/2] mm: security: introduce init_on_alloc=1 and
- init_on_free=1 boot options
-Message-Id: <20190702155915.ab5e7053e5c0d49e84c6ed67@linux-foundation.org>
-In-Reply-To: <20190628093131.199499-2-glider@google.com>
-References: <20190628093131.199499-1-glider@google.com>
-	<20190628093131.199499-2-glider@google.com>
-X-Mailer: Sylpheed 3.7.0 (GTK+ 2.24.32; x86_64-pc-linux-gnu)
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b=gSzqYBar;
+       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.6.72 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=Mellanox.com;
+ s=selector2;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=yJtGx4PkCuRACTU0P1T4Qum92TEAZ9p57W6xppYw/7w=;
+ b=gSzqYBaruYiU0Ht5pEVesU0DK3QcMfRsA/MnZRv03tzUFZrUvmh6ZXITLU0c/GQk+erbzTkCUV/xLAT7Sie0kXz89X1vmC/o26yrslY33H+oOJ+qQa9igt+5OTJyRTdA1bBA/YwRktEigR8QwOdMlZR9Bq/8XfJovoiP6MT+cwo=
+Received: from VI1PR05MB4141.eurprd05.prod.outlook.com (10.171.182.144) by
+ VI1PR05MB6016.eurprd05.prod.outlook.com (20.178.127.150) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.2032.20; Tue, 2 Jul 2019 22:59:16 +0000
+Received: from VI1PR05MB4141.eurprd05.prod.outlook.com
+ ([fe80::f5d8:df9:731:682e]) by VI1PR05MB4141.eurprd05.prod.outlook.com
+ ([fe80::f5d8:df9:731:682e%5]) with mapi id 15.20.2032.019; Tue, 2 Jul 2019
+ 22:59:16 +0000
+From: Jason Gunthorpe <jgg@mellanox.com>
+To: Christoph Hellwig <hch@lst.de>
+CC: Ralph Campbell <rcampbell@nvidia.com>, Jerome Glisse <jglisse@redhat.com>,
+	John Hubbard <jhubbard@nvidia.com>, "Felix.Kuehling@amd.com"
+	<Felix.Kuehling@amd.com>, "linux-rdma@vger.kernel.org"
+	<linux-rdma@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>,
+	Andrea Arcangeli <aarcange@redhat.com>, "dri-devel@lists.freedesktop.org"
+	<dri-devel@lists.freedesktop.org>, "amd-gfx@lists.freedesktop.org"
+	<amd-gfx@lists.freedesktop.org>
+Subject: Re: [RFC] mm/hmm: pass mmu_notifier_range to
+ sync_cpu_device_pagetables
+Thread-Topic: [RFC] mm/hmm: pass mmu_notifier_range to
+ sync_cpu_device_pagetables
+Thread-Index: AQHVHY87cnj6rYaF00uB6DOqwK5J5aa35HaAgAAxJwCAAALKgA==
+Date: Tue, 2 Jul 2019 22:59:16 +0000
+Message-ID: <20190702225911.GA11833@mellanox.com>
+References: <20190608001452.7922-1-rcampbell@nvidia.com>
+ <20190702195317.GT31718@mellanox.com> <20190702224912.GA24043@lst.de>
+In-Reply-To: <20190702224912.GA24043@lst.de>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+x-clientproxiedby: MN2PR05CA0031.namprd05.prod.outlook.com
+ (2603:10b6:208:c0::44) To VI1PR05MB4141.eurprd05.prod.outlook.com
+ (2603:10a6:803:4d::16)
+authentication-results: spf=none (sender IP is )
+ smtp.mailfrom=jgg@mellanox.com; 
+x-ms-exchange-messagesentrepresentingtype: 1
+x-originating-ip: [156.34.55.100]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: 57ec13c7-bc4b-47da-4719-08d6ff40e85e
+x-ms-office365-filtering-ht: Tenant
+x-microsoft-antispam:
+ BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(4618075)(2017052603328)(7193020);SRVR:VI1PR05MB6016;
+x-ms-traffictypediagnostic: VI1PR05MB6016:
+x-microsoft-antispam-prvs:
+ <VI1PR05MB601689AD153B34CC5B7C4B6ECFF80@VI1PR05MB6016.eurprd05.prod.outlook.com>
+x-ms-oob-tlc-oobclassifiers: OLM:983;
+x-forefront-prvs: 008663486A
+x-forefront-antispam-report:
+ SFV:NSPM;SFS:(10009020)(4636009)(136003)(366004)(39860400002)(396003)(376002)(346002)(199004)(189003)(53936002)(102836004)(6512007)(6486002)(8676002)(76176011)(1076003)(99286004)(229853002)(6916009)(3846002)(6436002)(66476007)(52116002)(71190400001)(6246003)(8936002)(186003)(305945005)(6116002)(81156014)(81166006)(54906003)(26005)(386003)(71200400001)(316002)(14454004)(4326008)(6506007)(25786009)(446003)(476003)(7736002)(256004)(66066001)(7416002)(11346002)(36756003)(64756008)(66556008)(2616005)(86362001)(478600001)(4744005)(5660300002)(2906002)(68736007)(66946007)(66446008)(73956011)(486006)(33656002);DIR:OUT;SFP:1101;SCL:1;SRVR:VI1PR05MB6016;H:VI1PR05MB4141.eurprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
+received-spf: None (protection.outlook.com: mellanox.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info:
+ u5/HLB79NxZclFWXBUKTF4jOZlEqnhnnMDrMYxfhGbOltKcB4c403SDzQlF5ld9Lyn5NipC2rohko6DbRJt+LP998EA7Mf4CnYzIha6RflauOW4/FR9toJXtvkuX2/NtaAVB9VTNctSSm0tgClZS1msIkQUcjXSTncgJQj4feuWZX79f6YFWYU3IlAN9W0/doChmVt4LvVv2pKefZ7iv+WL08LckM+zN2rY/8SSV3+6SOarO2kpLhr2DgIarnXa5PBpGR5bKw1ghKIn6SaKwWRuVnceqqwmfFLt0tSDcGk0hnzNg6cfk5LsSfFT7CroOErx4eDBgN1UEQEJymrc/uEQdwu6ayrrQQDCI43CSVTTfBK1Cq4hXMdsqYpCZiKxs7ZxhlSrem3L9OwaSvB6fwn6mFATihYOGVNXzcgZ71os=
+Content-Type: text/plain; charset="us-ascii"
+Content-ID: <C21602A5B8952E41ACC1E76FEF5C90F2@eurprd05.prod.outlook.com>
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
+X-OriginatorOrg: Mellanox.com
+X-MS-Exchange-CrossTenant-Network-Message-Id: 57ec13c7-bc4b-47da-4719-08d6ff40e85e
+X-MS-Exchange-CrossTenant-originalarrivaltime: 02 Jul 2019 22:59:16.4254
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: a652971c-7d2e-4d9b-a6a4-d149256f461b
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-CrossTenant-userprincipalname: jgg@mellanox.com
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: VI1PR05MB6016
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 28 Jun 2019 11:31:30 +0200 Alexander Potapenko <glider@google.com> wrote:
+On Wed, Jul 03, 2019 at 12:49:12AM +0200, Christoph Hellwig wrote:
+> On Tue, Jul 02, 2019 at 07:53:23PM +0000, Jason Gunthorpe wrote:
+> > > I'm sending this out now since we are updating many of the HMM APIs
+> > > and I think it will be useful.
+> >=20
+> > This make so much sense, I'd like to apply this in hmm.git, is there
+> > any objection?
+>=20
+> As this creates a somewhat hairy conflict for amdgpu, wouldn't it be
+> a better idea to wait a bit and apply it first thing for next merge
+> window?
 
-> The new options are needed to prevent possible information leaks and
-> make control-flow bugs that depend on uninitialized values more
-> deterministic.
-> 
-> This is expected to be on-by-default on Android and Chrome OS. And it
-> gives the opportunity for anyone else to use it under distros too via
-> the boot args. (The init_on_free feature is regularly requested by
-> folks where memory forensics is included in their threat models.)
-> 
-> init_on_alloc=1 makes the kernel initialize newly allocated pages and heap
-> objects with zeroes. Initialization is done at allocation time at the
-> places where checks for __GFP_ZERO are performed.
-> 
-> init_on_free=1 makes the kernel initialize freed pages and heap objects
-> with zeroes upon their deletion. This helps to ensure sensitive data
-> doesn't leak via use-after-free accesses.
-> 
-> Both init_on_alloc=1 and init_on_free=1 guarantee that the allocator
-> returns zeroed memory. The two exceptions are slab caches with
-> constructors and SLAB_TYPESAFE_BY_RCU flag. Those are never
-> zero-initialized to preserve their semantics.
-> 
-> Both init_on_alloc and init_on_free default to zero, but those defaults
-> can be overridden with CONFIG_INIT_ON_ALLOC_DEFAULT_ON and
-> CONFIG_INIT_ON_FREE_DEFAULT_ON.
-> 
-> If either SLUB poisoning or page poisoning is enabled, those options
-> take precedence over init_on_alloc and init_on_free: initialization is
-> only applied to unpoisoned allocations.
-> 
-> Slowdown for the new features compared to init_on_free=0,
-> init_on_alloc=0:
-> 
-> hackbench, init_on_free=1:  +7.62% sys time (st.err 0.74%)
-> hackbench, init_on_alloc=1: +7.75% sys time (st.err 2.14%)
-> 
-> Linux build with -j12, init_on_free=1:  +8.38% wall time (st.err 0.39%)
-> Linux build with -j12, init_on_free=1:  +24.42% sys time (st.err 0.52%)
-> Linux build with -j12, init_on_alloc=1: -0.13% wall time (st.err 0.42%)
-> Linux build with -j12, init_on_alloc=1: +0.57% sys time (st.err 0.40%)
-> 
-> The slowdown for init_on_free=0, init_on_alloc=0 compared to the
-> baseline is within the standard error.
-> 
-> The new features are also going to pave the way for hardware memory
-> tagging (e.g. arm64's MTE), which will require both on_alloc and on_free
-> hooks to set the tags for heap objects. With MTE, tagging will have the
-> same cost as memory initialization.
-> 
-> Although init_on_free is rather costly, there are paranoid use-cases where
-> in-memory data lifetime is desired to be minimized. There are various
-> arguments for/against the realism of the associated threat models, but
-> given that we'll need the infrastructure for MTE anyway, and there are
-> people who want wipe-on-free behavior no matter what the performance cost,
-> it seems reasonable to include it in this series.
->
-> ...
->
->  v10:
->   - added Acked-by: tags
->   - converted pr_warn() to pr_info()
+My thinking is that AMD GPU already has a monster conflict from this:
 
-There are unchangelogged alterations between v9 and v10.  The
-replacement of IS_ENABLED(CONFIG_PAGE_POISONING)) with
-page_poisoning_enabled().
+ int hmm_range_register(struct hmm_range *range,
+-                      struct mm_struct *mm,
++                      struct hmm_mirror *mirror,
+                       unsigned long start,
+                       unsigned long end,
+                       unsigned page_shift);
 
+So, depending on how that is resolved we might want to do both API
+changes at once.
 
---- a/mm/page_alloc.c~mm-security-introduce-init_on_alloc=1-and-init_on_free=1-boot-options-v10
-+++ a/mm/page_alloc.c
-@@ -157,8 +157,8 @@ static int __init early_init_on_alloc(ch
- 	if (!buf)
- 		return -EINVAL;
- 	ret = kstrtobool(buf, &bool_result);
--	if (bool_result && IS_ENABLED(CONFIG_PAGE_POISONING))
--		pr_warn("mem auto-init: CONFIG_PAGE_POISONING is on, will take precedence over init_on_alloc\n");
-+	if (bool_result && page_poisoning_enabled())
-+		pr_info("mem auto-init: CONFIG_PAGE_POISONING is on, will take precedence over init_on_alloc\n");
- 	if (bool_result)
- 		static_branch_enable(&init_on_alloc);
- 	else
-@@ -175,8 +175,8 @@ static int __init early_init_on_free(cha
- 	if (!buf)
- 		return -EINVAL;
- 	ret = kstrtobool(buf, &bool_result);
--	if (bool_result && IS_ENABLED(CONFIG_PAGE_POISONING))
--		pr_warn("mem auto-init: CONFIG_PAGE_POISONING is on, will take precedence over init_on_free\n");
-+	if (bool_result && page_poisoning_enabled())
-+		pr_info("mem auto-init: CONFIG_PAGE_POISONING is on, will take precedence over init_on_free\n");
- 	if (bool_result)
- 		static_branch_enable(&init_on_free);
- 	else
---- a/mm/slub.c~mm-security-introduce-init_on_alloc=1-and-init_on_free=1-boot-options-v10
-+++ a/mm/slub.c
-@@ -1281,9 +1281,8 @@ check_slabs:
- out:
- 	if ((static_branch_unlikely(&init_on_alloc) ||
- 	     static_branch_unlikely(&init_on_free)) &&
--	    (slub_debug & SLAB_POISON)) {
--		pr_warn("mem auto-init: SLAB_POISON will take precedence over init_on_alloc/init_on_free\n");
--	}
-+	    (slub_debug & SLAB_POISON))
-+		pr_info("mem auto-init: SLAB_POISON will take precedence over init_on_alloc/init_on_free\n");
- 	return 1;
- }
- 
-_
+Or we may have to revert the above change at this late date.
+
+Waiting for AMDGPU team to discuss what process they want to use.
+
+Jason
 
