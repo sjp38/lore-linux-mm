@@ -2,104 +2,104 @@ Return-Path: <SRS0=T9E7=U7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.2 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+X-Spam-Status: No, score=-10.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
 	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,UNWANTED_LANGUAGE_BODY,USER_AGENT_GIT autolearn=ham
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id F0B69C06510
-	for <linux-mm@archiver.kernel.org>; Tue,  2 Jul 2019 14:16:21 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 926ACC06513
+	for <linux-mm@archiver.kernel.org>; Tue,  2 Jul 2019 14:16:31 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id ABCE920665
-	for <linux-mm@archiver.kernel.org>; Tue,  2 Jul 2019 14:16:21 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 54CB52146F
+	for <linux-mm@archiver.kernel.org>; Tue,  2 Jul 2019 14:16:31 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="KmDmyc9U"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org ABCE920665
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="gHjHjhpu"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 54CB52146F
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 47AEA8E0005; Tue,  2 Jul 2019 10:16:21 -0400 (EDT)
+	id F015B8E0006; Tue,  2 Jul 2019 10:16:30 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 42A978E0001; Tue,  2 Jul 2019 10:16:21 -0400 (EDT)
+	id EB27D8E0001; Tue,  2 Jul 2019 10:16:30 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 31A278E0005; Tue,  2 Jul 2019 10:16:21 -0400 (EDT)
+	id DA15B8E0006; Tue,  2 Jul 2019 10:16:30 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id F06068E0001
-	for <linux-mm@kvack.org>; Tue,  2 Jul 2019 10:16:20 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id u4so5993556pgb.20
-        for <linux-mm@kvack.org>; Tue, 02 Jul 2019 07:16:20 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A2FDC8E0001
+	for <linux-mm@kvack.org>; Tue,  2 Jul 2019 10:16:30 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id 145so4531108pfw.16
+        for <linux-mm@kvack.org>; Tue, 02 Jul 2019 07:16:30 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=WBzXR4TZZHkqkMNv1E0xRf3mfUwoTzVNVZHPzzbj8rI=;
-        b=HUUWY+W84TNnOuCv2ChGZTaKhC6Y4BKNlYQrrn98p7r+VqVEWSNeuvpJsQJQwQkMM8
-         nWu0rlcN125i9EbSsYkwiKFh2xtGoKoLYWNbtgxab33PVG/h2RaJn4Uy15wXDsHMKkS/
-         arURUE/oB60S844Ovr8cTdGiERtJ9+mV8VF2TbfNajDo8rZKJV4LqwekGU4REOWI9+Y7
-         4XGOsROV8UkPoqPPNhM3FP8Hyz7fanhogqxO8uvMHGqL0QtWvHPwd49ul3e8ZIipARna
-         d/xj/5rofzf/ETokFh8pyT4/WB255mAfsCQvc6DDF3Yuj4NmdrYAS73xD0AxTqTgLjdu
-         82Cg==
-X-Gm-Message-State: APjAAAXDQ1kQurh/upe7/AZAwOplg1HvJVsOsZ8ipx+AkOSh6XkJPXDw
-	eXsNfzY9YhTOriSesxlCUGmba3p+LrWbX+z51UizMGhcW4KovTNgCDinLPgXifoN6XERPdTm+6g
-	yJ2S/B6TVFPxhpMpD/T9RXaSPKXFzxmC/QOPxpPY1no84IQNUuVn7WLYghx4/uE4ccg==
-X-Received: by 2002:a17:90a:1b4a:: with SMTP id q68mr5888341pjq.61.1562076980688;
-        Tue, 02 Jul 2019 07:16:20 -0700 (PDT)
-X-Received: by 2002:a17:90a:1b4a:: with SMTP id q68mr5888296pjq.61.1562076980048;
-        Tue, 02 Jul 2019 07:16:20 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562076980; cv=none;
+        bh=G8O9YGTZsZSZcNV2syt7QHGA27EpzoxaGp70ElDSGVs=;
+        b=VqtotZnsqZFMQjCfe27BegOqFnujt8jOkugxpePlzAwowx9JFYZpjQu7+qAaU4FSQd
+         ZvyWLrFoGmN9GJob4rIvuzKwNK3hnWO75e3dgxQiX1O0RuXI7+bVvh6zD2vQWylbVngw
+         CamobNDTvS13Qo7KiMRynt5CpQav+j1U9qvBcvIZSg/8ilIt+/DHdV9SsR4k7SGZ+snD
+         Cy9S/m+lNslYQgxMwC1QRDdXRi9tD4bPpniMfV79jEB7C3mlUVi+vOLIt9XQaHNiuEJi
+         AM+MPulXXZzI/hb3EuRkl0SbUq2RsmTboRCUDc+2Npg2FowYn/KET5jheN7mdO6f4qlt
+         1uXw==
+X-Gm-Message-State: APjAAAWiXgm20avRJNN9igvrIeeCSCoVIA94qN+YXSO+Cr218PO2xVMb
+	lg3+dusUIrGqFQjr0mr1oGsk6OpvvXANu16utQV8057hpGmBTq/vZqWxh/2eL6ngS3ryvJzo75A
+	meCXkrUbxy5eOcjWniqLqRhgPCgINKMytlrcembVSSDry+foDds0Tx9mdbhKK4BBO8A==
+X-Received: by 2002:a17:90a:b115:: with SMTP id z21mr5907654pjq.64.1562076990269;
+        Tue, 02 Jul 2019 07:16:30 -0700 (PDT)
+X-Received: by 2002:a17:90a:b115:: with SMTP id z21mr5907593pjq.64.1562076989485;
+        Tue, 02 Jul 2019 07:16:29 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562076989; cv=none;
         d=google.com; s=arc-20160816;
-        b=rfmKLHjTrgJcu8gHQIscEDoLccB7SYxCd99hp9TZx5Y3UG+i+XRvjpFlvVRp2T7ook
-         H3VmoZP8LSrebkz5OOhrSakj09FQDkSFp4wrkCJX93D53t0MCvNZ6iiMJSYVynU4JphJ
-         zaftl8w5qb55FdpzMVSkUgmUi4NjfDSCE6vPt7RE9F8K4aAcLBEerNrQk2lrK7jpQrUT
-         3+7ZEfapJdCBsx9LDM3ZmK4rwdH1oOzc4M+jRqHKO3yLB2m8SU4W3TRv/ejORQvPrwFK
-         qVA2lfICmpCPyzLVCbN1dz7f5jcjNXPgDoj0BfvBXPe/ZuXe+ABNGzuX5Nedjlz14sOc
-         hqTg==
+        b=iQEUvJbnyUuGemYlUey9jyjIz9o9k4aVqdMcCJaE9uh32LEeLIJ4+FWf5MH/+Ja7aR
+         wsYegAQH/y4K7yQPnYgGxKliSo+C/7qFF6uO3amjghBQIxabWmzmE+liKKAW3KXrWhQZ
+         QVLejSWg/Xhdh6u/dTO7mSTKhDZXEXJb2bwa0GyNFMroZJtbgy4a9qyN4YVZgfFWdUcs
+         U0NOO45Sc+wOSCVt1sj6nrrIaeUCbyrj9WW3HfktFaNuG3w0hr03kfRVnNboJhNlj48B
+         Hm4fK9AgkM8c8su6IXpq3mGgD2xRsQjrxFMzRuPMQI3k8YtQlUu6zg/VjYtv5M16ozNB
+         9vEA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=WBzXR4TZZHkqkMNv1E0xRf3mfUwoTzVNVZHPzzbj8rI=;
-        b=cQNerA4ZVPa3YsxDzv7g3Ie+muzZ/cgQSyrZmj7tp4ZysfI7IUmqRQqd/cBjUAGsHH
-         feGUEAGEaM1DC6BEVVcatbLddmRyxWjvLVonEFADNLaEFofkameQfv4pePrfUlGf7zVM
-         iDaSblAr2zAONRsExcc7OAfelpaWVcOZlgPNk01Itafb327d7s+9KJSlR3YneUMuWW2n
-         2dFjtELsO81QJAHsVnA+S5vSi7Kksq2oc7OKm1zZ9eb8mlwZ7Pg8xsSNAy2lksmTGlYs
-         FSrtcunpuNpTXw5UMu9QN3qfiL/sUFkOjm/J9AW/it75G5QeQ3vCZym9mGNakq3cILLK
-         SHxg==
+        bh=G8O9YGTZsZSZcNV2syt7QHGA27EpzoxaGp70ElDSGVs=;
+        b=PRHoRmrAGSr0sN9vXW4QuTEjny7LcMFCl8A7kNHk5v+qK2zZyjl4xflXerKgV9r2gY
+         HF9LEsLCH+neJ56gKnXZhzUjELVrERryzyd5Sr53VSAIU6ykje25uCVFXlPoTOn9oJcZ
+         L7w+qZI8377EMgY8S5KQRblbTttaophSlSuqkjivzV+iPvlEO1BtMa40VjQdXCmPkJYC
+         fJQf/rwl9zRQ0ERHFyjEtqrOyICfCBUYvAc8QpSX5ZNBr5Z20gPyZmAyeNjsA8q5RoGg
+         SlU3l25npCLHb2m2sOPmQhmWlzjm8FLKAlLN12D0b70PEIjNVcWchdLSVAf/zCaqDOtQ
+         b48A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=KmDmyc9U;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=gHjHjhpu;
        spf=pass (google.com: domain of lpf.vector@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=lpf.vector@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id f35sor15881020plh.33.2019.07.02.07.16.19
+        by mx.google.com with SMTPS id b64sor3549498pjc.24.2019.07.02.07.16.29
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 02 Jul 2019 07:16:20 -0700 (PDT)
+        Tue, 02 Jul 2019 07:16:29 -0700 (PDT)
 Received-SPF: pass (google.com: domain of lpf.vector@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=KmDmyc9U;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=gHjHjhpu;
        spf=pass (google.com: domain of lpf.vector@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=lpf.vector@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
         h=from:to:cc:subject:date:message-id:in-reply-to:references
          :mime-version:content-transfer-encoding;
-        bh=WBzXR4TZZHkqkMNv1E0xRf3mfUwoTzVNVZHPzzbj8rI=;
-        b=KmDmyc9UgitUSKmQSbKjb9DdUtjBdj+AJcQslWKkw6oK98VNaeJDCKYNJj8Xam/2nb
-         q9U5fjB5iElBuHff6OX+alidJnQw5RbNmku59aKFEPCB+P/0rZolEcyYCH+1Ert5OfM2
-         Xarbe5OEYveIN0ypbc+SAgTrgp9/wO6FCTkr5xOcYmm/gje8u/ya7qWqqX2vkkP1LZPV
-         prGXdZQ0qj250aBKWIAPwh8LOBHtsv5H+KaxEO/9MciMvlqE9ZJXBz+4Kd+xVGj0PDm3
-         kKVW1Wi0E9CO2PYp7DnGZ9EY2A0l4TeMBvxsHmgBqzWm3wz0Qv/U6RPyHUSVPjADVlY/
-         y5/Q==
-X-Google-Smtp-Source: APXvYqwWEAKTT6dyFXv7dzOsiRMsExc4YRB82MDVaOFpGFRbH99CZs+/cOLzM+zyEfvt2oTwz2Gisg==
-X-Received: by 2002:a17:902:f204:: with SMTP id gn4mr35901637plb.3.1562076979826;
-        Tue, 02 Jul 2019 07:16:19 -0700 (PDT)
+        bh=G8O9YGTZsZSZcNV2syt7QHGA27EpzoxaGp70ElDSGVs=;
+        b=gHjHjhpuTNFRjW6geiXwx4SxHlaljBV0ZdtUgREKxzgVNiTbp3EFo3iTPJceIBR4It
+         oUKt3V6ZSBWZLf5SRxftMNzHmzysU0SJG2vfqsXjHyT0kXBZISdHDSEysQFqSH6OTYJC
+         rrhp4F4yUa06njImZ8H/cA0nC8QpnQi31mjRGbQ7zADeoC6KHG8p4y9jc6obk46hKGrQ
+         RaWVl199RMIUZKuE3QIBIWbdMP9rmHlRrFp2/rDFUQClotk7ahVjmNy38rFo8Y9TyB7f
+         kRpJa689c3ikpSC6QRhxv8C+SOPr+r81+L+4jkQ/PXpz8UvfvRFaVyU2+6TFMinUkrve
+         7heA==
+X-Google-Smtp-Source: APXvYqySwVE9Fh+614x2kyb57wZjPWabmz8Qpui29yVSRTKwoZaH6ufwyye8S/75FbHZEacWu15FjQ==
+X-Received: by 2002:a17:90a:e38f:: with SMTP id b15mr5996459pjz.85.1562076989286;
+        Tue, 02 Jul 2019 07:16:29 -0700 (PDT)
 Received: from localhost.localdomain.localdomain ([2408:823c:c11:648:b8c3:8577:bf2f:2])
-        by smtp.gmail.com with ESMTPSA id a5sm744617pjv.21.2019.07.02.07.16.10
+        by smtp.gmail.com with ESMTPSA id a5sm744617pjv.21.2019.07.02.07.16.20
         (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Tue, 02 Jul 2019 07:16:19 -0700 (PDT)
+        Tue, 02 Jul 2019 07:16:28 -0700 (PDT)
 From: Pengfei Li <lpf.vector@gmail.com>
 To: akpm@linux-foundation.org,
 	peterz@infradead.org,
@@ -114,9 +114,9 @@ Cc: rpenyaev@suse.de,
 	linux-mm@kvack.org,
 	linux-kernel@vger.kernel.org,
 	Pengfei Li <lpf.vector@gmail.com>
-Subject: [PATCH v2 2/5] mm/vmalloc.c: Introduce a wrapper function of insert_vmap_area_augment()
-Date: Tue,  2 Jul 2019 22:15:38 +0800
-Message-Id: <20190702141541.12635-3-lpf.vector@gmail.com>
+Subject: [PATCH v2 3/5] mm/vmalloc.c: Rename function __find_vmap_area() for readability
+Date: Tue,  2 Jul 2019 22:15:39 +0800
+Message-Id: <20190702141541.12635-4-lpf.vector@gmail.com>
 X-Mailer: git-send-email 2.21.0
 In-Reply-To: <20190702141541.12635-1-lpf.vector@gmail.com>
 References: <20190702141541.12635-1-lpf.vector@gmail.com>
@@ -128,75 +128,36 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The red-black tree whose root is free_vmap_area_root is called the
-*FREE* tree. Like the previous commit, add wrapper functions
-insert_va_to_free_tree and rename insert_vmap_area_augment to
-__insert_vmap_area_augment.
+Rename function __find_vmap_area to __search_va_in_busy_tree to
+indicate that it is searching in the *BUSY* tree.
 
 Signed-off-by: Pengfei Li <lpf.vector@gmail.com>
 ---
- mm/vmalloc.c | 20 +++++++++++---------
- 1 file changed, 11 insertions(+), 9 deletions(-)
+ mm/vmalloc.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index 0a46be76c63b..a5065fcb74d3 100644
+index a5065fcb74d3..b6ea52d6e8f9 100644
 --- a/mm/vmalloc.c
 +++ b/mm/vmalloc.c
-@@ -658,7 +658,7 @@ insert_va_to_busy_tree(struct vmap_area *va)
- }
+@@ -399,7 +399,7 @@ static void purge_vmap_area_lazy(void);
+ static BLOCKING_NOTIFIER_HEAD(vmap_notify_list);
+ static unsigned long lazy_max_pages(void);
  
- static void
--insert_vmap_area_augment(struct vmap_area *va,
-+__insert_vmap_area_augment(struct vmap_area *va,
- 	struct rb_node *from, struct rb_root *root,
- 	struct list_head *head)
+-static struct vmap_area *__find_vmap_area(unsigned long addr)
++static struct vmap_area *__search_va_in_busy_tree(unsigned long addr)
  {
-@@ -674,6 +674,13 @@ insert_vmap_area_augment(struct vmap_area *va,
- 	augment_tree_propagate_from(va);
- }
+ 	struct rb_node *n = vmap_area_root.rb_node;
  
-+static __always_inline void
-+insert_va_to_free_tree(struct vmap_area *va, struct rb_node *from)
-+{
-+	__insert_vmap_area_augment(va, from, &free_vmap_area_root,
-+				&free_vmap_area_list);
-+}
-+
- /*
-  * Merge de-allocated chunk of VA memory with previous
-  * and next free blocks. If coalesce is not done a new
-@@ -979,8 +986,7 @@ adjust_va_to_fit_type(struct vmap_area *va,
- 		augment_tree_propagate_from(va);
+@@ -1313,7 +1313,7 @@ static struct vmap_area *find_vmap_area(unsigned long addr)
+ 	struct vmap_area *va;
  
- 		if (lva)	/* type == NE_FIT_TYPE */
--			insert_vmap_area_augment(lva, &va->rb_node,
--				&free_vmap_area_root, &free_vmap_area_list);
-+			insert_va_to_free_tree(lva, &va->rb_node);
- 	}
+ 	spin_lock(&vmap_area_lock);
+-	va = __find_vmap_area(addr);
++	va = __search_va_in_busy_tree(addr);
+ 	spin_unlock(&vmap_area_lock);
  
- 	return 0;
-@@ -1822,9 +1828,7 @@ static void vmap_init_free_space(void)
- 				free->va_start = vmap_start;
- 				free->va_end = busy->va_start;
- 
--				insert_vmap_area_augment(free, NULL,
--					&free_vmap_area_root,
--						&free_vmap_area_list);
-+				insert_va_to_free_tree(free, NULL);
- 			}
- 		}
- 
-@@ -1837,9 +1841,7 @@ static void vmap_init_free_space(void)
- 			free->va_start = vmap_start;
- 			free->va_end = vmap_end;
- 
--			insert_vmap_area_augment(free, NULL,
--				&free_vmap_area_root,
--					&free_vmap_area_list);
-+			insert_va_to_free_tree(free, NULL);
- 		}
- 	}
- }
+ 	return va;
 -- 
 2.21.0
 
