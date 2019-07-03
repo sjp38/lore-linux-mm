@@ -2,148 +2,122 @@ Return-Path: <SRS0=iaDK=VA=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_GIT autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0F312C0650E
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Jul 2019 18:15:45 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4897EC06511
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Jul 2019 18:45:12 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B855321882
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Jul 2019 18:15:44 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 15FDC218A4
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Jul 2019 18:45:12 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="MGb4X8V0"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B855321882
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="m8HcPZ2y"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 15FDC218A4
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5F4A48E0014; Wed,  3 Jul 2019 14:15:44 -0400 (EDT)
+	id 100E78E0016; Wed,  3 Jul 2019 14:45:10 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 57F4A8E0001; Wed,  3 Jul 2019 14:15:44 -0400 (EDT)
+	id 0616F8E0001; Wed,  3 Jul 2019 14:45:09 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3F8618E0014; Wed,  3 Jul 2019 14:15:44 -0400 (EDT)
+	id E91DF8E0016; Wed,  3 Jul 2019 14:45:09 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D0C08E0001
-	for <linux-mm@kvack.org>; Wed,  3 Jul 2019 14:15:44 -0400 (EDT)
-Received: by mail-qk1-f197.google.com with SMTP id x17so4130444qkf.14
-        for <linux-mm@kvack.org>; Wed, 03 Jul 2019 11:15:44 -0700 (PDT)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id AF8E68E0001
+	for <linux-mm@kvack.org>; Wed,  3 Jul 2019 14:45:09 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id i13so2108459pgq.3
+        for <linux-mm@kvack.org>; Wed, 03 Jul 2019 11:45:09 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=wryDEDMxoF6Vk+K+7duTnFgyottGCGFfZAdbutaWn2g=;
-        b=giO6h7jYTE/QfpHfJMRbaE9K0+48cQZGVxc/HxBmUrPjyydX7A385LSiwm5iCwv+ZH
-         dXCb6wzqWM77NKOcY7EvI95aEi3SBGlBbOYaHvc7Jvyypq3PRMhBF7aJHeThlX0qI8Yn
-         kmSdgQ0Y3Gf73j8nKJK+2ClZVrasWclXLt8IoP4kZ72LkG2hrb10HLtKRTTvGYhKpW0d
-         XgaV/iylHlNTVrUX2Eq1kO+B8rTdZDQAp8XihrplfnLuUiTgbpRUpPII4SZs+r3WVKdw
-         gPL0eh79xm2kSHBmRx/jBmiYrtL7AepINkjaAWjabYEZT14RX+TZh543ljmesdpalKN1
-         E0og==
-X-Gm-Message-State: APjAAAUP/7LZRjbd6uBC/KADohcfA6m3wVrfTy3JnKdB/GXcg6M3qv7R
-	zqqw9wtLwAUFBp05Q2O18QVKdbIo9mnGBCbA8/2l3kKDmjnCpE8IYff6zIr0HLxGDztNewR/+lv
-	0vWHq9MybriHLXV6GOF06XmRrAVcMYJ6PCCHCTFtZd3fiAHKCYvLQVIHJKw50/9svJw==
-X-Received: by 2002:a37:a5cb:: with SMTP id o194mr2187344qke.371.1562177743910;
-        Wed, 03 Jul 2019 11:15:43 -0700 (PDT)
-X-Received: by 2002:a37:a5cb:: with SMTP id o194mr2187300qke.371.1562177743325;
-        Wed, 03 Jul 2019 11:15:43 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562177743; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id:mime-version:content-transfer-encoding;
+        bh=UYUSkq3MaywALpKQmbkqpd/XlsTvFn81MlHwxqWXibw=;
+        b=H7xswSShLCCY9stYQkuqU9zFQ5YD/dIwO9dEOzFbxfuJ/+6IE2QOhmK5+4zVzgzfad
+         aV4l4E9ekO8+S5wVYdsXKi6ax5jAWliqcf7hUyLgbJatu5P+bfMdzAdOdlbWxAFQVXm6
+         4ogyX2FtYOBW/dTdUStnnZ7Tkke2D/qyg7o7PDqjmbsphro43HYidvZeBQJigMYRgEHv
+         ISoOfAwOo8G2GAgIeBCxvoPhJXtx4iT+MZknKaMMZgrBeKgdHW8rJjywfA5cHEtPrIpU
+         BqxHyw1Z9kBHyk9w8UpeG1Dj0wxon5nEEkugbwWupK32VsCPCEyUbInoZPsOqKOTGniw
+         FmXw==
+X-Gm-Message-State: APjAAAVVMcgWcRcJE/S8Y8wEYA0xuPqOCEUao+5qPPtDqlAexflQ1DYE
+	SWMWCxDCo5UdXp1Z55lYWoIHFrjoNrf0Nd2dvVsIPQYjW+dqYLTTvdUS+DDijb19LFx3QyhsQh8
+	mLWt0uHc9rLOqeP2qYMite6Zv53yTrO8m+Rg1ZntQedVtYNo/E+E1FSctfCT/zjc=
+X-Received: by 2002:a17:902:b186:: with SMTP id s6mr43970343plr.343.1562179509351;
+        Wed, 03 Jul 2019 11:45:09 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwZGgZbZpaH7h/Noasd3ozYygn4g3FzYOydudJ4AV5U03B/vhbgcWRzH6pUqS7fLEFC49ld
+X-Received: by 2002:a17:902:b186:: with SMTP id s6mr43970260plr.343.1562179508460;
+        Wed, 03 Jul 2019 11:45:08 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562179508; cv=none;
         d=google.com; s=arc-20160816;
-        b=uFue45veZTsVd3+1CbsyUgzeF0Fra4HqTVyPqRxSMokR6SXlD7iYEfWG0vK4GndbjI
-         jzdW1O9I575BqeHzAArRith0rR0BhCuSjXc6HLKY0DZ6O2RA7Wst4yuV6G6KyV8F+Czs
-         witP9gQho3j/6JuGQEwAW2wsIBoU6i4ivOWKx+ULEsTLjX5tzQizzAFlgb2yyjWms8GJ
-         +V4TAR3TCReRb7KmFqKLgdSBzT7Xv26147llQyDbrE0nrK2Bdw7B7hQi1jklfKtNQFSb
-         ALeW6ua7Qr1BenKbAzVUZnRa7lCFBC5XvHGf9xgrld3/G7Iu7rM4RSef8i2ZK1K4JrW+
-         ysVw==
+        b=OIIwBB+ZoLbWUEot8vhhJdD2LoMPODCVq4iWX/egz/LiMEe+8+dMUgLCATdIg092yR
+         WAX5x6sKKPLnmcuRTPut9i3zMgPyx/JDrXwlvh/my+Ff1thb9WYzIAXCVCQ42P0MFIic
+         YI2E9bd8QX103hMgPF64I3D6x32eEPsVEERvRO7kcnnPtAGt6GQ5b0Z+pZBFNiisgUnf
+         BrxknXprvAeZ2V52wvwzJcc2jFx7rSVql7e9EiFyCXSvaUeh7VhpdM8ubMkIsqU5qhpC
+         2oW3Xm+YSVCuNO1iQyumv8XHwjqu57eeyocpYOJbz09VKEat8LrKkdtVaiWu3YQHIYVw
+         SuCQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=wryDEDMxoF6Vk+K+7duTnFgyottGCGFfZAdbutaWn2g=;
-        b=TRWLSpqQwH7gsqYynNUIJVZXX9Z6aTbIU7UY+sxh+2piAVQnbs0gkz78Md8+QCKDPS
-         ffrURBtAXfJWR10ncTrSGcfC0BdqUSmbjAjdSs2BQ01NMJHmDHoC/lMPzKX/p4R/Tw2+
-         efKChhcCZ02DCJqGlKhYRZKh/6jLh+uM1XV00vHlHJ6oNytwWY+0CF5MG62P5vql2YCq
-         lHlYrmSbgXDZ8w1+LwD6b89n7UNe1QibSRHqnWP9aJehAmGM393Fr2KCSrXYqBTzwm2z
-         cq4neViNdXDdmpSHnQfSJiDGFH0FGJ5edsmX/Qxw3DWASO2vdPaGcxMtJiso9S0Xmlrl
-         /+Fw==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from:dkim-signature;
+        bh=UYUSkq3MaywALpKQmbkqpd/XlsTvFn81MlHwxqWXibw=;
+        b=qSvOKWZGCxXAs3F9OR3Qy3RHllw9Pzr1Oyy2K1u1FEqomaUftro8rjGzMLv0ZE5FjR
+         xPJTpzM2PRI+LiOgdelAYlNYJgje5+R+lQfQIwz/T0bkWKNCn9XwzY+EHuh1wZST41vT
+         FO16tIA8NyXxk8rQ/co2l2EECY7e73F7S0j+bhgvOmUzrr0MSLvy1nDUmDt4cb00TjMK
+         rSPErqECFYQjfsBaMGeXmDA2qoIx+GU5SHVYAWg3ljIqTtqPBPXTT8fcsUWjNi4YwtZF
+         rKVRDW9+XdFqnApqWCWkBa+BERI80ZDIh2hmWGZlAdMzz5i8Iyf0EcTXRlhvdSVn4faG
+         cKLw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=MGb4X8V0;
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g10sor1946657qkl.136.2019.07.03.11.15.43
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=m8HcPZ2y;
+       spf=pass (google.com: best guess record for domain of batv+f19a2f3755a5a2fb7ec3+5792+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+f19a2f3755a5a2fb7ec3+5792+infradead.org+hch@bombadil.srs.infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id d6si2962579pjc.7.2019.07.03.11.45.06
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 03 Jul 2019 11:15:43 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Wed, 03 Jul 2019 11:45:07 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of batv+f19a2f3755a5a2fb7ec3+5792+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=MGb4X8V0;
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=ziepe.ca; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=wryDEDMxoF6Vk+K+7duTnFgyottGCGFfZAdbutaWn2g=;
-        b=MGb4X8V0OjUmCxHXdwat5t//603Imvm3kttDyzPr4B1R8dke3zyk8pDWGq7fzjOf9T
-         vhoLDzI6WCU5N4NrK/vZZAt9KDue5n72hIeNC1cz1j/ds592t4xYj0gPc7RQWN5tu3kK
-         y/BZeSVV19CFNNBfNU5x0lM9OM/CH02xFeKxUrblZJMqjjhX0l4gjG924KSmb6umCVqY
-         q+ZOkych1AFQ/2d82ikRe4cso3C8TVySqyZbPVlAYKLNARrOu29Nsf2uO3Rs45jVcEQb
-         PCfasJR/oBWrfsPe016/1vxmUYZfy876Nti6m+RO+WQbCOzAxMa5i5a/ZdgHoU8lAwIn
-         KN7g==
-X-Google-Smtp-Source: APXvYqx+Obpp289GMjyQScpks1hosaCdzO2IJ2gOygQVUkXAuZU/IoXFFk8Hk2uU2aW+fFE5K61x4g==
-X-Received: by 2002:a37:4914:: with SMTP id w20mr31403797qka.156.1562177743091;
-        Wed, 03 Jul 2019 11:15:43 -0700 (PDT)
-Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
-        by smtp.gmail.com with ESMTPSA id j184sm1204269qkc.65.2019.07.03.11.15.42
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 03 Jul 2019 11:15:42 -0700 (PDT)
-Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
-	(envelope-from <jgg@ziepe.ca>)
-	id 1hijnC-0000Ju-2z; Wed, 03 Jul 2019 15:15:42 -0300
-Date: Wed, 3 Jul 2019 15:15:42 -0300
-From: Jason Gunthorpe <jgg@ziepe.ca>
-To: Christoph Hellwig <hch@lst.de>
-Cc: Dan Williams <dan.j.williams@intel.com>,
-	=?utf-8?B?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>,
-	Ben Skeggs <bskeggs@redhat.com>, Ira Weiny <ira.weiny@intel.com>,
-	linux-mm@kvack.org, nouveau@lists.freedesktop.org,
-	dri-devel@lists.freedesktop.org, linux-nvdimm@lists.01.org,
-	linux-pci@vger.kernel.org, linux-kernel@vger.kernel.org
-Subject: Re: [PATCH 22/22] mm: remove the legacy hmm_pfn_* APIs
-Message-ID: <20190703181542.GD18673@ziepe.ca>
-References: <20190701062020.19239-1-hch@lst.de>
- <20190701062020.19239-23-hch@lst.de>
- <20190703180125.GA18673@ziepe.ca>
- <20190703180308.GA13656@lst.de>
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=m8HcPZ2y;
+       spf=pass (google.com: best guess record for domain of batv+f19a2f3755a5a2fb7ec3+5792+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+f19a2f3755a5a2fb7ec3+5792+infradead.org+hch@bombadil.srs.infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=Content-Transfer-Encoding:
+	Content-Type:MIME-Version:Message-Id:Date:Subject:Cc:To:From:Sender:Reply-To:
+	Content-ID:Content-Description:Resent-Date:Resent-From:Resent-Sender:
+	Resent-To:Resent-Cc:Resent-Message-ID:In-Reply-To:References:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=UYUSkq3MaywALpKQmbkqpd/XlsTvFn81MlHwxqWXibw=; b=m8HcPZ2yeJKhNSw16f2U4gwi8
+	VaTgheKcvNfXeBOBmB/SsYKOJeJUuVqHvJ0+uwDyysD4GPpY3lM+PzTEkWhtLBBoggskp9VkHUsIk
+	UyGPHDBv6lN6uVl40S7pfVGSDzMGXP3klgrtrx8i65i7XXeXSanBjwMihL5tpASfXcWHKK8049WC9
+	4COYj4vK4P48hgNN3U8YbS8v6zZFinYOWgiAEjZk+THHb3vMXSTjZKjFTltedrmFPS6mdsp2vG2Cv
+	lBShDGZVA77KiqJ0Ogl95z9sCHe597CJXw4e4rhrDdE12lmFKK4fpGmHckcPOwKSG/n3t9UTbQVja
+	DEmxCAQ0g==;
+Received: from rap-us.hgst.com ([199.255.44.250] helo=localhost)
+	by bombadil.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
+	id 1hikFa-00079g-W0; Wed, 03 Jul 2019 18:45:03 +0000
+From: Christoph Hellwig <hch@lst.de>
+To: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
+	Jason Gunthorpe <jgg@mellanox.com>,
+	Ben Skeggs <bskeggs@redhat.com>
+Cc: linux-mm@kvack.org,
+	nouveau@lists.freedesktop.org,
+	dri-devel@lists.freedesktop.org,
+	linux-kernel@vger.kernel.org
+Subject: hmm_range_fault related fixes and legacy API removal
+Date: Wed,  3 Jul 2019 11:44:57 -0700
+Message-Id: <20190703184502.16234-1-hch@lst.de>
+X-Mailer: git-send-email 2.20.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190703180308.GA13656@lst.de>
-User-Agent: Mutt/1.9.4 (2018-02-28)
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+X-SRS-Rewrite: SMTP reverse-path rewritten from <hch@infradead.org> by bombadil.infradead.org. See http://www.infradead.org/rpr.html
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jul 03, 2019 at 08:03:08PM +0200, Christoph Hellwig wrote:
-> On Wed, Jul 03, 2019 at 03:01:25PM -0300, Jason Gunthorpe wrote:
-> > Christoph, I guess you didn't mean to send this branch to the mailing
-> > list?
-> > 
-> > In any event some of these, like this one, look obvious and I could
-> > still grab a few for hmm.git.
-> > 
-> > Let me know what you'd like please
-> > 
-> > Reviewed-by: Jason Gunthorpe <jgg@mellanox.com>
-> 
-> Thanks.  I was going to send this series out as soon as you had
-> applied the previous one.  Now that it leaked I'm happy to collect
-> reviews.  But while I've got your attention:  the rdma.git hmm
-> branch is still at the -rc7 merge and doen't have my series, is that
-> intentional?
+Hi Jérôme, Ben and Jason,
 
-Sorry, I rushed it too late at night to do it right apparently. Fixed.
-
-Jason
+below is a series against the hmm tree which fixes up the mmap_sem
+locking in nouveau and while at it also removes leftover legacy HMM APIs
+only used by nouveau.
 
