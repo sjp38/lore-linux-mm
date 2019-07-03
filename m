@@ -2,219 +2,157 @@ Return-Path: <SRS0=iaDK=VA=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 136CCC06513
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Jul 2019 14:10:10 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C5629C06511
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Jul 2019 14:10:46 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A59E1218A4
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Jul 2019 14:10:09 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=Mellanox.com header.i=@Mellanox.com header.b="KIinKYDB"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A59E1218A4
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mellanox.com
+	by mail.kernel.org (Postfix) with ESMTP id 96A3921881
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Jul 2019 14:10:46 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 96A3921881
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id F3A086B0005; Wed,  3 Jul 2019 10:10:08 -0400 (EDT)
+	id 306AA6B0006; Wed,  3 Jul 2019 10:10:46 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id EE9F88E0005; Wed,  3 Jul 2019 10:10:08 -0400 (EDT)
+	id 28E338E0005; Wed,  3 Jul 2019 10:10:46 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DD96D8E0003; Wed,  3 Jul 2019 10:10:08 -0400 (EDT)
+	id 157CC8E0003; Wed,  3 Jul 2019 10:10:46 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 924256B0005
-	for <linux-mm@kvack.org>; Wed,  3 Jul 2019 10:10:08 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id b12so1772608ede.23
-        for <linux-mm@kvack.org>; Wed, 03 Jul 2019 07:10:08 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id BC1DC6B0006
+	for <linux-mm@kvack.org>; Wed,  3 Jul 2019 10:10:45 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id i44so1803774eda.3
+        for <linux-mm@kvack.org>; Wed, 03 Jul 2019 07:10:45 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
-         :thread-index:date:message-id:references:in-reply-to:accept-language
-         :content-language:content-id:content-transfer-encoding:mime-version;
-        bh=9xyphrNP6oUvQK08UnO2NmYiuMrL0TD3/l2pKs8GPgc=;
-        b=ONrbugWih84bZc/5GxiQnTG86eRfPr+lc10EADIYvkXeL1NFwcDrcxqYc4Dg649buL
-         4UXRL64DtqMOL26H1p/0BbA3Vx5u2oxVmQcUEaq+4sb3AIk1ex/WWToCQA4ysPARIrOD
-         vcQtoO7b1kD6mm4FhpBLibOiQETrVKJa3mGiKEFv/GmBQIubIpNBBlMSGS6JpEeyd/Sq
-         kjS2JrnIZeGidGUtv2dETDmPh+KHZDtOlJPmY/xdOKDgEdRLjOnmOb1H+PRlCvhb9uRy
-         kCNTlq7etV8cQ1a/pCTjN0bxOn8+VuwxaqXoJB+6Gy2kejCR1own5QhCZT7J8OiUdFAQ
-         yANA==
-X-Gm-Message-State: APjAAAXToA6KJpxn2+gy7k5cVwkC9mMzbAWO/uSitj8/zba2eiS6xL5k
-	/vAOpcjSc7V9b7jWqDg+9fL51SUX5eNEVKmzPyswDdq2Fqh5V5jDq9EiY140e5O68kdNCseMOll
-	egZ+YxvAKJmKfDW8c4u+ewoDo5iV1B6+0Nck5xuk3op31wiBTv+Y2pSiw5F7nCayvEQ==
-X-Received: by 2002:a50:ac46:: with SMTP id w6mr44380915edc.238.1562163008026;
-        Wed, 03 Jul 2019 07:10:08 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwtbADk/jBcdoZBLuQHmj7Q8r17pQ6uPS8h7ZZKV7tSAUphmC2Q74JzMARvn6aYLOX8XMmx
-X-Received: by 2002:a50:ac46:: with SMTP id w6mr44380783edc.238.1562163007051;
-        Wed, 03 Jul 2019 07:10:07 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562163007; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=cwszHtW+mIPivSs6sbnbs4LhP5LT3yq9wBgQjqfg+UQ=;
+        b=ZVT3jsbDoZLabRQdK5W0TUQ/nYyeF1cMeF4G0GGLFPK7Lr8oa/zZMCeblidrtUH24g
+         c8rGTorxac/uIJRsLtD0p29zSHkqGzDjlvC1ScmxcJpzHEdxu7EwaJpZj14bnRQbaqhm
+         k8yfgvzXAVWEodPrAsNGDFEOR6UyV6TzM2LSWMR8EU5H7SXRw6YKQgJXU4QjRl/CGcMu
+         O7t/fcZYLneDXb3gxlmitYL9V/vUH3/cIlIfMbASEAHNnt15PQKIZ/2v40q9GSQWl7q8
+         TZPjMMGhnsTcuQ192ynizTYpg4QECLrWGmvXq2silyjopPiSjnCmDvdxnECmnr0dZbgm
+         Weig==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+X-Gm-Message-State: APjAAAWEhqLx9frXUNQsDqeb6AGCQYaTzA3ASRFj6FhylV4DRSzgzzdr
+	fgQpFSf5Fe7rc7z6ubNMcJlTMusiKJDUCFKQyOydNAtMMSQ8aN33yXbcY/jaPjcQRp3rMfJsXNJ
+	HYg0Br7tm1XGxAQyeOCXAXtQxs8HVCwUSlMIOMlsdvZnwsH2umUh9akm8nV3yVnMksw==
+X-Received: by 2002:a17:906:1e04:: with SMTP id g4mr34670677ejj.48.1562163045346;
+        Wed, 03 Jul 2019 07:10:45 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyszLQdkHEJHC4Rn/B2p5Pm3olQOnWx1kEUN0gqrzYnSwlhsdu5AfLHC9YJV60B5PWkWaMO
+X-Received: by 2002:a17:906:1e04:: with SMTP id g4mr34670602ejj.48.1562163044506;
+        Wed, 03 Jul 2019 07:10:44 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562163044; cv=none;
         d=google.com; s=arc-20160816;
-        b=dwMz36OpU5+I8sx3BcnwGvBi5SnJPRiGieNyjOTGHKIbPKfDwsJ8qoPElVrFNIptd2
-         t5ISPjZN/AnHkzFVIpdj1TtPxzK8ykD9Inj4CH1MtAMvfY8qTpOs+/F1UIQyJMFrpMHX
-         oryPFYrFU3BEHlg35gkzBkGNHbAjpQe6zOCEIbThzkcJSJvfL5mXy676LnnKz0y65Ek3
-         TUqpt/IlecU+40EYnnLr7WRRIvGOJNcjO9/4V8O1TVh6ZDB7f/BKPiLSDF4lz/evEFjs
-         FpQYZlHAP9n5Y61439MHdqLd24XBgAhfuIX1M4lKi9b/ZdnYMfBeUVKjgUuaBDTjtVwj
-         PByA==
+        b=qmmoG3JNAnlHIZD4Q0fDQAlfEega+WlQOhNw/RRHdjhy5MEUeKr4xW0dNwcqfiIxkW
+         SKCfFz6ZDQCkO3lJor6/2LpQ1PmRad3jz1QbORuimQz8uvB2iDvt4a53CfAh74T4FrMy
+         owMW53NQw68H8xSluxuijrE4iE85AAtRO2RR69uqn0SoaIZk/F5So3SGhrC8yoXKBfxS
+         WsF4KM5OQQ7U2VyyzlUDVjJ1+8son586pmSd6asBBeY//hJ9yUq7QJTWMCcKfKOoywYD
+         VjP+Hg3rdA+7C9C8Riv4efGo1927e90w1Ckc17CTTtCvzhKVjhGShxzkLE4FYeHjW78q
+         KCAQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from:dkim-signature;
-        bh=9xyphrNP6oUvQK08UnO2NmYiuMrL0TD3/l2pKs8GPgc=;
-        b=Ry5ABvoo2JXRp7wtBDqUYqIX9E20ieE1V8km8IXjgVaTBJg9DJZpUrvldpNowKG8Kw
-         vm5q1PEbMy61CQx0Uo97zSHvplAANx6PnJXJAEBiCt6CW0WGrD9bMr+LMntLeqMO2YEL
-         t8plX5UtRYmI9du7oor4QM0RHgaMQbH9VN+iuhWBwOsF7y9QSbXrZKWG0nAxpFUNhUTO
-         QFy7H3+ZXYJn46VfIt0W0j+afRy3nryCP9yHyLc2nmAWKEHmF0QueSdqozcdHoc9FNMt
-         JsZuiZkPz/BHec2pOwaJsplFUgAjGUZTWi1RmkYW3zDejGBPYdtUS7wPWpjYvwyvVe5z
-         QugA==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=cwszHtW+mIPivSs6sbnbs4LhP5LT3yq9wBgQjqfg+UQ=;
+        b=0hOG94roCaC0QZ5bgUavi6yaMS8m1bR6XHqVeMGEoFJzszY3iEwpXfq9WMivTnYUYz
+         kpn0quwEvHKB1qWHRWWfa1tuApZ4anwrKooIFJxA2ttbhnwKnWUDTZEgsPdm4kP70TbV
+         hyu3/tOAoBDLwa9LNosAEbsqrBbda+q3P+YBP+R1u1y0iRBkPjMC508sGG2cfq1UEyU3
+         G+Z0XU9QJ8JMzO+5oDCybFtTtks2mR4+Sf+W8Z8Asq5ZlbILcMUlzn4sjn9lWnBbInDj
+         2flWG8vPud5X5Ew/ko9PSGkmJX546I737kcB7L8KTOvxuLJhps0cGkgIAE3X6zf5eYew
+         o9qg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b=KIinKYDB;
-       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.15.89 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
-Received: from EUR01-DB5-obe.outbound.protection.outlook.com (mail-eopbgr150089.outbound.protection.outlook.com. [40.107.15.89])
-        by mx.google.com with ESMTPS id p6si1666373eju.23.2019.07.03.07.10.06
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 03 Jul 2019 07:10:07 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jgg@mellanox.com designates 40.107.15.89 as permitted sender) client-ip=40.107.15.89;
+       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
+        by mx.google.com with ESMTP id z44si2224377edb.16.2019.07.03.07.10.44
+        for <linux-mm@kvack.org>;
+        Wed, 03 Jul 2019 07:10:44 -0700 (PDT)
+Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b=KIinKYDB;
-       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.15.89 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=Mellanox.com;
- s=selector2;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=9xyphrNP6oUvQK08UnO2NmYiuMrL0TD3/l2pKs8GPgc=;
- b=KIinKYDBeRYg866u2b0gz16nlg6nMRMmFBQ+KAUUQ55aFT6GojM9e215r2Dp1C+/kBseDNlyrbmmt0ECxwbk1XQXI9bDy5WJa88lGiO+BMsqYfZ6CZwVgRC7ZEtegWS5Lw39d/IMM49DAZwtXoxNMjANkwQcSdUBcH3IPvXJypg=
-Received: from VI1PR05MB4141.eurprd05.prod.outlook.com (10.171.182.144) by
- VI1PR05MB6285.eurprd05.prod.outlook.com (20.179.24.85) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.2032.20; Wed, 3 Jul 2019 14:10:05 +0000
-Received: from VI1PR05MB4141.eurprd05.prod.outlook.com
- ([fe80::f5d8:df9:731:682e]) by VI1PR05MB4141.eurprd05.prod.outlook.com
- ([fe80::f5d8:df9:731:682e%5]) with mapi id 15.20.2032.019; Wed, 3 Jul 2019
- 14:10:05 +0000
-From: Jason Gunthorpe <jgg@mellanox.com>
-To: "Kuehling, Felix" <Felix.Kuehling@amd.com>
-CC: "linux-next@vger.kernel.org" <linux-next@vger.kernel.org>,
-	"dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>, "Yang, Philip"
-	<Philip.Yang@amd.com>, Stephen Rothwell <sfr@canb.auug.org.au>, Dave Airlie
-	<airlied@linux.ie>, "Deucher, Alexander" <Alexander.Deucher@amd.com>
-Subject: Re: [PATCH 1/1] drm/amdgpu: adopt to hmm_range_register API change
-Thread-Topic: [PATCH 1/1] drm/amdgpu: adopt to hmm_range_register API change
-Thread-Index: AQHVMUJXWs8sf5cAOUS0d/4NvIH/Saa473yA
-Date: Wed, 3 Jul 2019 14:10:04 +0000
-Message-ID: <20190703141001.GH18688@mellanox.com>
-References: <20190703015442.11974-1-Felix.Kuehling@amd.com>
-In-Reply-To: <20190703015442.11974-1-Felix.Kuehling@amd.com>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-x-clientproxiedby: BL0PR02CA0112.namprd02.prod.outlook.com
- (2603:10b6:208:35::17) To VI1PR05MB4141.eurprd05.prod.outlook.com
- (2603:10a6:803:4d::16)
-authentication-results: spf=none (sender IP is )
- smtp.mailfrom=jgg@mellanox.com; 
-x-ms-exchange-messagesentrepresentingtype: 1
-x-originating-ip: [156.34.55.100]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: d6ffa8a7-727f-4983-2304-08d6ffc02576
-x-ms-office365-filtering-ht: Tenant
-x-microsoft-antispam:
- BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(4618075)(2017052603328)(7193020);SRVR:VI1PR05MB6285;
-x-ms-traffictypediagnostic: VI1PR05MB6285:
-x-microsoft-antispam-prvs:
- <VI1PR05MB6285C30CC9BD99FEDCA47DA6CFFB0@VI1PR05MB6285.eurprd05.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:7691;
-x-forefront-prvs: 00872B689F
-x-forefront-antispam-report:
- SFV:NSPM;SFS:(10009020)(4636009)(346002)(396003)(39860400002)(136003)(366004)(376002)(199004)(189003)(3846002)(6116002)(99286004)(7736002)(25786009)(66556008)(52116002)(81156014)(81166006)(305945005)(64756008)(4326008)(66476007)(66446008)(8936002)(66946007)(478600001)(6916009)(71190400001)(1076003)(8676002)(73956011)(5660300002)(71200400001)(6506007)(6436002)(446003)(53936002)(2616005)(6486002)(36756003)(2906002)(256004)(6246003)(102836004)(14444005)(76176011)(386003)(86362001)(26005)(33656002)(186003)(14454004)(66066001)(54906003)(316002)(6512007)(229853002)(11346002)(476003)(486006)(68736007);DIR:OUT;SFP:1101;SCL:1;SRVR:VI1PR05MB6285;H:VI1PR05MB4141.eurprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
-received-spf: None (protection.outlook.com: mellanox.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info:
- uB6dTC+NZ0Di8A5w1s0kCQKz7u2ggZEIgDQWpW0L4WsGLJ1uF/R9PlQFfFp4OoFpAFfWKbmgswgteQN0A4WaVqGQRxkkCd4oLx1abHjYVLovpP6xcbmPQ2tjbRh5vBJmsmrxof3OiAxeZb3WZrhSHAXbOsCoKvabSOM2Z3ZSS4smmkL/wQPZ07pJruuPUsE82PMUhxepsmIVv36gVCTfwwTl8lSfzT9KNRWn/Y9BRiFJj6YfyK14Ghw/ixgiRychZLaziOejH6OIKYAGfSYT433x/jiBaltK76lSzWVSDjnmXSPOPrlnUFtpyk5FjboUO0q0iPiwWF7FJHDysf5I+iORdrqZ8t/AW/t9Ua0/bVsJBTyvFnkp0uciSX2xmtXAeFqAMB6uTKrO/F7QAu7dxkqhLTtd3c2hCK6JXilwUDs=
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <17622BB336903649B6558468F65A4E0E@eurprd05.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
+       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 9B3752B;
+	Wed,  3 Jul 2019 07:10:43 -0700 (PDT)
+Received: from [10.162.42.95] (p8cg001049571a15.blr.arm.com [10.162.42.95])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 15DD03F718;
+	Wed,  3 Jul 2019 07:10:41 -0700 (PDT)
+Subject: Re: [DRAFT] mm/kprobes: Add generic kprobe_fault_handler() fallback
+ definition
+To: Guenter Roeck <linux@roeck-us.net>, linux-mm@kvack.org,
+ linux-kernel@vger.kernel.org
+Cc: akpm@linux-foundation.org
+References: <78863cd0-8cb5-c4fd-ed06-b1136bdbb6ef@arm.com>
+ <1561973757-5445-1-git-send-email-anshuman.khandual@arm.com>
+ <8c6b9525-5dc5-7d17-cee1-b75d5a5121d6@roeck-us.net>
+ <fc68afaa-32e1-a265-aae2-e4a9440f4c95@arm.com>
+ <8a5eb5d5-32f0-01cd-b2fe-890ebb98395b@roeck-us.net>
+From: Anshuman Khandual <anshuman.khandual@arm.com>
+Message-ID: <a0a0e277-ec1a-6c49-4852-c945ad64a1fd@arm.com>
+Date: Wed, 3 Jul 2019 19:41:08 +0530
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
+ Thunderbird/52.9.1
 MIME-Version: 1.0
-X-OriginatorOrg: Mellanox.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: d6ffa8a7-727f-4983-2304-08d6ffc02576
-X-MS-Exchange-CrossTenant-originalarrivaltime: 03 Jul 2019 14:10:04.9785
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: a652971c-7d2e-4d9b-a6a4-d149256f461b
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-userprincipalname: jgg@mellanox.com
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: VI1PR05MB6285
+In-Reply-To: <8a5eb5d5-32f0-01cd-b2fe-890ebb98395b@roeck-us.net>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jul 03, 2019 at 01:55:08AM +0000, Kuehling, Felix wrote:
-> From: Philip Yang <Philip.Yang@amd.com>
->=20
-> In order to pass mirror instead of mm to hmm_range_register, we need
-> pass bo instead of ttm to amdgpu_ttm_tt_get_user_pages because mirror
-> is part of amdgpu_mn structure, which is accessible from bo.
->=20
-> Signed-off-by: Philip Yang <Philip.Yang@amd.com>
-> Reviewed-by: Felix Kuehling <Felix.Kuehling@amd.com>
-> Signed-off-by: Felix Kuehling <Felix.Kuehling@amd.com>
-> CC: Stephen Rothwell <sfr@canb.auug.org.au>
-> CC: Jason Gunthorpe <jgg@mellanox.com>
-> CC: Dave Airlie <airlied@linux.ie>
-> CC: Alex Deucher <alexander.deucher@amd.com>
-> ---
->  drivers/gpu/drm/Kconfig                          |  1 -
->  drivers/gpu/drm/amd/amdgpu/amdgpu_amdkfd_gpuvm.c |  5 ++---
->  drivers/gpu/drm/amd/amdgpu/amdgpu_cs.c           |  2 +-
->  drivers/gpu/drm/amd/amdgpu/amdgpu_gem.c          |  3 +--
->  drivers/gpu/drm/amd/amdgpu/amdgpu_mn.c           |  8 ++++++++
->  drivers/gpu/drm/amd/amdgpu/amdgpu_mn.h           |  5 +++++
->  drivers/gpu/drm/amd/amdgpu/amdgpu_ttm.c          | 12 ++++++++++--
->  drivers/gpu/drm/amd/amdgpu/amdgpu_ttm.h          |  5 +++--
->  8 files changed, 30 insertions(+), 11 deletions(-)
 
-This is too big to use as a conflict resolution, what you could do is
-apply the majority of the patch on top of your tree as-is (ie keep
-using the old hmm_range_register), then the conflict resolution for
-the updated AMD GPU tree can be a simple one line change:
 
- -	hmm_range_register(range, mm, start,
- +	hmm_range_register(range, mirror, start,
-  			   start + ttm->num_pages * PAGE_SIZE, PAGE_SHIFT);
+On 07/03/2019 06:29 PM, Guenter Roeck wrote:
+> On 7/2/19 10:35 PM, Anshuman Khandual wrote:
+>>
+>>
+>> On 07/01/2019 06:58 PM, Guenter Roeck wrote:
+>>> On 7/1/19 2:35 AM, Anshuman Khandual wrote:
+>>>> Architectures like parisc enable CONFIG_KROBES without having a definition
+>>>> for kprobe_fault_handler() which results in a build failure. Arch needs to
+>>>> provide kprobe_fault_handler() as it is platform specific and cannot have
+>>>> a generic working alternative. But in the event when platform lacks such a
+>>>> definition there needs to be a fallback.
+>>>>
+>>>> This adds a stub kprobe_fault_handler() definition which not only prevents
+>>>> a build failure but also makes sure that kprobe_page_fault() if called will
+>>>> always return negative in absence of a sane platform specific alternative.
+>>>>
+>>>> While here wrap kprobe_page_fault() in CONFIG_KPROBES. This enables stud
+>>>> definitions for generic kporbe_fault_handler() and kprobes_built_in() can
+>>>> just be dropped. Only on x86 it needs to be added back locally as it gets
+>>>> used in a !CONFIG_KPROBES function do_general_protection().
+>>>>
+>>>> Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
+>>>> ---
+>>>> I am planning to go with approach unless we just want to implement a stub
+>>>> definition for parisc to get around the build problem for now.
+>>>>
+>>>> Hello Guenter,
+>>>>
+>>>> Could you please test this in your parisc setup. Thank you.
+>>>>
+>>>
+>>> With this patch applied on top of next-20190628, parisc:allmodconfig builds
+>>> correctly. I scheduled a full build for tonight for all architectures.
+>>
+>> How did that come along ? Did this pass all build tests ?
+>>
+> 
+> Let's say it didn't find any failures related to this patch. I built on top of
+> next-20190701 which was quite badly broken for other reasons. Unfortunately,
+> next-20190702 is much worse, so retesting would not add any value at this time.
+> I'd say go for it.
+> 
+> Guenter
+> 
 
-Which is trivial for everone to deal with, and solves the problem.
-
-This is probably a much better option than rebasing the AMD gpu tree.
-
-> diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_mn.c b/drivers/gpu/drm/amd=
-/amdgpu/amdgpu_mn.c
-> index 623f56a1485f..80e40898a507 100644
-> --- a/drivers/gpu/drm/amd/amdgpu/amdgpu_mn.c
-> +++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_mn.c
-> @@ -398,6 +398,14 @@ struct amdgpu_mn *amdgpu_mn_get(struct amdgpu_device=
- *adev,
->  	return ERR_PTR(r);
->  }
-> =20
-> +struct hmm_mirror *amdgpu_mn_get_mirror(struct amdgpu_mn *amn)
-> +{
-> +	if (!amn)
-> +		return NULL;
-> +
-> +	return &amn->mirror;
-> +}
-
-I think it is better make the struct amdgpu_mn public rather than add
-this wrapper.
-
-Jason
+Sure thanks, will post it out soon.
 
