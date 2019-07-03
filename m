@@ -4,115 +4,115 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-5.5 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
-	SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=unavailable
-	autolearn_force=no version=3.4.0
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B5EFCC5B57D
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Jul 2019 00:43:45 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1885DC5B57D
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Jul 2019 00:50:29 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7DA9C218B0
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Jul 2019 00:43:45 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id C78DB218EA
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Jul 2019 00:50:28 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="IGZ30bM1"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7DA9C218B0
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="AJ6E73LE"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C78DB218EA
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 192516B0005; Tue,  2 Jul 2019 20:43:45 -0400 (EDT)
+	id 5AD236B0003; Tue,  2 Jul 2019 20:50:28 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 143308E0003; Tue,  2 Jul 2019 20:43:45 -0400 (EDT)
+	id 55D568E0003; Tue,  2 Jul 2019 20:50:28 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 05A038E0001; Tue,  2 Jul 2019 20:43:44 -0400 (EDT)
+	id 44C3B8E0001; Tue,  2 Jul 2019 20:50:28 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C55BA6B0005
-	for <linux-mm@kvack.org>; Tue,  2 Jul 2019 20:43:44 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id 91so344575pla.7
-        for <linux-mm@kvack.org>; Tue, 02 Jul 2019 17:43:44 -0700 (PDT)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 0AB7D6B0003
+	for <linux-mm@kvack.org>; Tue,  2 Jul 2019 20:50:28 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id o16so453380pgk.18
+        for <linux-mm@kvack.org>; Tue, 02 Jul 2019 17:50:28 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
          :message-id:references:mime-version:content-disposition:in-reply-to
          :user-agent;
-        bh=6y6EFOhHrVmqN2XOhvdXRL5MBH9KN4a7EwEf4TQ0LK0=;
-        b=oE5McNB9wBRZkaagJaov9y9wHeJU1yUMyWQY+0S6+Jq/kBGZOIde3vFzhni/FKWeU6
-         KmxYnt13uNa/50mfaLg6pWmfqyh3AJakt6QmnimDkVO8yAJ1+j0AzEhKYF1G5/WWbweA
-         eYuaSe+OGp0upKTC4sybv3LtwFQIfyNabrajhPRB7FAK2tIgo5/kSIWuyquV/5PJpMp9
-         33BAFgDyM++ih2IX7QwlQyX1OYQRpsK6WKU+/UVc9uTkJpo2jXeBenuEu6R/V7qNGwrQ
-         NCYiE+naj58LOLQRXK7+atrVGsHowvPZgtpXknXS1QYwcQ+EGhrXhc+rchCq4DkK8uan
-         nakQ==
-X-Gm-Message-State: APjAAAXBWPNWGER2/4uUXX2HmT7oT/J46lWzz9kf9crLIIlRxxn5Fp4T
-	Z2HQEqcXa6bTyoNSocxoD51vWtzI3d+QSqAX/XZG/y+YTNoWp/ann4Jb6jQtHyk6Rws0ROl5ky/
-	PJ+WFPp2+6nhEnpZcnAHoGvgA8+D8FD3O5opJCWlcFq4bhkXmO3DLsKjN+sL0Yq2E5A==
-X-Received: by 2002:a63:4404:: with SMTP id r4mr33023290pga.245.1562114624247;
-        Tue, 02 Jul 2019 17:43:44 -0700 (PDT)
-X-Received: by 2002:a63:4404:: with SMTP id r4mr33023224pga.245.1562114623089;
-        Tue, 02 Jul 2019 17:43:43 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562114623; cv=none;
+        bh=ZWwYr6O3tiOc5lWF56ulDA9pRcqusbdisVXTs1Pb+fs=;
+        b=K4rT4EP8h+DljRsO5+M1G7Q6ilaZap9OuqSmXlLd2cbgHOusER7/D0QbAhJ1TmnfmK
+         n4NAZ+ym35jEFItKpgDAQCZPxbUWKIHFRCF8tehjF7GaWACz1Q7KUP/dXO/6hV5RHUqs
+         GhAuO9BwX8U3hPym9izWnufOjIyz9ThrxvKZZfMAer06nkJDo8h1qWwqrCR4JE/74yWz
+         wCoBZzU3UkcMoYdTUpbMds2ZR3a1mNHYfhHgiEfUfoo+dyPcvirEB//tHo3ydcK+B5aB
+         8EaOVZcm6pgLoAvieiX299yysTPkvNk/qib6fYjBMLHwE2J3LT1W6rcksWdTMe3Ot2eD
+         92bA==
+X-Gm-Message-State: APjAAAVhj6XFrCn8yPGYfn17Gp9sPUzSeVP7hkwJ70phs3e4qjriESCn
+	JPiYIh7JxL5aT/6+Qep5EO9GzitEjtknIBRN94zsBcRpbbC6uv/tLtVM1PS09FmX/AXS8Wgb3Kf
+	WYq4vPfNAcYOPxYU8ktEaTcbqDxtIgKU0pCVr8U+ZVzBZbdU+BieVWRfpayKJKaZt+g==
+X-Received: by 2002:a63:5d45:: with SMTP id o5mr33965133pgm.40.1562115027451;
+        Tue, 02 Jul 2019 17:50:27 -0700 (PDT)
+X-Received: by 2002:a63:5d45:: with SMTP id o5mr33965088pgm.40.1562115026655;
+        Tue, 02 Jul 2019 17:50:26 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562115026; cv=none;
         d=google.com; s=arc-20160816;
-        b=Rsm6cU2TRJj2SfsVio2swxoad7P9eqqJ4r0xT3/mLe826lHuNUZnvroI13zhSWwZZ5
-         8CPZnC94PYM0Tibgxaux5u5c19WinwjO7kHhOcdYCkBw1VQfI7Pq9fnSVMdiVByhthtp
-         Km2aZ3DvtjwoZoTfAqBYanV0LUjFfMSx1CuhWLNUrDR9XwxyWCPv1NlG2HQEfHO1+bz6
-         7U4k9eh/pxK7SrgRE4yCCOcGRd3XVH5pONv9mSwThj+THJ2PF7iqWK+5ZxBYFCpEMUtE
-         rKKGqbnsqalQb3e8zwzMQEst04xD/ciTo0SypiAtjYhzzfd/ra/Za6Lqp7/dCusmDwmt
-         fyYw==
+        b=cWr7Ih72urkcTNGVjv+UT7trDHKSETa/prN5pNUtgtaDc0JQIhNZCZUgggpHl41NJk
+         blrHHP7IrqqQTG/U95nkJMx4iwqdd1r0O/cAf4D6TdkjvIOe2nT8KKs6Cl3umaVHdoIU
+         6CI0xv/Eszzu4JgKrR4Qrlewb63UU37waCtU4ZdY3Vjgy9MP59M9OzcEq+jP8kPmgfhb
+         tRenW4M6dAIxyD4o87TJoHJBoaOOubTjy5NvonsCngO+3QIS74GBIOJavyPqHtMaHAT7
+         jYAHSWQ5UHf/f115YV8IrILFt2y+rOyfMUdVxZYwhpdlxN7eTJj6yERZWrlUHybDV1oV
+         9epw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=6y6EFOhHrVmqN2XOhvdXRL5MBH9KN4a7EwEf4TQ0LK0=;
-        b=Hu+QuEPZA0g+OZKgiJzTu0bmrP20ySSWBeBB5F3R5B+099aFYQ5Ek8oyudSSDv/K5K
-         McVGwzLHAfCv463lEnknH72sqlPcpfzDS1Ul5G1HkeoP4NM1I5a8tkY2DeLSMwVmH+pi
-         21RfeI6BML+WhllZTHg69Qv79V0SFk/Sc/4hgjdckrtcCEEk8ILa2/g1zl6qSm2+wkvG
-         //cFYkkdl3e+qx+oKE1jhGR8PkIHKmyZEENo+lcsFAg5aCt59GGOQt6KCeT/T+z67nYu
-         aAaavVnixYRadZH8dz2U+j+cUWqN2sWMQseLvmVJcSAd/0RhhOFFjhpU29VADfYjUMji
-         c3OQ==
+        bh=ZWwYr6O3tiOc5lWF56ulDA9pRcqusbdisVXTs1Pb+fs=;
+        b=f5gZFh5+McqEfibOhvl60v255xse/yVhSF6kO0zPUvDB+WgROHv6fpK/IgKid3bQhV
+         Mm1BIflsl2R6jrp3sVgvU2xt7AXWMhMxmq6kZt4bApBwB+TErwGJ8HJiJ7ljMt3kjihN
+         YMfjtFyHxCejPsebgtf57PEnm3cMdOvPoXWf/xxHs4X6xdGbzlfSwCJT5BStukP3BJ6I
+         DL/7s8WDLuQxGb77CrQokpVBCEEB7Nd0S83Ex9GEKmuTKzvTqXA8gqCHuBXBXG/sAzWz
+         Toe4DXNFRQRG/HAqEvLCz/OEd/p5AzcQLSWYdKs0oN3hbaP9jmlJT3hNar/afyNab8Bu
+         Kw/g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=IGZ30bM1;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=AJ6E73LE;
        spf=pass (google.com: domain of minwoo.im.dev@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minwoo.im.dev@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id j11sor585721pjn.7.2019.07.02.17.43.42
+        by mx.google.com with SMTPS id x9sor874898plv.3.2019.07.02.17.50.26
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 02 Jul 2019 17:43:43 -0700 (PDT)
+        Tue, 02 Jul 2019 17:50:26 -0700 (PDT)
 Received-SPF: pass (google.com: domain of minwoo.im.dev@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=IGZ30bM1;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=AJ6E73LE;
        spf=pass (google.com: domain of minwoo.im.dev@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minwoo.im.dev@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
         h=date:from:to:cc:subject:message-id:references:mime-version
          :content-disposition:in-reply-to:user-agent;
-        bh=6y6EFOhHrVmqN2XOhvdXRL5MBH9KN4a7EwEf4TQ0LK0=;
-        b=IGZ30bM1JVOPOn2JA+NtaBwtZCElZa9uYzP2ylrANUFzTjF3Dkq+iNvLaqjj6ix+aI
-         nA9de5UEkcculTGHTzdEEqH86BophVqKEYvPU/4MzbqKfjg5aNWMPotTKTUCCJfYv4GC
-         Sqki0kHHRXESEW/X/WuNKhTc7IwRgrT5Wq63SJFIDle/UzSEKQNVu43wzYot67CTK+w8
-         khrhvDwxf3kLs+57Lp9vhz8bFX4E+0eleOJGyivbAE7Y47ZUxmvjGcu8vitfSedQfwS7
-         9ZblMYQvJWsSx7YNwQSS2rziLFiGrVIbLCMChwYj8jsga+TpenASB/ufRQ4vCyekZjkd
-         vfwg==
-X-Google-Smtp-Source: APXvYqwXN0YlGyDKipGp+Wa48c4rIIsx1oMVVP+Ah7qzo/SOpMyEZfZSGlOaFzcqOjVgqeCapgZUug==
-X-Received: by 2002:a17:90a:8c92:: with SMTP id b18mr8626932pjo.97.1562114622776;
-        Tue, 02 Jul 2019 17:43:42 -0700 (PDT)
+        bh=ZWwYr6O3tiOc5lWF56ulDA9pRcqusbdisVXTs1Pb+fs=;
+        b=AJ6E73LEeTQ60TV7MqG9ZbNeGcL4+ODQxlqYw4uUto0c+0517Yn2sQISVpvOuAKjKG
+         k4rZc8JHnRB6kovJ4Q00fQ3s4gNGPyINsFLXbxaLkjLmfTZsXp+5kchVnq8MWEhOdpSe
+         Q48nybcCkEM2t81fSakAiP4KZY0HlEqX3hLzpUo0SwCW9pGlMzFTDXAsDVQXvzzZ1DHU
+         bh1ND71xLdwlKq9TnJbELh+V7jMv58EWvh1+gL11mwFcPlzsG+imoOt4aXSJRMuxRaOm
+         svfP2tTuQa4btswl0Iccc/BeFY0zhBnHIwKvyQ7iG6ct4k+Tfm13IEfDd9ySAuFQY3hz
+         ZFXQ==
+X-Google-Smtp-Source: APXvYqwibmteSvxZ9mD4EXO7JscIFVbqKdIk9aRiaNZQCILYiLSOPZ2KqB/kEdXsbFRLgbjZFj32tg==
+X-Received: by 2002:a17:90a:cf0d:: with SMTP id h13mr8805697pju.63.1562115026302;
+        Tue, 02 Jul 2019 17:50:26 -0700 (PDT)
 Received: from localhost ([123.213.206.190])
-        by smtp.gmail.com with ESMTPSA id h18sm262259pfr.75.2019.07.02.17.43.41
+        by smtp.gmail.com with ESMTPSA id d6sm279276pgf.55.2019.07.02.17.50.24
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 02 Jul 2019 17:43:42 -0700 (PDT)
-Date: Wed, 3 Jul 2019 09:43:39 +0900
+        Tue, 02 Jul 2019 17:50:25 -0700 (PDT)
+Date: Wed, 3 Jul 2019 09:50:23 +0900
 From: Minwoo Im <minwoo.im.dev@gmail.com>
 To: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
 Cc: linux-mm@kvack.org, linux-block@vger.kernel.org, bvanassche@acm.org,
 	axboe@kernel.dk, Minwoo Im <minwoo.im.dev@gmail.com>
-Subject: Re: [PATCH 2/5] block: update error message in submit_bio()
-Message-ID: <20190703004339.GB19081@minwoo-desktop>
+Subject: Re: [PATCH 3/5] block: allow block_dump to print all REQ_OP_XXX
+Message-ID: <20190703005023.GC19081@minwoo-desktop>
 References: <20190701215726.27601-1-chaitanya.kulkarni@wdc.com>
- <20190701215726.27601-3-chaitanya.kulkarni@wdc.com>
+ <20190701215726.27601-4-chaitanya.kulkarni@wdc.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20190701215726.27601-3-chaitanya.kulkarni@wdc.com>
+In-Reply-To: <20190701215726.27601-4-chaitanya.kulkarni@wdc.com>
 User-Agent: Mutt/1.11.4 (2019-03-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -120,22 +120,59 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 19-07-01 14:57:23, Chaitanya Kulkarni wrote:
-> The existing code in the submit_bio() relies on the op_is_write().
-> op_is_write() checks for the last bit in the bio_op() and we only
-> print WRITE or READ as a bio_op().
-> 
-> It is hard to understand which bio op based on READ/WRITE in
-> submit_bio() with addition of newly discussed REQ_OP_XXX. [1]
-> 
-> Modify the error message in submit_bio() to print correct REQ_OP_XXX
-> with the help of blk_op_str().
-> 
-> [1] https://www.spinics.net/lists/linux-block/msg41884.html. 
-> 
-> Signed-off-by: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
+> diff --git a/block/blk-core.c b/block/blk-core.c
+> index 5143a8e19b63..9855c5d5027d 100644
+> --- a/block/blk-core.c
+> +++ b/block/blk-core.c
+> @@ -1127,17 +1127,15 @@ EXPORT_SYMBOL_GPL(direct_make_request);
+>   */
+>  blk_qc_t submit_bio(struct bio *bio)
+>  {
+> +	unsigned int count = bio_sectors(bio);
 
-It looks good to me.
+Chaitanya,
+
+Could it have a single empty line right after this just like you have
+for the if-statement below for the block_dump.  It's just a nitpick.
+
+>  	/*
+>  	 * If it's a regular read/write or a barrier with data attached,
+>  	 * go through the normal accounting stuff before submission.
+>  	 */
+>  	if (bio_has_data(bio)) {
+> -		unsigned int count;
+>  
+>  		if (unlikely(bio_op(bio) == REQ_OP_WRITE_SAME))
+>  			count = queue_logical_block_size(bio->bi_disk->queue) >> 9;
+> -		else
+> -			count = bio_sectors(bio);
+>  
+>  		if (op_is_write(bio_op(bio))) {
+>  			count_vm_events(PGPGOUT, count);
+> @@ -1145,15 +1143,16 @@ blk_qc_t submit_bio(struct bio *bio)
+>  			task_io_account_read(bio->bi_iter.bi_size);
+>  			count_vm_events(PGPGIN, count);
+>  		}
+> +	}
+>  
+> -		if (unlikely(block_dump)) {
+> -			char b[BDEVNAME_SIZE];
+> -			printk(KERN_DEBUG "%s(%d): %s block %Lu on %s (%u sectors)\n",
+> -			current->comm, task_pid_nr(current),
+> -				blk_op_str(bio_op(bio)),
+> -				(unsigned long long)bio->bi_iter.bi_sector,
+> -				bio_devname(bio, b), count);
+> -		}
+> +	if (unlikely(block_dump)) {
+> +		char b[BDEVNAME_SIZE];
+> +
+> +		printk(KERN_DEBUG "%s(%d): %s block %Lu on %s (%u sectors)\n",
+> +		current->comm, task_pid_nr(current),
+> +			blk_op_str(bio_op(bio)),
+> +			(unsigned long long)bio->bi_iter.bi_sector,
+> +			bio_devname(bio, b), count);
+
+It would be great if non-data command is traced, I think.
 
 Reviewed-by: Minwoo Im <minwoo.im.dev@gmail.com>
 
