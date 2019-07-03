@@ -2,218 +2,187 @@ Return-Path: <SRS0=iaDK=VA=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham
+X-Spam-Status: No, score=-5.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 939DCC5B57D
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Jul 2019 01:08:31 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2CA98C5B57D
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Jul 2019 01:15:26 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 398CB20673
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Jul 2019 01:08:31 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id E842D20673
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Jul 2019 01:15:25 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=Mellanox.com header.i=@Mellanox.com header.b="XPpTI/dv"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 398CB20673
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mellanox.com
+	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="UnhOZorS"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E842D20673
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C7E006B0003; Tue,  2 Jul 2019 21:08:30 -0400 (EDT)
+	id 65D366B0003; Tue,  2 Jul 2019 21:15:25 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C2E588E0003; Tue,  2 Jul 2019 21:08:30 -0400 (EDT)
+	id 5E6678E0003; Tue,  2 Jul 2019 21:15:25 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AA7828E0001; Tue,  2 Jul 2019 21:08:30 -0400 (EDT)
+	id 4603A8E0001; Tue,  2 Jul 2019 21:15:25 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 576DD6B0003
-	for <linux-mm@kvack.org>; Tue,  2 Jul 2019 21:08:30 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id s7so457718edb.19
-        for <linux-mm@kvack.org>; Tue, 02 Jul 2019 18:08:30 -0700 (PDT)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 23C166B0003
+	for <linux-mm@kvack.org>; Tue,  2 Jul 2019 21:15:25 -0400 (EDT)
+Received: by mail-qt1-f198.google.com with SMTP id r58so511073qtb.5
+        for <linux-mm@kvack.org>; Tue, 02 Jul 2019 18:15:25 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
-         :thread-index:date:message-id:references:in-reply-to:accept-language
-         :content-language:content-id:content-transfer-encoding:mime-version;
-        bh=GYH8NoUBbuO2DOp2zCSNKmlTWAV3O/N7vZgO68ZXz/0=;
-        b=hYwInauPCMyrERC28D/ZTKcQfmQVvmY2arTAFiH20kAfaWeqrSJ4UqgTtXSndpvh2P
-         d84A9HQTxQQwtOxsGaOueGgc+leY+vl44Cx9ZOOUAYmlyXTW109XvlJXLre8Ndyp+zA8
-         OV1O/47zNMbyCsrcPPWf0gqnSk5w75adRLVEXxLRUf9Wu6W9chIfq5i3Ak6bXdajJbRy
-         FLTi/LcI1UQ3Pib4aRPwrVnsSQgXp4UsXoJIhdAriYQL31gNKyRP3K3R3RXyYgu3LsaL
-         xELQWbQhHBLsWzq3E6DBIR/2cR9KyuUNqrYizPpqqRvROJ8FMl9djFuUcrX96wRcpxQe
-         m2RA==
-X-Gm-Message-State: APjAAAXuX69+qNrJaHr2vZRWtjlqggQJ39XevJZ+TudkbS49i3g1G2Sy
-	7f9DlXFZvCSCIlNM4caci5xHVP/TKzMoKJjGbETJ76BmZQJ8s66p+gfSNdQgrzlImW9YrzURgQF
-	1wgFQGdXudUN8Lq8klBFxdx0WW5HcP+D2YHbwvN9FyVj/c0ZJ+gAOMQ2KUo6E26HuHw==
-X-Received: by 2002:a17:907:2114:: with SMTP id qn20mr2920157ejb.138.1562116109902;
-        Tue, 02 Jul 2019 18:08:29 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxBozkLHczaNhP0w+/0TcXivZqampFLMXM7HjmBLu+CdY43lLw7ENc4qJdF1bbIuj36lurr
-X-Received: by 2002:a17:907:2114:: with SMTP id qn20mr2920113ejb.138.1562116109136;
-        Tue, 02 Jul 2019 18:08:29 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562116109; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=liD/9MOuZoViFzGGyLdGUss/Gqo1ol5fJSSMhDITAQY=;
+        b=QbFQZlGVZP+kJ1/4eKuOO+jQnK0jSV4mdqQbyygYo7gFvlx7E5t/HwS1CUi81wrCx+
+         o5O40Su1o3+cH9k+y8ebIOrlZsN+aMXOcBn92stiWJg4B+fKxxMSCRNxhavKUE9aQau3
+         0vsrxDfKYI50HsqTfNK5XLD0zgYSdFCVmh5v4YLBEPlt18flP4lNRF28GT594O1/xv16
+         vxT35Z+UNJV/z/5SdywSwApGqHJb/K7dWYCFnM8Gap23R4l0LU2DAZKkutTfHOQhpAXm
+         2ZpH+tz+28GNhuaXmS2DqEvsHmY9rEZ3AgVKBvmnOjzKuuOsS5esg4OM+SKgFG53qnOL
+         hxIA==
+X-Gm-Message-State: APjAAAV3A8/je2CrNxOZs61yqtGWlDAHQEt8Azry/daYOkDO6NNKYOh1
+	1yHnZNR/TYLdtK2UVO2RjSAv8OmWbuaw92HW7enqEmWLK7P3aewXvbnm6O8mIBRmFCfrsHk1/P+
+	zRebjybAVBxGFfUJNHcUc1KjAZwHqfUU2ENTHCqHa4lZ2IFm1aM8viWPJIb1VvN3pVw==
+X-Received: by 2002:ac8:d8:: with SMTP id d24mr28730619qtg.284.1562116524864;
+        Tue, 02 Jul 2019 18:15:24 -0700 (PDT)
+X-Received: by 2002:ac8:d8:: with SMTP id d24mr28730590qtg.284.1562116524198;
+        Tue, 02 Jul 2019 18:15:24 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562116524; cv=none;
         d=google.com; s=arc-20160816;
-        b=IA0sJtnETf7ijwJsBAm18UPZT4yAV6OmPlI/XxV6IEyc6clKPDyTRLfqUZuSD0DP5b
-         VkZnxut7BN7BDI1d/V8tRxgoAN6taEjgdbIqBnXylxduurOn4nyBvM4RAUhL74nKSaic
-         a8sxol391hcXoh6lbYIgAPjSDdJe/cpa2qDQejAarSU+PDUvy4ACMIG00GkV8fPn6ran
-         iKyujA9p27NXCwOyMAJYrHQGU2CR5OtFi2+voX9uo2SkVUboSm038U0oDMieAmHbbWIk
-         n33ky+EpNIWFxxbn3uNLuEDwoDOIstoou1tnseT6PSFSpFJrewe0Tfjtj8J9VHzm2oka
-         z7Dg==
+        b=fQozDrEovib8/KO7yRydkjrC9qZoYOglWrcQnG0dX+DwZllIN3d6xOuHDLCt3fV60B
+         woG5gxa4uebyqgVyQGjRc5eS51WWRF994EnsNaIschLXRfIY0PwqZ7XFwRW4/s9TMvZo
+         WjxPkGKuIHlsTksNoRDyDBlY94WJ+P/r0r0fTZEunTRXH/jdHSxDzRDH/yhidRpnPZJS
+         S746KdgkxSDf9mu7h8WuQ27BxoA3WHOQgKD3QJ2GVCRxTa0Bil7M9ruknsg+grjAYH1i
+         yYNX0tHIpGioNK6KTRuuaIhe+xw+h3ooWvxeJCrvk0//kNsffFkpLY6SdeDVcb6JGK9j
+         mwxQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from:dkim-signature;
-        bh=GYH8NoUBbuO2DOp2zCSNKmlTWAV3O/N7vZgO68ZXz/0=;
-        b=sJpsXp8O9pWehQm8ro9fFkmodugJa+UvT3CNqmfugmWWndk0eZhW/iKZiXeA3YeMmN
-         /LKGudHrLQBln02LSfVEJqd9I2cWcqPSgjlNC/1JhsNV/HNfJMFusqo98wxqoL5YY80v
-         7tVsamF/fgNOOQEci33jVcZg6ifEeGxZLiSPIs/GFMBfmgOvMPEBY0gmWrYSHObY/70N
-         I0Yjtu0hADT1xN+zpAAGiAGiI8r0Yo5ThPz9MVIIMFfdBwXfH9f1gTQ8vo4vpfaxjiT+
-         3/9+FEgdy5Kxm895YoezbHUiJh0KaIE38oZwKcHCBg7YStb5lAS7xBmT1E1cAoMXlNP0
-         IjZQ==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date:dkim-signature;
+        bh=liD/9MOuZoViFzGGyLdGUss/Gqo1ol5fJSSMhDITAQY=;
+        b=bweQ2wh/EoeuOeXmEZ1kO7pakOPXJc9+QNLsY4WwnH8oPlliroboZKo888xj8k+e4j
+         wHgr9OQDBPZNZaRwqT76Y1FONGix9k5fiu2i9BOIIEpkvEp1jfviOuj5kC4UpWKEcJoi
+         x8wGDAoINQsSGQ3HmCEe6txea8pta1L7olNRPGkBbnidm4fI1jqpWYhqN8oH90iXWvQc
+         SV/AoKp+GO/sywqudYmdx5tXkS1o4KFErzBUOva4luIQ0K4QtM7pgN2xjOWaTmc4fXFl
+         HxNDIweJbC0iGrGypoKF+bj9X7QaSDwLaIKremp6f7DGySH3syZz0WkRgw4jeckwCa8M
+         jd1Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b="XPpTI/dv";
-       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.0.82 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
-Received: from EUR02-AM5-obe.outbound.protection.outlook.com (mail-eopbgr00082.outbound.protection.outlook.com. [40.107.0.82])
-        by mx.google.com with ESMTPS id f3si386311ejo.166.2019.07.02.18.08.28
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=UnhOZorS;
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id c51sor599612qvh.56.2019.07.02.18.15.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 02 Jul 2019 18:08:29 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jgg@mellanox.com designates 40.107.0.82 as permitted sender) client-ip=40.107.0.82;
+        (Google Transport Security);
+        Tue, 02 Jul 2019 18:15:24 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b="XPpTI/dv";
-       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.0.82 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=Mellanox.com;
- s=selector2;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=GYH8NoUBbuO2DOp2zCSNKmlTWAV3O/N7vZgO68ZXz/0=;
- b=XPpTI/dvpyr+KQdeVAbwUKBph62vq391kwQ9z8vUhHMjQELdyP2iVsuCI8V3ojKcwRycOSwBRa0cazWesE+wGLDs5A719Gw5wn0NidA7BnveoZaIU1uT97hcXtNLBJZmkCZhUoBuJVr2zyHN7bKMDy4j0+0ME2BA8zmaHzz82NM=
-Received: from VI1PR05MB4141.eurprd05.prod.outlook.com (10.171.182.144) by
- VI1PR05MB6190.eurprd05.prod.outlook.com (20.178.123.161) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.2032.20; Wed, 3 Jul 2019 01:08:27 +0000
-Received: from VI1PR05MB4141.eurprd05.prod.outlook.com
- ([fe80::f5d8:df9:731:682e]) by VI1PR05MB4141.eurprd05.prod.outlook.com
- ([fe80::f5d8:df9:731:682e%5]) with mapi id 15.20.2032.019; Wed, 3 Jul 2019
- 01:08:27 +0000
-From: Jason Gunthorpe <jgg@mellanox.com>
-To: Dan Williams <dan.j.williams@intel.com>
-CC: Christoph Hellwig <hch@lst.de>, =?iso-8859-1?Q?J=E9r=F4me_Glisse?=
-	<jglisse@redhat.com>, Ben Skeggs <bskeggs@redhat.com>, Ira Weiny
-	<ira.weiny@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>,
-	"nouveau@lists.freedesktop.org" <nouveau@lists.freedesktop.org>,
-	"dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>,
-	"linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>,
-	"linux-pci@vger.kernel.org" <linux-pci@vger.kernel.org>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
-Subject: Re: dev_pagemap related cleanups v4
-Thread-Topic: dev_pagemap related cleanups v4
-Thread-Index: AQHVL9UU5cGGdRKLlkyPcV6XfRMxZaa1bVyAgAI+pYCAAE0OAIAAHuWA
-Date: Wed, 3 Jul 2019 01:08:27 +0000
-Message-ID: <20190703010823.GB11833@mellanox.com>
-References: <20190701062020.19239-1-hch@lst.de>
- <20190701082517.GA22461@lst.de> <20190702184201.GO31718@mellanox.com>
- <CAPcyv4iWXJ-c7LahPD=Qt4RuDNTU7w_8HjsitDuj3cxngzb56g@mail.gmail.com>
-In-Reply-To:
- <CAPcyv4iWXJ-c7LahPD=Qt4RuDNTU7w_8HjsitDuj3cxngzb56g@mail.gmail.com>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-x-clientproxiedby: BL0PR0102CA0058.prod.exchangelabs.com
- (2603:10b6:208:25::35) To VI1PR05MB4141.eurprd05.prod.outlook.com
- (2603:10a6:803:4d::16)
-authentication-results: spf=none (sender IP is )
- smtp.mailfrom=jgg@mellanox.com; 
-x-ms-exchange-messagesentrepresentingtype: 1
-x-originating-ip: [156.34.55.100]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: 666e2153-d0c6-48b5-99ee-08d6ff52f414
-x-ms-office365-filtering-ht: Tenant
-x-microsoft-antispam:
- BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(4618075)(2017052603328)(7193020);SRVR:VI1PR05MB6190;
-x-ms-traffictypediagnostic: VI1PR05MB6190:
-x-ms-exchange-purlcount: 1
-x-microsoft-antispam-prvs:
- <VI1PR05MB61903AF6C1A65E8369742AA3CFFB0@VI1PR05MB6190.eurprd05.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:7219;
-x-forefront-prvs: 00872B689F
-x-forefront-antispam-report:
- SFV:NSPM;SFS:(10009020)(4636009)(396003)(346002)(39860400002)(376002)(366004)(136003)(199004)(189003)(36756003)(4326008)(33656002)(26005)(2616005)(81156014)(305945005)(86362001)(6506007)(966005)(53936002)(486006)(186003)(102836004)(446003)(14454004)(386003)(6916009)(6486002)(316002)(476003)(478600001)(81166006)(53546011)(11346002)(8676002)(68736007)(25786009)(8936002)(7416002)(5660300002)(66476007)(6246003)(6306002)(71200400001)(2906002)(64756008)(6512007)(66946007)(66556008)(66446008)(1076003)(73956011)(52116002)(6436002)(3846002)(229853002)(66066001)(76176011)(7736002)(99286004)(54906003)(14444005)(256004)(6116002)(71190400001);DIR:OUT;SFP:1101;SCL:1;SRVR:VI1PR05MB6190;H:VI1PR05MB4141.eurprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
-received-spf: None (protection.outlook.com: mellanox.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info:
- tDKuuIfgR9oX45s9hP9f7523FVZuj/Cp4IDBxNigMSr5WEC2agQIzrEXUBuNboGMSlvz67S1Uv6KuO5ZVoYd5GYuM2F54yxs2sTTMi7FCmrslBqo7dj9at7q74+TdPen4Ou5eFR3mxXkZfyOMYDWnkaLgqzNL/2If2wmF9amG3XbUzJrrF2i9Y4zdvEfxHk9R6qJRkf1ORCx28U/T4g+NZc4f1kuljqQ7WijxNpAVCogMYiR2X1Bk/db8lPDR/VAJvnU79i6YYQsywnUHwhH1zw+GXfs5OX1quMtO1UbEOoC10CfEL+pXw4pjtS9lPIj4b+ktBwFtMnKhYrF4qAXJUgVjOMvu9C0TEJuKee9QFswmucNkvOOYZpnw8ASNXTTpgYjkkaU87VUc1nZzBDTTlMhEbysA2yhWNye1T9POjE=
-Content-Type: text/plain; charset="iso-8859-1"
-Content-ID: <9433B9982DD5FE40BE697C702241BE2B@eurprd05.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=UnhOZorS;
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=ziepe.ca; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:content-transfer-encoding:in-reply-to
+         :user-agent;
+        bh=liD/9MOuZoViFzGGyLdGUss/Gqo1ol5fJSSMhDITAQY=;
+        b=UnhOZorS3ucGouUUJ6xafrtEEsrX5ysAkBVI/dg0ZDjAor0OxuBA66FjAsrdJzKZqa
+         G3rtRFX3LZwSYqMOBRJdLP9vOEpUJGse5xkqxCgJgkoHH6ZETtC2CglOl4Gz5eFwpqB9
+         QzIxbsAgExukM9P5cCYF4G/pWMgFuyXXXJu+u3Y4bLJtZMGGp8agn2dYu+GgusYFkrY0
+         DjmP1xdzXz714lNjvE40LvuRv89Cq5LlyEdBR8fPDZmzLsUDw9f5zp7ObEGjtZEXBozS
+         GWnd9fyxQj73uY3RTiDeaKO0HgGB35X+h7NDpv4bt5E6fuwbyoqXx5aVYiSemB1oaeTV
+         JcBw==
+X-Google-Smtp-Source: APXvYqxT1ad2sCuVGtqHLhWSofYS4jtico3ZGFHLaY5pqoKGA8G7OYoBujn1EZbSkY3AoMmJOvEP3A==
+X-Received: by 2002:a0c:d91b:: with SMTP id p27mr28714349qvj.236.1562116523841;
+        Tue, 02 Jul 2019 18:15:23 -0700 (PDT)
+Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
+        by smtp.gmail.com with ESMTPSA id a21sm255229qkg.47.2019.07.02.18.15.23
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 02 Jul 2019 18:15:23 -0700 (PDT)
+Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
+	(envelope-from <jgg@ziepe.ca>)
+	id 1hiTrm-0004FU-T2; Tue, 02 Jul 2019 22:15:22 -0300
+Date: Tue, 2 Jul 2019 22:15:22 -0300
+From: Jason Gunthorpe <jgg@ziepe.ca>
+To: ira.weiny@intel.com
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+	Michal Hocko <mhocko@suse.com>, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org,
+	=?utf-8?B?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>,
+	Dan Williams <dan.j.williams@intel.com>,
+	John Hubbard <jhubbard@nvidia.com>
+Subject: Re: [PATCH v4] mm/swap: Fix release_pages() when releasing devmap
+ pages
+Message-ID: <20190703011522.GA15993@ziepe.ca>
+References: <20190605214922.17684-1-ira.weiny@intel.com>
 MIME-Version: 1.0
-X-OriginatorOrg: Mellanox.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: 666e2153-d0c6-48b5-99ee-08d6ff52f414
-X-MS-Exchange-CrossTenant-originalarrivaltime: 03 Jul 2019 01:08:27.1163
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: a652971c-7d2e-4d9b-a6a4-d149256f461b
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-userprincipalname: jgg@mellanox.com
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: VI1PR05MB6190
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20190605214922.17684-1-ira.weiny@intel.com>
+User-Agent: Mutt/1.9.4 (2018-02-28)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jul 02, 2019 at 04:17:48PM -0700, Dan Williams wrote:
-> On Tue, Jul 2, 2019 at 11:42 AM Jason Gunthorpe <jgg@mellanox.com> wrote:
-> >
-> > On Mon, Jul 01, 2019 at 10:25:17AM +0200, Christoph Hellwig wrote:
-> > > And I've demonstrated that I can't send patch series..  While this
-> > > has all the right patches, it also has the extra patches already
-> > > in the hmm tree, and four extra patches I wanted to send once
-> > > this series is merged.  I'll give up for now, please use the git
-> > > url for anything serious, as it contains the right thing.
-> >
-> > Okay, I sorted it all out and temporarily put it here:
-> >
-> > https://github.com/jgunthorpe/linux/commits/hmm
-> >
-> > Bit involved job:
-> > - Took Ira's v4 patch into hmm.git and confirmed it matches what
-> >   Andrew has in linux-next after all the fixups
-> > - Checked your github v4 and the v3 that hit the mailing list were
-> >   substantially similar (I never did get a clean v4) and largely
-> >   went with the github version
-> > - Based CH's v4 series on -rc7 and put back the removal hunk in swap.c
-> >   so it compiles
-> > - Merge'd CH's series to hmm.git and fixed all the conflicts with Ira
-> >   and Ralph's patches (such that swap.c remains unchanged)
-> > - Added Dan's ack's and tested-by's
->=20
-> Looks good. Test merge (with some collisions, see below) also passes
-> my test suite.
+On Wed, Jun 05, 2019 at 02:49:22PM -0700, ira.weiny@intel.com wrote:
+> From: Ira Weiny <ira.weiny@intel.com>
+> 
+> release_pages() is an optimized version of a loop around put_page().
+> Unfortunately for devmap pages the logic is not entirely correct in
+> release_pages().  This is because device pages can be more than type
+> MEMORY_DEVICE_PUBLIC.  There are in fact 4 types, private, public, FS
+> DAX, and PCI P2PDMA.  Some of these have specific needs to "put" the
+> page while others do not.
+> 
+> This logic to handle any special needs is contained in
+> put_devmap_managed_page().  Therefore all devmap pages should be
+> processed by this function where we can contain the correct logic for a
+> page put.
+> 
+> Handle all device type pages within release_pages() by calling
+> put_devmap_managed_page() on all devmap pages.  If
+> put_devmap_managed_page() returns true the page has been put and we
+> continue with the next page.  A false return of
+> put_devmap_managed_page() means the page did not require special
+> processing and should fall to "normal" processing.
+> 
+> This was found via code inspection while determining if release_pages()
+> and the new put_user_pages() could be interchangeable.[1]
+> 
+> [1] https://lore.kernel.org/lkml/20190523172852.GA27175@iweiny-DESK2.sc.intel.com/
+> 
+> Cc: Jérôme Glisse <jglisse@redhat.com>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Reviewed-by: Dan Williams <dan.j.williams@intel.com>
+> Reviewed-by: John Hubbard <jhubbard@nvidia.com>
+> Signed-off-by: Ira Weiny <ira.weiny@intel.com>
+> 
+> ---
+> Changes from V3:
+> 	Update comment to the one provided by John
+> 
+> Changes from V2:
+> 	Update changelog for more clarity as requested by Michal
+> 	Update comment WRT "failing" of put_devmap_managed_page()
+> 
+> Changes from V1:
+> 	Add comment clarifying that put_devmap_managed_page() can still
+> 	fail.
+> 	Add Reviewed-by tags.
+> 
+>  mm/swap.c | 13 +++++++++----
+>  1 file changed, 9 insertions(+), 4 deletions(-)
 
-Okay, published toward linux-next now
+Andrew,
 
-> >
-> > I think this fairly closely follows what was posted to the mailing
-> > list.
-> >
-> > As it was more than a simple 'git am', I'll let it sit on github until
-> > I hear OK's then I'll move it to kernel.org's hmm.git and it will hit
-> > linux-next. 0-day should also run on this whole thing from my github.
-> >
-> > What I know is outstanding:
-> >  - The conflicting ARM patches, I understand Andrew will handle these
-> >    post-linux-next
-> >  - The conflict with AMD GPU in -next, I am waiting to hear from AMD
->=20
-> Just a heads up that this also collides with the "sub-section" patches
-> in Andrew's tree. The resolution is straightforward, mostly just
-> colliding updates to arch_{add,remove}_memory() call sites in
-> kernel/memremap.c and collisions with pgmap_altmap() usage.
+As per the discussion on the hmm thread I took this patch into the
+hmm.git as the conflict that was created with CH's rework was tricky -
+the resolution is simple, but keeping Ira's hunk instead of the delete
+is, IMHO, subtle.
 
-Okay, thanks
-
+Regards, 
 Jason
 
