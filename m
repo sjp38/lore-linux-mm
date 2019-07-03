@@ -2,211 +2,147 @@ Return-Path: <SRS0=iaDK=VA=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+X-Spam-Status: No, score=-5.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9B162C06513
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Jul 2019 17:52:57 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 54082C0650E
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Jul 2019 18:01:28 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 64F2F2189E
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Jul 2019 17:52:57 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 64F2F2189E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 0EA5E2184C
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Jul 2019 18:01:27 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="UR+mB33w"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0EA5E2184C
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 086D98E000F; Wed,  3 Jul 2019 13:52:57 -0400 (EDT)
+	id 86EAB8E0010; Wed,  3 Jul 2019 14:01:27 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 05DB28E0001; Wed,  3 Jul 2019 13:52:56 -0400 (EDT)
+	id 820808E0001; Wed,  3 Jul 2019 14:01:27 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E903E8E000F; Wed,  3 Jul 2019 13:52:56 -0400 (EDT)
+	id 70E558E0010; Wed,  3 Jul 2019 14:01:27 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 9B7558E0001
-	for <linux-mm@kvack.org>; Wed,  3 Jul 2019 13:52:56 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id f19so2203953edv.16
-        for <linux-mm@kvack.org>; Wed, 03 Jul 2019 10:52:56 -0700 (PDT)
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 4DB4B8E0001
+	for <linux-mm@kvack.org>; Wed,  3 Jul 2019 14:01:27 -0400 (EDT)
+Received: by mail-qk1-f197.google.com with SMTP id k125so4040212qkc.12
+        for <linux-mm@kvack.org>; Wed, 03 Jul 2019 11:01:27 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=uEastBABLIfe+IKjXd3PRDBs/NihsqNJn3YrTJ0rmhw=;
-        b=FNufvQA1kcpf7oaFR5I7NCZaG3Ac6N59c2S9KSqDAuvmwc1rf30MXNagxhvdASma8T
-         h6FZateC3Hd5QvLw5C1LjmarZMU4AacEA3k+4zvppKBzOvt5Z5MZYedfvP/hv1hTpMDr
-         6SXJQJGanUVaUeRO8RmO2bq8rLfBdhxYT6gLVqAaJEnxg/Yn5D3HDR3Sui0nkznz+mv3
-         NcVU3HJpaRoXU7nq2f0AyaA7PxVxWksm9MJGhNfIqBi8Z0FMrisd8EsYng8VrJip65+t
-         jYcuizrYzWgW2yTBgISU9fdEeIxC3erb2Pur7vnaL7WN2Yx/n78NThaGVO2I/i+DyVeZ
-         xK0w==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-X-Gm-Message-State: APjAAAXcIeY7HA+vxI6kfCtoozdUuOQn/qcr/HXqaxEX5wca6afI/mCg
-	CLdDSkSqPfarWVzbsOtoFHVHuVwnABG3jvzHlIX8T7n0a6HZ96VtdpCNOuYnU6uQBmgiO5hifkW
-	RVT8Gp4DCdguc3VQ7hoaJ8dfGNWsia6DNX046mkXhRu87lhF/+fU9KaZFRJFGUrdAeA==
-X-Received: by 2002:a50:9646:: with SMTP id y64mr44184525eda.111.1562176376196;
-        Wed, 03 Jul 2019 10:52:56 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzo+bSG+qEqnpCV8Okv1tgWuiXT/KO1G3IbSTjtPQIZ3YYToldIX4+9H8NPX3rMln+6k3yt
-X-Received: by 2002:a50:9646:: with SMTP id y64mr44184464eda.111.1562176375345;
-        Wed, 03 Jul 2019 10:52:55 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562176375; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=a2vka/akssy/859dgmuGdTYFT4YH52SMxVHx2PN2EUA=;
+        b=dSdB/z0u6Yny1Ag9mjHT4IExz39FNV/oCea8m3JNKOXqAPrd/3BqZjwIufs6weevvc
+         CgfJvJLOATze1ZFKeXi9Xo+Ek9JauEpliMT64AECs0F6MyvGlEZtYR5lPndvMFQEhjWB
+         pQuQW4hu1Zdi+2vMhzrdsDCUYO5wWiU+kNIsyih6OC6nFC/souHsIHklJkeGdOupZDiv
+         0GxO41i+aK/8LFJsW47vFc5XrUPqwP1OpcsoTUZ0ydRnmvnjGEmftd8VVARCiPZ5VlnN
+         VoIs5eKfT+6HFP/zuaI1PWxa9ZNmKl3lIXol6yTx6uIZZijCakX4R+0g23BNwhwIMYLP
+         SY9Q==
+X-Gm-Message-State: APjAAAUJEAjRCiCh09K73SmniQ7/WM0UZNQZaWnTaVhkZnOmJCOMdweF
+	UswDB+UYWmV5hp7O4ceyf53eCvX4oNVYsL/D6zgxg06IHm6EFT1pc3JKFBVP1HBavHr2s9FaqxI
+	2jWgMb6zlqV4BVHCzVbgM8heDmcz6/5yek3W3VG4eu8Ai+a2YhoJIcX5lzl3mYPjvkQ==
+X-Received: by 2002:a37:9a97:: with SMTP id c145mr32683467qke.309.1562176887116;
+        Wed, 03 Jul 2019 11:01:27 -0700 (PDT)
+X-Received: by 2002:a37:9a97:: with SMTP id c145mr32683415qke.309.1562176886556;
+        Wed, 03 Jul 2019 11:01:26 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562176886; cv=none;
         d=google.com; s=arc-20160816;
-        b=d04vDrKNSlNxYlYOk1+991/HC20kRmfRTjkF9PQU2in0eQHImJkxzVpZyLtWXxuG/a
-         Yi91EUlPIM2q0EyTiuu6Y9pZfTU3v/KRPCtw6Gqj2BVc2dJpNOeeZyqKFc7OXTHp3kT6
-         CDerH+ZM1eX4oZU8qEdkWlIiJWdqJaQ+uwWJ3fiekigYJnKW374foB4Wn7m0vtCVfJel
-         szxw9LXbicP8rWLMkFH6BOsbeTGQwrq6kgGqLhOHGl8ujX8aRChczkpiUAXxdn2jxPFr
-         xe/h26UH+TSKUZYcf0hU0W57fx7mec5NnKAVx99aeFN41u/9wUdAZYy0vu7u7ftFhzWQ
-         kKeQ==
+        b=jX3shmx3yYx19mR8xFEVA7+o+yhlxSQH5HEXXL9VC/HsUmZHyvr9fAIvOI6C3yyBDG
+         jTkwv6e5WMy85Rabsh5NaL1AZDICHOIiFznIrf9nhKk6jDuhtPxpKDTes4lfw8jtQlOl
+         6SOWcKwjSEu/UsdCKmJHH/18rByUICZU5Xq9lG/5Op4f7KyVSo2yFzJFiqai0vgz6a0I
+         WxI/lT1wUstivfeZ1g0fVSOsyLqQf3zSL4Ptm07epvjZ/0JsrVQ9CJwuS4fk+cLll11w
+         mmbSWIlD/564R/alik6X24b2KgUIrHBnvFn4hAHBADo+PqngzhmLcrbgVopJbdT0dY3+
+         V3Cw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=uEastBABLIfe+IKjXd3PRDBs/NihsqNJn3YrTJ0rmhw=;
-        b=weLF3lDmDlfEgkjfvb228fpA54SI9a/o1e+gJ1oY5Wn/kb1mOZAX6DxUR9PLl+G9wQ
-         vrAV2HaLgK/XWES+ezL+oE8OBqEkJfbRW4VB1StKeJB3+bKxx0/Z/ScoukxHol30nMZV
-         P8XXlgM4xxoQHWAIk6HFp7MK8ojiPjnNfEOD2TfO9P4jwOsjJHw8elsspuzdr0DMFIAI
-         8suFjbVra2t6GbFRUmjJB34S7T7cLrqhh0oKvBSKjpvOBO3mSDWYcnVAyZ2pCSIEXcpd
-         SPiWYCGYCRjCn4UEgXVsxK+znVVvZRwhicZJTRXhsPi9XdvyMerdsxxCxjNjKJElE/0d
-         M2pA==
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=a2vka/akssy/859dgmuGdTYFT4YH52SMxVHx2PN2EUA=;
+        b=nn0K/8eDLhFYvYLpiSvFLYfPLfcH2S37Q7dOyM9ttkAlD87vnUVqHX/aZz83aq5R7B
+         7iJGPiTd1wY60E8xpihUz3GRPITuflensPNuxcHqVylXSyG78SAO6HvPx+O6pttaC47y
+         9lTz+QIjhXsLaWNFZFDMexu6DjJxoJDz04NTQQqp4UDhVwDsb/0L26+7k3Ld4IV/rpG6
+         jr36hGeJ/AQa/TlTOic3EOY0Awj4IdBhIRmDN88bBMRzpfyJ+E4fm5S151B0lPBkbqF3
+         Jn2DceYkdH64YWhwUyibLMJ3a9ZPoAhmDYC9qsj2z5jL+EckGODlKKMa2ZYBh2DbHyck
+         dytg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
-        by mx.google.com with ESMTP id k5si2225331ejp.230.2019.07.03.10.52.54
-        for <linux-mm@kvack.org>;
-        Wed, 03 Jul 2019 10:52:55 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=UR+mB33w;
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id m126sor1849688qkb.189.2019.07.03.11.01.26
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Wed, 03 Jul 2019 11:01:26 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 5D5B2344;
-	Wed,  3 Jul 2019 10:52:54 -0700 (PDT)
-Received: from arrakis.emea.arm.com (arrakis.cambridge.arm.com [10.1.196.78])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 250823F718;
-	Wed,  3 Jul 2019 10:52:53 -0700 (PDT)
-Date: Wed, 3 Jul 2019 18:52:51 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-To: Anshuman Khandual <anshuman.khandual@arm.com>
-Cc: Mark Rutland <mark.rutland@arm.com>,
-	Andrea Arcangeli <aarcange@redhat.com>,
-	Suzuki Poulose <suzuki.poulose@arm.com>,
-	Marc Zyngier <marc.zyngier@arm.com>, linux-kernel@vger.kernel.org,
-	linux-mm@kvack.org, Will Deacon <will@kernel.org>,
-	linux-arm-kernel@lists.infradead.org
-Subject: Re: [RFC 1/2] arm64/mm: Change THP helpers to comply with generic MM
- semantics
-Message-ID: <20190703175250.GF48312@arrakis.emea.arm.com>
-References: <1561639696-16361-1-git-send-email-anshuman.khandual@arm.com>
- <1561639696-16361-2-git-send-email-anshuman.khandual@arm.com>
- <20190628102003.GA56463@arrakis.emea.arm.com>
- <82237e21-1f14-ab6e-0f80-9706141e2172@arm.com>
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=UR+mB33w;
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=ziepe.ca; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=a2vka/akssy/859dgmuGdTYFT4YH52SMxVHx2PN2EUA=;
+        b=UR+mB33wfBhu3cMDn/7EBIfgFaGZRuvY/6J1fd9PhMgOfBQW4lCtf4aW4cWrAUOg/V
+         ysDxZJU9vC+aEmT4cwhxTIl4TYXWNEvXLnwzfoSFoTPuhqs/gUxKo54FOzEU1qF6lBPO
+         BDzC9RkbmXZgFl5C89Dr/DavME/J23LtilDnr6BOfCLfGcmh3h3ZqRvCwPxs52Z9/ShV
+         88aK4465TTIaWrpxAOzvxt4Awc0wM1VxGtTmtNuDdYn6htswBnMWDqrfqYcoFAAtYDKN
+         PK+3yzvEgZr3lVoSgy+/yjpH/TVAkGrizrHi9TWzWfIHt86MDzHjD59dYGp18SQRc4c1
+         cphA==
+X-Google-Smtp-Source: APXvYqydaJsLmmJTIUtSU+kahyTjsnRgAp4YEYaGKvpkMDRvv9xpp1xwyaxLhy2xlOb2NB+ML08lUQ==
+X-Received: by 2002:a37:a413:: with SMTP id n19mr30343855qke.98.1562176886317;
+        Wed, 03 Jul 2019 11:01:26 -0700 (PDT)
+Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
+        by smtp.gmail.com with ESMTPSA id u19sm1310165qka.35.2019.07.03.11.01.25
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 03 Jul 2019 11:01:25 -0700 (PDT)
+Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
+	(envelope-from <jgg@ziepe.ca>)
+	id 1hijZN-0006oc-AR; Wed, 03 Jul 2019 15:01:25 -0300
+Date: Wed, 3 Jul 2019 15:01:25 -0300
+From: Jason Gunthorpe <jgg@ziepe.ca>
+To: Christoph Hellwig <hch@lst.de>
+Cc: Dan Williams <dan.j.williams@intel.com>,
+	=?utf-8?B?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>,
+	Ben Skeggs <bskeggs@redhat.com>, Ira Weiny <ira.weiny@intel.com>,
+	linux-mm@kvack.org, nouveau@lists.freedesktop.org,
+	dri-devel@lists.freedesktop.org, linux-nvdimm@lists.01.org,
+	linux-pci@vger.kernel.org, linux-kernel@vger.kernel.org
+Subject: Re: [PATCH 22/22] mm: remove the legacy hmm_pfn_* APIs
+Message-ID: <20190703180125.GA18673@ziepe.ca>
+References: <20190701062020.19239-1-hch@lst.de>
+ <20190701062020.19239-23-hch@lst.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <82237e21-1f14-ab6e-0f80-9706141e2172@arm.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190701062020.19239-23-hch@lst.de>
+User-Agent: Mutt/1.9.4 (2018-02-28)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jul 02, 2019 at 09:07:28AM +0530, Anshuman Khandual wrote:
-> On 06/28/2019 03:50 PM, Catalin Marinas wrote:
-> > On Thu, Jun 27, 2019 at 06:18:15PM +0530, Anshuman Khandual wrote:
-> >> pmd_present() and pmd_trans_huge() are expected to behave in the following
-> >> manner during various phases of a given PMD. It is derived from a previous
-> >> detailed discussion on this topic [1] and present THP documentation [2].
-> >>
-> >> pmd_present(pmd):
-> >>
-> >> - Returns true if pmd refers to system RAM with a valid pmd_page(pmd)
-> >> - Returns false if pmd does not refer to system RAM - Invalid pmd_page(pmd)
-> >>
-> >> pmd_trans_huge(pmd):
-> >>
-> >> - Returns true if pmd refers to system RAM and is a trans huge mapping
-[...]
-> > Before we actually start fixing this, I would strongly suggest that you
-> > add a boot selftest (see lib/Kconfig.debug for other similar cases)
-> > which checks the consistency of the page table macros w.r.t. the
-> > expected mm semantics. Once the mm maintainers agreed with the
-> > semantics, it will really help architecture maintainers in implementing
-> > them correctly.
+On Mon, Jul 01, 2019 at 08:20:20AM +0200, Christoph Hellwig wrote:
+> Switch the one remaining user in nouveau over to its replacement,
+> and remove all the wrappers.
 > 
-> Sure and it will help all architectures to be in sync wrt semantics.
-> 
-> > You wouldn't need actual page tables, just things like assertions on
-> > pmd_trans_huge(pmd_mkhuge(pmd)) == true. You could go further and have
-> > checks on pmdp_invalidate(&dummy_vma, dummy_addr, &dummy_pmd) with the
-> > dummy_* variables on the stack.
-> 
-> Hmm. I guess macros which operate directly on a page table entry will be
-> okay but the ones which check on specific states for VMA or MM might be
-> bit tricky. Try to emulate VMA/MM states while on stack ?. But sure, will
-> explore adding such a test.
+> Signed-off-by: Christoph Hellwig <hch@lst.de>
+>  drivers/gpu/drm/nouveau/nouveau_dmem.c |  2 +-
+>  include/linux/hmm.h                    | 36 --------------------------
+>  2 files changed, 1 insertion(+), 37 deletions(-)
 
-You can pretend that the page table is on the stack. See the _pmd
-variable in do_huge_pmd_wp_page_fallback() and
-__split_huge_zero_page_pmd(). Similarly, the vma and even the mm can be
-faked on the stack (see the arm64 tlb_flush()).
+Christoph, I guess you didn't mean to send this branch to the mailing
+list?
 
-> >> The problem:
-> >>
-> >> PMD is first invalidated with pmdp_invalidate() before it's splitting. This
-> >> invalidation clears PMD_SECT_VALID as below.
-> >>
-> >> PMD Split -> pmdp_invalidate() -> pmd_mknotpresent -> Clears PMD_SECT_VALID
-> >>
-> >> Once PMD_SECT_VALID gets cleared, it results in pmd_present() return false
-> >> on the PMD entry.
-> > 
-> > I think that's an inconsistency in the expected semantics here. Do you
-> > mean that pmd_present(pmd_mknotpresent(pmd)) should be true? If not, do
-[...]
-> pmd_present() and pmd_mknotpresent() are not exact inverse.
+In any event some of these, like this one, look obvious and I could
+still grab a few for hmm.git.
 
-I find this very confusing (not your fault, just the semantics expected
-by the core code). I can see that x86 is using _PAGE_PSE to make
-pmd_present(pmd_mknotpresent()) == true. However, for pud that's not the
-case (because it's not used for transhuge).
+Let me know what you'd like please
 
-I'd rather have this renamed to pmd_mknotvalid().
+Reviewed-by: Jason Gunthorpe <jgg@mellanox.com>
 
-> In absence of a positive section mapping bit on arm64, PTE_SPECIAL is being set
-> temporarily to remember that it was a mapped PMD which got invalidated recently
-> but which still points to memory. Hence pmd_present() must evaluate true.
-
-I wonder if we can encode this safely for arm64 in the bottom two bits
-of a pmd :
-
-0b00 - not valid, not present
-0b10 - not valid, present, huge
-0b01 - valid, present, huge
-0b11 - valid, table (not huge)
-
-Do we ever call pmdp_invalidate() on a table entry? I don't think we do.
-
-So a pte_mknotvalid would set bit 1 and I think swp_entry_to_pmd() would
-have to clear it so that pmd_present() actually returns false for a swp
-pmd entry.
-
-> > we need to implement our own pmdp_invalidate() or change the generic one
-> > to set a "special" bit instead of just a pmd_mknotpresent?
-> 
-> Though arm64 can subscribe __HAVE_ARCH_PMDP_INVALIDATE and implement it's own
-> pmdp_invalidate() in order to not call pmd_mknotpresent() and instead operate
-> on the invalid and special bits directly. But its not going to alter relevant
-> semantics here. AFAICS it might be bit better as it saves pmd_mknotpresent()
-> from putting in that special bit in there which it is not supposed do.
-> 
-> IFAICS there is no compelling reason for generic pmdp_invalidate() to change
-> either. It calls pmd_mknotpresent() which invalidates the entry through valid
-> or present bit and platforms which have dedicated huge page bit can still test
-> positive for pmd_present() after it's invalidation. It works for such platforms.
-> Platform specific override is required when invalidation via pmd_mknotpresent()
-> is not enough.
-
-I'd really like the mknotpresent to be renamed to mknotvalid and then we
-can keep pmdp_invalidate unchanged (well, calling mknotvalid instead).
-
--- 
-Catalin
+Thanks,
+Jason
 
