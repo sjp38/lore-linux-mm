@@ -2,147 +2,119 @@ Return-Path: <SRS0=iaDK=VA=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 54082C0650E
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Jul 2019 18:01:28 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B8E6DC0650E
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Jul 2019 18:03:11 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0EA5E2184C
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Jul 2019 18:01:27 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="UR+mB33w"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0EA5E2184C
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
+	by mail.kernel.org (Postfix) with ESMTP id 6DDEF218B8
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Jul 2019 18:03:11 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6DDEF218B8
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 86EAB8E0010; Wed,  3 Jul 2019 14:01:27 -0400 (EDT)
+	id 16A648E0011; Wed,  3 Jul 2019 14:03:11 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 820808E0001; Wed,  3 Jul 2019 14:01:27 -0400 (EDT)
+	id 11B878E0001; Wed,  3 Jul 2019 14:03:11 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 70E558E0010; Wed,  3 Jul 2019 14:01:27 -0400 (EDT)
+	id F25088E0011; Wed,  3 Jul 2019 14:03:10 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 4DB4B8E0001
-	for <linux-mm@kvack.org>; Wed,  3 Jul 2019 14:01:27 -0400 (EDT)
-Received: by mail-qk1-f197.google.com with SMTP id k125so4040212qkc.12
-        for <linux-mm@kvack.org>; Wed, 03 Jul 2019 11:01:27 -0700 (PDT)
+Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
+	by kanga.kvack.org (Postfix) with ESMTP id BA1D98E0001
+	for <linux-mm@kvack.org>; Wed,  3 Jul 2019 14:03:10 -0400 (EDT)
+Received: by mail-wr1-f72.google.com with SMTP id p13so1381738wru.17
+        for <linux-mm@kvack.org>; Wed, 03 Jul 2019 11:03:10 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=a2vka/akssy/859dgmuGdTYFT4YH52SMxVHx2PN2EUA=;
-        b=dSdB/z0u6Yny1Ag9mjHT4IExz39FNV/oCea8m3JNKOXqAPrd/3BqZjwIufs6weevvc
-         CgfJvJLOATze1ZFKeXi9Xo+Ek9JauEpliMT64AECs0F6MyvGlEZtYR5lPndvMFQEhjWB
-         pQuQW4hu1Zdi+2vMhzrdsDCUYO5wWiU+kNIsyih6OC6nFC/souHsIHklJkeGdOupZDiv
-         0GxO41i+aK/8LFJsW47vFc5XrUPqwP1OpcsoTUZ0ydRnmvnjGEmftd8VVARCiPZ5VlnN
-         VoIs5eKfT+6HFP/zuaI1PWxa9ZNmKl3lIXol6yTx6uIZZijCakX4R+0g23BNwhwIMYLP
-         SY9Q==
-X-Gm-Message-State: APjAAAUJEAjRCiCh09K73SmniQ7/WM0UZNQZaWnTaVhkZnOmJCOMdweF
-	UswDB+UYWmV5hp7O4ceyf53eCvX4oNVYsL/D6zgxg06IHm6EFT1pc3JKFBVP1HBavHr2s9FaqxI
-	2jWgMb6zlqV4BVHCzVbgM8heDmcz6/5yek3W3VG4eu8Ai+a2YhoJIcX5lzl3mYPjvkQ==
-X-Received: by 2002:a37:9a97:: with SMTP id c145mr32683467qke.309.1562176887116;
-        Wed, 03 Jul 2019 11:01:27 -0700 (PDT)
-X-Received: by 2002:a37:9a97:: with SMTP id c145mr32683415qke.309.1562176886556;
-        Wed, 03 Jul 2019 11:01:26 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562176886; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=kbDbjpmZDx+LsliwwVOTQM5tCHh1s2S059sHbR02UOk=;
+        b=CNyHj3OlXGjNrBuqM5WkxEmV1fWsSC3eHbySRpT1V1aKz1WtV287n72g2+nzAMmgFi
+         RxWQ3/SlCAwztH0YZW6XN6STsoRnRiwKnsCI0M2yPFV5cfU2xuNlKFlAVSDz66EmyZLa
+         jyW99qXcGbel0bWlBPa/Yuaq1Do8iAo/h68EfuVODk3IxXKd85ZgQ8H013ytG0mn/c1G
+         jB7xuN/U7l9nqzgUdDOWuoqh9qwiI9TbpsYSOp+C4NBJOct13ihRK/XCReX6N8XcPTCn
+         ani2lDNY3dgMOH55enacowtA9xGy+Q+nyo1jgZxsH8DK3L87bgUPum+1Rs2g52oVVRYa
+         BGew==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
+X-Gm-Message-State: APjAAAV+eeniuW3+ZK0vLsogpnZNNAlHwyLTfYOG41imI9llyvjs/zFM
+	bjHdza96H3cUgptLJYfBmPznB9iX9iM/tXruzAf61whtXxpdkqEGXJpveSWTt6udjBEVEEZJQsX
+	gPyq6dMHuVXqKsP7+w2bgt1XGVPx9cDZqDLjGMQZ4AIUcy87XWaMq6fx7imvS8uPfgg==
+X-Received: by 2002:a1c:6c14:: with SMTP id h20mr9438088wmc.168.1562176990305;
+        Wed, 03 Jul 2019 11:03:10 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqz1ElsdSAEJQBTUu4zN/dS0EzaVCIoibC7F05Wd98YvoStuMM1cv5BXq0ROGvrynNtagKmZ
+X-Received: by 2002:a1c:6c14:: with SMTP id h20mr9438059wmc.168.1562176989595;
+        Wed, 03 Jul 2019 11:03:09 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562176989; cv=none;
         d=google.com; s=arc-20160816;
-        b=jX3shmx3yYx19mR8xFEVA7+o+yhlxSQH5HEXXL9VC/HsUmZHyvr9fAIvOI6C3yyBDG
-         jTkwv6e5WMy85Rabsh5NaL1AZDICHOIiFznIrf9nhKk6jDuhtPxpKDTes4lfw8jtQlOl
-         6SOWcKwjSEu/UsdCKmJHH/18rByUICZU5Xq9lG/5Op4f7KyVSo2yFzJFiqai0vgz6a0I
-         WxI/lT1wUstivfeZ1g0fVSOsyLqQf3zSL4Ptm07epvjZ/0JsrVQ9CJwuS4fk+cLll11w
-         mmbSWIlD/564R/alik6X24b2KgUIrHBnvFn4hAHBADo+PqngzhmLcrbgVopJbdT0dY3+
-         V3Cw==
+        b=sHIPH8l65KfdiehYgGzS25rvP6MyCipKO/Cb6kSP/jMHkYwflPwmYOLY1NKMqHaTx4
+         5QxEfawMT5rOMcoUfAhSTKzWLgBgOXP9CpSztrstAicKZPn1flon0oFMJDNulvwlKwI/
+         0iQeZH+pyqVewZCRbdjyeJK6ddXeHZDNvpuQ+tcE/CWpI9WpzBXobOgO1K8uFzAeGt0D
+         2WEbDy8lJfMLcvCPizDCvZTzdQv+E51r5ie0ToEZK7Bmcdy4BZeoKbvA2s8ubnCRSW8T
+         nJFRfwj5p4vrb1OGzR/yQQyR0TZDJf4ark49zV11o5KQRiwpuWy2Fz3EfeTPq3FeHVDA
+         3Itw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=a2vka/akssy/859dgmuGdTYFT4YH52SMxVHx2PN2EUA=;
-        b=nn0K/8eDLhFYvYLpiSvFLYfPLfcH2S37Q7dOyM9ttkAlD87vnUVqHX/aZz83aq5R7B
-         7iJGPiTd1wY60E8xpihUz3GRPITuflensPNuxcHqVylXSyG78SAO6HvPx+O6pttaC47y
-         9lTz+QIjhXsLaWNFZFDMexu6DjJxoJDz04NTQQqp4UDhVwDsb/0L26+7k3Ld4IV/rpG6
-         jr36hGeJ/AQa/TlTOic3EOY0Awj4IdBhIRmDN88bBMRzpfyJ+E4fm5S151B0lPBkbqF3
-         Jn2DceYkdH64YWhwUyibLMJ3a9ZPoAhmDYC9qsj2z5jL+EckGODlKKMa2ZYBh2DbHyck
-         dytg==
+         :message-id:subject:cc:to:from:date;
+        bh=kbDbjpmZDx+LsliwwVOTQM5tCHh1s2S059sHbR02UOk=;
+        b=K3iI6AAuXa9Oq26xFv18ls5+k8PMLqwU0FMxX22Q8PVFAN7fePOaq5HJLrQL+hmpel
+         i+IMiNuRQZd7laGDMMI+rMBeVrpewjOx8H8aJFAvoaO20Z7pan4VyhKllfshAf+PnLdE
+         dOQDNMGE12kxNcmjl2XJ70isx/QIKwwG78iYTxApiOfd2vIZRFC33xDWs9j1UDQkLz/W
+         NrDew/+nxpEFqO+PClaw1ez8z2/mwMoRdZnI6bBlTAQpIRJ0WJtGCEuP+7qZZa+vF6ge
+         +65qkfG34goCd0NyK002wH69yh1NthVfsOVYh5RJw9f78w3GKQwRw/FeVOmh4O7oqLRn
+         UgBw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=UR+mB33w;
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id m126sor1849688qkb.189.2019.07.03.11.01.26
+       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
+Received: from verein.lst.de (verein.lst.de. [213.95.11.211])
+        by mx.google.com with ESMTPS id f7si4198271wme.1.2019.07.03.11.03.09
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 03 Jul 2019 11:01:26 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 03 Jul 2019 11:03:09 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) client-ip=213.95.11.211;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=UR+mB33w;
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=ziepe.ca; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=a2vka/akssy/859dgmuGdTYFT4YH52SMxVHx2PN2EUA=;
-        b=UR+mB33wfBhu3cMDn/7EBIfgFaGZRuvY/6J1fd9PhMgOfBQW4lCtf4aW4cWrAUOg/V
-         ysDxZJU9vC+aEmT4cwhxTIl4TYXWNEvXLnwzfoSFoTPuhqs/gUxKo54FOzEU1qF6lBPO
-         BDzC9RkbmXZgFl5C89Dr/DavME/J23LtilDnr6BOfCLfGcmh3h3ZqRvCwPxs52Z9/ShV
-         88aK4465TTIaWrpxAOzvxt4Awc0wM1VxGtTmtNuDdYn6htswBnMWDqrfqYcoFAAtYDKN
-         PK+3yzvEgZr3lVoSgy+/yjpH/TVAkGrizrHi9TWzWfIHt86MDzHjD59dYGp18SQRc4c1
-         cphA==
-X-Google-Smtp-Source: APXvYqydaJsLmmJTIUtSU+kahyTjsnRgAp4YEYaGKvpkMDRvv9xpp1xwyaxLhy2xlOb2NB+ML08lUQ==
-X-Received: by 2002:a37:a413:: with SMTP id n19mr30343855qke.98.1562176886317;
-        Wed, 03 Jul 2019 11:01:26 -0700 (PDT)
-Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
-        by smtp.gmail.com with ESMTPSA id u19sm1310165qka.35.2019.07.03.11.01.25
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 03 Jul 2019 11:01:25 -0700 (PDT)
-Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
-	(envelope-from <jgg@ziepe.ca>)
-	id 1hijZN-0006oc-AR; Wed, 03 Jul 2019 15:01:25 -0300
-Date: Wed, 3 Jul 2019 15:01:25 -0300
-From: Jason Gunthorpe <jgg@ziepe.ca>
-To: Christoph Hellwig <hch@lst.de>
-Cc: Dan Williams <dan.j.williams@intel.com>,
-	=?utf-8?B?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>,
+       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
+Received: by verein.lst.de (Postfix, from userid 2407)
+	id 5C41168B05; Wed,  3 Jul 2019 20:03:08 +0200 (CEST)
+Date: Wed, 3 Jul 2019 20:03:08 +0200
+From: Christoph Hellwig <hch@lst.de>
+To: Jason Gunthorpe <jgg@ziepe.ca>
+Cc: Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>,
+	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
 	Ben Skeggs <bskeggs@redhat.com>, Ira Weiny <ira.weiny@intel.com>,
 	linux-mm@kvack.org, nouveau@lists.freedesktop.org,
 	dri-devel@lists.freedesktop.org, linux-nvdimm@lists.01.org,
 	linux-pci@vger.kernel.org, linux-kernel@vger.kernel.org
 Subject: Re: [PATCH 22/22] mm: remove the legacy hmm_pfn_* APIs
-Message-ID: <20190703180125.GA18673@ziepe.ca>
-References: <20190701062020.19239-1-hch@lst.de>
- <20190701062020.19239-23-hch@lst.de>
+Message-ID: <20190703180308.GA13656@lst.de>
+References: <20190701062020.19239-1-hch@lst.de> <20190701062020.19239-23-hch@lst.de> <20190703180125.GA18673@ziepe.ca>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190701062020.19239-23-hch@lst.de>
-User-Agent: Mutt/1.9.4 (2018-02-28)
+In-Reply-To: <20190703180125.GA18673@ziepe.ca>
+User-Agent: Mutt/1.5.17 (2007-11-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jul 01, 2019 at 08:20:20AM +0200, Christoph Hellwig wrote:
-> Switch the one remaining user in nouveau over to its replacement,
-> and remove all the wrappers.
+On Wed, Jul 03, 2019 at 03:01:25PM -0300, Jason Gunthorpe wrote:
+> Christoph, I guess you didn't mean to send this branch to the mailing
+> list?
 > 
-> Signed-off-by: Christoph Hellwig <hch@lst.de>
->  drivers/gpu/drm/nouveau/nouveau_dmem.c |  2 +-
->  include/linux/hmm.h                    | 36 --------------------------
->  2 files changed, 1 insertion(+), 37 deletions(-)
+> In any event some of these, like this one, look obvious and I could
+> still grab a few for hmm.git.
+> 
+> Let me know what you'd like please
+> 
+> Reviewed-by: Jason Gunthorpe <jgg@mellanox.com>
 
-Christoph, I guess you didn't mean to send this branch to the mailing
-list?
-
-In any event some of these, like this one, look obvious and I could
-still grab a few for hmm.git.
-
-Let me know what you'd like please
-
-Reviewed-by: Jason Gunthorpe <jgg@mellanox.com>
-
-Thanks,
-Jason
+Thanks.  I was going to send this series out as soon as you had
+applied the previous one.  Now that it leaked I'm happy to collect
+reviews.  But while I've got your attention:  the rdma.git hmm
+branch is still at the -rc7 merge and doen't have my series, is that
+intentional?
 
