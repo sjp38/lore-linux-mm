@@ -2,205 +2,162 @@ Return-Path: <SRS0=iaDK=VA=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+X-Spam-Status: No, score=-2.5 required=3.0 tests=FROM_EXCESS_BASE64,
 	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+	UNPARSEABLE_RELAY,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 481A7C5B57D
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Jul 2019 02:27:26 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 01E53C06511
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Jul 2019 03:26:40 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E58A521873
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Jul 2019 02:27:25 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=amdcloud.onmicrosoft.com header.i=@amdcloud.onmicrosoft.com header.b="c7vT3JqH"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E58A521873
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=amd.com
+	by mail.kernel.org (Postfix) with ESMTP id 97A7821721
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Jul 2019 03:26:39 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 97A7821721
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 785316B0005; Tue,  2 Jul 2019 22:27:25 -0400 (EDT)
+	id E11E76B0003; Tue,  2 Jul 2019 23:26:38 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 736A78E0003; Tue,  2 Jul 2019 22:27:25 -0400 (EDT)
+	id D9B098E0003; Tue,  2 Jul 2019 23:26:38 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5D8408E0001; Tue,  2 Jul 2019 22:27:25 -0400 (EDT)
+	id C88448E0001; Tue,  2 Jul 2019 23:26:38 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 3B3D76B0005
-	for <linux-mm@kvack.org>; Tue,  2 Jul 2019 22:27:25 -0400 (EDT)
-Received: by mail-qk1-f199.google.com with SMTP id v4so731607qkj.10
-        for <linux-mm@kvack.org>; Tue, 02 Jul 2019 19:27:25 -0700 (PDT)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 8E4D26B0003
+	for <linux-mm@kvack.org>; Tue,  2 Jul 2019 23:26:38 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id b18so718128pgg.8
+        for <linux-mm@kvack.org>; Tue, 02 Jul 2019 20:26:38 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
-         :thread-index:date:message-id:references:in-reply-to:accept-language
-         :content-language:user-agent:content-id:content-transfer-encoding
-         :mime-version;
-        bh=wy8FO9Kpq0mYscU2pRZ988JGN5ZGYBRBcI9oCJCrgeY=;
-        b=mr2iG6hz8Q33YRqMjwHKiXw0nH9Erxk+IbamWcJrUyRU3lAJhdelfJ968gy8rKQi/5
-         YDZJe3bwAlUqMXYwB/1zv6e03CXMjfVJ86rsj7C5qn8Q/Tn6QtxhlnKNJygD1pFZKeAg
-         6kvkri1kEzw7lkW6eGYJmtaJyGLzDRkABYNvtbJAoa7NiwjjneuS03LJ/sj9F15bRUyQ
-         zh8gN47+K2MfZ0ni61Sv1jCKarq7Fyui8spuGrCOgNaAB6hkIjK848Gf9dSdYfbl2JyG
-         HdHg6Y7J4R/Dhar8e6K64F+9KTRDgFVhH6HeA3oXYARdP2LkSA+W+J1BgO/z+dFi8yLm
-         be5g==
-X-Gm-Message-State: APjAAAWIDIU7ZbuE6SXNmZV+TRO2458MrHoESBAR0WUS2qTNdQ/uhpng
-	/AT/1ZnZLpGSMt1WXZRrD8dE2eE2SsyVc2d69pD3b2/m7wXhN+SLCr/f/KXb9iUwEbBUbKW10mk
-	P1rPDHQ0ZLfDBsCohjKXGViS8A4jiuEHEfd0DmK2BHt0MuOaoj5DJzv9PiFGVbT8=
-X-Received: by 2002:a37:96c4:: with SMTP id y187mr28060209qkd.462.1562120844900;
-        Tue, 02 Jul 2019 19:27:24 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzUTtTjyD5mBKr86yu8g2SSQdK+RRDoqEkQqdASue8kj3TP972tRqxaf1vaxKMfsftYQ4Xx
-X-Received: by 2002:a37:96c4:: with SMTP id y187mr28060170qkd.462.1562120844303;
-        Tue, 02 Jul 2019 19:27:24 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562120844; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:from
+         :to:cc:references:message-id:date:user-agent:mime-version
+         :in-reply-to:content-language:content-transfer-encoding;
+        bh=FXTHuE8n8Fdbb10Mu4GwGw31C/u8ypoVa/YghvrmjrY=;
+        b=ToPQAQ631m1HBz65U2bBmG+gJvriCdDCEXFapSrl9RwBC+VHtGvGvjKOpNiloqptgp
+         ImCcz+PiTjV8OJM+zioiUj+gyt9B7QUp3HRN2TV2MWzUAIdMS4epwz1FQ+UYFW0dGU0V
+         aiGONriJsNnpBJw82yMUYm0OGluOtGltwIcKQ76pdwJifvCjb5FNPI3rPeZ0EmqHKQgE
+         cnll25cerUHClb/g8e+dNkhSeK2AVuy/uhSPAC5kpD6Ow1djY3n9CHUobZl7pVdSLFt5
+         yndKGGYtxN8uCErcR4u+IeoVS24zRykU5PcFH9H4xw/7CPICO6Ea6OHU85DOQS01o8f/
+         cjxA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yun.wang@linux.alibaba.com designates 115.124.30.131 as permitted sender) smtp.mailfrom=yun.wang@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Gm-Message-State: APjAAAU8gceo8VKqlvBB+yiGPLgYKPyTj6tu7nkZ9phg4HCRcjL/6Cfl
+	N3xy5uYM4R6+eGGjZzAZuI71P1V6wsd+pUhnEWZos6V5OPCMkhcPfsdShtxZiXBDO7jAQdU9WRZ
+	inG9INpOJDqWPVos0F0vFDHFr2Q/sLrrxwJ0oTqq7LZFlVM5ck3Ev8qtOJY7RiNtKBg==
+X-Received: by 2002:a65:6694:: with SMTP id b20mr4398720pgw.155.1562124398190;
+        Tue, 02 Jul 2019 20:26:38 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqx2jim/pzyJ9nozLVqnn8Can2ZNNTaTIz19v+zKRCP6l7Lq3PTIDe0dzbCIwXY6pnu7PT3h
+X-Received: by 2002:a65:6694:: with SMTP id b20mr4398656pgw.155.1562124397360;
+        Tue, 02 Jul 2019 20:26:37 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562124397; cv=none;
         d=google.com; s=arc-20160816;
-        b=yOoW0mX6T8/O4jFUBzngjE9KcpODzY3hSalvflG1qA72qbZpvw5sL6iHliApAibwQo
-         h/0DOCvCZjcaHrHWPAL4MBIl0P3bgVFyPYYMKM9AkrYIux1xrtNT7l/OeDVZvCVWlU9w
-         649uAZv0snhOrNLX/R3+l0qg7FtIMpD1KJP300zhdzzsCCBa/4Q1FWaxBXtSpl2SLK+A
-         12wVrddJWV8RkJf/7DYDb9TDCRulSdDvHe1OWorpjANjvJiXCC2ifzHnyidSUHEr+ngf
-         lQ5KFVrqMCLHL3XA1Zsb67stnAxlWKZV6hVFPr5kh/Xu9jpSSNJCgTEVTZS9EvrPTGtm
-         Yp0Q==
+        b=Yo4SHtgVIbUkMV/tdm3o+0XRRiq2cFX6Dbac6i+DenR5oxYze2o89/OV5DmIV09xX8
+         YG+G6sd/7/pR1NzlRzVVv06Dn2+mUK+3xglvph3u5xpp03F1sx+W2uaz9L+zj+ftiJyP
+         K04vgMGDefPg8QT0ThmTzw9qE0EOLtfe4U7T86fLKv6Y+stx0L5yU0j2z97eS63KtuY4
+         OeZFre75RxAAcr/ViRhHWZNvzYxhq2ElMorWTW+1jR5vPHcdlZbXP1NMdlQ/9thYLoRl
+         1GDSMEA0N4rN/Ct8302yzPZzYQvVCQYWogN5Ua/sES5/+MpuM3Rt7hIcs8nunI2uHIKZ
+         m5CQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:user-agent
-         :content-language:accept-language:in-reply-to:references:message-id
-         :date:thread-index:thread-topic:subject:cc:to:from:dkim-signature;
-        bh=wy8FO9Kpq0mYscU2pRZ988JGN5ZGYBRBcI9oCJCrgeY=;
-        b=ua/KFx94gcyRFZGSKDF/z+TY5CuPiojC7VhhKaqXkGsWF7gsu4Ivc3voGfXKOgaQ14
-         Rm6AUEkNLeIcSgscFrtQy+fjaC+bE0GJKMSdAsPt/dO2oERZPSMt37V5jZMVWMparBL/
-         M0nvwaK8UZQ2Jgrk8wj55dDbzfog1Rd6OEPWEmEQKERTtZ54foYnPHGw3EtlqRSaWheN
-         p3D/yrI4oBFCiBYgMKbPAHVnqThbDRmdv8Mct+uGj0vy1Stjs1xdf+qxohQ19rthS+fm
-         VKBL6OeSUR4kJV3rwLI2oQ+ArOpdLtA3vs4A9X/d13UnBhTkIXE2qrMb8nBv68XLG1w4
-         sXvw==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:references:cc:to:from:subject;
+        bh=FXTHuE8n8Fdbb10Mu4GwGw31C/u8ypoVa/YghvrmjrY=;
+        b=YgcnQGpQXHaV4IoYaC0KD979CypFXD8JgaGV4Ljoy1/dHJUb27BT7IUibW70conbYx
+         hTKw64PeJ8EDQFF5VHNcX9kKtyMG0ye1I+B5ihRnb3eBv7E9Hw/gBM0JKi5fgQoJCbxJ
+         ziEtRvh6r0HDielVQahbJurYmn7AwCaxziEjC44nTkWC9ns1StB8W0aarHLGrfTeFXCr
+         sqLJlTEQ0Rsty98B7qUdzYN1vQDs+lQYJbrYfMeOEZ7gkttrAdhw4nCLf/lVVr4rVNgQ
+         Wb4VVYrfZBl7w0rHr3L7v8KKO3AwzE4oZ5YCX1/iWLLUurNZZ/3MfZzIex5trIlthbat
+         p8pQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@amdcloud.onmicrosoft.com header.s=selector1-amdcloud-onmicrosoft-com header.b=c7vT3JqH;
-       spf=neutral (google.com: 40.107.75.71 is neither permitted nor denied by best guess record for domain of felix.kuehling@amd.com) smtp.mailfrom=Felix.Kuehling@amd.com
-Received: from NAM02-BL2-obe.outbound.protection.outlook.com (mail-eopbgr750071.outbound.protection.outlook.com. [40.107.75.71])
-        by mx.google.com with ESMTPS id b11si598851qvr.183.2019.07.02.19.27.24
+       spf=pass (google.com: domain of yun.wang@linux.alibaba.com designates 115.124.30.131 as permitted sender) smtp.mailfrom=yun.wang@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+Received: from out30-131.freemail.mail.aliyun.com (out30-131.freemail.mail.aliyun.com. [115.124.30.131])
+        by mx.google.com with ESMTPS id m127si816722pgm.594.2019.07.02.20.26.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 02 Jul 2019 19:27:24 -0700 (PDT)
-Received-SPF: neutral (google.com: 40.107.75.71 is neither permitted nor denied by best guess record for domain of felix.kuehling@amd.com) client-ip=40.107.75.71;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 02 Jul 2019 20:26:37 -0700 (PDT)
+Received-SPF: pass (google.com: domain of yun.wang@linux.alibaba.com designates 115.124.30.131 as permitted sender) client-ip=115.124.30.131;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@amdcloud.onmicrosoft.com header.s=selector1-amdcloud-onmicrosoft-com header.b=c7vT3JqH;
-       spf=neutral (google.com: 40.107.75.71 is neither permitted nor denied by best guess record for domain of felix.kuehling@amd.com) smtp.mailfrom=Felix.Kuehling@amd.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
- d=amdcloud.onmicrosoft.com; s=selector1-amdcloud-onmicrosoft-com;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=wy8FO9Kpq0mYscU2pRZ988JGN5ZGYBRBcI9oCJCrgeY=;
- b=c7vT3JqHuw5GLWBbDW+KTW8nsyMU+XPiZAj5jbIgC/Ke4rsXrkwaI4CY/X58owwLlI4pT3IPzHdc1BD0OcCVtz4lnqWodvOvvqe6Ceqsy46RoQBp30rTcYToq0d97i68u0BVTG2y2jGlJMPoUIcDUXld7eu8tGSSnKELVL6NEp4=
-Received: from DM6PR12MB3947.namprd12.prod.outlook.com (10.255.174.156) by
- DM6PR12MB2873.namprd12.prod.outlook.com (20.179.71.82) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.2032.20; Wed, 3 Jul 2019 02:27:22 +0000
-Received: from DM6PR12MB3947.namprd12.prod.outlook.com
- ([fe80::91a2:f9e7:8c86:f927]) by DM6PR12MB3947.namprd12.prod.outlook.com
- ([fe80::91a2:f9e7:8c86:f927%7]) with mapi id 15.20.2032.019; Wed, 3 Jul 2019
- 02:27:22 +0000
-From: "Kuehling, Felix" <Felix.Kuehling@amd.com>
-To: Jason Gunthorpe <jgg@mellanox.com>, Christoph Hellwig <hch@lst.de>,
-	"Deucher, Alexander" <Alexander.Deucher@amd.com>, David Airlie
-	<airlied@linux.ie>
-CC: Ralph Campbell <rcampbell@nvidia.com>, Jerome Glisse <jglisse@redhat.com>,
-	John Hubbard <jhubbard@nvidia.com>, "linux-rdma@vger.kernel.org"
-	<linux-rdma@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>,
-	Andrea Arcangeli <aarcange@redhat.com>, "dri-devel@lists.freedesktop.org"
-	<dri-devel@lists.freedesktop.org>, "amd-gfx@lists.freedesktop.org"
-	<amd-gfx@lists.freedesktop.org>
-Subject: Re: [RFC] mm/hmm: pass mmu_notifier_range to
- sync_cpu_device_pagetables
-Thread-Topic: [RFC] mm/hmm: pass mmu_notifier_range to
- sync_cpu_device_pagetables
-Thread-Index: AQHVHY88L0Ra3sy2MEC8cRT/FiJ1Iqa35H2AgAAxIACAAALQAIAAOiIA
-Date: Wed, 3 Jul 2019 02:27:22 +0000
-Message-ID: <1dc82dc8-3e6f-1d6f-b14d-41ae3c1b2709@amd.com>
-References: <20190608001452.7922-1-rcampbell@nvidia.com>
- <20190702195317.GT31718@mellanox.com> <20190702224912.GA24043@lst.de>
- <20190702225911.GA11833@mellanox.com>
-In-Reply-To: <20190702225911.GA11833@mellanox.com>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-x-originating-ip: [165.204.55.251]
-user-agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.2
-x-clientproxiedby: YTXPR0101CA0037.CANPRD01.PROD.OUTLOOK.COM
- (2603:10b6:b00:1::14) To DM6PR12MB3947.namprd12.prod.outlook.com
- (2603:10b6:5:1cb::28)
-authentication-results: spf=none (sender IP is )
- smtp.mailfrom=Felix.Kuehling@amd.com; 
-x-ms-exchange-messagesentrepresentingtype: 1
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: f4c43e91-ac3d-445c-4f9c-08d6ff5dfa93
-x-ms-office365-filtering-ht: Tenant
-x-microsoft-antispam:
- BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(4618075)(2017052603328)(7193020);SRVR:DM6PR12MB2873;
-x-ms-traffictypediagnostic: DM6PR12MB2873:
-x-microsoft-antispam-prvs:
- <DM6PR12MB28738436ECA864445C0B152292FB0@DM6PR12MB2873.namprd12.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:1443;
-x-forefront-prvs: 00872B689F
-x-forefront-antispam-report:
- SFV:NSPM;SFS:(10009020)(4636009)(396003)(136003)(346002)(39860400002)(366004)(376002)(189003)(199004)(486006)(2906002)(4326008)(476003)(36756003)(256004)(99286004)(2616005)(65956001)(64126003)(446003)(71200400001)(11346002)(64756008)(66556008)(53546011)(6486002)(65826007)(66446008)(66946007)(110136005)(66476007)(86362001)(478600001)(3846002)(58126008)(31696002)(6116002)(5660300002)(71190400001)(66066001)(6246003)(25786009)(65806001)(73956011)(186003)(229853002)(7736002)(53936002)(52116002)(6436002)(7416002)(6512007)(26005)(8936002)(68736007)(6506007)(316002)(76176011)(102836004)(81156014)(8676002)(81166006)(31686004)(54906003)(386003)(14454004)(305945005)(72206003);DIR:OUT;SFP:1101;SCL:1;SRVR:DM6PR12MB2873;H:DM6PR12MB3947.namprd12.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
-received-spf: None (protection.outlook.com: amd.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info:
- T4A0SOEZuvMXDc2GJkaoVOja/4vmbBgDv1OJqL5jnyITlxTrHw/QCxACcsNEfaG5ELCf+S4PdsOwcmvxwy7ueYuhuwQ/YE/QSw6R7nwaGysRm8t3sNeJmVjbvNGkecAK7BTu1+S52Q4Zw1QqD0CP36p1De2eqy05E3XOfFty0OEgqJWFfDNXFh9gQ0+nNNFZz2cjKaH7C8TLsfNrS16JZtux4j8kh7hRy7JY2aJeBHEAXABU5nBpjUJXjaRs7aeNFKDGypocWd5pEWx0alb3pUFmeTpMpnn74Y0jCz3RYBQkGc4y8B0kYHC37wkqxAiYbHcmvOk53x/BvVO0t2BjjSKzKnP8mtWNBi7CKrKc9J39MoxF+0teiggKcPalSBQIlP28lGydZQJpdDTG/y+xbZkUAdOZEzJXlGyRT66pLoo=
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <545ED388DC4B924F8D65E5F30ACEE5DA@namprd12.prod.outlook.com>
-Content-Transfer-Encoding: base64
+       spf=pass (google.com: domain of yun.wang@linux.alibaba.com designates 115.124.30.131 as permitted sender) smtp.mailfrom=yun.wang@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R451e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e04423;MF=yun.wang@linux.alibaba.com;NM=1;PH=DS;RN=11;SR=0;TI=SMTPD_---0TVvT.Sc_1562124377;
+Received: from testdeMacBook-Pro.local(mailfrom:yun.wang@linux.alibaba.com fp:SMTPD_---0TVvT.Sc_1562124377)
+          by smtp.aliyun-inc.com(127.0.0.1);
+          Wed, 03 Jul 2019 11:26:33 +0800
+Subject: [PATCH 0/4] per cpu cgroup numa suite
+From: =?UTF-8?B?546L6LSH?= <yun.wang@linux.alibaba.com>
+To: Peter Zijlstra <peterz@infradead.org>, hannes@cmpxchg.org,
+ mhocko@kernel.org, vdavydov.dev@gmail.com, Ingo Molnar <mingo@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, mcgrof@kernel.org,
+ keescook@chromium.org, linux-fsdevel@vger.kernel.org, cgroups@vger.kernel.org
+References: <209d247e-c1b2-3235-2722-dd7c1f896483@linux.alibaba.com>
+Message-ID: <60b59306-5e36-e587-9145-e90657daec41@linux.alibaba.com>
+Date: Wed, 3 Jul 2019 11:26:17 +0800
+User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.13; rv:60.0)
+ Gecko/20100101 Thunderbird/60.6.1
 MIME-Version: 1.0
-X-OriginatorOrg: amd.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: f4c43e91-ac3d-445c-4f9c-08d6ff5dfa93
-X-MS-Exchange-CrossTenant-originalarrivaltime: 03 Jul 2019 02:27:22.3841
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: 3dd8961f-e488-4e60-8e11-a82d994e183d
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-userprincipalname: fkuehlin@amd.com
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: DM6PR12MB2873
+In-Reply-To: <209d247e-c1b2-3235-2722-dd7c1f896483@linux.alibaba.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-T24gMjAxOS0wNy0wMiA2OjU5IHAubS4sIEphc29uIEd1bnRob3JwZSB3cm90ZToNCj4gT24gV2Vk
-LCBKdWwgMDMsIDIwMTkgYXQgMTI6NDk6MTJBTSArMDIwMCwgQ2hyaXN0b3BoIEhlbGx3aWcgd3Jv
-dGU6DQo+PiBPbiBUdWUsIEp1bCAwMiwgMjAxOSBhdCAwNzo1MzoyM1BNICswMDAwLCBKYXNvbiBH
-dW50aG9ycGUgd3JvdGU6DQo+Pj4+IEknbSBzZW5kaW5nIHRoaXMgb3V0IG5vdyBzaW5jZSB3ZSBh
-cmUgdXBkYXRpbmcgbWFueSBvZiB0aGUgSE1NIEFQSXMNCj4+Pj4gYW5kIEkgdGhpbmsgaXQgd2ls
-bCBiZSB1c2VmdWwuDQo+Pj4gVGhpcyBtYWtlIHNvIG11Y2ggc2Vuc2UsIEknZCBsaWtlIHRvIGFw
-cGx5IHRoaXMgaW4gaG1tLmdpdCwgaXMgdGhlcmUNCj4+PiBhbnkgb2JqZWN0aW9uPw0KPj4gQXMg
-dGhpcyBjcmVhdGVzIGEgc29tZXdoYXQgaGFpcnkgY29uZmxpY3QgZm9yIGFtZGdwdSwgd291bGRu
-J3QgaXQgYmUNCj4+IGEgYmV0dGVyIGlkZWEgdG8gd2FpdCBhIGJpdCBhbmQgYXBwbHkgaXQgZmly
-c3QgdGhpbmcgZm9yIG5leHQgbWVyZ2UNCj4+IHdpbmRvdz8NCj4gTXkgdGhpbmtpbmcgaXMgdGhh
-dCBBTUQgR1BVIGFscmVhZHkgaGFzIGEgbW9uc3RlciBjb25mbGljdCBmcm9tIHRoaXM6DQo+DQo+
-ICAgaW50IGhtbV9yYW5nZV9yZWdpc3RlcihzdHJ1Y3QgaG1tX3JhbmdlICpyYW5nZSwNCj4gLSAg
-ICAgICAgICAgICAgICAgICAgICBzdHJ1Y3QgbW1fc3RydWN0ICptbSwNCj4gKyAgICAgICAgICAg
-ICAgICAgICAgICBzdHJ1Y3QgaG1tX21pcnJvciAqbWlycm9yLA0KPiAgICAgICAgICAgICAgICAg
-ICAgICAgICB1bnNpZ25lZCBsb25nIHN0YXJ0LA0KPiAgICAgICAgICAgICAgICAgICAgICAgICB1
-bnNpZ25lZCBsb25nIGVuZCwNCj4gICAgICAgICAgICAgICAgICAgICAgICAgdW5zaWduZWQgcGFn
-ZV9zaGlmdCk7DQo+DQo+IFNvLCBkZXBlbmRpbmcgb24gaG93IHRoYXQgaXMgcmVzb2x2ZWQgd2Ug
-bWlnaHQgd2FudCB0byBkbyBib3RoIEFQSQ0KPiBjaGFuZ2VzIGF0IG9uY2UuDQoNCkkganVzdCBz
-ZW50IG91dCBhIGZpeCBmb3IgdGhlIGhtbV9taXJyb3IgQVBJIGNoYW5nZS4NCg0KDQo+DQo+IE9y
-IHdlIG1heSBoYXZlIHRvIHJldmVydCB0aGUgYWJvdmUgY2hhbmdlIGF0IHRoaXMgbGF0ZSBkYXRl
-Lg0KPg0KPiBXYWl0aW5nIGZvciBBTURHUFUgdGVhbSB0byBkaXNjdXNzIHdoYXQgcHJvY2VzcyB0
-aGV5IHdhbnQgdG8gdXNlLg0KDQpZZWFoLCBJJ20gd29uZGVyaW5nIHdoYXQgdGhlIHByb2Nlc3Mg
-aXMgbXlzZWxmLiBXaXRoIEhNTSBhbmQgZHJpdmVyIA0KZGV2ZWxvcG1lbnQgaGFwcGVuaW5nIG9u
-IGRpZmZlcmVudCBicmFuY2hlcyB0aGVzZSBraW5kcyBvZiBBUEkgY2hhbmdlcyANCmFyZSBwYWlu
-ZnVsLiBUaGVyZSBzZWVtcyB0byBiZSBhIGJ1aWx0LWluIGFzc3VtcHRpb24gaW4gdGhlIGN1cnJl
-bnQgDQpwcm9jZXNzLCB0aGF0IGNvZGUgZmxvd3MgbW9zdGx5IGluIG9uZSBkaXJlY3Rpb24gYW1k
-LXN0YWdpbmctZHJtLW5leHQgLT4gDQpkcm0tbmV4dCAtPiBsaW51eC1uZXh0IC0+IGxpbnV4LiBU
-aGF0IGFzc3VtcHRpb24gaXMgYnJva2VuIHdpdGggSE1NIGNvZGUgDQpldm9sdmluZyByYXBpZGx5
-IGluIGJvdGggYW1kZ3B1IGFuZCBtbS4NCg0KSWYgd2Ugd2FudCB0byBjb250aW51ZSBkZXZlbG9w
-aW5nIEhNTSBkcml2ZXIgY2hhbmdlcyBpbiANCmFtZC1zdGFnaW5nLWRybS1uZXh0LCB3ZSdsbCBu
-ZWVkIHRvIHN5bmNocm9uaXplIHdpdGggaG1tLmdpdCBtb3JlIA0KZnJlcXVlbnRseSwgYm90aCB3
-YXlzLiBJIGJlbGlldmUgcGFydCBvZiB0aGUgcHJvYmxlbSBpcywgdGhhdCB0aGVyZSBpcyBhIA0K
-ZmFpcmx5IGxvbmcgbGVhZC10aW1lIGZyb20gZ2V0dGluZyBjaGFuZ2VzIGZyb20gYW1kLXN0YWdp
-bmctZHJtLW5leHQgDQppbnRvIGxpbnV4LW5leHQsIGFzIHRoZXkgYXJlIGhlbGQgZm9yIG9uZSBy
-ZWxlYXNlIGN5Y2xlIGluIGRybS1uZXh0LiANClB1c2hpbmcgSE1NLXJlbGF0ZWQgY2hhbmdlcyB0
-aHJvdWdoIGRybS1maXhlcyBtYXkgb2ZmZXIgYSBraW5kIG9mIA0Kc2hvcnRjdXQuIFBoaWxpcCBh
-bmQgbXkgbGF0ZXN0IGZpeHVwIGlzIGp1c3QgYnlwYXNzaW5nIGRybS1uZXh0IA0KY29tcGxldGVs
-eSBhbmQgZ29pbmcgc3RyYWlnaHQgaW50byBsaW51eC1uZXh0LCB0aG91Z2guDQoNClJlZ2FyZHMs
-DQogwqAgRmVsaXgNCg0KDQo+DQo+IEphc29uDQo=
+During our torturing on numa stuff, we found problems like:
+
+  * missing per-cgroup information about the per-node execution status
+  * missing per-cgroup information about the numa locality
+
+That is when we have a cpu cgroup running with bunch of tasks, no good
+way to tell how it's tasks are dealing with numa.
+
+The first two patches are trying to complete the missing pieces, but
+more problems appeared after monitoring these status:
+
+  * tasks not always running on the preferred numa node
+  * tasks from same cgroup running on different nodes
+
+The task numa group handler will always check if tasks are sharing pages
+and try to pack them into a single numa group, so they will have chance to
+settle down on the same node, but this failed in some cases:
+
+  * workloads share page caches rather than share mappings
+  * workloads got too many wakeup across nodes
+
+Since page caches are not traced by numa balancing, there are no way to
+realize such kind of relationship, and when there are too many wakeup,
+task will be drag from the preferred node and then migrate back by numa
+balancing, repeatedly.
+
+Here the third patch try to address the first issue, we could now give hint
+to kernel about the relationship of tasks, and pack them into single numa
+group.
+
+And the forth patch introduced numa cling, which try to address the wakup
+issue, now we try to make task stay on the preferred node on wakeup in fast
+path, in order to address the unbalancing risk, we monitoring the numa
+migration failure ratio, and pause numa cling when it reach the specified
+degree.
+
+Michael Wang (4):
+  numa: introduce per-cgroup numa balancing locality statistic
+  numa: append per-node execution info in memory.numa_stat
+  numa: introduce numa group per task group
+  numa: introduce numa cling feature
+
+ include/linux/memcontrol.h   |  37 ++++
+ include/linux/sched.h        |   8 +-
+ include/linux/sched/sysctl.h |   3 +
+ kernel/sched/core.c          |  37 ++++
+ kernel/sched/debug.c         |   7 +
+ kernel/sched/fair.c          | 455 ++++++++++++++++++++++++++++++++++++++++++-
+ kernel/sched/sched.h         |  14 ++
+ kernel/sysctl.c              |   9 +
+ mm/memcontrol.c              |  66 +++++++
+ 9 files changed, 628 insertions(+), 8 deletions(-)
+
+-- 
+2.14.4.44.g2045bb6
 
