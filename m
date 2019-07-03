@@ -2,174 +2,199 @@ Return-Path: <SRS0=iaDK=VA=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=no autolearn_force=no
+X-Spam-Status: No, score=-13.9 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
+	URIBL_SBL,URIBL_SBL_A,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 30346C5B578
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Jul 2019 04:54:51 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id EF53FC5B578
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Jul 2019 05:17:12 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CE26420989
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Jul 2019 04:54:50 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 993B521871
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Jul 2019 05:17:12 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=canb.auug.org.au header.i=@canb.auug.org.au header.b="aRxq9Doh"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CE26420989
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=canb.auug.org.au
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="ubsVNmJ9"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 993B521871
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6A5286B0003; Wed,  3 Jul 2019 00:54:50 -0400 (EDT)
+	id 2EE6F6B0003; Wed,  3 Jul 2019 01:17:12 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 657638E0003; Wed,  3 Jul 2019 00:54:50 -0400 (EDT)
+	id 29FB28E0003; Wed,  3 Jul 2019 01:17:12 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 546A88E0001; Wed,  3 Jul 2019 00:54:50 -0400 (EDT)
+	id 1676B8E0001; Wed,  3 Jul 2019 01:17:12 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 1ADFC6B0003
-	for <linux-mm@kvack.org>; Wed,  3 Jul 2019 00:54:50 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id c18so845409pgk.2
-        for <linux-mm@kvack.org>; Tue, 02 Jul 2019 21:54:50 -0700 (PDT)
+Received: from mail-yb1-f199.google.com (mail-yb1-f199.google.com [209.85.219.199])
+	by kanga.kvack.org (Postfix) with ESMTP id EB75B6B0003
+	for <linux-mm@kvack.org>; Wed,  3 Jul 2019 01:17:11 -0400 (EDT)
+Received: by mail-yb1-f199.google.com with SMTP id a9so803293ybl.1
+        for <linux-mm@kvack.org>; Tue, 02 Jul 2019 22:17:11 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:in-reply-to:references:mime-version;
-        bh=BYSo6/sDjEOEO1NrZdVIVjkyKXcf8c2NUeP3b75fnK4=;
-        b=BT4gLbdFCaw20Bavg2R7ZCrgbaJA2dNF9wBUiNCQ0xvZZtpTdkewc5vk7vIdZWEUPE
-         d0p2w/4e/x2ZF2B7lMVOw0M7vb1lHvg3vB5b+8Pmdfb/RiKHi5YugqJhLa9Pp4rWD60z
-         OWFRonI0YPnJR+lL66X0Eu3fxQz7mqEeRkIQ6CRhQEnTWuNQBS5s+PfvsKMi9tBlpisG
-         Seh18QDbId453LOOuXkwiZL/kbxrwBZJT4LJto0/rwvqdrl1xn5DVfNibrN8riOMDrhS
-         +tY86UMglDYyF2hF1WlORRYKjnT5oGg0K5zKSiwM8W3pi98LJDD26H5rVdPaQnpwGlaN
-         ZBTg==
-X-Gm-Message-State: APjAAAXikab7g7rXy8ifehCkcSugfo70+Yi0TliVM1JAf0mX9Rz6oxwV
-	gPSugbrSg3D/+8KSPgmDvnwTdhj5Y0QtpKmsfYZqiB/UJBp4zJiq+eh2hBCgd4oaOMynVhOpfGE
-	kKkbdog1Mk1tzHb9BzYfSntxNbEdKk7eyl46ZjXOCK3ZP9hx6Z4hGzs8u7w6CygkiPw==
-X-Received: by 2002:a17:902:9f93:: with SMTP id g19mr39291014plq.223.1562129689703;
-        Tue, 02 Jul 2019 21:54:49 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwjjM/SguaofhcbxBzrvefe+TTo9Tk6e241VByVaYpx2+l0+VgR5jcaed0JlmCI4yf83qW6
-X-Received: by 2002:a17:902:9f93:: with SMTP id g19mr39290959plq.223.1562129688916;
-        Tue, 02 Jul 2019 21:54:48 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562129688; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=1ph5YKpr5eYPLkWW+A9D3mF8JzIssbrCteby1s+tBFQ=;
+        b=XJQxwPvb61Kk6N+e1RBtb7Ule3VlN6EdPYsJeHp6OLfhADRkEtD0FTbELCKnMHu8AC
+         wHY3XyLKtQq5PmNqINIFU+jzcsRDzm7DAZLc21Ij4eDBnotQQqs6pndX+pE+vV8/4y9d
+         J0OJqwIZVsLOC7aNdtX4EGMC3Qzs4YwMiZ+vPI+PfkPD2w6gP0IvMnpHMtnV5k0QTr49
+         idOwnppuExwBZ+Bzr/S5yJL4qZloeedNGVq6WomLplj88bCNzNv1Ov/1a+G+Ci4uPhl/
+         18DjDzMARcfckF4Fg3NphlOdVhticCpzeRT7PuwvWW9V+Fjn1DMemIoJBxvsnPwcjEjZ
+         a8BA==
+X-Gm-Message-State: APjAAAV+fG/yqCo5iUu/XMMJ/5b+sSx3kRxQwyh3D7Tngxui5Se4CaNS
+	IHlN7jOPbSMszQVwtmOAIXQ7xA4xFfLTVGPQZmzT81k5fSQl14ASAFmK+Q4F2grDY+wJcyM39Vu
+	uD/UIe6H9nf4PFuVgl2Kpi8yyv8RWRBOYpoG4xuOYpRAK/4aizHquvvjDiPb7glvTeg==
+X-Received: by 2002:a81:32d0:: with SMTP id y199mr15851746ywy.342.1562131031634;
+        Tue, 02 Jul 2019 22:17:11 -0700 (PDT)
+X-Received: by 2002:a81:32d0:: with SMTP id y199mr15851723ywy.342.1562131031010;
+        Tue, 02 Jul 2019 22:17:11 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562131031; cv=none;
         d=google.com; s=arc-20160816;
-        b=g4nSSxB8QQfaid7+C5M4LVYoL3Dy64QZG8L93Yd/mvtQ493S38JmwdQYYdX6WkSbwB
-         Fp8W6haR4cnSEzompJTvDawLQwGdRxivd/KUAKdRtMjaQCcjzC8jV9qxNYyozqyPoAPq
-         BHzaG5YjPOPaeITcYH0kkOmtucc0cPsVOKyBQJ2DYHRpel9obUgUrYzVkclFTX1x7nlU
-         MLUl0Jkyi2BspsaRbqd3F5UiyCfUj4N45vn5rrdmIhDneBVuy54nVP6H1l4kvNkVhVSJ
-         DDX37J3NUEt4tQ//Gr9H8euZwkH3WmKlYHjrTN4xlCB59lAfKQ9428rN5juwQWhEpe65
-         aeNA==
+        b=NcSWT0wa6tImPoG/20ncrIbcypnqc/caRv2mqurmmclXhm6majwvh0phJ4OSVCEQrV
+         aoQPvyhAtHCfzEy8oexdWFm/a9+7X4SLAHLbRDwkh1ovK50xIOUhNwWqJwEih7o9smmD
+         lBmV3ndRw90FLXELlfRqJyvUTits+imKg9zRr/woo+CSItjDNERep0p0XzcMiXY6w9M0
+         8Z4UYrduj5Reop2GX4QsTFzIkx4vSHWhlFpjPjQ5FVTUjYdodvJY5hsuXxtWhGuEgCRx
+         CNM9sEhuHcizO9JnNXm8P3Ksk4fUdVqgttihPB6VyTU+2lWlUFA5H65n7cVbd8F+9Fun
+         c+Fw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:references:in-reply-to:message-id:subject:cc:to:from
-         :date:dkim-signature;
-        bh=BYSo6/sDjEOEO1NrZdVIVjkyKXcf8c2NUeP3b75fnK4=;
-        b=waUacJTOefY++dy3CF8HRyeBersKkAyfoGpQ8T1GEYZZsxAtDClN0FBoi6bfTt2PT5
-         FExFPh22nOuU0KlEKjOC9fUXzUhaIfGGfoJ8YMrN5zQwXTrQu3TGF4R3YgkOtbQtr6s7
-         i+gcqZnuyTZPc/gOsUesOau9K1zKQGguBTD3Wo4dBXA3s6vUMalas5qnPSSNfywogPEU
-         zXLWCAKavEx15QGVDkikenJBaKAER/kjk6nkJvnhHY0MyS8Z15KyLTkJktPF0vs8zVbN
-         dteoGSfod58tJQtwOkAQMocDJKiWQM9nifluIfL3oEz8JWWzqPHz+sxlLwxJA9Fqyvfd
-         lSSw==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=1ph5YKpr5eYPLkWW+A9D3mF8JzIssbrCteby1s+tBFQ=;
+        b=mDVWZ89+14+wbxqc4nV4JHNShbpyGF254D3c/PbI+DfROQCY5Kj3GpZJtrJ+ONTCPR
+         Qt04Mnap6UBHc+uCX8XoP/AjycsiY2q1jVZXJsBbO4uuov3PqXHtkATpm1ORJwARL01r
+         8+MnGfeZqz4T1Fu9ktuzlgzytX27boOwjk0o42v6ls92apTruMuUnHHFEyuoegTGOb+l
+         70vAjDuwOVZ8N16mcyxQV8wwA1TipoqaU6hLcvyBVgGbpaqeNit+0RRnl1P7cj8FYVCY
+         c03PTWLNCNw2kEg7cRITsG67nvFBE+Hk0giYDO8nFjPmed60QtqyYjSaKo/pg4mcU1e4
+         RrMQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@canb.auug.org.au header.s=201702 header.b=aRxq9Doh;
-       spf=pass (google.com: domain of sfr@canb.auug.org.au designates 2401:3900:2:1::2 as permitted sender) smtp.mailfrom=sfr@canb.auug.org.au
-Received: from ozlabs.org (bilbo.ozlabs.org. [2401:3900:2:1::2])
-        by mx.google.com with ESMTPS id w21si1106855plq.91.2019.07.02.21.54.48
+       dkim=pass header.i=@google.com header.s=20161025 header.b=ubsVNmJ9;
+       spf=pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shakeelb@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 123sor520190ywv.59.2019.07.02.22.17.10
         for <linux-mm@kvack.org>
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Tue, 02 Jul 2019 21:54:48 -0700 (PDT)
-Received-SPF: pass (google.com: domain of sfr@canb.auug.org.au designates 2401:3900:2:1::2 as permitted sender) client-ip=2401:3900:2:1::2;
+        (Google Transport Security);
+        Tue, 02 Jul 2019 22:17:10 -0700 (PDT)
+Received-SPF: pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@canb.auug.org.au header.s=201702 header.b=aRxq9Doh;
-       spf=pass (google.com: domain of sfr@canb.auug.org.au designates 2401:3900:2:1::2 as permitted sender) smtp.mailfrom=sfr@canb.auug.org.au
-Received: from authenticated.ozlabs.org (localhost [127.0.0.1])
-	(using TLSv1.3 with cipher TLS_AES_256_GCM_SHA384 (256/256 bits)
-	 key-exchange ECDHE (P-256) server-signature RSA-PSS (4096 bits) server-digest SHA256)
-	(No client certificate requested)
-	by mail.ozlabs.org (Postfix) with ESMTPSA id 45dpgS56gpz9s00;
-	Wed,  3 Jul 2019 14:54:44 +1000 (AEST)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=canb.auug.org.au;
-	s=201702; t=1562129686;
-	bh=Os6ca0ppiue1tcJbzi1HamLBeaX/2jBV/TB62bRk6U4=;
-	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
-	b=aRxq9Doh85BZvVKPihqH3aBGTVX7KGlQRi8G4uNmaeMld3O0agP4jgFXphQxOMcTR
-	 6KaMO5fHrqtHdgJRoha7Uk5u1eq4cOYKaxF0Ue4k5qXMEADMeBof0Fw9VlQADjciAB
-	 ZG5zNl3+nVSx8/HQV8KhIHi2IgUNLmkc+3G2JA4J0/+XkE7UMOQHR+lSUUkL8WlccD
-	 Ng7TVkmOn6VoBmmPVdKpA3+dHFYa184VTaCLx3ULJ+NbwGbRSQQeREx7etHrVJZaR+
-	 HXXAgjhK+hAQ0zV16k4i2vdwhN06ydk6H13JMo0JVb6pic8IzcZV8xkoGktIr/Gqmj
-	 KdxDV1upSOOHw==
-Date: Wed, 3 Jul 2019 14:54:43 +1000
-From: Stephen Rothwell <sfr@canb.auug.org.au>
-To: "Kuehling, Felix" <Felix.Kuehling@amd.com>
-Cc: "linux-next@vger.kernel.org" <linux-next@vger.kernel.org>,
- "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>,
- "linux-mm@kvack.org" <linux-mm@kvack.org>, "Yang, Philip"
- <Philip.Yang@amd.com>, Jason Gunthorpe <jgg@mellanox.com>, Dave Airlie
- <airlied@linux.ie>, "Deucher, Alexander" <Alexander.Deucher@amd.com>
-Subject: Re: [PATCH 1/1] drm/amdgpu: adopt to hmm_range_register API change
-Message-ID: <20190703145443.2ea425c8@canb.auug.org.au>
-In-Reply-To: <20190703015442.11974-1-Felix.Kuehling@amd.com>
-References: <20190703015442.11974-1-Felix.Kuehling@amd.com>
+       dkim=pass header.i=@google.com header.s=20161025 header.b=ubsVNmJ9;
+       spf=pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shakeelb@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=1ph5YKpr5eYPLkWW+A9D3mF8JzIssbrCteby1s+tBFQ=;
+        b=ubsVNmJ92hzCpChbUKvpqlUqrGKfr6az5Hoe1p6P5qhwrKWQ3pee5GEKCLyMG9SaZW
+         STflCRRuwc8MIbJoE45f7Gu/PYN7vtToYuqyLdGxNQF8wNQ1qYZNIJKOnZ7BpHuX0zh5
+         wjAi4wPF57wSRdrIf9EaNpMXzCMvvmh6g877W5h7NVG9KCKAo6aR1TUs1xkBbBQBM2bw
+         /SlTQC6nzBlOXD+t3UAyaoNhXDqsOhFWLPTx5M6yRNylxNC9OIDkc10nBG6bmq/1Kow3
+         tI0oXLeBuoRpjCufvV3I/XPgk2sp14KYOXvprf8bKsNUpjLn6VwazFKA6KeW9Y/FEoiv
+         Q6lg==
+X-Google-Smtp-Source: APXvYqz5i7w+Iawnuv0RR1pYVfBg5l3wdY6opbt/mD07g2+RTfsQdE4WaD9eCeQVGVcPKsxleE8QVBXIU6MctfhkdNU=
+X-Received: by 2002:a81:ae0e:: with SMTP id m14mr22081132ywh.308.1562131030277;
+ Tue, 02 Jul 2019 22:17:10 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha256;
- boundary="Sig_/1ISLS9cnW4KdQ3cHKyFA5Eq"; protocol="application/pgp-signature"
+References: <1562116978-19539-1-git-send-email-laoar.shao@gmail.com>
+ <CALvZod68TeAJ_CRgZ0fwh6HhHOwrZ9B4kwMHK+kycPmhR4O46w@mail.gmail.com> <CALOAHbBOKxZKfZSf3-JhNOvM_m9gmYbMT+kNTBCdedOg4=kmLw@mail.gmail.com>
+In-Reply-To: <CALOAHbBOKxZKfZSf3-JhNOvM_m9gmYbMT+kNTBCdedOg4=kmLw@mail.gmail.com>
+From: Shakeel Butt <shakeelb@google.com>
+Date: Tue, 2 Jul 2019 22:16:58 -0700
+Message-ID: <CALvZod5JOdYbdvePsYqjtHd=Kma9jZ_CYO5e+7Ma+z0Yszd5iA@mail.gmail.com>
+Subject: Re: [PATCH] mm/memcontrol: fix wrong statistics in memory.stat
+To: Yafang Shao <laoar.shao@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, 
+	Michal Hocko <mhocko@suse.com>, Yafang Shao <shaoyafang@didiglobal.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---Sig_/1ISLS9cnW4KdQ3cHKyFA5Eq
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: quoted-printable
-
-Hi all,
-
-On Wed, 3 Jul 2019 01:55:08 +0000 "Kuehling, Felix" <Felix.Kuehling@amd.com=
-> wrote:
+On Tue, Jul 2, 2019 at 9:28 PM Yafang Shao <laoar.shao@gmail.com> wrote:
 >
-> From: Philip Yang <Philip.Yang@amd.com>
->=20
-> In order to pass mirror instead of mm to hmm_range_register, we need
-> pass bo instead of ttm to amdgpu_ttm_tt_get_user_pages because mirror
-> is part of amdgpu_mn structure, which is accessible from bo.
->=20
-> Signed-off-by: Philip Yang <Philip.Yang@amd.com>
-> Reviewed-by: Felix Kuehling <Felix.Kuehling@amd.com>
-> Signed-off-by: Felix Kuehling <Felix.Kuehling@amd.com>
-> CC: Stephen Rothwell <sfr@canb.auug.org.au>
-> CC: Jason Gunthorpe <jgg@mellanox.com>
-> CC: Dave Airlie <airlied@linux.ie>
-> CC: Alex Deucher <alexander.deucher@amd.com>
-> ---
->  drivers/gpu/drm/Kconfig                          |  1 -
->  drivers/gpu/drm/amd/amdgpu/amdgpu_amdkfd_gpuvm.c |  5 ++---
->  drivers/gpu/drm/amd/amdgpu/amdgpu_cs.c           |  2 +-
->  drivers/gpu/drm/amd/amdgpu/amdgpu_gem.c          |  3 +--
->  drivers/gpu/drm/amd/amdgpu/amdgpu_mn.c           |  8 ++++++++
->  drivers/gpu/drm/amd/amdgpu/amdgpu_mn.h           |  5 +++++
->  drivers/gpu/drm/amd/amdgpu/amdgpu_ttm.c          | 12 ++++++++++--
->  drivers/gpu/drm/amd/amdgpu/amdgpu_ttm.h          |  5 +++--
->  8 files changed, 30 insertions(+), 11 deletions(-)
+> On Wed, Jul 3, 2019 at 11:50 AM Shakeel Butt <shakeelb@google.com> wrote:
+> >
+> > +Johannes Weiner
+> >
+> > On Tue, Jul 2, 2019 at 6:23 PM Yafang Shao <laoar.shao@gmail.com> wrote:
+> > >
+> > > When we calculate total statistics for memcg1_stats and memcg1_events, we
+> > > use the the index 'i' in the for loop as the events index.
+> > > Actually we should use memcg1_stats[i] and memcg1_events[i] as the
+> > > events index.
+> > >
+> > > Fixes: 8de7ecc6483b ("memcg: reduce memcg tree traversals for stats collection")
+> >
+> > Actually it fixes 42a300353577 ("mm: memcontrol: fix recursive
+> > statistics correctness & scalabilty").
+> >
+>
+> Hi Shakeel,
+>
+> In 8de7ecc6483b, this code was changed from memcg_page_state(mi,
+> memcg1_stats[i]) to acc.stat[i].
+>
+> -               for_each_mem_cgroup_tree(mi, memcg)
+> -                       val += memcg_page_state(mi, memcg1_stats[i]) *
+> -                       PAGE_SIZE;
+> -               seq_printf(m, "total_%s %llu\n", memcg1_stat_names[i], val);
+> +               seq_printf(m, "total_%s %llu\n", memcg1_stat_names[i],
+> +                          (u64)acc.stat[i] * PAGE_SIZE);
+>
+> In 42a300353577, this code was changed from acc.vmstats[i] to
+> memcg_events(memcg, i).
+> -                          (u64)acc.vmstats[i] * PAGE_SIZE);
+> +                          (u64)memcg_page_state(memcg, i) * PAGE_SIZE);
+>
+> So seems this issue was introduced in 8de7ecc6483b, isn't it ?
+>
+>
 
-I will apply this to the hmm tree merge today to see how it goes.
+That's the reason I said 8de7ecc6483b made it subtle but not wrong.
+Check accumulate_memcg_tree() in 8de7ecc6483b, the memcg_page_state()
+and memcg_events() are called with correct index but saved at 'i'
+index in acc array.
 
---=20
-Cheers,
-Stephen Rothwell
 
---Sig_/1ISLS9cnW4KdQ3cHKyFA5Eq
-Content-Type: application/pgp-signature
-Content-Description: OpenPGP digital signature
-
------BEGIN PGP SIGNATURE-----
-
-iQEzBAEBCAAdFiEENIC96giZ81tWdLgKAVBC80lX0GwFAl0cNRMACgkQAVBC80lX
-0GxR+wf/XafVose6tyhCcoiEqvhT+ysgJzCZmqFzBVqIISTf31GzmmteRaShVfAv
-qAQZpczlWvcJ8HWZIlJrNYQXlSgrP7s1Mu57oPZjUHoYwWGLKegjhVkUv8MJxm70
-uD8kYtHsy7k9oK5aC+dVhcXgcVxIjFootGahidgHw0JLGTD9LrVKs5giMo/hHpRU
-/VvFzLeCHKbY3VqEi4/brg6vMkx5M1gHf5oWz/S8i4XxNhKHd7X/5TGSk/IqEM3n
-yG9QcUb/XHadm0DAcIYokCKQArVoB0uTo8FI23rufoP5v4imBIQVtXequtMKwA6w
-2xXj+tSEXp9Ha/hkOJwI96/D/6BNHw==
-=TZJq
------END PGP SIGNATURE-----
-
---Sig_/1ISLS9cnW4KdQ3cHKyFA5Eq--
+> > > Signed-off-by: Yafang Shao <laoar.shao@gmail.com>
+> > > Cc: Shakeel Butt <shakeelb@google.com>
+> > > Cc: Michal Hocko <mhocko@suse.com>
+> > > Cc: Yafang Shao <shaoyafang@didiglobal.com>
+> > > ---
+> > >  mm/memcontrol.c | 5 +++--
+> > >  1 file changed, 3 insertions(+), 2 deletions(-)
+> > >
+> > > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> > > index 3ee806b..2ad94d0 100644
+> > > --- a/mm/memcontrol.c
+> > > +++ b/mm/memcontrol.c
+> > > @@ -3528,12 +3528,13 @@ static int memcg_stat_show(struct seq_file *m, void *v)
+> > >                 if (memcg1_stats[i] == MEMCG_SWAP && !do_memsw_account())
+> > >                         continue;
+> > >                 seq_printf(m, "total_%s %llu\n", memcg1_stat_names[i],
+> > > -                          (u64)memcg_page_state(memcg, i) * PAGE_SIZE);
+> > > +                          (u64)memcg_page_state(memcg, memcg1_stats[i]) *
+> > > +                          PAGE_SIZE);
+> >
+> > It seems like I made the above very subtle in 8de7ecc6483b and
+> > Johannes missed this subtlety in 42a300353577 (and I missed it in the
+> > review).
+> >
+> > >         }
+> > >
+> > >         for (i = 0; i < ARRAY_SIZE(memcg1_events); i++)
+> > >                 seq_printf(m, "total_%s %llu\n", memcg1_event_names[i],
+> > > -                          (u64)memcg_events(memcg, i));
+> > > +                          (u64)memcg_events(memcg, memcg1_events[i]));
+> > >
+> > >         for (i = 0; i < NR_LRU_LISTS; i++)
+> > >                 seq_printf(m, "total_%s %llu\n", mem_cgroup_lru_names[i],
+> > > --
+> > > 1.8.3.1
+> > >
+> >
+> > Reviewed-by: Shakeel Butt <shakeelb@google.com>
 
