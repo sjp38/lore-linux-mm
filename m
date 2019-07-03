@@ -2,326 +2,170 @@ Return-Path: <SRS0=iaDK=VA=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no
+X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=no autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CA565C0650E
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Jul 2019 19:30:47 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6739AC06511
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Jul 2019 20:14:48 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5E03121882
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Jul 2019 19:30:47 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 0AFEF21850
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Jul 2019 20:14:47 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="YQyWD/vN"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5E03121882
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="hsd+hhLl"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0AFEF21850
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E261A8E001C; Wed,  3 Jul 2019 15:30:46 -0400 (EDT)
+	id 616B28E001D; Wed,  3 Jul 2019 16:14:47 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DD6B58E0019; Wed,  3 Jul 2019 15:30:46 -0400 (EDT)
+	id 5C7B68E0019; Wed,  3 Jul 2019 16:14:47 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CC5808E001C; Wed,  3 Jul 2019 15:30:46 -0400 (EDT)
+	id 4B5E88E001D; Wed,  3 Jul 2019 16:14:47 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lj1-f198.google.com (mail-lj1-f198.google.com [209.85.208.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 647E88E0019
-	for <linux-mm@kvack.org>; Wed,  3 Jul 2019 15:30:46 -0400 (EDT)
-Received: by mail-lj1-f198.google.com with SMTP id r16so836562lja.9
-        for <linux-mm@kvack.org>; Wed, 03 Jul 2019 12:30:46 -0700 (PDT)
+Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 2BE528E0019
+	for <linux-mm@kvack.org>; Wed,  3 Jul 2019 16:14:47 -0400 (EDT)
+Received: by mail-qt1-f200.google.com with SMTP id k8so4411003qtb.12
+        for <linux-mm@kvack.org>; Wed, 03 Jul 2019 13:14:47 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:date:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=9CmDxCKQYXxEUXl00mBOezRpaXCu6nbIOQWdySvPJK4=;
-        b=bnfLrTKJIzMT4DMcricSmtZ/WHGjmDSSrRsGW3hL8K3d8FAzReGp5DHdRzqUnGjRYi
-         yC8eDFKyooVtv9DLhevO1VglMlrx285/iGaVeJ2gDZvZ48yR8xHD3PIekmpxlhDYVVqx
-         7sgP1VZKmcfxYxatyRfKUNC8w7UZ5wRoNCJqGmRONFJ8DnEP6liQl0FTK7t45TOPkUs0
-         uA0MzeVyXedXXyfAk8P+nvS7x+THfRy96nSGd7wqbkdazZURLj/Kc0Mmz41GDPBwvoA/
-         xLe423WM1KwjluVDwSZvdYcw+AQuH4h7b4ne99b+2hhvuJXKxs9aPb8+nxdeyoppCDwp
-         I9tA==
-X-Gm-Message-State: APjAAAWtQtw+obxbCRW6Wg7d4XvkeMrVfluhyeR5j00UgRVZP1G+YtjG
-	F90r2vETevJRdT0dfAINq8S+XKbtLQ8Dfg8PH79vkNi+ZkGBUvw6+UgOusD/I+PlTbER9VdEP5u
-	kM6tsfgFbvmbLxPvmeamgk1SVuHc1daI5XCOflBYlSwVXLwnyZiRiKkj9BLvR+FANWA==
-X-Received: by 2002:ac2:4202:: with SMTP id y2mr18669009lfh.178.1562182245598;
-        Wed, 03 Jul 2019 12:30:45 -0700 (PDT)
-X-Received: by 2002:ac2:4202:: with SMTP id y2mr18668981lfh.178.1562182244412;
-        Wed, 03 Jul 2019 12:30:44 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562182244; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=yYUsHMTWauYHWqlo9ty/zJzUyUz6zmCJ5iqAlMLp6F0=;
+        b=Nd1gvZu0lhPbTI+SS/NpT4cjvlQoR3juuRZNbji3Kbc0HQnCNX1LaV4QXYqivURq5H
+         Cs0YBvxTaDcdB/gVeZh3zfEFnZlaNw+mcbbQ0QgwSlhxkywLysHfxQTTDXOiSWTYJZ0m
+         ETD7dGbEnA09H6HRGW7B4F+SWEcLu/JI+8NlC+LUlA4+Lt/FF/otCvX2a8m+1EEAUd2S
+         qOwAUN/v0xDcCGU+RmcHy2wiKtdTzVYv4IvpKjSVdOzbUxw04dbGyue4VM5ijXN0hFEM
+         MUPjAskREHkDOMoi0HBpg7YjkHCVMQ3Jn2XH0ucodxJ2sUNHB1Eao9wqmhEz9aloZG2u
+         3uaQ==
+X-Gm-Message-State: APjAAAWMTLyFpWzy6PIz7Ecc9N6X1DvKw5CDBKcRk+9Z/qcRWtuqL8QQ
+	e7Mz9Q0sm9wplmSsgDMNvcAbtS0RTxpEqMZejnX4t/CVpfOPuhfJ9RI8leuqIO+xKpcHlkUx5J7
+	WCTQQVjLZQs62gAKvWvabh9gBrOtFekJ6r3nv030BdaeDtgXOG+pp1Dolhu3glw/m7g==
+X-Received: by 2002:a81:1a4e:: with SMTP id a75mr23775417ywa.310.1562184886926;
+        Wed, 03 Jul 2019 13:14:46 -0700 (PDT)
+X-Received: by 2002:a81:1a4e:: with SMTP id a75mr23775360ywa.310.1562184886196;
+        Wed, 03 Jul 2019 13:14:46 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562184886; cv=none;
         d=google.com; s=arc-20160816;
-        b=XjKNMXmaXNqIH8aNFRzU3v+UrqALNLSQ+5QS3ZMAYHsCG7ROBvSU25aKIM0sr+ierS
-         U7zrrw9Co2rNx6SIoPRxpFcB8550d12sy5c+LzF1V8a6FHMwOJJqmnAraEjqLT1vc3nM
-         EWOoEMqVo9GU4j/+aN9MLXPPcydxG5lCNrJHJgrjWr95pVNaOnDPBzQXnlli7ytUkTwe
-         DOOxKZxt0gJLjR8nzFhyffb9b84AYpyu9imKerWHUzKI33v+a55zjx456AOefLRIkWHa
-         4p1uNVZXgjXPq+rZT8tRXaf7iUX3amEjYdg25S0RQo1nenNG38FpQGuC90cNADO0/ImQ
-         IrUw==
+        b=pPwZsQSvl0RXosTpwJbjCwW+ZySBtwlct4VlKlD2Wj+gVvqwSIsTmNp2fuSyUzWOHw
+         GxpiqAaQ89Yo1/JuA3FHkY708Q8wt64dnAMAp+Q1ocppYCit0L0je3knLGcyB8RdNBou
+         0HNo1Fctl0RZYGU93Cg4giQJdhywymB0/jWr0E8hvgsjRXXRCsWEwVkCnG7hMUn1jTHY
+         5QVcGpPBXL7fulJh72Md6S1jqNgMMo3vHi6ZRYhdr6nsA1M+jrLhWCwhMUB4/n7cP1W6
+         6xECkQyd/j8GUca67ixINhW6p2IAY7Rm7oh4Bs9WojtNJ0Z+mTNmJbedaBGPIRMZxMAS
+         /2FQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:date:from:dkim-signature;
-        bh=9CmDxCKQYXxEUXl00mBOezRpaXCu6nbIOQWdySvPJK4=;
-        b=MH0DolVuxsW7EaqKmIiyDQ+1781SNVhA7w1iJk1GfpY0GwlRoiuV5DdTZm7SamisQl
-         73cgENCWB2IenyG1VzvXnJF9hF/Qu8VIFfBTBRxip2kDq4e3EcxX+6QKRLE7FIbbZYLl
-         HL5IxE1AmayjjV5HT31Cil7OI1DzN4AGRiQWDcIeJb2cMrZiH8C0QalCbfHkhaQDaDTD
-         p8dVW9Tb/00rEso2LXfNEURcBo88/BDVlA+YV0AIqgIr/yDnjna07Riw7nMpX5bhQtwm
-         JVF44h2yHep311db/3NaX6jqqHEmqn+ntcViy03AfLRbI+TePIU6JOjEUdQPCtn2GE07
-         8TIw==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=yYUsHMTWauYHWqlo9ty/zJzUyUz6zmCJ5iqAlMLp6F0=;
+        b=ekDzSW5Ormecc2bcgrNV6QnH3AFR645vLcsrNcXWCMIPqJUZn2k84zetiHkxh2lW1B
+         hL/ifM4EvGusz853EXEuoFi0xHsGM273KGGCkUy4mEvWFTCK36ulH90UVKqr1k+yyYDV
+         1u7DhKkPLzsCsolu8rZ2J40A4ZKmGyt4kjZwVpRZ+c4d7p7cNBxao7O8PjX0oeFMBotx
+         WYTpTGZlg1QhX556UIfgolNpOG7cH0NDPiPzDje2ADNw5Tw46iIW/TZsMr4xdvfn2YgK
+         nVahKwOF8C5vBbsacCOLS2DQzPQPZdWQSEzV/c6LKfq7Nk4Hbybyh90ouu4E0r1izZEV
+         pOhw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b="YQyWD/vN";
-       spf=pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=urezki@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+       dkim=pass header.i=@google.com header.s=20161025 header.b=hsd+hhLl;
+       spf=pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shakeelb@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y17sor2021781lji.23.2019.07.03.12.30.44
+        by mx.google.com with SMTPS id x10sor1844054ywa.212.2019.07.03.13.14.46
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 03 Jul 2019 12:30:44 -0700 (PDT)
-Received-SPF: pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Wed, 03 Jul 2019 13:14:46 -0700 (PDT)
+Received-SPF: pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b="YQyWD/vN";
-       spf=pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=urezki@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+       dkim=pass header.i=@google.com header.s=20161025 header.b=hsd+hhLl;
+       spf=pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shakeelb@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=from:date:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=9CmDxCKQYXxEUXl00mBOezRpaXCu6nbIOQWdySvPJK4=;
-        b=YQyWD/vNgsVrsv6QlOobbz8ejlwTlhBqfvpirCdpa2xlgKKnJ8YphGsHkB+XnBdN2z
-         +FfwEZlhwEk5DIX23BhDSsi0lBorULxuJkBhL4Ixtry5eu8OeN91Lwbm+HSPT+dMP6wt
-         /svvtLLAEeHAG4IWsUujrqkWn3EkyU1D+Lw4OPZa81piIPRwv3yBtyBWqiTeawCN4O/q
-         fW87jJr0ohQ2yozuZiXvEK4YY9nGofwJHTw4qfRBXD+qdHOZs7havgR11/Y5WJJb2JBz
-         5SRybwL6XPNBjdYKrpiZ+BpsTfOtYfAbuhoZVCcUskiP6ToINDRfymIURYRz2bjjoTi5
-         ogzA==
-X-Google-Smtp-Source: APXvYqw44hXYdu3Xcop44tGS7RQFAqW4AGPiwHHgE5Rihlhmh4wp+rmCIel3wwsgfmK35sbQ0aqUJA==
-X-Received: by 2002:a2e:9b03:: with SMTP id u3mr22187395lji.15.1562182243894;
-        Wed, 03 Jul 2019 12:30:43 -0700 (PDT)
-Received: from pc636 (h5ef52e31.seluork.dyn.perspektivbredband.net. [94.245.46.49])
-        by smtp.gmail.com with ESMTPSA id y5sm635525ljj.5.2019.07.03.12.30.42
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 03 Jul 2019 12:30:43 -0700 (PDT)
-From: Uladzislau Rezki <urezki@gmail.com>
-X-Google-Original-From: Uladzislau Rezki <urezki@pc636>
-Date: Wed, 3 Jul 2019 21:30:35 +0200
-To: Pengfei Li <lpf.vector@gmail.com>
-Cc: akpm@linux-foundation.org, peterz@infradead.org, urezki@gmail.com,
-	rpenyaev@suse.de, mhocko@suse.com, guro@fb.com,
-	aryabinin@virtuozzo.com, rppt@linux.ibm.com, mingo@kernel.org,
-	rick.p.edgecombe@intel.com, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
-Subject: Re: [PATCH v2 0/5] mm/vmalloc.c: improve readability and rewrite
- vmap_area
-Message-ID: <20190703193035.xsbdspgeiwzoo7aa@pc636>
-References: <20190702141541.12635-1-lpf.vector@gmail.com>
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=yYUsHMTWauYHWqlo9ty/zJzUyUz6zmCJ5iqAlMLp6F0=;
+        b=hsd+hhLlxEGDdvpWo6KHr+7ipbRO0Tpjqi/yfrTH9FDKheJ6fGdXTYEiCj28seOz2l
+         g/TjkEb8Td3Ga7v6D+piUUejHsLAcijpARYZtwoW1RJSMUvPf87zMGya0KxPrJfVVMWv
+         bXN+jQ3JwVWQpc3OowW7OKFslKmEJjOjFAwKepBGD6x1bI92iSiEiEc1IqRS7HLfsJqv
+         3CzASWm+KFGMCY4sGVmn2d4Mnx8RYBGNFlTkPLYn2M151gj70N1GzxuERCluhe1sltCG
+         abC0A5AraypsRtqrGUvR75f67LBlDm4d9i1Fj6ak8cbxNRGsLcYvu/UsFwm7fSvt8JBx
+         TGpQ==
+X-Google-Smtp-Source: APXvYqxvm9RgE3mf6qJxv+IRH8IDppVFvJ1B6dViHCGIkkaRWjJXhzPOE5ckkXEYd2b2JX5VDQHFb3tCF7/zEqxZw4U=
+X-Received: by 2002:a81:4c44:: with SMTP id z65mr23892003ywa.4.1562184885658;
+ Wed, 03 Jul 2019 13:14:45 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190702141541.12635-1-lpf.vector@gmail.com>
-User-Agent: NeoMutt/20170113 (1.7.2)
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+References: <20190701173042.221453-1-henryburns@google.com>
+ <CAMJBoFPbRcdZ+NnX17OQ-sOcCwe+ZAsxcDJoR0KDkgBY9WXvpg@mail.gmail.com>
+ <CAGQXPTjX=7aD9MQAs2kJthFvPdd3x8Nh53oc=wZCXH_dvDJ=Vg@mail.gmail.com> <CAMJBoFMBLv9OpXtQkOAyZ-vw5Ktk1tYtvfT=GPPx8jnKBN01rg@mail.gmail.com>
+In-Reply-To: <CAMJBoFMBLv9OpXtQkOAyZ-vw5Ktk1tYtvfT=GPPx8jnKBN01rg@mail.gmail.com>
+From: Shakeel Butt <shakeelb@google.com>
+Date: Wed, 3 Jul 2019 13:14:34 -0700
+Message-ID: <CALvZod57CZ20SG0eYu95=PDqJ+adoiUErdgAmhc_+qxDo68GoA@mail.gmail.com>
+Subject: Re: [PATCH] mm/z3fold: Fix z3fold_buddy_slots use after free
+To: Vitaly Wool <vitalywool@gmail.com>
+Cc: Henry Burns <henryburns@google.com>, Andrew Morton <akpm@linux-foundation.org>, 
+	Vitaly Vul <vitaly.vul@sony.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, 
+	Xidong Wang <wangxidong_97@163.com>, Jonathan Adams <jwadams@google.com>, 
+	Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+Content-Type: text/plain; charset="UTF-8"
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000007, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hello, Li.
+On Tue, Jul 2, 2019 at 11:03 PM Vitaly Wool <vitalywool@gmail.com> wrote:
+>
+> On Tue, Jul 2, 2019 at 6:57 PM Henry Burns <henryburns@google.com> wrote:
+> >
+> > On Tue, Jul 2, 2019 at 12:45 AM Vitaly Wool <vitalywool@gmail.com> wrote:
+> > >
+> > > Hi Henry,
+> > >
+> > > On Mon, Jul 1, 2019 at 8:31 PM Henry Burns <henryburns@google.com> wrote:
+> > > >
+> > > > Running z3fold stress testing with address sanitization
+> > > > showed zhdr->slots was being used after it was freed.
+> > > >
+> > > > z3fold_free(z3fold_pool, handle)
+> > > >   free_handle(handle)
+> > > >     kmem_cache_free(pool->c_handle, zhdr->slots)
+> > > >   release_z3fold_page_locked_list(kref)
+> > > >     __release_z3fold_page(zhdr, true)
+> > > >       zhdr_to_pool(zhdr)
+> > > >         slots_to_pool(zhdr->slots)  *BOOM*
+> > >
+> > > Thanks for looking into this. I'm not entirely sure I'm all for
+> > > splitting free_handle() but let me think about it.
+> > >
+> > > > Instead we split free_handle into two functions, release_handle()
+> > > > and free_slots(). We use release_handle() in place of free_handle(),
+> > > > and use free_slots() to call kmem_cache_free() after
+> > > > __release_z3fold_page() is done.
+> > >
+> > > A little less intrusive solution would be to move backlink to pool
+> > > from slots back to z3fold_header. Looks like it was a bad idea from
+> > > the start.
+> > >
+> > > Best regards,
+> > >    Vitaly
+> >
+> > We still want z3fold pages to be movable though. Wouldn't moving
+> > the backink to the pool from slots to z3fold_header prevent us from
+> > enabling migration?
+>
+> That is a valid point but we can just add back pool pointer to
+> z3fold_header. The thing here is, there's another patch in the
+> pipeline that allows for a better (inter-page) compaction and it will
+> somewhat complicate things, because sometimes slots will have to be
+> released after z3fold page is released (because they will hold a
+> handle to another z3fold page). I would prefer that we just added back
+> pool to z3fold_header and changed zhdr_to_pool to just return
+> zhdr->pool, then had the compaction patch valid again, and then we
+> could come back to size optimization.
+>
 
-> 
-> v1 -> v2:
-> * patch 3: Rename __find_vmap_area to __search_va_in_busy_tree
->            instead of __search_va_from_busy_tree.
-> * patch 5: Add motivation and necessary test data to the commit
->            message.
-> * patch 5: Let va->flags use only some low bits of va_start
->            instead of completely overwriting va_start.
-> 
-> 
-> The current implementation of struct vmap_area wasted space. At the
-> determined stage, not all members of the structure will be used.
-> 
-> For this problem, this commit places multiple structural members that
-> are not being used at the same time into a union to reduce the size
-> of the structure.
-> 
-> And local test results show that this commit will not hurt performance.
-> 
-> After applying this commit, sizeof(struct vmap_area) has been reduced
-> from 11 words to 8 words.
-> 
-> Pengfei Li (5):
->   mm/vmalloc.c: Introduce a wrapper function of insert_vmap_area()
->   mm/vmalloc.c: Introduce a wrapper function of
->     insert_vmap_area_augment()
->   mm/vmalloc.c: Rename function __find_vmap_area() for readability
->   mm/vmalloc.c: Modify function merge_or_add_vmap_area() for readability
->   mm/vmalloc.c: Rewrite struct vmap_area to reduce its size
-> 
->  include/linux/vmalloc.h |  28 +++++---
->  mm/vmalloc.c            | 139 ++++++++++++++++++++++++++++------------
->  2 files changed, 118 insertions(+), 49 deletions(-)
-> 
-> -- 
-> 2.21.0
-> 
-I do not think that it is worth to reduce the struct size the way
-this series does. I mean the union around flags/va_start. Simply saying
-if we need two variables: flags and va_start let's have them. Otherwise
-everybody has to think what he/she access at certain moment of time.
-
-So it would be easier to make mistakes, also that conversion looks strange
-to me. That is IMHO.
-
-If we want to reduce the size to L1-cache-line(64 bytes), i would propose to
-eliminate the "flags" variable from the structure. We could do that if apply
-below patch(as an example) on top of https://lkml.org/lkml/2019/7/3/661:
-
-<snip>
-diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
-index 51e131245379..49bb82863d5b 100644
---- a/include/linux/vmalloc.h
-+++ b/include/linux/vmalloc.h
-@@ -51,15 +51,22 @@ struct vmap_area {
-        unsigned long va_start;
-        unsigned long va_end;
-
--       /*
--        * Largest available free size in subtree.
--        */
--       unsigned long subtree_max_size;
--       unsigned long flags;
-        struct rb_node rb_node;         /* address sorted rbtree */
-        struct list_head list;          /* address sorted list */
--       struct llist_node purge_list;    /* "lazy purge" list */
--       struct vm_struct *vm;
-+
-+       /*
-+        * Below three variables can be packed, because vmap_area
-+        * object can be only in one of the three different states:
-+        *
-+        * - when an object is in "free" tree only;
-+        * - when an object is in "purge list" only;
-+        * - when an object is in "busy" tree only.
-+        */
-+       union {
-+               unsigned long subtree_max_size;
-+               struct llist_node purge_list;
-+               struct vm_struct *vm;
-+       };
- };
-
- /*
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index 6f1b6a188227..e389a6db222b 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -329,8 +329,6 @@ EXPORT_SYMBOL(vmalloc_to_pfn);
- #define DEBUG_AUGMENT_PROPAGATE_CHECK 0
- #define DEBUG_AUGMENT_LOWEST_MATCH_CHECK 0
-
--#define VM_VM_AREA     0x04
--
- static DEFINE_SPINLOCK(vmap_area_lock);
- /* Export for kexec only */
- LIST_HEAD(vmap_area_list);
-@@ -1108,7 +1106,7 @@ static struct vmap_area *alloc_vmap_area(unsigned long size,
-
-        va->va_start = addr;
-        va->va_end = addr + size;
--       va->flags = 0;
-+       va->vm = NULL;
-        insert_vmap_area(va, &vmap_area_root, &vmap_area_list);
-
-        spin_unlock(&vmap_area_lock);
-@@ -1912,7 +1910,6 @@ void __init vmalloc_init(void)
-                if (WARN_ON_ONCE(!va))
-                        continue;
-
--               va->flags = VM_VM_AREA;
-                va->va_start = (unsigned long)tmp->addr;
-                va->va_end = va->va_start + tmp->size;
-                va->vm = tmp;
-@@ -2010,7 +2007,6 @@ static void setup_vmalloc_vm(struct vm_struct *vm, struct vmap_area *va,
-        vm->size = va->va_end - va->va_start;
-        vm->caller = caller;
-        va->vm = vm;
--       va->flags |= VM_VM_AREA;
-        spin_unlock(&vmap_area_lock);
- }
-
-@@ -2115,7 +2111,7 @@ struct vm_struct *find_vm_area(const void *addr)
-        struct vmap_area *va;
-
-        va = find_vmap_area((unsigned long)addr);
--       if (va && va->flags & VM_VM_AREA)
-+       if (va && va->vm)
-                return va->vm;
-
-        return NULL;
-@@ -2139,11 +2135,10 @@ struct vm_struct *remove_vm_area(const void *addr)
-
-        spin_lock(&vmap_area_lock);
-        va = __find_vmap_area((unsigned long)addr);
--       if (va && va->flags & VM_VM_AREA) {
-+       if (va && va->vm) {
-                struct vm_struct *vm = va->vm;
-
-                va->vm = NULL;
--               va->flags &= ~VM_VM_AREA;
-                spin_unlock(&vmap_area_lock);
-
-                kasan_free_shadow(vm);
-@@ -2854,7 +2849,7 @@ long vread(char *buf, char *addr, unsigned long count)
-                if (!count)
-                        break;
-
--               if (!(va->flags & VM_VM_AREA))
-+               if (!va->vm)
-                        continue;
-
-                vm = va->vm;
-@@ -2934,7 +2929,7 @@ long vwrite(char *buf, char *addr, unsigned long count)
-                if (!count)
-                        break;
-
--               if (!(va->flags & VM_VM_AREA))
-+               if (!va->vm)
-                        continue;
-
-                vm = va->vm;
-@@ -3464,10 +3459,10 @@ static int s_show(struct seq_file *m, void *p)
-        va = list_entry(p, struct vmap_area, list);
-
-        /*
--        * s_show can encounter race with remove_vm_area, !VM_VM_AREA on
--        * behalf of vmap area is being tear down or vm_map_ram allocation.
-+        * s_show can encounter race with remove_vm_area, !vm on behalf
-+        * of vmap area is being tear down or vm_map_ram allocation.
-         */
--       if (!(va->flags & VM_VM_AREA)) {
-+       if (!va->vm) {
-                seq_printf(m, "0x%pK-0x%pK %7ld vm_map_ram\n",
-                        (void *)va->va_start, (void *)va->va_end,
-                        va->va_end - va->va_start);
-<snip>
-
-urezki@pc636:~/data/ssd/coding/linux-stable$ pahole -C vmap_area mm/vmalloc.o
-die__process_function: tag not supported (INVALID)!
-struct vmap_area {
-        long unsigned int          va_start;             /*     0     8 */
-        long unsigned int          va_end;               /*     8     8 */
-        struct rb_node             rb_node;              /*    16    24 */
-        struct list_head           list;                 /*    40    16 */
-        union {
-                long unsigned int  subtree_max_size;     /*           8 */
-                struct llist_node  purge_list;           /*           8 */
-                struct vm_struct * vm;                   /*           8 */
-        };                                               /*    56     8 */
-        /* --- cacheline 1 boundary (64 bytes) --- */
-
-        /* size: 64, cachelines: 1, members: 5 */
-};
-urezki@pc636:~/data/ssd/coding/linux-stable$
-
---
-Vlad Rezki
+By adding pool pointer back to z3fold_header, will we still be able to
+move/migrate/compact the z3fold pages?
 
