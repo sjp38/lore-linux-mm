@@ -7,78 +7,78 @@ X-Spam-Status: No, score=-9.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
 	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 835E8C0650E
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Jul 2019 22:02:26 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 091DEC5B578
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Jul 2019 22:02:29 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3CC20218A0
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Jul 2019 22:02:26 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id BFBCD218A0
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Jul 2019 22:02:28 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="OpDvh8ug"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3CC20218A0
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="efDzZwBe"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BFBCD218A0
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id AAA118E0024; Wed,  3 Jul 2019 18:02:21 -0400 (EDT)
+	id 1F8A48E0029; Wed,  3 Jul 2019 18:02:22 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9E7C98E0028; Wed,  3 Jul 2019 18:02:21 -0400 (EDT)
+	id 108CE8E0027; Wed,  3 Jul 2019 18:02:21 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 611DD8E0024; Wed,  3 Jul 2019 18:02:21 -0400 (EDT)
+	id D43F18E0029; Wed,  3 Jul 2019 18:02:21 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id EC9BE8E0024
-	for <linux-mm@kvack.org>; Wed,  3 Jul 2019 18:02:20 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id y9so2057895plp.12
-        for <linux-mm@kvack.org>; Wed, 03 Jul 2019 15:02:20 -0700 (PDT)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 6AD888E0021
+	for <linux-mm@kvack.org>; Wed,  3 Jul 2019 18:02:21 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id o16so2343128pgk.18
+        for <linux-mm@kvack.org>; Wed, 03 Jul 2019 15:02:21 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=aR5JFpbAtZwK/e60Yd9Huxe2JebEBXUD/VqFe6j363c=;
-        b=XZFa12Hx53ulJQdXoL0wPB0WxbhFHdy47XM/nSVbVeR+dmgzi718oixu4ea6DcVGi4
-         zw6VA/ECnoRPGfUGG1EmmtVJDcnr8lCY/zEKYouMHy0TCGeFk991EEq2N4vOpg62Yr79
-         0p7+7HJ5+WnGskaYUUiGGYlBfVJJ27v/bR24i7Qy7arE4sjjBZiopJosRUYpHPMoDq55
-         o9gZuhJiptR5rxcaroUQkbRBh3OBZkA5IKFfKrpyyChEaZAGhAl3ZiCFf/rGvAV4uMIc
-         gwwLVIeRhHV7y11Yt5IuxrzoUXKqu4nGBh0Lt0X9kckW+X/Qpd/nF9xkwmuZ6IfQCwfq
-         j2xg==
-X-Gm-Message-State: APjAAAVadZqyjxro2vamha98LmAYNDid3HpvxUn9yIjBBHKT2/eWXpxj
-	URaw843IS3Z3e4z8hGMtsHYZRVkSUTybxUyQBhdx6c/TI4CWNROGjGa/Yh2EoTsae72spquaAeP
-	NHj7A01mX75yTj0xhrfPGwVbzK00fgj58Tf7gbrzmbRnofH35YfAtUb/yvWoKbW4=
-X-Received: by 2002:a17:90a:3210:: with SMTP id k16mr14845573pjb.13.1562191340581;
-        Wed, 03 Jul 2019 15:02:20 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzjDAIjSlRPyV7WLErP4aHx1Y+tUi4eXw4ts1XlTlmu2LZoboXApLh/BB4/dUgyTX3CBzx5
-X-Received: by 2002:a17:90a:3210:: with SMTP id k16mr14845487pjb.13.1562191339440;
+        bh=DUoOwqjnTji0F9t1TBg521OpvLvqwX3Vlrvz0Ntypso=;
+        b=C01Tw5L1EGmiomRPoxEMqnZkIkKqlLQsY2e+z/M7xclpaq57fjXTBpNIoM2fCVUW2n
+         MwVaktymaEk6FgFyX7CoF2tAA7ZR9LZdQgR3ssW9craVfX/OOMVLExGhATj21k71EnPH
+         VOEbZ7WyD9Fk/TmBte0cuS242PmBRgtonJrGf0UZl76yFBm6mVuMROjRfuNi5mDpoGe4
+         2FvXWiUU2v7X1IDFtjkciLDGln2nBz2cCRaA8YE1IomuVL3dBINyFAl9UpbQ4vQuzu0d
+         EYA/v89iqIGRpu/Kj78ef2ua/hLb4D7tEJg6jPOyXYS0spBDr+h/6TBtTC1KFIMoZsRA
+         JWlg==
+X-Gm-Message-State: APjAAAWdhsJkRkW8aEh5dkJtOsqXxbZRuHI4fwq/i4jgntjMPjtP4ZRy
+	t4M69PupB1IYPHXatTNV9KCVB408WWShZk9DD9U+FIJFLU8gpLSsr+/zA+iQS579U0TO/bTWUYp
+	svTsA/zeI6WeTA12JFimeRbIWKfwuXuPWMmLIxE/T9d7cXNU5Mr5n7CKi80AsYJ0=
+X-Received: by 2002:a63:1b5c:: with SMTP id b28mr8663501pgm.101.1562191341016;
+        Wed, 03 Jul 2019 15:02:21 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzMknNJ9nP9uwIDlhXkYUnLfhH55upTS5TygGODhHDqfz3Ll+nm7filoJgVVSxY7mJdohEi
+X-Received: by 2002:a63:1b5c:: with SMTP id b28mr8663414pgm.101.1562191339916;
         Wed, 03 Jul 2019 15:02:19 -0700 (PDT)
 ARC-Seal: i=1; a=rsa-sha256; t=1562191339; cv=none;
         d=google.com; s=arc-20160816;
-        b=SfKYfY+4U/Hg7Gy8XHw/YF0oQXhkVeEtbbUKQR6AXeF61+3CrL6sX16kdRry3lLOvD
-         Ml69efVJfWo5qfWPxLAu2pH4uQ8YkUo6l7ySB3CqGXuGZjqLc9cjNqNZBqpHhEKLfljg
-         YGn4OJsmM0dlZp6rjZYlOQ5n9EDSDUPAIKtngAbekBRt+5mVSp1IzD3cNACDCoP/80HG
-         voM7sXtXwE1PCsz3eAy8IhaMG81/qisVdxIalDtw5jDnhym9YXTQL2vg8Sr3vzh1Ly3P
-         p85SUS/GGzQfyDMtYa6yD7UnADTrOUMBOKO++rlIo1b0jSDvx4yiOdzbAXyLWhGlhQp/
-         CF2g==
+        b=R7bcqjM0RvTFg3RtGVOqC/PQnEegBcGSkQ5M86nZIaD7Oh8jUdVUjm1tiboRilOYFf
+         ROqyQMH/JThZY71gCbJ9LH2CCXbGDn1jD/AujYR3gb9r7ez4y1gdRHhfx2ia9jrbi7E2
+         I/N4FXNMDZzfJA6swxQGvEQ9c99W275BB+uAdpALeLJcIB5QLhpHzMThR6gd5SiOcWpM
+         DJLA4QzitGtODMP5mELiQs8Pmvq6/D2wgO9QeRO+GJ1DagCKFA2pJKZ0uzY/DTFGFqBa
+         9XQ9065BSszW+GaVztO5XIKKSM8Mfu4WyovOiaB7ELB0iP3TLTOo0tcnLZpT/A35h1Sy
+         kMLw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=aR5JFpbAtZwK/e60Yd9Huxe2JebEBXUD/VqFe6j363c=;
-        b=FJhrlBuKhuHaxcN3HXkBK22y2axUD5zPQ9K2TuI55mOml9RTLjjZdmInWJ9YN3buyX
-         iFw3dvvlNJKDIGbZ/WM0gL1kje32GOYhzVq/Fqm8k9KVvFj7jvMOnJggW3mtFADxGMpv
-         zARgwSDFdP34xSAqkRRsy49z6MONzFrmIS5/dVL/1PP4ie5fVMSYBZOkldQbyKtVJJX9
-         MQg4GRvSWXXRXef0j+kkA7cpbDsi4rVmcFw4ESMevTp5bYygBom0udkZ1jjjhQpgdsLH
-         2Tu3SpV1Mlc5XnFbkWlnIQNFai3y5eidjYJnB8Hw3MO80/00cHk4mqxSL/RlMAXtvHEu
-         KWPA==
+        bh=DUoOwqjnTji0F9t1TBg521OpvLvqwX3Vlrvz0Ntypso=;
+        b=mvbYPiMthl96Jkx7xqkS+rfabjTBJtai6pKXe1nLxewDLHbm+OUSwfgNJSGRJFOkRk
+         RhUJ9WTu9EfppFKOl0shwavEZQywUNhcBXSmEyd8M5SNeE/sK43Kxlp4ZKRejHYdVbiI
+         k9H4IxmnBM8G1nB2xLw5YTF7sgykAksqREHL6HHmX3iWTXenbEMEebkOuT+KlN1+Pfse
+         Es1vShF0WDl16UQFrj/6vZ8fxuPERPslfn20f8uFxN7lv8LA/JlCoc/QvELu2kX7y1+t
+         m/ouSAB6DcJ1fWT4u2aiVNttFFzOIzN9WKd6SdrhGgS6FPk9CK1tn1GLlxBvb0Y92K/i
+         871Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=OpDvh8ug;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=efDzZwBe;
        spf=pass (google.com: best guess record for domain of batv+f19a2f3755a5a2fb7ec3+5792+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+f19a2f3755a5a2fb7ec3+5792+infradead.org+hch@bombadil.srs.infradead.org
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id s24si3376848pga.515.2019.07.03.15.02.19
+        by mx.google.com with ESMTPS id u38si3370371pgn.79.2019.07.03.15.02.19
         for <linux-mm@kvack.org>
         (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
         Wed, 03 Jul 2019 15:02:19 -0700 (PDT)
 Received-SPF: pass (google.com: best guess record for domain of batv+f19a2f3755a5a2fb7ec3+5792+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=OpDvh8ug;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=efDzZwBe;
        spf=pass (google.com: best guess record for domain of batv+f19a2f3755a5a2fb7ec3+5792+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+f19a2f3755a5a2fb7ec3+5792+infradead.org+hch@bombadil.srs.infradead.org
 DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	d=infradead.org; s=bombadil.20170209; h=Content-Transfer-Encoding:
@@ -86,15 +86,15 @@ DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	:Reply-To:Content-Type:Content-ID:Content-Description:Resent-Date:Resent-From
 	:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:List-Help:
 	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	bh=aR5JFpbAtZwK/e60Yd9Huxe2JebEBXUD/VqFe6j363c=; b=OpDvh8ugx9CCqIn6z/3y1udmC9
-	KVHOJ4bsImzFgtZfExFnufvlaVFq0giHc/vuAIxKY0IiLV8hawN4olAqJfcL1gDdEfW57uyU5nj5l
-	x3GGSB43dDPINYm/NEWoe96PFuvG+2P/z1Fr7axSCD8q98G6fn0/H5jngAe4xoO/Hqe9fnlPDrQYK
-	maGsjZPeEo6lxfX+g7EBD2wrEI05R7gGH9G0i/0CFtnM1uTTiOFnW1vZT+aE3Q3gNb/qwMOnPVVa+
-	tpRen6TJqloiQxgbHEfAFv64GJOvH3Z05gcv5LDRyQ7BCWPwdBTu1oVT9mXca+ZqiZNiHRN1JiAaF
-	aEarK4YQ==;
+	bh=DUoOwqjnTji0F9t1TBg521OpvLvqwX3Vlrvz0Ntypso=; b=efDzZwBeFkuXGAumAQiTxGRxkt
+	7D+YalkdI4VpAhWfDiCr5acuRvXk3B2P6XcIKBXGzEPBierDhh0ydQYTRtK5O3oYNgb0CXsCluMgO
+	z+4eQkFrCU1ogAFWQxXUO2itnHdgd5PstKF1fjC/mYhkALtlWktGH2LwfMkR3X+J+Iw2eeduXoBiZ
+	TEUf3el0yJeHxkqoV3zcOygMbjfNtIkcYb7c/dNlmPWjVJG+bE00JuSW1bMeOcQZS+bZRWiWATVGf
+	UdIM1NJZPbkyv3mt3mrXrTmNhpRloE/IABs8wxj3gLRGIvAGR1uw8u+PcvwC2w+8wtER9Birgc/wh
+	KZgk5nNw==;
 Received: from rap-us.hgst.com ([199.255.44.250] helo=localhost)
 	by bombadil.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
-	id 1hinKS-0004Ec-6y; Wed, 03 Jul 2019 22:02:16 +0000
+	id 1hinKS-0004Ek-JE; Wed, 03 Jul 2019 22:02:16 +0000
 From: Christoph Hellwig <hch@lst.de>
 To: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
 	Jason Gunthorpe <jgg@mellanox.com>,
@@ -104,9 +104,9 @@ Cc: Ralph Campbell <rcampbell@nvidia.com>,
 	nouveau@lists.freedesktop.org,
 	dri-devel@lists.freedesktop.org,
 	linux-kernel@vger.kernel.org
-Subject: [PATCH 3/6] nouveau: remove the block parameter to nouveau_range_fault
-Date: Wed,  3 Jul 2019 15:02:11 -0700
-Message-Id: <20190703220214.28319-4-hch@lst.de>
+Subject: [PATCH 5/6] nouveau: return -EBUSY when hmm_range_wait_until_valid fails
+Date: Wed,  3 Jul 2019 15:02:13 -0700
+Message-Id: <20190703220214.28319-6-hch@lst.de>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190703220214.28319-1-hch@lst.de>
 References: <20190703220214.28319-1-hch@lst.de>
@@ -119,46 +119,28 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The parameter is always false, so remove it as well as the -EAGAIN
-handling that can only happen for the non-blocking case.
+-EAGAIN has a magic meaning for non-blocking faults, so don't overload
+it.  Given that the caller doesn't check for specific error codes this
+change is purely cosmetic.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- drivers/gpu/drm/nouveau/nouveau_svm.c | 7 +++----
- 1 file changed, 3 insertions(+), 4 deletions(-)
+ drivers/gpu/drm/nouveau/nouveau_svm.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/drivers/gpu/drm/nouveau/nouveau_svm.c b/drivers/gpu/drm/nouveau/nouveau_svm.c
-index 033a9241a14a..9a9f71e4be29 100644
+index d97d862e8b7d..26853f59b0f4 100644
 --- a/drivers/gpu/drm/nouveau/nouveau_svm.c
 +++ b/drivers/gpu/drm/nouveau/nouveau_svm.c
-@@ -491,8 +491,7 @@ static inline bool nouveau_range_done(struct hmm_range *range)
- }
+@@ -508,7 +508,7 @@ nouveau_range_fault(struct hmm_mirror *mirror, struct hmm_range *range)
  
- static int
--nouveau_range_fault(struct hmm_mirror *mirror, struct hmm_range *range,
--		    bool block)
-+nouveau_range_fault(struct hmm_mirror *mirror, struct hmm_range *range)
- {
- 	long ret;
- 
-@@ -510,7 +509,7 @@ nouveau_range_fault(struct hmm_mirror *mirror, struct hmm_range *range,
- 		return -EAGAIN;
+ 	if (!hmm_range_wait_until_valid(range, NOUVEAU_RANGE_FAULT_TIMEOUT)) {
+ 		up_read(&range->vma->vm_mm->mmap_sem);
+-		return -EAGAIN;
++		return -EBUSY;
  	}
  
--	ret = hmm_range_fault(range, block);
-+	ret = hmm_range_fault(range, true);
- 	if (ret <= 0) {
- 		if (ret == -EBUSY || !ret) {
- 			up_read(&range->vma->vm_mm->mmap_sem);
-@@ -697,7 +696,7 @@ nouveau_svm_fault(struct nvif_notify *notify)
- 		range.values = nouveau_svm_pfn_values;
- 		range.pfn_shift = NVIF_VMM_PFNMAP_V0_ADDR_SHIFT;
- again:
--		ret = nouveau_range_fault(&svmm->mirror, &range, true);
-+		ret = nouveau_range_fault(&svmm->mirror, &range);
- 		if (ret == 0) {
- 			mutex_lock(&svmm->mutex);
- 			if (!nouveau_range_done(&range)) {
+ 	ret = hmm_range_fault(range, true);
 -- 
 2.20.1
 
