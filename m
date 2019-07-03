@@ -2,196 +2,271 @@ Return-Path: <SRS0=iaDK=VA=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_IN_DEF_DKIM_WL autolearn=no
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4D832C0650E
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Jul 2019 09:43:31 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 59E4DC0650E
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Jul 2019 11:40:41 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C7283218A5
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Jul 2019 09:43:30 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C7283218A5
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=techsingularity.net
+	by mail.kernel.org (Postfix) with ESMTP id E8BFD218A3
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Jul 2019 11:40:40 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="FWENStUR"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E8BFD218A3
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 478666B0003; Wed,  3 Jul 2019 05:43:30 -0400 (EDT)
+	id 50AF56B0003; Wed,  3 Jul 2019 07:40:40 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4296C8E0003; Wed,  3 Jul 2019 05:43:30 -0400 (EDT)
+	id 4E2828E0003; Wed,  3 Jul 2019 07:40:40 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2CA998E0001; Wed,  3 Jul 2019 05:43:30 -0400 (EDT)
+	id 3F9698E0001; Wed,  3 Jul 2019 07:40:40 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id D199B6B0003
-	for <linux-mm@kvack.org>; Wed,  3 Jul 2019 05:43:29 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id k22so1305258ede.0
-        for <linux-mm@kvack.org>; Wed, 03 Jul 2019 02:43:29 -0700 (PDT)
+Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E9B196B0003
+	for <linux-mm@kvack.org>; Wed,  3 Jul 2019 07:40:39 -0400 (EDT)
+Received: by mail-wr1-f69.google.com with SMTP id x2so951342wru.22
+        for <linux-mm@kvack.org>; Wed, 03 Jul 2019 04:40:39 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=+hRXxhcJTTiyGu9B5kxy5ar4joTmkrg6c3xgxmdnWL8=;
-        b=Dv2/bvzLCDs5c4cgklm16xYulB2M69PO+utf1tXuuMgwvDZhcdRTPKOTiOPUDYmPWs
-         Uy1prm5z/Ir0Jpa53BJp135j1LVywNkx74ZwdG3xZvfyttirH6T0PWvpDO82hTgpyFyl
-         sV6yUsmAOv7YZpDG8BfkjBzHcrv2lzbJLZ5kAGHE6cDs3d/15+VL5p3U+WbM1/IcPEzw
-         OJlWMOyMt1v15/kXSv4y2vpy1aZgfPG9fUQ2rBkgS9vvCqpycI2otDwSkENVoVwZB13S
-         vmeN9CZVsPUPceGQcabIww16wGL83WcgmODoNU9srPhIfHskhLU4IuH6t2ip+28hCYqJ
-         sQbQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.192 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
-X-Gm-Message-State: APjAAAVwxcM7I7HgWQjR3lZ47Lqpl/X8EVx2f9zYrXLxo9dHs1LZla8F
-	B5L37n1Y2bny0Opqj8MAM5t91YEQtsRgIIpY5zK7i5vUe/LaRd0cy9KrWrJNSsKBEvKx+OFPldA
-	xMdw0p9w4Z9ZCVYnTdBRHw2IIUhVqLS81iA/NcCebhcou7Gr1kquPn/jMblJFaAjaPA==
-X-Received: by 2002:a50:89a6:: with SMTP id g35mr42659697edg.145.1562147009298;
-        Wed, 03 Jul 2019 02:43:29 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy1AxWBq++ZVAH00uSEu/vr0XFK6Fg0hRusrHrW25FmoZfGO0AywX7KcTlgmvdWIsCtc7Bj
-X-Received: by 2002:a50:89a6:: with SMTP id g35mr42659627edg.145.1562147008391;
-        Wed, 03 Jul 2019 02:43:28 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562147008; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc
+         :content-transfer-encoding;
+        bh=zHeU17lmmKwn4HqZvPfxORCzKm21XY5rEHkO8j8X2vA=;
+        b=d6Kav93HZ4wWNWHAg7ke3XTDciAeq9/WTItHmgvDo+eMmcVy7lC3kKFsXKZ0UF2uNn
+         7eWgfrPT14AkfzH2QZTM1hGVcYRpFDVHqHpFo3zgjSIg8lem//dT4iGpsjosySNagTKH
+         m9u1kcLKolhpmLmpGNIE+rt0aJlq9s67OmxhYTyu++oFPDeFe+5HypHBa2uy8z8N3u0X
+         DBa+IgGepXEgYXQ1QYiGGXykTh5Ub/e6YgNh0QAyOcUo0buMhAdFaJzYj7VabxXRXotj
+         4gh2J7oi3Qg9B/sjp/C3LOVLT42eiGIsmF5G43m124NSupazsbo4wCDYb68ARQhoJtH9
+         BBaw==
+X-Gm-Message-State: APjAAAXHpQiPPw6GiFMQcO8GtDxEnGEiEh9fHhAB01fnC9jmmXKEoOKk
+	npVM+Db4DKNHL2XB2w86bVrXNNgqQX4EFQcKmWIkbRgTgFJHLVT2f9YkjuSZcx7hl7t2T1B/IFn
+	P3GvCv15EkbLlDf1jc8hBU6IjruPxAddg3ZWmVHdLjSHoMUHkIhDYzx0j+nY0DIOZrA==
+X-Received: by 2002:adf:fb8d:: with SMTP id a13mr28903481wrr.273.1562154039495;
+        Wed, 03 Jul 2019 04:40:39 -0700 (PDT)
+X-Received: by 2002:adf:fb8d:: with SMTP id a13mr28903434wrr.273.1562154038575;
+        Wed, 03 Jul 2019 04:40:38 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562154038; cv=none;
         d=google.com; s=arc-20160816;
-        b=p6Nkwam6dWoanTsB3Myttozsg6PO1AtsarIjfY6diqq79yHAmBl7QJg7Ub4xx8VQSe
-         Ho9Dc2w8xDNWdkEMYLCiH+XUyJgKi8g49QgXzIy1KrYV9YIhPmqrR6RAWdlj7euOLf5t
-         MBfDeMstJS0FM4Qj1VPS4NiW0YHNuLDr6wtCGb8nPisybcPuCPFtxGWfTfekUjiv8K/n
-         YOv2mzBUVjVDIl7qSrS+SnN7Cq7GewINCTzuNnb87UCPco4oWclFbK51ubDAtETW5zfe
-         gmfovPwUb3Wakua6oMeRIH9q5YakLCPzSClKIeQU01HwXqXsApQHpUEINuH/W00+QcNm
-         ++2Q==
+        b=lhTZlnh2PKBwwQ+JyEJYoL737dJBGdGc+yJERHM84OM/6xbal9EOpiIDhFizIy4h+l
+         rTMJQb9qRs5rcPdoz7ndgnkA19EXUvAy1fXD9cfBdRvVEWYVq1A6p0rykkSdMIBZvHYk
+         w6NvJR84BlVAyUHVhw8DwwpgyWF9v9WV4yYAgSe+OEZHgSWqh0XvPWyf0Ka6r/1v9K6f
+         vV+kBC8VOFza+wvDxecVt01j3/4Dep6h6zlTe5XuDvTPL+mEjl+eQcNYx2R5dvGKF7iN
+         4LFr6BgrqhkmbvgP5whO+zMEB791USv3+qAeBerf+AlcPR/DBYr0Zd6Tl1fih0BKDa4m
+         l4Ng==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=+hRXxhcJTTiyGu9B5kxy5ar4joTmkrg6c3xgxmdnWL8=;
-        b=yckB32D91/Cyd6gMB1pYlM0onh60wIAnRjxN8E6AMOX3gkKmiFNNa2XH3WxAUM7iE4
-         ymUcIN2PGs1saNPnr41w7gTE7lxL1+zn+H+GfBg4xqmPiQqM5rXy6OHQLJJweWMPBA6h
-         26s5lLvIOIU9V4+4ksdz/IwitQhdhMpCiGG4vMfucXLrAOgY03lby+F0ySyNgGda6AgR
-         hf0vsJU1AqUwvcMnopTEB4s+VzRIdQBhxT2mZtsf8VTulwuXCAiQXbTraR646AwIQ5dM
-         Yr5KAtEBAzowOwFaT/sa0LC83xn3NMNpdfll5hwYkDBm9KjAdt2MzLqtHgBv7xtisNV2
-         hrsQ==
+        h=content-transfer-encoding:cc:to:subject:message-id:date:from
+         :in-reply-to:references:mime-version:dkim-signature;
+        bh=zHeU17lmmKwn4HqZvPfxORCzKm21XY5rEHkO8j8X2vA=;
+        b=GXPDpABPES9sdJutqGA3Ee+zKbqg0r0nmT/g2IamzBaOAUjDrp+kHIwTXXZ7tPtFwD
+         xF2P+kWKltfEyEohNNVY/07lnToTNCaZ6pfscof4SUI5v6RQkkLeDFI9ANjvOFRPwP8u
+         MSqhS/B1eT5zamb3foOvYp//d41Sh84vkYKw908qzkoTcB9MBc1NSO/Qu4g1iPUSPGft
+         L+9tiOS7s45B9t2V6unOx+WlT8Bw/XZBZ4v6tkrA23hdF+gW+BHOmK4FBIKg2b0QJGhi
+         nfA7HoJc3+Z5Anf+Nyr2N7DPNFgaQi+YVVO69x8hoeENhcKE+NCmMysmTutEPicvB9jH
+         JKNw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.192 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
-Received: from outbound-smtp24.blacknight.com (outbound-smtp24.blacknight.com. [81.17.249.192])
-        by mx.google.com with ESMTPS id c18si1265112ejf.196.2019.07.03.02.43.28
+       dkim=pass header.i=@google.com header.s=20161025 header.b=FWENStUR;
+       spf=pass (google.com: domain of glider@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=glider@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id v17sor1636969wrw.44.2019.07.03.04.40.38
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Jul 2019 02:43:28 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.192 as permitted sender) client-ip=81.17.249.192;
+        (Google Transport Security);
+        Wed, 03 Jul 2019 04:40:38 -0700 (PDT)
+Received-SPF: pass (google.com: domain of glider@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.192 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
-Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
-	by outbound-smtp24.blacknight.com (Postfix) with ESMTPS id F1AADB8F52
-	for <linux-mm@kvack.org>; Wed,  3 Jul 2019 10:43:27 +0100 (IST)
-Received: (qmail 16561 invoked from network); 3 Jul 2019 09:43:27 -0000
-Received: from unknown (HELO techsingularity.net) (mgorman@techsingularity.net@[84.203.21.36])
-  by 81.17.254.9 with ESMTPSA (AES256-SHA encrypted, authenticated); 3 Jul 2019 09:43:27 -0000
-Date: Wed, 3 Jul 2019 10:43:25 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>,
-	Michal Hocko <mhocko@kernel.org>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>,
-	linux-kernel <linux-kernel@vger.kernel.org>,
-	Andrea Arcangeli <aarcange@redhat.com>,
-	Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [Question] Should direct reclaim time be bounded?
-Message-ID: <20190703094325.GB2737@techsingularity.net>
-References: <d38a095e-dc39-7e82-bb76-2c9247929f07@oracle.com>
- <20190423071953.GC25106@dhcp22.suse.cz>
- <eac582cf-2f76-4da1-1127-6bb5c8c959e4@oracle.com>
- <04329fea-cd34-4107-d1d4-b2098ebab0ec@suse.cz>
- <dede2f84-90bf-347a-2a17-fb6b521bf573@oracle.com>
- <20190701085920.GB2812@suse.de>
- <80036eed-993d-1d24-7ab6-e495f01b1caa@oracle.com>
+       dkim=pass header.i=@google.com header.s=20161025 header.b=FWENStUR;
+       spf=pass (google.com: domain of glider@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=glider@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc:content-transfer-encoding;
+        bh=zHeU17lmmKwn4HqZvPfxORCzKm21XY5rEHkO8j8X2vA=;
+        b=FWENStURUf6QH7xHmCVgopjHfyiKu/4SooEMN/M3xfHJoiRlaDcJryuPhpcSa0QXJc
+         L2OGx1unh2jzwLITaBnnjL+GuoJtraiLxKV6yuuwcCe9pvwq9hZx4z0p8rb1dKW1pVTO
+         3Q4wN347G+HW/3WVDHqpEhiUXAqyeTgLhRTdEIjcxCWtcWipzbrlrk/VUbqy14PnRWq1
+         dwEL4HkXik9GgnBAfxtna96yVwHmS8enJF7i9gJaHU+sghXXOMe6qAYrz7Ybqjl/ZHGh
+         xuwM9y8QeTH/YAWTdB9V5MSkTN3NZwzYfhkIeupxk5QgP3HNq4qblB4rqUBIrxxGkVov
+         hbWQ==
+X-Google-Smtp-Source: APXvYqw4s3sYsNizBmCtzQpw8k78tkfYpE3dYnEnwrtdq2L+zw7BXTL3xh1CoycHraoMSTwIPbxeB+18b/h0kSxWd1g=
+X-Received: by 2002:adf:f64a:: with SMTP id x10mr20291629wrp.287.1562154037981;
+ Wed, 03 Jul 2019 04:40:37 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <80036eed-993d-1d24-7ab6-e495f01b1caa@oracle.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+References: <20190628093131.199499-1-glider@google.com> <20190628093131.199499-2-glider@google.com>
+ <20190702155915.ab5e7053e5c0d49e84c6ed67@linux-foundation.org>
+In-Reply-To: <20190702155915.ab5e7053e5c0d49e84c6ed67@linux-foundation.org>
+From: Alexander Potapenko <glider@google.com>
+Date: Wed, 3 Jul 2019 13:40:26 +0200
+Message-ID: <CAG_fn=XYRpeBgLpbwhaF=JfNHa-styydOKq8_SA3vsdMcXNgzw@mail.gmail.com>
+Subject: Re: [PATCH v10 1/2] mm: security: introduce init_on_alloc=1 and
+ init_on_free=1 boot options
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Christoph Lameter <cl@linux.com>, Kees Cook <keescook@chromium.org>, Michal Hocko <mhocko@suse.com>, 
+	James Morris <jamorris@linux.microsoft.com>, 
+	Masahiro Yamada <yamada.masahiro@socionext.com>, Michal Hocko <mhocko@kernel.org>, 
+	James Morris <jmorris@namei.org>, "Serge E. Hallyn" <serge@hallyn.com>, 
+	Nick Desaulniers <ndesaulniers@google.com>, Kostya Serebryany <kcc@google.com>, 
+	Dmitry Vyukov <dvyukov@google.com>, Sandeep Patil <sspatil@android.com>, 
+	Laura Abbott <labbott@redhat.com>, Randy Dunlap <rdunlap@infradead.org>, Jann Horn <jannh@google.com>, 
+	Mark Rutland <mark.rutland@arm.com>, Marco Elver <elver@google.com>, Qian Cai <cai@lca.pw>, 
+	Linux Memory Management List <linux-mm@kvack.org>, 
+	linux-security-module <linux-security-module@vger.kernel.org>, 
+	Kernel Hardening <kernel-hardening@lists.openwall.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jul 01, 2019 at 08:15:50PM -0700, Mike Kravetz wrote:
-> On 7/1/19 1:59 AM, Mel Gorman wrote:
-> > On Fri, Jun 28, 2019 at 11:20:42AM -0700, Mike Kravetz wrote:
-> >> On 4/24/19 7:35 AM, Vlastimil Babka wrote:
-> >>> On 4/23/19 6:39 PM, Mike Kravetz wrote:
-> >>>>> That being said, I do not think __GFP_RETRY_MAYFAIL is wrong here. It
-> >>>>> looks like there is something wrong in the reclaim going on.
-> >>>>
-> >>>> Ok, I will start digging into that.  Just wanted to make sure before I got
-> >>>> into it too deep.
-> >>>>
-> >>>> BTW - This is very easy to reproduce.  Just try to allocate more huge pages
-> >>>> than will fit into memory.  I see this 'reclaim taking forever' behavior on
-> >>>> v5.1-rc5-mmotm-2019-04-19-14-53.  Looks like it was there in v5.0 as well.
-> >>>
-> >>> I'd suspect this in should_continue_reclaim():
-> >>>
-> >>>         /* Consider stopping depending on scan and reclaim activity */
-> >>>         if (sc->gfp_mask & __GFP_RETRY_MAYFAIL) {
-> >>>                 /*
-> >>>                  * For __GFP_RETRY_MAYFAIL allocations, stop reclaiming if the
-> >>>                  * full LRU list has been scanned and we are still failing
-> >>>                  * to reclaim pages. This full LRU scan is potentially
-> >>>                  * expensive but a __GFP_RETRY_MAYFAIL caller really wants to succeed
-> >>>                  */
-> >>>                 if (!nr_reclaimed && !nr_scanned)
-> >>>                         return false;
-> >>>
-> >>> And that for some reason, nr_scanned never becomes zero. But it's hard
-> >>> to figure out through all the layers of functions :/
-> >>
-> >> I got back to looking into the direct reclaim/compaction stalls when
-> >> trying to allocate huge pages.  As previously mentioned, the code is
-> >> looping for a long time in shrink_node().  The routine
-> >> should_continue_reclaim() returns true perhaps more often than it should.
-> >>
-> >> As Vlastmil guessed, my debug code output below shows nr_scanned is remaining
-> >> non-zero for quite a while.  This was on v5.2-rc6.
-> >>
-> > 
-> > I think it would be reasonable to have should_continue_reclaim allow an
-> > exit if scanning at higher priority than DEF_PRIORITY - 2, nr_scanned is
-> > less than SWAP_CLUSTER_MAX and no pages are being reclaimed.
-> 
-> Thanks Mel,
-> 
-> I added such a check to should_continue_reclaim.  However, it does not
-> address the issue I am seeing.  In that do-while loop in shrink_node,
-> the scan priority is not raised (priority--).  We can enter the loop
-> with priority == DEF_PRIORITY and continue to loop for minutes as seen
-> in my previous debug output.
-> 
+On Wed, Jul 3, 2019 at 12:59 AM Andrew Morton <akpm@linux-foundation.org> w=
+rote:
+>
+> On Fri, 28 Jun 2019 11:31:30 +0200 Alexander Potapenko <glider@google.com=
+> wrote:
+>
+> > The new options are needed to prevent possible information leaks and
+> > make control-flow bugs that depend on uninitialized values more
+> > deterministic.
+> >
+> > This is expected to be on-by-default on Android and Chrome OS. And it
+> > gives the opportunity for anyone else to use it under distros too via
+> > the boot args. (The init_on_free feature is regularly requested by
+> > folks where memory forensics is included in their threat models.)
+> >
+> > init_on_alloc=3D1 makes the kernel initialize newly allocated pages and=
+ heap
+> > objects with zeroes. Initialization is done at allocation time at the
+> > places where checks for __GFP_ZERO are performed.
+> >
+> > init_on_free=3D1 makes the kernel initialize freed pages and heap objec=
+ts
+> > with zeroes upon their deletion. This helps to ensure sensitive data
+> > doesn't leak via use-after-free accesses.
+> >
+> > Both init_on_alloc=3D1 and init_on_free=3D1 guarantee that the allocato=
+r
+> > returns zeroed memory. The two exceptions are slab caches with
+> > constructors and SLAB_TYPESAFE_BY_RCU flag. Those are never
+> > zero-initialized to preserve their semantics.
+> >
+> > Both init_on_alloc and init_on_free default to zero, but those defaults
+> > can be overridden with CONFIG_INIT_ON_ALLOC_DEFAULT_ON and
+> > CONFIG_INIT_ON_FREE_DEFAULT_ON.
+> >
+> > If either SLUB poisoning or page poisoning is enabled, those options
+> > take precedence over init_on_alloc and init_on_free: initialization is
+> > only applied to unpoisoned allocations.
+> >
+> > Slowdown for the new features compared to init_on_free=3D0,
+> > init_on_alloc=3D0:
+> >
+> > hackbench, init_on_free=3D1:  +7.62% sys time (st.err 0.74%)
+> > hackbench, init_on_alloc=3D1: +7.75% sys time (st.err 2.14%)
+> >
+> > Linux build with -j12, init_on_free=3D1:  +8.38% wall time (st.err 0.39=
+%)
+> > Linux build with -j12, init_on_free=3D1:  +24.42% sys time (st.err 0.52=
+%)
+> > Linux build with -j12, init_on_alloc=3D1: -0.13% wall time (st.err 0.42=
+%)
+> > Linux build with -j12, init_on_alloc=3D1: +0.57% sys time (st.err 0.40%=
+)
+> >
+> > The slowdown for init_on_free=3D0, init_on_alloc=3D0 compared to the
+> > baseline is within the standard error.
+> >
+> > The new features are also going to pave the way for hardware memory
+> > tagging (e.g. arm64's MTE), which will require both on_alloc and on_fre=
+e
+> > hooks to set the tags for heap objects. With MTE, tagging will have the
+> > same cost as memory initialization.
+> >
+> > Although init_on_free is rather costly, there are paranoid use-cases wh=
+ere
+> > in-memory data lifetime is desired to be minimized. There are various
+> > arguments for/against the realism of the associated threat models, but
+> > given that we'll need the infrastructure for MTE anyway, and there are
+> > people who want wipe-on-free behavior no matter what the performance co=
+st,
+> > it seems reasonable to include it in this series.
+> >
+> > ...
+> >
+> >  v10:
+> >   - added Acked-by: tags
+> >   - converted pr_warn() to pr_info()
+>
+> There are unchangelogged alterations between v9 and v10.  The
+> replacement of IS_ENABLED(CONFIG_PAGE_POISONING)) with
+> page_poisoning_enabled().
+In the case I send another version of the patch, do I need to
+retroactively add them to the changelog?
+>
+> --- a/mm/page_alloc.c~mm-security-introduce-init_on_alloc=3D1-and-init_on=
+_free=3D1-boot-options-v10
+> +++ a/mm/page_alloc.c
+> @@ -157,8 +157,8 @@ static int __init early_init_on_alloc(ch
+>         if (!buf)
+>                 return -EINVAL;
+>         ret =3D kstrtobool(buf, &bool_result);
+> -       if (bool_result && IS_ENABLED(CONFIG_PAGE_POISONING))
+> -               pr_warn("mem auto-init: CONFIG_PAGE_POISONING is on, will=
+ take precedence over init_on_alloc\n");
+> +       if (bool_result && page_poisoning_enabled())
+> +               pr_info("mem auto-init: CONFIG_PAGE_POISONING is on, will=
+ take precedence over init_on_alloc\n");
+>         if (bool_result)
+>                 static_branch_enable(&init_on_alloc);
+>         else
+> @@ -175,8 +175,8 @@ static int __init early_init_on_free(cha
+>         if (!buf)
+>                 return -EINVAL;
+>         ret =3D kstrtobool(buf, &bool_result);
+> -       if (bool_result && IS_ENABLED(CONFIG_PAGE_POISONING))
+> -               pr_warn("mem auto-init: CONFIG_PAGE_POISONING is on, will=
+ take precedence over init_on_free\n");
+> +       if (bool_result && page_poisoning_enabled())
+> +               pr_info("mem auto-init: CONFIG_PAGE_POISONING is on, will=
+ take precedence over init_on_free\n");
+>         if (bool_result)
+>                 static_branch_enable(&init_on_free);
+>         else
+> --- a/mm/slub.c~mm-security-introduce-init_on_alloc=3D1-and-init_on_free=
+=3D1-boot-options-v10
+> +++ a/mm/slub.c
+> @@ -1281,9 +1281,8 @@ check_slabs:
+>  out:
+>         if ((static_branch_unlikely(&init_on_alloc) ||
+>              static_branch_unlikely(&init_on_free)) &&
+> -           (slub_debug & SLAB_POISON)) {
+> -               pr_warn("mem auto-init: SLAB_POISON will take precedence =
+over init_on_alloc/init_on_free\n");
+> -       }
+> +           (slub_debug & SLAB_POISON))
+> +               pr_info("mem auto-init: SLAB_POISON will take precedence =
+over init_on_alloc/init_on_free\n");
+>         return 1;
+>  }
+>
+> _
+>
 
-Indeed. I'm getting knocked offline shortly so I didn't give this the
-time it deserves but it appears that part of this problem is
-hugetlb-specific when one node is full and can enter into this continual
-loop due to __GFP_RETRY_MAYFAIL requiring both nr_reclaimed and
-nr_scanned to be zero.
 
-Have you considered one of the following as an option?
+--=20
+Alexander Potapenko
+Software Engineer
 
-1. Always use the on-stack nodes_allowed in __nr_hugepages_store_common
-   and copy nodes_states if necessary. Add a bool parameter to
-   alloc_pool_huge_page that is true when called from set_max_huge_pages.
-   If an allocation from alloc_fresh_huge_page, clear the failing node
-   from the mask so it's not retried, bail if the mask is empty. The
-   consequences are that round-robin allocation of huge pages will be
-   different if a node failed to allocate for transient reasons.
+Google Germany GmbH
+Erika-Mann-Stra=C3=9Fe, 33
+80636 M=C3=BCnchen
 
-2. Alter the condition in should_continue_reclaim for
-   __GFP_RETRY_MAYFAIL to consider if nr_scanned < SWAP_CLUSTER_MAX.
-   Either raise priority (will interfere with kswapd though) or
-   bail entirely.  Consequences may be that other __GFP_RETRY_MAYFAIL
-   allocations do not want this behaviour. There are a lot of users.
-
-3. Move where __GFP_RETRY_MAYFAIL is set in a gfp_mask in mm/hugetlb.c.
-   Strip the flag if an allocation fails on a node. Consequences are
-   that setting the required number of huge pages is more likely to
-   return without all the huge pages set.
-
--- 
-Mel Gorman
-SUSE Labs
+Gesch=C3=A4ftsf=C3=BChrer: Paul Manicle, Halimah DeLaine Prado
+Registergericht und -nummer: Hamburg, HRB 86891
+Sitz der Gesellschaft: Hamburg
 
