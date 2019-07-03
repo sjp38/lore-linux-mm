@@ -2,125 +2,170 @@ Return-Path: <SRS0=iaDK=VA=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+X-Spam-Status: No, score=-8.5 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8E7A4C5B57D
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Jul 2019 00:03:37 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 485F8C06510
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Jul 2019 00:42:47 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5565821E6A
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Jul 2019 00:03:37 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5565821E6A
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
+	by mail.kernel.org (Postfix) with ESMTP id D23D3218EA
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Jul 2019 00:42:46 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="dzT2FZTy"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D23D3218EA
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C89606B0003; Tue,  2 Jul 2019 20:03:36 -0400 (EDT)
+	id 11E856B0003; Tue,  2 Jul 2019 20:42:46 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C36718E0003; Tue,  2 Jul 2019 20:03:36 -0400 (EDT)
+	id 0CED18E0003; Tue,  2 Jul 2019 20:42:46 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B4CB08E0001; Tue,  2 Jul 2019 20:03:36 -0400 (EDT)
+	id EFF648E0001; Tue,  2 Jul 2019 20:42:45 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 7EF096B0003
-	for <linux-mm@kvack.org>; Tue,  2 Jul 2019 20:03:36 -0400 (EDT)
-Received: by mail-wr1-f71.google.com with SMTP id g8so247393wrw.2
-        for <linux-mm@kvack.org>; Tue, 02 Jul 2019 17:03:36 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B94556B0003
+	for <linux-mm@kvack.org>; Tue,  2 Jul 2019 20:42:45 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id a20so336570pfn.19
+        for <linux-mm@kvack.org>; Tue, 02 Jul 2019 17:42:45 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=Ipa9lxzq0WQWKa7Ttaj521IqBqfFrEN1GLxckouUYjU=;
-        b=ivMoXkNKBCs5UDy8LsLKL5mU8+GXWhNtXs5E3jJiEiNbPCYT5DefZltr0s6BzK0yjw
-         LG1O/eMIjFzYsW6xlJnHKbRYChvcF5R5Y7MwbeFuVAT61Qg34/nhbkPVfCcVh2miUylr
-         TbTi9w3wit2g7RGCdPhoV9rQqILTuzrhNq/oLc3Bf26UI0DIYK5Hf1Kb12untj1KJh9h
-         Oo1fPsQAyyG/bSlLG8tXILtNtPbCiDSXJ6yil7Q5y6OKTAKfNFdodcjdpAi+8zVbJ93Z
-         4mtAKlowifIKWav+zkJ6LTYurkKQ1NxSe2Vk13u3ouZR9ENE9d1u6FsJpV3KkfaE/w7/
-         Cbqw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
-X-Gm-Message-State: APjAAAW9q2O6R9i4KDIt6aD0DXZ97EoIl4UvFTjuLIARMdiEBDGPaBHd
-	1vcoGqdGNMl3YrzhutJgLmxMOKkJc4CvPsoAr1IL97Ts75bAQmyvQ4nHiZB5WRysZHsxI5v5VDe
-	YXB4zmL2xQoRsGZTprv4to/TrGjWMuzT3KrFE4rxPtyB3hYFqB+e9kE4hilVlR1aw0A==
-X-Received: by 2002:adf:f30c:: with SMTP id i12mr3233991wro.17.1562112216086;
-        Tue, 02 Jul 2019 17:03:36 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzOGCeq8eBb10vnsHd+VFmUdUq7cfBU46PORWLdQLNhS9C+OKBTBfeub0Nh4PQgov/U4Wph
-X-Received: by 2002:adf:f30c:: with SMTP id i12mr3233953wro.17.1562112215042;
-        Tue, 02 Jul 2019 17:03:35 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562112215; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=3+88rqRK28VKisC+37wlmaYyoSMpDKjaXlPRwLTc81A=;
+        b=NmwPdHddHzl+Cn/OzmZtuE0ixa7Wi6WGI2/5AxJc+6yXIhtuL7GMzeTZeokvH137YG
+         qfaFmgvky0sjkZVL2xSuyVG9UxTzodK22F/38h6vpWrrenJ+khkGqztCbFfT2mTxFzh1
+         VteSRE49/6wx4OUmbYn8Qt2KXKQRGeUptdh+CjvoBv35EPJ+bhZwP2+E413iWNAuU+6A
+         bVRwK9Ni5pfSrDSWHMSGLfJnABuLTCaEn9SMbWKDOAqCZc44s+rDrVnGtKPjsvLSRUYM
+         ZdEM0y5nhfk7oo31N6vQNyHwv3nNe/EOAPlaxuiCILQORDErr/rcjVk7ra8Quh3OACDx
+         +Tyw==
+X-Gm-Message-State: APjAAAWA8efi6Or50oL9R+4WnhJOa7CjEl9upBXw4y1YV6FfUlDxIuaG
+	LUmuH8dKhsUyf3n6NxLZqwX+AfrRfgJrza29nZEzO0oWXkauTGnE2T3nQagVL0AEPLYdSmRYZFL
+	lCEX9qfjFR4W65cWXs9hJzkTj6vPNEpxjSXCE7U5tFF+Q7fsnnQJmIrE3HDenZZbrgg==
+X-Received: by 2002:a17:90a:ba94:: with SMTP id t20mr9149059pjr.116.1562114565142;
+        Tue, 02 Jul 2019 17:42:45 -0700 (PDT)
+X-Received: by 2002:a17:90a:ba94:: with SMTP id t20mr9148999pjr.116.1562114564283;
+        Tue, 02 Jul 2019 17:42:44 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562114564; cv=none;
         d=google.com; s=arc-20160816;
-        b=cYqvbpJ3xhnI5qvX6LOFp4wXM919qSlSPYDA2Ohj6fHukrcs8z/v0l07mcW+Ha6wSV
-         C8e68jhHGtIxShKr1IBQ8K1nJv4eE/rCjqLGqkGnmtoRCjvRjiU5T5eDo4Tlsz0ehwTx
-         NZ5FdpNWk6aveC1c85egjxlu0aofJId6nQSyXb6PsCaG5J7VUtXZ1XDn8fwdYYAU2nXn
-         cJ6wMulkuDN+M2bbcksWs1W5f00wvRiWzxLO6cAI9m2t5C6tbp8T3rNNkZQ3vVK7vQFy
-         rBnnGM51riqZnUU040F+0KrH+UZoxfLcz4/GgHcb1jQN2OPjwdSmH+enZmGfSNcGKe+M
-         ciqQ==
+        b=bxjYBz3uB+qI1jibL49hOiqAaicWJDE9AeqCAnoA5asEEL2JdP/eeuV+YDnttoToH2
+         8KuaiXeWz8El7SH6qConKTuLZb9rwq8Gehvr8HZm/Si/UjlkO63AR4FWUwjhu6k2ku1f
+         ifgiDUt0EkStQMEfmW79Qobg1Bdw7DycsBqmQpheLoglQG/hdCzM9ur4V5Y5r3DrLNl7
+         +dAdbohxPSV29MPEUCrN0NFc6L0gQrIdcDrO0uxTexC92WVZuKnfndr4wZaw8EmSoLcV
+         /RzY0NACFvM/Xmdv7wecjfc1C2NKo4YW/VN74NG2F046ScTX1OkUy1X7IcOSdHX3Io5Z
+         /ghg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=Ipa9lxzq0WQWKa7Ttaj521IqBqfFrEN1GLxckouUYjU=;
-        b=zD+s3JZc5+ViQeJMyu53S4G6yFjbeC23Rqy3mPgCx9yuk+TzWj/idYM1tLzJzJPvIN
-         Wj3gWTKniIzf2lMmdffuL+irZ66MJi3WdehW27iMGap8TOs5urh7gf6nRsGGGYv7sZCC
-         PggT+FxYDCqK1jRRWs5FKWI5aPlHxJK1Ah9fD168n6KFvtIdHBakef4L242uNQHHlXyp
-         IjGKX+dglbiZP9mT3PycGi7KoJinY+RrxtSlioorZrZueitzSDAeRNPMDbqaGi54jfHr
-         Nr+SBu+nRUNY9ocJ/F7L11iaE4yYb0V3jYB+hAFj8zeTN0cpdobJWk1lPBXoRYduRyw5
-         3gQQ==
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=3+88rqRK28VKisC+37wlmaYyoSMpDKjaXlPRwLTc81A=;
+        b=J/SrS7eBg8v+/CE/4B3TqMDKDiA24XhERC5bSkkGONxnTF5JfPaoXj3VtyMRBRjqsE
+         M0t+QroARLyylbHtZ+Hh/l5sv/bXlbgBi8IwbHdQT7xYmsdjDD50mQ4/PbLpTjnXYrrL
+         bvLsxTJzu28fd0Lmv/V3bhfnBug4GEvV8/xcJpd2nU+3njqU75skmeGbCg9lSmZHc67z
+         AyMyZxGfrPIJ3e9IBbmkuLfbMR8kUjnaPfwh2JTAVrHBfplVYHBQBDP+PUjrG+OceFrq
+         vWq646iLiDSmn9AFOI8RP4BMSKJDgQEXxc5K+fjlPrkg0ooaYOGN4EaaKgOK/E2eYmtN
+         6tAg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
-Received: from verein.lst.de (verein.lst.de. [213.95.11.211])
-        by mx.google.com with ESMTPS id x8si295282wmk.26.2019.07.02.17.03.34
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=dzT2FZTy;
+       spf=pass (google.com: domain of minwoo.im.dev@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minwoo.im.dev@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id a21sor165097pgh.0.2019.07.02.17.42.44
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 02 Jul 2019 17:03:35 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) client-ip=213.95.11.211;
+        (Google Transport Security);
+        Tue, 02 Jul 2019 17:42:44 -0700 (PDT)
+Received-SPF: pass (google.com: domain of minwoo.im.dev@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
-Received: by verein.lst.de (Postfix, from userid 2407)
-	id 1A7B468CEC; Wed,  3 Jul 2019 02:03:34 +0200 (CEST)
-Date: Wed, 3 Jul 2019 02:03:33 +0200
-From: Christoph Hellwig <hch@lst.de>
-To: Jason Gunthorpe <jgg@mellanox.com>
-Cc: Christoph Hellwig <hch@lst.de>, Ralph Campbell <rcampbell@nvidia.com>,
-	Jerome Glisse <jglisse@redhat.com>,
-	John Hubbard <jhubbard@nvidia.com>,
-	"Felix.Kuehling@amd.com" <Felix.Kuehling@amd.com>,
-	"linux-rdma@vger.kernel.org" <linux-rdma@vger.kernel.org>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>,
-	Andrea Arcangeli <aarcange@redhat.com>,
-	"dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>,
-	"amd-gfx@lists.freedesktop.org" <amd-gfx@lists.freedesktop.org>
-Subject: Re: [RFC] mm/hmm: pass mmu_notifier_range to
- sync_cpu_device_pagetables
-Message-ID: <20190703000333.GA29316@lst.de>
-References: <20190608001452.7922-1-rcampbell@nvidia.com> <20190702195317.GT31718@mellanox.com> <20190702224912.GA24043@lst.de> <20190702225911.GA11833@mellanox.com>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=dzT2FZTy;
+       spf=pass (google.com: domain of minwoo.im.dev@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minwoo.im.dev@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=3+88rqRK28VKisC+37wlmaYyoSMpDKjaXlPRwLTc81A=;
+        b=dzT2FZTy6mtiH9VhpzQzcGg9srgeIi7ULRstbUxhYdbumgVyC/BccJNUTeeqM1JxeU
+         /aJ5Yh18Qhitb2uNCOgrqAJCQJCooh5kppJeFISYa3vTW8w8SZxXSzU3q+z+Y8nFvLFm
+         7UmoIeMOk9x4NdUuGct6yT4j/uqa59drJqUwOsnG7+WOlDf9pYrCXpOMAb1Ug0jw04yr
+         SAPFSsgeuDtEdJsxFXFieMadb9VHG15xWRp9t7JYXycs9+fXJ9FIhQsAwh+12iAX31ay
+         fdkmhF4pBle4Q3xXpB/fyTvqk4KZ8o4Aea0TaSNKPkeiHJQDb+qfydVF0WnF17USk+zV
+         1U4A==
+X-Google-Smtp-Source: APXvYqy4XjIjmrg7EOdGeLB40liOwbHKiGqRa8PnbMoJxGCcXUMnLbqCHk5S0oYvRWhq9TvOZCkYow==
+X-Received: by 2002:a63:6883:: with SMTP id d125mr34024381pgc.281.1562114563831;
+        Tue, 02 Jul 2019 17:42:43 -0700 (PDT)
+Received: from localhost ([123.213.206.190])
+        by smtp.gmail.com with ESMTPSA id p1sm250858pff.74.2019.07.02.17.42.42
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 02 Jul 2019 17:42:43 -0700 (PDT)
+Date: Wed, 3 Jul 2019 09:42:40 +0900
+From: Minwoo Im <minwoo.im.dev@gmail.com>
+To: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
+Cc: linux-mm@kvack.org, linux-block@vger.kernel.org, bvanassche@acm.org,
+	axboe@kernel.dk, Minwoo Im <minwoo.im.dev@gmail.com>
+Subject: Re: [PATCH 1/5] block: update error message for bio_check_ro()
+Message-ID: <20190703004240.GA19081@minwoo-desktop>
+References: <20190701215726.27601-1-chaitanya.kulkarni@wdc.com>
+ <20190701215726.27601-2-chaitanya.kulkarni@wdc.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20190702225911.GA11833@mellanox.com>
-User-Agent: Mutt/1.5.17 (2007-11-01)
+In-Reply-To: <20190701215726.27601-2-chaitanya.kulkarni@wdc.com>
+User-Agent: Mutt/1.11.4 (2019-03-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jul 02, 2019 at 10:59:16PM +0000, Jason Gunthorpe wrote:
-> > As this creates a somewhat hairy conflict for amdgpu, wouldn't it be
-> > a better idea to wait a bit and apply it first thing for next merge
-> > window?
+On 19-07-01 14:57:22, Chaitanya Kulkarni wrote:
+> The existing code in the bio_check_ro() relies on the op_is_write().
+> op_is_write() checks for the last bit in the bio_op(). Now that we have
+> multiple REQ_OP_XXX with last bit set to 1 such as, (from blk_types.h):
 > 
-> My thinking is that AMD GPU already has a monster conflict from this:
+> 	/* write sectors to the device */
+> 	REQ_OP_WRITE		= 1,
+> 	/* flush the volatile write cache */
+> 	REQ_OP_DISCARD		= 3,
+> 	/* securely erase sectors */
+> 	REQ_OP_SECURE_ERASE	= 5,
+> 	/* write the same sector many times */
+> 	REQ_OP_WRITE_SAME	= 7,
+> 	/* write the zero filled sector many times */
+> 	REQ_OP_WRITE_ZEROES	= 9,
 > 
->  int hmm_range_register(struct hmm_range *range,
-> -                      struct mm_struct *mm,
-> +                      struct hmm_mirror *mirror,
->                        unsigned long start,
->                        unsigned long end,
->                        unsigned page_shift);
+> it is hard to understand which bio op failed in the bio_check_ro().
+> 
+> Modify the error message in bio_check_ro() to print correct REQ_OP_XXX
+> with the help of blk_op_str().
+> 
+> Signed-off-by: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
+> ---
+>  block/blk-core.c | 6 +++---
+>  1 file changed, 3 insertions(+), 3 deletions(-)
+> 
+> diff --git a/block/blk-core.c b/block/blk-core.c
+> index 5d1fc8e17dd1..47c8b9c48a57 100644
+> --- a/block/blk-core.c
+> +++ b/block/blk-core.c
+> @@ -786,9 +786,9 @@ static inline bool bio_check_ro(struct bio *bio, struct hd_struct *part)
+>  			return false;
+>  
+>  		WARN_ONCE(1,
+> -		       "generic_make_request: Trying to write "
+> -			"to read-only block-device %s (partno %d)\n",
+> -			bio_devname(bio, b), part->partno);
+> +			"generic_make_request: Trying op %s on the "
+> +			"read-only block-device %s (partno %d)\n",
+> +			blk_op_str(op), bio_devname(bio, b), part->partno);
 
-Well, that seems like a relatively easy to fix conflict, at least as
-long as you have the mirror easily available.  The notifier change
-on the other hand basically requires rewriting about two dozen lines
-of code entirely.
+Maybe "s/Trying op %s on/Tyring op %s to" just like the previous one?
+Not a native speaker, though ;)
+
+I think it would be better to see the log which holds the exact request
+operation type in a string.
+
+Reviewed-by: Minwoo Im <minwoo.im.dev@gmail.com>
 
