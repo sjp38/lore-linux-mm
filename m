@@ -2,165 +2,285 @@ Return-Path: <SRS0=iaDK=VA=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
+X-Spam-Status: No, score=-10.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 77418C0650E
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Jul 2019 15:53:25 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 39475C0650E
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Jul 2019 15:59:54 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 467732189E
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Jul 2019 15:53:25 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 467732189E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id E20222189E
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Jul 2019 15:59:53 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="qWymVMwW"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E20222189E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C76686B0003; Wed,  3 Jul 2019 11:53:24 -0400 (EDT)
+	id 8C6E38E0003; Wed,  3 Jul 2019 11:59:53 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C25C98E0003; Wed,  3 Jul 2019 11:53:24 -0400 (EDT)
+	id 878998E0001; Wed,  3 Jul 2019 11:59:53 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AEE7E8E0001; Wed,  3 Jul 2019 11:53:24 -0400 (EDT)
+	id 7672B8E0003; Wed,  3 Jul 2019 11:59:53 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 612AC6B0003
-	for <linux-mm@kvack.org>; Wed,  3 Jul 2019 11:53:24 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id n49so1990205edd.15
-        for <linux-mm@kvack.org>; Wed, 03 Jul 2019 08:53:24 -0700 (PDT)
+Received: from mail-lf1-f70.google.com (mail-lf1-f70.google.com [209.85.167.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 114D18E0001
+	for <linux-mm@kvack.org>; Wed,  3 Jul 2019 11:59:53 -0400 (EDT)
+Received: by mail-lf1-f70.google.com with SMTP id d18so219952lfn.11
+        for <linux-mm@kvack.org>; Wed, 03 Jul 2019 08:59:53 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=PbrprqKsjRm70x7B3lq2YoJmdw3Fwp/r60uQoFn3GQ4=;
-        b=ISgQGqBDO13jVODZ31fq6hUN70Pt54bMcjySg6SMDTuaK4BFjOOvsuXoWEYXx3l+cO
-         RbsTZncaOhFgmqS6TJFp1+XLDqkVe9sy2bfZ3/dhhTkcjSB8qRyGwNRW9A/Owyc5/h5/
-         9uxLVHB2mXoTa5bgK9uFgDf82mbN5qOftzqiNg32EStPaMAL3/OAZQby610pPciSsmL/
-         9af8WEBNM41nunLNSG+3ADc1J1Nc/0TymNMk5SRQqKe10kgwevllLeR0yNmKrkmDiZug
-         cT4BxNNxwPwRp0XAMwMpQjK7WcKDPcvInngnPiNsV7ENmnYyPSyOacCRAOwzC43EdmhE
-         Ql5w==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAVQfHrPl66k4gAfEz5Or7mtp3O+KDf+imACkTL2/snY2CsGsodQ
-	mV1+wmvGh4y6b88+iY4V+oRq4sQG762f574KWNvV8Bhmhhut4PWggsQa6+8vQyccqo2pG+6/zga
-	nv4UsVY4Z98SkEh/mY58Hd9RWpazIetryr3zEv45yU4zqCaFdfWe6tCMJ47FFll8=
-X-Received: by 2002:aa7:c554:: with SMTP id s20mr42311564edr.209.1562169203853;
-        Wed, 03 Jul 2019 08:53:23 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwqSVKsvfzm74kLitYWaIN2qSUp2kt1uqAtOHjZtqHFtoRPKeFGiCzFq7mpAuXcnZfSszbd
-X-Received: by 2002:aa7:c554:: with SMTP id s20mr42311504edr.209.1562169203098;
-        Wed, 03 Jul 2019 08:53:23 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562169203; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id;
+        bh=gFrhzCDbKN3dXJqOCjxaWjlxE64lMzIuw0MAKOdMJPo=;
+        b=ONsaIN4Rq+H2u181UehMbMz+GCB3NtzaWN5wNhRe7SgpgMw9mPgmxtLUbX6xioPxqd
+         csi91RixwInNvUygBRqVfYuQZrG5PquXv4axldwx1g6z2OeYoVXSJbmZ28TTf18jsiIC
+         zMxWJ+EmX2Z8GXu6Az9saMeYwG2limNfPmacLiED9jn3nsXZ5+fYE7Io7nVD9HnMiTbQ
+         L0wYlkv+dt2uKeExbe84yGrQcjSUP9VAVteHi/HNnVVc0LLuiXBQ7YOCwcxehIPndSSk
+         DagpdKs7N7Ac3Y1UgEsFMyzRCpeejxTPteACo08Th/k/yvsLKMjEpugiXg3WPVp6cbGp
+         rr4A==
+X-Gm-Message-State: APjAAAXIo5bFldkhOCR95jCrxfYhtfQ6TE4ygYfvlTKstlHyBekjXr+5
+	XwQgA1exkb68F6FjwYrn/RSx6v4RY4oqS1/ouMCkiTbp4OmmXTiXz+D7S0IXsoRsQC+zGinyipN
+	BhRshuQdmCKbS0NHDIX/3kCRXnvt4RkWEIrUncNspsej07S6nEG6j2uPRRXk07a+LPg==
+X-Received: by 2002:a2e:3a13:: with SMTP id h19mr21435796lja.220.1562169592159;
+        Wed, 03 Jul 2019 08:59:52 -0700 (PDT)
+X-Received: by 2002:a2e:3a13:: with SMTP id h19mr21435754lja.220.1562169591197;
+        Wed, 03 Jul 2019 08:59:51 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562169591; cv=none;
         d=google.com; s=arc-20160816;
-        b=vJqFqvAktAGNVxXCcV1JHogU3s74aQ9TuOF833N8db1L7IWIFZRDQ8zjoNufMfGykp
-         y5bU4s53GwtDC9omZ56fIcdV+tIzw8YubRPwYguHUcELSpt9G0G5v7pl19pqijOm5Zle
-         T6cIFQ0bU2p428fX+r0JmRXm1KzzbIBlpb0O8yTNyFZAAf8j82w7RFHS8g1QYiHgFN5S
-         tEP9TpKp19EBiVZlrI6FMt7008sj7wIn0tZKL5rI++Pos8ij4EKMhkeY25kMGRNrjdsd
-         K+7/SYSmIVR/CRcubBTD2FRr3B4J61zUX1tZ3nSDG6xGppuenEokyV8ZGSoUFJ2H7V14
-         LYyg==
+        b=shPl0w2Bz7VYhU2j88iIAIbAgHWOXF7XveJLwMm+eFUB4q0pg11me2u+BaGDznTD8h
+         YTq/XdvQu8VIQrjqv0oFyAelBmVBbrBwO5SIP27OzvTKy1dwaFpC74sxhcyHJJqQtjHH
+         WaoQf0ik1KAJv6ivagAkeTF5Fq3cDHR09H6Twpj4jUQCGRYwIkgq3cazYKfiVDKsqJNh
+         9zQ4rimf9tUkZ0CrnOqe0B88duhoVB8NDni6/HFPeWv7wbaUQH2U9WtuyloVcljPP4XD
+         hm2/SzRyYEb75o0y8DqYlWZpNcH76+TJdciJeu+wbEWjk67CLoH7vuoDFwuugthKc2SR
+         LCSw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date;
-        bh=PbrprqKsjRm70x7B3lq2YoJmdw3Fwp/r60uQoFn3GQ4=;
-        b=pkM7ccvmD/+VzHlnPI1Eqt5YqKZf1OHx24NZjwu2xI/6GKZYfBYA0uBWr+1AeU6CWD
-         YT+Zmvk0Lb/sOagoSlL/uYB4arOl6SQtdtC+wBvW1ln7uDnEHMyq2zKigG3+APwV7FvX
-         6+/3GR2X7B1CVuCCrFjj1FT+Reqch4N1SiWmTtjrUpp58gLSj4fbNuCW/XN9JoMUu+PH
-         nxBnBL+rXJ4lKdaz5RHYOfwPLljPyY2E7++HWO6Yfp6EKh5tQsVJY7VPIfKKLEsNdE3X
-         VwRAKH2Wf/lnJvaZ2KFQ8mcnZ0TCS0qwpRsoGHppBPDcF46qrjNvg/hP5LCeHzGIQzSv
-         ZMQA==
+        h=message-id:date:subject:cc:to:from:dkim-signature;
+        bh=gFrhzCDbKN3dXJqOCjxaWjlxE64lMzIuw0MAKOdMJPo=;
+        b=LINIsC3iHMcwH8dFR6Pc1ovH4fMQwghCcXzWdyCqd1szSl/Fyef8QmpvUgbIL8N7bP
+         zqiJYmHDyjC1dJLyLHQOc36qkCJG5Dvwtx0xEEGt/ikfIXz3dTkSg19SayQkCr/c+6u7
+         jeO2NogoLMSl5B42VqqfOQdVPUZdcgi3O3tmpBi9F8mZSeke/gGvLQqb+5t0kITStYvo
+         OgWCw61GnS6cw9dmG2dMp6HezAk7UfI854XG/9SZ2FGwz/6iO8xA6zOtaHJLAPBE/5AE
+         w8UAFa/XjQli+gQBR0vUJ/9xLr9liE/QyMM94/PmBAOFco5HjkXf5069TvSjk362azg+
+         Sg+A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l8si2415789eda.181.2019.07.03.08.53.22
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=qWymVMwW;
+       spf=pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=urezki@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id s12sor1639096lje.40.2019.07.03.08.59.51
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Jul 2019 08:53:23 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (Google Transport Security);
+        Wed, 03 Jul 2019 08:59:51 -0700 (PDT)
+Received-SPF: pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 18B12AD17;
-	Wed,  3 Jul 2019 15:53:22 +0000 (UTC)
-Date: Wed, 3 Jul 2019 17:53:14 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Waiman Long <longman@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-	Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>,
-	David Rientjes <rientjes@google.com>,
-	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
-	Alexander Viro <viro@zeniv.linux.org.uk>,
-	Jonathan Corbet <corbet@lwn.net>,
-	Luis Chamberlain <mcgrof@kernel.org>,
-	Kees Cook <keescook@chromium.org>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	Vladimir Davydov <vdavydov.dev@gmail.com>, linux-mm@kvack.org,
-	linux-doc@vger.kernel.org, linux-fsdevel@vger.kernel.org,
-	cgroups@vger.kernel.org, linux-kernel@vger.kernel.org,
-	Roman Gushchin <guro@fb.com>, Shakeel Butt <shakeelb@google.com>,
-	Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH] mm, slab: Extend slab/shrink to shrink all the memcg
- caches
-Message-ID: <20190703155314.GT978@dhcp22.suse.cz>
-References: <20190702183730.14461-1-longman@redhat.com>
- <20190702130318.39d187dc27dbdd9267788165@linux-foundation.org>
- <78879b79-1b8f-cdfd-d4fa-610afe5e5d48@redhat.com>
- <20190702143340.715f771192721f60de1699d7@linux-foundation.org>
- <c29ff725-95ba-db4d-944f-d33f5f766cd3@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <c29ff725-95ba-db4d-944f-d33f5f766cd3@redhat.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=qWymVMwW;
+       spf=pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=urezki@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=from:to:cc:subject:date:message-id;
+        bh=gFrhzCDbKN3dXJqOCjxaWjlxE64lMzIuw0MAKOdMJPo=;
+        b=qWymVMwWBiebY3jqm1IZFIvKbFwtFLiQBcstlPbjsEjP1XWeeND9r9xO1Gv+nq8hMl
+         KMjBNXPgyz9R2PCG624S838/3s2HNifSySYIKpD85drn4YzChNIDbXnNFqcb/+Yr9dxU
+         w+qz2mE3begIDz0gBU9B+lSKVeoz3DPpfkts4wBr7zcVU3NSEeEwE2Igkn++2ZOww0dt
+         VW9zD5ez59Nzn3H2cAlqNWYEHi9c7yeTv5q8tfkcVNqas3NCu5le3eEb/p1zEpN6x0J5
+         MWuKxAyKJGUwJLYqYeaT0ronfXLCgUI/sZj3wH9ateZX1SVSOVFpQgea8ix3pvwAle5H
+         CtUA==
+X-Google-Smtp-Source: APXvYqxQN0IjsHvsXPGL1/dmxNkT7MMV5tTjkmdNONnvAy7DjCdslgHJ1eS+uFVKcySrprZrSgDZXA==
+X-Received: by 2002:a2e:9ad1:: with SMTP id p17mr22136975ljj.34.1562169590522;
+        Wed, 03 Jul 2019 08:59:50 -0700 (PDT)
+Received: from pc636.semobile.internal ([37.139.158.167])
+        by smtp.gmail.com with ESMTPSA id t21sm441121lfd.85.2019.07.03.08.59.49
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 03 Jul 2019 08:59:49 -0700 (PDT)
+From: "Uladzislau Rezki (Sony)" <urezki@gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org,
+	LKML <linux-kernel@vger.kernel.org>,
+	Roman Gushchin <guro@fb.com>,
+	Uladzislau Rezki <urezki@gmail.com>,
+	Hillf Danton <hdanton@sina.com>,
+	Michal Hocko <mhocko@suse.com>,
+	Matthew Wilcox <willy@infradead.org>,
+	Oleksiy Avramchenko <oleksiy.avramchenko@sonymobile.com>,
+	Steven Rostedt <rostedt@goodmis.org>
+Subject: [PATCH 1/1] mm/vmalloc: do not keep unpurged areas in the busy tree
+Date: Wed,  3 Jul 2019 17:59:42 +0200
+Message-Id: <20190703155942.13571-1-urezki@gmail.com>
+X-Mailer: git-send-email 2.11.0
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed 03-07-19 11:21:16, Waiman Long wrote:
-> On 7/2/19 5:33 PM, Andrew Morton wrote:
-> > On Tue, 2 Jul 2019 16:44:24 -0400 Waiman Long <longman@redhat.com> wrote:
-> >
-> >> On 7/2/19 4:03 PM, Andrew Morton wrote:
-> >>> On Tue,  2 Jul 2019 14:37:30 -0400 Waiman Long <longman@redhat.com> wrote:
-> >>>
-> >>>> Currently, a value of '1" is written to /sys/kernel/slab/<slab>/shrink
-> >>>> file to shrink the slab by flushing all the per-cpu slabs and free
-> >>>> slabs in partial lists. This applies only to the root caches, though.
-> >>>>
-> >>>> Extends this capability by shrinking all the child memcg caches and
-> >>>> the root cache when a value of '2' is written to the shrink sysfs file.
-> >>> Why?
-> >>>
-> >>> Please fully describe the value of the proposed feature to or users. 
-> >>> Always.
-> >> Sure. Essentially, the sysfs shrink interface is not complete. It allows
-> >> the root cache to be shrunk, but not any of the memcg caches. 
-> > But that doesn't describe anything of value.  Who wants to use this,
-> > and why?  How will it be used?  What are the use-cases?
-> >
-> For me, the primary motivation of posting this patch is to have a way to
-> make the number of active objects reported in /proc/slabinfo more
-> accurately reflect the number of objects that are actually being used by
-> the kernel.
+The busy tree can be quite big, even though the area is freed
+or unmapped it still stays there until "purge" logic removes
+it.
 
-I believe we have been through that. If the number is inexact due to
-caching then lets fix slabinfo rather than trick around it and teach
-people to do a magic write to some file that will "solve" a problem.
-This is exactly what drop_caches turned out to be in fact. People just
-got used to drop caches because they were told so by $random web page.
-So really, think about the underlying problem and try to fix it.
+1) Optimize and reduce the size of "busy" tree by removing a
+node from it right away as soon as user triggers free paths.
+It is possible to do so, because the allocation is done using
+another augmented tree.
 
-It is true that you could argue that this patch is actually fixing the
-existing interface because it doesn't really do what it is documented to
-do and on those grounds I would agree with the change. But do not teach
-people that they have to write to some file to get proper numbers.
-Because that is just a bad idea and it will kick back the same way
-drop_caches.
+The vmalloc test driver shows the difference, for example the
+"fix_size_alloc_test" is ~11% better comparing with default
+configuration:
+
+sudo ./test_vmalloc.sh performance
+
+<default>
+Summary: fix_size_alloc_test loops: 1000000 avg: 993985 usec
+Summary: full_fit_alloc_test loops: 1000000 avg: 973554 usec
+Summary: long_busy_list_alloc_test loops: 1000000 avg: 12617652 usec
+<default>
+
+<this patch>
+Summary: fix_size_alloc_test loops: 1000000 avg: 882263 usec
+Summary: full_fit_alloc_test loops: 1000000 avg: 973407 usec
+Summary: long_busy_list_alloc_test loops: 1000000 avg: 12593929 usec
+<this patch>
+
+2) Since the busy tree now contains allocated areas only and does
+not interfere with lazily free nodes, introduce the new function
+show_purge_info() that dumps "unpurged" areas that is propagated
+through "/proc/vmallocinfo".
+
+3) Eliminate VM_LAZY_FREE flag.
+
+Signed-off-by: Uladzislau Rezki (Sony) <urezki@gmail.com>
+---
+ mm/vmalloc.c | 51 ++++++++++++++++++++++++++++++++++++++++++---------
+ 1 file changed, 42 insertions(+), 9 deletions(-)
+
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index edb212298c8a..1219152e60b1 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -329,7 +329,6 @@ EXPORT_SYMBOL(vmalloc_to_pfn);
+ #define DEBUG_AUGMENT_PROPAGATE_CHECK 0
+ #define DEBUG_AUGMENT_LOWEST_MATCH_CHECK 0
+ 
+-#define VM_LAZY_FREE	0x02
+ #define VM_VM_AREA	0x04
+ 
+ static DEFINE_SPINLOCK(vmap_area_lock);
+@@ -534,7 +533,7 @@ link_va(struct vmap_area *va, struct rb_root *root,
+ static __always_inline void
+ unlink_va(struct vmap_area *va, struct rb_root *root)
+ {
+-	if (WARN_ON(RB_EMPTY_NODE(&va->rb_node)))
++	if (RB_EMPTY_NODE(&va->rb_node))
+ 		return;
+ 
+ 	if (root == &free_vmap_area_root)
+@@ -1160,7 +1159,11 @@ EXPORT_SYMBOL_GPL(unregister_vmap_purge_notifier);
+ static void __free_vmap_area(struct vmap_area *va)
+ {
+ 	/*
+-	 * Remove from the busy tree/list.
++	 * In most cases VA is not attached to the tree, but there
++	 * are a few exceptions:
++	 *
++	 * - is linked only in case of pcpu, recovery part;
++	 * - if radix_tree_preload gets failed, see new_vmap_block().
+ 	 */
+ 	unlink_va(va, &vmap_area_root);
+ 
+@@ -1311,6 +1314,10 @@ static void free_vmap_area_noflush(struct vmap_area *va)
+ {
+ 	unsigned long nr_lazy;
+ 
++	spin_lock(&vmap_area_lock);
++	unlink_va(va, &vmap_area_root);
++	spin_unlock(&vmap_area_lock);
++
+ 	nr_lazy = atomic_long_add_return((va->va_end - va->va_start) >>
+ 				PAGE_SHIFT, &vmap_lazy_nr);
+ 
+@@ -2130,14 +2137,13 @@ struct vm_struct *remove_vm_area(const void *addr)
+ 
+ 	might_sleep();
+ 
+-	va = find_vmap_area((unsigned long)addr);
++	spin_lock(&vmap_area_lock);
++	va = __find_vmap_area((unsigned long)addr);
+ 	if (va && va->flags & VM_VM_AREA) {
+ 		struct vm_struct *vm = va->vm;
+ 
+-		spin_lock(&vmap_area_lock);
+ 		va->vm = NULL;
+ 		va->flags &= ~VM_VM_AREA;
+-		va->flags |= VM_LAZY_FREE;
+ 		spin_unlock(&vmap_area_lock);
+ 
+ 		kasan_free_shadow(vm);
+@@ -2145,6 +2151,8 @@ struct vm_struct *remove_vm_area(const void *addr)
+ 
+ 		return vm;
+ 	}
++
++	spin_unlock(&vmap_area_lock);
+ 	return NULL;
+ }
+ 
+@@ -3421,6 +3429,22 @@ static void show_numa_info(struct seq_file *m, struct vm_struct *v)
+ 	}
+ }
+ 
++static void show_purge_info(struct seq_file *m)
++{
++	struct llist_node *head;
++	struct vmap_area *va;
++
++	head = READ_ONCE(vmap_purge_list.first);
++	if (head == NULL)
++		return;
++
++	llist_for_each_entry(va, head, purge_list) {
++		seq_printf(m, "0x%pK-0x%pK %7ld unpurged vm_area\n",
++			(void *)va->va_start, (void *)va->va_end,
++			va->va_end - va->va_start);
++	}
++}
++
+ static int s_show(struct seq_file *m, void *p)
+ {
+ 	struct vmap_area *va;
+@@ -3433,10 +3457,9 @@ static int s_show(struct seq_file *m, void *p)
+ 	 * behalf of vmap area is being tear down or vm_map_ram allocation.
+ 	 */
+ 	if (!(va->flags & VM_VM_AREA)) {
+-		seq_printf(m, "0x%pK-0x%pK %7ld %s\n",
++		seq_printf(m, "0x%pK-0x%pK %7ld vm_map_ram\n",
+ 			(void *)va->va_start, (void *)va->va_end,
+-			va->va_end - va->va_start,
+-			va->flags & VM_LAZY_FREE ? "unpurged vm_area" : "vm_map_ram");
++			va->va_end - va->va_start);
+ 
+ 		return 0;
+ 	}
+@@ -3472,6 +3495,16 @@ static int s_show(struct seq_file *m, void *p)
+ 
+ 	show_numa_info(m, v);
+ 	seq_putc(m, '\n');
++
++	/*
++	 * As a final step, dump "unpurged" areas. Note,
++	 * that entire "/proc/vmallocinfo" output will not
++	 * be address sorted, because the purge list is not
++	 * sorted.
++	 */
++	if (list_is_last(&va->list, &vmap_area_list))
++		show_purge_info(m);
++
+ 	return 0;
+ }
+ 
 -- 
-Michal Hocko
-SUSE Labs
+2.11.0
 
