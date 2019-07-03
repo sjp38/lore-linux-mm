@@ -2,158 +2,240 @@ Return-Path: <SRS0=iaDK=VA=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7A1AFC0650E
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Jul 2019 14:37:06 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 25F01C0650E
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Jul 2019 15:08:46 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3C334218A3
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Jul 2019 14:37:06 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3C334218A3
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id B38DD2189E
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Jul 2019 15:08:45 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=Mellanox.com header.i=@Mellanox.com header.b="kY+5iWQb"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B38DD2189E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mellanox.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D010B8E0001; Wed,  3 Jul 2019 10:37:05 -0400 (EDT)
+	id 4355B6B0003; Wed,  3 Jul 2019 11:08:45 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C8A4A6B0007; Wed,  3 Jul 2019 10:37:05 -0400 (EDT)
+	id 3E57A8E0003; Wed,  3 Jul 2019 11:08:45 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B79DA8E0001; Wed,  3 Jul 2019 10:37:05 -0400 (EDT)
+	id 2AE538E0001; Wed,  3 Jul 2019 11:08:45 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 693CD6B0005
-	for <linux-mm@kvack.org>; Wed,  3 Jul 2019 10:37:05 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id m23so1848731edr.7
-        for <linux-mm@kvack.org>; Wed, 03 Jul 2019 07:37:05 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id D09E46B0003
+	for <linux-mm@kvack.org>; Wed,  3 Jul 2019 11:08:44 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id b12so1886083ede.23
+        for <linux-mm@kvack.org>; Wed, 03 Jul 2019 08:08:44 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=OeAMTyj0tj5DyhQCkmjlDnvMQJ8pA45Ng3YyjVr7r2o=;
-        b=bBm26eZLdq7AbdwVEuRincl/24JnryvkY4nbjtic4NMicFtkwHTAngOjHMNw7Qj9RJ
-         wRAb2O8kh3AteyH3phijBI9b/bCGWnjC1NEbCH+BaVpjbRKpn9DzFDHJg8rG4uqoHUUJ
-         szueazzJQeD0NGBThN2jE40PyR2UdpOUvpscZo1O1b3gZ/O7dWMJP/ErO9Wphq+YzBEY
-         8qNSvcs2m0mESaMHW5HOYbHYnoInLzjbwfWO0P3kO5u7QLo+UhIA8iWJnnhbPTHynF26
-         2s+nJKRRcVhkpKg2YZ5Xp5h+ok2e0a/bs1gxz5ObYWnMVxW0UcIFKNUIxd4eG+TeXPnk
-         zSlw==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAVIUPpg/TG9YXjouyhzS9lwnWoCJ7Z+I9RH9UHn0/KwZBIB0Ap0
-	0vUCr6i4eLnCqkjpICcHLnKe6IVJIMjizRkzHVysoG4c3Lo1BuA1Xghq5DAaTkV9dZLKO6wYrZr
-	UuPLiCxKaN9UOtDroWs7wkBHLtn+0s3X6xUPiYZToT6Akg1mk37A8KvwkRyawFDc=
-X-Received: by 2002:a17:906:9256:: with SMTP id c22mr34466742ejx.172.1562164624989;
-        Wed, 03 Jul 2019 07:37:04 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyPOtciRcCvmLoH78fAanCjTaSfYIBnRNLmR24nudOP9pyNJHAmpM/Ue77wSfEWYEEhjfDN
-X-Received: by 2002:a17:906:9256:: with SMTP id c22mr34466685ejx.172.1562164624249;
-        Wed, 03 Jul 2019 07:37:04 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562164624; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
+         :thread-index:date:message-id:references:in-reply-to:accept-language
+         :content-language:content-id:content-transfer-encoding:mime-version;
+        bh=4A4a5FfKWFEl4y6HvDegBvo5QJ9gJlXgx2xduCl6h5Y=;
+        b=ZuxifeCrv50NBOj/gWRS4nNLX5ZiyHKuuR/F5F5Uq/Utpf6XDUrGPzqzJH09ONHWB8
+         o/vgXx9gEzufEfyOYxiNbjSME4k4/4aYF3hlR+VME7E1i6K8xSeleeD1096ZLGr8uHTA
+         5cQmlv680B6rbcVGOMDkBb7q/AgkD+K6xtvCdCpgi4sMcNW5WTYqw+MYX3b3KAZ6WQmB
+         uqWtu/Pjfdhaa0BvG81MXCddn53Z1aiZ+3qi7WoKN/2nUScZwaL7qmrMkSlH/5GGl2H/
+         T3ML6a7KYNjdwq/oWGWodtuhBjskMT9YX63x+kP0LkyN07c8ZMOdoVct1WZPKGFla/co
+         qiJg==
+X-Gm-Message-State: APjAAAWdZprLDe+z/8XFY/s6GQzfTxQYqluQkzOtPdkDd2UNuGJW8niB
+	GhtrIQou9wwYXKFMFSY1SgCNjEo7NjiOgqiNkW+JuHed64E+7X8j7gKh11x4Tf+oq9IBfT9G13E
+	qdihUdfCyBRncg775QkympSx9fFPoZabDCyLhrFKu/uQFbU8S/TIMUL1ZHMVm8c24cw==
+X-Received: by 2002:a17:906:d154:: with SMTP id br20mr33860274ejb.76.1562166524307;
+        Wed, 03 Jul 2019 08:08:44 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqy58D5xgftg2oVaO43OJAI/UUFyU1k+qsf+9MddkU+qthyaVlGMmQq5f/qObFLs47bONZlp
+X-Received: by 2002:a17:906:d154:: with SMTP id br20mr33860161ejb.76.1562166523177;
+        Wed, 03 Jul 2019 08:08:43 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562166523; cv=none;
         d=google.com; s=arc-20160816;
-        b=1HSSkoMF7uyPL631C21KMmrzsajCu6W6pniFPJvhZ5I4BTvl8H4KH2AXoxPKWt++C5
-         3smaVvXJegmwCdJojowSRQsYMmec0NX9onrDISKilhTaF28juS/q+eO0SRRjibMZb6wd
-         IJphqCWLpiMWG6blNx0MiVIS3BMTuHS22qPJuxHsxWEC2yt32w2rtKdD30qMdv969Lc3
-         EVYG8kJAkiwVxVrCvGl/LMbTWycquV2yxFPZHOCfOYGyq7A0F/FPjWubYuwWw2O7hdHg
-         +bOT/ik4f8qOLTZwrrPetYxd40VeeQlIbGAIj+feQaDaixSEvQ/QqSbt1e8I7wxgFmhr
-         Ekkw==
+        b=N89EPHTuZtf1BAuMfwCifACufod1aL0eeEUPkKGTKQk2DIoMQ3/l5FwmNP+aZI2PV1
+         /VTICTYs8WttBEJEWxAP0h0ym/tc7UVHrqzmjZBzg2yWbkgJBVGL5Chezs7dc4FVLwMP
+         nAE2yC1pm1cZ6caN8TXcq9d1t1L2opaHxUvGnRRB3/GDkCtMOWhaffpxmKIPJZM2Ok4I
+         Rx53PRoEXerckUXN5CFdBi1ps/kNFa7uW7n2H2N4LXfKKdKy4DB6XDykKzx12CY8qOM1
+         IHzbc4j4lMe0vshDvVE2X2fxARS8vBUVO/7F4+aFmn9T/q/AEi23iWKt8J1dWIBgEWo6
+         9Xng==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=OeAMTyj0tj5DyhQCkmjlDnvMQJ8pA45Ng3YyjVr7r2o=;
-        b=MSp+yqg7jxwH7INlZQqCPQl6PRsHoaMjqUAcQDz9IW/5IU8UW+hSIGDVUOP12HBP/O
-         aEFFb4fgtkBapm1zDJYTNbXthj91zSiSg73GXszHHyHsJL5OyTQbxZyl2iNZXNK27UTt
-         FJMxNA6BnG3ECSEf9s0tD6g3/OglERROqt4RSGP+K/sI7OAl94NjpM1VSju0ol+iFPsE
-         Ko2ZhT867DfADSQlHlUYG0SYvZL4atAf2UJjRO3z83LXBG8h/YY3vxzLSh6LsfRc+WSJ
-         t602X2wXVo088LeEBw4wVioMb0x+TvSq5/TNefWPSCdjNahEcB0d0W1xMz1Vb8dh4KCp
-         8beQ==
+        h=mime-version:content-transfer-encoding:content-id:content-language
+         :accept-language:in-reply-to:references:message-id:date:thread-index
+         :thread-topic:subject:cc:to:from:dkim-signature;
+        bh=4A4a5FfKWFEl4y6HvDegBvo5QJ9gJlXgx2xduCl6h5Y=;
+        b=AoebbJ6lCCFIpDflt13eRI5i8poH3yxY7je7hHnz9lO08Gi703g/Cnb8um65yph+fK
+         ULR+qdpmkqXo9SJgV7ib9N7Qx0aYLocbbUx+fXyzxY9oV9eLwTmVnwdfKWBYlzN7/KMO
+         QmT321BuqTcJZUREAjEGyh8dY5Ke62qt/4xOj2JLeHCW3IVY13JtbIkL6+md4q47HivT
+         GGd985CEOzRufTybfP7Wjgbgu/q2okjLmGA0aYJQB4++2iEHAY6T9gDN5bxgFZ2obF3h
+         821zJYecbZhF1R48mUL9TftLtlIe6Wz0z6qlpGWZ6XnCXBNxI1XytQYWCDlppafEvQFI
+         TdgQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id gh2si1693579ejb.254.2019.07.03.07.37.03
+       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b=kY+5iWQb;
+       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.8.79 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
+Received: from EUR04-VI1-obe.outbound.protection.outlook.com (mail-eopbgr80079.outbound.protection.outlook.com. [40.107.8.79])
+        by mx.google.com with ESMTPS id va11si2049766ejb.358.2019.07.03.08.08.42
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Jul 2019 07:37:04 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 03 Jul 2019 08:08:43 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jgg@mellanox.com designates 40.107.8.79 as permitted sender) client-ip=40.107.8.79;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 11175AF60;
-	Wed,  3 Jul 2019 14:37:03 +0000 (UTC)
-Date: Wed, 3 Jul 2019 16:37:01 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Waiman Long <longman@redhat.com>
-Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>,
-	David Rientjes <rientjes@google.com>,
-	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Alexander Viro <viro@zeniv.linux.org.uk>,
-	Jonathan Corbet <corbet@lwn.net>,
-	Luis Chamberlain <mcgrof@kernel.org>,
-	Kees Cook <keescook@chromium.org>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	Vladimir Davydov <vdavydov.dev@gmail.com>, linux-mm@kvack.org,
-	linux-doc@vger.kernel.org, linux-fsdevel@vger.kernel.org,
-	cgroups@vger.kernel.org, linux-kernel@vger.kernel.org,
-	Roman Gushchin <guro@fb.com>, Shakeel Butt <shakeelb@google.com>,
-	Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH] mm, slab: Extend slab/shrink to shrink all the memcg
- caches
-Message-ID: <20190703143701.GR978@dhcp22.suse.cz>
-References: <20190702183730.14461-1-longman@redhat.com>
- <20190703065628.GK978@dhcp22.suse.cz>
- <9ade5859-b937-c1ac-9881-2289d734441d@redhat.com>
+       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b=kY+5iWQb;
+       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.8.79 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=Mellanox.com;
+ s=selector2;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=4A4a5FfKWFEl4y6HvDegBvo5QJ9gJlXgx2xduCl6h5Y=;
+ b=kY+5iWQbbxLWKp0tqgTmPpt5tRxyIus3ZsKPmVmcLnNrHuDGgMxv59SizeIQiBH0IMeZnOsv/DMoILISYgrqKUs5+ckpiveRZvQjG10Esz6Usy5KLwc+ji4a7aTaWiLSsClhhx0Jeza5fSBi6Q7x+98dp/cSTYBF5fUh7F3LDdI=
+Received: from VI1PR05MB4141.eurprd05.prod.outlook.com (10.171.182.144) by
+ VI1PR05MB6351.eurprd05.prod.outlook.com (20.179.25.203) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.2032.20; Wed, 3 Jul 2019 15:08:41 +0000
+Received: from VI1PR05MB4141.eurprd05.prod.outlook.com
+ ([fe80::f5d8:df9:731:682e]) by VI1PR05MB4141.eurprd05.prod.outlook.com
+ ([fe80::f5d8:df9:731:682e%5]) with mapi id 15.20.2032.019; Wed, 3 Jul 2019
+ 15:08:41 +0000
+From: Jason Gunthorpe <jgg@mellanox.com>
+To: "Kuehling, Felix" <Felix.Kuehling@amd.com>
+CC: Christoph Hellwig <hch@lst.de>, "Deucher, Alexander"
+	<Alexander.Deucher@amd.com>, David Airlie <airlied@linux.ie>, Ralph Campbell
+	<rcampbell@nvidia.com>, Jerome Glisse <jglisse@redhat.com>, John Hubbard
+	<jhubbard@nvidia.com>, "linux-rdma@vger.kernel.org"
+	<linux-rdma@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>,
+	Andrea Arcangeli <aarcange@redhat.com>, "dri-devel@lists.freedesktop.org"
+	<dri-devel@lists.freedesktop.org>, "amd-gfx@lists.freedesktop.org"
+	<amd-gfx@lists.freedesktop.org>
+Subject: Re: [RFC] mm/hmm: pass mmu_notifier_range to
+ sync_cpu_device_pagetables
+Thread-Topic: [RFC] mm/hmm: pass mmu_notifier_range to
+ sync_cpu_device_pagetables
+Thread-Index: AQHVHY87cnj6rYaF00uB6DOqwK5J5aa35HaAgAAxJwCAAALKgIAAOioAgADUsAA=
+Date: Wed, 3 Jul 2019 15:08:41 +0000
+Message-ID: <20190703150836.GM18688@mellanox.com>
+References: <20190608001452.7922-1-rcampbell@nvidia.com>
+ <20190702195317.GT31718@mellanox.com> <20190702224912.GA24043@lst.de>
+ <20190702225911.GA11833@mellanox.com>
+ <1dc82dc8-3e6f-1d6f-b14d-41ae3c1b2709@amd.com>
+In-Reply-To: <1dc82dc8-3e6f-1d6f-b14d-41ae3c1b2709@amd.com>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+x-clientproxiedby: YTOPR0101CA0030.CANPRD01.PROD.OUTLOOK.COM
+ (2603:10b6:b00:15::43) To VI1PR05MB4141.eurprd05.prod.outlook.com
+ (2603:10a6:803:4d::16)
+authentication-results: spf=none (sender IP is )
+ smtp.mailfrom=jgg@mellanox.com; 
+x-ms-exchange-messagesentrepresentingtype: 1
+x-originating-ip: [156.34.55.100]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: b5b764d1-dc0d-4af0-1bf8-08d6ffc85584
+x-ms-office365-filtering-ht: Tenant
+x-microsoft-antispam:
+ BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(4618075)(2017052603328)(7193020);SRVR:VI1PR05MB6351;
+x-ms-traffictypediagnostic: VI1PR05MB6351:
+x-microsoft-antispam-prvs:
+ <VI1PR05MB635194713022BC0BC06D7F16CFFB0@VI1PR05MB6351.eurprd05.prod.outlook.com>
+x-ms-oob-tlc-oobclassifiers: OLM:2733;
+x-forefront-prvs: 00872B689F
+x-forefront-antispam-report:
+ SFV:NSPM;SFS:(10009020)(4636009)(396003)(136003)(376002)(39860400002)(366004)(346002)(189003)(199004)(386003)(6506007)(25786009)(7416002)(53546011)(316002)(8936002)(26005)(68736007)(76176011)(102836004)(486006)(476003)(2616005)(186003)(5660300002)(14454004)(66476007)(2906002)(4326008)(11346002)(6116002)(3846002)(54906003)(99286004)(52116002)(36756003)(33656002)(7736002)(66446008)(1076003)(8676002)(14444005)(6246003)(64756008)(256004)(86362001)(305945005)(478600001)(53936002)(66946007)(81166006)(71200400001)(66556008)(73956011)(6512007)(6486002)(71190400001)(229853002)(6436002)(81156014)(446003)(6916009)(66066001);DIR:OUT;SFP:1101;SCL:1;SRVR:VI1PR05MB6351;H:VI1PR05MB4141.eurprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
+received-spf: None (protection.outlook.com: mellanox.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info:
+ td0S6w4mHfCpfIiwq60twZyFZcsKDyypieDB8FahsjvXOncVtvZwm1IzVFYnIeWYVhnUUAhoGNboHpppDK4NYN5sWo4WY0k/RfzbuXciuXnTm8teFPegBZQJfPq+aA0UM74aKEgAKeaYbx1/PlikKwR5rgu+ZikULKOirR2H5ibffF0p2vSXVQS8TcqW8WkduqizhaS7qXX7A7WAlhuyWd/yHocH7Fj1OEXkuiriDidvL48WjKUejgR4i6pgsmZ6jfTWrQRiKg4rQmb3Lx8vp8pq/bspE06qzMZRGUC2uioevyKu4VPCpryhTmGFrbNzaZ2Me/Si1l4i8Mww5JqYxD7VH/9jCuUR0cFU3MjxKccrFIXn/pmb5o67h3BY3dcId0vINr7DiRUk9a6bhCj9xECu4ASFEntY23RP+eLFvZE=
+Content-Type: text/plain; charset="us-ascii"
+Content-ID: <5850BAD4694CCA479493175E5B4779A2@eurprd05.prod.outlook.com>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <9ade5859-b937-c1ac-9881-2289d734441d@redhat.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+X-OriginatorOrg: Mellanox.com
+X-MS-Exchange-CrossTenant-Network-Message-Id: b5b764d1-dc0d-4af0-1bf8-08d6ffc85584
+X-MS-Exchange-CrossTenant-originalarrivaltime: 03 Jul 2019 15:08:41.6325
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: a652971c-7d2e-4d9b-a6a4-d149256f461b
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-CrossTenant-userprincipalname: jgg@mellanox.com
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: VI1PR05MB6351
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed 03-07-19 09:12:13, Waiman Long wrote:
-> On 7/3/19 2:56 AM, Michal Hocko wrote:
-> > On Tue 02-07-19 14:37:30, Waiman Long wrote:
-> >> Currently, a value of '1" is written to /sys/kernel/slab/<slab>/shrink
-> >> file to shrink the slab by flushing all the per-cpu slabs and free
-> >> slabs in partial lists. This applies only to the root caches, though.
-> >>
-> >> Extends this capability by shrinking all the child memcg caches and
-> >> the root cache when a value of '2' is written to the shrink sysfs file.
-> > Why do we need a new value for this functionality? I would tend to think
-> > that skipping memcg caches is a bug/incomplete implementation. Or is it
-> > a deliberate decision to cover root caches only?
-> 
-> It is just that I don't want to change the existing behavior of the
-> current code. It will definitely take longer to shrink both the root
-> cache and the memcg caches.
+On Wed, Jul 03, 2019 at 02:27:22AM +0000, Kuehling, Felix wrote:
+> On 2019-07-02 6:59 p.m., Jason Gunthorpe wrote:
+> > On Wed, Jul 03, 2019 at 12:49:12AM +0200, Christoph Hellwig wrote:
+> >> On Tue, Jul 02, 2019 at 07:53:23PM +0000, Jason Gunthorpe wrote:
+> >>>> I'm sending this out now since we are updating many of the HMM APIs
+> >>>> and I think it will be useful.
+> >>> This make so much sense, I'd like to apply this in hmm.git, is there
+> >>> any objection?
+> >> As this creates a somewhat hairy conflict for amdgpu, wouldn't it be
+> >> a better idea to wait a bit and apply it first thing for next merge
+> >> window?
+> > My thinking is that AMD GPU already has a monster conflict from this:
+> >
+> >   int hmm_range_register(struct hmm_range *range,
+> > -                      struct mm_struct *mm,
+> > +                      struct hmm_mirror *mirror,
+> >                         unsigned long start,
+> >                         unsigned long end,
+> >                         unsigned page_shift);
+> >
+> > So, depending on how that is resolved we might want to do both API
+> > changes at once.
+>=20
+> I just sent out a fix for the hmm_mirror API change.
 
-Does that matter? To whom and why? I do not expect this interface to be
-used heavily.
+I think if you follow my suggestion to apply a prep patch to AMD GPU
+to make the conflict resolution simple, we should defer this patch
+until next kernel for the reasons CH gave.
 
-> If we all agree that the only sensible
-> operation is to shrink root cache and the memcg caches together. I am
-> fine just adding memcg shrink without changing the sysfs interface
-> definition and be done with it.
+> > Or we may have to revert the above change at this late date.
+> >
+> > Waiting for AMDGPU team to discuss what process they want to use.
+>=20
+> Yeah, I'm wondering what the process is myself. With HMM and driver=20
+> development happening on different branches these kinds of API changes=20
+> are painful. There seems to be a built-in assumption in the current=20
+> process, that code flows mostly in one direction amd-staging-drm-next ->=
+=20
+> drm-next -> linux-next -> linux. That assumption is broken with HMM code=
+=20
+> evolving rapidly in both amdgpu and mm.
 
-The existing documentation is really modest on the actual semantic:
-Description:
-                The shrink file is written when memory should be reclaimed from
-                a cache.  Empty partial slabs are freed and the partial list is
-                sorted so the slabs with the fewest available objects are used
-                first.
+It looks to me like AMD GPU uses a pull request model. So a goal as a
+tree runner should be to work with the other trees (ie hmm.git, etc)
+to minimize conflicts between the PR you will send and the PR other
+trees will send.
 
-which to me sounds like all slabs are free and nobody should be really
-thinking of memcgs. This is simply drop_caches kinda thing. We surely do
-not want to drop caches only for the root memcg for /proc/sys/vm/drop_caches
-right?
+Do not focus on linux-next, that is just an 'early warning system'
+that conflicts are on the horizon, we knew about this one :) (well,
+mostly, I was surprised how big it was, my bad)
 
--- 
-Michal Hocko
-SUSE Labs
+So we must stay in co-ordination with patches in-flight on the list
+and make the right decision, depending on the situation. Communication
+here is key :)
+
+We have lots of strategies available to deal with these situations.
+
+> If we want to continue developing HMM driver changes in
+> amd-staging-drm-next, we'll need to synchronize with hmm.git more=20
+> frequently, both ways.
+
+It can't really go both ways. hmm.git has to be only the hmm topic,
+otherwise it doesn't really work.
+
+> I believe part of the problem is, that there is a fairly long
+> lead-time from getting changes from amd-staging-drm-next into
+> linux-next, as they are held for one release cycle in drm-next.
+> Pushing HMM-related changes through drm-fixes may offer a kind of
+> shortcut. Philip and my latest fixup is just bypassing drm-next
+> completely and going straight into linux-next, though.
+
+I'm not so familiar with the DRM work flow to give you advice on this.
+
+Jason
 
