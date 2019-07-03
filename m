@@ -2,157 +2,269 @@ Return-Path: <SRS0=iaDK=VA=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.5 required=3.0 tests=MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C5629C06511
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Jul 2019 14:10:46 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 10CC3C06511
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Jul 2019 14:31:02 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 96A3921881
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Jul 2019 14:10:46 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 96A3921881
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id CA2BA218A4
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Jul 2019 14:31:01 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CA2BA218A4
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 306AA6B0006; Wed,  3 Jul 2019 10:10:46 -0400 (EDT)
+	id 64F6C6B0003; Wed,  3 Jul 2019 10:31:01 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 28E338E0005; Wed,  3 Jul 2019 10:10:46 -0400 (EDT)
+	id 5FE988E0003; Wed,  3 Jul 2019 10:31:01 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 157CC8E0003; Wed,  3 Jul 2019 10:10:46 -0400 (EDT)
+	id 4C9878E0001; Wed,  3 Jul 2019 10:31:01 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id BC1DC6B0006
-	for <linux-mm@kvack.org>; Wed,  3 Jul 2019 10:10:45 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id i44so1803774eda.3
-        for <linux-mm@kvack.org>; Wed, 03 Jul 2019 07:10:45 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 00B006B0003
+	for <linux-mm@kvack.org>; Wed,  3 Jul 2019 10:31:01 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id c27so1834177edn.8
+        for <linux-mm@kvack.org>; Wed, 03 Jul 2019 07:31:00 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=cwszHtW+mIPivSs6sbnbs4LhP5LT3yq9wBgQjqfg+UQ=;
-        b=ZVT3jsbDoZLabRQdK5W0TUQ/nYyeF1cMeF4G0GGLFPK7Lr8oa/zZMCeblidrtUH24g
-         c8rGTorxac/uIJRsLtD0p29zSHkqGzDjlvC1ScmxcJpzHEdxu7EwaJpZj14bnRQbaqhm
-         k8yfgvzXAVWEodPrAsNGDFEOR6UyV6TzM2LSWMR8EU5H7SXRw6YKQgJXU4QjRl/CGcMu
-         O7t/fcZYLneDXb3gxlmitYL9V/vUH3/cIlIfMbASEAHNnt15PQKIZ/2v40q9GSQWl7q8
-         TZPjMMGhnsTcuQ192ynizTYpg4QECLrWGmvXq2silyjopPiSjnCmDvdxnECmnr0dZbgm
-         Weig==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-X-Gm-Message-State: APjAAAWEhqLx9frXUNQsDqeb6AGCQYaTzA3ASRFj6FhylV4DRSzgzzdr
-	fgQpFSf5Fe7rc7z6ubNMcJlTMusiKJDUCFKQyOydNAtMMSQ8aN33yXbcY/jaPjcQRp3rMfJsXNJ
-	HYg0Br7tm1XGxAQyeOCXAXtQxs8HVCwUSlMIOMlsdvZnwsH2umUh9akm8nV3yVnMksw==
-X-Received: by 2002:a17:906:1e04:: with SMTP id g4mr34670677ejj.48.1562163045346;
-        Wed, 03 Jul 2019 07:10:45 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyszLQdkHEJHC4Rn/B2p5Pm3olQOnWx1kEUN0gqrzYnSwlhsdu5AfLHC9YJV60B5PWkWaMO
-X-Received: by 2002:a17:906:1e04:: with SMTP id g4mr34670602ejj.48.1562163044506;
-        Wed, 03 Jul 2019 07:10:44 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562163044; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=aymayfheh4NTbUMjrZGECjsvaS5WW1lfzjYtxfajXyo=;
+        b=LuyePyHetMli9Qm0q6GBdmfng7GiiuTVNXBr7Nd/OkStBaXMMDhQIiOT81pSbkkGzl
+         6s3F5MX2TF8Thf6K0gGlj7MGbm6Avgh0g/v3KCLUTHD6vtN/Da+HmDYHayog+HVv5uJN
+         9ZLTdY1S6eVvOU4fpBML3R1sJQ5wTBIDiof0Zr0K+4d5rZjjT7kCWzTRUnCaBjoaRvNi
+         5cOlcQCwZv+VVCM+4kb4VM04AgSslvPzqApF22a1XC9WruTTGSk3kvYCResB1M5BhAed
+         5/IbPKB/kAzmDFid+D2PYdP7jU0DmV+x2SxJpd4TubiGCP3SGiCoOAYOsmLFLZuGnb06
+         F6fQ==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAVHhbdGL8OP16n25UZC6E8D9BnQLiYyG+YtvsK0VIA6V8k4axnZ
+	CGx00wdafKOKFFRA7mOlUzo6T60iEwx5fM+ublVYRVoLrwdb+dtpJVhx7rR438GV29OXP+VmfeT
+	TkERv81O/j7QCv7sGRVsan5wvEDxGBrN7fHgIjz/UFgZAodvmLo1WHPJZJMWFCnI=
+X-Received: by 2002:a17:906:264a:: with SMTP id i10mr34578470ejc.10.1562164260551;
+        Wed, 03 Jul 2019 07:31:00 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwb94lO2sDAY1iL+2youZR3Hjl+B2C7Qz4Bd/umoCNDaVRm0DhINQkfiNdPC+YO7BlNbgHe
+X-Received: by 2002:a17:906:264a:: with SMTP id i10mr34578365ejc.10.1562164259477;
+        Wed, 03 Jul 2019 07:30:59 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562164259; cv=none;
         d=google.com; s=arc-20160816;
-        b=qmmoG3JNAnlHIZD4Q0fDQAlfEega+WlQOhNw/RRHdjhy5MEUeKr4xW0dNwcqfiIxkW
-         SKCfFz6ZDQCkO3lJor6/2LpQ1PmRad3jz1QbORuimQz8uvB2iDvt4a53CfAh74T4FrMy
-         owMW53NQw68H8xSluxuijrE4iE85AAtRO2RR69uqn0SoaIZk/F5So3SGhrC8yoXKBfxS
-         WsF4KM5OQQ7U2VyyzlUDVjJ1+8son586pmSd6asBBeY//hJ9yUq7QJTWMCcKfKOoywYD
-         VjP+Hg3rdA+7C9C8Riv4efGo1927e90w1Ckc17CTTtCvzhKVjhGShxzkLE4FYeHjW78q
-         KCAQ==
+        b=G7jk7BV/n9GGoisXD8k3K8ICx3K6NjrA9C6Hhmw0FXcqmEIgArjmbZ9eeAB8oLk94h
+         YHhDoWfRker7BVjwYbd/FaC9XaaVZ6bbzkEtNrcbCp7YgpTV7b8NVTL8wBGM/VxU0S5f
+         ToEPyCiRH+LM7SUk8NEC6tYfUTYb11KQSSXKds6fAJxS4rid0djpKIXOdltHqaBPXyBr
+         SSzgmaGwV73CpME9Lxe2MY6CjttW4cvS4roTAI1IVAoJufvAN8OvSZ2S9ocViHxQInzd
+         e5yC9YS1sIb01prQXzyHXonWEr5dlFCRdzm4u1Taa1wQ7ao4WMftluEKo85qRMcGYhEn
+         HH1Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=cwszHtW+mIPivSs6sbnbs4LhP5LT3yq9wBgQjqfg+UQ=;
-        b=0hOG94roCaC0QZ5bgUavi6yaMS8m1bR6XHqVeMGEoFJzszY3iEwpXfq9WMivTnYUYz
-         kpn0quwEvHKB1qWHRWWfa1tuApZ4anwrKooIFJxA2ttbhnwKnWUDTZEgsPdm4kP70TbV
-         hyu3/tOAoBDLwa9LNosAEbsqrBbda+q3P+YBP+R1u1y0iRBkPjMC508sGG2cfq1UEyU3
-         G+Z0XU9QJ8JMzO+5oDCybFtTtks2mR4+Sf+W8Z8Asq5ZlbILcMUlzn4sjn9lWnBbInDj
-         2flWG8vPud5X5Ew/ko9PSGkmJX546I737kcB7L8KTOvxuLJhps0cGkgIAE3X6zf5eYew
-         o9qg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=aymayfheh4NTbUMjrZGECjsvaS5WW1lfzjYtxfajXyo=;
+        b=vGfpu+xxNocSGPGl8sP7Amu8H+dSrk1ZdmJT1d9SBsz9cKz5eY+DClTHk6EDB688F3
+         MuYcKmWxabLe4CnQsMY3TaKmdZoteYQRrzLL3eq7HDrjceSAa76Jwj0DEe1yU/9z6zPM
+         tXSpy9bvhuIWz5vnh946+JrWidO+8CmeGXvUgRdicvehb9YJIJTFfJL6t3mtiizYbpDx
+         t64bb7rnFOMrd4Zjus8+pJa0l8/eWBs7vb3/t3twW72yoUHdGI5Q2qCCcdU8ttSGMn22
+         u/7Vn8Ny87WNkiImBvy5u56NwLjajVXoQO6xXnIQPdkIh/XBlYtIzi1WWtPd/BAUjYzP
+         gx9g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
-        by mx.google.com with ESMTP id z44si2224377edb.16.2019.07.03.07.10.44
-        for <linux-mm@kvack.org>;
-        Wed, 03 Jul 2019 07:10:44 -0700 (PDT)
-Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id y8si1820575ejo.176.2019.07.03.07.30.59
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 03 Jul 2019 07:30:59 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 9B3752B;
-	Wed,  3 Jul 2019 07:10:43 -0700 (PDT)
-Received: from [10.162.42.95] (p8cg001049571a15.blr.arm.com [10.162.42.95])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 15DD03F718;
-	Wed,  3 Jul 2019 07:10:41 -0700 (PDT)
-Subject: Re: [DRAFT] mm/kprobes: Add generic kprobe_fault_handler() fallback
- definition
-To: Guenter Roeck <linux@roeck-us.net>, linux-mm@kvack.org,
- linux-kernel@vger.kernel.org
-Cc: akpm@linux-foundation.org
-References: <78863cd0-8cb5-c4fd-ed06-b1136bdbb6ef@arm.com>
- <1561973757-5445-1-git-send-email-anshuman.khandual@arm.com>
- <8c6b9525-5dc5-7d17-cee1-b75d5a5121d6@roeck-us.net>
- <fc68afaa-32e1-a265-aae2-e4a9440f4c95@arm.com>
- <8a5eb5d5-32f0-01cd-b2fe-890ebb98395b@roeck-us.net>
-From: Anshuman Khandual <anshuman.khandual@arm.com>
-Message-ID: <a0a0e277-ec1a-6c49-4852-c945ad64a1fd@arm.com>
-Date: Wed, 3 Jul 2019 19:41:08 +0530
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
- Thunderbird/52.9.1
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id F3C80AD76;
+	Wed,  3 Jul 2019 14:30:58 +0000 (UTC)
+Date: Wed, 3 Jul 2019 16:30:57 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: Kuo-Hsin Yang <vovoy@chromium.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	Minchan Kim <minchan@kernel.org>, Sonny Rao <sonnyrao@chromium.org>,
+	linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+	stable@vger.kernel.org
+Subject: Re: [PATCH] mm: vmscan: scan anonymous pages on file refaults
+Message-ID: <20190703143057.GQ978@dhcp22.suse.cz>
+References: <20190628111627.GA107040@google.com>
+ <20190701081038.GA83398@google.com>
 MIME-Version: 1.0
-In-Reply-To: <8a5eb5d5-32f0-01cd-b2fe-890ebb98395b@roeck-us.net>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190701081038.GA83398@google.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
-
-On 07/03/2019 06:29 PM, Guenter Roeck wrote:
-> On 7/2/19 10:35 PM, Anshuman Khandual wrote:
->>
->>
->> On 07/01/2019 06:58 PM, Guenter Roeck wrote:
->>> On 7/1/19 2:35 AM, Anshuman Khandual wrote:
->>>> Architectures like parisc enable CONFIG_KROBES without having a definition
->>>> for kprobe_fault_handler() which results in a build failure. Arch needs to
->>>> provide kprobe_fault_handler() as it is platform specific and cannot have
->>>> a generic working alternative. But in the event when platform lacks such a
->>>> definition there needs to be a fallback.
->>>>
->>>> This adds a stub kprobe_fault_handler() definition which not only prevents
->>>> a build failure but also makes sure that kprobe_page_fault() if called will
->>>> always return negative in absence of a sane platform specific alternative.
->>>>
->>>> While here wrap kprobe_page_fault() in CONFIG_KPROBES. This enables stud
->>>> definitions for generic kporbe_fault_handler() and kprobes_built_in() can
->>>> just be dropped. Only on x86 it needs to be added back locally as it gets
->>>> used in a !CONFIG_KPROBES function do_general_protection().
->>>>
->>>> Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
->>>> ---
->>>> I am planning to go with approach unless we just want to implement a stub
->>>> definition for parisc to get around the build problem for now.
->>>>
->>>> Hello Guenter,
->>>>
->>>> Could you please test this in your parisc setup. Thank you.
->>>>
->>>
->>> With this patch applied on top of next-20190628, parisc:allmodconfig builds
->>> correctly. I scheduled a full build for tonight for all architectures.
->>
->> How did that come along ? Did this pass all build tests ?
->>
+On Mon 01-07-19 16:10:38, Kuo-Hsin Yang wrote:
+> When file refaults are detected and there are many inactive file pages,
+> the system never reclaim anonymous pages, the file pages are dropped
+> aggressively when there are still a lot of cold anonymous pages and
+> system thrashes.  This issue impacts the performance of applications
+> with large executable, e.g. chrome.
 > 
-> Let's say it didn't find any failures related to this patch. I built on top of
-> next-20190701 which was quite badly broken for other reasons. Unfortunately,
-> next-20190702 is much worse, so retesting would not add any value at this time.
-> I'd say go for it.
+> With this patch, when file refault is detected, inactive_list_is_low()
+> always returns true for file pages in get_scan_count() to enable
+> scanning anonymous pages.
 > 
-> Guenter
+> The problem can be reproduced by the following test program.
 > 
+> ---8<---
+> void fallocate_file(const char *filename, off_t size)
+> {
+> 	struct stat st;
+> 	int fd;
+> 
+> 	if (!stat(filename, &st) && st.st_size >= size)
+> 		return;
+> 
+> 	fd = open(filename, O_WRONLY | O_CREAT, 0600);
+> 	if (fd < 0) {
+> 		perror("create file");
+> 		exit(1);
+> 	}
+> 	if (posix_fallocate(fd, 0, size)) {
+> 		perror("fallocate");
+> 		exit(1);
+> 	}
+> 	close(fd);
+> }
+> 
+> long *alloc_anon(long size)
+> {
+> 	long *start = malloc(size);
+> 	memset(start, 1, size);
+> 	return start;
+> }
+> 
+> long access_file(const char *filename, long size, long rounds)
+> {
+> 	int fd, i;
+> 	volatile char *start1, *end1, *start2;
+> 	const int page_size = getpagesize();
+> 	long sum = 0;
+> 
+> 	fd = open(filename, O_RDONLY);
+> 	if (fd == -1) {
+> 		perror("open");
+> 		exit(1);
+> 	}
+> 
+> 	/*
+> 	 * Some applications, e.g. chrome, use a lot of executable file
+> 	 * pages, map some of the pages with PROT_EXEC flag to simulate
+> 	 * the behavior.
+> 	 */
+> 	start1 = mmap(NULL, size / 2, PROT_READ | PROT_EXEC, MAP_SHARED,
+> 		      fd, 0);
+> 	if (start1 == MAP_FAILED) {
+> 		perror("mmap");
+> 		exit(1);
+> 	}
+> 	end1 = start1 + size / 2;
+> 
+> 	start2 = mmap(NULL, size / 2, PROT_READ, MAP_SHARED, fd, size / 2);
+> 	if (start2 == MAP_FAILED) {
+> 		perror("mmap");
+> 		exit(1);
+> 	}
+> 
+> 	for (i = 0; i < rounds; ++i) {
+> 		struct timeval before, after;
+> 		volatile char *ptr1 = start1, *ptr2 = start2;
+> 		gettimeofday(&before, NULL);
+> 		for (; ptr1 < end1; ptr1 += page_size, ptr2 += page_size)
+> 			sum += *ptr1 + *ptr2;
+> 		gettimeofday(&after, NULL);
+> 		printf("File access time, round %d: %f (sec)\n", i,
+> 		       (after.tv_sec - before.tv_sec) +
+> 		       (after.tv_usec - before.tv_usec) / 1000000.0);
+> 	}
+> 	return sum;
+> }
+> 
+> int main(int argc, char *argv[])
+> {
+> 	const long MB = 1024 * 1024;
+> 	long anon_mb, file_mb, file_rounds;
+> 	const char filename[] = "large";
+> 	long *ret1;
+> 	long ret2;
+> 
+> 	if (argc != 4) {
+> 		printf("usage: thrash ANON_MB FILE_MB FILE_ROUNDS\n");
+> 		exit(0);
+> 	}
+> 	anon_mb = atoi(argv[1]);
+> 	file_mb = atoi(argv[2]);
+> 	file_rounds = atoi(argv[3]);
+> 
+> 	fallocate_file(filename, file_mb * MB);
+> 	printf("Allocate %ld MB anonymous pages\n", anon_mb);
+> 	ret1 = alloc_anon(anon_mb * MB);
+> 	printf("Access %ld MB file pages\n", file_mb);
+> 	ret2 = access_file(filename, file_mb * MB, file_rounds);
+> 	printf("Print result to prevent optimization: %ld\n",
+> 	       *ret1 + ret2);
+> 	return 0;
+> }
+> ---8<---
+> 
+> Running the test program on 2GB RAM VM with kernel 5.2.0-rc5, the
+> program fills ram with 2048 MB memory, access a 200 MB file for 10
+> times.  Without this patch, the file cache is dropped aggresively and
+> every access to the file is from disk.
+> 
+>   $ ./thrash 2048 200 10
+>   Allocate 2048 MB anonymous pages
+>   Access 200 MB file pages
+>   File access time, round 0: 2.489316 (sec)
+>   File access time, round 1: 2.581277 (sec)
+>   File access time, round 2: 2.487624 (sec)
+>   File access time, round 3: 2.449100 (sec)
+>   File access time, round 4: 2.420423 (sec)
+>   File access time, round 5: 2.343411 (sec)
+>   File access time, round 6: 2.454833 (sec)
+>   File access time, round 7: 2.483398 (sec)
+>   File access time, round 8: 2.572701 (sec)
+>   File access time, round 9: 2.493014 (sec)
+> 
+> With this patch, these file pages can be cached.
+> 
+>   $ ./thrash 2048 200 10
+>   Allocate 2048 MB anonymous pages
+>   Access 200 MB file pages
+>   File access time, round 0: 2.475189 (sec)
+>   File access time, round 1: 2.440777 (sec)
+>   File access time, round 2: 2.411671 (sec)
+>   File access time, round 3: 1.955267 (sec)
+>   File access time, round 4: 0.029924 (sec)
+>   File access time, round 5: 0.000808 (sec)
+>   File access time, round 6: 0.000771 (sec)
+>   File access time, round 7: 0.000746 (sec)
+>   File access time, round 8: 0.000738 (sec)
+>   File access time, round 9: 0.000747 (sec)
 
-Sure thanks, will post it out soon.
+How does the reclaim behave with workloads with file backed data set
+not fitting into the memory? Aren't we going to to swap a lot -
+something that the heuristic is protecting from?
+
+> Fixes: e9868505987a ("mm,vmscan: only evict file pages when we have plenty")
+> Fixes: 7c5bd705d8f9 ("mm: memcg: only evict file pages when we have plenty")
+> Signed-off-by: Kuo-Hsin Yang <vovoy@chromium.org>
+> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: <stable@vger.kernel.org> # 4.12+
+
+-- 
+Michal Hocko
+SUSE Labs
 
