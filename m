@@ -2,130 +2,131 @@ Return-Path: <SRS0=d6aY=VB=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
-	autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-10.0 required=3.0
+	tests=HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 49A94C0651F
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Jul 2019 15:26:22 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 952A2C46486
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Jul 2019 15:38:13 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 12D582083B
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Jul 2019 15:26:22 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 12D582083B
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 63CC121852
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Jul 2019 15:38:13 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 63CC121852
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linutronix.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A56676B0006; Thu,  4 Jul 2019 11:26:21 -0400 (EDT)
+	id E1D116B0006; Thu,  4 Jul 2019 11:38:12 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A2CB68E0003; Thu,  4 Jul 2019 11:26:21 -0400 (EDT)
+	id DA6B38E0003; Thu,  4 Jul 2019 11:38:12 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 91CD68E0001; Thu,  4 Jul 2019 11:26:21 -0400 (EDT)
+	id C48E48E0001; Thu,  4 Jul 2019 11:38:12 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 454BF6B0006
-	for <linux-mm@kvack.org>; Thu,  4 Jul 2019 11:26:21 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id b12so4032496eds.14
-        for <linux-mm@kvack.org>; Thu, 04 Jul 2019 08:26:21 -0700 (PDT)
+Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 8ABD46B0006
+	for <linux-mm@kvack.org>; Thu,  4 Jul 2019 11:38:12 -0400 (EDT)
+Received: by mail-wr1-f70.google.com with SMTP id f9so218081wrq.14
+        for <linux-mm@kvack.org>; Thu, 04 Jul 2019 08:38:12 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=NdT2k+C1dhI8osaYVLZdWInK/X/4O2LTE+zviSGHxcI=;
-        b=mOU+Y7AaqDEXDhcXLbQs+3TpAYt1zVmAPOIHn7R2tOdQh+HFwegQdTOJVa/AkKefS0
-         ymZyUIv/webdOVM+qTGat1oKx/hnUaaxglUZhIdI1w6moG63rO3Y0BncGpmDXIf2LMbN
-         5SDdxLsqECOArZJA3ga4KzmuMFXnx67imTSx4GFXJlei6DhOqoBvzLqqM4h4zBXixM4A
-         6bbgveydivvuHLWhJo7sIKEg/a0ov2s4HRk/uPg44d+lq4B/g2AIpMprXnzGv8eSUvZS
-         G5x6QUQ+kQoLkYHSQrcE/QBcNU4yQ+yq8kV48A+EumzC+2Hv6YHerbAv18pzGTymGm0z
-         VFlQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-X-Gm-Message-State: APjAAAVt5K6d5/KrXXeGlfM6slwxrPAlqrUIR4wfafRjYkiNnqmsTNsi
-	kgh3jDJJy9UdbIYgfwHzcfsWLbrvT+cw5OX4v8Lio+k5Uhr4bVxXaWTtcUBP46G3PWUtJTDIOOD
-	70tn51Jw7GHYYX9J3vB6jMM5PZ0DoFcsUMso/KPMMj116pDAhDjjR/5t5PwK5eOC7Jg==
-X-Received: by 2002:aa7:c14f:: with SMTP id r15mr49640828edp.116.1562253980771;
-        Thu, 04 Jul 2019 08:26:20 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyf894OCknnZzdyLbBXi754x23pR29mFsqtipuGC3fATWpc7i9GJZSi96pNHEbv6Bb+T0/l
-X-Received: by 2002:aa7:c14f:: with SMTP id r15mr49640748edp.116.1562253979675;
-        Thu, 04 Jul 2019 08:26:19 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562253979; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=BxbnvXa/OZizuISJhWJMQ9vb97R6oLvhKSG/1JjS2dk=;
+        b=rcp+xE/RRCoy5fdpJlGGoJW+IkFaq2HjSMMbNuIFdqmU4KjzLFUDX515/u3Caj8hdx
+         9W8ULDTsdkBVAonbfjV1L0E9jt3ehs/ZfqG6tALUhwH6dWz+/1pf0Xw5DYTYqq3Snn4J
+         rI8XJWytUwg1K6KXL8jOqF9oMcQKNXV4L7KQgffbhb1vRbhcJEfPuKmoAO20K0xMF+hY
+         MPi03VswgybR1C8AC/VcIeXs8alHToE15yLDP0sBo7cIgtMfCWPgO5iBncnW1hq6aFGd
+         1YMlBz8Mk/7QBUDYThyQTmu/Sw41BMFuk9rQjpkrSu2asm922H/XtdWI4SHcJOYJk5c0
+         1/KA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of bigeasy@linutronix.de designates 2a0a:51c0:0:12e:550::1 as permitted sender) smtp.mailfrom=bigeasy@linutronix.de
+X-Gm-Message-State: APjAAAWC7lY9bDkgAjhUhH74DJFM7PH9NEjCWzNXQReiytSEAYLklphO
+	C4OjqRNU0Fz7fUfpLqaPqcG6Ct9HUvkH54nWyCftyVaLRHxRQrwGV84soLHn3g+Y2vZgr5zsMRM
+	27HPVHSkrSy5mPlE6UppAV5yG9R1GsbHI1l2u8BSSjwjC0v5qrMroe9ur783U43DTaw==
+X-Received: by 2002:a7b:c356:: with SMTP id l22mr113778wmj.97.1562254692137;
+        Thu, 04 Jul 2019 08:38:12 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzcFrukaLbxIRvtkSFhDimdEyW2IvVw+AEqT3l+WqsPIDOs3FWnLPmVmpv+fYam04cjZyKO
+X-Received: by 2002:a7b:c356:: with SMTP id l22mr113733wmj.97.1562254691092;
+        Thu, 04 Jul 2019 08:38:11 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562254691; cv=none;
         d=google.com; s=arc-20160816;
-        b=X3l6J2c0GOkawY+wJhEDXjmPl3+BVFnF6OixLaDPhEFsDlYKkOVuz7da9ApPgQgHgZ
-         QTZfifjdiNResclBBUbTpFueY8Ya/h7XnAAgXEpLfpCbI5CUdgTrzq9Cg//t/6beCUcU
-         8dOXqEOlD/ONKU7e0SigMcZLJtD0FrUk9qaThnCPVoQeSr9bNPnQ/HzJrkuUG+aR0xKw
-         ELaBc+zdsVJT3NZZ5/rnD1W07mtij80ITwO2PSjmj+PXB230LSSIinhxSj9q0NI3ajdw
-         6EBcvSpAqSz7+iyE+IRPiuOmgL05GMsiUF29AEanKZ2FMkHt+klYw5MZD/M7JERqMUqd
-         uaLQ==
+        b=vxD81KOado+g9MqIYbul1Z6HdEP39A8KquTdjApqtwxImToI2zdQWu9lOyKi297tOT
+         OnX3OOOstbAKmDzZ+GnxLGy4SExEWADjj+JPkaSvqQFMUhnWkhi+nlZxr0nOcT4jIfS3
+         w5lHAKAiPnNvUFpYUDj9V05Hxh41+EKTSJW/UKMjR4ThzR9mT0XpEeslV0gR/BAoVvY6
+         OFXiSl0+e/yrIzemuiGKfG94cgQX1N1CCAaU9+HdFR7Vx3lEbPOQiQA4Gl563RNHiovI
+         jG1Onkzko1EXngsjK52uuC8S4wxVN32KQkuR/XdrEkp6sTWdkWloe16eNf2nMvAC7e2k
+         W1Nw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=NdT2k+C1dhI8osaYVLZdWInK/X/4O2LTE+zviSGHxcI=;
-        b=ISJm+QKPxdLbTG7qVgnwKQeXaFwVFq9/1IcUJ6WYveFT1rlmhgwIeM40GTVJzoSBoc
-         1W0VhkTGql1M6iFWqd5Ovp1hKTp/0pcp2ve286TL5Mxmsa47FJHO+pABwHCt/sRMU8Es
-         MRIJ8nrx3NpIVFPE6WyywVnOUVD9013WFAdX+58l+ZZj1jeQNKu5LRy6tzuKm81hfk+z
-         bZgHb6B04RzOb/INgdDdIMfKLXWuA1pgYuX1nhhI5JoozVwYDqQjteYRdazezmoZCN7a
-         G27uXr5+50avLTA9k3rOSMRQaepdTgPCZWhIvsYQZg+r2ztzEDHumbG2ivK7szu1rHX5
-         wpxQ==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:date:subject:cc:to:from;
+        bh=BxbnvXa/OZizuISJhWJMQ9vb97R6oLvhKSG/1JjS2dk=;
+        b=fmLi1QGnLpeGxkZxG9UINuWOdu3TLiuIl87VmVnYEtXsDiS2zwMCbvUc3p2UurL23a
+         Yfa3IOE/GB3E2zAZbQXpVTCMwMPO6T0ItQTmfUmK2JNsS/pnUEBNsZX7XGAXt/3+k/mz
+         6HXDz+qQGrJIRdpWKGN/jnvRKCCcuW4omziHzn8qHQye1LDRfkcf9Iaoh0urGivjsY0q
+         Oj5Q7hpzKmpFl2M05Io2SeFrrFhdSRzYZeLG6YKJMJVNKsKOBbZAbpLsTosc7U5GYA6y
+         X/5t11JwQaEgiYOXCN5EM6TBTfOc7ZDYD5SAGpqfuWXxgN9hnfP9kF4HMk6iTZ+QWRWU
+         XLZg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
-        by mx.google.com with ESMTP id qh16si729581ejb.181.2019.07.04.08.26.18
-        for <linux-mm@kvack.org>;
-        Thu, 04 Jul 2019 08:26:18 -0700 (PDT)
-Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
+       spf=pass (google.com: best guess record for domain of bigeasy@linutronix.de designates 2a0a:51c0:0:12e:550::1 as permitted sender) smtp.mailfrom=bigeasy@linutronix.de
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a0a:51c0:0:12e:550::1])
+        by mx.google.com with ESMTPS id t142si3666600wmt.87.2019.07.04.08.38.10
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Thu, 04 Jul 2019 08:38:11 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of bigeasy@linutronix.de designates 2a0a:51c0:0:12e:550::1 as permitted sender) client-ip=2a0a:51c0:0:12e:550::1;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 8316F2B;
-	Thu,  4 Jul 2019 08:26:17 -0700 (PDT)
-Received: from [10.162.40.119] (p8cg001049571a15.blr.arm.com [10.162.40.119])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 3B3A43F703;
-	Thu,  4 Jul 2019 08:26:13 -0700 (PDT)
-Subject: Re: [PATCH V2] mm/ioremap: Probe platform for p4d huge map support
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, Catalin Marinas <catalin.marinas@arm.com>,
- Will Deacon <will.deacon@arm.com>, Dave Hansen
- <dave.hansen@linux.intel.com>, Andy Lutomirski <luto@kernel.org>,
- Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>,
- Ingo Molnar <mingo@redhat.com>,
- "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>,
- Michal Hocko <mhocko@kernel.org>, Stephen Rothwell <sfr@canb.auug.org.au>,
- Michael Ellerman <mpe@ellerman.id.au>, linuxppc-dev@lists.ozlabs.org,
- linux-arm-kernel@lists.infradead.org, x86@kernel.org
-References: <1561699231-20991-1-git-send-email-anshuman.khandual@arm.com>
- <20190702160630.25de5558e9fe2d7d845f3472@linux-foundation.org>
-From: Anshuman Khandual <anshuman.khandual@arm.com>
-Message-ID: <fbc147c7-bec2-daed-b828-c4ae170010a9@arm.com>
-Date: Thu, 4 Jul 2019 20:56:40 +0530
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
- Thunderbird/52.9.1
+       spf=pass (google.com: best guess record for domain of bigeasy@linutronix.de designates 2a0a:51c0:0:12e:550::1 as permitted sender) smtp.mailfrom=bigeasy@linutronix.de
+Received: from localhost ([127.0.0.1] helo=flow.W.breakpoint.cc)
+	by Galois.linutronix.de with esmtp (Exim 4.80)
+	(envelope-from <bigeasy@linutronix.de>)
+	id 1hj3oF-0004wg-Pi; Thu, 04 Jul 2019 17:38:07 +0200
+From: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
+To: linux-kernel@vger.kernel.org
+Cc: tglx@linutronix.de,
+	Peter Zijlstra <peterz@infradead.org>,
+	Sebastian Andrzej Siewior <bigeasy@linutronix.de>,
+	linux-mm@kvack.org,
+	Andrew Morton <akpm@linux-foundation.org>
+Subject: [PATCH 2/7] vmpressure: Use spinlock_t instead of struct spinlock
+Date: Thu,  4 Jul 2019 17:37:58 +0200
+Message-Id: <20190704153803.12739-3-bigeasy@linutronix.de>
+X-Mailer: git-send-email 2.20.1
+In-Reply-To: <20190704153803.12739-1-bigeasy@linutronix.de>
+References: <20190704153803.12739-1-bigeasy@linutronix.de>
 MIME-Version: 1.0
-In-Reply-To: <20190702160630.25de5558e9fe2d7d845f3472@linux-foundation.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+For spinlocks the type spinlock_t should be used instead of "struct
+spinlock".
 
+Use spinlock_t for spinlock's definition.
 
-On 07/03/2019 04:36 AM, Andrew Morton wrote:
-> On Fri, 28 Jun 2019 10:50:31 +0530 Anshuman Khandual <anshuman.khandual@arm.com> wrote:
-> 
->> Finishing up what the commit c2febafc67734a ("mm: convert generic code to
->> 5-level paging") started out while levelling up P4D huge mapping support
->> at par with PUD and PMD. A new arch call back arch_ioremap_p4d_supported()
->> is being added which just maintains status quo (P4D huge map not supported)
->> on x86, arm64 and powerpc.
-> 
-> Does this have any runtime effects?  If so, what are they and why?  If
-> not, what's the actual point?
+Cc: linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
+---
+ include/linux/vmpressure.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-It just finishes up what the previous commit c2febafc67734a ("mm: convert
-generic code to 5-level paging") left off with respect p4d based huge page
-enablement for ioremap. When HAVE_ARCH_HUGE_VMAP is enabled its just a simple
-check from the arch about the support, hence runtime effects are minimal.
+diff --git a/include/linux/vmpressure.h b/include/linux/vmpressure.h
+index 61e6fddfb26fd..6d28bc433c1cf 100644
+--- a/include/linux/vmpressure.h
++++ b/include/linux/vmpressure.h
+@@ -17,7 +17,7 @@ struct vmpressure {
+ 	unsigned long tree_scanned;
+ 	unsigned long tree_reclaimed;
+ 	/* The lock is used to keep the scanned/reclaimed above in sync. */
+-	struct spinlock sr_lock;
++	spinlock_t sr_lock;
+ 
+ 	/* The list of vmpressure_event structs. */
+ 	struct list_head events;
+-- 
+2.20.1
 
