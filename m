@@ -2,297 +2,198 @@ Return-Path: <SRS0=d6aY=VB=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 58640C0650E
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Jul 2019 07:06:06 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2273DC0650E
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Jul 2019 07:37:36 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 06C822133F
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Jul 2019 07:06:05 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 06C822133F
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
+	by mail.kernel.org (Postfix) with ESMTP id E33652133F
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Jul 2019 07:37:35 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E33652133F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7FDC86B0006; Thu,  4 Jul 2019 03:06:05 -0400 (EDT)
+	id 7A25A6B0003; Thu,  4 Jul 2019 03:37:35 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7AE5B8E0003; Thu,  4 Jul 2019 03:06:05 -0400 (EDT)
+	id 720AC8E0003; Thu,  4 Jul 2019 03:37:35 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 69E138E0001; Thu,  4 Jul 2019 03:06:05 -0400 (EDT)
+	id 5C1D68E0001; Thu,  4 Jul 2019 03:37:35 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 3AE606B0006
-	for <linux-mm@kvack.org>; Thu,  4 Jul 2019 03:06:05 -0400 (EDT)
-Received: by mail-oi1-f197.google.com with SMTP id v72so2256857oia.8
-        for <linux-mm@kvack.org>; Thu, 04 Jul 2019 00:06:05 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 093FD6B0003
+	for <linux-mm@kvack.org>; Thu,  4 Jul 2019 03:37:35 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id c27so3272098edn.8
+        for <linux-mm@kvack.org>; Thu, 04 Jul 2019 00:37:34 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=VovdsaXwd81Z9SEv8R7yULU6Jjvd/maaLI9lMD+W7ho=;
-        b=ATTYp4FPXMrphR4fCibCBjEwGPD14x9d5modiPV0EK/8fbmJYV36wq4WAqIKh2SDU5
-         44iVtIggg7iAR8HsmbTWWVK7iLbgRT7FoDww8dcBe6N2YlqOp1QjLq34eHnCofwNBQmR
-         Ynxf6LSEvCnrz/eHyc4wUx9+EHC2TOJ5ps0YR2sw54dBsm2VCouXpxl2i6DLw50+/yDc
-         4CSDZZ+M2jVHn2SKyFmpFbhuKDxm0VpTi7tH3//JHtMcw2c/U6gnVmVaYN2e1voOjZLG
-         Yj7dBXlGjT9sdNvMGwf3xBF6wYC/Tty0yCe9nM30XRngCwUR6AzQbCowZfFIYbDBNWZm
-         UWIg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of wangkefeng.wang@huawei.com designates 45.249.212.190 as permitted sender) smtp.mailfrom=wangkefeng.wang@huawei.com
-X-Gm-Message-State: APjAAAX25ROitsiDVkluzz2Q9MixEfbDyX6ccIW9IS+XzLiRtBvrd9cH
-	h+EY0xfGbJbw4xoe2yO0XQodvUjlk2ZY3jDUDoVIl9oOO1G+hBMwFKE+jKzyX1NQ51BB7hq+7Ye
-	8nmMg7lHO7tws1LCeglmaFU3WZL0e2q+DyPcIGUZYZiy0D0a+26kmYa/pxlPG/rXm3A==
-X-Received: by 2002:aca:dc86:: with SMTP id t128mr1051087oig.130.1562223964716;
-        Thu, 04 Jul 2019 00:06:04 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxyc05SXXKGzi0FZtuTvwLeZPVIFaxXM1EQ1Q6HBeIYZhe3qiPqn4fpQG8p6L/6jIxWV3S6
-X-Received: by 2002:aca:dc86:: with SMTP id t128mr1051028oig.130.1562223963419;
-        Thu, 04 Jul 2019 00:06:03 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562223963; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=NPbcT7fNZKxE9QIwn5p/+MnGQ2etLcnd4JIXTlUCZm4=;
+        b=h19uokjQYsFReML3Juw1sfZkfkeUtWtzxg5AFDtiERFX3MmoV+aN5m6IH0leKWQvsp
+         RIB0k1YrtHrQIx7A3wCbx8p4QQxjb30x0SXltJbu5djg841aK+YnCZeCOeTxdN9eUuRY
+         ierMVH8rSIUyitB5AY9qIwxrtwi8DrE78HTxp8oY57nUq2QCySIJfdGrcayayMLBhmx8
+         cVUq9Cm1NvEtEP53dfp++GFYljojdZCegQtf6Lsa3HEL8rP8G25pGcwp4ungSNH6Ao5L
+         Nc9zl/XnFW+Ml6JxXKx2FEZn3AhQ9SRQJaR4o5DWVNp3LWYIPd2T0lxdK3q3GGVfF3HB
+         WgDg==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAXs0ErK11zfJnbOvOdvRxOM2uvMOckyn5E+peCxjSOCSOQR2wXi
+	y6d7Pt3XrYCEmMr+2SvseVPPa7bycmAtX0MbPf7S4ICaMkATYEvvJLdlhsLn32rXb++kTRh9scl
+	xejXpqh9koweQWed7kpqfLX3GzIoRVcOCr+sOP7QMTcx2D1KmTlZREJ0x4ev6I+0=
+X-Received: by 2002:a50:b1db:: with SMTP id n27mr47613131edd.62.1562225854539;
+        Thu, 04 Jul 2019 00:37:34 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwna+G+JWkbfvdAEkKMFdEqTI5fgfHJ02IWRVo6PCDE5rS6LxUcxlLp7+NxKp+fl6+wFDJ8
+X-Received: by 2002:a50:b1db:: with SMTP id n27mr47613064edd.62.1562225853646;
+        Thu, 04 Jul 2019 00:37:33 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562225853; cv=none;
         d=google.com; s=arc-20160816;
-        b=kQTzz4oFdkL7EOgryVc7eSrrOba9nfKDK6AhTJjkAiTeggT3GJdATlqEQIXfcxv2Nh
-         8KWiDTFxApadaJEc1P9s7WBgVVQoiyCCMYudbAi6ev0e1mO6TpXe/LnDzKlkRDs6spYh
-         xXMvhu9MiMYYUHZSHJBnKh1qNp8TxGEtRVNFvW2aEPS1o1MEjH4uHuTedcDnaSDr58WL
-         Od1Zc6ouPxRQjQxQov6u+NpRUlc+E/uatLUCf3bEw8JRauNTnLiKCF/W4YJypLa4DimO
-         vaAld8K44Wa6v2fVGbrmrWEwEtj/2GXrzc69kflH9F2OZeh15HMwxAJfbusmx9fDhLYH
-         JEDg==
+        b=xAvyrPSKANqKQ3E5b/JqGWwO4mTaRiUem/ksFdPOk7dqVc+L24V3IcbNxBmQrdn5OX
+         yXxYBFCflcFIG5TwRI6J33CUch12JzajwELwYQMm6IS7Zr8lJvjv1i9W6pqz5DOWoGGp
+         NjvwZlVe5c0rKj2wuiznjs3UXSH/A1at2RIm4FgmcvzSNn7ajYMD694TyCLsP2nYoE8U
+         N05xt572u5ryGSlubfZoKBRgxd3JBNW3lXHqEb6oI6UCEQmJUv0tus+RmKy3uQkuVZtM
+         fndJCWG+J2DElB0QG4c8u82WF8h3TpEqDXRfHxgsZJZTam+Trwd9iuj1iEof/5dMWEZV
+         adOA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=VovdsaXwd81Z9SEv8R7yULU6Jjvd/maaLI9lMD+W7ho=;
-        b=kk49z5f13QwXNbuNWn7RXO9xnNM9e9ux02+0Oqns8d9V59aabgRuoWnaciq8cQBT9Y
-         Fewqm/kdtyFTxlrrFS6QDyhdCRMlbf17dMozmWc28cd8mwe/LCgZRX4+JUBcJB6+fhV+
-         j58OYqMeqkkgeF1fBLNsrnw1Z6gbbVR38iWDIv4uaHHpRL79jSmEiIyCej6R56W+93D7
-         fEvEi8wybF475C0ZG8wNIm1QKE7mDy58tYsO+X2nkflmnsM0FRcx5uwHrxOhNlaTFLQA
-         oLOYNYr5/UllJHnjhLju6Kh3QXH3ML1Dzj1elcNJeQ4ypTZ/Gwi0Oc+Q0meGEDKSfFQK
-         1eDQ==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date;
+        bh=NPbcT7fNZKxE9QIwn5p/+MnGQ2etLcnd4JIXTlUCZm4=;
+        b=touuKdmrRvthm2i1ZhAEBncsZxBA3RPpkXWzTo6DFuive/dTkrw//+lwyuKU+getj2
+         sSg4NBnFSo/wB87L8NJcqxVbTDw9Clr/wqnw/UUyxZb9Ad9a9Y3UImgLZb74irJO07mH
+         8ITK39LqlpkKeiXCHuAHMv7TTJKYVT+NXUsHA2PyhX67yyZyljjFiI8Ol0Nn09dwnf4Y
+         HBkTstSixGS73T5WnOXubRcUDfKcDyJnxxTPPc13HkyzuflbjOrnMV8Tt3WmkvvTtyXB
+         FMpgR6RUJGq83qXend2PpjxMzPFvtLBx6h78OM6XagLQboXohhA8TcqSdl3gSqIJL2gE
+         AqZg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of wangkefeng.wang@huawei.com designates 45.249.212.190 as permitted sender) smtp.mailfrom=wangkefeng.wang@huawei.com
-Received: from huawei.com (szxga04-in.huawei.com. [45.249.212.190])
-        by mx.google.com with ESMTPS id r9si3511312oie.190.2019.07.04.00.06.02
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id um8si3285220ejb.373.2019.07.04.00.37.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 04 Jul 2019 00:06:03 -0700 (PDT)
-Received-SPF: pass (google.com: domain of wangkefeng.wang@huawei.com designates 45.249.212.190 as permitted sender) client-ip=45.249.212.190;
+        Thu, 04 Jul 2019 00:37:33 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of wangkefeng.wang@huawei.com designates 45.249.212.190 as permitted sender) smtp.mailfrom=wangkefeng.wang@huawei.com
-Received: from DGGEMS412-HUB.china.huawei.com (unknown [172.30.72.60])
-	by Forcepoint Email with ESMTP id 72B0FF963BC358DAD446;
-	Thu,  4 Jul 2019 15:05:30 +0800 (CST)
-Received: from [127.0.0.1] (10.133.217.137) by DGGEMS412-HUB.china.huawei.com
- (10.3.19.212) with Microsoft SMTP Server id 14.3.439.0; Thu, 4 Jul 2019
- 15:05:29 +0800
-Subject: Re: [PATCH] percpu: Make pcpu_setup_first_chunk() void function
-To: Dennis Zhou <dennis@kernel.org>
-CC: Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux.com>,
-	<linux-kernel@vger.kernel.org>, <linux-mm@kvack.org>, Andrey Ryabinin
-	<a.ryabinin@samsung.com>, Andrew Morton <akpm@linux-foundation.org>
-References: <20190703082552.69951-1-wangkefeng.wang@huawei.com>
- <20190704042053.GA29349@dennisz-mbp.dhcp.thefacebook.com>
-From: Kefeng Wang <wangkefeng.wang@huawei.com>
-Message-ID: <bcc00d6f-6258-aaf6-023b-fb4fb1f55ed9@huawei.com>
-Date: Thu, 4 Jul 2019 15:05:28 +0800
-User-Agent: Mozilla/5.0 (Windows NT 6.1; WOW64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.0
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 5CBB9AD7F;
+	Thu,  4 Jul 2019 07:37:32 +0000 (UTC)
+Date: Thu, 4 Jul 2019 09:37:30 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: Waiman Long <longman@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+	Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>,
+	David Rientjes <rientjes@google.com>,
+	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
+	Alexander Viro <viro@zeniv.linux.org.uk>,
+	Jonathan Corbet <corbet@lwn.net>,
+	Luis Chamberlain <mcgrof@kernel.org>,
+	Kees Cook <keescook@chromium.org>,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	Vladimir Davydov <vdavydov.dev@gmail.com>, linux-mm@kvack.org,
+	linux-doc@vger.kernel.org, linux-fsdevel@vger.kernel.org,
+	cgroups@vger.kernel.org, linux-kernel@vger.kernel.org,
+	Roman Gushchin <guro@fb.com>, Shakeel Butt <shakeelb@google.com>,
+	Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH] mm, slab: Extend slab/shrink to shrink all the memcg
+ caches
+Message-ID: <20190704073730.GA5620@dhcp22.suse.cz>
+References: <20190702183730.14461-1-longman@redhat.com>
+ <20190702130318.39d187dc27dbdd9267788165@linux-foundation.org>
+ <78879b79-1b8f-cdfd-d4fa-610afe5e5d48@redhat.com>
+ <20190702143340.715f771192721f60de1699d7@linux-foundation.org>
+ <c29ff725-95ba-db4d-944f-d33f5f766cd3@redhat.com>
+ <20190703155314.GT978@dhcp22.suse.cz>
+ <ca6147ca-25be-cba6-a7b9-fcac6d21345d@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20190704042053.GA29349@dennisz-mbp.dhcp.thefacebook.com>
-Content-Type: text/plain; charset="utf-8"
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-Originating-IP: [10.133.217.137]
-X-CFilter-Loop: Reflected
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <ca6147ca-25be-cba6-a7b9-fcac6d21345d@redhat.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
-
-On 2019/7/4 12:20, Dennis Zhou wrote:
-> On Wed, Jul 03, 2019 at 04:25:52PM +0800, Kefeng Wang wrote:
->> pcpu_setup_first_chunk() will panic or BUG_ON if the are some
->> error and doesn't return any error, hence it can be defined to
->> return void.
->>
->> Signed-off-by: Kefeng Wang <wangkefeng.wang@huawei.com>
->> ---
-...
->>
+On Wed 03-07-19 12:16:09, Waiman Long wrote:
+> On 7/3/19 11:53 AM, Michal Hocko wrote:
+> > On Wed 03-07-19 11:21:16, Waiman Long wrote:
+> >> On 7/2/19 5:33 PM, Andrew Morton wrote:
+> >>> On Tue, 2 Jul 2019 16:44:24 -0400 Waiman Long <longman@redhat.com> wrote:
+> >>>
+> >>>> On 7/2/19 4:03 PM, Andrew Morton wrote:
+> >>>>> On Tue,  2 Jul 2019 14:37:30 -0400 Waiman Long <longman@redhat.com> wrote:
+> >>>>>
+> >>>>>> Currently, a value of '1" is written to /sys/kernel/slab/<slab>/shrink
+> >>>>>> file to shrink the slab by flushing all the per-cpu slabs and free
+> >>>>>> slabs in partial lists. This applies only to the root caches, though.
+> >>>>>>
+> >>>>>> Extends this capability by shrinking all the child memcg caches and
+> >>>>>> the root cache when a value of '2' is written to the shrink sysfs file.
+> >>>>> Why?
+> >>>>>
+> >>>>> Please fully describe the value of the proposed feature to or users. 
+> >>>>> Always.
+> >>>> Sure. Essentially, the sysfs shrink interface is not complete. It allows
+> >>>> the root cache to be shrunk, but not any of the memcg caches. 
+> >>> But that doesn't describe anything of value.  Who wants to use this,
+> >>> and why?  How will it be used?  What are the use-cases?
+> >>>
+> >> For me, the primary motivation of posting this patch is to have a way to
+> >> make the number of active objects reported in /proc/slabinfo more
+> >> accurately reflect the number of objects that are actually being used by
+> >> the kernel.
+> > I believe we have been through that. If the number is inexact due to
+> > caching then lets fix slabinfo rather than trick around it and teach
+> > people to do a magic write to some file that will "solve" a problem.
+> > This is exactly what drop_caches turned out to be in fact. People just
+> > got used to drop caches because they were told so by $random web page.
+> > So really, think about the underlying problem and try to fix it.
+> >
+> > It is true that you could argue that this patch is actually fixing the
+> > existing interface because it doesn't really do what it is documented to
+> > do and on those grounds I would agree with the change.
 > 
-> Hi Kefeng,
+> I do think that we should correct the shrink file to do what it is
+> designed to do to include the memcg caches as well.
 > 
-> This makes sense to me. I've applied this to for-5.4.
-
-Hi Dennis and all,
-
-There is an issue when with percpu_alloc=page + KASAN.
-
-The system boot successfully with defconfig when using percpu_alloc=embed(default configuration),
-but when enabled KASAN(CONFIG_KASAN=y/CONFIG_KASAN_GENERIC=y/CONFIG_KASAN_OUTLINE=y), it triggers
-"PANIC: double fault, error_code: 0x0", and I try some different kernel version, eg, 4.14/4.19/5.0,
-all of them won't boot, I can't find any clue, could you or anyone provide some advice, thanks.
-
-Here is log,
-
-Booting the kernel.
-[    0.000000] Linux version 5.2.0-rc7+ (root@ubuntu) (gcc version 7.4.0 (Ubuntu 7.4.0-1ubuntu1~18.04.1)) #10 SMP Thu Jul 4 11:58:45 HKT 2019
-[    0.000000] Command line: kmemleak=off console=ttyS0 root=/dev/sda  earlyprintk=serial  percpu_alloc=page
-[    0.000000] x86/fpu: x87 FPU will use FXSAVE
-[    0.000000] BIOS-provided physical RAM map:
-[    0.000000] BIOS-e820: [mem 0x0000000000000000-0x000000000009fbff] usable
-[    0.000000] BIOS-e820: [mem 0x000000000009fc00-0x000000000009ffff] reserved
-[    0.000000] BIOS-e820: [mem 0x00000000000f0000-0x00000000000fffff] reserved
-[    0.000000] BIOS-e820: [mem 0x0000000000100000-0x00000000bffdefff] usable
-[    0.000000] BIOS-e820: [mem 0x00000000bffdf000-0x00000000bfffffff] reserved
-[    0.000000] BIOS-e820: [mem 0x00000000feffc000-0x00000000feffffff] reserved
-[    0.000000] BIOS-e820: [mem 0x00000000fffc0000-0x00000000ffffffff] reserved
-[    0.000000] BIOS-e820: [mem 0x0000000100000000-0x000000043fffffff] usable
-[    0.000000] printk: bootconsole [earlyser0] enabled
-[    0.000000] NX (Execute Disable) protection: active
-[    0.000000] SMBIOS 2.8 present.
-[    0.000000] DMI: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.10.2-1ubuntu1 04/01/2014
-[    0.000000] last_pfn = 0x440000 max_arch_pfn = 0x400000000
-[    0.000000] x86/PAT: PAT not supported by CPU.
-[    0.000000] x86/PAT: Configuration [0-7]: WB  WT  UC- UC  WB  WT  UC- UC
-[    0.000000] last_pfn = 0xbffdf max_arch_pfn = 0x400000000
-[    0.000000] found SMP MP-table at [mem 0x000f6a10-0x000f6a1f]
-[    0.000000] check: Scanning 1 areas for low memory corruption
-[    0.000000] ACPI: Early table checksum verification disabled
-[    0.000000] ACPI: RSDP 0x00000000000F69C0 000014 (v00 BOCHS )
-[    0.000000] ACPI: RSDT 0x00000000BFFE169F 000034 (v01 BOCHS  BXPCRSDT 00000001 BXPC 00000001)
-[    0.000000] ACPI: FACP 0x00000000BFFE1323 000074 (v01 BOCHS  BXPCFACP 00000001 BXPC 00000001)
-[    0.000000] ACPI: DSDT 0x00000000BFFDFC80 0016A3 (v01 BOCHS  BXPCDSDT 00000001 BXPC 00000001)
-[    0.000000] ACPI: FACS 0x00000000BFFDFC40 000040
-[    0.000000] ACPI: APIC 0x00000000BFFE1417 0000B0 (v01 BOCHS  BXPCAPIC 00000001 BXPC 00000001)
-[    0.000000] ACPI: HPET 0x00000000BFFE14C7 000038 (v01 BOCHS  BXPCHPET 00000001 BXPC 00000001)
-[    0.000000] ACPI: SRAT 0x00000000BFFE14FF 0001A0 (v01 BOCHS  BXPCSRAT 00000001 BXPC 00000001)
-[    0.000000] SRAT: PXM 0 -> APIC 0x00 -> Node 0
-[    0.000000] SRAT: PXM 0 -> APIC 0x01 -> Node 0
-[    0.000000] SRAT: PXM 1 -> APIC 0x02 -> Node 1
-[    0.000000] SRAT: PXM 1 -> APIC 0x03 -> Node 1
-[    0.000000] SRAT: PXM 2 -> APIC 0x04 -> Node 2
-[    0.000000] SRAT: PXM 2 -> APIC 0x05 -> Node 2
-[    0.000000] SRAT: PXM 3 -> APIC 0x06 -> Node 3
-[    0.000000] SRAT: PXM 3 -> APIC 0x07 -> Node 3
-[    0.000000] ACPI: SRAT: Node 0 PXM 0 [mem 0x00000000-0x0009ffff]
-[    0.000000] ACPI: SRAT: Node 0 PXM 0 [mem 0x00100000-0xbfffffff]
-[    0.000000] ACPI: SRAT: Node 0 PXM 0 [mem 0x100000000-0x13fffffff]
-[    0.000000] ACPI: SRAT: Node 1 PXM 1 [mem 0x140000000-0x23fffffff]
-[    0.000000] ACPI: SRAT: Node 2 PXM 2 [mem 0x240000000-0x33fffffff]
-[    0.000000] ACPI: SRAT: Node 3 PXM 3 [mem 0x340000000-0x43fffffff]
-[    0.000000] NUMA: Node 0 [mem 0x00000000-0x0009ffff] + [mem 0x00100000-0xbfffffff] -> [mem 0x00000000-0xbfffffff]
-[    0.000000] NUMA: Node 0 [mem 0x00000000-0xbfffffff] + [mem 0x100000000-0x13fffffff] -> [mem 0x00000000-0x13fffffff]
-[    0.000000] NODE_DATA(0) allocated [mem 0x13fffc000-0x13fffffff]
-[    0.000000] NODE_DATA(1) allocated [mem 0x23fffc000-0x23fffffff]
-[    0.000000] NODE_DATA(2) allocated [mem 0x33fffc000-0x33fffffff]
-[    0.000000] NODE_DATA(3) allocated [mem 0x43fff5000-0x43fff8fff]
-[    0.000000] Zone ranges:
-[    0.000000]   DMA      [mem 0x0000000000001000-0x0000000000ffffff]
-[    0.000000]   DMA32    [mem 0x0000000001000000-0x00000000ffffffff]
-[    0.000000]   Normal   [mem 0x0000000100000000-0x000000043fffffff]
-[    0.000000] Movable zone start for each node
-[    0.000000] Early memory node ranges
-[    0.000000]   node   0: [mem 0x0000000000001000-0x000000000009efff]
-[    0.000000]   node   0: [mem 0x0000000000100000-0x00000000bffdefff]
-[    0.000000]   node   0: [mem 0x0000000100000000-0x000000013fffffff]
-[    0.000000]   node   1: [mem 0x0000000140000000-0x000000023fffffff]
-[    0.000000]   node   2: [mem 0x0000000240000000-0x000000033fffffff]
-[    0.000000]   node   3: [mem 0x0000000340000000-0x000000043fffffff]
-[    0.000000] Zeroed struct page in unavailable ranges: 131 pages
-[    0.000000] Initmem setup node 0 [mem 0x0000000000001000-0x000000013fffffff]
-[    0.000000] Initmem setup node 1 [mem 0x0000000140000000-0x000000023fffffff]
-[    0.000000] Initmem setup node 2 [mem 0x0000000240000000-0x000000033fffffff]
-[    0.000000] Initmem setup node 3 [mem 0x0000000340000000-0x000000043fffffff]
-[    0.000000] kasan: KernelAddressSanitizer initialized
-[    0.000000] ACPI: PM-Timer IO Port: 0x608
-[    0.000000] ACPI: LAPIC_NMI (acpi_id[0xff] dfl dfl lint[0x1])
-[    0.000000] IOAPIC[0]: apic_id 0, version 17, address 0xfec00000, GSI 0-23
-[    0.000000] ACPI: INT_SRC_OVR (bus 0 bus_irq 0 global_irq 2 dfl dfl)
-[    0.000000] ACPI: INT_SRC_OVR (bus 0 bus_irq 5 global_irq 5 high level)
-[    0.000000] ACPI: INT_SRC_OVR (bus 0 bus_irq 9 global_irq 9 high level)
-[    0.000000] ACPI: INT_SRC_OVR (bus 0 bus_irq 10 global_irq 10 high level)
-[    0.000000] ACPI: INT_SRC_OVR (bus 0 bus_irq 11 global_irq 11 high level)
-[    0.000000] Using ACPI (MADT) for SMP configuration information
-[    0.000000] ACPI: HPET id: 0x8086a201 base: 0xfed00000
-[    0.000000] smpboot: Allowing 8 CPUs, 0 hotplug CPUs
-[    0.000000] PM: Registered nosave memory: [mem 0x00000000-0x00000fff]
-[    0.000000] PM: Registered nosave memory: [mem 0x0009f000-0x0009ffff]
-[    0.000000] PM: Registered nosave memory: [mem 0x000a0000-0x000effff]
-[    0.000000] PM: Registered nosave memory: [mem 0x000f0000-0x000fffff]
-[    0.000000] PM: Registered nosave memory: [mem 0xbffdf000-0xbfffffff]
-[    0.000000] PM: Registered nosave memory: [mem 0xc0000000-0xfeffbfff]
-[    0.000000] PM: Registered nosave memory: [mem 0xfeffc000-0xfeffffff]
-[    0.000000] PM: Registered nosave memory: [mem 0xff000000-0xfffbffff]
-[    0.000000] PM: Registered nosave memory: [mem 0xfffc0000-0xffffffff]
-[    0.000000] [mem 0xc0000000-0xfeffbfff] available for PCI devices
-[    0.000000] clocksource: refined-jiffies: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 1910969940391419 ns
-[    0.000000] setup_percpu: NR_CPUS:64 nr_cpumask_bits:64 nr_cpu_ids:8 nr_node_ids:4
-[    0.000000] percpu: 56 4K pages/cpu s208152 r8192 d13032
-[    0.000000] Built 4 zonelists, mobility grouping on.  Total pages: 4128616
-[    0.000000] Policy zone: Normal
-[    0.000000] Kernel command line: kmemleak=off console=ttyS0 root=/dev/sda  earlyprintk=serial  percpu_alloc=page
-[    0.000000] Memory: 14289792K/16776692K available (20484K kernel code, 5398K rwdata, 5824K rodata, 1620K init, 9432K bss, 2486900K reserved, 0K cma-reserved)
-[    0.000000] SLUB: HWalign=64, Order=0-3, MinObjects=0, CPUs=8, Nodes=4
-[    0.000000] Kernel/User page tables isolation: enabled
-[    0.000000] rcu: Hierarchical RCU implementation.
-[    0.000000] rcu: 	RCU event tracing is enabled.
-[    0.000000] rcu: 	RCU restricting CPUs from NR_CPUS=64 to nr_cpu_ids=8.
-[    0.000000] rcu: RCU calculated value of scheduler-enlistment delay is 100 jiffies.
-[    0.000000] rcu: Adjusting geometry for rcu_fanout_leaf=16, nr_cpu_ids=8
-[    0.000000] NR_IRQS: 4352, nr_irqs: 488, preallocated irqs: 16
-[    0.000000] random: get_random_bytes called from start_kernel+0x322/0x595 with crng_init=0
-[    0.000000] Console: colour VGA+ 80x25
-[    0.000000] printk: console [ttyS0] enabled
-[    0.000000] printk: console [ttyS0] enabled
-[    0.000000] printk: bootconsole [earlyser0] disabled
-[    0.000000] printk: bootconsole [earlyser0] disabled
-[    0.000000] ACPI: Core revision 20190509
-[    0.000000] clocksource: hpet: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 19112604467 ns
-[    0.000000] PANIC: double fault, error_code: 0x0
-[    0.000000] CPU: 0 PID: 0 Comm: swapper/0 Not tainted 5.2.0-rc7+ #10
-[    0.000000] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.10.2-1ubuntu1 04/01/2014
-[    0.000000] RIP: 0010:no_context+0x33/0x6f0
-[    0.000000] Code: 00 00 fc ff df 41 55 41 54 4c 8d bf 88 00 00 00 55 53 48 89 fd 4c 89 ff 49 89 f4 49 89 d6 48 81 ec 50 01 00 00 48 8d 5c 24 30 <89> 0c 24 44 89 44 24 08 48 c7 44 24 30 b3 8a b5 41 48 c7 44 24 38
-[    0.000000] RSP: 0000:ffffc8ffffffff50 EFLAGS: 00010086
-[    0.000000] RAX: dffffc0000000000 RBX: ffffc8ffffffff80 RCX: 000000000000000b
-[    0.000000] RDX: fffff52000000036 RSI: 0000000000000003 RDI: ffffc90000000160
-[    0.000000] RBP: ffffc900000000d8 R08: 0000000000000001 R09: 0000000000000000
-[    0.000000] R10: 0000000000000000 R11: 0000000000000000 R12: 0000000000000003
-[    0.000000] R13: 0000000000000000 R14: fffff52000000036 R15: ffffc90000000160
-[    0.000000] FS:  0000000000000000(0000) GS:ffffc90000000000(0000) knlGS:0000000000000000
-[    0.000000] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-[    0.000000] CR2: ffffc8ffffffff48 CR3: 000000042580e000 CR4: 00000000000006b0
-[    0.000000] Call Trace:
-[    0.000000] Kernel panic - not syncing: Machine halted.
-[    0.000000] CPU: 0 PID: 0 Comm: swapper/0 Not tainted 5.2.0-rc7+ #10
-[    0.000000] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.10.2-1ubuntu1 04/01/2014
-[    0.000000] Call Trace:
-[    0.000000]  <#DF>
-[    0.000000]  dump_stack+0x5b/0x8b
-[    0.000000]  panic+0x183/0x384
-[    0.000000]  ? refcount_error_report+0x11c/0x11c
-[    0.000000]  df_debug+0x29/0x30
-[    0.000000]  do_double_fault+0xb6/0x160
-[    0.000000]  double_fault+0x1e/0x30
-[    0.000000] RIP: 0010:no_context+0x33/0x6f0
-[    0.000000] Code: 00 00 fc ff df 41 55 41 54 4c 8d bf 88 00 00 00 55 53 48 89 fd 4c 89 ff 49 89 f4 49 89 d6 48 81 ec 50 01 00 00 48 8d 5c 24 30 <89> 0c 24 44 89 44 24 08 48 c7 44 24 30 b3 8a b5 41 48 c7 44 24 38
-[    0.000000] RSP: 0000:ffffc8ffffffff50 EFLAGS: 00010086
-[    0.000000] RAX: dffffc0000000000 RBX: ffffc8ffffffff80 RCX: 000000000000000b
-[    0.000000] RDX: fffff52000000036 RSI: 0000000000000003 RDI: ffffc90000000160
-[    0.000000] RBP: ffffc900000000d8 R08: 0000000000000001 R09: 0000000000000000
-[    0.000000] R10: 0000000000000000 R11: 0000000000000000 R12: 0000000000000003
-[    0.000000] R13: 0000000000000000 R14: fffff52000000036 R15: ffffc90000000160
-[    0.000000]  </#DF>
-[    0.000000] ---[ end Kernel panic - not syncing: Machine halted. ]---
-
-
-
-
 > 
-> Thanks,
-> Dennis
+> >  But do not teach
+> > people that they have to write to some file to get proper numbers.
+> > Because that is just a bad idea and it will kick back the same way
+> > drop_caches.
 > 
-> .
-> 
+> The /proc/slabinfo file is a well-known file that is probably used
+> relatively extensively. Making it to scan through all the per-cpu
+> structures will probably cause performance issues as the slab_mutex has
+> to be taken during the whole duration of the scan. That could have
+> undesirable side effect.
+
+Please be more specific with some numbers ideally. Also if collecting
+data is too expensive, why cannot we simply account cached objects count
+in pcp manner?
+
+> Instead, I am thinking about extending the slab/objects sysfs file to
+> also show the number of objects hold up by the per-cpu structures and
+> thus we can get an accurate count by subtracting it from the reported
+> active objects. That will have a more limited performance impact as it
+> is just one kmem cache instead of all the kmem caches in the system.
+> Also the sysfs files are not as commonly used as slabinfo. That will be
+> another patch in the near future.
+
+Both are root only and once it is widespread that slabinfo doesn't
+provide precise data you can expect tools will try to fix that by adding
+another file(s) and we are back to square one, no? In other words
+slabinfo
+
+-- 
+Michal Hocko
+SUSE Labs
 
