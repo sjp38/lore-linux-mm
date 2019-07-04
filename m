@@ -1,118 +1,105 @@
 Return-Path: <SRS0=d6aY=VB=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
-X-Spam-Level: *
-X-Spam-Status: No, score=1.4 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,FSL_HELO_FAKE,HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Level: 
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 47DDFC06516
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Jul 2019 09:47:23 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 757A5C06513
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Jul 2019 11:04:30 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 02C542189E
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Jul 2019 09:47:22 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=chromium.org header.i=@chromium.org header.b="IitgCdR9"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 02C542189E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chromium.org
+	by mail.kernel.org (Postfix) with ESMTP id 2B9DE205C9
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Jul 2019 11:04:30 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2B9DE205C9
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9311B6B0006; Thu,  4 Jul 2019 05:47:22 -0400 (EDT)
+	id 945B06B0003; Thu,  4 Jul 2019 07:04:29 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8E2DB8E0003; Thu,  4 Jul 2019 05:47:22 -0400 (EDT)
+	id 8F5B18E0003; Thu,  4 Jul 2019 07:04:29 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7D37A8E0001; Thu,  4 Jul 2019 05:47:22 -0400 (EDT)
+	id 7C08B8E0001; Thu,  4 Jul 2019 07:04:29 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 46EAC6B0006
-	for <linux-mm@kvack.org>; Thu,  4 Jul 2019 05:47:22 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id 6so3406878pfi.6
-        for <linux-mm@kvack.org>; Thu, 04 Jul 2019 02:47:22 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 2F2AF6B0003
+	for <linux-mm@kvack.org>; Thu,  4 Jul 2019 07:04:29 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id n49so3621178edd.15
+        for <linux-mm@kvack.org>; Thu, 04 Jul 2019 04:04:29 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=4SdpUWyY7nF3zRR/WMwiXn1AtrDLUN6rhbCHpANtkn8=;
-        b=qZr9mjN7pX1P8gkcAAZzM5LUHsfONfnQZQL8hBLak5Tm7jiNmw9qZcDSHPAzg8rcqi
-         0SHjZAl4E/gB+Ue8WVqMBViiVifkE+niwNBR8CK7BoBwnvT5X6sGMjrGr7hVw62JJBDG
-         cnWiRLDwTwPgUU7zESEaEegTe08GLtKPm/EomkBjWPBgMbITTeXMkei2EiJNt1glX1lG
-         CkceZgZzCkWDLDL7AMuHjTNmujNOkLi37nj4ru9C69EZwxABCfGexQP38jei0L5eX4Ql
-         BY5w5nYpg+sD0z1XFY1Rvbik8E6n//uDMMm3NBfY1pkcde4vY9gd1qMCYFKFKHLhtGqO
-         GIjg==
-X-Gm-Message-State: APjAAAWvYqC0xEcdiexBxXuSyZh/owxTHvF2lJ4amRasAdXeiFqY771z
-	xnVZ5sa8ozK+xDiduzDqPf/msuiU/um6c3kQGxRhTXqFNCDI9kiyrH9y49QhuM0laHi/aSj+XJM
-	pFkxI0/b4eHNQoSKjNSaaFfIEBTWhSghrRe7wONOq+MbNCqtm/Xszsf4iZkXISK7Jyg==
-X-Received: by 2002:a63:a1f:: with SMTP id 31mr42065429pgk.66.1562233641838;
-        Thu, 04 Jul 2019 02:47:21 -0700 (PDT)
-X-Received: by 2002:a63:a1f:: with SMTP id 31mr42065365pgk.66.1562233641037;
-        Thu, 04 Jul 2019 02:47:21 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562233641; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=F/9BY1Ps5YjmtLN6X76yUk67wuG4Kc2bLYgzjgFPRYI=;
+        b=Wx8s04CWO7VeU1mkF4CGxuO9+EwnoPne0Djtlr/jurlOmw46mO4b/Vjcl6euhRQQnr
+         FwpOI7zH0PcQeZmy4/saY1XcW/KqKwy/yExwVrn9nMBd3lBc9UJlBh9Gb/06MtT2+RrR
+         sTgE4bUYf9+m3RfGoPQCBgPZjcnlccivsGaLO4HAGYKtqfAmC8IZfxIF3Hz+8Qn0QJoX
+         oUXkzNLX3Q5wF/42M/UCPV54WWAMkg761OOymQ/UquX8J2hfiDrorshjZj+QiUV3vMYf
+         rmSKLvuuIxP5tiwD0p1hXwCrwxASsGpIzlCHbyNFw42Xctmya6Iaguko1hJPJmGk3H5r
+         qUQQ==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAUsbyNn495fbtII+DzZ17AFxQYctdKpoYok7Lmbfr+YQdbfvyXv
+	nQ99dW9Fg0vnFjmMMyGpP4suU2Di/svXWS2HjuBLLqdkZCiUR6B+NWvnJPQ7/cJmzexm/mYc7EH
+	sg6043yHGJP89qb5aag/+buum+iyb7gPBQ7EAJBLWGBjD+Vv+wsSTehSyEh7eC4Q=
+X-Received: by 2002:a17:906:e087:: with SMTP id gh7mr39737375ejb.22.1562238268696;
+        Thu, 04 Jul 2019 04:04:28 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzKHBhPJOYILr6umZCyCube9aHqT6OMtmsse0tmpl6JKKWguQtZh9NYB7TpFUzwGI25T5mx
+X-Received: by 2002:a17:906:e087:: with SMTP id gh7mr39737256ejb.22.1562238267404;
+        Thu, 04 Jul 2019 04:04:27 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562238267; cv=none;
         d=google.com; s=arc-20160816;
-        b=pjhC3VkPSKTXnnkAXaunAvlFAL49AT2soRvq0xgeYOdQLAebg8Kf/ROYfHK32AJTra
-         MWP+/Ad1qTES7ckJf8dw1KkHxn6X4V3T2jDGWGK+WpaGZ/AfWyyRQ4cxQI1Dk85yfVhj
-         YgAj2uS77TziGrUiEbLASqiiNRcYlGtNwcn3hkEJNeZ4hbqd/X1Uko7VbI/YOXSlHlq6
-         +qO67g26JbBL2ye+3raSJquEJukoO89soZWhXb/JuNTzvrYLaJSBTsHNaIA/lnL975Hq
-         2+mMpfO/yf1QLxNdx9qgqkp2iMy1o1EomxQNrhUNabDN1d1/k1cjcgPKhoi2C3ke70KJ
-         5lwg==
+        b=G0V9wUiqGJJmaUfL0ZLDtGWhW895+15pGQohcjAeSi7LAQNLdD7lzpWmYkLgjHhLaI
+         gp75+tsl36RVzgJFUp+jaNi6aN8LcYRBQqKMFAFjZyYQ+qRRtfR3lchuaOUxVZaKdPp/
+         WQ3k+z7naPje2omSAXQbIy3Y8tZSQVI5z09GMUK7xEtGk3AhYWSgyBofimVJx7CwI+/c
+         1Wa+TOJXg6JHzgUSIjexS1oDQXAgLUEzgo5vNuaW8YZqtxCzojNyebxrPByUBnPfcnex
+         aCQ563BSjMV811Nmrtp02+oz33bcE82duyOnlJUfAykUGH1w01vGpabd+nIT2pF4oSdr
+         5BOw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=4SdpUWyY7nF3zRR/WMwiXn1AtrDLUN6rhbCHpANtkn8=;
-        b=GwUZQCisPNUzeMCdFy4x0TmAnKQ53IG76Z2neLu52/YOydGAHkORX8uwLLpNKH5sHS
-         nnsLFOD7YmZF6yFCRKvYHo6aMMKaKE3vaAsAxp0ij7PCQO2cbhW/vhBhX7Qjm1a7oJEe
-         bikVWi7tGxI7ZpLq0urEafcb/AwfyZag/vnIsEJnZBLxGdQ2DkYzYSItCSBtgdf1LFgn
-         Hl166TLP6Xfzn25ZH3pmR9c6KmBgOpYEn7U87GT+ldhPpgXVor7YtmV58OUDejfSijrO
-         TLOp/qVHBM+ZRImHuFlZz7Y5Bjt2mL3VdcFxDvPXejLeGAEsXUIFN/Y7j3rKiTrr1Wim
-         XI0A==
+         :message-id:subject:cc:to:from:date;
+        bh=F/9BY1Ps5YjmtLN6X76yUk67wuG4Kc2bLYgzjgFPRYI=;
+        b=yZUyYaPUTCQKfSofrhmxF6MaGb8RYEXct2gWVXqsKCxMvMCCFbuv9XyNLQ3GabbIlX
+         VgRlSBfuM5CEBxYw4wW7EXt/uS2ZSk7qabtM5+DpkHrLUBzTcKYn6NTd1QmcqRd4ANx3
+         DupuMNOeYnaVpOPcD8yYvfB/ydW9uqE+HZ4Lc2duqfoSQIDa0Dtw9DykXk833QgX5Y2S
+         72jlCoXbiFURIMKzcpq1J2VaWMHHP1Ua3tRZIvRw0dqUByOTkzIVqDJqT8OXK7GeFKUa
+         zRNe9D4tfzWNMpYpi9mLnNocQzel9swUKrADBmzEZo9OfQQakhyMhSMVpHFbaqj+aE3c
+         fokA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@chromium.org header.s=google header.b=IitgCdR9;
-       spf=pass (google.com: domain of vovoy@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=vovoy@chromium.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z25sor2500368pgv.71.2019.07.04.02.47.20
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id s41si4219853edd.252.2019.07.04.04.04.27
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 04 Jul 2019 02:47:21 -0700 (PDT)
-Received-SPF: pass (google.com: domain of vovoy@chromium.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 04 Jul 2019 04:04:27 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@chromium.org header.s=google header.b=IitgCdR9;
-       spf=pass (google.com: domain of vovoy@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=vovoy@chromium.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=chromium.org; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=4SdpUWyY7nF3zRR/WMwiXn1AtrDLUN6rhbCHpANtkn8=;
-        b=IitgCdR9whQSNacj1M/nbSJsdQPhLvWz8YGHjZuDfyKn4J/+kYtYS/1A1sF8ib44xI
-         Jzi+3vhstnJ0PEPZlPBIFJGgMuq6tjar0vi5VCqSjKABufTv9J/BouQzD8NZGsj2rXQc
-         JFq2z4Gxqbb5bHDI+1AEOEE6vD4aj8UrnzLPo=
-X-Google-Smtp-Source: APXvYqw8E268vWmApfolD80e2lRtPey+EBMugZPC5t2scycuY0Z9LV07oJTYtyfmFbz+c/ETJr/dPg==
-X-Received: by 2002:a63:1723:: with SMTP id x35mr41829828pgl.233.1562233640402;
-        Thu, 04 Jul 2019 02:47:20 -0700 (PDT)
-Received: from google.com ([2401:fa00:1:b:d89e:cfa6:3c8:e61b])
-        by smtp.gmail.com with ESMTPSA id m101sm4159465pjb.7.2019.07.04.02.47.18
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Thu, 04 Jul 2019 02:47:19 -0700 (PDT)
-Date: Thu, 4 Jul 2019 17:47:16 +0800
-From: Kuo-Hsin Yang <vovoy@chromium.org>
-To: Michal Hocko <mhocko@kernel.org>
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 7483FAEAF;
+	Thu,  4 Jul 2019 11:04:26 +0000 (UTC)
+Date: Thu, 4 Jul 2019 13:04:25 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: Kuo-Hsin Yang <vovoy@chromium.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>,
 	Johannes Weiner <hannes@cmpxchg.org>,
 	Minchan Kim <minchan@kernel.org>, Sonny Rao <sonnyrao@chromium.org>,
-	Kuo-Hsin Yang <vovoy@chromium.org>, linux-kernel@vger.kernel.org,
-	linux-mm@kvack.org, stable@vger.kernel.org
+	linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+	stable@vger.kernel.org
 Subject: Re: [PATCH] mm: vmscan: scan anonymous pages on file refaults
-Message-ID: <20190704094716.GA245276@google.com>
+Message-ID: <20190704110425.GD5620@dhcp22.suse.cz>
 References: <20190628111627.GA107040@google.com>
  <20190701081038.GA83398@google.com>
  <20190703143057.GQ978@dhcp22.suse.cz>
+ <20190704094716.GA245276@google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190703143057.GQ978@dhcp22.suse.cz>
+In-Reply-To: <20190704094716.GA245276@google.com>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -120,50 +107,33 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jul 03, 2019 at 04:30:57PM +0200, Michal Hocko wrote:
+On Thu 04-07-19 17:47:16, Kuo-Hsin Yang wrote:
+> On Wed, Jul 03, 2019 at 04:30:57PM +0200, Michal Hocko wrote:
+> > 
+> > How does the reclaim behave with workloads with file backed data set
+> > not fitting into the memory? Aren't we going to to swap a lot -
+> > something that the heuristic is protecting from?
+> > 
 > 
-> How does the reclaim behave with workloads with file backed data set
-> not fitting into the memory? Aren't we going to to swap a lot -
-> something that the heuristic is protecting from?
+> In common case, most of the pages in a large file backed data set are
+> non-executable. When there are a lot of non-executable file pages,
+> usually more file pages are scanned because of the recent_scanned /
+> recent_rotated ratio.
 > 
+> I modified the test program to set the accessed sizes of the executable
+> and non-executable file pages respectively. The test program runs on 2GB
+> RAM VM with kernel 5.2.0-rc7 and this patch, allocates 2000 MB anonymous
+> memory, then accesses 100 MB executable file pages and 2100 MB
+> non-executable file pages for 10 times. The test also prints the file
+> and anonymous page sizes in kB from /proc/meminfo. There are not too
+> many swaps in this test case. I got similar test result without this
+> patch.
 
-In common case, most of the pages in a large file backed data set are
-non-executable. When there are a lot of non-executable file pages,
-usually more file pages are scanned because of the recent_scanned /
-recent_rotated ratio.
+Could you record swap out stats please? Also what happens if you have
+multiple readers?
 
-I modified the test program to set the accessed sizes of the executable
-and non-executable file pages respectively. The test program runs on 2GB
-RAM VM with kernel 5.2.0-rc7 and this patch, allocates 2000 MB anonymous
-memory, then accesses 100 MB executable file pages and 2100 MB
-non-executable file pages for 10 times. The test also prints the file
-and anonymous page sizes in kB from /proc/meminfo. There are not too
-many swaps in this test case. I got similar test result without this
-patch.
-
-$ ./thrash 2000 100 2100 10
-Allocate 2000 MB anonymous pages
-Active(anon): 1850964, Inactive(anon): 133140, Active(file): 1528, Inactive(file): 1352
-Access 100 MB executable file pages
-Access 2100 MB regular file pages
-File access time, round 0: 26.833665 (sec)
-Active(anon): 1476084, Inactive(anon): 492060, Active(file): 2236, Inactive(file): 2224
-File access time, round 1: 26.362102 (sec)
-Active(anon): 1471364, Inactive(anon): 490464, Active(file): 8508, Inactive(file): 8172
-File access time, round 2: 26.828894 (sec)
-Active(anon): 1469184, Inactive(anon): 489688, Active(file): 10012, Inactive(file): 9840
-File access time, round 3: 27.105603 (sec)
-Active(anon): 1468128, Inactive(anon): 489408, Active(file): 11000, Inactive(file): 10388
-File access time, round 4: 26.936500 (sec)
-Active(anon): 1466380, Inactive(anon): 488788, Active(file): 12872, Inactive(file): 12504
-File access time, round 5: 26.294687 (sec)
-Active(anon): 1466384, Inactive(anon): 488780, Active(file): 13332, Inactive(file): 12396
-File access time, round 6: 27.382404 (sec)
-Active(anon): 1466344, Inactive(anon): 488772, Active(file): 13100, Inactive(file): 12276
-File access time, round 7: 26.607976 (sec)
-Active(anon): 1466392, Inactive(anon): 488764, Active(file): 12892, Inactive(file): 11928
-File access time, round 8: 26.477663 (sec)
-Active(anon): 1466344, Inactive(anon): 488760, Active(file): 12920, Inactive(file): 12092
-File access time, round 9: 26.552859 (sec)
-Active(anon): 1465820, Inactive(anon): 488748, Active(file): 13300, Inactive(file): 12372
+Thanks!
+-- 
+Michal Hocko
+SUSE Labs
 
