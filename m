@@ -2,131 +2,131 @@ Return-Path: <SRS0=d6aY=VB=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-10.0 required=3.0
-	tests=HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 952A2C46486
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Jul 2019 15:38:13 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 10A82C46486
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Jul 2019 16:00:31 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 63CC121852
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Jul 2019 15:38:13 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 63CC121852
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linutronix.de
+	by mail.kernel.org (Postfix) with ESMTP id D6294218A3
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Jul 2019 16:00:30 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D6294218A3
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E1D116B0006; Thu,  4 Jul 2019 11:38:12 -0400 (EDT)
+	id 559696B0003; Thu,  4 Jul 2019 12:00:30 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DA6B38E0003; Thu,  4 Jul 2019 11:38:12 -0400 (EDT)
+	id 50A7C8E0003; Thu,  4 Jul 2019 12:00:30 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C48E48E0001; Thu,  4 Jul 2019 11:38:12 -0400 (EDT)
+	id 3FA968E0001; Thu,  4 Jul 2019 12:00:30 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 8ABD46B0006
-	for <linux-mm@kvack.org>; Thu,  4 Jul 2019 11:38:12 -0400 (EDT)
-Received: by mail-wr1-f70.google.com with SMTP id f9so218081wrq.14
-        for <linux-mm@kvack.org>; Thu, 04 Jul 2019 08:38:12 -0700 (PDT)
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 200686B0003
+	for <linux-mm@kvack.org>; Thu,  4 Jul 2019 12:00:30 -0400 (EDT)
+Received: by mail-qk1-f198.google.com with SMTP id c207so7185995qkb.11
+        for <linux-mm@kvack.org>; Thu, 04 Jul 2019 09:00:30 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=BxbnvXa/OZizuISJhWJMQ9vb97R6oLvhKSG/1JjS2dk=;
-        b=rcp+xE/RRCoy5fdpJlGGoJW+IkFaq2HjSMMbNuIFdqmU4KjzLFUDX515/u3Caj8hdx
-         9W8ULDTsdkBVAonbfjV1L0E9jt3ehs/ZfqG6tALUhwH6dWz+/1pf0Xw5DYTYqq3Snn4J
-         rI8XJWytUwg1K6KXL8jOqF9oMcQKNXV4L7KQgffbhb1vRbhcJEfPuKmoAO20K0xMF+hY
-         MPi03VswgybR1C8AC/VcIeXs8alHToE15yLDP0sBo7cIgtMfCWPgO5iBncnW1hq6aFGd
-         1YMlBz8Mk/7QBUDYThyQTmu/Sw41BMFuk9rQjpkrSu2asm922H/XtdWI4SHcJOYJk5c0
-         1/KA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of bigeasy@linutronix.de designates 2a0a:51c0:0:12e:550::1 as permitted sender) smtp.mailfrom=bigeasy@linutronix.de
-X-Gm-Message-State: APjAAAWC7lY9bDkgAjhUhH74DJFM7PH9NEjCWzNXQReiytSEAYLklphO
-	C4OjqRNU0Fz7fUfpLqaPqcG6Ct9HUvkH54nWyCftyVaLRHxRQrwGV84soLHn3g+Y2vZgr5zsMRM
-	27HPVHSkrSy5mPlE6UppAV5yG9R1GsbHI1l2u8BSSjwjC0v5qrMroe9ur783U43DTaw==
-X-Received: by 2002:a7b:c356:: with SMTP id l22mr113778wmj.97.1562254692137;
-        Thu, 04 Jul 2019 08:38:12 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzcFrukaLbxIRvtkSFhDimdEyW2IvVw+AEqT3l+WqsPIDOs3FWnLPmVmpv+fYam04cjZyKO
-X-Received: by 2002:a7b:c356:: with SMTP id l22mr113733wmj.97.1562254691092;
-        Thu, 04 Jul 2019 08:38:11 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562254691; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=WMVNT3LN3fIl8Tf3vwPupFLmmeqnTWObXXHkwWjFt0M=;
+        b=LLQCOhDjztQYL6sEduz8HNLDGHZEbSYFGSEMQSJyfpWLUy/oS4galFD7LY4FaeDvgO
+         5vQM194S8lgX1s9AyjR+XGbQzSsXDHOkyvKZzFNy/tAdABaaivnaeKZIYiTnYvFXS2Ta
+         OJsiTKNo4jnTk0inkefXaYgNN+lwdmXdW226Ifb8Wq3whaJmISXGApRxXKj1VZT3jDjc
+         r1Kqyamyx8c/clUAO2qfvqli7phIKJ2rkA05AUz0JGUqv+dCF9D55JMGG8/5lZosiD2v
+         oS3ax7sTYczSStTqTFzbatQ72fBJWKrgesDmLytwme7gytc8Rb/x2BkkyNj+OH4X1fI8
+         ziGg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of oleg@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=oleg@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAW7HruiuB9j7o+AZjiptifsMDjW/SH2TDIZ+/j2U2tVd2+PNFeK
+	1TDKwegIp+sHHjWRuYYxCm5xdIbSGXsZ/w/ogVhbBi0M62Zm7OOjylocVNeX6+35QwnDhvGx4vZ
+	ONOGHTeKo5pr9vRyB3QjveZJrcfGSROg39AjTQW6n2HRP8y6jes0mSn+b3reFle/Iuw==
+X-Received: by 2002:a0c:c3c7:: with SMTP id p7mr37026349qvi.125.1562256029873;
+        Thu, 04 Jul 2019 09:00:29 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxzV49XPNVQ9kWUXc9CsisySZw6LL5OC6rfO2vzFcPbXE6Iryl/gUqQ8KL3zte8JmLp3EPn
+X-Received: by 2002:a0c:c3c7:: with SMTP id p7mr37026304qvi.125.1562256029299;
+        Thu, 04 Jul 2019 09:00:29 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562256029; cv=none;
         d=google.com; s=arc-20160816;
-        b=vxD81KOado+g9MqIYbul1Z6HdEP39A8KquTdjApqtwxImToI2zdQWu9lOyKi297tOT
-         OnX3OOOstbAKmDzZ+GnxLGy4SExEWADjj+JPkaSvqQFMUhnWkhi+nlZxr0nOcT4jIfS3
-         w5lHAKAiPnNvUFpYUDj9V05Hxh41+EKTSJW/UKMjR4ThzR9mT0XpEeslV0gR/BAoVvY6
-         OFXiSl0+e/yrIzemuiGKfG94cgQX1N1CCAaU9+HdFR7Vx3lEbPOQiQA4Gl563RNHiovI
-         jG1Onkzko1EXngsjK52uuC8S4wxVN32KQkuR/XdrEkp6sTWdkWloe16eNf2nMvAC7e2k
-         W1Nw==
+        b=X1LBhsB08mP3HVAYbxnwLHVoV2uU6Wg9QKyD3Cyb6vBBNPs28KA8HSE810RSqbyzcE
+         msbeFgCelqpjrak+VfGjvjDfyzjjsH3Rfrgf/YOHoVps6of8xrfjOBVQ222pORveJqUy
+         A2nuAnJroRo/0nQUD+pdvYpN1DT3dbexPxVPVmRuoUhDfGmb+JSqi2rxCGEUhgCeC3LJ
+         SKe5b/52YzMnecszIeZxRZeE2imEMgx2xftjK9/kkd8/J6OLVw9Aaa5xR7eLnqrErFsj
+         qxa+NxxJO1udMzIS02+41JHrPHm+2HN8qYiqS7Z+Tq8njuEkG5NpGBmSTdafnBgvjaJI
+         +scg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from;
-        bh=BxbnvXa/OZizuISJhWJMQ9vb97R6oLvhKSG/1JjS2dk=;
-        b=fmLi1QGnLpeGxkZxG9UINuWOdu3TLiuIl87VmVnYEtXsDiS2zwMCbvUc3p2UurL23a
-         Yfa3IOE/GB3E2zAZbQXpVTCMwMPO6T0ItQTmfUmK2JNsS/pnUEBNsZX7XGAXt/3+k/mz
-         6HXDz+qQGrJIRdpWKGN/jnvRKCCcuW4omziHzn8qHQye1LDRfkcf9Iaoh0urGivjsY0q
-         Oj5Q7hpzKmpFl2M05Io2SeFrrFhdSRzYZeLG6YKJMJVNKsKOBbZAbpLsTosc7U5GYA6y
-         X/5t11JwQaEgiYOXCN5EM6TBTfOc7ZDYD5SAGpqfuWXxgN9hnfP9kF4HMk6iTZ+QWRWU
-         XLZg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=WMVNT3LN3fIl8Tf3vwPupFLmmeqnTWObXXHkwWjFt0M=;
+        b=kE2YHnSVFJjIeVVov9z9vmsb1Qq8hzIdYNkh0f/x/n2kB1aFXxYOsYs+A4f+UG87/3
+         ITCj6iCytBcxYcPpeTli8AwC32w5v1tL6n2+0USuhOhmYoli70b2xOr1n4I9XMoeOtP/
+         +6S/0LGZXfZA80IUFqUi9xkEZMZBW3CmmLLxeYpGmpE0Tni6WJ7m7GGUeux6Yw1ONHkN
+         ddCGXfaqcVUVmS1wzHSVWG4zf/ERmK0CrDmvqZjV2aLUTOLICajsvbs9v9OT9CaNIhEo
+         imKYgAcFLoWtZMOLwlwE0nC3V7M8eR/V/369Dc+pYx00fCxhBewMSjF90Ct4YXjNFgKE
+         Zz8w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of bigeasy@linutronix.de designates 2a0a:51c0:0:12e:550::1 as permitted sender) smtp.mailfrom=bigeasy@linutronix.de
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a0a:51c0:0:12e:550::1])
-        by mx.google.com with ESMTPS id t142si3666600wmt.87.2019.07.04.08.38.10
+       spf=pass (google.com: domain of oleg@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=oleg@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id q16si4374979qtc.362.2019.07.04.09.00.28
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Thu, 04 Jul 2019 08:38:11 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of bigeasy@linutronix.de designates 2a0a:51c0:0:12e:550::1 as permitted sender) client-ip=2a0a:51c0:0:12e:550::1;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 04 Jul 2019 09:00:29 -0700 (PDT)
+Received-SPF: pass (google.com: domain of oleg@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of bigeasy@linutronix.de designates 2a0a:51c0:0:12e:550::1 as permitted sender) smtp.mailfrom=bigeasy@linutronix.de
-Received: from localhost ([127.0.0.1] helo=flow.W.breakpoint.cc)
-	by Galois.linutronix.de with esmtp (Exim 4.80)
-	(envelope-from <bigeasy@linutronix.de>)
-	id 1hj3oF-0004wg-Pi; Thu, 04 Jul 2019 17:38:07 +0200
-From: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
-To: linux-kernel@vger.kernel.org
-Cc: tglx@linutronix.de,
-	Peter Zijlstra <peterz@infradead.org>,
-	Sebastian Andrzej Siewior <bigeasy@linutronix.de>,
-	linux-mm@kvack.org,
-	Andrew Morton <akpm@linux-foundation.org>
-Subject: [PATCH 2/7] vmpressure: Use spinlock_t instead of struct spinlock
-Date: Thu,  4 Jul 2019 17:37:58 +0200
-Message-Id: <20190704153803.12739-3-bigeasy@linutronix.de>
-X-Mailer: git-send-email 2.20.1
-In-Reply-To: <20190704153803.12739-1-bigeasy@linutronix.de>
-References: <20190704153803.12739-1-bigeasy@linutronix.de>
+       spf=pass (google.com: domain of oleg@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=oleg@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 419D5C01DE89;
+	Thu,  4 Jul 2019 16:00:22 +0000 (UTC)
+Received: from dhcp-27-174.brq.redhat.com (unknown [10.43.17.136])
+	by smtp.corp.redhat.com (Postfix) with SMTP id BE18D99AFF;
+	Thu,  4 Jul 2019 16:00:18 +0000 (UTC)
+Received: by dhcp-27-174.brq.redhat.com (nbSMTP-1.00) for uid 1000
+	oleg@redhat.com; Thu,  4 Jul 2019 18:00:21 +0200 (CEST)
+Date: Thu, 4 Jul 2019 18:00:18 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <axboe@kernel.dk>,
+	Peter Zijlstra <peterz@infradead.org>, Qian Cai <cai@lca.pw>,
+	hch@lst.de, gkohli@codeaurora.org, mingo@redhat.com,
+	linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Subject: Re: [PATCH] block: fix a crash in do_task_dead()
+Message-ID: <20190704160017.GB29995@redhat.com>
+References: <1559161526-618-1-git-send-email-cai@lca.pw>
+ <20190530080358.GG2623@hirez.programming.kicks-ass.net>
+ <82e88482-1b53-9423-baad-484312957e48@kernel.dk>
+ <20190603123705.GB3419@hirez.programming.kicks-ass.net>
+ <ddf9ee34-cd97-a62b-6e91-6b4511586339@kernel.dk>
+ <alpine.LSU.2.11.1906301542410.1105@eggly.anvils>
+ <97d2f5cc-fe98-f28e-86ce-6fbdeb8b67bd@kernel.dk>
+ <20190702150615.1dfbbc2345c1c8f4d2a235c0@linux-foundation.org>
+ <20190703173546.GB21672@redhat.com>
+ <alpine.LSU.2.11.1907031039180.1132@eggly.anvils>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.11.1907031039180.1132@eggly.anvils>
+User-Agent: Mutt/1.5.24 (2015-08-30)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.32]); Thu, 04 Jul 2019 16:00:28 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-For spinlocks the type spinlock_t should be used instead of "struct
-spinlock".
+On 07/03, Hugh Dickins wrote:
+>
+> Thank you, Oleg. But, with respect, I'd caution against making it cleverer
+> at the last minute: what you posted already is understandable, works, has
+> Jen's Reviewed-by and my Acked-by: it just lacks a description and signoff.
 
-Use spinlock_t for spinlock's definition.
+OK, agreed. I am sending that patch as-is with yours and Jen's acks applied.
 
-Cc: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Signed-off-by: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
----
- include/linux/vmpressure.h | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/include/linux/vmpressure.h b/include/linux/vmpressure.h
-index 61e6fddfb26fd..6d28bc433c1cf 100644
---- a/include/linux/vmpressure.h
-+++ b/include/linux/vmpressure.h
-@@ -17,7 +17,7 @@ struct vmpressure {
- 	unsigned long tree_scanned;
- 	unsigned long tree_reclaimed;
- 	/* The lock is used to keep the scanned/reclaimed above in sync. */
--	struct spinlock sr_lock;
-+	spinlock_t sr_lock;
- 
- 	/* The list of vmpressure_event structs. */
- 	struct list_head events;
--- 
-2.20.1
+Oleg.
 
