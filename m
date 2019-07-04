@@ -2,156 +2,215 @@ Return-Path: <SRS0=d6aY=VB=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=no
+X-Spam-Status: No, score=-6.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A0787C0650E
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Jul 2019 00:32:12 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 13080C5B578
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Jul 2019 02:00:28 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4A6F9218A4
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Jul 2019 00:32:12 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4A6F9218A4
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 88A2721882
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Jul 2019 02:00:27 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=Mellanox.com header.i=@Mellanox.com header.b="N8aEUaSA"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 88A2721882
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mellanox.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id AD0736B0003; Wed,  3 Jul 2019 20:32:11 -0400 (EDT)
+	id ED4F96B0003; Wed,  3 Jul 2019 22:00:26 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A821A8E0003; Wed,  3 Jul 2019 20:32:11 -0400 (EDT)
+	id E85188E0003; Wed,  3 Jul 2019 22:00:26 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 922908E0001; Wed,  3 Jul 2019 20:32:11 -0400 (EDT)
+	id CFE858E0001; Wed,  3 Jul 2019 22:00:26 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 5A3776B0003
-	for <linux-mm@kvack.org>; Wed,  3 Jul 2019 20:32:11 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id g18so146157plj.19
-        for <linux-mm@kvack.org>; Wed, 03 Jul 2019 17:32:11 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 80D796B0003
+	for <linux-mm@kvack.org>; Wed,  3 Jul 2019 22:00:26 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id r21so2824867edp.11
+        for <linux-mm@kvack.org>; Wed, 03 Jul 2019 19:00:26 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:references:date:in-reply-to:message-id:user-agent
-         :mime-version;
-        bh=+5BRJJ4LKHZcqKCAn0GKIas1O50SyzuCOGqOASmVXtA=;
-        b=hdyU9ZbOIpmoHp7Z7fxU6KqswlTy7x5L78Gd1VhYh+In6IbsKRJ1e0X3T97Gdd3QrW
-         8Ctrac7cgQuFBIazG7n5t/Rh4S6HLPBXuTma+3mYetRKlQ+sG0WI5L6I1LGtbBREhTSf
-         cazToUGmeIpg4ZjBu1Idpg4v57ln39g3vS2XL+UPQvQ04kwo0HYLhuEgZbN+95IalP9j
-         SG++fqkuwwj0hwaMi5kC7Jnsd6BNjGNaJKsmAnILdOIkIvm3D2iGLKpRpaMNy978r25c
-         rVFzx4dkb83KhUJSMokFhbpxBHgSeURyxB16bAA1BmqhT/GS4nnwRAQsXraKO997PIPW
-         1mdw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ying.huang@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=ying.huang@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAUsjoq36+9Tuf9f6Xo19DJ7c5RgM/jhMIER0Ir0utzGrPrsMvdl
-	SteTZpff/RxzkKgM3lgl7kPByGuRdSBGnAIhvLsln3auaslRV+0pCCAYVNYttNrrcQgiR0VNH7u
-	nm3otpZP7lNAy7IMPy5OEKQpuuKbnnpH3GO6w1wq/Bem06IgVYXiyAHQKkM3IZJ5IRg==
-X-Received: by 2002:a63:1950:: with SMTP id 16mr8998792pgz.312.1562200330994;
-        Wed, 03 Jul 2019 17:32:10 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwPCBX2MGPSQ4+HS271kXgeH5WsPuQEOzi1s3UjCSavwiHtsae9DqAtFl0jEcQPibhCZ/NQ
-X-Received: by 2002:a63:1950:: with SMTP id 16mr8998733pgz.312.1562200330190;
-        Wed, 03 Jul 2019 17:32:10 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562200330; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
+         :thread-index:date:message-id:references:in-reply-to:accept-language
+         :content-language:content-id:content-transfer-encoding:mime-version;
+        bh=ME3mN3r/laVGQduCC0GREWkfow/AT6OjaPvOkxvI2NY=;
+        b=L+MaInNGg6TuuuZ/ghir0zaoxX4YXreNABBjQUYMRzl+OJtDonE34NswnWKTzE6GBJ
+         hEm5L183AvWVRP25Un55Tq5DvY1dUawMD+ACMcWmWf3fY5jTgYCd+QyXPfuMEVPY16/o
+         mSSio+FllkXXoVps1hKzNF/VEzIu2J5R/tJedaw/8wN0g0hG3caGokS2eSrSaFhi5CJ8
+         VFUYzEbLlTxeeIdn5ANI/Op+OlylcOkud5nKComCyuhvxL/9R8tt8eTL+4q8FVg+Z6gl
+         41ukbflebN4sISk9ixwFjkLPW/FO9V+XNXEGDFjWIArNHE+NquYMWcBV3zW6cAh2Kr1h
+         +jdw==
+X-Gm-Message-State: APjAAAUwg3wPjahBAjTjKC/zmuzayK0SGxpWlMh/NIu7eBkpqCkPGsHB
+	CgVWYpNsWF55pOmJ/4+7V6QW9ZRgjPqOiF6gq89PDjsibOR48hnWy8joayNmm1+IeecnG/s4VqO
+	uUwfmE9VGEeRVSkRLdngQEmDMdJtTX69Lnhk49/wUv0i5UiHcorduFUGwSk1W0KoZoA==
+X-Received: by 2002:a17:906:a2d2:: with SMTP id by18mr37019915ejb.245.1562205625862;
+        Wed, 03 Jul 2019 19:00:25 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqy0f1QNJFUhCnOnLT88rrMVfPlR/xTcKRbTxXGbrHRYczUYdA3ImIQuEPn+hgQcprt5p/kU
+X-Received: by 2002:a17:906:a2d2:: with SMTP id by18mr37019869ejb.245.1562205624962;
+        Wed, 03 Jul 2019 19:00:24 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562205624; cv=none;
         d=google.com; s=arc-20160816;
-        b=E4HReT2HbtH5O5P9KcjQDv0WDnBSDcbB1WIzHRybIQNmrPb+gg/LjAvjkzxu9mY4VV
-         V5cdL11mwAJyVn14ug9HXrUM8lGM1XOY5v60/7v/hqFE9z/OSsb/NEgamOdSv9gy9H1m
-         FX/mYnV26eM/O4tpAUHtXNlvT4PIkczlowlTSsLSUUmpNMXnkfFla3r8OQrPwaQak3Ep
-         IRqEp3KbaWyOamGuKVaxxCeDUZquOMP3RJTLtSI4mchmJa8kQ9XR4VlQfbqot5pIzwx5
-         aQ/aBisbc5lHTVDZOoIKhqgJeAbqw4CMHcQfoGZsexpl4ISbPy4mPHbm2IrprDmbqeHA
-         4MbA==
+        b=AUjeOVxTI864pXI7C4pJbnO326CuTCGhO6fXuCy9x5FgX/lpw4G+lxe7CbmGW4PFxE
+         iRcCFwqHbVKPhs1nNWkSKCVGxU40dAI+I1hhR3lMY9TDWMe5LEzRB4cUE/7KU6aLeSuN
+         a/wgwuW0kz2CPdq0CrTl3qD8Luubtqpk5ewprCu0YRXg44ZQrNHEJlmdO5RFlGrkrUl4
+         VCO0aRrXeBsn6ImyQiVtArXCv/aROtPIQ7yUOuOrjquYegpmmO4woJeDi8h6Haog155o
+         hrumq+ZM9XiEMJKlghs4TcinspHOrLurFn3H3uG2nzxpuutw26vZdu0gckSjCYOz+FF+
+         FboQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:user-agent:message-id:in-reply-to:date:references
-         :subject:cc:to:from;
-        bh=+5BRJJ4LKHZcqKCAn0GKIas1O50SyzuCOGqOASmVXtA=;
-        b=PoWy4NmSZkqkLHXdrrcYd7acuU+bIEEqs7UQ6tFA8C1KFl88yZYTKKV0xibZA6aGAh
-         t/ThuRPcwCXq3x0pTUD/TAnceN/Txk+BdLhor179xEbW+Bz6pP+QNiFJt8VltLVWf/Is
-         7NCqRhD074yoUaTM8x05FV+9dZAEd/7EoVWfXEkLhSHmwdkoUXMcAATSfONLSTfgWtVm
-         Al6u9FUuXDFv/yhBBuITXRCI2YU2nMhbA+/c/wss/demP8QIyY6h3+42Kxn0tD5Hgyey
-         Sl2Qmabg0MRHFZsVjqNoK3MJSLGwn5QXhO4GG83Mf8G5quhHOglRuqcey1mCURZy0U00
-         1yzw==
+        h=mime-version:content-transfer-encoding:content-id:content-language
+         :accept-language:in-reply-to:references:message-id:date:thread-index
+         :thread-topic:subject:cc:to:from:dkim-signature;
+        bh=ME3mN3r/laVGQduCC0GREWkfow/AT6OjaPvOkxvI2NY=;
+        b=ZYFn6WFlWXCkKBBN23/I6B4gao2ilhS+RioTst94JgNwdfaptgiC5JazfvDJ3jdmz6
+         68/KHXvME+hCPolsx5678m4JO3YbwfTOglZRNkvHQThL4fHsycAVce9PvlTdpE5liVni
+         BUz9bPUqE+0/N6WTC9vP4rwuT5uqCJpACvZxwOPrFzM9a+ZedKD2ltkQYgkea1RVXW4h
+         REHICpxiBeR9CeF4j5Zpf6A0ND24v0pXsl1PWdGe0MHaA09+BdQiXVoz6sOSo2RiZLwl
+         ism1nKXXi7GxaFVpPAg55v5r4JScSbH/3FEnaUJoQkylYCCzuomW+4Kw2I98w1iHPONG
+         a/HA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ying.huang@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=ying.huang@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id y65si3508868pgd.487.2019.07.03.17.32.10
+       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b=N8aEUaSA;
+       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.3.44 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
+Received: from EUR03-AM5-obe.outbound.protection.outlook.com (mail-eopbgr30044.outbound.protection.outlook.com. [40.107.3.44])
+        by mx.google.com with ESMTPS id d25si3384752eda.172.2019.07.03.19.00.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Jul 2019 17:32:10 -0700 (PDT)
-Received-SPF: pass (google.com: domain of ying.huang@intel.com designates 134.134.136.24 as permitted sender) client-ip=134.134.136.24;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 03 Jul 2019 19:00:24 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jgg@mellanox.com designates 40.107.3.44 as permitted sender) client-ip=40.107.3.44;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ying.huang@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=ying.huang@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from fmsmga008.fm.intel.com ([10.253.24.58])
-  by orsmga102.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 03 Jul 2019 17:32:09 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.63,449,1557212400"; 
-   d="scan'208";a="164499846"
-Received: from yhuang-dev.sh.intel.com (HELO yhuang-dev) ([10.239.159.29])
-  by fmsmga008.fm.intel.com with ESMTP; 03 Jul 2019 17:32:07 -0700
-From: "Huang\, Ying" <ying.huang@intel.com>
-To: Mel Gorman <mgorman@suse.de>
-Cc: huang ying <huang.ying.caritas@gmail.com>,  Andrew Morton <akpm@linux-foundation.org>,  <linux-mm@kvack.org>,  LKML <linux-kernel@vger.kernel.org>,  Rik van Riel <riel@redhat.com>,  "Peter Zijlstra" <peterz@infradead.org>,  <jhladky@redhat.com>,  <lvenanci@redhat.com>,  Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH -mm] autonuma: Fix scan period updating
-References: <20190624025604.30896-1-ying.huang@intel.com>
-	<20190624140950.GF2947@suse.de>
-	<CAC=cRTNYUxGUcSUvXa-g9hia49TgrjkzE-b06JbBtwSn2zWYsw@mail.gmail.com>
-	<20190703091747.GA13484@suse.de>
-Date: Thu, 04 Jul 2019 08:32:06 +0800
-In-Reply-To: <20190703091747.GA13484@suse.de> (Mel Gorman's message of "Wed, 3
-	Jul 2019 10:17:47 +0100")
-Message-ID: <87ef3663nd.fsf@yhuang-dev.intel.com>
-User-Agent: Gnus/5.13 (Gnus v5.13) Emacs/26.1 (gnu/linux)
+       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b=N8aEUaSA;
+       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.3.44 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=Mellanox.com;
+ s=selector2;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=ME3mN3r/laVGQduCC0GREWkfow/AT6OjaPvOkxvI2NY=;
+ b=N8aEUaSAr9LfwFi/rRWg5qp4oGlvAHg6o8+y111tSsjtuL36/2TgjxPqMV2txpRvmOJ5VBcsDBQ4e5rHwNOgMNRBzvsnhVpjIV8Box9hSTf/dMANb8qLS6LIwH6SB/9aODrduIBEeN7Qdwu0uKvgczqrnq1P/iWnswTu+cJ3lGE=
+Received: from VI1PR05MB4141.eurprd05.prod.outlook.com (10.171.182.144) by
+ VI1PR05MB5390.eurprd05.prod.outlook.com (20.177.63.87) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.2032.20; Thu, 4 Jul 2019 02:00:19 +0000
+Received: from VI1PR05MB4141.eurprd05.prod.outlook.com
+ ([fe80::f5d8:df9:731:682e]) by VI1PR05MB4141.eurprd05.prod.outlook.com
+ ([fe80::f5d8:df9:731:682e%5]) with mapi id 15.20.2032.019; Thu, 4 Jul 2019
+ 02:00:19 +0000
+From: Jason Gunthorpe <jgg@mellanox.com>
+To: Dave Airlie <airlied@gmail.com>
+CC: Stephen Rothwell <sfr@canb.auug.org.au>, Alex Deucher
+	<alexdeucher@gmail.com>, "Yang, Philip" <Philip.Yang@amd.com>, Dave Airlie
+	<airlied@linux.ie>, "Kuehling, Felix" <Felix.Kuehling@amd.com>,
+	"dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>,
+	"linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-next@vger.kernel.org"
+	<linux-next@vger.kernel.org>, "Deucher, Alexander"
+	<Alexander.Deucher@amd.com>
+Subject: Re: [PATCH 1/1] drm/amdgpu: adopt to hmm_range_register API change
+Thread-Topic: [PATCH 1/1] drm/amdgpu: adopt to hmm_range_register API change
+Thread-Index:
+ AQHVMUJXWs8sf5cAOUS0d/4NvIH/Saa473yAgABzhwCAAAGdAIAABmoAgAAbwICAAC8hAA==
+Date: Thu, 4 Jul 2019 02:00:19 +0000
+Message-ID: <20190704020014.GA32502@mellanox.com>
+References: <20190703015442.11974-1-Felix.Kuehling@amd.com>
+ <20190703141001.GH18688@mellanox.com>
+ <a9764210-9401-471b-96a7-b93606008d07@amd.com>
+ <CADnq5_M0GREGG73wiu3eb=E+G2iTRmjXELh7m69BRJfVNEiHtw@mail.gmail.com>
+ <20190704073214.266a9c33@canb.auug.org.au>
+ <CAPM=9tx+w5ujeaFQ1koqsqV5cTw8M8B=Ws_-wB1Z_Jy-msFtAQ@mail.gmail.com>
+In-Reply-To:
+ <CAPM=9tx+w5ujeaFQ1koqsqV5cTw8M8B=Ws_-wB1Z_Jy-msFtAQ@mail.gmail.com>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+x-clientproxiedby: BL0PR01CA0013.prod.exchangelabs.com (2603:10b6:208:71::26)
+ To VI1PR05MB4141.eurprd05.prod.outlook.com (2603:10a6:803:4d::16)
+authentication-results: spf=none (sender IP is )
+ smtp.mailfrom=jgg@mellanox.com; 
+x-ms-exchange-messagesentrepresentingtype: 1
+x-originating-ip: [156.34.55.100]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: 88633ecd-415f-49be-9256-08d700235db4
+x-ms-office365-filtering-ht: Tenant
+x-microsoft-antispam:
+ BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(4618075)(2017052603328)(7193020);SRVR:VI1PR05MB5390;
+x-ms-traffictypediagnostic: VI1PR05MB5390:
+x-ms-exchange-purlcount: 1
+x-microsoft-antispam-prvs:
+ <VI1PR05MB5390DB7709DB09D561CAA4A1CFFA0@VI1PR05MB5390.eurprd05.prod.outlook.com>
+x-ms-oob-tlc-oobclassifiers: OLM:8273;
+x-forefront-prvs: 0088C92887
+x-forefront-antispam-report:
+ SFV:NSPM;SFS:(10009020)(4636009)(376002)(346002)(396003)(39860400002)(366004)(136003)(199004)(189003)(966005)(53936002)(86362001)(256004)(71190400001)(68736007)(6306002)(478600001)(6916009)(8676002)(99286004)(5660300002)(25786009)(4326008)(7416002)(14454004)(6512007)(71200400001)(2906002)(81156014)(81166006)(2616005)(1411001)(8936002)(6506007)(316002)(1076003)(6246003)(66946007)(7736002)(6486002)(66446008)(54906003)(229853002)(66556008)(64756008)(26005)(76176011)(66476007)(73956011)(6436002)(11346002)(476003)(66066001)(446003)(33656002)(386003)(36756003)(3846002)(486006)(305945005)(52116002)(6116002)(102836004)(186003);DIR:OUT;SFP:1101;SCL:1;SRVR:VI1PR05MB5390;H:VI1PR05MB4141.eurprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
+received-spf: None (protection.outlook.com: mellanox.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info:
+ rKELJ694naT5gGDd4kqK5UDxIRL9SdMf7WLMDnUrujLbRaZnRyLZdyVfyYg1vPx8Yy0DJfX8f7wY+1BwTXJx9i+s9CiqrRlOcNDdRLk6Jbfd6AEDKyXV6Tt0amSSM3rvM+Aj3CvENpy/+F2jQ4uOYWUV8HlH1xwccb5PZpEnAkCIY6wRZz3G77WUF9zjoi6iqzGlngZ8mTWrPoMp0yLstiK0R2fx/FZMYUlbvUhkdoq15DQWg1hPyKebad2faC7LlwjT1ZMe9Re35Q3T8pBeOE+UNqCtA4wcWYRoySr8hW+ZY3Q9CY3ec5jcNOfY86cA8KpVF3UDf/vcyI/plhAeWgpjpNahACEC+29xp6R5JzyjQPRpcBUjEpRmPovPcg+Vd9Iq1vbPzYgvAjpa52v84aRXqIZP1HL7dzqDKliRRBU=
+Content-Type: text/plain; charset="us-ascii"
+Content-ID: <67836C539BDF9F479C5FD35E4F835B2D@eurprd05.prod.outlook.com>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ascii
+X-OriginatorOrg: Mellanox.com
+X-MS-Exchange-CrossTenant-Network-Message-Id: 88633ecd-415f-49be-9256-08d700235db4
+X-MS-Exchange-CrossTenant-originalarrivaltime: 04 Jul 2019 02:00:19.6612
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: a652971c-7d2e-4d9b-a6a4-d149256f461b
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-CrossTenant-userprincipalname: jgg@mellanox.com
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: VI1PR05MB5390
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Mel Gorman <mgorman@suse.de> writes:
+On Thu, Jul 04, 2019 at 09:11:33AM +1000, Dave Airlie wrote:
+> On Thu, 4 Jul 2019 at 07:32, Stephen Rothwell <sfr@canb.auug.org.au> wrot=
+e:
+> >
+> > Hi Alex,
+> >
+> > On Wed, 3 Jul 2019 17:09:16 -0400 Alex Deucher <alexdeucher@gmail.com> =
+wrote:
+> > >
+> > > Go ahead and respin your patch as per the suggestion above.  then I
+> > > can apply it I can either merge hmm into amd's drm-next or we can jus=
+t
+> > > provide the conflict fix patch whichever is easier.  Which hmm branch
+> > > is for 5.3?
+> > > https://git.kernel.org/pub/scm/linux/kernel/git/rdma/rdma.git/?h=3Dhm=
+m
+> >
+> > Please do not merge the hmm tree into yours - especially if the
+> > conflict comes down to just a few lines.  Linus has addressed this in
+> > the past.  There is a possibility that he may take some objection to
+> > the hmm tree (for example) and then your tree (and consequently the drm
+> > tree) would also not be mergeable.
+> >
+>=20
+> I'm fine with merging the hmm tree if Jason has a stable non-rebasing
+> base. I'd rather merge into drm tree and then have amd backmerge if it
+> we are doing it.
 
-> On Tue, Jun 25, 2019 at 09:23:22PM +0800, huang ying wrote:
->> On Mon, Jun 24, 2019 at 10:25 PM Mel Gorman <mgorman@suse.de> wrote:
->> >
->> > On Mon, Jun 24, 2019 at 10:56:04AM +0800, Huang Ying wrote:
->> > > The autonuma scan period should be increased (scanning is slowed down)
->> > > if the majority of the page accesses are shared with other processes.
->> > > But in current code, the scan period will be decreased (scanning is
->> > > speeded up) in that situation.
->> > >
->> > > This patch fixes the code.  And this has been tested via tracing the
->> > > scan period changing and /proc/vmstat numa_pte_updates counter when
->> > > running a multi-threaded memory accessing program (most memory
->> > > areas are accessed by multiple threads).
->> > >
->> >
->> > The patch somewhat flips the logic on whether shared or private is
->> > considered and it's not immediately obvious why that was required. That
->> > aside, other than the impact on numa_pte_updates, what actual
->> > performance difference was measured and on on what workloads?
->> 
->> The original scanning period updating logic doesn't match the original
->> patch description and comments.  I think the original patch
->> description and comments make more sense.  So I fix the code logic to
->> make it match the original patch description and comments.
->> 
->> If my understanding to the original code logic and the original patch
->> description and comments were correct, do you think the original patch
->> description and comments are wrong so we need to fix the comments
->> instead?  Or you think we should prove whether the original patch
->> description and comments are correct?
->> 
->
-> I'm about to get knocked offline so cannot answer properly. The code may
-> indeed be wrong and I have observed higher than expected NUMA scanning
-> behaviour than expected although not enough to cause problems. A comment
-> fix is fine but if you're changing the scanning behaviour, it should be
-> backed up with data justifying that the change both reduces the observed
-> scanning and that it has no adverse performance implications.
+Yes, it is a stable non-rebasing tree for this purpose.
 
-Got it!  Thanks for comments!  As for performance testing, do you have
-some candidate workloads?
+> But if we can just reduce the conflicts to a small amount it's easier
+> for everyone to just do that.
 
-Best Regards,
-Huang, Ying
+Yes, I concur with Stephen. hmm.git is setup so we can merge it across
+trees as a feature branch if we need to - but merging to avoid a
+trivial conflict is something Linus has frowned on in the past.
+
+If we can get the resolution down to one line then I would forward it
+to Linus. Since it is a build break only it should be highlighted in
+the DRM PR.
+
+For RDMA we often have conflicts and I usually send Linus a 2nd tag
+(ie for-linus-merged) with the conflicts all resolved so he can
+compare his and my resolution as a sanity check. Linus wrote a nice
+email on this topic..
+
+Jason
 
