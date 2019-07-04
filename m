@@ -2,198 +2,296 @@ Return-Path: <SRS0=d6aY=VB=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-4.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2273DC0650E
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Jul 2019 07:37:36 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9B0CFC06517
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Jul 2019 09:31:19 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E33652133F
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Jul 2019 07:37:35 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E33652133F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 27F7B218A3
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Jul 2019 09:31:18 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="PRsVmLHY"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 27F7B218A3
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7A25A6B0003; Thu,  4 Jul 2019 03:37:35 -0400 (EDT)
+	id 741756B0003; Thu,  4 Jul 2019 05:31:18 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 720AC8E0003; Thu,  4 Jul 2019 03:37:35 -0400 (EDT)
+	id 6CB608E0003; Thu,  4 Jul 2019 05:31:18 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5C1D68E0001; Thu,  4 Jul 2019 03:37:35 -0400 (EDT)
+	id 56B2F8E0001; Thu,  4 Jul 2019 05:31:18 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 093FD6B0003
-	for <linux-mm@kvack.org>; Thu,  4 Jul 2019 03:37:35 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id c27so3272098edn.8
-        for <linux-mm@kvack.org>; Thu, 04 Jul 2019 00:37:34 -0700 (PDT)
+Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 2BA216B0003
+	for <linux-mm@kvack.org>; Thu,  4 Jul 2019 05:31:18 -0400 (EDT)
+Received: by mail-ot1-f70.google.com with SMTP id l7so2504956otj.16
+        for <linux-mm@kvack.org>; Thu, 04 Jul 2019 02:31:18 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=NPbcT7fNZKxE9QIwn5p/+MnGQ2etLcnd4JIXTlUCZm4=;
-        b=h19uokjQYsFReML3Juw1sfZkfkeUtWtzxg5AFDtiERFX3MmoV+aN5m6IH0leKWQvsp
-         RIB0k1YrtHrQIx7A3wCbx8p4QQxjb30x0SXltJbu5djg841aK+YnCZeCOeTxdN9eUuRY
-         ierMVH8rSIUyitB5AY9qIwxrtwi8DrE78HTxp8oY57nUq2QCySIJfdGrcayayMLBhmx8
-         cVUq9Cm1NvEtEP53dfp++GFYljojdZCegQtf6Lsa3HEL8rP8G25pGcwp4ungSNH6Ao5L
-         Nc9zl/XnFW+Ml6JxXKx2FEZn3AhQ9SRQJaR4o5DWVNp3LWYIPd2T0lxdK3q3GGVfF3HB
-         WgDg==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAXs0ErK11zfJnbOvOdvRxOM2uvMOckyn5E+peCxjSOCSOQR2wXi
-	y6d7Pt3XrYCEmMr+2SvseVPPa7bycmAtX0MbPf7S4ICaMkATYEvvJLdlhsLn32rXb++kTRh9scl
-	xejXpqh9koweQWed7kpqfLX3GzIoRVcOCr+sOP7QMTcx2D1KmTlZREJ0x4ev6I+0=
-X-Received: by 2002:a50:b1db:: with SMTP id n27mr47613131edd.62.1562225854539;
-        Thu, 04 Jul 2019 00:37:34 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwna+G+JWkbfvdAEkKMFdEqTI5fgfHJ02IWRVo6PCDE5rS6LxUcxlLp7+NxKp+fl6+wFDJ8
-X-Received: by 2002:a50:b1db:: with SMTP id n27mr47613064edd.62.1562225853646;
-        Thu, 04 Jul 2019 00:37:33 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562225853; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=81qzDNnuUWXeeKG5ggbworMMEY0MTN6GujxFNt/FSKY=;
+        b=WN0slCb22b+OGxtfYxJjQH26YeU/DHNhuIR654JLOEZvvhmp/p3aU8X/k3IZ/uk2lK
+         JuRHMmugxyQTHvZ6k0LzXH9sifZsfshrs0IX/dZn9UaAy9ekbS4L43lKUSK2c1vVTK2p
+         i9vnn5002RVNFMwEa+qs4zfHAesIDFOt4UVP/fYjp00TzAXGvwTwFa5pfskmfoyCIHma
+         jAtUIsacv82hYmOFCSJDgVUYMIq2/+ydx4nR2hYOTEnCmLb2O17V3muB9/qdZJ423jtO
+         q6n2GEw2QgZMUpQnAeOa0M3eIAlBwJXya8MceDqDVjS78cK9KTWd9Dh3hC0hzAi8cd9V
+         w5/w==
+X-Gm-Message-State: APjAAAWnmuqaNAWwYGYO8xx8JtYRg/txEObDJI8m+/fOmmwlSH0cnukw
+	DH/AvJsxhY5+OpraMXMcLwq5xqpMZUf0YUwXooy1BMZ6Ko3SR9MMKQWgkKTMAzBRhqNZ+Og4R9H
+	1fKtBbSQ6RWi/YTLIe5NSIpVXouEJnHyON5WfnHBP7emQvOZwvj3ToO0UClEHWz/ALQ==
+X-Received: by 2002:a54:4109:: with SMTP id l9mr1349496oic.93.1562232677661;
+        Thu, 04 Jul 2019 02:31:17 -0700 (PDT)
+X-Received: by 2002:a54:4109:: with SMTP id l9mr1349437oic.93.1562232676412;
+        Thu, 04 Jul 2019 02:31:16 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562232676; cv=none;
         d=google.com; s=arc-20160816;
-        b=xAvyrPSKANqKQ3E5b/JqGWwO4mTaRiUem/ksFdPOk7dqVc+L24V3IcbNxBmQrdn5OX
-         yXxYBFCflcFIG5TwRI6J33CUch12JzajwELwYQMm6IS7Zr8lJvjv1i9W6pqz5DOWoGGp
-         NjvwZlVe5c0rKj2wuiznjs3UXSH/A1at2RIm4FgmcvzSNn7ajYMD694TyCLsP2nYoE8U
-         N05xt572u5ryGSlubfZoKBRgxd3JBNW3lXHqEb6oI6UCEQmJUv0tus+RmKy3uQkuVZtM
-         fndJCWG+J2DElB0QG4c8u82WF8h3TpEqDXRfHxgsZJZTam+Trwd9iuj1iEof/5dMWEZV
-         adOA==
+        b=jKe6HgfjWcswth2LtukBuhzMb7+/Mt1zqtN2xri3X73RfS/ZSFn5FWQ7vGVgVCC6EB
+         D527LPbF/3iM7niTEQjcWHqgC1XOZFkZy47U9bP/xxsU5o+3NOp0207nIK7puOEtb9tc
+         ddEfa5UHjOGi1Aj0JIDGkH29oVbfKSmKq5MhUo67cp29wiE/o3jxQsGDzoAI3Own/Hfp
+         mbDa/MCeHW8StHCSt7dRbUHZEu7wLA3a/LctgbSvYYADgIS9TrmznnFc49jetpAbhiEf
+         gCy5L1ya67wlmYwhNwbKRcH8x2HjS6YHOSA7pUhcxpiYkppzJRgyYpAC41UqGOLuHQnq
+         u0oQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date;
-        bh=NPbcT7fNZKxE9QIwn5p/+MnGQ2etLcnd4JIXTlUCZm4=;
-        b=touuKdmrRvthm2i1ZhAEBncsZxBA3RPpkXWzTo6DFuive/dTkrw//+lwyuKU+getj2
-         sSg4NBnFSo/wB87L8NJcqxVbTDw9Clr/wqnw/UUyxZb9Ad9a9Y3UImgLZb74irJO07mH
-         8ITK39LqlpkKeiXCHuAHMv7TTJKYVT+NXUsHA2PyhX67yyZyljjFiI8Ol0Nn09dwnf4Y
-         HBkTstSixGS73T5WnOXubRcUDfKcDyJnxxTPPc13HkyzuflbjOrnMV8Tt3WmkvvTtyXB
-         FMpgR6RUJGq83qXend2PpjxMzPFvtLBx6h78OM6XagLQboXohhA8TcqSdl3gSqIJL2gE
-         AqZg==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=81qzDNnuUWXeeKG5ggbworMMEY0MTN6GujxFNt/FSKY=;
+        b=Ph7Kuk4QHXQAgeNDfP6K99mEd8OS7rlZvwfqm0m7JVglmE/YZs3v+o7R81+QX1zt6k
+         vRpcvE8LqgyA9nOgEPvi7rWv8mSIfCCYHma+cEILOCWXBbDzAk4ztRmwlnlpoj1vbwpH
+         eGs6IX8U2fsWIWPbaCux0cwhqmIpBFVHBFoTp5fZWJnYT7TQYUeKCkyNx+KmgOAqxRxR
+         dCBrOOYcbchIC9ppDeG11Vq76lle+2ghIUecs+PcnOa4cD9IGKOjVnHTZGlNmCDmOIFS
+         u8lt5gRvLdgy0t5mCBZM72MWNX1yWfljSUxxZNeMNxugrdiI/6MAQ4XMqYRYwEQJJsmf
+         UgsA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id um8si3285220ejb.373.2019.07.04.00.37.33
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=PRsVmLHY;
+       spf=pass (google.com: domain of lpf.vector@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=lpf.vector@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id p5sor2629787otk.184.2019.07.04.02.31.16
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 04 Jul 2019 00:37:33 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (Google Transport Security);
+        Thu, 04 Jul 2019 02:31:16 -0700 (PDT)
+Received-SPF: pass (google.com: domain of lpf.vector@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 5CBB9AD7F;
-	Thu,  4 Jul 2019 07:37:32 +0000 (UTC)
-Date: Thu, 4 Jul 2019 09:37:30 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Waiman Long <longman@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-	Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>,
-	David Rientjes <rientjes@google.com>,
-	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
-	Alexander Viro <viro@zeniv.linux.org.uk>,
-	Jonathan Corbet <corbet@lwn.net>,
-	Luis Chamberlain <mcgrof@kernel.org>,
-	Kees Cook <keescook@chromium.org>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	Vladimir Davydov <vdavydov.dev@gmail.com>, linux-mm@kvack.org,
-	linux-doc@vger.kernel.org, linux-fsdevel@vger.kernel.org,
-	cgroups@vger.kernel.org, linux-kernel@vger.kernel.org,
-	Roman Gushchin <guro@fb.com>, Shakeel Butt <shakeelb@google.com>,
-	Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH] mm, slab: Extend slab/shrink to shrink all the memcg
- caches
-Message-ID: <20190704073730.GA5620@dhcp22.suse.cz>
-References: <20190702183730.14461-1-longman@redhat.com>
- <20190702130318.39d187dc27dbdd9267788165@linux-foundation.org>
- <78879b79-1b8f-cdfd-d4fa-610afe5e5d48@redhat.com>
- <20190702143340.715f771192721f60de1699d7@linux-foundation.org>
- <c29ff725-95ba-db4d-944f-d33f5f766cd3@redhat.com>
- <20190703155314.GT978@dhcp22.suse.cz>
- <ca6147ca-25be-cba6-a7b9-fcac6d21345d@redhat.com>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=PRsVmLHY;
+       spf=pass (google.com: domain of lpf.vector@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=lpf.vector@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=81qzDNnuUWXeeKG5ggbworMMEY0MTN6GujxFNt/FSKY=;
+        b=PRsVmLHYYokfq1dAWNfZbXfAw/fqsNWpYh3uV3l/g68KONC8Oig3Sq4ok+8fTFtb5U
+         m+mMKk5caDAp/3QjJdljekiK+pC03tUk9uzWYWGlbECBUWbnXDWLCrWKkjj6hsOFkJPl
+         ZTIyCBDVxixFNks3FPtXldjqjaKC1fuAa4yZvkt0NAA/xnnSLgKbQfFc/SpDLKLp3yCa
+         ZAprvC57Z2fcGxs5K5pTV/11h4CUBUOSKL2Snp4snyHsIzWabfThd2nU2EZ0v8sIKfqd
+         Gif5b2UOxVPVAFJfMdsNCR0MMcPcidSeRlU8w86XXkIkEHtNxOT2tptV5Ajrr1flg7Gd
+         qmYQ==
+X-Google-Smtp-Source: APXvYqze2xsXujbeNbNbw8cpCmEutfUMYGbnvnrymsCSndKtBHHCMeJ+vzrksgLBW9mRoeVoAJvFhadPs958WKD3LiY=
+X-Received: by 2002:a9d:73c4:: with SMTP id m4mr15813610otk.369.1562232675969;
+ Thu, 04 Jul 2019 02:31:15 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <ca6147ca-25be-cba6-a7b9-fcac6d21345d@redhat.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+References: <20190702141541.12635-1-lpf.vector@gmail.com> <20190703193035.xsbdspgeiwzoo7aa@pc636>
+In-Reply-To: <20190703193035.xsbdspgeiwzoo7aa@pc636>
+From: Pengfei Li <lpf.vector@gmail.com>
+Date: Thu, 4 Jul 2019 17:31:04 +0800
+Message-ID: <CAD7_sbFi+KY-pH+2RZTq29qpBukvqZcC0xuB-7EJ_WNPP84bjQ@mail.gmail.com>
+Subject: Re: [PATCH v2 0/5] mm/vmalloc.c: improve readability and rewrite vmap_area
+To: Uladzislau Rezki <urezki@gmail.com>
+Cc: akpm@linux-foundation.org, peterz@infradead.org, rpenyaev@suse.de, 
+	mhocko@suse.com, guro@fb.com, aryabinin@virtuozzo.com, rppt@linux.ibm.com, 
+	mingo@kernel.org, rick.p.edgecombe@intel.com, linux-mm@kvack.org, 
+	linux-kernel@vger.kernel.org
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed 03-07-19 12:16:09, Waiman Long wrote:
-> On 7/3/19 11:53 AM, Michal Hocko wrote:
-> > On Wed 03-07-19 11:21:16, Waiman Long wrote:
-> >> On 7/2/19 5:33 PM, Andrew Morton wrote:
-> >>> On Tue, 2 Jul 2019 16:44:24 -0400 Waiman Long <longman@redhat.com> wrote:
-> >>>
-> >>>> On 7/2/19 4:03 PM, Andrew Morton wrote:
-> >>>>> On Tue,  2 Jul 2019 14:37:30 -0400 Waiman Long <longman@redhat.com> wrote:
-> >>>>>
-> >>>>>> Currently, a value of '1" is written to /sys/kernel/slab/<slab>/shrink
-> >>>>>> file to shrink the slab by flushing all the per-cpu slabs and free
-> >>>>>> slabs in partial lists. This applies only to the root caches, though.
-> >>>>>>
-> >>>>>> Extends this capability by shrinking all the child memcg caches and
-> >>>>>> the root cache when a value of '2' is written to the shrink sysfs file.
-> >>>>> Why?
-> >>>>>
-> >>>>> Please fully describe the value of the proposed feature to or users. 
-> >>>>> Always.
-> >>>> Sure. Essentially, the sysfs shrink interface is not complete. It allows
-> >>>> the root cache to be shrunk, but not any of the memcg caches. 
-> >>> But that doesn't describe anything of value.  Who wants to use this,
-> >>> and why?  How will it be used?  What are the use-cases?
-> >>>
-> >> For me, the primary motivation of posting this patch is to have a way to
-> >> make the number of active objects reported in /proc/slabinfo more
-> >> accurately reflect the number of objects that are actually being used by
-> >> the kernel.
-> > I believe we have been through that. If the number is inexact due to
-> > caching then lets fix slabinfo rather than trick around it and teach
-> > people to do a magic write to some file that will "solve" a problem.
-> > This is exactly what drop_caches turned out to be in fact. People just
-> > got used to drop caches because they were told so by $random web page.
-> > So really, think about the underlying problem and try to fix it.
-> >
-> > It is true that you could argue that this patch is actually fixing the
-> > existing interface because it doesn't really do what it is documented to
-> > do and on those grounds I would agree with the change.
-> 
-> I do think that we should correct the shrink file to do what it is
-> designed to do to include the memcg caches as well.
-> 
-> 
-> >  But do not teach
-> > people that they have to write to some file to get proper numbers.
-> > Because that is just a bad idea and it will kick back the same way
-> > drop_caches.
-> 
-> The /proc/slabinfo file is a well-known file that is probably used
-> relatively extensively. Making it to scan through all the per-cpu
-> structures will probably cause performance issues as the slab_mutex has
-> to be taken during the whole duration of the scan. That could have
-> undesirable side effect.
+On Thu, Jul 4, 2019 at 3:30 AM Uladzislau Rezki <urezki@gmail.com> wrote:
+>
+> Hello, Li.
+>
+> I do not think that it is worth to reduce the struct size the way
+> this series does. I mean the union around flags/va_start. Simply saying
+> if we need two variables: flags and va_start let's have them. Otherwise
+> everybody has to think what he/she access at certain moment of time.
+>
+> So it would be easier to make mistakes, also that conversion looks strange
+> to me. That is IMHO.
+>
+> If we want to reduce the size to L1-cache-line(64 bytes), i would propose to
+> eliminate the "flags" variable from the structure. We could do that if apply
+> below patch(as an example) on top of https://lkml.org/lkml/2019/7/3/661:
+>
 
-Please be more specific with some numbers ideally. Also if collecting
-data is too expensive, why cannot we simply account cached objects count
-in pcp manner?
+Hi, Vlad
 
-> Instead, I am thinking about extending the slab/objects sysfs file to
-> also show the number of objects hold up by the per-cpu structures and
-> thus we can get an accurate count by subtracting it from the reported
-> active objects. That will have a more limited performance impact as it
-> is just one kmem cache instead of all the kmem caches in the system.
-> Also the sysfs files are not as commonly used as slabinfo. That will be
-> another patch in the near future.
+Thank you for your detailed comments!
 
-Both are root only and once it is widespread that slabinfo doesn't
-provide precise data you can expect tools will try to fix that by adding
-another file(s) and we are back to square one, no? In other words
-slabinfo
+What you said inspired me. I really have no reason to stubbornly
+keep the "flags" in vmap_area since it can be eliminated.
+
+I will eliminate the "flags" from vmap_area as you suggested, and
+the next version will be based on top of your commit
+https://lkml.org/lkml/2019/7/3/661.
+
 
 -- 
-Michal Hocko
-SUSE Labs
+Pengfei
+
+> <snip>
+> diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
+> index 51e131245379..49bb82863d5b 100644
+> --- a/include/linux/vmalloc.h
+> +++ b/include/linux/vmalloc.h
+> @@ -51,15 +51,22 @@ struct vmap_area {
+>         unsigned long va_start;
+>         unsigned long va_end;
+>
+> -       /*
+> -        * Largest available free size in subtree.
+> -        */
+> -       unsigned long subtree_max_size;
+> -       unsigned long flags;
+>         struct rb_node rb_node;         /* address sorted rbtree */
+>         struct list_head list;          /* address sorted list */
+> -       struct llist_node purge_list;    /* "lazy purge" list */
+> -       struct vm_struct *vm;
+> +
+> +       /*
+> +        * Below three variables can be packed, because vmap_area
+> +        * object can be only in one of the three different states:
+> +        *
+> +        * - when an object is in "free" tree only;
+> +        * - when an object is in "purge list" only;
+> +        * - when an object is in "busy" tree only.
+> +        */
+> +       union {
+> +               unsigned long subtree_max_size;
+> +               struct llist_node purge_list;
+> +               struct vm_struct *vm;
+> +       };
+>  };
+>
+>  /*
+> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+> index 6f1b6a188227..e389a6db222b 100644
+> --- a/mm/vmalloc.c
+> +++ b/mm/vmalloc.c
+> @@ -329,8 +329,6 @@ EXPORT_SYMBOL(vmalloc_to_pfn);
+>  #define DEBUG_AUGMENT_PROPAGATE_CHECK 0
+>  #define DEBUG_AUGMENT_LOWEST_MATCH_CHECK 0
+>
+> -#define VM_VM_AREA     0x04
+> -
+>  static DEFINE_SPINLOCK(vmap_area_lock);
+>  /* Export for kexec only */
+>  LIST_HEAD(vmap_area_list);
+> @@ -1108,7 +1106,7 @@ static struct vmap_area *alloc_vmap_area(unsigned long size,
+>
+>         va->va_start = addr;
+>         va->va_end = addr + size;
+> -       va->flags = 0;
+> +       va->vm = NULL;
+>         insert_vmap_area(va, &vmap_area_root, &vmap_area_list);
+>
+>         spin_unlock(&vmap_area_lock);
+> @@ -1912,7 +1910,6 @@ void __init vmalloc_init(void)
+>                 if (WARN_ON_ONCE(!va))
+>                         continue;
+>
+> -               va->flags = VM_VM_AREA;
+>                 va->va_start = (unsigned long)tmp->addr;
+>                 va->va_end = va->va_start + tmp->size;
+>                 va->vm = tmp;
+> @@ -2010,7 +2007,6 @@ static void setup_vmalloc_vm(struct vm_struct *vm, struct vmap_area *va,
+>         vm->size = va->va_end - va->va_start;
+>         vm->caller = caller;
+>         va->vm = vm;
+> -       va->flags |= VM_VM_AREA;
+>         spin_unlock(&vmap_area_lock);
+>  }
+>
+> @@ -2115,7 +2111,7 @@ struct vm_struct *find_vm_area(const void *addr)
+>         struct vmap_area *va;
+>
+>         va = find_vmap_area((unsigned long)addr);
+> -       if (va && va->flags & VM_VM_AREA)
+> +       if (va && va->vm)
+>                 return va->vm;
+>
+>         return NULL;
+> @@ -2139,11 +2135,10 @@ struct vm_struct *remove_vm_area(const void *addr)
+>
+>         spin_lock(&vmap_area_lock);
+>         va = __find_vmap_area((unsigned long)addr);
+> -       if (va && va->flags & VM_VM_AREA) {
+> +       if (va && va->vm) {
+>                 struct vm_struct *vm = va->vm;
+>
+>                 va->vm = NULL;
+> -               va->flags &= ~VM_VM_AREA;
+>                 spin_unlock(&vmap_area_lock);
+>
+>                 kasan_free_shadow(vm);
+> @@ -2854,7 +2849,7 @@ long vread(char *buf, char *addr, unsigned long count)
+>                 if (!count)
+>                         break;
+>
+> -               if (!(va->flags & VM_VM_AREA))
+> +               if (!va->vm)
+>                         continue;
+>
+>                 vm = va->vm;
+> @@ -2934,7 +2929,7 @@ long vwrite(char *buf, char *addr, unsigned long count)
+>                 if (!count)
+>                         break;
+>
+> -               if (!(va->flags & VM_VM_AREA))
+> +               if (!va->vm)
+>                         continue;
+>
+>                 vm = va->vm;
+> @@ -3464,10 +3459,10 @@ static int s_show(struct seq_file *m, void *p)
+>         va = list_entry(p, struct vmap_area, list);
+>
+>         /*
+> -        * s_show can encounter race with remove_vm_area, !VM_VM_AREA on
+> -        * behalf of vmap area is being tear down or vm_map_ram allocation.
+> +        * s_show can encounter race with remove_vm_area, !vm on behalf
+> +        * of vmap area is being tear down or vm_map_ram allocation.
+>          */
+> -       if (!(va->flags & VM_VM_AREA)) {
+> +       if (!va->vm) {
+>                 seq_printf(m, "0x%pK-0x%pK %7ld vm_map_ram\n",
+>                         (void *)va->va_start, (void *)va->va_end,
+>                         va->va_end - va->va_start);
+> <snip>
+>
+> urezki@pc636:~/data/ssd/coding/linux-stable$ pahole -C vmap_area mm/vmalloc.o
+> die__process_function: tag not supported (INVALID)!
+> struct vmap_area {
+>         long unsigned int          va_start;             /*     0     8 */
+>         long unsigned int          va_end;               /*     8     8 */
+>         struct rb_node             rb_node;              /*    16    24 */
+>         struct list_head           list;                 /*    40    16 */
+>         union {
+>                 long unsigned int  subtree_max_size;     /*           8 */
+>                 struct llist_node  purge_list;           /*           8 */
+>                 struct vm_struct * vm;                   /*           8 */
+>         };                                               /*    56     8 */
+>         /* --- cacheline 1 boundary (64 bytes) --- */
+>
+>         /* size: 64, cachelines: 1, members: 5 */
+> };
+> urezki@pc636:~/data/ssd/coding/linux-stable$
+>
+> --
+> Vlad Rezki
 
