@@ -2,126 +2,178 @@ Return-Path: <SRS0=d6aY=VB=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CF4B0C0651F
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Jul 2019 19:32:21 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2DB06C0651F
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Jul 2019 19:50:29 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 96261218A0
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Jul 2019 19:32:21 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="xLYlLoVc"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 96261218A0
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
+	by mail.kernel.org (Postfix) with ESMTP id E322E218A4
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Jul 2019 19:50:28 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E322E218A4
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ucw.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3332E6B0003; Thu,  4 Jul 2019 15:32:21 -0400 (EDT)
+	id 71E3E6B0003; Thu,  4 Jul 2019 15:50:28 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2E5238E0003; Thu,  4 Jul 2019 15:32:21 -0400 (EDT)
+	id 6CF438E0003; Thu,  4 Jul 2019 15:50:28 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1FA798E0001; Thu,  4 Jul 2019 15:32:21 -0400 (EDT)
+	id 5BD328E0001; Thu,  4 Jul 2019 15:50:28 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id EF6426B0003
-	for <linux-mm@kvack.org>; Thu,  4 Jul 2019 15:32:20 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id t19so4181559pgh.6
-        for <linux-mm@kvack.org>; Thu, 04 Jul 2019 12:32:20 -0700 (PDT)
+Received: from mail-wm1-f72.google.com (mail-wm1-f72.google.com [209.85.128.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 0FDD16B0003
+	for <linux-mm@kvack.org>; Thu,  4 Jul 2019 15:50:28 -0400 (EDT)
+Received: by mail-wm1-f72.google.com with SMTP id 17so1880084wmj.3
+        for <linux-mm@kvack.org>; Thu, 04 Jul 2019 12:50:28 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=sDn9pqNnZNQls6TlQC0E4i4OA5fVIAHZsv1mK7QjuUU=;
-        b=og6vO/FX7hp0v+zyX8uLDgwTe4RPzJ2AT4bxXBca1p7Nx43e23vO7FjHt1dgGMyb5t
-         wmE1xkCm8cswaj41UoTd3M5pPmhBIitha8R9SsmNyegw3zlFsKIA4aUAyH+okw/bsmFh
-         DGQ86J9MUoVzzz3dnQFATs4V2eOiLMPdub/WXlZ7ELy7YLVRoH7pgWp3c2MAInb9oEfo
-         fMuAZhajWtfdlz2OexDXZeKH41Bd22Z8x+TbB4/46lGzfhvzHYIggB0ikzvJjRcsGCvk
-         nKpjrVm4ZNskUDWsnjfLmFKVMXcCVDAQEbU9g81GjDs0+4syLKb6I1hkVwGB/m6gW1qo
-         3obQ==
-X-Gm-Message-State: APjAAAUEmR80QYSgdVghOZjzDBSTt7zwsZID8iCcFjZ+QeBaTgjb5adu
-	mCksjru5Cx4vDcdOY+7PWxfn4mEI04+K4HrIX7RVj471/Nzhet/ciUhtYXFbBv3+vBcR1DbtO6B
-	RuiSR8oAJoRLtXbHsnmLh0BRjPmtYJUlYFFN5ui1923EUBPiriTinCHMsGVM7Ul3FBQ==
-X-Received: by 2002:a17:902:4501:: with SMTP id m1mr51221400pld.111.1562268740522;
-        Thu, 04 Jul 2019 12:32:20 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxSfEqK/s10MPErbOGxu3lNArRiWs20482cLz1qGtIfEM6LiS1sS1iEYNNX+akS1cMDSuIy
-X-Received: by 2002:a17:902:4501:: with SMTP id m1mr51221348pld.111.1562268739866;
-        Thu, 04 Jul 2019 12:32:19 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562268739; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=80i31qefcXSPw5bHW1WC20YEaJkGzwOklQ+9tm93DtM=;
+        b=W8MxfdjRpMsK5KVhOs5SHqvjYNDyl97mI7g0+ru0hx2KGZKRSKlaN8ie2FpnD7/X4J
+         efJ2rDuQu1BUrv+XKPMHdD+Zl28mTSjDRR+I+8UaVW7hN885F8uXKJP1mfkhDsD2f0TL
+         ROPxgKW8dyW2/dkWtPa0qh6P8q8XlYjYuDWZzFmcYWESqj697jYZkfhujopVurfNqXIP
+         U7f5nZQkatbmRSAa+c5s6GVfwTokNsloLIaAVwimJ/eKffpTIixhtf/BByIm4H2qv814
+         jfy55jd5PpCPUw3Sk1t1zVSc3XAZ+M5N7i7svwLNiJ7uktJiT6obcQKJQzyIkmrnXNzN
+         B/IA==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 195.113.26.193 is neither permitted nor denied by best guess record for domain of pavel@ucw.cz) smtp.mailfrom=pavel@ucw.cz
+X-Gm-Message-State: APjAAAUHQVMAkguKTBr+9Dwa31ulq1zEU4AkMx7uzF1c548+BhIJ65FM
+	OFf9wkV9jI+6l4NgZVTnKaiUDZW6jyueTZOTNM6+f+/E+DyQfxRMD4R9BXI1NZQwYdarOLO0zUD
+	LjtZ3+IodYROoLvRS4dy7ECsHMzwQ8scbgcSEznOsky4E1V/pG8xgyVgAxZF70qg=
+X-Received: by 2002:a1c:2dd2:: with SMTP id t201mr719587wmt.109.1562269827519;
+        Thu, 04 Jul 2019 12:50:27 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzAUNPE4dNBQ97775ETn/AfsirSI/EEklu7ulRHyOE6ANxTPn3ITw2w7e+S4Ey7WWtnMOsK
+X-Received: by 2002:a1c:2dd2:: with SMTP id t201mr719563wmt.109.1562269826684;
+        Thu, 04 Jul 2019 12:50:26 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562269826; cv=none;
         d=google.com; s=arc-20160816;
-        b=OKVe2K5bvS3f3JLXxvwZdOPnQBx7ztQlZSjlXUgPZgLdELdg1dNTWRPxaFmRgVOo0K
-         wfxYCphr7YNlNr6Y2zPLv8rNqfkEA4u8Jk5cGYhuvKjU4UsO1Srdt7kLHRIesIifBJ1W
-         VwQAnuQGKpua56U4tm7qQ7S+sCDeBv/FWbOWgPAyb15Xp5Ix7s06t0nzcf/YIbVDDM55
-         eJT1j+hVRAZlyM5ub8e/PU8RvUJlbvNxQ9SezzSm1oe4jkumB/mU+uGurjov970gz3Jw
-         rov1adJ2+JabaIJWzFkDB2gtqF6KcXp7kIGGeACzxLnIXZ9p2c/mlj46lHY6/H8g7Q/v
-         NvgQ==
+        b=fYHoYrwQL3kksYsaUZMLQe40JgmUUwKE8/uVz1Uk88exzJ4rGPuhn1h6Tt1nNqATtz
+         ieetL+WwpTCrFb0erBIkIQcTOBzsHDA9ePBxEfml+KH686Ec3dzJg1qxnqq+iGEycK22
+         E+AbnhfzANsueB7IZmjGFTneh+yH8Vl78dpbTM+NCDPMixAAvfC5xDS1AOq0GT8VGfoM
+         ItFcwS7JnfORsAjgd+qY+EyAgBxJvXplD8zQgRpcDnkuCgCy54TPC3IPg/BX95mf8mtk
+         39URWLs5OMP4pneuz48PJyXIDb6aml7mWpndlWhdZrl09cT9PGxiWXXQb/FREzTxcCJ5
+         Lk1A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=sDn9pqNnZNQls6TlQC0E4i4OA5fVIAHZsv1mK7QjuUU=;
-        b=Ctcc3sbRItS9ldqmdgBfAnWdhnLYxkorwyjq1g/itnXAN+VleJTBHcOVHL8DaaX5nn
-         1QZCqln3BtuWwz8sHS6IG5e9Y8Qlvaw6cVPNncGKLzvtISUX9Cq5WLHw3tM107bB3mMZ
-         OHPHRWgciCBaOsxbIPQFLMMLd2/TzyAl3JqyVQ8WE//kMqx2HjI3FvRc2Zz2flQ/puVC
-         fGn7mOGSCGGqf+ZPxD9LpeNWHHbsyzOUluhTUB//ZyHAxCi4tS3JwN/6Mg1Z12keG3Wc
-         b1rrv7Waq0dy9JvTm1G4TDvkMTBMNysvqiSwIaJZ8z1YnIVPJiPYJaLG9kJCcskydJ7Y
-         //Rw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=80i31qefcXSPw5bHW1WC20YEaJkGzwOklQ+9tm93DtM=;
+        b=GmisCLz1tiUzwYqkiYN9KdODD5dCALrBoEYZTqbhK22ofZi9/Ew6dc9h7zdA3qYk3Y
+         zxwP4zT9ry0MkZiXNitE+bvSF9FnzcqBo+Ml+CA4x4mdfNfrSXUFAomEwU8gGseMafeb
+         k5Q6cka06o6qhWW06A8jezDp969WSz2qI8Ftn0I7CFsi7b+kmwPPjevck2CcRtNnWDVb
+         hktvLX0RG1w6QhZcHkV5+YBr9UHG295yzDxZc5+60Osn9gwwD3LjcsBc6SmtKGh28vU/
+         +6GhBtiHWGy+xDCXRON743rkpsoZAMDW/MvMOhPf+Cj8jyqLcxw4Ja4mZN6sGfEdUR3I
+         HKoA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=xLYlLoVc;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id i198si6736428pfe.228.2019.07.04.12.32.19
+       spf=neutral (google.com: 195.113.26.193 is neither permitted nor denied by best guess record for domain of pavel@ucw.cz) smtp.mailfrom=pavel@ucw.cz
+Received: from atrey.karlin.mff.cuni.cz (atrey.karlin.mff.cuni.cz. [195.113.26.193])
+        by mx.google.com with ESMTPS id o21si173587wmh.11.2019.07.04.12.50.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 04 Jul 2019 12:32:19 -0700 (PDT)
-Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        Thu, 04 Jul 2019 12:50:26 -0700 (PDT)
+Received-SPF: neutral (google.com: 195.113.26.193 is neither permitted nor denied by best guess record for domain of pavel@ucw.cz) client-ip=195.113.26.193;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=xLYlLoVc;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-Received: from localhost.localdomain (c-73-223-200-170.hsd1.ca.comcast.net [73.223.200.170])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id D707D2189E;
-	Thu,  4 Jul 2019 19:32:18 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1562268739;
-	bh=sDn9pqNnZNQls6TlQC0E4i4OA5fVIAHZsv1mK7QjuUU=;
-	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
-	b=xLYlLoVcNxDZe4xjXUvwx/phI6Gk2I2s1MqHsJnhvK2dhiM5vmmOgxqD3KpPOq1GI
-	 YZNDgDS+RHGtv/QAuLWVM4LeZoRGCgQfTba6bUvfTmu8bvT07N8/18ASofU5gvPZM6
-	 qTzELQghgD4BvffARvPi77TQK27tSY7dRePWiBGY=
-Date: Thu, 4 Jul 2019 12:32:18 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: Qian Cai <cai@lca.pw>, axboe@kernel.dk, hch@lst.de,
- peterz@infradead.org, gkohli@codeaurora.org, mingo@redhat.com,
- linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins
- <hughd@google.com>
-Subject: Re: [PATCH] swap_readpage: avoid blk_wake_io_task() if !synchronous
-Message-Id: <20190704123218.87a763f771efad158e1b0a89@linux-foundation.org>
-In-Reply-To: <20190704160301.GA5956@redhat.com>
-References: <1559161526-618-1-git-send-email-cai@lca.pw>
-	<20190704160301.GA5956@redhat.com>
-X-Mailer: Sylpheed 3.5.1 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+       spf=neutral (google.com: 195.113.26.193 is neither permitted nor denied by best guess record for domain of pavel@ucw.cz) smtp.mailfrom=pavel@ucw.cz
+Received: by atrey.karlin.mff.cuni.cz (Postfix, from userid 512)
+	id 67D7A8067F; Thu,  4 Jul 2019 21:50:14 +0200 (CEST)
+Date: Thu, 4 Jul 2019 21:50:25 +0200
+From: Pavel Machek <pavel@ucw.cz>
+To: Jann Horn <jannh@google.com>
+Cc: Yu-cheng Yu <yu-cheng.yu@intel.com>,
+	the arch/x86 maintainers <x86@kernel.org>,
+	"H. Peter Anvin" <hpa@zytor.com>,
+	Thomas Gleixner <tglx@linutronix.de>,
+	Ingo Molnar <mingo@redhat.com>,
+	kernel list <linux-kernel@vger.kernel.org>,
+	linux-doc@vger.kernel.org, Linux-MM <linux-mm@kvack.org>,
+	linux-arch <linux-arch@vger.kernel.org>,
+	Linux API <linux-api@vger.kernel.org>,
+	Arnd Bergmann <arnd@arndb.de>,
+	Andy Lutomirski <luto@amacapital.net>,
+	Balbir Singh <bsingharora@gmail.com>,
+	Borislav Petkov <bp@alien8.de>,
+	Cyrill Gorcunov <gorcunov@gmail.com>,
+	Dave Hansen <dave.hansen@linux.intel.com>,
+	Eugene Syromiatnikov <esyr@redhat.com>,
+	Florian Weimer <fweimer@redhat.com>,
+	"H.J. Lu" <hjl.tools@gmail.com>, Jonathan Corbet <corbet@lwn.net>,
+	Kees Cook <keescook@chromium.org>,
+	Mike Kravetz <mike.kravetz@oracle.com>,
+	Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>,
+	Peter Zijlstra <peterz@infradead.org>,
+	Randy Dunlap <rdunlap@infradead.org>,
+	"Ravi V. Shankar" <ravi.v.shankar@intel.com>,
+	Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>,
+	Dave Martin <Dave.Martin@arm.com>
+Subject: Re: [RFC PATCH] binfmt_elf: Extract .note.gnu.property from an ELF
+ file
+Message-ID: <20190704195024.GA4013@amd>
+References: <20190628172203.797-1-yu-cheng.yu@intel.com>
+ <CAG48ez0rHHfcRgiVZf5FP0YOzxsXigvpg6ci790cmiN6PBwkhQ@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="xHFwDpU9dbj6ez1V"
+Content-Disposition: inline
+In-Reply-To: <CAG48ez0rHHfcRgiVZf5FP0YOzxsXigvpg6ci790cmiN6PBwkhQ@mail.gmail.com>
+User-Agent: Mutt/1.5.23 (2014-03-12)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 4 Jul 2019 18:03:01 +0200 Oleg Nesterov <oleg@redhat.com> wrote:
 
-> swap_readpage() sets waiter = bio->bi_private even if synchronous = F,
-> this means that the caller can get the spurious wakeup after return. This
-> can be fatal if blk_wake_io_task() does set_current_state(TASK_RUNNING)
-> after the caller does set_special_state(), in the worst case the kernel
-> can crash in do_task_dead().
+--xHFwDpU9dbj6ez1V
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-I think we need a Fixes: and a cc:stable here?
+Hi!
 
-IIRC, we're fixing 0619317ff8baa2 ("block: add polled wakeup task helper").
+
+> > +static int scan(u8 *buf, u32 buf_size, int item_size, test_item_fn tes=
+t_item,
+> > +               next_item_fn next_item, u32 *arg, u32 type, u32 *pos)
+> > +{
+> > +       int found =3D 0;
+> > +       u8 *p, *max;
+> > +
+> > +       max =3D buf + buf_size;
+> > +       if (max < buf)
+> > +               return 0;
+>=20
+> How can this ever legitimately happen? If it can't, perhaps you meant
+> to put a WARN_ON_ONCE() or something like that here?
+> Also, computing out-of-bounds pointers is UB (section 6.5.6 of C99:
+> "If both the pointer operand and the result point to elements of the
+> same array object, or one past the last element of the array object,
+> the evaluation shall not produce an overflow; otherwise, the behavior
+> is undefined."), and if the addition makes the pointer wrap, that's
+> certainly out of bounds; so I don't think this condition can trigger
+> without UB.
+
+Kernel assumes sane compiler. We pass flags to get it... C99 does not
+quite apply here.
+								Pavel
+							=09
+--=20
+(english) http://www.livejournal.com/~pavelmachek
+(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blo=
+g.html
+
+--xHFwDpU9dbj6ez1V
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1
+
+iEYEARECAAYFAl0eWIAACgkQMOfwapXb+vLSMgCcC98TTx9pMIkokJGKGUu3i6ME
+o+AAn3TIA7Pjz5wBcK19BycwV2+shMN6
+=83sj
+-----END PGP SIGNATURE-----
+
+--xHFwDpU9dbj6ez1V--
 
