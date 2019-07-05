@@ -2,174 +2,155 @@ Return-Path: <SRS0=h0DJ=VC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+	URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4BF4CC0651F
-	for <linux-mm@archiver.kernel.org>; Fri,  5 Jul 2019 03:01:16 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5E007C46498
+	for <linux-mm@archiver.kernel.org>; Fri,  5 Jul 2019 03:06:49 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EBB7A218A4
-	for <linux-mm@archiver.kernel.org>; Fri,  5 Jul 2019 03:01:15 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 24E9520828
+	for <linux-mm@archiver.kernel.org>; Fri,  5 Jul 2019 03:06:49 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="KxxQ/EOQ"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EBB7A218A4
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	dkim=pass (2048-bit key) header.d=nifty.com header.i=@nifty.com header.b="hc5L71Dy"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 24E9520828
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=socionext.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 601FF6B0003; Thu,  4 Jul 2019 23:01:15 -0400 (EDT)
+	id B55A86B0006; Thu,  4 Jul 2019 23:06:48 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5B35E8E0003; Thu,  4 Jul 2019 23:01:15 -0400 (EDT)
+	id B05F28E0003; Thu,  4 Jul 2019 23:06:48 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4A2AF8E0001; Thu,  4 Jul 2019 23:01:15 -0400 (EDT)
+	id 9F3778E0001; Thu,  4 Jul 2019 23:06:48 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
-	by kanga.kvack.org (Postfix) with ESMTP id EF7216B0003
-	for <linux-mm@kvack.org>; Thu,  4 Jul 2019 23:01:14 -0400 (EDT)
-Received: by mail-wr1-f70.google.com with SMTP id e6so3136169wrv.20
-        for <linux-mm@kvack.org>; Thu, 04 Jul 2019 20:01:14 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C3CE6B0006
+	for <linux-mm@kvack.org>; Thu,  4 Jul 2019 23:06:48 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id z1so4737947pfb.7
+        for <linux-mm@kvack.org>; Thu, 04 Jul 2019 20:06:48 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:references:from
-         :message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=clMDBr0VH7M11Amw0B3Ri/sIv+DBHpDPWFocL6b0RWI=;
-        b=mipikwBbGoKRbMJMkUrFlsbmAlZIm7lEDsYbWCaV5+ziRiQGFmDbC2QwkWviT0lf65
-         b10ts4+OY/7r35VWZat8QjGvHhvhvreIXg/9UQao2utwtXGaAc+9UphX1KJoUKot//EJ
-         n8ANavIfqecQgAaKsyc6TDEt+B7HgGRhSJBUyIS2TxbeqZgWNV3LKCFL2/ixCzKT7qq5
-         awAXvhFFdUcyxf8+RNMSUMMA6r+2dUvtf85U8bGXiSbAhAiB8jzR+60OX7SjXzbwF11W
-         rsi75Knpc2f9VSItKDMid5/4J/ke0gvK/zvXbieNddecOBNBeSEz+RVupwvI187T0udz
-         gOyw==
-X-Gm-Message-State: APjAAAVI8k2BsstMEb3EGLlTLgT7WHKTGB3L4eGNnn2Qs4WbQtZdNwGL
-	dl98hLuNmjC1X+KubK7Mu5Rw1wfv+j6tMy6swtrYQv7n0Ip4ohqgvo+bwiwSkF59+i4IfUh0cpk
-	ZJDRT8ljJNB1zzlg1WFe9OkzcfCAmeKovv/x747Kiuhat/5EwfIiTef98LNzofc0ZBQ==
-X-Received: by 2002:a5d:4908:: with SMTP id x8mr1147543wrq.290.1562295674323;
-        Thu, 04 Jul 2019 20:01:14 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwdBemu5NxYrpW3a6zRI6gexnIgmYt8jkBvUJMX2Y50DKholbnqR4GwSzT71vUjuD+BvBVJ
-X-Received: by 2002:a5d:4908:: with SMTP id x8mr1147481wrq.290.1562295673495;
-        Thu, 04 Jul 2019 20:01:13 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562295673; cv=none;
+        h=x-gm-message-state:dkim-filter:dkim-signature:mime-version
+         :references:in-reply-to:from:date:message-id:subject:to:cc;
+        bh=PUF8lDa4vdReIoKmN9yFODRcREJp8yLKeKn0eH+L6bE=;
+        b=A485F2MrBEA1kb8hDDvaD5/10wZMUW3dQzH6OUg+LFWVlxVsb2OQUr3FO1R2noyvff
+         KR+px4KhoMbYkJYFMyHYHT+KtcaZeMyaYL+4RZMDt9uUwjy2D0QlImRzPfsq9TgWQFoR
+         2i+ZKtJliCURw2+iOOJnOQ90dMA3Uoy7Xy3OWEfQmHwdJjZUcQfp3k4qLQYv1QygoHFJ
+         fZaAaDOpTJsIKSeSAMe9wKwVtqCUpARuctIPS1txQb1O25/shnfiEC70oisXPHFCkO/W
+         fSE7iM3OPkx5uWSehq3pxVaT0z98YAsxyUX5FHfdSsZJ6ZUqNIFHhcTPP2LaBoldh+qT
+         DPyw==
+X-Gm-Message-State: APjAAAUyRyA1q/WjnZqqpDiZBUiaBLPu2o9CyibxgkVX8ahaAcS4pQ6v
+	JgHxCA07l/DNQMlYCNuoouMbAn51UyLKtzZLSVluEZ9ZyrWzN5CIX8kNlI5IMrWEdtGHCWYDN+z
+	Va+lEmW+QmNdcd7Nos8E+h5v+5Mh9Op7ijORBkspFerX0ocgl12BW4RRPmEUEdRw=
+X-Received: by 2002:a17:902:8203:: with SMTP id x3mr1870546pln.304.1562296007950;
+        Thu, 04 Jul 2019 20:06:47 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzcpqWMMUqXL3nek0At0EVzH+HcVhPN7Ae2dxEnIgU9qU6ZjOZeO2qoBfWtEIGdM9wpffJx
+X-Received: by 2002:a17:902:8203:: with SMTP id x3mr1870480pln.304.1562296007329;
+        Thu, 04 Jul 2019 20:06:47 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562296007; cv=none;
         d=google.com; s=arc-20160816;
-        b=k8Bwn4cI6fHu6l0dC/HBka1h9Blp+M4n0ce8iRkr/0Js+97/cXOL/HW9IL/tm960sU
-         cqSqUWORDfEfFP9M3ql0HqTeC+5Sfs2XQ61FBhgqmzODdh0t5Ob8BgQRnM05pMzuCrPM
-         Lz1U1XIiOPGppylKFBAohZeIO1QCKP3o88ewOUx+rWgL3IEfGzZNaHlmpNMTFkdH1pct
-         xwMG6H3zX3SQlm+isv2xfTFN4DvVQnmMfpZ0nC9iWgZFNAkvSiUVOO17QMRdU/arAH4M
-         klwDqEJCoNSNjtKMnMO9gSergzzUoaXgtCnP8g3P/NQ5c9vLT8yWST0/yPiCi0lrkwk1
-         AceQ==
+        b=Dvd6eMIsvk2Da7AWJ9xN5A/Fy8yzvepLgS2h8QjlbIoIR59uonwUe3zFzu2u2xhiwW
+         1XPd0LYnowZ+T885a1Jm0CABQ8f3tcSSJ2KE0+5IbZWCkQ8gMmxLc9mUA1C1AWZb9o/w
+         qy0CLJWAq6T48X9sajXEu0zT9ZhTbkLYZ08ZAQWqEQOpl1MMdUCzeA0hmqjVmJ0bOpbF
+         0xmezzzqyWKQ+bVJ0C9PR9op8QbzGBJKmwxCWRG9bKcbF865wshTfy6fsK1NLNk7kfi3
+         6qezTv5dvh1wmbYMt6UvHo/5XM6jhGxUWFB3ESENp3GKEPTqz8gsrgeF9/bNZxVg4ZP8
+         UQ2Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:to:subject
-         :dkim-signature;
-        bh=clMDBr0VH7M11Amw0B3Ri/sIv+DBHpDPWFocL6b0RWI=;
-        b=GJ/0dZsTgt9hiqGyIyxQ5bkhDqBQxGdqrIXKMyqLCDun5mEvsq6yzq/zF2+36h26mw
-         IRvTSugBzJ5IfcGbJ8O+Miud6wEv0XNPv47sAJNw/lE+tZLZKdiVZDWJEcP9nDKd+lQB
-         BLqb1rxh8m+NZIPksGjSt8ETKfYiut9VDoLB119BsOPwANq5cXToJKPwATA4eQkbES1t
-         DQj+3DDW8eAmMB0mIMwSgJL7z0mzor4dY242cA0jjAJ1D60nfyuSFf4nUBqLyrt+ADjQ
-         G9a54lolGlDUEGuDdxGQjJzKArEN/ts+Vd/0y74y5WHyRtDjE/0VzkuZon7yaZyQw/Iu
-         65rA==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature:dkim-filter;
+        bh=PUF8lDa4vdReIoKmN9yFODRcREJp8yLKeKn0eH+L6bE=;
+        b=gAOnHgKW2acAzxxOe6SBalUtuhQKFJ6MLhjtAPobzL4/RVWZ3pPj92rZCoUMX08B8l
+         wTc++0nQEsMVDjdOIbpgQ1gmntVlEXoKT4ZdHCXryILQ4Zi1b1EhuPUX8kmlofzqcCTp
+         +b43K8DrmJVv/q2wJcHivTmA+zxBqTU+7ooZMGD9iRjXSGm5Zrk/gXs1Zclf6M/FqRb4
+         CS5DrKconjSHi5EDUon9jKXX5EPKqKBZoMt9nUMC6Oct8HYHfbs8J7rpc02m65/EfQ2b
+         nTNAmDF+rN+cjIRLYxD49voscSS95moBM71ItDX24fY+rhIMnVP//+QWCf13Ir2XDtk4
+         LTjA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b="KxxQ/EOQ";
-       spf=pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=rdunlap@infradead.org
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id h83si4910936wmf.193.2019.07.04.20.01.13
+       dkim=pass header.i=@nifty.com header.s=dec2015msa header.b=hc5L71Dy;
+       spf=softfail (google.com: domain of transitioning yamada.masahiro@socionext.com does not designate 210.131.2.91 as permitted sender) smtp.mailfrom=yamada.masahiro@socionext.com
+Received: from conssluserg-06.nifty.com (conssluserg-06.nifty.com. [210.131.2.91])
+        by mx.google.com with ESMTPS id b12si7240415pfb.122.2019.07.04.20.06.46
         for <linux-mm@kvack.org>
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Thu, 04 Jul 2019 20:01:13 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) client-ip=2001:8b0:10b:1231::1;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 04 Jul 2019 20:06:47 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning yamada.masahiro@socionext.com does not designate 210.131.2.91 as permitted sender) client-ip=210.131.2.91;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b="KxxQ/EOQ";
-       spf=pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=rdunlap@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=merlin.20170209; h=Content-Transfer-Encoding:Content-Type:
-	In-Reply-To:MIME-Version:Date:Message-ID:From:References:To:Subject:Sender:
-	Reply-To:Cc:Content-ID:Content-Description:Resent-Date:Resent-From:
-	Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:List-Help:
-	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	bh=clMDBr0VH7M11Amw0B3Ri/sIv+DBHpDPWFocL6b0RWI=; b=KxxQ/EOQrixPXe7WpCSxNyecNu
-	ou7W9wMn/5tSGt9EiUzbFPZmmXzPOlV/lF0IdeZFJsJVc/dwXq8Iw/fPPvCcb+Yg3MDGptSBjJ+cS
-	1IfnAHgJmmclULvexo48g0cubarcVOznsqZHs0UoglMrBPHeUHgRmtcan+WzIonpUSZ1IEcshWQAr
-	P5ielI9z2OAukUBQWXSNGPFVRxCTPWIPE//nlqO8F+lLDa0j0Whf57onB5xYFzoCN3tK+BZJ+sGlb
-	dPgpEPd+Lir60dUQ7L1iFTtdjksURL91i9fSoVwvvFwjz69tGIkHE2Ql9YiMumPw9/jLEN6pagl86
-	WoQnlhXA==;
-Received: from static-50-53-52-16.bvtn.or.frontiernet.net ([50.53.52.16] helo=midway.dunlab)
-	by merlin.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
-	id 1hjETE-00077l-Nd; Fri, 05 Jul 2019 03:01:08 +0000
-Subject: Re: mmotm 2019-07-04-15-01 uploaded (mm/vmscan.c)
-To: akpm@linux-foundation.org, broonie@kernel.org,
- linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org,
- linux-mm@kvack.org, linux-next@vger.kernel.org, mhocko@suse.cz,
- mm-commits@vger.kernel.org, sfr@canb.auug.org.au
-References: <20190704220152.1bF4q6uyw%akpm@linux-foundation.org>
-From: Randy Dunlap <rdunlap@infradead.org>
-Message-ID: <9cbdb785-b51d-9419-6b9a-ec282a4e4fa2@infradead.org>
-Date: Thu, 4 Jul 2019 20:01:06 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.2
+       dkim=pass header.i=@nifty.com header.s=dec2015msa header.b=hc5L71Dy;
+       spf=softfail (google.com: domain of transitioning yamada.masahiro@socionext.com does not designate 210.131.2.91 as permitted sender) smtp.mailfrom=yamada.masahiro@socionext.com
+Received: from mail-vk1-f181.google.com (mail-vk1-f181.google.com [209.85.221.181]) (authenticated)
+	by conssluserg-06.nifty.com with ESMTP id x6536QvA018785
+	for <linux-mm@kvack.org>; Fri, 5 Jul 2019 12:06:27 +0900
+DKIM-Filter: OpenDKIM Filter v2.10.3 conssluserg-06.nifty.com x6536QvA018785
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nifty.com;
+	s=dec2015msa; t=1562295987;
+	bh=PUF8lDa4vdReIoKmN9yFODRcREJp8yLKeKn0eH+L6bE=;
+	h=References:In-Reply-To:From:Date:Subject:To:Cc:From;
+	b=hc5L71DyP571OH1ILbrgsHHQpZxhkuz18yBJhiWyhTAww3ze+ztOro/wGz1TDYFUE
+	 /Si8hBWyn/V+Wg7PcYBWYxq1n2b2lpdpZvozLTunEj/uzkQ6RFOunckU0TuUzz9m2O
+	 RXMPcf27hMNI6zqtIhJMXDYJTJ3SOPQKOXPt5xrHNYe/6sLud/g+w7+4NbpxrT/Grd
+	 8MDTyD1iqfPBs9CuK/ynHGls1pUT/6NeGMZXtHG9zbpUfsfYbzST09seR6N/R3uVix
+	 7kKWqrwbGRnDtZYlfOtqiGntTGk7sXKjNMyFI00Ibkod/cTVCg9158ANjrjUuw9/GO
+	 cblKP9Jp4wGZg==
+X-Nifty-SrcIP: [209.85.221.181]
+Received: by mail-vk1-f181.google.com with SMTP id 130so933233vkn.9
+        for <linux-mm@kvack.org>; Thu, 04 Jul 2019 20:06:26 -0700 (PDT)
+X-Received: by 2002:a1f:728b:: with SMTP id n133mr313496vkc.84.1562295985842;
+ Thu, 04 Jul 2019 20:06:25 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20190704220152.1bF4q6uyw%akpm@linux-foundation.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+References: <20190704220152.1bF4q6uyw%akpm@linux-foundation.org> <80bf2204-558a-6d3f-c493-bf17b891fc8a@infradead.org>
+In-Reply-To: <80bf2204-558a-6d3f-c493-bf17b891fc8a@infradead.org>
+From: Masahiro Yamada <yamada.masahiro@socionext.com>
+Date: Fri, 5 Jul 2019 12:05:49 +0900
+X-Gmail-Original-Message-ID: <CAK7LNAQc1xYoet1o8HJVGKuonUV40MZGpK7eHLyUmqet50djLw@mail.gmail.com>
+Message-ID: <CAK7LNAQc1xYoet1o8HJVGKuonUV40MZGpK7eHLyUmqet50djLw@mail.gmail.com>
+Subject: Re: mmotm 2019-07-04-15-01 uploaded (gpu/drm/i915/oa/)
+To: Randy Dunlap <rdunlap@infradead.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mark Brown <broonie@kernel.org>,
+        linux-fsdevel@vger.kernel.org,
+        Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
+        linux-mm@kvack.org,
+        Linux-Next Mailing List <linux-next@vger.kernel.org>, mhocko@suse.cz,
+        mm-commits@vger.kernel.org, Stephen Rothwell <sfr@canb.auug.org.au>,
+        dri-devel <dri-devel@lists.freedesktop.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 7/4/19 3:01 PM, akpm@linux-foundation.org wrote:
-> The mm-of-the-moment snapshot 2019-07-04-15-01 has been uploaded to
-> 
->    http://www.ozlabs.org/~akpm/mmotm/
-> 
-> mmotm-readme.txt says
-> 
-> README for mm-of-the-moment:
-> 
-> http://www.ozlabs.org/~akpm/mmotm/
-> 
-> This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
-> more than once a week.
-> 
+On Fri, Jul 5, 2019 at 10:09 AM Randy Dunlap <rdunlap@infradead.org> wrote:
+>
+> On 7/4/19 3:01 PM, akpm@linux-foundation.org wrote:
+> > The mm-of-the-moment snapshot 2019-07-04-15-01 has been uploaded to
+> >
+> >    http://www.ozlabs.org/~akpm/mmotm/
+> >
+> > mmotm-readme.txt says
+> >
+> > README for mm-of-the-moment:
+> >
+> > http://www.ozlabs.org/~akpm/mmotm/
+>
+> I get a lot of these but don't see/know what causes them:
+>
+> ../scripts/Makefile.build:42: ../drivers/gpu/drm/i915/oa/Makefile: No such file or directory
+> make[6]: *** No rule to make target '../drivers/gpu/drm/i915/oa/Makefile'.  Stop.
+> ../scripts/Makefile.build:498: recipe for target 'drivers/gpu/drm/i915/oa' failed
+> make[5]: *** [drivers/gpu/drm/i915/oa] Error 2
+> ../scripts/Makefile.build:498: recipe for target 'drivers/gpu/drm/i915' failed
+>
 
+I checked next-20190704 tag.
 
-on i386:
-CONFIG_SLOB=y <<<<<<<<<<
+I see the empty file
+drivers/gpu/drm/i915/oa/Makefile
 
-
-../mm/vmscan.c: In function ‘prealloc_memcg_shrinker’:
-../mm/vmscan.c:220:3: error: implicit declaration of function ‘memcg_expand_shrinker_maps’ [-Werror=implicit-function-declaration]
-   if (memcg_expand_shrinker_maps(id)) {
-   ^
-In file included from ../include/linux/rbtree.h:22:0,
-                 from ../include/linux/mm_types.h:10,
-                 from ../include/linux/mmzone.h:21,
-                 from ../include/linux/gfp.h:6,
-                 from ../include/linux/mm.h:10,
-                 from ../mm/vmscan.c:17:
-../mm/vmscan.c: In function ‘shrink_slab_memcg’:
-../mm/vmscan.c:608:54: error: ‘struct mem_cgroup_per_node’ has no member named ‘shrinker_map’
-  map = rcu_dereference_protected(memcg->nodeinfo[nid]->shrinker_map,
-                                                      ^
-../include/linux/rcupdate.h:321:12: note: in definition of macro ‘__rcu_dereference_protected’
-  ((typeof(*p) __force __kernel *)(p)); \
-            ^
-../mm/vmscan.c:608:8: note: in expansion of macro ‘rcu_dereference_protected’
-  map = rcu_dereference_protected(memcg->nodeinfo[nid]->shrinker_map,
-        ^
-../mm/vmscan.c:608:54: error: ‘struct mem_cgroup_per_node’ has no member named ‘shrinker_map’
-  map = rcu_dereference_protected(memcg->nodeinfo[nid]->shrinker_map,
-                                                      ^
-../include/linux/rcupdate.h:321:35: note: in definition of macro ‘__rcu_dereference_protected’
-  ((typeof(*p) __force __kernel *)(p)); \
-                                   ^
-../mm/vmscan.c:608:8: note: in expansion of macro ‘rcu_dereference_protected’
-  map = rcu_dereference_protected(memcg->nodeinfo[nid]->shrinker_map,
-        ^
-
-
+Did someone delete it?
 
 
 -- 
-~Randy
+Best Regards
+Masahiro Yamada
 
