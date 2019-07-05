@@ -4,111 +4,110 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D0EEBC5B57D
-	for <linux-mm@archiver.kernel.org>; Fri,  5 Jul 2019 23:39:53 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 79247C5B57D
+	for <linux-mm@archiver.kernel.org>; Fri,  5 Jul 2019 23:48:19 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9469D20863
-	for <linux-mm@archiver.kernel.org>; Fri,  5 Jul 2019 23:39:53 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 2DF6D20843
+	for <linux-mm@archiver.kernel.org>; Fri,  5 Jul 2019 23:48:19 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="Vr37Kcg6"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9469D20863
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="REPsxwco"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2DF6D20843
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2FD6A6B0003; Fri,  5 Jul 2019 19:39:53 -0400 (EDT)
+	id ABEC66B0003; Fri,  5 Jul 2019 19:48:18 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2AE6D8E0003; Fri,  5 Jul 2019 19:39:53 -0400 (EDT)
+	id A70198E0003; Fri,  5 Jul 2019 19:48:18 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 19D988E0001; Fri,  5 Jul 2019 19:39:53 -0400 (EDT)
+	id 95EC98E0001; Fri,  5 Jul 2019 19:48:18 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
-	by kanga.kvack.org (Postfix) with ESMTP id EDF6B6B0003
-	for <linux-mm@kvack.org>; Fri,  5 Jul 2019 19:39:52 -0400 (EDT)
-Received: by mail-io1-f69.google.com with SMTP id w17so11330054iom.2
-        for <linux-mm@kvack.org>; Fri, 05 Jul 2019 16:39:52 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 75D1E6B0003
+	for <linux-mm@kvack.org>; Fri,  5 Jul 2019 19:48:18 -0400 (EDT)
+Received: by mail-io1-f69.google.com with SMTP id u84so4265781iod.1
+        for <linux-mm@kvack.org>; Fri, 05 Jul 2019 16:48:18 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=sq9F33IQp154Hc3CT0DLsiwhph66dbKhKe1mXt9jS+c=;
-        b=ENeaWQG30W+Y0RbGPzBOKqTUBuub3d6dyFrngfJrpelInZ9xgoI449hv8L/YsVUIhG
-         E5cZbeOoDXKz9Ak07oigU9Qmmj42nC4M56+F6aat0sGWYJUGzM5sbl0MlAwepKrmnFba
-         /p+zZTXpTYSVy0KsweFbVNSAhA6irekS5YyjT530dfKyR8tRVU/sk1tscj4U2v1SizI5
-         QKHlGSPfQ0ULpof2Es/i3gP8L3DcHIu6TTFyqJFNLeePYXyRcjIKmAxhT9woznGeTw+u
-         NURc7pLirAnE7hgVxxTb5emVkKu/Rp27mRkvviaXp27ZLCrjfI5dnztlOiG9wUjQuKel
-         XNkw==
-X-Gm-Message-State: APjAAAWC1Wektmo5vecZB8bDSy8hKXX2RZgZX5NsbzMAhXr7jzvCKCrm
-	lUEZvgNRoe8B6dm0IXQC9lcbHaPV9LjGCcsmeIi/LLCFhfoxF+eYyIVnyzGQdMHYWveC2KKZveO
-	boj0SsZlcMN1tlH8pcH6WuPWFp92cZU0+pxHSElHbDFM2d3sEZSwzXZbjT8gcTkoUOQ==
-X-Received: by 2002:a6b:b985:: with SMTP id j127mr6847457iof.186.1562369992621;
-        Fri, 05 Jul 2019 16:39:52 -0700 (PDT)
-X-Received: by 2002:a6b:b985:: with SMTP id j127mr6847408iof.186.1562369991746;
-        Fri, 05 Jul 2019 16:39:51 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562369991; cv=none;
+        bh=wGxDeq81CyX6TH+nRazSmgvOlrD7LrGKRc24O5beNe8=;
+        b=Q/1NsCP0DKZFLkXV42BX4MfXl8C3L991DcMCuS76n3d7UWMg9k5/cIAhN8I7Za9AQx
+         SjzCorqUAeEBRu3EKnNWIkcX0xfVi+EUqq4XMCssOrTa0bAC5dqqrERafXF/jH5vcjCE
+         w9I9ZwkXXjW4rmBK/QhtzDb1YCjc3k9xg0oidKfbVIo6YVfdKlH+OUUN7tGAbY2D6Srw
+         yBEE+H6R5DB9JxVYlG4jibHSfBfuuYZj0frRBRIgOMui9XrVlpGPleAk/Pmwb0mKEjC0
+         M2aPBcbY68mUJVF/mhYzDCkrEjoDz/R6ipXi/cVmh4hH//5j+CfZvd2hhC0OIa5Gbbh1
+         iOHg==
+X-Gm-Message-State: APjAAAXofUpjDGxYvX5vdLBfIPm9X7mA/Bcno2qG4QTQPLt/3YtV+sLE
+	H9u/GHvx9w8c7eoakWVxvZNqMHnnOSQB1q6DxjR+Fbmivz3MQ/zkR6rSOEQp9SRzFG1SUfwn+aO
+	ZsFLN23QUlXpsl3vMMwBew7BBmKPNbIPFugOhO+zQSDrFBj8WOfKAJ/mKmuRg9AEf4A==
+X-Received: by 2002:a6b:7b01:: with SMTP id l1mr6709590iop.60.1562370498248;
+        Fri, 05 Jul 2019 16:48:18 -0700 (PDT)
+X-Received: by 2002:a6b:7b01:: with SMTP id l1mr6709556iop.60.1562370497482;
+        Fri, 05 Jul 2019 16:48:17 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562370497; cv=none;
         d=google.com; s=arc-20160816;
-        b=Jw5C57wTUToYrGkPrUWeEct96KlKoScEVwiumQV6Nc0XfgFLWQoBS32IVrkisGtcZX
-         7dQnWxARaHmow611qPZhDj4NybnixySXxcBEEJKjNXxsCPR1crmbg1k7nXLmfpN9v3PS
-         GdIyEJ4xbQ8il7exy5PXTSI3uHPecjUpxUBvdbh4Z/WcnN2Qi2hVa8MqBb9kSWBdLr1Q
-         sHbQ0wxdRns86CLSzDSUNC7AynuZspXu2bHZrUyPJ9TsBL9evPbMDaSFuq22uNdo2cEx
-         8f02RZYyNCk7uX+w2zrzbrWHiJeawjLBwu/96nkwADGFv2ACcahF02aTCyzdVHOR1kCv
-         nY9g==
+        b=mlmgn5G1PJtYV4izGcpozOqVLeeG+Xb/520U2D+fKt8rvoe9HVaiH4TmQ2dqCC2NDY
+         N8iti89VdmcxlE1JSRgRCRTdPpIVPLxCEtdN5snwVrZmZW2pHakmM+eY0+qMNQM1vt2W
+         N6OCpd9KJTQRBQN4Tg1+cSpTNrLNuNaO9nrGxMkHdOhbcGD4MaoAgptfQTAaKS0zHXUw
+         yexjyWHWIfKguZEhFO29sh+sl8z098q9RwEhVeIxPIpsJDaWIY5cRBHlzQvinvZ0Qskf
+         N9Q2v5qBgxJnkklO53bPEjpUnZahhO6/Y1IMrS3q7sglXEeWLGu7SPtGPta8BwD1pITA
+         grLA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=sq9F33IQp154Hc3CT0DLsiwhph66dbKhKe1mXt9jS+c=;
-        b=eopS/kU3O5JODc6PYq4Z7ezat2wkGW6HfotNkAxNy2CWzVUCF5C+xZA0oE/AlF3Sft
-         MDE71zNjL1ds+2+fWKs3A5usyg7RsEOhRX2tEdcdj8AhawoEJNETfFTuDaVvjzFX/O+C
-         2IGPCb5njo3/Pa1MSLGg1NNvmRtCIRE8Pigq0R9mN0TWPyGzuTmdNnF2EP7zTdUq7BKS
-         /vXfBCpw+pRPz0giYDYgpK3AnTy7xh1vgHoSIdw3S9aQK0L+Xm1mA3jACNYY/a2huOr7
-         7gkyLSm36FqovLW0ulS9TehMJlqq3xvNJiS/THYTc1JhPcR5UuUURvfHeTo7rBcxgWql
-         Ed3A==
+        bh=wGxDeq81CyX6TH+nRazSmgvOlrD7LrGKRc24O5beNe8=;
+        b=1Bh2SYBMUZ8eky0/ASJrDwUzvl2JO2l1+rFQ7xcSN/GMYLjEN2o27etqbmp+VNs6Ka
+         W/DBJQbocfSA07flZMpmYg1zkPtWEECMSp66yCx455oJcUmV7dhp01p3+sFSzC2V+BQ6
+         WwSUaSZVk1beLbk/TLjM/Y0K1/mfjOXqR175gnOPa8YUI+yRNdZ93cFKmczf6w0dZ/D8
+         mmIIjUuu0LlHIObfwYlwxu9h4Y1YlWr4YXTRN9eK3GI7hvYkrMqmzMbWvtNFlvEDxUSo
+         xJiFCjsoKz6U1QdESooK0V5Rqpkiwg8/fgQ4AsQSkm589YfVJ9njIXe5qDMp5yu6sKkE
+         bV0A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Vr37Kcg6;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=REPsxwco;
        spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q2sor7981897ior.86.2019.07.05.16.39.51
+        by mx.google.com with SMTPS id g12sor7864028ioh.117.2019.07.05.16.48.17
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 05 Jul 2019 16:39:51 -0700 (PDT)
+        Fri, 05 Jul 2019 16:48:17 -0700 (PDT)
 Received-SPF: pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Vr37Kcg6;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=REPsxwco;
        spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=sq9F33IQp154Hc3CT0DLsiwhph66dbKhKe1mXt9jS+c=;
-        b=Vr37Kcg627ITaKGc4NRCnPxFp8s1zj7IkD4+oUykUPlRg1WnILprYgN7l+ncct94oW
-         zLT0sioTwHFcQo1zR5T4zwpkrw6w4XNpvIPGdbGF9d9NMggFY+XSMpcwi/Zs1squbpHd
-         6NhP1OGDabC/hCXJ04xX9MiXE5Dd4/X2qJQljL3R9W87JGckqXJlJxkaA9RWC1t4i3wz
-         y0OZz7oZQTuNjjMVUUaHodZ3fvkdTMrYnYSCxnIQETW/Q87TzibhTfM6u9Ao7T9tEAwq
-         ycvRg7/JUvGIiEHZbOasUB1qJogTkNrvR9gEgKwltWXXTozfE/iEHyOrRH4/4Uurf/cm
-         pbaA==
-X-Google-Smtp-Source: APXvYqxnohcjBQRztjf0hYU/JsLzhXw1zLVQnPOhw7NNixBOFSkYP+mSg0IXdNjoA7KZ/Mg3LrOWGvKFlpyJlCkOUqI=
-X-Received: by 2002:a5d:9282:: with SMTP id s2mr6517548iom.36.1562369991307;
- Fri, 05 Jul 2019 16:39:51 -0700 (PDT)
+        bh=wGxDeq81CyX6TH+nRazSmgvOlrD7LrGKRc24O5beNe8=;
+        b=REPsxwcoiI17ModB/bF/IWm51w4tdRBYyD+zjfsF1cS2iLQWagewHVxK1Wlz4VIjdc
+         LO2DShayy8bfpPgl+PmsbbINPPYQi2QN7y7oOxvmdNsGgmQtKl8XqSbCBXER35zU36+y
+         1BnYR8MUKGoJLqRfwGJAGAyyvNV8+9jdoSYtdGizVXwmsybzkyisI9wg3i8Eu/uoJ0y3
+         QNV5wJjx5vdNq5FhatKgJCpM59VlR+fM57dWG0QEDkT1zy4R94dRKupV9N1yanjlM6aE
+         J10OPmLcsTLSUnfy940K8o9bkmwN2qBQX3QNlGVv77Gho/aK0QZTavrGI2Og7ZcORamv
+         +Jgw==
+X-Google-Smtp-Source: APXvYqxWorwW7ElG3F5kgN09SST6+VfMhnqaW3rKJON2lLL8M5PLynJZO9FzCukiMPTyotu4yFL8fuZOL3uEifU0We8=
+X-Received: by 2002:a5d:915a:: with SMTP id y26mr7006370ioq.207.1562370497269;
+ Fri, 05 Jul 2019 16:48:17 -0700 (PDT)
 MIME-Version: 1.0
 References: <1562310330-16074-1-git-send-email-laoar.shao@gmail.com>
  <20190705090902.GF8231@dhcp22.suse.cz> <CALOAHbAw5mmpYJb4KRahsjO-Jd0nx1CE+m0LOkciuL6eJtavzQ@mail.gmail.com>
- <20190705111043.GJ8231@dhcp22.suse.cz> <CALOAHbA3PL6-sBqdy-sGKC8J9QGe_vn4-QU8J1HG-Pgn60WFJA@mail.gmail.com>
- <20190705151045.GI37448@bfoster>
-In-Reply-To: <20190705151045.GI37448@bfoster>
+ <20190705155239.GA18699@chrisdown.name>
+In-Reply-To: <20190705155239.GA18699@chrisdown.name>
 From: Yafang Shao <laoar.shao@gmail.com>
-Date: Sat, 6 Jul 2019 07:39:15 +0800
-Message-ID: <CALOAHbApDsrYrxSBLmR+vWWwnf_wqU9sPFvztoFArWu27=aX+A@mail.gmail.com>
+Date: Sat, 6 Jul 2019 07:47:41 +0800
+Message-ID: <CALOAHbBTwas6+rrYAO+OB9R74Ts94T17wojoyOe2+M0CqEbnLw@mail.gmail.com>
 Subject: Re: [PATCH] mm, memcg: support memory.{min, low} protection in cgroup v1
-To: Brian Foster <bfoster@redhat.com>
+To: Chris Down <chris@chrisdown.name>
 Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, 
 	Linux MM <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, 
 	Vladimir Davydov <vdavydov.dev@gmail.com>, Shakeel Butt <shakeelb@google.com>, 
-	Yafang Shao <shaoyafang@didiglobal.com>, linux-xfs@vger.kernel.org
+	Yafang Shao <shaoyafang@didiglobal.com>
 Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -116,59 +115,57 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jul 5, 2019 at 11:11 PM Brian Foster <bfoster@redhat.com> wrote:
+On Fri, Jul 5, 2019 at 11:52 PM Chris Down <chris@chrisdown.name> wrote:
 >
-> cc linux-xfs
->
-> On Fri, Jul 05, 2019 at 10:33:04PM +0800, Yafang Shao wrote:
-> > On Fri, Jul 5, 2019 at 7:10 PM Michal Hocko <mhocko@kernel.org> wrote:
-> > >
-> > > On Fri 05-07-19 17:41:44, Yafang Shao wrote:
-> > > > On Fri, Jul 5, 2019 at 5:09 PM Michal Hocko <mhocko@kernel.org> wrote:
-> > > [...]
-> > > > > Why cannot you move over to v2 and have to stick with v1?
-> > > > Because the interfaces between cgroup v1 and cgroup v2 are changed too
-> > > > much, which is unacceptable by our customer.
-> > >
-> > > Could you be more specific about obstacles with respect to interfaces
-> > > please?
-> > >
+> Yafang Shao writes:
+> >> Cgroup v1 API is considered frozen with new features added only to v2.
 > >
-> > Lots of applications will be changed.
-> > Kubernetes, Docker and some other applications which are using cgroup v1,
-> > that will be a trouble, because they are not maintained by us.
-> >
-> > > > It may take long time to use cgroup v2 in production envrioment, per
-> > > > my understanding.
-> > > > BTW, the filesystem on our servers is XFS, but the cgroup  v2
-> > > > writeback throttle is not supported on XFS by now, that is beyond my
-> > > > comprehension.
-> > >
-> > > Are you sure? I would be surprised if v1 throttling would work while v2
-> > > wouldn't. As far as I remember it is v2 writeback throttling which
-> > > actually works. The only throttling we have for v1 is reclaim based one
-> > > which is a huge hammer.
-> > > --
-> >
-> > We did it in cgroup v1 in our kernel.
-> > But the upstream still don't support it in cgroup v2.
-> > So my real question is why upstream can't support such an import file system ?
-> > Do you know which companies  besides facebook are using cgroup v2  in
-> > their product enviroment?
-> >
+> >The facilities support both cgroup v1 and cgroup v2, and what we need
+> >to do is only exposing the interface.
+> >If the cgroup v1 API is frozen, it will be a pity.
 >
-> I think the original issue with regard to XFS cgroupv2 writeback
-> throttling support was that at the time the XFS patch was proposed,
-> there wasn't any test coverage to prove that the code worked (and the
-> original author never followed up). That has since been resolved and
-> Christoph has recently posted a new patch [1], which appears to have
-> been accepted by the maintainer.
->
-> Brian
->
-> [1] https://marc.info/?l=linux-xfs&m=156138379906141&w=2
+> This might be true in the absolute purest technical sense, but not in a
+> practical one. Just exposing the memory protection interface without making it
+> comprehend v1's API semantics seems a bad move to me -- for example, how it
+> (and things like effective protections) interact without the no internal
+> process constraint, and certainly many many more things that nobody has
+> realised are not going to work yet.
 >
 
-Thanks for your reference.
-I will pay attention to that thread.
+Hmm ?
+Would be more specific about the issues without the o internal process
+constraint ?
+The memcg LRU scan/reclaim works fine on both cgroup v1 and cgroup v2,
+so the memcg LRU protection should works fine on both cgroup v1 and
+cgroup v2 as well.
+IOW, if there're some issues without internal process contraint, then
+there must be some issues
+in cgroup v1 LRU.
+
+> And to that extent, you're really implicitly asking for a lot of work and
+> evaluation to be done on memory protections for an interface which is already
+> frozen. I'm quite strongly against that.
+>
+> >Because the interfaces between cgroup v1 and cgroup v2 are changed too
+> >much, which is unacceptable by our customer.
+>
+> The problem is that you're explicitly requesting to use functionality which
+> under the hood relies on that new interface while also requesting to not use
+> that new interface at the same time :-)
+>
+
+I'm sorry that I can't get your point really.
+As I said, the facility is already there.
+The memcg LRU is not designed for cgroup v2 only.
+
+> While it may superficially work without it, I'm sceptical that simply adding
+> memory.low and memory.min to the v1 hierarchy is going to end up with
+> reasonable results under scrutiny, or a coherent system or API.
+
+I have finished some simple stress tests, and the result are fine.
+Would you pls give me some suggestion on how to test it if you think
+there may be some issues ?
+
+Thanks
+Yafang
 
