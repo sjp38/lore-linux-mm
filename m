@@ -2,207 +2,151 @@ Return-Path: <SRS0=h0DJ=VC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
+	SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 02D5BC4649B
-	for <linux-mm@archiver.kernel.org>; Fri,  5 Jul 2019 15:47:22 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5035EC4649E
+	for <linux-mm@archiver.kernel.org>; Fri,  5 Jul 2019 15:52:44 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A32A821852
-	for <linux-mm@archiver.kernel.org>; Fri,  5 Jul 2019 15:47:21 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 0F7F7216E3
+	for <linux-mm@archiver.kernel.org>; Fri,  5 Jul 2019 15:52:43 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=Mellanox.com header.i=@Mellanox.com header.b="WfGwnsre"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A32A821852
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mellanox.com
+	dkim=pass (1024-bit key) header.d=chrisdown.name header.i=@chrisdown.name header.b="pmbWR2rZ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0F7F7216E3
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chrisdown.name
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 39C6A6B0006; Fri,  5 Jul 2019 11:47:21 -0400 (EDT)
+	id AEC368E0003; Fri,  5 Jul 2019 11:52:42 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 325848E0003; Fri,  5 Jul 2019 11:47:21 -0400 (EDT)
+	id A9B3F8E0001; Fri,  5 Jul 2019 11:52:42 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1C63E8E0001; Fri,  5 Jul 2019 11:47:21 -0400 (EDT)
+	id 98A808E0003; Fri,  5 Jul 2019 11:52:42 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C28C66B0006
-	for <linux-mm@kvack.org>; Fri,  5 Jul 2019 11:47:20 -0400 (EDT)
-Received: by mail-wr1-f69.google.com with SMTP id q4so3971172wre.0
-        for <linux-mm@kvack.org>; Fri, 05 Jul 2019 08:47:20 -0700 (PDT)
+Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 4DBC18E0001
+	for <linux-mm@kvack.org>; Fri,  5 Jul 2019 11:52:42 -0400 (EDT)
+Received: by mail-wm1-f70.google.com with SMTP id s19so2640899wmc.7
+        for <linux-mm@kvack.org>; Fri, 05 Jul 2019 08:52:42 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
-         :thread-index:date:message-id:references:in-reply-to:accept-language
-         :content-language:content-id:content-transfer-encoding:mime-version;
-        bh=YxxJg4MIQ+kXyl/JgM+TzdLaXplemI/Hm2Vm6B9MMgg=;
-        b=WsBfDvYTmFRPqnUT9dtNpg3hMlMboBM1e6TzEFFyptv7Q3N905p8uswkPbJz5Q5+PH
-         n77/lN+30o+uBzEl53E6Z3j8Ja8d7iPNSOjs51cg3ncEKLY2ZxSuoSynQlExyzjcjEhA
-         XNWFH5LfIUdcwo94EP9j60eerL9TU+TAiv1JAr7Klj5LvuoL3xF4NySesMaQtrJgo1Uy
-         /MtfEVDNvELusCLq0Jt1WviuG5A6bhw9Ibb4A/6g/zMC7JxuZGxXh67YWQzEemHXo4iF
-         q7brpiE2wSHDvL8uRjBwVQdoH2/u3jMhwocDc4VRgpXuD/tyUUha//mqkw669g2x+BLE
-         RGFg==
-X-Gm-Message-State: APjAAAWTZbGpkzDQ9sWVtq8OPWmVLRlnoPeWip5zq3WNiD87gHKlyke5
-	mY69uA45Ss3puijuI2rw0mD5QqZc3SaUxDZ/wdrIm/DUCkJD7VRBER45tZDaaYPTw2AaHtzYkOR
-	sbVD09S+NIgfGB2htPnKsy4wWrZOxSTrsSx2CwTUxrTL6jOsgj6obt656aEwBpcxVgQ==
-X-Received: by 2002:a50:8eea:: with SMTP id x39mr5275786edx.49.1562341640252;
-        Fri, 05 Jul 2019 08:47:20 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqztH1evZjDbP8/riPvRP/4fNRKxlDVv0Nq4s/6J3VSiEreRSE49cZYrIYU6xfPNtTrWxhfc
-X-Received: by 2002:a50:8eea:: with SMTP id x39mr5275712edx.49.1562341639271;
-        Fri, 05 Jul 2019 08:47:19 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562341639; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=yxeDn3omZDASV5TPIJX6WDwy+V0DYxxm+ivyAUGtHnM=;
+        b=cFTRm1hRDEdWjmGPmANC5Apbx9utCnS2bxM3xovV0VaYojPA7XZCzUB0kzndor7J/E
+         k9c/J9eBCLzpyhaV4V5kFm8xxcg1NF6zMk097UjtJ8bQnT1VTPR6iQ8/BrN/YkGQ+8x3
+         C/eDQ8gv+s+2ri/LAN76SesNRboWDOVhM6IWNRHH5tKITv/zlrSgBw9Hw6pmxcdctSvs
+         WmX0Tbnhm3hwj2RJqni8n6okflF2tZAILbn9q88Qd67L05/HmU3mA9JdKigrzoWC528d
+         XVL7Qnrg1P19+dEm0MtIDibL6lXYoIQKKY+jYwwSAb8wMlUsvncCjqkfXlYhwWOt36lB
+         bDlw==
+X-Gm-Message-State: APjAAAUPH5rQed2935PAkhu+BiNehTB2zgQSSxuAU1KNzcDxEsvYHZN2
+	i020SHw5AX7CmotkGuWOfLuA4DrSuOl8kHYJiXIdbAnM8sA7DIhhsQFjAG5RiPsOn4wA4vVhYmu
+	W6jCP04igp20sqhUibKW1i7n//9+X9BjMz3WLnOUJJWatka34wISg/8ZI7K9Cu85cig==
+X-Received: by 2002:a1c:448b:: with SMTP id r133mr4145523wma.114.1562341961889;
+        Fri, 05 Jul 2019 08:52:41 -0700 (PDT)
+X-Received: by 2002:a1c:448b:: with SMTP id r133mr4145489wma.114.1562341961133;
+        Fri, 05 Jul 2019 08:52:41 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562341961; cv=none;
         d=google.com; s=arc-20160816;
-        b=CH1+4OMzCbi32xfhKeTS/5t6WnqutLHRs6Vh3s3ArrChKJeV/WKv7Ryb9Q8p2GdplF
-         rK7Wb3zNjPbcN7n1KLXNM0AsOPO0BE+HEIqu4y+mpK39gvyiKTbRPq0/CzuvQvPCaHOs
-         hJPLJfb/YUvnH+PdpcbFBHMqmkAVcoDKrWAXP9kLti50EgcXRgHGL7kTYSotaRWQxe7J
-         1ErBStrKRlxy+pPKb32DI1OenmjlUMaghs0iuHvI0lfDHch7LzRggEE0Us+0vUeAG53v
-         B7prxRFV+Y/sLcQDINISaaWLuYig/7NoCLXaEeYtJLh5xf685f5BFTxN3LM1MBco/eVY
-         EizQ==
+        b=ZI+9oPIon8u8q6Egx6z0vwsAGy3+G6a7rQqAyFc0PncXHKTuO561lmRE1iJyA/Sm9e
+         h51T8E23+HaLhGxMn6NG3co+mO1229eHXR3FrvVFWoQOyf6A8TxSaNt1IKu3GZjZazAP
+         otxJdRlxnYU18nWnITr81ZiPRqozwv9jK+pxhGsUZ8w2DHXvuOGpQBLwiTii7Wr4js0I
+         kTXx1AzdHaTffog6Qrol/75yU3ustAavDbe2ZLfeH6sEtwiGM3e+TEyqNgliZRtykqZS
+         GQiQyca7uSPVji1mMMiIyUpTvSf+BGlZJm4AkdMVfbc+uuBroy6+Y8Jp7N3k9uIlUTCr
+         vbrQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from:dkim-signature;
-        bh=YxxJg4MIQ+kXyl/JgM+TzdLaXplemI/Hm2Vm6B9MMgg=;
-        b=u/QWL2ZPbQ8U15GZqotkFYE5oKcQXD+n2EgS4homrS2l5zc7da1ywlSO8UW5rVQzRf
-         Zpdabf6U2wynBZeo0VQR9Z98zTA9AptGK5DlgiVoKxRYfTlXr0FU7OD+R7uXkIaqrcu/
-         oiMl3lsFCrgO60qC81wjlgX/drlNHJvdcS5g2cRH5DRn+6Qzn8cx9v/iViR7SwtKuLvH
-         Y+D+ozhSZREF9Iruh+QmVfiNbZWtLqOkVK1DpkvRQpFEp9ycrFFmrjP1uqJ7mzki/+P9
-         iu86boHf92zo7MiXLy3hezcywwXOLZT4/lmyunE1YU6ZQR02xesUzAXNF1Rfcf7nDO6D
-         3eBw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=yxeDn3omZDASV5TPIJX6WDwy+V0DYxxm+ivyAUGtHnM=;
+        b=eYFWGbyrBUa5ulzC090iae+4jX+Bs/wmvgcza4xHjEXkfRuJvgrmJ0xHrRHoHdUnIz
+         GXmnoiAggzFjf6V2YrjjYJ4hFPOUNXWU3glrIZ/HJ12sF9otqEGet6rK1VCDlR2Pjm0N
+         uPbZnRK3cs82pAYsfMXCRzNHrWrlHRGz5YOb9VVWJGd8QDLQl9DD7HsV45lZZ7YgnyAz
+         d4DrOEJ/9K38tflgdIsSFPbZkWp6FX1P04/IUbNcdJrGYL5S9NieKPBBAMSh2mGHlOJn
+         G1clMkb0DJdrrjiMuIYNPmeETzc1GtRs7sAeDGl0eghcDo/Brn+U8f3fuBT8dTSk9Ohq
+         gDXg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b=WfGwnsre;
-       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.2.87 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
-Received: from EUR02-VE1-obe.outbound.protection.outlook.com (mail-eopbgr20087.outbound.protection.outlook.com. [40.107.2.87])
-        by mx.google.com with ESMTPS id f30si7707315edf.183.2019.07.05.08.47.19
+       dkim=pass header.i=@chrisdown.name header.s=google header.b=pmbWR2rZ;
+       spf=pass (google.com: domain of chris@chrisdown.name designates 209.85.220.65 as permitted sender) smtp.mailfrom=chris@chrisdown.name;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chrisdown.name
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id v17sor7133048wrw.44.2019.07.05.08.52.41
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 05 Jul 2019 08:47:19 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jgg@mellanox.com designates 40.107.2.87 as permitted sender) client-ip=40.107.2.87;
+        (Google Transport Security);
+        Fri, 05 Jul 2019 08:52:41 -0700 (PDT)
+Received-SPF: pass (google.com: domain of chris@chrisdown.name designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b=WfGwnsre;
-       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.2.87 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=Mellanox.com;
- s=selector2;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=YxxJg4MIQ+kXyl/JgM+TzdLaXplemI/Hm2Vm6B9MMgg=;
- b=WfGwnsreFN2W6n4FYF56NOwkTFfhAVZd+oWsfT5Qq2/xWDoyXSG3m+py4VJ3TcOdHOcJHwUv4hA4GBgEVO6Ciu7ih4RDE4H9GDsJUw5ttiwWJzNJae1wQW/xh8uGJzID3UaGRWgzybPvPq4H4HHXn6k+WvHp6Xj476t+7h80V1o=
-Received: from VI1PR05MB4141.eurprd05.prod.outlook.com (10.171.182.144) by
- VI1PR05MB4157.eurprd05.prod.outlook.com (10.171.182.148) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.2032.20; Fri, 5 Jul 2019 15:47:17 +0000
-Received: from VI1PR05MB4141.eurprd05.prod.outlook.com
- ([fe80::f5d8:df9:731:682e]) by VI1PR05MB4141.eurprd05.prod.outlook.com
- ([fe80::f5d8:df9:731:682e%5]) with mapi id 15.20.2052.019; Fri, 5 Jul 2019
- 15:47:17 +0000
-From: Jason Gunthorpe <jgg@mellanox.com>
-To: Andrew Morton <akpm@linux-foundation.org>
-CC: Christoph Hellwig <hch@infradead.org>, Mark Rutland
-	<mark.rutland@arm.com>, Robin Murphy <robin.murphy@arm.com>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>, "will.deacon@arm.com"
-	<will.deacon@arm.com>, "catalin.marinas@arm.com" <catalin.marinas@arm.com>,
-	"anshuman.khandual@arm.com" <anshuman.khandual@arm.com>,
-	"linux-arm-kernel@lists.infradead.org"
-	<linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org"
-	<linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Dan Williams
-	<dan.j.williams@intel.com>
-Subject: Re: [PATCH v3 0/4] Devmap cleanups + arm64 support
-Thread-Topic: [PATCH v3 0/4] Devmap cleanups + arm64 support
-Thread-Index:
- AQHVK/HAM2r3dJ5EjUuvQfApLyHQmKat3lEAgAA0MoCAAAH5AIAAxnaAgAwArgCAABJ8AIAADxQAgAAJ3QCAATLjgA==
-Date: Fri, 5 Jul 2019 15:47:16 +0000
-Message-ID: <20190705154713.GF31525@mellanox.com>
-References: <cover.1558547956.git.robin.murphy@arm.com>
- <20190626073533.GA24199@infradead.org>
- <20190626123139.GB20635@lakrids.cambridge.arm.com>
- <20190626153829.GA22138@infradead.org> <20190626154532.GA3088@mellanox.com>
- <20190626203551.4612e12be27be3458801703b@linux-foundation.org>
- <20190704115324.c9780d01ef6938ab41403bf9@linux-foundation.org>
- <20190704195934.GA23542@mellanox.com>
- <20190704135332.234891ac6ce641bf29913d06@linux-foundation.org>
- <20190704212850.GB23542@mellanox.com>
-In-Reply-To: <20190704212850.GB23542@mellanox.com>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-x-clientproxiedby: BL0PR0102CA0037.prod.exchangelabs.com
- (2603:10b6:208:25::14) To VI1PR05MB4141.eurprd05.prod.outlook.com
- (2603:10a6:803:4d::16)
-authentication-results: spf=none (sender IP is )
- smtp.mailfrom=jgg@mellanox.com; 
-x-ms-exchange-messagesentrepresentingtype: 1
-x-originating-ip: [156.34.55.100]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: bae908f3-8803-4511-a3c6-08d701600e6a
-x-ms-office365-filtering-ht: Tenant
-x-microsoft-antispam:
- BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(4618075)(2017052603328)(7193020);SRVR:VI1PR05MB4157;
-x-ms-traffictypediagnostic: VI1PR05MB4157:
-x-microsoft-antispam-prvs:
- <VI1PR05MB4157E5DC3835CEF64F122137CFF50@VI1PR05MB4157.eurprd05.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:10000;
-x-forefront-prvs: 008960E8EC
-x-forefront-antispam-report:
- SFV:NSPM;SFS:(10009020)(4636009)(376002)(396003)(136003)(346002)(39860400002)(366004)(189003)(199004)(66446008)(66556008)(64756008)(66476007)(66946007)(73956011)(6246003)(68736007)(36756003)(53936002)(71190400001)(71200400001)(6436002)(14444005)(256004)(11346002)(476003)(2616005)(6512007)(1076003)(5660300002)(446003)(86362001)(486006)(54906003)(386003)(7416002)(81156014)(25786009)(3846002)(6116002)(102836004)(6916009)(8676002)(14454004)(33656002)(99286004)(76176011)(229853002)(66066001)(6486002)(52116002)(6506007)(2906002)(4326008)(305945005)(316002)(81166006)(8936002)(26005)(478600001)(7736002)(186003);DIR:OUT;SFP:1101;SCL:1;SRVR:VI1PR05MB4157;H:VI1PR05MB4141.eurprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
-received-spf: None (protection.outlook.com: mellanox.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info:
- 0/6Z+Bfs/UvVgFelpooJC+yb5+DJ55uzjAsttdFZPI8cmBLjPsYzungODysy6hjpr18R6P/3meVc8KOhdZPgJQuMVBtFQhczTA7Wdw7H4ZRKu/96B68qJD0sh0DxxBqfEeWFvkJxTJJqFKvuDMKq0wjmLja3Vm+NJ7Ouxioy3/qDjdAxJdeTQYdXC2AlwmlMXWSGB4LnDfjhwQJpmqu9KjANmkqfmxLRUwhcbufFnCWYtpUD8UXRCOIVr4szwSklgvYs1PDp6uv6Uq/qSgcPzFrFVjm007CKBefMP70suVIsSGomXML1Mb1DTvgLDHBx4NtifsL0MerLiwoBZV7m6p2ERH9Onfx+XqZ2kLG0IaW5wP9fW/iRteoSGvBkdwXs/cinq6QhFaVAiZjbVBjukBjNIY3mcqMGq/JE8lwioio=
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <447BAA9C69B30443BF5B2CEE61EC6F33@eurprd05.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
+       dkim=pass header.i=@chrisdown.name header.s=google header.b=pmbWR2rZ;
+       spf=pass (google.com: domain of chris@chrisdown.name designates 209.85.220.65 as permitted sender) smtp.mailfrom=chris@chrisdown.name;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chrisdown.name
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=chrisdown.name; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=yxeDn3omZDASV5TPIJX6WDwy+V0DYxxm+ivyAUGtHnM=;
+        b=pmbWR2rZ96zCWqBywO5tBsLFDu0cTvqu4TdanVzpSWUVN/gYu5AkG4t/O/SZuUiFd7
+         fkYXo+el81P61XMz45+6FgQu+1qcw2Inl9NNrMoA3dUVciG5+8ns0eclhq7P4JStfHT+
+         pwGKg11mhR0gU+h198Fc2mH8s1UEVKDxntr3I=
+X-Google-Smtp-Source: APXvYqzqnCAUiDwHCeuXJUahY/4HU2LXpyk6UjQ2Ay4NSextLvLHR2uu7rfvGqlCREpoURzSBepaTQ==
+X-Received: by 2002:a5d:43d0:: with SMTP id v16mr4457975wrr.252.1562341960595;
+        Fri, 05 Jul 2019 08:52:40 -0700 (PDT)
+Received: from localhost ([2620:10d:c092:180::1:7d8d])
+        by smtp.gmail.com with ESMTPSA id h6sm9962003wre.82.2019.07.05.08.52.39
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Fri, 05 Jul 2019 08:52:40 -0700 (PDT)
+Date: Fri, 5 Jul 2019 16:52:39 +0100
+From: Chris Down <chris@chrisdown.name>
+To: Yafang Shao <laoar.shao@gmail.com>
+Cc: Michal Hocko <mhocko@kernel.org>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Linux MM <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>,
+	Vladimir Davydov <vdavydov.dev@gmail.com>,
+	Shakeel Butt <shakeelb@google.com>,
+	Yafang Shao <shaoyafang@didiglobal.com>
+Subject: Re: [PATCH] mm, memcg: support memory.{min, low} protection in
+ cgroup v1
+Message-ID: <20190705155239.GA18699@chrisdown.name>
+References: <1562310330-16074-1-git-send-email-laoar.shao@gmail.com>
+ <20190705090902.GF8231@dhcp22.suse.cz>
+ <CALOAHbAw5mmpYJb4KRahsjO-Jd0nx1CE+m0LOkciuL6eJtavzQ@mail.gmail.com>
 MIME-Version: 1.0
-X-OriginatorOrg: Mellanox.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: bae908f3-8803-4511-a3c6-08d701600e6a
-X-MS-Exchange-CrossTenant-originalarrivaltime: 05 Jul 2019 15:47:16.9430
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: a652971c-7d2e-4d9b-a6a4-d149256f461b
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-userprincipalname: jgg@mellanox.com
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: VI1PR05MB4157
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Disposition: inline
+In-Reply-To: <CALOAHbAw5mmpYJb4KRahsjO-Jd0nx1CE+m0LOkciuL6eJtavzQ@mail.gmail.com>
+User-Agent: Mutt/1.12.1 (2019-06-15)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jul 04, 2019 at 06:28:50PM -0300, Jason Gunthorpe wrote:
+Yafang Shao writes:
+>> Cgroup v1 API is considered frozen with new features added only to v2.
+>
+>The facilities support both cgroup v1 and cgroup v2, and what we need
+>to do is only exposing the interface.
+>If the cgroup v1 API is frozen, it will be a pity.
 
-> > It's a large patchset and it appears to be mainly (entirely?) code
-> > cleanups.  I don't think such material would be appropriate for a late
-> > -rc7 merge even if it didn't conflict with lots of other higher
-> > priority pending functional changes and fixes!
->=20
-> I see your other email you resolved the conflicts - so please let me
-> know if you want to proceed with dropping CH's series or not, I'll
-> make a special effort to get that change into tomorrows linux-next if
-> you want (it is already 6pm here)
+This might be true in the absolute purest technical sense, but not in a 
+practical one. Just exposing the memory protection interface without making it 
+comprehend v1's API semantics seems a bad move to me -- for example, how it 
+(and things like effective protections) interact without the no internal 
+process constraint, and certainly many many more things that nobody has 
+realised are not going to work yet.
 
-I spent some time this morning looking at the various conflicts, and I
-think Dan is right, they are mangable. In the sense we can forward a
-merge resolution to Linus and it is not completely crazy. Most hunks
-are the usual mechanical sort of conflicts.
+And to that extent, you're really implicitly asking for a lot of work and 
+evaluation to be done on memory protections for an interface which is already 
+frozen. I'm quite strongly against that.
 
-Like Stephen, only two small conflict hunks in the memremap.c give me
-any pause, and I'm confident with CH and Dan's help it can be resolved
-robustly. If Linus doesn't like it then we fall back to dropping CH's
-series.
+>Because the interfaces between cgroup v1 and cgroup v2 are changed too
+>much, which is unacceptable by our customer.
 
-So, here is a fourth idea..
+The problem is that you're explicitly requesting to use functionality which 
+under the hood relies on that new interface while also requesting to not use 
+that new interface at the same time :-)
 
-We remove hmm.git entirely from your workflow (ie you revert commit
-"cc5dfd59e375f Merge branch 'hmm-devmem-cleanup.4' into rdma.git hmm"
-in your local version of linux-next) and I will send hmm.git to Linus
-after Dan's patches and others are merged by you to Linus. With Dan
-and CH's help I will forward the reviewed conflict resolution.
-
-This will not disturb the -mm patch workflow at all, and you can put
-everything back the way it was on July 3.
-
-What do you think about this?
-
-Jason
+While it may superficially work without it, I'm sceptical that simply adding 
+memory.low and memory.min to the v1 hierarchy is going to end up with 
+reasonable results under scrutiny, or a coherent system or API.
 
