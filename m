@@ -2,197 +2,208 @@ Return-Path: <SRS0=h0DJ=VC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-10.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BB5EEC0651F
-	for <linux-mm@archiver.kernel.org>; Fri,  5 Jul 2019 04:09:25 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 57744C46499
+	for <linux-mm@archiver.kernel.org>; Fri,  5 Jul 2019 04:16:31 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 63B6321852
-	for <linux-mm@archiver.kernel.org>; Fri,  5 Jul 2019 04:09:25 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 11B6A21852
+	for <linux-mm@archiver.kernel.org>; Fri,  5 Jul 2019 04:16:31 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="b1jq75dx"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 63B6321852
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="irbfu9qA"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 11B6A21852
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B271F6B0003; Fri,  5 Jul 2019 00:09:24 -0400 (EDT)
+	id 975C56B0003; Fri,  5 Jul 2019 00:16:30 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AB0E58E0003; Fri,  5 Jul 2019 00:09:24 -0400 (EDT)
+	id 924748E0003; Fri,  5 Jul 2019 00:16:30 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 929598E0001; Fri,  5 Jul 2019 00:09:24 -0400 (EDT)
+	id 7EC4B8E0001; Fri,  5 Jul 2019 00:16:30 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 58EDC6B0003
-	for <linux-mm@kvack.org>; Fri,  5 Jul 2019 00:09:24 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id u4so4804979pgb.20
-        for <linux-mm@kvack.org>; Thu, 04 Jul 2019 21:09:24 -0700 (PDT)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 4D0056B0003
+	for <linux-mm@kvack.org>; Fri,  5 Jul 2019 00:16:30 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id d6so1020249pls.17
+        for <linux-mm@kvack.org>; Thu, 04 Jul 2019 21:16:30 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=EpLpp6d5ev9UdUsgMU6f1l10/dE3Pg2qZg1140QaSWM=;
-        b=AqlME51tIYOv8bkLw/lYcQHxtyrAJyHsxuhxU27dr/QXh6T0sWCWZfolvkFNl+PXX2
-         n1RMPGcAXhE0wMcA/B5wzf82xUUW82rqEZbhgjvJpEnXpvIWBkCcbytLMVQSrHPqdN/w
-         a+znhk7xOrvkpqIEArVcwwybI/GIaoCUzFb9u+I16bGmAnEV68gBfxuFWPgDD4/Yykqy
-         tluBB1PVpTBOdvxDCvfv7sd996JhYuBBGOTy3zg3Hmu0oFoKAlocQnItzprdobkn2Gos
-         cvceUKERzdDGOaa2MF3MaqCp0Flh7UE9XaMNbr96UzBL2Tn5y5aOzJ2aQvX979mBasvn
-         VznA==
-X-Gm-Message-State: APjAAAWrnHLhogbYjXD5dzrV+PPAKw5the4VJKZx/fSyBaqb47jbwMmJ
-	njfO7pSX5l07gZMLNgUI/q7TY56lR2sILB9NRMLkhREqO3x3MitPJjc6d4wWOcgaQQVdxugIJuh
-	R+PGSUSlnTdFuhrIgbNFd3sQSOpJr/05uAeN9+6qE+fggRMUDjLId0V9iWLRI5z56IA==
-X-Received: by 2002:a17:90a:5288:: with SMTP id w8mr1997997pjh.61.1562299763975;
-        Thu, 04 Jul 2019 21:09:23 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxiyn1YJxWyqVunj/pif/rn5YkV9+SRJ8Facu2uuicDMTamebMuO7PjcNmd3jUbrCuzHqUS
-X-Received: by 2002:a17:90a:5288:: with SMTP id w8mr1997941pjh.61.1562299763306;
-        Thu, 04 Jul 2019 21:09:23 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562299763; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id;
+        bh=DIVzl05bCmHqAQSTOF3kZ/Ym5AufpX9dq9JbDFqM6xA=;
+        b=PEtiGeTw/WJHsg07xxMXgt+GhyW9IEtFa37FnCVh7WpGrPsCvtDZDlGBxcaWrPVkb+
+         V6fWshGJmnM6wLpuMxJo99EfrN0wYbg6WJrU5Exx8BPiiNxlhOYLhRs7NirJYWlrhMzT
+         P4dhhYNj1OmQxbmaUBhJiDuYm1JZmaoslEPWNhP9H8kwkLMJimXwpqNhtnUtX8pcKHE1
+         oy2fUF7GFZw6ji8IU8WhXyTI9m/CAc/hv2QK1wR1+uEscGDnUziOzGn+YSHKyH6yMhcc
+         VSJBUTL/d+PC90olmVZtzAR69jNkGwxs4JFtbo5rqU6Vt8tNvPguvrmooJK46UD1KG/z
+         CgXg==
+X-Gm-Message-State: APjAAAXsMCnTxImhXwia5APdETl+sI9LcKAFLjVh11ZlKu+gXOz7kuk6
+	w/TDPsuq1NiOz8wHL8G7O3wJYff4GUS/7Fwr5qr1mXx7APMZcgvkri7E2P1SRJwhpVt8K+2BGkX
+	9Z39YKfoUPCkp6d0nT7IaXkQ0bOPDzghc+EY3FVCmI6FrHFdFBOqXIryPch8i3WU2yw==
+X-Received: by 2002:a63:3ec7:: with SMTP id l190mr2392195pga.334.1562300189753;
+        Thu, 04 Jul 2019 21:16:29 -0700 (PDT)
+X-Received: by 2002:a63:3ec7:: with SMTP id l190mr2392137pga.334.1562300188726;
+        Thu, 04 Jul 2019 21:16:28 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562300188; cv=none;
         d=google.com; s=arc-20160816;
-        b=0nVMTvrKBTvBNKp9gLX0baSQ4TGVszVIxLVXk1YS+T82HGpjllS7Ka1PARKMi0tme/
-         2EScyb/3l3ruHOBlRHoQcHUvglR9LKuXmE2P6re9nBf/YGZzEVixdip9GjB7dCPJEJUB
-         Fh88DV3J6iIQDxMNoTewVLILqIAb6zF24PvOziYWLZ33NO1qx1n4Sd/DdvnJsIA1xluH
-         ylAXd2IcRND0YnNQjg1YhrqxpWezGbbOP0yfu8fpGskMG+ejH/TwEOwOJTUVFbXCsadF
-         FxjqmlM2dQI7xn5UzalwIHHb4rlIJWAn7z/XZ9o9UF0kDIVLKxxjC5EkxebTdMsKLEoe
-         DTaA==
+        b=PeBMi1Zc0Y6fVNRWInEsCAGmNfqA7v+ikY6rJ9nlWn/VEC61QT6KPK0duWrYgBcOZt
+         1QZC31NrxSYjSgCo0ECPRMfcdwbYK1bX/QHuir+DgfhdlCL3TlcfPwPxsy8Iubjm1F+F
+         i5SKPJurxoJQw1Xfu87NntCVsBhHwt2q7ZajvV6jvLFX1tazsxSaneHqIP9jj36Nri/b
+         upla5PlTWHovd3c6kgqgDSoc6kCJOiWPuDcqfa2TnQ0+2D81syNN6qY8cSiTVR+Nf/0Y
+         s68HiTlpmD9ko4KiakcNrvvs2kjXmsEs3ex6rNzlKVKLQPbx2JIXk3OepYTQVSSFMeU+
+         D+lA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject
-         :dkim-signature;
-        bh=EpLpp6d5ev9UdUsgMU6f1l10/dE3Pg2qZg1140QaSWM=;
-        b=QAISJL+g2RxmEu+IXCG7KViCEzM5kQvaHh21AO+DpLtTjaSK6IqOdwT0I94ndBWpjM
-         NoiaUQHkYoH6e+s18q0IUJ2f+UAZnx7MCOYtAw264/4gpNmN6U3wXfWZw7Gk1A81B2kw
-         adtNiFJkEcilTFg7xi0SDTIAojCwS2dsc79YJKI21AjXJMiPCTuKJ65DjSCNGiZwNID2
-         Wq/E68Ihjwj98Rb6ieIeTeJl0atkWqAL+PcTK5T4CdZAwvfppseoUJ2bFBADxfs0sgZ6
-         i00AApbmySKVE+eiQCOQUr2RvNb9PkZ7MHxoYfiA6emLp3GuWOYymqZaZYhlHp792a5m
-         9qGg==
+        h=message-id:date:subject:cc:to:from:dkim-signature;
+        bh=DIVzl05bCmHqAQSTOF3kZ/Ym5AufpX9dq9JbDFqM6xA=;
+        b=R4mm/InJbe04rebRN8UDL2YL+91hZMBPR7KY9tQVl/cWknAcA5lPcu6UfLLO+CV4CI
+         1SByHZDaOKNnhxg7mHhXqNL4ZVWiqPi7z1ZHdVMWOOE/TnrRh7Is82lzzOQ838Xn+Xht
+         qWcz1tNGGcxSF+T9JJLml1Osj+TOR6BZbjZNdRN3bHmWuoXzznTnItkLElEvZVmEIiPG
+         0a3lv+qaEqNZr/zL0JUI7SAyn1mrAj64b4FxAOiLrFD9CCe99X463lMNCwJ2/TtU+8/p
+         IyNB5J+mrATB0IMiNE3V2gvh3iQadIx03wWRLDxhXHKS8ilRI/pSm39nSIuSWyJN560d
+         F/YA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=b1jq75dx;
-       spf=pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=rdunlap@infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id d12si7292748pla.121.2019.07.04.21.09.23
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=irbfu9qA;
+       spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id n11sor8977611plg.68.2019.07.04.21.16.28
         for <linux-mm@kvack.org>
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Thu, 04 Jul 2019 21:09:23 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (Google Transport Security);
+        Thu, 04 Jul 2019 21:16:28 -0700 (PDT)
+Received-SPF: pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=b1jq75dx;
-       spf=pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=rdunlap@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=Content-Transfer-Encoding:
-	Content-Type:In-Reply-To:MIME-Version:Date:Message-ID:From:References:Cc:To:
-	Subject:Sender:Reply-To:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=EpLpp6d5ev9UdUsgMU6f1l10/dE3Pg2qZg1140QaSWM=; b=b1jq75dxQbtB+7a65u6Rylo1L
-	01T+/tPNKG4kAsias6gKT+e74KMYqsNVmHNpVUoATOVU43k0Q/oYEhbxb7uASluBzw9t31DXxOL4F
-	VX9z+yb05Q+x9j+UVT6qB5SgP2QBi4gKgLvzIk7PpgKOFDOM75PF44vgjqpqzs1tXlSKHC82n/NJR
-	mcjMdya35Mmn8wRdnCrJX1ijkuZzv7v7xGKF4UDt8ePkXqFbZInlYET+gWKS5rEU+CyZuoTWm3XSc
-	Hk7S9UcSvq651qhTErC6lu0KudmoNoOKgrdnKQPc+r9geI20Fp6U2sgvPOInrz+2PZxT+v0SZsNyA
-	uxb8DneeQ==;
-Received: from static-50-53-52-16.bvtn.or.frontiernet.net ([50.53.52.16] helo=dragon.dunlab)
-	by bombadil.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
-	id 1hjFXC-0007w4-C8; Fri, 05 Jul 2019 04:09:18 +0000
-Subject: Re: mmotm 2019-07-04-15-01 uploaded (gpu/drm/i915/oa/)
-To: Masahiro Yamada <yamada.masahiro@socionext.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mark Brown
- <broonie@kernel.org>, linux-fsdevel@vger.kernel.org,
- Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
- linux-mm@kvack.org, Linux-Next Mailing List <linux-next@vger.kernel.org>,
- mhocko@suse.cz, mm-commits@vger.kernel.org,
- Stephen Rothwell <sfr@canb.auug.org.au>,
- dri-devel <dri-devel@lists.freedesktop.org>
-References: <20190704220152.1bF4q6uyw%akpm@linux-foundation.org>
- <80bf2204-558a-6d3f-c493-bf17b891fc8a@infradead.org>
- <CAK7LNAQc1xYoet1o8HJVGKuonUV40MZGpK7eHLyUmqet50djLw@mail.gmail.com>
- <CAK7LNASLfyreDPvNuL1svvHPC0woKnXO_bsNku4DMK6UNn4oHw@mail.gmail.com>
- <5e5353e2-bfab-5360-26b2-bf8c72ac7e70@infradead.org>
- <CAK7LNATF+D5TgTZijG3EPBVON5NmN+JcwmCBvnvkMFyR+3wF2A@mail.gmail.com>
-From: Randy Dunlap <rdunlap@infradead.org>
-Message-ID: <8868b3fc-ba16-2b01-4ebb-4bdefc2f9e18@infradead.org>
-Date: Thu, 4 Jul 2019 21:09:15 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.2
-MIME-Version: 1.0
-In-Reply-To: <CAK7LNATF+D5TgTZijG3EPBVON5NmN+JcwmCBvnvkMFyR+3wF2A@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=irbfu9qA;
+       spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=from:to:cc:subject:date:message-id;
+        bh=DIVzl05bCmHqAQSTOF3kZ/Ym5AufpX9dq9JbDFqM6xA=;
+        b=irbfu9qArbablvA6nbNLTjhMKotjU5R09Zqx9DqYYzjYZz6fd5+MPt/5WZbfkukptH
+         ModvZovWGiIEr+b3EIj5ZiICW7ImUrh3nRwJTahq1LWKcCom1ky/dNd/YJtqmVepFxZ8
+         7AsjoiTxjhRx2Aj53GHp3t5fLh2hoojsAcpKPqb0LR381CH/haWPEyvmmHBz2cAivW99
+         WVXDORQ9Wr97G+nOp9RqBFcimlQK4ne9s+s2+ZgyW2brfU8QICXkVIuoj+gkRZdHXC3l
+         ZmGrtQLaXCzMowk6ehabqxUsVefUs7+VLbWuol4DwWq9rU1zsWApq87yWvwdSTmkzzeM
+         C6nw==
+X-Google-Smtp-Source: APXvYqzI9ZcBsR33Wj69OYxhz8Fl3uU52XOagYXuFn3y1+rHU7l+0to8zenOnZia6VzGeJ1Wmt9bLQ==
+X-Received: by 2002:a17:902:f204:: with SMTP id gn4mr2206522plb.3.1562300188420;
+        Thu, 04 Jul 2019 21:16:28 -0700 (PDT)
+Received: from mylaptop.redhat.com ([2408:8207:7821:9e80:eaf2:5f81:4c66:c3d0])
+        by smtp.gmail.com with ESMTPSA id l68sm16328638pjb.8.2019.07.04.21.16.13
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 04 Jul 2019 21:16:27 -0700 (PDT)
+From: Pingfan Liu <kernelfans@gmail.com>
+To: x86@kernel.org
+Cc: Pingfan Liu <kernelfans@gmail.com>,
+	Michal Hocko <mhocko@suse.com>,
+	Dave Hansen <dave.hansen@linux.intel.com>,
+	Mike Rapoport <rppt@linux.ibm.com>,
+	Tony Luck <tony.luck@intel.com>,
+	Andy Lutomirski <luto@kernel.org>,
+	Peter Zijlstra <peterz@infradead.org>,
+	Thomas Gleixner <tglx@linutronix.de>,
+	Ingo Molnar <mingo@redhat.com>,
+	Borislav Petkov <bp@alien8.de>,
+	"H. Peter Anvin" <hpa@zytor.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Vlastimil Babka <vbabka@suse.cz>,
+	Oscar Salvador <osalvador@suse.de>,
+	Pavel Tatashin <pavel.tatashin@microsoft.com>,
+	Mel Gorman <mgorman@techsingularity.net>,
+	Benjamin Herrenschmidt <benh@kernel.crashing.org>,
+	Michael Ellerman <mpe@ellerman.id.au>,
+	Stephen Rothwell <sfr@canb.auug.org.au>,
+	Qian Cai <cai@lca.pw>,
+	Barret Rhoden <brho@google.com>,
+	Bjorn Helgaas <bhelgaas@google.com>,
+	David Rientjes <rientjes@google.com>,
+	linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Subject: [PATCH 1/2] x86/numa: carve node online semantics out of alloc_node_data()
+Date: Fri,  5 Jul 2019 12:15:42 +0800
+Message-Id: <1562300143-11671-1-git-send-email-kernelfans@gmail.com>
+X-Mailer: git-send-email 2.7.5
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 7/4/19 8:44 PM, Masahiro Yamada wrote:
-> On Fri, Jul 5, 2019 at 12:23 PM Randy Dunlap <rdunlap@infradead.org> wrote:
->>
->> On 7/4/19 8:09 PM, Masahiro Yamada wrote:
->>> On Fri, Jul 5, 2019 at 12:05 PM Masahiro Yamada
->>> <yamada.masahiro@socionext.com> wrote:
->>>>
->>>> On Fri, Jul 5, 2019 at 10:09 AM Randy Dunlap <rdunlap@infradead.org> wrote:
->>>>>
->>>>> On 7/4/19 3:01 PM, akpm@linux-foundation.org wrote:
->>>>>> The mm-of-the-moment snapshot 2019-07-04-15-01 has been uploaded to
->>>>>>
->>>>>>    http://www.ozlabs.org/~akpm/mmotm/
->>>>>>
->>>>>> mmotm-readme.txt says
->>>>>>
->>>>>> README for mm-of-the-moment:
->>>>>>
->>>>>> http://www.ozlabs.org/~akpm/mmotm/
->>>>>
->>>>> I get a lot of these but don't see/know what causes them:
->>>>>
->>>>> ../scripts/Makefile.build:42: ../drivers/gpu/drm/i915/oa/Makefile: No such file or directory
->>>>> make[6]: *** No rule to make target '../drivers/gpu/drm/i915/oa/Makefile'.  Stop.
->>>>> ../scripts/Makefile.build:498: recipe for target 'drivers/gpu/drm/i915/oa' failed
->>>>> make[5]: *** [drivers/gpu/drm/i915/oa] Error 2
->>>>> ../scripts/Makefile.build:498: recipe for target 'drivers/gpu/drm/i915' failed
->>>>>
->>>>
->>>> I checked next-20190704 tag.
->>>>
->>>> I see the empty file
->>>> drivers/gpu/drm/i915/oa/Makefile
->>>>
->>>> Did someone delete it?
->>>>
->>>
->>>
->>> I think "obj-y += oa/"
->>> in drivers/gpu/drm/i915/Makefile
->>> is redundant.
->>
->> Thanks.  It seems to be working after deleting that line.
-> 
-> 
-> Could you check whether or not
-> drivers/gpu/drm/i915/oa/Makefile exists in your source tree?
+Node online means either memory online or cpu online. But there is
+requirement to instance a pglist_data, which has neither cpu nor memory
+online (refer to [2/2]).
 
-It does not.
+So carve out the online semantics, and call node_set_online() where either
+memory or cpu is online.
 
-> Your build log says it was missing.
-> 
-> But, commit 5ed7a0cf3394 ("drm/i915: Move OA files to separate folder")
-> added it.  (It is just an empty file)
-> 
-> I am just wondering why.
+Signed-off-by: Pingfan Liu <kernelfans@gmail.com>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Mike Rapoport <rppt@linux.ibm.com>
+Cc: Tony Luck <tony.luck@intel.com>
+Cc: Andy Lutomirski <luto@kernel.org>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: Ingo Molnar <mingo@redhat.com>
+Cc: Borislav Petkov <bp@alien8.de>
+Cc: "H. Peter Anvin" <hpa@zytor.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>
+Cc: Oscar Salvador <osalvador@suse.de>
+Cc: Pavel Tatashin <pavel.tatashin@microsoft.com>
+Cc: Mel Gorman <mgorman@techsingularity.net>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: Michael Ellerman <mpe@ellerman.id.au>
+Cc: Stephen Rothwell <sfr@canb.auug.org.au>
+Cc: Qian Cai <cai@lca.pw>
+Cc: Barret Rhoden <brho@google.com>
+Cc: Bjorn Helgaas <bhelgaas@google.com>
+Cc: David Rientjes <rientjes@google.com>
+Cc: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org
+---
+ arch/x86/mm/numa.c | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)
 
-I am not using any git tree(s) for this.  Just patches.
-
-That Makefile is in patch-v5.2-rc7-next-20190704.xz.
-
-I don't know how Andrew generates the linux-next.patch file for mmotm,
-but I don't see that Makefile anywhere in mmotm, although the rest of
-the i915/oa/ files seems to be there.
-
-Maybe diff skips empty files unless told to save them?
-
+diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
+index e6dad60..b48d507 100644
+--- a/arch/x86/mm/numa.c
++++ b/arch/x86/mm/numa.c
+@@ -213,8 +213,6 @@ static void __init alloc_node_data(int nid)
+ 
+ 	node_data[nid] = nd;
+ 	memset(NODE_DATA(nid), 0, sizeof(pg_data_t));
+-
+-	node_set_online(nid);
+ }
+ 
+ /**
+@@ -589,6 +587,7 @@ static int __init numa_register_memblks(struct numa_meminfo *mi)
+ 			continue;
+ 
+ 		alloc_node_data(nid);
++		node_set_online(nid);
+ 	}
+ 
+ 	/* Dump memblock with node info and return. */
+@@ -760,8 +759,10 @@ void __init init_cpu_to_node(void)
+ 		if (node == NUMA_NO_NODE)
+ 			continue;
+ 
+-		if (!node_online(node))
++		if (!node_online(node)) {
+ 			init_memory_less_node(node);
++			node_set_online(nid);
++		}
+ 
+ 		numa_set_node(cpu, node);
+ 	}
 -- 
-~Randy
+2.7.5
 
