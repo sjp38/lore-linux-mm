@@ -2,136 +2,173 @@ Return-Path: <SRS0=h0DJ=VC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 72B60C468AA
-	for <linux-mm@archiver.kernel.org>; Fri,  5 Jul 2019 23:03:22 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D0EEBC5B57D
+	for <linux-mm@archiver.kernel.org>; Fri,  5 Jul 2019 23:39:53 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1F7402082F
-	for <linux-mm@archiver.kernel.org>; Fri,  5 Jul 2019 23:03:21 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1F7402082F
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id 9469D20863
+	for <linux-mm@archiver.kernel.org>; Fri,  5 Jul 2019 23:39:53 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="Vr37Kcg6"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9469D20863
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 870BE6B0003; Fri,  5 Jul 2019 19:03:21 -0400 (EDT)
+	id 2FD6A6B0003; Fri,  5 Jul 2019 19:39:53 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7FA258E0003; Fri,  5 Jul 2019 19:03:21 -0400 (EDT)
+	id 2AE6D8E0003; Fri,  5 Jul 2019 19:39:53 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6C17B8E0001; Fri,  5 Jul 2019 19:03:21 -0400 (EDT)
+	id 19D988E0001; Fri,  5 Jul 2019 19:39:53 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 1923D6B0003
-	for <linux-mm@kvack.org>; Fri,  5 Jul 2019 19:03:21 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id y3so6165133edm.21
-        for <linux-mm@kvack.org>; Fri, 05 Jul 2019 16:03:21 -0700 (PDT)
+Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
+	by kanga.kvack.org (Postfix) with ESMTP id EDF6B6B0003
+	for <linux-mm@kvack.org>; Fri,  5 Jul 2019 19:39:52 -0400 (EDT)
+Received: by mail-io1-f69.google.com with SMTP id w17so11330054iom.2
+        for <linux-mm@kvack.org>; Fri, 05 Jul 2019 16:39:52 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=HJn22kTX9fs8u4CjIrVy4b9kwXMjUE6qdR3oNGZ0s5E=;
-        b=o7QonFIrmD1XULz8gByIocURrMhJtLcFcYdk1BOAgT7BzZiVyjsCno8ApXh5quC99m
-         AKtjwkq4j/3MBqZ8waUtVtRbPJ1y3HQSE8TXF1pVsNKigoT0aZN05NjcOBxmOg0DjPLe
-         aJ0clQvoV33VJuPUSQuU2hZF1LUQjNYvvy5e99i8Ko8EnLcFMVEuKLxeJIiR5L5B3Y9g
-         PS6F1vAKgsdL3d6EARrD+7Sxgc/NVuR9gfwTZud/2P0d7hg6Ku0ofYkExm3+WDwXhMbM
-         xH+E59JONTpTbK46G5tVpeRBryELEZ2ofnvfGe2NPJ5cUbTsDpcYGJ7TWiDxlhiO4xxj
-         oeFw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
-X-Gm-Message-State: APjAAAWfDTKlJ3hwrB2m+c6QNH/p8bOvqs2nK5reLuijwJuB1it4VoMl
-	ymhYizy1ONFp2OXQLeZt3Nf4BiQVITHKB7rMGtbZz4QdpMEjFl6I7ZMZwJWUhMJqj++SmjTJf3K
-	b7YUez51+i46Gm/ROG1V9gFzrj4J4orPx5+kNBAOMu4lz4uQY9sUOS8LuWn1agBR6fw==
-X-Received: by 2002:a50:f599:: with SMTP id u25mr7243440edm.195.1562367800584;
-        Fri, 05 Jul 2019 16:03:20 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqx+AaBvURvODC44zMFPaxmTSL3h07dtifhz1BmeqpLDigMhvzNXZwdIgqhjoMs+IG2TcfZJ
-X-Received: by 2002:a50:f599:: with SMTP id u25mr7243390edm.195.1562367799807;
-        Fri, 05 Jul 2019 16:03:19 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562367799; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=sq9F33IQp154Hc3CT0DLsiwhph66dbKhKe1mXt9jS+c=;
+        b=ENeaWQG30W+Y0RbGPzBOKqTUBuub3d6dyFrngfJrpelInZ9xgoI449hv8L/YsVUIhG
+         E5cZbeOoDXKz9Ak07oigU9Qmmj42nC4M56+F6aat0sGWYJUGzM5sbl0MlAwepKrmnFba
+         /p+zZTXpTYSVy0KsweFbVNSAhA6irekS5YyjT530dfKyR8tRVU/sk1tscj4U2v1SizI5
+         QKHlGSPfQ0ULpof2Es/i3gP8L3DcHIu6TTFyqJFNLeePYXyRcjIKmAxhT9woznGeTw+u
+         NURc7pLirAnE7hgVxxTb5emVkKu/Rp27mRkvviaXp27ZLCrjfI5dnztlOiG9wUjQuKel
+         XNkw==
+X-Gm-Message-State: APjAAAWC1Wektmo5vecZB8bDSy8hKXX2RZgZX5NsbzMAhXr7jzvCKCrm
+	lUEZvgNRoe8B6dm0IXQC9lcbHaPV9LjGCcsmeIi/LLCFhfoxF+eYyIVnyzGQdMHYWveC2KKZveO
+	boj0SsZlcMN1tlH8pcH6WuPWFp92cZU0+pxHSElHbDFM2d3sEZSwzXZbjT8gcTkoUOQ==
+X-Received: by 2002:a6b:b985:: with SMTP id j127mr6847457iof.186.1562369992621;
+        Fri, 05 Jul 2019 16:39:52 -0700 (PDT)
+X-Received: by 2002:a6b:b985:: with SMTP id j127mr6847408iof.186.1562369991746;
+        Fri, 05 Jul 2019 16:39:51 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562369991; cv=none;
         d=google.com; s=arc-20160816;
-        b=Lpcx8cQDkVTgzc7NZXJDwfvCWg6+RYfc+MG0wrOIUa7ZbufxqhIBjtbPAtKmeRoMJd
-         QYjyOE/8TYx7AHnD4BTwSxu8JYZQcgQTqK+fHH1xgRFxOJ82JGhvkQaVwTbdBmSbDtA3
-         UZOIBG4JylGkp9sw7o0LjdHzgqxbEdua8D7XC1CacNW9Tzyc5Q1ivGq57+lT8yCn9FM4
-         XS8B1UjPWezmstBU/CM8KdVphKS86DiS00ZvNzXEfJcaXQzIZ+wJNZFo69jQISqJwcte
-         6WC/MmRkm+7yvjoMwv2hmVpUNd2MXa1tC2vi4Zgk+66xyE+YfbOGPiujlKBKhNueZA/6
-         /OPA==
+        b=Jw5C57wTUToYrGkPrUWeEct96KlKoScEVwiumQV6Nc0XfgFLWQoBS32IVrkisGtcZX
+         7dQnWxARaHmow611qPZhDj4NybnixySXxcBEEJKjNXxsCPR1crmbg1k7nXLmfpN9v3PS
+         GdIyEJ4xbQ8il7exy5PXTSI3uHPecjUpxUBvdbh4Z/WcnN2Qi2hVa8MqBb9kSWBdLr1Q
+         sHbQ0wxdRns86CLSzDSUNC7AynuZspXu2bHZrUyPJ9TsBL9evPbMDaSFuq22uNdo2cEx
+         8f02RZYyNCk7uX+w2zrzbrWHiJeawjLBwu/96nkwADGFv2ACcahF02aTCyzdVHOR1kCv
+         nY9g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=HJn22kTX9fs8u4CjIrVy4b9kwXMjUE6qdR3oNGZ0s5E=;
-        b=R291N30zF5RX3RlnDh3GJdcPzzEpFpOXVLU30QE4kbulPiYMdAkyBNCKRVCDXrC0M8
-         7MRZlM6eEx0Z/x6NFGvZkotZvNEa1df2D3Fo79ijeIE4SKnhdmqKDEl8YL/P7zGdDyaS
-         iPJw/PUVKwVZJyeTfPOiKC9CGfpVtP+Ac0IKbGARu1pXe+ENdBgE5lE+oBgmvBqx8vE8
-         VIFAqNjso7MI1UKmwebNVAmMVNaRThaTbrV7FpLj70yP8riE5GV0kNDKJpnCilu9zdFq
-         B5uzBlkLofIvibMtjT5Xq7pOumX5biSLDHXXd/b0fpDetWjT/kw7X0owFSWqnq5C6Q2c
-         i6TA==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=sq9F33IQp154Hc3CT0DLsiwhph66dbKhKe1mXt9jS+c=;
+        b=eopS/kU3O5JODc6PYq4Z7ezat2wkGW6HfotNkAxNy2CWzVUCF5C+xZA0oE/AlF3Sft
+         MDE71zNjL1ds+2+fWKs3A5usyg7RsEOhRX2tEdcdj8AhawoEJNETfFTuDaVvjzFX/O+C
+         2IGPCb5njo3/Pa1MSLGg1NNvmRtCIRE8Pigq0R9mN0TWPyGzuTmdNnF2EP7zTdUq7BKS
+         /vXfBCpw+pRPz0giYDYgpK3AnTy7xh1vgHoSIdw3S9aQK0L+Xm1mA3jACNYY/a2huOr7
+         7gkyLSm36FqovLW0ulS9TehMJlqq3xvNJiS/THYTc1JhPcR5UuUURvfHeTo7rBcxgWql
+         Ed3A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a15si7705120eds.392.2019.07.05.16.03.19
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Vr37Kcg6;
+       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id q2sor7981897ior.86.2019.07.05.16.39.51
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 05 Jul 2019 16:03:19 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (Google Transport Security);
+        Fri, 05 Jul 2019 16:39:51 -0700 (PDT)
+Received-SPF: pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 9284BACB8;
-	Fri,  5 Jul 2019 23:03:18 +0000 (UTC)
-Received: by quack2.suse.cz (Postfix, from userid 1000)
-	id 6CB3A1E300F; Sat,  6 Jul 2019 01:03:12 +0200 (CEST)
-Date: Sat, 6 Jul 2019 01:03:12 +0200
-From: Jan Kara <jack@suse.cz>
-To: Mikhail Gavrilov <mikhail.v.gavrilov@gmail.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>,
-	Linux List Kernel Mailing <linux-kernel@vger.kernel.org>,
-	linux-mm@kvack.org, Matthew Wilcox <willy@infradead.org>,
-	Qian Cai <cai@lca.pw>, Jan Kara <jack@suse.cz>,
-	kirill.shutemov@linux.intel.com, songliubraving@fb.com,
-	william.kucharski@oracle.com,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Linus Torvalds <torvalds@linux-foundation.org>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: Re: kernel BUG at mm/swap_state.c:170!
-Message-ID: <20190705230312.GB6485@quack2.suse.cz>
-References: <CABXGCsN9mYmBD-4GaaeW_NrDu+FDXLzr_6x+XNxfmFV6QkYCDg@mail.gmail.com>
- <CABXGCsNq4xTFeeLeUXBj7vXBz55aVu31W9q74r+pGM83DrPjfA@mail.gmail.com>
- <20190529180931.GI18589@dhcp22.suse.cz>
- <CABXGCsPrk=WJzms_H+-KuwSRqWReRTCSs-GLMDsjUG_-neYP0w@mail.gmail.com>
- <CABXGCsMjDn0VT0DmP6qeuiytce9cNBx8PywpqejiFNVhwd0UGg@mail.gmail.com>
- <ee245af2-a0ae-5c13-6f1f-2418f43d1812@suse.cz>
- <CABXGCsOpj_E7jL9OpMX4wZbMktiF=9WOyeTv1R-W59gFMGC7mw@mail.gmail.com>
- <CABXGCsOizgLhJYUDos+ZVPZ5iV3gDeAcSpgvg-weVchgOsTjcA@mail.gmail.com>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Vr37Kcg6;
+       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=sq9F33IQp154Hc3CT0DLsiwhph66dbKhKe1mXt9jS+c=;
+        b=Vr37Kcg627ITaKGc4NRCnPxFp8s1zj7IkD4+oUykUPlRg1WnILprYgN7l+ncct94oW
+         zLT0sioTwHFcQo1zR5T4zwpkrw6w4XNpvIPGdbGF9d9NMggFY+XSMpcwi/Zs1squbpHd
+         6NhP1OGDabC/hCXJ04xX9MiXE5Dd4/X2qJQljL3R9W87JGckqXJlJxkaA9RWC1t4i3wz
+         y0OZz7oZQTuNjjMVUUaHodZ3fvkdTMrYnYSCxnIQETW/Q87TzibhTfM6u9Ao7T9tEAwq
+         ycvRg7/JUvGIiEHZbOasUB1qJogTkNrvR9gEgKwltWXXTozfE/iEHyOrRH4/4Uurf/cm
+         pbaA==
+X-Google-Smtp-Source: APXvYqxnohcjBQRztjf0hYU/JsLzhXw1zLVQnPOhw7NNixBOFSkYP+mSg0IXdNjoA7KZ/Mg3LrOWGvKFlpyJlCkOUqI=
+X-Received: by 2002:a5d:9282:: with SMTP id s2mr6517548iom.36.1562369991307;
+ Fri, 05 Jul 2019 16:39:51 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CABXGCsOizgLhJYUDos+ZVPZ5iV3gDeAcSpgvg-weVchgOsTjcA@mail.gmail.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+References: <1562310330-16074-1-git-send-email-laoar.shao@gmail.com>
+ <20190705090902.GF8231@dhcp22.suse.cz> <CALOAHbAw5mmpYJb4KRahsjO-Jd0nx1CE+m0LOkciuL6eJtavzQ@mail.gmail.com>
+ <20190705111043.GJ8231@dhcp22.suse.cz> <CALOAHbA3PL6-sBqdy-sGKC8J9QGe_vn4-QU8J1HG-Pgn60WFJA@mail.gmail.com>
+ <20190705151045.GI37448@bfoster>
+In-Reply-To: <20190705151045.GI37448@bfoster>
+From: Yafang Shao <laoar.shao@gmail.com>
+Date: Sat, 6 Jul 2019 07:39:15 +0800
+Message-ID: <CALOAHbApDsrYrxSBLmR+vWWwnf_wqU9sPFvztoFArWu27=aX+A@mail.gmail.com>
+Subject: Re: [PATCH] mm, memcg: support memory.{min, low} protection in cgroup v1
+To: Brian Foster <bfoster@redhat.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, 
+	Linux MM <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, 
+	Vladimir Davydov <vdavydov.dev@gmail.com>, Shakeel Butt <shakeelb@google.com>, 
+	Yafang Shao <shaoyafang@didiglobal.com>, linux-xfs@vger.kernel.org
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri 05-07-19 20:19:48, Mikhail Gavrilov wrote:
-> Hey folks.
-> Excuse me, is anybody read my previous message?
-> 5.2-rc7 is still affected by this issue [the logs in file
-> dmesg-5.2rc7-0.1.tar.xz] and I worry that stable 5.2 would be released
-> with this bug because there is almost no time left and I didn't see
-> the attention to this problem.
-> I confirm that reverting commit 5fd4ca2d84b2 on top of the rc7 tag is
-> help fix it [the logs in file dmesg-5.2rc7-0.2.tar.xz].
-> I am still awaiting any feedback here.
+On Fri, Jul 5, 2019 at 11:11 PM Brian Foster <bfoster@redhat.com> wrote:
+>
+> cc linux-xfs
+>
+> On Fri, Jul 05, 2019 at 10:33:04PM +0800, Yafang Shao wrote:
+> > On Fri, Jul 5, 2019 at 7:10 PM Michal Hocko <mhocko@kernel.org> wrote:
+> > >
+> > > On Fri 05-07-19 17:41:44, Yafang Shao wrote:
+> > > > On Fri, Jul 5, 2019 at 5:09 PM Michal Hocko <mhocko@kernel.org> wrote:
+> > > [...]
+> > > > > Why cannot you move over to v2 and have to stick with v1?
+> > > > Because the interfaces between cgroup v1 and cgroup v2 are changed too
+> > > > much, which is unacceptable by our customer.
+> > >
+> > > Could you be more specific about obstacles with respect to interfaces
+> > > please?
+> > >
+> >
+> > Lots of applications will be changed.
+> > Kubernetes, Docker and some other applications which are using cgroup v1,
+> > that will be a trouble, because they are not maintained by us.
+> >
+> > > > It may take long time to use cgroup v2 in production envrioment, per
+> > > > my understanding.
+> > > > BTW, the filesystem on our servers is XFS, but the cgroup  v2
+> > > > writeback throttle is not supported on XFS by now, that is beyond my
+> > > > comprehension.
+> > >
+> > > Are you sure? I would be surprised if v1 throttling would work while v2
+> > > wouldn't. As far as I remember it is v2 writeback throttling which
+> > > actually works. The only throttling we have for v1 is reclaim based one
+> > > which is a huge hammer.
+> > > --
+> >
+> > We did it in cgroup v1 in our kernel.
+> > But the upstream still don't support it in cgroup v2.
+> > So my real question is why upstream can't support such an import file system ?
+> > Do you know which companies  besides facebook are using cgroup v2  in
+> > their product enviroment?
+> >
+>
+> I think the original issue with regard to XFS cgroupv2 writeback
+> throttling support was that at the time the XFS patch was proposed,
+> there wasn't any test coverage to prove that the code worked (and the
+> original author never followed up). That has since been resolved and
+> Christoph has recently posted a new patch [1], which appears to have
+> been accepted by the maintainer.
+>
+> Brian
+>
+> [1] https://marc.info/?l=linux-xfs&m=156138379906141&w=2
+>
 
-Yeah, I guess revert of 5fd4ca2d84b2 at this point is probably the best we
-can do. Let's CC Linus, Andrew, and Greg (Linus is travelling AFAIK so I'm
-not sure whether Greg won't do release for him).
-
-								Honza
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Thanks for your reference.
+I will pay attention to that thread.
 
