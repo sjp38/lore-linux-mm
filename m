@@ -2,202 +2,136 @@ Return-Path: <SRS0=h0DJ=VC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 435C1C5B57D
-	for <linux-mm@archiver.kernel.org>; Fri,  5 Jul 2019 22:17:06 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 72B60C468AA
+	for <linux-mm@archiver.kernel.org>; Fri,  5 Jul 2019 23:03:22 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id F30F0216E3
-	for <linux-mm@archiver.kernel.org>; Fri,  5 Jul 2019 22:17:05 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="u36eN25C"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F30F0216E3
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	by mail.kernel.org (Postfix) with ESMTP id 1F7402082F
+	for <linux-mm@archiver.kernel.org>; Fri,  5 Jul 2019 23:03:21 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1F7402082F
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7A95C6B0003; Fri,  5 Jul 2019 18:17:05 -0400 (EDT)
+	id 870BE6B0003; Fri,  5 Jul 2019 19:03:21 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 759D58E0003; Fri,  5 Jul 2019 18:17:05 -0400 (EDT)
+	id 7FA258E0003; Fri,  5 Jul 2019 19:03:21 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 620758E0001; Fri,  5 Jul 2019 18:17:05 -0400 (EDT)
+	id 6C17B8E0001; Fri,  5 Jul 2019 19:03:21 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 42B826B0003
-	for <linux-mm@kvack.org>; Fri,  5 Jul 2019 18:17:05 -0400 (EDT)
-Received: by mail-io1-f71.google.com with SMTP id r27so11102996iob.14
-        for <linux-mm@kvack.org>; Fri, 05 Jul 2019 15:17:05 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 1923D6B0003
+	for <linux-mm@kvack.org>; Fri,  5 Jul 2019 19:03:21 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id y3so6165133edm.21
+        for <linux-mm@kvack.org>; Fri, 05 Jul 2019 16:03:21 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=1uUlTl7w5VrIvzH7iUQu975LgNF9PgkSKlhmaEDJNmo=;
-        b=LTiRGpO0UGxlv1WuMAMEXCHux6BHF7AKwIhzuWGLssrqdRORg/NsOHup0guWdPAuPk
-         Rvdl8RfyRZC58hm4ott7qayKoMa8OX+oSCC/O8iwe4/BHANjoQqDzL4emnkcGcZ+um5G
-         oDAzFPPCEcNGQW5U+f05xYsSRvB3x57UD9Bt4ub5o4Ul/fDw38PE84FeIq8ivlvqVm2Y
-         hy722EDvyozimzzeMmqSKT1eWotzpSomSzM21qv2jJm9bof0JPKpMR82yGb4lCPAqJvz
-         lpInS8tv2/nihxMC/tvVslHbDH5aYrHZJzEsv/8lruaMmhJxhxSONV3krutmqJEZwqhS
-         YRiQ==
-X-Gm-Message-State: APjAAAUCDYDzbCWSASGcEg3ZWeskJQ+/XXkKqDyR5EYCdI8CMZr0pAti
-	uwmeG6L0PmbDfJgTj9oDsO55NXK/xuH2VTk7rOIYKwxM8wv+vGQPgfxAk4bMBKOxnFGqajVUAPU
-	QCVVOT9plnIY+Y02qqr3plnGHlRsBPiR3ptMUs7tDY7bibWx9UogdDH3JtL5qXcS03g==
-X-Received: by 2002:a5d:8411:: with SMTP id i17mr4681296ion.83.1562365024991;
-        Fri, 05 Jul 2019 15:17:04 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwcxcEeIysL9vT7iXJ0CDodOlL028RGqFup+s7JGtDoMrFRlNoZOdzGA4dcCBAjxucvM5dA
-X-Received: by 2002:a5d:8411:: with SMTP id i17mr4681217ion.83.1562365024083;
-        Fri, 05 Jul 2019 15:17:04 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562365024; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=HJn22kTX9fs8u4CjIrVy4b9kwXMjUE6qdR3oNGZ0s5E=;
+        b=o7QonFIrmD1XULz8gByIocURrMhJtLcFcYdk1BOAgT7BzZiVyjsCno8ApXh5quC99m
+         AKtjwkq4j/3MBqZ8waUtVtRbPJ1y3HQSE8TXF1pVsNKigoT0aZN05NjcOBxmOg0DjPLe
+         aJ0clQvoV33VJuPUSQuU2hZF1LUQjNYvvy5e99i8Ko8EnLcFMVEuKLxeJIiR5L5B3Y9g
+         PS6F1vAKgsdL3d6EARrD+7Sxgc/NVuR9gfwTZud/2P0d7hg6Ku0ofYkExm3+WDwXhMbM
+         xH+E59JONTpTbK46G5tVpeRBryELEZ2ofnvfGe2NPJ5cUbTsDpcYGJ7TWiDxlhiO4xxj
+         oeFw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
+X-Gm-Message-State: APjAAAWfDTKlJ3hwrB2m+c6QNH/p8bOvqs2nK5reLuijwJuB1it4VoMl
+	ymhYizy1ONFp2OXQLeZt3Nf4BiQVITHKB7rMGtbZz4QdpMEjFl6I7ZMZwJWUhMJqj++SmjTJf3K
+	b7YUez51+i46Gm/ROG1V9gFzrj4J4orPx5+kNBAOMu4lz4uQY9sUOS8LuWn1agBR6fw==
+X-Received: by 2002:a50:f599:: with SMTP id u25mr7243440edm.195.1562367800584;
+        Fri, 05 Jul 2019 16:03:20 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqx+AaBvURvODC44zMFPaxmTSL3h07dtifhz1BmeqpLDigMhvzNXZwdIgqhjoMs+IG2TcfZJ
+X-Received: by 2002:a50:f599:: with SMTP id u25mr7243390edm.195.1562367799807;
+        Fri, 05 Jul 2019 16:03:19 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562367799; cv=none;
         d=google.com; s=arc-20160816;
-        b=lw9WvaSZrr7P63YQdURqxl9GSxaZaO6Mg7gz5fiil6tbHty6aAeJGiRIhuZZE8tlN/
-         2EKHG9OssyJRVKkAJLJi326FxF8yRfVBI/jJA4Z1F72b6ybnmFhMQPMlwaozgbAVxtXI
-         biJBg0VCxIYAQ5oYzxlPjl/ym1s684VH9yLFD0QbOsW1qL8PuAxxqZ1KzzewtWlRK9oT
-         fSNee9f38BuFB4x4xV8F5JArcfbDzQ2DxQTZvxxVU+iYz3b9bL4VpKTS/xE5LX6/s1Y1
-         xH3Gt9BJMql4Dggg4i/Kr/KRl7027TvvAjmXXqn1Wne5051zbf8o2Bl2NMeXMjXylzhD
-         dq0Q==
+        b=Lpcx8cQDkVTgzc7NZXJDwfvCWg6+RYfc+MG0wrOIUa7ZbufxqhIBjtbPAtKmeRoMJd
+         QYjyOE/8TYx7AHnD4BTwSxu8JYZQcgQTqK+fHH1xgRFxOJ82JGhvkQaVwTbdBmSbDtA3
+         UZOIBG4JylGkp9sw7o0LjdHzgqxbEdua8D7XC1CacNW9Tzyc5Q1ivGq57+lT8yCn9FM4
+         XS8B1UjPWezmstBU/CM8KdVphKS86DiS00ZvNzXEfJcaXQzIZ+wJNZFo69jQISqJwcte
+         6WC/MmRkm+7yvjoMwv2hmVpUNd2MXa1tC2vi4Zgk+66xyE+YfbOGPiujlKBKhNueZA/6
+         /OPA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject
-         :dkim-signature;
-        bh=1uUlTl7w5VrIvzH7iUQu975LgNF9PgkSKlhmaEDJNmo=;
-        b=eztBHryhEQOx0eSkUs8sXoWRc6Y4/jBC8yK3PtBOuPEufslsp7tqHGZ2qrFflqaKkc
-         sqyaI8TpbF0SN3+YGe1Abug+Ye9Z7Yxo7evmVVd/fZCuBvVID4IMF3Tj8m1h6aNToscF
-         k7PWbbC0vP2Y6o8trdCvfWxnuN/gOBtll9kv8K1M788GGspg9cGoeXPVS1mRojvnaUVY
-         h0i7ns4UCdLq3OTx9E8ts57FeFcokR4hP91ZmYI3CLzEZqV7onblD2GJvFSDmejM/+es
-         54qwLLh6QeD9sK5cH/51I00Bad5I3zhhdeGY4tQXV527T/OAMBB4YKAViPlBI6s+g8qY
-         gX9Q==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=HJn22kTX9fs8u4CjIrVy4b9kwXMjUE6qdR3oNGZ0s5E=;
+        b=R291N30zF5RX3RlnDh3GJdcPzzEpFpOXVLU30QE4kbulPiYMdAkyBNCKRVCDXrC0M8
+         7MRZlM6eEx0Z/x6NFGvZkotZvNEa1df2D3Fo79ijeIE4SKnhdmqKDEl8YL/P7zGdDyaS
+         iPJw/PUVKwVZJyeTfPOiKC9CGfpVtP+Ac0IKbGARu1pXe+ENdBgE5lE+oBgmvBqx8vE8
+         VIFAqNjso7MI1UKmwebNVAmMVNaRThaTbrV7FpLj70yP8riE5GV0kNDKJpnCilu9zdFq
+         B5uzBlkLofIvibMtjT5Xq7pOumX5biSLDHXXd/b0fpDetWjT/kw7X0owFSWqnq5C6Q2c
+         i6TA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=u36eN25C;
-       spf=pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=rdunlap@infradead.org
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id w8si5522048ioa.65.2019.07.05.15.17.03
+       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id a15si7705120eds.392.2019.07.05.16.03.19
         for <linux-mm@kvack.org>
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Fri, 05 Jul 2019 15:17:03 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) client-ip=2001:8b0:10b:1231::1;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 05 Jul 2019 16:03:19 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=u36eN25C;
-       spf=pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=rdunlap@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=merlin.20170209; h=Content-Transfer-Encoding:Content-Type:
-	In-Reply-To:MIME-Version:Date:Message-ID:From:References:Cc:To:Subject:Sender
-	:Reply-To:Content-ID:Content-Description:Resent-Date:Resent-From:
-	Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:List-Help:
-	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	bh=1uUlTl7w5VrIvzH7iUQu975LgNF9PgkSKlhmaEDJNmo=; b=u36eN25CfgtQh6aSiTQI+A0Lny
-	uBDLqOSTSvv1bG8SVL2ZL6+4kn/iJu4fbys7eGRpYzY+pmj6kM873+cX4Z7FjwVCpH9qm72aaFqdF
-	ghf9nuOxu8TbVJw8ssvUDmsucLa4mUmtW5NJIrHxn6vUUMUhBMf2YoUvOWPOIEEjPw3i38LkdjPKo
-	Mi1paNiHZZthLd6ViWYEADXAdvpTjVQ7aOBaJu605RmqmxtH6oRfXY7tnROR+n266pshYxZ/+rKSH
-	UJjmhoF25TyNEm2einE/REzfm9zpk/oJBIZ3LirKr4+453T/s/M7q+xtDxwEYQzc7aKk/R9+kDHLq
-	HyU/2yGQ==;
-Received: from static-50-53-52-16.bvtn.or.frontiernet.net ([50.53.52.16] helo=midway.dunlab)
-	by merlin.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
-	id 1hjWVj-0005SO-2M; Fri, 05 Jul 2019 22:16:55 +0000
-Subject: Re: [linux-next:master 12342/12641] mm/vmscan.c:205:7: error:
- implicit declaration of function 'memcg_expand_shrinker_maps'; did you mean
- 'memcg_set_shrinker_bit'?
-To: Andrew Morton <akpm@linux-foundation.org>,
- kbuild test robot <lkp@intel.com>
-Cc: Yang Shi <yang.shi@linux.alibaba.com>, kbuild-all@01.org,
- Linux Memory Management List <linux-mm@kvack.org>
-References: <201907052120.OGYPhvno%lkp@intel.com>
- <20190705142007.524daa9b5217f12c48e6ab65@linux-foundation.org>
-From: Randy Dunlap <rdunlap@infradead.org>
-Message-ID: <32e76b4a-d1bd-0e77-85fb-8aaaf7f94017@infradead.org>
-Date: Fri, 5 Jul 2019 15:16:52 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.2
+       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 9284BACB8;
+	Fri,  5 Jul 2019 23:03:18 +0000 (UTC)
+Received: by quack2.suse.cz (Postfix, from userid 1000)
+	id 6CB3A1E300F; Sat,  6 Jul 2019 01:03:12 +0200 (CEST)
+Date: Sat, 6 Jul 2019 01:03:12 +0200
+From: Jan Kara <jack@suse.cz>
+To: Mikhail Gavrilov <mikhail.v.gavrilov@gmail.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>,
+	Linux List Kernel Mailing <linux-kernel@vger.kernel.org>,
+	linux-mm@kvack.org, Matthew Wilcox <willy@infradead.org>,
+	Qian Cai <cai@lca.pw>, Jan Kara <jack@suse.cz>,
+	kirill.shutemov@linux.intel.com, songliubraving@fb.com,
+	william.kucharski@oracle.com,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Linus Torvalds <torvalds@linux-foundation.org>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Subject: Re: kernel BUG at mm/swap_state.c:170!
+Message-ID: <20190705230312.GB6485@quack2.suse.cz>
+References: <CABXGCsN9mYmBD-4GaaeW_NrDu+FDXLzr_6x+XNxfmFV6QkYCDg@mail.gmail.com>
+ <CABXGCsNq4xTFeeLeUXBj7vXBz55aVu31W9q74r+pGM83DrPjfA@mail.gmail.com>
+ <20190529180931.GI18589@dhcp22.suse.cz>
+ <CABXGCsPrk=WJzms_H+-KuwSRqWReRTCSs-GLMDsjUG_-neYP0w@mail.gmail.com>
+ <CABXGCsMjDn0VT0DmP6qeuiytce9cNBx8PywpqejiFNVhwd0UGg@mail.gmail.com>
+ <ee245af2-a0ae-5c13-6f1f-2418f43d1812@suse.cz>
+ <CABXGCsOpj_E7jL9OpMX4wZbMktiF=9WOyeTv1R-W59gFMGC7mw@mail.gmail.com>
+ <CABXGCsOizgLhJYUDos+ZVPZ5iV3gDeAcSpgvg-weVchgOsTjcA@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20190705142007.524daa9b5217f12c48e6ab65@linux-foundation.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CABXGCsOizgLhJYUDos+ZVPZ5iV3gDeAcSpgvg-weVchgOsTjcA@mail.gmail.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 7/5/19 2:20 PM, Andrew Morton wrote:
-> On Fri, 5 Jul 2019 21:09:24 +0800 kbuild test robot <lkp@intel.com> wrote:
-> 
->> tree:   https://kernel.googlesource.com/pub/scm/linux/kernel/git/next/linux-next.git master
->> head:   22c45ec32b4a9fa8c48ef4f5bf9b189b307aae12
->> commit: 8236f517d69e2217f5200d7f700e8b18b01c94c8 [12342/12641] mm: shrinker: make shrinker not depend on memcg kmem
->> config: x86_64-randconfig-s2-07051907 (attached as .config)
->> compiler: gcc-7 (Debian 7.4.0-9) 7.4.0
->> reproduce:
->>         git checkout 8236f517d69e2217f5200d7f700e8b18b01c94c8
->>         # save the attached .config to linux build tree
->>         make ARCH=x86_64 
->>
->> If you fix the issue, kindly add following tag
->> Reported-by: kbuild test robot <lkp@intel.com>
->>
->> All error/warnings (new ones prefixed by >>):
->>
->>    mm/vmscan.c: In function 'prealloc_memcg_shrinker':
->>>> mm/vmscan.c:205:7: error: implicit declaration of function 'memcg_expand_shrinker_maps'; did you mean 'memcg_set_shrinker_bit'? [-Werror=implicit-function-declaration]
->>       if (memcg_expand_shrinker_maps(id)) {
->>           ^~~~~~~~~~~~~~~~~~~~~~~~~~
->>           memcg_set_shrinker_bit
->>    In file included from include/linux/rbtree.h:22:0,
->>                     from include/linux/mm_types.h:10,
->>                     from include/linux/mmzone.h:21,
->>                     from include/linux/gfp.h:6,
->>                     from include/linux/mm.h:10,
->>                     from mm/vmscan.c:17:
->>    mm/vmscan.c: In function 'shrink_slab_memcg':
->>>> mm/vmscan.c:593:54: error: 'struct mem_cgroup_per_node' has no member named 'shrinker_map'
-> 
-> This?
-> 
-> --- a/include/linux/memcontrol.h~mm-shrinker-make-shrinker-not-depend-on-memcg-kmem-fix
-> +++ a/include/linux/memcontrol.h
-> @@ -128,7 +128,7 @@ struct mem_cgroup_per_node {
->  
->  	struct mem_cgroup_reclaim_iter	iter[DEF_PRIORITY + 1];
->  
-> -#ifdef CONFIG_MEMCG_KMEM
-> +#ifdef CONFIG_MEMCG
->  	struct memcg_shrinker_map __rcu	*shrinker_map;
->  #endif
->  	struct rb_node		tree_node;	/* RB tree node */
-> @@ -1272,6 +1272,7 @@ static inline bool mem_cgroup_under_sock
->  
->  struct kmem_cache *memcg_kmem_get_cache(struct kmem_cache *cachep);
->  void memcg_kmem_put_cache(struct kmem_cache *cachep);
-> +extern int memcg_expand_shrinker_maps(int new_id);
->  
->  #ifdef CONFIG_MEMCG_KMEM
->  int __memcg_kmem_charge(struct page *page, gfp_t gfp, int order);
-> @@ -1339,8 +1340,6 @@ static inline int memcg_cache_id(struct
->  	return memcg ? memcg->kmemcg_id : -1;
->  }
->  
-> -extern int memcg_expand_shrinker_maps(int new_id);
-> -
->  extern void memcg_set_shrinker_bit(struct mem_cgroup *memcg,
->  				   int nid, int shrinker_id);
->  #else
-> _
-> 
+On Fri 05-07-19 20:19:48, Mikhail Gavrilov wrote:
+> Hey folks.
+> Excuse me, is anybody read my previous message?
+> 5.2-rc7 is still affected by this issue [the logs in file
+> dmesg-5.2rc7-0.1.tar.xz] and I worry that stable 5.2 would be released
+> with this bug because there is almost no time left and I didn't see
+> the attention to this problem.
+> I confirm that reverting commit 5fd4ca2d84b2 on top of the rc7 tag is
+> help fix it [the logs in file dmesg-5.2rc7-0.2.tar.xz].
+> I am still awaiting any feedback here.
 
-Now I see this:
+Yeah, I guess revert of 5fd4ca2d84b2 at this point is probably the best we
+can do. Let's CC Linus, Andrew, and Greg (Linus is travelling AFAIK so I'm
+not sure whether Greg won't do release for him).
 
-ld: mm/vmscan.o: in function `prealloc_shrinker':
-vmscan.c:(.text+0x3090): undefined reference to `memcg_expand_shrinker_maps'
-
-
-And for the record, I reported this yesterday on mmotm:
-https://lore.kernel.org/lkml/9cbdb785-b51d-9419-6b9a-ec282a4e4fa2@infradead.org/
-
-Reported-by: Randy Dunlap <rdunlap@infradead.org>
-
-
-thanks,
+								Honza
 -- 
-~Randy
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
