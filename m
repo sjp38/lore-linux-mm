@@ -2,150 +2,176 @@ Return-Path: <SRS0=h0DJ=VC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 86DF0C46499
-	for <linux-mm@archiver.kernel.org>; Fri,  5 Jul 2019 19:54:25 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0530AC46499
+	for <linux-mm@archiver.kernel.org>; Fri,  5 Jul 2019 21:20:11 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 361C82133F
-	for <linux-mm@archiver.kernel.org>; Fri,  5 Jul 2019 19:54:25 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 361C82133F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 8DD7A20449
+	for <linux-mm@archiver.kernel.org>; Fri,  5 Jul 2019 21:20:10 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="a7e5d7hV"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8DD7A20449
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A85496B0005; Fri,  5 Jul 2019 15:54:23 -0400 (EDT)
+	id 032B56B0003; Fri,  5 Jul 2019 17:20:10 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A373B8E0003; Fri,  5 Jul 2019 15:54:23 -0400 (EDT)
+	id F261A8E0003; Fri,  5 Jul 2019 17:20:09 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8FF008E0001; Fri,  5 Jul 2019 15:54:23 -0400 (EDT)
+	id DED138E0001; Fri,  5 Jul 2019 17:20:09 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 3FB126B0005
-	for <linux-mm@kvack.org>; Fri,  5 Jul 2019 15:54:23 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id k22so6000608ede.0
-        for <linux-mm@kvack.org>; Fri, 05 Jul 2019 12:54:23 -0700 (PDT)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A5B676B0003
+	for <linux-mm@kvack.org>; Fri,  5 Jul 2019 17:20:09 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id s21so27343plr.2
+        for <linux-mm@kvack.org>; Fri, 05 Jul 2019 14:20:09 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=ye0jSKBw5fBEDLkJONy0PqwWKbwuDwy6BtS2vl1KTSc=;
-        b=oPn8SMvy5fNix1FAZJnqYk73zc32SPNnahjqghDjsirXgqO4S89xIiK5h9KPdE9dcd
-         8ZOmt5I7KT62XVycU64nO+TOrW/JPyfGD7viWtk1EGHEyYLwcsmqQ7GFkEKoTWvNX7v8
-         C/PhGrWFMnz+VT3KXtavhlQmWBTW7RZEkOQYElQacDEyiMaO6tMrdfu+RC8dqVC9fzfq
-         sNqB+em6u8o6xp3ldsxUSGihNk/jUgg8DY60mImJYGlFUirSyUVYb/YmZEKqp4S7moPC
-         Mfnz2GawMtUMAcTlAR46pGkAuQEITGom+CTEw7+g9rJQflLzNKZhWPUt1u8lPQAkmv9+
-         sgTQ==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAUqEAsU21SFBYJHu55gs5+6gN+Ihrx/kWrbLjluecusy0PghvV1
-	ncb1afBZQOw+bVIcq3F27er0Hyin7I45esH9H3XmNX8Q1tY3hTYxIQRu6jrxWV50jWe9K3/MPr4
-	WgpNXM5VcTEv2eXFUU2QA6JIRBUKEUiF9pMfI0MoJkL+XvcLkhoQmPuriF1Bw9R0=
-X-Received: by 2002:aa7:d985:: with SMTP id u5mr6388539eds.222.1562356462670;
-        Fri, 05 Jul 2019 12:54:22 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzb+4x93/AE7rZFiLFSG+T+Cu/vrCpEWnKkg0/Ou0f3Xr8C2zm6h0ZIz2kkQMsbbjpJHw5a
-X-Received: by 2002:aa7:d985:: with SMTP id u5mr6388474eds.222.1562356461676;
-        Fri, 05 Jul 2019 12:54:21 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562356461; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=ngjHBZ4GCai44SJftPG33EG1j1VxsanxlKBvzKkucPA=;
+        b=thOKYVckkKOi3ofk0Vtu9GZrj2D8MHOoJ6J+nRXFvdiGsjMI5ReOES68i9fy3WjQ57
+         AdIb+HvYItHNMVZcOnshdcOr6JHw3GKMFTl6s+A1Y+zdyDwtOV7Dn2i3NOKA8KOKhx7H
+         Ez6qh10XnAOe+KINlRZrbx3FZScnOE04jquaLkTdHiHdp8NuqG5isDD2f3CxNRUpdsK/
+         +5mpjDPJ3ZnEyxNnqrbjCHhMUz9eRLtTcRVozZBMsr54p9S1PYLzDEqRT0VApMBkkjsx
+         6wP1NXNRhGY19h2qjN3BeK8RIQg9ONDGR1kyRnCpPt4kXuCj7Am0fcwsBa8sw2U9SRUc
+         FXhw==
+X-Gm-Message-State: APjAAAW/DrF9D1OanPS5fyz/Cl9m43KuMC8jiwtAUnvzNnHDh2K6ApTk
+	r/yDZ/GyFpe5ZAK1sgvc4lsXDJWev1NdXTcSUd5bWJG3NBYnrVywbrAp79wJsr6LLEUuvu9oSLi
+	bQ9n5Dvs3H9mR+F2rae2ltbOuUUfP36FiXFPXPsdeIiKar9HyI6rPyC+LzbuPFD7epA==
+X-Received: by 2002:a17:90a:220a:: with SMTP id c10mr237739pje.33.1562361609182;
+        Fri, 05 Jul 2019 14:20:09 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqybMXZ3CwccC22oYvD20dPDsfeiWk0WizRHReCQ2HOKyuu7+oLJQLk+MYvxvowsqUNoen2q
+X-Received: by 2002:a17:90a:220a:: with SMTP id c10mr237675pje.33.1562361608316;
+        Fri, 05 Jul 2019 14:20:08 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562361608; cv=none;
         d=google.com; s=arc-20160816;
-        b=U4yYP/WP6HnxOy3wQswxXozgHjWTtL4jEbwxrgRBj0BCiPekE2e89f1V5aYXAn+Ee9
-         OD9TY3Tp6e9Q9IYv3CmC++FRdfT4Hc/XEx7HAcAe5R9NeA4qnWHH+HsXnxDrlaj2xT9o
-         5lln2XNnNAswAugapJ2AXbXdXlLMYXLIvdevEbUswHrP3TSMtXLgqWeO+Sd7EvX19Abe
-         VlaG/CFMzaVxNOcr51pBz/WsZC94U7g10/k5wUSENkW+lYWPEftFBGBXGQTUPM4xlCST
-         AGJG2X7ufQjDrtsRxSB34PT9HWNrvtZeNEIsqjw82kBQJBw/j/rQyPHjLxJhztMCNBWX
-         zxTA==
+        b=WfMud4LjiECnEPtson43Jaqpl1+cXsQ8EHWT++/eCinKSujMzRfmPCu0w6cJ9jVSe0
+         MnI5d9uLtd1AZyBUofGAKTygRXO0+hIHKJmLnnW+9PLCb5pVpByV6WP3z3Cn33MZW/6H
+         4waKzGu8U1Or40O/GWVlo0kqzh1BqH+4WQa2DqtUalaknfsHhHQK/cmFFbhY9PWDSw88
+         iufRdiFiKeydx/eSI03SIvTayPsjn5slMBS1trLozsMjytc2bV1tl65JrTJngkqeQGKA
+         vMAGwVJXIcpsMBWGdmlXI0ZbenlPmHonzU7F+zTsnUEOVVdaf0o/7FPHhls6bdIm1LUq
+         suVA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=ye0jSKBw5fBEDLkJONy0PqwWKbwuDwy6BtS2vl1KTSc=;
-        b=1IBF3QvW3fzBZVvalDf00onC99LF54F/gAVwq9436NuZrQyLmgqkOWn+/0/yobTr9J
-         JJwkne01Mtm2cdxZkYXKGbEC3ZJ9SXEUqQ2OqufJYAH6sXXu4g8Ejc+LWqA4Bz1WEZrQ
-         QTX5no5pA95zVQBKWp1Frgo5/YYDk7fty5eAWA4Xh2Cdu6NtBYo0cjylbZLZGNVRNOXP
-         +LQWJiYc8MXjoSuj0YKdU3WbnlJdxgDNmokfLGuiJe3Tao8lF1n83SXWKD41uBIoCx4O
-         bQVZMjv2/6Z+oEizbGPqQ34rrO8T7b2obRaP1dxTmKZmYjbuQGsy1iCJMRwPESoIK9+I
-         auhw==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=ngjHBZ4GCai44SJftPG33EG1j1VxsanxlKBvzKkucPA=;
+        b=xIFprXCdgthvSjQoriwOe9uhXVcHcbrg7ybfTUZ9naGkUzSefG3aJcl+pO3SNByVDx
+         e2SyHnYcT5xqfkIyrldEXz37lpPV4iOuZUC7r8yZxmmSfy5nSvIHKWSz8EJGJe2KOdaY
+         RVKNZFk0d6h0xPpTG81aXGPC9cvtXy7YFkmMFZcW1DLGohPAomVDqQ3QPlnomAO3AdyI
+         qWDXYsjwOKb6th2guOm8I0hXIADOaq+ZR/YrmK/MQGfKZeZtROjtOxK9Fx9E26Tu0Chl
+         WZ8pVBzB5N6niwx0zvwFdN3R7cGxM/BMuwaTcJWVormIfGT3VXnyDAgdlfxYCAFAppf7
+         ED3Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b13si3848276eda.130.2019.07.05.12.54.21
+       dkim=pass header.i=@kernel.org header.s=default header.b=a7e5d7hV;
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id y12si10289046pge.187.2019.07.05.14.20.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 05 Jul 2019 12:54:21 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Fri, 05 Jul 2019 14:20:08 -0700 (PDT)
+Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 7F17BAFBD;
-	Fri,  5 Jul 2019 19:54:20 +0000 (UTC)
-Date: Fri, 5 Jul 2019 21:54:19 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Yafang Shao <laoar.shao@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-	Linux MM <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>,
-	Vladimir Davydov <vdavydov.dev@gmail.com>,
-	Shakeel Butt <shakeelb@google.com>,
-	Yafang Shao <shaoyafang@didiglobal.com>
-Subject: Re: [PATCH] mm, memcg: support memory.{min, low} protection in
- cgroup v1
-Message-ID: <20190705195419.GM8231@dhcp22.suse.cz>
-References: <1562310330-16074-1-git-send-email-laoar.shao@gmail.com>
- <20190705090902.GF8231@dhcp22.suse.cz>
- <CALOAHbAw5mmpYJb4KRahsjO-Jd0nx1CE+m0LOkciuL6eJtavzQ@mail.gmail.com>
- <20190705111043.GJ8231@dhcp22.suse.cz>
- <CALOAHbA3PL6-sBqdy-sGKC8J9QGe_vn4-QU8J1HG-Pgn60WFJA@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CALOAHbA3PL6-sBqdy-sGKC8J9QGe_vn4-QU8J1HG-Pgn60WFJA@mail.gmail.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+       dkim=pass header.i=@kernel.org header.s=default header.b=a7e5d7hV;
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from localhost.localdomain (c-73-223-200-170.hsd1.ca.comcast.net [73.223.200.170])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 9DCE820449;
+	Fri,  5 Jul 2019 21:20:07 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1562361607;
+	bh=KIgjG5lcpOR/w0uxRUmdQrOw3crLzVU61YDbM5cIi4g=;
+	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
+	b=a7e5d7hVie82TC2PiWxGxshF3twSUHjZ0aDo9h4ANmRfWXh6QaYidj5ZKrl7Ozc39
+	 LJW+b22YyG0UJpj/MHYJckGw7LZkEB1mqEpk9eIUjQGMExHegCD+cFKyMQ9f9o9LNY
+	 LAxJFdAPKNoR3TlbzZ/Fa9o2Mt929QFA7ETAwUNs=
+Date: Fri, 5 Jul 2019 14:20:07 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+To: kbuild test robot <lkp@intel.com>
+Cc: Yang Shi <yang.shi@linux.alibaba.com>, kbuild-all@01.org, Linux Memory
+ Management List <linux-mm@kvack.org>
+Subject: Re: [linux-next:master 12342/12641] mm/vmscan.c:205:7: error:
+ implicit declaration of function 'memcg_expand_shrinker_maps'; did you mean
+ 'memcg_set_shrinker_bit'?
+Message-Id: <20190705142007.524daa9b5217f12c48e6ab65@linux-foundation.org>
+In-Reply-To: <201907052120.OGYPhvno%lkp@intel.com>
+References: <201907052120.OGYPhvno%lkp@intel.com>
+X-Mailer: Sylpheed 3.5.1 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri 05-07-19 22:33:04, Yafang Shao wrote:
-> On Fri, Jul 5, 2019 at 7:10 PM Michal Hocko <mhocko@kernel.org> wrote:
-> >
-> > On Fri 05-07-19 17:41:44, Yafang Shao wrote:
-> > > On Fri, Jul 5, 2019 at 5:09 PM Michal Hocko <mhocko@kernel.org> wrote:
-> > [...]
-> > > > Why cannot you move over to v2 and have to stick with v1?
-> > > Because the interfaces between cgroup v1 and cgroup v2 are changed too
-> > > much, which is unacceptable by our customer.
-> >
-> > Could you be more specific about obstacles with respect to interfaces
-> > please?
-> >
+On Fri, 5 Jul 2019 21:09:24 +0800 kbuild test robot <lkp@intel.com> wrote:
+
+> tree:   https://kernel.googlesource.com/pub/scm/linux/kernel/git/next/linux-next.git master
+> head:   22c45ec32b4a9fa8c48ef4f5bf9b189b307aae12
+> commit: 8236f517d69e2217f5200d7f700e8b18b01c94c8 [12342/12641] mm: shrinker: make shrinker not depend on memcg kmem
+> config: x86_64-randconfig-s2-07051907 (attached as .config)
+> compiler: gcc-7 (Debian 7.4.0-9) 7.4.0
+> reproduce:
+>         git checkout 8236f517d69e2217f5200d7f700e8b18b01c94c8
+>         # save the attached .config to linux build tree
+>         make ARCH=x86_64 
 > 
-> Lots of applications will be changed.
-> Kubernetes, Docker and some other applications which are using cgroup v1,
-> that will be a trouble, because they are not maintained by us.
+> If you fix the issue, kindly add following tag
+> Reported-by: kbuild test robot <lkp@intel.com>
+> 
+> All error/warnings (new ones prefixed by >>):
+> 
+>    mm/vmscan.c: In function 'prealloc_memcg_shrinker':
+> >> mm/vmscan.c:205:7: error: implicit declaration of function 'memcg_expand_shrinker_maps'; did you mean 'memcg_set_shrinker_bit'? [-Werror=implicit-function-declaration]
+>       if (memcg_expand_shrinker_maps(id)) {
+>           ^~~~~~~~~~~~~~~~~~~~~~~~~~
+>           memcg_set_shrinker_bit
+>    In file included from include/linux/rbtree.h:22:0,
+>                     from include/linux/mm_types.h:10,
+>                     from include/linux/mmzone.h:21,
+>                     from include/linux/gfp.h:6,
+>                     from include/linux/mm.h:10,
+>                     from mm/vmscan.c:17:
+>    mm/vmscan.c: In function 'shrink_slab_memcg':
+> >> mm/vmscan.c:593:54: error: 'struct mem_cgroup_per_node' has no member named 'shrinker_map'
 
-Do they actually have to change or they can simply use v2? I mean, how
-many of them really do rely on having tasks in intermediate nodes or
-rely on per-thread cgroups? Those should be the most visibile changes in
-the interface except for control files naming. If it is purely about the
-naming then it should be quite trivial to update, no?
+This?
 
-Brian has already answered the xfs part I believe. I am not really
-familiar with that topic so I cannot comment anyway.
-
-> Do you know which companies  besides facebook are using cgroup v2  in
-> their product enviroment?
-
-I do not really know who those users are but it has been made a wider
-decision that v2 is going to be a rework of a new interface and the the
-v1 will be preserved and maintain for ever for backward compatibility.
-If there are usecases which cannot use v2 because of some fundamental
-reasons then we really want to hear about those. And if v2 really is not
-usable we can think of adding features to v1 of course.
--- 
-Michal Hocko
-SUSE Labs
+--- a/include/linux/memcontrol.h~mm-shrinker-make-shrinker-not-depend-on-memcg-kmem-fix
++++ a/include/linux/memcontrol.h
+@@ -128,7 +128,7 @@ struct mem_cgroup_per_node {
+ 
+ 	struct mem_cgroup_reclaim_iter	iter[DEF_PRIORITY + 1];
+ 
+-#ifdef CONFIG_MEMCG_KMEM
++#ifdef CONFIG_MEMCG
+ 	struct memcg_shrinker_map __rcu	*shrinker_map;
+ #endif
+ 	struct rb_node		tree_node;	/* RB tree node */
+@@ -1272,6 +1272,7 @@ static inline bool mem_cgroup_under_sock
+ 
+ struct kmem_cache *memcg_kmem_get_cache(struct kmem_cache *cachep);
+ void memcg_kmem_put_cache(struct kmem_cache *cachep);
++extern int memcg_expand_shrinker_maps(int new_id);
+ 
+ #ifdef CONFIG_MEMCG_KMEM
+ int __memcg_kmem_charge(struct page *page, gfp_t gfp, int order);
+@@ -1339,8 +1340,6 @@ static inline int memcg_cache_id(struct
+ 	return memcg ? memcg->kmemcg_id : -1;
+ }
+ 
+-extern int memcg_expand_shrinker_maps(int new_id);
+-
+ extern void memcg_set_shrinker_bit(struct mem_cgroup *memcg,
+ 				   int nid, int shrinker_id);
+ #else
+_
 
