@@ -2,149 +2,145 @@ Return-Path: <SRS0=h0DJ=VC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BF92AC5B57D
-	for <linux-mm@archiver.kernel.org>; Fri,  5 Jul 2019 09:11:17 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 97578C5B57D
+	for <linux-mm@archiver.kernel.org>; Fri,  5 Jul 2019 09:42:22 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8DFB82147A
-	for <linux-mm@archiver.kernel.org>; Fri,  5 Jul 2019 09:11:17 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8DFB82147A
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 5CAA120843
+	for <linux-mm@archiver.kernel.org>; Fri,  5 Jul 2019 09:42:22 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="BMk2J+ME"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5CAA120843
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3DBB16B0003; Fri,  5 Jul 2019 05:11:17 -0400 (EDT)
+	id E72B96B0003; Fri,  5 Jul 2019 05:42:21 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 38BC68E0003; Fri,  5 Jul 2019 05:11:17 -0400 (EDT)
+	id E227A8E0003; Fri,  5 Jul 2019 05:42:21 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 253778E0001; Fri,  5 Jul 2019 05:11:17 -0400 (EDT)
+	id D11C68E0001; Fri,  5 Jul 2019 05:42:21 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id CD4116B0003
-	for <linux-mm@kvack.org>; Fri,  5 Jul 2019 05:11:16 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id s7so5257067edb.19
-        for <linux-mm@kvack.org>; Fri, 05 Jul 2019 02:11:16 -0700 (PDT)
+Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
+	by kanga.kvack.org (Postfix) with ESMTP id B08796B0003
+	for <linux-mm@kvack.org>; Fri,  5 Jul 2019 05:42:21 -0400 (EDT)
+Received: by mail-io1-f70.google.com with SMTP id w17so9230632iom.2
+        for <linux-mm@kvack.org>; Fri, 05 Jul 2019 02:42:21 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=FRjE28iIzgD8xjJPwAlH5WY5jHL/uWd4ooAeEu2dfww=;
-        b=kQ+3gIk8fnkmwXz2vrQmBJXVk7bzchYidUNgAv1PWCnwPq6UHOoDhpo+CJmBm27FCv
-         FsT2tB265WEfwF2qdJpnLuV9TdYtH/JY4wH977zZ16wOkLHMSENLzrba8oKdP+662pVF
-         /+niNNfj4AX0UIO6WkLfroULmjo+m/penA/BT18gIAHhIEV9zPp+HcgkkYibe9YjHygS
-         RIMn4wRAH78+VG53MlE6/BhpctCNlKUtUZaBnhYkR/YAVH9VyTMxR9wO/01XiYUmgRGs
-         tJ8W3zt09x020q5xbqzFiu+05UIGbFri1pyBy/5mGHi2uNbwcVg5+SYGsZuMO2kvv5S5
-         dEVg==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAUw75Kd9HKFOW1CUVLPdCMj9CrJ+GgOSJfcnDyScW8DSRY2AZjE
-	Io3Vk3luvHMiHQ7sDuFOqsz7d209GUpK9d0zUO4hLFqVS/n9WHHDEhn9LEtEyWNdiAWB/Lv7aS7
-	GvnjQGuFRRETuEAK1blz9tNKMUFDOr+sBhkiqdWBCdI3jnyC9GyF/kh+oyFL22G0=
-X-Received: by 2002:a50:9f4e:: with SMTP id b72mr3274687edf.252.1562317876407;
-        Fri, 05 Jul 2019 02:11:16 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxtneNekJgooMI1tuUy2QVZyS1OAibTdHbOrIPc/V1GgmdhPDw0nj+UCDOD09JHb9ZiiW4W
-X-Received: by 2002:a50:9f4e:: with SMTP id b72mr3274624edf.252.1562317875713;
-        Fri, 05 Jul 2019 02:11:15 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562317875; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=EcKFkOoZDjGrRZLQwPcj2xSPXakFZalLNCV13tcflgY=;
+        b=HFIhHJZbK2SrQDN2neIwKCHYMRc2jXbw1fsTK7zSxbJbrGaJP7UXQnrN+9UjP4OAaA
+         J1LsoC+LhGQxDi2xdf/Z5vtqtQLEbrE0iuZNmjVtcP9vr6kL98SOfjAlQ3GY/Y/5uscr
+         7MpPLaatMBDID149PnMf9kgk20pPHDnh9jXIIkGB3nj/CUt7qD66hnFFH07EJU7G7cSO
+         gVFAFaAanQ2Aa6PAuGkMl09ae6DlFgu+Roo7xTkXJ/+KrofNydHN/uZNWtDkDeC1q6qy
+         eKdqHrqJ3+ssqlSjOMsSrEWtnnhxIEkVTzy6BQwY0GgqRe6KC0QWDmcJGG6BblqV1Si4
+         zPag==
+X-Gm-Message-State: APjAAAWhlLx4ssMxz1bDFre9HKjrWybaWAgplvkoZdK4T5OGlY7zB+sA
+	J6dAvRXfMUqB/WxJIjusG88gMev9kryekIEZOVNcWhMAiBP7mUTIGcn7tMIaXF9GLiRQNauSo1x
+	GdB261mRssUFIpBzcOJodu+PKeYv8SLGmP6jGuXnJFb/TVhrz61hp9ufSYYHfqJZvMQ==
+X-Received: by 2002:a6b:6209:: with SMTP id f9mr3270596iog.236.1562319741455;
+        Fri, 05 Jul 2019 02:42:21 -0700 (PDT)
+X-Received: by 2002:a6b:6209:: with SMTP id f9mr3270546iog.236.1562319740599;
+        Fri, 05 Jul 2019 02:42:20 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562319740; cv=none;
         d=google.com; s=arc-20160816;
-        b=qm5XwYmDC47g3hiRoQBCuy78jEWEwqxno/g+JgC11KMfA0R+CduRJiSYlyZG6MUs07
-         7h80iO6d8O8r2pOzKx+e81D8/LL0JFmGp3UUNZmLWpTsVkEBwlNAxnFGoZWicTeEDtlg
-         owwBXMRGLra64d/Wiu2+Rrgx4qV2eI8DXkXEKN8HGnq3Xi14CsirwFSMmcqK8MZtseTB
-         rAXajajMDR1AUU/9FIN6v8Ynt49AFVOzX38Jpe5q+IUtTRmiIjYVyCvnOunhBgW4jbHb
-         Z9bWEWwoEit0pXBM2KzzBsJkAXmLu4X+Yy8jHIaH6VqMnPKnmIh0dV3GlRrwlGBplqPZ
-         jT0g==
+        b=1CYEE7ItZhc+ck6AXPo/uy7EEC9n4rbOMe/Xhjd3PFR+/XXuiMtIurSti/Be3svLwD
+         14NEyh8HYN86NtCHt36mKoaE9qtiRzSc5ABCMLmSNXz6hn6qBWtDcUi+KhMcfW2WapVA
+         5Wv5TmAVtvNnfhXX6v9YyuEPil/qq0wGx/+x8xyF07GS4Tq1Hchfx3OiT8CW90kaJ4B1
+         rg35ZlpOOcw2ZxVGRq0/tsimk5YWI2YtFKgH+8txIs9DmqTme9EfmXHUPBMIKkYr/iIX
+         GtqX0EM6tWLRSOroWle2o0qTf2a1z2+bbBBexK2EfeLjsPrWhj0KIfwFHesAxBCIsqYL
+         q6Gg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=FRjE28iIzgD8xjJPwAlH5WY5jHL/uWd4ooAeEu2dfww=;
-        b=xZC5Gq2jGDOa5DMa41/39ZiqlSKEkxAo0WrrzZXOFncHynoBC37SQX7YR+ldI6U5EN
-         eeJ1L0mty1egSNeTFJDjdsfadagv+5xkG4vrGa/NoHq/pF3hb2/oWpLGQFoaOowAWNhv
-         XNgg8CFgh/tUkawEPmFkmjEAEAR29lDFcBErKC2YsgQuALoDSw7Y2yQ6VjiFEyqgNs/E
-         tMKuW9OVnDmwXzdtSVVdSgoFDK/mpkoLzvXFKzeW+nyYlFtW8CNC1c9+tIaq5xf/cuPc
-         6iLCSfIwGx4tFJvEvZ1F8kt8eoT94a1IwTqKDDUzAvtzNu/sgdz3urkGHVah7RVXSzCp
-         uAog==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=EcKFkOoZDjGrRZLQwPcj2xSPXakFZalLNCV13tcflgY=;
+        b=b+TqlhKeiHFwJ6RQ/81SVvBEZwIhIq7JE6pNaIxlQbqj3R+cSjBBPHw7nimCMxbMkV
+         gDYMgUngPhOkA6RW3sFRmyrcN7GwqHUFHazxTdGmwAoe5nyo+ZoaA2X0bQnsQEj0ajkD
+         /Q72PFYXFdk+kFd55Mpl1Isit7N6lIMRmAXbZLp6tqN/wr88rtDY7IIPDP7kf0sWGDd2
+         vx8UnwU5g/uY+mn6OCealQWcjc+wll3hShV7YQz9m/Uq0jFXtzzh5MfdocrNSJqVgVSy
+         mhl/H1dSjhYJKpF0wybssK7aX9LEz8kNDPHLAO+9fBqTULiBfRuVoPu1CQvzdGKSjWOK
+         8iJA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id z56si1419447edz.417.2019.07.05.02.11.15
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=BMk2J+ME;
+       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id m187sor5883561ioa.46.2019.07.05.02.42.20
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 05 Jul 2019 02:11:15 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (Google Transport Security);
+        Fri, 05 Jul 2019 02:42:20 -0700 (PDT)
+Received-SPF: pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 56408AC68;
-	Fri,  5 Jul 2019 09:11:15 +0000 (UTC)
-Date: Fri, 5 Jul 2019 11:11:14 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Anshuman Khandual <anshuman.khandual@arm.com>
-Cc: linux-mm@kvack.org, Oscar Salvador <osalvador@suse.de>,
-	Qian Cai <cai@lca.pw>, Andrew Morton <akpm@linux-foundation.org>,
-	linux-kernel@vger.kernel.org
-Subject: Re: [PATCH] mm/isolate: Drop pre-validating migrate type in
- undo_isolate_page_range()
-Message-ID: <20190705091114.GG8231@dhcp22.suse.cz>
-References: <1562307161-30554-1-git-send-email-anshuman.khandual@arm.com>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=BMk2J+ME;
+       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=EcKFkOoZDjGrRZLQwPcj2xSPXakFZalLNCV13tcflgY=;
+        b=BMk2J+MEY5lmwPLzjSltNxXm2ogjJN1ffQLSM8PZqBa4uBs8NTM/lDwlMqMyetpB1r
+         XpJpMpGgVJseFgAg9a2kDXkKbByPnQFTTPJfq0/w2GmU1Oz40YuGHN/lFnvmW2S8f6rs
+         riiI8i9Zj1BzpL4kIqFKoYwSELG7GK6LwB+0mep3wfcCNNBwUEG5RQ0mHZlPBt+qDzol
+         d9ZRCpE6vxTQ0H/gVU+1ZyN7qDVFk1bE2swiMHB/LkxMvihF4/iP19KIz7tt7DdxgvUt
+         W/Atu36LFBWrxojn7pMsNp7gXgCRUX+nSZWgRG28UbrOVfReDMPGX4emnbIObj7RhhRn
+         J0Bg==
+X-Google-Smtp-Source: APXvYqyWKVrjPPzFsp7PeayE1AXAL04Blo/1TvkTaQ9Pk9DL5TevyzL0H0gasqykq26o7t/QlmiNHRTke/LFOz9TJfs=
+X-Received: by 2002:a5d:8451:: with SMTP id w17mr3334658ior.226.1562319740081;
+ Fri, 05 Jul 2019 02:42:20 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1562307161-30554-1-git-send-email-anshuman.khandual@arm.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+References: <1562310330-16074-1-git-send-email-laoar.shao@gmail.com> <20190705090902.GF8231@dhcp22.suse.cz>
+In-Reply-To: <20190705090902.GF8231@dhcp22.suse.cz>
+From: Yafang Shao <laoar.shao@gmail.com>
+Date: Fri, 5 Jul 2019 17:41:44 +0800
+Message-ID: <CALOAHbAw5mmpYJb4KRahsjO-Jd0nx1CE+m0LOkciuL6eJtavzQ@mail.gmail.com>
+Subject: Re: [PATCH] mm, memcg: support memory.{min, low} protection in cgroup v1
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, 
+	Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, 
+	Shakeel Butt <shakeelb@google.com>, Yafang Shao <shaoyafang@didiglobal.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri 05-07-19 11:42:41, Anshuman Khandual wrote:
-> unset_migratetype_isolate() already validates under zone lock that a given
-> page has already been isolated as MIGRATE_ISOLATE. There is no need for
-> another check before. Hence just drop this redundant validation.
+On Fri, Jul 5, 2019 at 5:09 PM Michal Hocko <mhocko@kernel.org> wrote:
+>
+> On Fri 05-07-19 15:05:30, Yafang Shao wrote:
+> > We always deploy many containers on one host. Some of these containers
+> > are with high priority, while others are with low priority.
+> > memory.{min, low} is useful to help us protect page cache of a specified
+> > container to gain better performance.
+> > But currently it is only supported in cgroup v2.
+> > To support it in cgroup v1, we only need to make small changes, as the
+> > facility is already exist.
+> > This patch exposed two files to user in cgroup v1, which are memory.min
+> > and memory.low. The usage to set these two files is same with cgroup v2.
+> > Both hierarchical and non-hierarchical mode are supported.
+>
+> Cgroup v1 API is considered frozen with new features added only to v2.
 
-unset_migratetype_isolate take zone lock and it is always preferable to
-skip not take this lock if we know it would be pointless. Besides that
-undo_isolate_page_range is a slow path so a nano optimizing it is not
-worth it.
+The facilities support both cgroup v1 and cgroup v2, and what we need
+to do is only exposing the interface.
+If the cgroup v1 API is frozen, it will be a pity.
 
-> Cc: Oscar Salvador <osalvador@suse.de>
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: Qian Cai <cai@lca.pw>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: linux-mm@kvack.org
-> Cc: linux-kernel@vger.kernel.org
-> 
-> Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
-> ---
-> Is there any particular reason to do this migratetype pre-check without zone
-> lock before calling unsert_migrate_isolate() ? If not this should be removed.
-> 
->  mm/page_isolation.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> diff --git a/mm/page_isolation.c b/mm/page_isolation.c
-> index e3638a5bafff..f529d250c8a5 100644
-> --- a/mm/page_isolation.c
-> +++ b/mm/page_isolation.c
-> @@ -243,7 +243,7 @@ int undo_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
->  	     pfn < end_pfn;
->  	     pfn += pageblock_nr_pages) {
->  		page = __first_valid_page(pfn, pageblock_nr_pages);
-> -		if (!page || !is_migrate_isolate_page(page))
-> +		if (!page)
->  			continue;
->  		unset_migratetype_isolate(page, migratetype);
->  	}
-> -- 
-> 2.20.1
+> Why cannot you move over to v2 and have to stick with v1?
+Because the interfaces between cgroup v1 and cgroup v2 are changed too
+much, which is unacceptable by our customer.
+It may take long time to use cgroup v2 in production envrioment, per
+my understanding.
+BTW, the filesystem on our servers is XFS, but the cgroup  v2
+writeback throttle is not supported on XFS by now, that is beyond my
+comprehension.
 
--- 
-Michal Hocko
-SUSE Labs
+Thanks
+Yafang
 
