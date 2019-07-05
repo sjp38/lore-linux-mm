@@ -2,161 +2,154 @@ Return-Path: <SRS0=h0DJ=VC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 85F13C4649A
-	for <linux-mm@archiver.kernel.org>; Fri,  5 Jul 2019 07:59:10 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1DC39C46499
+	for <linux-mm@archiver.kernel.org>; Fri,  5 Jul 2019 08:30:00 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3B744218BB
-	for <linux-mm@archiver.kernel.org>; Fri,  5 Jul 2019 07:59:10 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3B744218BB
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
+	by mail.kernel.org (Postfix) with ESMTP id E36BA218A3
+	for <linux-mm@archiver.kernel.org>; Fri,  5 Jul 2019 08:29:59 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E36BA218A3
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A54236B0003; Fri,  5 Jul 2019 03:59:09 -0400 (EDT)
+	id 7CB8A6B0006; Fri,  5 Jul 2019 04:29:59 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A04228E0003; Fri,  5 Jul 2019 03:59:09 -0400 (EDT)
+	id 755218E0003; Fri,  5 Jul 2019 04:29:59 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8CC998E0001; Fri,  5 Jul 2019 03:59:09 -0400 (EDT)
+	id 61C938E0001; Fri,  5 Jul 2019 04:29:59 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 3EA506B0003
-	for <linux-mm@kvack.org>; Fri,  5 Jul 2019 03:59:09 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id f19so5143329edv.16
-        for <linux-mm@kvack.org>; Fri, 05 Jul 2019 00:59:09 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 0EEA56B0006
+	for <linux-mm@kvack.org>; Fri,  5 Jul 2019 04:29:59 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id k15so5203420eda.6
+        for <linux-mm@kvack.org>; Fri, 05 Jul 2019 01:29:59 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=9JuFbAzc1QgOVMLlizNhXHxR+tQzDg00DTVbe/YAJBA=;
-        b=fgWKrxTdoiL8EaTZXaFhUlzyNGl1+1R+3JVO3PCh3wrqzRuPuPmaXCUhePzvTAJjel
-         PQIg4P2yP1scLFxEExMtodRSTbHCocUM0M6+ORu7j0kIagnQp2i3pil7PzHuJ41oTWFh
-         q4jTVe27wO3CXhxmXIy0dHXflJDGmlU0mbq6pRmTNZ+SHFOC4kUG65+uJ2aWNmVS05Y2
-         YCRyR9tVJNCpXNfHUip+ZUG5vdP4EuB9im52EAyP/6d2tn5KFJGfWt2bbm62podmf5AW
-         VDlcowizb3u7kWSp5d8Ae16bvYwWb+lKgglgui1X1vP2S6dVWFkFEohnXQZSEGhwWdUz
-         tMFQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
-X-Gm-Message-State: APjAAAUCBj4fTqC+z7nkmrnyEaLu0Gp6vAI02lSOZ1blRCPoTcUm/AtB
-	WpJLqtM1yO8juC/aOLqJqMrzjE7CVH89Mqf/KhrYJlAJl5nZIUc8uPKYxMQ81J5YRwI+AG/m2Zj
-	LPITQqnJ+/hU3fi9GpRdMX/bHRrrOy4uqajbqQBtev8RHqSxVZG/1FseRAcXkqcXOnQ==
-X-Received: by 2002:a17:906:4a10:: with SMTP id w16mr2142402eju.299.1562313548716;
-        Fri, 05 Jul 2019 00:59:08 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxuvuTVSBG/Amas3m3OUX5uCI3YO1id/esIV9LUuOhw+Nut79WeWA13ogxj2m2f2xOP9CKU
-X-Received: by 2002:a17:906:4a10:: with SMTP id w16mr2142340eju.299.1562313547759;
-        Fri, 05 Jul 2019 00:59:07 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562313547; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=truOZNgtMUGFgutf3nq0xVBssoY2U9qGFwatSDNHV1w=;
+        b=pll6qQxpT+226/kFHBvQn4ZRp0PWEQKYTIdYfwUBzZLa70Zg7t/ZcLagEG8gAW+GUi
+         m5LqezaMO7f3bkbMl+rjvHv++4CArIZ6MDtwqzgPndgzg5QceS6+Qiih0/aHwsMTiiS0
+         kajOfJcnwAGzjl1MYzPeQfPkRFAdhxu0mU2XikMbxaY7Kfzmd1u/sfFmPBtfJDtXfAZE
+         nAlrkyOp5xjSnGvpsPdwSfDD5TBU/hQ0pgJH7HS+sSGrUo9LP8fFwBjUpLB5H1Q0zf4Z
+         sN0heT9d/3mabn8D9huhxx8ps5JbLA6nheoUOO2QJXiwHKUUtIg4dp8U93/MwwSTuXjK
+         j7Pw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+X-Gm-Message-State: APjAAAWH/a6MJiN+kcPND19f1cvxWn8zhz2gc7OGVpY+7ral6NJHZQll
+	gwB0ke1/7FPH7GsZR2DANprVHyp0BBO2Dohq8Vhjsm5RKkY3xYBaeB0ZTlFnwD8C5eE3ww7B8lE
+	aNf0xjMC+RshS8QzYs3dMltWv/o3t1JQicCzSmo6fpwO5jUD47A7zrK6qmwDOp41N+Q==
+X-Received: by 2002:a17:907:110b:: with SMTP id qu11mr2349840ejb.18.1562315398557;
+        Fri, 05 Jul 2019 01:29:58 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzrbVv7+ws6Z/8M0pEc8SqH4nWUC/Nnvrz1YtLdCBgEF5oFLXsMxhBDfKDQc2eyTSOCoiE4
+X-Received: by 2002:a17:907:110b:: with SMTP id qu11mr2349798ejb.18.1562315397721;
+        Fri, 05 Jul 2019 01:29:57 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562315397; cv=none;
         d=google.com; s=arc-20160816;
-        b=oYzBQefvTTJcdPTqHTFbBPsI+GdpMiHRyvPvOpxf6p3vnpI503HHn73ze3s0v/CIMr
-         LJUmx26qpL/8mfoKZ8+CsJboWBrFF5D0m5ApZeUK/vVeBerfIgOijnASncJNgJjNqub9
-         aCqZNKME1JStHiugsthq0Wh85v9R/6AfouHLKW3g1Dqy2XRgvT7Fy2bQvoMZqLyu00Ed
-         c0RIINAlqC3egEHA0cOZVYTkBurG1igy9HBeHjkVkcLG+RRb5Cl8VkpqUTeVJ3aJdme5
-         /sK8zCGCTLWHX0S84U6elB3x4lVF//GjuiirrGbmV7meuTTyRYU/ZA6VrD3ylA7NAt6M
-         nHKA==
+        b=ORmrigTWW9K44a0VcFneM6mRR4sO1kdja30fGA2IJXBar+zeIdHJPLDJAuOQYGlkMF
+         Euh4gKfbnH0NT+k80kqjwEmkE8Cit+6O9eHTtNRMzACb5HQefoWTsD+CFA52Skb2mqRt
+         s0tApRHa+GG95NY4AkLn54+6C8Gqbr6Kf1vw00mpQIZk05UEzoFTn8URlSfQjUIQib/y
+         PtP5hPVsyFEMRX0y/qEuoSBEYTZ5K7LLBrUePF1d17Joci2Ym6pdeP7SuL83Tx+7S73p
+         HNPdidjzZ0WFFZLdFlde/Tx7JUymYHVpooIMG2uI8UnTPHaTC7PRemJSLHYABZ6xF51B
+         n4BA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=9JuFbAzc1QgOVMLlizNhXHxR+tQzDg00DTVbe/YAJBA=;
-        b=LiZTcvvBMPaLP6DxWtnCFQuz0ZnS3JnJ7OA+XOPi9wDGx8MBAqQ5/pxSJZcaUl5XIV
-         FI3iWTR4JI9d2vxcS/xOg8t73R2trrhtnorwRWOtfZ5iZfd9EV2SSmulMChNwe+K0Gt8
-         E+DdZ6h14I3S22exEfDqcfN/gfbantykKRrFC+lDqVQqBRQH4AVAEIaEa9fbHLXCR9lP
-         S5aZYsX/k4KSKb0oorlazLNdZUmOLltHx5E2gBkL2Bg2/uAlmbZFncHn3CZ0tQZR6Wmy
-         wYZ1xuDq3hQTW+y3tsSz2l4W0dS002lDsmvpEUOX+SnzAkRhdqYONLoYkCFWxve45XK3
-         fm0Q==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=truOZNgtMUGFgutf3nq0xVBssoY2U9qGFwatSDNHV1w=;
+        b=RoTiBaohT4D+9vWFZh9NlXGQvtSC3FTdZ0fLFZwmyu/nfzd1y3ODZBV9BImv1K9PVX
+         weVSFz/nE+8React2VSRAqSSTYT/PN/VL6IYv8vxsi4AohLgg60PU3/XFwUWtLyKyVFH
+         BFBKeYOwmTruB80liSOG/b/wRsfeyirVpgo8gKnLcXj3MsmquvqOjJabJNqK2n0hCtDQ
+         Dpsihc9MgafijwKUZJ+S3pL5FD875KGS4fify7KhVf/wA5KcQaw08wzIvOAlMuH8vK5P
+         RrkdMfGFhDtRryI2tAASQfR302OtLvHiQ0vSMNs/aZoEd8m/xMLMVvIzX0lJrHbI2phs
+         puew==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id z1si5114370eja.335.2019.07.05.00.59.07
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 05 Jul 2019 00:59:07 -0700 (PDT)
-Received-SPF: pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
+        by mx.google.com with ESMTP id q4si6585072edg.35.2019.07.05.01.29.57
+        for <linux-mm@kvack.org>;
+        Fri, 05 Jul 2019 01:29:57 -0700 (PDT)
+Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id E1F7BACD4;
-	Fri,  5 Jul 2019 07:59:06 +0000 (UTC)
-Date: Fri, 5 Jul 2019 09:59:04 +0200
-From: Oscar Salvador <osalvador@suse.de>
-To: Anshuman Khandual <anshuman.khandual@arm.com>
-Cc: linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>,
-	Qian Cai <cai@lca.pw>, Andrew Morton <akpm@linux-foundation.org>,
-	linux-kernel@vger.kernel.org
+       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id BA26C2B;
+	Fri,  5 Jul 2019 01:29:56 -0700 (PDT)
+Received: from [10.162.41.127] (p8cg001049571a15.blr.arm.com [10.162.41.127])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id B2C713F246;
+	Fri,  5 Jul 2019 01:29:54 -0700 (PDT)
 Subject: Re: [PATCH] mm/isolate: Drop pre-validating migrate type in
  undo_isolate_page_range()
-Message-ID: <20190705075857.GA28725@linux>
+To: Oscar Salvador <osalvador@suse.de>
+Cc: linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>, Qian Cai
+ <cai@lca.pw>, Andrew Morton <akpm@linux-foundation.org>,
+ linux-kernel@vger.kernel.org
 References: <1562307161-30554-1-git-send-email-anshuman.khandual@arm.com>
+ <20190705075857.GA28725@linux>
+From: Anshuman Khandual <anshuman.khandual@arm.com>
+Message-ID: <ae5e183b-c5f7-2a37-2c14-110102ec37ed@arm.com>
+Date: Fri, 5 Jul 2019 14:00:22 +0530
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
+ Thunderbird/52.9.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1562307161-30554-1-git-send-email-anshuman.khandual@arm.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190705075857.GA28725@linux>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jul 05, 2019 at 11:42:41AM +0530, Anshuman Khandual wrote:
-> unset_migratetype_isolate() already validates under zone lock that a given
-> page has already been isolated as MIGRATE_ISOLATE. There is no need for
-> another check before. Hence just drop this redundant validation.
+
+
+On 07/05/2019 01:29 PM, Oscar Salvador wrote:
+> On Fri, Jul 05, 2019 at 11:42:41AM +0530, Anshuman Khandual wrote:
+>> unset_migratetype_isolate() already validates under zone lock that a given
+>> page has already been isolated as MIGRATE_ISOLATE. There is no need for
+>> another check before. Hence just drop this redundant validation.
+>>
+>> Cc: Oscar Salvador <osalvador@suse.de>
+>> Cc: Michal Hocko <mhocko@suse.com>
+>> Cc: Qian Cai <cai@lca.pw>
+>> Cc: Andrew Morton <akpm@linux-foundation.org>
+>> Cc: linux-mm@kvack.org
+>> Cc: linux-kernel@vger.kernel.org
+>>
+>> Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
+>> ---
+>> Is there any particular reason to do this migratetype pre-check without zone
+>> lock before calling unsert_migrate_isolate() ? If not this should be removed.
 > 
-> Cc: Oscar Salvador <osalvador@suse.de>
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: Qian Cai <cai@lca.pw>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: linux-mm@kvack.org
-> Cc: linux-kernel@vger.kernel.org
-> 
-> Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
-> ---
-> Is there any particular reason to do this migratetype pre-check without zone
-> lock before calling unsert_migrate_isolate() ? If not this should be removed.
+> I have seen this kinda behavior-checks all over the kernel.
+> I guess that one of the main goals is to avoid lock contention, so we check
+> if the page has the right migratetype, and then we check it again under the lock
+> to see whether that has changed.
 
-I have seen this kinda behavior-checks all over the kernel.
-I guess that one of the main goals is to avoid lock contention, so we check
-if the page has the right migratetype, and then we check it again under the lock
-to see whether that has changed.
-
-e.g: simultaneous calls to undo_isolate_page_range
-
-But I am not sure if the motivation behind was something else, as the changelog
-that added this code was quite modest.
-
-Anyway, how did you come across with this?
-Do things get speed up without this check? Or what was the motivation to remove it?
-
-thanks
-
+So the worst case when it becomes redundant might not affect the performance much ?
 
 > 
->  mm/page_isolation.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> diff --git a/mm/page_isolation.c b/mm/page_isolation.c
-> index e3638a5bafff..f529d250c8a5 100644
-> --- a/mm/page_isolation.c
-> +++ b/mm/page_isolation.c
-> @@ -243,7 +243,7 @@ int undo_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
->  	     pfn < end_pfn;
->  	     pfn += pageblock_nr_pages) {
->  		page = __first_valid_page(pfn, pageblock_nr_pages);
-> -		if (!page || !is_migrate_isolate_page(page))
-> +		if (!page)
->  			continue;
->  		unset_migratetype_isolate(page, migratetype);
->  	}
-> -- 
-> 2.20.1
-> 
+> e.g: simultaneous calls to undo_isolate_page_range
 
--- 
-Oscar Salvador
-SUSE L3
+Right.
+
+> 
+> But I am not sure if the motivation behind was something else, as the changelog
+> that added this code was quite modest.
+
+Agreed.
+
+> 
+> Anyway, how did you come across with this?
+> Do things get speed up without this check? Or what was the motivation to remove it?
+
+Detected this during a code audit. I figured it can help save some cycles. The other
+call site start_isolate_page_range() does not check migrate type because the page
+block is guaranteed to be MIGRATE_ISOLATE ? I am not sure if a non-lock check first
+in this case is actually improving performance. In which case should we just leave
+the check as is ?
 
