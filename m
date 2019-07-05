@@ -2,144 +2,119 @@ Return-Path: <SRS0=h0DJ=VC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 64BA1C46499
-	for <linux-mm@archiver.kernel.org>; Fri,  5 Jul 2019 16:32:12 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4CC9CC468A9
+	for <linux-mm@archiver.kernel.org>; Fri,  5 Jul 2019 18:13:49 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 27603216E3
-	for <linux-mm@archiver.kernel.org>; Fri,  5 Jul 2019 16:32:12 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 27603216E3
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arndb.de
+	by mail.kernel.org (Postfix) with ESMTP id EF54D216FD
+	for <linux-mm@archiver.kernel.org>; Fri,  5 Jul 2019 18:13:48 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=amazonses.com header.i=@amazonses.com header.b="d/qRYpWa"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EF54D216FD
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id AA7CA8E0003; Fri,  5 Jul 2019 12:32:11 -0400 (EDT)
+	id 52BE56B0003; Fri,  5 Jul 2019 14:13:48 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A58BC8E0001; Fri,  5 Jul 2019 12:32:11 -0400 (EDT)
+	id 4DC498E0003; Fri,  5 Jul 2019 14:13:48 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 91EFC8E0003; Fri,  5 Jul 2019 12:32:11 -0400 (EDT)
+	id 3CC7C8E0001; Fri,  5 Jul 2019 14:13:48 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 707E78E0001
-	for <linux-mm@kvack.org>; Fri,  5 Jul 2019 12:32:11 -0400 (EDT)
-Received: by mail-qt1-f200.google.com with SMTP id x16so2636342qtk.7
-        for <linux-mm@kvack.org>; Fri, 05 Jul 2019 09:32:11 -0700 (PDT)
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 271646B0003
+	for <linux-mm@kvack.org>; Fri,  5 Jul 2019 14:13:48 -0400 (EDT)
+Received: by mail-qk1-f200.google.com with SMTP id b139so8931722qkc.21
+        for <linux-mm@kvack.org>; Fri, 05 Jul 2019 11:13:48 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:mime-version
-         :references:in-reply-to:from:date:message-id:subject:to:cc;
-        bh=Z+Ll5aWy1Qty19+jUD0PYaZURaSxcI+6or9UIULi7jU=;
-        b=r1vYFPzz3T3uPMPNz/oHcqyyC7uOc85E8R3H558QoaCXkiw0LNwJhGk6CQwEZnpk57
-         f1OLaEOw/7nY1cc/f6PJq9Bmar9YNIoS3w7mMUYO8OPWIjVhbl+m4k35hdpTus5Unq9W
-         jHDfiyOhZ5V1p4lVWrO4is8GvUB3m5kIYzT5QqMI9Ur52YK2tejIhylEz4nmkCh4DAEY
-         94zLWN0U6kLPkotcA/K5z9Q/WInN7TF7BzBvaNyS1jTUgprLQm2cfdNUQEDG5q6OpAiu
-         WCHk0S2LWz58ut0IO9BXzjfPgvyB177lPKjJn0Zawnl8kmVmC8HQ17YW1XM0OhMz+V56
-         hpAg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of arndbergmann@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=arndbergmann@gmail.com
-X-Gm-Message-State: APjAAAVYcZHiPVKGCVy33ctO5G4MtHpTUCFfEzCt4czpzwS/dScnerBd
-	/dtfyZ3m7ZPZWDwNR0/zQfk3pE5MCWXPDkotIxYctFzZfULUKflEXM6Mqi4f4BmgLQbPrLH3aKg
-	eow3uk0WQnEqkpzbDpIXZlb5X0YMW3AcZHVDWEVfyF0cbKTBd5YoMak+7Lepiq6E=
-X-Received: by 2002:a0c:8885:: with SMTP id 5mr4134447qvn.137.1562344331182;
-        Fri, 05 Jul 2019 09:32:11 -0700 (PDT)
-X-Received: by 2002:a0c:8885:: with SMTP id 5mr4134384qvn.137.1562344330271;
-        Fri, 05 Jul 2019 09:32:10 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562344330; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :in-reply-to:message-id:references:user-agent:mime-version
+         :feedback-id;
+        bh=TeLEUHqZcS2XHWs9Stu73yoSxS785h8O3OY1oogKKCQ=;
+        b=lOLsg8WnO+igeO+8eCyalumJbC+l8X5eTtlu2zobCP0bGWW/Jj2kGrHY/zEGJeYbTp
+         9NQg/IQDdE74kbpibZdw32Ir9Y9FnFKIAx2OkIdVv4W8NrNHpBuJwT7TreP9ViKuc/8k
+         TN8TXbMFBhAj7qFxDsGs9QTE1tslMUVp/wpHZzVafCz0pCjN059oZsiTYFe9msgf3cGi
+         j7m6jREvXD/hyv2W2fkW30fUEmxjg2432rSZtolOjmTO/qgxHSuClV4DrgtuugxyYF93
+         XjnqAlbV3ekyw9kS6OHSCCBda4pQlnDTY8BrSD9l+8/FZNX/lGd2jixi2zQLhjHGZ075
+         DY4g==
+X-Gm-Message-State: APjAAAVVp+OVXuRkCa7uAHvvIlmTWRGR/p7RxWbDbmAwOjYvjpDU4AKc
+	WjZi63coBALsrJlDZyMy4JfxTIwwMZ57XjSxgdl7M70Yev3ymj4/qeZJKyGvNpgJ0Dfofg2HltE
+	7/hbxV+JPcLFjbijothDE3ooDzayuQ2//RPK5oMa9P3UkDQj/kQiTCTMzRxL0gYE=
+X-Received: by 2002:a05:620a:69c:: with SMTP id f28mr4167469qkh.274.1562350427840;
+        Fri, 05 Jul 2019 11:13:47 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzdAPaIOHsqf2KlyNUbNnou6+zXlDtMN+Ao/CTfXLUN8SOWcb6/owmLazSV1Na5m7jXGH+v
+X-Received: by 2002:a05:620a:69c:: with SMTP id f28mr4167402qkh.274.1562350426728;
+        Fri, 05 Jul 2019 11:13:46 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562350426; cv=none;
         d=google.com; s=arc-20160816;
-        b=a+oTP5z8VBPGDrdQO5YOQ7LqKXAj9c68Ix1YOU1T+oD2EutL5SB0oNSsK5TwWvNvhY
-         wX2NcVxn00TuZ22k+5cAlnI1I1mgyDLVtz1ZAZKs6hlqq7/fsRC6nad/Tnn6HXVUsQxx
-         0Eo3NEwGwWcCsu+egqATt/mTcKpGdQR3rEzkm4p7oqa0EQgtLlPuY3nbNxmmxowMpT/o
-         SU2NwbtzyPWYrVhybNfIKVg/fJ4tYfqgPK6XqILH0SmB+X0mX0BJEg3LhSNOK1VpaLjC
-         cTj4Tkc5n1db+FK0SGxUBhwx9P5DNfYKR1WaLxQGtFdDErkSlM7TiEfNv+JdhfSbtDeZ
-         tO+Q==
+        b=fvvJabZQxNw1YXZCytickDkMDnuZTSXiVobUkWvLIVHI4JdI9W4JponWAYrr/mXtnQ
+         tLjuQYze/6ATPLtaWFzj8jRq7JH0JZcPkubWlcnSqqZ0nOODrYsqLeHsyYM+ag5uXVsU
+         mEycJMAOv2up58XiToSFY/06RulGPYiYwhcPqJ8CV/5N0VSgBI1XTDIDg6Bm7+KpsWO6
+         IAB84IY3f6Xk7IyDE3SL8tJsODsQ//uuM1JZXDmJCg8wx66GAoYMllmCSb1RtqdQ4YuY
+         wWCcFFQA3uSsvvJv9MowLNwIsTmYhhvrG99rZHnEcScQS+MNC940b+FwysFHTAO2M0Hw
+         /Otw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version;
-        bh=Z+Ll5aWy1Qty19+jUD0PYaZURaSxcI+6or9UIULi7jU=;
-        b=LbPfG/wRuKouayNIv8aHd4NJLUf1FVNagmiyuFzDPUlsnZ8Qk3hYVLEW4AsuHQvSgb
-         MZFnnAPvigbG7WJD3ew4FiFwmjYcFetnp4w20kSYYYgpSjI3ntw6tKGex6KWIwoszIun
-         gn2QROO/WK3fkPnPhjwq5RvfmARCNM/Uh8yCbJIThADmmzNyKtyy3fMoHH/1U/oWn8Qk
-         jPouo52pJhA1etnDjdSeao6ZTdvUxhW/0V2aPJvToj47mes52uXeJo5MaQJPHj/bLNzy
-         0mXiAAp5CbIcr82bFwvvK3Flc+/GANLNqyYzh7aVoMN3X/xOrr63DbSRB9mutqYPDYca
-         UZUQ==
+        h=feedback-id:mime-version:user-agent:references:message-id
+         :in-reply-to:subject:cc:to:from:date:dkim-signature;
+        bh=TeLEUHqZcS2XHWs9Stu73yoSxS785h8O3OY1oogKKCQ=;
+        b=OouqAh3CGm66O0IRsmn+a8zJHfncK0DLzXImiCNzZkWAWsQbYLRoHZPr5XvGtKOk00
+         4JwKEZSBJu0081o8dYyQ6W5JXMgT/6dJUyPSyGvOuGAT3BUyUgnC5NYXkijJAFLZOu7y
+         Yv5JbY2X49SRiSvuek9ud7gp14Gi/vMhX4G9JgbbkGRglDm+ykc4TlYvdY8Fj2HKTV4R
+         jf0aA9CKzkzyGsSHSfxR5xqa0O5lfaH0gfslXMfPZo3MnvDl8oe+07SDvn4tsoIvb0be
+         OjvqMU3i2hdm0mseab3il++qOjIxLpjDtQX0LbelldKp7wHaw4vijByqkwHntmzlO96/
+         M73g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of arndbergmann@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=arndbergmann@gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id n24sor8251701qvd.2.2019.07.05.09.32.10
+       dkim=pass header.i=@amazonses.com header.s=6gbrjpgwjskckoa6a5zn6fwqkn67xbtw header.b="d/qRYpWa";
+       spf=pass (google.com: domain of 0100016bc3579800-ee6cd00b-6f59-4d86-be0c-f63e2b137d18-000000@amazonses.com designates 54.240.9.36 as permitted sender) smtp.mailfrom=0100016bc3579800-ee6cd00b-6f59-4d86-be0c-f63e2b137d18-000000@amazonses.com
+Received: from a9-36.smtp-out.amazonses.com (a9-36.smtp-out.amazonses.com. [54.240.9.36])
+        by mx.google.com with ESMTPS id g16si6462609qtg.377.2019.07.05.11.13.46
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 05 Jul 2019 09:32:10 -0700 (PDT)
-Received-SPF: pass (google.com: domain of arndbergmann@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 05 Jul 2019 11:13:46 -0700 (PDT)
+Received-SPF: pass (google.com: domain of 0100016bc3579800-ee6cd00b-6f59-4d86-be0c-f63e2b137d18-000000@amazonses.com designates 54.240.9.36 as permitted sender) client-ip=54.240.9.36;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of arndbergmann@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=arndbergmann@gmail.com
-X-Google-Smtp-Source: APXvYqzbKktKqp9uhoV9vXQtX+yr4qrddqZeixUg0JHk9T9z0CkBpogcwCP2RGTyS+kBPHd4G/z9oTTSySyNO6hkDOg=
-X-Received: by 2002:a0c:e952:: with SMTP id n18mr3948664qvo.63.1562344329835;
- Fri, 05 Jul 2019 09:32:09 -0700 (PDT)
+       dkim=pass header.i=@amazonses.com header.s=6gbrjpgwjskckoa6a5zn6fwqkn67xbtw header.b="d/qRYpWa";
+       spf=pass (google.com: domain of 0100016bc3579800-ee6cd00b-6f59-4d86-be0c-f63e2b137d18-000000@amazonses.com designates 54.240.9.36 as permitted sender) smtp.mailfrom=0100016bc3579800-ee6cd00b-6f59-4d86-be0c-f63e2b137d18-000000@amazonses.com
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/simple;
+	s=6gbrjpgwjskckoa6a5zn6fwqkn67xbtw; d=amazonses.com; t=1562350426;
+	h=Date:From:To:cc:Subject:In-Reply-To:Message-ID:References:MIME-Version:Content-Type:Feedback-ID;
+	bh=TeLEUHqZcS2XHWs9Stu73yoSxS785h8O3OY1oogKKCQ=;
+	b=d/qRYpWaFqeZw3rhjpieZ+DQmq9wVRn+D6yyjyKsBLpC+G1oQ8n5Hdrk2PCoN+lE
+	Hs0N/jxd1qmxGuQEsOz299CAgUsjE71Ku2gRi8totodbwfUaGj8nLY5aVsnAu/F8ViW
+	Yb98szIbMYFFAnIkBFuj6JkLBhrEyz7hpnu4Zo+8=
+Date: Fri, 5 Jul 2019 18:13:46 +0000
+From: Christopher Lameter <cl@linux.com>
+X-X-Sender: cl@nuc-kabylake
+To: Markus Elfring <Markus.Elfring@web.de>
+cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, 
+    David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, 
+    Pekka Enberg <penberg@kernel.org>, LKML <linux-kernel@vger.kernel.org>, 
+    kernel-janitors@vger.kernel.org
+Subject: Re: [PATCH] mm/slab: One function call less in
+ verify_redzone_free()
+In-Reply-To: <c724416e-c8bc-6927-00c5-7a4c433c562f@web.de>
+Message-ID: <0100016bc3579800-ee6cd00b-6f59-4d86-be0c-f63e2b137d18-000000@email.amazonses.com>
+References: <c724416e-c8bc-6927-00c5-7a4c433c562f@web.de>
+User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
 MIME-Version: 1.0
-References: <201907060045.bQY0GTP0%lkp@intel.com> <20190705161529.GA8626@kroah.com>
-In-Reply-To: <20190705161529.GA8626@kroah.com>
-From: Arnd Bergmann <arnd@arndb.de>
-Date: Fri, 5 Jul 2019 18:31:51 +0200
-Message-ID: <CAK8P3a099ZeiEe-zOTJb5tXKtTU7iwzGkjv8riQVK+navotRxw@mail.gmail.com>
-Subject: Re: [linux-stable-rc:linux-4.9.y 9986/9999] ptrace.c:undefined
- reference to `abort'
-To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: kbuild test robot <lkp@intel.com>, kbuild-all@01.org, 
-	Andrew Morton <akpm@linux-foundation.org>, 
-	Linux Memory Management List <linux-mm@kvack.org>, Sasha Levin <alexander.levin@microsoft.com>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=US-ASCII
+X-SES-Outgoing: 2019.07.05-54.240.9.36
+Feedback-ID: 1.us-east-1.fQZZZ0Xtj2+TD7V5apTT/NrT6QKuPgzCT/IC7XYgDKI=:AmazonSES
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jul 5, 2019 at 6:15 PM Greg Kroah-Hartman
-<gregkh@linuxfoundation.org> wrote:
-> On Sat, Jul 06, 2019 at 12:08:59AM +0800, kbuild test robot wrote:
-> >    arch/arc/built-in.o: In function `arc_pmu_device_probe':
-> > >> perf_event.c:(.text+0x99e6): undefined reference to `abort'
-> >    arch/arc/built-in.o:perf_event.c:(.text+0x99e6): more undefined references to `abort' follow
->
-> I've queued up af1be2e21203 ("ARC: handle gcc generated __builtin_trap
-> for older compiler") to hopefully resolve this now.
+On Fri, 5 Jul 2019, Markus Elfring wrote:
 
-Thanks, I remember the same problem happening in mainline now,
-and this should solve the issue.
+> Avoid an extra function call by using a ternary operator instead of
+> a conditional statement for a string literal selection.
 
-I also see that the backported patch that introduced the regression
-has succeed in getting rid of many of the warnings in 4.9.y, and kernelci
-itself does not run into the abort() issue because it has a different
-compiler version:
-
-https://kernelci.org/build/stable-rc/branch/linux-4.9.y/kernel/v4.9.184-93-gaf13e6db0db4/
-
-All that remains now is
-
-cc1: error: '-march=r3000' requires '-mfp32'
-(.text+0x1bf20): undefined reference to `iommu_is_span_boundary'
-(.text+0x1bbd0): undefined reference to `iommu_is_span_boundary'
-warning: (SIBYTE_SWARM && SIBYTE_SENTOSA && SIBYTE_BIGSUR &&
-SWIOTLB_XEN && AMD_IOMMU) selects SWIOTLB which has unmet direct
-dependencies (CAVIUM_OCTEON_SOC || MACH_LOONGSON64 && CPU_LOONGSON3 ||
-NLM_XLP_BOARD || NLM_XLR_BOARD)
-arch/arc/kernel/unwind.c:188:14: warning: 'unw_hdr_alloc' defined but
-not used [-Wunused-function]
-drivers/clk/sunxi/clk-sun8i-bus-gates.c:85:27: warning: 'clk_parent'
-may be used uninitialized in this function [-Wmaybe-uninitialized]
-arch/arm64/kernel/vdso.c:127:6: warning: 'memcmp' reading 4 bytes from
-a region of size 1 [-Wstringop-overflow=]
-
-The two arm specific issues are fixed with these patches
-
-4e903450bcb9 ("clk: sunxi: fix uninitialized access")
-dbbb08f500d6 ("arm64, vdso: Define vdso_{start,end} as array")
-
-The arc unwind fix needs to make it into mainline first, and the rest are mips
-issues that may need a custom fix since there is no specific upstream
-patch that could be backported.
-
-      Arnd
+Well. I thought the compiler does that on its own? And the tenary operator
+makes the code difficult to read.
 
