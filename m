@@ -4,82 +4,82 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-5.2 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
 	GAPPY_SUBJECT,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=unavailable
-	autolearn_force=no version=3.4.0
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1BDC1C0650E
-	for <linux-mm@archiver.kernel.org>; Sat,  6 Jul 2019 15:30:09 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 84B09C0650E
+	for <linux-mm@archiver.kernel.org>; Sat,  6 Jul 2019 15:32:23 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CAAD720838
-	for <linux-mm@archiver.kernel.org>; Sat,  6 Jul 2019 15:30:08 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 3ECCE20843
+	for <linux-mm@archiver.kernel.org>; Sat,  6 Jul 2019 15:32:23 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="FVfMkcgg"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CAAD720838
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="cmJgo3I5"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3ECCE20843
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 627DA6B0003; Sat,  6 Jul 2019 11:30:08 -0400 (EDT)
+	id D04776B0003; Sat,  6 Jul 2019 11:32:22 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5B1438E0003; Sat,  6 Jul 2019 11:30:08 -0400 (EDT)
+	id CB4408E0003; Sat,  6 Jul 2019 11:32:22 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 453AD8E0001; Sat,  6 Jul 2019 11:30:08 -0400 (EDT)
+	id BA3DE8E0001; Sat,  6 Jul 2019 11:32:22 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 25D2E6B0003
-	for <linux-mm@kvack.org>; Sat,  6 Jul 2019 11:30:08 -0400 (EDT)
-Received: by mail-io1-f71.google.com with SMTP id v3so6794081ios.4
-        for <linux-mm@kvack.org>; Sat, 06 Jul 2019 08:30:08 -0700 (PDT)
+Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 9AAFF6B0003
+	for <linux-mm@kvack.org>; Sat,  6 Jul 2019 11:32:22 -0400 (EDT)
+Received: by mail-io1-f72.google.com with SMTP id k21so13340808ioj.3
+        for <linux-mm@kvack.org>; Sat, 06 Jul 2019 08:32:22 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
          :message-id:date:user-agent:mime-version:in-reply-to
          :content-language:content-transfer-encoding;
-        bh=R5T3JdF3uAoxSggzlvhNs2X88sgTBZ7bfNPEjr5/PdE=;
-        b=UN9lBm0EdblsIboX62hguzolWTHCrB2ArtVx8QoIq/ybcqWFTr0KOcoCxzOdip66nn
-         YttUiwHMiIBCSLbosafaOk+5EWGxtPfg9VOQchnBWak8jOFlZ77Cm2d9WtkX4MTv/zyb
-         mKVNQXz5Zo/cFuJ1ZwplvS6BQh8wDnZQ3j/5g0NnHtfHl1SWom2owVaaVkbpWeYqae7x
-         q26n58l2Nu155hFA3GOkLKOeH/Gv4RoeSYuP89jk59AK7/CvtVWzjAa8cS1cRfGvAjOJ
-         NOUPit86AWI2gWBIRILX8u7CPKZfFnz0dLmPaPRDUqcyde/B7qggC76adwM/fYrNySQQ
-         DAWA==
-X-Gm-Message-State: APjAAAWwiE5HAzVe2tizaVII+U5fYCO9PGXnmgLINswivwc8+3kzYwPX
-	zwsO/Pz8vwDI6VkDyS9U4XZHzCBtfz25Tf71SkKwFbxPb0d6Ud5Sn+wFK0UIk/rS0eG7XYwqM42
-	2BUh0z4pn3Xy9mNwdU1XLtHrAyKDKA1LurnsphhTWOGM7HP1zL4055t/FYnmpQNHHfA==
-X-Received: by 2002:a5d:94d7:: with SMTP id y23mr10058531ior.296.1562427007874;
-        Sat, 06 Jul 2019 08:30:07 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz0tLQTbYygAdk+2bAc2U2mjueuAIMc6M0sJYd9Oroj2MoudgrmWafyLf7afvfTPCk1aP9r
-X-Received: by 2002:a5d:94d7:: with SMTP id y23mr10058487ior.296.1562427007090;
-        Sat, 06 Jul 2019 08:30:07 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562427007; cv=none;
+        bh=Q/Uw5dIsHFTudDNvgVGgrJz9lD9sd+Kaa8O2sHnXsmw=;
+        b=V2J1cD5OAvUh0XVx8/MXqwdQUhvz1YuZQgXwsbogYxYTbbGncfR/PTWS/IAu3NUbFi
+         KHc0qAkM4jfPCK9DuzoL6DZIsUoR7r2whTmAamPJadeSbkgqW08Xlt2dLA7aW+bg7qdu
+         HPe6z+6212Ni80z6BZwvjLGf2/4zT0/kPsLDs33pWhXTlc4CFOZtF/SimEgJIyFmMDpA
+         qYWEWn8Ya2dcYJW+iD95LUc3SAwwDWL+D/Go9ExMsft074HLp13IACTp0Dw2eD6THtdJ
+         piOvMmIfG04rPcbNTEW3IYtLQCSs2Jw3e6teY9bQxIpxhSbyDQ1VR4jVINwNiqbrpe/l
+         mpJQ==
+X-Gm-Message-State: APjAAAVcbtSTtek+8oeJF41By+QnqH/6djr2T7qpYZfgnYHqe3/3HFdA
+	tgr3AWak1Jtdy822qBY6K7q8ZJ4hHXYxWLEzm/mOFmK1xJvFSdXIBv4qDzWRs21lTeeCsX4ny3t
+	zNRkH/xTo/CQlkOtMcgsOxMZpaMGwYYUvwn6ObwM50+rYiVVGUtRigG7gj+EM81dsjg==
+X-Received: by 2002:a5e:820a:: with SMTP id l10mr9447316iom.283.1562427142424;
+        Sat, 06 Jul 2019 08:32:22 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzPYgQ7UFHhZSwMUpv7c4lmws/dFpk2zMqOuL5iGnREEOSeaJPDIQCI/YxKqnj25K6Pre+M
+X-Received: by 2002:a5e:820a:: with SMTP id l10mr9447283iom.283.1562427141879;
+        Sat, 06 Jul 2019 08:32:21 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562427141; cv=none;
         d=google.com; s=arc-20160816;
-        b=Z3U3/OuxXnmxEvsh+SrImLkBhnle8VdJyeoF7XzAFHnntP2/97sr4YpvR+xVgSSiol
-         wPGrPGn+HKHiqmaexql8dpHrEbbzYPFHTijFRkODrBZkzTurKcqzUP7BzQa//NpORKQ8
-         piCqcEszQ5JytTy6NHg/cOgF6qTUVVqa4xv7d9rQEfENXLNcOlgV8aJu94qdNDTB20qr
-         PGZAsYTvLGKVYbyw1hzm0Qf6VYsiKsM2Q3gOYJPiXFf0PXV+L/xSEKCUMK28C3KOPeOo
-         8FA1KcoiKF3/3WjVF/obpcDNDCdf3UhpZgM5Z3QRPsfIQw9v9SQMaO5ZwSLK0dUbIVvL
-         26Ng==
+        b=lqno4WQYd/yb1wmowpAseDwmG/2AQGFa2HjFFVwFzmd478eAH2FSfSABKncXPEEHjO
+         uxX8mXOJAFiLT5m/nN/6GhYSQVLoBFkyaAWm/mvbudJppWbFV1vXJcOFyMpFeWfG/aqf
+         0oY6YmG0GlTy7RMtrTBCOK4au6u1l4elzXHz33lgmPOuZqh8aSYysaAiwe6GLviEOpdu
+         JRS85Wj5xP+HaKy9H37EnqpX0P6kLVZvlSB9rMgIOnAugCvxGze+WVkXcLcsuJlMp/yl
+         WBGmnpBEMFpyIcsjjHpfSIm2Ft9MJ7N3/IVLYC0ybVI4qtFEyBmjk06XTROFdmwDR0Pj
+         q+rw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
          :user-agent:date:message-id:from:references:cc:to:subject
          :dkim-signature;
-        bh=R5T3JdF3uAoxSggzlvhNs2X88sgTBZ7bfNPEjr5/PdE=;
-        b=uiG7ytHIvGWGa9I0/RK1+GgCCQq+xDUN3hWagp1qPszLwhoFNOx7B05n/3ZARaSyCR
-         YG2QUVF4hyUO5d/jKxDq5AKfm8U1e8ZMhrYyjAZOQItuRYpPoLBWhbMsky3nMVm9m4UE
-         m1RKhpF00IJW7ApnPjvury1dOkiroY7DB+S1/jdneLhfLZbC9NeZo6tM1vvniCCOGHdg
-         GbOh85UOX/BRfwDKSyakDAU/ntd+g2yKWGpoMfYsK6ZjW92lDsY/QIPXNYEblrSkpXT2
-         DkG/+8dNMDNjjlbz9MDaaYWsCjUlNblDFk80Iyo1ykEGzPLNQvGzMTK7ezV3liGoB0f5
-         GqaA==
+        bh=Q/Uw5dIsHFTudDNvgVGgrJz9lD9sd+Kaa8O2sHnXsmw=;
+        b=OeL+PDXkGGP9ca/A+m4A51TgP3qGvrFtbghCLqaYsm9TDPe4d3SZPxcH6wRCjLBN0b
+         bbLKypqgr9Zb2H8Ib00Hw4O2NNlWZDiKwpCQ0IYFcL+1mnYboEvajylQF/heV/0lKmOr
+         VPIU3qspVtZa4qiT/KEOZp7Zze9VufmTS/XAWvn9xvh7YrUvF3KeBD0Mrd8mX6z87OaY
+         Jud7NSedka2CtCQOXG996edQCJEZCDdKhfvoC/79DFjF40eBQhnEv4ujO/MFaimEUam7
+         DUmZuzJQaGlltKRphx9mKMPmtJWipByYOcJl8b6L9wCByRDq6o4ypBciNLoRoQPCY2uR
+         q2Hw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=FVfMkcgg;
+       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=cmJgo3I5;
        spf=pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=rdunlap@infradead.org
 Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id p13si16155576ioh.18.2019.07.06.08.30.06
+        by mx.google.com with ESMTPS id e14si15649696ios.20.2019.07.06.08.32.21
         for <linux-mm@kvack.org>
         (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Sat, 06 Jul 2019 08:30:07 -0700 (PDT)
+        Sat, 06 Jul 2019 08:32:21 -0700 (PDT)
 Received-SPF: pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) client-ip=2001:8b0:10b:1231::1;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=FVfMkcgg;
+       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=cmJgo3I5;
        spf=pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=rdunlap@infradead.org
 DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	d=infradead.org; s=merlin.20170209; h=Content-Transfer-Encoding:Content-Type:
@@ -87,16 +87,16 @@ DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	:Reply-To:Content-ID:Content-Description:Resent-Date:Resent-From:
 	Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:List-Help:
 	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	bh=R5T3JdF3uAoxSggzlvhNs2X88sgTBZ7bfNPEjr5/PdE=; b=FVfMkcggaArI6Rrc6O+/xTAlkz
-	rdcq0dibJ5ZhFhfnlrZfRI4O7PCUETe4XxNS+sPGXlKZZhKmJrubnyzs3KpZV2acwXKXoaaPNL3NK
-	YxOrfw10/Tu5j/fST3C0r9bS+RFzCcpbp2EvNY0NJMB7Hst0+6V/g+QcNi7NT9m3Dj/KoyWiF568i
-	mP5sj1aDAYlF85pd9UNKMGjKJsKutGTc6MpknFrzOvLcMGpjeCxV++nNHz0sNB6yv+sNAI8YdLfRz
-	oLAc0Jek9i95iKaZN+OoAFxWqlFDw0Ar4L2KzLdHRXTwh6j2NC3S5IxWPWUT7GG1JuS73FwiVgdbo
-	f8WNQGUg==;
+	bh=Q/Uw5dIsHFTudDNvgVGgrJz9lD9sd+Kaa8O2sHnXsmw=; b=cmJgo3I5TzZVReZe18xORp8oxP
+	VXY4xNfqtX2mnXvoN/6ZEpFJNjR9dviNSO7LpOBOvXrbcTA9HelIkGn2GEfsOomvE11BQ3jWcK4Ng
+	igvVajyszClx57PmbMHN/yeS3vriO30/nDt2jk/M11usjctitA7eVWBJPGE7eglxLDy738JqLqM93
+	E0jRy/EdKzzOr0Vie7pv4vCQjYbGTyIVL23duY59LFdKPtiT0J7mmWXCWTUTtsQMGuCsaS2jxcHsC
+	W+5Gys7PPNHitASuKSwYx5KvL32myUym+NFbDVrTIne5ykAP5n0trGhDacbe/h+B2QN17BBiPExzb
+	5edt6X1w==;
 Received: from static-50-53-52-16.bvtn.or.frontiernet.net ([50.53.52.16] helo=midway.dunlab)
 	by merlin.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
-	id 1hjmcu-00015N-Sh; Sat, 06 Jul 2019 15:29:25 +0000
-Subject: Re: [PATCH v5 02/12] S.A.R.A.: create framework
+	id 1hjmfQ-00017D-Aw; Sat, 06 Jul 2019 15:32:00 +0000
+Subject: Re: [PATCH v5 08/12] S.A.R.A.: trampoline emulation
 To: Salvatore Mesoraca <s.mesoraca16@gmail.com>, linux-kernel@vger.kernel.org
 Cc: kernel-hardening@lists.openwall.com, linux-mm@kvack.org,
  linux-security-module@vger.kernel.org,
@@ -108,14 +108,14 @@ Cc: kernel-hardening@lists.openwall.com, linux-mm@kvack.org,
  Kees Cook <keescook@chromium.org>, PaX Team <pageexec@freemail.hu>,
  "Serge E. Hallyn" <serge@hallyn.com>, Thomas Gleixner <tglx@linutronix.de>
 References: <1562410493-8661-1-git-send-email-s.mesoraca16@gmail.com>
- <1562410493-8661-3-git-send-email-s.mesoraca16@gmail.com>
+ <1562410493-8661-9-git-send-email-s.mesoraca16@gmail.com>
 From: Randy Dunlap <rdunlap@infradead.org>
-Message-ID: <4d85d8f3-b6be-04fe-ea5e-de47c9441f11@infradead.org>
-Date: Sat, 6 Jul 2019 08:29:22 -0700
+Message-ID: <28431b5d-c34c-a54b-acbf-70d1ae635e0d@infradead.org>
+Date: Sat, 6 Jul 2019 08:31:58 -0700
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.7.2
 MIME-Version: 1.0
-In-Reply-To: <1562410493-8661-3-git-send-email-s.mesoraca16@gmail.com>
+In-Reply-To: <1562410493-8661-9-git-send-email-s.mesoraca16@gmail.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
@@ -125,61 +125,42 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
-
 On 7/6/19 3:54 AM, Salvatore Mesoraca wrote:
 > diff --git a/security/sara/Kconfig b/security/sara/Kconfig
-> new file mode 100644
-> index 0000000..0456220
-> --- /dev/null
+> index 54a96e0..458e0e8 100644
+> --- a/security/sara/Kconfig
 > +++ b/security/sara/Kconfig
-> @@ -0,0 +1,40 @@
-> +menuconfig SECURITY_SARA
-> +	bool "S.A.R.A."
-> +	depends on SECURITY
-> +	select SECURITYFS
-> +	default n
-
-No need for "default n".  Drop it, please.
-
-> +	help
-> +	  This selects S.A.R.A. LSM which aims to collect heterogeneous
-> +	  security measures providing a common interface to manage them.
-> +	  This LSM will always be stacked with the selected primary LSM and
-> +	  other stacked LSMs.
-> +	  Further information can be found in
-> +	  Documentation/admin-guide/LSM/SARA.rst.
-> +
-> +	  If unsure, answer N.
-> +
-> +config SECURITY_SARA_DEFAULT_DISABLED
-> +	bool "S.A.R.A. will be disabled at boot."
-> +	depends on SECURITY_SARA
-> +	default n
-> +	help
-> +	  If you say Y here, S.A.R.A. will not be enabled at startup. You can
-> +	  override this option at boot time via "sara.enabled=[1|0]" kernel
-> +	  parameter or via user-space utilities.
-> +	  This option is useful for distro kernels.
-> +
-> +	  If unsure, answer N.
-> +
-> +config SECURITY_SARA_NO_RUNTIME_ENABLE
-> +	bool "S.A.R.A. can be turn on only at boot time."
-
-	               can be turned on
-
-> +	depends on SECURITY_SARA_DEFAULT_DISABLED
+> @@ -117,6 +117,24 @@ choice
+>  		  Documentation/admin-guide/LSM/SARA.rst.
+>  endchoice
+>  
+> +config SECURITY_SARA_WXPROT_EMUTRAMP
+> +	bool "Enable emulation for some types of trampolines"
+> +	depends on SECURITY_SARA_WXPROT
+> +	depends on ARCH_HAS_LSM_PAGEFAULT
+> +	depends on X86
 > +	default y
 > +	help
-> +	  By enabling this option it won't be possible to turn on S.A.R.A.
-> +	  at runtime via user-space utilities. However it can still be
-> +	  turned on at boot time via the "sara.enabled=1" kernel parameter.
-> +	  This option is functionally equivalent to "sara.enabled=0" kernel
-> +	  parameter. This option is useful for distro kernels.
+> +	  Some programs and libraries need to execute special small code
+> +	  snippets from non-executable memory pages.
+> +	  Most notable examples are the GCC and libffi trampolines.
+> +	  This features make it possible to execute those trampolines even
+
+	  This feature makes it possible
+
+> +	  if they reside in non-executable memory pages.
+> +	  This features need to be enabled on a per-executable basis
+
+	  This feature needs to be
+
+> +	  via user-space utilities.
+> +	  See Documentation/admin-guide/LSM/SARA.rst. for further information.
 > +
-> +	  If unsure, answer Y.
+> +	  If unsure, answer y.
 > +
+>  config SECURITY_SARA_WXPROT_DISABLED
+>  	bool "WX protection will be disabled at boot."
+>  	depends on SECURITY_SARA_WXPROT
 
 
 -- 
