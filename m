@@ -2,102 +2,102 @@ Return-Path: <SRS0=LAVX=VD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-10.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+X-Spam-Status: No, score=-7.2 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,GAPPY_SUBJECT,
 	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+	SPF_HELO_NONE,SPF_PASS,UNWANTED_LANGUAGE_BODY,USER_AGENT_GIT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1F86DC468AE
-	for <linux-mm@archiver.kernel.org>; Sat,  6 Jul 2019 10:55:38 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E2D66C0650E
+	for <linux-mm@archiver.kernel.org>; Sat,  6 Jul 2019 10:55:40 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BBF2421670
-	for <linux-mm@archiver.kernel.org>; Sat,  6 Jul 2019 10:55:37 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 9E4A021670
+	for <linux-mm@archiver.kernel.org>; Sat,  6 Jul 2019 10:55:40 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="ZLNuz0c2"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BBF2421670
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="thNRn6TJ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9E4A021670
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5E6C98E0008; Sat,  6 Jul 2019 06:55:26 -0400 (EDT)
+	id 12CF28E0009; Sat,  6 Jul 2019 06:55:27 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5710E8E0006; Sat,  6 Jul 2019 06:55:26 -0400 (EDT)
+	id 0B6A88E0006; Sat,  6 Jul 2019 06:55:26 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3EF038E0008; Sat,  6 Jul 2019 06:55:26 -0400 (EDT)
+	id DD3C08E0009; Sat,  6 Jul 2019 06:55:26 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D27828E0006
-	for <linux-mm@kvack.org>; Sat,  6 Jul 2019 06:55:25 -0400 (EDT)
-Received: by mail-wr1-f70.google.com with SMTP id i6so5006273wre.1
-        for <linux-mm@kvack.org>; Sat, 06 Jul 2019 03:55:25 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 928B98E0006
+	for <linux-mm@kvack.org>; Sat,  6 Jul 2019 06:55:26 -0400 (EDT)
+Received: by mail-wr1-f70.google.com with SMTP id v7so5018543wrt.6
+        for <linux-mm@kvack.org>; Sat, 06 Jul 2019 03:55:26 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references;
-        bh=yTf2cEJ/R1sIWwnnsJBizfOJ+ZTQkKILtxUL3GoVlWE=;
-        b=aeQLOLZTxmlH7UjeMQ76maTA9fY35/PbF3psy+yQFiDc6qmYB+cN7hKHsH8HRy8WjS
-         1gGd5pZfsTg1lhGOapDOw+ia2VBWgBnxWdF0KqAc48RfS1w4aCiZQMfn4oI8pVXjP/SD
-         gqX6M/x831Z3H19/6DyFCK3aMgOxszmKKkQ8hgbNZoWe/82ZL7FwOWN2RtwA+lvx/t7G
-         cS6WN804+y+iO4c6w4wwY1RW8cCKD6Nr9rYzJPm9CgbsYvrnDyDibDCAyFvP1MK7LwJk
-         jE5Kr+x3Mdx0be2VZZKShpWZve1YtzeaEbfKArsWvOMm725TSj4h/YJLdDz2VT4+P3yR
-         vd+Q==
-X-Gm-Message-State: APjAAAU1lJ9FsS39TvOU/5g5iMnBU7vLHaI3zVHlLL1euQorhJ07l2Ed
-	5BnnE/KG4bU80FUOT1QgZYd4zjs5slYg5T/uoH6JFF1fHTqkdx9+VaCGuK44PvAzOoUTTQvoauc
-	5PviLf4vFJKjWvCQWLd5mnzypi0O35U8IFqA8g81K3Tc8brj1XymYDVrfwle490qCTA==
-X-Received: by 2002:adf:f686:: with SMTP id v6mr8413231wrp.238.1562410525394;
-        Sat, 06 Jul 2019 03:55:25 -0700 (PDT)
-X-Received: by 2002:adf:f686:: with SMTP id v6mr8413097wrp.238.1562410523678;
-        Sat, 06 Jul 2019 03:55:23 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562410523; cv=none;
+        bh=u2RjwdUFNE3OIK/3bCmlFikIsAzp11hkr0vwILrcAOk=;
+        b=gAY05uIpzZGZZgiyEf+ykyDCyIqAUo2czs325YrStu6APeW7JzIY259QAhzPLMuuhr
+         MQvtiQVOz3uru+9LIG8P9/kl8OLVtEPibPze10lLtYwwggt4u78sX5Qi46kzhYNYTFHE
+         317YKRvqExE3hpg935ZLl8IxTFWPTAiT/5xlqrUYNMuTsVNGDhZ4d4Hr7R46HDSWn3pj
+         I2A0cSQe+w7EF9SCpsgdHyvx7TXgDyECuBhD60QHM3zuKr4tcLm6D3+kK+loR+JmyBn6
+         JvVfQGD91lKR8J8PmbTtaliUpU5O7VRxrVQD8ZlXnw+CF6Ig2cBIfwHaRkWDu1oFhDv8
+         a6kg==
+X-Gm-Message-State: APjAAAUKEfHNkwHWzGogGeuUXJ7/bYU+VvkiY9q8vjAC5PpXRnkOhIKj
+	jWkXzCZ1fKP1fjUujehebFOZSU+xZuUcRq+tFuQtsSNgxwPaqbSTY6CLLyMig8hxhnltsoSZuS5
+	9R8fBoc2fEK95PdtLEpr5/ne96voGyQoYmaQYrWYnt/NczjJIaUZV74VUo0uhGBXhKA==
+X-Received: by 2002:adf:e941:: with SMTP id m1mr8891630wrn.279.1562410526181;
+        Sat, 06 Jul 2019 03:55:26 -0700 (PDT)
+X-Received: by 2002:adf:e941:: with SMTP id m1mr8891517wrn.279.1562410524783;
+        Sat, 06 Jul 2019 03:55:24 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562410524; cv=none;
         d=google.com; s=arc-20160816;
-        b=YdUVy/tJaG7JIorhN3Y1QLyLBi97C/MEojzYwSw3dvU+QVZto+IQw+8RCb8ayZ2GmE
-         b2HJTrGXGGc5QCM8Togjnws6XS4yHbIa0lI9uky7Qupg3lf64585GQeB2VwPMTGE4hTz
-         NCRvJ4A2z2F8IXXoAXA6TABGokVWh4c5LLKGdfVQ20lKFOdXlvOPXK/MfVAv63WG/YrH
-         QnwNJRxgXcbHWQyzVyUCVfUxTybd78Udg0mNFmCIliYhp6x7S2A248tY+MQIFD1f/pf7
-         0ac7bE6rcegDYMsnBciwNJQRemayayTSzDAuQi66g4oTo+K2nSJCitU4w9P2lWq03jfa
-         NcLQ==
+        b=V6od/aS5QadXzwXCTzTbiiRn8mbIvQb7J26b24F26Vn0uuGHYBoa2thXNamvbYJjLJ
+         Ngh+LheUrnd9S+WnM3IjCKre0AVerAJxyZPtnnszR2LJ9hiwfcsF7JmThcqYsul4dfnY
+         SAdV0pHOAMcFWbxGDSv+kKOq34OMi9MV+OZjFrIYeN8L2WAETdAcGthPGqu6w0GcPpYf
+         LeD6eY3BelDPlkDyTC3yOuQKr289vwI0kUje52PHwAGNbdZ3uTTONzvB0oCI2XcPU/+S
+         8px9Rb6CEIxfFnPl6Eb7aM6j6JQd6QjniXnxWy1y/2F0+3Nxugry94cPKkNbwSZXRJJv
+         oAlw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from
          :dkim-signature;
-        bh=yTf2cEJ/R1sIWwnnsJBizfOJ+ZTQkKILtxUL3GoVlWE=;
-        b=SPcejN0r7xIgnJjp0Qo5+Dwm9zX3UoO6+vVHREapnKg4e3xb/D7EixIIWnTDc3RPYB
-         53/Gm+h01uFKEpEUu5/aCs+fFIoTr9RYrQ1MZqjR/MZXzWfJEJ+rUTfRu04yUb93XmTZ
-         skvZGcet+l9otIvjXrDjN8dppQmNAGAcgx5GJA6ZxJS5JG/3c/+f2q4VE5uNInOUtOeh
-         LABtnq+MdZZTZTnhyRkUsUpdOo1WeYZC5FH36pFEpp2DSVIcr19XqCMwWZpQ9tPjgDPX
-         2ua5qyH7XpiaVg6D1MjY2gUKwI0xq99oBJFIgARFb/g2L7PnzARG/PIdKrfQ7Q6xytRs
-         YgqA==
+        bh=u2RjwdUFNE3OIK/3bCmlFikIsAzp11hkr0vwILrcAOk=;
+        b=KAwpwUISUwYf+m3MIxGJreFb/w3ImG0Kj2AlT4aFA/JSaHez+M4vcpArua/QTH3qgI
+         wABI/NTzUl3pF7f6VkV0pmUTYvFx+Yf4ESFebOYt6uwuFzo7jXx/MVfheAtKMF+s5PUn
+         oEsGN0k8i2s5Kv7bO1LkS8y0j9TGNpqz9tz7ZMpBlQfEYg769ZHWphgTyyUnEaTlFM2X
+         NUqyilUAF2JH69D54O05ssxK3pNi1LMOjLy7X0EH6kJIOg0gAqA3tnnAagXGF1vbzXuw
+         tYEuDnyWt4gK18GYly66jNLamXOKCmq2DW/K5a44hbRM/8osAP0azAMytbxCf8w5Q2U9
+         fbrA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=ZLNuz0c2;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=thNRn6TJ;
        spf=pass (google.com: domain of s.mesoraca16@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=s.mesoraca16@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id e9sor8656893wrx.37.2019.07.06.03.55.23
+        by mx.google.com with SMTPS id i126sor2555623wmg.5.2019.07.06.03.55.24
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sat, 06 Jul 2019 03:55:23 -0700 (PDT)
+        Sat, 06 Jul 2019 03:55:24 -0700 (PDT)
 Received-SPF: pass (google.com: domain of s.mesoraca16@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=ZLNuz0c2;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=thNRn6TJ;
        spf=pass (google.com: domain of s.mesoraca16@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=s.mesoraca16@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
         h=from:to:cc:subject:date:message-id:in-reply-to:references;
-        bh=yTf2cEJ/R1sIWwnnsJBizfOJ+ZTQkKILtxUL3GoVlWE=;
-        b=ZLNuz0c29GG+6CNJGcOAjeOlpRMP9h7O99Pi/gakDKFGU3lhhHikq8a99CInc2k/XO
-         x6Aq3KQ16oEDc3jolc38IPHfVlXaurELUSiUDHn05p6lfOFDkkvsNRWEIR/u9OIqM0Iv
-         HtbBQ2B/Kq1vvvG4gn4LbVxWfdc/sXmvb7bh25PrgcUiOFGqI5qzgRkWR5JJ3qB8it29
-         nt6KXK7N3DC9FtosDIw8Yw2FSs9KbQjD6zMPBftq1aXOG2YvtlhuzxNjQd3NYN3DSsHP
-         AO1doaXc1DmHasyn5SSmlIyHvB5/T78+l9uWIWn6bgSiY0WNtJcA4pqYF4yEJgMx128n
-         jwQQ==
-X-Google-Smtp-Source: APXvYqy4CMl5RxszjxSvrEAMWtejw7CVXkEcAJC69QuAF9VdqwZsgSkOM4PQR4vCXHHgIdQEtRBcQw==
-X-Received: by 2002:adf:e483:: with SMTP id i3mr7749477wrm.210.1562410523298;
-        Sat, 06 Jul 2019 03:55:23 -0700 (PDT)
+        bh=u2RjwdUFNE3OIK/3bCmlFikIsAzp11hkr0vwILrcAOk=;
+        b=thNRn6TJGPSAjqCTr1tPi/WxernvhpJlmpA3TOqpdYJiE30WEHmKtQQLBhQkPRLOPw
+         6LdBMJiwQeRDj45LsQ+CyPeBPtz6Sm/DVPA/1jFuQwsFGykkDeEEAkecFk+eI93fAHD1
+         qYlH4joBKaM50/AAsI6LhYNjkSKoWjJohjBdSbGLIHp32dQu3tN7YZr1eYxcsB+bqXUy
+         bX3ZLkExfr5FGb8+TAw/oOIVBNNg7ayqAkWV/3r6PYpzR3qHiM4xg4ORrndOJWzJXK+K
+         OUQHzEOkfBbfQCpO4tDaUbNknqB74EkTe516YzXQIsCHfecezahJQP/7fVtAx2XeBD7c
+         +9Fw==
+X-Google-Smtp-Source: APXvYqxxhkCkToEoUM8bgIOUXQl0J7gFqXqis0ZuQI5jP94wYx8vI8XERZcndoRkmUp3pDS0ZQ935g==
+X-Received: by 2002:a1c:5f87:: with SMTP id t129mr8243038wmb.150.1562410524445;
+        Sat, 06 Jul 2019 03:55:24 -0700 (PDT)
 Received: from localhost (net-93-71-3-102.cust.vodafonedsl.it. [93.71.3.102])
-        by smtp.gmail.com with ESMTPSA id h11sm12578794wrx.93.2019.07.06.03.55.21
+        by smtp.gmail.com with ESMTPSA id h11sm12578794wrx.93.2019.07.06.03.55.23
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Sat, 06 Jul 2019 03:55:22 -0700 (PDT)
+        Sat, 06 Jul 2019 03:55:23 -0700 (PDT)
 From: Salvatore Mesoraca <s.mesoraca16@gmail.com>
 To: linux-kernel@vger.kernel.org
 Cc: kernel-hardening@lists.openwall.com,
@@ -114,9 +114,9 @@ Cc: kernel-hardening@lists.openwall.com,
 	Salvatore Mesoraca <s.mesoraca16@gmail.com>,
 	"Serge E. Hallyn" <serge@hallyn.com>,
 	Thomas Gleixner <tglx@linutronix.de>
-Subject: [PATCH v5 10/12] S.A.R.A.: XATTRs support
-Date: Sat,  6 Jul 2019 12:54:51 +0200
-Message-Id: <1562410493-8661-11-git-send-email-s.mesoraca16@gmail.com>
+Subject: [PATCH v5 11/12] S.A.R.A.: /proc/*/mem write limitation
+Date: Sat,  6 Jul 2019 12:54:52 +0200
+Message-Id: <1562410493-8661-12-git-send-email-s.mesoraca16@gmail.com>
 X-Mailer: git-send-email 1.9.1
 In-Reply-To: <1562410493-8661-1-git-send-email-s.mesoraca16@gmail.com>
 References: <1562410493-8661-1-git-send-email-s.mesoraca16@gmail.com>
@@ -126,291 +126,163 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Adds support for extended filesystem attributes in security and user
-namespaces. They can be used to override flags set via the centralized
-configuration, even when S.A.R.A. configuration is locked or saractl
-is not used at all.
+Prevent a task from opening, in "write" mode, any /proc/*/mem
+file that operates on the task's mm.
+A process could use it to overwrite read-only memory, bypassing
+S.A.R.A. restrictions.
 
 Signed-off-by: Salvatore Mesoraca <s.mesoraca16@gmail.com>
 ---
- Documentation/admin-guide/LSM/SARA.rst          | 20 +++++
- Documentation/admin-guide/kernel-parameters.txt | 16 ++++
- include/uapi/linux/xattr.h                      |  4 +
- security/sara/Kconfig                           | 22 ++++++
- security/sara/wxprot.c                          | 99 +++++++++++++++++++++++++
- 5 files changed, 161 insertions(+)
+ security/sara/include/sara_data.h | 18 ++++++++++++++++-
+ security/sara/sara_data.c         |  8 ++++++++
+ security/sara/wxprot.c            | 41 +++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 66 insertions(+), 1 deletion(-)
 
-diff --git a/Documentation/admin-guide/LSM/SARA.rst b/Documentation/admin-guide/LSM/SARA.rst
-index fdde04c..47d9364 100644
---- a/Documentation/admin-guide/LSM/SARA.rst
-+++ b/Documentation/admin-guide/LSM/SARA.rst
-@@ -55,6 +55,8 @@ WX Protection. In particular:
- To extend the scope of the above features, despite the issues that they may
- cause, they are complemented by **/proc/PID/attr/sara/wxprot** interface
- and **trampoline emulation**.
-+It's also possible to override the centralized configuration via `Extended
-+filesystem attributes`_.
+diff --git a/security/sara/include/sara_data.h b/security/sara/include/sara_data.h
+index 9216c47..ee95f74 100644
+--- a/security/sara/include/sara_data.h
++++ b/security/sara/include/sara_data.h
+@@ -15,6 +15,7 @@
+ #define __SARA_DATA_H
  
- At the moment, WX Protection (unless specified otherwise) should work on
- any architecture supporting the NX bit, including, but not limited to:
-@@ -123,6 +125,24 @@ in your project or copy/paste parts of it.
- To make things simpler `libsara` is the only part of S.A.R.A. released under
- *CC0 - No Rights Reserved* license.
- 
-+Extended filesystem attributes
-+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-+When this functionality is enabled, it's possible to override
-+WX Protection flags set in the main configuration via extended attributes,
-+even when S.A.R.A.'s configuration is in "locked" mode.
-+If the user namespace is also enabled, its attributes will override settings
-+configured via the security namespace.
-+The xattrs currently in use are:
-+
-+- security.sara.wxprot
-+- user.sara.wxprot
-+
-+They can be manually set to the desired value as a decimal, hexadecimal or
-+octal number. When this functionality is enabled, S.A.R.A. can be easily used
-+without the help of its userspace tools. Though the preferred way to change
-+these attributes is `sara-xattr` which is part of `saractl` [2]_.
-+
-+
- Trampoline emulation
- ^^^^^^^^^^^^^^^^^^^^
- Some programs need to generate part of their code at runtime. Luckily enough,
-diff --git a/Documentation/admin-guide/kernel-parameters.txt b/Documentation/admin-guide/kernel-parameters.txt
-index 3d6e86d..af40f1b 100644
---- a/Documentation/admin-guide/kernel-parameters.txt
-+++ b/Documentation/admin-guide/kernel-parameters.txt
-@@ -4254,6 +4254,22 @@
- 			See S.A.R.A. documentation.
- 			Default value is set via kernel config option.
- 
-+	sara.wxprot_xattrs_enabled= [SARA]
-+			Enable support for security xattrs.
-+			Format: { "0" | "1" }
-+			See security/sara/Kconfig help text
-+			0 -- disable.
-+			1 -- enable.
-+			Default value is set via kernel config option.
-+
-+	sara.wxprot_xattrs_user= [SARA]
-+			Enable support for user xattrs.
-+			Format: { "0" | "1" }
-+			See security/sara/Kconfig help text
-+			0 -- disable.
-+			1 -- enable.
-+			Default value is set via kernel config option.
-+
- 	serialnumber	[BUGS=X86-32]
- 
- 	shapers=	[NET]
-diff --git a/include/uapi/linux/xattr.h b/include/uapi/linux/xattr.h
-index c1395b5..45c0333 100644
---- a/include/uapi/linux/xattr.h
-+++ b/include/uapi/linux/xattr.h
-@@ -77,5 +77,9 @@
- #define XATTR_POSIX_ACL_DEFAULT  "posix_acl_default"
- #define XATTR_NAME_POSIX_ACL_DEFAULT XATTR_SYSTEM_PREFIX XATTR_POSIX_ACL_DEFAULT
- 
-+#define XATTR_SARA_SUFFIX "sara."
-+#define XATTR_SARA_WXP_SUFFIX XATTR_SARA_SUFFIX "wxp"
-+#define XATTR_NAME_SEC_SARA_WXP XATTR_SECURITY_PREFIX XATTR_SARA_WXP_SUFFIX
-+#define XATTR_NAME_USR_SARA_WXP XATTR_USER_PREFIX XATTR_SARA_WXP_SUFFIX
- 
- #endif /* _UAPI_LINUX_XATTR_H */
-diff --git a/security/sara/Kconfig b/security/sara/Kconfig
-index 458e0e8..773256b 100644
---- a/security/sara/Kconfig
-+++ b/security/sara/Kconfig
-@@ -135,6 +135,28 @@ config SECURITY_SARA_WXPROT_EMUTRAMP
- 
- 	  If unsure, answer y.
- 
-+config SECURITY_SARA_WXPROT_XATTRS_ENABLED
-+	bool "xattrs support enabled by default."
-+	depends on SECURITY_SARA_WXPROT
-+	default n
-+	help
-+	  If you say Y here it will be possible to override WX protection
-+	  configuration via extended attributes in the security namespace.
-+	  Even when S.A.R.A.'s configuration has been locked.
-+
-+	  If unsure, answer N.
-+
-+config CONFIG_SECURITY_SARA_WXPROT_XATTRS_USER
-+	bool "'user' namespace xattrs support enabled by default."
-+	depends on SECURITY_SARA_WXPROT_XATTRS_ENABLED
-+	default n
-+	help
-+	  If you say Y here it will be possible to override WX protection
-+	  configuration via extended attributes in the user namespace.
-+	  Even when S.A.R.A.'s configuration has been locked.
-+
-+	  If unsure, answer N.
-+
- config SECURITY_SARA_WXPROT_DISABLED
- 	bool "WX protection will be disabled at boot."
- 	depends on SECURITY_SARA_WXPROT
-diff --git a/security/sara/wxprot.c b/security/sara/wxprot.c
-index 84f7b1e..773d1fd 100644
---- a/security/sara/wxprot.c
-+++ b/security/sara/wxprot.c
-@@ -25,6 +25,7 @@
- #include <linux/printk.h>
- #include <linux/ratelimit.h>
+ #include <linux/cred.h>
++#include <linux/fs.h>
+ #include <linux/init.h>
+ #include <linux/lsm_hooks.h>
  #include <linux/spinlock.h>
-+#include <linux/xattr.h>
- 
- #include "include/dfa.h"
- #include "include/sara.h"
-@@ -82,6 +83,18 @@ struct wxprot_config_container {
- static const bool wxprot_emutramp;
- #endif
- 
-+#ifdef CONFIG_SECURITY_SARA_WXPROT_XATTRS_ENABLED
-+static int wxprot_xattrs_enabled __read_mostly = true;
-+#else
-+static int wxprot_xattrs_enabled __read_mostly;
-+#endif
-+
-+#ifdef CONFIG_SECURITY_SARA_WXPROT_XATTRS_USER
-+static int wxprot_xattrs_user __read_mostly = true;
-+#else
-+static int wxprot_xattrs_user __read_mostly;
-+#endif
-+
- static void pr_wxp(char *msg)
- {
- 	char *buf, *path;
-@@ -133,6 +146,14 @@ static bool are_flags_valid(u16 flags)
- MODULE_PARM_DESC(wxprot_enabled,
- 		 "Disable or enable S.A.R.A. WX Protection at boot time.");
- 
-+module_param(wxprot_xattrs_enabled, int, 0);
-+MODULE_PARM_DESC(wxprot_xattrs_enabled,
-+		 "Disable or enable S.A.R.A. WXP extended attributes interfaces.");
-+
-+module_param(wxprot_xattrs_user, int, 0);
-+MODULE_PARM_DESC(wxprot_xattrs_user,
-+		 "Allow normal users to override S.A.R.A. WXP settings via extended attributes.");
-+
- static int param_set_wxpflags(const char *val, const struct kernel_param *kp)
- {
- 	u16 flags;
-@@ -236,6 +257,65 @@ static inline int is_relro_page(const struct vm_area_struct *vma)
- }
- 
- /*
-+ * Extended attributes handling
-+ */
-+static int sara_wxprot_xattrs_name(struct dentry *d,
-+				   const char *name,
-+				   u16 *flags)
-+{
-+	int rc;
-+	char buffer[10];
-+	u16 tmp;
-+
-+	if (!(d->d_inode->i_opflags & IOP_XATTR))
-+		return -EOPNOTSUPP;
-+
-+	rc = __vfs_getxattr(d, d->d_inode, name, buffer, sizeof(buffer) - 1);
-+	if (rc > 0) {
-+		buffer[rc] = '\0';
-+		rc = kstrtou16(buffer, 0, &tmp);
-+		if (rc)
-+			return rc;
-+		if (!are_flags_valid(tmp))
-+			return -EINVAL;
-+		*flags = tmp;
-+		return 0;
-+	} else if (rc < 0)
-+		return rc;
-+
-+	return -ENODATA;
-+}
-+
-+#define sara_xattrs_may_return(RC, XATTRNAME, FNAME) do {	\
-+	if (RC == -EINVAL || RC == -ERANGE)			\
-+		pr_info_ratelimited(				\
-+			"WXP: malformed xattr '%s' on '%s'\n",	\
-+			XATTRNAME,				\
-+			FNAME);					\
-+	else if (RC == 0)					\
-+		return 0;					\
-+} while (0)
-+
-+static inline int sara_wxprot_xattrs(struct dentry *d,
-+				     u16 *flags)
-+{
-+	int rc;
-+
-+	if (!wxprot_xattrs_enabled)
-+		return 1;
-+	if (wxprot_xattrs_user) {
-+		rc = sara_wxprot_xattrs_name(d, XATTR_NAME_USR_SARA_WXP,
-+					     flags);
-+		sara_xattrs_may_return(rc, XATTR_NAME_USR_SARA_WXP,
-+				       d->d_name.name);
-+	}
-+	rc = sara_wxprot_xattrs_name(d, XATTR_NAME_SEC_SARA_WXP, flags);
-+	sara_xattrs_may_return(rc, XATTR_NAME_SEC_SARA_WXP, d->d_name.name);
-+	return 1;
-+}
-+
-+
-+/*
-  * LSM hooks
-  */
- static int sara_bprm_set_creds(struct linux_binprm *bprm)
-@@ -259,6 +339,10 @@ static int sara_bprm_set_creds(struct linux_binprm *bprm)
- 	if (!sara_enabled || !wxprot_enabled)
- 		return 0;
- 
-+	if (sara_wxprot_xattrs(bprm->file->f_path.dentry,
-+			       &sara_wxp_flags) == 0)
-+		goto flags_set;
-+
- 	/*
- 	 * SARA_WXP_TRANSFER means that the parent
- 	 * wants this child to inherit its flags.
-@@ -283,6 +367,7 @@ static int sara_bprm_set_creds(struct linux_binprm *bprm)
- 	} else
- 		path = (char *) bprm->interp;
- 
-+flags_set:
- 	if (sara_wxp_flags != default_flags &&
- 	    sara_wxp_flags & SARA_WXP_VERBOSE)
- 		pr_debug_ratelimited("WXP: '%s' run with flags '0x%x'.\n",
-@@ -777,6 +862,10 @@ static int config_hash(char **buf)
- 
- static DEFINE_SARA_SECFS_BOOL_FLAG(wxprot_enabled_data,
- 				   wxprot_enabled);
-+static DEFINE_SARA_SECFS_BOOL_FLAG(wxprot_xattrs_enabled_data,
-+				   wxprot_xattrs_enabled);
-+static DEFINE_SARA_SECFS_BOOL_FLAG(wxprot_xattrs_user_data,
-+				   wxprot_xattrs_user);
- 
- static struct sara_secfs_fptrs fptrs __lsm_ro_after_init = {
- 	.load = config_load,
-@@ -820,6 +909,16 @@ static DEFINE_SARA_SECFS_BOOL_FLAG(wxprot_enabled_data,
- 		.type = SARA_SECFS_CONFIG_HASH,
- 		.data = &fptrs,
- 	},
-+	{
-+		.name = "xattr_enabled",
-+		.type = SARA_SECFS_BOOL,
-+		.data = (void *) &wxprot_xattrs_enabled_data,
-+	},
-+	{
-+		.name = "xattr_user_allowed",
-+		.type = SARA_SECFS_BOOL,
-+		.data = (void *) &wxprot_xattrs_user_data,
-+	},
+@@ -40,6 +41,10 @@ struct sara_shm_data {
+ 	spinlock_t	lock;
  };
  
++struct sara_inode_data {
++	struct task_struct *task;
++};
++
  
+ static inline struct sara_data *get_sara_data(const struct cred *cred)
+ {
+@@ -79,6 +84,17 @@ static inline struct sara_shm_data *get_sara_shm_data(
+ #define lock_sara_shm(X) (spin_lock(&get_sara_shm_data((X))->lock))
+ #define unlock_sara_shm(X) (spin_unlock(&get_sara_shm_data((X))->lock))
+ 
+-#endif
++
++static inline struct sara_inode_data *get_sara_inode_data(
++						const struct inode *inode)
++{
++	if (unlikely(!inode->i_security))
++		return NULL;
++	return inode->i_security + sara_blob_sizes.lbs_inode;
++}
++
++#define get_sara_inode_task(X) (get_sara_inode_data((X))->task)
++
++#endif /* CONFIG_SECURITY_SARA_WXPROT */
+ 
+ #endif /* __SARA_H */
+diff --git a/security/sara/sara_data.c b/security/sara/sara_data.c
+index 9afca37..e875cf0 100644
+--- a/security/sara/sara_data.c
++++ b/security/sara/sara_data.c
+@@ -17,6 +17,7 @@
+ #include <linux/cred.h>
+ #include <linux/lsm_hooks.h>
+ #include <linux/mm.h>
++#include <linux/slab.h>
+ #include <linux/spinlock.h>
+ 
+ static int sara_cred_prepare(struct cred *new, const struct cred *old,
+@@ -40,15 +41,22 @@ static int sara_shm_alloc_security(struct kern_ipc_perm *shp)
+ 	return 0;
+ }
+ 
++static void sara_task_to_inode(struct task_struct *t, struct inode *i)
++{
++	get_sara_inode_task(i) = t;
++}
++
+ static struct security_hook_list data_hooks[] __lsm_ro_after_init = {
+ 	LSM_HOOK_INIT(cred_prepare, sara_cred_prepare),
+ 	LSM_HOOK_INIT(cred_transfer, sara_cred_transfer),
+ 	LSM_HOOK_INIT(shm_alloc_security, sara_shm_alloc_security),
++	LSM_HOOK_INIT(task_to_inode, sara_task_to_inode),
+ };
+ 
+ struct lsm_blob_sizes sara_blob_sizes __lsm_ro_after_init = {
+ 	.lbs_cred = sizeof(struct sara_data),
+ 	.lbs_ipc = sizeof(struct sara_shm_data),
++	.lbs_inode = sizeof(struct sara_inode_data),
+ };
+ 
+ int __init sara_data_init(void)
+diff --git a/security/sara/wxprot.c b/security/sara/wxprot.c
+index 773d1fd..1a8d132 100644
+--- a/security/sara/wxprot.c
++++ b/security/sara/wxprot.c
+@@ -22,8 +22,11 @@
+ #include <linux/mm.h>
+ #include <linux/mman.h>
+ #include <linux/module.h>
++#include <linux/mount.h>
+ #include <linux/printk.h>
+ #include <linux/ratelimit.h>
++#include <linux/sched/mm.h>
++#include <linux/sched/task.h>
+ #include <linux/spinlock.h>
+ #include <linux/xattr.h>
+ 
+@@ -615,6 +618,43 @@ static int sara_file_mprotect(struct vm_area_struct *vma,
+ 	return 0;
+ }
+ 
++static int sara_file_open(struct file *file)
++{
++	struct task_struct *t;
++	struct mm_struct *mm;
++	u16 sara_wxp_flags = get_current_sara_wxp_flags();
++
++	/*
++	 * Prevent write access to /proc/.../mem
++	 * if it operates on the mm_struct of the
++	 * current process: it could be used to
++	 * bypass W^X.
++	 */
++
++	if (!sara_enabled ||
++	    !wxprot_enabled ||
++	    !(sara_wxp_flags & SARA_WXP_WXORX) ||
++	    !(file->f_mode & FMODE_WRITE))
++		return 0;
++
++	t = get_sara_inode_task(file_inode(file));
++	if (unlikely(t != NULL &&
++		     strcmp(file->f_path.dentry->d_name.name,
++			    "mem") == 0)) {
++		get_task_struct(t);
++		mm = get_task_mm(t);
++		put_task_struct(t);
++		if (unlikely(mm == current->mm))
++			sara_warn_or_goto(error,
++					  "write access to /proc/*/mem");
++		mmput(mm);
++	}
++	return 0;
++error:
++	mmput(mm);
++	return -EACCES;
++}
++
+ #ifdef CONFIG_SECURITY_SARA_WXPROT_EMUTRAMP
+ static int sara_pagefault_handler(struct pt_regs *regs,
+ 				  unsigned long error_code,
+@@ -778,6 +818,7 @@ static int sara_setprocattr(const char *name, void *value, size_t size)
+ 	LSM_HOOK_INIT(check_vmflags, sara_check_vmflags),
+ 	LSM_HOOK_INIT(shm_shmat, sara_shm_shmat),
+ 	LSM_HOOK_INIT(file_mprotect, sara_file_mprotect),
++	LSM_HOOK_INIT(file_open, sara_file_open),
+ #ifdef CONFIG_SECURITY_SARA_WXPROT_EMUTRAMP
+ 	LSM_HOOK_INIT(pagefault_handler, sara_pagefault_handler),
+ #endif
 -- 
 1.9.1
 
