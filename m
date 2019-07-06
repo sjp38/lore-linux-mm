@@ -7,100 +7,100 @@ X-Spam-Status: No, score=-8.5 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
 	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=no
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6D584C48BDA
-	for <linux-mm@archiver.kernel.org>; Sat,  6 Jul 2019 18:21:05 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 21792C48BD5
+	for <linux-mm@archiver.kernel.org>; Sat,  6 Jul 2019 18:33:17 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 09B102070D
-	for <linux-mm@archiver.kernel.org>; Sat,  6 Jul 2019 18:21:04 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id DF33B20838
+	for <linux-mm@archiver.kernel.org>; Sat,  6 Jul 2019 18:33:16 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="UjWcfa2y"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 09B102070D
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="rMLJmYNu"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DF33B20838
 Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 532F66B0003; Sat,  6 Jul 2019 14:21:04 -0400 (EDT)
+	id 6D7418E0003; Sat,  6 Jul 2019 14:33:16 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4E3E08E0003; Sat,  6 Jul 2019 14:21:04 -0400 (EDT)
+	id 662088E0001; Sat,  6 Jul 2019 14:33:16 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 383B08E0001; Sat,  6 Jul 2019 14:21:04 -0400 (EDT)
+	id 528B18E0003; Sat,  6 Jul 2019 14:33:16 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 10E9F6B0003
-	for <linux-mm@kvack.org>; Sat,  6 Jul 2019 14:21:04 -0400 (EDT)
-Received: by mail-ot1-f70.google.com with SMTP id n19so6218911ota.14
-        for <linux-mm@kvack.org>; Sat, 06 Jul 2019 11:21:04 -0700 (PDT)
+Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 258C08E0001
+	for <linux-mm@kvack.org>; Sat,  6 Jul 2019 14:33:16 -0400 (EDT)
+Received: by mail-ot1-f72.google.com with SMTP id q16so6248090otn.11
+        for <linux-mm@kvack.org>; Sat, 06 Jul 2019 11:33:16 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=vjy9ZMLMCWdJezrwnUnOrpuuoAl0MqUTiwkUbUfsV0k=;
-        b=N2/Axj9IzlAna8SNVY1EG3HhQo+y0QZD3PwpINUqZVcevd+x4nWrEIBPNtXArdOL4k
-         0L40V9e7oZbu4vn0By8Mkam59M0VARyNH0M2d7YbhF5WAhQQyuSsneQlkSv763CMM2AD
-         3NBbF+6KXEO4soOycGVbdeFTgVB1TWi7HhFBioYHAv05uLpykobC8kVHZcG/rECdgQKU
-         lLuSj6NfBcXj5QNQGh7AJgHg5LeGyT4mDVl6SV+ctefDkBTjNhDeheS2ldaJ3x4AJXxh
-         F+XTfKrzVRvpC3uUEVopnO40ICphewTCxsITAi/ee2GxgALNkdG2bjbjWTMD/s/gcihD
-         THtQ==
-X-Gm-Message-State: APjAAAX0Lc7BJSQ2sEGNfEgUC7ODjrLrbrrKV+BqvFoyozHWxsThjvIc
-	nMzJykNIfk0Vn6RbO+lDAqUZ/TKL3tlppyd0AH2g96HUX+Sq85kM5oruwC/e5qO3T4/p4mrHAL3
-	YGQfSrv9OcgPHELbQnFa4xxOcyc7zhe8kU+5RqOWsefV9Gr7ZNm7jeZvoZiq2OBr5nQ==
-X-Received: by 2002:aca:f582:: with SMTP id t124mr5306218oih.71.1562437263588;
-        Sat, 06 Jul 2019 11:21:03 -0700 (PDT)
-X-Received: by 2002:aca:f582:: with SMTP id t124mr5306190oih.71.1562437262639;
-        Sat, 06 Jul 2019 11:21:02 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562437262; cv=none;
+        bh=L8R4z3fd/pNkVMb+89dxA4ui8k10ocj37Bt7whLaC1Q=;
+        b=kC4S6gXXXoTiNxvYTEisWTabOC6ByCRy0b3PtrINqr6Y1+X4d3CmhyIMs0kz1MLelq
+         6ZMXJ9t5fmUOB4jTqgFEL3r0kilXynnE8CFJYdDkxxixPqhPoIzMS0GMHoBo2CPZRUPt
+         Q788ECF9L03qhMMOArQrLo8royuKHvnHa0POqpdKAZrdcMqB6freMC42YwB45xmiwT1Q
+         RELQVx5aK0iL9rtTKMG3FgpGXeZlVFgS6SKTS+pjm7MQK5dwvWWChv/ZBEuKbr0UMuav
+         L33g36v7lvpaceYMwQUBsConIuJpNu17BIKEGzalfXN6quTsqgLdnWWkWkPiQjK8Te9d
+         jqoQ==
+X-Gm-Message-State: APjAAAWmyd+rCUoftomXQcUVGoCuRFv8sv2buPE2FYzBqitdBM+xjy6S
+	/7fOtNy5AN3tzd5FiGymCcROYeWWIGDFRGaG1wEY2CVBFDvMUu9Fwupjumb/DXiOEkmDsYI6cOF
+	nmWpxHB74TL6HWsblDDgphsZRnwuG/vfYpQ056+p8DYWTiehc4Hp5LLH7Vwmfi1bz0A==
+X-Received: by 2002:a9d:560b:: with SMTP id e11mr7987593oti.129.1562437995850;
+        Sat, 06 Jul 2019 11:33:15 -0700 (PDT)
+X-Received: by 2002:a9d:560b:: with SMTP id e11mr7987567oti.129.1562437995329;
+        Sat, 06 Jul 2019 11:33:15 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562437995; cv=none;
         d=google.com; s=arc-20160816;
-        b=hFkdCk041RKXOFo0UYc8pJMN0Juv4oiWtCchfP/crG8nbK7wTffNokp0w/il58RpW9
-         WtbkF0oWmsLhwZvjIEyEsFbuN6jZewEEtt2vZaBcbijG3PdUGW4nkI0RLs9D/1M7TrWA
-         UM1BM6dHrD7ZPIiZuodPEmdKx4LX+x/ul7YqDRLgGc3EAcBPR2j78Pvw+kUwAXHiLJqo
-         t8htXmIQDZMMpccm30QXcWl+eI19ICugT0SNOdUe6xO2tdmK2lGauWo9cYTAXu/9R4io
-         o1n9DdDiYHI7qIvatsNhAriqo+YyA2OgWpl7cn/3Xg5MDTymU/+lqe5CP6YLyqD+bS/N
-         mgjQ==
+        b=zqj0Kj/hGx1RxpQR4qKlY9IrVXEqWo9RjybbwFWmz90e3OdrdCdOLTQu5iJn3CMzJw
+         XOn+eOSgM4mNZJAHex9qUFYyNlgeo3wPeZuXnK2IsqWZp9x5eJcv3gLE5I9UVtJPwIvi
+         lW4SOxuDmmzB4pVUUD64ChDvcK79bJZS/z267xSd84Iwlse5Wr8+H5pOFxvwYpnoxWKH
+         GNCCCFGX3IK4xDFum2AjVlhn5pOZAJdWG+nehJADv7xZG+tnSFcAxMpPciEj/cP3hW0C
+         GLxLMzpHzNeovnaFDin7cNR999G1+L+NSuwbe2MsOTfOEDlKJDvLFdJZkdOLRt40jWOz
+         5XQA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=vjy9ZMLMCWdJezrwnUnOrpuuoAl0MqUTiwkUbUfsV0k=;
-        b=DL2PCW8rksIPStLI7C8lb+q/Diq3kb4IO9onRsEmjmBZF0tprMH8HuaIWdWx0miquU
-         wp/GmuUpJTV+gb4Gl30wuLDjclKbC0rD6tQIb03r0CEDkvdd98AZSKu0j+9aO2K//H1Q
-         ZJJJBN0zxXuKNuLGT3ww3naagPrqxbRXqb8I2RhbE6t8SsTtk9tUXVzezc85BD7iUCzf
-         RAEUDYtoxic/6+klqRpZIhVH3xFXPPCidXRgptlSVxdeCgTv0DTFO000KeokUW/9fipD
-         EXITj5Y2gzMxVZhetbHaD1QOZpI2WZVaTLp6wJ/bd0Nr1JCkjl30ekLhRDHf7PIaY6Gj
-         cimQ==
+        bh=L8R4z3fd/pNkVMb+89dxA4ui8k10ocj37Bt7whLaC1Q=;
+        b=mmTKgQolFBfmd0uSgE26iDEp7EIE4buxb4qEjta/kw134PJdABDuWuxj/FjtPNPcoH
+         wtvz6rWyjm+ZAsyDZ0OXdrIK/j/ws2JCMq9fEBpIbI64gR6P9GzEg4C963HeOifWahYl
+         KRryePZCfIJIpaGJM8tXVZaB5FUEZQvkR/46twB0FjjXjj036iye4PT1D9+DWj3LIS6w
+         f+6MOCEpYmXG5cc5zjCIC2ZMqLsKxxKU3IuElum8PU8ZhOAgw5yI/J1Eyae+WDG3UF5M
+         P0SRvJ85X7Ja24DgxwGz1bJxxQj4UAdppq5oEToZZDBjhhk4t/vu51qvsthGP3spepX2
+         fPFw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=UjWcfa2y;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=rMLJmYNu;
        spf=pass (google.com: domain of jannh@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jannh@google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id c17sor6110354otk.82.2019.07.06.11.21.02
+        by mx.google.com with SMTPS id r7sor6473529otg.166.2019.07.06.11.33.15
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sat, 06 Jul 2019 11:21:02 -0700 (PDT)
+        Sat, 06 Jul 2019 11:33:15 -0700 (PDT)
 Received-SPF: pass (google.com: domain of jannh@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=UjWcfa2y;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=rMLJmYNu;
        spf=pass (google.com: domain of jannh@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jannh@google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=google.com; s=20161025;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=vjy9ZMLMCWdJezrwnUnOrpuuoAl0MqUTiwkUbUfsV0k=;
-        b=UjWcfa2yuiQr3pr6jvHS9G7b7/XrW6vhOl4h4FyA2pkmQyD/Ukwh09WsYtkSmGlf36
-         NaUNZYVoR4bKyHeWOylNLEXv5vLpalbjvzXxCYVwPOWxoj3K9lMpnkwGWJIVWHgk/Aam
-         fgp58HCVxZAA3ggPprt8eU47o+2iD3IHtRrmkvzuzEKjw9xrg42OYiz27ZrFCVg3ZiAw
-         PPhz7cmQ8J6Y7yCj4QkHQyabon240CsqoSLHPPTtKWV93yHoxLdYcTf8yeghcgy4y7Y1
-         B9Juh+11Z1nJ1KPi3G3ufLi7AjloCOX15qfZkMELt6FbO4ouAg7q+pMykjE4c8bjWO5z
-         4bhw==
-X-Google-Smtp-Source: APXvYqzj5WEE2VrNr3N+Gwhig3lJufmMH6pDUKtfm7kJ7qx1O0a+Ca76u4RhV3hyGQEys/0AWVBDs6sVNq/tKZ0qalw=
-X-Received: by 2002:a9d:5a91:: with SMTP id w17mr4400771oth.32.1562437262037;
- Sat, 06 Jul 2019 11:21:02 -0700 (PDT)
+        bh=L8R4z3fd/pNkVMb+89dxA4ui8k10ocj37Bt7whLaC1Q=;
+        b=rMLJmYNuSevuKWuCiVdI43bNmxi2G3pHLMt7d6UgYRzPT5IXjgo/GT6keDasRoZK4g
+         /OBhvjWjUYS2v0qo9lkIJjfjkWE4kQLRuB6HOjB54kxbMOj7Ibd3pgQiMMTDL/I/5iCg
+         2BeOM0HRHns6OEvAIi7NDoj2y/dlF3VxnijP9I+3HzHbLr7M1LTr+5Cg10Syh3dz5oTS
+         pBae4r8DF086crOJ38wMkDHMpLDL60ovH7rl6Se08aUjhSzMzcn0vQpNsNrr1cgMoU/P
+         YlfFMVxPhwry/SRvgTR1K80hTe9zWiuHkC34F1tIefAjUxRB4y7wu0+32btM3e8V9hGs
+         3xLA==
+X-Google-Smtp-Source: APXvYqyBcck06VlUCnJhTINmdA4ZJqB4oH2g6lhQMqchyhM/oF3KhFa6xeVxaox70u4OowtbK7dZn6ufESL4f0s1zvE=
+X-Received: by 2002:a9d:774a:: with SMTP id t10mr7301075otl.228.1562437994877;
+ Sat, 06 Jul 2019 11:33:14 -0700 (PDT)
 MIME-Version: 1.0
-References: <1562410493-8661-1-git-send-email-s.mesoraca16@gmail.com> <1562410493-8661-12-git-send-email-s.mesoraca16@gmail.com>
-In-Reply-To: <1562410493-8661-12-git-send-email-s.mesoraca16@gmail.com>
+References: <1562410493-8661-1-git-send-email-s.mesoraca16@gmail.com> <1562410493-8661-5-git-send-email-s.mesoraca16@gmail.com>
+In-Reply-To: <1562410493-8661-5-git-send-email-s.mesoraca16@gmail.com>
 From: Jann Horn <jannh@google.com>
-Date: Sat, 6 Jul 2019 20:20:35 +0200
-Message-ID: <CAG48ez0uFX4AniOk1W0Vs6j=7Q5QfSFQTrBBzC2qL2bpWn_yCg@mail.gmail.com>
-Subject: Re: [PATCH v5 11/12] S.A.R.A.: /proc/*/mem write limitation
+Date: Sat, 6 Jul 2019 20:32:48 +0200
+Message-ID: <CAG48ez35oJhey5WNzMQR14ko6RPJUJp+nCuAHVUJqX7EPPPokA@mail.gmail.com>
+Subject: Re: [PATCH v5 04/12] S.A.R.A.: generic DFA for string matching
 To: Salvatore Mesoraca <s.mesoraca16@gmail.com>
 Cc: kernel list <linux-kernel@vger.kernel.org>, 
 	Kernel Hardening <kernel-hardening@lists.openwall.com>, Linux-MM <linux-mm@kvack.org>, 
@@ -119,76 +119,34 @@ List-ID: <linux-mm.kvack.org>
 
 On Sat, Jul 6, 2019 at 12:55 PM Salvatore Mesoraca
 <s.mesoraca16@gmail.com> wrote:
-> Prevent a task from opening, in "write" mode, any /proc/*/mem
-> file that operates on the task's mm.
-> A process could use it to overwrite read-only memory, bypassing
-> S.A.R.A. restrictions.
+> Creation of a generic Discrete Finite Automata implementation
+> for string matching. The transition tables have to be produced
+> in user-space.
+> This allows us to possibly support advanced string matching
+> patterns like regular expressions, but they need to be supported
+> by user-space tools.
+
+AppArmor already has a DFA implementation that takes a DFA machine
+from userspace and runs it against file paths; see e.g.
+aa_dfa_match(). Did you look into whether you could move their DFA to
+some place like lib/ and reuse it instead of adding yet another
+generic rule interface to the kernel?
+
 [...]
-> +static void sara_task_to_inode(struct task_struct *t, struct inode *i)
-> +{
-> +       get_sara_inode_task(i) = t;
-
-This looks bogus. Nothing is actually holding a reference to `t` here, right?
-
-> +}
+> +++ b/security/sara/dfa.c
+> @@ -0,0 +1,335 @@
+> +// SPDX-License-Identifier: GPL-2.0
 > +
->  static struct security_hook_list data_hooks[] __lsm_ro_after_init = {
->         LSM_HOOK_INIT(cred_prepare, sara_cred_prepare),
->         LSM_HOOK_INIT(cred_transfer, sara_cred_transfer),
->         LSM_HOOK_INIT(shm_alloc_security, sara_shm_alloc_security),
-> +       LSM_HOOK_INIT(task_to_inode, sara_task_to_inode),
->  };
-[...]
-> +static int sara_file_open(struct file *file)
-> +{
-> +       struct task_struct *t;
-> +       struct mm_struct *mm;
-> +       u16 sara_wxp_flags = get_current_sara_wxp_flags();
-> +
-> +       /*
-> +        * Prevent write access to /proc/.../mem
-> +        * if it operates on the mm_struct of the
-> +        * current process: it could be used to
-> +        * bypass W^X.
-> +        */
-> +
-> +       if (!sara_enabled ||
-> +           !wxprot_enabled ||
-> +           !(sara_wxp_flags & SARA_WXP_WXORX) ||
-> +           !(file->f_mode & FMODE_WRITE))
-> +               return 0;
-> +
-> +       t = get_sara_inode_task(file_inode(file));
-> +       if (unlikely(t != NULL &&
-> +                    strcmp(file->f_path.dentry->d_name.name,
-> +                           "mem") == 0)) {
+> +/*
+> + * S.A.R.A. Linux Security Module
+> + *
+> + * Copyright (C) 2017 Salvatore Mesoraca <s.mesoraca16@gmail.com>
+> + *
+> + * This program is free software; you can redistribute it and/or modify
+> + * it under the terms of the GNU General Public License version 2, as
+> + * published by the Free Software Foundation.
 
-This should probably at least have a READ_ONCE() somewhere in case the
-file concurrently gets renamed?
-
-> +               get_task_struct(t);
-> +               mm = get_task_mm(t);
-> +               put_task_struct(t);
-
-Getting and dropping a reference to the task_struct here is completely
-useless. Either you have a reference, in which case you don't need to
-take another one, or you don't have a reference, in which case you
-also can't take one.
-
-> +               if (unlikely(mm == current->mm))
-> +                       sara_warn_or_goto(error,
-> +                                         "write access to /proc/*/mem");
-
-Why is the current process so special that it must be protected more
-than other processes? Is the idea here to rely on other protections to
-protect all other tasks? This should probably come with a comment that
-explains this choice.
-
-> +               mmput(mm);
-> +       }
-> +       return 0;
-> +error:
-> +       mmput(mm);
-> +       return -EACCES;
-> +}
+Throughout the series, you are adding files that both add an SPDX
+identifier and have a description of the license in the comment block
+at the top. The SPDX identifier already identifies the license.
 
