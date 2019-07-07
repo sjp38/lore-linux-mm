@@ -2,205 +2,217 @@ Return-Path: <SRS0=llCs=VE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,GAPPY_SUBJECT,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
-	autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9107BC48BDE
-	for <linux-mm@archiver.kernel.org>; Sun,  7 Jul 2019 16:15:22 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 21DE7C0650E
+	for <linux-mm@archiver.kernel.org>; Sun,  7 Jul 2019 23:30:42 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4B6982133D
-	for <linux-mm@archiver.kernel.org>; Sun,  7 Jul 2019 16:15:22 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id B87C220665
+	for <linux-mm@archiver.kernel.org>; Sun,  7 Jul 2019 23:30:41 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="TWOzKVht"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4B6982133D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (2048-bit key) header.d=canb.auug.org.au header.i=@canb.auug.org.au header.b="qrXjpzMm"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B87C220665
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=canb.auug.org.au
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B93536B000A; Sun,  7 Jul 2019 12:15:21 -0400 (EDT)
+	id 236138E0006; Sun,  7 Jul 2019 19:30:41 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B6AA88E0006; Sun,  7 Jul 2019 12:15:21 -0400 (EDT)
+	id 1E77C8E0001; Sun,  7 Jul 2019 19:30:41 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A7F1C8E0001; Sun,  7 Jul 2019 12:15:21 -0400 (EDT)
+	id 0B0248E0006; Sun,  7 Jul 2019 19:30:41 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 86A4E6B000A
-	for <linux-mm@kvack.org>; Sun,  7 Jul 2019 12:15:21 -0400 (EDT)
-Received: by mail-io1-f72.google.com with SMTP id q26so8186193ioi.10
-        for <linux-mm@kvack.org>; Sun, 07 Jul 2019 09:15:21 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C6CEF8E0001
+	for <linux-mm@kvack.org>; Sun,  7 Jul 2019 19:30:40 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id 6so9176364pfz.10
+        for <linux-mm@kvack.org>; Sun, 07 Jul 2019 16:30:40 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=HPjV5oIkkTKWgs8bzuMudxn+m/34k9ESgX/d9EjKBY4=;
-        b=o9Mo43tqdpbqgRhzRHLbgBLyp2f1sQkM9KTLfE+kctgWSIm3ly/yKt+UmYpIeKfKH8
-         LEdYyrw1Q11l/R+EdjBuOY+zF8L5nIJ+BpD5p06BGSAmVMzwhA0bXzSPazjo9wPNutRw
-         iLuisAwLU1cjEdJa9rPmznJi9A+xfYaGJ9YNpXZZVikTsNlFEyvRzHdI53kKzVDk5O7X
-         IDsPIWIi2mSmc9OhtuximQ1rf6z4xtLpWC41h+lfMFacd+LSIurmPcjq6+2plQ8FEYJb
-         oE9qsuOSZWaYbZFA29Scfy4Hyi381isn70BdM8Vi55WkFRLB+3lRutH+s5Ui0X2tH2DM
-         tdCQ==
-X-Gm-Message-State: APjAAAXpgRyDTeK9ChmDYSeDJO3uNpTb9K4IryllKTu3T56wvgXyaifS
-	5uEGLYFtTMs4xnMmYvZeQB2bzD6SWl492QfCmibd4R5hVwRd6seoOAjnot7JserHokRaLZvGB4U
-	kOM1m9ZgpNAvFSMwQMqHN3XY1W0kyWM+Kfowozp7Q6O7Rov1mrbxr4KgoOdiDg+kdgA==
-X-Received: by 2002:a5d:9dc7:: with SMTP id 7mr14578878ioo.237.1562516121221;
-        Sun, 07 Jul 2019 09:15:21 -0700 (PDT)
-X-Received: by 2002:a5d:9dc7:: with SMTP id 7mr14578840ioo.237.1562516120627;
-        Sun, 07 Jul 2019 09:15:20 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562516120; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:in-reply-to:references:mime-version;
+        bh=g8MaXsvvJlhkqk2lWsesnClAzBItmHBX1Fhhj3eTigo=;
+        b=qnTZEAz4w7G61c+OhSrRSkcF9wf9iHG73SsJnYUsK8EUq9l/Cjyqzseho7AEjvrVXh
+         z28av4Sx8ngwsNS2qxg6CFF0uZS/v8E6WW7k12mvWPbocEQZvSq7toTpRmKsXcs5+h4C
+         ER6TkXDipcxXc2duTI1PYpatITm5fyVk1R/so2ROGLqEkybmBEFdbGTy3t2BuBq1bwdd
+         EbJMsODoPeUwk2z16xHK+4n0kRiWKd3uIstMZWVO5DwInLgSTzDe4nkvXPpNE/SrpY16
+         g5YZhrW+DQm6tsuioAC5fil3shkVcQ/RI0iKGy7DzRMgNjpFU2ZPztksI1MH0CHBflTh
+         R71A==
+X-Gm-Message-State: APjAAAWZNAYVr9yMRpTNPdmbQgqBBLSM1hGjad2SvRXC8QBr/5GgyNKU
+	2ngdp/erg+xRr9NAbywm9eDOsLn/geT39RbNxgqDzZbEzKlFhN1ATwFrKWqu9qmf4bNil64DdV5
+	WMAp8nqkKGhf8Zf6dzIVv1Z5fbMhID46LGBnd59pJwrH2+/JOFE7PS1TA9xNlHwLt1g==
+X-Received: by 2002:a17:902:be12:: with SMTP id r18mr19534565pls.341.1562542240264;
+        Sun, 07 Jul 2019 16:30:40 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwVSJWETijGhxY4ohs23js19wmWIy1KsXXAr8y4Riz/ks2ZuDJeHcgLklGBi9xrKSIUVNfD
+X-Received: by 2002:a17:902:be12:: with SMTP id r18mr19534497pls.341.1562542239394;
+        Sun, 07 Jul 2019 16:30:39 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562542239; cv=none;
         d=google.com; s=arc-20160816;
-        b=r4PXE/FiO9/Vc2xNSl3FLnTp7H6+8sGIAiYwio4i6DphxzhLuFCgA0akn2bRGwUXNf
-         kIzEhK5SzIbllmzTfGlYQzIGjoBYgVI+2desOZwaYjv9RrTpe07Q8Y2TarCSMgHe0xqZ
-         9nvfinSaJz7lHF1kC7MI7I/qoIHWAy5hAJYTuku3MTEIUo880FvzRFe2YDIXMcNiVeWi
-         j4uTvcMvObcP0vRZYzhs3W8KJX+F/sPXQdWvXaSF1Aw7weg25iBJCjwPMd7FAYCJPmX/
-         19ouBtyZZuOZQV5h2OKA0HT71oa1VkkUJZS/Kwe9XfedYd233DQN9CG6P38hGDJWxD7q
-         G0Gw==
+        b=pOPgK17Cw6mmrx/vc2t98JVSjMFYIbXTvm6L5G45AMO5JSPKlP6bexv94Czjs0HJu0
+         znNY2UOIuon5th8jtHzaaNVUaA1wbGNKGQFVOpVZPB8X+zu7q+NB6L3dASpL8FgHJX35
+         pJedpnrWDpRziBB005Fwiwcr5skgBwD9CZ+HjC/IxlCh0C6tFKwoIqqY1oDIx7g6yLFc
+         tTF05GVxMut+IdOrXqQPAVfzy54fVwIzAP+3rfWl1t+QXr2pGKax8fFaE7jOVYqqCgxf
+         SKhEfbDuVxD6DZy0sLgPWKZNXY6WAlooRRl17jTBin6i/CU+OiECSeN5AmvcisD9YIRw
+         3OsA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=HPjV5oIkkTKWgs8bzuMudxn+m/34k9ESgX/d9EjKBY4=;
-        b=ru5sgEKJVrANH7K9Mx8LzcBeBKiPuSXPdsXs13isOk8rezH79FYS6BNyG3scROLyDV
-         R9enZNfEqWgE7SQkId5qVJbf9ZJdX9rB9B7XntFzwuRsbhHTqXAUV4Kjrp17Eu8o3UXw
-         pLjQUt06g/pdM4Ukk1r+YEImPfJliv2/tBH/g0az4dIUPdPHU9NrwxWnBgeB6lT8DUJC
-         aXaYg3HFHRRSTajDeYFKerLI8GiXfN0lU7Gf5RZUkC3za1BMbldxdik66jLDIh17M8ov
-         DcvJDiBEuZik1F+0S4arMeNF6CIRCYqrN6lwpWwVNktzFvpZV63uBIi4ihhA9foxmSfC
-         PW6Q==
+        h=mime-version:references:in-reply-to:message-id:subject:cc:to:from
+         :date:dkim-signature;
+        bh=g8MaXsvvJlhkqk2lWsesnClAzBItmHBX1Fhhj3eTigo=;
+        b=nzUQCUzcOgoVZspU6W8poGHEfidiGo9zCOVAdglG8yt/Ug5WDR9xl5cRyyT8STPg4i
+         jieiHLg2RsU5ziO/zXy/5cFJEXqTys/06K9UgYa+dSxxH/8Pn/3SpB3GSsQp8/i5x0Kw
+         6inhBpHnAjVfWcpLN0BTIGq96r5pBsQOWN7yX6H9QuWAel48aXvTdVmd+sgPP/wfdc+R
+         YK0bScs+Szx38VJU+5lJ4Wzjo0SSiZ6L450t3sThzgIQUkUT5ngXHPFLDrp1MIRyeeOv
+         ac63yVE5cFWXStdgIGF+QGQ0aahYyInvNCO92bL3wAPvYFADuMIv79fQTcToF0hBFDis
+         lrIQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=TWOzKVht;
-       spf=pass (google.com: domain of s.mesoraca16@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=s.mesoraca16@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id e18sor10163639iot.134.2019.07.07.09.15.20
+       dkim=pass header.i=@canb.auug.org.au header.s=201702 header.b=qrXjpzMm;
+       spf=pass (google.com: domain of sfr@canb.auug.org.au designates 203.11.71.1 as permitted sender) smtp.mailfrom=sfr@canb.auug.org.au
+Received: from ozlabs.org (bilbo.ozlabs.org. [203.11.71.1])
+        by mx.google.com with ESMTPS id w15si15147036ply.127.2019.07.07.16.30.38
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sun, 07 Jul 2019 09:15:20 -0700 (PDT)
-Received-SPF: pass (google.com: domain of s.mesoraca16@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Sun, 07 Jul 2019 16:30:39 -0700 (PDT)
+Received-SPF: pass (google.com: domain of sfr@canb.auug.org.au designates 203.11.71.1 as permitted sender) client-ip=203.11.71.1;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=TWOzKVht;
-       spf=pass (google.com: domain of s.mesoraca16@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=s.mesoraca16@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=HPjV5oIkkTKWgs8bzuMudxn+m/34k9ESgX/d9EjKBY4=;
-        b=TWOzKVhtLNsWGzSmCaNZ6b/RZ3+Q0QunAQWRvFiNWs1RisWJjT0tbEfSaH4szCiWfq
-         82uSZ4Xvjt6zWF5p026f32NIV/sy/6hd5AsJxTSsxrgwzMPdbEP44HkqaP+B9Q8QLvGY
-         ECPuLqNdhl4Y6DYcbNZMIdDn10XiRwz+pYUe3zKKKxaTqkouVwh3CpK/NeQ4lfy4Qzci
-         /LwMAd/E0YTYFdoEsh6AH3BYOxqZKfKOUnfH6U1WpPC+HbFE6z/yYoBAGaPxrM2iA4PE
-         RA7UnwRtCLj3ZAlGqYs/vpvDG83e6mXKuSofbiuIMkue5dKOkbDzFhtM4/9W0v3YYfRI
-         BqWA==
-X-Google-Smtp-Source: APXvYqyUye9cz+0n15zQ4gOArOoK5kXFrcrLZZSEtAMpudDveLjSJuBRU+UsJPJBC8N4qob10YrUs4SNp8kqivMgQUg=
-X-Received: by 2002:a6b:e20a:: with SMTP id z10mr7315185ioc.76.1562516120337;
- Sun, 07 Jul 2019 09:15:20 -0700 (PDT)
+       dkim=pass header.i=@canb.auug.org.au header.s=201702 header.b=qrXjpzMm;
+       spf=pass (google.com: domain of sfr@canb.auug.org.au designates 203.11.71.1 as permitted sender) smtp.mailfrom=sfr@canb.auug.org.au
+Received: from authenticated.ozlabs.org (localhost [127.0.0.1])
+	(using TLSv1.3 with cipher TLS_AES_256_GCM_SHA384 (256/256 bits)
+	 key-exchange ECDHE (P-256) server-signature RSA-PSS (4096 bits) server-digest SHA256)
+	(No client certificate requested)
+	by mail.ozlabs.org (Postfix) with ESMTPSA id 45hlF41wvCz9sNk;
+	Mon,  8 Jul 2019 09:30:32 +1000 (AEST)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=canb.auug.org.au;
+	s=201702; t=1562542234;
+	bh=b3Cy3L6uJ1zllsblKuLVoOFBbe1oTg28owraNeOAFTI=;
+	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
+	b=qrXjpzMmuXVtUxH4xy+PPMxT/OcN8OknkLLRX0H+LcAZy1yOS5HQ0zCD4gMJPGwVz
+	 7LCjzhUowqxvuoFh6OoOf6ff6xadM+XO5FOGBpF2a3F3WPxydd/BedUBRqWhpw0zJJ
+	 8gyJT/VESyiyxAf+t63leV4ug1ZQbhk04vv6EcRtkV3tqGW8m8SthxBSGpuZ/qa9EE
+	 KMRFiSVV7oqjaQ6BltWMKbUtxKcFrpe1tRvRwbZdeURJFqz/4zMGrK1X0qprNq07yj
+	 szeLCMuESKjt8w0urx+SpnaLi40NLXtmCG+bYQlNGz+fQ/sJz8khOUINO2B0rh58te
+	 vOrJJGr9+SAHg==
+Date: Mon, 8 Jul 2019 09:30:20 +1000
+From: Stephen Rothwell <sfr@canb.auug.org.au>
+To: Alex Deucher <alexdeucher@gmail.com>
+Cc: "Kuehling, Felix" <Felix.Kuehling@amd.com>, Jason Gunthorpe
+ <jgg@mellanox.com>, "Yang, Philip" <Philip.Yang@amd.com>, Dave Airlie
+ <airlied@linux.ie>, "dri-devel@lists.freedesktop.org"
+ <dri-devel@lists.freedesktop.org>, "linux-mm@kvack.org"
+ <linux-mm@kvack.org>, "linux-next@vger.kernel.org"
+ <linux-next@vger.kernel.org>, "Deucher, Alexander"
+ <Alexander.Deucher@amd.com>
+Subject: Re: [PATCH 1/1] drm/amdgpu: adopt to hmm_range_register API change
+Message-ID: <20190708093020.676f5b3f@canb.auug.org.au>
+In-Reply-To: <CADnq5_M0GREGG73wiu3eb=E+G2iTRmjXELh7m69BRJfVNEiHtw@mail.gmail.com>
+References: <20190703015442.11974-1-Felix.Kuehling@amd.com>
+	<20190703141001.GH18688@mellanox.com>
+	<a9764210-9401-471b-96a7-b93606008d07@amd.com>
+	<CADnq5_M0GREGG73wiu3eb=E+G2iTRmjXELh7m69BRJfVNEiHtw@mail.gmail.com>
 MIME-Version: 1.0
-References: <1562410493-8661-1-git-send-email-s.mesoraca16@gmail.com>
- <1562410493-8661-12-git-send-email-s.mesoraca16@gmail.com> <CAG48ez0uFX4AniOk1W0Vs6j=7Q5QfSFQTrBBzC2qL2bpWn_yCg@mail.gmail.com>
-In-Reply-To: <CAG48ez0uFX4AniOk1W0Vs6j=7Q5QfSFQTrBBzC2qL2bpWn_yCg@mail.gmail.com>
-From: Salvatore Mesoraca <s.mesoraca16@gmail.com>
-Date: Sun, 7 Jul 2019 18:15:09 +0200
-Message-ID: <CAJHCu1K-x1tCehO1CxTf9ZzVKLh44dE9hwWWSCxnW1A4SHX=kQ@mail.gmail.com>
-Subject: Re: [PATCH v5 11/12] S.A.R.A.: /proc/*/mem write limitation
-To: Jann Horn <jannh@google.com>
-Cc: kernel list <linux-kernel@vger.kernel.org>, 
-	Kernel Hardening <kernel-hardening@lists.openwall.com>, Linux-MM <linux-mm@kvack.org>, 
-	linux-security-module <linux-security-module@vger.kernel.org>, 
-	Alexander Viro <viro@zeniv.linux.org.uk>, Brad Spengler <spender@grsecurity.net>, 
-	Casey Schaufler <casey@schaufler-ca.com>, Christoph Hellwig <hch@infradead.org>, 
-	Kees Cook <keescook@chromium.org>, PaX Team <pageexec@freemail.hu>, 
-	"Serge E. Hallyn" <serge@hallyn.com>, Thomas Gleixner <tglx@linutronix.de>, James Morris <jmorris@namei.org>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: multipart/signed; micalg=pgp-sha256;
+ boundary="Sig_/n1sGdhtFox.8qpMNicerEzu"; protocol="application/pgp-signature"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Jann Horn <jannh@google.com> wrote:
+--Sig_/n1sGdhtFox.8qpMNicerEzu
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: quoted-printable
+
+Hi all,
+
+On Wed, 3 Jul 2019 17:09:16 -0400 Alex Deucher <alexdeucher@gmail.com> wrot=
+e:
 >
-> On Sat, Jul 6, 2019 at 12:55 PM Salvatore Mesoraca
-> <s.mesoraca16@gmail.com> wrote:
-> > Prevent a task from opening, in "write" mode, any /proc/*/mem
-> > file that operates on the task's mm.
-> > A process could use it to overwrite read-only memory, bypassing
-> > S.A.R.A. restrictions.
-> [...]
-> > +static void sara_task_to_inode(struct task_struct *t, struct inode *i)
-> > +{
-> > +       get_sara_inode_task(i) = t;
->
-> This looks bogus. Nothing is actually holding a reference to `t` here, right?
+> On Wed, Jul 3, 2019 at 5:03 PM Kuehling, Felix <Felix.Kuehling@amd.com> w=
+rote:
+> >
+> > On 2019-07-03 10:10 a.m., Jason Gunthorpe wrote: =20
+> > > On Wed, Jul 03, 2019 at 01:55:08AM +0000, Kuehling, Felix wrote: =20
+> > >> From: Philip Yang <Philip.Yang@amd.com>
+> > >>
+> > >> In order to pass mirror instead of mm to hmm_range_register, we need
+> > >> pass bo instead of ttm to amdgpu_ttm_tt_get_user_pages because mirror
+> > >> is part of amdgpu_mn structure, which is accessible from bo.
+> > >>
+> > >> Signed-off-by: Philip Yang <Philip.Yang@amd.com>
+> > >> Reviewed-by: Felix Kuehling <Felix.Kuehling@amd.com>
+> > >> Signed-off-by: Felix Kuehling <Felix.Kuehling@amd.com>
+> > >> CC: Stephen Rothwell <sfr@canb.auug.org.au>
+> > >> CC: Jason Gunthorpe <jgg@mellanox.com>
+> > >> CC: Dave Airlie <airlied@linux.ie>
+> > >> CC: Alex Deucher <alexander.deucher@amd.com>
+> > >> ---
+> > >>   drivers/gpu/drm/Kconfig                          |  1 -
+> > >>   drivers/gpu/drm/amd/amdgpu/amdgpu_amdkfd_gpuvm.c |  5 ++---
+> > >>   drivers/gpu/drm/amd/amdgpu/amdgpu_cs.c           |  2 +-
+> > >>   drivers/gpu/drm/amd/amdgpu/amdgpu_gem.c          |  3 +--
+> > >>   drivers/gpu/drm/amd/amdgpu/amdgpu_mn.c           |  8 ++++++++
+> > >>   drivers/gpu/drm/amd/amdgpu/amdgpu_mn.h           |  5 +++++
+> > >>   drivers/gpu/drm/amd/amdgpu/amdgpu_ttm.c          | 12 ++++++++++--
+> > >>   drivers/gpu/drm/amd/amdgpu/amdgpu_ttm.h          |  5 +++--
+> > >>   8 files changed, 30 insertions(+), 11 deletions(-) =20
+> > > This is too big to use as a conflict resolution, what you could do is
+> > > apply the majority of the patch on top of your tree as-is (ie keep
+> > > using the old hmm_range_register), then the conflict resolution for
+> > > the updated AMD GPU tree can be a simple one line change:
+> > >
+> > >   -   hmm_range_register(range, mm, start,
+> > >   +   hmm_range_register(range, mirror, start,
+> > >                          start + ttm->num_pages * PAGE_SIZE, PAGE_SHI=
+FT);
+> > >
+> > > Which is trivial for everone to deal with, and solves the problem. =20
+> >
+> > Good idea.
 
-I think you are right, I should probably store the PID here.
+With the changes added to the amdgpu tree over the weekend, I will
+apply the following merge fix patch to the hmm merge today:
 
-> > +}
-> > +
-> >  static struct security_hook_list data_hooks[] __lsm_ro_after_init = {
-> >         LSM_HOOK_INIT(cred_prepare, sara_cred_prepare),
-> >         LSM_HOOK_INIT(cred_transfer, sara_cred_transfer),
-> >         LSM_HOOK_INIT(shm_alloc_security, sara_shm_alloc_security),
-> > +       LSM_HOOK_INIT(task_to_inode, sara_task_to_inode),
-> >  };
-> [...]
-> > +static int sara_file_open(struct file *file)
-> > +{
-> > +       struct task_struct *t;
-> > +       struct mm_struct *mm;
-> > +       u16 sara_wxp_flags = get_current_sara_wxp_flags();
-> > +
-> > +       /*
-> > +        * Prevent write access to /proc/.../mem
-> > +        * if it operates on the mm_struct of the
-> > +        * current process: it could be used to
-> > +        * bypass W^X.
-> > +        */
-> > +
-> > +       if (!sara_enabled ||
-> > +           !wxprot_enabled ||
-> > +           !(sara_wxp_flags & SARA_WXP_WXORX) ||
-> > +           !(file->f_mode & FMODE_WRITE))
-> > +               return 0;
-> > +
-> > +       t = get_sara_inode_task(file_inode(file));
-> > +       if (unlikely(t != NULL &&
-> > +                    strcmp(file->f_path.dentry->d_name.name,
-> > +                           "mem") == 0)) {
->
-> This should probably at least have a READ_ONCE() somewhere in case the
-> file concurrently gets renamed?
+From: Philip Yang <Philip.Yang@amd.com>
+Sibject: drm/amdgpu: adopt to hmm_range_register API change
 
-My understanding here is that /proc/$pid/mem files cannot be renamed.
-t != NULL implies we are in procfs.
-Under these assumptions I think that that code is fine.
-Am I wrong?
+Signed-off-by: Stephen Rothwell <sfr@canb.auug.org.au>
 
-> > +               get_task_struct(t);
-> > +               mm = get_task_mm(t);
-> > +               put_task_struct(t);
->
-> Getting and dropping a reference to the task_struct here is completely
-> useless. Either you have a reference, in which case you don't need to
-> take another one, or you don't have a reference, in which case you
-> also can't take one.
+diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_ttm.c b/drivers/gpu/drm/amd/=
+amdgpu/amdgpu_ttm.c
+@@ -783,7 +783,7 @@ int amdgpu_ttm_tt_get_user_pages(struct ttm_tt *ttm, st=
+ruct page **pages)
+ 				0 : range->flags[HMM_PFN_WRITE];
+ 	range->pfn_flags_mask =3D 0;
+ 	range->pfns =3D pfns;
+-	hmm_range_register(range, mm, start,
++	hmm_range_register(range, mirror, start,
+ 			   start + ttm->num_pages * PAGE_SIZE, PAGE_SHIFT);
+=20
+ retry:
 
-Absolutely agree.
+And someone just needs to make sure Linus is aware of this needed merge fix.
+--=20
+Cheers,
+Stephen Rothwell
 
-> > +               if (unlikely(mm == current->mm))
-> > +                       sara_warn_or_goto(error,
-> > +                                         "write access to /proc/*/mem");
->
-> Why is the current process so special that it must be protected more
-> than other processes? Is the idea here to rely on other protections to
-> protect all other tasks? This should probably come with a comment that
-> explains this choice.
+--Sig_/n1sGdhtFox.8qpMNicerEzu
+Content-Type: application/pgp-signature
+Content-Description: OpenPGP digital signature
 
-Yes, I should have spent some more words here.
-Access to /proc/$pid/mem from other processes is already regulated by
-security_ptrace_access_check (i.e. Yama).
-Unfortunately, that hook is ignored when "mm == current->mm".
-It seems that there is some user-space software that relies on /proc/self/mem
-being writable (cfr. commit f511c0b17b08).
+-----BEGIN PGP SIGNATURE-----
 
-Thank you for your suggestions.
+iQEzBAEBCAAdFiEENIC96giZ81tWdLgKAVBC80lX0GwFAl0igIwACgkQAVBC80lX
+0GyMGwf9EHaqFsgZMnIUpi3rDZiJtUaKYpZhMRcEnEUKTBt9R7GcNMCmg+yWNWQm
+ywXAzxy+94GmfnusEKWBCpCTTO9IyjctxH5P4i/myGwF867vEhGMXD2fg5ly85hr
+oyQ60dHXBwNKwJlfoNfgC7XJ/sYSVrtngHZ+Up6SkAPlMccSJ+V4zQLi5qI8CjOz
+Nqt8Eh+OHyjqZf9UdzFWAtHNO4rbIutkbdkh4YVD6V3USbcU2wJ1/8dmR8xIlvXL
+BVWfIWkeX0lN+ASoK1Y3GL5RJB9ge5nRvmaRC5Tmq3dF9au7ihOveKfdqy+HdvWQ
+cPEh8VGzNdBfQ1l0rDzj7y04IDNndg==
+=yA1W
+-----END PGP SIGNATURE-----
+
+--Sig_/n1sGdhtFox.8qpMNicerEzu--
 
