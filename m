@@ -2,124 +2,149 @@ Return-Path: <SRS0=WbXp=VF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.1 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C4EB4C606BD
-	for <linux-mm@archiver.kernel.org>; Mon,  8 Jul 2019 14:43:53 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C658DC606BF
+	for <linux-mm@archiver.kernel.org>; Mon,  8 Jul 2019 14:50:06 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7761A21537
-	for <linux-mm@archiver.kernel.org>; Mon,  8 Jul 2019 14:43:53 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="QrlvY5uq"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7761A21537
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	by mail.kernel.org (Postfix) with ESMTP id 9108B20665
+	for <linux-mm@archiver.kernel.org>; Mon,  8 Jul 2019 14:50:06 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9108B20665
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0E7658E0018; Mon,  8 Jul 2019 10:43:53 -0400 (EDT)
+	id 26A598E0019; Mon,  8 Jul 2019 10:50:06 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0982C8E0002; Mon,  8 Jul 2019 10:43:53 -0400 (EDT)
+	id 21A448E0002; Mon,  8 Jul 2019 10:50:06 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id EEFC88E0018; Mon,  8 Jul 2019 10:43:52 -0400 (EDT)
+	id 1312A8E0019; Mon,  8 Jul 2019 10:50:06 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id CA5818E0002
-	for <linux-mm@kvack.org>; Mon,  8 Jul 2019 10:43:52 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id e25so10464807pfn.5
-        for <linux-mm@kvack.org>; Mon, 08 Jul 2019 07:43:52 -0700 (PDT)
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id E89FF8E0002
+	for <linux-mm@kvack.org>; Mon,  8 Jul 2019 10:50:05 -0400 (EDT)
+Received: by mail-qk1-f198.google.com with SMTP id b139so15433303qkc.21
+        for <linux-mm@kvack.org>; Mon, 08 Jul 2019 07:50:05 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=zM0WKzhiKmDuxYb+ujTY+6g8jQuQY5ePwF4h6SqZlFY=;
-        b=acLeJYvWaNzPX+CT6HId99EOu6DKYutAK+awy0V6Xyq1Urwz40kzJDr492w1gr4BPf
-         NUadv1+McsvUEALsAEAXMupvygEI1QMGN0D4zttHwkrC+xbEoaLmH2KcYGJi9ES5DDQI
-         KbcSyiEkNySOUr0mLAVSfQwd41eUlNSeyJj8RbVLorRd8HogOPgY5fTzYXC/SVu8j67O
-         fNqiAaUUOOb5vkkdKPC7pLEZSyFrJJ4RKnO2mvL0jarKdIo2YmEkz9PRminkok/bhoJ4
-         fXQUMZCwXk3duu2axUesRE2xWHru5I5LqRgWgTNsXY27CAwW9fFojndJK2HzkwV3HjD6
-         scpA==
-X-Gm-Message-State: APjAAAV5KihgPgYauZM0PFnJk7+MC2wFnvyM1GLzm0gJ1QTH0U9Emgo7
-	HELFt6z1cJ1gliKpNu1+tDPKgBfAsc62WSWbsVi04nJfgwD1MW42x0ZuIaYpSOC479sT6GBuOZI
-	ibIQClZ+gWOwuXafJCSkGwKJmtVhpHpmJjnVtLvXWS+N0Ptw+ahxOTN2rJhr8owUOcw==
-X-Received: by 2002:a63:484d:: with SMTP id x13mr24224754pgk.122.1562597032246;
-        Mon, 08 Jul 2019 07:43:52 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxCNYVjeD/thDlAu/fc/EAaxgmVPjFZp6bFgLASwiS1P/jguRmU4hPW5k0nd8fU53XjXvum
-X-Received: by 2002:a63:484d:: with SMTP id x13mr24224688pgk.122.1562597031546;
-        Mon, 08 Jul 2019 07:43:51 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562597031; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=m4lJKeNqPF6PUhJfVn2/MLy0a1U7ORLGNDoWGGROjW8=;
+        b=TfuNp5ABFR6fuwHZVSSmRSE4V+PbQCebtmpreZDkQbMEkPdZoqcty6ieBIUritrpkK
+         fLunCuqn6t+fsbbNGYVGzxkAvnpNkDqJZmp2UrK7XukODsx+3SzWoCyRHQQFJWZoA9+e
+         HIaa5gJSkOF44K+t3V0ZRn8+zEP80DY3wmlQsXA2CHMoKmISnoqqrH5B+h7pfmChzhoQ
+         ff+d2UYAS3mq4OHs+/b6YklAFHc6NtG4TJ3aTFhbyzITCTeLwViIgvyhzucDcGXbi7MF
+         7c1tBd2yes2gFSYpFKmkxk3+qd5fdnj976ccAt9i77kSg+ZPh+XOqZ3b/FBFuZLH5w5F
+         vfvQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dennisszhou@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dennisszhou@gmail.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAX5o/HOSrsRlszyeCRJb/qmrJ8ABz0ExNuppZhDHuog/i4r0v/V
+	tyPrtUlljnnaMaU1gNjQuo8+BDmH8Mg4Se1YUrcDfzcvfvRCK4Wbo2neFPKrbQbYGzdYEGNhiF+
+	iQ9clIHO+lcKjizZwf2n+qMNP/EoNzaPv+qC5LvR0i9Q+/hRDO4f5GKcu7ibnx8I=
+X-Received: by 2002:a37:a14e:: with SMTP id k75mr12939261qke.65.1562597405737;
+        Mon, 08 Jul 2019 07:50:05 -0700 (PDT)
+X-Received: by 2002:a37:a14e:: with SMTP id k75mr12939205qke.65.1562597405109;
+        Mon, 08 Jul 2019 07:50:05 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562597405; cv=none;
         d=google.com; s=arc-20160816;
-        b=zgZaImHgfzYvybMxW/2KRXPIkRk2j4nqBdXRecq1zOHyKIq0vtYGP1Jjr5z8/ZqyE3
-         2ZyPHRxs+QNNGhBDWI+KYdqZLG/7NaGcXAVrQ+4aL5EPZqhysg6lpNt76ufTtMSt9Km0
-         /dXOposAyVgYuUUJ2DTM8kHhD4k+2gxNtTHhMfW4WN4XXWCwxLt21O7PBiBsvSUaa8fx
-         8W2sRUgjgBXuy8q01RW0HakPKgnpHnVBRQR99UFp8pV+PLnddasS8S3eUOdFu/ngEn7V
-         i4wIrv2goJHr/oYiY+RYr8urD9JutAwTt6l5W7rjcFunlX/etnuSf1yk2PUwpI4TzIyH
-         8LMg==
+        b=gzQM8phd+45rpfiMhAeTtChqbtsA6RZuutYrZiTQTAwmvcqqLUB8hhTbeyk7TD/bdq
+         L53lJatlBo/FpfYTOExGN35JJrmIOhnBaiSZFhyg1qGADLWXTl497quLoiJRDfHkgYSR
+         1k27dYOJiqG4tIoJaVgqwoEaxru905BRkSxgZRDVEqU7I42rQpRTFxkGpL+SAXgdK+ED
+         Vrrf1KkAVrCtxu3rMy2q2p4I7qLkAFx1ROj2Tg7BJVB7WoW6dSHfw5hQUpNou2PZZyL9
+         vKMk7T+854Oa7nAetzCcbWkHv0DK8SykwR7Fj42DtAfDrj1pA0XTyQwlJRS4yAjZlzIq
+         9tzw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=zM0WKzhiKmDuxYb+ujTY+6g8jQuQY5ePwF4h6SqZlFY=;
-        b=d1qj2n4wPRUXnkjL2AMvgyF4/c0cFIpSRIfs6IHmijsVJDWj9qXyd2QwiDg+ONFW36
-         mXmR5lMOHEeEqSRMsvAV3WHtuFLciCycQqad1gLBMVcLZXmM5USQLL3KADCiLht3fmj9
-         qXKCmrPPP3+TSXTBFCtQ7nNlHscTLr2K6Sn4H06VldBqRUnXa8RWE+LzNigYFonrNAyu
-         rAFFif5HgsFL4LQfIQ6VZc4bkuVyy2pDLjKrWjwvLo2kCeHvrUMq0wUi3x4+/B50r46v
-         LEWt/a1wW1NKhyW2psS+dhy/GZ7qMJr4h2Ppawa2tdOMX/a09NEJzZ4iac6muWIImWSf
-         0HRw==
+         :message-id:subject:cc:to:from:date;
+        bh=m4lJKeNqPF6PUhJfVn2/MLy0a1U7ORLGNDoWGGROjW8=;
+        b=d28FWP2Wy0mfKm+I5Y0ZsrPAgGneJg4lKRGsfw+YDjXdnEjVEoWTRQLB6+2hRigUii
+         GdX+Y/mA/jhmWj/rNjjBlk0HGxf7yyXBh/YGWm+3yhBgRNqQONdF6bkhLMXHcq5lyAWa
+         2cJRX6YwX1diLJzqAKLnipJ0WbfAtIHNb1eiarVeVMqDsIlrxAXjNgBDinFv8U+/NOKs
+         1c1kBuGjNvvYGVbqmxxdtxv1FmamNLjTpuBHLLSyXaJVMb8smZrxuYlcYwjMW86FnmRx
+         yioz4iiiVp6yWtWdYBaf/CUSZ3NqhkU0sim69tC/DzjCCiu3CIEI9zHw3vaHGATFayrH
+         l4Sw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=QrlvY5uq;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id v64si6299503pgv.476.2019.07.08.07.43.51
+       spf=pass (google.com: domain of dennisszhou@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dennisszhou@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id e1sor10123416qkg.200.2019.07.08.07.50.05
         for <linux-mm@kvack.org>
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Mon, 08 Jul 2019 07:43:51 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (Google Transport Security);
+        Mon, 08 Jul 2019 07:50:05 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dennisszhou@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=QrlvY5uq;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=zM0WKzhiKmDuxYb+ujTY+6g8jQuQY5ePwF4h6SqZlFY=; b=QrlvY5uqLOY+0cTfKv/IMW8dV
-	d7A3tAIAXD9d7ZnWMnUtDkLSsYNVjbfO16iYi5ioIL2AX24s/S3NhvJSms+DCRs36sjT3P1JWB1Y8
-	TN+ptnqoY1NE5vdrak1eoI43/uxVqDNEL/c5K34tUyGHyl0jCoey4QkzZIdhdYcuvj3/+WcT1QI+u
-	VhnXc66BoGA6+x3AjbE+oP41URXF0vWzh+0kMwFYU6fEf65JQIXI8kf2eUyqgLHepxpwgji7OheWn
-	TD88k6PBtR46ftEGgDnImUXJqA63O0XWcb+NExqmm8+fFZpjChuPaKZTkTDHKmgV5O3piXPd9rJ2q
-	D/YKIIK8A==;
-Received: from willy by bombadil.infradead.org with local (Exim 4.92 #3 (Red Hat Linux))
-	id 1hkUrP-0008LD-Lj; Mon, 08 Jul 2019 14:43:19 +0000
-Date: Mon, 8 Jul 2019 07:43:19 -0700
-From: Matthew Wilcox <willy@infradead.org>
-To: zhong jiang <zhongjiang@huawei.com>
-Cc: akpm@linux-foundation.org, anshuman.khandual@arm.com, mhocko@suse.com,
-	mst@redhat.com, linux-mm@kvack.org
-Subject: Re: [PATCH] mm: redefine the MAP_SHARED_VALIDATE to other value
-Message-ID: <20190708144319.GE32320@bombadil.infradead.org>
-References: <1562573141-11258-1-git-send-email-zhongjiang@huawei.com>
+       spf=pass (google.com: domain of dennisszhou@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dennisszhou@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Google-Smtp-Source: APXvYqzcydk75TJwyLHh1v1P7pYsUDMdBgKhP7Ny0LseHJK3GqpASJIMfeiWla1A76rTrchhM+b/iw==
+X-Received: by 2002:a37:2c46:: with SMTP id s67mr15092125qkh.396.1562597404820;
+        Mon, 08 Jul 2019 07:50:04 -0700 (PDT)
+Received: from dennisz-mbp ([2620:10d:c091:500::3:8b5a])
+        by smtp.gmail.com with ESMTPSA id a6sm6872044qkn.59.2019.07.08.07.50.03
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 08 Jul 2019 07:50:03 -0700 (PDT)
+Date: Mon, 8 Jul 2019 10:50:02 -0400
+From: Dennis Zhou <dennis@kernel.org>
+To: Arnd Bergmann <arnd@arndb.de>
+Cc: Dennis Zhou <dennis@kernel.org>, Tejun Heo <tj@kernel.org>,
+	Christoph Lameter <cl@linux.com>,
+	Kefeng Wang <wangkefeng.wang@huawei.com>,
+	Peng Fan <peng.fan@nxp.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Mike Rapoport <rppt@linux.ibm.com>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	"Dennis Zhou (Facebook)" <dennisszhou@gmail.com>,
+	linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Subject: Re: [PATCH] percpu: fix pcpu_page_first_chunk return code handling
+Message-ID: <20190708145002.GA17098@dennisz-mbp>
+References: <20190708125217.3757973-1-arnd@arndb.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1562573141-11258-1-git-send-email-zhongjiang@huawei.com>
-User-Agent: Mutt/1.11.4 (2019-03-13)
+In-Reply-To: <20190708125217.3757973-1-arnd@arndb.de>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jul 08, 2019 at 04:05:41PM +0800, zhong jiang wrote:
-> As the mman manual says, mmap should return fails when we assign
-> the flags to MAP_SHARED | MAP_PRIVATE.
+On Mon, Jul 08, 2019 at 02:52:09PM +0200, Arnd Bergmann wrote:
+> gcc complains that pcpu_page_first_chunk() might return an uninitialized
+> error code when the loop is never entered:
 > 
-> But In fact, We run the code successfully and unexpected.
-> It is because MAP_SHARED_VALIDATE is introduced and equal to
-> MAP_SHARED | MAP_PRIVATE.
+> mm/percpu.c: In function 'pcpu_page_first_chunk':
+> mm/percpu.c:2929:9: error: 'rc' may be used uninitialized in this function [-Werror=maybe-uninitialized]
+> 
+> Make it return zero like before the cleanup.
+> 
+> Fixes: a13e0ad81216 ("percpu: Make pcpu_setup_first_chunk() void function")
+> Signed-off-by: Arnd Bergmann <arnd@arndb.de>
+> ---
+>  mm/percpu.c | 1 +
+>  1 file changed, 1 insertion(+)
+> 
+> diff --git a/mm/percpu.c b/mm/percpu.c
+> index 5a918a4b1da0..5b65f753c575 100644
+> --- a/mm/percpu.c
+> +++ b/mm/percpu.c
+> @@ -2917,6 +2917,7 @@ int __init pcpu_page_first_chunk(size_t reserved_size,
+>  		ai->reserved_size, ai->dyn_size);
+>  
+>  	pcpu_setup_first_chunk(ai, vm.addr);
+> +	rc = 0;
+>  	goto out_free_ar;
+>  
+>  enomem:
+> -- 
+> 2.20.0
+> 
 
-No, you don't understand.  Look back at the introduction of
-MAP_SHARED_VALIDATE.
+Hi Arnd,
+
+I got the report for the kbuild bot. I have the fix in my tree already.
+
+Thanks,
+Dennis
 
