@@ -2,490 +2,351 @@ Return-Path: <SRS0=WbXp=VF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no
+X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	UNPARSEABLE_RELAY,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3D5BAC606D3
-	for <linux-mm@archiver.kernel.org>; Mon,  8 Jul 2019 22:02:52 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 40694C606CF
+	for <linux-mm@archiver.kernel.org>; Mon,  8 Jul 2019 22:52:43 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C4540216FD
-	for <linux-mm@archiver.kernel.org>; Mon,  8 Jul 2019 22:02:51 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C4540216FD
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
+	by mail.kernel.org (Postfix) with ESMTP id A0616216FD
+	for <linux-mm@archiver.kernel.org>; Mon,  8 Jul 2019 22:52:42 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A0616216FD
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 322C48E0036; Mon,  8 Jul 2019 18:02:51 -0400 (EDT)
+	id 2FDC58E0037; Mon,  8 Jul 2019 18:52:42 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2AC838E0032; Mon,  8 Jul 2019 18:02:51 -0400 (EDT)
+	id 2AE628E0032; Mon,  8 Jul 2019 18:52:42 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 14E488E0036; Mon,  8 Jul 2019 18:02:51 -0400 (EDT)
+	id 19D288E0037; Mon,  8 Jul 2019 18:52:42 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id CA07C8E0032
-	for <linux-mm@kvack.org>; Mon,  8 Jul 2019 18:02:50 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id i2so11125833pfe.1
-        for <linux-mm@kvack.org>; Mon, 08 Jul 2019 15:02:50 -0700 (PDT)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D62E18E0032
+	for <linux-mm@kvack.org>; Mon,  8 Jul 2019 18:52:41 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id u1so10396154pgr.13
+        for <linux-mm@kvack.org>; Mon, 08 Jul 2019 15:52:41 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:message-id
-         :subject:from:to:cc:date:in-reply-to:references:user-agent
-         :mime-version:content-transfer-encoding;
-        bh=IIbhKHmA3MuhPivBZr6Cj2JQ8cR1nz+s7mV43F1HthE=;
-        b=qkOd5E91sV4EOk1vJUOLGVWHaZWL0B1F/cn+eKysWiPEhCmUl8jpjngEuDVbVBndoe
-         mVmZ0oCIHHoui1hU7S199yX7wBSuSxWT14/6i7C2ABq/DeTtlAEJID1T3p0RG33O9Ht+
-         2T79yVpgBMN3A5PaeSv2jHW117oxkruKqfsXivD8mzU39Z0DtN7UNqfYfohmZ77q3BQl
-         xK0M5n4gewRUWWiU1myAlr81Cay3t3HagpYd9nyvS7UiX/aWdWcMwORUUlR6n1st9uIn
-         HZXtpvXtWH6a3GgF5XoXpQOTjWDxgKi4eim5VqZHrSs6PcZ9g3T3T3EbvQy//TosRUNR
-         4cQQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=alexander.h.duyck@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAWNmIvRAAvt61RaCDsXnc4PeoDMI1l2DRoIecircejXFp03u466
-	rTaYP+zOqCKn1A4cWcVaQtJyqdrrnELcB4eyHjuHW9GrVrrDQGFSabwbmZo9iDmHrgPV+tPI2mQ
-	9jPd2SGZewTzn+E70G1rZW6o2JSJuNUqFgcbQ4HJGF0ToPsIb1cUSzMPLCvDysHHpoA==
-X-Received: by 2002:a17:90a:19d:: with SMTP id 29mr28889015pjc.71.1562623370336;
-        Mon, 08 Jul 2019 15:02:50 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy3EuVnmQLrAx+Ff4p6WJI6jCbhHFB9ECE+B4txSBgRuMn7OeNN9I4WpcjY989xcvZj3sTD
-X-Received: by 2002:a17:90a:19d:: with SMTP id 29mr28888862pjc.71.1562623368567;
-        Mon, 08 Jul 2019 15:02:48 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562623368; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-transfer-encoding:content-language;
+        bh=tfEa/2Z8+FBi2plWpY2XxMvtHLQ+mwkexfXFE1HfB8E=;
+        b=cZXGZeNevqYKXWTOAjjMLwOI0RCmtry0ZXOrlg6SIbNTcwJAGjpbeN+cHzcz4FTi76
+         Q0HWXspGbGlrlfHhlRr87zdolt78VwQH4F0Wj5aSNzS1hHtaCIScKZ+IXP3sLXQ1Rzqv
+         /kgeaoyj+aQ+O+YabMDpgeqtNeXsyz3SCbjZIE+tJUjTU2xD4H8FG8s5RDkpm830W3A2
+         bjZTsaS+e/b2ZL/w9KqS8FOD89lFrqyIMvhoEI3yLUgubrwMFD7pnganC66YroRjIKmE
+         BxkgFQlpfVY0rOXWVKxOZ1u818/BBAdJb+yqjeDN1YNRLiL+rEwgjDJJfnu4ynK4uurb
+         f+tA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.132 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Gm-Message-State: APjAAAWo0MxvP/YNI+vwvdI8pQSvTrZEwQFYfxamUo6F3+pC68WHcbZ9
+	qvj+O7y9Oyi8aXkSgUaU9TxACbiCq1/lyEhRJfy5nF+MALCVy7jNoCBHEclFlV8AfAEtGCrISzv
+	RR5Z4O9uOZbfF9TPG9FyqCuj7IbUlR0Swir3HwwenzqLNeNx+cY2xqHg0pQ6hCVEmwQ==
+X-Received: by 2002:a17:902:704a:: with SMTP id h10mr27359565plt.337.1562626361508;
+        Mon, 08 Jul 2019 15:52:41 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqy17VEEP3yGogRQCw3YvPF3E21JQ0RCNizesM9Yuuw5B+7GjvlYHBUrLa8+te+ducgzHezN
+X-Received: by 2002:a17:902:704a:: with SMTP id h10mr27359482plt.337.1562626360475;
+        Mon, 08 Jul 2019 15:52:40 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562626360; cv=none;
         d=google.com; s=arc-20160816;
-        b=uaA/wiYVl/z/ZlBJ1r3hDrMQSy73mFy6R7ArHdlFrd8Ls4TBmd1BjT0TCpj9mF5ZtW
-         mDO9vH69YhMSblMeByxiAcKhBPZHz0TW9otu4HLZFkdNLIxPL+A/TWsyoIpNNKbdMnnA
-         3zVik3rm5c20utudxWfXBkkWEHOQ2YNK4DpPNxjcYdSY0UTfjaiKTUNGjw3FraCoVEqF
-         JITzojk1+4Zu/EQvPJiYCVGcBltY7me4dfYyTeB0Ony0C3p9Og5ptC72eF2ChfxoqRTB
-         EGNbeChePYBTqY/bcdWdKequ2DFZlO2rAp4THU0W5RCm1gM35labkcN7o2pyJrCdZjuP
-         4OvQ==
+        b=XFDbyqzYdt1/Vlh+hvmt1q6m723I09B5wecuDF4qlASBn2lAM83SoloPnVptRGSKq3
+         Rj2qYzTbQMaRZey1DyTinBSBcwX+t/UYxw6lwE1L3rcCjodY3ZAeBJQA4TYxDoYbCvKt
+         9/wgUYKaDnlVA49jDeExg2wj73310eEzMZhRVAUksun1dr1QRhVXpCcH/y98r3UGmb6c
+         V12eQWKIzuos5GpQ2DagmzhHDlxImRWQEuN36m+BOW5vR/OYbHLcqFcBwDuL0xqmTG3u
+         gxRdE0bu0CbySoU54sG9RrINNWlDAzIFOe0M+N0aMWMMjmapbIeMDt08b2sXc309uBEh
+         0MFQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:user-agent:references
-         :in-reply-to:date:cc:to:from:subject:message-id;
-        bh=IIbhKHmA3MuhPivBZr6Cj2JQ8cR1nz+s7mV43F1HthE=;
-        b=Mr7GVduG2qhMdi2ppSWPqHhsfDaF9DoJASSj8gKMuZhaBqA/wBmq/+wEdRD7SO57eY
-         MDR3Bm4mE2jSAwUO6oQ0q57pk2YBzxJfNIOOTAmtrhL3DZqaDLRFShp0DL2kzYkTqZzc
-         5PPhTLhhCmZysTzSXxxdPgKzKpKVJBU+GscA2U8QSWvmPF3v1RxH595L5m6PIe5zsTXu
-         MPPAvCcYrfUhSzBnvd62LPzau5D8Q/EjcS07V2c/TR95UX3m9SxU+znJ3MS4QatbAck/
-         miC2itdPm0T2NadOT2Z/OVZ/RoOo90mSX9jMZGT7zalDKH80ngLEKZMGikmJIM7vx0oc
-         MFUg==
+        h=content-language:content-transfer-encoding:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=tfEa/2Z8+FBi2plWpY2XxMvtHLQ+mwkexfXFE1HfB8E=;
+        b=VrDg0W6Udh2QVJDSaa1XTCrGUQ4578XbTHVVS8SPQyjZhqHfUS0QbVfD9J9WGM6gnm
+         jn2XgRQJaaoe8nXBdDaD2oX67Dx81VQPNt/yihv3JQnLmwjHwKEsf8fTc6zAd5bIMj7X
+         Gz6jfxEMysWabDMKEumDGPVOGtz1eEvcZAT/ZPkhNVEDuXKwF1aCQxlVOqCl+Y6EdJ1k
+         AbNmlYGSLvgFKjeEFlOOSv8grR9NdUzG+XfCU8uVrCpaaIbOT93AmWhKeAKJGA8OVqoR
+         fAM92VCWkexaPG/qS/r0VVNWxQllF0bqI2NE/BlYYQpB4WunWLzvISUTXgYhcTnFyU7o
+         V9GQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=alexander.h.duyck@linux.intel.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id cn1si20440807plb.204.2019.07.08.15.02.48
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.132 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+Received: from out30-132.freemail.mail.aliyun.com (out30-132.freemail.mail.aliyun.com. [115.124.30.132])
+        by mx.google.com with ESMTPS id e21si20339631pgh.571.2019.07.08.15.52.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 08 Jul 2019 15:02:48 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 192.55.52.115 as permitted sender) client-ip=192.55.52.115;
+        Mon, 08 Jul 2019 15:52:40 -0700 (PDT)
+Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.132 as permitted sender) client-ip=115.124.30.132;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=alexander.h.duyck@linux.intel.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from orsmga003.jf.intel.com ([10.7.209.27])
-  by fmsmga103.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 08 Jul 2019 15:02:46 -0700
-X-IronPort-AV: E=Sophos;i="5.63,468,1557212400"; 
-   d="scan'208";a="167796859"
-Received: from ahduyck-desk1.jf.intel.com ([10.7.198.76])
-  by orsmga003-auth.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 08 Jul 2019 15:02:45 -0700
-Message-ID: <75a2e62975ef440e231304ddbf4f8deb51ee1fd4.camel@linux.intel.com>
-Subject: Re: [PATCH v1 5/6] mm: Add logic for separating "aerated" pages
- from "raw" pages
-From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
-To: Dave Hansen <dave.hansen@intel.com>, Alexander Duyck
- <alexander.duyck@gmail.com>, nitesh@redhat.com, kvm@vger.kernel.org, 
- david@redhat.com, mst@redhat.com, linux-kernel@vger.kernel.org,
- linux-mm@kvack.org,  akpm@linux-foundation.org
-Cc: yang.zhang.wz@gmail.com, pagupta@redhat.com, riel@surriel.com, 
-	konrad.wilk@oracle.com, lcapitulino@redhat.com, wei.w.wang@intel.com, 
-	aarcange@redhat.com, pbonzini@redhat.com, dan.j.williams@intel.com
-Date: Mon, 08 Jul 2019 15:02:45 -0700
-In-Reply-To: <a73eac6b-7fce-7a0d-46ab-1a7aa10dfe08@intel.com>
-References: <20190619222922.1231.27432.stgit@localhost.localdomain>
-	 <20190619223331.1231.39271.stgit@localhost.localdomain>
-	 <f704f160-49fb-2fdf-e8ac-44b47245a75c@intel.com>
-	 <66a43ec2912265ff7f1a16e0cf5258d5c3c61de5.camel@linux.intel.com>
-	 <a73eac6b-7fce-7a0d-46ab-1a7aa10dfe08@intel.com>
-Content-Type: text/plain; charset="UTF-8"
-User-Agent: Evolution 3.30.5 (3.30.5-1.fc29) 
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.132 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R151e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01f04391;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=7;SR=0;TI=SMTPD_---0TWPu3FD_1562626354;
+Received: from US-143344MP.local(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TWPu3FD_1562626354)
+          by smtp.aliyun-inc.com(127.0.0.1);
+          Tue, 09 Jul 2019 06:52:37 +0800
+Subject: Re: [PATCH 1/2 -mm] mm: account lazy free pages separately
+To: rientjes@google.com, kirill.shutemov@linux.intel.com, mhocko@suse.com,
+ hannes@cmpxchg.org, akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+References: <1561655524-89276-1-git-send-email-yang.shi@linux.alibaba.com>
+From: Yang Shi <yang.shi@linux.alibaba.com>
+Message-ID: <60eb1dbd-b320-ce9b-34f5-bc2e8b6d660b@linux.alibaba.com>
+Date: Mon, 8 Jul 2019 15:52:29 -0700
+User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:52.0)
+ Gecko/20100101 Thunderbird/52.7.0
 MIME-Version: 1.0
+In-Reply-To: <1561655524-89276-1-git-send-email-yang.shi@linux.alibaba.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Transfer-Encoding: 7bit
+Content-Language: en-US
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2019-07-08 at 12:36 -0700, Dave Hansen wrote:
-> On 7/8/19 12:02 PM, Alexander Duyck wrote:
-> > On Tue, 2019-06-25 at 13:24 -0700, Dave Hansen wrote:
-> > > I also don't see what the boundary has to do with aerated pages being on
-> > > the tail of the list.  If you want them on the tail, you just always
-> > > list_add_tail() them.
-> > 
-> > The issue is that there are multiple things that can add to the tail of
-> > the list. For example the shuffle code or the lower order buddy expecting
-> > its buddy to be freed. In those cases I don't want to add to tail so
-> > instead I am adding those to the boundary. By doing that I can avoid
-> > having the tail of the list becoming interleaved with raw and aerated
-> > pages.
-> 
-> So, it sounds like we've got the following data structure rules:
-> 
-> 1. We have one list_head and one list of pages
-> 2. For the purposes of allocation, the list is treated the same as
->    before these patches
-
-So these 2 points are correct.
-
-> 3. For a "free()", the behavior changes and we now have two "tails":
->    3a. Aerated pages are freed into the tail of the list
->    3b. Cold pages are freed at the boundary between aerated and non.
->        This serves to...  This is also referred to as a "tail".
->    3a. Hot pages are never aerated and are still freed into the head
->        of the list.
-> 
-> Did I miss any?  Could you please spell it out this way in future
-> changelogs?
-
-So the logic for 3a and 3b is actually the same location. The difference
-is that the boundary pointer will move up to the page in the case of 3a,
-and will not move in the case of 3b. That was why I was kind of annoyed
-with myself as I was calling it the aerator "tail" when it is really the
-head of the aeration list.
-
-So the change I am planning to make in terms of naming is to refer to
-__aerator_get_boundary in the function below. Boundary makes more sense in
-my mind anyway because it is the head of one list and the tail of the
-other.
-
-> 
-> > > > +struct list_head *__aerator_get_tail(unsigned int order, int migratetype);
-> > > >  static inline struct list_head *aerator_get_tail(struct zone *zone,
-> > > >  						 unsigned int order,
-> > > >  						 int migratetype)
-> > > >  {
-> > > > +#ifdef CONFIG_AERATION
-> > > > +	if (order >= AERATOR_MIN_ORDER &&
-> > > > +	    test_bit(ZONE_AERATION_ACTIVE, &zone->flags))
-> > > > +		return __aerator_get_tail(order, migratetype);
-> > > > +#endif
-> > > >  	return &zone->free_area[order].free_list[migratetype];
-> > > >  }
-> > > 
-> > > Logically, I have no idea what this is doing.  "Go get pages out of the
-> > > aerated list?"  "raw list"?  Needs comments.
-> > 
-> > I'll add comments. Really now that I think about it I should probably
-> > change the name for this anyway. What is really being returned is the tail
-> > for the non-aerated list. Specifically if ZONE_AERATION_ACTIVE is set we
-> > want to prevent any insertions below the list of aerated pages, so we are
-> > returning the first entry in the aerated list and using that as the
-> > tail/head of a list tail insertion.
-> > 
-> > Ugh. I really need to go back and name this better.
-> 
-> OK, so we now have two tails?  One that's called both a boundary and a
-> tail at different parts of the code?
-
-Yes, that is the naming issue I was getting at. I would prefer to go with
-boundary where I can since it is both a head of one list and the tail of
-the other.
-
-I will try to clean this all up before I submit this again.
-
-> > > >  static inline void aerator_notify_free(struct zone *zone, int order)
-> > > >  {
-> > > > +#ifdef CONFIG_AERATION
-> > > > +	if (!static_key_false(&aerator_notify_enabled))
-> > > > +		return;
-> > > > +	if (order < AERATOR_MIN_ORDER)
-> > > > +		return;
-> > > > +	if (test_bit(ZONE_AERATION_REQUESTED, &zone->flags))
-> > > > +		return;
-> > > > +	if (aerator_raw_pages(&zone->free_area[order]) < AERATOR_HWM)
-> > > > +		return;
-> > > > +
-> > > > +	__aerator_notify(zone);
-> > > > +#endif
-> > > >  }
-> > > 
-> > > Again, this is really hard to review.  I see some possible overhead in a
-> > > fast path here, but only if aerator_notify_free() is called in a fast
-> > > path.  Is it?  I have to go digging in the previous patches to figure
-> > > that out.
-> > 
-> > This is called at the end of __free_one_page().
-> > 
-> > I tried to limit the impact as much as possible by ordering the checks the
-> > way I did. The order check should limit the impact pretty significantly as
-> > that is the only one that will be triggered for every page, then the
-> > higher order pages are left to deal with the test_bit and
-> > aerator_raw_pages checks.
-> 
-> That sounds like a good idea.  But, that good idea is very hard to
-> distill from the code in the patch.
-> 
-> Imagine if the function stared being commented with:
-> 
-> /* Called from a hot path in __free_one_page() */
-> 
-> And said:
-> 
-> 
-> 	if (!static_key_false(&aerator_notify_enabled))
-> 		return;
-> 
-> 	/* Avoid (slow) notifications when no aeration is performed: */
-> 	if (order < AERATOR_MIN_ORDER)
-> 		return;
-> 	if (test_bit(ZONE_AERATION_REQUESTED, &zone->flags))
-> 		return;
-> 
-> 	/* Some other relevant comment: */
-> 	if (aerator_raw_pages(&zone->free_area[order]) < AERATOR_HWM)
-> 		return;
-> 
-> 	/* This is slow, but should happen very rarely: */
-> 	__aerator_notify(zone);
-> 
-
-I'll go through and work on cleaning up the comments.
-
-> > > > +static void aerator_populate_boundaries(struct zone *zone)
-> > > > +{
-> > > > +	unsigned int order, mt;
-> > > > +
-> > > > +	if (test_bit(ZONE_AERATION_ACTIVE, &zone->flags))
-> > > > +		return;
-> > > > +
-> > > > +	for_each_aerate_migratetype_order(order, mt)
-> > > > +		aerator_reset_boundary(zone, order, mt);
-> > > > +
-> > > > +	set_bit(ZONE_AERATION_ACTIVE, &zone->flags);
-> > > > +}
-> > > 
-> > > This function appears misnamed as it's doing more than boundary
-> > > manipulation.
-> > 
-> > The ZONE_AERATION_ACTIVE flag is what is used to indicate that the
-> > boundaries are being tracked. Without that we just fall back to using the
-> > free_list tail.
-> 
-> Is the flag used for other things?  Or just to indicate that boundaries
-> are being tracked?
-
-Just the boundaries. It gets set before the first time we have to flush
-out a batch of pages, and is cleared after we have determined that there
-are no longer any pages to pull and our local list is empty.
-
-> > > > +struct list_head *__aerator_get_tail(unsigned int order, int migratetype)
-> > > > +{
-> > > > +	return boundary[order - AERATOR_MIN_ORDER][migratetype];
-> > > > +}
-> > > > +
-> > > > +void __aerator_del_from_boundary(struct page *page, struct zone *zone)
-> > > > +{
-> > > > +	unsigned int order = page_private(page) - AERATOR_MIN_ORDER;
-> > > > +	int mt = get_pcppage_migratetype(page);
-> > > > +	struct list_head **tail = &boundary[order][mt];
-> > > > +
-> > > > +	if (*tail == &page->lru)
-> > > > +		*tail = page->lru.next;
-> > > > +}
-> > > 
-> > > Ewww.  Please just track the page that's the boundary, not the list head
-> > > inside the page that's the boundary.
-> > > 
-> > > This also at least needs one comment along the lines of: Move the
-> > > boundary if the page representing the boundary is being removed.
-> > 
-> > So the reason for using the list_head is because we can end up with a
-> > boundary for an empty list. In that case we don't have a page to point to
-> > but just the list_head for the list itself. It actually makes things quite
-> > a bit simpler, otherwise I have to perform extra checks to see if the list
-> > is empty.
-> 
-> Could you please double-check that keeping a 'struct page *' is truly
-> more messy?
-
-Well there are a few places I am using this where using a page pointer
-would be an issue.
-
-1. add_to_free_area_tail
-      Using a page pointer here would be difficult since we are adding a
-      page to a list, not to another page.
-2. aerator_populate_boundaries
-      We were initializing the boundary to the list head for each of the
-      free_lists that we could possibly be placing pages into. Translating
-      to a page would require additional overhead.
-3. __aerator_del_from_boundary
-      What we can end up with here if we aren't careful is a page pointer
-      that isn't to a page in the case that the free_list is actually
-      empty.
-
-In my mind in order to handle this correctly I would have to start using
-NULL when the list is empty, and have to add a check to
-__aerator_del_from_boundary that would go in and grab the free_list for
-the page and test against the head of the free list to make certain that
-removing the page will not cause us to point to something that isn't a
-page.
+Hi guys,
 
 
-> > > > +void aerator_add_to_boundary(struct page *page, struct zone *zone)
-> > > > +{
-> > > > +	unsigned int order = page_private(page) - AERATOR_MIN_ORDER;
-> > > > +	int mt = get_pcppage_migratetype(page);
-> > > > +	struct list_head **tail = &boundary[order][mt];
-> > > > +
-> > > > +	*tail = &page->lru;
-> > > > +}
-> > > > +
-> > > > +void aerator_shutdown(void)
-> > > > +{
-> > > > +	static_key_slow_dec(&aerator_notify_enabled);
-> > > > +
-> > > > +	while (atomic_read(&a_dev_info->refcnt))
-> > > > +		msleep(20);
-> > > 
-> > > We generally frown on open-coded check/sleep loops.  What is this for?
-> > 
-> > We are waiting on the aerator to finish processing the list it had active.
-> > With the static key disabled we should see the refcount wind down to 0.
-> > Once that occurs we can safely free the a_dev_info structure since there
-> > will be no other uses of it.
-> 
-> That's fine, but we still don't open-code sleep loops.  Please remove this.
-> 
-> "Wait until we can free the thing" sounds to me like RCU.  Do you want
-> to use RCU here?  A synchronize_rcu() call can be a very powerful thing
-> if the read-side critical sections are amenable to it.
+Any comment on this series?
 
-So the issue is I am not entirely sure RCU would be a good fit here. Now I
-could handle the __aerator_notify call via an RCU setup, however the call
-to aerator_cycle probably wouldn't work well with it since it would be
-holding onto a_dev_info for an extended period of time and we wouldn't
-want to stall RCU out because the system is busy aerating a big section of
-memory.
 
-I'll have to think about this some more. As it currently stands I don't
-think this completely solves what it is meant to anyway since I think it
-is possible to race and end up with a scenario where another CPU might be
-able to get past the static key check before we disable it, and then we
-could free a_dev_info before it has a chance to take a reference to it.
+Thanks,
 
-> > > > +static void aerator_schedule_initial_aeration(void)
-> > > > +{
-> > > > +	struct zone *zone;
-> > > > +
-> > > > +	for_each_populated_zone(zone) {
-> > > > +		spin_lock(&zone->lock);
-> > > > +		__aerator_notify(zone);
-> > > > +		spin_unlock(&zone->lock);
-> > > > +	}
-> > > > +}
-> > > 
-> > > Why do we need an initial aeration?
-> > 
-> > This is mostly about avoiding any possible races while we are brining up
-> > the aerator. If we assume we are just going to start a cycle of aeration
-> > for all zones when the aerator is brought up it makes it easier to be sure
-> > we have gone though and checked all of the zones after initialization is
-> > complete.
-> 
-> Let me ask a different way:  What will happen if we don't have this?
-> Will things crash?  Will they be slow?  Do we not know?
+Yang
 
-I wouldn't expect any crashes. We may just not end up with the memory
-being freed for some time if all the pages are freed before the aerator
-device is registered, and there isn't any memory activity after that.
 
-This was mostly about just making sure we flush the memory after the
-device has been initialized.
 
-> > > > +{
-> > > > +	struct list_head *batch = &a_dev_info->batch;
-> > > > +	int budget = a_dev_info->capacity;
-> > > 
-> > > Where does capacity come from?
-> > 
-> > It is the limit on how many pages we can process at a time. The value is
-> > set in a_dev_info before the call to aerator_startup.
-> 
-> Let me ask another way: Does it come from the user?  Or is it
-> automatically determined by some in-kernel heuristic?
-
-It is being provided by the module that registers the aeration device. So
-in patch 6 of the series we determined that we wanted to process 32 pages
-at a time. So we set that as the limit since that is the number of hints
-we had allocated in the virtio-balloon driver.
-
-> > > > +		while ((page = get_aeration_page(zone, order, mt))) {
-> > > > +			list_add_tail(&page->lru, batch);
-> > > > +
-> > > > +			if (!--budget)
-> > > > +				return;
-> > > > +		}
-> > > > +	}
-> > > > +
-> > > > +	/*
-> > > > +	 * If there are no longer enough free pages to fully populate
-> > > > +	 * the aerator, then we can just shut it down for this zone.
-> > > > +	 */
-> > > > +	clear_bit(ZONE_AERATION_REQUESTED, &zone->flags);
-> > > > +	atomic_dec(&a_dev_info->refcnt);
-> > > > +}
-> > > 
-> > > Huh, so this is the number of threads doing aeration?  Didn't we just
-> > > make a big deal about there only being one zone being aerated at a time?
-> > >  Or, did I misunderstand what refcnt is from its lack of clear
-> > > documentation?
-> > 
-> > The refcnt is the number of zones requesting aeration plus one additional
-> > if the thread is active. We are limited to only having pages from one zone
-> > in the aerator at a time. That is to prevent us from having to maintain
-> > multiple boundaries.
-> 
-> That sounds like excellent documentation to add to 'refcnt's definition.
-
-Will do.
-
-> > > > +static void aerator_drain(struct zone *zone)
-> > > > +{
-> > > > +	struct list_head *list = &a_dev_info->batch;
-> > > > +	struct page *page;
-> > > > +
-> > > > +	/*
-> > > > +	 * Drain the now aerated pages back into their respective
-> > > > +	 * free lists/areas.
-> > > > +	 */
-> > > > +	while ((page = list_first_entry_or_null(list, struct page, lru))) {
-> > > > +		list_del(&page->lru);
-> > > > +		put_aeration_page(zone, page);
-> > > > +	}
-> > > > +}
-> > > > +
-> > > > +static void aerator_scrub_zone(struct zone *zone)
-> > > > +{
-> > > > +	/* See if there are any pages to pull */
-> > > > +	if (!test_bit(ZONE_AERATION_REQUESTED, &zone->flags))
-> > > > +		return;
-> > > 
-> > > How would someone ask for the zone to be scrubbed when aeration has not
-> > > been requested?
-> > 
-> > I'm not sure what you are asking here. Basically this function is called
-> > per zone by aerator_cycle. Which now that I think about it I should
-> > probably swap the names around that we perform a cycle per zone and just
-> > scrub memory generically.
-> 
-> It looks like aerator_cycle() calls aerator_scrub_zone() on all zones
-> all the time.  This is the code responsible for ensuring that we don't
-> do any aeration work on zones that do not need it.
-
-Yes, that is correct.
-
-Based on your comment here and a few other spots I am assuming you would
-prefer to see these sort of tests pulled out and done before we call the
-function? I'm assuming that was the case after I started to see the
-pattern so I will update that for the next patch set.
-
+On 6/27/19 10:12 AM, Yang Shi wrote:
+> When doing partial unmap to THP, the pages in the affected range would
+> be considered to be reclaimable when memory pressure comes in.  And,
+> such pages would be put on deferred split queue and get minus from the
+> memory statistics (i.e. /proc/meminfo).
+>
+> For example, when doing THP split test, /proc/meminfo would show:
+>
+> Before put on lazy free list:
+> MemTotal:       45288336 kB
+> MemFree:        43281376 kB
+> MemAvailable:   43254048 kB
+> ...
+> Active(anon):    1096296 kB
+> Inactive(anon):     8372 kB
+> ...
+> AnonPages:       1096264 kB
+> ...
+> AnonHugePages:   1056768 kB
+>
+> After put on lazy free list:
+> MemTotal:       45288336 kB
+> MemFree:        43282612 kB
+> MemAvailable:   43255284 kB
+> ...
+> Active(anon):    1094228 kB
+> Inactive(anon):     8372 kB
+> ...
+> AnonPages:         49668 kB
+> ...
+> AnonHugePages:     10240 kB
+>
+> The THPs confusingly look disappeared although they are still on LRU if
+> you are not familair the tricks done by kernel.
+>
+> Accounted the lazy free pages to NR_LAZYFREE, and show them in meminfo
+> and other places.  With the change the /proc/meminfo would look like:
+> Before put on lazy free list:
+> AnonHugePages:   1056768 kB
+> ShmemHugePages:        0 kB
+> ShmemPmdMapped:        0 kB
+> LazyFreePages:         0 kB
+>
+> After put on lazy free list:
+> AnonHugePages:     10240 kB
+> ShmemHugePages:        0 kB
+> ShmemPmdMapped:        0 kB
+> LazyFreePages:   1046528 kB
+>
+> And, this is also the preparation for the following patch to account
+> lazy free pages to available memory.
+>
+> Here the lazyfree doesn't count MADV_FREE pages since they are not
+> actually unmapped until they get reclaimed.  And, they are put on
+> inactive file LRU, so they have been accounted for available memory.
+>
+> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
+> ---
+> I'm not quite sure whether LazyFreePages is a good name or not since "Lazyfree"
+> is typically referred to MADV_FREE pages.  I could use a more spceific name,
+> i.e. "DeferredSplitTHP" since it doesn't account MADV_FREE as explained in the
+> commit log.  But, a more general name would be good for including other type
+> pages in the future.
+>
+> And, I'm also not sure if it is a good idea to show this in memcg stat or not.
+>
+>   Documentation/filesystems/proc.txt | 12 ++++++++----
+>   drivers/base/node.c                |  3 +++
+>   fs/proc/meminfo.c                  |  3 +++
+>   include/linux/mmzone.h             |  1 +
+>   mm/huge_memory.c                   |  8 ++++++++
+>   mm/page_alloc.c                    |  2 ++
+>   mm/vmstat.c                        |  1 +
+>   7 files changed, 26 insertions(+), 4 deletions(-)
+>
+> diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
+> index 66cad5c..851ddfd 100644
+> --- a/Documentation/filesystems/proc.txt
+> +++ b/Documentation/filesystems/proc.txt
+> @@ -895,6 +895,7 @@ HardwareCorrupted:   0 kB
+>   AnonHugePages:   49152 kB
+>   ShmemHugePages:      0 kB
+>   ShmemPmdMapped:      0 kB
+> +LazyFreePages:       0 kB
+>   
+>   
+>       MemTotal: Total usable ram (i.e. physical ram minus a few reserved
+> @@ -902,12 +903,13 @@ ShmemPmdMapped:      0 kB
+>        MemFree: The sum of LowFree+HighFree
+>   MemAvailable: An estimate of how much memory is available for starting new
+>                 applications, without swapping. Calculated from MemFree,
+> -              SReclaimable, the size of the file LRU lists, and the low
+> -              watermarks in each zone.
+> +              SReclaimable, the size of the file LRU lists, LazyFree pages
+> +              and the low watermarks in each zone.
+>                 The estimate takes into account that the system needs some
+>                 page cache to function well, and that not all reclaimable
+> -              slab will be reclaimable, due to items being in use. The
+> -              impact of those factors will vary from system to system.
+> +              slab and LazyFree pages will be reclaimable, due to items
+> +              being in use. The impact of those factors will vary from
+> +              system to system.
+>        Buffers: Relatively temporary storage for raw disk blocks
+>                 shouldn't get tremendously large (20MB or so)
+>         Cached: in-memory cache for files read from the disk (the
+> @@ -945,6 +947,8 @@ AnonHugePages: Non-file backed huge pages mapped into userspace page tables
+>   ShmemHugePages: Memory used by shared memory (shmem) and tmpfs allocated
+>                 with huge pages
+>   ShmemPmdMapped: Shared memory mapped into userspace with huge pages
+> +LazyFreePages: Cleanly freeable pages under memory pressure (i.e. deferred
+> +               split THP).
+>   KReclaimable: Kernel allocations that the kernel will attempt to reclaim
+>                 under memory pressure. Includes SReclaimable (below), and other
+>                 direct allocations with a shrinker.
+> diff --git a/drivers/base/node.c b/drivers/base/node.c
+> index 8598fcb..ef701aa 100644
+> --- a/drivers/base/node.c
+> +++ b/drivers/base/node.c
+> @@ -427,6 +427,7 @@ static ssize_t node_read_meminfo(struct device *dev,
+>   		       "Node %d ShmemHugePages: %8lu kB\n"
+>   		       "Node %d ShmemPmdMapped: %8lu kB\n"
+>   #endif
+> +		       "Node %d LazyFreePages:	%8lu kB\n"
+>   			,
+>   		       nid, K(node_page_state(pgdat, NR_FILE_DIRTY)),
+>   		       nid, K(node_page_state(pgdat, NR_WRITEBACK)),
+> @@ -453,6 +454,8 @@ static ssize_t node_read_meminfo(struct device *dev,
+>   		       nid, K(node_page_state(pgdat, NR_SHMEM_PMDMAPPED) *
+>   				       HPAGE_PMD_NR)
+>   #endif
+> +		       ,
+> +		       nid, K(node_page_state(pgdat, NR_LAZYFREE))
+>   		       );
+>   	n += hugetlb_report_node_meminfo(nid, buf + n);
+>   	return n;
+> diff --git a/fs/proc/meminfo.c b/fs/proc/meminfo.c
+> index 568d90e..b02ebd0 100644
+> --- a/fs/proc/meminfo.c
+> +++ b/fs/proc/meminfo.c
+> @@ -138,6 +138,9 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
+>   		    global_node_page_state(NR_SHMEM_PMDMAPPED) * HPAGE_PMD_NR);
+>   #endif
+>   
+> +	show_val_kb(m, "LazyFreePages:  ",
+> +		    global_node_page_state(NR_LAZYFREE));
+> +
+>   #ifdef CONFIG_CMA
+>   	show_val_kb(m, "CmaTotal:       ", totalcma_pages);
+>   	show_val_kb(m, "CmaFree:        ",
+> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> index 7799166..523ea86 100644
+> --- a/include/linux/mmzone.h
+> +++ b/include/linux/mmzone.h
+> @@ -235,6 +235,7 @@ enum node_stat_item {
+>   	NR_SHMEM_THPS,
+>   	NR_SHMEM_PMDMAPPED,
+>   	NR_ANON_THPS,
+> +	NR_LAZYFREE,		/* Lazyfree pages, i.e. deferred split THP */
+>   	NR_UNSTABLE_NFS,	/* NFS unstable pages */
+>   	NR_VMSCAN_WRITE,
+>   	NR_VMSCAN_IMMEDIATE,	/* Prioritise for reclaim when writeback ends */
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> index 4f20273..78806c7 100644
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -2757,6 +2757,8 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
+>   		if (!list_empty(page_deferred_list(head))) {
+>   			ds_queue->split_queue_len--;
+>   			list_del(page_deferred_list(head));
+> +			__mod_node_page_state(NODE_DATA(page_to_nid(head)),
+> +					NR_LAZYFREE, -HPAGE_PMD_NR);
+>   		}
+>   		if (mapping)
+>   			__dec_node_page_state(page, NR_SHMEM_THPS);
+> @@ -2806,6 +2808,8 @@ void free_transhuge_page(struct page *page)
+>   	if (!list_empty(page_deferred_list(page))) {
+>   		ds_queue->split_queue_len--;
+>   		list_del(page_deferred_list(page));
+> +		__mod_node_page_state(NODE_DATA(page_to_nid(page)),
+> +				NR_LAZYFREE, -HPAGE_PMD_NR);
+>   	}
+>   	spin_unlock_irqrestore(&ds_queue->split_queue_lock, flags);
+>   	free_compound_page(page);
+> @@ -2822,6 +2826,8 @@ void deferred_split_huge_page(struct page *page)
+>   	spin_lock_irqsave(&ds_queue->split_queue_lock, flags);
+>   	if (list_empty(page_deferred_list(page))) {
+>   		count_vm_event(THP_DEFERRED_SPLIT_PAGE);
+> +		__mod_node_page_state(NODE_DATA(page_to_nid(page)),
+> +				NR_LAZYFREE, HPAGE_PMD_NR);
+>   		list_add_tail(page_deferred_list(page), &ds_queue->split_queue);
+>   		ds_queue->split_queue_len++;
+>   		if (memcg)
+> @@ -2873,6 +2879,8 @@ static unsigned long deferred_split_scan(struct shrinker *shrink,
+>   			/* We lost race with put_compound_page() */
+>   			list_del_init(page_deferred_list(page));
+>   			ds_queue->split_queue_len--;
+> +			__mod_node_page_state(NODE_DATA(page_to_nid(page)),
+> +					NR_LAZYFREE, -HPAGE_PMD_NR);
+>   		}
+>   		if (!--sc->nr_to_scan)
+>   			break;
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 7f27f4e..cab50e8 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -5210,6 +5210,7 @@ void show_free_areas(unsigned int filter, nodemask_t *nodemask)
+>   			" shmem_pmdmapped: %lukB"
+>   			" anon_thp: %lukB"
+>   #endif
+> +			" lazyfree:%lukB"
+>   			" writeback_tmp:%lukB"
+>   			" unstable:%lukB"
+>   			" all_unreclaimable? %s"
+> @@ -5232,6 +5233,7 @@ void show_free_areas(unsigned int filter, nodemask_t *nodemask)
+>   					* HPAGE_PMD_NR),
+>   			K(node_page_state(pgdat, NR_ANON_THPS) * HPAGE_PMD_NR),
+>   #endif
+> +			K(node_page_state(pgdat, NR_LAZYFREE)),
+>   			K(node_page_state(pgdat, NR_WRITEBACK_TEMP)),
+>   			K(node_page_state(pgdat, NR_UNSTABLE_NFS)),
+>   			pgdat->kswapd_failures >= MAX_RECLAIM_RETRIES ?
+> diff --git a/mm/vmstat.c b/mm/vmstat.c
+> index a7d4933..87703f2 100644
+> --- a/mm/vmstat.c
+> +++ b/mm/vmstat.c
+> @@ -1158,6 +1158,7 @@ int fragmentation_index(struct zone *zone, unsigned int order)
+>   	"nr_shmem_hugepages",
+>   	"nr_shmem_pmdmapped",
+>   	"nr_anon_transparent_hugepages",
+> +	"nr_lazyfree",
+>   	"nr_unstable",
+>   	"nr_vmscan_write",
+>   	"nr_vmscan_immediate_reclaim",
 
