@@ -7,135 +7,135 @@ X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4471BC606C7
-	for <linux-mm@archiver.kernel.org>; Mon,  8 Jul 2019 18:49:46 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2B082C606C7
+	for <linux-mm@archiver.kernel.org>; Mon,  8 Jul 2019 18:50:07 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id F34A42086D
-	for <linux-mm@archiver.kernel.org>; Mon,  8 Jul 2019 18:49:45 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id CFE7E216FD
+	for <linux-mm@archiver.kernel.org>; Mon,  8 Jul 2019 18:50:06 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=wdc.com header.i=@wdc.com header.b="blDcIdQ0";
-	dkim=pass (1024-bit key) header.d=sharedspace.onmicrosoft.com header.i=@sharedspace.onmicrosoft.com header.b="IbOYPLMR"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F34A42086D
+	dkim=pass (2048-bit key) header.d=wdc.com header.i=@wdc.com header.b="jvgbYhc5";
+	dkim=pass (1024-bit key) header.d=sharedspace.onmicrosoft.com header.i=@sharedspace.onmicrosoft.com header.b="sWN/5kc9"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CFE7E216FD
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=wdc.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 70D998E0031; Mon,  8 Jul 2019 14:49:45 -0400 (EDT)
+	id 734248E0027; Mon,  8 Jul 2019 14:50:06 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 697B18E0027; Mon,  8 Jul 2019 14:49:45 -0400 (EDT)
+	id 6BDB78E0032; Mon,  8 Jul 2019 14:50:06 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 621938E0031; Mon,  8 Jul 2019 14:49:43 -0400 (EDT)
+	id 566078E0027; Mon,  8 Jul 2019 14:50:06 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 27D168E0027
-	for <linux-mm@kvack.org>; Mon,  8 Jul 2019 14:49:43 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id x10so10837258pfa.23
-        for <linux-mm@kvack.org>; Mon, 08 Jul 2019 11:49:43 -0700 (PDT)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 18A078E0027
+	for <linux-mm@kvack.org>; Mon,  8 Jul 2019 14:50:06 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id e95so9226550plb.9
+        for <linux-mm@kvack.org>; Mon, 08 Jul 2019 11:50:06 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:ironport-sdr:dkim-signature:from
          :to:cc:subject:thread-topic:thread-index:date:message-id:references
          :accept-language:content-language:wdcipoutbound
          :content-transfer-encoding:mime-version;
-        bh=Jbjc6Q/mLZtcNW5kLsqIh3rXJYWn5IugFldKMixev70=;
-        b=SCNWmvi+lGpGM69FB93Id8W3HQUscoPE0CSHLYVCiKflPRUjQ13G0AUw50LRsnqTY9
-         oJnpLoNxhnZy8eHTF+yvnEc4368ccsJ7iiRyNJggPw7eUrlHu3EqW96EkqDgq/SFNQ03
-         tCWpTOucis0RUy9KfUqelOQ2ZoJFNYEx3U/KmNKICIE0xZuhf2NK0i+J5YUJruljLzLn
-         Hc7x7YzxQAmvSFVNE/vSh7w7y6svXys91rEq3VOIw3q1W/G9E8hpE4itNUBKXisLsbTr
-         z1HagcdcI0+Jn2iK3cAL1bgcr7R1jpMcs8LC4UX8X5RM36qQtyrOHPLM/UFriSO2tgoe
-         xf2w==
-X-Gm-Message-State: APjAAAVsttmohInCLeysUIqdPTbv7arEVRR+6OGfH31ZlBbbG4gfVluc
-	z2I2Q7TAhuQb/FNLQ42IH/dGNp85Arf0qMT6IV03pClhscNxVm5iWzK8KC5oguBC5xLTbrXij3/
-	xH4c8NyMlovn6D/iVi5GsWQgPXKYJ7ewY1bwPrvuQ4pBM+VVEgwkhfWRTv4jAYlZkUg==
-X-Received: by 2002:a65:404d:: with SMTP id h13mr25091446pgp.71.1562611782631;
-        Mon, 08 Jul 2019 11:49:42 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyGL+809XHf11q6JDMSozivQ5fMGnUa1mrZjqWVL0192JlfrPO+wLCAOONvL1+FGQAQDHS4
-X-Received: by 2002:a65:404d:: with SMTP id h13mr25091394pgp.71.1562611781823;
-        Mon, 08 Jul 2019 11:49:41 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562611781; cv=none;
+        bh=DYrAhknFJrfgVH7tUTas/304tMGKs0DIRpYx1FvCIZo=;
+        b=cUYD5alvO4DLmnL6pkDCuiBx9yco1n0ZCLj7cC0tGM40JuYb6U3UpJxvWIi37xFQVx
+         VaeB28aBlPLGietal8zjTVUIl0zZGjDaxBpAXXldv74Hi8kiq+ixZwbwVZeH52bCFhK2
+         70+fcJ6rNwtmCQdOGnJzSyWMBdKtdNkH42Ti3jHsoDlOQXydossfBIHO5HJNa8Ob2gsw
+         laXaCYK18ebaHO0Rb7n2GxHeRhVCb+yYuTddGdD8+suZ3xZD8ZWvdvhwDXaeHF0H28tr
+         UxjPCGes3ZJmf5nn2WSvDUJpNJaH49kvKQgW4jmuXFhrRZumBiEJNAs+27z7pXLwnrr1
+         mKRg==
+X-Gm-Message-State: APjAAAUKa7qKfBi2Y/FdFceAkRs80SlXXPXryn+lskIrmuLN0jS5ElkT
+	khNa+MhE5Bn5MZqYlmO1Q+jMi+/OiZzxtb6J/X6j7/OQFXD2nVdxSGryhoP6fuedGWCIwlMarnw
+	dUExdKtIIoAG9LRkQxk8rcD2OYATRvk3CASyfwxE+06svmhOMsj7cmfuaPUMgGbTNLw==
+X-Received: by 2002:a17:90a:d791:: with SMTP id z17mr26373262pju.40.1562611805659;
+        Mon, 08 Jul 2019 11:50:05 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqynLHHpHIeJU4vUUKrKC/4bbmE2gKBm/9tpHFhr8jN0ETWhHSzjPO/wfJJVxHJLvQIKlPpE
+X-Received: by 2002:a17:90a:d791:: with SMTP id z17mr26373212pju.40.1562611804983;
+        Mon, 08 Jul 2019 11:50:04 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562611804; cv=none;
         d=google.com; s=arc-20160816;
-        b=aIj5ZbJLSszp/VjgAg/Xxszws01qZlmXO4oyk4tQtP9hJEEcx4aAQ4fnmxblekwo+Y
-         jEuN7zYCcbjPKL24phBQjvY154fYOTcJ6EJMjdHU3YGajsYBJSlm/RBboNVjSPRqik6p
-         yyJCsA2/2DVR1QPAFNGWJpMmpl5etJ+5dlviJqfAL8uSXilb6+vnxMBcgc2N6mAWWpcO
-         Ls5yInyHiPsYPMnpcV/mTOFPUr2bKPe38EZMBXAIaYanNDmVm4UuQluflmnUrWlsB1LM
-         EbgAaLywe09tuONWrt3DJVIUaOLDgF5tLXVHnDqAvUNLc0hFPwcgtpDNGUTSQ+gU/+9f
-         ypIA==
+        b=zZAFjC1sHEqHZExSVKVU1tijPh9EGxODWECW5AEuJLE2WTjtUoV4QPHmu1qvBojpeo
+         Vufr/AEZcX7ZevibzSeil6BUmdjH5hJFTUQz+GvMZDASgSckkQoCQTDLxKW1fG7oPMwP
+         0tcnzJHCMRmvhXctNR448aoLI47xKoA5cOHZC5qx5K1AndRKnQLGYWEnZdKSYH9WYdLx
+         ySbvsLpx1uCjjun87jVOuPyIwn4MiqRCYCV3f3ukJjLP/bzbJ5opu7aHFiQqACD8gsHT
+         kspcf4NdwS3kLb3gt5wnt6A8PoC7JRjz+8oI8gwHAqEaef1UaJ+uoweuHiLAFuQqcbb4
+         Quuw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=mime-version:content-transfer-encoding:wdcipoutbound
          :content-language:accept-language:references:message-id:date
          :thread-index:thread-topic:subject:cc:to:from:dkim-signature
          :ironport-sdr:dkim-signature;
-        bh=Jbjc6Q/mLZtcNW5kLsqIh3rXJYWn5IugFldKMixev70=;
-        b=Rci5nSudFI4Rj461TZ+TdLjc9VEfqxorkbbS70DLAnl6FK+nN0JAG1/wj/TAZQS1HH
-         86I4TTjJeqwFifZ1ByO17TZsPe5x0grmVVAK06dNDmfLWVVksKJ8J1S2opqRUY7n3cyr
-         jP4rPIyoz8I5UZQTq32NjPzeoLkDlNvk3ahV55xEsMsyPszJIrbzL0ri0g3n4XKxyGk8
-         j19lRfBM5Rnv2tZ9FivaUjzZpLRZUvvWkQaTAEyxw+DZowMvyniCOgFuX+RO01zFeyZH
-         eZ5shc3/X4B3GKqNlzZzdPm00Caqtt/Vpzyp620iOvPEAf7IMWQ6kFXVY2E8Um+BTxTN
-         aZeg==
+        bh=DYrAhknFJrfgVH7tUTas/304tMGKs0DIRpYx1FvCIZo=;
+        b=nlh9Jg/4GxvA1CnKxEgEXBzt+qxvKPjjc3KiLuxgSaVtWsEGdSWFjuq4g78e7/Dou1
+         vmJa7gy/nbL32MB5zJmFrkL5wb2i+4GuoNuqRNtjwgoYUvHEkl1H8B+OFr8FfZFHHFKg
+         zz0N2hReFKJm4yBYAgBd95O1m/hNO7ag1HELARWzoQytwJ1ZkiTVE6eMDoe7sag6P7zG
+         5yH8ei2kMu26+zKyD/H9bBU2RcAn4+mml6ORAvM/pkXXuuhMKz48TNXSleznZGcrNSlD
+         m7LUReFoHNeCAeBzSgdr4ANGKLfT945v+JNH5I0UVYW8pyUv18yyHBVECzDqcAz5RZIM
+         WvoQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@wdc.com header.s=dkim.wdc.com header.b=blDcIdQ0;
-       dkim=pass header.i=@sharedspace.onmicrosoft.com header.s=selector2-sharedspace-onmicrosoft-com header.b=IbOYPLMR;
+       dkim=pass header.i=@wdc.com header.s=dkim.wdc.com header.b=jvgbYhc5;
+       dkim=pass header.i=@sharedspace.onmicrosoft.com header.s=selector2-sharedspace-onmicrosoft-com header.b="sWN/5kc9";
        spf=pass (google.com: domain of prvs=0852429f4=chaitanya.kulkarni@wdc.com designates 216.71.153.144 as permitted sender) smtp.mailfrom="prvs=0852429f4=Chaitanya.Kulkarni@wdc.com";
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=wdc.com
 Received: from esa5.hgst.iphmx.com (esa5.hgst.iphmx.com. [216.71.153.144])
-        by mx.google.com with ESMTPS id h9si19146499pgs.397.2019.07.08.11.49.41
+        by mx.google.com with ESMTPS id d5si19364354pgk.346.2019.07.08.11.50.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 08 Jul 2019 11:49:41 -0700 (PDT)
+        Mon, 08 Jul 2019 11:50:04 -0700 (PDT)
 Received-SPF: pass (google.com: domain of prvs=0852429f4=chaitanya.kulkarni@wdc.com designates 216.71.153.144 as permitted sender) client-ip=216.71.153.144;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@wdc.com header.s=dkim.wdc.com header.b=blDcIdQ0;
-       dkim=pass header.i=@sharedspace.onmicrosoft.com header.s=selector2-sharedspace-onmicrosoft-com header.b=IbOYPLMR;
+       dkim=pass header.i=@wdc.com header.s=dkim.wdc.com header.b=jvgbYhc5;
+       dkim=pass header.i=@sharedspace.onmicrosoft.com header.s=selector2-sharedspace-onmicrosoft-com header.b="sWN/5kc9";
        spf=pass (google.com: domain of prvs=0852429f4=chaitanya.kulkarni@wdc.com designates 216.71.153.144 as permitted sender) smtp.mailfrom="prvs=0852429f4=Chaitanya.Kulkarni@wdc.com";
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=wdc.com
 DKIM-Signature: v=1; a=rsa-sha256; c=simple/simple;
   d=wdc.com; i=@wdc.com; q=dns/txt; s=dkim.wdc.com;
-  t=1562611781; x=1594147781;
+  t=1562611805; x=1594147805;
   h=from:to:cc:subject:date:message-id:references:
    content-transfer-encoding:mime-version;
-  bh=bGxz+GIeC1lC4g9qWmQkL3NXCULx1odrFwUfdivG58I=;
-  b=blDcIdQ0rC82WP1mYARHYHUzywKMMIpV1ORrBmvxJioXCkPVn9q4xiG+
-   EiKRUcJ0Axh4Ey/YEqm702sy0jAcpRVuzOXKqxWrRr1IEH+HVaVQJrnG9
-   GMDJgYK9Igvem1jYgTRtKbiqeNOvc+P/HV1JHWZBSxD0hF6UnJaKb4LLx
-   4XNxKTkfCbiG2bQCiIK7cjghuRHtIP6JQDRheB5vBoNAUMLhCtZai016T
-   qaqsqw5VP358DWqb4U1SQhpjFYBypuco1N612Z/dXr7dr9U/7eL9j3PJV
-   wGnlUh/LctCxbdB+v9gaDCTvPCqClADyn06lgFPuFG2C97fBSQ8QqC3kx
-   Q==;
-IronPort-SDR: FXimr6LjmbyKzEc4dCbcdIHgax76wbC4LdE3PDus98IaVm6TdnQ8ZmJf5eN4Ak256bzl7vL0sF
- 8gfRYtSET6XD/+X7+CPAweejX81FVnbbxDaeIUtLyJOqQueqjsOjaYmv5OFldKjXSbVvsxKKag
- vdBlqoAmJAUxsktrkNAvzx5sIbZIRparZ/2XnXjg+bVD7L0mOQIYry4AwHUfrm1XTY+BBk2br6
- ZdrhKPVetLI/5AEkOL4JXlEd5mCmz4xJ3y+xCbfKqfrpFMf8pP402L+oAgXaDssZ8DsdnNnc70
- 6qE=
+  bh=rST5XtYYzjECxnkKVAqUnjUvKpHGltzEEbbJcGj31cM=;
+  b=jvgbYhc5TOnGTegvLA5PkRFR9K0SkEyRdJ3GCvAWm3yMFRwiZiTSFnEC
+   z6zPq3R9GvCaJ43RJi1h0KXVTihGlNd/x8j3PuBN/9ksOY2nZvUr69CbA
+   Jv9LU1UgmxOO9i4RuVfzx0S2MGtZLhLjmojzQucDYWxKcmbUWSe9x6s5M
+   U5g5r4k6i5Mg4ghX2soLPwgRF4KiAZq/rKKSyd9J6KPE0c0jfRgOF3ccQ
+   vFTdbVD2iV6aa+aOfI4KeUhB5JbDwwd21fOztJW0q6cgXhepdwVVXV1EW
+   BqN56a7QkL4N1w+cAilA5QZq1uo28hw+2t1IfubR3wqapS20OzgXyGBF8
+   g==;
+IronPort-SDR: 3zMbtjeW7EbLH58MixpHqp17AFZq1Xu1MBh6oOxYa+RdoUuvnmPfjIsbIF3Tn5wFtqtWc3Puz7
+ 18BOfo+XQhiqC5MiFqHrcbcxdJb2SnFZw/maDHSRNxxrbB2lL9QSqP6OQ/eZTrQFN363GU6H0l
+ Im0X7UwSAEfLhxCMPcXfW5RNsQgQw6tZmZSb3Uv+TW0Nl0VXGcY2YdxhPrkNBWJ3zuigY3hhVY
+ APLHUET5W1vERQP5jLs6T95XWLGkUJArlg1tVtrGh2F55sH/zXtQPsh/e2fNECe7tnS5av4ioF
+ 7Ag=
 X-IronPort-AV: E=Sophos;i="5.63,466,1557158400"; 
-   d="scan'208";a="113649582"
-Received: from mail-co1nam03lp2051.outbound.protection.outlook.com (HELO NAM03-CO1-obe.outbound.protection.outlook.com) ([104.47.40.51])
-  by ob1.hgst.iphmx.com with ESMTP; 09 Jul 2019 02:49:41 +0800
+   d="scan'208";a="113649593"
+Received: from mail-co1nam03lp2050.outbound.protection.outlook.com (HELO NAM03-CO1-obe.outbound.protection.outlook.com) ([104.47.40.50])
+  by ob1.hgst.iphmx.com with ESMTP; 09 Jul 2019 02:49:55 +0800
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
  d=sharedspace.onmicrosoft.com; s=selector2-sharedspace-onmicrosoft-com;
  h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=Jbjc6Q/mLZtcNW5kLsqIh3rXJYWn5IugFldKMixev70=;
- b=IbOYPLMRH3efE49fsNG+Oqfx9l94ojJ+W61EnSJp9KkwH7KL6YqmTWgdjENDHM9l7jD/Es+7wF50uTYUFImPQDKsb9+ck5HtsjTnUO1eyjylDWlQ2hfG7MGYMruLDe2sB78/O8fZfCDzYJuS0a94RHsoV4ev+4UfiwfG+N6uy1o=
+ bh=DYrAhknFJrfgVH7tUTas/304tMGKs0DIRpYx1FvCIZo=;
+ b=sWN/5kc9MS4fu+k3ou+ky2rZAayjroNZXvg+/zB2dZkpSK0P3lfBQGgmGL7C3yMDr18c19aHYhaLlPcNSJSvbA9pYLIV4EInTAv2q5c2MgqlWWeH0OkJvuWCFCeCqkS7QwjGo8aprEsaMuz1KbSULKnpPWIuGMTMiC6rWCGROGg=
 Received: from BYAPR04MB5749.namprd04.prod.outlook.com (20.179.58.26) by
  BYAPR04MB5079.namprd04.prod.outlook.com (52.135.235.25) with Microsoft SMTP
  Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.2052.17; Mon, 8 Jul 2019 18:49:40 +0000
+ 15.20.2052.17; Mon, 8 Jul 2019 18:49:54 +0000
 Received: from BYAPR04MB5749.namprd04.prod.outlook.com
  ([fe80::8025:ccea:a0e6:9078]) by BYAPR04MB5749.namprd04.prod.outlook.com
  ([fe80::8025:ccea:a0e6:9078%5]) with mapi id 15.20.2052.010; Mon, 8 Jul 2019
- 18:49:39 +0000
+ 18:49:54 +0000
 From: Chaitanya Kulkarni <Chaitanya.Kulkarni@wdc.com>
 To: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-block@vger.kernel.org"
 	<linux-block@vger.kernel.org>
 CC: "bvanassche@acm.org" <bvanassche@acm.org>, "axboe@kernel.dk"
 	<axboe@kernel.dk>
-Subject: Re: [PATCH 4/5] mm: update block_dump comment
-Thread-Topic: [PATCH 4/5] mm: update block_dump comment
-Thread-Index: AQHVMFgQGYk7nYnKN0OmAoIT6JPzqA==
-Date: Mon, 8 Jul 2019 18:49:39 +0000
+Subject: Re: [PATCH 5/5] Documentation/laptop: add block_dump documentation
+Thread-Topic: [PATCH 5/5] Documentation/laptop: add block_dump documentation
+Thread-Index: AQHVMFgWWE5bmQUoIUGPWjB0oh8vEw==
+Date: Mon, 8 Jul 2019 18:49:54 +0000
 Message-ID:
- <BYAPR04MB57491CF4972D9EBA8587A26586F60@BYAPR04MB5749.namprd04.prod.outlook.com>
+ <BYAPR04MB57493225F93F43B6271DCFDA86F60@BYAPR04MB5749.namprd04.prod.outlook.com>
 References: <20190701215726.27601-1-chaitanya.kulkarni@wdc.com>
- <20190701215726.27601-5-chaitanya.kulkarni@wdc.com>
+ <20190701215726.27601-6-chaitanya.kulkarni@wdc.com>
 Accept-Language: en-US
 Content-Language: en-US
 X-MS-Has-Attach:
@@ -144,27 +144,27 @@ authentication-results: spf=none (sender IP is )
  smtp.mailfrom=Chaitanya.Kulkarni@wdc.com; 
 x-originating-ip: [199.255.45.63]
 x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: a1282512-b037-403e-9b7f-08d703d5085b
+x-ms-office365-filtering-correlation-id: f3a41eb6-a965-45c8-72b9-08d703d51133
 x-ms-office365-filtering-ht: Tenant
 x-microsoft-antispam:
  BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(4618075)(2017052603328)(7193020);SRVR:BYAPR04MB5079;
 x-ms-traffictypediagnostic: BYAPR04MB5079:
 x-microsoft-antispam-prvs:
- <BYAPR04MB50790F3DF29D7A308C43B5DC86F60@BYAPR04MB5079.namprd04.prod.outlook.com>
+ <BYAPR04MB507971BCC432BD0F4E190C0286F60@BYAPR04MB5079.namprd04.prod.outlook.com>
 wdcipoutbound: EOP-TRUE
-x-ms-oob-tlc-oobclassifiers: OLM:3826;
+x-ms-oob-tlc-oobclassifiers: OLM:9508;
 x-forefront-prvs: 00922518D8
 x-forefront-antispam-report:
- SFV:NSPM;SFS:(10019020)(4636009)(396003)(366004)(346002)(376002)(136003)(39860400002)(199004)(189003)(9686003)(55016002)(66556008)(64756008)(2906002)(66446008)(66476007)(8936002)(76116006)(73956011)(66946007)(71200400001)(53936002)(71190400001)(14444005)(33656002)(229853002)(81156014)(8676002)(81166006)(6246003)(6436002)(446003)(256004)(68736007)(25786009)(52536014)(316002)(72206003)(54906003)(4744005)(110136005)(478600001)(99286004)(486006)(15650500001)(14454004)(26005)(2501003)(476003)(7696005)(7736002)(186003)(5660300002)(305945005)(6116002)(74316002)(102836004)(6506007)(53546011)(86362001)(66066001)(76176011)(4326008)(3846002)(21314003);DIR:OUT;SFP:1102;SCL:1;SRVR:BYAPR04MB5079;H:BYAPR04MB5749.namprd04.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
+ SFV:NSPM;SFS:(10019020)(4636009)(396003)(366004)(346002)(376002)(136003)(39860400002)(199004)(189003)(9686003)(55016002)(66556008)(64756008)(2906002)(66446008)(66476007)(8936002)(76116006)(73956011)(66946007)(71200400001)(53936002)(71190400001)(33656002)(229853002)(81156014)(8676002)(81166006)(6246003)(6436002)(446003)(256004)(68736007)(25786009)(52536014)(316002)(72206003)(54906003)(110136005)(478600001)(99286004)(486006)(14454004)(26005)(2501003)(476003)(7696005)(7736002)(186003)(5660300002)(305945005)(6116002)(74316002)(102836004)(6506007)(53546011)(86362001)(66066001)(76176011)(4326008)(3846002);DIR:OUT;SFP:1102;SCL:1;SRVR:BYAPR04MB5079;H:BYAPR04MB5749.namprd04.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
 x-ms-exchange-senderadcheck: 1
 x-microsoft-antispam-message-info:
- qCSadIyb+r+Ob92jkRmKAVb8Ma7Ti94HpBn+v2liVJ8Ve3/b+fXLgMwDpAMyU5PI/QBKY89btOqSbWwT4pur7A9hgfv8tTW0HdQ3z/xv1B4VzXv4OUDt9UoIgSVbU525eEH4MpJc+ae+eGBvGDVS4iAPa8wGkjqakyF6fjqgwmYY4sZd7l5/hpuQTk+3G8i23kZnIv7XdV10u7pFgFYW+/Vm6S+VrjrvEFY1ZYv/EVmi0Gbab6uNmXs/AN9wZsiwQXJ5pKajzdwS91+lCTc22Sf7V4N14c6MG1e2RAQCegjH9hwuxCQ68nmQyT9jekcavnV1iDkhlDVddmbrk88iATIiFXdSo6mwadcFwx1JlC57QigO0uDt3W6vkzNSQDXS/zHi0MTdBtAj4gIj1JZZJIbXkm3czZld3JOOpwaLY2g=
+ e3+Yd+M84TMfEYFpT7yT9FhDWjqLr+RGRnANBARTrU91cIC+3/t+ECJQweVwJal3MlpClKy4iAkhYhMoy9+ojqROuBeZHGtDuxquGR3XTYnuuvEFxuyrdiLifGQWhe9efKP2Sj6r2DefXQW5dPiAB6eLr9WEplxS7Jt/HXq/BxG8CbgGfrS4OOY12S+M5zWnxiO4+MAhikg9BV7SYCFsc3EurC1ZQAbGwcnwELqZHTKiJfIwG4PyC7s+XM+U3O0xFI6Sz8nDWctDplinjBFy7t/HdzQt6n0XsM6m1bwbYYWSNIhpCMXIVQXOE9eJEDDWif4nBTp6peMZ2h7PZsjpQ2W6+FNfW+zW9WfXXqQSrlZTpsZ4fHTAeT5IhmlTxd8Vyn+wLA7qUn2dNRvF2bNnqY2zEhX+ioLhJWN8pXm/9Sc=
 Content-Type: text/plain; charset="us-ascii"
 Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
 X-OriginatorOrg: wdc.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: a1282512-b037-403e-9b7f-08d703d5085b
-X-MS-Exchange-CrossTenant-originalarrivaltime: 08 Jul 2019 18:49:39.8343
+X-MS-Exchange-CrossTenant-Network-Message-Id: f3a41eb6-a965-45c8-72b9-08d703d51133
+X-MS-Exchange-CrossTenant-originalarrivaltime: 08 Jul 2019 18:49:54.7376
  (UTC)
 X-MS-Exchange-CrossTenant-fromentityheader: Hosted
 X-MS-Exchange-CrossTenant-id: b61c8803-16f3-4c35-9b17-6f65f441df86
@@ -180,30 +180,61 @@ List-ID: <linux-mm.kvack.org>
 Can someone from linux-mm list please provide a feedback on this ?=0A=
 =0A=
 On 07/01/2019 02:58 PM, Chaitanya Kulkarni wrote:=0A=
-> With respect to the changes in the submit_bio() in the earlier patch=0A=
-> now we report all the REQ_OP_XXX associated with bio along with=0A=
-> REQ_OP_READ and REQ_OP_WRITE (READ/WRITE). Update the following=0A=
-> comment for block_dump variable to reflect the change.=0A=
+> This patch updates the block_dump documentation with respect to the=0A=
+> changes from the earlier patch for submit_bio(). Also we adjust rest of=
+=0A=
+> the lines to fit with standaed format.=0A=
 >=0A=
 > Signed-off-by: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>=0A=
 > ---=0A=
->   mm/page-writeback.c | 2 +-=0A=
->   1 file changed, 1 insertion(+), 1 deletion(-)=0A=
+>   Documentation/laptops/laptop-mode.txt | 16 ++++++++--------=0A=
+>   1 file changed, 8 insertions(+), 8 deletions(-)=0A=
 >=0A=
-> diff --git a/mm/page-writeback.c b/mm/page-writeback.c=0A=
-> index bdbe8b6b1225..ef299f95349f 100644=0A=
-> --- a/mm/page-writeback.c=0A=
-> +++ b/mm/page-writeback.c=0A=
-> @@ -109,7 +109,7 @@ EXPORT_SYMBOL_GPL(dirty_writeback_interval);=0A=
->   unsigned int dirty_expire_interval =3D 30 * 100; /* centiseconds */=0A=
+> diff --git a/Documentation/laptops/laptop-mode.txt b/Documentation/laptop=
+s/laptop-mode.txt=0A=
+> index 1c707fc9b141..d4d72ed677c4 100644=0A=
+> --- a/Documentation/laptops/laptop-mode.txt=0A=
+> +++ b/Documentation/laptops/laptop-mode.txt=0A=
+> @@ -101,14 +101,14 @@ a cache miss. The disk can then be spun down in the=
+ periods of inactivity.=0A=
 >=0A=
->   /*=0A=
-> - * Flag that makes the machine dump writes/reads and block dirtyings.=0A=
-> + * Flag that makes the machine dump block layer requests and block dirty=
-ings.=0A=
->    */=0A=
->   int block_dump;=0A=
+>   If you want to find out which process caused the disk to spin up, you c=
+an=0A=
+>   gather information by setting the flag /proc/sys/vm/block_dump. When th=
+is flag=0A=
+> -is set, Linux reports all disk read and write operations that take place=
+, and=0A=
+> -all block dirtyings done to files. This makes it possible to debug why a=
+ disk=0A=
+> -needs to spin up, and to increase battery life even more. The output of=
+=0A=
+> -block_dump is written to the kernel output, and it can be retrieved usin=
+g=0A=
+> -"dmesg". When you use block_dump and your kernel logging level also incl=
+udes=0A=
+> -kernel debugging messages, you probably want to turn off klogd, otherwis=
+e=0A=
+> -the output of block_dump will be logged, causing disk activity that is n=
+ot=0A=
+> -normally there.=0A=
+> +is set, Linux reports all disk I/O operations along with read and write=
+=0A=
+> +operations that take place, and all block dirtyings done to files. This =
+makes=0A=
+> +it possible to debug why a disk needs to spin up, and to increase batter=
+y life=0A=
+> +even more. The output of block_dump is written to the kernel output, and=
+ it can=0A=
+> +be retrieved using "dmesg". When you use block_dump and your kernel logg=
+ing=0A=
+> +level also includes kernel debugging messages, you probably want to turn=
+ off=0A=
+> +klogd, otherwise the output of block_dump will be logged, causing disk a=
+ctivity=0A=
+> +that is not normally there.=0A=
 >=0A=
+>=0A=
+>   Configuration=0A=
 >=0A=
 =0A=
 
