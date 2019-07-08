@@ -2,233 +2,139 @@ Return-Path: <SRS0=WbXp=VF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5F4AAC606BD
-	for <linux-mm@archiver.kernel.org>; Mon,  8 Jul 2019 16:33:54 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 40BA3C606C1
+	for <linux-mm@archiver.kernel.org>; Mon,  8 Jul 2019 16:43:19 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C856F21479
-	for <linux-mm@archiver.kernel.org>; Mon,  8 Jul 2019 16:33:53 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C856F21479
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=virtuozzo.com
+	by mail.kernel.org (Postfix) with ESMTP id F0A93216C4
+	for <linux-mm@archiver.kernel.org>; Mon,  8 Jul 2019 16:43:18 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F0A93216C4
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1A6648E001C; Mon,  8 Jul 2019 12:33:53 -0400 (EDT)
+	id 87D2E8E001F; Mon,  8 Jul 2019 12:43:18 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 131338E0002; Mon,  8 Jul 2019 12:33:53 -0400 (EDT)
+	id 82D338E0002; Mon,  8 Jul 2019 12:43:18 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 046F58E001C; Mon,  8 Jul 2019 12:33:53 -0400 (EDT)
+	id 6F6AC8E001F; Mon,  8 Jul 2019 12:43:18 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lj1-f200.google.com (mail-lj1-f200.google.com [209.85.208.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 921688E0002
-	for <linux-mm@kvack.org>; Mon,  8 Jul 2019 12:33:52 -0400 (EDT)
-Received: by mail-lj1-f200.google.com with SMTP id e14so3817789ljj.3
-        for <linux-mm@kvack.org>; Mon, 08 Jul 2019 09:33:52 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 227EA8E0002
+	for <linux-mm@kvack.org>; Mon,  8 Jul 2019 12:43:18 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id w25so7398989edu.11
+        for <linux-mm@kvack.org>; Mon, 08 Jul 2019 09:43:18 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=8xnud/qEILYwa7BJOMRtOBOSIve8spYjI6fhHhkcm+Q=;
-        b=n/m+su7Sa1JbfQp+VgSDFW/9wYjaRqfdxZlNrCRCLjiZExebfoYyUEQVShvmUcvZqz
-         M3JEuyVEiL7IbY7i578dn1BMahmZdLai5BCjU2kRVf3zojTBdZFw9zN6Zxt4e6aDewP3
-         /wslpFK2CaZvdEUMi2yCDAko6FO19DMvgP2JitHNjDMksO6o6C/vYxfps9Y3+036WagZ
-         zYgf3edtc7FersxFQix85oyYdJRa6JrvWigBTSQlwqPa1PMrKSDQJ77BdVeJk1WFor1L
-         igJ0LkGR5JNJtZQj8E5Rql5fjnGcsoMZNkfgtLNZBS7ChwxPuA/k4qMUZmibuwBuJr9x
-         M73w==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=aryabinin@virtuozzo.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-X-Gm-Message-State: APjAAAW56H8dJn+ChTxm4wX6khavNlGHBFuiteIAaW3VenkVZBQ0HAj6
-	f1BypI3gEtt+pH91nrjT/2Uw94xyEHNcPeH1xe8JjAdzaGBipHwwYZL/uKAFyVHYKbcQNsNulFO
-	0IJlnF7tc8jxFyKcQTJq/gIIW7gre8DRQ4d1xA+yiURGlmZNTSpSjho4COslxz8Wjiw==
-X-Received: by 2002:a2e:9003:: with SMTP id h3mr10360286ljg.194.1562603631926;
-        Mon, 08 Jul 2019 09:33:51 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqygUeNBrncemKeb2+ume7tUkm1VUNsJm3x778LIeFvacha1SEGEoWQ1yaMvYhaq1iWSZRnN
-X-Received: by 2002:a2e:9003:: with SMTP id h3mr10360231ljg.194.1562603630558;
-        Mon, 08 Jul 2019 09:33:50 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562603630; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=fMc3+ee1jq/+/qYJcXEm4rugSNJJkPr1r0mIKLNgeco=;
+        b=eK5anr6QriilQCSDHZPpIZYgHHCZjj1et0IJMbug15BchKEm+2hVtYzTUmWuMggsyg
+         IzCTqUKIQdLmfjK04CBBk0XTvdYY6cj7QRh+0mEl3yHxdMOv2ySoHUuIFu5MFs8swTwf
+         3y+Ul92CyF0l+FflduD0kS8lwczB5O33ARhQ2QhSCJX9sD62gRJi7wYYXz+sdYR3wHl0
+         Ua8UKczjAO2fedrAbXhggpMRc/HQIq87x+yN9rC0rXAKUel8lbmuwztw6kmAXgMS3GkW
+         +WFwHNbmGIFASZyNajRTx8WTp+j0jjJsse5sBrZyaddxpyYat9JMxkYzskioKlwWTrv5
+         vKjQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mhocko@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@suse.com
+X-Gm-Message-State: APjAAAWfQJtTmsftpVg5murnCrh+mB+sxd5QHJvz/1lgD/tLTsBr4HAm
+	75cOX7fn96RT3KLiA8uEOkVtcyQ5ufdB5CJDDaPX6WNqhxZ2/OAuoBqRLHz4y0rfRQHNNf3Diyl
+	sfNfmRZUCsmLR6h8zjrAUp1/V2o/DuzgdqDzfX3lkG5e+8adZ5OHSvaZKdnw8T+ZNYQ==
+X-Received: by 2002:a50:b60a:: with SMTP id b10mr21225257ede.113.1562604197665;
+        Mon, 08 Jul 2019 09:43:17 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzwOWSti1ExjUKXkG1E8VC5zm9tpslbBM5b1RPevSDbV57ajsIGZKcqpUiZtudzDWgctWrV
+X-Received: by 2002:a50:b60a:: with SMTP id b10mr21225184ede.113.1562604196575;
+        Mon, 08 Jul 2019 09:43:16 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562604196; cv=none;
         d=google.com; s=arc-20160816;
-        b=Oki76f5rVP9GXOLq08ALxln5IvGvtl+s4HovGQZLDjMIYjg2Wg5E8wsEYOxM+9Q6nD
-         QpuBoBnaYWM7Ao1ikviRrit6SuuMtXZcA8cZBdiCkIAmbqCXAIFldUGH9DVQwOb7gig2
-         AARqRtz9in6H6svIFAzAgk1ZzFeyUTVFVMdOFymvn1jYfO5SpVeU2wb2M7MtQ//fuzgE
-         KFcL+1aiompvQUW4coMX6sHbWjjcxMstQca6+7E9mJHIDQcKEsBZZoY2+bF9NtaR0UPL
-         PCpe6UhJBpCcH5L5aPjmfSHEYJMzAv9DNyqiik6Xn8ERus61h8QtFGwtPeeWJTnTvkvK
-         2fSQ==
+        b=dzAhFFi83Np1PZ7FjiVX+alNIVBurQ4P3CXOTujUbKAaSRhyX/uRRkjtPgh1c3zteq
+         dAgGZKSOeySE7sPc73i9Xnb43dt/gjqNU4Z5fU3mvgRVggWcPUqv3JTL1u1R0eBb509S
+         JzoHGbw4QZedOzMUVG/holYhVGMmEPpLqiJe3rou2Kxo2lu/mn6J7tNE6iMvrkllYPxE
+         7oMV8O+QbuQsuDrpVl7B41p/KxiX9d9TwMCt8tkVmyFq4Ew/W984d2iQrEs0kuT7C6NK
+         lytXyoF0pMAqOJKgC53XB/Fqb76/ccu1ncQfzYbH5pwPsE6euN84nrk8RgsxuC2Zvvye
+         NaZA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=8xnud/qEILYwa7BJOMRtOBOSIve8spYjI6fhHhkcm+Q=;
-        b=x6LL+345289uOWcXQq15orKiZtd8uMOrsC7bWwMEq719+V6yyN229eVuEYyxjKdhrb
-         jAiXYEzGdepvF0JrSP/lfudxcQEAZ5QnkoYYrJGnM/WiSc2U3q6U8yW7Jfjt6yLiHSUT
-         sebzV/Vb2dOikawktMBIJ+0eGicX2Qm5hluz4TY7rDWXi2ATadWXByfjCNmZMZyOhvSY
-         KVuq12wHklrVI2yWCZZmZf/ceC5uOcUGvQeA5La88m9UnDV36ufxWUjAu1bF6cigMtVr
-         DXe4Su01df7a2q6CWv9EVjFMC/4YF8lTbKWxEynUgZMeiTiquKmUakckE1/fuy/UBqgc
-         Gugw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=fMc3+ee1jq/+/qYJcXEm4rugSNJJkPr1r0mIKLNgeco=;
+        b=b2ANKNnoT/j33QBUFtPAfgY1GvW0xOcPDpNLjvfv4VO94k5hlLz06NnBjE/MRqXfQE
+         4IesldFQmCod1r03z/DEUr3GcnS3rA3QuRwIvabwzGLeW4dQYPowwRs2qdsZkOwpkPYB
+         Ptd7qSfL0gfF+iQlfeTGvfHVxjgNCuYKzYe9zpKKdaW2HgF2Z1+8y/EAkRSjLG3fGLaq
+         pAef4UCJJ4pONTMhPfC26KU6U1xTxPucjBa1Bp5RBUCWM6vcjvIQiUByZJiAXjwqgrck
+         1cfogiMubtl6pHybAFaYxr/YPC7Xxf/zeARA8K2MSzZs3++h6Y96aWkN+D6HuqsEfhnh
+         ryIA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=aryabinin@virtuozzo.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
-        by mx.google.com with ESMTPS id m22si13734384lfb.140.2019.07.08.09.33.50
+       spf=pass (google.com: domain of mhocko@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@suse.com
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id m2si10611338ejo.156.2019.07.08.09.43.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 08 Jul 2019 09:33:50 -0700 (PDT)
-Received-SPF: pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) client-ip=185.231.240.75;
+        Mon, 08 Jul 2019 09:43:16 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mhocko@suse.com designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=aryabinin@virtuozzo.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-Received: from [172.16.25.12]
-	by relay.sw.ru with esmtp (Exim 4.92)
-	(envelope-from <aryabinin@virtuozzo.com>)
-	id 1hkWa8-00028e-L6; Mon, 08 Jul 2019 19:33:36 +0300
-Subject: Re: [PATCH v3] kasan: add memory corruption identification for
- software tag-based mode
-To: Dmitry Vyukov <dvyukov@google.com>, Walter Wu <walter-zh.wu@mediatek.com>
-Cc: Alexander Potapenko <glider@google.com>, Christoph Lameter
- <cl@linux.com>, Pekka Enberg <penberg@kernel.org>,
- David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>,
- Matthias Brugger <matthias.bgg@gmail.com>,
- Martin Schwidefsky <schwidefsky@de.ibm.com>, Arnd Bergmann <arnd@arndb.de>,
- Vasily Gorbik <gor@linux.ibm.com>, Andrey Konovalov <andreyknvl@google.com>,
- "Jason A . Donenfeld" <Jason@zx2c4.com>, Miles Chen
- <miles.chen@mediatek.com>, kasan-dev <kasan-dev@googlegroups.com>,
- LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>,
- Linux ARM <linux-arm-kernel@lists.infradead.org>,
- linux-mediatek@lists.infradead.org, wsd_upstream <wsd_upstream@mediatek.com>
-References: <20190613081357.1360-1-walter-zh.wu@mediatek.com>
- <da7591c9-660d-d380-d59e-6d70b39eaa6b@virtuozzo.com>
- <1560447999.15814.15.camel@mtksdccf07> <1560479520.15814.34.camel@mtksdccf07>
- <1560744017.15814.49.camel@mtksdccf07>
- <CACT4Y+Y3uS59rXf92ByQuFK_G4v0H8NNnCY1tCbr4V+PaZF3ag@mail.gmail.com>
- <1560774735.15814.54.camel@mtksdccf07> <1561974995.18866.1.camel@mtksdccf07>
- <CACT4Y+aMXTBE0uVkeZz+MuPx3X1nESSBncgkScWvAkciAxP1RA@mail.gmail.com>
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Message-ID: <ebc99ee1-716b-0b18-66ab-4e93de02ce50@virtuozzo.com>
-Date: Mon, 8 Jul 2019 19:33:41 +0300
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.2
+       spf=pass (google.com: domain of mhocko@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@suse.com
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 1822AAF39;
+	Mon,  8 Jul 2019 16:43:16 +0000 (UTC)
+Date: Mon, 8 Jul 2019 18:43:14 +0200
+From: Michal Hocko <mhocko@suse.com>
+To: zhong jiang <zhongjiang@huawei.com>
+Cc: akpm@linux-foundation.org, anshuman.khandual@arm.com, mst@redhat.com,
+	linux-mm@kvack.org, Dan Williams <dan.j.williams@intel.com>
+Subject: Re: [PATCH] mm: redefine the MAP_SHARED_VALIDATE to other value
+Message-ID: <20190708164314.GE20617@dhcp22.suse.cz>
+References: <1562573141-11258-1-git-send-email-zhongjiang@huawei.com>
+ <20190708092045.GA20617@dhcp22.suse.cz>
+ <5D234AB5.2070508@huawei.com>
 MIME-Version: 1.0
-In-Reply-To: <CACT4Y+aMXTBE0uVkeZz+MuPx3X1nESSBncgkScWvAkciAxP1RA@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5D234AB5.2070508@huawei.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Mon 08-07-19 21:52:53, zhong jiang wrote:
+> On 2019/7/8 17:20, Michal Hocko wrote:
+> > [Cc Dan]
+> >
+> > On Mon 08-07-19 16:05:41, zhong jiang wrote:
+> >> As the mman manual says, mmap should return fails when we assign
+> >> the flags to MAP_SHARED | MAP_PRIVATE.
+> >>
+> >> But In fact, We run the code successfully and unexpected.
+> > What is the code that you are running and what is the code version.
+> Just an following code, For example,
+> addr = mmap(ADDR, PAGE_SIZE, PROT_WRITE|PROT_EXEC, MAP_SHARED|MAP_PRIVATE, fildes, OFFSET);
+
+Is this a real code that relies on the failure or merely a simple test
+to reflect the semantic you expect mmap to have?
+
+> We test it and works well in linux 4.19.   As the mmap manual says,  it should fails.
+> >> It is because MAP_SHARED_VALIDATE is introduced and equal to
+> >> MAP_SHARED | MAP_PRIVATE.
+> > This was a deliberate decision IIRC. Have a look at 1c9725974074 ("mm:
+> > introduce MAP_SHARED_VALIDATE, a mechanism to safely define new mmap
+> > flags").
+> I  has seen the patch,  It introduce the issue.  but it only define the MAP_SHARED_VALIDATE incorrectly.
+> Maybe the author miss the condition that MAP_SHARED_VALIDATE is equal to MAP_PRIVATE | MAP_SHARE.
+
+No you are missing the point as Willy pointed out in a different email.
+This is intentional. No real application could have used the combination
+of two flags because it doesn't make any sense. And therefore the
+combination has been chosen to chnage the mmap semantic and check for
+valid mapping flags. LWN has a nice coverage[1].
 
 
-On 7/5/19 4:34 PM, Dmitry Vyukov wrote:
-> On Mon, Jul 1, 2019 at 11:56 AM Walter Wu <walter-zh.wu@mediatek.com> wrote:
->>>>>>>>> This patch adds memory corruption identification at bug report for
->>>>>>>>> software tag-based mode, the report show whether it is "use-after-free"
->>>>>>>>> or "out-of-bound" error instead of "invalid-access" error.This will make
->>>>>>>>> it easier for programmers to see the memory corruption problem.
->>>>>>>>>
->>>>>>>>> Now we extend the quarantine to support both generic and tag-based kasan.
->>>>>>>>> For tag-based kasan, the quarantine stores only freed object information
->>>>>>>>> to check if an object is freed recently. When tag-based kasan reports an
->>>>>>>>> error, we can check if the tagged addr is in the quarantine and make a
->>>>>>>>> good guess if the object is more like "use-after-free" or "out-of-bound".
->>>>>>>>>
->>>>>>>>
->>>>>>>>
->>>>>>>> We already have all the information and don't need the quarantine to make such guess.
->>>>>>>> Basically if shadow of the first byte of object has the same tag as tag in pointer than it's out-of-bounds,
->>>>>>>> otherwise it's use-after-free.
->>>>>>>>
->>>>>>>> In pseudo-code it's something like this:
->>>>>>>>
->>>>>>>> u8 object_tag = *(u8 *)kasan_mem_to_shadow(nearest_object(cacche, page, access_addr));
->>>>>>>>
->>>>>>>> if (access_addr_tag == object_tag && object_tag != KASAN_TAG_INVALID)
->>>>>>>>   // out-of-bounds
->>>>>>>> else
->>>>>>>>   // use-after-free
->>>>>>>
->>>>>>> Thanks your explanation.
->>>>>>> I see, we can use it to decide corruption type.
->>>>>>> But some use-after-free issues, it may not have accurate free-backtrace.
->>>>>>> Unfortunately in that situation, free-backtrace is the most important.
->>>>>>> please see below example
->>>>>>>
->>>>>>> In generic KASAN, it gets accurate free-backrace(ptr1).
->>>>>>> In tag-based KASAN, it gets wrong free-backtrace(ptr2). It will make
->>>>>>> programmer misjudge, so they may not believe tag-based KASAN.
->>>>>>> So We provide this patch, we hope tag-based KASAN bug report is the same
->>>>>>> accurate with generic KASAN.
->>>>>>>
->>>>>>> ---
->>>>>>>     ptr1 = kmalloc(size, GFP_KERNEL);
->>>>>>>     ptr1_free(ptr1);
->>>>>>>
->>>>>>>     ptr2 = kmalloc(size, GFP_KERNEL);
->>>>>>>     ptr2_free(ptr2);
->>>>>>>
->>>>>>>     ptr1[size] = 'x';  //corruption here
->>>>>>>
->>>>>>>
->>>>>>> static noinline void ptr1_free(char* ptr)
->>>>>>> {
->>>>>>>     kfree(ptr);
->>>>>>> }
->>>>>>> static noinline void ptr2_free(char* ptr)
->>>>>>> {
->>>>>>>     kfree(ptr);
->>>>>>> }
->>>>>>> ---
->>>>>>>
->>>>>> We think of another question about deciding by that shadow of the first
->>>>>> byte.
->>>>>> In tag-based KASAN, it is immediately released after calling kfree(), so
->>>>>> the slub is easy to be used by another pointer, then it will change
->>>>>> shadow memory to the tag of new pointer, it will not be the
->>>>>> KASAN_TAG_INVALID, so there are many false negative cases, especially in
->>>>>> small size allocation.
->>>>>>
->>>>>> Our patch is to solve those problems. so please consider it, thanks.
->>>>>>
->>>>> Hi, Andrey and Dmitry,
->>>>>
->>>>> I am sorry to bother you.
->>>>> Would you tell me what you think about this patch?
->>>>> We want to use tag-based KASAN, so we hope its bug report is clear and
->>>>> correct as generic KASAN.
->>>>>
->>>>> Thanks your review.
->>>>> Walter
->>>>
->>>> Hi Walter,
->>>>
->>>> I will probably be busy till the next week. Sorry for delays.
->>>
->>> It's ok. Thanks your kindly help.
->>> I hope I can contribute to tag-based KASAN. It is a very important tool
->>> for us.
->>
->> Hi, Dmitry,
->>
->> Would you have free time to discuss this patch together?
->> Thanks.
-> 
-> Sorry for delays. I am overwhelm by some urgent work. I afraid to
-> promise any dates because the next week I am on a conference, then
-> again a backlog and an intern starting...
-> 
-> Andrey, do you still have concerns re this patch? This change allows
-> to print the free stack.
-
-I 'm not sure that quarantine is a best way to do that. Quarantine is made to delay freeing, but we don't that here.
-If we want to remember more free stacks wouldn't be easier simply to remember more stacks in object itself?
-Same for previously used tags for better use-after-free identification.
-
-> We also have a quarantine for hwasan in user-space. Though it works a
-> bit differently then the normal asan quarantine. We keep a per-thread
-> fixed-size ring-buffer of recent allocations:
-> https://github.com/llvm-mirror/compiler-rt/blob/master/lib/hwasan/hwasan_report.cpp#L274-L284
-> and scan these ring buffers during reports.
-> 
+[1] https://lwn.net/Articles/758594/
+-- 
+Michal Hocko
+SUSE Labs
 
