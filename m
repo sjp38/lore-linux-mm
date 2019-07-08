@@ -2,193 +2,145 @@ Return-Path: <SRS0=WbXp=VF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=unavailable
+X-Spam-Status: No, score=-11.4 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT,USER_IN_DEF_DKIM_WL autolearn=no
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9D732C606C4
-	for <linux-mm@archiver.kernel.org>; Mon,  8 Jul 2019 17:06:59 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E6EAAC606C2
+	for <linux-mm@archiver.kernel.org>; Mon,  8 Jul 2019 17:08:56 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6115121707
-	for <linux-mm@archiver.kernel.org>; Mon,  8 Jul 2019 17:06:59 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id A07F421479
+	for <linux-mm@archiver.kernel.org>; Mon,  8 Jul 2019 17:08:56 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="nE4pF6WC"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6115121707
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="su70wQ6/"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A07F421479
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E606F8E0020; Mon,  8 Jul 2019 13:06:58 -0400 (EDT)
+	id 50FAF8E0021; Mon,  8 Jul 2019 13:08:56 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E10678E0002; Mon,  8 Jul 2019 13:06:58 -0400 (EDT)
+	id 4E6F98E0002; Mon,  8 Jul 2019 13:08:56 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CD8268E0020; Mon,  8 Jul 2019 13:06:58 -0400 (EDT)
+	id 3FD1F8E0021; Mon,  8 Jul 2019 13:08:56 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9753E8E0002
-	for <linux-mm@kvack.org>; Mon,  8 Jul 2019 13:06:58 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id q14so10704911pff.8
-        for <linux-mm@kvack.org>; Mon, 08 Jul 2019 10:06:58 -0700 (PDT)
+Received: from mail-vk1-f200.google.com (mail-vk1-f200.google.com [209.85.221.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 19BF48E0002
+	for <linux-mm@kvack.org>; Mon,  8 Jul 2019 13:08:56 -0400 (EDT)
+Received: by mail-vk1-f200.google.com with SMTP id j140so6815063vke.10
+        for <linux-mm@kvack.org>; Mon, 08 Jul 2019 10:08:56 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id:mime-version:content-transfer-encoding;
-        bh=5b7anIeqnAhA6BO/lx8yoH/EvcoMVwex3ww0hx0nIBk=;
-        b=a8vk8PAUQmjFpyJEkFdrvP/wCXYpQQ0bj7ew7woF89Q3b91jqbNvZKAoQKVYbbCbTF
-         sT+JAjVvx8XS6aobts1ht652zMwFFXKO+aLPy3TpdUMUAgYI5uZZ9p5VjFCNOOT9MOKA
-         +SsSGKJdZ2LBvgWz3b1G8au4q/ex2aqsKLJXoQAPiUcUjZ+mlUIGK9uj3Ujyhl4FslHP
-         o+IvUVWjggQ7eahJo8i3ZgvSD3yoX5P+bpvhVD/V4THQLI04rOOxUE61YObZ2QNbpmh7
-         EJHNCGmq+wBhFzK5Mtc/OBOcys73kd+Er+2zVM47sjm5z6hfXLdbX0ctv7uLZ+7SGjyE
-         AMjQ==
-X-Gm-Message-State: APjAAAVJqNlK6gog/xJSOShDc13Vrvyqx2rhwOd2pcRj4+IN46lSQaj/
-	PCcNfitJwAF2GVJhEu0OGjI0BirYjslQOciHeNd+V+htysPvBRQtDYj35WbiqEDi3IfxpxLPSNy
-	m/Fd+oj21fm3xtklDjxxLjrMhZHAIxyWzqpi/7QZKPHofqgnIkZmgfVtxbpaLebrlCA==
-X-Received: by 2002:a17:902:ba8e:: with SMTP id k14mr26295598pls.256.1562605618233;
-        Mon, 08 Jul 2019 10:06:58 -0700 (PDT)
-X-Received: by 2002:a17:902:ba8e:: with SMTP id k14mr26295503pls.256.1562605617159;
-        Mon, 08 Jul 2019 10:06:57 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562605617; cv=none;
+        h=x-gm-message-state:dkim-signature:date:message-id:mime-version
+         :subject:from:to:cc;
+        bh=rkb+RBbpaLSwWUUB7g0A+rsu7yIfnRDIumBvHSjiI6g=;
+        b=GE3LJ3fBIq8naIOLeu95+F6PnJWT+tNZ3esQC2Ey310f0N+zjtDUjzRn22F1WJYcnG
+         M6RcmGgS3ZpK0edwtCGo5su4PX0YgRZklxtq4aBBxYtnJl1TF0vP5QWei6WVVjMqo1eR
+         WrN52MyP0k9YCwlkincrtQJ+1HT6mH/oUaQgEsPx11Jg2s0WeFmrLsmIe0MLprXpdBXn
+         0ayeNHz5DLMd7MXvkGt2NEZycmf3xJ8KR9yOFWLO5XUJ//Ro39HyLJSYkpt4hVMITAFD
+         aG8WJZLN2M4SdEZ1Z58bRKcIoED7knb3rEAQNh2rkxbbH+sy37K94lyYBuQZQagtFXeB
+         Pz5Q==
+X-Gm-Message-State: APjAAAWsAwfDi0rbA8JFQrzjMMX3p74TcKe6lTE04WqrKoPVNeiyKb05
+	SZPa3XUIMJRDIceJjbkZI6EKLTu+cOPOubfP7vwzRiI8Tqara56sR6g6Khda9jaFPpcaOonCs6h
+	DfcdgETvPq7GUeNCvynbfMRYM2fmiyBl55wj6IIzSaQfk7NibVqom9+Pf5pNGTwiYow==
+X-Received: by 2002:a67:f043:: with SMTP id q3mr7703019vsm.219.1562605735811;
+        Mon, 08 Jul 2019 10:08:55 -0700 (PDT)
+X-Received: by 2002:a67:f043:: with SMTP id q3mr7702986vsm.219.1562605735278;
+        Mon, 08 Jul 2019 10:08:55 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562605735; cv=none;
         d=google.com; s=arc-20160816;
-        b=oIbJL3IMt+H8gmuXI9c+AKB4oaI8VS6Bl1PJzf4LdmDDYGPKEKOLAyc3G3QAiY+2C7
-         NL/GsAquwQ5NcHnFTVgJY564Ups9mCnd2Q95iLyiEHRgtYcJid5/7eU3oPNRAzaEkEWD
-         0LHSsab3efMSiEs9fnJ7b7mYbFkb1ga26/DfOO6aKMi7Vk7oVxAlXxnTzOBObqiwSrpd
-         SQdp2Dgm4nyqaWB1vK5uj3W8Du25hSssWdxKkE7ocgydCpLVnyFlaiEDJy3JNUcamA5W
-         pQOqfIV8oj4l5U2w17Osm3ZEtwCaUfPGxeD5QCUNvsYf4AmZNATccOhpnZQPiaGwJKot
-         0blw==
+        b=jCsN7obwACnTA4R8002n3kJ9atgG47AJY9jXDjMPqDCpNxVC1TA6WFUNCfkk87s1u1
+         C86WyyZgvUhQ6GhymS7ZiaZtK3y/w8Ts4Rrb0jyirXCFFM1oAyVSRHGrQmmZlGgPGBMz
+         Cz0UL5J9PTeIaLBjC8eP33bxTwmVtv667Ucagninr+rDCtaJelI3bu0FFFtyULAX9LdL
+         x0Qx8ZhE1bud1F5JeVrrMmHZSfHn6ijV92mJ4xTdqDbPRFo8wYjqa/bz74eAU6pAdEHB
+         /VjkjqmP7wfCdzWD5eAnmVnFJ48WvocNSKVn5dCNRpmvn1mO2Yv7CekgPOdh9xobElGT
+         IIOA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
-         :to:from:dkim-signature;
-        bh=5b7anIeqnAhA6BO/lx8yoH/EvcoMVwex3ww0hx0nIBk=;
-        b=plpetr1YjjImhzuhDL1oZ9e+N4hXJn9VjLViwayV+wC2iqbWfDKQwRyWBbY9BzHPcx
-         zkHTSbDb0zMw3kYLlfJj13y4RnKel+pscXMsUP4G88/GmBcS3H6o2xxPThO0Iw3SKhjj
-         1evtaPjWC8slE6f08W5Qo/2kWbz6uM7nywo6GkFedMGmeK9zEq7Xr5PMVzIbj514Pzer
-         JQhBOz7pRcGAzH9+jhHjZsp3R2ZELJJMg7qNLTfqmPkmOUPnZ2E3nD1muvs5OYMRjD/o
-         ko/QY04m1d8O6vUF5sVs7oZwRXwQxgV6pqg9b8AIIqRuMHGRF2kmlg67ZOEktXyL+SB6
-         kafg==
+        h=cc:to:from:subject:mime-version:message-id:date:dkim-signature;
+        bh=rkb+RBbpaLSwWUUB7g0A+rsu7yIfnRDIumBvHSjiI6g=;
+        b=1DAsEKsH8h8zGDFaciUqYrloe3L9KkD6JaZzzOdqwwdmpbHe/YiqNNI/UXYw+eHSeu
+         dKFcy6QvaioTG+ToubbuZ0TcGQCpaZiOV50wxeNkzswfC9PbqpLt4Kt0g91clWtS+pt2
+         ASl8QY3R+Ct+2iuywzIiFvVhYxqfnzjDn0kG+BeUoOqhYLBusyz6sScJelgxN7pYVoJr
+         hKcavU5iuY1zGEBs8Kk/NdWLgZkMfwY5vKD2f4Ch02SpVojCayGH74rFSnI3qikqxv5j
+         T0Nxd5aWXt1vdWDAa+xLeAIjNRteZkr4qZV7t23x4Bag650EculPfZK1xCkcgP5n20Dh
+         Vf1g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=nE4pF6WC;
-       spf=pass (google.com: domain of lpf.vector@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=lpf.vector@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v10sor21963720plg.28.2019.07.08.10.06.56
+       dkim=pass header.i=@google.com header.s=20161025 header.b="su70wQ6/";
+       spf=pass (google.com: domain of 3pngjxqukcbuz6gzc19916z.x97638fi-775gvx5.9c1@flex--elver.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3pngjXQUKCBUz6GzC19916z.x97638FI-775Gvx5.9C1@flex--elver.bounces.google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
+        by mx.google.com with SMTPS id y3sor7234511uay.15.2019.07.08.10.08.55
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 08 Jul 2019 10:06:57 -0700 (PDT)
-Received-SPF: pass (google.com: domain of lpf.vector@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Mon, 08 Jul 2019 10:08:55 -0700 (PDT)
+Received-SPF: pass (google.com: domain of 3pngjxqukcbuz6gzc19916z.x97638fi-775gvx5.9c1@flex--elver.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=nE4pF6WC;
-       spf=pass (google.com: domain of lpf.vector@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=lpf.vector@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+       dkim=pass header.i=@google.com header.s=20161025 header.b="su70wQ6/";
+       spf=pass (google.com: domain of 3pngjxqukcbuz6gzc19916z.x97638fi-775gvx5.9c1@flex--elver.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3pngjXQUKCBUz6GzC19916z.x97638FI-775Gvx5.9C1@flex--elver.bounces.google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=from:to:cc:subject:date:message-id:mime-version
-         :content-transfer-encoding;
-        bh=5b7anIeqnAhA6BO/lx8yoH/EvcoMVwex3ww0hx0nIBk=;
-        b=nE4pF6WCSfy5375pasiGnK6x/BoAlKvJiEjKHA1Z6LC61rUtkohvgs+pMqeqoxrHeJ
-         QaoQIYQBVzZdYmyimFzvOOvkufThmb+yZ/4JPuZk6Vll7Vgc2aPjWaiSruazPDixu8y+
-         MC4cvlyfnXnFY2cPZh2uu8o6bDhtz0x/6j8cB//biI5O9TvD9bC+T/gL5B5tf7CHvRYr
-         RxFPEo/q+Y4ypdM2KWGRBpOJoOMygvy5tt61wahtCaSnBQ7/twQqoocOOgu+BscuktVJ
-         YlpYTN9kzOINtxTO6MsLndbEJJry/TBKMD8GLviUttA82JUu2V4o6hu6UgvfMjPuHWlN
-         OseQ==
-X-Google-Smtp-Source: APXvYqzt+il4zwPT6FRB06smT4nafOFmaW59SnLzajCBM2ImXEDODHJR8LpJ1IuBFwxXC7wAgigEgg==
-X-Received: by 2002:a17:902:6a85:: with SMTP id n5mr24841812plk.73.1562605616776;
-        Mon, 08 Jul 2019 10:06:56 -0700 (PDT)
-Received: from localhost.localdomain.localdomain ([2408:823c:c11:b30:b8c3:8577:bf2f:2])
-        by smtp.gmail.com with ESMTPSA id 30sm149551pjk.17.2019.07.08.10.06.48
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Mon, 08 Jul 2019 10:06:56 -0700 (PDT)
-From: Pengfei Li <lpf.vector@gmail.com>
-To: akpm@linux-foundation.org
-Cc: urezki@gmail.com,
-	rpenyaev@suse.de,
-	peterz@infradead.org,
-	guro@fb.com,
-	rick.p.edgecombe@intel.com,
-	rppt@linux.ibm.com,
-	aryabinin@virtuozzo.com,
-	linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org,
-	Pengfei Li <lpf.vector@gmail.com>
-Subject: [PATCH] mm/vmalloc.c: Remove always-true conditional in vmap_init_free_space
-Date: Tue,  9 Jul 2019 01:06:31 +0800
-Message-Id: <20190708170631.2130-1-lpf.vector@gmail.com>
-X-Mailer: git-send-email 2.21.0
-MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+        d=google.com; s=20161025;
+        h=date:message-id:mime-version:subject:from:to:cc;
+        bh=rkb+RBbpaLSwWUUB7g0A+rsu7yIfnRDIumBvHSjiI6g=;
+        b=su70wQ6/2hTT+J8ES8WXMRV7++oOFKiaJoXI1tHyVzzTCdE5I1E5DVYHktmK7xoyLH
+         iZb/vfep+BIeL3PrullH6dkk5V4/AmuWTC4WBFI/bMTAhsjNYBYn6ySN8XAKZYkF+uiP
+         /QutnYKWRFTxmwrZGCr6CmPBC/PSe9LZI5m5LU2EeHPCw7wxiCOF0TAe+0xJSMxjHVFE
+         4y24R1PdKke1XPauJk+Z6WuRwhl7JisBrF/xvMt0cdsXlh+0PZiu45rvNKxWd1vmthVU
+         h0d4arZgDyJcJRGTZnIyatkhKFDNCFMlQpm5jbPlJtLFtTpWD0P6d5SUFIGnBwSgWvB4
+         dCXA==
+X-Google-Smtp-Source: APXvYqxlNqCP7Is+7VGSJcZtIKkF90xpT2ulacUW8J0j4jU3IIAPg9yY4ZS6OegNMF29BsHeoXjMsqH8RA==
+X-Received: by 2002:ab0:7143:: with SMTP id k3mr10372932uao.91.1562605734773;
+ Mon, 08 Jul 2019 10:08:54 -0700 (PDT)
+Date: Mon,  8 Jul 2019 19:07:02 +0200
+Message-Id: <20190708170706.174189-1-elver@google.com>
+Mime-Version: 1.0
+X-Mailer: git-send-email 2.22.0.410.gd8fdbe21b5-goog
+Subject: [PATCH v5 0/5] Add object validation in ksize()
+From: Marco Elver <elver@google.com>
+To: elver@google.com
+Cc: linux-kernel@vger.kernel.org, Andrey Ryabinin <aryabinin@virtuozzo.com>, 
+	Dmitry Vyukov <dvyukov@google.com>, Alexander Potapenko <glider@google.com>, 
+	Andrey Konovalov <andreyknvl@google.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, 
+	David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, 
+	Andrew Morton <akpm@linux-foundation.org>, Mark Rutland <mark.rutland@arm.com>, 
+	Kees Cook <keescook@chromium.org>, Stephen Rothwell <sfr@canb.auug.org.au>, Qian Cai <cai@lca.pw>, 
+	kasan-dev@googlegroups.com, linux-mm@kvack.org, 
+	kbuild test robot <lkp@intel.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-When unsigned long variables are subtracted from one another,
-the result is always non-negative.
+This version fixes several build issues --
+Reported-by: kbuild test robot <lkp@intel.com>
 
-The vmap_area_list is sorted by address.
+Previous version here:
+http://lkml.kernel.org/r/20190627094445.216365-1-elver@google.com
 
-So the following two conditions are always true.
+Marco Elver (5):
+  mm/kasan: Introduce __kasan_check_{read,write}
+  mm/kasan: Change kasan_check_{read,write} to return boolean
+  lib/test_kasan: Add test for double-kzfree detection
+  mm/slab: Refactor common ksize KASAN logic into slab_common.c
+  mm/kasan: Add object validation in ksize()
 
-1) if (busy->va_start - vmap_start > 0)
-2) if (vmap_end - vmap_start > 0)
+ include/linux/kasan-checks.h | 43 +++++++++++++++++++++++++++------
+ include/linux/kasan.h        |  7 ++++--
+ include/linux/slab.h         |  1 +
+ lib/test_kasan.c             | 17 +++++++++++++
+ mm/kasan/common.c            | 14 +++++------
+ mm/kasan/generic.c           | 13 +++++-----
+ mm/kasan/kasan.h             | 10 +++++++-
+ mm/kasan/tags.c              | 12 ++++++----
+ mm/slab.c                    | 28 +++++-----------------
+ mm/slab_common.c             | 46 ++++++++++++++++++++++++++++++++++++
+ mm/slob.c                    |  4 ++--
+ mm/slub.c                    | 14 ++---------
+ 12 files changed, 144 insertions(+), 65 deletions(-)
 
-Just remove them.
-
-Signed-off-by: Pengfei Li <lpf.vector@gmail.com>
----
- mm/vmalloc.c | 32 +++++++++++++-------------------
- 1 file changed, 13 insertions(+), 19 deletions(-)
-
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index 0f76cca32a1c..c7bdbdc18472 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -1810,31 +1810,25 @@ static void vmap_init_free_space(void)
- 	 *  |<--------------------------------->|
- 	 */
- 	list_for_each_entry(busy, &vmap_area_list, list) {
--		if (busy->va_start - vmap_start > 0) {
--			free = kmem_cache_zalloc(vmap_area_cachep, GFP_NOWAIT);
--			if (!WARN_ON_ONCE(!free)) {
--				free->va_start = vmap_start;
--				free->va_end = busy->va_start;
--
--				insert_vmap_area_augment(free, NULL,
--					&free_vmap_area_root,
--						&free_vmap_area_list);
--			}
--		}
--
--		vmap_start = busy->va_end;
--	}
--
--	if (vmap_end - vmap_start > 0) {
- 		free = kmem_cache_zalloc(vmap_area_cachep, GFP_NOWAIT);
- 		if (!WARN_ON_ONCE(!free)) {
- 			free->va_start = vmap_start;
--			free->va_end = vmap_end;
-+			free->va_end = busy->va_start;
- 
- 			insert_vmap_area_augment(free, NULL,
--				&free_vmap_area_root,
--					&free_vmap_area_list);
-+				&free_vmap_area_root, &free_vmap_area_list);
- 		}
-+
-+		vmap_start = busy->va_end;
-+	}
-+
-+	free = kmem_cache_zalloc(vmap_area_cachep, GFP_NOWAIT);
-+	if (!WARN_ON_ONCE(!free)) {
-+		free->va_start = vmap_start;
-+		free->va_end = vmap_end;
-+
-+		insert_vmap_area_augment(free, NULL,
-+			&free_vmap_area_root, &free_vmap_area_list);
- 	}
- }
- 
 -- 
-2.21.0
+2.22.0.410.gd8fdbe21b5-goog
 
