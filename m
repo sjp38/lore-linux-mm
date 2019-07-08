@@ -4,204 +4,147 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-9.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable autolearn_force=no
-	version=3.4.0
+	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C140CC606AF
-	for <linux-mm@archiver.kernel.org>; Mon,  8 Jul 2019 12:48:12 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3A862C606B2
+	for <linux-mm@archiver.kernel.org>; Mon,  8 Jul 2019 12:52:24 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8222C20665
-	for <linux-mm@archiver.kernel.org>; Mon,  8 Jul 2019 12:48:12 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8222C20665
+	by mail.kernel.org (Postfix) with ESMTP id E84D92064A
+	for <linux-mm@archiver.kernel.org>; Mon,  8 Jul 2019 12:52:23 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E84D92064A
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arndb.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 11A1A8E0012; Mon,  8 Jul 2019 08:48:12 -0400 (EDT)
+	id 66DA88E0013; Mon,  8 Jul 2019 08:52:23 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0C9DA8E0002; Mon,  8 Jul 2019 08:48:12 -0400 (EDT)
+	id 5F7C58E0002; Mon,  8 Jul 2019 08:52:23 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id F22718E0012; Mon,  8 Jul 2019 08:48:11 -0400 (EDT)
+	id 497088E0013; Mon,  8 Jul 2019 08:52:23 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A7A4A8E0002
-	for <linux-mm@kvack.org>; Mon,  8 Jul 2019 08:48:11 -0400 (EDT)
-Received: by mail-wr1-f69.google.com with SMTP id e6so8131636wrv.20
-        for <linux-mm@kvack.org>; Mon, 08 Jul 2019 05:48:11 -0700 (PDT)
+Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
+	by kanga.kvack.org (Postfix) with ESMTP id EEA818E0002
+	for <linux-mm@kvack.org>; Mon,  8 Jul 2019 08:52:22 -0400 (EDT)
+Received: by mail-wr1-f72.google.com with SMTP id s18so8162301wru.16
+        for <linux-mm@kvack.org>; Mon, 08 Jul 2019 05:52:22 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:mime-version:content-transfer-encoding;
-        bh=I0ID9b0H+zcj5NnrvpKFC0Y/+i8u3r5flC2mQlpHLJU=;
-        b=O3/LnytBWp3kWG3556svTJO7ADXs8Ru00fjiSgbKMKDgzhUypFqzyoDoEGcXbwmAp8
-         oiFXTNubjuof+TuvJhdZNR6HM2wO52zDmMzrwaBGDjTlMmd+HVJkof9NChV3h+qOK0/u
-         jrr+g5yJFT2kIzNLwSXVNFqLdA2mKAVcTHw1uUxSe/6M3/AMWz05j3bEEF7YTd6DCOtR
-         oRVAGbWG1VhKLNbzQQKmQ6mkzHb7FxK+L7C17T11P/6an+w3H0KaL3l54hfAGUO+kT+x
-         MEpGGOWr8BVFj0Edc+TBrLpkDIuMHrKrmpDkVPeqL2gPcVlLntY1xP/HkmjxsrzD4wqU
-         Rv/g==
-X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 212.227.17.24 is neither permitted nor denied by best guess record for domain of arnd@arndb.de) smtp.mailfrom=arnd@arndb.de
-X-Gm-Message-State: APjAAAVCJ6rn0pi/RMJU4dK4z6MjrNUqVwgiIS6z6CGGOezEk21cckr0
-	I/Pr+CHJ6lA0Pc7SVF7yWmdRR6YJ/LGssxFnMdPZkFJ/dAmPMWlBQdBfDkrJ3v83fXO/pl/95+G
-	JZZV/lv3CR+tek1ptE/U7Y7mhtKjmwAz32XKraaq2KNYxNMcNyMrCoipVoyaAjjs=
-X-Received: by 2002:adf:979a:: with SMTP id s26mr18868528wrb.13.1562590091165;
-        Mon, 08 Jul 2019 05:48:11 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy5eERRMAJcMf8+ah9t89npN7YNq5eps1OcLrVP/bnFKEY6uZ92TDOn7nkz9LMbAQU1PBFV
-X-Received: by 2002:adf:979a:: with SMTP id s26mr18868482wrb.13.1562590090322;
-        Mon, 08 Jul 2019 05:48:10 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562590090; cv=none;
+        bh=77Vp1juDzlRrpvVnwfZYS6xDqW19KpmeFqUsetecy2o=;
+        b=PLI4LzbrjaUEP9+aHKdpSTDSprg25vg4aQkgHsqWcgfwxBpoiP/LGcEY1LDtGmCWKl
+         Rdm5A50valyX1B6KW/q+VQr988v1lBjYeQvyN1FmArcuvEd5LpVXwyfrmG1w52ifwC8V
+         lbIO486sg8J10uG4Lll14M4iN874xtFeSnJES/cDv7DPri7Sctjhn1AU6ve+tTJasgiz
+         JiVJ3qwb4VhvM04x9x7ilO4KUpsdupRCtbdy2qoxXJkFqEXuzVV4nGIASRU70q6lZYey
+         /7on/vI01U6S5PS3807LivhQ+1G47H8D7YH0DCejkWhgUvT6fZl3xlROI1gOBJ/LxH3D
+         mnvA==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 212.227.126.187 is neither permitted nor denied by best guess record for domain of arnd@arndb.de) smtp.mailfrom=arnd@arndb.de
+X-Gm-Message-State: APjAAAUbe6pR/Ir/EoAoM5EYKmW1oDmeWiGIt6yJRLy8WzjwF+5jEiJf
+	oAcHDkNg6tBwCyOMgMZnOT9RBKOKwNiVoFrj6lB664yG/GYw0sE/IcgAH08sBw8zorvZBTomf2F
+	a7u3kjuon3FoTanZMFooy3XACHJbW3rAX6kZOqezvFzGOnJrBqXbsULyFUJjx77o=
+X-Received: by 2002:a7b:c632:: with SMTP id p18mr12801369wmk.114.1562590342566;
+        Mon, 08 Jul 2019 05:52:22 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqy438arRxcrlddLk7j3QKwhlxsEvuHanJTh/M4v3ydpeb07kvCUX8nOS62VfrgJe80guDny
+X-Received: by 2002:a7b:c632:: with SMTP id p18mr12801334wmk.114.1562590341776;
+        Mon, 08 Jul 2019 05:52:21 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562590341; cv=none;
         d=google.com; s=arc-20160816;
-        b=Y7OfifEpM2H3dgHYeICftjayv3ki9Cd8xYtsuQUlIyEPVNtNkr59HnrivEAZ71A8Im
-         aIl0XyuykKzYEglIabCJrOWwhw5TCxjKbE//9fKIfGNLYgJY1VqAet2lxM7FmuDsduo5
-         tgERPeiAoC8gprnnMZjBhnEJULoc7Oi0z+94IHLRbWCfTZ2rvJG1VEP4IDcvM4mMS025
-         6jjVgNp6QNA4XKBS9lX1pFwCZLWQOtzwdilo/gDJx1BVPqasDp678xsBX8lGIHC6TG0j
-         dkzHlZgY7RoYZ+L/UkPqBkVm3TVmhXz0heDwjGgaVaNXSLjBWev0acvsLkW5gKNanYYc
-         QTEA==
+        b=ZZGHKy0YDE5H/LFDt50YpGuKCIYcxDuyqI1F9b4Zpnai49QzU3bGYI3j6oZx5KiJ1k
+         Sn5iMajlWC6DdfqqkF5z6XN85GefuJVdWfSEW2zGewz1tH63iMm01VqcPuVZBRHPQX8i
+         fnfMjwJ2yCZa4Kiv4JbWLhBKrIP0MufopYbTTsrYdJIKH+ol+VZE6pgOJf1wCNu/dX4x
+         ccq/SVXXYpshA9YGrol2FozczUGK//xKP9/WtV+b1TAQWZbxQFeiDR8NDIoajet/nXws
+         DnDSmCYGKpjxAMD2MK7Lv1z5GkJf+euwpcvdpqriTgKmoQW3dBB+CUPiugDAZ0k4bNYM
+         kavw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:message-id:date:subject:cc
          :to:from;
-        bh=I0ID9b0H+zcj5NnrvpKFC0Y/+i8u3r5flC2mQlpHLJU=;
-        b=Gt6oGnytrz1B9EVfl1R7aEuDDzvPRQOiE+orhgncz2QoKOUVaLJTU5F+T+S+u1uyGf
-         3g5Nw7n//aJQUB4uAVCzlFsdPtPjqaqc0+eq7tfbn6kJ1nGL462FPsBJRMD1rPAKZfwm
-         +6G1J94gU5OwcyW9/2/u6Krj/HGkmfkRYrH2cIU5/JZLcr2ZsWqzJY49ymHHn+oCEA0L
-         eoflf33DwmGLfJYMP7PfLmknL9UzEXAAP2YL5w6rv3VEg0F43okb36PgSnhesXO/UfeN
-         ZHek37EpKHUM9HGnBS7PLBgYTHaCq3rXwnECDbEG+p9Pjw688/9Db3sAnQECE5Soiyao
-         vj1g==
+        bh=77Vp1juDzlRrpvVnwfZYS6xDqW19KpmeFqUsetecy2o=;
+        b=dErV2FVZKMEk/1nSbpS31p2RKXXOlnWMGlqL8M8P80gMMJPdTvoW+ER2hoHhjvNSVM
+         z0a7liGPM6mgrS0zw6ccxuh4s3pNRX7Lvc7zL0/f0qFx3SDPASVkxatyNGZMkGgRd8fm
+         uekNqNTJM/c6zHVs1rIFTrLZMH5UgIkAC0dNWsInbSDOC7Jg+ydh2hIJSePQySO+mt8c
+         698slO0USYifUV7l8FTFhHPJqWqh0AFiovnvQTXphD/NavKRxPYDN4fEx8RRyLAsIUD/
+         Vq97tPI7PzsvFLk8hnXVu00bbZP0mJasy9T4Ulw73ru4WpjzPX4on5j0BA9851qtOY7f
+         DtJQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=neutral (google.com: 212.227.17.24 is neither permitted nor denied by best guess record for domain of arnd@arndb.de) smtp.mailfrom=arnd@arndb.de
-Received: from mout.kundenserver.de (mout.kundenserver.de. [212.227.17.24])
-        by mx.google.com with ESMTPS id b15si13117921wrs.151.2019.07.08.05.48.10
+       spf=neutral (google.com: 212.227.126.187 is neither permitted nor denied by best guess record for domain of arnd@arndb.de) smtp.mailfrom=arnd@arndb.de
+Received: from mout.kundenserver.de (mout.kundenserver.de. [212.227.126.187])
+        by mx.google.com with ESMTPS id p1si6045028wrn.142.2019.07.08.05.52.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 08 Jul 2019 05:48:10 -0700 (PDT)
-Received-SPF: neutral (google.com: 212.227.17.24 is neither permitted nor denied by best guess record for domain of arnd@arndb.de) client-ip=212.227.17.24;
+        Mon, 08 Jul 2019 05:52:21 -0700 (PDT)
+Received-SPF: neutral (google.com: 212.227.126.187 is neither permitted nor denied by best guess record for domain of arnd@arndb.de) client-ip=212.227.126.187;
 Authentication-Results: mx.google.com;
-       spf=neutral (google.com: 212.227.17.24 is neither permitted nor denied by best guess record for domain of arnd@arndb.de) smtp.mailfrom=arnd@arndb.de
+       spf=neutral (google.com: 212.227.126.187 is neither permitted nor denied by best guess record for domain of arnd@arndb.de) smtp.mailfrom=arnd@arndb.de
 Received: from threadripper.lan ([149.172.19.189]) by mrelayeu.kundenserver.de
- (mreue106 [212.227.15.145]) with ESMTPA (Nemesis) id
- 1Mduym-1iKMCm2862-00az91; Mon, 08 Jul 2019 14:41:26 +0200
+ (mreue012 [212.227.15.129]) with ESMTPA (Nemesis) id
+ 1MALql-1hd0Lw2Uqh-00Bs63; Mon, 08 Jul 2019 14:52:19 +0200
 From: Arnd Bergmann <arnd@arndb.de>
-To: 
+To: Dennis Zhou <dennis@kernel.org>,
+	Tejun Heo <tj@kernel.org>,
+	Christoph Lameter <cl@linux.com>
 Cc: Arnd Bergmann <arnd@arndb.de>,
-	Yang Shi <yang.shi@linux.alibaba.com>,
-	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
-	Kirill Tkhai <ktkhai@virtuozzo.com>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	Michal Hocko <mhocko@suse.com>,
-	Hugh Dickins <hughd@google.com>,
-	Shakeel Butt <shakeelb@google.com>,
-	David Rientjes <rientjes@google.com>,
+	Kefeng Wang <wangkefeng.wang@huawei.com>,
+	Peng Fan <peng.fan@nxp.com>,
 	Andrew Morton <akpm@linux-foundation.org>,
-	Stephen Rothwell <sfr@canb.auug.org.au>,
-	Roman Gushchin <guro@fb.com>,
-	Chris Down <chris@chrisdown.name>,
-	Yafang Shao <laoar.shao@gmail.com>,
-	Mel Gorman <mgorman@techsingularity.net>,
-	linux-kernel@vger.kernel.org,
-	linux-mm@kvack.org
-Subject: [PATCH] vmscan: fix memcg_kmem build failure
-Date: Mon,  8 Jul 2019 14:41:03 +0200
-Message-Id: <20190708124120.3400683-1-arnd@arndb.de>
+	Mike Rapoport <rppt@linux.ibm.com>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	"Dennis Zhou (Facebook)" <dennisszhou@gmail.com>,
+	linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Subject: [PATCH] percpu: fix pcpu_page_first_chunk return code handling
+Date: Mon,  8 Jul 2019 14:52:09 +0200
+Message-Id: <20190708125217.3757973-1-arnd@arndb.de>
 X-Mailer: git-send-email 2.20.0
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
-X-Provags-ID: V03:K1:8VkSE5EXRvXhg4WTtl1yfmQwLxnuqIVBWC3O64OvYEpHsptKShz
- liGdVTsfLuFY0hhVyQVWbff5R3bnb6E1HJhu20u8pAvj9sk57oG0RsiWEA+A1bIP/Uugd9q
- 2kMCOc7ttYjFkbS/CznPsTeFSIM1mWM86j4G6IquKv0/qHs1LJEQyDFHh4E7ePwwl6mD2aj
- jfri59CV9WSdBmPT0jJfA==
-X-UI-Out-Filterresults: notjunk:1;V03:K0:Qrw0YFYZm3U=:VGs8TL30AkKdaSSzDZoooG
- C9IWLT6Dd8074lAPa/y0ZY4N+3IX/mZJcb7thkIzO7H+rN2Y0DPg9lR7QFFgwWJcaFFB0svJL
- BQ/QrPNuZCNOpmhvr4UkRFsmehPnqJ+cOM8/dJnU9VngZCtqWTVcmAPVj5LGubGJQW76C5P/q
- xEGN1Irtzyi1c/GG8bR1HgTwb50CInnd5NDuMYAXaY9oQ3/5m1n4UI1+DaWamLhOkPP7jqeLo
- NZJiLBDD0IyWOzK7cp1WIPeqRleTaZQaKLFfBETUvld8rv15RSkczdPmzUeSodPn4QK4HJWo8
- 6rXxy27Ru+tQ0L1o5Y/AYgEn2hCF/MpR7htIiKvbbuI0ggs3dNl3F0cce7I5B6mSXwa9+CA58
- awyMa2fbHoyUZXuRg1zTd4d2tw5jA6ASzXMX/fXmFktYLJRxg3IKZBaQgc/XRqIQJpvUHP3nT
- blfK2yGVk/801H0Zifbc4WnEHBNXFM61CLJoTunCHYJKMZBO55hsuzJ7qQ/xd4CoZb5I689Wt
- BoxopmdByL2/i/8QE11/owtMG+1HhMxW/MDaXxjDPX8UG/BEq4MwkV0v+6fEtobE2C//PuYUz
- gvmoytlh3TuBiAmBqBnpolWC+ludvk4OE1v+D9rc+3jSVUHYQBbUlVeZpcqLbjiDLf4AP4RW5
- vWuXjKmj5FCz9buHUFBq2+X1t3aOUFtsbrQYAEOfD6cHWaH7vWuTM4Ptm0Gf/hqebqpKr7xh6
- L7hTgiqG4dvwjR/Bl1BVyHiHTBFQ5pvQjg9gyQ==
+X-Provags-ID: V03:K1:cJtj1haBkBbWRm+C+Iua7rdvkbZLbR4MZWZ6z3vSC1X/PXqtkAs
+ R+qNUxDsVrk6zgmmdUs6UXIxDw//8IMdKBSJyl1ZUQl9wsyHhvL31/QV8xXn9D8roifT7PY
+ GZ1A9E8jTpmXrMwd7rc7egfuxl6cmhOPGYiLqpJKpDSL/DxvxmrJsuTXEe081AhSnUqL2GX
+ Ub4oC7dZySA4sOigUqskA==
+X-UI-Out-Filterresults: notjunk:1;V03:K0:ITl96BottfQ=:qqxhzos/aOanf3aqBADACV
+ JwgD/BUjtgaC1QokhGuyrwx9DsbxnL44mYL17o/rvkq300Dt+Iyleg1ZQwXxaUQ3vnRZAvEF5
+ xOEvUpaESSPGruqL33FOixV+UbWXKGDJn6tNBqOxunBZbQ2QQZT64w9L7ANwxAZwXsjrmmmT5
+ Rl1TvI0bxyEg8Bzub6PXaQL89ZLZsCW9JVrV/ShakwTiJcIusHUcNTuBSXuuNd+QlKHB+3pb7
+ PtwTXRrNEGANSh0UAi8Gw6HXax3DSOaqZcLy3nweZ2himUOJELhpVMQMPNcTypax5bEKG8TvD
+ PL4QykHTINpFOQo7eu3Oj1CTPXEVazMUBTRjsuOGTR6pbjDRXvBZdxgl2XJRYpyYprEEnVl0t
+ Ub1w5K4+yQG8XlHNCNPKUrtXz3TulnB9Wb7OSU/u4GAWRL7OEvsHHncCBgxyyta4+X3I/aPrn
+ oTa8fnO+i8VLlgUYGmkZ32uv9tMjbNn1rao1HPmzu8QJ86UUbsNgdEg8UDh1iaGf2qNUOkarZ
+ +hmD7nZH/2Y3jNzeO1gdirDawiVUBRztfjcloIbt++CucLtIuZmv3WBOK04ERzeawGNyRWyom
+ HfeJn13r1mqX56Vg8d5IdgOiUSo+0XnvSOo37Iz3A7YZWP4uTCUPhV3nIESaeQd6Ukjf8U2fP
+ Wb4ngytBXr4k5s64ogPVtk/CGed73Ns0xrh0/X2f+PCEQD0HvVVgmKCkD5A2vtFzhTfWSPrkN
+ 4R0t/U9YTMtk/TpTC68ZfJTIJDUhFNxssqnwRA==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-When CONFIG_MEMCG_KMEM is disabled, we get a build failure
-for calling a nonexisting memcg_expand_shrinker_maps():
+gcc complains that pcpu_page_first_chunk() might return an uninitialized
+error code when the loop is never entered:
 
-mm/vmscan.c:220:7: error: implicit declaration of function 'memcg_expand_shrinker_maps' [-Werror,-Wimplicit-function-declaration]
-                if (memcg_expand_shrinker_maps(id)) {
-                    ^
-mm/vmscan.c:220:7: error: this function declaration is not a prototype [-Werror,-Wstrict-prototypes]
-mm/vmscan.c:608:56: error: no member named 'shrinker_map' in 'struct mem_cgroup_per_node'
-        map = rcu_dereference_protected(memcg->nodeinfo[nid]->shrinker_map,
-                                        ~~~~~~~~~~~~~~~~~~~~  ^
-include/linux/rcupdate.h:498:31: note: expanded from macro 'rcu_dereference_protected'
-        __rcu_dereference_protected((p), (c), __rcu)
-                                     ^
-include/linux/rcupdate.h:321:12: note: expanded from macro '__rcu_dereference_protected'
-        ((typeof(*p) __force __kernel *)(p)); \
-                  ^
-mm/vmscan.c:608:6: error: assigning to 'struct memcg_shrinker_map *' from incompatible type 'void'
-        map = rcu_dereference_protected(memcg->nodeinfo[nid]->shrinker_map,
+mm/percpu.c: In function 'pcpu_page_first_chunk':
+mm/percpu.c:2929:9: error: 'rc' may be used uninitialized in this function [-Werror=maybe-uninitialized]
 
-and another issue trying to access invalid struct fields:
+Make it return zero like before the cleanup.
 
-mm/vmscan.c:608:56: error: no member named 'shrinker_map' in 'struct mem_cgroup_per_node'
-        map = rcu_dereference_protected(memcg->nodeinfo[nid]->shrinker_map,
-                                        ~~~~~~~~~~~~~~~~~~~~  ^
-include/linux/rcupdate.h:498:31: note: expanded from macro 'rcu_dereference_protected'
-        __rcu_dereference_protected((p), (c), __rcu)
-                                     ^
-include/linux/rcupdate.h:321:12: note: expanded from macro '__rcu_dereference_protected'
-        ((typeof(*p) __force __kernel *)(p)); \
-                  ^
-mm/vmscan.c:608:6: error: assigning to 'struct memcg_shrinker_map *' from incompatible type 'void'
-        map = rcu_dereference_protected(memcg->nodeinfo[nid]->shrinker_map,
-
-Add a dummy definition for memcg_expand_shrinker_maps() that always fails,
-and hide the obviously nonworking shrink_slab_memcg() function.
-
-Fixes: 8236f517d69e ("mm: shrinker: make shrinker not depend on memcg kmem")
+Fixes: a13e0ad81216 ("percpu: Make pcpu_setup_first_chunk() void function")
 Signed-off-by: Arnd Bergmann <arnd@arndb.de>
 ---
-No idea what the intended behavior is supposed to be for this case.
-Rather than failing, should we actually provide that function?
-Or maybe a more elaborate change is needed?
----
- include/linux/memcontrol.h | 5 +++++
- mm/vmscan.c                | 2 +-
- 2 files changed, 6 insertions(+), 1 deletion(-)
+ mm/percpu.c | 1 +
+ 1 file changed, 1 insertion(+)
 
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 5901a90f58eb..6b15e2066fc7 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -1407,6 +1407,11 @@ static inline void memcg_put_cache_ids(void)
- {
- }
+diff --git a/mm/percpu.c b/mm/percpu.c
+index 5a918a4b1da0..5b65f753c575 100644
+--- a/mm/percpu.c
++++ b/mm/percpu.c
+@@ -2917,6 +2917,7 @@ int __init pcpu_page_first_chunk(size_t reserved_size,
+ 		ai->reserved_size, ai->dyn_size);
  
-+static inline int memcg_expand_shrinker_maps(int new_id)
-+{
-+	return -ENOMEM;
-+}
-+
- static inline void memcg_set_shrinker_bit(struct mem_cgroup *memcg,
- 					  int nid, int shrinker_id) { }
- #endif /* CONFIG_MEMCG_KMEM */
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index a0301edd8d03..323a9c50c0fe 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -591,7 +591,7 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
- 	return freed;
- }
+ 	pcpu_setup_first_chunk(ai, vm.addr);
++	rc = 0;
+ 	goto out_free_ar;
  
--#ifdef CONFIG_MEMCG
-+#ifdef CONFIG_MEMCG_KMEM
- static unsigned long shrink_slab_memcg(gfp_t gfp_mask, int nid,
- 			struct mem_cgroup *memcg, int priority)
- {
+ enomem:
 -- 
 2.20.0
 
