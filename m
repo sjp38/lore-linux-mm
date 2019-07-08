@@ -2,380 +2,159 @@ Return-Path: <SRS0=WbXp=VF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_2 autolearn=no autolearn_force=no
-	version=3.4.0
+	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6F632C606C2
-	for <linux-mm@archiver.kernel.org>; Mon,  8 Jul 2019 15:31:17 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7575DC606BD
+	for <linux-mm@archiver.kernel.org>; Mon,  8 Jul 2019 15:35:32 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1924F2173E
-	for <linux-mm@archiver.kernel.org>; Mon,  8 Jul 2019 15:31:17 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 1A03321537
+	for <linux-mm@archiver.kernel.org>; Mon,  8 Jul 2019 15:35:31 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="ff+jbNUQ"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1924F2173E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
+	dkim=pass (2048-bit key) header.d=canb.auug.org.au header.i=@canb.auug.org.au header.b="euW+MCES"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1A03321537
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=canb.auug.org.au
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 99E748E001D; Mon,  8 Jul 2019 11:31:16 -0400 (EDT)
+	id 94C888E001E; Mon,  8 Jul 2019 11:35:31 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 94EED8E001C; Mon,  8 Jul 2019 11:31:16 -0400 (EDT)
+	id 8FEA68E001C; Mon,  8 Jul 2019 11:35:31 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8165A8E001D; Mon,  8 Jul 2019 11:31:16 -0400 (EDT)
+	id 7ECCD8E001E; Mon,  8 Jul 2019 11:35:31 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D38F8E001C
-	for <linux-mm@kvack.org>; Mon,  8 Jul 2019 11:31:16 -0400 (EDT)
-Received: by mail-qt1-f200.google.com with SMTP id i12so14044336qtq.4
-        for <linux-mm@kvack.org>; Mon, 08 Jul 2019 08:31:16 -0700 (PDT)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A2458E001C
+	for <linux-mm@kvack.org>; Mon,  8 Jul 2019 11:35:31 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id o19so10700163pgl.14
+        for <linux-mm@kvack.org>; Mon, 08 Jul 2019 08:35:31 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:message-id:subject:from:to:cc
-         :date:in-reply-to:references:mime-version:content-transfer-encoding;
-        bh=Y2ttJ+jo2vlTHZtmeKQk/YmO15ANmcNzgtC/1x2Dm4I=;
-        b=esyhIoK5CotjcXkqTOL+di6dipqzDX08lljOFKkn043m3NXx10NS7hDWecfiTy2PpP
-         Gt/yfYmwjHKTU50nsF0gUp+WdzveJhUJ9GH0RBSJeb3DFXe/GFJFt9vnWOylpnjaEaMt
-         kU8JcIM6AmVh6yHfRDjxHllS32NQ3VV3yzmTMcq3/gEQgzfKPb+yj5Igwrh94NmyqAAF
-         BNuYM4pchrKikNiXE4+R9QKNV+v1csXavRacsXPviY3bH73MMsPfsn2T9dP0bUPWP5gV
-         yn6zoLFA5OPgLn+Dle60HuOz4X52AL0iYBDYtKMAB1xB7E6peuIzcW+GV4aEhHYzKeqv
-         nJXw==
-X-Gm-Message-State: APjAAAVT/8RstS3gRLJ/E1SVNbW74xi7IX0f8v9kGYyf87lo7agF+SfP
-	352XUA0jAU/CGw8OEqyQSXKGV0Aj0k+njIU5RAMuW2peqaThiQJemU1HlfqepcpazV95uCjTx0b
-	TBHGjEJA6xa2jX/LBAiOfJntxK4Vu4ZaMUixQ87iCA2FgIaUSs02OgII4HaIjxp5B1w==
-X-Received: by 2002:a05:620a:10bc:: with SMTP id h28mr14769209qkk.289.1562599876025;
-        Mon, 08 Jul 2019 08:31:16 -0700 (PDT)
-X-Received: by 2002:a05:620a:10bc:: with SMTP id h28mr14769135qkk.289.1562599875109;
-        Mon, 08 Jul 2019 08:31:15 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562599875; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:in-reply-to:references:mime-version;
+        bh=vxyFLSfBBJH3Y7Nv3aQfVqUUWv+pTXtM/NKogMH9qnM=;
+        b=dDKWd8puY/z7VKrrUFqlLxI191JvCWvnkv/bMjDh7/U2zgTNdrtNmz5ri2FOijSF+U
+         FwYcZWuhcbZ++Zc6Msr+hWxybx8MM95Xb1UaPh7Kt9ikjMInQGReGx+9WEHJZaj/uo1s
+         Np8lbkuRx1tWI8EU9R9/jy06LNIWG4a2uRl65AFSDS+9PHUom4sPTD+NNVaxSZkTn3Zk
+         8K7PT7R2HimUUraVW68kugsf2IBGD0eIEG8QFAh7GfLG8+PtbQc7Jom8NxrtWKimZJQ9
+         VOgxAtBt22/PgpYu+B+1j0JlqtdCbJeV3ji4uskHYMAytdtwAbENFs6ElDFoyuhWzuL9
+         N5GQ==
+X-Gm-Message-State: APjAAAU4i+zhn8YLECSsN5skYW5uomZNLvR2Wgo7r1Efu6qOY5k5W9qK
+	vIMgldDX9DzqP7SRMPWcg4k+rEEyT2JWm/mLmwYXtv4wxquspFQqNevPBcOKqeLTUUwVfdnoM0s
+	rnnzQzFTgN4CN8+eDpikXH5lBcK5pS1bbWU/XEcyEfX5SS1G2beQRutVGcbLQywm17Q==
+X-Received: by 2002:a17:902:724c:: with SMTP id c12mr23570004pll.219.1562600130856;
+        Mon, 08 Jul 2019 08:35:30 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwrJpxGunesArZikTfo142K7PF9Srrbg0NJVarZGVJuj1lKQhuvQ32YwiLCG48gUV8PF/+o
+X-Received: by 2002:a17:902:724c:: with SMTP id c12mr23569924pll.219.1562600130105;
+        Mon, 08 Jul 2019 08:35:30 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562600130; cv=none;
         d=google.com; s=arc-20160816;
-        b=e/tG8vaUxqzXMcItqGato0Dc3pDrqz+H+WKCxk59sgHhR0Sd6Tc4ymDdCeOxZTH9rD
-         VC+wplsK+DCBrIa0AFDmckAwCgmYuws1O7CIi5w5+fcF01/6AoDhyAUY/Vgnah87Mr0B
-         EtDTZjdCYYgIZF0NHJ7GIvaaWtkNXBefuZ8geq7JlB7+dbLt6+19JWacSfeg09FqiNP2
-         VN/xTTEpNI0aYRrRuwy3SokdoRNHOdb7KGuC97HoRXOeT4TVW6qLQm41ug+h7V6BaafK
-         I0XLkGM3yWHR6/dx/kc5w0MmB2rnaAqAWWzw6eOq9OwIhFSXMAXHjl3ISy/ZlHphQgfF
-         EUGA==
+        b=rWrAG1M0XYxoznnsHcO+LlBdM8O5qaAFQFkktDxBWdKkBpfrQT1tEXKcPXl3x/fArI
+         mIOeMhqkEoln5I5aqE31dO9D4yN9kXkGJsF8GGt8aBQDB0juj/jMrSnmmUqraavUaZFT
+         TW10Pryw5BOM2Vx/52h3i7XkdkegaAGYnjskucFl0aMly94dQOi7szKtHdc3DkZFlqHj
+         2TcU19Bcc7YBfbhgNFpaoEC/H0j+qKmbWRgqh1AKe2O0Lcn9pXXP6e/aBSkn6qJKVukJ
+         zp+xAEEMTECK0EhyyJuqLaaVfLWoE8AoD+lhAnpStYpseNpoMxpzGiiMiJKFjcSWSTMy
+         l7sQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to:date
-         :cc:to:from:subject:message-id:dkim-signature;
-        bh=Y2ttJ+jo2vlTHZtmeKQk/YmO15ANmcNzgtC/1x2Dm4I=;
-        b=q36wLxj2W3mfewfpnRKb0kWqeT16EVseJZArLmkTdeXcIh5NoF4boef8aDHtRl57nC
-         MUY8QnwxC1bGRuUeWXolLKgRaSMOvLmABHwewltcZ7zCDiOueGWF2ffa6bvj/ShcoL1l
-         cBMn3saTSDTZ8umJZpV0xOR65aocsrhofQxC5O/ViQ5axJDoL3oRvEHg6+tAN82FLFLe
-         gxAs6xKOls0ZtAPd3xZzM3+Yz9gW8KcCuw18CEmhG6RVq1ehw6cGGUGasNigN2ebvYk5
-         hsVs0P2ldF2gKG6UR+xvTCf3LTOP5+Dlq3V1AsXLpT9/WwNCX9wiR0i4gz+ozxt/VB3p
-         n+bg==
+        h=mime-version:references:in-reply-to:message-id:subject:cc:to:from
+         :date:dkim-signature;
+        bh=vxyFLSfBBJH3Y7Nv3aQfVqUUWv+pTXtM/NKogMH9qnM=;
+        b=ATuZSv0sc3/6DSMuvhy3Ax09v3yXI60K/DsBgN4QxN32kzT6GkOWOLlmxiY0NmsiL+
+         M1RW4FnfrLCTUn/LlPbfONmU8763+q8Hlue0ZvRZjw1A56YswgrMRIc5EhAf4ZtHAe2R
+         hExe/xJ3lBMNIZMXcQ+w/FoxRssza+5pMK1aFYdwrH537iBIYU55Nh8HY7iselzDB61i
+         E+qOtYKn3Uxo7yBgvTYupZst4I0C/SukvRNKNG6LNo6RlWgoydbC9fcWSXlq+cDXH8W/
+         sssVH+myMDgC9te3VnMAqLNg6bEs7mQf9gMMeRAcV+fkjAtp+egtZXplbHssWEZbzFQg
+         PTLQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b=ff+jbNUQ;
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g2sor1130403qvj.46.2019.07.08.08.31.15
+       dkim=pass header.i=@canb.auug.org.au header.s=201702 header.b=euW+MCES;
+       spf=pass (google.com: domain of sfr@canb.auug.org.au designates 203.11.71.1 as permitted sender) smtp.mailfrom=sfr@canb.auug.org.au
+Received: from ozlabs.org (ozlabs.org. [203.11.71.1])
+        by mx.google.com with ESMTPS id t6si9944892pfe.231.2019.07.08.08.35.29
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 08 Jul 2019 08:31:15 -0700 (PDT)
-Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Mon, 08 Jul 2019 08:35:29 -0700 (PDT)
+Received-SPF: pass (google.com: domain of sfr@canb.auug.org.au designates 203.11.71.1 as permitted sender) client-ip=203.11.71.1;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b=ff+jbNUQ;
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=lca.pw; s=google;
-        h=message-id:subject:from:to:cc:date:in-reply-to:references
-         :mime-version:content-transfer-encoding;
-        bh=Y2ttJ+jo2vlTHZtmeKQk/YmO15ANmcNzgtC/1x2Dm4I=;
-        b=ff+jbNUQ8pXpBPpDqrkwHxFvInTeLQtC5bW4PZL5Sfg7KO4IEXTdWDV+by/ZoiUQb+
-         iz7XsilIgVsFQgAQUpttHczs+eaD2e3BnHeNF2dtfD9choaJC69k3gfNxfq8+OKBySLE
-         nGZ+Djzt0Lne8gcJI3a9NFAYDwkg+N3XyQlxpqcdTBkHFDXk9h7mmE9KTfo9f/RpELcp
-         qp003TiwEI5ZI9tvSp5yyYdam/PAiVTUrd1ASa7W1EjF+WwF0qjSrKCbDX3yk1+UdQZ9
-         UZO2j6dkzK0swSMG8rhCtc0vKU+CzvodTyuHTzqvAhzSWGmOhmWS3YKKhfaUePyJ3Le2
-         sqkw==
-X-Google-Smtp-Source: APXvYqyFp1GCF2q5+jGJlUX6leNmtG4hZ95iO5bi2rXlGWEbJsn7wmvrrnYkzLWpeUyTODO8ICNuGA==
-X-Received: by 2002:a0c:e703:: with SMTP id d3mr14867023qvn.194.1562599874723;
-        Mon, 08 Jul 2019 08:31:14 -0700 (PDT)
-Received: from dhcp-41-57.bos.redhat.com (nat-pool-bos-t.redhat.com. [66.187.233.206])
-        by smtp.gmail.com with ESMTPSA id 47sm10275217qtw.90.2019.07.08.08.31.13
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 08 Jul 2019 08:31:14 -0700 (PDT)
-Message-ID: <1562599872.8510.3.camel@lca.pw>
-Subject: Re: [linux-next:master 12285/12641]
- include/linux/kasan-checks.h:25:20: error: inlining failed in call to
- always_inline 'kasan_check_read': function attribute mismatch
-From: Qian Cai <cai@lca.pw>
-To: kbuild test robot <lkp@intel.com>, Marco Elver <elver@google.com>
-Cc: kbuild-all@01.org, Andrew Morton <akpm@linux-foundation.org>, Linux
-	Memory Management List
-	 <linux-mm@kvack.org>
-Date: Mon, 08 Jul 2019 11:31:12 -0400
-In-Reply-To: <201907052106.cFRkjebu%lkp@intel.com>
-References: <201907052106.cFRkjebu%lkp@intel.com>
-Content-Type: text/plain; charset="UTF-8"
-X-Mailer: Evolution 3.22.6 (3.22.6-10.el7) 
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+       dkim=pass header.i=@canb.auug.org.au header.s=201702 header.b=euW+MCES;
+       spf=pass (google.com: domain of sfr@canb.auug.org.au designates 203.11.71.1 as permitted sender) smtp.mailfrom=sfr@canb.auug.org.au
+Received: from authenticated.ozlabs.org (localhost [127.0.0.1])
+	(using TLSv1.3 with cipher TLS_AES_256_GCM_SHA384 (256/256 bits)
+	 key-exchange ECDHE (P-256) server-signature RSA-PSS (4096 bits) server-digest SHA256)
+	(No client certificate requested)
+	by mail.ozlabs.org (Postfix) with ESMTPSA id 45j8fP1132z9sSR;
+	Tue,  9 Jul 2019 01:35:24 +1000 (AEST)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=canb.auug.org.au;
+	s=201702; t=1562600126;
+	bh=vxyFLSfBBJH3Y7Nv3aQfVqUUWv+pTXtM/NKogMH9qnM=;
+	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
+	b=euW+MCESXPYou4FtkhvyThpXXET7NbT8ySOU71wo7oL2nKP2wB8DWLzcDKoLm0pkz
+	 JZ+4DlJwZzaKNc4k5RMASCxfI/Vg3AXQtWKMp/ASmNrOYcxSJzN5lcZlhbe57P6iLu
+	 a09EHfTChTBZZS86N9B8oGfaCy3lsBT7ll+wf2oighG9jD0QcDWls3D06Z07I/mtwC
+	 6ICU3UeAon/W3ov9YNqL4Z+VpJY71CA8YksURZaUCLPvssrLiNYdvGdAnE3u7m7TD6
+	 x8Jz5pNgRMzTyXOt63xFdh+ok0ThKHgE2iWqcQgzqf7kp5tZ/aTa3fXzjc2090db9L
+	 3jeB7hEyxDDkw==
+Date: Tue, 9 Jul 2019 01:35:22 +1000
+From: Stephen Rothwell <sfr@canb.auug.org.au>
+To: "Kuehling, Felix" <Felix.Kuehling@amd.com>
+Cc: Alex Deucher <alexdeucher@gmail.com>, Jason Gunthorpe
+ <jgg@mellanox.com>, "Yang, Philip" <Philip.Yang@amd.com>, Dave Airlie
+ <airlied@linux.ie>, "dri-devel@lists.freedesktop.org"
+ <dri-devel@lists.freedesktop.org>, "linux-mm@kvack.org"
+ <linux-mm@kvack.org>, "linux-next@vger.kernel.org"
+ <linux-next@vger.kernel.org>, "Deucher, Alexander"
+ <Alexander.Deucher@amd.com>
+Subject: Re: [PATCH 1/1] drm/amdgpu: adopt to hmm_range_register API change
+Message-ID: <20190709013522.060423df@canb.auug.org.au>
+In-Reply-To: <233ad078-50da-40ed-fb35-c636ed3a686d@amd.com>
+References: <20190703015442.11974-1-Felix.Kuehling@amd.com>
+	<20190703141001.GH18688@mellanox.com>
+	<a9764210-9401-471b-96a7-b93606008d07@amd.com>
+	<CADnq5_M0GREGG73wiu3eb=E+G2iTRmjXELh7m69BRJfVNEiHtw@mail.gmail.com>
+	<20190708093020.676f5b3f@canb.auug.org.au>
+	<233ad078-50da-40ed-fb35-c636ed3a686d@amd.com>
+MIME-Version: 1.0
+Content-Type: multipart/signed; micalg=pgp-sha256;
+ boundary="Sig_/Rz_UKoCs8b6c77s_a244mIn"; protocol="application/pgp-signature"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Confirmed that reverting the series fixed the compilation error on x86.
+--Sig_/Rz_UKoCs8b6c77s_a244mIn
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: quoted-printable
 
-254fb04d207a Revert "mm/kasan: introduce __kasan_check_{read,write}"
-ea13ff3c419e Revert "mm/kasan: change kasan_check_{read,write} to return
-boolean"
-f985089f2720 Revert "mm/kasan: include types.h for "bool""
-189d618780b9 Revert "lib/test_kasan: Add test for double-kzfree detection"
-9ff8c87f0bc1 Revert "mm/slab: refactor common ksize KASAN logic into
-slab_common.c"
-f70e2a0186e8 Revert "mm/kasan: add object validation in ksize()"
-d9cc021b1ab1 Revert "mm-kasan-add-object-validation-in-ksize-v4"
+Hi Felix,
 
-In file included from ./include/linux/compiler.h:257,
-                 from ./arch/x86/include/asm/current.h:5,
-                 from ./include/linux/sched.h:12,
-                 from ./include/linux/ratelimit.h:6,
-                 from fs/dcache.c:18:
-./include/linux/compiler.h: In function ‘read_word_at_a_time’:
-./include/linux/kasan-checks.h:31:20: error: inlining failed in call to
-always_inline ‘kasan_check_read’: function attribute mismatch
- static inline bool kasan_check_read(const volatile void *p, unsigned int size)
-                    ^~~~~~~~~~~~~~~~
-In file included from ./arch/x86/include/asm/current.h:5,
-                 from ./include/linux/sched.h:12,
-                 from ./include/linux/ratelimit.h:6,
-                 from fs/dcache.c:18:
-./include/linux/compiler.h:280:2: note: called from here
-  kasan_check_read(addr, 1);
-  ^~~~~~~~~~~~~~~~~~~~~~~~~
-make[1]: *** [scripts/Makefile.build:279: fs/dcache.o] Error 1
+On Mon, 8 Jul 2019 15:26:22 +0000 "Kuehling, Felix" <Felix.Kuehling@amd.com=
+> wrote:
+>
+> Thank you! Who will be that someone? It should probably be one of the=20
+> maintainers of the trees Linux pulls from ...
 
-On Fri, 2019-07-05 at 21:51 +0800, kbuild test robot wrote:
-> tree:   https://kernel.googlesource.com/pub/scm/linux/kernel/git/next/linux-ne
-> xt.git master
-> head:   22c45ec32b4a9fa8c48ef4f5bf9b189b307aae12
-> commit: 452b72b9f28f8bdf0e030c827f2b366d4661fd50 [12285/12641] mm/kasan:
-> introduce __kasan_check_{read,write}
-> config: x86_64-randconfig-s1-07051907 (attached as .config)
-> compiler: gcc-7 (Debian 7.4.0-9) 7.4.0
-> reproduce:
->         git checkout 452b72b9f28f8bdf0e030c827f2b366d4661fd50
->         # save the attached .config to linux build tree
->         make ARCH=x86_64 
-> 
-> If you fix the issue, kindly add following tag
-> Reported-by: kbuild test robot <lkp@intel.com>
-> 
-> All errors (new ones prefixed by >>):
-> 
->    Cyclomatic Complexity 6 fs/dcache.c:d_same_name
->    Cyclomatic Complexity 1 fs/dcache.c:__d_rehash
->    Cyclomatic Complexity 1 fs/dcache.c:d_rehash
->    Cyclomatic Complexity 4 fs/dcache.c:start_dir_add
->    Cyclomatic Complexity 1 fs/dcache.c:end_dir_add
->    Cyclomatic Complexity 12 fs/dcache.c:__d_add
->    Cyclomatic Complexity 9 fs/dcache.c:__d_find_alias
->    Cyclomatic Complexity 3 fs/dcache.c:d_find_alias
->    Cyclomatic Complexity 14 fs/dcache.c:d_exact_alias
->    Cyclomatic Complexity 10 fs/dcache.c:d_genocide_kill
->    Cyclomatic Complexity 4 fs/dcache.c:dcache_init_early
->    Cyclomatic Complexity 4 fs/dcache.c:dcache_init
->    Cyclomatic Complexity 2 fs/dcache.c:get_nr_dentry
->    Cyclomatic Complexity 2 fs/dcache.c:get_nr_dentry_unused
->    Cyclomatic Complexity 2 fs/dcache.c:get_nr_dentry_negative
->    Cyclomatic Complexity 3 fs/dcache.c:___d_drop
->    Cyclomatic Complexity 3 fs/dcache.c:__d_drop
->    Cyclomatic Complexity 1 fs/dcache.c:d_drop
->    Cyclomatic Complexity 6 fs/dcache.c:__lock_parent
->    Cyclomatic Complexity 21 fs/dcache.c:shrink_lock_dentry
->    Cyclomatic Complexity 3 fs/dcache.c:d_shrink_del
->    Cyclomatic Complexity 5 fs/dcache.c:path_check_mount
->    Cyclomatic Complexity 3 fs/dcache.c:d_shrink_add
->    Cyclomatic Complexity 29 fs/dcache.c:d_set_d_op
->    Cyclomatic Complexity 19 fs/dcache.c:d_flags_for_inode
->    Cyclomatic Complexity 6 fs/dcache.c:__d_instantiate
->    Cyclomatic Complexity 3 fs/dcache.c:take_dentry_name_snapshot
->    Cyclomatic Complexity 8 fs/dcache.c:swap_names
->    Cyclomatic Complexity 5 fs/dcache.c:release_dentry_name_snapshot
->    Cyclomatic Complexity 8 fs/dcache.c:copy_name
->    Cyclomatic Complexity 7 fs/dcache.c:d_lru_add
->    Cyclomatic Complexity 7 fs/dcache.c:d_lru_del
->    Cyclomatic Complexity 16 fs/dcache.c:select_collect
->    Cyclomatic Complexity 12 fs/dcache.c:dentry_unlink_inode
->    Cyclomatic Complexity 1 fs/dcache.c:__d_free_external
->    Cyclomatic Complexity 1 fs/dcache.c:__d_free
->    Cyclomatic Complexity 10 fs/dcache.c:dentry_free
->    Cyclomatic Complexity 32 fs/dcache.c:__dentry_kill
->    Cyclomatic Complexity 28 fs/dcache.c:dentry_kill
->    Cyclomatic Complexity 6 fs/dcache.c:dput
->    Cyclomatic Complexity 12 fs/dcache.c:d_prune_aliases
->    Cyclomatic Complexity 15 fs/dcache.c:shrink_dentry_list
->    Cyclomatic Complexity 2 fs/dcache.c:shrink_dcache_sb
->    Cyclomatic Complexity 8 fs/dcache.c:dget_parent
->    Cyclomatic Complexity 5 fs/dcache.c:d_lru_isolate
->    Cyclomatic Complexity 5 fs/dcache.c:d_lru_shrink_move
->    Cyclomatic Complexity 9 fs/dcache.c:dentry_lru_isolate
->    Cyclomatic Complexity 3 fs/dcache.c:dentry_lru_isolate_shrink
->    Cyclomatic Complexity 26 fs/dcache.c:d_walk
->    Cyclomatic Complexity 1 fs/dcache.c:path_has_submounts
->    Cyclomatic Complexity 6 fs/dcache.c:shrink_dcache_parent
->    Cyclomatic Complexity 1 fs/dcache.c:do_one_tree
->    Cyclomatic Complexity 12 fs/dcache.c:d_invalidate
->    Cyclomatic Complexity 1 fs/dcache.c:d_genocide
->    Cyclomatic Complexity 14 fs/dcache.c:umount_check
->    Cyclomatic Complexity 5 fs/dcache.c:d_instantiate
->    Cyclomatic Complexity 10 fs/dcache.c:__d_instantiate_anon
->    Cyclomatic Complexity 1 fs/dcache.c:d_instantiate_anon
->    Cyclomatic Complexity 4 fs/dcache.c:d_add
->    Cyclomatic Complexity 5 fs/dcache.c:d_instantiate_new
->    Cyclomatic Complexity 4 fs/dcache.c:d_delete
->    Cyclomatic Complexity 6 fs/dcache.c:d_wait_lookup
->    Cyclomatic Complexity 1 fs/dcache.c:__d_lookup_done
->    Cyclomatic Complexity 6 fs/dcache.c:d_tmpfile
->    Cyclomatic Complexity 4 fs/dcache.c:set_dhash_entries
->    Cyclomatic Complexity 2 fs/dcache.c:vfs_caches_init_early
->    Cyclomatic Complexity 1 fs/dcache.c:vfs_caches_init
->    Cyclomatic Complexity 1 fs/dcache.c:proc_nr_dentry
->    Cyclomatic Complexity 1 fs/dcache.c:prune_dcache_sb
->    Cyclomatic Complexity 8 fs/dcache.c:d_set_mounted
->    Cyclomatic Complexity 4 fs/dcache.c:shrink_dcache_for_umount
->    Cyclomatic Complexity 25 fs/dcache.c:__d_alloc
->    Cyclomatic Complexity 4 fs/dcache.c:d_alloc
->    Cyclomatic Complexity 1 fs/dcache.c:d_alloc_name
->    Cyclomatic Complexity 1 fs/dcache.c:d_alloc_anon
->    Cyclomatic Complexity 7 fs/dcache.c:d_make_root
->    Cyclomatic Complexity 12 fs/dcache.c:__d_obtain_alias
->    Cyclomatic Complexity 1 fs/dcache.c:d_obtain_alias
->    Cyclomatic Complexity 1 fs/dcache.c:d_obtain_root
->    Cyclomatic Complexity 4 fs/dcache.c:d_alloc_cursor
->    Cyclomatic Complexity 3 fs/dcache.c:d_alloc_pseudo
->    Cyclomatic Complexity 22 fs/dcache.c:__d_lookup_rcu
->    Cyclomatic Complexity 35 fs/dcache.c:d_alloc_parallel
->    Cyclomatic Complexity 13 fs/dcache.c:__d_lookup
->    Cyclomatic Complexity 5 fs/dcache.c:d_lookup
->    Cyclomatic Complexity 6 fs/dcache.c:d_hash_and_lookup
->    Cyclomatic Complexity 5 fs/dcache.c:d_ancestor
->    Cyclomatic Complexity 42 fs/dcache.c:__d_move
->    Cyclomatic Complexity 1 fs/dcache.c:d_move
->    Cyclomatic Complexity 9 fs/dcache.c:d_exchange
->    Cyclomatic Complexity 14 fs/dcache.c:__d_unalias
->    Cyclomatic Complexity 22 fs/dcache.c:d_splice_alias
->    Cyclomatic Complexity 15 fs/dcache.c:d_add_ci
->    Cyclomatic Complexity 7 fs/dcache.c:is_subdir
->    In file included from include/linux/compiler.h:252:0,
->                     from arch/x86/include/asm/current.h:5,
->                     from include/linux/sched.h:12,
->                     from include/linux/ratelimit.h:6,
->                     from fs/dcache.c:18:
->    include/linux/compiler.h: In function 'read_word_at_a_time':
-> > > include/linux/kasan-checks.h:25:20: error: inlining failed in call to
-> > > always_inline 'kasan_check_read': function attribute mismatch
-> 
->     static inline void kasan_check_read(const volatile void *p, unsigned int
-> size)
->                        ^~~~~~~~~~~~~~~~
->    In file included from arch/x86/include/asm/current.h:5:0,
->                     from include/linux/sched.h:12,
->                     from include/linux/ratelimit.h:6,
->                     from fs/dcache.c:18:
->    include/linux/compiler.h:275:2: note: called from here
->      kasan_check_read(addr, 1);
->      ^~~~~~~~~~~~~~~~~~~~~~~~~
-> --
->    Cyclomatic Complexity 1 include/linux/kasan-checks.h:kasan_check_read
->    Cyclomatic Complexity 1 include/linux/compiler.h:read_word_at_a_time
->    Cyclomatic Complexity 4 include/linux/ctype.h:__tolower
->    Cyclomatic Complexity 1 arch/x86/include/asm/word-at-a-
-> time.h:count_masked_bytes
->    Cyclomatic Complexity 1 arch/x86/include/asm/word-at-a-time.h:has_zero
->    Cyclomatic Complexity 1 arch/x86/include/asm/word-at-a-
-> time.h:prep_zero_mask
->    Cyclomatic Complexity 1 arch/x86/include/asm/word-at-a-
-> time.h:create_zero_mask
->    Cyclomatic Complexity 1 arch/x86/include/asm/word-at-a-time.h:find_zero
->    Cyclomatic Complexity 2 lib/string.c:strcasecmp
->    Cyclomatic Complexity 2 lib/string.c:strcpy
->    Cyclomatic Complexity 4 lib/string.c:strncpy
->    Cyclomatic Complexity 3 lib/string.c:strcat
->    Cyclomatic Complexity 3 lib/string.c:strchrnul
->    Cyclomatic Complexity 2 lib/string.c:skip_spaces
->    Cyclomatic Complexity 2 lib/string.c:strlen
->    Cyclomatic Complexity 3 lib/string.c:strnlen
->    Cyclomatic Complexity 4 lib/string.c:memcmp
->    Cyclomatic Complexity 1 lib/string.c:bcmp
->    Cyclomatic Complexity 4 lib/string.c:memchr
->    Cyclomatic Complexity 14 lib/string.c:strncasecmp
->    Cyclomatic Complexity 20 lib/string.c:strscpy
->    Cyclomatic Complexity 8 lib/string.c:strncat
->    Cyclomatic Complexity 8 lib/string.c:strcmp
->    Cyclomatic Complexity 9 lib/string.c:strncmp
->    Cyclomatic Complexity 5 lib/string.c:strchr
->    Cyclomatic Complexity 5 lib/string.c:strrchr
->    Cyclomatic Complexity 6 lib/string.c:strnchr
->    Cyclomatic Complexity 6 lib/string.c:strim
->    Cyclomatic Complexity 9 lib/string.c:strspn
->    Cyclomatic Complexity 6 lib/string.c:strcspn
->    Cyclomatic Complexity 6 lib/string.c:strpbrk
->    Cyclomatic Complexity 7 lib/string.c:strsep
->    Cyclomatic Complexity 28 lib/string.c:sysfs_streq
->    Cyclomatic Complexity 8 lib/string.c:match_string
->    Cyclomatic Complexity 7 lib/string.c:__sysfs_match_string
->    Cyclomatic Complexity 5 lib/string.c:memscan
->    Cyclomatic Complexity 8 lib/string.c:strstr
->    Cyclomatic Complexity 8 lib/string.c:strnstr
->    Cyclomatic Complexity 5 lib/string.c:check_bytes8
->    Cyclomatic Complexity 14 lib/string.c:memchr_inv
->    Cyclomatic Complexity 5 lib/string.c:strreplace
->    Cyclomatic Complexity 5 lib/string.c:strlcpy
->    Cyclomatic Complexity 9 lib/string.c:strscpy_pad
->    Cyclomatic Complexity 1 lib/string.c:memzero_explicit
->    Cyclomatic Complexity 5 lib/string.c:strlcat
->    Cyclomatic Complexity 0 lib/string.c:fortify_panic
->    In file included from include/linux/compiler.h:252:0,
->                     from include/linux/string.h:6,
->                     from lib/string.c:24:
->    include/linux/compiler.h: In function 'read_word_at_a_time':
-> > > include/linux/kasan-checks.h:25:20: error: inlining failed in call to
-> > > always_inline 'kasan_check_read': function attribute mismatch
-> 
->     static inline void kasan_check_read(const volatile void *p, unsigned int
-> size)
->                        ^~~~~~~~~~~~~~~~
->    In file included from include/linux/string.h:6:0,
->                     from lib/string.c:24:
->    include/linux/compiler.h:275:2: note: called from here
->      kasan_check_read(addr, 1);
->      ^~~~~~~~~~~~~~~~~~~~~~~~~
-> 
-> vim +/kasan_check_read +25 include/linux/kasan-checks.h
-> 
->     19	
->     20	/*
->     21	 * kasan_check_*: Only available when the particular compilation
-> unit has KASAN
->     22	 * instrumentation enabled. May be used in header files.
->     23	 */
->     24	#ifdef __SANITIZE_ADDRESS__
->   > 25	static inline void kasan_check_read(const volatile void *p,
-> unsigned int size)
->     26	{
->     27		__kasan_check_read(p, size);
->     28	}
->     29	static inline void kasan_check_write(const volatile void *p,
-> unsigned int size)
->     30	{
->     31		__kasan_check_read(p, size);
->     32	}
->     33	#else
->     34	static inline void kasan_check_read(const volatile void *p,
-> unsigned int size)
->     35	{ }
->     36	static inline void kasan_check_write(const volatile void *p,
-> unsigned int size)
->     37	{ }
->     38	#endif
->     39	
-> 
-> ---
-> 0-DAY kernel test infrastructure                Open Source Technology Center
-> https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
+That would be Dave (pushing drm) or Jason (pushing hmm), or both.
+
+--=20
+Cheers,
+Stephen Rothwell
+
+--Sig_/Rz_UKoCs8b6c77s_a244mIn
+Content-Type: application/pgp-signature
+Content-Description: OpenPGP digital signature
+
+-----BEGIN PGP SIGNATURE-----
+
+iQEzBAEBCAAdFiEENIC96giZ81tWdLgKAVBC80lX0GwFAl0jYroACgkQAVBC80lX
+0GwppAgAmx7mlSoT2O2hM17aTOjMDvnqgZyqhmFembgdQk3DEyWJR3LOiZL/CgM6
+iYn8A7GbtcH8vNwWB/eynjJHALs2jPcVqWu69kYAoPhDvRPNvpc6/ddaSrOKsb52
+3z9K4sXwA8L9t9H0LrgSB2Bs34yL3XvULPB34Xf8V7iAnyQVx+WQ4EVTfjITxoXQ
+Mx3oIqRGQ2u5qk7qPfCTCMDxIDRn7nR1qJVSqY1hLu2vnkXpbbKxKk8EEf0A21Ao
+T/AqVkClnADvpfhGMAoWeXyVOFCEocpNgm6elo2+EtE8YbVNUeKXbapNg+OW4xyF
+3QBceqlPmSiTGaEu3+1WJmlcJKsR3g==
+=Joh7
+-----END PGP SIGNATURE-----
+
+--Sig_/Rz_UKoCs8b6c77s_a244mIn--
 
