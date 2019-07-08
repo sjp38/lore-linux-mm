@@ -2,241 +2,209 @@ Return-Path: <SRS0=WbXp=VF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=FREEMAIL_FORGED_FROMDOMAIN,
+	FREEMAIL_FROM,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C6BBFC5B578
-	for <linux-mm@archiver.kernel.org>; Mon,  8 Jul 2019 04:27:32 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4C49AC48BE7
+	for <linux-mm@archiver.kernel.org>; Mon,  8 Jul 2019 05:20:15 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7C52120848
-	for <linux-mm@archiver.kernel.org>; Mon,  8 Jul 2019 04:27:32 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7C52120848
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id DE80F20651
+	for <linux-mm@archiver.kernel.org>; Mon,  8 Jul 2019 05:20:14 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DE80F20651
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=sina.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 131C88E0009; Mon,  8 Jul 2019 00:27:32 -0400 (EDT)
+	id 0BBE68E000A; Mon,  8 Jul 2019 01:20:11 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0E27B8E0001; Mon,  8 Jul 2019 00:27:32 -0400 (EDT)
+	id 06C5B8E0001; Mon,  8 Jul 2019 01:20:11 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id F13058E0009; Mon,  8 Jul 2019 00:27:31 -0400 (EDT)
+	id EC3E08E000A; Mon,  8 Jul 2019 01:20:10 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 9DA108E0001
-	for <linux-mm@kvack.org>; Mon,  8 Jul 2019 00:27:31 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id w25so6254737edu.11
-        for <linux-mm@kvack.org>; Sun, 07 Jul 2019 21:27:31 -0700 (PDT)
+Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
+	by kanga.kvack.org (Postfix) with ESMTP id CD1A38E0001
+	for <linux-mm@kvack.org>; Mon,  8 Jul 2019 01:20:10 -0400 (EDT)
+Received: by mail-io1-f70.google.com with SMTP id z19so17844590ioi.15
+        for <linux-mm@kvack.org>; Sun, 07 Jul 2019 22:20:10 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:subject
-         :to:cc:references:message-id:date:user-agent:mime-version
-         :in-reply-to:content-language:content-transfer-encoding;
-        bh=qmlmaNEqVY4CHhqgL/0j1HnAciQUjUOWqb3PFsAesbs=;
-        b=rjgBTmjlCaovzGdp8TTF/Ss+MvuhiFcsa8pCSOdJAKY0V7cFxoLhW9eMjusIUf2Ptd
-         PiqjOBbI81F8Z0/bhKqs8paimlX3SeLn9lM+UEQgcBvGDI5TSFD5KRORV9C+rjwREGPs
-         /52cNQUzOZz3KO2I4QSvS1cALtBZpmaa3HCoNKUBeHIR3DrW3r5rCUYB59q3x2QOkn2u
-         pNQy+eAXnh7W3+nzde14F6LttYsImQmYAjVS84m8PzDeE578Opl/mtAQYtvloKkVPMN2
-         GVqhgxvRkFRv5Ua3va+zeoiGNrlyccwbSzCJ4SYT9p6V7VM03TXM6wRW3xMI+kMvRpxX
-         CP5g==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-X-Gm-Message-State: APjAAAVKz97MEiEePt6TBuCQ4VEgM/pU/E7Ycxh9CElYTdsV7hcM9ILi
-	3oZbFp81ZrnvadIFAZCgb6QqJ9HbL21U1JxCV+rVzfO0oqirNOe6EKhXgAFtxSz4KtXmfO8Nwr2
-	dJcpbU2XKQmG4enoiR7gGPHNzLkXkPyXWB6NZO90JH7O65fylrMDO8E6I/H/FNkMkew==
-X-Received: by 2002:a17:906:8313:: with SMTP id j19mr10169563ejx.276.1562560051129;
-        Sun, 07 Jul 2019 21:27:31 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwLvba8kzVw4t7VleolgwrD6KUFcX+ddo82nLnWgZhVUy9xSJSxFX2dDSyalkBPb8YneRhW
-X-Received: by 2002:a17:906:8313:: with SMTP id j19mr10169525ejx.276.1562560049862;
-        Sun, 07 Jul 2019 21:27:29 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562560049; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:in-reply-to:references:mime-version
+         :content-language:list-id:archived-at:list-archive:list-post
+         :content-transfer-encoding;
+        bh=AiRUpy1cHGrhMMx2uzz4fxUaIpUqebJ+fsjA0lYUxd0=;
+        b=iqamWOhOMcxYV163RDFH8CBlvGOnFAA+i2ATkn1BusgkcG09dUsMm3/HbO2vl+j33H
+         FLS0+fE/4O5zSFb76kk3KQ81+HqmFxWshjSkkZuGirNpktuxXGogBGnIjc07DllyJ/Xu
+         +Xqgd6DyR8AwrzZPMjpofiPYoLcF4AxJM6w1zCvqMFQvKO+yss7nKiexfV/tpBQA3ry+
+         ajvC8z0G65JwKdJh3UMqtngzTAK6cGFitjkj/Z5evSkC1cO1GtDgwSLfOjLTOAgctRH/
+         qhsq+t/da96lk/lZHzFLPpsQ/n/vM0Ipa52NGvsf3n5bRpRkuW6eP32VgbngJhER05Om
+         vOmw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of hdanton@sina.com designates 202.108.7.213 as permitted sender) smtp.mailfrom=hdanton@sina.com
+X-Gm-Message-State: APjAAAVu8ZlEH+djzM9gAejXzKehaT4v88SDtqxeXoH3veu63vrNCTzT
+	3oroeYznvaOyO6YjyPEBp3H2moY8JSzC9v+2cfwxfz1Ip0AfvlvjtwPBskfzj42zLmoqAWuY4wa
+	2wyqvK3zYJL11UspJtzOOBH8hpO1jo8L9JiDIR3o0cW5CcpgzoaMqHaORizv/RrD3pQ==
+X-Received: by 2002:a5e:a710:: with SMTP id b16mr15868831iod.38.1562563210561;
+        Sun, 07 Jul 2019 22:20:10 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwyglgb9M6qfEM7Ol3AJlSvWF2W4ZabGbDBvsTuKA7k2kvd7J3tTNwyldLB0QvIlx0lX+rD
+X-Received: by 2002:a5e:a710:: with SMTP id b16mr15868759iod.38.1562563209732;
+        Sun, 07 Jul 2019 22:20:09 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562563209; cv=none;
         d=google.com; s=arc-20160816;
-        b=N8DXiOehgLveIPvM+HB+dOdIdHo+mwll7Xp3jp8futtGup4fiTZvRFhFTA7g9/qT2v
-         ERL0tYNH9N9cadR/sOnXaut4q67N0b35DiLzCo3FNoyJZ99Kk/P0VNMNedwA16jtcRAJ
-         doYVGdWo1rfQFzKZM+gk2oe1WQ9F7ldPJ52haciQ1cc/jT2gDh6gdGCC76zlRWukH91O
-         4UDJbYeXDsrJI3dAM6jp+1xIXdXDeH0yD7KRRdselTdDF2eqUEuUgeX0eRJr7imJhgLZ
-         pWOlPwTpe7EhXp7teiakDVD3DrB87m2ajaoWEioTH3ruT5TAezGSmop5WSis2yO0NpJu
-         19CQ==
+        b=wHi2j4suua0MYUnpFrMNa8hE7KJoAGdmHb1dwcwUB8OeezO3GQaxGVZIO1nVUJTW/c
+         GeH5rPt0OZ0tC5wl1waVZrPkfDVcCsySIYeSKQoqfnQ/7pIDf4hK9CJo35uM7JL2RF73
+         1rvi0FwHbgTz6t3aZehCOp5cu2jLn+4p08BTSdrWhEdDqeOpuALPWG1Jow/TvN5Y1Otd
+         Wgm2yMt9wr9v5Fz1sE8Sa9BDBdoVAaAjbZ9rNayif0qDIA16LT+lhbLLvruQDz73uC+O
+         iAVMS8dewYfdpskmwPVqETfjePQKPpzpGNr8ex7wjfq0rM+crgTkP/A5LQ+iiFK7GjIM
+         2t3w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:references:cc:to:subject:from;
-        bh=qmlmaNEqVY4CHhqgL/0j1HnAciQUjUOWqb3PFsAesbs=;
-        b=fOEqjkDd7mgumRz03QYN3qzbI7A4QLjD9poObt4pO42trcBxiqxTcsQj/+IZWscCGI
-         ZWQnSVS0im5pMWz3Cb26mkPhSXR53wwZQ4rrHJzJYCaVNHM0SruAZWUvDHvHdxA4BAXh
-         coq/rAwRkA26Xx/fnL7DxpcqNwog2xqd49KoNf/F22KMAq4hxJKPTazlYfWv5u0wnXUA
-         pks8UBXYJG0sL4BmDzTPmkoKcXDHNytvnm8mXYliBdLFBYoNKqOEhwAhcFvRvWUkE9bh
-         hH81HJGKT+9u1dVUv250XScMpKb3rkTpkT49DOO46NrC6u7W8TWhnkrY83BxECpMC/Bc
-         H+fw==
+        h=content-transfer-encoding:list-post:list-archive:archived-at
+         :list-id:content-language:mime-version:references:in-reply-to
+         :message-id:date:subject:cc:to:from;
+        bh=AiRUpy1cHGrhMMx2uzz4fxUaIpUqebJ+fsjA0lYUxd0=;
+        b=0YxoDQeOcl0hFsvcr2vnwGfFrZCAEbVYkD6pZ2dWQnTe2KczuxHLUvCQvd+JycVakn
+         zWIEbQ9wfx1Ce6gcbA3GMJM0M4s6yQze5sldnWKB81Trfo2OcQ0rfCazpDPeaTbOIQxX
+         EHwqE6z+APXiiDtCh0PmGlQfmjXfMdhLsUYGiktvD21sZ+q2eXOVhyVwCdn62SbV498R
+         Huo5mWC5Kq18YWcohuWfrxr1XxXYtr8l/1yccBnfNZ1Eck2QRMNTSOlARSjMQ2k1S1Nz
+         09hro6x4kiRHh0CHhicZOL7/iXoB3TVsFbhwLyLuqXy1XCjtQuR37bKqeUZXxwsz8Ab6
+         VPrQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
-        by mx.google.com with ESMTP id t54si13015679edd.313.2019.07.07.21.27.29
+       spf=pass (google.com: domain of hdanton@sina.com designates 202.108.7.213 as permitted sender) smtp.mailfrom=hdanton@sina.com
+Received: from mail7-213.sinamail.sina.com.cn (mail7-213.sinamail.sina.com.cn. [202.108.7.213])
+        by mx.google.com with SMTP id w21si22516335ioc.134.2019.07.07.22.20.06
         for <linux-mm@kvack.org>;
-        Sun, 07 Jul 2019 21:27:29 -0700 (PDT)
-Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
+        Sun, 07 Jul 2019 22:20:09 -0700 (PDT)
+Received-SPF: pass (google.com: domain of hdanton@sina.com designates 202.108.7.213 as permitted sender) client-ip=202.108.7.213;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id B594A2B;
-	Sun,  7 Jul 2019 21:27:28 -0700 (PDT)
-Received: from [10.162.43.130] (p8cg001049571a15.blr.arm.com [10.162.43.130])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 358BC3F738;
-	Sun,  7 Jul 2019 21:27:25 -0700 (PDT)
-From: Anshuman Khandual <anshuman.khandual@arm.com>
-Subject: Re: [RFC 1/2] arm64/mm: Change THP helpers to comply with generic MM
- semantics
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Mark Rutland <mark.rutland@arm.com>,
- Andrea Arcangeli <aarcange@redhat.com>,
- Suzuki Poulose <suzuki.poulose@arm.com>, Marc Zyngier
- <marc.zyngier@arm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org,
- Will Deacon <will@kernel.org>, linux-arm-kernel@lists.infradead.org
-References: <1561639696-16361-1-git-send-email-anshuman.khandual@arm.com>
- <1561639696-16361-2-git-send-email-anshuman.khandual@arm.com>
- <20190628102003.GA56463@arrakis.emea.arm.com>
- <82237e21-1f14-ab6e-0f80-9706141e2172@arm.com>
- <20190703175250.GF48312@arrakis.emea.arm.com>
-Message-ID: <b710f91e-3c8a-6e50-ce84-2f6869891589@arm.com>
-Date: Mon, 8 Jul 2019 09:57:56 +0530
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
- Thunderbird/52.9.1
+       spf=pass (google.com: domain of hdanton@sina.com designates 202.108.7.213 as permitted sender) smtp.mailfrom=hdanton@sina.com
+Received: from unknown (HELO localhost.localdomain)([222.131.65.54])
+	by sina.com with ESMTP
+	id 5D22D27A00005A4E; Mon, 8 Jul 2019 13:19:56 +0800 (CST)
+X-Sender: hdanton@sina.com
+X-Auth-ID: hdanton@sina.com
+X-SMAIL-MID: 49088950200804
+From: Hillf Danton <hdanton@sina.com>
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>,
+	Michal Hocko <mhocko@kernel.org>,
+	Mel Gorman <mgorman@suse.de>,
+	"linux-mm@kvack.org" <linux-mm@kvack.org>,
+	linux-kernel <linux-kernel@vger.kernel.org>,
+	Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [Question] Should direct reclaim time be bounded?
+Date: Mon,  8 Jul 2019 13:19:46 +0800
+Message-Id: <80036eed-993d-1d24-7ab6-e495f01b1caa@oracle.com>
+In-Reply-To: <20190701085920.GB2812@suse.de>
+References: <d38a095e-dc39-7e82-bb76-2c9247929f07@oracle.com>
 MIME-Version: 1.0
-In-Reply-To: <20190703175250.GF48312@arrakis.emea.arm.com>
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset="UTF-8"
 Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+List-ID: <linux-kernel.vger.kernel.org>
+X-Mailing-List: linux-kernel@vger.kernel.org
+Archived-At: <https://lore.kernel.org/lkml/80036eed-993d-1d24-7ab6-e495f01b1caa@oracle.com/>
+List-Archive: <https://lore.kernel.org/lkml/>
+List-Post: <mailto:linux-kernel@vger.kernel.org>
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
+Message-ID: <20190708051946.bER1NpKpnH663PpCF1VjLChmGkn61iaoze7e3Z2wYzw@z>
 
 
-
-On 07/03/2019 11:22 PM, Catalin Marinas wrote:
-> On Tue, Jul 02, 2019 at 09:07:28AM +0530, Anshuman Khandual wrote:
->> On 06/28/2019 03:50 PM, Catalin Marinas wrote:
->>> On Thu, Jun 27, 2019 at 06:18:15PM +0530, Anshuman Khandual wrote:
->>>> pmd_present() and pmd_trans_huge() are expected to behave in the following
->>>> manner during various phases of a given PMD. It is derived from a previous
->>>> detailed discussion on this topic [1] and present THP documentation [2].
+On Mon, 01 Jul 2019 20:15:51 -0700 Mike Kravetz wrote:
+>On 7/1/19 1:59 AM, Mel Gorman wrote:
+>> On Fri, Jun 28, 2019 at 11:20:42AM -0700, Mike Kravetz wrote:
+>>> On 4/24/19 7:35 AM, Vlastimil Babka wrote:
+>>>> On 4/23/19 6:39 PM, Mike Kravetz wrote:
+>>>>>> That being said, I do not think __GFP_RETRY_MAYFAIL is wrong here. It
+>>>>>> looks like there is something wrong in the reclaim going on.
+>>>>>
+>>>>> Ok, I will start digging into that.  Just wanted to make sure before I got
+>>>>> into it too deep.
+>>>>>
+>>>>> BTW - This is very easy to reproduce.  Just try to allocate more huge pages
+>>>>> than will fit into memory.  I see this 'reclaim taking forever' behavior on
+>>>>> v5.1-rc5-mmotm-2019-04-19-14-53.  Looks like it was there in v5.0 as well.
 >>>>
->>>> pmd_present(pmd):
+>>>> I'd suspect this in should_continue_reclaim():
 >>>>
->>>> - Returns true if pmd refers to system RAM with a valid pmd_page(pmd)
->>>> - Returns false if pmd does not refer to system RAM - Invalid pmd_page(pmd)
+>>>>         /* Consider stopping depending on scan and reclaim activity */
+>>>>         if (sc->gfp_mask & __GFP_RETRY_MAYFAIL) {
+>>>>                 /*
+>>>>                  * For __GFP_RETRY_MAYFAIL allocations, stop reclaiming if the
+>>>>                  * full LRU list has been scanned and we are still failing
+>>>>                  * to reclaim pages. This full LRU scan is potentially
+>>>>                  * expensive but a __GFP_RETRY_MAYFAIL caller really wants to succeed
+>>>>                  */
+>>>>                 if (!nr_reclaimed && !nr_scanned)
+>>>>                         return false;
 >>>>
->>>> pmd_trans_huge(pmd):
->>>>
->>>> - Returns true if pmd refers to system RAM and is a trans huge mapping
-> [...]
->>> Before we actually start fixing this, I would strongly suggest that you
->>> add a boot selftest (see lib/Kconfig.debug for other similar cases)
->>> which checks the consistency of the page table macros w.r.t. the
->>> expected mm semantics. Once the mm maintainers agreed with the
->>> semantics, it will really help architecture maintainers in implementing
->>> them correctly.
->>
->> Sure and it will help all architectures to be in sync wrt semantics.
->>
->>> You wouldn't need actual page tables, just things like assertions on
->>> pmd_trans_huge(pmd_mkhuge(pmd)) == true. You could go further and have
->>> checks on pmdp_invalidate(&dummy_vma, dummy_addr, &dummy_pmd) with the
->>> dummy_* variables on the stack.
->>
->> Hmm. I guess macros which operate directly on a page table entry will be
->> okay but the ones which check on specific states for VMA or MM might be
->> bit tricky. Try to emulate VMA/MM states while on stack ?. But sure, will
->> explore adding such a test.
-> 
-> You can pretend that the page table is on the stack. See the _pmd
-> variable in do_huge_pmd_wp_page_fallback() and
-> __split_huge_zero_page_pmd(). Similarly, the vma and even the mm can be
-> faked on the stack (see the arm64 tlb_flush()).
-
-Sure will explore them and other similar examples. I am already working on a module
-which will test various architecture page table accessors semantics as expected from
-generic MM. This should help us making sure that all architectures are on same page.
-
-> 
->>>> The problem:
->>>>
->>>> PMD is first invalidated with pmdp_invalidate() before it's splitting. This
->>>> invalidation clears PMD_SECT_VALID as below.
->>>>
->>>> PMD Split -> pmdp_invalidate() -> pmd_mknotpresent -> Clears PMD_SECT_VALID
->>>>
->>>> Once PMD_SECT_VALID gets cleared, it results in pmd_present() return false
->>>> on the PMD entry.
+>>>> And that for some reason, nr_scanned never becomes zero. But it's hard
+>>>> to figure out through all the layers of functions :/
 >>>
->>> I think that's an inconsistency in the expected semantics here. Do you
->>> mean that pmd_present(pmd_mknotpresent(pmd)) should be true? If not, do
-> [...]
->> pmd_present() and pmd_mknotpresent() are not exact inverse.
-> 
-> I find this very confusing (not your fault, just the semantics expected
-> by the core code). I can see that x86 is using _PAGE_PSE to make
-> pmd_present(pmd_mknotpresent()) == true. However, for pud that's not the
-> case (because it's not used for transhuge).
-> 
-> I'd rather have this renamed to pmd_mknotvalid().
+>>> I got back to looking into the direct reclaim/compaction stalls when
+>>> trying to allocate huge pages.  As previously mentioned, the code is
+>>> looping for a long time in shrink_node().  The routine
+>>> should_continue_reclaim() returns true perhaps more often than it should.
+>>>
+>>> As Vlastmil guessed, my debug code output below shows nr_scanned is remaining
+>>> non-zero for quite a while.  This was on v5.2-rc6.
+>>>
+>> 
+>> I think it would be reasonable to have should_continue_reclaim allow an
+>> exit if scanning at higher priority than DEF_PRIORITY - 2, nr_scanned is
+>> less than SWAP_CLUSTER_MAX and no pages are being reclaimed.
+>
+>Thanks Mel,
+>
+>I added such a check to should_continue_reclaim.  However, it does not
+>address the issue I am seeing.  In that do-while loop in shrink_node,
+>the scan priority is not raised (priority--).  We can enter the loop
+>with priority == DEF_PRIORITY and continue to loop for minutes as seen
+>in my previous debug output.
+>
+Does it help raise prioity in your case?
 
-Right, it makes sense to do the renaming even without considering this proposal.
-
-> 
->> In absence of a positive section mapping bit on arm64, PTE_SPECIAL is being set
->> temporarily to remember that it was a mapped PMD which got invalidated recently
->> but which still points to memory. Hence pmd_present() must evaluate true.
-> 
-> I wonder if we can encode this safely for arm64 in the bottom two bits
-> of a pmd :
-> 
-> 0b00 - not valid, not present
-> 0b10 - not valid, present, huge
-> 0b01 - valid, present, huge
-> 0b11 - valid, table (not huge)
-> 
-> Do we ever call pmdp_invalidate() on a table entry? I don't think we do.
-> 
-> So a pte_mknotvalid would set bit 1 and I think swp_entry_to_pmd() would
-> have to clear it so that pmd_present() actually returns false for a swp
-> pmd entry.
-
-All these makes it riskier for collision with other core MM paths as compared to
-using a an isolated SW bit like PTE_SPECIAL exclusively for this purpose. This
-is in line with using PTE_PROTNONE. PTE_SPECIAL seems to be well away from core
-PMD path. Is there any particular concern about using PTE_SPECIAL ? Nonetheless
-I will evaluate above proposal of using (0b10) to represent invalid but present
-huge PMD entry during splitting.
-
-> 
->>> we need to implement our own pmdp_invalidate() or change the generic one
->>> to set a "special" bit instead of just a pmd_mknotpresent?
->>
->> Though arm64 can subscribe __HAVE_ARCH_PMDP_INVALIDATE and implement it's own
->> pmdp_invalidate() in order to not call pmd_mknotpresent() and instead operate
->> on the invalid and special bits directly. But its not going to alter relevant
->> semantics here. AFAICS it might be bit better as it saves pmd_mknotpresent()
->> from putting in that special bit in there which it is not supposed do.
->>
->> IFAICS there is no compelling reason for generic pmdp_invalidate() to change
->> either. It calls pmd_mknotpresent() which invalidates the entry through valid
->> or present bit and platforms which have dedicated huge page bit can still test
->> positive for pmd_present() after it's invalidation. It works for such platforms.
->> Platform specific override is required when invalidation via pmd_mknotpresent()
->> is not enough.
-> 
-> I'd really like the mknotpresent to be renamed to mknotvalid and then we
-> can keep pmdp_invalidate unchanged (well, calling mknotvalid instead).
-> 
-
-Though this change really makes sense just from fixing generic pmdp_invalidate()
-perspective as all it asks is to invalidate the PMD entry not mark them non-present
-and currently calling pmd_mknotpresent() in that sense is bit misleading.
-
-But for arm64 I believe implementing arch specific pmdp_invalidate() via subscribing
-__HAVE_ARCH_PMDP_INVALIDATE is bit better. Because the implementation needs more than
-just a PMD entry invalidation even with above proposed 0b10 method or with PTE_SPECIAL.
-pmd_mknotvalid() should not do that additional stuff but instead a platform specific 
-pmdp_invalidate() can incorporate that after doing the real invalidation i.e clearing
-the bit 0 in pmd_mknotvalid().
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2543,11 +2543,18 @@ static inline bool should_continue_reclaim(struct pglist_data *pgdat,
+ 	unsigned long pages_for_compaction;
+ 	unsigned long inactive_lru_pages;
+ 	int z;
++	bool costly_fg_reclaim = false;
+ 
+ 	/* If not in reclaim/compaction mode, stop */
+ 	if (!in_reclaim_compaction(sc))
+ 		return false;
+ 
++	/* Let compact determine what to do for high order allocators */
++	costly_fg_reclaim = sc->order > PAGE_ALLOC_COSTLY_ORDER &&
++				!current_is_kswapd();
++	if (costly_fg_reclaim)
++		goto check_compact;
++
+ 	/* Consider stopping depending on scan and reclaim activity */
+ 	if (sc->gfp_mask & __GFP_RETRY_MAYFAIL) {
+ 		/*
+@@ -2571,6 +2578,7 @@ static inline bool should_continue_reclaim(struct pglist_data *pgdat,
+ 			return false;
+ 	}
+ 
++check_compact:
+ 	/*
+ 	 * If we have not reclaimed enough pages for compaction and the
+ 	 * inactive lists are large enough, continue reclaiming
+@@ -2583,6 +2591,9 @@ static inline bool should_continue_reclaim(struct pglist_data *pgdat,
+ 			inactive_lru_pages > pages_for_compaction)
+ 		return true;
+ 
++	if (costly_fg_reclaim)
++		return false;
++
+ 	/* If compaction would go ahead or the allocation would succeed, stop */
+ 	for (z = 0; z <= sc->reclaim_idx; z++) {
+ 		struct zone *zone = &pgdat->node_zones[z];
+--
 
