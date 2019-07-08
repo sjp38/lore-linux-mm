@@ -2,179 +2,449 @@ Return-Path: <SRS0=WbXp=VF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id AADAFC606C5
-	for <linux-mm@archiver.kernel.org>; Mon,  8 Jul 2019 17:32:28 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DC8A9C606C5
+	for <linux-mm@archiver.kernel.org>; Mon,  8 Jul 2019 17:32:43 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6F9D7216FD
-	for <linux-mm@archiver.kernel.org>; Mon,  8 Jul 2019 17:32:28 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=Mellanox.com header.i=@Mellanox.com header.b="D4QnriIZ"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6F9D7216FD
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mellanox.com
+	by mail.kernel.org (Postfix) with ESMTP id 9D1832173C
+	for <linux-mm@archiver.kernel.org>; Mon,  8 Jul 2019 17:32:43 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9D1832173C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 06AC18E0029; Mon,  8 Jul 2019 13:32:28 -0400 (EDT)
+	id 352358E002A; Mon,  8 Jul 2019 13:32:43 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0416F8E0027; Mon,  8 Jul 2019 13:32:27 -0400 (EDT)
+	id 301928E0027; Mon,  8 Jul 2019 13:32:43 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E4B918E0029; Mon,  8 Jul 2019 13:32:27 -0400 (EDT)
+	id 17AB08E002A; Mon,  8 Jul 2019 13:32:43 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 9307B8E0027
-	for <linux-mm@kvack.org>; Mon,  8 Jul 2019 13:32:27 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id f19so11855611edv.16
-        for <linux-mm@kvack.org>; Mon, 08 Jul 2019 10:32:27 -0700 (PDT)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id CADD08E0027
+	for <linux-mm@kvack.org>; Mon,  8 Jul 2019 13:32:42 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id k19so10925780pgl.0
+        for <linux-mm@kvack.org>; Mon, 08 Jul 2019 10:32:42 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
-         :thread-index:date:message-id:references:in-reply-to:accept-language
-         :content-language:content-id:content-transfer-encoding:mime-version;
-        bh=CyRZoytxL5GxI8Nuxt8XuYqlyWChhgVpZkttH29Bvqo=;
-        b=SKHMVtPtU6+3AGkDuJuPCvr3xTJeL019PYykB60KxcLLpq/FYZvfbj+eY/7qASf+X3
-         XipeKEjye+XgrZCifxt85W5W67tXjq52ZnyaV+EK7NnOxtWAa4dUAKNgOPCr/qHL7+tU
-         SG4/ddYI88S/lOnBMUFBivoQc+ao0zG9k8ODxPNbQVcyRa7KdZG1E+1rOGQDlyzqgp2V
-         s0MMrHPq9UqJJqWxn5L01kj4gH0HtTSFI36pJG/Oxmw0Y5JoQxRE2O/lgThpxykiaitG
-         crx93KMR286MGQKMs3w14bewPUBrN9KRctw/g+HFHplEGfy20SN6YqSomKem6prJ54nb
-         jJDQ==
-X-Gm-Message-State: APjAAAWuIGWZTRa1BQ6jbkRneUQ6PiIeQF94mc5IUHRzuHOs4+CuU9zv
-	rfgGJJbqZ0T/uaniDW3JVfAvBFrJIiW35pUem4mIsz3UVPoQIB3/Ltw2Ua9uQAoG1zBShPnOAax
-	jOqTCn8AkyF1NO6pSMvDy85xfCm6nSH8cly1zkwx7sZhXrEh7ZFioZgfs0eMerSI7uw==
-X-Received: by 2002:a50:acc6:: with SMTP id x64mr21959330edc.100.1562607147110;
-        Mon, 08 Jul 2019 10:32:27 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxD7BscqWv31IxiDr010yBxFjV6bFnucePuIsyaumLC3CeRnpjGAViYRosGmkhq1Xkxzdj2
-X-Received: by 2002:a50:acc6:: with SMTP id x64mr21959283edc.100.1562607146482;
-        Mon, 08 Jul 2019 10:32:26 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562607146; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:message-id
+         :subject:from:to:cc:date:in-reply-to:references:user-agent
+         :mime-version:content-transfer-encoding;
+        bh=fNS3Hw8yrl5yqkP8lbMWRzy2Zb7YQRNI5f3KP6QM51M=;
+        b=e5ae6CzcZro8SLsuK5Kk8waln6kCt/Izrn5kjnSiQ2eCcsFGD8P5DPXn71LYpKzJMH
+         3tjIj87zAI9U7uMVXFkoLaf+0LyfchVtHR0JX2wfwvHakZ5xpHsN1SXfBejAtEZQMR0M
+         gXNWwl1zeviwsw/dEzGZHF5tOkf6iuqlXNG89DRUVU4OrRXf4c29ixnFXaIe4OgtkBuA
+         fGzQksAYYEAN3EwzHi41WjeSK+++tU/snjfSmA2vqjD5pZ0DEFp5rJ6KmizMqbwzbKv3
+         nmN/RXo/Q6/f8fVnc6bfWq/Q6SZisgXOaIJfLkbzsD5RDB57EYOBcTMuhAojP87j4tX4
+         gDJQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=alexander.h.duyck@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAUgJ/Tj6EXiCXQSi+YixEnIGD5eQHS0mEY1nKm/WL7bD9VRivhq
+	4xdD/XoTVkJPxzy9cPUdRAuHa5GLfV46lUr2rbI8gmeimlzMzWT7XOYtMvnDmUlGGR4y+f60ll7
+	/0N/6+u3QoMDtuwnsEi2Df1zrFWhD+5sTTTpyNYV4BUY/xYLan/bMBJDRPCy3OvqVJA==
+X-Received: by 2002:a17:90a:23a4:: with SMTP id g33mr27998835pje.115.1562607162464;
+        Mon, 08 Jul 2019 10:32:42 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqy4RPQ0g3cKhZnMLaQNvipecp0C9GM3k3x0+YEZKq6x2aDJFKIozk1ooNUtkE46KaSN7na2
+X-Received: by 2002:a17:90a:23a4:: with SMTP id g33mr27998717pje.115.1562607161286;
+        Mon, 08 Jul 2019 10:32:41 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562607161; cv=none;
         d=google.com; s=arc-20160816;
-        b=lEa2KJVUxfhUX5okHNgRnVjpPtFph+Juv6SkCxhfBdoF2V0Zrb/snjGV+bDTjXptUD
-         i+1ObE0q6vxIk0OE6qQFbQS4wdzfUN93zAVCEUOCWNTg4Se5n1D4+yfDNS0t0Sk8qqxA
-         Kmjm9RJnjjDe55pq3yveWrv5xB1YRr87dJUN4S4k/JUL2tlE50I/GABaDgLsGuZ0x7Y1
-         OrJuqQeysQOIGKHgfsKRNNx5z09lI1x81WbKnd6uctst5pZCGOoP5cKLFjUat+L1uxs8
-         /kcc6MqkOfLhGXLcFBivTT6xJkkN2RP8oGID+eAFyc6SAwP9XbdANN8IcDH+xxivFrv7
-         vSkg==
+        b=DkspjaKBQtLySclZcUERTg9s7slaYP+G7FDNvBavwdIJMnQtauyGa/CfbBASxkvmeN
+         prSWC8ZFsL7UR1RlXznEjdh93gtkutvHItizkKZAGxvyCA1SEoxpyDlSHWOOPHctDdyW
+         Kdl5JMCq/72Q9pBtXg2mXNADP8oM2CatkPgMQuos8g2B8pmtg7sOWmOWvPpHRtuII43E
+         3FXLdw1lmQ6+cWRYVe7+11Jz7eaEMvBGiJmc2U9xQi3Gi7zAcEjC8ggNygkSjh/FcIwn
+         vb6HcXdAa9GOnFnRU1XLaHfUYKgdlrK4z8pk7FGJjI9q4mwgxHm4xC1h5H536c/XXJbG
+         DJnw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from:dkim-signature;
-        bh=CyRZoytxL5GxI8Nuxt8XuYqlyWChhgVpZkttH29Bvqo=;
-        b=dAOyJYxSSjB731lkgCzUeMHNMkzkrUoMHkJUncDhE2werbjSiFS2Vkrzd8Fma+yWVr
-         5mOSO4LvfpV0YO+Pp46C/jI//ep7k44RywVFhseY4Qf1hxomSuFMqy2DEn6bP87h05I9
-         6BU7DDK8XO3n7k19g6F/voKFof0IM+MhdPPOAeErBFItWYjQoSI4KQEWjH5gQUIduDSy
-         LvJaupVZBCBAdnUtSTue380bnMApj3/61/J8pdjI0sOTfPdGSeoLZkqackfch4vsUeq+
-         FA6PWx/izIhnYBMeTqUNyHeHftc8PdrmXxNmqEpY7UcviPbEzbCQLEZown6fu9Hk3h23
-         8KOQ==
+        h=content-transfer-encoding:mime-version:user-agent:references
+         :in-reply-to:date:cc:to:from:subject:message-id;
+        bh=fNS3Hw8yrl5yqkP8lbMWRzy2Zb7YQRNI5f3KP6QM51M=;
+        b=v6EpqzUnLUv9P75HfQEYGnHkHmQdqRgFMnYJpF7LiHOQ9jQsuKuJQlCxGS1r3MAm+G
+         qJIfRhcU88JsIdOQ9eyuWFNKuWZJyJsuo+Qp8AARYHtiYJG/IjSeNVTAdDCb5YkJbpi+
+         BXLGGGBjfGDkGoHsTtd7AgXEbScd7ya6utOjjBDnUlPtysrabcQOBowFZLJA/E4WExcY
+         7xjopUqS9rkYu73afg+KY+49VlUMwccZGaMU6Ss6Mzd3ewMfvIRYJbq/qYA6dFi/rTHX
+         QGDEAW2hilhqdgDAVKEAHK1Gu/EwDERUuCUXYsOavXrjwBR+3IqjSU5wxXM2HJDwTnQd
+         3zkw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b=D4QnriIZ;
-       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.1.50 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
-Received: from EUR02-HE1-obe.outbound.protection.outlook.com (mail-eopbgr10050.outbound.protection.outlook.com. [40.107.1.50])
-        by mx.google.com with ESMTPS id c45si8365925eda.303.2019.07.08.10.32.26
+       spf=pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=alexander.h.duyck@linux.intel.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id q2si18378811plh.56.2019.07.08.10.32.41
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 08 Jul 2019 10:32:26 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jgg@mellanox.com designates 40.107.1.50 as permitted sender) client-ip=40.107.1.50;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 08 Jul 2019 10:32:41 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 134.134.136.24 as permitted sender) client-ip=134.134.136.24;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b=D4QnriIZ;
-       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.1.50 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=Mellanox.com;
- s=selector2;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=CyRZoytxL5GxI8Nuxt8XuYqlyWChhgVpZkttH29Bvqo=;
- b=D4QnriIZp4nCkMSSM2oTOX28PMZcD/EM4rVQVZ1eL2yXyrf+EdxcjiPBRi6WuEX8r2u9lmg+NFOAcTriiU939Jer4mN8rDHc8bGgK3JN5NsLY4eaIiryDsHapvOXyN+VUHZcLA/agG2Z19YfRhT71+nGTx5C2n1X0ZwLgJ2JiyE=
-Received: from VI1PR05MB4141.eurprd05.prod.outlook.com (10.171.182.144) by
- VI1PR05MB6589.eurprd05.prod.outlook.com (20.179.25.212) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.2052.18; Mon, 8 Jul 2019 17:32:24 +0000
-Received: from VI1PR05MB4141.eurprd05.prod.outlook.com
- ([fe80::f5d8:df9:731:682e]) by VI1PR05MB4141.eurprd05.prod.outlook.com
- ([fe80::f5d8:df9:731:682e%5]) with mapi id 15.20.2052.020; Mon, 8 Jul 2019
- 17:32:24 +0000
-From: Jason Gunthorpe <jgg@mellanox.com>
-To: Ralph Campbell <rcampbell@nvidia.com>
-CC: Christoph Hellwig <hch@lst.de>, =?utf-8?B?SsOpcsO0bWUgR2xpc3Nl?=
-	<jglisse@redhat.com>, Ben Skeggs <bskeggs@redhat.com>, "linux-mm@kvack.org"
-	<linux-mm@kvack.org>, "nouveau@lists.freedesktop.org"
-	<nouveau@lists.freedesktop.org>, "dri-devel@lists.freedesktop.org"
-	<dri-devel@lists.freedesktop.org>, "linux-kernel@vger.kernel.org"
-	<linux-kernel@vger.kernel.org>
-Subject: Re: hmm_range_fault related fixes and legacy API removal v2
-Thread-Topic: hmm_range_fault related fixes and legacy API removal v2
-Thread-Index: AQHVMer7t/tGwC82LkyVSWCA9HbG9qa6qyIAgAZW04CAAABlAA==
-Date: Mon, 8 Jul 2019 17:32:24 +0000
-Message-ID: <20190708173219.GL23966@mellanox.com>
-References: <20190703220214.28319-1-hch@lst.de>
- <20190704164236.GP3401@mellanox.com>
- <41dbb308-fc9e-d730-ffb0-6ce051dff1e1@nvidia.com>
-In-Reply-To: <41dbb308-fc9e-d730-ffb0-6ce051dff1e1@nvidia.com>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-x-clientproxiedby: MN2PR04CA0026.namprd04.prod.outlook.com
- (2603:10b6:208:d4::39) To VI1PR05MB4141.eurprd05.prod.outlook.com
- (2603:10a6:803:4d::16)
-authentication-results: spf=none (sender IP is )
- smtp.mailfrom=jgg@mellanox.com; 
-x-ms-exchange-messagesentrepresentingtype: 1
-x-originating-ip: [156.34.55.100]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: 06f06ac4-6250-447d-49b3-08d703ca3d01
-x-ms-office365-filtering-ht: Tenant
-x-microsoft-antispam:
- BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(4618075)(2017052603328)(7193020);SRVR:VI1PR05MB6589;
-x-ms-traffictypediagnostic: VI1PR05MB6589:
-x-microsoft-antispam-prvs:
- <VI1PR05MB65893AD6AA3A6095CC078DD2CFF60@VI1PR05MB6589.eurprd05.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:8273;
-x-forefront-prvs: 00922518D8
-x-forefront-antispam-report:
- SFV:NSPM;SFS:(10009020)(4636009)(376002)(39860400002)(396003)(366004)(346002)(136003)(189003)(199004)(6916009)(8936002)(66556008)(2906002)(66476007)(66446008)(64756008)(66946007)(73956011)(305945005)(99286004)(81166006)(81156014)(8676002)(86362001)(102836004)(316002)(6436002)(54906003)(6246003)(36756003)(52116002)(256004)(71200400001)(71190400001)(6486002)(478600001)(14454004)(53546011)(68736007)(186003)(5660300002)(66574012)(476003)(6512007)(33656002)(11346002)(2616005)(6506007)(25786009)(26005)(386003)(66066001)(7736002)(76176011)(53936002)(486006)(4326008)(6116002)(1076003)(446003)(3846002)(229853002)(4744005);DIR:OUT;SFP:1101;SCL:1;SRVR:VI1PR05MB6589;H:VI1PR05MB4141.eurprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
-received-spf: None (protection.outlook.com: mellanox.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info:
- nY15vKNO4PNEEgep0hJ6zItN1FcRngQV6udYZyjYDpozrGLDU2uJLKpU0keTx/nEevhOBPj/hvaucyE4urOVb0RHPpgr2ma1NCYL7SbLmv67CmHEs2VXDZV29Hq0kI56JUBDc0nCsGHmevOXqmMKc2qVv25V9aSISiDyC0NRgxlidjKRpQeOgcWgP919clBsGOGQXD4+VKwVCvRlE6vB/fFiI2NdxRwqAdnPVzKZRf6+Sp0FS9gVbCio9cq6zjh7KBqS0fYd4XzYC84u+eziq5JTcxvqrunyUxw4qV5WP6+Q/IiOk4ndl7wR9u8YU3lYua0DsUP7yqWyxJUcLwzIpnwaRM7lFxgy+DzD/mDmG9BZTtcFPpMQGS5A/guKF2ExxGzAfUbQxe5q4dg+9zEsvC+Wuvfv29xC7iQkHNUYRh4=
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <F61E600089470D4898FBE87BCA1D4B71@eurprd05.prod.outlook.com>
-Content-Transfer-Encoding: base64
+       spf=pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=alexander.h.duyck@linux.intel.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga007.jf.intel.com ([10.7.209.58])
+  by orsmga102.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 08 Jul 2019 10:32:40 -0700
+X-IronPort-AV: E=Sophos;i="5.63,466,1557212400"; 
+   d="scan'208";a="155925896"
+Received: from ahduyck-desk1.jf.intel.com ([10.7.198.76])
+  by orsmga007-auth.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 08 Jul 2019 10:32:39 -0700
+Message-ID: <6091d916590ffbacb9a641c6009bb1782d8ae615.camel@linux.intel.com>
+Subject: Re: [PATCH v1 4/6] mm: Introduce "aerated" pages
+From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+To: Dave Hansen <dave.hansen@intel.com>, Alexander Duyck
+ <alexander.duyck@gmail.com>, nitesh@redhat.com, kvm@vger.kernel.org, 
+ david@redhat.com, mst@redhat.com, linux-kernel@vger.kernel.org,
+ linux-mm@kvack.org,  akpm@linux-foundation.org
+Cc: yang.zhang.wz@gmail.com, pagupta@redhat.com, riel@surriel.com, 
+	konrad.wilk@oracle.com, lcapitulino@redhat.com, wei.w.wang@intel.com, 
+	aarcange@redhat.com, pbonzini@redhat.com, dan.j.williams@intel.com
+Date: Mon, 08 Jul 2019 10:32:40 -0700
+In-Reply-To: <a147b569-9f1b-a1be-e019-0059c654892d@intel.com>
+References: <20190619222922.1231.27432.stgit@localhost.localdomain>
+	 <20190619223323.1231.86906.stgit@localhost.localdomain>
+	 <a147b569-9f1b-a1be-e019-0059c654892d@intel.com>
+Content-Type: text/plain; charset="UTF-8"
+User-Agent: Evolution 3.30.5 (3.30.5-1.fc29) 
 MIME-Version: 1.0
-X-OriginatorOrg: Mellanox.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: 06f06ac4-6250-447d-49b3-08d703ca3d01
-X-MS-Exchange-CrossTenant-originalarrivaltime: 08 Jul 2019 17:32:24.4372
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: a652971c-7d2e-4d9b-a6a4-d149256f461b
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-userprincipalname: jgg@mellanox.com
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: VI1PR05MB6589
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-T24gTW9uLCBKdWwgMDgsIDIwMTkgYXQgMTA6MzA6NTVBTSAtMDcwMCwgUmFscGggQ2FtcGJlbGwg
-d3JvdGU6DQo+IA0KPiBPbiA3LzQvMTkgOTo0MiBBTSwgSmFzb24gR3VudGhvcnBlIHdyb3RlOg0K
-PiA+IE9uIFdlZCwgSnVsIDAzLCAyMDE5IGF0IDAzOjAyOjA4UE0gLTA3MDAsIENocmlzdG9waCBI
-ZWxsd2lnIHdyb3RlOg0KPiA+ID4gSGkgSsOpcsO0bWUsIEJlbiBhbmQgSmFzb24sDQo+ID4gPiAN
-Cj4gPiA+IGJlbG93IGlzIGEgc2VyaWVzIGFnYWluc3QgdGhlIGhtbSB0cmVlIHdoaWNoIGZpeGVz
-IHVwIHRoZSBtbWFwX3NlbQ0KPiA+ID4gbG9ja2luZyBpbiBub3V2ZWF1IGFuZCB3aGlsZSBhdCBp
-dCBhbHNvIHJlbW92ZXMgbGVmdG92ZXIgbGVnYWN5IEhNTSBBUElzDQo+ID4gPiBvbmx5IHVzZWQg
-Ynkgbm91dmVhdS4NCj4gPiA+IA0KPiA+ID4gQ2hhbmdlcyBzaW5jZSB2MToNCj4gPiA+ICAgLSBk
-b24ndCByZXR1cm4gdGhlIHZhbGlkIHN0YXRlIGZyb20gaG1tX3JhbmdlX3VucmVnaXN0ZXINCj4g
-PiA+ICAgLSBhZGRpdGlvbmFsIG5vdXZlYXUgY2xlYW51cHMNCj4gPiANCj4gPiBSYWxwaCwgc2lu
-Y2UgbW9zdCBvZiB0aGlzIGlzIG5vdXZlYXUgY291bGQgeW91IGNvbnRyaWJ1dGUgYQ0KPiA+IFRl
-c3RlZC1ieT8gVGhhbmtzDQo+ID4gDQo+ID4gSmFzb24NCj4gPiANCj4gDQo+IEkgY2FuIHRlc3Qg
-dGhpbmdzIGZhaXJseSBlYXNpbHkgYnV0IHdpdGggYWxsIHRoZSBkaWZmZXJlbnQgcGF0Y2hlcywN
-Cj4gY29uZmxpY3RzLCBhbmQgcGVyc29uYWwgZ2l0IHRyZWVzLCBjYW4geW91IHNwZWNpZnkgdGhl
-IGdpdCB0cmVlDQo+IGFuZCBicmFuY2ggd2l0aCBldmVyeXRoaW5nIGFwcGxpZWQgdGhhdCB5b3Ug
-d2FudCBtZSB0byB0ZXN0Pw0KDQpUaGlzIHNlcmllcyB3aWxsIGJlIHB1c2hlZCB0byB0aGUgbmV4
-dCBjeWNsZSwgc28gaWYgeW91IHRlc3QgdjUuMy1yYzENCisgdGhpcyBzZXJpZXMgeW91J2QgZ2V0
-IHRoZSByaWdodCBjb3ZlcmFnZS4NCg0KVGhhbmtzLA0KSmFzb24NCg==
+On Tue, 2019-06-25 at 12:45 -0700, Dave Hansen wrote:
+> > +static inline void set_page_aerated(struct page *page,
+> > +				    struct zone *zone,
+> > +				    unsigned int order,
+> > +				    int migratetype)
+> > +{
+> > +#ifdef CONFIG_AERATION
+> > +	/* update areated page accounting */
+> > +	zone->free_area[order].nr_free_aerated++;
+> > +
+> > +	/* record migratetype and flag page as aerated */
+> > +	set_pcppage_migratetype(page, migratetype);
+> > +	__SetPageAerated(page);
+> > +#endif
+> > +}
+> 
+> Please don't refer to code before you introduce it, even if you #ifdef
+> it.  I went looking back in the series for the PageAerated() definition,
+> but didn't think to look forward.
+
+Yeah, I had split this code out from patch 5, but I realized after I
+submitted it I had a number of issues. The kconfig option also ended up in
+patch 5 instead of showing up in patch 4.
+
+I'll have to work on cleaning up patches 4 and 5 so that the split between
+them is cleaner.
+
+> Also, it doesn't make any sense to me that you would need to set the
+> migratetype here.  Isn't it set earlier in the allocator?  Also, when
+> can this function be called?  There's obviously some locking in place
+> because of the __Set, but what are they?
+
+Generally this function is only called from inside __free_one_page so yes,
+the zone lock is expected to be held.
+
+> > +static inline void clear_page_aerated(struct page *page,
+> > +				      struct zone *zone,
+> > +				      struct free_area *area)
+> > +{
+> > +#ifdef CONFIG_AERATION
+> > +	if (likely(!PageAerated(page)))
+> > +		return;
+> 
+> Logically, why would you ever clear_page_aerated() on a page that's not
+> aerated?  Comments needed.
+> 
+> BTW, I already hate typing aerated. :)
+
+Well I am always open to other suggestions. I could just default to
+offline which is what is used by the balloon drivers. Suggestions for a
+better name are always welcome.
+
+> > +	__ClearPageAerated(page);
+> > +	area->nr_free_aerated--;
+> > +#endif
+> > +}
+> 
+> More non-atomic flag clears.  Still no comments.
+
+Yes. it is the same kind of deal as the function above. Basically we only
+call this just before we clear the buddy flag in the allocator so once
+again the zone lock is expected to be held at this point.
+
+> 
+> > @@ -787,10 +790,10 @@ static inline void add_to_free_area(struct page *page, struct zone *zone,
+> >  static inline void add_to_free_area_tail(struct page *page, struct zone *zone,
+> >  					 unsigned int order, int migratetype)
+> >  {
+> > -	struct free_area *area = &zone->free_area[order];
+> > +	struct list_head *tail = aerator_get_tail(zone, order, migratetype);
+> 
+> There is no logical change in this patch from this line.  That's
+> unfortunate because I can't see the change in logic that's presumably
+> coming.  You'll presumably change aerator_get_tail(), but then I'll have
+> to remember that this line is here and come back to it from a later patch.
+> 
+> If it *doesn't* change behavior, it has no business being calle
+> aerator_...().
+> 
+> This series seems rather suboptimal for reviewing.
+
+I can move that into patch 5. That would make more sense anyway since that
+is where I introduce the change that adds the boundaries.
+
+> > -	list_add_tail(&page->lru, &area->free_list[migratetype]);
+> > -	area->nr_free++;
+> > +	list_add_tail(&page->lru, tail);
+> > +	zone->free_area[order].nr_free++;
+> >  }
+> >  
+> >  /* Used for pages which are on another list */
+> > @@ -799,6 +802,8 @@ static inline void move_to_free_area(struct page *page, struct zone *zone,
+> >  {
+> >  	struct free_area *area = &zone->free_area[order];
+> >  
+> > +	clear_page_aerated(page, zone, area);
+> > +
+> >  	list_move(&page->lru, &area->free_list[migratetype]);
+> >  }
+> 
+> It's not immediately clear to me why moving a page should clear
+> aeration.  A comment would help make it clear.
+
+I will do that. The main reason for having to do that is because when we
+move the page there is no guarantee that the boundaries will still be in
+place. As such we are pulling the page and placing it on the head of the
+free_list we are moving it to. As such in order to avoid creating an
+island of unprocessed pages we need to clear the flag and just reprocess
+it later.
+
+> > @@ -868,10 +869,11 @@ static inline struct capture_control *task_capc(struct zone *zone)
+> >  static inline void __free_one_page(struct page *page,
+> >  		unsigned long pfn,
+> >  		struct zone *zone, unsigned int order,
+> > -		int migratetype)
+> > +		int migratetype, bool aerated)
+> >  {
+> >  	struct capture_control *capc = task_capc(zone);
+> >  	unsigned long uninitialized_var(buddy_pfn);
+> > +	bool fully_aerated = aerated;
+> >  	unsigned long combined_pfn;
+> >  	unsigned int max_order;
+> >  	struct page *buddy;
+> > @@ -902,6 +904,11 @@ static inline void __free_one_page(struct page *page,
+> >  			goto done_merging;
+> >  		if (!page_is_buddy(page, buddy, order))
+> >  			goto done_merging;
+> > +
+> > +		/* assume buddy is not aerated */
+> > +		if (aerated)
+> > +			fully_aerated = false;
+> 
+> So, "full" vs. "partial" is with respect to high-order pages?  Why not
+> just check the page flag on the buddy?
+
+The buddy will never have the aerated flag set. If we are hinting on a
+given page then the assumption is it was the highest order version of the
+page available when we processed the pages in the previous pass. So if the
+buddy is available when we are returning the processed page then the buddy
+is non-aerated and will invalidate the aeration when merged with the
+aerated page. What we will then do is hint on the higher-order page that
+is created as a result of merging the two pages.
+
+I'll make the comment more robust on that.
+
+> >  		/*
+> >  		 * Our buddy is free or it is CONFIG_DEBUG_PAGEALLOC guard page,
+> >  		 * merge with it and move up one order.
+> > @@ -943,11 +950,17 @@ static inline void __free_one_page(struct page *page,
+> >  done_merging:
+> >  	set_page_order(page, order);
+> >  
+> > -	if (buddy_merge_likely(pfn, buddy_pfn, page, order) ||
+> > +	if (aerated ||
+> > +	    buddy_merge_likely(pfn, buddy_pfn, page, order) ||
+> >  	    is_shuffle_tail_page(order))
+> >  		add_to_free_area_tail(page, zone, order, migratetype);
+> >  	else
+> >  		add_to_free_area(page, zone, order, migratetype);
+> 
+> Aerated pages always go to the tail?  Ahh, so they don't get consumed
+> quickly and have to be undone?  Comments, please.
+
+Will do.
+
+> > +	if (fully_aerated)
+> > +		set_page_aerated(page, zone, order, migratetype);
+> > +	else
+> > +		aerator_notify_free(zone, order);
+> >  }
+> 
+> What is this notifying for?  It's not like this is some opaque
+> registration interface.  What does this *do*?
+
+This is updating the count of non-treated pages and comparing that to the
+high water mark. If it crosses a certain threshold it will then set the
+bits requesting the zone be processed and wake up the thread if it is not
+active.
+
+> > @@ -2127,6 +2140,77 @@ struct page *__rmqueue_smallest(struct zone *zone, unsigned int order,
+> >  	return NULL;
+> >  }
+> >  
+> > +#ifdef CONFIG_AERATION
+> > +/**
+> > + * get_aeration_page - Provide a "raw" page for aeration by the aerator
+> > + * @zone: Zone to draw pages from
+> > + * @order: Order to draw pages from
+> > + * @migratetype: Migratetype to draw pages from
+> 
+> FWIW, kerneldoc is a waste of bytes here.  Please use it sparingly.
+> 
+> > + * This function will obtain a page from above the boundary. As a result
+> > + * we can guarantee the page has not been aerated.
+> 
+> This is the first mention of a boundary.  That's not good since I have
+> no idea at this point what the boundary is for or between.
+
+Boundary doesn't get added until the next patch so this is another foul up
+with the splitting of the patches.
+
+> 
+> > + * The page will have the migrate type and order stored in the page
+> > + * metadata.
+> > + *
+> > + * Return: page pointer if raw page found, otherwise NULL
+> > + */
+> > +struct page *get_aeration_page(struct zone *zone, unsigned int order,
+> > +			       int migratetype)
+> > +{
+> > +	struct free_area *area = &(zone->free_area[order]);
+> > +	struct list_head *list = &area->free_list[migratetype];
+> > +	struct page *page;
+> > +
+> > +	/* Find a page of the appropriate size in the preferred list */
+> 
+> I don't get the size comment.  Hasn't this already been given an order?
+
+That is a hold over from a previous version of this patch. Originally this
+code was getting anything order or greater. Now it only grabs pages of a
+certain order as I had pulled some logic out of here and moved it into the
+aeration logic.
+
+> > +	page = list_last_entry(aerator_get_tail(zone, order, migratetype),
+> > +			       struct page, lru);
+> > +	list_for_each_entry_from_reverse(page, list, lru) {
+> > +		if (PageAerated(page)) {
+> > +			page = list_first_entry(list, struct page, lru);
+> > +			if (PageAerated(page))
+> > +				break;
+> > +		}
+> 
+> This confuses me.  It looks for a page, then goes to the next page and
+> checks again?  Why check twice?  Why is a function looking for an
+> aerated page that finds *two* pages returning NULL?
+> 
+> I'm stumped.
+
+So the logic here gets confusing because the boundary hasn't been defined
+yet. Specifically boundary ends up being a secondary tail that applies
+only to the non-processed pages. What we are doing is getting the last
+non-processed page, and then using the "from" version of the list iterator
+to make certain that the list isn't actually empty.
+
+From there we do a check to see if the page we are currently looking at is
+empty. If it is we return NULL. If the list is not empty we check and see
+if the page was processed, if it was we try grapping the page from the
+head of the list as we hit the bottom of the last batch we processed. If
+that is also processed then we just exit.
+
+I will try to do a better job of documenting all this. Basically I used a
+bunch of list manipulation that is hiding things too well.
+
+> > +		del_page_from_free_area(page, zone, order);
+> > +
+> > +		/* record migratetype and order within page */
+> > +		set_pcppage_migratetype(page, migratetype);
+> > +		set_page_private(page, order);
+> > +		__mod_zone_freepage_state(zone, -(1 << order), migratetype);
+> > +
+> > +		return page;
+> > +	}
+> > +
+> > +	return NULL;
+> > +}
+> 
+> Oh, so this is trying to find a page _for_ aerating.
+> "get_aeration_page()" does not convey that.  Can that improved?
+> get_page_for_aeration()?
+> 
+> Rather than talk about boundaries, wouldn't a better description have been:
+> 
+> 	Similar to allocation, this function removes a page from the
+> 	free lists.  However, it only removes unaerated pages.
+
+I will update the kerneldoc and comments.
+
+> > +/**
+> > + * put_aeration_page - Return a now-aerated "raw" page back where we got it
+> > + * @zone: Zone to return pages to
+> > + * @page: Previously "raw" page that can now be returned after aeration
+> > + *
+> > + * This function will pull the migratetype and order information out
+> > + * of the page and attempt to return it where it found it.
+> > + */
+> > +void put_aeration_page(struct zone *zone, struct page *page)
+> > +{
+> > +	unsigned int order, mt;
+> > +	unsigned long pfn;
+> > +
+> > +	mt = get_pcppage_migratetype(page);
+> > +	pfn = page_to_pfn(page);
+> > +
+> > +	if (unlikely(has_isolate_pageblock(zone) || is_migrate_isolate(mt)))
+> > +		mt = get_pfnblock_migratetype(page, pfn);
+> > +
+> > +	order = page_private(page);
+> > +	set_page_private(page, 0);
+> > +
+> > +	__free_one_page(page, pfn, zone, order, mt, true);
+> > +}
+> > +#endif /* CONFIG_AERATION */
+> 
+> Yikes.  This seems to have glossed over some pretty big aspects here.
+> Pages which are being aerated are not free.  Pages which are freed are
+> diverted to be aerated before becoming free.  Right?  That sounds like
+> two really important things to add to a changelog.
+
+Right. The aerated pages are not free. The go into the free_list and once
+enough pages are in there the aerator will start pulling some out and
+processing them. The idea is that any pages not being actively aerated
+will stay in the free_list so it isn't as if we are shunting them off to a
+side-queue. They are just sitting in the free_list either to be reused or
+aerated.
+
+I'll make some updates to the changelog to clarify that.
+
+> >  /*
+> >   * This array describes the order lists are fallen back to when
+> >   * the free lists for the desirable migrate type are depleted
+> > @@ -5929,9 +6013,12 @@ void __ref memmap_init_zone_device(struct zone *zone,
+> >  static void __meminit zone_init_free_lists(struct zone *zone)
+> >  {
+> >  	unsigned int order, t;
+> > -	for_each_migratetype_order(order, t) {
+> > +	for_each_migratetype_order(order, t)
+> >  		INIT_LIST_HEAD(&zone->free_area[order].free_list[t]);
+> > +
+> > +	for (order = MAX_ORDER; order--; ) {
+> >  		zone->free_area[order].nr_free = 0;
+> > +		zone->free_area[order].nr_free_aerated = 0;
+> >  	}
+> >  }
+> >  
+> > 
+
 
