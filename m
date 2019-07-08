@@ -2,449 +2,131 @@ Return-Path: <SRS0=WbXp=VF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.1 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DC8A9C606C5
-	for <linux-mm@archiver.kernel.org>; Mon,  8 Jul 2019 17:32:43 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id F0E4BC606BD
+	for <linux-mm@archiver.kernel.org>; Mon,  8 Jul 2019 17:35:43 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9D1832173C
-	for <linux-mm@archiver.kernel.org>; Mon,  8 Jul 2019 17:32:43 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9D1832173C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 9F7E72173C
+	for <linux-mm@archiver.kernel.org>; Mon,  8 Jul 2019 17:35:43 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="oIfcgycO"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9F7E72173C
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 352358E002A; Mon,  8 Jul 2019 13:32:43 -0400 (EDT)
+	id 1786E8E002B; Mon,  8 Jul 2019 13:35:43 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 301928E0027; Mon,  8 Jul 2019 13:32:43 -0400 (EDT)
+	id 159438E0027; Mon,  8 Jul 2019 13:35:43 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 17AB08E002A; Mon,  8 Jul 2019 13:32:43 -0400 (EDT)
+	id 03EE68E002B; Mon,  8 Jul 2019 13:35:43 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id CADD08E0027
-	for <linux-mm@kvack.org>; Mon,  8 Jul 2019 13:32:42 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id k19so10925780pgl.0
-        for <linux-mm@kvack.org>; Mon, 08 Jul 2019 10:32:42 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id C415F8E0027
+	for <linux-mm@kvack.org>; Mon,  8 Jul 2019 13:35:42 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id n7so10929700pgr.12
+        for <linux-mm@kvack.org>; Mon, 08 Jul 2019 10:35:42 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:message-id
-         :subject:from:to:cc:date:in-reply-to:references:user-agent
-         :mime-version:content-transfer-encoding;
-        bh=fNS3Hw8yrl5yqkP8lbMWRzy2Zb7YQRNI5f3KP6QM51M=;
-        b=e5ae6CzcZro8SLsuK5Kk8waln6kCt/Izrn5kjnSiQ2eCcsFGD8P5DPXn71LYpKzJMH
-         3tjIj87zAI9U7uMVXFkoLaf+0LyfchVtHR0JX2wfwvHakZ5xpHsN1SXfBejAtEZQMR0M
-         gXNWwl1zeviwsw/dEzGZHF5tOkf6iuqlXNG89DRUVU4OrRXf4c29ixnFXaIe4OgtkBuA
-         fGzQksAYYEAN3EwzHi41WjeSK+++tU/snjfSmA2vqjD5pZ0DEFp5rJ6KmizMqbwzbKv3
-         nmN/RXo/Q6/f8fVnc6bfWq/Q6SZisgXOaIJfLkbzsD5RDB57EYOBcTMuhAojP87j4tX4
-         gDJQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=alexander.h.duyck@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAUgJ/Tj6EXiCXQSi+YixEnIGD5eQHS0mEY1nKm/WL7bD9VRivhq
-	4xdD/XoTVkJPxzy9cPUdRAuHa5GLfV46lUr2rbI8gmeimlzMzWT7XOYtMvnDmUlGGR4y+f60ll7
-	/0N/6+u3QoMDtuwnsEi2Df1zrFWhD+5sTTTpyNYV4BUY/xYLan/bMBJDRPCy3OvqVJA==
-X-Received: by 2002:a17:90a:23a4:: with SMTP id g33mr27998835pje.115.1562607162464;
-        Mon, 08 Jul 2019 10:32:42 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy4RPQ0g3cKhZnMLaQNvipecp0C9GM3k3x0+YEZKq6x2aDJFKIozk1ooNUtkE46KaSN7na2
-X-Received: by 2002:a17:90a:23a4:: with SMTP id g33mr27998717pje.115.1562607161286;
-        Mon, 08 Jul 2019 10:32:41 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562607161; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=n9fo3wNw7aw0RbIvRpzphALTB15Qd7wOzZ709YJZYuY=;
+        b=sgfny1nXjCNSqBVQLjvpE6DnbC+CeG47TkH/y12qUT4VUgoW62/yb7y6rYWZ1MdOHm
+         YJ1UZoLuG2DQRKZ1llpWQssjMx15XSirkAB2vQ7hz8HgIHEQLLemBeQm/JERO9IpqYwZ
+         c1eRHmYHZF7zmPKYN7oNS0HhTjSLfE3DhOc1pttJJwbIO7wcqvZQ/qBvIFTGNULdZTBy
+         IKFn3QxX0iGax3ewNoMuPo+fhZsM2NsPoZ/gbKEXmgrxi5aZXk2TLPHhvk5wX4xZ4imR
+         aULxG9FeePSVAwKTHougiGJzr2rjb76QxnabCeU/dTp+tJ3/LQ0tjOg50WPXEfjZSpL/
+         ayFw==
+X-Gm-Message-State: APjAAAUZkjLMIMgz8OvBmNXMZ8Q706Q+fQOtkXX0Fa1rtRec0LNnVAqs
+	GM8mvq1oEWeU97F8xaHbk+B+5V3jd6iFaSyYoIEyvzJaCjbzKPjcHTj24EY1AurJ+B1Um3yhf2n
+	+Ojf/2LKz0J/Z653EGjHmzIGQFLQSthatG+yEPytiKnJz5H+CisJMbtT4COeGzIY1ow==
+X-Received: by 2002:a63:5945:: with SMTP id j5mr25164500pgm.452.1562607342451;
+        Mon, 08 Jul 2019 10:35:42 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwtMSNWHZUOBMWcc22ilZF9OKP3s1PLFWGphSoVHBXLfdJR729ADiK1cjVlsYwxOsu4tbFB
+X-Received: by 2002:a63:5945:: with SMTP id j5mr25164458pgm.452.1562607341788;
+        Mon, 08 Jul 2019 10:35:41 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562607341; cv=none;
         d=google.com; s=arc-20160816;
-        b=DkspjaKBQtLySclZcUERTg9s7slaYP+G7FDNvBavwdIJMnQtauyGa/CfbBASxkvmeN
-         prSWC8ZFsL7UR1RlXznEjdh93gtkutvHItizkKZAGxvyCA1SEoxpyDlSHWOOPHctDdyW
-         Kdl5JMCq/72Q9pBtXg2mXNADP8oM2CatkPgMQuos8g2B8pmtg7sOWmOWvPpHRtuII43E
-         3FXLdw1lmQ6+cWRYVe7+11Jz7eaEMvBGiJmc2U9xQi3Gi7zAcEjC8ggNygkSjh/FcIwn
-         vb6HcXdAa9GOnFnRU1XLaHfUYKgdlrK4z8pk7FGJjI9q4mwgxHm4xC1h5H536c/XXJbG
-         DJnw==
+        b=YtonPRKDuIcTG05EDv3STXkfr7pjvwZL8edWpobChM34Nf5EMEAYQ+bTtXuOu1WGJg
+         7bPTf/hxe+LeCz84hQzPmV+F8rtcQ82U1wcA5VNHuiNmeo1JE+IPpoqX98RVb+mnWya3
+         dTzPKNOPeK/mMHdYyjKyTzAGLwridvShumA37KXjNKnPEXXVlR4jaitj8GU+/RZxJ3tx
+         J4hdcRo+B5hA6oEH1D6vJZ7Rs4BKEuVTteWs/Pa5ESPap3+3DEt7Jh8c0g6sgXl8SEG7
+         9apgNLHCO9OJbrMqzRUNjUWfkZJAfb1/jz9FIRtKExi/F8UVvV3Oq2+saNjqQ/c+VsEE
+         3aEg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:user-agent:references
-         :in-reply-to:date:cc:to:from:subject:message-id;
-        bh=fNS3Hw8yrl5yqkP8lbMWRzy2Zb7YQRNI5f3KP6QM51M=;
-        b=v6EpqzUnLUv9P75HfQEYGnHkHmQdqRgFMnYJpF7LiHOQ9jQsuKuJQlCxGS1r3MAm+G
-         qJIfRhcU88JsIdOQ9eyuWFNKuWZJyJsuo+Qp8AARYHtiYJG/IjSeNVTAdDCb5YkJbpi+
-         BXLGGGBjfGDkGoHsTtd7AgXEbScd7ya6utOjjBDnUlPtysrabcQOBowFZLJA/E4WExcY
-         7xjopUqS9rkYu73afg+KY+49VlUMwccZGaMU6Ss6Mzd3ewMfvIRYJbq/qYA6dFi/rTHX
-         QGDEAW2hilhqdgDAVKEAHK1Gu/EwDERUuCUXYsOavXrjwBR+3IqjSU5wxXM2HJDwTnQd
-         3zkw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=n9fo3wNw7aw0RbIvRpzphALTB15Qd7wOzZ709YJZYuY=;
+        b=L3IWh5pmsdDW51J4Myh7tau3hg1CamusUmdgr2NZXGj50gC9fMkbn+z+HsdFHrs3Vt
+         yc8yyZoLP+IxSAxAJK6cH9tnCxba8pMsJtEjjZ74+dS48uRZGMqXScbkN9d1x7QqZ5Su
+         9G2tnnXsTv9xDfpjAv4b1to+q/IBQxZS5eZLwC+JIFRLFGGJNt8XMkRdS3cK4N+ISfSB
+         AZ7IR/uif/3dMPNLffRgfDK3hRsweFDsiNfETMXyeSmXff911ZOKMIgcGrOzPYm0hXJj
+         RYBU/Ej3qDYiX4hU3p4qoicxyDswgFFI/Cj1QHdGY66A9k/4wXacEsWZDmWDVcNDMeuC
+         Ov0Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=alexander.h.duyck@linux.intel.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id q2si18378811plh.56.2019.07.08.10.32.41
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=oIfcgycO;
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id c1si16469397plr.405.2019.07.08.10.35.41
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 08 Jul 2019 10:32:41 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 134.134.136.24 as permitted sender) client-ip=134.134.136.24;
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Mon, 08 Jul 2019 10:35:41 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=alexander.h.duyck@linux.intel.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from orsmga007.jf.intel.com ([10.7.209.58])
-  by orsmga102.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 08 Jul 2019 10:32:40 -0700
-X-IronPort-AV: E=Sophos;i="5.63,466,1557212400"; 
-   d="scan'208";a="155925896"
-Received: from ahduyck-desk1.jf.intel.com ([10.7.198.76])
-  by orsmga007-auth.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 08 Jul 2019 10:32:39 -0700
-Message-ID: <6091d916590ffbacb9a641c6009bb1782d8ae615.camel@linux.intel.com>
-Subject: Re: [PATCH v1 4/6] mm: Introduce "aerated" pages
-From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
-To: Dave Hansen <dave.hansen@intel.com>, Alexander Duyck
- <alexander.duyck@gmail.com>, nitesh@redhat.com, kvm@vger.kernel.org, 
- david@redhat.com, mst@redhat.com, linux-kernel@vger.kernel.org,
- linux-mm@kvack.org,  akpm@linux-foundation.org
-Cc: yang.zhang.wz@gmail.com, pagupta@redhat.com, riel@surriel.com, 
-	konrad.wilk@oracle.com, lcapitulino@redhat.com, wei.w.wang@intel.com, 
-	aarcange@redhat.com, pbonzini@redhat.com, dan.j.williams@intel.com
-Date: Mon, 08 Jul 2019 10:32:40 -0700
-In-Reply-To: <a147b569-9f1b-a1be-e019-0059c654892d@intel.com>
-References: <20190619222922.1231.27432.stgit@localhost.localdomain>
-	 <20190619223323.1231.86906.stgit@localhost.localdomain>
-	 <a147b569-9f1b-a1be-e019-0059c654892d@intel.com>
-Content-Type: text/plain; charset="UTF-8"
-User-Agent: Evolution 3.30.5 (3.30.5-1.fc29) 
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=oIfcgycO;
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
+	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=n9fo3wNw7aw0RbIvRpzphALTB15Qd7wOzZ709YJZYuY=; b=oIfcgycOcXRvCrTXgzSUV3Bbf
+	KxQgqOLbwzHQGVNcZ7LSDii9CxBNLC5dofvJT19StoJNVlTzLJeQMrZ4MDiLx8JWqU9/dAlS8j4rs
+	x3Cjiih3NScNZa19n6elIHzrcKQNF/BnylzXlnLZ6FbTZCo0oVYG5LuOfOj3yMH5DmF5nlBBi/lCi
+	QKu8WOzXkvlFv4ag30R/h4cbVeI3BCx11EqJI5VVi7aT+6gD0MS493/D0mhY+otM0exYLPWc79BJ4
+	5/ffMw6ehL1nj9mt8Yo3CRY11wQVVZ6ZR3lTUgVce2PL8EKpnd2GtWPjkUGTpACd3m3/PQudvUw6z
+	n0VyKrmZA==;
+Received: from willy by bombadil.infradead.org with local (Exim 4.92 #3 (Red Hat Linux))
+	id 1hkXY6-0006it-Eo; Mon, 08 Jul 2019 17:35:34 +0000
+Date: Mon, 8 Jul 2019 10:35:34 -0700
+From: Matthew Wilcox <willy@infradead.org>
+To: Pengfei Li <lpf.vector@gmail.com>
+Cc: akpm@linux-foundation.org, urezki@gmail.com, rpenyaev@suse.de,
+	peterz@infradead.org, guro@fb.com, rick.p.edgecombe@intel.com,
+	rppt@linux.ibm.com, aryabinin@virtuozzo.com, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Subject: Re: [PATCH] mm/vmalloc.c: Remove always-true conditional in
+ vmap_init_free_space
+Message-ID: <20190708173534.GF32320@bombadil.infradead.org>
+References: <20190708170631.2130-1-lpf.vector@gmail.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190708170631.2130-1-lpf.vector@gmail.com>
+User-Agent: Mutt/1.11.4 (2019-03-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2019-06-25 at 12:45 -0700, Dave Hansen wrote:
-> > +static inline void set_page_aerated(struct page *page,
-> > +				    struct zone *zone,
-> > +				    unsigned int order,
-> > +				    int migratetype)
-> > +{
-> > +#ifdef CONFIG_AERATION
-> > +	/* update areated page accounting */
-> > +	zone->free_area[order].nr_free_aerated++;
-> > +
-> > +	/* record migratetype and flag page as aerated */
-> > +	set_pcppage_migratetype(page, migratetype);
-> > +	__SetPageAerated(page);
-> > +#endif
-> > +}
+On Tue, Jul 09, 2019 at 01:06:31AM +0800, Pengfei Li wrote:
+> When unsigned long variables are subtracted from one another,
+> the result is always non-negative.
 > 
-> Please don't refer to code before you introduce it, even if you #ifdef
-> it.  I went looking back in the series for the PageAerated() definition,
-> but didn't think to look forward.
-
-Yeah, I had split this code out from patch 5, but I realized after I
-submitted it I had a number of issues. The kconfig option also ended up in
-patch 5 instead of showing up in patch 4.
-
-I'll have to work on cleaning up patches 4 and 5 so that the split between
-them is cleaner.
-
-> Also, it doesn't make any sense to me that you would need to set the
-> migratetype here.  Isn't it set earlier in the allocator?  Also, when
-> can this function be called?  There's obviously some locking in place
-> because of the __Set, but what are they?
-
-Generally this function is only called from inside __free_one_page so yes,
-the zone lock is expected to be held.
-
-> > +static inline void clear_page_aerated(struct page *page,
-> > +				      struct zone *zone,
-> > +				      struct free_area *area)
-> > +{
-> > +#ifdef CONFIG_AERATION
-> > +	if (likely(!PageAerated(page)))
-> > +		return;
+> The vmap_area_list is sorted by address.
 > 
-> Logically, why would you ever clear_page_aerated() on a page that's not
-> aerated?  Comments needed.
+> So the following two conditions are always true.
 > 
-> BTW, I already hate typing aerated. :)
-
-Well I am always open to other suggestions. I could just default to
-offline which is what is used by the balloon drivers. Suggestions for a
-better name are always welcome.
-
-> > +	__ClearPageAerated(page);
-> > +	area->nr_free_aerated--;
-> > +#endif
-> > +}
+> 1) if (busy->va_start - vmap_start > 0)
+> 2) if (vmap_end - vmap_start > 0)
 > 
-> More non-atomic flag clears.  Still no comments.
+> Just remove them.
 
-Yes. it is the same kind of deal as the function above. Basically we only
-call this just before we clear the buddy flag in the allocator so once
-again the zone lock is expected to be held at this point.
-
-> 
-> > @@ -787,10 +790,10 @@ static inline void add_to_free_area(struct page *page, struct zone *zone,
-> >  static inline void add_to_free_area_tail(struct page *page, struct zone *zone,
-> >  					 unsigned int order, int migratetype)
-> >  {
-> > -	struct free_area *area = &zone->free_area[order];
-> > +	struct list_head *tail = aerator_get_tail(zone, order, migratetype);
-> 
-> There is no logical change in this patch from this line.  That's
-> unfortunate because I can't see the change in logic that's presumably
-> coming.  You'll presumably change aerator_get_tail(), but then I'll have
-> to remember that this line is here and come back to it from a later patch.
-> 
-> If it *doesn't* change behavior, it has no business being calle
-> aerator_...().
-> 
-> This series seems rather suboptimal for reviewing.
-
-I can move that into patch 5. That would make more sense anyway since that
-is where I introduce the change that adds the boundaries.
-
-> > -	list_add_tail(&page->lru, &area->free_list[migratetype]);
-> > -	area->nr_free++;
-> > +	list_add_tail(&page->lru, tail);
-> > +	zone->free_area[order].nr_free++;
-> >  }
-> >  
-> >  /* Used for pages which are on another list */
-> > @@ -799,6 +802,8 @@ static inline void move_to_free_area(struct page *page, struct zone *zone,
-> >  {
-> >  	struct free_area *area = &zone->free_area[order];
-> >  
-> > +	clear_page_aerated(page, zone, area);
-> > +
-> >  	list_move(&page->lru, &area->free_list[migratetype]);
-> >  }
-> 
-> It's not immediately clear to me why moving a page should clear
-> aeration.  A comment would help make it clear.
-
-I will do that. The main reason for having to do that is because when we
-move the page there is no guarantee that the boundaries will still be in
-place. As such we are pulling the page and placing it on the head of the
-free_list we are moving it to. As such in order to avoid creating an
-island of unprocessed pages we need to clear the flag and just reprocess
-it later.
-
-> > @@ -868,10 +869,11 @@ static inline struct capture_control *task_capc(struct zone *zone)
-> >  static inline void __free_one_page(struct page *page,
-> >  		unsigned long pfn,
-> >  		struct zone *zone, unsigned int order,
-> > -		int migratetype)
-> > +		int migratetype, bool aerated)
-> >  {
-> >  	struct capture_control *capc = task_capc(zone);
-> >  	unsigned long uninitialized_var(buddy_pfn);
-> > +	bool fully_aerated = aerated;
-> >  	unsigned long combined_pfn;
-> >  	unsigned int max_order;
-> >  	struct page *buddy;
-> > @@ -902,6 +904,11 @@ static inline void __free_one_page(struct page *page,
-> >  			goto done_merging;
-> >  		if (!page_is_buddy(page, buddy, order))
-> >  			goto done_merging;
-> > +
-> > +		/* assume buddy is not aerated */
-> > +		if (aerated)
-> > +			fully_aerated = false;
-> 
-> So, "full" vs. "partial" is with respect to high-order pages?  Why not
-> just check the page flag on the buddy?
-
-The buddy will never have the aerated flag set. If we are hinting on a
-given page then the assumption is it was the highest order version of the
-page available when we processed the pages in the previous pass. So if the
-buddy is available when we are returning the processed page then the buddy
-is non-aerated and will invalidate the aeration when merged with the
-aerated page. What we will then do is hint on the higher-order page that
-is created as a result of merging the two pages.
-
-I'll make the comment more robust on that.
-
-> >  		/*
-> >  		 * Our buddy is free or it is CONFIG_DEBUG_PAGEALLOC guard page,
-> >  		 * merge with it and move up one order.
-> > @@ -943,11 +950,17 @@ static inline void __free_one_page(struct page *page,
-> >  done_merging:
-> >  	set_page_order(page, order);
-> >  
-> > -	if (buddy_merge_likely(pfn, buddy_pfn, page, order) ||
-> > +	if (aerated ||
-> > +	    buddy_merge_likely(pfn, buddy_pfn, page, order) ||
-> >  	    is_shuffle_tail_page(order))
-> >  		add_to_free_area_tail(page, zone, order, migratetype);
-> >  	else
-> >  		add_to_free_area(page, zone, order, migratetype);
-> 
-> Aerated pages always go to the tail?  Ahh, so they don't get consumed
-> quickly and have to be undone?  Comments, please.
-
-Will do.
-
-> > +	if (fully_aerated)
-> > +		set_page_aerated(page, zone, order, migratetype);
-> > +	else
-> > +		aerator_notify_free(zone, order);
-> >  }
-> 
-> What is this notifying for?  It's not like this is some opaque
-> registration interface.  What does this *do*?
-
-This is updating the count of non-treated pages and comparing that to the
-high water mark. If it crosses a certain threshold it will then set the
-bits requesting the zone be processed and wake up the thread if it is not
-active.
-
-> > @@ -2127,6 +2140,77 @@ struct page *__rmqueue_smallest(struct zone *zone, unsigned int order,
-> >  	return NULL;
-> >  }
-> >  
-> > +#ifdef CONFIG_AERATION
-> > +/**
-> > + * get_aeration_page - Provide a "raw" page for aeration by the aerator
-> > + * @zone: Zone to draw pages from
-> > + * @order: Order to draw pages from
-> > + * @migratetype: Migratetype to draw pages from
-> 
-> FWIW, kerneldoc is a waste of bytes here.  Please use it sparingly.
-> 
-> > + * This function will obtain a page from above the boundary. As a result
-> > + * we can guarantee the page has not been aerated.
-> 
-> This is the first mention of a boundary.  That's not good since I have
-> no idea at this point what the boundary is for or between.
-
-Boundary doesn't get added until the next patch so this is another foul up
-with the splitting of the patches.
-
-> 
-> > + * The page will have the migrate type and order stored in the page
-> > + * metadata.
-> > + *
-> > + * Return: page pointer if raw page found, otherwise NULL
-> > + */
-> > +struct page *get_aeration_page(struct zone *zone, unsigned int order,
-> > +			       int migratetype)
-> > +{
-> > +	struct free_area *area = &(zone->free_area[order]);
-> > +	struct list_head *list = &area->free_list[migratetype];
-> > +	struct page *page;
-> > +
-> > +	/* Find a page of the appropriate size in the preferred list */
-> 
-> I don't get the size comment.  Hasn't this already been given an order?
-
-That is a hold over from a previous version of this patch. Originally this
-code was getting anything order or greater. Now it only grabs pages of a
-certain order as I had pulled some logic out of here and moved it into the
-aeration logic.
-
-> > +	page = list_last_entry(aerator_get_tail(zone, order, migratetype),
-> > +			       struct page, lru);
-> > +	list_for_each_entry_from_reverse(page, list, lru) {
-> > +		if (PageAerated(page)) {
-> > +			page = list_first_entry(list, struct page, lru);
-> > +			if (PageAerated(page))
-> > +				break;
-> > +		}
-> 
-> This confuses me.  It looks for a page, then goes to the next page and
-> checks again?  Why check twice?  Why is a function looking for an
-> aerated page that finds *two* pages returning NULL?
-> 
-> I'm stumped.
-
-So the logic here gets confusing because the boundary hasn't been defined
-yet. Specifically boundary ends up being a secondary tail that applies
-only to the non-processed pages. What we are doing is getting the last
-non-processed page, and then using the "from" version of the list iterator
-to make certain that the list isn't actually empty.
-
-From there we do a check to see if the page we are currently looking at is
-empty. If it is we return NULL. If the list is not empty we check and see
-if the page was processed, if it was we try grapping the page from the
-head of the list as we hit the bottom of the last batch we processed. If
-that is also processed then we just exit.
-
-I will try to do a better job of documenting all this. Basically I used a
-bunch of list manipulation that is hiding things too well.
-
-> > +		del_page_from_free_area(page, zone, order);
-> > +
-> > +		/* record migratetype and order within page */
-> > +		set_pcppage_migratetype(page, migratetype);
-> > +		set_page_private(page, order);
-> > +		__mod_zone_freepage_state(zone, -(1 << order), migratetype);
-> > +
-> > +		return page;
-> > +	}
-> > +
-> > +	return NULL;
-> > +}
-> 
-> Oh, so this is trying to find a page _for_ aerating.
-> "get_aeration_page()" does not convey that.  Can that improved?
-> get_page_for_aeration()?
-> 
-> Rather than talk about boundaries, wouldn't a better description have been:
-> 
-> 	Similar to allocation, this function removes a page from the
-> 	free lists.  However, it only removes unaerated pages.
-
-I will update the kerneldoc and comments.
-
-> > +/**
-> > + * put_aeration_page - Return a now-aerated "raw" page back where we got it
-> > + * @zone: Zone to return pages to
-> > + * @page: Previously "raw" page that can now be returned after aeration
-> > + *
-> > + * This function will pull the migratetype and order information out
-> > + * of the page and attempt to return it where it found it.
-> > + */
-> > +void put_aeration_page(struct zone *zone, struct page *page)
-> > +{
-> > +	unsigned int order, mt;
-> > +	unsigned long pfn;
-> > +
-> > +	mt = get_pcppage_migratetype(page);
-> > +	pfn = page_to_pfn(page);
-> > +
-> > +	if (unlikely(has_isolate_pageblock(zone) || is_migrate_isolate(mt)))
-> > +		mt = get_pfnblock_migratetype(page, pfn);
-> > +
-> > +	order = page_private(page);
-> > +	set_page_private(page, 0);
-> > +
-> > +	__free_one_page(page, pfn, zone, order, mt, true);
-> > +}
-> > +#endif /* CONFIG_AERATION */
-> 
-> Yikes.  This seems to have glossed over some pretty big aspects here.
-> Pages which are being aerated are not free.  Pages which are freed are
-> diverted to be aerated before becoming free.  Right?  That sounds like
-> two really important things to add to a changelog.
-
-Right. The aerated pages are not free. The go into the free_list and once
-enough pages are in there the aerator will start pulling some out and
-processing them. The idea is that any pages not being actively aerated
-will stay in the free_list so it isn't as if we are shunting them off to a
-side-queue. They are just sitting in the free_list either to be reused or
-aerated.
-
-I'll make some updates to the changelog to clarify that.
-
-> >  /*
-> >   * This array describes the order lists are fallen back to when
-> >   * the free lists for the desirable migrate type are depleted
-> > @@ -5929,9 +6013,12 @@ void __ref memmap_init_zone_device(struct zone *zone,
-> >  static void __meminit zone_init_free_lists(struct zone *zone)
-> >  {
-> >  	unsigned int order, t;
-> > -	for_each_migratetype_order(order, t) {
-> > +	for_each_migratetype_order(order, t)
-> >  		INIT_LIST_HEAD(&zone->free_area[order].free_list[t]);
-> > +
-> > +	for (order = MAX_ORDER; order--; ) {
-> >  		zone->free_area[order].nr_free = 0;
-> > +		zone->free_area[order].nr_free_aerated = 0;
-> >  	}
-> >  }
-> >  
-> > 
-
+That condition won't be true if busy->va_start == vmap_start.
 
