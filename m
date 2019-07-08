@@ -1,218 +1,689 @@
-Return-Path: <SRS0=llCs=VE=kvack.org=owner-linux-mm@kernel.org>
+Return-Path: <SRS0=WbXp=VF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=FROM_EXCESS_BASE64,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY,USER_AGENT_SANE_1
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 21DE7C0650E
-	for <linux-mm@archiver.kernel.org>; Sun,  7 Jul 2019 23:30:42 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A6F03C61080
+	for <linux-mm@archiver.kernel.org>; Mon,  8 Jul 2019 02:25:48 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B87C220665
-	for <linux-mm@archiver.kernel.org>; Sun,  7 Jul 2019 23:30:41 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=canb.auug.org.au header.i=@canb.auug.org.au header.b="qrXjpzMm"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B87C220665
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=canb.auug.org.au
+	by mail.kernel.org (Postfix) with ESMTP id 36DAD20673
+	for <linux-mm@archiver.kernel.org>; Mon,  8 Jul 2019 02:25:47 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 36DAD20673
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 236138E0006; Sun,  7 Jul 2019 19:30:41 -0400 (EDT)
+	id 842A08E0007; Sun,  7 Jul 2019 22:25:47 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1E77C8E0001; Sun,  7 Jul 2019 19:30:41 -0400 (EDT)
+	id 7F3CF8E0001; Sun,  7 Jul 2019 22:25:47 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0B0248E0006; Sun,  7 Jul 2019 19:30:41 -0400 (EDT)
+	id 6950B8E0007; Sun,  7 Jul 2019 22:25:47 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C6CEF8E0001
-	for <linux-mm@kvack.org>; Sun,  7 Jul 2019 19:30:40 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id 6so9176364pfz.10
-        for <linux-mm@kvack.org>; Sun, 07 Jul 2019 16:30:40 -0700 (PDT)
+Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 32D938E0001
+	for <linux-mm@kvack.org>; Sun,  7 Jul 2019 22:25:47 -0400 (EDT)
+Received: by mail-ot1-f69.google.com with SMTP id d13so8463606oth.20
+        for <linux-mm@kvack.org>; Sun, 07 Jul 2019 19:25:47 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:in-reply-to:references:mime-version;
-        bh=g8MaXsvvJlhkqk2lWsesnClAzBItmHBX1Fhhj3eTigo=;
-        b=qnTZEAz4w7G61c+OhSrRSkcF9wf9iHG73SsJnYUsK8EUq9l/Cjyqzseho7AEjvrVXh
-         z28av4Sx8ngwsNS2qxg6CFF0uZS/v8E6WW7k12mvWPbocEQZvSq7toTpRmKsXcs5+h4C
-         ER6TkXDipcxXc2duTI1PYpatITm5fyVk1R/so2ROGLqEkybmBEFdbGTy3t2BuBq1bwdd
-         EbJMsODoPeUwk2z16xHK+4n0kRiWKd3uIstMZWVO5DwInLgSTzDe4nkvXPpNE/SrpY16
-         g5YZhrW+DQm6tsuioAC5fil3shkVcQ/RI0iKGy7DzRMgNjpFU2ZPztksI1MH0CHBflTh
-         R71A==
-X-Gm-Message-State: APjAAAWZNAYVr9yMRpTNPdmbQgqBBLSM1hGjad2SvRXC8QBr/5GgyNKU
-	2ngdp/erg+xRr9NAbywm9eDOsLn/geT39RbNxgqDzZbEzKlFhN1ATwFrKWqu9qmf4bNil64DdV5
-	WMAp8nqkKGhf8Zf6dzIVv1Z5fbMhID46LGBnd59pJwrH2+/JOFE7PS1TA9xNlHwLt1g==
-X-Received: by 2002:a17:902:be12:: with SMTP id r18mr19534565pls.341.1562542240264;
-        Sun, 07 Jul 2019 16:30:40 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwVSJWETijGhxY4ohs23js19wmWIy1KsXXAr8y4Riz/ks2ZuDJeHcgLklGBi9xrKSIUVNfD
-X-Received: by 2002:a17:902:be12:: with SMTP id r18mr19534497pls.341.1562542239394;
-        Sun, 07 Jul 2019 16:30:39 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562542239; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:from
+         :to:cc:references:message-id:date:user-agent:mime-version
+         :in-reply-to:content-language:content-transfer-encoding;
+        bh=GVlVlyGvczZ79wWJxiJCsAb37nR6arzBYReQ1CiOk2c=;
+        b=FncRClbUcE0DiYUT0IwXXgOl+AESQLSRLjEPDWibPV8oFMkPmcPQFIF5swiL5JzZkA
+         XqzaAhnRfPkEIDLwBDMqPnj+6URUPEJFFLmoLgYnm5OR/55N6Ws5/L9vzdy2yNEOg/i/
+         Hh7Fy8o84aTK4/mZayiv78i9k7YJs36TEGL5/HkCv+lTFtj5PvVr/9yQl1hhSZviyiUM
+         RY0e9DIt2hdUvHzZj4a+dn9X4viGqgQ6vvpXC3VNsyqx608XKc/cU0wYxCjA5BvTD91+
+         himcNzMuLcOWhBCHZ3A9PYlBtYAIh/1tGcdYzb5Ns9x/EptBxrcR5N/Yn5Z1R5nheVBD
+         43mQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yun.wang@linux.alibaba.com designates 115.124.30.44 as permitted sender) smtp.mailfrom=yun.wang@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Gm-Message-State: APjAAAUI2qfFn2ee6anLazHVg0QOAAwyWwH6C+PC4DPZ0XRLP98TYCN+
+	FuHiBn/3CqFDLJT2jsRHs7bukvqztaGaVoIWNEl5ThuHmFfCzJb2teuCaGVshtvxGb1Tie/cn7e
+	BkX8P0uc6I6CbQJvLnQIB5SRW9W7waBnUffa9uBELnHZS+9D8qg4FvvIWHecpptC/TQ==
+X-Received: by 2002:aca:bc06:: with SMTP id m6mr7956027oif.65.1562552746735;
+        Sun, 07 Jul 2019 19:25:46 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyDfB/I1LPVAArQ+6WihydZUz/XkhSZNeToKBnUxFMwcuH9vItoFSEjA5wBKw4UEfaOpa6h
+X-Received: by 2002:aca:bc06:: with SMTP id m6mr7955986oif.65.1562552745201;
+        Sun, 07 Jul 2019 19:25:45 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562552745; cv=none;
         d=google.com; s=arc-20160816;
-        b=pOPgK17Cw6mmrx/vc2t98JVSjMFYIbXTvm6L5G45AMO5JSPKlP6bexv94Czjs0HJu0
-         znNY2UOIuon5th8jtHzaaNVUaA1wbGNKGQFVOpVZPB8X+zu7q+NB6L3dASpL8FgHJX35
-         pJedpnrWDpRziBB005Fwiwcr5skgBwD9CZ+HjC/IxlCh0C6tFKwoIqqY1oDIx7g6yLFc
-         tTF05GVxMut+IdOrXqQPAVfzy54fVwIzAP+3rfWl1t+QXr2pGKax8fFaE7jOVYqqCgxf
-         SKhEfbDuVxD6DZy0sLgPWKZNXY6WAlooRRl17jTBin6i/CU+OiECSeN5AmvcisD9YIRw
-         3OsA==
+        b=Ul6KPdVy94f5wk55xpplQxrJmRfFq5Ee4ZNH8sQh3pyL5t8Le89b51RSJSQ6tauIW0
+         log5aWR2vKB3YjFiB2sKgC3QjD/z/x0kjk3uWtn0XBezszmdg1P+/P1nH1OCHBf234Ft
+         RDqCvTIh59p1c/AlXpFWyeIUaq48LD71DTQJl2VEq4DMB10128pCcqhUMb7naV2Y8ZG8
+         r6DkHwDfqO7fXeWwf7Q9BoiC6xYo9/HjVlCaWu/dfSoOH4TDLsZzu5XFbvlY1TrN2DcZ
+         0UGnH5DylVOqfzr0xoLLJb7cdtegBTrbj2XFTpcPUpYZq0i/uh7BzANvgqng9qPhqBpL
+         ppEQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:references:in-reply-to:message-id:subject:cc:to:from
-         :date:dkim-signature;
-        bh=g8MaXsvvJlhkqk2lWsesnClAzBItmHBX1Fhhj3eTigo=;
-        b=nzUQCUzcOgoVZspU6W8poGHEfidiGo9zCOVAdglG8yt/Ug5WDR9xl5cRyyT8STPg4i
-         jieiHLg2RsU5ziO/zXy/5cFJEXqTys/06K9UgYa+dSxxH/8Pn/3SpB3GSsQp8/i5x0Kw
-         6inhBpHnAjVfWcpLN0BTIGq96r5pBsQOWN7yX6H9QuWAel48aXvTdVmd+sgPP/wfdc+R
-         YK0bScs+Szx38VJU+5lJ4Wzjo0SSiZ6L450t3sThzgIQUkUT5ngXHPFLDrp1MIRyeeOv
-         ac63yVE5cFWXStdgIGF+QGQ0aahYyInvNCO92bL3wAPvYFADuMIv79fQTcToF0hBFDis
-         lrIQ==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:references:cc:to:from:subject;
+        bh=GVlVlyGvczZ79wWJxiJCsAb37nR6arzBYReQ1CiOk2c=;
+        b=nib9qNwzLVlzPPvJL3uB7TVDbsOUTmsjhuDOg1nmzz/FBumXvXDOpJZSr1puwqzFCT
+         iHtC9LOoQ4YKSB5bRAF3KypDzCo+utpAZ0bd9PkIEpVX3TJrZZMacBhIcImU75jVbbup
+         YrM7+2j3uH4EofUgB7sFYos9mq5Vsrsetz2wr0pKbrCx6ilrjRnv8eH6rPmCKfeJH/jZ
+         ytCzNVwmmVi/tGudYfowuZU0SzpjGE5d8blFwXzNnkV2OoZ3iPADl3Gz3dYN1cXJE5sj
+         plEwgMhm0+N4bBKfXPQQG6UZXKMCp1TNUz763BKiIUOVomr1wALPFA7l0WmMBG8/RiZb
+         zjDA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@canb.auug.org.au header.s=201702 header.b=qrXjpzMm;
-       spf=pass (google.com: domain of sfr@canb.auug.org.au designates 203.11.71.1 as permitted sender) smtp.mailfrom=sfr@canb.auug.org.au
-Received: from ozlabs.org (bilbo.ozlabs.org. [203.11.71.1])
-        by mx.google.com with ESMTPS id w15si15147036ply.127.2019.07.07.16.30.38
+       spf=pass (google.com: domain of yun.wang@linux.alibaba.com designates 115.124.30.44 as permitted sender) smtp.mailfrom=yun.wang@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+Received: from out30-44.freemail.mail.aliyun.com (out30-44.freemail.mail.aliyun.com. [115.124.30.44])
+        by mx.google.com with ESMTPS id x23si4448544otq.196.2019.07.07.19.25.43
         for <linux-mm@kvack.org>
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Sun, 07 Jul 2019 16:30:39 -0700 (PDT)
-Received-SPF: pass (google.com: domain of sfr@canb.auug.org.au designates 203.11.71.1 as permitted sender) client-ip=203.11.71.1;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 07 Jul 2019 19:25:44 -0700 (PDT)
+Received-SPF: pass (google.com: domain of yun.wang@linux.alibaba.com designates 115.124.30.44 as permitted sender) client-ip=115.124.30.44;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@canb.auug.org.au header.s=201702 header.b=qrXjpzMm;
-       spf=pass (google.com: domain of sfr@canb.auug.org.au designates 203.11.71.1 as permitted sender) smtp.mailfrom=sfr@canb.auug.org.au
-Received: from authenticated.ozlabs.org (localhost [127.0.0.1])
-	(using TLSv1.3 with cipher TLS_AES_256_GCM_SHA384 (256/256 bits)
-	 key-exchange ECDHE (P-256) server-signature RSA-PSS (4096 bits) server-digest SHA256)
-	(No client certificate requested)
-	by mail.ozlabs.org (Postfix) with ESMTPSA id 45hlF41wvCz9sNk;
-	Mon,  8 Jul 2019 09:30:32 +1000 (AEST)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=canb.auug.org.au;
-	s=201702; t=1562542234;
-	bh=b3Cy3L6uJ1zllsblKuLVoOFBbe1oTg28owraNeOAFTI=;
-	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
-	b=qrXjpzMmuXVtUxH4xy+PPMxT/OcN8OknkLLRX0H+LcAZy1yOS5HQ0zCD4gMJPGwVz
-	 7LCjzhUowqxvuoFh6OoOf6ff6xadM+XO5FOGBpF2a3F3WPxydd/BedUBRqWhpw0zJJ
-	 8gyJT/VESyiyxAf+t63leV4ug1ZQbhk04vv6EcRtkV3tqGW8m8SthxBSGpuZ/qa9EE
-	 KMRFiSVV7oqjaQ6BltWMKbUtxKcFrpe1tRvRwbZdeURJFqz/4zMGrK1X0qprNq07yj
-	 szeLCMuESKjt8w0urx+SpnaLi40NLXtmCG+bYQlNGz+fQ/sJz8khOUINO2B0rh58te
-	 vOrJJGr9+SAHg==
-Date: Mon, 8 Jul 2019 09:30:20 +1000
-From: Stephen Rothwell <sfr@canb.auug.org.au>
-To: Alex Deucher <alexdeucher@gmail.com>
-Cc: "Kuehling, Felix" <Felix.Kuehling@amd.com>, Jason Gunthorpe
- <jgg@mellanox.com>, "Yang, Philip" <Philip.Yang@amd.com>, Dave Airlie
- <airlied@linux.ie>, "dri-devel@lists.freedesktop.org"
- <dri-devel@lists.freedesktop.org>, "linux-mm@kvack.org"
- <linux-mm@kvack.org>, "linux-next@vger.kernel.org"
- <linux-next@vger.kernel.org>, "Deucher, Alexander"
- <Alexander.Deucher@amd.com>
-Subject: Re: [PATCH 1/1] drm/amdgpu: adopt to hmm_range_register API change
-Message-ID: <20190708093020.676f5b3f@canb.auug.org.au>
-In-Reply-To: <CADnq5_M0GREGG73wiu3eb=E+G2iTRmjXELh7m69BRJfVNEiHtw@mail.gmail.com>
-References: <20190703015442.11974-1-Felix.Kuehling@amd.com>
-	<20190703141001.GH18688@mellanox.com>
-	<a9764210-9401-471b-96a7-b93606008d07@amd.com>
-	<CADnq5_M0GREGG73wiu3eb=E+G2iTRmjXELh7m69BRJfVNEiHtw@mail.gmail.com>
+       spf=pass (google.com: domain of yun.wang@linux.alibaba.com designates 115.124.30.44 as permitted sender) smtp.mailfrom=yun.wang@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R121e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e04426;MF=yun.wang@linux.alibaba.com;NM=1;PH=DS;RN=11;SR=0;TI=SMTPD_---0TWHkbgA_1562552727;
+Received: from testdeMacBook-Pro.local(mailfrom:yun.wang@linux.alibaba.com fp:SMTPD_---0TWHkbgA_1562552727)
+          by smtp.aliyun-inc.com(127.0.0.1);
+          Mon, 08 Jul 2019 10:25:27 +0800
+Subject: [PATCH v2 4/4] numa: introduce numa cling feature
+From: =?UTF-8?B?546L6LSH?= <yun.wang@linux.alibaba.com>
+To: Peter Zijlstra <peterz@infradead.org>, hannes@cmpxchg.org,
+ mhocko@kernel.org, vdavydov.dev@gmail.com, Ingo Molnar <mingo@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, mcgrof@kernel.org,
+ keescook@chromium.org, linux-fsdevel@vger.kernel.org, cgroups@vger.kernel.org
+References: <209d247e-c1b2-3235-2722-dd7c1f896483@linux.alibaba.com>
+ <60b59306-5e36-e587-9145-e90657daec41@linux.alibaba.com>
+ <9a440936-1e5d-d3bb-c795-ef6f9839a021@linux.alibaba.com>
+Message-ID: <b24c6aa0-7a89-b0b4-984a-a775b8df40a5@linux.alibaba.com>
+Date: Mon, 8 Jul 2019 10:25:27 +0800
+User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.13; rv:60.0)
+ Gecko/20100101 Thunderbird/60.7.0
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha256;
- boundary="Sig_/n1sGdhtFox.8qpMNicerEzu"; protocol="application/pgp-signature"
+In-Reply-To: <9a440936-1e5d-d3bb-c795-ef6f9839a021@linux.alibaba.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---Sig_/n1sGdhtFox.8qpMNicerEzu
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: quoted-printable
+Although we paid so many effort to settle down task on a particular
+node, there are still chances for a task to leave it's preferred
+node, that is by wakeup, numa swap migrations or load balance.
 
-Hi all,
+When we are using cpu cgroup in share way, since all the workloads
+see all the cpus, it could be really bad especially when there
+are too many fast wakeup, although now we can numa group the tasks,
+they won't really stay on the same node, for example we have numa
+group ng_A, ng_B, ng_C, ng_D, it's very likely result as:
 
-On Wed, 3 Jul 2019 17:09:16 -0400 Alex Deucher <alexdeucher@gmail.com> wrot=
-e:
->
-> On Wed, Jul 3, 2019 at 5:03 PM Kuehling, Felix <Felix.Kuehling@amd.com> w=
-rote:
-> >
-> > On 2019-07-03 10:10 a.m., Jason Gunthorpe wrote: =20
-> > > On Wed, Jul 03, 2019 at 01:55:08AM +0000, Kuehling, Felix wrote: =20
-> > >> From: Philip Yang <Philip.Yang@amd.com>
-> > >>
-> > >> In order to pass mirror instead of mm to hmm_range_register, we need
-> > >> pass bo instead of ttm to amdgpu_ttm_tt_get_user_pages because mirror
-> > >> is part of amdgpu_mn structure, which is accessible from bo.
-> > >>
-> > >> Signed-off-by: Philip Yang <Philip.Yang@amd.com>
-> > >> Reviewed-by: Felix Kuehling <Felix.Kuehling@amd.com>
-> > >> Signed-off-by: Felix Kuehling <Felix.Kuehling@amd.com>
-> > >> CC: Stephen Rothwell <sfr@canb.auug.org.au>
-> > >> CC: Jason Gunthorpe <jgg@mellanox.com>
-> > >> CC: Dave Airlie <airlied@linux.ie>
-> > >> CC: Alex Deucher <alexander.deucher@amd.com>
-> > >> ---
-> > >>   drivers/gpu/drm/Kconfig                          |  1 -
-> > >>   drivers/gpu/drm/amd/amdgpu/amdgpu_amdkfd_gpuvm.c |  5 ++---
-> > >>   drivers/gpu/drm/amd/amdgpu/amdgpu_cs.c           |  2 +-
-> > >>   drivers/gpu/drm/amd/amdgpu/amdgpu_gem.c          |  3 +--
-> > >>   drivers/gpu/drm/amd/amdgpu/amdgpu_mn.c           |  8 ++++++++
-> > >>   drivers/gpu/drm/amd/amdgpu/amdgpu_mn.h           |  5 +++++
-> > >>   drivers/gpu/drm/amd/amdgpu/amdgpu_ttm.c          | 12 ++++++++++--
-> > >>   drivers/gpu/drm/amd/amdgpu/amdgpu_ttm.h          |  5 +++--
-> > >>   8 files changed, 30 insertions(+), 11 deletions(-) =20
-> > > This is too big to use as a conflict resolution, what you could do is
-> > > apply the majority of the patch on top of your tree as-is (ie keep
-> > > using the old hmm_range_register), then the conflict resolution for
-> > > the updated AMD GPU tree can be a simple one line change:
-> > >
-> > >   -   hmm_range_register(range, mm, start,
-> > >   +   hmm_range_register(range, mirror, start,
-> > >                          start + ttm->num_pages * PAGE_SIZE, PAGE_SHI=
-FT);
-> > >
-> > > Which is trivial for everone to deal with, and solves the problem. =20
-> >
-> > Good idea.
+	CPU Usage:
+		Node 0		Node 1
+		ng_A(600%)	ng_A(400%)
+		ng_B(400%)	ng_B(600%)
+		ng_C(400%)	ng_C(600%)
+		ng_D(600%)	ng_D(400%)
 
-With the changes added to the amdgpu tree over the weekend, I will
-apply the following merge fix patch to the hmm merge today:
+	Memory Ratio:
+		Node 0		Node 1
+		ng_A(60%)	ng_A(40%)
+		ng_B(40%)	ng_B(60%)
+		ng_C(40%)	ng_C(60%)
+		ng_D(60%)	ng_D(40%)
 
-From: Philip Yang <Philip.Yang@amd.com>
-Sibject: drm/amdgpu: adopt to hmm_range_register API change
+Locality won't be too bad but far from the best situation, we want
+a numa group to settle down thoroughly on a particular node, with
+every thing balanced.
 
-Signed-off-by: Stephen Rothwell <sfr@canb.auug.org.au>
+Thus we introduce the numa cling, which try to prevent tasks leaving
+the preferred node on wakeup fast path.
 
-diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_ttm.c b/drivers/gpu/drm/amd/=
-amdgpu/amdgpu_ttm.c
-@@ -783,7 +783,7 @@ int amdgpu_ttm_tt_get_user_pages(struct ttm_tt *ttm, st=
-ruct page **pages)
- 				0 : range->flags[HMM_PFN_WRITE];
- 	range->pfn_flags_mask =3D 0;
- 	range->pfns =3D pfns;
--	hmm_range_register(range, mm, start,
-+	hmm_range_register(range, mirror, start,
- 			   start + ttm->num_pages * PAGE_SIZE, PAGE_SHIFT);
-=20
- retry:
+This help thoroughly settle down the workloads on single node, but when
+multiple numa group try to settle down on the same node, unbalancing
+could happen.
 
-And someone just needs to make sure Linus is aware of this needed merge fix.
---=20
-Cheers,
-Stephen Rothwell
+For example we have numa group ng_A, ng_B, ng_C, ng_D, it may result in
+situation like:
 
---Sig_/n1sGdhtFox.8qpMNicerEzu
-Content-Type: application/pgp-signature
-Content-Description: OpenPGP digital signature
+CPU Usage:
+	Node 0		Node 1
+	ng_A(1000%)	ng_B(1000%)
+	ng_C(400%)	ng_C(600%)
+	ng_D(400%)	ng_D(600%)
 
------BEGIN PGP SIGNATURE-----
+Memory Ratio:
+	Node 0		Node 1
+	ng_A(100%)	ng_B(100%)
+	ng_C(10%)	ng_C(90%)
+	ng_D(10%)	ng_D(90%)
 
-iQEzBAEBCAAdFiEENIC96giZ81tWdLgKAVBC80lX0GwFAl0igIwACgkQAVBC80lX
-0GyMGwf9EHaqFsgZMnIUpi3rDZiJtUaKYpZhMRcEnEUKTBt9R7GcNMCmg+yWNWQm
-ywXAzxy+94GmfnusEKWBCpCTTO9IyjctxH5P4i/myGwF867vEhGMXD2fg5ly85hr
-oyQ60dHXBwNKwJlfoNfgC7XJ/sYSVrtngHZ+Up6SkAPlMccSJ+V4zQLi5qI8CjOz
-Nqt8Eh+OHyjqZf9UdzFWAtHNO4rbIutkbdkh4YVD6V3USbcU2wJ1/8dmR8xIlvXL
-BVWfIWkeX0lN+ASoK1Y3GL5RJB9ge5nRvmaRC5Tmq3dF9au7ihOveKfdqy+HdvWQ
-cPEh8VGzNdBfQ1l0rDzj7y04IDNndg==
-=yA1W
------END PGP SIGNATURE-----
+This is because when ng_C, ng_D start to have most of the memory on node
+1 at some point, task_x of ng_C stay on node 0 will try to do numa swap
+migration with the task_y of ng_D stay on node 1 as long as load balanced,
+the result is task_x stay on node 1 and task_y stay on node 0, while both
+of them prefer node 1.
 
---Sig_/n1sGdhtFox.8qpMNicerEzu--
+Now when other tasks of ng_D stay on node 1 wakeup task_y, task_y will
+very likely go back to node 1, and since numa cling enabled, it will
+keep stay on node 1 although load unbalanced, this could be frequently
+and more and more tasks will prefer the node 1 and make it busy.
+
+So the key point here is to stop doing numa cling when load starting to
+become unbalancing.
+
+We achieved this by monitoring the migration failure ratio, in scenery
+above, too much tasks prefer node 1 and will keep migrating to it, load
+unbalancing could lead into the migration failure in this case, and when
+the failure ratio above the specified degree, we pause the cling and try
+to resettle the workloads on a better node by stop tasks prefer the busy
+node, this will finally give us the result like:
+
+CPU Usage:
+	Node 0		Node 1
+	ng_A(1000%)	ng_B(1000%)
+	ng_C(1000%)	ng_D(1000%)
+
+Memory Ratio:
+	Node 0		Node 1
+	ng_A(100%)	ng_B(100%)
+	ng_C(100%)	ng_D(100%)
+
+Now we achieved the best locality and maximum hot cache benefit.
+
+Tested on a 2 node box with 96 cpus, do sysbench-mysql-oltp_read_write
+testing, X mysqld instances created and attached to X cgroups, X sysbench
+instances then created and attached to corresponding cgroup to test the
+mysql with oltp_read_write script for 20 minutes, average eps show:
+
+				origin		ng + cling
+4 instances each 24 threads	7545.28		7790.49		+3.25%
+4 instances each 48 threads	9359.36		9832.30		+5.05%
+4 instances each 72 threads	9602.88		10196.95	+6.19%
+
+8 instances each 24 threads	4478.82		4508.82		+0.67%
+8 instances each 48 threads	5514.90		5689.93		+3.17%
+8 instances each 72 threads	5582.19		5741.33		+2.85%
+
+Also tested with perf-bench-numa, dbench, sysbench-memory, pgbench, tiny
+improvement observed.
+
+Signed-off-by: Michael Wang <yun.wang@linux.alibaba.com>
+---
+
+v2:
+  * migrate_degrades_locality() now return 1 when numa cling to source node
+
+ include/linux/sched/sysctl.h |   3 +
+ kernel/sched/fair.c          | 287 +++++++++++++++++++++++++++++++++++++++++--
+ kernel/sysctl.c              |   9 ++
+ 3 files changed, 286 insertions(+), 13 deletions(-)
+
+diff --git a/include/linux/sched/sysctl.h b/include/linux/sched/sysctl.h
+index d4f6215ee03f..6eef34331dd2 100644
+--- a/include/linux/sched/sysctl.h
++++ b/include/linux/sched/sysctl.h
+@@ -38,6 +38,9 @@ extern unsigned int sysctl_numa_balancing_scan_period_min;
+ extern unsigned int sysctl_numa_balancing_scan_period_max;
+ extern unsigned int sysctl_numa_balancing_scan_size;
+
++extern unsigned int sysctl_numa_balancing_cling_degree;
++extern unsigned int max_numa_balancing_cling_degree;
++
+ #ifdef CONFIG_SCHED_DEBUG
+ extern __read_mostly unsigned int sysctl_sched_migration_cost;
+ extern __read_mostly unsigned int sysctl_sched_nr_migrate;
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index 6cf9c9c61258..5ca5a9a148d6 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -1067,6 +1067,20 @@ unsigned int sysctl_numa_balancing_scan_size = 256;
+ /* Scan @scan_size MB every @scan_period after an initial @scan_delay in ms */
+ unsigned int sysctl_numa_balancing_scan_delay = 1000;
+
++/*
++ * The numa group serving task group will enable numa cling, a feature
++ * which try to prevent task leaving preferred node on wakeup.
++ *
++ * This help settle down the workloads thorouly and quickly on node,
++ * while introduce the risk of load unbalancing.
++ *
++ * In order to detect the risk in advance and pause the feature, we
++ * rely on numa migration failure stats, and when failure ratio above
++ * cling degree, we pause the numa cling until resettle done.
++ */
++unsigned int sysctl_numa_balancing_cling_degree = 20;
++unsigned int max_numa_balancing_cling_degree = 100;
++
+ struct numa_group {
+ 	refcount_t refcount;
+
+@@ -1074,11 +1088,15 @@ struct numa_group {
+ 	int nr_tasks;
+ 	pid_t gid;
+ 	int active_nodes;
++	int busiest_nid;
+ 	bool evacuate;
++	bool do_cling;
++	struct timer_list cling_timer;
+
+ 	struct rcu_head rcu;
+ 	unsigned long total_faults;
+ 	unsigned long max_faults_cpu;
++	unsigned long *migrate_stat;
+ 	/*
+ 	 * Faults_cpu is used to decide whether memory should move
+ 	 * towards the CPU. As a consequence, these stats are weighted
+@@ -1088,6 +1106,8 @@ struct numa_group {
+ 	unsigned long faults[0];
+ };
+
++static inline bool busy_node(struct numa_group *ng, int nid);
++
+ static inline unsigned long group_faults_priv(struct numa_group *ng);
+ static inline unsigned long group_faults_shared(struct numa_group *ng);
+
+@@ -1132,8 +1152,14 @@ static unsigned int task_scan_start(struct task_struct *p)
+ 	unsigned long smin = task_scan_min(p);
+ 	unsigned long period = smin;
+
+-	/* Scale the maximum scan period with the amount of shared memory. */
+-	if (p->numa_group) {
++	/*
++	 * Scale the maximum scan period with the amount of shared memory.
++	 *
++	 * Not for the numa group serving task group, it's tasks are not
++	 * gathered for sharing memory, and we need to detect migration
++	 * failure in time.
++	 */
++	if (p->numa_group && !p->numa_group->do_cling) {
+ 		struct numa_group *ng = p->numa_group;
+ 		unsigned long shared = group_faults_shared(ng);
+ 		unsigned long private = group_faults_priv(ng);
+@@ -1154,8 +1180,14 @@ static unsigned int task_scan_max(struct task_struct *p)
+ 	/* Watch for min being lower than max due to floor calculations */
+ 	smax = sysctl_numa_balancing_scan_period_max / task_nr_scan_windows(p);
+
+-	/* Scale the maximum scan period with the amount of shared memory. */
+-	if (p->numa_group) {
++	/*
++	 * Scale the maximum scan period with the amount of shared memory.
++	 *
++	 * Not for the numa group serving task group, it's tasks are not
++	 * gathered for sharing memory, and we need to detect migration
++	 * failure in time.
++	 */
++	if (p->numa_group && !p->numa_group->do_cling) {
+ 		struct numa_group *ng = p->numa_group;
+ 		unsigned long shared = group_faults_shared(ng);
+ 		unsigned long private = group_faults_priv(ng);
+@@ -1475,6 +1507,19 @@ bool should_numa_migrate_memory(struct task_struct *p, struct page * page,
+ 					ACTIVE_NODE_FRACTION)
+ 		return true;
+
++	/*
++	 * Make sure pages do not stay on a busy node when numa cling
++	 * enabled, otherwise they could lead into more numa migration
++	 * to the busy node.
++	 */
++	if (ng->do_cling) {
++		if (busy_node(ng, dst_nid))
++			return false;
++
++		if (busy_node(ng, src_nid))
++			return true;
++	}
++
+ 	/*
+ 	 * Distribute memory according to CPU & memory use on each node,
+ 	 * with 3/4 hysteresis to avoid unnecessary memory migrations:
+@@ -1874,9 +1919,190 @@ static int task_numa_migrate(struct task_struct *p)
+ 	return ret;
+ }
+
++/*
++ * We scale the migration stat count to 1024, divide the maximum numa
++ * balancing scan period by 10 and make that the period of cling timer,
++ * this help to decay one count to 0 after one maximum scan period passed.
++ */
++#define NUMA_MIGRATE_SCALE 10
++#define NUMA_MIGRATE_WEIGHT 1024
++
++enum numa_migrate_stats {
++	FAILURE_SCALED,
++	TOTAL_SCALED,
++	FAILURE_RATIO,
++};
++
++static inline int mstat_idx(int nid, enum numa_migrate_stats s)
++{
++	return (nid + s * nr_node_ids);
++}
++
++static inline unsigned long
++mstat_failure_scaled(struct numa_group *ng, int nid)
++{
++	return ng->migrate_stat[mstat_idx(nid, FAILURE_SCALED)];
++}
++
++static inline unsigned long
++mstat_total_scaled(struct numa_group *ng, int nid)
++{
++	return ng->migrate_stat[mstat_idx(nid, TOTAL_SCALED)];
++}
++
++static inline unsigned long
++mstat_failure_ratio(struct numa_group *ng, int nid)
++{
++	return ng->migrate_stat[mstat_idx(nid, FAILURE_RATIO)];
++}
++
++/*
++ * A node is busy when the numa migration toward it failed too much,
++ * this imply the load already unbalancing for too much numa cling on
++ * that node.
++ */
++static inline bool busy_node(struct numa_group *ng, int nid)
++{
++	int degree = sysctl_numa_balancing_cling_degree;
++
++	if (mstat_failure_scaled(ng, nid) < NUMA_MIGRATE_WEIGHT)
++		return false;
++
++	/*
++	 * Allow only one busy node in one numa group, to prevent
++	 * ping-pong migration case between nodes.
++	 */
++	if (ng->busiest_nid != nid)
++		return false;
++
++	return mstat_failure_ratio(ng, nid) > degree;
++}
++
++/*
++ * Return true if the task should cling to snid, when it preferred snid
++ * rather than dnid and snid is not busy.
++ */
++static inline bool
++task_numa_cling(struct task_struct *p, int snid, int dnid)
++{
++	bool ret = false;
++	int pnid = p->numa_preferred_nid;
++	struct numa_group *ng;
++
++	rcu_read_lock();
++
++	ng = p->numa_group;
++
++	/* Do cling only when the feature enabled and not in pause */
++	if (!ng || !ng->do_cling)
++		goto out;
++
++	if (pnid == NUMA_NO_NODE ||
++	    dnid == pnid ||
++	    snid != pnid)
++		goto out;
++
++	/* Never allow cling to a busy node */
++	if (busy_node(ng, snid))
++		goto out;
++
++	ret = true;
++out:
++	rcu_read_unlock();
++	return ret;
++}
++
++/*
++ * Prevent more tasks from prefer the busy node to easy the unbalancing,
++ * also give the second candidate a chance.
++ */
++static inline bool group_pause_prefer(struct numa_group *ng, int nid)
++{
++	if (!ng || !ng->do_cling)
++		return false;
++
++	return busy_node(ng, nid);
++}
++
++static inline void update_failure_ratio(struct numa_group *ng, int nid)
++{
++	int f_idx = mstat_idx(nid, FAILURE_SCALED);
++	int t_idx = mstat_idx(nid, TOTAL_SCALED);
++	int fp_idx = mstat_idx(nid, FAILURE_RATIO);
++
++	ng->migrate_stat[fp_idx] =
++		ng->migrate_stat[f_idx] * 100 / (ng->migrate_stat[t_idx] + 1);
++}
++
++static void cling_timer_func(struct timer_list *t)
++{
++	int nid;
++	unsigned int degree;
++	unsigned long period, max_failure;
++	struct numa_group *ng = from_timer(ng, t, cling_timer);
++
++	degree = sysctl_numa_balancing_cling_degree;
++	period = msecs_to_jiffies(sysctl_numa_balancing_scan_period_max);
++	period /= NUMA_MIGRATE_SCALE;
++
++	spin_lock_irq(&ng->lock);
++
++	max_failure = 0;
++	for_each_online_node(nid) {
++		int f_idx = mstat_idx(nid, FAILURE_SCALED);
++		int t_idx = mstat_idx(nid, TOTAL_SCALED);
++
++		ng->migrate_stat[f_idx] /= 2;
++		ng->migrate_stat[t_idx] /= 2;
++
++		update_failure_ratio(ng, nid);
++
++		if (ng->migrate_stat[f_idx] > max_failure) {
++			ng->busiest_nid = nid;
++			max_failure = ng->migrate_stat[f_idx];
++		}
++	}
++
++	spin_unlock_irq(&ng->lock);
++
++	mod_timer(&ng->cling_timer, jiffies + period);
++}
++
++static inline void
++update_migrate_stat(struct task_struct *p, int nid, bool failed)
++{
++	int idx;
++	struct numa_group *ng = p->numa_group;
++
++	if (!ng || !ng->do_cling)
++		return;
++
++	spin_lock_irq(&ng->lock);
++
++	if (failed) {
++		idx = mstat_idx(nid, FAILURE_SCALED);
++		ng->migrate_stat[idx] += NUMA_MIGRATE_WEIGHT;
++	}
++
++	idx = mstat_idx(nid, TOTAL_SCALED);
++	ng->migrate_stat[idx] += NUMA_MIGRATE_WEIGHT;
++	update_failure_ratio(ng, nid);
++
++	spin_unlock_irq(&ng->lock);
++
++	/*
++	 * On failed task may prefer source node instead, this
++	 * cause ping-pong migration when numa cling enabled,
++	 * so let's reset the preferred node to none.
++	 */
++	if (failed)
++		sched_setnuma(p, NUMA_NO_NODE);
++}
++
+ /* Attempt to migrate a task to a CPU on the preferred node. */
+ static void numa_migrate_preferred(struct task_struct *p)
+ {
++	bool failed, target;
+ 	unsigned long interval = HZ;
+
+ 	/* This task has no NUMA fault statistics yet */
+@@ -1891,8 +2117,12 @@ static void numa_migrate_preferred(struct task_struct *p)
+ 	if (task_node(p) == p->numa_preferred_nid)
+ 		return;
+
++	target = p->numa_preferred_nid;
++
+ 	/* Otherwise, try migrate to a CPU on the preferred node */
+-	task_numa_migrate(p);
++	failed = (task_numa_migrate(p) != 0);
++
++	update_migrate_stat(p, target, failed);
+ }
+
+ /*
+@@ -2216,7 +2446,8 @@ static void task_numa_placement(struct task_struct *p)
+ 				max_faults = faults;
+ 				max_nid = nid;
+ 			}
+-		} else if (group_faults > max_faults) {
++		} else if (group_faults > max_faults &&
++			   !group_pause_prefer(p->numa_group, nid)) {
+ 			max_faults = group_faults;
+ 			max_nid = nid;
+ 		}
+@@ -2258,8 +2489,10 @@ void show_tg_numa_group(struct task_group *tg, struct seq_file *sf)
+ 		return;
+ 	}
+
+-	seq_printf(sf, "id %d nr_tasks %d active_nodes %d\n",
+-		   ng->gid, ng->nr_tasks, ng->active_nodes);
++	spin_lock_irq(&ng->lock);
++
++	seq_printf(sf, "id %d nr_tasks %d active_nodes %d busiest_nid %d\n",
++		   ng->gid, ng->nr_tasks, ng->active_nodes, ng->busiest_nid);
+
+ 	for_each_online_node(nid) {
+ 		int f_idx = task_faults_idx(NUMA_MEM, nid, 0);
+@@ -2270,9 +2503,16 @@ void show_tg_numa_group(struct task_group *tg, struct seq_file *sf)
+ 		seq_printf(sf, "mem_private %lu mem_shared %lu ",
+ 			   ng->faults[f_idx], ng->faults[pf_idx]);
+
+-		seq_printf(sf, "cpu_private %lu cpu_shared %lu\n",
++		seq_printf(sf, "cpu_private %lu cpu_shared %lu ",
+ 			   ng->faults_cpu[f_idx], ng->faults_cpu[pf_idx]);
++
++		seq_printf(sf, "migrate_stat %lu %lu %lu\n",
++			   mstat_failure_scaled(ng, nid),
++			   mstat_total_scaled(ng, nid),
++			   mstat_failure_ratio(ng, nid));
+ 	}
++
++	spin_unlock_irq(&ng->lock);
+ }
+
+ int update_tg_numa_group(struct task_group *tg, bool numa_group)
+@@ -2286,20 +2526,26 @@ int update_tg_numa_group(struct task_group *tg, bool numa_group)
+ 	if (ng) {
+ 		/* put and evacuate tg's numa group */
+ 		rcu_assign_pointer(tg->numa_group, NULL);
++		del_timer_sync(&ng->cling_timer);
+ 		ng->evacuate = true;
+ 		put_numa_group(ng);
+ 	} else {
+ 		unsigned int size = sizeof(struct numa_group) +
+-				    4*nr_node_ids*sizeof(unsigned long);
++				    7*nr_node_ids*sizeof(unsigned long);
++		unsigned int offset = NR_NUMA_HINT_FAULT_TYPES * nr_node_ids;
+
+ 		ng = kzalloc(size, GFP_KERNEL | __GFP_NOWARN);
+ 		if (!ng)
+ 			return -ENOMEM;
+
+ 		refcount_set(&ng->refcount, 1);
++		ng->busiest_nid = NUMA_NO_NODE;
++		ng->do_cling = true;
++		timer_setup(&ng->cling_timer, cling_timer_func, 0);
+ 		spin_lock_init(&ng->lock);
+-		ng->faults_cpu = ng->faults + NR_NUMA_HINT_FAULT_TYPES *
+-						nr_node_ids;
++		ng->faults_cpu = ng->faults + offset;
++		ng->migrate_stat = ng->faults_cpu + offset;
++		add_timer(&ng->cling_timer);
+ 		/* now make tasks see and join */
+ 		rcu_assign_pointer(tg->numa_group, ng);
+ 	}
+@@ -2436,6 +2682,7 @@ static void task_numa_group(struct task_struct *p, int cpupid, int flags,
+ 			return;
+
+ 		refcount_set(&grp->refcount, 1);
++		grp->busiest_nid = NUMA_NO_NODE;
+ 		grp->active_nodes = 1;
+ 		grp->max_faults_cpu = 0;
+ 		spin_lock_init(&grp->lock);
+@@ -2879,6 +3126,11 @@ static inline void update_scan_period(struct task_struct *p, int new_cpu)
+ {
+ }
+
++static inline bool task_numa_cling(struct task_struct *p, int snid, int dnid)
++{
++	return false;
++}
++
+ #endif /* CONFIG_NUMA_BALANCING */
+
+ static void
+@@ -6195,6 +6447,13 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target)
+ 	if ((unsigned)i < nr_cpumask_bits)
+ 		return i;
+
++	/*
++	 * Failed to find an idle cpu, wake affine may want to pull but
++	 * try stay on prev-cpu when the task cling to it.
++	 */
++	if (task_numa_cling(p, cpu_to_node(prev), cpu_to_node(target)))
++		return prev;
++
+ 	return target;
+ }
+
+@@ -6671,6 +6930,7 @@ select_task_rq_fair(struct task_struct *p, int prev_cpu, int sd_flag, int wake_f
+ 		if (want_affine)
+ 			current->recent_used_cpu = cpu;
+ 	}
++
+ 	rcu_read_unlock();
+
+ 	return new_cpu;
+@@ -7342,7 +7602,8 @@ static int migrate_degrades_locality(struct task_struct *p, struct lb_env *env)
+
+ 	/* Migrating away from the preferred node is always bad. */
+ 	if (src_nid == p->numa_preferred_nid) {
+-		if (env->src_rq->nr_running > env->src_rq->nr_preferred_running)
++		if (task_numa_cling(p, src_nid, dst_nid) ||
++		    env->src_rq->nr_running > env->src_rq->nr_preferred_running)
+ 			return 1;
+ 		else
+ 			return -1;
+diff --git a/kernel/sysctl.c b/kernel/sysctl.c
+index 078950d9605b..0a889dd1c7ed 100644
+--- a/kernel/sysctl.c
++++ b/kernel/sysctl.c
+@@ -417,6 +417,15 @@ static struct ctl_table kern_table[] = {
+ 		.proc_handler	= proc_dointvec_minmax,
+ 		.extra1		= SYSCTL_ONE,
+ 	},
++	{
++		.procname	= "numa_balancing_cling_degree",
++		.data		= &sysctl_numa_balancing_cling_degree,
++		.maxlen		= sizeof(unsigned int),
++		.mode		= 0644,
++		.proc_handler	= proc_dointvec_minmax,
++		.extra1		= SYSCTL_ZERO,
++		.extra2		= &max_numa_balancing_cling_degree,
++	},
+ 	{
+ 		.procname	= "numa_balancing",
+ 		.data		= NULL, /* filled in by handler */
+-- 
+2.14.4.44.g2045bb6
 
