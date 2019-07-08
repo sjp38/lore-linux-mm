@@ -2,186 +2,203 @@ Return-Path: <SRS0=WbXp=VF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 60955C606AF
-	for <linux-mm@archiver.kernel.org>; Mon,  8 Jul 2019 11:48:14 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A0289C606AC
+	for <linux-mm@archiver.kernel.org>; Mon,  8 Jul 2019 12:15:13 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 001D0214AF
-	for <linux-mm@archiver.kernel.org>; Mon,  8 Jul 2019 11:48:13 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="S9GQayeH"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 001D0214AF
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 6174C2064A
+	for <linux-mm@archiver.kernel.org>; Mon,  8 Jul 2019 12:15:13 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6174C2064A
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 42CE38E000F; Mon,  8 Jul 2019 07:48:13 -0400 (EDT)
+	id D8CB48E0010; Mon,  8 Jul 2019 08:15:12 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3DDF98E0002; Mon,  8 Jul 2019 07:48:13 -0400 (EDT)
+	id D3E4F8E0002; Mon,  8 Jul 2019 08:15:12 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2CC0A8E000F; Mon,  8 Jul 2019 07:48:13 -0400 (EDT)
+	id C2BA58E0010; Mon,  8 Jul 2019 08:15:12 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lj1-f200.google.com (mail-lj1-f200.google.com [209.85.208.200])
-	by kanga.kvack.org (Postfix) with ESMTP id BC5338E0002
-	for <linux-mm@kvack.org>; Mon,  8 Jul 2019 07:48:12 -0400 (EDT)
-Received: by mail-lj1-f200.google.com with SMTP id t2so3603871ljj.13
-        for <linux-mm@kvack.org>; Mon, 08 Jul 2019 04:48:12 -0700 (PDT)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A28B18E0002
+	for <linux-mm@kvack.org>; Mon,  8 Jul 2019 08:15:12 -0400 (EDT)
+Received: by mail-qt1-f199.google.com with SMTP id e32so4787985qtc.7
+        for <linux-mm@kvack.org>; Mon, 08 Jul 2019 05:15:12 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:mime-version:content-transfer-encoding;
-        bh=NI3QEPrQIr80BSUs7n24DIiPSAw9kPLEpr0qpD9OC4g=;
-        b=RVsr28NhKRf/7bCzpxK02sxavgvSRFmbqC3SmIdyH3phlXfMKR7J927qHQwwChQd7s
-         Jzof7TGWHXw6wlrT8+1yagQCjHiMN8u7NVdrXN3KrRkGwIpyei/4EME+soCc/Ef//+lj
-         RO6XSOODizP+VxrFtTx3GdhhFLJnusZB4JamLoQKb7FJ/Ux0ith+AWU++z5pKGl7IgHN
-         43DJJa27Wnfi8CtCZL/Xrr7QHfh3MJMN5BnCz6GD4kcghyYF+Ax6gLqXiYZKyPlhc+AT
-         9yhW3DCoRnsi7WgSEGMv6oK4+viJJBorJKQjOAsp9yQaCa2f576Gb/SKBM2wGN6QK02i
-         sfSg==
-X-Gm-Message-State: APjAAAUkQk4kiNjm2WbPgYBcMWf4qvRMsbVKJmYhduBcAgifYuZMNICa
-	iWAKqUGYWe400kQGS2G32k+sGMrLngO2+pJl2n1ViNz3dozRtd78iAO0c3/IbV+Tl+2mGHyR2rz
-	6N2nefkcLJPW9Zmi2NxcN55OKQ/q9WFUzoobDJn0pBO91acFt90ZwkhT/2d8YoarZoQ==
-X-Received: by 2002:ac2:5442:: with SMTP id d2mr8807944lfn.70.1562586491928;
-        Mon, 08 Jul 2019 04:48:11 -0700 (PDT)
-X-Received: by 2002:ac2:5442:: with SMTP id d2mr8807899lfn.70.1562586490604;
-        Mon, 08 Jul 2019 04:48:10 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562586490; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=zuc2UGoulORVltkjy8YEdyUMHEcx1/3ATLZEvtOe3FI=;
+        b=QIFij3sZuPd2NmVhB11S3dBMacx7OOFL43XFfl5/EsBxJf8mX3jk+kq0f9DgiJ+Yis
+         eMLzNw7IvPH1GG2FxgvlyZZ8S31PxuB/q5kegItElsP4RvoPMSZsVIf35lQqyhj0ABEs
+         sx/59UFApiNBQD95hUdTx2lokinwXyYJKiLepq9910oVBmB7l2Vp2c0RhJKwK9vuiZY/
+         87AmdIZZq4N8JdGuoxfF9unvMVvVG1ixJaYds22R7IQeCMvDU+750KVExydJyBezqaSj
+         6LF/NIfSrRDX9W0QTTsZX2ogSN6Ab88ydXrqdJw1csJ1eNinceKU2Th2l/Won1S7sdVC
+         MJwA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of bfoster@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=bfoster@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAUnShhTlA1mg5wcsxGJK+LeIh4L9ew2bH/DDHFiV2rdG2e9k3YW
+	0R0LLULUbWCfSkg9Ukg5afX8oMJAqQUVnE/wIvW8IHm0luex3ch5wGkl3KUAebGqysaQIIX4OmN
+	v0cIciWpWN9kEYZSAQ6KuMD0LCmKy7uMU3o75sswt81JVSZS0Mf7c9hFRJc6ae8O2sw==
+X-Received: by 2002:ac8:30d2:: with SMTP id w18mr13841697qta.296.1562588112401;
+        Mon, 08 Jul 2019 05:15:12 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyRtK7+YU3L0TPJfdi9uLN4+Hfv1Mz3HPrAsbgG9oYCwBZ22mDg+eZiCmQSPjznDkWsHuze
+X-Received: by 2002:ac8:30d2:: with SMTP id w18mr13841623qta.296.1562588111411;
+        Mon, 08 Jul 2019 05:15:11 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562588111; cv=none;
         d=google.com; s=arc-20160816;
-        b=xxS9p71lzc+9ukCSA6CpaCl8cwk78YoYBGRpoJ9VL0Za2XwYdGmcd9tSZNwNC4oGmu
-         gvcbS2c/I8TbqMxEBXf/m4A3ldh7vibD+7X2qx1Jd2usNfVuR6zXMd/MHOrfPH/Efz8E
-         WBJlhyJsDwqQmh3KIy7fnFlKQ1rNOck/ASQdU9V6lWv3087lFQgZVRarufKy54krCgtD
-         QxAKOLOwYWveIQyKXk1JELkUk5Xyoqu6jwY7jXgQTguZwbRxV7RuDy4T3Zb+hnHS5Fxz
-         ILh97NE5liXOW2hwO904q7mehqdrFGluPllW8wRfP1cXQTFehWdyepzyXuZVz+PQnyRh
-         bvmQ==
+        b=FavPLLzPgsgMN8BG5PRzwsxiQg8mVG7wJ/EXrZkiXkBdleiMFqEUybifTv2y219oON
+         SsoQhka8cNTsBv0vWJvekhbYQ7s3vMSkPB53cUMWEHd4f3Lewj1Xhs7jjjjpDg+4vTbX
+         Pw3tUOeuTV1QSB8euNqh8lbm9yDk+a6w7VP/Myv2Um9K0bB4M+1YAACes2MvY9HgsFfm
+         IGp18axOQgSCfB0gzgqPoKikbE/C9zH4v3vMnsXmrcwjRh/MGrkmoR8ibw3RGWER7Ff6
+         Uio1f5gXlG8yfLJZGpGajXHzw7/WPcFsiXJTpbobou5Hvy1TywUnyG+rlA/P1zn8D2Fr
+         mBqQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:message-id:subject:cc:to
-         :from:date:dkim-signature;
-        bh=NI3QEPrQIr80BSUs7n24DIiPSAw9kPLEpr0qpD9OC4g=;
-        b=AlXn3o6fFJr1+1gQExZQuupImYNkVfNpq8l+re8sdI4F1PW9+tt8n4GqCmXxVEkTVn
-         JinVuDVSwZageF9sccfZe1diLMBrRRMULESLEXNrg9xSbXgoYm+0qdlqX34Qp/HVg40z
-         vd4HZd8TToUusp0bSFmfFLlxGHZm6I604cdCRGz593ydzVbnOfHWA/U/APEHSfkpfjOZ
-         Y4zqTan9u6IaRHvC+fzhd9++ZkNahpE0pOloXi7MCnNAY+nJlC8/WmC//t+p06AG1B/T
-         MC5KQZsWX8HI4fNcRSZTmG78BLsQx0uWhk8XXgGRPkq2rRdF+wpbuSMcSVoxMblq/kS4
-         oHVg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=zuc2UGoulORVltkjy8YEdyUMHEcx1/3ATLZEvtOe3FI=;
+        b=egCuTMwrd/iymRqLxtFCeeqftkyciDGXlhL0ACDaID7Xs0aHXbmIq9xcVWCZcTyCvB
+         HfQOhYFlwXA+/JWS29mfWS8Qa+wV/fUy+SL1ISxJobO+zfa9byTuk7tIJtYlcl1MUfi2
+         5cY4mej/WF0G5zR+inc/JN5xUqbhxT99VuI2f/K2FyoeyVuT8T6ZUTZXIUq8AmJcn8VZ
+         JSDXmzvZHA9cnBfRQWtQBs4iNaXIiKnRITiQeuZFCXyWXtw/+ehiXpk10beDTYL9FC82
+         8LQT+iLtdSvPWgUfhQLNYZMtkLLUvBaiwB9+soTBfC+2kRWt1xvnwLEWOW9qMz1/vcjB
+         NPbg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=S9GQayeH;
-       spf=pass (google.com: domain of vitalywool@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=vitalywool@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r23sor8686120lja.30.2019.07.08.04.48.10
+       spf=pass (google.com: domain of bfoster@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=bfoster@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id j24si9978789qtj.383.2019.07.08.05.15.11
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 08 Jul 2019 04:48:10 -0700 (PDT)
-Received-SPF: pass (google.com: domain of vitalywool@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=S9GQayeH;
-       spf=pass (google.com: domain of vitalywool@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=vitalywool@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=date:from:to:cc:subject:message-id:mime-version
-         :content-transfer-encoding;
-        bh=NI3QEPrQIr80BSUs7n24DIiPSAw9kPLEpr0qpD9OC4g=;
-        b=S9GQayeHFQ731dT5yJcM/ihOV6PmnB9JiGGWT8EA0FW6/OnrP7Tu3j1AFDYYFTfyWb
-         WHF9GBQKnWQ9ThaeB8hccX46QXszkGJFg2f1Lhsa5v90xGgQQBPsCOqgiKgeXAAOVg7s
-         BB9cPsgId6WgH6lk4Tgs+NizD9QwDz2nLcvfdRWKBCf6+SVC1xQbsv1ym2LTMTXqeASt
-         +2ylCWebiVrsaBtr+u9szHDElMRxFIhQ3ithCuk17+yZzxC2oE0QEPQhQ5Su9EjB/Ah0
-         OoxjVjK4tH5+FjedWOLcdf93lzRbERfL8bKRt6DHoVTcT1lvTPKHgUImTpPt7SAuvgDu
-         YHZA==
-X-Google-Smtp-Source: APXvYqwobzmzNJMY8JHCnmkFYX2leQw1uuMNkq4cZtY/HXbrqG7LWkvAoipYWg4C8v4VY3KRfW1fxg==
-X-Received: by 2002:a2e:2d12:: with SMTP id t18mr10478511ljt.175.1562586490182;
-        Mon, 08 Jul 2019 04:48:10 -0700 (PDT)
-Received: from seldlx21914.corpusers.net ([37.139.156.39])
-        by smtp.gmail.com with ESMTPSA id s7sm3612057lje.95.2019.07.08.04.48.09
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 08 Jul 2019 04:48:09 -0700 (PDT)
-Date: Mon, 8 Jul 2019 13:48:08 +0200
-From: Vitaly Wool <vitalywool@gmail.com>
-To: Linux-MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
-Cc: Henry Burns <henryburns@google.com>, Andrew Morton
- <akpm@linux-foundation.org>, Shakeel Butt <shakeelb@google.com>, Jonathan
- Adams <jwadams@google.com>
-Subject: [PATCH] mm/z3fold.c: don't try to use buddy slots after free
-Message-Id: <20190708134808.e89f3bfadd9f6ffd7eff9ba9@gmail.com>
-X-Mailer: Sylpheed 3.7.0 (GTK+ 2.24.30; x86_64-unknown-linux-gnu)
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Mon, 08 Jul 2019 05:15:11 -0700 (PDT)
+Received-SPF: pass (google.com: domain of bfoster@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+Authentication-Results: mx.google.com;
+       spf=pass (google.com: domain of bfoster@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=bfoster@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 44BE57CBA0;
+	Mon,  8 Jul 2019 12:15:05 +0000 (UTC)
+Received: from bfoster (dhcp-41-2.bos.redhat.com [10.18.41.2])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id C53E75D9E5;
+	Mon,  8 Jul 2019 12:15:01 +0000 (UTC)
+Date: Mon, 8 Jul 2019 08:15:00 -0400
+From: Brian Foster <bfoster@redhat.com>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Yafang Shao <laoar.shao@gmail.com>, Michal Hocko <mhocko@kernel.org>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Linux MM <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>,
+	Vladimir Davydov <vdavydov.dev@gmail.com>,
+	Shakeel Butt <shakeelb@google.com>,
+	Yafang Shao <shaoyafang@didiglobal.com>, linux-xfs@vger.kernel.org
+Subject: Re: [PATCH] mm, memcg: support memory.{min, low} protection in
+ cgroup v1
+Message-ID: <20190708121459.GB51396@bfoster>
+References: <1562310330-16074-1-git-send-email-laoar.shao@gmail.com>
+ <20190705090902.GF8231@dhcp22.suse.cz>
+ <CALOAHbAw5mmpYJb4KRahsjO-Jd0nx1CE+m0LOkciuL6eJtavzQ@mail.gmail.com>
+ <20190705111043.GJ8231@dhcp22.suse.cz>
+ <CALOAHbA3PL6-sBqdy-sGKC8J9QGe_vn4-QU8J1HG-Pgn60WFJA@mail.gmail.com>
+ <20190705151045.GI37448@bfoster>
+ <20190705235222.GE7689@dread.disaster.area>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190705235222.GE7689@dread.disaster.area>
+User-Agent: Mutt/1.11.3 (2019-02-01)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.26]); Mon, 08 Jul 2019 12:15:10 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From fd87fdc38ea195e5a694102a57bd4d59fc177433 Mon Sep 17 00:00:00 2001
-From: Vitaly Wool <vitalywool@gmail.com>
-Date: Mon, 8 Jul 2019 13:41:02 +0200
-[PATCH] mm/z3fold: don't try to use buddy slots after free
+On Sat, Jul 06, 2019 at 09:52:22AM +1000, Dave Chinner wrote:
+> On Fri, Jul 05, 2019 at 11:10:45AM -0400, Brian Foster wrote:
+> > cc linux-xfs
+> > 
+> > On Fri, Jul 05, 2019 at 10:33:04PM +0800, Yafang Shao wrote:
+> > > On Fri, Jul 5, 2019 at 7:10 PM Michal Hocko <mhocko@kernel.org> wrote:
+> > > >
+> > > > On Fri 05-07-19 17:41:44, Yafang Shao wrote:
+> > > > > On Fri, Jul 5, 2019 at 5:09 PM Michal Hocko <mhocko@kernel.org> wrote:
+> > > > [...]
+> > > > > > Why cannot you move over to v2 and have to stick with v1?
+> > > > > Because the interfaces between cgroup v1 and cgroup v2 are changed too
+> > > > > much, which is unacceptable by our customer.
+> > > >
+> > > > Could you be more specific about obstacles with respect to interfaces
+> > > > please?
+> > > >
+> > > 
+> > > Lots of applications will be changed.
+> > > Kubernetes, Docker and some other applications which are using cgroup v1,
+> > > that will be a trouble, because they are not maintained by us.
+> > > 
+> > > > > It may take long time to use cgroup v2 in production envrioment, per
+> > > > > my understanding.
+> > > > > BTW, the filesystem on our servers is XFS, but the cgroup  v2
+> > > > > writeback throttle is not supported on XFS by now, that is beyond my
+> > > > > comprehension.
+> > > >
+> > > > Are you sure? I would be surprised if v1 throttling would work while v2
+> > > > wouldn't. As far as I remember it is v2 writeback throttling which
+> > > > actually works. The only throttling we have for v1 is reclaim based one
+> > > > which is a huge hammer.
+> > > > --
+> > > 
+> > > We did it in cgroup v1 in our kernel.
+> > > But the upstream still don't support it in cgroup v2.
+> > > So my real question is why upstream can't support such an import file system ?
+> > > Do you know which companies  besides facebook are using cgroup v2  in
+> > > their product enviroment?
+> > > 
+> > 
+> > I think the original issue with regard to XFS cgroupv2 writeback
+> > throttling support was that at the time the XFS patch was proposed,
+> > there wasn't any test coverage to prove that the code worked (and the
+> > original author never followed up). That has since been resolved and
+> > Christoph has recently posted a new patch [1], which appears to have
+> > been accepted by the maintainer.
+> 
+> I don't think the validation issue has been resolved.
+> 
+> i.e. we still don't have regression tests that ensure it keeps
+> working it in future, or that it works correctly in any specific
+> distro setting/configuration. The lack of repeatable QoS validation
+> infrastructure was the reason I never merged support for this in the
+> first place.
+> 
+> So while the (simple) patch to support it has been merged now,
+> there's no guarantee that it will work as expected or continue to do
+> so over the long run as nobody upstream or in distro land has a way
+> of validating that it is working correctly.
+> 
+> From that perspective, it is still my opinion that one-off "works
+> for me" testing isn't sufficient validation for a QoS feature that
+> people will use to implement SLAs with $$$ penalities attached to
+> QoS failures....
+> 
 
-As reported by Henry Burns:
+We do have an fstest to cover the accounting bits (which is what the fs
+is responsible for). Christoph also sent a patch[1] to enable that on
+XFS. I'm sure there's plenty of room for additional/broader test
+coverage, of course...
 
-Running z3fold stress testing with address sanitization
-showed zhdr->slots was being used after it was freed.
+Brian
 
-z3fold_free(z3fold_pool, handle)
-  free_handle(handle)
-    kmem_cache_free(pool->c_handle, zhdr->slots)
-  release_z3fold_page_locked_list(kref)
-    __release_z3fold_page(zhdr, true)
-      zhdr_to_pool(zhdr)
-        slots_to_pool(zhdr->slots)  *BOOM*
+[1] https://marc.info/?l=fstests&m=156138385006173&w=2
 
-To fix this, add pointer to the pool back to z3fold_header and modify
-zhdr_to_pool to return zhdr->pool.
-
-Fixes: 7c2b8baa61fe  ("mm/z3fold.c: add structure for buddy handles")
-
-Reported-by: Henry Burns <henryburns@google.com>
-Signed-off-by: Vitaly Wool <vitalywool@gmail.com>
----
- mm/z3fold.c | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
-
-diff --git a/mm/z3fold.c b/mm/z3fold.c
-index 985732c8b025..e1686bf6d689 100644
---- a/mm/z3fold.c
-+++ b/mm/z3fold.c
-@@ -101,6 +101,7 @@ struct z3fold_buddy_slots {
-  * @refcount:		reference count for the z3fold page
-  * @work:		work_struct for page layout optimization
-  * @slots:		pointer to the structure holding buddy slots
-+ * @pool:		pointer to the containing pool
-  * @cpu:		CPU which this page "belongs" to
-  * @first_chunks:	the size of the first buddy in chunks, 0 if free
-  * @middle_chunks:	the size of the middle buddy in chunks, 0 if free
-@@ -114,6 +115,7 @@ struct z3fold_header {
- 	struct kref refcount;
- 	struct work_struct work;
- 	struct z3fold_buddy_slots *slots;
-+	struct z3fold_pool *pool;
- 	short cpu;
- 	unsigned short first_chunks;
- 	unsigned short middle_chunks;
-@@ -320,6 +322,7 @@ static struct z3fold_header *init_z3fold_page(struct page *page,
- 	zhdr->start_middle = 0;
- 	zhdr->cpu = -1;
- 	zhdr->slots = slots;
-+	zhdr->pool = pool;
- 	INIT_LIST_HEAD(&zhdr->buddy);
- 	INIT_WORK(&zhdr->work, compact_page_work);
- 	return zhdr;
-@@ -426,7 +429,7 @@ static enum buddy handle_to_buddy(unsigned long handle)
- 
- static inline struct z3fold_pool *zhdr_to_pool(struct z3fold_header *zhdr)
- {
--	return slots_to_pool(zhdr->slots);
-+	return zhdr->pool;
- }
- 
- static void __release_z3fold_page(struct z3fold_header *zhdr, bool locked)
--- 
-2.17.1
+> Cheers,
+> 
+> Dave.
+> -- 
+> Dave Chinner
+> david@fromorbit.com
+> 
 
