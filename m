@@ -2,411 +2,282 @@ Return-Path: <SRS0=RgjX=VG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-13.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	INCLUDES_PULL_REQUEST,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_HELO_NONE,
-	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4748AC73C46
-	for <linux-mm@archiver.kernel.org>; Tue,  9 Jul 2019 19:24:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8033AC73C56
+	for <linux-mm@archiver.kernel.org>; Tue,  9 Jul 2019 19:32:40 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E933E2073D
-	for <linux-mm@archiver.kernel.org>; Tue,  9 Jul 2019 19:24:26 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=Mellanox.com header.i=@Mellanox.com header.b="p1fkc0jJ"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E933E2073D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mellanox.com
+	by mail.kernel.org (Postfix) with ESMTP id 3BDF82080C
+	for <linux-mm@archiver.kernel.org>; Tue,  9 Jul 2019 19:32:40 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3BDF82080C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8616A8E0056; Tue,  9 Jul 2019 15:24:26 -0400 (EDT)
+	id BB7238E0057; Tue,  9 Jul 2019 15:32:39 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7EBBF8E0032; Tue,  9 Jul 2019 15:24:26 -0400 (EDT)
+	id B40DC8E0032; Tue,  9 Jul 2019 15:32:39 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6651F8E0056; Tue,  9 Jul 2019 15:24:26 -0400 (EDT)
+	id 9E1168E0057; Tue,  9 Jul 2019 15:32:39 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 0C6498E0032
-	for <linux-mm@kvack.org>; Tue,  9 Jul 2019 15:24:26 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id b21so13922389edt.18
-        for <linux-mm@kvack.org>; Tue, 09 Jul 2019 12:24:25 -0700 (PDT)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D5258E0032
+	for <linux-mm@kvack.org>; Tue,  9 Jul 2019 15:32:39 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id k20so13269357pgg.15
+        for <linux-mm@kvack.org>; Tue, 09 Jul 2019 12:32:39 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
-         :thread-index:date:message-id:accept-language:content-language
-         :mime-version;
-        bh=8N1RGbhtxccRLAM+e1yYRZZ7sbHuJjL6vtWQfvJIyws=;
-        b=OpQrlcoesJglci4Csgoaf0g/M/sDKa+90VJeAaYnkO3Uz6GIAUPmMp5W7k6Kb3XpwB
-         PCdMeky61aPc3l4lLEV+wGoSVdrmmW9MOv3CclO12oefJh3CM4fxLYnnEDG58M59NmUa
-         /SodE51UZNmWiuSWDC2r058CNIgznePOStc2dA2LERuPR+Ai/HG7eg5eiwN/Mt66bni7
-         ZUDFh2S7dYxusb9bV5Rk3i9FDNo5sp1RTYOQwjBJaTvt9+hqzi5UGgMy/y8xwplTZHIL
-         L+L1WGLYXop5WT5HkgwI1x85LD4IOIlw+RlwWEcnLfu9EdxQ/cHkdm/NxgGZf1iCrwpx
-         6TUA==
-X-Gm-Message-State: APjAAAX+SDrQwwME4lM2T2zIpwFNYQMUtYPN4ygbNZHR/YlombRJl/NZ
-	uy5q0lYz6UOaU27zHu5MuB14lkCYiMKZmjGj6oMRPTGIBW6sxt6H/puuQNaUiy5La89lcckJHAl
-	ZlI7t5alMOsjLGiS9MyL00BkSIYCUc17X0+kJaYQW4vlWe7F9rhEYxFWUDaO7PlcZWA==
-X-Received: by 2002:a17:906:7f0f:: with SMTP id d15mr23211791ejr.39.1562700265433;
-        Tue, 09 Jul 2019 12:24:25 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqw3QtWpVyn903Cbn2h1C+iMP+4D05ktBsn+bJbDngUf+n4L/eWfm0uZ0UOODgbWw8JZMAFe
-X-Received: by 2002:a17:906:7f0f:: with SMTP id d15mr23211716ejr.39.1562700264177;
-        Tue, 09 Jul 2019 12:24:24 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562700264; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:mime-version
+         :content-transfer-encoding:date:from:to:cc:subject:organization
+         :reply-to:mail-reply-to:in-reply-to:references:message-id:user-agent;
+        bh=W/Fw+cjTu5U6LCkhzfLszMFMjz4cfzV+msNOUtKAzTU=;
+        b=gEjVue3drVHkGSzFEh438FPQq02b9KwaCiBKCnGyagnIKM8/fqhptZT+EtKKqpm5jD
+         S6qP8EBDUgz1fJrFaBfj6vx5l88P1nXwsnv3ab7qsAYigzmYh8N4I8vT9RIfJ+fJ2+nR
+         csdCnzyPxEhfrUChLtA1HiYDetCwRmMUkiu2mCapQ+BX4r37IYV1uFvFOdT2wTnGtwgU
+         Up8InWmvAt0EK3S28yQhs3H+zihB+hssfzCJxqqJph9QhfY5HL//jAcbTXEXRPBwcY+7
+         7USbzEi1PUq/C3tzx3k1T4KkWbKrm00DO/QI4bWa5ys4iDgQzWg5s6XFABlFjIEt85+7
+         T1CA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of janani@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=janani@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: APjAAAVHOI/ZfbDSi/89qkotbx7fYEic13Hv8+961I59wha+7A8GFp93
+	JMvMKobKB5pGnCMD+bEDCZBMfLouY3Hsai0nf3PLg//KslMByE68WSw60omDnFwfc/0AgVzkqgk
+	K6VCcqh99mUd5vltSN4USXRVSuSanb8ziXNGqDsUSpIbocOLJyPXbNplm3fePp3JffQ==
+X-Received: by 2002:a17:902:ba96:: with SMTP id k22mr29615271pls.44.1562700759031;
+        Tue, 09 Jul 2019 12:32:39 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxRSF4fEHr5OGEukpeggFkdAsbN0hCZ2q7s22lx9MnF3d7XuNZJ3F4bWRNKbX9jIW5PJ4kr
+X-Received: by 2002:a17:902:ba96:: with SMTP id k22mr29615199pls.44.1562700758269;
+        Tue, 09 Jul 2019 12:32:38 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562700758; cv=none;
         d=google.com; s=arc-20160816;
-        b=UuxFXYYSHXV7lwhrw4Z5e06KzuEhIQc1w1czb6iuaSRdIQb2UBPBDeXigIbQLiGedA
-         7cJ7oHQgMWwU5Snq5u16raOEJSpfTz/nflmURQbgb4MCrRYv1GExna+JqvbIUnWO1Wp6
-         CMKMtaXPzGu+Q0U0B41WMuU4cYuya7l8C590/WJWXI4FtVeDBwTAgfnSuVlSyswz12Rf
-         xwwHUTVXK+6PS/ps5Gin+nL5l8flYQe1HEuRW8T69WlQFLr+/wqW2iN8Tmfda4xhDteD
-         A1wq2bIO6qmBh8U6BhMC/Eftln3BFPIyhSb3AH+jpnPD9ymxl2Ctanj8QWeac8+emSlM
-         wcBw==
+        b=ST7VbmrLRx467sb8apKDfDEcReXdzsZO2iWW1XbM6dxxwa6DCC65AVRLXy3N9PZdVx
+         q6KsZhXD681hHV3eiTZjKmg9CdnQAZenB/hz+vHBtowDwrltCZ7Ena3w5GwAph4eGLCk
+         9FkvDmznVOHpcuEEHc7gd4Pw9iHWk/kh2mmOUcoyWRqQreuESQohHlsCwfBom3hPyCP9
+         OBrz+Gaf0uZbbi1YP0VqG/JcUmDkZkv4MAiXgMGWIKJQ9J5FBGwGGoTd1UuosJEOJAiy
+         I5nj7y5j96L5zXkUIaotuMITILcDHlMmcvghIPbSYRu6pYbyKo/gT+zMUyjfGjv+xwJJ
+         lQDg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-language:accept-language:message-id:date
-         :thread-index:thread-topic:subject:cc:to:from:dkim-signature;
-        bh=8N1RGbhtxccRLAM+e1yYRZZ7sbHuJjL6vtWQfvJIyws=;
-        b=M7aOhgGEunzMAWyjgul7RyiSZauO2oHiTnC4aU0EkZk0iKr1LLLEJzyezsw/UZGu+z
-         IsZAsCsQhF31OcThi5gPN4p8c4F7Wg3ahG1+Kq0ARYEx6GaclLKBIf0PH8iAWaWZZ5B/
-         a12v+KYYUMm7WYWPttQ0qfHR/fMs6cgBjrHuzf0zKUShF1JlvSH+oq+nfPZR1pbzJdVF
-         rWQewRi/auCsssbhxh3Osfu1JDVDCaI4fClkQLbiquFpHKyd6ZpRGrYmae9gWFg4k6sr
-         FVUvuVi1VrqqT2POW5HFIZwWJR/1xkakYJX8kYSISIIpCebwvbAEWrlgBJAnls5okNFA
-         AIIQ==
+        h=user-agent:message-id:references:in-reply-to:mail-reply-to:reply-to
+         :organization:subject:cc:to:from:date:content-transfer-encoding
+         :mime-version;
+        bh=W/Fw+cjTu5U6LCkhzfLszMFMjz4cfzV+msNOUtKAzTU=;
+        b=hlikHfv43MK5HckWNPrswbByY/rD2FscebxqZ6fZHus3PF48CjMx9uUW8w9d7kioiH
+         I3jpzGmd3+JPW+yasu2UNmG2BxcsokW4wnLvps1MXGUNqclYqhuonXmZGp8uPrGlQxPN
+         FJnX+G3URL9qgcVKBr5A4a1fRLqf+aavHJgtjX+LQIUKfaXCI3kXRdyVT5e94FM2OETN
+         kc9vGJAAVB2uZW1I5PH3ULX8cuzVhBk48BHEIMXwU/IykRPgQ4sQ0Vl+vj3Uywh9wmUl
+         p/SaaFBaOvVtsShEqnxl5pNmtlD3aXMDGpLvwbfR8asGwivDDz91gc3BvW+DE3Pniyu4
+         htJw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b=p1fkc0jJ;
-       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.0.56 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
-Received: from EUR02-AM5-obe.outbound.protection.outlook.com (mail-eopbgr00056.outbound.protection.outlook.com. [40.107.0.56])
-        by mx.google.com with ESMTPS id 32si15580253edr.287.2019.07.09.12.24.23
+       spf=pass (google.com: domain of janani@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=janani@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id u9si96740pgb.148.2019.07.09.12.32.38
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 09 Jul 2019 12:24:24 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jgg@mellanox.com designates 40.107.0.56 as permitted sender) client-ip=40.107.0.56;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 09 Jul 2019 12:32:38 -0700 (PDT)
+Received-SPF: pass (google.com: domain of janani@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b=p1fkc0jJ;
-       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.0.56 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=Mellanox.com;
- s=selector2;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=8N1RGbhtxccRLAM+e1yYRZZ7sbHuJjL6vtWQfvJIyws=;
- b=p1fkc0jJ3NSp1mxWgafKMgf/gqt2SVH+qUSd1SrnfzwTBLqrDJKx8rSF3x20wn/BM0rXTdaWUAqf+rT/VtOfCnzHnL8kvSaV3FbOmXrpUAYRrGGpOgjKaAJr2UvB1n1FRXf8jzulLVY/kOGKCqIXJ5dY1mmU/IG3mDONiNI96hI=
-Received: from VI1PR05MB4141.eurprd05.prod.outlook.com (10.171.182.144) by
- VI1PR05MB5726.eurprd05.prod.outlook.com (20.178.121.152) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.2052.19; Tue, 9 Jul 2019 19:24:21 +0000
-Received: from VI1PR05MB4141.eurprd05.prod.outlook.com
- ([fe80::f5d8:df9:731:682e]) by VI1PR05MB4141.eurprd05.prod.outlook.com
- ([fe80::f5d8:df9:731:682e%5]) with mapi id 15.20.2052.020; Tue, 9 Jul 2019
- 19:24:21 +0000
-From: Jason Gunthorpe <jgg@mellanox.com>
-To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton
-	<akpm@linux-foundation.org>
-CC: Dan Williams <dan.j.williams@intel.com>, Christoph Hellwig <hch@lst.de>,
-	"dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>, David Airlie <airlied@linux.ie>,
-	Daniel Vetter <daniel@ffwll.ch>, "amd-gfx@lists.freedesktop.org"
-	<amd-gfx@lists.freedesktop.org>, "Kuehling, Felix" <Felix.Kuehling@amd.com>,
-	"Deucher, Alexander" <Alexander.Deucher@amd.com>,
-	"linux-rdma@vger.kernel.org" <linux-rdma@vger.kernel.org>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
-Subject: [GIT PULL] Please pull hmm changes
-Thread-Topic: [GIT PULL] Please pull hmm changes
-Thread-Index: AQHVNovpxflbYd9hmkamArkmGtqk+w==
-Date: Tue, 9 Jul 2019 19:24:21 +0000
-Message-ID: <20190709192418.GA13677@ziepe.ca>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach: yes
-X-MS-TNEF-Correlator:
-x-clientproxiedby: BL0PR1501CA0012.namprd15.prod.outlook.com
- (2603:10b6:207:17::25) To VI1PR05MB4141.eurprd05.prod.outlook.com
- (2603:10a6:803:4d::16)
-authentication-results: spf=none (sender IP is )
- smtp.mailfrom=jgg@mellanox.com; 
-x-ms-exchange-messagesentrepresentingtype: 1
-x-originating-ip: [156.34.55.100]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: 6a6868cf-7c72-47d3-d3d4-08d704a30b6a
-x-ms-office365-filtering-ht: Tenant
-x-microsoft-antispam:
- BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(5600148)(711020)(4605104)(1401327)(4618075)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(2017052603328)(49563074)(7193020);SRVR:VI1PR05MB5726;
-x-ms-traffictypediagnostic: VI1PR05MB5726:
-x-microsoft-antispam-prvs:
- <VI1PR05MB572692B955595A93552FEB23CFF10@VI1PR05MB5726.eurprd05.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:8273;
-x-forefront-prvs: 0093C80C01
-x-forefront-antispam-report:
- SFV:NSPM;SFS:(10009020)(4636009)(39860400002)(376002)(346002)(396003)(366004)(136003)(199004)(189003)(99286004)(14454004)(25786009)(81166006)(476003)(6116002)(99936001)(6486002)(8676002)(71190400001)(71200400001)(305945005)(68736007)(1076003)(81156014)(7416002)(66066001)(6512007)(4326008)(66446008)(33656002)(8936002)(7736002)(478600001)(9686003)(486006)(102836004)(186003)(256004)(386003)(2906002)(14444005)(110136005)(54906003)(6506007)(53936002)(26005)(52116002)(66556008)(316002)(3846002)(66616009)(66476007)(5660300002)(86362001)(66946007)(73956011)(64756008)(6436002)(36756003);DIR:OUT;SFP:1101;SCL:1;SRVR:VI1PR05MB5726;H:VI1PR05MB4141.eurprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
-received-spf: None (protection.outlook.com: mellanox.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info:
- KhcwCfE8EYVrR/Al4pmt5Hy6PnqsnaiBmRmQ9Iv0hTZXTEolsd+8BWn2FH5IiSuU73hTYtUVtRTba6nQUL1YGOnUKa8W6Ukve8ebY0Uz1NoTSKTU45hpjWyJ7nrLhKD7mC5xFvBI4gSs/00a3t0mpbG0g1pnzo0dotLzQONug/piO/Q2lx0/ipdQaQzlg3GrYpn7h4J9B9INvV1BDw5d10i+f3AqhSK2N5P/Fhz3R606y1YkE9lfGT3LaL1ovSDjcUPfgdwaEhfE9IxeTiphJvJQRjOSS9XKuwvhonWd2SzBxQeNgIZAyVXBC5xwRJDEHkdpdcPUp50o/gVd9q414rhOu3YBLNe/hiHoQmj6SxWf2eu/PXJckMkwUNa4dWl2gfWYHvM7p+Q4Qb2DYHcaSy7J+iFn22AEjt71l7uog4w=
-Content-Type: multipart/signed; micalg=pgp-sha512;
-	protocol="application/pgp-signature"; boundary="yrj/dFKFPuw6o+aM"
+       spf=pass (google.com: domain of janani@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=janani@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098393.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x69JVdNh029136;
+	Tue, 9 Jul 2019 15:32:37 -0400
+Received: from ppma01wdc.us.ibm.com (fd.55.37a9.ip4.static.sl-reverse.com [169.55.85.253])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2tmy5dcykc-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=NOT);
+	Tue, 09 Jul 2019 15:32:37 -0400
+Received: from pps.filterd (ppma01wdc.us.ibm.com [127.0.0.1])
+	by ppma01wdc.us.ibm.com (8.16.0.27/8.16.0.27) with SMTP id x69JTtWu004783;
+	Tue, 9 Jul 2019 19:32:36 GMT
+Received: from b03cxnp08025.gho.boulder.ibm.com (b03cxnp08025.gho.boulder.ibm.com [9.17.130.17])
+	by ppma01wdc.us.ibm.com with ESMTP id 2tjk96f7gu-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=NOT);
+	Tue, 09 Jul 2019 19:32:36 +0000
+Received: from b03ledav002.gho.boulder.ibm.com (b03ledav002.gho.boulder.ibm.com [9.17.130.233])
+	by b03cxnp08025.gho.boulder.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x69JWYFc53019068
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Tue, 9 Jul 2019 19:32:34 GMT
+Received: from b03ledav002.gho.boulder.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 8D99B136053;
+	Tue,  9 Jul 2019 19:32:34 +0000 (GMT)
+Received: from b03ledav002.gho.boulder.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 39B3313604F;
+	Tue,  9 Jul 2019 19:32:34 +0000 (GMT)
+Received: from ltc.linux.ibm.com (unknown [9.16.170.189])
+	by b03ledav002.gho.boulder.ibm.com (Postfix) with ESMTP;
+	Tue,  9 Jul 2019 19:32:34 +0000 (GMT)
 MIME-Version: 1.0
-X-OriginatorOrg: Mellanox.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: 6a6868cf-7c72-47d3-d3d4-08d704a30b6a
-X-MS-Exchange-CrossTenant-originalarrivaltime: 09 Jul 2019 19:24:21.7663
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: a652971c-7d2e-4d9b-a6a4-d149256f461b
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-userprincipalname: jgg@mellanox.com
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: VI1PR05MB5726
+Content-Type: text/plain; charset=US-ASCII;
+ format=flowed
+Content-Transfer-Encoding: 7bit
+Date: Tue, 09 Jul 2019 14:35:02 -0500
+From: janani <janani@linux.ibm.com>
+To: Bharata B Rao <bharata@linux.ibm.com>
+Cc: linuxppc-dev@lists.ozlabs.org, linuxram@us.ibm.com, cclaudio@linux.ibm.com,
+        kvm-ppc@vger.kernel.org, linux-mm@kvack.org, jglisse@redhat.com,
+        aneesh.kumar@linux.vnet.ibm.com, paulus@au1.ibm.com,
+        sukadev@linux.vnet.ibm.com,
+        Linuxppc-dev
+ <linuxppc-dev-bounces+janani=linux.ibm.com@lists.ozlabs.org>
+Subject: Re: [PATCH v5 2/7] kvmppc: Shared pages support for secure guests
+Organization: IBM
+Reply-To: janani@linux.ibm.com
+Mail-Reply-To: janani@linux.ibm.com
+In-Reply-To: <20190709102545.9187-3-bharata@linux.ibm.com>
+References: <20190709102545.9187-1-bharata@linux.ibm.com>
+ <20190709102545.9187-3-bharata@linux.ibm.com>
+Message-ID: <e73fbe2bb6617da8245c1164aa7c8b57@linux.vnet.ibm.com>
+X-Sender: janani@linux.ibm.com
+User-Agent: Roundcube Webmail/1.0.1
+X-TM-AS-GCONF: 00
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-07-09_07:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1907090231
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---yrj/dFKFPuw6o+aM
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-
-Hi Linus,
-
-As was discussed some time ago here are the mostly -mm patches related
-to hmm functions. In agreement with Andrew we split this out from
-quilt into a git topic branch so it can be shared between the DRM and
-RDMA git trees. However, this cycle did not see dependencies with work
-in DRM or RDMA that required a topic merge. I expect that work will
-start to get ready next cycle and we will see a need for a cross-tree
-topic merge then.
-
-I'm sending it early as it is now a dependency for several patches in
-mm's quilt.
-
-This has been an exciting topic branch for conflicts, you'll need the
-below simple resolution in the merge commit to make it compile
-(lockdep_assert_held_exclusive() was renamed to
-lockdep_assert_held_write())
-
-Otherwise, for reference to all parties, here is how the conflicts were
-handled:
-
-- Several small patches from -mm quilt were moved to this tree to simplify
-  conflict management, only Ira's 'fix release_pages()' patch was not hmm
-  related.
-
-- DRM introduced a new users of the hmm_range_register() API. We worked
-  with AMDGPU to ensure that their new user could use the revised API via
-  the below trivial merge fixup with DRM:
-
-diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_ttm.c b/drivers/gpu/drm/amd/amdgpu/amdgpu_ttm.c
-@@ -783,7 +783,7 @@ int amdgpu_ttm_tt_get_user_pages(struct ttm_tt *ttm, struct page **pages)
-                                0 : range->flags[HMM_PFN_WRITE];
-        range->pfn_flags_mask = 0;
-        range->pfns = pfns;
- -     hmm_range_register(range, mm, start,
- +     hmm_range_register(range, mirror, start,
-                           start + ttm->num_pages * PAGE_SIZE, PAGE_SHIFT);
-
-   retry:
-
-- ARM64 has a patch series going through -mm with a trivial
-  conflict ("Devmap cleanups + arm64 support"), Andrew has re-applied this
-  in quilt onto linux-next and will send it
-
-- The memreap sub-section changes in -mm has 5 hunk conflict with the
-  memremap changes here. Andrew reapplied Dan's series ontop of
-  Christoph's series in linux-next and will send it.
-
-The tag for-linus-hmm-merged with my merge resolution to your tree is
-also available to pull.
-
-Thanks,
-Jason
-
-diff --cc mm/hmm.c
-index d48b9283725a90,f702a3895d05d8..e1eedef129cf5c
---- a/mm/hmm.c
-+++ b/mm/hmm.c
-@@@ -42,16 -54,11 +42,16 @@@ static const struct mmu_notifier_ops hm
-   */
-  static struct hmm *hmm_get_or_create(struct mm_struct *mm)
-  {
- -	struct hmm *hmm = mm_get_hmm(mm);
- -	bool cleanup = false;
- +	struct hmm *hmm;
-
-- 	lockdep_assert_held_exclusive(&mm->mmap_sem);
- -	if (hmm)
- -		return hmm;
-++	lockdep_assert_held_write(&mm->mmap_sem);
- +
- +	/* Abuse the page_table_lock to also protect mm->hmm. */
- +	spin_lock(&mm->page_table_lock);
- +	hmm = mm->hmm;
- +	if (mm->hmm && kref_get_unless_zero(&mm->hmm->kref))
- +		goto out_unlock;
- +	spin_unlock(&mm->page_table_lock);
-
-  	hmm = kmalloc(sizeof(*hmm), GFP_KERNEL);
-  	if (!hmm)
-@@@ -245,8 -277,8 +245,8 @@@ static const struct mmu_notifier_ops hm
-   */
-  int hmm_mirror_register(struct hmm_mirror *mirror, struct mm_struct *mm)
-  {
-- 	lockdep_assert_held_exclusive(&mm->mmap_sem);
-++	lockdep_assert_held_write(&mm->mmap_sem);
- +
-  	/* Sanity check */
-  	if (!mm || !mirror || !mirror->ops)
-  		return -EINVAL;
-
-The following changes since commit 6fbc7275c7a9ba97877050335f290341a1fd8dbf:
-
-  Linux 5.2-rc7 (2019-06-30 11:25:36 +0800)
-
-are available in the Git repository at:
-
-  git://git.kernel.org/pub/scm/linux/kernel/git/rdma/rdma.git tags/for-linus-hmm
-
-for you to fetch changes up to cc5dfd59e375f4d0f2b64643723d16b38b2f2d78:
-
-  Merge branch 'hmm-devmem-cleanup.4' into rdma.git hmm (2019-07-02 15:10:45 -0300)
-
-----------------------------------------------------------------
-HMM patches for 5.3
-
-Improvements and bug fixes for the hmm interface in the kernel:
-
-- Improve clarity, locking and APIs related to the 'hmm mirror' feature
-  merged last cycle. In linux-next we now see AMDGPU and nouveau to be
-  using this API.
-
-- Remove old or transitional hmm APIs. These are hold overs from the past
-  with no users, or APIs that existed only to manage cross tree conflicts.
-  There are still a few more of these cleanups that didn't make the merge
-  window cut off.
-
-- Improve some core mm APIs:
-  * export alloc_pages_vma() for driver use
-  * refactor into devm_request_free_mem_region() to manage
-    DEVICE_PRIVATE resource reservations
-  * refactor duplicative driver code into the core dev_pagemap
-    struct
-
-- Remove hmm wrappers of improved core mm APIs, instead have drivers use
-  the simplified API directly
-
-- Remove DEVICE_PUBLIC
-
-- Simplify the kconfig flow for the hmm users and core code
-
-----------------------------------------------------------------
-Christoph Hellwig (24):
-      mm: remove the unused ARCH_HAS_HMM_DEVICE Kconfig option
-      mm: remove the struct hmm_device infrastructure
-      mm: remove MEMORY_DEVICE_PUBLIC support
-      mm: don't clear ->mapping in hmm_devmem_free
-      mm: export alloc_pages_vma
-      mm: factor out a devm_request_free_mem_region helper
-      memremap: validate the pagemap type passed to devm_memremap_pages
-      memremap: move dev_pagemap callbacks into a separate structure
-      memremap: pass a struct dev_pagemap to ->kill and ->cleanup
-      memremap: lift the devmap_enable manipulation into devm_memremap_pages
-      memremap: add a migrate_to_ram method to struct dev_pagemap_ops
-      memremap: remove the data field in struct dev_pagemap
-      memremap: replace the altmap_valid field with a PGMAP_ALTMAP_VALID flag
-      memremap: provide an optional internal refcount in struct dev_pagemap
-      device-dax: use the dev_pagemap internal refcount
-      PCI/P2PDMA: use the dev_pagemap internal refcount
-      nouveau: use alloc_page_vma directly
-      nouveau: use devm_memremap_pages directly
-      mm: remove hmm_vma_alloc_locked_page
-      mm: remove hmm_devmem_add
-      mm: simplify ZONE_DEVICE page private data
-      mm: sort out the DEVICE_PRIVATE Kconfig mess
-      mm: remove the HMM config option
-      mm: don't select MIGRATE_VMA_HELPER from HMM_MIRROR
-
-Ira Weiny (1):
-      mm/swap: fix release_pages() when releasing devmap pages
-
-Jason Gunthorpe (15):
-      mm/hmm.c: suppress compilation warnings when CONFIG_HUGETLB_PAGE is not set
-      mm/hmm: fix use after free with struct hmm in the mmu notifiers
-      mm/hmm: Use hmm_mirror not mm as an argument for hmm_range_register
-      mm/hmm: Hold a mmgrab from hmm to mm
-      mm/hmm: Simplify hmm_get_or_create and make it reliable
-      mm/hmm: Remove duplicate condition test before wait_event_timeout
-      mm/hmm: Do not use list*_rcu() for hmm->ranges
-      mm/hmm: Hold on to the mmget for the lifetime of the range
-      mm/hmm: Use lockdep instead of comments
-      mm/hmm: Remove racy protection against double-unregistration
-      mm/hmm: Poison hmm_range during unregister
-      mm/hmm: Remove confusing comment and logic from hmm_release
-      mm/hmm: Fix error flows in hmm_invalidate_range_start
-      Merge tag 'v5.2-rc7' into rdma.git hmm
-      Merge branch 'hmm-devmem-cleanup.4' into rdma.git hmm
-
-Kuehling, Felix (1):
-      mm/hmm: Only set FAULT_FLAG_ALLOW_RETRY for non-blocking
-
-Philip Yang (1):
-      mm/hmm: support automatic NUMA balancing
-
-Ralph Campbell (2):
-      mm/hmm: update HMM documentation
-      mm/hmm: clean up some coding style and comments
-
- Documentation/vm/hmm.rst               | 166 ++++------
- arch/powerpc/mm/mem.c                  |  10 +-
- arch/x86/mm/init_64.c                  |   8 +-
- drivers/dax/dax-private.h              |   4 -
- drivers/dax/device.c                   |  41 +--
- drivers/dax/pmem/core.c                |   2 +-
- drivers/gpu/drm/nouveau/Kconfig        |   6 +-
- drivers/gpu/drm/nouveau/nouveau_dmem.c | 103 +++---
- drivers/gpu/drm/nouveau/nouveau_svm.c  |   2 +-
- drivers/nvdimm/pfn_devs.c              |   3 +-
- drivers/nvdimm/pmem.c                  |  51 ++-
- drivers/pci/p2pdma.c                   |  52 +--
- fs/proc/task_mmu.c                     |   2 +-
- include/linux/hmm.h                    | 302 ++---------------
- include/linux/ioport.h                 |   3 +-
- include/linux/memremap.h               |  75 +++--
- include/linux/mm.h                     |  28 +-
- include/linux/mm_types.h               |   4 +-
- include/linux/swapops.h                |  15 -
- kernel/fork.c                          |   1 -
- kernel/memremap.c                      | 194 ++++++-----
- kernel/resource.c                      |  39 +++
- mm/Kconfig                             |  50 +--
- mm/Makefile                            |   2 +-
- mm/gup.c                               |   7 -
- mm/hmm.c                               | 587 ++++++++-------------------------
- mm/madvise.c                           |   2 +-
- mm/memcontrol.c                        |  13 +-
- mm/memory-failure.c                    |   6 +-
- mm/memory.c                            |  49 +--
- mm/memory_hotplug.c                    |   6 +-
- mm/mempolicy.c                         |   1 +
- mm/migrate.c                           |  28 +-
- mm/page_alloc.c                        |  13 +-
- mm/swap.c                              |  13 +-
- tools/testing/nvdimm/test/iomap.c      |  57 +++-
- 36 files changed, 619 insertions(+), 1326 deletions(-)
-(diffstat from tag for-linus-hmm-merged)
-
---yrj/dFKFPuw6o+aM
-Content-Type: application/pgp-signature; name="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-
-iQIzBAABCgAdFiEEfB7FMLh+8QxL+6i3OG33FX4gmxoFAl0k6d0ACgkQOG33FX4g
-mxq20Q/8DrfL9SYcFLlYTVetA9I3X6v8TP1MrW6YiswZlosJUP5m4PXf8Xo74YVG
-HvqUrn2zYJn1LV9Fm/vabkJRv9edOXCsaMrahYumaRzn4GOMSa5bYe4cOcqnOB6U
-d0aHEb67Y2aq3QKiwmT5m69jEc7T4217pM79t/zWpAm5/QPlCfqYNsMbOF9ocqDi
-mw9IZBTNEe4blIPzupS4o3TZBT+8zCGSJ+mduzZZ34r+lAOSFaCrjihzAxalN1+3
-tMuh4D8m8JAmB/EaozXeihvpRj2RN45ySsDT3njf9Qcgx7zbVpw1CPHgFC13gQau
-nPHv1IpIMTD9WyzsB7m5s7Tx/rT0U3Ux7/6CALYh0WNE3aSBu6kscPqiSf1tj8C1
-sN7iaGsQow2ZQnuszmPFhJPzo0aV8x1TD59AaoA9ezBy2OQf9RDbabv9ho/SD8Sy
-G0mh//KIcWkdiPJhnZq9OOEH8k6b6IRuQM0XCjWq821TFGx+aRtVwaw5qwanFmY8
-wQOlFyLxv13CZkN6YMfiuZ7DMVHnfcDJfyR6UMHUkPkOXRbCccZyPuA2pP0AB6nO
-Gzsc8032R5NuceC87tGY4ViktvV0s4W6ofTrxxAutYtSv2/Imbe6PWvzaTI8UJC3
-33Gqnn26RFr5wTbehg3TMFqmfy1zCpyY01WG56fBeASfvqKaR9w=
-=njDZ
------END PGP SIGNATURE-----
-
---yrj/dFKFPuw6o+aM--
+On 2019-07-09 05:25, Bharata B Rao wrote:
+> A secure guest will share some of its pages with hypervisor (Eg. virtio
+> bounce buffers etc). Support shared pages in HMM driver.
+> 
+> Once a secure page is converted to shared page, HMM driver will stop
+> tracking that page.
+> 
+> Signed-off-by: Bharata B Rao <bharata@linux.ibm.com>
+  Reviewed-by: Janani Janakiraman <janani@linux.ibm.com>
+> ---
+>  arch/powerpc/include/asm/hvcall.h |  3 ++
+>  arch/powerpc/kvm/book3s_hv_hmm.c  | 66 +++++++++++++++++++++++++++++--
+>  2 files changed, 66 insertions(+), 3 deletions(-)
+> 
+> diff --git a/arch/powerpc/include/asm/hvcall.h
+> b/arch/powerpc/include/asm/hvcall.h
+> index 2f6b952deb0f..05b8536f6653 100644
+> --- a/arch/powerpc/include/asm/hvcall.h
+> +++ b/arch/powerpc/include/asm/hvcall.h
+> @@ -337,6 +337,9 @@
+>  #define H_TLB_INVALIDATE	0xF808
+>  #define H_COPY_TOFROM_GUEST	0xF80C
+> 
+> +/* Flags for H_SVM_PAGE_IN */
+> +#define H_PAGE_IN_SHARED        0x1
+> +
+>  /* Platform-specific hcalls used by the Ultravisor */
+>  #define H_SVM_PAGE_IN		0xEF00
+>  #define H_SVM_PAGE_OUT		0xEF04
+> diff --git a/arch/powerpc/kvm/book3s_hv_hmm.c 
+> b/arch/powerpc/kvm/book3s_hv_hmm.c
+> index cd34323888b6..36562b382e70 100644
+> --- a/arch/powerpc/kvm/book3s_hv_hmm.c
+> +++ b/arch/powerpc/kvm/book3s_hv_hmm.c
+> @@ -52,6 +52,7 @@ struct kvmppc_hmm_page_pvt {
+>  	unsigned long *rmap;
+>  	unsigned int lpid;
+>  	unsigned long gpa;
+> +	bool skip_page_out;
+>  };
+> 
+>  struct kvmppc_hmm_migrate_args {
+> @@ -215,6 +216,53 @@ static const struct migrate_vma_ops
+> kvmppc_hmm_migrate_ops = {
+>  	.finalize_and_map = kvmppc_hmm_migrate_finalize_and_map,
+>  };
+> 
+> +/*
+> + * Shares the page with HV, thus making it a normal page.
+> + *
+> + * - If the page is already secure, then provision a new page and 
+> share
+> + * - If the page is a normal page, share the existing page
+> + *
+> + * In the former case, uses the HMM fault handler to release the HMM 
+> page.
+> + */
+> +static unsigned long
+> +kvmppc_share_page(struct kvm *kvm, unsigned long gpa, unsigned long 
+> page_shift)
+> +{
+> +
+> +	int ret;
+> +	struct page *hmm_page;
+> +	struct kvmppc_hmm_page_pvt *pvt;
+> +	unsigned long pfn;
+> +	unsigned long *rmap;
+> +	struct kvm_memory_slot *slot;
+> +	unsigned long gfn = gpa >> page_shift;
+> +	int srcu_idx;
+> +
+> +	srcu_idx = srcu_read_lock(&kvm->srcu);
+> +	slot = gfn_to_memslot(kvm, gfn);
+> +	if (!slot) {
+> +		srcu_read_unlock(&kvm->srcu, srcu_idx);
+> +		return H_PARAMETER;
+> +	}
+> +	rmap = &slot->arch.rmap[gfn - slot->base_gfn];
+> +	srcu_read_unlock(&kvm->srcu, srcu_idx);
+> +
+> +	if (kvmppc_is_hmm_pfn(*rmap)) {
+> +		hmm_page = pfn_to_page(*rmap & ~KVMPPC_PFN_HMM);
+> +		pvt = (struct kvmppc_hmm_page_pvt *)
+> +			hmm_devmem_page_get_drvdata(hmm_page);
+> +		pvt->skip_page_out = true;
+> +	}
+> +
+> +	pfn = gfn_to_pfn(kvm, gpa >> page_shift);
+> +	if (is_error_noslot_pfn(pfn))
+> +		return H_PARAMETER;
+> +
+> +	ret = uv_page_in(kvm->arch.lpid, pfn << page_shift, gpa, 0, 
+> page_shift);
+> +	kvm_release_pfn_clean(pfn);
+> +
+> +	return (ret == U_SUCCESS) ? H_SUCCESS : H_PARAMETER;
+> +}
+> +
+>  /*
+>   * Move page from normal memory to secure memory.
+>   */
+> @@ -235,9 +283,12 @@ kvmppc_h_svm_page_in(struct kvm *kvm, unsigned 
+> long gpa,
+>  	if (page_shift != PAGE_SHIFT)
+>  		return H_P3;
+> 
+> -	if (flags)
+> +	if (flags & ~H_PAGE_IN_SHARED)
+>  		return H_P2;
+> 
+> +	if (flags & H_PAGE_IN_SHARED)
+> +		return kvmppc_share_page(kvm, gpa, page_shift);
+> +
+>  	down_read(&kvm->mm->mmap_sem);
+>  	srcu_idx = srcu_read_lock(&kvm->srcu);
+>  	slot = gfn_to_memslot(kvm, gfn);
+> @@ -299,8 +350,17 @@ kvmppc_hmm_fault_migrate_alloc_and_copy(struct
+> vm_area_struct *vma,
+>  	       hmm_devmem_page_get_drvdata(spage);
+> 
+>  	pfn = page_to_pfn(dpage);
+> -	ret = uv_page_out(pvt->lpid, pfn << PAGE_SHIFT,
+> -			  pvt->gpa, 0, PAGE_SHIFT);
+> +
+> +	/*
+> +	 * This same alloc_and_copy() callback is used in two cases:
+> +	 * - When HV touches a secure page, for which we do page-out
+> +	 * - When a secure page is converted to shared page, we touch
+> +	 *   the page to essentially discard the HMM page. In this case we
+> +	 *   skip page-out.
+> +	 */
+> +	if (!pvt->skip_page_out)
+> +		ret = uv_page_out(pvt->lpid, pfn << PAGE_SHIFT,
+> +				  pvt->gpa, 0, PAGE_SHIFT);
+>  	if (ret == U_SUCCESS)
+>  		*dst_pfn = migrate_pfn(pfn) | MIGRATE_PFN_LOCKED;
+>  }
 
