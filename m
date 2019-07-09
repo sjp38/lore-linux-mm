@@ -2,352 +2,184 @@ Return-Path: <SRS0=RgjX=VG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 17446C73C5A
-	for <linux-mm@archiver.kernel.org>; Tue,  9 Jul 2019 19:51:25 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E45DAC73C5A
+	for <linux-mm@archiver.kernel.org>; Tue,  9 Jul 2019 20:37:40 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C80AB208C4
-	for <linux-mm@archiver.kernel.org>; Tue,  9 Jul 2019 19:51:24 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C80AB208C4
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id 8BA8321670
+	for <linux-mm@archiver.kernel.org>; Tue,  9 Jul 2019 20:37:40 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="J+oSXowC"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8BA8321670
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 51A058E005B; Tue,  9 Jul 2019 15:51:24 -0400 (EDT)
+	id F2FEB8E005C; Tue,  9 Jul 2019 16:37:39 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4C99B8E0032; Tue,  9 Jul 2019 15:51:24 -0400 (EDT)
+	id EE07A8E0032; Tue,  9 Jul 2019 16:37:39 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 343B18E005B; Tue,  9 Jul 2019 15:51:24 -0400 (EDT)
+	id DD04F8E005C; Tue,  9 Jul 2019 16:37:39 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id EE40A8E0032
-	for <linux-mm@kvack.org>; Tue,  9 Jul 2019 15:51:23 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id d2so11232879pla.18
-        for <linux-mm@kvack.org>; Tue, 09 Jul 2019 12:51:23 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id A4B758E0032
+	for <linux-mm@kvack.org>; Tue,  9 Jul 2019 16:37:39 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id k20so13367759pgg.15
+        for <linux-mm@kvack.org>; Tue, 09 Jul 2019 13:37:39 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:mime-version
-         :content-transfer-encoding:date:from:to:cc:subject:organization
-         :reply-to:mail-reply-to:in-reply-to:references:message-id:user-agent;
-        bh=/XRAbmPSP/Eeq9PHJ7ICRrNSfFlGcXiv6CHzSk8BsFk=;
-        b=kP+/2TDI7V6tBM4F5QBZD4dPcotHy85zvhBninDBBfsf7Ru6xOcYfS+j/Vhmm3Dc9/
-         U+jfuKDKLYj8kVJO1LJz3HgrPkiuK5wzRuNlIFqzLHtH7jursbmBlcDcWNM7By/wembM
-         PuLS4pHV1uj2XuXKVPpSQ5V+O/1lIxaMxyRUb/4soe7NykX48bz8gzBqH49d6AMlXddS
-         lM0WM5gvDA55vdkSIDdzp3/OchqXBEqh1A1TPNP7vJMiCxaOfJ998nbiKNwDQ77TcRUv
-         MxAbm/Lqzrcenqq1eY3kvxoDEjk4iCw4RJXMrFKfEuaKEj2rIqmlbPsoouurNpP/Mp4W
-         G4vQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of janani@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=janani@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: APjAAAXctzdI4KTg7BIKs2Zqw/+wWFa6/dWxYY1tLRzQj8638Of6i+zQ
-	rGvJuRmpRhdvPFr+shPAC5q63IePeP4goh9SFuCa1oMYwJJdPZ+VCHaEPmtutUwvk54JWRklSGf
-	r3BqLryyt1PQOgppJyNrgDbwwzRWfGaG+SE6E+e4h9IAoRihO7LMDrY4tNgEs+c3jxg==
-X-Received: by 2002:a17:90a:29c5:: with SMTP id h63mr1869521pjd.83.1562701883595;
-        Tue, 09 Jul 2019 12:51:23 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwHENZFHV13dIHiwmWBj8eg7TpwPycTCCwZq9hSuBhSIB6XHq7zqKEuA+A4eQyVv32cUiPr
-X-Received: by 2002:a17:90a:29c5:: with SMTP id h63mr1869478pjd.83.1562701882847;
-        Tue, 09 Jul 2019 12:51:22 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562701882; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=sLiP4UA1DyazAQmoXMthEbO6RhFdgT0unr+HzqnFKaU=;
+        b=Xh29BF0WJGNslLaceszKKV6emgVtGxBaA5KOlpTHaqQnDoxrEfBVqAoDeHCFYUqLVP
+         dviNBASSHk6OcgCTBqoDn7joBdQjWAFL5Whgbeydx+fDENRFuka9EuTMxuPhnXHECmGy
+         Xt0xgUYaLSpg8gUoZhXcpZWnGUxB739ns9wwPv+u3E3cp5yoED8jF1EEAFU+4Pnup9TV
+         +IiSrpLRizi36kBN9qh4Twam8s7QLjPoIs6DQ/B3+ldsRBfxTgUxuAKqQpBRsITFjGyX
+         RmHJXdWZKQIJJYlyz/6DNqKZwK5dd3IhYcaPAkBnLxcXfBbAnx5LMf/wcsvlXBRoWuh6
+         4UgQ==
+X-Gm-Message-State: APjAAAXUCGTn4f1MU55v2prNfirOoM4OPj2ObX6DCto7U8yy1nEsjqw7
+	SMOatCZ7z/3dEf0fFAfkga0b+jjBSdGWebZlFdC7LLk+cvoXwMt+me5H6vKrKrlt1klDEmoakL/
+	nML2zg8bnFyXQ9vl72CXAK55x5VKk9mghyStoFx4NSMYjA/FbDvzCsRhprO4Lr/DJ7w==
+X-Received: by 2002:a17:902:9a04:: with SMTP id v4mr33443104plp.95.1562704659114;
+        Tue, 09 Jul 2019 13:37:39 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyeRtCXm5KwGlcJa2X1Tva6uUL5ilYRsJHMvKNnfwRGVyxautHTHs0wB3xUWbFPG1o2mV5r
+X-Received: by 2002:a17:902:9a04:: with SMTP id v4mr33443068plp.95.1562704658325;
+        Tue, 09 Jul 2019 13:37:38 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562704658; cv=none;
         d=google.com; s=arc-20160816;
-        b=KjlfVbH0iNzwKb4uCthJ7bg3kOpWgKuCzDRsHPSTrv9U5BvAu3SC6k4BDD8nuei8zt
-         hOzCaGJD8vHpENDvXksMUrWYGECA9Zx67vdA97v0sNr1GKu8wV3VEMZMmt9f5suQ3LGA
-         jiO4Rg1YXvvReBzbKPmGqys4jBJxQkdV0yHnDRTvK8ZNTvKL0dY9KZvdb2dCd4r1UWoU
-         H+3JnBS9zo2gBqPnnBKmAuZtXK+v+q6vfiNWa/AvKGnnnx9rs+2Lc14JOwKy1qSR/8/y
-         krnJeJRkNMpRZV0BioIPvl7P9VUh2OXvo3B65LuKUhrcfPhAPGB62gEz4gWtSZLFV/QG
-         MArg==
+        b=LP718v9WT55PEZS4zxnuLYc5tqgdq5fMYk94PQFu/+vd1T7lMLFQciPIrpJIdBPi2I
+         ZZsgQdPZdGQoClMrXTXOul14LqLJo6VD8RPwt1j2f9xMvaDDtZny0KLh5b7UHQqpPnvm
+         XqNhC8bSeqlSdIdVrwnBNakSTZyr3D0pNhbA2fxBzjEVKmLG3BWdrzPDJ+qaTkxr8oCA
+         6/TaiuXxOj6/7nYaLl/OupGbF155Q0wjPKM6vdhEadHXp/gDAGr2k5nLOpXEquRZerIy
+         yAxpOKtKurW/xS7ljZfAjmXHEBabRmqV3mKbemthyVnpzmvk98rYSJRoQTx9DrC7xYlY
+         mgbg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:message-id:references:in-reply-to:mail-reply-to:reply-to
-         :organization:subject:cc:to:from:date:content-transfer-encoding
-         :mime-version;
-        bh=/XRAbmPSP/Eeq9PHJ7ICRrNSfFlGcXiv6CHzSk8BsFk=;
-        b=W0nFZyCPktV/vVcMoGdB7lvXZgF9+5b6IOL1addE5oNk1P2n/DZ0sERf+7PKXfmojH
-         RJZlmkGdAiu0W7YDRQTR6TUb4AW9JAmfCTdyhH8t8ZfDqERQCp9FSAh/7GISTYfT5FSP
-         SnWiJWNEdCKdE+vbRCzB806wYGhyy2alphk90Z8GNk7LX7VK4TkDVe7TY7fPWHWnZKLI
-         r7YS+akRUI6XmNjOqchmsbgKTSTuWw0j7ENqhOKnMWLj1PowBZfPlMWmKYhZaKfwP5lM
-         xinfftc1p0OVinxla/H6qcRgoP4WsAnU2NVfqeTkr2QYhhprXoXiLj8u+6Os93Sa4cpi
-         9crQ==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=sLiP4UA1DyazAQmoXMthEbO6RhFdgT0unr+HzqnFKaU=;
+        b=qDVVmXMHiRuh3SSse2p/JA0qJiXQFomjaySH2v0D4Bh6/mnoJWWb9po9hnpk9KfKbF
+         ThL+3CdFcLuDLdhrHRuG74rdGAo9GfKatGxBBCltXn4IfZIQRHUNkYEEWRZ7zgQSSOmS
+         cpoLZLiPX421WIX0RXCEpmA/yi63nGRXyKUkrqa7MbGbsLKjV5Mad28hEidp0XQHlIqV
+         BWly1yeGiEgnaHs2a5RoXJxUGgpY1WVAl52/rmKuFAhCX/amCtP/3NMEUwGndokBGmBx
+         1FGQKgAqQMG2YXkYr580b097EwcF2n2lurt6Z9IU9T2CSQo4VVphOg7yEGjj+tZSYpvS
+         s4Bw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of janani@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=janani@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id d16si1775919pfn.248.2019.07.09.12.51.22
+       dkim=pass header.i=@kernel.org header.s=default header.b=J+oSXowC;
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id c11si22970221pgk.383.2019.07.09.13.37.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 09 Jul 2019 12:51:22 -0700 (PDT)
-Received-SPF: pass (google.com: domain of janani@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
+        Tue, 09 Jul 2019 13:37:38 -0700 (PDT)
+Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of janani@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=janani@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x69JlKIC126474;
-	Tue, 9 Jul 2019 15:51:22 -0400
-Received: from ppma03dal.us.ibm.com (b.bd.3ea9.ip4.static.sl-reverse.com [169.62.189.11])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2tn0mjj18t-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=NOT);
-	Tue, 09 Jul 2019 15:51:22 -0400
-Received: from pps.filterd (ppma03dal.us.ibm.com [127.0.0.1])
-	by ppma03dal.us.ibm.com (8.16.0.27/8.16.0.27) with SMTP id x69JnVJl002826;
-	Tue, 9 Jul 2019 19:51:21 GMT
-Received: from b03cxnp08027.gho.boulder.ibm.com (b03cxnp08027.gho.boulder.ibm.com [9.17.130.19])
-	by ppma03dal.us.ibm.com with ESMTP id 2tjk96qar8-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=NOT);
-	Tue, 09 Jul 2019 19:51:21 +0000
-Received: from b03ledav003.gho.boulder.ibm.com (b03ledav003.gho.boulder.ibm.com [9.17.130.234])
-	by b03cxnp08027.gho.boulder.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x69JpJ8Z57737560
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Tue, 9 Jul 2019 19:51:19 GMT
-Received: from b03ledav003.gho.boulder.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 53FB06A04F;
-	Tue,  9 Jul 2019 19:51:19 +0000 (GMT)
-Received: from b03ledav003.gho.boulder.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id E941B6A054;
-	Tue,  9 Jul 2019 19:51:18 +0000 (GMT)
-Received: from ltc.linux.ibm.com (unknown [9.16.170.189])
-	by b03ledav003.gho.boulder.ibm.com (Postfix) with ESMTP;
-	Tue,  9 Jul 2019 19:51:18 +0000 (GMT)
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII;
- format=flowed
-Content-Transfer-Encoding: 7bit
-Date: Tue, 09 Jul 2019 14:53:47 -0500
-From: janani <janani@linux.ibm.com>
-To: Bharata B Rao <bharata@linux.ibm.com>
-Cc: linuxppc-dev@lists.ozlabs.org, linuxram@us.ibm.com, cclaudio@linux.ibm.com,
-        kvm-ppc@vger.kernel.org, linux-mm@kvack.org, jglisse@redhat.com,
-        aneesh.kumar@linux.vnet.ibm.com, paulus@au1.ibm.com,
-        sukadev@linux.vnet.ibm.com,
-        Linuxppc-dev
- <linuxppc-dev-bounces+janani=linux.ibm.com@lists.ozlabs.org>
-Subject: Re: [RFC PATCH v5 5/7] kvmppc: Radix changes for secure guest
-Organization: IBM
-Reply-To: janani@linux.ibm.com
-Mail-Reply-To: janani@linux.ibm.com
-In-Reply-To: <20190709102545.9187-6-bharata@linux.ibm.com>
-References: <20190709102545.9187-1-bharata@linux.ibm.com>
- <20190709102545.9187-6-bharata@linux.ibm.com>
-Message-ID: <5c7231766bc1f78e3cc1a467186e3356@linux.vnet.ibm.com>
-X-Sender: janani@linux.ibm.com
-User-Agent: Roundcube Webmail/1.0.1
-X-TM-AS-GCONF: 00
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-07-09_07:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=2 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1907090235
+       dkim=pass header.i=@kernel.org header.s=default header.b=J+oSXowC;
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from localhost.localdomain (c-73-223-200-170.hsd1.ca.comcast.net [73.223.200.170])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 4C6CA20861;
+	Tue,  9 Jul 2019 20:37:37 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1562704657;
+	bh=/9LTzKi2u4iUq755wikCwdwulj3n2J071wkeNeptzIE=;
+	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
+	b=J+oSXowCJu1Ojf7ZugvCFOUS/kT5hfSiz48WLrqAbUGjEHMko79VqV+tiTfBPcwzL
+	 vSSbj06XgQKQbh2t6Z60kkhgAuMmF6IP0GT18Z+jf4x7Zg0QxDmuIr3q5wuCx65KbV
+	 vfgDL/QRQJKySDVn6SeD2m7kXE4QAqa1KdtZNkMA=
+Date: Tue, 9 Jul 2019 13:37:36 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+To: Mark Brown <broonie@kernel.org>
+Cc: Lecopzer Chen <lecopzer.chen@mediatek.com>, Mark-PK Tsai
+ <Mark-PK.Tsai@mediatek.com>, Pavel Tatashin <pasha.tatashin@oracle.com>,
+ Oscar Salvador <osalvador@suse.de>, Michal Hocko <mhocko@suse.com>, Mike
+ Rapoport <rppt@linux.ibm.com>, kernel-build-reports@lists.linaro.org,
+ linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+ linux-next@vger.kernel.org
+Subject: Re: next/master build: 230 builds: 3 failed, 227 passed, 391
+ warnings (next-20190709)
+Message-Id: <20190709133736.31f22a5e4aae49fec83faa99@linux-foundation.org>
+In-Reply-To: <20190709151333.GD14859@sirena.co.uk>
+References: <5d24a6be.1c69fb81.c03b6.0fc7@mx.google.com>
+	<20190709151333.GD14859@sirena.co.uk>
+X-Mailer: Sylpheed 3.5.1 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 2019-07-09 05:25, Bharata B Rao wrote:
-> - After the guest becomes secure, when we handle a page fault of a page
->   belonging to SVM in HV, send that page to UV via UV_PAGE_IN.
-> - Whenever a page is unmapped on the HV side, inform UV via 
-> UV_PAGE_INVAL.
-> - Ensure all those routines that walk the secondary page tables of
->   the guest don't do so in case of secure VM. For secure guest, the
->   active secondary page tables are in secure memory and the secondary
->   page tables in HV are freed when guest becomes secure.
+On Tue, 9 Jul 2019 16:13:33 +0100 Mark Brown <broonie@kernel.org> wrote:
+
+> On Tue, Jul 09, 2019 at 07:37:50AM -0700, kernelci.org bot wrote:
 > 
-> Signed-off-by: Bharata B Rao <bharata@linux.ibm.com>
-  Reviewed-by: Janani Janakiraman <janani@linux.ibm.com>
-> ---
->  arch/powerpc/include/asm/kvm_host.h       | 12 ++++++++++++
->  arch/powerpc/include/asm/ultravisor-api.h |  1 +
->  arch/powerpc/include/asm/ultravisor.h     |  7 +++++++
->  arch/powerpc/kvm/book3s_64_mmu_radix.c    | 22 ++++++++++++++++++++++
->  arch/powerpc/kvm/book3s_hv_hmm.c          | 20 ++++++++++++++++++++
->  5 files changed, 62 insertions(+)
+> Today's -next fails to build tinyconfig on arm64 and x86_64:
 > 
-> diff --git a/arch/powerpc/include/asm/kvm_host.h
-> b/arch/powerpc/include/asm/kvm_host.h
-> index 0c49c3401c63..dcbf7480cb10 100644
-> --- a/arch/powerpc/include/asm/kvm_host.h
-> +++ b/arch/powerpc/include/asm/kvm_host.h
-> @@ -865,6 +865,8 @@ static inline void
-> kvm_arch_vcpu_block_finish(struct kvm_vcpu *vcpu) {}
->  #ifdef CONFIG_PPC_UV
->  extern int kvmppc_hmm_init(void);
->  extern void kvmppc_hmm_free(void);
-> +extern bool kvmppc_is_guest_secure(struct kvm *kvm);
-> +extern int kvmppc_send_page_to_uv(struct kvm *kvm, unsigned long gpa);
->  #else
->  static inline int kvmppc_hmm_init(void)
->  {
-> @@ -872,6 +874,16 @@ static inline int kvmppc_hmm_init(void)
->  }
+> > arm64:
+> >     tinyconfig: (clang-8) FAIL
+> >     tinyconfig: (gcc-8) FAIL
+> > 
+> > x86_64:
+> >     tinyconfig: (gcc-8) FAIL
 > 
->  static inline void kvmppc_hmm_free(void) {}
-> +
-> +static inline bool kvmppc_is_guest_secure(struct kvm *kvm)
-> +{
-> +	return false;
-> +}
-> +
-> +static inline int kvmppc_send_page_to_uv(struct kvm *kvm, unsigned 
-> long gpa)
-> +{
-> +	return -EFAULT;
-> +}
->  #endif /* CONFIG_PPC_UV */
+> due to:
 > 
->  #endif /* __POWERPC_KVM_HOST_H__ */
-> diff --git a/arch/powerpc/include/asm/ultravisor-api.h
-> b/arch/powerpc/include/asm/ultravisor-api.h
-> index d6d6eb2e6e6b..9f5510b55892 100644
-> --- a/arch/powerpc/include/asm/ultravisor-api.h
-> +++ b/arch/powerpc/include/asm/ultravisor-api.h
-> @@ -24,5 +24,6 @@
->  #define UV_UNREGISTER_MEM_SLOT		0xF124
->  #define UV_PAGE_IN			0xF128
->  #define UV_PAGE_OUT			0xF12C
-> +#define UV_PAGE_INVAL			0xF138
+> > tinyconfig (arm64, gcc-8) — FAIL, 0 errors, 0 warnings, 0 section mismatches
+> > 
+> > Section mismatches:
+> >     WARNING: vmlinux.o(.meminit.text+0x430): Section mismatch in reference from the function sparse_buffer_alloc() to the function .init.text:sparse_buffer_free()
+> >     FATAL: modpost: Section mismatches detected.
 > 
->  #endif /* _ASM_POWERPC_ULTRAVISOR_API_H */
-> diff --git a/arch/powerpc/include/asm/ultravisor.h
-> b/arch/powerpc/include/asm/ultravisor.h
-> index fe45be9ee63b..f4f674794b35 100644
-> --- a/arch/powerpc/include/asm/ultravisor.h
-> +++ b/arch/powerpc/include/asm/ultravisor.h
-> @@ -77,6 +77,13 @@ static inline int uv_unregister_mem_slot(u64 lpid,
-> u64 slotid)
-> 
->  	return ucall(UV_UNREGISTER_MEM_SLOT, retbuf, lpid, slotid);
->  }
-> +
-> +static inline int uv_page_inval(u64 lpid, u64 gpa, u64 page_shift)
-> +{
-> +	unsigned long retbuf[UCALL_BUFSIZE];
-> +
-> +	return ucall(UV_PAGE_INVAL, retbuf, lpid, gpa, page_shift);
-> +}
->  #endif /* !__ASSEMBLY__ */
-> 
->  #endif	/* _ASM_POWERPC_ULTRAVISOR_H */
-> diff --git a/arch/powerpc/kvm/book3s_64_mmu_radix.c
-> b/arch/powerpc/kvm/book3s_64_mmu_radix.c
-> index f55ef071883f..c454600c454f 100644
-> --- a/arch/powerpc/kvm/book3s_64_mmu_radix.c
-> +++ b/arch/powerpc/kvm/book3s_64_mmu_radix.c
-> @@ -21,6 +21,8 @@
->  #include <asm/pgtable.h>
->  #include <asm/pgalloc.h>
->  #include <asm/pte-walk.h>
-> +#include <asm/ultravisor.h>
-> +#include <asm/kvm_host.h>
-> 
->  /*
->   * Supported radix tree geometry.
-> @@ -923,6 +925,9 @@ int kvmppc_book3s_radix_page_fault(struct kvm_run
-> *run, struct kvm_vcpu *vcpu,
->  	if (!(dsisr & DSISR_PRTABLE_FAULT))
->  		gpa |= ea & 0xfff;
-> 
-> +	if (kvmppc_is_guest_secure(kvm))
-> +		return kvmppc_send_page_to_uv(kvm, gpa & PAGE_MASK);
-> +
->  	/* Get the corresponding memslot */
->  	memslot = gfn_to_memslot(kvm, gfn);
-> 
-> @@ -980,6 +985,11 @@ int kvm_unmap_radix(struct kvm *kvm, struct
-> kvm_memory_slot *memslot,
->  	unsigned long gpa = gfn << PAGE_SHIFT;
->  	unsigned int shift;
-> 
-> +	if (kvmppc_is_guest_secure(kvm)) {
-> +		uv_page_inval(kvm->arch.lpid, gpa, PAGE_SIZE);
-> +		return 0;
-> +	}
-> +
->  	ptep = __find_linux_pte(kvm->arch.pgtable, gpa, NULL, &shift);
->  	if (ptep && pte_present(*ptep))
->  		kvmppc_unmap_pte(kvm, ptep, gpa, shift, memslot,
-> @@ -997,6 +1007,9 @@ int kvm_age_radix(struct kvm *kvm, struct
-> kvm_memory_slot *memslot,
->  	int ref = 0;
->  	unsigned long old, *rmapp;
-> 
-> +	if (kvmppc_is_guest_secure(kvm))
-> +		return ref;
-> +
->  	ptep = __find_linux_pte(kvm->arch.pgtable, gpa, NULL, &shift);
->  	if (ptep && pte_present(*ptep) && pte_young(*ptep)) {
->  		old = kvmppc_radix_update_pte(kvm, ptep, _PAGE_ACCESSED, 0,
-> @@ -1021,6 +1034,9 @@ int kvm_test_age_radix(struct kvm *kvm, struct
-> kvm_memory_slot *memslot,
->  	unsigned int shift;
->  	int ref = 0;
-> 
-> +	if (kvmppc_is_guest_secure(kvm))
-> +		return ref;
-> +
->  	ptep = __find_linux_pte(kvm->arch.pgtable, gpa, NULL, &shift);
->  	if (ptep && pte_present(*ptep) && pte_young(*ptep))
->  		ref = 1;
-> @@ -1038,6 +1054,9 @@ static int kvm_radix_test_clear_dirty(struct kvm 
-> *kvm,
->  	int ret = 0;
->  	unsigned long old, *rmapp;
-> 
-> +	if (kvmppc_is_guest_secure(kvm))
-> +		return ret;
-> +
->  	ptep = __find_linux_pte(kvm->arch.pgtable, gpa, NULL, &shift);
->  	if (ptep && pte_present(*ptep) && pte_dirty(*ptep)) {
->  		ret = 1;
-> @@ -1090,6 +1109,9 @@ void kvmppc_radix_flush_memslot(struct kvm *kvm,
->  	unsigned long gpa;
->  	unsigned int shift;
-> 
-> +	if (kvmppc_is_guest_secure(kvm))
-> +		return;
-> +
->  	gpa = memslot->base_gfn << PAGE_SHIFT;
->  	spin_lock(&kvm->mmu_lock);
->  	for (n = memslot->npages; n; --n) {
-> diff --git a/arch/powerpc/kvm/book3s_hv_hmm.c 
-> b/arch/powerpc/kvm/book3s_hv_hmm.c
-> index 55bab9c4e60a..9e6c88de456f 100644
-> --- a/arch/powerpc/kvm/book3s_hv_hmm.c
-> +++ b/arch/powerpc/kvm/book3s_hv_hmm.c
-> @@ -62,6 +62,11 @@ struct kvmppc_hmm_migrate_args {
->  	unsigned long page_shift;
->  };
-> 
-> +bool kvmppc_is_guest_secure(struct kvm *kvm)
-> +{
-> +	return !!(kvm->arch.secure_guest & KVMPPC_SECURE_INIT_DONE);
-> +}
-> +
->  unsigned long kvmppc_h_svm_init_start(struct kvm *kvm)
->  {
->  	struct kvm_memslots *slots;
-> @@ -494,6 +499,21 @@ kvmppc_h_svm_page_out(struct kvm *kvm, unsigned 
-> long gpa,
->  	return ret;
->  }
-> 
-> +int kvmppc_send_page_to_uv(struct kvm *kvm, unsigned long gpa)
-> +{
-> +	unsigned long pfn;
-> +	int ret;
-> +
-> +	pfn = gfn_to_pfn(kvm, gpa >> PAGE_SHIFT);
-> +	if (is_error_noslot_pfn(pfn))
-> +		return -EFAULT;
-> +
-> +	ret = uv_page_in(kvm->arch.lpid, pfn << PAGE_SHIFT, gpa, 0, 
-> PAGE_SHIFT);
-> +	kvm_release_pfn_clean(pfn);
-> +
-> +	return (ret == U_SUCCESS) ? RESUME_GUEST : -EFAULT;
-> +}
-> +
->  static u64 kvmppc_get_secmem_size(void)
->  {
->  	struct device_node *np;
+> (same error for all of them, the warning appears non-fatally in
+> other configs).  This is caused by f13d13caa6ef2 (mm/sparse.c:
+> fix memory leak of sparsemap_buf in aliged memory) which adds a
+> reference from the __meminit annotated sparse_buffer_alloc() to
+> the newly added __init annotated sparse_buffer_free().
+
+Thanks.  Arnd just fixed this:
+
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: mm/sparse.c: mark sparse_buffer_free as __meminit
+
+Calling an __init function from a __meminit function is not allowed:
+
+WARNING: vmlinux.o(.meminit.text+0x30ff): Section mismatch in reference from the function sparse_buffer_alloc() to the function .init.text:sparse_buffer_free()
+The function __meminit sparse_buffer_alloc() references
+a function __init sparse_buffer_free().
+If sparse_buffer_free is only used by sparse_buffer_alloc then
+annotate sparse_buffer_free with a matching annotation.
+
+Downgrade the annotation to __meminit for both, as they may be
+used in the hotplug case.
+
+Link: http://lkml.kernel.org/r/20190709185528.3251709-1-arnd@arndb.de
+Fixes: mmotm ("mm/sparse.c: fix memory leak of sparsemap_buf in aliged memory")
+Signed-off-by: Arnd Bergmann <arnd@arndb.de>
+Cc: Lecopzer Chen <lecopzer.chen@mediatek.com>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+---
+
+ mm/sparse.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+--- a/mm/sparse.c~mm-sparse-fix-memory-leak-of-sparsemap_buf-in-aliged-memory-fix
++++ a/mm/sparse.c
+@@ -428,7 +428,7 @@ struct page __init *sparse_mem_map_popul
+ static void *sparsemap_buf __meminitdata;
+ static void *sparsemap_buf_end __meminitdata;
+ 
+-static inline void __init sparse_buffer_free(unsigned long size)
++static inline void __meminit sparse_buffer_free(unsigned long size)
+ {
+ 	WARN_ON(!sparsemap_buf || size == 0);
+ 	memblock_free_early(__pa(sparsemap_buf), size);
+_
 
