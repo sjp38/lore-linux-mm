@@ -2,187 +2,191 @@ Return-Path: <SRS0=RgjX=VG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CAFBFC606B0
-	for <linux-mm@archiver.kernel.org>; Tue,  9 Jul 2019 10:26:23 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BEEF2C73C41
+	for <linux-mm@archiver.kernel.org>; Tue,  9 Jul 2019 13:34:13 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8FEF420665
-	for <linux-mm@archiver.kernel.org>; Tue,  9 Jul 2019 10:26:23 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8FEF420665
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id 57F382080C
+	for <linux-mm@archiver.kernel.org>; Tue,  9 Jul 2019 13:34:13 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=amacapital-net.20150623.gappssmtp.com header.i=@amacapital-net.20150623.gappssmtp.com header.b="WCdvs4TX"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 57F382080C
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=amacapital.net
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DC59B8E004E; Tue,  9 Jul 2019 06:26:19 -0400 (EDT)
+	id B89C68E004F; Tue,  9 Jul 2019 09:34:12 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D9F888E0032; Tue,  9 Jul 2019 06:26:19 -0400 (EDT)
+	id B3A358E0032; Tue,  9 Jul 2019 09:34:12 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C42848E004E; Tue,  9 Jul 2019 06:26:19 -0400 (EDT)
+	id A29218E004F; Tue,  9 Jul 2019 09:34:12 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 87A2E8E0032
-	for <linux-mm@kvack.org>; Tue,  9 Jul 2019 06:26:19 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id i26so12145730pfo.22
-        for <linux-mm@kvack.org>; Tue, 09 Jul 2019 03:26:19 -0700 (PDT)
+Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 84C058E0032
+	for <linux-mm@kvack.org>; Tue,  9 Jul 2019 09:34:12 -0400 (EDT)
+Received: by mail-io1-f71.google.com with SMTP id h3so23113180iob.20
+        for <linux-mm@kvack.org>; Tue, 09 Jul 2019 06:34:12 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:in-reply-to:references:mime-version
-         :content-transfer-encoding:message-id;
-        bh=2eRHuFRxu3nmgRqPvDNZA8w7i7TdtZDNf4qyGtD4kMY=;
-        b=c8JV51tLD96i2dnIr/UJY5F58dDNazdH9Jo1PPxaA9CmvrTf1xmZ2HjTRr+EumL0To
-         UAqdzYbsyohFiwBV1QayNbqwCq/638KcekNRsMg8gloqqKj4qBIGd3Fid6Qr/wqNJpcG
-         vKc1hdRoR3h2kDeLbYcyL91nynU2yivjjTIiQB+lkh0Ubz0muNxR4+i8hyxa9LHHWnIS
-         Epsges5gBuaChWJZbuWDtwDzf7mXh/4ROrP8RPE6c8LlOcS1poMyp9ym/B55+D5dMLut
-         NO4jjaBLEw1ICE/SOFSriW5P79CSinzHoGw8jROPh8MJXQ4Tww/rxMuv+vgWqFhV2yX/
-         DfhA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of bharata@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=bharata@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: APjAAAWiEqKUj8DZaM6ZXqaFVOrxJ82nbraUyPdDgItMBPVbUOEZQsWN
-	7CwXemTv0ntI00uGZ4ZNO/E4l6VZiPl6iYhwLwhB6y7NWN/eHhxYgQam8micBAvnyEj8iToVxg4
-	z7E1sQwHMDgEnAmnJ/NZqcNtaMEWcDPJIqvozI+nEOsI8ij/Dn1WB9T51S4MwNIqizg==
-X-Received: by 2002:a63:34c3:: with SMTP id b186mr29432066pga.294.1562667979043;
-        Tue, 09 Jul 2019 03:26:19 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxf91rg2xsYxLoNaix2h408Byykxh6tG3SsauYab1lcHBilY1cdqZ2Y8m34655FGB4VbSSw
-X-Received: by 2002:a63:34c3:: with SMTP id b186mr29432008pga.294.1562667978207;
-        Tue, 09 Jul 2019 03:26:18 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562667978; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:subject:from
+         :in-reply-to:date:cc:content-transfer-encoding:message-id:references
+         :to;
+        bh=qhZ9K+aj4bVR1kRvCDHu8fuOy09gt6Svugsy5dV+WVg=;
+        b=rXx83HSM+2bbRJpY4SnujROHsKWeFGnaXcKqah1lvIvj4zqvNNR1ZIJ8fSolHRwggT
+         couBqVY7o8I1U8lgkoLbG97QT2GmOGtWLtGv+4lwmPGMiFbfqwzz/tCzKRJWafpZILhX
+         tf7dF8fiAT4LeRY/WClXVIBOJV7ZRHHozwTeniu1QRme6HWx03NU8VCvQ4V9tEKfa6RB
+         lM8TEVOd0Ry0XMZXfBUQnu1pl6OgaFNuUGWAvLGnCmV7Y0EosCp7vBZJfdGtA763IqjD
+         W9bumvo9QIb87PQFHzzrT5Jqd6A7CyixRlqvLCrBFz0qnDmZ3SCVzE1jR20fRZbVLAMa
+         71Xw==
+X-Gm-Message-State: APjAAAWqwqt+qEwMRyFnw46x9e+AxF/N1uv6Q/GZUAfo5y/Yy8EhxnTK
+	P+M/kroBQj4dQWszaP0KWeOXDwxPi8fwLAKuzYNFp11TVoqxMmPtxbnc1F5YdqE4W49ovhU5bo7
+	hRN+IIfR8XRS4iANqLcIqu+oiIbMWIRx+HW49HEf/2bCcpothwdmQ4x+LS0j7R8tOgg==
+X-Received: by 2002:a5d:9550:: with SMTP id a16mr9100393ios.106.1562679252235;
+        Tue, 09 Jul 2019 06:34:12 -0700 (PDT)
+X-Received: by 2002:a5d:9550:: with SMTP id a16mr9100291ios.106.1562679251097;
+        Tue, 09 Jul 2019 06:34:11 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562679251; cv=none;
         d=google.com; s=arc-20160816;
-        b=lEUUNGd8ITC75W+tUStWRgGptf4ZSPITAUAXHawqmOQSNvOra7/44AUeM7bfFI3tXu
-         Sqe67NRGHcvSOvESq//jWU0n7IeqfsMW/y0J33/f4K+nT6vH7v7dJc0TZMvP1rj3THK2
-         fJVkP0ddRPdp8eqyX5plxUkNm5DPJMehYRG6knpPB7k/ho0Am/lJB5Ik3SMo0uEwYR79
-         X0D1VrwD/DKiOnyz69vmkj5GT1BVL1vEINHH8kvH6kjXsuFggRpDF/7DZ3P/WWEjFRP1
-         QGfwedoncmFG9vZGXfSsAo7KaimjwK52oWcD44dBvRiof/DCaOPmO+cQ8bQUIsGSyXQp
-         RVEA==
+        b=B+IUuY/SWnbuX4WKXAFG9FSGWabUTmPIURXkUzp2zOCnBtGOMfD6TKZ0bXn0VZ/aaT
+         +NxExeBDiUtZPZ972oFJ3C39eB47jIyj9uw1tCVbkbE0GkaGoMac0pmN26U0UM5yGwIj
+         I+oGyMxYb3OiK1ljGvIATz86o3EPAelTyg51HGVzKQSDOitYZJZzil0u4Khklw/Vbe2d
+         MWQlCLFtaS+WA2hsX5Q96FMJZtyftis4wy8IzpsD0gwzWUMvgVYWjhPUcI93Nmfly6BE
+         C0DQnYcVd1gMkYQVb02DqbmaSZHuC1xfzpvHvcAIUd7peVLMt9SEgax2qK4m/EE25Ilz
+         LAVg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:content-transfer-encoding:mime-version:references
-         :in-reply-to:date:subject:cc:to:from;
-        bh=2eRHuFRxu3nmgRqPvDNZA8w7i7TdtZDNf4qyGtD4kMY=;
-        b=Xe/HueDZcpazxutfsYTzSOVLXEQocOALS2Kz5LLC5RYc284saeFj5aT0CGi2p1/NDu
-         jnyNX24AA0+Bv+gP0/QKq8N0RGWugB6NdrC79GlmJf9HwRHCG+dJ78pGB8Gx+PjWh2fZ
-         o8Szpq1bBwAqs+pcT71rC4XStnhHi7lgGG9LYFqV3vhLp8WWRmrQQkOFmhVbyrrONgIz
-         hS8OVCGhKxPtuwdSQvQ9rP7tlZDigfU8Vm/TeXXAAoym+7KMXI+Ak2KYGCWAj7OZVEVf
-         9uE0AY1p8ruFbk6LVEAoX8PsJvxYwu3aZYhEJVy31J6DlzyRFMZ9uECdc72U3FzBXcn/
-         n+Iw==
+        h=to:references:message-id:content-transfer-encoding:cc:date
+         :in-reply-to:from:subject:mime-version:dkim-signature;
+        bh=qhZ9K+aj4bVR1kRvCDHu8fuOy09gt6Svugsy5dV+WVg=;
+        b=0xxRtckhOJS6T6An8HXUicweIkBKFc7g9ckaopHkiAG2yQu8UYRkQI+tgmKxBOfj5w
+         8F1sBWzQiyXOk+v3aqxLPe2V2iC9tLNysUsqildGI/UYJiRzphrL5uY0jEhAoYrO+sVl
+         LRi+jKI+iPEfPJ8K2U8lG8XQpDXxTr/Rf1ZMN8xUwyycLElxyCBN52jlVMt4ew8s0OCx
+         gPcs1X498bnLQrEX4a+WnkC39k76wa9zJhBbMxm594lmaTa5O19gnWYq95YXzO+hVmSp
+         Uu/5+xZVxYsWG1qvWcM4JZPfeNVXEaHMoI2Z8TqHWUy97sfj3+4etyEvYdHGY6dJ/ED5
+         ivgA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of bharata@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=bharata@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id n8si22487548pfa.223.2019.07.09.03.26.17
+       dkim=pass header.i=@amacapital-net.20150623.gappssmtp.com header.s=20150623 header.b=WCdvs4TX;
+       spf=pass (google.com: domain of luto@amacapital.net designates 209.85.220.65 as permitted sender) smtp.mailfrom=luto@amacapital.net
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id h17sor14156948ior.61.2019.07.09.06.34.10
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 09 Jul 2019 03:26:18 -0700 (PDT)
-Received-SPF: pass (google.com: domain of bharata@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
+        (Google Transport Security);
+        Tue, 09 Jul 2019 06:34:11 -0700 (PDT)
+Received-SPF: pass (google.com: domain of luto@amacapital.net designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of bharata@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=bharata@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x69AMaLO001907
-	for <linux-mm@kvack.org>; Tue, 9 Jul 2019 06:26:17 -0400
-Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2tmqe6vcym-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 09 Jul 2019 06:26:17 -0400
-Received: from localhost
-	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <bharata@linux.ibm.com>;
-	Tue, 9 Jul 2019 11:26:14 +0100
-Received: from b06cxnps4075.portsmouth.uk.ibm.com (9.149.109.197)
-	by e06smtp07.uk.ibm.com (192.168.101.137) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Tue, 9 Jul 2019 11:26:12 +0100
-Received: from d06av26.portsmouth.uk.ibm.com (d06av26.portsmouth.uk.ibm.com [9.149.105.62])
-	by b06cxnps4075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x69AQAeW60096766
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Tue, 9 Jul 2019 10:26:10 GMT
-Received: from d06av26.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id CA15BAE045;
-	Tue,  9 Jul 2019 10:26:10 +0000 (GMT)
-Received: from d06av26.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id D4275AE051;
-	Tue,  9 Jul 2019 10:26:08 +0000 (GMT)
-Received: from bharata.ibmuc.com (unknown [9.85.81.51])
-	by d06av26.portsmouth.uk.ibm.com (Postfix) with ESMTP;
-	Tue,  9 Jul 2019 10:26:08 +0000 (GMT)
-From: Bharata B Rao <bharata@linux.ibm.com>
-To: linuxppc-dev@lists.ozlabs.org
-Cc: kvm-ppc@vger.kernel.org, linux-mm@kvack.org, paulus@au1.ibm.com,
-        aneesh.kumar@linux.vnet.ibm.com, jglisse@redhat.com,
-        linuxram@us.ibm.com, sukadev@linux.vnet.ibm.com,
-        cclaudio@linux.ibm.com,
-        Anshuman Khandual <khandual@linux.vnet.ibm.com>,
-        Bharata B Rao <bharata@linux.ibm.com>
-Subject: [PATCH v5 7/7] KVM: PPC: Ultravisor: Add PPC_UV config option
-Date: Tue,  9 Jul 2019 15:55:45 +0530
-X-Mailer: git-send-email 2.21.0
-In-Reply-To: <20190709102545.9187-1-bharata@linux.ibm.com>
-References: <20190709102545.9187-1-bharata@linux.ibm.com>
-MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-X-TM-AS-GCONF: 00
-x-cbid: 19070910-0028-0000-0000-000003824292
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19070910-0029-0000-0000-000024424E67
-Message-Id: <20190709102545.9187-8-bharata@linux.ibm.com>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-07-09_04:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=1 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=961 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1907090127
+       dkim=pass header.i=@amacapital-net.20150623.gappssmtp.com header.s=20150623 header.b=WCdvs4TX;
+       spf=pass (google.com: domain of luto@amacapital.net designates 209.85.220.65 as permitted sender) smtp.mailfrom=luto@amacapital.net
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=amacapital-net.20150623.gappssmtp.com; s=20150623;
+        h=mime-version:subject:from:in-reply-to:date:cc
+         :content-transfer-encoding:message-id:references:to;
+        bh=qhZ9K+aj4bVR1kRvCDHu8fuOy09gt6Svugsy5dV+WVg=;
+        b=WCdvs4TXN+9GIYowkSuMdFEQ4syQGfEZq2fbK0yY5/dxQ6VxHf5j0VW5zBrHDuTpRH
+         8yrWc2pxIhaGaPSisqSDiwG+lDG1fmjDlEVHOwRDxGCfaSDw2MR4bLNGfDtaNXNDFZQr
+         79/X1Zn29OVo72pzTbe9DS0hT4MaiOMHN44t5xG/CiQs9VFOd0aZZxXqOHZDUD/dTAB3
+         Fhp7n2gtRcxGFN62nscplP3PVRYe//8U0jn3LXtCfYi1s7RijU7lUsgwpLPCHRZeq8//
+         eLLQi5KsnejJ7IvX4qJdTI/lxpQN/TUlaUYQfwZHYHWIcwis6oZNTHDkZJ28dVpuhAes
+         iWxw==
+X-Google-Smtp-Source: APXvYqxmHmnwWROql5oN9WLxdlfrbin5EaMmtC8sSO2qSh0Jq8A4W+GrRNHF9eWjGyICCT/oZwMp6g==
+X-Received: by 2002:a6b:fd10:: with SMTP id c16mr23902581ioi.217.1562679250687;
+        Tue, 09 Jul 2019 06:34:10 -0700 (PDT)
+Received: from ?IPv6:2601:281:200:3b79:d6e:1b00:ea8e:79ea? ([2601:281:200:3b79:d6e:1b00:ea8e:79ea])
+        by smtp.gmail.com with ESMTPSA id v3sm11452430iom.53.2019.07.09.06.34.09
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 09 Jul 2019 06:34:09 -0700 (PDT)
+Content-Type: text/plain;
+	charset=utf-8
+Mime-Version: 1.0 (1.0)
+Subject: Re: [PATCH 2/2] x86/numa: instance all parsed numa node
+From: Andy Lutomirski <luto@amacapital.net>
+X-Mailer: iPhone Mail (16F203)
+In-Reply-To: <CAFgQCTui7D6_FQ_v_ijj6k_=+TQzQ3PaGvzxd6p+XEGjQ2S6jw@mail.gmail.com>
+Date: Tue, 9 Jul 2019 07:34:08 -0600
+Cc: Thomas Gleixner <tglx@linutronix.de>, x86@kernel.org,
+ Michal Hocko <mhocko@suse.com>, Dave Hansen <dave.hansen@linux.intel.com>,
+ Mike Rapoport <rppt@linux.ibm.com>, Tony Luck <tony.luck@intel.com>,
+ Andy Lutomirski <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>,
+ Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>,
+ "H. Peter Anvin" <hpa@zytor.com>,
+ Andrew Morton <akpm@linux-foundation.org>,
+ Vlastimil Babka <vbabka@suse.cz>, Oscar Salvador <osalvador@suse.de>,
+ Pavel Tatashin <pavel.tatashin@microsoft.com>,
+ Mel Gorman <mgorman@techsingularity.net>,
+ Benjamin Herrenschmidt <benh@kernel.crashing.org>,
+ Michael Ellerman <mpe@ellerman.id.au>,
+ Stephen Rothwell <sfr@canb.auug.org.au>, Qian Cai <cai@lca.pw>,
+ Barret Rhoden <brho@google.com>, Bjorn Helgaas <bhelgaas@google.com>,
+ David Rientjes <rientjes@google.com>, linux-mm@kvack.org,
+ LKML <linux-kernel@vger.kernel.org>
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <4AF3459B-28F2-425F-8E4B-40311DEF30C6@amacapital.net>
+References: <1562300143-11671-1-git-send-email-kernelfans@gmail.com> <1562300143-11671-2-git-send-email-kernelfans@gmail.com> <alpine.DEB.2.21.1907072133310.3648@nanos.tec.linutronix.de> <CAFgQCTvwS+yEkAmCJnsCfnr0JS01OFtBnDg4cr41_GqU79A4Gg@mail.gmail.com> <alpine.DEB.2.21.1907081125300.3648@nanos.tec.linutronix.de> <CAFgQCTvAOeerLHQvgvFXy_kLs=H=CuUFjYE+UAN+vhPCG+s=pQ@mail.gmail.com> <alpine.DEB.2.21.1907090810490.1961@nanos.tec.linutronix.de> <CAFgQCTui7D6_FQ_v_ijj6k_=+TQzQ3PaGvzxd6p+XEGjQ2S6jw@mail.gmail.com>
+To: Pingfan Liu <kernelfans@gmail.com>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
 
-CONFIG_PPC_UV adds support for ultravisor.
 
-Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Signed-off-by: Bharata B Rao <bharata@linux.ibm.com>
-Signed-off-by: Ram Pai <linuxram@us.ibm.com>
-[ Update config help and commit message ]
-Signed-off-by: Claudio Carvalho <cclaudio@linux.ibm.com>
----
- arch/powerpc/Kconfig | 20 ++++++++++++++++++++
- 1 file changed, 20 insertions(+)
+> On Jul 9, 2019, at 1:24 AM, Pingfan Liu <kernelfans@gmail.com> wrote:
+>=20
+>> On Tue, Jul 9, 2019 at 2:12 PM Thomas Gleixner <tglx@linutronix.de> wrote=
+:
+>>=20
+>>> On Tue, 9 Jul 2019, Pingfan Liu wrote:
+>>>> On Mon, Jul 8, 2019 at 5:35 PM Thomas Gleixner <tglx@linutronix.de> wro=
+te:
+>>>> It can and it does.
+>>>>=20
+>>>> That's the whole point why we bring up all CPUs in the 'nosmt' case and=
 
-diff --git a/arch/powerpc/Kconfig b/arch/powerpc/Kconfig
-index f0e5b38d52e8..20c6c213d2be 100644
---- a/arch/powerpc/Kconfig
-+++ b/arch/powerpc/Kconfig
-@@ -440,6 +440,26 @@ config PPC_TRANSACTIONAL_MEM
-        ---help---
-          Support user-mode Transactional Memory on POWERPC.
- 
-+config PPC_UV
-+	bool "Ultravisor support"
-+	depends on KVM_BOOK3S_HV_POSSIBLE
-+	select HMM_MIRROR
-+	select HMM
-+	select ZONE_DEVICE
-+	select MIGRATE_VMA_HELPER
-+	select DEV_PAGEMAP_OPS
-+	select DEVICE_PRIVATE
-+	select MEMORY_HOTPLUG
-+	select MEMORY_HOTREMOVE
-+	default n
-+	help
-+	  This option paravirtualizes the kernel to run in POWER platforms that
-+	  supports the Protected Execution Facility (PEF). In such platforms,
-+	  the ultravisor firmware runs at a privilege level above the
-+	  hypervisor.
-+
-+	  If unsure, say "N".
-+
- config LD_HEAD_STUB_CATCH
- 	bool "Reserve 256 bytes to cope with linker stubs in HEAD text" if EXPERT
- 	depends on PPC64
--- 
-2.21.0
+>>>> shut the siblings down again after setting CR4.MCE. Actually that's in f=
+act
+>>>> a 'let's hope no MCE hits before that happened' approach, but that's al=
+l we
+>>>> can do.
+>>>>=20
+>>>> If we don't do that then the MCE broadcast can hit a CPU which has some=
+
+>>>> firmware initialized state. The result can be a full system lockup, tri=
+ple
+>>>> fault etc.
+>>>>=20
+>>>> So when the MCE hits a CPU which is still in the crashed kernel lala st=
+ate,
+>>>> then all hell breaks lose.
+>>> Thank you for the comprehensive explain. With your guide, now, I have
+>>> a full understanding of the issue.
+>>>=20
+>>> But when I tried to add something to enable CR4.MCE in
+>>> crash_nmi_callback(), I realized that it is undo-able in some case (if
+>>> crashed, we will not ask an offline smt cpu to online), also it is
+>>> needless. "kexec -l/-p" takes the advantage of the cpu state in the
+>>> first kernel, where all logical cpu has CR4.MCE=3D1.
+>>>=20
+>>> So kexec is exempt from this bug if the first kernel already do it.
+>>=20
+>> No. If the MCE broadcast is handled by a CPU which is stuck in the old
+>> kernel stop loop, then it will execute on the old kernel and eventually r=
+un
+>> into the memory corruption which crashed the old one.
+>>=20
+> Yes, you are right. Stuck cpu may execute the old do_machine_check()
+> code. But I just found out that we have
+> do_machine_check()->__mc_check_crashing_cpu() to against this case.
+>=20
+> And I think the MCE issue with nr_cpus is not closely related with
+> this series, can
+> be a separated issue. I had question whether Andy will take it, if
+> not, I am glad to do it.
+>=20
+>=20
+
+Go for it. I=E2=80=99m not familiar enough with the SMP boot stuff that I wo=
+uld be able to do it any faster than you. I=E2=80=99ll gladly help review it=
+.=
 
