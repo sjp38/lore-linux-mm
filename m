@@ -2,192 +2,206 @@ Return-Path: <SRS0=RgjX=VG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,GAPPY_SUBJECT,HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 20CBAC606B0
-	for <linux-mm@archiver.kernel.org>; Tue,  9 Jul 2019 04:26:50 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3B564C606B0
+	for <linux-mm@archiver.kernel.org>; Tue,  9 Jul 2019 04:51:16 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C4F172166E
-	for <linux-mm@archiver.kernel.org>; Tue,  9 Jul 2019 04:26:49 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id EAF0A216C4
+	for <linux-mm@archiver.kernel.org>; Tue,  9 Jul 2019 04:51:15 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="ew4aZcCm"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C4F172166E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (1024-bit key) header.d=chromium.org header.i=@chromium.org header.b="SagoGHLw"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EAF0A216C4
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chromium.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5376F8E003D; Tue,  9 Jul 2019 00:26:49 -0400 (EDT)
+	id 7200C8E003E; Tue,  9 Jul 2019 00:51:15 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4C2268E0032; Tue,  9 Jul 2019 00:26:49 -0400 (EDT)
+	id 6AA248E0032; Tue,  9 Jul 2019 00:51:15 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3AE8C8E003D; Tue,  9 Jul 2019 00:26:49 -0400 (EDT)
+	id 54B0C8E003E; Tue,  9 Jul 2019 00:51:15 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 1A9988E0032
-	for <linux-mm@kvack.org>; Tue,  9 Jul 2019 00:26:49 -0400 (EDT)
-Received: by mail-io1-f69.google.com with SMTP id u25so21462917iol.23
-        for <linux-mm@kvack.org>; Mon, 08 Jul 2019 21:26:49 -0700 (PDT)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 1BD088E0032
+	for <linux-mm@kvack.org>; Tue,  9 Jul 2019 00:51:15 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id u21so11693728pfn.15
+        for <linux-mm@kvack.org>; Mon, 08 Jul 2019 21:51:15 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=BmVuYRL/YC6C6PnxH4vV3jTMGA9VP+9lw/llQAyxkBg=;
-        b=nZaacllsmLaGrv0fWFSLyyHrt2wzrDSdu1zH0J1I9eaC7t9dPk7w9YeYD690fkYL37
-         mPRxjzz6uTh26Z5b9dYKCyWkVSO5IBh2npqp+L18gVrSYh8eZv+QEwB1LUeE3LZinSpb
-         lQw93eTfBbh9FimPa21eR+8d9h6PuVR8RFDalUroCIReRElDCULvoN78vGRNHe5dxhF5
-         vlsYeTdAhmC9etOqsCiQKRzTp0t6MM0jKYhGBH+kiaNDIuE6i7GMJhvC7JQ9edEYurSa
-         8tdhvZtWU8m8P0RTttRa37lvX6OcihR2CzQ+nAcZILJ+BmacfF1EHtv6znMQuQ0Io3YO
-         LrUA==
-X-Gm-Message-State: APjAAAUSp5Mzwbif3axvSzIkQFPhnSBHhTuwmS9iC++OfKTspSC9xCQ2
-	nM2xjj14+bVIxjXaSaVQ0gPDpRWCORIv5XKFO2Ge7ZbUn8ULbvNiqxB5FpX+FI2Nbr/blRptMJu
-	L/aqsf08xUXzexOdb56lS3VU/mBct+XOpuKFs8kFmooN2XVjHjHEudLZtJeetSQ8VhQ==
-X-Received: by 2002:a6b:7602:: with SMTP id g2mr5663415iom.82.1562646408872;
-        Mon, 08 Jul 2019 21:26:48 -0700 (PDT)
-X-Received: by 2002:a6b:7602:: with SMTP id g2mr5663374iom.82.1562646408108;
-        Mon, 08 Jul 2019 21:26:48 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562646408; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to;
+        bh=NHGXxZKoUC+etV5J4TA2pzGAE32N1lUMWS0xtU10i5g=;
+        b=gl6GEKo8UnJq6wxz1Q9hD2MYstueEgdRdz7e2oU6aeODHNFhTSD/eesldefMClAju8
+         lzkkwT4kI6xKMvGF6oha2FkSoPIiq3vcvr6NIiKurQgM0IJw1UJp8PLpnwBxU3/vhwJT
+         ilf9bRD3QLNjnmAktsEFhBYxnwfCTLZ/qsZ2u9+0rcikt4R0Gv3PJPu5g9zvjcE/JZ0r
+         ciOwDJWgKWGpobItjVRruXTSe3n1rZDHIoJYK/qEKEaypryIFh1swzCCOR96Yk/oRbkv
+         U7hWJFK8oIhFbZ1in+icPMsOSaMCgZYcimEP61++JQeaZQxT/L1Peig8HewUeyDKJxhl
+         DMZQ==
+X-Gm-Message-State: APjAAAUCsbCbg8AeXwHJ9lfx4UET3uBFcoDPoA7EPi+tD4gGKCsGlKUJ
+	hYuP2Y1ULG/i56qkYqWTNrghYTkdAYNPoNgbbzTHrNk5RY7iYSmcM9sEQxom+vHhd34sBg+ht6H
+	BGf4P85NRXmKT/6ycaf22fw0hF4FJme5Lh3exnC8vlb4zJEuHPV0OljsYNJct+EvG/Q==
+X-Received: by 2002:a17:90a:3544:: with SMTP id q62mr30665941pjb.53.1562647874779;
+        Mon, 08 Jul 2019 21:51:14 -0700 (PDT)
+X-Received: by 2002:a17:90a:3544:: with SMTP id q62mr30665868pjb.53.1562647873971;
+        Mon, 08 Jul 2019 21:51:13 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562647873; cv=none;
         d=google.com; s=arc-20160816;
-        b=WX+Yv9BP5pOICLOWQ5zKkB607ZNJZAVEZ4SW1UZAtu6J54ix9+z3y24j06UU63/UPd
-         WUqVwIwxDuW0uIRA73WTEWnBYO02ZxWBprMBFK67ElQb7Sp03TENrhXmWcE85CBiatP0
-         MLCIllHCEKvXxNXc7uT2b/6lpYNJFSb2WPcbjOpZZb2YAO9EtdrEmeT4+hKcqG9xjlNk
-         08MKKo8U2T3G6K/Oeqts+NgBugrAsfv8ivhQNbwVjLTXnYj/UDKFtDK5kgJr/h1+jLBd
-         ZGBXsHHcbczesI663DxPTj/q6btthWnywOP+4J/2nzRD7ao4/CQgSLQUpu8rigMQaq40
-         60vA==
+        b=RKX2Ha0W0/vnTFbrpPZKL1rVHXvOPFB1c9ei3+lcTYFQ9B5q+Z3ipYiScm/qvNF6AG
+         +LT5FLoJyDZkTDG3x65KqpFpjHZCYNeLizNlD1/dvmTKSSyN0EXcEesH6e5zv+waI3C/
+         h7mhYritBNEMVOJCr0PBPwMukuZvMytX0h9MUMdXzQyClDtqOTWjgYdZ3CpIFFX6uVT9
+         Azi7ycmXeunqFIlujseISElr1dg115GbyxVJ+Hp2Urv5c+ZwgD86McxefbivTSa5clk6
+         5V7e89Ga/HUvXCaaG23zP6X+BqSeVMzUbV9cwTXVBaISU1Kg3+ZMuOHh+gFRux4+9h1X
+         xe3Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=BmVuYRL/YC6C6PnxH4vV3jTMGA9VP+9lw/llQAyxkBg=;
-        b=bNxahHc0Gniz84qYtNpBELJtgw46PhzD6/hQD2kC6ZJ9cVH1WxL/aECisZSgbXIBdO
-         rPDoe4P9f7gqA34wHqFOeLgRdcdBTOQ4FpUjuCgP63Dm6fcQ6iWjG+fu3c9CDPwIwEAX
-         CxjTlGGbiH/3dqyzFlViYwjXEde4q6qhZsT89l3P3JemJi7VJu8utJfSm2EZGITSgWWz
-         MeiTZT09NiORkP3Na8H30skLx5olcCGg8YFyOM/y38qMpyxdtdHKyLDJSgyES8gYQBFC
-         uVO+Xw8t79WEe+LNjHK8FubyP85HfzFGSzg/1s02++qnGAauxdP+34niF6FWBwKeBOQS
-         5lpQ==
+        h=in-reply-to:content-disposition:mime-version:references:message-id
+         :subject:cc:to:from:date:dkim-signature;
+        bh=NHGXxZKoUC+etV5J4TA2pzGAE32N1lUMWS0xtU10i5g=;
+        b=Z2uCxb1m8x8u7IwIHGRLAkkyu3xxsUsiF8tw7OM4kejai32cHJS2HDOIQ+PT82Fg6p
+         gHfn8ydbYHAPGZxQ3gZUlxXaiTLRch5OoY5b3r3np2tk+DRh33hop35dua5BXQ0wNFJs
+         PiJaN1wWssk4reqBVXI/QfT9ukgSToVwzWvau1vhULY0eYD3Op2lfrzZSTLBUdII2gzF
+         1Ih0SiB20Nt6Cv4LlcFg4TfKTJew2O9pMG6e6L71Advp+pUJalmZetKrNeprzCI6YMqr
+         5WKEPKZnvEcK93vq+AKFLebFaoRylH5LdgzHvQ12LUD567kQLDePxAjAT9rJvGEGHGlN
+         QIXw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=ew4aZcCm;
-       spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+       dkim=pass header.i=@chromium.org header.s=google header.b=SagoGHLw;
+       spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d18sor13861169ion.88.2019.07.08.21.26.47
+        by mx.google.com with SMTPS id f10sor3997030pfq.72.2019.07.08.21.51.13
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 08 Jul 2019 21:26:48 -0700 (PDT)
-Received-SPF: pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Mon, 08 Jul 2019 21:51:13 -0700 (PDT)
+Received-SPF: pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=ew4aZcCm;
-       spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+       dkim=pass header.i=@chromium.org header.s=google header.b=SagoGHLw;
+       spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=BmVuYRL/YC6C6PnxH4vV3jTMGA9VP+9lw/llQAyxkBg=;
-        b=ew4aZcCmpjGmFWDW8siF/BrPgX3FR5qAVzERtLgz8rRdcuR3idhlhNSMrgwGku0nx4
-         xhZiQmKXiYXi7jS2m9xM1FocxBPmMXRNNXK5R2tGHqWhesDAn/25feA+AMh0X/L5Y51/
-         bVH3VuiR9KQKKF8paUydvu8dtLu5r0QKnyJ3/snjs+jNTLs290JIfQxADm+6cm4uf+aZ
-         42ETGgoPrvSB8Ai1C75ay+Vq48f46dYveS2qMraSkuPAobgqL2cH6ze/2byQkasTMhbz
-         ug5ekuGqJ3NGRKO0MrsvSyuGs8uaQA7RD2HUTWydE0Hql1bvQbQSt4X3Eb6xkhfpFq5Z
-         hyrQ==
-X-Google-Smtp-Source: APXvYqyVYVFUVr/X3uVeEDff/cgHxGFpn0LdvW+6E+RG/yMcEOavu7GrtSViZnTYAOoXpWbAYswf/wl5BqyHT62FVS0=
-X-Received: by 2002:a6b:4107:: with SMTP id n7mr342946ioa.12.1562646407823;
- Mon, 08 Jul 2019 21:26:47 -0700 (PDT)
+        d=chromium.org; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to;
+        bh=NHGXxZKoUC+etV5J4TA2pzGAE32N1lUMWS0xtU10i5g=;
+        b=SagoGHLwdhyzez71wGl/CWUd7JfpmwBlosfeoAMty1PvK2lxm4NEetTyojTrzhwaud
+         Ts1+0xOhHRFwpsMA3AASevOpJhCQpHPI498ZcCp2Qj9585GB+tRmt389Z+LWTJKx/y7s
+         mH1FVgB0X1hwFpGEC/wHgqIXjB8rWZKfMla1I=
+X-Google-Smtp-Source: APXvYqyra4dBr6pwAJEejOYr3AfqsfOhUfKQCLpljKcJwOvohsdTUY/A0C/0JPVAWBLwSN9mXPaIsg==
+X-Received: by 2002:a63:7a5b:: with SMTP id j27mr28067294pgn.242.1562647873177;
+        Mon, 08 Jul 2019 21:51:13 -0700 (PDT)
+Received: from www.outflux.net (smtp.outflux.net. [198.145.64.163])
+        by smtp.gmail.com with ESMTPSA id n7sm23797582pff.59.2019.07.08.21.51.11
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 08 Jul 2019 21:51:12 -0700 (PDT)
+Date: Mon, 8 Jul 2019 21:51:11 -0700
+From: Kees Cook <keescook@chromium.org>
+To: Salvatore Mesoraca <s.mesoraca16@gmail.com>
+Cc: Al Viro <viro@zeniv.linux.org.uk>, linux-kernel@vger.kernel.org,
+	Kernel Hardening <kernel-hardening@lists.openwall.com>,
+	linux-mm@kvack.org, linux-security-module@vger.kernel.org,
+	Brad Spengler <spender@grsecurity.net>,
+	Casey Schaufler <casey@schaufler-ca.com>,
+	Christoph Hellwig <hch@infradead.org>, Jann Horn <jannh@google.com>,
+	PaX Team <pageexec@freemail.hu>,
+	"Serge E. Hallyn" <serge@hallyn.com>,
+	Thomas Gleixner <tglx@linutronix.de>,
+	James Morris <jmorris@namei.org>
+Subject: Re: [PATCH v5 06/12] S.A.R.A.: WX protection
+Message-ID: <201907082140.51E0B9E2@keescook>
+References: <1562410493-8661-1-git-send-email-s.mesoraca16@gmail.com>
+ <1562410493-8661-7-git-send-email-s.mesoraca16@gmail.com>
+ <20190706192852.GO17978@ZenIV.linux.org.uk>
+ <CAJHCu1+JYWN7mEHprmCc+osP=K4qGA9xB3Jxg53_K4kwo4J6dA@mail.gmail.com>
 MIME-Version: 1.0
-References: <1562300143-11671-1-git-send-email-kernelfans@gmail.com>
- <1562300143-11671-2-git-send-email-kernelfans@gmail.com> <alpine.DEB.2.21.1907072133310.3648@nanos.tec.linutronix.de>
- <CAFgQCTvwS+yEkAmCJnsCfnr0JS01OFtBnDg4cr41_GqU79A4Gg@mail.gmail.com>
- <alpine.DEB.2.21.1907081125300.3648@nanos.tec.linutronix.de> <18D4CC9F-BC2C-4C82-873E-364CD1795EFB@amacapital.net>
-In-Reply-To: <18D4CC9F-BC2C-4C82-873E-364CD1795EFB@amacapital.net>
-From: Pingfan Liu <kernelfans@gmail.com>
-Date: Tue, 9 Jul 2019 12:26:36 +0800
-Message-ID: <CAFgQCTvTB_QYANc4TJOUXVzeKhn4TXsgjRLrPuXkRxKjgGC6pA@mail.gmail.com>
-Subject: Re: [PATCH 2/2] x86/numa: instance all parsed numa node
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: Thomas Gleixner <tglx@linutronix.de>, x86@kernel.org, Michal Hocko <mhocko@suse.com>, 
-	Dave Hansen <dave.hansen@linux.intel.com>, Mike Rapoport <rppt@linux.ibm.com>, 
-	Tony Luck <tony.luck@intel.com>, Andy Lutomirski <luto@kernel.org>, 
-	Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, 
-	"H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, 
-	Vlastimil Babka <vbabka@suse.cz>, Oscar Salvador <osalvador@suse.de>, 
-	Pavel Tatashin <pavel.tatashin@microsoft.com>, Mel Gorman <mgorman@techsingularity.net>, 
-	Benjamin Herrenschmidt <benh@kernel.crashing.org>, Michael Ellerman <mpe@ellerman.id.au>, 
-	Stephen Rothwell <sfr@canb.auug.org.au>, Qian Cai <cai@lca.pw>, Barret Rhoden <brho@google.com>, 
-	Bjorn Helgaas <bhelgaas@google.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, 
-	LKML <linux-kernel@vger.kernel.org>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAJHCu1+JYWN7mEHprmCc+osP=K4qGA9xB3Jxg53_K4kwo4J6dA@mail.gmail.com>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jul 9, 2019 at 1:53 AM Andy Lutomirski <luto@amacapital.net> wrote:
->
->
->
-> > On Jul 8, 2019, at 3:35 AM, Thomas Gleixner <tglx@linutronix.de> wrote:
+On Sun, Jul 07, 2019 at 05:49:35PM +0200, Salvatore Mesoraca wrote:
+> Al Viro <viro@zeniv.linux.org.uk> wrote:
 > >
-> >> On Mon, 8 Jul 2019, Pingfan Liu wrote:
-> >>> On Mon, Jul 8, 2019 at 3:44 AM Thomas Gleixner <tglx@linutronix.de> wrote:
-> >>>
-> >>>> On Fri, 5 Jul 2019, Pingfan Liu wrote:
-> >>>>
-> >>>> I hit a bug on an AMD machine, with kexec -l nr_cpus=4 option. nr_cpus option
-> >>>> is used to speed up kdump process, so it is not a rare case.
-> >>>
-> >>> But fundamentally wrong, really.
-> >>>
-> >>> The rest of the CPUs are in a half baken state and any broadcast event,
-> >>> e.g. MCE or a stray IPI, will result in a undiagnosable crash.
-> >> Very appreciate if you can pay more word on it? I tried to figure out
-> >> your point, but fail.
-> >>
-> >> For "a half baked state", I think you concern about LAPIC state, and I
-> >> expand this point like the following:
+> > On Sat, Jul 06, 2019 at 12:54:47PM +0200, Salvatore Mesoraca wrote:
 > >
-> > It's not only the APIC state. It's the state of the CPUs in general.
+> > > +#define sara_warn_or_return(err, msg) do {           \
+> > > +     if ((sara_wxp_flags & SARA_WXP_VERBOSE))        \
+> > > +             pr_wxp(msg);                            \
+> > > +     if (!(sara_wxp_flags & SARA_WXP_COMPLAIN))      \
+> > > +             return -err;                            \
+> > > +} while (0)
+> > > +
+> > > +#define sara_warn_or_goto(label, msg) do {           \
+> > > +     if ((sara_wxp_flags & SARA_WXP_VERBOSE))        \
+> > > +             pr_wxp(msg);                            \
+> > > +     if (!(sara_wxp_flags & SARA_WXP_COMPLAIN))      \
+> > > +             goto label;                             \
+> > > +} while (0)
 > >
-> >> For IPI: when capture kernel BSP is up, the rest cpus are still loop
-> >> inside crash_nmi_callback(), so there is no way to eject new IPI from
-> >> these cpu. Also we disable_local_APIC(), which effectively prevent the
-> >> LAPIC from responding to IPI, except NMI/INIT/SIPI, which will not
-> >> occur in crash case.
+> > No.  This kind of "style" has no place in the kernel.
 > >
-> > Fair enough for the IPI case.
+> > Don't hide control flow.  It's nasty enough to reviewers,
+> > but it's pure hell on anyone who strays into your code while
+> > chasing a bug or doing general code audit.  In effect, you
+> > are creating your oh-so-private C dialect and assuming that
+> > everyone who ever looks at your code will start with learning
+> > that *AND* incorporating it into their mental C parser.
+> > I'm sorry, but you are not that important.
 > >
-> >> For MCE, I am not sure whether it can broadcast or not between cpus,
-> >> but as my understanding, it can not. Then is it a problem?
+> > If it looks like a function call, a casual reader will assume
+> > that this is exactly what it is.  And when one is scanning
+> > through a function (e.g. to tell if handling of some kind
+> > of refcounts is correct, with twentieth grep through the
+> > tree having brought something in your code into the view),
+> > the last thing one wants is to switch between the area-specific
+> > C dialects.  Simply because looking at yours is sandwiched
+> > between digging through some crap in drivers/target/ and that
+> > weird thing in kernel/tracing/, hopefully staying limited
+> > to 20 seconds of glancing through several functions in your
+> > code.
 > >
-> > It can and it does.
-> >
-> > That's the whole point why we bring up all CPUs in the 'nosmt' case and
-> > shut the siblings down again after setting CR4.MCE. Actually that's in fact
-> > a 'let's hope no MCE hits before that happened' approach, but that's all we
-> > can do.
-> >
-> > If we don't do that then the MCE broadcast can hit a CPU which has some
-> > firmware initialized state. The result can be a full system lockup, triple
-> > fault etc.
-> >
-> > So when the MCE hits a CPU which is still in the crashed kernel lala state,
-> > then all hell breaks lose.
-> >
-> >> From another view point, is there any difference between nr_cpus=1 and
-> >> nr_cpus> 1 in crashing case? If stray IPI raises issue to nr_cpus>1,
-> >> it does for nr_cpus=1.
-> >
-> > Anything less than the actual number of present CPUs is problematic except
-> > you use the 'let's hope nothing happens' approach. We could add an option
-> > to stop the bringup at the early online state similar to what we do for
-> > 'nosmt'.
-> >
-> >
->
-> How about we change nr_cpus to do that instead so we never have to have this conversation again?
-Are you interest in implementing this?
+> > Don't Do That.  Really.
+> 
+> I understand your concerns.
+> The first version of SARA didn't use these macros,
+> they were added because I was asked[1] to do so.
+> 
+> I have absolutely no problems in reverting this change.
+> I just want to make sure that there is agreement on this matter.
+> Maybe Kees can clarify his stance.
+> 
+> Thank you for your suggestions.
+> 
+> [1] https://lkml.kernel.org/r/CAGXu5jJuQx2qOt_aDqDQDcqGOZ5kmr5rQ9Zjv=MRRCJ65ERfGw@mail.gmail.com
 
-Thanks,
-  Pingfan
+I just didn't like how difficult it was to review the repeated checking.
+I thought then (and still think now) it's worth the unusual style to
+improve the immediate readability. Obviously Al disagrees. I'm not
+against dropping my suggestion; it's just a pain to review it and it
+seems like an area that would be highly prone to subtle typos. Perhaps
+some middle ground:
+
+#define sara_warn(msg)	({				\
+		if ((sara_wxp_flags & SARA_WXP_VERBOSE))	\
+			pr_wxp(msg);				\
+		!(sara_wxp_flags & SARA_WXP_COMPLAIN);		\
+	})
+
+...
+
+	if (unlikely(sara_wxp_flags & SARA_WXP_WXORX &&
+		     vm_flags & VM_WRITE &&
+		     vm_flags & VM_EXEC &&
+		     sara_warn("W^X")))
+		return -EPERM;
+
+that way the copy/pasting isn't present but the control flow is visible?
+
+-- 
+Kees Cook
 
