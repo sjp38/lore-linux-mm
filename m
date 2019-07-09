@@ -2,191 +2,561 @@ Return-Path: <SRS0=RgjX=VG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BEEF2C73C41
-	for <linux-mm@archiver.kernel.org>; Tue,  9 Jul 2019 13:34:13 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3F7FCC73C41
+	for <linux-mm@archiver.kernel.org>; Tue,  9 Jul 2019 14:10:25 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 57F382080C
-	for <linux-mm@archiver.kernel.org>; Tue,  9 Jul 2019 13:34:13 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=amacapital-net.20150623.gappssmtp.com header.i=@amacapital-net.20150623.gappssmtp.com header.b="WCdvs4TX"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 57F382080C
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=amacapital.net
+	by mail.kernel.org (Postfix) with ESMTP id E9FC12080C
+	for <linux-mm@archiver.kernel.org>; Tue,  9 Jul 2019 14:10:24 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E9FC12080C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B89C68E004F; Tue,  9 Jul 2019 09:34:12 -0400 (EDT)
+	id 79F5A8E0050; Tue,  9 Jul 2019 10:10:24 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B3A358E0032; Tue,  9 Jul 2019 09:34:12 -0400 (EDT)
+	id 727FC8E0032; Tue,  9 Jul 2019 10:10:24 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A29218E004F; Tue,  9 Jul 2019 09:34:12 -0400 (EDT)
+	id 5F0F58E0050; Tue,  9 Jul 2019 10:10:24 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 84C058E0032
-	for <linux-mm@kvack.org>; Tue,  9 Jul 2019 09:34:12 -0400 (EDT)
-Received: by mail-io1-f71.google.com with SMTP id h3so23113180iob.20
-        for <linux-mm@kvack.org>; Tue, 09 Jul 2019 06:34:12 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 054748E0032
+	for <linux-mm@kvack.org>; Tue,  9 Jul 2019 10:10:24 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id z20so9418783edr.15
+        for <linux-mm@kvack.org>; Tue, 09 Jul 2019 07:10:23 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:subject:from
-         :in-reply-to:date:cc:content-transfer-encoding:message-id:references
-         :to;
-        bh=qhZ9K+aj4bVR1kRvCDHu8fuOy09gt6Svugsy5dV+WVg=;
-        b=rXx83HSM+2bbRJpY4SnujROHsKWeFGnaXcKqah1lvIvj4zqvNNR1ZIJ8fSolHRwggT
-         couBqVY7o8I1U8lgkoLbG97QT2GmOGtWLtGv+4lwmPGMiFbfqwzz/tCzKRJWafpZILhX
-         tf7dF8fiAT4LeRY/WClXVIBOJV7ZRHHozwTeniu1QRme6HWx03NU8VCvQ4V9tEKfa6RB
-         lM8TEVOd0Ry0XMZXfBUQnu1pl6OgaFNuUGWAvLGnCmV7Y0EosCp7vBZJfdGtA763IqjD
-         W9bumvo9QIb87PQFHzzrT5Jqd6A7CyixRlqvLCrBFz0qnDmZ3SCVzE1jR20fRZbVLAMa
-         71Xw==
-X-Gm-Message-State: APjAAAWqwqt+qEwMRyFnw46x9e+AxF/N1uv6Q/GZUAfo5y/Yy8EhxnTK
-	P+M/kroBQj4dQWszaP0KWeOXDwxPi8fwLAKuzYNFp11TVoqxMmPtxbnc1F5YdqE4W49ovhU5bo7
-	hRN+IIfR8XRS4iANqLcIqu+oiIbMWIRx+HW49HEf/2bCcpothwdmQ4x+LS0j7R8tOgg==
-X-Received: by 2002:a5d:9550:: with SMTP id a16mr9100393ios.106.1562679252235;
-        Tue, 09 Jul 2019 06:34:12 -0700 (PDT)
-X-Received: by 2002:a5d:9550:: with SMTP id a16mr9100291ios.106.1562679251097;
-        Tue, 09 Jul 2019 06:34:11 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562679251; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=w0ha5sm2UJZK0newP0Y5GEV9yHab0ATORrcGaVHt8cw=;
+        b=SzG2sJKAPBsHrUAwVW7mp6ie6wizGZsmd0hYmiE3V4l/k3sULATCk6aaVlSn1P38Xc
+         z3N+pRV1GJeKsEDhngAzpbWhb1aOwb8fvATmFH0INrrILZfGGAFG9et52SFZsFnUgDhk
+         K2bahT31L4OJ4S/ptLA5u/skoi8ngUnF/cdJeu5hETEV2lsm8seSTbUZ8z9G2nKDEA/3
+         VgaaFlYA4holZuicVwx2DCBuuJesjdI52hjMDwNQXG3P1QGCsHrsnICBr8vuSWCbw+ig
+         N/Bwowa0iLWFdExIGe34wz9czOImnLH185KNEhgLkTitTBWLOFGmb6b1K6vykYpfM2DI
+         7pMw==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAWmE0BP4nuB5kqj5vd8JFTAe2an0olrHCxeUAm+ZM5YwBeWWWnu
+	4OihdD3CE5skJyoV1zSqW3dI/f1AuW/e0HPRWG6u1uciInbwqCDFKGFqefOoA1eZIvqYusnQFUf
+	tIbW/qvZFCON8MkzFUJnKLzDvaVCah9ff05GsM5MO+rgg+hgEwJ57z+5gb0YWDt8=
+X-Received: by 2002:a17:906:b301:: with SMTP id n1mr15928774ejz.246.1562681423561;
+        Tue, 09 Jul 2019 07:10:23 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyqu35xSjWwuUBfvtcuOvUtYtubXGaeQv4MSi4o5EaaqbZ0DZ/2g9ZCeHsr++zLkzqwAFLb
+X-Received: by 2002:a17:906:b301:: with SMTP id n1mr15928646ejz.246.1562681422192;
+        Tue, 09 Jul 2019 07:10:22 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562681422; cv=none;
         d=google.com; s=arc-20160816;
-        b=B+IUuY/SWnbuX4WKXAFG9FSGWabUTmPIURXkUzp2zOCnBtGOMfD6TKZ0bXn0VZ/aaT
-         +NxExeBDiUtZPZ972oFJ3C39eB47jIyj9uw1tCVbkbE0GkaGoMac0pmN26U0UM5yGwIj
-         I+oGyMxYb3OiK1ljGvIATz86o3EPAelTyg51HGVzKQSDOitYZJZzil0u4Khklw/Vbe2d
-         MWQlCLFtaS+WA2hsX5Q96FMJZtyftis4wy8IzpsD0gwzWUMvgVYWjhPUcI93Nmfly6BE
-         C0DQnYcVd1gMkYQVb02DqbmaSZHuC1xfzpvHvcAIUd7peVLMt9SEgax2qK4m/EE25Ilz
-         LAVg==
+        b=O+ejduBJ9xMqLwKG3BeMocjn2TY7XOtk3s5rNk7Cm7aJwhQ5NeJ3HIrZlQ28Wcb9xc
+         lgjIKLutGQi8ERtaBmcBXmZ2Gf81d+y7ZHmVM7eDpHGY8m3qIX8urNya1Sg/F0g+rafE
+         CRgoUxSmZh78Q/YvhU2q5e9tP3vttOyVVc9p/BvTKgBkr0WKhe2lJ1HNkph76q6YjcoZ
+         qivgA+/W+vc/1YtJchcsMXqCtzBC55FBKNlNnqQQZ0dF219NdUIFh7LtMZsiQBqyb+9L
+         t+EM6/yZVUDPSqz73ngR7n7hLqfBxj7fwy96NwtEM/HMJ9o/kf7QU5PTS0biu2mp0BED
+         X7ww==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=to:references:message-id:content-transfer-encoding:cc:date
-         :in-reply-to:from:subject:mime-version:dkim-signature;
-        bh=qhZ9K+aj4bVR1kRvCDHu8fuOy09gt6Svugsy5dV+WVg=;
-        b=0xxRtckhOJS6T6An8HXUicweIkBKFc7g9ckaopHkiAG2yQu8UYRkQI+tgmKxBOfj5w
-         8F1sBWzQiyXOk+v3aqxLPe2V2iC9tLNysUsqildGI/UYJiRzphrL5uY0jEhAoYrO+sVl
-         LRi+jKI+iPEfPJ8K2U8lG8XQpDXxTr/Rf1ZMN8xUwyycLElxyCBN52jlVMt4ew8s0OCx
-         gPcs1X498bnLQrEX4a+WnkC39k76wa9zJhBbMxm594lmaTa5O19gnWYq95YXzO+hVmSp
-         Uu/5+xZVxYsWG1qvWcM4JZPfeNVXEaHMoI2Z8TqHWUy97sfj3+4etyEvYdHGY6dJ/ED5
-         ivgA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=w0ha5sm2UJZK0newP0Y5GEV9yHab0ATORrcGaVHt8cw=;
+        b=bUfIzEhsxekJq3B1JxV3tLo9tBoAToYnz3tBzi94d9IgoByMojcDmkx0zOU8g6GiJ4
+         hVAkaRIW9ZYb78eLFreEhugPVeuHlXOxgZRTHq7GbVlYn7AbrFu4aRB7LI/NfsNFVp/F
+         Vksv36fbeXVlq7A33pGZ/kHBlg3ub1t3ytjzavSZwFyze+nFGaO+ptqmGWFZTD+Ul98X
+         +FljneoDI3p6Siwl/9MkNhO7HqMv1kv/Lzm6jOFlDMKmHH6XfwAAL2f5eRT3oRNIq+aL
+         i/7pMyUFP+Ih9mLhVtXpW/MEJNCIR1mwEioN1wiXc678F08lp+ON8BE3BhFaogglFzAk
+         0jJA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@amacapital-net.20150623.gappssmtp.com header.s=20150623 header.b=WCdvs4TX;
-       spf=pass (google.com: domain of luto@amacapital.net designates 209.85.220.65 as permitted sender) smtp.mailfrom=luto@amacapital.net
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h17sor14156948ior.61.2019.07.09.06.34.10
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id c37si15604735edb.308.2019.07.09.07.10.21
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 09 Jul 2019 06:34:11 -0700 (PDT)
-Received-SPF: pass (google.com: domain of luto@amacapital.net designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@amacapital-net.20150623.gappssmtp.com header.s=20150623 header.b=WCdvs4TX;
-       spf=pass (google.com: domain of luto@amacapital.net designates 209.85.220.65 as permitted sender) smtp.mailfrom=luto@amacapital.net
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=amacapital-net.20150623.gappssmtp.com; s=20150623;
-        h=mime-version:subject:from:in-reply-to:date:cc
-         :content-transfer-encoding:message-id:references:to;
-        bh=qhZ9K+aj4bVR1kRvCDHu8fuOy09gt6Svugsy5dV+WVg=;
-        b=WCdvs4TXN+9GIYowkSuMdFEQ4syQGfEZq2fbK0yY5/dxQ6VxHf5j0VW5zBrHDuTpRH
-         8yrWc2pxIhaGaPSisqSDiwG+lDG1fmjDlEVHOwRDxGCfaSDw2MR4bLNGfDtaNXNDFZQr
-         79/X1Zn29OVo72pzTbe9DS0hT4MaiOMHN44t5xG/CiQs9VFOd0aZZxXqOHZDUD/dTAB3
-         Fhp7n2gtRcxGFN62nscplP3PVRYe//8U0jn3LXtCfYi1s7RijU7lUsgwpLPCHRZeq8//
-         eLLQi5KsnejJ7IvX4qJdTI/lxpQN/TUlaUYQfwZHYHWIcwis6oZNTHDkZJ28dVpuhAes
-         iWxw==
-X-Google-Smtp-Source: APXvYqxmHmnwWROql5oN9WLxdlfrbin5EaMmtC8sSO2qSh0Jq8A4W+GrRNHF9eWjGyICCT/oZwMp6g==
-X-Received: by 2002:a6b:fd10:: with SMTP id c16mr23902581ioi.217.1562679250687;
-        Tue, 09 Jul 2019 06:34:10 -0700 (PDT)
-Received: from ?IPv6:2601:281:200:3b79:d6e:1b00:ea8e:79ea? ([2601:281:200:3b79:d6e:1b00:ea8e:79ea])
-        by smtp.gmail.com with ESMTPSA id v3sm11452430iom.53.2019.07.09.06.34.09
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 09 Jul 2019 06:34:09 -0700 (PDT)
-Content-Type: text/plain;
-	charset=utf-8
-Mime-Version: 1.0 (1.0)
-Subject: Re: [PATCH 2/2] x86/numa: instance all parsed numa node
-From: Andy Lutomirski <luto@amacapital.net>
-X-Mailer: iPhone Mail (16F203)
-In-Reply-To: <CAFgQCTui7D6_FQ_v_ijj6k_=+TQzQ3PaGvzxd6p+XEGjQ2S6jw@mail.gmail.com>
-Date: Tue, 9 Jul 2019 07:34:08 -0600
-Cc: Thomas Gleixner <tglx@linutronix.de>, x86@kernel.org,
- Michal Hocko <mhocko@suse.com>, Dave Hansen <dave.hansen@linux.intel.com>,
- Mike Rapoport <rppt@linux.ibm.com>, Tony Luck <tony.luck@intel.com>,
- Andy Lutomirski <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>,
- Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>,
- "H. Peter Anvin" <hpa@zytor.com>,
- Andrew Morton <akpm@linux-foundation.org>,
- Vlastimil Babka <vbabka@suse.cz>, Oscar Salvador <osalvador@suse.de>,
- Pavel Tatashin <pavel.tatashin@microsoft.com>,
- Mel Gorman <mgorman@techsingularity.net>,
- Benjamin Herrenschmidt <benh@kernel.crashing.org>,
- Michael Ellerman <mpe@ellerman.id.au>,
- Stephen Rothwell <sfr@canb.auug.org.au>, Qian Cai <cai@lca.pw>,
- Barret Rhoden <brho@google.com>, Bjorn Helgaas <bhelgaas@google.com>,
- David Rientjes <rientjes@google.com>, linux-mm@kvack.org,
- LKML <linux-kernel@vger.kernel.org>
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <4AF3459B-28F2-425F-8E4B-40311DEF30C6@amacapital.net>
-References: <1562300143-11671-1-git-send-email-kernelfans@gmail.com> <1562300143-11671-2-git-send-email-kernelfans@gmail.com> <alpine.DEB.2.21.1907072133310.3648@nanos.tec.linutronix.de> <CAFgQCTvwS+yEkAmCJnsCfnr0JS01OFtBnDg4cr41_GqU79A4Gg@mail.gmail.com> <alpine.DEB.2.21.1907081125300.3648@nanos.tec.linutronix.de> <CAFgQCTvAOeerLHQvgvFXy_kLs=H=CuUFjYE+UAN+vhPCG+s=pQ@mail.gmail.com> <alpine.DEB.2.21.1907090810490.1961@nanos.tec.linutronix.de> <CAFgQCTui7D6_FQ_v_ijj6k_=+TQzQ3PaGvzxd6p+XEGjQ2S6jw@mail.gmail.com>
-To: Pingfan Liu <kernelfans@gmail.com>
+        Tue, 09 Jul 2019 07:10:22 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+Authentication-Results: mx.google.com;
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 305F6AB8C;
+	Tue,  9 Jul 2019 14:10:21 +0000 (UTC)
+Date: Tue, 9 Jul 2019 16:10:19 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+	linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>,
+	linux-api@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>,
+	Tim Murray <timmurray@google.com>,
+	Joel Fernandes <joel@joelfernandes.org>,
+	Suren Baghdasaryan <surenb@google.com>,
+	Daniel Colascione <dancol@google.com>,
+	Shakeel Butt <shakeelb@google.com>, Sonny Rao <sonnyrao@google.com>,
+	oleksandr@redhat.com, hdanton@sina.com, lizeb@google.com,
+	Dave Hansen <dave.hansen@intel.com>,
+	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: Re: [PATCH v3 5/5] mm: factor out pmd young/dirty bit handling and
+ THP split
+Message-ID: <20190709141019.GN26380@dhcp22.suse.cz>
+References: <20190627115405.255259-1-minchan@kernel.org>
+ <20190627115405.255259-6-minchan@kernel.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190627115405.255259-6-minchan@kernel.org>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Thu 27-06-19 20:54:05, Minchan Kim wrote:
+> Now, there are common part among MADV_COLD|PAGEOUT|FREE to reset
+> access/dirty bit resetting or split the THP page to handle part
+> of subpages in the THP page. This patch factor out the common part.
 
+While this reduces the code duplication to some degree I suspect it only
+goes half way. I haven't tried that myself due to lack of time but I
+believe this has a potential to reduce even more. All those madvise
+calls are doing the same thing essentially. What page tables and apply
+an operation on ptes and/or a page that is mapped. And that suggests
+that the specific operation should be good with defining two - pte and
+page operations on each entry. All the rest should be a common code.
 
-> On Jul 9, 2019, at 1:24 AM, Pingfan Liu <kernelfans@gmail.com> wrote:
->=20
->> On Tue, Jul 9, 2019 at 2:12 PM Thomas Gleixner <tglx@linutronix.de> wrote=
-:
->>=20
->>> On Tue, 9 Jul 2019, Pingfan Liu wrote:
->>>> On Mon, Jul 8, 2019 at 5:35 PM Thomas Gleixner <tglx@linutronix.de> wro=
-te:
->>>> It can and it does.
->>>>=20
->>>> That's the whole point why we bring up all CPUs in the 'nosmt' case and=
+That being said, I do not feel strongly about this patch. The rest of
+the series should be good enough even without it and I wouldn't delay it
+just by discussing a potential of the cleanup.
 
->>>> shut the siblings down again after setting CR4.MCE. Actually that's in f=
-act
->>>> a 'let's hope no MCE hits before that happened' approach, but that's al=
-l we
->>>> can do.
->>>>=20
->>>> If we don't do that then the MCE broadcast can hit a CPU which has some=
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
+> ---
+>  include/linux/huge_mm.h |   3 -
+>  mm/huge_memory.c        |  74 -------------
+>  mm/madvise.c            | 234 +++++++++++++++++++++++-----------------
+>  3 files changed, 135 insertions(+), 176 deletions(-)
+> 
+> diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+> index 7cd5c150c21d..2667e1aa3ce5 100644
+> --- a/include/linux/huge_mm.h
+> +++ b/include/linux/huge_mm.h
+> @@ -29,9 +29,6 @@ extern struct page *follow_trans_huge_pmd(struct vm_area_struct *vma,
+>  					  unsigned long addr,
+>  					  pmd_t *pmd,
+>  					  unsigned int flags);
+> -extern bool madvise_free_huge_pmd(struct mmu_gather *tlb,
+> -			struct vm_area_struct *vma,
+> -			pmd_t *pmd, unsigned long addr, unsigned long next);
+>  extern int zap_huge_pmd(struct mmu_gather *tlb,
+>  			struct vm_area_struct *vma,
+>  			pmd_t *pmd, unsigned long addr);
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> index 93f531b63a45..e4b9a06788f3 100644
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -1671,80 +1671,6 @@ vm_fault_t do_huge_pmd_numa_page(struct vm_fault *vmf, pmd_t pmd)
+>  	return 0;
+>  }
+>  
+> -/*
+> - * Return true if we do MADV_FREE successfully on entire pmd page.
+> - * Otherwise, return false.
+> - */
+> -bool madvise_free_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
+> -		pmd_t *pmd, unsigned long addr, unsigned long next)
+> -{
+> -	spinlock_t *ptl;
+> -	pmd_t orig_pmd;
+> -	struct page *page;
+> -	struct mm_struct *mm = tlb->mm;
+> -	bool ret = false;
+> -
+> -	tlb_change_page_size(tlb, HPAGE_PMD_SIZE);
+> -
+> -	ptl = pmd_trans_huge_lock(pmd, vma);
+> -	if (!ptl)
+> -		goto out_unlocked;
+> -
+> -	orig_pmd = *pmd;
+> -	if (is_huge_zero_pmd(orig_pmd))
+> -		goto out;
+> -
+> -	if (unlikely(!pmd_present(orig_pmd))) {
+> -		VM_BUG_ON(thp_migration_supported() &&
+> -				  !is_pmd_migration_entry(orig_pmd));
+> -		goto out;
+> -	}
+> -
+> -	page = pmd_page(orig_pmd);
+> -	/*
+> -	 * If other processes are mapping this page, we couldn't discard
+> -	 * the page unless they all do MADV_FREE so let's skip the page.
+> -	 */
+> -	if (page_mapcount(page) != 1)
+> -		goto out;
+> -
+> -	if (!trylock_page(page))
+> -		goto out;
+> -
+> -	/*
+> -	 * If user want to discard part-pages of THP, split it so MADV_FREE
+> -	 * will deactivate only them.
+> -	 */
+> -	if (next - addr != HPAGE_PMD_SIZE) {
+> -		get_page(page);
+> -		spin_unlock(ptl);
+> -		split_huge_page(page);
+> -		unlock_page(page);
+> -		put_page(page);
+> -		goto out_unlocked;
+> -	}
+> -
+> -	if (PageDirty(page))
+> -		ClearPageDirty(page);
+> -	unlock_page(page);
+> -
+> -	if (pmd_young(orig_pmd) || pmd_dirty(orig_pmd)) {
+> -		pmdp_invalidate(vma, addr, pmd);
+> -		orig_pmd = pmd_mkold(orig_pmd);
+> -		orig_pmd = pmd_mkclean(orig_pmd);
+> -
+> -		set_pmd_at(mm, addr, pmd, orig_pmd);
+> -		tlb_remove_pmd_tlb_entry(tlb, pmd, addr);
+> -	}
+> -
+> -	mark_page_lazyfree(page);
+> -	ret = true;
+> -out:
+> -	spin_unlock(ptl);
+> -out_unlocked:
+> -	return ret;
+> -}
+> -
+>  static inline void zap_deposited_table(struct mm_struct *mm, pmd_t *pmd)
+>  {
+>  	pgtable_t pgtable;
+> diff --git a/mm/madvise.c b/mm/madvise.c
+> index ee210473f639..13b06dc8d402 100644
+> --- a/mm/madvise.c
+> +++ b/mm/madvise.c
+> @@ -310,6 +310,91 @@ static long madvise_willneed(struct vm_area_struct *vma,
+>  	return 0;
+>  }
+>  
+> +enum madv_pmdp_reset_t {
+> +	MADV_PMDP_RESET,	/* pmd was reset successfully */
+> +	MADV_PMDP_SPLIT,	/* pmd was split */
+> +	MADV_PMDP_ERROR,
+> +};
+> +
+> +static enum madv_pmdp_reset_t madvise_pmdp_reset_or_split(struct mm_walk *walk,
+> +				pmd_t *pmd, spinlock_t *ptl,
+> +				unsigned long addr, unsigned long end,
+> +				bool young, bool dirty)
+> +{
+> +	pmd_t orig_pmd;
+> +	unsigned long next;
+> +	struct page *page;
+> +	struct mmu_gather *tlb = walk->private;
+> +	struct mm_struct *mm = walk->mm;
+> +	struct vm_area_struct *vma = walk->vma;
+> +	bool reset_young = false;
+> +	bool reset_dirty = false;
+> +	enum madv_pmdp_reset_t ret = MADV_PMDP_ERROR;
+> +
+> +	orig_pmd = *pmd;
+> +	if (is_huge_zero_pmd(orig_pmd))
+> +		return ret;
+> +
+> +	if (unlikely(!pmd_present(orig_pmd))) {
+> +		VM_BUG_ON(thp_migration_supported() &&
+> +				!is_pmd_migration_entry(orig_pmd));
+> +		return ret;
+> +	}
+> +
+> +	next = pmd_addr_end(addr, end);
+> +	page = pmd_page(orig_pmd);
+> +	if (next - addr != HPAGE_PMD_SIZE) {
+> +		/*
+> +		 * THP collapsing is not cheap so only split the page is
+> +		 * private to the this process.
+> +		 */
+> +		if (page_mapcount(page) != 1)
+> +			return ret;
+> +		get_page(page);
+> +		spin_unlock(ptl);
+> +		lock_page(page);
+> +		if (!split_huge_page(page))
+> +			ret = MADV_PMDP_SPLIT;
+> +		unlock_page(page);
+> +		put_page(page);
+> +		return ret;
+> +	}
+> +
+> +	if (young && pmd_young(orig_pmd))
+> +		reset_young = true;
+> +	if (dirty && pmd_dirty(orig_pmd))
+> +		reset_dirty = true;
+> +
+> +	/*
+> +	 * Other process could rely on the PG_dirty for data consistency,
+> +	 * not pte_dirty so we could reset PG_dirty only when we are owner
+> +	 * of the page.
+> +	 */
+> +	if (reset_dirty) {
+> +		if (page_mapcount(page) != 1)
+> +			goto out;
+> +		if (!trylock_page(page))
+> +			goto out;
+> +		if (PageDirty(page))
+> +			ClearPageDirty(page);
+> +		unlock_page(page);
+> +	}
+> +
+> +	ret = MADV_PMDP_RESET;
+> +	if (reset_young || reset_dirty) {
+> +		tlb_change_page_size(tlb, HPAGE_PMD_SIZE);
+> +		pmdp_invalidate(vma, addr, pmd);
+> +		if (reset_young)
+> +			orig_pmd = pmd_mkold(orig_pmd);
+> +		if (reset_dirty)
+> +			orig_pmd = pmd_mkclean(orig_pmd);
+> +		set_pmd_at(mm, addr, pmd, orig_pmd);
+> +		tlb_remove_pmd_tlb_entry(tlb, pmd, addr);
+> +	}
+> +out:
+> +	return ret;
+> +}
+> +
+>  static int madvise_cold_pte_range(pmd_t *pmd, unsigned long addr,
+>  				unsigned long end, struct mm_walk *walk)
+>  {
+> @@ -319,64 +404,31 @@ static int madvise_cold_pte_range(pmd_t *pmd, unsigned long addr,
+>  	pte_t *orig_pte, *pte, ptent;
+>  	spinlock_t *ptl;
+>  	struct page *page;
+> -	unsigned long next;
+>  
+> -	next = pmd_addr_end(addr, end);
+>  	if (pmd_trans_huge(*pmd)) {
+> -		pmd_t orig_pmd;
+> -
+> -		tlb_change_page_size(tlb, HPAGE_PMD_SIZE);
+>  		ptl = pmd_trans_huge_lock(pmd, vma);
+>  		if (!ptl)
+>  			return 0;
+>  
+> -		orig_pmd = *pmd;
+> -		if (is_huge_zero_pmd(orig_pmd))
+> -			goto huge_unlock;
+> -
+> -		if (unlikely(!pmd_present(orig_pmd))) {
+> -			VM_BUG_ON(thp_migration_supported() &&
+> -					!is_pmd_migration_entry(orig_pmd));
+> -			goto huge_unlock;
+> -		}
+> -
+> -		page = pmd_page(orig_pmd);
+> -		if (next - addr != HPAGE_PMD_SIZE) {
+> -			int err;
+> -
+> -			if (page_mapcount(page) != 1)
+> -				goto huge_unlock;
+> -
+> -			get_page(page);
+> +		switch (madvise_pmdp_reset_or_split(walk, pmd, ptl, addr, end,
+> +							true, false)) {
+> +		case MADV_PMDP_RESET:
+>  			spin_unlock(ptl);
+> -			lock_page(page);
+> -			err = split_huge_page(page);
+> -			unlock_page(page);
+> -			put_page(page);
+> -			if (!err)
+> -				goto regular_page;
+> -			return 0;
+> -		}
+> -
+> -		if (pmd_young(orig_pmd)) {
+> -			pmdp_invalidate(vma, addr, pmd);
+> -			orig_pmd = pmd_mkold(orig_pmd);
+> -
+> -			set_pmd_at(mm, addr, pmd, orig_pmd);
+> -			tlb_remove_pmd_tlb_entry(tlb, pmd, addr);
+> +			page = pmd_page(*pmd);
+> +			test_and_clear_page_young(page);
+> +			deactivate_page(page);
+> +			goto next;
+> +		case MADV_PMDP_ERROR:
+> +			spin_unlock(ptl);
+> +			goto next;
+> +		case MADV_PMDP_SPLIT:
+> +			; /* go through */
+>  		}
+> -
+> -		test_and_clear_page_young(page);
+> -		deactivate_page(page);
+> -huge_unlock:
+> -		spin_unlock(ptl);
+> -		return 0;
+>  	}
+>  
+>  	if (pmd_trans_unstable(pmd))
+>  		return 0;
+>  
+> -regular_page:
+>  	tlb_change_page_size(tlb, PAGE_SIZE);
+>  	orig_pte = pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
+>  	flush_tlb_batched_pending(mm);
+> @@ -443,6 +495,7 @@ static int madvise_cold_pte_range(pmd_t *pmd, unsigned long addr,
+>  
+>  	arch_enter_lazy_mmu_mode();
+>  	pte_unmap_unlock(orig_pte, ptl);
+> +next:
+>  	cond_resched();
+>  
+>  	return 0;
+> @@ -493,70 +546,38 @@ static int madvise_pageout_pte_range(pmd_t *pmd, unsigned long addr,
+>  	LIST_HEAD(page_list);
+>  	struct page *page;
+>  	int isolated = 0;
+> -	unsigned long next;
+>  
+>  	if (fatal_signal_pending(current))
+>  		return -EINTR;
+>  
+> -	next = pmd_addr_end(addr, end);
+>  	if (pmd_trans_huge(*pmd)) {
+> -		pmd_t orig_pmd;
+> -
+> -		tlb_change_page_size(tlb, HPAGE_PMD_SIZE);
+>  		ptl = pmd_trans_huge_lock(pmd, vma);
+>  		if (!ptl)
+>  			return 0;
+>  
+> -		orig_pmd = *pmd;
+> -		if (is_huge_zero_pmd(orig_pmd))
+> -			goto huge_unlock;
+> -
+> -		if (unlikely(!pmd_present(orig_pmd))) {
+> -			VM_BUG_ON(thp_migration_supported() &&
+> -					!is_pmd_migration_entry(orig_pmd));
+> -			goto huge_unlock;
+> -		}
+> -
+> -		page = pmd_page(orig_pmd);
+> -		if (next - addr != HPAGE_PMD_SIZE) {
+> -			int err;
+> -
+> -			if (page_mapcount(page) != 1)
+> -				goto huge_unlock;
+> -			get_page(page);
+> +		switch (madvise_pmdp_reset_or_split(walk, pmd, ptl, addr, end,
+> +							true, false)) {
+> +		case MADV_PMDP_RESET:
+> +			page = pmd_page(*pmd);
+>  			spin_unlock(ptl);
+> -			lock_page(page);
+> -			err = split_huge_page(page);
+> -			unlock_page(page);
+> -			put_page(page);
+> -			if (!err)
+> -				goto regular_page;
+> -			return 0;
+> -		}
+> -
+> -		if (isolate_lru_page(page))
+> -			goto huge_unlock;
+> -
+> -		if (pmd_young(orig_pmd)) {
+> -			pmdp_invalidate(vma, addr, pmd);
+> -			orig_pmd = pmd_mkold(orig_pmd);
+> -
+> -			set_pmd_at(mm, addr, pmd, orig_pmd);
+> -			tlb_remove_tlb_entry(tlb, pmd, addr);
+> +			if (isolate_lru_page(page))
+> +				return 0;
+> +			ClearPageReferenced(page);
+> +			test_and_clear_page_young(page);
+> +			list_add(&page->lru, &page_list);
+> +			reclaim_pages(&page_list);
+> +			goto next;
+> +		case MADV_PMDP_ERROR:
+> +			spin_unlock(ptl);
+> +			goto next;
+> +		case MADV_PMDP_SPLIT:
+> +			; /* go through */
+>  		}
+> -
+> -		ClearPageReferenced(page);
+> -		test_and_clear_page_young(page);
+> -		list_add(&page->lru, &page_list);
+> -huge_unlock:
+> -		spin_unlock(ptl);
+> -		reclaim_pages(&page_list);
+> -		return 0;
+>  	}
+>  
+>  	if (pmd_trans_unstable(pmd))
+>  		return 0;
+> -regular_page:
+> +
+>  	tlb_change_page_size(tlb, PAGE_SIZE);
+>  	orig_pte = pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
+>  	flush_tlb_batched_pending(mm);
+> @@ -631,6 +652,7 @@ static int madvise_pageout_pte_range(pmd_t *pmd, unsigned long addr,
+>  	arch_leave_lazy_mmu_mode();
+>  	pte_unmap_unlock(orig_pte, ptl);
+>  	reclaim_pages(&page_list);
+> +next:
+>  	cond_resched();
+>  
+>  	return 0;
+> @@ -700,12 +722,26 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
+>  	pte_t *orig_pte, *pte, ptent;
+>  	struct page *page;
+>  	int nr_swap = 0;
+> -	unsigned long next;
+>  
+> -	next = pmd_addr_end(addr, end);
+> -	if (pmd_trans_huge(*pmd))
+> -		if (madvise_free_huge_pmd(tlb, vma, pmd, addr, next))
+> +	if (pmd_trans_huge(*pmd)) {
+> +		ptl = pmd_trans_huge_lock(pmd, vma);
+> +		if (!ptl)
+> +			return 0;
+> +
+> +		switch (madvise_pmdp_reset_or_split(walk, pmd, ptl, addr, end,
+> +							true, true)) {
+> +		case MADV_PMDP_RESET:
+> +			page = pmd_page(*pmd);
+> +			spin_unlock(ptl);
+> +			mark_page_lazyfree(page);
+>  			goto next;
+> +		case MADV_PMDP_ERROR:
+> +			spin_unlock(ptl);
+> +			goto next;
+> +		case MADV_PMDP_SPLIT:
+> +			; /* go through */
+> +		}
+> +	}
+>  
+>  	if (pmd_trans_unstable(pmd))
+>  		return 0;
+> @@ -817,8 +853,8 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
+>  	}
+>  	arch_leave_lazy_mmu_mode();
+>  	pte_unmap_unlock(orig_pte, ptl);
+> -	cond_resched();
+>  next:
+> +	cond_resched();
+>  	return 0;
+>  }
+>  
+> -- 
+> 2.22.0.410.gd8fdbe21b5-goog
 
->>>> firmware initialized state. The result can be a full system lockup, tri=
-ple
->>>> fault etc.
->>>>=20
->>>> So when the MCE hits a CPU which is still in the crashed kernel lala st=
-ate,
->>>> then all hell breaks lose.
->>> Thank you for the comprehensive explain. With your guide, now, I have
->>> a full understanding of the issue.
->>>=20
->>> But when I tried to add something to enable CR4.MCE in
->>> crash_nmi_callback(), I realized that it is undo-able in some case (if
->>> crashed, we will not ask an offline smt cpu to online), also it is
->>> needless. "kexec -l/-p" takes the advantage of the cpu state in the
->>> first kernel, where all logical cpu has CR4.MCE=3D1.
->>>=20
->>> So kexec is exempt from this bug if the first kernel already do it.
->>=20
->> No. If the MCE broadcast is handled by a CPU which is stuck in the old
->> kernel stop loop, then it will execute on the old kernel and eventually r=
-un
->> into the memory corruption which crashed the old one.
->>=20
-> Yes, you are right. Stuck cpu may execute the old do_machine_check()
-> code. But I just found out that we have
-> do_machine_check()->__mc_check_crashing_cpu() to against this case.
->=20
-> And I think the MCE issue with nr_cpus is not closely related with
-> this series, can
-> be a separated issue. I had question whether Andy will take it, if
-> not, I am glad to do it.
->=20
->=20
-
-Go for it. I=E2=80=99m not familiar enough with the SMP boot stuff that I wo=
-uld be able to do it any faster than you. I=E2=80=99ll gladly help review it=
-.=
+-- 
+Michal Hocko
+SUSE Labs
 
