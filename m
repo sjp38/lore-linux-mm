@@ -2,405 +2,864 @@ Return-Path: <SRS0=RgjX=VG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 79167C73C53
-	for <linux-mm@archiver.kernel.org>; Tue,  9 Jul 2019 17:02:51 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1BF78C73C46
+	for <linux-mm@archiver.kernel.org>; Tue,  9 Jul 2019 18:53:10 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 040662082A
-	for <linux-mm@archiver.kernel.org>; Tue,  9 Jul 2019 17:02:50 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 040662082A
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 95B7320665
+	for <linux-mm@archiver.kernel.org>; Tue,  9 Jul 2019 18:53:09 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 95B7320665
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5201B8E0053; Tue,  9 Jul 2019 13:02:50 -0400 (EDT)
+	id EBBDF8E0054; Tue,  9 Jul 2019 14:53:08 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4D1A48E0032; Tue,  9 Jul 2019 13:02:50 -0400 (EDT)
+	id E6C178E0032; Tue,  9 Jul 2019 14:53:08 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 397C08E0053; Tue,  9 Jul 2019 13:02:50 -0400 (EDT)
+	id D0C588E0054; Tue,  9 Jul 2019 14:53:08 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 178F48E0032
-	for <linux-mm@kvack.org>; Tue,  9 Jul 2019 13:02:50 -0400 (EDT)
-Received: by mail-io1-f71.google.com with SMTP id 132so21112761iou.0
-        for <linux-mm@kvack.org>; Tue, 09 Jul 2019 10:02:50 -0700 (PDT)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 892AD8E0032
+	for <linux-mm@kvack.org>; Tue,  9 Jul 2019 14:53:08 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id g18so9047694plj.19
+        for <linux-mm@kvack.org>; Tue, 09 Jul 2019 11:53:08 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=OG0t8j7U3Eq0BS7c24XaaHRiFgFvKq1Zb+tb4UzVdso=;
-        b=KQbK1GuxD246HxHmC/Ps0s0CjD0tm+AuuGHf8bZADbfV03pzmOPP9nufcRgr2N1GRy
-         fAvLV+ixT1mi7DO032ucaSszPgvd/bux+lrV+WveHYuRWSePY4XJZCWKIodiOxVptrwl
-         OrzCYp+pmiKf+ZRmuWZ3NUwP2GwDbxrfzjqBIg7VW0y1YcNiAUZTPO5TcHVGMUjmggo3
-         hhdoTMlT86hyOD6i9EBzlhPnqrNTsly/EEXbC5ZzoAeFSgtxxbFjGFIJRADYDFpu4jO4
-         gQFzuS+MCT4jEx70VzuCGJ3A9SEi+GYMYYQaVsosye5m6bCygW44bWWe2BC3pYYaJw8e
-         ngeA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of robherring2@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=robherring2@gmail.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAUXHYTcq4Ng7H2VWkFXHvkiiNT+MbUi1iARBIB6j07n2+FRinH5
-	+swz72NvbmKvp2BadI0mEjNV1/peMmmqaCZIiggpRvgwXkPxnFSwXCU98mmQRLPV4WOjUmQdIZ2
-	FuD0AKP2rdfobWskFb4bfYQSXC1Eh39kaSQhmRFxzs1hIQE/3jr6cdlF8H94ZDIo=
-X-Received: by 2002:a6b:6409:: with SMTP id t9mr8477160iog.270.1562691769778;
-        Tue, 09 Jul 2019 10:02:49 -0700 (PDT)
-X-Received: by 2002:a6b:6409:: with SMTP id t9mr8477061iog.270.1562691768520;
-        Tue, 09 Jul 2019 10:02:48 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562691768; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:mime-version
+         :content-transfer-encoding:date:from:to:cc:subject:organization
+         :reply-to:mail-reply-to:in-reply-to:references:user-agent:message-id;
+        bh=CObrxNMTyh2RDt6OQ5PDv4Yaqdj15ENB6hAwoOjnX2A=;
+        b=kwZ7yZjBfwFOP5O8z6hIAZHxHbpUP+Y4xwldJh/SKhpfpdZu7ibvoolBFRqSIkv2oV
+         insWdfP74dVb9fAwFqSKlfRFl3WTFL5XXWtf/MwMpVrU1TCeAdEkeL4RaSG69KpD0CVi
+         EZyAYRON+wTLD2k/fDSlWrYFPfZyPUDWgES48QbBDXSV26SvJqoXpg6ITEnaUu+ixHT4
+         UCfhbD7EZ/yMh3A7Id3dXLC97kXgV79h3EX7geCGjAO3YQiNoBiXi63dfad30DXfDORK
+         sfVJXKrbHw5kyIl3yzwYhZuevZjCT2X3iw1BJmnghjx69xh+/EtMNf5uIGk9BnqXpyRD
+         9F+w==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of janani@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=janani@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: APjAAAXYSw3UtWGOAUg9QFh5kfOmeATKl3CVdR36MGv83UM93QBmFi47
+	fckEjJ6AWKbZGljmgg9vHHghB8iMS2i0M10bFtqB13Uw+NwTnYGRZYN23hcnPm9eZRhljfz2EHk
+	LOfYSIlDtWz7dzx1i6WSqnXcxHg0CLx2LB725ATqKelAWbHBBS3vtov4ASehyA2hG7g==
+X-Received: by 2002:a17:902:4c:: with SMTP id 70mr33841923pla.308.1562698388002;
+        Tue, 09 Jul 2019 11:53:08 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzDHKlBZnS9CgznbthTgzu7PwoMuR2YdcmZd/Lxxs5ojdKovH18zCPys8i0mkUqhxqGz/uq
+X-Received: by 2002:a17:902:4c:: with SMTP id 70mr33841838pla.308.1562698386651;
+        Tue, 09 Jul 2019 11:53:06 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562698386; cv=none;
         d=google.com; s=arc-20160816;
-        b=dJgoeynm8qK/65pjWkETmXEvcDGjzH13hB6B60XUrA3j8Q8oqr1JqFjy2VM5W7uZCN
-         bGCHSqlEfUna/dFpD6bGuPQNu2y+Fgi3QHEY+kqYgjIJcGmqDxDMgQ9uvlThIKkE3Q3e
-         3s0DzA7VdTfhxHRInbLHk9MSP7XnSfGTe522icy7iC9jBvLs2TebCMvDCHizAEPJD2gY
-         +p/BvfnuZ5Qv8YvHNyKSfa+DMdahmR1iB3uA1JmmBm9MyKB5f/umO+a3eNgK+FxBo+ie
-         SCx9bDpD7e+ohkSBuwYFEY4GH1zBkzc0Jg08qDYTV+kjy6a7AvkEzP9icYjzz9MF3c3l
-         LlNw==
+        b=masjMW/FrEg+lQHNZasacsh89wNh1tdE+u+fKN+4KmfaPakFQESc9MTIWG45jZv++H
+         ++wcKqjY0yCDDB4BWLIB1yEW/pjYO3lYM40zAA7jGcN457qo/MGUWaiu1QGiMVB7MFfV
+         6baRPgBahTMv0hEdbGiesMiZyI7qHqDpaAr6Yt77QSxyoR6P47qn3zdcnJSV+BAl7wFR
+         vqY/QTmK4cqBDbnMTBsbjm7cWbETIchRe31ZXVSNR6s9wEc1kvOSKgk1p3uDscXyZXMr
+         02HemAGQrsxo6jwg0TnYBPNhTaxh35sDaYCe5taotsueCJvYMRxXhPNF3YCnsG39DRt1
+         m4sQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=OG0t8j7U3Eq0BS7c24XaaHRiFgFvKq1Zb+tb4UzVdso=;
-        b=w8T2CjG9oCOGP952T+SBe/231qGgjKQlRYMhYFTCvl0e6RueuBlcfsdPrRWDjUZ9hH
-         6dhKJ0o0tkoJGJj7QHQSV30S2JMnVEQJ2cp5EfczLsmaV12Nlgp8fRSiIJSLNjD9ahc0
-         qIBOGhVAQuRKqha4GkY4+19uPq/lcL3otwsCJpkbXZaCUjlnjpRe0+cL/s6evTfoq2dl
-         9ep22pqv97Yerb4ffSKfR6hBa9W9/GyK8/mXg5/c9jfaXiURE1lMKfCS2HwAsXTgC095
-         WbfR/HY10g/uv2305maEWicfnAAsaclYozzE3iqkJWFUGPGyT3S9FgSWIdjLVqPNspE2
-         Pr8w==
+        h=message-id:user-agent:references:in-reply-to:mail-reply-to:reply-to
+         :organization:subject:cc:to:from:date:content-transfer-encoding
+         :mime-version;
+        bh=CObrxNMTyh2RDt6OQ5PDv4Yaqdj15ENB6hAwoOjnX2A=;
+        b=HEC1uTBf/euNBlLm1KLcBH71/ZNXbWwA7PiXd2p+sxVYpbzhr01Jh4EmGhXY8CG7Hj
+         3Yfo11S9bgjWrNLtLIMvlcxrhDy9N/bmtnSi8zI6Lk7y2s3dwss9tJp2Erc3Y/k1W7z3
+         a8QTax+gqlVDDrQnVjE1yv/9k6Sir8UFKFfXsOcYKVo1kQf1pjd0Yno5kK3Zf6fTejlh
+         Gm0MI607iAUWSSL69BRr/4BHhxy+1KGfgIrcpYvbb9/IqJWevOWoW7CqzlbxpwIOC4kC
+         a28WIDumRSE2x+LaweBeroH0MIL5FbEWjeG9IfAwTtst2vxfN0zauwz6ByXRPc3mjiz/
+         +3ow==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of robherring2@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=robherring2@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id w13sor10498991iop.80.2019.07.09.10.02.48
+       spf=pass (google.com: domain of janani@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=janani@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id e192si22236861pgc.385.2019.07.09.11.53.06
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 09 Jul 2019 10:02:48 -0700 (PDT)
-Received-SPF: pass (google.com: domain of robherring2@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 09 Jul 2019 11:53:06 -0700 (PDT)
+Received-SPF: pass (google.com: domain of janani@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of robherring2@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=robherring2@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Google-Smtp-Source: APXvYqxJonQLmorme2uaSZLZbCgdw4oO4EUuXZyb4aVUwA9TC/IuDaOHugEWxw1GvkVrOdtJboLiAg==
-X-Received: by 2002:a5d:80c3:: with SMTP id h3mr2239379ior.167.1562691767891;
-        Tue, 09 Jul 2019 10:02:47 -0700 (PDT)
-Received: from localhost ([64.188.179.251])
-        by smtp.gmail.com with ESMTPSA id e84sm21742728iof.39.2019.07.09.10.02.46
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Tue, 09 Jul 2019 10:02:46 -0700 (PDT)
-Date: Tue, 9 Jul 2019 11:02:45 -0600
-From: Rob Herring <robh@kernel.org>
-To: Mauro Carvalho Chehab <mchehab+samsung@kernel.org>
-Cc: Linux Doc Mailing List <linux-doc@vger.kernel.org>,
-	linux-fbdev@vger.kernel.org, linux-ia64@vger.kernel.org,
-	kvm@vger.kernel.org, linux-sh@vger.kernel.org,
-	linux-pci@vger.kernel.org, dri-devel@lists.freedesktop.org,
-	platform-driver-x86@vger.kernel.org,
-	kernel-hardening@lists.openwall.com, sparclinux@vger.kernel.org,
-	linux-arch@vger.kernel.org, linux-s390@vger.kernel.org,
-	Jonathan Corbet <corbet@lwn.net>, x86@kernel.org,
-	linux-security-module@vger.kernel.org, devicetree@vger.kernel.org,
-	linux-watchdog@vger.kernel.org,
-	Mauro Carvalho Chehab <mchehab@infradead.org>,
-	linux-block@vger.kernel.org, linux-gpio@vger.kernel.org,
-	openipmi-developer@lists.sourceforge.net,
-	linux-arm-kernel@lists.infradead.org,
-	linaro-mm-sig@lists.linaro.org, linux-parisc@vger.kernel.org,
-	linux-mm@kvack.org, netdev@vger.kernel.org,
-	linux-wireless@vger.kernel.org, linux-kernel@vger.kernel.org,
-	iommu@lists.linux-foundation.org, linux-crypto@vger.kernel.org
-Subject: Re: [PATCH v1 01/22] docs: Documentation/*.txt: rename all ReST
- files to *.rst
-Message-ID: <20190709170245.GA7073@bogus>
-References: <cover.1560891322.git.mchehab+samsung@kernel.org>
- <6b6b6db8d6de9b66223dd6d4b43eb60ead4c71d7.1560891322.git.mchehab+samsung@kernel.org>
+       spf=pass (google.com: domain of janani@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=janani@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x69Ipf9O114195
+	for <linux-mm@kvack.org>; Tue, 9 Jul 2019 14:53:05 -0400
+Received: from e34.co.us.ibm.com (e34.co.us.ibm.com [32.97.110.152])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2tmx8cwh9h-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 09 Jul 2019 14:53:05 -0400
+Received: from localhost
+	by e34.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <janani@linux.ibm.com>;
+	Tue, 9 Jul 2019 19:53:04 +0100
+Received: from b03cxnp08026.gho.boulder.ibm.com (9.17.130.18)
+	by e34.co.us.ibm.com (192.168.1.134) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Tue, 9 Jul 2019 19:53:02 +0100
+Received: from b03ledav005.gho.boulder.ibm.com (b03ledav005.gho.boulder.ibm.com [9.17.130.236])
+	by b03cxnp08026.gho.boulder.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x69Ir0gm55705936
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Tue, 9 Jul 2019 18:53:00 GMT
+Received: from b03ledav005.gho.boulder.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 7E96EBE051;
+	Tue,  9 Jul 2019 18:53:00 +0000 (GMT)
+Received: from b03ledav005.gho.boulder.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 12DE9BE04F;
+	Tue,  9 Jul 2019 18:52:59 +0000 (GMT)
+Received: from ltc.linux.ibm.com (unknown [9.16.170.189])
+	by b03ledav005.gho.boulder.ibm.com (Postfix) with ESMTP;
+	Tue,  9 Jul 2019 18:52:59 +0000 (GMT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <6b6b6db8d6de9b66223dd6d4b43eb60ead4c71d7.1560891322.git.mchehab+samsung@kernel.org>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+Content-Type: text/plain; charset=UTF-8;
+ format=flowed
+Content-Transfer-Encoding: 8bit
+Date: Tue, 09 Jul 2019 13:55:28 -0500
+From: janani <janani@linux.ibm.com>
+To: Bharata B Rao <bharata@linux.ibm.com>
+Cc: linuxppc-dev@lists.ozlabs.org, linuxram@us.ibm.com, cclaudio@linux.ibm.com,
+        kvm-ppc@vger.kernel.org, linux-mm@kvack.org, jglisse@redhat.com,
+        aneesh.kumar@linux.vnet.ibm.com, paulus@au1.ibm.com,
+        sukadev@linux.vnet.ibm.com,
+        Linuxppc-dev
+ <linuxppc-dev-bounces+janani=linux.ibm.com@lists.ozlabs.org>
+Subject: Re: [PATCH v5 1/7] kvmppc: HMM backend driver to manage pages of
+ secure guest
+Organization: IBM
+Reply-To: janani@linux.ibm.com
+Mail-Reply-To: janani@linux.ibm.com
+In-Reply-To: <20190709102545.9187-2-bharata@linux.ibm.com>
+References: <20190709102545.9187-1-bharata@linux.ibm.com>
+ <20190709102545.9187-2-bharata@linux.ibm.com>
+X-Sender: janani@linux.ibm.com
+User-Agent: Roundcube Webmail/1.0.1
+X-TM-AS-GCONF: 00
+x-cbid: 19070918-0016-0000-0000-000009CC269D
+X-IBM-SpamModules-Scores: 
+X-IBM-SpamModules-Versions: BY=3.00011401; HX=3.00000242; KW=3.00000007;
+ PH=3.00000004; SC=3.00000286; SDB=6.01229807; UDB=6.00647710; IPR=6.01011066;
+ MB=3.00027655; MTD=3.00000008; XFM=3.00000015; UTC=2019-07-09 18:53:04
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19070918-0017-0000-0000-000043F3C6EE
+Message-Id: <29e536f225036d2a93e653c56a961fcb@linux.vnet.ibm.com>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-07-09_07:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=2 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1011 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1907090222
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jun 18, 2019 at 06:05:25PM -0300, Mauro Carvalho Chehab wrote:
-> Those files are actually at ReST format. Ok, currently, they
-> don't belong to any place yet at the organized book series,
-> but we don't want patches to break them as ReST files. So,
-> rename them and add a :orphan: in order to shut up warning
-> messages like those:
+On 2019-07-09 05:25, Bharata B Rao wrote:
+> HMM driver for KVM PPC to manage page transitions of
+> secure guest via H_SVM_PAGE_IN and H_SVM_PAGE_OUT hcalls.
 > 
-> ...
->     Documentation/svga.rst: WARNING: document isn't included in any toctree
->     Documentation/switchtec.rst: WARNING: document isn't included in any toctree
-> ...
+> H_SVM_PAGE_IN: Move the content of a normal page to secure page
+> H_SVM_PAGE_OUT: Move the content of a secure page to normal page
 > 
-> Later patches will move them to a better place and remove the
-> :orphan: markup.
+> Private ZONE_DEVICE memory equal to the amount of secure memory
+> available in the platform for running secure guests is created
+> via a HMM device. The movement of pages between normal and secure
+> memory is done by ->alloc_and_copy() callback routine of migrate_vma().
 > 
-> Signed-off-by: Mauro Carvalho Chehab <mchehab+samsung@kernel.org>
+> Signed-off-by: Bharata B Rao <bharata@linux.ibm.com>
+  Reviewed-by: Janani Janakiraman <janani@linux.ibm.com>
 > ---
+>  arch/powerpc/include/asm/hvcall.h         |   4 +
+>  arch/powerpc/include/asm/kvm_book3s_hmm.h |  29 ++
+>  arch/powerpc/include/asm/kvm_host.h       |  12 +
+>  arch/powerpc/include/asm/ultravisor-api.h |   2 +
+>  arch/powerpc/include/asm/ultravisor.h     |  17 +
+>  arch/powerpc/kvm/Makefile                 |   3 +
+>  arch/powerpc/kvm/book3s_hv.c              |  19 +
+>  arch/powerpc/kvm/book3s_hv_hmm.c          | 482 ++++++++++++++++++++++
+>  8 files changed, 568 insertions(+)
+>  create mode 100644 arch/powerpc/include/asm/kvm_book3s_hmm.h
+>  create mode 100644 arch/powerpc/kvm/book3s_hv_hmm.c
 > 
-> I had to remove the long list of maintainers got by
-> getpatch.pl, as it was too long. I opted to keep only the
-> mailing lists.
+> diff --git a/arch/powerpc/include/asm/hvcall.h
+> b/arch/powerpc/include/asm/hvcall.h
+> index 463c63a9fcf1..2f6b952deb0f 100644
+> --- a/arch/powerpc/include/asm/hvcall.h
+> +++ b/arch/powerpc/include/asm/hvcall.h
+> @@ -337,6 +337,10 @@
+>  #define H_TLB_INVALIDATE	0xF808
+>  #define H_COPY_TOFROM_GUEST	0xF80C
 > 
->  Documentation/ABI/removed/sysfs-class-rfkill  |  2 +-
->  Documentation/ABI/stable/sysfs-class-rfkill   |  2 +-
->  Documentation/ABI/stable/sysfs-devices-node   |  2 +-
->  Documentation/ABI/testing/procfs-diskstats    |  2 +-
->  Documentation/ABI/testing/sysfs-block         |  2 +-
->  .../ABI/testing/sysfs-class-switchtec         |  2 +-
->  .../ABI/testing/sysfs-devices-system-cpu      |  4 +-
->  .../{DMA-API-HOWTO.txt => DMA-API-HOWTO.rst}  |  2 +
->  Documentation/{DMA-API.txt => DMA-API.rst}    |  8 ++-
->  .../{DMA-ISA-LPC.txt => DMA-ISA-LPC.rst}      |  4 +-
->  ...{DMA-attributes.txt => DMA-attributes.rst} |  2 +
->  Documentation/{IPMI.txt => IPMI.rst}          |  2 +
->  .../{IRQ-affinity.txt => IRQ-affinity.rst}    |  2 +
->  .../{IRQ-domain.txt => IRQ-domain.rst}        |  2 +
->  Documentation/{IRQ.txt => IRQ.rst}            |  2 +
->  .../{Intel-IOMMU.txt => Intel-IOMMU.rst}      |  2 +
->  Documentation/PCI/pci.rst                     |  8 +--
->  Documentation/{SAK.txt => SAK.rst}            |  3 +-
->  Documentation/{SM501.txt => SM501.rst}        |  2 +
->  Documentation/admin-guide/hw-vuln/l1tf.rst    |  2 +-
->  .../admin-guide/kernel-parameters.txt         |  4 +-
->  .../{atomic_bitops.txt => atomic_bitops.rst}  |  3 +-
->  Documentation/block/biodoc.txt                |  2 +-
->  .../{bt8xxgpio.txt => bt8xxgpio.rst}          |  3 +-
->  Documentation/{btmrvl.txt => btmrvl.rst}      |  2 +
->  ...-mapping.txt => bus-virt-phys-mapping.rst} | 54 +++++++++---------
->  ...g-warn-once.txt => clearing-warn-once.rst} |  2 +
->  Documentation/{cpu-load.txt => cpu-load.rst}  |  2 +
->  .../{cputopology.txt => cputopology.rst}      |  2 +
->  Documentation/{crc32.txt => crc32.rst}        |  2 +
->  Documentation/{dcdbas.txt => dcdbas.rst}      |  2 +
->  ...ging-modules.txt => debugging-modules.rst} |  2 +
->  ...hci1394.txt => debugging-via-ohci1394.rst} |  2 +
->  Documentation/{dell_rbu.txt => dell_rbu.rst}  |  3 +-
->  Documentation/device-mapper/statistics.rst    |  4 +-
->  .../devicetree/bindings/phy/phy-bindings.txt  |  2 +-
-
-Acked-by: Rob Herring <robh@kernel.org>
-
->  Documentation/{digsig.txt => digsig.rst}      |  2 +
->  Documentation/driver-api/usb/dma.rst          |  6 +-
->  Documentation/driver-model/device.rst         |  2 +-
->  Documentation/{efi-stub.txt => efi-stub.rst}  |  2 +
->  Documentation/{eisa.txt => eisa.rst}          |  2 +
->  Documentation/fb/vesafb.rst                   |  2 +-
->  Documentation/filesystems/sysfs.txt           |  2 +-
->  ...ex-requeue-pi.txt => futex-requeue-pi.rst} |  2 +
->  .../{gcc-plugins.txt => gcc-plugins.rst}      |  2 +
->  Documentation/gpu/drm-mm.rst                  |  2 +-
->  Documentation/{highuid.txt => highuid.rst}    |  4 +-
->  .../{hw_random.txt => hw_random.rst}          |  2 +
->  .../{hwspinlock.txt => hwspinlock.rst}        |  2 +
->  Documentation/ia64/irq-redir.rst              |  2 +-
->  .../{intel_txt.txt => intel_txt.rst}          |  2 +
->  .../{io-mapping.txt => io-mapping.rst}        |  2 +
->  .../{io_ordering.txt => io_ordering.rst}      |  2 +
->  Documentation/{iostats.txt => iostats.rst}    |  2 +
->  ...flags-tracing.txt => irqflags-tracing.rst} |  3 +-
->  Documentation/{isa.txt => isa.rst}            |  2 +
->  Documentation/{isapnp.txt => isapnp.rst}      |  2 +
->  ...hreads.txt => kernel-per-CPU-kthreads.rst} |  4 +-
->  Documentation/{kobject.txt => kobject.rst}    |  6 +-
->  Documentation/{kprobes.txt => kprobes.rst}    |  3 +-
->  Documentation/{kref.txt => kref.rst}          |  2 +
->  Documentation/laptops/thinkpad-acpi.rst       |  6 +-
->  Documentation/{ldm.txt => ldm.rst}            |  5 +-
->  Documentation/locking/rt-mutex.rst            |  2 +-
->  ...kup-watchdogs.txt => lockup-watchdogs.rst} |  2 +
->  Documentation/{lsm.txt => lsm.rst}            |  2 +
->  Documentation/{lzo.txt => lzo.rst}            |  2 +
->  Documentation/{mailbox.txt => mailbox.rst}    |  2 +
->  Documentation/memory-barriers.txt             |  6 +-
->  ...hameleon-bus.txt => men-chameleon-bus.rst} |  2 +
->  Documentation/networking/scaling.rst          |  4 +-
->  .../{nommu-mmap.txt => nommu-mmap.rst}        |  2 +
->  Documentation/{ntb.txt => ntb.rst}            |  2 +
->  Documentation/{numastat.txt => numastat.rst}  |  3 +-
->  Documentation/{padata.txt => padata.rst}      |  2 +
->  ...port-lowlevel.txt => parport-lowlevel.rst} |  2 +
->  ...-semaphore.txt => percpu-rw-semaphore.rst} |  2 +
->  Documentation/{phy.txt => phy.rst}            |  2 +
->  Documentation/{pi-futex.txt => pi-futex.rst}  |  2 +
->  Documentation/{pnp.txt => pnp.rst}            | 13 +++--
->  ...reempt-locking.txt => preempt-locking.rst} |  4 +-
->  Documentation/{pwm.txt => pwm.rst}            |  2 +
->  Documentation/{rbtree.txt => rbtree.rst}      | 54 +++++++++---------
->  .../{remoteproc.txt => remoteproc.rst}        |  4 +-
->  Documentation/{rfkill.txt => rfkill.rst}      |  2 +
->  ...ust-futex-ABI.txt => robust-futex-ABI.rst} |  2 +
->  ...{robust-futexes.txt => robust-futexes.rst} |  2 +
->  Documentation/{rpmsg.txt => rpmsg.rst}        |  2 +
->  Documentation/{rtc.txt => rtc.rst}            |  8 ++-
->  Documentation/s390/vfio-ccw.rst               |  6 +-
->  Documentation/{sgi-ioc4.txt => sgi-ioc4.rst}  |  2 +
->  Documentation/{siphash.txt => siphash.rst}    |  2 +
->  .../{smsc_ece1099.txt => smsc_ece1099.rst}    |  2 +
->  .../{speculation.txt => speculation.rst}      |  2 +
->  .../{static-keys.txt => static-keys.rst}      |  2 +
->  Documentation/{svga.txt => svga.rst}          |  2 +
->  .../{switchtec.txt => switchtec.rst}          |  4 +-
->  .../{sync_file.txt => sync_file.rst}          |  2 +
->  Documentation/sysctl/kernel.txt               |  4 +-
->  Documentation/sysctl/vm.txt                   |  2 +-
->  Documentation/{tee.txt => tee.rst}            |  2 +
->  .../{this_cpu_ops.txt => this_cpu_ops.rst}    |  2 +
->  Documentation/trace/kprobetrace.rst           |  2 +-
->  .../translations/ko_KR/memory-barriers.txt    |  6 +-
->  Documentation/translations/zh_CN/IRQ.txt      |  4 +-
->  .../translations/zh_CN/filesystems/sysfs.txt  |  2 +-
->  .../translations/zh_CN/io_ordering.txt        |  4 +-
->  ...access.txt => unaligned-memory-access.rst} |  2 +
->  ...ed-device.txt => vfio-mediated-device.rst} |  4 +-
->  Documentation/{vfio.txt => vfio.rst}          |  2 +
->  .../{video-output.txt => video-output.rst}    |  3 +-
->  Documentation/watchdog/hpwdt.rst              |  2 +-
->  Documentation/x86/topology.rst                |  2 +-
->  Documentation/{xillybus.txt => xillybus.rst}  |  2 +
->  Documentation/{xz.txt => xz.rst}              |  2 +
->  Documentation/{zorro.txt => zorro.rst}        |  7 ++-
->  MAINTAINERS                                   | 56 +++++++++----------
->  arch/Kconfig                                  |  4 +-
->  arch/arm/Kconfig                              |  2 +-
->  arch/ia64/hp/common/sba_iommu.c               | 12 ++--
->  arch/ia64/sn/pci/pci_dma.c                    |  4 +-
->  arch/parisc/Kconfig                           |  2 +-
->  arch/parisc/kernel/pci-dma.c                  |  2 +-
->  arch/sh/Kconfig                               |  2 +-
->  arch/sparc/Kconfig                            |  2 +-
->  arch/unicore32/include/asm/io.h               |  2 +-
->  arch/x86/Kconfig                              |  4 +-
->  arch/x86/include/asm/dma-mapping.h            |  4 +-
->  arch/x86/kernel/amd_gart_64.c                 |  2 +-
->  block/partitions/Kconfig                      |  2 +-
->  drivers/base/core.c                           |  2 +-
->  drivers/char/Kconfig                          |  4 +-
->  drivers/char/hw_random/core.c                 |  2 +-
->  drivers/char/ipmi/Kconfig                     |  2 +-
->  drivers/char/ipmi/ipmi_si_hotmod.c            |  2 +-
->  drivers/char/ipmi/ipmi_si_intf.c              |  2 +-
->  drivers/dma-buf/Kconfig                       |  2 +-
->  drivers/gpio/Kconfig                          |  2 +-
->  drivers/parisc/sba_iommu.c                    | 16 +++---
->  drivers/pci/switch/Kconfig                    |  2 +-
->  drivers/platform/x86/Kconfig                  |  4 +-
->  drivers/platform/x86/dcdbas.c                 |  2 +-
->  drivers/platform/x86/dell_rbu.c               |  2 +-
->  drivers/pnp/isapnp/Kconfig                    |  2 +-
->  drivers/vfio/Kconfig                          |  2 +-
->  drivers/vfio/mdev/Kconfig                     |  2 +-
->  include/asm-generic/bitops/atomic.h           |  2 +-
->  include/linux/dma-mapping.h                   |  2 +-
->  include/linux/hw_random.h                     |  2 +-
->  include/linux/io-mapping.h                    |  2 +-
->  include/linux/jump_label.h                    |  2 +-
->  include/linux/kobject.h                       |  2 +-
->  include/linux/kobject_ns.h                    |  2 +-
->  include/linux/rbtree.h                        |  2 +-
->  include/linux/rbtree_augmented.h              |  2 +-
->  include/media/videobuf-dma-sg.h               |  2 +-
->  init/Kconfig                                  |  2 +-
->  kernel/dma/debug.c                            |  2 +-
->  kernel/padata.c                               |  2 +-
->  lib/Kconfig                                   |  2 +-
->  lib/Kconfig.debug                             |  2 +-
->  lib/crc32.c                                   |  2 +-
->  lib/kobject.c                                 |  4 +-
->  lib/lzo/lzo1x_decompress_safe.c               |  2 +-
->  lib/xz/Kconfig                                |  2 +-
->  mm/Kconfig                                    |  2 +-
->  mm/nommu.c                                    |  2 +-
->  samples/kprobes/kprobe_example.c              |  2 +-
->  samples/kprobes/kretprobe_example.c           |  2 +-
->  scripts/gcc-plugins/Kconfig                   |  2 +-
->  security/Kconfig                              |  2 +-
->  tools/include/linux/rbtree.h                  |  2 +-
->  tools/include/linux/rbtree_augmented.h        |  2 +-
->  173 files changed, 397 insertions(+), 242 deletions(-)
->  rename Documentation/{DMA-API-HOWTO.txt => DMA-API-HOWTO.rst} (99%)
->  rename Documentation/{DMA-API.txt => DMA-API.rst} (99%)
->  rename Documentation/{DMA-ISA-LPC.txt => DMA-ISA-LPC.rst} (98%)
->  rename Documentation/{DMA-attributes.txt => DMA-attributes.rst} (99%)
->  rename Documentation/{IPMI.txt => IPMI.rst} (99%)
->  rename Documentation/{IRQ-affinity.txt => IRQ-affinity.rst} (99%)
->  rename Documentation/{IRQ-domain.txt => IRQ-domain.rst} (99%)
->  rename Documentation/{IRQ.txt => IRQ.rst} (99%)
->  rename Documentation/{Intel-IOMMU.txt => Intel-IOMMU.rst} (99%)
->  rename Documentation/{SAK.txt => SAK.rst} (99%)
->  rename Documentation/{SM501.txt => SM501.rst} (99%)
->  rename Documentation/{atomic_bitops.txt => atomic_bitops.rst} (99%)
->  rename Documentation/{bt8xxgpio.txt => bt8xxgpio.rst} (99%)
->  rename Documentation/{btmrvl.txt => btmrvl.rst} (99%)
->  rename Documentation/{bus-virt-phys-mapping.txt => bus-virt-phys-mapping.rst} (93%)
->  rename Documentation/{clearing-warn-once.txt => clearing-warn-once.rst} (96%)
->  rename Documentation/{cpu-load.txt => cpu-load.rst} (99%)
->  rename Documentation/{cputopology.txt => cputopology.rst} (99%)
->  rename Documentation/{crc32.txt => crc32.rst} (99%)
->  rename Documentation/{dcdbas.txt => dcdbas.rst} (99%)
->  rename Documentation/{debugging-modules.txt => debugging-modules.rst} (98%)
->  rename Documentation/{debugging-via-ohci1394.txt => debugging-via-ohci1394.rst} (99%)
->  rename Documentation/{dell_rbu.txt => dell_rbu.rst} (99%)
->  rename Documentation/{digsig.txt => digsig.rst} (99%)
->  rename Documentation/{efi-stub.txt => efi-stub.rst} (99%)
->  rename Documentation/{eisa.txt => eisa.rst} (99%)
->  rename Documentation/{futex-requeue-pi.txt => futex-requeue-pi.rst} (99%)
->  rename Documentation/{gcc-plugins.txt => gcc-plugins.rst} (99%)
->  rename Documentation/{highuid.txt => highuid.rst} (99%)
->  rename Documentation/{hw_random.txt => hw_random.rst} (99%)
->  rename Documentation/{hwspinlock.txt => hwspinlock.rst} (99%)
->  rename Documentation/{intel_txt.txt => intel_txt.rst} (99%)
->  rename Documentation/{io-mapping.txt => io-mapping.rst} (99%)
->  rename Documentation/{io_ordering.txt => io_ordering.rst} (99%)
->  rename Documentation/{iostats.txt => iostats.rst} (99%)
->  rename Documentation/{irqflags-tracing.txt => irqflags-tracing.rst} (99%)
->  rename Documentation/{isa.txt => isa.rst} (99%)
->  rename Documentation/{isapnp.txt => isapnp.rst} (98%)
->  rename Documentation/{kernel-per-CPU-kthreads.txt => kernel-per-CPU-kthreads.rst} (99%)
->  rename Documentation/{kobject.txt => kobject.rst} (99%)
->  rename Documentation/{kprobes.txt => kprobes.rst} (99%)
->  rename Documentation/{kref.txt => kref.rst} (99%)
->  rename Documentation/{ldm.txt => ldm.rst} (98%)
->  rename Documentation/{lockup-watchdogs.txt => lockup-watchdogs.rst} (99%)
->  rename Documentation/{lsm.txt => lsm.rst} (99%)
->  rename Documentation/{lzo.txt => lzo.rst} (99%)
->  rename Documentation/{mailbox.txt => mailbox.rst} (99%)
->  rename Documentation/{men-chameleon-bus.txt => men-chameleon-bus.rst} (99%)
->  rename Documentation/{nommu-mmap.txt => nommu-mmap.rst} (99%)
->  rename Documentation/{ntb.txt => ntb.rst} (99%)
->  rename Documentation/{numastat.txt => numastat.rst} (99%)
->  rename Documentation/{padata.txt => padata.rst} (99%)
->  rename Documentation/{parport-lowlevel.txt => parport-lowlevel.rst} (99%)
->  rename Documentation/{percpu-rw-semaphore.txt => percpu-rw-semaphore.rst} (99%)
->  rename Documentation/{phy.txt => phy.rst} (99%)
->  rename Documentation/{pi-futex.txt => pi-futex.rst} (99%)
->  rename Documentation/{pnp.txt => pnp.rst} (98%)
->  rename Documentation/{preempt-locking.txt => preempt-locking.rst} (99%)
->  rename Documentation/{pwm.txt => pwm.rst} (99%)
->  rename Documentation/{rbtree.txt => rbtree.rst} (94%)
->  rename Documentation/{remoteproc.txt => remoteproc.rst} (99%)
->  rename Documentation/{rfkill.txt => rfkill.rst} (99%)
->  rename Documentation/{robust-futex-ABI.txt => robust-futex-ABI.rst} (99%)
->  rename Documentation/{robust-futexes.txt => robust-futexes.rst} (99%)
->  rename Documentation/{rpmsg.txt => rpmsg.rst} (99%)
->  rename Documentation/{rtc.txt => rtc.rst} (99%)
->  rename Documentation/{sgi-ioc4.txt => sgi-ioc4.rst} (99%)
->  rename Documentation/{siphash.txt => siphash.rst} (99%)
->  rename Documentation/{smsc_ece1099.txt => smsc_ece1099.rst} (99%)
->  rename Documentation/{speculation.txt => speculation.rst} (99%)
->  rename Documentation/{static-keys.txt => static-keys.rst} (99%)
->  rename Documentation/{svga.txt => svga.rst} (99%)
->  rename Documentation/{switchtec.txt => switchtec.rst} (98%)
->  rename Documentation/{sync_file.txt => sync_file.rst} (99%)
->  rename Documentation/{tee.txt => tee.rst} (99%)
->  rename Documentation/{this_cpu_ops.txt => this_cpu_ops.rst} (99%)
->  rename Documentation/{unaligned-memory-access.txt => unaligned-memory-access.rst} (99%)
->  rename Documentation/{vfio-mediated-device.txt => vfio-mediated-device.rst} (99%)
->  rename Documentation/{vfio.txt => vfio.rst} (99%)
->  rename Documentation/{video-output.txt => video-output.rst} (99%)
->  rename Documentation/{xillybus.txt => xillybus.rst} (99%)
->  rename Documentation/{xz.txt => xz.rst} (99%)
->  rename Documentation/{zorro.txt => zorro.rst} (99%)
+> +/* Platform-specific hcalls used by the Ultravisor */
+> +#define H_SVM_PAGE_IN		0xEF00
+> +#define H_SVM_PAGE_OUT		0xEF04
+> +
+>  /* Values for 2nd argument to H_SET_MODE */
+>  #define H_SET_MODE_RESOURCE_SET_CIABR		1
+>  #define H_SET_MODE_RESOURCE_SET_DAWR		2
+> diff --git a/arch/powerpc/include/asm/kvm_book3s_hmm.h
+> b/arch/powerpc/include/asm/kvm_book3s_hmm.h
+> new file mode 100644
+> index 000000000000..21f3de5f2acb
+> --- /dev/null
+> +++ b/arch/powerpc/include/asm/kvm_book3s_hmm.h
+> @@ -0,0 +1,29 @@
+> +/* SPDX-License-Identifier: GPL-2.0 */
+> +#ifndef __POWERPC_KVM_PPC_HMM_H__
+> +#define __POWERPC_KVM_PPC_HMM_H__
+> +
+> +#ifdef CONFIG_PPC_UV
+> +extern unsigned long kvmppc_h_svm_page_in(struct kvm *kvm,
+> +					  unsigned long gra,
+> +					  unsigned long flags,
+> +					  unsigned long page_shift);
+> +extern unsigned long kvmppc_h_svm_page_out(struct kvm *kvm,
+> +					  unsigned long gra,
+> +					  unsigned long flags,
+> +					  unsigned long page_shift);
+> +#else
+> +static inline unsigned long
+> +kvmppc_h_svm_page_in(struct kvm *kvm, unsigned long gra,
+> +		     unsigned long flags, unsigned long page_shift)
+> +{
+> +	return H_UNSUPPORTED;
+> +}
+> +
+> +static inline unsigned long
+> +kvmppc_h_svm_page_out(struct kvm *kvm, unsigned long gra,
+> +		      unsigned long flags, unsigned long page_shift)
+> +{
+> +	return H_UNSUPPORTED;
+> +}
+> +#endif /* CONFIG_PPC_UV */
+> +#endif /* __POWERPC_KVM_PPC_HMM_H__ */
+> diff --git a/arch/powerpc/include/asm/kvm_host.h
+> b/arch/powerpc/include/asm/kvm_host.h
+> index 184becb62ea4..ac1a101beb07 100644
+> --- a/arch/powerpc/include/asm/kvm_host.h
+> +++ b/arch/powerpc/include/asm/kvm_host.h
+> @@ -858,4 +858,16 @@ static inline void kvm_arch_vcpu_blocking(struct
+> kvm_vcpu *vcpu) {}
+>  static inline void kvm_arch_vcpu_unblocking(struct kvm_vcpu *vcpu) {}
+>  static inline void kvm_arch_vcpu_block_finish(struct kvm_vcpu *vcpu) 
+> {}
+> 
+> +#ifdef CONFIG_PPC_UV
+> +extern int kvmppc_hmm_init(void);
+> +extern void kvmppc_hmm_free(void);
+> +#else
+> +static inline int kvmppc_hmm_init(void)
+> +{
+> +	return 0;
+> +}
+> +
+> +static inline void kvmppc_hmm_free(void) {}
+> +#endif /* CONFIG_PPC_UV */
+> +
+>  #endif /* __POWERPC_KVM_HOST_H__ */
+> diff --git a/arch/powerpc/include/asm/ultravisor-api.h
+> b/arch/powerpc/include/asm/ultravisor-api.h
+> index 7c4d0b4ced12..f1c5800ac705 100644
+> --- a/arch/powerpc/include/asm/ultravisor-api.h
+> +++ b/arch/powerpc/include/asm/ultravisor-api.h
+> @@ -20,5 +20,7 @@
+>  /* opcodes */
+>  #define UV_WRITE_PATE			0xF104
+>  #define UV_RETURN			0xF11C
+> +#define UV_PAGE_IN			0xF128
+> +#define UV_PAGE_OUT			0xF12C
+> 
+>  #endif /* _ASM_POWERPC_ULTRAVISOR_API_H */
+> diff --git a/arch/powerpc/include/asm/ultravisor.h
+> b/arch/powerpc/include/asm/ultravisor.h
+> index 996c1efd6c6d..16f8e0e8ec3f 100644
+> --- a/arch/powerpc/include/asm/ultravisor.h
+> +++ b/arch/powerpc/include/asm/ultravisor.h
+> @@ -44,6 +44,23 @@ static inline int uv_register_pate(u64 lpid, u64
+> dw0, u64 dw1)
+>  	return ucall(UV_WRITE_PATE, retbuf, lpid, dw0, dw1);
+>  }
+> 
+> +static inline int uv_page_in(u64 lpid, u64 src_ra, u64 dst_gpa, u64 
+> flags,
+> +			     u64 page_shift)
+> +{
+> +	unsigned long retbuf[UCALL_BUFSIZE];
+> +
+> +	return ucall(UV_PAGE_IN, retbuf, lpid, src_ra, dst_gpa, flags,
+> +		     page_shift);
+> +}
+> +
+> +static inline int uv_page_out(u64 lpid, u64 dst_ra, u64 src_gpa, u64 
+> flags,
+> +			      u64 page_shift)
+> +{
+> +	unsigned long retbuf[UCALL_BUFSIZE];
+> +
+> +	return ucall(UV_PAGE_OUT, retbuf, lpid, dst_ra, src_gpa, flags,
+> +		     page_shift);
+> +}
+>  #endif /* !__ASSEMBLY__ */
+> 
+>  #endif	/* _ASM_POWERPC_ULTRAVISOR_H */
+> diff --git a/arch/powerpc/kvm/Makefile b/arch/powerpc/kvm/Makefile
+> index 4c67cc79de7c..d1a79fb5f806 100644
+> --- a/arch/powerpc/kvm/Makefile
+> +++ b/arch/powerpc/kvm/Makefile
+> @@ -71,6 +71,9 @@ kvm-hv-y += \
+>  	book3s_64_mmu_radix.o \
+>  	book3s_hv_nested.o
+> 
+> +kvm-hv-$(CONFIG_PPC_UV) += \
+> +	book3s_hv_hmm.o
+> +
+>  kvm-hv-$(CONFIG_PPC_TRANSACTIONAL_MEM) += \
+>  	book3s_hv_tm.o
+> 
+> diff --git a/arch/powerpc/kvm/book3s_hv.c 
+> b/arch/powerpc/kvm/book3s_hv.c
+> index a104743291a9..8ee66aa0da58 100644
+> --- a/arch/powerpc/kvm/book3s_hv.c
+> +++ b/arch/powerpc/kvm/book3s_hv.c
+> @@ -75,6 +75,8 @@
+>  #include <asm/xics.h>
+>  #include <asm/xive.h>
+>  #include <asm/hw_breakpoint.h>
+> +#include <asm/kvm_host.h>
+> +#include <asm/kvm_book3s_hmm.h>
+> 
+>  #include "book3s.h"
+> 
+> @@ -1083,6 +1085,18 @@ int kvmppc_pseries_do_hcall(struct kvm_vcpu 
+> *vcpu)
+>  					 kvmppc_get_gpr(vcpu, 5),
+>  					 kvmppc_get_gpr(vcpu, 6));
+>  		break;
+> +	case H_SVM_PAGE_IN:
+> +		ret = kvmppc_h_svm_page_in(vcpu->kvm,
+> +					   kvmppc_get_gpr(vcpu, 4),
+> +					   kvmppc_get_gpr(vcpu, 5),
+> +					   kvmppc_get_gpr(vcpu, 6));
+> +		break;
+> +	case H_SVM_PAGE_OUT:
+> +		ret = kvmppc_h_svm_page_out(vcpu->kvm,
+> +					    kvmppc_get_gpr(vcpu, 4),
+> +					    kvmppc_get_gpr(vcpu, 5),
+> +					    kvmppc_get_gpr(vcpu, 6));
+> +		break;
+>  	default:
+>  		return RESUME_HOST;
+>  	}
+> @@ -5501,11 +5515,16 @@ static int kvmppc_book3s_init_hv(void)
+>  			no_mixing_hpt_and_radix = true;
+>  	}
+> 
+> +	r = kvmppc_hmm_init();
+> +	if (r < 0)
+> +		pr_err("KVM-HV: kvmppc_hmm_init failed %d\n", r);
+> +
+>  	return r;
+>  }
+> 
+>  static void kvmppc_book3s_exit_hv(void)
+>  {
+> +	kvmppc_hmm_free();
+>  	kvmppc_free_host_rm_ops();
+>  	if (kvmppc_radix_possible())
+>  		kvmppc_radix_exit();
+> diff --git a/arch/powerpc/kvm/book3s_hv_hmm.c 
+> b/arch/powerpc/kvm/book3s_hv_hmm.c
+> new file mode 100644
+> index 000000000000..cd34323888b6
+> --- /dev/null
+> +++ b/arch/powerpc/kvm/book3s_hv_hmm.c
+> @@ -0,0 +1,482 @@
+> +// SPDX-License-Identifier: GPL-2.0
+> +/*
+> + * HMM driver to manage page migration between normal and secure
+> + * memory.
+> + *
+> + * Based on Jérôme Glisse's HMM dummy driver.
+> + *
+> + * Copyright 2018 Bharata B Rao, IBM Corp. <bharata@linux.ibm.com>
+> + */
+> +
+> +/*
+> + * A pseries guest can be run as a secure guest on Ultravisor-enabled
+> + * POWER platforms. On such platforms, this driver will be used to 
+> manage
+> + * the movement of guest pages between the normal memory managed by
+> + * hypervisor (HV) and secure memory managed by Ultravisor (UV).
+> + *
+> + * Private ZONE_DEVICE memory equal to the amount of secure memory
+> + * available in the platform for running secure guests is created
+> + * via a HMM device. The movement of pages between normal and secure
+> + * memory is done by ->alloc_and_copy() callback routine of 
+> migrate_vma().
+> + *
+> + * The page-in or page-out requests from UV will come to HV as hcalls 
+> and
+> + * HV will call back into UV via uvcalls to satisfy these page 
+> requests.
+> + *
+> + * For each page that gets moved into secure memory, a HMM PFN is used
+> + * on the HV side and HMM migration PTE corresponding to that PFN 
+> would be
+> + * populated in the QEMU page tables. HMM PFNs are stored in the rmap
+> + * array. Whenever a guest page becomes secure, HMM PFN allocated for
+> + * the same will be populated in the corresponding slot in the rmap
+> + * array. The overloading of rmap array's usage which otherwise is
+> + * used primarily by HPT guests means that this feature (secure
+> + * guest on PEF platforms) is available only for Radix MMU guests.
+> + * Also the same rmap array is used differently by nested HPT guests.
+> + * Hence a secure guest can't have nested guests.
+> + */
+> +
+> +#include <linux/hmm.h>
+> +#include <linux/kvm_host.h>
+> +#include <linux/sched/mm.h>
+> +#include <asm/ultravisor.h>
+> +
+> +struct kvmppc_hmm_device {
+> +	struct hmm_device *device;
+> +	struct hmm_devmem *devmem;
+> +	unsigned long *pfn_bitmap;
+> +};
+> +
+> +static struct kvmppc_hmm_device kvmppc_hmm;
+> +spinlock_t kvmppc_hmm_lock;
+> +
+> +struct kvmppc_hmm_page_pvt {
+> +	unsigned long *rmap;
+> +	unsigned int lpid;
+> +	unsigned long gpa;
+> +};
+> +
+> +struct kvmppc_hmm_migrate_args {
+> +	unsigned long *rmap;
+> +	unsigned int lpid;
+> +	unsigned long gpa;
+> +	unsigned long page_shift;
+> +};
+> +
+> +/*
+> + * Bits 60:56 in the rmap entry will be used to identify the
+> + * different uses/functions of rmap. This definition with move
+> + * to a proper header when all other functions are defined.
+> + */
+> +#define KVMPPC_PFN_HMM		(0x2ULL << 56)
+> +
+> +static inline bool kvmppc_is_hmm_pfn(unsigned long pfn)
+> +{
+> +	return !!(pfn & KVMPPC_PFN_HMM);
+> +}
+> +
+> +/*
+> + * Get a free HMM PFN from the pool
+> + *
+> + * Called when a normal page is moved to secure memory (UV_PAGE_IN). 
+> HMM
+> + * PFN will be used to keep track of the secure page on HV side.
+> + *
+> + * @rmap here is the slot in the rmap array that corresponds to @gpa.
+> + * Thus a non-zero rmap entry indicates that the corresonding guest
+> + * page has become secure, is not mapped on the HV side.
+> + *
+> + * NOTE: In this and subsequent functions, we pass around and access
+> + * individual elements of kvm_memory_slot->arch.rmap[] without any
+> + * protection. Should we use lock_rmap() here?
+> + */
+> +static struct page *kvmppc_hmm_get_page(unsigned long *rmap,
+> +					unsigned long gpa, unsigned int lpid)
+> +{
+> +	struct page *dpage = NULL;
+> +	unsigned long bit, hmm_pfn;
+> +	unsigned long nr_pfns = kvmppc_hmm.devmem->pfn_last -
+> +				kvmppc_hmm.devmem->pfn_first;
+> +	unsigned long flags;
+> +	struct kvmppc_hmm_page_pvt *pvt;
+> +
+> +	if (kvmppc_is_hmm_pfn(*rmap))
+> +		return NULL;
+> +
+> +	spin_lock_irqsave(&kvmppc_hmm_lock, flags);
+> +	bit = find_first_zero_bit(kvmppc_hmm.pfn_bitmap, nr_pfns);
+> +	if (bit >= nr_pfns)
+> +		goto out;
+> +
+> +	bitmap_set(kvmppc_hmm.pfn_bitmap, bit, 1);
+> +	hmm_pfn = bit + kvmppc_hmm.devmem->pfn_first;
+> +	dpage = pfn_to_page(hmm_pfn);
+> +
+> +	if (!trylock_page(dpage))
+> +		goto out_clear;
+> +
+> +	*rmap = hmm_pfn | KVMPPC_PFN_HMM;
+> +	pvt = kzalloc(sizeof(*pvt), GFP_ATOMIC);
+> +	if (!pvt)
+> +		goto out_unlock;
+> +	pvt->rmap = rmap;
+> +	pvt->gpa = gpa;
+> +	pvt->lpid = lpid;
+> +	hmm_devmem_page_set_drvdata(dpage, (unsigned long)pvt);
+> +	spin_unlock_irqrestore(&kvmppc_hmm_lock, flags);
+> +
+> +	get_page(dpage);
+> +	return dpage;
+> +
+> +out_unlock:
+> +	unlock_page(dpage);
+> +out_clear:
+> +	bitmap_clear(kvmppc_hmm.pfn_bitmap,
+> +		     hmm_pfn - kvmppc_hmm.devmem->pfn_first, 1);
+> +out:
+> +	spin_unlock_irqrestore(&kvmppc_hmm_lock, flags);
+> +	return NULL;
+> +}
+> +
+> +/*
+> + * Release the HMM PFN back to the pool
+> + *
+> + * Called when secure page becomes a normal page during UV_PAGE_OUT.
+> + */
+> +static void kvmppc_hmm_put_page(struct page *page)
+> +{
+> +	unsigned long pfn = page_to_pfn(page);
+> +	unsigned long flags;
+> +	struct kvmppc_hmm_page_pvt *pvt;
+> +
+> +	spin_lock_irqsave(&kvmppc_hmm_lock, flags);
+> +	pvt = (struct kvmppc_hmm_page_pvt 
+> *)hmm_devmem_page_get_drvdata(page);
+> +	hmm_devmem_page_set_drvdata(page, 0);
+> +
+> +	bitmap_clear(kvmppc_hmm.pfn_bitmap,
+> +		     pfn - kvmppc_hmm.devmem->pfn_first, 1);
+> +	*(pvt->rmap) = 0;
+> +	spin_unlock_irqrestore(&kvmppc_hmm_lock, flags);
+> +	kfree(pvt);
+> +}
+> +
+> +/*
+> + * migrate_vma() callback to move page from normal memory to secure 
+> memory.
+> + *
+> + * We don't capture the return value of uv_page_in() here because when
+> + * UV asks for a page and then fails to copy it over, we don't care.
+> + */
+> +static void
+> +kvmppc_hmm_migrate_alloc_and_copy(struct vm_area_struct *vma,
+> +				  const unsigned long *src_pfn,
+> +				  unsigned long *dst_pfn,
+> +				  unsigned long start,
+> +				  unsigned long end,
+> +				  void *private)
+> +{
+> +	struct kvmppc_hmm_migrate_args *args = private;
+> +	struct page *spage = migrate_pfn_to_page(*src_pfn);
+> +	unsigned long pfn = *src_pfn >> MIGRATE_PFN_SHIFT;
+> +	struct page *dpage;
+> +
+> +	*dst_pfn = 0;
+> +	if (!(*src_pfn & MIGRATE_PFN_MIGRATE))
+> +		return;
+> +
+> +	dpage = kvmppc_hmm_get_page(args->rmap, args->gpa, args->lpid);
+> +	if (!dpage)
+> +		return;
+> +
+> +	if (spage)
+> +		uv_page_in(args->lpid, pfn << args->page_shift,
+> +			   args->gpa, 0, args->page_shift);
+> +
+> +	*dst_pfn = migrate_pfn(page_to_pfn(dpage)) |
+> +		    MIGRATE_PFN_DEVICE | MIGRATE_PFN_LOCKED;
+> +}
+> +
+> +/*
+> + * This migrate_vma() callback is typically used to updated device
+> + * page tables after successful migration. We have nothing to do here.
+> + *
+> + * Also as we don't care if UV successfully copied over the page in
+> + * kvmppc_hmm_migrate_alloc_and_copy(), we don't bother to check
+> + * dst_pfn for any errors here.
+> + */
+> +static void
+> +kvmppc_hmm_migrate_finalize_and_map(struct vm_area_struct *vma,
+> +				    const unsigned long *src_pfn,
+> +				    const unsigned long *dst_pfn,
+> +				    unsigned long start,
+> +				    unsigned long end,
+> +				    void *private)
+> +{
+> +}
+> +
+> +static const struct migrate_vma_ops kvmppc_hmm_migrate_ops = {
+> +	.alloc_and_copy = kvmppc_hmm_migrate_alloc_and_copy,
+> +	.finalize_and_map = kvmppc_hmm_migrate_finalize_and_map,
+> +};
+> +
+> +/*
+> + * Move page from normal memory to secure memory.
+> + */
+> +unsigned long
+> +kvmppc_h_svm_page_in(struct kvm *kvm, unsigned long gpa,
+> +		     unsigned long flags, unsigned long page_shift)
+> +{
+> +	unsigned long addr, end;
+> +	unsigned long src_pfn, dst_pfn;
+> +	struct kvmppc_hmm_migrate_args args;
+> +	struct vm_area_struct *vma;
+> +	int srcu_idx;
+> +	unsigned long gfn = gpa >> page_shift;
+> +	struct kvm_memory_slot *slot;
+> +	unsigned long *rmap;
+> +	int ret = H_SUCCESS;
+> +
+> +	if (page_shift != PAGE_SHIFT)
+> +		return H_P3;
+> +
+> +	if (flags)
+> +		return H_P2;
+> +
+> +	down_read(&kvm->mm->mmap_sem);
+> +	srcu_idx = srcu_read_lock(&kvm->srcu);
+> +	slot = gfn_to_memslot(kvm, gfn);
+> +	rmap = &slot->arch.rmap[gfn - slot->base_gfn];
+> +	addr = gfn_to_hva(kvm, gpa >> page_shift);
+> +	if (kvm_is_error_hva(addr)) {
+> +		ret = H_PARAMETER;
+> +		goto out;
+> +	}
+> +
+> +	end = addr + (1UL << page_shift);
+> +	vma = find_vma_intersection(kvm->mm, addr, end);
+> +	if (!vma || vma->vm_start > addr || vma->vm_end < end) {
+> +		ret = H_PARAMETER;
+> +		goto out;
+> +	}
+> +
+> +	args.rmap = rmap;
+> +	args.lpid = kvm->arch.lpid;
+> +	args.gpa = gpa;
+> +	args.page_shift = page_shift;
+> +	ret = migrate_vma(&kvmppc_hmm_migrate_ops, vma, addr, end,
+> +			  &src_pfn, &dst_pfn, &args);
+> +	if (ret < 0)
+> +		ret = H_PARAMETER;
+> +out:
+> +	srcu_read_unlock(&kvm->srcu, srcu_idx);
+> +	up_read(&kvm->mm->mmap_sem);
+> +	return ret;
+> +}
+> +
+> +/*
+> + * We drop the HMM PFN here, provision a new page and populate
+> + * the same in QEMU page tables.
+> + */
+> +static void
+> +kvmppc_hmm_fault_migrate_alloc_and_copy(struct vm_area_struct *vma,
+> +					const unsigned long *src_pfn,
+> +					unsigned long *dst_pfn,
+> +					unsigned long start,
+> +					unsigned long end,
+> +					void *private)
+> +{
+> +	struct page *dpage, *spage;
+> +	struct kvmppc_hmm_page_pvt *pvt;
+> +	unsigned long pfn;
+> +	int ret = U_SUCCESS;
+> +
+> +	*dst_pfn = MIGRATE_PFN_ERROR;
+> +	spage = migrate_pfn_to_page(*src_pfn);
+> +	if (!spage || !(*src_pfn & MIGRATE_PFN_MIGRATE))
+> +		return;
+> +	if (!is_zone_device_page(spage))
+> +		return;
+> +	dpage = hmm_vma_alloc_locked_page(vma, start);
+> +	if (!dpage)
+> +		return;
+> +	pvt = (struct kvmppc_hmm_page_pvt *)
+> +	       hmm_devmem_page_get_drvdata(spage);
+> +
+> +	pfn = page_to_pfn(dpage);
+> +	ret = uv_page_out(pvt->lpid, pfn << PAGE_SHIFT,
+> +			  pvt->gpa, 0, PAGE_SHIFT);
+> +	if (ret == U_SUCCESS)
+> +		*dst_pfn = migrate_pfn(pfn) | MIGRATE_PFN_LOCKED;
+> +}
+> +
+> +/*
+> + * We have nothing to do here.
+> + */
+> +static void
+> +kvmppc_hmm_fault_migrate_finalize_and_map(struct vm_area_struct *vma,
+> +					  const unsigned long *src_pfn,
+> +					  const unsigned long *dst_pfn,
+> +					  unsigned long start,
+> +					  unsigned long end,
+> +					  void *private)
+> +{
+> +}
+> +
+> +static const struct migrate_vma_ops kvmppc_hmm_fault_migrate_ops = {
+> +	.alloc_and_copy = kvmppc_hmm_fault_migrate_alloc_and_copy,
+> +	.finalize_and_map = kvmppc_hmm_fault_migrate_finalize_and_map,
+> +};
+> +
+> +/*
+> + * Fault handler callback when HV touches any page that has been
+> + * moved to secure memory, we ask UV to give back the page by
+> + * issuing a UV_PAGE_OUT uvcall.
+> + */
+> +static vm_fault_t kvmppc_hmm_devmem_fault(struct hmm_devmem *devmem,
+> +					  struct vm_area_struct *vma,
+> +					  unsigned long addr,
+> +					  const struct page *page,
+> +					  unsigned int flags,
+> +					  pmd_t *pmdp)
+> +{
+> +	unsigned long end = addr + PAGE_SIZE;
+> +	unsigned long src_pfn, dst_pfn = 0;
+> +
+> +	if (migrate_vma(&kvmppc_hmm_fault_migrate_ops, vma, addr, end,
+> +			&src_pfn, &dst_pfn, NULL))
+> +		return VM_FAULT_SIGBUS;
+> +	if (dst_pfn == MIGRATE_PFN_ERROR)
+> +		return VM_FAULT_SIGBUS;
+> +	return 0;
+> +}
+> +
+> +static void kvmppc_hmm_devmem_free(struct hmm_devmem *devmem,
+> +				   struct page *page)
+> +{
+> +	kvmppc_hmm_put_page(page);
+> +}
+> +
+> +static const struct hmm_devmem_ops kvmppc_hmm_devmem_ops = {
+> +	.free = kvmppc_hmm_devmem_free,
+> +	.fault = kvmppc_hmm_devmem_fault,
+> +};
+> +
+> +/*
+> + * Move page from secure memory to normal memory.
+> + */
+> +unsigned long
+> +kvmppc_h_svm_page_out(struct kvm *kvm, unsigned long gpa,
+> +		      unsigned long flags, unsigned long page_shift)
+> +{
+> +	unsigned long addr, end;
+> +	struct vm_area_struct *vma;
+> +	unsigned long src_pfn, dst_pfn = 0;
+> +	int srcu_idx;
+> +	int ret = H_SUCCESS;
+> +
+> +	if (page_shift != PAGE_SHIFT)
+> +		return H_P3;
+> +
+> +	if (flags)
+> +		return H_P2;
+> +
+> +	down_read(&kvm->mm->mmap_sem);
+> +	srcu_idx = srcu_read_lock(&kvm->srcu);
+> +	addr = gfn_to_hva(kvm, gpa >> page_shift);
+> +	if (kvm_is_error_hva(addr)) {
+> +		ret = H_PARAMETER;
+> +		goto out;
+> +	}
+> +
+> +	end = addr + (1UL << page_shift);
+> +	vma = find_vma_intersection(kvm->mm, addr, end);
+> +	if (!vma || vma->vm_start > addr || vma->vm_end < end) {
+> +		ret = H_PARAMETER;
+> +		goto out;
+> +	}
+> +	ret = migrate_vma(&kvmppc_hmm_fault_migrate_ops, vma, addr, end,
+> +			  &src_pfn, &dst_pfn, NULL);
+> +	if (ret < 0)
+> +		ret = H_PARAMETER;
+> +out:
+> +	srcu_read_unlock(&kvm->srcu, srcu_idx);
+> +	up_read(&kvm->mm->mmap_sem);
+> +	return ret;
+> +}
+> +
+> +static u64 kvmppc_get_secmem_size(void)
+> +{
+> +	struct device_node *np;
+> +	int i, len;
+> +	const __be32 *prop;
+> +	u64 size = 0;
+> +
+> +	np = of_find_node_by_path("/ibm,ultravisor/ibm,uv-firmware");
+> +	if (!np)
+> +		goto out;
+> +
+> +	prop = of_get_property(np, "secure-memory-ranges", &len);
+> +	if (!prop)
+> +		goto out_put;
+> +
+> +	for (i = 0; i < len / (sizeof(*prop) * 4); i++)
+> +		size += of_read_number(prop + (i * 4) + 2, 2);
+> +
+> +out_put:
+> +	of_node_put(np);
+> +out:
+> +	return size;
+> +}
+> +
+> +static int kvmppc_hmm_pages_init(void)
+> +{
+> +	unsigned long nr_pfns = kvmppc_hmm.devmem->pfn_last -
+> +				kvmppc_hmm.devmem->pfn_first;
+> +
+> +	kvmppc_hmm.pfn_bitmap = kcalloc(BITS_TO_LONGS(nr_pfns),
+> +					 sizeof(unsigned long), GFP_KERNEL);
+> +	if (!kvmppc_hmm.pfn_bitmap)
+> +		return -ENOMEM;
+> +
+> +	spin_lock_init(&kvmppc_hmm_lock);
+> +
+> +	return 0;
+> +}
+> +
+> +int kvmppc_hmm_init(void)
+> +{
+> +	int ret = 0;
+> +	unsigned long size;
+> +
+> +	size = kvmppc_get_secmem_size();
+> +	if (!size) {
+> +		ret = -ENODEV;
+> +		goto out;
+> +	}
+> +
+> +	kvmppc_hmm.device = hmm_device_new(NULL);
+> +	if (IS_ERR(kvmppc_hmm.device)) {
+> +		ret = PTR_ERR(kvmppc_hmm.device);
+> +		goto out;
+> +	}
+> +
+> +	kvmppc_hmm.devmem = hmm_devmem_add(&kvmppc_hmm_devmem_ops,
+> +					   &kvmppc_hmm.device->device, size);
+> +	if (IS_ERR(kvmppc_hmm.devmem)) {
+> +		ret = PTR_ERR(kvmppc_hmm.devmem);
+> +		goto out_device;
+> +	}
+> +	ret = kvmppc_hmm_pages_init();
+> +	if (ret < 0)
+> +		goto out_device;
+> +
+> +	pr_info("KVMPPC-HMM: Secure Memory size 0x%lx\n", size);
+> +	return ret;
+> +
+> +out_device:
+> +	hmm_device_put(kvmppc_hmm.device);
+> +out:
+> +	return ret;
+> +}
+> +
+> +void kvmppc_hmm_free(void)
+> +{
+> +	kfree(kvmppc_hmm.pfn_bitmap);
+> +	hmm_device_put(kvmppc_hmm.device);
+> +}
 
