@@ -2,260 +2,198 @@ Return-Path: <SRS0=RgjX=VG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,
-	UNPARSEABLE_RELAY,URIBL_BLOCKED,USER_AGENT_SANE_2 autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id F0D29C606B0
-	for <linux-mm@archiver.kernel.org>; Tue,  9 Jul 2019 02:54:07 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B7054C606B0
+	for <linux-mm@archiver.kernel.org>; Tue,  9 Jul 2019 04:16:29 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8E7D821537
-	for <linux-mm@archiver.kernel.org>; Tue,  9 Jul 2019 02:54:07 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8E7D821537
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=mediatek.com
+	by mail.kernel.org (Postfix) with ESMTP id 7B3602073D
+	for <linux-mm@archiver.kernel.org>; Tue,  9 Jul 2019 04:16:29 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="rh0MMkIW"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7B3602073D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D6A7B8E003B; Mon,  8 Jul 2019 22:54:06 -0400 (EDT)
+	id 0ABBE8E003C; Tue,  9 Jul 2019 00:16:29 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D1B748E0032; Mon,  8 Jul 2019 22:54:06 -0400 (EDT)
+	id 0336C8E0032; Tue,  9 Jul 2019 00:16:28 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BE3208E003B; Mon,  8 Jul 2019 22:54:06 -0400 (EDT)
+	id DF05C8E003C; Tue,  9 Jul 2019 00:16:28 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 85DEC8E0032
-	for <linux-mm@kvack.org>; Mon,  8 Jul 2019 22:54:06 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id i27so11532205pfk.12
-        for <linux-mm@kvack.org>; Mon, 08 Jul 2019 19:54:06 -0700 (PDT)
+Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
+	by kanga.kvack.org (Postfix) with ESMTP id BBA4C8E0032
+	for <linux-mm@kvack.org>; Tue,  9 Jul 2019 00:16:28 -0400 (EDT)
+Received: by mail-io1-f69.google.com with SMTP id s9so18369207iob.11
+        for <linux-mm@kvack.org>; Mon, 08 Jul 2019 21:16:28 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:message-id
-         :subject:from:to:cc:date:in-reply-to:references
-         :content-transfer-encoding:mime-version;
-        bh=1YXVxdVlbjP61OVZVlRbACV4q7st4JmnvP5JYUmOe1Q=;
-        b=pRRy77KM8V4fDfMQwaLh1nxWCAaXw41H6y7sqIKGOhb22t+jPBBLsiBW9D4xQHRMJ5
-         OEPwhwAdWvpf5nQYC4ZHkpjQS+YHbzKAQkxqB9sfUH3ir5UOAhp/rlyPgQBAJwS2/YDC
-         jCiVersXFqcXTtAkjpXryLnduKcmJtZ9eZhpvDMT0dKfQAJgBtO9hlIudDOyLTc9sJJ9
-         xO7lhOnqXabRxfbrpC/YtJRTqD+zTzxBXqK9UwlSS9aNoJp69U6OBLp/hVkKsPdX4Qgc
-         6ih0hXL06iDonaBxOEPLv4FC6LCSZYy3oDREDJCNwSLAy7J2iNxM3xf+zaVSfljq6tpd
-         Oz4g==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of walter-zh.wu@mediatek.com designates 210.61.82.184 as permitted sender) smtp.mailfrom=walter-zh.wu@mediatek.com
-X-Gm-Message-State: APjAAAXIocrRRXA6Eqd35dwaLf2CntMtgEn2KI74409WbDVAt6TQgApG
-	q8fudm6X0TIAR6q/L28MT6r8xc0LFGDLewDWPgGzrqXGSmEfvE3mgcQpKLqcWHJHaMb7LfqCJWX
-	2c0x9oYO5FRDu3eqsN0J13fbxkHwGKbRm7DT9/vDvTAcOPUWlDgJ982Gxp6OU7VcxLg==
-X-Received: by 2002:a17:902:b608:: with SMTP id b8mr29306249pls.303.1562640846091;
-        Mon, 08 Jul 2019 19:54:06 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqw+3iGZDQp6+8gYDkzo8vJbWx1j92e5lhw+5PtpkZ0yr6vfHdkCl2agoqZKeSoJ+Qb84cLy
-X-Received: by 2002:a17:902:b608:: with SMTP id b8mr29306165pls.303.1562640845000;
-        Mon, 08 Jul 2019 19:54:05 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562640844; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=mHFhQljdP11Vu4ABp5SegdN4vZ9Y4ZYLAQNxi7/E2Po=;
+        b=lgBnf2F2Dm1eG8/vN8hw1vpokgNWmy3zPworTk9AmBpe3rbvZkyAZTsvnkOrUoyjWP
+         GSaSRg44Q87e92WpVte2s1sPR5o4ZI8jo2B4Z8dp5o/pdJE6TjStGVmmFTAImwiuq6Et
+         UHq8v8SnVChA5Iqg05QY+PuIBVZa2CJob8bNvzEO8KE1bo8QmRjbWar8IkZ1jgExFibs
+         68/vzYCBNLbAZNKOnzN73vGUZMrGOVON7ARAKysJpirzHILcx4pRYpYPjDaVg/Cl6Pit
+         WfxLeS+DOekf14MenlFEFm9nfiEx6rl/tHX2F8hcZclqzKCOQQ5fBphIaMSkw29Ri7F5
+         xsjw==
+X-Gm-Message-State: APjAAAVmY7diOXLCjhEepYHDWiEdHQk5g2/FFCE9CLDJ6pZ8bucZoZnm
+	1E4P1SR3mMrsOM5sn8XqBxB94dQ6QAIODkLZPMYIrR7KFkYych1D1uN5xB7Gpj7sbPNPkIIN2YB
+	h5cooz32StToYJZYzEEILuZtzZKTdK1oBuWwOIrB8LXpdBYxyBDy0bzYEG77oxp5RmQ==
+X-Received: by 2002:a5d:968b:: with SMTP id m11mr2967270ion.16.1562645788468;
+        Mon, 08 Jul 2019 21:16:28 -0700 (PDT)
+X-Received: by 2002:a5d:968b:: with SMTP id m11mr2967214ion.16.1562645787635;
+        Mon, 08 Jul 2019 21:16:27 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562645787; cv=none;
         d=google.com; s=arc-20160816;
-        b=I1i2WbkYYCoUBe9GVURhwrE2TZutSrNVYNVKOIMp2SjxGwp90EPm7Y0m9Hzo186QN4
-         jpTh1iUh7PE6et1n5XInDmVtUDr5Ti+YZR0ESIFxW8EnieHR87AqlOJvpDPmdxppnPI9
-         ncJ7sT2jCLbqU9AWp1C3pYgU8pAJ+6qHGgbgzsFsCkoz0z/at91vRnGzYrimr4JvazyN
-         toY0DUX4ryHsJL9iBu0/hiH7I++LKRuOX/0baRzHLNQ9WR4RaMszwIDCzSHxzdfbQeIm
-         U+ELKuyAYzd2b2U9/IPi8yANJw4XcpK10F8J+B3BfyBobvJ/kc6MNPOQpcOIgRde0+n8
-         sMeg==
+        b=TZd9O4bC6SRLniizO0URqzOfM2lXYwjafTfXHFUPk9z4j5X7OeYDvJGqOTQvpzWtfu
+         xWxIPsMpGXzr259KtCut4ZJV0gKDOdmYfPqwolghBHsJqFp+1rXpsxJ86mMMk+PjE3oJ
+         ggV97vJyU+dYJg2UQvHa1GvU7Dv3zDo0EPoolH4Flr3DwKs/kTFWmcP7CN/wZKtE7B8w
+         pur7N1HDtDiG6Ch6nRfHxwcSZ4+Jx2c2I+Mb9LeqIQHRJZHmgW4Ee+8uUe1CXLCyKvrG
+         GxW8jjR5u+w+QHxuaeQLgf8g22bF/YIewmO8pjCHEKxIVbWeZzPfTqBqxYhQCN4CcuKj
+         FRVg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:references:in-reply-to:date
-         :cc:to:from:subject:message-id;
-        bh=1YXVxdVlbjP61OVZVlRbACV4q7st4JmnvP5JYUmOe1Q=;
-        b=ZFQwoDtp/mvJQTJ5HRh+oSx+4660i715uHw3oyM2iCeBi0VolCGMOPYAZuNAczvZYq
-         Uf2c70/5njcoViq73yBXRFQmHs/Y/USrm8VJXvhK8rLXY3p1tmsiipiWp6HvZAb0RM9A
-         eHIuPWCfpKKPMf34PxOb2NntR3sqc9E0N85f4znW6wTBuw2vP4/ULPutqDBKRU18MTy1
-         HZ9U+pZ5F0494emyYaC7rYvE+/uH5RIK+U33awEkECgil5YdgTU+0kzG7csTjJpzYi8l
-         ySJ2JlvoHNbM5ruxIqVb3QUAT7RdLDQwUBwFJEXuHA6m6fMD+ttUit1K/N2DaTACWCqY
-         UJgA==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=mHFhQljdP11Vu4ABp5SegdN4vZ9Y4ZYLAQNxi7/E2Po=;
+        b=G3UILRU6pNXfDlN+c6RmvRYuSnSO6W5QQq6JHeuGJeaAIaL+jODYNO2UX9qsLp9BTN
+         7ti0n5ObiVG2FC1Mf6ELuR8K1VQ0GGMzGc5yEYSJGkD1Mm3TBY6VyGEe4keNjc4iJJDa
+         RIxR8l9OXmLXG7YfvJX4H+PXkOI3KNZt/OMykn5Xu4PfOH8yvf/c1OVzj+urKU5AShPi
+         8ov31HqbJfGLHavxo+3q9SK49ZhB5OzM9PaadhXQNLOVbHRCKB6brrS7WZN1JjZb7yX/
+         wyYdWmRqhV1nnwZ93UoJjoauRUFr+/sKh99IkJzWE1FgCM7xT2ew0rxTHtODwFFoDB4W
+         4zKA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of walter-zh.wu@mediatek.com designates 210.61.82.184 as permitted sender) smtp.mailfrom=walter-zh.wu@mediatek.com
-Received: from mailgw02.mediatek.com ([210.61.82.184])
-        by mx.google.com with ESMTPS id 28si20611563pgy.252.2019.07.08.19.54.04
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=rh0MMkIW;
+       spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id r3sor13217489jai.10.2019.07.08.21.16.27
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 08 Jul 2019 19:54:04 -0700 (PDT)
-Received-SPF: pass (google.com: domain of walter-zh.wu@mediatek.com designates 210.61.82.184 as permitted sender) client-ip=210.61.82.184;
+        (Google Transport Security);
+        Mon, 08 Jul 2019 21:16:27 -0700 (PDT)
+Received-SPF: pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of walter-zh.wu@mediatek.com designates 210.61.82.184 as permitted sender) smtp.mailfrom=walter-zh.wu@mediatek.com
-X-UUID: e54a938dbb3841b2821206c79fe148af-20190709
-X-UUID: e54a938dbb3841b2821206c79fe148af-20190709
-Received: from mtkcas07.mediatek.inc [(172.21.101.84)] by mailgw02.mediatek.com
-	(envelope-from <walter-zh.wu@mediatek.com>)
-	(mhqrelay.mediatek.com ESMTP with TLS)
-	with ESMTP id 1677781939; Tue, 09 Jul 2019 10:53:54 +0800
-Received: from MTKCAS06.mediatek.inc (172.21.101.30) by
- mtkmbs08n1.mediatek.inc (172.21.101.55) with Microsoft SMTP Server (TLS) id
- 15.0.1395.4; Tue, 9 Jul 2019 10:53:52 +0800
-Received: from [172.21.84.99] (172.21.84.99) by MTKCAS06.mediatek.inc
- (172.21.101.73) with Microsoft SMTP Server id 15.0.1395.4 via Frontend
- Transport; Tue, 9 Jul 2019 10:53:52 +0800
-Message-ID: <1562640832.9077.32.camel@mtksdccf07>
-Subject: Re: [PATCH v3] kasan: add memory corruption identification for
- software tag-based mode
-From: Walter Wu <walter-zh.wu@mediatek.com>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Dmitry Vyukov
-	<dvyukov@google.com>
-CC: Alexander Potapenko <glider@google.com>, Christoph Lameter <cl@linux.com>,
-	Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>,
-	Joonsoo Kim <iamjoonsoo.kim@lge.com>, "Matthias Brugger"
-	<matthias.bgg@gmail.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Arnd
- Bergmann <arnd@arndb.de>, Vasily Gorbik <gor@linux.ibm.com>, Andrey Konovalov
-	<andreyknvl@google.com>, "Jason A . Donenfeld" <Jason@zx2c4.com>, Miles Chen
-	<miles.chen@mediatek.com>, kasan-dev <kasan-dev@googlegroups.com>, LKML
-	<linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux ARM
-	<linux-arm-kernel@lists.infradead.org>, <linux-mediatek@lists.infradead.org>,
-	wsd_upstream <wsd_upstream@mediatek.com>
-Date: Tue, 9 Jul 2019 10:53:52 +0800
-In-Reply-To: <ebc99ee1-716b-0b18-66ab-4e93de02ce50@virtuozzo.com>
-References: <20190613081357.1360-1-walter-zh.wu@mediatek.com>
-	 <da7591c9-660d-d380-d59e-6d70b39eaa6b@virtuozzo.com>
-	 <1560447999.15814.15.camel@mtksdccf07>
-	 <1560479520.15814.34.camel@mtksdccf07>
-	 <1560744017.15814.49.camel@mtksdccf07>
-	 <CACT4Y+Y3uS59rXf92ByQuFK_G4v0H8NNnCY1tCbr4V+PaZF3ag@mail.gmail.com>
-	 <1560774735.15814.54.camel@mtksdccf07>
-	 <1561974995.18866.1.camel@mtksdccf07>
-	 <CACT4Y+aMXTBE0uVkeZz+MuPx3X1nESSBncgkScWvAkciAxP1RA@mail.gmail.com>
-	 <ebc99ee1-716b-0b18-66ab-4e93de02ce50@virtuozzo.com>
-Content-Type: text/plain; charset="UTF-8"
-X-Mailer: Evolution 3.2.3-0ubuntu6 
-Content-Transfer-Encoding: 7bit
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=rh0MMkIW;
+       spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=mHFhQljdP11Vu4ABp5SegdN4vZ9Y4ZYLAQNxi7/E2Po=;
+        b=rh0MMkIWPs5sC69e8D8dbM1sJnHyeRNJ0DZmzbBWCvEqA0OO1IfkadPel4SwEQfI0o
+         6dSY44Sfqt4dbAhiUmpC6OgNj8h5r/UMTsc0HM3X+4/keBqaB7uMMdxnUGRgmarh4iwn
+         AQ9Jj0CiinJtQrx2wJyRO2RbGLuLSZEE/3NDDX0ThaK/8fKobmp+mGd48Dd3SPRB1NQm
+         QWYz73CS1OhEbNkbLUrma9MR10pYVR4ImVojuuPSwGiHssj5A7A75mfhBRstN8y62cQ8
+         Am6oj3Cwv8w/rsgRZbLlTYE1Ws5L2ah9rAaDaX975IPsNW4pihX8zsKMw6kbLMU8PRFi
+         p9tA==
+X-Google-Smtp-Source: APXvYqzbwCQ1U6DYCLm/XiAtG2sygEfA+gx4rzAtRMr3xWKqX7/a1mv8W7atago53ZRkvac0CouM1vs1LWi0xZDxBQc=
+X-Received: by 2002:a02:b713:: with SMTP id g19mr2855704jam.77.1562645787339;
+ Mon, 08 Jul 2019 21:16:27 -0700 (PDT)
 MIME-Version: 1.0
-X-MTK: N
+References: <1562300143-11671-1-git-send-email-kernelfans@gmail.com>
+ <1562300143-11671-2-git-send-email-kernelfans@gmail.com> <alpine.DEB.2.21.1907072133310.3648@nanos.tec.linutronix.de>
+ <CAFgQCTvwS+yEkAmCJnsCfnr0JS01OFtBnDg4cr41_GqU79A4Gg@mail.gmail.com> <alpine.DEB.2.21.1907081125300.3648@nanos.tec.linutronix.de>
+In-Reply-To: <alpine.DEB.2.21.1907081125300.3648@nanos.tec.linutronix.de>
+From: Pingfan Liu <kernelfans@gmail.com>
+Date: Tue, 9 Jul 2019 12:16:15 +0800
+Message-ID: <CAFgQCTvAOeerLHQvgvFXy_kLs=H=CuUFjYE+UAN+vhPCG+s=pQ@mail.gmail.com>
+Subject: Re: [PATCH 2/2] x86/numa: instance all parsed numa node
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: x86@kernel.org, Michal Hocko <mhocko@suse.com>, 
+	Dave Hansen <dave.hansen@linux.intel.com>, Mike Rapoport <rppt@linux.ibm.com>, 
+	Tony Luck <tony.luck@intel.com>, Andy Lutomirski <luto@kernel.org>, 
+	Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, 
+	"H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, 
+	Vlastimil Babka <vbabka@suse.cz>, Oscar Salvador <osalvador@suse.de>, 
+	Pavel Tatashin <pavel.tatashin@microsoft.com>, Mel Gorman <mgorman@techsingularity.net>, 
+	Benjamin Herrenschmidt <benh@kernel.crashing.org>, Michael Ellerman <mpe@ellerman.id.au>, 
+	Stephen Rothwell <sfr@canb.auug.org.au>, Qian Cai <cai@lca.pw>, Barret Rhoden <brho@google.com>, 
+	Bjorn Helgaas <bhelgaas@google.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, 
+	LKML <linux-kernel@vger.kernel.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2019-07-08 at 19:33 +0300, Andrey Ryabinin wrote:
-> 
-> On 7/5/19 4:34 PM, Dmitry Vyukov wrote:
-> > On Mon, Jul 1, 2019 at 11:56 AM Walter Wu <walter-zh.wu@mediatek.com> wrote:
-> >>>>>>>>> This patch adds memory corruption identification at bug report for
-> >>>>>>>>> software tag-based mode, the report show whether it is "use-after-free"
-> >>>>>>>>> or "out-of-bound" error instead of "invalid-access" error.This will make
-> >>>>>>>>> it easier for programmers to see the memory corruption problem.
-> >>>>>>>>>
-> >>>>>>>>> Now we extend the quarantine to support both generic and tag-based kasan.
-> >>>>>>>>> For tag-based kasan, the quarantine stores only freed object information
-> >>>>>>>>> to check if an object is freed recently. When tag-based kasan reports an
-> >>>>>>>>> error, we can check if the tagged addr is in the quarantine and make a
-> >>>>>>>>> good guess if the object is more like "use-after-free" or "out-of-bound".
-> >>>>>>>>>
-> >>>>>>>>
-> >>>>>>>>
-> >>>>>>>> We already have all the information and don't need the quarantine to make such guess.
-> >>>>>>>> Basically if shadow of the first byte of object has the same tag as tag in pointer than it's out-of-bounds,
-> >>>>>>>> otherwise it's use-after-free.
-> >>>>>>>>
-> >>>>>>>> In pseudo-code it's something like this:
-> >>>>>>>>
-> >>>>>>>> u8 object_tag = *(u8 *)kasan_mem_to_shadow(nearest_object(cacche, page, access_addr));
-> >>>>>>>>
-> >>>>>>>> if (access_addr_tag == object_tag && object_tag != KASAN_TAG_INVALID)
-> >>>>>>>>   // out-of-bounds
-> >>>>>>>> else
-> >>>>>>>>   // use-after-free
-> >>>>>>>
-> >>>>>>> Thanks your explanation.
-> >>>>>>> I see, we can use it to decide corruption type.
-> >>>>>>> But some use-after-free issues, it may not have accurate free-backtrace.
-> >>>>>>> Unfortunately in that situation, free-backtrace is the most important.
-> >>>>>>> please see below example
-> >>>>>>>
-> >>>>>>> In generic KASAN, it gets accurate free-backrace(ptr1).
-> >>>>>>> In tag-based KASAN, it gets wrong free-backtrace(ptr2). It will make
-> >>>>>>> programmer misjudge, so they may not believe tag-based KASAN.
-> >>>>>>> So We provide this patch, we hope tag-based KASAN bug report is the same
-> >>>>>>> accurate with generic KASAN.
-> >>>>>>>
-> >>>>>>> ---
-> >>>>>>>     ptr1 = kmalloc(size, GFP_KERNEL);
-> >>>>>>>     ptr1_free(ptr1);
-> >>>>>>>
-> >>>>>>>     ptr2 = kmalloc(size, GFP_KERNEL);
-> >>>>>>>     ptr2_free(ptr2);
-> >>>>>>>
-> >>>>>>>     ptr1[size] = 'x';  //corruption here
-> >>>>>>>
-> >>>>>>>
-> >>>>>>> static noinline void ptr1_free(char* ptr)
-> >>>>>>> {
-> >>>>>>>     kfree(ptr);
-> >>>>>>> }
-> >>>>>>> static noinline void ptr2_free(char* ptr)
-> >>>>>>> {
-> >>>>>>>     kfree(ptr);
-> >>>>>>> }
-> >>>>>>> ---
-> >>>>>>>
-> >>>>>> We think of another question about deciding by that shadow of the first
-> >>>>>> byte.
-> >>>>>> In tag-based KASAN, it is immediately released after calling kfree(), so
-> >>>>>> the slub is easy to be used by another pointer, then it will change
-> >>>>>> shadow memory to the tag of new pointer, it will not be the
-> >>>>>> KASAN_TAG_INVALID, so there are many false negative cases, especially in
-> >>>>>> small size allocation.
-> >>>>>>
-> >>>>>> Our patch is to solve those problems. so please consider it, thanks.
-> >>>>>>
-> >>>>> Hi, Andrey and Dmitry,
-> >>>>>
-> >>>>> I am sorry to bother you.
-> >>>>> Would you tell me what you think about this patch?
-> >>>>> We want to use tag-based KASAN, so we hope its bug report is clear and
-> >>>>> correct as generic KASAN.
-> >>>>>
-> >>>>> Thanks your review.
-> >>>>> Walter
-> >>>>
-> >>>> Hi Walter,
-> >>>>
-> >>>> I will probably be busy till the next week. Sorry for delays.
-> >>>
-> >>> It's ok. Thanks your kindly help.
-> >>> I hope I can contribute to tag-based KASAN. It is a very important tool
-> >>> for us.
-> >>
-> >> Hi, Dmitry,
-> >>
-> >> Would you have free time to discuss this patch together?
-> >> Thanks.
-> > 
-> > Sorry for delays. I am overwhelm by some urgent work. I afraid to
-> > promise any dates because the next week I am on a conference, then
-> > again a backlog and an intern starting...
-> > 
-> > Andrey, do you still have concerns re this patch? This change allows
-> > to print the free stack.
-> 
-> I 'm not sure that quarantine is a best way to do that. Quarantine is made to delay freeing, but we don't that here.
-> If we want to remember more free stacks wouldn't be easier simply to remember more stacks in object itself?
-> Same for previously used tags for better use-after-free identification.
-> 
+On Mon, Jul 8, 2019 at 5:35 PM Thomas Gleixner <tglx@linutronix.de> wrote:
+>
+> On Mon, 8 Jul 2019, Pingfan Liu wrote:
+> > On Mon, Jul 8, 2019 at 3:44 AM Thomas Gleixner <tglx@linutronix.de> wrote:
+> > >
+> > > On Fri, 5 Jul 2019, Pingfan Liu wrote:
+> > >
+> > > > I hit a bug on an AMD machine, with kexec -l nr_cpus=4 option. nr_cpus option
+> > > > is used to speed up kdump process, so it is not a rare case.
+> > >
+> > > But fundamentally wrong, really.
+> > >
+> > > The rest of the CPUs are in a half baken state and any broadcast event,
+> > > e.g. MCE or a stray IPI, will result in a undiagnosable crash.
+> > Very appreciate if you can pay more word on it? I tried to figure out
+> > your point, but fail.
+> >
+> > For "a half baked state", I think you concern about LAPIC state, and I
+> > expand this point like the following:
+>
+> It's not only the APIC state. It's the state of the CPUs in general.
+For other states, "kexec -l " is a kind of boot loader and the boot
+cpu complies with the kernel boot up provision. As for the rest AP,
+they are pinged at loop before receiving #INIT IPI. Then the left
+things is the same as SMP boot up.
 
-Hi Andrey,
+>
+> > For IPI: when capture kernel BSP is up, the rest cpus are still loop
+> > inside crash_nmi_callback(), so there is no way to eject new IPI from
+> > these cpu. Also we disable_local_APIC(), which effectively prevent the
+> > LAPIC from responding to IPI, except NMI/INIT/SIPI, which will not
+> > occur in crash case.
+>
+> Fair enough for the IPI case.
+>
+> > For MCE, I am not sure whether it can broadcast or not between cpus,
+> > but as my understanding, it can not. Then is it a problem?
+>
+> It can and it does.
+>
+> That's the whole point why we bring up all CPUs in the 'nosmt' case and
+> shut the siblings down again after setting CR4.MCE. Actually that's in fact
+> a 'let's hope no MCE hits before that happened' approach, but that's all we
+> can do.
+>
+> If we don't do that then the MCE broadcast can hit a CPU which has some
+> firmware initialized state. The result can be a full system lockup, triple
+> fault etc.
+>
+> So when the MCE hits a CPU which is still in the crashed kernel lala state,
+> then all hell breaks lose.
+Thank you for the comprehensive explain. With your guide, now, I have
+a full understanding of the issue.
 
-We ever tried to use object itself to determine use-after-free
-identification, but tag-based KASAN immediately released the pointer
-after call kfree(), the original object will be used by another
-pointer, if we use object itself to determine use-after-free issue, then
-it has many false negative cases. so we create a lite quarantine(ring
-buffers) to record recent free stacks in order to avoid those false
-negative situations.
+But when I tried to add something to enable CR4.MCE in
+crash_nmi_callback(), I realized that it is undo-able in some case (if
+crashed, we will not ask an offline smt cpu to online), also it is
+needless. "kexec -l/-p" takes the advantage of the cpu state in the
+first kernel, where all logical cpu has CR4.MCE=1.
 
-We hope to have one solution to cover all cases and be accurate. Our
-patch is configurable feature option, it can provide some programmers to
-easy see the tag-based KASAN report.
+So kexec is exempt from this bug if the first kernel already do it.
+>
+> > From another view point, is there any difference between nr_cpus=1 and
+> > nr_cpus> 1 in crashing case? If stray IPI raises issue to nr_cpus>1,
+> > it does for nr_cpus=1.
+>
+> Anything less than the actual number of present CPUs is problematic except
+> you use the 'let's hope nothing happens' approach. We could add an option
+> to stop the bringup at the early online state similar to what we do for
+> 'nosmt'.
+Yes, we should do something about nr_cpus param for the first kernel.
 
-
-> > We also have a quarantine for hwasan in user-space. Though it works a
-> > bit differently then the normal asan quarantine. We keep a per-thread
-> > fixed-size ring-buffer of recent allocations:
-> > https://github.com/llvm-mirror/compiler-rt/blob/master/lib/hwasan/hwasan_report.cpp#L274-L284
-> > and scan these ring buffers during reports.
-> > 
-
-Thanks your information, it looks like the same idea with our patch.
+Thanks,
+  Pingfan
 
