@@ -2,146 +2,153 @@ Return-Path: <SRS0=tO+N=VH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
-	autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.7 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D425CC74A2B
-	for <linux-mm@archiver.kernel.org>; Wed, 10 Jul 2019 14:41:41 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 13C45C74A21
+	for <linux-mm@archiver.kernel.org>; Wed, 10 Jul 2019 15:02:02 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9C52520651
-	for <linux-mm@archiver.kernel.org>; Wed, 10 Jul 2019 14:41:41 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9C52520651
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linutronix.de
+	by mail.kernel.org (Postfix) with ESMTP id D007B2084B
+	for <linux-mm@archiver.kernel.org>; Wed, 10 Jul 2019 15:02:01 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="QfWu2USi"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D007B2084B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1C91E8E007A; Wed, 10 Jul 2019 10:41:41 -0400 (EDT)
+	id 6E8C08E007B; Wed, 10 Jul 2019 11:02:01 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 178478E0032; Wed, 10 Jul 2019 10:41:41 -0400 (EDT)
+	id 6725A8E0032; Wed, 10 Jul 2019 11:02:01 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 040718E007A; Wed, 10 Jul 2019 10:41:40 -0400 (EDT)
+	id 560EF8E007B; Wed, 10 Jul 2019 11:02:01 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wm1-f69.google.com (mail-wm1-f69.google.com [209.85.128.69])
-	by kanga.kvack.org (Postfix) with ESMTP id ADBE38E0032
-	for <linux-mm@kvack.org>; Wed, 10 Jul 2019 10:41:40 -0400 (EDT)
-Received: by mail-wm1-f69.google.com with SMTP id r9so813867wme.8
-        for <linux-mm@kvack.org>; Wed, 10 Jul 2019 07:41:40 -0700 (PDT)
+Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 36EBB8E0032
+	for <linux-mm@kvack.org>; Wed, 10 Jul 2019 11:02:01 -0400 (EDT)
+Received: by mail-io1-f69.google.com with SMTP id e20so3112725ioe.12
+        for <linux-mm@kvack.org>; Wed, 10 Jul 2019 08:02:01 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:mime-version:content-disposition
-         :content-transfer-encoding:user-agent;
-        bh=YhTeeRYX+I+s424rdId/3i3R3FhueIzczT6kXl/R91A=;
-        b=EHBqBLtbjF36zRpkUUrGoHnUdRYG0FyWDfs1qtJeZ1A9JXMegdK0OZLT8zk1re7G5K
-         CNTMTTXYPt0UymOCeDMrjoZijOHXVr2XNyDRo5vQ9D7vgt7nH8JvDsiZq8rCDnQ1r+PI
-         Kp92Mb9PhaZ6oMx3xioF66oid+7BlL94AQFUaRrjXpd639TMhzSRW7uyjH3IFp8hU0gr
-         kDTVUHOh2KSZPikj+VKKSF9hBiv4ENulP6jFUmhJ5XKl5zl9hAaw7UQKZf4ik76lCVVY
-         nCxybcW3wo+vVIziCEFEk22mNttcGmmghY22knsmMqVv5JBdfLhi1QSC1JKqBvVfg89Q
-         fT5A==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of bigeasy@linutronix.de designates 2a0a:51c0:0:12e:550::1 as permitted sender) smtp.mailfrom=bigeasy@linutronix.de
-X-Gm-Message-State: APjAAAW6metrBB0p4JnqHdo82B9+JUvIeDK3XIZ74XbyTCXlcBoiu1d6
-	Bp7oeI+Yv69+UMl1rkn10JSqOJZGHL6P28udfkEB6vxjUaWqXQEGe0TZnNWvi4Wm/8Hy2/TCDJs
-	UMFJNvRelKJByC8mOu5i05fvZoqrRCBFhBN+sFL4rwApLCCRsjDkoBDoSTf/l9ALeBA==
-X-Received: by 2002:a5d:4309:: with SMTP id h9mr30711561wrq.221.1562769700257;
-        Wed, 10 Jul 2019 07:41:40 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqx6RF1in3nFyOYZzGLaxtDLsA3Wz6U6wmPgY7exvIoYhO6NN0ApG+obo+CXWiwuiGbgP4Uf
-X-Received: by 2002:a5d:4309:: with SMTP id h9mr30711501wrq.221.1562769699417;
-        Wed, 10 Jul 2019 07:41:39 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562769699; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=TmbEkkK+CqBlu5lf4ZqLqOZNHYRlqw/lrYYIdmqXv58=;
+        b=TCoekLKwLIXaZa19KIODStLUejZ2fVxyedNNEibf6WwQnB2Q6M7CS39GhCiNPG9VT+
+         BrV6yEQVd91/320W3galBNcRAR7Jnqg0km0lMoMZxQgJgmM7nqgsd5mtTe5EzMNIOWBp
+         3t6mDpc9yubzQlgpIv6YPZ5wz4jNJPQiSE0x7x8RYNjfq2JnTkaylL+4dluraH4I2i5O
+         fM92JniRXzAzDmUgpT8wtwkG3ADIPxig63dIlpAkYuvIE/KmFCSsVSEPhX7RdWxeRm3G
+         02Q8yiK4lY6bkxDtb6tsCHOAGLwIM6Zp5B5a6Vc2QDR2GKa1yPhtBG0Q2YAgayOaLzdl
+         SFVw==
+X-Gm-Message-State: APjAAAWn1dGMV+DbMZuHw1pFNRGnpBLde6rf89M49ptDcL6vtf2RvBKQ
+	MbDFQDZboXgbqYxvA2u9wDfxls79lyIotLJRBPBZJEivjkvHjEmYgYDypsWai90p5vcHeMJ0k1q
+	Enu2bn9ddPYuBEzoAy4x1zBaOeROtAXRbshGWQ3n+NB17jBT3DwZx4rdGZ0BRwfSDSg==
+X-Received: by 2002:a6b:4e1a:: with SMTP id c26mr7602013iob.178.1562770920924;
+        Wed, 10 Jul 2019 08:02:00 -0700 (PDT)
+X-Received: by 2002:a6b:4e1a:: with SMTP id c26mr7601852iob.178.1562770919011;
+        Wed, 10 Jul 2019 08:01:59 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562770919; cv=none;
         d=google.com; s=arc-20160816;
-        b=1HrvcG/VdDNbYt6p4zTgjFxxipifMMx+CsIyQ3xLQTPp1zpFlNcwp0Wak/NTatxo/M
-         3CxeWTB6S9D2GAfNxj1MjlJIGJKwOMD5keAKlJ5i/k3NDjY8nxgXvBelJ+90JGWsZARb
-         LjXxEssZOKzbyq4ZDyIoFtqVEpc0W45WxIqVb87eYp/OZQr8KFtzQAPj3temGjs3axRC
-         5QkcE/aOz7Hd+wqr6f1tDozNNRWmCkNSCyenrfbw1Xa7D3saFdN/hwdL+wNoCPMXNZ7M
-         AIVEEy+cX7QkvgGhbypOLD3iJStfmD3iNbi2MYqUA/vMgdIvwoh+C+yPf9aU5dbj5dX4
-         ZhlA==
+        b=bpI4RAscjMbNG9NqLoCQL0dEl+rno7dEla72qKMQ0/z6nyu0qlsbFMIqHh1p+UcCG+
+         m2z9/MGKQWS2fuDZSiO1YlsJclCsXGlN51Lvxf9c5i0Zvhe4qnq75yULXOnSeGQO5qEO
+         YWFhM4oTi08JzCDeWFHcgQy06Vrn5JC3+F5r6x2y4SG4SkBZZJV7zDU7K4/HCWFQzhtj
+         1vEP2RbEZhue30JANdLGq4FE2w8QLDikYybQPlsiFzDKR2aQB0D6a+8WCksZefwU5DCt
+         yo4wOmzPBJPQpqJNE2UH1pKLMm1YDV0IyxIf1UGppO7kpX4w6O8DCbrmd/3aPCcYalXO
+         Qydg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:content-transfer-encoding:content-disposition
-         :mime-version:message-id:subject:cc:to:from:date;
-        bh=YhTeeRYX+I+s424rdId/3i3R3FhueIzczT6kXl/R91A=;
-        b=Lf+e6T2bi3jHVl3VJ0uj7kyBT/CdPj0WAiws9S5fhuA+k0jFPHima6hl75vZRrcfDV
-         3pclDczHuTHdSrEiWX9uC0BTxU9ANY99Q+6pktUQyYr1kgZ+fKbfQyZDJhVKhVeiLOIk
-         hWuRSOwsg3prY6vDo3UZA9daGORNtf13VexUd8oW2gNzxN/yGsFfnFJGphKBO+biOKKj
-         piLlS9CEvGYUSq/Ii9n4wIfaHedSGebB/qSaN+hXOnaKjzZRh6mTEsbRXJHeBFMGBE0n
-         1D1/u9xyoUzwZgMEe77UJ9t4zYqP330luvrfLlbleSkzkdOFjcSZq05/H6WRsTyOhXZf
-         pZYA==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=TmbEkkK+CqBlu5lf4ZqLqOZNHYRlqw/lrYYIdmqXv58=;
+        b=SsGtFpLUU0J+7f6fGkOJYLBa6mGpW3ta9ToKWyXWOrTw29Iw3i5jndHGxxlOMxDRwf
+         DaHeNRLqdPGWWpTQxqhPCXb+vvSrQKhp9w/MwAgh5CmK7dHFnivivb95BHJJjPbX+bP8
+         kQoYcc3K8BZz+bNnKc0YbjzjEXOK6+XngXClm11vh9KKmeo4Kj4BUFNGZVpcuq5QNWcd
+         LyJtEIBzfaEKIImI7TenPS4fuqUrZ/3FYLRUQsVpiT812L1A2jrlgv4s85sxTVTibzmJ
+         qKUEI8T9mBsXUhIu8I77NfOgsrLWCEwRipzuC4btYi3w0Qs38fDh7G2iiW0MHczl8E5D
+         AKAQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of bigeasy@linutronix.de designates 2a0a:51c0:0:12e:550::1 as permitted sender) smtp.mailfrom=bigeasy@linutronix.de
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a0a:51c0:0:12e:550::1])
-        by mx.google.com with ESMTPS id y17si2245444wma.170.2019.07.10.07.41.39
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=QfWu2USi;
+       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id m15sor2140385iol.1.2019.07.10.08.01.58
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Wed, 10 Jul 2019 07:41:39 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of bigeasy@linutronix.de designates 2a0a:51c0:0:12e:550::1 as permitted sender) client-ip=2a0a:51c0:0:12e:550::1;
+        (Google Transport Security);
+        Wed, 10 Jul 2019 08:01:59 -0700 (PDT)
+Received-SPF: pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of bigeasy@linutronix.de designates 2a0a:51c0:0:12e:550::1 as permitted sender) smtp.mailfrom=bigeasy@linutronix.de
-Received: from bigeasy by Galois.linutronix.de with local (Exim 4.80)
-	(envelope-from <bigeasy@linutronix.de>)
-	id 1hlDms-0004RE-Ex; Wed, 10 Jul 2019 16:41:38 +0200
-Date: Wed, 10 Jul 2019 16:41:38 +0200
-From: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
-To: linux-mm@kvack.org
-Cc: tglx@linutronix.de
-Subject: Memory compaction and mlockall()
-Message-ID: <20190710144138.qyn4tuttdq6h7kqx@linutronix.de>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=QfWu2USi;
+       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=TmbEkkK+CqBlu5lf4ZqLqOZNHYRlqw/lrYYIdmqXv58=;
+        b=QfWu2USizXC0KMquGV6dlMozA5qcpBgq1amcr3rHc7cEtoUQECUgVzRW8Qq8x1sDXe
+         w0ikGjCOHuz/O1gaNu8oGvnGTgVYevxkyQuKMPJ6wO06+l/FynPjON7iYc/tspNmvNOz
+         ky34RkznwLTqbpcGq3d9BLv9Np6FGkFlUznc2TARp/gYf7Zfxw36itbJvjah8YLymzOA
+         EF2LyLae+WWb2jkBb3Wqumf9lmhH87+v8pGWgYZrugoUdo41g9R7+a/TIyDuPux9Lmsy
+         vHWoTcI2YZENwCQLMVcIC2i9dd4OkwoeinTto4LivZFZYVXm4DxfI6hCKAh5QzPB8hx4
+         4jhg==
+X-Google-Smtp-Source: APXvYqzQ2BXQGKlhlJlFKcKu40msLPfp+OtgWnM+vycaJvB2v/zLtDVOzF2EixuDwdQhuDNs+g4WF4Ev2d9vagou+Lw=
+X-Received: by 2002:a6b:5106:: with SMTP id f6mr4531622iob.15.1562770918520;
+ Wed, 10 Jul 2019 08:01:58 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
-User-Agent: NeoMutt/20180716
+References: <1562754389-29217-1-git-send-email-bsauce00@gmail.com>
+In-Reply-To: <1562754389-29217-1-git-send-email-bsauce00@gmail.com>
+From: Alexander Duyck <alexander.duyck@gmail.com>
+Date: Wed, 10 Jul 2019 08:01:47 -0700
+Message-ID: <CAKgT0UcWy9kpwhkk9zPbdgj896GzqLV0P7dGMQAUAPr9rURApw@mail.gmail.com>
+Subject: Re: [PATCH] fs/seq_file.c: Fix a UAF vulnerability in seq_release()
+To: bsauce <bsauce00@gmail.com>
+Cc: "Duyck, Alexander H" <alexander.h.duyck@intel.com>, Vlastimil Babka <vbabka@suse.cz>, 
+	Mel Gorman <mgorman@suse.de>, h <l.stach@pengutronix.de>, vdavydov.dev@gmail.com, 
+	Andrew Morton <akpm@linux-foundation.org>, alex@ghiti.fr, adobriyan@gmail.com, 
+	mike.kravetz@oracle.com, David Rientjes <rientjes@google.com>, rppt@linux.vnet.ibm.com, 
+	Michal Hocko <mhocko@suse.com>, ksspiers@google.com, linux-mm <linux-mm@kvack.org>, 
+	LKML <linux-kernel@vger.kernel.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Wed, Jul 10, 2019 at 3:26 AM bsauce <bsauce00@gmail.com> wrote:
+>
+> In seq_release(), 'm->buf' points to a chunk. It is freed but not cleared to null right away. It can be reused by seq_read() or srm_env_proc_write().
+> For example, /arch/alpha/kernel/srm_env.c provide several interfaces to userspace, like 'single_release', 'seq_read' and 'srm_env_proc_write'.
+> Thus in userspace, one can exploit this UAF vulnerability to escape privilege.
+> Even if 'm->buf' is cleared by kmem_cache_free(), one can still create several threads to exploit this vulnerability.
+> And 'm->buf' should be cleared right after being freed.
+>
+> Signed-off-by: bsauce <bsauce00@gmail.com>
 
-I've been looking at the following trace:
-| cyclicte-526     0d...2.. 6876070 603us : finish_task_switch <-__schedule
-| cyclicte-526     0....2.. 6876070 605us : preempt_count_sub <-finish_task=
-_switch
-| cyclicte-526     0....1.. 6876070 607us : preempt_count_sub <-schedule
-| cyclicte-526     0....... 6876070 610us : finish_wait <-put_and_wait_on_p=
-age_locked
+So I am pretty sure this "Signed-off-by" line is incorrect. Take a
+look in Documentation/process/submitting-patches.rst for more
+information. It specifically it calls out that you need to use your
+real name, no pseudonyms.
 
-I see put_and_wait_on_page_locked after schedule and didn't expect that.
-cyclictest then blocks on a lock and switches to `kcompact'. Once it
-finishes, it switches back to cyclictest:
-| cyclicte-526     0....... 6876070 853us : rt_spin_unlock <-put_and_wait_o=
-n_page_locked
-| cyclicte-526     0....... 6876070 854us : migrate_enable <-rt_spin_unlock
-| cyclicte-526     0....... 6876070 860us : up_read <-do_page_fault
-| cyclicte-526     0....... 6876070 861us : __up_read <-do_page_fault
-| cyclicte-526     0d...... 6876070 867us : do_PrefetchAbort <-ret_from_exc=
-eption
-| cyclicte-526     0d...... 6876070 868us : do_page_fault <-do_PrefetchAbort
-| cyclicte-526     0....... 6876070 870us : down_read_trylock <-do_page_fau=
-lt
-| cyclicte-526     0....... 6876070 872us : __down_read_trylock <-do_page_f=
-ault
-=E2=80=A6
-| cyclicte-526     0....... 6876070 914us : __up_read <-do_page_fault
-| cyclicte-526     0....... 6876070 923us : sys_clock_gettime32 <-ret_fast_=
-syscall
-| cyclicte-526     0....... 6876070 925us : posix_ktime_get_ts <-sys_clock_=
-gettime32
+> ---
+>  fs/seq_file.c | 1 +
+>  1 file changed, 1 insertion(+)
+>
+> diff --git a/fs/seq_file.c b/fs/seq_file.c
+> index abe27ec..de5e266 100644
+> --- a/fs/seq_file.c
+> +++ b/fs/seq_file.c
+> @@ -358,6 +358,7 @@ int seq_release(struct inode *inode, struct file *file)
+>  {
+>         struct seq_file *m = file->private_data;
+>         kvfree(m->buf);
+> +       m->buf = NULL;
+>         kmem_cache_free(seq_file_cache, m);
+>         return 0;
+>  }
 
-I did not expect a pagefault with mlockall(). I assume it has to do with
-memory compaction. I have
-| CONFIG_COMPACTION=3Dy
-| CONFIG_MIGRATION=3Dy
-
-and Kconfig says:
-|config COMPACTION
-=E2=80=A6
-|                                                       You shouldn't
-|           disable this option unless there really is a strong reason for
-|           it and then we would be really interested to hear about that at
-|           linux-mm@kvack.org.
-
-Shouldn't COMPACTION avoid touching/moving mlock()ed pages?
-
-Sebastian
+As has already been pointed out we are calling kmem_cache_free on m in
+the very next line. As such setting m->buf to NULL would have no
+effect as m will be freed and could be reused/overwritten at that
+point.
 
