@@ -2,588 +2,158 @@ Return-Path: <SRS0=tO+N=VH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.1 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	FSL_HELO_FAKE,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
-	SPF_PASS,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.2 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4A06EC73C7C
-	for <linux-mm@archiver.kernel.org>; Wed, 10 Jul 2019 10:56:38 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 500CBC73C7C
+	for <linux-mm@archiver.kernel.org>; Wed, 10 Jul 2019 10:58:48 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E245D2064B
-	for <linux-mm@archiver.kernel.org>; Wed, 10 Jul 2019 10:56:37 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 100B12064B
+	for <linux-mm@archiver.kernel.org>; Wed, 10 Jul 2019 10:58:47 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="BwET3NaN"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E245D2064B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="gO7Fk8sL"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 100B12064B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 72D9F8E006F; Wed, 10 Jul 2019 06:56:37 -0400 (EDT)
+	id 9767B8E0070; Wed, 10 Jul 2019 06:58:47 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6DF018E0032; Wed, 10 Jul 2019 06:56:37 -0400 (EDT)
+	id 8FF118E0032; Wed, 10 Jul 2019 06:58:47 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5A7778E006F; Wed, 10 Jul 2019 06:56:37 -0400 (EDT)
+	id 79F928E0070; Wed, 10 Jul 2019 06:58:47 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 2116C8E0032
-	for <linux-mm@kvack.org>; Wed, 10 Jul 2019 06:56:37 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id o6so1101478plk.23
-        for <linux-mm@kvack.org>; Wed, 10 Jul 2019 03:56:37 -0700 (PDT)
+Received: from mail-wm1-f72.google.com (mail-wm1-f72.google.com [209.85.128.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 2D7E18E0032
+	for <linux-mm@kvack.org>; Wed, 10 Jul 2019 06:58:47 -0400 (EDT)
+Received: by mail-wm1-f72.google.com with SMTP id 21so610439wmj.4
+        for <linux-mm@kvack.org>; Wed, 10 Jul 2019 03:58:47 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:sender:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=LtvVB22HZe1NLIHBDYeQjQYGhyZXxbvEfnkYynIiSq4=;
-        b=YgQ0kMLiQ1sEQck6D4sf7WHb253tfyPkQHLcM7BF3LdVtfskfTpmQnnJERqi+mGoFv
-         JJiLeCebctDmsbtGwrujyujxQ3vZFgRnOlrdVj6bln+xyf1BQb4royWToghwCNGgkVHA
-         hFgYLiZGY2zMQFe/H2Hsp/x6eldevWF3/XahYKYvTpeVTgC/8qtTfgxa2cQKDP7ZzXhq
-         n0477LojtDJiaFCTjfCe5L7Gnjdu+AF8nkp7PeRBp3Da48t4DLIHMvWDUcoMKulVznT3
-         9ALRlE52xHmPZTwMba9IX/1/qD2GzMm25icQ0hB6YYUcnsi3BTRQyqUdMGXPuC5YQYL3
-         GG8A==
-X-Gm-Message-State: APjAAAVj4plU+ASmd/xrCVfDKF7wpMODXhFNds536T3NScO9vYuNnQ9w
-	EbWPFKKtRDsdONd/W8pc6E//ww5QiOnDVRCII1+JWtPD0WTd59MDGvdR7NEHVnHl5WCoAHo9BY0
-	tbpDrMXcdQZ3aHskw12O7mIqtv3KvNAXfvSgg0vl/wqBzFFd2yMyVv592Nm3noWc=
-X-Received: by 2002:a17:90a:f491:: with SMTP id bx17mr6400016pjb.118.1562756196657;
-        Wed, 10 Jul 2019 03:56:36 -0700 (PDT)
-X-Received: by 2002:a17:90a:f491:: with SMTP id bx17mr6399952pjb.118.1562756195759;
-        Wed, 10 Jul 2019 03:56:35 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562756195; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+         :message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=2sT+oGvC0W6TXp3DJLMLSUCPXzdSnjaT6jI9OQ5BPH4=;
+        b=mD5Tscf2QkWE438W1igBM337iYviH5UfWV78PxVrY8i9S80LlsEbtygIYTtUuTKmRp
+         LoolOlhiKMoSVSmb9aomIR5BRlufswtp61cfuweP++KAswNjmgUNrv6aIUWFrht/GDZY
+         9++NESt8uw8t13R1A46wvbpGrFq0fG/iU4KVI7E9L2T4OriX+sj0okMRQNY46WjBpa2D
+         jddKYh44vb+BXRDHb3I7FET4ctdxqhD2sW+W8qyk1u5alh8+wFFY++elm0oGbSKcBa3p
+         uuQCISaUmVPUvaZJvT7GJJQZCvo/m8/V1GoX2afRilXDFZj5yf6djDzt0bPpYSxs7bf2
+         ztog==
+X-Gm-Message-State: APjAAAUWmLG2Ky68N5gQdluqtb+tRkcmoTEkIYdNX49/CNIB6QN12VB8
+	Ky1WxT4sUb4ODStQjXSp/V0xbdiGo17O2dNx5NEf+D/g7EtbMus007rKCBHPl0UrfmqCLlr3Njv
+	3KLoPqKC72dqJm+3FFOQsL7rRm9ufscd8Jw6UElP5pWuHpVWI+ev24bXuP/TZQw1TOw==
+X-Received: by 2002:a1c:7a15:: with SMTP id v21mr4978173wmc.82.1562756326669;
+        Wed, 10 Jul 2019 03:58:46 -0700 (PDT)
+X-Received: by 2002:a1c:7a15:: with SMTP id v21mr4978118wmc.82.1562756325923;
+        Wed, 10 Jul 2019 03:58:45 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562756325; cv=none;
         d=google.com; s=arc-20160816;
-        b=zfEyV/pdRBcudtLPmupp91bDW/J/E4U/dpqLiSy9JuUgZyAi99yZiaLjp431P5tLzY
-         aju3pnuHE8xXq2yQgr6JtYZaiq+NKuJwW2o6u7z9dM9R0DWKd2ybBYO6GTiilmNYbkfO
-         H+s7fhKLtaWRl//8isgpKfGa6EkIA3LIaDNp4oZj/IIPF6ODptNlMNv/1DSdQnE58MDa
-         igq0ZtF8bIWlO4W3YoDWd5xEM37CDphnhwel8/cppaDoE5yJJbIHmFEwDnNQ0R2g7wBk
-         LgcgC+Xn5w1f2TtzeKJHvBeClsOhJu1ZRQhuCGy2KgurObRRoi3x1OiuVecwogm/dO24
-         uk/g==
+        b=0yDJ5wmxsVofibpdrKbdCFz1EnvIrzSUsVk8PLAs37AsKvuVcy7r2OdeEAFLnHp5ri
+         +QNtdCGSk5XfPgOF3IMziAl8PJRcqYCDRqvBhwdf/DaPgX4LLbo812hRK6iDaotXUIZm
+         zhcwZZu5yADA97KAj/nUqlV+ttA2ZnYaFW1o32skdCmTeAZWKID1amvysbjc8TEPewha
+         jyw8koPT9P2AxxBLlNBUW+N4BExODiMeYwSTddMcNm8KJcHNxPeSmDzgJfpPM25oIiqG
+         Hmi3nPfTu427PKF66AMviwhln9rysdjJ8KqWhKrRoKNfXGaoAzF0VbFIdkHi7RJcc0ib
+         UvBw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:sender:dkim-signature;
-        bh=LtvVB22HZe1NLIHBDYeQjQYGhyZXxbvEfnkYynIiSq4=;
-        b=sCqb+SgwbmCW4yFNc8SDIC6xdBj0u3gOPIfd0/gG2/G06n4oMpQ/rDkaE/5tXderWd
-         Pt5zf+nzkMVGaWFeQVa4jzEfDF6sRkvKRWa+Oc3ja8yfd4qKzBzdClAxcvG/DDQVKxM3
-         UH+ooMmzyE9XPQXGCxx8kTkGqzNvJu8BzTGsd7PznrKbG18JPQzLnnwu49eleuuPhhlf
-         WWBQCImlPBOboafSmUySg0xP1z9tqYlUAQAO407g50JTWLh35puCimi+oa3BgsU2D1am
-         dWpSLAXbA0pNGKQAHJeU8YC5LVmrGqC7pPsFuLkdd1F3Zg21DroN3KZ/MAtJfwR/aRxg
-         VGWg==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject
+         :dkim-signature;
+        bh=2sT+oGvC0W6TXp3DJLMLSUCPXzdSnjaT6jI9OQ5BPH4=;
+        b=khI5PUnIKDmZTq3uh5MA6y6YiUlNObXTL52y2lZvwEEW3mRggm1bQGn/AvcDQuASB2
+         Xz/rCfWdxV9jQv76J6DSxSLLAS7idq1HtHktlo28QPP8655g9cho91SmHni5P1ALLs20
+         bmknoO/XmFFj2Xi3L0ehnv+guZM8xIEVKuLfjgw4wQHNeIqoLQCBLOBLUmQ1CzU8xuOR
+         kCk5MAmdfpbDjubRXvaDu9wUuW5cmbFkcWlvI6Rh3n+nYqVyAbsss+eQzhVCi8Lmm6FM
+         XN8QX8BOYUaI/rMLWr+yyA6ZmVdvGdOSOeqpUrUoFSsRY5pPoSadJIoF3rT4b+QW9kwj
+         /CYQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=BwET3NaN;
-       spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=gO7Fk8sL;
+       spf=pass (google.com: domain of eric.dumazet@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=eric.dumazet@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id bj2sor2158454plb.52.2019.07.10.03.56.35
+        by mx.google.com with SMTPS id z18sor1453925wrr.6.2019.07.10.03.58.45
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 10 Jul 2019 03:56:35 -0700 (PDT)
-Received-SPF: pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Wed, 10 Jul 2019 03:58:45 -0700 (PDT)
+Received-SPF: pass (google.com: domain of eric.dumazet@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=BwET3NaN;
-       spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=gO7Fk8sL;
+       spf=pass (google.com: domain of eric.dumazet@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=eric.dumazet@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
-        h=sender:date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=LtvVB22HZe1NLIHBDYeQjQYGhyZXxbvEfnkYynIiSq4=;
-        b=BwET3NaNDF/Fk1Y9cENEjnRd6W5M+5LlZOgJcefC4VnZQ1Mr7HxkbuOa3kwzexcL/Q
-         gdKqv1Ub34k6VxkjjWXIpxRGdeNdtcrQ7Q1MNdyDgH/tpGEwBEHhRUT8I8oMxUbfJH+O
-         gRJkjzF1S9NPWGVEBLIz5+apyeQSeiRvaQaNu8KHyXeG43OQRCZxjKtU6juLOBrz0Z4l
-         i871O9fV9sh9GKDF8za6sCPV5ttq2Be+arDlUhG6yV96q9KoMM3FlczpRUf/bWpmxvV4
-         vAM2wmmEZXfxd2CYNMfz4QmRy+2ZgI8wajiGD0OoiT4X+q/HxJO+tX5YzWZW8ZJWx1/O
-         DOmQ==
-X-Google-Smtp-Source: APXvYqwbgT43Vsl/g18GPn0t3uieRIJn/nRm7tURu3uXCgREZtKiXrqzqyK/uohFuAZR7FH405TXUQ==
-X-Received: by 2002:a17:902:7894:: with SMTP id q20mr36881365pll.339.1562756195335;
-        Wed, 10 Jul 2019 03:56:35 -0700 (PDT)
-Received: from google.com ([2401:fa00:d:0:98f1:8b3d:1f37:3e8])
-        by smtp.gmail.com with ESMTPSA id l15sm1870293pgf.5.2019.07.10.03.56.30
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Wed, 10 Jul 2019 03:56:34 -0700 (PDT)
-Date: Wed, 10 Jul 2019 19:56:27 +0900
-From: Minchan Kim <minchan@kernel.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-	linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>,
-	linux-api@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>,
-	Tim Murray <timmurray@google.com>,
-	Joel Fernandes <joel@joelfernandes.org>,
-	Suren Baghdasaryan <surenb@google.com>,
-	Daniel Colascione <dancol@google.com>,
-	Shakeel Butt <shakeelb@google.com>, Sonny Rao <sonnyrao@google.com>,
-	oleksandr@redhat.com, hdanton@sina.com, lizeb@google.com,
-	Dave Hansen <dave.hansen@intel.com>,
-	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: Re: [PATCH v3 5/5] mm: factor out pmd young/dirty bit handling and
- THP split
-Message-ID: <20190710105627.GB186559@google.com>
-References: <20190627115405.255259-1-minchan@kernel.org>
- <20190627115405.255259-6-minchan@kernel.org>
- <20190709141019.GN26380@dhcp22.suse.cz>
+        h=subject:to:cc:references:from:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=2sT+oGvC0W6TXp3DJLMLSUCPXzdSnjaT6jI9OQ5BPH4=;
+        b=gO7Fk8sLsyUWXz44hx5WnF9wFLqzfaSjOcDy15DI2kpmYpjR9c0Nmbcmy6HEKP7SZy
+         pIbKRt03eJNCGslrDwoGRfWRqkqh/e82F+kiqtPAZ2hnU4jY+5zRmUnPEU0BExOzFecb
+         TW6nURXyFIKv7kM5jzh8fvf3Kb2O2d6m9dX3R0qnXri9LPR2AcYXgIpC/2fvAmjdQR+4
+         WCreZwsx8AARBm2GbJac2+Vd3sor7Exu6fOclQ9KV4S2TJAFRPHeKfydhQZOMbbaGFEG
+         9YCFeMNwOinlwxcahrrTOHfXTJNNrM9u10uqu6PGB2ZzgvQqy1BqTxMXUfkcaa4HxHCS
+         WPjg==
+X-Google-Smtp-Source: APXvYqw8KUi86oRLtvVJh6b2yivIxG8Q6GKE2mrwk4yEnFE6iV6Lycols/Yc7V6/xDCjTS26tmYmUg==
+X-Received: by 2002:a5d:56c7:: with SMTP id m7mr31232112wrw.64.1562756325658;
+        Wed, 10 Jul 2019 03:58:45 -0700 (PDT)
+Received: from [192.168.8.147] (31.172.185.81.rev.sfr.net. [81.185.172.31])
+        by smtp.gmail.com with ESMTPSA id e3sm1788460wrt.93.2019.07.10.03.58.44
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 10 Jul 2019 03:58:45 -0700 (PDT)
+Subject: Re: [PATCH] fs/seq_file.c: Fix a UAF vulnerability in seq_release()
+To: bsauce <bsauce00@gmail.com>, alexander.h.duyck@intel.com
+Cc: vbabka@suse.cz, mgorman@suse.de, l.stach@pengutronix.de,
+ vdavydov.dev@gmail.com, akpm@linux-foundation.org, alex@ghiti.fr,
+ adobriyan@gmail.com, mike.kravetz@oracle.com, rientjes@google.com,
+ rppt@linux.vnet.ibm.com, mhocko@suse.com, ksspiers@google.com,
+ linux-mm@kvack.org, linux-kernel@vger.kernel.org
+References: <1562754389-29217-1-git-send-email-bsauce00@gmail.com>
+From: Eric Dumazet <eric.dumazet@gmail.com>
+Message-ID: <32e544a6-575e-a47e-fd8a-647145ac1972@gmail.com>
+Date: Wed, 10 Jul 2019 12:58:43 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190709141019.GN26380@dhcp22.suse.cz>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <1562754389-29217-1-git-send-email-bsauce00@gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jul 09, 2019 at 04:10:19PM +0200, Michal Hocko wrote:
-> On Thu 27-06-19 20:54:05, Minchan Kim wrote:
-> > Now, there are common part among MADV_COLD|PAGEOUT|FREE to reset
-> > access/dirty bit resetting or split the THP page to handle part
-> > of subpages in the THP page. This patch factor out the common part.
-> 
-> While this reduces the code duplication to some degree I suspect it only
-> goes half way. I haven't tried that myself due to lack of time but I
-> believe this has a potential to reduce even more. All those madvise
-> calls are doing the same thing essentially. What page tables and apply
-> an operation on ptes and/or a page that is mapped. And that suggests
-> that the specific operation should be good with defining two - pte and
-> page operations on each entry. All the rest should be a common code.
-> 
-> That being said, I do not feel strongly about this patch. The rest of
-> the series should be good enough even without it and I wouldn't delay it
-> just by discussing a potential of the cleanup.
 
-I totally agree with you. For several cycles, some people asked me to
-factor common part out. I understand them why they wanted it. However,
-when I tried it, it's not trivial to clean it out due to subtle
-difference of them. If I couldn't make it clean at this moment, I want to
-keep them without factoing out since it's more readable, at least.
 
-I will drop this patch next submit unless someone pop with better idea.
+On 7/10/19 12:26 PM, bsauce wrote:
+> In seq_release(), 'm->buf' points to a chunk. It is freed but not cleared to null right away. It can be reused by seq_read() or srm_env_proc_write().
+> For example, /arch/alpha/kernel/srm_env.c provide several interfaces to userspace, like 'single_release', 'seq_read' and 'srm_env_proc_write'.
+> Thus in userspace, one can exploit this UAF vulnerability to escape privilege.
+> Even if 'm->buf' is cleared by kmem_cache_free(), one can still create several threads to exploit this vulnerability.
+> And 'm->buf' should be cleared right after being freed.
+> 
+> Signed-off-by: bsauce <bsauce00@gmail.com>
+> ---
+>  fs/seq_file.c | 1 +
+>  1 file changed, 1 insertion(+)
+> 
+> diff --git a/fs/seq_file.c b/fs/seq_file.c
+> index abe27ec..de5e266 100644
+> --- a/fs/seq_file.c
+> +++ b/fs/seq_file.c
+> @@ -358,6 +358,7 @@ int seq_release(struct inode *inode, struct file *file)
+>  {
+>  	struct seq_file *m = file->private_data;
+>  	kvfree(m->buf);
+> +	m->buf = NULL;
+>  	kmem_cache_free(seq_file_cache, m);
+>  	return 0;
+>  }
+> 
 
-> 
-> > Signed-off-by: Minchan Kim <minchan@kernel.org>
-> > ---
-> >  include/linux/huge_mm.h |   3 -
-> >  mm/huge_memory.c        |  74 -------------
-> >  mm/madvise.c            | 234 +++++++++++++++++++++++-----------------
-> >  3 files changed, 135 insertions(+), 176 deletions(-)
-> > 
-> > diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-> > index 7cd5c150c21d..2667e1aa3ce5 100644
-> > --- a/include/linux/huge_mm.h
-> > +++ b/include/linux/huge_mm.h
-> > @@ -29,9 +29,6 @@ extern struct page *follow_trans_huge_pmd(struct vm_area_struct *vma,
-> >  					  unsigned long addr,
-> >  					  pmd_t *pmd,
-> >  					  unsigned int flags);
-> > -extern bool madvise_free_huge_pmd(struct mmu_gather *tlb,
-> > -			struct vm_area_struct *vma,
-> > -			pmd_t *pmd, unsigned long addr, unsigned long next);
-> >  extern int zap_huge_pmd(struct mmu_gather *tlb,
-> >  			struct vm_area_struct *vma,
-> >  			pmd_t *pmd, unsigned long addr);
-> > diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> > index 93f531b63a45..e4b9a06788f3 100644
-> > --- a/mm/huge_memory.c
-> > +++ b/mm/huge_memory.c
-> > @@ -1671,80 +1671,6 @@ vm_fault_t do_huge_pmd_numa_page(struct vm_fault *vmf, pmd_t pmd)
-> >  	return 0;
-> >  }
-> >  
-> > -/*
-> > - * Return true if we do MADV_FREE successfully on entire pmd page.
-> > - * Otherwise, return false.
-> > - */
-> > -bool madvise_free_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
-> > -		pmd_t *pmd, unsigned long addr, unsigned long next)
-> > -{
-> > -	spinlock_t *ptl;
-> > -	pmd_t orig_pmd;
-> > -	struct page *page;
-> > -	struct mm_struct *mm = tlb->mm;
-> > -	bool ret = false;
-> > -
-> > -	tlb_change_page_size(tlb, HPAGE_PMD_SIZE);
-> > -
-> > -	ptl = pmd_trans_huge_lock(pmd, vma);
-> > -	if (!ptl)
-> > -		goto out_unlocked;
-> > -
-> > -	orig_pmd = *pmd;
-> > -	if (is_huge_zero_pmd(orig_pmd))
-> > -		goto out;
-> > -
-> > -	if (unlikely(!pmd_present(orig_pmd))) {
-> > -		VM_BUG_ON(thp_migration_supported() &&
-> > -				  !is_pmd_migration_entry(orig_pmd));
-> > -		goto out;
-> > -	}
-> > -
-> > -	page = pmd_page(orig_pmd);
-> > -	/*
-> > -	 * If other processes are mapping this page, we couldn't discard
-> > -	 * the page unless they all do MADV_FREE so let's skip the page.
-> > -	 */
-> > -	if (page_mapcount(page) != 1)
-> > -		goto out;
-> > -
-> > -	if (!trylock_page(page))
-> > -		goto out;
-> > -
-> > -	/*
-> > -	 * If user want to discard part-pages of THP, split it so MADV_FREE
-> > -	 * will deactivate only them.
-> > -	 */
-> > -	if (next - addr != HPAGE_PMD_SIZE) {
-> > -		get_page(page);
-> > -		spin_unlock(ptl);
-> > -		split_huge_page(page);
-> > -		unlock_page(page);
-> > -		put_page(page);
-> > -		goto out_unlocked;
-> > -	}
-> > -
-> > -	if (PageDirty(page))
-> > -		ClearPageDirty(page);
-> > -	unlock_page(page);
-> > -
-> > -	if (pmd_young(orig_pmd) || pmd_dirty(orig_pmd)) {
-> > -		pmdp_invalidate(vma, addr, pmd);
-> > -		orig_pmd = pmd_mkold(orig_pmd);
-> > -		orig_pmd = pmd_mkclean(orig_pmd);
-> > -
-> > -		set_pmd_at(mm, addr, pmd, orig_pmd);
-> > -		tlb_remove_pmd_tlb_entry(tlb, pmd, addr);
-> > -	}
-> > -
-> > -	mark_page_lazyfree(page);
-> > -	ret = true;
-> > -out:
-> > -	spin_unlock(ptl);
-> > -out_unlocked:
-> > -	return ret;
-> > -}
-> > -
-> >  static inline void zap_deposited_table(struct mm_struct *mm, pmd_t *pmd)
-> >  {
-> >  	pgtable_t pgtable;
-> > diff --git a/mm/madvise.c b/mm/madvise.c
-> > index ee210473f639..13b06dc8d402 100644
-> > --- a/mm/madvise.c
-> > +++ b/mm/madvise.c
-> > @@ -310,6 +310,91 @@ static long madvise_willneed(struct vm_area_struct *vma,
-> >  	return 0;
-> >  }
-> >  
-> > +enum madv_pmdp_reset_t {
-> > +	MADV_PMDP_RESET,	/* pmd was reset successfully */
-> > +	MADV_PMDP_SPLIT,	/* pmd was split */
-> > +	MADV_PMDP_ERROR,
-> > +};
-> > +
-> > +static enum madv_pmdp_reset_t madvise_pmdp_reset_or_split(struct mm_walk *walk,
-> > +				pmd_t *pmd, spinlock_t *ptl,
-> > +				unsigned long addr, unsigned long end,
-> > +				bool young, bool dirty)
-> > +{
-> > +	pmd_t orig_pmd;
-> > +	unsigned long next;
-> > +	struct page *page;
-> > +	struct mmu_gather *tlb = walk->private;
-> > +	struct mm_struct *mm = walk->mm;
-> > +	struct vm_area_struct *vma = walk->vma;
-> > +	bool reset_young = false;
-> > +	bool reset_dirty = false;
-> > +	enum madv_pmdp_reset_t ret = MADV_PMDP_ERROR;
-> > +
-> > +	orig_pmd = *pmd;
-> > +	if (is_huge_zero_pmd(orig_pmd))
-> > +		return ret;
-> > +
-> > +	if (unlikely(!pmd_present(orig_pmd))) {
-> > +		VM_BUG_ON(thp_migration_supported() &&
-> > +				!is_pmd_migration_entry(orig_pmd));
-> > +		return ret;
-> > +	}
-> > +
-> > +	next = pmd_addr_end(addr, end);
-> > +	page = pmd_page(orig_pmd);
-> > +	if (next - addr != HPAGE_PMD_SIZE) {
-> > +		/*
-> > +		 * THP collapsing is not cheap so only split the page is
-> > +		 * private to the this process.
-> > +		 */
-> > +		if (page_mapcount(page) != 1)
-> > +			return ret;
-> > +		get_page(page);
-> > +		spin_unlock(ptl);
-> > +		lock_page(page);
-> > +		if (!split_huge_page(page))
-> > +			ret = MADV_PMDP_SPLIT;
-> > +		unlock_page(page);
-> > +		put_page(page);
-> > +		return ret;
-> > +	}
-> > +
-> > +	if (young && pmd_young(orig_pmd))
-> > +		reset_young = true;
-> > +	if (dirty && pmd_dirty(orig_pmd))
-> > +		reset_dirty = true;
-> > +
-> > +	/*
-> > +	 * Other process could rely on the PG_dirty for data consistency,
-> > +	 * not pte_dirty so we could reset PG_dirty only when we are owner
-> > +	 * of the page.
-> > +	 */
-> > +	if (reset_dirty) {
-> > +		if (page_mapcount(page) != 1)
-> > +			goto out;
-> > +		if (!trylock_page(page))
-> > +			goto out;
-> > +		if (PageDirty(page))
-> > +			ClearPageDirty(page);
-> > +		unlock_page(page);
-> > +	}
-> > +
-> > +	ret = MADV_PMDP_RESET;
-> > +	if (reset_young || reset_dirty) {
-> > +		tlb_change_page_size(tlb, HPAGE_PMD_SIZE);
-> > +		pmdp_invalidate(vma, addr, pmd);
-> > +		if (reset_young)
-> > +			orig_pmd = pmd_mkold(orig_pmd);
-> > +		if (reset_dirty)
-> > +			orig_pmd = pmd_mkclean(orig_pmd);
-> > +		set_pmd_at(mm, addr, pmd, orig_pmd);
-> > +		tlb_remove_pmd_tlb_entry(tlb, pmd, addr);
-> > +	}
-> > +out:
-> > +	return ret;
-> > +}
-> > +
-> >  static int madvise_cold_pte_range(pmd_t *pmd, unsigned long addr,
-> >  				unsigned long end, struct mm_walk *walk)
-> >  {
-> > @@ -319,64 +404,31 @@ static int madvise_cold_pte_range(pmd_t *pmd, unsigned long addr,
-> >  	pte_t *orig_pte, *pte, ptent;
-> >  	spinlock_t *ptl;
-> >  	struct page *page;
-> > -	unsigned long next;
-> >  
-> > -	next = pmd_addr_end(addr, end);
-> >  	if (pmd_trans_huge(*pmd)) {
-> > -		pmd_t orig_pmd;
-> > -
-> > -		tlb_change_page_size(tlb, HPAGE_PMD_SIZE);
-> >  		ptl = pmd_trans_huge_lock(pmd, vma);
-> >  		if (!ptl)
-> >  			return 0;
-> >  
-> > -		orig_pmd = *pmd;
-> > -		if (is_huge_zero_pmd(orig_pmd))
-> > -			goto huge_unlock;
-> > -
-> > -		if (unlikely(!pmd_present(orig_pmd))) {
-> > -			VM_BUG_ON(thp_migration_supported() &&
-> > -					!is_pmd_migration_entry(orig_pmd));
-> > -			goto huge_unlock;
-> > -		}
-> > -
-> > -		page = pmd_page(orig_pmd);
-> > -		if (next - addr != HPAGE_PMD_SIZE) {
-> > -			int err;
-> > -
-> > -			if (page_mapcount(page) != 1)
-> > -				goto huge_unlock;
-> > -
-> > -			get_page(page);
-> > +		switch (madvise_pmdp_reset_or_split(walk, pmd, ptl, addr, end,
-> > +							true, false)) {
-> > +		case MADV_PMDP_RESET:
-> >  			spin_unlock(ptl);
-> > -			lock_page(page);
-> > -			err = split_huge_page(page);
-> > -			unlock_page(page);
-> > -			put_page(page);
-> > -			if (!err)
-> > -				goto regular_page;
-> > -			return 0;
-> > -		}
-> > -
-> > -		if (pmd_young(orig_pmd)) {
-> > -			pmdp_invalidate(vma, addr, pmd);
-> > -			orig_pmd = pmd_mkold(orig_pmd);
-> > -
-> > -			set_pmd_at(mm, addr, pmd, orig_pmd);
-> > -			tlb_remove_pmd_tlb_entry(tlb, pmd, addr);
-> > +			page = pmd_page(*pmd);
-> > +			test_and_clear_page_young(page);
-> > +			deactivate_page(page);
-> > +			goto next;
-> > +		case MADV_PMDP_ERROR:
-> > +			spin_unlock(ptl);
-> > +			goto next;
-> > +		case MADV_PMDP_SPLIT:
-> > +			; /* go through */
-> >  		}
-> > -
-> > -		test_and_clear_page_young(page);
-> > -		deactivate_page(page);
-> > -huge_unlock:
-> > -		spin_unlock(ptl);
-> > -		return 0;
-> >  	}
-> >  
-> >  	if (pmd_trans_unstable(pmd))
-> >  		return 0;
-> >  
-> > -regular_page:
-> >  	tlb_change_page_size(tlb, PAGE_SIZE);
-> >  	orig_pte = pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
-> >  	flush_tlb_batched_pending(mm);
-> > @@ -443,6 +495,7 @@ static int madvise_cold_pte_range(pmd_t *pmd, unsigned long addr,
-> >  
-> >  	arch_enter_lazy_mmu_mode();
-> >  	pte_unmap_unlock(orig_pte, ptl);
-> > +next:
-> >  	cond_resched();
-> >  
-> >  	return 0;
-> > @@ -493,70 +546,38 @@ static int madvise_pageout_pte_range(pmd_t *pmd, unsigned long addr,
-> >  	LIST_HEAD(page_list);
-> >  	struct page *page;
-> >  	int isolated = 0;
-> > -	unsigned long next;
-> >  
-> >  	if (fatal_signal_pending(current))
-> >  		return -EINTR;
-> >  
-> > -	next = pmd_addr_end(addr, end);
-> >  	if (pmd_trans_huge(*pmd)) {
-> > -		pmd_t orig_pmd;
-> > -
-> > -		tlb_change_page_size(tlb, HPAGE_PMD_SIZE);
-> >  		ptl = pmd_trans_huge_lock(pmd, vma);
-> >  		if (!ptl)
-> >  			return 0;
-> >  
-> > -		orig_pmd = *pmd;
-> > -		if (is_huge_zero_pmd(orig_pmd))
-> > -			goto huge_unlock;
-> > -
-> > -		if (unlikely(!pmd_present(orig_pmd))) {
-> > -			VM_BUG_ON(thp_migration_supported() &&
-> > -					!is_pmd_migration_entry(orig_pmd));
-> > -			goto huge_unlock;
-> > -		}
-> > -
-> > -		page = pmd_page(orig_pmd);
-> > -		if (next - addr != HPAGE_PMD_SIZE) {
-> > -			int err;
-> > -
-> > -			if (page_mapcount(page) != 1)
-> > -				goto huge_unlock;
-> > -			get_page(page);
-> > +		switch (madvise_pmdp_reset_or_split(walk, pmd, ptl, addr, end,
-> > +							true, false)) {
-> > +		case MADV_PMDP_RESET:
-> > +			page = pmd_page(*pmd);
-> >  			spin_unlock(ptl);
-> > -			lock_page(page);
-> > -			err = split_huge_page(page);
-> > -			unlock_page(page);
-> > -			put_page(page);
-> > -			if (!err)
-> > -				goto regular_page;
-> > -			return 0;
-> > -		}
-> > -
-> > -		if (isolate_lru_page(page))
-> > -			goto huge_unlock;
-> > -
-> > -		if (pmd_young(orig_pmd)) {
-> > -			pmdp_invalidate(vma, addr, pmd);
-> > -			orig_pmd = pmd_mkold(orig_pmd);
-> > -
-> > -			set_pmd_at(mm, addr, pmd, orig_pmd);
-> > -			tlb_remove_tlb_entry(tlb, pmd, addr);
-> > +			if (isolate_lru_page(page))
-> > +				return 0;
-> > +			ClearPageReferenced(page);
-> > +			test_and_clear_page_young(page);
-> > +			list_add(&page->lru, &page_list);
-> > +			reclaim_pages(&page_list);
-> > +			goto next;
-> > +		case MADV_PMDP_ERROR:
-> > +			spin_unlock(ptl);
-> > +			goto next;
-> > +		case MADV_PMDP_SPLIT:
-> > +			; /* go through */
-> >  		}
-> > -
-> > -		ClearPageReferenced(page);
-> > -		test_and_clear_page_young(page);
-> > -		list_add(&page->lru, &page_list);
-> > -huge_unlock:
-> > -		spin_unlock(ptl);
-> > -		reclaim_pages(&page_list);
-> > -		return 0;
-> >  	}
-> >  
-> >  	if (pmd_trans_unstable(pmd))
-> >  		return 0;
-> > -regular_page:
-> > +
-> >  	tlb_change_page_size(tlb, PAGE_SIZE);
-> >  	orig_pte = pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
-> >  	flush_tlb_batched_pending(mm);
-> > @@ -631,6 +652,7 @@ static int madvise_pageout_pte_range(pmd_t *pmd, unsigned long addr,
-> >  	arch_leave_lazy_mmu_mode();
-> >  	pte_unmap_unlock(orig_pte, ptl);
-> >  	reclaim_pages(&page_list);
-> > +next:
-> >  	cond_resched();
-> >  
-> >  	return 0;
-> > @@ -700,12 +722,26 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
-> >  	pte_t *orig_pte, *pte, ptent;
-> >  	struct page *page;
-> >  	int nr_swap = 0;
-> > -	unsigned long next;
-> >  
-> > -	next = pmd_addr_end(addr, end);
-> > -	if (pmd_trans_huge(*pmd))
-> > -		if (madvise_free_huge_pmd(tlb, vma, pmd, addr, next))
-> > +	if (pmd_trans_huge(*pmd)) {
-> > +		ptl = pmd_trans_huge_lock(pmd, vma);
-> > +		if (!ptl)
-> > +			return 0;
-> > +
-> > +		switch (madvise_pmdp_reset_or_split(walk, pmd, ptl, addr, end,
-> > +							true, true)) {
-> > +		case MADV_PMDP_RESET:
-> > +			page = pmd_page(*pmd);
-> > +			spin_unlock(ptl);
-> > +			mark_page_lazyfree(page);
-> >  			goto next;
-> > +		case MADV_PMDP_ERROR:
-> > +			spin_unlock(ptl);
-> > +			goto next;
-> > +		case MADV_PMDP_SPLIT:
-> > +			; /* go through */
-> > +		}
-> > +	}
-> >  
-> >  	if (pmd_trans_unstable(pmd))
-> >  		return 0;
-> > @@ -817,8 +853,8 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
-> >  	}
-> >  	arch_leave_lazy_mmu_mode();
-> >  	pte_unmap_unlock(orig_pte, ptl);
-> > -	cond_resched();
-> >  next:
-> > +	cond_resched();
-> >  	return 0;
-> >  }
-> >  
-> > -- 
-> > 2.22.0.410.gd8fdbe21b5-goog
-> 
-> -- 
-> Michal Hocko
-> SUSE Labs
+This makes no sense, since m is freed right away anyway.
+
+So whatever is trying to 'reuse' m is in big trouble.
 
