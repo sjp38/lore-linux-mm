@@ -6,145 +6,137 @@ X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
 	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D7123C74A21
-	for <linux-mm@archiver.kernel.org>; Wed, 10 Jul 2019 13:22:35 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3C680C74A21
+	for <linux-mm@archiver.kernel.org>; Wed, 10 Jul 2019 13:27:58 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5C91F2064B
-	for <linux-mm@archiver.kernel.org>; Wed, 10 Jul 2019 13:22:35 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5C91F2064B
+	by mail.kernel.org (Postfix) with ESMTP id D47E92064B
+	for <linux-mm@archiver.kernel.org>; Wed, 10 Jul 2019 13:27:57 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D47E92064B
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C8B9C8E0074; Wed, 10 Jul 2019 09:22:34 -0400 (EDT)
+	id 6E1A48E0075; Wed, 10 Jul 2019 09:27:57 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C3C9C8E0032; Wed, 10 Jul 2019 09:22:34 -0400 (EDT)
+	id 693278E0032; Wed, 10 Jul 2019 09:27:57 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B2AAC8E0074; Wed, 10 Jul 2019 09:22:34 -0400 (EDT)
+	id 532DB8E0075; Wed, 10 Jul 2019 09:27:57 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 7DE398E0032
-	for <linux-mm@kvack.org>; Wed, 10 Jul 2019 09:22:34 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id 6so1337510pfz.10
-        for <linux-mm@kvack.org>; Wed, 10 Jul 2019 06:22:34 -0700 (PDT)
+Received: from mail-yb1-f199.google.com (mail-yb1-f199.google.com [209.85.219.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 2DE7C8E0032
+	for <linux-mm@kvack.org>; Wed, 10 Jul 2019 09:27:57 -0400 (EDT)
+Received: by mail-yb1-f199.google.com with SMTP id p63so1480635ybb.10
+        for <linux-mm@kvack.org>; Wed, 10 Jul 2019 06:27:57 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:mime-version
          :content-transfer-encoding:date:from:to:cc:subject:organization
-         :reply-to:mail-reply-to:in-reply-to:references:user-agent:message-id;
-        bh=DQvRhIDNzoRVD6utvNNP2JJTLpl217g6G6NKeCYSne4=;
-        b=iRgQ4WT5iU+ECGLu7cBOq2QmhkpX6uQxNaAiFZ84uXU30RFKbYE4Bz56DhUB2OOtw+
-         x6LSdMgvMoqURMwZkC4Bi9zGwpNNtR0qcvepbdo2yDbC2AMqnCx5qTLlkypvwyuRF4gK
-         u9icgOwXRGm4qOamSIhtwVNf4brpjHgrn7MZ43B3dyiVu1hmVhYqXLVZGesIEtAq2+V+
-         /YvjFjoHJmztlIm/FQjwcKC0GUSHbUQ0O0Xg844HdYMD3HOR4uIoRNeSmyqiXlZzI7Xt
-         vxlHHqI0N7s/xcQTl8ew6EjLimSvzHb/1ce6Cm+DFtFYFn9TIUlHW2Ua9PxiZg4kiOtc
-         kWxQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of janani@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=janani@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: APjAAAWpsHJOUYaVwwHN1oCEAgKOXkhy70aM5GsQH1JuncVBFKlT40OM
-	IjVuNLuYkp1J+myyfbijM5I2T6t/CqMJ2dyDJCcUGQmSRMk/JJCkNp5U5YjcgOuu0CR+o9fFkTy
-	rmUeq9VTSLgVZ9fPDkfM16CPkyXBI6189f6jYbgWnK+6aJ1wZT7J2y+VIcWZ8YL1zLQ==
-X-Received: by 2002:a65:654f:: with SMTP id a15mr36235746pgw.73.1562764953973;
-        Wed, 10 Jul 2019 06:22:33 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqw3ZS5LFxE52MG1L4C/q9cyWg7uKPEoQIQHNSszT9ziZjWNbL/wzMpkaGzLBtBoSeg9/U+o
-X-Received: by 2002:a65:654f:: with SMTP id a15mr36235678pgw.73.1562764953153;
-        Wed, 10 Jul 2019 06:22:33 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562764953; cv=none;
+         :reply-to:mail-reply-to:in-reply-to:references:message-id:user-agent;
+        bh=56BzU2QkGyQg6d+XEgd+ZiEwC4RWMoVP+SlrAhLi9O4=;
+        b=nGejhtREc60LO4MBXZylX2RfUwj6H+6nVW0x/tx8WvbyKqRnmwCAJtR1NyAeXQ283k
+         A6l3QDX2MSbvKKtqe9aBQD+0LspowQSFDDYcuN4xU9qrmH1MUzeeDpStgdlqBCBEKYhZ
+         eAfz4RO197t+yHXWzn1x08wCHleggg3QU2JFjAVeqy4s8P5C5EqXGwwWq0WpUFrCh2x4
+         ePNUTLnAFC928plHeBnhumVbUhK55C+ic9SZOAkoPnTZ2ETBUumQETxxA/qmCcLeDOq1
+         29KX+pi09i+5cDm8eBQGPorhKusUtk5XsXMa4wZQfr9a57KmwNdFYNX0xCzUL4u5uFka
+         uEnw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of janani@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=janani@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: APjAAAVX25nwYJiwZsInZUg7ZkerIn8gdyzPtx8n0lodwmGCfoDK4ByK
+	4m9vJ0mGJ/f6BnoD1KdEugPF/D86tadQghxLhf4NBVcjT2kNPpN9ZQ8zHjbADbrE9bo2D3Vbkqr
+	autz5RT9Ttf0HdUbSf+WSUfKI8JjSIGxyCabdslgsNA3NBvCm40qhQZqHqZiBqOaFdw==
+X-Received: by 2002:a25:7288:: with SMTP id n130mr17742504ybc.171.1562765276828;
+        Wed, 10 Jul 2019 06:27:56 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxzOtuTsfEvYa/0qBdyf9oVrKlzNZl9I7+l+w+T5CHzI2+z78lvWMoRSE+w2RAVALL1tCIE
+X-Received: by 2002:a25:7288:: with SMTP id n130mr17742453ybc.171.1562765275908;
+        Wed, 10 Jul 2019 06:27:55 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562765275; cv=none;
         d=google.com; s=arc-20160816;
-        b=C1erTQiagz5iDmhFmyD2MKLhm+UPDDCJLfR6yG0JKbPPpF0PT85MC8ozRRoCsbtRnf
-         v1ABLtZjLEvGl2pKvs1guaDYMIA0KkFIYhwdCqj4dyJi7SX2RMOPj/ALjy/uenwZ3r3E
-         vIqCrQ5LV2TVsnOU+luZ9J52RNA+H/MUA9LAmZSN3/0CanqLPYzaVfk2WSFyWwjBbjVU
-         9T+SfTJG5VWqg4O+iQ81MJJIDKk7x+PU5jCXmfSgk7lyJkF82b0XGahOhyCyDjt/UAxm
-         XAjwUnIsQXTispgK1AfqVWf4i8rT75VRb0BhGV7+1UdPNUd4kRoj4RHumgbRT10GoeFS
-         Wp2A==
+        b=GaYUgoT3d9RCg68UuHLYRdqYRsnPutY7pya4Hxv+yBor0ovdvdUxUxEtyG6OSHS5Ij
+         nN1x1NY3TGLC0eakLtuWNt+rPz6zsB956s5gAs+KMVMzaOGXdEi6yvnM/BTYLk5lonxK
+         ff5r0OAkSsOQhv1O6lRwyKpG7J9ZHyu2OLj5H4Hbr6JSspfvfEPRHEGR3sZyELpIpNdX
+         MUqrDZ2RlIS6zhRWntbSoWlRsNX/BFy+xRK/2KrkxFYUxmioEog0ayIFRK5SIEZekltK
+         n2bCs2njpOdPPYEUvzDgjZj2twgdh/aaiE3EchkGssX6u4mXLenNapdMeSxpFQCJQJ7q
+         WSrA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:user-agent:references:in-reply-to:mail-reply-to:reply-to
+        h=user-agent:message-id:references:in-reply-to:mail-reply-to:reply-to
          :organization:subject:cc:to:from:date:content-transfer-encoding
          :mime-version;
-        bh=DQvRhIDNzoRVD6utvNNP2JJTLpl217g6G6NKeCYSne4=;
-        b=wR2mtM1QwAQC1QvqLNuNW0FjjKkrCuJORIDdWlX83rUvdIBaXHnxtXBMeIxPItFtLk
-         SaADDyvzJL1/gOHK3mRp/HvODngKzdnF+IPMHX/PDD0VIlDQRJzPPFZWhaJ5mAKSJ1Lc
-         zb67SqeLG8xwKcgz6YxSLdyxE+sx3wf8U7sVJmD8UkaEofAM3ssya90zAdPCrmb8/nHH
-         cXXOBsZlwi/7QqWcOznvWzqqeYu05nwJ/OQXuPqLUb8oOIDhIvj/+dJ5mmyJScHUfdOK
-         ONDmcdCrBvDV4OrYyKl+z6jhQ2yQyD8YY2aSoS11dgTwwL74cOQEaFpd4wlzvGllsFfH
-         UP9Q==
+        bh=56BzU2QkGyQg6d+XEgd+ZiEwC4RWMoVP+SlrAhLi9O4=;
+        b=xCR+LBL/47tPh6DKZNPSQtkyYyea42jSgvgTO+2ht0zGDauQzwj7f2j5MAuOu/W7A1
+         H4TrRUnN09xbBss0fgZMzOLND2mVXfFTV6b6D4gL8mbFQK8fOW/ZSx26o1B43cviop9u
+         koSqmxVWBd0h26mAa7G1gNEFncNcIvGZQXorTOVYUi16yOspWHfbyyo1F8s516MXMOvs
+         Q6L0nJoh/dRvONrDHloqpYyqi0wLkpNwZvNrf1g3OkT9qDJLzY07ete+EPhqAYvnUkPp
+         b9C5iCTbGAPzrQcoNaJAkumrvq4U7KX8byrdubrzZBlQs2x7T7y36PcfkLiwozrVSit5
+         kArg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of janani@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=janani@linux.ibm.com;
+       spf=pass (google.com: domain of janani@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=janani@linux.ibm.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id cb5si2089205plb.172.2019.07.10.06.22.32
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id 140si748378ybn.42.2019.07.10.06.27.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 10 Jul 2019 06:22:33 -0700 (PDT)
-Received-SPF: pass (google.com: domain of janani@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
+        Wed, 10 Jul 2019 06:27:55 -0700 (PDT)
+Received-SPF: pass (google.com: domain of janani@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of janani@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=janani@linux.ibm.com;
+       spf=pass (google.com: domain of janani@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=janani@linux.ibm.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098394.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x6ADJKls037362
-	for <linux-mm@kvack.org>; Wed, 10 Jul 2019 09:22:32 -0400
-Received: from e33.co.us.ibm.com (e33.co.us.ibm.com [32.97.110.151])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2tng31jp2s-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 10 Jul 2019 09:22:32 -0400
-Received: from localhost
-	by e33.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <janani@linux.ibm.com>;
-	Wed, 10 Jul 2019 14:22:30 +0100
-Received: from b03cxnp08025.gho.boulder.ibm.com (9.17.130.17)
-	by e33.co.us.ibm.com (192.168.1.133) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Wed, 10 Jul 2019 14:22:28 +0100
-Received: from b03ledav003.gho.boulder.ibm.com (b03ledav003.gho.boulder.ibm.com [9.17.130.234])
-	by b03cxnp08025.gho.boulder.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x6ADMQHe37355980
+Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x6ADQVC8066691;
+	Wed, 10 Jul 2019 09:27:55 -0400
+Received: from ppma01dal.us.ibm.com (83.d6.3fa9.ip4.static.sl-reverse.com [169.63.214.131])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2tng242mty-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=NOT);
+	Wed, 10 Jul 2019 09:27:55 -0400
+Received: from pps.filterd (ppma01dal.us.ibm.com [127.0.0.1])
+	by ppma01dal.us.ibm.com (8.16.0.27/8.16.0.27) with SMTP id x6ADPvAE030314;
+	Wed, 10 Jul 2019 13:27:54 GMT
+Received: from b01cxnp22035.gho.pok.ibm.com (b01cxnp22035.gho.pok.ibm.com [9.57.198.25])
+	by ppma01dal.us.ibm.com with ESMTP id 2tjk97c56h-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=NOT);
+	Wed, 10 Jul 2019 13:27:54 +0000
+Received: from b01ledav006.gho.pok.ibm.com (b01ledav006.gho.pok.ibm.com [9.57.199.111])
+	by b01cxnp22035.gho.pok.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x6ADRrVG43516198
 	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Wed, 10 Jul 2019 13:22:26 GMT
-Received: from b03ledav003.gho.boulder.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id B9DA06A047;
-	Wed, 10 Jul 2019 13:22:26 +0000 (GMT)
-Received: from b03ledav003.gho.boulder.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 5F6FF6A057;
-	Wed, 10 Jul 2019 13:22:26 +0000 (GMT)
+	Wed, 10 Jul 2019 13:27:53 GMT
+Received: from b01ledav006.gho.pok.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 691D4AC059;
+	Wed, 10 Jul 2019 13:27:53 +0000 (GMT)
+Received: from b01ledav006.gho.pok.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 308D1AC05B;
+	Wed, 10 Jul 2019 13:27:52 +0000 (GMT)
 Received: from ltc.linux.ibm.com (unknown [9.16.170.189])
-	by b03ledav003.gho.boulder.ibm.com (Postfix) with ESMTP;
-	Wed, 10 Jul 2019 13:22:26 +0000 (GMT)
+	by b01ledav006.gho.pok.ibm.com (Postfix) with ESMTP;
+	Wed, 10 Jul 2019 13:27:52 +0000 (GMT)
 MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII;
  format=flowed
 Content-Transfer-Encoding: 7bit
-Date: Wed, 10 Jul 2019 08:24:56 -0500
+Date: Wed, 10 Jul 2019 08:30:21 -0500
 From: janani <janani@linux.ibm.com>
 To: Bharata B Rao <bharata@linux.ibm.com>
 Cc: linuxppc-dev@lists.ozlabs.org, linuxram@us.ibm.com, cclaudio@linux.ibm.com,
         kvm-ppc@vger.kernel.org, linux-mm@kvack.org, jglisse@redhat.com,
         aneesh.kumar@linux.vnet.ibm.com, paulus@au1.ibm.com,
         sukadev@linux.vnet.ibm.com,
-        Anshuman Khandual <khandual@linux.vnet.ibm.com>,
-        Linuxppc-dev <linuxppc-dev-bounces+janani=linux.ibm.com@lists.ozlabs.org>
-Subject: Re: [PATCH v5 7/7] KVM: PPC: Ultravisor: Add PPC_UV config option
+        Linuxppc-dev
+ <linuxppc-dev-bounces+janani=linux.ibm.com@lists.ozlabs.org>
+Subject: Re: [RFC PATCH v5 6/7] kvmppc: Support reset of secure guest
 Organization: IBM
 Reply-To: janani@linux.ibm.com
 Mail-Reply-To: janani@linux.ibm.com
-In-Reply-To: <20190709102545.9187-8-bharata@linux.ibm.com>
+In-Reply-To: <20190709102545.9187-7-bharata@linux.ibm.com>
 References: <20190709102545.9187-1-bharata@linux.ibm.com>
- <20190709102545.9187-8-bharata@linux.ibm.com>
+ <20190709102545.9187-7-bharata@linux.ibm.com>
+Message-ID: <f0c874af38a227cc721b27b77e40400f@linux.vnet.ibm.com>
 X-Sender: janani@linux.ibm.com
 User-Agent: Roundcube Webmail/1.0.1
 X-TM-AS-GCONF: 00
-x-cbid: 19071013-0036-0000-0000-00000AD591AA
-X-IBM-SpamModules-Scores: 
-X-IBM-SpamModules-Versions: BY=3.00011404; HX=3.00000242; KW=3.00000007;
- PH=3.00000004; SC=3.00000286; SDB=6.01230167; UDB=6.00647931; IPR=6.01011436;
- MB=3.00027665; MTD=3.00000008; XFM=3.00000015; UTC=2019-07-10 13:22:30
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19071013-0037-0000-0000-00004C890942
-Message-Id: <6759c8a79b2962d07ed99f2b1cd05637@linux.vnet.ibm.com>
 X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-07-10_05:,,
  signatures=0
 X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ malwarescore=0 suspectscore=2 phishscore=0 bulkscore=0 spamscore=0
  clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
  mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1907100155
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1907100156
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
@@ -152,51 +144,421 @@ X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 On 2019-07-09 05:25, Bharata B Rao wrote:
-> From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+> Add support for reset of secure guest via a new ioctl KVM_PPC_SVM_OFF.
+> This ioctl will be issued by QEMU during reset and includes the
+> the following steps:
 > 
-> CONFIG_PPC_UV adds support for ultravisor.
+> - Ask UV to terminate the guest via UV_SVM_TERMINATE ucall
+> - Unpin the VPA pages so that they can be migrated back to secure
+>   side when guest becomes secure again. This is required because
+>   pinned pages can't be migrated.
+> - Reinitialize guest's partitioned scoped page tables. These are
+>   freed when guest become secure (H_SVM_INIT_DONE)
+> - Release all HMM pages of the secure guest.
 > 
-> Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+> After these steps, guest is ready to issue UV_ESM call once again
+> to switch to secure mode.
+> 
 > Signed-off-by: Bharata B Rao <bharata@linux.ibm.com>
+> Signed-off-by: Sukadev Bhattiprolu <sukadev@linux.vnet.ibm.com>
+> 	[Implementation of uv_svm_terminate() and its call from
+> 	guest shutdown path]
 > Signed-off-by: Ram Pai <linuxram@us.ibm.com>
-> [ Update config help and commit message ]
-> Signed-off-by: Claudio Carvalho <cclaudio@linux.ibm.com>
+> 	[Unpinning of VPA pages]
   Reviewed-by: Janani Janakiraman <janani@linux.ibm.com>
 > ---
->  arch/powerpc/Kconfig | 20 ++++++++++++++++++++
->  1 file changed, 20 insertions(+)
+>  Documentation/virtual/kvm/api.txt         | 19 ++++++
+>  arch/powerpc/include/asm/kvm_book3s_hmm.h |  7 +++
+>  arch/powerpc/include/asm/kvm_ppc.h        |  2 +
+>  arch/powerpc/include/asm/ultravisor-api.h |  1 +
+>  arch/powerpc/include/asm/ultravisor.h     |  7 +++
+>  arch/powerpc/kvm/book3s_hv.c              | 70 +++++++++++++++++++++++
+>  arch/powerpc/kvm/book3s_hv_hmm.c          | 60 +++++++++++++++++++
+>  arch/powerpc/kvm/powerpc.c                | 12 ++++
+>  include/uapi/linux/kvm.h                  |  1 +
+>  tools/include/uapi/linux/kvm.h            |  1 +
+>  10 files changed, 180 insertions(+)
 > 
-> diff --git a/arch/powerpc/Kconfig b/arch/powerpc/Kconfig
-> index f0e5b38d52e8..20c6c213d2be 100644
-> --- a/arch/powerpc/Kconfig
-> +++ b/arch/powerpc/Kconfig
-> @@ -440,6 +440,26 @@ config PPC_TRANSACTIONAL_MEM
->         ---help---
->           Support user-mode Transactional Memory on POWERPC.
+> diff --git a/Documentation/virtual/kvm/api.txt
+> b/Documentation/virtual/kvm/api.txt
+> index ba6c42c576dd..c89c24ad86ed 100644
+> --- a/Documentation/virtual/kvm/api.txt
+> +++ b/Documentation/virtual/kvm/api.txt
+> @@ -4065,6 +4065,25 @@ KVM_ARM_VCPU_FINALIZE call.
+>  See KVM_ARM_VCPU_INIT for details of vcpu features that require 
+> finalization
+>  using this ioctl.
 > 
-> +config PPC_UV
-> +	bool "Ultravisor support"
-> +	depends on KVM_BOOK3S_HV_POSSIBLE
-> +	select HMM_MIRROR
-> +	select HMM
-> +	select ZONE_DEVICE
-> +	select MIGRATE_VMA_HELPER
-> +	select DEV_PAGEMAP_OPS
-> +	select DEVICE_PRIVATE
-> +	select MEMORY_HOTPLUG
-> +	select MEMORY_HOTREMOVE
-> +	default n
-> +	help
-> +	  This option paravirtualizes the kernel to run in POWER platforms 
-> that
-> +	  supports the Protected Execution Facility (PEF). In such platforms,
-> +	  the ultravisor firmware runs at a privilege level above the
-> +	  hypervisor.
+> +4.120 KVM_PPC_SVM_OFF
 > +
-> +	  If unsure, say "N".
+> +Capability: basic
+> +Architectures: powerpc
+> +Type: vm ioctl
+> +Parameters: none
+> +Returns: 0 on successful completion,
+> +Errors:
+> +  EINVAL:    if ultravisor failed to terminate the secure guest
+> +  ENOMEM:    if hypervisor failed to allocate new radix page tables 
+> for guest
 > +
->  config LD_HEAD_STUB_CATCH
->  	bool "Reserve 256 bytes to cope with linker stubs in HEAD text" if 
-> EXPERT
->  	depends on PPC64
+> +This ioctl is used to turn off the secure mode of the guest or 
+> transition
+> +the guest from secure mode to normal mode. This is invoked when the 
+> guest
+> +is reset. This has no effect if called for a normal guest.
+> +
+> +This ioctl issues an ultravisor call to terminate the secure guest,
+> +unpin the VPA pages, reinitialize guest's partition scoped page
+> +tables and releases all the HMM pages that is associated with this 
+> guest.
+> +
+>  5. The kvm_run structure
+>  ------------------------
+> 
+> diff --git a/arch/powerpc/include/asm/kvm_book3s_hmm.h
+> b/arch/powerpc/include/asm/kvm_book3s_hmm.h
+> index 8c7aacabb2e0..cd2b0f927766 100644
+> --- a/arch/powerpc/include/asm/kvm_book3s_hmm.h
+> +++ b/arch/powerpc/include/asm/kvm_book3s_hmm.h
+> @@ -13,6 +13,8 @@ extern unsigned long kvmppc_h_svm_page_out(struct kvm 
+> *kvm,
+>  					  unsigned long page_shift);
+>  extern unsigned long kvmppc_h_svm_init_start(struct kvm *kvm);
+>  extern unsigned long kvmppc_h_svm_init_done(struct kvm *kvm);
+> +extern void kvmppc_hmm_free_memslot_pfns(struct kvm *kvm,
+> +		struct kvm_memslots *slots);
+>  #else
+>  static inline unsigned long
+>  kvmppc_h_svm_page_in(struct kvm *kvm, unsigned long gra,
+> @@ -37,5 +39,10 @@ static inline unsigned long
+> kvmppc_h_svm_init_done(struct kvm *kvm)
+>  {
+>  	return H_UNSUPPORTED;
+>  }
+> +
+> +static inline void kvmppc_hmm_free_memslot_pfns(struct kvm *kvm,
+> +		struct kvm_memslots *slots)
+> +{
+> +}
+>  #endif /* CONFIG_PPC_UV */
+>  #endif /* __POWERPC_KVM_PPC_HMM_H__ */
+> diff --git a/arch/powerpc/include/asm/kvm_ppc.h
+> b/arch/powerpc/include/asm/kvm_ppc.h
+> index bc892380e6cd..d80ece28d65d 100644
+> --- a/arch/powerpc/include/asm/kvm_ppc.h
+> +++ b/arch/powerpc/include/asm/kvm_ppc.h
+> @@ -188,6 +188,7 @@ extern void
+> kvm_spapr_tce_release_iommu_group(struct kvm *kvm,
+>  extern int kvmppc_switch_mmu_to_hpt(struct kvm *kvm);
+>  extern int kvmppc_switch_mmu_to_radix(struct kvm *kvm);
+>  extern void kvmppc_setup_partition_table(struct kvm *kvm);
+> +extern int kvmppc_reinit_partition_table(struct kvm *kvm);
+> 
+>  extern long kvm_vm_ioctl_create_spapr_tce(struct kvm *kvm,
+>  				struct kvm_create_spapr_tce_64 *args);
+> @@ -332,6 +333,7 @@ struct kvmppc_ops {
+>  			       int size);
+>  	int (*store_to_eaddr)(struct kvm_vcpu *vcpu, ulong *eaddr, void *ptr,
+>  			      int size);
+> +	int (*svm_off)(struct kvm *kvm);
+>  };
+> 
+>  extern struct kvmppc_ops *kvmppc_hv_ops;
+> diff --git a/arch/powerpc/include/asm/ultravisor-api.h
+> b/arch/powerpc/include/asm/ultravisor-api.h
+> index 9f5510b55892..c8180427fa01 100644
+> --- a/arch/powerpc/include/asm/ultravisor-api.h
+> +++ b/arch/powerpc/include/asm/ultravisor-api.h
+> @@ -25,5 +25,6 @@
+>  #define UV_PAGE_IN			0xF128
+>  #define UV_PAGE_OUT			0xF12C
+>  #define UV_PAGE_INVAL			0xF138
+> +#define UV_SVM_TERMINATE		0xF13C
+> 
+>  #endif /* _ASM_POWERPC_ULTRAVISOR_API_H */
+> diff --git a/arch/powerpc/include/asm/ultravisor.h
+> b/arch/powerpc/include/asm/ultravisor.h
+> index f4f674794b35..a5e4516c8ddb 100644
+> --- a/arch/powerpc/include/asm/ultravisor.h
+> +++ b/arch/powerpc/include/asm/ultravisor.h
+> @@ -84,6 +84,13 @@ static inline int uv_page_inval(u64 lpid, u64 gpa,
+> u64 page_shift)
+> 
+>  	return ucall(UV_PAGE_INVAL, retbuf, lpid, gpa, page_shift);
+>  }
+> +
+> +static inline int uv_svm_terminate(u64 lpid)
+> +{
+> +	unsigned long retbuf[UCALL_BUFSIZE];
+> +
+> +	return ucall(UV_SVM_TERMINATE, retbuf, lpid);
+> +}
+>  #endif /* !__ASSEMBLY__ */
+> 
+>  #endif	/* _ASM_POWERPC_ULTRAVISOR_H */
+> diff --git a/arch/powerpc/kvm/book3s_hv.c 
+> b/arch/powerpc/kvm/book3s_hv.c
+> index 7cbb5edaed01..41b0fff199d3 100644
+> --- a/arch/powerpc/kvm/book3s_hv.c
+> +++ b/arch/powerpc/kvm/book3s_hv.c
+> @@ -2437,6 +2437,15 @@ static void unpin_vpa(struct kvm *kvm, struct
+> kvmppc_vpa *vpa)
+>  					vpa->dirty);
+>  }
+> 
+> +static void unpin_vpa_reset(struct kvm *kvm, struct kvmppc_vpa *vpa)
+> +{
+> +	unpin_vpa(kvm, vpa);
+> +	vpa->gpa = 0;
+> +	vpa->pinned_addr = NULL;
+> +	vpa->dirty = false;
+> +	vpa->update_pending = 0;
+> +}
+> +
+>  static void kvmppc_core_vcpu_free_hv(struct kvm_vcpu *vcpu)
+>  {
+>  	spin_lock(&vcpu->arch.vpa_update_lock);
+> @@ -4577,6 +4586,22 @@ void kvmppc_setup_partition_table(struct kvm 
+> *kvm)
+>  	kvmhv_set_ptbl_entry(kvm->arch.lpid, dw0, dw1);
+>  }
+> 
+> +/*
+> + * Called from KVM_PPC_SVM_OFF ioctl at guest reset time when secure
+> + * guest is converted back to normal guest.
+> + */
+> +int kvmppc_reinit_partition_table(struct kvm *kvm)
+> +{
+> +	int ret;
+> +
+> +	ret = kvmppc_init_vm_radix(kvm);
+> +	if (ret)
+> +		return ret;
+> +
+> +	kvmppc_setup_partition_table(kvm);
+> +	return 0;
+> +}
+> +
+>  /*
+>   * Set up HPT (hashed page table) and RMA (real-mode area).
+>   * Must be called with kvm->lock held.
+> @@ -4956,6 +4981,7 @@ static void kvmppc_core_destroy_vm_hv(struct kvm 
+> *kvm)
+>  		if (nesting_enabled(kvm))
+>  			kvmhv_release_all_nested(kvm);
+>  		kvm->arch.process_table = 0;
+> +		uv_svm_terminate(kvm->arch.lpid);
+>  		kvmhv_set_ptbl_entry(kvm->arch.lpid, 0, 0);
+>  	}
+>  	kvmppc_free_lpid(kvm->arch.lpid);
+> @@ -5397,6 +5423,49 @@ static int kvmhv_store_to_eaddr(struct kvm_vcpu
+> *vcpu, ulong *eaddr, void *ptr,
+>  	return rc;
+>  }
+> 
+> +/*
+> + *  IOCTL handler to turn off secure mode of guest
+> + *
+> + * - Issue ucall to terminate the guest on the UV side
+> + * - Unpin the VPA pages (Enables these pages to be migrated back
+> + *   when VM becomes secure again)
+> + * - Recreate partition table as the guest is transitioning back to
+> + *   normal mode
+> + * - Release all HMM pages
+> + */
+> +static int kvmhv_svm_off(struct kvm *kvm)
+> +{
+> +	struct kvm_vcpu *vcpu;
+> +	int ret = 0;
+> +	int i;
+> +
+> +	if (kvmppc_is_guest_secure(kvm)) {
+> +		ret = uv_svm_terminate(kvm->arch.lpid);
+> +		if (ret != U_SUCCESS) {
+> +			ret = -EINVAL;
+> +			goto out;
+> +		}
+> +
+> +		kvm_for_each_vcpu(i, vcpu, kvm) {
+> +			spin_lock(&vcpu->arch.vpa_update_lock);
+> +			unpin_vpa_reset(kvm, &vcpu->arch.dtl);
+> +			unpin_vpa_reset(kvm, &vcpu->arch.slb_shadow);
+> +			unpin_vpa_reset(kvm, &vcpu->arch.vpa);
+> +			spin_unlock(&vcpu->arch.vpa_update_lock);
+> +		}
+> +
+> +		ret = kvmppc_reinit_partition_table(kvm);
+> +		if (ret)
+> +			goto out;
+> +		kvm->arch.secure_guest = 0;
+> +		for (i = 0; i < KVM_ADDRESS_SPACE_NUM; i++)
+> +			kvmppc_hmm_free_memslot_pfns(kvm,
+> +			__kvm_memslots(kvm, i));
+> +	}
+> +out:
+> +	return ret;
+> +}
+> +
+>  static struct kvmppc_ops kvm_ops_hv = {
+>  	.get_sregs = kvm_arch_vcpu_ioctl_get_sregs_hv,
+>  	.set_sregs = kvm_arch_vcpu_ioctl_set_sregs_hv,
+> @@ -5439,6 +5508,7 @@ static struct kvmppc_ops kvm_ops_hv = {
+>  	.enable_nested = kvmhv_enable_nested,
+>  	.load_from_eaddr = kvmhv_load_from_eaddr,
+>  	.store_to_eaddr = kvmhv_store_to_eaddr,
+> +	.svm_off = kvmhv_svm_off,
+>  };
+> 
+>  static int kvm_init_subcore_bitmap(void)
+> diff --git a/arch/powerpc/kvm/book3s_hv_hmm.c 
+> b/arch/powerpc/kvm/book3s_hv_hmm.c
+> index 9e6c88de456f..165926c069ba 100644
+> --- a/arch/powerpc/kvm/book3s_hv_hmm.c
+> +++ b/arch/powerpc/kvm/book3s_hv_hmm.c
+> @@ -38,6 +38,8 @@
+>  #include <linux/kvm_host.h>
+>  #include <linux/sched/mm.h>
+>  #include <asm/ultravisor.h>
+> +#include <asm/kvm_ppc.h>
+> +#include <asm/kvm_book3s.h>
+> 
+>  struct kvmppc_hmm_device {
+>  	struct hmm_device *device;
+> @@ -98,6 +100,12 @@ unsigned long kvmppc_h_svm_init_done(struct kvm 
+> *kvm)
+>  		return H_UNSUPPORTED;
+> 
+>  	kvm->arch.secure_guest |= KVMPPC_SECURE_INIT_DONE;
+> +	if (kvm_is_radix(kvm)) {
+> +		pr_info("LPID %d went secure, freeing HV side radix pgtables\n",
+> +			kvm->arch.lpid);
+> +		kvmppc_free_radix(kvm);
+> +	}
+> +
+>  	return H_SUCCESS;
+>  }
+> 
+> @@ -113,6 +121,58 @@ static inline bool kvmppc_is_hmm_pfn(unsigned long 
+> pfn)
+>  	return !!(pfn & KVMPPC_PFN_HMM);
+>  }
+> 
+> +/*
+> + * Drop HMM pages that we maintain for the secure guest
+> + *
+> + * We mark the pages to be skipped from UV_PAGE_OUT when there is HMM
+> + * fault on these pages. Next we get these pages, force HMM fault,
+> + * do fault migration to replace the HMM PTEs from QEMU page tables
+> + * with normal PTEs from newly allocated pages.
+> + */
+> +static void kvmppc_hmm_drop_pages(struct kvm_memory_slot *free,
+> struct kvm *kvm)
+> +{
+> +	int i;
+> +	struct kvmppc_hmm_page_pvt *pvt;
+> +	unsigned long pfn;
+> +
+> +	for (i = 0; i < free->npages; i++) {
+> +		unsigned long *rmap = &free->arch.rmap[i];
+> +		struct page *hmm_page;
+> +
+> +		if (kvmppc_is_hmm_pfn(*rmap)) {
+> +			hmm_page = pfn_to_page(*rmap & ~KVMPPC_PFN_HMM);
+> +			pvt = (struct kvmppc_hmm_page_pvt *)
+> +				hmm_devmem_page_get_drvdata(hmm_page);
+> +			pvt->skip_page_out = true;
+> +
+> +			pfn = gfn_to_pfn(kvm, pvt->gpa >> PAGE_SHIFT);
+> +			if (is_error_noslot_pfn(pfn))
+> +				continue;
+> +			kvm_release_pfn_clean(pfn);
+> +		}
+> +	}
+> +}
+> +
+> +/*
+> + * Called from KVM_PPC_SVM_OFF ioctl when secure guest is reset
+> + *
+> + * UV has already cleaned up the guest, we release any HMM pages that
+> + * we maintain
+> + */
+> +void kvmppc_hmm_free_memslot_pfns(struct kvm *kvm, struct kvm_memslots 
+> *slots)
+> +{
+> +	struct kvm_memory_slot *memslot;
+> +	int srcu_idx;
+> +
+> +	if (!slots)
+> +		return;
+> +
+> +	srcu_idx = srcu_read_lock(&kvm->srcu);
+> +	kvm_for_each_memslot(memslot, slots)
+> +		kvmppc_hmm_drop_pages(memslot, kvm);
+> +	srcu_read_unlock(&kvm->srcu, srcu_idx);
+> +}
+> +
+>  /*
+>   * Get a free HMM PFN from the pool
+>   *
+> diff --git a/arch/powerpc/kvm/powerpc.c b/arch/powerpc/kvm/powerpc.c
+> index 3393b166817a..0c5fae004adf 100644
+> --- a/arch/powerpc/kvm/powerpc.c
+> +++ b/arch/powerpc/kvm/powerpc.c
+> @@ -42,6 +42,8 @@
+>  #include <asm/hvcall.h>
+>  #include <asm/plpar_wrappers.h>
+>  #endif
+> +#include <asm/ultravisor.h>
+> +#include <asm/kvm_host.h>
+> 
+>  #include "timing.h"
+>  #include "irq.h"
+> @@ -2423,6 +2425,16 @@ long kvm_arch_vm_ioctl(struct file *filp,
+>  			r = -EFAULT;
+>  		break;
+>  	}
+> +	case KVM_PPC_SVM_OFF: {
+> +		struct kvm *kvm = filp->private_data;
+> +
+> +		r = 0;
+> +		if (!kvm->arch.kvm_ops->svm_off)
+> +			goto out;
+> +
+> +		r = kvm->arch.kvm_ops->svm_off(kvm);
+> +		break;
+> +	}
+>  	default: {
+>  		struct kvm *kvm = filp->private_data;
+>  		r = kvm->arch.kvm_ops->arch_vm_ioctl(filp, ioctl, arg);
+> diff --git a/include/uapi/linux/kvm.h b/include/uapi/linux/kvm.h
+> index 2fe12b40d503..c1dbdd428025 100644
+> --- a/include/uapi/linux/kvm.h
+> +++ b/include/uapi/linux/kvm.h
+> @@ -1327,6 +1327,7 @@ struct kvm_s390_ucas_mapping {
+>  #define KVM_PPC_GET_RMMU_INFO	  _IOW(KVMIO,  0xb0, struct 
+> kvm_ppc_rmmu_info)
+>  /* Available with KVM_CAP_PPC_GET_CPU_CHAR */
+>  #define KVM_PPC_GET_CPU_CHAR	  _IOR(KVMIO,  0xb1, struct 
+> kvm_ppc_cpu_char)
+> +#define KVM_PPC_SVM_OFF		  _IO(KVMIO,  0xb2)
+> 
+>  /* ioctl for vm fd */
+>  #define KVM_CREATE_DEVICE	  _IOWR(KVMIO,  0xe0, struct 
+> kvm_create_device)
+> diff --git a/tools/include/uapi/linux/kvm.h 
+> b/tools/include/uapi/linux/kvm.h
+> index 6d4ea4b6c922..03c89f4a01b2 100644
+> --- a/tools/include/uapi/linux/kvm.h
+> +++ b/tools/include/uapi/linux/kvm.h
+> @@ -1319,6 +1319,7 @@ struct kvm_s390_ucas_mapping {
+>  #define KVM_PPC_GET_RMMU_INFO	  _IOW(KVMIO,  0xb0, struct 
+> kvm_ppc_rmmu_info)
+>  /* Available with KVM_CAP_PPC_GET_CPU_CHAR */
+>  #define KVM_PPC_GET_CPU_CHAR	  _IOR(KVMIO,  0xb1, struct 
+> kvm_ppc_cpu_char)
+> +#define KVM_PPC_SVM_OFF		  _IO(KVMIO,  0xb2)
+> 
+>  /* ioctl for vm fd */
+>  #define KVM_CREATE_DEVICE	  _IOWR(KVMIO,  0xe0, struct 
+> kvm_create_device)
 
