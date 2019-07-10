@@ -2,168 +2,137 @@ Return-Path: <SRS0=tO+N=VH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.2 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
+	SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5DDC1C74A2B
-	for <linux-mm@archiver.kernel.org>; Wed, 10 Jul 2019 17:02:04 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 616FBC74A36
+	for <linux-mm@archiver.kernel.org>; Wed, 10 Jul 2019 17:44:31 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1921320665
-	for <linux-mm@archiver.kernel.org>; Wed, 10 Jul 2019 17:02:03 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1921320665
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 04FF12087F
+	for <linux-mm@archiver.kernel.org>; Wed, 10 Jul 2019 17:44:30 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=cmpxchg-org.20150623.gappssmtp.com header.i=@cmpxchg-org.20150623.gappssmtp.com header.b="axQtLVlx"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 04FF12087F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=cmpxchg.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 927098E007E; Wed, 10 Jul 2019 13:02:03 -0400 (EDT)
+	id 70C208E007F; Wed, 10 Jul 2019 13:44:30 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8D7758E0032; Wed, 10 Jul 2019 13:02:03 -0400 (EDT)
+	id 6BCBF8E0032; Wed, 10 Jul 2019 13:44:30 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 779258E007E; Wed, 10 Jul 2019 13:02:03 -0400 (EDT)
+	id 584048E007F; Wed, 10 Jul 2019 13:44:30 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 434348E0032
-	for <linux-mm@kvack.org>; Wed, 10 Jul 2019 13:02:03 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id 71so1630130pld.1
-        for <linux-mm@kvack.org>; Wed, 10 Jul 2019 10:02:03 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 26AFD8E0032
+	for <linux-mm@kvack.org>; Wed, 10 Jul 2019 13:44:30 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id y66so1741230pfb.21
+        for <linux-mm@kvack.org>; Wed, 10 Jul 2019 10:44:30 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=wmcNoSxNtrBptqi0z2LQMIAZHCkkrDwAPrDjrOGNN8I=;
-        b=YaaFR1bbUIak0l59hzVn2MNipzH1M2Axx+++qV4pZT34YjawJoBte31CYH2ErFM0Vf
-         y/2lVSPQuLFks9/54kL2NEX5k+XErl3gJvJnJ2SuRTICb9DEau8keRJqQth3zCj3tc9G
-         M51ao8smg4QsLNj64Ton+A58Z2ciUB6MrXo44hcw7RlRbDEj7KRjYLnZoAmHM3J5tIRJ
-         f6WWc/yYIuTINj52VlF585cedGZ++ZXT/aw6JMF8wAAdMSbrhuplnnwnCdSt2QgfSuov
-         Zq9Ajq1CXjzsegVJGosoIEq7GcNq4zU+fGZlmkLlFPDcVxFzgiB3s7sQAAuhOAaYKotX
-         SxVA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAVpOsENvGgDrJk92LoqErxFJ9cnBgFEi8qGscJ+5ylOnZyHfksV
-	hB1IRHVaja4LGZ0Vvl3eHqxkgYba+a8+/CtIRUQg8xsR039q8o4gxxmhFBH+7o/cdbgQ88efMAu
-	TdJHEZfp1xM2ZUv7D6byM+NtuCDVK1RKDKlXT8GslxXwnsH7zhzDBq+rU5yW3y+oLYg==
-X-Received: by 2002:a63:fc52:: with SMTP id r18mr37968865pgk.378.1562778122796;
-        Wed, 10 Jul 2019 10:02:02 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy87l05t5ewGNpAveH0n929aO+1grVXs7GN1tUrawPljRbjuw9oa6VIA5MVJF6kgL0Smh81
-X-Received: by 2002:a63:fc52:: with SMTP id r18mr37968777pgk.378.1562778121848;
-        Wed, 10 Jul 2019 10:02:01 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562778121; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=iWMY9Ra6fhg6EXLcSiaO3PQbn2oiv74r4PYLZuZM2BU=;
+        b=SiL7LupAPlMYvlQLkA1lGOruu5lA36rlSRQ6OvVsWP24rQ9UQCEMBYXsYk8Ajwj87c
+         alJv1V8EqqADTorBoxtaXiFPqncgypNy6SxfZV0X7MOT+Cnlz//Gb5ElKOvVOCO4fVRs
+         /aCiH9vCy1AHzOw6lJXK3JJivhvZWHdRXvorzNvRm0pPbzkB3OIFLnaeowuBdADifAxk
+         DAww9KZ6oZx1/3eX9DPRJBY6tmgTcDCULdbLGFgMtX6HFD6rntUeB+v4/CRapaP3Zs7B
+         BfcB0OoKBTLf/pUb/NvyNlrvLZBxE9VdFD/Bh4XRGXVHFIf3lOq8qPOjB6CHW90kaCuW
+         eeow==
+X-Gm-Message-State: APjAAAVZjb1V15HcmYt4eYWuide4YdGsjcAFtQ9glG7dO4A/Qycn1fPN
+	1lMgWr1iW/C306ss01sS+uMuUZHLJMGa5qNxRFYlXP9R8ven+mCiQV3xDq0ca10chF1YwgkAkAV
+	CtyfnkkQrYV1nq67vHVtGzrfsno4ditvz5Dm/4kv8mQr+D4UHb4jHsyEu8iMFE9ySHQ==
+X-Received: by 2002:a17:90a:ab0b:: with SMTP id m11mr8591424pjq.73.1562780669701;
+        Wed, 10 Jul 2019 10:44:29 -0700 (PDT)
+X-Received: by 2002:a17:90a:ab0b:: with SMTP id m11mr8591364pjq.73.1562780668749;
+        Wed, 10 Jul 2019 10:44:28 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562780668; cv=none;
         d=google.com; s=arc-20160816;
-        b=t6GbNaW9oCbKwDwKoErEQPMkB7tvJHgWudRQtofbbciuv0LpEwNJx8zLUAct3PtpRV
-         siZsmnjnH4sjpqbCHTpcArMBxH606RebSTElpssNgV9oTmDl2HUA0rWO5tyw85+/3Jq5
-         HOjXaI7g4DKe+02yMpRdA3NIljDuGQS+xwGOnqRSu2JLVR5JsnGwWolU1d80hYFy8GU7
-         wW4GX8aE9tvn9uAaM5glSP/++XOpyNgARFz05NjlBTv82VsMQSfaQJnlJztD0/MqrQjq
-         AmebE6dVeHAHv+Vh/Q3+ZLynNqX2paqPSM9T52unTgZzdWYFAmXHcKoGFHlr59GGUALk
-         1AOA==
+        b=vcuP6G+jbuGpieHihrbJZWc6qaXylbKwVGYQ0D09BdP4AKhBsHbYrd6WFzJ3Z/1Xn6
+         rdLmbyPXFQb8+IBdLkYgK+5DdRJ1SC0g3YUC7VBjMVnvze20+Z7stlgr/2PYe5pJQehr
+         HPHOwTQ2r/u75EkcgPHlCSBnhpXTk474KyOm/rEsnJNgwW+W/G7DgCf2ZYoGsSSdTNPy
+         xVFAj/plaBxtKZLyKxTKkMn71OtO/wJHv5Wumplp9+QO5nnB8JVb21OxTGds8uC/cSCp
+         O8BzYm967YIZvdAVHQMLnu6u/n3cF6CNxc3aZcCgA470cNNNdih5Af4/ccxWvr+bsiZt
+         6IHQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
-         :subject;
-        bh=wmcNoSxNtrBptqi0z2LQMIAZHCkkrDwAPrDjrOGNN8I=;
-        b=dnpaBf+BEKGYXY7p2Uhunfr9FB3k8wwJwqqSCCgtBhyOpSBGaBKtDhbnPzGcF9zoJM
-         hmiq9k7dvUtOTjnNfquTfOjR6C29bIgNqCEOOgm5H5a6dCL9uxYNJf7LQ0GoSSiA9emL
-         5ww9uJI9vVwo5K/6uJSP60/xTXRKwO1PAQz48zF2C6bV6bU5g1OUgFnLcq2bbEblzsNu
-         SIlyNrhhOtY2U5LZBPrGvW9ph12+v6cUnQ20IbDMB4f8Beo9js9ae3YAviDmF6NmVWCs
-         +zdbWEHiWDmXGt02BEgdWLG9cbWEsK+EeCC4CeHYEUC8yITYA8n1CSAKDhR10Gy+EwpS
-         q6/g==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=iWMY9Ra6fhg6EXLcSiaO3PQbn2oiv74r4PYLZuZM2BU=;
+        b=bfWC/jWl7uWr8o+gOZGovtEpQFXEmJNxGvQ82gY2c1ubftxT0Ajim01EaCV3b5m+Rm
+         8tPjSO73Jff8GvoDrSxy332xTi/PTWOJ2QkFSt9qoGoc12Io3Ph8U0UWoxGODyTY/djt
+         C85ThBaf19Kp8ftt24GdBwhWtXgTLackU+0CNkcsSdkxfUEm0HyEwCv4E8Nmn/X5SDmn
+         EWQUWf2OF0mPazmnD9SQh52WxS22h4nJmqk9Ur9uSD7hA2Bh9Mp6rmgFo95gxauvbZFx
+         UmmEFL1CEmVf1BdQwNkp+d8ugvy84Y8/HH/iYulwfCa5KIFNAagAWkCKgsq2nEGLoaIw
+         ovVw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id t8si2694435pgu.288.2019.07.10.10.02.01
+       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=axQtLVlx;
+       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id s19sor1557539pgi.13.2019.07.10.10.44.23
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 10 Jul 2019 10:02:01 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.31 as permitted sender) client-ip=134.134.136.31;
+        (Google Transport Security);
+        Wed, 10 Jul 2019 10:44:23 -0700 (PDT)
+Received-SPF: pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from orsmga008.jf.intel.com ([10.7.209.65])
-  by orsmga104.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 10 Jul 2019 10:02:01 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.63,475,1557212400"; 
-   d="scan'208";a="159817142"
-Received: from akraina-mobl1.amr.corp.intel.com (HELO [10.251.14.235]) ([10.251.14.235])
-  by orsmga008.jf.intel.com with ESMTP; 10 Jul 2019 10:02:00 -0700
-Subject: Re: Memory compaction and mlockall()
-To: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
-Cc: linux-mm@kvack.org, tglx@linutronix.de
-References: <20190710144138.qyn4tuttdq6h7kqx@linutronix.de>
- <66785c4b-b1cc-7b5a-a756-041068e3bec6@intel.com>
- <20190710164521.vlcrrfovphd5fp7f@linutronix.de>
-From: Dave Hansen <dave.hansen@intel.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=dave.hansen@intel.com; keydata=
- mQINBE6HMP0BEADIMA3XYkQfF3dwHlj58Yjsc4E5y5G67cfbt8dvaUq2fx1lR0K9h1bOI6fC
- oAiUXvGAOxPDsB/P6UEOISPpLl5IuYsSwAeZGkdQ5g6m1xq7AlDJQZddhr/1DC/nMVa/2BoY
- 2UnKuZuSBu7lgOE193+7Uks3416N2hTkyKUSNkduyoZ9F5twiBhxPJwPtn/wnch6n5RsoXsb
- ygOEDxLEsSk/7eyFycjE+btUtAWZtx+HseyaGfqkZK0Z9bT1lsaHecmB203xShwCPT49Blxz
- VOab8668QpaEOdLGhtvrVYVK7x4skyT3nGWcgDCl5/Vp3TWA4K+IofwvXzX2ON/Mj7aQwf5W
- iC+3nWC7q0uxKwwsddJ0Nu+dpA/UORQWa1NiAftEoSpk5+nUUi0WE+5DRm0H+TXKBWMGNCFn
- c6+EKg5zQaa8KqymHcOrSXNPmzJuXvDQ8uj2J8XuzCZfK4uy1+YdIr0yyEMI7mdh4KX50LO1
- pmowEqDh7dLShTOif/7UtQYrzYq9cPnjU2ZW4qd5Qz2joSGTG9eCXLz5PRe5SqHxv6ljk8mb
- ApNuY7bOXO/A7T2j5RwXIlcmssqIjBcxsRRoIbpCwWWGjkYjzYCjgsNFL6rt4OL11OUF37wL
- QcTl7fbCGv53KfKPdYD5hcbguLKi/aCccJK18ZwNjFhqr4MliQARAQABtEVEYXZpZCBDaHJp
- c3RvcGhlciBIYW5zZW4gKEludGVsIFdvcmsgQWRkcmVzcykgPGRhdmUuaGFuc2VuQGludGVs
- LmNvbT6JAjgEEwECACIFAlQ+9J0CGwMGCwkIBwMCBhUIAgkKCwQWAgMBAh4BAheAAAoJEGg1
- lTBwyZKwLZUP/0dnbhDc229u2u6WtK1s1cSd9WsflGXGagkR6liJ4um3XCfYWDHvIdkHYC1t
- MNcVHFBwmQkawxsYvgO8kXT3SaFZe4ISfB4K4CL2qp4JO+nJdlFUbZI7cz/Td9z8nHjMcWYF
- IQuTsWOLs/LBMTs+ANumibtw6UkiGVD3dfHJAOPNApjVr+M0P/lVmTeP8w0uVcd2syiaU5jB
- aht9CYATn+ytFGWZnBEEQFnqcibIaOrmoBLu2b3fKJEd8Jp7NHDSIdrvrMjYynmc6sZKUqH2
- I1qOevaa8jUg7wlLJAWGfIqnu85kkqrVOkbNbk4TPub7VOqA6qG5GCNEIv6ZY7HLYd/vAkVY
- E8Plzq/NwLAuOWxvGrOl7OPuwVeR4hBDfcrNb990MFPpjGgACzAZyjdmYoMu8j3/MAEW4P0z
- F5+EYJAOZ+z212y1pchNNauehORXgjrNKsZwxwKpPY9qb84E3O9KYpwfATsqOoQ6tTgr+1BR
- CCwP712H+E9U5HJ0iibN/CDZFVPL1bRerHziuwuQuvE0qWg0+0SChFe9oq0KAwEkVs6ZDMB2
- P16MieEEQ6StQRlvy2YBv80L1TMl3T90Bo1UUn6ARXEpcbFE0/aORH/jEXcRteb+vuik5UGY
- 5TsyLYdPur3TXm7XDBdmmyQVJjnJKYK9AQxj95KlXLVO38lcuQINBFRjzmoBEACyAxbvUEhd
- GDGNg0JhDdezyTdN8C9BFsdxyTLnSH31NRiyp1QtuxvcqGZjb2trDVuCbIzRrgMZLVgo3upr
- MIOx1CXEgmn23Zhh0EpdVHM8IKx9Z7V0r+rrpRWFE8/wQZngKYVi49PGoZj50ZEifEJ5qn/H
- Nsp2+Y+bTUjDdgWMATg9DiFMyv8fvoqgNsNyrrZTnSgoLzdxr89FGHZCoSoAK8gfgFHuO54B
- lI8QOfPDG9WDPJ66HCodjTlBEr/Cwq6GruxS5i2Y33YVqxvFvDa1tUtl+iJ2SWKS9kCai2DR
- 3BwVONJEYSDQaven/EHMlY1q8Vln3lGPsS11vSUK3QcNJjmrgYxH5KsVsf6PNRj9mp8Z1kIG
- qjRx08+nnyStWC0gZH6NrYyS9rpqH3j+hA2WcI7De51L4Rv9pFwzp161mvtc6eC/GxaiUGuH
- BNAVP0PY0fqvIC68p3rLIAW3f97uv4ce2RSQ7LbsPsimOeCo/5vgS6YQsj83E+AipPr09Caj
- 0hloj+hFoqiticNpmsxdWKoOsV0PftcQvBCCYuhKbZV9s5hjt9qn8CE86A5g5KqDf83Fxqm/
- vXKgHNFHE5zgXGZnrmaf6resQzbvJHO0Fb0CcIohzrpPaL3YepcLDoCCgElGMGQjdCcSQ+Ci
- FCRl0Bvyj1YZUql+ZkptgGjikQARAQABiQIfBBgBAgAJBQJUY85qAhsMAAoJEGg1lTBwyZKw
- l4IQAIKHs/9po4spZDFyfDjunimEhVHqlUt7ggR1Hsl/tkvTSze8pI1P6dGp2XW6AnH1iayn
- yRcoyT0ZJ+Zmm4xAH1zqKjWplzqdb/dO28qk0bPso8+1oPO8oDhLm1+tY+cOvufXkBTm+whm
- +AyNTjaCRt6aSMnA/QHVGSJ8grrTJCoACVNhnXg/R0g90g8iV8Q+IBZyDkG0tBThaDdw1B2l
- asInUTeb9EiVfL/Zjdg5VWiF9LL7iS+9hTeVdR09vThQ/DhVbCNxVk+DtyBHsjOKifrVsYep
- WpRGBIAu3bK8eXtyvrw1igWTNs2wazJ71+0z2jMzbclKAyRHKU9JdN6Hkkgr2nPb561yjcB8
- sIq1pFXKyO+nKy6SZYxOvHxCcjk2fkw6UmPU6/j/nQlj2lfOAgNVKuDLothIxzi8pndB8Jju
- KktE5HJqUUMXePkAYIxEQ0mMc8Po7tuXdejgPMwgP7x65xtfEqI0RuzbUioFltsp1jUaRwQZ
- MTsCeQDdjpgHsj+P2ZDeEKCbma4m6Ez/YWs4+zDm1X8uZDkZcfQlD9NldbKDJEXLIjYWo1PH
- hYepSffIWPyvBMBTW2W5FRjJ4vLRrJSUoEfJuPQ3vW9Y73foyo/qFoURHO48AinGPZ7PC7TF
- vUaNOTjKedrqHkaOcqB185ahG2had0xnFsDPlx5y
-Message-ID: <b7689560-2254-6cba-16fe-d52829cf42df@intel.com>
-Date: Wed, 10 Jul 2019 10:02:00 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.2
+       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=axQtLVlx;
+       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=cmpxchg-org.20150623.gappssmtp.com; s=20150623;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=iWMY9Ra6fhg6EXLcSiaO3PQbn2oiv74r4PYLZuZM2BU=;
+        b=axQtLVlxBbG2rukB4uIEh3aDgpy4FVcpO0GP/piahI3Obgr+rZibgLCVElkJiFLY7w
+         3JeU1pgGcUvAjJcRn1s0c75htzs2+FGj/9N0jRvMyrTOIrRKuoNx+MB+l7IkG8G+s71L
+         89cqtxOCVpM5EfPFLvBjibAvHWJvgCpc2nVLRUGbBX0UKtG1lxR7l/ToMmPkdPDSn7So
+         fZ9asLA/swzK89Ng61WiyMSN19TnEfEsP0wWxWd6vVTYQ59wz7HTFto7++v2UlC/wnZt
+         XCH/XEdhlxPfFZJ0WwkBRJ1tgzdA8vKk19ExiwlatWdYZVOo1JH5BsmesMvm1aWejERz
+         pSig==
+X-Google-Smtp-Source: APXvYqzEHvJg5Hy2iDWq+GUuLPTBgqSstjUxb2RpWlYFGd98AAweC/ipWaTWFhYqPANU2G6KTh+dcQ==
+X-Received: by 2002:a63:2606:: with SMTP id m6mr38342826pgm.436.1562780663359;
+        Wed, 10 Jul 2019 10:44:23 -0700 (PDT)
+Received: from localhost ([2620:10d:c091:500::2:5b9d])
+        by smtp.gmail.com with ESMTPSA id l189sm2874023pfl.7.2019.07.10.10.44.21
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Wed, 10 Jul 2019 10:44:22 -0700 (PDT)
+Date: Wed, 10 Jul 2019 13:44:18 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+To: Song Liu <songliubraving@fb.com>
+Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org,
+	linux-kernel@vger.kernel.org, matthew.wilcox@oracle.com,
+	kirill.shutemov@linux.intel.com, kernel-team@fb.com,
+	william.kucharski@oracle.com, akpm@linux-foundation.org,
+	hdanton@sina.com
+Subject: Re: [PATCH v9 1/6] filemap: check compound_head(page)->mapping in
+ filemap_fault()
+Message-ID: <20190710174418.GA11197@cmpxchg.org>
+References: <20190625001246.685563-1-songliubraving@fb.com>
+ <20190625001246.685563-2-songliubraving@fb.com>
 MIME-Version: 1.0
-In-Reply-To: <20190710164521.vlcrrfovphd5fp7f@linutronix.de>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190625001246.685563-2-songliubraving@fb.com>
+User-Agent: Mutt/1.12.0 (2019-05-25)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 7/10/19 9:45 AM, Sebastian Andrzej Siewior wrote:
-> It says "lock virtual address space into into RAM". I assumed that there
-> will be no page faults because everything is locked.
-> 
-> The problem (besides the delay caused by the context switch and fix up)
-> is that a major fault (with might have happened at the same time in
-> another thread) will block this minor fault even longer.
+On Mon, Jun 24, 2019 at 05:12:41PM -0700, Song Liu wrote:
+> Currently, filemap_fault() avoids trace condition with truncate by
 
-Yeah, I totally agree this behavior can be problematic and
-counterintuitive.  Making it better would be nice.
+                                   -t
 
-I just wanted to point out that it's probably not strictly required, though.
+> checking page->mapping == mapping. This does not work for compound
+> pages. This patch let it check compound_head(page)->mapping instead.
+>
+> Acked-by: Rik van Riel <riel@surriel.com>
+> Signed-off-by: Song Liu <songliubraving@fb.com>
+
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
