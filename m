@@ -2,273 +2,235 @@ Return-Path: <SRS0=tO+N=VH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-14.3 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B5826C74A36
-	for <linux-mm@archiver.kernel.org>; Wed, 10 Jul 2019 18:30:03 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CD1C3C74A35
+	for <linux-mm@archiver.kernel.org>; Wed, 10 Jul 2019 18:42:54 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5BBC02087F
-	for <linux-mm@archiver.kernel.org>; Wed, 10 Jul 2019 18:30:03 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 8616A20844
+	for <linux-mm@archiver.kernel.org>; Wed, 10 Jul 2019 18:42:54 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="UISwE8VL"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5BBC02087F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="qqTSQtkl"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8616A20844
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DA02C8E0088; Wed, 10 Jul 2019 14:30:02 -0400 (EDT)
+	id 113728E0089; Wed, 10 Jul 2019 14:42:54 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D507B8E0032; Wed, 10 Jul 2019 14:30:02 -0400 (EDT)
+	id 0C4278E0032; Wed, 10 Jul 2019 14:42:54 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C19DE8E0088; Wed, 10 Jul 2019 14:30:02 -0400 (EDT)
+	id ECE0B8E0089; Wed, 10 Jul 2019 14:42:53 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f69.google.com (mail-yw1-f69.google.com [209.85.161.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 9F7A18E0032
-	for <linux-mm@kvack.org>; Wed, 10 Jul 2019 14:30:02 -0400 (EDT)
-Received: by mail-yw1-f69.google.com with SMTP id b188so1989980ywb.10
-        for <linux-mm@kvack.org>; Wed, 10 Jul 2019 11:30:02 -0700 (PDT)
+Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
+	by kanga.kvack.org (Postfix) with ESMTP id CC1B78E0032
+	for <linux-mm@kvack.org>; Wed, 10 Jul 2019 14:42:53 -0400 (EDT)
+Received: by mail-io1-f72.google.com with SMTP id n8so3820536ioo.21
+        for <linux-mm@kvack.org>; Wed, 10 Jul 2019 11:42:53 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=c+r8Si1/xsvr/kvF0Vd+C34ZR6g5MzaCPwwwwZS7UmU=;
-        b=aICr9FaObUu6KHFXRo637jWzPI0zfI1OsofVsVGqjKFSfgtNTYxESJyK6hYYq7lf5M
-         KrVWeRmF0ciW08B6XC/wLtUtOuNQLQlktr2IQq8Gk3RBSfWPevMXu6ArqnonzXLpdi0y
-         RGan/bbBxojfe40BVn1nCiQddnzPXk6oojEWXOtGHEsUeWdymqZjrQGbY2CI4ddpO9Bj
-         4lG/iA/6cID9QKD2YNaHYvvFCGUTDTx0Usic9CMsvCKR0zxHkFdI3lkW8qQ9fxebeWfO
-         AviI9SAk2DT385EIMrtNCtENmpHcMaJwX0LX8sp9OlwCEdaVmGGXlSWmtP08o2aBK2cf
-         wVHQ==
-X-Gm-Message-State: APjAAAXVPVfYnyEbG2YeJ3uM6y3hJit3/itisy6KTAmmibLeMLjihBzE
-	kJ1JYORHBgU7o1bru+1kyxX1B+2WRMqi3iL5RHfia9gRdiVBgkSHz0sqqaH++PecSZh3gwIDRUO
-	3WO1CHRrp5GjVQceNOlFCwGCfDaCheJQdqvmgxLVyp/vdpvoSj8Jmzct32MsswgkmGw==
-X-Received: by 2002:a25:8884:: with SMTP id d4mr18678868ybl.7.1562783402299;
-        Wed, 10 Jul 2019 11:30:02 -0700 (PDT)
-X-Received: by 2002:a25:8884:: with SMTP id d4mr18678821ybl.7.1562783401411;
-        Wed, 10 Jul 2019 11:30:01 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562783401; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+         :message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=FrnG1U6LEwcCjLYKp8JstQQPx/C4ErLDKYXCfTw5Xsg=;
+        b=hxT4kmDugRX+jj/KUT+Zl6e3bC529zQyqaxEEEf4XzOgOgzGi0nR8NpgRPM2W3zaGH
+         BMtQD7mwgsdU6rU/+7YbyJFXLvN/FZnPlslinI3g5UPS11YzzaCwL3rnIhW5SIXg7OY1
+         9FcO4BrLTv69roS2rFT+QLmscv6pcEPQeeefOpuHANFJxxJQG9CTAUCTIOw6o6It9+Gm
+         6cmZE2CLEeYPK9Kr8A8Zx9qGlIWBxfcY4LAFRbOXeru/AYk4SXYUReUptf7V3WRXTDGW
+         pCyAXWL3JtH14OvFJvHOIWo6vO5U7D8h+yWwLrPPhBCUIQnsfl8kNUCSmgxZSBXZfb8S
+         FYvg==
+X-Gm-Message-State: APjAAAVjDL5BmkAASvbEnuiGe4AAuUjlO0kDirJN6y32I+6VXueoxem4
+	yg4Y+3dFXxJyDKWBFMGXij8jTdf93m/csqysMZQ5unmVtwAv3yxplk2HO7hgJR2nIOXkT2amTYd
+	jFoYG34t8UghpNVUDR62FgVU82PdEgu1AM3f/wr/hC4t+hgh4blu8nvrDKjDf3O3zrw==
+X-Received: by 2002:a5d:8c81:: with SMTP id g1mr34622840ion.239.1562784173564;
+        Wed, 10 Jul 2019 11:42:53 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqy/xPiiLYHnAedG7IPi4snyHCE23wU2c9nJG2br8AweRXMz0te4HSPxCnXaN7HRXbSIEoXU
+X-Received: by 2002:a5d:8c81:: with SMTP id g1mr34622785ion.239.1562784172974;
+        Wed, 10 Jul 2019 11:42:52 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562784172; cv=none;
         d=google.com; s=arc-20160816;
-        b=OMERr819zNsucJeE5BvS0GK0yIqnXY1CtNTG94p5JPoanv/GX2Z5JJKnTb4j1lf8TA
-         WjMKcpaTokRZ666n0AOOLRIebwTS9Yg4r5MYw8JRPhmaF4I4rjxLRECWR9DW4wajZYHQ
-         gnaPvZzoI1p1ir7yKJzoL3ywSHnKK2a79YMYi4A58CtxPOyU7111s8AvyYePonk7q9C2
-         UTvM+WYrTaUcQGoD8SOyKzljPRlSfPi3d78hUBZ/t2TTzTYlG0u0iG0V92VLJ+zNKtZS
-         mnn+J6KkRRVEcVjpnq52BsKSbv/Q5nL9x96MokegXwIkgT3NctJBxBmp9YVeBkQj40mn
-         V3hw==
+        b=oPjf5h+YJ0AqZYPBSgyAZFXCfMwJfP1pT8c1lofv2cLyV0eNg/Q42cWxNlVmwNCOch
+         /1qFylc6gzWHbDWhlLSJsvtuU67DNhQH4RZPFCRP2KACxNlQVDuxrNCtOol8LE5OOdoT
+         Ullud3ER6gTMUbSPXUKy1OaI3+nAzFbYgELjSHf8lOg2RXafZJozt0V16UB4ekpOIbZW
+         3dhpyv8i35znDYRp4JCLCrtMZXh+CcMoso/z2tC0GP/iAB4vu6+cSeoTvWRgTyVPdGqb
+         BPZlJr/RYHxpSdkmXNwAnfDxf+aLn888FR2o42RRBEwrPEAOV4dYBShPFz37fRKLSpEK
+         yVbQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=c+r8Si1/xsvr/kvF0Vd+C34ZR6g5MzaCPwwwwZS7UmU=;
-        b=zhU41FQN6ZfZJ9VB2CBRM7Y/UG0xfg5z8tLVRGe7Kj9Bea4VwDcuKzVZ5RTnKGbdXj
-         1W3P+Q6hy7HRfIUbh09e55SYxEyWZFcuKkpV0GkrYuv90ASXYr47STUfZbjRHxVEJXk9
-         ZBvCdw7Aq2UJnkMg7GhTUPpksUsrP3qddqqVCQE92tTBX09nHtpP0rHY8Vpbf+KJJm3p
-         oAlMwy0VwDu8QtMzuef1B2v1bACtdBtFgG2ptzmcby/iZUlixF5NgHsEQMgFs2d+Dlyl
-         eV6uc3GKp8ljFcbNj8DSMXvTjx4flKhWtCeTlBebBHPrie96RgTwT1a8i+KSKCFiUfaq
-         u+tg==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject
+         :dkim-signature;
+        bh=FrnG1U6LEwcCjLYKp8JstQQPx/C4ErLDKYXCfTw5Xsg=;
+        b=yn6UOITDh6AcIijQQs8i/yAFWJhY9M3pv7UcBPYefj4P45fTwbqBHiPw59CAMEqzzs
+         wcTiEQjrkt/Y8Ll/1477R/Ckva1trV3gAs8ePr/ifNCbR84498uOs7f3Hh2k0pMGmUKS
+         BLk61/o1KyE9EZdg8nMyD4BJY1ZdJ/TLxUd2Zx9uFpA+l8QELKBweItiZAxKmBT4sz3Q
+         +0ZoyE4rzIoHSSXq/qhmZ07P9ParM9foDw8O/6g0iGX3l4ufTYHDhGsbWyoA761XFL4A
+         b4F5N0SGsOGMkEWz2nQpbHh5mC1mVeJLm3C5Yu0LPz1AP94P2+2i+cLnQvbQIOJHStV4
+         1a5w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=UISwE8VL;
-       spf=pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shakeelb@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y79sor1598789ywy.122.2019.07.10.11.30.01
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=qqTSQtkl;
+       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id h5si4279133iog.11.2019.07.10.11.42.52
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 10 Jul 2019 11:30:01 -0700 (PDT)
-Received-SPF: pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 10 Jul 2019 11:42:52 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.86 as permitted sender) client-ip=156.151.31.86;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=UISwE8VL;
-       spf=pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shakeelb@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=c+r8Si1/xsvr/kvF0Vd+C34ZR6g5MzaCPwwwwZS7UmU=;
-        b=UISwE8VLrQE18tscTLVjTu4xfQSpU+Ngw5t+WgzRdUNsnTYWOTuDHJaO1Mm174HOa9
-         V0Qn2OG/+VKb1yZFCBYg/97ApKmCSfsi/WJ5YbGYHfUmnNpA7FsqsWKWHhgk46kpSZyR
-         z5ih3MsJI4tZMGw0ibr6s4wsJinWrM18EKhFy828Djih7f+bt4AT688Z2WSbFlL6zyyY
-         Y0AaAjiPi9jCN7pzE0TY7PFp3yErbKtBJZUzXBGUjNNMrhgXOwwm15vMwGdqiJyLrOTI
-         D8rQBbTzdD3rJbrXWCVcAhWtQttOyLd3f3mL99dqYokEW5oJqLDAomLG+PYTDXkMMOj0
-         TPNw==
-X-Google-Smtp-Source: APXvYqzXmDnInD7oBIfKeMDVYoRiXgQhXnLoOXS9ddftPuk/y94pUc7FWGWjBNflVWsCOllIvgXB6WbFdmk0hPRfkW0=
-X-Received: by 2002:a81:ae0e:: with SMTP id m14mr20723285ywh.308.1562783400564;
- Wed, 10 Jul 2019 11:30:00 -0700 (PDT)
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=qqTSQtkl;
+       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
+	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x6AIcuKM090980;
+	Wed, 10 Jul 2019 18:42:49 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
+ references : from : message-id : date : mime-version : in-reply-to :
+ content-type : content-transfer-encoding; s=corp-2018-07-02;
+ bh=FrnG1U6LEwcCjLYKp8JstQQPx/C4ErLDKYXCfTw5Xsg=;
+ b=qqTSQtklpXfVQkFDZ6uphbgICdiECgiJI7WBUpC44t6qLDAmnU3fpNP16KNwpnzqkAmx
+ XqsIZ2bZjLdI2YhMh6mNf2Z9LM63423NsaHNMApmXNfyN+d5WEMyHycqZ78u+SLAkhgb
+ 2ea2rSKQF6jT1naMZKJ/9BobLmB+uo99ay9ukMWu1spdo0ANjefzUNMMkiwA9Oltd0rI
+ fn8oDSjCSJ7B92o3uBVqyTFII2GZk1czVYN/eU9of9I8uO839ReLbqgF+Oo7g0x/4GkT
+ 7isWK8+26X5KpTWC5AvaGdQp3NYdqDdZEz1Yleo5VcVuHRiZErNqS0Bhk7eTX453ZdPW dw== 
+Received: from aserp3020.oracle.com (aserp3020.oracle.com [141.146.126.70])
+	by userp2130.oracle.com with ESMTP id 2tjk2tuy1p-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Wed, 10 Jul 2019 18:42:49 +0000
+Received: from pps.filterd (aserp3020.oracle.com [127.0.0.1])
+	by aserp3020.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x6AIgPSI088381;
+	Wed, 10 Jul 2019 18:42:48 GMT
+Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
+	by aserp3020.oracle.com with ESMTP id 2tmmh3q8k5-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Wed, 10 Jul 2019 18:42:48 +0000
+Received: from abhmp0008.oracle.com (abhmp0008.oracle.com [141.146.116.14])
+	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x6AIggde029517;
+	Wed, 10 Jul 2019 18:42:42 GMT
+Received: from [192.168.1.222] (/71.63.128.209)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Wed, 10 Jul 2019 11:42:42 -0700
+Subject: Re: [Question] Should direct reclaim time be bounded?
+To: Hillf Danton <hdanton@sina.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>,
+        Mel Gorman <mgorman@suse.de>,
+        "linux-mm@kvack.org" <linux-mm@kvack.org>,
+        linux-kernel <linux-kernel@vger.kernel.org>,
+        Johannes Weiner <hannes@cmpxchg.org>
+References: <d38a095e-dc39-7e82-bb76-2c9247929f07@oracle.com>
+ <80036eed-993d-1d24-7ab6-e495f01b1caa@oracle.com>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <885afb7b-f5be-590a-00c8-a24d2bc65f37@oracle.com>
+Date: Wed, 10 Jul 2019 11:42:40 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.0
 MIME-Version: 1.0
-References: <20190605100630.13293-1-teawaterz@linux.alibaba.com> <20190605100630.13293-2-teawaterz@linux.alibaba.com>
-In-Reply-To: <20190605100630.13293-2-teawaterz@linux.alibaba.com>
-From: Shakeel Butt <shakeelb@google.com>
-Date: Wed, 10 Jul 2019 11:29:49 -0700
-Message-ID: <CALvZod41ywjh56T1E1cPJcuYDCydvpnqq3AhyJVny655Tj7jjQ@mail.gmail.com>
-Subject: Re: [PATCH V3 2/2] zswap: Use movable memory if zpool support
- allocate movable memory
-To: Hui Zhu <teawaterz@linux.alibaba.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Dan Streetman <ddstreet@ieee.org>, Minchan Kim <minchan@kernel.org>, ngupta@vflare.org, 
-	sergey.senozhatsky.work@gmail.com, Seth Jennings <sjenning@redhat.com>, 
-	Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <80036eed-993d-1d24-7ab6-e495f01b1caa@oracle.com>
+Content-Type: text/plain; charset=iso-8859-15
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9314 signatures=668688
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
+ phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
+ adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
+ engine=8.0.1-1810050000 definitions=main-1907100212
+X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9314 signatures=668688
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1011
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
+ definitions=main-1907100211
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Cc: akpm@linux-foundation.org
+On 7/7/19 10:19 PM, Hillf Danton wrote:
+> On Mon, 01 Jul 2019 20:15:51 -0700 Mike Kravetz wrote:
+>> On 7/1/19 1:59 AM, Mel Gorman wrote:
+>>>
+>>> I think it would be reasonable to have should_continue_reclaim allow an
+>>> exit if scanning at higher priority than DEF_PRIORITY - 2, nr_scanned is
+>>> less than SWAP_CLUSTER_MAX and no pages are being reclaimed.
+>>
+>> Thanks Mel,
+>>
+>> I added such a check to should_continue_reclaim.  However, it does not
+>> address the issue I am seeing.  In that do-while loop in shrink_node,
+>> the scan priority is not raised (priority--).  We can enter the loop
+>> with priority == DEF_PRIORITY and continue to loop for minutes as seen
+>> in my previous debug output.
+>>
+> Does it help raise prioity in your case?
 
-The email starts at
+Thanks Hillf,  sorry for delay in responding I have been AFK.
 
-http://lkml.kernel.org/r/20190605100630.13293-2-teawaterz@linux.alibaba.com
+I am not sure if you wanted to try this somehow in addition to Mel's
+suggestion, or alone.
 
-On Wed, Jun 5, 2019 at 3:06 AM Hui Zhu <teawaterz@linux.alibaba.com> wrote:
->
-> This is the third version that was updated according to the comments
-> from Sergey Senozhatsky https://lkml.org/lkml/2019/5/29/73 and
-> Shakeel Butt https://lkml.org/lkml/2019/6/4/973
->
-> zswap compresses swap pages into a dynamically allocated RAM-based
-> memory pool.  The memory pool should be zbud, z3fold or zsmalloc.
-> All of them will allocate unmovable pages.  It will increase the
-> number of unmovable page blocks that will bad for anti-fragment.
->
-> zsmalloc support page migration if request movable page:
->         handle = zs_malloc(zram->mem_pool, comp_len,
->                 GFP_NOIO | __GFP_HIGHMEM |
->                 __GFP_MOVABLE);
->
-> And commit "zpool: Add malloc_support_movable to zpool_driver" add
-> zpool_malloc_support_movable check malloc_support_movable to make
-> sure if a zpool support allocate movable memory.
->
-> This commit let zswap allocate block with gfp
-> __GFP_HIGHMEM | __GFP_MOVABLE if zpool support allocate movable memory.
->
-> Following part is test log in a pc that has 8G memory and 2G swap.
->
-> Without this commit:
-> ~# echo lz4 > /sys/module/zswap/parameters/compressor
-> ~# echo zsmalloc > /sys/module/zswap/parameters/zpool
-> ~# echo 1 > /sys/module/zswap/parameters/enabled
-> ~# swapon /swapfile
-> ~# cd /home/teawater/kernel/vm-scalability/
-> /home/teawater/kernel/vm-scalability# export unit_size=$((9 * 1024 * 1024 * 1024))
-> /home/teawater/kernel/vm-scalability# ./case-anon-w-seq
-> 2717908992 bytes / 4826062 usecs = 549973 KB/s
-> 2717908992 bytes / 4864201 usecs = 545661 KB/s
-> 2717908992 bytes / 4867015 usecs = 545346 KB/s
-> 2717908992 bytes / 4915485 usecs = 539968 KB/s
-> 397853 usecs to free memory
-> 357820 usecs to free memory
-> 421333 usecs to free memory
-> 420454 usecs to free memory
-> /home/teawater/kernel/vm-scalability# cat /proc/pagetypeinfo
-> Page block order: 9
-> Pages per block:  512
->
-> Free pages count per migrate type at order       0      1      2      3      4      5      6      7      8      9     10
-> Node    0, zone      DMA, type    Unmovable      1      1      1      0      2      1      1      0      1      0      0
-> Node    0, zone      DMA, type      Movable      0      0      0      0      0      0      0      0      0      1      3
-> Node    0, zone      DMA, type  Reclaimable      0      0      0      0      0      0      0      0      0      0      0
-> Node    0, zone      DMA, type   HighAtomic      0      0      0      0      0      0      0      0      0      0      0
-> Node    0, zone      DMA, type          CMA      0      0      0      0      0      0      0      0      0      0      0
-> Node    0, zone      DMA, type      Isolate      0      0      0      0      0      0      0      0      0      0      0
-> Node    0, zone    DMA32, type    Unmovable      6      5      8      6      6      5      4      1      1      1      0
-> Node    0, zone    DMA32, type      Movable     25     20     20     19     22     15     14     11     11      5    767
-> Node    0, zone    DMA32, type  Reclaimable      0      0      0      0      0      0      0      0      0      0      0
-> Node    0, zone    DMA32, type   HighAtomic      0      0      0      0      0      0      0      0      0      0      0
-> Node    0, zone    DMA32, type          CMA      0      0      0      0      0      0      0      0      0      0      0
-> Node    0, zone    DMA32, type      Isolate      0      0      0      0      0      0      0      0      0      0      0
-> Node    0, zone   Normal, type    Unmovable   4753   5588   5159   4613   3712   2520   1448    594    188     11      0
-> Node    0, zone   Normal, type      Movable     16      3    457   2648   2143   1435    860    459    223    224    296
-> Node    0, zone   Normal, type  Reclaimable      0      0     44     38     11      2      0      0      0      0      0
-> Node    0, zone   Normal, type   HighAtomic      0      0      0      0      0      0      0      0      0      0      0
-> Node    0, zone   Normal, type          CMA      0      0      0      0      0      0      0      0      0      0      0
-> Node    0, zone   Normal, type      Isolate      0      0      0      0      0      0      0      0      0      0      0
->
-> Number of blocks type     Unmovable      Movable  Reclaimable   HighAtomic          CMA      Isolate
-> Node 0, zone      DMA            1            7            0            0            0            0
-> Node 0, zone    DMA32            4         1652            0            0            0            0
-> Node 0, zone   Normal          931         1485           15            0            0            0
->
-> With this commit:
-> ~# echo lz4 > /sys/module/zswap/parameters/compressor
-> ~# echo zsmalloc > /sys/module/zswap/parameters/zpool
-> ~# echo 1 > /sys/module/zswap/parameters/enabled
-> ~# swapon /swapfile
-> ~# cd /home/teawater/kernel/vm-scalability/
-> /home/teawater/kernel/vm-scalability# export unit_size=$((9 * 1024 * 1024 * 1024))
-> /home/teawater/kernel/vm-scalability# ./case-anon-w-seq
-> 2717908992 bytes / 4689240 usecs = 566020 KB/s
-> 2717908992 bytes / 4760605 usecs = 557535 KB/s
-> 2717908992 bytes / 4803621 usecs = 552543 KB/s
-> 2717908992 bytes / 5069828 usecs = 523530 KB/s
-> 431546 usecs to free memory
-> 383397 usecs to free memory
-> 456454 usecs to free memory
-> 224487 usecs to free memory
-> /home/teawater/kernel/vm-scalability# cat /proc/pagetypeinfo
-> Page block order: 9
-> Pages per block:  512
->
-> Free pages count per migrate type at order       0      1      2      3      4      5      6      7      8      9     10
-> Node    0, zone      DMA, type    Unmovable      1      1      1      0      2      1      1      0      1      0      0
-> Node    0, zone      DMA, type      Movable      0      0      0      0      0      0      0      0      0      1      3
-> Node    0, zone      DMA, type  Reclaimable      0      0      0      0      0      0      0      0      0      0      0
-> Node    0, zone      DMA, type   HighAtomic      0      0      0      0      0      0      0      0      0      0      0
-> Node    0, zone      DMA, type          CMA      0      0      0      0      0      0      0      0      0      0      0
-> Node    0, zone      DMA, type      Isolate      0      0      0      0      0      0      0      0      0      0      0
-> Node    0, zone    DMA32, type    Unmovable     10      8     10      9     10      4      3      2      3      0      0
-> Node    0, zone    DMA32, type      Movable     18     12     14     16     16     11      9      5      5      6    775
-> Node    0, zone    DMA32, type  Reclaimable      0      0      0      0      0      0      0      0      0      0      1
-> Node    0, zone    DMA32, type   HighAtomic      0      0      0      0      0      0      0      0      0      0      0
-> Node    0, zone    DMA32, type          CMA      0      0      0      0      0      0      0      0      0      0      0
-> Node    0, zone    DMA32, type      Isolate      0      0      0      0      0      0      0      0      0      0      0
-> Node    0, zone   Normal, type    Unmovable   2669   1236    452    118     37     14      4      1      2      3      0
-> Node    0, zone   Normal, type      Movable   3850   6086   5274   4327   3510   2494   1520    934    438    220    470
-> Node    0, zone   Normal, type  Reclaimable     56     93    155    124     47     31     17      7      3      0      0
-> Node    0, zone   Normal, type   HighAtomic      0      0      0      0      0      0      0      0      0      0      0
-> Node    0, zone   Normal, type          CMA      0      0      0      0      0      0      0      0      0      0      0
-> Node    0, zone   Normal, type      Isolate      0      0      0      0      0      0      0      0      0      0      0
->
-> Number of blocks type     Unmovable      Movable  Reclaimable   HighAtomic          CMA      Isolate
-> Node 0, zone      DMA            1            7            0            0            0            0
-> Node 0, zone    DMA32            4         1650            2            0            0            0
-> Node 0, zone   Normal           79         2326           26            0            0            0
->
-> You can see that the number of unmovable page blocks is decreased
-> when the kernel has this commit.
->
-> Signed-off-by: Hui Zhu <teawaterz@linux.alibaba.com>
-> ---
->  mm/zswap.c | 8 +++++---
->  1 file changed, 5 insertions(+), 3 deletions(-)
->
-> diff --git a/mm/zswap.c b/mm/zswap.c
-> index a4e4d36ec085..c6bf92bf5890 100644
-> --- a/mm/zswap.c
-> +++ b/mm/zswap.c
-> @@ -1006,6 +1006,7 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
->         char *buf;
->         u8 *src, *dst;
->         struct zswap_header zhdr = { .swpentry = swp_entry(type, offset) };
-> +       gfp_t gfp;
->
->         /* THP isn't supported */
->         if (PageTransHuge(page)) {
-> @@ -1079,9 +1080,10 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
->
->         /* store */
->         hlen = zpool_evictable(entry->pool->zpool) ? sizeof(zhdr) : 0;
-> -       ret = zpool_malloc(entry->pool->zpool, hlen + dlen,
-> -                          __GFP_NORETRY | __GFP_NOWARN | __GFP_KSWAPD_RECLAIM,
-> -                          &handle);
-> +       gfp = __GFP_NORETRY | __GFP_NOWARN | __GFP_KSWAPD_RECLAIM;
-> +       if (zpool_malloc_support_movable(entry->pool->zpool))
-> +               gfp |= __GFP_HIGHMEM | __GFP_MOVABLE;
-> +       ret = zpool_malloc(entry->pool->zpool, hlen + dlen, gfp, &handle);
->         if (ret == -ENOSPC) {
->                 zswap_reject_compress_poor++;
->                 goto put_dstmem;
+Unfortunately, such a change actually causes worse behavior.
+
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2543,11 +2543,18 @@ static inline bool should_continue_reclaim(struct pglist_data *pgdat,
+>  	unsigned long pages_for_compaction;
+>  	unsigned long inactive_lru_pages;
+>  	int z;
+> +	bool costly_fg_reclaim = false;
+>  
+>  	/* If not in reclaim/compaction mode, stop */
+>  	if (!in_reclaim_compaction(sc))
+>  		return false;
+>  
+> +	/* Let compact determine what to do for high order allocators */
+> +	costly_fg_reclaim = sc->order > PAGE_ALLOC_COSTLY_ORDER &&
+> +				!current_is_kswapd();
+> +	if (costly_fg_reclaim)
+> +		goto check_compact;
+
+This goto makes us skip the 'if (!nr_reclaimed && !nr_scanned)' test.
+
+> +
+>  	/* Consider stopping depending on scan and reclaim activity */
+>  	if (sc->gfp_mask & __GFP_RETRY_MAYFAIL) {
+>  		/*
+> @@ -2571,6 +2578,7 @@ static inline bool should_continue_reclaim(struct pglist_data *pgdat,
+>  			return false;
+>  	}
+>  
+> +check_compact:
+>  	/*
+>  	 * If we have not reclaimed enough pages for compaction and the
+>  	 * inactive lists are large enough, continue reclaiming
+
+It is quite easy to hit the condition where:
+nr_reclaimed == 0  && nr_scanned == 0 is true, but we skip the previous test
+
+and the compaction check:
+sc->nr_reclaimed < pages_for_compaction &&
+	inactive_lru_pages > pages_for_compaction
+
+is true, so we return true before the below check of costly_fg_reclaim
+
+> @@ -2583,6 +2591,9 @@ static inline bool should_continue_reclaim(struct pglist_data *pgdat,
+>  			inactive_lru_pages > pages_for_compaction)
+>  		return true;
+>  
+> +	if (costly_fg_reclaim)
+> +		return false;
+> +
+>  	/* If compaction would go ahead or the allocation would succeed, stop */
+>  	for (z = 0; z <= sc->reclaim_idx; z++) {
+>  		struct zone *zone = &pgdat->node_zones[z];
 > --
-> 2.21.0 (Apple Git-120)
->
+> 
+
+As Michal suggested, I'm going to do some testing to see what impact
+dropping the __GFP_RETRY_MAYFAIL flag for these huge page allocations
+will have on the number of pages allocated.
+-- 
+Mike Kravetz
 
