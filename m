@@ -1,166 +1,131 @@
-Return-Path: <SRS0=RgjX=VG=kvack.org=owner-linux-mm@kernel.org>
+Return-Path: <SRS0=tO+N=VH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.9 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 48DE7C73C5C
-	for <linux-mm@archiver.kernel.org>; Tue,  9 Jul 2019 22:36:13 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7A173C73C63
+	for <linux-mm@archiver.kernel.org>; Wed, 10 Jul 2019 00:28:27 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DDEFC20665
-	for <linux-mm@archiver.kernel.org>; Tue,  9 Jul 2019 22:36:12 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 1C12A20693
+	for <linux-mm@archiver.kernel.org>; Wed, 10 Jul 2019 00:28:26 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="THZRHUUf"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DDEFC20665
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="bcORr81N"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1C12A20693
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 316758E005D; Tue,  9 Jul 2019 18:36:12 -0400 (EDT)
+	id 691328E005E; Tue,  9 Jul 2019 20:28:26 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 29FDB8E0032; Tue,  9 Jul 2019 18:36:12 -0400 (EDT)
+	id 640198E0032; Tue,  9 Jul 2019 20:28:26 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 119058E005D; Tue,  9 Jul 2019 18:36:12 -0400 (EDT)
+	id 556F08E005E; Tue,  9 Jul 2019 20:28:26 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f69.google.com (mail-yw1-f69.google.com [209.85.161.69])
-	by kanga.kvack.org (Postfix) with ESMTP id E0F488E0032
-	for <linux-mm@kvack.org>; Tue,  9 Jul 2019 18:36:11 -0400 (EDT)
-Received: by mail-yw1-f69.google.com with SMTP id i73so79786ywa.18
-        for <linux-mm@kvack.org>; Tue, 09 Jul 2019 15:36:11 -0700 (PDT)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 2DDCC8E0032
+	for <linux-mm@kvack.org>; Tue,  9 Jul 2019 20:28:26 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id i2so264005pfe.1
+        for <linux-mm@kvack.org>; Tue, 09 Jul 2019 17:28:26 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:from:to:cc:subject:date:message-id:mime-version
-         :content-transfer-encoding:dkim-signature;
-        bh=WmDfProy1Dp6O/d7UXR/pCuB4a9yi2oJwRAiLHXR8FI=;
-        b=WIlMQ0WsGPUCTFPCMUm/LoH4+v92W1ofM9K/EU+Jfajg7boi/qn+JefsaSZSOxk9sz
-         Q1FrYnQ0k2owuwVQ+1TqtKzKtrImPrdGkDPltKvG3RsajKGRNhrfX5iM6DWNpS4yImm+
-         aN53v1o44/9Qv7mI6ZG2iABmGc+M1TwkYZdWGQzt5jinClPbEZWQds1Kpn04qCsqK5fA
-         EbZ9L9gn/6IvN0UcDGjR9yvKm6hkHUgfLo8LEokOU21rY7SXQAlVvCakWzAipQ/ESMQJ
-         YILLEkiYfVAtkrkz452XrFJGvcxH2TT7H/lPttvrsHiwt9ktJnKtkjmXSg4G7pZHsKfW
-         lbZg==
-X-Gm-Message-State: APjAAAUlLPQnLnbJ9+INTGY1VPszSdktl/Qqv9ySIiXeQ7E4jNgdg+Re
-	KIDjqOqaMjpkw+G7EerB20Ebi9svqjmRay2LTQ0gM4tT8MoF7946yltudWm6MDktlrwf+P9aH9H
-	21+Op3RgfKdj+oyL87ZugCvZtv4z9OCHUTC+37PloaJ4UndILYmUP1CCot2UwWkyE5g==
-X-Received: by 2002:a0d:c301:: with SMTP id f1mr15551648ywd.494.1562711771502;
-        Tue, 09 Jul 2019 15:36:11 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwTB4VumbsspSjudIZR0K7HYgyfdR+AYIAsnQQ3mLAsaztlJHjoaqSawbztRPqCgRTj5ERN
-X-Received: by 2002:a0d:c301:: with SMTP id f1mr15551621ywd.494.1562711770827;
-        Tue, 09 Jul 2019 15:36:10 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562711770; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=F1YEfnrX5gkf5eSCFBBgYDnY9VrRZyGi7EMYFBwhLqA=;
+        b=b3Jd+JCvueUxIvb0Zreef5qjTzdKf+eOleAF7zWZfhZZ7oIk9yBbIzVica9xkTlKla
+         JA011irhUgQ+z8BIArHwTSLpbQY+m1lY0Ue+BTzF833rxTvkuVKnl7HP13dN4G0SsV+y
+         BOSW2mFpTQDWjuo8nfqBf0L6L42mrP61HykLUrRTQzhGSZcByPY9SpEjbwhQMfhLFbkt
+         J/+FbyUI65B5we2rAIHc5j5++Tfk301puga8APJUUEtIb0cGSogc6ONRZTEc3YfBekt1
+         i/kLJxnhaEfeNoWjFK+pN8tx6SR7Yw2lxq1NeoL/+w9UQktBFGc2aopwzIJu92b4wdGY
+         yerQ==
+X-Gm-Message-State: APjAAAU8CvKJFalImqeISvneKn/tVxxUtUUJ+9Wvg5w5WIKAwTK4OSQt
+	PkyNaRdl0pHmIAj8pP0siLzfsHMj2a9FLkpCdL0m/JbPES9bnjn4uLfivQSdxafSZum9X8fFCR8
+	EXnWej1HP8YuU5Tcv9qaGGonJkP9bTgWZg2NScXZ5cAhOQByNCbb+WDyUEZ0qTGL9tA==
+X-Received: by 2002:a17:902:324:: with SMTP id 33mr34559467pld.340.1562718505658;
+        Tue, 09 Jul 2019 17:28:25 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw9N8KfTUDgfUpyANog4xLAD2Mi7ZlRqrnEQc8oYkm4OJIoTIRUfBWlxaZeHeOcWwDeNRt3
+X-Received: by 2002:a17:902:324:: with SMTP id 33mr34559417pld.340.1562718504854;
+        Tue, 09 Jul 2019 17:28:24 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562718504; cv=none;
         d=google.com; s=arc-20160816;
-        b=ZyAFt0JCOmILWQW9X2RQFhH/oILTmE4xz1B5E+wDipWT2m2Z8O8y7gm6IXeSo6LeqT
-         DYiBMxT3K3N3xQYOJeUvVVP/Wslj4aX33JR1hcWFU8w6k1u9hHT+4IISLvj7NFy59Z52
-         lywolGofppkfpk7+dnsI7YrEypvO2pIjOs8mjZ1qK32Yq1FWTgU64YliPi0B9SWTIyND
-         n1EHF/GjOoJzZdhl4huNnjBct3KgpigjfxRnPf5tUsLxY6pFNF/Os59dRoE+gUyMmUjq
-         3CwPwCqQFIOSIadeT6nW8f3wLbqK0GiSRKsFrm537zGfRX1v/k7Q6Vg+N2ZzNTYadE1t
-         IFNw==
+        b=nfYyhJIVY0udt2TZXbZd+M8QWqrZhjzmOABCDprI3y5sX8j0jhZfSVkpsYB1stz5A4
+         r8WDc0n9KQDvsV1xp8mMd0TRsdCz9Zpbokn5JTs4DNxMTeRDrOrTrLYjrOJB6rxV3FMD
+         y3h/ESB0Mxkvk93ofdFgdsvX1lR27cKEuVBkNTGJvJUli4sZP0adi9vPWWS26cht9E0K
+         7ldUt15jkceF9czNS+YcgKqhvW/oP3NelpacaYV+nL6tLi0UyYME4dzadz0bQyHVrhcn
+         CWp4yjM0wwso5ABGP1bKHNr41Xf2r74w+mN4gLGV6Gr8S1s326SNtQ+b42vn7DuBNmzA
+         FalQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=dkim-signature:content-transfer-encoding:mime-version:message-id
-         :date:subject:cc:to:from;
-        bh=WmDfProy1Dp6O/d7UXR/pCuB4a9yi2oJwRAiLHXR8FI=;
-        b=hd8nDEt0zdBQGT2jImvWdbhKEEXXxwQsixQatYFCEB5TdUPQ5ZWyT52Wao9c/pxrux
-         lso4xaX7fY471xmYZvPsy92RJYFJLLp5FAdyabiQLJwMeXcUl8JJm7cBIlgyMNBEQJPd
-         lyM1hwXCbJQYvF7jTq6iL+Oa9JCR38uh6xQPCHpQXm2c+UPEaOpyPbeIIAjczb1FjL1P
-         GcN/EJpcEy47tlPTmCIA79Sz7mkGk0piHD1rhsFX5q0S2c/szuxwGObTRt6W1tY4Ajeq
-         P5dMJfHguO+ux8qXfp2NWfNxxJrtEqkVsTq9UrcxxuAEbseNvjg0mV42tgvWyZP94bbk
-         3rkQ==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=F1YEfnrX5gkf5eSCFBBgYDnY9VrRZyGi7EMYFBwhLqA=;
+        b=i0HSXyUeiN4tQDL3osbbfIKGKRsja7/ZK/uX2zv4AdvzyFf11TpPzxrGHdXHt2d6MZ
+         MRqQxbuUwfaEF+ssWyvaZ9fqtf5XULJ2KK5UkQoh7pjUNq/SoT48dZTVX3bAO1lr79d1
+         SkP3zvWdHHW5Mg1Q/CYqEp+ASsCWwNO3a3ZNXoGnPHZhXIL09E5pmppNVSIo1DUgRv0c
+         MUch1LWYF+Us6DlSdJ1SuDLaMITbyeJqkhdVExyqOCaeiTXJmeHRNkciTrcD/6QJt1oc
+         Yhx1LA54NfdrXQWKYGkSg1+2GSEVDIAmocW/MOCwZ8Wcqa67v+N9kc3B1vd1H/PO+Y9u
+         aVMw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=THZRHUUf;
-       spf=pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.65 as permitted sender) smtp.mailfrom=rcampbell@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
-        by mx.google.com with ESMTPS id t187si42831ywd.83.2019.07.09.15.36.10
+       dkim=pass header.i=@kernel.org header.s=default header.b=bcORr81N;
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id f26si485875pga.117.2019.07.09.17.28.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 09 Jul 2019 15:36:10 -0700 (PDT)
-Received-SPF: pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.65 as permitted sender) client-ip=216.228.121.65;
+        Tue, 09 Jul 2019 17:28:24 -0700 (PDT)
+Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=THZRHUUf;
-       spf=pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.65 as permitted sender) smtp.mailfrom=rcampbell@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate16.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
-	id <B5d2516d80000>; Tue, 09 Jul 2019 15:36:08 -0700
-Received: from hqmail.nvidia.com ([172.20.161.6])
-  by hqpgpgate101.nvidia.com (PGP Universal service);
-  Tue, 09 Jul 2019 15:36:09 -0700
-X-PGP-Universal: processed;
-	by hqpgpgate101.nvidia.com on Tue, 09 Jul 2019 15:36:09 -0700
-Received: from HQMAIL102.nvidia.com (172.18.146.10) by HQMAIL101.nvidia.com
- (172.20.187.10) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Tue, 9 Jul
- 2019 22:36:09 +0000
-Received: from HQMAIL101.nvidia.com (172.20.187.10) by HQMAIL102.nvidia.com
- (172.18.146.10) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Tue, 9 Jul
- 2019 22:36:09 +0000
-Received: from hqnvemgw01.nvidia.com (172.20.150.20) by HQMAIL101.nvidia.com
- (172.20.187.10) with Microsoft SMTP Server (TLS) id 15.0.1473.3 via Frontend
- Transport; Tue, 9 Jul 2019 22:36:09 +0000
-Received: from rcampbell-dev.nvidia.com (Not Verified[10.110.48.66]) by hqnvemgw01.nvidia.com with Trustwave SEG (v7,5,8,10121)
-	id <B5d2516d90000>; Tue, 09 Jul 2019 15:36:09 -0700
-From: Ralph Campbell <rcampbell@nvidia.com>
-To: <linux-mm@kvack.org>
-CC: <linux-kernel@vger.kernel.org>, Ralph Campbell <rcampbell@nvidia.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	=?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, "Kirill A.
- Shutemov" <kirill.shutemov@linux.intel.com>, Mike Kravetz
-	<mike.kravetz@oracle.com>
-Subject: [PATCH] mm/hmm: Fix bad subpage pointer in try_to_unmap_one
-Date: Tue, 9 Jul 2019 15:35:56 -0700
-Message-ID: <20190709223556.28908-1-rcampbell@nvidia.com>
-X-Mailer: git-send-email 2.20.1
-MIME-Version: 1.0
-X-NVConfidentiality: public
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
-	t=1562711768; bh=WmDfProy1Dp6O/d7UXR/pCuB4a9yi2oJwRAiLHXR8FI=;
-	h=X-PGP-Universal:From:To:CC:Subject:Date:Message-ID:X-Mailer:
-	 MIME-Version:X-NVConfidentiality:Content-Type:
-	 Content-Transfer-Encoding;
-	b=THZRHUUfPOzbOu0G+mUFBwdXTkVaIRyYUhTmyBN+kxFrZrkuCZMB0QIbsgRmMgdxv
-	 fhWfhYtObglVZpAYUg9wae+eqbuKmR0WpWK1LgzKnYNDm90H4nC5PYbjMibG+FexFY
-	 ws73FQ7OyJbc5tGO4q0fM3859mCHmEWKlrqf/SNrUFffaP+vIxlTvmLpXnU87yW+LE
-	 GDaFsFG9TOopI7e6oMVFJP+A2eSqnP7NlydABKF5OpHYbq6I2XMDctzEZpY/8Ocvbt
-	 3kYpx8pU7JykioEa0fCpomdY+HONkVJg0Q0yDCVmmeO9IL42bJ2OA6u2X+0WLdnjKn
-	 Ki52Yfw+aFsCQ==
+       dkim=pass header.i=@kernel.org header.s=default header.b=bcORr81N;
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from localhost.localdomain (c-73-223-200-170.hsd1.ca.comcast.net [73.223.200.170])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 0E7DC20645;
+	Wed, 10 Jul 2019 00:28:24 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1562718504;
+	bh=pgC6c3DPV5AItfmGQQFtB/x1Xt0vg1j5Q5WBogBNnOY=;
+	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
+	b=bcORr81NEQsz5D+zOUG6k8DlarV4FeSW19kgXYYSMd9qxtzYAp2QLxXViDAJRru6M
+	 dtwMY3UTEic/u5ydDJe4uucQjbfejE/8h+7uvSrHfdzgxUJFHps8dEZGqI+bVmC1qW
+	 p6MjkxHTx75iefkEq1M0pWmNUiKj0HVfWBXbH/Ys=
+Date: Tue, 9 Jul 2019 17:28:23 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+To: Ralph Campbell <rcampbell@nvidia.com>
+Cc: <linux-mm@kvack.org>, <linux-kernel@vger.kernel.org>, =?ISO-8859-1?Q?J?=
+ =?ISO-8859-1?Q?=E9r=F4me?= Glisse <jglisse@redhat.com>,
+ "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mike Kravetz
+ <mike.kravetz@oracle.com>
+Subject: Re: [PATCH] mm/hmm: Fix bad subpage pointer in try_to_unmap_one
+Message-Id: <20190709172823.9413bb2333363f7e33a471a0@linux-foundation.org>
+In-Reply-To: <20190709223556.28908-1-rcampbell@nvidia.com>
+References: <20190709223556.28908-1-rcampbell@nvidia.com>
+X-Mailer: Sylpheed 3.5.1 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-When migrating a ZONE device private page from device memory to system
-memory, the subpage pointer is initialized from a swap pte which computes
-an invalid page pointer. A kernel panic results such as:
+On Tue, 9 Jul 2019 15:35:56 -0700 Ralph Campbell <rcampbell@nvidia.com> wrote:
 
-BUG: unable to handle page fault for address: ffffea1fffffffc8
+> When migrating a ZONE device private page from device memory to system
+> memory, the subpage pointer is initialized from a swap pte which computes
+> an invalid page pointer. A kernel panic results such as:
+> 
+> BUG: unable to handle page fault for address: ffffea1fffffffc8
+> 
+> Initialize subpage correctly before calling page_remove_rmap().
 
-Initialize subpage correctly before calling page_remove_rmap().
+I think this is
 
-Signed-off-by: Ralph Campbell <rcampbell@nvidia.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: "J=C3=A9r=C3=B4me Glisse" <jglisse@redhat.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Mike Kravetz <mike.kravetz@oracle.com>
----
- mm/rmap.c | 1 +
- 1 file changed, 1 insertion(+)
+Fixes:  a5430dda8a3a1c ("mm/migrate: support un-addressable ZONE_DEVICE page in migration")
+Cc: stable
 
-diff --git a/mm/rmap.c b/mm/rmap.c
-index e5dfe2ae6b0d..ec1af8b60423 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -1476,6 +1476,7 @@ static bool try_to_unmap_one(struct page *page, struc=
-t vm_area_struct *vma,
- 			 * No need to invalidate here it will synchronize on
- 			 * against the special swap migration pte.
- 			 */
-+			subpage =3D page;
- 			goto discard;
- 		}
-=20
---=20
-2.20.1
+yes?
 
