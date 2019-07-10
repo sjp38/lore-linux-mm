@@ -2,151 +2,146 @@ Return-Path: <SRS0=tO+N=VH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2C120C74A23
-	for <linux-mm@archiver.kernel.org>; Wed, 10 Jul 2019 14:24:57 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D425CC74A2B
+	for <linux-mm@archiver.kernel.org>; Wed, 10 Jul 2019 14:41:41 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CA8E82086D
-	for <linux-mm@archiver.kernel.org>; Wed, 10 Jul 2019 14:24:56 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CA8E82086D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 9C52520651
+	for <linux-mm@archiver.kernel.org>; Wed, 10 Jul 2019 14:41:41 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9C52520651
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linutronix.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3D0558E0079; Wed, 10 Jul 2019 10:24:56 -0400 (EDT)
+	id 1C91E8E007A; Wed, 10 Jul 2019 10:41:41 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 381678E0032; Wed, 10 Jul 2019 10:24:56 -0400 (EDT)
+	id 178478E0032; Wed, 10 Jul 2019 10:41:41 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2706F8E0079; Wed, 10 Jul 2019 10:24:56 -0400 (EDT)
+	id 040718E007A; Wed, 10 Jul 2019 10:41:40 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id CAD748E0032
-	for <linux-mm@kvack.org>; Wed, 10 Jul 2019 10:24:55 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id b33so1504027edc.17
-        for <linux-mm@kvack.org>; Wed, 10 Jul 2019 07:24:55 -0700 (PDT)
+Received: from mail-wm1-f69.google.com (mail-wm1-f69.google.com [209.85.128.69])
+	by kanga.kvack.org (Postfix) with ESMTP id ADBE38E0032
+	for <linux-mm@kvack.org>; Wed, 10 Jul 2019 10:41:40 -0400 (EDT)
+Received: by mail-wm1-f69.google.com with SMTP id r9so813867wme.8
+        for <linux-mm@kvack.org>; Wed, 10 Jul 2019 07:41:40 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=Ck/YeyAaKtna4PjEWRnG32x3dv0rmRssT+mcO4Vtd3k=;
-        b=a3J9wNdXUyaJXkhsPOXQMhtBKzDE/jke3CXPISfJax3Z9XMk8dMC9oWiYTNdUpRA1/
-         m6HJ8vLK370sqL29lGeyUimYxaxQ72+WpZQqEmfamq9UTVCy3XMrd24FzZUYBQ6gAZcF
-         7LKHyolO538bzQSoD0nD7/xQmTVHzl7iiJK+fr1/1VOfJ4taPFKmVGUbfkaBgH95KyJq
-         k8Bqh8RKksVusCWgrsnt5lfQfU8tjVUyq20FSfZBaTfwvKM6A7aBftHlTZ2ZbUlM8tGp
-         RCOlTJ5LHEHsvxGUGVrJ+jwsy+qX8aPb9zGEcLa0q9DWhuJmWiiAwtZ0RUDaZ7zXr0QU
-         l2zQ==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAXyj0nEmIUiHzhB7CCcOxYdKNEVTxLC5vCFPTA/KOGrupuw7dqW
-	ZFcNqtnYETIYN8tyh3iuE9+iXKDWU9VwVPrShrsIVA3DsVnf7r7pUxNFKDddPpe0ZdjeBnhllt7
-	v8FR6r7kFquhBFPqeZ0o2S5j94wDO88kjRsRhLfwAhqwurkV1ttWGCVUieqbF2vU=
-X-Received: by 2002:a17:906:6b53:: with SMTP id o19mr3830400ejs.27.1562768695305;
-        Wed, 10 Jul 2019 07:24:55 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxVwhOnpIj7VQgb2MLEvwJXSSmXnzeSNz3Fk0FKY8P4KdYH13bpvjsys9YSU2nd0oUCF36y
-X-Received: by 2002:a17:906:6b53:: with SMTP id o19mr3830343ejs.27.1562768694528;
-        Wed, 10 Jul 2019 07:24:54 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562768694; cv=none;
+         :cc:subject:message-id:mime-version:content-disposition
+         :content-transfer-encoding:user-agent;
+        bh=YhTeeRYX+I+s424rdId/3i3R3FhueIzczT6kXl/R91A=;
+        b=EHBqBLtbjF36zRpkUUrGoHnUdRYG0FyWDfs1qtJeZ1A9JXMegdK0OZLT8zk1re7G5K
+         CNTMTTXYPt0UymOCeDMrjoZijOHXVr2XNyDRo5vQ9D7vgt7nH8JvDsiZq8rCDnQ1r+PI
+         Kp92Mb9PhaZ6oMx3xioF66oid+7BlL94AQFUaRrjXpd639TMhzSRW7uyjH3IFp8hU0gr
+         kDTVUHOh2KSZPikj+VKKSF9hBiv4ENulP6jFUmhJ5XKl5zl9hAaw7UQKZf4ik76lCVVY
+         nCxybcW3wo+vVIziCEFEk22mNttcGmmghY22knsmMqVv5JBdfLhi1QSC1JKqBvVfg89Q
+         fT5A==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of bigeasy@linutronix.de designates 2a0a:51c0:0:12e:550::1 as permitted sender) smtp.mailfrom=bigeasy@linutronix.de
+X-Gm-Message-State: APjAAAW6metrBB0p4JnqHdo82B9+JUvIeDK3XIZ74XbyTCXlcBoiu1d6
+	Bp7oeI+Yv69+UMl1rkn10JSqOJZGHL6P28udfkEB6vxjUaWqXQEGe0TZnNWvi4Wm/8Hy2/TCDJs
+	UMFJNvRelKJByC8mOu5i05fvZoqrRCBFhBN+sFL4rwApLCCRsjDkoBDoSTf/l9ALeBA==
+X-Received: by 2002:a5d:4309:: with SMTP id h9mr30711561wrq.221.1562769700257;
+        Wed, 10 Jul 2019 07:41:40 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqx6RF1in3nFyOYZzGLaxtDLsA3Wz6U6wmPgY7exvIoYhO6NN0ApG+obo+CXWiwuiGbgP4Uf
+X-Received: by 2002:a5d:4309:: with SMTP id h9mr30711501wrq.221.1562769699417;
+        Wed, 10 Jul 2019 07:41:39 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562769699; cv=none;
         d=google.com; s=arc-20160816;
-        b=nBrMmb/pDbxXbb6/uKR2q5P7dNP7kAFo5av1/aeO1ciDpuzrNuiR8vqSq520i3HRmi
-         wNezSBxVFXfdumrDrkTDyl5NaSvGo/dBl63x61Mah5H2g2g4aL1zMkvGKgNeaGpBbHPh
-         vROAo8buFCGJhcHxVB74pGYk496Zqiz3p+axp6wcKhub2WXrqwjh6jNlXfCOaaW39Bd5
-         jjyIvSGFBj24GtZCRZBBG08OSxBnHCWK0yrw049d9nFQz55S4AdPqacgf3bLlkWs8xyb
-         EBUmPp7qPsg4G9ZmcLBw09TCnNGDGaG/650jHcnIR4AiC6zbdKppkGoFnzhYLhQa1/UC
-         mLpQ==
+        b=1HrvcG/VdDNbYt6p4zTgjFxxipifMMx+CsIyQ3xLQTPp1zpFlNcwp0Wak/NTatxo/M
+         3CxeWTB6S9D2GAfNxj1MjlJIGJKwOMD5keAKlJ5i/k3NDjY8nxgXvBelJ+90JGWsZARb
+         LjXxEssZOKzbyq4ZDyIoFtqVEpc0W45WxIqVb87eYp/OZQr8KFtzQAPj3temGjs3axRC
+         5QkcE/aOz7Hd+wqr6f1tDozNNRWmCkNSCyenrfbw1Xa7D3saFdN/hwdL+wNoCPMXNZ7M
+         AIVEEy+cX7QkvgGhbypOLD3iJStfmD3iNbi2MYqUA/vMgdIvwoh+C+yPf9aU5dbj5dX4
+         ZhlA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=Ck/YeyAaKtna4PjEWRnG32x3dv0rmRssT+mcO4Vtd3k=;
-        b=MxObi6SCcz42Zt/zWeKVO72NfJJQEXuqynZRhU2YSLKwgtueiXMw9vU8ocWePeWbag
-         1u/CrXT+O0sE+muhYTOCoP/GjFoOmKgy8BISs1iSf2nP65U9Cxr5pjgmc8MQ2kFeDXIX
-         aQW7hcgSojXTRGdM/k3Do7BPFj2acDXghLvnFLMJSaAl+jztNTrap0EBgUYRQnHCp5F9
-         xHb9tCDq7xZ7068Y/d7QFhdC9xJAdmtmkFBWdUKlGmFp/bMBdu7w59BUBEFirAUKOaBW
-         jsikgXIBBGrnqVSlVlO/4MmyYZD82930TdGX07hrmHze+1OnuUOd8HK40vViC7iYmxGk
-         6yBA==
+        h=user-agent:content-transfer-encoding:content-disposition
+         :mime-version:message-id:subject:cc:to:from:date;
+        bh=YhTeeRYX+I+s424rdId/3i3R3FhueIzczT6kXl/R91A=;
+        b=Lf+e6T2bi3jHVl3VJ0uj7kyBT/CdPj0WAiws9S5fhuA+k0jFPHima6hl75vZRrcfDV
+         3pclDczHuTHdSrEiWX9uC0BTxU9ANY99Q+6pktUQyYr1kgZ+fKbfQyZDJhVKhVeiLOIk
+         hWuRSOwsg3prY6vDo3UZA9daGORNtf13VexUd8oW2gNzxN/yGsFfnFJGphKBO+biOKKj
+         piLlS9CEvGYUSq/Ii9n4wIfaHedSGebB/qSaN+hXOnaKjzZRh6mTEsbRXJHeBFMGBE0n
+         1D1/u9xyoUzwZgMEe77UJ9t4zYqP330luvrfLlbleSkzkdOFjcSZq05/H6WRsTyOhXZf
+         pZYA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id c5si1270013ejz.322.2019.07.10.07.24.54
+       spf=pass (google.com: best guess record for domain of bigeasy@linutronix.de designates 2a0a:51c0:0:12e:550::1 as permitted sender) smtp.mailfrom=bigeasy@linutronix.de
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a0a:51c0:0:12e:550::1])
+        by mx.google.com with ESMTPS id y17si2245444wma.170.2019.07.10.07.41.39
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 10 Jul 2019 07:24:54 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Wed, 10 Jul 2019 07:41:39 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of bigeasy@linutronix.de designates 2a0a:51c0:0:12e:550::1 as permitted sender) client-ip=2a0a:51c0:0:12e:550::1;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 98CBAAE62;
-	Wed, 10 Jul 2019 14:24:53 +0000 (UTC)
-Date: Wed, 10 Jul 2019 16:24:52 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Denis Efremov <efremov@linux.com>
-Cc: Arun KS <arunks@codeaurora.org>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Vlastimil Babka <vbabka@suse.cz>,
-	Oscar Salvador <osalvador@suse.de>,
-	Pavel Tatashin <pavel.tatashin@microsoft.com>,
-	Mel Gorman <mgorman@techsingularity.net>,
-	Mike Rapoport <rppt@linux.ibm.com>,
-	Alexander Duyck <alexander.h.duyck@linux.intel.com>,
-	linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Subject: Re: [PATCH] mm: remove the exporting of totalram_pages
-Message-ID: <20190710142452.GN29695@dhcp22.suse.cz>
-References: <20190710141031.15642-1-efremov@linux.com>
+       spf=pass (google.com: best guess record for domain of bigeasy@linutronix.de designates 2a0a:51c0:0:12e:550::1 as permitted sender) smtp.mailfrom=bigeasy@linutronix.de
+Received: from bigeasy by Galois.linutronix.de with local (Exim 4.80)
+	(envelope-from <bigeasy@linutronix.de>)
+	id 1hlDms-0004RE-Ex; Wed, 10 Jul 2019 16:41:38 +0200
+Date: Wed, 10 Jul 2019 16:41:38 +0200
+From: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
+To: linux-mm@kvack.org
+Cc: tglx@linutronix.de
+Subject: Memory compaction and mlockall()
+Message-ID: <20190710144138.qyn4tuttdq6h7kqx@linutronix.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20190710141031.15642-1-efremov@linux.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+Content-Transfer-Encoding: quoted-printable
+User-Agent: NeoMutt/20180716
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed 10-07-19 17:10:31, Denis Efremov wrote:
-> Previously totalram_pages was the global variable. Currently,
-> totalram_pages is the static inline function from the include/linux/mm.h
-> However, the function is also marked as EXPORT_SYMBOL, which is at best
-> an odd combination. Because there is no point for the static inline
-> function from a public header to be exported, this commit removes the
-> EXPORT_SYMBOL() marking. It will be still possible to use the function in
-> modules because all the symbols it depends on are exported.
-> 
-> Fixes: ca79b0c211af6 ("mm: convert totalram_pages and totalhigh_pages variables to atomic")
-> Signed-off-by: Denis Efremov <efremov@linux.com>
+Hi,
 
-I have to confess I am not entirely sure what the export actually does in this
-case. I _think_ it will simply create a symbol and the code will be same
-as the static inline. But it certainly is not what we want/need.
+I've been looking at the following trace:
+| cyclicte-526     0d...2.. 6876070 603us : finish_task_switch <-__schedule
+| cyclicte-526     0....2.. 6876070 605us : preempt_count_sub <-finish_task=
+_switch
+| cyclicte-526     0....1.. 6876070 607us : preempt_count_sub <-schedule
+| cyclicte-526     0....... 6876070 610us : finish_wait <-put_and_wait_on_p=
+age_locked
 
-Acked-by: Michal Hocko <mhocko@suse.com>
+I see put_and_wait_on_page_locked after schedule and didn't expect that.
+cyclictest then blocks on a lock and switches to `kcompact'. Once it
+finishes, it switches back to cyclictest:
+| cyclicte-526     0....... 6876070 853us : rt_spin_unlock <-put_and_wait_o=
+n_page_locked
+| cyclicte-526     0....... 6876070 854us : migrate_enable <-rt_spin_unlock
+| cyclicte-526     0....... 6876070 860us : up_read <-do_page_fault
+| cyclicte-526     0....... 6876070 861us : __up_read <-do_page_fault
+| cyclicte-526     0d...... 6876070 867us : do_PrefetchAbort <-ret_from_exc=
+eption
+| cyclicte-526     0d...... 6876070 868us : do_page_fault <-do_PrefetchAbort
+| cyclicte-526     0....... 6876070 870us : down_read_trylock <-do_page_fau=
+lt
+| cyclicte-526     0....... 6876070 872us : __down_read_trylock <-do_page_f=
+ault
+=E2=80=A6
+| cyclicte-526     0....... 6876070 914us : __up_read <-do_page_fault
+| cyclicte-526     0....... 6876070 923us : sys_clock_gettime32 <-ret_fast_=
+syscall
+| cyclicte-526     0....... 6876070 925us : posix_ktime_get_ts <-sys_clock_=
+gettime32
 
-> ---
->  mm/page_alloc.c | 2 --
->  1 file changed, 2 deletions(-)
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 8e3bc949ebcc..060303496094 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -224,8 +224,6 @@ int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES] = {
->  	[ZONE_MOVABLE] = 0,
->  };
->  
-> -EXPORT_SYMBOL(totalram_pages);
-> -
->  static char * const zone_names[MAX_NR_ZONES] = {
->  #ifdef CONFIG_ZONE_DMA
->  	 "DMA",
-> -- 
-> 2.21.0
+I did not expect a pagefault with mlockall(). I assume it has to do with
+memory compaction. I have
+| CONFIG_COMPACTION=3Dy
+| CONFIG_MIGRATION=3Dy
 
--- 
-Michal Hocko
-SUSE Labs
+and Kconfig says:
+|config COMPACTION
+=E2=80=A6
+|                                                       You shouldn't
+|           disable this option unless there really is a strong reason for
+|           it and then we would be really interested to hear about that at
+|           linux-mm@kvack.org.
+
+Shouldn't COMPACTION avoid touching/moving mlock()ed pages?
+
+Sebastian
 
