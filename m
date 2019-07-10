@@ -2,137 +2,161 @@ Return-Path: <SRS0=tO+N=VH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C9582C74A21
-	for <linux-mm@archiver.kernel.org>; Wed, 10 Jul 2019 14:10:38 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0A509C74A21
+	for <linux-mm@archiver.kernel.org>; Wed, 10 Jul 2019 14:15:51 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 983842064B
-	for <linux-mm@archiver.kernel.org>; Wed, 10 Jul 2019 14:10:38 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 983842064B
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux.com
+	by mail.kernel.org (Postfix) with ESMTP id C1E252064B
+	for <linux-mm@archiver.kernel.org>; Wed, 10 Jul 2019 14:15:50 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="AwdPd/ng"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C1E252064B
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2CABA8E0077; Wed, 10 Jul 2019 10:10:38 -0400 (EDT)
+	id 5ADC88E0078; Wed, 10 Jul 2019 10:15:50 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 254558E0032; Wed, 10 Jul 2019 10:10:38 -0400 (EDT)
+	id 55CEE8E0032; Wed, 10 Jul 2019 10:15:50 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 141FC8E0077; Wed, 10 Jul 2019 10:10:38 -0400 (EDT)
+	id 44BDC8E0078; Wed, 10 Jul 2019 10:15:50 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wm1-f71.google.com (mail-wm1-f71.google.com [209.85.128.71])
-	by kanga.kvack.org (Postfix) with ESMTP id BB64E8E0032
-	for <linux-mm@kvack.org>; Wed, 10 Jul 2019 10:10:37 -0400 (EDT)
-Received: by mail-wm1-f71.google.com with SMTP id d65so786951wmd.3
-        for <linux-mm@kvack.org>; Wed, 10 Jul 2019 07:10:37 -0700 (PDT)
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 25DF78E0032
+	for <linux-mm@kvack.org>; Wed, 10 Jul 2019 10:15:50 -0400 (EDT)
+Received: by mail-qk1-f197.google.com with SMTP id d9so2066215qko.8
+        for <linux-mm@kvack.org>; Wed, 10 Jul 2019 07:15:50 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:mime-version:content-transfer-encoding;
-        bh=TY7yY/Is1vsoNm98cSnkNJrjSVQKwiCCI3+J5kse7IA=;
-        b=NkdYnUx5Bkk6gbRNN2aoWRl6Ua9bsjU+dSlLDuV5fau2pf7W5rfjFBu6bJcjPOYXM0
-         OSIRuenw+4pa44hJFE/YvuPgGMEdMFgJuwOZc+SSQVe9qRmmQfqUe98D+q0ccvAmlROs
-         kX2FNoBWEr2Mpqz4RPTKACsHQAseL8CWGYm1+0jrkEUtHxlqrpB8YeQJwAQgeqMkRDf8
-         XsLlh/aPUtcmcW15D0oMoq3i4H6d1+0KqSkejIzWndf0emY8ZhZ4cjxJ9ngMUWue8Yzw
-         JHw9v8mFkZYKIjiRNATJH+So5pn1DvHeJ99UHqPmwz8qiG/9GhDbF8yR2eZRAwiyz+ut
-         VVUQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yefremov.denis@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=yefremov.denis@gmail.com
-X-Gm-Message-State: APjAAAUaihdkRUK3MYY56FLNQtVrZ62n+d6v29OlujpZ5TADZZ1TpLin
-	rcVasxO5MeUsNPtFYjRoD7cP4s2o4jV2wiWpruM+3cBMwuyrkwSfUi2+gLziUfSihLFAg4Jljdb
-	fSd217JkfbUDClAtPeBByrzer2dixB/FSzYf5WpPpgjtDmcukKQPR8OWHq2ePYDI=
-X-Received: by 2002:adf:ce05:: with SMTP id p5mr5320972wrn.197.1562767837255;
-        Wed, 10 Jul 2019 07:10:37 -0700 (PDT)
-X-Received: by 2002:adf:ce05:: with SMTP id p5mr5320923wrn.197.1562767836472;
-        Wed, 10 Jul 2019 07:10:36 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562767836; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=vODFuMSbeG4w9Dj8p2oXEkAy/A03DVwyuAKVY4sFSRA=;
+        b=YfuezKnYniHs4kaV/9jAHvoI9H7J4jmB+8waUZTST10d9SxoNYkPDyJx1wPdZuLTgR
+         gAuvj/LzueP8rInmiabvSNOb8G5CzbcXJWDdNk14OQfAtSUP6troihhM3MFbDqkNDOXt
+         CGyVxGax24TdvqrBhq3x1EIWZK/oFzvYblYxOpRnHUwLsK3f22aHZXoLi4gC1lTHidzC
+         FK+pnaIcr9Z6gHznoZ+70xAA8sfUJirTh4WsI+10pm5jYYPUqpf6HgsKFsSuBYGIKOS0
+         Bx1KlKNoIP6eJxhB5izSBdfUaSO9YqTtALHObOV9r/ttMx5mPmB6+Axt93QWS3zLwYUE
+         CK8Q==
+X-Gm-Message-State: APjAAAVsdLU5OBGWRnFq6Ne8nl8y50ZLF0Xawn+a7+czL3ISwNJeV6v0
+	v+dBYUkQAuCqZbt1b6rLCM6yAJseu5U0d3DTvpR6ZwGMlCnmyKVeI7bKPfLN1LrCddkPgzs36cZ
+	tDLKJNpozGPJkhBIIy7WVDn/gjzsjfmFMqCZmWGim1nhAep1E48ZwJxNg8LCI1mPwEA==
+X-Received: by 2002:a05:620a:1116:: with SMTP id o22mr23898066qkk.82.1562768149940;
+        Wed, 10 Jul 2019 07:15:49 -0700 (PDT)
+X-Received: by 2002:a05:620a:1116:: with SMTP id o22mr23898030qkk.82.1562768149404;
+        Wed, 10 Jul 2019 07:15:49 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562768149; cv=none;
         d=google.com; s=arc-20160816;
-        b=0xWn7cQE27GBNsJSoLZrvesfGuzX7b2G4Tz0zSa01GyOaQl+kyTg56fJkE0OaNOZSS
-         NsssTXRXSy56zfoHBCR7Ht26M/uuRISa+GFBHLTX7EUw9GGPsIJTgPPySKv4R7S2gvZo
-         L0Dv1xscmbCM5ROhI0MmRv4Srqxn3MaIuZGzyWj7ubaTybSaSdWIsAUyQDtzVEezUUnA
-         TmCj+FGN3k8o29hCW+xWKco3hWYYb6AocCSRgjgs7Ewx1rkINFGE1JSG6itMTmoCSbtB
-         oXjoL6NSMFfLdhQo8CRLvV/g8amnZpjkLW4yUrvn1io8Q3UwBjTpO1v726oADUzy694D
-         DJYQ==
+        b=tvMJEGMvUvIk6ofXg+kIS3LS598i+i6Ssf5VHER2crFlfOsb76/wGxYsJscSw0ki+1
+         G4j/O83W42VQeqc+JTgEJObEbDmlKl4SVInVTatzsfW8XGwVWkdthYsXkGkOp/sm2yTK
+         yO8+X660mRxRG7K8nFcKGaelgHWjEBKCzsfF7dtyXKafoF6VXdrtYIhsD6OEhmN46aCB
+         JBH/ufeMHrFrqJQpqJVwrojGGlpfB6EHQxJZBbBXWcQk5bL2PO68EIe524hmui9LxzjW
+         PtA7+52S0xBOIk7fWJXFENt30Q9nvP5u5u7NpPT8a2zuqDG1XTsW/1RBrslcuZbbnRI+
+         X1bA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
-         :to:from;
-        bh=TY7yY/Is1vsoNm98cSnkNJrjSVQKwiCCI3+J5kse7IA=;
-        b=oqZVWm1B8MMDsj/N32CDO54ZloIlVfnpT+RdYbHmlJfWwPA/RWMscsoDhvHiXbitku
-         uz1QwWAaX/Fb0k6Ez6InO5ouUSJDS/DXegiS/q1goCpC2F/J9vBvDVMfjwd4ZzmwDXE+
-         zxkTuIre13UhNnoDB+7q+h8PJoM7QeeZxM6kuzcIrJZw8f3Xaie3XWQu/9gRpsHapd3E
-         vJhlj2OMtZtAex7n6gLi+2GYb4epPCwAgxPC5MqA1AubUGSc1ukteG5MzdrII8+R2nXc
-         6vjam2IpaMn0xcUwhbvPXnzuwu+2+0ZUnNuXarTtz8JOxYMxx2L7vpvI8Mo4Xzuddqc2
-         9A4g==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=vODFuMSbeG4w9Dj8p2oXEkAy/A03DVwyuAKVY4sFSRA=;
+        b=iL+xpZEz/HtsGcnSHM1YRnNH23DRgch74VRFu3sSD4s/+Y4WYVn5X2cHjgHzwwLGSM
+         feOVi22eFsW4mWl+/HSbRHWywb6774CgcAHB9vZeu7ZGCE4LqGsh0Dj5nt2o2XG6+9bj
+         uqOXMby6znuG4bWqtXZhty4T/Ub4Ra2UODav1wfAs/g3QSjjIE9yZ86bOCibx3QCm0Yi
+         Je9SZR23PldSuovg3GDWxCfaQ2ORvyXHaMsY4qhDC1yAeaDfcIwQMBUvYjL3uC33mNMg
+         vozyBOTMvN+xh31X5PMF69v4f3WhlObcQ1FfTXRe4NV80BzmxcLgvxj1tmBmhwfoKp8f
+         Xq1Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of yefremov.denis@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=yefremov.denis@gmail.com
+       dkim=pass header.i=@ziepe.ca header.s=google header.b="AwdPd/ng";
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id t64sor1411095wmg.21.2019.07.10.07.10.36
+        by mx.google.com with SMTPS id z187sor1292583qkc.163.2019.07.10.07.15.49
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 10 Jul 2019 07:10:36 -0700 (PDT)
-Received-SPF: pass (google.com: domain of yefremov.denis@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Wed, 10 Jul 2019 07:15:49 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of yefremov.denis@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=yefremov.denis@gmail.com
-X-Google-Smtp-Source: APXvYqwpYawV7a4WTLPXAorYW3M6lrhk3kn3yQGP3ACjJl/TL2X4QkY/thdNTJS6Tpzo45XQaURDEw==
-X-Received: by 2002:a05:600c:2245:: with SMTP id a5mr5603409wmm.121.1562767836208;
-        Wed, 10 Jul 2019 07:10:36 -0700 (PDT)
-Received: from localhost.localdomain (broadband-188-32-48-208.ip.moscow.rt.ru. [188.32.48.208])
-        by smtp.googlemail.com with ESMTPSA id v5sm2733206wre.50.2019.07.10.07.10.34
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 10 Jul 2019 07:10:35 -0700 (PDT)
-From: Denis Efremov <efremov@linux.com>
-To: Arun KS <arunks@codeaurora.org>
-Cc: Denis Efremov <efremov@linux.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Michal Hocko <mhocko@suse.com>,
-	Vlastimil Babka <vbabka@suse.cz>,
-	Oscar Salvador <osalvador@suse.de>,
-	Pavel Tatashin <pavel.tatashin@microsoft.com>,
-	Mel Gorman <mgorman@techsingularity.net>,
-	Mike Rapoport <rppt@linux.ibm.com>,
-	Alexander Duyck <alexander.h.duyck@linux.intel.com>,
-	linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
-Subject: [PATCH] mm: remove the exporting of totalram_pages
-Date: Wed, 10 Jul 2019 17:10:31 +0300
-Message-Id: <20190710141031.15642-1-efremov@linux.com>
-X-Mailer: git-send-email 2.21.0
+       dkim=pass header.i=@ziepe.ca header.s=google header.b="AwdPd/ng";
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=ziepe.ca; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=vODFuMSbeG4w9Dj8p2oXEkAy/A03DVwyuAKVY4sFSRA=;
+        b=AwdPd/ngT3mJRYvTsNi7+k6Pexs7qADcyr631JXNtQYsxsI+pH7+y4Ce9rum+RXvxW
+         m6QBM9fvhZyOBfFcND8pcYtyZWgTB4xQtqhO9xec9FnEJqGhT5MTG3e9VhN/LHD9dgZa
+         f6KOC1WXJurqXAAjkgCghV2QgM6A9EVmh5WxWeFLyGZ145JlBsCAs1BNm9jIM7t9z+Hc
+         EKiq9t1c2J3X+T5XD78LORMaSqOdjhRrOwldzb/ODveWc7eQ/bjHUQA8gV5DDMl8dAJ8
+         rbTcSw4HlbgcmSJKmRzKBIRGpIR9wdnJ3ZyQy1J/UbNA1XsBCR8R5xEtifXe51rYR1ZI
+         Q9Nw==
+X-Google-Smtp-Source: APXvYqwXdpeAq5FslPtKDZcIHkELBHHKwO4EIuzyaxhuC4csZ6L2yQ89iBXj5IXMg03W1UYI3SVt8w==
+X-Received: by 2002:a05:620a:1456:: with SMTP id i22mr23125794qkl.170.1562768149112;
+        Wed, 10 Jul 2019 07:15:49 -0700 (PDT)
+Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
+        by smtp.gmail.com with ESMTPSA id i27sm1079838qkk.58.2019.07.10.07.15.48
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 10 Jul 2019 07:15:48 -0700 (PDT)
+Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
+	(envelope-from <jgg@ziepe.ca>)
+	id 1hlDNr-0001Pb-Qi; Wed, 10 Jul 2019 11:15:47 -0300
+Date: Wed, 10 Jul 2019 11:15:47 -0300
+From: Jason Gunthorpe <jgg@ziepe.ca>
+To: janani <janani@linux.ibm.com>
+Cc: Bharata B Rao <bharata@linux.ibm.com>, linuxppc-dev@lists.ozlabs.org,
+	linuxram@us.ibm.com, cclaudio@linux.ibm.com,
+	kvm-ppc@vger.kernel.org, linux-mm@kvack.org, jglisse@redhat.com,
+	aneesh.kumar@linux.vnet.ibm.com, paulus@au1.ibm.com,
+	sukadev@linux.vnet.ibm.com,
+	Anshuman Khandual <khandual@linux.vnet.ibm.com>,
+	Linuxppc-dev <linuxppc-dev-bounces+janani=linux.ibm.com@lists.ozlabs.org>
+Subject: Re: [PATCH v5 7/7] KVM: PPC: Ultravisor: Add PPC_UV config option
+Message-ID: <20190710141547.GB4051@ziepe.ca>
+References: <20190709102545.9187-1-bharata@linux.ibm.com>
+ <20190709102545.9187-8-bharata@linux.ibm.com>
+ <6759c8a79b2962d07ed99f2b1cd05637@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <6759c8a79b2962d07ed99f2b1cd05637@linux.vnet.ibm.com>
+User-Agent: Mutt/1.9.4 (2018-02-28)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Previously totalram_pages was the global variable. Currently,
-totalram_pages is the static inline function from the include/linux/mm.h
-However, the function is also marked as EXPORT_SYMBOL, which is at best
-an odd combination. Because there is no point for the static inline
-function from a public header to be exported, this commit removes the
-EXPORT_SYMBOL() marking. It will be still possible to use the function in
-modules because all the symbols it depends on are exported.
+On Wed, Jul 10, 2019 at 08:24:56AM -0500, janani wrote:
+> On 2019-07-09 05:25, Bharata B Rao wrote:
+> > From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+> > 
+> > CONFIG_PPC_UV adds support for ultravisor.
+> > 
+> > Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+> > Signed-off-by: Bharata B Rao <bharata@linux.ibm.com>
+> > Signed-off-by: Ram Pai <linuxram@us.ibm.com>
+> > [ Update config help and commit message ]
+> > Signed-off-by: Claudio Carvalho <cclaudio@linux.ibm.com>
+>  Reviewed-by: Janani Janakiraman <janani@linux.ibm.com>
+> >  arch/powerpc/Kconfig | 20 ++++++++++++++++++++
+> >  1 file changed, 20 insertions(+)
+> > 
+> > diff --git a/arch/powerpc/Kconfig b/arch/powerpc/Kconfig
+> > index f0e5b38d52e8..20c6c213d2be 100644
+> > +++ b/arch/powerpc/Kconfig
+> > @@ -440,6 +440,26 @@ config PPC_TRANSACTIONAL_MEM
+> >           Support user-mode Transactional Memory on POWERPC.
+> > 
+> > +config PPC_UV
+> > +	bool "Ultravisor support"
+> > +	depends on KVM_BOOK3S_HV_POSSIBLE
+> > +	select HMM_MIRROR
+> > +	select HMM
+> > +	select ZONE_DEVICE
 
-Fixes: ca79b0c211af6 ("mm: convert totalram_pages and totalhigh_pages variables to atomic")
-Signed-off-by: Denis Efremov <efremov@linux.com>
----
- mm/page_alloc.c | 2 --
- 1 file changed, 2 deletions(-)
+These configs have also been changed lately, I didn't see any calls to
+hmm_mirror in this patchset, so most likely the two HMM selects should
+be dropped and all you'll need is ZONE_DEVICE..
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 8e3bc949ebcc..060303496094 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -224,8 +224,6 @@ int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES] = {
- 	[ZONE_MOVABLE] = 0,
- };
- 
--EXPORT_SYMBOL(totalram_pages);
--
- static char * const zone_names[MAX_NR_ZONES] = {
- #ifdef CONFIG_ZONE_DMA
- 	 "DMA",
--- 
-2.21.0
+Jason
 
