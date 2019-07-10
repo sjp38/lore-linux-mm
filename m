@@ -2,153 +2,339 @@ Return-Path: <SRS0=tO+N=VH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.5 required=3.0 tests=MAILING_LIST_MULTI,
-	MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 067F5C74A36
-	for <linux-mm@archiver.kernel.org>; Wed, 10 Jul 2019 19:47:24 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 62405C74A3E
+	for <linux-mm@archiver.kernel.org>; Wed, 10 Jul 2019 19:52:29 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C5CE820645
-	for <linux-mm@archiver.kernel.org>; Wed, 10 Jul 2019 19:47:23 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C5CE820645
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id E8E3F20645
+	for <linux-mm@archiver.kernel.org>; Wed, 10 Jul 2019 19:52:28 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E8E3F20645
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 59E388E008D; Wed, 10 Jul 2019 15:47:23 -0400 (EDT)
+	id 54CB18E008E; Wed, 10 Jul 2019 15:52:28 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 54E018E0032; Wed, 10 Jul 2019 15:47:23 -0400 (EDT)
+	id 4FCAD8E0032; Wed, 10 Jul 2019 15:52:28 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 464F18E008D; Wed, 10 Jul 2019 15:47:23 -0400 (EDT)
+	id 3C4E68E008E; Wed, 10 Jul 2019 15:52:28 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id EBE918E0032
-	for <linux-mm@kvack.org>; Wed, 10 Jul 2019 15:47:22 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id d27so2306304eda.9
-        for <linux-mm@kvack.org>; Wed, 10 Jul 2019 12:47:22 -0700 (PDT)
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 005C38E0032
+	for <linux-mm@kvack.org>; Wed, 10 Jul 2019 15:52:27 -0400 (EDT)
+Received: by mail-qk1-f198.google.com with SMTP id z13so2982418qka.15
+        for <linux-mm@kvack.org>; Wed, 10 Jul 2019 12:52:27 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=n+3148dvhMrZk2Jakl4I2423z9NjrhfvTQWBWBqyIuE=;
-        b=CyUIO88RJTTQI1p/2yN+CWKniJ4BVDL9WpNNHQZBhpKfIsMPxqCm4p+GcMmVm0z5Fh
-         ALd2kVdqFbZrBqOYnQj87+vvn/tNdtfjeiU09sqiF4XHKIX0iIlnm9511XhsU5V1aWEI
-         EaP9c/xMUuWYSQVcxqzg44yKzP0krsbzvrO+uszijQ/e29rDB1sdQYGqQzsj8KzXUFx/
-         zV/ux7uogoEbxI08u3Cax4CRgQpNdoUM/XYW6zJS+i8zB+GAj4q05NLuhS9C0w3krD0V
-         R9oghYE0SJEAaHKQd93DEzDnMCgUBepYutuqn6BJWHTby6kqp8PEW/xlTjcXesWb7RPW
-         JRng==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAWxCPWfR5MQAebuIxp8XCkqzR8emaHVuhCuBLo89DPtKf6QfRd7
-	WOOjjXXI/DplkxiYcF+ghHs/uFW4NUW8C12KiXA0Ivs9NaGX0NkJrloXQiehXbABQQX7JsZt9YF
-	N7I6q5idMbxqfRJ8SodmUA9YeRzhP+V3ILg2kuAbBeZDAcSHrTHB2XBBbQDDSnnE=
-X-Received: by 2002:a50:ad01:: with SMTP id y1mr32765271edc.180.1562788042518;
-        Wed, 10 Jul 2019 12:47:22 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxSykl7LKYusXSw35LWeLQM4TVIptDpaqUyo4DC7NSrx95oRFWBkUb1mTJ8+Vh2da490icl
-X-Received: by 2002:a50:ad01:: with SMTP id y1mr32765221edc.180.1562788041696;
-        Wed, 10 Jul 2019 12:47:21 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562788041; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to
+         :subject:date:message-id:mime-version:content-transfer-encoding;
+        bh=v5+QD+aLs9geSrM0Gd85Pc95rZCgjzM+BVWPL8h2Uq0=;
+        b=awoulV0uzT9dGnyIJ9BtxSJlby+B3PrW0D0PXCP3FlC3zc+sO9avyjWsetaySDzwit
+         4Ug3fPr/5tox3EBfQzVUlFKMSqZ9U77mOOYqPJ0jbIp3YM/oTTGEz2efqIEfcsZaUTzl
+         C+b5x6Eer/3mgxm2QhNq51sWxO+JD3w4ADg5ZN03x2Otax47XG0AycafFcxOYuaDAVrd
+         JGl0619hEOZR+RgtafH49U98gH0qAKVDBZec9Zd5KterJDu2C1t8Rd0GTbe1aSvPYh17
+         sXrlr+1EVX5FYLEKG1L0Re6flQepPzBlZVy9dDM/Zn7E3MFq9FzSEjFCWCt25eO6cuku
+         IC9w==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAXOrBBr575LaHvtviuujvSitqnH9xoE0Pfd2njWU6xjtvhCwOdr
+	1sniMiVPiaFCyviPaYd2OSOLTf/gNHrAYU/1aDrdvpqxdlBjtg/EOXzVlOHi9ohDxmu4NmYsr/+
+	0M7fW7H+ZDGJwJndQctiO0KlR4zio1x2lIIPAr/KmgqnmLRfklfQXslZBofS+BwY6FQ==
+X-Received: by 2002:a05:620a:1411:: with SMTP id d17mr23634727qkj.137.1562788347622;
+        Wed, 10 Jul 2019 12:52:27 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzqfC0EayrwdZwbG7PjecjSuzyDXQlUwrdgICaVIKPKWqeE8k+0g3TGMCfGDxdVn/BlUOrd
+X-Received: by 2002:a05:620a:1411:: with SMTP id d17mr23634669qkj.137.1562788346486;
+        Wed, 10 Jul 2019 12:52:26 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562788346; cv=none;
         d=google.com; s=arc-20160816;
-        b=xolAdkr1UaBtrzL5GQC+13HD57mGjLH9B8foOYmVwk2h2vB7fr0RS48lWQyp9YWQHM
-         rcWAWyuvPYijXPR6SSPCeiJh30l3tCpDbMv24yxIEj8YBSRqoGXJjwjjIa2kDyUP+bD5
-         cPeAHG2r0WMuY6u0LPm0QD3ootH2U9zchgJl4Ht5Rzdwb34evvq4NffvXmlqg20wje6k
-         DsgXaACRMgoDbIuA4M1xbkQLI+x77f//gngZSYrcPI5jR1p0FoQaFRrmfPEf0j12h7EO
-         BuXecngGIw1QtAFn42LkxvFA9b9QwD+vvgyVz5mgLWPRRkxnXxLaPfOWYL6me/YzY7p3
-         TmDw==
+        b=tBcGBlyBXbJ2uUCxnITb4M2pnCdS4YiUSP0ZBoXhAvkK20mvZNrJTcolr8Yd09ypmN
+         eSvR0vx8wMYDKM0Pu/aamafy9FESUKyxeTyBdpP4FzcDl4VaTaVD2QVDdF+bKeA2jSbM
+         wVRpmRx8/5GwwWeaDW/tu9Vjm90XYr38d3vJHyaR/1N8ZBIp2wJG4ijXHsA8W4C+wL3p
+         tElE4JEi2VUXSrOCkpzDVazZA7BgLBwogkZQepRHgFlTilePKW903qFQgSiJwiTWcphX
+         1GL+msJxEp7fbiWdqQYcW0HfetxzWwCts7bl2TPtMl/kZIt7UifjhePgp4sFhe626GLm
+         oH+g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=n+3148dvhMrZk2Jakl4I2423z9NjrhfvTQWBWBqyIuE=;
-        b=g6+io6AzGMvB4yIe9gdiMI/ebunPfvs2lfOBXXeWuEvnuCxSDuA0z/WvIvYmBucvw+
-         7Q7XWn25OR8j0mGr5LntYtpnqciPXT1BcoAajEfv3V7swsY70v39mt1LqH74zupsrYHp
-         ChOTJTxEDpd3PqdH7bcF4o5NI1TC63yWF0Zt8QEx49dqS+Y7zpHFlMHkxqXHl6VwHI/i
-         gCjeNIZdV02tbyxxFWX2TzEI9u4Gd74W7XKuH8YtK+nNOTKu1Pmc3k0SC/dT1OEiADL4
-         O4H+CXuYh/1U9hzDySDMxu4k4ImU4pT1L94q6CvcnsCADaiHCN3yfD3uW+FrR0Q7DCKL
-         k7oQ==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:to
+         :from;
+        bh=v5+QD+aLs9geSrM0Gd85Pc95rZCgjzM+BVWPL8h2Uq0=;
+        b=UHv/jBaSW1FTN1mNDX8kq93ivdRlrTfwjNaHd7dwe+3XKsC63/A55twyZ0KcIOg2qx
+         pj8t6ecufhHganNUL7XqBSH8BwTBUxlTxfw+kPY49qFSJQ+mXYEP6RkelxPeTm4QTm9T
+         azaypnEY1DXAE+AGJ5hIWpRA+Rs1zPgK44SfdVTK5y5VQxNkmiXF93CLDNsFYpp7Bguc
+         lVwFeKBHDE+LVXg0JQZtIoMicKWXAcQuQEuKLjrB15CsStdxNYxyDteydoBHRmltH12u
+         GzlucoVlQiCIgP5l2ObIf8KL8jQlxFXdvsMnDnILqGkdyWZCRoGu//dYTz24o0Pwm1tf
+         X1QA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k24si1796956ejz.188.2019.07.10.12.47.21
+       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id y47si2092611qve.70.2019.07.10.12.52.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 10 Jul 2019 12:47:21 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Wed, 10 Jul 2019 12:52:26 -0700 (PDT)
+Received-SPF: pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 0E607ACA0;
-	Wed, 10 Jul 2019 19:47:21 +0000 (UTC)
-Date: Wed, 10 Jul 2019 21:47:19 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-	linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>,
-	linux-api@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>,
-	Tim Murray <timmurray@google.com>,
-	Joel Fernandes <joel@joelfernandes.org>,
-	Suren Baghdasaryan <surenb@google.com>,
-	Daniel Colascione <dancol@google.com>,
-	Shakeel Butt <shakeelb@google.com>, Sonny Rao <sonnyrao@google.com>,
-	oleksandr@redhat.com, hdanton@sina.com, lizeb@google.com,
-	Dave Hansen <dave.hansen@intel.com>,
-	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: Re: [PATCH v3 4/5] mm: introduce MADV_PAGEOUT
-Message-ID: <20190710194719.GS29695@dhcp22.suse.cz>
-References: <20190627115405.255259-1-minchan@kernel.org>
- <20190627115405.255259-5-minchan@kernel.org>
- <20190709095518.GF26380@dhcp22.suse.cz>
- <20190710104809.GA186559@google.com>
- <20190710111622.GI29695@dhcp22.suse.cz>
- <20190710115356.GC186559@google.com>
+       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx08.intmail.prod.int.phx2.redhat.com [10.5.11.23])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 4734C3005159;
+	Wed, 10 Jul 2019 19:52:25 +0000 (UTC)
+Received: from virtlab512.virt.lab.eng.bos.redhat.com (virtlab512.virt.lab.eng.bos.redhat.com [10.19.152.206])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 80D2019C69;
+	Wed, 10 Jul 2019 19:52:16 +0000 (UTC)
+From: Nitesh Narayan Lal <nitesh@redhat.com>
+To: kvm@vger.kernel.org,
+	linux-kernel@vger.kernel.org,
+	linux-mm@kvack.org,
+	pbonzini@redhat.com,
+	lcapitulino@redhat.com,
+	pagupta@redhat.com,
+	wei.w.wang@intel.com,
+	yang.zhang.wz@gmail.com,
+	riel@surriel.com,
+	david@redhat.com,
+	mst@redhat.com,
+	dodgen@google.com,
+	konrad.wilk@oracle.com,
+	dhildenb@redhat.com,
+	aarcange@redhat.com,
+	alexander.duyck@gmail.com,
+	john.starks@microsoft.com,
+	dave.hansen@intel.com,
+	mhocko@suse.com
+Subject: [RFC][PATCH v11 0/2] mm: Support for page hinting
+Date: Wed, 10 Jul 2019 15:51:56 -0400
+Message-Id: <20190710195158.19640-1-nitesh@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190710115356.GC186559@google.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+X-Scanned-By: MIMEDefang 2.84 on 10.5.11.23
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.40]); Wed, 10 Jul 2019 19:52:25 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed 10-07-19 20:53:56, Minchan Kim wrote:
-> On Wed, Jul 10, 2019 at 01:16:22PM +0200, Michal Hocko wrote:
-> > On Wed 10-07-19 19:48:09, Minchan Kim wrote:
-> > > On Tue, Jul 09, 2019 at 11:55:19AM +0200, Michal Hocko wrote:
-> > [...]
-> > > > I am still not convinced about the SWAP_CLUSTER_MAX batching and the
-> > > > udnerlying OOM argument. Is one pmd worth of pages really an OOM risk?
-> > > > Sure you can have many invocations in parallel and that would add on
-> > > > but the same might happen with SWAP_CLUSTER_MAX. So I would just remove
-> > > > the batching for now and think of it only if we really see this being a
-> > > > problem for real. Unless you feel really strong about this, of course.
-> > > 
-> > > I don't have the number to support SWAP_CLUSTER_MAX batching for hinting
-> > > operations. However, I wanted to be consistent with other LRU batching
-> > > logic so that it could affect altogether if someone try to increase
-> > > SWAP_CLUSTER_MAX which is more efficienty for batching operation, later.
-> > > (AFAIK, someone tried it a few years ago but rollback soon, I couldn't
-> > > rebemeber what was the reason at that time, anyway).
-> > 
-> > Then please drop this part. It makes the code more complex while any
-> > benefit is not demonstrated.
-> 
-> The history says the benefit.
-> https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/patch/?id=d37dd5dcb955dd8c2cdd4eaef1f15d1b7ecbc379
+This patch series proposes an efficient mechanism for reporting free memory
+from a guest to its hypervisor. It especially enables guests with no page cache
+(e.g., nvdimm, virtio-pmem) or with small page caches (e.g., ram > disk) to
+rapidly hand back free memory to the hypervisor.
+This approach has a minimal impact on the existing core-mm infrastructure.
 
-Limiting the number of isolated pages is fine. All I am saying is that
-SWAP_CLUSTER_MAX is an arbitrary number same as 512 pages for one PMD as
-a unit of work. Both can lead to the same effect if there are too many
-parallel tasks doing the same thing.
+Measurement results (measurement details appended to this email):
+*Number of 5GB guests (each touching 4GB memory) that can be launched
+without swap usage on a system with 15GB:
+unmodified kernel - 2, 3rd with 2.5GB   
+v11 page hinting - 6, 7th with 26MB    
+v1 bubble hinting[1] - 6, 7th with 1.8GB (bubble hinting is another series
+proposed to solve the same problems)
 
-I do not want you to change that in the reclaim path. All I am asking
-for is to add a bathing without any actual data to back that because
-that makes the code more complex without any gains.
+*Memhog execution time (For 3 guests each of 6GB on a system with 15GB):
+unmodified kernel - Guest1:21s, Guest2:27s, Guest3:2m37s swap used = 3.7GB       
+v11 page hinting - Guest1:23s, Guest2:26s, Guest3:21s swap used = 0           
+v1 bubble hinting - Guest1:23, Guest2:11s, Guest3:26s swap used = 0           
+
+
+This approach tracks all freed pages of the order MAX_ORDER - 2 in bitmaps.
+A new hook after buddy merging is used to set the bits in the bitmap.
+Currently, the bits are only cleared when pages are hinted, not when pages are
+re-allocated.
+
+Bitmaps are stored on a per-zone basis and are protected by the zone lock. A
+workqueue asynchronously processes the bitmaps as soon as a pre-defined memory
+threshold is met, trying to isolate and report pages that are still free.
+
+The isolated pages are reported via virtio-balloon, which is responsible for
+sending batched pages to the host synchronously. Once the hypervisor processed
+the hinting request, the isolated pages are returned back to the buddy.
+
+Changelog in v11:
+* Added logic to take care of multiple NUMA nodes scenarios.
+* Simplified the logic for reporting isolated pages to the host. (Eg. replaced
+dynamically allocated arrays with static ones, introduced wait event instead of
+the loop in order to wait for a response from the host)
+* Added a mutex to prevent race condition when page hinting is enabled by
+multiple drivers.
+* Simplified the logic responsible for decrementing free page counter for each
+zone.
+* Simplified code structuring/naming.
+
+Known work items for the future:
+* Test device assigned guests to ensure that hinting doesn't break it.
+* Follow up on VIRTIO_BALLOON_F_PAGE_POISON's device-side support.
+* Decide between MADV_DONTNEED and MADV_FREE.
+* Look into memory hotplug, more efficient locking, better naming conventions to
+avoid confusion with VIRTIO_BALLOON_F_FREE_PAGE_HINT support.
+* Come up with proper/traceable error-message/logs and look into other code
+simplifications. (If necessary).
+
+Benefit analysis:
+1. Number of 5GB guests (each touching 4GB memory) that can be launched without
+swap usage on a system with 15GB:
+unmodified kernel - 2, 3rd with 2.5GB   
+v11 page hinting - 6, 7th with 26MB    
+v1 bubble hinting - 6, 7th with 1.8GB   
+
+Conclusion - In this particular testcase on using v11 page hinting and
+v1 bubble-hinting 4 more guests could be launched without swapping compared
+to an unmodified kernel.
+For the 7th guest launch, v11 page hinting is slightly better than v1 Bubble
+hinting as it touches lesser swap space.
+
+Setup & procedure - 
+Total NUMA Node Memory ~ 15 GB (All guests are run on a single NUMA node)
+Guest Memory = 5GB
+Number of CPUs in the guest = 1
+Host swap = 4GB
+Workload = test allocation program that allocates 4GB memory, touches it via
+memset and exits.
+The first guest is launched and once its console is up, the test allocation
+program is executed with 4 GB memory request (Due to this the guest occupies
+almost 4-5 GB of memory in the host in a system without page hinting). Once
+this program exits at that time another guest is launched in the host and the
+same process is followed. It is continued until the swap is not used.
+
+2. Memhog execution time (For 3 guests each of 6GB on a system with 15GB):
+unmodified kernel - Guest1:21s, Guest2:27s, Guest3:2m37s swap used = 3.7GB       
+v11 page hinting - Guest1:23s, Guest2:26s, Guest3:21s swap used = 0           
+v1 bubble hinting - Guest1:23, Guest2:11s, Guest3:26s swap used = 0           
+
+For this particular test-case in a guest which doesn't require swap access
+"memhog 6G" execution time lies within a range of 15-30s.
+Conclusion -
+In the above test case for an unmodified kernel on executing memhog in the
+third guest execution time rises to above 2minutes due to swap access.
+Using either page-hinting or bubble hinting brings this execution time to a
+a normal range of 15-30s.
+
+Setup & procedure -
+Total NUMA Node Memory ~ 15 GB (All guests are run on a single NUMA node)
+Guest Memory = 6GB
+Number of CPUs in the guest = 4
+Process = 3 Guests are launched and the ‘memhog 6G’ execution time is monitored
+one after the other in each of them.
+Host swap = 4GB
+
+Performance Analysis:
+1. will-it-scale's page_faul1
+Setup -
+Guest Memory = 6GB
+Number of cores = 24
+
+Unmodified kernel -
+0,0,100,0,100,0
+1,514453,95.84,519502,95.83,519502
+2,991485,91.67,932268,91.68,1039004
+3,1381237,87.36,1264214,87.64,1558506
+4,1789116,83.36,1597767,83.88,2078008
+5,2181552,79.20,1889489,80.08,2597510
+6,2452416,75.05,2001879,77.10,3117012
+7,2671047,70.90,2263866,73.22,3636514
+8,2930081,66.75,2333813,70.60,4156016
+9,3126431,62.60,2370108,68.28,4675518
+10,3211937,58.44,2454093,65.74,5195020
+11,3162172,54.32,2450822,63.21,5714522
+12,3154261,50.14,2272290,58.98,6234024
+13,3115174,46.02,2369679,57.74,6753526
+14,3150511,41.86,2470837,54.02,7273028
+15,3134158,37.71,2428129,51.98,7792530
+16,3143067,33.57,2340469,49.54,8312032
+17,3112457,29.43,2263627,44.81,8831534
+18,3089724,25.29,2181879,38.69,9351036
+19,3076878,21.15,2236505,40.01,9870538
+20,3091978,16.95,2266327,35.00,10390040
+21,3082927,12.84,2172578,28.12,10909542
+22,3055282,8.73,2176269,29.14,11429044
+23,3081144,4.56,2138442,24.87,11948546
+24,3075509,0.45,2173753,21.62,12468048
+
+page hinting -
+0,0,100,0,100,0
+1,491683,95.83,494366,95.82,494366
+2,988415,91.67,919660,91.68,988732
+3,1344829,87.52,1244608,87.69,1483098
+4,1797933,83.37,1625797,83.70,1977464
+5,2179009,79.21,1881534,80.13,2471830
+6,2449858,75.07,2078137,76.82,2966196
+7,2732122,70.90,2178105,73.75,3460562
+8,2910965,66.75,2340901,70.28,3954928
+9,3006665,62.61,2353748,67.91,4449294
+10,3164752,58.46,2377936,65.08,4943660
+11,3234846,54.32,2510149,63.14,5438026
+12,3165477,50.17,2412007,59.91,5932392
+13,3141457,46.05,2421548,57.85,6426758
+14,3135839,41.90,2378021,53.81,6921124
+15,3109113,37.75,2269290,51.76,7415490
+16,3093613,33.62,2346185,48.73,7909856
+17,3086542,29.49,2352140,46.19,8404222
+18,3048991,25.36,2217144,41.52,8898588
+19,2965500,21.18,2313614,38.18,9392954
+20,2928977,17.05,2175316,35.67,9887320
+21,2896667,12.91,2141311,28.90,10381686
+22,3047782,8.76,2177664,28.24,10876052
+23,2994503,4.58,2160976,22.97,11370418
+24,3038762,0.47,2053533,22.39,11864784
+
+bubble-hinting v1 - 
+0,0,100,0,100,0
+1,515272,95.83,492355,95.81,515272
+2,985903,91.66,919653,91.68,1030544
+3,1475300,87.51,1353723,87.65,1545816
+4,1783938,83.36,1586307,83.78,2061088
+5,2093307,79.20,1867395,79.95,2576360
+6,2441370,75.05,2055421,76.65,3091632
+7,2650471,70.89,2246014,72.93,3606904
+8,2926782,66.75,2333601,70.41,4122176
+9,3107617,62.60,2383112,68.46,4637448
+10,3192332,58.44,2441626,65.84,5152720
+11,3268043,54.32,2235964,62.92,5667992
+12,3191105,50.18,2449045,60.49,6183264
+13,3145317,46.05,2377317,57.80,6698536
+14,3161552,41.91,2395814,53.26,7213808
+15,3140443,37.77,2333200,51.42,7729080
+16,3130866,33.65,2150967,46.11,8244352
+17,3112894,29.52,2372068,45.93,8759624
+18,3078424,25.39,2336211,39.85,9274896
+19,3036457,21.27,2224821,35.25,9790168
+20,3046330,17.13,2199755,37.43,10305440
+21,2981130,12.98,2214862,28.67,10820712
+22,3017481,8.84,2195996,29.69,11335984
+23,2979906,4.68,2173395,25.90,11851256
+24,2971170,0.52,2134311,21.89,12366528
+
+Conclusion -
+For an unmodified kernel, with every fresh boot, there is 3-4% delta observed
+in the results wrt the numbers mentioned above. For both bubble-hinting and
+page-hinting, there was no noticeable degradation observed other than the
+expected variability mentioned earlier. 
+
+Page hinting vs bubble hinting:
+From the benefits and performance perspective, both solutions look quite similar
+so far. However, unlike bubble-hinting which is more invasive, the overall core
+mm changes required for page hinting are minimal.
+
+[1] https://lkml.org/lkml/2019/6/19/926
+
+Nitesh Narayan Lal (2):
+  mm: page_hinting: core infrastructure
+  virtio-balloon: page_hinting: reporting to the host
+
+ drivers/virtio/Kconfig              |   1 +
+ drivers/virtio/virtio_balloon.c     |  91 +++++++++-
+ include/linux/page_hinting.h        |  45 +++++
+ include/uapi/linux/virtio_balloon.h |  11 ++
+ mm/Kconfig                          |   6 +
+ mm/Makefile                         |   1 +
+ mm/page_alloc.c                     |  18 +-
+ mm/page_hinting.c                   | 250 ++++++++++++++++++++++++++++
+ 8 files changed, 414 insertions(+), 9 deletions(-)
+ create mode 100644 include/linux/page_hinting.h
+ create mode 100644 mm/page_hinting.c
+
 -- 
-Michal Hocko
-SUSE Labs
+
 
