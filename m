@@ -2,212 +2,188 @@ Return-Path: <SRS0=tO+N=VH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.2 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D7C26C74A36
-	for <linux-mm@archiver.kernel.org>; Wed, 10 Jul 2019 20:19:09 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 56869C74A35
+	for <linux-mm@archiver.kernel.org>; Wed, 10 Jul 2019 20:38:17 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9B01C20844
-	for <linux-mm@archiver.kernel.org>; Wed, 10 Jul 2019 20:19:09 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9B01C20844
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 0BFF720651
+	for <linux-mm@archiver.kernel.org>; Wed, 10 Jul 2019 20:38:16 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=cmpxchg-org.20150623.gappssmtp.com header.i=@cmpxchg-org.20150623.gappssmtp.com header.b="WQxhU6Uh"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0BFF720651
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=cmpxchg.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 279C98E0093; Wed, 10 Jul 2019 16:19:09 -0400 (EDT)
+	id A0BBB8E0094; Wed, 10 Jul 2019 16:38:16 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 228E18E0032; Wed, 10 Jul 2019 16:19:09 -0400 (EDT)
+	id 9BC148E0032; Wed, 10 Jul 2019 16:38:16 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0F1258E0093; Wed, 10 Jul 2019 16:19:09 -0400 (EDT)
+	id 8AB928E0094; Wed, 10 Jul 2019 16:38:16 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id CCA2F8E0032
-	for <linux-mm@kvack.org>; Wed, 10 Jul 2019 16:19:08 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id 6so1996579pfz.10
-        for <linux-mm@kvack.org>; Wed, 10 Jul 2019 13:19:08 -0700 (PDT)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 5520D8E0032
+	for <linux-mm@kvack.org>; Wed, 10 Jul 2019 16:38:16 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id h5so2126177pgq.23
+        for <linux-mm@kvack.org>; Wed, 10 Jul 2019 13:38:16 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to
-         :references:from:openpgp:autocrypt:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=qJmri8ApO0TZ3G6qdj22Q7XtPW0uV9BT0MtQHxP8YPo=;
-        b=IoLOSdhM1lwP2x3o7cd3FiouC8a816IfP7CrZ94zYD1DzNUKtCFNrVqR1Chrsw/ZxU
-         AXrMkG9A7KW8T90mQ1Vjb0OeWt82COQXdJi15v3KMe8SgqrBthqQpZQf/XyTbt9+mird
-         jpa0Jx8zugF0ODtnRNBg9zJ/MXA6e3T5m+FkhRexbD4h5Qqg8rOq/yPYevH2kS6j47lN
-         5pEB3aCHMReAmrqQZyEEvtFUmEhZmYhaurfKwNcz3I5dmeTDwD+DoERDotLxwpa61MW2
-         FMtNl46Sy0OD6nxQWARUK6JiW5zAmHb6ZwSRsU+cwd6lp8uJZDs8bBzkXcjKkhe/LJKP
-         lV5g==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAWi3EAwMk21lVhTLWkSCgWH7ycDW1aPKEj+HxCli3OiFdemnb+5
-	eZTA8HLmOu380XNceu/PpTeO0N9gMcxW1CqPkgjhR17rEkDpdzAASWe8bVYRdy8L4TPoFgFDCNq
-	HI+9zq89xVs0/wwcuzKVipHW4rK8R8+ug9YRW2ht0BhvD15bG+kzxpiqjWI1XyqkuhA==
-X-Received: by 2002:a63:c34c:: with SMTP id e12mr67834pgd.195.1562789948263;
-        Wed, 10 Jul 2019 13:19:08 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyjpvF/umAdDws53spEQuiUBPxbQORgyXKXIW9ec3qznhVWSx3GM/Fe3Nshjgv6a1lARUfj
-X-Received: by 2002:a63:c34c:: with SMTP id e12mr67776pgd.195.1562789947323;
-        Wed, 10 Jul 2019 13:19:07 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562789947; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=yxd2CjVrpCt6cSQOgX0qW0qn9lapJT8fDpCXMhQ0cWw=;
+        b=RuKTR8J+gbXCIrQS0POmA9GMhbU0Gizqt6Km3pqGFwTzWMpByUz9bmeJ1Ha42qyozW
+         MeFGV/4gm9Si5IDswZblmVDEWhLkeOl6Frr4UZcXTiG+qs69OsKRiRP/eTMfg0hwL8qP
+         nJ7plnuUBYapBs3/lVsNXo+myJrP0zOWA8nWkz/kphMGJbqIy6cFAH2hUGXfnF2rGkbR
+         pjkkhmbuQJl87Wa4ntemJVcAPGVIqpkJQeqZtEhfSBrxh4EVUJnMNLbPe/y5ZZK1fOJv
+         gloONGEahBCEq+Vqe/0UfqEUU8cxIbulmRngPRo3obmx/iOt9hsaZX4i6r2ryK6Sp7TO
+         xVeQ==
+X-Gm-Message-State: APjAAAXcE/N+klZ95GCyu73csIOChClnUZxjS4+vKgsgKqouZ8zZJ3W9
+	9JdU1s1NlwRulCQwsUH0V0I0nTIBCcFQT8Sb1J6SBVrefx1ONAV/dhVBH1AdZ+nf68V3n4vbqAv
+	o1OFhtR/QZMHojcIwqjonjFljGLuNkLyjlOSinI4IHJe49IBBodt3lZZGwszOCNmhXA==
+X-Received: by 2002:a17:902:8649:: with SMTP id y9mr138181plt.289.1562791095852;
+        Wed, 10 Jul 2019 13:38:15 -0700 (PDT)
+X-Received: by 2002:a17:902:8649:: with SMTP id y9mr138140plt.289.1562791095129;
+        Wed, 10 Jul 2019 13:38:15 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562791095; cv=none;
         d=google.com; s=arc-20160816;
-        b=Tpg0hc8+QZwfQVz+XQbElg2qFrnotx53BxbWPuapRjpjs9RJvmyJqrD6ULIESQlbZi
-         1IIcRbYIm1qD2iVI7+ELq0VjDHvZKcs7VbbhKfjydUPzIZo5pv7G0CpaoYRT5jmHUJ9W
-         5hrlmXuZ+xrSU7W6jlNfCIjhaDB7vMC+IMoIZ4LNN0i+Zah7V/G1daEEfxqgYVaiJgnj
-         Zj+YeFOCOcbjzyKMeMPw/wq0HD2D6/W9Xgxajq6DdHiJmNe0O3SHK66PGlLCSGsxPirM
-         uis3eoGxjuolKBYCGsVd4VVX4Dn/CnxCJ+oU1GdhylXW4XCjpIxTgus89DDGUmzqtD/k
-         CseQ==
+        b=yyaXanoJhtWMdZauuBQD2/bG8WNuSym5Ti5vZpJstw6bvCY1lR+rpQIo/5qEXdCj+v
+         0srkynJU5rR9esvZhefgUJQ8Na8DJD9pS7mcl5hGjgRgT5pY44MEFTXf4Hj5UAXbv/f3
+         wwUQOKMbgG45pQb/KR0crtp/MeRPVOcjZSD28u5Hyjoo1o0SvWPi/4viDvdggYLbjjfD
+         qYfkGYcTn6du/EOunRYQov6+AiPEZx9Y44xW+nLrRSxS4aIvfBw4iOiS9PiceteEqTbQ
+         1R5zULOdsuGrffXMCjmbnokJ2nDlBFlYGvT94ejBdMfSS2tmFxqw/EtG7PfloiDwTr57
+         G1dA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:autocrypt:openpgp:from:references:to
-         :subject;
-        bh=qJmri8ApO0TZ3G6qdj22Q7XtPW0uV9BT0MtQHxP8YPo=;
-        b=jCBRZ6t6BPcSgrZM+8cIRgcDf3v3bGdz/BtKfUX0Cv6bN5X0i/3bF0OjyGdF8apuH7
-         gMgCmtPEUXyyQl44jQW8lTZAgmINmmwXJEg1G/vqX6Eq/2Vfk1pm7n/fj0Ogm9sMva+d
-         mbz3c9jAfsUcHgJca+nwKGfTYFdWYMnoMCWF3Z0ZWerOXLD79zRJVlUMf+qymkWjGKkE
-         29RmbTBnSiP6LqrPT+h4wAwzr2OkFfMzHDWUPo9cS8flZhjd0EC4Re1EfcCuPD8gChaD
-         aJJMncAmlQokMlaMhAbz1sDXpI8aIGlmcI6qAeu/w4rZigS4ZgGDGLI203g95mf7vu9w
-         m27g==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=yxd2CjVrpCt6cSQOgX0qW0qn9lapJT8fDpCXMhQ0cWw=;
+        b=TaO2z+VCx0Zd3f+leaWNZUdxoXJybgtXr6pG9YMWGupC5L3TJyxbHjJtb5p6fWR4kp
+         gdb7Sq37JCKU+emCMqYdAyZo9UWJSxrz63KJ+AexYn5XD043NVLZD3YIKXHmvHrWdb3f
+         nd19DR7zgzd/h1FnLIWpyllVv7XFMOvnj/O53yC+xEdVQ9GiI//vUhjiNxdi8nhcibbQ
+         lXNofAmWeuI9YdenSCc6a4QXYhWHyb7UgnnTxoWc7CjFW6t/WGmrxMUJze1EilrxZLQV
+         crJVLuzLbN7Cpk3VxS38tixkd8IV9nbp1J3y4Fjvn9yTKhTVskBh4LH+109rBoEO0I3f
+         kunQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id y63si2835528pgd.403.2019.07.10.13.19.07
+       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=WQxhU6Uh;
+       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id o21sor4089665pll.8.2019.07.10.13.38.14
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 10 Jul 2019 13:19:07 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.43 as permitted sender) client-ip=192.55.52.43;
+        (Google Transport Security);
+        Wed, 10 Jul 2019 13:38:14 -0700 (PDT)
+Received-SPF: pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from orsmga008.jf.intel.com ([10.7.209.65])
-  by fmsmga105.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 10 Jul 2019 13:19:06 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.63,475,1557212400"; 
-   d="scan'208";a="159865315"
-Received: from akraina-mobl1.amr.corp.intel.com (HELO [10.251.14.235]) ([10.251.14.235])
-  by orsmga008.jf.intel.com with ESMTP; 10 Jul 2019 13:19:06 -0700
-Subject: Re: [RFC][PATCH v11 0/2] mm: Support for page hinting
-To: Nitesh Narayan Lal <nitesh@redhat.com>, kvm@vger.kernel.org,
- linux-kernel@vger.kernel.org, linux-mm@kvack.org, pbonzini@redhat.com,
- lcapitulino@redhat.com, pagupta@redhat.com, wei.w.wang@intel.com,
- yang.zhang.wz@gmail.com, riel@surriel.com, david@redhat.com, mst@redhat.com,
- dodgen@google.com, konrad.wilk@oracle.com, dhildenb@redhat.com,
- aarcange@redhat.com, alexander.duyck@gmail.com, john.starks@microsoft.com,
- mhocko@suse.com
-References: <20190710195158.19640-1-nitesh@redhat.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=dave.hansen@intel.com; keydata=
- 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
-Message-ID: <b6da49e4-5007-08f9-104a-aeca5dca4719@intel.com>
-Date: Wed, 10 Jul 2019 13:19:05 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.2
+       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=WQxhU6Uh;
+       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=cmpxchg-org.20150623.gappssmtp.com; s=20150623;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=yxd2CjVrpCt6cSQOgX0qW0qn9lapJT8fDpCXMhQ0cWw=;
+        b=WQxhU6Uh46vlKY1ElEBjRF3o4MEC7HfCtitMhNNSkgxBPBwR05xfM6e3nEz/H3/mEr
+         tgS50RM34t/OSubDYAx4KCnBiQOu2dRaFJ1rtylfM9ySuERVUOdVYJIKV6kSog8P9/6G
+         2TVggjaZOyOosjq322YC8dPddLsHlUT9WdgCYCgHUZ8c02C1WGt5Drv/sbmKQjaFWKCt
+         XJ3WIaAzCu1qM9SvMW7wwWSjsHzaLfl9xtED13oIj6epRrYsi7yBxCyRpsNdHdnrQWci
+         TquJmV9r64SNGJmeB9FYAZ0FhLq4l9Rvqscmw7HIzVFtuX8/8w5oXlLGiDnp/LVhrnkK
+         1+NQ==
+X-Google-Smtp-Source: APXvYqw1FrVFv10U20xJ1uHXU+HR/h2gyHWBg1a6BeEeekyMWO5m2hXxebgWIM4hj0gKT2WVWZrl5w==
+X-Received: by 2002:a17:902:6a88:: with SMTP id n8mr213817plk.70.1562791093357;
+        Wed, 10 Jul 2019 13:38:13 -0700 (PDT)
+Received: from localhost ([2620:10d:c091:500::2:5b9d])
+        by smtp.gmail.com with ESMTPSA id w187sm3188090pfb.4.2019.07.10.13.38.12
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Wed, 10 Jul 2019 13:38:12 -0700 (PDT)
+Date: Wed, 10 Jul 2019 16:38:11 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+To: Yafang Shao <laoar.shao@gmail.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org,
+	Michal Hocko <mhocko@kernel.org>,
+	Vladimir Davydov <vdavydov.dev@gmail.com>,
+	Yafang Shao <shaoyafang@didiglobal.com>
+Subject: Re: [PATCH] mm/memcontrol: make the local VM stats consistent with
+ total stats
+Message-ID: <20190710203811.GA16153@cmpxchg.org>
+References: <1562750823-2762-1-git-send-email-laoar.shao@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20190710195158.19640-1-nitesh@redhat.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1562750823-2762-1-git-send-email-laoar.shao@gmail.com>
+User-Agent: Mutt/1.12.0 (2019-05-25)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 7/10/19 12:51 PM, Nitesh Narayan Lal wrote:
-> This patch series proposes an efficient mechanism for reporting free memory
-> from a guest to its hypervisor. It especially enables guests with no page cache
-> (e.g., nvdimm, virtio-pmem) or with small page caches (e.g., ram > disk) to
-> rapidly hand back free memory to the hypervisor.
-> This approach has a minimal impact on the existing core-mm infrastructure.
+On Wed, Jul 10, 2019 at 05:27:03AM -0400, Yafang Shao wrote:
+> After commit 815744d75152 ("mm: memcontrol: don't batch updates of local VM stats and events"),
+> the local VM stats is not consistent with total VM stats.
+>
+> Bellow is one example on my server (with 8 CPUs),
+> 	inactive_file 3567570944
+> 	total_inactive_file 3568029696
 > 
-> Measurement results (measurement details appended to this email):
-> *Number of 5GB guests (each touching 4GB memory) that can be launched
-> without swap usage on a system with 15GB:
+> We can find that the deviation is very great, that is because the 'val' in
+> __mod_memcg_state() is in pages while the effective value
+> in memcg_stat_show() is in bytes.
+> So the maximum of this deviation between local VM stats and total VM
+> stats can be (32 * number_of_cpu * PAGE_SIZE), that may be an unacceptable
+> great value.
+> 
+> We should make the local VM stats consistent with the total stats.
+> Although the deviation between local VM events and total events are not
+> great, I think we'd better make them consistent with each other as well.
 
-This sounds like a reasonable measurement, but I think you're missing a
-sentence or two explaining why this test was used.
+Ha - the local stats are not percpu-fuzzy enough... But I guess that
+is a valid complaint.
 
-> unmodified kernel - 2, 3rd with 2.5GB   
+> ---
+>  mm/memcontrol.c | 4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index ba9138a..a9448c3 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -691,12 +691,12 @@ void __mod_memcg_state(struct mem_cgroup *memcg, int idx, int val)
+>  	if (mem_cgroup_disabled())
+>  		return;
+>  
+> -	__this_cpu_add(memcg->vmstats_local->stat[idx], val);
+>  
+>  	x = val + __this_cpu_read(memcg->vmstats_percpu->stat[idx]);
+>  	if (unlikely(abs(x) > MEMCG_CHARGE_BATCH)) {
+>  		struct mem_cgroup *mi;
+>  
+> +		__this_cpu_add(memcg->vmstats_local->stat[idx], x);
+>  		for (mi = memcg; mi; mi = parent_mem_cgroup(mi))
+>  			atomic_long_add(x, &mi->vmstats[idx]);
+>  		x = 0;
+> @@ -773,12 +773,12 @@ void __count_memcg_events(struct mem_cgroup *memcg, enum vm_event_item idx,
+>  	if (mem_cgroup_disabled())
+>  		return;
+>  
+> -	__this_cpu_add(memcg->vmstats_local->events[idx], count);
+>  
+>  	x = count + __this_cpu_read(memcg->vmstats_percpu->events[idx]);
+>  	if (unlikely(x > MEMCG_CHARGE_BATCH)) {
+>  		struct mem_cgroup *mi;
+>  
+> +		__this_cpu_add(memcg->vmstats_local->events[idx], x);
+>  		for (mi = memcg; mi; mi = parent_mem_cgroup(mi))
+>  			atomic_long_add(x, &mi->vmevents[idx]);
+>  		x = 0;
 
-What does "3rd with 2.5GB" mean?  The third gets 2.5GB before failing an
-allocation and crashing?
+Please also update __mod_lruvec_state() to keep this behavior the same
+across counters, to make sure we won't have any surprises when
+switching between them.
 
-> v11 page hinting - 6, 7th with 26MB    
-> v1 bubble hinting[1] - 6, 7th with 1.8GB (bubble hinting is another series
-> proposed to solve the same problems)
-
-Could you please make an effort to format things so that reviewers can
-easily read them?  Aligning columns and using common units would be very
-helpful, for instance:
-
-     unmodified kernel - 2, 3rd with 2.50 GB
-      v11 page hinting - 6, 7th with 0.03 GB
-  v1 bubble hinting[1] - 6, 7th with 1.80 GB
-
-See how you can scan that easily and compare between the rows?
-
-I think you did some analysis below.  But, that seems misplaced.  It's
-better to include the conclusion here and the details to back it up
-later.  As it stands, the cover letter just throws some data at a
-reviewer and hopes they can make sense of it.
-
-> *Memhog execution time (For 3 guests each of 6GB on a system with 15GB):
-> unmodified kernel - Guest1:21s, Guest2:27s, Guest3:2m37s swap used = 3.7GB       
-> v11 page hinting - Guest1:23s, Guest2:26s, Guest3:21s swap used = 0           
-> v1 bubble hinting - Guest1:23, Guest2:11s, Guest3:26s swap used = 0           
-
-Again, I'm finding myself having to reformat your data just so I can
-make sense of it.  You also forgot the unit for Guest 1 in row 3.
-
-   unmodified - Guest1:21s, Guest2:27s, Guest3:2m37s swap used = 3.7GB
-
-  v11 hinting - Guest1:23s, Guest2:26s, Guest3:21s swap used = 0
-  v1 bubble   - Guest1:23s, Guest2:11s, Guest3:26s swap used = 0
-
-So, what is this supposed to show?  What does it mean?  Why do the
-numbers vary *so* much?
+And please add comments explaining that we batch local counters to
+keep them in sync with the hierarchical ones. Because it does look a
+little odd without explanation.
 
