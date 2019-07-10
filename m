@@ -2,135 +2,175 @@ Return-Path: <SRS0=tO+N=VH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.2 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
-	SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-0.7 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D1D85C74A35
-	for <linux-mm@archiver.kernel.org>; Wed, 10 Jul 2019 18:21:13 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8BCFFC74A35
+	for <linux-mm@archiver.kernel.org>; Wed, 10 Jul 2019 18:21:36 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9B9DC214AF
-	for <linux-mm@archiver.kernel.org>; Wed, 10 Jul 2019 18:21:13 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 5171C21530
+	for <linux-mm@archiver.kernel.org>; Wed, 10 Jul 2019 18:21:36 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=cmpxchg-org.20150623.gappssmtp.com header.i=@cmpxchg-org.20150623.gappssmtp.com header.b="r54oOfo9"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9B9DC214AF
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=cmpxchg.org
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="EmzFHtYR"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5171C21530
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 36DBE8E0084; Wed, 10 Jul 2019 14:21:13 -0400 (EDT)
+	id DCCFC8E0085; Wed, 10 Jul 2019 14:21:35 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 31D2A8E0032; Wed, 10 Jul 2019 14:21:13 -0400 (EDT)
+	id D7F188E0032; Wed, 10 Jul 2019 14:21:35 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 20D9E8E0084; Wed, 10 Jul 2019 14:21:13 -0400 (EDT)
+	id C947D8E0085; Wed, 10 Jul 2019 14:21:35 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id DFC268E0032
-	for <linux-mm@kvack.org>; Wed, 10 Jul 2019 14:21:12 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id d3so1943650pgc.9
-        for <linux-mm@kvack.org>; Wed, 10 Jul 2019 11:21:12 -0700 (PDT)
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id AAEBD8E0032
+	for <linux-mm@kvack.org>; Wed, 10 Jul 2019 14:21:35 -0400 (EDT)
+Received: by mail-qk1-f200.google.com with SMTP id x1so2758011qkn.6
+        for <linux-mm@kvack.org>; Wed, 10 Jul 2019 11:21:35 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=fnGBpm29e8ih0nVcemzSumdnrI3YNjI1abxR9imHsCE=;
-        b=nkmHeWZOsNDZPgSC5a5NL48RwxPM+qLWkehLrOYUfAA7HtEO5DjXAddR+p1wnd32lr
-         vIxZNHZpApa8M50oVMJ40h1tiF6g8Mzl4G2/oZH90hm2nq6jAI8uY8eZVKuj5SrHwk/Y
-         p4F7fNc8cZ93HcSXOOqA6iU5tSiNx+DXHSEh0295p8gFyROx9GPu98p0cVwrujpZvpEF
-         4hCIZvwH3CzZNF7PI3WLhXFH4xG1m9eptbW1qaniYaV/HnwGUH7lCNW7IfXLAu2QMF6U
-         LENyT3iblb9BRKOX5DMNxk+0PZ7Kb418jNXyC3IVH38SdFDn/Gh+W+iYs2kDXT+8Lrgh
-         mRag==
-X-Gm-Message-State: APjAAAVwP7MuCko/7jfDRcuybhuY69/26OPGG0JdX6x62fOSO5id3Qa1
-	A5x2crHYsR5GeuEvGg8gtF6X+aRJU21IEXB6/AwDKiX1VU/KBgqAqbvTaZojExm1YGCfXzWg2xE
-	Ws8NOgEM2jVptTyMKZRePox8loM5l84f3LoeIqNevYDvrLVRwE5C/UE3C9xNvknRjfA==
-X-Received: by 2002:a17:90a:d151:: with SMTP id t17mr8495546pjw.60.1562782872472;
-        Wed, 10 Jul 2019 11:21:12 -0700 (PDT)
-X-Received: by 2002:a17:90a:d151:: with SMTP id t17mr8495483pjw.60.1562782871720;
-        Wed, 10 Jul 2019 11:21:11 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562782871; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc
+         :content-transfer-encoding;
+        bh=vaM/jDV0vwnZcpeTJQx+SNo6Abxw5kOZNK++pSNNKbs=;
+        b=k6cWkmesnSzxsSsPRmt7LgaaUqXfsKgc9fbkCd7lVnXMGHjqrWiLx+eZIzeEc4z0zf
+         iMdPfY2Q65hxhAW+CUeAu5/doPkBKtzrD7z7Uu6EeAe606o8bHmJS8SlLBm21dTkGzCT
+         ZU1TBg4H7qEpKDcGKe2+Obkrpw7HOu8YXf7b9FEOEK7QrKPh3dnqONPtzmdE79SV6gy7
+         3nozWrbbDXKINu/Mwzi61GLZFOxgIchq4dAoklTP5a3V1XoG+ALCI+cltiskIaQWAFyq
+         d6RNNpR7arA/XH+ccKs6O6+BLLSAgJgqt6dhtAaruH2yFBB5YSJjKwnqiKZXuGcOJJ43
+         bSGQ==
+X-Gm-Message-State: APjAAAU67ia8cVRkhx7Ue5vt4CGV4ruAtE0jX36rMmU4Qd0oxYKE4yLf
+	pwIVi6L/ERZwVv4dB5asXDL+Uq/H5CD+qPEIZp9KzUleDmMDVLIfoKXdQdfLNbteeiEVpeKMTAr
+	tZ0KPL+XqADm9DlaKSZIBOZVWpFWzSF5jCGToWdXczhDJyy71XMAAdwnvjJhIekBtdg==
+X-Received: by 2002:a05:620a:14ab:: with SMTP id x11mr24632280qkj.186.1562782895429;
+        Wed, 10 Jul 2019 11:21:35 -0700 (PDT)
+X-Received: by 2002:a05:620a:14ab:: with SMTP id x11mr24632243qkj.186.1562782894935;
+        Wed, 10 Jul 2019 11:21:34 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562782894; cv=none;
         d=google.com; s=arc-20160816;
-        b=IGUNv6FaF32Z57t7OnOoRdfHYkzfbaGVk0Pdy2QJyrZfeRYua8tJ38GffEGpg4Tg4e
-         kedP3y+5FCaD7eq3taVFTUK/xKz6Zmze5YhGfHYs/U3/DKgTWtwSIAJkfuh5IiSy7NJ9
-         Txt6zIQgmgaoFbzXOtAkQdIcNk7+paPE6HuKkIqFYAZxBJUSO/351dwNUoz5wW/k1Elh
-         4akd6D8W7kW2wYIEExqlMfnlmYoeYKnNXyih+/7XQ9IS8UrBPDpIR/sHrAkxBD6FgGV9
-         1f6/4trHhGlUhyVlhTwIDV2Fjk1JEtaIkTAsQD7Hq7N1L7dK2vTuYezOqKWwSl7wQKgQ
-         8Eiw==
+        b=wrDq4YYi/998ocOe8DjOjr5gzdFCsuD+aTddwdFl/lVBfou5RFGUjXSHO4KK3dsAn5
+         LUcXZX9W5jwBIJHuXVrhBQ/soqTdlySngaj6wBmCxWEO/tLgRhvHd0g1cunQkBWt23aM
+         WrJDWJ8xoPxWI2meRsHBL/oKl6O3ETEVdva5uljVjgJKGOctxNx+xkjJXks68YkyQ4Mg
+         QKPBecmYAkAbOFVq4gS8SNehpEhNycPs0JmaGMX9CRaV8zfAb/NWbm0xORZRvn06orBU
+         37LMYbI/uLpiOoTjbf+jC909YMkWuhqiWi249Nu8ttuJkVNhlV7lJ1Cs4UNHe7jlMMVA
+         zPqw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=fnGBpm29e8ih0nVcemzSumdnrI3YNjI1abxR9imHsCE=;
-        b=WpFnuOjzUiD9GUWND/2iUxfO2JfIh0uCoit1vURA9NyznGLJHBsuCO8cBPP2Ivff/C
-         HsKxOO6kU2kdDEd7gG1q2X2Y9siqPL6OtTTiU0eP6Zwqk+5RkrWxY9ZHp2tMjOoXhPz/
-         hHv7t9s4OA7txp0sb+R9Jg3DHKS+AtLV4Pqa7dcP8pTQF6l4/xAoeEor1yzLiGj1rRfK
-         PWbm38myKkDJvfSL5/edfv6RVL/F+Pk6WidoxSrMlE/454MqPn+RZV1bv7qL17JXd2Lc
-         gLYhwCq3ZYXuyd7ixB/K1MEJfTqk46q0NA0/hgtoxMIeQthmG0l8XMHhQSGQqAnOJMU2
-         t89g==
+        h=content-transfer-encoding:cc:to:subject:message-id:date:from
+         :in-reply-to:references:mime-version:dkim-signature;
+        bh=vaM/jDV0vwnZcpeTJQx+SNo6Abxw5kOZNK++pSNNKbs=;
+        b=wa2hkBcRqhaEkiDaWEj6B42yiT0bUaR4KKBEPtftP4EXrS8nqegsLtZJkxxroyOivG
+         cNaJxG0tUESnHkAg755aP+msivDy8WDk3VBPzz3em3ydG0FdpQ7pkKdY1NOzjR6lF36G
+         OaxlLVrNd9C/dC8xnDhz9K48TbV04GOoYmoUS74/nU9b3rUlHatR6uY5ZaIiHpC9/cLm
+         kiat+STltTtteVkHmS3e5FAACAo4YxYvpiYbGS8O4heQG60NKZXCG2Dbkbl39ol4l+v2
+         PfetYz/pt3z4u+1AgweZhMJfrWsU/PNQ+utLfdLlXnc7AUh/gFDIc34EJz+MwtXnG1B6
+         35IQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=r54oOfo9;
-       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id o11sor2669385plk.18.2019.07.10.11.21.06
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=EmzFHtYR;
+       spf=pass (google.com: domain of shy828301@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=shy828301@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id s6sor4386620qtq.34.2019.07.10.11.21.34
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 10 Jul 2019 11:21:06 -0700 (PDT)
-Received-SPF: pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Wed, 10 Jul 2019 11:21:34 -0700 (PDT)
+Received-SPF: pass (google.com: domain of shy828301@gmail.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=r54oOfo9;
-       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=EmzFHtYR;
+       spf=pass (google.com: domain of shy828301@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=shy828301@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=cmpxchg-org.20150623.gappssmtp.com; s=20150623;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=fnGBpm29e8ih0nVcemzSumdnrI3YNjI1abxR9imHsCE=;
-        b=r54oOfo9tCGgPU7nLvxeuwlcmdrm1W6iXQBTBZuQX3uMd5MEButIOxEC8ZsooBrS22
-         XDo3wfladVbiIrIEHAd1Nm+DPdJFk/HTfy0vfc7vqlOmJoQWsAtsV9lgjDhoLXS7165x
-         sya+OrBKZmq7S45Xj2EiJugybWH3jnJvSJsVvyUDD6HskfqZNxn78dEhQd3q/VfgptTd
-         kNFdqMeSAXscKx3XhFpoKqqrx9qoo/xTN+hEJ+//orXsW7lcODdi6oOkp/sMhNJ7f3DN
-         hdJ6f1X/S+eu/F9g8mTz3eA1OsGy9CUSqKRZWYDHeSs+cXWv8sadpOreFTMS07aDYZND
-         7Rdg==
-X-Google-Smtp-Source: APXvYqxB3CQ6to2JGHiSbwc0t9tlBi+Ho6PWoIO2Ce1gSNPx5pyEn4b7NBFexyxmsIzvyOnXSOYzfQ==
-X-Received: by 2002:a17:902:b20c:: with SMTP id t12mr40667176plr.285.1562782866693;
-        Wed, 10 Jul 2019 11:21:06 -0700 (PDT)
-Received: from localhost ([2620:10d:c091:500::2:5b9d])
-        by smtp.gmail.com with ESMTPSA id i15sm2855950pfd.160.2019.07.10.11.21.05
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Wed, 10 Jul 2019 11:21:05 -0700 (PDT)
-Date: Wed, 10 Jul 2019 14:21:04 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-To: Song Liu <songliubraving@fb.com>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org,
-	linux-kernel@vger.kernel.org, matthew.wilcox@oracle.com,
-	kirill.shutemov@linux.intel.com, kernel-team@fb.com,
-	william.kucharski@oracle.com, akpm@linux-foundation.org,
-	hdanton@sina.com
-Subject: Re: [PATCH v9 4/6] khugepaged: rename collapse_shmem() and
- khugepaged_scan_shmem()
-Message-ID: <20190710182104.GE11197@cmpxchg.org>
-References: <20190625001246.685563-1-songliubraving@fb.com>
- <20190625001246.685563-5-songliubraving@fb.com>
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc:content-transfer-encoding;
+        bh=vaM/jDV0vwnZcpeTJQx+SNo6Abxw5kOZNK++pSNNKbs=;
+        b=EmzFHtYR5s/7FzftX73JyWNWe1gQKt9q2QKmCdU683LuU4dkvC9Yg/jt3kGDQZ30A3
+         tVYmKfvOul5/+g0vkHsIOJbl1c39hvRThPP1RE2VNegulSiWqLW4sVZgGvpKLr83RMjP
+         GQEaYvO6PsWRUjjMJQS4Gd3uJr9l7hWaTKajaJKscDdqRAlLRgFY/jpHeuW1o0QREa8N
+         r3riiQK6og8NhF2PTPFt+Wd66HAzMMvBAGMhGiog/y4kM3NrOFj1V0QIvK7iiY6Zxmyl
+         Ih5a/4/nczJ8VP/QIrPoh037t3NcuZyn+As6NWR9gnWhqUDWfXY7xgffDXRyAKg60hGe
+         oQ9Q==
+X-Google-Smtp-Source: APXvYqwhymDEm77SIkns9B8wc1lKNrsfxnW9NBqSXp4VKy6EVvLCYpla9dXa1RZ322N03KEbau2RsEAvQMeD5eFdUT8=
+X-Received: by 2002:ac8:f3b:: with SMTP id e56mr25390354qtk.123.1562782894620;
+ Wed, 10 Jul 2019 11:21:34 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190625001246.685563-5-songliubraving@fb.com>
-User-Agent: Mutt/1.12.0 (2019-05-25)
+References: <20190710144138.qyn4tuttdq6h7kqx@linutronix.de>
+In-Reply-To: <20190710144138.qyn4tuttdq6h7kqx@linutronix.de>
+From: Yang Shi <shy828301@gmail.com>
+Date: Wed, 10 Jul 2019 11:21:19 -0700
+Message-ID: <CAHbLzkpME1oT2=-TNPm9S_iZ2nkGsY6AXo7iVgDUhg8WysDpZw@mail.gmail.com>
+Subject: Re: Memory compaction and mlockall()
+To: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
+Cc: Linux MM <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jun 24, 2019 at 05:12:44PM -0700, Song Liu wrote:
-> Next patch will add khugepaged support of non-shmem files. This patch
-> renames these two functions to reflect the new functionality:
-> 
->     collapse_shmem()        =>  collapse_file()
->     khugepaged_scan_shmem() =>  khugepaged_scan_file()
-> 
-> Signed-off-by: Song Liu <songliubraving@fb.com>
+On Wed, Jul 10, 2019 at 7:41 AM Sebastian Andrzej Siewior
+<bigeasy@linutronix.de> wrote:
+>
+> Hi,
+>
+> I've been looking at the following trace:
+> | cyclicte-526     0d...2.. 6876070 603us : finish_task_switch <-__schedu=
+le
+> | cyclicte-526     0....2.. 6876070 605us : preempt_count_sub <-finish_ta=
+sk_switch
+> | cyclicte-526     0....1.. 6876070 607us : preempt_count_sub <-schedule
+> | cyclicte-526     0....... 6876070 610us : finish_wait <-put_and_wait_on=
+_page_locked
+>
+> I see put_and_wait_on_page_locked after schedule and didn't expect that.
+> cyclictest then blocks on a lock and switches to `kcompact'. Once it
+> finishes, it switches back to cyclictest:
+> | cyclicte-526     0....... 6876070 853us : rt_spin_unlock <-put_and_wait=
+_on_page_locked
+> | cyclicte-526     0....... 6876070 854us : migrate_enable <-rt_spin_unlo=
+ck
+> | cyclicte-526     0....... 6876070 860us : up_read <-do_page_fault
+> | cyclicte-526     0....... 6876070 861us : __up_read <-do_page_fault
+> | cyclicte-526     0d...... 6876070 867us : do_PrefetchAbort <-ret_from_e=
+xception
+> | cyclicte-526     0d...... 6876070 868us : do_page_fault <-do_PrefetchAb=
+ort
+> | cyclicte-526     0....... 6876070 870us : down_read_trylock <-do_page_f=
+ault
+> | cyclicte-526     0....... 6876070 872us : __down_read_trylock <-do_page=
+_fault
+> =E2=80=A6
+> | cyclicte-526     0....... 6876070 914us : __up_read <-do_page_fault
+> | cyclicte-526     0....... 6876070 923us : sys_clock_gettime32 <-ret_fas=
+t_syscall
+> | cyclicte-526     0....... 6876070 925us : posix_ktime_get_ts <-sys_cloc=
+k_gettime32
+>
+> I did not expect a pagefault with mlockall(). I assume it has to do with
+> memory compaction. I have
+> | CONFIG_COMPACTION=3Dy
+> | CONFIG_MIGRATION=3Dy
+>
+> and Kconfig says:
+> |config COMPACTION
+> =E2=80=A6
+> |                                                       You shouldn't
+> |           disable this option unless there really is a strong reason fo=
+r
+> |           it and then we would be really interested to hear about that =
+at
+> |           linux-mm@kvack.org.
+>
+> Shouldn't COMPACTION avoid touching/moving mlock()ed pages?
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+compaction should not isolate unevictable pages unless you have
+/proc/sys/vm/compact_unevictable_allowed set.
+
+>
+> Sebastian
+>
 
