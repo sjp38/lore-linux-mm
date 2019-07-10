@@ -2,256 +2,199 @@ Return-Path: <SRS0=tO+N=VH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.7 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3DAC8C73C77
-	for <linux-mm@archiver.kernel.org>; Wed, 10 Jul 2019 06:24:32 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D9C80C606B0
+	for <linux-mm@archiver.kernel.org>; Wed, 10 Jul 2019 08:40:25 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D5AA820693
-	for <linux-mm@archiver.kernel.org>; Wed, 10 Jul 2019 06:24:31 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 7CEAF20838
+	for <linux-mm@archiver.kernel.org>; Wed, 10 Jul 2019 08:40:25 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="WWwMViM+"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D5AA820693
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="SChbYa6v"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7CEAF20838
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 64AF08E006A; Wed, 10 Jul 2019 02:24:31 -0400 (EDT)
+	id E230C8E006B; Wed, 10 Jul 2019 04:40:24 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5FB5B8E0032; Wed, 10 Jul 2019 02:24:31 -0400 (EDT)
+	id DD3CC8E0032; Wed, 10 Jul 2019 04:40:24 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4E9968E006A; Wed, 10 Jul 2019 02:24:31 -0400 (EDT)
+	id CC2C68E006B; Wed, 10 Jul 2019 04:40:24 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 194488E0032
-	for <linux-mm@kvack.org>; Wed, 10 Jul 2019 02:24:31 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id a20so750532pfn.19
-        for <linux-mm@kvack.org>; Tue, 09 Jul 2019 23:24:31 -0700 (PDT)
+Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A2B6B8E0032
+	for <linux-mm@kvack.org>; Wed, 10 Jul 2019 04:40:24 -0400 (EDT)
+Received: by mail-oi1-f197.google.com with SMTP id v72so694950oia.8
+        for <linux-mm@kvack.org>; Wed, 10 Jul 2019 01:40:24 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:mail-followup-to:mime-version:content-disposition
-         :user-agent;
-        bh=AJvGfeCWShvzAcCOAt+ITtSayTACBe8M0cRYIqI8UYc=;
-        b=j9yz7Sg8BuCWxwmUFwtYAU9yKjc15AmiH9RgqagGUxIJtecE5mBTGPzfm65WW+XVJS
-         Tf1ZgH8Za0mINv4EInQefwPnUpSOO2WlZ60Yu0ZetfRINpMxETt6Kwzfm8sBUsBjJao5
-         dYkeg7wOPJX+L6srDSTcPq1A0fkf64t67tyrFM3/awWv6DoXqCAJqepDnyWP/sIZUYSq
-         gl2YD6C2lWwvkgxQD9JGPQUBCHd6SMKanyjHAA+7fsh5boztgMB7kIuX6NRPupL3sgDj
-         N054V171igCcTqVE2uwn3svw8DGFAI0wwEXTh+CqJCL/ksC0F+xQU0Cra2qNf2FFk1jb
-         D7Jg==
-X-Gm-Message-State: APjAAAWbDl1CrR4xyQ/lRgqpkG4+Md58jsTfmwfk/3341OV72++I1urT
-	cMpjom4/AMQ0ChThGZpNcRl0jMjf8y2OL+N5F8AJxInm/+tbUCXT3UNPBBSBJvBb1/FobtpFj+F
-	47IA2uk8k2sBsgl5gKYBWoASE4Xc7WIssog2agtniG3llCsKFiLvVTd7U8McxUg8YPw==
-X-Received: by 2002:a17:902:112c:: with SMTP id d41mr36438977pla.33.1562739870458;
-        Tue, 09 Jul 2019 23:24:30 -0700 (PDT)
-X-Received: by 2002:a17:902:112c:: with SMTP id d41mr36436469pla.33.1562739839354;
-        Tue, 09 Jul 2019 23:23:59 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzXxBVvlsH1b65wEr7Ujs0S0HxFuRJKhV+xHiJwAbe+5zttoENFgrSefmP+fz0R+Uppgr6Q
-X-Received: by 2002:a17:902:112c:: with SMTP id d41mr36436394pla.33.1562739838405;
-        Tue, 09 Jul 2019 23:23:58 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562739838; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc
+         :content-transfer-encoding;
+        bh=Z6YmTEgTEwKg2yvsPJh1tPfsth8NlCli3K7+n36xF4o=;
+        b=Dnm0CBAAf/kQMm/kow8uw9BURWZp+uyIavLVxNg16/z3wurunymLi+zajXOHONY4l1
+         AlIsNHoptGIz1UlszygZHjbDcUGdOS5uR8dQQieVf4yESfAqUu4VqfsMRKEHzfRMxF0v
+         U2MFLSVfk8pWGK4Iro84AFOwzhUeAMqB4C9+u8IdeIG1Q/Avfo4pV0u+Bb7g53XVwZlH
+         YniSRHNyHwo1IcNLTW3zYCJ+CGdzoOET9X9+2FSBUUhnsL3jem5KKXi5D43XneKuBJPc
+         6I9qMu5mYRlMULwTMP/fBA8Q0TuwqUXPipdXUP2Vl6Iyk5NGckNYyIk2DW2JKz92nVOI
+         hV6Q==
+X-Gm-Message-State: APjAAAUA0KfdhRMbDNPyet5tbPamxCcMjP4yqbFC5j2GuvbXSHPjOwkJ
+	zgRbSsov2RCJJsZpzEO+aLVAXDls+geN2AqUJCSeSw/YJ5bYOgVceDrqEc9yY0UdiyUX9AKHzHv
+	R+0rR8c9aJUillTq6NbIoAUFm6S75f4p5WBIJcZhTeYgb6Mudj7KFPk8xZoWgra35Qw==
+X-Received: by 2002:a9d:4d0b:: with SMTP id n11mr8683423otf.229.1562748024293;
+        Wed, 10 Jul 2019 01:40:24 -0700 (PDT)
+X-Received: by 2002:a9d:4d0b:: with SMTP id n11mr8683388otf.229.1562748023463;
+        Wed, 10 Jul 2019 01:40:23 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562748023; cv=none;
         d=google.com; s=arc-20160816;
-        b=LiYboDF8vrXhXcfQrh2TPsnw2t2kzXyDtGe+U1Z05T0jVpm8Q8i2kUTenfmpu1aHeF
-         aR3eH+Rm9kdygvYkEKmCHsEFBsxSrOY8v1escjhttSu180/ALtoYHT5xnCg+4GC2+z4m
-         kyKm9LWt24tGr0lgDdx0VN5ekRmS3dIW6DYii4VyUIMYZGXyy87+z6nqjOGcYUqK/Meg
-         IyzOLU8rp8UvgLMPL6GlJN0LQitp+/GOz3etSeVDwUyZ7d1rP6jbPrUenWb3ptyKKjkd
-         owyEOiuqi1t5cG/Kceb9H75HCC7NvlnrcsOapgOE+l/38DIfMtqjpwRy0ZNYtMdsk3+x
-         z6Vg==
+        b=w5o0uVLqGmlJpFdtGUN+bQKZF0SLtbTU217A28U6VkkprjqKWn2CSVvp8kjkR7op33
+         DFfnTo7XxH941vy1tn4ld15CNEadTkmNPcXCRmsy5oJzjPRVF8NUSnd+MQKYnvqO5+JL
+         h/eR89MHq5dW/xkvh0zq9zQqD5edubqMaKX2aMUuePZZ1HF8jACfFn/NCbxlyRTXKMLd
+         bjMyysTYjNGsES2RyS5OHrT3MrRPQdQ9qAXT6peuE5p8D075yenp5DUcVDm9QPlt9X91
+         ZcRL0wFv6qYyQkDYJCQYmFhpggpbU89/qJXtOWMzGUzV7/284IHRNV2rWTBFKfJtQDFQ
+         wjiQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:content-disposition:mime-version:mail-followup-to
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=AJvGfeCWShvzAcCOAt+ITtSayTACBe8M0cRYIqI8UYc=;
-        b=F6hvCGraGO1eZgIWUJI/2ondw6pjJupJ2I3uIqkM7SkzKUtU3zzGeQnyI9IpkW6sYv
-         9ghBl84m+fksyQDQ5s0NX95RAjQ2cVFM/EwxIKXwb8eC2WzehCLRVfdAsEUXl/5vNGP9
-         dfWuBn/qf+K9TD+83D3mSH9ftaRa4RRmw9W2eql3X4BABhgpytgKitGxS89YJCjgw2e9
-         3U9ZDKuPZqE1cmsxMbIAH/nM19/I+is4f2eAkwKxbSxftkBhCh1Z3DEPP3iknJJtgdfK
-         ptlyyxhZRUdWAgv50A4pL4/tcVQGG9AKgYEXXSKCTB39Xf0rsFpRDkG/L9/kZb25/526
-         6CrA==
+        h=content-transfer-encoding:cc:to:subject:message-id:date:from
+         :in-reply-to:references:mime-version:dkim-signature;
+        bh=Z6YmTEgTEwKg2yvsPJh1tPfsth8NlCli3K7+n36xF4o=;
+        b=kO3DOwqpnsYzMR2WOcgdM/Etgpx0WS4zMdH4LYLEpfMR3hHjMSZZ20KJ6958o6+R+I
+         hlS0EsOq1KlUTyPdkser1MYapvn5jl+mwlBwqkJBMCtfk+QqeNfrpw17HXbGXM6Ocx5f
+         n6IDnEO4uK6HECNkxRHNjHcufUReHMmsnh7eBfoV4t0aS3h8Exv9HkTcd+OiqxVuPmDy
+         qTq8evRhbHK5NPpwkprh/ssR8njVvWI631Kv/lq+x++cVrzH1m+GjkYoCTcIw9AZ1cLP
+         Fc57KS3Q0F9joRWEIZJOxmDklUUvUHb9P0mxIq5D/7iOrXGiIIYOCBzerGZSylC7i5Ks
+         SewA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=WWwMViM+;
-       spf=pass (google.com: domain of ebiggers@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=ebiggers@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id w1si1286284pll.257.2019.07.09.23.23.58
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=SChbYa6v;
+       spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id g19sor709960oti.100.2019.07.10.01.40.23
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 09 Jul 2019 23:23:58 -0700 (PDT)
-Received-SPF: pass (google.com: domain of ebiggers@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        (Google Transport Security);
+        Wed, 10 Jul 2019 01:40:23 -0700 (PDT)
+Received-SPF: pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=WWwMViM+;
-       spf=pass (google.com: domain of ebiggers@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=ebiggers@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from sol.localdomain (c-24-5-143-220.hsd1.ca.comcast.net [24.5.143.220])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id E9B362083D;
-	Wed, 10 Jul 2019 06:23:57 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1562739838;
-	bh=JTGns6p7OAqlz2mMPRTsjr8VGWN/afiuC92QNMdncxo=;
-	h=Date:From:To:Cc:Subject:From;
-	b=WWwMViM+9962VnK387VtomtsQHL6wHHyVkGs6um8Jpkor6A2F0toZ/nOsyEbj6MZj
-	 C+bq+cyuFXRbN/qYl8RkXN38cjbzufM5pgR8+j3AKNvVcBmmdVf+JzhXVd/vxGprt1
-	 YoZSs0+RnrntJuTVdW+c4AOeM8JDjfsWNDeMnPsI=
-Date: Tue, 9 Jul 2019 23:23:56 -0700
-From: Eric Biggers <ebiggers@kernel.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, syzkaller-bugs@googlegroups.com
-Subject: Reminder: 6 open syzbot bugs in mm subsystem
-Message-ID: <20190710062356.GD2152@sol.localdomain>
-Mail-Followup-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
-	syzkaller-bugs@googlegroups.com
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=SChbYa6v;
+       spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc:content-transfer-encoding;
+        bh=Z6YmTEgTEwKg2yvsPJh1tPfsth8NlCli3K7+n36xF4o=;
+        b=SChbYa6vqOPxSrVss4jvB9tAF5OwMipdIy0s56Usv1Xte2BSlygDBfiNDqi2CdjODl
+         Ug0jrCu+bv0/xHwZxDoEA7p7qrHLq5Qjrg43WWGsFxU97ztP5tAdsTE07lPSBp7pi1Y/
+         k0rD9Jlj6IQREds6kXolxrcTDAbr9qxnAWH0S7d5YXjySeQofztuYqTGmOJ0XyLirdOc
+         B+lkGRWenHKBU0Y29efsJHEsE+DpBsrEU8ctJGCdyawBpkBc9zpIOf7DYiMV50yXoQZw
+         0ydFObFgoNJFiGgjTiHlvwygdQe6YuN9Dl0LhsUPxsSfXcOfUpPaE5oV4aBKgjoQeXWe
+         1x6g==
+X-Google-Smtp-Source: APXvYqyf8ILBm+7MuZ4uDo+ul82G2IUmOV2LrKOdiouZHwiVejCLx4x6FlOy+TF5NqGRZGxV1T2S3iyyyzLIPzkC5G4=
+X-Received: by 2002:a05:6602:2413:: with SMTP id s19mr17062108ioa.161.1562748023178;
+ Wed, 10 Jul 2019 01:40:23 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-User-Agent: Mutt/1.12.1 (2019-06-15)
+References: <1562300143-11671-1-git-send-email-kernelfans@gmail.com>
+ <1562300143-11671-2-git-send-email-kernelfans@gmail.com> <alpine.DEB.2.21.1907072133310.3648@nanos.tec.linutronix.de>
+ <CAFgQCTvwS+yEkAmCJnsCfnr0JS01OFtBnDg4cr41_GqU79A4Gg@mail.gmail.com>
+ <alpine.DEB.2.21.1907081125300.3648@nanos.tec.linutronix.de>
+ <CAFgQCTvAOeerLHQvgvFXy_kLs=H=CuUFjYE+UAN+vhPCG+s=pQ@mail.gmail.com>
+ <alpine.DEB.2.21.1907090810490.1961@nanos.tec.linutronix.de>
+ <CAFgQCTui7D6_FQ_v_ijj6k_=+TQzQ3PaGvzxd6p+XEGjQ2S6jw@mail.gmail.com> <4AF3459B-28F2-425F-8E4B-40311DEF30C6@amacapital.net>
+In-Reply-To: <4AF3459B-28F2-425F-8E4B-40311DEF30C6@amacapital.net>
+From: Pingfan Liu <kernelfans@gmail.com>
+Date: Wed, 10 Jul 2019 16:40:11 +0800
+Message-ID: <CAFgQCTtK7G9NPQgHa_gJkr8WLzYqagBVLaqBY7-w+tirX-+w-g@mail.gmail.com>
+Subject: Re: [PATCH 2/2] x86/numa: instance all parsed numa node
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: Thomas Gleixner <tglx@linutronix.de>, x86@kernel.org, Michal Hocko <mhocko@suse.com>, 
+	Dave Hansen <dave.hansen@linux.intel.com>, Mike Rapoport <rppt@linux.ibm.com>, 
+	Tony Luck <tony.luck@intel.com>, Andy Lutomirski <luto@kernel.org>, 
+	Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, 
+	"H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, 
+	Vlastimil Babka <vbabka@suse.cz>, Oscar Salvador <osalvador@suse.de>, 
+	Pavel Tatashin <pavel.tatashin@microsoft.com>, Mel Gorman <mgorman@techsingularity.net>, 
+	Benjamin Herrenschmidt <benh@kernel.crashing.org>, Michael Ellerman <mpe@ellerman.id.au>, 
+	Stephen Rothwell <sfr@canb.auug.org.au>, Qian Cai <cai@lca.pw>, Barret Rhoden <brho@google.com>, 
+	Bjorn Helgaas <bhelgaas@google.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, 
+	LKML <linux-kernel@vger.kernel.org>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-[This email was generated by a script.  Let me know if you have any suggestions
- to make it better, or if you want it re-generated with the latest status.
+On Tue, Jul 9, 2019 at 9:34 PM Andy Lutomirski <luto@amacapital.net> wrote:
+>
+>
+>
+> > On Jul 9, 2019, at 1:24 AM, Pingfan Liu <kernelfans@gmail.com> wrote:
+> >
+> >> On Tue, Jul 9, 2019 at 2:12 PM Thomas Gleixner <tglx@linutronix.de> wr=
+ote:
+> >>
+> >>> On Tue, 9 Jul 2019, Pingfan Liu wrote:
+> >>>> On Mon, Jul 8, 2019 at 5:35 PM Thomas Gleixner <tglx@linutronix.de> =
+wrote:
+> >>>> It can and it does.
+> >>>>
+> >>>> That's the whole point why we bring up all CPUs in the 'nosmt' case =
+and
+> >>>> shut the siblings down again after setting CR4.MCE. Actually that's =
+in fact
+> >>>> a 'let's hope no MCE hits before that happened' approach, but that's=
+ all we
+> >>>> can do.
+> >>>>
+> >>>> If we don't do that then the MCE broadcast can hit a CPU which has s=
+ome
+> >>>> firmware initialized state. The result can be a full system lockup, =
+triple
+> >>>> fault etc.
+> >>>>
+> >>>> So when the MCE hits a CPU which is still in the crashed kernel lala=
+ state,
+> >>>> then all hell breaks lose.
+> >>> Thank you for the comprehensive explain. With your guide, now, I have
+> >>> a full understanding of the issue.
+> >>>
+> >>> But when I tried to add something to enable CR4.MCE in
+> >>> crash_nmi_callback(), I realized that it is undo-able in some case (i=
+f
+> >>> crashed, we will not ask an offline smt cpu to online), also it is
+> >>> needless. "kexec -l/-p" takes the advantage of the cpu state in the
+> >>> first kernel, where all logical cpu has CR4.MCE=3D1.
+> >>>
+> >>> So kexec is exempt from this bug if the first kernel already do it.
+> >>
+> >> No. If the MCE broadcast is handled by a CPU which is stuck in the old
+> >> kernel stop loop, then it will execute on the old kernel and eventuall=
+y run
+> >> into the memory corruption which crashed the old one.
+> >>
+> > Yes, you are right. Stuck cpu may execute the old do_machine_check()
+> > code. But I just found out that we have
+> > do_machine_check()->__mc_check_crashing_cpu() to against this case.
+> >
+> > And I think the MCE issue with nr_cpus is not closely related with
+> > this series, can
+> > be a separated issue. I had question whether Andy will take it, if
+> > not, I am glad to do it.
+> >
+> >
+>
+> Go for it. I=E2=80=99m not familiar enough with the SMP boot stuff that I=
+ would be able to do it any faster than you. I=E2=80=99ll gladly help revie=
+w it.
+I had sent out a patch to fix maxcpus "[PATCH] smp: force all cpu to
+boot once under maxcpus option"
+But for the case of nrcpus, I think things will not be so easy due to
+percpu area, and I think it may take a quite different way.
 
- Note: currently the mm bugs look hard to do anything with and most look
- outdated, but I figured I'd send them out just in case someone has any ideas...]
-
-Of the currently open syzbot reports against the upstream kernel, I've manually
-marked 6 of them as possibly being bugs in the mm subsystem.  I've listed these
-reports below, sorted by an algorithm that tries to list first the reports most
-likely to be still valid, important, and actionable.
-
-If you believe a bug is no longer valid, please close the syzbot report by
-sending a '#syz fix', '#syz dup', or '#syz invalid' command in reply to the
-original thread, as explained at https://goo.gl/tpsmEJ#status
-
-If you believe I misattributed a bug to the mm subsystem, please let me know,
-and if possible forward the report to the correct people or mailing list.
-
-Here are the bugs:
-
---------------------------------------------------------------------------------
-Title:              kernel BUG at mm/huge_memory.c:LINE!
-Last occurred:      17 days ago
-Reported:           187 days ago
-Branches:           Mainline and others
-Dashboard link:     https://syzkaller.appspot.com/bug?id=ce0353d7d140e57d81b6f1cb9252a76e50454955
-Original thread:    https://lkml.kernel.org/lkml/0000000000004d2e19057e8b6d78@google.com/T/#u
-
-Unfortunately, this bug does not have a reproducer.
-
-The original thread for this bug received 3 replies; the last was 154 days ago.
-
-If you fix this bug, please add the following tag to the commit:
-    Reported-by: syzbot+8e075128f7db8555391a@syzkaller.appspotmail.com
-
-If you send any email or patch for this bug, please consider replying to the
-original thread.  For the git send-email command to use, or tips on how to reply
-if the thread isn't in your mailbox, see the "Reply instructions" at
-https://lkml.kernel.org/r/0000000000004d2e19057e8b6d78@google.com
-
---------------------------------------------------------------------------------
-Title:              KASAN: use-after-free Read in shmem_fault
-Last occurred:      77 days ago
-Reported:           143 days ago
-Branches:           Mainline and others
-Dashboard link:     https://syzkaller.appspot.com/bug?id=53e0b9f6b68687a4c24339c7a9713c26055d4f63
-Original thread:    https://lkml.kernel.org/lkml/00000000000045d4f10581fe59a7@google.com/T/#u
-
-Unfortunately, this bug does not have a reproducer.
-
-No one replied to the original thread for this bug.
-
-If you fix this bug, please add the following tag to the commit:
-    Reported-by: syzbot+56fbe62f8c55f860fd99@syzkaller.appspotmail.com
-
-If you send any email or patch for this bug, please consider replying to the
-original thread.  For the git send-email command to use, or tips on how to reply
-if the thread isn't in your mailbox, see the "Reply instructions" at
-https://lkml.kernel.org/r/00000000000045d4f10581fe59a7@google.com
-
---------------------------------------------------------------------------------
-Title:              WARNING in untrack_pfn
-Last occurred:      153 days ago
-Reported:           351 days ago
-Branches:           Mainline and others
-Dashboard link:     https://syzkaller.appspot.com/bug?id=149d7751733001d683eca36df500722bff6cc350
-Original thread:    https://lkml.kernel.org/lkml/000000000000f70a0e0571ad8ffb@google.com/T/#u
-
-This bug has a syzkaller reproducer only.
-
-syzbot has bisected this bug, but I think the bisection result is incorrect.
-
-The original thread for this bug received 3 replies; the last was 62 days ago.
-
-If you fix this bug, please add the following tag to the commit:
-    Reported-by: syzbot+e1a4f80c370d2381e49f@syzkaller.appspotmail.com
-
-If you send any email or patch for this bug, please consider replying to the
-original thread.  For the git send-email command to use, or tips on how to reply
-if the thread isn't in your mailbox, see the "Reply instructions" at
-https://lkml.kernel.org/r/000000000000f70a0e0571ad8ffb@google.com
-
---------------------------------------------------------------------------------
-Title:              WARNING: locking bug in split_huge_page_to_list
-Last occurred:      82 days ago
-Reported:           77 days ago
-Branches:           Mainline
-Dashboard link:     https://syzkaller.appspot.com/bug?id=867f27bec5181128ff0b1729bde7eed6786ec6bc
-Original thread:    https://lkml.kernel.org/lkml/0000000000003c9bea058734dc28@google.com/T/#u
-
-Unfortunately, this bug does not have a reproducer.
-
-The original thread for this bug has received 1 reply, 77 days ago.
-
-If you fix this bug, please add the following tag to the commit:
-    Reported-by: syzbot+35a50f1f6dfd5a0d7378@syzkaller.appspotmail.com
-
-If you send any email or patch for this bug, please consider replying to the
-original thread.  For the git send-email command to use, or tips on how to reply
-if the thread isn't in your mailbox, see the "Reply instructions" at
-https://lkml.kernel.org/r/0000000000003c9bea058734dc28@google.com
-
---------------------------------------------------------------------------------
-Title:              kernel BUG at mm/page_alloc.c:LINE!
-Last occurred:      94 days ago
-Reported:           174 days ago
-Branches:           Mainline and others
-Dashboard link:     https://syzkaller.appspot.com/bug?id=858f3346ce928ea82fba5e952e44b7c2758a3609
-Original thread:    https://lkml.kernel.org/lkml/000000000000cdc61b057f9e360e@google.com/T/#u
-
-Unfortunately, this bug does not have a reproducer.
-
-The original thread for this bug received 3 replies; the last was 173 days ago.
-
-If you fix this bug, please add the following tag to the commit:
-    Reported-by: syzbot+80dd4798c16c634daf15@syzkaller.appspotmail.com
-
-If you send any email or patch for this bug, please consider replying to the
-original thread.  For the git send-email command to use, or tips on how to reply
-if the thread isn't in your mailbox, see the "Reply instructions" at
-https://lkml.kernel.org/r/000000000000cdc61b057f9e360e@google.com
-
---------------------------------------------------------------------------------
-Title:              kernel BUG at mm/internal.h:LINE!
-Last occurred:      108 days ago
-Reported:           106 days ago
-Branches:           Mainline and others
-Dashboard link:     https://syzkaller.appspot.com/bug?id=ffde950cd7002300185185998616192428c11981
-Original thread:    https://lkml.kernel.org/lkml/0000000000007311ca0584e690c1@google.com/T/#u
-
-Unfortunately, this bug does not have a reproducer.
-
-No one replied to the original thread for this bug.
-
-If you fix this bug, please add the following tag to the commit:
-    Reported-by: syzbot+ce4fa49466985039fb35@syzkaller.appspotmail.com
-
-If you send any email or patch for this bug, please consider replying to the
-original thread.  For the git send-email command to use, or tips on how to reply
-if the thread isn't in your mailbox, see the "Reply instructions" at
-https://lkml.kernel.org/r/0000000000007311ca0584e690c1@google.com
+Thanks,
+  Pingfan
 
