@@ -2,188 +2,206 @@ Return-Path: <SRS0=tO+N=VH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.2 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 56869C74A35
-	for <linux-mm@archiver.kernel.org>; Wed, 10 Jul 2019 20:38:17 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6929EC74A36
+	for <linux-mm@archiver.kernel.org>; Wed, 10 Jul 2019 20:45:23 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0BFF720651
-	for <linux-mm@archiver.kernel.org>; Wed, 10 Jul 2019 20:38:16 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=cmpxchg-org.20150623.gappssmtp.com header.i=@cmpxchg-org.20150623.gappssmtp.com header.b="WQxhU6Uh"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0BFF720651
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=cmpxchg.org
+	by mail.kernel.org (Postfix) with ESMTP id 2331B20844
+	for <linux-mm@archiver.kernel.org>; Wed, 10 Jul 2019 20:45:23 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2331B20844
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A0BBB8E0094; Wed, 10 Jul 2019 16:38:16 -0400 (EDT)
+	id B17A78E0095; Wed, 10 Jul 2019 16:45:22 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9BC148E0032; Wed, 10 Jul 2019 16:38:16 -0400 (EDT)
+	id AC9758E0032; Wed, 10 Jul 2019 16:45:22 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8AB928E0094; Wed, 10 Jul 2019 16:38:16 -0400 (EDT)
+	id 96A028E0095; Wed, 10 Jul 2019 16:45:22 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 5520D8E0032
-	for <linux-mm@kvack.org>; Wed, 10 Jul 2019 16:38:16 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id h5so2126177pgq.23
-        for <linux-mm@kvack.org>; Wed, 10 Jul 2019 13:38:16 -0700 (PDT)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C47D8E0032
+	for <linux-mm@kvack.org>; Wed, 10 Jul 2019 16:45:22 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id j12so1890126pll.14
+        for <linux-mm@kvack.org>; Wed, 10 Jul 2019 13:45:22 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=yxd2CjVrpCt6cSQOgX0qW0qn9lapJT8fDpCXMhQ0cWw=;
-        b=RuKTR8J+gbXCIrQS0POmA9GMhbU0Gizqt6Km3pqGFwTzWMpByUz9bmeJ1Ha42qyozW
-         MeFGV/4gm9Si5IDswZblmVDEWhLkeOl6Frr4UZcXTiG+qs69OsKRiRP/eTMfg0hwL8qP
-         nJ7plnuUBYapBs3/lVsNXo+myJrP0zOWA8nWkz/kphMGJbqIy6cFAH2hUGXfnF2rGkbR
-         pjkkhmbuQJl87Wa4ntemJVcAPGVIqpkJQeqZtEhfSBrxh4EVUJnMNLbPe/y5ZZK1fOJv
-         gloONGEahBCEq+Vqe/0UfqEUU8cxIbulmRngPRo3obmx/iOt9hsaZX4i6r2ryK6Sp7TO
-         xVeQ==
-X-Gm-Message-State: APjAAAXcE/N+klZ95GCyu73csIOChClnUZxjS4+vKgsgKqouZ8zZJ3W9
-	9JdU1s1NlwRulCQwsUH0V0I0nTIBCcFQT8Sb1J6SBVrefx1ONAV/dhVBH1AdZ+nf68V3n4vbqAv
-	o1OFhtR/QZMHojcIwqjonjFljGLuNkLyjlOSinI4IHJe49IBBodt3lZZGwszOCNmhXA==
-X-Received: by 2002:a17:902:8649:: with SMTP id y9mr138181plt.289.1562791095852;
-        Wed, 10 Jul 2019 13:38:15 -0700 (PDT)
-X-Received: by 2002:a17:902:8649:: with SMTP id y9mr138140plt.289.1562791095129;
-        Wed, 10 Jul 2019 13:38:15 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562791095; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to
+         :references:from:openpgp:autocrypt:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=MwJLatTkf9kSjWXw64hRPS6an+x66nSUA9d6CHvSjzs=;
+        b=S1M6iQT6SsVO9uXwd83Zw5G1m+6jEMWpkaKD5j3+2CPjvLy+BsyYgWfmfxspUqP4mq
+         XlK5a7RsW7QSnbDzUPJKrMI0Bie7/C8Ix0Eb8GcvmyEC0ia8MYy1ExUaOUjPJ9LwIOJX
+         uHs0d38JKFFVCDyWdnMlYoelGBcyxcYnxnydfwt35Qu4ZcN6NzxUsGDN+Xpj1jKfPcT1
+         gPIi1ZP0XNJR7UjK1IemBg5EOTRtBs5gPIEZP71Zp5gk55uavf9HZp8LAuIlnV+1DWvS
+         bJETDVCLMHBCEyvFP7YuZLQghsB/033Yukqay/m03m0IxDvgjyssyb6vdPIevB2+q7mW
+         ZJ7g==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAUsfdQOWBUpMWfCDh2CDNhGdMQ77XXTHFTaH1fWKq7zIwerJwu1
+	m/dKoIeDZNPvnvWfw7TtQ70Nopdas8mHdkJihS/jraEbaju4Vn2KZaj2PCIBbNi7CiihzNzUslE
+	f9sHGX1vYYwaApvEZkQSvTrI1I2ja2oCl9q/Jd+Rms5Z/Btk4nQB8hKlYHwIPYI+5fA==
+X-Received: by 2002:a17:90a:bd0b:: with SMTP id y11mr280611pjr.141.1562791522047;
+        Wed, 10 Jul 2019 13:45:22 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyeULkQKJrDmZBsgmeJcRtmLLqK3jKkUsGaPWJrrBogR49wiL1pIiyZuUNTNsieEPHFczG6
+X-Received: by 2002:a17:90a:bd0b:: with SMTP id y11mr280569pjr.141.1562791521321;
+        Wed, 10 Jul 2019 13:45:21 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562791521; cv=none;
         d=google.com; s=arc-20160816;
-        b=yyaXanoJhtWMdZauuBQD2/bG8WNuSym5Ti5vZpJstw6bvCY1lR+rpQIo/5qEXdCj+v
-         0srkynJU5rR9esvZhefgUJQ8Na8DJD9pS7mcl5hGjgRgT5pY44MEFTXf4Hj5UAXbv/f3
-         wwUQOKMbgG45pQb/KR0crtp/MeRPVOcjZSD28u5Hyjoo1o0SvWPi/4viDvdggYLbjjfD
-         qYfkGYcTn6du/EOunRYQov6+AiPEZx9Y44xW+nLrRSxS4aIvfBw4iOiS9PiceteEqTbQ
-         1R5zULOdsuGrffXMCjmbnokJ2nDlBFlYGvT94ejBdMfSS2tmFxqw/EtG7PfloiDwTr57
-         G1dA==
+        b=JVToN+n1QwHO+k1vSpfeUWZE5nuL0AKk+UBEavWDidnUADZvYqFqr0jKuX7uw/Y8DZ
+         PNu25/Pk/768tDxFxtx7zmXrCX1logTuc/UNk/Ih0qVkDjSL+z3v63T0jKvnQXIUe7Hb
+         2KOLI9Jx03BiEJNy59ic8otYjoG6WN5Mh7++BwtCtF2Y9xrofcptRwgq6rMHzML/JHMr
+         Dkmef9N1r730NzNtwTOeMRKUXfGUzg8S716DCSB6bMikRK1EgJmV0v5vhUuQwX3uXpqM
+         KX0X/BKHqEF24gHpHJVoHiP3BojnK7Pv599/rkesm8+d0aoSsc1E83uWrTB/WKasQvuu
+         xz2Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=yxd2CjVrpCt6cSQOgX0qW0qn9lapJT8fDpCXMhQ0cWw=;
-        b=TaO2z+VCx0Zd3f+leaWNZUdxoXJybgtXr6pG9YMWGupC5L3TJyxbHjJtb5p6fWR4kp
-         gdb7Sq37JCKU+emCMqYdAyZo9UWJSxrz63KJ+AexYn5XD043NVLZD3YIKXHmvHrWdb3f
-         nd19DR7zgzd/h1FnLIWpyllVv7XFMOvnj/O53yC+xEdVQ9GiI//vUhjiNxdi8nhcibbQ
-         lXNofAmWeuI9YdenSCc6a4QXYhWHyb7UgnnTxoWc7CjFW6t/WGmrxMUJze1EilrxZLQV
-         crJVLuzLbN7Cpk3VxS38tixkd8IV9nbp1J3y4Fjvn9yTKhTVskBh4LH+109rBoEO0I3f
-         kunQ==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:autocrypt:openpgp:from:references:to
+         :subject;
+        bh=MwJLatTkf9kSjWXw64hRPS6an+x66nSUA9d6CHvSjzs=;
+        b=hc62B5rLi1FCodgkQ40DASQDfw/WG+lxBlRGeLXWAhtjuPsVsP14E8eQisD6QnXsbn
+         YkIDyDfJFlIZtpMMjnJ2L/SqYqhiLLbxl4dRInFxUHpDXhTS8vHiTVxqsLPrCwIYcFZ+
+         FxlYXUNOhRa7wDk/Xd9ihICuJzVKuOYJs5nHJQafkuk36ZF+jWLCL7TKgg5ACAI8CR7r
+         3Lx/DkNtE97rplL/tQw9K0oSk8pmiDdjXSgsQsN8B5aRsME2G6ctdUwQUkr5Rf46l8yI
+         BjLfOcwNRSK4pxeqeyRqm5MmQVvDiwVGOm/WK2Yb43r5kmAgH6IS2o8HxJiS3FKUTSIM
+         qpRA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=WQxhU6Uh;
-       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id o21sor4089665pll.8.2019.07.10.13.38.14
+       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id 5si3026639plx.200.2019.07.10.13.45.21
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 10 Jul 2019 13:38:14 -0700 (PDT)
-Received-SPF: pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 10 Jul 2019 13:45:21 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.65 as permitted sender) client-ip=134.134.136.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=WQxhU6Uh;
-       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=cmpxchg-org.20150623.gappssmtp.com; s=20150623;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=yxd2CjVrpCt6cSQOgX0qW0qn9lapJT8fDpCXMhQ0cWw=;
-        b=WQxhU6Uh46vlKY1ElEBjRF3o4MEC7HfCtitMhNNSkgxBPBwR05xfM6e3nEz/H3/mEr
-         tgS50RM34t/OSubDYAx4KCnBiQOu2dRaFJ1rtylfM9ySuERVUOdVYJIKV6kSog8P9/6G
-         2TVggjaZOyOosjq322YC8dPddLsHlUT9WdgCYCgHUZ8c02C1WGt5Drv/sbmKQjaFWKCt
-         XJ3WIaAzCu1qM9SvMW7wwWSjsHzaLfl9xtED13oIj6epRrYsi7yBxCyRpsNdHdnrQWci
-         TquJmV9r64SNGJmeB9FYAZ0FhLq4l9Rvqscmw7HIzVFtuX8/8w5oXlLGiDnp/LVhrnkK
-         1+NQ==
-X-Google-Smtp-Source: APXvYqw1FrVFv10U20xJ1uHXU+HR/h2gyHWBg1a6BeEeekyMWO5m2hXxebgWIM4hj0gKT2WVWZrl5w==
-X-Received: by 2002:a17:902:6a88:: with SMTP id n8mr213817plk.70.1562791093357;
-        Wed, 10 Jul 2019 13:38:13 -0700 (PDT)
-Received: from localhost ([2620:10d:c091:500::2:5b9d])
-        by smtp.gmail.com with ESMTPSA id w187sm3188090pfb.4.2019.07.10.13.38.12
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Wed, 10 Jul 2019 13:38:12 -0700 (PDT)
-Date: Wed, 10 Jul 2019 16:38:11 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-To: Yafang Shao <laoar.shao@gmail.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org,
-	Michal Hocko <mhocko@kernel.org>,
-	Vladimir Davydov <vdavydov.dev@gmail.com>,
-	Yafang Shao <shaoyafang@didiglobal.com>
-Subject: Re: [PATCH] mm/memcontrol: make the local VM stats consistent with
- total stats
-Message-ID: <20190710203811.GA16153@cmpxchg.org>
-References: <1562750823-2762-1-git-send-email-laoar.shao@gmail.com>
+       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga008.jf.intel.com ([10.7.209.65])
+  by orsmga103.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 10 Jul 2019 13:45:20 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.63,475,1557212400"; 
+   d="scan'208";a="159871053"
+Received: from akraina-mobl1.amr.corp.intel.com (HELO [10.251.14.235]) ([10.251.14.235])
+  by orsmga008.jf.intel.com with ESMTP; 10 Jul 2019 13:45:20 -0700
+Subject: Re: [RFC][Patch v11 1/2] mm: page_hinting: core infrastructure
+To: Nitesh Narayan Lal <nitesh@redhat.com>, kvm@vger.kernel.org,
+ linux-kernel@vger.kernel.org, linux-mm@kvack.org, pbonzini@redhat.com,
+ lcapitulino@redhat.com, pagupta@redhat.com, wei.w.wang@intel.com,
+ yang.zhang.wz@gmail.com, riel@surriel.com, david@redhat.com, mst@redhat.com,
+ dodgen@google.com, konrad.wilk@oracle.com, dhildenb@redhat.com,
+ aarcange@redhat.com, alexander.duyck@gmail.com, john.starks@microsoft.com,
+ mhocko@suse.com
+References: <20190710195158.19640-1-nitesh@redhat.com>
+ <20190710195158.19640-2-nitesh@redhat.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=dave.hansen@intel.com; keydata=
+ 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
+Message-ID: <3f9a7e7b-c026-3530-e985-804fc7f1ec31@intel.com>
+Date: Wed, 10 Jul 2019 13:45:19 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.2
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1562750823-2762-1-git-send-email-laoar.shao@gmail.com>
-User-Agent: Mutt/1.12.0 (2019-05-25)
+In-Reply-To: <20190710195158.19640-2-nitesh@redhat.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jul 10, 2019 at 05:27:03AM -0400, Yafang Shao wrote:
-> After commit 815744d75152 ("mm: memcontrol: don't batch updates of local VM stats and events"),
-> the local VM stats is not consistent with total VM stats.
->
-> Bellow is one example on my server (with 8 CPUs),
-> 	inactive_file 3567570944
-> 	total_inactive_file 3568029696
-> 
-> We can find that the deviation is very great, that is because the 'val' in
-> __mod_memcg_state() is in pages while the effective value
-> in memcg_stat_show() is in bytes.
-> So the maximum of this deviation between local VM stats and total VM
-> stats can be (32 * number_of_cpu * PAGE_SIZE), that may be an unacceptable
-> great value.
-> 
-> We should make the local VM stats consistent with the total stats.
-> Although the deviation between local VM events and total events are not
-> great, I think we'd better make them consistent with each other as well.
+On 7/10/19 12:51 PM, Nitesh Narayan Lal wrote:
+> +struct zone_free_area {
+> +	unsigned long *bitmap;
+> +	unsigned long base_pfn;
+> +	unsigned long end_pfn;
+> +	atomic_t free_pages;
+> +	unsigned long nbits;
+> +} free_area[MAX_NR_ZONES];
 
-Ha - the local stats are not percpu-fuzzy enough... But I guess that
-is a valid complaint.
+Why do we need an extra data structure.  What's wrong with putting
+per-zone data in ... 'struct zone'?  The cover letter claims that it
+doesn't touch core-mm infrastructure, but if it depends on mechanisms
+like this, I think that's a very bad thing.
 
-> ---
->  mm/memcontrol.c | 4 ++--
->  1 file changed, 2 insertions(+), 2 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index ba9138a..a9448c3 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -691,12 +691,12 @@ void __mod_memcg_state(struct mem_cgroup *memcg, int idx, int val)
->  	if (mem_cgroup_disabled())
->  		return;
->  
-> -	__this_cpu_add(memcg->vmstats_local->stat[idx], val);
->  
->  	x = val + __this_cpu_read(memcg->vmstats_percpu->stat[idx]);
->  	if (unlikely(abs(x) > MEMCG_CHARGE_BATCH)) {
->  		struct mem_cgroup *mi;
->  
-> +		__this_cpu_add(memcg->vmstats_local->stat[idx], x);
->  		for (mi = memcg; mi; mi = parent_mem_cgroup(mi))
->  			atomic_long_add(x, &mi->vmstats[idx]);
->  		x = 0;
-> @@ -773,12 +773,12 @@ void __count_memcg_events(struct mem_cgroup *memcg, enum vm_event_item idx,
->  	if (mem_cgroup_disabled())
->  		return;
->  
-> -	__this_cpu_add(memcg->vmstats_local->events[idx], count);
->  
->  	x = count + __this_cpu_read(memcg->vmstats_percpu->events[idx]);
->  	if (unlikely(x > MEMCG_CHARGE_BATCH)) {
->  		struct mem_cgroup *mi;
->  
-> +		__this_cpu_add(memcg->vmstats_local->events[idx], x);
->  		for (mi = memcg; mi; mi = parent_mem_cgroup(mi))
->  			atomic_long_add(x, &mi->vmevents[idx]);
->  		x = 0;
+To be honest, I'm not sure this series is worth reviewing at this point.
+ It's horribly lightly commented and full of kernel antipatterns lik
 
-Please also update __mod_lruvec_state() to keep this behavior the same
-across counters, to make sure we won't have any surprises when
-switching between them.
+void func()
+{
+	if () {
+		... indent entire logic
+		... of function
+	}
+}
 
-And please add comments explaining that we batch local counters to
-keep them in sync with the hierarchical ones. Because it does look a
-little odd without explanation.
+It has big "TODO"s.  It's virtually comment-free.  I'm shocked it's at
+the 11th version and still looking like this.
+
+> +
+> +		for (zone_idx = 0; zone_idx < MAX_NR_ZONES; zone_idx++) {
+> +			unsigned long pages = free_area[zone_idx].end_pfn -
+> +					free_area[zone_idx].base_pfn;
+> +			bitmap_size = (pages >> PAGE_HINTING_MIN_ORDER) + 1;
+> +			if (!bitmap_size)
+> +				continue;
+> +			free_area[zone_idx].bitmap = bitmap_zalloc(bitmap_size,
+> +								   GFP_KERNEL);
+
+This doesn't support sparse zones.  We can have zones with massive
+spanned page sizes, but very few present pages.  On those zones, this
+will exhaust memory for no good reason.
+
+Comparing this to Alex's patch set, it's of much lower quality and at a
+much earlier stage of development.  The two sets are not really even
+comparable right now.  This certainly doesn't sell me on (or even really
+enumerate the deltas in) this approach vs. Alex's.
 
