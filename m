@@ -6,161 +6,117 @@ X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2D7BAC74A2B
-	for <linux-mm@archiver.kernel.org>; Wed, 10 Jul 2019 16:20:51 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 67913C74A2B
+	for <linux-mm@archiver.kernel.org>; Wed, 10 Jul 2019 16:45:26 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CA09D21473
-	for <linux-mm@archiver.kernel.org>; Wed, 10 Jul 2019 16:20:50 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CA09D21473
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 361B820665
+	for <linux-mm@archiver.kernel.org>; Wed, 10 Jul 2019 16:45:26 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 361B820665
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linutronix.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 37A158E007C; Wed, 10 Jul 2019 12:20:50 -0400 (EDT)
+	id C412A8E007D; Wed, 10 Jul 2019 12:45:25 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 302EB8E0032; Wed, 10 Jul 2019 12:20:50 -0400 (EDT)
+	id BF0CA8E0032; Wed, 10 Jul 2019 12:45:25 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1A4AC8E007C; Wed, 10 Jul 2019 12:20:50 -0400 (EDT)
+	id B2E688E007D; Wed, 10 Jul 2019 12:45:25 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D46968E0032
-	for <linux-mm@kvack.org>; Wed, 10 Jul 2019 12:20:49 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id o19so1750230pgl.14
-        for <linux-mm@kvack.org>; Wed, 10 Jul 2019 09:20:49 -0700 (PDT)
+Received: from mail-wm1-f72.google.com (mail-wm1-f72.google.com [209.85.128.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 802078E0032
+	for <linux-mm@kvack.org>; Wed, 10 Jul 2019 12:45:25 -0400 (EDT)
+Received: by mail-wm1-f72.google.com with SMTP id t62so2388115wmt.1
+        for <linux-mm@kvack.org>; Wed, 10 Jul 2019 09:45:25 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=3hkXFP2o+F3wbTI7utBzEW4pheLrfl5H1P9HuISqnXA=;
-        b=UK3TVOpmDX0RKJmkRIezb6y1QtADbcYnGSstoSP3EPWki+RiHz0GlMdiUsHYXrR/BV
-         xdj/SSsfKq/nCGO00jhzEuUNAFCIYR+mOlsaOs5GDovG34hX+uKj0A3Tm/sPjlMpHLDu
-         qvzJxMjR2EHfJKme075Qr0WxGV9E9URJJgrlv9XS/yCvNOa4WuvMHwVwjGW7gVRJ1X0Y
-         nuiV1c/1E1wfJTjj1pRKu+VtOCAuVGUP6MVcdJQBufSf/NdvlTgi+w641QWIZcnsXbkk
-         xlcbn5r7wmaQC1xGFNLZJEfjTDD7xjZ/P+eYfvZ1XBKU7bGX+TWBneA0yJ2zlpL6BKwr
-         gHTA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAWlqk/EYHY40yOU97PpMJ53vtGN6m7H9TgY44oWYsJCXV5wE53l
-	rFsZ/xTno5D6JVzNWb5chcf2LVIQeyUIwOEI6jgA2vNbpsHgPnDhISDr5aCcVgm41iHt4OuAZm9
-	jUtNSwsZd6KeYeg7d0P3ycs7ofO3EndcLZjAonwLZrqF/NO/8XW98Xi0zzqMifAbYsg==
-X-Received: by 2002:a17:90a:bd93:: with SMTP id z19mr8009688pjr.49.1562775649557;
-        Wed, 10 Jul 2019 09:20:49 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz161sj7BuvPS3MOpBzVCODO442Q7j0zYziawPBnF9xGX/aY3POOzjxbZ3h1d9tEY8oB21Y
-X-Received: by 2002:a17:90a:bd93:: with SMTP id z19mr8009616pjr.49.1562775648668;
-        Wed, 10 Jul 2019 09:20:48 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562775648; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=ZMEZ7U513reOnKQqgWE3RVK+7znn8C0ir83EcMV4pn4=;
+        b=snGKyh0o6RXFgf/2mJEwfpM4rdQJae3L2XK6M8q+GRSSurVxlcrZhWxHYZVkaQqB5Z
+         xBAr8j3Q/ng9qDPXPFHcukYkQUiqn5wOaYLQe4zKlRMKVMuo5PITW64dridmna6cywER
+         UAlYGO0SbeP1l47T+s6pN+aeLWN7roNeApNwD7gX7qGdwk73cchzDITTWGEIvwtzvPC3
+         s67b1Kiqqr1RUSv4Gqlzs5C5IXPRGkz/e6CDtdeh6Xb2PUxVDLpyF4s3SJ8G0v3Qomz6
+         gRnDhpvhXNEl4FAvjt1K20PEQGZd1Yx+1DHEvNk6jo6QiEIwsgRT2yYIWPge2GZ6c34T
+         yXfw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of bigeasy@linutronix.de designates 2a0a:51c0:0:12e:550::1 as permitted sender) smtp.mailfrom=bigeasy@linutronix.de
+X-Gm-Message-State: APjAAAV9OViDpE9YSL8FbNH1EhGPVj0QVlx/SNvIftfSNNFDauF5+mPW
+	t5VGx7Esr3NadY802HvcHXFYbypYyFx/6/Gv3aUaSVfUo/o66XzpXH1Aq3U0AQ3dpN7y/fOIJcC
+	Uv0a09MUQT9e1aVOIQS0cNyqUiIAVyj/3kvEtmgDf6wKLGXLQ5wIOXoZFGNnhDf2NjA==
+X-Received: by 2002:adf:ea88:: with SMTP id s8mr30778321wrm.68.1562777125104;
+        Wed, 10 Jul 2019 09:45:25 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw/RAdPvopalbAab1Gl1qrEdrTYDUXK0JbvRIEX8H5Ycb753ZNjX7rEa/R1yxD4R63XQFPe
+X-Received: by 2002:adf:ea88:: with SMTP id s8mr30778264wrm.68.1562777124199;
+        Wed, 10 Jul 2019 09:45:24 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562777124; cv=none;
         d=google.com; s=arc-20160816;
-        b=SPh3ha7pcM7O/5CwW68rUsWot6o09CksDBS3UIfM/DL/2Erk70Ttf6Jn+vsH9QnS1c
-         rCiZdGPWhsG16bkjZOhLcG8ecbaxjw+I4sNVV8y+2BACVdJ/vLXeEiE9EE2m/4mqw80T
-         +6MuVPPxOqA/g0lEScFLzMRZHeRlXWQfykUh3qad0WMS2NAgdaXldqHTU50yhN3Xpixi
-         B4aXnGxXqtLEelhDKG2AeNMOfz3glJ+BslPOW4Yi9xD5WEVgLBJHkJ0t2ut+xFuJvIqA
-         NAd8/+fdmfHHKg3XiMfYwII68Kxhd1gTT8/XQhwrTufKYf/Q7DmQ8bNTf47YIDVxdGWi
-         uq6g==
+        b=icnGs+To5fbqMi/lFQykTEU209X3aOlxir7K4Wg1ooxtp3s4UyQ+crUZw2iB8kRy05
+         PasjDTzbUkcg2zzZeHcU6Hw58vay6WhkMA77fiMgmUTHRmGxOcHV0m/Q9uAvSLkhQV0x
+         O/AHTHkY0/psF5oak8/+VTUNEau3oUDqBuMY62F8zNhl3zOId1GgQhxb8qhI0ZdSKDt7
+         PUWPEXQrePIR/imRimdvMJJNmuPzAqsKokIdggS+CoCpltUYkZJ82NRisBdNvjFqCQij
+         yBZKTFrYBFiUd1t1pC8c+iR/8f4VYZSjxZCTecmsIl3SsFWb8h/UlLpoQHOglYmXQNzM
+         KLGw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
-         :subject;
-        bh=3hkXFP2o+F3wbTI7utBzEW4pheLrfl5H1P9HuISqnXA=;
-        b=Uw7745HOxOrHK2Q1RIKIwjZKTpHk7XDG/u7Ct9ZUmwlV2/8Z4il5OPL2KOSxwmYihC
-         OT3AWT4hgxzn48AtBEA2DadsH+cEHbuliux5TGnTI0pF6rqRkmcOG6Adn+PG2t8lh7TQ
-         LBezzVSrPbkPGoVoLiL+N/35gEA+TNIbBw/ibjVHbz0SNueHH0OZ4PrXi8IboaGNzaiQ
-         xJqcaFripwADl+ntFDgMyKmqpwMx3X4EP8Qn6W7mIpDtlGrE+09vBflMJ5iE+TP2pzuf
-         PAoZI6J5nU1y4U1aASDvVY/kNWsIsodaxVOmW77Stu+DkWe9Vx8ncAt+v7lpIQK+5nsl
-         XNBQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=ZMEZ7U513reOnKQqgWE3RVK+7znn8C0ir83EcMV4pn4=;
+        b=ky7llrOMNK3Zvk9HXGryn/o7ecU2mmqQnKGwNRzNtEU0e34SaRLWwJvDoKuCotrMJF
+         /FShoqyv55yl+X0wDgYF+ndpGCu1G0zvf5Ey+wpHK0QjHuPV/Re8wJ9pvd9T8bPj5tOX
+         FIYxP6C72BiFqC+NT0Mu0FzyBZl0cXDNb/Lx/cdm5LBHH1W3aNFJ98u0/VwR2QubOAdE
+         zZ9lQtKNYhsxSAMAxYrtERZPPg6ygsHvv69Sh5mDNozayUIXp1Jw867vnf+CRs30dyFx
+         j8krRN6usXnYQfDpJ3jopNc9tEO5MPfMN7mBlVAl5G6Fc4ZIoRQGH1/1rmitS37YX4WW
+         hENg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
-        by mx.google.com with ESMTPS id s6si2430105pjq.108.2019.07.10.09.20.48
+       spf=pass (google.com: best guess record for domain of bigeasy@linutronix.de designates 2a0a:51c0:0:12e:550::1 as permitted sender) smtp.mailfrom=bigeasy@linutronix.de
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a0a:51c0:0:12e:550::1])
+        by mx.google.com with ESMTPS id v14si2781866wrw.154.2019.07.10.09.45.23
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 10 Jul 2019 09:20:48 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.126 as permitted sender) client-ip=134.134.136.126;
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Wed, 10 Jul 2019 09:45:24 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of bigeasy@linutronix.de designates 2a0a:51c0:0:12e:550::1 as permitted sender) client-ip=2a0a:51c0:0:12e:550::1;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from orsmga008.jf.intel.com ([10.7.209.65])
-  by orsmga106.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 10 Jul 2019 09:20:47 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.63,475,1557212400"; 
-   d="scan'208";a="159806869"
-Received: from akraina-mobl1.amr.corp.intel.com (HELO [10.251.14.235]) ([10.251.14.235])
-  by orsmga008.jf.intel.com with ESMTP; 10 Jul 2019 09:20:47 -0700
+       spf=pass (google.com: best guess record for domain of bigeasy@linutronix.de designates 2a0a:51c0:0:12e:550::1 as permitted sender) smtp.mailfrom=bigeasy@linutronix.de
+Received: from bigeasy by Galois.linutronix.de with local (Exim 4.80)
+	(envelope-from <bigeasy@linutronix.de>)
+	id 1hlFib-0006vw-V3; Wed, 10 Jul 2019 18:45:21 +0200
+Date: Wed, 10 Jul 2019 18:45:21 +0200
+From: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: linux-mm@kvack.org, tglx@linutronix.de
 Subject: Re: Memory compaction and mlockall()
-To: Sebastian Andrzej Siewior <bigeasy@linutronix.de>, linux-mm@kvack.org
-Cc: tglx@linutronix.de
+Message-ID: <20190710164521.vlcrrfovphd5fp7f@linutronix.de>
 References: <20190710144138.qyn4tuttdq6h7kqx@linutronix.de>
-From: Dave Hansen <dave.hansen@intel.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=dave.hansen@intel.com; keydata=
- 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
-Message-ID: <66785c4b-b1cc-7b5a-a756-041068e3bec6@intel.com>
-Date: Wed, 10 Jul 2019 09:20:47 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.2
+ <66785c4b-b1cc-7b5a-a756-041068e3bec6@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20190710144138.qyn4tuttdq6h7kqx@linutronix.de>
 Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Disposition: inline
+In-Reply-To: <66785c4b-b1cc-7b5a-a756-041068e3bec6@intel.com>
+User-Agent: NeoMutt/20180716
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 7/10/19 7:41 AM, Sebastian Andrzej Siewior wrote:
-> I did not expect a pagefault with mlockall(). I assume it has to do with
-> memory compaction.
+On 2019-07-10 09:20:47 [-0700], Dave Hansen wrote:
+> On 7/10/19 7:41 AM, Sebastian Andrzej Siewior wrote:
+> > I did not expect a pagefault with mlockall(). I assume it has to do with
+> > memory compaction.
+> 
+> mlock() doesn't technically prevent faults.  From the manpage:
+> 
+> > mlock(),  mlock2(),  and  mlockall()  lock  part  or  all of the
+> > calling process's virtual address space into RAM, preventing that
+> > memory from being paged to the swap area.
+> I read that as basically saying there will be no major faults, but minor
+> faults are possible.
 
-mlock() doesn't technically prevent faults.  From the manpage:
+It says "lock virtual address space into into RAM". I assumed that there
+will be no page faults because everything is locked.
 
-> mlock(),  mlock2(),  and  mlockall()  lock  part  or  all of the
-> calling process's virtual address space into RAM, preventing that
-> memory from being paged to the swap area.
-I read that as basically saying there will be no major faults, but minor
-faults are possible.
+The problem (besides the delay caused by the context switch and fix up)
+is that a major fault (with might have happened at the same time in
+another thread) will block this minor fault even longer.
+
+Sebastian
 
