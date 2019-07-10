@@ -2,329 +2,212 @@ Return-Path: <SRS0=tO+N=VH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.7 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 35E0FC74A35
-	for <linux-mm@archiver.kernel.org>; Wed, 10 Jul 2019 20:17:45 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D7C26C74A36
+	for <linux-mm@archiver.kernel.org>; Wed, 10 Jul 2019 20:19:09 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CF97F2064A
-	for <linux-mm@archiver.kernel.org>; Wed, 10 Jul 2019 20:17:44 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="A660zAOx"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CF97F2064A
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 9B01C20844
+	for <linux-mm@archiver.kernel.org>; Wed, 10 Jul 2019 20:19:09 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9B01C20844
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4EBAC8E0092; Wed, 10 Jul 2019 16:17:44 -0400 (EDT)
+	id 279C98E0093; Wed, 10 Jul 2019 16:19:09 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4748C8E0032; Wed, 10 Jul 2019 16:17:44 -0400 (EDT)
+	id 228E18E0032; Wed, 10 Jul 2019 16:19:09 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 314BE8E0092; Wed, 10 Jul 2019 16:17:44 -0400 (EDT)
+	id 0F1258E0093; Wed, 10 Jul 2019 16:19:09 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 0E9218E0032
-	for <linux-mm@kvack.org>; Wed, 10 Jul 2019 16:17:44 -0400 (EDT)
-Received: by mail-io1-f70.google.com with SMTP id w17so4181784iom.2
-        for <linux-mm@kvack.org>; Wed, 10 Jul 2019 13:17:44 -0700 (PDT)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id CCA2F8E0032
+	for <linux-mm@kvack.org>; Wed, 10 Jul 2019 16:19:08 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id 6so1996579pfz.10
+        for <linux-mm@kvack.org>; Wed, 10 Jul 2019 13:19:08 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=7d8N94prlC005qJxNuBMxAhqvvB2PcIZbyAYedxINpc=;
-        b=FtcbuNY5bnpXVgNjEh4ix+Ag8d61y1kLBIRSR+JNHZlxxtYas+Aw/mAtD7CoPMTA6l
-         d7bd1c/9P0pkr/M+F1eXeixwHRWXUda7vutSCr7sgUIvin3W4unVHNJW+abazXtm6yxK
-         pIAyFFDV6T/EmFFPpbUFP/e711+JjRwCdJI9WSwG1W9zqSr46qQKEa56pe2abZMFMazj
-         SyKDoiVhF5FF1lDsnmnZSKllIIaU1uonviHifxGFoqsVcvnrHpeQC4ocjq+ZcA4nlH3P
-         iED/pGWMYcQbs1quyd9s7rqovXmE5RnY6QrH4ff91HRtqtTKwU7kEEe5YFdcu5rguF+U
-         m3rg==
-X-Gm-Message-State: APjAAAUo48anIQwQ1fwhrbkwX8Q7G7oDLHaljHRF0gKZaxhWCC7S7Rbj
-	MNVWCj3ibigOIFO03smZg/wG88FXiGlGQ0hFT7DBZGTqgyDcGU+H/VdHXBG/huvyDLzJIuusYm+
-	UtPNO/C8VdgDlR4mbUKJkSdnvJYWJVa2mFwLl3z2K3hqjPEmDNWLTon+ELUSGY5xd8w==
-X-Received: by 2002:a5e:9747:: with SMTP id h7mr26949612ioq.299.1562789863775;
-        Wed, 10 Jul 2019 13:17:43 -0700 (PDT)
-X-Received: by 2002:a5e:9747:: with SMTP id h7mr26949557ioq.299.1562789862826;
-        Wed, 10 Jul 2019 13:17:42 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562789862; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to
+         :references:from:openpgp:autocrypt:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=qJmri8ApO0TZ3G6qdj22Q7XtPW0uV9BT0MtQHxP8YPo=;
+        b=IoLOSdhM1lwP2x3o7cd3FiouC8a816IfP7CrZ94zYD1DzNUKtCFNrVqR1Chrsw/ZxU
+         AXrMkG9A7KW8T90mQ1Vjb0OeWt82COQXdJi15v3KMe8SgqrBthqQpZQf/XyTbt9+mird
+         jpa0Jx8zugF0ODtnRNBg9zJ/MXA6e3T5m+FkhRexbD4h5Qqg8rOq/yPYevH2kS6j47lN
+         5pEB3aCHMReAmrqQZyEEvtFUmEhZmYhaurfKwNcz3I5dmeTDwD+DoERDotLxwpa61MW2
+         FMtNl46Sy0OD6nxQWARUK6JiW5zAmHb6ZwSRsU+cwd6lp8uJZDs8bBzkXcjKkhe/LJKP
+         lV5g==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAWi3EAwMk21lVhTLWkSCgWH7ycDW1aPKEj+HxCli3OiFdemnb+5
+	eZTA8HLmOu380XNceu/PpTeO0N9gMcxW1CqPkgjhR17rEkDpdzAASWe8bVYRdy8L4TPoFgFDCNq
+	HI+9zq89xVs0/wwcuzKVipHW4rK8R8+ug9YRW2ht0BhvD15bG+kzxpiqjWI1XyqkuhA==
+X-Received: by 2002:a63:c34c:: with SMTP id e12mr67834pgd.195.1562789948263;
+        Wed, 10 Jul 2019 13:19:08 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyjpvF/umAdDws53spEQuiUBPxbQORgyXKXIW9ec3qznhVWSx3GM/Fe3Nshjgv6a1lARUfj
+X-Received: by 2002:a63:c34c:: with SMTP id e12mr67776pgd.195.1562789947323;
+        Wed, 10 Jul 2019 13:19:07 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562789947; cv=none;
         d=google.com; s=arc-20160816;
-        b=UX6//uQWbszKl3uQRvZL+9XYZv6VRvOOMrYSoYWjvDfidVxkKLh4JGh3jl7CKXTwLf
-         3ExyP95kRUWBzhOo9luutANCEG5PmKATipRlETtCLkYULngZbs3H6YFFyNcDUMcubgRp
-         uGNCjEMA5VPULJdtidtW5+5dt+krAveEskBX2x6NZs/rCTp1Us869LDmitWJnc7LmMOd
-         iBaygrmNfCjiy5ambcZoux++t30O+WmjxT6FSVD0AbYARQ3rr8DlPZqbRPp4q0s1Q02q
-         FpBhraVQfJ9kyrQoBn32M1MjsCHy3McccAJWXP08kYgu1Jk6BFNTQ64mWnVGbSM7KDOm
-         tSng==
+        b=Tpg0hc8+QZwfQVz+XQbElg2qFrnotx53BxbWPuapRjpjs9RJvmyJqrD6ULIESQlbZi
+         1IIcRbYIm1qD2iVI7+ELq0VjDHvZKcs7VbbhKfjydUPzIZo5pv7G0CpaoYRT5jmHUJ9W
+         5hrlmXuZ+xrSU7W6jlNfCIjhaDB7vMC+IMoIZ4LNN0i+Zah7V/G1daEEfxqgYVaiJgnj
+         Zj+YeFOCOcbjzyKMeMPw/wq0HD2D6/W9Xgxajq6DdHiJmNe0O3SHK66PGlLCSGsxPirM
+         uis3eoGxjuolKBYCGsVd4VVX4Dn/CnxCJ+oU1GdhylXW4XCjpIxTgus89DDGUmzqtD/k
+         CseQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=7d8N94prlC005qJxNuBMxAhqvvB2PcIZbyAYedxINpc=;
-        b=pVvITNp4SZ8XksA4fHHEge1+uDZvsLc+8EhPF7PVGVuyVjEIM5yyvKZx8ZYgObcUy2
-         yhU7wAWYfypX0x8REx2mU6IK6HJepiDlf/H5s1lPFGPJMgWaByKlqAqtDmNJ7XwQG9jP
-         1aG58FhNEV42JQhuzlRHbPLWHzE+3RWy4F137h59XXzCoD3uKDWi+n3ATEdMINxbtPZU
-         qomEdVWnmcHRIRs4lkjUkrS5ESIrd4o14ABI01C0X//XbovthIlHscZa8bojdLRGvrwy
-         sqT1rilaFe/z+b2C58GMEIn1lJJWZh6ciplsW96W13hc4EGQ/bdWoofHTQtL6MAIQT39
-         CJ5g==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:autocrypt:openpgp:from:references:to
+         :subject;
+        bh=qJmri8ApO0TZ3G6qdj22Q7XtPW0uV9BT0MtQHxP8YPo=;
+        b=jCBRZ6t6BPcSgrZM+8cIRgcDf3v3bGdz/BtKfUX0Cv6bN5X0i/3bF0OjyGdF8apuH7
+         gMgCmtPEUXyyQl44jQW8lTZAgmINmmwXJEg1G/vqX6Eq/2Vfk1pm7n/fj0Ogm9sMva+d
+         mbz3c9jAfsUcHgJca+nwKGfTYFdWYMnoMCWF3Z0ZWerOXLD79zRJVlUMf+qymkWjGKkE
+         29RmbTBnSiP6LqrPT+h4wAwzr2OkFfMzHDWUPo9cS8flZhjd0EC4Re1EfcCuPD8gChaD
+         aJJMncAmlQokMlaMhAbz1sDXpI8aIGlmcI6qAeu/w4rZigS4ZgGDGLI203g95mf7vu9w
+         m27g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=A660zAOx;
-       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id p14sor2747369ios.125.2019.07.10.13.17.42
+       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id y63si2835528pgd.403.2019.07.10.13.19.07
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 10 Jul 2019 13:17:42 -0700 (PDT)
-Received-SPF: pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 10 Jul 2019 13:19:07 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.43 as permitted sender) client-ip=192.55.52.43;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=A660zAOx;
-       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=7d8N94prlC005qJxNuBMxAhqvvB2PcIZbyAYedxINpc=;
-        b=A660zAOx1NcqwGPXU0S81OSe0LH1JfXzi0EstPzpOIEFFgR+eLRGX2GV+P/H7nWi0r
-         BnNduUauMeGtsKhXs4EFZi4pfr67EVEdgZfymWsFVzsijwY9RpH4iJ8Im0HjnMB/Zs/Z
-         zkBtWj7lhrNVWhWchQvut8RpbLs/IgWFTTBnjKEKUXfzsENkVwfvRIjSg88h37pkdUgw
-         VdSZtx2WbkCsyL1sd1yIDiFWCvmB0mSZv3xkWHTS/re9UPK+eAtjEEn1fajIsykmwBhg
-         s4YRhZgcssrG0TT7/2uKtOMukEmSbT0mBVfDsYFLX6Dp9oMQkEJy8xZTsn0akGFSK7pj
-         mlew==
-X-Google-Smtp-Source: APXvYqwmmTBevzVupkiRrsSdz1DE9dPgAh7hKhQXppie+SyarCAW+GHeXzLwnVpziw7G9r3c6OAF/BUW1Q0OD7AyqNI=
-X-Received: by 2002:a6b:901:: with SMTP id t1mr8862556ioi.42.1562789862231;
- Wed, 10 Jul 2019 13:17:42 -0700 (PDT)
+       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga008.jf.intel.com ([10.7.209.65])
+  by fmsmga105.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 10 Jul 2019 13:19:06 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.63,475,1557212400"; 
+   d="scan'208";a="159865315"
+Received: from akraina-mobl1.amr.corp.intel.com (HELO [10.251.14.235]) ([10.251.14.235])
+  by orsmga008.jf.intel.com with ESMTP; 10 Jul 2019 13:19:06 -0700
+Subject: Re: [RFC][PATCH v11 0/2] mm: Support for page hinting
+To: Nitesh Narayan Lal <nitesh@redhat.com>, kvm@vger.kernel.org,
+ linux-kernel@vger.kernel.org, linux-mm@kvack.org, pbonzini@redhat.com,
+ lcapitulino@redhat.com, pagupta@redhat.com, wei.w.wang@intel.com,
+ yang.zhang.wz@gmail.com, riel@surriel.com, david@redhat.com, mst@redhat.com,
+ dodgen@google.com, konrad.wilk@oracle.com, dhildenb@redhat.com,
+ aarcange@redhat.com, alexander.duyck@gmail.com, john.starks@microsoft.com,
+ mhocko@suse.com
+References: <20190710195158.19640-1-nitesh@redhat.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=dave.hansen@intel.com; keydata=
+ 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
+Message-ID: <b6da49e4-5007-08f9-104a-aeca5dca4719@intel.com>
+Date: Wed, 10 Jul 2019 13:19:05 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.2
 MIME-Version: 1.0
-References: <20190710195158.19640-1-nitesh@redhat.com> <20190710195303.19690-1-nitesh@redhat.com>
-In-Reply-To: <20190710195303.19690-1-nitesh@redhat.com>
-From: Alexander Duyck <alexander.duyck@gmail.com>
-Date: Wed, 10 Jul 2019 13:17:30 -0700
-Message-ID: <CAKgT0UchTgZPzhSRSnEb5PLpUqdR58Tv-5wxTf57v7ORB0jzaA@mail.gmail.com>
-Subject: Re: [QEMU Patch] virtio-baloon: Support for page hinting
-To: Nitesh Narayan Lal <nitesh@redhat.com>
-Cc: kvm list <kvm@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, 
-	linux-mm <linux-mm@kvack.org>, Paolo Bonzini <pbonzini@redhat.com>, lcapitulino@redhat.com, 
-	pagupta@redhat.com, wei.w.wang@intel.com, 
-	Yang Zhang <yang.zhang.wz@gmail.com>, Rik van Riel <riel@surriel.com>, 
-	David Hildenbrand <david@redhat.com>, "Michael S. Tsirkin" <mst@redhat.com>, dodgen@google.com, 
-	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, dhildenb@redhat.com, 
-	Andrea Arcangeli <aarcange@redhat.com>, john.starks@microsoft.com, 
-	Dave Hansen <dave.hansen@intel.com>, Michal Hocko <mhocko@suse.com>
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20190710195158.19640-1-nitesh@redhat.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jul 10, 2019 at 12:53 PM Nitesh Narayan Lal <nitesh@redhat.com> wrote:
->
-> Enables QEMU to perform madvise free on the memory range reported
-> by the vm.
->
-> Signed-off-by: Nitesh Narayan Lal <nitesh@redhat.com>
-> ---
->  hw/virtio/trace-events                        |  1 +
->  hw/virtio/virtio-balloon.c                    | 59 +++++++++++++++++++
->  include/hw/virtio/virtio-balloon.h            |  2 +-
->  include/qemu/osdep.h                          |  7 +++
->  .../standard-headers/linux/virtio_balloon.h   |  1 +
->  5 files changed, 69 insertions(+), 1 deletion(-)
->
-> diff --git a/hw/virtio/trace-events b/hw/virtio/trace-events
-> index e28ba48da6..f703a22d36 100644
-> --- a/hw/virtio/trace-events
-> +++ b/hw/virtio/trace-events
-> @@ -46,6 +46,7 @@ virtio_balloon_handle_output(const char *name, uint64_t gpa) "section name: %s g
->  virtio_balloon_get_config(uint32_t num_pages, uint32_t actual) "num_pages: %d actual: %d"
->  virtio_balloon_set_config(uint32_t actual, uint32_t oldactual) "actual: %d oldactual: %d"
->  virtio_balloon_to_target(uint64_t target, uint32_t num_pages) "balloon target: 0x%"PRIx64" num_pages: %d"
-> +virtio_balloon_hinting_request(unsigned long pfn, unsigned int num_pages) "Guest page hinting request PFN:%lu size: %d"
->
->  # virtio-mmio.c
->  virtio_mmio_read(uint64_t offset) "virtio_mmio_read offset 0x%" PRIx64
-> diff --git a/hw/virtio/virtio-balloon.c b/hw/virtio/virtio-balloon.c
-> index 2112874055..5d186707b5 100644
-> --- a/hw/virtio/virtio-balloon.c
-> +++ b/hw/virtio/virtio-balloon.c
-> @@ -34,6 +34,9 @@
->
->  #define BALLOON_PAGE_SIZE  (1 << VIRTIO_BALLOON_PFN_SHIFT)
->
-> +#define VIRTIO_BALLOON_PAGE_HINTING_MAX_PAGES  16
-> +void free_mem_range(uint64_t addr, uint64_t len);
-> +
+On 7/10/19 12:51 PM, Nitesh Narayan Lal wrote:
+> This patch series proposes an efficient mechanism for reporting free memory
+> from a guest to its hypervisor. It especially enables guests with no page cache
+> (e.g., nvdimm, virtio-pmem) or with small page caches (e.g., ram > disk) to
+> rapidly hand back free memory to the hypervisor.
+> This approach has a minimal impact on the existing core-mm infrastructure.
+> 
+> Measurement results (measurement details appended to this email):
+> *Number of 5GB guests (each touching 4GB memory) that can be launched
+> without swap usage on a system with 15GB:
 
-The definition you have here is unused. I think you can drop it. Also
-why do you need this forward declaration? Couldn't you just leave
-free_mem_range below as a static and still have this compile?
+This sounds like a reasonable measurement, but I think you're missing a
+sentence or two explaining why this test was used.
 
->  struct PartiallyBalloonedPage {
->      RAMBlock *rb;
->      ram_addr_t base;
-> @@ -328,6 +331,58 @@ static void balloon_stats_set_poll_interval(Object *obj, Visitor *v,
->      balloon_stats_change_timer(s, 0);
->  }
->
-> +void free_mem_range(uint64_t addr, uint64_t len)
-> +{
-> +    int ret = 0;
-> +    void *hvaddr_to_free;
-> +    MemoryRegionSection mrs = memory_region_find(get_system_memory(),
-> +                                                 addr, 1);
-> +    if (!mrs.mr) {
-> +       warn_report("%s:No memory is mapped at address 0x%lu", __func__, addr);
-> +        return;
-> +    }
-> +
-> +    if (!memory_region_is_ram(mrs.mr) && !memory_region_is_romd(mrs.mr)) {
-> +       warn_report("%s:Memory at address 0x%s is not RAM:0x%lu", __func__,
-> +                   HWADDR_PRIx, addr);
-> +        memory_region_unref(mrs.mr);
-> +        return;
-> +    }
-> +
-> +    hvaddr_to_free = qemu_map_ram_ptr(mrs.mr->ram_block, mrs.offset_within_region);
-> +    trace_virtio_balloon_hinting_request(addr, len);
-> +    ret = qemu_madvise(hvaddr_to_free,len, QEMU_MADV_FREE);
-> +    if (ret == -1) {
-> +       warn_report("%s: Madvise failed with error:%d", __func__, ret);
-> +    }
-> +}
-> +
-> +static void virtio_balloon_handle_page_hinting(VirtIODevice *vdev,
-> +                                              VirtQueue *vq)
-> +{
-> +    VirtQueueElement *elem;
-> +    size_t offset = 0;
-> +    uint64_t gpa, len;
-> +    elem = virtqueue_pop(vq, sizeof(VirtQueueElement));
-> +    if (!elem) {
-> +        return;
-> +    }
-> +    /* For pending hints which are < max_pages(16), 'gpa != 0' ensures that we
-> +     * only read the buffer which holds a valid PFN value.
-> +     * TODO: Find a better way to do this.
-> +     */
+> unmodified kernel - 2, 3rd with 2.5GB   
 
-I'm not sure this comment makes much sense to me. Shouldn't the
-iov_to_buf be limiting you anyway? Why do you need the additional gpa
-check?
+What does "3rd with 2.5GB" mean?  The third gets 2.5GB before failing an
+allocation and crashing?
 
-> +    while (iov_to_buf(elem->out_sg, elem->out_num, offset, &gpa, 8) == 8 && gpa != 0) {
-> +       offset += 8;
-> +       offset += iov_to_buf(elem->out_sg, elem->out_num, offset, &len, 8);
+> v11 page hinting - 6, 7th with 26MB    
+> v1 bubble hinting[1] - 6, 7th with 1.8GB (bubble hinting is another series
+> proposed to solve the same problems)
 
-Why pull this out as two separate buffers? Why not just define a
-structure that consists of the two uint64_t values and then pull the
-entire thing as one buffer? I'm pretty sure the solution as you have
-it now opens you up to an error since you could have a malicious guest
-only give you a part of the structure and you really should be
-verifying you get the entire structure.
+Could you please make an effort to format things so that reviewers can
+easily read them?  Aligning columns and using common units would be very
+helpful, for instance:
 
-> +       if (!qemu_balloon_is_inhibited()) {
-> +           free_mem_range(gpa, len);
-> +       }
-> +    }
-> +    virtqueue_push(vq, elem, offset);
-> +    virtio_notify(vdev, vq);
-> +    g_free(elem);
-> +}
-> +
->  static void virtio_balloon_handle_output(VirtIODevice *vdev, VirtQueue *vq)
->  {
->      VirtIOBalloon *s = VIRTIO_BALLOON(vdev);
-> @@ -694,6 +749,7 @@ static uint64_t virtio_balloon_get_features(VirtIODevice *vdev, uint64_t f,
->      VirtIOBalloon *dev = VIRTIO_BALLOON(vdev);
->      f |= dev->host_features;
->      virtio_add_feature(&f, VIRTIO_BALLOON_F_STATS_VQ);
-> +    virtio_add_feature(&f, VIRTIO_BALLOON_F_HINTING);
->
->      return f;
->  }
-> @@ -780,6 +836,7 @@ static void virtio_balloon_device_realize(DeviceState *dev, Error **errp)
->      s->ivq = virtio_add_queue(vdev, 128, virtio_balloon_handle_output);
->      s->dvq = virtio_add_queue(vdev, 128, virtio_balloon_handle_output);
->      s->svq = virtio_add_queue(vdev, 128, virtio_balloon_receive_stats);
-> +    s->hvq = virtio_add_queue(vdev, 128, virtio_balloon_handle_page_hinting);
->
->      if (virtio_has_feature(s->host_features,
->                             VIRTIO_BALLOON_F_FREE_PAGE_HINT)) {
-> @@ -875,6 +932,8 @@ static void virtio_balloon_instance_init(Object *obj)
->
->      object_property_add(obj, "guest-stats", "guest statistics",
->                          balloon_stats_get_all, NULL, NULL, s, NULL);
-> +    object_property_add(obj, "guest-page-hinting", "guest page hinting",
-> +                        NULL, NULL, NULL, s, NULL);
->
->      object_property_add(obj, "guest-stats-polling-interval", "int",
->                          balloon_stats_get_poll_interval,
-> diff --git a/include/hw/virtio/virtio-balloon.h b/include/hw/virtio/virtio-balloon.h
-> index 1afafb12f6..a58b24fdf2 100644
-> --- a/include/hw/virtio/virtio-balloon.h
-> +++ b/include/hw/virtio/virtio-balloon.h
-> @@ -44,7 +44,7 @@ enum virtio_balloon_free_page_report_status {
->
->  typedef struct VirtIOBalloon {
->      VirtIODevice parent_obj;
-> -    VirtQueue *ivq, *dvq, *svq, *free_page_vq;
-> +    VirtQueue *ivq, *dvq, *svq, *free_page_vq, *hvq;
->      uint32_t free_page_report_status;
->      uint32_t num_pages;
->      uint32_t actual;
-> diff --git a/include/qemu/osdep.h b/include/qemu/osdep.h
-> index af2b91f0b8..bb9207e7f4 100644
-> --- a/include/qemu/osdep.h
-> +++ b/include/qemu/osdep.h
-> @@ -360,6 +360,11 @@ void qemu_anon_ram_free(void *ptr, size_t size);
->  #else
->  #define QEMU_MADV_REMOVE QEMU_MADV_INVALID
->  #endif
-> +#ifdef MADV_FREE
-> +#define QEMU_MADV_FREE MADV_FREE
-> +#else
-> +#define QEMU_MADV_FREE QEMU_MADV_INVALID
-> +#endif
+     unmodified kernel - 2, 3rd with 2.50 GB
+      v11 page hinting - 6, 7th with 0.03 GB
+  v1 bubble hinting[1] - 6, 7th with 1.80 GB
 
-As I mentioned before it might make more sense to use MADV_DONTNEED
-instead of just disabling this functionality if the host kernel
-doesn't have MADV_FREE support. That way you would still have the
-functionality on kernels prior to 4.5 if they need it.
+See how you can scan that easily and compare between the rows?
 
->  #elif defined(CONFIG_POSIX_MADVISE)
->
-> @@ -373,6 +378,7 @@ void qemu_anon_ram_free(void *ptr, size_t size);
->  #define QEMU_MADV_HUGEPAGE  QEMU_MADV_INVALID
->  #define QEMU_MADV_NOHUGEPAGE  QEMU_MADV_INVALID
->  #define QEMU_MADV_REMOVE QEMU_MADV_INVALID
-> +#define QEMU_MADV_FREE QEMU_MADV_INVALID
+I think you did some analysis below.  But, that seems misplaced.  It's
+better to include the conclusion here and the details to back it up
+later.  As it stands, the cover letter just throws some data at a
+reviewer and hopes they can make sense of it.
 
-Same here. It might make more sense to use the POSIX_MADV_DONTNEED
-instead of just making it invalid.
+> *Memhog execution time (For 3 guests each of 6GB on a system with 15GB):
+> unmodified kernel - Guest1:21s, Guest2:27s, Guest3:2m37s swap used = 3.7GB       
+> v11 page hinting - Guest1:23s, Guest2:26s, Guest3:21s swap used = 0           
+> v1 bubble hinting - Guest1:23, Guest2:11s, Guest3:26s swap used = 0           
 
->  #else /* no-op */
->
-> @@ -386,6 +392,7 @@ void qemu_anon_ram_free(void *ptr, size_t size);
->  #define QEMU_MADV_HUGEPAGE  QEMU_MADV_INVALID
->  #define QEMU_MADV_NOHUGEPAGE  QEMU_MADV_INVALID
->  #define QEMU_MADV_REMOVE QEMU_MADV_INVALID
-> +#define QEMU_MADV_FREE QEMU_MADV_INVALID
->
->  #endif
->
-> diff --git a/include/standard-headers/linux/virtio_balloon.h b/include/standard-headers/linux/virtio_balloon.h
-> index 9375ca2a70..f9e3e82562 100644
-> --- a/include/standard-headers/linux/virtio_balloon.h
-> +++ b/include/standard-headers/linux/virtio_balloon.h
-> @@ -36,6 +36,7 @@
->  #define VIRTIO_BALLOON_F_DEFLATE_ON_OOM        2 /* Deflate balloon on OOM */
->  #define VIRTIO_BALLOON_F_FREE_PAGE_HINT        3 /* VQ to report free pages */
->  #define VIRTIO_BALLOON_F_PAGE_POISON   4 /* Guest is using page poisoning */
-> +#define VIRTIO_BALLOON_F_HINTING       5 /* Page hinting virtqueue */
->
->  /* Size of a PFN in the balloon interface. */
->  #define VIRTIO_BALLOON_PFN_SHIFT 12
-> --
-> 2.21.0
->
+Again, I'm finding myself having to reformat your data just so I can
+make sense of it.  You also forgot the unit for Guest 1 in row 3.
+
+   unmodified - Guest1:21s, Guest2:27s, Guest3:2m37s swap used = 3.7GB
+
+  v11 hinting - Guest1:23s, Guest2:26s, Guest3:21s swap used = 0
+  v1 bubble   - Guest1:23s, Guest2:11s, Guest3:26s swap used = 0
+
+So, what is this supposed to show?  What does it mean?  Why do the
+numbers vary *so* much?
 
