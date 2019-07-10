@@ -2,206 +2,187 @@ Return-Path: <SRS0=tO+N=VH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-14.4 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_IN_DEF_DKIM_WL
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6929EC74A36
-	for <linux-mm@archiver.kernel.org>; Wed, 10 Jul 2019 20:45:23 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A6A6BC74A35
+	for <linux-mm@archiver.kernel.org>; Wed, 10 Jul 2019 20:51:02 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2331B20844
-	for <linux-mm@archiver.kernel.org>; Wed, 10 Jul 2019 20:45:23 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2331B20844
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 5104020844
+	for <linux-mm@archiver.kernel.org>; Wed, 10 Jul 2019 20:51:02 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="un30DGda"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5104020844
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B17A78E0095; Wed, 10 Jul 2019 16:45:22 -0400 (EDT)
+	id AD20F8E0097; Wed, 10 Jul 2019 16:51:01 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AC9758E0032; Wed, 10 Jul 2019 16:45:22 -0400 (EDT)
+	id A76288E0032; Wed, 10 Jul 2019 16:51:01 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 96A028E0095; Wed, 10 Jul 2019 16:45:22 -0400 (EDT)
+	id 93D458E0096; Wed, 10 Jul 2019 16:51:01 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 5C47D8E0032
-	for <linux-mm@kvack.org>; Wed, 10 Jul 2019 16:45:22 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id j12so1890126pll.14
-        for <linux-mm@kvack.org>; Wed, 10 Jul 2019 13:45:22 -0700 (PDT)
+Received: from mail-yb1-f199.google.com (mail-yb1-f199.google.com [209.85.219.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 6E4468E0032
+	for <linux-mm@kvack.org>; Wed, 10 Jul 2019 16:51:01 -0400 (EDT)
+Received: by mail-yb1-f199.google.com with SMTP id 192so2522277ybk.7
+        for <linux-mm@kvack.org>; Wed, 10 Jul 2019 13:51:01 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to
-         :references:from:openpgp:autocrypt:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=MwJLatTkf9kSjWXw64hRPS6an+x66nSUA9d6CHvSjzs=;
-        b=S1M6iQT6SsVO9uXwd83Zw5G1m+6jEMWpkaKD5j3+2CPjvLy+BsyYgWfmfxspUqP4mq
-         XlK5a7RsW7QSnbDzUPJKrMI0Bie7/C8Ix0Eb8GcvmyEC0ia8MYy1ExUaOUjPJ9LwIOJX
-         uHs0d38JKFFVCDyWdnMlYoelGBcyxcYnxnydfwt35Qu4ZcN6NzxUsGDN+Xpj1jKfPcT1
-         gPIi1ZP0XNJR7UjK1IemBg5EOTRtBs5gPIEZP71Zp5gk55uavf9HZp8LAuIlnV+1DWvS
-         bJETDVCLMHBCEyvFP7YuZLQghsB/033Yukqay/m03m0IxDvgjyssyb6vdPIevB2+q7mW
-         ZJ7g==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAUsfdQOWBUpMWfCDh2CDNhGdMQ77XXTHFTaH1fWKq7zIwerJwu1
-	m/dKoIeDZNPvnvWfw7TtQ70Nopdas8mHdkJihS/jraEbaju4Vn2KZaj2PCIBbNi7CiihzNzUslE
-	f9sHGX1vYYwaApvEZkQSvTrI1I2ja2oCl9q/Jd+Rms5Z/Btk4nQB8hKlYHwIPYI+5fA==
-X-Received: by 2002:a17:90a:bd0b:: with SMTP id y11mr280611pjr.141.1562791522047;
-        Wed, 10 Jul 2019 13:45:22 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyeULkQKJrDmZBsgmeJcRtmLLqK3jKkUsGaPWJrrBogR49wiL1pIiyZuUNTNsieEPHFczG6
-X-Received: by 2002:a17:90a:bd0b:: with SMTP id y11mr280569pjr.141.1562791521321;
-        Wed, 10 Jul 2019 13:45:21 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562791521; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=qtC5egLkr6FDak2iWiMiUha4yDwOlLCqb/iy6dvufbg=;
+        b=O7GiDDaY2Jf16gkH0ZhTSBjz0FpRKE+FASI+r7tovjLUVQLVdZij2oPls/xbEIL7ts
+         vtfoT0dB3no4/p8geigV0+wg4E0+y5Czv6Lr5fcnQokKrHunK1akcdIp8LP/kG1ByU7A
+         LiyGwdhjtz8mrjnYjgqllh3OI1ySDo15Y10oIsTshwrDUg5ZBQ/yb0Lj+X/GTNwGr8Dw
+         iBsUxC8UmN3sWuEDE+GUOyn9am4OzxSEEzPsjOjjIzWPvNJTeKBGYrVPGGdHPtfiW1ww
+         TY4XKo3jUOV/7+7Kl4cV/Z+UuecK/WK5j7frQgWRhzUhXWdd06o+9KfQoHDMEwaIoswE
+         cyvA==
+X-Gm-Message-State: APjAAAUTDLAt9a4Kb3PtPvHheK2oDGrbrVLwGf+5Z3sTDETV6/Vr0GUm
+	0LGgJo8Yf6zMnmFugu4yMA1TPnlAJzp44kG5QU5edHwkUPOqUl3tQCqz2jRck5mW9SiHID8jPb/
+	LhA/FntJzFeW5OOu9b+qYywh170xfh5mbC3HH07kHF7SJSNXqrm0+foQR7UCC9zRa9A==
+X-Received: by 2002:a25:d346:: with SMTP id e67mr17754936ybf.267.1562791861066;
+        Wed, 10 Jul 2019 13:51:01 -0700 (PDT)
+X-Received: by 2002:a25:d346:: with SMTP id e67mr17754924ybf.267.1562791860615;
+        Wed, 10 Jul 2019 13:51:00 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562791860; cv=none;
         d=google.com; s=arc-20160816;
-        b=JVToN+n1QwHO+k1vSpfeUWZE5nuL0AKk+UBEavWDidnUADZvYqFqr0jKuX7uw/Y8DZ
-         PNu25/Pk/768tDxFxtx7zmXrCX1logTuc/UNk/Ih0qVkDjSL+z3v63T0jKvnQXIUe7Hb
-         2KOLI9Jx03BiEJNy59ic8otYjoG6WN5Mh7++BwtCtF2Y9xrofcptRwgq6rMHzML/JHMr
-         Dkmef9N1r730NzNtwTOeMRKUXfGUzg8S716DCSB6bMikRK1EgJmV0v5vhUuQwX3uXpqM
-         KX0X/BKHqEF24gHpHJVoHiP3BojnK7Pv599/rkesm8+d0aoSsc1E83uWrTB/WKasQvuu
-         xz2Q==
+        b=WvdwU/r43Br6vR6iL8YdhZt/nrh7/tcLJuS0SyqTYntbCjhavFd2nr6aYwTuqzP179
+         7/gMXzxy1Klzw22SmczwZ1lazsIqsIoc5O4G1PORLZsHpKhN2L8KsZGT18QLtViuopTw
+         l8oUYCf7DrufQT0glsbSV0k8gSbd1FL1MnyUZ0u97vYSa534f2ctv8xYLWPnEJfKnVSu
+         MDxPk8K0oJEE5MhrXPPkw62s0YE/MFdcy/lhK3T5IhzuJ+dp1gkHPupSce8R76WdBiUf
+         NtXknSN8B2EdnfRXaL18D8b60zwbVqYPvsHqnCijPYW2z+D5KseBy7mFdhh2YKR7xYlJ
+         FT1A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:autocrypt:openpgp:from:references:to
-         :subject;
-        bh=MwJLatTkf9kSjWXw64hRPS6an+x66nSUA9d6CHvSjzs=;
-        b=hc62B5rLi1FCodgkQ40DASQDfw/WG+lxBlRGeLXWAhtjuPsVsP14E8eQisD6QnXsbn
-         YkIDyDfJFlIZtpMMjnJ2L/SqYqhiLLbxl4dRInFxUHpDXhTS8vHiTVxqsLPrCwIYcFZ+
-         FxlYXUNOhRa7wDk/Xd9ihICuJzVKuOYJs5nHJQafkuk36ZF+jWLCL7TKgg5ACAI8CR7r
-         3Lx/DkNtE97rplL/tQw9K0oSk8pmiDdjXSgsQsN8B5aRsME2G6ctdUwQUkr5Rf46l8yI
-         BjLfOcwNRSK4pxeqeyRqm5MmQVvDiwVGOm/WK2Yb43r5kmAgH6IS2o8HxJiS3FKUTSIM
-         qpRA==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=qtC5egLkr6FDak2iWiMiUha4yDwOlLCqb/iy6dvufbg=;
+        b=ScKF9SmuHuoC86+YgxwwTx9r5O+YfafVyMhNdgJEAm8kSeAvJQkWoBFhPAKUWYWP+I
+         VWqczJNwLX+yXJXfhX2dJxVSYFQagNHSjUxs0WaFNJkbDf2LEReFqoc/PvY0v6S8S8M5
+         I8z7n1IlSkfyEOJI4ZeLn1zAbK0oVUDW9h2NAWXpxK5gElaRGFAfzyI1s0knTBJRPrd9
+         4I2kzlOFiHjxdpEmCJjE5I7DHg9jfjajB6toi6W3HUGGvRxFRdYCOx7eIXiZMcmJMkg1
+         lJBEaeaIws2gpwqXxZf0eB95BvWhSpVDAvV09uY83KqfI8TpsjbnScporFLfcMnTl/6i
+         hW/A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id 5si3026639plx.200.2019.07.10.13.45.21
+       dkim=pass header.i=@google.com header.s=20161025 header.b=un30DGda;
+       spf=pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shakeelb@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 80sor1734059ywv.101.2019.07.10.13.51.00
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 10 Jul 2019 13:45:21 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.65 as permitted sender) client-ip=134.134.136.65;
+        (Google Transport Security);
+        Wed, 10 Jul 2019 13:51:00 -0700 (PDT)
+Received-SPF: pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from orsmga008.jf.intel.com ([10.7.209.65])
-  by orsmga103.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 10 Jul 2019 13:45:20 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.63,475,1557212400"; 
-   d="scan'208";a="159871053"
-Received: from akraina-mobl1.amr.corp.intel.com (HELO [10.251.14.235]) ([10.251.14.235])
-  by orsmga008.jf.intel.com with ESMTP; 10 Jul 2019 13:45:20 -0700
-Subject: Re: [RFC][Patch v11 1/2] mm: page_hinting: core infrastructure
-To: Nitesh Narayan Lal <nitesh@redhat.com>, kvm@vger.kernel.org,
- linux-kernel@vger.kernel.org, linux-mm@kvack.org, pbonzini@redhat.com,
- lcapitulino@redhat.com, pagupta@redhat.com, wei.w.wang@intel.com,
- yang.zhang.wz@gmail.com, riel@surriel.com, david@redhat.com, mst@redhat.com,
- dodgen@google.com, konrad.wilk@oracle.com, dhildenb@redhat.com,
- aarcange@redhat.com, alexander.duyck@gmail.com, john.starks@microsoft.com,
- mhocko@suse.com
-References: <20190710195158.19640-1-nitesh@redhat.com>
- <20190710195158.19640-2-nitesh@redhat.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=dave.hansen@intel.com; keydata=
- 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
-Message-ID: <3f9a7e7b-c026-3530-e985-804fc7f1ec31@intel.com>
-Date: Wed, 10 Jul 2019 13:45:19 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.2
+       dkim=pass header.i=@google.com header.s=20161025 header.b=un30DGda;
+       spf=pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shakeelb@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=qtC5egLkr6FDak2iWiMiUha4yDwOlLCqb/iy6dvufbg=;
+        b=un30DGdaaLTQqc9ulK9wePQZNwiEhBjveMWrvXlg8hVi2xvd+N8P2TXZEoi0WRxMdO
+         llLXQjc8o0YK/GKoMM6Mks5D9YzdX5CrXqHUuepOEt99nRpwRW2rjT+WTCSeOQeeYhNY
+         HkQJ/viI0xOIijcFCm8BT6F198ZZtsZfO85NmX7p8L3RZpoZF05hYiP5r80MbRionfnI
+         KWsMsDligc3KwH/zocEMYeQo0LG5TkO/fPLkkVqoP7ez4YTr4+pklJjpeAOmu3yBa4NT
+         XJlnM40YCOwVJubuwzLuIBGosoCyia3oKOEQxKKrSm5FRr2HoaOvlNKs3gNAdhg2r2WH
+         x7Tw==
+X-Google-Smtp-Source: APXvYqxrw4tF1qH2dtA3sf+vEsBsubI1n/tNaDi+JHo5Z4S27DzhSyZT3l5HStwbMbR0DBnVdtBXrRSGebZ3IdMezPk=
+X-Received: by 2002:a0d:c345:: with SMTP id f66mr19381788ywd.10.1562791859824;
+ Wed, 10 Jul 2019 13:50:59 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20190710195158.19640-2-nitesh@redhat.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+References: <20190708134808.e89f3bfadd9f6ffd7eff9ba9@gmail.com>
+In-Reply-To: <20190708134808.e89f3bfadd9f6ffd7eff9ba9@gmail.com>
+From: Shakeel Butt <shakeelb@google.com>
+Date: Wed, 10 Jul 2019 13:50:48 -0700
+Message-ID: <CALvZod7Qfj+Jer1TK4P-HmoQ0now=w2JK7NNrfC6ae8R0cOLcA@mail.gmail.com>
+Subject: Re: [PATCH] mm/z3fold.c: don't try to use buddy slots after free
+To: Vitaly Wool <vitalywool@gmail.com>
+Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, 
+	Henry Burns <henryburns@google.com>, Andrew Morton <akpm@linux-foundation.org>, 
+	Jonathan Adams <jwadams@google.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 7/10/19 12:51 PM, Nitesh Narayan Lal wrote:
-> +struct zone_free_area {
-> +	unsigned long *bitmap;
-> +	unsigned long base_pfn;
-> +	unsigned long end_pfn;
-> +	atomic_t free_pages;
-> +	unsigned long nbits;
-> +} free_area[MAX_NR_ZONES];
+On Mon, Jul 8, 2019 at 4:48 AM Vitaly Wool <vitalywool@gmail.com> wrote:
+>
+> From fd87fdc38ea195e5a694102a57bd4d59fc177433 Mon Sep 17 00:00:00 2001
+> From: Vitaly Wool <vitalywool@gmail.com>
+> Date: Mon, 8 Jul 2019 13:41:02 +0200
+> [PATCH] mm/z3fold: don't try to use buddy slots after free
+>
+> As reported by Henry Burns:
+>
+> Running z3fold stress testing with address sanitization
+> showed zhdr->slots was being used after it was freed.
+>
+> z3fold_free(z3fold_pool, handle)
+>   free_handle(handle)
+>     kmem_cache_free(pool->c_handle, zhdr->slots)
+>   release_z3fold_page_locked_list(kref)
+>     __release_z3fold_page(zhdr, true)
+>       zhdr_to_pool(zhdr)
+>         slots_to_pool(zhdr->slots)  *BOOM*
+>
+> To fix this, add pointer to the pool back to z3fold_header and modify
+> zhdr_to_pool to return zhdr->pool.
+>
+> Fixes: 7c2b8baa61fe  ("mm/z3fold.c: add structure for buddy handles")
+>
+> Reported-by: Henry Burns <henryburns@google.com>
+> Signed-off-by: Vitaly Wool <vitalywool@gmail.com>
 
-Why do we need an extra data structure.  What's wrong with putting
-per-zone data in ... 'struct zone'?  The cover letter claims that it
-doesn't touch core-mm infrastructure, but if it depends on mechanisms
-like this, I think that's a very bad thing.
+Reviewed-by: Shakeel Butt <shakeelb@google.com>
 
-To be honest, I'm not sure this series is worth reviewing at this point.
- It's horribly lightly commented and full of kernel antipatterns lik
-
-void func()
-{
-	if () {
-		... indent entire logic
-		... of function
-	}
-}
-
-It has big "TODO"s.  It's virtually comment-free.  I'm shocked it's at
-the 11th version and still looking like this.
-
-> +
-> +		for (zone_idx = 0; zone_idx < MAX_NR_ZONES; zone_idx++) {
-> +			unsigned long pages = free_area[zone_idx].end_pfn -
-> +					free_area[zone_idx].base_pfn;
-> +			bitmap_size = (pages >> PAGE_HINTING_MIN_ORDER) + 1;
-> +			if (!bitmap_size)
-> +				continue;
-> +			free_area[zone_idx].bitmap = bitmap_zalloc(bitmap_size,
-> +								   GFP_KERNEL);
-
-This doesn't support sparse zones.  We can have zones with massive
-spanned page sizes, but very few present pages.  On those zones, this
-will exhaust memory for no good reason.
-
-Comparing this to Alex's patch set, it's of much lower quality and at a
-much earlier stage of development.  The two sets are not really even
-comparable right now.  This certainly doesn't sell me on (or even really
-enumerate the deltas in) this approach vs. Alex's.
+> ---
+>  mm/z3fold.c | 5 ++++-
+>  1 file changed, 4 insertions(+), 1 deletion(-)
+>
+> diff --git a/mm/z3fold.c b/mm/z3fold.c
+> index 985732c8b025..e1686bf6d689 100644
+> --- a/mm/z3fold.c
+> +++ b/mm/z3fold.c
+> @@ -101,6 +101,7 @@ struct z3fold_buddy_slots {
+>   * @refcount:          reference count for the z3fold page
+>   * @work:              work_struct for page layout optimization
+>   * @slots:             pointer to the structure holding buddy slots
+> + * @pool:              pointer to the containing pool
+>   * @cpu:               CPU which this page "belongs" to
+>   * @first_chunks:      the size of the first buddy in chunks, 0 if free
+>   * @middle_chunks:     the size of the middle buddy in chunks, 0 if free
+> @@ -114,6 +115,7 @@ struct z3fold_header {
+>         struct kref refcount;
+>         struct work_struct work;
+>         struct z3fold_buddy_slots *slots;
+> +       struct z3fold_pool *pool;
+>         short cpu;
+>         unsigned short first_chunks;
+>         unsigned short middle_chunks;
+> @@ -320,6 +322,7 @@ static struct z3fold_header *init_z3fold_page(struct page *page,
+>         zhdr->start_middle = 0;
+>         zhdr->cpu = -1;
+>         zhdr->slots = slots;
+> +       zhdr->pool = pool;
+>         INIT_LIST_HEAD(&zhdr->buddy);
+>         INIT_WORK(&zhdr->work, compact_page_work);
+>         return zhdr;
+> @@ -426,7 +429,7 @@ static enum buddy handle_to_buddy(unsigned long handle)
+>
+>  static inline struct z3fold_pool *zhdr_to_pool(struct z3fold_header *zhdr)
+>  {
+> -       return slots_to_pool(zhdr->slots);
+> +       return zhdr->pool;
+>  }
+>
+>  static void __release_z3fold_page(struct z3fold_header *zhdr, bool locked)
+> --
+> 2.17.1
 
