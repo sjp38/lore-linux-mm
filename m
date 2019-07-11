@@ -7,98 +7,98 @@ X-Spam-Status: No, score=-9.9 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
 	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT
 	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C574FC74A54
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 14:26:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7845BC74A56
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 14:26:30 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7D6DA21670
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 14:26:27 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 31B74216B7
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 14:26:30 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="j/8IHCr9"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7D6DA21670
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="2lbqLqqQ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 31B74216B7
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0F8BB8E00C8; Thu, 11 Jul 2019 10:26:23 -0400 (EDT)
+	id DA2948E00C9; Thu, 11 Jul 2019 10:26:23 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 081A38E00C4; Thu, 11 Jul 2019 10:26:22 -0400 (EDT)
+	id D2DE78E00C4; Thu, 11 Jul 2019 10:26:23 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E65F98E00C8; Thu, 11 Jul 2019 10:26:22 -0400 (EDT)
+	id AE13E8E00C9; Thu, 11 Jul 2019 10:26:23 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C38558E00C4
-	for <linux-mm@kvack.org>; Thu, 11 Jul 2019 10:26:22 -0400 (EDT)
-Received: by mail-io1-f69.google.com with SMTP id c5so6904127iom.18
-        for <linux-mm@kvack.org>; Thu, 11 Jul 2019 07:26:22 -0700 (PDT)
+Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 834648E00C4
+	for <linux-mm@kvack.org>; Thu, 11 Jul 2019 10:26:23 -0400 (EDT)
+Received: by mail-io1-f72.google.com with SMTP id 132so6987870iou.0
+        for <linux-mm@kvack.org>; Thu, 11 Jul 2019 07:26:23 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references;
-        bh=385wpu4NDusZzlrvO4wdMoGEKubdnUYw4N6zqr4muDU=;
-        b=cG6fKZ3VeUElWj3A9w1ew9h2UjSs1fvJb/bsxXJohFkjRsSTMPMFihUSxjaiXuxAOi
-         s2IX4lN11e5dIRGxJfD/wbROzqC6zAmgJB33PJFZ2AjZmcP993U2suagiVhBB/XQMrPt
-         B9KpPlp+6cHMxwCSRc2aTvpK/lJSuPbmm3Y/GjbOFvE4MFJVC5kawKm7cRmDIt+PWeeS
-         wYq1dnUek3ROZnyPatXy7PKyClzjsIl7QHjZH8oFFWlFs9nT+HYGRYfpsX3GrgCEFb13
-         pzbLFgyhmxYs21IyTzuC070oMR5fkvmh4QulE0wRrrWB639sWE9R2cNDc7AdvCNTyNQi
-         UG3Q==
-X-Gm-Message-State: APjAAAV0xd74y8Grw1eHW6R3DPUr0MJJWVx4Z0xZF/0MddOOQX4lv2IE
-	0MKCYQYTWaZdi6L8Z7E567JZvSOw/EZy4FAnVLfdr/tzw3qS5KnuC84etdeJEnn5rUh3NS9YvdG
-	FbOd2JnnIsI9qR0y0cYgkXhNm6VFMdmj4TmDr/1YG6IW2ePaWHu8xjsG7/DbhKA17YQ==
-X-Received: by 2002:a5d:9643:: with SMTP id d3mr4775857ios.227.1562855182587;
+        bh=gEB6qC/xqft/fsE7GBzDnr3O7NBTUOw27/wZk4edBIk=;
+        b=HrNYCakVj7g0RDuIUi+wzPjxmMcHSabh/CaZMWd58g3oZu08p90feX9MIRgGRrosK7
+         OhYnshcu3eq0ri4BU12Xp99nwGw7KGQbt/felSw8NRqDZes3lYMqkadrMA8CvUekJLeb
+         HrmrgJoNtTsmUwzElquKDHsoF/8Tu/jcVPnSKcOf/dev/iS12MHtO+5kYkoiRiQNXPvN
+         xtnzMR10e5t8mSV+DhHSGosWaeeKLye4RjJOrfY9vPLiFsoJXRMHVFATrI1iN+v+kpNv
+         9ttcV30+9CCNNpaI+75PWkEBux9QNSkyPsoZ+/WoUCZEtcbRhaXqxI1tU/t6r/3KoBM7
+         00ig==
+X-Gm-Message-State: APjAAAVUbTvul4RRs9ffsCoknAIYzZ3hHItJF/Fvhnr6QKgVzoJRJAPR
+	XyctV6lBVEMWPvOVrQLnMcZ3vrD82Xid3XLLklr1v7Au7PYxtMnHV71XL2H3JphZwz4hajc4aXr
+	3qlGoXy3LJOqBcXinO5qX1DXaHFrlnf+RFGMNJ4q9S5y34MvPFPdAFogBmq2gnQ042Q==
+X-Received: by 2002:a6b:f711:: with SMTP id k17mr4406767iog.273.1562855183340;
+        Thu, 11 Jul 2019 07:26:23 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyiA0Yi0OaCvJ2hVCCjQwMZ2CZqR01eBztE3bARl3GrY6geL3JC6rD7oDwsE7ByopI0lTpP
+X-Received: by 2002:a6b:f711:: with SMTP id k17mr4406717iog.273.1562855182755;
         Thu, 11 Jul 2019 07:26:22 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwDexv5X+iHb0htnuAlGjnV0d+rO9gQ5F7JJfMSHftJaVfAK0TACi8VzCKIOmmIyEZxmhav
-X-Received: by 2002:a5d:9643:: with SMTP id d3mr4775793ios.227.1562855181934;
-        Thu, 11 Jul 2019 07:26:21 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562855181; cv=none;
+ARC-Seal: i=1; a=rsa-sha256; t=1562855182; cv=none;
         d=google.com; s=arc-20160816;
-        b=PWSNgQObdccPDXnzVrLh+8OxP+95T/4f3IungOaXgkWKpEP4LxGbg8FAsxwnczkNuQ
-         caezh+s/1DkrTvS6twUWXTmxmT1buTduwWb0RP3+V3zHaortcFT7uUvIBaceCe23ni2p
-         R3Hun4T98IwRi0dq5zUnWm1iNUCBMBSxpIAey/AeMx/uLxNdXU+NZ9+68mQuAso4LJWb
-         AMwxI+lhPQfKY7DCd6WluczwCFAQeNj5kiUSpAKs4M7AZyC3j412f/mgRjRvsDy7OJsk
-         3cS9gkNoQltFBucNG2U4MZnrqo0wN0p8/0ymf+kFBhhMsftqK3F/LRNmyonPO+zSlLDV
-         M+fA==
+        b=POOUVbjmYQeC+HMaRkGjXFkJHsPCNTg+UqDmZD1E/uuqLqTrfp9c9xBVWyU/Hi5kMF
+         +4cb88b7gah1cxgXQT9H4dTLnNFZjY48RJ1JwQEx25gySHSAu4E6Hm8N8iOkF+pce0jf
+         +pGpAS/Ccwi5rPxRKzOTbCk0QY0zkoHFSmjZlbPfdgBgUhDING0hCPG0ehwk0Zo3cS6C
+         AxenICIwtb+w2hLiDYUBslvIFXWzEQJ3u6wvhe1VHMeDbv9yKp6rS8kEKpXnyFy9U3Uj
+         A/3nmBSOTMSGyCZNuIMYFKtKJKkbod8/O2JPrXVVWRALWjPvWKxng6nYdSQpGeVWhwhJ
+         PZhA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from
          :dkim-signature;
-        bh=385wpu4NDusZzlrvO4wdMoGEKubdnUYw4N6zqr4muDU=;
-        b=AuYLT6A0ztFSCFeBYnMC8wiSnEs/O5l+ESsWx7bsVjYWYZDsDwTGsoQ3t6dtm0hox6
-         Z84keEWmpphCFYEsWxnt0uNETljCmILRSSCnqEs5ek80KGWvK02I0BrWSOuslMLDjtdU
-         JcsC4mZ9D4ibQ/b2oYDYd1oVLDZ6D3Rh6kvVUUypwvvwEf/eoAYW9FpNEGL8vor5461t
-         renr9amnRVP2su6vrfKZH8Do//tMi+LnVUQ5/iLG3UchcSaNyJMJuWl5UVpCEL6AoU7d
-         HtsqYId7bFxU3HEcn0f8NoB6bLoZv0dF0nd0T3sO7oHFDytMATkjcKPst7LOuiEP3dYk
-         v1KA==
+        bh=gEB6qC/xqft/fsE7GBzDnr3O7NBTUOw27/wZk4edBIk=;
+        b=MMac11r2KPGpI5Z+ttau4XFDA4tg8RnqAAkVGlI00hJK/IC0/p1AEg6HY8Q1TZ4C4d
+         UI3dOBYL+iOMNtAqMLpX5FGxB2OZcYgMA7ZL29RQBNGR2ofjRbgSOQopqoKk94XaUR18
+         f5QHt5/f6/zCJpQHbmjM9tgnlnPFJZkA6iyLDIwAbDYYSscyNTOBI2djWaz+7w+qjHju
+         JQetyk1U2CsUnoV/BYwpmebDFExN6tvPlaAup1pChzw9WMDmIry9H2dWlUlHxWaJLaiw
+         gPpB5M4KMQXMzmJF2PAbSppgfq/5MUDadVdwuSpAM0osbC0MjUshrX8WN/bHpXVXcukk
+         TgMQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b="j/8IHCr9";
-       spf=pass (google.com: domain of alexandre.chartre@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=alexandre.chartre@oracle.com;
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=2lbqLqqQ;
+       spf=pass (google.com: domain of alexandre.chartre@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=alexandre.chartre@oracle.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id g12si9223876jao.11.2019.07.11.07.26.21
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id o4si8681990jao.68.2019.07.11.07.26.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 11 Jul 2019 07:26:21 -0700 (PDT)
-Received-SPF: pass (google.com: domain of alexandre.chartre@oracle.com designates 156.151.31.85 as permitted sender) client-ip=156.151.31.85;
+        Thu, 11 Jul 2019 07:26:22 -0700 (PDT)
+Received-SPF: pass (google.com: domain of alexandre.chartre@oracle.com designates 156.151.31.86 as permitted sender) client-ip=156.151.31.86;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b="j/8IHCr9";
-       spf=pass (google.com: domain of alexandre.chartre@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=alexandre.chartre@oracle.com;
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=2lbqLqqQ;
+       spf=pass (google.com: domain of alexandre.chartre@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=alexandre.chartre@oracle.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
-	by userp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x6BEO7tr013226;
-	Thu, 11 Jul 2019 14:26:10 GMT
+Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
+	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x6BEOAv6001518;
+	Thu, 11 Jul 2019 14:26:08 GMT
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=from : to : cc :
  subject : date : message-id : in-reply-to : references; s=corp-2018-07-02;
- bh=385wpu4NDusZzlrvO4wdMoGEKubdnUYw4N6zqr4muDU=;
- b=j/8IHCr9S0gUaWnFi3Upjzuz55gy9Ljh6nfaWePnOoytFJ9B7SnJKULz74C3ywY6RXqi
- e2nlqVa9W7MNYSdP2Vf2C/oYboYtNcwS8EW9VbU8cIsaN6Fl9HN5Irx/xBWUPbwuO3Rb
- pA8nC/jt3qZSlX5P9mWE6i1BavyZZ35GVGnmvivmjOvqS8a8/Z0v3tfm2TkPowKHagRD
- jG7N8dpzCgLK0VRzFa0NpGxGayMyo+vj0XV5/GWaoX6BlSffhi7TdWAzW0NBMvhvqMgW
- Mi7BkTLlSEZlEqWrGTNR/OK6j6uUWeCyQ/O4mFUX/8vA2YAylUPyhsIeKxT9HDn0UNu4 +A== 
+ bh=gEB6qC/xqft/fsE7GBzDnr3O7NBTUOw27/wZk4edBIk=;
+ b=2lbqLqqQMw9uxcd2J0e8Od2Fbg4RGmN4xuVesYNv7Y1WX2picK7zuP05DlYEdlTfaf8/
+ /r7nj8HLahdOMoTA2qZgo+/gfuMNT7Tq+4PK/S1hx7st0ER2GrN8SVMswbugTm+RisIK
+ EY8L1gj7I42ax3Fxdef1h3ib61twTnbM35uhbRL7AAUoZFNDkEIoKv7I4NP1KhgZcU/R
+ jZEVCuE/tyUKHROCoRyc1hZZuUr29PCD1HGeFsTbcm2+VPtYBpOACfriqJHm7UaHZUcG
+ iSP2iP8CAbWrB5YbqwtuxyxbjJXj06/ciMakhxZ1tr5dVf0YbXkVnIwILeJB0axX/ioc dQ== 
 Received: from aserv0021.oracle.com (aserv0021.oracle.com [141.146.126.233])
-	by userp2120.oracle.com with ESMTP id 2tjm9r0bn2-1
+	by userp2130.oracle.com with ESMTP id 2tjk2u0dwu-1
 	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 11 Jul 2019 14:26:09 +0000
+	Thu, 11 Jul 2019 14:26:08 +0000
 Received: from achartre-desktop.fr.oracle.com (dhcp-10-166-106-34.fr.oracle.com [10.166.106.34])
-	by aserv0021.oracle.com (8.14.4/8.14.4) with ESMTP id x6BEPcu0021444;
-	Thu, 11 Jul 2019 14:26:06 GMT
+	by aserv0021.oracle.com (8.14.4/8.14.4) with ESMTP id x6BEPctw021444;
+	Thu, 11 Jul 2019 14:25:59 GMT
 From: Alexandre Chartre <alexandre.chartre@oracle.com>
 To: pbonzini@redhat.com, rkrcmar@redhat.com, tglx@linutronix.de,
         mingo@redhat.com, bp@alien8.de, hpa@zytor.com,
@@ -108,16 +108,16 @@ To: pbonzini@redhat.com, rkrcmar@redhat.com, tglx@linutronix.de,
 Cc: konrad.wilk@oracle.com, jan.setjeeilers@oracle.com, liran.alon@oracle.com,
         jwadams@google.com, graf@amazon.de, rppt@linux.vnet.ibm.com,
         alexandre.chartre@oracle.com
-Subject: [RFC v2 07/26] mm/asi: Add ASI page-table entry set functions
-Date: Thu, 11 Jul 2019 16:25:19 +0200
-Message-Id: <1562855138-19507-8-git-send-email-alexandre.chartre@oracle.com>
+Subject: [RFC v2 05/26] mm/asi: Add ASI page-table entry offset functions
+Date: Thu, 11 Jul 2019 16:25:17 +0200
+Message-Id: <1562855138-19507-6-git-send-email-alexandre.chartre@oracle.com>
 X-Mailer: git-send-email 1.7.1
 In-Reply-To: <1562855138-19507-1-git-send-email-alexandre.chartre@oracle.com>
 References: <1562855138-19507-1-git-send-email-alexandre.chartre@oracle.com>
 X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9314 signatures=668688
 X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
  suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=1
  classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
  definitions=main-1907110162
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
@@ -126,146 +126,83 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Add wrappers around the page table entry (pgd/p4d/pud/pmd) set
-functions which check that an existing entry is not being
-overwritten.
+Add wrappers around the p4d/pud/pmd/pte offset kernel functions which
+ensure that page-table pointers are in the specified ASI page-table.
 
 Signed-off-by: Alexandre Chartre <alexandre.chartre@oracle.com>
 ---
- arch/x86/mm/asi_pagetable.c |  124 +++++++++++++++++++++++++++++++++++++++++++
- 1 files changed, 124 insertions(+), 0 deletions(-)
+ arch/x86/mm/asi_pagetable.c |   62 +++++++++++++++++++++++++++++++++++++++++++
+ 1 files changed, 62 insertions(+), 0 deletions(-)
 
 diff --git a/arch/x86/mm/asi_pagetable.c b/arch/x86/mm/asi_pagetable.c
-index 0fc6d59..e17af9e 100644
+index 7a8f791..a89e02e 100644
 --- a/arch/x86/mm/asi_pagetable.c
 +++ b/arch/x86/mm/asi_pagetable.c
-@@ -270,3 +270,127 @@ static bool asi_valid_offset(struct asi *asi, void *offset)
+@@ -97,3 +97,65 @@ static bool asi_valid_offset(struct asi *asi, void *offset)
  
- 	return p4d;
+ 	return valid;
  }
 +
 +/*
-+ * asi_set_pXX() functions are equivalent to kernel set_pXX() functions
-+ * but, in addition, they ensure that they are not overwriting an already
-+ * existing reference in the page table. Otherwise an error is returned.
++ * asi_pXX_offset() functions are equivalent to kernel pXX_offset()
++ * functions but, in addition, they ensure that page table pointers
++ * are in the kernel isolation page table. Otherwise an error is
++ * returned.
 + */
-+static int asi_set_pte(struct asi *asi, pte_t *pte, pte_t pte_value)
++
++static pte_t *asi_pte_offset(struct asi *asi, pmd_t *pmd, unsigned long addr)
 +{
-+#ifdef DEBUG
-+	/*
-+	 * The pte pointer should come from asi_pte_alloc() or asi_pte_offset()
-+	 * both of which check if the pointer is in the kernel isolation page
-+	 * table. So this is a paranoid check to ensure the pointer is really
-+	 * in the kernel page table.
-+	 */
++	pte_t *pte;
++
++	pte = pte_offset_map(pmd, addr);
 +	if (!asi_valid_offset(asi, pte)) {
 +		pr_err("ASI %p: PTE %px not found\n", asi, pte);
-+		return -EINVAL;
++		return ERR_PTR(-EINVAL);
 +	}
-+#endif
-+	set_pte(pte, pte_value);
 +
-+	return 0;
++	return pte;
 +}
 +
-+static int asi_set_pmd(struct asi *asi, pmd_t *pmd, pmd_t pmd_value)
++static pmd_t *asi_pmd_offset(struct asi *asi, pud_t *pud, unsigned long addr)
 +{
-+#ifdef DEBUG
-+	/*
-+	 * The pmd pointer should come from asi_pmd_alloc() or asi_pmd_offset()
-+	 * both of which check if the pointer is in the kernel isolation page
-+	 * table. So this is a paranoid check to ensure the pointer is really
-+	 * in the kernel page table.
-+	 */
++	pmd_t *pmd;
++
++	pmd = pmd_offset(pud, addr);
 +	if (!asi_valid_offset(asi, pmd)) {
 +		pr_err("ASI %p: PMD %px not found\n", asi, pmd);
-+		return -EINVAL;
-+	}
-+#endif
-+	if (pmd_val(*pmd) == pmd_val(pmd_value))
-+		return 0;
-+
-+	if (!pmd_none(*pmd)) {
-+		pr_err("ASI %p: PMD %px overwriting %lx with %lx\n",
-+		       asi, pmd, pmd_val(*pmd), pmd_val(pmd_value));
-+		return -EBUSY;
++		return ERR_PTR(-EINVAL);
 +	}
 +
-+	set_pmd(pmd, pmd_value);
-+
-+	return 0;
++	return pmd;
 +}
 +
-+static int asi_set_pud(struct asi *asi, pud_t *pud, pud_t pud_value)
++static pud_t *asi_pud_offset(struct asi *asi, p4d_t *p4d, unsigned long addr)
 +{
-+#ifdef DEBUG
-+	/*
-+	 * The pud pointer should come from asi_pud_alloc() or asi_pud_offset()
-+	 * both of which check if the pointer is in the kernel isolation page
-+	 * table. So this is a paranoid check to ensure the pointer is really
-+	 * in the kernel page table.
-+	 */
++	pud_t *pud;
++
++	pud = pud_offset(p4d, addr);
 +	if (!asi_valid_offset(asi, pud)) {
 +		pr_err("ASI %p: PUD %px not found\n", asi, pud);
-+		return -EINVAL;
-+	}
-+#endif
-+	if (pud_val(*pud) == pud_val(pud_value))
-+		return 0;
-+
-+	if (!pud_none(*pud)) {
-+		pr_err("ASI %p: PUD %px overwriting %lx with %lx\n",
-+		       asi, pud, pud_val(*pud), pud_val(pud_value));
-+		return -EBUSY;
++		return ERR_PTR(-EINVAL);
 +	}
 +
-+	set_pud(pud, pud_value);
-+
-+	return 0;
++	return pud;
 +}
 +
-+static int asi_set_p4d(struct asi *asi, p4d_t *p4d, p4d_t p4d_value)
++static p4d_t *asi_p4d_offset(struct asi *asi, pgd_t *pgd, unsigned long addr)
 +{
-+#ifdef DEBUG
++	p4d_t *p4d;
++
++	p4d = p4d_offset(pgd, addr);
 +	/*
-+	 * The p4d pointer should come from asi_p4d_alloc() or asi_p4d_offset()
-+	 * both of which check if the pointer is in the kernel isolation page
-+	 * table. So this is a paranoid check to ensure the pointer is really
-+	 * in the kernel page table.
++	 * p4d is the same has pgd if we don't have a 5-level page table.
 +	 */
-+	if (!asi_valid_offset(asi, p4d)) {
++	if ((p4d != (p4d_t *)pgd) && !asi_valid_offset(asi, p4d)) {
 +		pr_err("ASI %p: P4D %px not found\n", asi, p4d);
-+		return -EINVAL;
-+	}
-+#endif
-+	if (p4d_val(*p4d) == p4d_val(p4d_value))
-+		return 0;
-+
-+	if (!p4d_none(*p4d)) {
-+		pr_err("ASI %p: P4D %px overwriting %lx with %lx\n",
-+		       asi, p4d, p4d_val(*p4d), p4d_val(p4d_value));
-+		return -EBUSY;
++		return ERR_PTR(-EINVAL);
 +	}
 +
-+	set_p4d(p4d, p4d_value);
-+
-+	return 0;
-+}
-+
-+static int asi_set_pgd(struct asi *asi, pgd_t *pgd, pgd_t pgd_value)
-+{
-+	if (pgd_val(*pgd) == pgd_val(pgd_value))
-+		return 0;
-+
-+	if (!pgd_none(*pgd)) {
-+		pr_err("ASI %p: PGD %px overwriting %lx with %lx\n",
-+		       asi, pgd, pgd_val(*pgd), pgd_val(pgd_value));
-+		return -EBUSY;
-+	}
-+
-+	set_pgd(pgd, pgd_value);
-+
-+	return 0;
++	return p4d;
 +}
 -- 
 1.7.1
