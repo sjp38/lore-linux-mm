@@ -2,293 +2,427 @@ Return-Path: <SRS0=bABq=VI=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7B83DC742A1
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 22:49:23 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0DCF3C742A1
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 23:20:15 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 292682084B
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 22:49:23 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 9D99A20872
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 23:20:14 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="L5Z9krLK"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 292682084B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="tcTUtS8d"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9D99A20872
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B17B08E00FF; Thu, 11 Jul 2019 18:49:22 -0400 (EDT)
+	id 226F68E0100; Thu, 11 Jul 2019 19:20:14 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AEF5B8E00DB; Thu, 11 Jul 2019 18:49:22 -0400 (EDT)
+	id 1B1158E00DB; Thu, 11 Jul 2019 19:20:14 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9DDB98E00FF; Thu, 11 Jul 2019 18:49:22 -0400 (EDT)
+	id 078BD8E0100; Thu, 11 Jul 2019 19:20:14 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 675938E00DB
-	for <linux-mm@kvack.org>; Thu, 11 Jul 2019 18:49:22 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id e20so4311650pfd.3
-        for <linux-mm@kvack.org>; Thu, 11 Jul 2019 15:49:22 -0700 (PDT)
+Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D7A4F8E00DB
+	for <linux-mm@kvack.org>; Thu, 11 Jul 2019 19:20:13 -0400 (EDT)
+Received: by mail-io1-f71.google.com with SMTP id m26so8448021ioh.17
+        for <linux-mm@kvack.org>; Thu, 11 Jul 2019 16:20:13 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=0NNBSNCrFm9QFt/oHiBoXOjWFpu5BzIUnKEMn8Pl3Vo=;
-        b=Fn5kcVcy2eag7Cd1IXNGlABPDUlth0NpF3f7u6GV9nkYiXJur6+dMCU1hEtmNV9pml
-         63z6fILBhGMC2JaXIDn+C7icb7n6sk//u1qDVZdsm0/E421H+rE9DoMXc5BpCBccyfag
-         S56u1g7yMSDNNnhV/oGPmPiG9WLmqdCVmkb/GWN7w+hI6zmwrBY5e9z8dz/WCvhLNgaS
-         SPaAfW/IRtVlBcFNCtigeHnybEu+qqRAPiKQgaTpCRY3aUrGx62H4r/kuXTOBZd0hoyi
-         krGuSuZsW6OTxxicvRGYJVisBX0/AsGUePjN5WZgcRAsQ1CWRunmLgVIPeOr13TR2X8A
-         az+g==
-X-Gm-Message-State: APjAAAUP5CDhGFT/NDL/blsBscWJYMKbkdt8Xez+zSVc+1VKjUuW3NC0
-	yc+wU/ezeGVmjFuQ/iTt2OfIr4E2DUBC5xFulZqG6VHQtYc1YxwMM5jmc6J+BUG1lrSy+YnHIwL
-	g7yJ2BOeCoKCeYAcqwA0BCUoU3PCsFWd3ggbdWgS00KqtMCKuaKjPmS0mTDKGUXGrDw==
-X-Received: by 2002:a17:90a:d3d4:: with SMTP id d20mr7789665pjw.28.1562885361997;
-        Thu, 11 Jul 2019 15:49:21 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxTYatIY2Wy5mShmQHtnRkwwz5bJQVsr2XoeEsuJdxi7V3+bmSFTh6aWIrANgAdIwIbxKe1
-X-Received: by 2002:a17:90a:d3d4:: with SMTP id d20mr7789604pjw.28.1562885360908;
-        Thu, 11 Jul 2019 15:49:20 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562885360; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=oCPHoz17y0dpD/UZbIl3iQbaQKp5frubKji4q6qVvyg=;
+        b=HPTz5qLZr6RkiexIjoD3qI+uS36uC47qoLcDS4t8LTr5n2OkqIIiE8jg4oY7FYqie+
+         n8Qk21WUpq/bmG+vykHKWSRBXYOiTHUzVCJrfLz4Tr17d2n+2XIv6kBXoxJXRmfq+jb/
+         bOsaVBW1Lls0OTniWlJJvrXG1SyEYa/1wJ7HtIrlki8cDk9ueiAGcBmSSnY2H9hNn6US
+         hRHp7cN7dcGXFXYOQ/wWWRNXBmIv4pQ9rDlmE3bOE6rV7BH0qchE/EdV5q7pZ9Y6OE0e
+         9JZnmiLCJNdsaWuFz67F4aNxV7oSwGWxiA+YF6VweeBPdceEbvZAUtiibYukOelvoMRI
+         v7Yg==
+X-Gm-Message-State: APjAAAUZi4EYq//njj6ToaEV2p6Mx8esp6hFg7AhYj6X3VJ9/sk4yVp0
+	IUStBZMQBSAlysDtdwzma0AnmhS+WsuQoT7ccV4RLevV3DDe79acSu5F5goSzmhsJWh9WQW6Vwd
+	nVMTPnyizvXpwuLSC+PlE6bSVZUXDaEMBColEICffA6OQbiV0dyQ1LePFJQelbZNQew==
+X-Received: by 2002:a02:ce35:: with SMTP id v21mr7446790jar.108.1562887213524;
+        Thu, 11 Jul 2019 16:20:13 -0700 (PDT)
+X-Received: by 2002:a02:ce35:: with SMTP id v21mr7446671jar.108.1562887212158;
+        Thu, 11 Jul 2019 16:20:12 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562887212; cv=none;
         d=google.com; s=arc-20160816;
-        b=hPU2gcRgeGNTVtuNE95tn9Y30jhaNnCvvpAok4BueSCT2/C0WCc85N5bRPs3IoEAUR
-         YBnma1/oSP/Rzau6/BgOOXGW0e6rlQspyoyRkgQXC+l/t7Orw5J0Nan6L2cWG/k6EShV
-         STraoM1D7L3MZO1IR1GoeX3ujlD9GX30kUR0xy8/u47B6UI5Hh3KZE20FRG66n07HNck
-         yG+jUkpn88qejN5Q31Z4FnWHDJG3I8clWRgZK5eLpa48CMYZuje7m9kZ8Ai/XHAWzu6S
-         11BZbn5mFpCj/Q8CsCu/1IQ2fHGfSw9BLtT5G2b/aWb9m50jCxCZ69Lq78BcBA2E1tZO
-         2v4g==
+        b=nOit1HxY05i8OOX8STT24gaYQlM3YSRHLNi6LJyplbMg6YcM2nqWb05eGLbsuzapMF
+         IGcvxF4YVSQfccHza3vy+Ne1JC+4Q/yH1xXUEb+sUZq8XQkMrcaKg/Q+yY64GP2GzW17
+         cZUGQWmSlLGQJJWpBHjaKUGlHAfx3K+5sX7XrTOC+VqsIPEUh4hjjGLBr7oUiiRxkSXl
+         Yx/+5MJKsAcjOsLVxq2NWgBd41Fu0dMy9Z5Ic3BGtKOQO56onwgQxvWCqOdX4bFh1tMJ
+         TVqvjeoz/VAAcM/iKjcH9RlGyEd8ohNNRa/8O3ofIdSJbm1pZFtQiLFRmrDecm/LXaTL
+         /7oA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=0NNBSNCrFm9QFt/oHiBoXOjWFpu5BzIUnKEMn8Pl3Vo=;
-        b=sGti1x7l0LjH9FT4iUvVHqjzY3aUgSc7HnMxiGTpd6RhMNtalCnkgt1evHZ7nZUvUJ
-         8Swp+/05F70wu763aLBtcY7Rr2Do271f648XA+JOPokMLqPBThtwZABVuTI/HeUUVJ+P
-         plzHgO+JOzUB8E7R/fgdfH+3/x9YEZ5YB+e4fpLbb24fFMz22uWxDIKnNeyCO/FpVFZY
-         UamLiTuQbYXA+5yQQSrqdsu5DrmQc0HepYJNibNXeQFged+sD6opTbrB60ufKKZesqW6
-         Fq9aVhZv+3X69NTSW1l+WC88Pz/m9LmNWovC4UY5ZqfR0HEneuiJ2dswKdEbdCnedBlA
-         RPFw==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=oCPHoz17y0dpD/UZbIl3iQbaQKp5frubKji4q6qVvyg=;
+        b=btapKCleElt1SsyHIJ3b0Hw5uJK2fYMY3atQaDp9wKnRxwYFpMUhxcHDjYffTYT8EK
+         lCWjytihRNJcJjCSUVvS8RUYBD6lbde/3+/gj8g6EqW++t9MgamPWdiJlUXjRJ3hlQA7
+         8thFfSXezotAIH+acGvi29qrBugC6ya++FFpMJbB0LuHxYVOG+7r8Y+NCr3R8ZKuFimt
+         6DqgCJ1iCOlKDAsqAXs0ANycMEziUHt4SZNnqZLZsqowA3L+rj2ob6ssQZS8PyzOsbTL
+         3a2SViVOpsNgrjv2vOPAqQ5W2hd8qwf84SW+F6zlWxHa4L1vKzHGLkmJPOGsacGuq6S6
+         NTVw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=L5Z9krLK;
-       spf=pass (google.com: domain of mhiramat@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=mhiramat@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id q2si6080375plh.59.2019.07.11.15.49.20
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=tcTUtS8d;
+       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id j184sor5832106iof.140.2019.07.11.16.20.12
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 11 Jul 2019 15:49:20 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mhiramat@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        (Google Transport Security);
+        Thu, 11 Jul 2019 16:20:12 -0700 (PDT)
+Received-SPF: pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=L5Z9krLK;
-       spf=pass (google.com: domain of mhiramat@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=mhiramat@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from devnote2 (NE2965lan1.rev.em-net.ne.jp [210.141.244.193])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 08517214AF;
-	Thu, 11 Jul 2019 22:49:10 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1562885360;
-	bh=F0692oM20SJBi7lipGMWh8asP30aK1zY5Sdre9epQkE=;
-	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
-	b=L5Z9krLKI9nSy8tV3IzQalqBtpWXJWdMFlfaOUH+MjmcE0DMgIpRaPSkSpkAbMLkd
-	 uYrReV24XpvMXXctVHHhCVZoyvjIhmkxGWE0i9pTGAjZZOKxa/jhEhzpyccUp6UubU
-	 qBgK/iWqdautlONEQXJ6DpjMNy3+xr026DqMOj9E=
-Date: Fri, 12 Jul 2019 07:49:07 +0900
-From: Masami Hiramatsu <mhiramat@kernel.org>
-To: Anshuman Khandual <anshuman.khandual@arm.com>
-Cc: linux-mm@kvack.org, Vineet Gupta <vgupta@synopsys.com>, Russell King
- <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will
- Deacon <will@kernel.org>, Tony Luck <tony.luck@intel.com>, Fenghua Yu
- <fenghua.yu@intel.com>, Ralf Baechle <ralf@linux-mips.org>, Paul Burton
- <paul.burton@mips.com>, James Hogan <jhogan@kernel.org>, Benjamin
- Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras
- <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Heiko Carstens
- <heiko.carstens@de.ibm.com>, Vasily Gorbik <gor@linux.ibm.com>, Christian
- Borntraeger <borntraeger@de.ibm.com>, Yoshinori Sato
- <ysato@users.sourceforge.jp>, Rich Felker <dalias@libc.org>,
- "David S. Miller" <davem@davemloft.net>, Thomas Gleixner
- <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov
- <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, "Naveen N. Rao"
- <naveen.n.rao@linux.ibm.com>, Anil S Keshavamurthy
- <anil.s.keshavamurthy@intel.com>, Allison Randal <allison@lohutok.net>,
- Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Enrico Weigelt
- <info@metux.net>, Richard Fontana <rfontana@redhat.com>, Kate Stewart
- <kstewart@linuxfoundation.org>, Mark Rutland <mark.rutland@arm.com>, Andrew
- Morton <akpm@linux-foundation.org>, Guenter Roeck <linux@roeck-us.net>,
- x86@kernel.org, linux-snps-arc@lists.infradead.org,
- linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org,
- linux-ia64@vger.kernel.org, linux-mips@vger.kernel.org,
- linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org,
- linux-sh@vger.kernel.org, sparclinux@vger.kernel.org
-Subject: Re: [PATCH] mm/kprobes: Add generic kprobe_fault_handler() fallback
- definition
-Message-Id: <20190712074907.1ab08841e77b6cc867396148@kernel.org>
-In-Reply-To: <3aee1f30-241c-d1c2-2ff5-ff521db47755@arm.com>
-References: <1562304629-29376-1-git-send-email-anshuman.khandual@arm.com>
-	<20190705193028.f9e08fe9cf1ee86bc5c0bb82@kernel.org>
-	<3aee1f30-241c-d1c2-2ff5-ff521db47755@arm.com>
-X-Mailer: Sylpheed 3.5.1 (GTK+ 2.24.32; x86_64-pc-linux-gnu)
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=tcTUtS8d;
+       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=oCPHoz17y0dpD/UZbIl3iQbaQKp5frubKji4q6qVvyg=;
+        b=tcTUtS8dZco2rqXX31P2FSSeJcBGk6f+b/efZUS8D7qyxpaCnel/TDHDm4QpAKnE9j
+         e5VfKfLV6SuepCtL1g+e+fJh0z8genvbO4HtjQhMQuN7dlxoLExvc00D3V4WGKGOIu5s
+         qgaHbkJGjnEBhf5IZecdg2HKDeTqxPpAd4RMtHQiyemChbr8katgOaoupJaEHAYl7KSD
+         E6NuMEiXX9Gy5cnxWwGfIqjxp6Tq2sfbO9ffK8TJjnmYOj0mb2jnNHEpctl6yLx3vh9o
+         PFaCgm+MiDYZ3qjoKpsPrJlmyEVOkICA8RakfXehLjCsYoKj8L8CpZVPrVgxuIEx/ite
+         YFMw==
+X-Google-Smtp-Source: APXvYqzEaqbHfFNh+TRcl7ohEcstvzvXgd581ukBAhA/w4uEdRcz2hBu8SNgoIPOn2m6J1GhyxF+pIMqglwUhWaquXU=
+X-Received: by 2002:a6b:dd18:: with SMTP id f24mr6836460ioc.97.1562887211609;
+ Thu, 11 Jul 2019 16:20:11 -0700 (PDT)
+MIME-Version: 1.0
+References: <20190710195158.19640-1-nitesh@redhat.com> <20190710195158.19640-2-nitesh@redhat.com>
+ <CAKgT0Ue3mVZ_J0GgMUP4PBW4SUD1=L9ixD5nUZybw9_vmBAT0A@mail.gmail.com> <3c6c6b93-eb21-a04c-d0db-6f1b134540db@redhat.com>
+In-Reply-To: <3c6c6b93-eb21-a04c-d0db-6f1b134540db@redhat.com>
+From: Alexander Duyck <alexander.duyck@gmail.com>
+Date: Thu, 11 Jul 2019 16:20:00 -0700
+Message-ID: <CAKgT0UcaKhAf+pTeE1CRxqhiPtR2ipkYZZ2+aChetV7=LDeSeA@mail.gmail.com>
+Subject: Re: [RFC][Patch v11 1/2] mm: page_hinting: core infrastructure
+To: Nitesh Narayan Lal <nitesh@redhat.com>
+Cc: kvm list <kvm@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, 
+	linux-mm <linux-mm@kvack.org>, Paolo Bonzini <pbonzini@redhat.com>, lcapitulino@redhat.com, 
+	pagupta@redhat.com, wei.w.wang@intel.com, 
+	Yang Zhang <yang.zhang.wz@gmail.com>, Rik van Riel <riel@surriel.com>, 
+	David Hildenbrand <david@redhat.com>, "Michael S. Tsirkin" <mst@redhat.com>, dodgen@google.com, 
+	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, dhildenb@redhat.com, 
+	Andrea Arcangeli <aarcange@redhat.com>, john.starks@microsoft.com, 
+	Dave Hansen <dave.hansen@intel.com>, Michal Hocko <mhocko@suse.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Anshuman,
+On Thu, Jul 11, 2019 at 10:58 AM Nitesh Narayan Lal <nitesh@redhat.com> wrote:
+>
+>
+> On 7/10/19 5:56 PM, Alexander Duyck wrote:
+> > On Wed, Jul 10, 2019 at 12:52 PM Nitesh Narayan Lal <nitesh@redhat.com> wrote:
+> >> This patch introduces the core infrastructure for free page hinting in
+> >> virtual environments. It enables the kernel to track the free pages which
+> >> can be reported to its hypervisor so that the hypervisor could
+> >> free and reuse that memory as per its requirement.
+> >>
+> >> While the pages are getting processed in the hypervisor (e.g.,
+> >> via MADV_FREE), the guest must not use them, otherwise, data loss
+> >> would be possible. To avoid such a situation, these pages are
+> >> temporarily removed from the buddy. The amount of pages removed
+> >> temporarily from the buddy is governed by the backend(virtio-balloon
+> >> in our case).
+> >>
+> >> To efficiently identify free pages that can to be hinted to the
+> >> hypervisor, bitmaps in a coarse granularity are used. Only fairly big
+> >> chunks are reported to the hypervisor - especially, to not break up THP
+> >> in the hypervisor - "MAX_ORDER - 2" on x86, and to save space. The bits
+> >> in the bitmap are an indication whether a page *might* be free, not a
+> >> guarantee. A new hook after buddy merging sets the bits.
+> >>
+> >> Bitmaps are stored per zone, protected by the zone lock. A workqueue
+> >> asynchronously processes the bitmaps, trying to isolate and report pages
+> >> that are still free. The backend (virtio-balloon) is responsible for
+> >> reporting these batched pages to the host synchronously. Once reporting/
+> >> freeing is complete, isolated pages are returned back to the buddy.
+> >>
+> >> There are still various things to look into (e.g., memory hotplug, more
+> >> efficient locking, possible races when disabling).
+> >>
+> >> Signed-off-by: Nitesh Narayan Lal <nitesh@redhat.com>
 
-On Mon, 8 Jul 2019 09:03:13 +0530
-Anshuman Khandual <anshuman.khandual@arm.com> wrote:
+So just FYI, I thought I would try the patches. It looks like there
+might be a bug somewhere that is causing it to free memory it
+shouldn't be. After about 10 minutes my VM crashed with a system log
+full of various NULL pointer dereferences. The only change I had made
+is to use MADV_DONTNEED instead of MADV_FREE in QEMU since my headers
+didn't have MADV_FREE on the host. It occurs to me one advantage of
+MADV_DONTNEED over MADV_FREE is that you are more likely to catch
+these sort of errors since it zeros the pages instead of leaving them
+intact.
 
-> >> Architectures like parisc enable CONFIG_KROBES without having a definition
-> >> for kprobe_fault_handler() which results in a build failure.
-> > 
-> > Hmm, as far as I can see, kprobe_fault_handler() is closed inside each arch
-> > specific code. The reason why include/linux/kprobes.h defines
-> > dummy inline function is only for !CONFIG_KPROBES case.
-> 
-> IIRC Andrew mentioned [1] that we should remove this stub from the generic kprobes
-> header because this is very much architecture specific. As we see in this proposed
-> patch, except x86 there is no other current user which actually calls this from
-> some where when CONFIG_KPROBES is not enabled.
-> 
-> [1] https://www.spinics.net/lists/linux-mm/msg182649.html
+> >> ---
+> >>  include/linux/page_hinting.h |  45 +++++++
+> >>  mm/Kconfig                   |   6 +
+> >>  mm/Makefile                  |   1 +
+> >>  mm/page_alloc.c              |  18 +--
+> >>  mm/page_hinting.c            | 250 +++++++++++++++++++++++++++++++++++
+> >>  5 files changed, 312 insertions(+), 8 deletions(-)
+> >>  create mode 100644 include/linux/page_hinting.h
+> >>  create mode 100644 mm/page_hinting.c
+> >>
+> >> diff --git a/include/linux/page_hinting.h b/include/linux/page_hinting.h
+> >> new file mode 100644
+> >> index 000000000000..4900feb796f9
+> >> --- /dev/null
+> >> +++ b/include/linux/page_hinting.h
+> >> @@ -0,0 +1,45 @@
+> >> +/* SPDX-License-Identifier: GPL-2.0 */
+> >> +#ifndef _LINUX_PAGE_HINTING_H
+> >> +#define _LINUX_PAGE_HINTING_H
+> >> +
+> >> +/*
+> >> + * Minimum page order required for a page to be hinted to the host.
+> >> + */
+> >> +#define PAGE_HINTING_MIN_ORDER         (MAX_ORDER - 2)
+> >> +
+> > Why use (MAX_ORDER - 2)? Is this just because of the issues I pointed
+> > out earlier for is it due to something else? I'm just wondering if
+> > this will have an impact on architectures outside of x86 as I had
+> > chose pageblock_order which happened to be MAX_ORDER - 2 on x86, but I
+> > don't know that the impact of doing that is on other architectures
+> > versus the (MAX_ORDER - 2) approach you took here.
+> If I am not wrong then any order  < (MAX_ORDER - 2) will break the THP.
+> That's one reason we decided to stick with this.
 
-Ah, OK. I saw another branch. Also, this is a bugfix patch against
-commit 4dd635bce90e ("mm, kprobes: generalize and rename notify_page_fault() as
- kprobe_page_fault()"), please add Fixes: tag on it.
+That is true for x86, but I don't think that is true for other
+architectures. That is why I went with pageblock_order instead of just
+using a fixed value such as MAX_ORDER - 2.
 
-In this case, we should just add a prototype of kprobe_fault_handler() in
-include/linux/kprobes.h, and maybe add a stub of kprobe_fault_handler()
-as a weak function, something like below.
+<snip>
 
-int __weak kprobe_fault_handler(struct pt_regs *regs, int trapnr)
-{
-	/*
-	 * Each architecture which uses kprobe_page_fault() must define
-	 * a fault handler to handle page fault in kprobe correctly.
-	 */
-	WARN_ON_ONCE(1);
-	return 0;
-}
+> >> diff --git a/mm/page_hinting.c b/mm/page_hinting.c
+> >> new file mode 100644
+> >> index 000000000000..0bfa09f8c3ed
+> >> --- /dev/null
+> >> +++ b/mm/page_hinting.c
+> >> @@ -0,0 +1,250 @@
+> >> +// SPDX-License-Identifier: GPL-2.0
+> >> +/*
+> >> + * Page hinting core infrastructure to enable a VM to report free pages to its
+> >> + * hypervisor.
+> >> + *
+> >> + * Copyright Red Hat, Inc. 2019
+> >> + *
+> >> + * Author(s): Nitesh Narayan Lal <nitesh@redhat.com>
+> >> + */
+> >> +
+> >> +#include <linux/mm.h>
+> >> +#include <linux/slab.h>
+> >> +#include <linux/page_hinting.h>
+> >> +#include <linux/kvm_host.h>
+> >> +
+> >> +/*
+> >> + * struct zone_free_area: For a single zone across NUMA nodes, it holds the
+> >> + * bitmap pointer to track the free pages and other required parameters
+> >> + * used to recover these pages by scanning the bitmap.
+> >> + * @bitmap:            Pointer to the bitmap in PAGE_HINTING_MIN_ORDER
+> >> + *                     granularity.
+> >> + * @base_pfn:          Starting PFN value for the zone whose bitmap is stored.
+> >> + * @end_pfn:           Indicates the last PFN value for the zone.
+> >> + * @free_pages:                Tracks the number of free pages of granularity
+> >> + *                     PAGE_HINTING_MIN_ORDER.
+> >> + * @nbits:             Indicates the total size of the bitmap in bits allocated
+> >> + *                     at the time of initialization.
+> >> + */
+> >> +struct zone_free_area {
+> >> +       unsigned long *bitmap;
+> >> +       unsigned long base_pfn;
+> >> +       unsigned long end_pfn;
+> >> +       atomic_t free_pages;
+> >> +       unsigned long nbits;
+> >> +} free_area[MAX_NR_ZONES];
+> >> +
+> > You still haven't addressed the NUMA issue I pointed out with v10. You
+> > are only able to address the first set of zones with this setup. As
+> > such you can end up missing large sections of memory if it is split
+> > over multiple nodes.
+> I think I did.
 
-> >> Arch needs to
-> >> provide kprobe_fault_handler() as it is platform specific and cannot have
-> >> a generic working alternative. But in the event when platform lacks such a
-> >> definition there needs to be a fallback.
-> > 
-> > Wait, indeed that each arch need to implement it, but that is for calling
-> > kprobe->fault_handler() as user expected.
-> > Hmm, why not fixing those architecture implementations?
-> 
-> After the recent change which introduced a generic kprobe_page_fault() every
-> architecture enabling CONFIG_KPROBES must have a kprobe_fault_handler() which
-> was not the case earlier.
+I just realized what you did. Actually this doesn't really improve
+things in my opinion. More comments below.
 
-As far as I can see, gcc complains it because there is no prototype of
-kprobe_fault_handler(). Actually no need to define empty kprobe_fault_handler()
-on each arch. If we have a prototype, but no actual function, gcc stops the
-error unless the arch depending code uses it. So actually, we don't need above
-__weak function.
+> >
+> >> +static void init_hinting_wq(struct work_struct *work);
+> >> +static DEFINE_MUTEX(page_hinting_init);
+> >> +const struct page_hinting_config *page_hitning_conf;
+> >> +struct work_struct hinting_work;
+> >> +atomic_t page_hinting_active;
+> >> +
+> >> +void free_area_cleanup(int nr_zones)
+> >> +{
+> > I'm not sure why you are passing nr_zones as an argument here. Won't
+> > this always be MAX_NR_ZONES?
+> free_area_cleanup() gets called from page_hinting_disable() and
+> page_hinting_enable(). In page_hinting_enable() when the allocation
+> fails we may not have to perform cleanup for all the zones everytime.
 
-> Architectures like parisc which does enable KPROBES but
-> never used (kprobe_page_fault or kprobe->fault_handler) kprobe_fault_handler() now
-> needs one as well.
+Just adding a NULL pointer check to this loop below would still keep
+it pretty cheap as the cost for initializing memory to 0 isn't that
+high, and this is slow path anyway. Either way I guess it works. You
+might want to reset the bitmap pointer to NULL though after you free
+it to more easily catch the double free case.
 
-(Hmm, it sounds like the kprobes porting is incomplete on parisc...)
+> >> +       int zone_idx;
+> >> +
+> >> +       for (zone_idx = 0; zone_idx < nr_zones; zone_idx++) {
+> >> +               bitmap_free(free_area[zone_idx].bitmap);
+> >> +               free_area[zone_idx].base_pfn = 0;
+> >> +               free_area[zone_idx].end_pfn = 0;
+> >> +               free_area[zone_idx].nbits = 0;
+> >> +               atomic_set(&free_area[zone_idx].free_pages, 0);
+> >> +       }
+> >> +}
+> >> +
+> >> +int page_hinting_enable(const struct page_hinting_config *conf)
+> >> +{
+> >> +       unsigned long bitmap_size = 0;
+> >> +       int zone_idx = 0, ret = -EBUSY;
+> >> +       struct zone *zone;
+> >> +
+> >> +       mutex_lock(&page_hinting_init);
+> >> +       if (!page_hitning_conf) {
+> >> +               for_each_populated_zone(zone) {
+> > So for_each_populated_zone will go through all of the NUMA nodes. So
+> > if I am not mistaken you will overwrite the free_area values of all
+> > the previous nodes with the last node in the system.
+> Not sure if I understood.
 
-> I am not sure and will probably require inputs from arch parsic
-> folks whether it at all needs one. We dont have a stub or fallback definition for
-> kprobe_fault_handler() when CONFIG_KPROBES is enabled just to prevent a build
-> failure in such cases.
+I misread the code. More comments below.
 
-Yeah, that is a bug, and fixed by adding a prototype, not introducing new macro.
+> >  So if we have a
+> > setup that has all the memory in the first node, and none in the
+> > second it would effectively disable free page hinting would it not?
+> Why will it happen? The base_pfn will still be pointing to the base_pfn
+> of the first node. Isn't?
 
-> 
-> In such a situation it might be better defining a stub symbol fallback than to try
-> to implement one definition which the architecture previously never needed or used.
-> AFAICS there is no generic MM callers for kprobe_fault_handler() as well which would
-> have made it mandatory for parisc to define a real one.
-> 
-> > 
-> >> This adds a stub kprobe_fault_handler() definition which not only prevents
-> >> a build failure but also makes sure that kprobe_page_fault() if called will
-> >> always return negative in absence of a sane platform specific alternative.
-> > 
-> > I don't like introducing this complicated macro only for avoiding (not fixing)
-> > build error. To fix that, kprobes on parisc should implement kprobe_fault_handler
-> > correctly (and call kprobe->fault_handler).
-> 
-> As I mentioned before parsic might not need a real one. But you are right this
-> complicated (if perceived as such) change can be just avoided at least for the
-> build failure problem by just defining a stub definition kprobe_fault_handler()
-> for arch parsic when CONFIG_KPROBES is enabled. But this patch does some more
-> and solves the kprobe_fault_handler() symbol dependency in a more generic way and
-> forces kprobe_page_fault() to fail in absence a real arch kprobe_fault_handler().
-> Is not it worth solving in this way ?
-> 
-> > 
-> > BTW, even if you need such generic stub, please use a weak function instead
-> > of macros for every arch headers.
-> 
-> There is a bit problem with that. The existing definitions are with different
-> signatures and an weak function will need them to be exact same for override
-> requiring more code changes. Hence choose to go with a macro in each header.
-> 
-> arch/arc/include/asm/kprobes.h:int kprobe_fault_handler(struct pt_regs *regs, unsigned long cause);
-> arch/arm/include/asm/kprobes.h:int kprobe_fault_handler(struct pt_regs *regs, unsigned int fsr);
-> arch/arm64/include/asm/kprobes.h:int kprobe_fault_handler(struct pt_regs *regs, unsigned int fsr);
-> arch/ia64/include/asm/kprobes.h:extern int kprobe_fault_handler(struct pt_regs *regs, int trapnr);
-> arch/powerpc/include/asm/kprobes.h:extern int kprobe_fault_handler(struct pt_regs *regs, int trapnr);
-> arch/s390/include/asm/kprobes.h:int kprobe_fault_handler(struct pt_regs *regs, int trapnr);
-> arch/sh/include/asm/kprobes.h:extern int kprobe_fault_handler(struct pt_regs *regs, int trapnr);
-> arch/sparc/include/asm/kprobes.h:int kprobe_fault_handler(struct pt_regs *regs, int trapnr);
-> arch/x86/include/asm/kprobes.h:extern int kprobe_fault_handler(struct pt_regs *regs, int trapnr);
-
-OK, in that case, original commit is wrong way. it should be reverted and
-should introduce something like below
+So this does address my concern however, it introduces a new issue.
+Specifically you could end up introducing a gap of unused bits if the
+memory from one zone is not immediately adjacent to another. This gets
+back to the SPARSEMEM issue that I think Dave pointed out.
 
 
-/* Returns true if arch should call kprobes_fault_handler() */
-static nokprobe_inline bool is_kprobe_page_fault(struct pt_regs *regs)
-{
-	if (!kprobes_built_in())
-		return false;
-	if (user_mode(regs))
-		return false;
-	/*
-	 * To be potentially processing a kprobe fault and to be allowed
-	 * to call kprobe_running(), we have to be non-preemptible.
-	 */
-	if (preemptible())
-		return false;
-	if (!kprobe_running())
-		return false;
-	return true;
-}
+<snip>
 
-Since it silently casts the type of trapnr, which is strongly depends
-on architecture.
+> >> +static void scan_zone_free_area(int zone_idx, int free_pages)
+> >> +{
+> >> +       int ret = 0, order, isolated_cnt = 0;
+> >> +       unsigned long set_bit, start = 0;
+> >> +       LIST_HEAD(isolated_pages);
+> >> +       struct page *page;
+> >> +       struct zone *zone;
+> >> +
+> >> +       for (;;) {
+> >> +               ret = 0;
+> >> +               set_bit = find_next_bit(free_area[zone_idx].bitmap,
+> >> +                                       free_area[zone_idx].nbits, start);
+> >> +               if (set_bit >= free_area[zone_idx].nbits)
+> >> +                       break;
+> >> +               page = pfn_to_online_page((set_bit << PAGE_HINTING_MIN_ORDER) +
+> >> +                               free_area[zone_idx].base_pfn);
+> >> +               if (!page)
+> >> +                       continue;
+> >> +               zone = page_zone(page);
+> >> +               spin_lock(&zone->lock);
+> >> +
+> >> +               if (PageBuddy(page) && page_private(page) >=
+> >> +                   PAGE_HINTING_MIN_ORDER) {
+> >> +                       order = page_private(page);
+> >> +                       ret = __isolate_free_page(page, order);
+> >> +               }
+> >> +               clear_bit(set_bit, free_area[zone_idx].bitmap);
+> >> +               atomic_dec(&free_area[zone_idx].free_pages);
+> >> +               spin_unlock(&zone->lock);
+> >> +               if (ret) {
+> >> +                       /*
+> >> +                        * restoring page order to use it while releasing
+> >> +                        * the pages back to the buddy.
+> >> +                        */
+> >> +                       set_page_private(page, order);
+> >> +                       list_add_tail(&page->lru, &isolated_pages);
+> >> +                       isolated_cnt++;
+> >> +                       if (isolated_cnt == page_hitning_conf->max_pages) {
+> >> +                               page_hitning_conf->hint_pages(&isolated_pages);
+> >> +                               release_buddy_pages(&isolated_pages);
+> >> +                               isolated_cnt = 0;
+> >> +                       }
+> >> +               }
+> >> +               start = set_bit + 1;
+> >> +       }
+> >> +       if (isolated_cnt) {
+> >> +               page_hitning_conf->hint_pages(&isolated_pages);
+> >> +               release_buddy_pages(&isolated_pages);
+> >> +       }
+> >> +}
+> >> +
+> > I really worry that this loop is going to become more expensive as the
+> > size of memory increases. For example if we hint on just 16 pages we
+> > would have to walk something like 4K bits, 512 longs, if a system had
+> > 64G of memory. Have you considered testing with a larger memory
+> > footprint to see if it has an impact on performance?
+> I am hoping this will be noticeable in will-it-scale's page_fault1, if I
+> run it on a larger system?
 
-> >> While here wrap kprobe_page_fault() in CONFIG_KPROBES. This enables stud
-> >> definitions for generic kporbe_fault_handler() and kprobes_built_in() can
-> >> just be dropped. Only on x86 it needs to be added back locally as it gets
-> >> used in a !CONFIG_KPROBES function do_general_protection().
-> > 
-> > If you want to remove kprobes_built_in(), you should replace it with
-> > IS_ENABLED(CONFIG_KPROBES), instead of this...
-> 
-> Apart from kprobes_built_in() the intent was to remove !CONFIG_KPROBES
-> stub for kprobe_fault_handler() as well which required making generic
-> kprobe_page_fault() to be empty in such case.
+What you will probably see is that the CPU that is running the scan is
+going to be sitting at somewhere near 100% because I cannot see how it
+can hope to stay efficient if it has to check something like 512 64b
+longs searching for just a handful of idle pages.
 
-No, I meant that "IS_ENABLED(CONFIG_KPROBES)" is generic and is equal to
-what kprobes_built_in() does.
+> >
+> >> +static void init_hinting_wq(struct work_struct *work)
+> >> +{
+> >> +       int zone_idx, free_pages;
+> >> +
+> >> +       atomic_set(&page_hinting_active, 1);
+> >> +       for (zone_idx = 0; zone_idx < MAX_NR_ZONES; zone_idx++) {
+> >> +               free_pages = atomic_read(&free_area[zone_idx].free_pages);
+> >> +               if (free_pages >= page_hitning_conf->max_pages)
+> >> +                       scan_zone_free_area(zone_idx, free_pages);
+> >> +       }
+> >> +       atomic_set(&page_hinting_active, 0);
+> >> +}
+> >> +
+> >> +void page_hinting_enqueue(struct page *page, int order)
+> >> +{
+> >> +       int zone_idx;
+> >> +
+> >> +       if (!page_hitning_conf || order < PAGE_HINTING_MIN_ORDER)
+> >> +               return;
+> > I would think it is going to be expensive to be jumping into this
+> > function for every freed page. You should probably have an inline
+> > taking care of the order check before you even get here since it would
+> > be faster that way.
+> I see, I can take a look. Thanks.
+> >
+> >> +
+> >> +       bm_set_pfn(page);
+> >> +       if (atomic_read(&page_hinting_active))
+> >> +               return;
+> > So I would think this piece is racy. Specifically if you set a PFN
+> > that is somewhere below the PFN you are currently processing in your
+> > scan it is going to remain unset until you have another page freed
+> > after the scan is completed. I would worry you can end up with a batch
+> > free of memory resulting in a group of pages sitting at the start of
+> > your bitmap unhinted.
+> True, but that will be hinted next time threshold is met.
 
-Thank you,
-
--- 
-Masami Hiramatsu <mhiramat@kernel.org>
+Yes, but that assumes that there is another free immediately coming.
+It is possible that you have a big application run and then
+immediately shut down and have it free all its memory at once. Worst
+case scenario would be that it starts by freeing from the end and
+works toward the start. With that you could theoretically end up with
+a significant chunk of memory waiting some time for another big free
+to come along.
 
