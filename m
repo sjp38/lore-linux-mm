@@ -2,121 +2,201 @@ Return-Path: <SRS0=bABq=VI=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 38E85C74A4B
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 09:43:28 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8D26DC74A51
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 09:57:51 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 00CDD206B8
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 09:43:27 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 00CDD206B8
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linutronix.de
+	by mail.kernel.org (Postfix) with ESMTP id 5197821019
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 09:57:51 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5197821019
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5EC418E00AF; Thu, 11 Jul 2019 05:43:27 -0400 (EDT)
+	id D824B8E00B0; Thu, 11 Jul 2019 05:57:50 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 59C498E0032; Thu, 11 Jul 2019 05:43:27 -0400 (EDT)
+	id D0B908E0032; Thu, 11 Jul 2019 05:57:50 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 465548E00AF; Thu, 11 Jul 2019 05:43:27 -0400 (EDT)
+	id B859B8E00B0; Thu, 11 Jul 2019 05:57:50 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 101B38E0032
-	for <linux-mm@kvack.org>; Thu, 11 Jul 2019 05:43:27 -0400 (EDT)
-Received: by mail-wr1-f69.google.com with SMTP id q2so2303359wrr.18
-        for <linux-mm@kvack.org>; Thu, 11 Jul 2019 02:43:27 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 641418E0032
+	for <linux-mm@kvack.org>; Thu, 11 Jul 2019 05:57:50 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id z20so4147377edr.15
+        for <linux-mm@kvack.org>; Thu, 11 Jul 2019 02:57:50 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=tN+aJAlcO20Lsqhzl5mSnGRV4uENNmV/oGnG33vw0kc=;
-        b=UPVVnPkc4HNV/H3ZBUbuGrAlALxc2eHopjF8ayX/459gXvZe0cPdyKRsd7TmtixWJU
-         rp9GPL941sEv+EGb5ttTPQtzJGRlPwwCvjaE0JlY+mT6jRK1+QdrmHSrb5sXDfoA9e5o
-         nh85bIciXIO9hJtD4jI6t2yQYNo2roJOHYKJmYyB5yDnIeZyc/ORpMm189M5AHDGQOEk
-         VHE1dVigc9zFeH3thSUQGtrlpYxxTVxx5UkuGKkmGN/WdTraAIqv/dkjzjPjBEKcMYvK
-         ljoFjjW7wyVUoaHt1Dd2uCuZPtxbu3zcASd6r+4abQ802azHcrqlRxN2wBuVKL9XjgdR
-         FRaQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of bigeasy@linutronix.de designates 2a0a:51c0:0:12e:550::1 as permitted sender) smtp.mailfrom=bigeasy@linutronix.de
-X-Gm-Message-State: APjAAAUfnsv+9JlQpJoXNOOIHFSC1qWQ6zJPIi4SaJB/41x1H9ppdUaB
-	yOB7q/ebMJ2mhE/jaDxYMXYAKeepO0ssA4/OsMjcOqFfCDA4rg/GNDuFfEhzeAt9uBlKmjGS0EX
-	MZCcLTB2+iY3OEgXbd8uZats1RdSgCXQhx8SmxB0U++rlz4fbRXpBZe2PTZ2TMSCMRA==
-X-Received: by 2002:a7b:c356:: with SMTP id l22mr3254222wmj.97.1562838206592;
-        Thu, 11 Jul 2019 02:43:26 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqws+Xhk0WDAqxoVLlbGxN2P9vgaIVV5hoynhUeiM+mG50lFN3qZAivVL9RCc3BSGe06ZhoC
-X-Received: by 2002:a7b:c356:: with SMTP id l22mr3254146wmj.97.1562838205879;
-        Thu, 11 Jul 2019 02:43:25 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562838205; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=Qu0p3hBJIS1tt+CwL8iHr3VvkzVSz5VHHFsNUQJfq4A=;
+        b=Pr5zlGAZIxx1PB8F0icbSNjHw0l6Qd53nR6MxlGPjTS/u4g7Njs/RvOCJ8mSQgOPk7
+         PM0I5Q+qFTHxDVI2CfKqgN/SJUJF4oxdtIlt2jr2bABYWbFXN0Rl443yDN283nL5Iofv
+         MaZl2cVTn9USyHDfATHCvxoMda+9lbEKYsCJN0kNnVD3irltEhy4kZ8az15P6ftGuEFo
+         q1DsT0IMbs9229FJU3emf+Su/FOry2v92JyAo8QBhdpLp1N8a6ArMLy0NLmDFu2LVN5d
+         inKS+oSWxiYnzYRStd9CpY53S9rxCdu9uuW9woGb2ZBDMagIFz+SaE0MYQM3KtsjPVS5
+         wRtA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+X-Gm-Message-State: APjAAAVrKTbqaP579dY8YQhMKbFcKCosZTRuL5IbcyOi4DSs6GuMbH1F
+	193H9tCm71yiqJJy6NiJdpOoxPS56C115zND93irqZ9GrWEZmt+uOBiFIRO0sPgfG13lZ0+MfXR
+	dA5NT+eCcG8hEtHF/fvWzuJsjpR9OyIxB8tFX7cDHF8fsRTI1Og0LPnlK3wSd58zgUg==
+X-Received: by 2002:aa7:d058:: with SMTP id n24mr2443173edo.143.1562839069968;
+        Thu, 11 Jul 2019 02:57:49 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqy3zAwJSRRipQqvOwHEFflmpsJCQsj4YwRk/rzYsUW2nmZ3FtnDyOhMbf2qXCU1bg4qfmF5
+X-Received: by 2002:aa7:d058:: with SMTP id n24mr2443126edo.143.1562839069068;
+        Thu, 11 Jul 2019 02:57:49 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562839069; cv=none;
         d=google.com; s=arc-20160816;
-        b=UUna2AXpBCaACmk/KArIoE9XPzuy4QJKWjTBheLhqM46SuuO2cYadvURvUYmTaiWfD
-         6ld7er4uuZ8y0gD7f7kEjzLBvMrdnaNn/TBo23CU5ZPM1Qbc2q6EJDHQCspGPk6bUhAb
-         j5DuiFiUdBxsHYT+mHWxySvkYNNag/8ShrvI7M+IHD3Wg/5xfN/G4xW3G1Rtvegfqx0e
-         rZO1KWRoMtQbstVdpJZiOG710rczoboXYoJ4cPA7/lL/ZqTW51cFjloAED403RCeh416
-         Yx7J8mRWG7r43OL4GIMo0RCbPJeQTxbW+uKs1HFUwY8Uq3oO9tM/8wfuqKydCTqiStrK
-         r/4g==
+        b=jdk2mn4D05zlDxjW2HYqs01KlYz0g/W3HafREmb911W3ONHzbXZ+riQvjHdFayR2xq
+         yUH60XX/gOFkpB1jYkJrHBhys46HoMl8DLMJHoMPhhRQzcYH7Ci85d6q0CH/xLZGBLZT
+         ZFXEMJ+qGYKj/hcrMWftxKDA7wa6ePNfJOFY8rtpl+KuNhLA8PufbJXABsKJuvpOXdrW
+         rkM2khnXSclSLGzKTKspPIY9MGDmf4Vo48By4LyAJwDq5dRrW5a0BWThiceY49eJM+mB
+         kv3NBjhim5Ii4bi0g7fWiIMkVipG72jRngSg0hxvFiuoZX3qtqj7KA/YWYR9T2NuSEVI
+         ARPw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date;
-        bh=tN+aJAlcO20Lsqhzl5mSnGRV4uENNmV/oGnG33vw0kc=;
-        b=dzwQRCKMipgyAK1P28VS+RYl+GOoPoRzv2rMtyA4XsfJvBC8FowxurcOent4p/EJZp
-         vozVrWI5bhiTT7EO+me8JSkWQJ5w4jDpowT/mCMBCiaQG7BlxrenROupXvcnJfvxaCm3
-         WTfoLo2P3iUB/zY8gk5JhdhYuHfg6zaJudsdp2NfKYWia9PjnUtz6Gq9oZsz0hQpsAlB
-         g8g/WkBd95XQaC9MF2ZjKsIhNmCaBoN2GgroxlY9wedXTiCjFuzQO3JFSaWYMwLWNAO1
-         YMT73TtoFdqUsRzI3P1JdVdRSC8phqMDawKkeh8rpBYSPA7YsK4gNWHJe8qCz35HVDqz
-         /9Wg==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=Qu0p3hBJIS1tt+CwL8iHr3VvkzVSz5VHHFsNUQJfq4A=;
+        b=DrSymas0CwEWWc6ICfy79GYzqlVzdH7hBaZgeAC2yKXhedxB4K+0b+L1eWrrjNpqcs
+         pP8IXTK/Yy6i6/7QRnT/ADo227B83Fc5WcJQIdkoTjb/3uSGAu5BpFvl4XNynvx5baV+
+         PolapH3eCAj993RS6QCmsUb7cA9kggzUk7vSyCyOgmLpnij0dUaT/AndPrpofJTXT0fX
+         hR5C1x3q0XEuVUL/BNDRDWYno0RAfCqL74ZmN9iNtOlfo9Z0Cz8FJlfLDy+dFC2Cw+V/
+         xyWfWZWRT8A+4ndBpBTVA4mxTsa5eTKaK4kWyqWjBldFE+Illm3MH6affXk5ZIXeVb0l
+         940w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of bigeasy@linutronix.de designates 2a0a:51c0:0:12e:550::1 as permitted sender) smtp.mailfrom=bigeasy@linutronix.de
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a0a:51c0:0:12e:550::1])
-        by mx.google.com with ESMTPS id g16si4953641wrp.111.2019.07.11.02.43.25
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Thu, 11 Jul 2019 02:43:25 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of bigeasy@linutronix.de designates 2a0a:51c0:0:12e:550::1 as permitted sender) client-ip=2a0a:51c0:0:12e:550::1;
+       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
+        by mx.google.com with ESMTP id s16si2595544ejb.349.2019.07.11.02.57.48
+        for <linux-mm@kvack.org>;
+        Thu, 11 Jul 2019 02:57:49 -0700 (PDT)
+Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of bigeasy@linutronix.de designates 2a0a:51c0:0:12e:550::1 as permitted sender) smtp.mailfrom=bigeasy@linutronix.de
-Received: from bigeasy by Galois.linutronix.de with local (Exim 4.80)
-	(envelope-from <bigeasy@linutronix.de>)
-	id 1hlVbo-00033U-OS; Thu, 11 Jul 2019 11:43:24 +0200
-Date: Thu, 11 Jul 2019 11:43:24 +0200
-From: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
-To: Yang Shi <shy828301@gmail.com>
-Cc: Linux MM <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: Memory compaction and mlockall()
-Message-ID: <20190711094324.ninnmarx5r3amz4p@linutronix.de>
-References: <20190710144138.qyn4tuttdq6h7kqx@linutronix.de>
- <CAHbLzkpME1oT2=-TNPm9S_iZ2nkGsY6AXo7iVgDUhg8WysDpZw@mail.gmail.com>
+       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id E7565337;
+	Thu, 11 Jul 2019 02:57:47 -0700 (PDT)
+Received: from [10.162.42.96] (p8cg001049571a15.blr.arm.com [10.162.42.96])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 64DD13F71F;
+	Thu, 11 Jul 2019 02:57:36 -0700 (PDT)
+Subject: Re: [PATCH] mm/kprobes: Add generic kprobe_fault_handler() fallback
+ definition
+To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+Cc: Vineet Gupta <vgupta@synopsys.com>, Russell King <linux@armlinux.org.uk>,
+ Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will@kernel.org>,
+ Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>,
+ Ralf Baechle <ralf@linux-mips.org>, Paul Burton <paul.burton@mips.com>,
+ James Hogan <jhogan@kernel.org>,
+ Benjamin Herrenschmidt <benh@kernel.crashing.org>,
+ Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>,
+ Heiko Carstens <heiko.carstens@de.ibm.com>, Vasily Gorbik
+ <gor@linux.ibm.com>, Christian Borntraeger <borntraeger@de.ibm.com>,
+ Yoshinori Sato <ysato@users.sourceforge.jp>, Rich Felker <dalias@libc.org>,
+ "David S. Miller" <davem@davemloft.net>, Thomas Gleixner
+ <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>,
+ Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>,
+ "Naveen N. Rao" <naveen.n.rao@linux.ibm.com>,
+ Anil S Keshavamurthy <anil.s.keshavamurthy@intel.com>,
+ Masami Hiramatsu <mhiramat@kernel.org>, Allison Randal
+ <allison@lohutok.net>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+ Enrico Weigelt <info@metux.net>, Richard Fontana <rfontana@redhat.com>,
+ Kate Stewart <kstewart@linuxfoundation.org>,
+ Mark Rutland <mark.rutland@arm.com>,
+ Andrew Morton <akpm@linux-foundation.org>, Guenter Roeck
+ <linux@roeck-us.net>, x86@kernel.org, linux-snps-arc@lists.infradead.org,
+ linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org,
+ linux-ia64@vger.kernel.org, linux-mips@vger.kernel.org,
+ linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org,
+ linux-sh@vger.kernel.org, sparclinux@vger.kernel.org
+References: <1562304629-29376-1-git-send-email-anshuman.khandual@arm.com>
+From: Anshuman Khandual <anshuman.khandual@arm.com>
+Message-ID: <542893ae-ed64-55b2-11ee-1f19710a25e4@arm.com>
+Date: Thu, 11 Jul 2019 15:28:07 +0530
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
+ Thunderbird/52.9.1
 MIME-Version: 1.0
+In-Reply-To: <1562304629-29376-1-git-send-email-anshuman.khandual@arm.com>
 Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
-In-Reply-To: <CAHbLzkpME1oT2=-TNPm9S_iZ2nkGsY6AXo7iVgDUhg8WysDpZw@mail.gmail.com>
-User-Agent: NeoMutt/20180716
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 2019-07-10 11:21:19 [-0700], Yang Shi wrote:
->=20
-> compaction should not isolate unevictable pages unless you have
-> /proc/sys/vm/compact_unevictable_allowed set.
 
-Thank you. This is enabled by default. The documentation for this says
-| =E2=80=A6 compaction is allowed to examine the unevictable lru (mlocked p=
-ages) for
-| pages to compact.=E2=80=A6
 
-so it is actually clear once you know where to look.
-If I read this correct, the default behavior was to ignore mlock()ed
-pages for compaction then commit
-  5bbe3547aa3ba ("mm: allow compaction of unevictable pages")
+On 07/05/2019 11:00 AM, Anshuman Khandual wrote:
+> Architectures like parisc enable CONFIG_KROBES without having a definition
+> for kprobe_fault_handler() which results in a build failure. Arch needs to
+> provide kprobe_fault_handler() as it is platform specific and cannot have
+> a generic working alternative. But in the event when platform lacks such a
+> definition there needs to be a fallback.
+> 
+> This adds a stub kprobe_fault_handler() definition which not only prevents
+> a build failure but also makes sure that kprobe_page_fault() if called will
+> always return negative in absence of a sane platform specific alternative.
+> 
+> While here wrap kprobe_page_fault() in CONFIG_KPROBES. This enables stud
+> definitions for generic kporbe_fault_handler() and kprobes_built_in() can
+> just be dropped. Only on x86 it needs to be added back locally as it gets
+> used in a !CONFIG_KPROBES function do_general_protection().
+> 
+> Cc: Vineet Gupta <vgupta@synopsys.com>
+> Cc: Russell King <linux@armlinux.org.uk>
+> Cc: Catalin Marinas <catalin.marinas@arm.com>
+> Cc: Will Deacon <will@kernel.org>
+> Cc: Tony Luck <tony.luck@intel.com>
+> Cc: Fenghua Yu <fenghua.yu@intel.com>
+> Cc: Ralf Baechle <ralf@linux-mips.org>
+> Cc: Paul Burton <paul.burton@mips.com>
+> Cc: James Hogan <jhogan@kernel.org>
+> Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+> Cc: Paul Mackerras <paulus@samba.org>
+> Cc: Michael Ellerman <mpe@ellerman.id.au>
+> Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
+> Cc: Vasily Gorbik <gor@linux.ibm.com>
+> Cc: Christian Borntraeger <borntraeger@de.ibm.com>
+> Cc: Yoshinori Sato <ysato@users.sourceforge.jp>
+> Cc: Rich Felker <dalias@libc.org>
+> Cc: "David S. Miller" <davem@davemloft.net>
+> Cc: Thomas Gleixner <tglx@linutronix.de>
+> Cc: Ingo Molnar <mingo@redhat.com>
+> Cc: Borislav Petkov <bp@alien8.de>
+> Cc: "H. Peter Anvin" <hpa@zytor.com>
+> Cc: "Naveen N. Rao" <naveen.n.rao@linux.ibm.com>
+> Cc: Anil S Keshavamurthy <anil.s.keshavamurthy@intel.com>
+> Cc: Masami Hiramatsu <mhiramat@kernel.org>
+> Cc: Allison Randal <allison@lohutok.net>
+> Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+> Cc: Enrico Weigelt <info@metux.net>
+> Cc: Richard Fontana <rfontana@redhat.com>
+> Cc: Kate Stewart <kstewart@linuxfoundation.org>
+> Cc: Mark Rutland <mark.rutland@arm.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Guenter Roeck <linux@roeck-us.net>
+> Cc: x86@kernel.org
+> Cc: linux-snps-arc@lists.infradead.org
+> Cc: linux-kernel@vger.kernel.org
+> Cc: linux-arm-kernel@lists.infradead.org
+> Cc: linux-ia64@vger.kernel.org
+> Cc: linux-mips@vger.kernel.org
+> Cc: linuxppc-dev@lists.ozlabs.org
+> Cc: linux-s390@vger.kernel.org
+> Cc: linux-sh@vger.kernel.org
+> Cc: sparclinux@vger.kernel.org
+> 
+> Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
+> ---
 
-came along in v4.1-rc1 and changed that behaviour. Is it too late to
-flip it back?
+Any updates or suggestions on this patch ? Currently there is a build failure on
+parisc architecture due to the lack of a kprobe_fault_handler() definition when
+CONFIG_KPROBES is enabled and this build failure needs to be fixed.
 
-Sebastian
+This patch solves the build problem. But otherwise I am also happy to just define
+a stub definition for kprobe_fault_handler() on parisc arch when CONFIG_KPROBES
+is enabled, which will avoid the build failure. Please suggest.
 
