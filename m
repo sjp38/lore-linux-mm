@@ -2,72 +2,73 @@ Return-Path: <SRS0=bABq=VI=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7AC46C74A54
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 14:00:25 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 34F68C74A35
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 14:00:28 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3F96E20872
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 14:00:25 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3F96E20872
+	by mail.kernel.org (Postfix) with ESMTP id 0777F20872
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 14:00:28 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0777F20872
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id AD2D38E00C2; Thu, 11 Jul 2019 10:00:20 -0400 (EDT)
+	id D4D538E0032; Thu, 11 Jul 2019 10:00:20 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9E6D98E0032; Thu, 11 Jul 2019 10:00:20 -0400 (EDT)
+	id ACFDA8E00C1; Thu, 11 Jul 2019 10:00:20 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7C47E8E00C1; Thu, 11 Jul 2019 10:00:20 -0400 (EDT)
+	id 8ABC18E00BF; Thu, 11 Jul 2019 10:00:20 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 32A718E00BF
+	by kanga.kvack.org (Postfix) with ESMTP id 215AA8E0032
 	for <linux-mm@kvack.org>; Thu, 11 Jul 2019 10:00:20 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id b3so4732601edd.22
+Received: by mail-ed1-f72.google.com with SMTP id c31so4761490ede.5
         for <linux-mm@kvack.org>; Thu, 11 Jul 2019 07:00:20 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id;
-        bh=tLcysXJkKcfrmLpC4SU90EbRf2nSP2ysndLOE49Dgr8=;
-        b=kRrKK6UPxzQT0ZVOeMjkRF/qfzysbfJvpMBkQ+spYnsk1X4BHAr/qu01Sk+/7hIbI/
-         RVsKD8m6tojyQmwD4Zzxx9TQZ3x3b/QPB5PtzLmroxjyGTKm48wFYIbrH+PRa4oZIDWc
-         jkcVxmTujXQ1WK5TjtSG8GvvgSZpQo9jXeUkBEzKEfSZRtf0W2kqGlCw/xhcIZCiRGli
-         hzwNW/mhxDHGcYBgy9hQsklNCmyhcIaELNHlFQpPw9Uj+c+MOO7/Lw2SMKdScD2eHZL9
-         nO9pn5FAldU97CpmXZ9ghOvzNRq6qT0ml4mMo+cg4gs3ausNfaG9cbPLCFRqCM4VGNhz
-         RMUQ==
+         :subject:date:message-id:in-reply-to:references;
+        bh=vL2nsiM2ddjwtUcwsMFcppuOiio9MXKDv4ZgGyw46eE=;
+        b=dpiW+va/yU69bLew7mnNr+rp2v7nnB5vUFA2TsmLe/f3/nQ2t9Srz1CRfV+j1aJ64l
+         wyBsvUqXimO5NZZ7tM2DsVbnf9h4FE3xYEHfjAZ+yZDBQgfvQREoMBcWk4LVzMNoZxSo
+         2zXlikuvqWIQCUSpc/kQQzGeZdWAV+eVCzx7kSadhRcuT9JVXqG5Mgxtrk1FV8waCJts
+         XOPttFNuwQIYitlwt0sm9ncVVFgzc+r3I8nhJ8Fxq4CQ/L5kwFZgoWVKNk9f9ZAVOCxb
+         X9/Httj7Fk5SZd1JZpByauT6dd5OZ9v6gP/IHkyRd2YNb0LT3aWkXh2JVLlF8EWXE0q4
+         ODcA==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
-X-Gm-Message-State: APjAAAWnGVtESPJPwhfaZwzQh5RsSL/h3ZuyNNLGvCkAmlIrLYl6Nb57
-	DquKAhO+QaGBwbeZ8IFyE2TFCffkxpSZGzWG9xdoUDl5D/WOydw43gEKSFTDvMe/4O/XKqlwZc+
-	THzaP4A9116qF+8wy+efhJQv5Ft4f19BXtHxbVyzARyElRsw6kXb+ubJJmgJM435uJA==
-X-Received: by 2002:a50:f5f5:: with SMTP id x50mr3588058edm.89.1562853619791;
+X-Gm-Message-State: APjAAAWjA0V7K+FjTmr+UmYa9mQ7naqDHbioAsODV6tsS9VtRBIpY0AQ
+	q3LSEtQEO/ryEvTFMAwX7zZTN0vEcaGia+jHjjWeoNZJmttM/ILuhXlrw+1OjvNrTqRaH3h82T2
+	GTNzZHRwNaj9VLobOwZHIVDhr5Hb+5MQwVr3lWfEEr2skq3zYSdP2vm6I62OOLYuaQw==
+X-Received: by 2002:a17:906:1281:: with SMTP id k1mr3389782ejb.212.1562853619700;
         Thu, 11 Jul 2019 07:00:19 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxbr/tjhdIRvC1GnqRmPQz1RVe17BQNXQHnsl0KNP0GZ3pFBfc1ePlsvTKE69gAslqGqsPT
-X-Received: by 2002:a50:f5f5:: with SMTP id x50mr3587792edm.89.1562853617674;
+X-Google-Smtp-Source: APXvYqzBl9WcqF6mdpPIo1kgARY3dzZ0eYueLZN38Ji+XL3qnP1MTkFV35dFJ2Ng5m6cgagWdNRS
+X-Received: by 2002:a17:906:1281:: with SMTP id k1mr3389569ejb.212.1562853617665;
         Thu, 11 Jul 2019 07:00:17 -0700 (PDT)
 ARC-Seal: i=1; a=rsa-sha256; t=1562853617; cv=none;
         d=google.com; s=arc-20160816;
-        b=m8qAeyVtDxs0EiTYQ5NJiU5PXuMU9neNYeuRAsFE7aBdxqtN19IBofOo0cEa5pdUvb
-         hK2ntcvdPXbNbJjg/1PWlOeSmPWPrlIYi4R0yjFbI+4ZNSWAm0AM+ORhgZ5LGmumPd0N
-         +Ekc+Q/JrGZ1mOKcksOjZYtmccHIltBHa5cOY+F1Fkur4iBviDg/FYUL+anJjqgiC850
-         BEaKxNx9K1uaWa97VFX2YyaoiidW+IInMRhRv4CF6u2nQwgRbIT5vlUbJAWCDKhF7FfA
-         0RpruxmqWAkoeO3Toa9YrXFYLL/gx5hVdNy+b/1XyA2bvmROuRENJHMT4zQ5WogIU5eO
-         oYwQ==
+        b=AAzwXspK2KeAaShVdRgqKpA2dlupLmw9TJwheWz1cbCmHEnL1y1si0j4HwlgSkYNU5
+         TX2fQID/CFK+zCMGdzRxB5VZ6dQXdFSKHuyPACklQ0Go5jtkCuD50UgeR+DDmTZnOy2n
+         +7JnGuSI0NLJgatyFKXf2buvrRbLUjEwqFl8NmlC6k9xOABFltI1B4GlwLmHbLImlvqT
+         lrtsRIRJzlnUzKuQF5hH1X5HTJvubVx04abNfrJGtBZjFAL0QyI2Navn4lfQ3gswKRX6
+         YsRx673usGPQAbGh6g+ZJwW/OubGdZWY0aUfdyZY+h0jEl9hzx3obPsBiVOcTvt7xHP/
+         gcGA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:date:subject:cc:to:from;
-        bh=tLcysXJkKcfrmLpC4SU90EbRf2nSP2ysndLOE49Dgr8=;
-        b=tzPYU3AXC32yNyy/7/FeX4TxgDMsvrgXYmJqUWxwmsS6V4yPofcaU6Dl3DKMeGdTUg
-         /u1SSgjGt++aWpN/btsFcAUfxK4IfcGOy61Z66PPqAkTdBGhGIN6M5u28Jyir3/QgBZc
-         cU6nbEviIytp8tbOpIfnNI7a2k4ql5jpdPQe7NUUPsATFUwBPP2yqf4iuh6c2pPrT8rP
-         BTN5B3IJ9bmM3ZtIGTYPoTzjoS24FsjV6B/0ShOdfo+HKRDIWLFUuj2wwiGdeY4VvYQX
-         yLjj9pIFEm5/L+PoydvnUP89zuqDRvknutKKsevJMkH0lVyYiRImG9vDRLqzq6r82njJ
-         tsTg==
+        h=references:in-reply-to:message-id:date:subject:cc:to:from;
+        bh=vL2nsiM2ddjwtUcwsMFcppuOiio9MXKDv4ZgGyw46eE=;
+        b=k4cA7GvkmTtxOt05k4pouAiSHIZXR2fxaObOVZsFlx1i824Aw2ik/mu+07ykJIMBQ2
+         enzI5y3QkEcQScke6fsRjD+fNc8DZ03JJvm6me271fmOEfwo8QuGbkhexicl3GTrPncJ
+         e+sRF7ep23ofGe6EWlBZSRElyi/ZRYRV19k7sIrwYGmrH+xv/Uhy1mw9FL7eeJDPRgbB
+         YEXNQimGdYeLMgFCbSar9EH5JbKpKMuRaCsXlz6KboG5nROfcSDPFJQLHQdJJJfWM3Jp
+         tnomgXBATOhO5EUjt78bnZezBk3birb8IkfZSOwfImCxFu+SjVpeq3m5562I3j8mb018
+         rILQ==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o21si3137581eja.9.2019.07.11.07.00.17
+        by mx.google.com with ESMTPS id m34si3400766edc.296.2019.07.11.07.00.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Thu, 11 Jul 2019 07:00:17 -0700 (PDT)
@@ -76,38 +77,90 @@ Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id F3AC4AF5B;
+	by mx1.suse.de (Postfix) with ESMTP id F326BAF10;
 	Thu, 11 Jul 2019 14:00:16 +0000 (UTC)
 Received: by quack2.suse.cz (Postfix, from userid 1000)
-	id 24D661E43CB; Thu, 11 Jul 2019 16:00:16 +0200 (CEST)
+	id 274F01E43CA; Thu, 11 Jul 2019 16:00:16 +0200 (CEST)
 From: Jan Kara <jack@suse.cz>
 To: <linux-fsdevel@vger.kernel.org>
 Cc: <linux-mm@kvack.org>,
 	<linux-xfs@vger.kernel.org>,
 	Amir Goldstein <amir73il@gmail.com>,
 	Boaz Harrosh <boaz@plexistor.com>,
-	Jan Kara <jack@suse.cz>
-Subject: [PATCH 0/3] xfs: Fix races between readahead and hole punching
-Date: Thu, 11 Jul 2019 16:00:09 +0200
-Message-Id: <20190711140012.1671-1-jack@suse.cz>
+	Jan Kara <jack@suse.cz>,
+	stable@vger.kernel.org
+Subject: [PATCH 1/3] mm: Handle MADV_WILLNEED through vfs_fadvise()
+Date: Thu, 11 Jul 2019 16:00:10 +0200
+Message-Id: <20190711140012.1671-2-jack@suse.cz>
 X-Mailer: git-send-email 2.16.4
+In-Reply-To: <20190711140012.1671-1-jack@suse.cz>
+References: <20190711140012.1671-1-jack@suse.cz>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hello,
+Currently handling of MADV_WILLNEED hint calls directly into readahead
+code. Handle it by calling vfs_fadvise() instead so that filesystem can
+use its ->fadvise() callback to acquire necessary locks or otherwise
+prepare for the request.
 
-this is a patch series that addresses a possible race between readahead and
-hole punching Amir has discovered [1]. The first patch makes madvise(2) to
-handle readahead requests through fadvise infrastructure, the third patch
-then adds necessary locking to XFS to protect against the race. Note that
-other filesystems need similar protections but e.g. in case of ext4 it isn't
-so simple without seriously regressing mixed rw workload performance so
-I'm pushing just xfs fix at this moment which is simple.
+Suggested-by: Amir Goldstein <amir73il@gmail.com>
+CC: stable@vger.kernel.org # Needed by "xfs: Fix stale data exposure
+					when readahead races with hole punch"
+Signed-off-by: Jan Kara <jack@suse.cz>
+---
+ mm/madvise.c | 22 ++++++++++++++++------
+ 1 file changed, 16 insertions(+), 6 deletions(-)
 
-								Honza
-
-[1] https://lore.kernel.org/linux-fsdevel/CAOQ4uxjQNmxqmtA_VbYW0Su9rKRk2zobJmahcyeaEVOFKVQ5dw@mail.gmail.com/
+diff --git a/mm/madvise.c b/mm/madvise.c
+index 628022e674a7..ae56d0ef337d 100644
+--- a/mm/madvise.c
++++ b/mm/madvise.c
+@@ -14,6 +14,7 @@
+ #include <linux/userfaultfd_k.h>
+ #include <linux/hugetlb.h>
+ #include <linux/falloc.h>
++#include <linux/fadvise.h>
+ #include <linux/sched.h>
+ #include <linux/ksm.h>
+ #include <linux/fs.h>
+@@ -275,6 +276,7 @@ static long madvise_willneed(struct vm_area_struct *vma,
+ 			     unsigned long start, unsigned long end)
+ {
+ 	struct file *file = vma->vm_file;
++	loff_t offset;
+ 
+ 	*prev = vma;
+ #ifdef CONFIG_SWAP
+@@ -298,12 +300,20 @@ static long madvise_willneed(struct vm_area_struct *vma,
+ 		return 0;
+ 	}
+ 
+-	start = ((start - vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff;
+-	if (end > vma->vm_end)
+-		end = vma->vm_end;
+-	end = ((end - vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff;
+-
+-	force_page_cache_readahead(file->f_mapping, file, start, end - start);
++	/*
++	 * Filesystem's fadvise may need to take various locks.  We need to
++	 * explicitly grab a reference because the vma (and hence the
++	 * vma's reference to the file) can go away as soon as we drop
++	 * mmap_sem.
++	 */
++	*prev = NULL;	/* tell sys_madvise we drop mmap_sem */
++	get_file(file);
++	up_read(&current->mm->mmap_sem);
++	offset = (loff_t)(start - vma->vm_start)
++			+ ((loff_t)vma->vm_pgoff << PAGE_SHIFT);
++	vfs_fadvise(file, offset, end - start, POSIX_FADV_WILLNEED);
++	fput(file);
++	down_read(&current->mm->mmap_sem);
+ 	return 0;
+ }
+ 
+-- 
+2.16.4
 
