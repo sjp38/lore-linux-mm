@@ -7,98 +7,98 @@ X-Spam-Status: No, score=-9.9 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
 	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT
 	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BFD22C74A35
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 14:26:49 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id ADF3EC74A35
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 14:26:53 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 780FF21019
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 14:26:49 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 67BD221019
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 14:26:53 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="uIvYew5i"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 780FF21019
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="keVQsRLh"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 67BD221019
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 84ECC8E00CF; Thu, 11 Jul 2019 10:26:36 -0400 (EDT)
+	id 9366A8E00D0; Thu, 11 Jul 2019 10:26:39 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 786D08E00C4; Thu, 11 Jul 2019 10:26:36 -0400 (EDT)
+	id 871DF8E00C4; Thu, 11 Jul 2019 10:26:39 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6271F8E00CF; Thu, 11 Jul 2019 10:26:36 -0400 (EDT)
+	id 6EA4C8E00D0; Thu, 11 Jul 2019 10:26:39 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 33DE28E00C4
-	for <linux-mm@kvack.org>; Thu, 11 Jul 2019 10:26:36 -0400 (EDT)
-Received: by mail-io1-f70.google.com with SMTP id n8so6924565ioo.21
-        for <linux-mm@kvack.org>; Thu, 11 Jul 2019 07:26:36 -0700 (PDT)
+Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 4865B8E00C4
+	for <linux-mm@kvack.org>; Thu, 11 Jul 2019 10:26:39 -0400 (EDT)
+Received: by mail-io1-f72.google.com with SMTP id r27so6955921iob.14
+        for <linux-mm@kvack.org>; Thu, 11 Jul 2019 07:26:39 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references;
-        bh=gDByh8p+inBGj8eNOkt+0s0ErRCor6nCeXzUp1uJmZ0=;
-        b=C+MGP3jzaNCZ1pNDycejCLKD3HU1TOhXffj8MLl+lZy1rorZsqxtkplQ8w7p9HhMd1
-         f/8eaKACUKNcAnglJc79t06SNCq2lblu42+QXVMUgwmfk019VJzIYklJDYzBuODqTKtS
-         z0+tHOvLKRlpuWaT5Ty3I9uiFYu153VXP/unHt2NbuCnevvT/EiEwR29BXjJSJFC0aq1
-         VWznPJM86JiyV9QGz58UcGcLymaPfjDR8CTkxhQmuxdOp9U50mdj059wMphEMOt+vZo6
-         7ECrjkHUPd+TGFhSw2nkP4zIvwjJkX8looqBUcGRVZnn0Rfm4I7FOCeuhHe7n6q73Rip
-         nFKg==
-X-Gm-Message-State: APjAAAVidJtDwKJRww0vW+hfHeRbN9OrfHCKfQkfrfLWGUjYDBn4eLk2
-	zxUe760iLM3+zicovee/frlNiFDI8IGIbg32Jpmb0Ydb+wg13KbnRssy3WJDqzQh7tvB3ImfnkG
-	evoykqpsyuAXTExRC6eEkKn9Hk0vYA+JqEO//0oIkmtn38RMTGv2rskuXvvrejgpsBg==
-X-Received: by 2002:a5d:928a:: with SMTP id s10mr4647146iom.29.1562855195982;
-        Thu, 11 Jul 2019 07:26:35 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwMydXJcs8IqO9pyZAMFPj+cK/87CVIe08oz4/ZRLY+2J06ORNfy12w3qhxvRMkP5rtZqsh
-X-Received: by 2002:a5d:928a:: with SMTP id s10mr4647092iom.29.1562855195425;
-        Thu, 11 Jul 2019 07:26:35 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562855195; cv=none;
+        bh=Ag0k+tMlXoCUCjgmP3NxD1Cl4FnNgcaLg1SLsqSglmA=;
+        b=sAJGt/5QBTvFocxxinOowTIVs/HeK+Ofru8WFiVm2G/oINKg7+dvDmBF89SJSRATX4
+         O32Ly01Kuh8beaQ9aR8KB2BOp0DKwG2ujvV/dGjdVahk9rcxosLsQ0+d5BxMh9Xab5pc
+         mFFGyIMV2Ei2im0D59uhDh3v5wm8L+/u0RqmuVHHYVwcExkxDUDK80dRsfpeWvQjS13V
+         NkQlU6s4qUCpJgqhlCC8yNYHMidvle0hN0c2wSPhd//M/uhwv7DwGEZCgw4KKtfmDwmg
+         iGQdGj2PWUQBTN63gWC+ejP8WfmJ5qVdiyOxIqISMknypnFji0bbuvNB1T60GPPG4C1+
+         xdDg==
+X-Gm-Message-State: APjAAAXLjmN/2V33KbMSz1HtHmtKEhTxTBNVqV9sh57SRq579h7vd23Q
+	UeBOs3mCkg100u27buAYkClD+t6Zt10gBdMwFWGnZ6TJXhXBuX6o7yjZ2f9En/3jMmkvcE/5ibt
+	W+oXzzXdCg66iNvGxOVtXPSQaOLND4gEWE2Es819M4qL8qGIBkgt0fYYe9Fc4c/NI2g==
+X-Received: by 2002:a6b:5115:: with SMTP id f21mr4752023iob.173.1562855199091;
+        Thu, 11 Jul 2019 07:26:39 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw8t0ZRyRV502o/BpWpsPvHc0IuQoI0KYc8bn3Y37gjQbnB8wrcrbDQXrgCEIzfwLhObNq1
+X-Received: by 2002:a6b:5115:: with SMTP id f21mr4751956iob.173.1562855198449;
+        Thu, 11 Jul 2019 07:26:38 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562855198; cv=none;
         d=google.com; s=arc-20160816;
-        b=PbJUbd6V8ubdHJQ00C8M0RATV8ZH9sax5GYgoZmKKGuQzYxiStoZGbLPV+1/yMxSg4
-         wJDqVBErOheXuORnyNqNuB0elbQ1folGAHTbJiohktLBZUpHCfTVoKOhObhUqFbudRE3
-         iJFFLlq5eMoucIvA1jEyFogO2hwwvf+bMWsc/ULT2vrqVt4SDd023Fpg5QVPc8JHJM35
-         BxQkjfMYgk2PsBjZsY97pps8K3liykStfyC8/JNcZ7XSg2X3umh5c2NPpUVro+Vd5UFu
-         S4UuvqFp6WKU6Yk3Vn6V8gK5NkUx6pvqbp+wGej+3JshzfrGZdk87y9E1XbSrQUiqx2X
-         SLxw==
+        b=QzXMnhK5FWYqhImBVF+jJHDD/nZTjl565FfhEnpv/XEHIO4igz4KwWJshR7+kgVz5z
+         35ZFKhXD3pIXEanmGMAtWe14j5LsZ+bPChm6j3R6g/LXVncSbzdvNH4hKas3W5ixLBeN
+         xIFV9rLsyhFIIUbgooBHPMjwf0N/cCkjbh3OPD+kFzSKRxV2YztydRzm+G8zMgtCSw0k
+         I/V/P0EqiyrAcirYbt4GfWEb7z1k50iFKGTHpSbtEfWRV2jOWhd/swFz+sFwuqAfmqF0
+         TyuQjzEtbGCe8gIPMmSDQRAEp9xOfVZX5N0u4yAKUoiGew7+k1LqK6rvAPKKDq9HMq6r
+         Q1Iw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from
          :dkim-signature;
-        bh=gDByh8p+inBGj8eNOkt+0s0ErRCor6nCeXzUp1uJmZ0=;
-        b=v+hDurvBXM0HiP0/ZJ1VCCrl8fnHMEFogQbIJeEzottcYdK3wf8T1ME3sTE8hIiIuP
-         0iL0Hwc4QQp/wFgvZekxAZ0D6txPPCJWZH/Q3t2vl4nAi2dnk2/iTRnu8sogYms7ndaf
-         5VjyhsuL0fGhCmI7kNGSJT//vGzJsq6zQ62zGP0lD1qaduHJZ+A0D443JaIkEnT0UQ0U
-         xMBCoKo8uieCkWncZR6XzrTfxThqsXhfoJhj06qQsgIGM3/ue75IV+FLPrmWRxqAd3dH
-         KLbCVmit4hk/cLe4GmtlJp+QK/klDjLPZBnf+YIL/GEJbcK32FCbRzSpMM/wNFa3d6fj
-         9vnQ==
+        bh=Ag0k+tMlXoCUCjgmP3NxD1Cl4FnNgcaLg1SLsqSglmA=;
+        b=QZbV0ei2gVRcX5sUOURklQFzrAVvKnw+yUtAoFfzBwjyi+cHPDPMiGxb0JqMNmMqhr
+         /9YKMV5pafgR2J6uwQMaUPmwxywJmfw+hqDHY7jVrQAMU3bXXdXUEiDxEmAf0WZoic4u
+         gAQch9ti3ltDs90/Rs7q++gLMjObzZAOiN46Kip4JtwwC6D54iuqz7DiLSYdbqWqFgbi
+         uy/9EvX26AQXeTjrKC4CEcEAHufqzgdG/L5QEqp9f0Uh9REuYNHBMK06Es6eYe7RY6pE
+         vMpBy/euXNNaFt7eCUUB9qWtP56e1dr3xVkYVEC5T6Nfye5704khyHnVCzbse7xWqQiw
+         BRpw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=uIvYew5i;
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=keVQsRLh;
        spf=pass (google.com: domain of alexandre.chartre@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=alexandre.chartre@oracle.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
 Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id l10si7686574ion.114.2019.07.11.07.26.35
+        by mx.google.com with ESMTPS id y14si10133684jan.93.2019.07.11.07.26.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 11 Jul 2019 07:26:35 -0700 (PDT)
+        Thu, 11 Jul 2019 07:26:38 -0700 (PDT)
 Received-SPF: pass (google.com: domain of alexandre.chartre@oracle.com designates 156.151.31.86 as permitted sender) client-ip=156.151.31.86;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=uIvYew5i;
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=keVQsRLh;
        spf=pass (google.com: domain of alexandre.chartre@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=alexandre.chartre@oracle.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
 Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
-	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x6BEOKHZ001595;
-	Thu, 11 Jul 2019 14:26:25 GMT
+	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x6BEOAvB001518;
+	Thu, 11 Jul 2019 14:26:29 GMT
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=from : to : cc :
  subject : date : message-id : in-reply-to : references; s=corp-2018-07-02;
- bh=gDByh8p+inBGj8eNOkt+0s0ErRCor6nCeXzUp1uJmZ0=;
- b=uIvYew5i+/N3gKnyr4ociYqq+qt56BKvpfHx2yG6ELbiXTDFF1FnRFdNiTxKLqzKpugT
- 7rZFZ27tp3XeOzJIDBEQWKZlGMdD04zWtCMR9kz9rtKT/I1eEKjmUoR0EfXOS4LZP41X
- SaOmMD0h5rmiZKjuWODlCFnTwFv/w3OU84qMp7I8vBQjvkB4kLSw+vU/HUfR9FiS4qmM
- dt9lswqhmPEYZvrjigJDb4qNQfKlbGFfmUQluSi/uyNCjdt/jH+m3QqAeoRgbBE5SECi
- sbhB6HhXJDdRZ5C1Vh+uI9HzCIOa4DMf+C+kQvxHt3TG4Fqj9spPHDE/SpvfNokpoD2Z Tw== 
+ bh=Ag0k+tMlXoCUCjgmP3NxD1Cl4FnNgcaLg1SLsqSglmA=;
+ b=keVQsRLhZyNb/dFJnnzguyu+6Vl7qT1iW80eQJUi6p8HUYNezOn2M6QRB0NcNQhQI7JT
+ 5HACwzQ7vK/fKkmWqNIFxS0mv8uBEA1J5s9pHNXY/wHvMqw/x77ya8pCk5djXXg3w8tA
+ Y+DFHNzDwpT4d81yj2dhIMIFubn8ssOAMPMn8hTz8Cg2l5maUEKHDpqBF2nYVJbVIius
+ zq+q7wJ21XaxrzeREUMqbHN8popuelxmyOtwjWh5plKHWNmsE8C4KEMn9NIt7tf3KMir
+ nsOpTlKGCKH8e0WHGLCVGvgf9UFWaCxJYPAxRKOlsGhf5idexkvlsNaYd43tN8SZVOoQ SA== 
 Received: from aserv0021.oracle.com (aserv0021.oracle.com [141.146.126.233])
-	by userp2130.oracle.com with ESMTP id 2tjk2u0dyd-1
+	by userp2130.oracle.com with ESMTP id 2tjk2u0dyw-1
 	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 11 Jul 2019 14:26:25 +0000
+	Thu, 11 Jul 2019 14:26:28 +0000
 Received: from achartre-desktop.fr.oracle.com (dhcp-10-166-106-34.fr.oracle.com [10.166.106.34])
-	by aserv0021.oracle.com (8.14.4/8.14.4) with ESMTP id x6BEPcu5021444;
-	Thu, 11 Jul 2019 14:26:21 GMT
+	by aserv0021.oracle.com (8.14.4/8.14.4) with ESMTP id x6BEPcu6021444;
+	Thu, 11 Jul 2019 14:26:25 GMT
 From: Alexandre Chartre <alexandre.chartre@oracle.com>
 To: pbonzini@redhat.com, rkrcmar@redhat.com, tglx@linutronix.de,
         mingo@redhat.com, bp@alien8.de, hpa@zytor.com,
@@ -108,16 +108,16 @@ To: pbonzini@redhat.com, rkrcmar@redhat.com, tglx@linutronix.de,
 Cc: konrad.wilk@oracle.com, jan.setjeeilers@oracle.com, liran.alon@oracle.com,
         jwadams@google.com, graf@amazon.de, rppt@linux.vnet.ibm.com,
         alexandre.chartre@oracle.com
-Subject: [RFC v2 12/26] mm/asi: Function to copy page-table entries for percpu buffer
-Date: Thu, 11 Jul 2019 16:25:24 +0200
-Message-Id: <1562855138-19507-13-git-send-email-alexandre.chartre@oracle.com>
+Subject: [RFC v2 13/26] mm/asi: Add asi_remap() function
+Date: Thu, 11 Jul 2019 16:25:25 +0200
+Message-Id: <1562855138-19507-14-git-send-email-alexandre.chartre@oracle.com>
 X-Mailer: git-send-email 1.7.1
 In-Reply-To: <1562855138-19507-1-git-send-email-alexandre.chartre@oracle.com>
 References: <1562855138-19507-1-git-send-email-alexandre.chartre@oracle.com>
 X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9314 signatures=668688
 X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
  suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=895 adultscore=0
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=832 adultscore=0
  classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
  definitions=main-1907110162
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
@@ -126,79 +126,64 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Provide functions to copy page-table entries from the kernel page-table
-to an ASI page-table for a percpu buffer. A percpu buffer have a different
-VA range for each cpu and all them have to be copied.
+Add a function to remap an already mapped buffer with a new address
+in an ASI page-table: the already mapped buffer is unmapped, and a
+new mapping is added for the specified new address.
+
+This is useful to track and remap a buffer which can be freed and
+then reallocated.
 
 Signed-off-by: Alexandre Chartre <alexandre.chartre@oracle.com>
 ---
- arch/x86/include/asm/asi.h  |    6 ++++++
- arch/x86/mm/asi_pagetable.c |   38 ++++++++++++++++++++++++++++++++++++++
- 2 files changed, 44 insertions(+), 0 deletions(-)
+ arch/x86/include/asm/asi.h  |    1 +
+ arch/x86/mm/asi_pagetable.c |   25 +++++++++++++++++++++++++
+ 2 files changed, 26 insertions(+), 0 deletions(-)
 
 diff --git a/arch/x86/include/asm/asi.h b/arch/x86/include/asm/asi.h
-index 919129f..912b6a7 100644
+index 912b6a7..cf5d198 100644
 --- a/arch/x86/include/asm/asi.h
 +++ b/arch/x86/include/asm/asi.h
-@@ -105,6 +105,12 @@ static inline int asi_map_module(struct asi *asi, char *module_name)
- 	return asi_map(asi, module->core_layout.base, module->core_layout.size);
- }
+@@ -84,6 +84,7 @@ extern int asi_map_range(struct asi *asi, void *ptr, size_t size,
+ 			 enum page_table_level level);
+ extern int asi_map(struct asi *asi, void *ptr, unsigned long size);
+ extern void asi_unmap(struct asi *asi, void *ptr);
++extern int asi_remap(struct asi *asi, void **mapping, void *ptr, size_t size);
  
-+#define	ASI_MAP_CPUVAR(asi, cpuvar)	\
-+	asi_map_percpu(asi, &cpuvar, sizeof(cpuvar))
-+
-+extern int asi_map_percpu(struct asi *asi, void *percpu_ptr, size_t size);
-+extern void asi_unmap_percpu(struct asi *asi, void *percpu_ptr);
-+
  /*
-  * Function to exit the current isolation. This is used to abort isolation
-  * when a task using isolation is scheduled out.
+  * Copy the memory mapping for the current module. This is defined as a
 diff --git a/arch/x86/mm/asi_pagetable.c b/arch/x86/mm/asi_pagetable.c
-index 7aee236..a4fe867 100644
+index a4fe867..1ff0c47 100644
 --- a/arch/x86/mm/asi_pagetable.c
 +++ b/arch/x86/mm/asi_pagetable.c
-@@ -804,3 +804,41 @@ void asi_unmap(struct asi *asi, void *ptr)
- 	spin_unlock_irqrestore(&asi->lock, flags);
+@@ -842,3 +842,28 @@ int asi_map_percpu(struct asi *asi, void *percpu_ptr, size_t size)
+ 	return 0;
  }
- EXPORT_SYMBOL(asi_unmap);
+ EXPORT_SYMBOL(asi_map_percpu);
 +
-+void asi_unmap_percpu(struct asi *asi, void *percpu_ptr)
++int asi_remap(struct asi *asi, void **current_ptrp, void *new_ptr, size_t size)
 +{
-+	void *ptr;
-+	int cpu;
++	void *current_ptr = *current_ptrp;
++	int err;
 +
-+	pr_debug("ASI %p: UNMAP PERCPU %px\n", asi, percpu_ptr);
-+	for_each_possible_cpu(cpu) {
-+		ptr = per_cpu_ptr(percpu_ptr, cpu);
-+		pr_debug("ASI %p: UNMAP PERCPU%d %px\n", asi, cpu, ptr);
-+		asi_unmap(asi, ptr);
++	if (current_ptr == new_ptr) {
++		/* no change, already mapped */
++		return 0;
 +	}
-+}
-+EXPORT_SYMBOL(asi_unmap_percpu);
 +
-+int asi_map_percpu(struct asi *asi, void *percpu_ptr, size_t size)
-+{
-+	int cpu, err;
-+	void *ptr;
-+
-+	pr_debug("ASI %p: MAP PERCPU %px\n", asi, percpu_ptr);
-+	for_each_possible_cpu(cpu) {
-+		ptr = per_cpu_ptr(percpu_ptr, cpu);
-+		pr_debug("ASI %p: MAP PERCPU%d %px\n", asi, cpu, ptr);
-+		err = asi_map(asi, ptr, size);
-+		if (err) {
-+			/*
-+			 * Need to unmap any percpu mapping which has
-+			 * succeeded before the failure.
-+			 */
-+			asi_unmap_percpu(asi, percpu_ptr);
-+			return err;
-+		}
++	if (current_ptr) {
++		asi_unmap(asi, current_ptr);
++		*current_ptrp = NULL;
 +	}
++
++	err = asi_map(asi, new_ptr, size);
++	if (err)
++		return err;
++
++	*current_ptrp = new_ptr;
 +
 +	return 0;
 +}
-+EXPORT_SYMBOL(asi_map_percpu);
++EXPORT_SYMBOL(asi_remap);
 -- 
 1.7.1
 
