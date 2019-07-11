@@ -2,127 +2,114 @@ Return-Path: <SRS0=bABq=VI=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.7 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 69319C74A3F
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 01:26:04 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id EB989C74A41
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 03:06:44 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 150BC20872
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 01:26:04 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 6195120872
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 03:06:44 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="Ksld3UEg"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 150BC20872
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="kqEvAV2d"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6195120872
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9D0BA8E00A5; Wed, 10 Jul 2019 21:26:03 -0400 (EDT)
+	id AE5808E00A6; Wed, 10 Jul 2019 23:06:43 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9809A8E0032; Wed, 10 Jul 2019 21:26:03 -0400 (EDT)
+	id A6E158E0032; Wed, 10 Jul 2019 23:06:43 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 848EF8E00A5; Wed, 10 Jul 2019 21:26:03 -0400 (EDT)
+	id 8E7A48E00A6; Wed, 10 Jul 2019 23:06:43 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 48C978E0032
-	for <linux-mm@kvack.org>; Wed, 10 Jul 2019 21:26:03 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id 6so2453656pfi.6
-        for <linux-mm@kvack.org>; Wed, 10 Jul 2019 18:26:03 -0700 (PDT)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 400B78E0032
+	for <linux-mm@kvack.org>; Wed, 10 Jul 2019 23:06:43 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id d6so2396630pls.17
+        for <linux-mm@kvack.org>; Wed, 10 Jul 2019 20:06:43 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:sender:from:to:cc:subject:date
-         :message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=24jcnqUkS/NXF8aH8va17XJ9ebArqkYpqhxw1QfB8xU=;
-        b=mSzf7hR/jQ8hPH9Vm/0s6MN6p381sHumZvYfNlyZdTrPr8Bwm5FARPb50t/7bH3f45
-         73zssoBAaUcNYGIonVAmkhhZKBT8yIis+iyWfuvR8r1/Zr6hKoqV9HrLEuYN/5GUQCET
-         SnO9zM55Mz/7ejWDvcl5KMA5yQa0KZvvDnIp7vtMCZDZdGaZZ4WW12QFyq65Gyf0NY9p
-         o8vLoUvd/AF1y5uN+L6AXyitSLOeb/dS0ijPVgJ8pIMSq94BQeGcZBu4lc1ahxHewmq4
-         G/5pBkP9k/2quyXZUxNnqHnCrpp701SMpTJft3MMkSXh2vpfut58L0qDJN1+/ZJENS7O
-         5vSA==
-X-Gm-Message-State: APjAAAW4IKXgEafXyC3ZS5sPKwT294NLNVZe8/b1caK0YJh87JvpT61x
-	JsBkjGH11A8FX7jwaPifMWz76v7iR4kyyoke5WnKlCvYBhPjFE32Y2ddRVE4jngAPNQTXiqly25
-	HfUYuwx732r5B5cJlr6w08FZVipgXP3zQZkWfC0PDxSxdB90FqQBkYh9A5iHAxE8=
-X-Received: by 2002:a17:90a:fa07:: with SMTP id cm7mr1539088pjb.138.1562808362848;
-        Wed, 10 Jul 2019 18:26:02 -0700 (PDT)
-X-Received: by 2002:a17:90a:fa07:: with SMTP id cm7mr1539031pjb.138.1562808361775;
-        Wed, 10 Jul 2019 18:26:01 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562808361; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id:mime-version:content-transfer-encoding;
+        bh=u2UyoDFeHmP5fnUWQIEY/nqbjSPPX8xRQostYuk+zG0=;
+        b=dnGX2tgor7qeoooHcGJvE2VXGXTpoFHyCVOTinZe6YcuROAVri7dxpjsZ4hu9yXxte
+         okSfGFN06W5nwypNzffNVp/6poZWuoMLjlGdgvr6mPMSr8pVkOohZ1TTovODpXva6hMQ
+         L1jPtz48jgNCRgli+ExG795jlXPrsFXdCncQEK85jZKth+BawlSmD1kIH5ydrjvwI2AY
+         pd1XBj9f3zMZ2cdFPHAXlPp/JQmEMhQjP2TN51knATq2YO8NquDqHMgqqNBGK7rH+UCU
+         dcsTewYbNPbUfegLnQ9MTTQaSWfhZyLZbTcgSYdY1UySrOEIZaWWHQBZMEP9UIRcJupy
+         /yVg==
+X-Gm-Message-State: APjAAAXlx4iuJKJ5UaLnLNh31nuDmfJA3Nfx2ApLYS/tljMmagN3PV/Y
+	D9cOMAluLCp2mu4jvEj+KLOLIAh3sA7I7x0pLS7+sIHaP/gM6E31QhBAQIRviztiOegeVus4use
+	n3lhYnPJgcEyXRd3Y2StCPSd3SbbxfLR1WuLGlFSCIe4VzNiJHZFfpQghgmrfnyItNQ==
+X-Received: by 2002:a63:f118:: with SMTP id f24mr1889914pgi.322.1562814402548;
+        Wed, 10 Jul 2019 20:06:42 -0700 (PDT)
+X-Received: by 2002:a63:f118:: with SMTP id f24mr1889735pgi.322.1562814400462;
+        Wed, 10 Jul 2019 20:06:40 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562814400; cv=none;
         d=google.com; s=arc-20160816;
-        b=gI65ime3Z1qVxwpQ/wnH4w2DO4qO3tR/jKSeIBc9l+voUj8dCkAdzdqxBjS3R+bTfS
-         /xwBS1UwsZdpXFj1MfATKpw2rHfdpLc2CHRIrXcibyHHeQdVuMP+3nJv/N0ORS+fT3j9
-         XyA38U4SYD/CPhiyrHGILQPDxJm/BZ1ryP6pxkl46dB8yRBKsamM6uCiAG9IGTr9/m3z
-         3Pd969LXPNzPYqPRpWKer6j9ThCQaniJhFeVVkMpgBLxtTzFPa5E8h0v++5UPZfiq0TF
-         wpWkR2X42blcz/hLHgidzET//Ly2KMYiSmEGH/L19G8QMLBxhX5iLBcWhhjsMD6zjuir
-         edIQ==
+        b=IfLf9bZp4SLDmmk+taQ8gCTBX8TM1gQAFi+CvZh/ABh8NImNASpu4oh/OAoIaMVJW5
+         ZWb6hPTlgGm28CFnwcvCCeXYOeWHEqtcwTE/Nz6/KFQwY/VMMMfTP61Gy/MbfM1k4R9M
+         kSU5SikYD0u1KSG/LO3Yv2XMb56mvcODs0p2/udSeA4NarKalC84FLctB6nOZNF6dNwQ
+         xWnwpACzsZsSO6xNq3ijr3PIQz+foHz1qZeh0J6Iy3MEjAlDIvQGK037mu54kS6my0SR
+         JS4RwzBelWNa7AbQKsRmQWUv+3wDk82vGWzD6H+mcuCqc1zMe0NSxzGiyzbut3cm1DTX
+         SmFA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from:sender:dkim-signature;
-        bh=24jcnqUkS/NXF8aH8va17XJ9ebArqkYpqhxw1QfB8xU=;
-        b=JpKcYtrXiKtPXiMuY6at4IkCXJlOzzzueun+F9eeECiWkMP+VXIvrSoaL/di5Xc1Am
-         acEbAJaPqWwA9InnKl5FsvC1Y0uKb1DR1dil+V0pSZEpsYX0xJ7VpXnzu/+rZOB175UX
-         6q5xDFbfKHB1lFfABGzqXR6SwYDkNPjhX++oPduIBJ4dlfKUHSb4ARW80m6ZN1tKmPpQ
-         Y9488to8LYTJhlrxIIfWJJ4TmrbBFZUqgVqb4M7xLMobjEuM5Bt6fuaAQ5HiiRiqZyjs
-         ind5muVYzwXq+ELtZWR79Y6joN7pvyVmLQbYesgjpTyl94YyNt8s+LqmiVM9tmvpEmLT
-         Nxdw==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from:dkim-signature;
+        bh=u2UyoDFeHmP5fnUWQIEY/nqbjSPPX8xRQostYuk+zG0=;
+        b=K4IYXq14xNYJBhU2MAD83ZfLyKKfoszghEhQuYB1gdcf+gi+h3dTVanOcD2Ub0B8gv
+         zFVafkr1DnpA1h/5dUga8K83TaSUrI7cAWGWiOckWnPs6hKI2eIJBSKWVp+27upTpKvm
+         eJXy8BfVXoo/QXuP818d0f4vH28Xz0FDoTbbw1AgcSAHkMiB082DdDz8Kqa18aYdBqCV
+         ix5QgbliIYCPMBjOqcZV4dhb74MHTtH6iZ84q+JOU+uRjnN6EHlIyGrpDouupaHBnz+u
+         xNr2UbKKDwXx1z94yPBKwSRs9pW1smNExzQB71gqsefkeNN4z4fcogEVd5X0Lldglz3D
+         ZtJA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Ksld3UEg;
-       spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=kqEvAV2d;
+       spf=pass (google.com: domain of npiggin@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=npiggin@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q36sor2107879pgl.81.2019.07.10.18.26.01
+        by mx.google.com with SMTPS id a38sor5068612pla.0.2019.07.10.20.06.40
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 10 Jul 2019 18:26:01 -0700 (PDT)
-Received-SPF: pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Wed, 10 Jul 2019 20:06:40 -0700 (PDT)
+Received-SPF: pass (google.com: domain of npiggin@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Ksld3UEg;
-       spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=kqEvAV2d;
+       spf=pass (google.com: domain of npiggin@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=npiggin@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
-        h=sender:from:to:cc:subject:date:message-id:in-reply-to:references
-         :mime-version:content-transfer-encoding;
-        bh=24jcnqUkS/NXF8aH8va17XJ9ebArqkYpqhxw1QfB8xU=;
-        b=Ksld3UEgh0GfQTrvkzpKACpnRZhEjsspy0YGSBYwcEHl8glu9rn0aO/LrFVsCgxZbP
-         kQL4crWekZVd6asOuHWOzpYEit/eoE+LZFqb870Klm2OQtcRHETukABGGnCDn4kA22IB
-         Lyrcyaxsk9NJPmNYf0pkeMglZwiYLSZNY+os76Zp9Eo3fW0i3OZh/oQYoSJ03mUaDXBg
-         MQ7/6DD5kQRXlp3q1LC/5i7BQhEhyuod1+p3V/7uZ0KAAjEpHui1uVhxI16wHHO6SENO
-         Id0WLZJDfqrxqC24/B4IY7Y6rol11egnzgjrUHjzHqWglPMJ6RhEUezfqHTY09UMnWOo
-         qXcg==
-X-Google-Smtp-Source: APXvYqzM5IJf6ixMvYWEC3R66//YxsankW0ieNb+ScNQL+bV7IlMOZ3P+U4kjZUC1kDdpFXgYI4QlQ==
-X-Received: by 2002:a63:c10d:: with SMTP id w13mr1393291pgf.28.1562808361198;
-        Wed, 10 Jul 2019 18:26:01 -0700 (PDT)
-Received: from bbox-2.seo.corp.google.com ([2401:fa00:d:0:98f1:8b3d:1f37:3e8])
-        by smtp.gmail.com with ESMTPSA id b37sm10031974pjc.15.2019.07.10.18.25.56
+        h=from:to:cc:subject:date:message-id:mime-version
+         :content-transfer-encoding;
+        bh=u2UyoDFeHmP5fnUWQIEY/nqbjSPPX8xRQostYuk+zG0=;
+        b=kqEvAV2dqOwtIkQL+OT3w8q2YL1jJaLJ5yebSV3WODlYzHKy+tNrmMayq2SMasEfhU
+         v8okYh+50tjnGwjr/0cDsvyvfDXAuGGa5oZto43ZC4ckPawStx/6e94qLcYJLNir0FMa
+         Ge0UzOadUMbM/nd0VKnY8MDZzp0GiiebuoDOc+0FaXdkBxZ9epIQ9Zg4/lPeb3gXjnS8
+         N31hiJYHayPlikJD1vKlpdqitVknAilpj57cVWYRwM2vpKnqCx2U+UpWP+HRze+Hq/HG
+         UTKdxbP3MSif6D7eMmcKALG8KXvxjobds1HW8v74XT2By9LWWj09LbyK5hdpQnKnLFZp
+         M48Q==
+X-Google-Smtp-Source: APXvYqxx/PGhwctWgTCH8QNR4PC86ALD3GEZWhWDLkOeKMYV5Q8Ul2QyMlqBCfFNVk45liM+BOJk+g==
+X-Received: by 2002:a17:902:b206:: with SMTP id t6mr1911597plr.195.1562814399335;
+        Wed, 10 Jul 2019 20:06:39 -0700 (PDT)
+Received: from bobo.local0.net (203-213-47-85.tpgi.com.au. [203.213.47.85])
+        by smtp.gmail.com with ESMTPSA id v13sm4233021pfe.105.2019.07.10.20.06.34
         (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Wed, 10 Jul 2019 18:26:00 -0700 (PDT)
-From: Minchan Kim <minchan@kernel.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm <linux-mm@kvack.org>,
-	LKML <linux-kernel@vger.kernel.org>,
-	linux-api@vger.kernel.org,
-	Michal Hocko <mhocko@suse.com>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	Tim Murray <timmurray@google.com>,
-	Joel Fernandes <joel@joelfernandes.org>,
-	Suren Baghdasaryan <surenb@google.com>,
-	Daniel Colascione <dancol@google.com>,
-	Shakeel Butt <shakeelb@google.com>,
-	Sonny Rao <sonnyrao@google.com>,
-	oleksandr@redhat.com,
-	hdanton@sina.com,
-	lizeb@google.com,
-	Dave Hansen <dave.hansen@intel.com>,
-	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>,
-	Minchan Kim <minchan@kernel.org>
-Subject: [PATCH v4 4/4] mm: introduce MADV_PAGEOUT
-Date: Thu, 11 Jul 2019 10:25:28 +0900
-Message-Id: <20190711012528.176050-5-minchan@kernel.org>
-X-Mailer: git-send-email 2.22.0.410.gd8fdbe21b5-goog
-In-Reply-To: <20190711012528.176050-1-minchan@kernel.org>
-References: <20190711012528.176050-1-minchan@kernel.org>
+        Wed, 10 Jul 2019 20:06:38 -0700 (PDT)
+From: Nicholas Piggin <npiggin@gmail.com>
+To: linux-mm@kvack.org
+Cc: Nicholas Piggin <npiggin@gmail.com>,
+	linux-arch@vger.kernel.org,
+	linux-ia64@vger.kernel.org,
+	linux-sh@vger.kernel.org,
+	Christoph Lameter <cl@linux.com>
+Subject: [RFC PATCH] mm: remove quicklist page table caches
+Date: Thu, 11 Jul 2019 13:03:39 +1000
+Message-Id: <20190711030339.20892-1-npiggin@gmail.com>
+X-Mailer: git-send-email 2.20.1
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
@@ -131,394 +118,1021 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-When a process expects no accesses to a certain memory range
-for a long time, it could hint kernel that the pages can be
-reclaimed instantly but data should be preserved for future use.
-This could reduce workingset eviction so it ends up increasing
-performance.
+Remove page table allocator "quicklists". These have been around for a
+long time, but have not got much traction in the last decade and are
+only used on ia64 and sh architectures.
 
-This patch introduces the new MADV_PAGEOUT hint to madvise(2)
-syscall. MADV_PAGEOUT can be used by a process to mark a memory
-range as not expected to be used for a long time so that kernel
-reclaims *any LRU* pages instantly. The hint can help kernel in
-deciding which pages to evict proactively.
+The numbers in the initial commit look interesting but probably don't
+apply anymore. If anybody wants to resurrect this it's in the git
+history, but it's unhelpful to have this code and divergent allocator
+behaviour for minor archs.
 
-A note: It doesn't apply SWAP_CLUSTER_MAX LRU page isolation limit
-intentionally because it's automatically bounded by PMD size.
-If PMD size(e.g., 256) makes some trouble, we could fix it later
-by limit it to SWAP_CLUSTER_MAX[1].
-
-- man-page material
-
-MADV_PAGEOUT (since Linux x.x)
-
-Do not expect access in the near future so pages in the specified
-regions could be reclaimed instantly regardless of memory pressure.
-Thus, access in the range after successful operation could cause
-major page fault but never lose the up-to-date contents unlike
-MADV_DONTNEED. Pages belonging to a shared mapping are only processed
-if a write access is allowed for the calling process.
-
-MADV_PAGEOUT cannot be applied to locked pages, Huge TLB pages, or
-VM_PFNMAP pages.
-
-* v3
- * man page material modification - mhocko
- * remove using SWAP_CLUSTER_MAX - mhocko
-
-* v2
- * add comment about SWAP_CLUSTER_MAX - mhocko
- * add permission check to prevent sidechannel attack - mhocko
- * add man page stuff - dave
-
-* v1
- * change pte to old and rely on the other's reference - hannes
- * remove page_mapcount to check shared page - mhocko
-
-* RFC v2
- * make reclaim_pages simple via factoring out isolate logic - hannes
-
-* RFCv1
- * rename from MADV_COLD to MADV_PAGEOUT - hannes
- * bail out if process is being killed - Hillf
- * fix reclaim_pages bugs - Hillf
-
-[1] https://lore.kernel.org/lkml/20190710194719.GS29695@dhcp22.suse.cz/
-Acked-by: Michal Hocko <mhocko@suse.com>
-Signed-off-by: Minchan Kim <minchan@kernel.org>
+Also it might be better to instead make more general improvements to
+page allocator if this is still so slow.
 ---
- include/linux/swap.h                   |   1 +
- include/uapi/asm-generic/mman-common.h |   1 +
- mm/madvise.c                           | 197 +++++++++++++++++++++++++
- mm/vmscan.c                            |  55 +++++++
- 4 files changed, 254 insertions(+)
+ arch/alpha/include/asm/pgalloc.h      |   2 -
+ arch/arc/include/asm/pgalloc.h        |   1 -
+ arch/arm/include/asm/pgalloc.h        |   2 -
+ arch/arm64/include/asm/pgalloc.h      |   2 -
+ arch/csky/include/asm/pgalloc.h       |   2 -
+ arch/hexagon/include/asm/pgalloc.h    |   2 -
+ arch/ia64/Kconfig                     |   4 -
+ arch/ia64/include/asm/pgalloc.h       |  32 +++-----
+ arch/m68k/include/asm/pgtable_mm.h    |   2 -
+ arch/m68k/include/asm/pgtable_no.h    |   2 -
+ arch/microblaze/include/asm/pgalloc.h |  89 ++--------------------
+ arch/microblaze/mm/pgtable.c          |   4 -
+ arch/mips/include/asm/pgalloc.h       |   2 -
+ arch/nds32/include/asm/pgalloc.h      |   2 -
+ arch/nios2/include/asm/pgalloc.h      |   2 -
+ arch/openrisc/include/asm/pgalloc.h   |   2 -
+ arch/parisc/include/asm/pgalloc.h     |   2 -
+ arch/powerpc/include/asm/pgalloc.h    |   2 -
+ arch/riscv/include/asm/pgalloc.h      |   4 -
+ arch/s390/include/asm/pgtable.h       |   1 -
+ arch/sh/include/asm/pgalloc.h         |  22 ++----
+ arch/sh/mm/Kconfig                    |   3 -
+ arch/sparc/include/asm/pgalloc_32.h   |   2 -
+ arch/sparc/include/asm/pgalloc_64.h   |   2 -
+ arch/sparc/mm/init_32.c               |   1 -
+ arch/um/include/asm/pgalloc.h         |   2 -
+ arch/unicore32/include/asm/pgalloc.h  |   2 -
+ arch/x86/include/asm/pgtable_32.h     |   1 -
+ arch/x86/include/asm/pgtable_64.h     |   1 -
+ arch/xtensa/include/asm/tlbflush.h    |   3 -
+ fs/proc/meminfo.c                     |   4 -
+ include/asm-generic/pgalloc.h         |   2 -
+ include/linux/quicklist.h             |  94 -----------------------
+ kernel/sched/idle.c                   |   1 -
+ lib/show_mem.c                        |   5 --
+ mm/Kconfig                            |   5 --
+ mm/Makefile                           |   1 -
+ mm/mmu_gather.c                       |   2 -
+ mm/quicklist.c                        | 103 --------------------------
+ 39 files changed, 25 insertions(+), 392 deletions(-)
+ delete mode 100644 include/linux/quicklist.h
+ delete mode 100644 mm/quicklist.c
 
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index 0ce997edb8bb..063c0c1e112b 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -365,6 +365,7 @@ extern int vm_swappiness;
- extern int remove_mapping(struct address_space *mapping, struct page *page);
- extern unsigned long vm_total_pages;
- 
-+extern unsigned long reclaim_pages(struct list_head *page_list);
- #ifdef CONFIG_NUMA
- extern int node_reclaim_mode;
- extern int sysctl_min_unmapped_ratio;
-diff --git a/include/uapi/asm-generic/mman-common.h b/include/uapi/asm-generic/mman-common.h
-index ef8a56927b12..c613abdb7284 100644
---- a/include/uapi/asm-generic/mman-common.h
-+++ b/include/uapi/asm-generic/mman-common.h
-@@ -46,6 +46,7 @@
- #define MADV_WILLNEED	3		/* will need these pages */
- #define MADV_DONTNEED	4		/* don't need these pages */
- #define MADV_COLD	5		/* deactivatie these pages */
-+#define MADV_PAGEOUT	6		/* reclaim these pages */
- 
- /* common parameters: try to keep these consistent across architectures */
- #define MADV_FREE	8		/* free pages only if memory pressure */
-diff --git a/mm/madvise.c b/mm/madvise.c
-index bae0055f9724..bc2f0138982e 100644
---- a/mm/madvise.c
-+++ b/mm/madvise.c
-@@ -11,6 +11,7 @@
- #include <linux/syscalls.h>
- #include <linux/mempolicy.h>
- #include <linux/page-isolation.h>
-+#include <linux/page_idle.h>
- #include <linux/userfaultfd_k.h>
- #include <linux/hugetlb.h>
- #include <linux/falloc.h>
-@@ -41,6 +42,7 @@ static int madvise_need_mmap_write(int behavior)
- 	case MADV_WILLNEED:
- 	case MADV_DONTNEED:
- 	case MADV_COLD:
-+	case MADV_PAGEOUT:
- 	case MADV_FREE:
- 		return 0;
- 	default:
-@@ -480,6 +482,198 @@ static long madvise_cold(struct vm_area_struct *vma,
- 	return 0;
+diff --git a/arch/alpha/include/asm/pgalloc.h b/arch/alpha/include/asm/pgalloc.h
+index 02f9f91bb4f0..0912e37c3a56 100644
+--- a/arch/alpha/include/asm/pgalloc.h
++++ b/arch/alpha/include/asm/pgalloc.h
+@@ -87,6 +87,4 @@ pte_free(struct mm_struct *mm, pgtable_t page)
+ 	__free_page(page);
  }
  
-+static int madvise_pageout_pte_range(pmd_t *pmd, unsigned long addr,
-+				unsigned long end, struct mm_walk *walk)
-+{
-+	struct mmu_gather *tlb = walk->private;
-+	struct mm_struct *mm = tlb->mm;
-+	struct vm_area_struct *vma = walk->vma;
-+	pte_t *orig_pte, *pte, ptent;
-+	spinlock_t *ptl;
-+	LIST_HEAD(page_list);
-+	struct page *page;
-+	unsigned long next;
-+
-+	if (fatal_signal_pending(current))
-+		return -EINTR;
-+
-+	next = pmd_addr_end(addr, end);
-+	if (pmd_trans_huge(*pmd)) {
-+		pmd_t orig_pmd;
-+
-+		tlb_change_page_size(tlb, HPAGE_PMD_SIZE);
-+		ptl = pmd_trans_huge_lock(pmd, vma);
-+		if (!ptl)
-+			return 0;
-+
-+		orig_pmd = *pmd;
-+		if (is_huge_zero_pmd(orig_pmd))
-+			goto huge_unlock;
-+
-+		if (unlikely(!pmd_present(orig_pmd))) {
-+			VM_BUG_ON(thp_migration_supported() &&
-+					!is_pmd_migration_entry(orig_pmd));
-+			goto huge_unlock;
-+		}
-+
-+		page = pmd_page(orig_pmd);
-+		if (next - addr != HPAGE_PMD_SIZE) {
-+			int err;
-+
-+			if (page_mapcount(page) != 1)
-+				goto huge_unlock;
-+			get_page(page);
-+			spin_unlock(ptl);
-+			lock_page(page);
-+			err = split_huge_page(page);
-+			unlock_page(page);
-+			put_page(page);
-+			if (!err)
-+				goto regular_page;
-+			return 0;
-+		}
-+
-+		if (isolate_lru_page(page))
-+			goto huge_unlock;
-+
-+		if (pmd_young(orig_pmd)) {
-+			pmdp_invalidate(vma, addr, pmd);
-+			orig_pmd = pmd_mkold(orig_pmd);
-+
-+			set_pmd_at(mm, addr, pmd, orig_pmd);
-+			tlb_remove_tlb_entry(tlb, pmd, addr);
-+		}
-+
-+		ClearPageReferenced(page);
-+		test_and_clear_page_young(page);
-+		list_add(&page->lru, &page_list);
-+huge_unlock:
-+		spin_unlock(ptl);
-+		reclaim_pages(&page_list);
-+		return 0;
-+	}
-+
-+	if (pmd_trans_unstable(pmd))
-+		return 0;
-+regular_page:
-+	tlb_change_page_size(tlb, PAGE_SIZE);
-+	orig_pte = pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
-+	flush_tlb_batched_pending(mm);
-+	arch_enter_lazy_mmu_mode();
-+	for (; addr < end; pte++, addr += PAGE_SIZE) {
-+		ptent = *pte;
-+		if (!pte_present(ptent))
-+			continue;
-+
-+		page = vm_normal_page(vma, addr, ptent);
-+		if (!page)
-+			continue;
-+
-+		/*
-+		 * creating a THP page is expensive so split it only if we
-+		 * are sure it's worth. Split it if we are only owner.
-+		 */
-+		if (PageTransCompound(page)) {
-+			if (page_mapcount(page) != 1)
-+				break;
-+			get_page(page);
-+			if (!trylock_page(page)) {
-+				put_page(page);
-+				break;
-+			}
-+			pte_unmap_unlock(orig_pte, ptl);
-+			if (split_huge_page(page)) {
-+				unlock_page(page);
-+				put_page(page);
-+				pte_offset_map_lock(mm, pmd, addr, &ptl);
-+				break;
-+			}
-+			unlock_page(page);
-+			put_page(page);
-+			pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
-+			pte--;
-+			addr -= PAGE_SIZE;
-+			continue;
-+		}
-+
-+		VM_BUG_ON_PAGE(PageTransCompound(page), page);
-+
-+		if (isolate_lru_page(page))
-+			continue;
-+
-+		if (pte_young(ptent)) {
-+			ptent = ptep_get_and_clear_full(mm, addr, pte,
-+							tlb->fullmm);
-+			ptent = pte_mkold(ptent);
-+			set_pte_at(mm, addr, pte, ptent);
-+			tlb_remove_tlb_entry(tlb, pte, addr);
-+		}
-+		ClearPageReferenced(page);
-+		test_and_clear_page_young(page);
-+		list_add(&page->lru, &page_list);
-+	}
-+
-+	arch_leave_lazy_mmu_mode();
-+	pte_unmap_unlock(orig_pte, ptl);
-+	reclaim_pages(&page_list);
-+	cond_resched();
-+
-+	return 0;
-+}
-+
-+static void madvise_pageout_page_range(struct mmu_gather *tlb,
-+			     struct vm_area_struct *vma,
-+			     unsigned long addr, unsigned long end)
-+{
-+	struct mm_walk pageout_walk = {
-+		.pmd_entry = madvise_pageout_pte_range,
-+		.mm = vma->vm_mm,
-+		.private = tlb,
-+	};
-+
-+	tlb_start_vma(tlb, vma);
-+	walk_page_range(addr, end, &pageout_walk);
-+	tlb_end_vma(tlb, vma);
-+}
-+
-+static inline bool can_do_pageout(struct vm_area_struct *vma)
-+{
-+	if (vma_is_anonymous(vma))
-+		return true;
-+	if (!vma->vm_file)
-+		return false;
-+	/*
-+	 * paging out pagecache only for non-anonymous mappings that correspond
-+	 * to the files the calling process could (if tried) open for writing;
-+	 * otherwise we'd be including shared non-exclusive mappings, which
-+	 * opens a side channel.
-+	 */
-+	return inode_owner_or_capable(file_inode(vma->vm_file)) ||
-+		inode_permission(file_inode(vma->vm_file), MAY_WRITE) == 0;
-+}
-+
-+static long madvise_pageout(struct vm_area_struct *vma,
-+			struct vm_area_struct **prev,
-+			unsigned long start_addr, unsigned long end_addr)
-+{
-+	struct mm_struct *mm = vma->vm_mm;
-+	struct mmu_gather tlb;
-+
-+	*prev = vma;
-+	if (!can_madv_lru_vma(vma))
-+		return -EINVAL;
-+
-+	if (!can_do_pageout(vma))
-+		return 0;
-+
-+	lru_add_drain();
-+	tlb_gather_mmu(&tlb, mm, start_addr, end_addr);
-+	madvise_pageout_page_range(&tlb, vma, start_addr, end_addr);
-+	tlb_finish_mmu(&tlb, start_addr, end_addr);
-+
-+	return 0;
-+}
-+
- static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
- 				unsigned long end, struct mm_walk *walk)
+-#define check_pgt_cache()	do { } while (0)
+-
+ #endif /* _ALPHA_PGALLOC_H */
+diff --git a/arch/arc/include/asm/pgalloc.h b/arch/arc/include/asm/pgalloc.h
+index 9c9b5a5ebf2e..e35b00e8cc4c 100644
+--- a/arch/arc/include/asm/pgalloc.h
++++ b/arch/arc/include/asm/pgalloc.h
+@@ -132,7 +132,6 @@ static inline void pte_free(struct mm_struct *mm, pgtable_t ptep)
  
-@@ -870,6 +1064,8 @@ madvise_vma(struct vm_area_struct *vma, struct vm_area_struct **prev,
- 		return madvise_willneed(vma, prev, start, end);
- 	case MADV_COLD:
- 		return madvise_cold(vma, prev, start, end);
-+	case MADV_PAGEOUT:
-+		return madvise_pageout(vma, prev, start, end);
- 	case MADV_FREE:
- 	case MADV_DONTNEED:
- 		return madvise_dontneed_free(vma, prev, start, end, behavior);
-@@ -892,6 +1088,7 @@ madvise_behavior_valid(int behavior)
- 	case MADV_DONTNEED:
- 	case MADV_FREE:
- 	case MADV_COLD:
-+	case MADV_PAGEOUT:
- #ifdef CONFIG_KSM
- 	case MADV_MERGEABLE:
- 	case MADV_UNMERGEABLE:
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index ca192b792d4f..bda3c41de767 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2153,6 +2153,61 @@ static void shrink_active_list(unsigned long nr_to_scan,
- 			nr_deactivate, nr_rotated, sc->priority, file);
- }
+ #define __pte_free_tlb(tlb, pte, addr)  pte_free((tlb)->mm, pte)
  
-+unsigned long reclaim_pages(struct list_head *page_list)
-+{
-+	int nid = -1;
-+	unsigned long nr_reclaimed = 0;
-+	LIST_HEAD(node_page_list);
-+	struct reclaim_stat dummy_stat;
-+	struct page *page;
-+	struct scan_control sc = {
-+		.gfp_mask = GFP_KERNEL,
-+		.priority = DEF_PRIORITY,
-+		.may_writepage = 1,
-+		.may_unmap = 1,
-+		.may_swap = 1,
-+	};
-+
-+	while (!list_empty(page_list)) {
-+		page = lru_to_page(page_list);
-+		if (nid == -1) {
-+			nid = page_to_nid(page);
-+			INIT_LIST_HEAD(&node_page_list);
-+		}
-+
-+		if (nid == page_to_nid(page)) {
-+			list_move(&page->lru, &node_page_list);
-+			continue;
-+		}
-+
-+		nr_reclaimed += shrink_page_list(&node_page_list,
-+						NODE_DATA(nid),
-+						&sc, 0,
-+						&dummy_stat, false);
-+		while (!list_empty(&node_page_list)) {
-+			page = lru_to_page(&node_page_list);
-+			list_del(&page->lru);
-+			putback_lru_page(page);
-+		}
-+
-+		nid = -1;
-+	}
-+
-+	if (!list_empty(&node_page_list)) {
-+		nr_reclaimed += shrink_page_list(&node_page_list,
-+						NODE_DATA(nid),
-+						&sc, 0,
-+						&dummy_stat, false);
-+		while (!list_empty(&node_page_list)) {
-+			page = lru_to_page(&node_page_list);
-+			list_del(&page->lru);
-+			putback_lru_page(page);
-+		}
-+	}
-+
-+	return nr_reclaimed;
-+}
-+
+-#define check_pgt_cache()   do { } while (0)
+ #define pmd_pgtable(pmd)	((pgtable_t) pmd_page_vaddr(pmd))
+ 
+ #endif /* _ASM_ARC_PGALLOC_H */
+diff --git a/arch/arm/include/asm/pgalloc.h b/arch/arm/include/asm/pgalloc.h
+index 17ab72f0cc4e..5e2ec767de8e 100644
+--- a/arch/arm/include/asm/pgalloc.h
++++ b/arch/arm/include/asm/pgalloc.h
+@@ -18,8 +18,6 @@
+ #include <asm/cacheflush.h>
+ #include <asm/tlbflush.h>
+ 
+-#define check_pgt_cache()		do { } while (0)
+-
+ #ifdef CONFIG_MMU
+ 
+ #define _PAGE_USER_TABLE	(PMD_TYPE_TABLE | PMD_BIT4 | PMD_DOMAIN(DOMAIN_USER))
+diff --git a/arch/arm64/include/asm/pgalloc.h b/arch/arm64/include/asm/pgalloc.h
+index dabba4b2c61f..6554426d4953 100644
+--- a/arch/arm64/include/asm/pgalloc.h
++++ b/arch/arm64/include/asm/pgalloc.h
+@@ -24,8 +24,6 @@
+ #include <asm/cacheflush.h>
+ #include <asm/tlbflush.h>
+ 
+-#define check_pgt_cache()		do { } while (0)
+-
+ #define PGALLOC_GFP	(GFP_KERNEL | __GFP_ZERO)
+ #define PGD_SIZE	(PTRS_PER_PGD * sizeof(pgd_t))
+ 
+diff --git a/arch/csky/include/asm/pgalloc.h b/arch/csky/include/asm/pgalloc.h
+index d213bb47b717..21533eb04747 100644
+--- a/arch/csky/include/asm/pgalloc.h
++++ b/arch/csky/include/asm/pgalloc.h
+@@ -99,8 +99,6 @@ do {							\
+ 	tlb_remove_page(tlb, pte);			\
+ } while (0)
+ 
+-#define check_pgt_cache()	do {} while (0)
+-
+ extern void pagetable_init(void);
+ extern void pre_mmu_init(void);
+ extern void pre_trap_init(void);
+diff --git a/arch/hexagon/include/asm/pgalloc.h b/arch/hexagon/include/asm/pgalloc.h
+index d36183887b60..1ee911d79bad 100644
+--- a/arch/hexagon/include/asm/pgalloc.h
++++ b/arch/hexagon/include/asm/pgalloc.h
+@@ -24,8 +24,6 @@
+ #include <asm/mem-layout.h>
+ #include <asm/atomic.h>
+ 
+-#define check_pgt_cache() do {} while (0)
+-
+ extern unsigned long long kmap_generation;
+ 
  /*
-  * The inactive anon list should be small enough that the VM never has
-  * to do too much work.
+diff --git a/arch/ia64/Kconfig b/arch/ia64/Kconfig
+index 73a26f04644e..e910cc44e1c3 100644
+--- a/arch/ia64/Kconfig
++++ b/arch/ia64/Kconfig
+@@ -69,10 +69,6 @@ config ZONE_DMA32
+ 	def_bool y
+ 	depends on !IA64_SGI_SN2
+ 
+-config QUICKLIST
+-	bool
+-	default y
+-
+ config MMU
+ 	bool
+ 	default y
+diff --git a/arch/ia64/include/asm/pgalloc.h b/arch/ia64/include/asm/pgalloc.h
+index c9e481023c25..ffd58bab8a76 100644
+--- a/arch/ia64/include/asm/pgalloc.h
++++ b/arch/ia64/include/asm/pgalloc.h
+@@ -19,18 +19,17 @@
+ #include <linux/mm.h>
+ #include <linux/page-flags.h>
+ #include <linux/threads.h>
+-#include <linux/quicklist.h>
+ 
+ #include <asm/mmu_context.h>
+ 
+ static inline pgd_t *pgd_alloc(struct mm_struct *mm)
+ {
+-	return quicklist_alloc(0, GFP_KERNEL, NULL);
++	return (pgd_t *)__get_free_page(GFP_KERNEL | __GFP_ZERO);
+ }
+ 
+ static inline void pgd_free(struct mm_struct *mm, pgd_t *pgd)
+ {
+-	quicklist_free(0, NULL, pgd);
++	__free_page(pgd);
+ }
+ 
+ #if CONFIG_PGTABLE_LEVELS == 4
+@@ -42,12 +41,12 @@ pgd_populate(struct mm_struct *mm, pgd_t * pgd_entry, pud_t * pud)
+ 
+ static inline pud_t *pud_alloc_one(struct mm_struct *mm, unsigned long addr)
+ {
+-	return quicklist_alloc(0, GFP_KERNEL, NULL);
++	return (pud_t *)__get_free_page(GFP_KERNEL | __GFP_ZERO);
+ }
+ 
+ static inline void pud_free(struct mm_struct *mm, pud_t *pud)
+ {
+-	quicklist_free(0, NULL, pud);
++	__free_page(pud);
+ }
+ #define __pud_free_tlb(tlb, pud, address)	pud_free((tlb)->mm, pud)
+ #endif /* CONFIG_PGTABLE_LEVELS == 4 */
+@@ -60,12 +59,12 @@ pud_populate(struct mm_struct *mm, pud_t * pud_entry, pmd_t * pmd)
+ 
+ static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long addr)
+ {
+-	return quicklist_alloc(0, GFP_KERNEL, NULL);
++	return (pmd_t *)__get_free_page(GFP_KERNEL | __GFP_ZERO);
+ }
+ 
+ static inline void pmd_free(struct mm_struct *mm, pmd_t *pmd)
+ {
+-	quicklist_free(0, NULL, pmd);
++	__free_page(pmd);
+ }
+ 
+ #define __pmd_free_tlb(tlb, pmd, address)	pmd_free((tlb)->mm, pmd)
+@@ -86,14 +85,12 @@ pmd_populate_kernel(struct mm_struct *mm, pmd_t * pmd_entry, pte_t * pte)
+ static inline pgtable_t pte_alloc_one(struct mm_struct *mm)
+ {
+ 	struct page *page;
+-	void *pg;
+ 
+-	pg = quicklist_alloc(0, GFP_KERNEL, NULL);
+-	if (!pg)
++	page = alloc_page(GFP_KERNEL | __GFP_ZERO);
++	if (!page)
+ 		return NULL;
+-	page = virt_to_page(pg);
+ 	if (!pgtable_page_ctor(page)) {
+-		quicklist_free(0, NULL, pg);
++		free_page(page);
+ 		return NULL;
+ 	}
+ 	return page;
+@@ -101,23 +98,18 @@ static inline pgtable_t pte_alloc_one(struct mm_struct *mm)
+ 
+ static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm)
+ {
+-	return quicklist_alloc(0, GFP_KERNEL, NULL);
++	return (pte_t *)__get_free_page(GFP_KERNEL | __GFP_ZERO);
+ }
+ 
+ static inline void pte_free(struct mm_struct *mm, pgtable_t pte)
+ {
+ 	pgtable_page_dtor(pte);
+-	quicklist_free_page(0, NULL, pte);
++	__free_page(pte);
+ }
+ 
+ static inline void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
+ {
+-	quicklist_free(0, NULL, pte);
+-}
+-
+-static inline void check_pgt_cache(void)
+-{
+-	quicklist_trim(0, NULL, 25, 16);
++	free_page(pte);
+ }
+ 
+ #define __pte_free_tlb(tlb, pte, address)	pte_free((tlb)->mm, pte)
+diff --git a/arch/m68k/include/asm/pgtable_mm.h b/arch/m68k/include/asm/pgtable_mm.h
+index fe3ddd73a0cc..b5269f1ce313 100644
+--- a/arch/m68k/include/asm/pgtable_mm.h
++++ b/arch/m68k/include/asm/pgtable_mm.h
+@@ -178,6 +178,4 @@ static inline void update_mmu_cache(struct vm_area_struct *vma,
+  */
+ #define pgtable_cache_init()	do { } while (0)
+ 
+-#define check_pgt_cache()	do { } while (0)
+-
+ #endif /* _M68K_PGTABLE_H */
+diff --git a/arch/m68k/include/asm/pgtable_no.h b/arch/m68k/include/asm/pgtable_no.h
+index fc3a96c77bd8..69e271101223 100644
+--- a/arch/m68k/include/asm/pgtable_no.h
++++ b/arch/m68k/include/asm/pgtable_no.h
+@@ -60,6 +60,4 @@ extern void paging_init(void);
+ 
+ #include <asm-generic/pgtable.h>
+ 
+-#define check_pgt_cache()	do { } while (0)
+-
+ #endif /* _M68KNOMMU_PGTABLE_H */
+diff --git a/arch/microblaze/include/asm/pgalloc.h b/arch/microblaze/include/asm/pgalloc.h
+index f4cc9ffc449e..c62837073c14 100644
+--- a/arch/microblaze/include/asm/pgalloc.h
++++ b/arch/microblaze/include/asm/pgalloc.h
+@@ -21,83 +21,20 @@
+ #include <asm/cache.h>
+ #include <asm/pgtable.h>
+ 
+-#define PGDIR_ORDER	0
+-
+-/*
+- * This is handled very differently on MicroBlaze since out page tables
+- * are all 0's and I want to be able to use these zero'd pages elsewhere
+- * as well - it gives us quite a speedup.
+- * -- Cort
+- */
+-extern struct pgtable_cache_struct {
+-	unsigned long *pgd_cache;
+-	unsigned long *pte_cache;
+-	unsigned long pgtable_cache_sz;
+-} quicklists;
+-
+-#define pgd_quicklist		(quicklists.pgd_cache)
+-#define pmd_quicklist		((unsigned long *)0)
+-#define pte_quicklist		(quicklists.pte_cache)
+-#define pgtable_cache_size	(quicklists.pgtable_cache_sz)
+-
+-extern unsigned long *zero_cache; /* head linked list of pre-zero'd pages */
+-extern atomic_t zero_sz; /* # currently pre-zero'd pages */
+-extern atomic_t zeropage_hits; /* # zero'd pages request that we've done */
+-extern atomic_t zeropage_calls; /* # zero'd pages request that've been made */
+-extern atomic_t zerototal; /* # pages zero'd over time */
+-
+-#define zero_quicklist		(zero_cache)
+-#define zero_cache_sz	 	(zero_sz)
+-#define zero_cache_calls	(zeropage_calls)
+-#define zero_cache_hits		(zeropage_hits)
+-#define zero_cache_total	(zerototal)
+-
+-/*
+- * return a pre-zero'd page from the list,
+- * return NULL if none available -- Cort
+- */
+-extern unsigned long get_zero_page_fast(void);
+-
+ extern void __bad_pte(pmd_t *pmd);
+ 
+-static inline pgd_t *get_pgd_slow(void)
++static inline pgd_t *get_pgd(void)
+ {
+-	pgd_t *ret;
+-
+-	ret = (pgd_t *)__get_free_pages(GFP_KERNEL, PGDIR_ORDER);
+-	if (ret != NULL)
+-		clear_page(ret);
+-	return ret;
++	return (pgd_t *)__get_free_pages(GFP_KERNEL|GFP_ZERO, 0);
+ }
+ 
+-static inline pgd_t *get_pgd_fast(void)
+-{
+-	unsigned long *ret;
+-
+-	ret = pgd_quicklist;
+-	if (ret != NULL) {
+-		pgd_quicklist = (unsigned long *)(*ret);
+-		ret[0] = 0;
+-		pgtable_cache_size--;
+-	} else
+-		ret = (unsigned long *)get_pgd_slow();
+-	return (pgd_t *)ret;
+-}
+-
+-static inline void free_pgd_fast(pgd_t *pgd)
+-{
+-	*(unsigned long **)pgd = pgd_quicklist;
+-	pgd_quicklist = (unsigned long *) pgd;
+-	pgtable_cache_size++;
+-}
+-
+-static inline void free_pgd_slow(pgd_t *pgd)
++static inline void free_pgd(pgd_t *pgd)
+ {
+ 	free_page((unsigned long)pgd);
+ }
+ 
+-#define pgd_free(mm, pgd)        free_pgd_fast(pgd)
+-#define pgd_alloc(mm)		get_pgd_fast()
++#define pgd_free(mm, pgd)	free_pgd(pgd)
++#define pgd_alloc(mm)		get_pgd()
+ 
+ #define pmd_pgtable(pmd)	pmd_page(pmd)
+ 
+@@ -115,15 +52,14 @@ static inline struct page *pte_alloc_one(struct mm_struct *mm)
+ 	struct page *ptepage;
+ 
+ #ifdef CONFIG_HIGHPTE
+-	int flags = GFP_KERNEL | __GFP_HIGHMEM;
++	int flags = GFP_KERNEL | GFP_ZERO | __GFP_HIGHMEM;
+ #else
+-	int flags = GFP_KERNEL;
++	int flags = GFP_KERNEL | GFP_ZERO;
+ #endif
+ 
+ 	ptepage = alloc_pages(flags, 0);
+ 	if (!ptepage)
+ 		return NULL;
+-	clear_highpage(ptepage);
+ 	if (!pgtable_page_ctor(ptepage)) {
+ 		__free_page(ptepage);
+ 		return NULL;
+@@ -131,13 +67,6 @@ static inline struct page *pte_alloc_one(struct mm_struct *mm)
+ 	return ptepage;
+ }
+ 
+-static inline void pte_free_fast(pte_t *pte)
+-{
+-	*(unsigned long **)pte = pte_quicklist;
+-	pte_quicklist = (unsigned long *) pte;
+-	pgtable_cache_size++;
+-}
+-
+ static inline void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
+ {
+ 	free_page((unsigned long)pte);
+@@ -171,10 +100,6 @@ static inline void pte_free(struct mm_struct *mm, struct page *ptepage)
+ #define __pmd_free_tlb(tlb, x, addr)	pmd_free((tlb)->mm, x)
+ #define pgd_populate(mm, pmd, pte)	BUG()
+ 
+-extern int do_check_pgt_cache(int, int);
+-
+ #endif /* CONFIG_MMU */
+ 
+-#define check_pgt_cache()		do { } while (0)
+-
+ #endif /* _ASM_MICROBLAZE_PGALLOC_H */
+diff --git a/arch/microblaze/mm/pgtable.c b/arch/microblaze/mm/pgtable.c
+index 8fe54fda31dc..010bb9cee2e4 100644
+--- a/arch/microblaze/mm/pgtable.c
++++ b/arch/microblaze/mm/pgtable.c
+@@ -44,10 +44,6 @@ unsigned long ioremap_base;
+ unsigned long ioremap_bot;
+ EXPORT_SYMBOL(ioremap_bot);
+ 
+-#ifndef CONFIG_SMP
+-struct pgtable_cache_struct quicklists;
+-#endif
+-
+ static void __iomem *__ioremap(phys_addr_t addr, unsigned long size,
+ 		unsigned long flags)
+ {
+diff --git a/arch/mips/include/asm/pgalloc.h b/arch/mips/include/asm/pgalloc.h
+index 27808d9461f4..fbaddb12ea2b 100644
+--- a/arch/mips/include/asm/pgalloc.h
++++ b/arch/mips/include/asm/pgalloc.h
+@@ -134,8 +134,6 @@ static inline void pgd_populate(struct mm_struct *mm, pgd_t *pgd, pud_t *pud)
+ 
+ #endif /* __PAGETABLE_PUD_FOLDED */
+ 
+-#define check_pgt_cache()	do { } while (0)
+-
+ extern void pagetable_init(void);
+ 
+ #endif /* _ASM_PGALLOC_H */
+diff --git a/arch/nds32/include/asm/pgalloc.h b/arch/nds32/include/asm/pgalloc.h
+index 3c5fee5b5759..95fee5f930c0 100644
+--- a/arch/nds32/include/asm/pgalloc.h
++++ b/arch/nds32/include/asm/pgalloc.h
+@@ -20,8 +20,6 @@
+ extern pgd_t *pgd_alloc(struct mm_struct *mm);
+ extern void pgd_free(struct mm_struct *mm, pgd_t * pgd);
+ 
+-#define check_pgt_cache()		do { } while (0)
+-
+ static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm)
+ {
+ 	pte_t *pte;
+diff --git a/arch/nios2/include/asm/pgalloc.h b/arch/nios2/include/asm/pgalloc.h
+index 3a149ead1207..58417affacbc 100644
+--- a/arch/nios2/include/asm/pgalloc.h
++++ b/arch/nios2/include/asm/pgalloc.h
+@@ -78,6 +78,4 @@ static inline void pte_free(struct mm_struct *mm, struct page *pte)
+ 		tlb_remove_page((tlb), (pte));			\
+ 	} while (0)
+ 
+-#define check_pgt_cache()	do { } while (0)
+-
+ #endif /* _ASM_NIOS2_PGALLOC_H */
+diff --git a/arch/openrisc/include/asm/pgalloc.h b/arch/openrisc/include/asm/pgalloc.h
+index 149c82ee4b8b..dafc6f5aee6a 100644
+--- a/arch/openrisc/include/asm/pgalloc.h
++++ b/arch/openrisc/include/asm/pgalloc.h
+@@ -105,6 +105,4 @@ do {					\
+ 
+ #define pmd_pgtable(pmd) pmd_page(pmd)
+ 
+-#define check_pgt_cache()          do { } while (0)
+-
+ #endif
+diff --git a/arch/parisc/include/asm/pgalloc.h b/arch/parisc/include/asm/pgalloc.h
+index ea75cc966dae..ee042753fbb4 100644
+--- a/arch/parisc/include/asm/pgalloc.h
++++ b/arch/parisc/include/asm/pgalloc.h
+@@ -153,6 +153,4 @@ static inline void pte_free(struct mm_struct *mm, struct page *pte)
+ 	pte_free_kernel(mm, page_address(pte));
+ }
+ 
+-#define check_pgt_cache()	do { } while (0)
+-
+ #endif
+diff --git a/arch/powerpc/include/asm/pgalloc.h b/arch/powerpc/include/asm/pgalloc.h
+index 2b2c60a1a66d..6dd78a2dc03a 100644
+--- a/arch/powerpc/include/asm/pgalloc.h
++++ b/arch/powerpc/include/asm/pgalloc.h
+@@ -64,8 +64,6 @@ static inline void pte_free(struct mm_struct *mm, pgtable_t ptepage)
+ extern struct kmem_cache *pgtable_cache[];
+ #define PGT_CACHE(shift) pgtable_cache[shift]
+ 
+-static inline void check_pgt_cache(void) { }
+-
+ #ifdef CONFIG_PPC_BOOK3S
+ #include <asm/book3s/pgalloc.h>
+ #else
+diff --git a/arch/riscv/include/asm/pgalloc.h b/arch/riscv/include/asm/pgalloc.h
+index 94043cf83c90..5b6a4a07d130 100644
+--- a/arch/riscv/include/asm/pgalloc.h
++++ b/arch/riscv/include/asm/pgalloc.h
+@@ -115,8 +115,4 @@ do {                                    \
+ 	tlb_remove_page((tlb), pte);    \
+ } while (0)
+ 
+-static inline void check_pgt_cache(void)
+-{
+-}
+-
+ #endif /* _ASM_RISCV_PGALLOC_H */
+diff --git a/arch/s390/include/asm/pgtable.h b/arch/s390/include/asm/pgtable.h
+index 9f0195d5fa16..938472aa084c 100644
+--- a/arch/s390/include/asm/pgtable.h
++++ b/arch/s390/include/asm/pgtable.h
+@@ -1691,7 +1691,6 @@ extern void s390_reset_cmma(struct mm_struct *mm);
+  * No page table caches to initialise
+  */
+ static inline void pgtable_cache_init(void) { }
+-static inline void check_pgt_cache(void) { }
+ 
+ #include <asm-generic/pgtable.h>
+ 
+diff --git a/arch/sh/include/asm/pgalloc.h b/arch/sh/include/asm/pgalloc.h
+index b56f908b1395..160308a35fa3 100644
+--- a/arch/sh/include/asm/pgalloc.h
++++ b/arch/sh/include/asm/pgalloc.h
+@@ -2,11 +2,8 @@
+ #ifndef __ASM_SH_PGALLOC_H
+ #define __ASM_SH_PGALLOC_H
+ 
+-#include <linux/quicklist.h>
+ #include <asm/page.h>
+ 
+-#define QUICK_PT 0	/* Other page table pages that are zero on free */
+-
+ extern pgd_t *pgd_alloc(struct mm_struct *);
+ extern void pgd_free(struct mm_struct *mm, pgd_t *pgd);
+ 
+@@ -34,20 +31,18 @@ static inline void pmd_populate(struct mm_struct *mm, pmd_t *pmd,
+  */
+ static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm)
+ {
+-	return quicklist_alloc(QUICK_PT, GFP_KERNEL, NULL);
++	return (pte_t *)__get_free_page(GFP_KERNEL | __GFP_ZERO);
+ }
+ 
+ static inline pgtable_t pte_alloc_one(struct mm_struct *mm)
+ {
+ 	struct page *page;
+-	void *pg;
+ 
+-	pg = quicklist_alloc(QUICK_PT, GFP_KERNEL, NULL);
+-	if (!pg)
++	page = alloc_page(GFP_KERNEL | __GFP_ZERO);
++	if (!page)
+ 		return NULL;
+-	page = virt_to_page(pg);
+ 	if (!pgtable_page_ctor(page)) {
+-		quicklist_free(QUICK_PT, NULL, pg);
++		free_page(page);
+ 		return NULL;
+ 	}
+ 	return page;
+@@ -55,13 +50,13 @@ static inline pgtable_t pte_alloc_one(struct mm_struct *mm)
+ 
+ static inline void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
+ {
+-	quicklist_free(QUICK_PT, NULL, pte);
++	free_page(pte);
+ }
+ 
+ static inline void pte_free(struct mm_struct *mm, pgtable_t pte)
+ {
+ 	pgtable_page_dtor(pte);
+-	quicklist_free_page(QUICK_PT, NULL, pte);
++	__free_page(pte);
+ }
+ 
+ #define __pte_free_tlb(tlb,pte,addr)			\
+@@ -79,9 +74,4 @@ do {							\
+ } while (0);
+ #endif
+ 
+-static inline void check_pgt_cache(void)
+-{
+-	quicklist_trim(QUICK_PT, NULL, 25, 16);
+-}
+-
+ #endif /* __ASM_SH_PGALLOC_H */
+diff --git a/arch/sh/mm/Kconfig b/arch/sh/mm/Kconfig
+index 02ed2df25a54..5c8a2ebfc720 100644
+--- a/arch/sh/mm/Kconfig
++++ b/arch/sh/mm/Kconfig
+@@ -1,9 +1,6 @@
+ # SPDX-License-Identifier: GPL-2.0
+ menu "Memory management options"
+ 
+-config QUICKLIST
+-	def_bool y
+-
+ config MMU
+         bool "Support for memory management hardware"
+ 	depends on !CPU_SH2
+diff --git a/arch/sparc/include/asm/pgalloc_32.h b/arch/sparc/include/asm/pgalloc_32.h
+index 282be50a4adf..10538a4d1a1e 100644
+--- a/arch/sparc/include/asm/pgalloc_32.h
++++ b/arch/sparc/include/asm/pgalloc_32.h
+@@ -17,8 +17,6 @@ void srmmu_free_nocache(void *addr, int size);
+ 
+ extern struct resource sparc_iomap;
+ 
+-#define check_pgt_cache()	do { } while (0)
+-
+ pgd_t *get_pgd_fast(void);
+ static inline void free_pgd_fast(pgd_t *pgd)
+ {
+diff --git a/arch/sparc/include/asm/pgalloc_64.h b/arch/sparc/include/asm/pgalloc_64.h
+index 48abccba4991..9d3e5cc95bbb 100644
+--- a/arch/sparc/include/asm/pgalloc_64.h
++++ b/arch/sparc/include/asm/pgalloc_64.h
+@@ -69,8 +69,6 @@ void pte_free(struct mm_struct *mm, pgtable_t ptepage);
+ #define pmd_populate(MM, PMD, PTE)		pmd_set(MM, PMD, PTE)
+ #define pmd_pgtable(PMD)			((pte_t *)__pmd_page(PMD))
+ 
+-#define check_pgt_cache()	do { } while (0)
+-
+ void pgtable_free(void *table, bool is_page);
+ 
+ #ifdef CONFIG_SMP
+diff --git a/arch/sparc/mm/init_32.c b/arch/sparc/mm/init_32.c
+index a8ff29821bdb..5f482e6e2ad1 100644
+--- a/arch/sparc/mm/init_32.c
++++ b/arch/sparc/mm/init_32.c
+@@ -31,7 +31,6 @@
+ #include <asm/page.h>
+ #include <asm/pgtable.h>
+ #include <asm/vaddrs.h>
+-#include <asm/pgalloc.h>	/* bug in asm-generic/tlb.h: check_pgt_cache */
+ #include <asm/setup.h>
+ #include <asm/tlb.h>
+ #include <asm/prom.h>
+diff --git a/arch/um/include/asm/pgalloc.h b/arch/um/include/asm/pgalloc.h
+index 99eb5682792a..d601937b632b 100644
+--- a/arch/um/include/asm/pgalloc.h
++++ b/arch/um/include/asm/pgalloc.h
+@@ -55,7 +55,5 @@ static inline void pmd_free(struct mm_struct *mm, pmd_t *pmd)
+ #define __pmd_free_tlb(tlb,x, address)   tlb_remove_page((tlb),virt_to_page(x))
+ #endif
+ 
+-#define check_pgt_cache()	do { } while (0)
+-
+ #endif
+ 
+diff --git a/arch/unicore32/include/asm/pgalloc.h b/arch/unicore32/include/asm/pgalloc.h
+index 7cceabecf4e3..56056e2369a4 100644
+--- a/arch/unicore32/include/asm/pgalloc.h
++++ b/arch/unicore32/include/asm/pgalloc.h
+@@ -17,8 +17,6 @@
+ #include <asm/cacheflush.h>
+ #include <asm/tlbflush.h>
+ 
+-#define check_pgt_cache()		do { } while (0)
+-
+ #define _PAGE_USER_TABLE	(PMD_TYPE_TABLE | PMD_PRESENT)
+ #define _PAGE_KERNEL_TABLE	(PMD_TYPE_TABLE | PMD_PRESENT)
+ 
+diff --git a/arch/x86/include/asm/pgtable_32.h b/arch/x86/include/asm/pgtable_32.h
+index 4fe9e7fc74d3..7d0c8cac88a8 100644
+--- a/arch/x86/include/asm/pgtable_32.h
++++ b/arch/x86/include/asm/pgtable_32.h
+@@ -30,7 +30,6 @@ extern pgd_t initial_page_table[1024];
+ extern pmd_t initial_pg_pmd[];
+ 
+ static inline void pgtable_cache_init(void) { }
+-static inline void check_pgt_cache(void) { }
+ void paging_init(void);
+ void sync_initial_page_table(void);
+ 
+diff --git a/arch/x86/include/asm/pgtable_64.h b/arch/x86/include/asm/pgtable_64.h
+index 0bb566315621..08b1106834eb 100644
+--- a/arch/x86/include/asm/pgtable_64.h
++++ b/arch/x86/include/asm/pgtable_64.h
+@@ -242,7 +242,6 @@ extern void cleanup_highmap(void);
+ #define HAVE_ARCH_UNMAPPED_AREA_TOPDOWN
+ 
+ #define pgtable_cache_init()   do { } while (0)
+-#define check_pgt_cache()      do { } while (0)
+ 
+ #define PAGE_AGP    PAGE_KERNEL_NOCACHE
+ #define HAVE_PAGE_AGP 1
+diff --git a/arch/xtensa/include/asm/tlbflush.h b/arch/xtensa/include/asm/tlbflush.h
+index 06875feb27c2..856e2da2e397 100644
+--- a/arch/xtensa/include/asm/tlbflush.h
++++ b/arch/xtensa/include/asm/tlbflush.h
+@@ -160,9 +160,6 @@ static inline void invalidate_dtlb_mapping (unsigned address)
+ 		invalidate_dtlb_entry(tlb_entry);
+ }
+ 
+-#define check_pgt_cache()	do { } while (0)
+-
+-
+ /*
+  * DO NOT USE THESE FUNCTIONS.  These instructions aren't part of the Xtensa
+  * ISA and exist only for test purposes..
+diff --git a/fs/proc/meminfo.c b/fs/proc/meminfo.c
+index 568d90e17c17..131bca8db1a1 100644
+--- a/fs/proc/meminfo.c
++++ b/fs/proc/meminfo.c
+@@ -8,7 +8,6 @@
+ #include <linux/mmzone.h>
+ #include <linux/proc_fs.h>
+ #include <linux/percpu.h>
+-#include <linux/quicklist.h>
+ #include <linux/seq_file.h>
+ #include <linux/swap.h>
+ #include <linux/vmstat.h>
+@@ -106,9 +105,6 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
+ 		   global_zone_page_state(NR_KERNEL_STACK_KB));
+ 	show_val_kb(m, "PageTables:     ",
+ 		    global_zone_page_state(NR_PAGETABLE));
+-#ifdef CONFIG_QUICKLIST
+-	show_val_kb(m, "Quicklists:     ", quicklist_total_size());
+-#endif
+ 
+ 	show_val_kb(m, "NFS_Unstable:   ",
+ 		    global_node_page_state(NR_UNSTABLE_NFS));
+diff --git a/include/asm-generic/pgalloc.h b/include/asm-generic/pgalloc.h
+index 948714c1535a..500feb7b838a 100644
+--- a/include/asm-generic/pgalloc.h
++++ b/include/asm-generic/pgalloc.h
+@@ -8,6 +8,4 @@
+ #error need to implement an architecture specific asm/pgalloc.h
+ #endif
+ 
+-#define check_pgt_cache()          do { } while (0)
+-
+ #endif /* __ASM_GENERIC_PGALLOC_H */
+diff --git a/include/linux/quicklist.h b/include/linux/quicklist.h
+deleted file mode 100644
+index 034982c98c8b..000000000000
+--- a/include/linux/quicklist.h
++++ /dev/null
+@@ -1,94 +0,0 @@
+-/* SPDX-License-Identifier: GPL-2.0 */
+-#ifndef LINUX_QUICKLIST_H
+-#define LINUX_QUICKLIST_H
+-/*
+- * Fast allocations and disposal of pages. Pages must be in the condition
+- * as needed after allocation when they are freed. Per cpu lists of pages
+- * are kept that only contain node local pages.
+- *
+- * (C) 2007, SGI. Christoph Lameter <cl@linux.com>
+- */
+-#include <linux/kernel.h>
+-#include <linux/gfp.h>
+-#include <linux/percpu.h>
+-
+-#ifdef CONFIG_QUICKLIST
+-
+-struct quicklist {
+-	void *page;
+-	int nr_pages;
+-};
+-
+-DECLARE_PER_CPU(struct quicklist, quicklist)[CONFIG_NR_QUICK];
+-
+-/*
+- * The two key functions quicklist_alloc and quicklist_free are inline so
+- * that they may be custom compiled for the platform.
+- * Specifying a NULL ctor can remove constructor support. Specifying
+- * a constant quicklist allows the determination of the exact address
+- * in the per cpu area.
+- *
+- * The fast patch in quicklist_alloc touched only a per cpu cacheline and
+- * the first cacheline of the page itself. There is minmal overhead involved.
+- */
+-static inline void *quicklist_alloc(int nr, gfp_t flags, void (*ctor)(void *))
+-{
+-	struct quicklist *q;
+-	void **p = NULL;
+-
+-	q =&get_cpu_var(quicklist)[nr];
+-	p = q->page;
+-	if (likely(p)) {
+-		q->page = p[0];
+-		p[0] = NULL;
+-		q->nr_pages--;
+-	}
+-	put_cpu_var(quicklist);
+-	if (likely(p))
+-		return p;
+-
+-	p = (void *)__get_free_page(flags | __GFP_ZERO);
+-	if (ctor && p)
+-		ctor(p);
+-	return p;
+-}
+-
+-static inline void __quicklist_free(int nr, void (*dtor)(void *), void *p,
+-	struct page *page)
+-{
+-	struct quicklist *q;
+-
+-	q = &get_cpu_var(quicklist)[nr];
+-	*(void **)p = q->page;
+-	q->page = p;
+-	q->nr_pages++;
+-	put_cpu_var(quicklist);
+-}
+-
+-static inline void quicklist_free(int nr, void (*dtor)(void *), void *pp)
+-{
+-	__quicklist_free(nr, dtor, pp, virt_to_page(pp));
+-}
+-
+-static inline void quicklist_free_page(int nr, void (*dtor)(void *),
+-							struct page *page)
+-{
+-	__quicklist_free(nr, dtor, page_address(page), page);
+-}
+-
+-void quicklist_trim(int nr, void (*dtor)(void *),
+-	unsigned long min_pages, unsigned long max_free);
+-
+-unsigned long quicklist_total_size(void);
+-
+-#else
+-
+-static inline unsigned long quicklist_total_size(void)
+-{
+-	return 0;
+-}
+-
+-#endif
+-
+-#endif /* LINUX_QUICKLIST_H */
+-
+diff --git a/kernel/sched/idle.c b/kernel/sched/idle.c
+index f5516bae0c1b..8fb03bc55e69 100644
+--- a/kernel/sched/idle.c
++++ b/kernel/sched/idle.c
+@@ -237,7 +237,6 @@ static void do_idle(void)
+ 	tick_nohz_idle_enter();
+ 
+ 	while (!need_resched()) {
+-		check_pgt_cache();
+ 		rmb();
+ 
+ 		if (cpu_is_offline(cpu)) {
+diff --git a/lib/show_mem.c b/lib/show_mem.c
+index 6a042f53e7bb..b0950ab534ab 100644
+--- a/lib/show_mem.c
++++ b/lib/show_mem.c
+@@ -6,7 +6,6 @@
+  */
+ 
+ #include <linux/mm.h>
+-#include <linux/quicklist.h>
+ #include <linux/cma.h>
+ 
+ void show_mem(unsigned int filter, nodemask_t *nodemask)
+@@ -39,10 +38,6 @@ void show_mem(unsigned int filter, nodemask_t *nodemask)
+ #ifdef CONFIG_CMA
+ 	printk("%lu pages cma reserved\n", totalcma_pages);
+ #endif
+-#ifdef CONFIG_QUICKLIST
+-	printk("%lu pages in pagetable cache\n",
+-		quicklist_total_size());
+-#endif
+ #ifdef CONFIG_MEMORY_FAILURE
+ 	printk("%lu pages hwpoisoned\n", atomic_long_read(&num_poisoned_pages));
+ #endif
+diff --git a/mm/Kconfig b/mm/Kconfig
+index 25c71eb8a7db..971cc961453e 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -271,11 +271,6 @@ config BOUNCE
+ 	  by default when ZONE_DMA or HIGHMEM is selected, but you
+ 	  may say n to override this.
+ 
+-config NR_QUICK
+-	int
+-	depends on QUICKLIST
+-	default "1"
+-
+ config VIRT_TO_BUS
+ 	bool
+ 	help
+diff --git a/mm/Makefile b/mm/Makefile
+index d210cc9d6f80..f6ea80fd9329 100644
+--- a/mm/Makefile
++++ b/mm/Makefile
+@@ -67,7 +67,6 @@ obj-$(CONFIG_FAILSLAB) += failslab.o
+ obj-$(CONFIG_MEMORY_HOTPLUG) += memory_hotplug.o
+ obj-$(CONFIG_MEMTEST)		+= memtest.o
+ obj-$(CONFIG_MIGRATION) += migrate.o
+-obj-$(CONFIG_QUICKLIST) += quicklist.o
+ obj-$(CONFIG_TRANSPARENT_HUGEPAGE) += huge_memory.o khugepaged.o
+ obj-$(CONFIG_PAGE_COUNTER) += page_counter.o
+ obj-$(CONFIG_MEMCG) += memcontrol.o vmpressure.o
+diff --git a/mm/mmu_gather.c b/mm/mmu_gather.c
+index 99740e1dd273..093196839b6e 100644
+--- a/mm/mmu_gather.c
++++ b/mm/mmu_gather.c
+@@ -257,8 +257,6 @@ void tlb_finish_mmu(struct mmu_gather *tlb,
+ 
+ 	tlb_flush_mmu(tlb);
+ 
+-	/* keep the page table cache within bounds */
+-	check_pgt_cache();
+ #ifndef CONFIG_HAVE_MMU_GATHER_NO_GATHER
+ 	tlb_batch_list_free(tlb);
+ #endif
+diff --git a/mm/quicklist.c b/mm/quicklist.c
+deleted file mode 100644
+index 5e98ac78e410..000000000000
+--- a/mm/quicklist.c
++++ /dev/null
+@@ -1,103 +0,0 @@
+-// SPDX-License-Identifier: GPL-2.0
+-/*
+- * Quicklist support.
+- *
+- * Quicklists are light weight lists of pages that have a defined state
+- * on alloc and free. Pages must be in the quicklist specific defined state
+- * (zero by default) when the page is freed. It seems that the initial idea
+- * for such lists first came from Dave Miller and then various other people
+- * improved on it.
+- *
+- * Copyright (C) 2007 SGI,
+- * 	Christoph Lameter <cl@linux.com>
+- * 		Generalized, added support for multiple lists and
+- * 		constructors / destructors.
+- */
+-#include <linux/kernel.h>
+-
+-#include <linux/gfp.h>
+-#include <linux/mm.h>
+-#include <linux/mmzone.h>
+-#include <linux/quicklist.h>
+-
+-DEFINE_PER_CPU(struct quicklist [CONFIG_NR_QUICK], quicklist);
+-
+-#define FRACTION_OF_NODE_MEM	16
+-
+-static unsigned long max_pages(unsigned long min_pages)
+-{
+-	unsigned long node_free_pages, max;
+-	int node = numa_node_id();
+-	struct zone *zones = NODE_DATA(node)->node_zones;
+-	int num_cpus_on_node;
+-
+-	node_free_pages =
+-#ifdef CONFIG_ZONE_DMA
+-		zone_page_state(&zones[ZONE_DMA], NR_FREE_PAGES) +
+-#endif
+-#ifdef CONFIG_ZONE_DMA32
+-		zone_page_state(&zones[ZONE_DMA32], NR_FREE_PAGES) +
+-#endif
+-		zone_page_state(&zones[ZONE_NORMAL], NR_FREE_PAGES);
+-
+-	max = node_free_pages / FRACTION_OF_NODE_MEM;
+-
+-	num_cpus_on_node = cpumask_weight(cpumask_of_node(node));
+-	max /= num_cpus_on_node;
+-
+-	return max(max, min_pages);
+-}
+-
+-static long min_pages_to_free(struct quicklist *q,
+-	unsigned long min_pages, long max_free)
+-{
+-	long pages_to_free;
+-
+-	pages_to_free = q->nr_pages - max_pages(min_pages);
+-
+-	return min(pages_to_free, max_free);
+-}
+-
+-/*
+- * Trim down the number of pages in the quicklist
+- */
+-void quicklist_trim(int nr, void (*dtor)(void *),
+-	unsigned long min_pages, unsigned long max_free)
+-{
+-	long pages_to_free;
+-	struct quicklist *q;
+-
+-	q = &get_cpu_var(quicklist)[nr];
+-	if (q->nr_pages > min_pages) {
+-		pages_to_free = min_pages_to_free(q, min_pages, max_free);
+-
+-		while (pages_to_free > 0) {
+-			/*
+-			 * We pass a gfp_t of 0 to quicklist_alloc here
+-			 * because we will never call into the page allocator.
+-			 */
+-			void *p = quicklist_alloc(nr, 0, NULL);
+-
+-			if (dtor)
+-				dtor(p);
+-			free_page((unsigned long)p);
+-			pages_to_free--;
+-		}
+-	}
+-	put_cpu_var(quicklist);
+-}
+-
+-unsigned long quicklist_total_size(void)
+-{
+-	unsigned long count = 0;
+-	int cpu;
+-	struct quicklist *ql, *q;
+-
+-	for_each_online_cpu(cpu) {
+-		ql = per_cpu(quicklist, cpu);
+-		for (q = ql; q < ql + CONFIG_NR_QUICK; q++)
+-			count += q->nr_pages;
+-	}
+-	return count;
+-}
+-
 -- 
-2.22.0.410.gd8fdbe21b5-goog
+2.20.1
 
