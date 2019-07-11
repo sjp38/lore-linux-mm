@@ -6,98 +6,98 @@ X-Spam-Status: No, score=-9.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
 	URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0892CC74A36
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 01:25:59 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 69319C74A3F
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 01:26:04 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A970520872
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 01:25:58 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 150BC20872
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 01:26:04 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="IfzouMzA"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A970520872
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="Ksld3UEg"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 150BC20872
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 53B6D8E00A4; Wed, 10 Jul 2019 21:25:58 -0400 (EDT)
+	id 9D0BA8E00A5; Wed, 10 Jul 2019 21:26:03 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4ECE48E0032; Wed, 10 Jul 2019 21:25:58 -0400 (EDT)
+	id 9809A8E0032; Wed, 10 Jul 2019 21:26:03 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3DBF68E00A4; Wed, 10 Jul 2019 21:25:58 -0400 (EDT)
+	id 848EF8E00A5; Wed, 10 Jul 2019 21:26:03 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 013208E0032
-	for <linux-mm@kvack.org>; Wed, 10 Jul 2019 21:25:58 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id b18so2573810pgg.8
-        for <linux-mm@kvack.org>; Wed, 10 Jul 2019 18:25:57 -0700 (PDT)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 48C978E0032
+	for <linux-mm@kvack.org>; Wed, 10 Jul 2019 21:26:03 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id 6so2453656pfi.6
+        for <linux-mm@kvack.org>; Wed, 10 Jul 2019 18:26:03 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:sender:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=g3sPXxwryfyIYGvf6SkhaUfkJre0gRyCx/35axsK1aw=;
-        b=SekIJefqqAVx4NR5FWqQ/EyVP3GhZ/er+gV5cA9ghcDtm7YWu/aEYj+OilNL5vwMiX
-         5Dkt241Lj9uQN3lpnqdgp6BY/xIm/07ecLGuk+1fE0Gh85OFnckT8Ovqq8ML7NJSuinJ
-         Jw0m7ALkKOYR2n2yLjKJ/Is/BF1sjBZCDjyDBLU+65/M5i1p6hO04W+dItT5fGo5M+Uw
-         kzO0wmS9PbOMhCmI9OCvAxjPsr4a7Cnc9d9iNvKqn9KoopoJUINet+yonoyhoepRFnZt
-         0O6Ggm5xnN2EEpp9OgQ+PUtsuEustMjKvwrbhts2pM+mBV8ZRKQeiIla8xiRMmba9akN
-         uJFg==
-X-Gm-Message-State: APjAAAW+66myV7cQSYq6cnWWenX08A7j85arJcGqeAwUnPKLxv7Ib46C
-	rYHIH9OD8Hj4LU9iTb/rAZPayjv3JY+lqnU4Ga6P5id4m/ziUct07JquWHuRzcDYRh03QJSAlBR
-	cXXupnYDKkmF4eBPBdGfQhnsm+GXpGZLDhhtau684Pp/YbhJBmzYyzyHZuD2Hlyc=
-X-Received: by 2002:a63:b10f:: with SMTP id r15mr1371075pgf.230.1562808357479;
-        Wed, 10 Jul 2019 18:25:57 -0700 (PDT)
-X-Received: by 2002:a63:b10f:: with SMTP id r15mr1371012pgf.230.1562808356383;
-        Wed, 10 Jul 2019 18:25:56 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562808356; cv=none;
+        bh=24jcnqUkS/NXF8aH8va17XJ9ebArqkYpqhxw1QfB8xU=;
+        b=mSzf7hR/jQ8hPH9Vm/0s6MN6p381sHumZvYfNlyZdTrPr8Bwm5FARPb50t/7bH3f45
+         73zssoBAaUcNYGIonVAmkhhZKBT8yIis+iyWfuvR8r1/Zr6hKoqV9HrLEuYN/5GUQCET
+         SnO9zM55Mz/7ejWDvcl5KMA5yQa0KZvvDnIp7vtMCZDZdGaZZ4WW12QFyq65Gyf0NY9p
+         o8vLoUvd/AF1y5uN+L6AXyitSLOeb/dS0ijPVgJ8pIMSq94BQeGcZBu4lc1ahxHewmq4
+         G/5pBkP9k/2quyXZUxNnqHnCrpp701SMpTJft3MMkSXh2vpfut58L0qDJN1+/ZJENS7O
+         5vSA==
+X-Gm-Message-State: APjAAAW4IKXgEafXyC3ZS5sPKwT294NLNVZe8/b1caK0YJh87JvpT61x
+	JsBkjGH11A8FX7jwaPifMWz76v7iR4kyyoke5WnKlCvYBhPjFE32Y2ddRVE4jngAPNQTXiqly25
+	HfUYuwx732r5B5cJlr6w08FZVipgXP3zQZkWfC0PDxSxdB90FqQBkYh9A5iHAxE8=
+X-Received: by 2002:a17:90a:fa07:: with SMTP id cm7mr1539088pjb.138.1562808362848;
+        Wed, 10 Jul 2019 18:26:02 -0700 (PDT)
+X-Received: by 2002:a17:90a:fa07:: with SMTP id cm7mr1539031pjb.138.1562808361775;
+        Wed, 10 Jul 2019 18:26:01 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562808361; cv=none;
         d=google.com; s=arc-20160816;
-        b=UWc6B0hqtLxRgsg8j9FSISOEcZlqkfZywuph6QTP3uUJZdKRkIh8cjn6R1IUF9aqKY
-         C+VmY3xJCYS22n+s3ou4nm/yx4/7NqEsqOwvgVVYowFvOge+cF31LsT6VPnzt6Em54Vy
-         la7E9QNxxzCC0DzJEXwg85yANyXXrAEbUHf9jowJN1X9NxTKHKQ+zNVqv3GNpdS3UIpL
-         kxUGHxfAvRJa5NDZr+/7rp2QLtrvwXU8EoyYYP9yZeAt520TJ5HlJ7/ao2IrT6xSJiPA
-         MukjoceXOW0vZQhMeQwF8NKSoLpMonV/9tS145SC8lEDwQf+zOeUVgIdlMF20NxLEXGF
-         vAdA==
+        b=gI65ime3Z1qVxwpQ/wnH4w2DO4qO3tR/jKSeIBc9l+voUj8dCkAdzdqxBjS3R+bTfS
+         /xwBS1UwsZdpXFj1MfATKpw2rHfdpLc2CHRIrXcibyHHeQdVuMP+3nJv/N0ORS+fT3j9
+         XyA38U4SYD/CPhiyrHGILQPDxJm/BZ1ryP6pxkl46dB8yRBKsamM6uCiAG9IGTr9/m3z
+         3Pd969LXPNzPYqPRpWKer6j9ThCQaniJhFeVVkMpgBLxtTzFPa5E8h0v++5UPZfiq0TF
+         wpWkR2X42blcz/hLHgidzET//Ly2KMYiSmEGH/L19G8QMLBxhX5iLBcWhhjsMD6zjuir
+         edIQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:sender:dkim-signature;
-        bh=g3sPXxwryfyIYGvf6SkhaUfkJre0gRyCx/35axsK1aw=;
-        b=QScqLPpMQ0acSu+xwyo+I0pANMakKACsfsGoIU5M+7DfBKmHQL1nF5zixqpY+WOOPM
-         z3bWqUKOXFHfjydrt006RiteEsINDliahwF9TzPew9jQ2wZ6PBZI5intzw1gXXa93sye
-         F3g9VDYoSrIrMy3OU9CcMqw1KMdjjL/eQk7U07zxlHWdtE4sUrgeSKV2PsF5C1aBvopg
-         20APUdauL3h9Pw4PagcyWy3LPY+iOu7dyCaqQm8yyUmmy53+25asXQANEsS1JnycF94g
-         ch3udHTxQFL8jHrXtWhusl0OwFLLiQy4/XCb1aZpkJYN8Q3coaApsNZiLDX9fpV1ceFo
-         STiw==
+        bh=24jcnqUkS/NXF8aH8va17XJ9ebArqkYpqhxw1QfB8xU=;
+        b=JpKcYtrXiKtPXiMuY6at4IkCXJlOzzzueun+F9eeECiWkMP+VXIvrSoaL/di5Xc1Am
+         acEbAJaPqWwA9InnKl5FsvC1Y0uKb1DR1dil+V0pSZEpsYX0xJ7VpXnzu/+rZOB175UX
+         6q5xDFbfKHB1lFfABGzqXR6SwYDkNPjhX++oPduIBJ4dlfKUHSb4ARW80m6ZN1tKmPpQ
+         Y9488to8LYTJhlrxIIfWJJ4TmrbBFZUqgVqb4M7xLMobjEuM5Bt6fuaAQ5HiiRiqZyjs
+         ind5muVYzwXq+ELtZWR79Y6joN7pvyVmLQbYesgjpTyl94YyNt8s+LqmiVM9tmvpEmLT
+         Nxdw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=IfzouMzA;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Ksld3UEg;
        spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b64sor5197617pjc.24.2019.07.10.18.25.56
+        by mx.google.com with SMTPS id q36sor2107879pgl.81.2019.07.10.18.26.01
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 10 Jul 2019 18:25:56 -0700 (PDT)
+        Wed, 10 Jul 2019 18:26:01 -0700 (PDT)
 Received-SPF: pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=IfzouMzA;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Ksld3UEg;
        spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
         h=sender:from:to:cc:subject:date:message-id:in-reply-to:references
          :mime-version:content-transfer-encoding;
-        bh=g3sPXxwryfyIYGvf6SkhaUfkJre0gRyCx/35axsK1aw=;
-        b=IfzouMzAhm1Bmv3cV0b5Uq3+6uTtqI8UlcQ0D+i/m/KoGY5gRYPiFONouv3q6F6VJw
-         e95Y5Q2oM7ngJqIupI0m3aYBZRI7ZZg8UzDFHceGUKqRq7jS0Scji1OtCnmG3bfBzc7v
-         AabQuJI+4c4DbowNuYo7UlmIdkefwQjycubgMPchpkbU1YADNsz3fex3KI0Fp6ZhLoJE
-         w4dxAcdrA5WQqhO9C7LEjeTcKsawIBBjGUvWW7T6ScRemFAlziwvuo2c9r2RlvxdOAwE
-         xce5UQ4oUSc2dIG3LL+gg6AqJmty7fKH0qYyHBKer1GHBKCjFS9VNXYkPv9V7MGNdso6
-         rVsw==
-X-Google-Smtp-Source: APXvYqznXaO571WdAm9exTfgVHNOIPd4HtaYloqp/pMN0riHnBJghIr+LQKqamZeufoNitewUwHvvg==
-X-Received: by 2002:a17:90a:ad93:: with SMTP id s19mr1600923pjq.36.1562808355903;
-        Wed, 10 Jul 2019 18:25:55 -0700 (PDT)
+        bh=24jcnqUkS/NXF8aH8va17XJ9ebArqkYpqhxw1QfB8xU=;
+        b=Ksld3UEgh0GfQTrvkzpKACpnRZhEjsspy0YGSBYwcEHl8glu9rn0aO/LrFVsCgxZbP
+         kQL4crWekZVd6asOuHWOzpYEit/eoE+LZFqb870Klm2OQtcRHETukABGGnCDn4kA22IB
+         Lyrcyaxsk9NJPmNYf0pkeMglZwiYLSZNY+os76Zp9Eo3fW0i3OZh/oQYoSJ03mUaDXBg
+         MQ7/6DD5kQRXlp3q1LC/5i7BQhEhyuod1+p3V/7uZ0KAAjEpHui1uVhxI16wHHO6SENO
+         Id0WLZJDfqrxqC24/B4IY7Y6rol11egnzgjrUHjzHqWglPMJ6RhEUezfqHTY09UMnWOo
+         qXcg==
+X-Google-Smtp-Source: APXvYqzM5IJf6ixMvYWEC3R66//YxsankW0ieNb+ScNQL+bV7IlMOZ3P+U4kjZUC1kDdpFXgYI4QlQ==
+X-Received: by 2002:a63:c10d:: with SMTP id w13mr1393291pgf.28.1562808361198;
+        Wed, 10 Jul 2019 18:26:01 -0700 (PDT)
 Received: from bbox-2.seo.corp.google.com ([2401:fa00:d:0:98f1:8b3d:1f37:3e8])
-        by smtp.gmail.com with ESMTPSA id b37sm10031974pjc.15.2019.07.10.18.25.50
+        by smtp.gmail.com with ESMTPSA id b37sm10031974pjc.15.2019.07.10.18.25.56
         (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Wed, 10 Jul 2019 18:25:54 -0700 (PDT)
+        Wed, 10 Jul 2019 18:26:00 -0700 (PDT)
 From: Minchan Kim <minchan@kernel.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm <linux-mm@kvack.org>,
@@ -117,9 +117,9 @@ Cc: linux-mm <linux-mm@kvack.org>,
 	Dave Hansen <dave.hansen@intel.com>,
 	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>,
 	Minchan Kim <minchan@kernel.org>
-Subject: [PATCH v4 3/4] mm: account nr_isolated_xxx in [isolate|putback]_lru_page
-Date: Thu, 11 Jul 2019 10:25:27 +0900
-Message-Id: <20190711012528.176050-4-minchan@kernel.org>
+Subject: [PATCH v4 4/4] mm: introduce MADV_PAGEOUT
+Date: Thu, 11 Jul 2019 10:25:28 +0900
+Message-Id: <20190711012528.176050-5-minchan@kernel.org>
 X-Mailer: git-send-email 2.22.0.410.gd8fdbe21b5-goog
 In-Reply-To: <20190711012528.176050-1-minchan@kernel.org>
 References: <20190711012528.176050-1-minchan@kernel.org>
@@ -131,346 +131,394 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The isolate counting is pecpu counter so it would be not huge gain
-to work them by batch. Rather than complicating to make them batch,
-let's make it more stright-foward via adding the counting logic
-into [isolate|putback]_lru_page API.
+When a process expects no accesses to a certain memory range
+for a long time, it could hint kernel that the pages can be
+reclaimed instantly but data should be preserved for future use.
+This could reduce workingset eviction so it ends up increasing
+performance.
+
+This patch introduces the new MADV_PAGEOUT hint to madvise(2)
+syscall. MADV_PAGEOUT can be used by a process to mark a memory
+range as not expected to be used for a long time so that kernel
+reclaims *any LRU* pages instantly. The hint can help kernel in
+deciding which pages to evict proactively.
+
+A note: It doesn't apply SWAP_CLUSTER_MAX LRU page isolation limit
+intentionally because it's automatically bounded by PMD size.
+If PMD size(e.g., 256) makes some trouble, we could fix it later
+by limit it to SWAP_CLUSTER_MAX[1].
+
+- man-page material
+
+MADV_PAGEOUT (since Linux x.x)
+
+Do not expect access in the near future so pages in the specified
+regions could be reclaimed instantly regardless of memory pressure.
+Thus, access in the range after successful operation could cause
+major page fault but never lose the up-to-date contents unlike
+MADV_DONTNEED. Pages belonging to a shared mapping are only processed
+if a write access is allowed for the calling process.
+
+MADV_PAGEOUT cannot be applied to locked pages, Huge TLB pages, or
+VM_PFNMAP pages.
+
+* v3
+ * man page material modification - mhocko
+ * remove using SWAP_CLUSTER_MAX - mhocko
+
+* v2
+ * add comment about SWAP_CLUSTER_MAX - mhocko
+ * add permission check to prevent sidechannel attack - mhocko
+ * add man page stuff - dave
 
 * v1
- * fix accounting bug - Hillf
+ * change pte to old and rely on the other's reference - hannes
+ * remove page_mapcount to check shared page - mhocko
 
-Link: http://lkml.kernel.org/r/20190531165927.GA20067@cmpxchg.org
+* RFC v2
+ * make reclaim_pages simple via factoring out isolate logic - hannes
+
+* RFCv1
+ * rename from MADV_COLD to MADV_PAGEOUT - hannes
+ * bail out if process is being killed - Hillf
+ * fix reclaim_pages bugs - Hillf
+
+[1] https://lore.kernel.org/lkml/20190710194719.GS29695@dhcp22.suse.cz/
 Acked-by: Michal Hocko <mhocko@suse.com>
-Suggested-by: Johannes Weiner <hannes@cmpxchg.org>
 Signed-off-by: Minchan Kim <minchan@kernel.org>
 ---
- mm/compaction.c     |  2 --
- mm/gup.c            |  7 +------
- mm/khugepaged.c     |  3 ---
- mm/memory-failure.c |  3 ---
- mm/memory_hotplug.c |  4 ----
- mm/mempolicy.c      |  6 +-----
- mm/migrate.c        | 37 ++++++++-----------------------------
- mm/vmscan.c         | 22 ++++++++++++++++------
- 8 files changed, 26 insertions(+), 58 deletions(-)
+ include/linux/swap.h                   |   1 +
+ include/uapi/asm-generic/mman-common.h |   1 +
+ mm/madvise.c                           | 197 +++++++++++++++++++++++++
+ mm/vmscan.c                            |  55 +++++++
+ 4 files changed, 254 insertions(+)
 
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 9e1b9acb116b..c6591682deda 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -982,8 +982,6 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index 0ce997edb8bb..063c0c1e112b 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -365,6 +365,7 @@ extern int vm_swappiness;
+ extern int remove_mapping(struct address_space *mapping, struct page *page);
+ extern unsigned long vm_total_pages;
  
- 		/* Successfully isolated */
- 		del_page_from_lru_list(page, lruvec, page_lru(page));
--		inc_node_page_state(page,
--				NR_ISOLATED_ANON + page_is_file_cache(page));
++extern unsigned long reclaim_pages(struct list_head *page_list);
+ #ifdef CONFIG_NUMA
+ extern int node_reclaim_mode;
+ extern int sysctl_min_unmapped_ratio;
+diff --git a/include/uapi/asm-generic/mman-common.h b/include/uapi/asm-generic/mman-common.h
+index ef8a56927b12..c613abdb7284 100644
+--- a/include/uapi/asm-generic/mman-common.h
++++ b/include/uapi/asm-generic/mman-common.h
+@@ -46,6 +46,7 @@
+ #define MADV_WILLNEED	3		/* will need these pages */
+ #define MADV_DONTNEED	4		/* don't need these pages */
+ #define MADV_COLD	5		/* deactivatie these pages */
++#define MADV_PAGEOUT	6		/* reclaim these pages */
  
- isolate_success:
- 		list_add(&page->lru, &cc->migratepages);
-diff --git a/mm/gup.c b/mm/gup.c
-index 98f13ab37bac..11d0634ce613 100644
---- a/mm/gup.c
-+++ b/mm/gup.c
-@@ -1475,13 +1475,8 @@ static long check_and_migrate_cma_pages(struct task_struct *tsk,
- 					drain_allow = false;
- 				}
- 
--				if (!isolate_lru_page(head)) {
-+				if (!isolate_lru_page(head))
- 					list_add_tail(&head->lru, &cma_page_list);
--					mod_node_page_state(page_pgdat(head),
--							    NR_ISOLATED_ANON +
--							    page_is_file_cache(head),
--							    hpage_nr_pages(head));
--				}
- 			}
- 		}
- 
-diff --git a/mm/khugepaged.c b/mm/khugepaged.c
-index eaaa21b23215..a8b517d6df4a 100644
---- a/mm/khugepaged.c
-+++ b/mm/khugepaged.c
-@@ -503,7 +503,6 @@ void __khugepaged_exit(struct mm_struct *mm)
- 
- static void release_pte_page(struct page *page)
- {
--	dec_node_page_state(page, NR_ISOLATED_ANON + page_is_file_cache(page));
- 	unlock_page(page);
- 	putback_lru_page(page);
- }
-@@ -602,8 +601,6 @@ static int __collapse_huge_page_isolate(struct vm_area_struct *vma,
- 			result = SCAN_DEL_PAGE_LRU;
- 			goto out;
- 		}
--		inc_node_page_state(page,
--				NR_ISOLATED_ANON + page_is_file_cache(page));
- 		VM_BUG_ON_PAGE(!PageLocked(page), page);
- 		VM_BUG_ON_PAGE(PageLRU(page), page);
- 
-diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-index 7ef849da8278..9900bb95d774 100644
---- a/mm/memory-failure.c
-+++ b/mm/memory-failure.c
-@@ -1791,9 +1791,6 @@ static int __soft_offline_page(struct page *page, int flags)
- 		 * so use !__PageMovable instead for LRU page's mapping
- 		 * cannot have PAGE_MAPPING_MOVABLE.
- 		 */
--		if (!__PageMovable(page))
--			inc_node_page_state(page, NR_ISOLATED_ANON +
--						page_is_file_cache(page));
- 		list_add(&page->lru, &pagelist);
- 		ret = migrate_pages(&pagelist, new_page, NULL, MPOL_MF_MOVE_ALL,
- 					MIGRATE_SYNC, MR_MEMORY_FAILURE);
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index b9ba5b85f9f7..15bad2043b41 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -1383,10 +1383,6 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
- 			ret = isolate_movable_page(page, ISOLATE_UNEVICTABLE);
- 		if (!ret) { /* Success */
- 			list_add_tail(&page->lru, &source);
--			if (!__PageMovable(page))
--				inc_node_page_state(page, NR_ISOLATED_ANON +
--						    page_is_file_cache(page));
--
- 		} else {
- 			pr_warn("failed to isolate pfn %lx\n", pfn);
- 			dump_page(page, "isolation failed");
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index 4acc2d14bc77..a5685eee6d1d 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -994,12 +994,8 @@ static int migrate_page_add(struct page *page, struct list_head *pagelist,
- 	 * Avoid migrating a page that is shared with others.
- 	 */
- 	if ((flags & MPOL_MF_MOVE_ALL) || page_mapcount(head) == 1) {
--		if (!isolate_lru_page(head)) {
-+		if (!isolate_lru_page(head))
- 			list_add_tail(&head->lru, pagelist);
--			mod_node_page_state(page_pgdat(head),
--				NR_ISOLATED_ANON + page_is_file_cache(head),
--				hpage_nr_pages(head));
--		}
- 	}
- 
- 	return 0;
-diff --git a/mm/migrate.c b/mm/migrate.c
-index 8992741f10aa..f54f449a99f5 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -190,8 +190,6 @@ void putback_movable_pages(struct list_head *l)
- 			unlock_page(page);
- 			put_page(page);
- 		} else {
--			mod_node_page_state(page_pgdat(page), NR_ISOLATED_ANON +
--					page_is_file_cache(page), -hpage_nr_pages(page));
- 			putback_lru_page(page);
- 		}
- 	}
-@@ -1175,10 +1173,17 @@ static ICE_noinline int unmap_and_move(new_page_t get_new_page,
- 		return -ENOMEM;
- 
- 	if (page_count(page) == 1) {
-+		bool is_lru = !__PageMovable(page);
-+
- 		/* page was freed from under us. So we are done. */
- 		ClearPageActive(page);
- 		ClearPageUnevictable(page);
--		if (unlikely(__PageMovable(page))) {
-+		if (likely(is_lru))
-+			mod_node_page_state(page_pgdat(page),
-+						NR_ISOLATED_ANON +
-+						page_is_file_cache(page),
-+						-hpage_nr_pages(page));
-+		else {
- 			lock_page(page);
- 			if (!PageMovable(page))
- 				__ClearPageIsolated(page);
-@@ -1204,15 +1209,6 @@ static ICE_noinline int unmap_and_move(new_page_t get_new_page,
- 		 * restored.
- 		 */
- 		list_del(&page->lru);
--
--		/*
--		 * Compaction can migrate also non-LRU pages which are
--		 * not accounted to NR_ISOLATED_*. They can be recognized
--		 * as __PageMovable
--		 */
--		if (likely(!__PageMovable(page)))
--			mod_node_page_state(page_pgdat(page), NR_ISOLATED_ANON +
--					page_is_file_cache(page), -hpage_nr_pages(page));
- 	}
- 
- 	/*
-@@ -1566,9 +1562,6 @@ static int add_page_for_migration(struct mm_struct *mm, unsigned long addr,
- 
- 		err = 0;
- 		list_add_tail(&head->lru, pagelist);
--		mod_node_page_state(page_pgdat(head),
--			NR_ISOLATED_ANON + page_is_file_cache(head),
--			hpage_nr_pages(head));
- 	}
- out_putpage:
- 	/*
-@@ -1884,8 +1877,6 @@ static struct page *alloc_misplaced_dst_page(struct page *page,
- 
- static int numamigrate_isolate_page(pg_data_t *pgdat, struct page *page)
- {
--	int page_lru;
--
- 	VM_BUG_ON_PAGE(compound_order(page) && !PageTransHuge(page), page);
- 
- 	/* Avoid migrating to a node that is nearly full */
-@@ -1907,10 +1898,6 @@ static int numamigrate_isolate_page(pg_data_t *pgdat, struct page *page)
+ /* common parameters: try to keep these consistent across architectures */
+ #define MADV_FREE	8		/* free pages only if memory pressure */
+diff --git a/mm/madvise.c b/mm/madvise.c
+index bae0055f9724..bc2f0138982e 100644
+--- a/mm/madvise.c
++++ b/mm/madvise.c
+@@ -11,6 +11,7 @@
+ #include <linux/syscalls.h>
+ #include <linux/mempolicy.h>
+ #include <linux/page-isolation.h>
++#include <linux/page_idle.h>
+ #include <linux/userfaultfd_k.h>
+ #include <linux/hugetlb.h>
+ #include <linux/falloc.h>
+@@ -41,6 +42,7 @@ static int madvise_need_mmap_write(int behavior)
+ 	case MADV_WILLNEED:
+ 	case MADV_DONTNEED:
+ 	case MADV_COLD:
++	case MADV_PAGEOUT:
+ 	case MADV_FREE:
  		return 0;
- 	}
+ 	default:
+@@ -480,6 +482,198 @@ static long madvise_cold(struct vm_area_struct *vma,
+ 	return 0;
+ }
  
--	page_lru = page_is_file_cache(page);
--	mod_node_page_state(page_pgdat(page), NR_ISOLATED_ANON + page_lru,
--				hpage_nr_pages(page));
--
- 	/*
- 	 * Isolating the page has taken another reference, so the
- 	 * caller's reference can be safely dropped without the page
-@@ -1965,8 +1952,6 @@ int migrate_misplaced_page(struct page *page, struct vm_area_struct *vma,
- 	if (nr_remaining) {
- 		if (!list_empty(&migratepages)) {
- 			list_del(&page->lru);
--			dec_node_page_state(page, NR_ISOLATED_ANON +
--					page_is_file_cache(page));
- 			putback_lru_page(page);
- 		}
- 		isolated = 0;
-@@ -1996,7 +1981,6 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
- 	pg_data_t *pgdat = NODE_DATA(node);
- 	int isolated = 0;
- 	struct page *new_page = NULL;
--	int page_lru = page_is_file_cache(page);
- 	unsigned long start = address & HPAGE_PMD_MASK;
++static int madvise_pageout_pte_range(pmd_t *pmd, unsigned long addr,
++				unsigned long end, struct mm_walk *walk)
++{
++	struct mmu_gather *tlb = walk->private;
++	struct mm_struct *mm = tlb->mm;
++	struct vm_area_struct *vma = walk->vma;
++	pte_t *orig_pte, *pte, ptent;
++	spinlock_t *ptl;
++	LIST_HEAD(page_list);
++	struct page *page;
++	unsigned long next;
++
++	if (fatal_signal_pending(current))
++		return -EINTR;
++
++	next = pmd_addr_end(addr, end);
++	if (pmd_trans_huge(*pmd)) {
++		pmd_t orig_pmd;
++
++		tlb_change_page_size(tlb, HPAGE_PMD_SIZE);
++		ptl = pmd_trans_huge_lock(pmd, vma);
++		if (!ptl)
++			return 0;
++
++		orig_pmd = *pmd;
++		if (is_huge_zero_pmd(orig_pmd))
++			goto huge_unlock;
++
++		if (unlikely(!pmd_present(orig_pmd))) {
++			VM_BUG_ON(thp_migration_supported() &&
++					!is_pmd_migration_entry(orig_pmd));
++			goto huge_unlock;
++		}
++
++		page = pmd_page(orig_pmd);
++		if (next - addr != HPAGE_PMD_SIZE) {
++			int err;
++
++			if (page_mapcount(page) != 1)
++				goto huge_unlock;
++			get_page(page);
++			spin_unlock(ptl);
++			lock_page(page);
++			err = split_huge_page(page);
++			unlock_page(page);
++			put_page(page);
++			if (!err)
++				goto regular_page;
++			return 0;
++		}
++
++		if (isolate_lru_page(page))
++			goto huge_unlock;
++
++		if (pmd_young(orig_pmd)) {
++			pmdp_invalidate(vma, addr, pmd);
++			orig_pmd = pmd_mkold(orig_pmd);
++
++			set_pmd_at(mm, addr, pmd, orig_pmd);
++			tlb_remove_tlb_entry(tlb, pmd, addr);
++		}
++
++		ClearPageReferenced(page);
++		test_and_clear_page_young(page);
++		list_add(&page->lru, &page_list);
++huge_unlock:
++		spin_unlock(ptl);
++		reclaim_pages(&page_list);
++		return 0;
++	}
++
++	if (pmd_trans_unstable(pmd))
++		return 0;
++regular_page:
++	tlb_change_page_size(tlb, PAGE_SIZE);
++	orig_pte = pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
++	flush_tlb_batched_pending(mm);
++	arch_enter_lazy_mmu_mode();
++	for (; addr < end; pte++, addr += PAGE_SIZE) {
++		ptent = *pte;
++		if (!pte_present(ptent))
++			continue;
++
++		page = vm_normal_page(vma, addr, ptent);
++		if (!page)
++			continue;
++
++		/*
++		 * creating a THP page is expensive so split it only if we
++		 * are sure it's worth. Split it if we are only owner.
++		 */
++		if (PageTransCompound(page)) {
++			if (page_mapcount(page) != 1)
++				break;
++			get_page(page);
++			if (!trylock_page(page)) {
++				put_page(page);
++				break;
++			}
++			pte_unmap_unlock(orig_pte, ptl);
++			if (split_huge_page(page)) {
++				unlock_page(page);
++				put_page(page);
++				pte_offset_map_lock(mm, pmd, addr, &ptl);
++				break;
++			}
++			unlock_page(page);
++			put_page(page);
++			pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
++			pte--;
++			addr -= PAGE_SIZE;
++			continue;
++		}
++
++		VM_BUG_ON_PAGE(PageTransCompound(page), page);
++
++		if (isolate_lru_page(page))
++			continue;
++
++		if (pte_young(ptent)) {
++			ptent = ptep_get_and_clear_full(mm, addr, pte,
++							tlb->fullmm);
++			ptent = pte_mkold(ptent);
++			set_pte_at(mm, addr, pte, ptent);
++			tlb_remove_tlb_entry(tlb, pte, addr);
++		}
++		ClearPageReferenced(page);
++		test_and_clear_page_young(page);
++		list_add(&page->lru, &page_list);
++	}
++
++	arch_leave_lazy_mmu_mode();
++	pte_unmap_unlock(orig_pte, ptl);
++	reclaim_pages(&page_list);
++	cond_resched();
++
++	return 0;
++}
++
++static void madvise_pageout_page_range(struct mmu_gather *tlb,
++			     struct vm_area_struct *vma,
++			     unsigned long addr, unsigned long end)
++{
++	struct mm_walk pageout_walk = {
++		.pmd_entry = madvise_pageout_pte_range,
++		.mm = vma->vm_mm,
++		.private = tlb,
++	};
++
++	tlb_start_vma(tlb, vma);
++	walk_page_range(addr, end, &pageout_walk);
++	tlb_end_vma(tlb, vma);
++}
++
++static inline bool can_do_pageout(struct vm_area_struct *vma)
++{
++	if (vma_is_anonymous(vma))
++		return true;
++	if (!vma->vm_file)
++		return false;
++	/*
++	 * paging out pagecache only for non-anonymous mappings that correspond
++	 * to the files the calling process could (if tried) open for writing;
++	 * otherwise we'd be including shared non-exclusive mappings, which
++	 * opens a side channel.
++	 */
++	return inode_owner_or_capable(file_inode(vma->vm_file)) ||
++		inode_permission(file_inode(vma->vm_file), MAY_WRITE) == 0;
++}
++
++static long madvise_pageout(struct vm_area_struct *vma,
++			struct vm_area_struct **prev,
++			unsigned long start_addr, unsigned long end_addr)
++{
++	struct mm_struct *mm = vma->vm_mm;
++	struct mmu_gather tlb;
++
++	*prev = vma;
++	if (!can_madv_lru_vma(vma))
++		return -EINVAL;
++
++	if (!can_do_pageout(vma))
++		return 0;
++
++	lru_add_drain();
++	tlb_gather_mmu(&tlb, mm, start_addr, end_addr);
++	madvise_pageout_page_range(&tlb, vma, start_addr, end_addr);
++	tlb_finish_mmu(&tlb, start_addr, end_addr);
++
++	return 0;
++}
++
+ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
+ 				unsigned long end, struct mm_walk *walk)
  
- 	new_page = alloc_pages_node(node,
-@@ -2042,8 +2026,6 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
- 		/* Retake the callers reference and putback on LRU */
- 		get_page(page);
- 		putback_lru_page(page);
--		mod_node_page_state(page_pgdat(page),
--			 NR_ISOLATED_ANON + page_lru, -HPAGE_PMD_NR);
- 
- 		goto out_unlock;
- 	}
-@@ -2093,9 +2075,6 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
- 	count_vm_events(PGMIGRATE_SUCCESS, HPAGE_PMD_NR);
- 	count_vm_numa_events(NUMA_PAGE_MIGRATE, HPAGE_PMD_NR);
- 
--	mod_node_page_state(page_pgdat(page),
--			NR_ISOLATED_ANON + page_lru,
--			-HPAGE_PMD_NR);
- 	return isolated;
- 
- out_fail:
+@@ -870,6 +1064,8 @@ madvise_vma(struct vm_area_struct *vma, struct vm_area_struct **prev,
+ 		return madvise_willneed(vma, prev, start, end);
+ 	case MADV_COLD:
+ 		return madvise_cold(vma, prev, start, end);
++	case MADV_PAGEOUT:
++		return madvise_pageout(vma, prev, start, end);
+ 	case MADV_FREE:
+ 	case MADV_DONTNEED:
+ 		return madvise_dontneed_free(vma, prev, start, end, behavior);
+@@ -892,6 +1088,7 @@ madvise_behavior_valid(int behavior)
+ 	case MADV_DONTNEED:
+ 	case MADV_FREE:
+ 	case MADV_COLD:
++	case MADV_PAGEOUT:
+ #ifdef CONFIG_KSM
+ 	case MADV_MERGEABLE:
+ 	case MADV_UNMERGEABLE:
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index b4fa04d10ba6..ca192b792d4f 100644
+index ca192b792d4f..bda3c41de767 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -1016,6 +1016,9 @@ int remove_mapping(struct address_space *mapping, struct page *page)
- void putback_lru_page(struct page *page)
- {
- 	lru_cache_add(page);
-+	mod_node_page_state(page_pgdat(page),
-+				NR_ISOLATED_ANON + page_is_file_cache(page),
-+				-hpage_nr_pages(page));
- 	put_page(page);		/* drop ref from isolate */
+@@ -2153,6 +2153,61 @@ static void shrink_active_list(unsigned long nr_to_scan,
+ 			nr_deactivate, nr_rotated, sc->priority, file);
  }
  
-@@ -1481,6 +1484,9 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 		 */
- 		nr_reclaimed += nr_pages;
- 
-+		mod_node_page_state(pgdat, NR_ISOLATED_ANON +
-+						page_is_file_cache(page),
-+						-nr_pages);
- 		/*
- 		 * Is there need to periodically free_page_list? It would
- 		 * appear not as the counts should be low
-@@ -1556,7 +1562,6 @@ unsigned long reclaim_clean_pages_from_list(struct zone *zone,
- 	ret = shrink_page_list(&clean_pages, zone->zone_pgdat, &sc,
- 			TTU_IGNORE_ACCESS, &dummy_stat, true);
- 	list_splice(&clean_pages, page_list);
--	mod_node_page_state(zone->zone_pgdat, NR_ISOLATED_FILE, -ret);
- 	return ret;
- }
- 
-@@ -1632,6 +1637,9 @@ int __isolate_lru_page(struct page *page, isolate_mode_t mode)
- 		 */
- 		ClearPageLRU(page);
- 		ret = 0;
-+		__mod_node_page_state(page_pgdat(page), NR_ISOLATED_ANON +
-+						page_is_file_cache(page),
-+						hpage_nr_pages(page));
- 	}
- 
- 	return ret;
-@@ -1763,6 +1771,7 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
- 	trace_mm_vmscan_lru_isolate(sc->reclaim_idx, sc->order, nr_to_scan,
- 				    total_scan, skipped, nr_taken, mode, lru);
- 	update_lru_sizes(lruvec, lru, nr_zone_taken);
++unsigned long reclaim_pages(struct list_head *page_list)
++{
++	int nid = -1;
++	unsigned long nr_reclaimed = 0;
++	LIST_HEAD(node_page_list);
++	struct reclaim_stat dummy_stat;
++	struct page *page;
++	struct scan_control sc = {
++		.gfp_mask = GFP_KERNEL,
++		.priority = DEF_PRIORITY,
++		.may_writepage = 1,
++		.may_unmap = 1,
++		.may_swap = 1,
++	};
 +
- 	return nr_taken;
- }
- 
-@@ -1811,6 +1820,9 @@ int isolate_lru_page(struct page *page)
- 			ClearPageLRU(page);
- 			del_page_from_lru_list(page, lruvec, lru);
- 			ret = 0;
-+			mod_node_page_state(pgdat, NR_ISOLATED_ANON +
-+						page_is_file_cache(page),
-+						hpage_nr_pages(page));
- 		}
- 		spin_unlock_irq(&pgdat->lru_lock);
- 	}
-@@ -1902,6 +1914,9 @@ static unsigned noinline_for_stack move_pages_to_lru(struct lruvec *lruvec,
- 		update_lru_size(lruvec, lru, page_zonenum(page), nr_pages);
- 		list_move(&page->lru, &lruvec->lists[lru]);
- 
-+		__mod_node_page_state(pgdat, NR_ISOLATED_ANON +
-+						page_is_file_cache(page),
-+						-hpage_nr_pages(page));
- 		if (put_page_testzero(page)) {
- 			__ClearPageLRU(page);
- 			__ClearPageActive(page);
-@@ -1979,7 +1994,6 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
- 	nr_taken = isolate_lru_pages(nr_to_scan, lruvec, &page_list,
- 				     &nr_scanned, sc, lru);
- 
--	__mod_node_page_state(pgdat, NR_ISOLATED_ANON + file, nr_taken);
- 	reclaim_stat->recent_scanned[file] += nr_taken;
- 
- 	item = current_is_kswapd() ? PGSCAN_KSWAPD : PGSCAN_DIRECT;
-@@ -2005,8 +2019,6 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
- 
- 	move_pages_to_lru(lruvec, &page_list);
- 
--	__mod_node_page_state(pgdat, NR_ISOLATED_ANON + file, -nr_taken);
--
- 	spin_unlock_irq(&pgdat->lru_lock);
- 
- 	mem_cgroup_uncharge_list(&page_list);
-@@ -2065,7 +2077,6 @@ static void shrink_active_list(unsigned long nr_to_scan,
- 	nr_taken = isolate_lru_pages(nr_to_scan, lruvec, &l_hold,
- 				     &nr_scanned, sc, lru);
- 
--	__mod_node_page_state(pgdat, NR_ISOLATED_ANON + file, nr_taken);
- 	reclaim_stat->recent_scanned[file] += nr_taken;
- 
- 	__count_vm_events(PGREFILL, nr_scanned);
-@@ -2134,7 +2145,6 @@ static void shrink_active_list(unsigned long nr_to_scan,
- 	__count_vm_events(PGDEACTIVATE, nr_deactivate);
- 	__count_memcg_events(lruvec_memcg(lruvec), PGDEACTIVATE, nr_deactivate);
- 
--	__mod_node_page_state(pgdat, NR_ISOLATED_ANON + file, -nr_taken);
- 	spin_unlock_irq(&pgdat->lru_lock);
- 
- 	mem_cgroup_uncharge_list(&l_active);
++	while (!list_empty(page_list)) {
++		page = lru_to_page(page_list);
++		if (nid == -1) {
++			nid = page_to_nid(page);
++			INIT_LIST_HEAD(&node_page_list);
++		}
++
++		if (nid == page_to_nid(page)) {
++			list_move(&page->lru, &node_page_list);
++			continue;
++		}
++
++		nr_reclaimed += shrink_page_list(&node_page_list,
++						NODE_DATA(nid),
++						&sc, 0,
++						&dummy_stat, false);
++		while (!list_empty(&node_page_list)) {
++			page = lru_to_page(&node_page_list);
++			list_del(&page->lru);
++			putback_lru_page(page);
++		}
++
++		nid = -1;
++	}
++
++	if (!list_empty(&node_page_list)) {
++		nr_reclaimed += shrink_page_list(&node_page_list,
++						NODE_DATA(nid),
++						&sc, 0,
++						&dummy_stat, false);
++		while (!list_empty(&node_page_list)) {
++			page = lru_to_page(&node_page_list);
++			list_del(&page->lru);
++			putback_lru_page(page);
++		}
++	}
++
++	return nr_reclaimed;
++}
++
+ /*
+  * The inactive anon list should be small enough that the VM never has
+  * to do too much work.
 -- 
 2.22.0.410.gd8fdbe21b5-goog
 
