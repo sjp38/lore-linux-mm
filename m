@@ -1,372 +1,224 @@
-Return-Path: <SRS0=tO+N=VH=kvack.org=owner-linux-mm@kernel.org>
+Return-Path: <SRS0=bABq=VI=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.7 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY,USER_AGENT_SANE_1
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A8FBCC74A36
-	for <linux-mm@archiver.kernel.org>; Wed, 10 Jul 2019 23:40:33 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id EE9DDC74A36
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 00:16:32 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4816220665
-	for <linux-mm@archiver.kernel.org>; Wed, 10 Jul 2019 23:40:33 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="JyN5hXam"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4816220665
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 578FF21019
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 00:16:32 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 578FF21019
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DA1FC8E009D; Wed, 10 Jul 2019 19:40:32 -0400 (EDT)
+	id E4A3E8E009E; Wed, 10 Jul 2019 20:16:31 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D53448E0032; Wed, 10 Jul 2019 19:40:32 -0400 (EDT)
+	id DFAED8E0032; Wed, 10 Jul 2019 20:16:31 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C43528E009D; Wed, 10 Jul 2019 19:40:32 -0400 (EDT)
+	id CE8B68E009E; Wed, 10 Jul 2019 20:16:31 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
-	by kanga.kvack.org (Postfix) with ESMTP id A36F48E0032
-	for <linux-mm@kvack.org>; Wed, 10 Jul 2019 19:40:32 -0400 (EDT)
-Received: by mail-io1-f72.google.com with SMTP id r27so4680471iob.14
-        for <linux-mm@kvack.org>; Wed, 10 Jul 2019 16:40:32 -0700 (PDT)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 962118E0032
+	for <linux-mm@kvack.org>; Wed, 10 Jul 2019 20:16:31 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id d187so2460838pga.7
+        for <linux-mm@kvack.org>; Wed, 10 Jul 2019 17:16:31 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc
-         :content-transfer-encoding;
-        bh=wxKiv4rFy3weWsxV35ltdDcGn7tGg2/QlaXNYuFYJk0=;
-        b=oX4+Xr+Z7zH7INDandkqSrUQwQXLxSbVcnld5FqEw4pa4jGF1wlopnKOGWAatAT3Gv
-         6Lr5LZZh2rbyD1/RWVtXWbX7KArLkTfS1BBjUpZidWJWDGXu6ykr9uArrsyJHoRbVQck
-         vH4FIOkNDmXyHlmclhbEKw9dLJ4WUW7gOkoTfBbryxpU1KwF51IasD/QRvK6pB94/uaM
-         v7D5ItBqmlSpEPt3CUIz+jCzyUjgXB3f7Gd3Hstp3U2m7FAdwcGewRCIoAb9JcHEpTW7
-         sqK2BD7yaKkDhNOnWkzLXBXSVMvh3X/KYD1RoEjgVJ0f55+in7boCNoVq3K7H3edg+4N
-         Pk/g==
-X-Gm-Message-State: APjAAAWz8QrGYkrEcuaWVYrYvirZD1y85miBvFzU6csNxZCEKq1hQH0g
-	ghbf+YZfxhjj+l2Acw5mDhkAj+fXKgwhLnNfdlJcO2OAyiN2E4or8O7xHtWCurMbHiVMO6GEvgO
-	ham7OEpcZw8w7/tHw44/JEq+Yo1UxNu4ibuJU0nZuY/5gZpHALn6zOhGfbQH4M8SF4w==
-X-Received: by 2002:a6b:3c0a:: with SMTP id k10mr851076iob.271.1562802032405;
-        Wed, 10 Jul 2019 16:40:32 -0700 (PDT)
-X-Received: by 2002:a6b:3c0a:: with SMTP id k10mr850977iob.271.1562802031172;
-        Wed, 10 Jul 2019 16:40:31 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562802031; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-transfer-encoding:content-language;
+        bh=4Ip7emag8pzZ25NnyKyhPC62jEv1a54u1Q3cXUPog/I=;
+        b=NPQydaiLZZesc+OdODedIgfB4EY3DSR8Y1iAXW79V/i4H97GT5vVlMQOh4EOtXciUy
+         brVcMHlC5LTy+s5z7TVAdYntvViv4JVqqdqgEVv1jvdTT8u7GGeTCp35BRvXCImM+UoZ
+         nS9Cy/45SWc9BsXTHyxAKaFEHkbjN39y0EUhiv3pnqLSfBbFhAk8X73ckHmcYtJD1NjD
+         Tfk5pOrV8r54TPCYyjWBWcCYpNJt6ufQM84pAdk66Lb99yXcqqm97UJvoG0updo5C+mx
+         cgG/Slk/2KHcpDqGkX4k6jSCU6Vw4am96UdY3Lim5cZAyoh6YvUioVMEYLewo/1Rb7wz
+         cxAA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.133 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Gm-Message-State: APjAAAXMM3gGM+E6zkMdUF7e9MwZQIr1l7OSrKe9UpUC6E8vykCdfKyR
+	Y2/vSEqhVrxlPRALBzLRoFLTPOOGdVWuXQmqo3095LwPm26fkk1BJrEzLE+ND7XN6ANH6CWoSI+
+	Fjat7KTSkGOZLJXDYqVadWR7WnRq1jqXc3gyAal2h67nuwyBA7yDCEcxDW2NWEEjaAg==
+X-Received: by 2002:a63:550e:: with SMTP id j14mr1002261pgb.302.1562804191174;
+        Wed, 10 Jul 2019 17:16:31 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxEz+o3SnjZ3wW3DyrY3svC3BW4X1KpDNLoSY+blFUt+0Ux2fhXocfNgO4wwy2NR9lgMZO2
+X-Received: by 2002:a63:550e:: with SMTP id j14mr1002181pgb.302.1562804189989;
+        Wed, 10 Jul 2019 17:16:29 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562804189; cv=none;
         d=google.com; s=arc-20160816;
-        b=jD5qCZJud6aS5GvAv4SiSDEs9oG89fCyAw46nI4FxUczsPW4y/d+Q15qe3bNLk8MTG
-         UfYleHjvx0/iYJjUuq+o59aahNlCTWBUoQfcM0g0jG0DtuBEARNXdq0WjWiJHfZ/xo3W
-         ptIDNmxeRk8zABVISLpJSvtUOq/2GPOJzegRJGGQ176OlE09Zd1fmjbZ3z8Apwhfu7AA
-         obhn0DPcsOX2XG4YkX6/GGZ4OQY58q0wbERsD9JBkgk6Ig3lBpLr+dVi1iNN4gzW2h8a
-         gyQPU5FYbDbt82hNm56xm9AOsmqYwg5/8ovY+cX4OJabII5izU5akEN0d7qxJBn6c8aK
-         0Xhg==
+        b=NO3LX6zq7eC7sarkttF4LkvlvQ2TzlffbrNKFmQVrUD90930r8ZsWyDu4ahYxWVcbi
+         wQFvcyFmy0jbyWtMwzOnt3yk7ed/XOEQ0OQ9w9iP3FFg9hLYomIfcAe4OFcacsAeb6Vs
+         xyGukZVW+yGMYgX9RQA+tHQyTcT/NJC4mgueLgeyyeLWRSQRyrpYnI32l3UMjSv0oVVf
+         Oak3d8M0m9shlgsSPyF9R+ZQ1naQ7b1wdfjdVy9Q8uF3Z7qEt5nf+Pz1OT6MviYJGbOj
+         m/bJOc0Sx61/B/7wt4zodlIkGMc2XR0w9KwnekrvCYcYuQHB3JLTh+hb/IGlvgpWnz94
+         DaFA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:cc:to:subject:message-id:date:from
-         :in-reply-to:references:mime-version:dkim-signature;
-        bh=wxKiv4rFy3weWsxV35ltdDcGn7tGg2/QlaXNYuFYJk0=;
-        b=lXIt7cPTaLJm0yMPTpk/eo8NYcM4UPm0qUqnVJPEVRx/sQWIAkCU0chw9y5KCrusyN
-         Uq+5uLrLD0ZJXBCRLtlLTGr9Mqhmu33LnBPXRJDbrREHQ1QcXvZ2WPsba1DgvzsIS1so
-         6ohyh/ZuQxAbLHzS0wzHR5nME39cuLRAPLtqiIQZu85wa3ygKZMxF6n+vp2zEEEnRlx8
-         eDOXgeq29rWkEfxkCrob7umNkc+iJlcA8s+ZL013dxw6q1IVXYQ16V9Y1jD4k1y4UwEg
-         NqtVc9M+gINlOeuCquevD8UwVWPT4ESKnbzDhvo11TC14Mdx9ObfWWi1FOC+az+1p8sK
-         CpRg==
+        h=content-language:content-transfer-encoding:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=4Ip7emag8pzZ25NnyKyhPC62jEv1a54u1Q3cXUPog/I=;
+        b=PCJGC4LoqTOpDqYooOIlQwwWmb8RZTXDWbi1uH44+9+nhhNx59CG/MbNRwjIMLcxU/
+         02UPpv/TjCxEcqC0QN6YE/rb2jN0QkW7AIMMkMPuYRJsupicG0AB8v+8TCWT5BnryxtN
+         kfqLw4x7ax7Xif0hxv5HDMvlEzbvqoP7tTdPMiofpQC8/4NHT0P5K6jA9IyAuAIp8qDR
+         iBrHcv/f0HMJ9i4AqlG7rMLCIjKHQo++MegrCBt+ZoA3OIiy7yT6aiyDIQ4wVIKSo9nJ
+         uKl3pq9Wq5mEnsDWf019Uq/qaE5bDrEWhn8h6/P2CA+0I/EBVYagrOetIA73kfg76fJ2
+         +ORw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=JyN5hXam;
-       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 131sor8780787jac.14.2019.07.10.16.40.31
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.133 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+Received: from out30-133.freemail.mail.aliyun.com (out30-133.freemail.mail.aliyun.com. [115.124.30.133])
+        by mx.google.com with ESMTPS id m9si3436477pgq.373.2019.07.10.17.16.29
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 10 Jul 2019 16:40:31 -0700 (PDT)
-Received-SPF: pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 10 Jul 2019 17:16:29 -0700 (PDT)
+Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.133 as permitted sender) client-ip=115.124.30.133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=JyN5hXam;
-       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc:content-transfer-encoding;
-        bh=wxKiv4rFy3weWsxV35ltdDcGn7tGg2/QlaXNYuFYJk0=;
-        b=JyN5hXamy/0x3JsO9tfR5aSXYskUM4CkJ0BLJHO2vpwA/vMOeCuKPhzcBIpswwNmZl
-         Y8jqwAEOp4Q/TnL88nItc09Y0McvYl7s1YrKyQI01SMSpjXjQSfof+kc0eu2gD88dfee
-         A0tb8U9fnbr+9Lvccsd5RDo2uWGNZ6cfhS9UVvLxI3BTfhSV41tv+t/s/yvNgFaW3pg1
-         i/pibzReKs5HDZ0QBPuE6Rq+qrtuk6a7ab/lGhCn8h2oRGU+VA5xSK2cm/CfUQelndP4
-         3wgw5JEPIJvn9lqREpvyypUj8wXffYxmHFjGD2ZRV6JGAFEpc21X18rD6CrfqRoGhDjv
-         0JGw==
-X-Google-Smtp-Source: APXvYqzHj2JjyCOrHiYjibDN0Mj9eKjyPdJ/EjcaZIR9tsviZGDtVimFBWopFxt/olMkBKQ/xZ1tE+XtzzLNYNW6YNY=
-X-Received: by 2002:a02:6d24:: with SMTP id m36mr915549jac.87.1562802030573;
- Wed, 10 Jul 2019 16:40:30 -0700 (PDT)
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.133 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R161e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e04423;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=5;SR=0;TI=SMTPD_---0TWa8jk1_1562804182;
+Received: from US-143344MP.local(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TWa8jk1_1562804182)
+          by smtp.aliyun-inc.com(127.0.0.1);
+          Thu, 11 Jul 2019 08:16:26 +0800
+Subject: Re: list corruption in deferred_split_scan()
+To: Qian Cai <cai@lca.pw>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
+ akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+References: <1562795006.8510.19.camel@lca.pw>
+From: Yang Shi <yang.shi@linux.alibaba.com>
+Message-ID: <cd6e10bc-cb79-65c5-ff2b-4c244ae5eb1c@linux.alibaba.com>
+Date: Wed, 10 Jul 2019 17:16:21 -0700
+User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:52.0)
+ Gecko/20100101 Thunderbird/52.7.0
 MIME-Version: 1.0
-References: <20190710195158.19640-1-nitesh@redhat.com>
-In-Reply-To: <20190710195158.19640-1-nitesh@redhat.com>
-From: Alexander Duyck <alexander.duyck@gmail.com>
-Date: Wed, 10 Jul 2019 16:40:19 -0700
-Message-ID: <CAKgT0Uf3J17zNFc-pBKQjTthSa8GG=TrTwaL4+Ns=Q88sFpxLQ@mail.gmail.com>
-Subject: Re: [RFC][PATCH v11 0/2] mm: Support for page hinting
-To: Nitesh Narayan Lal <nitesh@redhat.com>
-Cc: kvm list <kvm@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, 
-	linux-mm <linux-mm@kvack.org>, Paolo Bonzini <pbonzini@redhat.com>, lcapitulino@redhat.com, 
-	pagupta@redhat.com, wei.w.wang@intel.com, 
-	Yang Zhang <yang.zhang.wz@gmail.com>, Rik van Riel <riel@surriel.com>, 
-	David Hildenbrand <david@redhat.com>, "Michael S. Tsirkin" <mst@redhat.com>, dodgen@google.com, 
-	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, dhildenb@redhat.com, 
-	Andrea Arcangeli <aarcange@redhat.com>, john.starks@microsoft.com, 
-	Dave Hansen <dave.hansen@intel.com>, Michal Hocko <mhocko@suse.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <1562795006.8510.19.camel@lca.pw>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 8bit
+Content-Language: en-US
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jul 10, 2019 at 12:52 PM Nitesh Narayan Lal <nitesh@redhat.com> wro=
-te:
+Hi Qian,
 
-The results up here were redundant with what is below so I am just
-dropping them. I would suggest only including one set of results in
-any future cover page as it is confusing to duplicate it like that.
 
-> This approach tracks all freed pages of the order MAX_ORDER - 2 in bitmap=
-s.
-> A new hook after buddy merging is used to set the bits in the bitmap.
-> Currently, the bits are only cleared when pages are hinted, not when page=
-s are
-> re-allocated.
->
-> Bitmaps are stored on a per-zone basis and are protected by the zone lock=
-. A
-> workqueue asynchronously processes the bitmaps as soon as a pre-defined m=
-emory
-> threshold is met, trying to isolate and report pages that are still free.
->
-> The isolated pages are reported via virtio-balloon, which is responsible =
-for
-> sending batched pages to the host synchronously. Once the hypervisor proc=
-essed
-> the hinting request, the isolated pages are returned back to the buddy.
->
-> Changelog in v11:
-> * Added logic to take care of multiple NUMA nodes scenarios.
-> * Simplified the logic for reporting isolated pages to the host. (Eg. rep=
-laced
-> dynamically allocated arrays with static ones, introduced wait event inst=
-ead of
-> the loop in order to wait for a response from the host)
-> * Added a mutex to prevent race condition when page hinting is enabled by
-> multiple drivers.
-> * Simplified the logic responsible for decrementing free page counter for=
- each
-> zone.
-> * Simplified code structuring/naming.
->
-> Known work items for the future:
-> * Test device assigned guests to ensure that hinting doesn't break it.
-> * Follow up on VIRTIO_BALLOON_F_PAGE_POISON's device-side support.
-> * Decide between MADV_DONTNEED and MADV_FREE.
-> * Look into memory hotplug, more efficient locking, better naming convent=
-ions to
-> avoid confusion with VIRTIO_BALLOON_F_FREE_PAGE_HINT support.
-> * Come up with proper/traceable error-message/logs and look into other co=
-de
-> simplifications. (If necessary).
->
-> Benefit analysis:
-> 1. Number of 5GB guests (each touching 4GB memory) that can be launched w=
-ithout
-> swap usage on a system with 15GB:
-> unmodified kernel - 2, 3rd with 2.5GB
-> v11 page hinting - 6, 7th with 26MB
-> v1 bubble hinting - 6, 7th with 1.8GB
->
-> Conclusion - In this particular testcase on using v11 page hinting and
-> v1 bubble-hinting 4 more guests could be launched without swapping compar=
-ed
-> to an unmodified kernel.
-> For the 7th guest launch, v11 page hinting is slightly better than v1 Bub=
-ble
-> hinting as it touches lesser swap space.
+Thanks for reporting the issue. But, I can't reproduce it on my machine. 
+Could you please share more details about your test? How often did you 
+run into this problem?
 
-I'm confused by the comment. From what I can tell bubble hinting came
-up with 1.8GB of memory while page hinting only managed to achieve
-.026GB (Using the same units makes it easier to visualize the
-difference). Also your test says "can be launched without swap usage",
-yet you say the bubble hinting is touching swap which makes not sense
-to me.
 
-> Setup & procedure -
-> Total NUMA Node Memory ~ 15 GB (All guests are run on a single NUMA node)
-> Guest Memory =3D 5GB
-> Number of CPUs in the guest =3D 1
-> Host swap =3D 4GB
-> Workload =3D test allocation program that allocates 4GB memory, touches i=
-t via
-> memset and exits.
-> The first guest is launched and once its console is up, the test allocati=
-on
-> program is executed with 4 GB memory request (Due to this the guest occup=
-ies
-> almost 4-5 GB of memory in the host in a system without page hinting). On=
-ce
-> this program exits at that time another guest is launched in the host and=
- the
-> same process is followed. It is continued until the swap is not used.
->
-> 2. Memhog execution time (For 3 guests each of 6GB on a system with 15GB)=
-:
-> unmodified kernel - Guest1:21s, Guest2:27s, Guest3:2m37s swap used =3D 3.=
-7GB
-> v11 page hinting - Guest1:23s, Guest2:26s, Guest3:21s swap used =3D 0
-> v1 bubble hinting - Guest1:23, Guest2:11s, Guest3:26s swap used =3D 0
->
-> For this particular test-case in a guest which doesn't require swap acces=
-s
-> "memhog 6G" execution time lies within a range of 15-30s.
-> Conclusion -
-> In the above test case for an unmodified kernel on executing memhog in th=
-e
-> third guest execution time rises to above 2minutes due to swap access.
-> Using either page-hinting or bubble hinting brings this execution time to=
- a
-> a normal range of 15-30s.
+Regards,
 
-So really this test doesn't add much in value. The whole reason why
-Guest3 runs so much slower is because it is going to swap. I initially
-did this to demonstrate a point, but now running this test doesn't
-prove much as it isn't really meant to be a performance test. It is
-essentially just a duplicate of the "how many guests can you run" test
-that is passing itself off as some sort of performance test.
+Yang
 
-We could probably just drop this from future version of this as long
-as we verify that the memory hinting is freeing most of the memory
-back and the guest is reporting a size less than the total guest
-memory size.
 
-> Setup & procedure -
-> Total NUMA Node Memory ~ 15 GB (All guests are run on a single NUMA node)
-> Guest Memory =3D 6GB
-> Number of CPUs in the guest =3D 4
-> Process =3D 3 Guests are launched and the =E2=80=98memhog 6G=E2=80=99 exe=
-cution time is monitored
-> one after the other in each of them.
-> Host swap =3D 4GB
->
-> Performance Analysis:
-> 1. will-it-scale's page_faul1
-> Setup -
-> Guest Memory =3D 6GB
-> Number of cores =3D 24
->
-> Unmodified kernel -
-> 0,0,100,0,100,0
-> 1,514453,95.84,519502,95.83,519502
-> 2,991485,91.67,932268,91.68,1039004
-> 3,1381237,87.36,1264214,87.64,1558506
-> 4,1789116,83.36,1597767,83.88,2078008
-> 5,2181552,79.20,1889489,80.08,2597510
-> 6,2452416,75.05,2001879,77.10,3117012
-> 7,2671047,70.90,2263866,73.22,3636514
-> 8,2930081,66.75,2333813,70.60,4156016
-> 9,3126431,62.60,2370108,68.28,4675518
-> 10,3211937,58.44,2454093,65.74,5195020
-> 11,3162172,54.32,2450822,63.21,5714522
-> 12,3154261,50.14,2272290,58.98,6234024
-> 13,3115174,46.02,2369679,57.74,6753526
-> 14,3150511,41.86,2470837,54.02,7273028
-> 15,3134158,37.71,2428129,51.98,7792530
-> 16,3143067,33.57,2340469,49.54,8312032
-> 17,3112457,29.43,2263627,44.81,8831534
-> 18,3089724,25.29,2181879,38.69,9351036
-> 19,3076878,21.15,2236505,40.01,9870538
-> 20,3091978,16.95,2266327,35.00,10390040
-> 21,3082927,12.84,2172578,28.12,10909542
-> 22,3055282,8.73,2176269,29.14,11429044
-> 23,3081144,4.56,2138442,24.87,11948546
-> 24,3075509,0.45,2173753,21.62,12468048
->
-> page hinting -
-> 0,0,100,0,100,0
-> 1,491683,95.83,494366,95.82,494366
-> 2,988415,91.67,919660,91.68,988732
-> 3,1344829,87.52,1244608,87.69,1483098
-> 4,1797933,83.37,1625797,83.70,1977464
-> 5,2179009,79.21,1881534,80.13,2471830
-> 6,2449858,75.07,2078137,76.82,2966196
-> 7,2732122,70.90,2178105,73.75,3460562
-> 8,2910965,66.75,2340901,70.28,3954928
-> 9,3006665,62.61,2353748,67.91,4449294
-> 10,3164752,58.46,2377936,65.08,4943660
-> 11,3234846,54.32,2510149,63.14,5438026
-> 12,3165477,50.17,2412007,59.91,5932392
-> 13,3141457,46.05,2421548,57.85,6426758
-> 14,3135839,41.90,2378021,53.81,6921124
-> 15,3109113,37.75,2269290,51.76,7415490
-> 16,3093613,33.62,2346185,48.73,7909856
-> 17,3086542,29.49,2352140,46.19,8404222
-> 18,3048991,25.36,2217144,41.52,8898588
-> 19,2965500,21.18,2313614,38.18,9392954
-> 20,2928977,17.05,2175316,35.67,9887320
-> 21,2896667,12.91,2141311,28.90,10381686
-> 22,3047782,8.76,2177664,28.24,10876052
-> 23,2994503,4.58,2160976,22.97,11370418
-> 24,3038762,0.47,2053533,22.39,11864784
->
-> bubble-hinting v1 -
-> 0,0,100,0,100,0
-> 1,515272,95.83,492355,95.81,515272
-> 2,985903,91.66,919653,91.68,1030544
-> 3,1475300,87.51,1353723,87.65,1545816
-> 4,1783938,83.36,1586307,83.78,2061088
-> 5,2093307,79.20,1867395,79.95,2576360
-> 6,2441370,75.05,2055421,76.65,3091632
-> 7,2650471,70.89,2246014,72.93,3606904
-> 8,2926782,66.75,2333601,70.41,4122176
-> 9,3107617,62.60,2383112,68.46,4637448
-> 10,3192332,58.44,2441626,65.84,5152720
-> 11,3268043,54.32,2235964,62.92,5667992
-> 12,3191105,50.18,2449045,60.49,6183264
-> 13,3145317,46.05,2377317,57.80,6698536
-> 14,3161552,41.91,2395814,53.26,7213808
-> 15,3140443,37.77,2333200,51.42,7729080
-> 16,3130866,33.65,2150967,46.11,8244352
-> 17,3112894,29.52,2372068,45.93,8759624
-> 18,3078424,25.39,2336211,39.85,9274896
-> 19,3036457,21.27,2224821,35.25,9790168
-> 20,3046330,17.13,2199755,37.43,10305440
-> 21,2981130,12.98,2214862,28.67,10820712
-> 22,3017481,8.84,2195996,29.69,11335984
-> 23,2979906,4.68,2173395,25.90,11851256
-> 24,2971170,0.52,2134311,21.89,12366528
 
-Okay, so this doesn't match up with the results you gave me last time
-(https://lore.kernel.org/lkml/afac6f92-74f5-4580-0303-12b7374e5011@redhat.c=
-om/),
-and actually more closely matches what I was expecting to see. The
-bubble-hinting patches are performing within a few percent of what the
-baseline kernel was doing. I am assuming the results from before had
-some additional debugging enabled for the bubble-hinting test that
-wasn't enabled for the other ones.
-
-> Conclusion -
-> For an unmodified kernel, with every fresh boot, there is 3-4% delta obse=
-rved
-> in the results wrt the numbers mentioned above. For both bubble-hinting a=
-nd
-> page-hinting, there was no noticeable degradation observed other than the
-> expected variability mentioned earlier.
+On 7/10/19 2:43 PM, Qian Cai wrote:
+> Running LTP oom01 test case with swap triggers a crash below. Revert the series
+> "Make deferred split shrinker memcg aware" [1] seems fix the issue.
 >
-> Page hinting vs bubble hinting:
-> From the benefits and performance perspective, both solutions look quite =
-similar
-> so far. However, unlike bubble-hinting which is more invasive, the overal=
-l core
-> mm changes required for page hinting are minimal.
+> aefde94195ca mm: thp: make deferred split shrinker memcg aware
+> cf402211cacc mm-shrinker-make-shrinker-not-depend-on-memcg-kmem-fix-2-fix
+> ca37e9e5f18d mm-shrinker-make-shrinker-not-depend-on-memcg-kmem-fix-2
+> 5f419d89cab4 mm-shrinker-make-shrinker-not-depend-on-memcg-kmem-fix
+> c9d49e69e887 mm: shrinker: make shrinker not depend on memcg kmem
+> 1c0af4b86bcf mm: move mem_cgroup_uncharge out of __page_cache_release()
+> 4e050f2df876 mm: thp: extract split_queue_* into a struct
 >
-> [1] https://lkml.org/lkml/2019/6/19/926
-
-So I think I called it out in the review of the patch but I think we
-may want to see what happens if we increase the size of the memory in
-the guest to something more like 64G or larger. My main concern is
-that as we increase the size of memory the walk through the bitmap is
-going to become more and more expensive and I am worried that at some
-point it will start impacting the results.
+> [1] https://lore.kernel.org/linux-mm/1561507361-59349-1-git-send-email-yang.shi@
+> linux.alibaba.com/
+>
+> [ 1145.730682][ T5764] list_del corruption, ffffea00251c8098->next is
+> LIST_POISON1 (dead000000000100)
+> [ 1145.739763][ T5764] ------------[ cut here ]------------
+> [ 1145.745126][ T5764] kernel BUG at lib/list_debug.c:47!
+> [ 1145.750320][ T5764] invalid opcode: 0000 [#1] SMP DEBUG_PAGEALLOC KASAN NOPTI
+> [ 1145.757513][ T5764] CPU: 1 PID: 5764 Comm: oom01 Tainted:
+> G        W         5.2.0-next-20190710+ #7
+> [ 1145.766709][ T5764] Hardware name: HPE ProLiant DL385 Gen10/ProLiant DL385
+> Gen10, BIOS A40 01/25/2019
+> [ 1145.776000][ T5764] RIP: 0010:__list_del_entry_valid.cold.0+0x12/0x4a
+> [ 1145.782491][ T5764] Code: c7 40 5a 33 af e8 ac fe bc ff 0f 0b 48 c7 c7 80 9e
+> a1 af e8 f6 4c 01 00 4c 89 ea 48 89 de 48 c7 c7 20 59 33 af e8 8c fe bc ff <0f>
+> 0b 48 c7 c7 40 9f a1 af e8 d6 4c 01 00 4c 89 e2 48 89 de 48 c7
+> [ 1145.802078][ T5764] RSP: 0018:ffff888514d773c0 EFLAGS: 00010082
+> [ 1145.808042][ T5764] RAX: 000000000000004e RBX: ffffea00251c8098 RCX:
+> ffffffffae95d318
+> [ 1145.815923][ T5764] RDX: 0000000000000000 RSI: 0000000000000008 RDI:
+> ffff8888440bd380
+> [ 1145.823806][ T5764] RBP: ffff888514d773d8 R08: ffffed1108817a71 R09:
+> ffffed1108817a70
+> [ 1145.831689][ T5764] R10: ffffed1108817a70 R11: ffff8888440bd387 R12:
+> dead000000000122
+> [ 1145.839571][ T5764] R13: dead000000000100 R14: ffffea00251c8034 R15:
+> dead000000000100
+> [ 1145.847455][ T5764] FS:  00007f765ad4d700(0000) GS:ffff888844080000(0000)
+> knlGS:0000000000000000
+> [ 1145.856299][ T5764] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> [ 1145.862784][ T5764] CR2: 00007f8cebec7000 CR3: 0000000459338000 CR4:
+> 00000000001406a0
+> [ 1145.870664][ T5764] Call Trace:
+> [ 1145.873835][ T5764]  deferred_split_scan+0x337/0x740
+> [ 1145.878835][ T5764]  ? split_huge_page_to_list+0xe30/0xe30
+> [ 1145.884364][ T5764]  ? __radix_tree_lookup+0x12d/0x1e0
+> [ 1145.889539][ T5764]  ? node_tag_get.part.0.constprop.6+0x40/0x40
+> [ 1145.895592][ T5764]  do_shrink_slab+0x244/0x5a0
+> [ 1145.900159][ T5764]  shrink_slab+0x253/0x440
+> [ 1145.904462][ T5764]  ? unregister_shrinker+0x110/0x110
+> [ 1145.909641][ T5764]  ? kasan_check_read+0x11/0x20
+> [ 1145.914383][ T5764]  ? mem_cgroup_protected+0x20f/0x260
+> [ 1145.919645][ T5764]  shrink_node+0x31e/0xa30
+> [ 1145.923949][ T5764]  ? shrink_node_memcg+0x1560/0x1560
+> [ 1145.929126][ T5764]  ? ktime_get+0x93/0x110
+> [ 1145.933340][ T5764]  do_try_to_free_pages+0x22f/0x820
+> [ 1145.938429][ T5764]  ? shrink_node+0xa30/0xa30
+> [ 1145.942906][ T5764]  ? kasan_check_read+0x11/0x20
+> [ 1145.947647][ T5764]  ? check_chain_key+0x1df/0x2e0
+> [ 1145.952474][ T5764]  try_to_free_pages+0x242/0x4d0
+> [ 1145.957299][ T5764]  ? do_try_to_free_pages+0x820/0x820
+> [ 1145.962566][ T5764]  __alloc_pages_nodemask+0x9ce/0x1bc0
+> [ 1145.967917][ T5764]  ? kasan_check_read+0x11/0x20
+> [ 1145.972657][ T5764]  ? gfp_pfmemalloc_allowed+0xc0/0xc0
+> [ 1145.977920][ T5764]  ? kasan_check_read+0x11/0x20
+> [ 1145.982659][ T5764]  ? check_chain_key+0x1df/0x2e0
+> [ 1145.987487][ T5764]  ? do_anonymous_page+0x343/0xe30
+> [ 1145.992489][ T5764]  ? lock_downgrade+0x390/0x390
+> [ 1145.997230][ T5764]  ? __count_memcg_events+0x8b/0x1c0
+> [ 1146.002404][ T5764]  ? kasan_check_read+0x11/0x20
+> [ 1146.007145][ T5764]  ? __lru_cache_add+0x122/0x160
+> [ 1146.011974][ T5764]  alloc_pages_vma+0x89/0x2c0
+> [ 1146.016538][ T5764]  do_anonymous_page+0x3e1/0xe30
+> [ 1146.021367][ T5764]  ? __update_load_avg_cfs_rq+0x2c/0x490
+> [ 1146.026893][ T5764]  ? finish_fault+0x120/0x120
+> [ 1146.031461][ T5764]  ? call_function_interrupt+0xa/0x20
+> [ 1146.036724][ T5764]  handle_pte_fault+0x457/0x12c0
+> [ 1146.041552][ T5764]  __handle_mm_fault+0x79a/0xa50
+> [ 1146.046378][ T5764]  ? vmf_insert_mixed_mkwrite+0x20/0x20
+> [ 1146.051817][ T5764]  ? kasan_check_read+0x11/0x20
+> [ 1146.056557][ T5764]  ? __count_memcg_events+0x8b/0x1c0
+> [ 1146.061732][ T5764]  handle_mm_fault+0x17f/0x370
+> [ 1146.066386][ T5764]  __do_page_fault+0x25b/0x5d0
+> [ 1146.071037][ T5764]  do_page_fault+0x4c/0x2cf
+> [ 1146.075426][ T5764]  ? page_fault+0x5/0x20
+> [ 1146.079553][ T5764]  page_fault+0x1b/0x20
+> [ 1146.083594][ T5764] RIP: 0033:0x410be0
+> [ 1146.087373][ T5764] Code: 89 de e8 e3 23 ff ff 48 83 f8 ff 0f 84 86 00 00 00
+> 48 89 c5 41 83 fc 02 74 28 41 83 fc 03 74 62 e8 95 29 ff ff 31 d2 48 98 90 <c6>
+> 44 15 00 07 48 01 c2 48 39 d3 7f f3 31 c0 5b 5d 41 5c c3 0f 1f
+> [ 1146.106959][ T5764] RSP: 002b:00007f765ad4cec0 EFLAGS: 00010206
+> [ 1146.112921][ T5764] RAX: 0000000000001000 RBX: 00000000c0000000 RCX:
+> 00007f98f2674497
+> [ 1146.120804][ T5764] RDX: 0000000001d95000 RSI: 00000000c0000000 RDI:
+> 0000000000000000
+> [ 1146.128687][ T5764] RBP: 00007f74d9d4c000 R08: 00000000ffffffff R09:
+> 0000000000000000
+> [ 1146.136569][ T5764] R10: 0000000000000022 R11: 000000000[ 1147.588181][
+> T5764] Shutting down cpus with NMI
+> [ 1147.592756][ T5764] Kernel Offset: 0x2d400000 from 0xffffffff81000000
+> (relocation range: 0xffffffff80000000-0xffffffffbfffffff)
+> [ 1147.604414][ T5764] ---[ end Kernel panic - not syncing: Fatal exception ]---
 
