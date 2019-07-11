@@ -7,91 +7,91 @@ X-Spam-Status: No, score=-9.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT
 	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 83B61C742A2
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 23:25:50 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id F2C77C742A1
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 23:25:52 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 309092084B
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 23:25:50 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id AC9572084B
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 23:25:52 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=os.amperecomputing.com header.i=@os.amperecomputing.com header.b="J5IL3kXT"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 309092084B
+	dkim=pass (1024-bit key) header.d=os.amperecomputing.com header.i=@os.amperecomputing.com header.b="ReMtk1NS"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AC9572084B
 Authentication-Results: mail.kernel.org; dmarc=fail (p=quarantine dis=none) header.from=os.amperecomputing.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CD5F18E0102; Thu, 11 Jul 2019 19:25:49 -0400 (EDT)
+	id EF6288E0103; Thu, 11 Jul 2019 19:25:51 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C0C628E00DB; Thu, 11 Jul 2019 19:25:49 -0400 (EDT)
+	id EA5138E00DB; Thu, 11 Jul 2019 19:25:51 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 99B7B8E0102; Thu, 11 Jul 2019 19:25:49 -0400 (EDT)
+	id D4A148E0103; Thu, 11 Jul 2019 19:25:51 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F26E8E00DB
-	for <linux-mm@kvack.org>; Thu, 11 Jul 2019 19:25:49 -0400 (EDT)
-Received: by mail-qk1-f198.google.com with SMTP id c1so5333275qkl.7
-        for <linux-mm@kvack.org>; Thu, 11 Jul 2019 16:25:49 -0700 (PDT)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A4CF28E00DB
+	for <linux-mm@kvack.org>; Thu, 11 Jul 2019 19:25:51 -0400 (EDT)
+Received: by mail-qt1-f198.google.com with SMTP id f13so222466qtq.16
+        for <linux-mm@kvack.org>; Thu, 11 Jul 2019 16:25:51 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
          :thread-index:date:message-id:references:in-reply-to:accept-language
          :content-language:content-transfer-encoding:mime-version;
-        bh=aAkwAUXFcJwgbrCQk1P/5UfnEYvBvi1WIDIoJ7eF/sg=;
-        b=fVU+Mp/cTD9KsEZK4vztMRVDE7a600FtIaZmKalnQ+G0tatlaM9V6d/9sCwGzZKZ2i
-         1fzvHBRLYRqXGybSs49S2aBGTIaePzEHBv6+6QSDVDU6W2llODwfZ08qMR3yOs5gFVX6
-         gj28higYr1+cJEqThfwtWbL/jaVCHj2esiCyE2uoLOxQL4rYjOneK/EdSeiA3Vn4ON3P
-         mS/h0au4j5cRmzJEvf88bvI5T0GI8GMtGS4nXxnE4XfMv6uQcgakE5E7Bi9HeY2IWviV
-         ywrzw2eFibx2UirTY2xmwKhRu4Nf3smsuuei/40vYYJRRoSs5MfrOB76CGZDGnXuzlfS
-         fSzg==
-X-Gm-Message-State: APjAAAUdV7LblTlJN02XQiADrXYApUBsP5ufhWqpn+BoDIO6zG+7WVF2
-	XIRXm3l0T6Y40zBBwMIyiJT+FWnEIMmfHiNsrBpaIg21tHPDHaXszt1f3j83csMgKhIYE06vp/h
-	Vp2eRsbu6U0yl2OFNOACkJTU3aFSQSVsiwDW8IFOwPzZeC5dD9lph2SM5cQmnry8K5g==
-X-Received: by 2002:a05:620a:142e:: with SMTP id k14mr3999820qkj.336.1562887549190;
-        Thu, 11 Jul 2019 16:25:49 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzWdmDU+4MoDOZgX29rDL0LMEW0afSKXLBDTWAl5ToijbMxLgegseoRDgy79Q4G4NrBX6vS
-X-Received: by 2002:a05:620a:142e:: with SMTP id k14mr3999801qkj.336.1562887548663;
-        Thu, 11 Jul 2019 16:25:48 -0700 (PDT)
-ARC-Seal: i=2; a=rsa-sha256; t=1562887548; cv=pass;
+        bh=nv9Pvxp/gDaeRKsmwNevq52lzFBVsYZWQfbDDaOzjpI=;
+        b=VwOn6NgLzTM8QLAZozKejHyRih/a64Y3gApGql70LaTZeZi3xLDKQc9xoOUBIeLCjh
+         ZAOLKCJJj/JkzUvjBkEp1KGt08gCXuzDnyjWHVXQgSBTcCKRHX72de4fNAf4JlnDMT24
+         JY6xE3ETHcvp1iM5F6wjvkxIbaO4DnA9tNZazKYDACr2oZCVCfZkgOAGWFZtJ2jZ8AUw
+         6MXPn7cBv1M2oqZG1/0rgzYQ34cfeet/5ojKIWjVfEwRIygD4VenYp1ax9yliZagIl/C
+         eCz3ubUO+eeaZBwYWemetG9CZAJXfMIad2XzWrM9OSzTZLe4WiNOluHL6ZBmnTcvk9KA
+         ti5w==
+X-Gm-Message-State: APjAAAUMyqz3Xs06QPpa67zRRJ67oaTCOO7fKCcg7F3TxoIlS3xHPj0D
+	3xZoeZf2VtqqcJyYKDGww9ecAKNICI4TprarhDJImJK2nqlD8PzayRZ4YRULLo7opMla4wOirSO
+	AyE5Sh2bzvJCBl2gEk9BcjDQlC/g2c6yLo9sGaD1eRwa8bnj9Ei67JfVDg72Cdei/xA==
+X-Received: by 2002:a05:620a:1097:: with SMTP id g23mr3869780qkk.185.1562887551461;
+        Thu, 11 Jul 2019 16:25:51 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqx162JL2XbupnC+da3+MGOClZ0HeOgR6OzhVFm4enmlzV72AKqdkk9CJav2XdzUemRWA7kJ
+X-Received: by 2002:a05:620a:1097:: with SMTP id g23mr3869764qkk.185.1562887550740;
+        Thu, 11 Jul 2019 16:25:50 -0700 (PDT)
+ARC-Seal: i=2; a=rsa-sha256; t=1562887550; cv=pass;
         d=google.com; s=arc-20160816;
-        b=A1KMpyVgSXVQYbiT0CwrlbAJldCsG5mO7nxwOdR3MFDcavse0zxfebWBSJhfrdqhhI
-         tJsy+XGbAKE3QwJ6Cu5GWms/JRM9KtK6YntRwSn5W9MZxUUXIToFKy64f5m7qjuj5Oic
-         Ti2iLh3fHCHLxO5YV5rypG4ajqQkSt5rELNhowgG1hqhfUAsTDSX7Vw43PzFmLP5IFxF
-         DoGFcybpeTyNj8ED9z1yvcZ9fKzSNzNbTCrEAJv9+/pozElcnD+NxHo7jw955Bx1GWKh
-         bZOUpYS6s6ZkKYQdv4GtWZ8F+ewOezwmsm8ZFlNFmMuovCxTVVPQ+FTJ+3pbpg3xY9G+
-         Ebnw==
+        b=op+KxHm4BWKW2WsBa8yRt2v3JkvMriep7L6/1yDxwzxCGwTTvOyOos+fgF6n+R0bsd
+         ucJ1ztNgDWA1HRbCrLt1+4+m3XeJ+Pn4BN/1HVCf8syqaRLYeokjasLzE5V8vWKl0NTo
+         WNfYIvzJJaCjt3l3DSiIvEB948+6UT0d0ePy9dF9HjAOjV0wqsePd+HSS7Unt40wFplW
+         YpjVuJKw4IGxvVK0zqNEAcImAZ7eH+eeeQQv3j0J/GsCFlT6O5LUU49S7NH0s+X4TrZZ
+         JIZZHMinTEyepEE9x42vyI3EDtI25zDfqo2v6G+uWAr90MKcQB8DujSKn1BptRj+eekR
+         D16g==
 ARC-Message-Signature: i=2; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=mime-version:content-transfer-encoding:content-language
          :accept-language:in-reply-to:references:message-id:date:thread-index
          :thread-topic:subject:cc:to:from:dkim-signature;
-        bh=aAkwAUXFcJwgbrCQk1P/5UfnEYvBvi1WIDIoJ7eF/sg=;
-        b=gVPkRZaJXM4QANr8PrAS6oerrI7F6qdREi9CtmkdGfc3QgfWJ46NibS/yn7nLp2z1J
-         jmaoe1DNgkUUy0eLiw6bdO9lvreVkhaUUMWclQ+xwe1BQCv7raS0a7SAzSX1OzjesFEJ
-         /OWw3e7+krC6wGhTQ39o6cLrcN7Ywjp2VIvQi8J9ChMnYP+dSvEZeTlaKOgseeTt0WMR
-         q3dk0nt8PxFoAB+U23kUnDoW/mJx88S3+a6sbgzOhL4xxUD5xtq1IrMi5bfoRH5gvz/j
-         AEwwBKm0DMMpbNPFaUCyF5v7NAp9oZPSvmWWZgEVmJMc4lJUCgquseT5eGGczps48OW4
-         a0nw==
+        bh=nv9Pvxp/gDaeRKsmwNevq52lzFBVsYZWQfbDDaOzjpI=;
+        b=XHhBwdKnS0pfJ+NKGlMDcs0qKpzDzAxOq5+qnmgB+zD72o2s92c3bvlwh9glyVA//5
+         YSOrMCMNV82FhxEhxq8qp+ifYoTCodvQcRTdxrXyNvmt0DK/80jVx3hddQsRRZapoer+
+         VJUzdndLozjsy0bqpTQ0aCKCryG3TyQqKd8IBUtWhE5aZMh70lnJBXGnH4mOzFR3Aq6F
+         StlKKtrbB+F+WSXsZ5xhWUOAyUiDeUOBhBVvfqoZXfzcNPkHU9ohIf5BYe94/+Guzxtr
+         KrzDH8T6DGPHhfH/Cw1rCjGYqIcIYZ4Lxh1CThofF2HK5oXLHxS49PJ08IAujDGJuTID
+         gMGg==
 ARC-Authentication-Results: i=2; mx.google.com;
-       dkim=pass header.i=@os.amperecomputing.com header.s=selector1 header.b=J5IL3kXT;
+       dkim=pass header.i=@os.amperecomputing.com header.s=selector1 header.b=ReMtk1NS;
        arc=pass (i=1 spf=pass spfdomain=os.amperecomputing.com dkim=pass dkdomain=os.amperecomputing.com dmarc=pass fromdomain=os.amperecomputing.com);
-       spf=pass (google.com: domain of hoan@os.amperecomputing.com designates 2a01:111:f400:fe41::727 as permitted sender) smtp.mailfrom=hoan@os.amperecomputing.com;
+       spf=pass (google.com: domain of hoan@os.amperecomputing.com designates 40.107.75.91 as permitted sender) smtp.mailfrom=hoan@os.amperecomputing.com;
        dmarc=pass (p=QUARANTINE sp=QUARANTINE dis=NONE) header.from=amperecomputing.com
-Received: from NAM01-BN3-obe.outbound.protection.outlook.com (mail-bn3nam01on0727.outbound.protection.outlook.com. [2a01:111:f400:fe41::727])
-        by mx.google.com with ESMTPS id k12si3929271qvt.38.2019.07.11.16.25.48
+Received: from NAM02-BL2-obe.outbound.protection.outlook.com (mail-eopbgr750091.outbound.protection.outlook.com. [40.107.75.91])
+        by mx.google.com with ESMTPS id 36si4367361qvx.32.2019.07.11.16.25.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 11 Jul 2019 16:25:48 -0700 (PDT)
-Received-SPF: pass (google.com: domain of hoan@os.amperecomputing.com designates 2a01:111:f400:fe41::727 as permitted sender) client-ip=2a01:111:f400:fe41::727;
+        Thu, 11 Jul 2019 16:25:50 -0700 (PDT)
+Received-SPF: pass (google.com: domain of hoan@os.amperecomputing.com designates 40.107.75.91 as permitted sender) client-ip=40.107.75.91;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@os.amperecomputing.com header.s=selector1 header.b=J5IL3kXT;
+       dkim=pass header.i=@os.amperecomputing.com header.s=selector1 header.b=ReMtk1NS;
        arc=pass (i=1 spf=pass spfdomain=os.amperecomputing.com dkim=pass dkdomain=os.amperecomputing.com dmarc=pass fromdomain=os.amperecomputing.com);
-       spf=pass (google.com: domain of hoan@os.amperecomputing.com designates 2a01:111:f400:fe41::727 as permitted sender) smtp.mailfrom=hoan@os.amperecomputing.com;
+       spf=pass (google.com: domain of hoan@os.amperecomputing.com designates 40.107.75.91 as permitted sender) smtp.mailfrom=hoan@os.amperecomputing.com;
        dmarc=pass (p=QUARANTINE sp=QUARANTINE dis=NONE) header.from=amperecomputing.com
 ARC-Seal: i=1; a=rsa-sha256; s=arcselector9901; d=microsoft.com; cv=none;
- b=VVwuPvrojSRmAiT4oLyUVqHSTETqikuopjbwqP0KV+gG7Ze31El33noCMUbHCTkUp4CmMid0WKLWbYyDrWZaat7ZgG4eokZUIRG11lF4oaDke9JQ84gqG26X3enLrYSuZChsG0cZcNjZUfCxzbE4qnJCkkVNJ6o7A2ohBhoSxXCXNEL9VdxO26fCZ6bqd0ewg1NYAZxa8+R8hsoJTUKA0MartPLewiumiEcnHXjNl/3YJ9DRtNfmMwAEliBiAwxki7vPGS6KdCi8B54o8LmFUteG2tT+OUlpqddyOxOtScp8fH2g/uurXHefkq2XrOc9Ml7wwmrUB3VPQXrbLO/wcQ==
+ b=X4vXsban/ZKB+8ROlk9ZJVQf010WgWSTIcMznQStaiLD6SK7boxTUQnZxashxZ+Ba3SC+AGLWALrBXlBrlUj3FsobSoe7byYBPqk5JkXZvv9T/mnyeJGgfY0ZymtWt95ohuieZNyZVElf9jwpFAEnwzeoDeRh0E641K0KljLm6YjCHWlbuTmKSz4CH15D71eM5i+6cX0xbbNs5aFVty+Hk0vCHgX0iPEbjFRrw2c5+jMTAYTeQJP4i6aircSknSObn28qL2NdaToJwUg2LbYPVZW/PzsgMJJGuHp298Q/R96qy18/ZSGUC55V3eoS8nBFs+ezPottZcDlOEtApAUyw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=microsoft.com;
  s=arcselector9901;
  h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=aAkwAUXFcJwgbrCQk1P/5UfnEYvBvi1WIDIoJ7eF/sg=;
- b=iS6wPtkfnItopB3uWlkR/fuLKUB29lXBH6XZrWItLeRJreFnmyy9Ygtpt7QKvFwr0HHFub8NXHQgn/zeeZkY2R9z9MjSJnwKUe10E5VeIE3TQYyG9SI2wtUO89sC0VhhaxUQTgd4m6HR35ExwXH7HaICt6OxD36aHrO6mgkGr2sud2RDznKZwgbpr88PQhDPcix7U++zQj6XfULeSuicWyOrG+5dSANjapUEYiBRz0tn/MfBahPenrfs5ofoky6vkaS9MP98s0q6kqxa2PKD/k9p4drUXSydHiTWcI9OesAA/Go5HMYc9ifQFORPAzDgHfr2DorTnPx8wiohMa2/lA==
+ bh=nv9Pvxp/gDaeRKsmwNevq52lzFBVsYZWQfbDDaOzjpI=;
+ b=I/H/AS8orDud9iDIzKy/EZrnn33RmZMJcBW+KvjPhWeozEk6OyvYRKnucB3zHSYBSptEoQ9CueSanl5aYr8POdnSCID0DKjikfYu31Xb7T5uZJ0bBM0OV9kFL5H64ZMQK5skP17R89ZOqOMEQzIMHxoOOURuuGQqu+kAbfcVv/M6XutXvG78gz/nVVuYpuGA2qtf2JYplIbf4+WjpSJQFOprE42Dw5udQUsMnppebnIJg8Pvqlo6HQBueuocae5FCG5EROlNq5SCmhenJE4cs/ITNwGNX7AYpENW5xKwVln5kjqL8iTyyDn2U1Y3aDJ7QqUR+Tuap5UBetL4Ff/1Yw==
 ARC-Authentication-Results: i=1; mx.microsoft.com 1;spf=pass
  smtp.mailfrom=os.amperecomputing.com;dmarc=pass action=none
  header.from=os.amperecomputing.com;dkim=pass
@@ -99,16 +99,16 @@ ARC-Authentication-Results: i=1; mx.microsoft.com 1;spf=pass
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
  d=os.amperecomputing.com; s=selector1;
  h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=aAkwAUXFcJwgbrCQk1P/5UfnEYvBvi1WIDIoJ7eF/sg=;
- b=J5IL3kXT5B/vWbnmJm5M/jH9Yk0XQ66ap3/Wtjqh3TCEQYVwn2PtWHoLfdVscRm+1lFVqQF6WzC/8bOI7rmbSkeZ1/53gsfIbzKG1DQ0xQgl8CcrqfCX5iH9ZXZJIrrCeHcUTdYsDh4aTkmeVakEEosmz1iO0oeD9B39+VJ169c=
+ bh=nv9Pvxp/gDaeRKsmwNevq52lzFBVsYZWQfbDDaOzjpI=;
+ b=ReMtk1NSKkckNw209I1pj6PpDd206QLAoZuUccoQ+U9xLEuTKf2c2lNtPoIJa7bbNMibSCca/DVQvHIYZr39u5AUNsWGjVVAsqKiEtWh4Fydz4R7TEKMh2zMIzyWBSdGyIL6J43K+1dnXo0A9ttoD4OINMN9vib9lnQYX99KjUs=
 Received: from BYAPR01MB4085.prod.exchangelabs.com (52.135.237.22) by
  BYAPR01MB5557.prod.exchangelabs.com (20.179.88.205) with Microsoft SMTP
  Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.2073.10; Thu, 11 Jul 2019 23:25:47 +0000
+ 15.20.2073.10; Thu, 11 Jul 2019 23:25:49 +0000
 Received: from BYAPR01MB4085.prod.exchangelabs.com
  ([fe80::9dbb:1b4c:bace:ef80]) by BYAPR01MB4085.prod.exchangelabs.com
  ([fe80::9dbb:1b4c:bace:ef80%7]) with mapi id 15.20.2052.020; Thu, 11 Jul 2019
- 23:25:47 +0000
+ 23:25:49 +0000
 From: Hoan Tran OS <hoan@os.amperecomputing.com>
 To: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon
 	<will.deacon@arm.com>, Andrew Morton <akpm@linux-foundation.org>, Michal
@@ -131,13 +131,12 @@ CC: "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>,
 	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Open Source
  Submission <patches@amperecomputing.com>, Hoan Tran OS
 	<hoan@os.amperecomputing.com>
-Subject: [PATCH v2 1/5] mm: Enable CONFIG_NODES_SPAN_OTHER_NODES by default
- for NUMA
-Thread-Topic: [PATCH v2 1/5] mm: Enable CONFIG_NODES_SPAN_OTHER_NODES by
- default for NUMA
-Thread-Index: AQHVOD/336vwo048FEmmzwG+DxzWnQ==
-Date: Thu, 11 Jul 2019 23:25:46 +0000
-Message-ID: <1562887528-5896-2-git-send-email-Hoan@os.amperecomputing.com>
+Subject: [PATCH v2 2/5] powerpc: Kconfig: Remove CONFIG_NODES_SPAN_OTHER_NODES
+Thread-Topic: [PATCH v2 2/5] powerpc: Kconfig: Remove
+ CONFIG_NODES_SPAN_OTHER_NODES
+Thread-Index: AQHVOD/57/uJcWsU4EKBP/fxzyJHWw==
+Date: Thu, 11 Jul 2019 23:25:49 +0000
+Message-ID: <1562887528-5896-3-git-send-email-Hoan@os.amperecomputing.com>
 References: <1562887528-5896-1-git-send-email-Hoan@os.amperecomputing.com>
 In-Reply-To: <1562887528-5896-1-git-send-email-Hoan@os.amperecomputing.com>
 Accept-Language: en-US
@@ -153,27 +152,27 @@ x-ms-exchange-messagesentrepresentingtype: 1
 x-mailer: git-send-email 2.7.4
 x-originating-ip: [4.28.12.214]
 x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: afb7b246-2fa9-41ed-0b23-08d7065719fd
+x-ms-office365-filtering-correlation-id: dc67312c-bd1d-4ac6-2268-08d706571b83
 x-microsoft-antispam:
  BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(2017052603328)(7193020);SRVR:BYAPR01MB5557;
 x-ms-traffictypediagnostic: BYAPR01MB5557:
 x-microsoft-antispam-prvs:
- <BYAPR01MB5557067FB5EFEF0F4FDE9887F1F30@BYAPR01MB5557.prod.exchangelabs.com>
-x-ms-oob-tlc-oobclassifiers: OLM:9508;
+ <BYAPR01MB55570D96BF58823729B3BA1FF1F30@BYAPR01MB5557.prod.exchangelabs.com>
+x-ms-oob-tlc-oobclassifiers: OLM:3383;
 x-forefront-prvs: 0095BCF226
 x-forefront-antispam-report:
- SFV:NSPM;SFS:(10019020)(4636009)(346002)(376002)(39840400004)(136003)(396003)(366004)(189003)(199004)(52116002)(66476007)(66556008)(66946007)(64756008)(66446008)(14454004)(5660300002)(1511001)(6506007)(386003)(71190400001)(71200400001)(6436002)(53936002)(66066001)(102836004)(25786009)(68736007)(6512007)(86362001)(3846002)(11346002)(14444005)(2616005)(186003)(81166006)(26005)(2906002)(446003)(478600001)(4326008)(76176011)(6486002)(7736002)(305945005)(54906003)(8936002)(110136005)(7416002)(6116002)(99286004)(476003)(316002)(8676002)(107886003)(81156014)(486006)(256004)(50226002)(921003)(1121003);DIR:OUT;SFP:1102;SCL:1;SRVR:BYAPR01MB5557;H:BYAPR01MB4085.prod.exchangelabs.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:0;
+ SFV:NSPM;SFS:(10019020)(4636009)(346002)(376002)(39840400004)(136003)(396003)(366004)(189003)(199004)(52116002)(66476007)(66556008)(66946007)(64756008)(66446008)(14454004)(5660300002)(1511001)(6506007)(386003)(71190400001)(71200400001)(6436002)(53936002)(66066001)(4744005)(102836004)(25786009)(68736007)(6512007)(86362001)(3846002)(11346002)(2616005)(186003)(81166006)(26005)(2906002)(446003)(478600001)(4326008)(76176011)(6486002)(7736002)(305945005)(54906003)(8936002)(110136005)(7416002)(6116002)(99286004)(476003)(316002)(8676002)(107886003)(81156014)(486006)(256004)(50226002)(921003)(1121003);DIR:OUT;SFP:1102;SCL:1;SRVR:BYAPR01MB5557;H:BYAPR01MB4085.prod.exchangelabs.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:0;
 received-spf: None (protection.outlook.com: os.amperecomputing.com does not
  designate permitted sender hosts)
 x-ms-exchange-senderadcheck: 1
 x-microsoft-antispam-message-info:
- L/8qjgkjroZ4Y9kYzJhXFihMxdIQJ2dAIy2Gdh3Ev8QQUx4j7mI+megk/B0mNCOeECpsTmH/FE4qvcPGr6D8LNSEJz3aA8SgHc2k7ChVUDIccI/VmWZ9iW/Px52xGajn0uss0BTbWRWnGL4ryxxpDtoHegY2B0F7xkkJp4/9ygiB4pBXeGdx7i+N55tKQodwy6XsQ2GIawBuOK3LVLKsYc53Qb0+zKsP44UyEvZKlL6JxiUZJlY/lFHGL2XY+ofA0iTz3NDs8lu7epwxwZ1L+yL/kPzr6FhqyDuyHIb7AmRcAl14KPRGEijQNpD59EFzYJP8AgCOVbVBzzg7wqDoR0uhg/eZqqzqx+HVRcSlq3JcIgd9UHS0vXO2pGkYMG379ONHcLrVA8RsY30ctrkASOdkY7OUzwzk06FBY+fJ1d0=
+ izT+63HRnUuAKD5eGQE8YKlxJrqgWZx0flLjKl/QWe6GzX9REGSnQmtmPQEHM+Nb7SoECE7IHtcSR/0MAmMRDwAqNOJomwkyv8FLL1J2BX2KQSmTEoXofPO43EwIMPbl2dEGPQJ2bdnlbA/u/D+U0iZAVdoIDLDMP2a93+1SIMSSeVKLE5AFoI8dKv5oIkRhidLD3R0KGJX2ZslNvRF5ULYgNZxwyQxPuatZw+KuS2J24LSK6WbmSwfnPvnfQ2oEI8RHlikLOL2wkTPFlmdjjzXsZ7sBC1I6get/tead9+DbSFP8sRhTXA6sUCv9LJs6Z0vPUqxS8bJiDfwxpivxFm38e/ZR5AjUUI512L3kodi4FaZHfbUzHHYn+zB0kLMs2okuu/Iyn/MQ/fXHY+vUlaH1tjB+IWfRuA6MeCfCx/U=
 Content-Type: text/plain; charset="iso-8859-1"
 Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
 X-OriginatorOrg: os.amperecomputing.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: afb7b246-2fa9-41ed-0b23-08d7065719fd
-X-MS-Exchange-CrossTenant-originalarrivaltime: 11 Jul 2019 23:25:46.9016
+X-MS-Exchange-CrossTenant-Network-Message-Id: dc67312c-bd1d-4ac6-2268-08d706571b83
+X-MS-Exchange-CrossTenant-originalarrivaltime: 11 Jul 2019 23:25:49.3382
  (UTC)
 X-MS-Exchange-CrossTenant-fromentityheader: Hosted
 X-MS-Exchange-CrossTenant-id: 3bc2b170-fd94-476d-b0ce-4229bdc904a7
@@ -186,48 +185,34 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-In NUMA layout which nodes have memory ranges that span across other nodes,
-the mm driver can detect the memory node id incorrectly.
-
-For example, with layout below
-Node 0 address: 0000 xxxx 0000 xxxx
-Node 1 address: xxxx 1111 xxxx 1111
-
-Note:
- - Memory from low to high
- - 0/1: Node id
- - x: Invalid memory of a node
-
-When mm probes the memory map, without CONFIG_NODES_SPAN_OTHER_NODES
-config, mm only checks the memory validity but not the node id.
-Because of that, Node 1 also detects the memory from node 0 as below
-when it scans from the start address to the end address of node 1.
-
-Node 0 address: 0000 xxxx xxxx xxxx
-Node 1 address: xxxx 1111 1111 1111
-
-This layout could occur on any architecture. This patch enables
-CONFIG_NODES_SPAN_OTHER_NODES by default for NUMA to fix this issue.
+Remove CONFIG_NODES_SPAN_OTHER_NODES as it's enabled by
+default with NUMA.
 
 Signed-off-by: Hoan Tran <Hoan@os.amperecomputing.com>
 ---
- mm/page_alloc.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ arch/powerpc/Kconfig | 9 ---------
+ 1 file changed, 9 deletions(-)
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index d66bc8a..6335505 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1413,7 +1413,7 @@ int __meminit early_pfn_to_nid(unsigned long pfn)
- }
- #endif
+diff --git a/arch/powerpc/Kconfig b/arch/powerpc/Kconfig
+index 8c1c636..bdde8bc 100644
+--- a/arch/powerpc/Kconfig
++++ b/arch/powerpc/Kconfig
+@@ -629,15 +629,6 @@ config ARCH_MEMORY_PROBE
+ 	def_bool y
+ 	depends on MEMORY_HOTPLUG
 =20
--#ifdef CONFIG_NODES_SPAN_OTHER_NODES
-+#ifdef CONFIG_NUMA
- /* Only safe to use early in boot when initialisation is single-threaded *=
-/
- static inline bool __meminit early_pfn_in_nid(unsigned long pfn, int node)
- {
+-# Some NUMA nodes have memory ranges that span
+-# other nodes.  Even though a pfn is valid and
+-# between a node's start and end pfns, it may not
+-# reside on that node.  See memmap_init_zone()
+-# for details.
+-config NODES_SPAN_OTHER_NODES
+-	def_bool y
+-	depends on NEED_MULTIPLE_NODES
+-
+ config STDBINUTILS
+ 	bool "Using standard binutils settings"
+ 	depends on 44x
 --=20
 2.7.4
 
