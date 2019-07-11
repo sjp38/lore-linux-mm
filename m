@@ -2,344 +2,204 @@ Return-Path: <SRS0=bABq=VI=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-8.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,URIBL_SBL,URIBL_SBL_A,USER_AGENT_GIT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1DF80C74A35
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 12:58:49 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 09655C74A35
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 13:33:30 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B056F21019
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 12:58:48 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B056F21019
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id B52B221537
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 13:33:29 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="lxhnkEkD"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B52B221537
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1FD488E00B9; Thu, 11 Jul 2019 08:58:48 -0400 (EDT)
+	id 4CA868E00BA; Thu, 11 Jul 2019 09:33:29 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1AEB88E0032; Thu, 11 Jul 2019 08:58:48 -0400 (EDT)
+	id 479B18E0032; Thu, 11 Jul 2019 09:33:29 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0C32E8E00B9; Thu, 11 Jul 2019 08:58:48 -0400 (EDT)
+	id 3685E8E00BA; Thu, 11 Jul 2019 09:33:29 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id AFDAB8E0032
-	for <linux-mm@kvack.org>; Thu, 11 Jul 2019 08:58:47 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id i44so4596070eda.3
-        for <linux-mm@kvack.org>; Thu, 11 Jul 2019 05:58:47 -0700 (PDT)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 00B738E0032
+	for <linux-mm@kvack.org>; Thu, 11 Jul 2019 09:33:28 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id r7so3245683plo.6
+        for <linux-mm@kvack.org>; Thu, 11 Jul 2019 06:33:28 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id;
-        bh=thC+Fh6DfUo8m/CJvDqq2ng1J/XAIuAmbvJp2KrXMpw=;
-        b=GUU7ojmSOjP9czaPhs5n2a78TdsSJ57BCrwO0ocJ68x0InH0l56eyvxRkz9yk/cXR1
-         MjZKG0+OaezY6hvUGVvjiTntRZaZBwT5gjx59uXNu4Y1Zy840zC6irT7aW49Sk1GawS2
-         994Zxt9xMJcv6rLfqKW5+fNvcOM/Mo1k8gSccfu9Rnh7DiLTx2bOtqqjcH631761RT1s
-         1VpLYVFPpMCDwvO8PhkQiR9U1x61x0gjklkgFvu1XtiWs7NiPJAMauzdHpnyxGn+Sxqi
-         DjS9/yLvPz9bKQWs/tomBdK0r+JV+CmwYS6h2+GLd57B5q/oAb1iTyLjjqSDOnCNDssF
-         +Cvw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
-X-Gm-Message-State: APjAAAXHXA48srm15ldemjP4SOssm9miZxrNTJiNREVIkTvVBFesF2bA
-	FNbS2cgUi20MZN8cacczUndx3jJ72EHSRhrtr+cvI9JhRC8y3GvnfCZuc90Hwqv/0waroz9iH7d
-	MxkromGSRhJg/fkMLjOQtuhHrsrmLnhVUpMgdWT6nNbJSCvTrdf1Y5Ts08MslevzyCA==
-X-Received: by 2002:a17:906:fac5:: with SMTP id lu5mr3040202ejb.295.1562849927089;
-        Thu, 11 Jul 2019 05:58:47 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwpLI4w8Ie402EuxsxxbmhSGyahY2sHFAboeFvR3u5T4PIM3LzCwqgMSN72BCr3bAPf20Iw
-X-Received: by 2002:a17:906:fac5:: with SMTP id lu5mr3040140ejb.295.1562849925837;
-        Thu, 11 Jul 2019 05:58:45 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562849925; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id;
+        bh=M8lOXUHv+7p9u5NfLq/YM+deQQyR/m+/D5zv6uZZuVc=;
+        b=GkL4u+iosixZSVA+XsCPqTEkGXrubxsXep2+EM8MkrATAMoPsbrHlWDsDbBawiZ5kV
+         Bm/NvR+95oLpwsBJXU5zgwMCo8+0WKpHRO28kfagaH3MX/vl0qI+odBSiRv5s3Y3ycQP
+         x8y2OCvjJRrabtOJy/xzq1YfkaPpBrwrJRgFdRS/pqHy+eGXceE4dQxmeq8wNZhIDcxy
+         u6JVOXcjfwqcJKciG0r1tYvjYNTYpAZn6T65CP2w5E70LD5TY7AwFDez710twAB+4eun
+         rwYyAEOmva2YT/CrNYcEFTxrlfPWa0vOECHKNnvxw6krypR7IACtH2KhfNcRcUYQqxIw
+         FS8A==
+X-Gm-Message-State: APjAAAXtnLjq4nOyuhkdEX6UPU8MRuc1N0edtJ3+7h9/LZ2yyT8i+pJW
+	DDeybd/Ic+ztejRbKpkSH5ms0dZIDdSqMG+xcBpSi80blngzGrZ1xw81wRvBPeqx+yTTPFnk5ze
+	d8Od4LlIIz3+6tfDoc/fqGhMWQJwCDQkQQAM0hXp1jzpTksPsEH29GGAYLS3YGBgHrQ==
+X-Received: by 2002:a17:902:2a68:: with SMTP id i95mr4804034plb.167.1562852008507;
+        Thu, 11 Jul 2019 06:33:28 -0700 (PDT)
+X-Received: by 2002:a17:902:2a68:: with SMTP id i95mr4803908plb.167.1562852007189;
+        Thu, 11 Jul 2019 06:33:27 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562852007; cv=none;
         d=google.com; s=arc-20160816;
-        b=PQhMPor4Vxs0wpFagjd5/dPVLsLE3E1a6oHR3jAAVNjTKO3uB7vsMKEH5miK8Oko77
-         i/bWOKgH7Z7LuL1bwSiun1/js2oURfOg5xrpd6k8sYuJD7eJQCNNqCB54aTMMeTyGLAi
-         fMKcAUEhAAkuU3x+yF/G0NKZB5+bEo9wVQVRQq+ES/fHhPq3G++cstCxMHhM5O+FP1XG
-         xx/RpVUy13M7/7aE4XQo4iaWC8mQG35WPcHcaE6ITCEK8696vD++U0A/fOPEeknmfPFV
-         6TbxQ3FbAsG1aBGy/MZSDyCwIwTlRpHJUK6vSOAza1U4CWOR+3jXCZet/nZbvRaGFA91
-         CXhA==
+        b=qGCtkTxcp8MV16aMHs/IjMIQWQfSxxRpjvdOHrgb/lklze6Bd/ZbhlnseldDLrBK6A
+         jpSciDJvjW60XudkVQdNN76jg9I7t/twCP5dYbJ9gEIgsvO60Ek8TX6oYL7Y+1LPPWZY
+         l96A7rFMCXGMnd7JCcvlYVRN0zJTOqtzmx1gsYmQZ4TY+VsVl8Zqcl2dB5uHV/MKhjoa
+         IpJfc1PL1JpQQFeZLX+gy3vVcR908OMxLROt89vIn72X8iF++tP3YxQ+79GGZCCEiR1J
+         RpDl8vX+ziqtBya13XaSvI/QfK2OvHMsOxUC+OfTxJzRaPLNuTIFoO3UPKaii2MxZccE
+         kb7Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:date:subject:cc:to:from;
-        bh=thC+Fh6DfUo8m/CJvDqq2ng1J/XAIuAmbvJp2KrXMpw=;
-        b=RJWLg97n7GmsqBboEqpH1OOXRpgXI/LcjwmZuBfGG5MJPexTs15NXOog8gSCuuEgA3
-         BzNFfZPyoHOcE63iop+Ld8b7FZImXazx3imMG7iu5eeJrithS4tUjJwwi3ZQPwoSI2PD
-         5aV4Inp3EpWEBcXDkLXxyglXBdN/dLaHZ/jsgKALzoKrIS9dGN+VK/hZfZq9tW5UCbUg
-         GxUv6z/LXP75b9/jpxuFHFjGqgZDuMoQYypPft4cLhB1x9IOwRWa/NptG6p0YpPdD/4o
-         Mn84Jnp61QUitNcdZIebZvLaXcMdc/G4XzY9jW/j9saUGsfiYDYpnwW2V2SbhoYdUMuh
-         M6Sg==
+        h=message-id:date:subject:cc:to:from:dkim-signature;
+        bh=M8lOXUHv+7p9u5NfLq/YM+deQQyR/m+/D5zv6uZZuVc=;
+        b=DyG3IwyfhQCI+erqp/182k2V68m2tjIdVA/v26vkOMyc4pXlSDkwWVNu8IGvlKI98r
+         hX7hcfdoSRUSVJlWKvTesNEdwbJpNVqPRro4M6kXmtPmNV8cQrKLQvE9sLyDFw1orhLN
+         RqRmZ2sQ6B8dGDS9xIDUSn4aC5K6MzqMRyQ6Bo4KJYAWmp8OmJUDmDauqpL+1xTUiaZS
+         bqc+Hc83Tj//l0Q1bXYNG65X5rZniG2jyFFlsPPv0nUXV3qZPNfGMxSPOIgJvuM7m2gP
+         1e+wLVdB+Z2gZpQdlQ8RINRRhLFN+nA91YERikcKeYWedzvQHsXN1cjhgzXHeefYy745
+         Cdeg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m14si3459436edc.388.2019.07.11.05.58.45
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=lxhnkEkD;
+       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id k6sor2930825pgs.79.2019.07.11.06.33.27
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 11 Jul 2019 05:58:45 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (Google Transport Security);
+        Thu, 11 Jul 2019 06:33:27 -0700 (PDT)
+Received-SPF: pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 0D8C6B12A;
-	Thu, 11 Jul 2019 12:58:45 +0000 (UTC)
-Received: by quack2.suse.cz (Postfix, from userid 1000)
-	id 3734F1E43CB; Thu, 11 Jul 2019 14:58:44 +0200 (CEST)
-From: Jan Kara <jack@suse.cz>
-To: <linux-mm@kvack.org>
-Cc: mgorman@suse.de,
-	mhocko@suse.cz,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Jan Kara <jack@suse.cz>,
-	stable@vger.kernel.org
-Subject: [PATCH RFC] mm: migrate: Fix races of __find_get_block() and page migration
-Date: Thu, 11 Jul 2019 14:58:38 +0200
-Message-Id: <20190711125838.32565-1-jack@suse.cz>
-X-Mailer: git-send-email 2.16.4
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=lxhnkEkD;
+       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=from:to:cc:subject:date:message-id;
+        bh=M8lOXUHv+7p9u5NfLq/YM+deQQyR/m+/D5zv6uZZuVc=;
+        b=lxhnkEkDHCBnUNsTquAJTvgr2ZgcT4RZBaj8b4v0lrMv7P7HY3rhkJbcDB5SzPSTdC
+         NKWOzrIbHUE81wqTJ+cEBQKpqpqQboQoPaCg8xqYYtz3AUCxt4gGz791uj4jhzQzvhZz
+         X43AipEs4mzniGhqxKrZOHK5+shiOWjFQUV8uIO7IO7tf2F9mqrsh+GVoIpEcDxhA0p/
+         lXmv/CXSNgcg9d1U5TMeZVdMTfGSsCqL8raPJAsqCWqa6roEmmQEvqtrux6mQstqispy
+         NT6pzMCrNti+mu2Db71AdxSgjdDTKskjj9qMLspvO3FknvyyE+I1YtcXRffdLHYBvybW
+         tjAw==
+X-Google-Smtp-Source: APXvYqybJb17rGV4A0VweI9ImUzg6XDsnt8Mzg559FQXqw3TOHc6Sbg18iUSC/VcrI4DOugqIV21sg==
+X-Received: by 2002:a63:125c:: with SMTP id 28mr4470026pgs.255.1562852006829;
+        Thu, 11 Jul 2019 06:33:26 -0700 (PDT)
+Received: from bogon.localdomain ([203.100.54.194])
+        by smtp.gmail.com with ESMTPSA id i15sm5611805pfd.160.2019.07.11.06.33.23
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 11 Jul 2019 06:33:25 -0700 (PDT)
+From: Yafang Shao <laoar.shao@gmail.com>
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org,
+	Yafang Shao <laoar.shao@gmail.com>,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	Michal Hocko <mhocko@kernel.org>,
+	Vladimir Davydov <vdavydov.dev@gmail.com>,
+	Yafang Shao <shaoyafang@didiglobal.com>
+Subject: [PATCH v2] mm/memcontrol: keep local VM counters in sync with the hierarchical ones
+Date: Thu, 11 Jul 2019 09:32:59 -0400
+Message-Id: <1562851979-10610-1-git-send-email-laoar.shao@gmail.com>
+X-Mailer: git-send-email 1.8.3.1
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-buffer_migrate_page_norefs() can race with bh users in a following way:
+After commit 815744d75152 ("mm: memcontrol: don't batch updates of local VM stats and events"),
+the local VM counters is not in sync with the hierarchical ones.
 
-CPU1					CPU2
-buffer_migrate_page_norefs()
-  buffer_migrate_lock_buffers()
-  checks bh refs
-  spin_unlock(&mapping->private_lock)
-					__find_get_block()
-					  spin_lock(&mapping->private_lock)
-					  grab bh ref
-					  spin_unlock(&mapping->private_lock)
-  move page				  do bh work
+Bellow is one example in a leaf memcg on my server (with 8 CPUs),
+	inactive_file 3567570944
+	total_inactive_file 3568029696
+We can find that the deviation is very great, that is because the 'val' in
+__mod_memcg_state() is in pages while the effective value in
+memcg_stat_show() is in bytes.
+So the maximum of this deviation between local VM stats and total VM
+stats can be (32 * number_of_cpu * PAGE_SIZE), that may be an unacceptable
+great value.
 
-This can result in various issues like lost updates to buffers (i.e.
-metadata corruption) or use after free issues for the old page.
+We should keep the local VM stats in sync with the total stats.
+In order to keep this behavior the same across counters, this patch updates
+__mod_lruvec_state() and __count_memcg_events() as well.
 
-Closing this race window is relatively difficult. We could hold
-mapping->private_lock in buffer_migrate_page_norefs() until we are
-finished with migrating the page but the lock hold times would be rather
-big. So let's revert to a more careful variant of page migration requiring
-eviction of buffers on migrated page. This is effectively
-fallback_migrate_page() that additionally invalidates bh LRUs in case
-try_to_free_buffers() failed.
-
-CC: stable@vger.kernel.org
-Fixes: 89cb0888ca14 "mm: migrate: provide buffer_migrate_page_norefs()"
-Signed-off-by: Jan Kara <jack@suse.cz>
+Signed-off-by: Yafang Shao <laoar.shao@gmail.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
+Cc: Yafang Shao <shaoyafang@didiglobal.com>
 ---
- mm/migrate.c | 161 +++++++++++++++++++++++++++++------------------------------
- 1 file changed, 78 insertions(+), 83 deletions(-)
+ mm/memcontrol.c | 22 +++++++++++++++-------
+ 1 file changed, 15 insertions(+), 7 deletions(-)
 
-I've lightly tested this with config-workload-thpfioscale which didn't
-show any obvious issue but the patch probably needs more testing (especially
-to verify that memory unplug is still able to succeed in reasonable time).
-That's why this is RFC.
-
-diff --git a/mm/migrate.c b/mm/migrate.c
-index e9594bc0d406..893698d37d50 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -697,6 +697,47 @@ int migrate_page(struct address_space *mapping,
- }
- EXPORT_SYMBOL(migrate_page);
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index ba9138a..07b4ca5 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -691,12 +691,15 @@ void __mod_memcg_state(struct mem_cgroup *memcg, int idx, int val)
+ 	if (mem_cgroup_disabled())
+ 		return;
  
-+/*
-+ * Writeback a page to clean the dirty state
-+ */
-+static int writeout(struct address_space *mapping, struct page *page)
-+{
-+	struct writeback_control wbc = {
-+		.sync_mode = WB_SYNC_NONE,
-+		.nr_to_write = 1,
-+		.range_start = 0,
-+		.range_end = LLONG_MAX,
-+		.for_reclaim = 1
-+	};
-+	int rc;
-+
-+	if (!mapping->a_ops->writepage)
-+		/* No write method for the address space */
-+		return -EINVAL;
-+
-+	if (!clear_page_dirty_for_io(page))
-+		/* Someone else already triggered a write */
-+		return -EAGAIN;
-+
-+	/*
-+	 * A dirty page may imply that the underlying filesystem has
-+	 * the page on some queue. So the page must be clean for
-+	 * migration. Writeout may mean we loose the lock and the
-+	 * page state is no longer what we checked for earlier.
-+	 * At this point we know that the migration attempt cannot
-+	 * be successful.
-+	 */
-+	remove_migration_ptes(page, page, false);
-+
-+	rc = mapping->a_ops->writepage(page, &wbc);
-+
-+	if (rc != AOP_WRITEPAGE_ACTIVATE)
-+		/* unlocked. Relock */
-+		lock_page(page);
-+
-+	return (rc < 0) ? -EIO : -EAGAIN;
-+}
-+
- #ifdef CONFIG_BLOCK
- /* Returns true if all buffers are successfully locked */
- static bool buffer_migrate_lock_buffers(struct buffer_head *head,
-@@ -736,9 +777,14 @@ static bool buffer_migrate_lock_buffers(struct buffer_head *head,
- 	return true;
- }
- 
--static int __buffer_migrate_page(struct address_space *mapping,
--		struct page *newpage, struct page *page, enum migrate_mode mode,
--		bool check_refs)
-+/*
-+ * Migration function for pages with buffers. This function can only be used
-+ * if the underlying filesystem guarantees that no other references to "page"
-+ * exist. For example attached buffer heads are accessed only under page lock.
-+ */
-+int buffer_migrate_page(struct address_space *mapping,
-+			struct page *newpage, struct page *page,
-+			enum migrate_mode mode)
- {
- 	struct buffer_head *bh, *head;
- 	int rc;
-@@ -756,33 +802,6 @@ static int __buffer_migrate_page(struct address_space *mapping,
- 	if (!buffer_migrate_lock_buffers(head, mode))
- 		return -EAGAIN;
- 
--	if (check_refs) {
--		bool busy;
--		bool invalidated = false;
+-	__this_cpu_add(memcg->vmstats_local->stat[idx], val);
 -
--recheck_buffers:
--		busy = false;
--		spin_lock(&mapping->private_lock);
--		bh = head;
--		do {
--			if (atomic_read(&bh->b_count)) {
--				busy = true;
--				break;
--			}
--			bh = bh->b_this_page;
--		} while (bh != head);
--		spin_unlock(&mapping->private_lock);
--		if (busy) {
--			if (invalidated) {
--				rc = -EAGAIN;
--				goto unlock_buffers;
--			}
--			invalidate_bh_lrus();
--			invalidated = true;
--			goto recheck_buffers;
--		}
--	}
--
- 	rc = migrate_page_move_mapping(mapping, newpage, page, mode, 0);
- 	if (rc != MIGRATEPAGE_SUCCESS)
- 		goto unlock_buffers;
-@@ -818,72 +837,48 @@ static int __buffer_migrate_page(struct address_space *mapping,
+ 	x = val + __this_cpu_read(memcg->vmstats_percpu->stat[idx]);
+ 	if (unlikely(abs(x) > MEMCG_CHARGE_BATCH)) {
+ 		struct mem_cgroup *mi;
  
- 	return rc;
- }
--
--/*
-- * Migration function for pages with buffers. This function can only be used
-- * if the underlying filesystem guarantees that no other references to "page"
-- * exist. For example attached buffer heads are accessed only under page lock.
-- */
--int buffer_migrate_page(struct address_space *mapping,
--		struct page *newpage, struct page *page, enum migrate_mode mode)
--{
--	return __buffer_migrate_page(mapping, newpage, page, mode, false);
--}
- EXPORT_SYMBOL(buffer_migrate_page);
++		/*
++		 * Batch local counters to keep them in sync with
++		 * the hierarchical ones.
++		 */
++		__this_cpu_add(memcg->vmstats_local->stat[idx], x);
+ 		for (mi = memcg; mi; mi = parent_mem_cgroup(mi))
+ 			atomic_long_add(x, &mi->vmstats[idx]);
+ 		x = 0;
+@@ -745,13 +748,15 @@ void __mod_lruvec_state(struct lruvec *lruvec, enum node_stat_item idx,
+ 	/* Update memcg */
+ 	__mod_memcg_state(memcg, idx, val);
  
- /*
-- * Same as above except that this variant is more careful and checks that there
-- * are also no buffer head references. This function is the right one for
-- * mappings where buffer heads are directly looked up and referenced (such as
-- * block device mappings).
-+ * Same as above except that this variant is more careful.  This function is
-+ * the right one for mappings where buffer heads are directly looked up and
-+ * referenced (such as block device mappings).
-  */
- int buffer_migrate_page_norefs(struct address_space *mapping,
- 		struct page *newpage, struct page *page, enum migrate_mode mode)
- {
--	return __buffer_migrate_page(mapping, newpage, page, mode, true);
--}
--#endif
+-	/* Update lruvec */
+-	__this_cpu_add(pn->lruvec_stat_local->count[idx], val);
 -
--/*
-- * Writeback a page to clean the dirty state
-- */
--static int writeout(struct address_space *mapping, struct page *page)
--{
--	struct writeback_control wbc = {
--		.sync_mode = WB_SYNC_NONE,
--		.nr_to_write = 1,
--		.range_start = 0,
--		.range_end = LLONG_MAX,
--		.for_reclaim = 1
--	};
--	int rc;
+ 	x = val + __this_cpu_read(pn->lruvec_stat_cpu->count[idx]);
+ 	if (unlikely(abs(x) > MEMCG_CHARGE_BATCH)) {
+ 		struct mem_cgroup_per_node *pi;
+ 
++		/*
++		 * Batch local counters to keep them in sync with
++		 * the hierarchical ones.
++		 */
++		__this_cpu_add(pn->lruvec_stat_local->count[idx], x);
+ 		for (pi = pn; pi; pi = parent_nodeinfo(pi, pgdat->node_id))
+ 			atomic_long_add(x, &pi->lruvec_stat[idx]);
+ 		x = 0;
+@@ -773,12 +778,15 @@ void __count_memcg_events(struct mem_cgroup *memcg, enum vm_event_item idx,
+ 	if (mem_cgroup_disabled())
+ 		return;
+ 
+-	__this_cpu_add(memcg->vmstats_local->events[idx], count);
 -
--	if (!mapping->a_ops->writepage)
--		/* No write method for the address space */
--		return -EINVAL;
-+	bool invalidated = false;
+ 	x = count + __this_cpu_read(memcg->vmstats_percpu->events[idx]);
+ 	if (unlikely(x > MEMCG_CHARGE_BATCH)) {
+ 		struct mem_cgroup *mi;
  
--	if (!clear_page_dirty_for_io(page))
--		/* Someone else already triggered a write */
--		return -EAGAIN;
-+	if (PageDirty(page)) {
-+		/* Only writeback pages in full synchronous migration */
-+		switch (mode) {
-+		case MIGRATE_SYNC:
-+		case MIGRATE_SYNC_NO_COPY:
-+			break;
-+		default:
-+			return -EBUSY;
-+		}
-+		return writeout(mapping, page);
-+	}
- 
-+retry:
- 	/*
--	 * A dirty page may imply that the underlying filesystem has
--	 * the page on some queue. So the page must be clean for
--	 * migration. Writeout may mean we loose the lock and the
--	 * page state is no longer what we checked for earlier.
--	 * At this point we know that the migration attempt cannot
--	 * be successful.
-+	 * Buffers may be managed in a filesystem specific way.
-+	 * We must have no buffers or drop them.
- 	 */
--	remove_migration_ptes(page, page, false);
--
--	rc = mapping->a_ops->writepage(page, &wbc);
--
--	if (rc != AOP_WRITEPAGE_ACTIVATE)
--		/* unlocked. Relock */
--		lock_page(page);
-+	if (page_has_private(page) &&
-+	    !try_to_release_page(page, GFP_KERNEL)) {
-+		if (!invalidated) {
-+			invalidate_bh_lrus();
-+			invalidated = true;
-+			goto retry;
-+		}
-+		return mode == MIGRATE_SYNC ? -EAGAIN : -EBUSY;
-+	}
- 
--	return (rc < 0) ? -EIO : -EAGAIN;
-+	return migrate_page(mapping, newpage, page, mode);
- }
-+#endif
- 
- /*
-  * Default handling if a filesystem does not provide a migration function.
++		/*
++		 * Batch local counters to keep them in sync with
++		 * the hierarchical ones.
++		 */
++		__this_cpu_add(memcg->vmstats_local->events[idx], x);
+ 		for (mi = memcg; mi; mi = parent_mem_cgroup(mi))
+ 			atomic_long_add(x, &mi->vmevents[idx]);
+ 		x = 0;
 -- 
-2.16.4
+1.8.3.1
 
