@@ -2,180 +2,293 @@ Return-Path: <SRS0=bABq=VI=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7019DC742A2
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 22:38:49 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7B83DC742A1
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 22:49:23 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 32E9E2084B
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 22:38:49 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 32E9E2084B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 292682084B
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 22:49:23 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="L5Z9krLK"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 292682084B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B94C88E00FE; Thu, 11 Jul 2019 18:38:48 -0400 (EDT)
+	id B17B08E00FF; Thu, 11 Jul 2019 18:49:22 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B6C618E00DB; Thu, 11 Jul 2019 18:38:48 -0400 (EDT)
+	id AEF5B8E00DB; Thu, 11 Jul 2019 18:49:22 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A0CA28E00FE; Thu, 11 Jul 2019 18:38:48 -0400 (EDT)
+	id 9DDB98E00FF; Thu, 11 Jul 2019 18:49:22 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 692788E00DB
-	for <linux-mm@kvack.org>; Thu, 11 Jul 2019 18:38:48 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id t2so4436219pgs.21
-        for <linux-mm@kvack.org>; Thu, 11 Jul 2019 15:38:48 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 675938E00DB
+	for <linux-mm@kvack.org>; Thu, 11 Jul 2019 18:49:22 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id e20so4311650pfd.3
+        for <linux-mm@kvack.org>; Thu, 11 Jul 2019 15:49:22 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=qJ/D1kljI1FpNOCkzgQtUC/F6rOQ+MJjYXweaFKXIzg=;
-        b=r158uOSokbToz89OA/1T+/QGxpDb3phlWi68DOECCPNhG4R8rfUJGJT6h4faW+D63d
-         xf/CPxBFgR4399UMGCie/YllADf4ieRNBdzTUVJL9uGB45GbXYR36YJpayeyU9R7QyJn
-         VEa2uICezJikpkLTUGPqiEhcxIEDSb/g843oZST3H7llvAwkLz3iY6iNTBnZVz2G6gXR
-         di1xEXrg1DhZOSRrfqPZ5+ZkpVrtzRXzBM3kB2x8yNCYIa2NZY9b7Ulx9ZHZvp9PxS+l
-         r/Kb2wJedzVlpRbNDb88Q8KIzapHJCqYeNWeqZclcaxjzA8AAJmTG14My9Og22Gnw7lk
-         v19A==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAUdU0G/sgqipvn0RD6HUeLHEOeY6UqdXD7lhPDc0zQWpKh/pekm
-	S4+eoJe0KDBWtr10qLNEwMwhzOZqcUZiOwauElRfIICrwNlTX4z+CwpNzR69zt1PGTHWVMvDQHq
-	OdB3ZsZSoI0C6AtxqkECq4+uTahrnZdjv/KJh0j3VZiQe8sT8kNs2od9Uyu2Iw4ADiA==
-X-Received: by 2002:a17:90a:ad86:: with SMTP id s6mr7593312pjq.42.1562884728089;
-        Thu, 11 Jul 2019 15:38:48 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy8x9G8Qev/2FyESUmDEAzii3vg4HY43YDNVtg9ZUzN7dVIRKP/WB5SIrVmzM8mODNmq0Pu
-X-Received: by 2002:a17:90a:ad86:: with SMTP id s6mr7593255pjq.42.1562884727309;
-        Thu, 11 Jul 2019 15:38:47 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562884727; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=0NNBSNCrFm9QFt/oHiBoXOjWFpu5BzIUnKEMn8Pl3Vo=;
+        b=Fn5kcVcy2eag7Cd1IXNGlABPDUlth0NpF3f7u6GV9nkYiXJur6+dMCU1hEtmNV9pml
+         63z6fILBhGMC2JaXIDn+C7icb7n6sk//u1qDVZdsm0/E421H+rE9DoMXc5BpCBccyfag
+         S56u1g7yMSDNNnhV/oGPmPiG9WLmqdCVmkb/GWN7w+hI6zmwrBY5e9z8dz/WCvhLNgaS
+         SPaAfW/IRtVlBcFNCtigeHnybEu+qqRAPiKQgaTpCRY3aUrGx62H4r/kuXTOBZd0hoyi
+         krGuSuZsW6OTxxicvRGYJVisBX0/AsGUePjN5WZgcRAsQ1CWRunmLgVIPeOr13TR2X8A
+         az+g==
+X-Gm-Message-State: APjAAAUP5CDhGFT/NDL/blsBscWJYMKbkdt8Xez+zSVc+1VKjUuW3NC0
+	yc+wU/ezeGVmjFuQ/iTt2OfIr4E2DUBC5xFulZqG6VHQtYc1YxwMM5jmc6J+BUG1lrSy+YnHIwL
+	g7yJ2BOeCoKCeYAcqwA0BCUoU3PCsFWd3ggbdWgS00KqtMCKuaKjPmS0mTDKGUXGrDw==
+X-Received: by 2002:a17:90a:d3d4:: with SMTP id d20mr7789665pjw.28.1562885361997;
+        Thu, 11 Jul 2019 15:49:21 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxTYatIY2Wy5mShmQHtnRkwwz5bJQVsr2XoeEsuJdxi7V3+bmSFTh6aWIrANgAdIwIbxKe1
+X-Received: by 2002:a17:90a:d3d4:: with SMTP id d20mr7789604pjw.28.1562885360908;
+        Thu, 11 Jul 2019 15:49:20 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562885360; cv=none;
         d=google.com; s=arc-20160816;
-        b=fQbUVLg+Hs1eXNWAC+CYtII6oTv26+KY4NPVOrkDc2y6qiZ/gVIJV45CCZpy5OWYbZ
-         Je960CmrNinbWy1SoSjlIieXTAjQ9B5P6BDXRfGV/vktwGZSSDDFlge2lGMH9oEqjs78
-         dM0/H5ZJSvogFI1F7oY1nN0LuQdB0oz6GiOuDiY//4X14aMJNyO9ZcaGNjW+777KOO7c
-         5gR0qg04/DqjKGWi1kHC1Nq44wv4zJIqDzRUoc2UjDlpfETEH5O3EKtNBcq8HrNEWqkz
-         Cc0YXhHoUG1y/pYuVFAbrgXu4VNjYsE1/ocvpZMlAhA/AJ57hYflshm2xp6I2Vs3+GHl
-         JlwQ==
+        b=hPU2gcRgeGNTVtuNE95tn9Y30jhaNnCvvpAok4BueSCT2/C0WCc85N5bRPs3IoEAUR
+         YBnma1/oSP/Rzau6/BgOOXGW0e6rlQspyoyRkgQXC+l/t7Orw5J0Nan6L2cWG/k6EShV
+         STraoM1D7L3MZO1IR1GoeX3ujlD9GX30kUR0xy8/u47B6UI5Hh3KZE20FRG66n07HNck
+         yG+jUkpn88qejN5Q31Z4FnWHDJG3I8clWRgZK5eLpa48CMYZuje7m9kZ8Ai/XHAWzu6S
+         11BZbn5mFpCj/Q8CsCu/1IQ2fHGfSw9BLtT5G2b/aWb9m50jCxCZ69Lq78BcBA2E1tZO
+         2v4g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
-         :subject;
-        bh=qJ/D1kljI1FpNOCkzgQtUC/F6rOQ+MJjYXweaFKXIzg=;
-        b=udXmnit0yKy4A/DR/fJIob6aDSkovLSlVGkrQ0lKT+27NmcB5Wd4Sc17SrI4igl0ng
-         DKEzqCcNU87h59hOoKgulwUgFkMz2tUX76CTWxpuIpphu4cgKkPiJ5O8zQqEsoZK1kBy
-         2UHHlRGtG8A57pVzbu+Wv3N5quFp3QvPR2cQFhjZz/augzl7fVUiTIdmpo/zaw+HBsNP
-         NUyXXQpkeUzalDj2pIpOlnmZWDsYh/QrBDBE8yzEYepIn5QV67lB2teavJkGBrM3FVl8
-         UsobR7OE2uKfKconCEhyfTXALgmKduqsiTrSdsUd7cyj8fz5dZ34MFd98htqcO1/pzeT
-         JU6w==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=0NNBSNCrFm9QFt/oHiBoXOjWFpu5BzIUnKEMn8Pl3Vo=;
+        b=sGti1x7l0LjH9FT4iUvVHqjzY3aUgSc7HnMxiGTpd6RhMNtalCnkgt1evHZ7nZUvUJ
+         8Swp+/05F70wu763aLBtcY7Rr2Do271f648XA+JOPokMLqPBThtwZABVuTI/HeUUVJ+P
+         plzHgO+JOzUB8E7R/fgdfH+3/x9YEZ5YB+e4fpLbb24fFMz22uWxDIKnNeyCO/FpVFZY
+         UamLiTuQbYXA+5yQQSrqdsu5DrmQc0HepYJNibNXeQFged+sD6opTbrB60ufKKZesqW6
+         Fq9aVhZv+3X69NTSW1l+WC88Pz/m9LmNWovC4UY5ZqfR0HEneuiJ2dswKdEbdCnedBlA
+         RPFw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
-        by mx.google.com with ESMTPS id b5si6115701pjo.26.2019.07.11.15.38.47
+       dkim=pass header.i=@kernel.org header.s=default header.b=L5Z9krLK;
+       spf=pass (google.com: domain of mhiramat@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=mhiramat@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id q2si6080375plh.59.2019.07.11.15.49.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 11 Jul 2019 15:38:47 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.136 as permitted sender) client-ip=192.55.52.136;
+        Thu, 11 Jul 2019 15:49:20 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mhiramat@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from orsmga007.jf.intel.com ([10.7.209.58])
-  by fmsmga106.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 11 Jul 2019 15:38:46 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.63,480,1557212400"; 
-   d="scan'208";a="156961083"
-Received: from ray.jf.intel.com (HELO [10.7.201.139]) ([10.7.201.139])
-  by orsmga007.jf.intel.com with ESMTP; 11 Jul 2019 15:38:46 -0700
-Subject: Re: [RFC v2 00/27] Kernel Address Space Isolation
-To: Alexandre Chartre <alexandre.chartre@oracle.com>, pbonzini@redhat.com,
- rkrcmar@redhat.com, tglx@linutronix.de, mingo@redhat.com, bp@alien8.de,
- hpa@zytor.com, dave.hansen@linux.intel.com, luto@kernel.org,
- peterz@infradead.org, kvm@vger.kernel.org, x86@kernel.org,
- linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: konrad.wilk@oracle.com, jan.setjeeilers@oracle.com,
- liran.alon@oracle.com, jwadams@google.com, graf@amazon.de,
- rppt@linux.vnet.ibm.com
-References: <1562855138-19507-1-git-send-email-alexandre.chartre@oracle.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=dave.hansen@intel.com; keydata=
- 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
-Message-ID: <5cab2a0e-1034-8748-fcbe-a17cf4fa2cd4@intel.com>
-Date: Thu, 11 Jul 2019 15:38:46 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.2
-MIME-Version: 1.0
-In-Reply-To: <1562855138-19507-1-git-send-email-alexandre.chartre@oracle.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+       dkim=pass header.i=@kernel.org header.s=default header.b=L5Z9krLK;
+       spf=pass (google.com: domain of mhiramat@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=mhiramat@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from devnote2 (NE2965lan1.rev.em-net.ne.jp [210.141.244.193])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 08517214AF;
+	Thu, 11 Jul 2019 22:49:10 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1562885360;
+	bh=F0692oM20SJBi7lipGMWh8asP30aK1zY5Sdre9epQkE=;
+	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
+	b=L5Z9krLKI9nSy8tV3IzQalqBtpWXJWdMFlfaOUH+MjmcE0DMgIpRaPSkSpkAbMLkd
+	 uYrReV24XpvMXXctVHHhCVZoyvjIhmkxGWE0i9pTGAjZZOKxa/jhEhzpyccUp6UubU
+	 qBgK/iWqdautlONEQXJ6DpjMNy3+xr026DqMOj9E=
+Date: Fri, 12 Jul 2019 07:49:07 +0900
+From: Masami Hiramatsu <mhiramat@kernel.org>
+To: Anshuman Khandual <anshuman.khandual@arm.com>
+Cc: linux-mm@kvack.org, Vineet Gupta <vgupta@synopsys.com>, Russell King
+ <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will
+ Deacon <will@kernel.org>, Tony Luck <tony.luck@intel.com>, Fenghua Yu
+ <fenghua.yu@intel.com>, Ralf Baechle <ralf@linux-mips.org>, Paul Burton
+ <paul.burton@mips.com>, James Hogan <jhogan@kernel.org>, Benjamin
+ Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras
+ <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Heiko Carstens
+ <heiko.carstens@de.ibm.com>, Vasily Gorbik <gor@linux.ibm.com>, Christian
+ Borntraeger <borntraeger@de.ibm.com>, Yoshinori Sato
+ <ysato@users.sourceforge.jp>, Rich Felker <dalias@libc.org>,
+ "David S. Miller" <davem@davemloft.net>, Thomas Gleixner
+ <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov
+ <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, "Naveen N. Rao"
+ <naveen.n.rao@linux.ibm.com>, Anil S Keshavamurthy
+ <anil.s.keshavamurthy@intel.com>, Allison Randal <allison@lohutok.net>,
+ Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Enrico Weigelt
+ <info@metux.net>, Richard Fontana <rfontana@redhat.com>, Kate Stewart
+ <kstewart@linuxfoundation.org>, Mark Rutland <mark.rutland@arm.com>, Andrew
+ Morton <akpm@linux-foundation.org>, Guenter Roeck <linux@roeck-us.net>,
+ x86@kernel.org, linux-snps-arc@lists.infradead.org,
+ linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org,
+ linux-ia64@vger.kernel.org, linux-mips@vger.kernel.org,
+ linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org,
+ linux-sh@vger.kernel.org, sparclinux@vger.kernel.org
+Subject: Re: [PATCH] mm/kprobes: Add generic kprobe_fault_handler() fallback
+ definition
+Message-Id: <20190712074907.1ab08841e77b6cc867396148@kernel.org>
+In-Reply-To: <3aee1f30-241c-d1c2-2ff5-ff521db47755@arm.com>
+References: <1562304629-29376-1-git-send-email-anshuman.khandual@arm.com>
+	<20190705193028.f9e08fe9cf1ee86bc5c0bb82@kernel.org>
+	<3aee1f30-241c-d1c2-2ff5-ff521db47755@arm.com>
+X-Mailer: Sylpheed 3.5.1 (GTK+ 2.24.32; x86_64-pc-linux-gnu)
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 7/11/19 7:25 AM, Alexandre Chartre wrote:
-> - Kernel code mapped to the ASI page-table has been reduced to:
->   . the entire kernel (I still need to test with only the kernel text)
->   . the cpu entry area (because we need the GDT to be mapped)
->   . the cpu ASI session (for managing ASI)
->   . the current stack
+Hi Anshuman,
+
+On Mon, 8 Jul 2019 09:03:13 +0530
+Anshuman Khandual <anshuman.khandual@arm.com> wrote:
+
+> >> Architectures like parisc enable CONFIG_KROBES without having a definition
+> >> for kprobe_fault_handler() which results in a build failure.
+> > 
+> > Hmm, as far as I can see, kprobe_fault_handler() is closed inside each arch
+> > specific code. The reason why include/linux/kprobes.h defines
+> > dummy inline function is only for !CONFIG_KPROBES case.
 > 
-> - Optionally, an ASI can request the following kernel mapping to be added:
->   . the stack canary
->   . the cpu offsets (this_cpu_off)
->   . the current task
->   . RCU data (rcu_data)
->   . CPU HW events (cpu_hw_events).
+> IIRC Andrew mentioned [1] that we should remove this stub from the generic kprobes
+> header because this is very much architecture specific. As we see in this proposed
+> patch, except x86 there is no other current user which actually calls this from
+> some where when CONFIG_KPROBES is not enabled.
+> 
+> [1] https://www.spinics.net/lists/linux-mm/msg182649.html
 
-I don't see the per-cpu areas in here.  But, the ASI macros in
-entry_64.S (and asi_start_abort()) use per-cpu data.
+Ah, OK. I saw another branch. Also, this is a bugfix patch against
+commit 4dd635bce90e ("mm, kprobes: generalize and rename notify_page_fault() as
+ kprobe_page_fault()"), please add Fixes: tag on it.
 
-Also, this stuff seems to do naughty stuff (calling C code, touching
-per-cpu data) before the PTI CR3 writes have been done.  But, I don't
-see anything excluding PTI and this code from coexisting.
+In this case, we should just add a prototype of kprobe_fault_handler() in
+include/linux/kprobes.h, and maybe add a stub of kprobe_fault_handler()
+as a weak function, something like below.
+
+int __weak kprobe_fault_handler(struct pt_regs *regs, int trapnr)
+{
+	/*
+	 * Each architecture which uses kprobe_page_fault() must define
+	 * a fault handler to handle page fault in kprobe correctly.
+	 */
+	WARN_ON_ONCE(1);
+	return 0;
+}
+
+> >> Arch needs to
+> >> provide kprobe_fault_handler() as it is platform specific and cannot have
+> >> a generic working alternative. But in the event when platform lacks such a
+> >> definition there needs to be a fallback.
+> > 
+> > Wait, indeed that each arch need to implement it, but that is for calling
+> > kprobe->fault_handler() as user expected.
+> > Hmm, why not fixing those architecture implementations?
+> 
+> After the recent change which introduced a generic kprobe_page_fault() every
+> architecture enabling CONFIG_KPROBES must have a kprobe_fault_handler() which
+> was not the case earlier.
+
+As far as I can see, gcc complains it because there is no prototype of
+kprobe_fault_handler(). Actually no need to define empty kprobe_fault_handler()
+on each arch. If we have a prototype, but no actual function, gcc stops the
+error unless the arch depending code uses it. So actually, we don't need above
+__weak function.
+
+> Architectures like parisc which does enable KPROBES but
+> never used (kprobe_page_fault or kprobe->fault_handler) kprobe_fault_handler() now
+> needs one as well.
+
+(Hmm, it sounds like the kprobes porting is incomplete on parisc...)
+
+> I am not sure and will probably require inputs from arch parsic
+> folks whether it at all needs one. We dont have a stub or fallback definition for
+> kprobe_fault_handler() when CONFIG_KPROBES is enabled just to prevent a build
+> failure in such cases.
+
+Yeah, that is a bug, and fixed by adding a prototype, not introducing new macro.
+
+> 
+> In such a situation it might be better defining a stub symbol fallback than to try
+> to implement one definition which the architecture previously never needed or used.
+> AFAICS there is no generic MM callers for kprobe_fault_handler() as well which would
+> have made it mandatory for parisc to define a real one.
+> 
+> > 
+> >> This adds a stub kprobe_fault_handler() definition which not only prevents
+> >> a build failure but also makes sure that kprobe_page_fault() if called will
+> >> always return negative in absence of a sane platform specific alternative.
+> > 
+> > I don't like introducing this complicated macro only for avoiding (not fixing)
+> > build error. To fix that, kprobes on parisc should implement kprobe_fault_handler
+> > correctly (and call kprobe->fault_handler).
+> 
+> As I mentioned before parsic might not need a real one. But you are right this
+> complicated (if perceived as such) change can be just avoided at least for the
+> build failure problem by just defining a stub definition kprobe_fault_handler()
+> for arch parsic when CONFIG_KPROBES is enabled. But this patch does some more
+> and solves the kprobe_fault_handler() symbol dependency in a more generic way and
+> forces kprobe_page_fault() to fail in absence a real arch kprobe_fault_handler().
+> Is not it worth solving in this way ?
+> 
+> > 
+> > BTW, even if you need such generic stub, please use a weak function instead
+> > of macros for every arch headers.
+> 
+> There is a bit problem with that. The existing definitions are with different
+> signatures and an weak function will need them to be exact same for override
+> requiring more code changes. Hence choose to go with a macro in each header.
+> 
+> arch/arc/include/asm/kprobes.h:int kprobe_fault_handler(struct pt_regs *regs, unsigned long cause);
+> arch/arm/include/asm/kprobes.h:int kprobe_fault_handler(struct pt_regs *regs, unsigned int fsr);
+> arch/arm64/include/asm/kprobes.h:int kprobe_fault_handler(struct pt_regs *regs, unsigned int fsr);
+> arch/ia64/include/asm/kprobes.h:extern int kprobe_fault_handler(struct pt_regs *regs, int trapnr);
+> arch/powerpc/include/asm/kprobes.h:extern int kprobe_fault_handler(struct pt_regs *regs, int trapnr);
+> arch/s390/include/asm/kprobes.h:int kprobe_fault_handler(struct pt_regs *regs, int trapnr);
+> arch/sh/include/asm/kprobes.h:extern int kprobe_fault_handler(struct pt_regs *regs, int trapnr);
+> arch/sparc/include/asm/kprobes.h:int kprobe_fault_handler(struct pt_regs *regs, int trapnr);
+> arch/x86/include/asm/kprobes.h:extern int kprobe_fault_handler(struct pt_regs *regs, int trapnr);
+
+OK, in that case, original commit is wrong way. it should be reverted and
+should introduce something like below
+
+
+/* Returns true if arch should call kprobes_fault_handler() */
+static nokprobe_inline bool is_kprobe_page_fault(struct pt_regs *regs)
+{
+	if (!kprobes_built_in())
+		return false;
+	if (user_mode(regs))
+		return false;
+	/*
+	 * To be potentially processing a kprobe fault and to be allowed
+	 * to call kprobe_running(), we have to be non-preemptible.
+	 */
+	if (preemptible())
+		return false;
+	if (!kprobe_running())
+		return false;
+	return true;
+}
+
+Since it silently casts the type of trapnr, which is strongly depends
+on architecture.
+
+> >> While here wrap kprobe_page_fault() in CONFIG_KPROBES. This enables stud
+> >> definitions for generic kporbe_fault_handler() and kprobes_built_in() can
+> >> just be dropped. Only on x86 it needs to be added back locally as it gets
+> >> used in a !CONFIG_KPROBES function do_general_protection().
+> > 
+> > If you want to remove kprobes_built_in(), you should replace it with
+> > IS_ENABLED(CONFIG_KPROBES), instead of this...
+> 
+> Apart from kprobes_built_in() the intent was to remove !CONFIG_KPROBES
+> stub for kprobe_fault_handler() as well which required making generic
+> kprobe_page_fault() to be empty in such case.
+
+No, I meant that "IS_ENABLED(CONFIG_KPROBES)" is generic and is equal to
+what kprobes_built_in() does.
+
+Thank you,
+
+-- 
+Masami Hiramatsu <mhiramat@kernel.org>
 
