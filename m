@@ -7,98 +7,98 @@ X-Spam-Status: No, score=-9.9 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
 	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT
 	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4D972C74A35
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 14:27:04 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C3AE4C74A54
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 14:27:07 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E894F21019
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 14:27:03 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 70DB021019
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 14:27:07 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="Xw8imofO"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E894F21019
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="k3XXPihT"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 70DB021019
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D54E48E00D3; Thu, 11 Jul 2019 10:26:51 -0400 (EDT)
+	id 16E108E00D4; Thu, 11 Jul 2019 10:26:53 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CDD678E00C4; Thu, 11 Jul 2019 10:26:51 -0400 (EDT)
+	id 0858B8E00C4; Thu, 11 Jul 2019 10:26:53 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AE0F28E00D3; Thu, 11 Jul 2019 10:26:51 -0400 (EDT)
+	id E3D3C8E00D4; Thu, 11 Jul 2019 10:26:52 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 83F5B8E00C4
-	for <linux-mm@kvack.org>; Thu, 11 Jul 2019 10:26:51 -0400 (EDT)
-Received: by mail-io1-f70.google.com with SMTP id r27so6956401iob.14
-        for <linux-mm@kvack.org>; Thu, 11 Jul 2019 07:26:51 -0700 (PDT)
+Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
+	by kanga.kvack.org (Postfix) with ESMTP id BF3BF8E00C4
+	for <linux-mm@kvack.org>; Thu, 11 Jul 2019 10:26:52 -0400 (EDT)
+Received: by mail-io1-f71.google.com with SMTP id q26so6963234ioi.10
+        for <linux-mm@kvack.org>; Thu, 11 Jul 2019 07:26:52 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references;
-        bh=tktXu8oSlvrRNi4oCpkMHKHtnQ30RjQ+vGHk9xchmuI=;
-        b=NmgiiCVDY/CXc+dqNO6k1DiChJ0MHMxHRc7at+5fqJSzftUN0CrgBF4DEkJVsSF298
-         XtKoxfw5k8rwsQ2Ufc6oMkhxdTggDoTdFNO2cl/yHatSiLg6xMGMsXG1tVzgwzLjxxrb
-         ibNDZUUfBklTKiF4KEbKhfznTwk5J3RGObripr5z+sNMEZRKBRG0Ch3pQBNIkj4OMupx
-         DZrLLyaSLvTwmnaOlU2eBR5ZCXnsMcMucvLsaHl/CQ0ym2D3QgRhCkvIbPG0wMoQ8WNk
-         J4Z0dJvmG12QQ2kCt+F4Mt8gh4RthoaeagmkzsWtEVsN9prgLvKkjfa2bh6nRefkR05v
-         af+w==
-X-Gm-Message-State: APjAAAXBuJZhaScE++KwKhk8zF88mNQ0ml8NdYBeRLICDyo8c2Ynh8G5
-	fZdU9R/en1N6GKdD46jva/UHgZ3pvtiyWbQ0tEtBni9bThj2YVaormLDdeKg3G2PjEmTgpQDAzY
-	IsiNrQhanVG2OChk85FSOofZ/hui4Jve+IU453PYwbjjvCZ2Lao1xcCW08o7KVGbcYQ==
-X-Received: by 2002:a6b:5a17:: with SMTP id o23mr1380557iob.41.1562855211306;
+        bh=DxKvEFI9OqvnwAFHfsS7VJpKVi8ynRLOZoMuRYswZIw=;
+        b=hzS0W9kl8H4W0BIbCihrcL6W7rq1a5XEo9L1trTWuyzjBWRUzF/MLAfkyAx0kz/SmT
+         I5cHdFW9FlaIsGqaVl5KxYpohwkJ5iMaTIqdwgX6dv3kRPzqjeGCjxXHF3npRoTLUqXv
+         dLIYE5lLvzooad7la6aSwHwjHQ2oRpNPu1MXldGP78cICJWrfiwtudKyotrQAcN6iiiq
+         +XuguJF+TjaTwHVFDycwGlKJXjUZyvQQEshFZX8AQe13z2FYleLsbK2KtsLsba75a/0C
+         P4C0Ehg6L8X7qhGuSy4DHraj4bShN7RRmGsDRRNfwN39OeVVysx3jFmeLyzP/fyJIfG+
+         RGdQ==
+X-Gm-Message-State: APjAAAVEMglRZrqgRQp74NFBzeGqqTuNYHLETW6E4xTCKAy7LyXaHomA
+	jnXsRC0VcdyYNy9DGxbWiy25H1/KRHfJxg/D3CT4XR5QLYoGD851tW85RL0AlrV2Ly4J6pAXaSD
+	8+/4NZtYFolZ+jRMkJrpQWf21ORA+D3X4BTv3BWz5Wc9rS5QGGLlsls5e3JrDAaiU6w==
+X-Received: by 2002:a5d:88c6:: with SMTP id i6mr4767228iol.107.1562855212566;
+        Thu, 11 Jul 2019 07:26:52 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyDWC9i/2FMckqlkPq+wiimV4/zWTsZppuFE1stiXkUlvZh91qHeDJUP/UM3Fbj89EgWJ2T
+X-Received: by 2002:a5d:88c6:: with SMTP id i6mr4767166iol.107.1562855211889;
         Thu, 11 Jul 2019 07:26:51 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxefB5i5iJd9boZTrhUTRwU6ho7S2GkDPgbrT5ZNEHRzHnsfrSBthvIOXHU8vwyja8bWJZL
-X-Received: by 2002:a6b:5a17:: with SMTP id o23mr1380480iob.41.1562855210497;
-        Thu, 11 Jul 2019 07:26:50 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562855210; cv=none;
+ARC-Seal: i=1; a=rsa-sha256; t=1562855211; cv=none;
         d=google.com; s=arc-20160816;
-        b=Qb3cmQvau/o/7bxXksz+8JmUdv7AQ8fYXWtYWFI/aIxUxsGwH7AChvEyEbivxvOXBi
-         Of/VQw71rnlZ3s7BLrEAqjeizsojim8YAKQOj3xDUpBKPK7mdtFveCbcgDJe192mGBkm
-         eAiVoqGxfU9BG6cUudyCFh3I/6O2B4i8tQ2I5mNmPUgZmXtyNEeNjPL7ZH6uo7gD4Cof
-         70wEM2Use8qEJjnCYJgGdgAs2xGELiAbUxWW2kt+Ku5tkCPPfgpWOVPAEGMhf9GVIg9S
-         OHRelHEZizMZVNsUqvfryw1ahwuOnb+4qhMsJY/NWWlYVqpFyNc0Vp04ioHr45C8EguI
-         +spw==
+        b=wtLwY0AABEwrBCYgZHGTpcTvnJ1Q2tzh/23EgKq7Q40KoRNTVY3PglZnUrr01F98lX
+         G9ulilWzzqE1QoHYwVTjeqeNKuM3Si/zzxYshylmoEU4aXI5CDPnbFTBH5SJs7FwnU25
+         sythw8h+GuHt/1pfTH3BE/N1nAEUIgn8HTMdM9LC69p0CujsF4Se7zsMJV/qj0t6R8bH
+         R42aGrGWRE2YK40Up0qOLUnO3k3CPMCs/BVgwZAZ5Cjwu/8SoyUiMUvZ6vvbviOrC42D
+         GLQEtzEp5ocNsjdCyvMlMVyLwIqYTy9p2Y7l3LhXcz/Wo+6dGGOXIzXHMP1gRsM2Vg7i
+         DKuQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from
          :dkim-signature;
-        bh=tktXu8oSlvrRNi4oCpkMHKHtnQ30RjQ+vGHk9xchmuI=;
-        b=a5AG9S6RrIyOq01iYu9ueH75xIn/v77hIXPG1b/AGVH27Wz9TuSlx7JtepchLBMKue
-         qkxgD0hUvMAH3/xz1YSDh1oEx+lY1SHqzwJ+IRSymZahtjKxoyIP2haPLAFLTq65g7A2
-         tsOKIV5wN2CyEQdxOVq1y7bkhFD0rPSB6HDVFogiSN7AIV+eAsCvBzGQg2cj5dLprL2O
-         AoJvelA+PQq9mx1VZIfQwrp2AyTK/ZVOQqi5izqVn0dAbZCOr8PYrVA8DfOg8Sgx78ig
-         kALaEvfXTfGP7Uaki71viAcesSIirk1xN3fmQN0snNueD5uC2RyXg5cnW++NvDFr5qCB
-         +PcA==
+        bh=DxKvEFI9OqvnwAFHfsS7VJpKVi8ynRLOZoMuRYswZIw=;
+        b=ihmbYtISGMoPXsjd766ivTBPxuWx4CVRkasa0Fby4XZ2TV+8bJy0tpxwggf39ftLCe
+         69A9eB9xPtMTXYoS0HlbxfRj6MaQkWYOW49zM0mfGCbWs0MOOLce+ySRSjZDgWymE87M
+         zMWvNxL5zHicx8tdcKsHkW71zpXyLzh9OU5eRc3PdwZeZRyG317MeJF6Sq+OS3RuRpk1
+         RROd2PCcLlJWxsiJKr3hwKuBbQ9nVCPeakTukFzD1X2lnX53kh3O7nkfLSCCIAVRZe/z
+         Wa/0GUC6T+ynS44ITzuIFBh/mI50Vp6+hWGM5EMIi1/UmvzA2YhLxZo0hJXsSL/ka9eX
+         QLjg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=Xw8imofO;
-       spf=pass (google.com: domain of alexandre.chartre@oracle.com designates 141.146.126.78 as permitted sender) smtp.mailfrom=alexandre.chartre@oracle.com;
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=k3XXPihT;
+       spf=pass (google.com: domain of alexandre.chartre@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=alexandre.chartre@oracle.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
-        by mx.google.com with ESMTPS id z9si9291957iof.139.2019.07.11.07.26.49
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id n123si9762546iod.129.2019.07.11.07.26.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 11 Jul 2019 07:26:50 -0700 (PDT)
-Received-SPF: pass (google.com: domain of alexandre.chartre@oracle.com designates 141.146.126.78 as permitted sender) client-ip=141.146.126.78;
+        Thu, 11 Jul 2019 07:26:51 -0700 (PDT)
+Received-SPF: pass (google.com: domain of alexandre.chartre@oracle.com designates 156.151.31.85 as permitted sender) client-ip=156.151.31.85;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=Xw8imofO;
-       spf=pass (google.com: domain of alexandre.chartre@oracle.com designates 141.146.126.78 as permitted sender) smtp.mailfrom=alexandre.chartre@oracle.com;
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=k3XXPihT;
+       spf=pass (google.com: domain of alexandre.chartre@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=alexandre.chartre@oracle.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (aserp2120.oracle.com [127.0.0.1])
-	by aserp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x6BEO7gP100410;
-	Thu, 11 Jul 2019 14:26:39 GMT
+Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
+	by userp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x6BEO75F013247;
+	Thu, 11 Jul 2019 14:26:41 GMT
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=from : to : cc :
  subject : date : message-id : in-reply-to : references; s=corp-2018-07-02;
- bh=tktXu8oSlvrRNi4oCpkMHKHtnQ30RjQ+vGHk9xchmuI=;
- b=Xw8imofO8fKNfBvyII53RRKIWPHJ/UdjgH1ZSaBocnV0EADrjb1GTZYN4HsE7xrVPRc/
- TEHR2f4ozNEvHmT4xkzmrRWShe8NJkdGTGU5UyvTwwVLuobGplkQYt22venKGQfjZsCi
- BuPNZ1Zy1I5Lm3q4cyPwf0rvVmiPcVoh9A/tJ1V5PFUsSDajeMDtZazluCVycnUMAv6u
- /YyGN39NkO9rtwovlVRiIRORlVYEoHIigSvvQZaOjXC7B6+jVAU9bBj+zUDnf/Rei8Mf
- yGpCGEFGnOwzX/ATnI3MWljtUlcXz+wMpxZcI3AhvYUC5PX/005SgrPaW6hQhMYqVhz6 ew== 
+ bh=DxKvEFI9OqvnwAFHfsS7VJpKVi8ynRLOZoMuRYswZIw=;
+ b=k3XXPihT1uvy+OLIiRmWMdfDXIT+WHMFAjj45U6uCpQ8rV2jfdSnRJmMQA1mV5ALTQyT
+ PERU4/YPhFf4ckQAGG2rOQDm5vbl52OROkwzviVZDqxaVQLQCpGKejd6n6Gi8g/OW973
+ b1WRq4uNsMv9cAwP/H6vRscq1e3iobbZ324Tq6PgoCdWFemJ/1YPJhNIMn+keJv5JOQh
+ Ff8q9kmaJ7pYkwC9amWnZvecFXs6OmpibtOtjhm23oXx9IX6dzIXv0YiCsY7b8cavCtn
+ S3SvjejyJfLMAMiB7WwpFazOkLIoHuippfiDTsTbnPYepjTPVENPQMOCjagrpefgERlp TA== 
 Received: from aserv0021.oracle.com (aserv0021.oracle.com [141.146.126.233])
-	by aserp2120.oracle.com with ESMTP id 2tjkkq0cat-1
+	by userp2120.oracle.com with ESMTP id 2tjm9r0brp-1
 	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 11 Jul 2019 14:26:39 +0000
+	Thu, 11 Jul 2019 14:26:41 +0000
 Received: from achartre-desktop.fr.oracle.com (dhcp-10-166-106-34.fr.oracle.com [10.166.106.34])
-	by aserv0021.oracle.com (8.14.4/8.14.4) with ESMTP id x6BEPcu8021444;
-	Thu, 11 Jul 2019 14:26:31 GMT
+	by aserv0021.oracle.com (8.14.4/8.14.4) with ESMTP id x6BEPcuA021444;
+	Thu, 11 Jul 2019 14:26:37 GMT
 From: Alexandre Chartre <alexandre.chartre@oracle.com>
 To: pbonzini@redhat.com, rkrcmar@redhat.com, tglx@linutronix.de,
         mingo@redhat.com, bp@alien8.de, hpa@zytor.com,
@@ -108,9 +108,9 @@ To: pbonzini@redhat.com, rkrcmar@redhat.com, tglx@linutronix.de,
 Cc: konrad.wilk@oracle.com, jan.setjeeilers@oracle.com, liran.alon@oracle.com,
         jwadams@google.com, graf@amazon.de, rppt@linux.vnet.ibm.com,
         alexandre.chartre@oracle.com
-Subject: [RFC v2 15/26] mm/asi: Initialize the ASI page-table with core mappings
-Date: Thu, 11 Jul 2019 16:25:27 +0200
-Message-Id: <1562855138-19507-16-git-send-email-alexandre.chartre@oracle.com>
+Subject: [RFC v2 17/26] rcu: Move tree.h static forward declarations to tree.c
+Date: Thu, 11 Jul 2019 16:25:29 +0200
+Message-Id: <1562855138-19507-18-git-send-email-alexandre.chartre@oracle.com>
 X-Mailer: git-send-email 1.7.1
 In-Reply-To: <1562855138-19507-1-git-send-email-alexandre.chartre@oracle.com>
 References: <1562855138-19507-1-git-send-email-alexandre.chartre@oracle.com>
@@ -126,239 +126,145 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Core mappings are the minimal mappings we need to be able to
-enter isolation and handle an isolation abort or exit. This
-includes the kernel code, the GDT and the percpu ASI sessions.
-We also need a stack so we map the current stack when entering
-isolation and unmap it on exit/abort.
-
-Optionally, additional mappins can be added like the stack canary
-or the percpu offset to be able to use get_cpu_var()/this_cpu_ptr()
-when isolation is active.
+tree.h has static forward declarations for inline function declared
+in tree_plugin.h and tree_stall.h. These forward declarations prevent
+including tree.h into a file different from tree.c
 
 Signed-off-by: Alexandre Chartre <alexandre.chartre@oracle.com>
 ---
- arch/x86/include/asm/asi.h  |    9 ++++-
- arch/x86/mm/asi.c           |   75 +++++++++++++++++++++++++++++++++++++++---
- arch/x86/mm/asi_pagetable.c |   30 ++++++++++++----
- 3 files changed, 99 insertions(+), 15 deletions(-)
+ kernel/rcu/tree.c |   54 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ kernel/rcu/tree.h |   55 +----------------------------------------------------
+ 2 files changed, 55 insertions(+), 54 deletions(-)
 
-diff --git a/arch/x86/include/asm/asi.h b/arch/x86/include/asm/asi.h
-index cf5d198..1ac8fd3 100644
---- a/arch/x86/include/asm/asi.h
-+++ b/arch/x86/include/asm/asi.h
-@@ -11,6 +11,13 @@
- #include <asm/pgtable.h>
- #include <linux/xarray.h>
+diff --git a/kernel/rcu/tree.c b/kernel/rcu/tree.c
+index 980ca3c..44dd3b4 100644
+--- a/kernel/rcu/tree.c
++++ b/kernel/rcu/tree.c
+@@ -55,6 +55,60 @@
+ #include "tree.h"
+ #include "rcu.h"
  
-+/*
-+ * asi_create() map flags. Flags are used to map optional data
-+ * when creating an ASI.
-+ */
-+#define ASI_MAP_STACK_CANARY	0x01	/* map stack canary */
-+#define ASI_MAP_CPU_PTR		0x02	/* for get_cpu_var()/this_cpu_ptr() */
++/* Forward declarations for tree_plugin.h */
++static void rcu_bootup_announce(void);
++static void rcu_qs(void);
++static int rcu_preempt_blocked_readers_cgp(struct rcu_node *rnp);
++#ifdef CONFIG_HOTPLUG_CPU
++static bool rcu_preempt_has_tasks(struct rcu_node *rnp);
++#endif /* #ifdef CONFIG_HOTPLUG_CPU */
++static int rcu_print_task_exp_stall(struct rcu_node *rnp);
++static void rcu_preempt_check_blocked_tasks(struct rcu_node *rnp);
++static void rcu_flavor_sched_clock_irq(int user);
++static void dump_blkd_tasks(struct rcu_node *rnp, int ncheck);
++static void rcu_initiate_boost(struct rcu_node *rnp, unsigned long flags);
++static void rcu_preempt_boost_start_gp(struct rcu_node *rnp);
++static void invoke_rcu_callbacks_kthread(void);
++static bool rcu_is_callbacks_kthread(void);
++static void __init rcu_spawn_boost_kthreads(void);
++static void rcu_prepare_kthreads(int cpu);
++static void rcu_cleanup_after_idle(void);
++static void rcu_prepare_for_idle(void);
++static bool rcu_preempt_has_tasks(struct rcu_node *rnp);
++static bool rcu_preempt_need_deferred_qs(struct task_struct *t);
++static void rcu_preempt_deferred_qs(struct task_struct *t);
++static void zero_cpu_stall_ticks(struct rcu_data *rdp);
++static bool rcu_nocb_cpu_needs_barrier(int cpu);
++static struct swait_queue_head *rcu_nocb_gp_get(struct rcu_node *rnp);
++static void rcu_nocb_gp_cleanup(struct swait_queue_head *sq);
++static void rcu_init_one_nocb(struct rcu_node *rnp);
++static bool __call_rcu_nocb(struct rcu_data *rdp, struct rcu_head *rhp,
++			    bool lazy, unsigned long flags);
++static bool rcu_nocb_adopt_orphan_cbs(struct rcu_data *my_rdp,
++				      struct rcu_data *rdp,
++				      unsigned long flags);
++static int rcu_nocb_need_deferred_wakeup(struct rcu_data *rdp);
++static void do_nocb_deferred_wakeup(struct rcu_data *rdp);
++static void rcu_boot_init_nocb_percpu_data(struct rcu_data *rdp);
++static void rcu_spawn_cpu_nocb_kthread(int cpu);
++static void __init rcu_spawn_nocb_kthreads(void);
++#ifdef CONFIG_RCU_NOCB_CPU
++static void __init rcu_organize_nocb_kthreads(void);
++#endif /* #ifdef CONFIG_RCU_NOCB_CPU */
++static bool init_nocb_callback_list(struct rcu_data *rdp);
++static unsigned long rcu_get_n_cbs_nocb_cpu(struct rcu_data *rdp);
++static void rcu_bind_gp_kthread(void);
++static bool rcu_nohz_full_cpu(void);
++static void rcu_dynticks_task_enter(void);
++static void rcu_dynticks_task_exit(void);
 +
- enum page_table_level {
- 	PGT_LEVEL_PTE,
- 	PGT_LEVEL_PMD,
-@@ -73,7 +80,7 @@ struct asi_session {
- void asi_init_range_mapping(struct asi *asi);
- void asi_fini_range_mapping(struct asi *asi);
- 
--extern struct asi *asi_create(void);
-+extern struct asi *asi_create(int map_flags);
- extern void asi_destroy(struct asi *asi);
- extern int asi_enter(struct asi *asi);
- extern void asi_exit(struct asi *asi);
-diff --git a/arch/x86/mm/asi.c b/arch/x86/mm/asi.c
-index 25633a6..f049438 100644
---- a/arch/x86/mm/asi.c
-+++ b/arch/x86/mm/asi.c
-@@ -19,6 +19,17 @@
- /* ASI sessions, one per cpu */
- DEFINE_PER_CPU_PAGE_ALIGNED(struct asi_session, cpu_asi_session);
- 
-+struct asi_map_option {
-+	int	flag;
-+	void	*ptr;
-+	size_t	size;
-+};
++/* Forward declarations for tree_stall.h */
++static void record_gp_stall_check_time(void);
++static void rcu_iw_handler(struct irq_work *iwp);
++static void check_cpu_stall(struct rcu_data *rdp);
++static void rcu_check_gp_start_stall(struct rcu_node *rnp, struct rcu_data *rdp,
++				     const unsigned long gpssdelay);
 +
-+struct asi_map_option asi_map_percpu_options[] = {
-+	{ ASI_MAP_STACK_CANARY, &fixed_percpu_data, sizeof(fixed_percpu_data) },
-+	{ ASI_MAP_CPU_PTR, &this_cpu_off, sizeof(this_cpu_off) },
-+};
+ #ifdef MODULE_PARAM_PREFIX
+ #undef MODULE_PARAM_PREFIX
+ #endif
+diff --git a/kernel/rcu/tree.h b/kernel/rcu/tree.h
+index e253d11..9790b58 100644
+--- a/kernel/rcu/tree.h
++++ b/kernel/rcu/tree.h
+@@ -392,58 +392,5 @@ struct rcu_state {
+ #endif /* #else #ifdef CONFIG_TRACING */
+ 
+ int rcu_dynticks_snap(struct rcu_data *rdp);
+-
+-/* Forward declarations for tree_plugin.h */
+-static void rcu_bootup_announce(void);
+-static void rcu_qs(void);
+-static int rcu_preempt_blocked_readers_cgp(struct rcu_node *rnp);
+-#ifdef CONFIG_HOTPLUG_CPU
+-static bool rcu_preempt_has_tasks(struct rcu_node *rnp);
+-#endif /* #ifdef CONFIG_HOTPLUG_CPU */
+-static int rcu_print_task_exp_stall(struct rcu_node *rnp);
+-static void rcu_preempt_check_blocked_tasks(struct rcu_node *rnp);
+-static void rcu_flavor_sched_clock_irq(int user);
+ void call_rcu(struct rcu_head *head, rcu_callback_t func);
+-static void dump_blkd_tasks(struct rcu_node *rnp, int ncheck);
+-static void rcu_initiate_boost(struct rcu_node *rnp, unsigned long flags);
+-static void rcu_preempt_boost_start_gp(struct rcu_node *rnp);
+-static void invoke_rcu_callbacks_kthread(void);
+-static bool rcu_is_callbacks_kthread(void);
+-static void __init rcu_spawn_boost_kthreads(void);
+-static void rcu_prepare_kthreads(int cpu);
+-static void rcu_cleanup_after_idle(void);
+-static void rcu_prepare_for_idle(void);
+-static bool rcu_preempt_has_tasks(struct rcu_node *rnp);
+-static bool rcu_preempt_need_deferred_qs(struct task_struct *t);
+-static void rcu_preempt_deferred_qs(struct task_struct *t);
+-static void zero_cpu_stall_ticks(struct rcu_data *rdp);
+-static bool rcu_nocb_cpu_needs_barrier(int cpu);
+-static struct swait_queue_head *rcu_nocb_gp_get(struct rcu_node *rnp);
+-static void rcu_nocb_gp_cleanup(struct swait_queue_head *sq);
+-static void rcu_init_one_nocb(struct rcu_node *rnp);
+-static bool __call_rcu_nocb(struct rcu_data *rdp, struct rcu_head *rhp,
+-			    bool lazy, unsigned long flags);
+-static bool rcu_nocb_adopt_orphan_cbs(struct rcu_data *my_rdp,
+-				      struct rcu_data *rdp,
+-				      unsigned long flags);
+-static int rcu_nocb_need_deferred_wakeup(struct rcu_data *rdp);
+-static void do_nocb_deferred_wakeup(struct rcu_data *rdp);
+-static void rcu_boot_init_nocb_percpu_data(struct rcu_data *rdp);
+-static void rcu_spawn_cpu_nocb_kthread(int cpu);
+-static void __init rcu_spawn_nocb_kthreads(void);
+-#ifdef CONFIG_RCU_NOCB_CPU
+-static void __init rcu_organize_nocb_kthreads(void);
+-#endif /* #ifdef CONFIG_RCU_NOCB_CPU */
+-static bool init_nocb_callback_list(struct rcu_data *rdp);
+-static unsigned long rcu_get_n_cbs_nocb_cpu(struct rcu_data *rdp);
+-static void rcu_bind_gp_kthread(void);
+-static bool rcu_nohz_full_cpu(void);
+-static void rcu_dynticks_task_enter(void);
+-static void rcu_dynticks_task_exit(void);
+-
+-/* Forward declarations for tree_stall.h */
+-static void record_gp_stall_check_time(void);
+-static void rcu_iw_handler(struct irq_work *iwp);
+-static void check_cpu_stall(struct rcu_data *rdp);
+-static void rcu_check_gp_start_stall(struct rcu_node *rnp, struct rcu_data *rdp,
+-				     const unsigned long gpssdelay);
 +
- static void asi_log_fault(struct asi *asi, struct pt_regs *regs,
- 			  unsigned long error_code, unsigned long address)
- {
-@@ -85,16 +96,55 @@ bool asi_fault(struct pt_regs *regs, unsigned long error_code,
- 	return true;
- }
- 
--static int asi_init_mapping(struct asi *asi)
-+static int asi_init_mapping(struct asi *asi, int flags)
- {
-+	struct asi_map_option *option;
-+	int i, err;
-+
-+	/*
-+	 * Map the kernel.
-+	 *
-+	 * XXX We should check if we can map only kernel text, i.e. map with
-+	 * size = _etext - _text
-+	 */
-+	err = asi_map(asi, (void *)__START_KERNEL_map, KERNEL_IMAGE_SIZE);
-+	if (err)
-+		return err;
-+
- 	/*
--	 * TODO: Populate the ASI page-table with minimal mappings so
--	 * that we can at least enter isolation and abort.
-+	 * Map the cpu_entry_area because we need the GDT to be mapped.
-+	 * Not sure we need anything else from cpu_entry_area.
- 	 */
-+	err = asi_map_range(asi, (void *)CPU_ENTRY_AREA_PER_CPU, P4D_SIZE,
-+			    PGT_LEVEL_P4D);
-+	if (err)
-+		return err;
-+
-+	/*
-+	 * Map the percpu ASI sessions. This is used by interrupt handlers
-+	 * to figure out if we have entered isolation and switch back to
-+	 * the kernel address space.
-+	 */
-+	err = ASI_MAP_CPUVAR(asi, cpu_asi_session);
-+	if (err)
-+		return err;
-+
-+	/*
-+	 * Optional percpu mappings.
-+	 */
-+	for (i = 0; i < ARRAY_SIZE(asi_map_percpu_options); i++) {
-+		option = &asi_map_percpu_options[i];
-+		if (flags & option->flag) {
-+			err = asi_map_percpu(asi, option->ptr, option->size);
-+			if (err)
-+				return err;
-+		}
-+	}
-+
- 	return 0;
- }
- 
--struct asi *asi_create(void)
-+struct asi *asi_create(int map_flags)
- {
- 	struct page *page;
- 	struct asi *asi;
-@@ -115,7 +165,7 @@ struct asi *asi_create(void)
- 	spin_lock_init(&asi->fault_lock);
- 	asi_init_backend(asi);
- 
--	err = asi_init_mapping(asi);
-+	err = asi_init_mapping(asi, map_flags);
- 	if (err)
- 		goto error;
- 
-@@ -159,6 +209,7 @@ int asi_enter(struct asi *asi)
- 	struct asi *current_asi;
- 	struct asi_session *asi_session;
- 	unsigned long original_cr3;
-+	int err;
- 
- 	state = this_cpu_read(cpu_asi_session.state);
- 	/*
-@@ -190,6 +241,13 @@ int asi_enter(struct asi *asi)
- 	WARN_ON(asi_session->abort_depth > 0);
- 
- 	/*
-+	 * We need a stack to run with isolation, so map the current stack.
-+	 */
-+	err = asi_map(asi, current->stack, PAGE_SIZE << THREAD_SIZE_ORDER);
-+	if (err)
-+		goto err_clear_asi;
-+
-+	/*
- 	 * Instructions ordering is important here because we should be
- 	 * able to deal with any interrupt/exception which will abort
- 	 * the isolation and restore CR3 to its original value:
-@@ -211,7 +269,7 @@ int asi_enter(struct asi *asi)
- 	if (!original_cr3) {
- 		WARN_ON(1);
- 		err = -EINVAL;
--		goto err_clear_asi;
-+		goto err_unmap_stack;
- 	}
- 	asi_session->original_cr3 = original_cr3;
- 
-@@ -228,6 +286,8 @@ int asi_enter(struct asi *asi)
- 
- 	return 0;
- 
-+err_unmap_stack:
-+	asi_unmap(asi, current->stack);
- err_clear_asi:
- 	asi_session->asi = NULL;
- 	asi_session->task = NULL;
-@@ -284,6 +344,9 @@ void asi_exit(struct asi *asi)
- 	 * exit isolation before abort_depth reaches 0.
- 	 */
- 	asi_session->abort_depth = 0;
-+
-+	/* unmap stack */
-+	asi_unmap(asi, current->stack);
- }
- EXPORT_SYMBOL(asi_exit);
- 
-diff --git a/arch/x86/mm/asi_pagetable.c b/arch/x86/mm/asi_pagetable.c
-index f1ee65b..bcc95f2 100644
---- a/arch/x86/mm/asi_pagetable.c
-+++ b/arch/x86/mm/asi_pagetable.c
-@@ -710,12 +710,20 @@ int asi_map_range(struct asi *asi, void *ptr, size_t size,
- 	map_addr = round_down(addr, page_dir_size);
- 	map_end = round_up(end, page_dir_size);
- 
--	pr_debug("ASI %p: MAP %px/%lx/%d -> %lx-%lx\n", asi, ptr, size, level,
--		 map_addr, map_end);
--	if (map_addr < addr)
--		pr_debug("ASI %p: MAP LEAK %lx-%lx\n", asi, map_addr, addr);
--	if (map_end > end)
--		pr_debug("ASI %p: MAP LEAK %lx-%lx\n", asi, end, map_end);
-+	/*
-+	 * Don't log info the current stack because it is mapped/unmapped
-+	 * everytime we enter/exit isolation.
-+	 */
-+	if (ptr != current->stack) {
-+		pr_debug("ASI %p: MAP %px/%lx/%d -> %lx-%lx\n",
-+			 asi, ptr, size, level, map_addr, map_end);
-+		if (map_addr < addr)
-+			pr_debug("ASI %p: MAP LEAK %lx-%lx\n",
-+				 asi, map_addr, addr);
-+		if (map_end > end)
-+			pr_debug("ASI %p: MAP LEAK %lx-%lx\n",
-+				 asi, end, map_end);
-+	}
- 
- 	spin_lock_irqsave(&asi->lock, flags);
- 
-@@ -989,8 +997,14 @@ void asi_unmap(struct asi *asi, void *ptr)
- 
- 	addr = (unsigned long)range_mapping->ptr;
- 	end = addr + range_mapping->size;
--	pr_debug("ASI %p: UNMAP %px/%lx/%d\n", asi, ptr,
--		 range_mapping->size, range_mapping->level);
-+	/*
-+	 * Don't log info the current stack because it is mapped/unmapped
-+	 * everytime we enter/exit isolation.
-+	 */
-+	if (ptr != current->stack) {
-+		pr_debug("ASI %p: UNMAP %px/%lx/%d\n", asi, ptr,
-+			 range_mapping->size, range_mapping->level);
-+	}
- 	list_del(&range_mapping->list);
- 	asi_unmap_overlap(asi, range_mapping);
- 	kfree(range_mapping);
 -- 
 1.7.1
 
