@@ -2,282 +2,302 @@ Return-Path: <SRS0=bABq=VI=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 055A4C742A1
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 18:42:30 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B651AC742A1
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 18:56:28 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id AFE12216C8
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 18:42:29 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=cmpxchg-org.20150623.gappssmtp.com header.i=@cmpxchg-org.20150623.gappssmtp.com header.b="LczJZj1L"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AFE12216C8
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=cmpxchg.org
+	by mail.kernel.org (Postfix) with ESMTP id 73B7A20863
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 18:56:28 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 73B7A20863
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2F7738E00F4; Thu, 11 Jul 2019 14:42:29 -0400 (EDT)
+	id 0F0388E00F5; Thu, 11 Jul 2019 14:56:28 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2A6898E00DB; Thu, 11 Jul 2019 14:42:29 -0400 (EDT)
+	id 0A05B8E00DB; Thu, 11 Jul 2019 14:56:28 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 16F588E00F4; Thu, 11 Jul 2019 14:42:29 -0400 (EDT)
+	id ED0C28E00F5; Thu, 11 Jul 2019 14:56:27 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D44F18E00DB
-	for <linux-mm@kvack.org>; Thu, 11 Jul 2019 14:42:28 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id x18so3949439pfj.4
-        for <linux-mm@kvack.org>; Thu, 11 Jul 2019 11:42:28 -0700 (PDT)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id CC0638E00DB
+	for <linux-mm@kvack.org>; Thu, 11 Jul 2019 14:56:27 -0400 (EDT)
+Received: by mail-qt1-f198.google.com with SMTP id h47so4711099qtc.20
+        for <linux-mm@kvack.org>; Thu, 11 Jul 2019 11:56:27 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=Ye/ueaLSHeuUbF2UmwC3qi+L8ppesjqbY1zG1QqAhZE=;
-        b=mr+GWVygBrQBamPHK5UtobyvlQj0D95KjPl49bWWcQFSMrtGxZ4hXTjOmOVvjkejeb
-         3Pm1btQNvVahPPsWaf/NtCoKmJuwMqvbqIzO02NE3ZcqYDfJPdmBVJaDOFMBL3OjatXp
-         XdPAiaNUCChtVnsia47usQ8B/3l5oQymSTNO7oCsDQmAi7up1uBWcSEV/Fsegrn/UN/X
-         nJIlqaWIvOolZxGmMERHukBP0Dnj3gxsQiZbAxR9fLHVzOi18bI6UguyRw1xP/nO83OR
-         lPfEknSB+/B37cSPgBknHQ4ulXnuSZGXG0zwhIkJOCylpEugkfNQ0L29oGC19dvDUWHU
-         782w==
-X-Gm-Message-State: APjAAAVFL24ECwvfYAt7fNzBbQVrTNY3Zsh5S5rE6o5cHB3rWk1oOD6Z
-	aTHI3Izcq/OkFMGJQo29GjPO3xCi8h/22p4oL0PeZFk4AV6LSXD8fY7EopZN+nwrp9gFhPyxWiP
-	PEnwX7X3BtjTwy+PjQtMDuhyuajOzyw26/I7022P+OLYq1rSWMF3Uy68Y8Nu0gx+X+Q==
-X-Received: by 2002:a63:9245:: with SMTP id s5mr6024181pgn.123.1562870548151;
-        Thu, 11 Jul 2019 11:42:28 -0700 (PDT)
-X-Received: by 2002:a63:9245:: with SMTP id s5mr6024110pgn.123.1562870547279;
-        Thu, 11 Jul 2019 11:42:27 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562870547; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to;
+        bh=zeCpQXItRdol43MSyHBtDj4Q5Fe6vl5TNxl0T83utrw=;
+        b=rTO6rQ8h66xm9PXdPm7L9chFEJB6FVGkbx5ajakCkpRirLiFKpj5n0RpZUj0IMEjvy
+         piLMZdCD1kngike8Gh74+YXFRsqpvrPg0BlShz97TwAGzy2YF8+1S4eqHdi/9A4yeQ2t
+         ad7Kku61Qimc9Q41LZTdcqyLnbHQuHKenO43oSI2rNAOXB5aV2XtqM8OOti96v0s33Xx
+         bZSEe91yBhmztSR3E+kQBmsUtE+fub1ywhYMDsTjPnKTpUc0zCHmmIwjyGybm2GSaCxG
+         auqKETVgFatu4ZdUZMzswDGtQOsHamgejKsP00arBbf8gWof0QWjZzJvAanFdjsbrq4r
+         7XmA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mst@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=mst@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAXBi0ZpULqmxuurENrIfZlvmDICG4/WscxZV1zKt/c69I4s36nW
+	4T03MgHoeQYVuPnaT36ZZbpgF5A2vmCZ+b7fXt1bC/Ktp5PQsN6aGQM6BFVRW2WVMMjy1yzzOnU
+	MkKirLluq/FYFmlKwICuW47cthrr7rIqXFNglVwqith1Xt+PdBsAcYM7E0/zb9OUoHA==
+X-Received: by 2002:ae9:d606:: with SMTP id r6mr2983424qkk.364.1562871387535;
+        Thu, 11 Jul 2019 11:56:27 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqx302dI6KQO1lmzPVhH0YieAGLzimf5/5SfapUubcLn8Zqm2LsuZfNNfD1jGprpDKuj/YAP
+X-Received: by 2002:ae9:d606:: with SMTP id r6mr2983357qkk.364.1562871386449;
+        Thu, 11 Jul 2019 11:56:26 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562871386; cv=none;
         d=google.com; s=arc-20160816;
-        b=0wSImp9rm6umrVxf/yNCK/cCdlGhov1yaLr9zraO/EtHcujSxrccK6x5HnshNNpuoQ
-         1Zb1xjwnw8o00My0R65E9YD5Yo7l9rzKg8VmHTLmY2Qg2DUUgZbtVb/fJvVjlGvNbk1A
-         ZNvvYI6cf+zzKrmZbANHKfLx7S6dtFYwv4J7C4tQQ/5JHJ7t8HeciOX3H9Z8BLmEnxMZ
-         3FPCsHUTJaLZS+KNVRlKDqw0gr8IqgkBhNIZDstQLtQXQPWY8rg9IjoUmWiuYSiej6Us
-         vL64Zin+mGYU3X2zvX6BtAXDclTo3h0zEhk5HCr/YA2GIsrINRbc7gLC/gOSIOtQvY1N
-         U7bw==
+        b=RpIB/n/py6JOEWYMK/1IvgvD8BS1/o6GjscRaQabnDZV1VkwHA8yrHWUpjac+rLMR1
+         fmG7Liz1ZSMAaVi2d6wA4jU/aOTzhI5gkpTcdVIqO76ObpkqA1StGju3p0V99Q0a3sXa
+         +mGXp0cvYsJfjeYww/3NDJTMmcLUCBgTCyGu/EHKzRXgnG59NVmd6B187libjwZhBVkM
+         EAb8pvQ4YKHg5VM327sr/jPMRhfazrzDi0Zfgc7DYWVwnXCH8oYRwwx5uvnp4OpQI0m4
+         HxNiUjO6vGqPeePWpSv7XT41yCXuHq9LVmhb8aBjADplyD7oWrH+LzoHr+5cSnB1Bh0S
+         MJ2w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=Ye/ueaLSHeuUbF2UmwC3qi+L8ppesjqbY1zG1QqAhZE=;
-        b=VawTrE3uPm9VxaUd7m47/FjNRi7GmgFDFyLc6gVM78hApXm0+X7PSaYxfGKHuVQDfK
-         7nULGlecihpa98kjMiXSCP6XqybTOme+mCKR6EWGtRJOpbwh0iAroECK/zeZ3cFTsoon
-         2uXlsB8eva6dzl/JvdZH2H1W49bceBWiqWvwyswl2KerBy8EXG5gRgEpNZ8lMSLicnX7
-         t3QBKZrhOE6ituBYboLIqpQmWjUwf5dXJ1B7eawhuKfi5ACxc9aJxxaw0jOHYwCSF6Ha
-         OCrGP5phndvd9OyaRoh+VmWRPTLY7Whlkp4XPf7JY4Gxl5XU4Nx9Dd/H3sK/Rt/FYu5f
-         Zi5g==
+        h=in-reply-to:content-disposition:mime-version:references:message-id
+         :subject:cc:to:from:date;
+        bh=zeCpQXItRdol43MSyHBtDj4Q5Fe6vl5TNxl0T83utrw=;
+        b=GyLeNhdcWzcBwBh8p9+pUlvsD9Mahm3mBgwxVG+XsavG49si+D2Ujc3Kctn6Z4BUl1
+         2AQmThhVDe1W06gI1+9vqLERtEixQTFSi3H39BC0ALxDFw3tArDO9GnRefvffJrl1Ck2
+         rHlXYc9qKL2DAmQW1mBk6cO5X5X+ptFYCLAjfJGqtkb5gOOVftZA8cLbcABAL27PM/7h
+         k76IjACRfgtPXv+LpGknfyhUk5ULu9hgbPIy+fbe5xMrdPk1Q9iiPe1rlVAv3BFrf41s
+         J3K8k6mrOidAox0iJiK4RjGVMfAThWWgDBsrqMoS+Sf6NVXcqMGRDgSC4iyFfipQhYS/
+         MCCQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=LczJZj1L;
-       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v2sor7937142plz.40.2019.07.11.11.42.26
+       spf=pass (google.com: domain of mst@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=mst@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id s124si81467qkb.5.2019.07.11.11.56.26
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 11 Jul 2019 11:42:26 -0700 (PDT)
-Received-SPF: pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 11 Jul 2019 11:56:26 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mst@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=LczJZj1L;
-       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=cmpxchg-org.20150623.gappssmtp.com; s=20150623;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=Ye/ueaLSHeuUbF2UmwC3qi+L8ppesjqbY1zG1QqAhZE=;
-        b=LczJZj1LMI38wtffmfcB6+DCfMF5aokwVwquBj7rOFWJQgRco8bf3jn7Y7DRGU5AKV
-         eyjU2kDty+AJg5gmH7znkDUWdSkh2RLvTYYxEUHfUOHIABMuT/zxz26VO2fWPMLpbI42
-         Q0nKfVbhqRFEaZHRqg01t1RLn3rSDiadjybENTkR+xzCP5NkdrHC11Iih4QtXXJJEJ+2
-         wAnVn52naxG/hzDpgjqUVpVG8nvWNFb9Nm9+54eKFTwbHQZW+h21HGKmNMQL9ThFb9Vb
-         wu6ijN+pWhsut8bcnEO8hAL8JYSaTWFrXUY1xJwZBT5S2jLMFydUdVKuRZGN4kxI/tkg
-         glJw==
-X-Google-Smtp-Source: APXvYqyaXVTrExLmUq7EZsqLnA7MmMx/jzEwrsO/Wn15ERbU1WlzrYFkuyZ9jcRvlFh1JKkaVAl1hw==
-X-Received: by 2002:a17:902:aa88:: with SMTP id d8mr5969327plr.274.1562870546389;
-        Thu, 11 Jul 2019 11:42:26 -0700 (PDT)
-Received: from localhost ([2620:10d:c091:500::2:5385])
-        by smtp.gmail.com with ESMTPSA id 85sm6717518pfv.130.2019.07.11.11.42.25
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Thu, 11 Jul 2019 11:42:25 -0700 (PDT)
-Date: Thu, 11 Jul 2019 14:42:23 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-	linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>,
-	linux-api@vger.kernel.org, Michal Hocko <mhocko@suse.com>,
-	Tim Murray <timmurray@google.com>,
-	Joel Fernandes <joel@joelfernandes.org>,
-	Suren Baghdasaryan <surenb@google.com>,
-	Daniel Colascione <dancol@google.com>,
-	Shakeel Butt <shakeelb@google.com>, Sonny Rao <sonnyrao@google.com>,
-	oleksandr@redhat.com, hdanton@sina.com, lizeb@google.com,
-	Dave Hansen <dave.hansen@intel.com>,
-	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: Re: [PATCH v4 4/4] mm: introduce MADV_PAGEOUT
-Message-ID: <20190711184223.GD20341@cmpxchg.org>
-References: <20190711012528.176050-1-minchan@kernel.org>
- <20190711012528.176050-5-minchan@kernel.org>
+       spf=pass (google.com: domain of mst@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=mst@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 7502C308FC4B;
+	Thu, 11 Jul 2019 18:56:25 +0000 (UTC)
+Received: from redhat.com (ovpn-116-67.ams2.redhat.com [10.36.116.67])
+	by smtp.corp.redhat.com (Postfix) with SMTP id 3B38A5D9CC;
+	Thu, 11 Jul 2019 18:56:01 +0000 (UTC)
+Date: Thu, 11 Jul 2019 14:55:59 -0400
+From: "Michael S. Tsirkin" <mst@redhat.com>
+To: Nitesh Narayan Lal <nitesh@redhat.com>
+Cc: kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+	pbonzini@redhat.com, lcapitulino@redhat.com, pagupta@redhat.com,
+	wei.w.wang@intel.com, yang.zhang.wz@gmail.com, riel@surriel.com,
+	david@redhat.com, dodgen@google.com, konrad.wilk@oracle.com,
+	dhildenb@redhat.com, aarcange@redhat.com, alexander.duyck@gmail.com,
+	john.starks@microsoft.com, dave.hansen@intel.com, mhocko@suse.com
+Subject: Re: [QEMU Patch] virtio-baloon: Support for page hinting
+Message-ID: <20190711141036-mutt-send-email-mst@kernel.org>
+References: <20190710195158.19640-1-nitesh@redhat.com>
+ <20190710195303.19690-1-nitesh@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190711012528.176050-5-minchan@kernel.org>
-User-Agent: Mutt/1.12.0 (2019-05-25)
+In-Reply-To: <20190710195303.19690-1-nitesh@redhat.com>
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.43]); Thu, 11 Jul 2019 18:56:25 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jul 11, 2019 at 10:25:28AM +0900, Minchan Kim wrote:
-> @@ -480,6 +482,198 @@ static long madvise_cold(struct vm_area_struct *vma,
->  	return 0;
+On Wed, Jul 10, 2019 at 03:53:03PM -0400, Nitesh Narayan Lal wrote:
+> Enables QEMU to perform madvise free on the memory range reported
+> by the vm.
+> 
+> Signed-off-by: Nitesh Narayan Lal <nitesh@redhat.com>
+
+Missing second "l" in the subject :)
+
+> ---
+>  hw/virtio/trace-events                        |  1 +
+>  hw/virtio/virtio-balloon.c                    | 59 +++++++++++++++++++
+>  include/hw/virtio/virtio-balloon.h            |  2 +-
+>  include/qemu/osdep.h                          |  7 +++
+>  .../standard-headers/linux/virtio_balloon.h   |  1 +
+>  5 files changed, 69 insertions(+), 1 deletion(-)
+> 
+> diff --git a/hw/virtio/trace-events b/hw/virtio/trace-events
+> index e28ba48da6..f703a22d36 100644
+> --- a/hw/virtio/trace-events
+> +++ b/hw/virtio/trace-events
+> @@ -46,6 +46,7 @@ virtio_balloon_handle_output(const char *name, uint64_t gpa) "section name: %s g
+>  virtio_balloon_get_config(uint32_t num_pages, uint32_t actual) "num_pages: %d actual: %d"
+>  virtio_balloon_set_config(uint32_t actual, uint32_t oldactual) "actual: %d oldactual: %d"
+>  virtio_balloon_to_target(uint64_t target, uint32_t num_pages) "balloon target: 0x%"PRIx64" num_pages: %d"
+> +virtio_balloon_hinting_request(unsigned long pfn, unsigned int num_pages) "Guest page hinting request PFN:%lu size: %d"
+>  
+>  # virtio-mmio.c
+>  virtio_mmio_read(uint64_t offset) "virtio_mmio_read offset 0x%" PRIx64
+> diff --git a/hw/virtio/virtio-balloon.c b/hw/virtio/virtio-balloon.c
+> index 2112874055..5d186707b5 100644
+> --- a/hw/virtio/virtio-balloon.c
+> +++ b/hw/virtio/virtio-balloon.c
+> @@ -34,6 +34,9 @@
+>  
+>  #define BALLOON_PAGE_SIZE  (1 << VIRTIO_BALLOON_PFN_SHIFT)
+>  
+> +#define VIRTIO_BALLOON_PAGE_HINTING_MAX_PAGES	16
+> +void free_mem_range(uint64_t addr, uint64_t len);
+> +
+>  struct PartiallyBalloonedPage {
+>      RAMBlock *rb;
+>      ram_addr_t base;
+> @@ -328,6 +331,58 @@ static void balloon_stats_set_poll_interval(Object *obj, Visitor *v,
+>      balloon_stats_change_timer(s, 0);
 >  }
 >  
-> +static int madvise_pageout_pte_range(pmd_t *pmd, unsigned long addr,
-> +				unsigned long end, struct mm_walk *walk)
+> +void free_mem_range(uint64_t addr, uint64_t len)
 > +{
-> +	struct mmu_gather *tlb = walk->private;
-> +	struct mm_struct *mm = tlb->mm;
-> +	struct vm_area_struct *vma = walk->vma;
-> +	pte_t *orig_pte, *pte, ptent;
-> +	spinlock_t *ptl;
-> +	LIST_HEAD(page_list);
-> +	struct page *page;
-> +	unsigned long next;
+> +    int ret = 0;
+> +    void *hvaddr_to_free;
+> +    MemoryRegionSection mrs = memory_region_find(get_system_memory(),
+> +                                                 addr, 1);
+> +    if (!mrs.mr) {
+> +	warn_report("%s:No memory is mapped at address 0x%lu", __func__, addr);
+> +        return;
+> +    }
 > +
-> +	if (fatal_signal_pending(current))
-> +		return -EINTR;
+> +    if (!memory_region_is_ram(mrs.mr) && !memory_region_is_romd(mrs.mr)) {
+> +	warn_report("%s:Memory at address 0x%s is not RAM:0x%lu", __func__,
+> +		    HWADDR_PRIx, addr);
+> +        memory_region_unref(mrs.mr);
+> +        return;
+> +    }
 > +
-> +	next = pmd_addr_end(addr, end);
-> +	if (pmd_trans_huge(*pmd)) {
-> +		pmd_t orig_pmd;
-> +
-> +		tlb_change_page_size(tlb, HPAGE_PMD_SIZE);
-> +		ptl = pmd_trans_huge_lock(pmd, vma);
-> +		if (!ptl)
-> +			return 0;
-> +
-> +		orig_pmd = *pmd;
-> +		if (is_huge_zero_pmd(orig_pmd))
-> +			goto huge_unlock;
-> +
-> +		if (unlikely(!pmd_present(orig_pmd))) {
-> +			VM_BUG_ON(thp_migration_supported() &&
-> +					!is_pmd_migration_entry(orig_pmd));
-> +			goto huge_unlock;
-> +		}
-> +
-> +		page = pmd_page(orig_pmd);
-> +		if (next - addr != HPAGE_PMD_SIZE) {
-> +			int err;
-> +
-> +			if (page_mapcount(page) != 1)
-> +				goto huge_unlock;
-> +			get_page(page);
-> +			spin_unlock(ptl);
-> +			lock_page(page);
-> +			err = split_huge_page(page);
-> +			unlock_page(page);
-> +			put_page(page);
-> +			if (!err)
-> +				goto regular_page;
-> +			return 0;
-> +		}
-> +
-> +		if (isolate_lru_page(page))
-> +			goto huge_unlock;
-> +
-> +		if (pmd_young(orig_pmd)) {
-> +			pmdp_invalidate(vma, addr, pmd);
-> +			orig_pmd = pmd_mkold(orig_pmd);
-> +
-> +			set_pmd_at(mm, addr, pmd, orig_pmd);
-> +			tlb_remove_tlb_entry(tlb, pmd, addr);
-> +		}
-> +
-> +		ClearPageReferenced(page);
-> +		test_and_clear_page_young(page);
-> +		list_add(&page->lru, &page_list);
-> +huge_unlock:
-> +		spin_unlock(ptl);
-> +		reclaim_pages(&page_list);
-> +		return 0;
-> +	}
-> +
-> +	if (pmd_trans_unstable(pmd))
-> +		return 0;
-> +regular_page:
-> +	tlb_change_page_size(tlb, PAGE_SIZE);
-> +	orig_pte = pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
-> +	flush_tlb_batched_pending(mm);
-> +	arch_enter_lazy_mmu_mode();
-> +	for (; addr < end; pte++, addr += PAGE_SIZE) {
-> +		ptent = *pte;
-> +		if (!pte_present(ptent))
-> +			continue;
-> +
-> +		page = vm_normal_page(vma, addr, ptent);
-> +		if (!page)
-> +			continue;
-> +
-> +		/*
-> +		 * creating a THP page is expensive so split it only if we
-> +		 * are sure it's worth. Split it if we are only owner.
-> +		 */
-> +		if (PageTransCompound(page)) {
-> +			if (page_mapcount(page) != 1)
-> +				break;
-> +			get_page(page);
-> +			if (!trylock_page(page)) {
-> +				put_page(page);
-> +				break;
-> +			}
-> +			pte_unmap_unlock(orig_pte, ptl);
-> +			if (split_huge_page(page)) {
-> +				unlock_page(page);
-> +				put_page(page);
-> +				pte_offset_map_lock(mm, pmd, addr, &ptl);
-> +				break;
-> +			}
-> +			unlock_page(page);
-> +			put_page(page);
-> +			pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
-> +			pte--;
-> +			addr -= PAGE_SIZE;
-> +			continue;
-> +		}
-> +
-> +		VM_BUG_ON_PAGE(PageTransCompound(page), page);
-> +
-> +		if (isolate_lru_page(page))
-> +			continue;
-> +
-> +		if (pte_young(ptent)) {
-> +			ptent = ptep_get_and_clear_full(mm, addr, pte,
-> +							tlb->fullmm);
-> +			ptent = pte_mkold(ptent);
-> +			set_pte_at(mm, addr, pte, ptent);
-> +			tlb_remove_tlb_entry(tlb, pte, addr);
-> +		}
-> +		ClearPageReferenced(page);
-> +		test_and_clear_page_young(page);
-> +		list_add(&page->lru, &page_list);
-> +	}
-> +
-> +	arch_leave_lazy_mmu_mode();
-> +	pte_unmap_unlock(orig_pte, ptl);
-> +	reclaim_pages(&page_list);
-> +	cond_resched();
-> +
-> +	return 0;
+> +    hvaddr_to_free = qemu_map_ram_ptr(mrs.mr->ram_block, mrs.offset_within_region);
+> +    trace_virtio_balloon_hinting_request(addr, len);
+> +    ret = qemu_madvise(hvaddr_to_free,len, QEMU_MADV_FREE);
+> +    if (ret == -1) {
+> +	warn_report("%s: Madvise failed with error:%d", __func__, ret);
+> +    }
 > +}
+> +
+> +static void virtio_balloon_handle_page_hinting(VirtIODevice *vdev,
+> +					       VirtQueue *vq)
+> +{
+> +    VirtQueueElement *elem;
+> +    size_t offset = 0;
+> +    uint64_t gpa, len;
+> +    elem = virtqueue_pop(vq, sizeof(VirtQueueElement));
+> +    if (!elem) {
+> +        return;
+> +    }
+> +    /* For pending hints which are < max_pages(16), 'gpa != 0' ensures that we
+> +     * only read the buffer which holds a valid PFN value.
+> +     * TODO: Find a better way to do this.
 
-I know you have briefly talked about code sharing already.
+Indeed. In fact, what is wrong with passing the gpa as
+part of the element itself?
 
-While I agree that sharing with MADV_FREE is maybe a stretch, I
-applied these patches and compared the pageout and the cold page table
-functions, and they are line for line the same EXCEPT for 2-3 lines at
-the very end, where one reclaims and the other deactivates. It would
-be good to share here, it shouldn't be hard or result in fragile code.
-
-Something like int madvise_cold_or_pageout_range(..., bool pageout)?
+> +     */
+> +    while (iov_to_buf(elem->out_sg, elem->out_num, offset, &gpa, 8) == 8 && gpa != 0) {
+> +	offset += 8;
+> +	offset += iov_to_buf(elem->out_sg, elem->out_num, offset, &len, 8);
+> +	if (!qemu_balloon_is_inhibited()) {
+> +	    free_mem_range(gpa, len);
+> +	}
+> +    }
+> +    virtqueue_push(vq, elem, offset);
+> +    virtio_notify(vdev, vq);
+> +    g_free(elem);
+> +}
+> +
+>  static void virtio_balloon_handle_output(VirtIODevice *vdev, VirtQueue *vq)
+>  {
+>      VirtIOBalloon *s = VIRTIO_BALLOON(vdev);
+> @@ -694,6 +749,7 @@ static uint64_t virtio_balloon_get_features(VirtIODevice *vdev, uint64_t f,
+>      VirtIOBalloon *dev = VIRTIO_BALLOON(vdev);
+>      f |= dev->host_features;
+>      virtio_add_feature(&f, VIRTIO_BALLOON_F_STATS_VQ);
+> +    virtio_add_feature(&f, VIRTIO_BALLOON_F_HINTING);
+>  
+>      return f;
+>  }
+> @@ -780,6 +836,7 @@ static void virtio_balloon_device_realize(DeviceState *dev, Error **errp)
+>      s->ivq = virtio_add_queue(vdev, 128, virtio_balloon_handle_output);
+>      s->dvq = virtio_add_queue(vdev, 128, virtio_balloon_handle_output);
+>      s->svq = virtio_add_queue(vdev, 128, virtio_balloon_receive_stats);
+> +    s->hvq = virtio_add_queue(vdev, 128, virtio_balloon_handle_page_hinting);
+>  
+>      if (virtio_has_feature(s->host_features,
+>                             VIRTIO_BALLOON_F_FREE_PAGE_HINT)) {
+> @@ -875,6 +932,8 @@ static void virtio_balloon_instance_init(Object *obj)
+>  
+>      object_property_add(obj, "guest-stats", "guest statistics",
+>                          balloon_stats_get_all, NULL, NULL, s, NULL);
+> +    object_property_add(obj, "guest-page-hinting", "guest page hinting",
+> +                        NULL, NULL, NULL, s, NULL);
+>  
+>      object_property_add(obj, "guest-stats-polling-interval", "int",
+>                          balloon_stats_get_poll_interval,
+> diff --git a/include/hw/virtio/virtio-balloon.h b/include/hw/virtio/virtio-balloon.h
+> index 1afafb12f6..a58b24fdf2 100644
+> --- a/include/hw/virtio/virtio-balloon.h
+> +++ b/include/hw/virtio/virtio-balloon.h
+> @@ -44,7 +44,7 @@ enum virtio_balloon_free_page_report_status {
+>  
+>  typedef struct VirtIOBalloon {
+>      VirtIODevice parent_obj;
+> -    VirtQueue *ivq, *dvq, *svq, *free_page_vq;
+> +    VirtQueue *ivq, *dvq, *svq, *free_page_vq, *hvq;
+>      uint32_t free_page_report_status;
+>      uint32_t num_pages;
+>      uint32_t actual;
+> diff --git a/include/qemu/osdep.h b/include/qemu/osdep.h
+> index af2b91f0b8..bb9207e7f4 100644
+> --- a/include/qemu/osdep.h
+> +++ b/include/qemu/osdep.h
+> @@ -360,6 +360,11 @@ void qemu_anon_ram_free(void *ptr, size_t size);
+>  #else
+>  #define QEMU_MADV_REMOVE QEMU_MADV_INVALID
+>  #endif
+> +#ifdef MADV_FREE
+> +#define QEMU_MADV_FREE MADV_FREE
+> +#else
+> +#define QEMU_MADV_FREE QEMU_MADV_INVALID
+> +#endif
+>  
+>  #elif defined(CONFIG_POSIX_MADVISE)
+>  
+> @@ -373,6 +378,7 @@ void qemu_anon_ram_free(void *ptr, size_t size);
+>  #define QEMU_MADV_HUGEPAGE  QEMU_MADV_INVALID
+>  #define QEMU_MADV_NOHUGEPAGE  QEMU_MADV_INVALID
+>  #define QEMU_MADV_REMOVE QEMU_MADV_INVALID
+> +#define QEMU_MADV_FREE QEMU_MADV_INVALID
+>  
+>  #else /* no-op */
+>  
+> @@ -386,6 +392,7 @@ void qemu_anon_ram_free(void *ptr, size_t size);
+>  #define QEMU_MADV_HUGEPAGE  QEMU_MADV_INVALID
+>  #define QEMU_MADV_NOHUGEPAGE  QEMU_MADV_INVALID
+>  #define QEMU_MADV_REMOVE QEMU_MADV_INVALID
+> +#define QEMU_MADV_FREE QEMU_MADV_INVALID
+>  
+>  #endif
+>  
+> diff --git a/include/standard-headers/linux/virtio_balloon.h b/include/standard-headers/linux/virtio_balloon.h
+> index 9375ca2a70..f9e3e82562 100644
+> --- a/include/standard-headers/linux/virtio_balloon.h
+> +++ b/include/standard-headers/linux/virtio_balloon.h
+> @@ -36,6 +36,7 @@
+>  #define VIRTIO_BALLOON_F_DEFLATE_ON_OOM	2 /* Deflate balloon on OOM */
+>  #define VIRTIO_BALLOON_F_FREE_PAGE_HINT	3 /* VQ to report free pages */
+>  #define VIRTIO_BALLOON_F_PAGE_POISON	4 /* Guest is using page poisoning */
+> +#define VIRTIO_BALLOON_F_HINTING	5 /* Page hinting virtqueue */
+>  
+>  /* Size of a PFN in the balloon interface. */
+>  #define VIRTIO_BALLOON_PFN_SHIFT 12
+> -- 
+> 2.21.0
 
