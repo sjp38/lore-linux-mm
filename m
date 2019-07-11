@@ -4,71 +4,70 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-9.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable autolearn_force=no
-	version=3.4.0
+	URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6A95EC74A57
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 14:00:20 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0E7FAC74A35
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 14:00:22 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 21DDF21670
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 14:00:20 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 21DDF21670
+	by mail.kernel.org (Postfix) with ESMTP id D518F20872
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 14:00:21 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D518F20872
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 861D48E00C0; Thu, 11 Jul 2019 10:00:19 -0400 (EDT)
+	id BBB738E00BE; Thu, 11 Jul 2019 10:00:19 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7C07A8E0032; Thu, 11 Jul 2019 10:00:19 -0400 (EDT)
+	id B79628E0032; Thu, 11 Jul 2019 10:00:19 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 63A2C8E00BF; Thu, 11 Jul 2019 10:00:19 -0400 (EDT)
+	id 85DD88E00BF; Thu, 11 Jul 2019 10:00:19 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 14DC18E0032
+	by kanga.kvack.org (Postfix) with ESMTP id 323FD8E00BE
 	for <linux-mm@kvack.org>; Thu, 11 Jul 2019 10:00:19 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id r21so4750908edc.6
+Received: by mail-ed1-f71.google.com with SMTP id k22so4766373ede.0
         for <linux-mm@kvack.org>; Thu, 11 Jul 2019 07:00:19 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references;
-        bh=NajLKKyXyleKQwtS3hq9FmbF1SSJAJnGnJ4XCzpHh5c=;
-        b=gcJC+WilTfTjJzMzpsuDL7dSvZYnlPQ8ltG5EqxxIE0E/ftbfWm98XeOHDC7qXCkdw
-         kaIVdm1XRpDeLs0mSNGIyFOrXH6Oo8x5x1xfZ2VR50Ot9HaysWp3HNY+cJXCKZgulUBx
-         hin9dEBPs4NwIWO11Cl0QsnNEOTjazYe4zG1sT8fyvxAbXyTnyam9Mjt9NYpehoSPm87
-         khbc6cq7yKnbt1KDCKnv3CtPwhmPzcvw0X+uSwT/DNnkcJZT5+jSWOh/lASCvOcFOANy
-         w+mLDPPnmo4wiMxObTTzZE1QAbNRI+5VaGyRGIkb6va0d7UecMuBd3t3WDQvkGDDol3F
-         TrvQ==
+        bh=1pb0fF7x3AUZ7sT3Hdxp01Lg2ofbqblakH9rhiFJp7c=;
+        b=YCaoMrxIHSNRM7NzRbhZKKkKDG80ULnVD883khaPgBW9Vl2tXeBlNxLJ4I7Xjtvf7a
+         obuuorMzimLyEJTte2+wHLDLZSCIFPmYVXMbCAuD+uRCG5UvpdrKV0ZxcrhNdExVU1Bt
+         R5iVQe45sYjA2H5EXHo35KTVzmNTswFT6UcFh8++dSFTso6XajQXtLGh9dxphr/0CaEP
+         s2bWb1wQnck6Q9wWuQSVuNVuzVeXI6a/EOVUdNrJx+k/OTnvC9sbSR44RuWJ+CsrYEUM
+         H2MWktxOe+vJzKWIoahfqOcSgCLMIntVYykVbHjn9T++EmOi1XTHrYcleOrdCdEnwXq4
+         K7+A==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
-X-Gm-Message-State: APjAAAXxybuyHDk3C4aSDqfa1GwVMnsodaY4lNPn0FFQsBTbfafX7wgg
-	AO3T9R2uH1of38++asBEwL1HeC8IASh684SP+IvOrmxBVezTE3cSgcOqp5QcOLcPfqEjFUhFUEb
-	Rx3sBEBglUFJMYsKhRcVjE93LEnFd3GP5QtYB5pVPzMenBZJWfSTNjS5JagBIgjCVrA==
-X-Received: by 2002:aa7:c393:: with SMTP id k19mr3698897edq.76.1562853618641;
+X-Gm-Message-State: APjAAAVFFWLsgH2p1ApULaX5X9e4kUASUbjZotpx7FWTgpN268x1JgDM
+	2vayTBmw58PENjEv0M7yF2G/D/QfWzJ302gLaggoF8wHwbeFO5woPn+J9spvEW4+yBXf/M/tdsl
+	7LNMpbfrGJDA3AdLH/NCvM1QGwGdRPrfuWM4nRMWT8P8ztu3Myd4Ha2eli6puQg9dzA==
+X-Received: by 2002:a17:906:304d:: with SMTP id d13mr3210041ejd.99.1562853618777;
         Thu, 11 Jul 2019 07:00:18 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxnBFAkWUIdxIwpjPDbazNnZVB2Hig0nbqo4rq5t7+plKEmNKg5livLJVYawPIMYvPKUazd
-X-Received: by 2002:aa7:c393:: with SMTP id k19mr3698774edq.76.1562853617675;
+X-Google-Smtp-Source: APXvYqyYGl7UEME7iSR0ZEiv3KrxBIROxo3pXaQRg6FVYOYzeZPEtj4K5oKuvrDJG+CwKWWSk/XH
+X-Received: by 2002:a17:906:304d:: with SMTP id d13mr3209924ejd.99.1562853617668;
         Thu, 11 Jul 2019 07:00:17 -0700 (PDT)
 ARC-Seal: i=1; a=rsa-sha256; t=1562853617; cv=none;
         d=google.com; s=arc-20160816;
-        b=QGt/tmLOPBo7ntV3qrFFyFsSkVkKBG8f2ulpgd/6I1EIRJiRGQKG+lqzSLR/lz8yXv
-         NDuX4+bp0naoCHcxXj7mu9yF+f/9fHPlTnTZdLVD8ovYLvC9mIHS3XZ4dPV5tImqx89w
-         yaaOq8VWbWPZ/uclFJhxKNrH7YP0N5xfp5VF8ohVUD2jLkRG6Pr3ZMq+fTQoO1DF0WKR
-         m2FsBs2PlATFtCYBGkyP0FZSypM2N66zydAcSiU9gXo9iCLEGrhWvDj5t67+G15IBZI+
-         Mkm9OFja3+idEy1yKVAiH7bXM1cbNY4LbsQZlDcj5fCo4so+V7wCnweJOhFim35r+WjH
-         Ep1w==
+        b=bl50RqOlA9Ex4GCaeEBHipwPvFvJTVk2DvWGYmUQXE4sUjlgaEpKp0/9Y4NDCDrANU
+         V+zq0A8HaEybgoNkcoXja/jjGKGfIhj8h2MtUs1qIQ8/xCTDfzLeaytAhuNrpKgeVkFh
+         RYe/DbUjEqcN4V0EvXL/iDsYztsHGYEUtu2l6rqmzW7rD2pUszJ2W261RKF0EvpHAORJ
+         ZjX+BEj/gauCy3Sp2eJ/hgSBCL7v/HEZbFGYBDuqXumYiyx/gYfmno7gOOz2n8lU3qQU
+         L0Q3L54Cllh7xkx2Y+ejjmBz2I+bYirEgI3VNC7GkAvej7zBYAOqol78fXKYIV0lYusr
+         y7cg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=NajLKKyXyleKQwtS3hq9FmbF1SSJAJnGnJ4XCzpHh5c=;
-        b=rAFVMwBFB+RJfYT5sxa19qRMcaYyawWlqcaNqhoMyonMsQiRKXFgfdy+bMdH3JgDuv
-         YPNE1LZSyVcq8eluTp3LGO23AFQU4T9z5LDcfHidhVy3iWw4x9LBPV8iQ+zp1dfMP53i
-         lbA/fCykS8T+V4f/znMyLLLeIBImVlkhSSb3iftUPJRw5La1NALr3SjucXZrm3eWswWV
-         eudj08penpx4RSmSBlnae5vvgXJO5LmiIbiVvCWSQzP++XJ4fZpl7B96UuuV/ndriYlB
-         NXmrZD5AXzGa4k0MbWYTIukoeR4h6yKqM6AU7OfOmdje0D0yP9TbjxdwGsxrcHbHVYH0
-         0q4Q==
+        bh=1pb0fF7x3AUZ7sT3Hdxp01Lg2ofbqblakH9rhiFJp7c=;
+        b=MyI8Zqj19mw86THMQlq5bgRjxeYrZnTATpCBUYEOi6CeNTOD7MYBIX82bIAGUdKa+U
+         KNuFCuyMvN8z1Oc3cbVicbWO8rr/SQw1+CCrW10JiMYIFRXJ+XQkXr4s4QcuYL3mA9FX
+         rmjWHjnOd224hTcugEVzBWK0pfDi0zXNDn1f6bQQE4dnySfEC1CbCGbVUgiljJfFSfnz
+         OVJsjNLWZlEzioF2S783TYW8oZU3I+pVstl3zrbuIIHX64NZ6oGein8kNN4mjUdZ6527
+         UtfGO+Y/wll/jI2WQ9PhHcN4wICCtrKp3W3GjnCDjb+Kq92OH8cv9v7SYYXEDav5F0NM
+         P4wg==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id x16si3490826edb.209.2019.07.11.07.00.17
+        by mx.google.com with ESMTPS id e27si3607877edd.353.2019.07.11.07.00.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Thu, 11 Jul 2019 07:00:17 -0700 (PDT)
@@ -77,10 +76,10 @@ Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id F3AB4AF57;
+	by mx1.suse.de (Postfix) with ESMTP id F330AAF1B;
 	Thu, 11 Jul 2019 14:00:16 +0000 (UTC)
 Received: by quack2.suse.cz (Postfix, from userid 1000)
-	id 2E77A1E43CE; Thu, 11 Jul 2019 16:00:16 +0200 (CEST)
+	id 291371E43CC; Thu, 11 Jul 2019 16:00:16 +0200 (CEST)
 From: Jan Kara <jack@suse.cz>
 To: <linux-fsdevel@vger.kernel.org>
 Cc: <linux-mm@kvack.org>,
@@ -89,9 +88,9 @@ Cc: <linux-mm@kvack.org>,
 	Boaz Harrosh <boaz@plexistor.com>,
 	Jan Kara <jack@suse.cz>,
 	stable@vger.kernel.org
-Subject: [PATCH 3/3] xfs: Fix stale data exposure when readahead races with hole punch
-Date: Thu, 11 Jul 2019 16:00:12 +0200
-Message-Id: <20190711140012.1671-4-jack@suse.cz>
+Subject: [PATCH 2/3] fs: Export generic_fadvise()
+Date: Thu, 11 Jul 2019 16:00:11 +0200
+Message-Id: <20190711140012.1671-3-jack@suse.cz>
 X-Mailer: git-send-email 2.16.4
 In-Reply-To: <20190711140012.1671-1-jack@suse.cz>
 References: <20190711140012.1671-1-jack@suse.cz>
@@ -101,73 +100,51 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hole puching currently evicts pages from page cache and then goes on to
-remove blocks from the inode. This happens under both XFS_IOLOCK_EXCL
-and XFS_MMAPLOCK_EXCL which provides appropriate serialization with
-racing reads or page faults. However there is currently nothing that
-prevents readahead triggered by fadvise() or madvise() from racing with
-the hole punch and instantiating page cache page after hole punching has
-evicted page cache in xfs_flush_unmap_range() but before it has removed
-blocks from the inode. This page cache page will be mapping soon to be
-freed block and that can lead to returning stale data to userspace or
-even filesystem corruption.
+Filesystems will need to call this function from their fadvise handlers.
 
-Fix the problem by protecting handling of readahead requests by
-XFS_IOLOCK_SHARED similarly as we protect reads.
-
-CC: stable@vger.kernel.org
-Link: https://lore.kernel.org/linux-fsdevel/CAOQ4uxjQNmxqmtA_VbYW0Su9rKRk2zobJmahcyeaEVOFKVQ5dw@mail.gmail.com/
-Reported-by: Amir Goldstein <amir73il@gmail.com>
+CC: stable@vger.kernel.org # Needed by "xfs: Fix stale data exposure when
+					readahead races with hole punch"
 Signed-off-by: Jan Kara <jack@suse.cz>
 ---
- fs/xfs/xfs_file.c | 20 ++++++++++++++++++++
- 1 file changed, 20 insertions(+)
+ include/linux/fs.h | 2 ++
+ mm/fadvise.c       | 4 ++--
+ 2 files changed, 4 insertions(+), 2 deletions(-)
 
-diff --git a/fs/xfs/xfs_file.c b/fs/xfs/xfs_file.c
-index 76748255f843..88fe3dbb3ba2 100644
---- a/fs/xfs/xfs_file.c
-+++ b/fs/xfs/xfs_file.c
-@@ -33,6 +33,7 @@
- #include <linux/pagevec.h>
- #include <linux/backing-dev.h>
- #include <linux/mman.h>
-+#include <linux/fadvise.h>
+diff --git a/include/linux/fs.h b/include/linux/fs.h
+index f7fdfe93e25d..2666862ff00d 100644
+--- a/include/linux/fs.h
++++ b/include/linux/fs.h
+@@ -3536,6 +3536,8 @@ extern void inode_nohighmem(struct inode *inode);
+ /* mm/fadvise.c */
+ extern int vfs_fadvise(struct file *file, loff_t offset, loff_t len,
+ 		       int advice);
++extern int generic_fadvise(struct file *file, loff_t offset, loff_t len,
++			   int advice);
  
- static const struct vm_operations_struct xfs_file_vm_ops;
+ #if defined(CONFIG_IO_URING)
+ extern struct sock *io_uring_get_socket(struct file *file);
+diff --git a/mm/fadvise.c b/mm/fadvise.c
+index 467bcd032037..4f17c83db575 100644
+--- a/mm/fadvise.c
++++ b/mm/fadvise.c
+@@ -27,8 +27,7 @@
+  * deactivate the pages and clear PG_Referenced.
+  */
  
-@@ -939,6 +940,24 @@ xfs_file_fallocate(
- 	return error;
+-static int generic_fadvise(struct file *file, loff_t offset, loff_t len,
+-			   int advice)
++int generic_fadvise(struct file *file, loff_t offset, loff_t len, int advice)
+ {
+ 	struct inode *inode;
+ 	struct address_space *mapping;
+@@ -178,6 +177,7 @@ static int generic_fadvise(struct file *file, loff_t offset, loff_t len,
+ 	}
+ 	return 0;
  }
++EXPORT_SYMBOL(generic_fadvise);
  
-+STATIC int
-+xfs_file_fadvise(
-+	struct file *file,
-+	loff_t start,
-+	loff_t end,
-+	int advice)
-+{
-+	struct xfs_inode *ip = XFS_I(file_inode(file));
-+	int ret;
-+
-+	/* Readahead needs protection from hole punching and similar ops */
-+	if (advice == POSIX_FADV_WILLNEED)
-+		xfs_ilock(ip, XFS_IOLOCK_SHARED);
-+	ret = generic_fadvise(file, start, end, advice);
-+	if (advice == POSIX_FADV_WILLNEED)
-+		xfs_iunlock(ip, XFS_IOLOCK_SHARED);
-+	return ret;
-+}
- 
- STATIC loff_t
- xfs_file_remap_range(
-@@ -1235,6 +1254,7 @@ const struct file_operations xfs_file_operations = {
- 	.fsync		= xfs_file_fsync,
- 	.get_unmapped_area = thp_get_unmapped_area,
- 	.fallocate	= xfs_file_fallocate,
-+	.fadvise	= xfs_file_fadvise,
- 	.remap_file_range = xfs_file_remap_range,
- };
- 
+ int vfs_fadvise(struct file *file, loff_t offset, loff_t len, int advice)
+ {
 -- 
 2.16.4
 
