@@ -2,427 +2,227 @@ Return-Path: <SRS0=bABq=VI=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,USER_AGENT_GIT autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0DCF3C742A1
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 23:20:15 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 88B2AC742A1
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 23:25:48 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9D99A20872
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 23:20:14 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 29FCD2084B
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 23:25:47 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="tcTUtS8d"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9D99A20872
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (1024-bit key) header.d=os.amperecomputing.com header.i=@os.amperecomputing.com header.b="ZTvaGg4y"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 29FCD2084B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=quarantine dis=none) header.from=os.amperecomputing.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 226F68E0100; Thu, 11 Jul 2019 19:20:14 -0400 (EDT)
+	id 977798E0101; Thu, 11 Jul 2019 19:25:47 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1B1158E00DB; Thu, 11 Jul 2019 19:20:14 -0400 (EDT)
+	id 94E128E00DB; Thu, 11 Jul 2019 19:25:47 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 078BD8E0100; Thu, 11 Jul 2019 19:20:14 -0400 (EDT)
+	id 815CF8E0101; Thu, 11 Jul 2019 19:25:47 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
-	by kanga.kvack.org (Postfix) with ESMTP id D7A4F8E00DB
-	for <linux-mm@kvack.org>; Thu, 11 Jul 2019 19:20:13 -0400 (EDT)
-Received: by mail-io1-f71.google.com with SMTP id m26so8448021ioh.17
-        for <linux-mm@kvack.org>; Thu, 11 Jul 2019 16:20:13 -0700 (PDT)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 5CED88E00DB
+	for <linux-mm@kvack.org>; Thu, 11 Jul 2019 19:25:47 -0400 (EDT)
+Received: by mail-qt1-f199.google.com with SMTP id m25so5333328qtn.18
+        for <linux-mm@kvack.org>; Thu, 11 Jul 2019 16:25:47 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=oCPHoz17y0dpD/UZbIl3iQbaQKp5frubKji4q6qVvyg=;
-        b=HPTz5qLZr6RkiexIjoD3qI+uS36uC47qoLcDS4t8LTr5n2OkqIIiE8jg4oY7FYqie+
-         n8Qk21WUpq/bmG+vykHKWSRBXYOiTHUzVCJrfLz4Tr17d2n+2XIv6kBXoxJXRmfq+jb/
-         bOsaVBW1Lls0OTniWlJJvrXG1SyEYa/1wJ7HtIrlki8cDk9ueiAGcBmSSnY2H9hNn6US
-         hRHp7cN7dcGXFXYOQ/wWWRNXBmIv4pQ9rDlmE3bOE6rV7BH0qchE/EdV5q7pZ9Y6OE0e
-         9JZnmiLCJNdsaWuFz67F4aNxV7oSwGWxiA+YF6VweeBPdceEbvZAUtiibYukOelvoMRI
-         v7Yg==
-X-Gm-Message-State: APjAAAUZi4EYq//njj6ToaEV2p6Mx8esp6hFg7AhYj6X3VJ9/sk4yVp0
-	IUStBZMQBSAlysDtdwzma0AnmhS+WsuQoT7ccV4RLevV3DDe79acSu5F5goSzmhsJWh9WQW6Vwd
-	nVMTPnyizvXpwuLSC+PlE6bSVZUXDaEMBColEICffA6OQbiV0dyQ1LePFJQelbZNQew==
-X-Received: by 2002:a02:ce35:: with SMTP id v21mr7446790jar.108.1562887213524;
-        Thu, 11 Jul 2019 16:20:13 -0700 (PDT)
-X-Received: by 2002:a02:ce35:: with SMTP id v21mr7446671jar.108.1562887212158;
-        Thu, 11 Jul 2019 16:20:12 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562887212; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
+         :thread-index:date:message-id:accept-language:content-language
+         :content-transfer-encoding:mime-version;
+        bh=xULxKrwm/DZUk8Kcvcen9hZoezlHQR4cyK84iGsY8ZY=;
+        b=HRaJc8n+gwObtna7whdVaQPuaWhvZfYgDq5PyaYKPLGIf9Tgu3ROt99mnZnJlQHYX1
+         /qWHIlXWhykcx3hfdNncSaMbtpwkSgEujIMCLP99mRvhDU+mhFVSRvandC18g8Ll3aOS
+         TmGs63BRkijcv6hkLcQMu9bZ8zaB77w6Z6MMYYhbO73MhsQJnYmeKtXrlKJpjU2hNLzM
+         sY4XvkNCnxrucymuSe2nQrUGiQTlDec1+Qx5cuOGdnxi/RLX9X6k75dJq1zad1FDC4ti
+         hDUhKp3u25YH6HfSxvSZLE0Hw8Go7yB+tB8HPxUM/Te7vmXV0y9LnPI+LySXwNGfKiID
+         YN8w==
+X-Gm-Message-State: APjAAAWr9RGEXSz1EYOlK+XFVZ2DUeLIBJFqtUW0S4N6tW/QLB6eh7DT
+	R69kTtcsRrli5PmQoufDZC962GO1ZVTm60JwC0XzFP1cg1p39l/YiJ5gVJkkEYNWWUf5edgHe0v
+	f5HliJmOHvAriIvhanX9YfmwBguoCiZvVQjbqR6CbmHFM0ntGCQzQMO5FcFlQyfl8YQ==
+X-Received: by 2002:ac8:3a63:: with SMTP id w90mr3918468qte.371.1562887547127;
+        Thu, 11 Jul 2019 16:25:47 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxaeIXYBhyCXCnlCTrOLFhCfq0xEYVtF71d0b2E082XbU54rxUEylCTOxEZ6040NGtbGUlj
+X-Received: by 2002:ac8:3a63:: with SMTP id w90mr3918438qte.371.1562887546514;
+        Thu, 11 Jul 2019 16:25:46 -0700 (PDT)
+ARC-Seal: i=2; a=rsa-sha256; t=1562887546; cv=pass;
         d=google.com; s=arc-20160816;
-        b=nOit1HxY05i8OOX8STT24gaYQlM3YSRHLNi6LJyplbMg6YcM2nqWb05eGLbsuzapMF
-         IGcvxF4YVSQfccHza3vy+Ne1JC+4Q/yH1xXUEb+sUZq8XQkMrcaKg/Q+yY64GP2GzW17
-         cZUGQWmSlLGQJJWpBHjaKUGlHAfx3K+5sX7XrTOC+VqsIPEUh4hjjGLBr7oUiiRxkSXl
-         Yx/+5MJKsAcjOsLVxq2NWgBd41Fu0dMy9Z5Ic3BGtKOQO56onwgQxvWCqOdX4bFh1tMJ
-         TVqvjeoz/VAAcM/iKjcH9RlGyEd8ohNNRa/8O3ofIdSJbm1pZFtQiLFRmrDecm/LXaTL
-         /7oA==
-ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=oCPHoz17y0dpD/UZbIl3iQbaQKp5frubKji4q6qVvyg=;
-        b=btapKCleElt1SsyHIJ3b0Hw5uJK2fYMY3atQaDp9wKnRxwYFpMUhxcHDjYffTYT8EK
-         lCWjytihRNJcJjCSUVvS8RUYBD6lbde/3+/gj8g6EqW++t9MgamPWdiJlUXjRJ3hlQA7
-         8thFfSXezotAIH+acGvi29qrBugC6ya++FFpMJbB0LuHxYVOG+7r8Y+NCr3R8ZKuFimt
-         6DqgCJ1iCOlKDAsqAXs0ANycMEziUHt4SZNnqZLZsqowA3L+rj2ob6ssQZS8PyzOsbTL
-         3a2SViVOpsNgrjv2vOPAqQ5W2hd8qwf84SW+F6zlWxHa4L1vKzHGLkmJPOGsacGuq6S6
-         NTVw==
-ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=tcTUtS8d;
-       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id j184sor5832106iof.140.2019.07.11.16.20.12
+        b=cGGAbDikTUWFV6wi238L43WztugRwZ1pQ2xRItfMER0Y+VREkgJ15k2cmI7qBk8oO3
+         MsSVX62fd3gbRKish9DcQ9s3wtkQpmqBWQdj2EpD9LN+qVaX2JKnxd9eKD2xS+liBIdJ
+         NuT3F30ZJza9REI0GJ87R4yrY24ESLstEol2Uv8F0mMnK2fNXK8w71NUSE63sBfaIjLu
+         HkDWfKX6LxYgyRcceJ1Qq909z/JSUGunOtPMADPf/HLYRJcw2/6qM+U7z6mQJ/1B0p3b
+         jdMRIfHG6rVt8uDqcoEFoSnj0EnZPtDbCbIL9+Dmz2WqZ82Q/y2ABq06E0TKFkMr/ZeD
+         a4nw==
+ARC-Message-Signature: i=2; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
+        h=mime-version:content-transfer-encoding:content-language
+         :accept-language:message-id:date:thread-index:thread-topic:subject
+         :cc:to:from:dkim-signature;
+        bh=xULxKrwm/DZUk8Kcvcen9hZoezlHQR4cyK84iGsY8ZY=;
+        b=qeunGTjdFbrle5lKcRkhlUZBLY+u5Ts38bVuMQaQnFTfDIGI98VA2jdyyQUKbiV2+P
+         og98Z5nOpj2lGIlKhYMzDKUMsup1GvmP+gamtC63pHyQUCdFc1lK4FUakZhy+5YJVDpd
+         8IepxEt6DZw6wqCnOAQZyBVgygolyiai/unlZGnajUYtoGLHJ/DZr9B8/QU5B81STDhq
+         bSEz8Rp4DaTEPhqQLpjCDf9qvStHO7YEERdlIYyUgkq5ow3C83PXXj8/0zkeE0UR2D+C
+         R2uyUUqXyf7JvKMhUSUfE6BpZpBQyY3N0lbYW/VGv8QJjUmvVzIwR4yRMeX6OKppEwbk
+         c1JA==
+ARC-Authentication-Results: i=2; mx.google.com;
+       dkim=pass header.i=@os.amperecomputing.com header.s=selector1 header.b=ZTvaGg4y;
+       arc=pass (i=1 spf=pass spfdomain=os.amperecomputing.com dkim=pass dkdomain=os.amperecomputing.com dmarc=pass fromdomain=os.amperecomputing.com);
+       spf=pass (google.com: domain of hoan@os.amperecomputing.com designates 40.107.74.102 as permitted sender) smtp.mailfrom=hoan@os.amperecomputing.com;
+       dmarc=pass (p=QUARANTINE sp=QUARANTINE dis=NONE) header.from=amperecomputing.com
+Received: from NAM01-BN3-obe.outbound.protection.outlook.com (mail-eopbgr740102.outbound.protection.outlook.com. [40.107.74.102])
+        by mx.google.com with ESMTPS id k25si3856668qki.139.2019.07.11.16.25.46
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 11 Jul 2019 16:20:12 -0700 (PDT)
-Received-SPF: pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 11 Jul 2019 16:25:46 -0700 (PDT)
+Received-SPF: pass (google.com: domain of hoan@os.amperecomputing.com designates 40.107.74.102 as permitted sender) client-ip=40.107.74.102;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=tcTUtS8d;
-       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+       dkim=pass header.i=@os.amperecomputing.com header.s=selector1 header.b=ZTvaGg4y;
+       arc=pass (i=1 spf=pass spfdomain=os.amperecomputing.com dkim=pass dkdomain=os.amperecomputing.com dmarc=pass fromdomain=os.amperecomputing.com);
+       spf=pass (google.com: domain of hoan@os.amperecomputing.com designates 40.107.74.102 as permitted sender) smtp.mailfrom=hoan@os.amperecomputing.com;
+       dmarc=pass (p=QUARANTINE sp=QUARANTINE dis=NONE) header.from=amperecomputing.com
+ARC-Seal: i=1; a=rsa-sha256; s=arcselector9901; d=microsoft.com; cv=none;
+ b=Ts6L8iLdOURp8b9hazYgG2uO0Xw6IDj8MpvvOFuz4kKBismBdl9r0KTooSN4anHm/eBPGsAnOdJ56JdDCseXvTP5Av8bj4BkYQtRqjks4zt3SLYl1rdXLqkoMfrxKicwo2QFlKOVpOBwlotIqVQ1dXur84D3gfkP3dTNwJZiPZjk3/FBrc7+ZPH8+qrE6hP23NBn2M/mDk2LgorSbNQbKZgxaP+ebMFK2PfmJywIJA47227WckZxtXQNcbCuK7G6k89lHp6CGYmfqJX8LZ9De4EUXG0Zj3PGh7FFormcYfOSkjMuqEecxVKwyDaP6+Ppb++thXzeyAxkZkr9b1jhNA==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=microsoft.com;
+ s=arcselector9901;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=xULxKrwm/DZUk8Kcvcen9hZoezlHQR4cyK84iGsY8ZY=;
+ b=hqRlh6qKsH4+CajtYrm7ZHmJwnM/SPVgYw0tVK0YwaDt+Mx8e/ZZNmG027PnNnqZoJQpDaTTqrOrsqqPyonEAez/OQ+CDBmWvFdShfJtj/tDRviwdj1qBb6lpYCHmuAM7QXTEBvBATZLCzLMwZ2Avjwx7JcNykT/AoJT7q++LjOOhpD/Flf90G047hjXizWlql5yuMz2YFF0PAc7mKviML7F6K/iDOUx5cykmD2OsKvJOwZPtn87ayzv+zV4OPjhifNNEFGgWbn2BhOMjydVwiKiQpNHENWXPmXiG90bm4+5D7b8qtvQDmVrbbiUAH+CSq/ZxJfYMagKrb0ogfbHkQ==
+ARC-Authentication-Results: i=1; mx.microsoft.com 1;spf=pass
+ smtp.mailfrom=os.amperecomputing.com;dmarc=pass action=none
+ header.from=os.amperecomputing.com;dkim=pass
+ header.d=os.amperecomputing.com;arc=none
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=oCPHoz17y0dpD/UZbIl3iQbaQKp5frubKji4q6qVvyg=;
-        b=tcTUtS8dZco2rqXX31P2FSSeJcBGk6f+b/efZUS8D7qyxpaCnel/TDHDm4QpAKnE9j
-         e5VfKfLV6SuepCtL1g+e+fJh0z8genvbO4HtjQhMQuN7dlxoLExvc00D3V4WGKGOIu5s
-         qgaHbkJGjnEBhf5IZecdg2HKDeTqxPpAd4RMtHQiyemChbr8katgOaoupJaEHAYl7KSD
-         E6NuMEiXX9Gy5cnxWwGfIqjxp6Tq2sfbO9ffK8TJjnmYOj0mb2jnNHEpctl6yLx3vh9o
-         PFaCgm+MiDYZ3qjoKpsPrJlmyEVOkICA8RakfXehLjCsYoKj8L8CpZVPrVgxuIEx/ite
-         YFMw==
-X-Google-Smtp-Source: APXvYqzEaqbHfFNh+TRcl7ohEcstvzvXgd581ukBAhA/w4uEdRcz2hBu8SNgoIPOn2m6J1GhyxF+pIMqglwUhWaquXU=
-X-Received: by 2002:a6b:dd18:: with SMTP id f24mr6836460ioc.97.1562887211609;
- Thu, 11 Jul 2019 16:20:11 -0700 (PDT)
+ d=os.amperecomputing.com; s=selector1;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=xULxKrwm/DZUk8Kcvcen9hZoezlHQR4cyK84iGsY8ZY=;
+ b=ZTvaGg4yvmBsUMWLWTgr/fJWYWY5FDRZXzMIodPPFSejtCyuJVM538sQU7Pes1yrn5i9QbVxDWZmPfudPuh/jrZOr4ZKPfhJ3qwmKu7AqCJ7ILxklZEO86dBZrr4FR0mC4ZO9BbFguRKO36lxkmfNuoXrx/jVhD1KqPmJqxV3ZI=
+Received: from BYAPR01MB4085.prod.exchangelabs.com (52.135.237.22) by
+ BYAPR01MB5557.prod.exchangelabs.com (20.179.88.205) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.2073.10; Thu, 11 Jul 2019 23:25:44 +0000
+Received: from BYAPR01MB4085.prod.exchangelabs.com
+ ([fe80::9dbb:1b4c:bace:ef80]) by BYAPR01MB4085.prod.exchangelabs.com
+ ([fe80::9dbb:1b4c:bace:ef80%7]) with mapi id 15.20.2052.020; Thu, 11 Jul 2019
+ 23:25:44 +0000
+From: Hoan Tran OS <hoan@os.amperecomputing.com>
+To: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon
+	<will.deacon@arm.com>, Andrew Morton <akpm@linux-foundation.org>, Michal
+ Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Oscar Salvador
+	<osalvador@suse.de>, Pavel Tatashin <pavel.tatashin@microsoft.com>, Mike
+ Rapoport <rppt@linux.ibm.com>, Alexander Duyck
+	<alexander.h.duyck@linux.intel.com>, Benjamin Herrenschmidt
+	<benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael
+ Ellerman <mpe@ellerman.id.au>, Thomas Gleixner <tglx@linutronix.de>, Ingo
+ Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H . Peter Anvin"
+	<hpa@zytor.com>, "David S . Miller" <davem@davemloft.net>, Heiko Carstens
+	<heiko.carstens@de.ibm.com>, Vasily Gorbik <gor@linux.ibm.com>, Christian
+ Borntraeger <borntraeger@de.ibm.com>
+CC: "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>,
+	"linux-arm-kernel@lists.infradead.org"
+	<linux-arm-kernel@lists.infradead.org>, "linux-s390@vger.kernel.org"
+	<linux-s390@vger.kernel.org>, "sparclinux@vger.kernel.org"
+	<sparclinux@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>,
+	"linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>,
+	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Open Source
+ Submission <patches@amperecomputing.com>, Hoan Tran OS
+	<hoan@os.amperecomputing.com>
+Subject: [PATCH v2 0/5] mm: Enable CONFIG_NODES_SPAN_OTHER_NODES by default
+ for NUMA
+Thread-Topic: [PATCH v2 0/5] mm: Enable CONFIG_NODES_SPAN_OTHER_NODES by
+ default for NUMA
+Thread-Index: AQHVOD/24o0J5njgPEqkosNO5sbs8Q==
+Date: Thu, 11 Jul 2019 23:25:44 +0000
+Message-ID: <1562887528-5896-1-git-send-email-Hoan@os.amperecomputing.com>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+x-clientproxiedby: CY4PR19CA0045.namprd19.prod.outlook.com
+ (2603:10b6:903:103::31) To BYAPR01MB4085.prod.exchangelabs.com
+ (2603:10b6:a03:56::22)
+authentication-results: spf=none (sender IP is )
+ smtp.mailfrom=hoan@os.amperecomputing.com; 
+x-ms-exchange-messagesentrepresentingtype: 1
+x-mailer: git-send-email 2.7.4
+x-originating-ip: [4.28.12.214]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: 35488193-dd56-4657-ba35-08d706571887
+x-microsoft-antispam:
+ BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(2017052603328)(7193020);SRVR:BYAPR01MB5557;
+x-ms-traffictypediagnostic: BYAPR01MB5557:
+x-microsoft-antispam-prvs:
+ <BYAPR01MB5557DB615599B0BCAFAAF8C8F1F30@BYAPR01MB5557.prod.exchangelabs.com>
+x-ms-oob-tlc-oobclassifiers: OLM:9508;
+x-forefront-prvs: 0095BCF226
+x-forefront-antispam-report:
+ SFV:NSPM;SFS:(10019020)(4636009)(346002)(376002)(39840400004)(136003)(396003)(366004)(189003)(199004)(52116002)(66476007)(66556008)(66946007)(64756008)(66446008)(14454004)(5660300002)(1511001)(6506007)(386003)(71190400001)(71200400001)(6436002)(53936002)(66066001)(102836004)(25786009)(68736007)(6512007)(86362001)(3846002)(14444005)(2616005)(186003)(81166006)(26005)(2906002)(478600001)(4326008)(6486002)(7736002)(305945005)(54906003)(8936002)(110136005)(7416002)(6116002)(99286004)(476003)(316002)(8676002)(107886003)(81156014)(486006)(256004)(50226002)(921003)(1121003);DIR:OUT;SFP:1102;SCL:1;SRVR:BYAPR01MB5557;H:BYAPR01MB4085.prod.exchangelabs.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:0;
+received-spf: None (protection.outlook.com: os.amperecomputing.com does not
+ designate permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info:
+ LaK2A6JxGVhN9BP+NPmg4P7C+zX5H8qaEDrDEH1OTjGQyXaBI5hT6402K1LX9xPmNoq5oazMmY5arw0GLdnB8GENa/z7AO8Fs7GZtGflMJ4K0wNWFA+m0N0Mz3nNlsTCTmI7tEHP/Lt4+fjddSbZqgAAB9tWq9DpoCpY37T9KsWkEjIECCTtd0s9UQbEi6LvJL5mDutuWokU8Dqx2ATzmqbVFkAGuPjikJIfg/waU+JNVOjIrJS4u+qv3sZGOEZj8wDk1k+y81I6mT56n1mFVvGPwPz5y1CngGy1IBplFtE5Or4yI/J+qkstT0b147auTth+wsUDMPHhdxTnqGw8qnOuBqTJLkWoROmKArfnOr6ICga33jlPOOyiOcsxABVWVCkKVVATxbPp2vHVAeBoa0pIKIea2AicjYztHzcutgQ=
+Content-Type: text/plain; charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-References: <20190710195158.19640-1-nitesh@redhat.com> <20190710195158.19640-2-nitesh@redhat.com>
- <CAKgT0Ue3mVZ_J0GgMUP4PBW4SUD1=L9ixD5nUZybw9_vmBAT0A@mail.gmail.com> <3c6c6b93-eb21-a04c-d0db-6f1b134540db@redhat.com>
-In-Reply-To: <3c6c6b93-eb21-a04c-d0db-6f1b134540db@redhat.com>
-From: Alexander Duyck <alexander.duyck@gmail.com>
-Date: Thu, 11 Jul 2019 16:20:00 -0700
-Message-ID: <CAKgT0UcaKhAf+pTeE1CRxqhiPtR2ipkYZZ2+aChetV7=LDeSeA@mail.gmail.com>
-Subject: Re: [RFC][Patch v11 1/2] mm: page_hinting: core infrastructure
-To: Nitesh Narayan Lal <nitesh@redhat.com>
-Cc: kvm list <kvm@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, 
-	linux-mm <linux-mm@kvack.org>, Paolo Bonzini <pbonzini@redhat.com>, lcapitulino@redhat.com, 
-	pagupta@redhat.com, wei.w.wang@intel.com, 
-	Yang Zhang <yang.zhang.wz@gmail.com>, Rik van Riel <riel@surriel.com>, 
-	David Hildenbrand <david@redhat.com>, "Michael S. Tsirkin" <mst@redhat.com>, dodgen@google.com, 
-	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, dhildenb@redhat.com, 
-	Andrea Arcangeli <aarcange@redhat.com>, john.starks@microsoft.com, 
-	Dave Hansen <dave.hansen@intel.com>, Michal Hocko <mhocko@suse.com>
-Content-Type: text/plain; charset="UTF-8"
+X-OriginatorOrg: os.amperecomputing.com
+X-MS-Exchange-CrossTenant-Network-Message-Id: 35488193-dd56-4657-ba35-08d706571887
+X-MS-Exchange-CrossTenant-originalarrivaltime: 11 Jul 2019 23:25:44.3751
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: 3bc2b170-fd94-476d-b0ce-4229bdc904a7
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-CrossTenant-userprincipalname: Hoan@os.amperecomputing.com
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: BYAPR01MB5557
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jul 11, 2019 at 10:58 AM Nitesh Narayan Lal <nitesh@redhat.com> wrote:
->
->
-> On 7/10/19 5:56 PM, Alexander Duyck wrote:
-> > On Wed, Jul 10, 2019 at 12:52 PM Nitesh Narayan Lal <nitesh@redhat.com> wrote:
-> >> This patch introduces the core infrastructure for free page hinting in
-> >> virtual environments. It enables the kernel to track the free pages which
-> >> can be reported to its hypervisor so that the hypervisor could
-> >> free and reuse that memory as per its requirement.
-> >>
-> >> While the pages are getting processed in the hypervisor (e.g.,
-> >> via MADV_FREE), the guest must not use them, otherwise, data loss
-> >> would be possible. To avoid such a situation, these pages are
-> >> temporarily removed from the buddy. The amount of pages removed
-> >> temporarily from the buddy is governed by the backend(virtio-balloon
-> >> in our case).
-> >>
-> >> To efficiently identify free pages that can to be hinted to the
-> >> hypervisor, bitmaps in a coarse granularity are used. Only fairly big
-> >> chunks are reported to the hypervisor - especially, to not break up THP
-> >> in the hypervisor - "MAX_ORDER - 2" on x86, and to save space. The bits
-> >> in the bitmap are an indication whether a page *might* be free, not a
-> >> guarantee. A new hook after buddy merging sets the bits.
-> >>
-> >> Bitmaps are stored per zone, protected by the zone lock. A workqueue
-> >> asynchronously processes the bitmaps, trying to isolate and report pages
-> >> that are still free. The backend (virtio-balloon) is responsible for
-> >> reporting these batched pages to the host synchronously. Once reporting/
-> >> freeing is complete, isolated pages are returned back to the buddy.
-> >>
-> >> There are still various things to look into (e.g., memory hotplug, more
-> >> efficient locking, possible races when disabling).
-> >>
-> >> Signed-off-by: Nitesh Narayan Lal <nitesh@redhat.com>
+In NUMA layout which nodes have memory ranges that span across other nodes,
+the mm driver can detect the memory node id incorrectly.
 
-So just FYI, I thought I would try the patches. It looks like there
-might be a bug somewhere that is causing it to free memory it
-shouldn't be. After about 10 minutes my VM crashed with a system log
-full of various NULL pointer dereferences. The only change I had made
-is to use MADV_DONTNEED instead of MADV_FREE in QEMU since my headers
-didn't have MADV_FREE on the host. It occurs to me one advantage of
-MADV_DONTNEED over MADV_FREE is that you are more likely to catch
-these sort of errors since it zeros the pages instead of leaving them
-intact.
+For example, with layout below
+Node 0 address: 0000 xxxx 0000 xxxx
+Node 1 address: xxxx 1111 xxxx 1111
 
-> >> ---
-> >>  include/linux/page_hinting.h |  45 +++++++
-> >>  mm/Kconfig                   |   6 +
-> >>  mm/Makefile                  |   1 +
-> >>  mm/page_alloc.c              |  18 +--
-> >>  mm/page_hinting.c            | 250 +++++++++++++++++++++++++++++++++++
-> >>  5 files changed, 312 insertions(+), 8 deletions(-)
-> >>  create mode 100644 include/linux/page_hinting.h
-> >>  create mode 100644 mm/page_hinting.c
-> >>
-> >> diff --git a/include/linux/page_hinting.h b/include/linux/page_hinting.h
-> >> new file mode 100644
-> >> index 000000000000..4900feb796f9
-> >> --- /dev/null
-> >> +++ b/include/linux/page_hinting.h
-> >> @@ -0,0 +1,45 @@
-> >> +/* SPDX-License-Identifier: GPL-2.0 */
-> >> +#ifndef _LINUX_PAGE_HINTING_H
-> >> +#define _LINUX_PAGE_HINTING_H
-> >> +
-> >> +/*
-> >> + * Minimum page order required for a page to be hinted to the host.
-> >> + */
-> >> +#define PAGE_HINTING_MIN_ORDER         (MAX_ORDER - 2)
-> >> +
-> > Why use (MAX_ORDER - 2)? Is this just because of the issues I pointed
-> > out earlier for is it due to something else? I'm just wondering if
-> > this will have an impact on architectures outside of x86 as I had
-> > chose pageblock_order which happened to be MAX_ORDER - 2 on x86, but I
-> > don't know that the impact of doing that is on other architectures
-> > versus the (MAX_ORDER - 2) approach you took here.
-> If I am not wrong then any order  < (MAX_ORDER - 2) will break the THP.
-> That's one reason we decided to stick with this.
+Note:
+ - Memory from low to high
+ - 0/1: Node id
+ - x: Invalid memory of a node
 
-That is true for x86, but I don't think that is true for other
-architectures. That is why I went with pageblock_order instead of just
-using a fixed value such as MAX_ORDER - 2.
+When mm probes the memory map, without CONFIG_NODES_SPAN_OTHER_NODES
+config, mm only checks the memory validity but not the node id.
+Because of that, Node 1 also detects the memory from node 0 as below
+when it scans from the start address to the end address of node 1.
 
-<snip>
+Node 0 address: 0000 xxxx xxxx xxxx
+Node 1 address: xxxx 1111 1111 1111
 
-> >> diff --git a/mm/page_hinting.c b/mm/page_hinting.c
-> >> new file mode 100644
-> >> index 000000000000..0bfa09f8c3ed
-> >> --- /dev/null
-> >> +++ b/mm/page_hinting.c
-> >> @@ -0,0 +1,250 @@
-> >> +// SPDX-License-Identifier: GPL-2.0
-> >> +/*
-> >> + * Page hinting core infrastructure to enable a VM to report free pages to its
-> >> + * hypervisor.
-> >> + *
-> >> + * Copyright Red Hat, Inc. 2019
-> >> + *
-> >> + * Author(s): Nitesh Narayan Lal <nitesh@redhat.com>
-> >> + */
-> >> +
-> >> +#include <linux/mm.h>
-> >> +#include <linux/slab.h>
-> >> +#include <linux/page_hinting.h>
-> >> +#include <linux/kvm_host.h>
-> >> +
-> >> +/*
-> >> + * struct zone_free_area: For a single zone across NUMA nodes, it holds the
-> >> + * bitmap pointer to track the free pages and other required parameters
-> >> + * used to recover these pages by scanning the bitmap.
-> >> + * @bitmap:            Pointer to the bitmap in PAGE_HINTING_MIN_ORDER
-> >> + *                     granularity.
-> >> + * @base_pfn:          Starting PFN value for the zone whose bitmap is stored.
-> >> + * @end_pfn:           Indicates the last PFN value for the zone.
-> >> + * @free_pages:                Tracks the number of free pages of granularity
-> >> + *                     PAGE_HINTING_MIN_ORDER.
-> >> + * @nbits:             Indicates the total size of the bitmap in bits allocated
-> >> + *                     at the time of initialization.
-> >> + */
-> >> +struct zone_free_area {
-> >> +       unsigned long *bitmap;
-> >> +       unsigned long base_pfn;
-> >> +       unsigned long end_pfn;
-> >> +       atomic_t free_pages;
-> >> +       unsigned long nbits;
-> >> +} free_area[MAX_NR_ZONES];
-> >> +
-> > You still haven't addressed the NUMA issue I pointed out with v10. You
-> > are only able to address the first set of zones with this setup. As
-> > such you can end up missing large sections of memory if it is split
-> > over multiple nodes.
-> I think I did.
+This layout could occur on any architecture. This patch enables
+CONFIG_NODES_SPAN_OTHER_NODES by default for NUMA to fix this issue.
 
-I just realized what you did. Actually this doesn't really improve
-things in my opinion. More comments below.
+V2:
+ * Revise the patch description
 
-> >
-> >> +static void init_hinting_wq(struct work_struct *work);
-> >> +static DEFINE_MUTEX(page_hinting_init);
-> >> +const struct page_hinting_config *page_hitning_conf;
-> >> +struct work_struct hinting_work;
-> >> +atomic_t page_hinting_active;
-> >> +
-> >> +void free_area_cleanup(int nr_zones)
-> >> +{
-> > I'm not sure why you are passing nr_zones as an argument here. Won't
-> > this always be MAX_NR_ZONES?
-> free_area_cleanup() gets called from page_hinting_disable() and
-> page_hinting_enable(). In page_hinting_enable() when the allocation
-> fails we may not have to perform cleanup for all the zones everytime.
+Hoan Tran (5):
+  mm: Enable CONFIG_NODES_SPAN_OTHER_NODES by default for NUMA
+  powerpc: Kconfig: Remove CONFIG_NODES_SPAN_OTHER_NODES
+  x86: Kconfig: Remove CONFIG_NODES_SPAN_OTHER_NODES
+  sparc: Kconfig: Remove CONFIG_NODES_SPAN_OTHER_NODES
+  s390: Kconfig: Remove CONFIG_NODES_SPAN_OTHER_NODES
 
-Just adding a NULL pointer check to this loop below would still keep
-it pretty cheap as the cost for initializing memory to 0 isn't that
-high, and this is slow path anyway. Either way I guess it works. You
-might want to reset the bitmap pointer to NULL though after you free
-it to more easily catch the double free case.
+ arch/powerpc/Kconfig | 9 ---------
+ arch/s390/Kconfig    | 8 --------
+ arch/sparc/Kconfig   | 9 ---------
+ arch/x86/Kconfig     | 9 ---------
+ mm/page_alloc.c      | 2 +-
+ 5 files changed, 1 insertion(+), 36 deletions(-)
 
-> >> +       int zone_idx;
-> >> +
-> >> +       for (zone_idx = 0; zone_idx < nr_zones; zone_idx++) {
-> >> +               bitmap_free(free_area[zone_idx].bitmap);
-> >> +               free_area[zone_idx].base_pfn = 0;
-> >> +               free_area[zone_idx].end_pfn = 0;
-> >> +               free_area[zone_idx].nbits = 0;
-> >> +               atomic_set(&free_area[zone_idx].free_pages, 0);
-> >> +       }
-> >> +}
-> >> +
-> >> +int page_hinting_enable(const struct page_hinting_config *conf)
-> >> +{
-> >> +       unsigned long bitmap_size = 0;
-> >> +       int zone_idx = 0, ret = -EBUSY;
-> >> +       struct zone *zone;
-> >> +
-> >> +       mutex_lock(&page_hinting_init);
-> >> +       if (!page_hitning_conf) {
-> >> +               for_each_populated_zone(zone) {
-> > So for_each_populated_zone will go through all of the NUMA nodes. So
-> > if I am not mistaken you will overwrite the free_area values of all
-> > the previous nodes with the last node in the system.
-> Not sure if I understood.
-
-I misread the code. More comments below.
-
-> >  So if we have a
-> > setup that has all the memory in the first node, and none in the
-> > second it would effectively disable free page hinting would it not?
-> Why will it happen? The base_pfn will still be pointing to the base_pfn
-> of the first node. Isn't?
-
-So this does address my concern however, it introduces a new issue.
-Specifically you could end up introducing a gap of unused bits if the
-memory from one zone is not immediately adjacent to another. This gets
-back to the SPARSEMEM issue that I think Dave pointed out.
-
-
-<snip>
-
-> >> +static void scan_zone_free_area(int zone_idx, int free_pages)
-> >> +{
-> >> +       int ret = 0, order, isolated_cnt = 0;
-> >> +       unsigned long set_bit, start = 0;
-> >> +       LIST_HEAD(isolated_pages);
-> >> +       struct page *page;
-> >> +       struct zone *zone;
-> >> +
-> >> +       for (;;) {
-> >> +               ret = 0;
-> >> +               set_bit = find_next_bit(free_area[zone_idx].bitmap,
-> >> +                                       free_area[zone_idx].nbits, start);
-> >> +               if (set_bit >= free_area[zone_idx].nbits)
-> >> +                       break;
-> >> +               page = pfn_to_online_page((set_bit << PAGE_HINTING_MIN_ORDER) +
-> >> +                               free_area[zone_idx].base_pfn);
-> >> +               if (!page)
-> >> +                       continue;
-> >> +               zone = page_zone(page);
-> >> +               spin_lock(&zone->lock);
-> >> +
-> >> +               if (PageBuddy(page) && page_private(page) >=
-> >> +                   PAGE_HINTING_MIN_ORDER) {
-> >> +                       order = page_private(page);
-> >> +                       ret = __isolate_free_page(page, order);
-> >> +               }
-> >> +               clear_bit(set_bit, free_area[zone_idx].bitmap);
-> >> +               atomic_dec(&free_area[zone_idx].free_pages);
-> >> +               spin_unlock(&zone->lock);
-> >> +               if (ret) {
-> >> +                       /*
-> >> +                        * restoring page order to use it while releasing
-> >> +                        * the pages back to the buddy.
-> >> +                        */
-> >> +                       set_page_private(page, order);
-> >> +                       list_add_tail(&page->lru, &isolated_pages);
-> >> +                       isolated_cnt++;
-> >> +                       if (isolated_cnt == page_hitning_conf->max_pages) {
-> >> +                               page_hitning_conf->hint_pages(&isolated_pages);
-> >> +                               release_buddy_pages(&isolated_pages);
-> >> +                               isolated_cnt = 0;
-> >> +                       }
-> >> +               }
-> >> +               start = set_bit + 1;
-> >> +       }
-> >> +       if (isolated_cnt) {
-> >> +               page_hitning_conf->hint_pages(&isolated_pages);
-> >> +               release_buddy_pages(&isolated_pages);
-> >> +       }
-> >> +}
-> >> +
-> > I really worry that this loop is going to become more expensive as the
-> > size of memory increases. For example if we hint on just 16 pages we
-> > would have to walk something like 4K bits, 512 longs, if a system had
-> > 64G of memory. Have you considered testing with a larger memory
-> > footprint to see if it has an impact on performance?
-> I am hoping this will be noticeable in will-it-scale's page_fault1, if I
-> run it on a larger system?
-
-What you will probably see is that the CPU that is running the scan is
-going to be sitting at somewhere near 100% because I cannot see how it
-can hope to stay efficient if it has to check something like 512 64b
-longs searching for just a handful of idle pages.
-
-> >
-> >> +static void init_hinting_wq(struct work_struct *work)
-> >> +{
-> >> +       int zone_idx, free_pages;
-> >> +
-> >> +       atomic_set(&page_hinting_active, 1);
-> >> +       for (zone_idx = 0; zone_idx < MAX_NR_ZONES; zone_idx++) {
-> >> +               free_pages = atomic_read(&free_area[zone_idx].free_pages);
-> >> +               if (free_pages >= page_hitning_conf->max_pages)
-> >> +                       scan_zone_free_area(zone_idx, free_pages);
-> >> +       }
-> >> +       atomic_set(&page_hinting_active, 0);
-> >> +}
-> >> +
-> >> +void page_hinting_enqueue(struct page *page, int order)
-> >> +{
-> >> +       int zone_idx;
-> >> +
-> >> +       if (!page_hitning_conf || order < PAGE_HINTING_MIN_ORDER)
-> >> +               return;
-> > I would think it is going to be expensive to be jumping into this
-> > function for every freed page. You should probably have an inline
-> > taking care of the order check before you even get here since it would
-> > be faster that way.
-> I see, I can take a look. Thanks.
-> >
-> >> +
-> >> +       bm_set_pfn(page);
-> >> +       if (atomic_read(&page_hinting_active))
-> >> +               return;
-> > So I would think this piece is racy. Specifically if you set a PFN
-> > that is somewhere below the PFN you are currently processing in your
-> > scan it is going to remain unset until you have another page freed
-> > after the scan is completed. I would worry you can end up with a batch
-> > free of memory resulting in a group of pages sitting at the start of
-> > your bitmap unhinted.
-> True, but that will be hinted next time threshold is met.
-
-Yes, but that assumes that there is another free immediately coming.
-It is possible that you have a big application run and then
-immediately shut down and have it free all its memory at once. Worst
-case scenario would be that it starts by freeing from the end and
-works toward the start. With that you could theoretically end up with
-a significant chunk of memory waiting some time for another big free
-to come along.
+--=20
+2.7.4
 
