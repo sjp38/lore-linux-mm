@@ -2,208 +2,147 @@ Return-Path: <SRS0=bABq=VI=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY,USER_AGENT_SANE_2
+X-Spam-Status: No, score=-0.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
 	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E79A6C74A4B
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 10:06:24 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7CAB1C74A4B
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 10:33:05 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8F1CD2064B
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 10:06:24 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8F1CD2064B
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=mediatek.com
+	by mail.kernel.org (Postfix) with ESMTP id 3A5AB20838
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 10:33:05 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="DQ3GDRDo"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3A5AB20838
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id EB3998E00B1; Thu, 11 Jul 2019 06:06:23 -0400 (EDT)
+	id B1D508E00B2; Thu, 11 Jul 2019 06:33:04 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E3CD08E0032; Thu, 11 Jul 2019 06:06:23 -0400 (EDT)
+	id ACCB78E0032; Thu, 11 Jul 2019 06:33:04 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CB71A8E00B1; Thu, 11 Jul 2019 06:06:23 -0400 (EDT)
+	id 9BBCE8E00B2; Thu, 11 Jul 2019 06:33:04 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 95EE38E0032
-	for <linux-mm@kvack.org>; Thu, 11 Jul 2019 06:06:23 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id i26so3155595pfo.22
-        for <linux-mm@kvack.org>; Thu, 11 Jul 2019 03:06:23 -0700 (PDT)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 639898E0032
+	for <linux-mm@kvack.org>; Thu, 11 Jul 2019 06:33:04 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id o6so3000208plk.23
+        for <linux-mm@kvack.org>; Thu, 11 Jul 2019 03:33:04 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:message-id
-         :subject:from:to:cc:date:in-reply-to:references
-         :content-transfer-encoding:mime-version;
-        bh=lBDaQaXRrUq4knov/Wq1uP79LCOzMma2QenhtGj5Gj0=;
-        b=hfdOPkKXoX1+52XFP6LkaVdNUrr/CI+S2LzLqcmeq8NLYi9/SNd4Y39m8DOcYyZwrr
-         2t+/Dtp1jXsCIjAVceVg4sA/cCX9pxSCzcDbPfADSm0yi670tG/MTqZcU4vlTD9GPEah
-         EUTM/x5LRUwGm2QObLqas1AAv80uuQF6wyDA5DgftrWeOb+AS3r1FU0zkfXMj3Bz/9B2
-         9W+qYrXrxvu7b5o1LknDw+TffK8TLkOXORcrlVQXVSPXhSoLNJZpfU4QIyJ1oHFfrKZN
-         LbhbO3fjWI7OaK/K7P+Tgg4USffZ2mD/3y4Qlo+U0s1vFzxHIUydYc2hnJigIQfuSK+x
-         qohA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of walter-zh.wu@mediatek.com designates 210.61.82.183 as permitted sender) smtp.mailfrom=walter-zh.wu@mediatek.com
-X-Gm-Message-State: APjAAAVQfwCEtoE4cSl7eq+gDc6eGUe3Mr7QGLBVm3b1LKdiKC59GInh
-	IK0OnbAc2/Mh+zkms0CigmnkWgG3yMEUXhBbRtmKfYeuob1VRnCuYIu5SAZ0em7wmWQ8hJgL4pB
-	kb/1TE+zSumnQVt380vROUKRXdWylyl7yDw6zu/S93dgQLjKVFSt61X4kyEsWulf5EA==
-X-Received: by 2002:a17:902:b688:: with SMTP id c8mr3626348pls.243.1562839583278;
-        Thu, 11 Jul 2019 03:06:23 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzbQycS5Ok9Xbk9cbuDSRSy2LkmCJqFc2Ra68arUn7Y/9DupM1ooDhYndhOyROGWyTsDJ+4
-X-Received: by 2002:a17:902:b688:: with SMTP id c8mr3626271pls.243.1562839582528;
-        Thu, 11 Jul 2019 03:06:22 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562839582; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:subject:to:cc
+         :references:in-reply-to:mime-version:user-agent:message-id
+         :content-transfer-encoding;
+        bh=QgO0JaQSHY4vnem11Q6Fyo0jOFA4EUMpQN6nqlQarLg=;
+        b=XqI7A6qVuH1o/Qu0QwIR5hkok3ccx6zBuGvvJ5aq8aqVI6uu9uTrzSGPg7469SU9a8
+         ZBQcLsYyO8hJrpJ4BaJGWe2/UFj2JZJCMGpvHK8rPLXQPv3yTWOWQxIOCebt5vA+7juf
+         OjStOmY83QxSVOS1612Tn7sSWu98M4RasleD1Abj5kdJECyTegOIl0zqc7SUCYsBmSZl
+         tZyRBMVS7Kn+hyxlxTK/nMka/1AHKZ8i/bIbYRRd9k2E/KhShLveZh00guKoDJoO4LIK
+         vwU9zJrWKJlkFz0E4ZHPlFMlqHWDaZN6e97qnmzYWwgn44qCyIgsgAaHQeHz6Xz2C1Ka
+         5YqA==
+X-Gm-Message-State: APjAAAW3NCc9+5zwJr6Yr+rsCF9vGlxlyw3CFte5Uw2pqSgMPInoMyL/
+	zgzopbmL9L6lmIuglyrFhONW8aUSmywYEPcSLmdM424CpaQDl3xBcK9+pSQAODhmiom7vOvli8O
+	MgyHv6v/pMZYRkQ2fIrJL6Vh9fSGkwWIC2htUrUOklBfLBxlTnsJF4OgHOCZ+QlySnQ==
+X-Received: by 2002:a65:5cca:: with SMTP id b10mr3705251pgt.365.1562841183720;
+        Thu, 11 Jul 2019 03:33:03 -0700 (PDT)
+X-Received: by 2002:a65:5cca:: with SMTP id b10mr3705182pgt.365.1562841182864;
+        Thu, 11 Jul 2019 03:33:02 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562841182; cv=none;
         d=google.com; s=arc-20160816;
-        b=qJApg2odd/kd660NHknz9Cr7oE6YJ6S3a63xMCqbZL8b/nW5esSDZigwqtBwCvqTLT
-         PT9mPCgjHii7wLO9oTYz1NR4SJh0l43DxlQs9A2z1X10kwxzTPZG8702JskX7I1WBfzg
-         YM3Qr4Unh1ZOyIU/a1orpwhLawwShKs3a2iklO8TTA0jARr9f1lXfzWjz3xXocRKi/lm
-         SBw7+Frintgcsxv956mEThHsKuvVKDl98kl08FWUPEU8ht60AafV5G/iBKrNc8eubfzc
-         NemlDTqvh2eFus667dwgFn3QtNFFEDVN3OUQBfwlGkekck2nLOCqnF2anqjC39eo3Uqi
-         uZ8w==
+        b=uxjOlgqmlri5bKbPXeGfeHqaGRDtKIuKqxqZ11kT8jcIfSAurQhj++Kwexum4edyS0
+         xYky1QalhyNen2hkHXFsTSl5ot+wXWpmFI8ZGMGl4Nsis9KwqOnfSIYQFQhG9DegaxAR
+         6xjZ0eFqJ3g3TuFafT8zknZWTPyNENlyWFfnOe5Zhp58yMOBVE3JgmtxppNsHPpPOY2B
+         1+4hUJuDcig9lSF1QsN46pTbZ67Zamfq8hkTpm2SOeMT9phSSZhXze1hx2h588uVYDYE
+         Y5ZOItz+PHlnDnflsC03lpEggD7ioXia2hPlGjMpPkkeVhAsrTD7AInpCQEyaaVRT3VE
+         Nvsw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:references:in-reply-to:date
-         :cc:to:from:subject:message-id;
-        bh=lBDaQaXRrUq4knov/Wq1uP79LCOzMma2QenhtGj5Gj0=;
-        b=i8zvh1AODkqGemt1PgIg/cr8U3nhPKpP9g0SxkbhU0uQKR8wOhwOiEEocveDAZAKpe
-         2pJaxxWMAExMN9vWpl7o1v2pNQEQF0tuKFJkiHNe68j4WCjou+ohQPm7pZ7AquT+PQG0
-         EEJyvYhs4ImLBrCwgRBACw/A5vT1+tRNc+ZlHxgF0ClTbvD5z2nBNeU92MTUw7IROmM7
-         moGr9MrlWoZAyll3MFd9uCjegzJxJ5D2RFVQZcQqI+GRyogNGYp0RJfOqdSEiy6eXSmV
-         QDpGXmGdQutXnOjRL4jwDxVoG5EUcANJLJE5CRgCdYOgnF6mYj9YnvJ49rz9OAOKndMg
-         dDwQ==
+        h=content-transfer-encoding:message-id:user-agent:mime-version
+         :in-reply-to:references:cc:to:subject:from:date:dkim-signature;
+        bh=QgO0JaQSHY4vnem11Q6Fyo0jOFA4EUMpQN6nqlQarLg=;
+        b=Rgy6nQbSyXMEAv8vQvdJfoV2pDFcaevCy3lLqtGRlGiAfZ18/1E9lsyOk+whyLj7uE
+         roaNTjKTZbT0wnTUkTQ/LZW6cYwB+5goCKMuk0wisF3C7+izyhHER0EWSPsapJtsWWog
+         s20H+WRoVA4iyRwM2MYJh3wZCcRtGyuM/L5mU702h4W2g+BbjjrbBeOjwOJW0/cOlg1v
+         vBgSii3T+flFxqEkOeJnh2C6dUxXKmcleJvcJiWplO98bvZS7bBBmKL20dHXU8bHYlFy
+         l+siudthW4V5hkZvFk1dSAH9ZSLBxH3+PQZr6pv8U7MDwf32wXJXW3fjFLTYfpdlLi67
+         IHNw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of walter-zh.wu@mediatek.com designates 210.61.82.183 as permitted sender) smtp.mailfrom=walter-zh.wu@mediatek.com
-Received: from mailgw01.mediatek.com ([210.61.82.183])
-        by mx.google.com with ESMTP id r4si4617383pgv.195.2019.07.11.03.06.21
-        for <linux-mm@kvack.org>;
-        Thu, 11 Jul 2019 03:06:22 -0700 (PDT)
-Received-SPF: pass (google.com: domain of walter-zh.wu@mediatek.com designates 210.61.82.183 as permitted sender) client-ip=210.61.82.183;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=DQ3GDRDo;
+       spf=pass (google.com: domain of npiggin@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=npiggin@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id u13sor6454411pjx.25.2019.07.11.03.33.02
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Thu, 11 Jul 2019 03:33:02 -0700 (PDT)
+Received-SPF: pass (google.com: domain of npiggin@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of walter-zh.wu@mediatek.com designates 210.61.82.183 as permitted sender) smtp.mailfrom=walter-zh.wu@mediatek.com
-X-UUID: 992731da7b244743b02a101ec454b63e-20190711
-X-UUID: 992731da7b244743b02a101ec454b63e-20190711
-Received: from mtkmrs01.mediatek.inc [(172.21.131.159)] by mailgw01.mediatek.com
-	(envelope-from <walter-zh.wu@mediatek.com>)
-	(mhqrelay.mediatek.com ESMTP with TLS)
-	with ESMTP id 749532910; Thu, 11 Jul 2019 18:06:20 +0800
-Received: from mtkcas07.mediatek.inc (172.21.101.84) by
- mtkmbs08n2.mediatek.inc (172.21.101.56) with Microsoft SMTP Server (TLS) id
- 15.0.1395.4; Thu, 11 Jul 2019 18:06:19 +0800
-Received: from [172.21.84.99] (172.21.84.99) by mtkcas07.mediatek.inc
- (172.21.101.73) with Microsoft SMTP Server id 15.0.1395.4 via Frontend
- Transport; Thu, 11 Jul 2019 18:06:19 +0800
-Message-ID: <1562839579.5846.12.camel@mtksdccf07>
-Subject: Re: [PATCH v3] kasan: add memory corruption identification for
- software tag-based mode
-From: Walter Wu <walter-zh.wu@mediatek.com>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>
-CC: Dmitry Vyukov <dvyukov@google.com>, Alexander Potapenko
-	<glider@google.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg
-	<penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim
-	<iamjoonsoo.kim@lge.com>, Matthias Brugger <matthias.bgg@gmail.com>, "Martin
- Schwidefsky" <schwidefsky@de.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Vasily
- Gorbik" <gor@linux.ibm.com>, Andrey Konovalov <andreyknvl@google.com>, "Jason
- A . Donenfeld" <Jason@zx2c4.com>, Miles Chen <miles.chen@mediatek.com>,
-	kasan-dev <kasan-dev@googlegroups.com>, LKML <linux-kernel@vger.kernel.org>,
-	Linux-MM <linux-mm@kvack.org>, Linux ARM
-	<linux-arm-kernel@lists.infradead.org>, <linux-mediatek@lists.infradead.org>,
-	wsd_upstream <wsd_upstream@mediatek.com>
-Date: Thu, 11 Jul 2019 18:06:19 +0800
-In-Reply-To: <d9fd1d5b-9516-b9b9-0670-a1885e79f278@virtuozzo.com>
-References: <20190613081357.1360-1-walter-zh.wu@mediatek.com>
-	 <da7591c9-660d-d380-d59e-6d70b39eaa6b@virtuozzo.com>
-	 <1560447999.15814.15.camel@mtksdccf07>
-	 <1560479520.15814.34.camel@mtksdccf07>
-	 <1560744017.15814.49.camel@mtksdccf07>
-	 <CACT4Y+Y3uS59rXf92ByQuFK_G4v0H8NNnCY1tCbr4V+PaZF3ag@mail.gmail.com>
-	 <1560774735.15814.54.camel@mtksdccf07>
-	 <1561974995.18866.1.camel@mtksdccf07>
-	 <CACT4Y+aMXTBE0uVkeZz+MuPx3X1nESSBncgkScWvAkciAxP1RA@mail.gmail.com>
-	 <ebc99ee1-716b-0b18-66ab-4e93de02ce50@virtuozzo.com>
-	 <1562640832.9077.32.camel@mtksdccf07>
-	 <d9fd1d5b-9516-b9b9-0670-a1885e79f278@virtuozzo.com>
-Content-Type: text/plain; charset="UTF-8"
-X-Mailer: Evolution 3.2.3-0ubuntu6 
-Content-Transfer-Encoding: 7bit
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=DQ3GDRDo;
+       spf=pass (google.com: domain of npiggin@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=npiggin@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=date:from:subject:to:cc:references:in-reply-to:mime-version
+         :user-agent:message-id:content-transfer-encoding;
+        bh=QgO0JaQSHY4vnem11Q6Fyo0jOFA4EUMpQN6nqlQarLg=;
+        b=DQ3GDRDo6ZuNjOSR3UHG+s0d1LxNGZvPzSaJsIYp8+OlmUuBgFj2VuEbOTBNaoZ0eh
+         KYzMXtEBMS67xXmsEThDtXCMiOFl/wHg/CXkj5erKCm9McDmtXT47vJYVN5WS/CjEd23
+         QHdQpKkAnHuI4SKeKAKPjdekPIyChEv/k676up6oVrY9q1wQLkDsteR1EDalAYrX5eY2
+         ibHvDy4SxcNPGMBafYmo8C9MtWx6buDs95iahvNPf7v8Ha2+luXs2UVS3kE72gFoto8b
+         bVeGwP2O5573U5C3Ylu/Iu4mXvP3yLfZH5jsWU+YUZAPiTTiAN8NlvfcQTm82GR/APzM
+         ld0A==
+X-Google-Smtp-Source: APXvYqzK0dRwEomozlBD3wvw4N40TKmDcZvFjPBT8AONodHNnHkIbT1P1WOUA7C7HYFWruPQhFDFWg==
+X-Received: by 2002:a17:90a:26e4:: with SMTP id m91mr4017907pje.93.1562841182209;
+        Thu, 11 Jul 2019 03:33:02 -0700 (PDT)
+Received: from localhost ([220.240.228.224])
+        by smtp.gmail.com with ESMTPSA id m10sm4677307pgq.67.2019.07.11.03.32.59
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Thu, 11 Jul 2019 03:33:01 -0700 (PDT)
+Date: Thu, 11 Jul 2019 20:30:00 +1000
+From: Nicholas Piggin <npiggin@gmail.com>
+Subject: Re: [RFC PATCH] mm: remove quicklist page table caches
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Christoph Lameter <cl@linux.com>, linux-arch@vger.kernel.org,
+	linux-ia64@vger.kernel.org, linux-mm@kvack.org, linux-sh@vger.kernel.org
+References: <20190711030339.20892-1-npiggin@gmail.com>
+	<20190711082539.GC29483@dhcp22.suse.cz>
+In-Reply-To: <20190711082539.GC29483@dhcp22.suse.cz>
 MIME-Version: 1.0
-X-TM-SNTS-SMTP:
-	FCA1495ABCFBF051C3A138F429F412BB004A5166313DECBCF8F5873EED71160F2000:8
-X-MTK: N
+User-Agent: astroid/0.14.0 (https://github.com/astroidmail/astroid)
+Message-Id: <1562840680.snxfuzmtxv.astroid@bobo.none>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2019-07-10 at 21:24 +0300, Andrey Ryabinin wrote:
-> 
-> On 7/9/19 5:53 AM, Walter Wu wrote:
-> > On Mon, 2019-07-08 at 19:33 +0300, Andrey Ryabinin wrote:
-> >>
-> >> On 7/5/19 4:34 PM, Dmitry Vyukov wrote:
-> >>> On Mon, Jul 1, 2019 at 11:56 AM Walter Wu <walter-zh.wu@mediatek.com> wrote:
-> 
-> >>>
-> >>> Sorry for delays. I am overwhelm by some urgent work. I afraid to
-> >>> promise any dates because the next week I am on a conference, then
-> >>> again a backlog and an intern starting...
-> >>>
-> >>> Andrey, do you still have concerns re this patch? This change allows
-> >>> to print the free stack.
-> >>
-> >> I 'm not sure that quarantine is a best way to do that. Quarantine is made to delay freeing, but we don't that here.
-> >> If we want to remember more free stacks wouldn't be easier simply to remember more stacks in object itself?
-> >> Same for previously used tags for better use-after-free identification.
-> >>
-> > 
-> > Hi Andrey,
-> > 
-> > We ever tried to use object itself to determine use-after-free
-> > identification, but tag-based KASAN immediately released the pointer
-> > after call kfree(), the original object will be used by another
-> > pointer, if we use object itself to determine use-after-free issue, then
-> > it has many false negative cases. so we create a lite quarantine(ring
-> > buffers) to record recent free stacks in order to avoid those false
-> > negative situations.
-> 
-> I'm telling that *more* than one free stack and also tags per object can be stored.
-> If object reused we would still have information about n-last usages of the object.
-> It seems like much easier and more efficient solution than patch you proposing.
-> 
-To make the object reused, we must ensure that no other pointers uses it
-after kfree() release the pointer.
-Scenario:
-1). The object reused information is valid when no another pointer uses
-it.
-2). The object reused information is invalid when another pointer uses
-it.
-Do you mean that the object reused is scenario 1) ?
-If yes, maybe we can change the calling quarantine_put() location. It
-will be fully use that quarantine, but at scenario 2) it looks like to
-need this patch.
-If no, maybe i miss your meaning, would you tell me how to use invalid
-object information? or?
+Michal Hocko's on July 11, 2019 6:25 pm:
+> On Thu 11-07-19 13:03:39, Nicholas Piggin wrote:
+>> Remove page table allocator "quicklists". These have been around for a
+>> long time, but have not got much traction in the last decade and are
+>> only used on ia64 and sh architectures.
+>>=20
+>> The numbers in the initial commit look interesting but probably don't
+>> apply anymore. If anybody wants to resurrect this it's in the git
+>> history, but it's unhelpful to have this code and divergent allocator
+>> behaviour for minor archs.
+>>=20
+>> Also it might be better to instead make more general improvements to
+>> page allocator if this is still so slow.
+>=20
+> Agreed. And if that is not possible for whatever reason then we have a
+> proper justification for the revert at least.
+>=20
+> Acked-by: Michal Hocko <mhocko@suse.com>
 
-> As for other concern about this particular patch
->  - It wasn't tested. There is deadlock (sleep in atomic) on the report path which would have been noticed it tested.
-we already used it on qemu and ran kasan UT. It look like ok.
+Thanks. If it's agreed with ia64 and sh maintainers, I can send
+individual patches through their trees, then the removal patch
+will be functionally a nop that can be easily pushed through.
 
->    Also GFP_NOWAIT allocation which fails very noisy and very often, especially in memory constraint enviromnent where tag-based KASAN supposed to be used.
-> 
-Maybe, we can change it into GFP_KERNEL.
-
->  - Inefficient usage of memory:
-> 	48 bytes (sizeof (qlist_object) + sizeof(kasan_alloc_meta)) per kfree() call seems like a lot. It could be less.
-> 
-We will think it.
-
-> 	The same 'struct kasan_track' stored twice in two different places (in object and in quarantine).
-> 	Basically, at least some part of the quarantine always duplicates information that we already know about
-> 	recently freed object. 
-> 
-> 	Since now we call kmalloc() from kfree() path, every unique kfree() stacktrace now generates additional unique stacktrace that
-> 	takes space in stackdepot.
-> 
-Duplicate information is solved after change the calling
-quarantine_put() location.
-
-
-
-
-
+Thanks,
+Nick
+=
 
