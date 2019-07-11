@@ -7,98 +7,98 @@ X-Spam-Status: No, score=-9.9 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
 	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT
 	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DDCD5C74A35
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 14:26:21 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 02A47C74A35
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 14:26:25 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9650F21019
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 14:26:21 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 9F34221019
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 14:26:24 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="xzFz4q2m"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9650F21019
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="doVQHd64"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9F34221019
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 89C718E00C6; Thu, 11 Jul 2019 10:26:14 -0400 (EDT)
+	id 47A5E8E00C7; Thu, 11 Jul 2019 10:26:15 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 821EC8E00C4; Thu, 11 Jul 2019 10:26:14 -0400 (EDT)
+	id 452938E00C4; Thu, 11 Jul 2019 10:26:15 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6C3908E00C6; Thu, 11 Jul 2019 10:26:14 -0400 (EDT)
+	id 2A4E98E00C7; Thu, 11 Jul 2019 10:26:15 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 391E58E00C4
-	for <linux-mm@kvack.org>; Thu, 11 Jul 2019 10:26:14 -0400 (EDT)
-Received: by mail-io1-f72.google.com with SMTP id h3so6948821iob.20
-        for <linux-mm@kvack.org>; Thu, 11 Jul 2019 07:26:14 -0700 (PDT)
+Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 098958E00C4
+	for <linux-mm@kvack.org>; Thu, 11 Jul 2019 10:26:15 -0400 (EDT)
+Received: by mail-io1-f71.google.com with SMTP id r27so6955035iob.14
+        for <linux-mm@kvack.org>; Thu, 11 Jul 2019 07:26:15 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references;
-        bh=SJbrUhc02AgBQXRxdyh8NMsUj+oqXOnPmIbZ5Fc5Oh8=;
-        b=C5TPt4zpCYv7DedysdqCDPFMIOALE9tJrjzEV7QnqnSYhVOFtjHA2jf8rtUtwSzC+c
-         TbG8e+6AximFQRrRe17xe92a3reoKLQNynMqxkR1u2kIP322x3zMjctnW79vRYm/7VQC
-         9oWdceXYgN1BFKmrwzuItYAuvKweHWCgkcz3YlUv+VSZnpX6hJdcOVRAfUwQsaH5URu9
-         ZJ8mwS0/49yaE7Lz/SZok1qiNT/1DYEwVGorg04O0XI86jOhbQ1UzIaw3EJPyLCjUgwv
-         6JqzRsbK10F1KoVJE5YrS8piRKm30WgJgEiaaAjj5zR8EOxbrCAsR/x3kZ9LCWolYaKq
-         65Kg==
-X-Gm-Message-State: APjAAAXK6iF3rgLZwc42bNQYPm3MZE5VYcsTpDPUSLxrJ6WpvScxcLok
-	LLZ/W4q4bBJjSgEalU5CpVRVIrrxVAf+ShcAJYWt74TZVgJ71OMyvolUpYHdUek7FqlUi2TUOk/
-	d+u77rgDvExyKkX7078RGBZdHrytw1H85Yzsf6kSNFXF8x3qn37+RyO7vqzRTUpJ5BQ==
-X-Received: by 2002:a05:6602:2413:: with SMTP id s19mr4680461ioa.161.1562855173959;
-        Thu, 11 Jul 2019 07:26:13 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqw6KBKPvTmr4al1nqBzniwWKnXMF9Of97qHxwxigS3XS5Lvm8E0jrdUItMeKwo6upWeHGt6
-X-Received: by 2002:a05:6602:2413:: with SMTP id s19mr4680385ioa.161.1562855173075;
+        bh=eEi0ZTZbIEZ47JResTnFegGOS+nY5vwRKMSKjoZA8rw=;
+        b=PCAAXDQjagJk+w6iab3zF5iQ2m6rarqdjpl8O3LdXgGSL030yDS6V5QgehotauMdLt
+         qn9V9IEucNmzGLsRJRXpCeooHPgFIwKR5vh5ff8H9NoicRs8XJu1Gf6dlhBnYa/u2yJR
+         hI2lPdFrWxdElhAsqySIZRHOwEKJncWqCCeLZTsoxfKqReMDYRb3N7Na+fNJPyaz1ZkT
+         yqceFSrCrcaCFA2ZDvYzY80nZy/q/UYYSnYi4j6X6fCJp2GnTP0+r1U4ztGeDkPyh5S7
+         bjnVPQVTvLedb1VUBdpyN3jEA6/CuxgO9pwmb+Ngucq5Kk9FvtfoBFVjFyoZKIuUKNEX
+         EfIA==
+X-Gm-Message-State: APjAAAXPs3tHnlCSayYX7qbrnQuzPDYNi2Wf7fOT1BXVlImnUcuQcyQu
+	L7GeirzhlgrIV69+zAVQovqE4ncFEcOFTtTNMmZeTLfH0PnZD0D/mgwxO7zPC5fb6wXQTHjSYex
+	I9sp0Do2VWhUlbKd6fItbn/7vb/VN/toDobScwuIRNZDcJ7hvduhSeQzFyLAQyuck+w==
+X-Received: by 2002:a6b:ed01:: with SMTP id n1mr1251294iog.255.1562855174780;
+        Thu, 11 Jul 2019 07:26:14 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqztWe9GdJ/M8YhchDDKwrVp4kWf6ryJAkWVKY1y/0M4oGwRy34iNvI8SXAOBdTFwcnJkvaA
+X-Received: by 2002:a6b:ed01:: with SMTP id n1mr1251182iog.255.1562855173568;
         Thu, 11 Jul 2019 07:26:13 -0700 (PDT)
 ARC-Seal: i=1; a=rsa-sha256; t=1562855173; cv=none;
         d=google.com; s=arc-20160816;
-        b=Syv7ajoF6rlxN2l+XNGjcbzXZr57dZV5LesuY9duIrqMX3nbG/TnqLLzXASic2I/JT
-         OdP3XITRzZsWKLQxDo0A24kVaoclKqi7R9qvyBPX0SvjP+yFZ/SwStkGOwGlnRdVCm3L
-         dd9Jme76u4O3y4wrQfAIPY93E9C6dRzK/+UD0KsuBNJGXn7FJvvO7+qgEgdOkrs8HyVp
-         claMI0kMerMGRxL+beGilk1rTWSgHxudrNBagvvTAT4sF0NhoKZrikgCjvtuWeAiPMrh
-         +h5XVhmKrtqPYbNcW9vOLBM85LUlxsDnJjtUiQrL153vXsRyI97Dvh0xGLufRUCb4Yh0
-         Jfcw==
+        b=MrX3ebL0/ji/VcbZ82IjmlWEqJN7ty9QmRr1L8jvgW6mW5tenWmBNOg2xjKFIDb/z4
+         pvyw9a+Cd851j7MB+h4IYXbH4fHyouzFQV+5BaVAhOoOngBpeImz0pCZwIXEMhijPYHY
+         MSJTdQuJpgLXkAUo2od7P/1LHsbjVUQ5lFxIS1Rv4UL5+x5SfIEP5uvV8dw8/M/QLRyI
+         Y+L60BaFHigKa+ByjSj0vWj4DE189I7As08uh1Y+PliCFwDrt0KS3EwonjM4XQEgAKys
+         z04yvZ4MQdiPaQZnDKN1LDa/4YAEQYfNWT64xHagGJP40DseOJkHz1/inj5GlVbApvE3
+         /+VA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from
          :dkim-signature;
-        bh=SJbrUhc02AgBQXRxdyh8NMsUj+oqXOnPmIbZ5Fc5Oh8=;
-        b=V3HyZAyzlWeC/LtxblIzHjsCo0Ykw4F08A9bgo/ACiC0VcMxtvVupNSgUWMZn+RqTt
-         6nAU6BUvcUNI7TcaC+yyLvRDIZSO/2yVlHGaAn1E9CVvTK8bFn4S4aTYqQRpXQqDuVJj
-         snEzAmhNZEnQEZChZccLa4My6rKnApbmbQhnuJmevdea7p50zqSgUFz4a9evIaJQxbec
-         TTmGTFx6yimKpi1yzUCG38T5IJiy+LFqSKkw1lpcmaC9P/ygWJY+XGu3uidukRj2oPW/
-         c1q/Tio8QcslDeilgeaJrfvSr/wDb4vcVRqnQ2tqJvK5vAQeI6xUYvOiIZ4qExZ2E+4y
-         Y4Mw==
+        bh=eEi0ZTZbIEZ47JResTnFegGOS+nY5vwRKMSKjoZA8rw=;
+        b=HKZYi/nPPoGmNuEcBq1KCYNfKliVjW3ZcwPRcSTkFn9hrFcT85yXdsI1yDkEvjZ8gf
+         AP6NBHB1sc3cKBMrrd9cvnh4C1jnNhSkFQt6Tc4UGc0xxaUB6lIJHTOrCRleLlOZ1GWO
+         Uhwe+HUOGrIzmXoBSC8e7gWQ9XvEB0HttejbSwobcxQu7RJl5CRMrBlibq2svIH+JjgJ
+         V7Zf2ci9sjHtXKUEhArpCLoVRN0/8eA1nuycjH93r54m7mjB9TdlxeF+p/NktMF14+Eb
+         prLK3Cm7tsOjWrJzpmfxMtXtXcWEs3T1GfYUnFs688dBiBcPO65Ecl383LO1tC7Qa5JA
+         fK0Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=xzFz4q2m;
-       spf=pass (google.com: domain of alexandre.chartre@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=alexandre.chartre@oracle.com;
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=doVQHd64;
+       spf=pass (google.com: domain of alexandre.chartre@oracle.com designates 141.146.126.78 as permitted sender) smtp.mailfrom=alexandre.chartre@oracle.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id r1si9932885jac.1.2019.07.11.07.26.12
+Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
+        by mx.google.com with ESMTPS id x22si8828685iob.85.2019.07.11.07.26.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Thu, 11 Jul 2019 07:26:13 -0700 (PDT)
-Received-SPF: pass (google.com: domain of alexandre.chartre@oracle.com designates 156.151.31.86 as permitted sender) client-ip=156.151.31.86;
+Received-SPF: pass (google.com: domain of alexandre.chartre@oracle.com designates 141.146.126.78 as permitted sender) client-ip=141.146.126.78;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=xzFz4q2m;
-       spf=pass (google.com: domain of alexandre.chartre@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=alexandre.chartre@oracle.com;
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=doVQHd64;
+       spf=pass (google.com: domain of alexandre.chartre@oracle.com designates 141.146.126.78 as permitted sender) smtp.mailfrom=alexandre.chartre@oracle.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
-	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x6BEOgjM001960;
-	Thu, 11 Jul 2019 14:26:00 GMT
+Received: from pps.filterd (aserp2120.oracle.com [127.0.0.1])
+	by aserp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x6BEOGvV100511;
+	Thu, 11 Jul 2019 14:25:58 GMT
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=from : to : cc :
  subject : date : message-id : in-reply-to : references; s=corp-2018-07-02;
- bh=SJbrUhc02AgBQXRxdyh8NMsUj+oqXOnPmIbZ5Fc5Oh8=;
- b=xzFz4q2m+w7TU5mOs3ALiXB2uWjQppudBO654kJwJ3xcjzMIDadZ8a8b6jz4YyHWy1y3
- WQjbtVLYHkN/sQca6bf2zIB7mNhCTUasiGxRSTnzAv+FRaXEzVfw9Y+TtQO4hmByjCup
- HS11ZsQytlUEzwToD8/1Qka8/FUyswUFS6tpdq5B5ty/H9uU9+lZ/iY44X92sv0bKyZR
- FyCRbHGO9wKQsS+KaiSfk6fjhgaVbgZ3csy84EpWlVvgjG8YbMp2E1bRONCx7joKhrFT
- fgbFCcCBEHZLg4ujshUEkzIPwKG7zacpaOBPeP/3uweuUnh4D/616+hC65KocGucwirZ aQ== 
+ bh=eEi0ZTZbIEZ47JResTnFegGOS+nY5vwRKMSKjoZA8rw=;
+ b=doVQHd64if/2kjiu3iJcq23b/ysNGaO3zFQ1Fbt9B8gbpk5AqZTdAGLfrkqQEQ1t29L7
+ vIj+rjQt4iariplk3zmGOGhNmniQGZlOnZRXIEVu/XP2NILI1mTBKcs9y9sxpXNe7zLm
+ WTpN/PNi/5Jc1UHjSLknTN0GAMM8aeWagwwQaQOKeG6DbEY5KTVF1BDM73GoF0OnyPfM
+ bujoi6mhv9a226crDPB4jhcZ5qwIaENDIb5Eyq65a1CYJBrVBQCE3nFbdPTH6gGouBW2
+ 4zVkdrvRe3v52Mrj+Eaw7ZDk5eDA1G0rOGRsj+izv+9ASQxDllLZRPrfz0ej8u3KokCM vA== 
 Received: from aserv0021.oracle.com (aserv0021.oracle.com [141.146.126.233])
-	by userp2130.oracle.com with ESMTP id 2tjk2u0dw2-1
+	by aserp2120.oracle.com with ESMTP id 2tjkkq0c69-1
 	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 11 Jul 2019 14:26:00 +0000
+	Thu, 11 Jul 2019 14:25:58 +0000
 Received: from achartre-desktop.fr.oracle.com (dhcp-10-166-106-34.fr.oracle.com [10.166.106.34])
-	by aserv0021.oracle.com (8.14.4/8.14.4) with ESMTP id x6BEPctv021444;
-	Thu, 11 Jul 2019 14:25:56 GMT
+	by aserv0021.oracle.com (8.14.4/8.14.4) with ESMTP id x6BEPctt021444;
+	Thu, 11 Jul 2019 14:25:50 GMT
 From: Alexandre Chartre <alexandre.chartre@oracle.com>
 To: pbonzini@redhat.com, rkrcmar@redhat.com, tglx@linutronix.de,
         mingo@redhat.com, bp@alien8.de, hpa@zytor.com,
@@ -108,15 +108,15 @@ To: pbonzini@redhat.com, rkrcmar@redhat.com, tglx@linutronix.de,
 Cc: konrad.wilk@oracle.com, jan.setjeeilers@oracle.com, liran.alon@oracle.com,
         jwadams@google.com, graf@amazon.de, rppt@linux.vnet.ibm.com,
         alexandre.chartre@oracle.com
-Subject: [RFC v2 04/26] mm/asi: Functions to track buffers allocated for an ASI page-table
-Date: Thu, 11 Jul 2019 16:25:16 +0200
-Message-Id: <1562855138-19507-5-git-send-email-alexandre.chartre@oracle.com>
+Subject: [RFC v2 02/26] mm/asi: Abort isolation on interrupt, exception and context switch
+Date: Thu, 11 Jul 2019 16:25:14 +0200
+Message-Id: <1562855138-19507-3-git-send-email-alexandre.chartre@oracle.com>
 X-Mailer: git-send-email 1.7.1
 In-Reply-To: <1562855138-19507-1-git-send-email-alexandre.chartre@oracle.com>
 References: <1562855138-19507-1-git-send-email-alexandre.chartre@oracle.com>
 X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9314 signatures=668688
 X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=2 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
+ suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
  lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
  classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
  definitions=main-1907110162
@@ -126,212 +126,520 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Add functions to track buffers allocated for an ASI page-table. An ASI
-page-table can have direct references to the kernel page table, at
-different levels (PGD, P4D, PUD, PMD). When freeing an ASI page-table,
-we should make sure that we free parts actually allocated for the ASI
-page-table, and not parts of the kernel page table referenced from the
-ASI page-table. To do so, we will keep track of buffers when building
-the ASI page-table.
+Address space isolation should be aborted if there is an interrupt,
+an exception or a context switch. Interrupt/exception handlers and
+context switch code need to run with the full kernel address space.
+Address space isolation is aborted by restoring the original CR3
+value used before entering address space isolation.
 
 Signed-off-by: Alexandre Chartre <alexandre.chartre@oracle.com>
 ---
- arch/x86/include/asm/asi.h  |   26 +++++++++++
- arch/x86/mm/Makefile        |    2 +-
- arch/x86/mm/asi.c           |    3 +
- arch/x86/mm/asi_pagetable.c |   99 +++++++++++++++++++++++++++++++++++++++++++
- 4 files changed, 129 insertions(+), 1 deletions(-)
- create mode 100644 arch/x86/mm/asi_pagetable.c
+ arch/x86/entry/entry_64.S     |   42 ++++++++++-
+ arch/x86/include/asm/asi.h    |  114 ++++++++++++++++++++++++++++
+ arch/x86/kernel/asm-offsets.c |    4 +
+ arch/x86/mm/asi.c             |  165 ++++++++++++++++++++++++++++++++++++++---
+ kernel/sched/core.c           |    4 +
+ 5 files changed, 315 insertions(+), 14 deletions(-)
 
+diff --git a/arch/x86/entry/entry_64.S b/arch/x86/entry/entry_64.S
+index 11aa3b2..3dc6174 100644
+--- a/arch/x86/entry/entry_64.S
++++ b/arch/x86/entry/entry_64.S
+@@ -38,6 +38,7 @@
+ #include <asm/export.h>
+ #include <asm/frame.h>
+ #include <asm/nospec-branch.h>
++#include <asm/asi.h>
+ #include <linux/err.h>
+ 
+ #include "calling.h"
+@@ -558,8 +559,15 @@ ENTRY(interrupt_entry)
+ 	TRACE_IRQS_OFF
+ 
+ 	CALL_enter_from_user_mode
+-
++#ifdef CONFIG_ADDRESS_SPACE_ISOLATION
++	jmp	2f
++#endif
+ 1:
++#ifdef CONFIG_ADDRESS_SPACE_ISOLATION
++	/* Abort address space isolation if it is active */
++	ASI_START_ABORT
++2:
++#endif
+ 	ENTER_IRQ_STACK old_rsp=%rdi save_ret=1
+ 	/* We entered an interrupt context - irqs are off: */
+ 	TRACE_IRQS_OFF
+@@ -583,6 +591,9 @@ common_interrupt:
+ 	call	do_IRQ	/* rdi points to pt_regs */
+ 	/* 0(%rsp): old RSP */
+ ret_from_intr:
++#ifdef CONFIG_ADDRESS_SPACE_ISOLATION
++	ASI_FINISH_ABORT
++#endif
+ 	DISABLE_INTERRUPTS(CLBR_ANY)
+ 	TRACE_IRQS_OFF
+ 
+@@ -947,6 +958,9 @@ ENTRY(\sym)
+ 	addq	$\ist_offset, CPU_TSS_IST(\shift_ist)
+ 	.endif
+ 
++#ifdef CONFIG_ADDRESS_SPACE_ISOLATION
++	ASI_FINISH_ABORT
++#endif
+ 	/* these procedures expect "no swapgs" flag in ebx */
+ 	.if \paranoid
+ 	jmp	paranoid_exit
+@@ -1182,6 +1196,16 @@ ENTRY(paranoid_entry)
+ 	xorl	%ebx, %ebx
+ 
+ 1:
++#ifdef CONFIG_ADDRESS_SPACE_ISOLATION
++	/*
++	 * If address space isolation is active then abort it and return
++	 * the original kernel CR3 in %r14.
++	 */
++	ASI_START_ABORT_ELSE_JUMP 2f
++	movq	%rdi, %r14
++	ret
++2:
++#endif
+ 	/*
+ 	 * Always stash CR3 in %r14.  This value will be restored,
+ 	 * verbatim, at exit.  Needed if paranoid_entry interrupted
+@@ -1265,6 +1289,15 @@ ENTRY(error_entry)
+ 	CALL_enter_from_user_mode
+ 	ret
+ 
++.Lerror_entry_check_address_space_isolation:
++#ifdef CONFIG_ADDRESS_SPACE_ISOLATION
++	/*
++	 * Abort address space isolation if it is active. This will restore
++	 * the original kernel CR3.
++	 */
++	ASI_START_ABORT
++#endif
++
+ .Lerror_entry_done:
+ 	TRACE_IRQS_OFF
+ 	ret
+@@ -1283,7 +1316,7 @@ ENTRY(error_entry)
+ 	cmpq	%rax, RIP+8(%rsp)
+ 	je	.Lbstep_iret
+ 	cmpq	$.Lgs_change, RIP+8(%rsp)
+-	jne	.Lerror_entry_done
++	jne	.Lerror_entry_check_address_space_isolation
+ 
+ 	/*
+ 	 * hack: .Lgs_change can fail with user gsbase.  If this happens, fix up
+@@ -1632,7 +1665,10 @@ end_repeat_nmi:
+ 	movq	%rsp, %rdi
+ 	movq	$-1, %rsi
+ 	call	do_nmi
+-
++	
++#ifdef CONFIG_ADDRESS_SPACE_ISOLATION
++	ASI_FINISH_ABORT
++#endif
+ 	/* Always restore stashed CR3 value (see paranoid_entry) */
+ 	RESTORE_CR3 scratch_reg=%r15 save_reg=%r14
+ 
 diff --git a/arch/x86/include/asm/asi.h b/arch/x86/include/asm/asi.h
-index 013d77a..3d965e6 100644
+index 8a13f73..ff126e1 100644
 --- a/arch/x86/include/asm/asi.h
 +++ b/arch/x86/include/asm/asi.h
-@@ -8,12 +8,35 @@
+@@ -4,6 +4,8 @@
  
+ #ifdef CONFIG_ADDRESS_SPACE_ISOLATION
+ 
++#ifndef __ASSEMBLY__
++
  #include <linux/spinlock.h>
  #include <asm/pgtable.h>
-+#include <linux/xarray.h>
-+
-+enum page_table_level {
-+	PGT_LEVEL_PTE,
-+	PGT_LEVEL_PMD,
-+	PGT_LEVEL_PUD,
-+	PGT_LEVEL_P4D,
-+	PGT_LEVEL_PGD
-+};
  
- #define ASI_FAULT_LOG_SIZE	128
+@@ -22,20 +24,132 @@ struct asi {
+ enum asi_session_state {
+ 	ASI_SESSION_STATE_INACTIVE,	/* no address space isolation */
+ 	ASI_SESSION_STATE_ACTIVE,	/* address space isolation is active */
++	ASI_SESSION_STATE_ABORTED,	/* isolation has been aborted */
+ };
  
- struct asi {
- 	spinlock_t		lock;		/* protect all attributes */
- 	pgd_t			*pgd;		/* ASI page-table */
-+
-+	/*
-+	 * An ASI page-table can have direct references to the full kernel
-+	 * page-table, at different levels (PGD, P4D, PUD, PMD). When freeing
-+	 * an ASI page-table, we should make sure that we free parts actually
-+	 * allocated for the ASI page-table, and not part of the full kernel
-+	 * page-table referenced from the ASI page-table.
-+	 *
-+	 * To do so, the backend_pages XArray is used to keep track of pages
-+	 * used for the kernel isolation page-table.
-+	 */
-+	struct xarray		backend_pages;		/* page-table pages */
-+	unsigned long		backend_pages_count;	/* pages count */
-+
- 	spinlock_t		fault_lock;	/* protect fault_log */
- 	unsigned long		fault_log[ASI_FAULT_LOG_SIZE];
- 	bool			fault_stack;	/* display stack of fault? */
-@@ -43,6 +66,9 @@ struct asi_session {
+ struct asi_session {
+ 	struct asi		*asi;		/* ASI for this session */
+ 	enum asi_session_state	state;		/* state of ASI session */
++	bool			retry_abort;	/* always retry abort */
++	unsigned int		abort_depth;	/* abort depth */
+ 	unsigned long		original_cr3;	/* cr3 before entering ASI */
+ 	struct task_struct	*task;		/* task during isolation */
+ } __aligned(PAGE_SIZE);
  
- DECLARE_PER_CPU_PAGE_ALIGNED(struct asi_session, cpu_asi_session);
- 
-+void asi_init_backend(struct asi *asi);
-+void asi_fini_backend(struct asi *asi);
++DECLARE_PER_CPU_PAGE_ALIGNED(struct asi_session, cpu_asi_session);
 +
  extern struct asi *asi_create(void);
  extern void asi_destroy(struct asi *asi);
  extern int asi_enter(struct asi *asi);
-diff --git a/arch/x86/mm/Makefile b/arch/x86/mm/Makefile
-index dae5c8a..b972f0f 100644
---- a/arch/x86/mm/Makefile
-+++ b/arch/x86/mm/Makefile
-@@ -49,7 +49,7 @@ obj-$(CONFIG_X86_INTEL_MPX)			+= mpx.o
- obj-$(CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS)	+= pkeys.o
- obj-$(CONFIG_RANDOMIZE_MEMORY)			+= kaslr.o
- obj-$(CONFIG_PAGE_TABLE_ISOLATION)		+= pti.o
--obj-$(CONFIG_ADDRESS_SPACE_ISOLATION)		+= asi.o
-+obj-$(CONFIG_ADDRESS_SPACE_ISOLATION)		+= asi.o asi_pagetable.o
+ extern void asi_exit(struct asi *asi);
  
- obj-$(CONFIG_AMD_MEM_ENCRYPT)	+= mem_encrypt.o
- obj-$(CONFIG_AMD_MEM_ENCRYPT)	+= mem_encrypt_identity.o
++/*
++ * Function to exit the current isolation. This is used to abort isolation
++ * when a task using isolation is scheduled out.
++ */
++static inline void asi_abort(void)
++{
++	enum asi_session_state asi_state;
++
++	asi_state = this_cpu_read(cpu_asi_session.state);
++	if (asi_state == ASI_SESSION_STATE_INACTIVE)
++		return;
++
++	asi_exit(this_cpu_read(cpu_asi_session.asi));
++}
++
++/*
++ * Barriers for code which sets CR3 to use the ASI page-table. That's
++ * the case, for example, when entering isolation, or during a VMExit if
++ * isolation was active. If such a code is interrupted before CR3 is
++ * effectively set, then the interrupt will abort isolation and restore
++ * the original CR3 value. But then, the code will sets CR3 to use the
++ * ASI page-table while isolation has been aborted by the interrupt.
++ *
++ * To prevent this issue, such a code should call asi_barrier_begin()
++ * before CR3 gets updated, and asi_barrier_end() after CR3 has been
++ * updated.
++ *
++ * asi_barrier_begin() will set retry_abort to true. This will force
++ * interrupts to retain the isolation abort state. Then, after the code
++ * has updated CR3, asi_barrier_end() will be able to check if isolation
++ * was aborted and effectively abort isolation in that case. Setting
++ * retry_abort to true will also force all interrupt to restore the
++ * original CR3; that's in case we have interrupts both before and
++ * after CR3 is set.
++ */
++static inline unsigned long asi_restore_cr3(void)
++{
++	unsigned long original_cr3;
++
++	/* TODO: Kick sibling hyperthread before switching to kernel cr3 */
++	original_cr3 = this_cpu_read(cpu_asi_session.original_cr3);
++	if (original_cr3)
++		write_cr3(original_cr3);
++
++	return original_cr3;
++}
++
++static inline void asi_barrier_begin(void)
++{
++	this_cpu_write(cpu_asi_session.retry_abort, true);
++	mb();
++}
++
++static inline void asi_barrier_end(void)
++{
++	enum asi_session_state state;
++
++	this_cpu_write(cpu_asi_session.retry_abort, false);
++	mb();
++	state = this_cpu_read(cpu_asi_session.state);
++	if (state == ASI_SESSION_STATE_ABORTED) {
++		(void) asi_restore_cr3();
++		asi_abort();
++		return;
++	}
++
++}
++
++#else  /* __ASSEMBLY__ */
++
++/*
++ * If address space isolation is active, start aborting isolation.
++ */
++.macro ASI_START_ABORT
++	movl	PER_CPU_VAR(cpu_asi_session + CPU_ASI_SESSION_state), %edi
++	testl	%edi, %edi
++	jz	.Lasi_start_abort_done_\@
++	call	asi_start_abort
++.Lasi_start_abort_done_\@:
++.endm
++
++/*
++ * If address space isolation is active, finish aborting isolation.
++ */
++.macro ASI_FINISH_ABORT
++	movl	PER_CPU_VAR(cpu_asi_session + CPU_ASI_SESSION_state), %edi
++	testl	%edi, %edi
++	jz	.Lasi_finish_abort_done_\@
++	call	asi_finish_abort
++.Lasi_finish_abort_done_\@:
++.endm
++
++/*
++ * If address space isolation is inactive then jump to the specified
++ * label. Otherwise, start aborting isolation.
++ */
++.macro ASI_START_ABORT_ELSE_JUMP asi_inactive_label:req
++	movl	PER_CPU_VAR(cpu_asi_session + CPU_ASI_SESSION_state), %edi
++	testl	%edi, %edi
++	jz	\asi_inactive_label
++	call	asi_start_abort
++	testq	%rdi, %rdi
++	jz	\asi_inactive_label
++.endm
++
++#endif	/* __ASSEMBLY__ */
++
+ #endif	/* CONFIG_ADDRESS_SPACE_ISOLATION */
+ 
+ #endif
+diff --git a/arch/x86/kernel/asm-offsets.c b/arch/x86/kernel/asm-offsets.c
+index 168543d..395d0c6 100644
+--- a/arch/x86/kernel/asm-offsets.c
++++ b/arch/x86/kernel/asm-offsets.c
+@@ -18,6 +18,7 @@
+ #include <asm/bootparam.h>
+ #include <asm/suspend.h>
+ #include <asm/tlbflush.h>
++#include <asm/asi.h>
+ 
+ #ifdef CONFIG_XEN
+ #include <xen/interface/xen.h>
+@@ -105,4 +106,7 @@ static void __used common(void)
+ 	OFFSET(TSS_sp0, tss_struct, x86_tss.sp0);
+ 	OFFSET(TSS_sp1, tss_struct, x86_tss.sp1);
+ 	OFFSET(TSS_sp2, tss_struct, x86_tss.sp2);
++
++	BLANK();
++	OFFSET(CPU_ASI_SESSION_state, asi_session, state);
+ }
 diff --git a/arch/x86/mm/asi.c b/arch/x86/mm/asi.c
-index 717160d..dfde245 100644
+index c3993b7..fabb923 100644
 --- a/arch/x86/mm/asi.c
 +++ b/arch/x86/mm/asi.c
-@@ -111,6 +111,7 @@ struct asi *asi_create(void)
- 	asi->pgd = page_address(page);
- 	spin_lock_init(&asi->lock);
- 	spin_lock_init(&asi->fault_lock);
-+	asi_init_backend(asi);
+@@ -84,9 +84,17 @@ int asi_enter(struct asi *asi)
+ 	enum asi_session_state state;
+ 	struct asi *current_asi;
+ 	struct asi_session *asi_session;
++	unsigned long original_cr3;
  
- 	err = asi_init_mapping(asi);
- 	if (err)
-@@ -132,6 +133,8 @@ void asi_destroy(struct asi *asi)
- 	if (asi->pgd)
- 		free_page((unsigned long)asi->pgd);
- 
-+	asi_fini_backend(asi);
+ 	state = this_cpu_read(cpu_asi_session.state);
+ 	/*
++	 * The "aborted" state is a transient state used in interrupt and
++	 * exception handlers while aborting isolation. So it shouldn't be
++	 * set when entering isolation.
++	 */
++	WARN_ON(state == ASI_SESSION_STATE_ABORTED);
 +
- 	kfree(asi);
++	/*
+ 	 * We can re-enter isolation, but only with the same ASI (we don't
+ 	 * support nesting isolation). Also, if isolation is still active,
+ 	 * then we should be re-entering with the same task.
+@@ -105,15 +113,44 @@ int asi_enter(struct asi *asi)
+ 	asi_session = &get_cpu_var(cpu_asi_session);
+ 	asi_session->asi = asi;
+ 	asi_session->task = current;
+-	asi_session->original_cr3 = __get_current_cr3_fast();
+-	if (!asi_session->original_cr3) {
++	WARN_ON(asi_session->abort_depth > 0);
++
++	/*
++	 * Instructions ordering is important here because we should be
++	 * able to deal with any interrupt/exception which will abort
++	 * the isolation and restore CR3 to its original value:
++	 *
++	 * - asi_session->original_cr3 must be set before the ASI session
++	 *   becomes active (i.e. before setting asi_session->state to
++	 *   ASI_SESSION_STATE_ACTIVE);
++	 * - the ASI session must be marked as active (i.e. set
++	 *   asi_session->state to ASI_SESSION_STATE_ACTIVE) before
++	 *   loading the CR3 used during isolation.
++	 *
++	 * Any exception or interrupt occurring after asi_session->state is
++	 * set to ASI_SESSION_STATE_ACTIVE will cause the exception/interrupt
++	 * handler to abort the isolation. The handler will then restore
++	 * cr3 to asi_session->original_cr3 and move asi_session->state to
++	 * ASI_SESSION_STATE_ABORTED.
++	 */
++	original_cr3 = __get_current_cr3_fast();
++	if (!original_cr3) {
+ 		WARN_ON(1);
+ 		err = -EINVAL;
+ 		goto err_clear_asi;
+ 	}
+-	asi_session->state = ASI_SESSION_STATE_ACTIVE;
++	asi_session->original_cr3 = original_cr3;
+ 
++	/*
++	 * Use ASI barrier as we are setting CR3 with the ASI page-table.
++	 * The barrier should begin before setting the state to active as
++	 * any interrupt after the state is active will abort isolation.
++	 */
++	asi_barrier_begin();
++	asi_session->state = ASI_SESSION_STATE_ACTIVE;
++	mb();
+ 	load_cr3(asi->pgd);
++	asi_barrier_end();
+ 
+ 	return 0;
+ 
+@@ -130,23 +167,129 @@ void asi_exit(struct asi *asi)
+ {
+ 	struct asi_session *asi_session;
+ 	enum asi_session_state asi_state;
+-	unsigned long original_cr3;
+ 
+ 	asi_state = this_cpu_read(cpu_asi_session.state);
+-	if (asi_state == ASI_SESSION_STATE_INACTIVE)
++	switch (asi_state) {
++	case ASI_SESSION_STATE_INACTIVE:
+ 		return;
+-
+-	/* TODO: Kick sibling hyperthread before switching to kernel cr3 */
+-	original_cr3 = this_cpu_read(cpu_asi_session.original_cr3);
+-	if (original_cr3)
+-		write_cr3(original_cr3);
++	case ASI_SESSION_STATE_ACTIVE:
++		(void) asi_restore_cr3();
++		break;
++	case ASI_SESSION_STATE_ABORTED:
++		/*
++		 * No need to restore cr3, this was already done during
++		 * the isolation abort.
++		 */
++		break;
++	}
+ 
+ 	/* page-table was switched, we can now access the percpu pointer */
+ 	asi_session = &get_cpu_var(cpu_asi_session);
+-	WARN_ON(asi_session->task != current);
++	/*
++	 * asi_exit() can be interrupted before setting the state to
++	 * ASI_SESSION_STATE_INACTIVE. In that case, the interrupt will
++	 * exit isolation before we have started the actual exit. So
++	 * check that the session ASI is still set to verify that an
++	 * exit hasn't already be done.
++	 */
+ 	asi_session->state = ASI_SESSION_STATE_INACTIVE;
++	mb();
++	if (asi_session->asi == NULL) {
++		/* exit was already done */
++		return;
++	}
++	WARN_ON(asi_session->retry_abort);
++	WARN_ON(asi_session->task != current);
+ 	asi_session->asi = NULL;
+ 	asi_session->task = NULL;
+ 	asi_session->original_cr3 = 0;
++
++	/*
++	 * Reset abort_depth because some interrupt/exception handlers
++	 * (like the user page-fault handler) can schedule us out and so
++	 * exit isolation before abort_depth reaches 0.
++	 */
++	asi_session->abort_depth = 0;
  }
- EXPORT_SYMBOL(asi_destroy);
-diff --git a/arch/x86/mm/asi_pagetable.c b/arch/x86/mm/asi_pagetable.c
-new file mode 100644
-index 0000000..7a8f791
---- /dev/null
-+++ b/arch/x86/mm/asi_pagetable.c
-@@ -0,0 +1,99 @@
-+// SPDX-License-Identifier: GPL-2.0
-+/*
-+ * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
-+ *
-+ */
+ EXPORT_SYMBOL(asi_exit);
 +
++/*
++ * Functions to abort isolation. When address space isolation is active,
++ * these functions are used by interrupt/exception handlers to abort
++ * isolation.
++ *
++ * Common Case
++ * -----------
++ * asi_start_abort() is invoked at the beginning of the interrupt/exception
++ * handler. It aborts isolation by restoring the original CR3 value,
++ * increments the abort count, and move the isolation state to "aborted"
++ * (ASI_SESSION_STATE_ABORTED). If the interrupt/exception is interrupted
++ * by another interrupt/exception then the new interrupt/exception will
++ * just increment the abort count.
++ *
++ * asi_finish_abort() is invoked at the end of the interrupt/exception
++ * handler. It decrements is abort count and if that count reaches zero
++ * then it invokes asi_exit() to exit isolation.
++ *
++ * Special Case When Entering Isolation
++ * ------------------------------------
++ * When entering isolation, asi_enter() will set cpu_asi_session.retry_abort
++ * while updating CR3 to the ASI page-table. This forces asi_start_abort()
++ * handlers to abort isolation even if isolation was already aborted. Also
++ * asi_finish_abort() will retain the aborted state and not exit isolation
++ * (no call to asi_exit()).
++ */
++unsigned long asi_start_abort(void)
++{
++	enum asi_session_state state;
++	unsigned long original_cr3;
++
++	state = this_cpu_read(cpu_asi_session.state);
++
++	switch (state) {
++
++	case ASI_SESSION_STATE_INACTIVE:
++		return 0;
++
++	case ASI_SESSION_STATE_ACTIVE:
++		original_cr3 = asi_restore_cr3();
++		this_cpu_write(cpu_asi_session.state,
++			       ASI_SESSION_STATE_ABORTED);
++		break;
++
++	case ASI_SESSION_STATE_ABORTED:
++		/*
++		 * In the normal case, if the session was already aborted
++		 * then CR3 has already been restored. However if retry_abort
++		 * is set then we restore CR3 again.
++		 */
++		if (this_cpu_read(cpu_asi_session.retry_abort))
++			original_cr3 = asi_restore_cr3();
++		else
++			original_cr3 = this_cpu_read(
++				cpu_asi_session.original_cr3);
++		break;
++	}
++
++	this_cpu_inc(cpu_asi_session.abort_depth);
++
++	return original_cr3;
++}
++
++void asi_finish_abort(void)
++{
++	enum asi_session_state state;
++
++	state = this_cpu_read(cpu_asi_session.state);
++	if (state == ASI_SESSION_STATE_INACTIVE)
++		return;
++
++	WARN_ON(state != ASI_SESSION_STATE_ABORTED);
++
++	/* if retry_abort is set then we retain the abort state */
++	if (this_cpu_dec_return(cpu_asi_session.abort_depth) > 0 ||
++	    this_cpu_read(cpu_asi_session.retry_abort))
++		return;
++
++	asi_exit(this_cpu_read(cpu_asi_session.asi));
++}
+diff --git a/kernel/sched/core.c b/kernel/sched/core.c
+index 874c427..bb363f3 100644
+--- a/kernel/sched/core.c
++++ b/kernel/sched/core.c
+@@ -14,6 +14,7 @@
+ 
+ #include <asm/switch_to.h>
+ #include <asm/tlb.h>
 +#include <asm/asi.h>
-+
-+/*
-+ * Get the pointer to the beginning of a page table directory from a page
-+ * table directory entry.
-+ */
-+#define ASI_BACKEND_PAGE_ALIGN(entry)	\
-+	((typeof(entry))(((unsigned long)(entry)) & PAGE_MASK))
-+
-+/*
-+ * Pages used to build the address space isolation page-table are stored
-+ * in the backend_pages XArray. Each entry in the array is a logical OR
-+ * of the page address and the page table level (PTE, PMD, PUD, P4D) this
-+ * page is used for in the address space isolation page-table.
-+ *
-+ * As a page address is aligned with PAGE_SIZE, we have plenty of space
-+ * for storing the page table level (which is a value between 0 and 4) in
-+ * the low bits of the page address.
-+ *
-+ */
-+
-+#define ASI_BACKEND_PAGE_ENTRY(addr, level)	\
-+	((typeof(addr))(((unsigned long)(addr)) | ((unsigned long)(level))))
-+#define ASI_BACKEND_PAGE_ADDR(entry)		\
-+	((void *)(((unsigned long)(entry)) & PAGE_MASK))
-+#define ASI_BACKEND_PAGE_LEVEL(entry)		\
-+	((enum page_table_level)(((unsigned long)(entry)) & ~PAGE_MASK))
-+
-+static int asi_add_backend_page(struct asi *asi, void *addr,
-+				enum page_table_level level)
-+{
-+	unsigned long index;
-+	void *old_entry;
-+
-+	if ((!addr) || ((unsigned long)addr) & ~PAGE_MASK)
-+		return -EINVAL;
-+
-+	lockdep_assert_held(&asi->lock);
-+	index = asi->backend_pages_count;
-+
-+	old_entry = xa_store(&asi->backend_pages, index,
-+			     ASI_BACKEND_PAGE_ENTRY(addr, level),
-+			     GFP_KERNEL);
-+	if (xa_is_err(old_entry))
-+		return xa_err(old_entry);
-+	if (old_entry)
-+		return -EBUSY;
-+
-+	asi->backend_pages_count++;
-+
-+	return 0;
-+}
-+
-+void asi_init_backend(struct asi *asi)
-+{
-+	xa_init(&asi->backend_pages);
-+}
-+
-+void asi_fini_backend(struct asi *asi)
-+{
-+	unsigned long index;
-+	void *entry;
-+
-+	if (asi->backend_pages_count) {
-+		xa_for_each(&asi->backend_pages, index, entry)
-+			free_page((unsigned long)ASI_BACKEND_PAGE_ADDR(entry));
-+	}
-+}
-+
-+/*
-+ * Check if an offset in the address space isolation page-table is valid,
-+ * i.e. check that the offset is on a page effectively belonging to the
-+ * address space isolation page-table.
-+ */
-+static bool asi_valid_offset(struct asi *asi, void *offset)
-+{
-+	unsigned long index;
-+	void *addr, *entry;
-+	bool valid;
-+
-+	addr = ASI_BACKEND_PAGE_ALIGN(offset);
-+	valid = false;
-+
-+	lockdep_assert_held(&asi->lock);
-+	xa_for_each(&asi->backend_pages, index, entry) {
-+		if (ASI_BACKEND_PAGE_ADDR(entry) == addr) {
-+			valid = true;
-+			break;
-+		}
-+	}
-+
-+	return valid;
-+}
+ 
+ #include "../workqueue_internal.h"
+ #include "../smpboot.h"
+@@ -2597,6 +2598,9 @@ static inline void finish_lock_switch(struct rq *rq)
+ prepare_task_switch(struct rq *rq, struct task_struct *prev,
+ 		    struct task_struct *next)
+ {
++#ifdef CONFIG_ADDRESS_SPACE_ISOLATION
++	asi_abort();
++#endif
+ 	kcov_prepare_switch(prev);
+ 	sched_info_switch(rq, prev, next);
+ 	perf_event_task_sched_out(prev, next);
 -- 
 1.7.1
 
