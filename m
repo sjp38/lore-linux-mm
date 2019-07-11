@@ -2,1132 +2,271 @@ Return-Path: <SRS0=bABq=VI=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C4BE2C74A4B
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 08:25:44 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0426CC74A51
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 08:49:34 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 557AB21019
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 08:25:44 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 557AB21019
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id B02F121537
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 08:49:33 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B02F121537
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DEE758E00AB; Thu, 11 Jul 2019 04:25:43 -0400 (EDT)
+	id 4663E8E00AC; Thu, 11 Jul 2019 04:49:33 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D9F158E0032; Thu, 11 Jul 2019 04:25:43 -0400 (EDT)
+	id 416B28E0032; Thu, 11 Jul 2019 04:49:33 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C67028E00AB; Thu, 11 Jul 2019 04:25:43 -0400 (EDT)
+	id 2B81B8E00AC; Thu, 11 Jul 2019 04:49:33 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 5F3B88E0032
-	for <linux-mm@kvack.org>; Thu, 11 Jul 2019 04:25:43 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id b33so3924391edc.17
-        for <linux-mm@kvack.org>; Thu, 11 Jul 2019 01:25:43 -0700 (PDT)
+Received: from mail-ua1-f72.google.com (mail-ua1-f72.google.com [209.85.222.72])
+	by kanga.kvack.org (Postfix) with ESMTP id EC9A58E0032
+	for <linux-mm@kvack.org>; Thu, 11 Jul 2019 04:49:32 -0400 (EDT)
+Received: by mail-ua1-f72.google.com with SMTP id s1so935676uao.2
+        for <linux-mm@kvack.org>; Thu, 11 Jul 2019 01:49:32 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=bGtSPp4OKtcA7XV2G4lfswdF0NgJic4vcgZ7XJrnoj0=;
-        b=QetNozh7pT5LD3YdI/RCByAkktK4628LoVP7xe+6IH3fLdfWkUXjIGdH11FDl79agj
-         Bg+ETuyWhsiQEmfSNEmf3r6O/ZTh/qTWa6bTGmQvU78JdXOlVQF5CK/bbw0csGAB4LFr
-         xLIgoXh2k0Pe+YmAz2tdyA1VWnHJFLdFiezBX5Saq6CytTIzklY8RVF7Brd/itgX/eW2
-         ++6fjhGOPvQl5H3yuYy+0NZnSZHbVdeKkD/PpuXK2C6U3A8f9ybvblFnWH+/nYkF5lVS
-         KgCOjXjXsQSc57KhuRKID8dxVc7Wwy0nLxqqHIZzArKpMjCjf+/es23iIna27Z5ywG/S
-         GZUg==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAVIMqMpxdZZqQNUg34xEY768J0oYVHM7dySrxj1Ot2RK8JeD/BF
-	QR8r0PCbWwd3igVtSvSVTDxXBiBxU+tFKJWYSLOm41Il0+agtmdTKOnFQgTd1g+xh9EPjTck8/i
-	tjyccv44dBI3/1tgP/BTwn9W7prz6m3iNcOfE/QfKYKEitsfnCaFyYBKEcc16oCE=
-X-Received: by 2002:aa7:d6d3:: with SMTP id x19mr2130220edr.119.1562833542872;
-        Thu, 11 Jul 2019 01:25:42 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyjQq09hUDNeY1Xu26KDHS00pTLXmfcZIwA2dsli6tV3uajxW5KT9Ks7RWnWmYtAlqqXWpE
-X-Received: by 2002:aa7:d6d3:: with SMTP id x19mr2130151edr.119.1562833541395;
-        Thu, 11 Jul 2019 01:25:41 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562833541; cv=none;
+         :cc:subject:message-id:in-reply-to:references:organization
+         :mime-version:content-transfer-encoding;
+        bh=uzboYqu/EnutsUfDvdzc2QGLrZgrkC1MIL9crIUqBoM=;
+        b=FrZtIMNmRjV1fx/812Lwy9hCFlh3iXdvg14HBCE+yDbNuRcMSmLqz15cWsKPmyWkpd
+         Z1U2e0mIjhr4PKOWgIqjE6lzoeSAZJzL7x7SyJfUUKfLGp4bKG0O+bssr18Na6QrthoD
+         nmI8vAOSi/OimToIoFPum59i0rgzxv/0S8GoEK/bGFmD9DIBLudRxzVkcXxPZvDWkuUv
+         J1L3kZ9WtT4fGXZU31i2LZymr53LpIRO1Q4WmKmYUpN4TG7DxfrSSx23Kg87i0ghVKQr
+         KyrjsQZT3mfu03EocDEkrZl7791lvvadR2mcV6jK2G+PC0+1om0mC9DFGf0xcOJ0iq6M
+         dsew==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of cohuck@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=cohuck@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAX0j9K3o2+x41tzlyt6DopR4ARvjFYoiEBhBB4J6jHtlFnc8yt3
+	66ygcyFT8CuLWJcgH3H5UlSSGpFJ3QeM5v6AURsi5dYB1eUGxTW2FTISy4+T9U7ZxaJ0ZbudqwY
+	An+Rzm64DE290OI0FXpw0r3U4qdAnLlfrppW10O8DahpO4cc/+/EuU1Dpx2rfDGDNIw==
+X-Received: by 2002:a67:edcf:: with SMTP id e15mr2485845vsp.75.1562834972638;
+        Thu, 11 Jul 2019 01:49:32 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyp6FWlBncMvBHopJ4gSA5rjwP3zKi8SZCvHDphE55A7XKE/dA5FjLVweDbHCwbV4Y8/rmT
+X-Received: by 2002:a67:edcf:: with SMTP id e15mr2485790vsp.75.1562834971989;
+        Thu, 11 Jul 2019 01:49:31 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562834971; cv=none;
         d=google.com; s=arc-20160816;
-        b=sLC7pIMiWFnOmOqb/ztIDWzzrdn7xnsBgPeDABAE1KlFywk5ylnrZXr/Tlf/mBOsyd
-         V4yHu9fUcg+OFYKhiaWbutJ1RgzWvxyqM0nuFu+kZYbI151+kC3PwHCJv9X5B3us9XMS
-         pXeZw3/qWbsqBh7mDMD0VsFfJKeEFuu81J5y0PGuzznms7WHPW0gmyza2Ub0H3Jkr9r6
-         MRgt79zt5o2AhX+HnzRzSNvMfWkO4T3/JnxQLYyj44Lcv/TNOeGTvD+RM3uSyroxfMZE
-         mtcQ0izgqowocFND/KXn6CDq/OrpujT9SJ9cXaGjv/Q6ZmGZtq6E0tvlheZdIylr3Jyl
-         iRCg==
+        b=yy2rs14mwwp8zeyLnmt2dYXM8W8JJW+c66t4A/fuJKQ09saUIm+vxQm1ZjoF7B5uLp
+         fbjemenWSGFx8DWZXtgIuzDqUiUM21dRMGWNEinusSvJsCu56jx7tSU9DuuxUUhkJg4/
+         d2t9L/Pkhxgk5dTjnkpgAMBoc/B8muOOomLwgEiNTn+07WXwYnwlwwG7RbHY7f2jo5VE
+         9W8ULF+kHi0z+pupr5+7vKHsmXLomDpRI8T6AFl+go2iQBvamA5mmp4adQtIf5PJk4EQ
+         o7JSOOSQKrmAW0AD4+N6wuk6L/k02W4K8AAY9duqVB2YJzQ34J+uJ/qiIdNdenGVqKw6
+         8fgA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=bGtSPp4OKtcA7XV2G4lfswdF0NgJic4vcgZ7XJrnoj0=;
-        b=jsgXFWG9Azhpp45mOqWmi5LrPiuuD7fQf8lbiPt2w5XfWYtc8Lhp7bX8Eu5Jna3NDO
-         vo5QNSXlLV7XI8/0g/sD/LUgKEhuj1R4/bb6CJKIekETddw++6zMW4xUBtJ9FL213i4I
-         HYZ0AJIbR5o9NgAe2blqBt9r1g8T7bu+rMc/okNQ7xLRkFn3n0dq/4bVD1BYEJ9fSkB1
-         VDs/Sdwz7IXUXi50pkcKf70nPOuHFlwClqvYRcJaZw0jHKCFKOg7Ej/GC0jJRFtKM598
-         lFqjhcP++gSxbeHYZFr7NsxbHEYrGLRxaQHSdjNY/kN3Eqv3GXY0Esb5XCBZY0neYpRE
-         LJkw==
+        h=content-transfer-encoding:mime-version:organization:references
+         :in-reply-to:message-id:subject:cc:to:from:date;
+        bh=uzboYqu/EnutsUfDvdzc2QGLrZgrkC1MIL9crIUqBoM=;
+        b=Ab6HJHVHPL1gcB4+xrxOnNK3AZ4DZ+g5UeNREqE998AVU4qOl4+hFRhB5lfZQbPWkL
+         DppFFbtWMuebhqowykMzdndl7a+FFiWgL/+mDKuTPB+NMX00PTO1O4EQ7YdOgzA6FYAA
+         MA515ksMCK2efI8Kd9jD7YQY63ixDFMxHGeEd/Yio4izKQ4qZ/+PsHk+teEEvksxEpN6
+         6JtkdPSv63ZgMBRNkWtHKn3PBGW5V+6YW+G+3xS78odXKw6S7RU0wdoVOGKuBskf1OgU
+         H4IhrvADrFLdNN0Ef587EwpiYI/KjsYUF5dkNSL80M/5Dp+S5lCvko4K10Xwo+eQ0aKm
+         5ZHw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 1si3016342eds.189.2019.07.11.01.25.41
+       spf=pass (google.com: domain of cohuck@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=cohuck@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id y23si1219633vsn.156.2019.07.11.01.49.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 11 Jul 2019 01:25:41 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Thu, 11 Jul 2019 01:49:31 -0700 (PDT)
+Received-SPF: pass (google.com: domain of cohuck@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id E8422AD0B;
-	Thu, 11 Jul 2019 08:25:40 +0000 (UTC)
-Date: Thu, 11 Jul 2019 10:25:39 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Nicholas Piggin <npiggin@gmail.com>
-Cc: linux-mm@kvack.org, linux-arch@vger.kernel.org,
-	linux-ia64@vger.kernel.org, linux-sh@vger.kernel.org,
-	Christoph Lameter <cl@linux.com>
-Subject: Re: [RFC PATCH] mm: remove quicklist page table caches
-Message-ID: <20190711082539.GC29483@dhcp22.suse.cz>
-References: <20190711030339.20892-1-npiggin@gmail.com>
+       spf=pass (google.com: domain of cohuck@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=cohuck@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 13A2D81F07;
+	Thu, 11 Jul 2019 08:49:30 +0000 (UTC)
+Received: from gondolin (ovpn-117-213.ams2.redhat.com [10.36.117.213])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 324321001B05;
+	Thu, 11 Jul 2019 08:49:15 +0000 (UTC)
+Date: Thu, 11 Jul 2019 10:49:12 +0200
+From: Cornelia Huck <cohuck@redhat.com>
+To: Nitesh Narayan Lal <nitesh@redhat.com>
+Cc: kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+ pbonzini@redhat.com, lcapitulino@redhat.com, pagupta@redhat.com,
+ wei.w.wang@intel.com, yang.zhang.wz@gmail.com, riel@surriel.com,
+ david@redhat.com, mst@redhat.com, dodgen@google.com,
+ konrad.wilk@oracle.com, dhildenb@redhat.com, aarcange@redhat.com,
+ alexander.duyck@gmail.com, john.starks@microsoft.com,
+ dave.hansen@intel.com, mhocko@suse.com
+Subject: Re: [QEMU Patch] virtio-baloon: Support for page hinting
+Message-ID: <20190711104912.2cd79aeb.cohuck@redhat.com>
+In-Reply-To: <20190710195303.19690-1-nitesh@redhat.com>
+References: <20190710195158.19640-1-nitesh@redhat.com>
+	<20190710195303.19690-1-nitesh@redhat.com>
+Organization: Red Hat GmbH
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190711030339.20892-1-npiggin@gmail.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
+X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.25]); Thu, 11 Jul 2019 08:49:31 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu 11-07-19 13:03:39, Nicholas Piggin wrote:
-> Remove page table allocator "quicklists". These have been around for a
-> long time, but have not got much traction in the last decade and are
-> only used on ia64 and sh architectures.
+On Wed, 10 Jul 2019 15:53:03 -0400
+Nitesh Narayan Lal <nitesh@redhat.com> wrote:
+
+
+$SUBJECT: s/baloon/balloon/
+
+> Enables QEMU to perform madvise free on the memory range reported
+> by the vm.
+
+[No comments on the actual functionality; just some stuff I noticed.]
+
 > 
-> The numbers in the initial commit look interesting but probably don't
-> apply anymore. If anybody wants to resurrect this it's in the git
-> history, but it's unhelpful to have this code and divergent allocator
-> behaviour for minor archs.
-> 
-> Also it might be better to instead make more general improvements to
-> page allocator if this is still so slow.
-
-Agreed. And if that is not possible for whatever reason then we have a
-proper justification for the revert at least.
-
-Acked-by: Michal Hocko <mhocko@suse.com>
-
+> Signed-off-by: Nitesh Narayan Lal <nitesh@redhat.com>
 > ---
->  arch/alpha/include/asm/pgalloc.h      |   2 -
->  arch/arc/include/asm/pgalloc.h        |   1 -
->  arch/arm/include/asm/pgalloc.h        |   2 -
->  arch/arm64/include/asm/pgalloc.h      |   2 -
->  arch/csky/include/asm/pgalloc.h       |   2 -
->  arch/hexagon/include/asm/pgalloc.h    |   2 -
->  arch/ia64/Kconfig                     |   4 -
->  arch/ia64/include/asm/pgalloc.h       |  32 +++-----
->  arch/m68k/include/asm/pgtable_mm.h    |   2 -
->  arch/m68k/include/asm/pgtable_no.h    |   2 -
->  arch/microblaze/include/asm/pgalloc.h |  89 ++--------------------
->  arch/microblaze/mm/pgtable.c          |   4 -
->  arch/mips/include/asm/pgalloc.h       |   2 -
->  arch/nds32/include/asm/pgalloc.h      |   2 -
->  arch/nios2/include/asm/pgalloc.h      |   2 -
->  arch/openrisc/include/asm/pgalloc.h   |   2 -
->  arch/parisc/include/asm/pgalloc.h     |   2 -
->  arch/powerpc/include/asm/pgalloc.h    |   2 -
->  arch/riscv/include/asm/pgalloc.h      |   4 -
->  arch/s390/include/asm/pgtable.h       |   1 -
->  arch/sh/include/asm/pgalloc.h         |  22 ++----
->  arch/sh/mm/Kconfig                    |   3 -
->  arch/sparc/include/asm/pgalloc_32.h   |   2 -
->  arch/sparc/include/asm/pgalloc_64.h   |   2 -
->  arch/sparc/mm/init_32.c               |   1 -
->  arch/um/include/asm/pgalloc.h         |   2 -
->  arch/unicore32/include/asm/pgalloc.h  |   2 -
->  arch/x86/include/asm/pgtable_32.h     |   1 -
->  arch/x86/include/asm/pgtable_64.h     |   1 -
->  arch/xtensa/include/asm/tlbflush.h    |   3 -
->  fs/proc/meminfo.c                     |   4 -
->  include/asm-generic/pgalloc.h         |   2 -
->  include/linux/quicklist.h             |  94 -----------------------
->  kernel/sched/idle.c                   |   1 -
->  lib/show_mem.c                        |   5 --
->  mm/Kconfig                            |   5 --
->  mm/Makefile                           |   1 -
->  mm/mmu_gather.c                       |   2 -
->  mm/quicklist.c                        | 103 --------------------------
->  39 files changed, 25 insertions(+), 392 deletions(-)
->  delete mode 100644 include/linux/quicklist.h
->  delete mode 100644 mm/quicklist.c
+>  hw/virtio/trace-events                        |  1 +
+>  hw/virtio/virtio-balloon.c                    | 59 +++++++++++++++++++
+>  include/hw/virtio/virtio-balloon.h            |  2 +-
+>  include/qemu/osdep.h                          |  7 +++
+>  .../standard-headers/linux/virtio_balloon.h   |  1 +
+>  5 files changed, 69 insertions(+), 1 deletion(-)
 > 
-> diff --git a/arch/alpha/include/asm/pgalloc.h b/arch/alpha/include/asm/pgalloc.h
-> index 02f9f91bb4f0..0912e37c3a56 100644
-> --- a/arch/alpha/include/asm/pgalloc.h
-> +++ b/arch/alpha/include/asm/pgalloc.h
-> @@ -87,6 +87,4 @@ pte_free(struct mm_struct *mm, pgtable_t page)
->  	__free_page(page);
->  }
->  
-> -#define check_pgt_cache()	do { } while (0)
-> -
->  #endif /* _ALPHA_PGALLOC_H */
-> diff --git a/arch/arc/include/asm/pgalloc.h b/arch/arc/include/asm/pgalloc.h
-> index 9c9b5a5ebf2e..e35b00e8cc4c 100644
-> --- a/arch/arc/include/asm/pgalloc.h
-> +++ b/arch/arc/include/asm/pgalloc.h
-> @@ -132,7 +132,6 @@ static inline void pte_free(struct mm_struct *mm, pgtable_t ptep)
->  
->  #define __pte_free_tlb(tlb, pte, addr)  pte_free((tlb)->mm, pte)
->  
-> -#define check_pgt_cache()   do { } while (0)
->  #define pmd_pgtable(pmd)	((pgtable_t) pmd_page_vaddr(pmd))
->  
->  #endif /* _ASM_ARC_PGALLOC_H */
-> diff --git a/arch/arm/include/asm/pgalloc.h b/arch/arm/include/asm/pgalloc.h
-> index 17ab72f0cc4e..5e2ec767de8e 100644
-> --- a/arch/arm/include/asm/pgalloc.h
-> +++ b/arch/arm/include/asm/pgalloc.h
-> @@ -18,8 +18,6 @@
->  #include <asm/cacheflush.h>
->  #include <asm/tlbflush.h>
->  
-> -#define check_pgt_cache()		do { } while (0)
-> -
->  #ifdef CONFIG_MMU
->  
->  #define _PAGE_USER_TABLE	(PMD_TYPE_TABLE | PMD_BIT4 | PMD_DOMAIN(DOMAIN_USER))
-> diff --git a/arch/arm64/include/asm/pgalloc.h b/arch/arm64/include/asm/pgalloc.h
-> index dabba4b2c61f..6554426d4953 100644
-> --- a/arch/arm64/include/asm/pgalloc.h
-> +++ b/arch/arm64/include/asm/pgalloc.h
-> @@ -24,8 +24,6 @@
->  #include <asm/cacheflush.h>
->  #include <asm/tlbflush.h>
->  
-> -#define check_pgt_cache()		do { } while (0)
-> -
->  #define PGALLOC_GFP	(GFP_KERNEL | __GFP_ZERO)
->  #define PGD_SIZE	(PTRS_PER_PGD * sizeof(pgd_t))
->  
-> diff --git a/arch/csky/include/asm/pgalloc.h b/arch/csky/include/asm/pgalloc.h
-> index d213bb47b717..21533eb04747 100644
-> --- a/arch/csky/include/asm/pgalloc.h
-> +++ b/arch/csky/include/asm/pgalloc.h
-> @@ -99,8 +99,6 @@ do {							\
->  	tlb_remove_page(tlb, pte);			\
->  } while (0)
->  
-> -#define check_pgt_cache()	do {} while (0)
-> -
->  extern void pagetable_init(void);
->  extern void pre_mmu_init(void);
->  extern void pre_trap_init(void);
-> diff --git a/arch/hexagon/include/asm/pgalloc.h b/arch/hexagon/include/asm/pgalloc.h
-> index d36183887b60..1ee911d79bad 100644
-> --- a/arch/hexagon/include/asm/pgalloc.h
-> +++ b/arch/hexagon/include/asm/pgalloc.h
-> @@ -24,8 +24,6 @@
->  #include <asm/mem-layout.h>
->  #include <asm/atomic.h>
->  
-> -#define check_pgt_cache() do {} while (0)
-> -
->  extern unsigned long long kmap_generation;
->  
->  /*
-> diff --git a/arch/ia64/Kconfig b/arch/ia64/Kconfig
-> index 73a26f04644e..e910cc44e1c3 100644
-> --- a/arch/ia64/Kconfig
-> +++ b/arch/ia64/Kconfig
-> @@ -69,10 +69,6 @@ config ZONE_DMA32
->  	def_bool y
->  	depends on !IA64_SGI_SN2
->  
-> -config QUICKLIST
-> -	bool
-> -	default y
-> -
->  config MMU
->  	bool
->  	default y
-> diff --git a/arch/ia64/include/asm/pgalloc.h b/arch/ia64/include/asm/pgalloc.h
-> index c9e481023c25..ffd58bab8a76 100644
-> --- a/arch/ia64/include/asm/pgalloc.h
-> +++ b/arch/ia64/include/asm/pgalloc.h
-> @@ -19,18 +19,17 @@
->  #include <linux/mm.h>
->  #include <linux/page-flags.h>
->  #include <linux/threads.h>
-> -#include <linux/quicklist.h>
->  
->  #include <asm/mmu_context.h>
->  
->  static inline pgd_t *pgd_alloc(struct mm_struct *mm)
->  {
-> -	return quicklist_alloc(0, GFP_KERNEL, NULL);
-> +	return (pgd_t *)__get_free_page(GFP_KERNEL | __GFP_ZERO);
->  }
->  
->  static inline void pgd_free(struct mm_struct *mm, pgd_t *pgd)
->  {
-> -	quicklist_free(0, NULL, pgd);
-> +	__free_page(pgd);
->  }
->  
->  #if CONFIG_PGTABLE_LEVELS == 4
-> @@ -42,12 +41,12 @@ pgd_populate(struct mm_struct *mm, pgd_t * pgd_entry, pud_t * pud)
->  
->  static inline pud_t *pud_alloc_one(struct mm_struct *mm, unsigned long addr)
->  {
-> -	return quicklist_alloc(0, GFP_KERNEL, NULL);
-> +	return (pud_t *)__get_free_page(GFP_KERNEL | __GFP_ZERO);
->  }
->  
->  static inline void pud_free(struct mm_struct *mm, pud_t *pud)
->  {
-> -	quicklist_free(0, NULL, pud);
-> +	__free_page(pud);
->  }
->  #define __pud_free_tlb(tlb, pud, address)	pud_free((tlb)->mm, pud)
->  #endif /* CONFIG_PGTABLE_LEVELS == 4 */
-> @@ -60,12 +59,12 @@ pud_populate(struct mm_struct *mm, pud_t * pud_entry, pmd_t * pmd)
->  
->  static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long addr)
->  {
-> -	return quicklist_alloc(0, GFP_KERNEL, NULL);
-> +	return (pmd_t *)__get_free_page(GFP_KERNEL | __GFP_ZERO);
->  }
->  
->  static inline void pmd_free(struct mm_struct *mm, pmd_t *pmd)
->  {
-> -	quicklist_free(0, NULL, pmd);
-> +	__free_page(pmd);
->  }
->  
->  #define __pmd_free_tlb(tlb, pmd, address)	pmd_free((tlb)->mm, pmd)
-> @@ -86,14 +85,12 @@ pmd_populate_kernel(struct mm_struct *mm, pmd_t * pmd_entry, pte_t * pte)
->  static inline pgtable_t pte_alloc_one(struct mm_struct *mm)
->  {
->  	struct page *page;
-> -	void *pg;
->  
-> -	pg = quicklist_alloc(0, GFP_KERNEL, NULL);
-> -	if (!pg)
-> +	page = alloc_page(GFP_KERNEL | __GFP_ZERO);
-> +	if (!page)
->  		return NULL;
-> -	page = virt_to_page(pg);
->  	if (!pgtable_page_ctor(page)) {
-> -		quicklist_free(0, NULL, pg);
-> +		free_page(page);
->  		return NULL;
->  	}
->  	return page;
-> @@ -101,23 +98,18 @@ static inline pgtable_t pte_alloc_one(struct mm_struct *mm)
->  
->  static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm)
->  {
-> -	return quicklist_alloc(0, GFP_KERNEL, NULL);
-> +	return (pte_t *)__get_free_page(GFP_KERNEL | __GFP_ZERO);
->  }
->  
->  static inline void pte_free(struct mm_struct *mm, pgtable_t pte)
->  {
->  	pgtable_page_dtor(pte);
-> -	quicklist_free_page(0, NULL, pte);
-> +	__free_page(pte);
->  }
->  
->  static inline void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
->  {
-> -	quicklist_free(0, NULL, pte);
-> -}
-> -
-> -static inline void check_pgt_cache(void)
-> -{
-> -	quicklist_trim(0, NULL, 25, 16);
-> +	free_page(pte);
->  }
->  
->  #define __pte_free_tlb(tlb, pte, address)	pte_free((tlb)->mm, pte)
-> diff --git a/arch/m68k/include/asm/pgtable_mm.h b/arch/m68k/include/asm/pgtable_mm.h
-> index fe3ddd73a0cc..b5269f1ce313 100644
-> --- a/arch/m68k/include/asm/pgtable_mm.h
-> +++ b/arch/m68k/include/asm/pgtable_mm.h
-> @@ -178,6 +178,4 @@ static inline void update_mmu_cache(struct vm_area_struct *vma,
->   */
->  #define pgtable_cache_init()	do { } while (0)
->  
-> -#define check_pgt_cache()	do { } while (0)
-> -
->  #endif /* _M68K_PGTABLE_H */
-> diff --git a/arch/m68k/include/asm/pgtable_no.h b/arch/m68k/include/asm/pgtable_no.h
-> index fc3a96c77bd8..69e271101223 100644
-> --- a/arch/m68k/include/asm/pgtable_no.h
-> +++ b/arch/m68k/include/asm/pgtable_no.h
-> @@ -60,6 +60,4 @@ extern void paging_init(void);
->  
->  #include <asm-generic/pgtable.h>
->  
-> -#define check_pgt_cache()	do { } while (0)
-> -
->  #endif /* _M68KNOMMU_PGTABLE_H */
-> diff --git a/arch/microblaze/include/asm/pgalloc.h b/arch/microblaze/include/asm/pgalloc.h
-> index f4cc9ffc449e..c62837073c14 100644
-> --- a/arch/microblaze/include/asm/pgalloc.h
-> +++ b/arch/microblaze/include/asm/pgalloc.h
-> @@ -21,83 +21,20 @@
->  #include <asm/cache.h>
->  #include <asm/pgtable.h>
->  
-> -#define PGDIR_ORDER	0
-> -
-> -/*
-> - * This is handled very differently on MicroBlaze since out page tables
-> - * are all 0's and I want to be able to use these zero'd pages elsewhere
-> - * as well - it gives us quite a speedup.
-> - * -- Cort
-> - */
-> -extern struct pgtable_cache_struct {
-> -	unsigned long *pgd_cache;
-> -	unsigned long *pte_cache;
-> -	unsigned long pgtable_cache_sz;
-> -} quicklists;
-> -
-> -#define pgd_quicklist		(quicklists.pgd_cache)
-> -#define pmd_quicklist		((unsigned long *)0)
-> -#define pte_quicklist		(quicklists.pte_cache)
-> -#define pgtable_cache_size	(quicklists.pgtable_cache_sz)
-> -
-> -extern unsigned long *zero_cache; /* head linked list of pre-zero'd pages */
-> -extern atomic_t zero_sz; /* # currently pre-zero'd pages */
-> -extern atomic_t zeropage_hits; /* # zero'd pages request that we've done */
-> -extern atomic_t zeropage_calls; /* # zero'd pages request that've been made */
-> -extern atomic_t zerototal; /* # pages zero'd over time */
-> -
-> -#define zero_quicklist		(zero_cache)
-> -#define zero_cache_sz	 	(zero_sz)
-> -#define zero_cache_calls	(zeropage_calls)
-> -#define zero_cache_hits		(zeropage_hits)
-> -#define zero_cache_total	(zerototal)
-> -
-> -/*
-> - * return a pre-zero'd page from the list,
-> - * return NULL if none available -- Cort
-> - */
-> -extern unsigned long get_zero_page_fast(void);
-> -
->  extern void __bad_pte(pmd_t *pmd);
->  
-> -static inline pgd_t *get_pgd_slow(void)
-> +static inline pgd_t *get_pgd(void)
->  {
-> -	pgd_t *ret;
-> -
-> -	ret = (pgd_t *)__get_free_pages(GFP_KERNEL, PGDIR_ORDER);
-> -	if (ret != NULL)
-> -		clear_page(ret);
-> -	return ret;
-> +	return (pgd_t *)__get_free_pages(GFP_KERNEL|GFP_ZERO, 0);
->  }
->  
-> -static inline pgd_t *get_pgd_fast(void)
-> -{
-> -	unsigned long *ret;
-> -
-> -	ret = pgd_quicklist;
-> -	if (ret != NULL) {
-> -		pgd_quicklist = (unsigned long *)(*ret);
-> -		ret[0] = 0;
-> -		pgtable_cache_size--;
-> -	} else
-> -		ret = (unsigned long *)get_pgd_slow();
-> -	return (pgd_t *)ret;
-> -}
-> -
-> -static inline void free_pgd_fast(pgd_t *pgd)
-> -{
-> -	*(unsigned long **)pgd = pgd_quicklist;
-> -	pgd_quicklist = (unsigned long *) pgd;
-> -	pgtable_cache_size++;
-> -}
-> -
-> -static inline void free_pgd_slow(pgd_t *pgd)
-> +static inline void free_pgd(pgd_t *pgd)
->  {
->  	free_page((unsigned long)pgd);
->  }
->  
-> -#define pgd_free(mm, pgd)        free_pgd_fast(pgd)
-> -#define pgd_alloc(mm)		get_pgd_fast()
-> +#define pgd_free(mm, pgd)	free_pgd(pgd)
-> +#define pgd_alloc(mm)		get_pgd()
->  
->  #define pmd_pgtable(pmd)	pmd_page(pmd)
->  
-> @@ -115,15 +52,14 @@ static inline struct page *pte_alloc_one(struct mm_struct *mm)
->  	struct page *ptepage;
->  
->  #ifdef CONFIG_HIGHPTE
-> -	int flags = GFP_KERNEL | __GFP_HIGHMEM;
-> +	int flags = GFP_KERNEL | GFP_ZERO | __GFP_HIGHMEM;
->  #else
-> -	int flags = GFP_KERNEL;
-> +	int flags = GFP_KERNEL | GFP_ZERO;
->  #endif
->  
->  	ptepage = alloc_pages(flags, 0);
->  	if (!ptepage)
->  		return NULL;
-> -	clear_highpage(ptepage);
->  	if (!pgtable_page_ctor(ptepage)) {
->  		__free_page(ptepage);
->  		return NULL;
-> @@ -131,13 +67,6 @@ static inline struct page *pte_alloc_one(struct mm_struct *mm)
->  	return ptepage;
->  }
->  
-> -static inline void pte_free_fast(pte_t *pte)
-> -{
-> -	*(unsigned long **)pte = pte_quicklist;
-> -	pte_quicklist = (unsigned long *) pte;
-> -	pgtable_cache_size++;
-> -}
-> -
->  static inline void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
->  {
->  	free_page((unsigned long)pte);
-> @@ -171,10 +100,6 @@ static inline void pte_free(struct mm_struct *mm, struct page *ptepage)
->  #define __pmd_free_tlb(tlb, x, addr)	pmd_free((tlb)->mm, x)
->  #define pgd_populate(mm, pmd, pte)	BUG()
->  
-> -extern int do_check_pgt_cache(int, int);
-> -
->  #endif /* CONFIG_MMU */
->  
-> -#define check_pgt_cache()		do { } while (0)
-> -
->  #endif /* _ASM_MICROBLAZE_PGALLOC_H */
-> diff --git a/arch/microblaze/mm/pgtable.c b/arch/microblaze/mm/pgtable.c
-> index 8fe54fda31dc..010bb9cee2e4 100644
-> --- a/arch/microblaze/mm/pgtable.c
-> +++ b/arch/microblaze/mm/pgtable.c
-> @@ -44,10 +44,6 @@ unsigned long ioremap_base;
->  unsigned long ioremap_bot;
->  EXPORT_SYMBOL(ioremap_bot);
->  
-> -#ifndef CONFIG_SMP
-> -struct pgtable_cache_struct quicklists;
-> -#endif
-> -
->  static void __iomem *__ioremap(phys_addr_t addr, unsigned long size,
->  		unsigned long flags)
->  {
-> diff --git a/arch/mips/include/asm/pgalloc.h b/arch/mips/include/asm/pgalloc.h
-> index 27808d9461f4..fbaddb12ea2b 100644
-> --- a/arch/mips/include/asm/pgalloc.h
-> +++ b/arch/mips/include/asm/pgalloc.h
-> @@ -134,8 +134,6 @@ static inline void pgd_populate(struct mm_struct *mm, pgd_t *pgd, pud_t *pud)
->  
->  #endif /* __PAGETABLE_PUD_FOLDED */
->  
-> -#define check_pgt_cache()	do { } while (0)
-> -
->  extern void pagetable_init(void);
->  
->  #endif /* _ASM_PGALLOC_H */
-> diff --git a/arch/nds32/include/asm/pgalloc.h b/arch/nds32/include/asm/pgalloc.h
-> index 3c5fee5b5759..95fee5f930c0 100644
-> --- a/arch/nds32/include/asm/pgalloc.h
-> +++ b/arch/nds32/include/asm/pgalloc.h
-> @@ -20,8 +20,6 @@
->  extern pgd_t *pgd_alloc(struct mm_struct *mm);
->  extern void pgd_free(struct mm_struct *mm, pgd_t * pgd);
->  
-> -#define check_pgt_cache()		do { } while (0)
-> -
->  static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm)
->  {
->  	pte_t *pte;
-> diff --git a/arch/nios2/include/asm/pgalloc.h b/arch/nios2/include/asm/pgalloc.h
-> index 3a149ead1207..58417affacbc 100644
-> --- a/arch/nios2/include/asm/pgalloc.h
-> +++ b/arch/nios2/include/asm/pgalloc.h
-> @@ -78,6 +78,4 @@ static inline void pte_free(struct mm_struct *mm, struct page *pte)
->  		tlb_remove_page((tlb), (pte));			\
->  	} while (0)
->  
-> -#define check_pgt_cache()	do { } while (0)
-> -
->  #endif /* _ASM_NIOS2_PGALLOC_H */
-> diff --git a/arch/openrisc/include/asm/pgalloc.h b/arch/openrisc/include/asm/pgalloc.h
-> index 149c82ee4b8b..dafc6f5aee6a 100644
-> --- a/arch/openrisc/include/asm/pgalloc.h
-> +++ b/arch/openrisc/include/asm/pgalloc.h
-> @@ -105,6 +105,4 @@ do {					\
->  
->  #define pmd_pgtable(pmd) pmd_page(pmd)
->  
-> -#define check_pgt_cache()          do { } while (0)
-> -
->  #endif
-> diff --git a/arch/parisc/include/asm/pgalloc.h b/arch/parisc/include/asm/pgalloc.h
-> index ea75cc966dae..ee042753fbb4 100644
-> --- a/arch/parisc/include/asm/pgalloc.h
-> +++ b/arch/parisc/include/asm/pgalloc.h
-> @@ -153,6 +153,4 @@ static inline void pte_free(struct mm_struct *mm, struct page *pte)
->  	pte_free_kernel(mm, page_address(pte));
->  }
->  
-> -#define check_pgt_cache()	do { } while (0)
-> -
->  #endif
-> diff --git a/arch/powerpc/include/asm/pgalloc.h b/arch/powerpc/include/asm/pgalloc.h
-> index 2b2c60a1a66d..6dd78a2dc03a 100644
-> --- a/arch/powerpc/include/asm/pgalloc.h
-> +++ b/arch/powerpc/include/asm/pgalloc.h
-> @@ -64,8 +64,6 @@ static inline void pte_free(struct mm_struct *mm, pgtable_t ptepage)
->  extern struct kmem_cache *pgtable_cache[];
->  #define PGT_CACHE(shift) pgtable_cache[shift]
->  
-> -static inline void check_pgt_cache(void) { }
-> -
->  #ifdef CONFIG_PPC_BOOK3S
->  #include <asm/book3s/pgalloc.h>
->  #else
-> diff --git a/arch/riscv/include/asm/pgalloc.h b/arch/riscv/include/asm/pgalloc.h
-> index 94043cf83c90..5b6a4a07d130 100644
-> --- a/arch/riscv/include/asm/pgalloc.h
-> +++ b/arch/riscv/include/asm/pgalloc.h
-> @@ -115,8 +115,4 @@ do {                                    \
->  	tlb_remove_page((tlb), pte);    \
->  } while (0)
->  
-> -static inline void check_pgt_cache(void)
-> -{
-> -}
-> -
->  #endif /* _ASM_RISCV_PGALLOC_H */
-> diff --git a/arch/s390/include/asm/pgtable.h b/arch/s390/include/asm/pgtable.h
-> index 9f0195d5fa16..938472aa084c 100644
-> --- a/arch/s390/include/asm/pgtable.h
-> +++ b/arch/s390/include/asm/pgtable.h
-> @@ -1691,7 +1691,6 @@ extern void s390_reset_cmma(struct mm_struct *mm);
->   * No page table caches to initialise
->   */
->  static inline void pgtable_cache_init(void) { }
-> -static inline void check_pgt_cache(void) { }
->  
->  #include <asm-generic/pgtable.h>
->  
-> diff --git a/arch/sh/include/asm/pgalloc.h b/arch/sh/include/asm/pgalloc.h
-> index b56f908b1395..160308a35fa3 100644
-> --- a/arch/sh/include/asm/pgalloc.h
-> +++ b/arch/sh/include/asm/pgalloc.h
-> @@ -2,11 +2,8 @@
->  #ifndef __ASM_SH_PGALLOC_H
->  #define __ASM_SH_PGALLOC_H
->  
-> -#include <linux/quicklist.h>
->  #include <asm/page.h>
->  
-> -#define QUICK_PT 0	/* Other page table pages that are zero on free */
-> -
->  extern pgd_t *pgd_alloc(struct mm_struct *);
->  extern void pgd_free(struct mm_struct *mm, pgd_t *pgd);
->  
-> @@ -34,20 +31,18 @@ static inline void pmd_populate(struct mm_struct *mm, pmd_t *pmd,
->   */
->  static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm)
->  {
-> -	return quicklist_alloc(QUICK_PT, GFP_KERNEL, NULL);
-> +	return (pte_t *)__get_free_page(GFP_KERNEL | __GFP_ZERO);
->  }
->  
->  static inline pgtable_t pte_alloc_one(struct mm_struct *mm)
->  {
->  	struct page *page;
-> -	void *pg;
->  
-> -	pg = quicklist_alloc(QUICK_PT, GFP_KERNEL, NULL);
-> -	if (!pg)
-> +	page = alloc_page(GFP_KERNEL | __GFP_ZERO);
-> +	if (!page)
->  		return NULL;
-> -	page = virt_to_page(pg);
->  	if (!pgtable_page_ctor(page)) {
-> -		quicklist_free(QUICK_PT, NULL, pg);
-> +		free_page(page);
->  		return NULL;
->  	}
->  	return page;
-> @@ -55,13 +50,13 @@ static inline pgtable_t pte_alloc_one(struct mm_struct *mm)
->  
->  static inline void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
->  {
-> -	quicklist_free(QUICK_PT, NULL, pte);
-> +	free_page(pte);
->  }
->  
->  static inline void pte_free(struct mm_struct *mm, pgtable_t pte)
->  {
->  	pgtable_page_dtor(pte);
-> -	quicklist_free_page(QUICK_PT, NULL, pte);
-> +	__free_page(pte);
->  }
->  
->  #define __pte_free_tlb(tlb,pte,addr)			\
-> @@ -79,9 +74,4 @@ do {							\
->  } while (0);
->  #endif
->  
-> -static inline void check_pgt_cache(void)
-> -{
-> -	quicklist_trim(QUICK_PT, NULL, 25, 16);
-> -}
-> -
->  #endif /* __ASM_SH_PGALLOC_H */
-> diff --git a/arch/sh/mm/Kconfig b/arch/sh/mm/Kconfig
-> index 02ed2df25a54..5c8a2ebfc720 100644
-> --- a/arch/sh/mm/Kconfig
-> +++ b/arch/sh/mm/Kconfig
-> @@ -1,9 +1,6 @@
->  # SPDX-License-Identifier: GPL-2.0
->  menu "Memory management options"
->  
-> -config QUICKLIST
-> -	def_bool y
-> -
->  config MMU
->          bool "Support for memory management hardware"
->  	depends on !CPU_SH2
-> diff --git a/arch/sparc/include/asm/pgalloc_32.h b/arch/sparc/include/asm/pgalloc_32.h
-> index 282be50a4adf..10538a4d1a1e 100644
-> --- a/arch/sparc/include/asm/pgalloc_32.h
-> +++ b/arch/sparc/include/asm/pgalloc_32.h
-> @@ -17,8 +17,6 @@ void srmmu_free_nocache(void *addr, int size);
->  
->  extern struct resource sparc_iomap;
->  
-> -#define check_pgt_cache()	do { } while (0)
-> -
->  pgd_t *get_pgd_fast(void);
->  static inline void free_pgd_fast(pgd_t *pgd)
->  {
-> diff --git a/arch/sparc/include/asm/pgalloc_64.h b/arch/sparc/include/asm/pgalloc_64.h
-> index 48abccba4991..9d3e5cc95bbb 100644
-> --- a/arch/sparc/include/asm/pgalloc_64.h
-> +++ b/arch/sparc/include/asm/pgalloc_64.h
-> @@ -69,8 +69,6 @@ void pte_free(struct mm_struct *mm, pgtable_t ptepage);
->  #define pmd_populate(MM, PMD, PTE)		pmd_set(MM, PMD, PTE)
->  #define pmd_pgtable(PMD)			((pte_t *)__pmd_page(PMD))
->  
-> -#define check_pgt_cache()	do { } while (0)
-> -
->  void pgtable_free(void *table, bool is_page);
->  
->  #ifdef CONFIG_SMP
-> diff --git a/arch/sparc/mm/init_32.c b/arch/sparc/mm/init_32.c
-> index a8ff29821bdb..5f482e6e2ad1 100644
-> --- a/arch/sparc/mm/init_32.c
-> +++ b/arch/sparc/mm/init_32.c
-> @@ -31,7 +31,6 @@
->  #include <asm/page.h>
->  #include <asm/pgtable.h>
->  #include <asm/vaddrs.h>
-> -#include <asm/pgalloc.h>	/* bug in asm-generic/tlb.h: check_pgt_cache */
->  #include <asm/setup.h>
->  #include <asm/tlb.h>
->  #include <asm/prom.h>
-> diff --git a/arch/um/include/asm/pgalloc.h b/arch/um/include/asm/pgalloc.h
-> index 99eb5682792a..d601937b632b 100644
-> --- a/arch/um/include/asm/pgalloc.h
-> +++ b/arch/um/include/asm/pgalloc.h
-> @@ -55,7 +55,5 @@ static inline void pmd_free(struct mm_struct *mm, pmd_t *pmd)
->  #define __pmd_free_tlb(tlb,x, address)   tlb_remove_page((tlb),virt_to_page(x))
->  #endif
->  
-> -#define check_pgt_cache()	do { } while (0)
-> -
->  #endif
->  
-> diff --git a/arch/unicore32/include/asm/pgalloc.h b/arch/unicore32/include/asm/pgalloc.h
-> index 7cceabecf4e3..56056e2369a4 100644
-> --- a/arch/unicore32/include/asm/pgalloc.h
-> +++ b/arch/unicore32/include/asm/pgalloc.h
-> @@ -17,8 +17,6 @@
->  #include <asm/cacheflush.h>
->  #include <asm/tlbflush.h>
->  
-> -#define check_pgt_cache()		do { } while (0)
-> -
->  #define _PAGE_USER_TABLE	(PMD_TYPE_TABLE | PMD_PRESENT)
->  #define _PAGE_KERNEL_TABLE	(PMD_TYPE_TABLE | PMD_PRESENT)
->  
-> diff --git a/arch/x86/include/asm/pgtable_32.h b/arch/x86/include/asm/pgtable_32.h
-> index 4fe9e7fc74d3..7d0c8cac88a8 100644
-> --- a/arch/x86/include/asm/pgtable_32.h
-> +++ b/arch/x86/include/asm/pgtable_32.h
-> @@ -30,7 +30,6 @@ extern pgd_t initial_page_table[1024];
->  extern pmd_t initial_pg_pmd[];
->  
->  static inline void pgtable_cache_init(void) { }
-> -static inline void check_pgt_cache(void) { }
->  void paging_init(void);
->  void sync_initial_page_table(void);
->  
-> diff --git a/arch/x86/include/asm/pgtable_64.h b/arch/x86/include/asm/pgtable_64.h
-> index 0bb566315621..08b1106834eb 100644
-> --- a/arch/x86/include/asm/pgtable_64.h
-> +++ b/arch/x86/include/asm/pgtable_64.h
-> @@ -242,7 +242,6 @@ extern void cleanup_highmap(void);
->  #define HAVE_ARCH_UNMAPPED_AREA_TOPDOWN
->  
->  #define pgtable_cache_init()   do { } while (0)
-> -#define check_pgt_cache()      do { } while (0)
->  
->  #define PAGE_AGP    PAGE_KERNEL_NOCACHE
->  #define HAVE_PAGE_AGP 1
-> diff --git a/arch/xtensa/include/asm/tlbflush.h b/arch/xtensa/include/asm/tlbflush.h
-> index 06875feb27c2..856e2da2e397 100644
-> --- a/arch/xtensa/include/asm/tlbflush.h
-> +++ b/arch/xtensa/include/asm/tlbflush.h
-> @@ -160,9 +160,6 @@ static inline void invalidate_dtlb_mapping (unsigned address)
->  		invalidate_dtlb_entry(tlb_entry);
->  }
->  
-> -#define check_pgt_cache()	do { } while (0)
-> -
-> -
->  /*
->   * DO NOT USE THESE FUNCTIONS.  These instructions aren't part of the Xtensa
->   * ISA and exist only for test purposes..
-> diff --git a/fs/proc/meminfo.c b/fs/proc/meminfo.c
-> index 568d90e17c17..131bca8db1a1 100644
-> --- a/fs/proc/meminfo.c
-> +++ b/fs/proc/meminfo.c
-> @@ -8,7 +8,6 @@
->  #include <linux/mmzone.h>
->  #include <linux/proc_fs.h>
->  #include <linux/percpu.h>
-> -#include <linux/quicklist.h>
->  #include <linux/seq_file.h>
->  #include <linux/swap.h>
->  #include <linux/vmstat.h>
-> @@ -106,9 +105,6 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
->  		   global_zone_page_state(NR_KERNEL_STACK_KB));
->  	show_val_kb(m, "PageTables:     ",
->  		    global_zone_page_state(NR_PAGETABLE));
-> -#ifdef CONFIG_QUICKLIST
-> -	show_val_kb(m, "Quicklists:     ", quicklist_total_size());
-> -#endif
->  
->  	show_val_kb(m, "NFS_Unstable:   ",
->  		    global_node_page_state(NR_UNSTABLE_NFS));
-> diff --git a/include/asm-generic/pgalloc.h b/include/asm-generic/pgalloc.h
-> index 948714c1535a..500feb7b838a 100644
-> --- a/include/asm-generic/pgalloc.h
-> +++ b/include/asm-generic/pgalloc.h
-> @@ -8,6 +8,4 @@
->  #error need to implement an architecture specific asm/pgalloc.h
->  #endif
->  
-> -#define check_pgt_cache()          do { } while (0)
-> -
->  #endif /* __ASM_GENERIC_PGALLOC_H */
-> diff --git a/include/linux/quicklist.h b/include/linux/quicklist.h
-> deleted file mode 100644
-> index 034982c98c8b..000000000000
-> --- a/include/linux/quicklist.h
-> +++ /dev/null
-> @@ -1,94 +0,0 @@
-> -/* SPDX-License-Identifier: GPL-2.0 */
-> -#ifndef LINUX_QUICKLIST_H
-> -#define LINUX_QUICKLIST_H
-> -/*
-> - * Fast allocations and disposal of pages. Pages must be in the condition
-> - * as needed after allocation when they are freed. Per cpu lists of pages
-> - * are kept that only contain node local pages.
-> - *
-> - * (C) 2007, SGI. Christoph Lameter <cl@linux.com>
-> - */
-> -#include <linux/kernel.h>
-> -#include <linux/gfp.h>
-> -#include <linux/percpu.h>
-> -
-> -#ifdef CONFIG_QUICKLIST
-> -
-> -struct quicklist {
-> -	void *page;
-> -	int nr_pages;
-> -};
-> -
-> -DECLARE_PER_CPU(struct quicklist, quicklist)[CONFIG_NR_QUICK];
-> -
-> -/*
-> - * The two key functions quicklist_alloc and quicklist_free are inline so
-> - * that they may be custom compiled for the platform.
-> - * Specifying a NULL ctor can remove constructor support. Specifying
-> - * a constant quicklist allows the determination of the exact address
-> - * in the per cpu area.
-> - *
-> - * The fast patch in quicklist_alloc touched only a per cpu cacheline and
-> - * the first cacheline of the page itself. There is minmal overhead involved.
-> - */
-> -static inline void *quicklist_alloc(int nr, gfp_t flags, void (*ctor)(void *))
-> -{
-> -	struct quicklist *q;
-> -	void **p = NULL;
-> -
-> -	q =&get_cpu_var(quicklist)[nr];
-> -	p = q->page;
-> -	if (likely(p)) {
-> -		q->page = p[0];
-> -		p[0] = NULL;
-> -		q->nr_pages--;
-> -	}
-> -	put_cpu_var(quicklist);
-> -	if (likely(p))
-> -		return p;
-> -
-> -	p = (void *)__get_free_page(flags | __GFP_ZERO);
-> -	if (ctor && p)
-> -		ctor(p);
-> -	return p;
-> -}
-> -
-> -static inline void __quicklist_free(int nr, void (*dtor)(void *), void *p,
-> -	struct page *page)
-> -{
-> -	struct quicklist *q;
-> -
-> -	q = &get_cpu_var(quicklist)[nr];
-> -	*(void **)p = q->page;
-> -	q->page = p;
-> -	q->nr_pages++;
-> -	put_cpu_var(quicklist);
-> -}
-> -
-> -static inline void quicklist_free(int nr, void (*dtor)(void *), void *pp)
-> -{
-> -	__quicklist_free(nr, dtor, pp, virt_to_page(pp));
-> -}
-> -
-> -static inline void quicklist_free_page(int nr, void (*dtor)(void *),
-> -							struct page *page)
-> -{
-> -	__quicklist_free(nr, dtor, page_address(page), page);
-> -}
-> -
-> -void quicklist_trim(int nr, void (*dtor)(void *),
-> -	unsigned long min_pages, unsigned long max_free);
-> -
-> -unsigned long quicklist_total_size(void);
-> -
-> -#else
-> -
-> -static inline unsigned long quicklist_total_size(void)
-> -{
-> -	return 0;
-> -}
-> -
-> -#endif
-> -
-> -#endif /* LINUX_QUICKLIST_H */
-> -
-> diff --git a/kernel/sched/idle.c b/kernel/sched/idle.c
-> index f5516bae0c1b..8fb03bc55e69 100644
-> --- a/kernel/sched/idle.c
-> +++ b/kernel/sched/idle.c
-> @@ -237,7 +237,6 @@ static void do_idle(void)
->  	tick_nohz_idle_enter();
->  
->  	while (!need_resched()) {
-> -		check_pgt_cache();
->  		rmb();
->  
->  		if (cpu_is_offline(cpu)) {
-> diff --git a/lib/show_mem.c b/lib/show_mem.c
-> index 6a042f53e7bb..b0950ab534ab 100644
-> --- a/lib/show_mem.c
-> +++ b/lib/show_mem.c
-> @@ -6,7 +6,6 @@
->   */
->  
->  #include <linux/mm.h>
-> -#include <linux/quicklist.h>
->  #include <linux/cma.h>
->  
->  void show_mem(unsigned int filter, nodemask_t *nodemask)
-> @@ -39,10 +38,6 @@ void show_mem(unsigned int filter, nodemask_t *nodemask)
->  #ifdef CONFIG_CMA
->  	printk("%lu pages cma reserved\n", totalcma_pages);
->  #endif
-> -#ifdef CONFIG_QUICKLIST
-> -	printk("%lu pages in pagetable cache\n",
-> -		quicklist_total_size());
-> -#endif
->  #ifdef CONFIG_MEMORY_FAILURE
->  	printk("%lu pages hwpoisoned\n", atomic_long_read(&num_poisoned_pages));
->  #endif
-> diff --git a/mm/Kconfig b/mm/Kconfig
-> index 25c71eb8a7db..971cc961453e 100644
-> --- a/mm/Kconfig
-> +++ b/mm/Kconfig
-> @@ -271,11 +271,6 @@ config BOUNCE
->  	  by default when ZONE_DMA or HIGHMEM is selected, but you
->  	  may say n to override this.
->  
-> -config NR_QUICK
-> -	int
-> -	depends on QUICKLIST
-> -	default "1"
-> -
->  config VIRT_TO_BUS
->  	bool
->  	help
-> diff --git a/mm/Makefile b/mm/Makefile
-> index d210cc9d6f80..f6ea80fd9329 100644
-> --- a/mm/Makefile
-> +++ b/mm/Makefile
-> @@ -67,7 +67,6 @@ obj-$(CONFIG_FAILSLAB) += failslab.o
->  obj-$(CONFIG_MEMORY_HOTPLUG) += memory_hotplug.o
->  obj-$(CONFIG_MEMTEST)		+= memtest.o
->  obj-$(CONFIG_MIGRATION) += migrate.o
-> -obj-$(CONFIG_QUICKLIST) += quicklist.o
->  obj-$(CONFIG_TRANSPARENT_HUGEPAGE) += huge_memory.o khugepaged.o
->  obj-$(CONFIG_PAGE_COUNTER) += page_counter.o
->  obj-$(CONFIG_MEMCG) += memcontrol.o vmpressure.o
-> diff --git a/mm/mmu_gather.c b/mm/mmu_gather.c
-> index 99740e1dd273..093196839b6e 100644
-> --- a/mm/mmu_gather.c
-> +++ b/mm/mmu_gather.c
-> @@ -257,8 +257,6 @@ void tlb_finish_mmu(struct mmu_gather *tlb,
->  
->  	tlb_flush_mmu(tlb);
->  
-> -	/* keep the page table cache within bounds */
-> -	check_pgt_cache();
->  #ifndef CONFIG_HAVE_MMU_GATHER_NO_GATHER
->  	tlb_batch_list_free(tlb);
->  #endif
-> diff --git a/mm/quicklist.c b/mm/quicklist.c
-> deleted file mode 100644
-> index 5e98ac78e410..000000000000
-> --- a/mm/quicklist.c
-> +++ /dev/null
-> @@ -1,103 +0,0 @@
-> -// SPDX-License-Identifier: GPL-2.0
-> -/*
-> - * Quicklist support.
-> - *
-> - * Quicklists are light weight lists of pages that have a defined state
-> - * on alloc and free. Pages must be in the quicklist specific defined state
-> - * (zero by default) when the page is freed. It seems that the initial idea
-> - * for such lists first came from Dave Miller and then various other people
-> - * improved on it.
-> - *
-> - * Copyright (C) 2007 SGI,
-> - * 	Christoph Lameter <cl@linux.com>
-> - * 		Generalized, added support for multiple lists and
-> - * 		constructors / destructors.
-> - */
-> -#include <linux/kernel.h>
-> -
-> -#include <linux/gfp.h>
-> -#include <linux/mm.h>
-> -#include <linux/mmzone.h>
-> -#include <linux/quicklist.h>
-> -
-> -DEFINE_PER_CPU(struct quicklist [CONFIG_NR_QUICK], quicklist);
-> -
-> -#define FRACTION_OF_NODE_MEM	16
-> -
-> -static unsigned long max_pages(unsigned long min_pages)
-> -{
-> -	unsigned long node_free_pages, max;
-> -	int node = numa_node_id();
-> -	struct zone *zones = NODE_DATA(node)->node_zones;
-> -	int num_cpus_on_node;
-> -
-> -	node_free_pages =
-> -#ifdef CONFIG_ZONE_DMA
-> -		zone_page_state(&zones[ZONE_DMA], NR_FREE_PAGES) +
-> -#endif
-> -#ifdef CONFIG_ZONE_DMA32
-> -		zone_page_state(&zones[ZONE_DMA32], NR_FREE_PAGES) +
-> -#endif
-> -		zone_page_state(&zones[ZONE_NORMAL], NR_FREE_PAGES);
-> -
-> -	max = node_free_pages / FRACTION_OF_NODE_MEM;
-> -
-> -	num_cpus_on_node = cpumask_weight(cpumask_of_node(node));
-> -	max /= num_cpus_on_node;
-> -
-> -	return max(max, min_pages);
-> -}
-> -
-> -static long min_pages_to_free(struct quicklist *q,
-> -	unsigned long min_pages, long max_free)
-> -{
-> -	long pages_to_free;
-> -
-> -	pages_to_free = q->nr_pages - max_pages(min_pages);
-> -
-> -	return min(pages_to_free, max_free);
-> -}
-> -
-> -/*
-> - * Trim down the number of pages in the quicklist
-> - */
-> -void quicklist_trim(int nr, void (*dtor)(void *),
-> -	unsigned long min_pages, unsigned long max_free)
-> -{
-> -	long pages_to_free;
-> -	struct quicklist *q;
-> -
-> -	q = &get_cpu_var(quicklist)[nr];
-> -	if (q->nr_pages > min_pages) {
-> -		pages_to_free = min_pages_to_free(q, min_pages, max_free);
-> -
-> -		while (pages_to_free > 0) {
-> -			/*
-> -			 * We pass a gfp_t of 0 to quicklist_alloc here
-> -			 * because we will never call into the page allocator.
-> -			 */
-> -			void *p = quicklist_alloc(nr, 0, NULL);
-> -
-> -			if (dtor)
-> -				dtor(p);
-> -			free_page((unsigned long)p);
-> -			pages_to_free--;
-> -		}
-> -	}
-> -	put_cpu_var(quicklist);
-> -}
-> -
-> -unsigned long quicklist_total_size(void)
-> -{
-> -	unsigned long count = 0;
-> -	int cpu;
-> -	struct quicklist *ql, *q;
-> -
-> -	for_each_online_cpu(cpu) {
-> -		ql = per_cpu(quicklist, cpu);
-> -		for (q = ql; q < ql + CONFIG_NR_QUICK; q++)
-> -			count += q->nr_pages;
-> -	}
-> -	return count;
-> -}
-> -
-> -- 
-> 2.20.1
 
--- 
-Michal Hocko
-SUSE Labs
+(...)
+
+> diff --git a/hw/virtio/virtio-balloon.c b/hw/virtio/virtio-balloon.c
+> index 2112874055..5d186707b5 100644
+> --- a/hw/virtio/virtio-balloon.c
+> +++ b/hw/virtio/virtio-balloon.c
+> @@ -34,6 +34,9 @@
+>  
+>  #define BALLOON_PAGE_SIZE  (1 << VIRTIO_BALLOON_PFN_SHIFT)
+>  
+> +#define VIRTIO_BALLOON_PAGE_HINTING_MAX_PAGES	16
+> +void free_mem_range(uint64_t addr, uint64_t len);
+> +
+>  struct PartiallyBalloonedPage {
+>      RAMBlock *rb;
+>      ram_addr_t base;
+> @@ -328,6 +331,58 @@ static void balloon_stats_set_poll_interval(Object *obj, Visitor *v,
+>      balloon_stats_change_timer(s, 0);
+>  }
+>  
+> +void free_mem_range(uint64_t addr, uint64_t len)
+> +{
+> +    int ret = 0;
+> +    void *hvaddr_to_free;
+> +    MemoryRegionSection mrs = memory_region_find(get_system_memory(),
+> +                                                 addr, 1);
+> +    if (!mrs.mr) {
+> +	warn_report("%s:No memory is mapped at address 0x%lu", __func__, addr);
+
+Indentation seems to be off here (also in other places; please double
+check.)
+
+> +        return;
+> +    }
+> +
+> +    if (!memory_region_is_ram(mrs.mr) && !memory_region_is_romd(mrs.mr)) {
+> +	warn_report("%s:Memory at address 0x%s is not RAM:0x%lu", __func__,
+> +		    HWADDR_PRIx, addr);
+> +        memory_region_unref(mrs.mr);
+> +        return;
+> +    }
+> +
+> +    hvaddr_to_free = qemu_map_ram_ptr(mrs.mr->ram_block, mrs.offset_within_region);
+> +    trace_virtio_balloon_hinting_request(addr, len);
+> +    ret = qemu_madvise(hvaddr_to_free,len, QEMU_MADV_FREE);
+> +    if (ret == -1) {
+> +	warn_report("%s: Madvise failed with error:%d", __func__, ret);
+> +    }
+> +}
+> +
+> +static void virtio_balloon_handle_page_hinting(VirtIODevice *vdev,
+> +					       VirtQueue *vq)
+> +{
+> +    VirtQueueElement *elem;
+> +    size_t offset = 0;
+> +    uint64_t gpa, len;
+> +    elem = virtqueue_pop(vq, sizeof(VirtQueueElement));
+> +    if (!elem) {
+> +        return;
+> +    }
+> +    /* For pending hints which are < max_pages(16), 'gpa != 0' ensures that we
+> +     * only read the buffer which holds a valid PFN value.
+> +     * TODO: Find a better way to do this.
+> +     */
+> +    while (iov_to_buf(elem->out_sg, elem->out_num, offset, &gpa, 8) == 8 && gpa != 0) {
+> +	offset += 8;
+> +	offset += iov_to_buf(elem->out_sg, elem->out_num, offset, &len, 8);
+> +	if (!qemu_balloon_is_inhibited()) {
+> +	    free_mem_range(gpa, len);
+> +	}
+> +    }
+> +    virtqueue_push(vq, elem, offset);
+> +    virtio_notify(vdev, vq);
+> +    g_free(elem);
+> +}
+> +
+>  static void virtio_balloon_handle_output(VirtIODevice *vdev, VirtQueue *vq)
+>  {
+>      VirtIOBalloon *s = VIRTIO_BALLOON(vdev);
+> @@ -694,6 +749,7 @@ static uint64_t virtio_balloon_get_features(VirtIODevice *vdev, uint64_t f,
+>      VirtIOBalloon *dev = VIRTIO_BALLOON(vdev);
+>      f |= dev->host_features;
+>      virtio_add_feature(&f, VIRTIO_BALLOON_F_STATS_VQ);
+> +    virtio_add_feature(&f, VIRTIO_BALLOON_F_HINTING);
+
+I don't think you can add this unconditionally if you want to keep this
+migratable. This should be done via a property (as for deflate-on-oom
+and free-page-hint) so it can be turned off in compat machines.
+
+>  
+>      return f;
+>  }
+> @@ -780,6 +836,7 @@ static void virtio_balloon_device_realize(DeviceState *dev, Error **errp)
+>      s->ivq = virtio_add_queue(vdev, 128, virtio_balloon_handle_output);
+>      s->dvq = virtio_add_queue(vdev, 128, virtio_balloon_handle_output);
+>      s->svq = virtio_add_queue(vdev, 128, virtio_balloon_receive_stats);
+> +    s->hvq = virtio_add_queue(vdev, 128, virtio_balloon_handle_page_hinting);
+
+This should probably be conditional in the same way as the free page hint
+queue (also see above).
+
+>  
+>      if (virtio_has_feature(s->host_features,
+>                             VIRTIO_BALLOON_F_FREE_PAGE_HINT)) {
+> @@ -875,6 +932,8 @@ static void virtio_balloon_instance_init(Object *obj)
+>  
+>      object_property_add(obj, "guest-stats", "guest statistics",
+>                          balloon_stats_get_all, NULL, NULL, s, NULL);
+> +    object_property_add(obj, "guest-page-hinting", "guest page hinting",
+> +                        NULL, NULL, NULL, s, NULL);
+
+This object does not have any accessors; what purpose does it serve?
+
+>  
+>      object_property_add(obj, "guest-stats-polling-interval", "int",
+>                          balloon_stats_get_poll_interval,
+
+(...)
+
+> diff --git a/include/standard-headers/linux/virtio_balloon.h b/include/standard-headers/linux/virtio_balloon.h
+> index 9375ca2a70..f9e3e82562 100644
+> --- a/include/standard-headers/linux/virtio_balloon.h
+> +++ b/include/standard-headers/linux/virtio_balloon.h
+> @@ -36,6 +36,7 @@
+>  #define VIRTIO_BALLOON_F_DEFLATE_ON_OOM	2 /* Deflate balloon on OOM */
+>  #define VIRTIO_BALLOON_F_FREE_PAGE_HINT	3 /* VQ to report free pages */
+>  #define VIRTIO_BALLOON_F_PAGE_POISON	4 /* Guest is using page poisoning */
+> +#define VIRTIO_BALLOON_F_HINTING	5 /* Page hinting virtqueue */
+>  
+>  /* Size of a PFN in the balloon interface. */
+>  #define VIRTIO_BALLOON_PFN_SHIFT 12
+
+Please split off any update to these headers into a separate patch, so
+that it can be replaced by a proper headers update when it is merged.
 
