@@ -2,201 +2,282 @@ Return-Path: <SRS0=bABq=VI=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0B617C742A1
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 18:21:53 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 055A4C742A1
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 18:42:30 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B75A1208E4
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 18:21:52 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B75A1208E4
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id AFE12216C8
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 18:42:29 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=cmpxchg-org.20150623.gappssmtp.com header.i=@cmpxchg-org.20150623.gappssmtp.com header.b="LczJZj1L"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AFE12216C8
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=cmpxchg.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3A4278E00F3; Thu, 11 Jul 2019 14:21:52 -0400 (EDT)
+	id 2F7738E00F4; Thu, 11 Jul 2019 14:42:29 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 37A378E00DB; Thu, 11 Jul 2019 14:21:52 -0400 (EDT)
+	id 2A6898E00DB; Thu, 11 Jul 2019 14:42:29 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 241EC8E00F3; Thu, 11 Jul 2019 14:21:52 -0400 (EDT)
+	id 16F588E00F4; Thu, 11 Jul 2019 14:42:29 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E387B8E00DB
-	for <linux-mm@kvack.org>; Thu, 11 Jul 2019 14:21:51 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id c31so3163473pgb.20
-        for <linux-mm@kvack.org>; Thu, 11 Jul 2019 11:21:51 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D44F18E00DB
+	for <linux-mm@kvack.org>; Thu, 11 Jul 2019 14:42:28 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id x18so3949439pfj.4
+        for <linux-mm@kvack.org>; Thu, 11 Jul 2019 11:42:28 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to
-         :references:from:openpgp:autocrypt:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=C+NY0oB+oEoueBVtoiZiDFtgCgYI0PCNttKZ7w6LoeA=;
-        b=Nkvj0qOBsCzjTUSuRGdtihxzwvpzuLQPCUMdyqIhwBykK4fG9tm/QL2zgxbDxa/Iqt
-         ycnm9bbUJWtCkhe9LdwY+6GOIlgrKYMfnTxG7iAAz+ilXDBWbF9LltYnVgj5G3/WHLTD
-         zBYDigsZs3XLrSARDFy2nTF53ceKCyQqYhmaZN3bB+Nh2culWwoCDlIEu360+YX5sc47
-         UPlPZHz06teW28tyIlqrCLQpSnYPE/6AZRs28a/G05dwmYh9/qGSOUe0aBsxoxPhJiDN
-         89hJRID8XTbtA5KQ2Yvv2vlRtaJDb6oqUvLbo+QQ6MaMRH+C2WunlKN7bZwUBVNj2QXj
-         d73A==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAW9LQrPllCZdyqvHrKEguAiKOmbGbUD34/nOlwVdzJIh3gV+BRj
-	xTvYYiRFJ5SnQERYuSAaXCwztRXf46V8g+cxMTIbSL+m7M2/VsaYE5APV5uw4WekIuP+uEE7yRP
-	O/tj4UvC61FF7Wy/9KE9J/HlcAg0TL3JJPg4vFs0HXCcmfS04yOOfXBIOjGoCWIEC9g==
-X-Received: by 2002:a17:902:8ec7:: with SMTP id x7mr6119527plo.224.1562869311530;
-        Thu, 11 Jul 2019 11:21:51 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyW3zj3XsgTLJ3fPACOi6v1a3qzWOysF6jVd7ZlRW+Qvm0Qa/Q4HG6KdctwxtE2w3xJBxrz
-X-Received: by 2002:a17:902:8ec7:: with SMTP id x7mr6119461plo.224.1562869310678;
-        Thu, 11 Jul 2019 11:21:50 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562869310; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=Ye/ueaLSHeuUbF2UmwC3qi+L8ppesjqbY1zG1QqAhZE=;
+        b=mr+GWVygBrQBamPHK5UtobyvlQj0D95KjPl49bWWcQFSMrtGxZ4hXTjOmOVvjkejeb
+         3Pm1btQNvVahPPsWaf/NtCoKmJuwMqvbqIzO02NE3ZcqYDfJPdmBVJaDOFMBL3OjatXp
+         XdPAiaNUCChtVnsia47usQ8B/3l5oQymSTNO7oCsDQmAi7up1uBWcSEV/Fsegrn/UN/X
+         nJIlqaWIvOolZxGmMERHukBP0Dnj3gxsQiZbAxR9fLHVzOi18bI6UguyRw1xP/nO83OR
+         lPfEknSB+/B37cSPgBknHQ4ulXnuSZGXG0zwhIkJOCylpEugkfNQ0L29oGC19dvDUWHU
+         782w==
+X-Gm-Message-State: APjAAAVFL24ECwvfYAt7fNzBbQVrTNY3Zsh5S5rE6o5cHB3rWk1oOD6Z
+	aTHI3Izcq/OkFMGJQo29GjPO3xCi8h/22p4oL0PeZFk4AV6LSXD8fY7EopZN+nwrp9gFhPyxWiP
+	PEnwX7X3BtjTwy+PjQtMDuhyuajOzyw26/I7022P+OLYq1rSWMF3Uy68Y8Nu0gx+X+Q==
+X-Received: by 2002:a63:9245:: with SMTP id s5mr6024181pgn.123.1562870548151;
+        Thu, 11 Jul 2019 11:42:28 -0700 (PDT)
+X-Received: by 2002:a63:9245:: with SMTP id s5mr6024110pgn.123.1562870547279;
+        Thu, 11 Jul 2019 11:42:27 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562870547; cv=none;
         d=google.com; s=arc-20160816;
-        b=EUgIyKyP1gxvBD6+OhLmRXUr+jkJwBWs+TlnyZMELe9t7dsCyIcXW4dq6p8nv2boui
-         QdHvWUfdrzv0xYc2a8kxVqluCzOzD41gmDCRxnz+kMyJ3oPYpdkjjNOu/gcobLOOM8FN
-         BkzdkKc/4hZNNRKTzZn/1m1Xo6o1tQnFUC+WuW/ttJghSedsGXmhYGUSpk2GkNXGNSkt
-         eHCK/L72jwlwx5K3sad/Cg4Jiqc+Uisrz7l19mywbTvop3qONShqTOp7d4lbpXULafNV
-         ppAS4NwW0cqgVNj/hdC9kPSH4b2QSTNJnvBCOYdw156u6IvnXXbZL99wty/lBPicdpst
-         edSw==
+        b=0wSImp9rm6umrVxf/yNCK/cCdlGhov1yaLr9zraO/EtHcujSxrccK6x5HnshNNpuoQ
+         1Zb1xjwnw8o00My0R65E9YD5Yo7l9rzKg8VmHTLmY2Qg2DUUgZbtVb/fJvVjlGvNbk1A
+         ZNvvYI6cf+zzKrmZbANHKfLx7S6dtFYwv4J7C4tQQ/5JHJ7t8HeciOX3H9Z8BLmEnxMZ
+         3FPCsHUTJaLZS+KNVRlKDqw0gr8IqgkBhNIZDstQLtQXQPWY8rg9IjoUmWiuYSiej6Us
+         vL64Zin+mGYU3X2zvX6BtAXDclTo3h0zEhk5HCr/YA2GIsrINRbc7gLC/gOSIOtQvY1N
+         U7bw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:autocrypt:openpgp:from:references:to
-         :subject;
-        bh=C+NY0oB+oEoueBVtoiZiDFtgCgYI0PCNttKZ7w6LoeA=;
-        b=bo1np1htir4Y0hUKysl4/pF0rtAr6pEYk32VdFOi6W+QM95Bik+ZsajC0wjjkP8/90
-         YeToWwnDwDBMMDkpz4yElMffV6rF6K7+ZmW/YBhgX8UVPS8LC5z5uXN0UddJyeI0H7i5
-         yky6BscQ+GcYUR6Eparq4wMfoDLnXd3EDsnELGC0rDUL2MSfmLGeneR3rDondBdosppT
-         4XPNJV3mPmH2ng4kBAQbveGJkFriAXcrhlPPYNCCMcofUvy8AnNsjvF/XW/N3tg/s8Gy
-         gHd6DSTf/0WKU/unXo7hpU9Usm8MIKSLPFwSIAbwmlyvI7NwbIXnmG/lGaYeGkzTFK6K
-         6daQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=Ye/ueaLSHeuUbF2UmwC3qi+L8ppesjqbY1zG1QqAhZE=;
+        b=VawTrE3uPm9VxaUd7m47/FjNRi7GmgFDFyLc6gVM78hApXm0+X7PSaYxfGKHuVQDfK
+         7nULGlecihpa98kjMiXSCP6XqybTOme+mCKR6EWGtRJOpbwh0iAroECK/zeZ3cFTsoon
+         2uXlsB8eva6dzl/JvdZH2H1W49bceBWiqWvwyswl2KerBy8EXG5gRgEpNZ8lMSLicnX7
+         t3QBKZrhOE6ituBYboLIqpQmWjUwf5dXJ1B7eawhuKfi5ACxc9aJxxaw0jOHYwCSF6Ha
+         OCrGP5phndvd9OyaRoh+VmWRPTLY7Whlkp4XPf7JY4Gxl5XU4Nx9Dd/H3sK/Rt/FYu5f
+         Zi5g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id q187si5493588pga.220.2019.07.11.11.21.50
+       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=LczJZj1L;
+       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id v2sor7937142plz.40.2019.07.11.11.42.26
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 11 Jul 2019 11:21:50 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.120 as permitted sender) client-ip=192.55.52.120;
+        (Google Transport Security);
+        Thu, 11 Jul 2019 11:42:26 -0700 (PDT)
+Received-SPF: pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from orsmga007.jf.intel.com ([10.7.209.58])
-  by fmsmga104.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 11 Jul 2019 11:21:50 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.63,479,1557212400"; 
-   d="scan'208";a="156901295"
-Received: from ray.jf.intel.com (HELO [10.7.201.139]) ([10.7.201.139])
-  by orsmga007.jf.intel.com with ESMTP; 11 Jul 2019 11:21:49 -0700
-Subject: Re: [RFC][Patch v11 1/2] mm: page_hinting: core infrastructure
-To: Nitesh Narayan Lal <nitesh@redhat.com>, kvm@vger.kernel.org,
- linux-kernel@vger.kernel.org, linux-mm@kvack.org, pbonzini@redhat.com,
- lcapitulino@redhat.com, pagupta@redhat.com, wei.w.wang@intel.com,
- yang.zhang.wz@gmail.com, riel@surriel.com, david@redhat.com, mst@redhat.com,
- dodgen@google.com, konrad.wilk@oracle.com, dhildenb@redhat.com,
- aarcange@redhat.com, alexander.duyck@gmail.com, john.starks@microsoft.com,
- mhocko@suse.com
-References: <20190710195158.19640-1-nitesh@redhat.com>
- <20190710195158.19640-2-nitesh@redhat.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=dave.hansen@intel.com; keydata=
- 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
-Message-ID: <f9bca947-f88e-51a7-fdaf-4403fda1b783@intel.com>
-Date: Thu, 11 Jul 2019 11:21:49 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.2
+       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=LczJZj1L;
+       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=cmpxchg-org.20150623.gappssmtp.com; s=20150623;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=Ye/ueaLSHeuUbF2UmwC3qi+L8ppesjqbY1zG1QqAhZE=;
+        b=LczJZj1LMI38wtffmfcB6+DCfMF5aokwVwquBj7rOFWJQgRco8bf3jn7Y7DRGU5AKV
+         eyjU2kDty+AJg5gmH7znkDUWdSkh2RLvTYYxEUHfUOHIABMuT/zxz26VO2fWPMLpbI42
+         Q0nKfVbhqRFEaZHRqg01t1RLn3rSDiadjybENTkR+xzCP5NkdrHC11Iih4QtXXJJEJ+2
+         wAnVn52naxG/hzDpgjqUVpVG8nvWNFb9Nm9+54eKFTwbHQZW+h21HGKmNMQL9ThFb9Vb
+         wu6ijN+pWhsut8bcnEO8hAL8JYSaTWFrXUY1xJwZBT5S2jLMFydUdVKuRZGN4kxI/tkg
+         glJw==
+X-Google-Smtp-Source: APXvYqyaXVTrExLmUq7EZsqLnA7MmMx/jzEwrsO/Wn15ERbU1WlzrYFkuyZ9jcRvlFh1JKkaVAl1hw==
+X-Received: by 2002:a17:902:aa88:: with SMTP id d8mr5969327plr.274.1562870546389;
+        Thu, 11 Jul 2019 11:42:26 -0700 (PDT)
+Received: from localhost ([2620:10d:c091:500::2:5385])
+        by smtp.gmail.com with ESMTPSA id 85sm6717518pfv.130.2019.07.11.11.42.25
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Thu, 11 Jul 2019 11:42:25 -0700 (PDT)
+Date: Thu, 11 Jul 2019 14:42:23 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+	linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>,
+	linux-api@vger.kernel.org, Michal Hocko <mhocko@suse.com>,
+	Tim Murray <timmurray@google.com>,
+	Joel Fernandes <joel@joelfernandes.org>,
+	Suren Baghdasaryan <surenb@google.com>,
+	Daniel Colascione <dancol@google.com>,
+	Shakeel Butt <shakeelb@google.com>, Sonny Rao <sonnyrao@google.com>,
+	oleksandr@redhat.com, hdanton@sina.com, lizeb@google.com,
+	Dave Hansen <dave.hansen@intel.com>,
+	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: Re: [PATCH v4 4/4] mm: introduce MADV_PAGEOUT
+Message-ID: <20190711184223.GD20341@cmpxchg.org>
+References: <20190711012528.176050-1-minchan@kernel.org>
+ <20190711012528.176050-5-minchan@kernel.org>
 MIME-Version: 1.0
-In-Reply-To: <20190710195158.19640-2-nitesh@redhat.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190711012528.176050-5-minchan@kernel.org>
+User-Agent: Mutt/1.12.0 (2019-05-25)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 7/10/19 12:51 PM, Nitesh Narayan Lal wrote:
-> +static void bm_set_pfn(struct page *page)
+On Thu, Jul 11, 2019 at 10:25:28AM +0900, Minchan Kim wrote:
+> @@ -480,6 +482,198 @@ static long madvise_cold(struct vm_area_struct *vma,
+>  	return 0;
+>  }
+>  
+> +static int madvise_pageout_pte_range(pmd_t *pmd, unsigned long addr,
+> +				unsigned long end, struct mm_walk *walk)
 > +{
-> +	struct zone *zone = page_zone(page);
-> +	int zone_idx = page_zonenum(page);
-> +	unsigned long bitnr = 0;
+> +	struct mmu_gather *tlb = walk->private;
+> +	struct mm_struct *mm = tlb->mm;
+> +	struct vm_area_struct *vma = walk->vma;
+> +	pte_t *orig_pte, *pte, ptent;
+> +	spinlock_t *ptl;
+> +	LIST_HEAD(page_list);
+> +	struct page *page;
+> +	unsigned long next;
 > +
-> +	lockdep_assert_held(&zone->lock);
-> +	bitnr = pfn_to_bit(page, zone_idx);
-> +	/*
-> +	 * TODO: fix possible underflows.
-> +	 */
-> +	if (free_area[zone_idx].bitmap &&
-> +	    bitnr < free_area[zone_idx].nbits &&
-> +	    !test_and_set_bit(bitnr, free_area[zone_idx].bitmap))
-> +		atomic_inc(&free_area[zone_idx].free_pages);
+> +	if (fatal_signal_pending(current))
+> +		return -EINTR;
+> +
+> +	next = pmd_addr_end(addr, end);
+> +	if (pmd_trans_huge(*pmd)) {
+> +		pmd_t orig_pmd;
+> +
+> +		tlb_change_page_size(tlb, HPAGE_PMD_SIZE);
+> +		ptl = pmd_trans_huge_lock(pmd, vma);
+> +		if (!ptl)
+> +			return 0;
+> +
+> +		orig_pmd = *pmd;
+> +		if (is_huge_zero_pmd(orig_pmd))
+> +			goto huge_unlock;
+> +
+> +		if (unlikely(!pmd_present(orig_pmd))) {
+> +			VM_BUG_ON(thp_migration_supported() &&
+> +					!is_pmd_migration_entry(orig_pmd));
+> +			goto huge_unlock;
+> +		}
+> +
+> +		page = pmd_page(orig_pmd);
+> +		if (next - addr != HPAGE_PMD_SIZE) {
+> +			int err;
+> +
+> +			if (page_mapcount(page) != 1)
+> +				goto huge_unlock;
+> +			get_page(page);
+> +			spin_unlock(ptl);
+> +			lock_page(page);
+> +			err = split_huge_page(page);
+> +			unlock_page(page);
+> +			put_page(page);
+> +			if (!err)
+> +				goto regular_page;
+> +			return 0;
+> +		}
+> +
+> +		if (isolate_lru_page(page))
+> +			goto huge_unlock;
+> +
+> +		if (pmd_young(orig_pmd)) {
+> +			pmdp_invalidate(vma, addr, pmd);
+> +			orig_pmd = pmd_mkold(orig_pmd);
+> +
+> +			set_pmd_at(mm, addr, pmd, orig_pmd);
+> +			tlb_remove_tlb_entry(tlb, pmd, addr);
+> +		}
+> +
+> +		ClearPageReferenced(page);
+> +		test_and_clear_page_young(page);
+> +		list_add(&page->lru, &page_list);
+> +huge_unlock:
+> +		spin_unlock(ptl);
+> +		reclaim_pages(&page_list);
+> +		return 0;
+> +	}
+> +
+> +	if (pmd_trans_unstable(pmd))
+> +		return 0;
+> +regular_page:
+> +	tlb_change_page_size(tlb, PAGE_SIZE);
+> +	orig_pte = pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
+> +	flush_tlb_batched_pending(mm);
+> +	arch_enter_lazy_mmu_mode();
+> +	for (; addr < end; pte++, addr += PAGE_SIZE) {
+> +		ptent = *pte;
+> +		if (!pte_present(ptent))
+> +			continue;
+> +
+> +		page = vm_normal_page(vma, addr, ptent);
+> +		if (!page)
+> +			continue;
+> +
+> +		/*
+> +		 * creating a THP page is expensive so split it only if we
+> +		 * are sure it's worth. Split it if we are only owner.
+> +		 */
+> +		if (PageTransCompound(page)) {
+> +			if (page_mapcount(page) != 1)
+> +				break;
+> +			get_page(page);
+> +			if (!trylock_page(page)) {
+> +				put_page(page);
+> +				break;
+> +			}
+> +			pte_unmap_unlock(orig_pte, ptl);
+> +			if (split_huge_page(page)) {
+> +				unlock_page(page);
+> +				put_page(page);
+> +				pte_offset_map_lock(mm, pmd, addr, &ptl);
+> +				break;
+> +			}
+> +			unlock_page(page);
+> +			put_page(page);
+> +			pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
+> +			pte--;
+> +			addr -= PAGE_SIZE;
+> +			continue;
+> +		}
+> +
+> +		VM_BUG_ON_PAGE(PageTransCompound(page), page);
+> +
+> +		if (isolate_lru_page(page))
+> +			continue;
+> +
+> +		if (pte_young(ptent)) {
+> +			ptent = ptep_get_and_clear_full(mm, addr, pte,
+> +							tlb->fullmm);
+> +			ptent = pte_mkold(ptent);
+> +			set_pte_at(mm, addr, pte, ptent);
+> +			tlb_remove_tlb_entry(tlb, pte, addr);
+> +		}
+> +		ClearPageReferenced(page);
+> +		test_and_clear_page_young(page);
+> +		list_add(&page->lru, &page_list);
+> +	}
+> +
+> +	arch_leave_lazy_mmu_mode();
+> +	pte_unmap_unlock(orig_pte, ptl);
+> +	reclaim_pages(&page_list);
+> +	cond_resched();
+> +
+> +	return 0;
 > +}
 
-Let's say I have two NUMA nodes, each with ZONE_NORMAL and ZONE_MOVABLE
-and each zone with 1GB of memory:
+I know you have briefly talked about code sharing already.
 
-Node:         0        1
-NORMAL   0->1GB   2->3GB
-MOVABLE  1->2GB   3->4GB
+While I agree that sharing with MADV_FREE is maybe a stretch, I
+applied these patches and compared the pageout and the cold page table
+functions, and they are line for line the same EXCEPT for 2-3 lines at
+the very end, where one reclaims and the other deactivates. It would
+be good to share here, it shouldn't be hard or result in fragile code.
 
-This code will allocate two bitmaps.  The ZONE_NORMAL bitmap will
-represent data from 0->3GB and the ZONE_MOVABLE bitmap will represent
-data from 1->4GB.  That's the result of this code:
-
-> +			if (free_area[zone_idx].base_pfn) {
-> +				free_area[zone_idx].base_pfn =
-> +					min(free_area[zone_idx].base_pfn,
-> +					    zone->zone_start_pfn);
-> +				free_area[zone_idx].end_pfn =
-> +					max(free_area[zone_idx].end_pfn,
-> +					    zone->zone_start_pfn +
-> +					    zone->spanned_pages);
-
-But that means that both bitmaps will have space for PFNs in the other
-zone type, which is completely bogus.  This is fundamental because the
-data structures are incorrectly built per zone *type* instead of per zone.
+Something like int madvise_cold_or_pageout_range(..., bool pageout)?
 
