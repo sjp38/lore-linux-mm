@@ -2,203 +2,173 @@ Return-Path: <SRS0=bABq=VI=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.9 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.1 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1E8C9C74A35
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 14:27:34 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id AE03FC74A54
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 14:27:40 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CC24A2166E
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 14:27:33 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 5E4722177B
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 14:27:40 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="VxnBJQPS"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CC24A2166E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="vYqpYvpe"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5E4722177B
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D559D8E00DC; Thu, 11 Jul 2019 10:27:25 -0400 (EDT)
+	id 034268E00DD; Thu, 11 Jul 2019 10:27:40 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D07BB8E00DB; Thu, 11 Jul 2019 10:27:25 -0400 (EDT)
+	id F010D8E00DB; Thu, 11 Jul 2019 10:27:39 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B2F068E00DC; Thu, 11 Jul 2019 10:27:25 -0400 (EDT)
+	id DC6AD8E00DD; Thu, 11 Jul 2019 10:27:39 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 9295D8E00DB
-	for <linux-mm@kvack.org>; Thu, 11 Jul 2019 10:27:25 -0400 (EDT)
-Received: by mail-io1-f69.google.com with SMTP id c5so6906522iom.18
-        for <linux-mm@kvack.org>; Thu, 11 Jul 2019 07:27:25 -0700 (PDT)
+Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 8BD5E8E00DB
+	for <linux-mm@kvack.org>; Thu, 11 Jul 2019 10:27:39 -0400 (EDT)
+Received: by mail-wr1-f69.google.com with SMTP id r4so2696014wrt.13
+        for <linux-mm@kvack.org>; Thu, 11 Jul 2019 07:27:39 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id:in-reply-to:references;
-        bh=p0TwseF6Rl2ptej9BTwWkpZCi9Mm6El6sXWBWxSv9Wc=;
-        b=cPgqGNZZMUF1vTM/VI0/cyT200JAzNFB96+gCOVBB6nEe8I3mCZufLB5ykwlQTLbOD
-         XqG8C7VZTcoaBry+cQUcG3bCKHose2x0VDoHRTnGMOcygTBd3z1E7R+lKZGweOjuu25U
-         UfLETeN5s/IhbX3+iRkmcjWNrq3kC5ELUSdKOyG8vtRW6Qn6Lu44PDSeEUqAe6PbOHbs
-         d+3B1ECFux+FKuJaJWFD3hh7FmK5AdPcaV2SeJxqK0Mn0/f1n70aEqo8FnhswEp6GJZg
-         4lE+caJfF0of86qjriFey2Wzn157+PlDHEUQUup2U23KjWEsj5ec/020l8aW1tLdXYNN
-         Q90w==
-X-Gm-Message-State: APjAAAXXkDdUd2O1eW+cOIaQchMJIefYXJkf22ZoyR6msTjMTfghD0PX
-	BfIoBzCA11gmtJLllGChTVM0j17Aq3+fpzAWaK4/PYquUV98js8RNIPhE7f/ACI4i/2GqNFRyPa
-	55rqp4Q+xBwMht5Har+KTTK3M7PiaCXlPYWWcVvAsFenRcCZptjnGMqgWYQcW6NnX9Q==
-X-Received: by 2002:a02:9004:: with SMTP id w4mr4954615jaf.111.1562855245396;
-        Thu, 11 Jul 2019 07:27:25 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxY4/hh5m5SARweNKm68n49sZBK3UFUoSJu4Ps0b1/z9Qt52U09oBe4TGGLy7x6gk01Ajlx
-X-Received: by 2002:a02:9004:: with SMTP id w4mr4954555jaf.111.1562855244728;
-        Thu, 11 Jul 2019 07:27:24 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562855244; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=kgSCqCMgkzHP3NI7bApdCQ2mgMy1VndTbhMfuP51VMY=;
+        b=ALlUvjeB0LEaG+dqI9O8W6ITFhAaDGkXJI/99xBghyKLhCVDtaZqJpTm84ScXVlNYi
+         44+UUdTQVrQpnJXDckU3TqC0LfcIyawTmP1SLV5kl4OMU8PIwNUyHhEzK1GXC5E1vHcr
+         2iBXWbZuuISdI51y6HqP48Kqdo491Vit9iF8LlRWzy0og54boN4Vm/ZZewNBJjlJOEn/
+         uPX49xxCStkr75x7VA0w0I7yRkRlSv4ATnPnuMHctx+0OWj7JZdfN73E14uycVZivRal
+         DTyO9YPzJr33Rp5S6n5FjznBjUTyvHdgp0e4nLqjYOl6v3RzZemhPkWttnmFqJjMU/h1
+         DDmQ==
+X-Gm-Message-State: APjAAAXV/yElaXMt1i+vC15vGsk/vkEd12JM4y2sgtqPWboD4n1I6ONz
+	Mosc1YhFdhwgdx/tB7w2WL+vAMRIpqkTtRCmgRd0ih7Q7M1CBl8kuqLrheJ3N5KX46EhJqPy6RD
+	LuDUElXMcTZIHRFVswtYJCZpGK21a/VJATRd8dqHsd2s35ZJZjz4G42D1drum3GK7lw==
+X-Received: by 2002:a5d:518f:: with SMTP id k15mr5424550wrv.321.1562855259161;
+        Thu, 11 Jul 2019 07:27:39 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqythNp3bfXIrxpC8so2udSR+1+Em/PSBTGHhLvXS9z7z8LbFUOW7g0dHjC5ueJY+12vrzaR
+X-Received: by 2002:a5d:518f:: with SMTP id k15mr5424479wrv.321.1562855258185;
+        Thu, 11 Jul 2019 07:27:38 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562855258; cv=none;
         d=google.com; s=arc-20160816;
-        b=VqH8UFfAkBsxOEzKylrcP9/zZucI073ilvxmjfmxLO4nuHq6K8qwcm2kcEeFf1cLk4
-         VWSIt1E/z1KtEGxMtRGxEHdKrbfvnwS+12UEd4KfQh2Eg/G3uIIWEXAy9mRzbhcuuDIM
-         iP5A65U+5B5CtsATxNESg14v/m9wUYXNZS+VO0yFrYFgrHqeJUR/o0VpRWkPsBUZqUQE
-         MKdjPcNl0RVC/3QCLH9abY5JKphD27bvRkOmoEu+N7g412qkzLEkqemgxX4LYBaTWSR9
-         07LKELoxSFEQGduUaVfV5uu9yks7eh5eraAaXFLMTTGcfX6ZxKS/Ftm2tMdW+7RKrqk8
-         GoDw==
+        b=BL95I3qn2X0Y7P/Dv2Xj6s2Mm6UbXGVyAFaLz3aVXmclX8oVvHApt1H7qyFzJRGOcv
+         PkalPgg7Xy+TwZlHTYG5gW1JUz5uiDREpwc4KpKDWwIIp4cCCvc7DAqEW6s5fwr4Ummu
+         k/G3GHcxSYPICNGWfA9HnKaupiYtHpKPnqbVAtevIeEOYhXqEFHheDo/AUpi4MYCZMXq
+         fqgaGfBBd8va/i665x8qmi4hKZfvQ+NIR5nfrY+0krZ/J70/aSLPescasKPxOfZW9wR2
+         550ablJ5+72u6v2A2M0zMzvxeYflGRIg7TRoNQuNU4u3ETfNmm+IV1qasS24yJjoeZDx
+         xmVA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=references:in-reply-to:message-id:date:subject:cc:to:from
-         :dkim-signature;
-        bh=p0TwseF6Rl2ptej9BTwWkpZCi9Mm6El6sXWBWxSv9Wc=;
-        b=Cp/bG3U+Ov/O9UNn3ZU8FPPDTS4BJ3TwE9+faplUmK9q239ntbbSbyaL/xZ+rvDYmu
-         ouK5QvIiJ0atARW72MdyuamP5gyrG6dGZ1w0zgopeBIG72n87lZHarVGwclR1Z6u7TdV
-         9bxumpdAg0tcWwakBkT2VxGTRGkjSNSkYqPGnlO5G20I0fcca7es938ZjkLiVp7l9mtN
-         jhlzZ3TOLO/B5bvg+X1dR1WjnOB9kiwgVreNzoNZtpSL6oX6FoT95TpfTE5aLOGePhdA
-         mM31a6c9nsjM4B/yp3ogfQwjABOJoWZMe5KGA5VTpntmQ1aZheuRkJ3ISHXAkGRzk/xZ
-         SQcw==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date:dkim-signature;
+        bh=kgSCqCMgkzHP3NI7bApdCQ2mgMy1VndTbhMfuP51VMY=;
+        b=nKV+GUN9hISEkXXNJxy/F9hpxhFweDliwenpKQ0UzO8F7unZMI5TRJ82uzculA5z5t
+         5wTcaUy8YgxqW5TKwJZhMzAQ8xrNXtGAxJHpPjYgdYOGIA0AKjA9HMdtbsGZWRdJiOSF
+         GerkA3379sQBYj1PvVsEwuandYMMO8lcjNR65LtT6jGGILdwihGk790Baj7TBR5KyiGW
+         h/kZNKAsONxle90SRG67xwgfEzOZahWES2j4UOmwxE5pY4XaDbnhAsgPgEtyO6i96nAN
+         LnjFXUXKPGeSISFM8vp6Dr2ymKZGXFgZHJFAdKiBf4N8l2K+qD7UpeF1L7p9K95WkL1k
+         m2Bg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=VxnBJQPS;
-       spf=pass (google.com: domain of alexandre.chartre@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=alexandre.chartre@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id b10si7691987ioq.76.2019.07.11.07.27.24
+       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=vYqpYvpe;
+       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=peterz@infradead.org
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
+        by mx.google.com with ESMTPS id l15si3227694wrm.327.2019.07.11.07.27.38
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 11 Jul 2019 07:27:24 -0700 (PDT)
-Received-SPF: pass (google.com: domain of alexandre.chartre@oracle.com designates 156.151.31.86 as permitted sender) client-ip=156.151.31.86;
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Thu, 11 Jul 2019 07:27:38 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) client-ip=2001:8b0:10b:1231::1;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=VxnBJQPS;
-       spf=pass (google.com: domain of alexandre.chartre@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=alexandre.chartre@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
-	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x6BEO8vQ001464;
-	Thu, 11 Jul 2019 14:27:16 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=from : to : cc :
- subject : date : message-id : in-reply-to : references; s=corp-2018-07-02;
- bh=p0TwseF6Rl2ptej9BTwWkpZCi9Mm6El6sXWBWxSv9Wc=;
- b=VxnBJQPSh0LmxFyWqVND6G3imbrgiNDc2XYktPKhPxTH7jeK12iQ07uhiR7KSkYssaXb
- Pv64TstUQ6TZGJ1PMaSuITPpNq63mpZXM6Iv7MEPC/m1XIUd6uAVwnuCuLzWwEkJpk+d
- bLhzpPXWzEGxFhxH1pYNQvLU4rahHXqpvu4/IcVK0tDJMHq3A7NSNALQrgdnEe+A5MWw
- HjWBvSrm/StSA0wUZr133cDwxkrZIL+2nTAatg2QWIUq+pis7baTZiMjbcwkfcdkdyAy
- 8SJFtfEFVLR+g5pFWeVErgqD0yalSI8+c1PK8OfF5ETzFY1qWu5XfRWDWSejjFNNjfXr 8Q== 
-Received: from aserv0021.oracle.com (aserv0021.oracle.com [141.146.126.233])
-	by userp2130.oracle.com with ESMTP id 2tjk2u0e5t-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 11 Jul 2019 14:27:15 +0000
-Received: from achartre-desktop.fr.oracle.com (dhcp-10-166-106-34.fr.oracle.com [10.166.106.34])
-	by aserv0021.oracle.com (8.14.4/8.14.4) with ESMTP id x6BEPcuJ021444;
-	Thu, 11 Jul 2019 14:27:06 GMT
-From: Alexandre Chartre <alexandre.chartre@oracle.com>
-To: pbonzini@redhat.com, rkrcmar@redhat.com, tglx@linutronix.de,
-        mingo@redhat.com, bp@alien8.de, hpa@zytor.com,
-        dave.hansen@linux.intel.com, luto@kernel.org, peterz@infradead.org,
-        kvm@vger.kernel.org, x86@kernel.org, linux-mm@kvack.org,
-        linux-kernel@vger.kernel.org
-Cc: konrad.wilk@oracle.com, jan.setjeeilers@oracle.com, liran.alon@oracle.com,
-        jwadams@google.com, graf@amazon.de, rppt@linux.vnet.ibm.com,
-        alexandre.chartre@oracle.com
-Subject: [RFC v2 26/26] KVM: x86/asi: Map KVM memslots and IO buses into KVM ASI
-Date: Thu, 11 Jul 2019 16:25:38 +0200
-Message-Id: <1562855138-19507-27-git-send-email-alexandre.chartre@oracle.com>
-X-Mailer: git-send-email 1.7.1
-In-Reply-To: <1562855138-19507-1-git-send-email-alexandre.chartre@oracle.com>
-References: <1562855138-19507-1-git-send-email-alexandre.chartre@oracle.com>
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9314 signatures=668688
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1907110162
+       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=vYqpYvpe;
+       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=peterz@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=merlin.20170209; h=In-Reply-To:Content-Transfer-Encoding:
+	Content-Type:MIME-Version:References:Message-ID:Subject:Cc:To:From:Date:
+	Sender:Reply-To:Content-ID:Content-Description:Resent-Date:Resent-From:
+	Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:List-Help:
+	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	bh=kgSCqCMgkzHP3NI7bApdCQ2mgMy1VndTbhMfuP51VMY=; b=vYqpYvpe4pu04ng6B0A06A2Ebt
+	IEotIWqUDGlLiIeJXs3STCRzutaBfRE8kMERKV9c7ZRD5PB+jVgbutrHwHhFQdoFSNubb17mq05ay
+	pILpcnf6sG5BKWFktgHStubOK9UqnnoPCyptfIMcsrCDcCoV/zaZdI6rh/UVSFFCapTpb0LStSgYV
+	XEAUQnYOyieF5R42wT7u2kL17EUSlkCjtyvlmXvQQsct3CXPyDLrc3Cixv/gAoOluBL6Y/OSSpg9A
+	iqvrC7IKzdy209HkI4yhcxi7UtnvQ5PpTa86x0CyyEahVMeohTVHZCpUSg97S19SCOjj4iR+cjY8o
+	1+fQ8g6g==;
+Received: from j217100.upc-j.chello.nl ([24.132.217.100] helo=hirez.programming.kicks-ass.net)
+	by merlin.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
+	id 1hla2n-0003zh-2O; Thu, 11 Jul 2019 14:27:33 +0000
+Received: by hirez.programming.kicks-ass.net (Postfix, from userid 1000)
+	id D714220213042; Thu, 11 Jul 2019 16:27:28 +0200 (CEST)
+Date: Thu, 11 Jul 2019 16:27:28 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+To: =?utf-8?B?546L6LSH?= <yun.wang@linux.alibaba.com>
+Cc: hannes@cmpxchg.org, mhocko@kernel.org, vdavydov.dev@gmail.com,
+	Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org,
+	linux-mm@kvack.org, mcgrof@kernel.org, keescook@chromium.org,
+	linux-fsdevel@vger.kernel.org, cgroups@vger.kernel.org,
+	Mel Gorman <mgorman@suse.de>, riel@surriel.com
+Subject: Re: [PATCH 4/4] numa: introduce numa cling feature
+Message-ID: <20190711142728.GF3402@hirez.programming.kicks-ass.net>
+References: <209d247e-c1b2-3235-2722-dd7c1f896483@linux.alibaba.com>
+ <60b59306-5e36-e587-9145-e90657daec41@linux.alibaba.com>
+ <9a440936-1e5d-d3bb-c795-ef6f9839a021@linux.alibaba.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <9a440936-1e5d-d3bb-c795-ef6f9839a021@linux.alibaba.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Map KVM memslots and IO buses into KVM ASI. Mapping is checking on each
-KVM ASI enter because they can change.
+On Wed, Jul 03, 2019 at 11:34:16AM +0800, 王贇 wrote:
+> Although we paid so many effort to settle down task on a particular
+> node, there are still chances for a task to leave it's preferred
+> node, that is by wakeup, numa swap migrations or load balance.
+> 
+> When we are using cpu cgroup in share way, since all the workloads
+> see all the cpus, it could be really bad especially when there
+> are too many fast wakeup, although now we can numa group the tasks,
+> they won't really stay on the same node, for example we have numa
+> group ng_A, ng_B, ng_C, ng_D, it's very likely result as:
+> 
+> 	CPU Usage:
+> 		Node 0		Node 1
+> 		ng_A(600%)	ng_A(400%)
+> 		ng_B(400%)	ng_B(600%)
+> 		ng_C(400%)	ng_C(600%)
+> 		ng_D(600%)	ng_D(400%)
+> 
+> 	Memory Ratio:
+> 		Node 0		Node 1
+> 		ng_A(60%)	ng_A(40%)
+> 		ng_B(40%)	ng_B(60%)
+> 		ng_C(40%)	ng_C(60%)
+> 		ng_D(60%)	ng_D(40%)
+> 
+> Locality won't be too bad but far from the best situation, we want
+> a numa group to settle down thoroughly on a particular node, with
+> every thing balanced.
+> 
+> Thus we introduce the numa cling, which try to prevent tasks leaving
+> the preferred node on wakeup fast path.
 
-Signed-off-by: Alexandre Chartre <alexandre.chartre@oracle.com>
----
- arch/x86/kvm/x86.c       |   36 +++++++++++++++++++++++++++++++++++-
- include/linux/kvm_host.h |    2 ++
- 2 files changed, 37 insertions(+), 1 deletions(-)
 
-diff --git a/arch/x86/kvm/x86.c b/arch/x86/kvm/x86.c
-index 9458413..7c52827 100644
---- a/arch/x86/kvm/x86.c
-+++ b/arch/x86/kvm/x86.c
-@@ -7748,11 +7748,45 @@ void __kvm_request_immediate_exit(struct kvm_vcpu *vcpu)
- 
- static void vcpu_isolation_enter(struct kvm_vcpu *vcpu)
- {
--	int err;
-+	struct kvm *kvm = vcpu->kvm;
-+	struct kvm_io_bus *bus;
-+	int i, err;
- 
- 	if (!vcpu->asi)
- 		return;
- 
-+	/*
-+	 * Check memslots and buses mapping as they tend to change.
-+	 */
-+	for (i = 0; i < KVM_ADDRESS_SPACE_NUM; i++) {
-+		if (vcpu->asi_memslots[i] == kvm->memslots[i])
-+			continue;
-+		pr_debug("remapping kvm memslots[%d]: %px -> %px\n",
-+			 i, vcpu->asi_memslots[i], kvm->memslots[i]);
-+		err = asi_remap(vcpu->asi, &vcpu->asi_memslots[i],
-+				kvm->memslots[i], sizeof(struct kvm_memslots));
-+		if (err) {
-+			pr_debug("failed to map kvm memslots[%d]: error %d\n",
-+				 i, err);
-+		}
-+	}
-+
-+
-+	for (i = 0; i < KVM_NR_BUSES; i++) {
-+		bus = kvm->buses[i];
-+		if (bus == vcpu->asi_buses[i])
-+			continue;
-+		pr_debug("remapped kvm buses[%d]: %px -> %px\n",
-+			 i, vcpu->asi_buses[i], bus);
-+		err = asi_remap(vcpu->asi, &vcpu->asi_buses[i], bus,
-+				sizeof(*bus) + bus->dev_count *
-+				sizeof(struct kvm_io_range));
-+		if (err) {
-+			pr_debug("failed to map kvm buses[%d]: error %d\n",
-+				 i, err);
-+		}
-+	}
-+
- 	err = asi_enter(vcpu->asi);
- 	if (err)
- 		pr_debug("KVM isolation failed: error %d\n", err);
-diff --git a/include/linux/kvm_host.h b/include/linux/kvm_host.h
-index 2a9d073..1f82de4 100644
---- a/include/linux/kvm_host.h
-+++ b/include/linux/kvm_host.h
-@@ -324,6 +324,8 @@ struct kvm_vcpu {
- 
- #ifdef CONFIG_ADDRESS_SPACE_ISOLATION
- 	struct asi *asi;
-+	void *asi_memslots[KVM_ADDRESS_SPACE_NUM];
-+	void *asi_buses[KVM_NR_BUSES];
- #endif
- };
- 
--- 
-1.7.1
+> @@ -6195,6 +6447,13 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target)
+>  	if ((unsigned)i < nr_cpumask_bits)
+>  		return i;
+> 
+> +	/*
+> +	 * Failed to find an idle cpu, wake affine may want to pull but
+> +	 * try stay on prev-cpu when the task cling to it.
+> +	 */
+> +	if (task_numa_cling(p, cpu_to_node(prev), cpu_to_node(target)))
+> +		return prev;
+> +
+>  	return target;
+>  }
+
+Select idle sibling should never cross node boundaries and is thus the
+entirely wrong place to fix anything.
 
