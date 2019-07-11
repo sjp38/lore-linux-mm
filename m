@@ -2,168 +2,121 @@ Return-Path: <SRS0=bABq=VI=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
-	autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A4210C74A52
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 09:27:54 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 38E85C74A4B
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 09:43:28 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5ED3921019
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 09:27:54 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="XW74OVag"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5ED3921019
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 00CDD206B8
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 09:43:27 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 00CDD206B8
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linutronix.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id F1DFE8E00AE; Thu, 11 Jul 2019 05:27:52 -0400 (EDT)
+	id 5EC418E00AF; Thu, 11 Jul 2019 05:43:27 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id ECF1B8E0032; Thu, 11 Jul 2019 05:27:52 -0400 (EDT)
+	id 59C498E0032; Thu, 11 Jul 2019 05:43:27 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DBDC58E00AE; Thu, 11 Jul 2019 05:27:52 -0400 (EDT)
+	id 465548E00AF; Thu, 11 Jul 2019 05:43:27 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A4F5B8E0032
-	for <linux-mm@kvack.org>; Thu, 11 Jul 2019 05:27:52 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id b18so3289842pgg.8
-        for <linux-mm@kvack.org>; Thu, 11 Jul 2019 02:27:52 -0700 (PDT)
+Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 101B38E0032
+	for <linux-mm@kvack.org>; Thu, 11 Jul 2019 05:43:27 -0400 (EDT)
+Received: by mail-wr1-f69.google.com with SMTP id q2so2303359wrr.18
+        for <linux-mm@kvack.org>; Thu, 11 Jul 2019 02:43:27 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:subject:to:cc
-         :references:in-reply-to:mime-version:user-agent:message-id
-         :content-transfer-encoding;
-        bh=ctjQwgCLlp604HpVeqlyCBpmRi6PoJDKRevkqL/NNWA=;
-        b=VVagUk0P3wsUWvIQlDCLNJplOEHZp16QRmaEBpYLjw/tHDShouVYwUju8HAGZViFLf
-         2LVUJsIfzSesc7/hdj9RITHmkVJYSdIK0IcGQF77KoCvce03X1Zhhq1RAnZcE/tHD71u
-         cFnv/j0m+V/Jq43RQ6j75Q2ul7ESbDZ4hBzBdJOd+j9BZmHUDMt+posdYRYRewGAUskd
-         8uMZIYwr1ZDn3uspP+nS1GKxm7gZIfqyVsKQ3POlZmMNJxsc3FGTw0n/z5cf4FfvObC8
-         KrJjddd4JZPiROgZh9U4RysUXmgfPO+eeBdvZX2GMkPnpLbpRGC8VjSaeMIbdkzcy+qG
-         3dhQ==
-X-Gm-Message-State: APjAAAVNQgCvXnJhB6JAtgQE5p7/kxoTvAewOkFW/U519Zh9RIQUiDnK
-	IBPCLp6cmTbooLIGrK1SPrivEIhFDUi/C3Z1KPEkR95563jCV1Voylr2X1vd4hDnKfdLyrNOD8S
-	WrG67+B9OTuk5jncE7/LnUOdAr/jSjTU78XFzwwL64QVwbZfw1CMZXGosX1aN/PWJ0A==
-X-Received: by 2002:a63:6904:: with SMTP id e4mr3292655pgc.321.1562837271629;
-        Thu, 11 Jul 2019 02:27:51 -0700 (PDT)
-X-Received: by 2002:a63:6904:: with SMTP id e4mr3292599pgc.321.1562837270854;
-        Thu, 11 Jul 2019 02:27:50 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562837270; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=tN+aJAlcO20Lsqhzl5mSnGRV4uENNmV/oGnG33vw0kc=;
+        b=UPVVnPkc4HNV/H3ZBUbuGrAlALxc2eHopjF8ayX/459gXvZe0cPdyKRsd7TmtixWJU
+         rp9GPL941sEv+EGb5ttTPQtzJGRlPwwCvjaE0JlY+mT6jRK1+QdrmHSrb5sXDfoA9e5o
+         nh85bIciXIO9hJtD4jI6t2yQYNo2roJOHYKJmYyB5yDnIeZyc/ORpMm189M5AHDGQOEk
+         VHE1dVigc9zFeH3thSUQGtrlpYxxTVxx5UkuGKkmGN/WdTraAIqv/dkjzjPjBEKcMYvK
+         ljoFjjW7wyVUoaHt1Dd2uCuZPtxbu3zcASd6r+4abQ802azHcrqlRxN2wBuVKL9XjgdR
+         FRaQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of bigeasy@linutronix.de designates 2a0a:51c0:0:12e:550::1 as permitted sender) smtp.mailfrom=bigeasy@linutronix.de
+X-Gm-Message-State: APjAAAUfnsv+9JlQpJoXNOOIHFSC1qWQ6zJPIi4SaJB/41x1H9ppdUaB
+	yOB7q/ebMJ2mhE/jaDxYMXYAKeepO0ssA4/OsMjcOqFfCDA4rg/GNDuFfEhzeAt9uBlKmjGS0EX
+	MZCcLTB2+iY3OEgXbd8uZats1RdSgCXQhx8SmxB0U++rlz4fbRXpBZe2PTZ2TMSCMRA==
+X-Received: by 2002:a7b:c356:: with SMTP id l22mr3254222wmj.97.1562838206592;
+        Thu, 11 Jul 2019 02:43:26 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqws+Xhk0WDAqxoVLlbGxN2P9vgaIVV5hoynhUeiM+mG50lFN3qZAivVL9RCc3BSGe06ZhoC
+X-Received: by 2002:a7b:c356:: with SMTP id l22mr3254146wmj.97.1562838205879;
+        Thu, 11 Jul 2019 02:43:25 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562838205; cv=none;
         d=google.com; s=arc-20160816;
-        b=uOoSylwG2BxzQZ4a9KyzH42NCTCXax585CenycqIC7LNeLY+AVeytyjHs4Vu0FAE7S
-         +bTjTMVW5VkJ11INay7jdYK9s3VqdVXqSH7akWeioSHTBanwcldsjAl/juihKFJPaaEb
-         cvi2phCHVWAZjf2lhGJjd/hrSQ+qyq5DxX080Zfo4Wtwk0O4TKyoKMAXGIMnl+NCzIsT
-         4MmUfFzn60dReMjKU2D2L3x95F8uYFiDhmhBjmSXc8CNF5/DgQ95NZAl6YIO2Kg1vQKH
-         6K3eMuqjF3ViUkXVzDWYxS7LsyTGpE55pqhNXMgim2lp1gCRBZSU51eGZ3fHUaatgmlH
-         rsbQ==
+        b=UUna2AXpBCaACmk/KArIoE9XPzuy4QJKWjTBheLhqM46SuuO2cYadvURvUYmTaiWfD
+         6ld7er4uuZ8y0gD7f7kEjzLBvMrdnaNn/TBo23CU5ZPM1Qbc2q6EJDHQCspGPk6bUhAb
+         j5DuiFiUdBxsHYT+mHWxySvkYNNag/8ShrvI7M+IHD3Wg/5xfN/G4xW3G1Rtvegfqx0e
+         rZO1KWRoMtQbstVdpJZiOG710rczoboXYoJ4cPA7/lL/ZqTW51cFjloAED403RCeh416
+         Yx7J8mRWG7r43OL4GIMo0RCbPJeQTxbW+uKs1HFUwY8Uq3oO9tM/8wfuqKydCTqiStrK
+         r/4g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:message-id:user-agent:mime-version
-         :in-reply-to:references:cc:to:subject:from:date:dkim-signature;
-        bh=ctjQwgCLlp604HpVeqlyCBpmRi6PoJDKRevkqL/NNWA=;
-        b=ddd+YozH8sCnecKH8SwzS/GU0Q/jLsMT8l8EtdpEpVUSl5hz1fnaFU8KejuUYwmxBe
-         xzIQ9cDmqECZK5obzVVcboGJ+Q97dJYUba/qZR3xVwdEIsUTt7dIPAQd/ERFgVaBCgbt
-         YpXJskBbjsxhf4k8CyG2B8j2H4cwl/AZ4hSrg3MsMslUmy6R4yUym2mNwpl5jbtFAgCD
-         BIffCNldCFESVhg0T2ZtzR2AfEsNYtK8dJuVigcQN3gj9n0tw04PUt3to4Lltd509BVa
-         1MCG1BL+PkFQkFqrJd2FykiVI37ml2kH9f0gjYyopXr9y5/bOM8J6CpPLYLe1QymRTn9
-         xp8w==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date;
+        bh=tN+aJAlcO20Lsqhzl5mSnGRV4uENNmV/oGnG33vw0kc=;
+        b=dzwQRCKMipgyAK1P28VS+RYl+GOoPoRzv2rMtyA4XsfJvBC8FowxurcOent4p/EJZp
+         vozVrWI5bhiTT7EO+me8JSkWQJ5w4jDpowT/mCMBCiaQG7BlxrenROupXvcnJfvxaCm3
+         WTfoLo2P3iUB/zY8gk5JhdhYuHfg6zaJudsdp2NfKYWia9PjnUtz6Gq9oZsz0hQpsAlB
+         g8g/WkBd95XQaC9MF2ZjKsIhNmCaBoN2GgroxlY9wedXTiCjFuzQO3JFSaWYMwLWNAO1
+         YMT73TtoFdqUsRzI3P1JdVdRSC8phqMDawKkeh8rpBYSPA7YsK4gNWHJe8qCz35HVDqz
+         /9Wg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=XW74OVag;
-       spf=pass (google.com: domain of npiggin@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=npiggin@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id f41sor6327168pjg.15.2019.07.11.02.27.50
+       spf=pass (google.com: best guess record for domain of bigeasy@linutronix.de designates 2a0a:51c0:0:12e:550::1 as permitted sender) smtp.mailfrom=bigeasy@linutronix.de
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a0a:51c0:0:12e:550::1])
+        by mx.google.com with ESMTPS id g16si4953641wrp.111.2019.07.11.02.43.25
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 11 Jul 2019 02:27:50 -0700 (PDT)
-Received-SPF: pass (google.com: domain of npiggin@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Thu, 11 Jul 2019 02:43:25 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of bigeasy@linutronix.de designates 2a0a:51c0:0:12e:550::1 as permitted sender) client-ip=2a0a:51c0:0:12e:550::1;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=XW74OVag;
-       spf=pass (google.com: domain of npiggin@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=npiggin@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=date:from:subject:to:cc:references:in-reply-to:mime-version
-         :user-agent:message-id:content-transfer-encoding;
-        bh=ctjQwgCLlp604HpVeqlyCBpmRi6PoJDKRevkqL/NNWA=;
-        b=XW74OVagqyugV3/wP3THCRvzAueu17tkpao+yo5IHjM8lpQKb6048H3Ny2zPiMlaBe
-         eWhLpF+K9KQHEB6wbz91Dz2IO+zyXpsqcPKHP8E66kSa23MHmWz3BI2wuZDY/GlcAlX4
-         9gip+KCwm1zKSnAXDjwQ877ARE5KD+Pxzj5PsfoCR+q/o0Svm/zLZOPTOyDxJySzf2+s
-         DvfIPszRwZRSYyF/1o5IZqMVya9UQ/720bkO3YthabEBSWqkyw/vwZ9nxtWAWlY632XS
-         BKAux4fqS5G4Wz32aM2yJP+pKtMljHicKmK/1r0jMBgrbxwmDP1BpKTgVQhcZmCj0dwO
-         R3LQ==
-X-Google-Smtp-Source: APXvYqzBE9aU+/1BWb2TunJAkuLc1lAKBCpOQTAA/+hp8NBdlzCDfV9tpMXfluq3s3+NBBp7T2SqaQ==
-X-Received: by 2002:a17:90a:3aed:: with SMTP id b100mr3712815pjc.63.1562837270504;
-        Thu, 11 Jul 2019 02:27:50 -0700 (PDT)
-Received: from localhost (193-116-118-149.tpgi.com.au. [193.116.118.149])
-        by smtp.gmail.com with ESMTPSA id q69sm6572107pjb.0.2019.07.11.02.27.48
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Thu, 11 Jul 2019 02:27:49 -0700 (PDT)
-Date: Thu, 11 Jul 2019 19:24:52 +1000
-From: Nicholas Piggin <npiggin@gmail.com>
-Subject: Re: [RFC PATCH] mm: remove quicklist page table caches
-To: Christopher Lameter <cl@linux.com>
-Cc: linux-arch@vger.kernel.org, linux-ia64@vger.kernel.org, linux-mm@kvack.org,
-	linux-sh@vger.kernel.org
-References: <20190711030339.20892-1-npiggin@gmail.com>
-	<0100016be006fbda-65d42038-d656-4d74-8b50-9c800afe4f96-000000@email.amazonses.com>
-In-Reply-To:
-	<0100016be006fbda-65d42038-d656-4d74-8b50-9c800afe4f96-000000@email.amazonses.com>
+       spf=pass (google.com: best guess record for domain of bigeasy@linutronix.de designates 2a0a:51c0:0:12e:550::1 as permitted sender) smtp.mailfrom=bigeasy@linutronix.de
+Received: from bigeasy by Galois.linutronix.de with local (Exim 4.80)
+	(envelope-from <bigeasy@linutronix.de>)
+	id 1hlVbo-00033U-OS; Thu, 11 Jul 2019 11:43:24 +0200
+Date: Thu, 11 Jul 2019 11:43:24 +0200
+From: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
+To: Yang Shi <shy828301@gmail.com>
+Cc: Linux MM <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: Memory compaction and mlockall()
+Message-ID: <20190711094324.ninnmarx5r3amz4p@linutronix.de>
+References: <20190710144138.qyn4tuttdq6h7kqx@linutronix.de>
+ <CAHbLzkpME1oT2=-TNPm9S_iZ2nkGsY6AXo7iVgDUhg8WysDpZw@mail.gmail.com>
 MIME-Version: 1.0
-User-Agent: astroid/0.14.0 (https://github.com/astroidmail/astroid)
-Message-Id: <1562835751.mpbmrr7rdc.astroid@bobo.none>
 Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
 Content-Transfer-Encoding: quoted-printable
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000001, version=1.2.4
+In-Reply-To: <CAHbLzkpME1oT2=-TNPm9S_iZ2nkGsY6AXo7iVgDUhg8WysDpZw@mail.gmail.com>
+User-Agent: NeoMutt/20180716
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Christopher Lameter's on July 11, 2019 5:54 pm:
-> On Thu, 11 Jul 2019, Nicholas Piggin wrote:
+On 2019-07-10 11:21:19 [-0700], Yang Shi wrote:
 >=20
->> Remove page table allocator "quicklists". These have been around for a
->> long time, but have not got much traction in the last decade and are
->> only used on ia64 and sh architectures.
->=20
-> I also think its good to remove this code. Note sure though if IA64
-> may still have a need of it. But then its not clear that the IA64 arch is
-> still in use. Is it still maintained?
+> compaction should not isolate unevictable pages unless you have
+> /proc/sys/vm/compact_unevictable_allowed set.
 
-It should still work (as well as other archs). Does it have any
-particular need for page table allocation speed compared to others?
+Thank you. This is enabled by default. The documentation for this says
+| =E2=80=A6 compaction is allowed to examine the unevictable lru (mlocked p=
+ages) for
+| pages to compact.=E2=80=A6
 
-I actually think it's more benefit for ia64 and sh than anything.
-For other arches it's no big deal, and generic code just sprinkles
-some poorly named function around the place with no real way to
-know where it should go or test it. Then not to mention its
-interaction with other memory queues.
+so it is actually clear once you know where to look.
+If I read this correct, the default behavior was to ignore mlock()ed
+pages for compaction then commit
+  5bbe3547aa3ba ("mm: allow compaction of unevictable pages")
 
->> Also it might be better to instead make more general improvements to
->> page allocator if this is still so slow.
->=20
-> Well yes many have thought so and made attempts to improve the situation
-> which generally have failed. But even the fast path of the page allocator
-> seems to bloat more and more. The situation is deteriorating instead of
-> getting better and as a result lots of subsystems create their own caches
-> to avoid the page allocator.
+came along in v4.1-rc1 and changed that behaviour. Is it too late to
+flip it back?
 
-Yeah, to some degree I agree. And if someone would test it on a modern
-CPU and workload that would be cool.
-
-But for example in most workloads you would expect the rate of page
-allocation and freeing for processes to be on the same order of=20
-magnitude at the low end, up to 2 orders of magnitude higher than
-page tables that map them. Not true perhaps for very large shared
-mmaps, but all in all IMO it's not clear this is a good tradeoff, or
-it's a good idea to proliferate these little queues around the place.
-
-Anyway that's just handwaving from me, but I'm not against the code
-being resurrected and added to the more important archs if it shows
-good gains on something relevant.
-
-Thanks,
-Nick
-=
+Sebastian
 
