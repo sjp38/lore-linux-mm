@@ -2,233 +2,183 @@ Return-Path: <SRS0=bABq=VI=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.9 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1,USER_IN_DEF_DKIM_WL
-	autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8E5BAC742A1
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 21:22:22 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C60C5C742A2
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 21:34:18 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2C950208E4
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 21:22:22 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="C9PwpYMa"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2C950208E4
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	by mail.kernel.org (Postfix) with ESMTP id 89C11208E4
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 21:34:18 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 89C11208E4
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linutronix.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 89A0D8E00FB; Thu, 11 Jul 2019 17:22:21 -0400 (EDT)
+	id 0A2618E00FC; Thu, 11 Jul 2019 17:34:18 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 870A28E00DB; Thu, 11 Jul 2019 17:22:21 -0400 (EDT)
+	id 051E58E00DB; Thu, 11 Jul 2019 17:34:17 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 786348E00FB; Thu, 11 Jul 2019 17:22:21 -0400 (EDT)
+	id E5C0B8E00FC; Thu, 11 Jul 2019 17:34:17 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 409998E00DB
-	for <linux-mm@kvack.org>; Thu, 11 Jul 2019 17:22:21 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id x10so4165877pfa.23
-        for <linux-mm@kvack.org>; Thu, 11 Jul 2019 14:22:21 -0700 (PDT)
+Received: from mail-wm1-f69.google.com (mail-wm1-f69.google.com [209.85.128.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 8D3C88E00DB
+	for <linux-mm@kvack.org>; Thu, 11 Jul 2019 17:34:17 -0400 (EDT)
+Received: by mail-wm1-f69.google.com with SMTP id z24so2067159wmi.9
+        for <linux-mm@kvack.org>; Thu, 11 Jul 2019 14:34:17 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :in-reply-to:message-id:references:user-agent:mime-version;
-        bh=ll8NrHguXOqSbOpxMM5XmQWOR4BFFXXFhQrd5rYx/Xk=;
-        b=tSH886m25NSI6hqSigPuzV1GmTZmBJKNSbl/RDi/hni0hq9ae9BXME27crlrcTa7n9
-         so+Uw2MDPwujdQRUf0JV5hqmNd1c18hi94YeD02DR9LyUGR/iAVtpmm2yB4n9v8azCMg
-         Pk198otKR5MVWordWK0sONf9OviGhMeaYfE3PqgY+z4cL4q6j3cpN/C/ETjhSM9VeWJU
-         yE3JgvaltvBuEgTJB0mDQTO/vmP7PpWEIMC1QIxiJ1iwDaQgHwYe7DfDS7jJ+nLLnMtf
-         mFhjXtpFEuuSDcGkAcyG94CWKBfipf76G4nPVsDzwsKea+DjDmNCTR+b0QuxPy3NYpRe
-         +KSQ==
-X-Gm-Message-State: APjAAAVddigeJiI1YSLe7UpyQksh7wUjVeVnoOeKtHQw/cx3CfX2jBv0
-	7vr7jX8khuJvgPtXdq4cagsXvxVPlttY5pBo2L+UuIjDz4kE+iIhz2LIsmYu9UcmZ+vkdhKN3aK
-	8MC8oYO+k9iJCI87qGsSDD/6cRqvxYLo+eH5bGB7ooQKTGcHAi1RmvQ+KJ/DbvEaCjA==
-X-Received: by 2002:a63:e5a:: with SMTP id 26mr6377798pgo.3.1562880140756;
-        Thu, 11 Jul 2019 14:22:20 -0700 (PDT)
-X-Received: by 2002:a63:e5a:: with SMTP id 26mr6377736pgo.3.1562880139818;
-        Thu, 11 Jul 2019 14:22:19 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562880139; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:in-reply-to:message-id:references:user-agent
+         :mime-version;
+        bh=4DbAui3JRthBbn+rH3ZbT6KQozOdSL1BfgrMWL8KxQU=;
+        b=D9D0sZQhspDGMYu7+UJEl2uui2SceAGhk5meAbBVMXy96gfvk1WppEG1a26Wz9iGHd
+         2Ar+3pqyH0tQdAkM7YfjKEBIBSYjCfPAvdzP30tmX8nbfKj1Oclq6AOd8QuQD/9YvmYv
+         2uR7lGI1HUNa8rgXMxTvy1EBlAz7dfZI1DQxp0+AjQVReoSZK9s8GoaIzLmkFM0mPA4l
+         iVHQnXCMGe+O9TM+AzLpxl5r1I0+ikOZSzZCGHYVlzd0RqfzwMB4+hXgKOs6h8ZXa6NR
+         SgShSdj+K8TxxAJLUeStxUQZOp/BvzMBd+UyeXnE0C1kcOIaVHWbgWoUnFaXrrH4SMqk
+         vGag==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a0a:51c0:0:12e:550::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
+X-Gm-Message-State: APjAAAVR8EJV7VkPhl5Eh8oW3aVxBgJYq1o527b9sP/UzHTuHKwsR5Ar
+	N1yvAWDHJ4Xyf0mU7ThNlwUOrrPN4aIgZWyEwAE57HPY3iaNkHcHf08O3CP4kq38RowA5DPY8u6
+	F5r/UhyDyWsUqEOOM3AMQHAYApSoqy+jnxMqKLIulTUxk9fVvoJeOx6TeqXl/c3CNcQ==
+X-Received: by 2002:a5d:6a84:: with SMTP id s4mr6918552wru.125.1562880857105;
+        Thu, 11 Jul 2019 14:34:17 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqx6QRX5qTgAOJOE2Wm1IuKq/9gzNcwpUqcnedBBB22O+w7dODu779b+J+0b1loUX5UPyZr8
+X-Received: by 2002:a5d:6a84:: with SMTP id s4mr6918516wru.125.1562880856338;
+        Thu, 11 Jul 2019 14:34:16 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562880856; cv=none;
         d=google.com; s=arc-20160816;
-        b=vZ6uNZ6YNTd2SAeCTNvEHkJyBS2dogDFlLEMiHlFdOUqtFPyfAS73YnWZeC5hx/EkC
-         5py3Qdk5jsirPWCIayGboAeM+fzrP5ut5QwiL8T//ji+JbSK8TIQBpYom/ZxPAsiXgRE
-         6B94Is6DOwEr41S4ZgYi8n4hpSMl/wwE+5EOth2xrkezxd0xF7rU8t8Hewos65Dvknjl
-         gQGipP5Xh5nr5us+Vi+6i+/qqt7Nk+O1THyZNLRNzHVDtKexEMrbI22aKu/T3rrB3MOw
-         237iqtNNL0P89DuSZS+yzyNSjlWDPf0p9Prn8jrBDgd0StLUGSF8YTCuXwSUTn9ZHdIa
-         4ELw==
+        b=CH6otFruRuWs21aPPS3Ah7RIrqleO1/uGkwt4N9DIIK0/0cjau3uz2Rn3RxuTZqnUJ
+         DD4U4mH7GQdwPOkALqfRFz+xaYdAkHkhH1APvqMhaV9Xk7qGdt3FAK3CHwLZSKmeJYtk
+         iHAbBjet/+jB49DXmVIEk/2dxHjoLJ9m5mVVugTN6a16/HmN905jlK0KmbaGR7kPUh+G
+         pLV9qjqQCUHmn+/1pCQTenNpvjiglmAus7UcqthZi+4SfqxhWFyFFlHwCIqn3UB+sD1J
+         4YoklfnIolgTVaRzBF79H8A5cS/aFzIcAJ0aebvGzdUyXbcTB8A6LjK5i+JbFC+pDqsb
+         J+bQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=mime-version:user-agent:references:message-id:in-reply-to:subject
-         :cc:to:from:date:dkim-signature;
-        bh=ll8NrHguXOqSbOpxMM5XmQWOR4BFFXXFhQrd5rYx/Xk=;
-        b=UzOc2X73E8i4LufCDwh8uKBuR1Z2oLmAqzl3qw1VYgrl3pNnbubbkgYcRy6L0Snex4
-         WpbCg5JNYkbd9yRWhgNer7IgM+rkwv8Dji43FiG3kzm+pgyV1QogrlqXR6yUjXneO532
-         xYkVZctxjlpiKHAYHCnNR125tAqAyhnGisAvbj1RUfFr36HZruXYWZML9493nUCfz1w5
-         aHWjN2RYKPkzSaVkvFAdoVWYQ4uAZ2YJY5ZBOMBjQ6zuXREd1/k/K7BKDJV6/fVIXDfq
-         SZXqmJbY3iPgXUFDP1X/j7PBa7YzYuRBXIPhYo6Pz6gc1xdcXZCkyNdOr7mo9IfDzRGG
-         8V5Q==
+         :cc:to:from:date;
+        bh=4DbAui3JRthBbn+rH3ZbT6KQozOdSL1BfgrMWL8KxQU=;
+        b=h6i5Tt3gJWGa0g5mM+Fjrw15hg/7ZZHhW0xLwCSBFuwJxytIJoE77K78KbLCm5P+Kc
+         ycnyp/onC1503eyIt2DmUMXXpNvUp0+pYmbZl7f9m/6OZHeAEj1k1CRpGzzLyW8KZgh7
+         vY1of+X0LZGl+D9CRnZpjXwNQUD03ShHl6G8nLt+PMst88mhcYsNX6X7PfgO/VVmiVZI
+         gSd5aQT7oVhS7HVKF2f+fV/TBANqUmNmfcW/oyNtr1fcsBGa5aie23EYRpviUizz+9W9
+         q0jYHYI3qbijwlUFFTwE5KByXcW6PJIDQ5rtZ4OsAc8IdDDGKDyKf/womwLCj+S7rz2K
+         Z6gQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=C9PwpYMa;
-       spf=pass (google.com: domain of rientjes@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=rientjes@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h4sor8389831pji.23.2019.07.11.14.22.19
+       spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a0a:51c0:0:12e:550::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a0a:51c0:0:12e:550::1])
+        by mx.google.com with ESMTPS id j3si8283804wrs.215.2019.07.11.14.34.16
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 11 Jul 2019 14:22:19 -0700 (PDT)
-Received-SPF: pass (google.com: domain of rientjes@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Thu, 11 Jul 2019 14:34:16 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a0a:51c0:0:12e:550::1 as permitted sender) client-ip=2a0a:51c0:0:12e:550::1;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=C9PwpYMa;
-       spf=pass (google.com: domain of rientjes@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=rientjes@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=date:from:to:cc:subject:in-reply-to:message-id:references
-         :user-agent:mime-version;
-        bh=ll8NrHguXOqSbOpxMM5XmQWOR4BFFXXFhQrd5rYx/Xk=;
-        b=C9PwpYMaU9nVnH3nEjptn59gQLUrcOKCxfNMsY8XTuu9ttCZx7aRAOEHY7h1SQW4s2
-         tw4XozBpC/BRtjZAQltp+ICrnkKdPNBW9ZSZeKJczjFxavyxAimNnFXa0fqSw4s//rBe
-         vjca8wK1Fs0iUswUWyHaSEcy5ZKljnQclicZ3JsLPA+Md9+CJqzqF8XncAHitOiUll/Z
-         nGi/M8F4Bs3N0oJ82RN5dcn52F4Unh59YdWtHx83yUCqryESf5zS+sK+DIKNUt1RNl4B
-         c5E+mqlcxYon91Rn/QKsJSNP+vTIYnRc9D+A43HI9quZrC7JXAuSiNAxuEIl3Kw6L3Zm
-         xoWw==
-X-Google-Smtp-Source: APXvYqypuSeNyb69Dk1JO7kRPzoyRnBwWoCoeZNmZn0wdvSjTCngSTAW9y6Wh2k0x/7KmWf40re8Ww==
-X-Received: by 2002:a17:90a:d998:: with SMTP id d24mr7113307pjv.89.1562880139069;
-        Thu, 11 Jul 2019 14:22:19 -0700 (PDT)
-Received: from [2620:15c:17:3:3a5:23a7:5e32:4598] ([2620:15c:17:3:3a5:23a7:5e32:4598])
-        by smtp.gmail.com with ESMTPSA id i3sm7186454pfo.138.2019.07.11.14.22.18
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Thu, 11 Jul 2019 14:22:18 -0700 (PDT)
-Date: Thu, 11 Jul 2019 14:22:17 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-X-X-Sender: rientjes@chino.kir.corp.google.com
-To: Chris Wilson <chris@chris-wilson.co.uk>
-cc: Steven Rostedt <rostedt@goodmis.org>, Tejun Heo <tj@kernel.org>, 
-    Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, 
-    Joonsoo Kim <iamjoonsoo.kim@lge.com>, 
-    Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, 
-    linux-kernel@vger.kernel.org
-Subject: Re: [BUG] lockdep splat with kernfs lockdep annotations and slab
- mutex from drm patch??
-In-Reply-To: <156282587317.12280.11217721447100506162@skylake-alporthouse-com>
-Message-ID: <alpine.DEB.2.21.1907111419120.157247@chino.kir.corp.google.com>
-References: <20190614093914.58f41d8f@gandalf.local.home> <156052491337.7796.17642747687124632554@skylake-alporthouse-com> <20190614153837.GE538958@devbig004.ftw2.facebook.com> <20190710225720.58246f8e@oasis.local.home>
- <156282587317.12280.11217721447100506162@skylake-alporthouse-com>
+       spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a0a:51c0:0:12e:550::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
+Received: from pd9ef1cb8.dip0.t-ipconnect.de ([217.239.28.184] helo=nanos)
+	by Galois.linutronix.de with esmtpsa (TLS1.2:DHE_RSA_AES_256_CBC_SHA256:256)
+	(Exim 4.80)
+	(envelope-from <tglx@linutronix.de>)
+	id 1hlghS-000289-8D; Thu, 11 Jul 2019 23:33:58 +0200
+Date: Thu, 11 Jul 2019 23:33:50 +0200 (CEST)
+From: Thomas Gleixner <tglx@linutronix.de>
+To: Alexandre Chartre <alexandre.chartre@oracle.com>
+cc: pbonzini@redhat.com, rkrcmar@redhat.com, mingo@redhat.com, bp@alien8.de, 
+    hpa@zytor.com, dave.hansen@linux.intel.com, luto@kernel.org, 
+    peterz@infradead.org, kvm@vger.kernel.org, x86@kernel.org, 
+    linux-mm@kvack.org, linux-kernel@vger.kernel.org, konrad.wilk@oracle.com, 
+    jan.setjeeilers@oracle.com, liran.alon@oracle.com, jwadams@google.com, 
+    graf@amazon.de, rppt@linux.vnet.ibm.com
+Subject: Re: [RFC v2 01/26] mm/x86: Introduce kernel address space
+ isolation
+In-Reply-To: <1562855138-19507-2-git-send-email-alexandre.chartre@oracle.com>
+Message-ID: <alpine.DEB.2.21.1907112321570.1782@nanos.tec.linutronix.de>
+References: <1562855138-19507-1-git-send-email-alexandre.chartre@oracle.com> <1562855138-19507-2-git-send-email-alexandre.chartre@oracle.com>
 User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
 MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
+X-Linutronix-Spam-Score: -1.0
+X-Linutronix-Spam-Level: -
+X-Linutronix-Spam-Status: No , -1.0 points, 5.0 required,  ALL_TRUSTED=-1,SHORTCIRCUIT=-0.0001
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 11 Jul 2019, Chris Wilson wrote:
+On Thu, 11 Jul 2019, Alexandre Chartre wrote:
+> +/*
+> + * When isolation is active, the address space doesn't necessarily map
+> + * the percpu offset value (this_cpu_off) which is used to get pointers
+> + * to percpu variables. So functions which can be invoked while isolation
+> + * is active shouldn't be getting pointers to percpu variables (i.e. with
+> + * get_cpu_var() or this_cpu_ptr()). Instead percpu variable should be
+> + * directly read or written to (i.e. with this_cpu_read() or
+> + * this_cpu_write()).
+> + */
+> +
+> +int asi_enter(struct asi *asi)
+> +{
+> +	enum asi_session_state state;
+> +	struct asi *current_asi;
+> +	struct asi_session *asi_session;
+> +
+> +	state = this_cpu_read(cpu_asi_session.state);
+> +	/*
+> +	 * We can re-enter isolation, but only with the same ASI (we don't
+> +	 * support nesting isolation). Also, if isolation is still active,
+> +	 * then we should be re-entering with the same task.
+> +	 */
+> +	if (state == ASI_SESSION_STATE_ACTIVE) {
+> +		current_asi = this_cpu_read(cpu_asi_session.asi);
+> +		if (current_asi != asi) {
+> +			WARN_ON(1);
+> +			return -EBUSY;
+> +		}
+> +		WARN_ON(this_cpu_read(cpu_asi_session.task) != current);
+> +		return 0;
+> +	}
+> +
+> +	/* isolation is not active so we can safely access the percpu pointer */
+> +	asi_session = &get_cpu_var(cpu_asi_session);
 
-> Quoting Steven Rostedt (2019-07-11 03:57:20)
-> > On Fri, 14 Jun 2019 08:38:37 -0700
-> > Tejun Heo <tj@kernel.org> wrote:
-> > 
-> > > Hello,
-> > > 
-> > > On Fri, Jun 14, 2019 at 04:08:33PM +0100, Chris Wilson wrote:
-> > > > #ifdef CONFIG_MEMCG
-> > > >         if (slab_state >= FULL && err >= 0 && is_root_cache(s)) {
-> > > >                 struct kmem_cache *c;
-> > > > 
-> > > >                 mutex_lock(&slab_mutex);
-> > > > 
-> > > > so it happens to hit the error + FULL case with the additional slabcaches?
-> > > > 
-> > > > Anyway, according to lockdep, it is dangerous to use the slab_mutex inside
-> > > > slab_attr_store().  
-> > > 
-> > > Didn't really look into the code but it looks like slab_mutex is held
-> > > while trying to remove sysfs files.  sysfs file removal flushes
-> > > on-going accesses, so if a file operation then tries to grab a mutex
-> > > which is held during removal, it leads to a deadlock.
-> > > 
-> > 
-> > Looks like this never got fixed and now this bug is in 5.2.
-> 
-> git blame gives
-> 
-> commit 107dab5c92d5f9c3afe962036e47c207363255c7
-> Author: Glauber Costa <glommer@parallels.com>
-> Date:   Tue Dec 18 14:23:05 2012 -0800
-> 
->     slub: slub-specific propagation changes
-> 
-> for adding the mutex underneath sysfs read, and I think
-> 
-> commit d50d82faa0c964e31f7a946ba8aba7c715ca7ab0
-> Author: Mikulas Patocka <mpatocka@redhat.com>
-> Date:   Wed Jun 27 23:26:09 2018 -0700
-> 
->     slub: fix failure when we delete and create a slab cache
-> 
-> added the sysfs removal underneath the slab_mutex.
-> 
-> > Just got this:
-> > 
-> >  ======================================================
-> >  WARNING: possible circular locking dependency detected
-> >  5.2.0-test #15 Not tainted
-> >  ------------------------------------------------------
-> >  slub_cpu_partia/899 is trying to acquire lock:
-> >  000000000f6f2dd7 (slab_mutex){+.+.}, at: slab_attr_store+0x6d/0xe0
-> >  
-> >  but task is already holding lock:
-> >  00000000b23ffe3d (kn->count#160){++++}, at: kernfs_fop_write+0x125/0x230
-> >  
-> >  which lock already depends on the new lock.
-> >  
-> >  
-> >  the existing dependency chain (in reverse order) is:
-> >  
-> >  -> #1 (kn->count#160){++++}:
-> >         __kernfs_remove+0x413/0x4a0
-> >         kernfs_remove_by_name_ns+0x40/0x80
-> >         sysfs_slab_add+0x1b5/0x2f0
-> >         __kmem_cache_create+0x511/0x560
-> >         create_cache+0xcd/0x1f0
-> >         kmem_cache_create_usercopy+0x18a/0x240
-> >         kmem_cache_create+0x12/0x20
-> >         is_active_nid+0xdb/0x230 [snd_hda_codec_generic]
-> >         snd_hda_get_path_idx+0x55/0x80 [snd_hda_codec_generic]
-> >         get_nid_path+0xc/0x170 [snd_hda_codec_generic]
-> >         do_one_initcall+0xa2/0x394
-> >         do_init_module+0xfd/0x370
-> >         load_module+0x38c6/0x3bd0
-> >         __do_sys_finit_module+0x11a/0x1b0
-> >         do_syscall_64+0x68/0x250
-> >         entry_SYSCALL_64_after_hwframe+0x49/0xbe
-> >  
+get_cpu_var()?? Where is the matching put_cpu_var() ? get_cpu_var()
+contains a preempt_disable ...
 
-Which slab cache is getting created here?  I assume that sysfs_slab_add() 
-is only trying to do kernfs_remove_by_name_ns() becasue its unmergeable 
-with other slab caches.
+What's wrong with a simple this_cpu_ptr() here?
 
-> >  -> #0 (slab_mutex){+.+.}:
-> >         lock_acquire+0xbd/0x1d0
-> >         __mutex_lock+0xfc/0xb70
-> >         slab_attr_store+0x6d/0xe0
-> >         kernfs_fop_write+0x170/0x230
-> >         vfs_write+0xe1/0x240
-> >         ksys_write+0xba/0x150
-> >         do_syscall_64+0x68/0x250
-> >         entry_SYSCALL_64_after_hwframe+0x49/0xbe
-> >  
-> >  other info that might help us debug this:
-> >  
-> >   Possible unsafe locking scenario:
-> >  
-> >         CPU0                    CPU1
-> >         ----                    ----
-> >    lock(kn->count#160);
-> >                                 lock(slab_mutex);
-> >                                 lock(kn->count#160);
-> >    lock(slab_mutex);
-> >  
-> >   *** DEADLOCK ***
-> >  
+> +void asi_exit(struct asi *asi)
+> +{
+> +	struct asi_session *asi_session;
+> +	enum asi_session_state asi_state;
+> +	unsigned long original_cr3;
+> +
+> +	asi_state = this_cpu_read(cpu_asi_session.state);
+> +	if (asi_state == ASI_SESSION_STATE_INACTIVE)
+> +		return;
+> +
+> +	/* TODO: Kick sibling hyperthread before switching to kernel cr3 */
+> +	original_cr3 = this_cpu_read(cpu_asi_session.original_cr3);
+> +	if (original_cr3)
+
+Why would this be 0 if the session is active?
+
+> +		write_cr3(original_cr3);
+> +
+> +	/* page-table was switched, we can now access the percpu pointer */
+> +	asi_session = &get_cpu_var(cpu_asi_session);
+
+See above.
+
+> +	WARN_ON(asi_session->task != current);
+> +	asi_session->state = ASI_SESSION_STATE_INACTIVE;
+> +	asi_session->asi = NULL;
+> +	asi_session->task = NULL;
+> +	asi_session->original_cr3 = 0;
+> +}
+
+Thanks,
+
+	tglx
 
