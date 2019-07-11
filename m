@@ -2,175 +2,168 @@ Return-Path: <SRS0=bABq=VI=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=FROM_EXCESS_BASE64,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	UNPARSEABLE_RELAY,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-0.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2F8D3C74A52
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 09:00:22 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A4210C74A52
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 09:27:54 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CBC8320872
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 09:00:20 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CBC8320872
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
+	by mail.kernel.org (Postfix) with ESMTP id 5ED3921019
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 09:27:54 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="XW74OVag"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5ED3921019
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5BD998E00AD; Thu, 11 Jul 2019 05:00:20 -0400 (EDT)
+	id F1DFE8E00AE; Thu, 11 Jul 2019 05:27:52 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 56DEF8E0032; Thu, 11 Jul 2019 05:00:20 -0400 (EDT)
+	id ECF1B8E0032; Thu, 11 Jul 2019 05:27:52 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 45CF88E00AD; Thu, 11 Jul 2019 05:00:20 -0400 (EDT)
+	id DBDC58E00AE; Thu, 11 Jul 2019 05:27:52 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 1198D8E0032
-	for <linux-mm@kvack.org>; Thu, 11 Jul 2019 05:00:20 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id n4so2420780plp.4
-        for <linux-mm@kvack.org>; Thu, 11 Jul 2019 02:00:20 -0700 (PDT)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A4F5B8E0032
+	for <linux-mm@kvack.org>; Thu, 11 Jul 2019 05:27:52 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id b18so3289842pgg.8
+        for <linux-mm@kvack.org>; Thu, 11 Jul 2019 02:27:52 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:from
-         :to:cc:references:message-id:date:user-agent:mime-version
-         :in-reply-to:content-language:content-transfer-encoding;
-        bh=bNmC4lhjQI857Soa+Epyw7Vt/WQjIf48DeZAJ73vozc=;
-        b=Opu/nq8IFElOAEKagP5cQAmI7D7ppZA+p4J+nwV2ILYoDnQL/wM8L0NYy5azGD6SSg
-         x7mJaL85delvJUDFIuMxSEQUOe929G1pjgdKi+nekVYfViqBUQdfjMiLWSb0BILL/emx
-         sslJEp7kcEwfm2KfN0Hxm0e2zdoJQH3VmcYNxEmVh18rWPhecouJjdCKLlg7DD0B5IT7
-         YJea/1MyaobPwX6i030mIYnQPQ8HWRZGRvFiO1wpXPes+pHIhi2PwMaEyE42TbYdztwf
-         rO/eVcKBp7FJoAdJeGELDNY9I2/84Y49xHO3+60BFwDEeOJib0Y5G57LQMJt6+PXpDzS
-         Qa1w==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yun.wang@linux.alibaba.com designates 47.88.44.36 as permitted sender) smtp.mailfrom=yun.wang@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Gm-Message-State: APjAAAUcxln7/827AtDpYwmKqrMb1119EdublIov7SRxS2CpmOgBbtqS
-	8PaVY/BkIGvi0zfea/Optl1L/aQgM46JsxLQSasRotF6Dcda9jPbJTtrDpKuJYKiCB/0gMJnk2S
-	x1TSxZukZYH8TY+UsNF2iY1bjDjMGTOV/mB5QAJ6JcDv+zAtsAS/NmPaTgFEis20JRQ==
-X-Received: by 2002:a63:3f48:: with SMTP id m69mr3150478pga.17.1562835619209;
-        Thu, 11 Jul 2019 02:00:19 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyI77GceNDok4oGk3hY7omHTGDk8PO58navwxEagMeyArFHlit5jY9Trs7oR6NKeOFASyLC
-X-Received: by 2002:a63:3f48:: with SMTP id m69mr3150415pga.17.1562835618414;
-        Thu, 11 Jul 2019 02:00:18 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562835618; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:subject:to:cc
+         :references:in-reply-to:mime-version:user-agent:message-id
+         :content-transfer-encoding;
+        bh=ctjQwgCLlp604HpVeqlyCBpmRi6PoJDKRevkqL/NNWA=;
+        b=VVagUk0P3wsUWvIQlDCLNJplOEHZp16QRmaEBpYLjw/tHDShouVYwUju8HAGZViFLf
+         2LVUJsIfzSesc7/hdj9RITHmkVJYSdIK0IcGQF77KoCvce03X1Zhhq1RAnZcE/tHD71u
+         cFnv/j0m+V/Jq43RQ6j75Q2ul7ESbDZ4hBzBdJOd+j9BZmHUDMt+posdYRYRewGAUskd
+         8uMZIYwr1ZDn3uspP+nS1GKxm7gZIfqyVsKQ3POlZmMNJxsc3FGTw0n/z5cf4FfvObC8
+         KrJjddd4JZPiROgZh9U4RysUXmgfPO+eeBdvZX2GMkPnpLbpRGC8VjSaeMIbdkzcy+qG
+         3dhQ==
+X-Gm-Message-State: APjAAAVNQgCvXnJhB6JAtgQE5p7/kxoTvAewOkFW/U519Zh9RIQUiDnK
+	IBPCLp6cmTbooLIGrK1SPrivEIhFDUi/C3Z1KPEkR95563jCV1Voylr2X1vd4hDnKfdLyrNOD8S
+	WrG67+B9OTuk5jncE7/LnUOdAr/jSjTU78XFzwwL64QVwbZfw1CMZXGosX1aN/PWJ0A==
+X-Received: by 2002:a63:6904:: with SMTP id e4mr3292655pgc.321.1562837271629;
+        Thu, 11 Jul 2019 02:27:51 -0700 (PDT)
+X-Received: by 2002:a63:6904:: with SMTP id e4mr3292599pgc.321.1562837270854;
+        Thu, 11 Jul 2019 02:27:50 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562837270; cv=none;
         d=google.com; s=arc-20160816;
-        b=qOYDYx4gE9xniCrxwtxH6jdByDrbc7CDUWUlwkpoIjZigy97UxVniLaxeUbIs9wJMw
-         dQBLZhgbvbgaTzMCNGOYdjdoUaoVVlzhParbVr1nogM+SMJx/cDSaqd2IHuvH9O4FPYg
-         w4u9fgKSdSq9AtSVnhY0r63QkjQa+MJhtqJp4wfiw46FAMdfAownqmWZbqOIyav7H0Wa
-         c94hOSlRtWetsq14P54orVIa0mU7meXrFQCuUBj9MZSlW8eXLpihooxbG6FdZin/tpc1
-         BJvGDABf/eDe+N7RkgoO2BqmdpAZc60fcnfuBWbcvMCXDm+E4zyteX3sIzRrguYmi/ew
-         dtNw==
+        b=uOoSylwG2BxzQZ4a9KyzH42NCTCXax585CenycqIC7LNeLY+AVeytyjHs4Vu0FAE7S
+         +bTjTMVW5VkJ11INay7jdYK9s3VqdVXqSH7akWeioSHTBanwcldsjAl/juihKFJPaaEb
+         cvi2phCHVWAZjf2lhGJjd/hrSQ+qyq5DxX080Zfo4Wtwk0O4TKyoKMAXGIMnl+NCzIsT
+         4MmUfFzn60dReMjKU2D2L3x95F8uYFiDhmhBjmSXc8CNF5/DgQ95NZAl6YIO2Kg1vQKH
+         6K3eMuqjF3ViUkXVzDWYxS7LsyTGpE55pqhNXMgim2lp1gCRBZSU51eGZ3fHUaatgmlH
+         rsbQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:references:cc:to:from:subject;
-        bh=bNmC4lhjQI857Soa+Epyw7Vt/WQjIf48DeZAJ73vozc=;
-        b=M8agNSddSOpaLH2pdLgS7q6OV5mx9HitSdCuMF+MTZ4U/JPnVlq6MPu9PjkX0MMP4n
-         FOeh39oZxzWSTTyugL+YiT8WuTN//2sfEzjMruypWwSApL5lPcmMyhrnWIYnn0tIY5Hj
-         kxrbersePSesNIW8M9XPIntPKtSBF4GnCv5Hd9puGio2cnIvfHlLWw6zK5eHxm5lvm3N
-         64JRLZK8r5V3fj2n+1LWITakPzZAWiOHk3xvOvZhYxEZJYEEjLjcwBjdpAxF9xGKtC7M
-         JTJ/E0JJnw9aGlPI29INgAxhgbw3Yz/jUodSSy7aGvcINboPaDs+XktNU2GdXzzWUWGn
-         5vlQ==
+        h=content-transfer-encoding:message-id:user-agent:mime-version
+         :in-reply-to:references:cc:to:subject:from:date:dkim-signature;
+        bh=ctjQwgCLlp604HpVeqlyCBpmRi6PoJDKRevkqL/NNWA=;
+        b=ddd+YozH8sCnecKH8SwzS/GU0Q/jLsMT8l8EtdpEpVUSl5hz1fnaFU8KejuUYwmxBe
+         xzIQ9cDmqECZK5obzVVcboGJ+Q97dJYUba/qZR3xVwdEIsUTt7dIPAQd/ERFgVaBCgbt
+         YpXJskBbjsxhf4k8CyG2B8j2H4cwl/AZ4hSrg3MsMslUmy6R4yUym2mNwpl5jbtFAgCD
+         BIffCNldCFESVhg0T2ZtzR2AfEsNYtK8dJuVigcQN3gj9n0tw04PUt3to4Lltd509BVa
+         1MCG1BL+PkFQkFqrJd2FykiVI37ml2kH9f0gjYyopXr9y5/bOM8J6CpPLYLe1QymRTn9
+         xp8w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of yun.wang@linux.alibaba.com designates 47.88.44.36 as permitted sender) smtp.mailfrom=yun.wang@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-Received: from out4436.biz.mail.alibaba.com (out4436.biz.mail.alibaba.com. [47.88.44.36])
-        by mx.google.com with ESMTPS id r26si4900988pgv.189.2019.07.11.02.00.16
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=XW74OVag;
+       spf=pass (google.com: domain of npiggin@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=npiggin@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id f41sor6327168pjg.15.2019.07.11.02.27.50
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 11 Jul 2019 02:00:18 -0700 (PDT)
-Received-SPF: pass (google.com: domain of yun.wang@linux.alibaba.com designates 47.88.44.36 as permitted sender) client-ip=47.88.44.36;
+        (Google Transport Security);
+        Thu, 11 Jul 2019 02:27:50 -0700 (PDT)
+Received-SPF: pass (google.com: domain of npiggin@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of yun.wang@linux.alibaba.com designates 47.88.44.36 as permitted sender) smtp.mailfrom=yun.wang@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R141e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01f04446;MF=yun.wang@linux.alibaba.com;NM=1;PH=DS;RN=11;SR=0;TI=SMTPD_---0TWcBEPJ_1562835610;
-Received: from testdeMacBook-Pro.local(mailfrom:yun.wang@linux.alibaba.com fp:SMTPD_---0TWcBEPJ_1562835610)
-          by smtp.aliyun-inc.com(127.0.0.1);
-          Thu, 11 Jul 2019 17:00:11 +0800
-Subject: Re: [PATCH 0/4] per cgroup numa suite
-From: =?UTF-8?B?546L6LSH?= <yun.wang@linux.alibaba.com>
-To: Peter Zijlstra <peterz@infradead.org>, hannes@cmpxchg.org,
- mhocko@kernel.org, vdavydov.dev@gmail.com, Ingo Molnar <mingo@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, mcgrof@kernel.org,
- keescook@chromium.org, linux-fsdevel@vger.kernel.org, cgroups@vger.kernel.org
-References: <209d247e-c1b2-3235-2722-dd7c1f896483@linux.alibaba.com>
- <60b59306-5e36-e587-9145-e90657daec41@linux.alibaba.com>
-Message-ID: <6a050974-30f3-66b6-4c99-c7e376fb84d8@linux.alibaba.com>
-Date: Thu, 11 Jul 2019 17:00:10 +0800
-User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.13; rv:60.0)
- Gecko/20100101 Thunderbird/60.7.0
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=XW74OVag;
+       spf=pass (google.com: domain of npiggin@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=npiggin@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=date:from:subject:to:cc:references:in-reply-to:mime-version
+         :user-agent:message-id:content-transfer-encoding;
+        bh=ctjQwgCLlp604HpVeqlyCBpmRi6PoJDKRevkqL/NNWA=;
+        b=XW74OVagqyugV3/wP3THCRvzAueu17tkpao+yo5IHjM8lpQKb6048H3Ny2zPiMlaBe
+         eWhLpF+K9KQHEB6wbz91Dz2IO+zyXpsqcPKHP8E66kSa23MHmWz3BI2wuZDY/GlcAlX4
+         9gip+KCwm1zKSnAXDjwQ877ARE5KD+Pxzj5PsfoCR+q/o0Svm/zLZOPTOyDxJySzf2+s
+         DvfIPszRwZRSYyF/1o5IZqMVya9UQ/720bkO3YthabEBSWqkyw/vwZ9nxtWAWlY632XS
+         BKAux4fqS5G4Wz32aM2yJP+pKtMljHicKmK/1r0jMBgrbxwmDP1BpKTgVQhcZmCj0dwO
+         R3LQ==
+X-Google-Smtp-Source: APXvYqzBE9aU+/1BWb2TunJAkuLc1lAKBCpOQTAA/+hp8NBdlzCDfV9tpMXfluq3s3+NBBp7T2SqaQ==
+X-Received: by 2002:a17:90a:3aed:: with SMTP id b100mr3712815pjc.63.1562837270504;
+        Thu, 11 Jul 2019 02:27:50 -0700 (PDT)
+Received: from localhost (193-116-118-149.tpgi.com.au. [193.116.118.149])
+        by smtp.gmail.com with ESMTPSA id q69sm6572107pjb.0.2019.07.11.02.27.48
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Thu, 11 Jul 2019 02:27:49 -0700 (PDT)
+Date: Thu, 11 Jul 2019 19:24:52 +1000
+From: Nicholas Piggin <npiggin@gmail.com>
+Subject: Re: [RFC PATCH] mm: remove quicklist page table caches
+To: Christopher Lameter <cl@linux.com>
+Cc: linux-arch@vger.kernel.org, linux-ia64@vger.kernel.org, linux-mm@kvack.org,
+	linux-sh@vger.kernel.org
+References: <20190711030339.20892-1-npiggin@gmail.com>
+	<0100016be006fbda-65d42038-d656-4d74-8b50-9c800afe4f96-000000@email.amazonses.com>
+In-Reply-To:
+	<0100016be006fbda-65d42038-d656-4d74-8b50-9c800afe4f96-000000@email.amazonses.com>
 MIME-Version: 1.0
-In-Reply-To: <60b59306-5e36-e587-9145-e90657daec41@linux.alibaba.com>
+User-Agent: astroid/0.14.0 (https://github.com/astroidmail/astroid)
+Message-Id: <1562835751.mpbmrr7rdc.astroid@bobo.none>
 Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+Content-Transfer-Encoding: quoted-printable
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000001, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi folks,
+Christopher Lameter's on July 11, 2019 5:54 pm:
+> On Thu, 11 Jul 2019, Nicholas Piggin wrote:
+>=20
+>> Remove page table allocator "quicklists". These have been around for a
+>> long time, but have not got much traction in the last decade and are
+>> only used on ia64 and sh architectures.
+>=20
+> I also think its good to remove this code. Note sure though if IA64
+> may still have a need of it. But then its not clear that the IA64 arch is
+> still in use. Is it still maintained?
 
-How do you think about these patches?
+It should still work (as well as other archs). Does it have any
+particular need for page table allocation speed compared to others?
 
-During most of our tests the results show stable improvements, thus
-we consider this as a generic problem and proposed this solution,
-hope to help address the issue.
+I actually think it's more benefit for ia64 and sh than anything.
+For other arches it's no big deal, and generic code just sprinkles
+some poorly named function around the place with no real way to
+know where it should go or test it. Then not to mention its
+interaction with other memory queues.
 
-Comments are sincerely welcome :-)
+>> Also it might be better to instead make more general improvements to
+>> page allocator if this is still so slow.
+>=20
+> Well yes many have thought so and made attempts to improve the situation
+> which generally have failed. But even the fast path of the page allocator
+> seems to bloat more and more. The situation is deteriorating instead of
+> getting better and as a result lots of subsystems create their own caches
+> to avoid the page allocator.
 
-Regards,
-Michael Wang
+Yeah, to some degree I agree. And if someone would test it on a modern
+CPU and workload that would be cool.
 
-On 2019/7/3 上午11:26, 王贇 wrote:
-> During our torturing on numa stuff, we found problems like:
-> 
->   * missing per-cgroup information about the per-node execution status
->   * missing per-cgroup information about the numa locality
-> 
-> That is when we have a cpu cgroup running with bunch of tasks, no good
-> way to tell how it's tasks are dealing with numa.
-> 
-> The first two patches are trying to complete the missing pieces, but
-> more problems appeared after monitoring these status:
-> 
->   * tasks not always running on the preferred numa node
->   * tasks from same cgroup running on different nodes
-> 
-> The task numa group handler will always check if tasks are sharing pages
-> and try to pack them into a single numa group, so they will have chance to
-> settle down on the same node, but this failed in some cases:
-> 
->   * workloads share page caches rather than share mappings
->   * workloads got too many wakeup across nodes
-> 
-> Since page caches are not traced by numa balancing, there are no way to
-> realize such kind of relationship, and when there are too many wakeup,
-> task will be drag from the preferred node and then migrate back by numa
-> balancing, repeatedly.
-> 
-> Here the third patch try to address the first issue, we could now give hint
-> to kernel about the relationship of tasks, and pack them into single numa
-> group.
-> 
-> And the forth patch introduced numa cling, which try to address the wakup
-> issue, now we try to make task stay on the preferred node on wakeup in fast
-> path, in order to address the unbalancing risk, we monitoring the numa
-> migration failure ratio, and pause numa cling when it reach the specified
-> degree.
-> 
-> Michael Wang (4):
->   numa: introduce per-cgroup numa balancing locality statistic
->   numa: append per-node execution info in memory.numa_stat
->   numa: introduce numa group per task group
->   numa: introduce numa cling feature
-> 
->  include/linux/memcontrol.h   |  37 ++++
->  include/linux/sched.h        |   8 +-
->  include/linux/sched/sysctl.h |   3 +
->  kernel/sched/core.c          |  37 ++++
->  kernel/sched/debug.c         |   7 +
->  kernel/sched/fair.c          | 455 ++++++++++++++++++++++++++++++++++++++++++-
->  kernel/sched/sched.h         |  14 ++
->  kernel/sysctl.c              |   9 +
->  mm/memcontrol.c              |  66 +++++++
->  9 files changed, 628 insertions(+), 8 deletions(-)
-> 
+But for example in most workloads you would expect the rate of page
+allocation and freeing for processes to be on the same order of=20
+magnitude at the low end, up to 2 orders of magnitude higher than
+page tables that map them. Not true perhaps for very large shared
+mmaps, but all in all IMO it's not clear this is a good tradeoff, or
+it's a good idea to proliferate these little queues around the place.
+
+Anyway that's just handwaving from me, but I'm not against the code
+being resurrected and added to the more important archs if it shows
+good gains on something relevant.
+
+Thanks,
+Nick
+=
 
