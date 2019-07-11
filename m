@@ -2,256 +2,222 @@ Return-Path: <SRS0=bABq=VI=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.3 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY,
-	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 15051C74A35
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 15:49:26 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 66B03C74A5C
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 15:50:25 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C06F22166E
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 15:49:25 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="z6RbRebk"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C06F22166E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	by mail.kernel.org (Postfix) with ESMTP id 2A0A12166E
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Jul 2019 15:50:25 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2A0A12166E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 23ECF8E00E9; Thu, 11 Jul 2019 11:49:25 -0400 (EDT)
+	id BDBE48E00EA; Thu, 11 Jul 2019 11:50:24 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1EFC08E00DB; Thu, 11 Jul 2019 11:49:25 -0400 (EDT)
+	id B8CC08E00DB; Thu, 11 Jul 2019 11:50:24 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0B8C28E00E9; Thu, 11 Jul 2019 11:49:25 -0400 (EDT)
+	id A54BC8E00EA; Thu, 11 Jul 2019 11:50:24 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-vs1-f71.google.com (mail-vs1-f71.google.com [209.85.217.71])
-	by kanga.kvack.org (Postfix) with ESMTP id DD05D8E00DB
-	for <linux-mm@kvack.org>; Thu, 11 Jul 2019 11:49:24 -0400 (EDT)
-Received: by mail-vs1-f71.google.com with SMTP id d139so1260566vsc.14
-        for <linux-mm@kvack.org>; Thu, 11 Jul 2019 08:49:24 -0700 (PDT)
+Received: from mail-vs1-f72.google.com (mail-vs1-f72.google.com [209.85.217.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 843FC8E00DB
+	for <linux-mm@kvack.org>; Thu, 11 Jul 2019 11:50:24 -0400 (EDT)
+Received: by mail-vs1-f72.google.com with SMTP id h3so1260675vsr.15
+        for <linux-mm@kvack.org>; Thu, 11 Jul 2019 08:50:24 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=j215i1F+Cj1jBxpyc5Dg9ssCRZ6c6YYT+7Y2PbtLI6Y=;
-        b=gP52rqqktJPQaRzynoc9iRhfSv/HxZZOzE5w3V3v5J1w/EqFgwfYSM9IfF7z1RxTjk
-         XfLTXDATOKLZfWplgW69akE3XLJ6gv78d721hXM8S+4mIzl69V25HoIGEd1iH2WVWu5w
-         gyvu6AVjljIHPAWgs0cXheAAJbPXr665U7vkBzIY+yhe7lulO8bhObRMIDKMCYMKrjeV
-         UWhOdELkHKzqHVfVNjGnETzTiF+YirjyGomawqdkPY6Qc301+avmJcf995h5SmKHiL9K
-         WtQ1FofMGlbhdkCsnjYlXNnpgq3bgrHL7YmgWxt8reW4qG/nfLkoXbS74uE20FPK7fpx
-         NuPA==
-X-Gm-Message-State: APjAAAVOR+pTPcZCCP7g+EDjX3l2hXxcWam2FdU7n7YKBBmnvX2tXfBt
-	lD/61u9G0xCN26QigTQrSWnlSx+k1i4QaQdThk+wzXVdC0N4ykfvq2/MOLFw9hwLxN4a8iXrvWT
-	klEa2yJ3NTxjNzIyMi9iQko5cTAkCbK/OdGkzSOksGBo44MdnmTVJPukCS1DMsi7WlA==
-X-Received: by 2002:ab0:2a0c:: with SMTP id o12mr5374252uar.122.1562860164583;
-        Thu, 11 Jul 2019 08:49:24 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqx04kNrSKNaLePkk4gKyOqKFm7OXACN9czdEO4owVHUkYUgqr/BEii8RoSvFkLCf9iJO3W2
-X-Received: by 2002:ab0:2a0c:: with SMTP id o12mr5374129uar.122.1562860163522;
-        Thu, 11 Jul 2019 08:49:23 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562860163; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:from
+         :to:references:openpgp:autocrypt:organization:message-id:date
+         :user-agent:mime-version:in-reply-to:content-transfer-encoding
+         :content-language;
+        bh=kykJGimfwzXM7wR1bs4JgSUyBln58x2xx+GBq72wiHM=;
+        b=hhkN+I1iDZ0ahp7hTG86Ymzl5IfpY2kPtTljedrPfll6RYCqWxLzsI22l2a0EMrWVY
+         EMU8Wxhu69HujzGXgJFYDS5SBpoUMaU/T4zE+tRme0OqQqsqSBV1+h2O6jGrieCLXTMy
+         2K1eRDvfQmDyrkkiLaF6WSGqNENKNX0+MUUNe/xXrsAACY6LhxlNgvRZ8NndI/g4hI/f
+         +PYGqCtULQVuUljU35m4DXPu7kckWASj54LJ2LqPZeRZ6M1u6DlUoKcVp11uHpZ2U3HI
+         veHaoz0UrjEBEmP9ems8UGUN486Gx2Ic0KTIgObZNdmxzo2OoebhmCxViSvcgBn0r59d
+         EolA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAXKJBwK+xCSOSWF+bp4hkC8wCzxJfxdzf2+/JnLRWQ2/R6MzG8w
+	AX1FBIAeDMszgEGprLE+v40ZvinSSQVIis9Dp4NZY/8EeeJd2q4/j9DPRMSrIKvv6AbPiobEun+
+	JCnpEwiRFBCUKIXIhOLf4LKLtpbeODF1zo4+pWoKYnX8lSqMRKm4C71T1/YZAxv49IQ==
+X-Received: by 2002:a67:d39e:: with SMTP id b30mr5313027vsj.212.1562860224325;
+        Thu, 11 Jul 2019 08:50:24 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxd2N82IuRNn2B1FX8Ev41KOWoh1zzSDla51tyGKaXPnqjeaogwxL2Pdl40TsUUfLfbdgzA
+X-Received: by 2002:a67:d39e:: with SMTP id b30mr5312966vsj.212.1562860223803;
+        Thu, 11 Jul 2019 08:50:23 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562860223; cv=none;
         d=google.com; s=arc-20160816;
-        b=w9ZMcCUhTXBLo4spOMEMLrOvca9feQ+m1spT8iUTDiuBeAgbvU/7TqpFUV7DZ8rTvX
-         icj61OuypTheolwZH0BGYFPVRdpFN9wJz9sD/CUmYZmxloQ/0v6TXxXVJQLSpvsxnzFh
-         ax2iJdhZcZJj6STxLqN5ciaz5fhgU7q6GN1kHggiBjppGtTaIzpNM739oEaRPFhsbIaQ
-         SftAqW1q5HCzxRPIBzvJ2BKswjRZVTe6kDJQVybRDlxorMFNVFP5BGR6jIfkdAOzlakS
-         M/OGUbxBgxeip9W8Tq+kDWhj8CwqzuWxcPrOASrO1Elm1aaIRZP/7OlQmDHnV3x/Gr8a
-         6fXQ==
+        b=CkHOz25mp2JbqyGF0haCaBHW9wKsJzcYE6yFSrZOwLGieMaAyakiPjGIHfb92LYesq
+         MZJvenaZoSivYsyz74xOYO8I782buU+T6TjmdOAw/sLsXeAoKBoNmmZM6mUUUY8Vr9uw
+         7uWfVimw0L2ZTlmBtc+rd2Eqc9qFQYAJrLIclugGRJSq29jGm7ntSEDabPL2bMuW1d8R
+         wbY2UNn+Ghu4diaaACO5ljx0tgKy/W4hin8HcmITn45bGdvdxKq+ByP/TZmDTo4BVA0g
+         7a3Y+Y2QjnpgA28mdlG0ixWXmghajvPru4leQNLO8VKZa72WA/+JoXkbbVMYgaaY5r0t
+         iGiQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=j215i1F+Cj1jBxpyc5Dg9ssCRZ6c6YYT+7Y2PbtLI6Y=;
-        b=y01LS7/IpZgLyjpBDVRh2idNOc3WF6GXh+2WbGZVtePmORNvJv4IWzwM4iGM359XJu
-         fWa/yrukM5orSAILtra3rGhDHDkdcn1YWxV54R0Gt+ld2rawUZVtS/PKhVML+t2n4nNf
-         E+vmEPrAMMoqJLXEr7012CB7W8BAx/qJ11cATKvpWGJAmzhyz1oGI7utxS9sv0afWsKA
-         QtvOhWYD0bh5yLckThwn5052mg4b8e8JNhnQNt7xEolvKWksA8yNWcZt7n1yhtY0vL1/
-         OkSIOrLxAjITSEucbntnCvEdeaWstLVge8j6Qvthz4/L1k/ffBESi9SukmXbTFXtv3H/
-         +U+g==
+        h=content-language:content-transfer-encoding:in-reply-to:mime-version
+         :user-agent:date:message-id:organization:autocrypt:openpgp
+         :references:to:from:subject;
+        bh=kykJGimfwzXM7wR1bs4JgSUyBln58x2xx+GBq72wiHM=;
+        b=f25DOMwAPdTmgN2gKGYTvJ5V91htKdjSwNhkeyyA+yzCzWqSOMrGPhqZT9r62Qx1Uo
+         zrqnzpWq2vqQqrmtbIoyCfT0bNnJnCEeAsvNSiANJLGPjkf7ZXsLEMmkceLk9W0EVUSj
+         DBrVG9W17VJ58r2scFTNv6yfTW7FZ8LZYDbMucMBmtXOLeqRcrQCDE1VUeVKDrDMWnRn
+         rlOTIIYGuGpLUOiFjM4p9lqtvc82ljx47d3bv+9zwDk26WRaws28SZeEYV84McZJ3jSW
+         DYiXhEgGqnNaBwdmNTUGVqxjfppBSo5arK3uK0z+6hPLEaHHg5tkFuoVZ7BZeCsWuKl6
+         lkyg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=z6RbRebk;
-       spf=pass (google.com: domain of darrick.wong@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=darrick.wong@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id e1si1883732vkh.76.2019.07.11.08.49.23
+       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id r5si1891983vsr.127.2019.07.11.08.50.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 11 Jul 2019 08:49:23 -0700 (PDT)
-Received-SPF: pass (google.com: domain of darrick.wong@oracle.com designates 156.151.31.85 as permitted sender) client-ip=156.151.31.85;
+        Thu, 11 Jul 2019 08:50:23 -0700 (PDT)
+Received-SPF: pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=z6RbRebk;
-       spf=pass (google.com: domain of darrick.wong@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=darrick.wong@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
-	by userp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x6BFnLRH090753;
-	Thu, 11 Jul 2019 15:49:21 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=date : from : to : cc
- : subject : message-id : references : mime-version : content-type :
- in-reply-to; s=corp-2018-07-02;
- bh=j215i1F+Cj1jBxpyc5Dg9ssCRZ6c6YYT+7Y2PbtLI6Y=;
- b=z6RbRebkT6c4OLvokn1VUnPBwMGXVBL3ehUeAGrovAZf3m2SBsYnUyWX/9Ln5f1Fc8zP
- cCFT5czhrjYooSuhCIFHTTNjNew0W/Tn04F2JU+eNkcWPQQnz6jXXj3oh7DDqTzOOyNJ
- TrCEkazaz6CheIOI8vB1JPRN2CH8ypKVy9dY1bGvjw6IayA9YQHEEZ5RVz4mq7RbnWSz
- mwlSPFn8bp9HpMgyvrbuxK3joacg7tHO5VM2Jin6DYFd67u+pajkL1/pX7PdHWGRusOm
- a8yjvGTK5EGQ4WpOw7+s76vlkT8eQ2J5TuRrNnLQ4pnSjHXP8R7Ii4gO0n1q/RQfxD1f rQ== 
-Received: from aserp3020.oracle.com (aserp3020.oracle.com [141.146.126.70])
-	by userp2120.oracle.com with ESMTP id 2tjm9r0v2d-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 11 Jul 2019 15:49:20 +0000
-Received: from pps.filterd (aserp3020.oracle.com [127.0.0.1])
-	by aserp3020.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x6BFlvsE011931;
-	Thu, 11 Jul 2019 15:49:20 GMT
-Received: from aserv0122.oracle.com (aserv0122.oracle.com [141.146.126.236])
-	by aserp3020.oracle.com with ESMTP id 2tmmh47snt-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 11 Jul 2019 15:49:19 +0000
-Received: from abhmp0010.oracle.com (abhmp0010.oracle.com [141.146.116.16])
-	by aserv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x6BFnIMH001134;
-	Thu, 11 Jul 2019 15:49:18 GMT
-Received: from localhost (/67.169.218.210)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Thu, 11 Jul 2019 08:49:18 -0700
-Date: Thu, 11 Jul 2019 08:49:17 -0700
-From: "Darrick J. Wong" <darrick.wong@oracle.com>
-To: Amir Goldstein <amir73il@gmail.com>
-Cc: Jan Kara <jack@suse.cz>, linux-fsdevel <linux-fsdevel@vger.kernel.org>,
-        Linux MM <linux-mm@kvack.org>, linux-xfs <linux-xfs@vger.kernel.org>,
-        Boaz Harrosh <boaz@plexistor.com>, stable <stable@vger.kernel.org>
-Subject: Re: [PATCH 3/3] xfs: Fix stale data exposure when readahead races
- with hole punch
-Message-ID: <20190711154917.GW1404256@magnolia>
-References: <20190711140012.1671-1-jack@suse.cz>
- <20190711140012.1671-4-jack@suse.cz>
- <CAOQ4uxh-xpwgF-wQf1ozaZ3yg8nWuBvSyLr_ZFQpkA=coW1dxA@mail.gmail.com>
+       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx08.intmail.prod.int.phx2.redhat.com [10.5.11.23])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id C3BB5309265A;
+	Thu, 11 Jul 2019 15:50:22 +0000 (UTC)
+Received: from [10.18.17.163] (dhcp-17-163.bos.redhat.com [10.18.17.163])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 66F7F19C69;
+	Thu, 11 Jul 2019 15:50:08 +0000 (UTC)
+Subject: Re: [RFC][Patch v11 1/2] mm: page_hinting: core infrastructure
+From: Nitesh Narayan Lal <nitesh@redhat.com>
+To: Dave Hansen <dave.hansen@intel.com>, kvm@vger.kernel.org,
+ linux-kernel@vger.kernel.org, linux-mm@kvack.org, pbonzini@redhat.com,
+ lcapitulino@redhat.com, pagupta@redhat.com, wei.w.wang@intel.com,
+ yang.zhang.wz@gmail.com, riel@surriel.com, david@redhat.com, mst@redhat.com,
+ dodgen@google.com, konrad.wilk@oracle.com, dhildenb@redhat.com,
+ aarcange@redhat.com, alexander.duyck@gmail.com, john.starks@microsoft.com,
+ mhocko@suse.com
+References: <20190710195158.19640-1-nitesh@redhat.com>
+ <20190710195158.19640-2-nitesh@redhat.com>
+ <3f9a7e7b-c026-3530-e985-804fc7f1ec31@intel.com>
+ <0b871cf1-e54f-f072-1eaf-511a03c2907f@redhat.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=nitesh@redhat.com; prefer-encrypt=mutual; keydata=
+ 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
+ VujM7c/b4pps
+Organization: Red Hat Inc,
+Message-ID: <7b3047d7-a317-2187-21ff-3abbb5faf9ca@redhat.com>
+Date: Thu, 11 Jul 2019 11:50:07 -0400
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAOQ4uxh-xpwgF-wQf1ozaZ3yg8nWuBvSyLr_ZFQpkA=coW1dxA@mail.gmail.com>
-User-Agent: Mutt/1.9.4 (2018-02-28)
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9314 signatures=668688
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
- phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
- adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
- engine=8.0.1-1810050000 definitions=main-1907110178
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9314 signatures=668688
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1011
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1907110178
+In-Reply-To: <0b871cf1-e54f-f072-1eaf-511a03c2907f@redhat.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
+Content-Language: en-US
+X-Scanned-By: MIMEDefang 2.84 on 10.5.11.23
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.43]); Thu, 11 Jul 2019 15:50:23 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jul 11, 2019 at 06:28:54PM +0300, Amir Goldstein wrote:
-> On Thu, Jul 11, 2019 at 5:00 PM Jan Kara <jack@suse.cz> wrote:
-> >
-> > Hole puching currently evicts pages from page cache and then goes on to
-> > remove blocks from the inode. This happens under both XFS_IOLOCK_EXCL
-> > and XFS_MMAPLOCK_EXCL which provides appropriate serialization with
-> > racing reads or page faults. However there is currently nothing that
-> > prevents readahead triggered by fadvise() or madvise() from racing with
-> > the hole punch and instantiating page cache page after hole punching has
-> > evicted page cache in xfs_flush_unmap_range() but before it has removed
-> > blocks from the inode. This page cache page will be mapping soon to be
-> > freed block and that can lead to returning stale data to userspace or
-> > even filesystem corruption.
-> >
-> > Fix the problem by protecting handling of readahead requests by
-> > XFS_IOLOCK_SHARED similarly as we protect reads.
-> >
-> > CC: stable@vger.kernel.org
-> > Link: https://lore.kernel.org/linux-fsdevel/CAOQ4uxjQNmxqmtA_VbYW0Su9rKRk2zobJmahcyeaEVOFKVQ5dw@mail.gmail.com/
-> > Reported-by: Amir Goldstein <amir73il@gmail.com>
-> > Signed-off-by: Jan Kara <jack@suse.cz>
-> > ---
-> 
-> Looks sane. (I'll let xfs developers offer reviewed-by tags)
-> 
-> >  fs/xfs/xfs_file.c | 20 ++++++++++++++++++++
-> >  1 file changed, 20 insertions(+)
-> >
-> > diff --git a/fs/xfs/xfs_file.c b/fs/xfs/xfs_file.c
-> > index 76748255f843..88fe3dbb3ba2 100644
-> > --- a/fs/xfs/xfs_file.c
-> > +++ b/fs/xfs/xfs_file.c
-> > @@ -33,6 +33,7 @@
-> >  #include <linux/pagevec.h>
-> >  #include <linux/backing-dev.h>
-> >  #include <linux/mman.h>
-> > +#include <linux/fadvise.h>
-> >
-> >  static const struct vm_operations_struct xfs_file_vm_ops;
-> >
-> > @@ -939,6 +940,24 @@ xfs_file_fallocate(
-> >         return error;
-> >  }
-> >
-> > +STATIC int
-> > +xfs_file_fadvise(
-> > +       struct file *file,
-> > +       loff_t start,
-> > +       loff_t end,
-> > +       int advice)
 
-Indentation needs fixing here.
-
-> > +{
-> > +       struct xfs_inode *ip = XFS_I(file_inode(file));
-> > +       int ret;
-> > +
-> > +       /* Readahead needs protection from hole punching and similar ops */
-> > +       if (advice == POSIX_FADV_WILLNEED)
-> > +               xfs_ilock(ip, XFS_IOLOCK_SHARED);
-
-It's good to fix this race, but at the same time I wonder what's the
-impact to processes writing to one part of a file waiting on IOLOCK_EXCL
-while readahead holds IOLOCK_SHARED?
-
-(bluh bluh range locks ftw bluh bluh)
-
-Do we need a lock for DONTNEED?  I think the answer is that you have to
-lock the page to drop it and that will protect us from <myriad punch and
-truncate spaghetti> ... ?
-
-> > +       ret = generic_fadvise(file, start, end, advice);
-> > +       if (advice == POSIX_FADV_WILLNEED)
-> > +               xfs_iunlock(ip, XFS_IOLOCK_SHARED);
-
-Maybe it'd be better to do:
-
-	int	lockflags = 0;
-
-	if (advice == POSIX_FADV_WILLNEED) {
-		lockflags = XFS_IOLOCK_SHARED;
-		xfs_ilock(ip, lockflags);
-	}
-
-	ret = generic_fadvise(file, start, end, advice);
-
-	if (lockflags)
-		xfs_iunlock(ip, lockflags);
-
-Just in case we some day want more or different types of inode locks?
-
---D
-
-> > +       return ret;
-> > +}
-> >
-> >  STATIC loff_t
-> >  xfs_file_remap_range(
-> > @@ -1235,6 +1254,7 @@ const struct file_operations xfs_file_operations = {
-> >         .fsync          = xfs_file_fsync,
-> >         .get_unmapped_area = thp_get_unmapped_area,
-> >         .fallocate      = xfs_file_fallocate,
-> > +       .fadvise        = xfs_file_fadvise,
-> >         .remap_file_range = xfs_file_remap_range,
-> >  };
-> >
-> > --
-> > 2.16.4
-> >
+On 7/11/19 11:25 AM, Nitesh Narayan Lal wrote:
+> On 7/10/19 4:45 PM, Dave Hansen wrote:
+>> On 7/10/19 12:51 PM, Nitesh Narayan Lal wrote:
+>>> +struct zone_free_area {
+>>> +	unsigned long *bitmap;
+>>> +	unsigned long base_pfn;
+>>> +	unsigned long end_pfn;
+>>> +	atomic_t free_pages;
+>>> +	unsigned long nbits;
+>>> +} free_area[MAX_NR_ZONES];
+>> Why do we need an extra data structure.  What's wrong with putting
+>> per-zone data in ... 'struct zone'?
+> Will it be acceptable to add fields in struct zone, when they will only
+> be used by page hinting?
+>>   The cover letter claims that it
+>> doesn't touch core-mm infrastructure, but if it depends on mechanisms
+>> like this, I think that's a very bad thing.
+>>
+>> To be honest, I'm not sure this series is worth reviewing at this point.
+>>  It's horribly lightly commented and full of kernel antipatterns lik
+>>
+>> void func()
+>> {
+>> 	if () {
+>> 		... indent entire logic
+>> 		... of function
+>> 	}
+>> }
+> I usually run checkpatch to detect such indentation issues. For the
+> patches, I shared it didn't show me any issues.
+My bad I think I jumped here, I saw what you are referring to here.
+I will fix these kind of things.
+>> It has big "TODO"s.  It's virtually comment-free.  I'm shocked it's at
+>> the 11th version and still looking like this.
+>>
+>>> +
+>>> +		for (zone_idx = 0; zone_idx < MAX_NR_ZONES; zone_idx++) {
+>>> +			unsigned long pages = free_area[zone_idx].end_pfn -
+>>> +					free_area[zone_idx].base_pfn;
+>>> +			bitmap_size = (pages >> PAGE_HINTING_MIN_ORDER) + 1;
+>>> +			if (!bitmap_size)
+>>> +				continue;
+>>> +			free_area[zone_idx].bitmap = bitmap_zalloc(bitmap_size,
+>>> +								   GFP_KERNEL);
+>> This doesn't support sparse zones.  We can have zones with massive
+>> spanned page sizes, but very few present pages.  On those zones, this
+>> will exhaust memory for no good reason.
+>>
+>> Comparing this to Alex's patch set, it's of much lower quality and at a
+>> much earlier stage of development.  The two sets are not really even
+>> comparable right now.  This certainly doesn't sell me on (or even really
+>> enumerate the deltas in) this approach vs. Alex's.
+>>
+-- 
+Thanks
+Nitesh
 
