@@ -2,144 +2,160 @@ Return-Path: <SRS0=GtRI=VJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=FROM_EXCESS_BASE64,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	UNPARSEABLE_RELAY,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
+X-Spam-Status: No, score=-9.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DEE8DC742B0
-	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 09:11:30 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8E64BC742B0
+	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 09:17:26 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id ACD9821537
-	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 09:11:30 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org ACD9821537
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
+	by mail.kernel.org (Postfix) with ESMTP id 5BAAF2166E
+	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 09:17:26 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5BAAF2166E
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arndb.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2DE738E012E; Fri, 12 Jul 2019 05:11:30 -0400 (EDT)
+	id E98EE8E012F; Fri, 12 Jul 2019 05:17:25 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 28E718E00DB; Fri, 12 Jul 2019 05:11:30 -0400 (EDT)
+	id E48FC8E00DB; Fri, 12 Jul 2019 05:17:25 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 17F4E8E012E; Fri, 12 Jul 2019 05:11:30 -0400 (EDT)
+	id D101B8E012F; Fri, 12 Jul 2019 05:17:25 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D7B7A8E00DB
-	for <linux-mm@kvack.org>; Fri, 12 Jul 2019 05:11:29 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id t2so5357348pgs.21
-        for <linux-mm@kvack.org>; Fri, 12 Jul 2019 02:11:29 -0700 (PDT)
+Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 803BF8E00DB
+	for <linux-mm@kvack.org>; Fri, 12 Jul 2019 05:17:25 -0400 (EDT)
+Received: by mail-wr1-f69.google.com with SMTP id f16so3994062wrw.5
+        for <linux-mm@kvack.org>; Fri, 12 Jul 2019 02:17:25 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=jcceaML/n0gsbJdlAi/GRuCQT0aw8Kc8cBnjHGwhfgQ=;
-        b=OB74Ab0090e8NU1S4mIPzCE2/huLGmJrWtHKVRrhyCXe0E4XTP8nGSsMqwUH+uUQ8p
-         CSB7uvj3/K+8yTmfS3O/23IcXzHYXjpxlXwFh7y5I6E991xS1j4gfx8rkyqu9Ppstr93
-         YPNcRIczzR1DfK/ZryHsrEA1/bLibXly2+mb3uwW1OmCNkdVDjEclfz/R0XioDY6Ma73
-         6sN58EJgdTg9MxAQ0TFXK7Q5Y1qmshqRuxIuMD8X9lPf3PVj+PzPFB2/PtIj9pRbGa94
-         R41iNw2qU2pRh6oVgoOJh+ZG7C5YVUHwgR8xJKVxYNuU7ZfXnxoGSrTJ8GIiVPKnYhh6
-         ggwA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yun.wang@linux.alibaba.com designates 115.124.30.131 as permitted sender) smtp.mailfrom=yun.wang@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Gm-Message-State: APjAAAUgNTCg5jblYVlzgogSk5VQMgRPCEeLRdW1e1tnySskWZj/lo1d
-	S2kJGORzlKHL/39VjJeE+pad+NqZhapUzFS2IT3zH9c+w/oj+Ls1tHCS92aWvDui7OEc5tJD3dq
-	HeDXlUCAsmsf2XiM40LeGgRhm4NZEf6C7mJ4CG1rtrGNeDLVQ0CUq1/SyKpKqX+dzeA==
-X-Received: by 2002:a63:eb56:: with SMTP id b22mr9614517pgk.355.1562922689503;
-        Fri, 12 Jul 2019 02:11:29 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwM5gC1d3t+jVNV5y4OesN8M5Bk/5cZEx5u7xfzRTn5K2ZreG5KE21SNQxk1PNfWryl4VAq
-X-Received: by 2002:a63:eb56:: with SMTP id b22mr9614462pgk.355.1562922688841;
-        Fri, 12 Jul 2019 02:11:28 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562922688; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:mime-version:content-transfer-encoding;
+        bh=nh45F2PS0uH+h2wY6iFXunuS7WHkwtGS4SjL6R9jQCk=;
+        b=Xs8YaM9zM/bdmKeyt9zzUqiuIBjS+3xJxqH2KTun2Eh7092cTsIqixZ5KPh5KWT7/b
+         27EiBJqv0hMyHi2rbHfROCXSsTbm1sJFg8JvYwqJ9iJK6hSf/JEqZuDl80ewD1eUKa8z
+         1t4a9JI90vRtIDtfIvjNaUXWD4UvHOuP46YvHNwQQ2zQwNmcLL23LYJSWl8LdhjZ6tib
+         k3k15/Vt/vQ4vQ2+2OP0pBwYidP8NtBSdTMRuSMnxRxm63VSVCqGxecuhv3Ip599/4DR
+         ho8vDhLKmhvFz2keaZ+2HrTL7jjfEuooa5GiDpXvsNBb3At+7vcQ/OwPOih3OU5a+Puy
+         qtdA==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 212.227.126.133 is neither permitted nor denied by best guess record for domain of arnd@arndb.de) smtp.mailfrom=arnd@arndb.de
+X-Gm-Message-State: APjAAAUkdMDVGmEyP2kfK8KV8mEeenCBq5dlCjDhwWFAn1mmrgbnDIgq
+	BlMFSQeeUXT8XeruWf3ytquOmvKDk0eotDTKb0qEM3agZG6h9lhTEpUPdQ5skVCnEG86b4zr7TC
+	WJVB714jdwkky5VP74EIcktleXzcaXh1XpipYsnI39ntNs+Ud257j/x3De9961cU=
+X-Received: by 2002:a1c:1f4e:: with SMTP id f75mr8579668wmf.137.1562923045051;
+        Fri, 12 Jul 2019 02:17:25 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxj60BGsmuaX/w0ImCKoAFMlvdxQpnLfSwicZxUcQt6bkZSK/Ofkza0bFPbFWN00eykqVJm
+X-Received: by 2002:a1c:1f4e:: with SMTP id f75mr8579571wmf.137.1562923044208;
+        Fri, 12 Jul 2019 02:17:24 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562923044; cv=none;
         d=google.com; s=arc-20160816;
-        b=AlQ6PGYN8CUfscOHXVXzmVmE0wrfJQR36NKQ4Z0y++WmF/HVWKqAC2rufkTCZr+Q0r
-         /GWBvAkpUXFyu/GIT3TpnV1jkKYqneIoA6DOAxfBzZvgSxGKuvcLksDq9trfZcAdGNH+
-         lQYuhRb/OX7AW39zBLmuGphPmDeY1QL0linoScA2kFI/yEVdHjNO9uvuyQbuG2K+Y7Eq
-         /XgPzSUomHjxt57mN6naHMZIIVrNPru4WxRv9vYumOLjKhODDoE+Z8bS18Bm5YSgBM0L
-         w3McWGb//dGMrqWT5n1FxQ6Nr+93RoVBmVp7EbkZkoNi3sWhjmnxkSTp5U2ZMJoaUmFB
-         K5cg==
+        b=AkRRx0HtqaZDe5UNM6OOQZlzkMHLtQCKcq2h34jeHOlFSKpnabuc5oquY5Dq+UdUNl
+         HfIhpwOkh/X/lsvE6UNiAvm5sPZ251NJt8Frf/Qzph7e9BeEjsKDz5CmO8jO06rv4h4z
+         18WD9yxlp1zGEMUx6ZSCvQ+gZ1/RcscDu6n7fNW23XHADFYVnxrEQKbeYAVaUUoGMdih
+         /Yo/lO9cCEIUQpsnFUnF+4M+0LJr48GE6SAhdpzOoXXEdZzu6LXE5hKQnXZFlPVVw7tN
+         r8qZXbyXH5fdSWGX/2fYq5+4LqQo/PVpJPZeju4dae9Bpln0Z9ynmmU6w0Kkick/HVFb
+         FvvA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=jcceaML/n0gsbJdlAi/GRuCQT0aw8Kc8cBnjHGwhfgQ=;
-        b=gf8dWT/5vQtHt6K0ZzahK4M90e5CNPFyzK0Uj7yDjm9jleEGUsYbD23LnTOnK1w4tO
-         62YztBxt0Ii1OpYFAIHIiQ8onCfjuoyF03qM9JaQqQD9EfpmbcfFxp7mdsT6BtGG8BAZ
-         aulVsWRkZWw84munvNSf4l+Cg4hepnPVAO9bTmeC/mXJ3qv4sprpk4eatJNwJ23oBhos
-         u9KyZzofAY/VtdqXA+DnzWXjjrdzqPrKmFmedv9+R3NRS0x6Yq7p6TnT5pB6Kmk9yuQ5
-         tpLeFRRAAmwjGy6VQ8aNcZSWcsDexnUhw/H18zJNhzhqr9U1YQ4gZhQzY3iTX6mzxabK
-         22zQ==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from;
+        bh=nh45F2PS0uH+h2wY6iFXunuS7WHkwtGS4SjL6R9jQCk=;
+        b=X+XCTAMzJHiSe4u+rziFnoHenj7rY70k01TJoWBLbONHK99Md0xzRqOWb0SO9VZgPg
+         smyrPqJe771z2HQcbW3kWlch1eaHN84Pg/dNGiV1TSfWelJ2YJ9GEI3J6/h2epp/tg/u
+         br5Pl8b9F5OHQuiuanHYVsMT0pAXO1lBOzWJGP8ntSXMLQnsDYnde6BT2xYs4TdolfMO
+         ZdIvw4Lfs0kX7wurVwVUal6gzl/GL+nYRkw1PIsJz2tcjolI28aRslChB9uS4IuIajrG
+         jTZMKMrc2VRuWv77YiA4ZRh7DP20TUFwTy8fdxQpPdVdwXniKBpNs/8aMaWE/7qgsig6
+         XHCA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of yun.wang@linux.alibaba.com designates 115.124.30.131 as permitted sender) smtp.mailfrom=yun.wang@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-Received: from out30-131.freemail.mail.aliyun.com (out30-131.freemail.mail.aliyun.com. [115.124.30.131])
-        by mx.google.com with ESMTPS id be3si6999858plb.383.2019.07.12.02.11.27
+       spf=neutral (google.com: 212.227.126.133 is neither permitted nor denied by best guess record for domain of arnd@arndb.de) smtp.mailfrom=arnd@arndb.de
+Received: from mout.kundenserver.de (mout.kundenserver.de. [212.227.126.133])
+        by mx.google.com with ESMTPS id m13si8145076wru.8.2019.07.12.02.17.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 12 Jul 2019 02:11:28 -0700 (PDT)
-Received-SPF: pass (google.com: domain of yun.wang@linux.alibaba.com designates 115.124.30.131 as permitted sender) client-ip=115.124.30.131;
+        Fri, 12 Jul 2019 02:17:24 -0700 (PDT)
+Received-SPF: neutral (google.com: 212.227.126.133 is neither permitted nor denied by best guess record for domain of arnd@arndb.de) client-ip=212.227.126.133;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of yun.wang@linux.alibaba.com designates 115.124.30.131 as permitted sender) smtp.mailfrom=yun.wang@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R621e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e07417;MF=yun.wang@linux.alibaba.com;NM=1;PH=DS;RN=13;SR=0;TI=SMTPD_---0TWh00oy_1562922685;
-Received: from testdeMacBook-Pro.local(mailfrom:yun.wang@linux.alibaba.com fp:SMTPD_---0TWh00oy_1562922685)
-          by smtp.aliyun-inc.com(127.0.0.1);
-          Fri, 12 Jul 2019 17:11:25 +0800
-Subject: Re: [PATCH 1/4] numa: introduce per-cgroup numa balancing locality,
- statistic
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: hannes@cmpxchg.org, mhocko@kernel.org, vdavydov.dev@gmail.com,
- Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org,
- linux-mm@kvack.org, mcgrof@kernel.org, keescook@chromium.org,
- linux-fsdevel@vger.kernel.org, cgroups@vger.kernel.org,
- Mel Gorman <mgorman@suse.de>, riel@surriel.com
-References: <209d247e-c1b2-3235-2722-dd7c1f896483@linux.alibaba.com>
- <60b59306-5e36-e587-9145-e90657daec41@linux.alibaba.com>
- <3ac9b43a-cc80-01be-0079-df008a71ce4b@linux.alibaba.com>
- <20190711134754.GD3402@hirez.programming.kicks-ass.net>
- <b027f9cc-edd2-840c-3829-176a1e298446@linux.alibaba.com>
- <20190712075815.GN3402@hirez.programming.kicks-ass.net>
-From: =?UTF-8?B?546L6LSH?= <yun.wang@linux.alibaba.com>
-Message-ID: <37474414-1a54-8e3a-60df-eb7e5e1cc1ed@linux.alibaba.com>
-Date: Fri, 12 Jul 2019 17:11:25 +0800
-User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.13; rv:60.0)
- Gecko/20100101 Thunderbird/60.7.0
+       spf=neutral (google.com: 212.227.126.133 is neither permitted nor denied by best guess record for domain of arnd@arndb.de) smtp.mailfrom=arnd@arndb.de
+Received: from threadripper.lan ([149.172.19.189]) by mrelayeu.kundenserver.de
+ (mreue011 [212.227.15.129]) with ESMTPA (Nemesis) id
+ 1MnaTt-1iDnxj0N1B-00jd8T; Fri, 12 Jul 2019 11:11:50 +0200
+From: Arnd Bergmann <arnd@arndb.de>
+To: Hugh Dickins <hughd@google.com>
+Cc: Arnd Bergmann <arnd@arndb.de>,
+	David Howells <dhowells@redhat.com>,
+	Al Viro <viro@zeniv.linux.org.uk>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Matthew Wilcox <willy@infradead.org>,
+	Vlastimil Babka <vbabka@suse.cz>,
+	Andrea Arcangeli <aarcange@redhat.com>,
+	Vineeth Remanan Pillai <vpillai@digitalocean.com>,
+	linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Subject: [PATCH] thp: fix unused shmem_parse_huge() function warning
+Date: Fri, 12 Jul 2019 11:11:31 +0200
+Message-Id: <20190712091141.673355-1-arnd@arndb.de>
+X-Mailer: git-send-email 2.20.0
 MIME-Version: 1.0
-In-Reply-To: <20190712075815.GN3402@hirez.programming.kicks-ass.net>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
 Content-Transfer-Encoding: 8bit
+X-Provags-ID: V03:K1:2eYIEw+FuGFLaFFnKIH/ts58p8jvvELIVRGUWlzkTykX3ykX0/v
+ ts+nAn49miAUJt8DvK+mqbmcyi6PwAVzbh9XnS5MWrU1+0O/eSmcmtzcL9ONUd/zHoqYZcr
+ fsERZV6Xr78UtnbuWoFCE8702Z6CLbbbh8uTN8jvzkak2k/Uz76hgbkwxo/Sl1gDg9Wr9RL
+ vH2DwCgQDpxF8RtsHhT/w==
+X-UI-Out-Filterresults: notjunk:1;V03:K0:MFLRiRfyKs0=:y3WLnaB3wWK7ZVw2+uaZSz
+ KDWyGJ16nm4B9n08VOCzmdw4CqtSZ8X7gK9dT8fb29QCvzDZL+7Csbn7GuN+HVETkTycalpoE
+ O4/TtwxB/r4kvi77kMOAkPvuPgA5561YoncV7xlx02HMH20ikp4gMDuKhRVDCc609+CJOaWCa
+ V0kf/q6ETmUeFUGBiyMHn8goumYpJbC/s1HrAnPO8VekBzolBs4uIXJy87vCakBG0GYTtm/zX
+ sDC8gfNtaOOH7lCcs/cihf/aes6gQFxARedS6PvPJSzd2azf/PhDooB6mRllY933D4Ms7IJ5j
+ ZW1pENKTBaAGZI2iXNPB+VBWo6qFCntnmK+AnHHb0Y7eowif+xHEPv3BW0zDU4kZjFJAfVfkc
+ AxJcFdxJ/OMGbPIcrDul9jy69nhaOK74SIm/UMIZvdF2H6ciSjrT2tBm/3dzwXJlczODx/1zL
+ AV9TKdL/mS4MfSExx+QvedR4HrVf7wNCNP2T5nDS35jspJFmBMc7il2juByeIsVtv1Fgau6oN
+ fccvQhaZblRROnjXP0bzSett+3mfisO3X7stX4Y7Qmy0SW2YRYNW+tU5nHuQ6bTcN9D5PUdKU
+ Olq2To7gnj1xvDPouxrauUTHaIS/MXs53f5TSCIqF/POLGX+svJVqkYndKQB71i3w69mr7MRp
+ WNKoqGgNBN3kBXBkURgDUo/qeaS3+WVNgQOSCjg7XGBg3mrVvl0JhohthgDjh5j1yrBDzZZSH
+ 26RrhyCtiRa3NwjLqvDBKTpQXjouaJbtK4ZBvQ==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+When CONFIG_SYSFS is disabled but CONFIG_TMPFS is enabled, we get a warning
+about shmem_parse_huge() never being called:
 
+mm/shmem.c:417:12: error: unused function 'shmem_parse_huge' [-Werror,-Wunused-function]
+static int shmem_parse_huge(const char *str)
 
-On 2019/7/12 下午3:58, Peter Zijlstra wrote:
-[snip]
->>>
->>> Then our task t1 should be accounted to B (as you do), but also to A and
->>> R.
->>
->> I get the point but not quite sure about this...
->>
->> Not like pages there are no hierarchical limitation on locality, also tasks
-> 
-> You can use cpusets to affect that.
+Change the #ifdef so we no longer build this function in that configuration.
 
-Could you please give more detail on this?
+Fixes: 144df3b288c4 ("vfs: Convert ramfs, shmem, tmpfs, devtmpfs, rootfs to use the new mount API")
+Signed-off-by: Arnd Bergmann <arnd@arndb.de>
+---
+ mm/shmem.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
 
-> 
->> running in a particular group have no influence to others, not to mention the
->> extra overhead, does it really meaningful to account the stuff hierarchically?
-> 
-> AFAIU it's a requirement of cgroups to be hierarchical. All our other
-> cgroup accounting is like that.
-
-Ok, should respect the convention :-)
-
-Regards,
-Michael Wang
-
-> 
+diff --git a/mm/shmem.c b/mm/shmem.c
+index ba40fac908c5..32aa9d46b87c 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -413,7 +413,7 @@ static bool shmem_confirm_swap(struct address_space *mapping,
+ 
+ static int shmem_huge __read_mostly;
+ 
+-#if defined(CONFIG_SYSFS) || defined(CONFIG_TMPFS)
++#if defined(CONFIG_SYSFS)
+ static int shmem_parse_huge(const char *str)
+ {
+ 	if (!strcmp(str, "never"))
+@@ -430,7 +430,9 @@ static int shmem_parse_huge(const char *str)
+ 		return SHMEM_HUGE_FORCE;
+ 	return -EINVAL;
+ }
++#endif
+ 
++#if defined(CONFIG_SYSFS) || defined(CONFIG_TMPFS)
+ static const char *shmem_format_huge(int huge)
+ {
+ 	switch (huge) {
+-- 
+2.20.0
 
