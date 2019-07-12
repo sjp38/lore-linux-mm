@@ -7,135 +7,134 @@ X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
 	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B73DEC742BD
-	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 13:45:47 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3E887C742BD
+	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 13:48:11 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4257D20863
-	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 13:45:46 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id E4BE120863
+	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 13:48:10 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="I3qle/iC"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4257D20863
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="GzivNqdL"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E4BE120863
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DF54F8E014B; Fri, 12 Jul 2019 09:45:45 -0400 (EDT)
+	id D561D8E014C; Fri, 12 Jul 2019 09:48:09 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DA6008E00DB; Fri, 12 Jul 2019 09:45:45 -0400 (EDT)
+	id D076A8E00DB; Fri, 12 Jul 2019 09:48:09 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C46408E014B; Fri, 12 Jul 2019 09:45:45 -0400 (EDT)
+	id BA7408E014C; Fri, 12 Jul 2019 09:48:09 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A43B18E00DB
-	for <linux-mm@kvack.org>; Fri, 12 Jul 2019 09:45:45 -0400 (EDT)
-Received: by mail-io1-f71.google.com with SMTP id c5so10596986iom.18
-        for <linux-mm@kvack.org>; Fri, 12 Jul 2019 06:45:45 -0700 (PDT)
+Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 9BE4F8E00DB
+	for <linux-mm@kvack.org>; Fri, 12 Jul 2019 09:48:09 -0400 (EDT)
+Received: by mail-io1-f69.google.com with SMTP id k21so10703245ioj.3
+        for <linux-mm@kvack.org>; Fri, 12 Jul 2019 06:48:09 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
          :organization:message-id:date:user-agent:mime-version:in-reply-to
          :content-language:content-transfer-encoding;
-        bh=dGzIhFt0u54O4Kbeh8RbIfe/e2jNby1b+/yE0CanLKw=;
-        b=HwewLd0aPp+FtKqsKb4XHP5kGUvl+Ucz2NNTF87+GX7LaxCAAGPa20r/YkOVAesHQu
-         /cm3g3eNcy2XnHUEp19gIZvhauaa0nGbCDyN30liQ/7tgeU0yAF8FpRVSjDSoPYczWzJ
-         DsuIw2z3bCO5WGKZQ3CX8fpwkM9FIWS+ApxnBZKTEi6V40l04a601Cw6F9whNVqtq2iV
-         dMSfG4PUSWc2J8tow8vIjmk16jN+0S1YiHYgUbDF2NUNtbwMSpZPh18GgmnDw+UbpgX3
-         2/gyv7APY2UF7kTHdgzIGp+e01EuQXHNYwMD2xGYlGInWcuBYaWEE8jK0XU4Q76Oo6aQ
-         lN0g==
-X-Gm-Message-State: APjAAAWY92rZIX1HfN7ojYrcpeA/wWfMt2G/v+YdmiB0gx7mhVi2PzZc
-	6mg1Sf4YV7+6FdNdzx/nLo4cyJFzBUg/Brj2tAaAPwKUX2fNCf+bkRHeqdu0/SWNOwoFkM+RcXO
-	HKqaGnj4g/C6eLx+9MKBnxJfuViCN57BLIVH+wRvrqQdEgD83xdd02x9VFlrg7gpbzA==
-X-Received: by 2002:a02:c9d8:: with SMTP id c24mr11945512jap.38.1562939145400;
-        Fri, 12 Jul 2019 06:45:45 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzwD66siL5NJ15RwJCKHJllHp49k+AXs09qHi9Bbu5dYLAJpWmwitprj7L/pEVMyw1V+4xB
-X-Received: by 2002:a02:c9d8:: with SMTP id c24mr11945376jap.38.1562939143647;
-        Fri, 12 Jul 2019 06:45:43 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562939143; cv=none;
+        bh=2TNZ9h7pACCt3IUFNoHpTzTBPzs/ZEZEH8ovFfWNlCs=;
+        b=dURjzmeumZZypOQ8+p3m+DriaEFhxKnBufu8suASnnnYqYnaPj+b/0H51hCS6OUjtW
+         2Pun9xz844nD6hOC4fGLMT3WRvmQLSZPdLsbl+Y759ufqcnid74DLwfAo1t8EvzPFNjm
+         gJ+ICuwDpJk636rcnMItFYg89gmV2UXmhTjVcu9MY/aWftuaXm17CgxtyMxHc4HUDmnn
+         blyL1ZflHVgE3WW4EoCJywJU0ly2A/he9ZyGGjn3VU0QEEl4sxTyKg9WtW5L1gAfuZtT
+         Lzh3OyawZGuOCPTmKzMmGCZIpMGKYzXl/0m2irDAOS3aBv1qjgeo8AIKDJR44+DjEFWf
+         0fsA==
+X-Gm-Message-State: APjAAAW+/k3joXjzDFPnGqufHloSudVKPR6n0Pf2lqRHSJqUvsICsWVq
+	vv8U0LIxyO/lITufcnX5ohGLtf3k3WLdAfm5nNBnI3s6rzTb2SPlrC4qUVgVzmOIFb73lzDWKMB
+	cyDpvY6jDQmq14tEfepkKaadQ0SSIM1vSXnsO4mvzfEcvEbjLblgxS3m+GQ7SoQl2MQ==
+X-Received: by 2002:a6b:f816:: with SMTP id o22mr11116685ioh.166.1562939289424;
+        Fri, 12 Jul 2019 06:48:09 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqx3V56D0N654A/PbCLarpfBa58SLyt0Gzr9/oFjWYDvGj8ueBYRl8u9Pc+ITWOuypi0HVOT
+X-Received: by 2002:a6b:f816:: with SMTP id o22mr11116638ioh.166.1562939288839;
+        Fri, 12 Jul 2019 06:48:08 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562939288; cv=none;
         d=google.com; s=arc-20160816;
-        b=oQfs8CfJo260Dn3t6GhJpefvWFcy8nZP+v/SBlYtZr7CT038dSYnfZgD3KnSclZ5n4
-         ZWC2821ND+2h8mrPrPodmUsnMejPM8GzLw9wQ/QMHa6LLrUE5al7Ks+kFbFChGtxB6uO
-         xvoHf06I6aegEZZF1n5Yy2ZGH6itwLgbOv3Nwd671PL8c1DeAobcvwDAet5yyFSRz0W1
-         E9FAVsKGNjiKnb3EP0sOvdtBDIykEnlNQD3FrLe/FYHWFzIamb12S1HiRvLDkeIYTJYd
-         5ZKnnPXhi0gzQIayUikS+yH9agR86p+68xJDldhggNLlqkxSuPvA+57e7i+1aAdWW8ve
-         PFUQ==
+        b=AChL/MWDuvVI/lt2NEu8K17qqBTmXV5Fi4FSiLgpv64nXDiY8IfpB7R+rN3I1nAQrH
+         QH0ZM064rsvJxUIP4H4L4TIWfrlj+K5ILdHg1J0ztjN/OuOMuVuX4lSFlDZVWK9T72tU
+         ohR8G8i6TnLQ5UfYit+Q8vcLcKMu9LIG3dQREKDpUq6tV2sGoR002tBbP3ims+AHtPRX
+         DXQWE6Ua0JqNFaqyjfVxZiJ4LcBG0BnePDhCz4AGSVc1xhhf9wDUTiS6P7vQY2YG6r+o
+         +MLaanOw0QHL7eIUvkeHMEGng7S8nJKwg23wwh2of4iw2DWDQ9/yYh11YuxzDBYKKm7F
+         oe6Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
          :user-agent:date:message-id:organization:from:references:cc:to
          :subject:dkim-signature;
-        bh=dGzIhFt0u54O4Kbeh8RbIfe/e2jNby1b+/yE0CanLKw=;
-        b=IHG3vsmlnvmNSzbxmYiVhL+aQfNSOrb8rzH4N/adIB0BP1/ks/eYXXFwUvCm/CRtA9
-         XUiPIgiOeuR45WJNs+SLi5sSrP9PCRPRWW9tvrmxMEWcm0oEKaoFbZMuTX5TB8CZmQ/l
-         AtnZvCxMP0rWFJTA9XWwpJL5nN5b/LvNVfnRUO6zsnplxxE8XIF+GkeB3GGKEj23DO8A
-         cUgpxNR9UimeHUPQu9XPvBuPe+/tIccdgegT2ZnCbgl618kE/sB/di7EM9N2lxy4ehMY
-         ZswHfmHZOmI1iy4q41zdNPYSpYkoPS0ABu3Hk6tnyxJ3k+gmdLk6xHUNF+lIFnv9Xisd
-         b9gg==
+        bh=2TNZ9h7pACCt3IUFNoHpTzTBPzs/ZEZEH8ovFfWNlCs=;
+        b=UGhA5+8Zzp0FQe/Z8AFFOFcDjDVoJKzMb8JHkxvd2Rh7WpXapyhnREzQVPZ0pPWNyB
+         WSdIJ8Id+I9n9ErIrPq0UTNXnFnFXMw8p/Q05WCBGBPMcFqRSfhoRVp1wyoI2rUKoS4J
+         Tq0wUVY7CuBOzPmtorbADD4zuGv5RUCNvCiiY/M6k0wiedBOxZ8zU4fHZSyyTMzo+uxO
+         von1WJCSJW+//Ctdx+EyJqqTh5WScSQYugGe4yKdILEmtb7rKcl4XLFQ4rbCuHAdMYWZ
+         iK6Z0W5zmdmtRghT9t4EfSo+hZwwtFEkd/NMc7SzlfhHa2fUds6aqSorUZJfEEhBxB9d
+         gqPA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b="I3qle/iC";
-       spf=pass (google.com: domain of alexandre.chartre@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=alexandre.chartre@oracle.com;
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=GzivNqdL;
+       spf=pass (google.com: domain of alexandre.chartre@oracle.com designates 141.146.126.78 as permitted sender) smtp.mailfrom=alexandre.chartre@oracle.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id w3si12605991iot.79.2019.07.12.06.45.43
+Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
+        by mx.google.com with ESMTPS id t130si13915443jaa.66.2019.07.12.06.48.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 12 Jul 2019 06:45:43 -0700 (PDT)
-Received-SPF: pass (google.com: domain of alexandre.chartre@oracle.com designates 156.151.31.85 as permitted sender) client-ip=156.151.31.85;
+        Fri, 12 Jul 2019 06:48:08 -0700 (PDT)
+Received-SPF: pass (google.com: domain of alexandre.chartre@oracle.com designates 141.146.126.78 as permitted sender) client-ip=141.146.126.78;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b="I3qle/iC";
-       spf=pass (google.com: domain of alexandre.chartre@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=alexandre.chartre@oracle.com;
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=GzivNqdL;
+       spf=pass (google.com: domain of alexandre.chartre@oracle.com designates 141.146.126.78 as permitted sender) smtp.mailfrom=alexandre.chartre@oracle.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
-	by userp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x6CDiTbQ090742;
-	Fri, 12 Jul 2019 13:45:25 GMT
+Received: from pps.filterd (aserp2120.oracle.com [127.0.0.1])
+	by aserp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x6CDibWT175649;
+	Fri, 12 Jul 2019 13:47:52 GMT
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
  references : from : message-id : date : mime-version : in-reply-to :
  content-type : content-transfer-encoding; s=corp-2018-07-02;
- bh=dGzIhFt0u54O4Kbeh8RbIfe/e2jNby1b+/yE0CanLKw=;
- b=I3qle/iCNC7VAuoB0DAxu5j9PNjrSqNjf+rVWmK41YEKSGoN9OiSbkyAlre45qgeLtFv
- 4sFAcj+k4BiPbPPjoSj6sSzja1imo4cED1Jqsw0nmu6QBA2dzTYgXG2X7jgZ0cafheoO
- EdVvD/RFeBBxmc+NVol1fI8F8zsihyoowAaasRFe4SRSr2vJSOqA9u9VNLL1AQhvwW8G
- hm7wITkGEQ8u6fMAIB8kHLrZjZLx9p3ngRzt14Z9sFLzJOmWmoreQe93CFfwMVT/FYtF
- rgBjFQcc/yzt+XhKz5ajWXfaH6vKZFK3JY+4m6C+YPeY2H4Djfjypiv+wrJp1Rb5CF6t qQ== 
+ bh=2TNZ9h7pACCt3IUFNoHpTzTBPzs/ZEZEH8ovFfWNlCs=;
+ b=GzivNqdLQWmLHwFSLtjBb5hgZ/6skpeLOc/wyZdgE7AQoBQBV9MoaP8HCyn0Wi7hbumt
+ JxH7WeiTo51RSzWzU44B3FLonPUKH5xqpqIgC3wlJWl4XaHeWPGOTGtIjnYFlni6afKf
+ myQRwBz8e/4VStXUb0QFP0APmdAMZuVnNoW5LjzXQD4TRRL4ZzwgdV7uCgxx8bii1rp0
+ 92yUiuBi3HqHraJcXxhPoXwK9Cq7ry0+yksAJSa6GrD2vE6xfGbrPYlLMIlEvnnCyrBH
+ A5XhGaFnpC0uPUql8SL+zUGGqo6SEEhI1vUaL2dKvqd7iWj9wy+otuieM78IwgJklx1p cw== 
 Received: from aserp3030.oracle.com (aserp3030.oracle.com [141.146.126.71])
-	by userp2120.oracle.com with ESMTP id 2tjm9r5pmv-1
+	by aserp2120.oracle.com with ESMTP id 2tjkkq5pv4-1
 	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Fri, 12 Jul 2019 13:45:25 +0000
+	Fri, 12 Jul 2019 13:47:52 +0000
 Received: from pps.filterd (aserp3030.oracle.com [127.0.0.1])
-	by aserp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x6CDgnqQ001226;
-	Fri, 12 Jul 2019 13:45:25 GMT
-Received: from aserv0122.oracle.com (aserv0122.oracle.com [141.146.126.236])
-	by aserp3030.oracle.com with ESMTP id 2tmwgysfk3-1
+	by aserp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x6CDlS8M011118;
+	Fri, 12 Jul 2019 13:47:51 GMT
+Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
+	by aserp3030.oracle.com with ESMTP id 2tmwgysgmr-1
 	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Fri, 12 Jul 2019 13:45:24 +0000
-Received: from abhmp0019.oracle.com (abhmp0019.oracle.com [141.146.116.25])
-	by aserv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x6CDjMYA006659;
-	Fri, 12 Jul 2019 13:45:22 GMT
+	Fri, 12 Jul 2019 13:47:51 +0000
+Received: from abhmp0011.oracle.com (abhmp0011.oracle.com [141.146.116.17])
+	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x6CDloOS026847;
+	Fri, 12 Jul 2019 13:47:50 GMT
 Received: from [10.166.106.34] (/10.166.106.34)
 	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Fri, 12 Jul 2019 06:43:35 -0700
+	with ESMTP ; Fri, 12 Jul 2019 06:46:30 -0700
 Subject: Re: [RFC v2 00/27] Kernel Address Space Isolation
 To: Peter Zijlstra <peterz@infradead.org>
-Cc: Thomas Gleixner <tglx@linutronix.de>, Dave Hansen
- <dave.hansen@intel.com>,
-        pbonzini@redhat.com, rkrcmar@redhat.com, mingo@redhat.com,
-        bp@alien8.de, hpa@zytor.com, dave.hansen@linux.intel.com,
-        luto@kernel.org, kvm@vger.kernel.org, x86@kernel.org,
-        linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+Cc: pbonzini@redhat.com, rkrcmar@redhat.com, tglx@linutronix.de,
+        mingo@redhat.com, bp@alien8.de, hpa@zytor.com,
+        dave.hansen@linux.intel.com, luto@kernel.org, kvm@vger.kernel.org,
+        x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org,
         konrad.wilk@oracle.com, jan.setjeeilers@oracle.com,
         liran.alon@oracle.com, jwadams@google.com, graf@amazon.de,
         rppt@linux.vnet.ibm.com, Paul Turner <pjt@google.com>
 References: <1562855138-19507-1-git-send-email-alexandre.chartre@oracle.com>
- <5cab2a0e-1034-8748-fcbe-a17cf4fa2cd4@intel.com>
- <alpine.DEB.2.21.1907120911160.11639@nanos.tec.linutronix.de>
- <61d5851e-a8bf-e25c-e673-b71c8b83042c@oracle.com>
- <20190712125059.GP3419@hirez.programming.kicks-ass.net>
+ <20190712114458.GU3402@hirez.programming.kicks-ass.net>
+ <1f97f1d9-d209-f2ab-406d-fac765006f91@oracle.com>
+ <20190712123653.GO3419@hirez.programming.kicks-ass.net>
+ <b1b7f85f-dac3-80a3-c05c-160f58716ce8@oracle.com>
+ <20190712130720.GQ3419@hirez.programming.kicks-ass.net>
 From: Alexandre Chartre <alexandre.chartre@oracle.com>
 Organization: Oracle Corporation
-Message-ID: <a03db3a5-b033-a469-cc6c-c8c86fb25710@oracle.com>
-Date: Fri, 12 Jul 2019 15:43:31 +0200
+Message-ID: <8b84ac05-f639-b708-0f7f-810935b323e8@oracle.com>
+Date: Fri, 12 Jul 2019 15:46:19 +0200
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.5.0
 MIME-Version: 1.0
-In-Reply-To: <20190712125059.GP3419@hirez.programming.kicks-ass.net>
+In-Reply-To: <20190712130720.GQ3419@hirez.programming.kicks-ass.net>
 Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
@@ -143,7 +142,7 @@ X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9315 signatures=6
 X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
  phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
  adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
- engine=8.0.1-1810050000 definitions=main-1907120148
+ engine=8.0.1-1810050000 definitions=main-1907120149
 X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9315 signatures=668688
 X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
  suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
@@ -157,58 +156,47 @@ X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 
-On 7/12/19 2:50 PM, Peter Zijlstra wrote:
-> On Fri, Jul 12, 2019 at 01:56:44PM +0200, Alexandre Chartre wrote:
+On 7/12/19 3:07 PM, Peter Zijlstra wrote:
+> On Fri, Jul 12, 2019 at 02:47:23PM +0200, Alexandre Chartre wrote:
+>> On 7/12/19 2:36 PM, Peter Zijlstra wrote:
+>>> On Fri, Jul 12, 2019 at 02:17:20PM +0200, Alexandre Chartre wrote:
+>>>> On 7/12/19 1:44 PM, Peter Zijlstra wrote:
+>>>
+>>>>> AFAIK3 this wants/needs to be combined with core-scheduling to be
+>>>>> useful, but not a single mention of that is anywhere.
+>>>>
+>>>> No. This is actually an alternative to core-scheduling. Eventually, ASI
+>>>> will kick all sibling hyperthreads when exiting isolation and it needs to
+>>>> run with the full kernel page-table (note that's currently not in these
+>>>> patches).
+>>>>
+>>>> So ASI can be seen as an optimization to disabling hyperthreading: instead
+>>>> of just disabling hyperthreading you run with ASI, and when ASI can't preserve
+>>>> isolation you will basically run with a single thread.
+>>>
+>>> You can't do that without much of the scheduler changes present in the
+>>> core-scheduling patches.
+>>>
+>>
+>> We hope we can do that without the whole core-scheduling mechanism. The idea
+>> is to send an IPI to all sibling hyperthreads. This IPI will interrupt these
+>> sibling hyperthreads and have them wait for a condition that will allow them
+>> to resume execution (for example when re-entering isolation). We are
+>> investigating this in parallel to ASI.
 > 
->> I think that's precisely what makes ASI and PTI different and independent.
->> PTI is just about switching between userland and kernel page-tables, while
->> ASI is about switching page-table inside the kernel. You can have ASI without
->> having PTI. You can also use ASI for kernel threads so for code that won't
->> be triggered from userland and so which won't involve PTI.
+> You cannot wait from IPI context, so you have to go somewhere else to
+> wait.
 > 
-> PTI is not mapping         kernel space to avoid             speculation crap (meltdown).
-> ASI is not mapping part of kernel space to avoid (different) speculation crap (MDS).
+> Also, consider what happens when the task that entered isolation decides
+> to schedule out / gets migrated.
 > 
-> See how very similar they are?
->
+> I think you'll quickly find yourself back at core-scheduling.
 > 
-> Furthermore, to recover SMT for userspace (under MDS) we not only need
-> core-scheduling but core-scheduling per address space. And ASI was
-> specifically designed to help mitigate the trainwreck just described.
-> 
-> By explicitly exposing (hopefully harmless) part of the kernel to MDS,
-> we reduce the part that needs core-scheduling and thus reduce the rate
-> the SMT siblngs need to sync up/schedule.
-> 
-> But looking at it that way, it makes no sense to retain 3 address
-> spaces, namely:
-> 
->    user / kernel exposed / kernel private.
-> 
-> Specifically, it makes no sense to expose part of the kernel through MDS
-> but not through Meltdow. Therefore we can merge the user and kernel
-> exposed address spaces.
 
-The goal of ASI is to provide a reduced address space which exclude sensitive
-data. A user process (for example a database daemon, a web server, or a vmm
-like qemu) will likely have sensitive data mapped in its user address space.
-Such data shouldn't be mapped with ASI because it can potentially leak to the
-sibling hyperthread. For example, if an hyperthread is running a VM then the
-VM could potentially access user sensitive data if they are mapped on the
-sibling hyperthread with ASI.
+I haven't looked at details about what has been done so far. Hopefully, we
+can do something not too complex, or reuse a (small) part of co-scheduling.
 
-The current approach is assuming that anything in the user address space
-can be sensitive, and so the user address space shouldn't be mapped in ASI.
-
-It looks like what you are suggesting could be an optimization when creating
-an ASI for a process which has no sensitive data (this could be an option to
-specify when creating an ASI, for example).
+Thanks for pointing this out.
 
 alex.
-
-> 
-> And then we've fully replaced PTI.
-> 
-> So no, they're not orthogonal.
-> 
 
