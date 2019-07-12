@@ -2,165 +2,158 @@ Return-Path: <SRS0=GtRI=VJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=FROM_EXCESS_BASE64,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	UNPARSEABLE_RELAY,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-9.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 65B3AC742B0
-	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 08:59:09 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 20FD0C742B0
+	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 09:05:09 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3442B2166E
-	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 08:59:09 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3442B2166E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
+	by mail.kernel.org (Postfix) with ESMTP id E04B42064B
+	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 09:05:08 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E04B42064B
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arndb.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id AD6A88E012C; Fri, 12 Jul 2019 04:59:08 -0400 (EDT)
+	id 79E878E012D; Fri, 12 Jul 2019 05:05:08 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AADA38E00DB; Fri, 12 Jul 2019 04:59:08 -0400 (EDT)
+	id 757F48E00DB; Fri, 12 Jul 2019 05:05:08 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9C3F68E012C; Fri, 12 Jul 2019 04:59:08 -0400 (EDT)
+	id 616A38E012D; Fri, 12 Jul 2019 05:05:08 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 663498E00DB
-	for <linux-mm@kvack.org>; Fri, 12 Jul 2019 04:59:08 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id 71so4869537pld.1
-        for <linux-mm@kvack.org>; Fri, 12 Jul 2019 01:59:08 -0700 (PDT)
+Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 0EDAA8E00DB
+	for <linux-mm@kvack.org>; Fri, 12 Jul 2019 05:05:08 -0400 (EDT)
+Received: by mail-wr1-f69.google.com with SMTP id s18so3980524wru.16
+        for <linux-mm@kvack.org>; Fri, 12 Jul 2019 02:05:08 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=gzQgdsRGNi0CMqOYGOjwetJRM1cKoVC2v0wzIwk8YQU=;
-        b=XlxPUhnyAfY7zIKgBjhJHF7rpqRRCzQwrOUYMyMdS/A8JUWjjw65CQ8t5PdwMnDSF5
-         cxAMbu78YLh/2ctGUa/aBtpuvW14kUoCI9BJ3WmHW8j/OZLYNJDdYb5Ta7vmOkMOg3pw
-         msRlmhVepy/Bsu/dW6WpbVS4GATeIYxmnSksVOPYx0N7D/XajlIIWefbh8ytX1Ctkf0f
-         Xy8W7+OFPl4X0BeWOwCMQIMaH253iQbXz9vM8MuDBC2dLin7qB9xneivtDZfzy09nKzf
-         sYZ5v5UFN88yaPB5vFjMhp5Wq7LMelkbCMV3HNuJgHe+mI0357d/j7a3AP2/SjBtQpJY
-         RyDw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yun.wang@linux.alibaba.com designates 47.88.44.37 as permitted sender) smtp.mailfrom=yun.wang@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Gm-Message-State: APjAAAWF9pk+HzecpTrpgr567axf9Z5oOwk7mFy2AF6CcLTL8AN0whUp
-	dW2LjcxkylIV1rfY4sPJERcJDjQfsE1tusmMbyRVFCI0DGEcSR7ctHoy0DxqeeCp6+vJSDAevP8
-	upwy8aQKeh2EdERJk4K8X3nlV0pfOClEWV7/I8KrUjZsu1jYQXmMLu6G8oMXzejb+gg==
-X-Received: by 2002:a17:902:e65:: with SMTP id 92mr9653818plw.13.1562921948079;
-        Fri, 12 Jul 2019 01:59:08 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyLF2n0zgKUGCfMiNSDameGT0YYcx0BdM0HCV+i7O2uxr3Zha0peVazT2C2lLAMkeS4JG5V
-X-Received: by 2002:a17:902:e65:: with SMTP id 92mr9653735plw.13.1562921946952;
-        Fri, 12 Jul 2019 01:59:06 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562921946; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:mime-version:content-transfer-encoding;
+        bh=+HBe9Alwaw2a4PnmAusbor0qMLzxOZ6v3mYmR08nWEc=;
+        b=knBNr8w7fAAPrjkmUQWcnlxA1paW/yVaVnNqRlKW7y3RlG2ZJQikQw9hDW2pCuEgox
+         C5cqf5FmrOeitgHoKKBXLLjlldAX6ocX7axjsdn/2WOUPgduxQsuEB0yftKETvm1GPK6
+         WhV6drInb/LSR39RIHvWu/qKRSWp/DRJoUdTTy+W3KH1/ryJ7e+je32FvCHuq8meOavI
+         UfJjaQ2QDFZXL65I9twZT1La6k3LcpLUw1JIgi/qeIVbvdDY2JI+Gp+sdtNtuF8n1Mj5
+         NaIMtBWW6YBi4kBEWDW0V1zlYcVocn7ahFFl3xfNF7RXlBrK/oRDWcSB1BTwA120ep46
+         s9ew==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 212.227.126.133 is neither permitted nor denied by best guess record for domain of arnd@arndb.de) smtp.mailfrom=arnd@arndb.de
+X-Gm-Message-State: APjAAAWi4goLlBP4QRvfNB7wUK/2eMCdVLB5lidmC/v7PM+8UxGnj0aE
+	TLQtCQ+fUg+jqtB1W2FastYAEK1JE8fIZRgcalSpN7fsprIbqurj6lkz/GaKuYRRQQ2hcCkmL9d
+	9uDHfHIaa3EkyWAz/xic9nwxYPyPfi+wtPc4KbvznalgK3rhLe+s5wLH57tt2Eu8=
+X-Received: by 2002:a1c:630a:: with SMTP id x10mr9119708wmb.113.1562922307506;
+        Fri, 12 Jul 2019 02:05:07 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyYb/nXVhLDLmFXjMTwkA7aGgYg1HmjcYjHkibRAl6qHTIK9fUMYuNIy2/XWneCGdiNKxK5
+X-Received: by 2002:a1c:630a:: with SMTP id x10mr9119638wmb.113.1562922306684;
+        Fri, 12 Jul 2019 02:05:06 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562922306; cv=none;
         d=google.com; s=arc-20160816;
-        b=tsH72vWDPHuejo7NTXtWu5ysYRZeSR12R1LRshqAZ4caIq53U2qUq1zihPLfsfTaj+
-         JIBDEw1Kh9dFI4PHVcbVBAQ3oWBuiIjaMkqxEn3pYGNHvoFiDQ8rZSzRQ7ZmX6vRnLLG
-         UUVEuEJnP11NO1EnlDHKrKbMSH/SQ0uXXDVtWAyEEmKasI8atXc90EalgepVehfBu6Ed
-         rF2j3cBXZHi83O/IfzPoKU/Jh0JEcNx6XG1U2yVtjxNlUSRC8cZQZzFYY/iRTMkITMQi
-         mcaxgSRDIf9Ccve7uXA7ZZ31PiWafqDtpDrEw+B3iFbVwhoPA2z7yiCRrQjrnzYozTlv
-         4nCw==
+        b=Loce2inTvAt6yeemIE29rEWRRMtP963eNb/VCY8rCnegyOP86Fellq3M5kcwMj0FVZ
+         lX6GrtvLfUnQd5JEYGVmma7LZsL6YJ2Te297Fqzt+oI7ArkP4n2Ag3wPwC5NlLBLvN4B
+         OLssesfybcKzAD3S/uImNj7n+MycXDjvoeF/v49M7Vvh1T8ux29Kd0BQ54nhaRJAPiXj
+         KE5aJkXDO0SVzy2AjQV2LV1/rsETgnYqRcBxw4e5yys1zA8RIRxB7CMFyyXPkM85CYMB
+         W/McGiSdi986p8KoqCoThfO4C6JqgWmYND+9/fQh+c02cLP12ozVSKlh8CKNtXCHgKaz
+         OIeQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=gzQgdsRGNi0CMqOYGOjwetJRM1cKoVC2v0wzIwk8YQU=;
-        b=xwpo5nI36SsZ55JKDGNXw5NsLYHq4shpI8+V/x5HZqm5xnv6xwF7vJtEPlWsJEe4Nx
-         jXWpBBHhHkOoYx2MO6Zmqr/5FHzcfqRem+namHhHUYh7NOPjdUEbvIW6jEuXi1lel7xI
-         uBVIDWD5P9huDaK0vKHx4BlzJJMAVpMyWNidTdSpw93sLgdLT7VnnV9D/oS/WzNG/ntf
-         Jd9vXmpo+2yaGcv5obS4VVM+E3T8Ii51LC2t3wGuzehQlD6mSKon/xsdsDgbVGDlXWTk
-         5VbwWDORLU/G6u5cbWNrdRcoW11mb2osJMZl0JuJC7D2JjvQmv7B8mCoTtVzC8tYBHLh
-         SJjw==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from;
+        bh=+HBe9Alwaw2a4PnmAusbor0qMLzxOZ6v3mYmR08nWEc=;
+        b=e3Zkzm2UpP+N+U44Wx4AsIsOghIAJeowYALNjbBVIAcn9syO78QObfS6pqF1DA33D/
+         TVhMUCgrZ/KCyWRCwOwfQTrGKHAmN4d25dzV17zZgtjv0dk7eQ23Gmrta8JQDfWznzJa
+         8guD3XUSmVAK1RZPAiRErNFLKultbdstdq73a2zGY0orGAkMXwR7aQL4r0Qgsehhu2cZ
+         iObd+8tzMrJ6oVSbWlgZs0LC3XBNQqOg8dvlSSdirYmKLp//vk106Ho5aPjEEeeYXxRq
+         j1Yofwzy68Pge8dn0cY2pJ849fKmAEJVMoxn+6/A2xpF383b6/A+B0Gp4vbCgJnCECQy
+         H1cg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of yun.wang@linux.alibaba.com designates 47.88.44.37 as permitted sender) smtp.mailfrom=yun.wang@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-Received: from out4437.biz.mail.alibaba.com (out4437.biz.mail.alibaba.com. [47.88.44.37])
-        by mx.google.com with ESMTPS id j12si7929861pfe.188.2019.07.12.01.59.05
+       spf=neutral (google.com: 212.227.126.133 is neither permitted nor denied by best guess record for domain of arnd@arndb.de) smtp.mailfrom=arnd@arndb.de
+Received: from mout.kundenserver.de (mout.kundenserver.de. [212.227.126.133])
+        by mx.google.com with ESMTPS id k14si8159190wrv.303.2019.07.12.02.05.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 12 Jul 2019 01:59:06 -0700 (PDT)
-Received-SPF: pass (google.com: domain of yun.wang@linux.alibaba.com designates 47.88.44.37 as permitted sender) client-ip=47.88.44.37;
+        Fri, 12 Jul 2019 02:05:06 -0700 (PDT)
+Received-SPF: neutral (google.com: 212.227.126.133 is neither permitted nor denied by best guess record for domain of arnd@arndb.de) client-ip=212.227.126.133;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of yun.wang@linux.alibaba.com designates 47.88.44.37 as permitted sender) smtp.mailfrom=yun.wang@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R101e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01f04446;MF=yun.wang@linux.alibaba.com;NM=1;PH=DS;RN=13;SR=0;TI=SMTPD_---0TWh9RaS_1562921921;
-Received: from testdeMacBook-Pro.local(mailfrom:yun.wang@linux.alibaba.com fp:SMTPD_---0TWh9RaS_1562921921)
-          by smtp.aliyun-inc.com(127.0.0.1);
-          Fri, 12 Jul 2019 16:58:42 +0800
-Subject: Re: [PATCH 4/4] numa: introduce numa cling feature
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: hannes@cmpxchg.org, mhocko@kernel.org, vdavydov.dev@gmail.com,
- Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org,
- linux-mm@kvack.org, mcgrof@kernel.org, keescook@chromium.org,
- linux-fsdevel@vger.kernel.org, cgroups@vger.kernel.org,
- Mel Gorman <mgorman@suse.de>, riel@surriel.com
-References: <209d247e-c1b2-3235-2722-dd7c1f896483@linux.alibaba.com>
- <60b59306-5e36-e587-9145-e90657daec41@linux.alibaba.com>
- <9a440936-1e5d-d3bb-c795-ef6f9839a021@linux.alibaba.com>
- <20190711142728.GF3402@hirez.programming.kicks-ass.net>
- <82f42063-ce51-dd34-ba95-5b32ee733de7@linux.alibaba.com>
- <20190712075318.GM3402@hirez.programming.kicks-ass.net>
-From: =?UTF-8?B?546L6LSH?= <yun.wang@linux.alibaba.com>
-Message-ID: <0a5066be-ac10-5dce-c0a6-408725bc0784@linux.alibaba.com>
-Date: Fri, 12 Jul 2019 16:58:41 +0800
-User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.13; rv:60.0)
- Gecko/20100101 Thunderbird/60.7.0
+       spf=neutral (google.com: 212.227.126.133 is neither permitted nor denied by best guess record for domain of arnd@arndb.de) smtp.mailfrom=arnd@arndb.de
+Received: from threadripper.lan ([149.172.19.189]) by mrelayeu.kundenserver.de
+ (mreue009 [212.227.15.129]) with ESMTPA (Nemesis) id
+ 1MV6G6-1hwH5Z2EoY-00SB3h; Fri, 12 Jul 2019 11:04:59 +0200
+From: Arnd Bergmann <arnd@arndb.de>
+To: Christoph Lameter <cl@linux.com>,
+	Pekka Enberg <penberg@kernel.org>,
+	David Rientjes <rientjes@google.com>,
+	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
+	Andrew Morton <akpm@linux-foundation.org>
+Cc: Arnd Bergmann <arnd@arndb.de>,
+	Stephen Rothwell <sfr@canb.auug.org.au>,
+	Roman Gushchin <guro@fb.com>,
+	Shakeel Butt <shakeelb@google.com>,
+	Vladimir Davydov <vdavydov.dev@gmail.com>,
+	Andrey Konovalov <andreyknvl@google.com>,
+	linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org,
+	clang-built-linux@googlegroups.com
+Subject: [PATCH] slab: work around clang bug #42570
+Date: Fri, 12 Jul 2019 11:04:39 +0200
+Message-Id: <20190712090455.266021-1-arnd@arndb.de>
+X-Mailer: git-send-email 2.20.0
 MIME-Version: 1.0
-In-Reply-To: <20190712075318.GM3402@hirez.programming.kicks-ass.net>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
 Content-Transfer-Encoding: 8bit
+X-Provags-ID: V03:K1:Ny01W1sDzoQkytMwytJIIrYFKJMAp43dk5NNDspRvnOllp9EkZr
+ VuzyTUNjSse8EsEyCqr7kc40Ba4ziU5ZJeO+1M9SBaOgjKuIZikTFUdKqTjhsp1dC0hMyAb
+ pzT0cscZoUzBS9aQuvnFE7VnM1CNm1uE1TfgnnqFyCIqm3ZduBeyRgSaa+3GiB+97zyK7Fg
+ Vq+dXYbjGqocQuWH5gCnQ==
+X-UI-Out-Filterresults: notjunk:1;V03:K0:FRhumaWfoBg=:uF2ZId5iyFd22A6N4mOrDZ
+ DtmIL69RcbPhxVSvodv4SUhsYV3+yTK/vCQrNs/qghahhIl06Oaaj1oGMBTiXb1ZEJ0kvWka/
+ sKHJbkSki3UoNonkKIXFm6kJbKDjygapYoW0EpCAJQ7ysWmxe2LOwY5SeEOr18TmoogwlUW7w
+ RWOiJpzdMDSPkR9+1kD5+ouGToWbg07Sh+iVwcqcvBLDRIFuY0Lr6K3WfrDh9+igLUXmNr9Dq
+ +uoq6gYSfqg6ZQr1Ta+90TtUt9blY4SiRiiHiBz4uU6cw4VFzSa35XjGdq6LdAHaoA6zNigPQ
+ ehN3T8Bwk+7/ZwQFIx8X6EJXFRMVpz36YVZwn208Q+krl8PTa17VZDTpRmxz4I6XyaHEcd7tw
+ XNjGA21LQmrxeNMfuOTYT59cD6THL8xnGL4zEuVG5mn0+zotPWlKWihBZWGGp/zCQQDeMuqmg
+ mH6GfOwLdOsSOQHM/7q1NYMkDcCLJvbKCqICmPvX12LY5VeJXgbjSbUlkr4D+aCIARFWGN4bu
+ 2/uYYtvJ8MkKxNyV0wjTIg0X5VtdPvj34xCu404qgrfovh86PGxQeY5y6lSi3G4kic5Rgz3tv
+ 4OlnfYOM+WO34ViWN+LZnpgELAknvuzOgatnlXyoQaf1ho4dY8cyqujhqcHuJeoiio9WKRjEU
+ ZsSHw0gqQmRAi5jhR7aDBJr2ye0/ArzAZ+LEuIW1OOWycpVPns/zzcQh5FBLSnsM9+WagkJsQ
+ RO479U51Z4FBGauyIZAB2MKq45G9BqYlZQN9eQ==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+Clang gets rather confused about two variables in the same special
+section when one of them is not initialized, leading to an assembler
+warning later:
 
+/tmp/slab_common-18f869.s: Assembler messages:
+/tmp/slab_common-18f869.s:7526: Warning: ignoring changed section attributes for .data..ro_after_init
 
-On 2019/7/12 下午3:53, Peter Zijlstra wrote:
-[snip]
->>>>  	return target;
->>>>  }
->>>
->>> Select idle sibling should never cross node boundaries and is thus the
->>> entirely wrong place to fix anything.
->>
->> Hmm.. in our early testing the printk show both select_task_rq_fair() and
->> task_numa_find_cpu() will call select_idle_sibling with prev and target on
->> different node, thus we pick this point to save few lines.
-> 
-> But it will never return @prev if it is not in the same cache domain as
-> @target. See how everything is gated by:
-> 
->   && cpus_share_cache(x, target)
+Adding an initialization to kmalloc_caches is rather silly here
+but does avoid the issue.
 
-Yeah, that's right.
+Link: https://bugs.llvm.org/show_bug.cgi?id=42570
+Signed-off-by: Arnd Bergmann <arnd@arndb.de>
+---
+We might decide to wait until this is fixed in clang, but
+so far all versions targetting x86 seem to be affected.
+---
+ mm/slab_common.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
 
-> 
->> But if the semantics of select_idle_sibling() is to return cpu on the same
->> node of target, what about move the logical after select_idle_sibling() for
->> the two callers?
-> 
-> No, that's insane. You don't do select_idle_sibling() to then ignore the
-> result. You have to change @target before calling select_idle_sibling().
-> 
-
-I see, we should not override the decision of select_idle_sibling().
-
-Actually the original design we try to achieve is:
-
-  let wake affine select the target
-  try find idle sibling of target
-  if got one
-	pick it
-  else if task cling to prev
-	pick prev
-
-That is to consider wake affine superior to numa cling.
-
-But after rethinking maybe this is not necessary, since numa cling is
-also some kind of strong wake affine hint, actually maybe even a better
-one to filter out the bad cases.
-
-I'll try change @target instead and give a retest then.
-
-Regards,
-Michael Wang
+diff --git a/mm/slab_common.c b/mm/slab_common.c
+index 6c49dbb3769e..807490fe217a 100644
+--- a/mm/slab_common.c
++++ b/mm/slab_common.c
+@@ -1028,7 +1028,8 @@ struct kmem_cache *__init create_kmalloc_cache(const char *name,
+ }
+ 
+ struct kmem_cache *
+-kmalloc_caches[NR_KMALLOC_TYPES][KMALLOC_SHIFT_HIGH + 1] __ro_after_init;
++kmalloc_caches[NR_KMALLOC_TYPES][KMALLOC_SHIFT_HIGH + 1] __ro_after_init =
++{ /* initialization for https://bugs.llvm.org/show_bug.cgi?id=42570 */ };
+ EXPORT_SYMBOL(kmalloc_caches);
+ 
+ /*
+-- 
+2.20.0
 
