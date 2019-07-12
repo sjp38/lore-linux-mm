@@ -2,160 +2,229 @@ Return-Path: <SRS0=GtRI=VJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
+	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CA8EDC742CA
-	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 16:00:56 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9C005C742D2
+	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 16:22:51 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6DCE021019
-	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 16:00:56 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6DCE021019
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linutronix.de
+	by mail.kernel.org (Postfix) with ESMTP id 42D7E20863
+	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 16:22:51 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="omIzIBYl"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 42D7E20863
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E2D728E015C; Fri, 12 Jul 2019 12:00:55 -0400 (EDT)
+	id C46D78E0005; Fri, 12 Jul 2019 12:22:50 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E03C48E00DB; Fri, 12 Jul 2019 12:00:55 -0400 (EDT)
+	id BF6C88E0003; Fri, 12 Jul 2019 12:22:50 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D40348E015C; Fri, 12 Jul 2019 12:00:55 -0400 (EDT)
+	id B0C468E0005; Fri, 12 Jul 2019 12:22:50 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 820478E00DB
-	for <linux-mm@kvack.org>; Fri, 12 Jul 2019 12:00:55 -0400 (EDT)
-Received: by mail-wr1-f69.google.com with SMTP id h8so4490796wrb.11
-        for <linux-mm@kvack.org>; Fri, 12 Jul 2019 09:00:55 -0700 (PDT)
+Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 8F62F8E0003
+	for <linux-mm@kvack.org>; Fri, 12 Jul 2019 12:22:50 -0400 (EDT)
+Received: by mail-io1-f71.google.com with SMTP id u84so11230025iod.1
+        for <linux-mm@kvack.org>; Fri, 12 Jul 2019 09:22:50 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:in-reply-to:message-id:references:user-agent
-         :mime-version;
-        bh=YGyoAi4GqcaNnCz4i2Tl/uvMTRPEWr5xeeFUMv8DjT0=;
-        b=IO7B53qnY5EiSkRNPYXwyJDVsopdUemofVInBS8pNmZFsA1SLKAo6WR1fs2LgY5L+Q
-         drTJmJyLLAMyl8niyfpdJifQXHrtoFFlO4UdWAN+kF3BVsT6qfRekGIa0M73C+Biayqw
-         ObkSDwQpE+bZzK5+b8HNQoc7V/a7N8csjxnn/ydUy3eMMp2P9X2+L4Vnf51Xe5jVi9ao
-         IEac+XzjgBO6WltDPyFfjFyv+JH8sIAmAWu24fG/3hp235t1yQc0b9d1NNcRox2bnoNF
-         smht4IzAs9nFqu4bwtBkqcbRWKzTMbMA2e7Jmt7Ksft+oM0hvLhrcmgopCq2EVxAMoq7
-         8yVw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a0a:51c0:0:12e:550::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
-X-Gm-Message-State: APjAAAW1oGNloxeSK6LySTwWfgZd6oHOty6WKQFEMNoSbVf7fWh4u2em
-	MSC9/+XDoi6tFibVQkJpGVB/USYru4wa9VJETh1ei/gPnwn/t0xk4LRDblwVrbZtUBYE9y4L8G2
-	5T8adG1+A56rvTQximbW659LA6xWfImx1JIgLI7hrvgmH8T1i2QFsylyQPVgtx/w7EA==
-X-Received: by 2002:a5d:53c1:: with SMTP id a1mr12653195wrw.185.1562947254942;
-        Fri, 12 Jul 2019 09:00:54 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy2qWXd7nIcF7cjJTcocnkxALyVnh4/p5eh8nAUEpICjP6sN54sB01oNz0G9EER9HvUNq+F
-X-Received: by 2002:a5d:53c1:: with SMTP id a1mr12653128wrw.185.1562947253931;
-        Fri, 12 Jul 2019 09:00:53 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562947253; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=zYH8Vo9Y5F5IqrJ/iOICmwuOeumCdZOyTM3iTd+JfOs=;
+        b=t0r+oYeIoGCb22Fq6qDo/j+5mort6ipra+WfY5Pqe7eNqelYg7o31nSk5V0G8Qy16I
+         JVj6ok0sqP61VS2y4GlTtk7yr4x+vqiyi0bSGyeVfp2Cqlmy9k1cqhqeAW3DxDZinfwX
+         TCLQuzRjltLOoUlxQJhESRyKnpERlhCDVWYj/uIJGW/jAh497MI5SoBbFYSuoWqzMMBX
+         jpUWTYz7ksUsCen0dRYn6Yk2lwMdng80NbM9ZwHncH3Ln+6AMWnB8jhbD4tIc3hXy5HQ
+         xiKBqyzuYH+1r6wgk1fZg92t/YyACCF16xKEPxTEsu0Ay/FCuS3asPPkMSZR805P4kpo
+         941g==
+X-Gm-Message-State: APjAAAUthQVE9GauqFq6QXdewI/io+Vl04aPgsrwEfhYalOb0KHAI7uU
+	E4ppb3jPOinmE6y76HFZoTczQL3l9JzH2iiabivmDeXVFBqPZRSdqwYnImpcEzBGRk8+4iB1dRf
+	nQlaGD5/y6AR0H9a99znH0ctpEdFhIiITAk/6ayVcABlRqBsZ0hWprg+3uAC0PDtWpQ==
+X-Received: by 2002:a5d:9291:: with SMTP id s17mr11512997iom.10.1562948570254;
+        Fri, 12 Jul 2019 09:22:50 -0700 (PDT)
+X-Received: by 2002:a5d:9291:: with SMTP id s17mr11512931iom.10.1562948569163;
+        Fri, 12 Jul 2019 09:22:49 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562948569; cv=none;
         d=google.com; s=arc-20160816;
-        b=aCQElKLIxAwU57dFbUQIYXkdqlC3sPqeKorEJ0iXPYtlxUk32pbChxldsR6uD8wZlJ
-         9InmO5KI10F+925eqz64gEXMWFRC8/hunkRBdfrZAoUUKpP42gA31gyQVS9WCGtaxkkJ
-         yZVfnSIz5T3bJyFj55/NU5uNqPx5hyVa41+vZinksGwGV5JUbqqWteAgaBdW2SifFwN+
-         Y0MyLmKuN+6n6YOJ0UFj75ZeQvokEmCsZBWOQ67WnEj4U4AqFLmOHRJd8b4fpx9JGTdy
-         0kVWtu8NwNWuzSfltb6OPtrCkB6H5MyhPt4IW+Rc4xtN7VuDQW/2gNN1XTzj9uAI69Zh
-         Z+gA==
+        b=uZhBdM4ywwIl/+huTdE++PlrdybottkmS4lV+IsIpfMZ5n5ymSrDEh51aJoBswahCi
+         h1ggk+PX4WlpINopbXAfBO9Y5oxpbsFD5bESokBJsLPNy/Uh0FVGbfLHK6CTCqH3981w
+         tU6kj9O7FsK4ymUeUkwcEWoqPCsrNAdAB/SxlQO95V4vlCeZqFKQ/7KkBmWeP0xvroJH
+         X3kRfVh56JjkPl+luZPcG97KhmmXWhCFVSlIuF6aYvTDFZYJyhzqtv8r7HYF/qpj2k9l
+         VeW6nlWgwO+K4Ktp8Wrdw4FsbEMWMcNdgJTi+xDe2FMRXD7FQCSRdzAV+aPYlwIxIr6v
+         Bv5A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:user-agent:references:message-id:in-reply-to:subject
-         :cc:to:from:date;
-        bh=YGyoAi4GqcaNnCz4i2Tl/uvMTRPEWr5xeeFUMv8DjT0=;
-        b=ArliB3iH8MuBrk9PlBJEZZLd83pl04hYdyIZYgcL+iZC+we/S0eyrco0/BhbJuhmiI
-         is0gKp/16Nk81h07abtko27TiS9gm/PgupiD3RTpuIHJzfrszsWJJRILhZ6myhkaEat4
-         xnkHuS5//NeM1mb0YW71K/fSB6kZNdWgrptsXvIbVM4+MpIKrtDzSB+MfE6jPu7wG7aw
-         +lRxnW0OfUa+M7/Z0JJ77aYpWmFlLEkzLZL1PMy6APsAvqeYQsRL2fZvjs/dJaU9rngv
-         lgK2nkf9K/Lim0vT8bRHhtCGHEmU0uzS2HKSn5Yf3gwPtG+rgXp7kaVEGSnElaP6Pz3Q
-         YObQ==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=zYH8Vo9Y5F5IqrJ/iOICmwuOeumCdZOyTM3iTd+JfOs=;
+        b=EHB0LqcYaS1pvzKmbH8CgFkoU/b76MBwn3sc3ybtlGvol6f4IfsDAeiUcSnc/0BP0t
+         0TkQEPzco6m5oPEwOCB317OncFr6JLq8zn2r3JaDkKER0pfKnJnNoyvpnBUj4W3fcU4m
+         5Y+GL+7dPOx8/bt8tc0UT4MwuWffviATHyE/zbDx19MBiWWw5POcXyIEjhdWVo9ZECTr
+         ZJBh1ch8yrmcGs76Vd+/Uyf6MLgIyJZq5V+JjGYi5wuZmNlx1EqSoo0v37bNJ1jlNHOU
+         FcfcvlOZoWscf34c5YnepV7eaYiHAOMtUXGCPJgXBzVZ1dA77WIiBw9eVixDY7GnDuHB
+         pvxA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a0a:51c0:0:12e:550::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a0a:51c0:0:12e:550::1])
-        by mx.google.com with ESMTPS id x8si7929517wmk.26.2019.07.12.09.00.53
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=omIzIBYl;
+       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id b24sor7372629ior.93.2019.07.12.09.22.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Fri, 12 Jul 2019 09:00:53 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a0a:51c0:0:12e:550::1 as permitted sender) client-ip=2a0a:51c0:0:12e:550::1;
+        (Google Transport Security);
+        Fri, 12 Jul 2019 09:22:49 -0700 (PDT)
+Received-SPF: pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a0a:51c0:0:12e:550::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
-Received: from [5.158.153.52] (helo=nanos.tec.linutronix.de)
-	by Galois.linutronix.de with esmtpsa (TLS1.2:DHE_RSA_AES_256_CBC_SHA256:256)
-	(Exim 4.80)
-	(envelope-from <tglx@linutronix.de>)
-	id 1hlxyU-0004Ej-To; Fri, 12 Jul 2019 18:00:43 +0200
-Date: Fri, 12 Jul 2019 18:00:42 +0200 (CEST)
-From: Thomas Gleixner <tglx@linutronix.de>
-To: Alexandre Chartre <alexandre.chartre@oracle.com>
-cc: Dave Hansen <dave.hansen@intel.com>, pbonzini@redhat.com, 
-    rkrcmar@redhat.com, mingo@redhat.com, bp@alien8.de, hpa@zytor.com, 
-    dave.hansen@linux.intel.com, luto@kernel.org, peterz@infradead.org, 
-    kvm@vger.kernel.org, x86@kernel.org, linux-mm@kvack.org, 
-    linux-kernel@vger.kernel.org, konrad.wilk@oracle.com, 
-    jan.setjeeilers@oracle.com, liran.alon@oracle.com, jwadams@google.com, 
-    graf@amazon.de, rppt@linux.vnet.ibm.com
-Subject: Re: [RFC v2 00/27] Kernel Address Space Isolation
-In-Reply-To: <61d5851e-a8bf-e25c-e673-b71c8b83042c@oracle.com>
-Message-ID: <alpine.DEB.2.21.1907121751430.1788@nanos.tec.linutronix.de>
-References: <1562855138-19507-1-git-send-email-alexandre.chartre@oracle.com> <5cab2a0e-1034-8748-fcbe-a17cf4fa2cd4@intel.com> <alpine.DEB.2.21.1907120911160.11639@nanos.tec.linutronix.de> <61d5851e-a8bf-e25c-e673-b71c8b83042c@oracle.com>
-User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=omIzIBYl;
+       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=zYH8Vo9Y5F5IqrJ/iOICmwuOeumCdZOyTM3iTd+JfOs=;
+        b=omIzIBYlKRTPh8j23nq6YfsvemBgq2R3BwAVy/MNC4IayYHC/jfN2QFZafA7sS9JSC
+         H2WrrCsAkxMxc7Hs+RMx+lj0Dt05CSDOEEIYbHpunimaev2HmJc3Ie9ocayPIWFSLM2u
+         TW2zczhZrlnKfGQiQWV0I1YYQCOMIxDkMfN4DQaVFAxkCDM2dW643VGB/VplMFbdaTPX
+         2QI9A4ueJVt+2LJS8OwsJlO30zkesxIAfS+HYLgXzUNsPFfRdr4NaV3A1jS1ogHqE/TX
+         Fp4Hj4SoepzsqVL0/BH+TUvhpJ+RNBLLO07t3oOCA65C4edKxQjUQ971ohgS+1ZoorJ3
+         ipTQ==
+X-Google-Smtp-Source: APXvYqw2lc2T9kiB5p8fuhbtGKenrvLboCsn3CGdEb4CKCRRbYs33Sb1RaNqUex99oZ/LJbYFUObBQcX1R489/T1RVs=
+X-Received: by 2002:a6b:dd18:: with SMTP id f24mr10989410ioc.97.1562948568501;
+ Fri, 12 Jul 2019 09:22:48 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+References: <20190710195158.19640-1-nitesh@redhat.com> <20190710195158.19640-2-nitesh@redhat.com>
+ <CAKgT0Ue3mVZ_J0GgMUP4PBW4SUD1=L9ixD5nUZybw9_vmBAT0A@mail.gmail.com>
+ <3c6c6b93-eb21-a04c-d0db-6f1b134540db@redhat.com> <CAKgT0UcaKhAf+pTeE1CRxqhiPtR2ipkYZZ2+aChetV7=LDeSeA@mail.gmail.com>
+ <521db934-3acd-5287-6e75-67feead8ca63@redhat.com>
+In-Reply-To: <521db934-3acd-5287-6e75-67feead8ca63@redhat.com>
+From: Alexander Duyck <alexander.duyck@gmail.com>
+Date: Fri, 12 Jul 2019 09:22:37 -0700
+Message-ID: <CAKgT0Uf7xsdh9OgBq-kyTkyvh8Qo9kV4uiWTVP7NKqzO4X0wyg@mail.gmail.com>
+Subject: Re: [RFC][Patch v11 1/2] mm: page_hinting: core infrastructure
+To: Nitesh Narayan Lal <nitesh@redhat.com>
+Cc: kvm list <kvm@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, 
+	linux-mm <linux-mm@kvack.org>, Paolo Bonzini <pbonzini@redhat.com>, lcapitulino@redhat.com, 
+	pagupta@redhat.com, wei.w.wang@intel.com, 
+	Yang Zhang <yang.zhang.wz@gmail.com>, Rik van Riel <riel@surriel.com>, 
+	David Hildenbrand <david@redhat.com>, "Michael S. Tsirkin" <mst@redhat.com>, dodgen@google.com, 
+	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, dhildenb@redhat.com, 
+	Andrea Arcangeli <aarcange@redhat.com>, john.starks@microsoft.com, 
+	Dave Hansen <dave.hansen@intel.com>, Michal Hocko <mhocko@suse.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 12 Jul 2019, Alexandre Chartre wrote:
-> On 7/12/19 12:44 PM, Thomas Gleixner wrote:
-> > That ASI thing is just PTI on steroids.
-> > 
-> > So why do we need two versions of the same thing? That's absolutely bonkers
-> > and will just introduce subtle bugs and conflicting decisions all over the
-> > place.
-> > 
-> > The need for ASI is very tightly coupled to the need for PTI and there is
-> > absolutely no point in keeping them separate.
-> > 
-> > The only difference vs. interrupts and exceptions is that the PTI logic
-> > cares whether they enter from user or from kernel space while ASI only
-> > cares about the kernel entry.
-> 
-> I think that's precisely what makes ASI and PTI different and independent.
-> PTI is just about switching between userland and kernel page-tables, while
-> ASI is about switching page-table inside the kernel. You can have ASI without
-> having PTI. You can also use ASI for kernel threads so for code that won't
-> be triggered from userland and so which won't involve PTI.
+On Thu, Jul 11, 2019 at 6:13 PM Nitesh Narayan Lal <nitesh@redhat.com> wrote:
+>
+>
+> On 7/11/19 7:20 PM, Alexander Duyck wrote:
+> > On Thu, Jul 11, 2019 at 10:58 AM Nitesh Narayan Lal <nitesh@redhat.com> wrote:
+> >>
+> >> On 7/10/19 5:56 PM, Alexander Duyck wrote:
+> >>> On Wed, Jul 10, 2019 at 12:52 PM Nitesh Narayan Lal <nitesh@redhat.com> wrote:
+> >>>> This patch introduces the core infrastructure for free page hinting in
+> >>>> virtual environments. It enables the kernel to track the free pages which
+> >>>> can be reported to its hypervisor so that the hypervisor could
+> >>>> free and reuse that memory as per its requirement.
+> >>>>
+> >>>> While the pages are getting processed in the hypervisor (e.g.,
+> >>>> via MADV_FREE), the guest must not use them, otherwise, data loss
+> >>>> would be possible. To avoid such a situation, these pages are
+> >>>> temporarily removed from the buddy. The amount of pages removed
+> >>>> temporarily from the buddy is governed by the backend(virtio-balloon
+> >>>> in our case).
+> >>>>
+> >>>> To efficiently identify free pages that can to be hinted to the
+> >>>> hypervisor, bitmaps in a coarse granularity are used. Only fairly big
+> >>>> chunks are reported to the hypervisor - especially, to not break up THP
+> >>>> in the hypervisor - "MAX_ORDER - 2" on x86, and to save space. The bits
+> >>>> in the bitmap are an indication whether a page *might* be free, not a
+> >>>> guarantee. A new hook after buddy merging sets the bits.
+> >>>>
+> >>>> Bitmaps are stored per zone, protected by the zone lock. A workqueue
+> >>>> asynchronously processes the bitmaps, trying to isolate and report pages
+> >>>> that are still free. The backend (virtio-balloon) is responsible for
+> >>>> reporting these batched pages to the host synchronously. Once reporting/
+> >>>> freeing is complete, isolated pages are returned back to the buddy.
+> >>>>
+> >>>> There are still various things to look into (e.g., memory hotplug, more
+> >>>> efficient locking, possible races when disabling).
+> >>>>
+> >>>> Signed-off-by: Nitesh Narayan Lal <nitesh@redhat.com>
+> > So just FYI, I thought I would try the patches. It looks like there
+> > might be a bug somewhere that is causing it to free memory it
+> > shouldn't be. After about 10 minutes my VM crashed with a system log
+> > full of various NULL pointer dereferences.
+>
+> That's interesting, I have tried the patches with MADV_DONTNEED as well.
+> I just retried it but didn't see any crash. May I know what kind of
+> workload you are running?
 
-It's still the same concept. And you can argue in circles it does not
-justify yet another mapping setup with is a different copy of some other
-mapping setup. Whether PTI is replaced by ASI or PTI is extended to handle
-ASI does not matter at all. Having two similar concepts side by side is a
-guarantee for disaster.
+I was running the page_fault1 test on a VM with 80G of memory.
 
-> > So why do you want ot treat that differently? There is absolutely zero
-> > reason to do so. And there is no reason to create a pointlessly different
-> > version of PTI which introduces yet another variant of a restricted page
-> > table instead of just reusing and extending what's there already.
-> > 
-> 
-> As I've tried to explain, to me PTI and ASI are different and independent.
-> PTI manages switching between userland and kernel page-table, and ASI manages
-> switching between kernel and a reduced-kernel page-table.
+> >  The only change I had made
+> > is to use MADV_DONTNEED instead of MADV_FREE in QEMU since my headers
+> > didn't have MADV_FREE on the host. It occurs to me one advantage of
+> > MADV_DONTNEED over MADV_FREE is that you are more likely to catch
+> > these sort of errors since it zeros the pages instead of leaving them
+> > intact.
+> For development purpose maybe. For the final patch-set I think we
+> discussed earlier why we should keep MADV_FREE.
 
-Again. It's the same concept and it does not matter what form of reduced
-page tables you use. You always need transition points and in order to make
-the transition points work you need reliably mapped bits and pieces.
+I'm still not convinced MADV_FREE is a net win, at least for
+performance. You are still paying the cost for the VMEXIT in order to
+regain ownership of the page. In the case that you are under memory
+pressure it is essentially equivalent to MADV_DONTNEED. Also it
+doesn't really do much to help with the memory footprint of the VM
+itself. With the MADV_DONTNEED the pages are freed back and you have a
+greater liklihood of reducing the overall memory footprint of the
+entire system since you would be more likely to be assigned pages that
+were recently used rather than having to access a cold page.
 
-Also Paul wants to use the same concept for user space so trivial system
-calls can do w/o PTI. In some other thread you said yourself that this
-could be extended to cover the kvm ioctl, which is clearly a return to user
-space.
+<snip>
 
-Are we then going to add another set of randomly sprinkled transition
-points and yet another 'state machine' to duct-tape the fallout?
+> >>>> +void page_hinting_enqueue(struct page *page, int order)
+> >>>> +{
+> >>>> +       int zone_idx;
+> >>>> +
+> >>>> +       if (!page_hitning_conf || order < PAGE_HINTING_MIN_ORDER)
+> >>>> +               return;
+> >>> I would think it is going to be expensive to be jumping into this
+> >>> function for every freed page. You should probably have an inline
+> >>> taking care of the order check before you even get here since it would
+> >>> be faster that way.
+> >> I see, I can take a look. Thanks.
+> >>>> +
+> >>>> +       bm_set_pfn(page);
+> >>>> +       if (atomic_read(&page_hinting_active))
+> >>>> +               return;
+> >>> So I would think this piece is racy. Specifically if you set a PFN
+> >>> that is somewhere below the PFN you are currently processing in your
+> >>> scan it is going to remain unset until you have another page freed
+> >>> after the scan is completed. I would worry you can end up with a batch
+> >>> free of memory resulting in a group of pages sitting at the start of
+> >>> your bitmap unhinted.
+> >> True, but that will be hinted next time threshold is met.
+> > Yes, but that assumes that there is another free immediately coming.
+> > It is possible that you have a big application run and then
+> > immediately shut down and have it free all its memory at once. Worst
+> > case scenario would be that it starts by freeing from the end and
+> > works toward the start. With that you could theoretically end up with
+> > a significant chunk of memory waiting some time for another big free
+> > to come along.
+>
+> Any suggestion on some benchmark/test application which I could run to
+> see this kind of behavior?
 
-Definitely not going to happen.
-
-Thanks,
-
-	tglx
+Like I mentioned before, try doing a VM with a bigger memory
+footprint. You could probably just do a stack of VMs like what we were
+doing with the memhog test. Basically the longer it takes to process
+all the pages the greater the liklihood that there are still pages
+left when they are freed.
 
