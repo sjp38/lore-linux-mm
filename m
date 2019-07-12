@@ -7,83 +7,84 @@ X-Spam-Status: No, score=-2.2 required=3.0 tests=FROM_EXCESS_BASE64,
 	UNPARSEABLE_RELAY,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 69EACC742A5
-	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 03:10:16 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2D260C742A2
+	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 03:16:01 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3B20A21019
-	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 03:10:16 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3B20A21019
+	by mail.kernel.org (Postfix) with ESMTP id EF68021019
+	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 03:16:00 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EF68021019
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CEBFD8E0110; Thu, 11 Jul 2019 23:10:15 -0400 (EDT)
+	id 7B6838E0111; Thu, 11 Jul 2019 23:16:00 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C9B4B8E00DB; Thu, 11 Jul 2019 23:10:15 -0400 (EDT)
+	id 73FDA8E00DB; Thu, 11 Jul 2019 23:16:00 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B88E18E0110; Thu, 11 Jul 2019 23:10:15 -0400 (EDT)
+	id 5B96C8E0111; Thu, 11 Jul 2019 23:16:00 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 9AA7A8E00DB
-	for <linux-mm@kvack.org>; Thu, 11 Jul 2019 23:10:15 -0400 (EDT)
-Received: by mail-io1-f69.google.com with SMTP id 132so9036751iou.0
-        for <linux-mm@kvack.org>; Thu, 11 Jul 2019 20:10:15 -0700 (PDT)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 24A358E00DB
+	for <linux-mm@kvack.org>; Thu, 11 Jul 2019 23:16:00 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id n1so4399490plk.11
+        for <linux-mm@kvack.org>; Thu, 11 Jul 2019 20:16:00 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
          :references:from:message-id:date:user-agent:mime-version:in-reply-to
          :content-language:content-transfer-encoding;
-        bh=8yIBI6EFnDFXxbPYKj916DCtzCtMurdycLFwzVm1XTU=;
-        b=Tfpe71srCcznBUse81V0hlq7rkWjsPMuuh+QxM82R3TzADdwGggjuo/AnrHOBQr6rJ
-         TPfcqMW8r062ACtFSqT+BgDShHU0cYiL7jGUIcnZS+NyrOY/qpd8belP2h38s4jIqvP1
-         SRsRikjkEN6ZejUBaFGtv6hwqKYCWIgANI5MzDvSHT62QDtTX3FgWt9rCpYhQAVWd2EZ
-         BQYCKO6LVzSvOxHf5pz7QAQxWNMcMh/ltyeOPPluZUh+dwvURQIUXMBsSwXWYWafN2Qh
-         YOq/OVLU+OGNdF2Uk2T9Agal957zxVAgtVR7LXjtn3TYAWEpVgtuHyEMduYPcd0MXQDb
-         qtyA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yun.wang@linux.alibaba.com designates 115.124.30.131 as permitted sender) smtp.mailfrom=yun.wang@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Gm-Message-State: APjAAAVT3wCN/l9qSIiI4po3Oh07HjbUOW9BpLSWyafBs7wgvsFsRmWL
-	yifOFZgcZo6eJofD20Ki1krGCnLIEkHaUsAOp53yPyhay9UU63cNgd6Pz3zB2GGhULiFVS13Wph
-	Qz9r9/eBMrtCQ5+31MUyEvAW4pwRNDjlfiPeE9J0K0qcE9Wmr3QNCfP8uiYmbRMnh3Q==
-X-Received: by 2002:a5d:8905:: with SMTP id b5mr8383660ion.291.1562901015429;
-        Thu, 11 Jul 2019 20:10:15 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqw2LAkKiyDI0X0t9z5DZEtP9PBuZa4VeOG6rJh2iMLcdPiwsbhPuqzWXYXOgJrwOZAAQHBI
-X-Received: by 2002:a5d:8905:: with SMTP id b5mr8383618ion.291.1562901014832;
-        Thu, 11 Jul 2019 20:10:14 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562901014; cv=none;
+        bh=R93yLVnAsPXT8b8mxuxaUeLoFSeRIrrDZYtn6SthsCM=;
+        b=pNe3yzTabaYJ2rgGYn8qfFW/3rsM+XWQtxCHAo9n+BBlWsvG+LDTm6iEFTq0VI/Awo
+         WSFb2d1PfQ0scWt5R64aTEoUGAEG41PEQxHlkYliy7rP0XjD2lEPnC5cYpJQfCzLzctC
+         CeBMUdHY+2lg0FLtE/yqG1+D2y7cnIq/KdwVNtZLWzy2LN7WWzBQFHTzX3qIjx/VCn9H
+         y3SNxmZVa6SlAGdSL78Y3SKgyIAI3tP3TngWyliRdbgB/Qd8fYDVWjml2cPqqp7Xvciy
+         MytLIKSlEV7OdEEAwXyIhBoSH0aR+372ctGTJ6qYXqxL9lE5Y0VyazkrOg/7zNZofawu
+         A00g==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yun.wang@linux.alibaba.com designates 47.88.44.36 as permitted sender) smtp.mailfrom=yun.wang@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Gm-Message-State: APjAAAX2A7qmcmmPXBFWLZzi2AS1RUDwsmlqcAjXmVUx/O1KDMn+Uhxt
+	tUAssASzyIo3aShOm7hsS0icDg0Gu6hPkZ82HNFFPN3KCDJTGM+sVksuCN7x/hXg4y8K1D2AdkD
+	lv5ZniSOZMZbcQHKJTer7YusG/dWm2sQKEhpeWnyBtILAbb2hMW6GwZZGtll+yBcWsQ==
+X-Received: by 2002:a17:902:28:: with SMTP id 37mr7972323pla.188.1562901359777;
+        Thu, 11 Jul 2019 20:15:59 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwgzCKQ8TgyMnQBHFfO3OzVqU99qjNOAZeP7q169dxwvQUNwJV7kxIs+RkSnBrgVruv5nk4
+X-Received: by 2002:a17:902:28:: with SMTP id 37mr7972220pla.188.1562901358214;
+        Thu, 11 Jul 2019 20:15:58 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562901358; cv=none;
         d=google.com; s=arc-20160816;
-        b=jg5fsSoeIn78hi/cg5dqIqGIjjKPYX+b5V3Ta54MJmd4fQNE15SBGPCYcQWZk6oiU8
-         Upx/glxFSpkPNHG53dax33GoXdtrFPAYk7aSySatw9qazhJa3Cl8R+mkpcRZuckhn6OI
-         Tc3+3N5OnkwxyKkCdYJvH+t/3eagxjqUCMBfasKG+waqF79F60Bek+GAm0IRsJi8trsl
-         0ji6DjfZ/bitiY8COymYJux3QnwZHCXp9lGC+ngHS1xc1n66UfTvds8dUzQEv/52sBmV
-         iQLcaaLF42hPkn1n/2bzjSu5O81ofggCTrCIT8ocvkTrmRG7PSpULyJIsM1ZqGERxROV
-         dv4Q==
+        b=RsbbLFRixTIYQY0YCWiiYSu0zMmUYCUF/S75V8MLZkGtfXbQdt5u6q1S4pgI4594gN
+         M4VWdZuQZjZJRuKj1/PLoaa3yk6ZZmmPLtj+opASwWjoHROt6a4TOdQcvIqPp1Jb623N
+         QAHQuPukMbpNcYNy9bgJ9Aq10DUtgfHlyOPiD/12WBeGcyuIXsHJQAXw1nV7phyeAqkB
+         bwcBOZt8Zjk/MVzxN6bnwSxuiQlbdzjBBsuZE6Sj+E+PLukQNPM23BKqZm5QHopP8X9n
+         raHuUW4TYugaJYqAsTPKmsmraFmgwaJkhGseqAov2kz8+YkZM1twXAzX13mKUHk4j6g1
+         mk1A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
          :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=8yIBI6EFnDFXxbPYKj916DCtzCtMurdycLFwzVm1XTU=;
-        b=J3Qpi2XfCvXzak0VAWUK3I2xGCDVWK6dPqbAS4zGCQEMoE/O5P4lc3fVXP31gX3hXy
-         nbZG9ZfhJPDEqXwAcg/KELdlPH98aVlvBQXw4eUVIKU6SQT+fSHQ6Meqk4fk59rH7szG
-         7LWVBtpTjUi1pIWyuF2CqvJbxCg090EDNaQdOLfRkGK7aylGgDonOyV7tgT18RYdcT4e
-         ekavBLy63Rhzzu8o4xLlR4KT0NQqFw2LHOVEVtl2LVyKEyxNppU3qbrswLx/VUfxAGX9
-         grzmz61QtSyIdobf6ckZATnrvaNBTxPjz9VU6d2jtgb91QpUGqF8AFq3CfFXf/a/bxfX
-         hCGw==
+        bh=R93yLVnAsPXT8b8mxuxaUeLoFSeRIrrDZYtn6SthsCM=;
+        b=0V53xhOnmGnYT+ruOa+VOJ/Exw9wzZpqEVNnuoNPI3nroMubrcVSFDZ77xjLsqEzwb
+         VxAuFvCNHkMWBMJ2H+Z7oA62gbyj59NaHC1oUlVsBUSTQszlZHmmM+LChFmsiM3HEBJK
+         vKhe7InABfAMXizfKK9GLj1hWqEthlYhbIIuuczvICnQ5k5kX66EDN6/itbfFwDRl3sI
+         apoZ0EtGjnuUrCVHy0JRDh1V9XEUpvdJTCtV1Ua/vZsTKRi1TSzaVFhTsf5PcSRBiqTX
+         X99U+Fs4knzFgDAuS9piGUqLhW8Qobsui4vow/PZRVKOYiwaM899GcdsDwG3QeDwJFJP
+         tG8w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of yun.wang@linux.alibaba.com designates 115.124.30.131 as permitted sender) smtp.mailfrom=yun.wang@linux.alibaba.com;
+       spf=pass (google.com: domain of yun.wang@linux.alibaba.com designates 47.88.44.36 as permitted sender) smtp.mailfrom=yun.wang@linux.alibaba.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-Received: from out30-131.freemail.mail.aliyun.com (out30-131.freemail.mail.aliyun.com. [115.124.30.131])
-        by mx.google.com with ESMTPS id z26si10483739ioe.90.2019.07.11.20.10.13
+Received: from out4436.biz.mail.alibaba.com (out4436.biz.mail.alibaba.com. [47.88.44.36])
+        by mx.google.com with ESMTPS id e14si7089728pfd.141.2019.07.11.20.15.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 11 Jul 2019 20:10:14 -0700 (PDT)
-Received-SPF: pass (google.com: domain of yun.wang@linux.alibaba.com designates 115.124.30.131 as permitted sender) client-ip=115.124.30.131;
+        Thu, 11 Jul 2019 20:15:58 -0700 (PDT)
+Received-SPF: pass (google.com: domain of yun.wang@linux.alibaba.com designates 47.88.44.36 as permitted sender) client-ip=47.88.44.36;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of yun.wang@linux.alibaba.com designates 115.124.30.131 as permitted sender) smtp.mailfrom=yun.wang@linux.alibaba.com;
+       spf=pass (google.com: domain of yun.wang@linux.alibaba.com designates 47.88.44.36 as permitted sender) smtp.mailfrom=yun.wang@linux.alibaba.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R121e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e04394;MF=yun.wang@linux.alibaba.com;NM=1;PH=DS;RN=13;SR=0;TI=SMTPD_---0TWfcINf_1562901008;
-Received: from testdeMacBook-Pro.local(mailfrom:yun.wang@linux.alibaba.com fp:SMTPD_---0TWfcINf_1562901008)
+X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R171e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e07487;MF=yun.wang@linux.alibaba.com;NM=1;PH=DS;RN=13;SR=0;TI=SMTPD_---0TWfarb8_1562901341;
+Received: from testdeMacBook-Pro.local(mailfrom:yun.wang@linux.alibaba.com fp:SMTPD_---0TWfarb8_1562901341)
           by smtp.aliyun-inc.com(127.0.0.1);
-          Fri, 12 Jul 2019 11:10:09 +0800
-Subject: Re: [PATCH 4/4] numa: introduce numa cling feature
+          Fri, 12 Jul 2019 11:15:42 +0800
+Subject: Re: [PATCH 1/4] numa: introduce per-cgroup numa balancing locality,
+ statistic
 To: Peter Zijlstra <peterz@infradead.org>
 Cc: hannes@cmpxchg.org, mhocko@kernel.org, vdavydov.dev@gmail.com,
  Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org,
@@ -92,15 +93,15 @@ Cc: hannes@cmpxchg.org, mhocko@kernel.org, vdavydov.dev@gmail.com,
  Mel Gorman <mgorman@suse.de>, riel@surriel.com
 References: <209d247e-c1b2-3235-2722-dd7c1f896483@linux.alibaba.com>
  <60b59306-5e36-e587-9145-e90657daec41@linux.alibaba.com>
- <9a440936-1e5d-d3bb-c795-ef6f9839a021@linux.alibaba.com>
- <20190711142728.GF3402@hirez.programming.kicks-ass.net>
+ <3ac9b43a-cc80-01be-0079-df008a71ce4b@linux.alibaba.com>
+ <20190711134353.GB3402@hirez.programming.kicks-ass.net>
 From: =?UTF-8?B?546L6LSH?= <yun.wang@linux.alibaba.com>
-Message-ID: <82f42063-ce51-dd34-ba95-5b32ee733de7@linux.alibaba.com>
-Date: Fri, 12 Jul 2019 11:10:08 +0800
+Message-ID: <f8766405-70f3-71b0-60de-03425350189d@linux.alibaba.com>
+Date: Fri, 12 Jul 2019 11:15:41 +0800
 User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.13; rv:60.0)
  Gecko/20100101 Thunderbird/60.7.0
 MIME-Version: 1.0
-In-Reply-To: <20190711142728.GF3402@hirez.programming.kicks-ass.net>
+In-Reply-To: <20190711134353.GB3402@hirez.programming.kicks-ass.net>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 8bit
@@ -112,39 +113,47 @@ List-ID: <linux-mm.kvack.org>
 
 
 
-On 2019/7/11 下午10:27, Peter Zijlstra wrote:
-[snip]
->> Thus we introduce the numa cling, which try to prevent tasks leaving
->> the preferred node on wakeup fast path.
-> 
-> 
->> @@ -6195,6 +6447,13 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target)
->>  	if ((unsigned)i < nr_cpumask_bits)
->>  		return i;
->>
->> +	/*
->> +	 * Failed to find an idle cpu, wake affine may want to pull but
->> +	 * try stay on prev-cpu when the task cling to it.
->> +	 */
->> +	if (task_numa_cling(p, cpu_to_node(prev), cpu_to_node(target)))
->> +		return prev;
+On 2019/7/11 下午9:43, Peter Zijlstra wrote:
+> On Wed, Jul 03, 2019 at 11:28:10AM +0800, 王贇 wrote:
+>> +#ifdef CONFIG_NUMA_BALANCING
 >> +
->>  	return target;
->>  }
+>> +enum memcg_numa_locality_interval {
+>> +	PERCENT_0_29,
+>> +	PERCENT_30_39,
+>> +	PERCENT_40_49,
+>> +	PERCENT_50_59,
+>> +	PERCENT_60_69,
+>> +	PERCENT_70_79,
+>> +	PERCENT_80_89,
+>> +	PERCENT_90_100,
+>> +	NR_NL_INTERVAL,
+>> +};
 > 
-> Select idle sibling should never cross node boundaries and is thus the
-> entirely wrong place to fix anything.
+> That's just daft; why not make 8 equal sized buckets.
+> 
+>> +struct memcg_stat_numa {
+>> +	u64 locality[NR_NL_INTERVAL];
+>> +};
+> 
+>> +	if (remote || local) {
+>> +		idx = ((local * 10) / (remote + local)) - 2;
+> 
+> 		idx = (NR_NL_INTERVAL * local) / (remote + local);
 
-Hmm.. in our early testing the printk show both select_task_rq_fair() and
-task_numa_find_cpu() will call select_idle_sibling with prev and target on
-different node, thus we pick this point to save few lines.
-
-But if the semantics of select_idle_sibling() is to return cpu on the same
-node of target, what about move the logical after select_idle_sibling() for
-the two callers?
+Make sense, we actually want to observe the situation rather than
+the ratio itself, will be in next version.
 
 Regards,
 Michael Wang
 
 > 
+>> +	}
+>> +
+>> +	rcu_read_lock();
+>> +	memcg = mem_cgroup_from_task(p);
+>> +	if (idx != -1)
+>> +		this_cpu_inc(memcg->stat_numa->locality[idx]);
+>> +	rcu_read_unlock();
+>> +}
+>> +#endif
 
