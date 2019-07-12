@@ -2,159 +2,138 @@ Return-Path: <SRS0=GtRI=VJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.9 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7667CC742A5
-	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 08:51:47 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 598B0C742A5
+	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 08:56:46 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1F71B2084B
-	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 08:51:46 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 1C8A220863
+	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 08:56:46 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=amazon.de header.i=@amazon.de header.b="QNLXQwnn"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1F71B2084B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=quarantine dis=none) header.from=amazon.de
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="BTIqWFou"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1C8A220863
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7CE968E012A; Fri, 12 Jul 2019 04:51:46 -0400 (EDT)
+	id AB0A98E012B; Fri, 12 Jul 2019 04:56:45 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7A5708E00DB; Fri, 12 Jul 2019 04:51:46 -0400 (EDT)
+	id A60F18E00DB; Fri, 12 Jul 2019 04:56:45 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6BB798E012A; Fri, 12 Jul 2019 04:51:46 -0400 (EDT)
+	id 977008E012B; Fri, 12 Jul 2019 04:56:45 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 4F2808E00DB
-	for <linux-mm@kvack.org>; Fri, 12 Jul 2019 04:51:46 -0400 (EDT)
-Received: by mail-qt1-f198.google.com with SMTP id l9so6358893qtu.12
-        for <linux-mm@kvack.org>; Fri, 12 Jul 2019 01:51:46 -0700 (PDT)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 713ED8E00DB
+	for <linux-mm@kvack.org>; Fri, 12 Jul 2019 04:56:45 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id y22so4840898plr.20
+        for <linux-mm@kvack.org>; Fri, 12 Jul 2019 01:56:45 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id;
-        bh=gIX56E206Ygtmlz0jOLcOvzHgmUrVjC3hqqjQDtHYu4=;
-        b=onXQXQXvVc+aa7Fn+6zi8kIKssvFO4px40usASvU4dtk8iAFFHxEbUNr8EqHdOl9SY
-         wvwFCNDNCrngiXvumDmNSo4I1di3G2y5AKcjp14pCgLZquKUSuNykQJ9OKBDlTfBf8ZE
-         eBVrkE9ePwaydgkfqNTaO1vlOuhlyCKa3dv+fCsa40CRCAzHMipUJ3NTxDOMinlaZYtB
-         Rdv72DfNaTpv5RvvpGVeEiglAALdp3sbsbr9vOrOxCnQj1iJHGrzYQuHcggQWXHPPyGt
-         y16nA74XfsPD5Y2xGKVqfBXV+SkW4P2nr0MHzyOux2IlwVxl6NxL5u3bOFgU6wPQMdo0
-         xtQg==
-X-Gm-Message-State: APjAAAV12MtYHSQGQkCisbgf5uwP2PF8k4wQe4aKrPVMx0z53mA1M1aw
-	H5Nc4MX7bX/EN78MXpFoa5YvgntzH7sZ9poK6CK+TRcogUmcgkMJA/IKckUPZCHVuJMB2dhHysN
-	U3/WeO5NMIfEvKsXFzMJOH0zrEqwmNHEZnX4dh/rR0UVZ7ImFy3IoIoS0LDvWrwRD5Q==
-X-Received: by 2002:ac8:7404:: with SMTP id p4mr5431387qtq.181.1562921506081;
-        Fri, 12 Jul 2019 01:51:46 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxLpnPU7tG+I2Qfa+zViE6a8RdYEVo0KYQvUSFcU8UsA1XCeSvzoluVYdUC06zpjR2SSBAf
-X-Received: by 2002:ac8:7404:: with SMTP id p4mr5431374qtq.181.1562921505609;
-        Fri, 12 Jul 2019 01:51:45 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562921505; cv=none;
+        bh=e+4xq9qMo01JuIeaVNf7eVM8TjnfdpLoykaSHLGnRek=;
+        b=qEFIin08ZDlmwijDK2wiYA75nuBKw7qhJdzlH5hku77xeNmjTd2+2jkn22uZuALOvJ
+         WecDhoYHLndDjNXIN617e5duEMQfFCAA6vGfCGYz7KbChKIjmTMrpnIV7OPEx6n+oTsL
+         5rMSUiBxa/lUEIygidimBy4zDKmAe61h97NylzjQhG39Qdxk0dumfJcrX3voqSzKrNPM
+         js1yLgEmymG/oy0MX12RQmdQCbXJcz+cWQPEKiiScUgFf5/1SeuTux+V/FYHTEbTCMym
+         BxRYLnG+AuNuO/GU8IsrZfqsIzFcOobgGdQvsPqeANLM7UDjQGsst7Iiykxs5kJKKViW
+         1Dsg==
+X-Gm-Message-State: APjAAAX9QAf2QKSvVkVSKr4lmSplBBOnBm10dZMzjD3d4HKvoVCirEAl
+	dZa98k6Twqu4o82AERWY0W4CzWy5+lhsx6d8pEf2Mh09Gz7ny7rvcwZXXaKanP2gZql63g3FZPw
+	pEIIiG42HnH92Z7z9TqNCIhuJfSBlsKUhFfdVrCdhAwEcvTyBOcEptaN8iHNKQJZyLA==
+X-Received: by 2002:a17:902:968d:: with SMTP id n13mr10127516plp.257.1562921805081;
+        Fri, 12 Jul 2019 01:56:45 -0700 (PDT)
+X-Received: by 2002:a17:902:968d:: with SMTP id n13mr10127454plp.257.1562921804188;
+        Fri, 12 Jul 2019 01:56:44 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562921804; cv=none;
         d=google.com; s=arc-20160816;
-        b=wrxnZbTmdCLmeNO1rJPwHfT1CR2Ihf8TJsJszdHb3XvltOv3Hkiqo9LUuUKnK9Xu4i
-         pYTaBjfv7jBh8nWEOPzHLpS5dHvbCGVWvImsUoQ5KQTFEHAYBfAQZwIJGlfLSIWaWwDL
-         KQy4681ODi64FFfvy8c8QuYXvhwIJdaMns39bq/KzwBxwiSCKKb2B5nP6BFyuvHBsVhO
-         zUFHPkXWxPpAcenFftTC+9bLih/UHpk3iTJJSpIvTjSUeAEM0sCUCltJUddmjAtOYC2H
-         Cr01uA2u+mPSu0+oCV5ofYiNQLjzbTzStI6OhUAwyh9HAOMtbzu2oaaOIykgnduvkFRj
-         dTig==
+        b=aRbNZlJ0WRZe3yTfR8SB8Cc3o1Llh6Gn2KCdhbVuqpxDEUWmAcqN7ifVh7zZzbU4hk
+         AYQUbs4nbyZtid9ziqSRgb8zYY9CIl+AIgOQtl3rgeanhMQZKb6sFr9U+OzGnkOs+R3L
+         BtIP7Bpch6wIS+8nFeCpyW3qpZDK5pCcdCwQ2IowR+fS4SaKOKCOBhiL4HEnrVa/kJKb
+         PhKkCSzR5khcMEWR9ce+QKbyBnmb6UAwZuDibo7Tb+v8kYwXg8QTYbx7iGHphM/7k54H
+         o9OhGzT2d/FGQT4+vLfiMl5aF0NmOsLulQhlMAG7JnTbIyq2fLVCLHE2INnngc4W/Y3c
+         MeRg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=message-id:date:subject:cc:to:from:dkim-signature;
-        bh=gIX56E206Ygtmlz0jOLcOvzHgmUrVjC3hqqjQDtHYu4=;
-        b=LePjsSnw88w/REuX8MNy6uc7AVcRRkhWO68PxOCMAU+Pt4hi6Q1MWf2swksusQGXTN
-         yd4pHo3uDvGuDZpAkz8YitsLWXb5T5NQg1BYJh3yhRU9t0SpMSTv2eFo6M0kSAypWImm
-         WSPDWE8R15POKtUFg0Dp/wBn9DoBhK0A+Pc1banuvOoMI6uRVQ1XQc+SEa4GVpqFtzJG
-         mnMm2pC0ZNGjOui6oQyo9YWZ+C+GgDLD/uB4EFGEgDFMshKLYPTiFRxtuwQjqqC/ypWF
-         WJEsluQ4BS33bYfJR417MFdKRCJmkxo8CJuj5RjA6DOCi+q7d7eapGFEGMrfcgVqMm+m
-         XVRg==
+        bh=e+4xq9qMo01JuIeaVNf7eVM8TjnfdpLoykaSHLGnRek=;
+        b=MqFbzKG2N3nEGpLV1ju2eVpcMwthfQq6BgchIVZdrPqu426xt6tPkCInhnYI2HfhoH
+         Zow5on0vZ87FY4BqBAB2PxcsbA6Vs6Kn6hgqXOfLJPVU5vQLC0BX9JYrbTfhdBS7nTrd
+         C/TJTApAhNNxq3lvEArRtIbGuRHsTZOOlhiDjqivBKZmXXj5Kjr7X+5WrARAvs/5cF4q
+         B79BhkbxHmL4y0VmGAWMPxfxehcSJEfHKQ+WZeryUaA5+WX0D1t5EiFFyfjKvpPGRpyF
+         6SUunD+MXLxV0/Ko3J5R0hxDvRhY2ok1EYPgQLu60bVlrV3Gdya5QjwGrWv7qUUh9hji
+         n/UA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@amazon.de header.s=amazon201209 header.b=QNLXQwnn;
-       spf=pass (google.com: domain of prvs=089b491e4=karahmed@amazon.com designates 207.171.184.29 as permitted sender) smtp.mailfrom="prvs=089b491e4=karahmed@amazon.com";
-       dmarc=pass (p=QUARANTINE sp=QUARANTINE dis=NONE) header.from=amazon.de
-Received: from smtp-fw-9102.amazon.com (smtp-fw-9102.amazon.com. [207.171.184.29])
-        by mx.google.com with ESMTPS id o25si4532388qkk.39.2019.07.12.01.51.45
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=BTIqWFou;
+       spf=pass (google.com: domain of ryh.szk.cmnty@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=ryh.szk.cmnty@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id h71sor4224302pge.80.2019.07.12.01.56.44
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 12 Jul 2019 01:51:45 -0700 (PDT)
-Received-SPF: pass (google.com: domain of prvs=089b491e4=karahmed@amazon.com designates 207.171.184.29 as permitted sender) client-ip=207.171.184.29;
+        (Google Transport Security);
+        Fri, 12 Jul 2019 01:56:44 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ryh.szk.cmnty@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@amazon.de header.s=amazon201209 header.b=QNLXQwnn;
-       spf=pass (google.com: domain of prvs=089b491e4=karahmed@amazon.com designates 207.171.184.29 as permitted sender) smtp.mailfrom="prvs=089b491e4=karahmed@amazon.com";
-       dmarc=pass (p=QUARANTINE sp=QUARANTINE dis=NONE) header.from=amazon.de
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=BTIqWFou;
+       spf=pass (google.com: domain of ryh.szk.cmnty@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=ryh.szk.cmnty@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-  d=amazon.de; i=@amazon.de; q=dns/txt; s=amazon201209;
-  t=1562921505; x=1594457505;
-  h=from:to:cc:subject:date:message-id;
-  bh=gIX56E206Ygtmlz0jOLcOvzHgmUrVjC3hqqjQDtHYu4=;
-  b=QNLXQwnnBQ/Uu5DrpfAyAnmd2gH6k1oFMuExj9cLVIcKpKRsT9kFvZYT
-   pydDs+QpftBphSSpny/PTnImvKDMujNVefu+fjIJIO40enJs7CK8+deS8
-   JnuwioAhqgR1bFtyZYoI5vnqhfw/A819W/AZunBNcS2CJaDcJh5/fOmz2
-   E=;
-X-IronPort-AV: E=Sophos;i="5.62,481,1554768000"; 
-   d="scan'208";a="685113937"
-Received: from sea3-co-svc-lb6-vlan2.sea.amazon.com (HELO email-inbound-relay-2b-859fe132.us-west-2.amazon.com) ([10.47.22.34])
-  by smtp-border-fw-out-9102.sea19.amazon.com with ESMTP; 12 Jul 2019 08:51:43 +0000
-Received: from u54e1ad5160425a4b64ea.ant.amazon.com (pdx2-ws-svc-lb17-vlan3.amazon.com [10.247.140.70])
-	by email-inbound-relay-2b-859fe132.us-west-2.amazon.com (Postfix) with ESMTPS id 0FFBE222159;
-	Fri, 12 Jul 2019 08:51:41 +0000 (UTC)
-Received: from u54e1ad5160425a4b64ea.ant.amazon.com (localhost [127.0.0.1])
-	by u54e1ad5160425a4b64ea.ant.amazon.com (8.15.2/8.15.2/Debian-3) with ESMTP id x6C8pb32024010;
-	Fri, 12 Jul 2019 10:51:38 +0200
-Received: (from karahmed@localhost)
-	by u54e1ad5160425a4b64ea.ant.amazon.com (8.15.2/8.15.2/Submit) id x6C8pZ4Q024001;
-	Fri, 12 Jul 2019 10:51:35 +0200
-From: KarimAllah Ahmed <karahmed@amazon.de>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: KarimAllah Ahmed <karahmed@amazon.de>,
-        Andrew Morton <akpm@linux-foundation.org>,
-        Pavel Tatashin <pasha.tatashin@oracle.com>,
-        Oscar Salvador <osalvador@suse.de>, Michal Hocko <mhocko@suse.com>,
-        Mike Rapoport <rppt@linux.ibm.com>, Baoquan He <bhe@redhat.com>,
-        Qian Cai <cai@lca.pw>, Wei Yang <richard.weiyang@gmail.com>,
-        Logan Gunthorpe <logang@deltatee.com>
-Subject: [PATCH] mm: sparse: Skip no-map regions in memblocks_present
-Date: Fri, 12 Jul 2019 10:51:31 +0200
-Message-Id: <1562921491-23899-1-git-send-email-karahmed@amazon.de>
-X-Mailer: git-send-email 2.7.4
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000033, version=1.2.4
+        d=gmail.com; s=20161025;
+        h=from:to:cc:subject:date:message-id;
+        bh=e+4xq9qMo01JuIeaVNf7eVM8TjnfdpLoykaSHLGnRek=;
+        b=BTIqWFoueyE+y2FaPP2J0bXf5T5Wg6a/OG1y7MCfwAhd1H6CljEnPO8DP6eHqmhyMv
+         Ts9l3So90ydKXZPEprFCGV04aWXxFbpOGLxY+hM3d1/VgcYgheYC/WorqbI4vLUDnRoA
+         ZJF4SJl72vu8xEqfr+SC7SzG0hoY6eHBQodCkRxDLZ37wpTWxdqX//vzCBVa36Tc25KK
+         JiHnPGBp7whGlWlT0Zwd/F1vz4SCynd4m1aLic3/RZX1X3XdHqYKNnqta54+S7MoAJA4
+         p3RT4aewQmV2h9G/1EdSuVm+KATff4xvLN+9LWw8Mk6mQtletG0rmirsY9gwTpBM+xR5
+         kX9g==
+X-Google-Smtp-Source: APXvYqwG3TLDz5EyPwzKnL4LRoclrnK0KZsBNYJt1rAUmrBQPaf7iafrMvU9hpkOk9wFq49TMMJcDQ==
+X-Received: by 2002:a63:8a43:: with SMTP id y64mr9421363pgd.104.1562921803819;
+        Fri, 12 Jul 2019 01:56:43 -0700 (PDT)
+Received: from rs-hpz4g4.kern.oss.ntt.co.jp ([222.151.198.97])
+        by smtp.gmail.com with ESMTPSA id x67sm10715927pfb.21.2019.07.12.01.56.41
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 12 Jul 2019 01:56:42 -0700 (PDT)
+From: Ryohei Suzuki <ryh.szk.cmnty@gmail.com>
+To: akpm@linux-foundation.org,
+	iamjoonsoo.kim@lge.com
+Cc: Ryohei Suzuki <ryh.szk.cmnty@gmail.com>,
+	linux-mm@kvack.org,
+	trivial@kernel.org
+Subject: [PATCH] mm/cma: Fix a typo ("alloc_cma" -> "cma_alloc") in cma_release() comments
+Date: Fri, 12 Jul 2019 17:55:49 +0900
+Message-Id: <20190712085549.5920-1-ryh.szk.cmnty@gmail.com>
+X-Mailer: git-send-email 2.17.2
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Do not mark regions that are marked with nomap to be present, otherwise
-these memblock cause unnecessarily allocation of metadata.
+A comment referred to a non-existent function alloc_cma(),
+which should have been cma_alloc().
 
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Pavel Tatashin <pasha.tatashin@oracle.com>
-Cc: Oscar Salvador <osalvador@suse.de>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Mike Rapoport <rppt@linux.ibm.com>
-Cc: Baoquan He <bhe@redhat.com>
-Cc: Qian Cai <cai@lca.pw>
-Cc: Wei Yang <richard.weiyang@gmail.com>
-Cc: Logan Gunthorpe <logang@deltatee.com>
-Cc: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
-Signed-off-by: KarimAllah Ahmed <karahmed@amazon.de>
+Signed-off-by: Ryohei Suzuki <ryh.szk.cmnty@gmail.com>
 ---
- mm/sparse.c | 4 ++++
- 1 file changed, 4 insertions(+)
+ mm/cma.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/mm/sparse.c b/mm/sparse.c
-index fd13166..33810b6 100644
---- a/mm/sparse.c
-+++ b/mm/sparse.c
-@@ -256,6 +256,10 @@ void __init memblocks_present(void)
- 	struct memblock_region *reg;
- 
- 	for_each_memblock(memory, reg) {
-+
-+		if (memblock_is_nomap(reg))
-+			continue;
-+
- 		memory_present(memblock_get_region_node(reg),
- 			       memblock_region_memory_base_pfn(reg),
- 			       memblock_region_memory_end_pfn(reg));
+diff --git a/mm/cma.c b/mm/cma.c
+index 3340ef34c154..d415dfc0965e 100644
+--- a/mm/cma.c
++++ b/mm/cma.c
+@@ -494,7 +494,7 @@ struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align,
+  * @pages: Allocated pages.
+  * @count: Number of allocated pages.
+  *
+- * This function releases memory allocated by alloc_cma().
++ * This function releases memory allocated by cma_alloc().
+  * It returns false when provided pages do not belong to contiguous area and
+  * true otherwise.
+  */
 -- 
-2.7.4
+2.17.2
 
