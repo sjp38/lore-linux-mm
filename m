@@ -2,168 +2,212 @@ Return-Path: <SRS0=GtRI=VJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BA6E7C742C2
-	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 14:37:40 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 252B7C742C8
+	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 14:52:28 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 70A94208E4
-	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 14:37:40 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="oSDuCh7A"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 70A94208E4
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id C74562080A
+	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 14:52:27 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C74562080A
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 235358E0154; Fri, 12 Jul 2019 10:37:40 -0400 (EDT)
+	id 474528E0155; Fri, 12 Jul 2019 10:52:27 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1E6648E00DB; Fri, 12 Jul 2019 10:37:40 -0400 (EDT)
+	id 3D64F8E00DB; Fri, 12 Jul 2019 10:52:27 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0D6288E0154; Fri, 12 Jul 2019 10:37:40 -0400 (EDT)
+	id 24FE08E0155; Fri, 12 Jul 2019 10:52:27 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id CBC7D8E00DB
-	for <linux-mm@kvack.org>; Fri, 12 Jul 2019 10:37:39 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id s21so5282984plr.2
-        for <linux-mm@kvack.org>; Fri, 12 Jul 2019 07:37:39 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C5BC88E00DB
+	for <linux-mm@kvack.org>; Fri, 12 Jul 2019 10:52:26 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id y24so8059158edb.1
+        for <linux-mm@kvack.org>; Fri, 12 Jul 2019 07:52:26 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=54oSlyGRTEGiDyukqk95xO7T1K3/REJa8jWyRuvSrnQ=;
-        b=hEK3Ww/V0n4ZLNSxowR8+8+7PB2Oi3CCBoPyKt5t6AqXDFZIOgwHbfrmra4XQigCAH
-         ZHko3hPEKVYGLsFrlZgRHvv94I37cOLE8NJrWG3+nTRq+r5rilJa5Pk5RlNDf6SrpkdD
-         jngBRx98ArPEW1GTo7V3xnylQMQks/GV3Nbcr2j0frsDUIU/3YzcOpEDYNK0Iybl5Ut0
-         oEMbudT2Pz+WSOxg+Sl9apqH34TsWGWOjK74UHiM/lIuIa96C7QGfOqScrb2+zuFn5D8
-         KmcpifSeo/CRJyauG+aANKj5ma5Md7YI2hDfgi2+xkO3Q8GX1dSQdCSoryka1pLQc38X
-         KCsQ==
-X-Gm-Message-State: APjAAAUa5bCysNhVCvRbjhf8/3+bXKifaQD2O46SKIFZm1ricoSZXSde
-	A+cMukHLzYDhK49dsTRywAEFkS0UvO+dRZTL3uhj7QDKMHdCcAu/g7mvJe1PXLCSuY7M8m3QwPV
-	nCMz/Q2sTdWhQwcOst+JV9Xvno05OuUT/u+5iC7OHxZNxEbVwJtb42h5y/2wEmqGjpw==
-X-Received: by 2002:a17:90a:3590:: with SMTP id r16mr12354221pjb.44.1562942259395;
-        Fri, 12 Jul 2019 07:37:39 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz0x7MIDB22LDeRPwLWHnVVruN5gvcTiX6KhRnX2x/417eWuDDeX8dZPcbyR6k8HP9KhyNB
-X-Received: by 2002:a17:90a:3590:: with SMTP id r16mr12354158pjb.44.1562942258713;
-        Fri, 12 Jul 2019 07:37:38 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562942258; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=Lz8/KFkjzGYulk50ryCD+r9zAoQjGclyVgJMik8OBWo=;
+        b=hGjnb6Q3PgYaKWczEHZiaXcEoiSuSpbenepF8kjN/jMZz5B9q7cop180egyKZ+JChf
+         Ie9ylmrrZLrXH5kKXRIlLJjYEA/RYWymroSPTsXhJtu/1LTpy4IJm12WHSIO+PLeZ4Zt
+         TxQBSzLNVMNaFUJqG2LTuCUqoyNcEy49hq8G0gDwqfcjXK8Ef4QHjoEw9RtKWDw/x/Zl
+         DALVPON2gAET0vzygdsjiRvAsAA3QbkZbSNoA1Lk/z37bnk2LcyP2RLwvEcgWn2FW3BG
+         LCsHvA1qEnZIzS7Lr9clYxX7ICrebpgKDrhbdL1C+0UdfunqNqkWvNIzXavRHh3vSyYc
+         nzFQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vladimir.murzin@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=vladimir.murzin@arm.com
+X-Gm-Message-State: APjAAAVjiPVWJaLEZf9WLK/iQvNr3J/WiEaWde8n6S/V9qURPAVwDSA+
+	XmAUV+UMXnRRic+rPUdC0tvrkOblDve7RMRfcFJeLqe4uywqYXhlVaiceHk4fu0jJ/DmBKsuJsw
+	eeUjnB0SG0PIFJCqKHuzSRC3DaJ50BLJSRa9cV6o2nLcn6RgzCCXy1y0AGQcUO2vfsg==
+X-Received: by 2002:a50:f5f5:: with SMTP id x50mr9537902edm.89.1562943146272;
+        Fri, 12 Jul 2019 07:52:26 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxwpGnU/9ZUw2eQ6bjNS9vIeQh2z3nv1VVGXzdo5i7T8zqYcD8X8pCpFAjOlV4dU9P/L6AY
+X-Received: by 2002:a50:f5f5:: with SMTP id x50mr9537841edm.89.1562943145573;
+        Fri, 12 Jul 2019 07:52:25 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562943145; cv=none;
         d=google.com; s=arc-20160816;
-        b=v5qAzgmzqoRfbbrt3ueWTnRQnn/HEWCFwMigMSrqjfYTOxW4uoE6zqL6HX5t0PV+2J
-         uOdtsuVq0g7lL7X26D53bjhXqLZzaYGucLQoPzFvHI3jnfXF6LBJF5J0tTEliJ3TEh17
-         quQMBgNcB4nsaEsBO/rjkxC0Mj66t7gBdq/NAkxT8Z97YlM1f90TW7E2nT5Rtt91RJMV
-         w9+9wdjVuPDkpSMat6KQ+OG+FHs4Ie9sKitG9ETzVkSwVfAyMp2hOvCem1z5JF1ZarzM
-         D/9U/hk82FpuhAZawdxMY/YrtAC+VZBAED+++4QW8BxxpZ41gBREMPqUg0B0G4Z097PP
-         vaFQ==
+        b=m+Vwv2X4nTJZQbVyTJw+vsuLpj0TK7WMu75EdG4BRTyJjqgVckmBcsOXLUg8pFvSGf
+         UpFM3w44ZUd/GGhUALl16iq/0B5up+1UBXJi7ZqeXelbiZzeuZ+uApWhgPTb9E0at8QS
+         ZIUnN1CoqdUrCG8/aCYGaxbu6bhgl1KXwlzE5IHXPmmCfiecJxnqyw9VTXFVWDDj1yTW
+         BPTsbzcZEhhu1AFKBLs8omh2Rbn6+1UYKfQ62NAp0145LY4LBddD9ts8EwILJB8thQU5
+         +LmcwMeQEulWGAyxFJNu40oJc/Jt9J8kfRNIa8bep3llybciuWeyLIanYmmPaTenQksw
+         UjLg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=54oSlyGRTEGiDyukqk95xO7T1K3/REJa8jWyRuvSrnQ=;
-        b=AGx6aPaw1KzyPUdg2+FNFfc8uMF26/ozKLW0E4ymjPa1jGF2RkDWIXewErqrMTck/5
-         eSJryNRhZ3MUEfZ4u5ELeFqLpK2w/K0ZALU0pfoHN8l9hy7LpoS6ab0ap8YhMgxLJbwI
-         RLZRZ7RK6SxIdU/x+YfII1epq4audJOmnzSVgJ/V6exjU667xFll7TIVLlQxCOOSBkUd
-         wc0jlhX8LsFz6KvE9AJFdN0p9u5Fx6lx3Czsns6yRBOx+md2tEpz1fCJt17/Qx+AfyjY
-         sj29LycOXcBZuqhwATSdCTFKsn4PNm2W9VnKDQBnlPe3Mk3GAbf+6QzWFKkxsltM3NB3
-         HF6Q==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=Lz8/KFkjzGYulk50ryCD+r9zAoQjGclyVgJMik8OBWo=;
+        b=wrKanVX2odYzgrF3UpROhcuoe3fjFG/YxWI15Si+Har4eHIFINJg4NRvPDGeY1jvY3
+         +SYDEZPYGbaa1yavqFZ9JTIA1jXtp8TWwJuch27v53/yLQ7DYe4uk/bbHFENx8JxTQoJ
+         o0cctRa3X+yhbCO/odEgNyaR9wYFkhj13ICeiqms0KkUwyCsh7Em772Bc/sjlVVdZNO2
+         u9a40/T+QJhkir+NeNm7VvSrPtz+tzszPiFlBLcoWXuwTBOQEbLC+f3uYxbQeWe/6Ubn
+         4BRJWrCFZPuyKY6QVdxi59C0n4JjHiHuZyygxiUOq4+nM1oSL7U9f01TetcpN/JcqJnV
+         xI3Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=oSDuCh7A;
-       spf=pass (google.com: domain of will@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=will@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id c36si8536598pgl.287.2019.07.12.07.37.38
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 12 Jul 2019 07:37:38 -0700 (PDT)
-Received-SPF: pass (google.com: domain of will@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+       spf=pass (google.com: domain of vladimir.murzin@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=vladimir.murzin@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
+        by mx.google.com with ESMTP id p11si4655134eju.328.2019.07.12.07.52.25
+        for <linux-mm@kvack.org>;
+        Fri, 12 Jul 2019 07:52:25 -0700 (PDT)
+Received-SPF: pass (google.com: domain of vladimir.murzin@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=oSDuCh7A;
-       spf=pass (google.com: domain of will@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=will@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from willie-the-truck (236.31.169.217.in-addr.arpa [217.169.31.236])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 997A82080A;
-	Fri, 12 Jul 2019 14:37:33 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1562942258;
-	bh=Q0fQ8cIZPQQvRl+HqtEP93tavumXUJrRQeEzq/T0ZjU=;
-	h=Date:From:To:Cc:Subject:References:In-Reply-To:From;
-	b=oSDuCh7A+Xs42MXbXEieBsFty+Z7wObUN12OgwqLbOFW9oih/BmQBTm6f9I5uATLs
-	 k3FxtcxVs2OyWqrnzMXueSISfTrdrWEpEWu7/gxb4zS9dLiXyM0oMjuEOYKj4+vyf3
-	 slAytCaCOnyinCVXlJAAWb5BUeKOp+4U+rFpZcIw=
-Date: Fri, 12 Jul 2019 15:37:30 +0100
-From: Will Deacon <will@kernel.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Hoan Tran OS <hoan@os.amperecomputing.com>,
-	Catalin Marinas <catalin.marinas@arm.com>,
-	Heiko Carstens <heiko.carstens@de.ibm.com>,
-	"open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>,
-	Paul Mackerras <paulus@samba.org>,
-	"H . Peter Anvin" <hpa@zytor.com>,
-	"sparclinux@vger.kernel.org" <sparclinux@vger.kernel.org>,
-	Alexander Duyck <alexander.h.duyck@linux.intel.com>,
-	"linux-s390@vger.kernel.org" <linux-s390@vger.kernel.org>,
-	Michael Ellerman <mpe@ellerman.id.au>,
-	"x86@kernel.org" <x86@kernel.org>,
-	Mike Rapoport <rppt@linux.ibm.com>,
-	Christian Borntraeger <borntraeger@de.ibm.com>,
-	Ingo Molnar <mingo@redhat.com>, Vlastimil Babka <vbabka@suse.cz>,
-	Benjamin Herrenschmidt <benh@kernel.crashing.org>,
-	Open Source Submission <patches@amperecomputing.com>,
-	Pavel Tatashin <pavel.tatashin@microsoft.com>,
-	Vasily Gorbik <gor@linux.ibm.com>,
-	Will Deacon <will.deacon@arm.com>, Borislav Petkov <bp@alien8.de>,
-	Thomas Gleixner <tglx@linutronix.de>,
-	"linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>,
-	Oscar Salvador <osalvador@suse.de>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	"linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>,
-	"David S . Miller" <davem@davemloft.net>, willy@infradead.org
-Subject: Re: [PATCH v2 0/5] mm: Enable CONFIG_NODES_SPAN_OTHER_NODES by
- default for NUMA
-Message-ID: <20190712143730.au3662g4ua2tjudu@willie-the-truck>
-References: <1562887528-5896-1-git-send-email-Hoan@os.amperecomputing.com>
- <20190712070247.GM29483@dhcp22.suse.cz>
- <586ae736-a429-cf94-1520-1a94ffadad88@os.amperecomputing.com>
- <20190712121223.GR29483@dhcp22.suse.cz>
+       spf=pass (google.com: domain of vladimir.murzin@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=vladimir.murzin@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 321FD2B;
+	Fri, 12 Jul 2019 07:52:24 -0700 (PDT)
+Received: from [10.1.34.155] (e110723.arm.com [10.1.34.155])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 306493F59C;
+	Fri, 12 Jul 2019 07:52:23 -0700 (PDT)
+Subject: Re: [PATCH 17/17] riscv: add nommu support
+To: Christoph Hellwig <hch@lst.de>, Palmer Dabbelt <palmer@sifive.com>,
+ Paul Walmsley <paul.walmsley@sifive.com>
+Cc: Damien Le Moal <damien.lemoal@wdc.com>, linux-riscv@lists.infradead.org,
+ linux-mm@kvack.org, linux-kernel@vger.kernel.org
+References: <20190624054311.30256-1-hch@lst.de>
+ <20190624054311.30256-18-hch@lst.de>
+From: Vladimir Murzin <vladimir.murzin@arm.com>
+Message-ID: <7b382b7a-41b6-62a5-02ab-189b3da9df70@arm.com>
+Date: Fri, 12 Jul 2019 15:52:21 +0100
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190712121223.GR29483@dhcp22.suse.cz>
-User-Agent: NeoMutt/20170113 (1.7.2)
+In-Reply-To: <20190624054311.30256-18-hch@lst.de>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi all,
+Hi Christoph,
 
-On Fri, Jul 12, 2019 at 02:12:23PM +0200, Michal Hocko wrote:
-> On Fri 12-07-19 10:56:47, Hoan Tran OS wrote:
-> [...]
-> > It would be good if we can enable it by-default. Otherwise, let arch 
-> > enables it by them-self. Do you have any suggestions?
+On 6/24/19 6:43 AM, Christoph Hellwig wrote:
+> The kernel runs in M-mode without using page tables, and thus can't run
+> bare metal without help from additional firmware.
 > 
-> I can hardly make any suggestions when it is not really clear _why_ you
-> want to remove this config option in the first place. Please explain
-> what motivated you to make this change.
+> Most of the patch is just stubbing out code not needed without page
+> tables, but there is an interesting detail in the signals implementation:
+> 
+>  - The normal RISC-V syscall ABI only implements rt_sigreturn as VDSO
+>    entry point, but the ELF VDSO is not supported for nommu Linux.
+>    We instead copy the code to call the syscall onto the stack.
+> 
+> In addition to enabling the nommu code a new defconfig for a small
+> kernel image that can run in nommu mode on qemu is also provided, to run
+> a kernel in qemu you can use the following command line:
+> 
+> qemu-system-riscv64 -smp 2 -m 64 -machine virt -nographic \
+> 	-kernel arch/riscv/boot/loader \
+> 	-drive file=rootfs.ext2,format=raw,id=hd0 \
+> 	-device virtio-blk-device,drive=hd0
+> 
+> Contains contributions from Damien Le Moal <Damien.LeMoal@wdc.com>.
+> 
+> Signed-off-by: Christoph Hellwig <hch@lst.de>
+> ---
+>  arch/riscv/Kconfig                      | 24 +++++---
+>  arch/riscv/configs/nommu_virt_defconfig | 78 +++++++++++++++++++++++++
+>  arch/riscv/include/asm/elf.h            |  4 +-
+>  arch/riscv/include/asm/futex.h          |  6 ++
+>  arch/riscv/include/asm/io.h             |  4 ++
+>  arch/riscv/include/asm/mmu.h            |  3 +
+>  arch/riscv/include/asm/page.h           | 12 +++-
+>  arch/riscv/include/asm/pgalloc.h        |  2 +
+>  arch/riscv/include/asm/pgtable.h        | 38 ++++++++----
+>  arch/riscv/include/asm/tlbflush.h       |  7 ++-
+>  arch/riscv/include/asm/uaccess.h        |  4 ++
+>  arch/riscv/kernel/Makefile              |  3 +-
+>  arch/riscv/kernel/entry.S               | 11 ++++
+>  arch/riscv/kernel/head.S                |  6 ++
+>  arch/riscv/kernel/signal.c              | 17 +++++-
+>  arch/riscv/lib/Makefile                 |  8 +--
+>  arch/riscv/mm/Makefile                  |  3 +-
+>  arch/riscv/mm/cacheflush.c              |  2 +
+>  arch/riscv/mm/context.c                 |  2 +
+>  arch/riscv/mm/init.c                    |  2 +
+>  20 files changed, 200 insertions(+), 36 deletions(-)
+>  create mode 100644 arch/riscv/configs/nommu_virt_defconfig
+> 
 
-Sorry, I think this confusion might actually be my fault and Hoan has just
-been implementing my vague suggestion here:
+snip...
 
-https://lore.kernel.org/linux-arm-kernel/20190625101245.s4vxfosoop52gl4e@willie-the-truck/
+>  
+> diff --git a/arch/riscv/configs/nommu_virt_defconfig b/arch/riscv/configs/nommu_virt_defconfig
+> new file mode 100644
+> index 000000000000..cf74e179bf90
+> --- /dev/null
+> +++ b/arch/riscv/configs/nommu_virt_defconfig
+> @@ -0,0 +1,78 @@
+> +# CONFIG_CPU_ISOLATION is not set
+> +CONFIG_LOG_BUF_SHIFT=16
+> +CONFIG_PRINTK_SAFE_LOG_BUF_SHIFT=12
+> +CONFIG_BLK_DEV_INITRD=y
+> +# CONFIG_RD_BZIP2 is not set
+> +# CONFIG_RD_LZMA is not set
+> +# CONFIG_RD_XZ is not set
+> +# CONFIG_RD_LZO is not set
+> +# CONFIG_RD_LZ4 is not set
+> +CONFIG_CC_OPTIMIZE_FOR_SIZE=y
+> +CONFIG_EXPERT=y
+> +# CONFIG_SYSFS_SYSCALL is not set
+> +# CONFIG_FHANDLE is not set
+> +# CONFIG_BASE_FULL is not set
+> +# CONFIG_EPOLL is not set
+> +# CONFIG_SIGNALFD is not set
+> +# CONFIG_TIMERFD is not set
+> +# CONFIG_EVENTFD is not set
+> +# CONFIG_AIO is not set
+> +# CONFIG_IO_URING is not set
+> +# CONFIG_ADVISE_SYSCALLS is not set
+> +# CONFIG_MEMBARRIER is not set
+> +# CONFIG_KALLSYMS is not set
+> +# CONFIG_VM_EVENT_COUNTERS is not set
+> +# CONFIG_COMPAT_BRK is not set
+> +CONFIG_SLOB=y
+> +# CONFIG_SLAB_MERGE_DEFAULT is not set
+> +# CONFIG_MMU is not set
+> +CONFIG_MAXPHYSMEM_2GB=y
+> +CONFIG_SMP=y
+> +CONFIG_CMDLINE="root=/dev/vda rw earlycon=uart8250,mmio,0x10000000,115200n8 console=ttyS0"
+> +CONFIG_CMDLINE_FORCE=y
+> +# CONFIG_BLK_DEV_BSG is not set
+> +CONFIG_PARTITION_ADVANCED=y
+> +# CONFIG_MSDOS_PARTITION is not set
+> +# CONFIG_EFI_PARTITION is not set
+> +# CONFIG_MQ_IOSCHED_DEADLINE is not set
+> +# CONFIG_MQ_IOSCHED_KYBER is not set
+> +CONFIG_BINFMT_FLAT=y
 
-If the preference of the mm folks is to leave CONFIG_NODES_SPAN_OTHER_NODES
-as it is, then we can define it for arm64. I just find it a bit weird that
-the majority of NUMA-capable architectures have to add a symbol in the arch
-Kconfig file, for what appears to be a performance optimisation applicable
-only to ia64, mips and sh.
+IIUC, RISC-V requires stack pointer to be 16 byte aligned, but flat loader would
+align stack pointer to max(sizeof(void *), ARCH_SLAB_MINALIGN). So, I think you
+might want to define ARCH_SLAB_MINALIGN.
 
-At the very least we could make the thing selectable.
-
-Will
+Cheers
+Vladimir
 
