@@ -2,235 +2,162 @@ Return-Path: <SRS0=GtRI=VJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-3.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_GIT autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0A8A0C742B3
-	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 12:02:20 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 33408C742B3
+	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 12:02:36 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A0D652083B
-	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 12:02:19 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id F006F2083B
+	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 12:02:35 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="5ejc6Na9"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A0D652083B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="mZ6PnB60"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F006F2083B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2AC028E013E; Fri, 12 Jul 2019 08:02:19 -0400 (EDT)
+	id 6C94F8E013F; Fri, 12 Jul 2019 08:02:35 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 281AE8E00DB; Fri, 12 Jul 2019 08:02:19 -0400 (EDT)
+	id 679688E00DB; Fri, 12 Jul 2019 08:02:35 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0FC3E8E013E; Fri, 12 Jul 2019 08:02:19 -0400 (EDT)
+	id 58EC18E013F; Fri, 12 Jul 2019 08:02:35 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
-	by kanga.kvack.org (Postfix) with ESMTP id DBE908E00DB
-	for <linux-mm@kvack.org>; Fri, 12 Jul 2019 08:02:18 -0400 (EDT)
-Received: by mail-ot1-f71.google.com with SMTP id h26so4449111otr.21
-        for <linux-mm@kvack.org>; Fri, 12 Jul 2019 05:02:18 -0700 (PDT)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 222548E00DB
+	for <linux-mm@kvack.org>; Fri, 12 Jul 2019 08:02:35 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id r7so5088120plo.6
+        for <linux-mm@kvack.org>; Fri, 12 Jul 2019 05:02:35 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :organization:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=UvA9Jh+08UHDvAGbwH3rBrV64pox2kQExiFizxg0YeE=;
-        b=lfzIosMcGyDKuR6hAkj6K99u2j4MauA0UguElEvl58tjnoMNMsFqlVlCTJquILMMOP
-         3RAqheV01+Wg2gdf8su5EbeISmwIKn46blIwmyL1Zr0q3O8rruzWbWaLj2ORR7KcVyOP
-         Q/kZQJqZaapskVYq6ccxdq1Tmat13W+k87RJq8iETwg+niUv5WeWWNNp/ERbQR1QGc9k
-         RTb5c4/vGSxBQA/KqE77ATafevoaL0L09n6JYqmnGYqwKFJEBcKbcZATkXBBzvAePGOH
-         f0W3Q9Oe5oPSOzlHhiYyCmLsYz3FWDVc2++zqjkCPeH4sHL5tQMzesZece9DG4BHwfEa
-         GPNA==
-X-Gm-Message-State: APjAAAUbJgZLynUf6jYH0uMueLR8SyQBneqtw3X8EdE1hvMSbai4iR9V
-	GMDCC1s1Vw/MnA+ySuOgbVU9DPLhtHNtOJV2yvaXtLS1u1mFYJLycV3quUcU4AdvcxJicCZcUfc
-	ll/VztNW2c1YQEt+7JGLGYRDfl5szCduG2bplkdQth0fyVZr334xJp+HW2wjvpsr0fg==
-X-Received: by 2002:a9d:3f42:: with SMTP id m60mr7997415otc.142.1562932938112;
-        Fri, 12 Jul 2019 05:02:18 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxKmf8rHDnZX5X8qxCqg/3lekGQ9e0BLplugOmwLAf42emy8YRYgPE3bDP2MVe8VcCt5jL8
-X-Received: by 2002:a9d:3f42:: with SMTP id m60mr7997227otc.142.1562932935972;
-        Fri, 12 Jul 2019 05:02:15 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562932935; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id:mime-version:content-transfer-encoding;
+        bh=38IvB5KypHDAuaY3YawsJEBcvuco56ouTYCrEb+HEU0=;
+        b=AJv/oDozkmS5l5N92O8VG3XJPsucejFJfAAXjprxnSiVTI6VhOaTMSqZWJSzNgVSQf
+         TAYH1B/84oKHWBRw/cF0MNITQAGfI4lOomCBJMexk3aJgYArvoHmPED5aG+kUqfFlH9Z
+         assIQpukYdeisHMNVHS12ba/GcU+C+uF5oxDCA2kwnWxDgkmjkN3YjKNO/FevB5B4Xx5
+         i2xAyiQVoi4iyJJem8h6tsAoE2E49cAgmLXNe/rmXbQ23WyeeBMGIEGQQrX+QizXU0/1
+         FmMq0NjJ8sfabRBXwetgTGqdpH1y6bfJpf73rVSJKm/q6VW9Oq/TxelEBE86lBlHuYbv
+         gshQ==
+X-Gm-Message-State: APjAAAWTQeDOoI647gmmrxicbsAWwi7Tpj/q5XxAVkK/LMh7Kp9z6KPP
+	C4p5e9UaPCMERb/K/2Dg3kKW+KdzGLsuVIcT7EsHFjjCt/y+b6ZtrKnjU5SAuLPtORwLZGnE/6P
+	WnayhkT5SdUmhtqpqvemP9vYK/oznmKRN0ViEzlrSpDDujq4wP+MzHadoyCLbu2yoGg==
+X-Received: by 2002:a17:902:be12:: with SMTP id r18mr10496905pls.341.1562932954739;
+        Fri, 12 Jul 2019 05:02:34 -0700 (PDT)
+X-Received: by 2002:a17:902:be12:: with SMTP id r18mr10496825pls.341.1562932953948;
+        Fri, 12 Jul 2019 05:02:33 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562932953; cv=none;
         d=google.com; s=arc-20160816;
-        b=ZOXo8XgQECQOYmlp/ha40XFbo2T+C6V/7CG7qY1L+8k4wa9Qru4X8M6TBppzsfQmD5
-         xAwTB+to4vjhOizLj1mx/ylTJfDJ7dNU8nRaA3SQgQuPRPc7coDDZZ0mKhW9cMRCdpcJ
-         YUfk92x6AdFaJ2BfZ1m5Sv0nMh8/vpMKLGej7OPgm/apC0Cc0uP3LzcIAamZn9bu9Ngl
-         ZRqBh5t1impystyErPypIYSLLrGUHRvYKfn3l1UsegK7z9A+8LXI/eXBzryOvrSLGg4U
-         7GhQlueIksZNgJXPqJMgDeaNoQzDz9EensL1nSLrShJMaS832yZSPz1jCNQgJLH3gJZi
-         B/nQ==
+        b=taUS2o6F8I4bgbIcGmE74QlGL3SjuzDC0h91kwITL+pJ88jMElKdu+8Kq4EiVxx8gT
+         C/qInJWXCHA2DsUswQxKmICY2Ul6Pw5MoaVhSIm4OmEIKK+aFjfbymNW1ECG7UxKnEIX
+         MFtDeYxh9T5trHzv8vChzv7FqQbJulmFLReoVgn1LWrQ9PJS41i3UkNR87sNPjlD1nZs
+         OrauINucYpLnSvRB4WyI3RLXVJtBPdWnWhoZKa+OG5HLrMkD06hzKmDhgIG/lVmKFvzG
+         oCyZsTVG6dYpeAPls7abuMGmMYVr/Pg2BBt0e/8bs3V02Df6DnR85afNnXC8w9xaDHgh
+         Ja7g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:organization:from:references:cc:to
-         :subject:dkim-signature;
-        bh=UvA9Jh+08UHDvAGbwH3rBrV64pox2kQExiFizxg0YeE=;
-        b=O6C1SaCKUmkAZvc9LdQv5ojqEK1Gp2HeiXs19eStyB0frmE7Z37qerK/raQziEoAh2
-         7uS7/H5E+nzsbyuHH+bnEaW1W7WfaDheZRueaPg+ZdXw0cil1Xvp+7wWTUi9VhQmlJcA
-         inWwNVcaShEQCSTojtjdxdz0nQmKMCUVrrXrWCYHxdiYaHpDvt2oZu9R0gm4HUFGtIUP
-         erhPF0HS53wFVqJnBL3XPbgK2mcSoxtCuDGDJrEOjJMbT3EokuwCFYfuBe9S5A1vq2vq
-         1SJDJYLpg2rNliUC8g2szLRYlEOPDXAl2CHa2wOmLBXwlA5OO78yCgdgoqNzKaNa8u3v
-         Ld+A==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from:dkim-signature;
+        bh=38IvB5KypHDAuaY3YawsJEBcvuco56ouTYCrEb+HEU0=;
+        b=AsXgVSvG3NeZiqy2QYOO6/AOHGc1XYOKyIqnkOYvPBbRB86ImXduV7ttwJCBnS3niu
+         LWVFj/fFs/hMqVEPjl1v7np6WobZAJYqKeKsyxtvfGoPLogt2KK1Q3kay+uqelPHfp5b
+         5K0JigUr9n9Tx5GviYVQZdUu7p2EimUeB6rAi9rBcilM/BCSBM1hx/2XeeVyszdZuVRr
+         XlBl9W9KPhGP+j8fqnw7r4H1W4SoACqg5bhRy5Z/gRkiM0iKnD37pjCAG9aTeLXcaAc+
+         RkFSslmjAkit2hCVruhjZXnuAXpGHFx0bX3n5gtBtj1NVE0aug+Pz+kJt/1z/HvTOgEl
+         GDIQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=5ejc6Na9;
-       spf=pass (google.com: domain of alexandre.chartre@oracle.com designates 141.146.126.78 as permitted sender) smtp.mailfrom=alexandre.chartre@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
-        by mx.google.com with ESMTPS id y188si5549823oiy.192.2019.07.12.05.02.15
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=mZ6PnB60;
+       spf=pass (google.com: domain of lpf.vector@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=lpf.vector@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id cu6sor10602795pjb.22.2019.07.12.05.02.33
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 12 Jul 2019 05:02:15 -0700 (PDT)
-Received-SPF: pass (google.com: domain of alexandre.chartre@oracle.com designates 141.146.126.78 as permitted sender) client-ip=141.146.126.78;
+        (Google Transport Security);
+        Fri, 12 Jul 2019 05:02:33 -0700 (PDT)
+Received-SPF: pass (google.com: domain of lpf.vector@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=5ejc6Na9;
-       spf=pass (google.com: domain of alexandre.chartre@oracle.com designates 141.146.126.78 as permitted sender) smtp.mailfrom=alexandre.chartre@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (aserp2120.oracle.com [127.0.0.1])
-	by aserp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x6CBwsI5088850;
-	Fri, 12 Jul 2019 12:01:55 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
- references : from : message-id : date : mime-version : in-reply-to :
- content-type : content-transfer-encoding; s=corp-2018-07-02;
- bh=UvA9Jh+08UHDvAGbwH3rBrV64pox2kQExiFizxg0YeE=;
- b=5ejc6Na9HF23eUHz+BoYzKJNXXd5vAuVzCPuho38k/IyFL2csYS3SnWEb0UPapmo3HIU
- FOyNU6a1xSXya3VSdARvmmJgK1gVPPhnhBeYTTY1XqSVE5wPiZz7Vxi3BILLWQfRD/uk
- pLnasU/FZ9+nUE9wrA2dDC9QvY/wHPA0f16WZM4KL+KUBsfjC8k4Tj0708t/dquhPxOj
- okn7O5zqJaxn2XSMGdjKjtmnVvSosskbXQlfvyI1JTpXGnfmZrmDSca/+jGntCvFNtOg
- D/fz27Rhl3WQqSev+OZcy4Ux7WTKtZkORZlyxZRANEuwnmxRdbZEpYG7GlnbyHSFAURi Hg== 
-Received: from userp3030.oracle.com (userp3030.oracle.com [156.151.31.80])
-	by aserp2120.oracle.com with ESMTP id 2tjkkq56p0-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Fri, 12 Jul 2019 12:01:54 +0000
-Received: from pps.filterd (userp3030.oracle.com [127.0.0.1])
-	by userp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x6CBvj2w033926;
-	Fri, 12 Jul 2019 12:01:54 GMT
-Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
-	by userp3030.oracle.com with ESMTP id 2tn1j23x9m-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Fri, 12 Jul 2019 12:01:53 +0000
-Received: from abhmp0005.oracle.com (abhmp0005.oracle.com [141.146.116.11])
-	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x6CC1mo3030245;
-	Fri, 12 Jul 2019 12:01:48 GMT
-Received: from [10.166.106.34] (/10.166.106.34)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Fri, 12 Jul 2019 04:56:48 -0700
-Subject: Re: [RFC v2 00/27] Kernel Address Space Isolation
-To: Thomas Gleixner <tglx@linutronix.de>, Dave Hansen <dave.hansen@intel.com>
-Cc: pbonzini@redhat.com, rkrcmar@redhat.com, mingo@redhat.com, bp@alien8.de,
-        hpa@zytor.com, dave.hansen@linux.intel.com, luto@kernel.org,
-        peterz@infradead.org, kvm@vger.kernel.org, x86@kernel.org,
-        linux-mm@kvack.org, linux-kernel@vger.kernel.org,
-        konrad.wilk@oracle.com, jan.setjeeilers@oracle.com,
-        liran.alon@oracle.com, jwadams@google.com, graf@amazon.de,
-        rppt@linux.vnet.ibm.com
-References: <1562855138-19507-1-git-send-email-alexandre.chartre@oracle.com>
- <5cab2a0e-1034-8748-fcbe-a17cf4fa2cd4@intel.com>
- <alpine.DEB.2.21.1907120911160.11639@nanos.tec.linutronix.de>
-From: Alexandre Chartre <alexandre.chartre@oracle.com>
-Organization: Oracle Corporation
-Message-ID: <61d5851e-a8bf-e25c-e673-b71c8b83042c@oracle.com>
-Date: Fri, 12 Jul 2019 13:56:44 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.5.0
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=mZ6PnB60;
+       spf=pass (google.com: domain of lpf.vector@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=lpf.vector@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=from:to:cc:subject:date:message-id:mime-version
+         :content-transfer-encoding;
+        bh=38IvB5KypHDAuaY3YawsJEBcvuco56ouTYCrEb+HEU0=;
+        b=mZ6PnB60as+zd8jQQHihMl6Lq71efQ8gvN2pJtswPVRzB6N/hPqe6FewYIYcF/Tx54
+         w3JV1LABmcpp/rKonz9KdKdLcVK/rG5Krf9Jt5ttzc1nQ3ljvY7PDTPlei0Bgi33WA11
+         Aa7nCUZQTwoJEhqgXjWw2kDIJVJThfZveZw836caUJMdNr9YV0WVg4j1y1RSyUfFslqS
+         qPc286RqXst+zYYpOLQQYE4vBzfeELhFv5O+twhKjyouGtlc3pJexk2o6BXD1itXeGw1
+         9tWIRGS5A6A6UtO2ZxTXX4YuzCvw86x9n52+47vXBUJKham10y5GFtrjCzq257QjiP1Z
+         cJvQ==
+X-Google-Smtp-Source: APXvYqyoi0Y6qlEL1iMKqyin6FJjShBWPRtQHr7DHceYStTR3VArKTv7hCnMQqSJv7vqsXDyyqTB9g==
+X-Received: by 2002:a17:90a:b394:: with SMTP id e20mr11269156pjr.76.1562932953693;
+        Fri, 12 Jul 2019 05:02:33 -0700 (PDT)
+Received: from localhost.localdomain.localdomain ([2408:823c:c11:478:b8c3:8577:bf2f:2])
+        by smtp.gmail.com with ESMTPSA id a128sm4605496pfb.185.2019.07.12.05.02.26
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Fri, 12 Jul 2019 05:02:33 -0700 (PDT)
+From: Pengfei Li <lpf.vector@gmail.com>
+To: akpm@linux-foundation.org
+Cc: urezki@gmail.com,
+	rpenyaev@suse.de,
+	peterz@infradead.org,
+	guro@fb.com,
+	rick.p.edgecombe@intel.com,
+	rppt@linux.ibm.com,
+	aryabinin@virtuozzo.com,
+	linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org,
+	Pengfei Li <lpf.vector@gmail.com>
+Subject: [PATCH v4 0/2] mm/vmalloc.c: improve readability and rewrite vmap_area
+Date: Fri, 12 Jul 2019 20:02:11 +0800
+Message-Id: <20190712120213.2825-1-lpf.vector@gmail.com>
+X-Mailer: git-send-email 2.21.0
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.21.1907120911160.11639@nanos.tec.linutronix.de>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9315 signatures=668688
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
- phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
- adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
- engine=8.0.1-1810050000 definitions=main-1907120131
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9315 signatures=668688
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1907120131
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+v3 -> v4:
+* Base on next-20190711
+* patch 1: From: Uladzislau Rezki (Sony) <urezki@gmail.com> (author)
+  - https://lkml.org/lkml/2019/7/3/661
+* patch 2: Modify the layout of struct vmap_area for readability
 
-On 7/12/19 12:44 PM, Thomas Gleixner wrote:
-> On Thu, 11 Jul 2019, Dave Hansen wrote:
-> 
->> On 7/11/19 7:25 AM, Alexandre Chartre wrote:
->>> - Kernel code mapped to the ASI page-table has been reduced to:
->>>    . the entire kernel (I still need to test with only the kernel text)
->>>    . the cpu entry area (because we need the GDT to be mapped)
->>>    . the cpu ASI session (for managing ASI)
->>>    . the current stack
->>>
->>> - Optionally, an ASI can request the following kernel mapping to be added:
->>>    . the stack canary
->>>    . the cpu offsets (this_cpu_off)
->>>    . the current task
->>>    . RCU data (rcu_data)
->>>    . CPU HW events (cpu_hw_events).
->>
->> I don't see the per-cpu areas in here.  But, the ASI macros in
->> entry_64.S (and asi_start_abort()) use per-cpu data.
->>
->> Also, this stuff seems to do naughty stuff (calling C code, touching
->> per-cpu data) before the PTI CR3 writes have been done.  But, I don't
->> see anything excluding PTI and this code from coexisting.
-> 
-> That ASI thing is just PTI on steroids.
-> 
-> So why do we need two versions of the same thing? That's absolutely bonkers
-> and will just introduce subtle bugs and conflicting decisions all over the
-> place.
-> 
-> The need for ASI is very tightly coupled to the need for PTI and there is
-> absolutely no point in keeping them separate.
->
-> The only difference vs. interrupts and exceptions is that the PTI logic
-> cares whether they enter from user or from kernel space while ASI only
-> cares about the kernel entry.
+v2 -> v3:
+* patch 1-4: Abandoned
+* patch 5:
+  - Eliminate "flags" (suggested by Uladzislau Rezki)
+  - Base on https://lkml.org/lkml/2019/6/6/455
+    and https://lkml.org/lkml/2019/7/3/661
 
-I think that's precisely what makes ASI and PTI different and independent.
-PTI is just about switching between userland and kernel page-tables, while
-ASI is about switching page-table inside the kernel. You can have ASI without
-having PTI. You can also use ASI for kernel threads so for code that won't
-be triggered from userland and so which won't involve PTI.
+v1 -> v2:
+* patch 3: Rename __find_vmap_area to __search_va_in_busy_tree
+           instead of __search_va_from_busy_tree.
+* patch 5: Add motivation and necessary test data to the commit
+           message.
+* patch 5: Let va->flags use only some low bits of va_start
+           instead of completely overwriting va_start.
 
-> But most exceptions/interrupts transitions do not require to be handled at
-> the entry code level because on VMEXIT the exit reason clearly tells
-> whether a switch to the kernel CR3 is necessary or not. So this has to be
-> handled at the VMM level already in a very clean and simple way.
-> 
-> I'm not a virt wizard, but according to code inspection and instrumentation
-> even the NMI on the host is actually reinjected manually into the host via
-> 'int $2' after the VMEXIT and for MCE it looks like manual handling as
-> well. So why do we need to sprinkle that muck all over the entry code?
-> 
->  From a semantical perspective VMENTER/VMEXIT are very similar to the return
-> to user / enter to user mechanics. Just that the transition happens in the
-> VMM code and not at the regular user/kernel transition points.
+The current implementation of struct vmap_area wasted space.
 
-VMExit returns to the kernel, and ASI is used to run the VMExit handler with
-a limited kernel address space instead of using the full kernel address space.
-Change in entry code is required to handle any interrupt/exception which
-can happen while running code with ASI (like KVM VMExit handler).
+After applying this commit, sizeof(struct vmap_area) has been
+reduced from 11 words to 8 words.
 
-Note that KVM is an example of an ASI consumer, but ASI is generic and can be
-used to run (mostly) any kernel code if you want to run code with a reduced
-kernel address space.
+Pengfei Li (1):
+  mm/vmalloc.c: Modify struct vmap_area to reduce its size
 
-> So why do you want ot treat that differently? There is absolutely zero
-> reason to do so. And there is no reason to create a pointlessly different
-> version of PTI which introduces yet another variant of a restricted page
-> table instead of just reusing and extending what's there already.
-> 
+Uladzislau Rezki (Sony) (1):
+  mm/vmalloc: do not keep unpurged areas in the busy tree
 
-As I've tried to explain, to me PTI and ASI are different and independent.
-PTI manages switching between userland and kernel page-table, and ASI manages
-switching between kernel and a reduced-kernel page-table.
+ include/linux/vmalloc.h | 40 ++++++++++++++++-----
+ mm/vmalloc.c            | 79 ++++++++++++++++++++++++++++-------------
+ 2 files changed, 86 insertions(+), 33 deletions(-)
 
-
-Thanks,
-
-alex.
+-- 
+2.21.0
 
