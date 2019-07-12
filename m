@@ -2,156 +2,174 @@ Return-Path: <SRS0=GtRI=VJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 55B23C742BD
-	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 15:09:14 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8374DC742C8
+	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 15:17:21 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 17B19206B8
-	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 15:09:13 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="i30lgvwL"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 17B19206B8
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 54654206B8
+	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 15:17:21 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 54654206B8
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linutronix.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7C2B38E0158; Fri, 12 Jul 2019 11:09:13 -0400 (EDT)
+	id E9BA58E0159; Fri, 12 Jul 2019 11:17:20 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 773C58E00DB; Fri, 12 Jul 2019 11:09:13 -0400 (EDT)
+	id E72188E00DB; Fri, 12 Jul 2019 11:17:20 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 662CD8E0158; Fri, 12 Jul 2019 11:09:13 -0400 (EDT)
+	id DAFE38E0159; Fri, 12 Jul 2019 11:17:20 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 3DFEA8E00DB
-	for <linux-mm@kvack.org>; Fri, 12 Jul 2019 11:09:13 -0400 (EDT)
-Received: by mail-ot1-f72.google.com with SMTP id x18so4707719otp.9
-        for <linux-mm@kvack.org>; Fri, 12 Jul 2019 08:09:13 -0700 (PDT)
+Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 8905C8E00DB
+	for <linux-mm@kvack.org>; Fri, 12 Jul 2019 11:17:20 -0400 (EDT)
+Received: by mail-wr1-f71.google.com with SMTP id l24so4446188wrb.0
+        for <linux-mm@kvack.org>; Fri, 12 Jul 2019 08:17:20 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=MJ8/wMSygZBfB3wNzWuYzcvp2/BWwETDvXU2IK3PdxQ=;
-        b=jpQA9aiAzsIrSOVGZPo6uz9/NocHLVLs1ScOe/3jS25XjVOscqzDhtxjwMr1EMavAc
-         dYvrBIRgo/nmqi93rjhXMMieGWv7YwnouO4R9k4M1nuTy70P2kTnl0RpFsqRP9kydrgd
-         EzOqTnOJJWQG+jlUQzu44iXZ5AuV8oS1apQ4sZ3ibRyLoBiY+YU4/GBelS4jsC/xuHCU
-         p6oaxZIN79Iyu3mY0FS6WQ4z86vDwt4EtkO1eCatZPlQV6X+4FioSQMgpjC+mAvFttJm
-         SjWyV7R5/Cv8k4BlTN3851oaj/4t4n5rOyhiNEiQXcqQ4jT73EhdZ5pj29wmVHEHFF2n
-         hZgQ==
-X-Gm-Message-State: APjAAAWvgHEdnEv2+Yx3gQHJnRkmKFD2G5nbq4NbFyfjXxO3bYkn1Br8
-	wiG4sZh2zcgXwkR8EeN3KiJ/OdQp8boegWcZ1YJ78Zolcl/Vk5n18RHZbAr5lFfizqpye8CUT7L
-	3KMOU4dBKQmqrOOBOQvcyhQfzImpbmEaXoItmIM3dlU+xp1goFYQq12+4sNRM3bRj7A==
-X-Received: by 2002:a9d:7e88:: with SMTP id m8mr8337878otp.177.1562944152855;
-        Fri, 12 Jul 2019 08:09:12 -0700 (PDT)
-X-Received: by 2002:a9d:7e88:: with SMTP id m8mr8337821otp.177.1562944152179;
-        Fri, 12 Jul 2019 08:09:12 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562944152; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:in-reply-to:message-id:references:user-agent
+         :mime-version;
+        bh=dUrm3Ydn4da4L3iFFJKbK3HWpFnArI2Iu5wL4ttC9+0=;
+        b=HydoCL0o4uWS4vrtKXXCvfcohkcoMLfI9dB03v8AQ3iH3A99fvJWhb4993f8YLy3bw
+         bRqw2qcKFpPix1MZpJz567eYR/PPFbvENCiXWYU/ZJPQketSem0ZBicCnZszUU7lgB9k
+         +M1sJJ+lugT1659RDwNGpoyh3xu+t/HQzNpLNihdvl9b4QU77bd3OZzaT/kBuKkCx+z1
+         jggZUh22o/o1hGCsbbTv0wVd1r24/HIwBOUNm+4ohVgjmnhnhl8PTmY9XXiPG+UkvWBd
+         snrrFzyj0JvNOp947BDsEAJNExCpG1APLoKdljcGNAnqwrF71fpZk6pfASxdP8vhY/bV
+         E7eA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a0a:51c0:0:12e:550::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
+X-Gm-Message-State: APjAAAWFFDyWJxumvPMY88g90+Y64Gt8Z/2DaJXMJQ5o7QRjgt6eACY0
+	pyBctxNuTB8lhLUvjAK5eoKwPnUSchlXmQP3YoEVAdQIUQaHIs6sP0ailesGx3pI7laFUeU70bK
+	///7NoyiHlLDSDRdf+ewHqSNYnaG1gsliVzAUzAUezsaJLiWwKmfpX72V+QPSgN6njg==
+X-Received: by 2002:adf:da4d:: with SMTP id r13mr5687587wrl.281.1562944640027;
+        Fri, 12 Jul 2019 08:17:20 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzwKVFA1tw1MBzw7MZj85GrPUr0Ep1oSha6tZdKtTzICD2auC5w1uc79vDj33LSKI83bth1
+X-Received: by 2002:adf:da4d:: with SMTP id r13mr5687527wrl.281.1562944639209;
+        Fri, 12 Jul 2019 08:17:19 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562944639; cv=none;
         d=google.com; s=arc-20160816;
-        b=bHTdM/f/gkDFCshCc6F5jHFd4gl90zELVAh9vRa9ErbS0NhrkPMr9F3ZEAacLe8KqQ
-         zr7CfdOgsjSIDdvejEII1zWkOLYOowpX1xkhIj0cL+fIyeAh6CS0Vl3ejK/LjAGQ9Aqu
-         jXJZKHm8ZuHGdwwTbNUgY9vnlY2DvN0FwKj9dt9AJ/o/MrOGsEwfQU5NrA9tyUrnlfg8
-         y2OdyGdv8JBsQO+vMRy+HMeJbfZzYb+grNjYZj3WvqnEOFNFXOVyespRyWDgGuiEsOZP
-         vXt7O4orw+u9dGKzEpy5/1U3Qnvjdl4Bgy+8SsJLBS0vqHrf3+JwWWLYB3R8Qdzj8KHq
-         pZNg==
+        b=w1bRCAxQBQ9C10NBx+zsGhuBCI/51SSCl94Zm3aNnVWSrOlqVqUVGtaiA347M+vu7k
+         hk5965dtuETS56wWo7Hb0YK2VD0fKDxLa8myGOqzzVpIESBa4lA/inv+f+4XX/czWjNn
+         NpOKywI1CR9jMaV7mU5co3Ap/zJf5PjT+zksErsCk/1ArKnaihxzgMPSzK5/2aU3CnMp
+         D7qKdLLMEhDJ5hzPEiR3dHL5nu8SQNol7Nx8E7xxqz/QO7vReKjRl8tWjiA9qm4jwDlv
+         pWqrsj6jYopeVWMzbppyBO8JxHelB+ffTs6XZKtLyGgYoGcaspz84FJiqZ5Z+W2GlPNR
+         Icuw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=MJ8/wMSygZBfB3wNzWuYzcvp2/BWwETDvXU2IK3PdxQ=;
-        b=R58DEjDv2fO9JeXsckGuF6ex5eMRM+CdzMdVKGi+wNpDBkz/KWSANK+XpvHJyS6Ai5
-         i9A6n4e/Brq4ax19662yFMPUeLnjiDFDfJon0H9ahKRkjxRy47FGcGenUoKFKhvIl97D
-         Y0rKqxZ2h82mFNLtjN49py8Bi1V8Z0nCYddIlkCgyeedlnzwheyHBgeNQb3MsHMKIkTF
-         A1ZHZ67Uns55jmxXlJ71OJ4KmhjKwhh7ZxKtQN4yvBFOwHMYnyJuVh6nxF14/JJ5KmCt
-         bNmx4MqR8ihn1V8MlpJwI0Ou6vPQrlwGtPFKTQHUWRRpP00KWHCY+C2zmRpm7/+y0Uzc
-         cMgA==
+        h=mime-version:user-agent:references:message-id:in-reply-to:subject
+         :cc:to:from:date;
+        bh=dUrm3Ydn4da4L3iFFJKbK3HWpFnArI2Iu5wL4ttC9+0=;
+        b=NVH5oiBWAFK2PWJElS1mDWoWGN7pJpi77O6mSKj0QI40LNQ4hfSl/Z8WJKWVQQpk4M
+         bBU/h31/pIHask8GgH5I41uOXzEbhRrql475kJrXrem0LwPxd4mGCJ4OcfIj2/IC7hnt
+         iZ64Vd9WPgjh9tuC+m2+i2q2QA3a7lPG/qQFQLObZPUniDvLGJpUJ6V9PzwngKLRShco
+         Cx5lh7gCXzJdWMYZFvd4IWwX2MenJu2IoCgSTWgdKwPUIKvN7q1FuXRM7rCofq8k47bC
+         +FJUq6/lcXfCo1Se+hjqpUYwNLXteLvfZKikwdaJWaiobqaHw7PcCVvQWj9aXds6Usk0
+         n+Fw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=i30lgvwL;
-       spf=pass (google.com: domain of lpf.vector@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=lpf.vector@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r136sor4442608oie.105.2019.07.12.08.09.12
+       spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a0a:51c0:0:12e:550::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a0a:51c0:0:12e:550::1])
+        by mx.google.com with ESMTPS id p5si8834097wrq.214.2019.07.12.08.17.19
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 12 Jul 2019 08:09:12 -0700 (PDT)
-Received-SPF: pass (google.com: domain of lpf.vector@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Fri, 12 Jul 2019 08:17:19 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a0a:51c0:0:12e:550::1 as permitted sender) client-ip=2a0a:51c0:0:12e:550::1;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=i30lgvwL;
-       spf=pass (google.com: domain of lpf.vector@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=lpf.vector@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=MJ8/wMSygZBfB3wNzWuYzcvp2/BWwETDvXU2IK3PdxQ=;
-        b=i30lgvwLkeVpXQsVjPYonpEPiGWlUBv2z2qDgJQMxrpKENxTorJSehxeqy+LUhfYzv
-         VtQK7axqN3W8U1LkXDuWZF1uP/L2p5KuLxKw4qI6wW++8B5fsIOnjjNBcW6teOiQ7tII
-         mzaCC2ZUY+uYaRDsXXA4s9KcaDlBUAOOWLZdYfvJUEAQEBDrP1cVZ7aiVZqE4JPjLspM
-         gGX5Sxlw25a4BwETR5XcKtZkSZrIlIkMg/I5T2vbeOKWQ6GxTtCPuP3CCKEjJvhuAnNI
-         gUc8VfcZTZNpYUjORWUUYKbazILP48oH1baF5oAlWmAp2Iq73gk63PjeR6tPL6TgX/5n
-         EdVg==
-X-Google-Smtp-Source: APXvYqx6mGiQZVnuJ8vBdqFSeKXfLAml4k5LUaP7pbQDRWmiFpLAtMv5q6hcSKqWv8vY99TgvNNCYqHMtYCIHspx+74=
-X-Received: by 2002:a05:6808:4d:: with SMTP id v13mr6048794oic.22.1562944151822;
- Fri, 12 Jul 2019 08:09:11 -0700 (PDT)
+       spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a0a:51c0:0:12e:550::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
+Received: from [5.158.153.52] (helo=nanos.tec.linutronix.de)
+	by Galois.linutronix.de with esmtpsa (TLS1.2:DHE_RSA_AES_256_CBC_SHA256:256)
+	(Exim 4.80)
+	(envelope-from <tglx@linutronix.de>)
+	id 1hlxIF-0003Mo-Lj; Fri, 12 Jul 2019 17:17:03 +0200
+Date: Fri, 12 Jul 2019 17:16:58 +0200 (CEST)
+From: Thomas Gleixner <tglx@linutronix.de>
+To: Peter Zijlstra <peterz@infradead.org>
+cc: Alexandre Chartre <alexandre.chartre@oracle.com>, 
+    Dave Hansen <dave.hansen@intel.com>, pbonzini@redhat.com, 
+    rkrcmar@redhat.com, mingo@redhat.com, bp@alien8.de, hpa@zytor.com, 
+    dave.hansen@linux.intel.com, luto@kernel.org, kvm@vger.kernel.org, 
+    x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, 
+    konrad.wilk@oracle.com, jan.setjeeilers@oracle.com, liran.alon@oracle.com, 
+    jwadams@google.com, graf@amazon.de, rppt@linux.vnet.ibm.com, 
+    Paul Turner <pjt@google.com>
+Subject: Re: [RFC v2 00/27] Kernel Address Space Isolation
+In-Reply-To: <20190712125059.GP3419@hirez.programming.kicks-ass.net>
+Message-ID: <alpine.DEB.2.21.1907121459180.1788@nanos.tec.linutronix.de>
+References: <1562855138-19507-1-git-send-email-alexandre.chartre@oracle.com> <5cab2a0e-1034-8748-fcbe-a17cf4fa2cd4@intel.com> <alpine.DEB.2.21.1907120911160.11639@nanos.tec.linutronix.de> <61d5851e-a8bf-e25c-e673-b71c8b83042c@oracle.com>
+ <20190712125059.GP3419@hirez.programming.kicks-ass.net>
+User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
 MIME-Version: 1.0
-References: <20190712120213.2825-1-lpf.vector@gmail.com> <20190712120213.2825-3-lpf.vector@gmail.com>
- <20190712134955.GV32320@bombadil.infradead.org>
-In-Reply-To: <20190712134955.GV32320@bombadil.infradead.org>
-From: Pengfei Li <lpf.vector@gmail.com>
-Date: Fri, 12 Jul 2019 23:09:00 +0800
-Message-ID: <CAD7_sbEoGRUOJdcHnfUTzP7GfUhCdhfo8uBpUFZ9HGwS36VkSg@mail.gmail.com>
-Subject: Re: [PATCH v4 2/2] mm/vmalloc.c: Modify struct vmap_area to reduce
- its size
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Uladzislau Rezki <urezki@gmail.com>, rpenyaev@suse.de, 
-	peterz@infradead.org, guro@fb.com, rick.p.edgecombe@intel.com, 
-	rppt@linux.ibm.com, aryabinin@virtuozzo.com, linux-mm@kvack.org, 
-	linux-kernel@vger.kernel.org
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=US-ASCII
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jul 12, 2019 at 9:49 PM Matthew Wilcox <willy@infradead.org> wrote:
->
-> On Fri, Jul 12, 2019 at 08:02:13PM +0800, Pengfei Li wrote:
->
-> I don't think you need struct union struct union.  Because llist_node
-> is just a pointer, you can get the same savings with just:
->
->         union {
->                 struct llist_node purge_list;
->                 struct vm_struct *vm;
->                 unsigned long subtree_max_size;
->         };
->
+On Fri, 12 Jul 2019, Peter Zijlstra wrote:
+> On Fri, Jul 12, 2019 at 01:56:44PM +0200, Alexandre Chartre wrote:
+> 
+> > I think that's precisely what makes ASI and PTI different and independent.
+> > PTI is just about switching between userland and kernel page-tables, while
+> > ASI is about switching page-table inside the kernel. You can have ASI without
+> > having PTI. You can also use ASI for kernel threads so for code that won't
+> > be triggered from userland and so which won't involve PTI.
+> 
+> PTI is not mapping         kernel space to avoid             speculation crap (meltdown).
+> ASI is not mapping part of kernel space to avoid (different) speculation crap (MDS).
+> 
+> See how very similar they are?
+> 
+> Furthermore, to recover SMT for userspace (under MDS) we not only need
+> core-scheduling but core-scheduling per address space. And ASI was
+> specifically designed to help mitigate the trainwreck just described.
+> 
+> By explicitly exposing (hopefully harmless) part of the kernel to MDS,
+> we reduce the part that needs core-scheduling and thus reduce the rate
+> the SMT siblngs need to sync up/schedule.
+> 
+> But looking at it that way, it makes no sense to retain 3 address
+> spaces, namely:
+> 
+>   user / kernel exposed / kernel private.
+> 
+> Specifically, it makes no sense to expose part of the kernel through MDS
+> but not through Meltdow. Therefore we can merge the user and kernel
+> exposed address spaces.
+> 
+> And then we've fully replaced PTI.
+> 
+> So no, they're not orthogonal.
 
-Thanks for your comments.
+Right. If we decide to expose more parts of the kernel mappings then that's
+just adding more stuff to the existing user (PTI) map mechanics.
 
-As you said, I did this in v3.
-https://patchwork.kernel.org/patch/11031507/
+As a consequence the CR3 switching points become different or can be
+consolidated and that can be handled right at those switching points
+depending on static keys or alternatives as we do today with PTI and other
+mitigations.
 
-The reason why I use struct union struct in v4 is that I want to
-express "in the tree" and "in the purge list" are two completely
-isolated cases.
+All of that can do without that obscure "state machine" which is solely
+there to duct-tape the complete lack of design. The same applies to that
+mapping thing. Just mapping randomly selected parts by sticking them into
+an array is a non-maintainable approach. This needs proper separation of
+text and data sections, so violations of the mapping constraints can be
+statically analyzed. Depending solely on the page fault at run time for
+analysis is just bound to lead to hard to diagnose failures in the field.
 
-struct vmap_area {
-        union {
-                struct {        /* Case A: In the tree */
-                        ...
-                };
+TBH we all know already that this can be done and that this will solve some
+of the issues caused by the speculation mess, so just writing some hastily
+cobbled together POC code which explodes just by looking at it, does not
+lead to anything else than time waste on all ends.
 
-                struct {        /* Case B: In the purge list */
-                        ...
-                };
-        };
-};
+This first needs a clear definition of protection scope. That scope clearly
+defines the required mappings and consequently the transition requirements
+which provide the necessary transition points for flipping CR3.
 
-The "rb_node" and "list" should also not be used when va is in
-the purge list
+If we have agreed on that, then we can think about the implementation
+details.
 
-what do you think of this idea?
+Thanks,
+
+	tglx
 
