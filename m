@@ -2,182 +2,137 @@ Return-Path: <SRS0=GtRI=VJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.1 required=3.0 tests=GAPPY_SUBJECT,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D86F1C742D7
-	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 23:09:17 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 91482C742D7
+	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 23:37:05 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8BB182146E
-	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 23:09:17 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="LQjMfmek"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8BB182146E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 06DAC20863
+	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 23:37:04 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 06DAC20863
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=namei.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 104648E016B; Fri, 12 Jul 2019 19:09:17 -0400 (EDT)
+	id 534C58E016C; Fri, 12 Jul 2019 19:37:04 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0B3838E0003; Fri, 12 Jul 2019 19:09:17 -0400 (EDT)
+	id 4BD9F8E0003; Fri, 12 Jul 2019 19:37:04 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id EBDFD8E016B; Fri, 12 Jul 2019 19:09:16 -0400 (EDT)
+	id 385C58E016C; Fri, 12 Jul 2019 19:37:04 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 9FA9B8E0003
-	for <linux-mm@kvack.org>; Fri, 12 Jul 2019 19:09:16 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id y24so9116197edb.1
-        for <linux-mm@kvack.org>; Fri, 12 Jul 2019 16:09:16 -0700 (PDT)
+Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 159C88E0003
+	for <linux-mm@kvack.org>; Fri, 12 Jul 2019 19:37:04 -0400 (EDT)
+Received: by mail-oi1-f197.google.com with SMTP id l5so4884442oih.3
+        for <linux-mm@kvack.org>; Fri, 12 Jul 2019 16:37:04 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:reply-to:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=Mp2L3+PxgXR8+xXdOZiEFJ7C433LcerfS54GdFQeN60=;
-        b=tb7rNtNc0Qsl47Mnfm5X5+XSSHoewSkcTOxtCcAS2iMb1D/h2ku6A37nhsWTbFh4rw
-         nTOHSmTygiM3FoYy1YyyUebIN2IwwK+L07QMufSEZckYp6dq48Gq2BUmb0WaCc5TbF6G
-         EByBt9wvZL4XUZJUm26URVmAU//rNFlqBGcp6Pzqn3+vPyFGLEvazWtBIhRBOY8Yd9ys
-         +R4QYK/Gf1FovvTY1Rv5Qz4org7+agYWeSXaUlKT2LjEoFX6o95dL5G1XjPockt7HHZq
-         Ew2FpmZyQD0HR4m+BW9p1uFI4vAGnfxLcvV/gYyZ9JuPJbzd5WayzhVm7ykut2bLXFAG
-         xx3A==
-X-Gm-Message-State: APjAAAVQA2IDC90HdEoYQn67r18smfqqOnx7zDrfw1RT8ZMa6L7D51Uc
-	4bcwGK3sW1QnqBjazjIQ1zG8Xky3mBGEmP0siyWnO1ql6XF1RMzvgKl92smpz2dt7g9WK0pl0Jb
-	vrSUwCJyJlyUaqck3CyYam2C3F3xp9EVc0GXg8NH9vQWhwvYXGKDIN9euNEXkIMxYtg==
-X-Received: by 2002:a17:906:6c16:: with SMTP id j22mr10466406ejr.307.1562972956115;
-        Fri, 12 Jul 2019 16:09:16 -0700 (PDT)
-X-Received: by 2002:a17:906:6c16:: with SMTP id j22mr10466368ejr.307.1562972955268;
-        Fri, 12 Jul 2019 16:09:15 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562972955; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:in-reply-to:message-id:references:user-agent
+         :mime-version;
+        bh=BzVnowWmZKaU2AvNWtcRY3w51Qkf1HDA4esK2SVsbOw=;
+        b=BadCevPSd6n5+S3W5fShZxmimzWGagLV/xJqGuDBzBtcQQyYiIXkBcHACEcrjkPBLP
+         yAkZTEj+0hbImx9561+6VcRvE3cOYFZq2fc9MCOLAqpPYiVEdHcCmVQno3HMd30NIsDa
+         7fK9E/3b1MJAMNDry4Puhw9cTAgsiW6ZVDYU3aK7vMvCDDotUmB2p8zIU+3ayoFOlkjL
+         IXkhEzi/2+E48IJu/6cQwa8hvQ+z/EdgwKYJbKZ7G8JCgd0+OA+rPxWATSR5CMy/OXWI
+         WuZejyWs6PIjZMT/vaJIj2qDBO7eCpslnePoLIJLKhspj2Mz8E87pkRuBhP7J8yciKH+
+         mbgQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of jmorris@namei.org designates 65.99.196.166 as permitted sender) smtp.mailfrom=jmorris@namei.org
+X-Gm-Message-State: APjAAAXojxGWT4w+afiqPiPV1SynnIlP6yoFGsogtkScbDfaiizTaDAR
+	k6nBDm+zey0Q+lnh7h1sDBvqFY3Ajk4g3fT20ssrFVvKDjiTJWCCOQdWzhLzLJf7RUPIOLjEV8D
+	3M12xNdq1f7gFE188r48d2FhTiPLDsvWhPQ5h4GR6yGEhK/5s2Rtr9UsRQK5Zf1fbAg==
+X-Received: by 2002:a05:6830:2119:: with SMTP id i25mr10884228otc.282.1562974623614;
+        Fri, 12 Jul 2019 16:37:03 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxDsAmRToHWGfjihJJkGLKU5ZgX1Z8afOAcH6iAzFcp7+GYOg9UoatVczsM42OK+tlPwJwe
+X-Received: by 2002:a05:6830:2119:: with SMTP id i25mr10884198otc.282.1562974622839;
+        Fri, 12 Jul 2019 16:37:02 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562974622; cv=none;
         d=google.com; s=arc-20160816;
-        b=FePBKF5cd9o/5Rxv2vud6Szu9UpsaWuNWp3+AZvL6CgMoTJJn12Givs6aMaShlNl9W
-         Us3+SoOx4SCJHsheRhPp6gWxwcmiMPB0EMkQttLhkroIb0L1f6ud+iMlWGkEhS48ohE0
-         H4FfCxwSGckfNt0l2K62xPDTjYmNaz1tSJwwy5C31ZVY3e8FnZx+TItyePhip3SxZnN7
-         fFEFhpOHuQoE546tM2Nwn85aXHLttk4Qct8WCF+dyW0qkm4q2AdsKAtlvkSj9bJAzX/N
-         YlafYikeQO1roGxH8SGAjBUZ6KAv87WDbqlilspTfaJ4jSC1pgLA4Udiy1FkwtjWhvdj
-         tTBw==
+        b=qI5503tl6c3wKEgXFPrLeA57WPd890G2WR6qRZQFXoBdSYqY9lpFzXxyELW8nh0K3m
+         4Apdfil38IpAnCc6qvXlUMNoAF6uMdkqIqs2OjKvWAPDRsrN6nHYN6kVm4nzRkDyTgvP
+         DGMVv++qpLU9/iDLrB8A6TIsWHx6qfzbfxSk104paR4B55hmbFLrUJdz+8dcvVaoO6HI
+         V28FW8vmGzcohghxkg77wE3/Iisi8H5xeSnV1vLQoig+MBbgXw9q75Qe3xltEUmE5Ywo
+         2k9WTXsB+Gpd08krJOssRFA/WtSWd8nF9A+CNawXYhU/Cm6bNZGmzba2rZnWKlkqK3i5
+         sZhQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :reply-to:message-id:subject:cc:to:from:date:dkim-signature;
-        bh=Mp2L3+PxgXR8+xXdOZiEFJ7C433LcerfS54GdFQeN60=;
-        b=hV3ccamRgczPFc+KUrQPjGQtVHhcsvWv1IQIJw/OsivK0PUK6U7GMZpD7IPtyvVIuO
-         H+y02h+k8usZcXzHLxkAsP3iRr+VRBIxM3zCram5F8zBI/NobYZks+mi1uPzYsRyiFaQ
-         r7oNHELgkkF9ROMKVj/ZNoJp/Zp0lh4HxHpmD7rA7AwmLjl/16+xkwqjAm7z6X7ygObT
-         O8rsUmTnraZuNslymZ8KQ6ISiwly4+7e7BwUlbonTqN0iqLld3toWTsnrEra5iIHivsf
-         8pYBiIiWEnV3+ktc4y3nm1c/2mpnnkyeNifgguvazr12bPYui1klAr4nFzx0ahlF50gZ
-         luvg==
+        h=mime-version:user-agent:references:message-id:in-reply-to:subject
+         :cc:to:from:date;
+        bh=BzVnowWmZKaU2AvNWtcRY3w51Qkf1HDA4esK2SVsbOw=;
+        b=M1lRTelBkse9Ezsr0u3F5O9A/NPmamriE3fPkzGOGCqIHuv/4uZz2T8qPdNTdEjaWE
+         kQUuYz5Lhm9bRxMYO6XD1Wf7IM3Ry+9K5Dp4Q+9hq1Bo5eLUtq6n8ZnvTMhuhrrxk5D2
+         e6ULQXFbln5IgyWYkrv4izyoBWg5liqeQ/k9jZLKTTpD+Zrxj5VkwXhlvY6LGVWm914K
+         JdGSr8RsvsMjgxpqewQvW64FVzs+aXIfD8hlwwa70vaUdMTydoAvGCrimoLUzTcI2MW6
+         TlxYFObtvr3h405EOnGE2Hq6ktSoYsTynEmkWfRSnY7xCH/ao4HId6PUG6jDMeAVxrfg
+         A/9Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=LQjMfmek;
-       spf=pass (google.com: domain of richard.weiyang@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=richard.weiyang@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id l33sor8705411edd.23.2019.07.12.16.09.15
+       spf=pass (google.com: best guess record for domain of jmorris@namei.org designates 65.99.196.166 as permitted sender) smtp.mailfrom=jmorris@namei.org
+Received: from namei.org (namei.org. [65.99.196.166])
+        by mx.google.com with ESMTPS id g124si6482076oib.204.2019.07.12.16.37.02
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 12 Jul 2019 16:09:15 -0700 (PDT)
-Received-SPF: pass (google.com: domain of richard.weiyang@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 12 Jul 2019 16:37:02 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of jmorris@namei.org designates 65.99.196.166 as permitted sender) client-ip=65.99.196.166;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=LQjMfmek;
-       spf=pass (google.com: domain of richard.weiyang@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=richard.weiyang@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=date:from:to:cc:subject:message-id:reply-to:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=Mp2L3+PxgXR8+xXdOZiEFJ7C433LcerfS54GdFQeN60=;
-        b=LQjMfmekW6FIyum3X8Tu6KAwYJZpsP1W7C4wzzkjJaINWv0Cdlzp1a0TT/rq9nnGz7
-         2x13o5w8cfwIdeVMkYonffNcDvmOI4oAQpv18KCELSgXrBu6zLzzh6HJ3I/p1GAyABIz
-         +I9BcL3zfHm1V6yjnHRCGnytetrWxHup3dmQ/gcct/WJCE3DA56QZXR/Pebbl5yByrjL
-         f0sSONp5AVLhtR4CYedkha4dVx2Orb+S2YVbJ5tTJmgiJ0bfLKgxQm8GUi2nEng8rtYr
-         xgy/lFiJXPmwb0uN3Mgil2A1RBB3gyoEbdwZpu3fZ95dwkph4943Ei19/VO2U9NzbwYr
-         bxdg==
-X-Google-Smtp-Source: APXvYqzB7ir9/0LKvQ53vpsIdcgNNk/iqKUX0f46wSvbBPOxh+fd4lNokvB/gAWUwBgaIA8FAx6kjg==
-X-Received: by 2002:a05:6402:14c4:: with SMTP id f4mr11724254edx.170.1562972954833;
-        Fri, 12 Jul 2019 16:09:14 -0700 (PDT)
-Received: from localhost ([185.92.221.13])
-        by smtp.gmail.com with ESMTPSA id c16sm2958237edc.58.2019.07.12.16.09.13
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 12 Jul 2019 16:09:13 -0700 (PDT)
-Date: Fri, 12 Jul 2019 23:09:13 +0000
-From: Wei Yang <richard.weiyang@gmail.com>
-To: KarimAllah Ahmed <karahmed@amazon.de>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Pavel Tatashin <pasha.tatashin@oracle.com>,
-	Oscar Salvador <osalvador@suse.de>, Michal Hocko <mhocko@suse.com>,
-	Mike Rapoport <rppt@linux.ibm.com>, Baoquan He <bhe@redhat.com>,
-	Qian Cai <cai@lca.pw>, Wei Yang <richard.weiyang@gmail.com>,
-	Logan Gunthorpe <logang@deltatee.com>
-Subject: Re: [PATCH] mm: sparse: Skip no-map regions in memblocks_present
-Message-ID: <20190712230913.l35zpdiqcqa4o32f@master>
-Reply-To: Wei Yang <richard.weiyang@gmail.com>
-References: <1562921491-23899-1-git-send-email-karahmed@amazon.de>
+       spf=pass (google.com: best guess record for domain of jmorris@namei.org designates 65.99.196.166 as permitted sender) smtp.mailfrom=jmorris@namei.org
+Received: from localhost (localhost [127.0.0.1])
+	by namei.org (8.14.4/8.14.4) with ESMTP id x6CNZroi024242;
+	Fri, 12 Jul 2019 23:35:53 GMT
+Date: Sat, 13 Jul 2019 09:35:53 +1000 (AEST)
+From: James Morris <jmorris@namei.org>
+To: Salvatore Mesoraca <s.mesoraca16@gmail.com>
+cc: linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com,
+        linux-mm@kvack.org, linux-security-module@vger.kernel.org,
+        Alexander Viro <viro@zeniv.linux.org.uk>,
+        Brad Spengler <spender@grsecurity.net>,
+        Casey Schaufler <casey@schaufler-ca.com>,
+        Christoph Hellwig <hch@infradead.org>, Jann Horn <jannh@google.com>,
+        Kees Cook <keescook@chromium.org>, PaX Team <pageexec@freemail.hu>,
+        "Serge E. Hallyn" <serge@hallyn.com>,
+        Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [PATCH v5 03/12] S.A.R.A.: cred blob management
+In-Reply-To: <1562410493-8661-4-git-send-email-s.mesoraca16@gmail.com>
+Message-ID: <alpine.LRH.2.21.1907130921580.21853@namei.org>
+References: <1562410493-8661-1-git-send-email-s.mesoraca16@gmail.com> <1562410493-8661-4-git-send-email-s.mesoraca16@gmail.com>
+User-Agent: Alpine 2.21 (LRH 202 2017-01-01)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1562921491-23899-1-git-send-email-karahmed@amazon.de>
-User-Agent: NeoMutt/20170113 (1.7.2)
+Content-Type: text/plain; charset=US-ASCII
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jul 12, 2019 at 10:51:31AM +0200, KarimAllah Ahmed wrote:
->Do not mark regions that are marked with nomap to be present, otherwise
->these memblock cause unnecessarily allocation of metadata.
->
->Cc: Andrew Morton <akpm@linux-foundation.org>
->Cc: Pavel Tatashin <pasha.tatashin@oracle.com>
->Cc: Oscar Salvador <osalvador@suse.de>
->Cc: Michal Hocko <mhocko@suse.com>
->Cc: Mike Rapoport <rppt@linux.ibm.com>
->Cc: Baoquan He <bhe@redhat.com>
->Cc: Qian Cai <cai@lca.pw>
->Cc: Wei Yang <richard.weiyang@gmail.com>
->Cc: Logan Gunthorpe <logang@deltatee.com>
->Cc: linux-mm@kvack.org
->Cc: linux-kernel@vger.kernel.org
->Signed-off-by: KarimAllah Ahmed <karahmed@amazon.de>
->---
-> mm/sparse.c | 4 ++++
-> 1 file changed, 4 insertions(+)
->
->diff --git a/mm/sparse.c b/mm/sparse.c
->index fd13166..33810b6 100644
->--- a/mm/sparse.c
->+++ b/mm/sparse.c
->@@ -256,6 +256,10 @@ void __init memblocks_present(void)
-> 	struct memblock_region *reg;
-> 
-> 	for_each_memblock(memory, reg) {
->+
->+		if (memblock_is_nomap(reg))
->+			continue;
->+
-> 		memory_present(memblock_get_region_node(reg),
-> 			       memblock_region_memory_base_pfn(reg),
-> 			       memblock_region_memory_end_pfn(reg));
+On Sat, 6 Jul 2019, Salvatore Mesoraca wrote:
+
+> Creation of the S.A.R.A. cred blob management "API".
+> In order to allow S.A.R.A. to be stackable with other LSMs, it doesn't use
+> the "security" field of struct cred, instead it uses an ad hoc field named
+> security_sara.
+> This solution is probably not acceptable for upstream, so this part will
+> be modified as soon as the LSM stackable cred blob management will be
+> available.
+
+This description is out of date wrt cred blob sharing.
+
+> +	if (sara_data_init()) {
+> +		pr_crit("impossible to initialize creds.\n");
+> +		goto error;
+> +	}
+> +
+
+> +int __init sara_data_init(void)
+> +{
+> +	security_add_hooks(data_hooks, ARRAY_SIZE(data_hooks), "sara");
+> +	return 0;
+> +}
+
+This can't fail so make it return void and simplify the caller.
 
 
-The logic looks good, while I am not sure this would take effect. Since the
-metadata is SECTION size aligned while memblock is not.
-
-If I am correct, on arm64, we mark nomap memblock in map_mem()
-
-    memblock_mark_nomap(kernel_start, kernel_end - kernel_start);
-
-And kernel text area is less than 40M, if I am right. This means
-memblocks_present would still mark the section present. 
-
-Would you mind showing how much memory range it is marked nomap?
-
->-- 
->2.7.4
 
 -- 
-Wei Yang
-Help you, Help me
+James Morris
+<jmorris@namei.org>
 
