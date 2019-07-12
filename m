@@ -2,212 +2,254 @@ Return-Path: <SRS0=GtRI=VJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY,URIBL_BLOCKED,USER_AGENT_SANE_1
-	autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,HTML_MESSAGE,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id F19A6C742D2
-	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 17:56:51 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id F3BBCC742D2
+	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 18:31:10 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A9EC52054F
-	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 17:56:51 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 7976C205ED
+	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 18:31:10 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="OXL38PEg"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A9EC52054F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="ewlHia7h"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7976C205ED
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4ACDF8E0163; Fri, 12 Jul 2019 13:56:51 -0400 (EDT)
+	id AFCBE8E0164; Fri, 12 Jul 2019 14:31:09 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 437478E0003; Fri, 12 Jul 2019 13:56:51 -0400 (EDT)
+	id A859B8E0003; Fri, 12 Jul 2019 14:31:09 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2D7858E0163; Fri, 12 Jul 2019 13:56:51 -0400 (EDT)
+	id 94DA08E0164; Fri, 12 Jul 2019 14:31:09 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 08CB48E0003
-	for <linux-mm@kvack.org>; Fri, 12 Jul 2019 13:56:51 -0400 (EDT)
-Received: by mail-qk1-f197.google.com with SMTP id x1so7586378qkn.6
-        for <linux-mm@kvack.org>; Fri, 12 Jul 2019 10:56:51 -0700 (PDT)
+Received: from mail-ua1-f70.google.com (mail-ua1-f70.google.com [209.85.222.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 68BD88E0003
+	for <linux-mm@kvack.org>; Fri, 12 Jul 2019 14:31:09 -0400 (EDT)
+Received: by mail-ua1-f70.google.com with SMTP id c21so1455768uao.21
+        for <linux-mm@kvack.org>; Fri, 12 Jul 2019 11:31:09 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=PFVmlVQEMCCclkWvCJY9Wejc6o6dKfzcVtLPB+0UMb4=;
-        b=p1DFXhCbTxTwr4D9m3wQLvQQVBNte2R+IAyo8STGfX9wQosgk/kTf0rX1gfIziNcQU
-         Tc7nfJWzX+aGoQGN0UsWOfZwZbjZdQ41ZZz4SlIu048WECQJgBZtvFd6ISQz1f9HIqlI
-         ZnmMl93DNbOzTZuZXaLMm8drnUOdbaucPTcavbOuX18S1hos+VQnoCCkjsQEPtRCrKEo
-         5ey2mQAGLJEkOkYWAtwWJpjU0tv1U4md+0Wd6UULPOJ11udfilPoyrjv/2E/6HiMONh+
-         gF0mDwBlpahHw7ZZaA2lC8nIdTbQp7Yts70PtwKe+0DslKtrYksVE9VCJ6sfcLNYiJf/
-         M4RQ==
-X-Gm-Message-State: APjAAAUaUhxOwPSFlK6cLmHkz0DYh6ijSlf33E24Y/w/YRbdt6F6CmI9
-	ypSfF54OgfWgSJGDdIKdtg70m+485IczlEO11lQtxJ+3oUqVWoh0utG5/bNlzf/hBcYCn9ZElBq
-	EqlBMUsoLQFZA8DXFZcw8XUCziUeoz6N4l/s7REST23af+vod6XaXLkHvWhI6Wb5uNg==
-X-Received: by 2002:ac8:275a:: with SMTP id h26mr7352986qth.345.1562954210824;
-        Fri, 12 Jul 2019 10:56:50 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzF8Cho0xU6JTEF15+bXEsVMa/Wdjxv7LiqfUd6CxfuJx5BVlSLc1SRFTfbYC0xHqeBMyxQ
-X-Received: by 2002:ac8:275a:: with SMTP id h26mr7352958qth.345.1562954210249;
-        Fri, 12 Jul 2019 10:56:50 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562954210; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:from:date:message-id
+         :subject:to;
+        bh=cIV6rBtWLOPRszoGLvj5E27EPDYcnDtLD4/tbfFhpvo=;
+        b=Fs+ousP+v2QgFJIzLNnHGFqDIhCotdoKlip+ivz3xWFjWqGTBf0cyvKAB9Q8qhfisy
+         VIHoL1zFXSgCeohsK2lGpN4WjrPT7OB/mWUYmxkB9Xsc7piKR8H8qRlQ5yFXyGrw9sBv
+         XLJCaTDQyBSPqP86iPlXYvniZsLway1IM8fr+do55rRWsgxM6pGyHCQRFaxOEgiZfqOm
+         obfC0yigTqog9Ay8XPc+nzqUiwiJrSFk9LW+kD/VtFnNZhvqlBIzpvx0ha2ZT+jF9uIM
+         ekbNhVJdqUykjJQAKOZinQcfMsGxenv04ajwdr7V+Ps/ZpUKeAtzZJLzTDOVcpjCYTdz
+         525w==
+X-Gm-Message-State: APjAAAUzKBqaSjoB0C7XBH5kHf6h5aymgTuamrsS6bW32gPlx5OwQyOt
+	YwBMzA+ATuFNnVmnlGR/qe/U9fCvViMuRMGt7mdGMceryexJuqVfTkx6BU+2mq5DibiO82q3+mf
+	vVBQ03sbb1YbRk2O7M5lVlWnjkzya/BioVFze5vZ1lFMyhyaO1ya18o1c1eqOH+7kow==
+X-Received: by 2002:a05:6102:3c8:: with SMTP id n8mr9227888vsq.135.1562956268961;
+        Fri, 12 Jul 2019 11:31:08 -0700 (PDT)
+X-Received: by 2002:a05:6102:3c8:: with SMTP id n8mr9227857vsq.135.1562956268187;
+        Fri, 12 Jul 2019 11:31:08 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562956268; cv=none;
         d=google.com; s=arc-20160816;
-        b=Dijmq/sEG3aStAWlfktuu7R2C9PqSvU/BBaH4FK9yKKMUy5KpBzdwHt0bTYiFiIAm4
-         erHpiit9WBPZIXMHsxqYI0WHoiKfidZ7APSwsNetdNYgjvE5FOqCx+Pog5vYInLS5MRd
-         C1KXVqVvKHMVXzfmSdjqMmAdBzeLlyACWbEghd+OI7FLhigM95218sA1b9zp/emjvbHE
-         JQN4ixyOaU4l2CughJPwZ/0u7/aR2MKHA8EW3eh9VPj5ie6NIRTW8hG5l0YBUo5lMhNR
-         uZS1vTRE8IHCgCLCQC/LFlXJqxGGARNBGOLxS8RnmlPDGJwh1ZQJcIwqk0aa1y023sAF
-         rk5w==
+        b=u7b5OPW3X2SeBklY+KMZr/LbqzIT3a9dOJ3AVlJaNyg+GtLkiIOwts98JfrE6vemKz
+         ZiM/vQGgTUDx7Fr55T13PFYWweSQFUVlVtA8khw836L9BHBeLeMK+DBicyLzXfE1iHAm
+         OnIMiQB3kWCp42TOOZ03RvrMNWryr4mqNl3ty4Bm4ZGe9Pj1VAM5us2m3UKnVjp8oxwW
+         07pcq5vy29Ix5zAFmj9+Xi18C6/5kIrfpe3UE1GYTY/AN7A9MoLhJ9oCMEXOFfameKEn
+         pT/rgIM7ywl4QxYhluuXGmfX3ssZ7XzqXrhhP19Q9s9ffdrttFoNZMgH4A3z9jMY8FBK
+         Ef+Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=PFVmlVQEMCCclkWvCJY9Wejc6o6dKfzcVtLPB+0UMb4=;
-        b=W+EDlJYmAP4w2VVLjajAfv8BxyHCBMkpM52Kg10eGQjldtnOZUdgFmg26xRC0tzzne
-         v4lOfMYIVvGi4Nt9HjxhsKaN/gPYRqDwjGPloSKxL6b66StnU/hm2kTFT3DqrIHt5cnJ
-         8LfVj6ktGxkB8m+EjTqrIoYjB5IyNkFjF42M74fsl+wX22hTzsSDbWUlM2ylf7f9DLwB
-         YkX1Cf4FmQJKhbQMvADpnHCS0LAWL9VeifZXv//Q70tafc+rzbUc0yGc6ciuEFyo/6Wm
-         1Ko1y2uQZlSzTvQ3LO2/+BPP3Y///PHijfBtr+xr4AnLX50oyryd5B/ku4DgacIW21HD
-         bRhQ==
+        h=to:subject:message-id:date:from:mime-version:dkim-signature;
+        bh=cIV6rBtWLOPRszoGLvj5E27EPDYcnDtLD4/tbfFhpvo=;
+        b=uAmct8/yhkOEoR+hpoU9W+L1NQJ34L+/jPOWzRc3nyz5wESXRnapHzvV3y+pl1Nusc
+         ALbe1nIDESMatQymavH6FSY6MgJTBG+BLmxxcLhvexUusfDXYJBE63oHaXZYCYxOVTZG
+         2kZu0zIzxqRRdpCDOJabqvPnRE8hTyaiMtrsotQXQqqZSDMi6ce8/iH1ZSxpC+UBEKGL
+         FVOnHKPbGpXTMFlwRB4rSfFPn1ISh6Ry6MoqtkSxgE+UNe4aywwRp2muU8xOZQ1I2cow
+         8Vr0GMc0ISrltgkoaZIcCDeg3RViRs/AQ+OVqSp/keVsfhbta+Q6mYoGhn8/wEEXjd4o
+         0qrA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=OXL38PEg;
-       spf=pass (google.com: domain of darrick.wong@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=darrick.wong@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id t42si6322500qtc.163.2019.07.12.10.56.49
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=ewlHia7h;
+       spf=pass (google.com: domain of pankajssuryawanshi@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=pankajssuryawanshi@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id g15sor2970430vkk.44.2019.07.12.11.31.07
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 12 Jul 2019 10:56:50 -0700 (PDT)
-Received-SPF: pass (google.com: domain of darrick.wong@oracle.com designates 156.151.31.85 as permitted sender) client-ip=156.151.31.85;
+        (Google Transport Security);
+        Fri, 12 Jul 2019 11:31:08 -0700 (PDT)
+Received-SPF: pass (google.com: domain of pankajssuryawanshi@gmail.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=OXL38PEg;
-       spf=pass (google.com: domain of darrick.wong@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=darrick.wong@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
-	by userp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x6CHsRrU105742;
-	Fri, 12 Jul 2019 17:56:47 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=date : from : to : cc
- : subject : message-id : references : mime-version : content-type :
- in-reply-to; s=corp-2018-07-02;
- bh=PFVmlVQEMCCclkWvCJY9Wejc6o6dKfzcVtLPB+0UMb4=;
- b=OXL38PEgYIEwQYsJjNApbLl+0t2sHeSMQvqUPxX/417fBcno3jB9YEdB5dpSzYd1WriO
- vZIWR1w+nSpYskMMSmqlga9y7mobZYEUWCIX8rITvKqJJyhCmKTAR1kfAO4RtwM15MyA
- CTnPoPupmbj3RvCDoxC5iqHkL/vW9mzdxk9luV2B9krAl4Qge+M2DIuJjHc9LsIPgGSb
- uO+rIoKGax+7Dnepzps3T0bqTnk6Bs8orCM79XMOUhGHozPuI1z1sNgSAAN3QVX0O6n0
- BmkhkUUWz4h2DbsWUOQzAXm1o9tGwj2+LkTcrH/nP9RC9MO0eaoTQ+XKTD7l7njMQH+W Og== 
-Received: from aserp3020.oracle.com (aserp3020.oracle.com [141.146.126.70])
-	by userp2120.oracle.com with ESMTP id 2tjm9r6ym8-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Fri, 12 Jul 2019 17:56:47 +0000
-Received: from pps.filterd (aserp3020.oracle.com [127.0.0.1])
-	by aserp3020.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x6CHqRB7133355;
-	Fri, 12 Jul 2019 17:56:46 GMT
-Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
-	by aserp3020.oracle.com with ESMTP id 2tpefd7ke3-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Fri, 12 Jul 2019 17:56:46 +0000
-Received: from abhmp0009.oracle.com (abhmp0009.oracle.com [141.146.116.15])
-	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x6CHuj7l010001;
-	Fri, 12 Jul 2019 17:56:45 GMT
-Received: from localhost (/10.159.245.178)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Fri, 12 Jul 2019 10:56:45 -0700
-Date: Fri, 12 Jul 2019 10:56:44 -0700
-From: "Darrick J. Wong" <darrick.wong@oracle.com>
-To: Jan Kara <jack@suse.cz>
-Cc: Amir Goldstein <amir73il@gmail.com>,
-        linux-fsdevel <linux-fsdevel@vger.kernel.org>,
-        Linux MM <linux-mm@kvack.org>, linux-xfs <linux-xfs@vger.kernel.org>,
-        Boaz Harrosh <boaz@plexistor.com>, stable <stable@vger.kernel.org>
-Subject: Re: [PATCH 3/3] xfs: Fix stale data exposure when readahead races
- with hole punch
-Message-ID: <20190712175644.GQ1654093@magnolia>
-References: <20190711140012.1671-1-jack@suse.cz>
- <20190711140012.1671-4-jack@suse.cz>
- <CAOQ4uxh-xpwgF-wQf1ozaZ3yg8nWuBvSyLr_ZFQpkA=coW1dxA@mail.gmail.com>
- <20190711154917.GW1404256@magnolia>
- <20190712120004.GB24009@quack2.suse.cz>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=ewlHia7h;
+       spf=pass (google.com: domain of pankajssuryawanshi@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=pankajssuryawanshi@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:from:date:message-id:subject:to;
+        bh=cIV6rBtWLOPRszoGLvj5E27EPDYcnDtLD4/tbfFhpvo=;
+        b=ewlHia7heeXX9gEvyayde5mx7+AEFE0O5WkRam9jXzXTM/cF4Rro/laOPuQDFADMkT
+         pgBCEH82Sq2vQ5ytflI6aY9ECob3kCsDLkBEomA3BoZout9U7Tkh8v3UE+GqetFYgZwv
+         T9i5nUr03L9NNnlgh1av/pQ5TwsQVLAfpkfba/uE0+COO/CT7rM4kTujCxnHZ/jfmRvl
+         Ha6cWu/ktyCI4B3Ir3wy+Td4QeX9+knTOY4KmhVoy866xKmqHKB7yJFGampkVPjO1EH4
+         syIDycrhKY/v7I3cqPWeNoNwRIu14RMQ2H5DNvB4fr8fphQAmDKq04wf+IpE1qy8dZZV
+         aODA==
+X-Google-Smtp-Source: APXvYqwoOrs4KeF1E3Iz5G6XucPUIl+s2QlAoOR993+Fq0+SJIKbbL4lgPIPTE2VQvtDIDsJPH41GoubeuVBEnQGkuo=
+X-Received: by 2002:a1f:62c3:: with SMTP id w186mr6618726vkb.82.1562956267589;
+ Fri, 12 Jul 2019 11:31:07 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190712120004.GB24009@quack2.suse.cz>
-User-Agent: Mutt/1.9.4 (2018-02-28)
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9316 signatures=668688
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
- phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
- adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
- engine=8.0.1-1810050000 definitions=main-1907120181
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9316 signatures=668688
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1907120182
+From: Pankaj Suryawanshi <pankajssuryawanshi@gmail.com>
+Date: Sat, 13 Jul 2019 00:00:56 +0530
+Message-ID: <CACDBo56EoKca9FJCnbztWZAARdUQs+B=dmCs+UxW27yHNu5pzQ@mail.gmail.com>
+Subject: cma_remap when using dma_alloc_attr :- DMA_ATTR_NO_KERNEL_MAPPING
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, 
+	iommu@lists.linux-foundation.org, Vlastimil Babka <vbabka@suse.cz>, 
+	Robin Murphy <robin.murphy@arm.com>, Michal Hocko <mhocko@kernel.org>, 
+	pankaj.suryawanshi@einfochips.com, minchan@kernel.org, minchan.kim@gmail.com
+Content-Type: multipart/alternative; boundary="0000000000002114d7058d801d4a"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jul 12, 2019 at 02:00:04PM +0200, Jan Kara wrote:
-> On Thu 11-07-19 08:49:17, Darrick J. Wong wrote:
-> > On Thu, Jul 11, 2019 at 06:28:54PM +0300, Amir Goldstein wrote:
-> > > > +{
-> > > > +       struct xfs_inode *ip = XFS_I(file_inode(file));
-> > > > +       int ret;
-> > > > +
-> > > > +       /* Readahead needs protection from hole punching and similar ops */
-> > > > +       if (advice == POSIX_FADV_WILLNEED)
-> > > > +               xfs_ilock(ip, XFS_IOLOCK_SHARED);
-> > 
-> > It's good to fix this race, but at the same time I wonder what's the
-> > impact to processes writing to one part of a file waiting on IOLOCK_EXCL
-> > while readahead holds IOLOCK_SHARED?
-> > 
-> > (bluh bluh range locks ftw bluh bluh)
-> 
-> Yeah, with range locks this would have less impact. Also note that we hold
-> the lock only during page setup and IO submission. IO itself will already
-> happen without IOLOCK, only under page lock. But that's enough to stop the
-> race.
+--0000000000002114d7058d801d4a
+Content-Type: text/plain; charset="UTF-8"
 
-> > Do we need a lock for DONTNEED?  I think the answer is that you have to
-> > lock the page to drop it and that will protect us from <myriad punch and
-> > truncate spaghetti> ... ?
-> 
-> Yeah, DONTNEED is just page writeback + invalidate. So page lock is enough
-> to protect from anything bad. Essentially we need IOLOCK only to protect
-> the places that creates new pages in page cache.
-> 
-> > > > +       ret = generic_fadvise(file, start, end, advice);
-> > > > +       if (advice == POSIX_FADV_WILLNEED)
-> > > > +               xfs_iunlock(ip, XFS_IOLOCK_SHARED);
-> > 
-> > Maybe it'd be better to do:
-> > 
-> > 	int	lockflags = 0;
-> > 
-> > 	if (advice == POSIX_FADV_WILLNEED) {
-> > 		lockflags = XFS_IOLOCK_SHARED;
-> > 		xfs_ilock(ip, lockflags);
-> > 	}
-> > 
-> > 	ret = generic_fadvise(file, start, end, advice);
-> > 
-> > 	if (lockflags)
-> > 		xfs_iunlock(ip, lockflags);
-> > 
-> > Just in case we some day want more or different types of inode locks?
-> 
-> OK, will do. Just I'll get to testing this only after I return from
-> vacation.
+Hello,
 
-<nod>
+When we allocate cma memory using dma_alloc_attr using
+DMA_ATTR_NO_KERNEL_MAPPING attribute. It will return physical address
+without virtual mapping and thats the use case of this attribute. but lets
+say some vpu/gpu drivers required virtual mapping of some part of the
+allocation. then we dont have anything to remap that allocated memory to
+virtual memory. and in 32-bit system it difficult for devices like android
+to work all the time with virtual mapping, it degrade the performance.
 
---D
-> 
-> 								Honza
-> 
-> -- 
-> Jan Kara <jack@suse.com>
-> SUSE Labs, CR
+For Example :
+
+Lets say 4k video allocation required 300MB cma memory but not required
+virtual mapping for all the 300MB, its require only 20MB virtually mapped
+at some specific use case/point of video, and unmap virtual mapping after
+uses, at that time this functions will be useful, it works like ioremap()
+for cma_alloc() using dma apis.
+
+/*
+         * function call(s) to create virtual map of given physical memory
+         * range [base, base+size) of CMA memory.
+*/
+void *cma_remap(__u32 base, __u32 size)
+{
+        struct page *page = phys_to_page(base);
+        void *virt;
+
+        pr_debug("cma: request to map 0x%08x for size 0x%08x\n",
+                        base, size);
+
+        size = PAGE_ALIGN(size);
+
+        pgprot_t prot = get_dma_pgprot(DMA_ATTR, PAGE_KERNEL);
+
+        if (PageHighMem(page)){
+                virt = dma_alloc_remap(page, size, GFP_KERNEL, prot,
+__builtin_return_address(0));
+        }
+        else
+        {
+                dma_remap(page, size, prot);
+                virt = page_address(page);
+        }
+
+        if (!virt)
+                pr_err("\x1b[31m" " cma: failed to map 0x%08x" "\x1b[0m\n",
+                                base);
+        else
+                pr_debug("cma: 0x%08x is virtually mapped to 0x%08x\n",
+                                base, (__u32) virt);
+
+        return virt;
+}
+
+/*
+         * function call(s) to remove virtual map of given virtual memory
+         * range [virt, virt+size) of CMA memory.
+*/
+
+void cma_unmap(void *virt, __u32 size)
+{
+        size = PAGE_ALIGN(size);
+        unsigned long pfn = virt_to_pfn(virt);
+        struct page *page = pfn_to_page(pfn);
+
+                if (PageHighMem(page))
+                        dma_free_remap(virt, size);
+                else
+                        dma_remap(page, size, PAGE_KERNEL);
+
+        pr_debug(" cma: virtual address 0x%08x is unmapped\n",
+                        (__u32) virt);
+}
+
+This functions should be added in arch/arm/mm/dma-mapping.c file.
+
+Please let me know if i am missing anything.
+
+Regards,
+Pankaj
+
+--0000000000002114d7058d801d4a
+Content-Type: text/html; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr">Hello,<br><br>When we allocate cma memory using dma_alloc_=
+attr using DMA_ATTR_NO_KERNEL_MAPPING attribute. It will return physical ad=
+dress without virtual mapping and thats the use case of this attribute. but=
+ lets say some vpu/gpu drivers required virtual mapping of some part of the=
+ allocation. then we dont have anything to remap that allocated memory to v=
+irtual memory. and in 32-bit system it difficult for devices like android t=
+o work all the time with virtual mapping, it degrade the performance.<br><b=
+r>For Example :<br><br>Lets say 4k video allocation required 300MB cma memo=
+ry but not required virtual mapping for all the 300MB, its require only 20M=
+B virtually mapped at some specific use case/point of video, and unmap virt=
+ual mapping after uses, at that time this functions will be useful, it work=
+s like ioremap() for cma_alloc() using dma apis.<br><br>/*<br>=C2=A0 =C2=A0=
+ =C2=A0 =C2=A0 =C2=A0* function call(s) to create virtual map of given phys=
+ical memory<br>=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0* range [base, base+size) =
+of CMA memory.<br>*/<br>void *cma_remap(__u32 base, __u32 size)<br>{<br>=C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 struct page *page =3D phys_to_page(base);<br>=C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 void *virt;<br><br>=C2=A0 =C2=A0 =C2=A0 =C2=A0 pr_=
+debug(&quot;cma: request to map 0x%08x for size 0x%08x\n&quot;,<br>=C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 base, size);<br><br>=C2=A0 =C2=A0 =C2=A0 =C2=A0 size =3D PAGE_ALIGN(siz=
+e);<br><br>=C2=A0 =C2=A0 =C2=A0 =C2=A0 pgprot_t prot =3D get_dma_pgprot(DMA=
+_ATTR, PAGE_KERNEL);<br><br>=C2=A0 =C2=A0 =C2=A0 =C2=A0 if (PageHighMem(pag=
+e)){<br>=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 virt =3D dm=
+a_alloc_remap(page, size, GFP_KERNEL, prot, __builtin_return_address(0));<b=
+r>=C2=A0 =C2=A0 =C2=A0 =C2=A0 }<br>=C2=A0 =C2=A0 =C2=A0 =C2=A0 else<br>=C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 {<br>=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 dma_remap(page, size, prot);<br>=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 virt =3D page_address(page);<br>=C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 }<br><br>=C2=A0 =C2=A0 =C2=A0 =C2=A0 if (!virt)<br>=C2=A0 =C2=A0=
+ =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 pr_err(&quot;\x1b[31m&quot; &quo=
+t; cma: failed to map 0x%08x&quot; &quot;\x1b[0m\n&quot;,<br>=C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 base);<br>=C2=A0 =C2=A0 =C2=A0 =C2=A0 else<br>=C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 pr_debug(&quot;cma: 0x=
+%08x is virtually mapped to 0x%08x\n&quot;,<br>=C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 base, (__u32) virt);<br><br>=C2=A0 =C2=A0 =C2=A0 =C2=A0 return v=
+irt;<br>}<br><br>/*<br>=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0* function call(s)=
+ to remove virtual map of given virtual memory<br>=C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0* range [virt, virt+size) of CMA memory.<br>*/<br><br>void cma_un=
+map(void *virt, __u32 size)<br>{<br>=C2=A0 =C2=A0 =C2=A0 =C2=A0 size =3D PA=
+GE_ALIGN(size);<br>=C2=A0 =C2=A0 =C2=A0 =C2=A0 unsigned long pfn =3D virt_t=
+o_pfn(virt);<br>=C2=A0 =C2=A0 =C2=A0 =C2=A0 struct page *page =3D pfn_to_pa=
+ge(pfn);<br><br>=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if =
+(PageHighMem(page))<br>=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 dma_free_remap(virt, size);<br>=C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 else<br>=C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 dma_remap(pa=
+ge, size, PAGE_KERNEL);<br><br>=C2=A0 =C2=A0 =C2=A0 =C2=A0 pr_debug(&quot; =
+cma: virtual address 0x%08x is unmapped\n&quot;,<br>=C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 (__u32) virt=
+);<br>}<br><br><div>This functions should be added in arch/arm/mm/dma-mappi=
+ng.c file.</div><div><br></div><div>Please let me know if i am missing anyt=
+hing.</div><div><br></div><div>Regards,</div><div>Pankaj<br></div></div>
+
+--0000000000002114d7058d801d4a--
 
