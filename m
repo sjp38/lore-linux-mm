@@ -2,177 +2,149 @@ Return-Path: <SRS0=GtRI=VJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3912AC742A5
-	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 06:13:09 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 801A8C742AB
+	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 06:20:34 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EBD482084B
-	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 06:13:08 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 2C07421537
+	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 06:20:34 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="jrq93zYp"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EBD482084B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (2048-bit key) header.d=canb.auug.org.au header.i=@canb.auug.org.au header.b="bEmpV3q8"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2C07421537
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=canb.auug.org.au
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 70B848E0119; Fri, 12 Jul 2019 02:13:08 -0400 (EDT)
+	id 977738E011A; Fri, 12 Jul 2019 02:20:33 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6BBC08E00DB; Fri, 12 Jul 2019 02:13:08 -0400 (EDT)
+	id 927F08E00DB; Fri, 12 Jul 2019 02:20:33 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5D1508E0119; Fri, 12 Jul 2019 02:13:08 -0400 (EDT)
+	id 83D738E011A; Fri, 12 Jul 2019 02:20:33 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 3E3DB8E00DB
-	for <linux-mm@kvack.org>; Fri, 12 Jul 2019 02:13:08 -0400 (EDT)
-Received: by mail-io1-f71.google.com with SMTP id q26so9448358ioi.10
-        for <linux-mm@kvack.org>; Thu, 11 Jul 2019 23:13:08 -0700 (PDT)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 4C79A8E00DB
+	for <linux-mm@kvack.org>; Fri, 12 Jul 2019 02:20:33 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id t2so5101498pgs.21
+        for <linux-mm@kvack.org>; Thu, 11 Jul 2019 23:20:33 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=DUo8ryhLl3Mi3YkE+U/flzBUawPzDZ2QG8xmBbLJ4MU=;
-        b=tabZFd65IVazb+NardbPiIiKIgZYPt2PfAHUCErOrwMxZkdiGeHmkJYoKAyY08nRuF
-         fcAZlEdods+Z9WOpEuXF/zvgCW/yrkObCufOcxUTYC8tzz6yXGXBR5yyVJKRMhKVKTCP
-         w5/BFwlFOnf83WBl5TZTNbd6DrTegaG1+9x/MTwgAWKI/MDCnrXjsZaMMZkxgtD0quft
-         l+JEOoDtZI552CguCthjQG3fbWzZnZTuDDTOYDB3MdSK35eMqQGW0bN4PASZm6RyFO/C
-         q3dN2/jXs30fHTsz3Sr6Vzk//giQcxPeHlHibQSKijKz3MuKHqAWDVGJBdgRI4sTxQwn
-         lM6A==
-X-Gm-Message-State: APjAAAXHNY0oC4QRW8oGlWmHhJDQy8Jn5fMMU7E9Z1S71m2HCfAyTpOj
-	ErSKbd+/aDfuQJHZAlNFj0lw76m5dYbkfTzpJXQ+/uJbcPYo06EaGUOrHWenPUBQpt4KyZtNVru
-	7Y7eRQXbFZvKtmFEsddPmsLIbK0YjxU5yN83xEAq+5KQOGhNWkfxSwEqUXqHWoG+y9g==
-X-Received: by 2002:a05:6602:2183:: with SMTP id b3mr5859092iob.249.1562911987991;
-        Thu, 11 Jul 2019 23:13:07 -0700 (PDT)
-X-Received: by 2002:a05:6602:2183:: with SMTP id b3mr5859047iob.249.1562911987283;
-        Thu, 11 Jul 2019 23:13:07 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562911987; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:in-reply-to:references:mime-version;
+        bh=kOAbaMX8FlsTSm7oTq0mdhFEoLZ2DXr62rCz0QjP/SM=;
+        b=oRJAG13I3h9cWnmd5aZwaqSB+8jDhluYagr94jvq8eIaoWuA5XX0MkMqIA8MHYwO7P
+         sm0m145S2R0rGE559a3bDLKrBd1hTD4jT9JV8rLxCFnN+oyCH/eDtjOpZctov68wYzwO
+         k88h/whqzlmCncbe4kkAv0G6o8EHkWjDnmghoqV+hrIIsly4a+vk4IEcu3vTNnuv0DnN
+         INXgL/nUQPwEnD87oY3EzJv8Z2NWF/A6PEvPzTAIFHiP1MTkyYn/nx+Fuhzj0aaUnROP
+         DJTV8SdNlNEynn2h2k5teqJKYa/uZFTdi2Gu/byIlcmco4AgUoPjcnLSBmeMsipNbKQF
+         c3WQ==
+X-Gm-Message-State: APjAAAVJLZTwZ+gI9oDreG1LfHun2RVIJBD9USmxJX0aNZYiNumgGSDE
+	J3HDmvZ8+Nx9NRPJtONpDD+Ufhzy9sRFACX4K3DL3z+CjmJQSjxpNnFO5iNIcnGwpfI9Y0/eggp
+	3mhE/PVco4Pxjks7109H3AUeDYYfcJHYnpHAvTUd7CeQXNhe7AXqiMNJkkoOsuVZuyA==
+X-Received: by 2002:a17:902:7281:: with SMTP id d1mr9190825pll.329.1562912432808;
+        Thu, 11 Jul 2019 23:20:32 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwA8NnojAD6vAyVinIAD3+fafwAJ+SxZZQZnx20FY1h5OCFVx9OKMYTycY/xKtZye2BhQ5v
+X-Received: by 2002:a17:902:7281:: with SMTP id d1mr9190791pll.329.1562912432224;
+        Thu, 11 Jul 2019 23:20:32 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562912432; cv=none;
         d=google.com; s=arc-20160816;
-        b=UI3T4xtfh6a8AkoplrS2olvEyWT1lPbV3O2ZTftSuKHlDSloFsIFQNHOBqDrx/JIF9
-         OWldSR7tJ35hMj3OEL3Jzf2A+/db6wkpXE/CxLhS3rs8Lcx456HESFiFhjQzA3V4TL5D
-         SAW/v3ZXd0HyMlPjLrN4gz0l6DAbbviLlBE9CQpBmKAeNgMrj/EubmefIaaMJpVP30SH
-         4AHFHqu7BhqEa3qkPax7lcg7K6ZGTtMmvZjsk9/u5i1GEoEglXT7GMURJnIgtZdi9xW2
-         D5TPN9vtyWooKcnIlpGkwbDc2LU6dHnkdmpCJgiSy1GVIzafzLaCseF+NCvgJoZy3Iyt
-         lC3Q==
+        b=boaeBu5ysLMe4Gy0eYiNUIS21n5TRFx1B8brJquTHaVQDe1VG/yPrB7MZfFY3N5Hhj
+         xgKq9evDAhHHqUNlDUE8NobyjMBmBolCiEoZYVULE6UO/dBagAk1MoWoW9pk4vSea+Cu
+         psatN99UrE1kO9s/uk2P+yr0fdDMnhAf3pQ2DAFM7KuxeKg+eVgT8CJAMRuanYDFZdfo
+         xf+vjF4o6MC+AzT1jCAg2/GxLdEQ7LoyvsLkatSKCB5Gq0Ts14mDX2Fu1jvq3f3acB2s
+         QsRh8kim4Qfj1HHpqAEY5nzzpPW2pak6wCv4dry7TzmZEgdouGKsnWUY2XG5A0pJ78IC
+         wLaQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=DUo8ryhLl3Mi3YkE+U/flzBUawPzDZ2QG8xmBbLJ4MU=;
-        b=akNgbR3R0lTKp6iWP+Kzq+KvZn2RQ5RAocgkbxDcpLTYH9RbNaLPktDezORxAKYQRv
-         eq/2RZZopoLmf6h7qDeIhXQR+VxegbqlgFj2hTF4usn1OTXlrW0g3iAwJlSYuyId8OBg
-         ru5OpBIh0C15EOt7M8UPRu7ND9i1NgfGshLPhXYMy0+YhWKO+mPvZYYuraMXhC8EvVN3
-         a8wDRX+qC/WYbqzmZ2v9qxEj1bK+gaPzXvsuYtu0yhHVtSi4po9AqeKBxl+5NhAOHC1g
-         vzZlZpWPomJyR11aKBAWQBSNi56z5cq8VKJ5iO2S8jmeOfV5NUpl/mWL4STIgvT9GQvR
-         y9cA==
+        h=mime-version:references:in-reply-to:message-id:subject:cc:to:from
+         :date:dkim-signature;
+        bh=kOAbaMX8FlsTSm7oTq0mdhFEoLZ2DXr62rCz0QjP/SM=;
+        b=QV4k8yH0BXDrXyABgXVL7eP9iNDqNg6pNDYOpgbAuMdxTOTNWTwL6Db102RT+enAU+
+         tG1afZlf2WcLQivkmWaUHi7djaO3KtXjepqbMFQ9hyoMCkSLccgtxc0acOmhryIhJZQw
+         jRye13j69g6PFLV6vO0ZjVSa51FEMDZGnNIEgnypUSvC1s5MYzB4d74TvEsVVAlfeP39
+         OcFq/aEcGPQMDulVkaapZ5wOu/tv9OU0GpYHKdzPaPV4q1A3FJ6qo3heyUJC9Udiq6RZ
+         Yv3bIWzaI/RG58pXjF8Jcq8P/8kQtwJ+Ph+P1rxbWxNbQvZrfomSkuwtxG7idDfd5jNE
+         NLXA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=jrq93zYp;
-       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id a66sor6369784iog.113.2019.07.11.23.13.07
+       dkim=pass header.i=@canb.auug.org.au header.s=201702 header.b=bEmpV3q8;
+       spf=pass (google.com: domain of sfr@canb.auug.org.au designates 2401:3900:2:1::2 as permitted sender) smtp.mailfrom=sfr@canb.auug.org.au
+Received: from ozlabs.org (bilbo.ozlabs.org. [2401:3900:2:1::2])
+        by mx.google.com with ESMTPS id 188si7218165pfv.146.2019.07.11.23.20.31
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 11 Jul 2019 23:13:07 -0700 (PDT)
-Received-SPF: pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Thu, 11 Jul 2019 23:20:31 -0700 (PDT)
+Received-SPF: pass (google.com: domain of sfr@canb.auug.org.au designates 2401:3900:2:1::2 as permitted sender) client-ip=2401:3900:2:1::2;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=jrq93zYp;
-       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=DUo8ryhLl3Mi3YkE+U/flzBUawPzDZ2QG8xmBbLJ4MU=;
-        b=jrq93zYpiEk9ANW+72FxB7iLsrwS1mkR0joqMvADSbYubv7SdY4mMuRxLY4p4hVFnR
-         Z/FNQJ+edvjtDv2wqNgRsvo6/iylq7yrBWlJ+20HTK6VprK+j4npoGmF+wtMsLSmm9wZ
-         Xexl7pCzfYQuYFBRnjx844looRc/n88yVcUHcHuBRanGtOGVIVX6TxoENfxYEyLEQY/9
-         bcuG5odBvPyKShwDrcTlPCn66YUpxZku7Cn4sl6oj7uz+5Jkdr/Pmyf5VXiDVJ/XTa3+
-         AqUMRn1NrtiO86ENHJ4pW1b0NTxr4QfvqcQLnn7G2HaD9qMSZm+8xEz4puT9gFswefVg
-         qkBA==
-X-Google-Smtp-Source: APXvYqwHortoC3HcpqjMzFxLjE2mhHsAMvl1heLdRcJVNJMCV1ipKxQJ8Vx2ZX0om5xKDNx3gvyG4x9JhFIvgUkWLfE=
-X-Received: by 2002:a02:1a86:: with SMTP id 128mr9449831jai.95.1562911986958;
- Thu, 11 Jul 2019 23:13:06 -0700 (PDT)
+       dkim=pass header.i=@canb.auug.org.au header.s=201702 header.b=bEmpV3q8;
+       spf=pass (google.com: domain of sfr@canb.auug.org.au designates 2401:3900:2:1::2 as permitted sender) smtp.mailfrom=sfr@canb.auug.org.au
+Received: from authenticated.ozlabs.org (localhost [127.0.0.1])
+	(using TLSv1.3 with cipher TLS_AES_256_GCM_SHA384 (256/256 bits)
+	 key-exchange ECDHE (P-256) server-signature RSA-PSS (4096 bits) server-digest SHA256)
+	(No client certificate requested)
+	by mail.ozlabs.org (Postfix) with ESMTPSA id 45lN8F2HD4z9s4Y;
+	Fri, 12 Jul 2019 16:20:29 +1000 (AEST)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=canb.auug.org.au;
+	s=201702; t=1562912429;
+	bh=kOAbaMX8FlsTSm7oTq0mdhFEoLZ2DXr62rCz0QjP/SM=;
+	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
+	b=bEmpV3q8U9nxIYHUivDoFRMuLSZkz3J3dxpZxyqOKzxX5S/CuInMzSTlAng9Ewp5z
+	 vAJndwYRclJJUFDVrkWzd+kBGH1wY6LbQ6cmmcBinSWq6Cfv4mT/Rt+f5VvYSQHfJA
+	 JlHWYx8zZeeGXabBw6gZlG9ZJ87W0uBpiVBMhkS4MJ5Im/N4DUtyQcjO4ePHqPuVId
+	 NOKLGz2vukRZ4tfEJsTmStlsotXcXQqplazVuJyvfIAzfzdK/VZMqODLq+aFqnPSjt
+	 Fbd1zzZWXefXTSR2H0fM9EB5BL4dhezPVjYqg+zC4qi/0PEL2b8KZqJ5b1gaB7obdy
+	 xBteUwbEbXMLg==
+Date: Fri, 12 Jul 2019 16:20:27 +1000
+From: Stephen Rothwell <sfr@canb.auug.org.au>
+To: akpm@linux-foundation.org
+Cc: broonie@kernel.org, linux-fsdevel@vger.kernel.org,
+ linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+ linux-next@vger.kernel.org, mhocko@suse.cz, mm-commits@vger.kernel.org
+Subject: Re: mmotm 2019-07-11-21-41 uploaded
+Message-ID: <20190712162027.7ca31722@canb.auug.org.au>
+In-Reply-To: <20190712044154.fiMaFQ0RD%akpm@linux-foundation.org>
+References: <20190712044154.fiMaFQ0RD%akpm@linux-foundation.org>
 MIME-Version: 1.0
-References: <1562851979-10610-1-git-send-email-laoar.shao@gmail.com>
- <20190711164215.7e8fdcf635ac29f2d2572438@linux-foundation.org>
- <CALOAHbDC+JWaXfMwG97PEsEB4f0vRkx7JsDRN8m47x1DMVuuFg@mail.gmail.com> <20190712052938.GI29483@dhcp22.suse.cz>
-In-Reply-To: <20190712052938.GI29483@dhcp22.suse.cz>
-From: Yafang Shao <laoar.shao@gmail.com>
-Date: Fri, 12 Jul 2019 14:12:30 +0800
-Message-ID: <CALOAHbCt7b-AMDtK6FmAfYnYSMiB=UhKbBVKt7CzFFazzrKeVQ@mail.gmail.com>
-Subject: Re: [PATCH v2] mm/memcontrol: keep local VM counters in sync with the
- hierarchical ones
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, 
-	Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, 
-	Yafang Shao <shaoyafang@didiglobal.com>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: multipart/signed; micalg=pgp-sha256;
+ boundary="Sig_/P.802fFMgzhFjtLGcQJfXOl"; protocol="application/pgp-signature"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jul 12, 2019 at 1:29 PM Michal Hocko <mhocko@kernel.org> wrote:
->
-> On Fri 12-07-19 09:47:14, Yafang Shao wrote:
-> > On Fri, Jul 12, 2019 at 7:42 AM Andrew Morton <akpm@linux-foundation.org> wrote:
-> > >
-> > > On Thu, 11 Jul 2019 09:32:59 -0400 Yafang Shao <laoar.shao@gmail.com> wrote:
-> > >
-> > > > After commit 815744d75152 ("mm: memcontrol: don't batch updates of local VM stats and events"),
-> > > > the local VM counters is not in sync with the hierarchical ones.
-> > > >
-> > > > Bellow is one example in a leaf memcg on my server (with 8 CPUs),
-> > > >       inactive_file 3567570944
-> > > >       total_inactive_file 3568029696
-> > > > We can find that the deviation is very great, that is because the 'val' in
-> > > > __mod_memcg_state() is in pages while the effective value in
-> > > > memcg_stat_show() is in bytes.
-> > > > So the maximum of this deviation between local VM stats and total VM
-> > > > stats can be (32 * number_of_cpu * PAGE_SIZE), that may be an unacceptable
-> > > > great value.
-> > > >
-> > > > We should keep the local VM stats in sync with the total stats.
-> > > > In order to keep this behavior the same across counters, this patch updates
-> > > > __mod_lruvec_state() and __count_memcg_events() as well.
-> > >
-> > > hm.
-> > >
-> > > So the local counters are presently more accurate than the hierarchical
-> > > ones because the hierarchical counters use batching.  And the proposal
-> > > is to make the local counters less accurate so that the inaccuracies
-> > > will match.
-> > >
-> > > It is a bit counter intuitive to hear than worsened accuracy is a good
-> > > thing!  We're told that the difference may be "unacceptably great" but
-> > > we aren't told why.  Some additional information to support this
-> > > surprising assertion would be useful, please.  What are the use-cases
-> > > which are harmed by this difference and how are they harmed?
-> > >
-> >
-> > Hi Andrew,
-> >
-> > Both local counter and the hierachical one are exposed to user.
-> > In a leaf memcg, the local counter should be equal with the hierarchical one,
-> > if they are different, the user may wondering what's wrong in this memcg.
-> > IOW, the difference makes these counters not reliable, if they are not
-> > reliable we can't use them to help us anylze issues.
->
-> But those numbers are in flight anyway. We do not stop updating them
-> while they are read so there is no guarantee they will be consistent
-> anyway, right?
+--Sig_/P.802fFMgzhFjtLGcQJfXOl
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: quoted-printable
 
-Right.
-They can't be guaranted to be consistent.
-When we read them, may only the local counters are updated and the
-hierarchical ones are not updated yet.
-But the current deviation is so great that can't be ignored.
-So the question is similar like  what about increasing the
-MEMCG_CHARGE_BATCH from 32 to 32 * 4096 ?
+Hi Andrew,
 
-Thanks
-Yafang
+On Thu, 11 Jul 2019 21:41:54 -0700 akpm@linux-foundation.org wrote:
+>
+> * mm-migrate-remove-unused-mode-argument.patch
+
+I had to remove the hunk of this patch that updates fs/iomap.c which
+should not exist in your tree by this point.
+
+--=20
+Cheers,
+Stephen Rothwell
+
+--Sig_/P.802fFMgzhFjtLGcQJfXOl
+Content-Type: application/pgp-signature
+Content-Description: OpenPGP digital signature
+
+-----BEGIN PGP SIGNATURE-----
+
+iQEzBAEBCAAdFiEENIC96giZ81tWdLgKAVBC80lX0GwFAl0oJqwACgkQAVBC80lX
+0GwVTAf/UvvmoZmrwsW2LgtazMmufzEJPjW7/PDntLDpJeOsZWcsWol9S2I3nzHs
+jNBwtvSQRhUoaZOLIiu4YxV9vTMlEfs8XtbRX3yzhTjg2B/Sb+c4xgfYTON0Ww7F
++McHuE/oiXLaOoiAFfsVVsyUSjlrf8Cs8Ko6gOOONLnvVyZzhiUmLVbCd0EmxwSQ
+tB0GjW69nes1pMK356u8aApMhM9qIYJI88AZ6WcjN/AlZgAHdu1LGMTvd9LhdrFR
+bpUUfIG1vbp0YvjSa5ztKTBHuB9ATQxULkk/1UyGyMbEmfM9TG1mbdn4K2eTQWWu
+oMiSR91cGEtvuEC3/vmPaerfsFLY7A==
+=77BJ
+-----END PGP SIGNATURE-----
+
+--Sig_/P.802fFMgzhFjtLGcQJfXOl--
 
