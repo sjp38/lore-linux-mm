@@ -2,184 +2,220 @@ Return-Path: <SRS0=GtRI=VJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
-	autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7EEC3C742B3
-	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 10:52:54 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 89FCDC742B2
+	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 10:53:50 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0F1842084B
-	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 10:52:53 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0F1842084B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=virtuozzo.com
+	by mail.kernel.org (Postfix) with ESMTP id 2FBE921019
+	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 10:53:49 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2FBE921019
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7C8648E0138; Fri, 12 Jul 2019 06:52:53 -0400 (EDT)
+	id 7E7988E0139; Fri, 12 Jul 2019 06:53:49 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 749CA8E00DB; Fri, 12 Jul 2019 06:52:53 -0400 (EDT)
+	id 7BE7D8E00DB; Fri, 12 Jul 2019 06:53:49 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6122B8E0138; Fri, 12 Jul 2019 06:52:53 -0400 (EDT)
+	id 6D4E78E0139; Fri, 12 Jul 2019 06:53:49 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lf1-f71.google.com (mail-lf1-f71.google.com [209.85.167.71])
-	by kanga.kvack.org (Postfix) with ESMTP id F22E38E00DB
-	for <linux-mm@kvack.org>; Fri, 12 Jul 2019 06:52:52 -0400 (EDT)
-Received: by mail-lf1-f71.google.com with SMTP id s10so693671lfp.14
-        for <linux-mm@kvack.org>; Fri, 12 Jul 2019 03:52:52 -0700 (PDT)
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 3965E8E00DB
+	for <linux-mm@kvack.org>; Fri, 12 Jul 2019 06:53:49 -0400 (EDT)
+Received: by mail-pl1-f200.google.com with SMTP id o6so4995617plk.23
+        for <linux-mm@kvack.org>; Fri, 12 Jul 2019 03:53:49 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=O67v3k5bom5Y2GHrnJOdlacQsTwxZnyxwR9ee+CLLBI=;
-        b=KbM07hlSg9/ayP0NfKQR9FOP+Skm88hFH4pEwbEF8/+BaSKU+OcBeu8C7Oo+uabEJe
-         NbV8QRwLp2sAdH2LMKLX3dtUFuenSqyhRw4ktw9pWMIwfzLb95B9gv998imOLZ5R68oV
-         lF3Vz9BbCCWk2I9u7m4PTKcoHBppocJVp0AxiEid42ipYWoSqK+0gR7c8u0WIN8oki29
-         WcIz2L0DXcFhhy1BLhjvcy7LIahn9Jp3snQLlbUFKpD7scrACYpPNrBw1lpJrari3+3R
-         aPX6D+B2cKeLlZtyhTuShPPe7B7BdUbdW3id9rmvQr/UeffGv4jGetofdh4MbeO0N3oO
-         /sHA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=aryabinin@virtuozzo.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-X-Gm-Message-State: APjAAAWdncT6ziNrGW/nbYv6ETE2qs82WwHF2aDdlzIPCBI+FVzvp0Gz
-	E/DAHX4fY96bPkj7CXYl7SwXOHmHeYq13HoSWcH0wGYYmGlK0vt7N5BaABYeTBE/b88ISXzwcx4
-	hVchWFYMqV6jtsZeZuFOMBsDpyJWtsz9UC5qJXlWNf55htkTQyemG3NYfp9cITVfXdQ==
-X-Received: by 2002:ac2:563c:: with SMTP id b28mr4334784lff.93.1562928772229;
-        Fri, 12 Jul 2019 03:52:52 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwtrHk5HosTJQKMUyO+LfmTKnprKseTTkURiJ0QKlVLFtsUE+NoSGMQ2ltxN5m/9mmGCs1K
-X-Received: by 2002:ac2:563c:: with SMTP id b28mr4334748lff.93.1562928771289;
-        Fri, 12 Jul 2019 03:52:51 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562928771; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:thread-topic:thread-index:date:message-id:references
+         :in-reply-to:accept-language:content-language
+         :content-transfer-encoding:mime-version;
+        bh=65iBrFc13JaFnS5Qc5ybRrNCPkdA57LYwjCq0CdYqdA=;
+        b=PoxCa11Z1I2hLrheqrSKTO+UR2QYuz2TD9wyfrSqvIM+LQWyrjFW7tp9tnJAM/9y1J
+         fCczP7bqO8YacDW8g8rBmC4jeLn2ZJ1C2fEhmeBEafMAWAjW4TbgxfbSd4BEW8DB/Bg8
+         4NNI1MPgAnCGYLejsH6AEF0YGvG2MNj1kLsOikcSdrlF2e4RrwB6JNSRradoTuddtziQ
+         wchAzp+zdbFgwp8twbHMPovEPlDIh4X+mSHACIdGq6ieW7YFvyPvoIp0EM1anhupj0hz
+         RdRKU6AJXb4SlbDFFmSuxQNYWNRvp3NhLJBTHl0+pZ9AWehBGJVkYsZcyvko7QU2M+Bx
+         k2NA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of chenjianhong2@huawei.com designates 45.249.212.187 as permitted sender) smtp.mailfrom=chenjianhong2@huawei.com
+X-Gm-Message-State: APjAAAWwnostsUFYDbflY9nQS13KRN0Xgr+RyHZbKGRocjrchDSNJzHS
+	sUvwbZEx7ThFiud8mjwEHcb1VDFSfNBV+oxgVdunQc6rU1YHb8kXBstKQkCSFBhlkBqLB1oFXQZ
+	dL595st8a7GkRW3fNTUU96IiFLGqbDRF3v5Cfm8XKcbmbs9is8VdZ8md8qhK+okhhDQ==
+X-Received: by 2002:a17:90a:290b:: with SMTP id g11mr10961021pjd.122.1562928828892;
+        Fri, 12 Jul 2019 03:53:48 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzL9WxLsEYSC/uUF5i75wlk+AOo/ohKZN5DB1Fy3N2a22UX7xQYbkY4T8CMCRqdP/W3ljep
+X-Received: by 2002:a17:90a:290b:: with SMTP id g11mr10960945pjd.122.1562928828126;
+        Fri, 12 Jul 2019 03:53:48 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562928828; cv=none;
         d=google.com; s=arc-20160816;
-        b=VSoB+gCQCDif3fTpGKjLYxE41ig5Mve2Fi3hkTYwxUmQogwwwA6N3zDmUZ/5sc9Tsg
-         Ui43mB6J6Zeykcl7u5GHV7P1lBdIWAN48hbuLG+Gr6g/iVpCOD92HyPiAv8KhUha7ZFq
-         +xbOZhF1zOSPUH1FWLra8bhN/zQ5WZoUDr4VVywZY126cC5FqDQjmzJyW0DnYQIRuS5z
-         Hzr36R7LsG5oePPbqpxUxRIsOISYV6SUXsqZgyPGDdbBBmpK7xBzmk8WBgeR46sqGZgW
-         v4zmeLFp+d4D6pEbzwCNhWCGb0YcFT62ynyVG9I1sOqn+CBEeKx6BCdNkceZirKfDPHu
-         haLQ==
+        b=Q3xfWFNzD7kVfuVNox/H/6tSKeiUN2m3jg00HKn5fytb/YVBUm3Y3QA4zR9QlZu4eQ
+         Iuo3Uuodv3zm3OoJmSCZKlCGp2W/ETtb0C7of9GQn5uD0s892zpEzO7k9VDJDusL5qzi
+         X7Se2T127S5DvWT/wHa0Yp9kiOaSaOW5yWGjmwOLg/yd0RHhNSLzIkfYiNY/bPGe2Gek
+         pdhyH2K8KFQ8XHzZVMpvxJnbqxWvRdLkIVmP++bIc/Y1REJvLitVsK5W8VJ/JSrPQboF
+         yn7eVFED+NG1F0Z7v4UODXfZRpAvrOIGAiTHGYknjQvCj/6Hci9lSECDLbjg2TP6E6L0
+         pr8A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=O67v3k5bom5Y2GHrnJOdlacQsTwxZnyxwR9ee+CLLBI=;
-        b=AACCyqW+hpkpVNaGrnV8hOWKPwzSknEDZKJTmrl7dg1WKUSSDFI80KrBRprlGxXrmw
-         wVUiLvAQ4OPNn0uA/3ehghArlkxPvx5IICR4PgypBzY8CJ7fHxaKhyl3CwtCAnQCrT74
-         rSh1p6jJlybehzrsLSxA06LodlV7CQlZatdoMETc5nypr081i+CQKZN4+3pZJiyfKfdV
-         7YZJ+V1n6/1buKxyD1y6tGQNVwofp6D9HrE1wyzP5OCW1GyTWoN7R4wXZP+fOLW8ElVn
-         cSLfpjR/nSZAFSky7JNCM0kPHFTxugbBFWcCPSkBSi/W3CLJ/cy2VJsCkQDe8/01EW2I
-         NFJA==
+        h=mime-version:content-transfer-encoding:content-language
+         :accept-language:in-reply-to:references:message-id:date:thread-index
+         :thread-topic:subject:cc:to:from;
+        bh=65iBrFc13JaFnS5Qc5ybRrNCPkdA57LYwjCq0CdYqdA=;
+        b=oZkocEDak316Cd701NqKQpe6juMojQl58jJH2/R8J2vQ4vSukeAC7B0RRKOj6QrClf
+         CqhoWK7VkIzNZrQ7NeMiVKQO6/FEUp3Z3dWvoUHMozGe/4QsXUwaWfT94KAC0VKRsGAf
+         +7eTTlAntdiOpgoeZB5BECfgR+Xc2txzElxaojjneryo9LvLpK9KVA9UYjsquwiEqhBo
+         LM11bopw/UJczn5Dpsf2p8cDkAzF4cvROmqr5pHTFgnrP4/cGGuIZJp46vLQKuSFGoHs
+         C4n5fiIH4vYJFRT0o+tO58nu3w097BkcTEsSzpXboZOqX60uYBewNa3IIx3+Umm+PyJF
+         uTpg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=aryabinin@virtuozzo.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
-        by mx.google.com with ESMTPS id l13si6789832lfk.73.2019.07.12.03.52.50
+       spf=pass (google.com: domain of chenjianhong2@huawei.com designates 45.249.212.187 as permitted sender) smtp.mailfrom=chenjianhong2@huawei.com
+Received: from huawei.com (szxga01-in.huawei.com. [45.249.212.187])
+        by mx.google.com with ESMTPS id 65si7465780plf.368.2019.07.12.03.53.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 12 Jul 2019 03:52:51 -0700 (PDT)
-Received-SPF: pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) client-ip=185.231.240.75;
+        Fri, 12 Jul 2019 03:53:48 -0700 (PDT)
+Received-SPF: pass (google.com: domain of chenjianhong2@huawei.com designates 45.249.212.187 as permitted sender) client-ip=45.249.212.187;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=aryabinin@virtuozzo.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-Received: from [172.16.25.12]
-	by relay.sw.ru with esmtp (Exim 4.92)
-	(envelope-from <aryabinin@virtuozzo.com>)
-	id 1hltAL-0005Ih-PS; Fri, 12 Jul 2019 13:52:38 +0300
-Subject: Re: [PATCH v3] kasan: add memory corruption identification for
- software tag-based mode
-To: Walter Wu <walter-zh.wu@mediatek.com>
-Cc: Dmitry Vyukov <dvyukov@google.com>,
- Alexander Potapenko <glider@google.com>, Christoph Lameter <cl@linux.com>,
- Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>,
- Joonsoo Kim <iamjoonsoo.kim@lge.com>,
- Matthias Brugger <matthias.bgg@gmail.com>,
- Martin Schwidefsky <schwidefsky@de.ibm.com>, Arnd Bergmann <arnd@arndb.de>,
- Vasily Gorbik <gor@linux.ibm.com>, Andrey Konovalov <andreyknvl@google.com>,
- "Jason A . Donenfeld" <Jason@zx2c4.com>, Miles Chen
- <miles.chen@mediatek.com>, kasan-dev <kasan-dev@googlegroups.com>,
- LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>,
- Linux ARM <linux-arm-kernel@lists.infradead.org>,
- linux-mediatek@lists.infradead.org, wsd_upstream <wsd_upstream@mediatek.com>
-References: <20190613081357.1360-1-walter-zh.wu@mediatek.com>
- <da7591c9-660d-d380-d59e-6d70b39eaa6b@virtuozzo.com>
- <1560447999.15814.15.camel@mtksdccf07> <1560479520.15814.34.camel@mtksdccf07>
- <1560744017.15814.49.camel@mtksdccf07>
- <CACT4Y+Y3uS59rXf92ByQuFK_G4v0H8NNnCY1tCbr4V+PaZF3ag@mail.gmail.com>
- <1560774735.15814.54.camel@mtksdccf07> <1561974995.18866.1.camel@mtksdccf07>
- <CACT4Y+aMXTBE0uVkeZz+MuPx3X1nESSBncgkScWvAkciAxP1RA@mail.gmail.com>
- <ebc99ee1-716b-0b18-66ab-4e93de02ce50@virtuozzo.com>
- <1562640832.9077.32.camel@mtksdccf07>
- <d9fd1d5b-9516-b9b9-0670-a1885e79f278@virtuozzo.com>
- <1562839579.5846.12.camel@mtksdccf07>
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Message-ID: <37897fb7-88c1-859a-dfcc-0a5e89a642e0@virtuozzo.com>
-Date: Fri, 12 Jul 2019 13:52:40 +0300
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
+       spf=pass (google.com: domain of chenjianhong2@huawei.com designates 45.249.212.187 as permitted sender) smtp.mailfrom=chenjianhong2@huawei.com
+Received: from DGGEMM406-HUB.china.huawei.com (unknown [172.30.72.57])
+	by Forcepoint Email with ESMTP id BF800D2E2BFB2E395BE4;
+	Fri, 12 Jul 2019 18:53:46 +0800 (CST)
+Received: from dggeme757-chm.china.huawei.com (10.3.19.103) by
+ DGGEMM406-HUB.china.huawei.com (10.3.20.214) with Microsoft SMTP Server (TLS)
+ id 14.3.439.0; Fri, 12 Jul 2019 18:53:46 +0800
+Received: from dggeme758-chm.china.huawei.com (10.3.19.104) by
+ dggeme757-chm.china.huawei.com (10.3.19.103) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256_P256) id
+ 15.1.1591.10; Fri, 12 Jul 2019 18:53:45 +0800
+Received: from dggeme758-chm.china.huawei.com ([10.6.80.69]) by
+ dggeme758-chm.china.huawei.com ([10.6.80.69]) with mapi id 15.01.1591.008;
+ Fri, 12 Jul 2019 18:53:46 +0800
+From: "chenjianhong (A)" <chenjianhong2@huawei.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+CC: Michel Lespinasse <walken@google.com>, Greg Kroah-Hartman
+	<gregkh@linuxfoundation.org>, "mhocko@suse.com" <mhocko@suse.com>,
+	"Vlastimil Babka" <vbabka@suse.cz>, "Kirill A. Shutemov"
+	<kirill.shutemov@linux.intel.com>, Yang Shi <yang.shi@linux.alibaba.com>,
+	"jannh@google.com" <jannh@google.com>, "steve.capper@arm.com"
+	<steve.capper@arm.com>, "tiny.windzz@gmail.com" <tiny.windzz@gmail.com>, LKML
+	<linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>,
+	"stable@vger.kernel.org" <stable@vger.kernel.org>, "willy@infradead.org"
+	<willy@infradead.org>, "wangle (H)" <wangle6@huawei.com>, "Chengang (L)"
+	<cg.chen@huawei.com>
+Subject: RE: [PATCH] mm/mmap: fix the adjusted length error
+Thread-Topic: [PATCH] mm/mmap: fix the adjusted length error
+Thread-Index: AQHVDHYdPcl0kS4eg0Wb8Sh+xIS/waZvfcqAgADBHlCAVcHrAIAAiW9w
+Date: Fri, 12 Jul 2019 10:53:45 +0000
+Message-ID: <71c4329e246344eeb38c8ac25c63c09d@huawei.com>
+References: <1558073209-79549-1-git-send-email-chenjianhong2@huawei.com>
+	<CANN689G6mGLSOkyj31ympGgnqxnJosPVc4EakW5gYGtA_45L7g@mail.gmail.com>
+	<df001b6fbe2a4bdc86999c78933dab7f@huawei.com>
+ <20190711182002.9bb943006da6b61ab66b95fd@linux-foundation.org>
+In-Reply-To: <20190711182002.9bb943006da6b61ab66b95fd@linux-foundation.org>
+Accept-Language: en-US
+Content-Language: zh-CN
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+x-originating-ip: [10.65.79.126]
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-In-Reply-To: <1562839579.5846.12.camel@mtksdccf07>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+X-CFilter-Loop: Reflected
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+Thank you for your reply!=20
+> How significant is this problem in real-world use cases?  How much troubl=
+e is it causing?
+   In my opinion, this problem is very rare in real-world use cases. In arm=
+64
+   or x86 environment, the virtual memory is enough. In arm32 environment,
+   each process has only 3G or 4G or less, but we seldom use out all of the=
+ virtual memory,
+   it only happens in some special environment. They almost use out all the=
+ virtual memory, and
+   in some moment, they will change their working mode so they will release=
+ and allocate
+   memory again. This current length limitation will cause this problem. I =
+explain it's the memory
+   length limitation. But they can't accept the reason, it is unreasonable =
+that we fail to allocate
+   memory even though the memory gap is enough.
 
+> Have you looked further into this?  Michel is concerned about the perform=
+ance cost of the current solution.
+   The current algorithm(change before) is wonderful, and it has been used =
+for a long time, I don't
+   think it is worthy to change the whole algorithm in order to fix this pr=
+oblem. Therefore, I just
+   adjust the gap_start and gap_end value in place of the length. My change=
+ really affects the
+   performance because I calculate the gap_start and gap_end value again an=
+d again. Does it affect
+   too much performance?  I have no complex environment, so I can't test it=
+, but I don't think it will cause
+   too much performance loss. First, I don't change the whole algorithm. Se=
+cond, unmapped_area and
+   unmapped_area_topdown function aren't used frequently. Maybe there are s=
+ome big performance problems
+   I'm not concerned about. But I think if that's not a problem, there shou=
+ld be a limitation description.
 
-On 7/11/19 1:06 PM, Walter Wu wrote:
-> On Wed, 2019-07-10 at 21:24 +0300, Andrey Ryabinin wrote:
->>
->> On 7/9/19 5:53 AM, Walter Wu wrote:
->>> On Mon, 2019-07-08 at 19:33 +0300, Andrey Ryabinin wrote:
->>>>
->>>> On 7/5/19 4:34 PM, Dmitry Vyukov wrote:
->>>>> On Mon, Jul 1, 2019 at 11:56 AM Walter Wu <walter-zh.wu@mediatek.com> wrote:
->>
->>>>>
->>>>> Sorry for delays. I am overwhelm by some urgent work. I afraid to
->>>>> promise any dates because the next week I am on a conference, then
->>>>> again a backlog and an intern starting...
->>>>>
->>>>> Andrey, do you still have concerns re this patch? This change allows
->>>>> to print the free stack.
->>>>
->>>> I 'm not sure that quarantine is a best way to do that. Quarantine is made to delay freeing, but we don't that here.
->>>> If we want to remember more free stacks wouldn't be easier simply to remember more stacks in object itself?
->>>> Same for previously used tags for better use-after-free identification.
->>>>
->>>
->>> Hi Andrey,
->>>
->>> We ever tried to use object itself to determine use-after-free
->>> identification, but tag-based KASAN immediately released the pointer
->>> after call kfree(), the original object will be used by another
->>> pointer, if we use object itself to determine use-after-free issue, then
->>> it has many false negative cases. so we create a lite quarantine(ring
->>> buffers) to record recent free stacks in order to avoid those false
->>> negative situations.
->>
->> I'm telling that *more* than one free stack and also tags per object can be stored.
->> If object reused we would still have information about n-last usages of the object.
->> It seems like much easier and more efficient solution than patch you proposing.
->>
-> To make the object reused, we must ensure that no other pointers uses it
-> after kfree() release the pointer.
-> Scenario:
-> 1). The object reused information is valid when no another pointer uses
-> it.
-> 2). The object reused information is invalid when another pointer uses
-> it.
-> Do you mean that the object reused is scenario 1) ?
-> If yes, maybe we can change the calling quarantine_put() location. It
-> will be fully use that quarantine, but at scenario 2) it looks like to
-> need this patch.
-> If no, maybe i miss your meaning, would you tell me how to use invalid
-> object information? or?
-> 
+-----Original Message-----
+From: Andrew Morton [mailto:akpm@linux-foundation.org]=20
+Sent: Friday, July 12, 2019 9:20 AM
+To: chenjianhong (A) <chenjianhong2@huawei.com>
+Cc: Michel Lespinasse <walken@google.com>; Greg Kroah-Hartman <gregkh@linux=
+foundation.org>; mhocko@suse.com; Vlastimil Babka <vbabka@suse.cz>; Kirill =
+A. Shutemov <kirill.shutemov@linux.intel.com>; Yang Shi <yang.shi@linux.ali=
+baba.com>; jannh@google.com; steve.capper@arm.com; tiny.windzz@gmail.com; L=
+KML <linux-kernel@vger.kernel.org>; linux-mm <linux-mm@kvack.org>; stable@v=
+ger.kernel.org; willy@infradead.org
+Subject: Re: [PATCH] mm/mmap: fix the adjusted length error
 
+On Sat, 18 May 2019 07:05:07 +0000 "chenjianhong (A)" <chenjianhong2@huawei=
+.com> wrote:
 
-KASAN keeps information about object with the object, right after payload in the kasan_alloc_meta struct.
-This information is always valid as long as slab page allocated. Currently it keeps only one last free stacktrace.
-It could be extended to record more free stacktraces and also record previously used tags which will allow you
-to identify use-after-free and extract right free stacktrace.
+> I explain my test code and the problem in detail. This problem is=20
+> found in 32-bit user process, because its virtual is limited, 3G or 4G.
+>=20
+> First, I explain the bug I found. Function unmapped_area and=20
+> unmapped_area_topdowns adjust search length to account for worst case=20
+> alignment overhead, the code is ' length =3D info->length + info->align_m=
+ask; '.
+> The variable info->length is the length we allocate and the variable
+> info->align_mask accounts for the alignment, because the gap_start  or=20
+> info->gap_end
+> value also should be an alignment address, but we can't know the alignmen=
+t offset.
+> So in the current algorithm, it uses the max alignment offset, this=20
+> value maybe zero or other(0x1ff000 for shmat function).
+> Is it reasonable way? The required value is longer than what I allocate.
+> What's more,  why for the first time I can allocate the memory=20
+> successfully Via shmat, but after releasing the memory via shmdt and I=20
+> want to attach again, it fails. This is not acceptable for many people.
+>=20
+> Second, I explain my test code. The code I have sent an email. The=20
+> following is the step. I don't think it's something unusual or=20
+> unreasonable, because the virtual memory space is enough, but the=20
+> process can allocate from it. And we can't pass explicit addresses to=20
+> function mmap or shmat, the address is getting from the left vma gap.
+>  1, we allocat large virtual memory;
+>  2, we allocate hugepage memory via shmat, and release one  of the=20
+> hugepage memory block;  3, we allocate hugepage memory by shmat again,=20
+> this will fail.
+
+How significant is this problem in real-world use cases?  How much trouble =
+is it causing?
+
+> Third, I want to introduce my change in the current algorithm. I don't=20
+> change the current algorithm. Also, I think there maybe a better way=20
+> to fix this error. Nowadays, I can just adjust the gap_start value.
+
+Have you looked further into this?  Michel is concerned about the performan=
+ce cost of the current solution.
 
