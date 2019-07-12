@@ -2,184 +2,168 @@ Return-Path: <SRS0=GtRI=VJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
-	autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7D8BFC742C2
-	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 14:36:41 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BA6E7C742C2
+	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 14:37:40 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 39B9420863
-	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 14:36:41 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 70A94208E4
+	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 14:37:40 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="BMU/i0ok"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 39B9420863
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="oSDuCh7A"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 70A94208E4
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A73728E0153; Fri, 12 Jul 2019 10:36:40 -0400 (EDT)
+	id 235358E0154; Fri, 12 Jul 2019 10:37:40 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9FCC88E00DB; Fri, 12 Jul 2019 10:36:40 -0400 (EDT)
+	id 1E6648E00DB; Fri, 12 Jul 2019 10:37:40 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 877358E0153; Fri, 12 Jul 2019 10:36:40 -0400 (EDT)
+	id 0D6288E0154; Fri, 12 Jul 2019 10:37:40 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 4C1538E00DB
-	for <linux-mm@kvack.org>; Fri, 12 Jul 2019 10:36:40 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id h5so5798792pgq.23
-        for <linux-mm@kvack.org>; Fri, 12 Jul 2019 07:36:40 -0700 (PDT)
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id CBC7D8E00DB
+	for <linux-mm@kvack.org>; Fri, 12 Jul 2019 10:37:39 -0400 (EDT)
+Received: by mail-pl1-f200.google.com with SMTP id s21so5282984plr.2
+        for <linux-mm@kvack.org>; Fri, 12 Jul 2019 07:37:39 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=AUZ+nG48yRgZSNfhP/Rtxt7JrJ9PZivJotzk6lKp9vA=;
-        b=f0zOAT074p8dXD8veCLgvslRw28wymMlZUmG2fEkdVyKGzjHt+W+KkH0Euhyeks96A
-         wcAW46i7FFbDDQRmMcXST7AKiecTEn6sPWPrdK8yA+I4F12XxnTOca3w0C7WlhrhOHnq
-         JyQGPSXH1HWILaSNbaBGfqx56bVVKM8qS1TyiiwSxrXolezeOiG3CpKkYBndA3SgEuCn
-         1iqxvqsOlj+h5tliyrcA0i0G/xtwrQm/+0J6SVvgBZtbI9/wd8zCodxe7lMdDRxbJcMB
-         /33tg5mmrj7l/HNmOdDCU2lBOFLXyGhgtg3r/09kxb9zyvc0BCE4U6Z9n8oD6pwYey9y
-         cKLw==
-X-Gm-Message-State: APjAAAXj3zd51fA1u7FbBqM6c8DWQBNzvW+nn4cds2FALz7a+MLz/JLg
-	OHEFxKmTMNNG4KXudpcLXzm2kfCK5IONDq+aHNzoEjv2/225V4djZQJwKIuiNVHBNYGd9Uhn1aw
-	aLkwuix9rHwbCTtEVKEbYwE3OTamHo7gVKHyuINM/CGm2Jy0qj2aKxoOHSM69SHsaQA==
-X-Received: by 2002:a17:90a:a407:: with SMTP id y7mr12194274pjp.97.1562942199815;
-        Fri, 12 Jul 2019 07:36:39 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwGyWi21zbazeV+e89TgcPPXLZj/Zz552B+74nky/aDHg0xfba5VWU/n28ys2x+CCQ/JLWy
-X-Received: by 2002:a17:90a:a407:: with SMTP id y7mr12194173pjp.97.1562942198615;
-        Fri, 12 Jul 2019 07:36:38 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562942198; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=54oSlyGRTEGiDyukqk95xO7T1K3/REJa8jWyRuvSrnQ=;
+        b=hEK3Ww/V0n4ZLNSxowR8+8+7PB2Oi3CCBoPyKt5t6AqXDFZIOgwHbfrmra4XQigCAH
+         ZHko3hPEKVYGLsFrlZgRHvv94I37cOLE8NJrWG3+nTRq+r5rilJa5Pk5RlNDf6SrpkdD
+         jngBRx98ArPEW1GTo7V3xnylQMQks/GV3Nbcr2j0frsDUIU/3YzcOpEDYNK0Iybl5Ut0
+         oEMbudT2Pz+WSOxg+Sl9apqH34TsWGWOjK74UHiM/lIuIa96C7QGfOqScrb2+zuFn5D8
+         KmcpifSeo/CRJyauG+aANKj5ma5Md7YI2hDfgi2+xkO3Q8GX1dSQdCSoryka1pLQc38X
+         KCsQ==
+X-Gm-Message-State: APjAAAUa5bCysNhVCvRbjhf8/3+bXKifaQD2O46SKIFZm1ricoSZXSde
+	A+cMukHLzYDhK49dsTRywAEFkS0UvO+dRZTL3uhj7QDKMHdCcAu/g7mvJe1PXLCSuY7M8m3QwPV
+	nCMz/Q2sTdWhQwcOst+JV9Xvno05OuUT/u+5iC7OHxZNxEbVwJtb42h5y/2wEmqGjpw==
+X-Received: by 2002:a17:90a:3590:: with SMTP id r16mr12354221pjb.44.1562942259395;
+        Fri, 12 Jul 2019 07:37:39 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqz0x7MIDB22LDeRPwLWHnVVruN5gvcTiX6KhRnX2x/417eWuDDeX8dZPcbyR6k8HP9KhyNB
+X-Received: by 2002:a17:90a:3590:: with SMTP id r16mr12354158pjb.44.1562942258713;
+        Fri, 12 Jul 2019 07:37:38 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562942258; cv=none;
         d=google.com; s=arc-20160816;
-        b=O7NvHhousrTaesJ8C3tgtHHvVOLjr8RgBq6kd163ufnbm1RZgNPJ6KlFB4naHaluMV
-         I1/km+bB/sT3mZTmuz0grrHcVa/M7VnQrtHWocsm0NkB/X1JbSW4j780xnwmslQj8zm9
-         b3J40x+7slKJPqy23e32K3onKUmnApILkmhwPB6eTFydPzWDbYK2YfS8p/hv9+/+X4wl
-         OHaW/4Dpywl83yIXedWxtDXNvfTh07zQb4BJcVTCAbPtQ8PYnEBHv/jCk66PHomfgcW/
-         ZZptF9Sv99ZpacM4/Tyl6814pEYn7ccA2kOzhTw0enCa1FHB9vxULdKBEQduv6ZQochk
-         bTxg==
+        b=v5qAzgmzqoRfbbrt3ueWTnRQnn/HEWCFwMigMSrqjfYTOxW4uoE6zqL6HX5t0PV+2J
+         uOdtsuVq0g7lL7X26D53bjhXqLZzaYGucLQoPzFvHI3jnfXF6LBJF5J0tTEliJ3TEh17
+         quQMBgNcB4nsaEsBO/rjkxC0Mj66t7gBdq/NAkxT8Z97YlM1f90TW7E2nT5Rtt91RJMV
+         w9+9wdjVuPDkpSMat6KQ+OG+FHs4Ie9sKitG9ETzVkSwVfAyMp2hOvCem1z5JF1ZarzM
+         D/9U/hk82FpuhAZawdxMY/YrtAC+VZBAED+++4QW8BxxpZ41gBREMPqUg0B0G4Z097PP
+         vaFQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=AUZ+nG48yRgZSNfhP/Rtxt7JrJ9PZivJotzk6lKp9vA=;
-        b=ImPhrI4C1U0uPUZ6yW8evFbVV21H5aVp+jc+KRxdalL3lniIHHetcxxp8KLEOcdL7J
-         TFWXE6/TL57Wjo0Prpbhb9TCsfVSEtS8u8T7TJvjjYWJnEhZN0Hlgjk5F8TcM48d6REM
-         yufdRjPLx4LAWIZ1ei/dR/cu4m6I65kwUONwQkrwE/GemD2Mk2UonYx2EE+r5g2BlCoa
-         JgGNVE6NvRJ8MYTdOR7tacJRZkiVB9rqYWHfR/8TDfFbyzOgSLoPSXJLOe+V2g/BwqwT
-         zk784BHYl1QBsp5bblb6hhnzNqFHJBHznvVSW7Poqbb6Gjkj2GtchazwIaKWVDCa7opF
-         rm5g==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=54oSlyGRTEGiDyukqk95xO7T1K3/REJa8jWyRuvSrnQ=;
+        b=AGx6aPaw1KzyPUdg2+FNFfc8uMF26/ozKLW0E4ymjPa1jGF2RkDWIXewErqrMTck/5
+         eSJryNRhZ3MUEfZ4u5ELeFqLpK2w/K0ZALU0pfoHN8l9hy7LpoS6ab0ap8YhMgxLJbwI
+         RLZRZ7RK6SxIdU/x+YfII1epq4audJOmnzSVgJ/V6exjU667xFll7TIVLlQxCOOSBkUd
+         wc0jlhX8LsFz6KvE9AJFdN0p9u5Fx6lx3Czsns6yRBOx+md2tEpz1fCJt17/Qx+AfyjY
+         sj29LycOXcBZuqhwATSdCTFKsn4PNm2W9VnKDQBnlPe3Mk3GAbf+6QzWFKkxsltM3NB3
+         HF6Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b="BMU/i0ok";
-       spf=pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=luto@kernel.org;
+       dkim=pass header.i=@kernel.org header.s=default header.b=oSDuCh7A;
+       spf=pass (google.com: domain of will@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=will@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id i3si7868596plb.205.2019.07.12.07.36.38
+        by mx.google.com with ESMTPS id c36si8536598pgl.287.2019.07.12.07.37.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 12 Jul 2019 07:36:38 -0700 (PDT)
-Received-SPF: pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        Fri, 12 Jul 2019 07:37:38 -0700 (PDT)
+Received-SPF: pass (google.com: domain of will@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b="BMU/i0ok";
-       spf=pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=luto@kernel.org;
+       dkim=pass header.i=@kernel.org header.s=default header.b=oSDuCh7A;
+       spf=pass (google.com: domain of will@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=will@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail-wr1-f51.google.com (mail-wr1-f51.google.com [209.85.221.51])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+Received: from willie-the-truck (236.31.169.217.in-addr.arpa [217.169.31.236])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id D47A72177E
-	for <linux-mm@kvack.org>; Fri, 12 Jul 2019 14:36:37 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTPSA id 997A82080A;
+	Fri, 12 Jul 2019 14:37:33 +0000 (UTC)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1562942198;
-	bh=HHZaY2tFKhZh3Vou4+5i4iiP03K9QdtH44f6+mWjpsU=;
-	h=References:In-Reply-To:From:Date:Subject:To:Cc:From;
-	b=BMU/i0oks+/4c4QxoYHg4VHE+HQvdXAHjhjm8+Y4yt71+/hMS9dEcxx3tElR67tGe
-	 7Ciw8GCvF9uol6OSlonEYS3hxruFK/r13XBVes2AggLAR6coK/QrqM8XMN5iOCSyoA
-	 M3QKOCfY2ED8hqKUxR3qB7zBFtDmxMIEz3H8XPYk=
-Received: by mail-wr1-f51.google.com with SMTP id y4so10254001wrm.2
-        for <linux-mm@kvack.org>; Fri, 12 Jul 2019 07:36:37 -0700 (PDT)
-X-Received: by 2002:adf:a143:: with SMTP id r3mr12152043wrr.352.1562942196223;
- Fri, 12 Jul 2019 07:36:36 -0700 (PDT)
+	s=default; t=1562942258;
+	bh=Q0fQ8cIZPQQvRl+HqtEP93tavumXUJrRQeEzq/T0ZjU=;
+	h=Date:From:To:Cc:Subject:References:In-Reply-To:From;
+	b=oSDuCh7A+Xs42MXbXEieBsFty+Z7wObUN12OgwqLbOFW9oih/BmQBTm6f9I5uATLs
+	 k3FxtcxVs2OyWqrnzMXueSISfTrdrWEpEWu7/gxb4zS9dLiXyM0oMjuEOYKj4+vyf3
+	 slAytCaCOnyinCVXlJAAWb5BUeKOp+4U+rFpZcIw=
+Date: Fri, 12 Jul 2019 15:37:30 +0100
+From: Will Deacon <will@kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Hoan Tran OS <hoan@os.amperecomputing.com>,
+	Catalin Marinas <catalin.marinas@arm.com>,
+	Heiko Carstens <heiko.carstens@de.ibm.com>,
+	"open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>,
+	Paul Mackerras <paulus@samba.org>,
+	"H . Peter Anvin" <hpa@zytor.com>,
+	"sparclinux@vger.kernel.org" <sparclinux@vger.kernel.org>,
+	Alexander Duyck <alexander.h.duyck@linux.intel.com>,
+	"linux-s390@vger.kernel.org" <linux-s390@vger.kernel.org>,
+	Michael Ellerman <mpe@ellerman.id.au>,
+	"x86@kernel.org" <x86@kernel.org>,
+	Mike Rapoport <rppt@linux.ibm.com>,
+	Christian Borntraeger <borntraeger@de.ibm.com>,
+	Ingo Molnar <mingo@redhat.com>, Vlastimil Babka <vbabka@suse.cz>,
+	Benjamin Herrenschmidt <benh@kernel.crashing.org>,
+	Open Source Submission <patches@amperecomputing.com>,
+	Pavel Tatashin <pavel.tatashin@microsoft.com>,
+	Vasily Gorbik <gor@linux.ibm.com>,
+	Will Deacon <will.deacon@arm.com>, Borislav Petkov <bp@alien8.de>,
+	Thomas Gleixner <tglx@linutronix.de>,
+	"linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>,
+	Oscar Salvador <osalvador@suse.de>,
+	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	"linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>,
+	"David S . Miller" <davem@davemloft.net>, willy@infradead.org
+Subject: Re: [PATCH v2 0/5] mm: Enable CONFIG_NODES_SPAN_OTHER_NODES by
+ default for NUMA
+Message-ID: <20190712143730.au3662g4ua2tjudu@willie-the-truck>
+References: <1562887528-5896-1-git-send-email-Hoan@os.amperecomputing.com>
+ <20190712070247.GM29483@dhcp22.suse.cz>
+ <586ae736-a429-cf94-1520-1a94ffadad88@os.amperecomputing.com>
+ <20190712121223.GR29483@dhcp22.suse.cz>
 MIME-Version: 1.0
-References: <1562855138-19507-1-git-send-email-alexandre.chartre@oracle.com>
- <5cab2a0e-1034-8748-fcbe-a17cf4fa2cd4@intel.com> <alpine.DEB.2.21.1907120911160.11639@nanos.tec.linutronix.de>
- <61d5851e-a8bf-e25c-e673-b71c8b83042c@oracle.com> <20190712125059.GP3419@hirez.programming.kicks-ass.net>
- <a03db3a5-b033-a469-cc6c-c8c86fb25710@oracle.com>
-In-Reply-To: <a03db3a5-b033-a469-cc6c-c8c86fb25710@oracle.com>
-From: Andy Lutomirski <luto@kernel.org>
-Date: Fri, 12 Jul 2019 07:36:24 -0700
-X-Gmail-Original-Message-ID: <CALCETrVcM-SpEqLMJSOdyGuN0gjr+97+cpu2KYneuTv1fJDoog@mail.gmail.com>
-Message-ID: <CALCETrVcM-SpEqLMJSOdyGuN0gjr+97+cpu2KYneuTv1fJDoog@mail.gmail.com>
-Subject: Re: [RFC v2 00/27] Kernel Address Space Isolation
-To: Alexandre Chartre <alexandre.chartre@oracle.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, 
-	Dave Hansen <dave.hansen@intel.com>, Paolo Bonzini <pbonzini@redhat.com>, 
-	Radim Krcmar <rkrcmar@redhat.com>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, 
-	"H. Peter Anvin" <hpa@zytor.com>, Dave Hansen <dave.hansen@linux.intel.com>, 
-	Andrew Lutomirski <luto@kernel.org>, kvm list <kvm@vger.kernel.org>, X86 ML <x86@kernel.org>, 
-	Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, 
-	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, jan.setjeeilers@oracle.com, 
-	Liran Alon <liran.alon@oracle.com>, Jonathan Adams <jwadams@google.com>, 
-	Alexander Graf <graf@amazon.de>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Paul Turner <pjt@google.com>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190712121223.GR29483@dhcp22.suse.cz>
+User-Agent: NeoMutt/20170113 (1.7.2)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jul 12, 2019 at 6:45 AM Alexandre Chartre
-<alexandre.chartre@oracle.com> wrote:
->
->
-> On 7/12/19 2:50 PM, Peter Zijlstra wrote:
-> > On Fri, Jul 12, 2019 at 01:56:44PM +0200, Alexandre Chartre wrote:
-> >
-> >> I think that's precisely what makes ASI and PTI different and independent.
-> >> PTI is just about switching between userland and kernel page-tables, while
-> >> ASI is about switching page-table inside the kernel. You can have ASI without
-> >> having PTI. You can also use ASI for kernel threads so for code that won't
-> >> be triggered from userland and so which won't involve PTI.
-> >
-> > PTI is not mapping         kernel space to avoid             speculation crap (meltdown).
-> > ASI is not mapping part of kernel space to avoid (different) speculation crap (MDS).
-> >
-> > See how very similar they are?
-> >
-> >
-> > Furthermore, to recover SMT for userspace (under MDS) we not only need
-> > core-scheduling but core-scheduling per address space. And ASI was
-> > specifically designed to help mitigate the trainwreck just described.
-> >
-> > By explicitly exposing (hopefully harmless) part of the kernel to MDS,
-> > we reduce the part that needs core-scheduling and thus reduce the rate
-> > the SMT siblngs need to sync up/schedule.
-> >
-> > But looking at it that way, it makes no sense to retain 3 address
-> > spaces, namely:
-> >
-> >    user / kernel exposed / kernel private.
-> >
-> > Specifically, it makes no sense to expose part of the kernel through MDS
-> > but not through Meltdow. Therefore we can merge the user and kernel
-> > exposed address spaces.
->
-> The goal of ASI is to provide a reduced address space which exclude sensitive
-> data. A user process (for example a database daemon, a web server, or a vmm
-> like qemu) will likely have sensitive data mapped in its user address space.
-> Such data shouldn't be mapped with ASI because it can potentially leak to the
-> sibling hyperthread. For example, if an hyperthread is running a VM then the
-> VM could potentially access user sensitive data if they are mapped on the
-> sibling hyperthread with ASI.
+Hi all,
 
-So I've proposed the following slightly hackish thing:
+On Fri, Jul 12, 2019 at 02:12:23PM +0200, Michal Hocko wrote:
+> On Fri 12-07-19 10:56:47, Hoan Tran OS wrote:
+> [...]
+> > It would be good if we can enable it by-default. Otherwise, let arch 
+> > enables it by them-self. Do you have any suggestions?
+> 
+> I can hardly make any suggestions when it is not really clear _why_ you
+> want to remove this config option in the first place. Please explain
+> what motivated you to make this change.
 
-Add a mechanism (call it /dev/xpfo).  When you open /dev/xpfo and
-fallocate it to some size, you allocate that amount of memory and kick
-it out of the kernel direct map.  (And pay the IPI cost unless there
-were already cached non-direct-mapped pages ready.)  Then you map
-*that* into your VMs.  Now, for a dedicated VM host, you map *all* the
-VM private memory from /dev/xpfo.  Pretend it's SEV if you want to
-determine which pages can be set up like this.
+Sorry, I think this confusion might actually be my fault and Hoan has just
+been implementing my vague suggestion here:
 
-Does this get enough of the benefit at a negligible fraction of the
-code complexity cost?  (This plus core scheduling, anyway.)
+https://lore.kernel.org/linux-arm-kernel/20190625101245.s4vxfosoop52gl4e@willie-the-truck/
 
---Andy
+If the preference of the mm folks is to leave CONFIG_NODES_SPAN_OTHER_NODES
+as it is, then we can define it for arm64. I just find it a bit weird that
+the majority of NUMA-capable architectures have to add a symbol in the arch
+Kconfig file, for what appears to be a performance optimisation applicable
+only to ia64, mips and sh.
+
+At the very least we could make the thing selectable.
+
+Will
 
