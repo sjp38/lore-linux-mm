@@ -2,211 +2,346 @@ Return-Path: <SRS0=GtRI=VJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3B8BBC742B2
-	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 10:56:54 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 23F9EC742B2
+	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 11:21:00 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D82322084B
-	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 10:56:53 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=os.amperecomputing.com header.i=@os.amperecomputing.com header.b="RLzxHkxs"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D82322084B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=quarantine dis=none) header.from=os.amperecomputing.com
+	by mail.kernel.org (Postfix) with ESMTP id B447120863
+	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 11:20:59 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B447120863
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 748DE8E013A; Fri, 12 Jul 2019 06:56:53 -0400 (EDT)
+	id 2C9448E013B; Fri, 12 Jul 2019 07:20:59 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6D2B08E00DB; Fri, 12 Jul 2019 06:56:53 -0400 (EDT)
+	id 279C88E00DB; Fri, 12 Jul 2019 07:20:59 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 54D088E013A; Fri, 12 Jul 2019 06:56:53 -0400 (EDT)
+	id 18FAE8E013B; Fri, 12 Jul 2019 07:20:59 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 3078C8E00DB
-	for <linux-mm@kvack.org>; Fri, 12 Jul 2019 06:56:53 -0400 (EDT)
-Received: by mail-io1-f72.google.com with SMTP id e20so10137873ioe.12
-        for <linux-mm@kvack.org>; Fri, 12 Jul 2019 03:56:53 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id BC8098E00DB
+	for <linux-mm@kvack.org>; Fri, 12 Jul 2019 07:20:58 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id y24so7553472edb.1
+        for <linux-mm@kvack.org>; Fri, 12 Jul 2019 04:20:58 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
-         :thread-index:date:message-id:references:in-reply-to:accept-language
-         :content-language:content-id:content-transfer-encoding:mime-version;
-        bh=WAcDhTCCszW+EvtBveUDZM7yH6cPZubOi2R9jyvB+p8=;
-        b=cfJIT5H8hO5KAn4ZgxjT5R4U3xgoFyzF1w/gpslVd1Lhdu2Z6hFnTNFw7HQwYapaNm
-         mATO66/N+IUA+SwFD2el17FOetJ0W3dwC58qVkl4rvMd32E/YSv0pS5CxWY2IHtHEGnv
-         STAqOLpP2xq5Dt9Oj3jPA2+tsF9caCnIUlNYqa24dadlNWUozj1/FCv+zsX9xEYQ3Gkm
-         htO+esmnD02gY0quKv4o7NMEX18RqKOP6jpQiYFGz7b0LqJxvFS3ksLl8IaAtWT0N103
-         BIh32Fxdpz7ujTlME4w3ZA01LQVcYnjqm+SZNAodCEY5bjKVoj2r/WWS010tRFJzo7fn
-         pa0Q==
-X-Gm-Message-State: APjAAAUhI2SgTukcrARiREjexfpoT69vS43ox3Rv8e4CICXhwv3raHyS
-	vHFeNtRK7FCLQWGa66Es/Hb+KWEeF+c7FhZKauBdQ+9iwFpuk1i9XdKjUjV2FfyuyFgT8kSltYV
-	CRAZyVkBpoxFS6yKiPFkO3GfIgB7ziwHgKud5EAG4z/YQtO7W+s1G/2XXs+56yvHggw==
-X-Received: by 2002:a02:cb96:: with SMTP id u22mr10692881jap.118.1562929012849;
-        Fri, 12 Jul 2019 03:56:52 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyUJ0IDCT7ZrwjCA5HfNRvRUa3l7kj7iHOH8teljKwLT5djlyhbWFFvaQpjX7MICRiyUqVl
-X-Received: by 2002:a02:cb96:: with SMTP id u22mr10692827jap.118.1562929012129;
-        Fri, 12 Jul 2019 03:56:52 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562929012; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=VSNsLiNWKrfx2rwWA+NK8qa6g90k6uu4vDORYkUXQq4=;
+        b=Pp7F5ySGhKD5mZ3RV4sutfu3KPS+LFLK0W1oGqdCzgmOYeeXb+Tn3d9dHr1k347e6K
+         tF/u57jNSmXcklaMyhEjTrfwffYkfK9BFnApQlUswqjE3eUGO5mXiMzPCI9vGfTrK4p1
+         VSFbdm/Bb/nkp4vj3gatCe8v3Hhjnrdf5UrVQEuvOdnadFHUA9m9V3i+TIxVkt5KdbIQ
+         DitnhKZ6BQgj9AwJx1nNlnXlQks4tS1w1FL21gwZGFaYkQrsCnfM2FO0y/kTBQS1IBmi
+         3Lghsp8t1fQ1mS5xNsmpNvF+AbGDX9BcfJmcb/Ff33Yc2w/4WihFe+wZkbFdVZalA1Ei
+         jpIA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
+X-Gm-Message-State: APjAAAWCN5QdWiySbmT49OdtIRFPnQq2vLWa1eKwK0QPbwde8rzavOd0
+	G2enbbMP2ndEAIaFc27ArHn9VImUGTMeOh/vSwbHEPOHLkzI9Gmx+a3RV33b6vtZAjW4TgQwcgw
+	3yvzjUAQE5CF2AVEE+BnTyOy9ImOYPOSVMlc/jXd7P8cmQ44Dd3zdnm6YXdVGtw2CwA==
+X-Received: by 2002:a17:906:ad86:: with SMTP id la6mr4443747ejb.43.1562930458313;
+        Fri, 12 Jul 2019 04:20:58 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxDyhJtkh14V/OMl82sHIPDEDqpHgmTrY4JSTse6FVxj1NBKJPhbZhLeRFO1YlyDEVUG7mt
+X-Received: by 2002:a17:906:ad86:: with SMTP id la6mr4443683ejb.43.1562930457265;
+        Fri, 12 Jul 2019 04:20:57 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562930457; cv=none;
         d=google.com; s=arc-20160816;
-        b=DPUjvgcafIPRhApJq1JIPHkIQqYwHu3ueJ+Ig4V+yxQKs0VItalxLqy/haibmRjmIH
-         Gj00/fqk1nIjb3+Z9RcD3DyVkl96uk32Qwawf2YrchsWEYJhkwfQ+mYBUwCMbm3Rd29w
-         /oOTDgt0c1IGZOmjWgtR53xn/3AD9gBvzXWj96b13pMZf0/JTsvVQERgeG3WFZRs+A6F
-         J8RlJGDEexQeC15PHsab2oxKAaJkHA0os9gvdxo8GJtJMPZJmSMjmH3O6VO6GtwjXr6l
-         UcOtCZqhVYeARRsDXwOUyWa1ogc8KYsJ2YLygfbFefFngge5dxtVARXxSMmA+DQu+4FP
-         ybDA==
+        b=grM0YWyqW2I+7UPUnnUJaHAPJIRkphfk34Tr5IYu3g+hU+ZsvPyRZKE2soCwcFeD5x
+         vLv02lHzLGrdnqafdH1O1M2zaU30HbgSB3XpvgvEGNALLxtpyt8q7OjzJJLVyZHBNRO7
+         yt4qWFnnDHOZyxnOD4lTpH8bPJLNleTerg2FLr9a8idjUhJ7m18iIMJoHpwbCsS16rSi
+         +CutnLAHKyoMkr4VSIn1DiJgbLQfNKMy6rLUIZoql+4cKIkgofWPfi/i2jaRsDW5ZtLl
+         hLkxMEgOYffPBpRKNSCOYjXO+k1BKlVpkE1hz8GBglYbue9kiPuE/aJ18ztqjULTAd1Q
+         nFzw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from:dkim-signature;
-        bh=WAcDhTCCszW+EvtBveUDZM7yH6cPZubOi2R9jyvB+p8=;
-        b=la+09ng/LyTlvFCflM5vByMvxLiXauUColSTt2n7fow2ctzl6MdbTVtZokqi4zUxF9
-         8viO9+9Dktfo9i+KjJKkq/VNRKXUN4AepSG08HVQFiVfFeI69+/PohIo6lF+e1QJAcyG
-         UAns/Vqn6hErOJ0DTuKv/Jc5ZPqLzCP9wJxYUGAotfZR2Y6w4dJb3MtU2YScpu/YlmAp
-         NKh6x6KO7GNiHAZYIWGPFgsLO+NbKaAEYa6TErgPeeFQ6cGKQPGhf0j6pRDMyFfjBgfe
-         wYb6JF0p7eYVSoAm4msl96MceLvF3oHxVEqwTm0muEK6mfOSPp1MjdhQPb5BxbF3oGna
-         99UA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=VSNsLiNWKrfx2rwWA+NK8qa6g90k6uu4vDORYkUXQq4=;
+        b=GwalJ/yEjlOk3LJPh8JIuwAKk0qqnhmkczPEZYwn2rxVZ47RhMaFqdd75QjMxjULGN
+         oylT8hlN1tfUod8TAaJyh4UlbIKsnYp0JhMQM3Dbl25h1/jetQ6Gmzt058liNUtRWKTw
+         /6f3cm1SIa0hDVyk4siUP4lTOwjDcrMbYPzF7cLh4KMv9MvW0JHN+MNJ+dRX6pXBbQwt
+         BPvfCDb7sKzbOQnDP7ZDIOBCb5AjeMTR2yB7WQv7wV2QisuTx1ZWyk+twRhT21qvoZFE
+         9li11c//Ma/4Cm0hYrfpRY5SsqOmLUpIfmnCwnCKvVEiCvNxX50tu4JhpFNiWDWJ2hBv
+         IVxg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@os.amperecomputing.com header.s=selector1 header.b=RLzxHkxs;
-       spf=pass (google.com: domain of hoan@os.amperecomputing.com designates 40.107.80.125 as permitted sender) smtp.mailfrom=hoan@os.amperecomputing.com;
-       dmarc=pass (p=QUARANTINE sp=QUARANTINE dis=NONE) header.from=amperecomputing.com
-Received: from NAM03-DM3-obe.outbound.protection.outlook.com (mail-eopbgr800125.outbound.protection.outlook.com. [40.107.80.125])
-        by mx.google.com with ESMTPS id c3si12292798ioq.99.2019.07.12.03.56.51
+       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id w3si4373653ejb.101.2019.07.12.04.20.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 12 Jul 2019 03:56:51 -0700 (PDT)
-Received-SPF: pass (google.com: domain of hoan@os.amperecomputing.com designates 40.107.80.125 as permitted sender) client-ip=40.107.80.125;
+        Fri, 12 Jul 2019 04:20:57 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@os.amperecomputing.com header.s=selector1 header.b=RLzxHkxs;
-       spf=pass (google.com: domain of hoan@os.amperecomputing.com designates 40.107.80.125 as permitted sender) smtp.mailfrom=hoan@os.amperecomputing.com;
-       dmarc=pass (p=QUARANTINE sp=QUARANTINE dis=NONE) header.from=amperecomputing.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
- d=os.amperecomputing.com; s=selector1;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=WAcDhTCCszW+EvtBveUDZM7yH6cPZubOi2R9jyvB+p8=;
- b=RLzxHkxsAekTYM3YvJ169/tJGHBAUyq2BDSjAskAP8r/+tWetDCFu5V+kRlclXCdFEyMm3YwY5Q4SYor9m9ABtXmyTsaN1asQV8WILPOfomLFfdIsGw3M7OFVBvTSNU7TVI0+quFRrZ+ssyj0Yus9rC869dhYQWcxRxjYqw/ZR0=
-Received: from BYAPR01MB4085.prod.exchangelabs.com (52.135.237.22) by
- BYAPR01MB4024.prod.exchangelabs.com (52.135.236.209) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.2032.20; Fri, 12 Jul 2019 10:56:47 +0000
-Received: from BYAPR01MB4085.prod.exchangelabs.com
- ([fe80::9dbb:1b4c:bace:ef80]) by BYAPR01MB4085.prod.exchangelabs.com
- ([fe80::9dbb:1b4c:bace:ef80%7]) with mapi id 15.20.2052.020; Fri, 12 Jul 2019
- 10:56:47 +0000
-From: Hoan Tran OS <hoan@os.amperecomputing.com>
-To: Michal Hocko <mhocko@kernel.org>
-CC: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon
-	<will.deacon@arm.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil
- Babka <vbabka@suse.cz>, Oscar Salvador <osalvador@suse.de>, Pavel Tatashin
-	<pavel.tatashin@microsoft.com>, Mike Rapoport <rppt@linux.ibm.com>, Alexander
- Duyck <alexander.h.duyck@linux.intel.com>, Benjamin Herrenschmidt
-	<benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael
- Ellerman <mpe@ellerman.id.au>, Thomas Gleixner <tglx@linutronix.de>, Ingo
- Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H . Peter Anvin"
-	<hpa@zytor.com>, "David S . Miller" <davem@davemloft.net>, Heiko Carstens
-	<heiko.carstens@de.ibm.com>, Vasily Gorbik <gor@linux.ibm.com>, Christian
- Borntraeger <borntraeger@de.ibm.com>, "open list:MEMORY MANAGEMENT"
-	<linux-mm@kvack.org>, "linux-arm-kernel@lists.infradead.org"
-	<linux-arm-kernel@lists.infradead.org>, "linux-s390@vger.kernel.org"
-	<linux-s390@vger.kernel.org>, "sparclinux@vger.kernel.org"
-	<sparclinux@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>,
-	"linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Open Source
- Submission <patches@amperecomputing.com>
-Subject: Re: [PATCH v2 0/5] mm: Enable CONFIG_NODES_SPAN_OTHER_NODES by
- default for NUMA
-Thread-Topic: [PATCH v2 0/5] mm: Enable CONFIG_NODES_SPAN_OTHER_NODES by
- default for NUMA
-Thread-Index: AQHVOD/24o0J5njgPEqkosNO5sbs8abGjx+AgABBUoA=
-Date: Fri, 12 Jul 2019 10:56:47 +0000
-Message-ID: <586ae736-a429-cf94-1520-1a94ffadad88@os.amperecomputing.com>
-References: <1562887528-5896-1-git-send-email-Hoan@os.amperecomputing.com>
- <20190712070247.GM29483@dhcp22.suse.cz>
-In-Reply-To: <20190712070247.GM29483@dhcp22.suse.cz>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-x-clientproxiedby: HK0P153CA0027.APCP153.PROD.OUTLOOK.COM
- (2603:1096:203:17::15) To BYAPR01MB4085.prod.exchangelabs.com
- (2603:10b6:a03:56::22)
-authentication-results: spf=none (sender IP is )
- smtp.mailfrom=hoan@os.amperecomputing.com; 
-x-ms-exchange-messagesentrepresentingtype: 1
-x-originating-ip: [14.161.176.39]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: 807a3fd4-bfd6-442a-a336-08d706b7a280
-x-microsoft-antispam:
- BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(2017052603328)(7193020);SRVR:BYAPR01MB4024;
-x-ms-traffictypediagnostic: BYAPR01MB4024:
-x-microsoft-antispam-prvs:
- <BYAPR01MB40241C259D44AE3593493E10F1F20@BYAPR01MB4024.prod.exchangelabs.com>
-x-ms-oob-tlc-oobclassifiers: OLM:10000;
-x-forefront-prvs: 00963989E5
-x-forefront-antispam-report:
- SFV:NSPM;SFS:(10019020)(4636009)(376002)(346002)(396003)(136003)(39850400004)(366004)(199004)(189003)(86362001)(102836004)(54906003)(7736002)(52116002)(68736007)(53936002)(66066001)(76176011)(3846002)(6246003)(8936002)(99286004)(386003)(107886003)(81156014)(81166006)(8676002)(6116002)(305945005)(6506007)(53546011)(31696002)(186003)(26005)(14454004)(71200400001)(71190400001)(5660300002)(31686004)(6512007)(66946007)(2906002)(4326008)(446003)(316002)(14444005)(476003)(229853002)(6486002)(6916009)(25786009)(6436002)(256004)(11346002)(66556008)(64756008)(7416002)(66476007)(486006)(66446008)(2616005)(478600001);DIR:OUT;SFP:1102;SCL:1;SRVR:BYAPR01MB4024;H:BYAPR01MB4085.prod.exchangelabs.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:0;MX:1;
-received-spf: None (protection.outlook.com: os.amperecomputing.com does not
- designate permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info:
- clhGm3T4TfgYriMEPdp+Yc+KHXC4dtGOA1DU0V7WJc5Mna/izBjYCUx9ZdOUovfNYZKJ2iOqefoJbRlfGAgRulkZjR1B2eeMA1M2ERswnTyWQLcnuMV0nU03EPFFjLMuvUXDkZao3WZA5CPxjpsCvlX9hLVSKzHiiVLbwmVLmjv4vz0o7SQNDOZBPQAQNEuMyNM4K1UskC/5cbrC9Q90eMcmP7BXfJKW4YY4asD/ucxsllVoDzKVNI0KIMbCSdDOLeFEZQHzHvH0yaW1jVn4c/PNOK7vHHFURpMEFHNsw7UXciQ2G7EObLLLAY4pRTaigJsWiU936lcHSOoDxgR9RsWiabBh1Eg9nF6LjFofTIKeWenTKlpWUcfNN9fJ1/dzekRUE71jberJ6szigN0RYRtGt3C3V+K3CJOTzYk/jpM=
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <25482F5148BFF740873F45BB6828D5BF@prod.exchangelabs.com>
-Content-Transfer-Encoding: base64
+       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id B6E2AB030;
+	Fri, 12 Jul 2019 11:20:56 +0000 (UTC)
+Received: by quack2.suse.cz (Postfix, from userid 1000)
+	id 18AE51E4340; Fri, 12 Jul 2019 13:20:56 +0200 (CEST)
+Date: Fri, 12 Jul 2019 13:20:56 +0200
+From: Jan Kara <jack@suse.cz>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>,
+	linux-mm@kvack.org, mhocko@suse.cz, stable@vger.kernel.org
+Subject: Re: [PATCH RFC] mm: migrate: Fix races of __find_get_block() and
+ page migration
+Message-ID: <20190712112056.GA24009@quack2.suse.cz>
+References: <20190711125838.32565-1-jack@suse.cz>
+ <20190711170455.5a9ae6e659cab1a85f9aa30c@linux-foundation.org>
+ <20190712091746.GB906@quack2.suse.cz>
+ <20190712101042.GJ13484@suse.de>
 MIME-Version: 1.0
-X-OriginatorOrg: os.amperecomputing.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: 807a3fd4-bfd6-442a-a336-08d706b7a280
-X-MS-Exchange-CrossTenant-originalarrivaltime: 12 Jul 2019 10:56:47.5823
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: 3bc2b170-fd94-476d-b0ce-4229bdc904a7
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-userprincipalname: Hoan@os.amperecomputing.com
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: BYAPR01MB4024
+Content-Type: multipart/mixed; boundary="sdtB3X0nJg68CQEu"
+Content-Disposition: inline
+In-Reply-To: <20190712101042.GJ13484@suse.de>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-SGksDQoNCk9uIDcvMTIvMTkgMjowMiBQTSwgTWljaGFsIEhvY2tvIHdyb3RlOg0KPiBPbiBUaHUg
-MTEtMDctMTkgMjM6MjU6NDQsIEhvYW4gVHJhbiBPUyB3cm90ZToNCj4+IEluIE5VTUEgbGF5b3V0
-IHdoaWNoIG5vZGVzIGhhdmUgbWVtb3J5IHJhbmdlcyB0aGF0IHNwYW4gYWNyb3NzIG90aGVyIG5v
-ZGVzLA0KPj4gdGhlIG1tIGRyaXZlciBjYW4gZGV0ZWN0IHRoZSBtZW1vcnkgbm9kZSBpZCBpbmNv
-cnJlY3RseS4NCj4+DQo+PiBGb3IgZXhhbXBsZSwgd2l0aCBsYXlvdXQgYmVsb3cNCj4+IE5vZGUg
-MCBhZGRyZXNzOiAwMDAwIHh4eHggMDAwMCB4eHh4DQo+PiBOb2RlIDEgYWRkcmVzczogeHh4eCAx
-MTExIHh4eHggMTExMQ0KPj4NCj4+IE5vdGU6DQo+PiAgIC0gTWVtb3J5IGZyb20gbG93IHRvIGhp
-Z2gNCj4+ICAgLSAwLzE6IE5vZGUgaWQNCj4+ICAgLSB4OiBJbnZhbGlkIG1lbW9yeSBvZiBhIG5v
-ZGUNCj4+DQo+PiBXaGVuIG1tIHByb2JlcyB0aGUgbWVtb3J5IG1hcCwgd2l0aG91dCBDT05GSUdf
-Tk9ERVNfU1BBTl9PVEhFUl9OT0RFUw0KPj4gY29uZmlnLCBtbSBvbmx5IGNoZWNrcyB0aGUgbWVt
-b3J5IHZhbGlkaXR5IGJ1dCBub3QgdGhlIG5vZGUgaWQuDQo+PiBCZWNhdXNlIG9mIHRoYXQsIE5v
-ZGUgMSBhbHNvIGRldGVjdHMgdGhlIG1lbW9yeSBmcm9tIG5vZGUgMCBhcyBiZWxvdw0KPj4gd2hl
-biBpdCBzY2FucyBmcm9tIHRoZSBzdGFydCBhZGRyZXNzIHRvIHRoZSBlbmQgYWRkcmVzcyBvZiBu
-b2RlIDEuDQo+Pg0KPj4gTm9kZSAwIGFkZHJlc3M6IDAwMDAgeHh4eCB4eHh4IHh4eHgNCj4+IE5v
-ZGUgMSBhZGRyZXNzOiB4eHh4IDExMTEgMTExMSAxMTExDQo+Pg0KPj4gVGhpcyBsYXlvdXQgY291
-bGQgb2NjdXIgb24gYW55IGFyY2hpdGVjdHVyZS4gVGhpcyBwYXRjaCBlbmFibGVzDQo+PiBDT05G
-SUdfTk9ERVNfU1BBTl9PVEhFUl9OT0RFUyBieSBkZWZhdWx0IGZvciBOVU1BIHRvIGZpeCB0aGlz
-IGlzc3VlLg0KPiANCj4gWWVzIGl0IGNhbiBvY2N1ciBvbiBhbnkgYXJjaCBidXQgbW9zdCBzYW5l
-IHBsYXRmb3JtcyBzaW1wbHkgZG8gbm90DQo+IG92ZXJsYXAgcGh5c2ljYWwgcmFuZ2VzLiBTbyBJ
-IGRvIG5vdCByZWFsbHkgc2VlIGFueSByZWFzb24gdG8NCj4gdW5jb25kaXRpb25hbGx5IGVuYWJs
-ZSB0aGUgY29uZmlnIGZvciBldmVyeWJvZHkuIFdoYXQgaXMgYW4gYWR2YW50YWdlPw0KPiANCg0K
-QXMgSSBvYnNlcnZlZCBmcm9tIGFyY2ggZm9sZGVyLCB0aGVyZSBhcmUgOSBhcmNoIHN1cHBvcnQg
-TlVNQSBjb25maWcuDQoNCi4vYXJjaC9pYTY0L0tjb25maWc6Mzg3OmNvbmZpZyBOVU1BDQouL2Fy
-Y2gvcG93ZXJwYy9LY29uZmlnOjU4Mjpjb25maWcgTlVNQQ0KLi9hcmNoL3NwYXJjL0tjb25maWc6
-MjgxOmNvbmZpZyBOVU1BDQouL2FyY2gvYWxwaGEvS2NvbmZpZzo1NTc6Y29uZmlnIE5VTUENCi4v
-YXJjaC9zaC9tbS9LY29uZmlnOjExMjpjb25maWcgTlVNQQ0KLi9hcmNoL2FybTY0L0tjb25maWc6
-ODQxOmNvbmZpZyBOVU1BDQouL2FyY2gveDg2L0tjb25maWc6MTUzMTpjb25maWcgTlVNQQ0KLi9h
-cmNoL21pcHMvS2NvbmZpZzoyNjQ2OmNvbmZpZyBOVU1BDQouL2FyY2gvczM5MC9LY29uZmlnOjQ0
-MTpjb25maWcgTlVNQQ0KDQpBbmQgdGhlcmUgYXJlIDUgYXJjaCBlbmFibGVzIENPTkZJR19OT0RF
-U19TUEFOX09USEVSX05PREVTIHdpdGggTlVNQQ0KDQphcmNoL3Bvd2VycGMvS2NvbmZpZzo2Mzc6
-Y29uZmlnIE5PREVTX1NQQU5fT1RIRVJfTk9ERVMNCmFyY2gvc3BhcmMvS2NvbmZpZzoyOTk6Y29u
-ZmlnIE5PREVTX1NQQU5fT1RIRVJfTk9ERVMNCmFyY2gveDg2L0tjb25maWc6MTU3NTpjb25maWcg
-Tk9ERVNfU1BBTl9PVEhFUl9OT0RFUw0KYXJjaC9zMzkwL0tjb25maWc6NDQ2OmNvbmZpZyBOT0RF
-U19TUEFOX09USEVSX05PREVTDQphcmNoL2FybTY0ICh3aGljaCBJIGludGVuZGVkIHRvIGVuYWJs
-ZSBpbiB0aGUgb3JpZ2luYWwgcGF0Y2gpDQoNCkl0IHdvdWxkIGJlIGdvb2QgaWYgd2UgY2FuIGVu
-YWJsZSBpdCBieS1kZWZhdWx0LiBPdGhlcndpc2UsIGxldCBhcmNoIA0KZW5hYmxlcyBpdCBieSB0
-aGVtLXNlbGYuIERvIHlvdSBoYXZlIGFueSBzdWdnZXN0aW9ucz8NCg0KVGhhbmtzDQpIb2FuDQoN
-Cg0K
+
+--sdtB3X0nJg68CQEu
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+
+On Fri 12-07-19 11:10:43, Mel Gorman wrote:
+> On Fri, Jul 12, 2019 at 11:17:46AM +0200, Jan Kara wrote:
+> > On Thu 11-07-19 17:04:55, Andrew Morton wrote:
+> > > On Thu, 11 Jul 2019 14:58:38 +0200 Jan Kara <jack@suse.cz> wrote:
+> > > 
+> > > > buffer_migrate_page_norefs() can race with bh users in a following way:
+> > > > 
+> > > > CPU1					CPU2
+> > > > buffer_migrate_page_norefs()
+> > > >   buffer_migrate_lock_buffers()
+> > > >   checks bh refs
+> > > >   spin_unlock(&mapping->private_lock)
+> > > > 					__find_get_block()
+> > > > 					  spin_lock(&mapping->private_lock)
+> > > > 					  grab bh ref
+> > > > 					  spin_unlock(&mapping->private_lock)
+> > > >   move page				  do bh work
+> > > > 
+> > > > This can result in various issues like lost updates to buffers (i.e.
+> > > > metadata corruption) or use after free issues for the old page.
+> > > > 
+> > > > Closing this race window is relatively difficult. We could hold
+> > > > mapping->private_lock in buffer_migrate_page_norefs() until we are
+> > > > finished with migrating the page but the lock hold times would be rather
+> > > > big. So let's revert to a more careful variant of page migration requiring
+> > > > eviction of buffers on migrated page. This is effectively
+> > > > fallback_migrate_page() that additionally invalidates bh LRUs in case
+> > > > try_to_free_buffers() failed.
+> > > 
+> > > Is this premature optimization?  Holding ->private_lock while messing
+> > > with the buffers would be the standard way of addressing this.  The
+> > > longer hold times *might* be an issue, but we don't know this, do we? 
+> > > If there are indeed such problems then they could be improved by, say,
+> > > doing more of the newpage preparation prior to taking ->private_lock.
+> > 
+> > I didn't check how long the private_lock hold times would actually be, it
+> > just seems there's a lot of work done before the page is fully migrated a
+> > we could release the lock. And since the lock blocks bh lookup,
+> > set_page_dirty(), etc. for the whole device, it just seemed as a bad idea.
+> > I don't think much of a newpage setup can be moved outside of private_lock
+> > - in particular page cache replacement, page copying, page state migration
+> > all need to be there so that bh code doesn't get confused.
+> > 
+> > But I guess it's fair to measure at least ballpark numbers of what the lock
+> > hold times would be to get idea whether the contention concern is
+> > substantiated or not.
+> > 
+> 
+> I think it would be tricky to measure and quantify how much the contention
+> is an issue. While it would be possible to construct a microbenchmark that
+> should illustrate the problem, it would tell us relatively little about
+> how much of a problem it is generally. It would be relatively difficult
+> to detect the contention and stalls in block lookups due to migration
+> would be tricky to spot. Careful use of lock_stat might help but
+> enabling that has consequences of its own.
+> 
+> However, a rise in allocation failures due to dirty pages not being
+> migrated is relatively easy to detect and the consequences are relatively
+> benign -- failed high-order allocation that is usually ok versus a stall
+> on block lookups that could have a wider general impact.
+> 
+> On that basis, I think the patch you proposed is the more appropriate as
+> a fix for the race which has the potential for data corruption. So;
+> 
+> Acked-by: Mel Gorman <mgorman@techsingularity.net>
+
+Thanks. And I agree with you that detecting failed migrations is generally
+easier than detecting private_lock contention. Anyway, out of curiosity, I
+did run thpfioscale workload in mmtests with some additional metadata
+workload on the system to increase proportion of bdev page cache and added
+tracepoints to see how long the relevant part of __buffer_migrate_page()
+lasts (patch attached). The longest duration of the critical section was
+311 us which is significant. But that was an outlier by far. The most of
+times critical section lasted couple of us. The full histogram is here:
+
+[min - 0.000006]: 2907 93.202950%
+(0.000006 - 0.000011]: 105 3.366464%
+(0.000011 - 0.000016]: 36 1.154216%
+(0.000016 - 0.000021]: 45 1.442770%
+(0.000021 - 0.000026]: 13 0.416800%
+(0.000026 - 0.000031]: 4 0.128246%
+(0.000031 - 0.000036]: 2 0.064123%
+(0.000036 - 0.000041]: 2 0.064123%
+(0.000041 - 0.000046]: 1 0.032062%
+(0.000046 - 0.000050]: 1 0.032062%
+(0.000050 - 0.000055]: 0 0.000000%
+(0.000055 - 0.000060]: 0 0.000000%
+(0.000060 - 0.000065]: 0 0.000000%
+(0.000065 - 0.000070]: 0 0.000000%
+(0.000070 - 0.000075]: 2 0.064123%
+(0.000075 - 0.000080]: 0 0.000000%
+(0.000080 - 0.000085]: 0 0.000000%
+(0.000085 - 0.000090]: 0 0.000000%
+(0.000090 - 0.000095]: 0 0.000000%
+(0.000095 - max]: 1 0.032062%
+
+So although I still think that just failing the migration if we cannot
+invalidate buffer heads is a safer choice, just extending the private_lock
+protected section does not seem as bad as I was afraid.
+
+> > Finally, I guess I should mention there's one more approach to the problem
+> > I was considering: Modify bh code to fully rely on page lock instead of
+> > private_lock for bh lookup. That would make sense scalability-wise on its
+> > own. The problem with it is that __find_get_block() would become a sleeping
+> > function. There aren't that many places calling the function and most of
+> > them seem fine with it but still it is non-trivial amount of work to do the
+> > conversion and it can have some fallout so it didn't seem like a good
+> > solution for a data-corruption issue that needs to go to stable...
+> > 
+> 
+> Maybe *if* it's shown there is a major issue with increased high-order
+> allocation failures, it would be worth looking into but right now, I
+> think it's overkill with relatively high risk and closing the potential
+> race is more important.
+
+Agreed.
+
+								Honza
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
+
+--sdtB3X0nJg68CQEu
+Content-Type: text/x-patch; charset=us-ascii
+Content-Disposition: attachment; filename="0001-mm-migrate-Fix-race-with-__find_get_block.patch"
+
+From fd584fb6fa6d48e1fae1077d2ab0021ae9c98edf Mon Sep 17 00:00:00 2001
+From: Jan Kara <jack@suse.cz>
+Date: Wed, 10 Jul 2019 11:31:01 +0200
+Subject: [PATCH] mm: migrate: Fix race with __find_get_block()
+
+Signed-off-by: Jan Kara <jack@suse.cz>
+---
+ include/trace/events/migrate.h | 42 ++++++++++++++++++++++++++++++++++++++++++
+ mm/migrate.c                   |  8 +++++++-
+ 2 files changed, 49 insertions(+), 1 deletion(-)
+
+diff --git a/include/trace/events/migrate.h b/include/trace/events/migrate.h
+index 705b33d1e395..15473a508216 100644
+--- a/include/trace/events/migrate.h
++++ b/include/trace/events/migrate.h
+@@ -70,6 +70,48 @@ TRACE_EVENT(mm_migrate_pages,
+ 		__print_symbolic(__entry->mode, MIGRATE_MODE),
+ 		__print_symbolic(__entry->reason, MIGRATE_REASON))
+ );
++
++TRACE_EVENT(mm_migrate_buffers_begin,
++
++	TP_PROTO(struct address_space *mapping, unsigned long index),
++
++	TP_ARGS(mapping, index),
++
++	TP_STRUCT__entry(
++		__field(unsigned long,	mapping)
++		__field(unsigned long,	index)
++	),
++
++	TP_fast_assign(
++		__entry->mapping	= (unsigned long)mapping;
++		__entry->index		= index;
++	),
++
++	TP_printk("mapping=%lx index=%lu", __entry->mapping, __entry->index)
++);
++
++TRACE_EVENT(mm_migrate_buffers_end,
++
++	TP_PROTO(struct address_space *mapping, unsigned long index, int rc),
++
++	TP_ARGS(mapping, index, rc),
++
++	TP_STRUCT__entry(
++		__field(unsigned long,	mapping)
++		__field(unsigned long,	index)
++		__field(int,		rc)
++	),
++
++	TP_fast_assign(
++		__entry->mapping	= (unsigned long)mapping;
++		__entry->index		= index;
++		__entry->rc		= rc;
++	),
++
++	TP_printk("mapping=%lx index=%lu rc=%d", __entry->mapping, __entry->index, __entry->rc)
++);
++
++
+ #endif /* _TRACE_MIGRATE_H */
+ 
+ /* This part must be outside protection */
+diff --git a/mm/migrate.c b/mm/migrate.c
+index e9594bc0d406..bce0f1b03a60 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -763,6 +763,7 @@ static int __buffer_migrate_page(struct address_space *mapping,
+ recheck_buffers:
+ 		busy = false;
+ 		spin_lock(&mapping->private_lock);
++		trace_mm_migrate_buffers_begin(mapping, page->index);
+ 		bh = head;
+ 		do {
+ 			if (atomic_read(&bh->b_count)) {
+@@ -771,12 +772,13 @@ static int __buffer_migrate_page(struct address_space *mapping,
+ 			}
+ 			bh = bh->b_this_page;
+ 		} while (bh != head);
+-		spin_unlock(&mapping->private_lock);
+ 		if (busy) {
+ 			if (invalidated) {
+ 				rc = -EAGAIN;
+ 				goto unlock_buffers;
+ 			}
++			trace_mm_migrate_buffers_end(mapping, page->index, -EAGAIN);
++			spin_unlock(&mapping->private_lock);
+ 			invalidate_bh_lrus();
+ 			invalidated = true;
+ 			goto recheck_buffers;
+@@ -809,6 +811,10 @@ static int __buffer_migrate_page(struct address_space *mapping,
+ 
+ 	rc = MIGRATEPAGE_SUCCESS;
+ unlock_buffers:
++	if (check_refs) {
++		trace_mm_migrate_buffers_end(mapping, page->index, rc);
++		spin_unlock(&mapping->private_lock);
++	}
+ 	bh = head;
+ 	do {
+ 		unlock_buffer(bh);
+-- 
+2.16.4
+
+
+--sdtB3X0nJg68CQEu--
 
