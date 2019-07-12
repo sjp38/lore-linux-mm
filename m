@@ -2,122 +2,98 @@ Return-Path: <SRS0=GtRI=VJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.1 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 81A37C742A8
-	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 07:58:21 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 56038C742A5
+	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 08:04:54 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 43ADD2084B
-	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 07:58:21 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="V/iJunfl"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 43ADD2084B
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	by mail.kernel.org (Postfix) with ESMTP id 272022084B
+	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 08:04:53 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 272022084B
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CFEAF8E0125; Fri, 12 Jul 2019 03:58:20 -0400 (EDT)
+	id 9C5398E0126; Fri, 12 Jul 2019 04:04:53 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CD5D28E00DB; Fri, 12 Jul 2019 03:58:20 -0400 (EDT)
+	id 975488E00DB; Fri, 12 Jul 2019 04:04:53 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BC60D8E0125; Fri, 12 Jul 2019 03:58:20 -0400 (EDT)
+	id 863E48E0126; Fri, 12 Jul 2019 04:04:53 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 87D6B8E00DB
-	for <linux-mm@kvack.org>; Fri, 12 Jul 2019 03:58:20 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id t2so5243653pgs.21
-        for <linux-mm@kvack.org>; Fri, 12 Jul 2019 00:58:20 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 39D1F8E00DB
+	for <linux-mm@kvack.org>; Fri, 12 Jul 2019 04:04:53 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id i9so7088618edr.13
+        for <linux-mm@kvack.org>; Fri, 12 Jul 2019 01:04:53 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=LtqSlKZWetZ9uGFV2K19vEGagHhsXV8pg3vWp1m725Y=;
-        b=pf3+zEFBG7Bdd3VTHHvK2QW4ptfhXFt1G1CTiLvDzHYMWbZVCQde4f1z9oj7cRc7zT
-         5LaUA5N3gFQuu2FvVMX1Sjl+av4JUlS8VbE06ZZFJUkGD+j4dSQJHU9F1IxcdkQDUDmy
-         xQrUzyMP1ohqTTLUwLvhNahVwFW5NRg4/enlYH/VI8mFvBjHgdwuUgHVNT+mMjrtFnv7
-         fZKgfHqNsUFEbiGFXbc3C5+/rxOfTN8uFO+z1cbN0WYMtxrj4wuK6fIPlVJ1ro1pumFv
-         ynSBcmzY3izJHAqvyCiKOPAhrjhR4fhtsl5e0xBTuQjxC70NZn86Y78Rk6DByV8VWZqN
-         ykPw==
-X-Gm-Message-State: APjAAAVWFGKUeWRcH9ya0hUmSvcuFUoRUrF8ZLdCpmu/jICPPqktKRH2
-	kEO+n/zq2pQD2PvFhuvS9Yx9eQEafDQVqm2pxHPAdaoBPUWw3jX1VIOpXSddLllH4zvqStNOJqw
-	5hdpIjezUw4Tst/o8m79AReOHYX5m4CFNhNZG+k1Umf7mGdZN5vSmt0tKNADOat2S6A==
-X-Received: by 2002:a63:56:: with SMTP id 83mr9427602pga.145.1562918300091;
-        Fri, 12 Jul 2019 00:58:20 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyVr5yRUCIYW+Hqp/vcntn5tDrLwluBEJHWikIsbPVbPdpqazbGrm0QijA/EDivObdZpvCz
-X-Received: by 2002:a63:56:: with SMTP id 83mr9427558pga.145.1562918299408;
-        Fri, 12 Jul 2019 00:58:19 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562918299; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=cnV1CHg7fCn5AmilbSUrnET1tHffeaZG92AWXorIfXU=;
+        b=GOamNqr/nuztexke+VUiV1uGQ6AFoscyxo3ITqpas7jM7hKxJpGsq9xcD9R5znBC4o
+         pUClvoQoqb0Qa8ORz4WLkSmCYyhvsUPeQx/jYFd2Ptla9tpPxCxKExzCLiTODgI425W2
+         pcuiY/QWbgfhj1TZeHIWkpLvXcIedHMubTYdO/xr7k147u2MHTd/YzdnRx4fc9YED1Cz
+         l2nHQLnWJ0RE8iK9XDDHQrm7uq1NmQ6m9yQXk4xZxXxJyqfsBI5f0EW7GpcWlPHWLmCZ
+         nRf++WFRZnPNHCKpaYMn1AogTopIitiBBGGFXb2hnsUkW05kd/2G4HDYPOB1X5GWFtTN
+         /BhQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mgorman@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=mgorman@suse.de
+X-Gm-Message-State: APjAAAUR0HYFDrYR0kNRljRuYydsME1gZ52A9FAjykc1KVT0qsnrgetA
+	9U9NkIsHf00+vXA+viuIl9Kzzi3zxqHOkKN9MCtFUf9WTfxGklvPMEWqfqCiM7kml3jr4EP3CWL
+	pxJEfsxGjOzy5NsjPEKg+E6mxCoTgH7BZOFs2hfOEpxnuemqUhMbW1fYonGDMlDuHWg==
+X-Received: by 2002:aa7:cd17:: with SMTP id b23mr7937134edw.278.1562918692782;
+        Fri, 12 Jul 2019 01:04:52 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwMwnSli3QaUGBEy2lEtNf7jVeoznm6uPgQVpPiwnu9+IPtxB5I1r6E+URTQfhnC4FjZzZK
+X-Received: by 2002:aa7:cd17:: with SMTP id b23mr7937088edw.278.1562918692072;
+        Fri, 12 Jul 2019 01:04:52 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562918692; cv=none;
         d=google.com; s=arc-20160816;
-        b=KBOlj02MW5JYoLHzb8YYa8Hijge5pmH9jqA2HX/Ho2RyXA3F7qNTPlLqqz0R71zAGJ
-         zmOTlEJHltET1p2qQg15akfqKNYC6YXUIZ6DSBEUeVGZVFm/46lYb4e+1qn1nFZaHPAI
-         uyaGHJNGAFS+JSOWlEIfsU7h3MWDK4ZMKMbed1ksGCSnux1MaLkHp8GU3wADG4KencBc
-         /8aj89+mR0Ze/VvghKhq0c2KvaVtVumeXZc20Nf1+qQNNsxT7NmqpRxLIT+mdB25h7QL
-         R9l6tkIXm9FY9X2KfRhmJYAtEGfwimisqjKY0NUVrvLj+SkeaPsAikvDZMYibqsh2RNH
-         gF4Q==
+        b=t5QxEtrpRX+lSYDNEjTSbpdnp26RaYGyGtFxdHTaZcNZAITQhNy2rrOJg+QQZUkRSH
+         cRFMsuw7Z2ShxhIHdefMj8OEZHpFG5WeeqAy0tnzp3wnfdk3HSzYgGJoWWQh66KaAfWB
+         9exDFbHs8X1s15jd36HYKmGkKuSG03Dzs0E0u9cv55QKYnxu941CVdSqAay+reSZowUp
+         hRKlQtm6uSYVgXDUJK9B5ZlFJ2bvyTwsdL1kHd6k6jdR4YBB+Sij36+wwUJS75b7Wm70
+         3cb6Iks7fRbPPps4r33m5M4m7aS+tI0egUhY7XwhIpfdfhKgC5+aeGGgroNy/kycNeZt
+         zmPA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date:dkim-signature;
-        bh=LtqSlKZWetZ9uGFV2K19vEGagHhsXV8pg3vWp1m725Y=;
-        b=EqaNYOLFJQrXjggZwKts06yW7JX2QIz4cLOQcbTtETP3OcIPJuHAhU/Ju+mDb1lyDp
-         qWVBocDMRHd/1idAF0MTsdTe0zpEj4Bs/g8yMbI4MnM7rN4X2GHd2mO3c0h+jkzkWLOU
-         nHd+4bTR+zjJYAZSOYWgT2U8CdkA59uWBCz4b/cOinJCUoMiDgfejEwsLpsNTiVwVSu+
-         /ia7uymzIIpkuLllGiskPiOvsign1jYXKq9cprltdw79jk1ZMGyuB66lYG8JGRn6QA+/
-         4vm9KqAxMRpgw1c+MECBMlV5TaH1WOP+dM0IyX41d8b62cAAqMLJuGvAM+/V7w6sTAqh
-         DMzA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=cnV1CHg7fCn5AmilbSUrnET1tHffeaZG92AWXorIfXU=;
+        b=PFfby89oKRDabptzfiRCvp/du+dA5CQeK7I1tO8YIeV9TgfbuYHHv0AVDF7ftqPtC7
+         5poKPK2lpr6xWaGb9wZGdCH9d1mCdjmy7MPnM/eSomWV6Hb9CGy0LfGZZnuXbHSOkY+Y
+         2nRU6MkbKMRfg4hIb89tDDO+a9kMIMNLSp3+HfyoSPQzuwYkmVjLDOS27yH/p00lUD2Y
+         D7oem0/TYue0u09FU5nFKEGSgJRp1U3vahjjXDa+iD3SxteVubNK7UYgJecWNZhA4bX+
+         HKp3gfVef0GcvLzEzXNYpBJ4pMfsBLeZ0l5ELc3jvJW8eZATRP/iMNMbiqs8j/lisvbr
+         XeWg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b="V/iJunfl";
-       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=peterz@infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id u21si7454043pgm.431.2019.07.12.00.58.19
+       spf=pass (google.com: domain of mgorman@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=mgorman@suse.de
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id gs7si4440273ejb.68.2019.07.12.01.04.51
         for <linux-mm@kvack.org>
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Fri, 12 Jul 2019 00:58:19 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 12 Jul 2019 01:04:52 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mgorman@suse.de designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b="V/iJunfl";
-       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=peterz@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Transfer-Encoding
-	:Content-Type:MIME-Version:References:Message-ID:Subject:Cc:To:From:Date:
-	Sender:Reply-To:Content-ID:Content-Description:Resent-Date:Resent-From:
-	Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:List-Help:
-	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	bh=LtqSlKZWetZ9uGFV2K19vEGagHhsXV8pg3vWp1m725Y=; b=V/iJunfl8ealcixJfAjaVt7Vrd
-	tQUwwlpOMrfElHa7L5+1G8ivCqLA+QLKj++7et5n8GxiXViFsXqzO+QKB50yOVHqQJqPj63zR7Mz/
-	oni9H7rrI0E/MaIPnNyX2MvDdFRFA0l6aIhPXeI0fJroCJs0BvecfAMR6kPmcfRvkfXcoZAJqZv39
-	WH7yKi2rPXVO0Ik5pkgDA4sGvIwc9mD+A2jkIDR21O9JacqiJHxs/qgg/VPYPQB10dOMf4lUH9bDx
-	wAmbgeQC11Xxo56c1HakyQocSdLZdhESnCzqS4A3/c4YMXSo8zEBk+A9qp7YhvUXI29jz1M9lnF0l
-	WR3RRI3g==;
-Received: from j217100.upc-j.chello.nl ([24.132.217.100] helo=hirez.programming.kicks-ass.net)
-	by bombadil.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
-	id 1hlqRd-000690-Dz; Fri, 12 Jul 2019 07:58:17 +0000
-Received: by hirez.programming.kicks-ass.net (Postfix, from userid 1000)
-	id A84E320120CB1; Fri, 12 Jul 2019 09:58:15 +0200 (CEST)
-Date: Fri, 12 Jul 2019 09:58:15 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-To: =?utf-8?B?546L6LSH?= <yun.wang@linux.alibaba.com>
-Cc: hannes@cmpxchg.org, mhocko@kernel.org, vdavydov.dev@gmail.com,
-	Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org,
-	linux-mm@kvack.org, mcgrof@kernel.org, keescook@chromium.org,
-	linux-fsdevel@vger.kernel.org, cgroups@vger.kernel.org,
-	Mel Gorman <mgorman@suse.de>, riel@surriel.com
-Subject: Re: [PATCH 1/4] numa: introduce per-cgroup numa balancing locality,
- statistic
-Message-ID: <20190712075815.GN3402@hirez.programming.kicks-ass.net>
-References: <209d247e-c1b2-3235-2722-dd7c1f896483@linux.alibaba.com>
- <60b59306-5e36-e587-9145-e90657daec41@linux.alibaba.com>
- <3ac9b43a-cc80-01be-0079-df008a71ce4b@linux.alibaba.com>
- <20190711134754.GD3402@hirez.programming.kicks-ass.net>
- <b027f9cc-edd2-840c-3829-176a1e298446@linux.alibaba.com>
+       spf=pass (google.com: domain of mgorman@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=mgorman@suse.de
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 30666AE37;
+	Fri, 12 Jul 2019 08:04:51 +0000 (UTC)
+Date: Fri, 12 Jul 2019 09:04:49 +0100
+From: Mel Gorman <mgorman@suse.de>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Jan Kara <jack@suse.cz>, linux-mm@kvack.org, mhocko@suse.cz,
+	stable@vger.kernel.org
+Subject: Re: [PATCH RFC] mm: migrate: Fix races of __find_get_block() and
+ page migration
+Message-ID: <20190712080449.GG13484@suse.de>
+References: <20190711125838.32565-1-jack@suse.cz>
+ <20190711170455.5a9ae6e659cab1a85f9aa30c@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <b027f9cc-edd2-840c-3829-176a1e298446@linux.alibaba.com>
+In-Reply-To: <20190711170455.5a9ae6e659cab1a85f9aa30c@linux-foundation.org>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -125,38 +101,51 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jul 12, 2019 at 11:43:17AM +0800, 王贇 wrote:
+On Thu, Jul 11, 2019 at 05:04:55PM -0700, Andrew Morton wrote:
+> On Thu, 11 Jul 2019 14:58:38 +0200 Jan Kara <jack@suse.cz> wrote:
 > 
-> 
-> On 2019/7/11 下午9:47, Peter Zijlstra wrote:
-> [snip]
-> >> +	rcu_read_lock();
-> >> +	memcg = mem_cgroup_from_task(p);
-> >> +	if (idx != -1)
-> >> +		this_cpu_inc(memcg->stat_numa->locality[idx]);
+> > buffer_migrate_page_norefs() can race with bh users in a following way:
 > > 
-> > I thought cgroups were supposed to be hierarchical. That is, if we have:
+> > CPU1					CPU2
+> > buffer_migrate_page_norefs()
+> >   buffer_migrate_lock_buffers()
+> >   checks bh refs
+> >   spin_unlock(&mapping->private_lock)
+> > 					__find_get_block()
+> > 					  spin_lock(&mapping->private_lock)
+> > 					  grab bh ref
+> > 					  spin_unlock(&mapping->private_lock)
+> >   move page				  do bh work
 > > 
-> >           R
-> > 	 / \
-> > 	 A
-> > 	/\
-> > 	  B
-> > 	  \
-> > 	   t1
+> > This can result in various issues like lost updates to buffers (i.e.
+> > metadata corruption) or use after free issues for the old page.
 > > 
-> > Then our task t1 should be accounted to B (as you do), but also to A and
-> > R.
+> > Closing this race window is relatively difficult. We could hold
+> > mapping->private_lock in buffer_migrate_page_norefs() until we are
+> > finished with migrating the page but the lock hold times would be rather
+> > big. So let's revert to a more careful variant of page migration requiring
+> > eviction of buffers on migrated page. This is effectively
+> > fallback_migrate_page() that additionally invalidates bh LRUs in case
+> > try_to_free_buffers() failed.
 > 
-> I get the point but not quite sure about this...
+> Is this premature optimization?  Holding ->private_lock while messing
+> with the buffers would be the standard way of addressing this.  The
+> longer hold times *might* be an issue, but we don't know this, do we? 
+> If there are indeed such problems then they could be improved by, say,
+> doing more of the newpage preparation prior to taking ->private_lock.
 > 
-> Not like pages there are no hierarchical limitation on locality, also tasks
 
-You can use cpusets to affect that.
+To some extent, we do not know how much of a problem this patch will
+be either or what impact avoiding dirty block pages during migration
+is either. So both approaches have their downsides.
 
-> running in a particular group have no influence to others, not to mention the
-> extra overhead, does it really meaningful to account the stuff hierarchically?
+However, failing a high-order allocation is typically benign and it is an
+inevitable problem that depends on the workload. I don't think we could
+ever hit a case whereby there was enough spinning to cause a soft lockup
+but on the other hand, I don't think there is much scope for doing more
+of the preparation steps before acquiring private_lock either.
 
-AFAIU it's a requirement of cgroups to be hierarchical. All our other
-cgroup accounting is like that.
+-- 
+Mel Gorman
+SUSE Labs
 
