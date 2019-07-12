@@ -2,167 +2,154 @@ Return-Path: <SRS0=GtRI=VJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C5C4CC742D2
-	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 16:25:56 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 101C3C742D2
+	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 16:38:14 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7A5722063F
-	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 16:25:56 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7A5722063F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id B3CC92080A
+	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 16:38:13 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="udzUsKOC"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B3CC92080A
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E8E898E00DB; Fri, 12 Jul 2019 12:25:55 -0400 (EDT)
+	id 50E9D8E015D; Fri, 12 Jul 2019 12:38:13 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E3FAF8E0003; Fri, 12 Jul 2019 12:25:55 -0400 (EDT)
+	id 4BF2D8E0003; Fri, 12 Jul 2019 12:38:13 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D060E8E00DB; Fri, 12 Jul 2019 12:25:55 -0400 (EDT)
+	id 386C78E015D; Fri, 12 Jul 2019 12:38:13 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B0D608E0003
-	for <linux-mm@kvack.org>; Fri, 12 Jul 2019 12:25:55 -0400 (EDT)
-Received: by mail-qk1-f197.google.com with SMTP id k125so7335340qkc.12
-        for <linux-mm@kvack.org>; Fri, 12 Jul 2019 09:25:55 -0700 (PDT)
+Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 179368E0003
+	for <linux-mm@kvack.org>; Fri, 12 Jul 2019 12:38:13 -0400 (EDT)
+Received: by mail-io1-f70.google.com with SMTP id s9so11220519iob.11
+        for <linux-mm@kvack.org>; Fri, 12 Jul 2019 09:38:13 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:organization:message-id:date
-         :user-agent:mime-version:in-reply-to:content-transfer-encoding
-         :content-language;
-        bh=BIURRMZkCo13Ia+L7IZ8p69K5ngWdRN7fX/g1dB/OoA=;
-        b=LPSn2IDKj6XOMU055J1tEUM24OgEFofjXZku7BgvQiQCTEcrD4DnNbLRNfGOFzmYoU
-         gjurMeaNEhGvY+03gsXYhuo/sRupZyCnqUfAbR++ACSfN/sA2IpFzWTSornMlMDa4d1T
-         tDhhJWrpHghmI+VFvDzSrW88zWqdq6s2RyC3oJBisCUyljwaPuWkDUkcccIlz2ye8Jlt
-         3MiQ6Om+Zk4AfB/GtQlJ1FL+Qci28OW4PAvDL/PZvF6hTeio4867uMXlmnGXBuQnMvEt
-         PD/xUn/DQhkqtjAMEdS9qmoFE8aT5vdgQR/uQO1BqXKTo02p8pJhZFhVIFvR06mWCpK3
-         zxGQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAXR9x7rd7t0W6nRsIAcYaWJ606PbqrgjqN8xoGax/WSDkKgUoqv
-	ubFKBFLZFHTdBQcw18f7b42EL3G95AfMQ6yvaFFB5TYe5AMSY19bPfhTOvcg2BAg3bdsURffU+A
-	nh79ZRHMVGtLN/qll7l7iDhQyaPeSjL6RC3+kNr6QbCbIT1JQcCtpKXu3eee5+E5Rmg==
-X-Received: by 2002:ac8:32e8:: with SMTP id a37mr7289024qtb.231.1562948755447;
-        Fri, 12 Jul 2019 09:25:55 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzuo7Dnq0OUtfbO6PT7jrt1R9bM9KfMi/xDLk7A5HeyeZrYt6PgDiPkUMW78HfKSye917T0
-X-Received: by 2002:ac8:32e8:: with SMTP id a37mr7288950qtb.231.1562948754356;
-        Fri, 12 Jul 2019 09:25:54 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562948754; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+         :organization:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=nyEsN/LT+qLQeAhJSw73nRDEiezb1wkuHqJmYoNu09Q=;
+        b=rp2gHyI0Rs2k8JFL9xE5GN2sy6bmrzNFA47sjUygGxCNCcOwR00WVnaR/yZfveX5nR
+         qHv6AWklJDccbekwP8vQw1qCVlDMjRM3h3lt04PwbGPzIhaq39ASr+YTsgskMB4Jd/EY
+         ecO9MPd/hrPWyGJdy/wWsKR09/Dr400bEGsO5YlSj8lH4/J9djVK5Pos+gMpQN1ypXhL
+         IKyxuQiS1BqqViuCk7jE11mMwPZmGIQF8DmKzHD+oMsJeEzNOcg8evE/eEAzKHYnxjSr
+         5pmoNXgUomPSCiqPF9CVKkBcbw25g7BBEkSmyTFZq4+Cpx+SNg24crDHUC34eTq9vFcP
+         5oJg==
+X-Gm-Message-State: APjAAAUcsBCN4IkkzHclh8qPDvacDMoClowSvmGs19i/2ivxoGtHMwKc
+	vqvZudzL3SFI11ozDD5ZcKRj4FtuVMD40NqnZz0T0a2Lhq4zcPQdyMLXZ1afJ++4Je+2s4DpBbz
+	m1Ig09w1s+ED+rd1qhY7DcjhbVSMFB/5rqtegqyacTEPDXRcFTsqpo9k1fNQzxNYTcg==
+X-Received: by 2002:a5e:8c11:: with SMTP id n17mr11499618ioj.64.1562949492848;
+        Fri, 12 Jul 2019 09:38:12 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyAZGlzrGlwwTAgogL8Z/SFl72v1TVK2U/FWaTA9gW2B94UR+rQmkk8m/CzY6mUV/O0XBWd
+X-Received: by 2002:a5e:8c11:: with SMTP id n17mr11499551ioj.64.1562949492062;
+        Fri, 12 Jul 2019 09:38:12 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562949492; cv=none;
         d=google.com; s=arc-20160816;
-        b=ug2+0fXlkDxbeODx13+qUF8O3oiDzJ79a9RFf/Rs6CZs5yZdOcci9QqzHNJnerus6O
-         T2kp7xxbomJoJVkU0I+3o4WsUdHfC/yzp0m2Ujl95Zr5uZWQaXqyhRCEP3LuTEg9IXmx
-         UoT0nG9QWdKouQcrrVAvSxTr0gAWUyf0Cz2ZF4qkOVZDPMFUXfMazWxDiLEEj6efyG81
-         lxtzTsnTwhVphazw6IGKdtEDmJ0u+7oJPTPrLrFEUn+H+IAuidYX451nRLDiquOAluAl
-         xTJ7ZxWlsJMxW/MgvD/pO1SQ7StnWKF9VG+PcpSXav6VCrqNdsRGSAxds9UenLdF1TYo
-         Rhhw==
+        b=vwyGpSjczyrWrMtvdfnpxW9/bGvpjK3genSLosV/ciUGjuJwUZdU2jjd5itl9q8WkS
+         M0RM1JOUFGOjxHv1gAZuwKbhzz5DajU98cDLWaFDbqcvk8fW4u2373C54TgpvOYvauHx
+         REscjv8Q0xCj/rbQx6dQ74Qrij8DVeXUK1KtYK0beCTR6GkTHC9rHNglYXfWf0I53qGw
+         Jh+UZkhPRPsrBsp40bR+0pLGCJHJIDm9AbtaqkInw3PJ+h4poNeuOutsablA3f59rYkL
+         sLM3rxk2gg7bJERcBsc3nK4dgNyaU0hpK7RxbnNtxAHtFBUQrdaW3vA/AA+Qf6JYmVtM
+         YOsQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-language:content-transfer-encoding:in-reply-to:mime-version
-         :user-agent:date:message-id:organization:autocrypt:openpgp:from
-         :references:cc:to:subject;
-        bh=BIURRMZkCo13Ia+L7IZ8p69K5ngWdRN7fX/g1dB/OoA=;
-        b=gVPEGw/S3Djz6TtLBC2qar2MR0Xw/wftUcZL1RkakOyaYRe1d/L8uSnMLyCPJcBI3Z
-         cF1NH27aReKEjt4VhZNTGfpojJlQJdSgxORSuzAZxPzzV4BTWYO3//RyWy6YPttEtXCX
-         WkZQvpYqRn0GSWDYtWbEjQBiTVCrHnORrwEZ1gcgNH4c3y7sFl78R4xVlrUPLfx2W7P8
-         Fy9hli3jlWrH4TqH7pbYS9ZzJp6WJoeBLCG4pdgrKFi8J1jSP6hBzHat6cdIULEzg6Xi
-         uWyUUUlvzoal871/602jcXP0x7wCGD/DGRYsro3jhg2qkWylS9fSuUza9IJtISe9wIwp
-         dzBw==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:organization:from:references:cc:to
+         :subject:dkim-signature;
+        bh=nyEsN/LT+qLQeAhJSw73nRDEiezb1wkuHqJmYoNu09Q=;
+        b=BvVfUSY6ybeCWE7USkr+gLzR7z84jXJga2DZGTtkIbiWEwMCo593wFKMxI8VSpN9Nw
+         owY5MmBaCO+Wi6HPwi5gzS30MNPkz2LdHIf0UPmTPn2HPG5hlZjb2W+l7/b9EA1jkKpH
+         z3Vi0doO0MY/cPNOECSPJupftI3X9Qj/6PYfNBjPh/AEVZC0MIq6qPX51RA5HMsRy5QM
+         CMATTxQpP1LfxVTHgahW5N9YXrmilm+w+aAi6NOiFUFfNPMR4p/TkFU0cLfDhkaGN0r6
+         ScFuHIXJCIXozgcZx3V/m1PY80FrV9uj2HHAFCGKJE78sYpGw2z94e89BZNptKdOwZzt
+         91VQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id k30si5841591qtc.353.2019.07.12.09.25.54
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=udzUsKOC;
+       spf=pass (google.com: domain of alexandre.chartre@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=alexandre.chartre@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id h16si12939390iol.156.2019.07.12.09.38.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 12 Jul 2019 09:25:54 -0700 (PDT)
-Received-SPF: pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Fri, 12 Jul 2019 09:38:12 -0700 (PDT)
+Received-SPF: pass (google.com: domain of alexandre.chartre@oracle.com designates 156.151.31.85 as permitted sender) client-ip=156.151.31.85;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 53C38317F31E;
-	Fri, 12 Jul 2019 16:25:53 +0000 (UTC)
-Received: from [10.40.205.73] (unknown [10.40.205.73])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id B14EB1001DF6;
-	Fri, 12 Jul 2019 16:25:20 +0000 (UTC)
-Subject: Re: [RFC][Patch v11 1/2] mm: page_hinting: core infrastructure
-To: Alexander Duyck <alexander.duyck@gmail.com>
-Cc: kvm list <kvm@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>,
- linux-mm <linux-mm@kvack.org>, Paolo Bonzini <pbonzini@redhat.com>,
- lcapitulino@redhat.com, pagupta@redhat.com, wei.w.wang@intel.com,
- Yang Zhang <yang.zhang.wz@gmail.com>, Rik van Riel <riel@surriel.com>,
- David Hildenbrand <david@redhat.com>, "Michael S. Tsirkin" <mst@redhat.com>,
- dodgen@google.com, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
- dhildenb@redhat.com, Andrea Arcangeli <aarcange@redhat.com>,
- john.starks@microsoft.com, Dave Hansen <dave.hansen@intel.com>,
- Michal Hocko <mhocko@suse.com>
-References: <20190710195158.19640-1-nitesh@redhat.com>
- <20190710195158.19640-2-nitesh@redhat.com>
- <CAKgT0Ue3mVZ_J0GgMUP4PBW4SUD1=L9ixD5nUZybw9_vmBAT0A@mail.gmail.com>
- <3c6c6b93-eb21-a04c-d0db-6f1b134540db@redhat.com>
- <CAKgT0UcaKhAf+pTeE1CRxqhiPtR2ipkYZZ2+aChetV7=LDeSeA@mail.gmail.com>
- <521db934-3acd-5287-6e75-67feead8ca63@redhat.com>
- <CAKgT0Uf7xsdh9OgBq-kyTkyvh8Qo9kV4uiWTVP7NKqzO4X0wyg@mail.gmail.com>
-From: Nitesh Narayan Lal <nitesh@redhat.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=nitesh@redhat.com; prefer-encrypt=mutual; keydata=
- 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
- VujM7c/b4pps
-Organization: Red Hat Inc,
-Message-ID: <89c65447-f876-9aac-957f-85f30ca43b2f@redhat.com>
-Date: Fri, 12 Jul 2019 12:25:17 -0400
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=udzUsKOC;
+       spf=pass (google.com: domain of alexandre.chartre@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=alexandre.chartre@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
+	by userp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x6CGYu5W044476;
+	Fri, 12 Jul 2019 16:37:56 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
+ references : from : message-id : date : mime-version : in-reply-to :
+ content-type : content-transfer-encoding; s=corp-2018-07-02;
+ bh=nyEsN/LT+qLQeAhJSw73nRDEiezb1wkuHqJmYoNu09Q=;
+ b=udzUsKOCDBkPUmzOUDtUv3Rsrc9AjAPNDVOQAGhzxJz8cM/ac3qhx5la2ks5/yVkRxcN
+ jeJuWWO1mCOVL7CdwMw1K5mrevYgdJ0U1KqrVJXYcGhsGKBybJTzoG1DmqR/AtKpiRUG
+ /6cdcqaH7+uwyAS/A20qc+5Japv6c6FQGyZeWGHfpCZ0Cd11Z2ykMLdZrqwzh23px5JK
+ zjP8561g4U1GdrrdSfcmHkKZXMW8rHVjPA3kl5NBx2d98FCqPiLcAhEa4FB571m6F2RM
+ dyIFcDD4kndhbBovZteDlGSGO/H8G0eogKOqieLEXrwfqHR56AX8ZGkcAyv5JsZwO7iB hA== 
+Received: from userp3030.oracle.com (userp3030.oracle.com [156.151.31.80])
+	by userp2120.oracle.com with ESMTP id 2tjm9r6n6w-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Fri, 12 Jul 2019 16:37:56 +0000
+Received: from pps.filterd (userp3030.oracle.com [127.0.0.1])
+	by userp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x6CGHoBM082891;
+	Fri, 12 Jul 2019 16:37:56 GMT
+Received: from aserv0122.oracle.com (aserv0122.oracle.com [141.146.126.236])
+	by userp3030.oracle.com with ESMTP id 2tn1j288h9-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Fri, 12 Jul 2019 16:37:55 +0000
+Received: from abhmp0012.oracle.com (abhmp0012.oracle.com [141.146.116.18])
+	by aserv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x6CGbqMp028681;
+	Fri, 12 Jul 2019 16:37:52 GMT
+Received: from [10.166.106.34] (/10.166.106.34)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Fri, 12 Jul 2019 09:37:51 -0700
+Subject: Re: [RFC v2 00/27] Kernel Address Space Isolation
+To: Thomas Gleixner <tglx@linutronix.de>,
+        Peter Zijlstra <peterz@infradead.org>
+Cc: Dave Hansen <dave.hansen@intel.com>, pbonzini@redhat.com,
+        rkrcmar@redhat.com, mingo@redhat.com, bp@alien8.de, hpa@zytor.com,
+        dave.hansen@linux.intel.com, luto@kernel.org, kvm@vger.kernel.org,
+        x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+        konrad.wilk@oracle.com, jan.setjeeilers@oracle.com,
+        liran.alon@oracle.com, jwadams@google.com, graf@amazon.de,
+        rppt@linux.vnet.ibm.com, Paul Turner <pjt@google.com>
+References: <1562855138-19507-1-git-send-email-alexandre.chartre@oracle.com>
+ <5cab2a0e-1034-8748-fcbe-a17cf4fa2cd4@intel.com>
+ <alpine.DEB.2.21.1907120911160.11639@nanos.tec.linutronix.de>
+ <61d5851e-a8bf-e25c-e673-b71c8b83042c@oracle.com>
+ <20190712125059.GP3419@hirez.programming.kicks-ass.net>
+ <alpine.DEB.2.21.1907121459180.1788@nanos.tec.linutronix.de>
+From: Alexandre Chartre <alexandre.chartre@oracle.com>
+Organization: Oracle Corporation
+Message-ID: <3ca70237-bf8e-57d9-bed5-bc2329d17177@oracle.com>
+Date: Fri, 12 Jul 2019 18:37:47 +0200
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.1
+ Thunderbird/60.5.0
 MIME-Version: 1.0
-In-Reply-To: <CAKgT0Uf7xsdh9OgBq-kyTkyvh8Qo9kV4uiWTVP7NKqzO4X0wyg@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <alpine.DEB.2.21.1907121459180.1788@nanos.tec.linutronix.de>
+Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Language: en-US
-X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.41]); Fri, 12 Jul 2019 16:25:53 +0000 (UTC)
+Content-Transfer-Encoding: 7bit
+X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9316 signatures=668688
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
+ phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
+ adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
+ engine=8.0.1-1810050000 definitions=main-1907120170
+X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9316 signatures=668688
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
+ definitions=main-1907120171
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
@@ -170,110 +157,87 @@ X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 
-On 7/12/19 12:22 PM, Alexander Duyck wrote:
-> On Thu, Jul 11, 2019 at 6:13 PM Nitesh Narayan Lal <nitesh@redhat.com> wrote:
+
+On 7/12/19 5:16 PM, Thomas Gleixner wrote:
+> On Fri, 12 Jul 2019, Peter Zijlstra wrote:
+>> On Fri, Jul 12, 2019 at 01:56:44PM +0200, Alexandre Chartre wrote:
 >>
->> On 7/11/19 7:20 PM, Alexander Duyck wrote:
->>> On Thu, Jul 11, 2019 at 10:58 AM Nitesh Narayan Lal <nitesh@redhat.com> wrote:
->>>> On 7/10/19 5:56 PM, Alexander Duyck wrote:
->>>>> On Wed, Jul 10, 2019 at 12:52 PM Nitesh Narayan Lal <nitesh@redhat.com> wrote:
->>>>>> This patch introduces the core infrastructure for free page hinting in
->>>>>> virtual environments. It enables the kernel to track the free pages which
->>>>>> can be reported to its hypervisor so that the hypervisor could
->>>>>> free and reuse that memory as per its requirement.
->>>>>>
->>>>>> While the pages are getting processed in the hypervisor (e.g.,
->>>>>> via MADV_FREE), the guest must not use them, otherwise, data loss
->>>>>> would be possible. To avoid such a situation, these pages are
->>>>>> temporarily removed from the buddy. The amount of pages removed
->>>>>> temporarily from the buddy is governed by the backend(virtio-balloon
->>>>>> in our case).
->>>>>>
->>>>>> To efficiently identify free pages that can to be hinted to the
->>>>>> hypervisor, bitmaps in a coarse granularity are used. Only fairly big
->>>>>> chunks are reported to the hypervisor - especially, to not break up THP
->>>>>> in the hypervisor - "MAX_ORDER - 2" on x86, and to save space. The bits
->>>>>> in the bitmap are an indication whether a page *might* be free, not a
->>>>>> guarantee. A new hook after buddy merging sets the bits.
->>>>>>
->>>>>> Bitmaps are stored per zone, protected by the zone lock. A workqueue
->>>>>> asynchronously processes the bitmaps, trying to isolate and report pages
->>>>>> that are still free. The backend (virtio-balloon) is responsible for
->>>>>> reporting these batched pages to the host synchronously. Once reporting/
->>>>>> freeing is complete, isolated pages are returned back to the buddy.
->>>>>>
->>>>>> There are still various things to look into (e.g., memory hotplug, more
->>>>>> efficient locking, possible races when disabling).
->>>>>>
->>>>>> Signed-off-by: Nitesh Narayan Lal <nitesh@redhat.com>
->>> So just FYI, I thought I would try the patches. It looks like there
->>> might be a bug somewhere that is causing it to free memory it
->>> shouldn't be. After about 10 minutes my VM crashed with a system log
->>> full of various NULL pointer dereferences.
->> That's interesting, I have tried the patches with MADV_DONTNEED as well.
->> I just retried it but didn't see any crash. May I know what kind of
->> workload you are running?
-> I was running the page_fault1 test on a VM with 80G of memory.
->
->>>  The only change I had made
->>> is to use MADV_DONTNEED instead of MADV_FREE in QEMU since my headers
->>> didn't have MADV_FREE on the host. It occurs to me one advantage of
->>> MADV_DONTNEED over MADV_FREE is that you are more likely to catch
->>> these sort of errors since it zeros the pages instead of leaving them
->>> intact.
->> For development purpose maybe. For the final patch-set I think we
->> discussed earlier why we should keep MADV_FREE.
-> I'm still not convinced MADV_FREE is a net win, at least for
-> performance. You are still paying the cost for the VMEXIT in order to
-> regain ownership of the page. In the case that you are under memory
-> pressure it is essentially equivalent to MADV_DONTNEED. Also it
-> doesn't really do much to help with the memory footprint of the VM
-> itself. With the MADV_DONTNEED the pages are freed back and you have a
-> greater liklihood of reducing the overall memory footprint of the
-> entire system since you would be more likely to be assigned pages that
-> were recently used rather than having to access a cold page.	
->
-> <snip>
->
->>>>>> +void page_hinting_enqueue(struct page *page, int order)
->>>>>> +{
->>>>>> +       int zone_idx;
->>>>>> +
->>>>>> +       if (!page_hitning_conf || order < PAGE_HINTING_MIN_ORDER)
->>>>>> +               return;
->>>>> I would think it is going to be expensive to be jumping into this
->>>>> function for every freed page. You should probably have an inline
->>>>> taking care of the order check before you even get here since it would
->>>>> be faster that way.
->>>> I see, I can take a look. Thanks.
->>>>>> +
->>>>>> +       bm_set_pfn(page);
->>>>>> +       if (atomic_read(&page_hinting_active))
->>>>>> +               return;
->>>>> So I would think this piece is racy. Specifically if you set a PFN
->>>>> that is somewhere below the PFN you are currently processing in your
->>>>> scan it is going to remain unset until you have another page freed
->>>>> after the scan is completed. I would worry you can end up with a batch
->>>>> free of memory resulting in a group of pages sitting at the start of
->>>>> your bitmap unhinted.
->>>> True, but that will be hinted next time threshold is met.
->>> Yes, but that assumes that there is another free immediately coming.
->>> It is possible that you have a big application run and then
->>> immediately shut down and have it free all its memory at once. Worst
->>> case scenario would be that it starts by freeing from the end and
->>> works toward the start. With that you could theoretically end up with
->>> a significant chunk of memory waiting some time for another big free
->>> to come along.
->> Any suggestion on some benchmark/test application which I could run to
->> see this kind of behavior?
-> Like I mentioned before, try doing a VM with a bigger memory
-> footprint. You could probably just do a stack of VMs like what we were
-> doing with the memhog test. Basically the longer it takes to process
-> all the pages the greater the liklihood that there are still pages
-> left when they are freed.
-Thanks. Before next posting I will make sure to test with a larger VM
-(>64GB).
--- 
-Thanks
-Nitesh
+>>> I think that's precisely what makes ASI and PTI different and independent.
+>>> PTI is just about switching between userland and kernel page-tables, while
+>>> ASI is about switching page-table inside the kernel. You can have ASI without
+>>> having PTI. You can also use ASI for kernel threads so for code that won't
+>>> be triggered from userland and so which won't involve PTI.
+>>
+>> PTI is not mapping         kernel space to avoid             speculation crap (meltdown).
+>> ASI is not mapping part of kernel space to avoid (different) speculation crap (MDS).
+>>
+>> See how very similar they are?
+>>
+>> Furthermore, to recover SMT for userspace (under MDS) we not only need
+>> core-scheduling but core-scheduling per address space. And ASI was
+>> specifically designed to help mitigate the trainwreck just described.
+>>
+>> By explicitly exposing (hopefully harmless) part of the kernel to MDS,
+>> we reduce the part that needs core-scheduling and thus reduce the rate
+>> the SMT siblngs need to sync up/schedule.
+>>
+>> But looking at it that way, it makes no sense to retain 3 address
+>> spaces, namely:
+>>
+>>    user / kernel exposed / kernel private.
+>>
+>> Specifically, it makes no sense to expose part of the kernel through MDS
+>> but not through Meltdow. Therefore we can merge the user and kernel
+>> exposed address spaces.
+>>
+>> And then we've fully replaced PTI.
+>>
+>> So no, they're not orthogonal.
+> 
+> Right. If we decide to expose more parts of the kernel mappings then that's
+> just adding more stuff to the existing user (PTI) map mechanics.
+  
+
+If we expose more parts of the kernel mapping by adding them to the existing
+user (PTI) map, then we only control the mapping of kernel sensitive data but
+we don't control user mapping (with ASI, we exclude all user mappings).
+
+How would you control the mapping of userland sensitive data and exclude them
+from the user map? Would you have the application explicitly identify sensitive
+data (like Andy suggested with a /dev/xpfo device)?
+
+Thanks,
+
+alex.
+
+
+> As a consequence the CR3 switching points become different or can be
+> consolidated and that can be handled right at those switching points
+> depending on static keys or alternatives as we do today with PTI and other
+> mitigations.
+> 
+> All of that can do without that obscure "state machine" which is solely
+> there to duct-tape the complete lack of design. The same applies to that
+> mapping thing. Just mapping randomly selected parts by sticking them into
+> an array is a non-maintainable approach. This needs proper separation of
+> text and data sections, so violations of the mapping constraints can be
+> statically analyzed. Depending solely on the page fault at run time for
+> analysis is just bound to lead to hard to diagnose failures in the field.
+> 
+> TBH we all know already that this can be done and that this will solve some
+> of the issues caused by the speculation mess, so just writing some hastily
+> cobbled together POC code which explodes just by looking at it, does not
+> lead to anything else than time waste on all ends.
+> 
+> This first needs a clear definition of protection scope. That scope clearly
+> defines the required mappings and consequently the transition requirements
+> which provide the necessary transition points for flipping CR3.
+> 
+> If we have agreed on that, then we can think about the implementation
+> details.
+> 
+> Thanks,
+> 
+> 	tglx
+> 
 
