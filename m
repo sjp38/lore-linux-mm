@@ -6,100 +6,103 @@ X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id F2838C742BD
-	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 13:51:06 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BE299C742BD
+	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 13:54:26 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B68F5208E4
-	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 13:51:06 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B68F5208E4
+	by mail.kernel.org (Postfix) with ESMTP id 868AC208E4
+	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 13:54:26 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 868AC208E4
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 58CB28E014E; Fri, 12 Jul 2019 09:51:06 -0400 (EDT)
+	id 3193E8E014F; Fri, 12 Jul 2019 09:54:26 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 53CA58E00DB; Fri, 12 Jul 2019 09:51:06 -0400 (EDT)
+	id 2C9618E00DB; Fri, 12 Jul 2019 09:54:26 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 42C2F8E014E; Fri, 12 Jul 2019 09:51:06 -0400 (EDT)
+	id 16AE98E014F; Fri, 12 Jul 2019 09:54:26 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 0AEF98E00DB
-	for <linux-mm@kvack.org>; Fri, 12 Jul 2019 09:51:06 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id c31so4821467pgb.20
-        for <linux-mm@kvack.org>; Fri, 12 Jul 2019 06:51:06 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id D17CC8E00DB
+	for <linux-mm@kvack.org>; Fri, 12 Jul 2019 09:54:25 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id 191so5562574pfy.20
+        for <linux-mm@kvack.org>; Fri, 12 Jul 2019 06:54:25 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
          :references:from:openpgp:autocrypt:message-id:date:user-agent
          :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=yXZDGH7UFPztNuivEXwKOh8AtHddMWSG8TndzGrNhQI=;
-        b=m/U0pKx8Hg8VKxgareiN/ra87bFUVCsT4aIjaCbRniK9FJ1mASyi3ePNPaZDdQlj5n
-         6OP3k7qcHrQWPcYrSziqSeHsTsXieJfBkBYf71MtDqD8brwCPJQuUHG40hQnhH4Hsqc8
-         uHedf+em2wo8MdrjZ17nCofkaclXuKhnuQdMpxMTDaggjomAwph2OVH6QMo2j4eFT2k3
-         m2UkLonMeNbhbIyBt7/KihhQViGu5HHFRUxQ1Ya4NYIJp9Z+sFwW8bq4uF65P3lTSVbD
-         IBJ544wAvzeTIwgpr7AkmzpjvBeSzpzDj0eKCXxcJQku1hFgEoq7MrgoRHy9HyzIMcPg
-         2nRQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAWBxDa2MduerD5o4nJOfNLQtN1hJdUytmfrsSO7Uj+xzWDZ7Ljp
-	1WEO27p8ymSN3KO1JkXTYYk2ChvUvKk/FZmLanAiIkDsWWat7/hxale0b+bdsWR2qUSOCuGQJfe
-	AeY8//y+pf9NSCkgEP6woQQppHiZIHgaZ7zpmWqShnMdF+heTyt5S2MCw7yVjy0ZvfQ==
-X-Received: by 2002:a63:4006:: with SMTP id n6mr10385771pga.403.1562939465676;
-        Fri, 12 Jul 2019 06:51:05 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqx0/upGpQmw8PCTb12qNTX6BPwAogXh+0ABJN9QT2NKZUA4guVWrchS79CoRwIKoTGsmhsg
-X-Received: by 2002:a63:4006:: with SMTP id n6mr10385629pga.403.1562939464163;
-        Fri, 12 Jul 2019 06:51:04 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562939464; cv=none;
+        bh=40SXDbZebqW9Fo5hkse7YNgiYamCVd5peTsubRzyArE=;
+        b=RcQMHXKEIbvWv7hl3BT63UKf6l95iUggHaaSN3YoaBTKZvEDb2AkK4f/mFD3pD+pK/
+         XZrxKUrccOVMKIKLOLinsabz+x4JsnY0yeRSy5wzLN6BhxXsPmQMy413ep34SxCZqKn1
+         n81t5kSv7d6WInqgBJXSODBWuj6j8r24VcXittuhsTHU2ED58Rhxg5omof8bC7UU7Oni
+         jrPBsNkbNuonSLkA2CN8Njk3u2dwOYGJV77v4RkmixkH3BG8hfmp812LtHdd7EhKt5Gz
+         GukvirReNBdbBK9lnWhPaBER3KF4ONxwwwXdH5gzJg1Z1fB4XWG1jyNl4Y+IbZgD6+nw
+         a8UQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAUmeHW5igqUPn5zJSLXTu49tEGsWlrph5FbBpsrXAWqiHu6CkQG
+	qIyT05M04xAXUVjuKp7pE0jI7oQZEf3ZX8WpfImFNePznHrdoVC0hYPcjc6E/kFHHNl1DmGYcry
+	qfSsdEvuWsT4LV0zeSLKM8zLJpSddvh5vtjQ5yTRIiP5ORu0uDj32+xmebdyNG6CopQ==
+X-Received: by 2002:a17:90a:8a91:: with SMTP id x17mr11990187pjn.95.1562939665554;
+        Fri, 12 Jul 2019 06:54:25 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzx5IPOUs9QrPcKwSP04HQhvKG0ZUQn0aSOv1Enfb48f3C2/ERhjgyYxDwGT8JQh6CE98TW
+X-Received: by 2002:a17:90a:8a91:: with SMTP id x17mr11990132pjn.95.1562939665003;
+        Fri, 12 Jul 2019 06:54:25 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562939664; cv=none;
         d=google.com; s=arc-20160816;
-        b=n64u76zYKt97YrcigX5fJEUK0qjMsBNuozNVH4uY7ETTldMbgCxQr4vn+gE1K1PLpv
-         HvuzSagCL6T+jeLiBb2ASM8Onw9jCEzQLqkD6tmmwhTOakeyzVoztFCGB/dZkGm1AhyV
-         CxYDfQLkJrUR2aPueo1zDsYbnQFk6ycVLdSzsl9wte6Q4QtgXumOnmLrEXiePNuzBX6l
-         cCGjiPYCTqbnoCphhkjsUAZuRpNwTk7BDwcwXUTJJMUfa2deM6ViSSd69UxAY5wsGVj+
-         T68pN4ZhTmB/ZmwoCjNAmOWclAHrKFwYzGnVzi/9DMPglkcU37LcnNrjobCz20sRHpAN
-         I3wA==
+        b=lGlJubkMQTFXqRAWYFEccUijnjDSekVfRqJ+kJ42/wJGoE4Omica7hxz+2WQTNvl81
+         YxykQQyP7+2v8+vAkVogbpq0PjWqnHdZgwR82tgdwE38ldMTRVBL2pNDhH8Kgh0h53pj
+         wk25W6oZH6xrGjJJy+LZuUnvX3mkRFkOPV/1fvH+B/ji2RKAwWj8lYgs541y7Nyajo8g
+         AQBM2swdxyeFeJxL6sjEsro0tuj+NtbEjOBZVjjimI9cfVeEbXeOcEtCkQxRETe9+yKA
+         WERBdbZWpFWwqFHvXxq6/UXhH9vfuc5WBsDKZ2ZqO3xOq3FJ0qJ0VCiz8OD8EjSPlcRi
+         baDw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
          :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
          :subject;
-        bh=yXZDGH7UFPztNuivEXwKOh8AtHddMWSG8TndzGrNhQI=;
-        b=ln4FZsekx5gTejfXZjxTwcVL02EmrDhBCB4rib24UVe6n4AnraaVad7hSP0+woFIqP
-         3pf/4ZODfOGzBFtJ7rn8TOWYNBoN4oIIRNNr6ct7OL5zjjStQ8hladSWO6EeTnWKGVRi
-         KUjsz1M+SFPB/fLQrnwAJN6/pQbTlLXLQCY7tqowm+o+2nk1ew1nok4qLSUuuoGuG6Ef
-         RGbA2Aufa+OpQAnP1AU1T7vgJUYcxsto5t8wxcR4vHTM3Kv2L3IYXMv77h9igSQrBUkc
-         PRvErS4hdKvQ6Pe4E25hYi/T6YxRa9Htw+IhsiSqhFteCT5mRlHH6ZQVvxkHsL1OWtVl
-         B84w==
+        bh=40SXDbZebqW9Fo5hkse7YNgiYamCVd5peTsubRzyArE=;
+        b=CvfD1kPTZpF9AoUtTbekolesQq9UNwWS2eEkrLm546OVZqfID00bTMxEsz3iIfJrOq
+         k5Z+PPeVQ4PXdZxmEJX9+TjFmV13n9FcLf6weAAJ2Tl365JJrMmbRw9c6flbiV3lPfSJ
+         OXipksL4zhe3zt9KF4BkAprtv5f6hPtfKFC3mh59jXrwavrjBL3/goJbqu66aH0ueSqh
+         ycjB+x145iePBwGepOy1vv13wiSzTwC3h4mBpxC1gw7P21U4uTj8HPYXGE+PaSywdXVn
+         AphJ90lTYID6ZZYJWWgSUJo8HYU9avTG8obaw+mVMVXXLNMxTzjkXV2Cwk72UoAgBAgH
+         sQgg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
+       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id d15si8547173pgv.90.2019.07.12.06.51.03
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id g9si7694522pgs.364.2019.07.12.06.54.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 12 Jul 2019 06:51:04 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.24 as permitted sender) client-ip=134.134.136.24;
+        Fri, 12 Jul 2019 06:54:24 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.115 as permitted sender) client-ip=192.55.52.115;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
+       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 X-Amp-Result: SKIPPED(no attachment in message)
 X-Amp-File-Uploaded: False
 Received: from fmsmga008.fm.intel.com ([10.253.24.58])
-  by orsmga102.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 12 Jul 2019 06:51:03 -0700
+  by fmsmga103.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 12 Jul 2019 06:54:24 -0700
 X-ExtLoop1: 1
 X-IronPort-AV: E=Sophos;i="5.63,482,1557212400"; 
-   d="scan'208";a="166683426"
+   d="scan'208";a="166683884"
 Received: from smatond1-mobl1.amr.corp.intel.com (HELO [10.252.143.186]) ([10.252.143.186])
-  by fmsmga008.fm.intel.com with ESMTP; 12 Jul 2019 06:51:02 -0700
+  by fmsmga008.fm.intel.com with ESMTP; 12 Jul 2019 06:54:22 -0700
 Subject: Re: [RFC v2 00/27] Kernel Address Space Isolation
-To: Alexandre Chartre <alexandre.chartre@oracle.com>, pbonzini@redhat.com,
- rkrcmar@redhat.com, tglx@linutronix.de, mingo@redhat.com, bp@alien8.de,
- hpa@zytor.com, dave.hansen@linux.intel.com, luto@kernel.org,
- peterz@infradead.org, kvm@vger.kernel.org, x86@kernel.org,
- linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: konrad.wilk@oracle.com, jan.setjeeilers@oracle.com,
- liran.alon@oracle.com, jwadams@google.com, graf@amazon.de,
- rppt@linux.vnet.ibm.com
+To: Peter Zijlstra <peterz@infradead.org>,
+ Alexandre Chartre <alexandre.chartre@oracle.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>, pbonzini@redhat.com,
+ rkrcmar@redhat.com, mingo@redhat.com, bp@alien8.de, hpa@zytor.com,
+ dave.hansen@linux.intel.com, luto@kernel.org, kvm@vger.kernel.org,
+ x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+ konrad.wilk@oracle.com, jan.setjeeilers@oracle.com, liran.alon@oracle.com,
+ jwadams@google.com, graf@amazon.de, rppt@linux.vnet.ibm.com,
+ Paul Turner <pjt@google.com>
 References: <1562855138-19507-1-git-send-email-alexandre.chartre@oracle.com>
  <5cab2a0e-1034-8748-fcbe-a17cf4fa2cd4@intel.com>
- <2791712a-9f7b-18bc-e686-653181461428@oracle.com>
+ <alpine.DEB.2.21.1907120911160.11639@nanos.tec.linutronix.de>
+ <61d5851e-a8bf-e25c-e673-b71c8b83042c@oracle.com>
+ <20190712125059.GP3419@hirez.programming.kicks-ass.net>
 From: Dave Hansen <dave.hansen@intel.com>
 Openpgp: preference=signencrypt
 Autocrypt: addr=dave.hansen@intel.com; keydata=
@@ -145,12 +148,12 @@ Autocrypt: addr=dave.hansen@intel.com; keydata=
  MTsCeQDdjpgHsj+P2ZDeEKCbma4m6Ez/YWs4+zDm1X8uZDkZcfQlD9NldbKDJEXLIjYWo1PH
  hYepSffIWPyvBMBTW2W5FRjJ4vLRrJSUoEfJuPQ3vW9Y73foyo/qFoURHO48AinGPZ7PC7TF
  vUaNOTjKedrqHkaOcqB185ahG2had0xnFsDPlx5y
-Message-ID: <dbbf6b05-14b6-d184-76f2-8d4da80cec75@intel.com>
-Date: Fri, 12 Jul 2019 06:51:02 -0700
+Message-ID: <3626998c-509f-b434-1f66-9db2c09c47d4@intel.com>
+Date: Fri, 12 Jul 2019 06:54:22 -0700
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.7.2
 MIME-Version: 1.0
-In-Reply-To: <2791712a-9f7b-18bc-e686-653181461428@oracle.com>
+In-Reply-To: <20190712125059.GP3419@hirez.programming.kicks-ass.net>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 8bit
@@ -160,49 +163,38 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 7/12/19 1:09 AM, Alexandre Chartre wrote:
-> On 7/12/19 12:38 AM, Dave Hansen wrote:
->> I don't see the per-cpu areas in here.  But, the ASI macros in
->> entry_64.S (and asi_start_abort()) use per-cpu data.
+On 7/12/19 5:50 AM, Peter Zijlstra wrote:
+> PTI is not mapping         kernel space to avoid             speculation crap (meltdown).
+> ASI is not mapping part of kernel space to avoid (different) speculation crap (MDS).
 > 
-> We don't map all per-cpu areas, but only the per-cpu variables we need. ASI
-> code uses the per-cpu cpu_asi_session variable which is mapped when an ASI
-> is created (see patch 15/26):
+> See how very similar they are?
 
-No fair!  I had per-cpu variables just for PTI at some point and had to
-give them up! ;)
+That's an interesting point.
 
-> +    /*
-> +     * Map the percpu ASI sessions. This is used by interrupt handlers
-> +     * to figure out if we have entered isolation and switch back to
-> +     * the kernel address space.
-> +     */
-> +    err = ASI_MAP_CPUVAR(asi, cpu_asi_session);
-> +    if (err)
-> +        return err;
+I'd add that PTI maps a part of kernel space that partially overlaps
+with what ASI wants.
+
+> But looking at it that way, it makes no sense to retain 3 address
+> spaces, namely:
 > 
+>   user / kernel exposed / kernel private.
 > 
->> Also, this stuff seems to do naughty stuff (calling C code, touching
->> per-cpu data) before the PTI CR3 writes have been done.  But, I don't
->> see anything excluding PTI and this code from coexisting.
+> Specifically, it makes no sense to expose part of the kernel through MDS
+> but not through Meltdown. Therefore we can merge the user and kernel
+> exposed address spaces.
 > 
-> My understanding is that PTI CR3 writes only happens when switching to/from
-> userland. While ASI enter/exit/abort happens while we are already in the
-> kernel,
-> so asi_start_abort() is not called when coming from userland and so not
-> interacting with PTI.
+> And then we've fully replaced PTI.
 
-OK, that makes sense.  You only need to call C code when interrupted
-from something in the kernel (deeper than the entry code), and those
-were already running kernel C code anyway.
+So, in one address space (PTI/user or ASI), we say, "screw it" and all
+the data mapped is exposed to speculation attacks.  We have to be very
+careful about what we map and expose here.
 
-If this continues to live in the entry code, I think you have a good
-clue where to start commenting.
+The other (full kernel) address space we are more careful about what we
+*do* instead of what we map.  We map everything but have to add
+mitigations to ensure that we don't leak anything back to the exposed
+address space.
 
-BTW, the PTI CR3 writes are not *strictly* about the interrupt coming
-from user vs. kernel.  It's tricky because there's a window both in the
-entry and exit code where you are in the kernel but have a userspace CR3
-value.  You end up needing a CR3 write when you have a userspace CR3
-value when the interrupt occurred, not only when you interrupt userspace
-itself.
+So, maybe we're not replacing PTI as much as we're growing PTI so that
+we can run more kernel code with the (now inappropriately named) user
+page tables.
 
