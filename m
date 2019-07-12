@@ -2,254 +2,145 @@ Return-Path: <SRS0=GtRI=VJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,HTML_MESSAGE,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.1 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id F3BBCC742D2
-	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 18:31:10 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B8DB8C742D7
+	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 19:06:46 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7976C205ED
-	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 18:31:10 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 78645205C9
+	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 19:06:46 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="ewlHia7h"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7976C205ED
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="RXHwLzeN"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 78645205C9
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id AFCBE8E0164; Fri, 12 Jul 2019 14:31:09 -0400 (EDT)
+	id 0AA2E8E0165; Fri, 12 Jul 2019 15:06:46 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A859B8E0003; Fri, 12 Jul 2019 14:31:09 -0400 (EDT)
+	id 0339D8E0003; Fri, 12 Jul 2019 15:06:45 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 94DA08E0164; Fri, 12 Jul 2019 14:31:09 -0400 (EDT)
+	id E3C038E0165; Fri, 12 Jul 2019 15:06:45 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ua1-f70.google.com (mail-ua1-f70.google.com [209.85.222.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 68BD88E0003
-	for <linux-mm@kvack.org>; Fri, 12 Jul 2019 14:31:09 -0400 (EDT)
-Received: by mail-ua1-f70.google.com with SMTP id c21so1455768uao.21
-        for <linux-mm@kvack.org>; Fri, 12 Jul 2019 11:31:09 -0700 (PDT)
+Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 8CC3D8E0003
+	for <linux-mm@kvack.org>; Fri, 12 Jul 2019 15:06:45 -0400 (EDT)
+Received: by mail-wr1-f70.google.com with SMTP id u5so4712178wrp.10
+        for <linux-mm@kvack.org>; Fri, 12 Jul 2019 12:06:45 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:from:date:message-id
-         :subject:to;
-        bh=cIV6rBtWLOPRszoGLvj5E27EPDYcnDtLD4/tbfFhpvo=;
-        b=Fs+ousP+v2QgFJIzLNnHGFqDIhCotdoKlip+ivz3xWFjWqGTBf0cyvKAB9Q8qhfisy
-         VIHoL1zFXSgCeohsK2lGpN4WjrPT7OB/mWUYmxkB9Xsc7piKR8H8qRlQ5yFXyGrw9sBv
-         XLJCaTDQyBSPqP86iPlXYvniZsLway1IM8fr+do55rRWsgxM6pGyHCQRFaxOEgiZfqOm
-         obfC0yigTqog9Ay8XPc+nzqUiwiJrSFk9LW+kD/VtFnNZhvqlBIzpvx0ha2ZT+jF9uIM
-         ekbNhVJdqUykjJQAKOZinQcfMsGxenv04ajwdr7V+Ps/ZpUKeAtzZJLzTDOVcpjCYTdz
-         525w==
-X-Gm-Message-State: APjAAAUzKBqaSjoB0C7XBH5kHf6h5aymgTuamrsS6bW32gPlx5OwQyOt
-	YwBMzA+ATuFNnVmnlGR/qe/U9fCvViMuRMGt7mdGMceryexJuqVfTkx6BU+2mq5DibiO82q3+mf
-	vVBQ03sbb1YbRk2O7M5lVlWnjkzya/BioVFze5vZ1lFMyhyaO1ya18o1c1eqOH+7kow==
-X-Received: by 2002:a05:6102:3c8:: with SMTP id n8mr9227888vsq.135.1562956268961;
-        Fri, 12 Jul 2019 11:31:08 -0700 (PDT)
-X-Received: by 2002:a05:6102:3c8:: with SMTP id n8mr9227857vsq.135.1562956268187;
-        Fri, 12 Jul 2019 11:31:08 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562956268; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=UqgOWolirnCBEsyXVWQ2fOdoQVQ8hvpvnXJbQKMux3o=;
+        b=M0sbYvIcbt80hQPDLsNJh8rZ7NDmMeki9NqdNc2jueyJ8oBGpFy92Zzn/vqb7Zh7Ks
+         C/hdohgw1kvZJUt8Rg0I5Qpa2Eyjcuh1h2hwKejOKtW904PCCDna1cRxUnRAxUyNRw5Z
+         SbN/ZjBfCceUCpNhFOui1+uGquVKdfz82turRJhV6BjxuvEMfWk8CWl5mRr+sJs0uneh
+         VXMvNBbO4GeojyX7GU3kwH+A0n3GNIxCOpCcQA6/p6GFbnkvff8G135J8GjQ4/BUpSNQ
+         XVLzxvN3NL/hch+SbrvdzMB9K/Ho2ZyD3eZOE3ds/qMkpy87wGZfbcKdSNlQLaSPMXIN
+         WP5A==
+X-Gm-Message-State: APjAAAVJJGXjcvigzJbFgOFjbblAvTihiaJkNladxOxPHIv2ziSH9Sq6
+	3yaDO9qrl5UcKEdfjleMpR4KV+IclRBRh3jcvQqWcqXtJhwgYBjtOLz+5SKPXq1XiDav4jZYLw3
+	k5950qyNKUX4AFRbCTrssaLqVLwlWN654kMJnhYCTTFBa3zXahDzUAQSwNn2V27f0cg==
+X-Received: by 2002:a5d:62c9:: with SMTP id o9mr12343137wrv.186.1562958404905;
+        Fri, 12 Jul 2019 12:06:44 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzzrF1a8SW0aNauRgmuKKwfrfZSCX+jO+1A3QdkAgIFlzglyBQ339dqTF1Vv9GUkMVwEwYx
+X-Received: by 2002:a5d:62c9:: with SMTP id o9mr12343078wrv.186.1562958403876;
+        Fri, 12 Jul 2019 12:06:43 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562958403; cv=none;
         d=google.com; s=arc-20160816;
-        b=u7b5OPW3X2SeBklY+KMZr/LbqzIT3a9dOJ3AVlJaNyg+GtLkiIOwts98JfrE6vemKz
-         ZiM/vQGgTUDx7Fr55T13PFYWweSQFUVlVtA8khw836L9BHBeLeMK+DBicyLzXfE1iHAm
-         OnIMiQB3kWCp42TOOZ03RvrMNWryr4mqNl3ty4Bm4ZGe9Pj1VAM5us2m3UKnVjp8oxwW
-         07pcq5vy29Ix5zAFmj9+Xi18C6/5kIrfpe3UE1GYTY/AN7A9MoLhJ9oCMEXOFfameKEn
-         pT/rgIM7ywl4QxYhluuXGmfX3ssZ7XzqXrhhP19Q9s9ffdrttFoNZMgH4A3z9jMY8FBK
-         Ef+Q==
+        b=GG6SvvR6QQQ6DgtH5A+Saro+laGt+od8qG4SJLm8nA4KUP5VtFjPz9tmUfasChv+o7
+         Cq9r5Hz14LtSTjibAT6jV37oOgUeeR1sKCoeJR3AnYgSHJAy8sV3FhcwKCzdUm4pzHB7
+         69oOJkU+u9wlb4R+V7ASwSU1pv+U9aVhaVpz3vRCb8qeE9UzDFySHKxrBjK4pC/S2iSy
+         jbu+uH0eZZXyI+ReqmhvivHx/V68nUapeVg6VL3s8CCqChDyfvVHKB9gxavSc+zxzrGQ
+         2i1+fi1zAcJjL/+n3Ws/+03pMljqukEUPFnip+r/IPh4Oe0lOcCSwI9KOjbJ3WMawoKl
+         HtKA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=to:subject:message-id:date:from:mime-version:dkim-signature;
-        bh=cIV6rBtWLOPRszoGLvj5E27EPDYcnDtLD4/tbfFhpvo=;
-        b=uAmct8/yhkOEoR+hpoU9W+L1NQJ34L+/jPOWzRc3nyz5wESXRnapHzvV3y+pl1Nusc
-         ALbe1nIDESMatQymavH6FSY6MgJTBG+BLmxxcLhvexUusfDXYJBE63oHaXZYCYxOVTZG
-         2kZu0zIzxqRRdpCDOJabqvPnRE8hTyaiMtrsotQXQqqZSDMi6ce8/iH1ZSxpC+UBEKGL
-         FVOnHKPbGpXTMFlwRB4rSfFPn1ISh6Ry6MoqtkSxgE+UNe4aywwRp2muU8xOZQ1I2cow
-         8Vr0GMc0ISrltgkoaZIcCDeg3RViRs/AQ+OVqSp/keVsfhbta+Q6mYoGhn8/wEEXjd4o
-         0qrA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=UqgOWolirnCBEsyXVWQ2fOdoQVQ8hvpvnXJbQKMux3o=;
+        b=wE1xf1uje5yNWh9OXw0uFt7fMnpyFtU/d4p0bnUruIs+3UO6KZtPqhZEiyclwL6Egm
+         uF1RnGqPl1gaZXDLe+mOSbRnitbrLG/gLHjeJxl4Y1yz1Y96vOBB/NKgufB/wWlIJwRE
+         fymaPoJaembQcoPpa9wBlpGlRRIyQictPtzwj4OrXhgPu/j7v46BXmi4llJ3KQrOJIVC
+         iqzMY2z8n7gT9Qau0O1OtmJOQyNSZng9AtoDEPtkhzsBNl+XXyKE1XCU0YjqXBFLKq9N
+         /331U3pRRR1eXQr6CGiomdrbPmyAasCtdOanwFbMdAZrLMvvwQwOh7TdB2GhSFD9y1JO
+         NI6Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=ewlHia7h;
-       spf=pass (google.com: domain of pankajssuryawanshi@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=pankajssuryawanshi@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id g15sor2970430vkk.44.2019.07.12.11.31.07
+       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=RXHwLzeN;
+       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=peterz@infradead.org
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
+        by mx.google.com with ESMTPS id f12si8910235wru.47.2019.07.12.12.06.43
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 12 Jul 2019 11:31:08 -0700 (PDT)
-Received-SPF: pass (google.com: domain of pankajssuryawanshi@gmail.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Fri, 12 Jul 2019 12:06:43 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) client-ip=2001:8b0:10b:1231::1;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=ewlHia7h;
-       spf=pass (google.com: domain of pankajssuryawanshi@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=pankajssuryawanshi@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:from:date:message-id:subject:to;
-        bh=cIV6rBtWLOPRszoGLvj5E27EPDYcnDtLD4/tbfFhpvo=;
-        b=ewlHia7heeXX9gEvyayde5mx7+AEFE0O5WkRam9jXzXTM/cF4Rro/laOPuQDFADMkT
-         pgBCEH82Sq2vQ5ytflI6aY9ECob3kCsDLkBEomA3BoZout9U7Tkh8v3UE+GqetFYgZwv
-         T9i5nUr03L9NNnlgh1av/pQ5TwsQVLAfpkfba/uE0+COO/CT7rM4kTujCxnHZ/jfmRvl
-         Ha6cWu/ktyCI4B3Ir3wy+Td4QeX9+knTOY4KmhVoy866xKmqHKB7yJFGampkVPjO1EH4
-         syIDycrhKY/v7I3cqPWeNoNwRIu14RMQ2H5DNvB4fr8fphQAmDKq04wf+IpE1qy8dZZV
-         aODA==
-X-Google-Smtp-Source: APXvYqwoOrs4KeF1E3Iz5G6XucPUIl+s2QlAoOR993+Fq0+SJIKbbL4lgPIPTE2VQvtDIDsJPH41GoubeuVBEnQGkuo=
-X-Received: by 2002:a1f:62c3:: with SMTP id w186mr6618726vkb.82.1562956267589;
- Fri, 12 Jul 2019 11:31:07 -0700 (PDT)
+       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=RXHwLzeN;
+       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=peterz@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=merlin.20170209; h=In-Reply-To:Content-Type:MIME-Version:
+	References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=UqgOWolirnCBEsyXVWQ2fOdoQVQ8hvpvnXJbQKMux3o=; b=RXHwLzeNIqmDjrorcLSQiAkd/
+	MUyTNzpAtlmP3XOZPMG/9cuvZT3fk71qTAQkMBMu8DBb1GOL8ivodXsj9Pt8IiM/kZ96KvDpTZjwz
+	17r4zad9PKi2F9zqIK6ucOLmVegd/xcPRvcqF20wupKYw+jZXH1ZmOIXT8XEVkMMIaJ9aYLBm8DHd
+	tM4G+AW5wJjB9MjVM9GB3ZJ7WHHq0ew69CWEi8qFGPNUYHfBb7crHR1YOovT0vXC2Tn+lFUpMKhTF
+	P6ee4Qt7cVbAz+2p3WYU2GNhlt9XGIdlP2tdn7gLJH2PcRy4OrhWuAKvM3WgUGF/AZPd0bcmRI52p
+	pvWDraWCQ==;
+Received: from j217100.upc-j.chello.nl ([24.132.217.100] helo=hirez.programming.kicks-ass.net)
+	by merlin.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
+	id 1hm0sB-0000J7-4g; Fri, 12 Jul 2019 19:06:23 +0000
+Received: by hirez.programming.kicks-ass.net (Postfix, from userid 1000)
+	id 1D164201D16FC; Fri, 12 Jul 2019 21:06:20 +0200 (CEST)
+Date: Fri, 12 Jul 2019 21:06:20 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+To: Alexandre Chartre <alexandre.chartre@oracle.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>,
+	Dave Hansen <dave.hansen@intel.com>, pbonzini@redhat.com,
+	rkrcmar@redhat.com, mingo@redhat.com, bp@alien8.de, hpa@zytor.com,
+	dave.hansen@linux.intel.com, luto@kernel.org, kvm@vger.kernel.org,
+	x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+	konrad.wilk@oracle.com, jan.setjeeilers@oracle.com,
+	liran.alon@oracle.com, jwadams@google.com, graf@amazon.de,
+	rppt@linux.vnet.ibm.com, Paul Turner <pjt@google.com>
+Subject: Re: [RFC v2 00/27] Kernel Address Space Isolation
+Message-ID: <20190712190620.GX3419@hirez.programming.kicks-ass.net>
+References: <1562855138-19507-1-git-send-email-alexandre.chartre@oracle.com>
+ <5cab2a0e-1034-8748-fcbe-a17cf4fa2cd4@intel.com>
+ <alpine.DEB.2.21.1907120911160.11639@nanos.tec.linutronix.de>
+ <61d5851e-a8bf-e25c-e673-b71c8b83042c@oracle.com>
+ <20190712125059.GP3419@hirez.programming.kicks-ass.net>
+ <alpine.DEB.2.21.1907121459180.1788@nanos.tec.linutronix.de>
+ <3ca70237-bf8e-57d9-bed5-bc2329d17177@oracle.com>
 MIME-Version: 1.0
-From: Pankaj Suryawanshi <pankajssuryawanshi@gmail.com>
-Date: Sat, 13 Jul 2019 00:00:56 +0530
-Message-ID: <CACDBo56EoKca9FJCnbztWZAARdUQs+B=dmCs+UxW27yHNu5pzQ@mail.gmail.com>
-Subject: cma_remap when using dma_alloc_attr :- DMA_ATTR_NO_KERNEL_MAPPING
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, 
-	iommu@lists.linux-foundation.org, Vlastimil Babka <vbabka@suse.cz>, 
-	Robin Murphy <robin.murphy@arm.com>, Michal Hocko <mhocko@kernel.org>, 
-	pankaj.suryawanshi@einfochips.com, minchan@kernel.org, minchan.kim@gmail.com
-Content-Type: multipart/alternative; boundary="0000000000002114d7058d801d4a"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <3ca70237-bf8e-57d9-bed5-bc2329d17177@oracle.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---0000000000002114d7058d801d4a
-Content-Type: text/plain; charset="UTF-8"
+On Fri, Jul 12, 2019 at 06:37:47PM +0200, Alexandre Chartre wrote:
+> On 7/12/19 5:16 PM, Thomas Gleixner wrote:
 
-Hello,
+> > Right. If we decide to expose more parts of the kernel mappings then that's
+> > just adding more stuff to the existing user (PTI) map mechanics.
+> 
+> If we expose more parts of the kernel mapping by adding them to the existing
+> user (PTI) map, then we only control the mapping of kernel sensitive data but
+> we don't control user mapping (with ASI, we exclude all user mappings).
+> 
+> How would you control the mapping of userland sensitive data and exclude them
+> from the user map? Would you have the application explicitly identify sensitive
+> data (like Andy suggested with a /dev/xpfo device)?
 
-When we allocate cma memory using dma_alloc_attr using
-DMA_ATTR_NO_KERNEL_MAPPING attribute. It will return physical address
-without virtual mapping and thats the use case of this attribute. but lets
-say some vpu/gpu drivers required virtual mapping of some part of the
-allocation. then we dont have anything to remap that allocated memory to
-virtual memory. and in 32-bit system it difficult for devices like android
-to work all the time with virtual mapping, it degrade the performance.
-
-For Example :
-
-Lets say 4k video allocation required 300MB cma memory but not required
-virtual mapping for all the 300MB, its require only 20MB virtually mapped
-at some specific use case/point of video, and unmap virtual mapping after
-uses, at that time this functions will be useful, it works like ioremap()
-for cma_alloc() using dma apis.
-
-/*
-         * function call(s) to create virtual map of given physical memory
-         * range [base, base+size) of CMA memory.
-*/
-void *cma_remap(__u32 base, __u32 size)
-{
-        struct page *page = phys_to_page(base);
-        void *virt;
-
-        pr_debug("cma: request to map 0x%08x for size 0x%08x\n",
-                        base, size);
-
-        size = PAGE_ALIGN(size);
-
-        pgprot_t prot = get_dma_pgprot(DMA_ATTR, PAGE_KERNEL);
-
-        if (PageHighMem(page)){
-                virt = dma_alloc_remap(page, size, GFP_KERNEL, prot,
-__builtin_return_address(0));
-        }
-        else
-        {
-                dma_remap(page, size, prot);
-                virt = page_address(page);
-        }
-
-        if (!virt)
-                pr_err("\x1b[31m" " cma: failed to map 0x%08x" "\x1b[0m\n",
-                                base);
-        else
-                pr_debug("cma: 0x%08x is virtually mapped to 0x%08x\n",
-                                base, (__u32) virt);
-
-        return virt;
-}
-
-/*
-         * function call(s) to remove virtual map of given virtual memory
-         * range [virt, virt+size) of CMA memory.
-*/
-
-void cma_unmap(void *virt, __u32 size)
-{
-        size = PAGE_ALIGN(size);
-        unsigned long pfn = virt_to_pfn(virt);
-        struct page *page = pfn_to_page(pfn);
-
-                if (PageHighMem(page))
-                        dma_free_remap(virt, size);
-                else
-                        dma_remap(page, size, PAGE_KERNEL);
-
-        pr_debug(" cma: virtual address 0x%08x is unmapped\n",
-                        (__u32) virt);
-}
-
-This functions should be added in arch/arm/mm/dma-mapping.c file.
-
-Please let me know if i am missing anything.
-
-Regards,
-Pankaj
-
---0000000000002114d7058d801d4a
-Content-Type: text/html; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-
-<div dir=3D"ltr">Hello,<br><br>When we allocate cma memory using dma_alloc_=
-attr using DMA_ATTR_NO_KERNEL_MAPPING attribute. It will return physical ad=
-dress without virtual mapping and thats the use case of this attribute. but=
- lets say some vpu/gpu drivers required virtual mapping of some part of the=
- allocation. then we dont have anything to remap that allocated memory to v=
-irtual memory. and in 32-bit system it difficult for devices like android t=
-o work all the time with virtual mapping, it degrade the performance.<br><b=
-r>For Example :<br><br>Lets say 4k video allocation required 300MB cma memo=
-ry but not required virtual mapping for all the 300MB, its require only 20M=
-B virtually mapped at some specific use case/point of video, and unmap virt=
-ual mapping after uses, at that time this functions will be useful, it work=
-s like ioremap() for cma_alloc() using dma apis.<br><br>/*<br>=C2=A0 =C2=A0=
- =C2=A0 =C2=A0 =C2=A0* function call(s) to create virtual map of given phys=
-ical memory<br>=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0* range [base, base+size) =
-of CMA memory.<br>*/<br>void *cma_remap(__u32 base, __u32 size)<br>{<br>=C2=
-=A0 =C2=A0 =C2=A0 =C2=A0 struct page *page =3D phys_to_page(base);<br>=C2=
-=A0 =C2=A0 =C2=A0 =C2=A0 void *virt;<br><br>=C2=A0 =C2=A0 =C2=A0 =C2=A0 pr_=
-debug(&quot;cma: request to map 0x%08x for size 0x%08x\n&quot;,<br>=C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 base, size);<br><br>=C2=A0 =C2=A0 =C2=A0 =C2=A0 size =3D PAGE_ALIGN(siz=
-e);<br><br>=C2=A0 =C2=A0 =C2=A0 =C2=A0 pgprot_t prot =3D get_dma_pgprot(DMA=
-_ATTR, PAGE_KERNEL);<br><br>=C2=A0 =C2=A0 =C2=A0 =C2=A0 if (PageHighMem(pag=
-e)){<br>=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 virt =3D dm=
-a_alloc_remap(page, size, GFP_KERNEL, prot, __builtin_return_address(0));<b=
-r>=C2=A0 =C2=A0 =C2=A0 =C2=A0 }<br>=C2=A0 =C2=A0 =C2=A0 =C2=A0 else<br>=C2=
-=A0 =C2=A0 =C2=A0 =C2=A0 {<br>=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 dma_remap(page, size, prot);<br>=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0 virt =3D page_address(page);<br>=C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 }<br><br>=C2=A0 =C2=A0 =C2=A0 =C2=A0 if (!virt)<br>=C2=A0 =C2=A0=
- =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 pr_err(&quot;\x1b[31m&quot; &quo=
-t; cma: failed to map 0x%08x&quot; &quot;\x1b[0m\n&quot;,<br>=C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0 base);<br>=C2=A0 =C2=A0 =C2=A0 =C2=A0 else<br>=C2=
-=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 pr_debug(&quot;cma: 0x=
-%08x is virtually mapped to 0x%08x\n&quot;,<br>=C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 base, (__u32) virt);<br><br>=C2=A0 =C2=A0 =C2=A0 =C2=A0 return v=
-irt;<br>}<br><br>/*<br>=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0* function call(s)=
- to remove virtual map of given virtual memory<br>=C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0* range [virt, virt+size) of CMA memory.<br>*/<br><br>void cma_un=
-map(void *virt, __u32 size)<br>{<br>=C2=A0 =C2=A0 =C2=A0 =C2=A0 size =3D PA=
-GE_ALIGN(size);<br>=C2=A0 =C2=A0 =C2=A0 =C2=A0 unsigned long pfn =3D virt_t=
-o_pfn(virt);<br>=C2=A0 =C2=A0 =C2=A0 =C2=A0 struct page *page =3D pfn_to_pa=
-ge(pfn);<br><br>=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if =
-(PageHighMem(page))<br>=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 dma_free_remap(virt, size);<br>=C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 else<br>=C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 dma_remap(pa=
-ge, size, PAGE_KERNEL);<br><br>=C2=A0 =C2=A0 =C2=A0 =C2=A0 pr_debug(&quot; =
-cma: virtual address 0x%08x is unmapped\n&quot;,<br>=C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 (__u32) virt=
-);<br>}<br><br><div>This functions should be added in arch/arm/mm/dma-mappi=
-ng.c file.</div><div><br></div><div>Please let me know if i am missing anyt=
-hing.</div><div><br></div><div>Regards,</div><div>Pankaj<br></div></div>
-
---0000000000002114d7058d801d4a--
+To what purpose do you want to exclude userspace from the kernel
+mapping; that is, what are you mitigating against with that?
 
