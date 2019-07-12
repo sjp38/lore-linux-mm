@@ -2,140 +2,315 @@ Return-Path: <SRS0=GtRI=VJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
-	autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
+	SPF_PASS,URIBL_SBL,URIBL_SBL_A autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 44C64C742D7
-	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 23:55:28 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 50826C742D2
+	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 23:58:41 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 08A38217D4
-	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 23:55:27 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id E162220874
+	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 23:58:40 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="JvXeNVjE"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 08A38217D4
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="rNjy3Hgs"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E162220874
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8A9DE8E016E; Fri, 12 Jul 2019 19:55:27 -0400 (EDT)
+	id 7BC298E016F; Fri, 12 Jul 2019 19:58:40 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 85BC98E0003; Fri, 12 Jul 2019 19:55:27 -0400 (EDT)
+	id 76BF98E0003; Fri, 12 Jul 2019 19:58:40 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6FB128E016E; Fri, 12 Jul 2019 19:55:27 -0400 (EDT)
+	id 634FB8E016F; Fri, 12 Jul 2019 19:58:40 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 373E48E0003
-	for <linux-mm@kvack.org>; Fri, 12 Jul 2019 19:55:27 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id a20so6445931pfn.19
-        for <linux-mm@kvack.org>; Fri, 12 Jul 2019 16:55:27 -0700 (PDT)
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 44F2E8E0003
+	for <linux-mm@kvack.org>; Fri, 12 Jul 2019 19:58:40 -0400 (EDT)
+Received: by mail-qk1-f197.google.com with SMTP id c79so8370047qkg.13
+        for <linux-mm@kvack.org>; Fri, 12 Jul 2019 16:58:40 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:to:to:cc:cc:subject
-         :in-reply-to:references:message-id;
-        bh=mXR50l6JwVfmjKcZ1LjJAH1JcCPMfD6shGgoUipAO5w=;
-        b=XuA3looz7GCrYjbhSuN7Nl1qv+NQLaMUfO9ZiyedJwNGbu2Fbzjd1/+NuzGfIndCIJ
-         4Jmryuw3+gKXC5QgUESTqIB1e8q4zcSHKODrLaFu2ZBqVM3F/0ilBzsv3NgeKIR5U9+d
-         mG1jAUZ/HF1LVCOjhiufZrPE7mnfpB1s253MfRQRZP4YLVezBYeNNKOxzaNcmqIOUy49
-         wU9DBYcEJZcKzq0VFtV/dkBafzSCrH4ITi5L7ZQTsz1JR89k0rUhEjDgYVnzMwKT/Qk/
-         7SL7rz8QYKCoTHexljrdY9MmZczmZccgQawu4EfZu44EWdktf/W6yqU2seaycGsiaRLS
-         Jn3Q==
-X-Gm-Message-State: APjAAAXh4eweRTxUV26NUGTJTxP0fJf1e1x3otDoLP9acm60qbZ/Uwj7
-	rr32h89ZJDmSQd5IUQS+CWo+4ZiL+PPjSXVrR7Y1ZF4Tcql3HosGpHLs5T5kmJNEYJ3/NasZMRj
-	Y/F4/kxdmtDMO80DULoNhvvEBVJ8ZpOmhVpdSLBqOAZFSpgKeLpjWO5slhGqBr2AeCw==
-X-Received: by 2002:a17:902:28e9:: with SMTP id f96mr14269585plb.114.1562975726857;
-        Fri, 12 Jul 2019 16:55:26 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzDXQo2MrOUdw6L3QTXikKLQT3DBXdcTUfcskQTrRTtcxDL7lLNIMtGvjtvDvVFeL5eErJw
-X-Received: by 2002:a17:902:28e9:: with SMTP id f96mr14269534plb.114.1562975726166;
-        Fri, 12 Jul 2019 16:55:26 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562975726; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=MEY3MY0GRx1meGvznTKols94S0qbmIElEGry91ByzZE=;
+        b=qWAv1eEkIYipbb+MhLhRy4/j1QsS6Qb6PeTiBhEZofYJOb6sbhPWrup/MPMi2dbt10
+         h5wDbxqMZh+FTl12TrwrPTZPVbLNQHYGf6RLfh0SS1c9LAFwW7wMLzgQEzQBBgLlWExy
+         Cd7f1ZaD35EF+B+ACFpg8unHIhrR0et7v4rpeRKgtuXkUIdkiqO94vIv+Oh1L9uRbIfS
+         LsLWjDmGYG9dqbfjCs7jDNR3ttNA42vGiuNsbx9Lno93olsQ4ZfT1g9QP2DTuJhp4dfC
+         VSLPEM99zwjyTYOqlshk0Omp6NITn3LXuyWJy+4oZeUrKB0ZhlRP4D2ZFP9outi35GER
+         i0Ag==
+X-Gm-Message-State: APjAAAUzDoKAdEml8gOGQjRrofRU2ySErweJHWQUl356xMARmSuRcGXV
+	mbonWiwybJzHDvA2FccqYC/iDlN4Cpgv6lp2Lh47SwTqs4hpgpZmR7WkbvfAfcjH67tCEalXNl/
+	Ia4apvPN+A7CVuXDLfAmyjly8uw8PTGiXrq/z8G66xQlk+wA8litmPKikX2mYi9cS2g==
+X-Received: by 2002:ae9:dcc1:: with SMTP id q184mr8256242qkf.61.1562975919947;
+        Fri, 12 Jul 2019 16:58:39 -0700 (PDT)
+X-Received: by 2002:ae9:dcc1:: with SMTP id q184mr8256215qkf.61.1562975919067;
+        Fri, 12 Jul 2019 16:58:39 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562975919; cv=none;
         d=google.com; s=arc-20160816;
-        b=ES/dKr2dYvPVcq2YUo/Lihr0IYdsotEVLk7og7MvMX1iN5YlVRt4btXTarjVTga8Up
-         EsdAt3zDzNrt7O7gHcxcFp9GsTAuUuKciLiMQAyF7N1MDZwrGZ2DU8AqkiYRzuzuI8nx
-         fEvJ04BdvHifr+1kCEvwE8jZLw0R2t76MK7qYJDMB4lQMtyoP3iftJIatx6iOzdk5hwZ
-         7bj4Nwit+hKhZx7QUmmlOjpPev35PnUNHVOuzbiodD0YFvRBOMlSsICxvZYJltzIIEmj
-         NfK03TflOfGiR2sVSi7rQXSIfYwK3y+Jj2ZYmAEoHS6O7T2+0/G/iNeLdCR8cw6Im3jO
-         18FQ==
+        b=PFt3xFzbqeNONGN79TxM46T2ihuAASGOvQjw/yYxN5sBq0sZJmjnNhJqRV3Inx0d9A
+         2iZBHGGNx8vzPwqnv3NVe0BQTAFJDg4bHSgQH9GohLOhO/CcANCBvB4I+a9T2wdRWOWZ
+         DJEd26SyrqQSsqwDKj7gRIjDWQyuJA7Po7EZnC4GM+UAHmew37J8dg+UY+YNI9LipNDd
+         OUmbuoyMlsfSDtYJo5zUUVhSH78UjI6G0+Y0jxTg/ckmwkgsiQgm5CHzVJG0h+Qe+V66
+         ssJG2jxKxqPdusfbTzXZxDt6QqEzjFbGqN8nGSyq1XcP/OggRzxOvjuMmsXPM77zQTng
+         x3rg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:references:in-reply-to:subject:cc:cc:to:to:to:from:date
-         :dkim-signature;
-        bh=mXR50l6JwVfmjKcZ1LjJAH1JcCPMfD6shGgoUipAO5w=;
-        b=UeOupKTkhwajrchwj/932qqYU7gqUOvyPOL1zOkm3TuiGko8euu4np8DyGm2RutUoP
-         uiAo/wJIm/LllHVAvMnlNICZgYGJNoG9Pwb5PIFPBsFl7uQExe22A8KhFY/45rigbTvx
-         BK7wFF5BoR0OWbEHp0kWJNbcKfCO4J5es/2Onpj2Ty7MiD9p3RYHjP1dkzIuas2re+kf
-         oBBSmlk5MDTUbdXVMuI8gho9zyvlnE77yWTeoA0+IqsXaoh22kknfDpCMjgOS51RSbXH
-         58fK4wVQznrb9zPeBlPzVh1IzuK4gzQu8WzHe1nMpxhyZX1PRlYDng610ojfo5WKlTEu
-         40Jw==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=MEY3MY0GRx1meGvznTKols94S0qbmIElEGry91ByzZE=;
+        b=S+SQM+EAtqrZ+Uj6o4QDlVHqf3Cyqhi23wNkZRQqT54DlM9KjvwogPuayiREdoqs+X
+         tmyb829aqeXWpkOKBr7aTqzv6wnr1czjQ2MKZDHxK14INutukllsda9IIpCiwxXJopoH
+         q8BRunvdC+XHqtzl1l38R0j3rk/BqQsA2J73QmjNhkdOBCDsoXSb58Qiw1JU0aHVTCcB
+         Ts2CteftU/NlcNuHubMe/C2Eksw0Kfks2k4bE007CxR2wAAJHsMnDu4hXcWp8RY2QCD7
+         jnPFmqnw2V5Z7vkdRo7zRQgB/9cDzqIndLAHTHMMAxIwrzNzVYvi4GnZC+UfWkBbvej4
+         yM5g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=JvXeNVjE;
-       spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id y70si9937780pfg.184.2019.07.12.16.55.26
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=rNjy3Hgs;
+       spf=pass (google.com: domain of shy828301@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shy828301@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id m3sor6087318qki.54.2019.07.12.16.58.39
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 12 Jul 2019 16:55:26 -0700 (PDT)
-Received-SPF: pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        (Google Transport Security);
+        Fri, 12 Jul 2019 16:58:39 -0700 (PDT)
+Received-SPF: pass (google.com: domain of shy828301@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=JvXeNVjE;
-       spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from localhost (unknown [23.100.24.84])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id A145520874;
-	Fri, 12 Jul 2019 23:55:25 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1562975725;
-	bh=VJEu58fg8OVV+ACQemp+G/XZGGo3QRimEqLYSfOYpuk=;
-	h=Date:From:To:To:To:Cc:Cc:Subject:In-Reply-To:References:From;
-	b=JvXeNVjEMjH/hHoHWU2c4F49D1EpeeHsT4hqo6IUWwhSD6AgBgHkCskwY8sDEvtrJ
-	 Oq6Qc/7DKksPojRlzqqct4SVzCk3fapv52htmNK5RG8AzQZ83APf4P59smj6tDyKen
-	 XAzHUHFKvMVC7SYw75KIBgIRsAG+if1iUH9Z8kRc=
-Date: Fri, 12 Jul 2019 23:55:24 +0000
-From: Sasha Levin <sashal@kernel.org>
-To: Sasha Levin <sashal@kernel.org>
-To: Jan Kara <jack@suse.cz>
-To: <linux-fsdevel@vger.kernel.org>
-Cc: <linux-mm@kvack.org>,
-Cc: stable@vger.kernel.org
-Subject: Re: [PATCH 1/3] mm: Handle MADV_WILLNEED through vfs_fadvise()
-In-Reply-To: <20190711140012.1671-2-jack@suse.cz>
-References: <20190711140012.1671-2-jack@suse.cz>
-Message-Id: <20190712235525.A145520874@mail.kernel.org>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=rNjy3Hgs;
+       spf=pass (google.com: domain of shy828301@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shy828301@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=MEY3MY0GRx1meGvznTKols94S0qbmIElEGry91ByzZE=;
+        b=rNjy3HgsJm/b9MwixMnKeZVUjelLOZ6SU5fSvGKJOat5SE+SgE1WzQHsRzKHhT4bx7
+         QCIE/AKH8MWJMNAHb0JTfXL5PtysYHX7dyQ5KSGNl1SCMmB90tdvTNofoEGq78ED3AFH
+         6HTAFZzMpI/MC/8ymACDzNAueX6povuPaOLbK5zMaR9zJecjF6ataNLIhSbPwV7iNPrH
+         aDc4x1A5bs+G0nvFoNjxi2pzGo5fshQOKHllqr1XLy/Jeeg116tVmnU1IuA8yOoiKkeG
+         W0lVB4Xo/KYPDIClw/pDpaATFiiJHQ3woSGq5hLuxjJgmwkeUEZNl0vu2+qfaIM98fng
+         ccfw==
+X-Google-Smtp-Source: APXvYqy9+kiHmRflh8OpzHvRs+hG+ROhQZ/f4EvcwaHKhafdBLyGzNwPBg4eGLPj9bIBZUTqVMFT/U4BWiFzxr5MIK4=
+X-Received: by 2002:ae9:ee14:: with SMTP id i20mr7576396qkg.428.1562975918804;
+ Fri, 12 Jul 2019 16:58:38 -0700 (PDT)
+MIME-Version: 1.0
+References: <1554804700-7813-1-git-send-email-laoar.shao@gmail.com> <20190711181017.d8fc41678fc7a754264c6bdf@linux-foundation.org>
+In-Reply-To: <20190711181017.d8fc41678fc7a754264c6bdf@linux-foundation.org>
+From: Yang Shi <shy828301@gmail.com>
+Date: Fri, 12 Jul 2019 16:58:28 -0700
+Message-ID: <CAHbLzkqw+LJC-CrpJpZBfoer9jNRAcfZz+YTLP1qqa_x7R8y1w@mail.gmail.com>
+Subject: Re: [PATCH] mm/vmscan: expose cgroup_ino for memcg reclaim tracepoints
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Yafang Shao <laoar.shao@gmail.com>, Michal Hocko <mhocko@suse.com>, Linux MM <linux-mm@kvack.org>, 
+	shaoyafang@didiglobal.com, Johannes Weiner <hannes@cmpxchg.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Thu, Jul 11, 2019 at 6:10 PM Andrew Morton <akpm@linux-foundation.org> wrote:
+>
+>
+> Can we please get some review of this one?  It has been in -mm since
+> May 22, no issues that I've heard of.
+>
+>
+> From: Yafang Shao <laoar.shao@gmail.com>
+> Subject: mm/vmscan: expose cgroup_ino for memcg reclaim tracepoints
+>
+> We can use the exposed cgroup_ino to trace specified cgroup.
+>
+> For example,
+> step 1, get the inode of the specified cgroup
+>         $ ls -di /tmp/cgroupv2/foo
+> step 2, set this inode into tracepoint filter to trace this cgroup only
+>         (assume the inode is 11)
+>         $ cd /sys/kernel/debug/tracing/events/vmscan/
+>         $ echo 'cgroup_ino == 11' > mm_vmscan_memcg_reclaim_begin/filter
+>         $ echo 'cgroup_ino == 11' > mm_vmscan_memcg_reclaim_end/filter
+>
+> The reason I made this change is to trace a specific container.
 
-[This is an automated email]
+I'm wondering how useful this is. You could filter events by cgroup
+with bpftrace easily. For example:
 
-This commit has been processed because it contains a -stable tag.
-The stable tag indicates that it's relevant for the following trees: all
-
-The bot has tested the following trees: v5.2, v5.1.17, v4.19.58, v4.14.133, v4.9.185, v4.4.185.
-
-v5.2: Build OK!
-v5.1.17: Build OK!
-v4.19.58: Build OK!
-v4.14.133: Build failed! Errors:
-    mm/madvise.c:314:2: error: implicit declaration of function ‘vfs_fadvise’; did you mean ‘sys_madvise’? [-Werror=implicit-function-declaration]
-
-v4.9.185: Build failed! Errors:
-    mm/madvise.c:266:2: error: implicit declaration of function ‘vfs_fadvise’; did you mean ‘sys_madvise’? [-Werror=implicit-function-declaration]
-
-v4.4.185: Build failed! Errors:
-    mm/madvise.c:261:2: error: implicit declaration of function ‘vfs_fadvise’; did you mean ‘sys_madvise’? [-Werror=implicit-function-declaration]
+# bpftrace -e 'tracepoint:syscalls:sys_enter_openat /cgroup ==
+cgroupid("/sys/fs/cgroup/unified/mycg")/ { printf("%s\n",
+str(args->filename)); }':
 
 
-NOTE: The patch will not be queued to stable trees until it is upstream.
-
-How should we proceed with this patch?
-
---
-Thanks,
-Sasha
+>
+> Sometimes there're lots of containers on one host.  Some of them are
+> not important at all, so we don't care whether them are under memory
+> pressure.  While some of them are important, so we want't to know if
+> these containers are doing memcg reclaim and how long this relaim
+> takes.
+>
+> Without this change, we don't know the memcg reclaim happend in which
+> container.
+>
+> Link: http://lkml.kernel.org/r/1557649528-11676-1-git-send-email-laoar.shao@gmail.com
+> Signed-off-by: Yafang Shao <laoar.shao@gmail.com>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: <shaoyafang@didiglobal.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> ---
+>
+>  include/trace/events/vmscan.h |   71 ++++++++++++++++++++++++++------
+>  mm/vmscan.c                   |   18 +++++---
+>  2 files changed, 72 insertions(+), 17 deletions(-)
+>
+> --- a/include/trace/events/vmscan.h~mm-vmscan-expose-cgroup_ino-for-memcg-reclaim-tracepoints
+> +++ a/include/trace/events/vmscan.h
+> @@ -127,18 +127,43 @@ DEFINE_EVENT(mm_vmscan_direct_reclaim_be
+>  );
+>
+>  #ifdef CONFIG_MEMCG
+> -DEFINE_EVENT(mm_vmscan_direct_reclaim_begin_template, mm_vmscan_memcg_reclaim_begin,
+> +DECLARE_EVENT_CLASS(mm_vmscan_memcg_reclaim_begin_template,
+>
+> -       TP_PROTO(int order, gfp_t gfp_flags),
+> +       TP_PROTO(unsigned int cgroup_ino, int order, gfp_t gfp_flags),
+>
+> -       TP_ARGS(order, gfp_flags)
+> +       TP_ARGS(cgroup_ino, order, gfp_flags),
+> +
+> +       TP_STRUCT__entry(
+> +               __field(unsigned int, cgroup_ino)
+> +               __field(int, order)
+> +               __field(gfp_t, gfp_flags)
+> +       ),
+> +
+> +       TP_fast_assign(
+> +               __entry->cgroup_ino     = cgroup_ino;
+> +               __entry->order          = order;
+> +               __entry->gfp_flags      = gfp_flags;
+> +       ),
+> +
+> +       TP_printk("cgroup_ino=%u order=%d gfp_flags=%s",
+> +               __entry->cgroup_ino, __entry->order,
+> +               show_gfp_flags(__entry->gfp_flags))
+>  );
+>
+> -DEFINE_EVENT(mm_vmscan_direct_reclaim_begin_template, mm_vmscan_memcg_softlimit_reclaim_begin,
+> +DEFINE_EVENT(mm_vmscan_memcg_reclaim_begin_template,
+> +            mm_vmscan_memcg_reclaim_begin,
+>
+> -       TP_PROTO(int order, gfp_t gfp_flags),
+> +       TP_PROTO(unsigned int cgroup_ino, int order, gfp_t gfp_flags),
+>
+> -       TP_ARGS(order, gfp_flags)
+> +       TP_ARGS(cgroup_ino, order, gfp_flags)
+> +);
+> +
+> +DEFINE_EVENT(mm_vmscan_memcg_reclaim_begin_template,
+> +            mm_vmscan_memcg_softlimit_reclaim_begin,
+> +
+> +       TP_PROTO(unsigned int cgroup_ino, int order, gfp_t gfp_flags),
+> +
+> +       TP_ARGS(cgroup_ino, order, gfp_flags)
+>  );
+>  #endif /* CONFIG_MEMCG */
+>
+> @@ -167,18 +192,40 @@ DEFINE_EVENT(mm_vmscan_direct_reclaim_en
+>  );
+>
+>  #ifdef CONFIG_MEMCG
+> -DEFINE_EVENT(mm_vmscan_direct_reclaim_end_template, mm_vmscan_memcg_reclaim_end,
+> +DECLARE_EVENT_CLASS(mm_vmscan_memcg_reclaim_end_template,
+>
+> -       TP_PROTO(unsigned long nr_reclaimed),
+> +       TP_PROTO(unsigned int cgroup_ino, unsigned long nr_reclaimed),
+>
+> -       TP_ARGS(nr_reclaimed)
+> +       TP_ARGS(cgroup_ino, nr_reclaimed),
+> +
+> +       TP_STRUCT__entry(
+> +               __field(unsigned int, cgroup_ino)
+> +               __field(unsigned long, nr_reclaimed)
+> +       ),
+> +
+> +       TP_fast_assign(
+> +               __entry->cgroup_ino     = cgroup_ino;
+> +               __entry->nr_reclaimed   = nr_reclaimed;
+> +       ),
+> +
+> +       TP_printk("cgroup_ino=%u nr_reclaimed=%lu",
+> +               __entry->cgroup_ino, __entry->nr_reclaimed)
+>  );
+>
+> -DEFINE_EVENT(mm_vmscan_direct_reclaim_end_template, mm_vmscan_memcg_softlimit_reclaim_end,
+> +DEFINE_EVENT(mm_vmscan_memcg_reclaim_end_template,
+> +            mm_vmscan_memcg_reclaim_end,
+>
+> -       TP_PROTO(unsigned long nr_reclaimed),
+> +       TP_PROTO(unsigned int cgroup_ino, unsigned long nr_reclaimed),
+>
+> -       TP_ARGS(nr_reclaimed)
+> +       TP_ARGS(cgroup_ino, nr_reclaimed)
+> +);
+> +
+> +DEFINE_EVENT(mm_vmscan_memcg_reclaim_end_template,
+> +            mm_vmscan_memcg_softlimit_reclaim_end,
+> +
+> +       TP_PROTO(unsigned int cgroup_ino, unsigned long nr_reclaimed),
+> +
+> +       TP_ARGS(cgroup_ino, nr_reclaimed)
+>  );
+>  #endif /* CONFIG_MEMCG */
+>
+> --- a/mm/vmscan.c~mm-vmscan-expose-cgroup_ino-for-memcg-reclaim-tracepoints
+> +++ a/mm/vmscan.c
+> @@ -3191,8 +3191,10 @@ unsigned long mem_cgroup_shrink_node(str
+>         sc.gfp_mask = (gfp_mask & GFP_RECLAIM_MASK) |
+>                         (GFP_HIGHUSER_MOVABLE & ~GFP_RECLAIM_MASK);
+>
+> -       trace_mm_vmscan_memcg_softlimit_reclaim_begin(sc.order,
+> -                                                     sc.gfp_mask);
+> +       trace_mm_vmscan_memcg_softlimit_reclaim_begin(
+> +                                       cgroup_ino(memcg->css.cgroup),
+> +                                       sc.order,
+> +                                       sc.gfp_mask);
+>
+>         /*
+>          * NOTE: Although we can get the priority field, using it
+> @@ -3203,7 +3205,9 @@ unsigned long mem_cgroup_shrink_node(str
+>          */
+>         shrink_node_memcg(pgdat, memcg, &sc, &lru_pages);
+>
+> -       trace_mm_vmscan_memcg_softlimit_reclaim_end(sc.nr_reclaimed);
+> +       trace_mm_vmscan_memcg_softlimit_reclaim_end(
+> +                                       cgroup_ino(memcg->css.cgroup),
+> +                                       sc.nr_reclaimed);
+>
+>         *nr_scanned = sc.nr_scanned;
+>         return sc.nr_reclaimed;
+> @@ -3241,7 +3245,9 @@ unsigned long try_to_free_mem_cgroup_pag
+>
+>         zonelist = &NODE_DATA(nid)->node_zonelists[ZONELIST_FALLBACK];
+>
+> -       trace_mm_vmscan_memcg_reclaim_begin(0, sc.gfp_mask);
+> +       trace_mm_vmscan_memcg_reclaim_begin(
+> +                               cgroup_ino(memcg->css.cgroup),
+> +                               0, sc.gfp_mask);
+>
+>         psi_memstall_enter(&pflags);
+>         noreclaim_flag = memalloc_noreclaim_save();
+> @@ -3251,7 +3257,9 @@ unsigned long try_to_free_mem_cgroup_pag
+>         memalloc_noreclaim_restore(noreclaim_flag);
+>         psi_memstall_leave(&pflags);
+>
+> -       trace_mm_vmscan_memcg_reclaim_end(nr_reclaimed);
+> +       trace_mm_vmscan_memcg_reclaim_end(
+> +                               cgroup_ino(memcg->css.cgroup),
+> +                               nr_reclaimed);
+>
+>         return nr_reclaimed;
+>  }
+> _
+>
 
