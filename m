@@ -2,171 +2,182 @@ Return-Path: <SRS0=GtRI=VJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+X-Spam-Status: No, score=-9.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	UNPARSEABLE_RELAY,URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7D52CC742D2
-	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 19:48:49 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B99E4C742D7
+	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 20:49:16 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 17E16205C9
-	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 19:48:48 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 17E16205C9
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linutronix.de
+	by mail.kernel.org (Postfix) with ESMTP id 638F2208E4
+	for <linux-mm@archiver.kernel.org>; Fri, 12 Jul 2019 20:49:16 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 638F2208E4
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6A4578E0167; Fri, 12 Jul 2019 15:48:48 -0400 (EDT)
+	id CE0778E0168; Fri, 12 Jul 2019 16:49:15 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 654D38E0003; Fri, 12 Jul 2019 15:48:48 -0400 (EDT)
+	id C900E8E0003; Fri, 12 Jul 2019 16:49:15 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 56A338E0167; Fri, 12 Jul 2019 15:48:48 -0400 (EDT)
+	id B7F1B8E0168; Fri, 12 Jul 2019 16:49:15 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 072E88E0003
-	for <linux-mm@kvack.org>; Fri, 12 Jul 2019 15:48:48 -0400 (EDT)
-Received: by mail-wr1-f69.google.com with SMTP id j10so1766227wre.18
-        for <linux-mm@kvack.org>; Fri, 12 Jul 2019 12:48:47 -0700 (PDT)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 819088E0003
+	for <linux-mm@kvack.org>; Fri, 12 Jul 2019 16:49:15 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id g21so6206585pfb.13
+        for <linux-mm@kvack.org>; Fri, 12 Jul 2019 13:49:15 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:in-reply-to:message-id:references:user-agent
-         :mime-version;
-        bh=jABvRKoWALhXYjFDAf1DmRmFdR0kn3l+wTT81rhGhWY=;
-        b=eqWIiirFH8nFfLJ0+Mr6JOj6tXLJDfbpOWAsZ7FE4zWUPa1w+SBhENHNbDRRwNbpdH
-         2+YWFko8qxam+EtLJH8S5c8gh6XNC/hm2PbUdhn+bXlBBqQ1Y1Z+fZLE3unfmD5lH0vG
-         wn+oN13mIV+Xbz9oTO/0AX2EAU8JiKFtDTRzFhhSkJtBc9pu6ie2gOiTZm9pQZNtr9w5
-         Y+8G7uqy05kn7GsPJI5DB32jUOC7JtNJpkY95yUt07tKJyADV89Ou1TgYSC4O77QD85r
-         FJ9L2wefwIMf9QaxgI45POvlI7h+ovo6rk93PKxKjs2+LBsqwQzNEGQ4r/FAKf9YmD5v
-         ehBg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a0a:51c0:0:12e:550::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
-X-Gm-Message-State: APjAAAWTZYvx8Vvfhmd6rLKwJ6g9vJgY7sEhkB0xs+sdkZwwi6qS4uiI
-	XK6YjCysOW0EXaQF1icJwigqFWpADN6hM3LKJStbKF3m2tKupGp3EVZHj93+g8TALjEMLIctt+B
-	rxr+MUfeePf1nHUkSPHKq+7knXD5qsPRmiNOo+orUelK11tLBsDoIMaRvNeMnGRMp+w==
-X-Received: by 2002:a7b:c4d0:: with SMTP id g16mr11228374wmk.88.1562960927515;
-        Fri, 12 Jul 2019 12:48:47 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzxAchf8Fi+rDHBAZWH+nBeQZn6tHAPJxyBTyx+USqEm7ZO5vHfMe7QNH3uSBzXvzrP8fHk
-X-Received: by 2002:a7b:c4d0:: with SMTP id g16mr11228344wmk.88.1562960926432;
-        Fri, 12 Jul 2019 12:48:46 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562960926; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id;
+        bh=bsyDGh1sK3BtUgF1tNlRvNgNYEX4bOGkV/ZkcG2sNak=;
+        b=RTUTiAdS64cFgWNIlDZTcMqzvBhCAr8ROUwWdMBOLgqm1zqFdm5cDsxdzUO5semxGI
+         hpXpSUR5GxrMTl6QgkF6+aMTLQ+5rM9DZjQQlO9X4zZmSI7QVgzJC3xT3TTD2q/bG5bF
+         46KiZeS3NOn6xxKdx5o8XogmGc8oKVjGWiwA1t7j8TL6lYHB79M2bt6sWixaEyh1x6sS
+         xVwric7I5/UMsmSlrI1uW/UoYC95t1dlOVycOdvl6H0QVa52WYWOcquvSERO+Qxthn7b
+         Oaz+Nl90iA0Xkd2MJGl99mlgd5Nv6Fczur8dxOrOPYrn74uY72UkTqvWjJu1Nu0NeTc3
+         lwww==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.56 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Gm-Message-State: APjAAAWT/bIrlsgnEqIxPO9LdNiTAz6VbWjFYrW9mYiarpmvQhaZ14d2
+	OMF9clZR0EWF5BSSLl3mw/yIBzmkJyitd8Tf0IxnnORZef/BqjtMp3mKPqC18uz0PGKRH8eebxL
+	Kylm8A3ts/WWjBUkFhQrr1B94V7xQNcgX7aiPNtLh2Rr6nIZr0ApVXl9NQ4fFgYpLpg==
+X-Received: by 2002:a17:90a:ac14:: with SMTP id o20mr14538785pjq.114.1562964555123;
+        Fri, 12 Jul 2019 13:49:15 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzWehRYBrhfaRsm8x8I9hpTJHO6fJ5aIj9eXVNORf53elHODy4wLz6mH/mLqCZMk6MkUWNj
+X-Received: by 2002:a17:90a:ac14:: with SMTP id o20mr14538723pjq.114.1562964554110;
+        Fri, 12 Jul 2019 13:49:14 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1562964554; cv=none;
         d=google.com; s=arc-20160816;
-        b=GjCZnKngLKF6zbo92vaX6pbmvoC00xtAUe197rsj/oX0X4Lp8zsYNjlFgCwYh72lnT
-         TYNu2wz33XXXDiAgH3F4RGbhYt/L0yANeKaXlL6BJINqX0WkCnPTIGNOKH984Ynd3jBU
-         7p+rvTBEXKuSdGp9lJkZKVlWHWQQ7pn0UBgHvi+ZU42ENKTR6GSU6Upnz2D/4qiGjo7J
-         KJULDd6wjbz2UKbImaPHoN25QspG64+qsupqQi3f1AVslL+ocKP7zRUbqOhhRX5k2Xaf
-         P/m5avp7T4qLc4BKmUz8YQW+QiCuRiWmqEw+TdX3rANOAD6/K5psLqhq+PNI3d9MEZGV
-         gl2g==
+        b=KFjTloBlT/crDsMyD99vD6VhPqaCmSGibo5EJy2oL4PBUGPxonKP6kVpQnD528FVTn
+         i/xP3pTgIIrpIF9zmRYuFnEtMHnxeduJnpAYl8me7QHTH+zT1gqQeAtcgudD4AiYOSOO
+         JSDJZIEjjusR+WA69gyn1KxDQ09d969+Y0roSCyyLV0SmTvqme04/MEmYxxlk0PwWkq1
+         52xKMCWppzoP70m/SxGkD6pxoQpTBIeiPoobyzrI8qWNJRnbt6x6HIoh13gYXxS0GaSJ
+         5C48/1ib4gZL5sFDx5bq9tl9a8JMX1lC8M9uEtmxPnL78Rmfq8DpqdDCGMbL0MP7m1Tr
+         b3ow==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:user-agent:references:message-id:in-reply-to:subject
-         :cc:to:from:date;
-        bh=jABvRKoWALhXYjFDAf1DmRmFdR0kn3l+wTT81rhGhWY=;
-        b=QS/RvFJHea9Wh3sBxpb3hnOgC+2QPZTiE/h2z7Vmxzuq/fY5i3hmAtt5cEGPocp+HD
-         JNxN41cq2oC9Y33GZkPxaYfj0ZC39zGaZJxrXriHOQNbXHDOu2Pd1YzzhMgeO2kruiVH
-         P/J/FZuyjK9Et9nSQspJU2IAjVPha+IwindMgn8WJp0FCCJaSVUzJZUI17Kf60FoVQT5
-         vuTqxyGxXa19csBmqsUNyN1WiifJ3UkDio0tKO8/sNMtk8EliXSNAI76cEsqeGAzzYdE
-         7BLhNLXOCKI5qYHC8UpYaWceqf/VRcVqshwybzdJX+X5+mpperRmd0AeIklYweRjNByA
-         B/WA==
+        h=message-id:date:subject:cc:to:from;
+        bh=bsyDGh1sK3BtUgF1tNlRvNgNYEX4bOGkV/ZkcG2sNak=;
+        b=K8P4LvBX9X46cgfmH8Tf38nKDGmqwMa2uPMfQpsU6kg5XR4JdiLvj6Jk3zhoLVOlBt
+         k3xI2NPXfljX0wC10var953AhP9cHJvmCe4XHpkOankzLnUN+viXi3Wutbjsqm8xUcXF
+         bDxQlwZ/DawL4Bo2IcOePi3G/92K4YZ9I0s8qCVeRNtLfdcjGtKnDgpWNkjGXDI0IJkv
+         wJj1XIvp85oKnk62N2INaS6L2r/v6TimfsCRpEEyUyMO1MP2pdmCp5IdXhGScPyeikzQ
+         fOvklmDAyi3Wk/l5/T55vE+dPWs1Y7pzeLmY5zqaZ9D24p06GajFHTIsh3esWEksRRTq
+         gABg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a0a:51c0:0:12e:550::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a0a:51c0:0:12e:550::1])
-        by mx.google.com with ESMTPS id j4si7758125wmb.100.2019.07.12.12.48.46
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.56 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+Received: from out30-56.freemail.mail.aliyun.com (out30-56.freemail.mail.aliyun.com. [115.124.30.56])
+        by mx.google.com with ESMTPS id t20si8902546pjr.107.2019.07.12.13.49.13
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Fri, 12 Jul 2019 12:48:46 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a0a:51c0:0:12e:550::1 as permitted sender) client-ip=2a0a:51c0:0:12e:550::1;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 12 Jul 2019 13:49:14 -0700 (PDT)
+Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.56 as permitted sender) client-ip=115.124.30.56;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a0a:51c0:0:12e:550::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
-Received: from pd9ef1cb8.dip0.t-ipconnect.de ([217.239.28.184] helo=nanos)
-	by Galois.linutronix.de with esmtpsa (TLS1.2:DHE_RSA_AES_256_CBC_SHA256:256)
-	(Exim 4.80)
-	(envelope-from <tglx@linutronix.de>)
-	id 1hm1Ws-0007gn-OD; Fri, 12 Jul 2019 21:48:26 +0200
-Date: Fri, 12 Jul 2019 21:48:20 +0200 (CEST)
-From: Thomas Gleixner <tglx@linutronix.de>
-To: Alexandre Chartre <alexandre.chartre@oracle.com>
-cc: Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@intel.com>, 
-    pbonzini@redhat.com, rkrcmar@redhat.com, mingo@redhat.com, bp@alien8.de, 
-    hpa@zytor.com, dave.hansen@linux.intel.com, luto@kernel.org, 
-    kvm@vger.kernel.org, x86@kernel.org, linux-mm@kvack.org, 
-    linux-kernel@vger.kernel.org, konrad.wilk@oracle.com, 
-    jan.setjeeilers@oracle.com, liran.alon@oracle.com, jwadams@google.com, 
-    graf@amazon.de, rppt@linux.vnet.ibm.com, Paul Turner <pjt@google.com>
-Subject: Re: [RFC v2 00/27] Kernel Address Space Isolation
-In-Reply-To: <3ca70237-bf8e-57d9-bed5-bc2329d17177@oracle.com>
-Message-ID: <alpine.DEB.2.21.1907122059430.1669@nanos.tec.linutronix.de>
-References: <1562855138-19507-1-git-send-email-alexandre.chartre@oracle.com> <5cab2a0e-1034-8748-fcbe-a17cf4fa2cd4@intel.com> <alpine.DEB.2.21.1907120911160.11639@nanos.tec.linutronix.de> <61d5851e-a8bf-e25c-e673-b71c8b83042c@oracle.com>
- <20190712125059.GP3419@hirez.programming.kicks-ass.net> <alpine.DEB.2.21.1907121459180.1788@nanos.tec.linutronix.de> <3ca70237-bf8e-57d9-bed5-bc2329d17177@oracle.com>
-User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-X-Linutronix-Spam-Score: -1.0
-X-Linutronix-Spam-Level: -
-X-Linutronix-Spam-Status: No , -1.0 points, 5.0 required,  ALL_TRUSTED=-1,SHORTCIRCUIT=-0.0001
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.56 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R181e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e04420;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=7;SR=0;TI=SMTPD_---0TWjde2R_1562964544;
+Received: from e19h19392.et15sqa.tbsite.net(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TWjde2R_1562964544)
+          by smtp.aliyun-inc.com(127.0.0.1);
+          Sat, 13 Jul 2019 04:49:11 +0800
+From: Yang Shi <yang.shi@linux.alibaba.com>
+To: mhocko@suse.com,
+	dvyukov@google.com,
+	catalin.marinas@arm.com,
+	akpm@linux-foundation.org
+Cc: yang.shi@linux.alibaba.com,
+	linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Subject: [PATCH] mm: page_alloc: document kmemleak's non-blockable __GFP_NOFAIL case
+Date: Sat, 13 Jul 2019 04:49:04 +0800
+Message-Id: <1562964544-59519-1-git-send-email-yang.shi@linux.alibaba.com>
+X-Mailer: git-send-email 1.8.3.1
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 12 Jul 2019, Alexandre Chartre wrote:
-> On 7/12/19 5:16 PM, Thomas Gleixner wrote:
-> > On Fri, 12 Jul 2019, Peter Zijlstra wrote:
-> > > On Fri, Jul 12, 2019 at 01:56:44PM +0200, Alexandre Chartre wrote:
-> > > And then we've fully replaced PTI.
-> > > 
-> > > So no, they're not orthogonal.
-> > 
-> > Right. If we decide to expose more parts of the kernel mappings then that's
-> > just adding more stuff to the existing user (PTI) map mechanics.
->  
-> If we expose more parts of the kernel mapping by adding them to the existing
-> user (PTI) map, then we only control the mapping of kernel sensitive data but
-> we don't control user mapping (with ASI, we exclude all user mappings).
+When running ltp's oom test with kmemleak enabled, the below warning was
+triggerred since kernel detects __GFP_NOFAIL & ~__GFP_DIRECT_RECLAIM is
+passed in:
 
-What prevents you from adding functionality to do so to the PTI
-implementation? Nothing.
+WARNING: CPU: 105 PID: 2138 at mm/page_alloc.c:4608 __alloc_pages_nodemask+0x1c31/0x1d50
+Modules linked in: loop dax_pmem dax_pmem_core
+ip_tables x_tables xfs virtio_net net_failover virtio_blk failover
+ata_generic virtio_pci virtio_ring virtio libata
+CPU: 105 PID: 2138 Comm: oom01 Not tainted 5.2.0-next-20190710+ #7
+Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS rel-1.10.2-0-g5f4c7b1-prebuilt.qemu-project.org 04/01/2014
+RIP: 0010:__alloc_pages_nodemask+0x1c31/0x1d50
+...
+ kmemleak_alloc+0x4e/0xb0
+ kmem_cache_alloc+0x2a7/0x3e0
+ ? __kmalloc+0x1d6/0x470
+ ? ___might_sleep+0x9c/0x170
+ ? mempool_alloc+0x2b0/0x2b0
+ mempool_alloc_slab+0x2d/0x40
+ mempool_alloc+0x118/0x2b0
+ ? __kasan_check_read+0x11/0x20
+ ? mempool_resize+0x390/0x390
+ ? lock_downgrade+0x3c0/0x3c0
+ bio_alloc_bioset+0x19d/0x350
+ ? __swap_duplicate+0x161/0x240
+ ? bvec_alloc+0x1b0/0x1b0
+ ? do_raw_spin_unlock+0xa8/0x140
+ ? _raw_spin_unlock+0x27/0x40
+ get_swap_bio+0x80/0x230
+ ? __x64_sys_madvise+0x50/0x50
+ ? end_swap_bio_read+0x310/0x310
+ ? __kasan_check_read+0x11/0x20
+ ? check_chain_key+0x24e/0x300
+ ? bdev_write_page+0x55/0x130
+ __swap_writepage+0x5ff/0xb20
 
-Again, the underlying concept is exactly the same:
+The mempool_alloc_slab() clears __GFP_DIRECT_RECLAIM, kmemleak has
+__GFP_NOFAIL set all the time due to commit
+d9570ee3bd1d4f20ce63485f5ef05663866fe6c0 ("kmemleak: allow to coexist
+with fault injection").
 
-  1) Create a restricted mapping from an existing mapping
+The fault-injection would not try to fail slab or page allocation if
+__GFP_NOFAIL is used and that commit tries to turn off fault injection
+for kmemleak allocation.  Although __GFP_NOFAIL doesn't guarantee no
+failure for all the cases (i.e. non-blockable allocation may fail), it
+still makes sense to the most cases.  Kmemleak is also a debugging tool,
+so it sounds not worth changing the behavior.
 
-  2) Switch to the restricted mapping when entering a particular execution
-     context
+It also meaks sense to keep the warning, so just document the special
+case in the comment.
 
-  3) Switch to the unrestricted mapping when leaving that execution context
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Dmitry Vyukov <dvyukov@google.com>
+Cc: Catalin Marinas <catalin.marinas@arm.com>
+Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
+---
+ mm/page_alloc.c | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)
 
-  4) Keep track of the state
-
-The restriction scope is different, but that's conceptually completely
-irrelevant. It's a detail which needs to be handled at the implementation
-level.
-
-What matters here is the concept and because the concept is the same, this
-needs to share the infrastructure for #1 - #4.
-
-It's obvious that this requires changes to the way PTI works today, but
-anything which creates a parallel implementation of any part of the above
-#1 - #4 is not going anywhere.
-
-This stuff is way too sensitive and has pretty well understood limitations
-and corner cases. So it needs to be designed from ground up to handle these
-proper. Which also means, that the possible use cases are going to be
-limited.
-
-As I said before, come up with a list of possible usage scenarios and
-protection scopes first and please take all the ideas other people have
-with this into account. This includes PTI of course.
-
-Once we have that we need to figure out whether these things can actually
-coexist and do not contradict each other at the semantical level and
-whether the outcome justifies the resulting complexity.
-
-After that we can talk about implementation details.
-
-This problem is not going to be solved with handwaving and an ad hoc
-implementation which creates more problems than it solves.
-
-Thanks,
-
-	tglx
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index d66bc8a..cac6efb 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -4531,8 +4531,14 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
+ 	 */
+ 	if (gfp_mask & __GFP_NOFAIL) {
+ 		/*
+-		 * All existing users of the __GFP_NOFAIL are blockable, so warn
+-		 * of any new users that actually require GFP_NOWAIT
++		 * The users of the __GFP_NOFAIL are expected be blockable,
++		 * and this is true for the most cases except for kmemleak.
++		 * The kmemleak pass in __GFP_NOFAIL to skip fault injection,
++		 * however kmemleak may allocate object at some non-blockable
++		 * context to trigger this warning.
++		 *
++		 * Keep this warning since it is still useful for the most
++		 * normal cases.
+ 		 */
+ 		if (WARN_ON_ONCE(!can_direct_reclaim))
+ 			goto fail;
+-- 
+1.8.3.1
 
