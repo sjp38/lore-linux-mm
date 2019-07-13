@@ -2,228 +2,213 @@ Return-Path: <SRS0=cxLU=VK=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-12.9 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1,
+	USER_IN_DEF_DKIM_WL autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0E6D0C31E40
-	for <linux-mm@archiver.kernel.org>; Sat, 13 Jul 2019 16:52:29 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 27CA4C73C66
+	for <linux-mm@archiver.kernel.org>; Sat, 13 Jul 2019 19:39:22 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9F04C20651
-	for <linux-mm@archiver.kernel.org>; Sat, 13 Jul 2019 16:52:28 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id BA35620850
+	for <linux-mm@archiver.kernel.org>; Sat, 13 Jul 2019 19:39:21 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="Vm2O5Q/c"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9F04C20651
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="n0KFTozv"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BA35620850
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3641F6B0003; Sat, 13 Jul 2019 12:52:28 -0400 (EDT)
+	id 24AB66B0003; Sat, 13 Jul 2019 15:39:21 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3149C8E0003; Sat, 13 Jul 2019 12:52:28 -0400 (EDT)
+	id 1FD1D8E0003; Sat, 13 Jul 2019 15:39:21 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1DD718E0002; Sat, 13 Jul 2019 12:52:28 -0400 (EDT)
+	id 0EC8E8E0002; Sat, 13 Jul 2019 15:39:21 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C55276B0003
-	for <linux-mm@kvack.org>; Sat, 13 Jul 2019 12:52:27 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id b3so10490303edd.22
-        for <linux-mm@kvack.org>; Sat, 13 Jul 2019 09:52:27 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id CC7766B0003
+	for <linux-mm@kvack.org>; Sat, 13 Jul 2019 15:39:20 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id 8so2500011pgl.3
+        for <linux-mm@kvack.org>; Sat, 13 Jul 2019 12:39:20 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:reply-to:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=QJtleFy0W5wG+kdjcQeK55r7BWM3778hGqddVx/0MZo=;
-        b=F8EG5geqNe1uSjHVtN+6f3pzsUYbZDfkQ1CzygC17g9d4SIV4+TDIRmm5LmLIfO806
-         tr2khIpkzH7IDCYlw44Ue7Luqf7B9B0tp4holIYCkRN/WJw140NPWBhTHEI+7mgQp1uM
-         S2m3TbzsaAop3mKND4f4WGAkU4hdMcMKwZGVsSJnCLi91qSCWQDNI5VBfYfSZecPmFzf
-         D/XVJJdDFOmHrpF7bc8LenT0syf0nE7lXnp+tRytzO5tvT8djWWrNQ+kiHoAR1hp8waN
-         NunRpHa0b30ZsBfNBwMZX8aibfMCBGFbkTc29GyTQ0s3pCmVHgbfb4hugTa6ZRBIm5bg
-         PBnQ==
-X-Gm-Message-State: APjAAAXd1EcQF4ObDwq5K57WsEijjonagooNHTCpzIuSVC6HIZmbd/Xw
-	o7Fmp3wQjDJwgBIlf/SDSgkuXA2IVhe+D4v7JL9Nz8NeqycecUplacC57F9smfIZu3sh+j4zqQK
-	Tc8CbE9rNeIUloCpCWWGC6s5L6rO5Bo9gu1CYuz49uN7tL2/LzmOeQv62BkosL7i5bA==
-X-Received: by 2002:a17:906:7d56:: with SMTP id l22mr13475070ejp.236.1563036747189;
-        Sat, 13 Jul 2019 09:52:27 -0700 (PDT)
-X-Received: by 2002:a17:906:7d56:: with SMTP id l22mr13475023ejp.236.1563036746155;
-        Sat, 13 Jul 2019 09:52:26 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563036746; cv=none;
+         :in-reply-to:message-id:references:user-agent:mime-version;
+        bh=4rwRS7GM+nAGTGCY3bn6psvJVMqQf5Gz5RaBpQRnLL8=;
+        b=Hsa7lfZWKLNQXTIjvS5A8A60DwA0OGzzob2ckCvn3FC1946xl5VNVrO5AHc1bT+pGd
+         8okCzJT8Yu6TNh52vuxfgUq6rHW2hzm27dWgzbcbXp/vxUFpfT7z5wOaEh5l1rC2oxyz
+         FW4mvqlhlSsr6vj3PBJercverDdKykxUWr86dRCmDi852UmrAWOMH0k2c9ii6rtyYAyB
+         rFM8GnwKUNaFUkaPC6dxmftJ94WIo2rVpWrjXCJubhIUJcCeXjIRQMNmqt2GCKzTa7e7
+         o2bi7wXnqP+jvatkLgQNr3k9NOXEega6NYKzbMQqC9UiQqScp7TIYIbAY4GbWbyfLKez
+         dO8A==
+X-Gm-Message-State: APjAAAW12fP/oWNUwyr2Sz3CWoYWtCpaYGAZPFzi1mli6NFx9MtW6r0n
+	g9Y0DhFvgcxAizWFxm3qfTepfinFsmzeztuws0xYfHrchgIhs/A5SS6hftQe0XfF8QmgVhcpAIt
+	rhyXtBraQPFBNQ148YzV04LUp71fo0ZU09AIMhz4llwkGjbI2sK595I3ltgRpA8IJew==
+X-Received: by 2002:a17:902:70cc:: with SMTP id l12mr19318707plt.87.1563046760279;
+        Sat, 13 Jul 2019 12:39:20 -0700 (PDT)
+X-Received: by 2002:a17:902:70cc:: with SMTP id l12mr19318656plt.87.1563046759424;
+        Sat, 13 Jul 2019 12:39:19 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563046759; cv=none;
         d=google.com; s=arc-20160816;
-        b=oVmTnMSIII9hRNU/Zs0p4oXocr1cSYm3oyGECTVwhOhGRifJuZjv5cGsM9ro6twXmO
-         AyVT0XCu7wxPBz9I5kXF3l7zFkFIfePfb0m+9yKjdiF8wp2nmLSA91PSa+3Dm9rJJjnx
-         GaTrZQ4fFHDTkrbxdRgi0nSD7NlPKWKeUvLfalSCNGZW1ZargweLIeSrmBwJXhWhVCsn
-         rncLU3FlvBiWZkT5IZlmjL/cboyo/JLV52tPyoZMis7BoOjP/gb4u6GRtptV66u1A2iF
-         on9CZLYoh/Dm/WH0vuTIZ76Aj/NpzaCnR+tcIjlsXu4IfOCUvxTuBRtViEbplZXMf3AG
-         uqzg==
+        b=HD+pnGBZ68weAymp6lowdN27NWmFXY1hfOYI10uhP7FcIronPtWNEKpsymt8A5+2jl
+         EqLXAeYYXBmRqhzFM3GYGC1hNvOkYBvVDyTziZPlPMAZV/FA4OrWU7CsG2avupseJV+d
+         xOcDdLxgv4NSC0OL1jVspfPoZUs6BiNORgABeb1Qy00RG0pR6IxvsapMymoT2Sl4hHCT
+         kf+YewH+09M5qIAeDiyYfBJUiCVgpX+qhHw+kn4CDZo+TNADZDVFOjXxCZ+it5TpLTbu
+         aiR8kf7CxkdKxHXo+4mjPTv2kwGlhjKLVlhlqkHjcBKxAAp3HJb2RcuKgRetP4qv7d/A
+         m9ag==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :reply-to:message-id:subject:cc:to:from:date:dkim-signature;
-        bh=QJtleFy0W5wG+kdjcQeK55r7BWM3778hGqddVx/0MZo=;
-        b=FQSDeqQbvpg6z8ti70oHvqtHtEdlPP5+KjXLQVLQfcJuYl9qqJysXVJV4Yu8oz51xP
-         dGveZrqq17qgdOMT222ecCS6dA9UJ+D2MWbKWbWGPkYNGPoZvZ30TVAH+MSoRdtBCaAm
-         L2saAeSMuDKknwF6J7pjzUWp03G5oeC6eAxVy5kzogwjmlkgyGYMHRGNYeIHgzZaDYiW
-         Sj4A5P7Y9T0c9rMN4n82F6ykSolP/RzOdBBB6/ODW+NhjG4L4ITcUkfI4tlWcnKFRDZ+
-         UzR0b1QUM0sKRkV28/e01391bZa16PWxEn88RJw0JjJm7ZlNvlmvfj20jLBGtvITTHfU
-         bRkg==
+        h=mime-version:user-agent:references:message-id:in-reply-to:subject
+         :cc:to:from:date:dkim-signature;
+        bh=4rwRS7GM+nAGTGCY3bn6psvJVMqQf5Gz5RaBpQRnLL8=;
+        b=N4wBU2KhlHrlgSsuaDrkuKpoFVHkFjQoYKOhiziKifwPVDFwpQePR3LCNpnPE3ehSF
+         jIrZRv7poUjIaJLSXw0eBDe307KeIhunE9vc3ampvz0DBp+VpuTseaMn5tT8NzwMzaGw
+         8d403p9dFfLDT4QiiOXxIpv5hJTKa1GNTaDNRv8+pERj9DEnmFC9mCBlkTLEkuEg5o1V
+         GGxFztx0GNrEbJYADB/CYmcW0dUoAgtOb2GXucLbkZaXjEEuXSEfvtb31dEokJfoq4IT
+         GND3jWQ2t07YV87z28KRwMbTK5nUM/6foYctSAzFAdM2R3H9o65KLseZqhBamQE1FU3M
+         gCQg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b="Vm2O5Q/c";
-       spf=pass (google.com: domain of richard.weiyang@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=richard.weiyang@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+       dkim=pass header.i=@google.com header.s=20161025 header.b=n0KFTozv;
+       spf=pass (google.com: domain of rientjes@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=rientjes@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y14sor9865142edu.28.2019.07.13.09.52.25
+        by mx.google.com with SMTPS id i13sor6624559pgr.87.2019.07.13.12.39.19
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sat, 13 Jul 2019 09:52:26 -0700 (PDT)
-Received-SPF: pass (google.com: domain of richard.weiyang@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Sat, 13 Jul 2019 12:39:19 -0700 (PDT)
+Received-SPF: pass (google.com: domain of rientjes@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b="Vm2O5Q/c";
-       spf=pass (google.com: domain of richard.weiyang@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=richard.weiyang@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+       dkim=pass header.i=@google.com header.s=20161025 header.b=n0KFTozv;
+       spf=pass (google.com: domain of rientjes@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=rientjes@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=date:from:to:cc:subject:message-id:reply-to:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=QJtleFy0W5wG+kdjcQeK55r7BWM3778hGqddVx/0MZo=;
-        b=Vm2O5Q/c3MGDUmRqEb79GmywtMNQUwpvrKPNIkqSH760cGhr+7PbMBMWs0uNtd/66a
-         xp51fGxqAZdeBd6IMqm9Z/46AAtWtCTRtNhrdcD0EHcK0dXYJcMkBNjQOwLXGmUuJ/k/
-         3lYxq2jv1c2pz8TzeUK6BoAUhQ8oxACHVO4iFqHOL7toO2CQ1xyPjABeTVlPF916bWeY
-         GZj17ofIBcVfR2W6n9YhRPIzujPGVGvuO4zuyN+4ztTMte49OULTEE5wTHfi0BtL8Qdd
-         4THAi7172kWjg6H3wGaNhJd9kgA5FqHNYuEsTCLaNB+KH9HW5z6Mf0VNPfP2C02N0uRC
-         ASSw==
-X-Google-Smtp-Source: APXvYqw3SV43FYERQz/LFl2ft4u4C9PlOgnoiwlyz8ZxyhiAHA7EmSDB/qtYar8gidDGLBb/bJi6dw==
-X-Received: by 2002:a05:6402:14c4:: with SMTP id f4mr14931366edx.170.1563036745777;
-        Sat, 13 Jul 2019 09:52:25 -0700 (PDT)
-Received: from localhost ([185.92.221.13])
-        by smtp.gmail.com with ESMTPSA id by12sm2559899ejb.37.2019.07.13.09.52.19
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Sat, 13 Jul 2019 09:52:19 -0700 (PDT)
-Date: Sat, 13 Jul 2019 16:52:19 +0000
-From: Wei Yang <richard.weiyang@gmail.com>
-To: "Raslan, KarimAllah" <karahmed@amazon.de>
-Cc: "richard.weiyang@gmail.com" <richard.weiyang@gmail.com>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-	"bhe@redhat.com" <bhe@redhat.com>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>,
-	"cai@lca.pw" <cai@lca.pw>,
-	"logang@deltatee.com" <logang@deltatee.com>,
-	"akpm@linux-foundation.org" <akpm@linux-foundation.org>,
-	"osalvador@suse.de" <osalvador@suse.de>,
-	"rppt@linux.ibm.com" <rppt@linux.ibm.com>,
-	"mhocko@suse.com" <mhocko@suse.com>,
-	"pasha.tatashin@oracle.com" <pasha.tatashin@oracle.com>
-Subject: Re: [PATCH] mm: sparse: Skip no-map regions in memblocks_present
-Message-ID: <20190713165219.n3ro7peyyml6swrk@master>
-Reply-To: Wei Yang <richard.weiyang@gmail.com>
-References: <1562921491-23899-1-git-send-email-karahmed@amazon.de>
- <20190712230913.l35zpdiqcqa4o32f@master>
- <1563026005.19043.12.camel@amazon.de>
+        d=google.com; s=20161025;
+        h=date:from:to:cc:subject:in-reply-to:message-id:references
+         :user-agent:mime-version;
+        bh=4rwRS7GM+nAGTGCY3bn6psvJVMqQf5Gz5RaBpQRnLL8=;
+        b=n0KFTozv9CtnAVuGyX9D6NNG61GDCR6T64sYf9upTmnmAdBFsnDEUe1t04Bu/LT2D+
+         bqBxtGoXwlL1gRCO7WG9Ry/284/rMlUsnYIrhM2DGa+J+n8e/x6f6zHA4id9QtkHa0lh
+         yUECAj3rN/6p1EB2mV2pFisblC3mqlEQjqMnDIujn/DWYMn1r1/cFrH44limBhWtA471
+         7Ivil9qXvMi9HM/BXy38rCzLWP4HvU3WnGlPrgV9sfbyNU5xKXnzdknElbXLdolGGYg7
+         PDlDb+DUR0wgpZ8zpQE63IgFYMKyfyV09ZDJLsq+hVRQu169Lp9V4242fwagSZfrMEY1
+         Paow==
+X-Google-Smtp-Source: APXvYqxOrGaeCkdz67qh5Pd8o/OBYvz4gK7V7SeQ+uf99qRLAi4vYDlYPDSLlTDG/ZmBLF3HPE9yUQ==
+X-Received: by 2002:a63:6686:: with SMTP id a128mr11260150pgc.361.1563046758563;
+        Sat, 13 Jul 2019 12:39:18 -0700 (PDT)
+Received: from [2620:15c:17:3:3a5:23a7:5e32:4598] ([2620:15c:17:3:3a5:23a7:5e32:4598])
+        by smtp.gmail.com with ESMTPSA id k6sm11697073pfi.12.2019.07.13.12.39.17
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Sat, 13 Jul 2019 12:39:17 -0700 (PDT)
+Date: Sat, 13 Jul 2019 12:39:16 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+X-X-Sender: rientjes@chino.kir.corp.google.com
+To: Yang Shi <yang.shi@linux.alibaba.com>
+cc: mhocko@suse.com, dvyukov@google.com, catalin.marinas@arm.com, 
+    akpm@linux-foundation.org, linux-mm@kvack.org, 
+    linux-kernel@vger.kernel.org
+Subject: Re: [PATCH] mm: page_alloc: document kmemleak's non-blockable
+ __GFP_NOFAIL case
+In-Reply-To: <1562964544-59519-1-git-send-email-yang.shi@linux.alibaba.com>
+Message-ID: <alpine.DEB.2.21.1907131230280.246128@chino.kir.corp.google.com>
+References: <1562964544-59519-1-git-send-email-yang.shi@linux.alibaba.com>
+User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1563026005.19043.12.camel@amazon.de>
-User-Agent: NeoMutt/20170113 (1.7.2)
+Content-Type: text/plain; charset=US-ASCII
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Jul 13, 2019 at 01:53:25PM +0000, Raslan, KarimAllah wrote:
->On Fri, 2019-07-12 at 23:09 +0000, Wei Yang wrote:
->> On Fri, Jul 12, 2019 at 10:51:31AM +0200, KarimAllah Ahmed wrote:
->> > 
->> > Do not mark regions that are marked with nomap to be present, otherwise
->> > these memblock cause unnecessarily allocation of metadata.
->> > 
->> > Cc: Andrew Morton <akpm@linux-foundation.org>
->> > Cc: Pavel Tatashin <pasha.tatashin@oracle.com>
->> > Cc: Oscar Salvador <osalvador@suse.de>
->> > Cc: Michal Hocko <mhocko@suse.com>
->> > Cc: Mike Rapoport <rppt@linux.ibm.com>
->> > Cc: Baoquan He <bhe@redhat.com>
->> > Cc: Qian Cai <cai@lca.pw>
->> > Cc: Wei Yang <richard.weiyang@gmail.com>
->> > Cc: Logan Gunthorpe <logang@deltatee.com>
->> > Cc: linux-mm@kvack.org
->> > Cc: linux-kernel@vger.kernel.org
->> > Signed-off-by: KarimAllah Ahmed <karahmed@amazon.de>
->> > ---
->> > mm/sparse.c | 4 ++++
->> > 1 file changed, 4 insertions(+)
->> > 
->> > diff --git a/mm/sparse.c b/mm/sparse.c
->> > index fd13166..33810b6 100644
->> > --- a/mm/sparse.c
->> > +++ b/mm/sparse.c
->> > @@ -256,6 +256,10 @@ void __init memblocks_present(void)
->> > 	struct memblock_region *reg;
->> > 
->> > 	for_each_memblock(memory, reg) {
->> > +
->> > +		if (memblock_is_nomap(reg))
->> > +			continue;
->> > +
->> > 		memory_present(memblock_get_region_node(reg),
->> > 			       memblock_region_memory_base_pfn(reg),
->> > 			       memblock_region_memory_end_pfn(reg));
->> 
->> 
->> The logic looks good, while I am not sure this would take effect. Since the
->> metadata is SECTION size aligned while memblock is not.
->> 
->> If I am correct, on arm64, we mark nomap memblock in map_mem()
->> 
->>     memblock_mark_nomap(kernel_start, kernel_end - kernel_start);
->
->The nomap is also done by EFI code in ${src}/drivers/firmware/efi/arm-init.c
->
->.. and hopefully in the future by this:
->https://lkml.org/lkml/2019/7/12/126
->
->So it is not really striclty associated with the map_mem().
->
->So it is extremely dependent on the platform how much memory will end up mapped??
->as nomap.
->
->> 
->> And kernel text area is less than 40M, if I am right. This means
->> memblocks_present would still mark the section present. 
->> 
->> Would you mind showing how much memory range it is marked nomap?
->
->We actually have some downstream patches that are using this nomap flag for
->more than the use-cases I described above which would enflate the nomap regions??
->a bit :)
->
+On Sat, 13 Jul 2019, Yang Shi wrote:
 
-Thanks for your explanation.
+> When running ltp's oom test with kmemleak enabled, the below warning was
+> triggerred since kernel detects __GFP_NOFAIL & ~__GFP_DIRECT_RECLAIM is
+> passed in:
+> 
+> WARNING: CPU: 105 PID: 2138 at mm/page_alloc.c:4608 __alloc_pages_nodemask+0x1c31/0x1d50
+> Modules linked in: loop dax_pmem dax_pmem_core
+> ip_tables x_tables xfs virtio_net net_failover virtio_blk failover
+> ata_generic virtio_pci virtio_ring virtio libata
+> CPU: 105 PID: 2138 Comm: oom01 Not tainted 5.2.0-next-20190710+ #7
+> Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS rel-1.10.2-0-g5f4c7b1-prebuilt.qemu-project.org 04/01/2014
+> RIP: 0010:__alloc_pages_nodemask+0x1c31/0x1d50
+> ...
+>  kmemleak_alloc+0x4e/0xb0
+>  kmem_cache_alloc+0x2a7/0x3e0
+>  ? __kmalloc+0x1d6/0x470
+>  ? ___might_sleep+0x9c/0x170
+>  ? mempool_alloc+0x2b0/0x2b0
+>  mempool_alloc_slab+0x2d/0x40
+>  mempool_alloc+0x118/0x2b0
+>  ? __kasan_check_read+0x11/0x20
+>  ? mempool_resize+0x390/0x390
+>  ? lock_downgrade+0x3c0/0x3c0
+>  bio_alloc_bioset+0x19d/0x350
+>  ? __swap_duplicate+0x161/0x240
+>  ? bvec_alloc+0x1b0/0x1b0
+>  ? do_raw_spin_unlock+0xa8/0x140
+>  ? _raw_spin_unlock+0x27/0x40
+>  get_swap_bio+0x80/0x230
+>  ? __x64_sys_madvise+0x50/0x50
+>  ? end_swap_bio_read+0x310/0x310
+>  ? __kasan_check_read+0x11/0x20
+>  ? check_chain_key+0x24e/0x300
+>  ? bdev_write_page+0x55/0x130
+>  __swap_writepage+0x5ff/0xb20
+> 
+> The mempool_alloc_slab() clears __GFP_DIRECT_RECLAIM, kmemleak has
+> __GFP_NOFAIL set all the time due to commit
+> d9570ee3bd1d4f20ce63485f5ef05663866fe6c0 ("kmemleak: allow to coexist
+> with fault injection").
+> 
 
-If my understanding is correct, the range you mark nomap could not be used by
-the system, it looks those ranges are useless for the system. Just curious
-about how linux could use these memory after marking nomap?
+It only clears __GFP_DIRECT_RECLAIM provisionally to see if the allocation 
+would immediately succeed before falling back to the elements in the 
+mempool.  If that fails, and the mempool is empty, mempool_alloc() 
+attempts the allocation with __GFP_DIRECT_RECLAIM.  So for the problem 
+described here, I think what we really want is this:
 
->> 
->> > 
->> > -- 
->> > 2.7.4
->> 
->
->
->
->Amazon Development Center Germany GmbH
->Krausenstr. 38
->10117 Berlin
->Geschaeftsfuehrung: Christian Schlaeger, Ralf Herbrich
->Eingetragen am Amtsgericht Charlottenburg unter HRB 149173 B
->Sitz: Berlin
->Ust-ID: DE 289 237 879
->
->
+diff --git a/mm/mempool.c b/mm/mempool.c
+--- a/mm/mempool.c
++++ b/mm/mempool.c
+@@ -386,7 +386,7 @@ void *mempool_alloc(mempool_t *pool, gfp_t gfp_mask)
+ 	gfp_mask |= __GFP_NORETRY;	/* don't loop in __alloc_pages */
+ 	gfp_mask |= __GFP_NOWARN;	/* failures are OK */
+ 
+-	gfp_temp = gfp_mask & ~(__GFP_DIRECT_RECLAIM|__GFP_IO);
++	gfp_temp = gfp_mask & ~(__GFP_DIRECT_RECLAIM|__GFP_IO|__GFP_NOFAIL);
+ 
+ repeat_alloc:
+ 
+But bio_alloc_bioset() plays with gfp_mask itself: are we sure that it 
+isn't the one clearing __GFP_DIRECT_RECLAIM itself before falling back to 
+saved_gfp?
 
--- 
-Wei Yang
-Help you, Help me
+In other words do we also want this?
+
+diff --git a/block/bio.c b/block/bio.c
+--- a/block/bio.c
++++ b/block/bio.c
+@@ -462,16 +462,16 @@ struct bio *bio_alloc_bioset(gfp_t gfp_mask, unsigned int nr_iovecs,
+ 		 * We solve this, and guarantee forward progress, with a rescuer
+ 		 * workqueue per bio_set. If we go to allocate and there are
+ 		 * bios on current->bio_list, we first try the allocation
+-		 * without __GFP_DIRECT_RECLAIM; if that fails, we punt those
+-		 * bios we would be blocking to the rescuer workqueue before
+-		 * we retry with the original gfp_flags.
++		 * without __GFP_DIRECT_RECLAIM or __GFP_NOFAIL; if that fails,
++		 * we punt those bios we would be blocking to the rescuer
++		 * workqueue before we retry with the original gfp_flags.
+ 		 */
+-
+ 		if (current->bio_list &&
+ 		    (!bio_list_empty(&current->bio_list[0]) ||
+ 		     !bio_list_empty(&current->bio_list[1])) &&
+ 		    bs->rescue_workqueue)
+-			gfp_mask &= ~__GFP_DIRECT_RECLAIM;
++			gfp_mask &= ~(__GFP_DIRECT_RECLAIM |
++				      __GFP_NOFAIL);
+ 
+ 		p = mempool_alloc(&bs->bio_pool, gfp_mask);
+ 		if (!p && gfp_mask != saved_gfp) {
 
