@@ -2,634 +2,333 @@ Return-Path: <SRS0=cxLU=VK=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY,
-	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no
+X-Spam-Status: No, score=-3.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
+	SPF_PASS,URIBL_BLOCKED,URIBL_SBL,URIBL_SBL_A autolearn=no autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 48ED6C742A7
-	for <linux-mm@archiver.kernel.org>; Sat, 13 Jul 2019 04:41:33 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 88380C742A7
+	for <linux-mm@archiver.kernel.org>; Sat, 13 Jul 2019 06:47:27 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CA0ED20989
-	for <linux-mm@archiver.kernel.org>; Sat, 13 Jul 2019 04:41:32 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CA0ED20989
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
+	by mail.kernel.org (Postfix) with ESMTP id 10F5A204FD
+	for <linux-mm@archiver.kernel.org>; Sat, 13 Jul 2019 06:47:26 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="BrTpUYGA"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 10F5A204FD
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 589098E0171; Sat, 13 Jul 2019 00:41:32 -0400 (EDT)
+	id 5C7278E0008; Sat, 13 Jul 2019 02:47:26 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5130C8E0003; Sat, 13 Jul 2019 00:41:32 -0400 (EDT)
+	id 576FE8E0003; Sat, 13 Jul 2019 02:47:26 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 38D4F8E0171; Sat, 13 Jul 2019 00:41:32 -0400 (EDT)
+	id 466EB8E0008; Sat, 13 Jul 2019 02:47:26 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id DF2708E0003
-	for <linux-mm@kvack.org>; Sat, 13 Jul 2019 00:41:31 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id k20so6880717pgg.15
-        for <linux-mm@kvack.org>; Fri, 12 Jul 2019 21:41:31 -0700 (PDT)
+Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 26EE98E0003
+	for <linux-mm@kvack.org>; Sat, 13 Jul 2019 02:47:26 -0400 (EDT)
+Received: by mail-io1-f71.google.com with SMTP id f22so13340352ioh.22
+        for <linux-mm@kvack.org>; Fri, 12 Jul 2019 23:47:26 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:from
-         :to:cc:references:message-id:date:user-agent:mime-version
-         :in-reply-to:content-transfer-encoding:content-language;
-        bh=PhaX1cEUkSXdCXgbUY07y13lW8g2RWAt6ekr3nz2hAM=;
-        b=EL/eDtM+kpCA4wd6/WlWNilGaNX2rjjBAUq1F7deScYEat0+2vj5/mMlHRZ/Lo2Wt+
-         6M6hAPVH9VgNuF8gpTMjL5Fqivp24r+TER4mAGeDRjDoYjmEJmBH6Ck8IaMzcjvuizcb
-         6RdGRZz4lRRL5ymGDRIYT8xCmm0JPJIiGPP5XgT58siNKEyR2fKoODobQ5zHVDx60zkX
-         cCFfwweko+Q2QSAlCrsEyFsfqk+wI4HS74PY/QK2DwG+YGhDnVTV2yI0OzlaPvfRDXyl
-         VkaHD9de5W5NFxIaWD9rVu8JQbY9gQxTR40vsOIkXCVQgLpO/+Mg5TIGuwDNOk2RR28r
-         BQGQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.36 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Gm-Message-State: APjAAAUFp3YX11IkNupJRcZfCZ9uN+wo7mw1G50WOJ9X22Ul7g40GS5t
-	lX+AqIuLqr4g0CIbqMQusmNgVZQ53ZSjpFmYzY4kY9Axij15gnQrzmRWPbBL58tyyRcNTRqiTXo
-	0wAtcEwZp28HYgzSiH9RK9MdN2QZKPnJ8XROiUaTM3ZGWrVsiQ5OBWAPmGovmAMduww==
-X-Received: by 2002:a65:5c0a:: with SMTP id u10mr15368944pgr.412.1562992891325;
-        Fri, 12 Jul 2019 21:41:31 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyzddHbAzl4jSFk5t1faOBLmYBP4aTJAREVkvP1VZJrzaTt90PAdQV/frMCK84ietRWGseD
-X-Received: by 2002:a65:5c0a:: with SMTP id u10mr15368845pgr.412.1562992889383;
-        Fri, 12 Jul 2019 21:41:29 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1562992889; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=nuQyNCCWePIm/spcnKfaXHChZmxELZW2uvFUgri+k+0=;
+        b=mtT0Wt+aHZwLYSdfLf8m4zKA2gFAKMeBxqwtu1X82QTVd5L5S27q/IeJRmxuAFW/Wu
+         /nKnCSEYKaKh/dge3giJeWAYTqpkvBvfkZ3KyWiC3+ejGKgbf5wRcSI2owAodjknYRlG
+         U1qXXoJ4Pq5IW46a6XxbBP+6+CpjWQpG5lil1D6IOYTX80G2dUJ2HJsiypC7Dg7UqGJJ
+         V7L36qVjIDjvv8V1O11Te3QqG8en8WqeA7XN/WRmMIbDiPeWEb7L7AB90MHnHm8vg6NY
+         5wTxJB64mvFbSO4D8deBXbc7xw3Bj7b1pWKM++Hz5OPHeqrSn//sS3Q1t9jBhQqcScWB
+         t/wg==
+X-Gm-Message-State: APjAAAVz3AgRsaG3pCdtkD+Gs5fi4xwOw1FUCKRzqcgqMUp6KYuNMhjj
+	K/aw/tGQ/1l7UDalCwtkFFJB4ystawvDUxTYM6lsE9GR3jG24Q+EP3xk7kDACybNU55nkFaO1T4
+	3JEyMQovRoopm+ocL7Q4REU34k6/vRztR0qjnmbIQC2KibNT8CW1CHa7KJlzAYz3Knw==
+X-Received: by 2002:a02:cc76:: with SMTP id j22mr16309035jaq.9.1563000445880;
+        Fri, 12 Jul 2019 23:47:25 -0700 (PDT)
+X-Received: by 2002:a02:cc76:: with SMTP id j22mr16308943jaq.9.1563000444095;
+        Fri, 12 Jul 2019 23:47:24 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563000444; cv=none;
         d=google.com; s=arc-20160816;
-        b=ee+XdSlJJ9kc2kKyzci6eJJaaN/+VlQz34SrB4QEPyP/HnepMmDJfZ7VWEpxPKNDCB
-         A9tEPmDmeVBTBjlikyTUoYPDCqkKpSeqsv8rJ5uKwpZiz5vvTOPjoHESv6/i2uiWBtLf
-         /5jgT6h1xkmubYaYDtZApImSOvpawnzvCPyJ+36ax4dwN0p417SQHna1vnLe96dP4ubF
-         gokOUgZ4NfVPQYrCBdN2nQyCrzx1qQ/V37+d0HBwewFMjMHsvhETk5eTkuKYSi5sMK9D
-         ZnYz9/Rrsb1Bu0EnBStloZyY1KDU659QAaIhfoJTTgs3kWRcb9SQNxJmfIaZDAkHlT6r
-         Aw3A==
+        b=JnVBAQ0nc+ABP+dGOYU/PwDZjYACUYMpOhSgeNvbPV+M+ZCzwu7SNsSrDjzSko4auv
+         7TXUh/cjugmd2nglUZ2FMGxnCGEWwgYXH5wdNiw2SKfbrkW21hjWfgQD/gNNkXJUiS/t
+         o5DPjx2TatEUygGNrPQYw6Tdcd7U6hjBO7TKu3p/MLKg8TkVDSRaSDrncrRtqNCCJRAf
+         WZ9S0tpD2gCISTUvLOKWk259uHFAyKJyaFfoeZxaBHdPnZp8r5vMfYzT0hbxcLeYQ3MG
+         haaFYLcaXNlXMXH1nfGEcSI5Vm8MDSzYlCNw4xxJbzCMNUKJ9azfJXzjrAKa9SlZjpbc
+         KDNA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-language:content-transfer-encoding:in-reply-to:mime-version
-         :user-agent:date:message-id:references:cc:to:from:subject;
-        bh=PhaX1cEUkSXdCXgbUY07y13lW8g2RWAt6ekr3nz2hAM=;
-        b=qwekIDKmo30SQ+RGKsXFtfBLDF8iE3wTn6EOqDi91bkhqA3qmiIfxrZyyhGN6QpiVp
-         lX17LIlyBxwE42JEhqVLBliDmkaJYIa+czCT7awZEI5M4Y6cHm1R4fhfQTxwtby9/Gu+
-         +/iJ5i2HyCoePWCAfeHz3QVs+QFb5y35kw0hLqUfBGU0BPVfKkatQkxiO4eIJtv75lWE
-         5287BBAXvm4yUsXLk0z7F1EZvjAOEXbzAXXaVX119CNjb2+hGnvUhgII+jsn8PR8wqyt
-         q8xdwh4wd5Sfs38usnRfqVduSfAI1+8TRHzgFVB7q/p32DDZevb7DJrAkuxTJQ+c6YxO
-         j1BQ==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=nuQyNCCWePIm/spcnKfaXHChZmxELZW2uvFUgri+k+0=;
+        b=YsQGQpFKKxLtdSkGdE+naemb/nxQHqpy1IOE3B80hYZaotgkAFB5wPBe8nZSycmXpz
+         OxjeOsKxyncEfOyZX2W7F/a0X7xQTiz6YeQzCSwP11OlEv1Lnk9bcp04JCMIbYrUsocK
+         CN8beMGbr2d8s/8TeUTFJllGNw2R1t1i8ByjvK9MC8r6U7tbW1ASK7SWyPTRC3vAq5qY
+         i9ojT57MziJ1h/sTm/NUtm5jNuzXKdLf9Lh8UgpQCtZx5k+eeChjRA271G34+oVZ3U+6
+         p2A+d7JWbIw7rXdLNAZb554achZBtHMWxWgzcrHJsR8GeSjKGgTR8MjX9CNrq2+SHNU9
+         OQ0g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.36 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-Received: from out4436.biz.mail.alibaba.com (out4436.biz.mail.alibaba.com. [47.88.44.36])
-        by mx.google.com with ESMTPS id j95si9602865plb.349.2019.07.12.21.41.27
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=BrTpUYGA;
+       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id q70sor8644883iod.105.2019.07.12.23.47.23
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 12 Jul 2019 21:41:29 -0700 (PDT)
-Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.36 as permitted sender) client-ip=47.88.44.36;
+        (Google Transport Security);
+        Fri, 12 Jul 2019 23:47:24 -0700 (PDT)
+Received-SPF: pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.36 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R141e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01f04446;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=5;SR=0;TI=SMTPD_---0TWlBeLN_1562992861;
-Received: from US-143344MP.local(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TWlBeLN_1562992861)
-          by smtp.aliyun-inc.com(127.0.0.1);
-          Sat, 13 Jul 2019 12:41:03 +0800
-Subject: Re: list corruption in deferred_split_scan()
-From: Yang Shi <yang.shi@linux.alibaba.com>
-To: Qian Cai <cai@lca.pw>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
- akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-References: <1562795006.8510.19.camel@lca.pw>
- <cd6e10bc-cb79-65c5-ff2b-4c244ae5eb1c@linux.alibaba.com>
- <1562879229.8510.24.camel@lca.pw>
- <b38ee633-f8e0-00ee-55ee-2f0aaea9ed6b@linux.alibaba.com>
-Message-ID: <66ce325b-0b02-3ac0-009b-4e24ef6114c3@linux.alibaba.com>
-Date: Fri, 12 Jul 2019 21:41:01 -0700
-User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:52.0)
- Gecko/20100101 Thunderbird/52.7.0
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=BrTpUYGA;
+       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=nuQyNCCWePIm/spcnKfaXHChZmxELZW2uvFUgri+k+0=;
+        b=BrTpUYGAoqwDpl474yCj9aS30NJ5BLzZYCuc2rxScIbCiiLpyt13cM0IlNB5yP8qmo
+         f514liZ3Ge+1btHPXtW+4d0GE9tIMaOCZe+IbICO+2ueM991yVuHDUhj537eRxTywQ09
+         xRoD8YzVGOk5A0CYSHUzSKc3J37a3b+ULuxguTBTgB4M0V/8BEtYf8S/KMR0XOLXxuww
+         w2ju5jLJ7EUsE0/hrphoptRj7oz++71hxuGZktPRHl7NqaslWKkZWD5/broxkw5YRThm
+         G1TpotxUPpv9Wx9AU5JYxeVjV+Wlsu+H2Z1oVaoXiXfaJb7j4cUXa0p0l+Z5Ytg7Krfb
+         3z+Q==
+X-Google-Smtp-Source: APXvYqwGQCv5e5nmshyNJ8XAD2cUDUk6K8bPpgw9/9JXm+muci1WWufxcyJggbxtLD8kkMUD8Sto5nylRRC0AJTSJcc=
+X-Received: by 2002:a5d:8702:: with SMTP id u2mr15252893iom.228.1563000443512;
+ Fri, 12 Jul 2019 23:47:23 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <b38ee633-f8e0-00ee-55ee-2f0aaea9ed6b@linux.alibaba.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 8bit
-Content-Language: en-US
+References: <1554804700-7813-1-git-send-email-laoar.shao@gmail.com>
+ <20190711181017.d8fc41678fc7a754264c6bdf@linux-foundation.org> <CAHbLzkqw+LJC-CrpJpZBfoer9jNRAcfZz+YTLP1qqa_x7R8y1w@mail.gmail.com>
+In-Reply-To: <CAHbLzkqw+LJC-CrpJpZBfoer9jNRAcfZz+YTLP1qqa_x7R8y1w@mail.gmail.com>
+From: Yafang Shao <laoar.shao@gmail.com>
+Date: Sat, 13 Jul 2019 14:46:47 +0800
+Message-ID: <CALOAHbAq_y2Dng9xxWe4NdNrHa35CpQkrjiYjYHck2Hz8jGssQ@mail.gmail.com>
+Subject: Re: [PATCH] mm/vmscan: expose cgroup_ino for memcg reclaim tracepoints
+To: Yang Shi <shy828301@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, 
+	Linux MM <linux-mm@kvack.org>, Yafang Shao <shaoyafang@didiglobal.com>, 
+	Johannes Weiner <hannes@cmpxchg.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Sat, Jul 13, 2019 at 7:58 AM Yang Shi <shy828301@gmail.com> wrote:
+>
+> On Thu, Jul 11, 2019 at 6:10 PM Andrew Morton <akpm@linux-foundation.org> wrote:
+> >
+> >
+> > Can we please get some review of this one?  It has been in -mm since
+> > May 22, no issues that I've heard of.
+> >
+> >
+> > From: Yafang Shao <laoar.shao@gmail.com>
+> > Subject: mm/vmscan: expose cgroup_ino for memcg reclaim tracepoints
+> >
+> > We can use the exposed cgroup_ino to trace specified cgroup.
+> >
+> > For example,
+> > step 1, get the inode of the specified cgroup
+> >         $ ls -di /tmp/cgroupv2/foo
+> > step 2, set this inode into tracepoint filter to trace this cgroup only
+> >         (assume the inode is 11)
+> >         $ cd /sys/kernel/debug/tracing/events/vmscan/
+> >         $ echo 'cgroup_ino == 11' > mm_vmscan_memcg_reclaim_begin/filter
+> >         $ echo 'cgroup_ino == 11' > mm_vmscan_memcg_reclaim_end/filter
+> >
+> > The reason I made this change is to trace a specific container.
+>
+> I'm wondering how useful this is. You could filter events by cgroup
+> with bpftrace easily. For example:
+>
+> # bpftrace -e 'tracepoint:syscalls:sys_enter_openat /cgroup ==
+> cgroupid("/sys/fs/cgroup/unified/mycg")/ { printf("%s\n",
+> str(args->filename)); }':
+>
 
+Seems the bpftrace get the cgroupid from the current task and then
+compare the task-cgroupid with the speficied cgroupid?
+While in the memcg reclaim, the pages in a memcg may be reclaimed by a
+process in other memcgs, i.e. the parent memcg,
+so we can't use the process's memcg as the filter.
 
-On 7/12/19 12:12 PM, Yang Shi wrote:
->
->
-> On 7/11/19 2:07 PM, Qian Cai wrote:
->> On Wed, 2019-07-10 at 17:16 -0700, Yang Shi wrote:
->>> Hi Qian,
->>>
->>>
->>> Thanks for reporting the issue. But, I can't reproduce it on my 
->>> machine.
->>> Could you please share more details about your test? How often did you
->>> run into this problem?
->> I can almost reproduce it every time on a HPE ProLiant DL385 Gen10 
->> server. Here
->> is some more information.
->>
->> # cat .config
->>
->> https://raw.githubusercontent.com/cailca/linux-mm/master/x86.config
->
-> I tried your kernel config, but I still can't reproduce it. My 
-> compiler doesn't have retpoline support, so CONFIG_RETPOLINE is 
-> disabled in my test, but I don't think this would make any difference 
-> for this case.
->
-> According to the bug call trace in the earlier email, it looks 
-> deferred _split_scan lost race with put_compound_page. The 
-> put_compound_page would call free_transhuge_page() which delete the 
-> page from the deferred split queue, but it may still appear on the 
-> deferred list due to some reason.
->
-> Would you please try the below patch?
->
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> index b7f709d..66bd9db 100644
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -2765,7 +2765,7 @@ int split_huge_page_to_list(struct page *page, 
-> struct list_head *list)
->         if (!mapcount && page_ref_freeze(head, 1 + extra_pins)) {
->                 if (!list_empty(page_deferred_list(head))) {
->                         ds_queue->split_queue_len--;
-> -                       list_del(page_deferred_list(head));
-> +                       list_del_init(page_deferred_list(head));
+The way to use bpftrace here is using kprobe to do it, I guess.
+But as the tracepoint is already there, we can make little change to enhance it.
 
-This line should not be changed. Please just apply the below part.
+Thanks
+Yafang
 
-> }
->                 if (mapping)
->                         __dec_node_page_state(page, NR_SHMEM_THPS);
-> @@ -2814,7 +2814,7 @@ void free_transhuge_page(struct page *page)
->         spin_lock_irqsave(&ds_queue->split_queue_lock, flags);
->         if (!list_empty(page_deferred_list(page))) {
->                 ds_queue->split_queue_len--;
-> -               list_del(page_deferred_list(page));
-> +               list_del_init(page_deferred_list(page));
->         }
->         spin_unlock_irqrestore(&ds_queue->split_queue_lock, flags);
->         free_compound_page(page);
 >
->>
->> # numactl -H
->> available: 8 nodes (0-7)
->> node 0 cpus: 0 1 2 3 4 5 6 7 64 65 66 67 68 69 70 71
->> node 0 size: 19984 MB
->> node 0 free: 7251 MB
->> node 1 cpus: 8 9 10 11 12 13 14 15 72 73 74 75 76 77 78 79
->> node 1 size: 0 MB
->> node 1 free: 0 MB
->> node 2 cpus: 16 17 18 19 20 21 22 23 80 81 82 83 84 85 86 87
->> node 2 size: 0 MB
->> node 2 free: 0 MB
->> node 3 cpus: 24 25 26 27 28 29 30 31 88 89 90 91 92 93 94 95
->> node 3 size: 0 MB
->> node 3 free: 0 MB
->> node 4 cpus: 32 33 34 35 36 37 38 39 96 97 98 99 100 101 102 103
->> node 4 size: 31524 MB
->> node 4 free: 25165 MB
->> node 5 cpus: 40 41 42 43 44 45 46 47 104 105 106 107 108 109 110 111
->> node 5 size: 0 MB
->> node 5 free: 0 MB
->> node 6 cpus: 48 49 50 51 52 53 54 55 112 113 114 115 116 117 118 119
->> node 6 size: 0 MB
->> node 6 free: 0 MB
->> node 7 cpus: 56 57 58 59 60 61 62 63 120 121 122 123 124 125 126 127
->> node 7 size: 0 MB
->> node 7 free: 0 MB
->> node distances:
->> node   0   1   2   3   4   5   6   7
->>    0:  10  16  16  16  32  32  32  32
->>    1:  16  10  16  16  32  32  32  32
->>    2:  16  16  10  16  32  32  32  32
->>    3:  16  16  16  10  32  32  32  32
->>    4:  32  32  32  32  10  16  16  16
->>    5:  32  32  32  32  16  10  16  16
->>    6:  32  32  32  32  16  16  10  16
->>    7:  32  32  32  32  16  16  16  10
->>
->> # lscpu
->> Architecture:        x86_64
->> CPU op-mode(s):      32-bit, 64-bit
->> Byte Order:          Little Endian
->> CPU(s):              128
->> On-line CPU(s) list: 0-127
->> Thread(s) per core:  2
->> Core(s) per socket:  32
->> Socket(s):           2
->> NUMA node(s):        8
->> Vendor ID:           AuthenticAMD
->> CPU family:          23
->> Model:               1
->> Model name:          AMD EPYC 7601 32-Core Processor
->> Stepping:            2
->> CPU MHz:             2713.551
->> BogoMIPS:            4391.39
->> Virtualization:      AMD-V
->> L1d cache:           32K
->> L1i cache:           64K
->> L2 cache:            512K
->> L3 cache:            8192K
->> NUMA node0 CPU(s):   0-7,64-71
->> NUMA node1 CPU(s):   8-15,72-79
->> NUMA node2 CPU(s):   16-23,80-87
->> NUMA node3 CPU(s):   24-31,88-95
->> NUMA node4 CPU(s):   32-39,96-103
->> NUMA node5 CPU(s):   40-47,104-111
->> NUMA node6 CPU(s):   48-55,112-119
->> NUMA node7 CPU(s):   56-63,120-127
->>
->> Another possible lead is that without reverting the those commits 
->> below, kdump
->> kernel would always also crash in shrink_slab_memcg() at this line,
->>
->> map = rcu_dereference_protected(memcg->nodeinfo[nid]->shrinker_map, 
->> true);
->
-> This looks a little bit weird. It seems nodeinfo[nid] is NULL? I 
-> didn't think of where nodeinfo was freed but memcg was still online. 
-> Maybe a check is needed:
->
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index a0301ed..bacda49 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -602,6 +602,9 @@ static unsigned long shrink_slab_memcg(gfp_t 
-> gfp_mask, int nid,
->         if (!mem_cgroup_online(memcg))
->                 return 0;
->
-> +       if (!memcg->nodeinfo[nid])
-> +               return 0;
-> +
->         if (!down_read_trylock(&shrinker_rwsem))
->                 return 0;
->
->>
->> [    9.072036][    T1] BUG: KASAN: null-ptr-deref in 
->> shrink_slab+0x111/0x440
->> [    9.072036][    T1] Read of size 8 at addr 0000000000000dc8 by task
->> swapper/0/1
->> [    9.072036][    T1]
->> [    9.072036][    T1] CPU: 0 PID: 1 Comm: swapper/0 Not tainted 
->> 5.2.0-next-
->> 20190711+ #10
->> [    9.072036][    T1] Hardware name: HPE ProLiant DL385 
->> Gen10/ProLiant DL385
->> Gen10, BIOS A40 01/25/2019
->> [    9.072036][    T1] Call Trace:
->> [    9.072036][    T1]  dump_stack+0x62/0x9a
->> [    9.072036][    T1]  __kasan_report.cold.4+0xb0/0xb4
->> [    9.072036][    T1]  ? unwind_get_return_address+0x40/0x50
->> [    9.072036][    T1]  ? shrink_slab+0x111/0x440
->> [    9.072036][    T1]  kasan_report+0xc/0xe
->> [    9.072036][    T1]  __asan_load8+0x71/0xa0
->> [    9.072036][    T1]  shrink_slab+0x111/0x440
->> [    9.072036][    T1]  ? mem_cgroup_iter+0x98/0x840
->> [    9.072036][    T1]  ? unregister_shrinker+0x110/0x110
->> [    9.072036][    T1]  ? kasan_check_read+0x11/0x20
->> [    9.072036][    T1]  ? mem_cgroup_protected+0x39/0x260
->> [    9.072036][    T1]  shrink_node+0x31e/0xa30
->> [    9.072036][    T1]  ? shrink_node_memcg+0x1560/0x1560
->> [    9.072036][    T1]  ? ktime_get+0x93/0x110
->> [    9.072036][    T1]  do_try_to_free_pages+0x22f/0x820
->> [    9.072036][    T1]  ? shrink_node+0xa30/0xa30
->> [    9.072036][    T1]  ? kasan_check_read+0x11/0x20
->> [    9.072036][    T1]  ? check_chain_key+0x1df/0x2e0
->> [    9.072036][    T1]  try_to_free_pages+0x242/0x4d0
->> [    9.072036][    T1]  ? do_try_to_free_pages+0x820/0x820
->> [    9.072036][    T1]  __alloc_pages_nodemask+0x9ce/0x1bc0
->> [    9.072036][    T1]  ? gfp_pfmemalloc_allowed+0xc0/0xc0
->> [    9.072036][    T1]  ? unwind_dump+0x260/0x260
->> [    9.072036][    T1]  ? kernel_text_address+0x33/0xc0
->> [    9.072036][    T1]  ? arch_stack_walk+0x8f/0xf0
->> [    9.072036][    T1]  ? ret_from_fork+0x22/0x40
->> [    9.072036][    T1]  alloc_page_interleave+0x18/0x130
->> [    9.072036][    T1]  alloc_pages_current+0xf6/0x110
->> [    9.072036][    T1]  allocate_slab+0x600/0x11f0
->> [    9.072036][    T1]  new_slab+0x46/0x70
->> [    9.072036][    T1]  ___slab_alloc+0x5d4/0x9c0
->> [    9.072036][    T1]  ? create_object+0x3a/0x3e0
->> [    9.072036][    T1]  ? fs_reclaim_acquire.part.15+0x5/0x30
->> [    9.072036][    T1]  ? ___might_sleep+0xab/0xc0
->> [    9.072036][    T1]  ? create_object+0x3a/0x3e0
->> [    9.072036][    T1]  __slab_alloc+0x12/0x20
->> [    9.072036][    T1]  ? __slab_alloc+0x12/0x20
->> [    9.072036][    T1]  kmem_cache_alloc+0x32a/0x400
->> [    9.072036][    T1]  create_object+0x3a/0x3e0
->> [    9.072036][    T1]  kmemleak_alloc+0x71/0xa0
->> [    9.072036][    T1]  kmem_cache_alloc+0x272/0x400
->> [    9.072036][    T1]  ? kasan_check_read+0x11/0x20
->> [    9.072036][    T1]  ? do_raw_spin_unlock+0xa8/0x140
->> [    9.072036][    T1]  acpi_ps_alloc_op+0x76/0x122
->> [    9.072036][    T1]  acpi_ds_execute_arguments+0x2f/0x18d
->> [    9.072036][    T1]  acpi_ds_get_package_arguments+0x7d/0x84
->> [    9.072036][    T1]  acpi_ns_init_one_package+0x33/0x61
->> [    9.072036][    T1]  acpi_ns_init_one_object+0xfc/0x189
->> [    9.072036][    T1]  acpi_ns_walk_namespace+0x114/0x1f2
->> [    9.072036][    T1]  ? acpi_ns_init_one_package+0x61/0x61
->> [    9.072036][    T1]  ? acpi_ns_init_one_package+0x61/0x61
->> [    9.072036][    T1]  acpi_walk_namespace+0x9e/0xcb
->> [    9.072036][    T1]  ? acpi_sleep_proc_init+0x36/0x36
->> [    9.072036][    T1]  acpi_ns_initialize_objects+0x99/0xed
->> [    9.072036][    T1]  ? acpi_ns_find_ini_methods+0xa2/0xa2
->> [    9.072036][    T1]  ? acpi_tb_load_namespace+0x2dc/0x2eb
->> [    9.072036][    T1]  acpi_load_tables+0x61/0x80
->> [    9.072036][    T1]  acpi_init+0x10d/0x44b
->> [    9.072036][    T1]  ? acpi_sleep_proc_init+0x36/0x36
->> [    9.072036][    T1]  ? bus_uevent_filter+0x16/0x30
->> [    9.072036][    T1]  ? kobject_uevent_env+0x109/0x980
->> [    9.072036][    T1]  ? kernfs_get+0x13/0x20
->> [    9.072036][    T1]  ? kobject_uevent+0xb/0x10
->> [    9.072036][    T1]  ? kset_register+0x31/0x50
->> [    9.072036][    T1]  ? kset_create_and_add+0x9f/0xd0
->> [    9.072036][    T1]  ? acpi_sleep_proc_init+0x36/0x36
->> [    9.072036][    T1]  do_one_initcall+0xfe/0x45a
->> [    9.072036][    T1]  ? initcall_blacklisted+0x150/0x150
->> [    9.072036][    T1]  ? rwsem_down_read_slowpath+0x930/0x930
->> [    9.072036][    T1]  ? kasan_check_write+0x14/0x20
->> [    9.072036][    T1]  ? up_write+0x6b/0x190
->> [    9.072036][    T1]  kernel_init_freeable+0x614/0x6a7
->> [    9.072036][    T1]  ? rest_init+0x188/0x188
->> [    9.072036][    T1]  kernel_init+0x11/0x138
->> [    9.072036][    T1]  ? rest_init+0x188/0x188
->> [    9.072036][    T1]  ret_from_fork+0x22/0x40
->> [    9.072036][    T1]
->> ==================================================================
->> [    9.072036][    T1] Disabling lock debugging due to kernel taint
->> [    9.145712][    T1] BUG: kernel NULL pointer dereference, address:
->> 0000000000000dc8
->> [    9.152036][    T1] #PF: supervisor read access in kernel mode
->> [    9.152036][    T1] #PF: error_code(0x0000) - not-present page
->> [    9.152036][    T1] PGD 0 P4D 0
->> [    9.152036][    T1] Oops: 0000 [#1] SMP DEBUG_PAGEALLOC KASAN NOPTI
->> [    9.152036][    T1] CPU: 0 PID: 1 Comm: swapper/0 Tainted:
->> G    B             5.2.0-next-20190711+ #10
->> [    9.152036][    T1] Hardware name: HPE ProLiant DL385 
->> Gen10/ProLiant DL385
->> Gen10, BIOS A40 01/25/2019
->> [    9.152036][    T1] RIP: 0010:shrink_slab+0x111/0x440
->> [    9.152036][    T1] Code: c7 20 8d 44 82 e8 7f 8b e8 ff 85 c0 0f 
->> 84 e2 02 00
->> 00 4c 63 a5 4c ff ff ff 49 81 c4 b8 01 00 00 4b 8d 7c e6 08 e8 3f 07 
->> 0e 00 <4f>
->> 8b 64 e6 08 49 8d bc 24 20 03 00 00 e8 2d 07 0e 00 49 8b 84 24
->> [    9.152036][    T1] RSP: 0018:ffff88905757f100 EFLAGS: 00010282
->> [    9.152036][    T1] RAX: 0000000000000000 RBX: ffff88905757f1b0 RCX:
->> ffffffff8112f288
->> [    9.152036][    T1] RDX: 1ffffffff049c088 RSI: dffffc0000000000 RDI:
->> ffffffff824e0440
->> [    9.152036][    T1] RBP: ffff88905757f1d8 R08: fffffbfff049c089 R09:
->> fffffbfff049c088
->> [    9.152036][    T1] R10: fffffbfff049c088 R11: ffffffff824e0443 R12:
->> 00000000000001b8
->> [    9.152036][    T1] R13: 0000000000000000 R14: 0000000000000000 R15:
->> ffff88905757f440
->> [    9.152036][    T1] FS:  0000000000000000(0000) 
->> GS:ffff889062800000(0000)
->> knlGS:0000000000000000
->> [    9.152036][    T1] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
->> [    9.152036][    T1] CR2: 0000000000000dc8 CR3: 0000001070212000 CR4:
->> 00000000001406b0
->> [    9.152036][    T1] Call Trace:
->> [    9.152036][    T1]  ? mem_cgroup_iter+0x98/0x840
->> [    9.152036][    T1]  ? unregister_shrinker+0x110/0x110
->> [    9.152036][    T1]  ? kasan_check_read+0x11/0x20
->> [    9.152036][    T1]  ? mem_cgroup_protected+0x39/0x260
->> [    9.152036][    T1]  shrink_node+0x31e/0xa30
->> [    9.152036][    T1]  ? shrink_node_memcg+0x1560/0x1560
->> [    9.152036][    T1]  ? ktime_get+0x93/0x110
->> [    9.152036][    T1]  do_try_to_free_pages+0x22f/0x820
->> [    9.152036][    T1]  ? shrink_node+0xa30/0xa30
->> [    9.152036][    T1]  ? kasan_check_read+0x11/0x20
->> [    9.152036][    T1]  ? check_chain_key+0x1df/0x2e0
->> [    9.152036][    T1]  try_to_free_pages+0x242/0x4d0
->> [    9.152036][    T1]  ? do_try_to_free_pages+0x820/0x820
->> [    9.152036][    T1]  __alloc_pages_nodemask+0x9ce/0x1bc0
->> [    9.152036][    T1]  ? gfp_pfmemalloc_allowed+0xc0/0xc0
->> [    9.152036][    T1]  ? unwind_dump+0x260/0x260
->> [    9.152036][    T1]  ? kernel_text_address+0x33/0xc0
->> [    9.152036][    T1]  ? arch_stack_walk+0x8f/0xf0
->> [    9.152036][    T1]  ? ret_from_fork+0x22/0x40
->> [    9.152036][    T1]  alloc_page_interleave+0x18/0x130
->> [    9.152036][    T1]  alloc_pages_current+0xf6/0x110
->> [    9.152036][    T1]  allocate_slab+0x600/0x11f0
->> [    9.152036][    T1]  new_slab+0x46/0x70
->> [    9.152036][    T1]  ___slab_alloc+0x5d4/0x9c0
->> [    9.152036][    T1]  ? create_object+0x3a/0x3e0
->> [    9.152036][    T1]  ? fs_reclaim_acquire.part.15+0x5/0x30
->> [    9.152036][    T1]  ? ___might_sleep+0xab/0xc0
->> [    9.152036][    T1]  ? create_object+0x3a/0x3e0
->> [    9.152036][    T1]  __slab_alloc+0x12/0x20
->> [    9.152036][    T1]  ? __slab_alloc+0x12/0x20
->> [    9.152036][    T1]  kmem_cache_alloc+0x32a/0x400
->> [    9.152036][    T1]  create_object+0x3a/0x3e0
->> [    9.152036][    T1]  kmemleak_alloc+0x71/0xa0
->> [    9.152036][    T1]  kmem_cache_alloc+0x272/0x400
->> [    9.152036][    T1]  ? kasan_check_read+0x11/0x20
->> [    9.152036][    T1]  ? do_raw_spin_unlock+0xa8/0x140
->> [    9.152036][    T1]  acpi_ps_alloc_op+0x76/0x122
->> [    9.152036][    T1]  acpi_ds_execute_arguments+0x2f/0x18d
->> [    9.152036][    T1]  acpi_ds_get_package_arguments+0x7d/0x84
->> [    9.152036][    T1]  acpi_ns_init_one_package+0x33/0x61
->> [    9.152036][    T1]  acpi_ns_init_one_object+0xfc/0x189
->> [    9.152036][    T1]  acpi_ns_walk_namespace+0x114/0x1f2
->> [    9.152036][    T1]  ? acpi_ns_init_one_package+0x61/0x61
->> [    9.152036][    T1]  ? acpi_ns_init_one_package+0x61/0x61
->> [    9.152036][    T1]  acpi_walk_namespace+0x9e/0xcb
->> [    9.152036][    T1]  ? acpi_sleep_proc_init+0x36/0x36
->> [    9.152036][    T1]  acpi_ns_initialize_objects+0x99/0xed
->> [    9.152036][    T1]  ? acpi_ns_find_ini_methods+0xa2/0xa2
->> [    9.152036][    T1]  ? acpi_tb_load_namespace+0x2dc/0x2eb
->> [    9.152036][    T1]  acpi_load_tables+0x61/0x80
->> [    9.152036][    T1]  acpi_init+0x10d/0x44b
->> [    9.152036][    T1]  ? acpi_sleep_proc_init+0x36/0x36
->> [    9.152036][    T1]  ? bus_uevent_filter+0x16/0x30
->> [    9.152036][    T1]  ? kobject_uevent_env+0x109/0x980
->> [    9.152036][    T1]  ? kernfs_get+0x13/0x20
->> [    9.152036][    T1]  ? kobject_uevent+0xb/0x10
->> [    9.152036][    T1]  ? kset_register+0x31/0x50
->> [    9.152036][    T1]  ? kset_create_and_add+0x9f/0xd0
->> [    9.152036][    T1]  ? acpi_sleep_proc_init+0x36/0x36
->> [    9.152036][    T1]  do_one_initcall+0xfe/0x45a
->> [    9.152036][    T1]  ? initcall_blacklisted+0x150/0x150
->> [    9.152036][    T1]  ? rwsem_down_read_slowpath+0x930/0x930
->> [    9.152036][    T1]  ? kasan_check_write+0x14/0x20
->> [    9.152036][    T1]  ? up_write+0x6b/0x190
->> [    9.152036][    T1]  kernel_init_freeable+0x614/0x6a7
->> [    9.152036][    T1]  ? rest_init+0x188/0x188
->> [    9.152036][    T1]  kernel_init+0x11/0x138
->> [    9.152036][    T1]  ? rest_init+0x188/0x188
->> [    9.152036][    T1]  ret_from_fork+0x22/0x40
->> [    9.152036][    T1] Modules linked in:
->> [    9.152036][    T1] CR2: 0000000000000dc8
->> [    9.152036][    T1] ---[ end trace 568acce4eca01945 ]---
->> [    9.152036][    T1] RIP: 0010:shrink_slab+0x111/0x440
->> [    9.152036][    T1] Code: c7 20 8d 44 82 e8 7f 8b e8 ff 85 c0 0f 
->> 84 e2 02 00
->> 00 4c 63 a5 4c ff ff ff 49 81 c4 b8 01 00 00 4b 8d 7c e6 08 e8 3f 07 
->> 0e 00 <4f>
->> 8b 64 e6 08 49 8d bc 24 20 03 00 00 e8 2d 07 0e 00 49 8b 84 24
->> [    9.152036][    T1] RSP: 0018:ffff88905757f100 EFLAGS: 00010282
->> [    9.152036][    T1] RAX: 0000000000000000 RBX: ffff88905757f1b0 RCX:
->> ffffffff8112f288
->> [    9.152036][    T1] RDX: 1ffffffff049c088 RSI: dffffc0000000000 RDI:
->> ffffffff824e0440
->> [    9.152036][    T1] RBP: ffff88905757f1d8 R08: fffffbfff049c089 R09:
->> fffffbfff049c088
->> [    9.152036][    T1] R10: fffffbfff049c088 R11: ffffffff824e0443 R12:
->> 00000000000001b8
->> [    9.152036][    T1] R13: 0000000000000000 R14: 0000000000000000 R15:
->> ffff88905757f440
->> [    9.152036][    T1] FS:  0000000000000000(0000) 
->> GS:ffff889062800000(0000)
->> knlGS:00000000
->>
->>>
->>> Regards,
->>>
->>> Yang
->>>
->>>
->>>
->>> On 7/10/19 2:43 PM, Qian Cai wrote:
->>>> Running LTP oom01 test case with swap triggers a crash below. 
->>>> Revert the
->>>> series
->>>> "Make deferred split shrinker memcg aware" [1] seems fix the issue.
->>>>
->>>> aefde94195ca mm: thp: make deferred split shrinker memcg aware
->>>> cf402211cacc 
->>>> mm-shrinker-make-shrinker-not-depend-on-memcg-kmem-fix-2-fix
->>>> ca37e9e5f18d mm-shrinker-make-shrinker-not-depend-on-memcg-kmem-fix-2
->>>> 5f419d89cab4 mm-shrinker-make-shrinker-not-depend-on-memcg-kmem-fix
->>>> c9d49e69e887 mm: shrinker: make shrinker not depend on memcg kmem
->>>> 1c0af4b86bcf mm: move mem_cgroup_uncharge out of 
->>>> __page_cache_release()
->>>> 4e050f2df876 mm: thp: extract split_queue_* into a struct
->>>>
->>>> [1] 
->>>> https://lore.kernel.org/linux-mm/1561507361-59349-1-git-send-email-yang. 
->>>>
->>>> shi@
->>>> linux.alibaba.com/
->>>>
->>>> [ 1145.730682][ T5764] list_del corruption, ffffea00251c8098->next is
->>>> LIST_POISON1 (dead000000000100)
->>>> [ 1145.739763][ T5764] ------------[ cut here ]------------
->>>> [ 1145.745126][ T5764] kernel BUG at lib/list_debug.c:47!
->>>> [ 1145.750320][ T5764] invalid opcode: 0000 [#1] SMP 
->>>> DEBUG_PAGEALLOC KASAN
->>>> NOPTI
->>>> [ 1145.757513][ T5764] CPU: 1 PID: 5764 Comm: oom01 Tainted:
->>>> G        W         5.2.0-next-20190710+ #7
->>>> [ 1145.766709][ T5764] Hardware name: HPE ProLiant DL385 
->>>> Gen10/ProLiant
->>>> DL385
->>>> Gen10, BIOS A40 01/25/2019
->>>> [ 1145.776000][ T5764] RIP: 
->>>> 0010:__list_del_entry_valid.cold.0+0x12/0x4a
->>>> [ 1145.782491][ T5764] Code: c7 40 5a 33 af e8 ac fe bc ff 0f 0b 48 
->>>> c7 c7 80
->>>> 9e
->>>> a1 af e8 f6 4c 01 00 4c 89 ea 48 89 de 48 c7 c7 20 59 33 af e8 8c 
->>>> fe bc ff
->>>> <0f>
->>>> 0b 48 c7 c7 40 9f a1 af e8 d6 4c 01 00 4c 89 e2 48 89 de 48 c7
->>>> [ 1145.802078][ T5764] RSP: 0018:ffff888514d773c0 EFLAGS: 00010082
->>>> [ 1145.808042][ T5764] RAX: 000000000000004e RBX: ffffea00251c8098 
->>>> RCX:
->>>> ffffffffae95d318
->>>> [ 1145.815923][ T5764] RDX: 0000000000000000 RSI: 0000000000000008 
->>>> RDI:
->>>> ffff8888440bd380
->>>> [ 1145.823806][ T5764] RBP: ffff888514d773d8 R08: ffffed1108817a71 
->>>> R09:
->>>> ffffed1108817a70
->>>> [ 1145.831689][ T5764] R10: ffffed1108817a70 R11: ffff8888440bd387 
->>>> R12:
->>>> dead000000000122
->>>> [ 1145.839571][ T5764] R13: dead000000000100 R14: ffffea00251c8034 
->>>> R15:
->>>> dead000000000100
->>>> [ 1145.847455][ T5764] FS:  00007f765ad4d700(0000) 
->>>> GS:ffff888844080000(0000)
->>>> knlGS:0000000000000000
->>>> [ 1145.856299][ T5764] CS:  0010 DS: 0000 ES: 0000 CR0: 
->>>> 0000000080050033
->>>> [ 1145.862784][ T5764] CR2: 00007f8cebec7000 CR3: 0000000459338000 
->>>> CR4:
->>>> 00000000001406a0
->>>> [ 1145.870664][ T5764] Call Trace:
->>>> [ 1145.873835][ T5764]  deferred_split_scan+0x337/0x740
->>>> [ 1145.878835][ T5764]  ? split_huge_page_to_list+0xe30/0xe30
->>>> [ 1145.884364][ T5764]  ? __radix_tree_lookup+0x12d/0x1e0
->>>> [ 1145.889539][ T5764]  ? node_tag_get.part.0.constprop.6+0x40/0x40
->>>> [ 1145.895592][ T5764]  do_shrink_slab+0x244/0x5a0
->>>> [ 1145.900159][ T5764]  shrink_slab+0x253/0x440
->>>> [ 1145.904462][ T5764]  ? unregister_shrinker+0x110/0x110
->>>> [ 1145.909641][ T5764]  ? kasan_check_read+0x11/0x20
->>>> [ 1145.914383][ T5764]  ? mem_cgroup_protected+0x20f/0x260
->>>> [ 1145.919645][ T5764]  shrink_node+0x31e/0xa30
->>>> [ 1145.923949][ T5764]  ? shrink_node_memcg+0x1560/0x1560
->>>> [ 1145.929126][ T5764]  ? ktime_get+0x93/0x110
->>>> [ 1145.933340][ T5764]  do_try_to_free_pages+0x22f/0x820
->>>> [ 1145.938429][ T5764]  ? shrink_node+0xa30/0xa30
->>>> [ 1145.942906][ T5764]  ? kasan_check_read+0x11/0x20
->>>> [ 1145.947647][ T5764]  ? check_chain_key+0x1df/0x2e0
->>>> [ 1145.952474][ T5764]  try_to_free_pages+0x242/0x4d0
->>>> [ 1145.957299][ T5764]  ? do_try_to_free_pages+0x820/0x820
->>>> [ 1145.962566][ T5764]  __alloc_pages_nodemask+0x9ce/0x1bc0
->>>> [ 1145.967917][ T5764]  ? kasan_check_read+0x11/0x20
->>>> [ 1145.972657][ T5764]  ? gfp_pfmemalloc_allowed+0xc0/0xc0
->>>> [ 1145.977920][ T5764]  ? kasan_check_read+0x11/0x20
->>>> [ 1145.982659][ T5764]  ? check_chain_key+0x1df/0x2e0
->>>> [ 1145.987487][ T5764]  ? do_anonymous_page+0x343/0xe30
->>>> [ 1145.992489][ T5764]  ? lock_downgrade+0x390/0x390
->>>> [ 1145.997230][ T5764]  ? __count_memcg_events+0x8b/0x1c0
->>>> [ 1146.002404][ T5764]  ? kasan_check_read+0x11/0x20
->>>> [ 1146.007145][ T5764]  ? __lru_cache_add+0x122/0x160
->>>> [ 1146.011974][ T5764]  alloc_pages_vma+0x89/0x2c0
->>>> [ 1146.016538][ T5764]  do_anonymous_page+0x3e1/0xe30
->>>> [ 1146.021367][ T5764]  ? __update_load_avg_cfs_rq+0x2c/0x490
->>>> [ 1146.026893][ T5764]  ? finish_fault+0x120/0x120
->>>> [ 1146.031461][ T5764]  ? call_function_interrupt+0xa/0x20
->>>> [ 1146.036724][ T5764]  handle_pte_fault+0x457/0x12c0
->>>> [ 1146.041552][ T5764]  __handle_mm_fault+0x79a/0xa50
->>>> [ 1146.046378][ T5764]  ? vmf_insert_mixed_mkwrite+0x20/0x20
->>>> [ 1146.051817][ T5764]  ? kasan_check_read+0x11/0x20
->>>> [ 1146.056557][ T5764]  ? __count_memcg_events+0x8b/0x1c0
->>>> [ 1146.061732][ T5764]  handle_mm_fault+0x17f/0x370
->>>> [ 1146.066386][ T5764]  __do_page_fault+0x25b/0x5d0
->>>> [ 1146.071037][ T5764]  do_page_fault+0x4c/0x2cf
->>>> [ 1146.075426][ T5764]  ? page_fault+0x5/0x20
->>>> [ 1146.079553][ T5764]  page_fault+0x1b/0x20
->>>> [ 1146.083594][ T5764] RIP: 0033:0x410be0
->>>> [ 1146.087373][ T5764] Code: 89 de e8 e3 23 ff ff 48 83 f8 ff 0f 84 
->>>> 86 00 00
->>>> 00
->>>> 48 89 c5 41 83 fc 02 74 28 41 83 fc 03 74 62 e8 95 29 ff ff 31 d2 
->>>> 48 98 90
->>>> <c6>
->>>> 44 15 00 07 48 01 c2 48 39 d3 7f f3 31 c0 5b 5d 41 5c c3 0f 1f
->>>> [ 1146.106959][ T5764] RSP: 002b:00007f765ad4cec0 EFLAGS: 00010206
->>>> [ 1146.112921][ T5764] RAX: 0000000000001000 RBX: 00000000c0000000 
->>>> RCX:
->>>> 00007f98f2674497
->>>> [ 1146.120804][ T5764] RDX: 0000000001d95000 RSI: 00000000c0000000 
->>>> RDI:
->>>> 0000000000000000
->>>> [ 1146.128687][ T5764] RBP: 00007f74d9d4c000 R08: 00000000ffffffff 
->>>> R09:
->>>> 0000000000000000
->>>> [ 1146.136569][ T5764] R10: 0000000000000022 R11: 000000000[ 
->>>> 1147.588181][
->>>> T5764] Shutting down cpus with NMI
->>>> [ 1147.592756][ T5764] Kernel Offset: 0x2d400000 from 
->>>> 0xffffffff81000000
->>>> (relocation range: 0xffffffff80000000-0xffffffffbfffffff)
->>>> [ 1147.604414][ T5764] ---[ end Kernel panic - not syncing: Fatal 
->>>> exception
->>>> ]---
->>>
->
+> >
+> > Sometimes there're lots of containers on one host.  Some of them are
+> > not important at all, so we don't care whether them are under memory
+> > pressure.  While some of them are important, so we want't to know if
+> > these containers are doing memcg reclaim and how long this relaim
+> > takes.
+> >
+> > Without this change, we don't know the memcg reclaim happend in which
+> > container.
+> >
+> > Link: http://lkml.kernel.org/r/1557649528-11676-1-git-send-email-laoar.shao@gmail.com
+> > Signed-off-by: Yafang Shao <laoar.shao@gmail.com>
+> > Cc: Michal Hocko <mhocko@suse.com>
+> > Cc: <shaoyafang@didiglobal.com>
+> > Cc: Johannes Weiner <hannes@cmpxchg.org>
+> > Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> > ---
+> >
+> >  include/trace/events/vmscan.h |   71 ++++++++++++++++++++++++++------
+> >  mm/vmscan.c                   |   18 +++++---
+> >  2 files changed, 72 insertions(+), 17 deletions(-)
+> >
+> > --- a/include/trace/events/vmscan.h~mm-vmscan-expose-cgroup_ino-for-memcg-reclaim-tracepoints
+> > +++ a/include/trace/events/vmscan.h
+> > @@ -127,18 +127,43 @@ DEFINE_EVENT(mm_vmscan_direct_reclaim_be
+> >  );
+> >
+> >  #ifdef CONFIG_MEMCG
+> > -DEFINE_EVENT(mm_vmscan_direct_reclaim_begin_template, mm_vmscan_memcg_reclaim_begin,
+> > +DECLARE_EVENT_CLASS(mm_vmscan_memcg_reclaim_begin_template,
+> >
+> > -       TP_PROTO(int order, gfp_t gfp_flags),
+> > +       TP_PROTO(unsigned int cgroup_ino, int order, gfp_t gfp_flags),
+> >
+> > -       TP_ARGS(order, gfp_flags)
+> > +       TP_ARGS(cgroup_ino, order, gfp_flags),
+> > +
+> > +       TP_STRUCT__entry(
+> > +               __field(unsigned int, cgroup_ino)
+> > +               __field(int, order)
+> > +               __field(gfp_t, gfp_flags)
+> > +       ),
+> > +
+> > +       TP_fast_assign(
+> > +               __entry->cgroup_ino     = cgroup_ino;
+> > +               __entry->order          = order;
+> > +               __entry->gfp_flags      = gfp_flags;
+> > +       ),
+> > +
+> > +       TP_printk("cgroup_ino=%u order=%d gfp_flags=%s",
+> > +               __entry->cgroup_ino, __entry->order,
+> > +               show_gfp_flags(__entry->gfp_flags))
+> >  );
+> >
+> > -DEFINE_EVENT(mm_vmscan_direct_reclaim_begin_template, mm_vmscan_memcg_softlimit_reclaim_begin,
+> > +DEFINE_EVENT(mm_vmscan_memcg_reclaim_begin_template,
+> > +            mm_vmscan_memcg_reclaim_begin,
+> >
+> > -       TP_PROTO(int order, gfp_t gfp_flags),
+> > +       TP_PROTO(unsigned int cgroup_ino, int order, gfp_t gfp_flags),
+> >
+> > -       TP_ARGS(order, gfp_flags)
+> > +       TP_ARGS(cgroup_ino, order, gfp_flags)
+> > +);
+> > +
+> > +DEFINE_EVENT(mm_vmscan_memcg_reclaim_begin_template,
+> > +            mm_vmscan_memcg_softlimit_reclaim_begin,
+> > +
+> > +       TP_PROTO(unsigned int cgroup_ino, int order, gfp_t gfp_flags),
+> > +
+> > +       TP_ARGS(cgroup_ino, order, gfp_flags)
+> >  );
+> >  #endif /* CONFIG_MEMCG */
+> >
+> > @@ -167,18 +192,40 @@ DEFINE_EVENT(mm_vmscan_direct_reclaim_en
+> >  );
+> >
+> >  #ifdef CONFIG_MEMCG
+> > -DEFINE_EVENT(mm_vmscan_direct_reclaim_end_template, mm_vmscan_memcg_reclaim_end,
+> > +DECLARE_EVENT_CLASS(mm_vmscan_memcg_reclaim_end_template,
+> >
+> > -       TP_PROTO(unsigned long nr_reclaimed),
+> > +       TP_PROTO(unsigned int cgroup_ino, unsigned long nr_reclaimed),
+> >
+> > -       TP_ARGS(nr_reclaimed)
+> > +       TP_ARGS(cgroup_ino, nr_reclaimed),
+> > +
+> > +       TP_STRUCT__entry(
+> > +               __field(unsigned int, cgroup_ino)
+> > +               __field(unsigned long, nr_reclaimed)
+> > +       ),
+> > +
+> > +       TP_fast_assign(
+> > +               __entry->cgroup_ino     = cgroup_ino;
+> > +               __entry->nr_reclaimed   = nr_reclaimed;
+> > +       ),
+> > +
+> > +       TP_printk("cgroup_ino=%u nr_reclaimed=%lu",
+> > +               __entry->cgroup_ino, __entry->nr_reclaimed)
+> >  );
+> >
+> > -DEFINE_EVENT(mm_vmscan_direct_reclaim_end_template, mm_vmscan_memcg_softlimit_reclaim_end,
+> > +DEFINE_EVENT(mm_vmscan_memcg_reclaim_end_template,
+> > +            mm_vmscan_memcg_reclaim_end,
+> >
+> > -       TP_PROTO(unsigned long nr_reclaimed),
+> > +       TP_PROTO(unsigned int cgroup_ino, unsigned long nr_reclaimed),
+> >
+> > -       TP_ARGS(nr_reclaimed)
+> > +       TP_ARGS(cgroup_ino, nr_reclaimed)
+> > +);
+> > +
+> > +DEFINE_EVENT(mm_vmscan_memcg_reclaim_end_template,
+> > +            mm_vmscan_memcg_softlimit_reclaim_end,
+> > +
+> > +       TP_PROTO(unsigned int cgroup_ino, unsigned long nr_reclaimed),
+> > +
+> > +       TP_ARGS(cgroup_ino, nr_reclaimed)
+> >  );
+> >  #endif /* CONFIG_MEMCG */
+> >
+> > --- a/mm/vmscan.c~mm-vmscan-expose-cgroup_ino-for-memcg-reclaim-tracepoints
+> > +++ a/mm/vmscan.c
+> > @@ -3191,8 +3191,10 @@ unsigned long mem_cgroup_shrink_node(str
+> >         sc.gfp_mask = (gfp_mask & GFP_RECLAIM_MASK) |
+> >                         (GFP_HIGHUSER_MOVABLE & ~GFP_RECLAIM_MASK);
+> >
+> > -       trace_mm_vmscan_memcg_softlimit_reclaim_begin(sc.order,
+> > -                                                     sc.gfp_mask);
+> > +       trace_mm_vmscan_memcg_softlimit_reclaim_begin(
+> > +                                       cgroup_ino(memcg->css.cgroup),
+> > +                                       sc.order,
+> > +                                       sc.gfp_mask);
+> >
+> >         /*
+> >          * NOTE: Although we can get the priority field, using it
+> > @@ -3203,7 +3205,9 @@ unsigned long mem_cgroup_shrink_node(str
+> >          */
+> >         shrink_node_memcg(pgdat, memcg, &sc, &lru_pages);
+> >
+> > -       trace_mm_vmscan_memcg_softlimit_reclaim_end(sc.nr_reclaimed);
+> > +       trace_mm_vmscan_memcg_softlimit_reclaim_end(
+> > +                                       cgroup_ino(memcg->css.cgroup),
+> > +                                       sc.nr_reclaimed);
+> >
+> >         *nr_scanned = sc.nr_scanned;
+> >         return sc.nr_reclaimed;
+> > @@ -3241,7 +3245,9 @@ unsigned long try_to_free_mem_cgroup_pag
+> >
+> >         zonelist = &NODE_DATA(nid)->node_zonelists[ZONELIST_FALLBACK];
+> >
+> > -       trace_mm_vmscan_memcg_reclaim_begin(0, sc.gfp_mask);
+> > +       trace_mm_vmscan_memcg_reclaim_begin(
+> > +                               cgroup_ino(memcg->css.cgroup),
+> > +                               0, sc.gfp_mask);
+> >
+> >         psi_memstall_enter(&pflags);
+> >         noreclaim_flag = memalloc_noreclaim_save();
+> > @@ -3251,7 +3257,9 @@ unsigned long try_to_free_mem_cgroup_pag
+> >         memalloc_noreclaim_restore(noreclaim_flag);
+> >         psi_memstall_leave(&pflags);
+> >
+> > -       trace_mm_vmscan_memcg_reclaim_end(nr_reclaimed);
+> > +       trace_mm_vmscan_memcg_reclaim_end(
+> > +                               cgroup_ino(memcg->css.cgroup),
+> > +                               nr_reclaimed);
+> >
+> >         return nr_reclaimed;
+> >  }
+> > _
+> >
 
