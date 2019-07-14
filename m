@@ -2,235 +2,171 @@ Return-Path: <SRS0=QXz1=VL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.1 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CF8A3C73C66
-	for <linux-mm@archiver.kernel.org>; Sun, 14 Jul 2019 17:11:45 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D1519C742D2
+	for <linux-mm@archiver.kernel.org>; Sun, 14 Jul 2019 18:16:55 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 60AC8205F4
-	for <linux-mm@archiver.kernel.org>; Sun, 14 Jul 2019 17:11:45 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 60AC8205F4
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id 73A4520644
+	for <linux-mm@archiver.kernel.org>; Sun, 14 Jul 2019 18:16:55 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="EzYn0T6m"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 73A4520644
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A8FF26B0003; Sun, 14 Jul 2019 13:11:44 -0400 (EDT)
+	id CD1766B0003; Sun, 14 Jul 2019 14:16:54 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A1A2A6B0006; Sun, 14 Jul 2019 13:11:44 -0400 (EDT)
+	id C82E26B0006; Sun, 14 Jul 2019 14:16:54 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 86B0F6B0007; Sun, 14 Jul 2019 13:11:44 -0400 (EDT)
+	id B72256B0007; Sun, 14 Jul 2019 14:16:54 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yb1-f197.google.com (mail-yb1-f197.google.com [209.85.219.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 622B96B0003
-	for <linux-mm@kvack.org>; Sun, 14 Jul 2019 13:11:44 -0400 (EDT)
-Received: by mail-yb1-f197.google.com with SMTP id p20so12164235yba.17
-        for <linux-mm@kvack.org>; Sun, 14 Jul 2019 10:11:44 -0700 (PDT)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7ECC66B0003
+	for <linux-mm@kvack.org>; Sun, 14 Jul 2019 14:16:54 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id 21so9057539pfu.9
+        for <linux-mm@kvack.org>; Sun, 14 Jul 2019 11:16:54 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent:message-id;
-        bh=LXYhoAzIAko0pjuEZO6mefKeBSfRy4BP1eDO9GE2VDw=;
-        b=Mxup7Qerg3rolPyjM6Z7gyIdpYtZaobYxrzq4Jie+XAPU+fzVVi7WXq4K6XOzAgA0l
-         58QK0epICX9hZTeKoIns51FAKzGDzoaFxQDnoPpQY78Tl9GEZmMURYyxmtsyxkV9ABOH
-         +os/T3A2WY69JuXAi3mV+vdakGjB5VtPKrpNfOBAC3bEk6h+WmHNWbIPBIk0C6+H6ov1
-         UNpDKuqc8Gy2KKpbzLsmo0pFguOph40Er1L7zm7ROcxhLnz4IaAbBKe1RGTwEKAOZqQR
-         fB4bStAz+e8cP82EZp2P3r37BTkMfDKgwhr/vZ8B13gG8ra7lWjl9foK1aupDo0dXS8c
-         nFTQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: APjAAAW1fcf5OnkUO5yKH6s3Ls236Xz3u2oqE0uW67djc+ClePrXysPN
-	mhtXVLlT8ltulFAmnduS8EoxHsLq21bF7vtmqsgwRzJIVLoPgq62MsjmYo/MPBQxYguWFjT3nS2
-	Wfc2sgvXXstyZY3+54qL/9b1X5PmaJzOiwqUe7qrYuMQcna2NMg7FteG+q+scnDBWEQ==
-X-Received: by 2002:a81:6a05:: with SMTP id f5mr13594853ywc.368.1563124304068;
-        Sun, 14 Jul 2019 10:11:44 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqztag7AX75rfBaw6YYICwTWCH7dkI+w72awWgCTBJGUazqCE1kiv9SgF0GFkaSzb7Eiw6GV
-X-Received: by 2002:a81:6a05:: with SMTP id f5mr13594809ywc.368.1563124303186;
-        Sun, 14 Jul 2019 10:11:43 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563124303; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+         :message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=zu9VDO3r7C4z6bPiJPIw5Tkj2wZpny80iXDdtymKYFo=;
+        b=Gc1zzvCdi90v89IIAOk9DR1Ylsm0q02+tEhAfO1oQjAZerO0LcKZhuFyxyS6NtylqG
+         9hZ/mbLqNp5WlozpLE2Gdk9LqA8+8hTr3HQd1OjpFL1hR2LAfytizGbRSwUksLEEGpXA
+         iMmE9DoKGPvldzvD9FQTOplZ1Z2mmMebUJ/Fis6QBxA7PT3UA2ycoV5ftRgUg7JSJXQ8
+         mTJDdw3LbAygS5CTfCnU1HfrtsIImmRjbn9Nttcn5Dy9h59cRNZd7hpfmFTuCZRS292N
+         eWnAPO/AYq+d6Y3xi7nY8s4ICH7pqzKx5lMnG3ZVjeYoXya+I0rMW/EEELD/Finunplr
+         KXtg==
+X-Gm-Message-State: APjAAAXWSxnBoaL02zQN+ACyxACwR54WDnYnskfIKwoocBsvE9WpTdFJ
+	SgjtS+PsAWRTTItRbQoPWd45IMvJlUXXEL2CBkq/fQLnafK5ZoWkmasUj2jGpA5vyPscrP3Imm2
+	7kd3ZBxXZXvlxMNKn5VT91mjrujWwARXcLkxmNZQ3/JpOP6R6EHpsxI+QaBQjv8bwDA==
+X-Received: by 2002:a63:1046:: with SMTP id 6mr23420934pgq.111.1563128213953;
+        Sun, 14 Jul 2019 11:16:53 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxJzfEAJkxLmyoLgYOKQ+9uuoPnAeRZ62DyyXItl/1p0nWfLiPgtAWyOYBLdeZLKNToI7+C
+X-Received: by 2002:a63:1046:: with SMTP id 6mr23420878pgq.111.1563128213131;
+        Sun, 14 Jul 2019 11:16:53 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563128213; cv=none;
         d=google.com; s=arc-20160816;
-        b=wpdrkeWC7rXLbr4Q0Ped8OfdmzPYgb5XMtnnGaNxsy2k6N0MixfAEHpG6/5Y7Ec+qj
-         zN0lLRb7q8iodO6QKMSbPh/IVAauAtB8KH+CXNTPJMMYdeDMxL5IGIRumW+9PVpBP6C1
-         Kz/Yy5j+nXZ5UEyUZX/45zVxNDCUTiA24kvL9mhHaxjm9hqERwOFBFFMVXEWvnRNBK1N
-         +eLG6DwHreYfSVHVtK25Uz9W2FxUHlFFY8+nLmbKKGLQC4NgIiq8MIAFn2Zs3ipbd25K
-         5MXBFyycAVIg8CuDxngNv8u5GIeEDF/+tjkKp56Nam94QT9Mak2sJ2cF3DYXstM3GKIZ
-         eOPw==
+        b=jlFx8DTtK7TMqRDT94g9BVj0GJbn9HzBetCAz5SqdW1rjfyslCXvR9aZze4Coo/IL0
+         gV0y4xzQ/uYw9Kx3raky8OrWdMRhAFOLZ1hLJ03w/EO+XrdmbCL6XVt6bONm688/27vz
+         kgCTw8DnmBqK0kQnDHHKuPq6gLE94PICXw6vCocLsiybc0fRSLRi09ZvGDqvWbxpDgUT
+         TCTNtAOfDL413agbmCS9TyQYx5SaWLUCPydYdQDb4KRxQ7yg1PSv90Wb7gzQNz7Ecg7t
+         hcsPzzScAqOk1SDka4LcQUORCB6td/mLdQQnUuKL9PCB7ITxQptFS6mntLszUXCYygMI
+         EdUw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:subject:cc:to:from:date;
-        bh=LXYhoAzIAko0pjuEZO6mefKeBSfRy4BP1eDO9GE2VDw=;
-        b=VZmMiERONGhmr9IW5C3cu7UZ4rzTviiVPKsVE6kKRf6Cvt/X7/XVFPmj1l4IdSlE6j
-         q+kEPhiSxOuvZVJS3OksVBhWFkgaSa1ooQq+aps+lYRcrsE4BWOmj7UPW5u2TAQjbxua
-         XJNSI+AnstRsE8Te4e9gL7Zk1nrY1gzxU6VY2QBr5i8QsCPYjN0deF4X8E8QWc5KN5A8
-         47wDVzvk+hVL5HnSODX1jFT3/CqdVz9cTM+c6N2KP0ZN6I/R5bspWONtkkmgj+2F1ObP
-         ncW4ezh9dU14jOfieuBhA9ERcdAn/AIwzYR10JVyiFemSQWfEG7ev2uaPPFC430HlMKP
-         2dGw==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject
+         :dkim-signature;
+        bh=zu9VDO3r7C4z6bPiJPIw5Tkj2wZpny80iXDdtymKYFo=;
+        b=baKrhMSIHU/a2tg+ts6ERqluO/YB0GR9WNWjtvI9IwbSz+HeLHEztaClV1rGJWttdT
+         rQ3dQIyUvWKOsMuLE5IdHpCiuHKGfiGOw7mnFfCj+oyIUpoTeLVkMnC+nKW+BDcz/Og8
+         Ba2tBJ8P7ILEBjG/c0E5fVRo2O/zDvXWBdytRmQ/EU7t1gRO9y350EBd6gaG8THNOHts
+         EamY1Ud4vrFu9IAgpxAmgh2j2CMQ5uVmkZOxkbErJlCtockTkQL2IenUXtOX7Eb82vnW
+         VLQMGVkewABNzIAiLzPtyb0JPBWUlnCOp/l7K7Oz0k1mS3H8JcUbGKEk3uEonYGoEE9z
+         qMWQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id h83si3060725ybh.36.2019.07.14.10.11.43
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=EzYn0T6m;
+       spf=pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=rdunlap@infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id m9si13385680pgq.373.2019.07.14.11.16.52
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 14 Jul 2019 10:11:43 -0700 (PDT)
-Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Sun, 14 Jul 2019 11:16:52 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x6EH6lu6054178
-	for <linux-mm@kvack.org>; Sun, 14 Jul 2019 13:11:42 -0400
-Received: from e06smtp02.uk.ibm.com (e06smtp02.uk.ibm.com [195.75.94.98])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2tr7qnsbpu-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Sun, 14 Jul 2019 13:11:42 -0400
-Received: from localhost
-	by e06smtp02.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Sun, 14 Jul 2019 18:11:40 +0100
-Received: from b06cxnps3074.portsmouth.uk.ibm.com (9.149.109.194)
-	by e06smtp02.uk.ibm.com (192.168.101.132) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Sun, 14 Jul 2019 18:11:34 +0100
-Received: from d06av25.portsmouth.uk.ibm.com (d06av25.portsmouth.uk.ibm.com [9.149.105.61])
-	by b06cxnps3074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x6EHBXm638994046
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Sun, 14 Jul 2019 17:11:33 GMT
-Received: from d06av25.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 3AE1211C052;
-	Sun, 14 Jul 2019 17:11:33 +0000 (GMT)
-Received: from d06av25.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 22C2C11C04C;
-	Sun, 14 Jul 2019 17:11:31 +0000 (GMT)
-Received: from rapoport-lnx (unknown [9.148.204.136])
-	by d06av25.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
-	Sun, 14 Jul 2019 17:11:31 +0000 (GMT)
-Date: Sun, 14 Jul 2019 20:11:29 +0300
-From: Mike Rapoport <rppt@linux.ibm.com>
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: Alexandre Chartre <alexandre.chartre@oracle.com>,
-        Thomas Gleixner <tglx@linutronix.de>,
-        Peter Zijlstra <peterz@infradead.org>,
-        Dave Hansen <dave.hansen@intel.com>, pbonzini@redhat.com,
-        rkrcmar@redhat.com, mingo@redhat.com, bp@alien8.de, hpa@zytor.com,
-        dave.hansen@linux.intel.com, luto@kernel.org, kvm@vger.kernel.org,
-        x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org,
-        konrad.wilk@oracle.com, jan.setjeeilers@oracle.com,
-        liran.alon@oracle.com, jwadams@google.com, graf@amazon.de,
-        rppt@linux.vnet.ibm.com, Paul Turner <pjt@google.com>
-Subject: Re: [RFC v2 00/27] Kernel Address Space Isolation
-References: <1562855138-19507-1-git-send-email-alexandre.chartre@oracle.com>
- <5cab2a0e-1034-8748-fcbe-a17cf4fa2cd4@intel.com>
- <alpine.DEB.2.21.1907120911160.11639@nanos.tec.linutronix.de>
- <61d5851e-a8bf-e25c-e673-b71c8b83042c@oracle.com>
- <20190712125059.GP3419@hirez.programming.kicks-ass.net>
- <alpine.DEB.2.21.1907121459180.1788@nanos.tec.linutronix.de>
- <3ca70237-bf8e-57d9-bed5-bc2329d17177@oracle.com>
- <7FDF08CB-A429-441B-872D-FAE7293858F5@amacapital.net>
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=EzYn0T6m;
+       spf=pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=rdunlap@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=Content-Transfer-Encoding:
+	Content-Type:In-Reply-To:MIME-Version:Date:Message-ID:From:References:Cc:To:
+	Subject:Sender:Reply-To:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=zu9VDO3r7C4z6bPiJPIw5Tkj2wZpny80iXDdtymKYFo=; b=EzYn0T6mC7FKpTJ8RU1irxwHC
+	abpmpCrn+ITOcYgj8BJxZSu6aQ8Ii0YPXkA/exU0YQAy7O0m7+zOGJ3xNtG1HVipow4mEY+2R1QFW
+	yUWv1Dom4OKQzrTOt/MbgsA7dNej/caTkqZhPY4jTEfuejInIA0Otu3kOtE0Y3OFmGhYzyRNA53ot
+	8i1Xw/ye+rilRjaF2MiA8RFIjxQIlV1yRtosHFLPp461r/jWR4weAEdfgWYgXPKwsg7h9oaNby5Uw
+	Fhn/WXJUh22ci0+2oOYbAzeIHC8bxLEX5nMuy4O4wttLhW0+1HBbETWT8w+KVWUyajs2GLcky3C/l
+	obC02yThg==;
+Received: from static-50-53-52-16.bvtn.or.frontiernet.net ([50.53.52.16] helo=[192.168.1.17])
+	by bombadil.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
+	id 1hmj3K-000704-J9; Sun, 14 Jul 2019 18:16:50 +0000
+Subject: Re: [PATCH, RFC 57/62] x86/mktme: Overview of Multi-Key Total Memory
+ Encryption
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
+ Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org,
+ Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>,
+ "H. Peter Anvin" <hpa@zytor.com>, Borislav Petkov <bp@alien8.de>,
+ Peter Zijlstra <peterz@infradead.org>, Andy Lutomirski
+ <luto@amacapital.net>, David Howells <dhowells@redhat.com>
+Cc: Kees Cook <keescook@chromium.org>, Dave Hansen <dave.hansen@intel.com>,
+ Kai Huang <kai.huang@linux.intel.com>,
+ Jacob Pan <jacob.jun.pan@linux.intel.com>,
+ Alison Schofield <alison.schofield@intel.com>, linux-mm@kvack.org,
+ kvm@vger.kernel.org, keyrings@vger.kernel.org, linux-kernel@vger.kernel.org
+References: <20190508144422.13171-1-kirill.shutemov@linux.intel.com>
+ <20190508144422.13171-58-kirill.shutemov@linux.intel.com>
+From: Randy Dunlap <rdunlap@infradead.org>
+Message-ID: <a2d2ac19-1dfe-6f85-df83-d72de4d5fcbf@infradead.org>
+Date: Sun, 14 Jul 2019 11:16:49 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.2
 MIME-Version: 1.0
+In-Reply-To: <20190508144422.13171-58-kirill.shutemov@linux.intel.com>
 Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
+Content-Language: en-US
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <7FDF08CB-A429-441B-872D-FAE7293858F5@amacapital.net>
-User-Agent: Mutt/1.5.24 (2015-08-30)
-X-TM-AS-GCONF: 00
-x-cbid: 19071417-0008-0000-0000-000002FD2B05
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19071417-0009-0000-0000-0000226A9A79
-Message-Id: <20190714171127.GA15645@rapoport-lnx>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-07-14_05:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1907140213
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jul 12, 2019 at 10:45:06AM -0600, Andy Lutomirski wrote:
+On 5/8/19 7:44 AM, Kirill A. Shutemov wrote:
+> From: Alison Schofield <alison.schofield@intel.com>
 > 
+> Provide an overview of MKTME on Intel Platforms.
 > 
-> > On Jul 12, 2019, at 10:37 AM, Alexandre Chartre <alexandre.chartre@oracle.com> wrote:
-> > 
-> > 
-> > 
-> >> On 7/12/19 5:16 PM, Thomas Gleixner wrote:
-> >>> On Fri, 12 Jul 2019, Peter Zijlstra wrote:
-> >>>> On Fri, Jul 12, 2019 at 01:56:44PM +0200, Alexandre Chartre wrote:
-> >>>> 
-> >>>> I think that's precisely what makes ASI and PTI different and independent.
-> >>>> PTI is just about switching between userland and kernel page-tables, while
-> >>>> ASI is about switching page-table inside the kernel. You can have ASI without
-> >>>> having PTI. You can also use ASI for kernel threads so for code that won't
-> >>>> be triggered from userland and so which won't involve PTI.
-> >>> 
-> >>> PTI is not mapping         kernel space to avoid             speculation crap (meltdown).
-> >>> ASI is not mapping part of kernel space to avoid (different) speculation crap (MDS).
-> >>> 
-> >>> See how very similar they are?
-> >>> 
-> >>> Furthermore, to recover SMT for userspace (under MDS) we not only need
-> >>> core-scheduling but core-scheduling per address space. And ASI was
-> >>> specifically designed to help mitigate the trainwreck just described.
-> >>> 
-> >>> By explicitly exposing (hopefully harmless) part of the kernel to MDS,
-> >>> we reduce the part that needs core-scheduling and thus reduce the rate
-> >>> the SMT siblngs need to sync up/schedule.
-> >>> 
-> >>> But looking at it that way, it makes no sense to retain 3 address
-> >>> spaces, namely:
-> >>> 
-> >>>   user / kernel exposed / kernel private.
-> >>> 
-> >>> Specifically, it makes no sense to expose part of the kernel through MDS
-> >>> but not through Meltdow. Therefore we can merge the user and kernel
-> >>> exposed address spaces.
-> >>> 
-> >>> And then we've fully replaced PTI.
-> >>> 
-> >>> So no, they're not orthogonal.
-> >> Right. If we decide to expose more parts of the kernel mappings then that's
-> >> just adding more stuff to the existing user (PTI) map mechanics.
-> > 
-> > If we expose more parts of the kernel mapping by adding them to the existing
-> > user (PTI) map, then we only control the mapping of kernel sensitive data but
-> > we don't control user mapping (with ASI, we exclude all user mappings).
-> > 
-> > How would you control the mapping of userland sensitive data and exclude them
-> > from the user map?
-> 
-> As I see it, if we think part of the kernel is okay to leak to VM guests,
-> then it should think it’s okay to leak to userspace and versa. At the end
-> of the day, this may just have to come down to an administrator’s choice
-> of how careful the mitigations need to be.
-> 
-> > Would you have the application explicitly identify sensitive
-> > data (like Andy suggested with a /dev/xpfo device)?
-> 
-> That’s not really the intent of my suggestion. I was suggesting that
-> maybe we don’t need ASI at all if we allow VMs to exclude their memory
-> from the kernel mapping entirely.  Heck, in a setup like this, we can
-> maybe even get away with turning PTI off under very, very controlled
-> circumstances.  I’m not quite sure what to do about the kernel random
-> pools, though.
+> Signed-off-by: Alison Schofield <alison.schofield@intel.com>
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> ---
+>  Documentation/x86/mktme/index.rst          |  8 +++
+>  Documentation/x86/mktme/mktme_overview.rst | 57 ++++++++++++++++++++++
+>  2 files changed, 65 insertions(+)
+>  create mode 100644 Documentation/x86/mktme/index.rst
+>  create mode 100644 Documentation/x86/mktme/mktme_overview.rst
 
-I think KVM already allows excluding VMs memory from the kernel mapping
-with the "new guest mapping interface" [1]. The memory managed by the host
-can be restricted with "mem=" and KVM maps/unmaps the guest memory pages
-only when needed.
 
-It would be interesting to see if /dev/xpfo or even
-madvise(MAKE_MY_MEMORY_PRIVATE) can be made useful for multi-tenant
-container hosts.
+> diff --git a/Documentation/x86/mktme/mktme_overview.rst b/Documentation/x86/mktme/mktme_overview.rst
+> new file mode 100644
+> index 000000000000..59c023965554
+> --- /dev/null
+> +++ b/Documentation/x86/mktme/mktme_overview.rst
+> @@ -0,0 +1,57 @@
+> +Overview
+> +=========
+...
+> +--
+> +1. https://software.intel.com/sites/default/files/managed/a5/16/Multi-Key-Total-Memory-Encryption-Spec.pdf
+> +2. The MKTME architecture supports up to 16 bits of KeyIDs, so a
+> +   maximum of 65535 keys on top of the “TME key” at KeyID-0.  The
+> +   first implementation is expected to support 5 bits, making 63
 
-[1] https://lore.kernel.org/lkml/1548966284-28642-1-git-send-email-karahmed@amazon.de/
+Hi,
+How do 5 bits make 63 keys available?
 
+> +   keys available to applications.  However, this is not guaranteed.
+> +   The number of available keys could be reduced if, for instance,
+> +   additional physical address space is desired over additional
+> +   KeyIDs.
+
+
+thanks.
 -- 
-Sincerely yours,
-Mike.
+~Randy
 
