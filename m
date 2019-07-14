@@ -2,220 +2,299 @@ Return-Path: <SRS0=QXz1=VL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-9.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D7F31C73C66
-	for <linux-mm@archiver.kernel.org>; Sun, 14 Jul 2019 18:17:43 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6B591C742D2
+	for <linux-mm@archiver.kernel.org>; Sun, 14 Jul 2019 19:11:28 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 91E0120644
-	for <linux-mm@archiver.kernel.org>; Sun, 14 Jul 2019 18:17:43 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 1BDB620644
+	for <linux-mm@archiver.kernel.org>; Sun, 14 Jul 2019 19:11:27 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=amazon.com header.i=@amazon.com header.b="WSMIOs2r"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 91E0120644
-Authentication-Results: mail.kernel.org; dmarc=fail (p=quarantine dis=none) header.from=amazon.com
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="J6HG5WoH"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1BDB620644
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 26FB86B0006; Sun, 14 Jul 2019 14:17:43 -0400 (EDT)
+	id 99B446B0003; Sun, 14 Jul 2019 15:11:27 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 221786B0007; Sun, 14 Jul 2019 14:17:43 -0400 (EDT)
+	id 9729D6B0006; Sun, 14 Jul 2019 15:11:27 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0C2896B0008; Sun, 14 Jul 2019 14:17:43 -0400 (EDT)
+	id 887F56B0007; Sun, 14 Jul 2019 15:11:27 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id E10656B0006
-	for <linux-mm@kvack.org>; Sun, 14 Jul 2019 14:17:42 -0400 (EDT)
-Received: by mail-qk1-f198.google.com with SMTP id t124so11852913qkh.3
-        for <linux-mm@kvack.org>; Sun, 14 Jul 2019 11:17:42 -0700 (PDT)
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 53A1E6B0003
+	for <linux-mm@kvack.org>; Sun, 14 Jul 2019 15:11:27 -0400 (EDT)
+Received: by mail-pl1-f200.google.com with SMTP id g18so7399011plj.19
+        for <linux-mm@kvack.org>; Sun, 14 Jul 2019 12:11:27 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding:precedence;
-        bh=yU8Er0dM4xN+kO/PufN1rVisDCrwrEjJU9iRQpgHWz0=;
-        b=rXL7lpcf6IWcUACQU8/77ZCgjZf3k5p/ROt7SDXbW2/9GVEOobRw2cDmSlHIYh9ELk
-         5pcK8QZ9Ftosb4O/ELU2syOLR6Akman/zKP1EEzYQFXX+CDjp5sqEORMBZgF/RetahYK
-         rTAsgccWjeOGOUYPaP6qelxzj3EdnLvOflpw9hMLW/4uJE3dSVTV4EG42sUL+6VOC1si
-         X15pGFl3wH0r+RghfH8On6XRDwZSMCichOMifpiJD3nTX1UE5XSJCl9nAjYaU1ypCZQ2
-         8Vsq6OzmuOSzcmd3a4lXKKZudE2oaWWb40hu4jQd0PoFQ0hHrHzg/OeFWTICz3LFF8C5
-         ZASA==
-X-Gm-Message-State: APjAAAUYlMwDAdFfthOig0W30qE067YyS+BLaY1pJjzuUpYDGGurerJc
-	1RTflbrad92aq51VbDozF4pJsh1DXXXtajF+TxVlj0AMigXJ+5mdCVJHmMB7rYQqFzhz3yxHefS
-	1L1/4m1f5X5f82XDwgqcFZKZyV/7ZxOeeYrnPmm1WXQkPCmnl3egg4mFAJ1+S9aoRAw==
-X-Received: by 2002:ac8:1106:: with SMTP id c6mr13731659qtj.332.1563128262601;
-        Sun, 14 Jul 2019 11:17:42 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwzKBSbmrdJBchcRyqo8TF1k5W/nexSZRJW8zwtfAuFcmOYxr1UFT1FSj3MwZ4r04ULxrop
-X-Received: by 2002:ac8:1106:: with SMTP id c6mr13731621qtj.332.1563128261929;
-        Sun, 14 Jul 2019 11:17:41 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563128261; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id;
+        bh=wTnR4jFSZHgDyQlzGAnxJLHPwWt9ff7eR4/YXCAXskI=;
+        b=pQ2HsEFCMeLpwnjJYrjKaNT2BfWXgJ+521xTIKuKTFKFADqbe8z62AliLfMrFn6M+l
+         4fxUBLTbDiUoqLs0EfoxgjJKp4iATb5YJYVhxUCfa1Hb1q9zn/ZVi/nMtgoeHuC7y0v5
+         an3sX1b7Q8czLACNV7IUzH0JCPw7eddw84FR/2+vP/2A1EEyCr/n28Vo0mh67Da/ItF3
+         OR8z6KMwhGq85iZw7yqsCJpdQxpshv04dvefLBXpU7DuBF5iNeuc6/uLfmSPNGrVQFz4
+         kDqEt1P9AvBZDohtcFk6P13MIJmuzESAFlHJrViB3Dz15N4iOJeTVDSH4i6z+d7XgcHr
+         Uv7A==
+X-Gm-Message-State: APjAAAWro7MR53Oe7AFfLZffKbnsc9fZQ13UFsgyl9MIRDYR7oFlF6Py
+	1uXjO9ttUC/LQ7k/zweq5btG/GRakPM5U5Mf1y/8kgKZr6EwuUtO67j2w6V+3KG0QBdnMyuxxaB
+	Rk7CDXcUvOe6G5FDxM38kOSAs8OYHIlDcQFaA5UL78Ej8oURTdKMPbm3gfUWKh5/LQg==
+X-Received: by 2002:a17:902:f082:: with SMTP id go2mr25306721plb.25.1563131486796;
+        Sun, 14 Jul 2019 12:11:26 -0700 (PDT)
+X-Received: by 2002:a17:902:f082:: with SMTP id go2mr25306603plb.25.1563131485185;
+        Sun, 14 Jul 2019 12:11:25 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563131485; cv=none;
         d=google.com; s=arc-20160816;
-        b=cKc0C8QDIzBB46GfeKkAVE2rWN8BtRFimsFAKKhHAJ9J1NG+2M1Frh/c30WstLEr9P
-         zXnc4k/dOUkvr6ytjWzScMtWDjyz9wd50EvUSpNYLemVpv7hTAx9mBilgXa4sqNw20LB
-         8hnxQsotRp+z6qUhTJ+Sr1TKD4zNcrk2bqjTkNzgWzrMR6i2LefoI6LBNkeijAyGNLH6
-         vpTUB4VXsuJtHNJWsxZp3ZOZcomOUWfcklSfR2K/fTSD8RWbQGNBKcFh2iJUxkJbE8o7
-         tMVef9Rtu4gEEP235KRG+4mwSnfygWVZHDT65OMz4S+dpXpB0OoUOCCzHkOsvd311FuQ
-         PEnw==
+        b=NdOEOaSAQAAF2YEN33X7LgB2MOMzYUr8PIvWh+2OHJj4iA4Ahak4EBuoroFQMmrAg5
+         gX/5G1RfHKA4QroDHz7tqKsC9Y4KQlpgPLWP6GGf/Gt7fWnU4V1UJFxErNqJVOwVO5bd
+         lsMOqpCM2tlREjr9bcmWuq8Lk3C+6xMOep6iaZda2YHbKXpg0YxUnObKexVE1Z5432QE
+         b3IdzAcdkpyaX+mfQ8Zf8lHVarwRVjGhSivdXSNq6NHV3KDA+NtieYtorrhJxddtnSj3
+         oZJXm/XeR5gG3iqS9pnbnVdGSSa2Y6D5NzKjY8iZ3chWOgnwA+t2B0iv+Glwwwg1FIRh
+         Kk8A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=precedence:content-transfer-encoding:content-language:in-reply-to
-         :mime-version:user-agent:date:message-id:from:references:cc:to
-         :subject:dkim-signature;
-        bh=yU8Er0dM4xN+kO/PufN1rVisDCrwrEjJU9iRQpgHWz0=;
-        b=tI0nkSPSmdg72uo5MXJijDqzDAAiqHMVt/orn/5MK6NBrFjE/Hko2ZG3OXqEGU1pPh
-         FU7byGujRQnOyqdsgzGqKwdudLvS4yJSZNkQW9/HxJSAZCIYtShtk5IoaF5Rpd/+SVTs
-         5XtEzlxapOLjsjIn0/6oSKgt05EJSfyRRw7oHSzXHwQW8RPL7NoGtJYqj1MCUO82xQMo
-         RTAj2kxBTN/a82TGV9KEKJgvHFV8FFMqF2RjtPWXGJynSw0Cmq+3KGJc/rFPTbFgLD2N
-         /55G4bwtVoQQDfd5sV7QUp3e046g4ppS2u0mfrE2eGM707kWpiDg5577KQ2EWzF9dCdm
-         WhxQ==
+        h=message-id:date:subject:cc:to:from:dkim-signature;
+        bh=wTnR4jFSZHgDyQlzGAnxJLHPwWt9ff7eR4/YXCAXskI=;
+        b=SV6SxkLtcUz0dTyZ/kPvpeH2xtspfnLQHHyXUVypcO7ykPiNN/jlg9HxrUZiVgza/+
+         nmbE2LkYr8tC0GiPGOtxY9D0o9aCJ031s31E4k4kLofZy6T5TOtHcDrEnOAc0ai0CBzy
+         /qWU5982YFICuEHDyJVSZQw//oyWHaDVZPjXC/bHDxmkCsCUFO1F8eqinYjSP8IMICqz
+         EqswOt+KRjAWArPkZJaUiUHh/PQOmXbfie3huwiBmd9wpx3RrS1kWF32Bh4lGx+SM/pw
+         qH0jPD5OVGlXDtJ/nl2NMXlwBBLb6TAE1xHw3wk6HAHVTLUUolRPzkaUuBft9Ow6qinQ
+         Z5Qg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@amazon.com header.s=amazon201209 header.b=WSMIOs2r;
-       spf=pass (google.com: domain of prvs=09157809a=graf@amazon.com designates 52.95.49.90 as permitted sender) smtp.mailfrom="prvs=09157809a=graf@amazon.com";
-       dmarc=pass (p=QUARANTINE sp=QUARANTINE dis=NONE) header.from=amazon.com
-Received: from smtp-fw-6002.amazon.com (smtp-fw-6002.amazon.com. [52.95.49.90])
-        by mx.google.com with ESMTPS id w24si10423667qtk.394.2019.07.14.11.17.41
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=J6HG5WoH;
+       spf=pass (google.com: domain of linux.bhar@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=linux.bhar@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id l14sor5193920pgr.57.2019.07.14.12.11.25
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 14 Jul 2019 11:17:41 -0700 (PDT)
-Received-SPF: pass (google.com: domain of prvs=09157809a=graf@amazon.com designates 52.95.49.90 as permitted sender) client-ip=52.95.49.90;
+        (Google Transport Security);
+        Sun, 14 Jul 2019 12:11:25 -0700 (PDT)
+Received-SPF: pass (google.com: domain of linux.bhar@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@amazon.com header.s=amazon201209 header.b=WSMIOs2r;
-       spf=pass (google.com: domain of prvs=09157809a=graf@amazon.com designates 52.95.49.90 as permitted sender) smtp.mailfrom="prvs=09157809a=graf@amazon.com";
-       dmarc=pass (p=QUARANTINE sp=QUARANTINE dis=NONE) header.from=amazon.com
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=J6HG5WoH;
+       spf=pass (google.com: domain of linux.bhar@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=linux.bhar@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-  d=amazon.com; i=@amazon.com; q=dns/txt; s=amazon201209;
-  t=1563128261; x=1594664261;
-  h=subject:to:cc:references:from:message-id:date:
-   mime-version:in-reply-to:content-transfer-encoding;
-  bh=yU8Er0dM4xN+kO/PufN1rVisDCrwrEjJU9iRQpgHWz0=;
-  b=WSMIOs2rvTU4hHyWlfV3AOhx/1em3Ciux8Y4UyGeLvVqJd13vXZ8B82S
-   6akzHA5HykuIeiTfZxJBxO5m1nJ+ikGCSY5FLoQ8ncLHekMWF1WM6cmP0
-   n5Lrr8vUjQvSw0csNve+l4zyFPlF/RJfZ0URXseuSee9I4tTvr2aehAH0
-   0=;
-X-IronPort-AV: E=Sophos;i="5.62,491,1554768000"; 
-   d="scan'208";a="410612451"
-Received: from iad6-co-svc-p1-lb1-vlan3.amazon.com (HELO email-inbound-relay-2c-397e131e.us-west-2.amazon.com) ([10.124.125.6])
-  by smtp-border-fw-out-6002.iad6.amazon.com with ESMTP; 14 Jul 2019 18:17:39 +0000
-Received: from EX13MTAUWC001.ant.amazon.com (pdx4-ws-svc-p6-lb7-vlan3.pdx.amazon.com [10.170.41.166])
-	by email-inbound-relay-2c-397e131e.us-west-2.amazon.com (Postfix) with ESMTPS id 08C93A243C;
-	Sun, 14 Jul 2019 18:17:37 +0000 (UTC)
-Received: from EX13D20UWC001.ant.amazon.com (10.43.162.244) by
- EX13MTAUWC001.ant.amazon.com (10.43.162.135) with Microsoft SMTP Server (TLS)
- id 15.0.1367.3; Sun, 14 Jul 2019 18:17:37 +0000
-Received: from 38f9d3867b82.ant.amazon.com (10.43.160.177) by
- EX13D20UWC001.ant.amazon.com (10.43.162.244) with Microsoft SMTP Server (TLS)
- id 15.0.1367.3; Sun, 14 Jul 2019 18:17:32 +0000
-Subject: Re: [RFC v2 00/27] Kernel Address Space Isolation
-To: Andy Lutomirski <luto@kernel.org>, Alexandre Chartre
-	<alexandre.chartre@oracle.com>
-CC: Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner
-	<tglx@linutronix.de>, Dave Hansen <dave.hansen@intel.com>, Paolo Bonzini
-	<pbonzini@redhat.com>, Radim Krcmar <rkrcmar@redhat.com>, Ingo Molnar
-	<mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin"
-	<hpa@zytor.com>, Dave Hansen <dave.hansen@linux.intel.com>, kvm list
-	<kvm@vger.kernel.org>, X86 ML <x86@kernel.org>, Linux-MM
-	<linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "Konrad Rzeszutek
- Wilk" <konrad.wilk@oracle.com>, <jan.setjeeilers@oracle.com>, Liran Alon
-	<liran.alon@oracle.com>, Jonathan Adams <jwadams@google.com>, Mike Rapoport
-	<rppt@linux.vnet.ibm.com>, Paul Turner <pjt@google.com>
-References: <1562855138-19507-1-git-send-email-alexandre.chartre@oracle.com>
- <5cab2a0e-1034-8748-fcbe-a17cf4fa2cd4@intel.com>
- <alpine.DEB.2.21.1907120911160.11639@nanos.tec.linutronix.de>
- <61d5851e-a8bf-e25c-e673-b71c8b83042c@oracle.com>
- <20190712125059.GP3419@hirez.programming.kicks-ass.net>
- <a03db3a5-b033-a469-cc6c-c8c86fb25710@oracle.com>
- <CALCETrVcM-SpEqLMJSOdyGuN0gjr+97+cpu2KYneuTv1fJDoog@mail.gmail.com>
-From: Alexander Graf <graf@amazon.com>
-Message-ID: <849b74ba-2ce4-04e9-557c-6d8c8ec29e16@amazon.com>
-Date: Sun, 14 Jul 2019 20:17:30 +0200
-User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14; rv:60.0)
- Gecko/20100101 Thunderbird/60.8.0
-MIME-Version: 1.0
-In-Reply-To: <CALCETrVcM-SpEqLMJSOdyGuN0gjr+97+cpu2KYneuTv1fJDoog@mail.gmail.com>
-Content-Type: text/plain; charset="utf-8"; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-Originating-IP: [10.43.160.177]
-X-ClientProxiedBy: EX13D02UWC003.ant.amazon.com (10.43.162.199) To
- EX13D20UWC001.ant.amazon.com (10.43.162.244)
+        d=gmail.com; s=20161025;
+        h=from:to:cc:subject:date:message-id;
+        bh=wTnR4jFSZHgDyQlzGAnxJLHPwWt9ff7eR4/YXCAXskI=;
+        b=J6HG5WoHErAl5v76PYLUAOefrG8S1mG5ji2ajAmi5iUq3zdhofWNi8R7FD/ZClvCkS
+         YZRIbPxD9g4+z4/DKU3BnFzdBGd4B6hqacPQJCYiMAyTsjeQD0VnMRdVjMwT5iXX3Wf8
+         K+dbgDP1QPuW9rFsXWNsx8mrnpo7er2XDn6BWvY/4l765HNnJzRdfTLFd1FC4ox/btui
+         ANCUJV2jLkQANmaHn5GDebVXYHTnQ3iJntGgl9m+NUdNzEI4foq7AImezy1e0F0aWScj
+         VTeFTRsX3XhDhFo4Vbx8wmcHarhMhRhIWCsne9M3/awdd48pqQRhjBDTphYabLqRYTaO
+         N99A==
+X-Google-Smtp-Source: APXvYqyoHwB+daqurf2TSePudMpL8bWbCxyh/0egoU2EbeU8TkfMkMtKnPM0Ke06j90ArJCf2o75Kg==
+X-Received: by 2002:a63:bf01:: with SMTP id v1mr22482786pgf.278.1563131484751;
+        Sun, 14 Jul 2019 12:11:24 -0700 (PDT)
+Received: from bharath12345-Inspiron-5559 ([103.110.42.34])
+        by smtp.gmail.com with ESMTPSA id m6sm15239358pfb.151.2019.07.14.12.11.22
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Sun, 14 Jul 2019 12:11:24 -0700 (PDT)
+From: Bharath Vedartham <linux.bhar@gmail.com>
+To: akpm@linux-foundation.org,
+	ira.weiny@intel.com,
+	jhubbard@nvidia.com
+Cc: Bharath Vedartham <linux.bhar@gmail.com>,
+	Mauro Carvalho Chehab <mchehab@kernel.org>,
+	Dimitri Sivanich <sivanich@sgi.com>,
+	Arnd Bergmann <arnd@arndb.de>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	Alex Williamson <alex.williamson@redhat.com>,
+	Cornelia Huck <cohuck@redhat.com>,
+	Jens Axboe <axboe@kernel.dk>,
+	Alexander Viro <viro@zeniv.linux.org.uk>,
+	=?UTF-8?q?Bj=C3=B6rn=20T=C3=B6pel?= <bjorn.topel@intel.com>,
+	Magnus Karlsson <magnus.karlsson@intel.com>,
+	"David S. Miller" <davem@davemloft.net>,
+	Alexei Starovoitov <ast@kernel.org>,
+	Daniel Borkmann <daniel@iogearbox.net>,
+	Jakub Kicinski <jakub.kicinski@netronome.com>,
+	Jesper Dangaard Brouer <hawk@kernel.org>,
+	John Fastabend <john.fastabend@gmail.com>,
+	Enrico Weigelt <info@metux.net>,
+	Thomas Gleixner <tglx@linutronix.de>,
+	Alexios Zavras <alexios.zavras@intel.com>,
+	Dan Carpenter <dan.carpenter@oracle.com>,
+	Max Filippov <jcmvbkbc@gmail.com>,
+	Matt Sickler <Matt.Sickler@daktronics.com>,
+	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
+	Keith Busch <keith.busch@intel.com>,
+	YueHaibing <yuehaibing@huawei.com>,
+	linux-media@vger.kernel.org,
+	linux-kernel@vger.kernel.org,
+	devel@driverdev.osuosl.org,
+	kvm@vger.kernel.org,
+	linux-block@vger.kernel.org,
+	linux-fsdevel@vger.kernel.org,
+	linux-mm@kvack.org,
+	netdev@vger.kernel.org,
+	bpf@vger.kernel.org,
+	xdp-newbies@vger.kernel.org
+Subject: [PATCH] mm/gup: Use put_user_page*() instead of put_page*()
+Date: Mon, 15 Jul 2019 00:38:34 +0530
+Message-Id: <1563131456-11488-1-git-send-email-linux.bhar@gmail.com>
+X-Mailer: git-send-email 2.7.4
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+This patch converts all call sites of get_user_pages
+to use put_user_page*() instead of put_page*() functions to
+release reference to gup pinned pages.
 
+This is a bunch of trivial conversions which is a part of an effort
+by John Hubbard to solve issues with gup pinned pages and 
+filesystem writeback.
 
-On 12.07.19 16:36, Andy Lutomirski wrote:
-> On Fri, Jul 12, 2019 at 6:45 AM Alexandre Chartre
-> <alexandre.chartre@oracle.com> wrote:
->>
->>
->> On 7/12/19 2:50 PM, Peter Zijlstra wrote:
->>> On Fri, Jul 12, 2019 at 01:56:44PM +0200, Alexandre Chartre wrote:
->>>
->>>> I think that's precisely what makes ASI and PTI different and independent.
->>>> PTI is just about switching between userland and kernel page-tables, while
->>>> ASI is about switching page-table inside the kernel. You can have ASI without
->>>> having PTI. You can also use ASI for kernel threads so for code that won't
->>>> be triggered from userland and so which won't involve PTI.
->>>
->>> PTI is not mapping         kernel space to avoid             speculation crap (meltdown).
->>> ASI is not mapping part of kernel space to avoid (different) speculation crap (MDS).
->>>
->>> See how very similar they are?
->>>
->>>
->>> Furthermore, to recover SMT for userspace (under MDS) we not only need
->>> core-scheduling but core-scheduling per address space. And ASI was
->>> specifically designed to help mitigate the trainwreck just described.
->>>
->>> By explicitly exposing (hopefully harmless) part of the kernel to MDS,
->>> we reduce the part that needs core-scheduling and thus reduce the rate
->>> the SMT siblngs need to sync up/schedule.
->>>
->>> But looking at it that way, it makes no sense to retain 3 address
->>> spaces, namely:
->>>
->>>     user / kernel exposed / kernel private.
->>>
->>> Specifically, it makes no sense to expose part of the kernel through MDS
->>> but not through Meltdow. Therefore we can merge the user and kernel
->>> exposed address spaces.
->>
->> The goal of ASI is to provide a reduced address space which exclude sensitive
->> data. A user process (for example a database daemon, a web server, or a vmm
->> like qemu) will likely have sensitive data mapped in its user address space.
->> Such data shouldn't be mapped with ASI because it can potentially leak to the
->> sibling hyperthread. For example, if an hyperthread is running a VM then the
->> VM could potentially access user sensitive data if they are mapped on the
->> sibling hyperthread with ASI.
-> 
-> So I've proposed the following slightly hackish thing:
-> 
-> Add a mechanism (call it /dev/xpfo).  When you open /dev/xpfo and
-> fallocate it to some size, you allocate that amount of memory and kick
-> it out of the kernel direct map.  (And pay the IPI cost unless there
-> were already cached non-direct-mapped pages ready.)  Then you map
-> *that* into your VMs.  Now, for a dedicated VM host, you map *all* the
-> VM private memory from /dev/xpfo.  Pretend it's SEV if you want to
-> determine which pages can be set up like this.
-> 
-> Does this get enough of the benefit at a negligible fraction of the
-> code complexity cost?  (This plus core scheduling, anyway.)
+The issue is more clearly described in John Hubbard's patch[1] where
+put_user_page*() functions are introduced.
 
-The problem with that approach is that you lose the ability to run 
-legacy workloads that do not support an SEV like model of "guest owned" 
-and "host visible" pages, but instead assume you can DMA anywhere.
+Currently put_user_page*() simply does put_page but future implementations
+look to change that once treewide change of put_page callsites to 
+put_user_page*() is finished.
 
-Without that, your host will have visibility into guest pages via user 
-space (QEMU) pages which again are mapped in the kernel direct map, so 
-can be exposed via a spectre gadget into a malicious guest.
+The lwn article describing the issue with gup pinned pages and filesystem 
+writeback [2].
 
-Also, please keep in mind that even register state of other VMs may be a 
-secret that we do not want to leak into other guests.
+This patch has been tested by building and booting the kernel as I don't
+have the required hardware to test the device drivers.
 
+I did not modify gpu/drm drivers which use release_pages instead of
+put_page() to release reference of gup pinned pages as I am not clear
+whether release_pages and put_page are interchangable. 
 
-Alex
+[1] https://lkml.org/lkml/2019/3/26/1396
+
+[2] https://lwn.net/Articles/784574/
+
+Signed-off-by: Bharath Vedartham <linux.bhar@gmail.com>
+---
+ drivers/media/v4l2-core/videobuf-dma-sg.c | 3 +--
+ drivers/misc/sgi-gru/grufault.c           | 2 +-
+ drivers/staging/kpc2000/kpc_dma/fileops.c | 4 +---
+ drivers/vfio/vfio_iommu_type1.c           | 2 +-
+ fs/io_uring.c                             | 7 +++----
+ mm/gup_benchmark.c                        | 6 +-----
+ net/xdp/xdp_umem.c                        | 7 +------
+ 7 files changed, 9 insertions(+), 22 deletions(-)
+
+diff --git a/drivers/media/v4l2-core/videobuf-dma-sg.c b/drivers/media/v4l2-core/videobuf-dma-sg.c
+index 66a6c6c..d6eeb43 100644
+--- a/drivers/media/v4l2-core/videobuf-dma-sg.c
++++ b/drivers/media/v4l2-core/videobuf-dma-sg.c
+@@ -349,8 +349,7 @@ int videobuf_dma_free(struct videobuf_dmabuf *dma)
+ 	BUG_ON(dma->sglen);
+ 
+ 	if (dma->pages) {
+-		for (i = 0; i < dma->nr_pages; i++)
+-			put_page(dma->pages[i]);
++		put_user_pages(dma->pages, dma->nr_pages);
+ 		kfree(dma->pages);
+ 		dma->pages = NULL;
+ 	}
+diff --git a/drivers/misc/sgi-gru/grufault.c b/drivers/misc/sgi-gru/grufault.c
+index 4b713a8..61b3447 100644
+--- a/drivers/misc/sgi-gru/grufault.c
++++ b/drivers/misc/sgi-gru/grufault.c
+@@ -188,7 +188,7 @@ static int non_atomic_pte_lookup(struct vm_area_struct *vma,
+ 	if (get_user_pages(vaddr, 1, write ? FOLL_WRITE : 0, &page, NULL) <= 0)
+ 		return -EFAULT;
+ 	*paddr = page_to_phys(page);
+-	put_page(page);
++	put_user_page(page);
+ 	return 0;
+ }
+ 
+diff --git a/drivers/staging/kpc2000/kpc_dma/fileops.c b/drivers/staging/kpc2000/kpc_dma/fileops.c
+index 6166587..26dceed 100644
+--- a/drivers/staging/kpc2000/kpc_dma/fileops.c
++++ b/drivers/staging/kpc2000/kpc_dma/fileops.c
+@@ -198,9 +198,7 @@ int  kpc_dma_transfer(struct dev_private_data *priv, struct kiocb *kcb, unsigned
+ 	sg_free_table(&acd->sgt);
+  err_dma_map_sg:
+  err_alloc_sg_table:
+-	for (i = 0 ; i < acd->page_count ; i++){
+-		put_page(acd->user_pages[i]);
+-	}
++	put_user_pages(acd->user_pages, acd->page_count);
+  err_get_user_pages:
+ 	kfree(acd->user_pages);
+  err_alloc_userpages:
+diff --git a/drivers/vfio/vfio_iommu_type1.c b/drivers/vfio/vfio_iommu_type1.c
+index add34ad..c491524 100644
+--- a/drivers/vfio/vfio_iommu_type1.c
++++ b/drivers/vfio/vfio_iommu_type1.c
+@@ -369,7 +369,7 @@ static int vaddr_get_pfn(struct mm_struct *mm, unsigned long vaddr,
+ 		 */
+ 		if (ret > 0 && vma_is_fsdax(vmas[0])) {
+ 			ret = -EOPNOTSUPP;
+-			put_page(page[0]);
++			put_user_page(page[0]);
+ 		}
+ 	}
+ 	up_read(&mm->mmap_sem);
+diff --git a/fs/io_uring.c b/fs/io_uring.c
+index 4ef62a4..b4a4549 100644
+--- a/fs/io_uring.c
++++ b/fs/io_uring.c
+@@ -2694,10 +2694,9 @@ static int io_sqe_buffer_register(struct io_ring_ctx *ctx, void __user *arg,
+ 			 * if we did partial map, or found file backed vmas,
+ 			 * release any pages we did get
+ 			 */
+-			if (pret > 0) {
+-				for (j = 0; j < pret; j++)
+-					put_page(pages[j]);
+-			}
++			if (pret > 0)
++				put_user_pages(pages, pret);
++
+ 			if (ctx->account_mem)
+ 				io_unaccount_mem(ctx->user, nr_pages);
+ 			kvfree(imu->bvec);
+diff --git a/mm/gup_benchmark.c b/mm/gup_benchmark.c
+index 7dd602d..15fc7a2 100644
+--- a/mm/gup_benchmark.c
++++ b/mm/gup_benchmark.c
+@@ -76,11 +76,7 @@ static int __gup_benchmark_ioctl(unsigned int cmd,
+ 	gup->size = addr - gup->addr;
+ 
+ 	start_time = ktime_get();
+-	for (i = 0; i < nr_pages; i++) {
+-		if (!pages[i])
+-			break;
+-		put_page(pages[i]);
+-	}
++	put_user_pages(pages, nr_pages);
+ 	end_time = ktime_get();
+ 	gup->put_delta_usec = ktime_us_delta(end_time, start_time);
+ 
+diff --git a/net/xdp/xdp_umem.c b/net/xdp/xdp_umem.c
+index 9c6de4f..6103e19 100644
+--- a/net/xdp/xdp_umem.c
++++ b/net/xdp/xdp_umem.c
+@@ -173,12 +173,7 @@ static void xdp_umem_unpin_pages(struct xdp_umem *umem)
+ {
+ 	unsigned int i;
+ 
+-	for (i = 0; i < umem->npgs; i++) {
+-		struct page *page = umem->pgs[i];
+-
+-		set_page_dirty_lock(page);
+-		put_page(page);
+-	}
++	put_user_pages_dirty_lock(umem->pgs, umem->npgs);
+ 
+ 	kfree(umem->pgs);
+ 	umem->pgs = NULL;
+-- 
+1.8.3.1
 
