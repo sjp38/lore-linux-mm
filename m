@@ -2,295 +2,227 @@ Return-Path: <SRS0=FHqE=VM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
-	SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.4 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9AF4DC7618F
-	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 23:28:29 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DC140C7618F
+	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 23:34:30 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 77CB12080A
-	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 23:28:28 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 94C472080A
+	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 23:34:30 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=protonmail.com header.i=@protonmail.com header.b="anOF09A9"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 77CB12080A
-Authentication-Results: mail.kernel.org; dmarc=fail (p=quarantine dis=none) header.from=protonmail.com
+	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="OgRxe+A5"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 94C472080A
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C90F06B0005; Mon, 15 Jul 2019 19:28:27 -0400 (EDT)
+	id 427D56B0005; Mon, 15 Jul 2019 19:34:30 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C1AAB6B0006; Mon, 15 Jul 2019 19:28:27 -0400 (EDT)
+	id 3D8166B0006; Mon, 15 Jul 2019 19:34:30 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B09486B0007; Mon, 15 Jul 2019 19:28:27 -0400 (EDT)
+	id 2C7A66B0007; Mon, 15 Jul 2019 19:34:30 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 5BC556B0005
-	for <linux-mm@kvack.org>; Mon, 15 Jul 2019 19:28:27 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id i9so14819443edr.13
-        for <linux-mm@kvack.org>; Mon, 15 Jul 2019 16:28:27 -0700 (PDT)
+Received: from mail-yb1-f199.google.com (mail-yb1-f199.google.com [209.85.219.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 0E4696B0005
+	for <linux-mm@kvack.org>; Mon, 15 Jul 2019 19:34:30 -0400 (EDT)
+Received: by mail-yb1-f199.google.com with SMTP id i70so15570071ybg.5
+        for <linux-mm@kvack.org>; Mon, 15 Jul 2019 16:34:30 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:date:dkim-signature:to:from:cc:reply-to:subject
-         :message-id:in-reply-to:references:feedback-id:mime-version;
-        bh=T9V8nyAYacgOHu9qVaULQEjZGV1mejSM74PefvCkMvA=;
-        b=HRxKNzUJXn/+/MppMzAQOEFpy6XS1h8SZjhFJkikDyoq6e7Dqo9YGcUG4OVUh75/sP
-         eRXURcP+2VykHuLGORR5j9olWQrAOtAaJQwd6Y7Iogh0e7w8qrKzEdoTdO/R9ZswKYZ5
-         D3GgZyTtKbNqhOUjzHKOyalHPyU4TQkTKA8Q19dOsVYnFl4pl99yeKa9YSpn3GdvYVj+
-         LPUIVYBAz7RP87UusAuPL5dedWt1f4IKAE48mBsHVp+F6XvB5nnD3sHQRp5cha/8XfyA
-         Ae7tLr5bRP3TwvBcNgj1CoOtkd9W5GgDQ4u5Qz4G6lgPlUTAr8kxmesoNUkdGyjApdJ9
-         pc+w==
-X-Gm-Message-State: APjAAAVG54rAN6c9u6YEEO7PfQUlHOi0bOkbttUQIO3RmBPcnL8gTTRc
-	lb0Jgca2G0SdljN9oqSJ40Ip3WcA3obJbDqXMZK6armWKXxsMTOfmVWGWruW5yPTgtvJl6xewvF
-	7EtrQsb/dQKc3g6xOoWBoi9KVhvrKX5lHO2AvvNyK/V2AYTysdQO9spoxItY/Mvhj2w==
-X-Received: by 2002:a50:94f5:: with SMTP id t50mr25827192eda.150.1563233306819;
-        Mon, 15 Jul 2019 16:28:26 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz8I17XVGMG9yLdqg/m1xvj1lzGovIGeVb02QHv3JSNX2edwdYOhEvwYKHnkX2KBM8nRymE
-X-Received: by 2002:a50:94f5:: with SMTP id t50mr25827153eda.150.1563233305844;
-        Mon, 15 Jul 2019 16:28:25 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563233305; cv=none;
+        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding:dkim-signature;
+        bh=h+BRneuTpawGqNjEBZFefMsMDl5kO4JZEpBOUwB1zsI=;
+        b=aWtqN526eixe0Y4SOO3+QkiWMCasOWxXJusudBBKHydplxreqTf4q05KW+BMyOmHp7
+         X5EE9CTgpfguU6WSBbnAcIlG+czPTyreGN0kjHr6P3r2doEBYTRN9Tvo+nfAhGDgdN94
+         0bED84D7vVx5zEo4PXc/T+hkIgzKWo4dZ5IDWBfOCVhk2ILPi0L84bFBXW88FwNA34yg
+         BbigOGdb45W5lVADIoOtOfFxUDP+11MtGqOtS5S30qAlvs8YwDQqV1nHwcVhvMms4JA3
+         xtusW1dYIehGhtSOn2+CYBhW/70K9IwcJ/HupaNyFDYQUerVqZyeY6AbDvNU8YMMcBKr
+         Vveg==
+X-Gm-Message-State: APjAAAVodGO7PnczIeeXU43J3kTdHhrHM9InyIN327XxVolRVQMcxW/w
+	3iHYCfJXXV/HW9XjM440RhXXdDqxKdG4b7K2ZJO9jdOrk49TQJXInp2DV48Mm39xwOvW/FtPnc2
+	JAI9AqLqaL0GoO7zsIfBTtK/FGzk++nVPuVdJrKbSKGh7rPzA0eaL7TlXBhRP4axRnQ==
+X-Received: by 2002:a81:3295:: with SMTP id y143mr17412973ywy.328.1563233669751;
+        Mon, 15 Jul 2019 16:34:29 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwtElsnkOTO2iB7rgQ2UnJbIVC8ymhZc9yPOV2oNDqjdwyrPxUlmNKjgtz9zwreQTFCFE2k
+X-Received: by 2002:a81:3295:: with SMTP id y143mr17412942ywy.328.1563233669017;
+        Mon, 15 Jul 2019 16:34:29 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563233669; cv=none;
         d=google.com; s=arc-20160816;
-        b=vAr+v9Egcbp9bDwA/dYWK6G59YNlpxDP0Tp8MJnHgRyY7Hznh5ahfIzgVtPy59yGa5
-         bVGHRJilTigOkIycRbiNl6NpVByUdaPIUqAuZZv+RAXWt+PnDNLSwI60YLU5kTU8cKXg
-         rXkTRigA3BWd+XfmzZ6msiDdx1eebhxYsnT8K6Yarkzk3gi2weCh0XFXmd2KgjKdlPhO
-         IDE+SvbACbDRkUDfRi9XEBIU7H3cwH1t1t16emaE6J09kHgcLWe72y/6CoJltZPnCvhs
-         6vdmJdPBITpnEqaPFcdG7OoKnLFJriot8iWLc6WvEhMetMPq3+wqiI4aEecx+HrY92Xr
-         7/MQ==
+        b=G2KVBpPDfA7dGnUFJJ/VUzq3WWkZKz2lfpZ8NDZ44HpHARhJJ6CcWNumTUDI7I11mq
+         biTYIbaetcJv7JpWPq9GS4VyC3Ddzi+Mc7PsXGHBhlBLbhh8w5uxIkwiYRsI4M2uJyA+
+         t7Wf23m77d9W/nxV0HjmgLLK2jPVFtZY/xD/9dHLf5KpGAZJTx8OTSH3sbYzk0yX+FbJ
+         fND2sCyIkQiTHMts/GfIZRW8HAhafYQRD6xYrxmxOKqHY9t1auOrLcywtdoo5tfjajXm
+         mJI8j4ec5cBf670cSi2wWIc+PUFYJiugrCyyirWKKQNdobDvLhWqPRJt7hJezjlf/3ua
+         hGSg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:feedback-id:references:in-reply-to:message-id:subject
-         :reply-to:cc:from:to:dkim-signature:date;
-        bh=T9V8nyAYacgOHu9qVaULQEjZGV1mejSM74PefvCkMvA=;
-        b=YtEb9yKJkWpMsvavAn4bNHgahJfJIPdSJBBme+s7IRaAV6M6NESEUWPFnElLarAW7p
-         Jq34EEyrYaDhPq/FSFj2oGrVFZ4XjVGGt8XOe43QF/nkspB4kZh3PmpiLAP8M6tJneWv
-         Z/fP4wtGU1Cuo68287RvqoHE5RY0U+zZO9LFjkCAX5ZIiLTqQX3dQnQGOM+UsyQ49p7w
-         5zPr2H3lVVWOQEvKfszFRHHKoJ8xIcL1NzSxty3mqpSO6MV/Wd2UO3CXYaIGO60ANUAC
-         jXB0x3NTxDXM51ANV0J7oaN62Gifpx/QeWRee3QGEPE2EzxNJ5cLX33U3XxS6jhqhqko
-         nhvw==
+        h=dkim-signature:content-transfer-encoding:content-language
+         :in-reply-to:mime-version:user-agent:date:message-id:from:references
+         :cc:to:subject;
+        bh=h+BRneuTpawGqNjEBZFefMsMDl5kO4JZEpBOUwB1zsI=;
+        b=iWb+jA1xCO7OCWuv3bi0WeDiB6dJt8Mh/2RQvHb8ucwKsFp+hLhcsffXj1Rr8s5SDn
+         uWNWFu0qIOydDPsMgbO+ek//OoeNpmuLRBStqlrk3xmNHzl8wWfCE5W9+wBZ9Ine/kP8
+         dHE+jQeOYcqNjluDAv3FP9y3SjT2qF6CpGyYIV8xx2Un1WdynuNX0/jBfl/aBsD87152
+         JgUGydXlJtN3n/CJTJLKfFTCK4tO0Y4ZMAHWY4A71Xl+3T6yHoHZIuo8GsCi6DAVdvX8
+         2/WRJOS81UMoMhm1sqzzmKjF9PbPQZqFcIx+WRk4nhnBplZMTxq6DoZvHyNdFfMs6rCi
+         tAzg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@protonmail.com header.s=default header.b=anOF09A9;
-       spf=pass (google.com: domain of howaboutsynergy@protonmail.com designates 185.70.40.136 as permitted sender) smtp.mailfrom=howaboutsynergy@protonmail.com;
-       dmarc=pass (p=QUARANTINE sp=QUARANTINE dis=NONE) header.from=protonmail.com
-Received: from mail-40136.protonmail.ch (mail-40136.protonmail.ch. [185.70.40.136])
-        by mx.google.com with ESMTPS id os26si5990216ejb.346.2019.07.15.16.28.25
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=OgRxe+A5;
+       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
+        by mx.google.com with ESMTPS id q188si8235062ybc.18.2019.07.15.16.34.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 15 Jul 2019 16:28:25 -0700 (PDT)
-Received-SPF: pass (google.com: domain of howaboutsynergy@protonmail.com designates 185.70.40.136 as permitted sender) client-ip=185.70.40.136;
+        Mon, 15 Jul 2019 16:34:29 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.64 as permitted sender) client-ip=216.228.121.64;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@protonmail.com header.s=default header.b=anOF09A9;
-       spf=pass (google.com: domain of howaboutsynergy@protonmail.com designates 185.70.40.136 as permitted sender) smtp.mailfrom=howaboutsynergy@protonmail.com;
-       dmarc=pass (p=QUARANTINE sp=QUARANTINE dis=NONE) header.from=protonmail.com
-Date: Mon, 15 Jul 2019 23:28:22 +0000
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=protonmail.com;
-	s=default; t=1563233305;
-	bh=T9V8nyAYacgOHu9qVaULQEjZGV1mejSM74PefvCkMvA=;
-	h=Date:To:From:Cc:Reply-To:Subject:In-Reply-To:References:
-	 Feedback-ID:From;
-	b=anOF09A9Z55TfxNh8FPLRkvq9CkbfDC2fcEQTQ0WjPcyPvsFfvV2hKbN2UcDEHekX
-	 JEpCYr8ILn9c1HHYph/sXprmMg6yb+lStsvKURaNBlnC0HoW8M+Jv/xX5fjz2Ezm5z
-	 IzzbLvwMO1qJ1hF83d5KetgMbG9pIPkLqOy2wPCg=
-To: Andrew Morton <akpm@linux-foundation.org>
-From: howaboutsynergy@protonmail.com
-Cc: "bugzilla-daemon@bugzilla.kernel.org" <bugzilla-daemon@bugzilla.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Mel Gorman <mgorman@techsingularity.net>
-Reply-To: howaboutsynergy@protonmail.com
-Subject: Re: [Bug 204165] New: 100% CPU usage in compact_zone_order
-Message-ID: <pLm2kTLklcV9AmHLFjB1oi04nZf9UTLlvnvQZoq44_ouTn3LhqcDD8Vi7xjr9qaTbrHfY5rKdwD6yVr43YCycpzm7MDLcbTcrYmGA4O0weU=@protonmail.com>
-In-Reply-To: <20190715142524.e0df173a9d7f81a384abf28f@linux-foundation.org>
-References: <bug-204165-27@https.bugzilla.kernel.org/>
- <20190715142524.e0df173a9d7f81a384abf28f@linux-foundation.org>
-Feedback-ID: cNV1IIhYZ3vPN2m1zihrGlihbXC6JOgZ5ekTcEurWYhfLPyLhpq0qxICavacolSJ7w0W_XBloqfdO_txKTblOQ==:Ext:ProtonMail
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=OgRxe+A5;
+       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate15.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
+	id <B5d2d0d8a0000>; Mon, 15 Jul 2019 16:34:34 -0700
+Received: from hqmail.nvidia.com ([172.20.161.6])
+  by hqpgpgate101.nvidia.com (PGP Universal service);
+  Mon, 15 Jul 2019 16:34:28 -0700
+X-PGP-Universal: processed;
+	by hqpgpgate101.nvidia.com on Mon, 15 Jul 2019 16:34:28 -0700
+Received: from [10.110.48.28] (10.124.1.5) by HQMAIL107.nvidia.com
+ (172.20.187.13) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Mon, 15 Jul
+ 2019 23:34:22 +0000
+Subject: Re: [PATCH] mm/hmm: Fix bad subpage pointer in try_to_unmap_one
+To: Andrew Morton <akpm@linux-foundation.org>, Ralph Campbell
+	<rcampbell@nvidia.com>
+CC: <linux-mm@kvack.org>, <linux-kernel@vger.kernel.org>,
+	=?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, "Kirill A. Shutemov"
+	<kirill.shutemov@linux.intel.com>, Mike Kravetz <mike.kravetz@oracle.com>,
+	Jason Gunthorpe <jgg@mellanox.com>
+References: <20190709223556.28908-1-rcampbell@nvidia.com>
+ <20190709172823.9413bb2333363f7e33a471a0@linux-foundation.org>
+ <05fffcad-cf5e-8f0c-f0c7-6ffbd2b10c2e@nvidia.com>
+ <20190715150031.49c2846f4617f30bca5f043f@linux-foundation.org>
+X-Nvconfidentiality: public
+From: John Hubbard <jhubbard@nvidia.com>
+Message-ID: <0ee5166a-26cd-a504-b9db-cffd082ecd38@nvidia.com>
+Date: Mon, 15 Jul 2019 16:34:22 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.2
 MIME-Version: 1.0
-Content-Type: multipart/signed; protocol="application/pgp-signature"; micalg=pgp-sha256; boundary="---------------------f9cf7709289c0253c27547d854b711d7"; charset=UTF-8
+In-Reply-To: <20190715150031.49c2846f4617f30bca5f043f@linux-foundation.org>
+X-Originating-IP: [10.124.1.5]
+X-ClientProxiedBy: HQMAIL104.nvidia.com (172.18.146.11) To
+ HQMAIL107.nvidia.com (172.20.187.13)
+Content-Type: text/plain; charset="utf-8"
+Content-Language: en-US
+Content-Transfer-Encoding: quoted-printable
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
+	t=1563233674; bh=h+BRneuTpawGqNjEBZFefMsMDl5kO4JZEpBOUwB1zsI=;
+	h=X-PGP-Universal:Subject:To:CC:References:X-Nvconfidentiality:From:
+	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
+	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
+	 Content-Transfer-Encoding;
+	b=OgRxe+A50xtVuH+HsQIV6/bprmeVGbsbaB9lBSbyHuzVUuWGvBTurzo+o5F6zORfN
+	 N/3R1l9mp4EACbf8HPX+47skIoVrJDcI2f30c9obXLSGBxMmch4ZlQ/RkpNmGq1uHq
+	 yd5NXiTOUdDT50Y2cxZQItGpRtiMe4zSUBt8EpplppDt7ZNEztv0cgDHU8YSludWXJ
+	 3oHds8mnWZb7IDJCV7pvnbquGQcWz/xxH8GZUVa0tLGarj4n8r/vjY4EoIjCUwVDhC
+	 JCTAhWe1S8S9/da9QISXzHS4rr+wJFRUhZ6iuuPD/J5SFnrQxE6TWtKYYX/EaP5S4H
+	 ZFOYnotJa/3zg==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This is an OpenPGP/MIME signed message (RFC 4880 and 3156)
------------------------f9cf7709289c0253c27547d854b711d7
-Content-Type: multipart/mixed;boundary=---------------------b2ee6b90a20cc8ef21998f5505683477
-
------------------------b2ee6b90a20cc8ef21998f5505683477
-Content-Transfer-Encoding: quoted-printable
-Content-Type: text/plain;charset=utf-8
-
-=E2=80=90=E2=80=90=E2=80=90=E2=80=90=E2=80=90=E2=80=90=E2=80=90 Original M=
-essage =E2=80=90=E2=80=90=E2=80=90=E2=80=90=E2=80=90=E2=80=90=E2=80=90
-On Monday, July 15, 2019 11:25 PM, Andrew Morton <akpm@linux-foundation.or=
-g> wrote:
-
-> (switched to email. Please respond via emailed reply-to-all, not via the
-> bugzilla web interface).
-Roger that.
-
-> =
-
-
-> On Sat, 13 Jul 2019 19:20:21 +0000 bugzilla-daemon@bugzilla.kernel.org w=
+On 7/15/19 3:00 PM, Andrew Morton wrote:
+> On Tue, 9 Jul 2019 18:24:57 -0700 Ralph Campbell <rcampbell@nvidia.com> w=
 rote:
-> =
+>=20
+>>
+>> On 7/9/19 5:28 PM, Andrew Morton wrote:
+>>> On Tue, 9 Jul 2019 15:35:56 -0700 Ralph Campbell <rcampbell@nvidia.com>=
+ wrote:
+>>>
+>>>> When migrating a ZONE device private page from device memory to system
+>>>> memory, the subpage pointer is initialized from a swap pte which compu=
+tes
+>>>> an invalid page pointer. A kernel panic results such as:
+>>>>
+>>>> BUG: unable to handle page fault for address: ffffea1fffffffc8
+>>>>
+>>>> Initialize subpage correctly before calling page_remove_rmap().
+>>>
+>>> I think this is
+>>>
+>>> Fixes:  a5430dda8a3a1c ("mm/migrate: support un-addressable ZONE_DEVICE=
+ page in migration")
+>>> Cc: stable
+>>>
+>>> yes?
+>>>
+>>
+>> Yes. Can you add this or should I send a v2?
+>=20
+> I updated the patch.  Could we please have some review input?
+>=20
+>=20
+> From: Ralph Campbell <rcampbell@nvidia.com>
+> Subject: mm/hmm: fix bad subpage pointer in try_to_unmap_one
+>=20
+> When migrating a ZONE device private page from device memory to system
+> memory, the subpage pointer is initialized from a swap pte which computes
+> an invalid page pointer. A kernel panic results such as:
+>=20
+> BUG: unable to handle page fault for address: ffffea1fffffffc8
+>=20
+> Initialize subpage correctly before calling page_remove_rmap().
+>=20
+> Link: http://lkml.kernel.org/r/20190709223556.28908-1-rcampbell@nvidia.co=
+m
+> Fixes: a5430dda8a3a1c ("mm/migrate: support un-addressable ZONE_DEVICE pa=
+ge in migration")
+> Signed-off-by: Ralph Campbell <rcampbell@nvidia.com>
+> Cc: "J=C3=A9r=C3=B4me Glisse" <jglisse@redhat.com>
+> Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> Cc: Mike Kravetz <mike.kravetz@oracle.com>
+> Cc: Jason Gunthorpe <jgg@mellanox.com>
+> Cc: <stable@vger.kernel.org>
+> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> ---
+>=20
+>  mm/rmap.c |    1 +
+>  1 file changed, 1 insertion(+)
+>=20
+> --- a/mm/rmap.c~mm-hmm-fix-bad-subpage-pointer-in-try_to_unmap_one
+> +++ a/mm/rmap.c
+> @@ -1476,6 +1476,7 @@ static bool try_to_unmap_one(struct page
+>  			 * No need to invalidate here it will synchronize on
+>  			 * against the special swap migration pte.
+>  			 */
+> +			subpage =3D page;
+>  			goto discard;
+>  		}
+> =20
 
+Hi Ralph and everyone,
 
-> > https://bugzilla.kernel.org/show_bug.cgi?id=3D204165
-> > =
+While the above prevents a crash, I'm concerned that it is still not
+an accurate fix. This fix leads to repeatedly removing the rmap, against th=
+e
+same struct page, which is odd, and also doesn't directly address the
+root cause, which I understand to be: this routine can't handle migrating
+the zero page properly--over and back, anyway. (We should also mention more=
+=20
+about how this is triggered, in the commit description.)
 
+I'll take a closer look at possible fixes (I have to step out for a bit) so=
+on,=20
+but any more experienced help is also appreciated here.
 
-> >             Bug ID: 204165
-> >            Summary: 100% CPU usage in compact_zone_order
-> >     =
-
-
-> =
-
-
-> Looks like we have a lockup in compact_zone()
-> =
-
-
-> >            Product: Memory Management
-> >            Version: 2.5
-> >     Kernel Version: 5.2.0-g0ecfebd2b524
-> >           Hardware: x86-64
-> >                 OS: Linux
-> >               Tree: Mainline
-> >             Status: NEW
-> >           Severity: normal
-> >           Priority: P1
-> >          Component: Page Allocator
-> >           Assignee: akpm@linux-foundation.org
-> >           Reporter: howaboutsynergy@pm.me
-> >         Regression: No
-> >     =
-
-
-> =
-
-
-> I assume this should be "yes". Did previous kernels exhibit this
-> behavior or is it new in 5.2?
-
-Regression: yes? =
-
-
-I'm not sure... =
-
-
-tl;dr: seen with kernel linux-stable 5.1.8.r0.g937cc0cc22a2-1
-And really not sure if I've seen it before.
-
-long read:
-At least one previous kernel did because I've seen this before in https://=
-bugzilla.kernel.org/show_bug.cgi?id=3D203833#c1 where I thought it was due=
- to 'teo' governor but it wasn't (I'm using 'menu' gov. now)
-
-I didn't mention kernel version there, but according to irc logs where I s=
-eek'd help at the time, the date was June 10th 2019 3am, checking which ke=
-rnel I was running at the time (thanks to my q1q repo. git logs) it was 5.=
-1.8 (stable)kernel to which I updated on Sun Jun 9 10:50:09 2019 +0200 and=
- have not changed until Tue Jun 11 05:16:59 2019 +0200
-local/linux-stable 5.1.8.r0.g937cc0cc22a2-1 (builtbydaddy)
-
-Side note:
-I've encountered something similar here https://github.com/constantoverrid=
-e/qubes-linux-kernel/issues/2
- where kworker would randomly start using 100% CPU and couldn't be killed.=
- The kernel there was 4.18.7, the VM had very little RAM in Qubes there. S=
-ince it's probably a different bug due to that stacktrace being so differe=
-nt/unrelated, please ignore.
-
-
-
------------------------b2ee6b90a20cc8ef21998f5505683477
-Content-Type: application/pgp-keys; filename="publickey - howaboutsynergy@protonmail.com - 0x947B9B34.asc"; name="publickey - howaboutsynergy@protonmail.com - 0x947B9B34.asc"
-Content-Transfer-Encoding: base64
-Content-Disposition: attachment; filename="publickey - howaboutsynergy@protonmail.com - 0x947B9B34.asc"; name="publickey - howaboutsynergy@protonmail.com - 0x947B9B34.asc"
-
-LS0tLS1CRUdJTiBQR1AgUFVCTElDIEtFWSBCTE9DSy0tLS0tDQpWZXJzaW9uOiBPcGVuUEdQLmpz
-IHY0LjUuMQ0KQ29tbWVudDogaHR0cHM6Ly9vcGVucGdwanMub3JnDQoNCnhzRk5CRnlmMlFnQkVB
-RGhNTmIvSnlDcXkyeXhQeUxBckNSK1dkZnVOc1ZqZ05LMGZhaktDSm9uVWllNw0KRldXYVJhQzhs
-RTg0MGkzQ0I1dlpSSmNiQUtWZHlTT3VkRHNuWmd4cmsyeEVOL1BSVWVrNWI0ZkxJRHIwDQpOb3Rt
-b0dndXoxd0xXNU9US00zd0g0TXNIM0svT0R6RXhMZ0VNM0ovK0dGUEROemhsL1laNEZJWUhTaGUN
-CkRFVytZNXBQajFhMXpDU2JGajR5ZG1hRGRZVWtIUTV6b1RSNGx2ZXFpVk5XUW13dG44YmF3eGE4
-MmVyeQ0KUzIrMXZ0NTdTZm42UXNPNWdzRHNlMWlYaGIyZTRPS3dZTUVaK0gvYVkraE13MVoxTmpT
-WDdhZmZoZFBUDQptSnB2Vkp1ZnNGS1JhbTViSzk3SHBtbHZlSFYxdU1sdzFLQjQrS3NYZnhTSWlp
-bzU3R0Vqbk1vT1N1NnINCjRDYmhyQXBqZGc5cjZVM2ZkU1Y0alRUM3JESFpWbllFSXNnZ1BpUGJN
-Wjd4WEdVa2dkQzNtUnJucnNBTQ0KajBSZmlNRTM1dVpoT2hiSzN0bFBIN0dIalFHWHNGQzR2SFcz
-b1Z3MksrWUdtbDlvT3gwcVpKTnI2Tkt2DQpkRVdYMU5WbXdQZzQrVmthcVhkV1dLTXJlZnh3Z0NE
-bVpCY094R3VuaXE4VEkwenlxdXNQVFJ5QUVPWVgNCmZHdVVUcHJEWUdRVk5aNGN1WkJCU045WHBj
-dHliTnJGaDliZmNyNTMrUzZ1WVk5RlZkWmp5a0xCVW1uNw0KcjYxYWM4cndnc3ZuVzBzWktJUGZ5
-R2k0K0VpMG81ZUtXcG1WTHVHSUVFWW5vc1lnODdOV0lhVWNZbnk4DQpLemk3dFIyV1YzaVNuVUhP
-UmxPMkoxMUlCeE15OTIwbnVMdk03d0FSQVFBQnpVRWlhRzkzWVdKdmRYUnoNCmVXNWxjbWQ1UUhC
-eWIzUnZibTFoYVd3dVkyOXRJaUE4YUc5M1lXSnZkWFJ6ZVc1bGNtZDVRSEJ5YjNSdg0KYm0xaGFX
-d3VZMjl0UHNMQmRRUVFBUWdBSHdVQ1hKL1pDQVlMQ1FjSUF3SUVGUWdLQWdNV0FnRUNHUUVDDQpH
-d01DSGdFQUNna1FIUDNKWUhoYThremtFeEFBbnFwak5aL1NhelpoREVsa0daeHErOGZMamh1NGw1
-cGgNCjJVU0dFSEdyZTIrY1k0V2dwZEliRGlVeTE0Tkg0Y1ZLL3FEd1RJazhIZ2x2SVhsOFZzdk1t
-SXU1YW9xcg0KdHpiUVVTZi80YkYxRER5WVZmZ21JSnN2cXZRTFg4eldoejJydXJvQmpCbnRwNzVV
-UVBZalYvbCtGZmxlDQpIVzJLWG5TUGVmY1B2cTF0SWFNbkkxTHJsK0FxSXN6K0xMZS9tMkpsU0tL
-c3F0YTRlZkJORlB6L3ZidEgNCjloOFZ6NTZpUm5RS1dpSGFFa1pIcUtiUC9hc2x2ZmltTHptVFVI
-Zk43NVNTMUZpMkJQeG14eFAycDE3MQ0KcmhkMDZoa2V1NjFHRWxPU0M4OG8wc3dVOHJoVWlqem4z
-blFHM1dXUFMvQnBIa1RmRjlTNC9na3dMMStMDQp0YUpOdEQwR2J4a29iQU1iMjA2RTNIRzBZY0g4
-dTlDdWhXSWlpQ3B0bHJlN2dPckdmTkk2cG5qQUhrSFoNCjFaUWFmSm5oVUN0TFkxQjZZQXZ6SUta
-dHM1MG9vTG5tSU5vRmh3MjJRRG9JMnVKU1NzbjkvS1RjOStzNg0KQ2Mvek1TL1NiV0FJdzBGc3Aw
-SDRmM1RkSjd6djhRWE03Vjl5M0FOaVVLNFU1NWRESnRjWmxDZzBkS050DQpqYlNzdWUrZCtNS0cv
-NnBFUHU1UlloSjJDVDgwOWFtdlRqa0JCOTdQdU4zcnNmYWNWZy9yaWtFdmRKWmoNCmtoWjMyVDJX
-bjI0VjJKR0VMT0xLSHE4ZGZoWFNnaDF4YWJ3SUR0QmtleEhlaHVsbmxVekRDM1BHbjl2cQ0Kb29D
-K2tnY01MSE52WEpVWlFldTUva29wa0N4cTBVZmc2MEdCc3hITkxjSlFhZlE3UnVuT3dVMEVYSi9a
-DQpDQUVRQUxyK241MVkvdTZxUEdvMW1hU3B6Y2RrdUQzQnNQU3VRdlZBbzZpc0VVVUdnY0dmbHA5
-by9Id3cNCldFTVFEMWdTTlRaV1BzMjFwbExJbVdJbHFJbExGYWlHS1FnRDRMOHVPVURpVUh1YzRC
-VnBHTzMrTERmYQ0KdjBCc0x1enBWRXo0TXcwUjZ3UnAxTWEvWkNZU3pyaENMSHM0RGp4cURRUUkz
-T1d5TzBub3lISGl3bGJWDQovS1BvejlUaU9adU93dHNLV3hLSzdaMWZuWlQvREZ1MDMrOEhKWTNi
-TlRLamNqT0FYN0QrSUFtd1FaY04NCi9KMElGTkFuL000V01Tc21QdlFDMEtKTVJiRzAxNmhJZHlj
-ZDBVQ2M0MG43MUMwTnFTTWJRY0d1RzdoNg0KWEc4dG50VmJSNE5VTTZIV25MekRXN2RpRFpQRXl1
-TU1DQWVRZmVabzZ0L3BJd0Q0dDk4dmQzQWg0ZnNzDQpSR0hyWUdzMWpoa2dWTjAxOVZUaDVtUnk3
-V2lpUDY4eU43elBBN1Iwa0gydkRCWmxnamdVUlJUaWVLTSsNClV4bllHbE54ek5waWhRZWpVaVEw
-MlhPa3VHU1VCYmxUNm1YdFl5UHd5SC9EYmNoa3ZVa3FXejlSS1RURw0KSEJrdERyOHZjcHY1ZG9D
-eXY1bW1Pb2ZRYnA0YXBuc0R2SldGejkxbUtYdkdwZlQ1Q1MyaDJhUnRPMW9SDQpadWpIQUhDNGQ0
-OXc0MTVSdXo2MlhTTGw0d3E4UHZDcXFWS0dTc1R4bSsvR3plN01yOWZpWjZSVXAvaHUNCndoVm5H
-UHE1UzQyQW8wemxOTXpYRTEvajVBS2drOTV2ZEVWeDB5V1ZDbTV1Wnc0K0haeXUyUUdGM3NjWQ0K
-NFhDUGRHL2l5d3NjZU1ZMVdXQlZiQS95dWdMSkFCRUJBQUhDd1Y4RUdBRUlBQWtGQWx5ZjJRZ0NH
-d3dBDQpDZ2tRSFAzSllIaGE4a3o0eFEvOUhSTlJGRjY4OVVCaXNISXg5eVI3WG5iVTNKaGd3VFAv
-bHpSS01rZGcNCjVUSENqN0M1bXpKREtzZmZVMURSWEFtVkM1eWIvc1JEUzQ5aGdOa0ZpZlRxNWF0
-V20yTWR4aHAyUlZFWQ0KREl3L2p0Wm5rLy9IWDJ2MDJhd3pJTktUTXM1S0tYdFAyMTA5NG1IT2wr
-MzNFRi92T2t3ajJOMHRtL2wzDQp6ZmNDdzVsVHZpbGFCcDd5ZUpJSjB5aU45QlF0Skl3MG9PRjFF
-b3k4Z3RlRGFzN2tWVFI0T2pLM0JyQzMNCktMYXFlZEQ0RVRrYSszZHdVZXRETEYyQkZ6Q3JIeDBI
-bWFPWXZFNzgwaGpFMk9QQytUNTlwdnU2RG1wYg0KRmczcnlJcVJwSTZxRm5UUlVjVmVSNTU4Ly9Q
-K3E1cElGd3F4Y0dwNllTdytXb0Q5UEs2MEd0ZVlIL2FRDQptTW5Ba096RlJSOGpqYVJBa2JtTnFF
-L1ZLK2FLeDBBYWlNdy8zTFNsbHNrcGdGNUcvcjBEUXRobVpnRVENCmRNUWdRQWRVbW1EMFp3VzUx
-VVVTZzJmaHd3NkFzMHAxWlBYTWdOaWdsLzQ0b0ZQdDZBSVBhc25HejVqRg0KYVRzSjlqdnFFT3lm
-dlRtNTNvYnJZeTNaRHJydy9reEZYc1Z6MkVaZzI3Y05yY2Z1ejRzYWtodzUzZFY5DQp4MkVMTkE2
-NlVSSFNpRjR6TUYxaVBpL2JGVkVrMEhuVVpNTGJmblV5V0hKTTBNY0RLSCthSDFIOGZpOWcNClVa
-TitxWnEveXJ3dzJuYWJMVDRtVXFCTnVQOVZrY2dPdXlwNVhIYlBRZkIwRDI4cW9IWDVjNE1GeEVa
-Qw0KV3MrOVRzQkxCdmxBSno3VkF4dWNrY1huWVhUUnNTanBTZUd0czBUeE85TT0NCj1Land6DQot
-LS0tLUVORCBQR1AgUFVCTElDIEtFWSBCTE9DSy0tLS0tDQo=
------------------------b2ee6b90a20cc8ef21998f5505683477--
-
------------------------f9cf7709289c0253c27547d854b711d7
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: OpenPGP digital signature
-Content-Disposition: attachment; filename="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-Version: ProtonMail
-Comment: https://protonmail.com
-
-wsFcBAEBCAAGBQJdLQwSAAoJEBz9yWB4WvJMM/AP/2JHLLahw8i0MK148X/4
-RYMN/ftwXi0yymqK0jHwKIbmdxuM1XO4pgKVTkjxhAeRmi2+O95iWDGMnXf5
-Tm8MJFEcie6SLsHOWewNI2uTQkXHZCJGIExXIENDpikOUU6MnMOfDtvUOLid
-Bt/Ic/arCf9Udam6bOaQYsECGleBH59lk8EHpQ0CNFgv/ZFmlgLJ8Tl6QCA1
-EHYjGvTF0AZJK9sAaMpDyXfDD5dTBCNdbTxr/U1V8qebcJciZfShCkmq7I0X
-K/8YlGN+IEOyvixY9UIazBL8zfNejKVBygCUPKa2e3J4DCe2NdW2homOmzJ3
-MRHusC7Xc6zb4FG/q7MBhQDrUZ5KK5+Y6QtR8ahUka2kSA4CLmPXEXy+1ozb
-97iGvgoTsKg2mPJYOE3cNd9a9kYjxJueapAo3t+TcTWLE1tM4lNqW529Bmg9
-OcLqEUdNJQ+FPzEuYNv/2lGIiUsY+8fablirfKqMiAukO+r5pG76aYj0uRj1
-5vpvOuuOYSJ3Yt0743UHfDg/YLPJXLHPPaIpRpWJNctt6vgk3sRIcYWb+ShS
-sDRw696TY3/02VZWZ+drgCXDlEPgHkXTCczX2Z37l5VC8UVSpVyRxH2cTkIG
-2DQiAPn3KmsJvidnIAPB72Xxg/DZVTaO8JsPDKyJnUCGPCHNSw3H0BuHNsJM
-rCkv
-=zFdX
------END PGP SIGNATURE-----
-
-
------------------------f9cf7709289c0253c27547d854b711d7--
+thanks,
+--=20
+John Hubbard
+NVIDIA
 
