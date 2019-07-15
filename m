@@ -2,335 +2,264 @@ Return-Path: <SRS0=FHqE=VM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY,USER_AGENT_SANE_1
+X-Spam-Status: No, score=-3.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT
 	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 765E4C7618D
-	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 04:52:51 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id F3FE8C7618D
+	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 06:17:29 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 124AF2067C
-	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 04:52:50 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 124AF2067C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
+	by mail.kernel.org (Postfix) with ESMTP id 9074E20644
+	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 06:17:29 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9074E20644
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8D2626B0003; Mon, 15 Jul 2019 00:52:49 -0400 (EDT)
+	id ED2CE6B0003; Mon, 15 Jul 2019 02:17:28 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 882086B0006; Mon, 15 Jul 2019 00:52:49 -0400 (EDT)
+	id E5BAD6B0006; Mon, 15 Jul 2019 02:17:28 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 74A2D6B0007; Mon, 15 Jul 2019 00:52:49 -0400 (EDT)
+	id CFDE96B0007; Mon, 15 Jul 2019 02:17:28 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 3ABF46B0003
-	for <linux-mm@kvack.org>; Mon, 15 Jul 2019 00:52:49 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id g21so9678798pfb.13
-        for <linux-mm@kvack.org>; Sun, 14 Jul 2019 21:52:49 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 7A0836B0003
+	for <linux-mm@kvack.org>; Mon, 15 Jul 2019 02:17:28 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id b12so12859647ede.23
+        for <linux-mm@kvack.org>; Sun, 14 Jul 2019 23:17:28 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-transfer-encoding:content-language;
-        bh=fT1WcrECSB0NrO+ZZEd5if7eQjyYFYO/M9wrvzy2bnY=;
-        b=PJrFeVTg/vD4RQrYDlNlNZsZUlA2gzXiRDZoMgF6kexyAi5w5tBwkXTPIMHkGAP7uc
-         rKSBNyivnuY74jK7oyJfrdpxWt0ZmTH7E+BlQYy/hGzYQABWqb8eoTUnUBNrJ6oRR8vU
-         sNYYI/iGmknOiCbBy7w32terSw2VfVCFMx+yR3LWcTy1i++nXRy0SVdFpnzlkhpZYJ9x
-         LgZ7/wVwHwrVG1Ts9vAPb62izPDwmfyaZr8OMwgSTFOJwPig50Mm2bN84zGcS50bY5Ic
-         9NWkeAGiKfXSBWWeEd5xq4XY5CzUczGdQh4tUGSkoZqC0pW+974PNd2nZNrzIzQxRiTO
-         Ifhw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.54 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Gm-Message-State: APjAAAXBqBH8dlRRF6uBwsgSp23Nel3iEIkuyOLvr9VOR9M5cl8XrMUv
-	DPWGpc3wHH7+g/utcLcnc/QD5WxFKHiioZC5RI4W/JumG4hdE97ohQwINaTZohMQ89g/a9LXezx
-	lw71uofKMt2mmScN2kpXxK7XvCB3K6SPiap8xQaAXADBbcU1zMl/n/48Y9jOJzNMEZA==
-X-Received: by 2002:a17:90a:3ae8:: with SMTP id b95mr26421498pjc.68.1563166368774;
-        Sun, 14 Jul 2019 21:52:48 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxrS4tVqu0gS2eSUBGFIvzqAmV1IVckJND0XwkV3P3+zN8V+RGid5P6wa2mg7nSab5q7bxl
-X-Received: by 2002:a17:90a:3ae8:: with SMTP id b95mr26421435pjc.68.1563166367468;
-        Sun, 14 Jul 2019 21:52:47 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563166367; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id;
+        bh=ykBrGAF9Osy4u6Kgs6RJe3emPurKJEmaSL5DLPZKttA=;
+        b=gLyhRWLex+n6xZwxWjQQxsXqaLnV3ED1QTHa+z8DhLPzPh2g2a6VAgzxDKw+Mewy8u
+         ZzTD6KIWql8IlAb2Jwi3MrKmZJXaEGD40HyUgeiFdMHQ2gjJCOPXFzjM2T+TKtCboIIR
+         ATEtuxbLsE1UyInCYI2UMyHdpw9Lg9BsxrIMcUI9J3Tpj8b7zAzrJtwwjtqARi6tt153
+         ripvDjQ68fakMMVakIbk20vw0TMQeC2K1dZAyWKQeJ+1cH4PMfsfTsVaBcQia0lFGsn6
+         5G8OuA1H/Ekx7XLzEFeRJWAHN8gD7r0yRFgUmZCLZ8ygw9kghL7GdW/8uIFZ+9gTkN78
+         Bwkg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+X-Gm-Message-State: APjAAAVAXr65oHSAmM//t9hxDy9DHBbBsJfpJPJNTlN7dh92xvN7MlQF
+	1tNMtFs8Po5LYEONrkAMxwcXYFKceFPYMLBLbxOnZXgsAaAIXYFu/rGG3L0/KG9kBzWIe0BbEry
+	+Knkpe9KXwbNXKGo47CVz9l9Lf83YgtIjYXiKcENCNX9y6EAMB84pG3QqCy98RHydmA==
+X-Received: by 2002:a50:b3fb:: with SMTP id t56mr21295832edd.303.1563171447842;
+        Sun, 14 Jul 2019 23:17:27 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzo8PSX6keWQu2nEtgoWciQMQRZg9CpXLfC+AJBwX8uhNOSNgBkxn5wRDO6XVJMVtuEUt95
+X-Received: by 2002:a50:b3fb:: with SMTP id t56mr21295758edd.303.1563171446367;
+        Sun, 14 Jul 2019 23:17:26 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563171446; cv=none;
         d=google.com; s=arc-20160816;
-        b=tKs84sscb0pXxHTgUWCdlPAkL5QkFPmKs43jVQwZK7OEwmsIm5fEOg55tyzGNEMSJH
-         SqnvCDwGFMOr74AzYW5LMPJa28UeHRacw7mPBQ3yKWVPnrJHsiwE70AE0lwN5mBBG8Kj
-         DluqjJJhfl9TjmnyzcwdFMiSo320tURh4DCWOXmozZoG21Eej5bz4YgkHU1z4ElNwDmD
-         wdc/4BF1+0HHhBq9tGb/3c1Fc84WyZn+D3T5GJ/Ma75nLWPgMGrFWxBp4lEUTgJkpfRD
-         gHvoMLbMFu6edYvNRWH3iaNWWYzi1sj2xgNnH4NLunHoyJ2XJ5rmIbLh2Qape1HxRSxJ
-         Bkdw==
+        b=yURuAFinUgmTFZYyRRjzu7yNM5qFdmF2CRtlTbRFp2Wcnhmu0WCURKyh4dlaHGXcNy
+         h/KbZvXMJdPS+njVS0tv0+CWSc0sfDQB7cj8nVgDMyF2rz75AR3SN8iV/VA1Sgz7LiKO
+         twpKxk9fVhQUR/A5MbvWLRprarrDiRF72vpY2rqCAmnAKL7eZ7G8tYOo0+ugoqpoY4ZN
+         f3rvwHhON/DBI4QdbLoDyYhKDeDVWPRFj3Q67PI0/YpazGZCnfbzladQYUUPkvJFJGcJ
+         DyRZAQl3+YKVU671mzkrIdTEvh0PRpjt5sGtJ2LO/Fwss1t+HtxaxwmkOymOVrcHr8XH
+         pjZg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-language:content-transfer-encoding:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=fT1WcrECSB0NrO+ZZEd5if7eQjyYFYO/M9wrvzy2bnY=;
-        b=GdIBi5WW2ICNpMQR+SA5zDMl3AO51ZBeMTWXUE2usUMfwC3zwKLqRFkV2aLa1317QT
-         Izd6TrbVjnME1InjLywHNnMmNdwRZW60aZmrt4rnMIP98i/wCTYiSsAy1vQhm8A1utfo
-         bKymIpszaFH+w0qNtPG971BjGgxJFnpXWazoh+t5NS3PvyDYJyTYYnBpZ9ATlksPGn26
-         EHJKZYJPBZb6hi0qt0C2MlOPd13xETH4t2LSeg7vsgA62PMh4/hIM+BuoB3sdBOLwjgk
-         Ths41L/KqYU9sIZ18lpCberPKPWj9hPLzE56Tc0uei42FjI0dwpTnFxmtM7vrs7rxZfe
-         EJuw==
+        h=message-id:date:subject:cc:to:from;
+        bh=ykBrGAF9Osy4u6Kgs6RJe3emPurKJEmaSL5DLPZKttA=;
+        b=uQukdkUZF7PDRr/esAvQnJc79e1XInUcG/BKx1gdZm4EyDWrEQBYt3OuIFs2i6zlOq
+         KpU6oBdknGnozw/IcVs1tOD7GOSyytbg83tT/sAEhd4oHKwcXnLv1l+RYS2fxpc/nc5u
+         c4yi+05HZeVTTId3HsdnO0yobPwQW5zryWSrYIrEvqUmvjPeqbByLypXnxAXzDrHr/0T
+         Tsgz9UOCeGh1PHNfozWm39SqFsneLYTnWvDdYBRfJUb2HOvTMe6vy+NoXlA+geCr/ZL8
+         LhxSbQ6y2X34LeqU2lNiRhpdRUakHvbcYGyNj4SXKzKocmDZZ+eRdfACXp9vgZlHSMTD
+         W5+g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.54 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-Received: from out30-54.freemail.mail.aliyun.com (out30-54.freemail.mail.aliyun.com. [115.124.30.54])
-        by mx.google.com with ESMTPS id q31si15319739pjc.33.2019.07.14.21.52.46
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 14 Jul 2019 21:52:47 -0700 (PDT)
-Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.54 as permitted sender) client-ip=115.124.30.54;
+       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
+        by mx.google.com with ESMTP id y12si9968420edd.87.2019.07.14.23.17.25
+        for <linux-mm@kvack.org>;
+        Sun, 14 Jul 2019 23:17:26 -0700 (PDT)
+Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.54 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R111e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e01422;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=6;SR=0;TI=SMTPD_---0TWuPsBu_1563166362;
-Received: from US-143344MP.local(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TWuPsBu_1563166362)
-          by smtp.aliyun-inc.com(127.0.0.1);
-          Mon, 15 Jul 2019 12:52:44 +0800
-Subject: Re: list corruption in deferred_split_scan()
-To: Hillf Danton <hdanton@sina.com>, Qian Cai <cai@lca.pw>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
- akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-References: <1562795006.8510.19.camel@lca.pw>
-From: Yang Shi <yang.shi@linux.alibaba.com>
-Message-ID: <194dfb31-86d9-a87f-c71d-7bfe102f722c@linux.alibaba.com>
-Date: Sun, 14 Jul 2019 21:52:39 -0700
-User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:52.0)
- Gecko/20100101 Thunderbird/52.7.0
-MIME-Version: 1.0
-In-Reply-To: <1562795006.8510.19.camel@lca.pw>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 8bit
-Content-Language: en-US
+       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 4C993337;
+	Sun, 14 Jul 2019 23:17:25 -0700 (PDT)
+Received: from p8cg001049571a15.blr.arm.com (p8cg001049571a15.blr.arm.com [10.162.40.143])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPA id 015AB3F71F;
+	Sun, 14 Jul 2019 23:19:18 -0700 (PDT)
+From: Anshuman Khandual <anshuman.khandual@arm.com>
+To: linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org,
+	linux-arm-kernel@lists.infradead.org,
+	akpm@linux-foundation.org,
+	catalin.marinas@arm.com,
+	will.deacon@arm.com
+Cc: mark.rutland@arm.com,
+	mhocko@suse.com,
+	ira.weiny@intel.com,
+	david@redhat.com,
+	cai@lca.pw,
+	logang@deltatee.com,
+	james.morse@arm.com,
+	cpandya@codeaurora.org,
+	arunks@codeaurora.org,
+	dan.j.williams@intel.com,
+	mgorman@techsingularity.net,
+	osalvador@suse.de,
+	ard.biesheuvel@arm.com,
+	steve.capper@arm.com
+Subject: [PATCH V6 RESEND 0/3] arm64/mm: Enable memory hot remove
+Date: Mon, 15 Jul 2019 11:47:47 +0530
+Message-Id: <1563171470-3117-1-git-send-email-anshuman.khandual@arm.com>
+X-Mailer: git-send-email 2.7.4
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+This series enables memory hot remove on arm64 after fixing a memblock
+removal ordering problem in generic try_remove_memory() and a possible
+arm64 platform specific kernel page table race condition. This series
+is based on linux-next (next-20190712).
 
+Concurrent vmalloc() and hot-remove conflict:
 
-On 7/13/19 8:53 PM, Hillf Danton wrote:
-> On Wed, 10 Jul 2019 14:43:28 -0700 (PDT) Qian Cai wrote:
->> Running LTP oom01 test case with swap triggers a crash below. Revert the series
->> "Make deferred split shrinker memcg aware" [1] seems fix the issue.
->>
->> aefde94195ca mm: thp: make deferred split shrinker memcg aware
->> cf402211cacc mm-shrinker-make-shrinker-not-depend-on-memcg-kmem-fix-2-fix
->> ca37e9e5f18d mm-shrinker-make-shrinker-not-depend-on-memcg-kmem-fix-2
->> 5f419d89cab4 mm-shrinker-make-shrinker-not-depend-on-memcg-kmem-fix
->> c9d49e69e887 mm: shrinker: make shrinker not depend on memcg kmem
->> 1c0af4b86bcf mm: move mem_cgroup_uncharge out of __page_cache_release()
->> 4e050f2df876 mm: thp: extract split_queue_* into a struct
->>
->> [1] https://lore.kernel.org/linux-mm/1561507361-59349-1-git-send-email-yang.shi@linux.alibaba.com/
->>
->> [ 1145.730682][ T5764] list_del corruption, ffffea00251c8098->next is LIST_POISON1 (dead000000000100)
->> [ 1145.739763][ T5764] ------------[ cut here ]------------
->> [ 1145.745126][ T5764] kernel BUG at lib/list_debug.c:47!
->> [ 1145.750320][ T5764] invalid opcode: 0000 [#1] SMP DEBUG_PAGEALLOC KASAN NOPTI
->> [ 1145.757513][ T5764] CPU: 1 PID: 5764 Comm: oom01 Tainted: G        W         5.2.0-next-20190710+ #7
->> [ 1145.766709][ T5764] Hardware name: HPE ProLiant DL385 Gen10/ProLiant DL385 Gen10, BIOS A40 01/25/2019
->> [ 1145.776000][ T5764] RIP: 0010:__list_del_entry_valid.cold.0+0x12/0x4a
->> [ 1145.782491][ T5764] Code: c7 40 5a 33 af e8 ac fe bc ff 0f 0b 48 c7 c7 80 9e
->> a1 af e8 f6 4c 01 00 4c 89 ea 48 89 de 48 c7 c7 20 59 33 af e8 8c fe bc ff <0f>
->> 0b 48 c7 c7 40 9f a1 af e8 d6 4c 01 00 4c 89 e2 48 89 de 48 c7
->> [ 1145.802078][ T5764] RSP: 0018:ffff888514d773c0 EFLAGS: 00010082
->> [ 1145.808042][ T5764] RAX: 000000000000004e RBX: ffffea00251c8098 RCX: ffffffffae95d318
->> [ 1145.815923][ T5764] RDX: 0000000000000000 RSI: 0000000000000008 RDI: ffff8888440bd380
->> [ 1145.823806][ T5764] RBP: ffff888514d773d8 R08: ffffed1108817a71 R09: ffffed1108817a70
->> [ 1145.831689][ T5764] R10: ffffed1108817a70 R11: ffff8888440bd387 R12: dead000000000122
->> [ 1145.839571][ T5764] R13: dead000000000100 R14: ffffea00251c8034 R15: dead000000000100
->> [ 1145.847455][ T5764] FS:  00007f765ad4d700(0000) GS:ffff888844080000(0000) knlGS:0000000000000000
->> [ 1145.856299][ T5764] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
->> [ 1145.862784][ T5764] CR2: 00007f8cebec7000 CR3: 0000000459338000 CR4: 00000000001406a0
->> [ 1145.870664][ T5764] Call Trace:
->> [ 1145.873835][ T5764]  deferred_split_scan+0x337/0x740
->> [ 1145.878835][ T5764]  ? split_huge_page_to_list+0xe30/0xe30
->> [ 1145.884364][ T5764]  ? __radix_tree_lookup+0x12d/0x1e0
->> [ 1145.889539][ T5764]  ? node_tag_get.part.0.constprop.6+0x40/0x40
->> [ 1145.895592][ T5764]  do_shrink_slab+0x244/0x5a0
->> [ 1145.900159][ T5764]  shrink_slab+0x253/0x440
->> [ 1145.904462][ T5764]  ? unregister_shrinker+0x110/0x110
->> [ 1145.909641][ T5764]  ? kasan_check_read+0x11/0x20
->> [ 1145.914383][ T5764]  ? mem_cgroup_protected+0x20f/0x260
->> [ 1145.919645][ T5764]  shrink_node+0x31e/0xa30
->> [ 1145.923949][ T5764]  ? shrink_node_memcg+0x1560/0x1560
->> [ 1145.929126][ T5764]  ? ktime_get+0x93/0x110
->> [ 1145.933340][ T5764]  do_try_to_free_pages+0x22f/0x820
->> [ 1145.938429][ T5764]  ? shrink_node+0xa30/0xa30
->> [ 1145.942906][ T5764]  ? kasan_check_read+0x11/0x20
->> [ 1145.947647][ T5764]  ? check_chain_key+0x1df/0x2e0
->> [ 1145.952474][ T5764]  try_to_free_pages+0x242/0x4d0
->> [ 1145.957299][ T5764]  ? do_try_to_free_pages+0x820/0x820
->> [ 1145.962566][ T5764]  __alloc_pages_nodemask+0x9ce/0x1bc0
->> [ 1145.967917][ T5764]  ? kasan_check_read+0x11/0x20
->> [ 1145.972657][ T5764]  ? gfp_pfmemalloc_allowed+0xc0/0xc0
->> [ 1145.977920][ T5764]  ? kasan_check_read+0x11/0x20
->> [ 1145.982659][ T5764]  ? check_chain_key+0x1df/0x2e0
->> [ 1145.987487][ T5764]  ? do_anonymous_page+0x343/0xe30
->> [ 1145.992489][ T5764]  ? lock_downgrade+0x390/0x390
->> [ 1145.997230][ T5764]  ? __count_memcg_events+0x8b/0x1c0
->> [ 1146.002404][ T5764]  ? kasan_check_read+0x11/0x20
->> [ 1146.007145][ T5764]  ? __lru_cache_add+0x122/0x160
->> [ 1146.011974][ T5764]  alloc_pages_vma+0x89/0x2c0
->> [ 1146.016538][ T5764]  do_anonymous_page+0x3e1/0xe30
->> [ 1146.021367][ T5764]  ? __update_load_avg_cfs_rq+0x2c/0x490
->> [ 1146.026893][ T5764]  ? finish_fault+0x120/0x120
->> [ 1146.031461][ T5764]  ? call_function_interrupt+0xa/0x20
->> [ 1146.036724][ T5764]  handle_pte_fault+0x457/0x12c0
->> [ 1146.041552][ T5764]  __handle_mm_fault+0x79a/0xa50
->> [ 1146.046378][ T5764]  ? vmf_insert_mixed_mkwrite+0x20/0x20
->> [ 1146.051817][ T5764]  ? kasan_check_read+0x11/0x20
->> [ 1146.056557][ T5764]  ? __count_memcg_events+0x8b/0x1c0
->> [ 1146.061732][ T5764]  handle_mm_fault+0x17f/0x370
->> [ 1146.066386][ T5764]  __do_page_fault+0x25b/0x5d0
->> [ 1146.071037][ T5764]  do_page_fault+0x4c/0x2cf
->> [ 1146.075426][ T5764]  ? page_fault+0x5/0x20
->> [ 1146.079553][ T5764]  page_fault+0x1b/0x20
->> [ 1146.083594][ T5764] RIP: 0033:0x410be0
->> [ 1146.087373][ T5764] Code: 89 de e8 e3 23 ff ff 48 83 f8 ff 0f 84 86 00 00 00
->> 48 89 c5 41 83 fc 02 74 28 41 83 fc 03 74 62 e8 95 29 ff ff 31 d2 48 98 90 <c6>
->> 44 15 00 07 48 01 c2 48 39 d3 7f f3 31 c0 5b 5d 41 5c c3 0f 1f
->> [ 1146.106959][ T5764] RSP: 002b:00007f765ad4cec0 EFLAGS: 00010206
->> [ 1146.112921][ T5764] RAX: 0000000000001000 RBX: 00000000c0000000 RCX: 00007f98f2674497
->> [ 1146.120804][ T5764] RDX: 0000000001d95000 RSI: 00000000c0000000 RDI: 0000000000000000
->> [ 1146.128687][ T5764] RBP: 00007f74d9d4c000 R08: 00000000ffffffff R09: 0000000000000000
->> [ 1146.136569][ T5764] R10: 0000000000000022 R11: 000000000
->> [ 1147.588181][ T5764] Shutting down cpus with NMI
->> [ 1147.592756][ T5764] Kernel Offset: 0x2d400000 from 0xffffffff81000000 (relocation range: 0xffffffff80000000-0xffffffffbfffffff)
->> [ 1147.604414][ T5764] ---[ end Kernel panic - not syncing: Fatal exception ]---
->
-> Ignore the noise if there is no chance you think to corrupt the local list walk
-> in some way like:
->
-> 	CPU0				CPU1
-> 	----				----
-> 	take no lock			spin_lock_irqsave(&ds_queue->split_queue_lock, flags);
-> 	list_for_each_safe(pos, next,
-> 				&list)
-> 					list_del(page_deferred_list(page));
-> 	page = list_entry((void *)pos,
-> 		struct page, mapping);
-> 					spin_unlock_irqrestore(&ds_queue->split_queue_lock, flags);
+As pointed out earlier on the v5 thread [2] there can be potential conflict
+between concurrent vmalloc() and memory hot-remove operation. This can be
+solved or at least avoided with some possible methods. The problem here is
+caused by inadequate locking in vmalloc() which protects installation of a
+page table page but not the walk or the leaf entry modification.
 
-IMHO, I didn't see the race could happen really.
+Option 1: Making locking in vmalloc() adequate
 
-list_del() is called at 3 places:
-1. Parallel free_transhuge_page(): The refcount bump should prevent from 
-the race.
-2. Parallel reclaimer: split_queue_lock should prevent this, so the 
-other reclaimer should not see the same page.
-3. Parallel split_huge_page(): I'm not sure about this one. But, page 
-lock should be acquired before calling split_huge_page() in other call 
-paths too.
+Current locking scheme protects installation of page table pages but not the
+page table walk or leaf entry creation which can conflict with hot-remove.
+This scheme is sufficient for now as vmalloc() works on mutually exclusive
+ranges which can proceed concurrently only if their shared page table pages
+can be created while inside the lock. It achieves performance improvement
+which will be compromised if entire vmalloc() operation (even if with some
+optimization) has to be completed under a lock.
 
-I'm not sure if I miss anything, please feel free to correct me.
+Option 2: Making sure hot-remove does not happen during vmalloc()
 
->
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -2765,7 +2765,7 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
->   	if (!mapcount && page_ref_freeze(head, 1 + extra_pins)) {
->   		if (!list_empty(page_deferred_list(head))) {
->   			ds_queue->split_queue_len--;
-> -			list_del(page_deferred_list(head));
-> +			list_del_init(page_deferred_list(head));
->   		}
->   		if (mapping)
->   			__dec_node_page_state(page, NR_SHMEM_THPS);
-> @@ -2814,7 +2814,7 @@ void free_transhuge_page(struct page *page)
->   	spin_lock_irqsave(&ds_queue->split_queue_lock, flags);
->   	if (!list_empty(page_deferred_list(page))) {
->   		ds_queue->split_queue_len--;
-> -		list_del(page_deferred_list(page));
-> +		list_del_init(page_deferred_list(page));
->   	}
->   	spin_unlock_irqrestore(&ds_queue->split_queue_lock, flags);
->   	free_compound_page(page);
-> --
+Take mem_hotplug_lock in read mode through [get|put]_online_mems() constructs
+for the entire duration of vmalloc(). It protects from concurrent memory hot
+remove operation and does not add any significant overhead to other concurrent
+vmalloc() threads. It solves the problem in right way unless we do not want to
+extend the usage of mem_hotplug_lock in generic MM.
 
-I proposed the similar thing.
+Option 3: Memory hot-remove does not free (conflicting) page table pages
 
-> The major important is listed above; the minor trivial part below.
-> Both are only for thought collectings.
->
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -2869,9 +2869,8 @@ static unsigned long deferred_split_scan(struct shrinker *shrink,
->   	struct pglist_data *pgdata = NODE_DATA(sc->nid);
->   	struct deferred_split *ds_queue;
->   	unsigned long flags;
-> -	LIST_HEAD(list), *pos, *next;
->   	struct page *page;
-> -	int split = 0;
-> +	unsigned long nr_split = 0;
->   
->   #ifdef CONFIG_MEMCG
->   	if (sc->memcg)
-> @@ -2884,44 +2883,44 @@ static unsigned long deferred_split_scan(struct shrinker *shrink,
->   
->   	spin_lock_irqsave(&ds_queue->split_queue_lock, flags);
->   	/* Take pin on all head pages to avoid freeing them under us */
-> -	list_for_each_safe(pos, next, &ds_queue->split_queue) {
-> -		page = list_entry((void *)pos, struct page, mapping);
-> +	while (sc->nr_to_scan && !list_empty(&ds_queue->split_queue)) {
-> +		bool locked, pinned;
-> +
-> +		page = list_first_entry(&ds_queue->split_queue, struct page,
-> +						mapping);
->   		page = compound_head(page);
-> +
->   		if (get_page_unless_zero(page)) {
-> -			list_move(page_deferred_list(page), &list);
-> +			pinned = true;
-> +			locked = trylock_page(page);
->   		} else {
->   			/* We lost race with put_compound_page() */
-> -			list_del_init(page_deferred_list(page));
-> -			ds_queue->split_queue_len--;
-> +			pinned = false;
-> +			locked = false;
-> +		}
-> +		list_del_init(page_deferred_list(page));
-> +		ds_queue->split_queue_len--;
-> +		--sc->nr_to_scan;
-> +		if (!pinned)
-> +			continue;
-> +		spin_unlock_irqrestore(&ds_queue->split_queue_lock, flags);
-> +		if (locked) {
-> +			if (!split_huge_page(page))
-> +				nr_split++;
-> +			unlock_page(page);
->   		}
-> -		if (!--sc->nr_to_scan)
-> -			break;
-> -	}
-> -	spin_unlock_irqrestore(&ds_queue->split_queue_lock, flags);
-> -
-> -	list_for_each_safe(pos, next, &list) {
-> -		page = list_entry((void *)pos, struct page, mapping);
-> -		if (!trylock_page(page))
-> -			goto next;
-> -		/* split_huge_page() removes page from list on success */
-> -		if (!split_huge_page(page))
-> -			split++;
-> -		unlock_page(page);
-> -next:
->   		put_page(page);
-> +		spin_lock_irqsave(&ds_queue->split_queue_lock, flags);
->   	}
-> -
-> -	spin_lock_irqsave(&ds_queue->split_queue_lock, flags);
-> -	list_splice_tail(&list, &ds_queue->split_queue);
->   	spin_unlock_irqrestore(&ds_queue->split_queue_lock, flags);
->   
->   	/*
->   	 * Stop shrinker if we didn't split any page, but the queue is empty.
->   	 * This can happen if pages were freed under us.
->   	 */
-> -	if (!split && list_empty(&ds_queue->split_queue))
-> +	if (!nr_split && list_empty(&ds_queue->split_queue))
->   		return SHRINK_STOP;
-> -	return split;
-> +	return nr_split;
->   }
->   
->   static struct shrinker deferred_split_shrinker = {
-> --
+Don't not free page table pages (if any) for vmemmap mappings after unmapping
+it's virtual range. The only downside here is that some page table pages might
+remain empty and unused until next memory hot-add operation of the same memory
+range.
+
+Option 4: Dont let vmalloc and vmemmap share intermediate page table pages
+
+The conflict does not arise if vmalloc and vmemap range do not share kernel
+page table pages to start with. If such placement can be ensured in platform
+kernel virtual address layout, this problem can be successfully avoided.
+
+There are two generic solutions (Option 1 and 2) and two platform specific
+solutions (Options 2 and 3). This series has decided to go with (Option 3)
+which requires minimum changes while self-contained inside the functionality.
+
+Testing:
+
+Memory hot remove has been tested on arm64 for 4K, 16K, 64K page config
+options with all possible CONFIG_ARM64_VA_BITS and CONFIG_PGTABLE_LEVELS
+combinations. Its only build tested on non-arm64 platforms.
+
+Changes in V6:
+
+- Implemented most of the suggestions from Mark Rutland
+- Added <linux/memory_hotplug.h> in ptdump
+- remove_pagetable() now has two distinct passes over the kernel page table
+- First pass unmap_hotplug_range() removes leaf level entries at all level
+- Second pass free_empty_tables() removes empty page table pages
+- Kernel page table lock has been dropped completely
+- vmemmap_free() does not call freee_empty_tables() to avoid conflict with vmalloc()
+- All address range scanning are converted to do {} while() loop
+- Added 'unsigned long end' in __remove_pgd_mapping()
+- Callers need not provide starting pointer argument to free_[pte|pmd|pud]_table() 
+- Drop the starting pointer argument from free_[pte|pmd|pud]_table() functions
+- Fetching pxxp[i] in free_[pte|pmd|pud]_table() is wrapped around in READ_ONCE()
+- free_[pte|pmd|pud]_table() now computes starting pointer inside the function
+- Fixed TLB handling while freeing huge page section mappings at PMD or PUD level
+- Added WARN_ON(!page) in free_hotplug_page_range()
+- Added WARN_ON(![pm|pud]_table(pud|pmd)) when there is no section mapping
+
+- [PATCH 1/3] mm/hotplug: Reorder memblock_[free|remove]() calls in try_remove_memory()
+- Request earlier for separate merger (https://patchwork.kernel.org/patch/10986599/)
+- s/__remove_memory/try_remove_memory in the subject line
+- s/arch_remove_memory/memblock_[free|remove] in the subject line
+- A small change in the commit message as re-order happens now for memblock remove
+  functions not for arch_remove_memory()
+
+Changes in V5: (https://lkml.org/lkml/2019/5/29/218)
+
+- Have some agreement [1] over using memory_hotplug_lock for arm64 ptdump
+- Change 7ba36eccb3f8 ("arm64/mm: Inhibit huge-vmap with ptdump") already merged
+- Dropped the above patch from this series
+- Fixed indentation problem in arch_[add|remove]_memory() as per David
+- Collected all new Acked-by tags
+ 
+Changes in V4: (https://lkml.org/lkml/2019/5/20/19)
+
+- Implemented most of the suggestions from Mark Rutland
+- Interchanged patch [PATCH 2/4] <---> [PATCH 3/4] and updated commit message
+- Moved CONFIG_PGTABLE_LEVELS inside free_[pud|pmd]_table()
+- Used READ_ONCE() in missing instances while accessing page table entries
+- s/p???_present()/p???_none() for checking valid kernel page table entries
+- WARN_ON() when an entry is !p???_none() and !p???_present() at the same time
+- Updated memory hot-remove commit message with additional details as suggested
+- Rebased the series on 5.2-rc1 with hotplug changes from David and Michal Hocko
+- Collected all new Acked-by tags
+
+Changes in V3: (https://lkml.org/lkml/2019/5/14/197)
+ 
+- Implemented most of the suggestions from Mark Rutland for remove_pagetable()
+- Fixed applicable PGTABLE_LEVEL wrappers around pgtable page freeing functions
+- Replaced 'direct' with 'sparse_vmap' in remove_pagetable() with inverted polarity
+- Changed pointer names ('p' at end) and removed tmp from iterations
+- Perform intermediate TLB invalidation while clearing pgtable entries
+- Dropped flush_tlb_kernel_range() in remove_pagetable()
+- Added flush_tlb_kernel_range() in remove_pte_table() instead
+- Renamed page freeing functions for pgtable page and mapped pages
+- Used page range size instead of order while freeing mapped or pgtable pages
+- Removed all PageReserved() handling while freeing mapped or pgtable pages
+- Replaced XXX_index() with XXX_offset() while walking the kernel page table
+- Used READ_ONCE() while fetching individual pgtable entries
+- Taken overall init_mm.page_table_lock instead of just while changing an entry
+- Dropped previously added [pmd|pud]_index() which are not required anymore
+- Added a new patch to protect kernel page table race condition for ptdump
+- Added a new patch from Mark Rutland to prevent huge-vmap with ptdump
+
+Changes in V2: (https://lkml.org/lkml/2019/4/14/5)
+
+- Added all received review and ack tags
+- Split the series from ZONE_DEVICE enablement for better review
+- Moved memblock re-order patch to the front as per Robin Murphy
+- Updated commit message on memblock re-order patch per Michal Hocko
+- Dropped [pmd|pud]_large() definitions
+- Used existing [pmd|pud]_sect() instead of earlier [pmd|pud]_large()
+- Removed __meminit and __ref tags as per Oscar Salvador
+- Dropped unnecessary 'ret' init in arch_add_memory() per Robin Murphy
+- Skipped calling into pgtable_page_dtor() for linear mapping page table
+  pages and updated all relevant functions
+
+Changes in V1: (https://lkml.org/lkml/2019/4/3/28)
+
+References:
+
+[1] https://lkml.org/lkml/2019/5/28/584
+[2] https://lkml.org/lkml/2019/6/11/709
+
+Anshuman Khandual (3):
+  mm/hotplug: Reorder memblock_[free|remove]() calls in try_remove_memory()
+  arm64/mm: Hold memory hotplug lock while walking for kernel page table dump
+  arm64/mm: Enable memory hot remove
+
+ arch/arm64/Kconfig             |   3 +
+ arch/arm64/mm/mmu.c            | 290 +++++++++++++++++++++++++++++++++++++++--
+ arch/arm64/mm/ptdump_debugfs.c |   4 +
+ mm/memory_hotplug.c            |   4 +-
+ 4 files changed, 290 insertions(+), 11 deletions(-)
+
+-- 
+2.7.4
 
