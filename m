@@ -2,124 +2,154 @@ Return-Path: <SRS0=FHqE=VM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
-	SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=FROM_EXCESS_BASE64,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	UNPARSEABLE_RELAY,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6ED89C742D2
-	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 00:30:17 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id AAB2AC73C66
+	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 02:09:43 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 10823214DA
-	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 00:30:17 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="hvOB55/C"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 10823214DA
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 4DCFB20868
+	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 02:09:43 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4DCFB20868
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8AAC86B0003; Sun, 14 Jul 2019 20:30:16 -0400 (EDT)
+	id 9BE9E6B0003; Sun, 14 Jul 2019 22:09:42 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 85BF36B0006; Sun, 14 Jul 2019 20:30:16 -0400 (EDT)
+	id 96F9A6B0006; Sun, 14 Jul 2019 22:09:42 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 771026B0007; Sun, 14 Jul 2019 20:30:16 -0400 (EDT)
+	id 885976B0007; Sun, 14 Jul 2019 22:09:42 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E5526B0003
-	for <linux-mm@kvack.org>; Sun, 14 Jul 2019 20:30:16 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id g21so9446006pfb.13
-        for <linux-mm@kvack.org>; Sun, 14 Jul 2019 17:30:16 -0700 (PDT)
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 50A616B0003
+	for <linux-mm@kvack.org>; Sun, 14 Jul 2019 22:09:42 -0400 (EDT)
+Received: by mail-pl1-f200.google.com with SMTP id g18so7651326plj.19
+        for <linux-mm@kvack.org>; Sun, 14 Jul 2019 19:09:42 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:subject:dkim-signature:from:in-reply-to
-         :references:message-id:date:to:cc;
-        bh=0fqNd+lFEsH6JE6dMAEzhoDPhAsSRGcUhBcnEGmBVgc=;
-        b=H4pnXJ0LsTQvQ3Cm9P0mbJ877a0ZCHhbUDkI1fTF4QG7AnIBmyR9BCzeuW5VvYud6b
-         IiMyLEv0FChC2/mYi/CHF/ei70vXAif9f00ryOqByGLeZCawgmkZI/hk0ooh9ycOazfy
-         t/CD3zLjXqIo15ir5kUS+pfIXmX2JTDnWGevV58oRg0e9YYj8eZ1YXit3bjKjOU3xCky
-         YDMZLoDwx6w6YAIo2QGYytB0QFQEBsPoAAeLXsAGnqivsn7FI66jU2WbkKSMLrNeUNoc
-         Te4oSzjFzweFNHZdWS953eABlGkDBLs05aRgNfRJBA3OgQ9CJzs1xV0ajgK6+ZQ9NgoN
-         VzSQ==
-X-Gm-Message-State: APjAAAWLHx+1vWU4SjEX1yHGCSs0HC3jEM6ee636nojLxkKmV9NN31yM
-	d5dgWwfJ0YWuOsJgfSrC6JKLk4agJG63i21scw2K4OyXCChgP+j15yfCPxJOkptgcTjBf3wDYdH
-	5U3krybknA7Sb92TPRT90FdZZDXyL2M5XvROLjz4x0HXcKNz/v8spJJL5C7eO8Fq+Cw==
-X-Received: by 2002:a63:f304:: with SMTP id l4mr23768143pgh.66.1563150615866;
-        Sun, 14 Jul 2019 17:30:15 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyUssAvK3wR3ceaffb45DUan64plXDthK/evtrLnirWX+2h4wouzbzNTQ3lw53GAu8WVufd
-X-Received: by 2002:a63:f304:: with SMTP id l4mr23768053pgh.66.1563150614822;
-        Sun, 14 Jul 2019 17:30:14 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563150614; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:from
+         :to:cc:references:message-id:date:user-agent:mime-version
+         :in-reply-to:content-language:content-transfer-encoding;
+        bh=gU1TeLTfZpNx4P4FC5hk6hna9nzDElLZqUWIzjJCMGc=;
+        b=Vbg6mddMwQiLPs+Z/oWiLUv0P3LxhuNvX9n5fCEDugSea1ek6n/rKW06VIl9RwfpP2
+         BUAs7kvTtXJlxPSTNTxuzRZxkFOUa/JKVz4Eit+tcLbbcqaZ0XsU/c/5FfecZr9g7KYm
+         mDYGO7Mqn0D8nw9v3crCySB1lKGg+baoccmA0tbKlf1L6bbfoHNMksnjlw6dqzcI7AoY
+         8Lr538xPy8zGX4bS2GVNbMBEDiYDHzAGGhtdKELC8hQJMoH4939y6MuALA0e3eEpuoLU
+         gItrNqnN95eMaR+rquGCfFE3sUn40iJbnVUGxfGO6YRM9fOVztxMIf/uvGPfeEaW8CDu
+         MS9Q==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yun.wang@linux.alibaba.com designates 115.124.30.133 as permitted sender) smtp.mailfrom=yun.wang@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Gm-Message-State: APjAAAVijKOKEGm6DyGlEHykt0E/O5ue8ulU1OczYVw5uEdjH2Jx/VRv
+	HiWYW2TGKpxMEanatCbf1XzPMY+/hDrMtHcGK1PM11yk9Hw+8OIScJD639+vsj8grUEbY8ktlRj
+	6kc75OgQISQEr+JRdByLlpfdhF1A/aRkUm8FDS/qmIHTOtulqoRyGxGyy+a9hMUENIQ==
+X-Received: by 2002:a17:902:4c:: with SMTP id 70mr25533598pla.308.1563156581873;
+        Sun, 14 Jul 2019 19:09:41 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqz84qfR6TmunDWM9q+ULk1ZT5sZrPGkSrJTXBL2uii1zEJvmkysLx3FGtInfvHQKJ61ulIq
+X-Received: by 2002:a17:902:4c:: with SMTP id 70mr25533546pla.308.1563156581064;
+        Sun, 14 Jul 2019 19:09:41 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563156581; cv=none;
         d=google.com; s=arc-20160816;
-        b=LsAgA9/GhsyfI/y1OKF6OB47hkEE1xi27Jb3B0jS0V/XLOFCWm2RLpe7eVdF5ZewkV
-         HvH447RNK9n8YK00E0EHYBM7149IQrsjHz117sLwJ6goJIxasYvlU1v7jEyF6QgarU0I
-         25A96eAn9RGdXzczueALDekP5uwXMADUYZWSdOO9HYIHhKB1xxCiTtLxsdeaxgrhgYDi
-         llKm0XnDlDvAFC6+oc0lb2qjAid9vn7I1muyp68dZMi2vMOEZs7CP9fO+bh/YLa0nplO
-         H9L6ixT87RuQsL3OOekUmpkNa0IbfEdZ95VMo4Qkg0TD5hovq/01VbckD6TPACy9HGrm
-         2pbA==
+        b=BlZgW+iQqMBpafgEtnSp322nAs5nq9lgBPYUm5fUzsvdskAS4LNYS1iJ8+MkTiavQL
+         /FNWa2bSnTSSfu2zHid+T35mB1SyO/9Hr5sED0NuVgzCqMKizQmvfvma6eqylqaIhRxR
+         PwIIfhKqSlC2IdQx/cyFPoO4ZihyTu5pFTw7PwN4D6gAR3QqisTFzPkZqxUUa69IAEUk
+         EN7ok3zHXr7GC0Ko+4b8HFv6EYKrWqpcBFalqA8VvU2VN7o5fO7TJjpvnAkD18wSqWpz
+         QkvoTJX2FaeVqrn3nUjEgX2NeQ7WWAZNj2F7wteS4X+TxVjCeDCEWufMJf4qefEHT+R9
+         9Yqw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:date:message-id:references:in-reply-to:from:dkim-signature
-         :subject;
-        bh=0fqNd+lFEsH6JE6dMAEzhoDPhAsSRGcUhBcnEGmBVgc=;
-        b=nlFBrBS30JuSN6xd5lQEB5wBRjBTtUVxpXXwx3+Exd1V9GBiHhf6oETBwJRWMtiFRa
-         pb7TiE4n4IYUV5CZryT4ky3+hcZMt+4VJB+eaaNi9hxsLnfJ3F/UvbLXAQ5CL+GP2ZWz
-         0Mm2Erlj8OjpIh9Zj2mEeCTQNg0ezlhcLNmF+4O+DUMiYW5IJfRBJbf0SWL5X+mwDU3H
-         HANzio4t2MRWNP9ux2e72bHzOBPkKXRBc6xI0yopjy/032WJ4kbCr3g1PVC7xjT49cDW
-         G+6gip28BBmHmgckvQyLKUHKd0XI1dwSLb+64WN6KB+4rfTbyEu/Ovm+A95IWq96vhzZ
-         KU1A==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:references:cc:to:from:subject;
+        bh=gU1TeLTfZpNx4P4FC5hk6hna9nzDElLZqUWIzjJCMGc=;
+        b=LdtmsUt2MTmOmDaJ2/UyF0yuAS/VW3JKCYZ9usz4KIuBED9aTKMrKkuV1MWTKNNj5t
+         qh/jynKhYXEM1rSOP//BP2OryRmOCfTZe6B81Y371z2cAgfIh3xrEY20zSRAG/fWe1Fs
+         gu0PG/9o6gO5asZe6hXDuwuRY0B2XIqX1iUU0ZSR9Nb4SThzARJ3hMjlJd90ADJwCp+X
+         gALD9efUdSgSpJLtBDWVg6/wnM+5m7+WjJHAbFhl6Z0vRwa+yMZtTVAA9hDSOQO13HvG
+         AblHzWmfxVkdmXzV4aqrwCCLaikTrWrV+IOAIzS1DAAR+JYBg9x9QQwXoR1S8enXOjRU
+         LYbg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b="hvOB55/C";
-       spf=pass (google.com: domain of pr-tracker-bot@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=pr-tracker-bot@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id t18si13673116plo.328.2019.07.14.17.30.14
+       spf=pass (google.com: domain of yun.wang@linux.alibaba.com designates 115.124.30.133 as permitted sender) smtp.mailfrom=yun.wang@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+Received: from out30-133.freemail.mail.aliyun.com (out30-133.freemail.mail.aliyun.com. [115.124.30.133])
+        by mx.google.com with ESMTPS id c1si16144184pfc.80.2019.07.14.19.09.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 14 Jul 2019 17:30:14 -0700 (PDT)
-Received-SPF: pass (google.com: domain of pr-tracker-bot@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        Sun, 14 Jul 2019 19:09:41 -0700 (PDT)
+Received-SPF: pass (google.com: domain of yun.wang@linux.alibaba.com designates 115.124.30.133 as permitted sender) client-ip=115.124.30.133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b="hvOB55/C";
-       spf=pass (google.com: domain of pr-tracker-bot@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=pr-tracker-bot@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Subject: Re: [GIT PULL] percpu changes for v5.3-rc1
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1563150614;
-	bh=Zqe3Bif38VGdfHqkGKyP909Nfkdoz56H/UBLyahcrJ8=;
-	h=From:In-Reply-To:References:Date:To:Cc:From;
-	b=hvOB55/C04tQafjYWj3gJsQ8aO7yD1S0r+kIUCVnWtNB1C3gfLopID8RIjI29phbH
-	 2pv4Ln9NhZW2fcVKgw4aRxdfj8z4cr6e/zkyvmDxfu4efopp5MFLZvWcPW+7SUAikf
-	 RQTubiplG9QphF2z6bM8IYzqtvv+iK3nmlawXyDs=
-From: pr-tracker-bot@kernel.org
-In-Reply-To: <20190713041733.GA80860@dennisz-mbp.dhcp.thefacebook.com>
-References: <20190713041733.GA80860@dennisz-mbp.dhcp.thefacebook.com>
-X-PR-Tracked-List-Id: <linux-kernel.vger.kernel.org>
-X-PR-Tracked-Message-Id: <20190713041733.GA80860@dennisz-mbp.dhcp.thefacebook.com>
-X-PR-Tracked-Remote: git://git.kernel.org/pub/scm/linux/kernel/git/dennis/percpu.git for-5.3
-X-PR-Tracked-Commit-Id: 7d9ab9b6adffd9c474c1274acb5f6208f9a09cf3
-X-PR-Merge-Tree: torvalds/linux.git
-X-PR-Merge-Refname: refs/heads/master
-X-PR-Merge-Commit-Id: a1240cf74e8228f7c80d44af17914c0ffc5633fb
-Message-Id: <156315061441.32091.1681296873427251250.pr-tracker-bot@kernel.org>
-Date: Mon, 15 Jul 2019 00:30:14 +0000
-To: Dennis Zhou <dennis@kernel.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Tejun Heo <tj@kernel.org>,
- Christoph Lameter <cl@linux.com>, 
- linux-mm@kvack.org, linux-kernel@vger.kernel.org
+       spf=pass (google.com: domain of yun.wang@linux.alibaba.com designates 115.124.30.133 as permitted sender) smtp.mailfrom=yun.wang@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R791e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e07486;MF=yun.wang@linux.alibaba.com;NM=1;PH=DS;RN=13;SR=0;TI=SMTPD_---0TWte0iC_1563156576;
+Received: from testdeMacBook-Pro.local(mailfrom:yun.wang@linux.alibaba.com fp:SMTPD_---0TWte0iC_1563156576)
+          by smtp.aliyun-inc.com(127.0.0.1);
+          Mon, 15 Jul 2019 10:09:37 +0800
+Subject: Re: [PATCH 1/4] numa: introduce per-cgroup numa balancing locality,
+ statistic
+From: =?UTF-8?B?546L6LSH?= <yun.wang@linux.alibaba.com>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: hannes@cmpxchg.org, mhocko@kernel.org, vdavydov.dev@gmail.com,
+ Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org,
+ linux-mm@kvack.org, mcgrof@kernel.org, keescook@chromium.org,
+ linux-fsdevel@vger.kernel.org, cgroups@vger.kernel.org,
+ Mel Gorman <mgorman@suse.de>, riel@surriel.com
+References: <209d247e-c1b2-3235-2722-dd7c1f896483@linux.alibaba.com>
+ <60b59306-5e36-e587-9145-e90657daec41@linux.alibaba.com>
+ <3ac9b43a-cc80-01be-0079-df008a71ce4b@linux.alibaba.com>
+ <20190711134754.GD3402@hirez.programming.kicks-ass.net>
+ <b027f9cc-edd2-840c-3829-176a1e298446@linux.alibaba.com>
+ <20190712075815.GN3402@hirez.programming.kicks-ass.net>
+ <37474414-1a54-8e3a-60df-eb7e5e1cc1ed@linux.alibaba.com>
+ <20190712094214.GR3402@hirez.programming.kicks-ass.net>
+ <f8020f92-045e-d515-360b-faf9a149ab80@linux.alibaba.com>
+Message-ID: <673993cf-c5cc-475d-1396-991edcf367ea@linux.alibaba.com>
+Date: Mon, 15 Jul 2019 10:09:36 +0800
+User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.13; rv:60.0)
+ Gecko/20100101 Thunderbird/60.7.0
+MIME-Version: 1.0
+In-Reply-To: <f8020f92-045e-d515-360b-faf9a149ab80@linux.alibaba.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The pull request you sent on Sat, 13 Jul 2019 00:17:33 -0400:
 
-> git://git.kernel.org/pub/scm/linux/kernel/git/dennis/percpu.git for-5.3
 
-has been merged into torvalds/linux.git:
-https://git.kernel.org/torvalds/c/a1240cf74e8228f7c80d44af17914c0ffc5633fb
+On 2019/7/12 下午6:10, 王贇 wrote:
+[snip]
+>>
+>> Documentation/cgroup-v1/cpusets.txt
+>>
+>> Look for mems_allowed.
+> 
+> This is the attribute belong to cpuset cgroup isn't it?
+> 
+> Forgive me but I have no idea on how to combined this
+> with memory cgroup's locality hierarchical update...
+> parent memory cgroup do not have influence on mems_allowed
+> to it's children, correct?
+> 
+> What about we just account the locality status of child
+> memory group into it's ancestors?
 
-Thank you!
+We have rethink about this, and found no strong reason to stay
+with memory cgroup anymore.
 
--- 
-Deet-doot-dot, I am a bot.
-https://korg.wiki.kernel.org/userdoc/prtracker
+We used to acquire pages number, exectime and locality together
+from memory cgroup, to make thing easier for our numa balancer
+module, as now we use the numa group approach, maybe we can just
+move these accounting into cpu cgroups, so all these features
+stay in one subsys and could be hierarchical :-)
+
+Regards,
+Michael Wang
+
+> 
+> Regards,
+> Michael Wang
+> 
+>>
 
