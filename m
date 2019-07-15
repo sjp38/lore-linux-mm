@@ -2,336 +2,398 @@ Return-Path: <SRS0=FHqE=VM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-13.3 required=3.0
+	tests=HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	MENTIONS_GIT_HOSTING,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 80190C76195
-	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 16:12:13 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3AC94C76191
+	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 16:29:58 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 43E142080A
-	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 16:12:13 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 43E142080A
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id E38922081C
+	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 16:29:57 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E38922081C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C9FA86B026B; Mon, 15 Jul 2019 12:12:12 -0400 (EDT)
+	id 788BD6B0003; Mon, 15 Jul 2019 12:29:57 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C4FDF6B026C; Mon, 15 Jul 2019 12:12:12 -0400 (EDT)
+	id 711F86B0005; Mon, 15 Jul 2019 12:29:57 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id ACA396B026D; Mon, 15 Jul 2019 12:12:12 -0400 (EDT)
+	id 58B2D6B026B; Mon, 15 Jul 2019 12:29:57 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 6FE306B026B
-	for <linux-mm@kvack.org>; Mon, 15 Jul 2019 12:12:12 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id q9so10724298pgv.17
-        for <linux-mm@kvack.org>; Mon, 15 Jul 2019 09:12:12 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 17E836B0003
+	for <linux-mm@kvack.org>; Mon, 15 Jul 2019 12:29:57 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id h27so10513763pfq.17
+        for <linux-mm@kvack.org>; Mon, 15 Jul 2019 09:29:57 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:in-reply-to:references:date:mime-version:message-id;
-        bh=POcZ3SZ/urEDw6nUr39GzrcQ4ZI/VUd5gyd7EW6l4Tc=;
-        b=HM8f2AdzFmp9taaexkWUCV7vfkYM+blxpeiMZlP6Mdq56shRzM6IJtCsoETc9CifC0
-         24IikmNuK3gssP1V7jJ15XXeerwqrq7Gs1IR/emnPRTnDZZM6NLAD7xBM5DxHMBQzhj1
-         Y+hZOMCAyKn7R4qlnWe7oq1/ICn9lyd6KcBQnZHe9t4hJGOWwLrh9/f7aJoApv109Kui
-         qWA8vKpFq+rE/5UijpE8bRT2Tl89nB17h8rhrfniI/cKXd0vTlRg0cP5n2oghmklvy/q
-         MAe7EVmbxIP9HBgzqP5UYLQBycBy0as6js1XefLtrWYVicPzUp8zwXj2AdDReYcwxf3/
-         d9+Q==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: APjAAAXt92+mRnqgwzpt3RiNN48//RRopqfg/G57gisNEGbcH5WikT7/
-	FRZTsNogeFZ6p2dOhSQk0OKsN0Bw0F1xR1SS4xP8dS5+sqlRM/dLgHEG8Fw4cvlhsSD0oDvLSUO
-	9SCLugDnjsPUkXGT288MP21iE90a4NT5wuAqwcnpb6CVEupJJpy8/AgZTlufLes5upQ==
-X-Received: by 2002:a63:f401:: with SMTP id g1mr28573808pgi.314.1563207132042;
-        Mon, 15 Jul 2019 09:12:12 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxieT9PySATv4UCG0kvI8C14byalbNGJYnpVrXNw9lcf6mOyIkU+hLr8L1898qD5PtCRG5A
-X-Received: by 2002:a63:f401:: with SMTP id g1mr28573701pgi.314.1563207130723;
-        Mon, 15 Jul 2019 09:12:10 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563207130; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=3wdA1AQHoPpNA4X7y/Ipm+Et+FOiwFI6STqJg4smI+E=;
+        b=pZwX7gfPPvyhzXWc90rEuS08ek8ULJjDOQqYHMlbJ0Dwzr9ltBg+uaRIwgl6iFTDPi
+         izSIKcVrORWNv0nRYPQwqbQo35rjyEbQ5WxGFl+q8W7+6cL6LLvgnL5LSu82p+RWur/k
+         Ce3Jrt+Licy5zAnm1NVCAhcZpNQILw2648EOuOFRF12c82qJP39+J4yDHapIzqVVgODI
+         hvR7SnyU85VjV96hVW9Kl1n5scdWvkeNd+tQIkVQ5xePsdHG5hAtN1inEMTx1fSF51DM
+         /bYBNtMHG7fduvfIKhj1rupB+1D5Vv5sTh70Q0qdgRMdPGa/x5OpPAioHiY6JZlhXy+n
+         jQsg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAWDvqMZdiZ7GHBRxx52D+toUrPxjArtHfvx8+slItLpliMpG4yR
+	Ktj1FiO/jtnpJFDRnuLoV8jnaDAT+ymeKU0EFORFWRGirg9fuQHJHfeCoQy2agzI5bhPyblYSom
+	2Ou4/LwFV0qWRuRF8sICV7CwoHzwIHmgXfUzNtCJhfVjv83eyBeOSvrKjTBctbnfb0w==
+X-Received: by 2002:a17:902:b949:: with SMTP id h9mr27192713pls.120.1563208196653;
+        Mon, 15 Jul 2019 09:29:56 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyqWt7a68Y0SA0cmOHv0rwtiXxRfxg/MzUxj8rr6r2GZMLBBhxyBFYZmyKpM8ch8RCc/a6K
+X-Received: by 2002:a17:902:b949:: with SMTP id h9mr27192619pls.120.1563208195376;
+        Mon, 15 Jul 2019 09:29:55 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563208195; cv=none;
         d=google.com; s=arc-20160816;
-        b=z11myi66wtfOFQ3fibSiN7zDp7Al74cdT8PlL7fqyjwU9eA/iHvCeoIvHAJu5+FA9G
-         OhGYuhGzUG1Xh3sXkrm4kVPOqyVH+jOSln5Jy4yuEFTX/2Umq/IiWvWYczAxII1YWN+t
-         NbsK4K0NSHaxpca/aOX2Vdea5SoYXLLS6Wkl8t8H6s4DreyNkisMwpjZABiSzSU1SBaN
-         W2Mdhl0CHVwk5AEB0ey25GLxx9R0GBdSyYT5bozG9nkQ/rSnm0jEXx7WT+if4PQrsvvb
-         7aOSEUS4sTpvCLHGcE9Z7zdrI954ReOfEgo9hTnoTLJq+2SdZPRSUXIAGrJBHw0+bjgQ
-         OFVw==
+        b=AH4i5BLaYmxShj3Xzhl7BHOQQaVJuNb+51r4YmDOcBCKIj0KEga8ZQh0rxpHwDlpm8
+         0vGh9uC6ssHUc4mmjVm708TuZlgTTXBCw5hrZeUW4VL/WZ3JqEprto63nCpR9bbq0WBM
+         3KHFrDNeEv5CUhvcTc8crPD6J+k8kb3hU4acw1CgSMzR2aKxAE4p1mlTfKmox+Ykk78z
+         lFYru3jq196cWMORYGw+mTxQ8o3Ncy7XA5PgEbOgG56jizTwVTYnVLwCB0AnI6qDfWFw
+         Gfe1MsngGbNqhDUk07IGOIR+bkueRZuVNMQFJ6UA7tHCKc45WhdnoYdvprOLHTO4urex
+         t7Lg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:mime-version:date:references:in-reply-to:subject:cc:to
-         :from;
-        bh=POcZ3SZ/urEDw6nUr39GzrcQ4ZI/VUd5gyd7EW6l4Tc=;
-        b=joRLEUmty71WvndLNNJvQvtUMXJzPRlGEFp0BqMTSsc8aU9H3czvdFQKuekwVLjB9A
-         XNV7W280Rk4tblEkR1tOVZivMkt16d3VESg3yBKW9lPXCkWoE3JTLn+5R7yKwMYvPEFf
-         IMss5wC/5dmdtGAVQZjDupD7v9E8FEQt548HtDCKWm8IGoq2ENJwG4f7zG3wT+v+3+XE
-         v8c6JQCYjynqLCevyDsaokOCZlHkrsG8PMmAHvPMQTr2xbsF3HJLEXMyF9AkYtlhjOJ1
-         jdttj/ZCX8SbmOVqqoqGery+Yo2Fmw3OahDDgjcD66fVJ0ZK67pdyfr6U5AA5mxnFuTT
-         IZKQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=3wdA1AQHoPpNA4X7y/Ipm+Et+FOiwFI6STqJg4smI+E=;
+        b=z5XZ5X1iHzdGSqnGJr45DiLOB4V2cVjWYTGeSb2s2BGxR54+pTAvddcTx95ZC5pNkm
+         w/PJ1vVHZvl9j3Hb8GH5V7EiuzqVq8k9IZkR3xKgAEaTk/+P29+2NrAdSpnH2CRArg3z
+         gWVjZRz1ZT3HmCq6DASNv+cmuAx7BXwnl3ANfy2l+5R3YFzPDy7bR7Pg708/tGSUx/6i
+         XQxUAtehFDH2WQd4fmwtN4xAESDpCAHGlKvmI8mzvCttQRv0z+IOoo/tn6SosasFaCdY
+         UMWEQZhgpx+tL9IrwwyJKfoLjNhWxGVJCWdmKOZJcZ9li4//oVaIWankHvdldhqFvnGQ
+         JGzw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id e16si10276752pgt.2.2019.07.15.09.12.10
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id o30si17044989pgl.575.2019.07.15.09.29.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 15 Jul 2019 09:12:10 -0700 (PDT)
-Received-SPF: pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
+        Mon, 15 Jul 2019 09:29:55 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.31 as permitted sender) client-ip=134.134.136.31;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098394.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x6FGBffv111723
-	for <linux-mm@kvack.org>; Mon, 15 Jul 2019 12:12:10 -0400
-Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2trvcm1bsu-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 15 Jul 2019 12:12:09 -0400
-Received: from localhost
-	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
-	Mon, 15 Jul 2019 17:12:07 +0100
-Received: from b06cxnps4076.portsmouth.uk.ibm.com (9.149.109.198)
-	by e06smtp07.uk.ibm.com (192.168.101.137) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Mon, 15 Jul 2019 17:12:03 +0100
-Received: from d06av21.portsmouth.uk.ibm.com (d06av21.portsmouth.uk.ibm.com [9.149.105.232])
-	by b06cxnps4076.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x6FGC2eg24379518
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Mon, 15 Jul 2019 16:12:02 GMT
-Received: from d06av21.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id B302E52054;
-	Mon, 15 Jul 2019 16:12:02 +0000 (GMT)
-Received: from skywalker.linux.ibm.com (unknown [9.85.70.182])
-	by d06av21.portsmouth.uk.ibm.com (Postfix) with ESMTP id 4009E5204F;
-	Mon, 15 Jul 2019 16:11:38 +0000 (GMT)
-X-Mailer: emacs 26.2 (via feedmail 11-beta-1 I)
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-To: Oscar Salvador <osalvador@suse.de>, akpm@linux-foundation.org
-Cc: dan.j.williams@intel.com, david@redhat.com, pasha.tatashin@soleen.com,
-        mhocko@suse.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org,
-        Oscar Salvador <osalvador@suse.de>
-Subject: Re: [PATCH 2/2] mm,memory_hotplug: Fix shrink_{zone,node}_span
-In-Reply-To: <20190715081549.32577-3-osalvador@suse.de>
-References: <20190715081549.32577-1-osalvador@suse.de> <20190715081549.32577-3-osalvador@suse.de>
-Date: Mon, 15 Jul 2019 21:41:18 +0530
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: UNKNOWN
+X-Amp-Original-Verdict: FILE UNKNOWN
+X-Amp-File-Uploaded: False
+Received: from orsmga007.jf.intel.com ([10.7.209.58])
+  by orsmga104.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 15 Jul 2019 09:29:54 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.63,493,1557212400"; 
+   d="scan'208";a="157860430"
+Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
+  by orsmga007.jf.intel.com with ESMTP; 15 Jul 2019 09:29:53 -0700
+Date: Mon, 15 Jul 2019 09:29:53 -0700
+From: Ira Weiny <ira.weiny@intel.com>
+To: Bharath Vedartham <linux.bhar@gmail.com>
+Cc: John Hubbard <jhubbard@nvidia.com>, akpm@linux-foundation.org,
+	Mauro Carvalho Chehab <mchehab@kernel.org>,
+	Dimitri Sivanich <sivanich@sgi.com>, Arnd Bergmann <arnd@arndb.de>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	Alex Williamson <alex.williamson@redhat.com>,
+	Cornelia Huck <cohuck@redhat.com>, Jens Axboe <axboe@kernel.dk>,
+	Alexander Viro <viro@zeniv.linux.org.uk>,
+	=?iso-8859-1?Q?Bj=F6rn_T=F6pel?= <bjorn.topel@intel.com>,
+	Magnus Karlsson <magnus.karlsson@intel.com>,
+	"David S. Miller" <davem@davemloft.net>,
+	Alexei Starovoitov <ast@kernel.org>,
+	Daniel Borkmann <daniel@iogearbox.net>,
+	Jakub Kicinski <jakub.kicinski@netronome.com>,
+	Jesper Dangaard Brouer <hawk@kernel.org>,
+	John Fastabend <john.fastabend@gmail.com>,
+	Enrico Weigelt <info@metux.net>,
+	Thomas Gleixner <tglx@linutronix.de>,
+	Alexios Zavras <alexios.zavras@intel.com>,
+	Dan Carpenter <dan.carpenter@oracle.com>,
+	Max Filippov <jcmvbkbc@gmail.com>,
+	Matt Sickler <Matt.Sickler@daktronics.com>,
+	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
+	Keith Busch <keith.busch@intel.com>,
+	YueHaibing <yuehaibing@huawei.com>, linux-media@vger.kernel.org,
+	linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org,
+	kvm@vger.kernel.org, linux-block@vger.kernel.org,
+	linux-fsdevel@vger.kernel.org, linux-mm@kvack.org,
+	netdev@vger.kernel.org, bpf@vger.kernel.org,
+	xdp-newbies@vger.kernel.org, Jason Gunthorpe <jgg@ziepe.ca>
+Subject: Re: [PATCH] mm/gup: Use put_user_page*() instead of put_page*()
+Message-ID: <20190715162952.GA7953@iweiny-DESK2.sc.intel.com>
+References: <1563131456-11488-1-git-send-email-linux.bhar@gmail.com>
+ <deea584f-2da2-8e1f-5a07-e97bf32c63bb@nvidia.com>
+ <20190715065654.GA3716@bharath12345-Inspiron-5559>
 MIME-Version: 1.0
-Content-Type: text/plain
-X-TM-AS-GCONF: 00
-x-cbid: 19071516-0028-0000-0000-0000038471A4
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19071516-0029-0000-0000-000024449011
-Message-Id: <87tvbne0rd.fsf@linux.ibm.com>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-07-15_05:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=917 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1907150188
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190715065654.GA3716@bharath12345-Inspiron-5559>
+User-Agent: Mutt/1.11.1 (2018-12-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Oscar Salvador <osalvador@suse.de> writes:
+On Mon, Jul 15, 2019 at 12:26:54PM +0530, Bharath Vedartham wrote:
+> On Sun, Jul 14, 2019 at 04:33:42PM -0700, John Hubbard wrote:
+> > On 7/14/19 12:08 PM, Bharath Vedartham wrote:
+> > > This patch converts all call sites of get_user_pages
+> > > to use put_user_page*() instead of put_page*() functions to
+> > > release reference to gup pinned pages.
+> Hi John, 
+> > Hi Bharath,
+> > 
+> > Thanks for jumping in to help, and welcome to the party!
+> > 
+> > You've caught everyone in the middle of a merge window, btw.  As a
+> > result, I'm busy rebasing and reworking the get_user_pages call sites, 
+> > and gup tracking, in the wake of some semi-traumatic changes to bio 
+> > and gup and such. I plan to re-post right after 5.3-rc1 shows up, from 
+> > here:
+> > 
+> >     https://github.com/johnhubbard/linux/commits/gup_dma_core
+> > 
+> > ...which you'll find already covers the changes you've posted, except for:
+> > 
+> >     drivers/misc/sgi-gru/grufault.c
+> >     drivers/staging/kpc2000/kpc_dma/fileops.c
+> > 
+> > ...and this one, which is undergoing to larger local changes, due to
+> > bvec, so let's leave it out of the choices:
+> > 
+> >     fs/io_uring.c
+> > 
+> > Therefore, until -rc1, if you'd like to help, I'd recommend one or more
+> > of the following ideas:
+> > 
+> > 1. Pull down https://github.com/johnhubbard/linux/commits/gup_dma_core
+> > and find missing conversions: look for any additional missing 
+> > get_user_pages/put_page conversions. You've already found a couple missing 
+> > ones. I haven't re-run a search in a long time, so there's probably even more.
+> > 	a) And find more, after I rebase to 5.3-rc1: people probably are adding
+> > 	get_user_pages() calls as we speak. :)
+> Shouldn't this be documented then? I don't see any docs for using
+> put_user_page*() in v5.2.1 in the memory management API section?
+> > 2. Patches: Focus on just one subsystem at a time, and perfect the patch for
+> > it. For example, I think this the staging driver would be perfect to start with:
+> > 
+> >     drivers/staging/kpc2000/kpc_dma/fileops.c
+> > 
+> > 	a) verify that you've really, corrected converted the whole
+> > 	driver. (Hint: I think you might be overlooking a put_page call.)
+> Yup. I did see that! Will fix it!
+> > 	b) Attempt to test it if you can (I'm being hypocritical in
+> > 	the extreme here, but one of my problems is that testing
+> > 	has been light, so any help is very valuable). qemu...?
+> > 	OTOH, maybe even qemu cannot easily test a kpc2000, but
+> > 	perhaps `git blame` and talking to the authors would help
+> > 	figure out a way to validate the changes.
+> Great! I ll do that, I ll mail the patch authors and ask them for help
+> in testing. 
+> > 	Thinking about whether you can run a test that would prove or
+> > 	disprove my claim in (a), above, could be useful in coming up
+> > 	with tests to run.
+> 
+> > In other words, a few very high quality conversions (even just one) that
+> > we can really put our faith in, is what I value most here. Tested patches
+> > are awesome.
+> I understand that! 
+> > 3. Once I re-post, turn on the new CONFIG_DEBUG_GET_USER_PAGES_REFERENCES
+> > and run things such as xfstest/fstest. (Again, doing so would be going
+> > further than I have yet--very helpful). Help clarify what conversions have
+> > actually been tested and work, and which ones remain unvalidated.
+> > Other: Please note that this:
+> Yup will do that.
+> >     https://github.com/johnhubbard/linux/commits/gup_dma_core
+> > 
+> >     a) gets rebased often, and
+> > 
+> >     b) has a bunch of commits (iov_iter and related) that conflict
+> >        with the latest linux.git,
+> > 
+> >     c) has some bugs in the bio area, that I'm fixing, so I don't trust
+> >        that's it's safely runnable, for a few more days.
+> I assume your repo contains only work related to fixing gup issues and
+> not the main repo for gup development? i.e where gup changes are merged?
 
-> Since [1], shrink_{zone,node}_span work on PAGES_PER_SUBSECTION granularity.
-> The problem is that deactivation of the section occurs later on in
-> sparse_remove_section, so pfn_valid()->pfn_section_valid() will always return
-> true before we deactivate the {sub}section.
+We have been using Andrews tree for merging.
 
-Can you explain this more? The patch doesn't update section_mem_map
-update sequence. So what changed? What is the problem in finding
-pfn_valid() return true there?
+> Also are release_pages and put_user_pages interchangable? 
 
->
-> I spotted this during hotplug hotremove tests, there I always saw that
-> spanned_pages was, at least, left with PAGES_PER_SECTION, even if we
-> removed all memory linked to that zone.
->
-> Fix this by decoupling section_deactivate from sparse_remove_section, and
-> re-order the function calls.
->
-> Now, __remove_section will:
->
-> 1) deactivate section
-> 2) shrink {zone,node}'s pages
-> 3) remove section
->
-> [1] https://patchwork.kernel.org/patch/11003467/
->
-> Fixes: mmotm ("mm/hotplug: prepare shrink_{zone, pgdat}_span for sub-section removal")
-> Signed-off-by: Oscar Salvador <osalvador@suse.de>
-> ---
->  include/linux/memory_hotplug.h |  7 ++--
->  mm/memory_hotplug.c            |  6 +++-
->  mm/sparse.c                    | 77 +++++++++++++++++++++++++++++-------------
->  3 files changed, 62 insertions(+), 28 deletions(-)
->
-> diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
-> index f46ea71b4ffd..d2eb917aad5f 100644
-> --- a/include/linux/memory_hotplug.h
-> +++ b/include/linux/memory_hotplug.h
-> @@ -348,9 +348,10 @@ extern void move_pfn_range_to_zone(struct zone *zone, unsigned long start_pfn,
->  extern bool is_memblock_offlined(struct memory_block *mem);
->  extern int sparse_add_section(int nid, unsigned long pfn,
->  		unsigned long nr_pages, struct vmem_altmap *altmap);
-> -extern void sparse_remove_section(struct mem_section *ms,
-> -		unsigned long pfn, unsigned long nr_pages,
-> -		unsigned long map_offset, struct vmem_altmap *altmap);
-> +int sparse_deactivate_section(unsigned long pfn, unsigned long nr_pages);
-> +void sparse_remove_section(unsigned long pfn, unsigned long nr_pages,
-> +                           unsigned long map_offset, struct vmem_altmap *altmap,
-> +                           int section_empty);
->  extern struct page *sparse_decode_mem_map(unsigned long coded_mem_map,
->  					  unsigned long pnum);
->  extern bool allow_online_pfn_range(int nid, unsigned long pfn, unsigned long nr_pages,
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index b9ba5b85f9f7..03d535eee60d 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -517,12 +517,16 @@ static void __remove_section(struct zone *zone, unsigned long pfn,
->  		struct vmem_altmap *altmap)
->  {
->  	struct mem_section *ms = __nr_to_section(pfn_to_section_nr(pfn));
-> +	int ret;
->  
->  	if (WARN_ON_ONCE(!valid_section(ms)))
->  		return;
->  
-> +	ret = sparse_deactivate_section(pfn, nr_pages);
->  	__remove_zone(zone, pfn, nr_pages);
-> -	sparse_remove_section(ms, pfn, nr_pages, map_offset, altmap);
-> +	if (ret >= 0)
-> +		sparse_remove_section(pfn, nr_pages, map_offset, altmap,
-> +				      ret);
->  }
->  
->  /**
-> diff --git a/mm/sparse.c b/mm/sparse.c
-> index 1e224149aab6..d4953ee1d087 100644
-> --- a/mm/sparse.c
-> +++ b/mm/sparse.c
-> @@ -732,16 +732,47 @@ static void free_map_bootmem(struct page *memmap)
->  }
->  #endif /* CONFIG_SPARSEMEM_VMEMMAP */
->  
-> -static void section_deactivate(unsigned long pfn, unsigned long nr_pages,
-> -		struct vmem_altmap *altmap)
-> +static void section_remove(unsigned long pfn, unsigned long nr_pages,
-> +			   struct vmem_altmap *altmap, int section_empty)
-> +{
-> +	struct mem_section *ms = __pfn_to_section(pfn);
-> +	bool section_early = early_section(ms);
-> +	struct page *memmap = NULL;
-> +
-> +	if (section_empty) {
-> +		unsigned long section_nr = pfn_to_section_nr(pfn);
-> +
-> +		if (!section_early) {
-> +			kfree(ms->usage);
-> +			ms->usage = NULL;
-> +		}
-> +		memmap = sparse_decode_mem_map(ms->section_mem_map, section_nr);
-> +		ms->section_mem_map = sparse_encode_mem_map(NULL, section_nr);
-> +	}
-> +
-> +        if (section_early && memmap)
-> +		free_map_bootmem(memmap);
-> +        else
-> +		depopulate_section_memmap(pfn, nr_pages, altmap);
-> +}
-> +
-> +/**
-> + * section_deactivate: Deactivate a {sub}section.
-> + *
-> + * Return:
-> + * * -1         - {sub}section has already been deactivated.
-> + * * 0          - Section is not empty
-> + * * 1          - Section is empty
-> + */
-> +
-> +static int section_deactivate(unsigned long pfn, unsigned long nr_pages)
->  {
->  	DECLARE_BITMAP(map, SUBSECTIONS_PER_SECTION) = { 0 };
->  	DECLARE_BITMAP(tmp, SUBSECTIONS_PER_SECTION) = { 0 };
->  	struct mem_section *ms = __pfn_to_section(pfn);
-> -	bool section_is_early = early_section(ms);
-> -	struct page *memmap = NULL;
->  	unsigned long *subsection_map = ms->usage
->  		? &ms->usage->subsection_map[0] : NULL;
-> +	int section_empty = 0;
->  
->  	subsection_mask_set(map, pfn, nr_pages);
->  	if (subsection_map)
-> @@ -750,7 +781,7 @@ static void section_deactivate(unsigned long pfn, unsigned long nr_pages,
->  	if (WARN(!subsection_map || !bitmap_equal(tmp, map, SUBSECTIONS_PER_SECTION),
->  				"section already deactivated (%#lx + %ld)\n",
->  				pfn, nr_pages))
-> -		return;
-> +		return -1;
->  
->  	/*
->  	 * There are 3 cases to handle across two configurations
-> @@ -770,21 +801,10 @@ static void section_deactivate(unsigned long pfn, unsigned long nr_pages,
->  	 * For 2/ and 3/ the SPARSEMEM_VMEMMAP={y,n} cases are unified
->  	 */
->  	bitmap_xor(subsection_map, map, subsection_map, SUBSECTIONS_PER_SECTION);
-> -	if (bitmap_empty(subsection_map, SUBSECTIONS_PER_SECTION)) {
-> -		unsigned long section_nr = pfn_to_section_nr(pfn);
-> -
-> -		if (!section_is_early) {
-> -			kfree(ms->usage);
-> -			ms->usage = NULL;
-> -		}
-> -		memmap = sparse_decode_mem_map(ms->section_mem_map, section_nr);
-> -		ms->section_mem_map = sparse_encode_mem_map(NULL, section_nr);
-> -	}
-> +	if (bitmap_empty(subsection_map, SUBSECTIONS_PER_SECTION))
-> +		section_empty = 1;
->  
-> -	if (section_is_early && memmap)
-> -		free_map_bootmem(memmap);
-> -	else
-> -		depopulate_section_memmap(pfn, nr_pages, altmap);
-> +	return section_empty;
->  }
->  
->  static struct page * __meminit section_activate(int nid, unsigned long pfn,
-> @@ -834,7 +854,11 @@ static struct page * __meminit section_activate(int nid, unsigned long pfn,
->  
->  	memmap = populate_section_memmap(pfn, nr_pages, nid, altmap);
->  	if (!memmap) {
-> -		section_deactivate(pfn, nr_pages, altmap);
-> +		int ret;
-> +
-> +		ret = section_deactivate(pfn, nr_pages);
-> +		if (ret >= 0)
-> +			section_remove(pfn, nr_pages, altmap, ret);
->  		return ERR_PTR(-ENOMEM);
->  	}
->  
-> @@ -919,12 +943,17 @@ static inline void clear_hwpoisoned_pages(struct page *memmap, int nr_pages)
->  }
->  #endif
->  
-> -void sparse_remove_section(struct mem_section *ms, unsigned long pfn,
-> -		unsigned long nr_pages, unsigned long map_offset,
-> -		struct vmem_altmap *altmap)
-> +int sparse_deactivate_section(unsigned long pfn, unsigned long nr_pages)
-> +{
-> +	return section_deactivate(pfn, nr_pages);
-> +}
-> +
-> +void sparse_remove_section(unsigned long pfn, unsigned long nr_pages,
-> +			   unsigned long map_offset, struct vmem_altmap *altmap,
-> +			   int section_empty)
->  {
->  	clear_hwpoisoned_pages(pfn_to_page(pfn) + map_offset,
->  			nr_pages - map_offset);
-> -	section_deactivate(pfn, nr_pages, altmap);
-> +	section_remove(pfn, nr_pages, altmap, section_empty);
->  }
->  #endif /* CONFIG_MEMORY_HOTPLUG */
-> -- 
-> 2.12.3
+Conceptually yes.  But release_pages is more efficient.  There was some
+discussion around this starting here:
+
+https://lore.kernel.org/lkml/20190523172852.GA27175@iweiny-DESK2.sc.intel.com/
+
+And a resulting bug fix.
+
+https://lkml.org/lkml/2019/6/21/95
+
+Ira
+
+> > One note below, for the future:
+> > 
+> > > 
+> > > This is a bunch of trivial conversions which is a part of an effort
+> > > by John Hubbard to solve issues with gup pinned pages and 
+> > > filesystem writeback.
+> > > 
+> > > The issue is more clearly described in John Hubbard's patch[1] where
+> > > put_user_page*() functions are introduced.
+> > > 
+> > > Currently put_user_page*() simply does put_page but future implementations
+> > > look to change that once treewide change of put_page callsites to 
+> > > put_user_page*() is finished.
+> > > 
+> > > The lwn article describing the issue with gup pinned pages and filesystem 
+> > > writeback [2].
+> > > 
+> > > This patch has been tested by building and booting the kernel as I don't
+> > > have the required hardware to test the device drivers.
+> > > 
+> > > I did not modify gpu/drm drivers which use release_pages instead of
+> > > put_page() to release reference of gup pinned pages as I am not clear
+> > > whether release_pages and put_page are interchangable. 
+> > > 
+> > > [1] https://lkml.org/lkml/2019/3/26/1396
+> > 
+> > When referring to patches in a commit description, please use the 
+> > commit hash, not an external link. See Submitting Patches [1] for details.
+> > 
+> > Also, once you figure out the right maintainers and other involved people,
+> > putting Cc: in the commit description is common practice, too.
+> > 
+> > [1] https://www.kernel.org/doc/html/latest/process/submitting-patches.html
+> Will work on that! Thanks!
+> > thanks,
+> > -- 
+> > John Hubbard
+> > NVIDIA
+> > 
+> > > 
+> > > [2] https://lwn.net/Articles/784574/
+> > > 
+> > > Signed-off-by: Bharath Vedartham <linux.bhar@gmail.com>
+> > > ---
+> > >  drivers/media/v4l2-core/videobuf-dma-sg.c | 3 +--
+> > >  drivers/misc/sgi-gru/grufault.c           | 2 +-
+> > >  drivers/staging/kpc2000/kpc_dma/fileops.c | 4 +---
+> > >  drivers/vfio/vfio_iommu_type1.c           | 2 +-
+> > >  fs/io_uring.c                             | 7 +++----
+> > >  mm/gup_benchmark.c                        | 6 +-----
+> > >  net/xdp/xdp_umem.c                        | 7 +------
+> > >  7 files changed, 9 insertions(+), 22 deletions(-)
+> > > 
+> > > diff --git a/drivers/media/v4l2-core/videobuf-dma-sg.c b/drivers/media/v4l2-core/videobuf-dma-sg.c
+> > > index 66a6c6c..d6eeb43 100644
+> > > --- a/drivers/media/v4l2-core/videobuf-dma-sg.c
+> > > +++ b/drivers/media/v4l2-core/videobuf-dma-sg.c
+> > > @@ -349,8 +349,7 @@ int videobuf_dma_free(struct videobuf_dmabuf *dma)
+> > >  	BUG_ON(dma->sglen);
+> > >  
+> > >  	if (dma->pages) {
+> > > -		for (i = 0; i < dma->nr_pages; i++)
+> > > -			put_page(dma->pages[i]);
+> > > +		put_user_pages(dma->pages, dma->nr_pages);
+> > >  		kfree(dma->pages);
+> > >  		dma->pages = NULL;
+> > >  	}
+> > > diff --git a/drivers/misc/sgi-gru/grufault.c b/drivers/misc/sgi-gru/grufault.c
+> > > index 4b713a8..61b3447 100644
+> > > --- a/drivers/misc/sgi-gru/grufault.c
+> > > +++ b/drivers/misc/sgi-gru/grufault.c
+> > > @@ -188,7 +188,7 @@ static int non_atomic_pte_lookup(struct vm_area_struct *vma,
+> > >  	if (get_user_pages(vaddr, 1, write ? FOLL_WRITE : 0, &page, NULL) <= 0)
+> > >  		return -EFAULT;
+> > >  	*paddr = page_to_phys(page);
+> > > -	put_page(page);
+> > > +	put_user_page(page);
+> > >  	return 0;
+> > >  }
+> > >  
+> > > diff --git a/drivers/staging/kpc2000/kpc_dma/fileops.c b/drivers/staging/kpc2000/kpc_dma/fileops.c
+> > > index 6166587..26dceed 100644
+> > > --- a/drivers/staging/kpc2000/kpc_dma/fileops.c
+> > > +++ b/drivers/staging/kpc2000/kpc_dma/fileops.c
+> > > @@ -198,9 +198,7 @@ int  kpc_dma_transfer(struct dev_private_data *priv, struct kiocb *kcb, unsigned
+> > >  	sg_free_table(&acd->sgt);
+> > >   err_dma_map_sg:
+> > >   err_alloc_sg_table:
+> > > -	for (i = 0 ; i < acd->page_count ; i++){
+> > > -		put_page(acd->user_pages[i]);
+> > > -	}
+> > > +	put_user_pages(acd->user_pages, acd->page_count);
+> > >   err_get_user_pages:
+> > >  	kfree(acd->user_pages);
+> > >   err_alloc_userpages:
+> > > diff --git a/drivers/vfio/vfio_iommu_type1.c b/drivers/vfio/vfio_iommu_type1.c
+> > > index add34ad..c491524 100644
+> > > --- a/drivers/vfio/vfio_iommu_type1.c
+> > > +++ b/drivers/vfio/vfio_iommu_type1.c
+> > > @@ -369,7 +369,7 @@ static int vaddr_get_pfn(struct mm_struct *mm, unsigned long vaddr,
+> > >  		 */
+> > >  		if (ret > 0 && vma_is_fsdax(vmas[0])) {
+> > >  			ret = -EOPNOTSUPP;
+> > > -			put_page(page[0]);
+> > > +			put_user_page(page[0]);
+> > >  		}
+> > >  	}
+> > >  	up_read(&mm->mmap_sem);
+> > > diff --git a/fs/io_uring.c b/fs/io_uring.c
+> > > index 4ef62a4..b4a4549 100644
+> > > --- a/fs/io_uring.c
+> > > +++ b/fs/io_uring.c
+> > > @@ -2694,10 +2694,9 @@ static int io_sqe_buffer_register(struct io_ring_ctx *ctx, void __user *arg,
+> > >  			 * if we did partial map, or found file backed vmas,
+> > >  			 * release any pages we did get
+> > >  			 */
+> > > -			if (pret > 0) {
+> > > -				for (j = 0; j < pret; j++)
+> > > -					put_page(pages[j]);
+> > > -			}
+> > > +			if (pret > 0)
+> > > +				put_user_pages(pages, pret);
+> > > +
+> > >  			if (ctx->account_mem)
+> > >  				io_unaccount_mem(ctx->user, nr_pages);
+> > >  			kvfree(imu->bvec);
+> > > diff --git a/mm/gup_benchmark.c b/mm/gup_benchmark.c
+> > > index 7dd602d..15fc7a2 100644
+> > > --- a/mm/gup_benchmark.c
+> > > +++ b/mm/gup_benchmark.c
+> > > @@ -76,11 +76,7 @@ static int __gup_benchmark_ioctl(unsigned int cmd,
+> > >  	gup->size = addr - gup->addr;
+> > >  
+> > >  	start_time = ktime_get();
+> > > -	for (i = 0; i < nr_pages; i++) {
+> > > -		if (!pages[i])
+> > > -			break;
+> > > -		put_page(pages[i]);
+> > > -	}
+> > > +	put_user_pages(pages, nr_pages);
+> > >  	end_time = ktime_get();
+> > >  	gup->put_delta_usec = ktime_us_delta(end_time, start_time);
+> > >  
+> > > diff --git a/net/xdp/xdp_umem.c b/net/xdp/xdp_umem.c
+> > > index 9c6de4f..6103e19 100644
+> > > --- a/net/xdp/xdp_umem.c
+> > > +++ b/net/xdp/xdp_umem.c
+> > > @@ -173,12 +173,7 @@ static void xdp_umem_unpin_pages(struct xdp_umem *umem)
+> > >  {
+> > >  	unsigned int i;
+> > >  
+> > > -	for (i = 0; i < umem->npgs; i++) {
+> > > -		struct page *page = umem->pgs[i];
+> > > -
+> > > -		set_page_dirty_lock(page);
+> > > -		put_page(page);
+> > > -	}
+> > > +	put_user_pages_dirty_lock(umem->pgs, umem->npgs);
+> > >  
+> > >  	kfree(umem->pgs);
+> > >  	umem->pgs = NULL;
+> > > 
 
