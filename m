@@ -2,144 +2,168 @@ Return-Path: <SRS0=FHqE=VM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 76BBBC7618F
-	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 08:28:30 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A757FC7618F
+	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 09:02:55 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 449EA205F4
-	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 08:28:30 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 449EA205F4
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linutronix.de
+	by mail.kernel.org (Postfix) with ESMTP id 78E08214DA
+	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 09:02:55 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 78E08214DA
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D5F586B000E; Mon, 15 Jul 2019 04:28:29 -0400 (EDT)
+	id 139516B0006; Mon, 15 Jul 2019 05:02:55 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CE96B6B0010; Mon, 15 Jul 2019 04:28:29 -0400 (EDT)
+	id 0C2576B0007; Mon, 15 Jul 2019 05:02:55 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B64736B0266; Mon, 15 Jul 2019 04:28:29 -0400 (EDT)
+	id E7D256B0008; Mon, 15 Jul 2019 05:02:54 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 619436B000E
-	for <linux-mm@kvack.org>; Mon, 15 Jul 2019 04:28:29 -0400 (EDT)
-Received: by mail-wm1-f70.google.com with SMTP id v125so3747501wme.5
-        for <linux-mm@kvack.org>; Mon, 15 Jul 2019 01:28:29 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id AF7336B0006
+	for <linux-mm@kvack.org>; Mon, 15 Jul 2019 05:02:54 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id 21so9921824pfu.9
+        for <linux-mm@kvack.org>; Mon, 15 Jul 2019 02:02:54 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:in-reply-to:message-id:references:user-agent
-         :mime-version;
-        bh=ZI59Obl45UF1mQBOMQqzF1+nbTJngjjz72dAyoLdS2I=;
-        b=t6zkvbPh9WgXfi5IqeQ2JTemrFBayOqKnRj6HmeipR03PuZT0Y138Q1QchsslNUXsy
-         q3aCk+dKy1B8J15z0FVtrM8dN8m9kVAfUI2bDHXWpEy8TenecjDWanLKp3MF9G7XCKOZ
-         IwWVliSg0HkAk9eLCH9qdv5oe3hvap1dwqD9gUli7L7iK97gOVrzgu+65VSlz1idO15I
-         Opb+fKq9o+kNXRNFQL6VrsZtLxL0qnHFvKpDaPJdgyQUoqrJYLZj3gcH8gqay9jzes4M
-         s4SNa7bA5IGJWpGovKh8pCDtd4aIKovBW+ePMSSMHwkAoivLn8jcSPZ524YgrpGZK/qu
-         c13Q==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a0a:51c0:0:12e:550::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
-X-Gm-Message-State: APjAAAV1g5VGJdppDa/sIFRg/gGtLxMJ4DoxObUWYo9QlV+Fdp9Pa7Dj
-	8hnrF9WKxXl86Y/CKGtLz4TydkCBvCDTJTTRN5Sjsw1elCBNXBKniF8CaaJmHKBThYM3tMtgXmb
-	WbIh7MqVZOW13GL/QvNPLVSL8FKDIwBGUXHH/DLZPsZ6D3tfCRffbFNWwnLypfTGwuA==
-X-Received: by 2002:a1c:f914:: with SMTP id x20mr13716181wmh.142.1563179308841;
-        Mon, 15 Jul 2019 01:28:28 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy3G9d2yUqI1XMaEcYqPCHuG6zECRsjtDa/q25xE7JDeR+B0KQiHzT+UqqDSAepf1ZphbRj
-X-Received: by 2002:a1c:f914:: with SMTP id x20mr13716092wmh.142.1563179308056;
-        Mon, 15 Jul 2019 01:28:28 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563179308; cv=none;
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=UVLBeDgqnnk2zrSJQPLKaBhSLPMHfwvqIYi69QP17ec=;
+        b=WxQ5ClTdE2AWIrZz+ehDZW7jlmyjpgU7XnFtf85iDe45eguntxMFic9bJAERhBe//Z
+         WF9/9O+0b5Zk85eX34ddf313yg5VuufCbYcSLfonnrU5HBpbeSKhrwiOjhY3och0DD96
+         UCfr9VJ82RZrQEmDWxon1LNW/EVxWxEWC4/R13jYVBMPX/ZRNVQZ6RfsmodGaYsbrEcs
+         gr1/2YzwrXZyMxIYYd6CMqQDFVbfeR2U8f/N4v8UkyrGE9wH/6V03C3kQ0VLWJaQDp5E
+         aHJK7DEguWF6khXncH6uZcjhI3VfepVA0beBeWf8CiGQHIIHgnbGe3HLhQQ2sLIiZtKE
+         mlXQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAWRLDrS8cygD6vDZKQsnN/sNf/Qx8FfVfDyIvDzhfU5Ijiu3NHR
+	4V8/cK3/MAzO5wIuo8E95QLccm3f3TpeLyZ8vBS9VuAadktKLiwBkR/jj79xJyP+R/+fDAYng61
+	+Gk/crRTKopwnxHheZ6YGMWcKswJ5sPCkvKrcnyKLzceftF23kTtQdOB66CAtZ+q0Rg==
+X-Received: by 2002:a17:902:2f84:: with SMTP id t4mr21843916plb.57.1563181374279;
+        Mon, 15 Jul 2019 02:02:54 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqy7ZRs9BoC+2zhcWzSyKz/1dnqbHiD98bUalgSa/4mUwvjoi+gdPBP9do7AloqWQAnqH9Wq
+X-Received: by 2002:a17:902:2f84:: with SMTP id t4mr21843852plb.57.1563181373533;
+        Mon, 15 Jul 2019 02:02:53 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563181373; cv=none;
         d=google.com; s=arc-20160816;
-        b=KNXRQNms7SmoPm5GdBLGeAo2WRQQZjrMtbWl1qUE64fZPiWIKpIYbHR9V2pGygpvT0
-         gTeSaARCSvRixfYrZGIxf8LtL30RKOVTY/KWWqzaZLjL0enByDBUbNCwRw/NN61bUTBs
-         pi6DxHsU69dOVi8peJ6a1UttzUQi4ZGNRS+hS6AxENRD48pGOwAY+vKEfw7GC9Gp+P9L
-         TGznoUYHE8//IMHJ803EjI+1KaH8MS053J7tcQKqNDDaBmcAXbWf4D9rdZhYLL/XaKvf
-         ibfWKwUNcR4+/lBAcx7/xuL/78m4Pp7k6XJ4U2t5rJxtTjKEPP+U+kMf+HSHWZpeGhF1
-         nYZQ==
+        b=Y5w/y/58V+solcsw2hj1LRjxTn0Ps6dda01WRli+Bo1RAO+pcDQbCmYcfX9CJ0AdEU
+         yNXCGoLHfTZyKqyAeNpfNchi3aZ2UeM14VVEs4brqgxKlLUW0ai8wsaXmMjLu6SXPsfr
+         Sh21gLYK39FIHRFm2Y5xY7ZvksfXFbHuwDdfZ5HBsOsuf47YlR1nI2MU6MSRp1rGVBrA
+         S1CH86mjwA7vLqX5t+0FaEIum5P7RkXVz2Wjry2S1LnRo/X4dRPMKYo7gCPzfuAQUgA/
+         m/47cBTrLQ/ZBWgbdXQgt5DvOhZTWo+8t7ZkBDzm2eD46+FpZz6vuK5bCNgiZgAN6b6W
+         g0PQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:user-agent:references:message-id:in-reply-to:subject
-         :cc:to:from:date;
-        bh=ZI59Obl45UF1mQBOMQqzF1+nbTJngjjz72dAyoLdS2I=;
-        b=F61lDZ8USMN4MSk1Ce2cp+zG6dRwYdI0cF2PnFtJ6MhACkntj0zgtnyrkexqZ75xUy
-         mVttWjleks/gxC91/EUhZ+LSJl0FQP5c6zmCllI7Ko/VxjuPr5U37pOx+4r4XqUkxhe5
-         gdJGuleWKDHJtk6TBCXDB4qwcmBS2zLT2t+FfBPSJbNP3kvGc8spSW8qLZ1mxb35jzvw
-         bXWZKZnLueIXF/7YnQGk3RSeRAXqFctKxrg0M4D2VxuDFVeNOXj/bBPXSBGK2TuhweVg
-         RyJG/PU/ctLVXeggnFehFkFAuewD7B14lX72pDLqDkMTcsSAny3jwVH6l2RHly+B6aNv
-         lwkA==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date;
+        bh=UVLBeDgqnnk2zrSJQPLKaBhSLPMHfwvqIYi69QP17ec=;
+        b=Lu+eIXdolAl9eehzuns4PrYhdwzOrrouATXXc3ndwCdfuniGZiiRrIAMMAt4ZVH01T
+         wLcSqagufB97a74/TxksKYwNFgbcyvW9nNqlnGfL8DI8ZWdcaoJ8Aun59zTqYPfInyFz
+         5gNos1hRy+7oWDib1C+w1D9od+sDNTb0E8yCupG9Wq4SMa5HEjd8n0+onWeHreTOm9Mo
+         2wveT08ROS8+0OvInQPkQeU7thuFpE1aAZAQueCPgrcaLAPDLT4oSzb+xgt1mC7Q6a3+
+         tNl/BuVBKaQXh62Csteg8YSKGpN4+js+WRxrEwCEWXnqLxWKxaDw78vslkSj07dqyj06
+         WMvw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a0a:51c0:0:12e:550::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a0a:51c0:0:12e:550::1])
-        by mx.google.com with ESMTPS id o143si13746648wme.57.2019.07.15.01.28.27
+       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
+        by mx.google.com with ESMTPS id c1si15348610pld.418.2019.07.15.02.02.53
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Mon, 15 Jul 2019 01:28:28 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a0a:51c0:0:12e:550::1 as permitted sender) client-ip=2a0a:51c0:0:12e:550::1;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 15 Jul 2019 02:02:53 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 192.55.52.136 as permitted sender) client-ip=192.55.52.136;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a0a:51c0:0:12e:550::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
-Received: from pd9ef1cb8.dip0.t-ipconnect.de ([217.239.28.184] helo=nanos)
-	by Galois.linutronix.de with esmtpsa (TLS1.2:DHE_RSA_AES_256_CBC_SHA256:256)
-	(Exim 4.80)
-	(envelope-from <tglx@linutronix.de>)
-	id 1hmwLE-0005Ij-RB; Mon, 15 Jul 2019 10:28:12 +0200
-Date: Mon, 15 Jul 2019 10:28:11 +0200 (CEST)
-From: Thomas Gleixner <tglx@linutronix.de>
-To: Alexandre Chartre <alexandre.chartre@oracle.com>
-cc: Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@intel.com>, 
-    pbonzini@redhat.com, rkrcmar@redhat.com, mingo@redhat.com, bp@alien8.de, 
-    hpa@zytor.com, dave.hansen@linux.intel.com, luto@kernel.org, 
-    kvm@vger.kernel.org, x86@kernel.org, linux-mm@kvack.org, 
-    linux-kernel@vger.kernel.org, konrad.wilk@oracle.com, 
-    jan.setjeeilers@oracle.com, liran.alon@oracle.com, jwadams@google.com, 
-    graf@amazon.de, rppt@linux.vnet.ibm.com, Paul Turner <pjt@google.com>
-Subject: Re: [RFC v2 00/27] Kernel Address Space Isolation
-In-Reply-To: <fd98f388-1080-ff9e-1f9a-b089272c0037@oracle.com>
-Message-ID: <alpine.DEB.2.21.1907151026190.1669@nanos.tec.linutronix.de>
-References: <1562855138-19507-1-git-send-email-alexandre.chartre@oracle.com> <5cab2a0e-1034-8748-fcbe-a17cf4fa2cd4@intel.com> <alpine.DEB.2.21.1907120911160.11639@nanos.tec.linutronix.de> <61d5851e-a8bf-e25c-e673-b71c8b83042c@oracle.com>
- <20190712125059.GP3419@hirez.programming.kicks-ass.net> <alpine.DEB.2.21.1907121459180.1788@nanos.tec.linutronix.de> <3ca70237-bf8e-57d9-bed5-bc2329d17177@oracle.com> <alpine.DEB.2.21.1907122059430.1669@nanos.tec.linutronix.de>
- <fd98f388-1080-ff9e-1f9a-b089272c0037@oracle.com>
-User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
+       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: UNKNOWN
+X-Amp-Original-Verdict: FILE UNKNOWN
+X-Amp-File-Uploaded: False
+Received: from fmsmga005.fm.intel.com ([10.253.24.32])
+  by fmsmga106.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 15 Jul 2019 02:02:52 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.63,493,1557212400"; 
+   d="scan'208";a="365809173"
+Received: from black.fi.intel.com ([10.237.72.28])
+  by fmsmga005.fm.intel.com with ESMTP; 15 Jul 2019 02:02:48 -0700
+Received: by black.fi.intel.com (Postfix, from userid 1000)
+	id DF2ED14B; Mon, 15 Jul 2019 12:02:47 +0300 (EEST)
+Date: Mon, 15 Jul 2019 12:02:47 +0300
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Randy Dunlap <rdunlap@infradead.org>,
+	Alison Schofield <alison.schofield@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org,
+	Thomas Gleixner <tglx@linutronix.de>,
+	Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>,
+	Borislav Petkov <bp@alien8.de>,
+	Peter Zijlstra <peterz@infradead.org>,
+	Andy Lutomirski <luto@amacapital.net>,
+	David Howells <dhowells@redhat.com>,
+	Kees Cook <keescook@chromium.org>,
+	Dave Hansen <dave.hansen@intel.com>,
+	Kai Huang <kai.huang@linux.intel.com>,
+	Jacob Pan <jacob.jun.pan@linux.intel.com>, linux-mm@kvack.org,
+	kvm@vger.kernel.org, keyrings@vger.kernel.org,
+	linux-kernel@vger.kernel.org
+Subject: Re: [PATCH, RFC 57/62] x86/mktme: Overview of Multi-Key Total Memory
+ Encryption
+Message-ID: <20190715090247.lclzdru5gqowweis@black.fi.intel.com>
+References:<20190508144422.13171-1-kirill.shutemov@linux.intel.com>
+ <20190508144422.13171-58-kirill.shutemov@linux.intel.com>
+ <a2d2ac19-1dfe-6f85-df83-d72de4d5fcbf@infradead.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-X-Linutronix-Spam-Score: -1.0
-X-Linutronix-Spam-Level: -
-X-Linutronix-Spam-Status: No , -1.0 points, 5.0 required,  ALL_TRUSTED=-1,SHORTCIRCUIT=-0.0001
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To:<a2d2ac19-1dfe-6f85-df83-d72de4d5fcbf@infradead.org>
+User-Agent: NeoMutt/20170714-126-deb55f (1.8.3)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Alexandre,
-
-On Mon, 15 Jul 2019, Alexandre Chartre wrote:
-> On 7/12/19 9:48 PM, Thomas Gleixner wrote:
-> > As I said before, come up with a list of possible usage scenarios and
-> > protection scopes first and please take all the ideas other people have
-> > with this into account. This includes PTI of course.
+On Sun, Jul 14, 2019 at 06:16:49PM +0000, Randy Dunlap wrote:
+> On 5/8/19 7:44 AM, Kirill A. Shutemov wrote:
+> > From: Alison Schofield <alison.schofield@intel.com>
 > > 
-> > Once we have that we need to figure out whether these things can actually
-> > coexist and do not contradict each other at the semantical level and
-> > whether the outcome justifies the resulting complexity.
+> > Provide an overview of MKTME on Intel Platforms.
 > > 
-> > After that we can talk about implementation details.
+> > Signed-off-by: Alison Schofield <alison.schofield@intel.com>
+> > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> > ---
+> >  Documentation/x86/mktme/index.rst          |  8 +++
+> >  Documentation/x86/mktme/mktme_overview.rst | 57 ++++++++++++++++++++++
+> >  2 files changed, 65 insertions(+)
+> >  create mode 100644 Documentation/x86/mktme/index.rst
+> >  create mode 100644 Documentation/x86/mktme/mktme_overview.rst
 > 
-> Right, that makes perfect sense. I think so far we have the following
-> scenarios:
 > 
->  - PTI
->  - KVM (i.e. VMExit handler isolation)
->  - maybe some syscall isolation?
-
-Vs. the latter you want to talk to Paul Turner. He had some ideas there.
-
-> I will look at them in more details, in particular what particular
-> mappings they need and when they need to switch mappings.
+> > diff --git a/Documentation/x86/mktme/mktme_overview.rst b/Documentation/x86/mktme/mktme_overview.rst
+> > new file mode 100644
+> > index 000000000000..59c023965554
+> > --- /dev/null
+> > +++ b/Documentation/x86/mktme/mktme_overview.rst
+> > @@ -0,0 +1,57 @@
+> > +Overview
+> > +=========
+> ...
+> > +--
+> > +1. https://software.intel.com/sites/default/files/managed/a5/16/Multi-Key-Total-Memory-Encryption-Spec.pdf
+> > +2. The MKTME architecture supports up to 16 bits of KeyIDs, so a
+> > +   maximum of 65535 keys on top of the “TME key” at KeyID-0.  The
+> > +   first implementation is expected to support 5 bits, making 63
 > 
-> And thanks for putting me back on the right track.
+> Hi,
+> How do 5 bits make 63 keys available?
 
-That's what maintainers are for :)
+Yep, typo. It has to be 6 bits.
 
-Thanks,
+Alison, please correct this.
 
-	tglx
+-- 
+ Kirill A. Shutemov
 
