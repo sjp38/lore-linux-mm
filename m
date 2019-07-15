@@ -2,83 +2,84 @@ Return-Path: <SRS0=FHqE=VM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT
-	autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id F3FE8C7618D
-	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 06:17:29 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 69E19C7618B
+	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 06:17:34 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9074E20644
-	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 06:17:29 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9074E20644
+	by mail.kernel.org (Postfix) with ESMTP id 2DB1E20644
+	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 06:17:34 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2DB1E20644
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id ED2CE6B0003; Mon, 15 Jul 2019 02:17:28 -0400 (EDT)
+	id C3AE26B0006; Mon, 15 Jul 2019 02:17:33 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E5BAD6B0006; Mon, 15 Jul 2019 02:17:28 -0400 (EDT)
+	id BC4066B0007; Mon, 15 Jul 2019 02:17:33 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CFDE96B0007; Mon, 15 Jul 2019 02:17:28 -0400 (EDT)
+	id A63D66B0008; Mon, 15 Jul 2019 02:17:33 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 7A0836B0003
-	for <linux-mm@kvack.org>; Mon, 15 Jul 2019 02:17:28 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id b12so12859647ede.23
-        for <linux-mm@kvack.org>; Sun, 14 Jul 2019 23:17:28 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 591F46B0006
+	for <linux-mm@kvack.org>; Mon, 15 Jul 2019 02:17:33 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id i44so12911150eda.3
+        for <linux-mm@kvack.org>; Sun, 14 Jul 2019 23:17:33 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id;
-        bh=ykBrGAF9Osy4u6Kgs6RJe3emPurKJEmaSL5DLPZKttA=;
-        b=gLyhRWLex+n6xZwxWjQQxsXqaLnV3ED1QTHa+z8DhLPzPh2g2a6VAgzxDKw+Mewy8u
-         ZzTD6KIWql8IlAb2Jwi3MrKmZJXaEGD40HyUgeiFdMHQ2gjJCOPXFzjM2T+TKtCboIIR
-         ATEtuxbLsE1UyInCYI2UMyHdpw9Lg9BsxrIMcUI9J3Tpj8b7zAzrJtwwjtqARi6tt153
-         ripvDjQ68fakMMVakIbk20vw0TMQeC2K1dZAyWKQeJ+1cH4PMfsfTsVaBcQia0lFGsn6
-         5G8OuA1H/Ekx7XLzEFeRJWAHN8gD7r0yRFgUmZCLZ8ygw9kghL7GdW/8uIFZ+9gTkN78
-         Bwkg==
+         :subject:date:message-id:in-reply-to:references;
+        bh=fR0qheju1ReugcjNPqDZi/s2XyMltA//PhuA0FZEjmM=;
+        b=nzrFLyu7x/RhMgrftkcKFMXFIahyQdQZhFR42u9ChOulp34PUzsdWvaEu+yyDzpUjM
+         xKAE1HbVhybN45T2DapBOaWFLjTqq6b9/eSEKbPbsciWsDRJO7blSLdEd6xIdp8NBqtv
+         1xCDbitpRwUCp9lroStfA/xwrSCmTnymfbBXocTpy/58fwwwQNazg+42Btag8SPSAIdQ
+         rJGKcQuIoOLgQiReVTd4ueAP5EzvPpgK5HxRvl/sGAQ25bCbcE40IlzyDrJsK+plstX+
+         JPhUCZBfTms1wFHeRFno1x+1+HOPHuBOTLbt8uNHHG0G3fsPUSwRYkG3FA6k3fhUAqnF
+         RqCQ==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-X-Gm-Message-State: APjAAAVAXr65oHSAmM//t9hxDy9DHBbBsJfpJPJNTlN7dh92xvN7MlQF
-	1tNMtFs8Po5LYEONrkAMxwcXYFKceFPYMLBLbxOnZXgsAaAIXYFu/rGG3L0/KG9kBzWIe0BbEry
-	+Knkpe9KXwbNXKGo47CVz9l9Lf83YgtIjYXiKcENCNX9y6EAMB84pG3QqCy98RHydmA==
-X-Received: by 2002:a50:b3fb:: with SMTP id t56mr21295832edd.303.1563171447842;
-        Sun, 14 Jul 2019 23:17:27 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzo8PSX6keWQu2nEtgoWciQMQRZg9CpXLfC+AJBwX8uhNOSNgBkxn5wRDO6XVJMVtuEUt95
-X-Received: by 2002:a50:b3fb:: with SMTP id t56mr21295758edd.303.1563171446367;
-        Sun, 14 Jul 2019 23:17:26 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563171446; cv=none;
+X-Gm-Message-State: APjAAAXkUwffAYJROzz7zud4iayR3Vj2ND98rGAv9R/ICT3JSRnEOTLH
+	PsXapEx3Fa8W+sMvEUjqouI5gGtw6+MFHL02GJTUN0RuRQj1eiTZLFO+Pw/Bi0vthoK0NL1SPTP
+	xXOt0dLhV0CBTefzAqMVYDIfLSOq4z9W8xh0vUbp6f21TtMbpx7w96N+tR0bjrWkpxA==
+X-Received: by 2002:a50:8dcb:: with SMTP id s11mr21009378edh.144.1563171452929;
+        Sun, 14 Jul 2019 23:17:32 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxT5Rrc9DqXIjvEJNHvVP9P8kbo9ue1AbobrbD8ftl6q7h+pXxHYExkcJ0vhfMpxmO0K+cQ
+X-Received: by 2002:a50:8dcb:: with SMTP id s11mr21009309edh.144.1563171451948;
+        Sun, 14 Jul 2019 23:17:31 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563171451; cv=none;
         d=google.com; s=arc-20160816;
-        b=yURuAFinUgmTFZYyRRjzu7yNM5qFdmF2CRtlTbRFp2Wcnhmu0WCURKyh4dlaHGXcNy
-         h/KbZvXMJdPS+njVS0tv0+CWSc0sfDQB7cj8nVgDMyF2rz75AR3SN8iV/VA1Sgz7LiKO
-         twpKxk9fVhQUR/A5MbvWLRprarrDiRF72vpY2rqCAmnAKL7eZ7G8tYOo0+ugoqpoY4ZN
-         f3rvwHhON/DBI4QdbLoDyYhKDeDVWPRFj3Q67PI0/YpazGZCnfbzladQYUUPkvJFJGcJ
-         DyRZAQl3+YKVU671mzkrIdTEvh0PRpjt5sGtJ2LO/Fwss1t+HtxaxwmkOymOVrcHr8XH
-         pjZg==
+        b=AtZsVv25pSEBldo050EIuWPmlQbuAUqFjyMc6fQkNXnhPT5ZSRx4IMOram3dolHJ14
+         QCsMw/fgNIuwjVHQt2LJyQjjzjERG4NoXkIdXdjQvf2lxfOUE5P1ZfR6PX13fCyViQwW
+         hHTVbRFzQgQLhuQsamGChxJC1y1SAw3ILsxpbzRJ4PUkfH2e7WIluSMfGYLhN8Zg+0HZ
+         beGo/bWYnWQ2u8gQ+q11khZqOqG+FHKyx01xrmCJuaC6I5YGrL51IaMW/kN2RmqVLLhG
+         dx8ck0H5mLYvkmlorNQD9F7eXcEMIHTkw6HNmrn6jPmmB4hUI0OnEg5axpsB7epffumD
+         7IKw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:date:subject:cc:to:from;
-        bh=ykBrGAF9Osy4u6Kgs6RJe3emPurKJEmaSL5DLPZKttA=;
-        b=uQukdkUZF7PDRr/esAvQnJc79e1XInUcG/BKx1gdZm4EyDWrEQBYt3OuIFs2i6zlOq
-         KpU6oBdknGnozw/IcVs1tOD7GOSyytbg83tT/sAEhd4oHKwcXnLv1l+RYS2fxpc/nc5u
-         c4yi+05HZeVTTId3HsdnO0yobPwQW5zryWSrYIrEvqUmvjPeqbByLypXnxAXzDrHr/0T
-         Tsgz9UOCeGh1PHNfozWm39SqFsneLYTnWvDdYBRfJUb2HOvTMe6vy+NoXlA+geCr/ZL8
-         LhxSbQ6y2X34LeqU2lNiRhpdRUakHvbcYGyNj4SXKzKocmDZZ+eRdfACXp9vgZlHSMTD
-         W5+g==
+        h=references:in-reply-to:message-id:date:subject:cc:to:from;
+        bh=fR0qheju1ReugcjNPqDZi/s2XyMltA//PhuA0FZEjmM=;
+        b=Ew6kXUbPu5OYbc9HWO1WulA70y/L0K2WkdBsKjJGndS/0Rr6epvBEfWGf4K6F7ZzIM
+         KprHLh5e+eaco4w6AESn3lUOcxsc40EX2xX9RD4SMWuISYjTks3kJk1GCewxs9f9OppU
+         QdZ4U3o5X4Pap2u1I3jNVGZuUaTizm3WjqL/B+oCAtqI+GKx1U3XsHRkyOaTFdgralR3
+         bJJC8BeEv4s5au8YA0Wu6kiLbw3LTiYyqjcUVhp6sO2TfZhEqAjXhM7dTTsSiDs6qIWX
+         vye9jN15mcm2TcRYLsLAV5lCO3Z7ufnaf22picAuTgKP6iksBn/Ehw/2ooEbC8pnrQqU
+         yC8g==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
 Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
-        by mx.google.com with ESMTP id y12si9968420edd.87.2019.07.14.23.17.25
+        by mx.google.com with ESMTP id l41si10040628eda.255.2019.07.14.23.17.31
         for <linux-mm@kvack.org>;
-        Sun, 14 Jul 2019 23:17:26 -0700 (PDT)
+        Sun, 14 Jul 2019 23:17:31 -0700 (PDT)
 Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
 Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 4C993337;
-	Sun, 14 Jul 2019 23:17:25 -0700 (PDT)
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id EF85C344;
+	Sun, 14 Jul 2019 23:17:30 -0700 (PDT)
 Received: from p8cg001049571a15.blr.arm.com (p8cg001049571a15.blr.arm.com [10.162.40.143])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPA id 015AB3F71F;
-	Sun, 14 Jul 2019 23:19:18 -0700 (PDT)
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPA id B031B3F71F;
+	Sun, 14 Jul 2019 23:19:24 -0700 (PDT)
 From: Anshuman Khandual <anshuman.khandual@arm.com>
 To: linux-mm@kvack.org,
 	linux-kernel@vger.kernel.org,
@@ -100,166 +101,112 @@ Cc: mark.rutland@arm.com,
 	osalvador@suse.de,
 	ard.biesheuvel@arm.com,
 	steve.capper@arm.com
-Subject: [PATCH V6 RESEND 0/3] arm64/mm: Enable memory hot remove
-Date: Mon, 15 Jul 2019 11:47:47 +0530
-Message-Id: <1563171470-3117-1-git-send-email-anshuman.khandual@arm.com>
+Subject: [PATCH V6 RESEND 1/3] mm/hotplug: Reorder memblock_[free|remove]() calls in try_remove_memory()
+Date: Mon, 15 Jul 2019 11:47:48 +0530
+Message-Id: <1563171470-3117-2-git-send-email-anshuman.khandual@arm.com>
 X-Mailer: git-send-email 2.7.4
+In-Reply-To: <1563171470-3117-1-git-send-email-anshuman.khandual@arm.com>
+References: <1563171470-3117-1-git-send-email-anshuman.khandual@arm.com>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This series enables memory hot remove on arm64 after fixing a memblock
-removal ordering problem in generic try_remove_memory() and a possible
-arm64 platform specific kernel page table race condition. This series
-is based on linux-next (next-20190712).
+Memory hot remove uses get_nid_for_pfn() while tearing down linked sysfs
+entries between memory block and node. It first checks pfn validity with
+pfn_valid_within() before fetching nid. With CONFIG_HOLES_IN_ZONE config
+(arm64 has this enabled) pfn_valid_within() calls pfn_valid().
 
-Concurrent vmalloc() and hot-remove conflict:
+pfn_valid() is an arch implementation on arm64 (CONFIG_HAVE_ARCH_PFN_VALID)
+which scans all mapped memblock regions with memblock_is_map_memory(). This
+creates a problem in memory hot remove path which has already removed given
+memory range from memory block with memblock_[remove|free] before arriving
+at unregister_mem_sect_under_nodes(). Hence get_nid_for_pfn() returns -1
+skipping subsequent sysfs_remove_link() calls leaving node <-> memory block
+sysfs entries as is. Subsequent memory add operation hits BUG_ON() because
+of existing sysfs entries.
 
-As pointed out earlier on the v5 thread [2] there can be potential conflict
-between concurrent vmalloc() and memory hot-remove operation. This can be
-solved or at least avoided with some possible methods. The problem here is
-caused by inadequate locking in vmalloc() which protects installation of a
-page table page but not the walk or the leaf entry modification.
+[   62.007176] NUMA: Unknown node for memory at 0x680000000, assuming node 0
+[   62.052517] ------------[ cut here ]------------
+[   62.053211] kernel BUG at mm/memory_hotplug.c:1143!
+[   62.053868] Internal error: Oops - BUG: 0 [#1] PREEMPT SMP
+[   62.054589] Modules linked in:
+[   62.054999] CPU: 19 PID: 3275 Comm: bash Not tainted 5.1.0-rc2-00004-g28cea40b2683 #41
+[   62.056274] Hardware name: linux,dummy-virt (DT)
+[   62.057166] pstate: 40400005 (nZcv daif +PAN -UAO)
+[   62.058083] pc : add_memory_resource+0x1cc/0x1d8
+[   62.058961] lr : add_memory_resource+0x10c/0x1d8
+[   62.059842] sp : ffff0000168b3ce0
+[   62.060477] x29: ffff0000168b3ce0 x28: ffff8005db546c00
+[   62.061501] x27: 0000000000000000 x26: 0000000000000000
+[   62.062509] x25: ffff0000111ef000 x24: ffff0000111ef5d0
+[   62.063520] x23: 0000000000000000 x22: 00000006bfffffff
+[   62.064540] x21: 00000000ffffffef x20: 00000000006c0000
+[   62.065558] x19: 0000000000680000 x18: 0000000000000024
+[   62.066566] x17: 0000000000000000 x16: 0000000000000000
+[   62.067579] x15: ffffffffffffffff x14: ffff8005e412e890
+[   62.068588] x13: ffff8005d6b105d8 x12: 0000000000000000
+[   62.069610] x11: ffff8005d6b10490 x10: 0000000000000040
+[   62.070615] x9 : ffff8005e412e898 x8 : ffff8005e412e890
+[   62.071631] x7 : ffff8005d6b105d8 x6 : ffff8005db546c00
+[   62.072640] x5 : 0000000000000001 x4 : 0000000000000002
+[   62.073654] x3 : ffff8005d7049480 x2 : 0000000000000002
+[   62.074666] x1 : 0000000000000003 x0 : 00000000ffffffef
+[   62.075685] Process bash (pid: 3275, stack limit = 0x00000000d754280f)
+[   62.076930] Call trace:
+[   62.077411]  add_memory_resource+0x1cc/0x1d8
+[   62.078227]  __add_memory+0x70/0xa8
+[   62.078901]  probe_store+0xa4/0xc8
+[   62.079561]  dev_attr_store+0x18/0x28
+[   62.080270]  sysfs_kf_write+0x40/0x58
+[   62.080992]  kernfs_fop_write+0xcc/0x1d8
+[   62.081744]  __vfs_write+0x18/0x40
+[   62.082400]  vfs_write+0xa4/0x1b0
+[   62.083037]  ksys_write+0x5c/0xc0
+[   62.083681]  __arm64_sys_write+0x18/0x20
+[   62.084432]  el0_svc_handler+0x88/0x100
+[   62.085177]  el0_svc+0x8/0xc
 
-Option 1: Making locking in vmalloc() adequate
+Re-ordering memblock_[free|remove]() with arch_remove_memory() solves the
+problem on arm64 as pfn_valid() behaves correctly and returns positive
+as memblock for the address range still exists. arch_remove_memory()
+removes applicable memory sections from zone with __remove_pages() and
+tears down kernel linear mapping. Removing memblock regions afterwards
+is safe because there is no other memblock (bootmem) allocator user that
+late. So nobody is going to allocate from the removed range just to blow
+up later. Also nobody should be using the bootmem allocated range else
+we wouldn't allow to remove it. So reordering is indeed safe.
 
-Current locking scheme protects installation of page table pages but not the
-page table walk or leaf entry creation which can conflict with hot-remove.
-This scheme is sufficient for now as vmalloc() works on mutually exclusive
-ranges which can proceed concurrently only if their shared page table pages
-can be created while inside the lock. It achieves performance improvement
-which will be compromised if entire vmalloc() operation (even if with some
-optimization) has to be completed under a lock.
+Reviewed-by: David Hildenbrand <david@redhat.com>
+Reviewed-by: Oscar Salvador <osalvador@suse.de>
+Acked-by: Mark Rutland <mark.rutland@arm.com>
+Acked-by: Michal Hocko <mhocko@suse.com>
+Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
+---
+ mm/memory_hotplug.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-Option 2: Making sure hot-remove does not happen during vmalloc()
-
-Take mem_hotplug_lock in read mode through [get|put]_online_mems() constructs
-for the entire duration of vmalloc(). It protects from concurrent memory hot
-remove operation and does not add any significant overhead to other concurrent
-vmalloc() threads. It solves the problem in right way unless we do not want to
-extend the usage of mem_hotplug_lock in generic MM.
-
-Option 3: Memory hot-remove does not free (conflicting) page table pages
-
-Don't not free page table pages (if any) for vmemmap mappings after unmapping
-it's virtual range. The only downside here is that some page table pages might
-remain empty and unused until next memory hot-add operation of the same memory
-range.
-
-Option 4: Dont let vmalloc and vmemmap share intermediate page table pages
-
-The conflict does not arise if vmalloc and vmemap range do not share kernel
-page table pages to start with. If such placement can be ensured in platform
-kernel virtual address layout, this problem can be successfully avoided.
-
-There are two generic solutions (Option 1 and 2) and two platform specific
-solutions (Options 2 and 3). This series has decided to go with (Option 3)
-which requires minimum changes while self-contained inside the functionality.
-
-Testing:
-
-Memory hot remove has been tested on arm64 for 4K, 16K, 64K page config
-options with all possible CONFIG_ARM64_VA_BITS and CONFIG_PGTABLE_LEVELS
-combinations. Its only build tested on non-arm64 platforms.
-
-Changes in V6:
-
-- Implemented most of the suggestions from Mark Rutland
-- Added <linux/memory_hotplug.h> in ptdump
-- remove_pagetable() now has two distinct passes over the kernel page table
-- First pass unmap_hotplug_range() removes leaf level entries at all level
-- Second pass free_empty_tables() removes empty page table pages
-- Kernel page table lock has been dropped completely
-- vmemmap_free() does not call freee_empty_tables() to avoid conflict with vmalloc()
-- All address range scanning are converted to do {} while() loop
-- Added 'unsigned long end' in __remove_pgd_mapping()
-- Callers need not provide starting pointer argument to free_[pte|pmd|pud]_table() 
-- Drop the starting pointer argument from free_[pte|pmd|pud]_table() functions
-- Fetching pxxp[i] in free_[pte|pmd|pud]_table() is wrapped around in READ_ONCE()
-- free_[pte|pmd|pud]_table() now computes starting pointer inside the function
-- Fixed TLB handling while freeing huge page section mappings at PMD or PUD level
-- Added WARN_ON(!page) in free_hotplug_page_range()
-- Added WARN_ON(![pm|pud]_table(pud|pmd)) when there is no section mapping
-
-- [PATCH 1/3] mm/hotplug: Reorder memblock_[free|remove]() calls in try_remove_memory()
-- Request earlier for separate merger (https://patchwork.kernel.org/patch/10986599/)
-- s/__remove_memory/try_remove_memory in the subject line
-- s/arch_remove_memory/memblock_[free|remove] in the subject line
-- A small change in the commit message as re-order happens now for memblock remove
-  functions not for arch_remove_memory()
-
-Changes in V5: (https://lkml.org/lkml/2019/5/29/218)
-
-- Have some agreement [1] over using memory_hotplug_lock for arm64 ptdump
-- Change 7ba36eccb3f8 ("arm64/mm: Inhibit huge-vmap with ptdump") already merged
-- Dropped the above patch from this series
-- Fixed indentation problem in arch_[add|remove]_memory() as per David
-- Collected all new Acked-by tags
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index b9ba5b8..1635a89 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -1772,13 +1772,13 @@ static int __ref try_remove_memory(int nid, u64 start, u64 size)
  
-Changes in V4: (https://lkml.org/lkml/2019/5/20/19)
-
-- Implemented most of the suggestions from Mark Rutland
-- Interchanged patch [PATCH 2/4] <---> [PATCH 3/4] and updated commit message
-- Moved CONFIG_PGTABLE_LEVELS inside free_[pud|pmd]_table()
-- Used READ_ONCE() in missing instances while accessing page table entries
-- s/p???_present()/p???_none() for checking valid kernel page table entries
-- WARN_ON() when an entry is !p???_none() and !p???_present() at the same time
-- Updated memory hot-remove commit message with additional details as suggested
-- Rebased the series on 5.2-rc1 with hotplug changes from David and Michal Hocko
-- Collected all new Acked-by tags
-
-Changes in V3: (https://lkml.org/lkml/2019/5/14/197)
+ 	/* remove memmap entry */
+ 	firmware_map_remove(start, start + size, "System RAM");
+-	memblock_free(start, size);
+-	memblock_remove(start, size);
  
-- Implemented most of the suggestions from Mark Rutland for remove_pagetable()
-- Fixed applicable PGTABLE_LEVEL wrappers around pgtable page freeing functions
-- Replaced 'direct' with 'sparse_vmap' in remove_pagetable() with inverted polarity
-- Changed pointer names ('p' at end) and removed tmp from iterations
-- Perform intermediate TLB invalidation while clearing pgtable entries
-- Dropped flush_tlb_kernel_range() in remove_pagetable()
-- Added flush_tlb_kernel_range() in remove_pte_table() instead
-- Renamed page freeing functions for pgtable page and mapped pages
-- Used page range size instead of order while freeing mapped or pgtable pages
-- Removed all PageReserved() handling while freeing mapped or pgtable pages
-- Replaced XXX_index() with XXX_offset() while walking the kernel page table
-- Used READ_ONCE() while fetching individual pgtable entries
-- Taken overall init_mm.page_table_lock instead of just while changing an entry
-- Dropped previously added [pmd|pud]_index() which are not required anymore
-- Added a new patch to protect kernel page table race condition for ptdump
-- Added a new patch from Mark Rutland to prevent huge-vmap with ptdump
-
-Changes in V2: (https://lkml.org/lkml/2019/4/14/5)
-
-- Added all received review and ack tags
-- Split the series from ZONE_DEVICE enablement for better review
-- Moved memblock re-order patch to the front as per Robin Murphy
-- Updated commit message on memblock re-order patch per Michal Hocko
-- Dropped [pmd|pud]_large() definitions
-- Used existing [pmd|pud]_sect() instead of earlier [pmd|pud]_large()
-- Removed __meminit and __ref tags as per Oscar Salvador
-- Dropped unnecessary 'ret' init in arch_add_memory() per Robin Murphy
-- Skipped calling into pgtable_page_dtor() for linear mapping page table
-  pages and updated all relevant functions
-
-Changes in V1: (https://lkml.org/lkml/2019/4/3/28)
-
-References:
-
-[1] https://lkml.org/lkml/2019/5/28/584
-[2] https://lkml.org/lkml/2019/6/11/709
-
-Anshuman Khandual (3):
-  mm/hotplug: Reorder memblock_[free|remove]() calls in try_remove_memory()
-  arm64/mm: Hold memory hotplug lock while walking for kernel page table dump
-  arm64/mm: Enable memory hot remove
-
- arch/arm64/Kconfig             |   3 +
- arch/arm64/mm/mmu.c            | 290 +++++++++++++++++++++++++++++++++++++++--
- arch/arm64/mm/ptdump_debugfs.c |   4 +
- mm/memory_hotplug.c            |   4 +-
- 4 files changed, 290 insertions(+), 11 deletions(-)
-
+ 	/* remove memory block devices before removing memory */
+ 	remove_memory_block_devices(start, size);
+ 
+ 	arch_remove_memory(nid, start, size, NULL);
++	memblock_free(start, size);
++	memblock_remove(start, size);
+ 	__release_memory_resource(start, size);
+ 
+ 	try_offline_node(nid);
 -- 
 2.7.4
 
