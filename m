@@ -2,162 +2,191 @@ Return-Path: <SRS0=FHqE=VM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-11.4 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_IN_DEF_DKIM_WL
-	autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 41CFFC76195
-	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 16:01:43 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8C0FCC7618F
+	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 16:03:59 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0CE7B20838
-	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 16:01:42 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="m3ylaWA1"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0CE7B20838
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	by mail.kernel.org (Postfix) with ESMTP id 4C90D205ED
+	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 16:03:59 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4C90D205ED
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A5D396B0010; Mon, 15 Jul 2019 12:01:42 -0400 (EDT)
+	id DDD0A6B000E; Mon, 15 Jul 2019 12:03:58 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A0D496B0266; Mon, 15 Jul 2019 12:01:42 -0400 (EDT)
+	id D667A6B0269; Mon, 15 Jul 2019 12:03:58 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8D4F16B0269; Mon, 15 Jul 2019 12:01:42 -0400 (EDT)
+	id BE0C36B026A; Mon, 15 Jul 2019 12:03:58 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 59CA36B0010
-	for <linux-mm@kvack.org>; Mon, 15 Jul 2019 12:01:42 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id d2so8489438pla.18
-        for <linux-mm@kvack.org>; Mon, 15 Jul 2019 09:01:42 -0700 (PDT)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 83C836B000E
+	for <linux-mm@kvack.org>; Mon, 15 Jul 2019 12:03:58 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id q9so10709317pgv.17
+        for <linux-mm@kvack.org>; Mon, 15 Jul 2019 09:03:58 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=lChEEghQFkJA0ae9eAwhZ0QJmvdqy/WLUOFz361BXCQ=;
-        b=PxfZWKXdJeZGaIcHxCcG/86HMdwBW1gVzc/4vhDBBNrFicFck2x54UEQN1Wz1+zeQw
-         pyeyORvffFBjC1l3NhORE60Q+J5lDM660w8uUfMkeTooZ/lqFy8JFdb/b5rQM7xU3oe9
-         mgOdLseN5512FxZJOXdYjefnV0t+tUfuQy2JaeoZRF5ecW2PEbL828htIzFuWx1irAl+
-         qU1jetSdMXXdz5P6Bq39er58hQYOtJn/JHAV0r7KCKR7Zv3Efrm/lQU3TBn3KyZIdMJ4
-         ShTfBGxUQ5fg7114YVwCIFngKo8aI2v3zcW/jTEzCOKGBVcH8Z2Mj9b9L3eWsvTHhOtF
-         klrQ==
-X-Gm-Message-State: APjAAAWIb2tSEqcI5a1yrm8yKDTFFn7piHn2Zkp4TS/F6/l8AsdycM34
-	4dDU6dfAnZNkb+19tjtRYOxq0vVIVDNbn8FoRDssHnENyBfsv2aqB5PMTQoEfYIaYBnKwdcHGEc
-	1IiEVlt0nhe/vM6WqE/vrQKuX0ancDLIKJVTlt6hr2OAR+dNyqzBmnNZJqIiYhTwdFw==
-X-Received: by 2002:a17:902:20ec:: with SMTP id v41mr27541051plg.142.1563206502064;
-        Mon, 15 Jul 2019 09:01:42 -0700 (PDT)
-X-Received: by 2002:a17:902:20ec:: with SMTP id v41mr27540987plg.142.1563206501377;
-        Mon, 15 Jul 2019 09:01:41 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563206501; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:in-reply-to:references:date:mime-version:message-id;
+        bh=X3I3dDc3cEh78hdm7SsNO+BCi73EeEwlNjb1R3B9Tdo=;
+        b=AQ2P1aMN4i8eLxMLNM6dFV26nQWIjbJG6sD9xtdO66DlOd5qOoKDSF1NwzcId2hgiM
+         CKtyZSbBGKTnwEwY9WVyE5NSv59A5Rq6n52Bors/i0KpjwjtgaajqtXmldE+4X2m6onv
+         YLDGbssviR53z0lU7ZEGhiEi1rvfwfPbDFE11n++UqyOKpshLcH6kNsf7X26lF+7lM6+
+         kdi8SmbAZbG1puAI4A/T5r8RoWVoGOrQ9SsFk+6gFGHdNeLsaXN29cfLQQ4Mul/KWkhD
+         offTAkMQ7G7OkVcQGB7/odRvf3J6nsFF/0VBAcLmkYvapLR4vi3JhhCfbiC9+fUbJCt/
+         3TsA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: APjAAAVYzkJ8e+00o0orIQMli97RGZwBVns5/VE9MPGzM3Uhgmj44xH9
+	l66jWiIilROfmzKWbLCIgNRzXB/jGJsILTDzXHX41q096cm8gswF0EtBMM8wjyuB0OUWVP3zYGq
+	DdjW4R3cvc/fE4U6aHxwDefmGt8Ws03pFaafee9dGyrPJvhZGI9MzHEGd3Em2hK6xuQ==
+X-Received: by 2002:a63:8f16:: with SMTP id n22mr21665672pgd.306.1563206638131;
+        Mon, 15 Jul 2019 09:03:58 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqx3BWtHeOGfwAPEKkiUgVQJupCmzRMy9X3ZTpDoDAtTVrH/6cQmxP1shJaFFqdywYRxzVF4
+X-Received: by 2002:a63:8f16:: with SMTP id n22mr21665602pgd.306.1563206637260;
+        Mon, 15 Jul 2019 09:03:57 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563206637; cv=none;
         d=google.com; s=arc-20160816;
-        b=GwIBiFWSC5CfuO8HG1BmqjCTuLY9BgkYWWNoIy1be8pQVZ79MkHo0kT9Tyw0BKgmzP
-         ID3z/wt+VjnTkBEzALrVPPt7DsFsay90AZ/4JgMMec9FPiPHcLfqv+Q6sYamVKDw66YF
-         be5zEMGfIzwsK9bgNFLVmEkx4iiG/LfNPr5FSbhjCGeUCJ5xGvd5ERKxktQIBX3G1JfN
-         gnUCSumCT7eibhiXd4aH0fvNqGXfXqnaf8HDKmei4FoWYL/rpOnbWQkl7pNzTUUoW/sD
-         ofHqnu8OBGiMbbsr0ACbn0nTTwAchiqm2AjgENQTy/SToUAAWb8KUcH1pMesDsTNFxSG
-         6fhA==
+        b=pVT4ZkL0bgTQzCHmibVPqPq3kEo3bkGY/xgeZ5a83NL4EQ+x9ByGlBVl4Xlu50cGK3
+         gLffsL+X71qPHW3tuCuP2cbX/V6NigPRoOfuCtRXPDX9pUJu57h2c6BnMOTtBvN2kEDZ
+         KvjQGhwyJ9bbdPiPuew2P5zGqnhcYbYXgUpjqr4o9e05R/1f+r5D6hR9f/Lf3hc0vGAd
+         Y046CbkENCR0uvvUe2vJ6Vd+o0R6rq75I1lozRh6n3zyEhKQlkCXHacqAq9pMb2QSdmQ
+         GcbWq5hOhBUvd2wTfEXT6aOjnUTbjxAmzLIQ70RHeQSePuDe3zCnDFuVTt9DAQ2RmSH6
+         sQQA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=lChEEghQFkJA0ae9eAwhZ0QJmvdqy/WLUOFz361BXCQ=;
-        b=ZAf7FC9xoqnKn0pU42hOlfsO/EU9BhbpHCA6EfyPkhCEry3TxeLIho2FAkB5YjWlTA
-         GoNFQSi3sR4LX1J8LHeDTA1N9KXvZLxHBfNrbmI1LuZER5k3e9IMWEnA8sCdjVD+XYQr
-         YZ9q4Ds2FldOMRRMMEQ7848f9epAJ0kt6h6GR12uZzKPGIk27HfeB1XFvQnxus6Lxsfi
-         L2+mbCL2+Fu7VdulE8i4RCKN/vmXG7T6DSB9z4S9uWjEblbtt7EbWdvL9qbCShTovrv8
-         CKvM0eniIyqd0QCtoDyQTV7yLMs5GlotHo+F6pgCdFV8957OyYGd9jh8yYFQqr8xLVkS
-         mEqQ==
+        h=message-id:mime-version:date:references:in-reply-to:subject:cc:to
+         :from;
+        bh=X3I3dDc3cEh78hdm7SsNO+BCi73EeEwlNjb1R3B9Tdo=;
+        b=C9Y+AFymvueXA0q5MzWDHITsINKjdOsVAOs3frP07stX7bD65iRMwAmWKJ4v80xJaO
+         d/FOIPhCmIzO3GII2DOaUx+QY4jVtPhNHOCfvB8KIioIhMjgN7oMgrtqcuKtk9bZn60X
+         B9yBA0BVzkUqKzLDEYo1fWHYaasF0oNv9HOIX2PtbqxSTg7UkzjUIdxptAUmw54ivLk7
+         OkXvNUqwdkzQZ7EAM8mS4NdascwA1Jp6Hs4ZXBBAEZiR7hNQG/z4zbUhIJFJKgbflHTJ
+         hPXy7lIPcnZzKe8dHokfVWPOnAjOaTaMuoR2MuQHdUi76jjvUNyGPzSYqLmBMOyOD9td
+         ghiw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=m3ylaWA1;
-       spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id t69sor21650182pjb.5.2019.07.15.09.01.41
+       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id u9si15816261pjn.86.2019.07.15.09.03.57
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 15 Jul 2019 09:01:41 -0700 (PDT)
-Received-SPF: pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 15 Jul 2019 09:03:57 -0700 (PDT)
+Received-SPF: pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=m3ylaWA1;
-       spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=lChEEghQFkJA0ae9eAwhZ0QJmvdqy/WLUOFz361BXCQ=;
-        b=m3ylaWA1nfDKOLFQBZbi5lVR91/hvH9n6ddTo7/UGe/KLQTke6nfJGGnTYTOxi8VCA
-         HfS0hKS7p+bVQo6gCnikJZrIRnFAsBOo76vo66MNNR76VN9RpCPaB5uiN9mXzb/wKBaC
-         2YPMCtyHAVUy8c0n2Hy0noVhGDDAso8pOP+OWaQofcmHPvFQjxyIKXwz5wkCf0bTrn7S
-         NzX5/+eAUp4zqkWQrLjg7UELrWGHhufD8/uShStHD6i3q1aY9KquzAKDzGkmcTnssS5F
-         Z3nCiKnfqdcqBaEFScvEV6fXgwg7XscQvG1/2qeAbDEIc8Yoj5aguZfuLCcnlHXlWZQG
-         m73g==
-X-Google-Smtp-Source: APXvYqyLZ0wS0QgBngEcy3YbbCLzw5RatJ3FtyfhyqUYHKhFv456jIze9R6yuxvC6+RP9cmNsJEN8HfxXPuILyhJ/1w=
-X-Received: by 2002:a17:90a:a116:: with SMTP id s22mr29861239pjp.47.1563206500702;
- Mon, 15 Jul 2019 09:01:40 -0700 (PDT)
+       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x6FG33BR104272
+	for <linux-mm@kvack.org>; Mon, 15 Jul 2019 12:03:56 -0400
+Received: from e06smtp01.uk.ibm.com (e06smtp01.uk.ibm.com [195.75.94.97])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2trtag96de-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 15 Jul 2019 12:03:56 -0400
+Received: from localhost
+	by e06smtp01.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
+	Mon, 15 Jul 2019 17:03:10 +0100
+Received: from b06cxnps4075.portsmouth.uk.ibm.com (9.149.109.197)
+	by e06smtp01.uk.ibm.com (192.168.101.131) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Mon, 15 Jul 2019 17:03:06 +0100
+Received: from d06av22.portsmouth.uk.ibm.com (d06av22.portsmouth.uk.ibm.com [9.149.105.58])
+	by b06cxnps4075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x6FG35a753346516
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Mon, 15 Jul 2019 16:03:05 GMT
+Received: from d06av22.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 431014C040;
+	Mon, 15 Jul 2019 16:03:05 +0000 (GMT)
+Received: from d06av22.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 5CE744C05A;
+	Mon, 15 Jul 2019 16:03:00 +0000 (GMT)
+Received: from skywalker.linux.ibm.com (unknown [9.85.70.182])
+	by d06av22.portsmouth.uk.ibm.com (Postfix) with ESMTP;
+	Mon, 15 Jul 2019 16:03:00 +0000 (GMT)
+X-Mailer: emacs 26.2 (via feedmail 11-beta-1 I)
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+To: Oscar Salvador <osalvador@suse.de>, akpm@linux-foundation.org
+Cc: dan.j.williams@intel.com, david@redhat.com, pasha.tatashin@soleen.com,
+        mhocko@suse.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+        Oscar Salvador <osalvador@suse.de>
+Subject: Re: [PATCH 1/2] mm,sparse: Fix deactivate_section for early sections
+In-Reply-To: <20190715081549.32577-2-osalvador@suse.de>
+References: <20190715081549.32577-1-osalvador@suse.de> <20190715081549.32577-2-osalvador@suse.de>
+Date: Mon, 15 Jul 2019 21:32:57 +0530
 MIME-Version: 1.0
-References: <cover.1561386715.git.andreyknvl@google.com> <ea0ff94ef2b8af12ea6c222c5ebd970e0849b6dd.1561386715.git.andreyknvl@google.com>
- <20190624174015.GL29120@arrakis.emea.arm.com>
-In-Reply-To: <20190624174015.GL29120@arrakis.emea.arm.com>
-From: Andrey Konovalov <andreyknvl@google.com>
-Date: Mon, 15 Jul 2019 18:01:29 +0200
-Message-ID: <CAAeHK+y8vE=G_odK6KH=H064nSQcVgkQkNwb2zQD9swXxKSyUQ@mail.gmail.com>
-Subject: Re: [PATCH v18 11/15] IB/mlx4: untag user pointers in mlx4_get_umem_mr
-To: Jason Gunthorpe <jgg@ziepe.ca>
-Cc: Linux ARM <linux-arm-kernel@lists.infradead.org>, 
-	Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, 
-	amd-gfx@lists.freedesktop.org, dri-devel@lists.freedesktop.org, 
-	linux-rdma@vger.kernel.org, linux-media@vger.kernel.org, kvm@vger.kernel.org, 
-	"open list:KERNEL SELFTEST FRAMEWORK" <linux-kselftest@vger.kernel.org>, 
-	Vincenzo Frascino <vincenzo.frascino@arm.com>, Will Deacon <will.deacon@arm.com>, 
-	Mark Rutland <mark.rutland@arm.com>, Andrew Morton <akpm@linux-foundation.org>, 
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kees Cook <keescook@chromium.org>, 
-	Yishai Hadas <yishaih@mellanox.com>, Felix Kuehling <Felix.Kuehling@amd.com>, 
-	Alexander Deucher <Alexander.Deucher@amd.com>, Christian Koenig <Christian.Koenig@amd.com>, 
-	Mauro Carvalho Chehab <mchehab@kernel.org>, Jens Wiklander <jens.wiklander@linaro.org>, 
-	Alex Williamson <alex.williamson@redhat.com>, Leon Romanovsky <leon@kernel.org>, 
-	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>, Dave Martin <Dave.Martin@arm.com>, 
-	Khalid Aziz <khalid.aziz@oracle.com>, enh <enh@google.com>, 
-	Christoph Hellwig <hch@infradead.org>, Dmitry Vyukov <dvyukov@google.com>, 
-	Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, 
-	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, 
-	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Robin Murphy <robin.murphy@arm.com>, 
-	Kevin Brodsky <kevin.brodsky@arm.com>, Szabolcs Nagy <Szabolcs.Nagy@arm.com>, 
-	Catalin Marinas <catalin.marinas@arm.com>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain
+X-TM-AS-GCONF: 00
+x-cbid: 19071516-4275-0000-0000-0000034D2E82
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19071516-4276-0000-0000-0000385D3E1F
+Message-Id: <87wogje15a.fsf@linux.ibm.com>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-07-15_05:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=2 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1907150187
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jun 24, 2019 at 7:40 PM Catalin Marinas <catalin.marinas@arm.com> wrote:
->
-> On Mon, Jun 24, 2019 at 04:32:56PM +0200, Andrey Konovalov wrote:
-> > This patch is a part of a series that extends kernel ABI to allow to pass
-> > tagged user pointers (with the top byte set to something else other than
-> > 0x00) as syscall arguments.
-> >
-> > mlx4_get_umem_mr() uses provided user pointers for vma lookups, which can
-> > only by done with untagged pointers.
-> >
-> > Untag user pointers in this function.
-> >
-> > Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
-> > ---
-> >  drivers/infiniband/hw/mlx4/mr.c | 7 ++++---
-> >  1 file changed, 4 insertions(+), 3 deletions(-)
->
-> Acked-by: Catalin Marinas <catalin.marinas@arm.com>
->
-> This patch also needs an ack from the infiniband maintainers (Jason).
+Oscar Salvador <osalvador@suse.de> writes:
 
-Hi Jason,
-
-Could you take a look and give your acked-by?
-
-Thanks!
-
+> deactivate_section checks whether a section is early or not
+> in order to either call free_map_bootmem() or depopulate_section_memmap().
+> Being the former for sections added at boot time, and the latter for
+> sections hotplugged.
 >
-> --
-> Catalin
+> The problem is that we zero section_mem_map, so the last early_section()
+> will always report false and the section will not be removed.
+>
+> Fix this checking whether a section is early or not at function
+> entry.
+>
+
+Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
+
+> Fixes: mmotm ("mm/sparsemem: Support sub-section hotplug")
+> Signed-off-by: Oscar Salvador <osalvador@suse.de>
+> ---
+>  mm/sparse.c | 5 +++--
+>  1 file changed, 3 insertions(+), 2 deletions(-)
+>
+> diff --git a/mm/sparse.c b/mm/sparse.c
+> index 3267c4001c6d..1e224149aab6 100644
+> --- a/mm/sparse.c
+> +++ b/mm/sparse.c
+> @@ -738,6 +738,7 @@ static void section_deactivate(unsigned long pfn, unsigned long nr_pages,
+>  	DECLARE_BITMAP(map, SUBSECTIONS_PER_SECTION) = { 0 };
+>  	DECLARE_BITMAP(tmp, SUBSECTIONS_PER_SECTION) = { 0 };
+>  	struct mem_section *ms = __pfn_to_section(pfn);
+> +	bool section_is_early = early_section(ms);
+>  	struct page *memmap = NULL;
+>  	unsigned long *subsection_map = ms->usage
+>  		? &ms->usage->subsection_map[0] : NULL;
+> @@ -772,7 +773,7 @@ static void section_deactivate(unsigned long pfn, unsigned long nr_pages,
+>  	if (bitmap_empty(subsection_map, SUBSECTIONS_PER_SECTION)) {
+>  		unsigned long section_nr = pfn_to_section_nr(pfn);
+>  
+> -		if (!early_section(ms)) {
+> +		if (!section_is_early) {
+>  			kfree(ms->usage);
+>  			ms->usage = NULL;
+>  		}
+> @@ -780,7 +781,7 @@ static void section_deactivate(unsigned long pfn, unsigned long nr_pages,
+>  		ms->section_mem_map = sparse_encode_mem_map(NULL, section_nr);
+>  	}
+>  
+> -	if (early_section(ms) && memmap)
+> +	if (section_is_early && memmap)
+>  		free_map_bootmem(memmap);
+>  	else
+>  		depopulate_section_memmap(pfn, nr_pages, altmap);
+> -- 
+> 2.12.3
 
