@@ -2,80 +2,80 @@ Return-Path: <SRS0=FHqE=VM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 55B1CC76192
-	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 10:51:34 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6B5EFC7618F
+	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 10:54:36 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1F50F20868
-	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 10:51:34 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1F50F20868
+	by mail.kernel.org (Postfix) with ESMTP id 1801C206B8
+	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 10:54:36 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1801C206B8
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B1F136B000D; Mon, 15 Jul 2019 06:51:33 -0400 (EDT)
+	id A595A6B0010; Mon, 15 Jul 2019 06:54:35 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AD19F6B000E; Mon, 15 Jul 2019 06:51:33 -0400 (EDT)
+	id A0A736B0266; Mon, 15 Jul 2019 06:54:35 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 997416B0010; Mon, 15 Jul 2019 06:51:33 -0400 (EDT)
+	id 8D37D6B0269; Mon, 15 Jul 2019 06:54:35 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 788796B000D
-	for <linux-mm@kvack.org>; Mon, 15 Jul 2019 06:51:33 -0400 (EDT)
-Received: by mail-qt1-f199.google.com with SMTP id y19so14478121qtm.0
-        for <linux-mm@kvack.org>; Mon, 15 Jul 2019 03:51:33 -0700 (PDT)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D7AF6B0010
+	for <linux-mm@kvack.org>; Mon, 15 Jul 2019 06:54:35 -0400 (EDT)
+Received: by mail-qt1-f198.google.com with SMTP id d26so14457586qte.19
+        for <linux-mm@kvack.org>; Mon, 15 Jul 2019 03:54:35 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
          :references:from:openpgp:autocrypt:organization:message-id:date
          :user-agent:mime-version:in-reply-to:content-language
          :content-transfer-encoding;
-        bh=if2pRzX3JOWhxfH3KWuYESGqLVkh4dwEpfCH7VJWtpM=;
-        b=RGg4UBJSS+GoGtdckPnw0pOTTXiX+MrRMNS7joPweop+qHrFrS51jufQ5HTHXpROrO
-         iv/s5sKCiyC6ADkOaEn5bDuQmavhW4NooaJvmdBnw4TalUR9xThhqKFHWSWHx4z6ZyGs
-         bDhSYFy/+dwbLZ+ZKWLA4JkmGOsyRosiE6wNGu2SNfW4OUh5s2ws0SmzVQRprFCUIL6r
-         44+1P/YIAh7hQ/JVUIvy+q+fwH30ePiLk+KKf92/Sqn7br2jfxplgkx/iLA/yBdQOyJw
-         JN/0fY2k/ZMNRnTDiDv6p4ZvQPalRUdu7tY7hlc3caGGwo85cqpOGL0QOjrcmlAi9kph
-         7esg==
+        bh=QZZOKsiuKCjbin5wwa5611k0nzp8PVWf4aN26B8LhQo=;
+        b=L13Dq9FIy0ruo3IngInp3WvfCMsINNd7UIoo0Hwv7gLnWqHZFdMIo41xqIUFphq50Y
+         MlesYwiTpWQDgbu4PnVAEec0+bQ7Q6By27T/cTUyyibY/I5FIyiFU/c+CVjsgTVGr03m
+         L9S1uD9ZcbeFzBxm3lRsQ2Qf0zqX5bG1AF9+MKGhQcFyzMpxo5akqIRo2OnQFYkFB5Of
+         nkOZ06li02FRVJ/i3OwN9gWNL2YS3FMv6RDQdrIy3ncOQpKbJaiFTlSIxrCmnVaAWTiy
+         tqSrjrwpvetYaiZOiPEX9KiqQ+7uKxhaT3XHgSIk2a1H6FIQ/DRpnrPA9jGPhZcxuweI
+         zulQ==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAUi9hZkmWkU8pCRMU9kJymz6lndqpficmg10Jl41gbXdO1h/p0I
-	IYhHUJQaKsBc90FF5lCSe8i/ppk00D6tegfZ3pLcdxuv0Kao8v7PiPLcax3NvmdULy06QwD6p7g
-	PLOD0k5Cr92KSOMJcY7yMrT8/P97GGW4aVUgOOQFVFhwznK4FUKnoPUAnSw1hyTt81A==
-X-Received: by 2002:ac8:7b99:: with SMTP id p25mr17442872qtu.243.1563187893286;
-        Mon, 15 Jul 2019 03:51:33 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwVyiIbBDj5x2NKQoAdq134vi/NnvU8op7gxECdRL6kHLzXZcmym3xHpvRNCUenJWNVWQ6Q
-X-Received: by 2002:ac8:7b99:: with SMTP id p25mr17442848qtu.243.1563187892815;
-        Mon, 15 Jul 2019 03:51:32 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563187892; cv=none;
+X-Gm-Message-State: APjAAAViowZNszb8TOyoGDtg3IybIfSlOCRgFgTsvr5f0lM8RPIleciQ
+	QdImzl86ad8cMG84so4sjGcKfWxg8wRmZGBssurduawLjog/mSNYO/Igtj0wJ3lCBPygDbvQ+YK
+	wsznlobfUU1p1iS+zMcsd9N8bhjapb5gngd52IEmmrKjuA+INZ65ewEA4SHHIF5EEOg==
+X-Received: by 2002:a0c:8695:: with SMTP id 21mr18412297qvf.166.1563188075233;
+        Mon, 15 Jul 2019 03:54:35 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwK68jcdGDgF5YO7hMCjHiaLBlH4e+ji+fnRdMjNfFB2RL7ivYpRmoAIWw0nSHlYwu9XZYn
+X-Received: by 2002:a0c:8695:: with SMTP id 21mr18412270qvf.166.1563188074772;
+        Mon, 15 Jul 2019 03:54:34 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563188074; cv=none;
         d=google.com; s=arc-20160816;
-        b=rup55sM9tjaD8QkTb6g8XZe9Ah0+jsYWzG1iIfZXJFbqwllgXmbGrjz+DhbNuYdm5f
-         C8DLnqQFlc5PpgmtZ4uXcwMUiz9B2CyHtkTQoB9wZwor4uicepTsSXerKW80tlu755M3
-         4ildFslgQUPrXTgBVv748r4NFAU7n+ylTEZRRWv/ghVEBCnidF7TM44GpJU1URP9OgtC
-         43BqZmzLYQdeADB37TVwJuB5z9BMeeNTCQttQLjxwDHXFlwn/JMMzGkpxpmxeLaQi3jc
-         xUs8clmQ0SIZcKky011XiEjVdbZ/t4YKSskrB+Sp4uL5BhYgHRNp30iNPtWduOZhZMW9
-         CX9A==
+        b=Cg2aIL4h1GfybIRzBCbU7bpwXEv73CISImvNDo5uOzlcELMzo9akcDD0ILPi4g2tDk
+         Y01z95VahumzPk3xXETstnKo3KPmqoNn353jOKIyQa3Pvg5KMaHd6GiRtR5loxnzXPtO
+         TUFiJEpStXcHYj7iwacfkIUkQQ7zZVg0SqC6izfqpwZ/xF/u5Iy7qNrMN42FKaQaqEqu
+         GXBljJ9pisgEAESbSrNeavIpS96JXkS/d6BBLGIYMt7goTeTgdPkx1RG1sRy4NXRIJ5e
+         gYRdlzeQ4cNuBxJy6WRlJgv6bfhck1i4RlvPFVM79PI/TqNxXQPxJnTSVDDFl1HBysRh
+         iozg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
          :user-agent:date:message-id:organization:autocrypt:openpgp:from
          :references:cc:to:subject;
-        bh=if2pRzX3JOWhxfH3KWuYESGqLVkh4dwEpfCH7VJWtpM=;
-        b=J22qpvoXH8QRqx7hQ1ghhWdoPKrp2d9ZlAclWxo5d4XO6yI32ahAeA0VeELZfZSU8F
-         cxlmaluPDDLC43JF5RjqcVSg+7Jx0fNFItV4M71AC86hiZzQAJlQ74TEIoWyQH/awisL
-         4z++RFYwfr+bfHibV5JD8TN2GoscGkYUHxekKJ3eQ1x5gK9r7JS1x1nz+amAGBx4rG+f
-         bhKH35fexmlk2cssZe3awWKiSaPgikKXJtgYImlA1JDafILl3xeMX+s4kpKfp0J5Pm69
-         GTgva3lg4pdcf2WmFwiORytipm8wOviqk8J+QizwVW6bD54P/Cx488lrDbnXI9o6l8Ta
-         bJzA==
+        bh=QZZOKsiuKCjbin5wwa5611k0nzp8PVWf4aN26B8LhQo=;
+        b=ImeKfYe9HYWIQLNAMvtF/ifV33DPtENCRjy/QRPJHBsgjqyVjw/Nue2fFxFRfD3VPx
+         Ak9EWNW9qoJ5jebsxwFvYtBtbCxGZyDHxAsNtoYnO1JS++WYQ3xhC69DTCnb7zZdNSJc
+         JFyV6xWLr46yyfokPvBBHGNisR8lrKXcdjyzWJ2P1Vra7vlEkvDGUFrPmQQC5Egsy9Sr
+         +O9YAOB3idFW/BrMs6wMDrXz+2CKREMB9En/uh0imJIZ65f/HiPJvqiz7TnpJGm4zo2z
+         NVukLM3SKdChfjWev0eKeLL/wVQtn5dKd1gBgw95FH5Rwb3Z09p1fytN++1fJ7Lmy+vc
+         +OUQ==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id u38si6643153qtj.50.2019.07.15.03.51.32
+        by mx.google.com with ESMTPS id n65si10425159qte.319.2019.07.15.03.54.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 15 Jul 2019 03:51:32 -0700 (PDT)
+        Mon, 15 Jul 2019 03:54:34 -0700 (PDT)
 Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
@@ -83,13 +83,13 @@ Authentication-Results: mx.google.com;
 Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id D41E9307D910;
-	Mon, 15 Jul 2019 10:51:31 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id AB4A95AFE3;
+	Mon, 15 Jul 2019 10:54:32 +0000 (UTC)
 Received: from [10.36.117.137] (ovpn-117-137.ams2.redhat.com [10.36.117.137])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id A77F31001B17;
-	Mon, 15 Jul 2019 10:51:28 +0000 (UTC)
-Subject: Re: [PATCH v3 02/11] s390x/mm: Fail when an altmap is used for
- arch_add_memory()
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 2483C1001DCB;
+	Mon, 15 Jul 2019 10:54:20 +0000 (UTC)
+Subject: Re: [PATCH v3 06/11] mm/memory_hotplug: Allow arch_remove_pages()
+ without CONFIG_MEMORY_HOTREMOVE
 To: Michal Hocko <mhocko@kernel.org>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
  linux-ia64@vger.kernel.org, linuxppc-dev@lists.ozlabs.org,
@@ -97,13 +97,37 @@ Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
  linux-arm-kernel@lists.infradead.org, akpm@linux-foundation.org,
  Dan Williams <dan.j.williams@intel.com>, Wei Yang
  <richard.weiyang@gmail.com>, Igor Mammedov <imammedo@redhat.com>,
+ Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>,
+ Benjamin Herrenschmidt <benh@kernel.crashing.org>,
+ Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>,
  Martin Schwidefsky <schwidefsky@de.ibm.com>,
  Heiko Carstens <heiko.carstens@de.ibm.com>,
- Mike Rapoport <rppt@linux.vnet.ibm.com>, Vasily Gorbik <gor@linux.ibm.com>,
- Oscar Salvador <osalvador@suse.com>
+ Yoshinori Sato <ysato@users.sourceforge.jp>, Rich Felker <dalias@libc.org>,
+ Dave Hansen <dave.hansen@linux.intel.com>, Andy Lutomirski
+ <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>,
+ Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>,
+ Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>,
+ Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+ "Rafael J. Wysocki" <rafael@kernel.org>, Mike Rapoport <rppt@linux.ibm.com>,
+ Oscar Salvador <osalvador@suse.com>,
+ "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
+ Alex Deucher <alexander.deucher@amd.com>,
+ "David S. Miller" <davem@davemloft.net>, Mark Brown <broonie@kernel.org>,
+ Chris Wilson <chris@chris-wilson.co.uk>,
+ Christophe Leroy <christophe.leroy@c-s.fr>,
+ Nicholas Piggin <npiggin@gmail.com>, Vasily Gorbik <gor@linux.ibm.com>,
+ Rob Herring <robh@kernel.org>,
+ Masahiro Yamada <yamada.masahiro@socionext.com>,
+ "mike.travis@hpe.com" <mike.travis@hpe.com>,
+ Andrew Banman <andrew.banman@hpe.com>,
+ Pavel Tatashin <pasha.tatashin@soleen.com>,
+ Wei Yang <richardw.yang@linux.intel.com>, Arun KS <arunks@codeaurora.org>,
+ Qian Cai <cai@lca.pw>, Mathieu Malaterre <malat@debian.org>,
+ Baoquan He <bhe@redhat.com>, Logan Gunthorpe <logang@deltatee.com>,
+ Anshuman Khandual <anshuman.khandual@arm.com>
 References: <20190527111152.16324-1-david@redhat.com>
- <20190527111152.16324-3-david@redhat.com>
- <20190701074306.GC6376@dhcp22.suse.cz> <20190701124628.GT6376@dhcp22.suse.cz>
+ <20190527111152.16324-7-david@redhat.com>
+ <20190701080141.GF6376@dhcp22.suse.cz> <20190701125112.GW6376@dhcp22.suse.cz>
 From: David Hildenbrand <david@redhat.com>
 Openpgp: preference=signencrypt
 Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
@@ -150,44 +174,83 @@ Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
  +8Umfre0Xt4713VxMygW0PnQt5aSQdMD58jHFxTk092mU+yIHj5LeYgvwSgZN4airXk5yRXl
  SE+xAvmumFBY
 Organization: Red Hat GmbH
-Message-ID: <86f3ff3d-d035-a806-88b7-b8c7b77c206e@redhat.com>
-Date: Mon, 15 Jul 2019 12:51:27 +0200
+Message-ID: <717d8b84-2233-97f9-56cb-0b9e22732d30@redhat.com>
+Date: Mon, 15 Jul 2019 12:54:20 +0200
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.7.2
 MIME-Version: 1.0
-In-Reply-To: <20190701124628.GT6376@dhcp22.suse.cz>
+In-Reply-To: <20190701125112.GW6376@dhcp22.suse.cz>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 8bit
 X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.48]); Mon, 15 Jul 2019 10:51:32 +0000 (UTC)
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.39]); Mon, 15 Jul 2019 10:54:33 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 01.07.19 14:46, Michal Hocko wrote:
-> On Mon 01-07-19 09:43:06, Michal Hocko wrote:
->> On Mon 27-05-19 13:11:43, David Hildenbrand wrote:
->>> ZONE_DEVICE is not yet supported, fail if an altmap is passed, so we
->>> don't forget arch_add_memory()/arch_remove_memory() when unlocking
->>> support.
+On 01.07.19 14:51, Michal Hocko wrote:
+> On Mon 01-07-19 10:01:41, Michal Hocko wrote:
+>> On Mon 27-05-19 13:11:47, David Hildenbrand wrote:
+>>> We want to improve error handling while adding memory by allowing
+>>> to use arch_remove_memory() and __remove_pages() even if
+>>> CONFIG_MEMORY_HOTREMOVE is not set to e.g., implement something like:
+>>>
+>>> 	arch_add_memory()
+>>> 	rc = do_something();
+>>> 	if (rc) {
+>>> 		arch_remove_memory();
+>>> 	}
+>>>
+>>> We won't get rid of CONFIG_MEMORY_HOTREMOVE for now, as it will require
+>>> quite some dependencies for memory offlining.
 >>
->> Why do we need this? Sure ZONE_DEVICE is not supported for s390 and so
->> might be the case for other arches which support hotplug. I do not see
->> much point in adding warning to each of them.
+>> If we cannot really remove CONFIG_MEMORY_HOTREMOVE altogether then why
+>> not simply add an empty placeholder for arch_remove_memory when the
+>> config is disabled?
 > 
-> I would drop this one. If there is a strong reason to have something
-> like that it should come with a better explanation and it can be done on
-> top.
+> In other words, can we replace this by something as simple as:
+> 
+> diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
+> index ae892eef8b82..0329027fe740 100644
+> --- a/include/linux/memory_hotplug.h
+> +++ b/include/linux/memory_hotplug.h
+> @@ -128,6 +128,20 @@ extern void arch_remove_memory(int nid, u64 start, u64 size,
+>  			       struct vmem_altmap *altmap);
+>  extern void __remove_pages(struct zone *zone, unsigned long start_pfn,
+>  			   unsigned long nr_pages, struct vmem_altmap *altmap);
+> +#else
+> +/*
+> + * Allow code using
+> + * arch_add_memory();
+> + * rc = do_something();
+> + * if (rc)
+> + * 	arch_remove_memory();
+> + *
+> + * without ifdefery.
+> + */
+> +static inline void arch_remove_memory(int nid, u64 start, u64 size,
+> +			       struct vmem_altmap *altmap)
+> +{
+> +}
+>  #endif /* CONFIG_MEMORY_HOTREMOVE */
+>  
+>  /*
 > 
 
-This was requested by Dan and I agree it is the right thing to do. In
-the context of paravirtualized devices (e.g., virtio-pmem), it makes
-sense to block functionality an arch does not support.
+A system configured without CONFIG_MEMORY_HOTREMOVE should not suddenly
+behave worse than before when adding of memory fails. What you suggest
+result in that.
 
-I'll leave the decision to Andrew.
+The goal should be to force architectures to properly implement
+arch_remove_memory() right from the start - which is the case for all
+architectures after this patch set *except* arm, for which a proper
+implementation is on the way.
+
+So I'm leaving it like it is. arch_remove_memory() will be mandatory for
+architectures implementing arch_add_memory().
 
 -- 
 
