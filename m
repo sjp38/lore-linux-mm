@@ -2,170 +2,241 @@ Return-Path: <SRS0=FHqE=VM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5FEC3C76195
-	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 14:28:08 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CB31FC7618F
+	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 14:40:48 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0537F2064B
-	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 14:28:07 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="d3/14IV3"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0537F2064B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 8E76720868
+	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 14:40:48 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8E76720868
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5E7F26B0006; Mon, 15 Jul 2019 10:28:07 -0400 (EDT)
+	id 1E8276B0008; Mon, 15 Jul 2019 10:40:48 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 598E36B0007; Mon, 15 Jul 2019 10:28:07 -0400 (EDT)
+	id 197666B000A; Mon, 15 Jul 2019 10:40:48 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4AEB06B0008; Mon, 15 Jul 2019 10:28:07 -0400 (EDT)
+	id 060BF6B000D; Mon, 15 Jul 2019 10:40:48 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lj1-f197.google.com (mail-lj1-f197.google.com [209.85.208.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D943B6B0006
-	for <linux-mm@kvack.org>; Mon, 15 Jul 2019 10:28:06 -0400 (EDT)
-Received: by mail-lj1-f197.google.com with SMTP id i18so3903953ljc.4
-        for <linux-mm@kvack.org>; Mon, 15 Jul 2019 07:28:06 -0700 (PDT)
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D9D736B0008
+	for <linux-mm@kvack.org>; Mon, 15 Jul 2019 10:40:47 -0400 (EDT)
+Received: by mail-qk1-f198.google.com with SMTP id t124so13881646qkh.3
+        for <linux-mm@kvack.org>; Mon, 15 Jul 2019 07:40:47 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:date:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=5jX8RO2G+Dqveq3/9ZIxcRNHFe4mw3shiUGtuynCPU0=;
-        b=rry8seuli70xdMK9ZmKKwOaltEePutmvNWO8sAYdYCmRzy7OksCpNQ0kZcYDkCi+bD
-         qb58pEvWZOvdPGF5r+qbdclf7VaXqOC40Hl2a1v53MgpdUs1mTaftM7GZuG8fQSdDco8
-         4JEOuQOuJmPBRBNr2kYU65uTP4GzYPelMHWr4fDNCZ5zA/J4gLfINm/oY8se6zvG9kTh
-         +VhbWk+eBlJyVkmgsA9OebA0i4PEWAUZBbKR/aDuzorKQjLg+ZOJhasVSB5fHIdXHOpO
-         nbrYtfUEJCWzjAUcXkwfwK15KdFvBFnQwdsmyk0X0+2t2jEZ0ENf9dW6dg8mG9Xu/WHJ
-         AJ1g==
-X-Gm-Message-State: APjAAAUqAfX7Ts5HAztQpMb8CEV/q+tm1qlx4raGK1C+8C7OZa18rIlm
-	tXiXhAsiFIUaTY1hJ2GebRQHWYaGXElLrGrlI4hnru7CA1vzTzimXTg3kAA80gDWQELsWJlzsb0
-	77c17eqEEacionPycK6DEO6wh78oPW0jlHr5yJTJFF+CTge3fm6oRez1Z/0sjqQj56A==
-X-Received: by 2002:ac2:43cf:: with SMTP id u15mr497044lfl.188.1563200885956;
-        Mon, 15 Jul 2019 07:28:05 -0700 (PDT)
-X-Received: by 2002:ac2:43cf:: with SMTP id u15mr496995lfl.188.1563200884731;
-        Mon, 15 Jul 2019 07:28:04 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563200884; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:from
+         :to:references:openpgp:autocrypt:organization:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding;
+        bh=mjNFx4G9e5J0YvzQ9Mfbnaf1FCgoi29f7F4/F/9nXUw=;
+        b=qA1gPJgkliOq3YkTzm+Q7cljb9uEuLPAzI+Y9T7Tn7R9QO/QzcRZ/dWyWlKqfTqx9T
+         nnn3MnHYFjopj+Ep1rjVi0oACpdk3XtVOLfY4ldLLs/3hlqebsD6uCp7FhmF+W/WzLv2
+         Ox/dLL++e4FeMsE8YWulzAmfwK8SCIGlo9VpKQXJFpLQfxZ3En4+9PF5p3qQ06G6oIFb
+         PUzQgIPsYkXKdbAbc2VlNrmd7PsVcA2Rs6wHu71dqSAOSPx9FWxLymJYn6PaZgynycP3
+         DunuAWoC01MntjUm6Xdo1e7fNdU5Ol00HGwvHCsQHx8r4DrO3DONvWWY+wK1kXkl9Cn8
+         MUqg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAWdZ+utwvPmC59lHKny+TQuYCFkoH06eHBWEHB+vp4xXz2Ixel0
+	HDmEbDaXSmu3Ltinpzc1cKu3WFr2KrySI4a+9/4TKNNmgrLW8JoLyFmQXXFtGM4DyfJQqOivS5E
+	J6X823MlP64qvTiFrcnjbkecZtsxLMJ9FL0pyLcfA4VRKmopomUdvV/MAhgA/5HTeYQ==
+X-Received: by 2002:a37:a388:: with SMTP id m130mr17712570qke.250.1563201647629;
+        Mon, 15 Jul 2019 07:40:47 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzsH8yLWr65/ccvQHYrvVoi+uQ3kfTvLRMWRR9eKt1dZVqR1SOuxDGA9xolwoaDaYXHVRzG
+X-Received: by 2002:a37:a388:: with SMTP id m130mr17712488qke.250.1563201646579;
+        Mon, 15 Jul 2019 07:40:46 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563201646; cv=none;
         d=google.com; s=arc-20160816;
-        b=Qdntt3dKnJdqZfQaeRXQGHetDLpJQmM4bXFWdlYEfnD2Jrl5QCIbtqriDX//Q5DwSO
-         3B1Y9V2hJI1q7ygm3wCEiHj7Yhs2QWg0MAAnvrwnPfQEHqQhsotcg28vJPn/bt6hfWI2
-         4u7JJg4khMWHFqpLPwz8YrK35mH0RA61q2sZe12WVE6yuJH0w9tL8/TWgjl2Uqagis7H
-         nJNFcNSY8zGYyV76Cw5wxfRl1zfL29lUhL7aC008u0jeaEk/EB+VLcxxZta7+N30Nd9v
-         V/GKdB12cNd/e2aXGdrC/wsZjR3A6lI9CGB8oyT5nj3DAyTXSl3YDOJ2WlyFwA+3EA/a
-         VJ1g==
+        b=sTSbEI7DzxiXMTII8ivNTu7UvYHAeXgTAtmQcvKa2RwELbzxgKUX9Nr+vZOQrh7//g
+         syylIQ/He8XoiK5Ka2/03EVlwdiKW90P/E2UjB//u7oZRt1g+4HChDT+R1EyP1UtMDnl
+         dmwpfc+PWXHqN8WprnLea+X1A8AIadsZAz64hxUUReJgEOOhfYA028yTLaaXa4yB/uGv
+         HNC9DcLUeVc/igA/gqCyFX8hsD1hFXIx83KxHCnSB+91TcX9Hg427ChLszSRyDbNeJ3U
+         P1Wl/Sm1AQmjiXLTYfj4TiHri7vGwis6hUZVvyn80IAGT4goCXKNkviG41usZUZbA8AC
+         d46g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:date:from:dkim-signature;
-        bh=5jX8RO2G+Dqveq3/9ZIxcRNHFe4mw3shiUGtuynCPU0=;
-        b=krYvrnMBl/tSTGyBZCV/4S/N/Z3UmITVdCMs0Mh23vX3WbgtrLvr5Gc2bGpMVffXP0
-         D7ORf+cfQmlWlMdk9Nx51EG/70eGNE3pRV6q85tEDFUvhxtnmckmdgjG4H9FZf4FYYtQ
-         aUPYub3mObtRXDbu+x4CszNMUNw3fwXEAbnbzE8Mp3xSFuXNIqkI2C4kWldXUM5v+a0G
-         4uwzGNL7VVx0OUlIKTR+m3OtF5aacVZPhK2W9Xc+GcC36V7A0O2LK4e6rTpASu/5mu5q
-         B9TRZgD6hz+YvxsObeCTNvdKgbMXoq/Hyiu7Z1ByTK8Sn0Ka4lA8NfLw40LmAzBuexke
-         zfhQ==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:organization:autocrypt:openpgp
+         :references:to:from:subject;
+        bh=mjNFx4G9e5J0YvzQ9Mfbnaf1FCgoi29f7F4/F/9nXUw=;
+        b=gM8B4RbJJPxL10N6pcG+Z1wiWUTaRhq9ZYeX6zYMa0A+X6ejd33itutBEFrRAu02xq
+         ywdUEqxrPwT/EpYiO7GK3Dbt7XO3PG/QhUZTmkPwgK2O+po5wdHKfuNiuJk0STXgUfLt
+         sUlRhssp+mxjTAmcl+UxaEVVbQvCBr7JIPry6vLOsRSTE5jx2klUTibNYBs3BjsJe6ih
+         cAOkssUcjXCacaVpz9K6fhqf93F097IrktK0iyDtSejwZV4gKpFiujwbkclow4XtfFb4
+         eifKzsAz+1hySDj+dcOe7GsuyPmukYjftpPu46dA2BXOiQ8jR+F0aPgR08nx9zLYQx25
+         QAVQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b="d3/14IV3";
-       spf=pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=urezki@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 6sor9266097ljs.44.2019.07.15.07.28.04
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id d207si10697142qkc.51.2019.07.15.07.40.46
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 15 Jul 2019 07:28:04 -0700 (PDT)
-Received-SPF: pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 15 Jul 2019 07:40:46 -0700 (PDT)
+Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b="d3/14IV3";
-       spf=pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=urezki@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=from:date:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=5jX8RO2G+Dqveq3/9ZIxcRNHFe4mw3shiUGtuynCPU0=;
-        b=d3/14IV3hSNMRDcLy989ICz3liv+mqjjSlW0El1mnKf1DOz5JPMkYTV5X2XfM5proK
-         7k1eaAzv9eAe8s9ElN5YSGhnIIHix6PHO4WbLxrSC1Bg4CShvJ3rN8GrZwK9Jrwdixy7
-         ziRX3kHL4P0X4Pmx2CRPhDuGSUllqNrR1M2ZTm4YgAoiYdRnRa1OC4xD0LMuspJXA3Ve
-         /COxemWlBI3Tl3LClQBSKECiteCiSHEDi4eENFT4WOBuaJ+vsdwS8pMcHCDEH1zrFFZc
-         mHIW/MTCDKpoRtJlx8Tw5ldTVnsDbi9sOGSzb2tLaXUDKnurnKlvpB6+BVs3v3a3XZpg
-         0lkA==
-X-Google-Smtp-Source: APXvYqwkk4wG7LqF3s03ECykm/guY9mj3pBSapqVetXgxHIrnb4xm9bU3dssIzaUILeRZSgr6ITLCg==
-X-Received: by 2002:a2e:968f:: with SMTP id q15mr9362552lji.30.1563200884282;
-        Mon, 15 Jul 2019 07:28:04 -0700 (PDT)
-Received: from pc636 ([37.139.158.167])
-        by smtp.gmail.com with ESMTPSA id h4sm3209138ljj.31.2019.07.15.07.28.02
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 15 Jul 2019 07:28:03 -0700 (PDT)
-From: Uladzislau Rezki <urezki@gmail.com>
-X-Google-Original-From: Uladzislau Rezki <urezki@pc636>
-Date: Mon, 15 Jul 2019 16:27:54 +0200
-To: Pengfei Li <lpf.vector@gmail.com>
-Cc: Matthew Wilcox <willy@infradead.org>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Uladzislau Rezki <urezki@gmail.com>, rpenyaev@suse.de,
-	peterz@infradead.org, guro@fb.com, rick.p.edgecombe@intel.com,
-	rppt@linux.ibm.com, aryabinin@virtuozzo.com, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
-Subject: Re: [PATCH v4 2/2] mm/vmalloc.c: Modify struct vmap_area to reduce
- its size
-Message-ID: <20190715142754.pw55g4b2l6lzoznn@pc636>
-References: <20190712120213.2825-1-lpf.vector@gmail.com>
- <20190712120213.2825-3-lpf.vector@gmail.com>
- <20190712134955.GV32320@bombadil.infradead.org>
- <CAD7_sbEoGRUOJdcHnfUTzP7GfUhCdhfo8uBpUFZ9HGwS36VkSg@mail.gmail.com>
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 92433309175E;
+	Mon, 15 Jul 2019 14:40:45 +0000 (UTC)
+Received: from [10.36.118.52] (unknown [10.36.118.52])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 781AD5D9C8;
+	Mon, 15 Jul 2019 14:40:31 +0000 (UTC)
+Subject: Re: [RFC][Patch v11 1/2] mm: page_hinting: core infrastructure
+From: David Hildenbrand <david@redhat.com>
+To: Dave Hansen <dave.hansen@intel.com>,
+ Nitesh Narayan Lal <nitesh@redhat.com>, kvm@vger.kernel.org,
+ linux-kernel@vger.kernel.org, linux-mm@kvack.org, pbonzini@redhat.com,
+ lcapitulino@redhat.com, pagupta@redhat.com, wei.w.wang@intel.com,
+ yang.zhang.wz@gmail.com, riel@surriel.com, mst@redhat.com,
+ dodgen@google.com, konrad.wilk@oracle.com, dhildenb@redhat.com,
+ aarcange@redhat.com, alexander.duyck@gmail.com, john.starks@microsoft.com,
+ mhocko@suse.com
+References: <20190710195158.19640-1-nitesh@redhat.com>
+ <20190710195158.19640-2-nitesh@redhat.com>
+ <f9bca947-f88e-51a7-fdaf-4403fda1b783@intel.com>
+ <46336efb-3243-0083-1d20-7e8578131679@redhat.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
+ 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
+ SE+xAvmumFBY
+Organization: Red Hat GmbH
+Message-ID: <c978542a-6535-634f-b07a-0a158993bada@redhat.com>
+Date: Mon, 15 Jul 2019 16:40:30 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.2
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAD7_sbEoGRUOJdcHnfUTzP7GfUhCdhfo8uBpUFZ9HGwS36VkSg@mail.gmail.com>
-User-Agent: NeoMutt/20170113 (1.7.2)
+In-Reply-To: <46336efb-3243-0083-1d20-7e8578131679@redhat.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.41]); Mon, 15 Jul 2019 14:40:45 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jul 12, 2019 at 11:09:00PM +0800, Pengfei Li wrote:
-> On Fri, Jul 12, 2019 at 9:49 PM Matthew Wilcox <willy@infradead.org> wrote:
-> >
-> > On Fri, Jul 12, 2019 at 08:02:13PM +0800, Pengfei Li wrote:
-> >
-> > I don't think you need struct union struct union.  Because llist_node
-> > is just a pointer, you can get the same savings with just:
-> >
-> >         union {
-> >                 struct llist_node purge_list;
-> >                 struct vm_struct *vm;
-> >                 unsigned long subtree_max_size;
-> >         };
-> >
+On 15.07.19 11:33, David Hildenbrand wrote:
+> On 11.07.19 20:21, Dave Hansen wrote:
+>> On 7/10/19 12:51 PM, Nitesh Narayan Lal wrote:
+>>> +static void bm_set_pfn(struct page *page)
+>>> +{
+>>> +	struct zone *zone = page_zone(page);
+>>> +	int zone_idx = page_zonenum(page);
+>>> +	unsigned long bitnr = 0;
+>>> +
+>>> +	lockdep_assert_held(&zone->lock);
+>>> +	bitnr = pfn_to_bit(page, zone_idx);
+>>> +	/*
+>>> +	 * TODO: fix possible underflows.
+>>> +	 */
+>>> +	if (free_area[zone_idx].bitmap &&
+>>> +	    bitnr < free_area[zone_idx].nbits &&
+>>> +	    !test_and_set_bit(bitnr, free_area[zone_idx].bitmap))
+>>> +		atomic_inc(&free_area[zone_idx].free_pages);
+>>> +}
+>>
+>> Let's say I have two NUMA nodes, each with ZONE_NORMAL and ZONE_MOVABLE
+>> and each zone with 1GB of memory:
+>>
+>> Node:         0        1
+>> NORMAL   0->1GB   2->3GB
+>> MOVABLE  1->2GB   3->4GB
+>>
+>> This code will allocate two bitmaps.  The ZONE_NORMAL bitmap will
+>> represent data from 0->3GB and the ZONE_MOVABLE bitmap will represent
+>> data from 1->4GB.  That's the result of this code:
+>>
+>>> +			if (free_area[zone_idx].base_pfn) {
+>>> +				free_area[zone_idx].base_pfn =
+>>> +					min(free_area[zone_idx].base_pfn,
+>>> +					    zone->zone_start_pfn);
+>>> +				free_area[zone_idx].end_pfn =
+>>> +					max(free_area[zone_idx].end_pfn,
+>>> +					    zone->zone_start_pfn +
+>>> +					    zone->spanned_pages);
+>>
+>> But that means that both bitmaps will have space for PFNs in the other
+>> zone type, which is completely bogus.  This is fundamental because the
+>> data structures are incorrectly built per zone *type* instead of per zone.
+>>
 > 
-> Thanks for your comments.
+> I don't think it's incorrect, it's just not optimal in all scenarios.
+> E.g., in you example, this approach would "waste" 2 * 1GB of tracking
+> data for the wholes (2* 64bytes when using 1 bit for 2MB).
 > 
-> As you said, I did this in v3.
-> https://patchwork.kernel.org/patch/11031507/
+> FWIW, this is not a numa-specific thingy. We can have sparse zones
+> easily on single-numa systems.
 > 
-> The reason why I use struct union struct in v4 is that I want to
-> express "in the tree" and "in the purge list" are two completely
-> isolated cases.
+> Node:                 0
+> NORMAL   0->1GB, 2->3GB
+> MOVABLE  1->2GB, 3->4GB
 > 
-I think that is odd. Your v3 was fine to me. All that mess with
-struct union struct makes it weird, so having just comments there
-is enough, imho.
+> So tracking it per zones instead instead of zone type is only one part
+> of the story.
+> 
 
-<snip>
--               __free_vmap_area(va);
-+               merge_or_add_vmap_area(va,
-+                       &free_vmap_area_root, &free_vmap_area_list);
-+
-<snip>
-Should not be done in this patch. I can re-spin "mm/vmalloc: do not keep unpurged areas in the busy tree"
-and add it there. So, as a result we will not modify unlink_va() function.
+Oh, and FWIW,
 
-Thus, this patch will reduce the size only, and will not touch other parts.
+in setups like
 
---
-Vlad Rezki
+Node:                 0               1
+NORMAL   4->5GB, 6->7GB  5->6GB, 8->9GB
+
+What Nitesh proposes is actually better. So it really depends on the use
+case - but in general sparsity is the issue.
+
+-- 
+
+Thanks,
+
+David / dhildenb
 
