@@ -2,77 +2,77 @@ Return-Path: <SRS0=FHqE=VM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7A65BC7618F
-	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 18:44:56 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 906A6C76191
+	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 18:48:33 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4ABB7206B8
-	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 18:44:56 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4ABB7206B8
+	by mail.kernel.org (Postfix) with ESMTP id 5CD34206B8
+	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 18:48:33 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5CD34206B8
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linutronix.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E4E896B0007; Mon, 15 Jul 2019 14:44:55 -0400 (EDT)
+	id F10176B0003; Mon, 15 Jul 2019 14:48:32 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DFFBC6B0008; Mon, 15 Jul 2019 14:44:55 -0400 (EDT)
+	id E98EB6B0005; Mon, 15 Jul 2019 14:48:32 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CEFFE6B000A; Mon, 15 Jul 2019 14:44:55 -0400 (EDT)
+	id D611E6B0006; Mon, 15 Jul 2019 14:48:32 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 799646B0007
-	for <linux-mm@kvack.org>; Mon, 15 Jul 2019 14:44:55 -0400 (EDT)
-Received: by mail-wr1-f69.google.com with SMTP id l24so9288047wrb.0
-        for <linux-mm@kvack.org>; Mon, 15 Jul 2019 11:44:55 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 7FD556B0003
+	for <linux-mm@kvack.org>; Mon, 15 Jul 2019 14:48:32 -0400 (EDT)
+Received: by mail-wr1-f69.google.com with SMTP id f16so9258323wrw.5
+        for <linux-mm@kvack.org>; Mon, 15 Jul 2019 11:48:32 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:in-reply-to:message-id:references:user-agent
          :mime-version;
-        bh=kg+UdLDynnxeY0tp+29I3esvbYQ9bWuc98/H8lsPx3g=;
-        b=h5urh8g61CWH9a15tT1v3yoGkYFy66ya6cKoG7iRh6KgEQpNDu0QK9rneYXPS2zki4
-         dwqwb1usVldNpwKy33phZdIU1rBDmcA4mpZW/p7XB5IldmfxUFAWPW9Ekk+ixoky7Y2v
-         7CYYRVRbJm8G7RWefOnRUfUf6gCPeKZ+Wfuryi6k2rwoQx8V1W94ZF6WrP3YmdD49Dhv
-         yWC5lAyf4E3fb0T0uapYtaN1ZM6V3zX+Ah9tf97W0sKyZCy9aQ20nZ9QlTI1ML33xwxy
-         ocOZhNsB8slpsja5rY9Vb9Ut7Xc74jQX71MfT1xNIwFG8nQF934IWAv5CH3g0VTnZIux
-         7mkw==
+        bh=AlErFgaCkIk9WeuYLBdUwSXBhj1jEiE0rcLIcYhJhQI=;
+        b=lwH7rTeLXC54gw/rPuNgMrHUcjPFHKsTnsl9yS5AXkEvhfvIpDZADUQCZQZThozVik
+         pZQ473NmdEZ0UFwv+EX7y+OsN6pK8CASj1FZ/KxmAQtjuBHstT0A7fhH5ODilmAsE7vr
+         v3Ke0eAHfwxrWsOPCwjPsbS1/ln9Lb1Igxen1UAncI7dSRe5vNoEfYyyMXH5GLEHugv9
+         XDmYUAJTRbSzlko3A/oO6P4DtUDYKEc62NhFEx/X7/xT5Awh/d7WlgbaUSjLXXy+Us1U
+         lV6J6BbyclpGSmvHmGUKctAXpNVJmA+OKX5XZlLZww9oXQPEAhl6AHI9AR1qhBODh63j
+         SmSQ==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a0a:51c0:0:12e:550::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
-X-Gm-Message-State: APjAAAV0XSjR04V/VrWSzs/Jrkuws1gcT1eZJ1UhVvvtnedZk8yC3Kw5
-	x3EhvnGFvUoGOdqo9gS345V3850Cu9gKIg6DZscODchBnCj/q7Fjf7nUX1EJDMsrqHj0inQK0st
-	CmB/ocy7Yk1dM9zPzUC9OcKt5bt3eVqh+RaBjuVdjbpw1xEb+Pe0rmeWcRnEEStd0jg==
-X-Received: by 2002:a05:600c:2503:: with SMTP id d3mr26595993wma.41.1563216295037;
-        Mon, 15 Jul 2019 11:44:55 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxIM//jyHW4xFRtP65/HMrtVTV6vsSkDaMfYofZdUgNOpAGxkgd+xUBT5EvEd6mu8v+vorH
-X-Received: by 2002:a05:600c:2503:: with SMTP id d3mr26595971wma.41.1563216294281;
-        Mon, 15 Jul 2019 11:44:54 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563216294; cv=none;
+X-Gm-Message-State: APjAAAXvmdzol1R6GESJwCI6wjaAVUIk6/TtcEHX3JEPlAD6dZD8Ghuv
+	ITOw+1YyeLA90Z/HWrMvrlyH7JevFS4XPXOIVlM4pwqa3XaF8nTlscgSZOweJdntInkQqFs9WF+
+	Q/5hjt8HPdi6kPiGaSX5zIcgcJsrS/kAWfitY/3GsSpNwOnUY79GpsdL5HWXxyddi4A==
+X-Received: by 2002:a7b:c383:: with SMTP id s3mr20111722wmj.44.1563216511881;
+        Mon, 15 Jul 2019 11:48:31 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyBxjWGmfWD6jISQr3HMng0EM0S+1uqiceUUxeuddGiixnFZeljkAPZcjPmnEy9L5hADGgU
+X-Received: by 2002:a7b:c383:: with SMTP id s3mr20111688wmj.44.1563216511122;
+        Mon, 15 Jul 2019 11:48:31 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563216511; cv=none;
         d=google.com; s=arc-20160816;
-        b=Bp5rko0JIh02XDNYQpBsgBR/b/nWAbi2UN0UlS5Wdgw0nGJJMToVh1LxE7mkMxOpvX
-         lBPmZuCP2xAMvydlCopiisRNdcHVc67IjDkWQWauFNxzUfQy/v2OdKMziYxvwy+1nwqh
-         l7GFp6Bv7LqjSzfizLqyqD/NxRt+tpI1oXbQNLLZPAw5ZPsuqJ27hVdxiqcQYbps6WQh
-         aix7InkOxad39a+j9puUCsFlZwky7aJz9ZYULWe11Q1TkFIwDFi6TbBGZHezD/widiOK
-         lMK6IMXdwXcAOpU4z8qMPJKCnPP4/tMgOiXD5B8XjqIcfmO+NAJb6wPGfJKRKdasBnVM
-         jFQw==
+        b=lAPPKNmG21avIV69L4SiaL4v5HQXhFtD49SmiZ8/wfbOGC3InJxx4L4CeQPKJyjsfI
+         o6bXYdkEyYvbOaicWQZYBTskIepLTR+HVPCgtRBdMR5Hm8kuQ8UY7IVX5Qbsf8AjsAtW
+         DjJUrwyvnX4CKFQfkZrKQ5sD3Zi4xJ/Sik7BJX7ejeYx2K7eH+BRc6tUoX/WYg7Ot9CY
+         mYgkMbETTFwT8CSe4veUbEAoCbAaYBHkPiSCJ67tcoKmL0hWNDJBx7V61c84t5TJRntD
+         ST1kfXOT6K0SOl1d29vhsV5uBfU53iosJfLmuKs3okMhh58BN3buY55udvl7Gmh3gFsW
+         3tKA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=mime-version:user-agent:references:message-id:in-reply-to:subject
          :cc:to:from:date;
-        bh=kg+UdLDynnxeY0tp+29I3esvbYQ9bWuc98/H8lsPx3g=;
-        b=RW/zh9kvq3DEzz2KFahe6NdriIpjIaorhvL0gFYxHnJL6wiTimFJIiBz0+VT67qmbS
-         Nq/6IijB7vC2cXqyEHs9Pz7zGqmzuByH46KnXzy5QMp71LyQkr2HHE78vVUo9DbLZ+W6
-         X8bUBpiWuOV5jV0zhzqol6LS9JjHUHe5efsEWma/4ALmzqvvhVkNrZj/3fdfPiecTzOU
-         mh8SudxaBw4zHVdg9lF4oc+YdKtItgHuFNQEsGbRxe7LTBMUEOpwe+vy0bI2o9h740th
-         1po1vVRZbXnMeRsyLKrjuZtaqN+lWuqgg8uhA/2+FcXuOTBJBpOHS0st30AWgq4hpVjy
-         9BIg==
+        bh=AlErFgaCkIk9WeuYLBdUwSXBhj1jEiE0rcLIcYhJhQI=;
+        b=rOIqmgjicjnAFiFY+bZjWlsk7xgiLMsg4DbRzt566IPzF7IvGglc0EhxbhHG4pMJZG
+         kEW3gf+rdUc1pZDXhFKUSxae2X6YmIp/9GHp19gCLGV+aX0NJmVEdZyJhMms/ktLgwhd
+         IZweGe4zzkaVJxSNnu0Sh5cKAymAq/mKDx1CYKL/rPW7eJ9lp/rHO0UJIXocysEw6+A8
+         90aTfc5IAdGPUyYSGxy0wrXhX+rhCG32r+JiB0qF/TMe/NqzsP0W4XKuCtcJm9mQ3/3z
+         Au7Wi/5Lmr/MckfyVC+mlY/5KSzUEzXo5Tq+f6Cvke3tRBFG7JgJNG6AZiJD9GoMAaoP
+         3t0A==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a0a:51c0:0:12e:550::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
 Received: from Galois.linutronix.de (Galois.linutronix.de. [2a0a:51c0:0:12e:550::1])
-        by mx.google.com with ESMTPS id d9si10807354wro.27.2019.07.15.11.44.54
+        by mx.google.com with ESMTPS id b3si17585791wrn.401.2019.07.15.11.48.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Mon, 15 Jul 2019 11:44:54 -0700 (PDT)
+        Mon, 15 Jul 2019 11:48:31 -0700 (PDT)
 Received-SPF: pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a0a:51c0:0:12e:550::1 as permitted sender) client-ip=2a0a:51c0:0:12e:550::1;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a0a:51c0:0:12e:550::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
@@ -80,38 +80,20 @@ Received: from pd9ef1cb8.dip0.t-ipconnect.de ([217.239.28.184] helo=nanos)
 	by Galois.linutronix.de with esmtpsa (TLS1.2:DHE_RSA_AES_256_CBC_SHA256:256)
 	(Exim 4.80)
 	(envelope-from <tglx@linutronix.de>)
-	id 1hn5wy-00041l-3l; Mon, 15 Jul 2019 20:43:48 +0200
-Date: Mon, 15 Jul 2019 20:43:46 +0200 (CEST)
+	id 1hn61P-00044x-FA; Mon, 15 Jul 2019 20:48:23 +0200
+Date: Mon, 15 Jul 2019 20:48:22 +0200 (CEST)
 From: Thomas Gleixner <tglx@linutronix.de>
-To: Hoan Tran OS <hoan@os.amperecomputing.com>
-cc: Catalin Marinas <catalin.marinas@arm.com>, 
-    Will Deacon <will.deacon@arm.com>, 
-    Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, 
-    Vlastimil Babka <vbabka@suse.cz>, Oscar Salvador <osalvador@suse.de>, 
-    Pavel Tatashin <pavel.tatashin@microsoft.com>, 
-    Mike Rapoport <rppt@linux.ibm.com>, 
-    Alexander Duyck <alexander.h.duyck@linux.intel.com>, 
-    Benjamin Herrenschmidt <benh@kernel.crashing.org>, 
-    Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, 
+To: Joerg Roedel <jroedel@suse.de>
+cc: Joerg Roedel <joro@8bytes.org>, Dave Hansen <dave.hansen@linux.intel.com>, 
+    Andy Lutomirski <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>, 
     Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, 
-    "H . Peter Anvin" <hpa@zytor.com>, 
-    "David S . Miller" <davem@davemloft.net>, 
-    Heiko Carstens <heiko.carstens@de.ibm.com>, 
-    Vasily Gorbik <gor@linux.ibm.com>, 
-    Christian Borntraeger <borntraeger@de.ibm.com>, 
-    "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, 
-    "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, 
-    "linux-s390@vger.kernel.org" <linux-s390@vger.kernel.org>, 
-    "sparclinux@vger.kernel.org" <sparclinux@vger.kernel.org>, 
-    "x86@kernel.org" <x86@kernel.org>, 
-    "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>, 
-    "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, 
-    Open Source Submission <patches@amperecomputing.com>
-Subject: Re: [PATCH v2 3/5] x86: Kconfig: Remove
- CONFIG_NODES_SPAN_OTHER_NODES
-In-Reply-To: <1562887528-5896-4-git-send-email-Hoan@os.amperecomputing.com>
-Message-ID: <alpine.DEB.2.21.1907152042110.1767@nanos.tec.linutronix.de>
-References: <1562887528-5896-1-git-send-email-Hoan@os.amperecomputing.com> <1562887528-5896-4-git-send-email-Hoan@os.amperecomputing.com>
+    Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, 
+    linux-mm@kvack.org
+Subject: Re: [PATCH 1/3] x86/mm: Check for pfn instead of page in
+ vmalloc_sync_one()
+In-Reply-To: <20190715154418.GA13091@suse.de>
+Message-ID: <alpine.DEB.2.21.1907152047550.1767@nanos.tec.linutronix.de>
+References: <20190715110212.18617-1-joro@8bytes.org> <20190715110212.18617-2-joro@8bytes.org> <alpine.DEB.2.21.1907151508210.1722@nanos.tec.linutronix.de> <20190715154418.GA13091@suse.de>
 User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
 MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
@@ -124,16 +106,43 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 11 Jul 2019, Hoan Tran OS wrote:
+On Mon, 15 Jul 2019, Joerg Roedel wrote:
+> On Mon, Jul 15, 2019 at 03:08:42PM +0200, Thomas Gleixner wrote:
+> > On Mon, 15 Jul 2019, Joerg Roedel wrote:
+> > 
+> > > From: Joerg Roedel <jroedel@suse.de>
+> > > 
+> > > Do not require a struct page for the mapped memory location
+> > > because it might not exist. This can happen when an
+> > > ioremapped region is mapped with 2MB pages.
+> > > 
+> > > Signed-off-by: Joerg Roedel <jroedel@suse.de>
+> > 
+> > Lacks a Fixes tag, hmm?
+> 
+> Yeah, right, the question is, which commit to put in there. The problem
+> results from two changes:
+> 
+> 	1) Introduction of !SHARED_KERNEL_PMD path in x86-32. In itself
+> 	   this is not a problem, and the path was only enabled for
+> 	   Xen-PV.
+> 
+> 	2) Huge IORemapings which use the PMD level. Also not a problem
+> 	   by itself, but together with !SHARED_KERNEL_PMD problematic
+> 	   because it requires to sync the PMD entries between all
+> 	   page-tables, and that was not implemented.
+> 
+> Before PTI-x32 was merged this problem did not show up, maybe because
+> the 32-bit Xen-PV users did not trigger it. But with PTI-x32 all PAE
+> users run with !SHARED_KERNEL_PMD and the problem popped up.
+> 
+> For the last patch I put the PTI-x32 enablement commit in the fixes tag,
+> because that was the one that showed up during bisection. But more
+> correct would probably be
+> 
+> 	5d72b4fba40e ('x86, mm: support huge I/O mapping capability I/F')
 
-> Remove CONFIG_NODES_SPAN_OTHER_NODES as it's enabled
-> by default with NUMA.
-
-As I told you before this does not mention that the option is now enabled
-even for x86(32bit) configurations which did not enable it before and does
-not longer depend on X86_64_ACPI_NUMA.
-
-And there is still no rationale why this makes sense.
+Looks about right.
 
 Thanks,
 
