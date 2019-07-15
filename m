@@ -2,212 +2,129 @@ Return-Path: <SRS0=FHqE=VM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CCCC0C7618F
-	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 10:58:30 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7B53BC76192
+	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 11:02:25 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 898B52064B
-	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 10:58:30 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 898B52064B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 4BA062081C
+	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 11:02:25 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4BA062081C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=8bytes.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 28F9B6B0269; Mon, 15 Jul 2019 06:58:30 -0400 (EDT)
+	id F0D9F6B0006; Mon, 15 Jul 2019 07:02:24 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 217256B026A; Mon, 15 Jul 2019 06:58:30 -0400 (EDT)
+	id EBEAF6B0008; Mon, 15 Jul 2019 07:02:24 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0B7E26B026B; Mon, 15 Jul 2019 06:58:30 -0400 (EDT)
+	id DD55B6B026B; Mon, 15 Jul 2019 07:02:24 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id DE5526B0269
-	for <linux-mm@kvack.org>; Mon, 15 Jul 2019 06:58:29 -0400 (EDT)
-Received: by mail-qt1-f197.google.com with SMTP id s22so14401640qtb.22
-        for <linux-mm@kvack.org>; Mon, 15 Jul 2019 03:58:29 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A5B516B0006
+	for <linux-mm@kvack.org>; Mon, 15 Jul 2019 07:02:24 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id f3so13338676edx.10
+        for <linux-mm@kvack.org>; Mon, 15 Jul 2019 04:02:24 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:organization:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding;
-        bh=30vJhecBiJXghL0EIWpg31X9BQkDdWm06nnqLtw/77I=;
-        b=cM9XnuGps+o8EdfoY2LEX9gb1KfL7qw+fjNydIhNfQIt8O9MxIZj3R4nOHob/9U5HR
-         jftuy03vLWolI/9j/IHqiCk01gjpjEhvYAt/mCqRkR3BZNX6GCLzKPHjprfcUYXSsX8c
-         HXgrGPZmu8C5aVJKykAh2BKZO6geukp4XXVgtOitDUF+dBl9cLUhl6OL8aCsEfIHqrkn
-         0EqJBzHoeKwugM1PEXBMaLFH3z309a9c09iIoBIsOHUXvH0B8YP31D64DMjsxx07bJy0
-         AkPR3DktKwud0+vdBjhlAd8zFLcUxYQZz7P+qytaqjfBnA0W3tYcGuzFaVrR6QMomDkw
-         f2PA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAXTvxfq/KETsfOzh9Udc32Cp3Jn4nA968kuMVgi610iADnGMkSQ
-	FHP/t6YmVjB0f610dKbCY16l0kcdchoTPuGiciDH2c6XcCxfBa3XR+SYjZpWzxK49ZQo2o2E30c
-	zdT5Z64Xx7BEUrE8SBDeuhRaqKBcK+D43VIvGoyXOZMxZvf5njYzLs1WdCENR7hnrUw==
-X-Received: by 2002:a37:660d:: with SMTP id a13mr16485258qkc.36.1563188309687;
-        Mon, 15 Jul 2019 03:58:29 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqw37Z3jILiylrB11RtVjrr968J/ohMVNx+9I+L7voW5MXFKnXhMTg0+vWBgQ+lq0yZEDR08
-X-Received: by 2002:a37:660d:: with SMTP id a13mr16485235qkc.36.1563188309142;
-        Mon, 15 Jul 2019 03:58:29 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563188309; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:in-reply-to:references;
+        bh=6EvDuo1ssdDG8objEAwreorjmyHHeKgaqNxghdZyXWs=;
+        b=Se5u1Fb1upcb0O5mLNptOKNa8pKhsi+LH4UqnOPNymp675dK99t/1+geJHKGnT3Nc8
+         j1mmaZ2z+ZQTMWVrJRvuvak2nRJod1ydeUJFefpECt2hhvBSljoqIfRDcVzkYL9s0ZZy
+         EsLVl5uHtP0MWv2ISExB16ZK5P7T1R+4hA0ybgTMk1VVKDOK8ikIH4mb+V/X6Xp10Xrf
+         cObUnvbgdMLZ/QQFjH+CgTrCfCthgx+NSPLlHt4WzPIMxK8MF4uT6AQiOJoe38VKkToC
+         pNzhFTHcmApxw6oxsYDI0Di9YNqzTB6PEpm9qAYv/Ca2WiLo6Jpd5xinTey/qw387vev
+         tKNw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of joro@8bytes.org designates 2a01:238:4383:600:38bc:a715:4b6d:a889 as permitted sender) smtp.mailfrom=joro@8bytes.org;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=8bytes.org
+X-Gm-Message-State: APjAAAVz4XQhIPGFnSNtxqOsMCL/0YULosO0dTMVvfmZMgdG8ZCEgHKj
+	vMXc8GdvwRuHx4DHTyAiB8cTaDTJMSPEZVTXtf7rFBcY5PXFrhp8lGzZvSjbPd0p5aYsu5evTas
+	w+jveEKfkr7IDG7sYjKdIPBrjvBgRk14dxIHPxLB03jESUsULnFBBnZ/+sRaQNdphfA==
+X-Received: by 2002:a17:906:454d:: with SMTP id s13mr20112597ejq.255.1563188543894;
+        Mon, 15 Jul 2019 04:02:23 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqz7WIPdeNkqcDY6K6T7jMZ6sgJaVAXlpTCnGgtwPoH8LUdDbC8uQfvrWpMBnVPDye/xYt5I
+X-Received: by 2002:a17:906:454d:: with SMTP id s13mr20112522ejq.255.1563188543139;
+        Mon, 15 Jul 2019 04:02:23 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563188543; cv=none;
         d=google.com; s=arc-20160816;
-        b=y1+7HexwxRmUE2H0PnMNoAyVBCUOTLAR0MqVne+AHm5dDm4ao6HIJCXTTkMyd0N25I
-         CNhdWuNe6TjzrXOVSdlKwcpv2L+PgpWvLGUILC0Vdzqns16wsLv1FTXormAOT8x/b8XL
-         GoZpqNsb+jwP/kU3fYRap9i61LVZ4uMESdASj32L2Wdq/6LlQAQLrcGJmCB67OT+J+Ho
-         7dMogS7fAPT0c54KdiqDN6AuqMykhbFQ/6QX8bYGjm2HhOdPKFQqyLZphAkpM6B5/aAj
-         qGzdmYDIB3PRjG2kpdGbhcbCGYpXqf3gMfb4r0Se3EPvAYEcern8yAUlLy1RIIsxONgh
-         S81g==
+        b=ol8rhV/4IvcyKvw3T9laU+X9EbrR6sAw89DMY7ldGOZ7QYMzIRtfZCGwLaC/6+hZWV
+         HuN1Pbfh/F5n1KicJYYI70ucSJNcrM2sSdmgxxRghkRXn82TzysEs+KMKpXQNYDig7ug
+         RGCisDp0Y/WzblRBJIb+I/wDVgR/kiwghIuo/cd1Ftfi9RLbnE4Fki7FLgtEe3CLvL9H
+         J51cbohBFvofVO6oMOBPHRa0+SNWzPxtQwD53k7JNFhbYPPFm6luY9Ie0EHLhOzFnZhc
+         Ppv8hal04buU3nuV5anO/jW8yQ6UpeCDbSrXTu6GzKFSD12Z6h6QuUAbml6zID4L+fwt
+         27fQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:organization:autocrypt:openpgp:from
-         :references:cc:to:subject;
-        bh=30vJhecBiJXghL0EIWpg31X9BQkDdWm06nnqLtw/77I=;
-        b=LwHBFY25pBFxFyjujnQQn23nxs7jOjprgRrQjanL3lGWUCxWmYFnZZ3P5rRlS8CuVJ
-         u6fT0OUVgNluF2YsgThenM0U3dB8AxF3938Q4Qr1PYaiL9Ju0QIPtCrbvwJsLEki548k
-         EXAAP6X1j1WE3t9k4dPX0PBNY9GmknIKS9dNwZ4UmlcoSl906cnSyteVQpqvTHL/Fv5d
-         9pS95DkFkeowFaAFJ1cyx3z3IeOoL1nvfjKcJ2LOgEk7M18EKiqAdMU1sbwbhgSvE6yM
-         PJVtrTUUFOZWr1K+5bgq/s4r2SslmGQ3OBTyKwyaYJf01JuqIgkMKsCd8HtjK7XeqTMx
-         JcWA==
+        h=references:in-reply-to:message-id:date:subject:cc:to:from;
+        bh=6EvDuo1ssdDG8objEAwreorjmyHHeKgaqNxghdZyXWs=;
+        b=wQTkM8H0bGYdfngP7KyT0eRjfjTwxH8DO0QR503pWwD6rntcOuvmGQUiYp7cErOke0
+         OYugith94PbYW46YB/3nekwuFcP16oD5NufmV/nK29tB+uXwIc8We9BN3GnEJXWWQxcG
+         Y5QAHdfIBdjKAIeGbIxuJdeBRqHuucLygy4AuwprcCYmHvHcAk92zixPcOmPyUY8Rt+/
+         evNJoy/0HeDkgCPKfSec8jnso+tkjWOV4eo6Bgv9h+SpCzx+9fZp1gT9yq5diD6nM49k
+         4PWao356feOhAxsRuS1SZeD5uHfiQAXlZ7DqTd0hxesOK2sCe5FOtx0r/Oi6tdTwdEVM
+         FcnQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id o26si10866513qve.74.2019.07.15.03.58.28
+       spf=pass (google.com: domain of joro@8bytes.org designates 2a01:238:4383:600:38bc:a715:4b6d:a889 as permitted sender) smtp.mailfrom=joro@8bytes.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=8bytes.org
+Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
+        by mx.google.com with ESMTPS id y2si11033628edb.188.2019.07.15.04.02.22
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 15 Jul 2019 03:58:29 -0700 (PDT)
-Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Mon, 15 Jul 2019 04:02:23 -0700 (PDT)
+Received-SPF: pass (google.com: domain of joro@8bytes.org designates 2a01:238:4383:600:38bc:a715:4b6d:a889 as permitted sender) client-ip=2a01:238:4383:600:38bc:a715:4b6d:a889;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 10740356C4;
-	Mon, 15 Jul 2019 10:58:28 +0000 (UTC)
-Received: from [10.36.117.137] (ovpn-117-137.ams2.redhat.com [10.36.117.137])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 2036C5D9D2;
-	Mon, 15 Jul 2019 10:58:22 +0000 (UTC)
-Subject: Re: [PATCH v3 09/11] mm/memory_hotplug: Remove memory block devices
- before arch_remove_memory()
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
- linux-ia64@vger.kernel.org, linuxppc-dev@lists.ozlabs.org,
- linux-s390@vger.kernel.org, linux-sh@vger.kernel.org,
- linux-arm-kernel@lists.infradead.org, akpm@linux-foundation.org,
- Dan Williams <dan.j.williams@intel.com>, Wei Yang
- <richard.weiyang@gmail.com>, Igor Mammedov <imammedo@redhat.com>,
- Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
- "Rafael J. Wysocki" <rafael@kernel.org>,
- "mike.travis@hpe.com" <mike.travis@hpe.com>,
- Andrew Banman <andrew.banman@hpe.com>, Ingo Molnar <mingo@kernel.org>,
- Alex Deucher <alexander.deucher@amd.com>,
- "David S. Miller" <davem@davemloft.net>, Mark Brown <broonie@kernel.org>,
- Chris Wilson <chris@chris-wilson.co.uk>, Oscar Salvador <osalvador@suse.de>,
- Jonathan Cameron <Jonathan.Cameron@huawei.com>,
- Pavel Tatashin <pavel.tatashin@microsoft.com>,
- Arun KS <arunks@codeaurora.org>, Mathieu Malaterre <malat@debian.org>
-References: <20190527111152.16324-1-david@redhat.com>
- <20190527111152.16324-10-david@redhat.com>
- <20190701084129.GI6376@dhcp22.suse.cz>
-From: David Hildenbrand <david@redhat.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
- 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
- SE+xAvmumFBY
-Organization: Red Hat GmbH
-Message-ID: <54a2f873-374e-b132-ae0f-4924a7e332c0@redhat.com>
-Date: Mon, 15 Jul 2019 12:58:22 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.2
-MIME-Version: 1.0
-In-Reply-To: <20190701084129.GI6376@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.30]); Mon, 15 Jul 2019 10:58:28 +0000 (UTC)
+       spf=pass (google.com: domain of joro@8bytes.org designates 2a01:238:4383:600:38bc:a715:4b6d:a889 as permitted sender) smtp.mailfrom=joro@8bytes.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=8bytes.org
+Received: by theia.8bytes.org (Postfix, from userid 1000)
+	id 48BD0133; Mon, 15 Jul 2019 13:02:22 +0200 (CEST)
+From: Joerg Roedel <joro@8bytes.org>
+To: Dave Hansen <dave.hansen@linux.intel.com>,
+	Andy Lutomirski <luto@kernel.org>,
+	Peter Zijlstra <peterz@infradead.org>,
+	Thomas Gleixner <tglx@linutronix.de>,
+	Ingo Molnar <mingo@redhat.com>,
+	Borislav Petkov <bp@alien8.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+	linux-kernel@vger.kernel.org,
+	linux-mm@kvack.org,
+	Joerg Roedel <jroedel@suse.de>
+Subject: [PATCH 1/3] x86/mm: Check for pfn instead of page in vmalloc_sync_one()
+Date: Mon, 15 Jul 2019 13:02:10 +0200
+Message-Id: <20190715110212.18617-2-joro@8bytes.org>
+X-Mailer: git-send-email 2.17.1
+In-Reply-To: <20190715110212.18617-1-joro@8bytes.org>
+References: <20190715110212.18617-1-joro@8bytes.org>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 01.07.19 10:41, Michal Hocko wrote:
-> On Mon 27-05-19 13:11:50, David Hildenbrand wrote:
->> Let's factor out removing of memory block devices, which is only
->> necessary for memory added via add_memory() and friends that created
->> memory block devices. Remove the devices before calling
->> arch_remove_memory().
->>
->> This finishes factoring out memory block device handling from
->> arch_add_memory() and arch_remove_memory().
-> 
-> OK, this makes sense again. Just a nit. Calling find_memory_block_by_id
-> for each memory block looks a bit suboptimal, especially when we are
-> removing consequent physical memblocks. I have to confess that I do not
-> know how expensive is the search and I also expect that there won't be
-> that many memblocks in the removed range anyway as large setups have
-> large memblocks.
-> 
+From: Joerg Roedel <jroedel@suse.de>
 
-The devices are not allocated sequentially, so there is no easy way to
-look them up.
+Do not require a struct page for the mapped memory location
+because it might not exist. This can happen when an
+ioremapped region is mapped with 2MB pages.
 
-There is a comment for find_memory_block():
+Signed-off-by: Joerg Roedel <jroedel@suse.de>
+---
+ arch/x86/mm/fault.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-"For now, we have a linear search to go find the appropriate
-memory_block corresponding to a particular phys_index. If this gets to
-be a real problem, we can always use a radix tree or something here."
-
-So if this becomes a problem, we need a separate data structure to speed
-up the lookup. (IOW, this was already the same in the old code)
-
-Thanks!
-
+diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
+index 794f364cb882..4a4049f6d458 100644
+--- a/arch/x86/mm/fault.c
++++ b/arch/x86/mm/fault.c
+@@ -200,7 +200,7 @@ static inline pmd_t *vmalloc_sync_one(pgd_t *pgd, unsigned long address)
+ 	if (!pmd_present(*pmd))
+ 		set_pmd(pmd, *pmd_k);
+ 	else
+-		BUG_ON(pmd_page(*pmd) != pmd_page(*pmd_k));
++		BUG_ON(pmd_pfn(*pmd) != pmd_pfn(*pmd_k));
+ 
+ 	return pmd_k;
+ }
 -- 
-
-Thanks,
-
-David / dhildenb
+2.17.1
 
