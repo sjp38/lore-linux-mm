@@ -2,113 +2,113 @@ Return-Path: <SRS0=FHqE=VM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-13.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+X-Spam-Status: No, score=-5.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	MENTIONS_GIT_HOSTING,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1
-	autolearn=ham autolearn_force=no version=3.4.0
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C70A0C7618E
-	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 06:57:16 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1C386C76192
+	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 06:59:39 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6462020838
-	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 06:57:16 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id C7C6120838
+	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 06:59:38 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="l1mPs+2E"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6462020838
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="t/+vMyBo"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C7C6120838
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CB8666B0007; Mon, 15 Jul 2019 02:57:15 -0400 (EDT)
+	id 760206B0007; Mon, 15 Jul 2019 02:59:38 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C68876B0008; Mon, 15 Jul 2019 02:57:15 -0400 (EDT)
+	id 7108A6B0008; Mon, 15 Jul 2019 02:59:38 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B317F6B000A; Mon, 15 Jul 2019 02:57:15 -0400 (EDT)
+	id 6272B6B000A; Mon, 15 Jul 2019 02:59:38 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 7A0E86B0007
-	for <linux-mm@kvack.org>; Mon, 15 Jul 2019 02:57:15 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id 91so7866907pla.7
-        for <linux-mm@kvack.org>; Sun, 14 Jul 2019 23:57:15 -0700 (PDT)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 2DF246B0007
+	for <linux-mm@kvack.org>; Mon, 15 Jul 2019 02:59:38 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id y9so7881946plp.12
+        for <linux-mm@kvack.org>; Sun, 14 Jul 2019 23:59:38 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
          :message-id:references:mime-version:content-disposition:in-reply-to
          :user-agent;
-        bh=/fAX0Ikxx55Rvd249g3R7M5Enc076oEhilOSdQu8wcI=;
-        b=Nq/A+B49AFBJ2v6VDbp7Cqfrt7FxzfGw1iXUBoKGT2qBo3qrfAks+pjRLD2SjIYQ5u
-         BN0pq8RgFDqW0WWVS3kbr0P/jrf9+I/spEUsTQx8hEbmDb9eYFxmUUv2Ea7q8omkPSES
-         Z/v/hYqZ9taS6h2nBkUSy6RV2hJ05NiIbRgM6rQSllqTn5GlBfKKgRNGmQfY6VGCZizu
-         geeH1CLeZ3IeZ4kmQ6WVTQ9FQFycR2492htF74PBaMQ7mVMefzwGfxDdVSfkeP8D8tba
-         Ej0LVv7dAbq6KdwzQBOJLeZfuGe9e2AJgdwrK397Sc6qRE2cCjfj5jV/vioBxEpI54N5
-         N22g==
-X-Gm-Message-State: APjAAAW5XDlQUrqnYd7BoMUmuUX4EORgaiRlGFgFhDIMKFrlj5E68YkN
-	30ZKdjOPHmf/pC9Mfu+mQp1nbdMO8q7pgSxGdLSQtvYY4J6UZEfKb8sOzoR1Nm3GSSoqyYcpZP6
-	h55GiZdNVX0ip0zBg0zNvKhU76ZfneISzpfjBPNl3RlSyVJSJZz7bqs37nnb/RszRzw==
-X-Received: by 2002:a17:90a:2244:: with SMTP id c62mr28174425pje.29.1563173834911;
-        Sun, 14 Jul 2019 23:57:14 -0700 (PDT)
-X-Received: by 2002:a17:90a:2244:: with SMTP id c62mr28174357pje.29.1563173833719;
-        Sun, 14 Jul 2019 23:57:13 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563173833; cv=none;
+        bh=IwKOrj6wOs1CFDvdOT5gCaug974d+VVC2EWPEZyUC1Y=;
+        b=IKhQfW+Beq+J/YKo9WKafHeaDxrHnd3EP68xhIq0eX6afpSX2aW/dg6uwqMZ6L158m
+         ZD5ymDLD/E77vqYrpzPyVEW2u02ZUPZlhUzlHpctSVsPpvKgUPmplUr1BlwbD1ieTk28
+         EENhmOeVqT13DJh3/7VuqkOGYuXDLovyJNtsRvbuHlJsB1rdZZdioSSB/t1FkMbjq+ha
+         AX5XleEBxeP9KqOgBzpcKhpiq02/i7LS46Z/dfS7lp9IR1xVcJlF5GB4IDsmwqiGflkk
+         ZEcxu0BogRMvissazi95s5y5VV/owHAIITWcv+ohjmyYCoyg3jRaRaaHOgOYERh7v9/1
+         B7ug==
+X-Gm-Message-State: APjAAAUnVh/oOk/XGhdTaKLLEVp2IJQuAzDqJVHjUATY4s8d9A2RiIH3
+	K2hUWCX87lJoNGrRu2NkLARzrO1l7CnMkOHDpqT9iEb2qRmfQg0jUSzjcAnN3WPH3TyKXtzcfXy
+	Px6kKLv8xsZ6YRV9BoitlMrQooHq1iYJqANAXJd9Rt4RYee3WOgKqftcC4uuNstqKgw==
+X-Received: by 2002:a17:902:740a:: with SMTP id g10mr26729741pll.82.1563173977815;
+        Sun, 14 Jul 2019 23:59:37 -0700 (PDT)
+X-Received: by 2002:a17:902:740a:: with SMTP id g10mr26729707pll.82.1563173977247;
+        Sun, 14 Jul 2019 23:59:37 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563173977; cv=none;
         d=google.com; s=arc-20160816;
-        b=qn+JdIldIeat1A6w+/01MtG9+8xKD40FWH8KcHkAojRLfByw4bSgu5+FGcH/XLEKm6
-         orfgvKr1CgchpP5UDE8nJV0qJ9PT837Dx+XST2YkBfdHF02SKJSRkyeJ5oJckfUvhc1c
-         TfAiIdpmCU4O+CFje62ESGWfi5VqjgfCmHjnyDMMauL0jLbhIMBbLiJ282tGmIGbBFcT
-         LEXHZXhPO+V9ZijsSH3MU/c2gf9BjK1MmXE0l2/fwUqMrFNPGRL/TR0+jF+ViIErGhma
-         KKddDqSCcEvY+A7UOXNWyHfAcjY9D+o2y2CtauH+KHA7m540xwJGtc6ZNJz4Asn/4Gpi
-         v0ZA==
+        b=SJXzLBplt23sh3ODOEXElzZjjrrOeyovUuOi/Bg4JULULY0dj3hxDRBMoJcjUrDj+m
+         ygTYVc/4phV+GSKNDCaIH19HeyuLi3HvK6PNAw+yqf//vSfCGrY4DAbEORXkd1GcFSIx
+         gDXirXovCCW1QdcYyY/SJ1Dagrl/OM9QxWB86BVpOwsyvzTNMsoYQupaPmn0f5L8ywMR
+         CmlB6jg3vRYpyTb2HlEVSWVIix8zVRKMa7LxSxWmt6HmINR1hZwDAyPFfeYxlzh9PX++
+         ve3tzQCT6lSGsOsGIMRZ96HNnblw6IEzPAGWpM7nHCBkXJRIRj+YnXABRxayxIjqBZ3n
+         4BeA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=/fAX0Ikxx55Rvd249g3R7M5Enc076oEhilOSdQu8wcI=;
-        b=fb7OBpflxatqEZLtFBe7sjSvqkptUUGFCQYKENM2mCW0qBni3raaq1ET76yLHXzReh
-         SplZFAgGfLeQwivlQ+50SLD8G2jJvNi4N2LjKSbhaA86CdXPUl8zdKFPt5HjhXyrg/sG
-         vFzgMKMpo46Wh3NwFPdrTBBn5I9ckll571hlI+Ay0f1cGYkkZ6cs/nScMccDASpW+uCc
-         s+LulR4VDV3XCbB1aW5UuxxjyXNu0Jtw1ZWyPYdKVcH8/Kho+JSZ5gu4Xrr9XU+T101x
-         /Hr1s2YqLwkEtuI68E9xDCGGl4wG6WSSemgGoyAnYNpvK+2gIbjzLEJpWtTmn0jhWydd
-         Rifg==
+        bh=IwKOrj6wOs1CFDvdOT5gCaug974d+VVC2EWPEZyUC1Y=;
+        b=pLbryiyOzuygxpJPQwKe7OzbKuE15dhycVUDabnMoQy8npGdHUuhrdt43pjKBiJ+oH
+         8XCbcJJL/OpffETbvZQDvM/vSC7jZ3hBIoncQ96+S4vJeREifegOB5ic+YWt8+9crRYx
+         72wVTWjnDUoYS/h0ThPeEm5Iq7jY6v09ECIh29jyK/VMtTq/KHL6/XVZ1JW3ardkIcyD
+         XWlA13tr1xVI8HyXzkMD79UYYkDYgS8wjePgVJPqgedh82gx7xxKny6pC1sgsMu/JPxl
+         UwA8A6Kt8K5j7ApVOBgsrLzMpDkoheMscQXUgTagotXZrTy0f/N/of4GDKXqtssZQ+Ce
+         g1rA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=l1mPs+2E;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b="t/+vMyBo";
        spf=pass (google.com: domain of linux.bhar@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=linux.bhar@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id f9sor19736719plr.31.2019.07.14.23.57.13
+        by mx.google.com with SMTPS id b1sor8499990pfi.46.2019.07.14.23.59.37
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sun, 14 Jul 2019 23:57:13 -0700 (PDT)
+        Sun, 14 Jul 2019 23:59:37 -0700 (PDT)
 Received-SPF: pass (google.com: domain of linux.bhar@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=l1mPs+2E;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b="t/+vMyBo";
        spf=pass (google.com: domain of linux.bhar@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=linux.bhar@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
         h=date:from:to:cc:subject:message-id:references:mime-version
          :content-disposition:in-reply-to:user-agent;
-        bh=/fAX0Ikxx55Rvd249g3R7M5Enc076oEhilOSdQu8wcI=;
-        b=l1mPs+2EBvNUjYvJKgN51XjdYopSGYQ/e37nUvai+1TkQJCLMDJIKqGCfwGeXJ+xl/
-         mCSiq+POZWjpdMJI6SNQOSXRD9sEHS3FhqertFda+37rWrm0M+L3fxo2QnvMLPc9Na3S
-         M2DSrECkvGo6GVZ8ae54lgy9wUXUf76Wu35MADE73stBVUTFxJOn/wZRmBv0n0QqwY39
-         ul9E8D1RlPyJmBV3r9QqaJNat+apct60sX3MPWOdweCvf/r8+5BE+JHPjMsDpUQWufBL
-         T8D3hSAWe9uOY4O3PNoaZNQAdga0iTYLC8zWPcSpAPjR6Q8a7FcXgCgrK60VDa3Fp6QS
-         7wIQ==
-X-Google-Smtp-Source: APXvYqyq1PzxH9Hbe0rhQUd7fc7HCFnw/8zTTZ2BjCp5l25Z0ysZRD57hIpnbtZQlMOe/Buf0Ch5zw==
-X-Received: by 2002:a17:902:2865:: with SMTP id e92mr26271268plb.264.1563173833316;
-        Sun, 14 Jul 2019 23:57:13 -0700 (PDT)
+        bh=IwKOrj6wOs1CFDvdOT5gCaug974d+VVC2EWPEZyUC1Y=;
+        b=t/+vMyBobZw0yRt1qj7jE3Hv3+ghewmbrlf1rvJGn+lPMgvyfvDx6cugAWNVxd8j97
+         hVwx5mP2evT4/5buRUfwS8eLDCxI+aBX3bgCz20FFQApUJ56xzyc13BmxDzwNYE8jtdP
+         5kVdnTfQCP2I6xoQWTBcnZRuiq5fxBeBK5pJ+ztIPKWpUD5GeFX4RFrdyOjovs9+vR3V
+         xRzXOvvIagWzbmeCdNDvSLmFsoun9S1NnAZximqWbTF5UJU/N+cTCzk3SV4cVA5ph1fI
+         G8NDPKhHyemJg5LOOz3NLKuEXNeAogyGjjXQq8sWXD2JtdeO3CnG6GLJ2pe09Z64g0rL
+         eB3w==
+X-Google-Smtp-Source: APXvYqxlTY9pqlj/BPGdaqjVxWccUIuIsUVjY5d4MIOOEnUblRLiyLEc5qKix+00afDAkA/xNHMT2g==
+X-Received: by 2002:a63:224a:: with SMTP id t10mr25187948pgm.289.1563173976925;
+        Sun, 14 Jul 2019 23:59:36 -0700 (PDT)
 Received: from bharath12345-Inspiron-5559 ([103.110.42.33])
-        by smtp.gmail.com with ESMTPSA id a3sm17615471pfi.63.2019.07.14.23.56.57
+        by smtp.gmail.com with ESMTPSA id o130sm27438459pfg.171.2019.07.14.23.59.21
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 14 Jul 2019 23:57:12 -0700 (PDT)
-Date: Mon, 15 Jul 2019 12:26:54 +0530
+        Sun, 14 Jul 2019 23:59:36 -0700 (PDT)
+Date: Mon, 15 Jul 2019 12:29:17 +0530
 From: Bharath Vedartham <linux.bhar@gmail.com>
-To: John Hubbard <jhubbard@nvidia.com>
-Cc: akpm@linux-foundation.org, ira.weiny@intel.com,
+To: Jens Axboe <axboe@kernel.dk>
+Cc: akpm@linux-foundation.org, ira.weiny@intel.com, jhubbard@nvidia.com,
 	Mauro Carvalho Chehab <mchehab@kernel.org>,
 	Dimitri Sivanich <sivanich@sgi.com>, Arnd Bergmann <arnd@arndb.de>,
 	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
 	Alex Williamson <alex.williamson@redhat.com>,
-	Cornelia Huck <cohuck@redhat.com>, Jens Axboe <axboe@kernel.dk>,
+	Cornelia Huck <cohuck@redhat.com>,
 	Alexander Viro <viro@zeniv.linux.org.uk>,
 	=?iso-8859-1?Q?Bj=F6rn_T=F6pel?= <bjorn.topel@intel.com>,
 	Magnus Karlsson <magnus.karlsson@intel.com>,
@@ -131,15 +131,15 @@ Cc: akpm@linux-foundation.org, ira.weiny@intel.com,
 	kvm@vger.kernel.org, linux-block@vger.kernel.org,
 	linux-fsdevel@vger.kernel.org, linux-mm@kvack.org,
 	netdev@vger.kernel.org, bpf@vger.kernel.org,
-	xdp-newbies@vger.kernel.org, Jason Gunthorpe <jgg@ziepe.ca>
+	xdp-newbies@vger.kernel.org
 Subject: Re: [PATCH] mm/gup: Use put_user_page*() instead of put_page*()
-Message-ID: <20190715065654.GA3716@bharath12345-Inspiron-5559>
+Message-ID: <20190715065917.GB3716@bharath12345-Inspiron-5559>
 References: <1563131456-11488-1-git-send-email-linux.bhar@gmail.com>
- <deea584f-2da2-8e1f-5a07-e97bf32c63bb@nvidia.com>
+ <018ee3d1-e2f0-ca12-9f63-945056c09985@kernel.dk>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <deea584f-2da2-8e1f-5a07-e97bf32c63bb@nvidia.com>
+In-Reply-To: <018ee3d1-e2f0-ca12-9f63-945056c09985@kernel.dk>
 User-Agent: Mutt/1.5.24 (2015-08-30)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -147,203 +147,16 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Jul 14, 2019 at 04:33:42PM -0700, John Hubbard wrote:
-> On 7/14/19 12:08 PM, Bharath Vedartham wrote:
-> > This patch converts all call sites of get_user_pages
-> > to use put_user_page*() instead of put_page*() functions to
-> > release reference to gup pinned pages.
-Hi John, 
-> Hi Bharath,
-> 
-> Thanks for jumping in to help, and welcome to the party!
-> 
-> You've caught everyone in the middle of a merge window, btw.  As a
-> result, I'm busy rebasing and reworking the get_user_pages call sites, 
-> and gup tracking, in the wake of some semi-traumatic changes to bio 
-> and gup and such. I plan to re-post right after 5.3-rc1 shows up, from 
-> here:
-> 
->     https://github.com/johnhubbard/linux/commits/gup_dma_core
-> 
-> ...which you'll find already covers the changes you've posted, except for:
-> 
->     drivers/misc/sgi-gru/grufault.c
->     drivers/staging/kpc2000/kpc_dma/fileops.c
-> 
-> ...and this one, which is undergoing to larger local changes, due to
-> bvec, so let's leave it out of the choices:
-> 
->     fs/io_uring.c
-> 
-> Therefore, until -rc1, if you'd like to help, I'd recommend one or more
-> of the following ideas:
-> 
-> 1. Pull down https://github.com/johnhubbard/linux/commits/gup_dma_core
-> and find missing conversions: look for any additional missing 
-> get_user_pages/put_page conversions. You've already found a couple missing 
-> ones. I haven't re-run a search in a long time, so there's probably even more.
-> 	a) And find more, after I rebase to 5.3-rc1: people probably are adding
-> 	get_user_pages() calls as we speak. :)
-Shouldn't this be documented then? I don't see any docs for using
-put_user_page*() in v5.2.1 in the memory management API section?
-> 2. Patches: Focus on just one subsystem at a time, and perfect the patch for
-> it. For example, I think this the staging driver would be perfect to start with:
-> 
->     drivers/staging/kpc2000/kpc_dma/fileops.c
-> 
-> 	a) verify that you've really, corrected converted the whole
-> 	driver. (Hint: I think you might be overlooking a put_page call.)
-Yup. I did see that! Will fix it!
-> 	b) Attempt to test it if you can (I'm being hypocritical in
-> 	the extreme here, but one of my problems is that testing
-> 	has been light, so any help is very valuable). qemu...?
-> 	OTOH, maybe even qemu cannot easily test a kpc2000, but
-> 	perhaps `git blame` and talking to the authors would help
-> 	figure out a way to validate the changes.
-Great! I ll do that, I ll mail the patch authors and ask them for help
-in testing. 
-> 	Thinking about whether you can run a test that would prove or
-> 	disprove my claim in (a), above, could be useful in coming up
-> 	with tests to run.
-
-> In other words, a few very high quality conversions (even just one) that
-> we can really put our faith in, is what I value most here. Tested patches
-> are awesome.
-I understand that! 
-> 3. Once I re-post, turn on the new CONFIG_DEBUG_GET_USER_PAGES_REFERENCES
-> and run things such as xfstest/fstest. (Again, doing so would be going
-> further than I have yet--very helpful). Help clarify what conversions have
-> actually been tested and work, and which ones remain unvalidated.
-> Other: Please note that this:
-Yup will do that.
->     https://github.com/johnhubbard/linux/commits/gup_dma_core
-> 
->     a) gets rebased often, and
-> 
->     b) has a bunch of commits (iov_iter and related) that conflict
->        with the latest linux.git,
-> 
->     c) has some bugs in the bio area, that I'm fixing, so I don't trust
->        that's it's safely runnable, for a few more days.
-I assume your repo contains only work related to fixing gup issues and
-not the main repo for gup development? i.e where gup changes are merged?
-Also are release_pages and put_user_pages interchangable? 
-> One note below, for the future:
-> 
-> > 
-> > This is a bunch of trivial conversions which is a part of an effort
-> > by John Hubbard to solve issues with gup pinned pages and 
-> > filesystem writeback.
-> > 
-> > The issue is more clearly described in John Hubbard's patch[1] where
-> > put_user_page*() functions are introduced.
-> > 
-> > Currently put_user_page*() simply does put_page but future implementations
-> > look to change that once treewide change of put_page callsites to 
-> > put_user_page*() is finished.
-> > 
-> > The lwn article describing the issue with gup pinned pages and filesystem 
-> > writeback [2].
-> > 
-> > This patch has been tested by building and booting the kernel as I don't
-> > have the required hardware to test the device drivers.
-> > 
-> > I did not modify gpu/drm drivers which use release_pages instead of
-> > put_page() to release reference of gup pinned pages as I am not clear
-> > whether release_pages and put_page are interchangable. 
-> > 
-> > [1] https://lkml.org/lkml/2019/3/26/1396
-> 
-> When referring to patches in a commit description, please use the 
-> commit hash, not an external link. See Submitting Patches [1] for details.
-> 
-> Also, once you figure out the right maintainers and other involved people,
-> putting Cc: in the commit description is common practice, too.
-> 
-> [1] https://www.kernel.org/doc/html/latest/process/submitting-patches.html
-Will work on that! Thanks!
-> thanks,
-> -- 
-> John Hubbard
-> NVIDIA
-> 
-> > 
-> > [2] https://lwn.net/Articles/784574/
-> > 
-> > Signed-off-by: Bharath Vedartham <linux.bhar@gmail.com>
-> > ---
-> >  drivers/media/v4l2-core/videobuf-dma-sg.c | 3 +--
-> >  drivers/misc/sgi-gru/grufault.c           | 2 +-
-> >  drivers/staging/kpc2000/kpc_dma/fileops.c | 4 +---
-> >  drivers/vfio/vfio_iommu_type1.c           | 2 +-
-> >  fs/io_uring.c                             | 7 +++----
-> >  mm/gup_benchmark.c                        | 6 +-----
-> >  net/xdp/xdp_umem.c                        | 7 +------
-> >  7 files changed, 9 insertions(+), 22 deletions(-)
-> > 
-> > diff --git a/drivers/media/v4l2-core/videobuf-dma-sg.c b/drivers/media/v4l2-core/videobuf-dma-sg.c
-> > index 66a6c6c..d6eeb43 100644
-> > --- a/drivers/media/v4l2-core/videobuf-dma-sg.c
-> > +++ b/drivers/media/v4l2-core/videobuf-dma-sg.c
-> > @@ -349,8 +349,7 @@ int videobuf_dma_free(struct videobuf_dmabuf *dma)
-> >  	BUG_ON(dma->sglen);
-> >  
-> >  	if (dma->pages) {
-> > -		for (i = 0; i < dma->nr_pages; i++)
-> > -			put_page(dma->pages[i]);
-> > +		put_user_pages(dma->pages, dma->nr_pages);
-> >  		kfree(dma->pages);
-> >  		dma->pages = NULL;
-> >  	}
-> > diff --git a/drivers/misc/sgi-gru/grufault.c b/drivers/misc/sgi-gru/grufault.c
-> > index 4b713a8..61b3447 100644
-> > --- a/drivers/misc/sgi-gru/grufault.c
-> > +++ b/drivers/misc/sgi-gru/grufault.c
-> > @@ -188,7 +188,7 @@ static int non_atomic_pte_lookup(struct vm_area_struct *vma,
-> >  	if (get_user_pages(vaddr, 1, write ? FOLL_WRITE : 0, &page, NULL) <= 0)
-> >  		return -EFAULT;
-> >  	*paddr = page_to_phys(page);
-> > -	put_page(page);
-> > +	put_user_page(page);
-> >  	return 0;
-> >  }
-> >  
-> > diff --git a/drivers/staging/kpc2000/kpc_dma/fileops.c b/drivers/staging/kpc2000/kpc_dma/fileops.c
-> > index 6166587..26dceed 100644
-> > --- a/drivers/staging/kpc2000/kpc_dma/fileops.c
-> > +++ b/drivers/staging/kpc2000/kpc_dma/fileops.c
-> > @@ -198,9 +198,7 @@ int  kpc_dma_transfer(struct dev_private_data *priv, struct kiocb *kcb, unsigned
-> >  	sg_free_table(&acd->sgt);
-> >   err_dma_map_sg:
-> >   err_alloc_sg_table:
-> > -	for (i = 0 ; i < acd->page_count ; i++){
-> > -		put_page(acd->user_pages[i]);
-> > -	}
-> > +	put_user_pages(acd->user_pages, acd->page_count);
-> >   err_get_user_pages:
-> >  	kfree(acd->user_pages);
-> >   err_alloc_userpages:
-> > diff --git a/drivers/vfio/vfio_iommu_type1.c b/drivers/vfio/vfio_iommu_type1.c
-> > index add34ad..c491524 100644
-> > --- a/drivers/vfio/vfio_iommu_type1.c
-> > +++ b/drivers/vfio/vfio_iommu_type1.c
-> > @@ -369,7 +369,7 @@ static int vaddr_get_pfn(struct mm_struct *mm, unsigned long vaddr,
-> >  		 */
-> >  		if (ret > 0 && vma_is_fsdax(vmas[0])) {
-> >  			ret = -EOPNOTSUPP;
-> > -			put_page(page[0]);
-> > +			put_user_page(page[0]);
-> >  		}
-> >  	}
-> >  	up_read(&mm->mmap_sem);
+On Sun, Jul 14, 2019 at 08:33:57PM -0600, Jens Axboe wrote:
+> On 7/14/19 1:08 PM, Bharath Vedartham wrote:
 > > diff --git a/fs/io_uring.c b/fs/io_uring.c
 > > index 4ef62a4..b4a4549 100644
 > > --- a/fs/io_uring.c
 > > +++ b/fs/io_uring.c
 > > @@ -2694,10 +2694,9 @@ static int io_sqe_buffer_register(struct io_ring_ctx *ctx, void __user *arg,
-> >  			 * if we did partial map, or found file backed vmas,
-> >  			 * release any pages we did get
-> >  			 */
+> >   			 * if we did partial map, or found file backed vmas,
+> >   			 * release any pages we did get
+> >   			 */
 > > -			if (pret > 0) {
 > > -				for (j = 0; j < pret; j++)
 > > -					put_page(pages[j]);
@@ -351,43 +164,17 @@ Will work on that! Thanks!
 > > +			if (pret > 0)
 > > +				put_user_pages(pages, pret);
 > > +
-> >  			if (ctx->account_mem)
-> >  				io_unaccount_mem(ctx->user, nr_pages);
-> >  			kvfree(imu->bvec);
-> > diff --git a/mm/gup_benchmark.c b/mm/gup_benchmark.c
-> > index 7dd602d..15fc7a2 100644
-> > --- a/mm/gup_benchmark.c
-> > +++ b/mm/gup_benchmark.c
-> > @@ -76,11 +76,7 @@ static int __gup_benchmark_ioctl(unsigned int cmd,
-> >  	gup->size = addr - gup->addr;
-> >  
-> >  	start_time = ktime_get();
-> > -	for (i = 0; i < nr_pages; i++) {
-> > -		if (!pages[i])
-> > -			break;
-> > -		put_page(pages[i]);
-> > -	}
-> > +	put_user_pages(pages, nr_pages);
-> >  	end_time = ktime_get();
-> >  	gup->put_delta_usec = ktime_us_delta(end_time, start_time);
-> >  
-> > diff --git a/net/xdp/xdp_umem.c b/net/xdp/xdp_umem.c
-> > index 9c6de4f..6103e19 100644
-> > --- a/net/xdp/xdp_umem.c
-> > +++ b/net/xdp/xdp_umem.c
-> > @@ -173,12 +173,7 @@ static void xdp_umem_unpin_pages(struct xdp_umem *umem)
-> >  {
-> >  	unsigned int i;
-> >  
-> > -	for (i = 0; i < umem->npgs; i++) {
-> > -		struct page *page = umem->pgs[i];
-> > -
-> > -		set_page_dirty_lock(page);
-> > -		put_page(page);
-> > -	}
-> > +	put_user_pages_dirty_lock(umem->pgs, umem->npgs);
-> >  
-> >  	kfree(umem->pgs);
-> >  	umem->pgs = NULL;
-> > 
+> >   			if (ctx->account_mem)
+> >   				io_unaccount_mem(ctx->user, nr_pages);
+> >   			kvfree(imu->bvec);
+> 
+> You handled just the failure case of the buffer registration, but not
+> the actual free in io_sqe_buffer_unregister().
+> 
+> -- 
+> Jens Axboe
+Yup got it! Thanks! I won't be sending a patch again as fs/io_uring.c
+may have larger local changes for put_user_pages.
+
+Thanks
 
