@@ -6,100 +6,106 @@ X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 118F1C76190
-	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 09:33:17 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 63187C76190
+	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 09:42:10 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C266E2083D
-	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 09:33:16 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C266E2083D
+	by mail.kernel.org (Postfix) with ESMTP id 210452081C
+	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 09:42:10 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 210452081C
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 540C66B0003; Mon, 15 Jul 2019 05:33:16 -0400 (EDT)
+	id C3DD26B0003; Mon, 15 Jul 2019 05:42:09 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 518856B0006; Mon, 15 Jul 2019 05:33:16 -0400 (EDT)
+	id BEF9A6B0006; Mon, 15 Jul 2019 05:42:09 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 407366B0007; Mon, 15 Jul 2019 05:33:16 -0400 (EDT)
+	id AB54C6B0007; Mon, 15 Jul 2019 05:42:09 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 20C346B0003
-	for <linux-mm@kvack.org>; Mon, 15 Jul 2019 05:33:16 -0400 (EDT)
-Received: by mail-qt1-f200.google.com with SMTP id x7so14292026qtp.15
-        for <linux-mm@kvack.org>; Mon, 15 Jul 2019 02:33:16 -0700 (PDT)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 8AACE6B0003
+	for <linux-mm@kvack.org>; Mon, 15 Jul 2019 05:42:09 -0400 (EDT)
+Received: by mail-qt1-f199.google.com with SMTP id l9so14262871qtu.12
+        for <linux-mm@kvack.org>; Mon, 15 Jul 2019 02:42:09 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
          :references:from:openpgp:autocrypt:organization:message-id:date
          :user-agent:mime-version:in-reply-to:content-language
          :content-transfer-encoding;
-        bh=3ypF9L5PHfmASYxDsdG67iNgHd95X/YQ+YKxhqMddlU=;
-        b=CH5U4rhI/yW+wT3ZGDhnVhMd/NgCGJtkZCTVo447TKebIe3IHof8CDfkGadEjvyGXj
-         845+0CCahoeOVDvEDKynvwFw8ryvypiYhD+u2RLhlCRz12VJpGLRPpbpzWgZNjmC/Q2P
-         6aseM0/ZpnedwnLDc5rVMddMVElwCfeaQfbeNonw6fKKPt8zvnfmK196o3gg1YSvGvRD
-         6eJCGvzDx6Os60CKdCg2vFnxoV8mFtTbfBqFzQKVt1IoIsmmWniJ7FZjey0Brux3d6vM
-         nYsXuppQbujQyIPlhYmTNRwJFvf+v2fA9F8EpCGjE0QLN8/WE1L+Pxj1ykk78eY7+6rY
-         k41w==
+        bh=D8OYZDQYYH4/SJRRldiYAUQeiFDCO6t7LM36XjR8wJI=;
+        b=l0gVP+1uVBZ78p6RA2xNdLx3QfBk6RisQmr2dzdh3kqrbNxtA5uE/El1WGQ8CPj8sF
+         ZktnDKUz+UBxm18iKgzEbA1eclq9jEeYWzLERI3KSOPMBxmHatcNMHNu8FVWg3Y8MJFD
+         dkUdMwqFqptV+GTx4e4Qzojg/0W0gtwc7sbTcshTu+HKAHONTPVQlS+Zvw8J+f/b4yFZ
+         BBAQyzhJo0B0UhgEmV0Nbs7RfoyEuO4S9eT8kqS3uwSh0Py/0cUHV9YtCKKJ4NLqzGW0
+         NB0LJPi5eneHIkPlThAB4MslQqTE/NzWoKfuGYpQTxqhIxcgzHX7WETn4Z2Fl9MpiWXX
+         HRqA==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAXcgg6SafhMeexYXguSNpb8/IOozoNtrlK9DefKODFiFlHP8tx8
-	AuoTRlapbY2dde65TPPndmAJS0Aeq+iiZxkHPupCtLze3zGNf4t5zSYAZfxvOeQ0/wLjaLRUjHW
-	6oUJsYoHHI6g+lRPrZn80REFE7PdsFWh9fnMso948BBrm1ZXbsfCscb90t83KLxKgqw==
-X-Received: by 2002:a37:b741:: with SMTP id h62mr15987200qkf.490.1563183195888;
-        Mon, 15 Jul 2019 02:33:15 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxi0gTGeTxnkZJh3tGMZ3vHPkM3r5znDe/NMVTXgbnbSqRha0rPLj3Z3teLk/VTnrwsugZn
-X-Received: by 2002:a37:b741:: with SMTP id h62mr15987164qkf.490.1563183195365;
-        Mon, 15 Jul 2019 02:33:15 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563183195; cv=none;
+X-Gm-Message-State: APjAAAWo32k9yt3B2oTkg4zNxJNKVVznj6yAciQLSZqhxsKHdQiEtZXO
+	LOvlYrQI0nQ/rwylMpYWF0/18hKqSHAup4Hfp9shiudpaQ57+G7SNJoOoSTEt1V5DwZHiRVOwss
+	w9Ak9fz7yS3yVYBJp81NItfYOM8Nyqkkwa279/UJIX6bJAdukYnsne1dA0ZB8hWGEuQ==
+X-Received: by 2002:a0c:bd86:: with SMTP id n6mr18167470qvg.183.1563183729349;
+        Mon, 15 Jul 2019 02:42:09 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzmFpgDI9HSCp6oSQtR/Q4UGvjrWoQS/BmBOfys1piL3J1y86kftxQ6TCpS94miS9l/UUN6
+X-Received: by 2002:a0c:bd86:: with SMTP id n6mr18167447qvg.183.1563183728845;
+        Mon, 15 Jul 2019 02:42:08 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563183728; cv=none;
         d=google.com; s=arc-20160816;
-        b=f3+8uCf0TQB3lKoFOHy84LEGuHN2kqbU9UA2g9i8Prxeb8HSInS9zcX0DXGNh5prvJ
-         YJktpAyz6Z5Hz01XIexAbM+DkuEAOKUL4PH0jlUbtGQdJX8+cn9wvsvqKVK7rUawBaQ6
-         beJ+NZOJFvIPokuYvUNbq2krePplFljHZhRahRuU/IU4Qydn8rWJAA8grSDc0doiwOtq
-         MlEXMmvaNLB/y3Q4vxFlI6/bB5C9LXl/vR/KEDfGlDxdaUaJke3V2Vo7r7xJLKZqeZbL
-         K6MSokZ4Z+LC+m8JERsIVntIRKVHbP/LtHmOFRT7NvFMkGMkqpHQvOTLOw9AXNYhWPdh
-         e7NQ==
+        b=PhIM0AfvKwW5VdpxdHYSDlIwHMXGa2JfH1r5AN0u10oHSQSQBRzWCGUb5A1B086LMr
+         odDf3fAx3wuJOBREiSfemBBiiepBl5OI6Aiyq2kLxbVIJQj/Z0Smw8TvOkJnejk+lRUc
+         GHNzHzlLUeq8TcNwJ0DzI57DuKME9OjRDJeqt1N2d/tmeA9XdIRddeRyfs8gGMKwVq+D
+         VjhyiWI2IyV0a92vuocm//rGMs4BhjJecqpbBSVksaZEfp4VuE593lnmpafbnNJiPal6
+         QvM8oREIe1+2RZ/b3bM7OBpmmyB6lgVRtVlqmWDafgRE91Sq3f/roN3Wqkuwu4hzJgxM
+         av+w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
          :user-agent:date:message-id:organization:autocrypt:openpgp:from
-         :references:to:subject;
-        bh=3ypF9L5PHfmASYxDsdG67iNgHd95X/YQ+YKxhqMddlU=;
-        b=HYopVcCm0aqRyE8Zqn37eNmtCSkfBIKiGTVraSG8Zx/OZPLZDe0B8aKqjDQh9Axznv
-         bIrV0rYpcCMGEsCeG3NkoOWVsY4SmgHpZSTMbf/eezOqcV/frmxzlWPjAiSaoJ3VP+SH
-         uZdU40F2oCg4Mu1OJ1vpR5/vxNc0p4dAx9B8vM0KFNCebPIx9nYPw+Ru4bW0rDTm2huA
-         FYS/GFEgGNx/A64k3o8gW2InnGEXtqLS49it7Thj/Ayy9+VSrTjAu6FE3nejh7wbuiqv
-         OK1I3ciaZheerq85q4ciP+XUiSK8o0TmsNyyZb3n54e6Hyy45KCUcbm98Sg973HtwEg5
-         Lf4Q==
+         :references:cc:to:subject;
+        bh=D8OYZDQYYH4/SJRRldiYAUQeiFDCO6t7LM36XjR8wJI=;
+        b=KtT/OfXnqqtqbAmWGhf74eqzQH8k5OyPJSaCBYs6W8kUHhPUQcpALXWDMV39uo+78z
+         Gr28eeHMEuP3oJoLMp5C9rQCKebilp19JEOR0jWmMBlmmAogW0UQeqV6nLp19tsQZHoh
+         OMYuh8RLdwcBRGvCgJzEF7gl/W9XDekYPd9ViD3EqqG0aY2/u546JpQuOPsbOkCl/itN
+         uj3nafiVSPO3TYa7zamLTAIO44V2LofBmOSFwbdrN4OdIOKbFkum1fYutJyzDadEoCvm
+         XL+HHKlb23Crov7r75uaA2RHqAy6f7g72IlZ4TXuuD8Y0sbmaj8FKTcX0OdT1CNVA+lt
+         kdvQ==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id w64si9990170qkb.254.2019.07.15.02.33.15
+        by mx.google.com with ESMTPS id w1si9387322qkd.138.2019.07.15.02.42.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 15 Jul 2019 02:33:15 -0700 (PDT)
+        Mon, 15 Jul 2019 02:42:08 -0700 (PDT)
 Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
+Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 7342B3084248;
-	Mon, 15 Jul 2019 09:33:14 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id DCFA4C057F30;
+	Mon, 15 Jul 2019 09:42:07 +0000 (UTC)
 Received: from [10.36.117.137] (ovpn-117-137.ams2.redhat.com [10.36.117.137])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 2E5745C231;
-	Mon, 15 Jul 2019 09:33:01 +0000 (UTC)
-Subject: Re: [RFC][Patch v11 1/2] mm: page_hinting: core infrastructure
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 4C2DB5D705;
+	Mon, 15 Jul 2019 09:41:52 +0000 (UTC)
+Subject: Re: [PATCH v1 0/6] mm / virtio: Provide support for paravirtual waste
+ page treatment
 To: Dave Hansen <dave.hansen@intel.com>,
- Nitesh Narayan Lal <nitesh@redhat.com>, kvm@vger.kernel.org,
- linux-kernel@vger.kernel.org, linux-mm@kvack.org, pbonzini@redhat.com,
- lcapitulino@redhat.com, pagupta@redhat.com, wei.w.wang@intel.com,
- yang.zhang.wz@gmail.com, riel@surriel.com, mst@redhat.com,
- dodgen@google.com, konrad.wilk@oracle.com, dhildenb@redhat.com,
- aarcange@redhat.com, alexander.duyck@gmail.com, john.starks@microsoft.com,
- mhocko@suse.com
-References: <20190710195158.19640-1-nitesh@redhat.com>
- <20190710195158.19640-2-nitesh@redhat.com>
- <f9bca947-f88e-51a7-fdaf-4403fda1b783@intel.com>
+ Alexander Duyck <alexander.duyck@gmail.com>
+Cc: Nitesh Narayan Lal <nitesh@redhat.com>, kvm list <kvm@vger.kernel.org>,
+ "Michael S. Tsirkin" <mst@redhat.com>, LKML <linux-kernel@vger.kernel.org>,
+ linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>,
+ Yang Zhang <yang.zhang.wz@gmail.com>, pagupta@redhat.com,
+ Rik van Riel <riel@surriel.com>,
+ Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, lcapitulino@redhat.com,
+ wei.w.wang@intel.com, Andrea Arcangeli <aarcange@redhat.com>,
+ Paolo Bonzini <pbonzini@redhat.com>, dan.j.williams@intel.com,
+ Alexander Duyck <alexander.h.duyck@linux.intel.com>
+References: <20190619222922.1231.27432.stgit@localhost.localdomain>
+ <ff133df4-6291-bece-3d8d-dc3f12f398cf@redhat.com>
+ <8fea71ba-2464-ead8-3802-2241805283cc@intel.com>
+ <CAKgT0UdAj4Kq8qHKkaiB3z08gCQh-jovNpos45VcGHa_v5aFGg@mail.gmail.com>
+ <bc4bb663-585b-bee0-1310-b149382047d0@intel.com>
 From: David Hildenbrand <david@redhat.com>
 Openpgp: preference=signencrypt
 Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
@@ -146,80 +152,44 @@ Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
  +8Umfre0Xt4713VxMygW0PnQt5aSQdMD58jHFxTk092mU+yIHj5LeYgvwSgZN4airXk5yRXl
  SE+xAvmumFBY
 Organization: Red Hat GmbH
-Message-ID: <46336efb-3243-0083-1d20-7e8578131679@redhat.com>
-Date: Mon, 15 Jul 2019 11:33:01 +0200
+Message-ID: <91a0d964-7fb7-f25e-bf2b-6a7531b96afd@redhat.com>
+Date: Mon, 15 Jul 2019 11:41:51 +0200
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.7.2
 MIME-Version: 1.0
-In-Reply-To: <f9bca947-f88e-51a7-fdaf-4403fda1b783@intel.com>
+In-Reply-To: <bc4bb663-585b-bee0-1310-b149382047d0@intel.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
-Content-Transfer-Encoding: 8bit
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.40]); Mon, 15 Jul 2019 09:33:14 +0000 (UTC)
+Content-Transfer-Encoding: 7bit
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.32]); Mon, 15 Jul 2019 09:42:08 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 11.07.19 20:21, Dave Hansen wrote:
-> On 7/10/19 12:51 PM, Nitesh Narayan Lal wrote:
->> +static void bm_set_pfn(struct page *page)
->> +{
->> +	struct zone *zone = page_zone(page);
->> +	int zone_idx = page_zonenum(page);
->> +	unsigned long bitnr = 0;
->> +
->> +	lockdep_assert_held(&zone->lock);
->> +	bitnr = pfn_to_bit(page, zone_idx);
->> +	/*
->> +	 * TODO: fix possible underflows.
->> +	 */
->> +	if (free_area[zone_idx].bitmap &&
->> +	    bitnr < free_area[zone_idx].nbits &&
->> +	    !test_and_set_bit(bitnr, free_area[zone_idx].bitmap))
->> +		atomic_inc(&free_area[zone_idx].free_pages);
->> +}
+On 25.06.19 20:22, Dave Hansen wrote:
+> On 6/25/19 10:00 AM, Alexander Duyck wrote:
+>> Basically what we are doing is inflating the memory size we can report
+>> by inserting voids into the free memory areas. In my mind that matches
+>> up very well with what "aeration" is. It is similar to balloon in
+>> functionality, however instead of inflating the balloon we are
+>> inflating the free_list for higher order free areas by creating voids
+>> where the madvised pages were.
 > 
-> Let's say I have two NUMA nodes, each with ZONE_NORMAL and ZONE_MOVABLE
-> and each zone with 1GB of memory:
+> OK, then call it "free page auto ballooning" or "auto ballooning" or
+> "allocator ballooning".  s390 calls them "unused pages".
 > 
-> Node:         0        1
-> NORMAL   0->1GB   2->3GB
-> MOVABLE  1->2GB   3->4GB
-> 
-> This code will allocate two bitmaps.  The ZONE_NORMAL bitmap will
-> represent data from 0->3GB and the ZONE_MOVABLE bitmap will represent
-> data from 1->4GB.  That's the result of this code:
-> 
->> +			if (free_area[zone_idx].base_pfn) {
->> +				free_area[zone_idx].base_pfn =
->> +					min(free_area[zone_idx].base_pfn,
->> +					    zone->zone_start_pfn);
->> +				free_area[zone_idx].end_pfn =
->> +					max(free_area[zone_idx].end_pfn,
->> +					    zone->zone_start_pfn +
->> +					    zone->spanned_pages);
-> 
-> But that means that both bitmaps will have space for PFNs in the other
-> zone type, which is completely bogus.  This is fundamental because the
-> data structures are incorrectly built per zone *type* instead of per zone.
+> Any of those things are clearer and more meaningful than "page aeration"
+> to me.
 > 
 
-I don't think it's incorrect, it's just not optimal in all scenarios.
-E.g., in you example, this approach would "waste" 2 * 1GB of tracking
-data for the wholes (2* 64bytes when using 1 bit for 2MB).
+Alex, if you want to generalize the approach, and not call it "hinting",
+what about something similar to "page recycling".
 
-FWIW, this is not a numa-specific thingy. We can have sparse zones
-easily on single-numa systems.
-
-Node:                 0
-NORMAL   0->1GB, 2->3GB
-MOVABLE  1->2GB, 3->4GB
-
-So tracking it per zones instead instead of zone type is only one part
-of the story.
+Would also fit the "waste" example and would be clearer - at least to
+me. Well, "bubble" does not apply anymore ...
 
 -- 
 
