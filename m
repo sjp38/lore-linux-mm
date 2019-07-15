@@ -2,194 +2,171 @@ Return-Path: <SRS0=FHqE=VM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY,USER_AGENT_SANE_1
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 612D1C76195
-	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 19:37:02 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0F962C76195
+	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 19:49:34 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1C92A2081C
-	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 19:37:01 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="ouMD/x07"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1C92A2081C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id C96CE20659
+	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 19:49:33 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C96CE20659
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C047C6B0003; Mon, 15 Jul 2019 15:37:00 -0400 (EDT)
+	id 56D406B0003; Mon, 15 Jul 2019 15:49:33 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BB4E46B0005; Mon, 15 Jul 2019 15:37:00 -0400 (EDT)
+	id 4F5FC6B0005; Mon, 15 Jul 2019 15:49:33 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A7ED16B0006; Mon, 15 Jul 2019 15:37:00 -0400 (EDT)
+	id 396D26B0006; Mon, 15 Jul 2019 15:49:33 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 734456B0003
-	for <linux-mm@kvack.org>; Mon, 15 Jul 2019 15:37:00 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id 30so11058376pgk.16
-        for <linux-mm@kvack.org>; Mon, 15 Jul 2019 12:37:00 -0700 (PDT)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id F0CCB6B0003
+	for <linux-mm@kvack.org>; Mon, 15 Jul 2019 15:49:32 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id g18so8793493plj.19
+        for <linux-mm@kvack.org>; Mon, 15 Jul 2019 12:49:32 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=ZMZFpCm9N/xOShc4hGeJhjqpU1dBVFQxn4gJ5Yr8VYU=;
-        b=Fey7f8ILTEsRtAjF9OxQmlaqo/uGV8wCmCX2den9qrq4S+p+UjzlPUaiGzUm6ov3eZ
-         Lw+W92LlU1CQyyWvxAHGWJViiS0c6E60XFEtdeRZuTdW8cqCmr7oxhrBt8hmq3fLIIQ1
-         5w76gz3is7NwXe3uv//rtnErYBi/O2LvhnP9kG94B71WMyIej0zTqZriDpkpDO/9egRF
-         lzlloF7vhZTIQ04Up+TFMFKceoJv7ZCEtOykJIv/LQRiEWv+RsyPKHcCMK9OlDLcZ3Vn
-         To+EgZ1xjXjGsm8aiUhPA5Hq/+maCuu8moYUwvtvcm1PYpelY0wygoQ9ColGBu334KsQ
-         bxtQ==
-X-Gm-Message-State: APjAAAUwXDbmf6fjXx0FCn/MUMlU9qaJ5sWT274X+0Nn8/bp8bcgn7p0
-	p2zsbPP5Ed7q3SvK3M86tNE61PCf13/7zwmzJjWV0agY9CyuiFQKGdcs9+cX6w4vroyAElGCryc
-	79i1arVNkAusYuy+ybKfnzxRSyka5qRYYq9jmiXh5yL4QrDOpi31ROYw6VEW/sECKgw==
-X-Received: by 2002:a63:fc09:: with SMTP id j9mr13103246pgi.377.1563219419342;
-        Mon, 15 Jul 2019 12:36:59 -0700 (PDT)
-X-Received: by 2002:a63:fc09:: with SMTP id j9mr13103192pgi.377.1563219418580;
-        Mon, 15 Jul 2019 12:36:58 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563219418; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-transfer-encoding:content-language;
+        bh=dWjYy+tZWbTpTj5GaUB8ZuwaemgkRjIlDXWN0Hi0Anc=;
+        b=iSlSm/HuTzv8kL/7GAklLoGzrcVV2vh/oyUqFK840AES94tBXzX1oGmZY0i4eznwZs
+         uhOkvM9ER46Ml805hMYapRVLKm+h45maBYhyoNqj46JhxlYohvuELmnH4LynnHAjqykl
+         glCsgSNLkZN1B+pel6L1Hc+koCFX/pewXf2/I/fk0KJpgmTbXhDLZcOgdNG0cpksBVeZ
+         ANVJrH6gmcjqxsf0vCNK/uCuxGG4uxRcEMrqs0ry1SmEnvE1XwCTYaUUz4WdQArYKq0E
+         WVsM1EvhAdH6pd6IxxB8bIGqXcqOoSR1EZtzBf4zXFPh7Jss+0YH6Dt1rt40WyVUgdTV
+         PF6g==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.36 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Gm-Message-State: APjAAAWWc01sdd4lWAvd9YGljkYdIOmOa5EmV86mid/tSnouZ25rzSDe
+	J+w8w2lXdZr2NtJFN/6OZZKEZ3UkIKsx9zr1Y04jis2kyb9Ct2C31PEZb7RkuSytmDhx5Sln8lx
+	sNLktPm+YAoCrHwDqS/MsM/uj+kK1eKxFUmFKLBusb59XeZF7qoHn61T7SeEuuYltFQ==
+X-Received: by 2002:a17:902:4283:: with SMTP id h3mr29509787pld.15.1563220172589;
+        Mon, 15 Jul 2019 12:49:32 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyTG2Yb7LOE2g1OAPJnZd/vh76V/rzb8LJXT5o6FOX9+exuWKAdLPVFEyixxwXVXUo61KjR
+X-Received: by 2002:a17:902:4283:: with SMTP id h3mr29509742pld.15.1563220171879;
+        Mon, 15 Jul 2019 12:49:31 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563220171; cv=none;
         d=google.com; s=arc-20160816;
-        b=Y1WCVMo3VhTxsFsWr3iEe+eT0ja0ktdQoK48MMpjZCGOFOz6xz2Oc3ZG4wcI/RqWGJ
-         GKURDYVgbNfOYwLNY+SgxdbtU2cxRLvY4ST9DjjeThou5M5RQ8/GGvTCQX0YdlVNPcn8
-         bxP1DmlT1A4VTsdOmaANBfpL5pOLtO8vB+waIMijfxaHbDqDja7UOZU3+dS9BD+pteS3
-         qu48tN7uTB+HkgxCo4BxUlOVqMOed/LYkbgD3u35yQ/FXytqcn5JR5dOQjzrUhK1AU4O
-         W3XeTPnzzVMcU1btmsBhJqJYtnw/WvlFxbHTYTzlqFsADmg7VIT56PVNrSIMHW0NhgIc
-         EhWw==
+        b=cX7iM5lyVHzN1qDYbQ4Ix4B3AfEppDQ1u94l7Fjt6YsT3Et7iyP5HPs/CxN9ctLQdo
+         qqVMjJUSiCPoBCVNdv+QiNM3jMz0OLyImouyRGuQwUVSWmrgBDiNpjPFTfsiwmwmvsLc
+         kYrTJxj8gKEHjZwQG2MoybeF0ulw7kyQhm7kflgwVfXTdinjgWxhAWrBg6cdlM6WXnPh
+         YnmhcTByaTzuBNTxCM8UFnUSy+xinH/u42jiu4HfGUCgkZG1+rBODL9V+f0m+i/16YsK
+         L8d4sj8F8j7oW2mEdhVZiay/edY6Vd70LGtXAi7UDBiM0/ece2yYE6RW+r6i7oRlRqGJ
+         Rs5A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=ZMZFpCm9N/xOShc4hGeJhjqpU1dBVFQxn4gJ5Yr8VYU=;
-        b=J8Xndq7P+Sl6JK6W7mSXGRshQGEQagqGXvu0WOgQ8bLj/bn1ia8IVH/7gp1XXgSqOE
-         Sg0t9FdcNTOUDMGLXQB3klH4mJirExavHvE0mtMqwzbFaNGlh0PIQe24jOkdhF4dhMpO
-         U1Qlxh3ZUmFsYtuU3IjSG+BiKsbFujq1pr5mNNgRfl89+UeoAeSosLEMvfwiTv8s76KT
-         KdXhrjsf/fQafldPPzifxJvZtT47pNfUjAG51iB03aTnjA7nHOs9GUkcZKVSljAeK/Pq
-         tsdoMIMf6JizSxJqd02+agUlap/PsBUeQqzufa+9revhsLor2+3iVMvLhWKRbfDiurK6
-         3iJw==
+        h=content-language:content-transfer-encoding:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=dWjYy+tZWbTpTj5GaUB8ZuwaemgkRjIlDXWN0Hi0Anc=;
+        b=tPbwXuXxVMQDi3zbvJfQ4UnNHrjDzk1zkAOg+wFOiOxbvrb6CoUX8z9uORwvvC5pwW
+         8WCmRcysAAdeU2eU79abWCbcJtM+LrVHsevHjAWDl7mESKD7Ye6Xs0RBwqseCuyMA/Wd
+         ILpbl5CsW5SYFsaArXI6ZwWFkMwyqfLLT6SE7gtB43Wb0nnBKiVlhfdzUY1oJ/77hBk6
+         k6gJf6P81a9wZY8XOkmvWIplIElhYxuLnv4q9iWqzXDQHB31u2VX2PEX7QfV4mk0FZ5D
+         +Nj7npdq+qdKxojUHV3NVqexmG9oTrnhHw7K87qUF4l847ESourER99vvHEMlhaRZQ+9
+         dhYQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b="ouMD/x07";
-       spf=pass (google.com: domain of linux.bhar@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=linux.bhar@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 101sor22200234plf.70.2019.07.15.12.36.58
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.36 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+Received: from out4436.biz.mail.alibaba.com (out4436.biz.mail.alibaba.com. [47.88.44.36])
+        by mx.google.com with ESMTPS id z185si17499344pfb.109.2019.07.15.12.49.30
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 15 Jul 2019 12:36:58 -0700 (PDT)
-Received-SPF: pass (google.com: domain of linux.bhar@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b="ouMD/x07";
-       spf=pass (google.com: domain of linux.bhar@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=linux.bhar@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=ZMZFpCm9N/xOShc4hGeJhjqpU1dBVFQxn4gJ5Yr8VYU=;
-        b=ouMD/x07ooCJnj+NYt5TApE5G94vM5KbLQmbdXlQVy+akuMZEEpCrtND7YKQG5YUeA
-         SwDKVhCmMNrLmoEdYnhOUJT7p2Js7T5gKnlL5psag4uSjc/eacvG09R20QX9ob1r4KGQ
-         JPUttDZsH8R58YIqWxPGf4pAOehWEDqdzpRPAvVxKz6f5hK1dym19x1TE2jRz8hHVpx0
-         UqQueUQ86Wq4EhgMr8yelYxObVmxnTeT2kl+gzYOROR0JeUAJOE9lJYDracn4NTfoh3G
-         4sWnaSWux8Tb332IFGX3aPQu0kyiBn2izgQl68gsJm9ydw4yE3c+5dgMn2bBWXbyvUpu
-         ia4g==
-X-Google-Smtp-Source: APXvYqxiXiuWWcy55kFQPdkmhXEuhD4sgNJY5WWi5qbrL1Ybmgv+FOQ8bkjHLfFA1omJ8iRmDA1Qtg==
-X-Received: by 2002:a17:902:4aa3:: with SMTP id x32mr28971983pld.119.1563219418289;
-        Mon, 15 Jul 2019 12:36:58 -0700 (PDT)
-Received: from bharath12345-Inspiron-5559 ([103.110.42.33])
-        by smtp.gmail.com with ESMTPSA id n19sm18786840pfa.11.2019.07.15.12.36.41
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 15 Jul 2019 12:36:57 -0700 (PDT)
-Date: Tue, 16 Jul 2019 01:06:38 +0530
-From: Bharath Vedartham <linux.bhar@gmail.com>
-To: John Hubbard <jhubbard@nvidia.com>
-Cc: akpm@linux-foundation.org, ira.weiny@intel.com,
-	Mauro Carvalho Chehab <mchehab@kernel.org>,
-	Dimitri Sivanich <sivanich@sgi.com>, Arnd Bergmann <arnd@arndb.de>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	Alex Williamson <alex.williamson@redhat.com>,
-	Cornelia Huck <cohuck@redhat.com>, Jens Axboe <axboe@kernel.dk>,
-	Alexander Viro <viro@zeniv.linux.org.uk>,
-	=?iso-8859-1?Q?Bj=F6rn_T=F6pel?= <bjorn.topel@intel.com>,
-	Magnus Karlsson <magnus.karlsson@intel.com>,
-	"David S. Miller" <davem@davemloft.net>,
-	Alexei Starovoitov <ast@kernel.org>,
-	Daniel Borkmann <daniel@iogearbox.net>,
-	Jakub Kicinski <jakub.kicinski@netronome.com>,
-	Jesper Dangaard Brouer <hawk@kernel.org>,
-	John Fastabend <john.fastabend@gmail.com>,
-	Enrico Weigelt <info@metux.net>,
-	Thomas Gleixner <tglx@linutronix.de>,
-	Alexios Zavras <alexios.zavras@intel.com>,
-	Dan Carpenter <dan.carpenter@oracle.com>,
-	Max Filippov <jcmvbkbc@gmail.com>,
-	Matt Sickler <Matt.Sickler@daktronics.com>,
-	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
-	Keith Busch <keith.busch@intel.com>,
-	YueHaibing <yuehaibing@huawei.com>, linux-media@vger.kernel.org,
-	linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org,
-	kvm@vger.kernel.org, linux-block@vger.kernel.org,
-	linux-fsdevel@vger.kernel.org, linux-mm@kvack.org,
-	netdev@vger.kernel.org, bpf@vger.kernel.org,
-	xdp-newbies@vger.kernel.org, Jason Gunthorpe <jgg@ziepe.ca>
-Subject: Re: [PATCH] mm/gup: Use put_user_page*() instead of put_page*()
-Message-ID: <20190715193638.GC21161@bharath12345-Inspiron-5559>
-References: <1563131456-11488-1-git-send-email-linux.bhar@gmail.com>
- <deea584f-2da2-8e1f-5a07-e97bf32c63bb@nvidia.com>
- <20190715065654.GA3716@bharath12345-Inspiron-5559>
- <1aeb21d9-6dc6-c7d2-58b6-279b1dfc523b@nvidia.com>
+        Mon, 15 Jul 2019 12:49:31 -0700 (PDT)
+Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.36 as permitted sender) client-ip=47.88.44.36;
+Authentication-Results: mx.google.com;
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.36 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R231e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e04407;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=8;SR=0;TI=SMTPD_---0TX.eHB5_1563220162;
+Received: from US-143344MP.local(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TX.eHB5_1563220162)
+          by smtp.aliyun-inc.com(127.0.0.1);
+          Tue, 16 Jul 2019 03:49:25 +0800
+Subject: Re: [v3 PATCH 0/2] Fix false negative of shmem vma's THP eligibility
+To: hughd@google.com, kirill.shutemov@linux.intel.com, mhocko@suse.com,
+ vbabka@suse.cz, rientjes@google.com, akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+References: <1560401041-32207-1-git-send-email-yang.shi@linux.alibaba.com>
+From: Yang Shi <yang.shi@linux.alibaba.com>
+Message-ID: <11e1c58e-ffa4-fcb0-dc9e-95354e21c392@linux.alibaba.com>
+Date: Mon, 15 Jul 2019 12:49:19 -0700
+User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:52.0)
+ Gecko/20100101 Thunderbird/52.7.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1aeb21d9-6dc6-c7d2-58b6-279b1dfc523b@nvidia.com>
-User-Agent: Mutt/1.5.24 (2015-08-30)
+In-Reply-To: <1560401041-32207-1-git-send-email-yang.shi@linux.alibaba.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Language: en-US
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jul 15, 2019 at 11:10:20AM -0700, John Hubbard wrote:
-> On 7/14/19 11:56 PM, Bharath Vedartham wrote:
-> > On Sun, Jul 14, 2019 at 04:33:42PM -0700, John Hubbard wrote:
-> >> On 7/14/19 12:08 PM, Bharath Vedartham wrote:
-> [...]
-> >> 1. Pull down https://github.com/johnhubbard/linux/commits/gup_dma_core
-> >> and find missing conversions: look for any additional missing 
-> >> get_user_pages/put_page conversions. You've already found a couple missing 
-> >> ones. I haven't re-run a search in a long time, so there's probably even more.
-> >> 	a) And find more, after I rebase to 5.3-rc1: people probably are adding
-> >> 	get_user_pages() calls as we speak. :)
-> > Shouldn't this be documented then? I don't see any docs for using
-> > put_user_page*() in v5.2.1 in the memory management API section?
-> 
-> Yes, it needs documentation. My first try (which is still in the above git
-> repo) was reviewed and found badly wanting, so I'm going to rewrite it. Meanwhile,
-> I agree that an interim note would be helpful, let me put something together.
-> 
-> [...]
-> >>     https://github.com/johnhubbard/linux/commits/gup_dma_core
-> >>
-> >>     a) gets rebased often, and
-> >>
-> >>     b) has a bunch of commits (iov_iter and related) that conflict
-> >>        with the latest linux.git,
-> >>
-> >>     c) has some bugs in the bio area, that I'm fixing, so I don't trust
-> >>        that's it's safely runnable, for a few more days.
-> > I assume your repo contains only work related to fixing gup issues and
-> > not the main repo for gup development? i.e where gup changes are merged?
-> 
-> Correct, this is just a private tree, not a maintainer tree. But I'll try to
-> keep the gup_dma_core branch something that is usable by others, during the
-> transition over to put_user_page(), because the page-tracking patches are the
-> main way to test any put_user_page() conversions.
-> 
-> As Ira said, we're using linux-mm as the real (maintainer) tree.
-Thanks for the info! 
-> 
-> thanks,
-> -- 
-> John Hubbard
-> NVIDIA
+Hi Hugh,
+
+
+Any comments for this version? Although they have been in -mm tree, they 
+didn't make in 5.3 merge window, I'm supposed Andrew needs ack from you 
+or someone else.
+
+
+Thanks,
+
+Yang
+
+
+
+On 6/12/19 9:43 PM, Yang Shi wrote:
+> The commit 7635d9cbe832 ("mm, thp, proc: report THP eligibility for each
+> vma") introduced THPeligible bit for processes' smaps. But, when checking
+> the eligibility for shmem vma, __transparent_hugepage_enabled() is
+> called to override the result from shmem_huge_enabled().  It may result
+> in the anonymous vma's THP flag override shmem's.  For example, running a
+> simple test which create THP for shmem, but with anonymous THP disabled,
+> when reading the process's smaps, it may show:
+>
+> 7fc92ec00000-7fc92f000000 rw-s 00000000 00:14 27764 /dev/shm/test
+> Size:               4096 kB
+> ...
+> [snip]
+> ...
+> ShmemPmdMapped:     4096 kB
+> ...
+> [snip]
+> ...
+> THPeligible:    0
+>
+> And, /proc/meminfo does show THP allocated and PMD mapped too:
+>
+> ShmemHugePages:     4096 kB
+> ShmemPmdMapped:     4096 kB
+>
+> This doesn't make too much sense.  The shmem objects should be treated
+> separately from anonymous THP.  Calling shmem_huge_enabled() with checking
+> MMF_DISABLE_THP sounds good enough.  And, we could skip stack and
+> dax vma check since we already checked if the vma is shmem already.
+>
+> The transhuge_vma_suitable() is needed to check vma, but it was only
+> available for shmem THP.  The patch 1/2 makes it available for all kind of
+> THPs and does some code duplication cleanup, so it is made a separate patch.
+>
+>
+> Changelog:
+> v3: * Check if vma is suitable for allocating THP per Hugh Dickins
+>      * Fixed smaps output alignment and documentation per Hugh Dickins
+> v2: * Check VM_NOHUGEPAGE per Michal Hocko
+>
+>
+> Yang Shi (2):
+>        mm: thp: make transhuge_vma_suitable available for anonymous THP
+>        mm: thp: fix false negative of shmem vma's THP eligibility
+>
+>   Documentation/filesystems/proc.txt |  4 ++--
+>   fs/proc/task_mmu.c                 |  3 ++-
+>   mm/huge_memory.c                   | 11 ++++++++---
+>   mm/internal.h                      | 25 +++++++++++++++++++++++++
+>   mm/memory.c                        | 13 -------------
+>   mm/shmem.c                         |  3 +++
+>   6 files changed, 40 insertions(+), 19 deletions(-)
 
