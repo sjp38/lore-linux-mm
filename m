@@ -2,173 +2,170 @@ Return-Path: <SRS0=FHqE=VM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9EC34C76191
-	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 13:18:59 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5FEC3C76195
+	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 14:28:08 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5E3C1206B8
-	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 13:18:59 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5E3C1206B8
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 0537F2064B
+	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 14:28:07 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="d3/14IV3"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0537F2064B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E31C06B0006; Mon, 15 Jul 2019 09:18:58 -0400 (EDT)
+	id 5E7F26B0006; Mon, 15 Jul 2019 10:28:07 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DE2166B0007; Mon, 15 Jul 2019 09:18:58 -0400 (EDT)
+	id 598E36B0007; Mon, 15 Jul 2019 10:28:07 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CF9416B0008; Mon, 15 Jul 2019 09:18:58 -0400 (EDT)
+	id 4AEB06B0008; Mon, 15 Jul 2019 10:28:07 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 802216B0006
-	for <linux-mm@kvack.org>; Mon, 15 Jul 2019 09:18:58 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id f3so13570562edx.10
-        for <linux-mm@kvack.org>; Mon, 15 Jul 2019 06:18:58 -0700 (PDT)
+Received: from mail-lj1-f197.google.com (mail-lj1-f197.google.com [209.85.208.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D943B6B0006
+	for <linux-mm@kvack.org>; Mon, 15 Jul 2019 10:28:06 -0400 (EDT)
+Received: by mail-lj1-f197.google.com with SMTP id i18so3903953ljc.4
+        for <linux-mm@kvack.org>; Mon, 15 Jul 2019 07:28:06 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=IYHZl7XqACbfQgkIvfXTj9QTDPr1mZ5nykvuxTT4n1g=;
-        b=c/PmTbQAg/yYlH0uq1bYAF9gLVnG8Wh0+gVsxX4Z4fBrf7YTovhaj54CgcJlO2jKlR
-         vhVdc2crCOADM8nRf+yl8aK0CsT1njyYbbtWlBOuA1/WGAVvi7eX8ws025554nYslCFg
-         gbD6GzCG94i8QnyV2y0FdbDMXrCestVC5YyQFDhnyAgXjcV7vtkdzV8JbPRbP1lA5VC3
-         R/AhmC9v3Dh7qNjlViwB3ZzlDjZQ0w68pArpPWClhrjHUSvUAupGitxUGI8wZaeTSxL2
-         r71T8DDnIwF5Dd/Y0KXq/Yx5iynxsLfqM2IZ7pCfF6t9yi2+PuNThNyUBhLRtaaumkxo
-         jdXw==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAVwDYyDwQ4hROT+pZXwW2FV0vLnF1steRgd/bXuCgPN80/oMssi
-	8EDGADiOx0QfTzNJCC27wBjKD9wJyfUpYDr3fB9ROUHslhJkhqA3shcPY8fhs9bIiwIIK13cHev
-	hP1NsgfywbsauH02KnESosOKkbNNl07YzJxyDbyW7VUyouBWhpZ0sSRz7dI2i+lE=
-X-Received: by 2002:a50:8dcb:: with SMTP id s11mr22788121edh.144.1563196738072;
-        Mon, 15 Jul 2019 06:18:58 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzcd1ysj4EmPpt+wM8nglceMhzOtN7mds/g0SHxWWxYUOp3xu0R1twjYw4XHsla2fZf1hz3
-X-Received: by 2002:a50:8dcb:: with SMTP id s11mr22788056edh.144.1563196737387;
-        Mon, 15 Jul 2019 06:18:57 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563196737; cv=none;
+        h=x-gm-message-state:dkim-signature:from:date:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=5jX8RO2G+Dqveq3/9ZIxcRNHFe4mw3shiUGtuynCPU0=;
+        b=rry8seuli70xdMK9ZmKKwOaltEePutmvNWO8sAYdYCmRzy7OksCpNQ0kZcYDkCi+bD
+         qb58pEvWZOvdPGF5r+qbdclf7VaXqOC40Hl2a1v53MgpdUs1mTaftM7GZuG8fQSdDco8
+         4JEOuQOuJmPBRBNr2kYU65uTP4GzYPelMHWr4fDNCZ5zA/J4gLfINm/oY8se6zvG9kTh
+         +VhbWk+eBlJyVkmgsA9OebA0i4PEWAUZBbKR/aDuzorKQjLg+ZOJhasVSB5fHIdXHOpO
+         nbrYtfUEJCWzjAUcXkwfwK15KdFvBFnQwdsmyk0X0+2t2jEZ0ENf9dW6dg8mG9Xu/WHJ
+         AJ1g==
+X-Gm-Message-State: APjAAAUqAfX7Ts5HAztQpMb8CEV/q+tm1qlx4raGK1C+8C7OZa18rIlm
+	tXiXhAsiFIUaTY1hJ2GebRQHWYaGXElLrGrlI4hnru7CA1vzTzimXTg3kAA80gDWQELsWJlzsb0
+	77c17eqEEacionPycK6DEO6wh78oPW0jlHr5yJTJFF+CTge3fm6oRez1Z/0sjqQj56A==
+X-Received: by 2002:ac2:43cf:: with SMTP id u15mr497044lfl.188.1563200885956;
+        Mon, 15 Jul 2019 07:28:05 -0700 (PDT)
+X-Received: by 2002:ac2:43cf:: with SMTP id u15mr496995lfl.188.1563200884731;
+        Mon, 15 Jul 2019 07:28:04 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563200884; cv=none;
         d=google.com; s=arc-20160816;
-        b=h5upR5IQQE1yclAOJT/wSUZd4EmhNJTiCg43BkxT7v8qpbbB+S8Mfd862V60QEt2mM
-         av0G18oKxOO/BVQ+9fNe35fHFYzFVmCHXMJPJyK9AFcb9gGJUiQ2mE8Bf0Rw8Jg0s6Qx
-         Ke/nThs4fnYBWx3ZGxQS3/crdCKnr572ysPapmM5sD5FQAvWTf95pFGzvAMgyE8GpKJk
-         JKfFolXHW0QeqTDqDtKo3qGWGP7cKBUjTNJ9/cDIHFPAseHK9DS6x9R6le4Et/HMetI9
-         C32hYuLwMmSbMN1vvK5dFPHL0sd31TogHw05C8IBeFOB5JqNN60wAtq0bLCNxJwgMShX
-         5KJw==
+        b=Qdntt3dKnJdqZfQaeRXQGHetDLpJQmM4bXFWdlYEfnD2Jrl5QCIbtqriDX//Q5DwSO
+         3B1Y9V2hJI1q7ygm3wCEiHj7Yhs2QWg0MAAnvrwnPfQEHqQhsotcg28vJPn/bt6hfWI2
+         4u7JJg4khMWHFqpLPwz8YrK35mH0RA61q2sZe12WVE6yuJH0w9tL8/TWgjl2Uqagis7H
+         nJNFcNSY8zGYyV76Cw5wxfRl1zfL29lUhL7aC008u0jeaEk/EB+VLcxxZta7+N30Nd9v
+         V/GKdB12cNd/e2aXGdrC/wsZjR3A6lI9CGB8oyT5nj3DAyTXSl3YDOJ2WlyFwA+3EA/a
+         VJ1g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=IYHZl7XqACbfQgkIvfXTj9QTDPr1mZ5nykvuxTT4n1g=;
-        b=ob9j2rMcuKzfPs6T1E21tNPLhtfZ6sC7IJRxJgKoEePpfQrRXqsfERXdlSqWGZ6w4R
-         NG7rCyIZK/vHhAXycLty7wHrCnK0rlDAyUg1nqOqQl14sjW6Jkq5fLS37T+kSg2Bldro
-         r7sD2NyZwh45x7GIG+/eakRC9rAmZWb+fvQQRiqahLDs296UIF5KA5PoPGW52x/gGHoX
-         ca2LC7T4DABZRitymQBh+OJT5JOiQUNv7552So0rUtCNwmLmZZf40vFA4s2lItaPg4aR
-         hCmvjHHNsiHtDt9bU74ugV/ieyAo1VPUqURVc9qMaMWSyBKYVB7uGFgxvaYDmxXhtTlY
-         fvXQ==
+         :message-id:subject:cc:to:date:from:dkim-signature;
+        bh=5jX8RO2G+Dqveq3/9ZIxcRNHFe4mw3shiUGtuynCPU0=;
+        b=krYvrnMBl/tSTGyBZCV/4S/N/Z3UmITVdCMs0Mh23vX3WbgtrLvr5Gc2bGpMVffXP0
+         D7ORf+cfQmlWlMdk9Nx51EG/70eGNE3pRV6q85tEDFUvhxtnmckmdgjG4H9FZf4FYYtQ
+         aUPYub3mObtRXDbu+x4CszNMUNw3fwXEAbnbzE8Mp3xSFuXNIqkI2C4kWldXUM5v+a0G
+         4uwzGNL7VVx0OUlIKTR+m3OtF5aacVZPhK2W9Xc+GcC36V7A0O2LK4e6rTpASu/5mu5q
+         B9TRZgD6hz+YvxsObeCTNvdKgbMXoq/Hyiu7Z1ByTK8Sn0Ka4lA8NfLw40LmAzBuexke
+         zfhQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id gj23si9516308ejb.165.2019.07.15.06.18.57
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b="d3/14IV3";
+       spf=pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=urezki@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 6sor9266097ljs.44.2019.07.15.07.28.04
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 15 Jul 2019 06:18:57 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (Google Transport Security);
+        Mon, 15 Jul 2019 07:28:04 -0700 (PDT)
+Received-SPF: pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id F30B1AFFE;
-	Mon, 15 Jul 2019 13:18:56 +0000 (UTC)
-Date: Mon, 15 Jul 2019 15:18:56 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Yang Shi <yang.shi@linux.alibaba.com>, dvyukov@google.com,
-	catalin.marinas@arm.com, akpm@linux-foundation.org,
-	linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Subject: Re: [PATCH] mm: page_alloc: document kmemleak's non-blockable
- __GFP_NOFAIL case
-Message-ID: <20190715131856.GY29483@dhcp22.suse.cz>
-References: <1562964544-59519-1-git-send-email-yang.shi@linux.alibaba.com>
- <alpine.DEB.2.21.1907131230280.246128@chino.kir.corp.google.com>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b="d3/14IV3";
+       spf=pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=urezki@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=from:date:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=5jX8RO2G+Dqveq3/9ZIxcRNHFe4mw3shiUGtuynCPU0=;
+        b=d3/14IV3hSNMRDcLy989ICz3liv+mqjjSlW0El1mnKf1DOz5JPMkYTV5X2XfM5proK
+         7k1eaAzv9eAe8s9ElN5YSGhnIIHix6PHO4WbLxrSC1Bg4CShvJ3rN8GrZwK9Jrwdixy7
+         ziRX3kHL4P0X4Pmx2CRPhDuGSUllqNrR1M2ZTm4YgAoiYdRnRa1OC4xD0LMuspJXA3Ve
+         /COxemWlBI3Tl3LClQBSKECiteCiSHEDi4eENFT4WOBuaJ+vsdwS8pMcHCDEH1zrFFZc
+         mHIW/MTCDKpoRtJlx8Tw5ldTVnsDbi9sOGSzb2tLaXUDKnurnKlvpB6+BVs3v3a3XZpg
+         0lkA==
+X-Google-Smtp-Source: APXvYqwkk4wG7LqF3s03ECykm/guY9mj3pBSapqVetXgxHIrnb4xm9bU3dssIzaUILeRZSgr6ITLCg==
+X-Received: by 2002:a2e:968f:: with SMTP id q15mr9362552lji.30.1563200884282;
+        Mon, 15 Jul 2019 07:28:04 -0700 (PDT)
+Received: from pc636 ([37.139.158.167])
+        by smtp.gmail.com with ESMTPSA id h4sm3209138ljj.31.2019.07.15.07.28.02
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 15 Jul 2019 07:28:03 -0700 (PDT)
+From: Uladzislau Rezki <urezki@gmail.com>
+X-Google-Original-From: Uladzislau Rezki <urezki@pc636>
+Date: Mon, 15 Jul 2019 16:27:54 +0200
+To: Pengfei Li <lpf.vector@gmail.com>
+Cc: Matthew Wilcox <willy@infradead.org>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Uladzislau Rezki <urezki@gmail.com>, rpenyaev@suse.de,
+	peterz@infradead.org, guro@fb.com, rick.p.edgecombe@intel.com,
+	rppt@linux.ibm.com, aryabinin@virtuozzo.com, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Subject: Re: [PATCH v4 2/2] mm/vmalloc.c: Modify struct vmap_area to reduce
+ its size
+Message-ID: <20190715142754.pw55g4b2l6lzoznn@pc636>
+References: <20190712120213.2825-1-lpf.vector@gmail.com>
+ <20190712120213.2825-3-lpf.vector@gmail.com>
+ <20190712134955.GV32320@bombadil.infradead.org>
+ <CAD7_sbEoGRUOJdcHnfUTzP7GfUhCdhfo8uBpUFZ9HGwS36VkSg@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.21.1907131230280.246128@chino.kir.corp.google.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <CAD7_sbEoGRUOJdcHnfUTzP7GfUhCdhfo8uBpUFZ9HGwS36VkSg@mail.gmail.com>
+User-Agent: NeoMutt/20170113 (1.7.2)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat 13-07-19 12:39:16, David Rientjes wrote:
-> On Sat, 13 Jul 2019, Yang Shi wrote:
+On Fri, Jul 12, 2019 at 11:09:00PM +0800, Pengfei Li wrote:
+> On Fri, Jul 12, 2019 at 9:49 PM Matthew Wilcox <willy@infradead.org> wrote:
+> >
+> > On Fri, Jul 12, 2019 at 08:02:13PM +0800, Pengfei Li wrote:
+> >
+> > I don't think you need struct union struct union.  Because llist_node
+> > is just a pointer, you can get the same savings with just:
+> >
+> >         union {
+> >                 struct llist_node purge_list;
+> >                 struct vm_struct *vm;
+> >                 unsigned long subtree_max_size;
+> >         };
+> >
 > 
-> > When running ltp's oom test with kmemleak enabled, the below warning was
-> > triggerred since kernel detects __GFP_NOFAIL & ~__GFP_DIRECT_RECLAIM is
-> > passed in:
-> > 
-> > WARNING: CPU: 105 PID: 2138 at mm/page_alloc.c:4608 __alloc_pages_nodemask+0x1c31/0x1d50
-> > Modules linked in: loop dax_pmem dax_pmem_core
-> > ip_tables x_tables xfs virtio_net net_failover virtio_blk failover
-> > ata_generic virtio_pci virtio_ring virtio libata
-> > CPU: 105 PID: 2138 Comm: oom01 Not tainted 5.2.0-next-20190710+ #7
-> > Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS rel-1.10.2-0-g5f4c7b1-prebuilt.qemu-project.org 04/01/2014
-> > RIP: 0010:__alloc_pages_nodemask+0x1c31/0x1d50
-> > ...
-> >  kmemleak_alloc+0x4e/0xb0
-> >  kmem_cache_alloc+0x2a7/0x3e0
-> >  ? __kmalloc+0x1d6/0x470
-> >  ? ___might_sleep+0x9c/0x170
-> >  ? mempool_alloc+0x2b0/0x2b0
-> >  mempool_alloc_slab+0x2d/0x40
-> >  mempool_alloc+0x118/0x2b0
-> >  ? __kasan_check_read+0x11/0x20
-> >  ? mempool_resize+0x390/0x390
-> >  ? lock_downgrade+0x3c0/0x3c0
-> >  bio_alloc_bioset+0x19d/0x350
-> >  ? __swap_duplicate+0x161/0x240
-> >  ? bvec_alloc+0x1b0/0x1b0
-> >  ? do_raw_spin_unlock+0xa8/0x140
-> >  ? _raw_spin_unlock+0x27/0x40
-> >  get_swap_bio+0x80/0x230
-> >  ? __x64_sys_madvise+0x50/0x50
-> >  ? end_swap_bio_read+0x310/0x310
-> >  ? __kasan_check_read+0x11/0x20
-> >  ? check_chain_key+0x24e/0x300
-> >  ? bdev_write_page+0x55/0x130
-> >  __swap_writepage+0x5ff/0xb20
-> > 
-> > The mempool_alloc_slab() clears __GFP_DIRECT_RECLAIM, kmemleak has
-> > __GFP_NOFAIL set all the time due to commit
-> > d9570ee3bd1d4f20ce63485f5ef05663866fe6c0 ("kmemleak: allow to coexist
-> > with fault injection").
-> > 
+> Thanks for your comments.
 > 
-> It only clears __GFP_DIRECT_RECLAIM provisionally to see if the allocation 
-> would immediately succeed before falling back to the elements in the 
-> mempool.  If that fails, and the mempool is empty, mempool_alloc() 
-> attempts the allocation with __GFP_DIRECT_RECLAIM.  So for the problem 
-> described here, I think what we really want is this:
+> As you said, I did this in v3.
+> https://patchwork.kernel.org/patch/11031507/
 > 
-> diff --git a/mm/mempool.c b/mm/mempool.c
-> --- a/mm/mempool.c
-> +++ b/mm/mempool.c
-> @@ -386,7 +386,7 @@ void *mempool_alloc(mempool_t *pool, gfp_t gfp_mask)
->  	gfp_mask |= __GFP_NORETRY;	/* don't loop in __alloc_pages */
->  	gfp_mask |= __GFP_NOWARN;	/* failures are OK */
->  
-> -	gfp_temp = gfp_mask & ~(__GFP_DIRECT_RECLAIM|__GFP_IO);
-> +	gfp_temp = gfp_mask & ~(__GFP_DIRECT_RECLAIM|__GFP_IO|__GFP_NOFAIL);
->  
->  repeat_alloc:
+> The reason why I use struct union struct in v4 is that I want to
+> express "in the tree" and "in the purge list" are two completely
+> isolated cases.
+> 
+I think that is odd. Your v3 was fine to me. All that mess with
+struct union struct makes it weird, so having just comments there
+is enough, imho.
 
-No, I do not think we should make mempool allocator more complex for
-something that is an implementation problem the kmemleak.
--- 
-Michal Hocko
-SUSE Labs
+<snip>
+-               __free_vmap_area(va);
++               merge_or_add_vmap_area(va,
++                       &free_vmap_area_root, &free_vmap_area_list);
++
+<snip>
+Should not be done in this patch. I can re-spin "mm/vmalloc: do not keep unpurged areas in the busy tree"
+and add it there. So, as a result we will not modify unlink_va() function.
+
+Thus, this patch will reduce the size only, and will not touch other parts.
+
+--
+Vlad Rezki
 
