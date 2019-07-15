@@ -6,88 +6,88 @@ X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B5C79C76190
-	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 09:26:30 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 118F1C76190
+	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 09:33:17 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4C9352083D
-	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 09:26:30 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4C9352083D
+	by mail.kernel.org (Postfix) with ESMTP id C266E2083D
+	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 09:33:16 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C266E2083D
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9B1066B0003; Mon, 15 Jul 2019 05:26:29 -0400 (EDT)
+	id 540C66B0003; Mon, 15 Jul 2019 05:33:16 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9636D6B0006; Mon, 15 Jul 2019 05:26:29 -0400 (EDT)
+	id 518856B0006; Mon, 15 Jul 2019 05:33:16 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 828E56B0007; Mon, 15 Jul 2019 05:26:29 -0400 (EDT)
+	id 407366B0007; Mon, 15 Jul 2019 05:33:16 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 61B836B0003
-	for <linux-mm@kvack.org>; Mon, 15 Jul 2019 05:26:29 -0400 (EDT)
-Received: by mail-qk1-f198.google.com with SMTP id x1so13125637qkn.6
-        for <linux-mm@kvack.org>; Mon, 15 Jul 2019 02:26:29 -0700 (PDT)
+Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 20C346B0003
+	for <linux-mm@kvack.org>; Mon, 15 Jul 2019 05:33:16 -0400 (EDT)
+Received: by mail-qt1-f200.google.com with SMTP id x7so14292026qtp.15
+        for <linux-mm@kvack.org>; Mon, 15 Jul 2019 02:33:16 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to
          :references:from:openpgp:autocrypt:organization:message-id:date
          :user-agent:mime-version:in-reply-to:content-language
          :content-transfer-encoding;
-        bh=5cvmv0jyawYGUhAqvTNlsR6PhD8WEFuWVgYuYgdD1Fg=;
-        b=FVTJRAkaBUalQmm8RYGUqVCXk9yEC1VosRcHNekCBw2N806UdUxiCRidPfdNGKNm9d
-         rss0488YywT3xVZ8jSZdwwpJIP5bRkVWRAifwoBf/ct/1oIAgQgBsLYMZ+rsOLjM9wh6
-         AbI+tA7viPQ9F6hG9Oiz1uQiJbEEvLgMm37XYRbe1JJ7Q4GsgKaRNIGowoP0xASe5GrF
-         KihJK8zU2QveNEwqKgqMiY/YL5StH7EgrHAzTzOJQBCBjlNklZmuQZMZvDp5bCWvsd1O
-         zFE4D8I3fjyh/iR6RWXV/UYz0078Hqi4ukh9cj7XBlFxds+4mIXweP6xNDptQKxz+7DD
-         6yzQ==
+        bh=3ypF9L5PHfmASYxDsdG67iNgHd95X/YQ+YKxhqMddlU=;
+        b=CH5U4rhI/yW+wT3ZGDhnVhMd/NgCGJtkZCTVo447TKebIe3IHof8CDfkGadEjvyGXj
+         845+0CCahoeOVDvEDKynvwFw8ryvypiYhD+u2RLhlCRz12VJpGLRPpbpzWgZNjmC/Q2P
+         6aseM0/ZpnedwnLDc5rVMddMVElwCfeaQfbeNonw6fKKPt8zvnfmK196o3gg1YSvGvRD
+         6eJCGvzDx6Os60CKdCg2vFnxoV8mFtTbfBqFzQKVt1IoIsmmWniJ7FZjey0Brux3d6vM
+         nYsXuppQbujQyIPlhYmTNRwJFvf+v2fA9F8EpCGjE0QLN8/WE1L+Pxj1ykk78eY7+6rY
+         k41w==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAXZTaVLYd5Ws9sssdumUv6QxQpv8wGFx/1KjieBcGm1wH2gGB7r
-	Bka0suunfM15mZHuhscG/nMPCqXg/96UgfR4wQ7v1ggkXyN72X4/VDkrK0GT+YDsa0DQUvOjDAG
-	/TjS698xSjKu9yBlhcpiWA2pRZGUHpm03J0cDWahEhE2l5DsB3Ewkv2grIie5O+o/8A==
-X-Received: by 2002:aed:2d67:: with SMTP id h94mr16887645qtd.154.1563182789126;
-        Mon, 15 Jul 2019 02:26:29 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqw8cIohtCgedpS+pStFpoEeVsNSmeLvFl1HgjB9yIeqxp2SR57w0tqvGIjwX2uMI0sjVlI+
-X-Received: by 2002:aed:2d67:: with SMTP id h94mr16887587qtd.154.1563182788276;
-        Mon, 15 Jul 2019 02:26:28 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563182788; cv=none;
+X-Gm-Message-State: APjAAAXcgg6SafhMeexYXguSNpb8/IOozoNtrlK9DefKODFiFlHP8tx8
+	AuoTRlapbY2dde65TPPndmAJS0Aeq+iiZxkHPupCtLze3zGNf4t5zSYAZfxvOeQ0/wLjaLRUjHW
+	6oUJsYoHHI6g+lRPrZn80REFE7PdsFWh9fnMso948BBrm1ZXbsfCscb90t83KLxKgqw==
+X-Received: by 2002:a37:b741:: with SMTP id h62mr15987200qkf.490.1563183195888;
+        Mon, 15 Jul 2019 02:33:15 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxi0gTGeTxnkZJh3tGMZ3vHPkM3r5znDe/NMVTXgbnbSqRha0rPLj3Z3teLk/VTnrwsugZn
+X-Received: by 2002:a37:b741:: with SMTP id h62mr15987164qkf.490.1563183195365;
+        Mon, 15 Jul 2019 02:33:15 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563183195; cv=none;
         d=google.com; s=arc-20160816;
-        b=aDAPrmjqeUvrfyo6s3d1reQoVmgsdsZRAJcMAt+0dxvTUScAzcfv60E7Mg7SoI87B5
-         UUAHT3qcSBYVXMKuogLtNm2zOihmUhL2dNEo0LyOJjojUFlz+wHVAoOwS/Jt78DfbnkY
-         rdWkH18pvWPOVcrkF8Azfn/xJdqmRZO7q4IMuEWWFmYvRjxUcaRNId4wI08dXr966Ab1
-         wNmY8AIN5kID1b86KU7F7npfqtL+sXOBH8aOhIzd2yi2uu/xxmO7VVDcFiGZE0Sa7Mmk
-         NlXZeIJIXGzLZqRMul6GPi2bZeMoOrNU6VSKBRPsrJ3sqH942rBAE4tVxTYA4+Z6pqqU
-         +RjQ==
+        b=f3+8uCf0TQB3lKoFOHy84LEGuHN2kqbU9UA2g9i8Prxeb8HSInS9zcX0DXGNh5prvJ
+         YJktpAyz6Z5Hz01XIexAbM+DkuEAOKUL4PH0jlUbtGQdJX8+cn9wvsvqKVK7rUawBaQ6
+         beJ+NZOJFvIPokuYvUNbq2krePplFljHZhRahRuU/IU4Qydn8rWJAA8grSDc0doiwOtq
+         MlEXMmvaNLB/y3Q4vxFlI6/bB5C9LXl/vR/KEDfGlDxdaUaJke3V2Vo7r7xJLKZqeZbL
+         K6MSokZ4Z+LC+m8JERsIVntIRKVHbP/LtHmOFRT7NvFMkGMkqpHQvOTLOw9AXNYhWPdh
+         e7NQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
          :user-agent:date:message-id:organization:autocrypt:openpgp:from
          :references:to:subject;
-        bh=5cvmv0jyawYGUhAqvTNlsR6PhD8WEFuWVgYuYgdD1Fg=;
-        b=VpduGTFkpTsVGPhxgaWV9NHnMXnVjyPDvGx+8zk9eiHRicpRpb5giFy/fIoN2OY5+b
-         qFNX6OogYpfkq2vwB9SWiMMnWsgV7jPjCGmootXko8yFX11/Qw20QxC5x5V/exMhGD+p
-         GQGG8xSdvIm50tFe0+mcmFsrJ32B/q1pzXDTA9SwEbBXhqBITFgh5B4c0AKdTwfzltja
-         30bZh58MhAAAqFva7nGV/6motAgir+aHavyUF5vg92JrHCy0+/hRw/bdD4v0nHlIkLyC
-         TgaqClTIOz/HmvmFmvGGlmTT13naXcuJEp0mNAbf3+z59RXOv1/S+djdTLZGPjRHIiEG
-         F5pA==
+        bh=3ypF9L5PHfmASYxDsdG67iNgHd95X/YQ+YKxhqMddlU=;
+        b=HYopVcCm0aqRyE8Zqn37eNmtCSkfBIKiGTVraSG8Zx/OZPLZDe0B8aKqjDQh9Axznv
+         bIrV0rYpcCMGEsCeG3NkoOWVsY4SmgHpZSTMbf/eezOqcV/frmxzlWPjAiSaoJ3VP+SH
+         uZdU40F2oCg4Mu1OJ1vpR5/vxNc0p4dAx9B8vM0KFNCebPIx9nYPw+Ru4bW0rDTm2huA
+         FYS/GFEgGNx/A64k3o8gW2InnGEXtqLS49it7Thj/Ayy9+VSrTjAu6FE3nejh7wbuiqv
+         OK1I3ciaZheerq85q4ciP+XUiSK8o0TmsNyyZb3n54e6Hyy45KCUcbm98Sg973HtwEg5
+         Lf4Q==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id g72si10202301qke.361.2019.07.15.02.26.28
+        by mx.google.com with ESMTPS id w64si9990170qkb.254.2019.07.15.02.33.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 15 Jul 2019 02:26:28 -0700 (PDT)
+        Mon, 15 Jul 2019 02:33:15 -0700 (PDT)
 Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx08.intmail.prod.int.phx2.redhat.com [10.5.11.23])
+Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 36EF687629;
-	Mon, 15 Jul 2019 09:26:27 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id 7342B3084248;
+	Mon, 15 Jul 2019 09:33:14 +0000 (UTC)
 Received: from [10.36.117.137] (ovpn-117-137.ams2.redhat.com [10.36.117.137])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id C63F245D3;
-	Mon, 15 Jul 2019 09:26:14 +0000 (UTC)
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 2E5745C231;
+	Mon, 15 Jul 2019 09:33:01 +0000 (UTC)
 Subject: Re: [RFC][Patch v11 1/2] mm: page_hinting: core infrastructure
 To: Dave Hansen <dave.hansen@intel.com>,
  Nitesh Narayan Lal <nitesh@redhat.com>, kvm@vger.kernel.org,
@@ -99,7 +99,7 @@ To: Dave Hansen <dave.hansen@intel.com>,
  mhocko@suse.com
 References: <20190710195158.19640-1-nitesh@redhat.com>
  <20190710195158.19640-2-nitesh@redhat.com>
- <3f9a7e7b-c026-3530-e985-804fc7f1ec31@intel.com>
+ <f9bca947-f88e-51a7-fdaf-4403fda1b783@intel.com>
 From: David Hildenbrand <david@redhat.com>
 Openpgp: preference=signencrypt
 Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
@@ -146,120 +146,80 @@ Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
  +8Umfre0Xt4713VxMygW0PnQt5aSQdMD58jHFxTk092mU+yIHj5LeYgvwSgZN4airXk5yRXl
  SE+xAvmumFBY
 Organization: Red Hat GmbH
-Message-ID: <0a89271f-c80b-9314-f6bb-8fdf0d714431@redhat.com>
-Date: Mon, 15 Jul 2019 11:26:13 +0200
+Message-ID: <46336efb-3243-0083-1d20-7e8578131679@redhat.com>
+Date: Mon, 15 Jul 2019 11:33:01 +0200
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.7.2
 MIME-Version: 1.0
-In-Reply-To: <3f9a7e7b-c026-3530-e985-804fc7f1ec31@intel.com>
+In-Reply-To: <f9bca947-f88e-51a7-fdaf-4403fda1b783@intel.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 8bit
-X-Scanned-By: MIMEDefang 2.84 on 10.5.11.23
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.26]); Mon, 15 Jul 2019 09:26:27 +0000 (UTC)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.40]); Mon, 15 Jul 2019 09:33:14 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 10.07.19 22:45, Dave Hansen wrote:
+On 11.07.19 20:21, Dave Hansen wrote:
 > On 7/10/19 12:51 PM, Nitesh Narayan Lal wrote:
->> +struct zone_free_area {
->> +	unsigned long *bitmap;
->> +	unsigned long base_pfn;
->> +	unsigned long end_pfn;
->> +	atomic_t free_pages;
->> +	unsigned long nbits;
->> +} free_area[MAX_NR_ZONES];
-> 
-> Why do we need an extra data structure.  What's wrong with putting
-> per-zone data in ... 'struct zone'?  The cover letter claims that it
-> doesn't touch core-mm infrastructure, but if it depends on mechanisms
-> like this, I think that's a very bad thing.
-> 
-> To be honest, I'm not sure this series is worth reviewing at this point.
->  It's horribly lightly commented and full of kernel antipatterns lik
-> 
-> void func()
-> {
-> 	if () {
-> 		... indent entire logic
-> 		... of function
-> 	}
-> }
-
-"full of". Hmm.
-
-> 
-> It has big "TODO"s.  It's virtually comment-free.  I'm shocked it's at
-> the 11th version and still looking like this.
-> 
+>> +static void bm_set_pfn(struct page *page)
+>> +{
+>> +	struct zone *zone = page_zone(page);
+>> +	int zone_idx = page_zonenum(page);
+>> +	unsigned long bitnr = 0;
 >> +
->> +		for (zone_idx = 0; zone_idx < MAX_NR_ZONES; zone_idx++) {
->> +			unsigned long pages = free_area[zone_idx].end_pfn -
->> +					free_area[zone_idx].base_pfn;
->> +			bitmap_size = (pages >> PAGE_HINTING_MIN_ORDER) + 1;
->> +			if (!bitmap_size)
->> +				continue;
->> +			free_area[zone_idx].bitmap = bitmap_zalloc(bitmap_size,
->> +								   GFP_KERNEL);
+>> +	lockdep_assert_held(&zone->lock);
+>> +	bitnr = pfn_to_bit(page, zone_idx);
+>> +	/*
+>> +	 * TODO: fix possible underflows.
+>> +	 */
+>> +	if (free_area[zone_idx].bitmap &&
+>> +	    bitnr < free_area[zone_idx].nbits &&
+>> +	    !test_and_set_bit(bitnr, free_area[zone_idx].bitmap))
+>> +		atomic_inc(&free_area[zone_idx].free_pages);
+>> +}
 > 
-> This doesn't support sparse zones.  We can have zones with massive
-> spanned page sizes, but very few present pages.  On those zones, this
-> will exhaust memory for no good reason.
-
-Yes, AFAIKS, sparse zones are problematic when we have NORMAL/MOVABLE mixed.
-
-1 bit for 2MB, 1 byte for 16MB, 64 bytes for 1GB
-
-IOW, this isn't optimal but only really problematic for big systems /
-very huge sparse zones.
-
+> Let's say I have two NUMA nodes, each with ZONE_NORMAL and ZONE_MOVABLE
+> and each zone with 1GB of memory:
 > 
-> Comparing this to Alex's patch set, it's of much lower quality and at a
-> much earlier stage of development.  The two sets are not really even
-> comparable right now.  This certainly doesn't sell me on (or even really
+> Node:         0        1
+> NORMAL   0->1GB   2->3GB
+> MOVABLE  1->2GB   3->4GB
+> 
+> This code will allocate two bitmaps.  The ZONE_NORMAL bitmap will
+> represent data from 0->3GB and the ZONE_MOVABLE bitmap will represent
+> data from 1->4GB.  That's the result of this code:
+> 
+>> +			if (free_area[zone_idx].base_pfn) {
+>> +				free_area[zone_idx].base_pfn =
+>> +					min(free_area[zone_idx].base_pfn,
+>> +					    zone->zone_start_pfn);
+>> +				free_area[zone_idx].end_pfn =
+>> +					max(free_area[zone_idx].end_pfn,
+>> +					    zone->zone_start_pfn +
+>> +					    zone->spanned_pages);
+> 
+> But that means that both bitmaps will have space for PFNs in the other
+> zone type, which is completely bogus.  This is fundamental because the
+> data structures are incorrectly built per zone *type* instead of per zone.
+> 
 
-To be honest, I find this statement quite harsh. Nitesh's hard work in
-the previous RFC's and many discussions with Alex essentially resulted
-in the two approaches we have right now. Alex's approach would not look
-the way it looks today without Nitesh's RFCs.
+I don't think it's incorrect, it's just not optimal in all scenarios.
+E.g., in you example, this approach would "waste" 2 * 1GB of tracking
+data for the wholes (2* 64bytes when using 1 bit for 2MB).
 
-So much to that.
+FWIW, this is not a numa-specific thingy. We can have sparse zones
+easily on single-numa systems.
 
-> enumerate the deltas in) this approach vs. Alex's.
+Node:                 0
+NORMAL   0->1GB, 2->3GB
+MOVABLE  1->2GB, 3->4GB
 
-I am aware that memory hotplug is not properly supported yet (future
-work). Sparse zones work but eventually waste a handful of pages (!) -
-future work. Anything else you are aware of that is missing?
-
-My opinion:
-
-1. Alex' solution is clearly beneficial, as we don't need to manage/scan
-a bitmap. *however* we were concerned right from the beginning if
-core-buddy modifications will be accepted upstream for a purely
-virtualization-specific (as of now!) feature. If we can get it upstream,
-perfect. Back when we discussed the idea with Alex I was skeptical - I
-was expecting way more core modifications.
-
-2. We were looking for an alternative solution that doesn't require to
-modify the buddy. We have that now - yes, some things have to be worked
-out and cleaned up, not arguing against that. A cleaned-up version of
-this RFC with some fixes and enhancements should be ready to be used in
-*many* (not all) setups. Which is perfectly fine.
-
-So in summary, I think we should try our best to get Alex's series into
-shape and accepted upstream. However, if we get upstream resistance or
-it will take ages to get it in, I think we can start with this series
-here (which requires no major buddy modifications as of now) and the
-slowly see if we can convert it into Alex approach.
-
-The important part for me is that the core<->driver interface and the
-virtio interface is in a clean shape, so we can essentially swap out the
-implementation specific parts in the core.
-
-Cheers.
+So tracking it per zones instead instead of zone type is only one part
+of the story.
 
 -- 
 
