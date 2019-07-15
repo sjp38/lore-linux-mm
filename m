@@ -4,80 +4,80 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-9.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7B53BC76192
-	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 11:02:25 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id F3C1DC76192
+	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 11:02:26 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4BA062081C
-	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 11:02:25 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4BA062081C
+	by mail.kernel.org (Postfix) with ESMTP id C580D206B8
+	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 11:02:26 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C580D206B8
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=8bytes.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id F0D9F6B0006; Mon, 15 Jul 2019 07:02:24 -0400 (EDT)
+	id D49126B0008; Mon, 15 Jul 2019 07:02:25 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id EBEAF6B0008; Mon, 15 Jul 2019 07:02:24 -0400 (EDT)
+	id C02186B026D; Mon, 15 Jul 2019 07:02:25 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DD55B6B026B; Mon, 15 Jul 2019 07:02:24 -0400 (EDT)
+	id AA0126B026E; Mon, 15 Jul 2019 07:02:25 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A5B516B0006
-	for <linux-mm@kvack.org>; Mon, 15 Jul 2019 07:02:24 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id f3so13338676edx.10
-        for <linux-mm@kvack.org>; Mon, 15 Jul 2019 04:02:24 -0700 (PDT)
+Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 700086B0008
+	for <linux-mm@kvack.org>; Mon, 15 Jul 2019 07:02:25 -0400 (EDT)
+Received: by mail-wr1-f72.google.com with SMTP id i6so8703411wre.1
+        for <linux-mm@kvack.org>; Mon, 15 Jul 2019 04:02:25 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references;
-        bh=6EvDuo1ssdDG8objEAwreorjmyHHeKgaqNxghdZyXWs=;
-        b=Se5u1Fb1upcb0O5mLNptOKNa8pKhsi+LH4UqnOPNymp675dK99t/1+geJHKGnT3Nc8
-         j1mmaZ2z+ZQTMWVrJRvuvak2nRJod1ydeUJFefpECt2hhvBSljoqIfRDcVzkYL9s0ZZy
-         EsLVl5uHtP0MWv2ISExB16ZK5P7T1R+4hA0ybgTMk1VVKDOK8ikIH4mb+V/X6Xp10Xrf
-         cObUnvbgdMLZ/QQFjH+CgTrCfCthgx+NSPLlHt4WzPIMxK8MF4uT6AQiOJoe38VKkToC
-         pNzhFTHcmApxw6oxsYDI0Di9YNqzTB6PEpm9qAYv/Ca2WiLo6Jpd5xinTey/qw387vev
-         tKNw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of joro@8bytes.org designates 2a01:238:4383:600:38bc:a715:4b6d:a889 as permitted sender) smtp.mailfrom=joro@8bytes.org;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=8bytes.org
-X-Gm-Message-State: APjAAAVz4XQhIPGFnSNtxqOsMCL/0YULosO0dTMVvfmZMgdG8ZCEgHKj
-	vMXc8GdvwRuHx4DHTyAiB8cTaDTJMSPEZVTXtf7rFBcY5PXFrhp8lGzZvSjbPd0p5aYsu5evTas
-	w+jveEKfkr7IDG7sYjKdIPBrjvBgRk14dxIHPxLB03jESUsULnFBBnZ/+sRaQNdphfA==
-X-Received: by 2002:a17:906:454d:: with SMTP id s13mr20112597ejq.255.1563188543894;
-        Mon, 15 Jul 2019 04:02:23 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz7WIPdeNkqcDY6K6T7jMZ6sgJaVAXlpTCnGgtwPoH8LUdDbC8uQfvrWpMBnVPDye/xYt5I
-X-Received: by 2002:a17:906:454d:: with SMTP id s13mr20112522ejq.255.1563188543139;
-        Mon, 15 Jul 2019 04:02:23 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563188543; cv=none;
+        bh=hGDApp89EWhquOjtHhsxHXkKfOY16kq5K6euPrNcpVQ=;
+        b=CTJUHAojp6G+rr3cId37wyVyPP575IbBz3e608I0c+uYhobOSNVyOoou90ZfjMd+hk
+         n22m3txdlwgjXF+Z/HyyYM2ZFHgWtZvEW/4xUpz/ksDRou0Xt8x7Ql7WXaPw3Q0FIIU1
+         0vX+V5M/Wk7z8DcAH7NIYQgQcxcnaIHlll9zS3ZXH6st4rzkpeOEabIleZ4TBa1mCpdL
+         lR0blfc7c+Q+gz/O//FH1AK3DJrxXymAQSafSMXS2jLyqxCLZJ8U2EBNy28LiP+LBMY3
+         Tgco331/HUXCPqBa14b3EWvButl12ueujrgoK2TKrQ06g0nWrnd9OHS8l3AaDadWL8Vd
+         ascw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of joro@8bytes.org designates 81.169.241.247 as permitted sender) smtp.mailfrom=joro@8bytes.org;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=8bytes.org
+X-Gm-Message-State: APjAAAWNzVo5bYlATHhCDXwkJ1szityONoP4CvKH1gXCL9/FrBL7dq0m
+	VZfyxD4GfOXGrV0F1c7POFw2AYYeaGBzr0pDsxJ974hJAXPPEaTXy0PnSiji/xvhw4WLAoxhv1J
+	t5ehjiOLkWTB1e3QyUGzu/B6pwHlsvTBBF0kyXMOU1UrMInaFw9BxY0Qz2lR2nOoIww==
+X-Received: by 2002:a1c:7c08:: with SMTP id x8mr24241841wmc.19.1563188544896;
+        Mon, 15 Jul 2019 04:02:24 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqz1gTxpi5pPcg6D6yfWGeM8C+oHMIoD1XGI9JirPVd7SkkxuoD457+jxBJDt695IrpjrKWK
+X-Received: by 2002:a1c:7c08:: with SMTP id x8mr24241735wmc.19.1563188544005;
+        Mon, 15 Jul 2019 04:02:24 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563188544; cv=none;
         d=google.com; s=arc-20160816;
-        b=ol8rhV/4IvcyKvw3T9laU+X9EbrR6sAw89DMY7ldGOZ7QYMzIRtfZCGwLaC/6+hZWV
-         HuN1Pbfh/F5n1KicJYYI70ucSJNcrM2sSdmgxxRghkRXn82TzysEs+KMKpXQNYDig7ug
-         RGCisDp0Y/WzblRBJIb+I/wDVgR/kiwghIuo/cd1Ftfi9RLbnE4Fki7FLgtEe3CLvL9H
-         J51cbohBFvofVO6oMOBPHRa0+SNWzPxtQwD53k7JNFhbYPPFm6luY9Ie0EHLhOzFnZhc
-         Ppv8hal04buU3nuV5anO/jW8yQ6UpeCDbSrXTu6GzKFSD12Z6h6QuUAbml6zID4L+fwt
-         27fQ==
+        b=dfg1zSRm27UwlDkBEQrkvEAsgWhmhwYxx4hK2/tHFX8D1RdiwRV43D5xbQ3Dp/SODv
+         q43S1AWy1lEeUNskEXM1k9gt68j+9DLhqB9ZiBSMVFEk1iAu76TO4B4YlBUZcImnjqgT
+         oYwSt0uPlNJEIusdNNBuP0EvBx+HS3ysV5YrGgvIAWSSMj6BkOMzIMEH+c1+SqlDe3PN
+         UNzNXMAJDVdH7hlpvo464L2bvkqGvdKYv77Y1+S4UAcWgPJ93A2LZLnq5k/BOETynLzg
+         NFooh6ZI3jdoCOuRS8JWUvby4yMonta0Kdlad1taA4ZI/1PrLbJoEG6SzK/dEWm5eruM
+         pObw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=6EvDuo1ssdDG8objEAwreorjmyHHeKgaqNxghdZyXWs=;
-        b=wQTkM8H0bGYdfngP7KyT0eRjfjTwxH8DO0QR503pWwD6rntcOuvmGQUiYp7cErOke0
-         OYugith94PbYW46YB/3nekwuFcP16oD5NufmV/nK29tB+uXwIc8We9BN3GnEJXWWQxcG
-         Y5QAHdfIBdjKAIeGbIxuJdeBRqHuucLygy4AuwprcCYmHvHcAk92zixPcOmPyUY8Rt+/
-         evNJoy/0HeDkgCPKfSec8jnso+tkjWOV4eo6Bgv9h+SpCzx+9fZp1gT9yq5diD6nM49k
-         4PWao356feOhAxsRuS1SZeD5uHfiQAXlZ7DqTd0hxesOK2sCe5FOtx0r/Oi6tdTwdEVM
-         FcnQ==
+        bh=hGDApp89EWhquOjtHhsxHXkKfOY16kq5K6euPrNcpVQ=;
+        b=xRtL8f7OCPPBeYIXyo71cWtGhDMAEsNlzNFS6fdxeKKuKCGoKyVMzBUc17BaVaNTC1
+         4cJ6V7N/nXxgWQlrh67mTrjp7drt0jId2AGcL1nCfrfpfC0t7OeYWlhj2HV0d0WW1RO1
+         +ml6UAAZpTXLBwzfKvkcEiSF7a5i89Vv7u/dlSCfNAkedPy2MuNrta+xDbHykdITb5IY
+         i4atqDO1P14x3ruDwTCxP3VGtRweXFxwuqKR3zug0SxYhNgd8EsNwHQOK8ihbbofQZ98
+         zpgjvPYzm08Nb/iHH8X72uRcOWYjYqlN6uizOp8Q+GuZrujLZzyS1CWPs2etdsm5Tyqt
+         G6bQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of joro@8bytes.org designates 2a01:238:4383:600:38bc:a715:4b6d:a889 as permitted sender) smtp.mailfrom=joro@8bytes.org;
+       spf=pass (google.com: domain of joro@8bytes.org designates 81.169.241.247 as permitted sender) smtp.mailfrom=joro@8bytes.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=8bytes.org
-Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
-        by mx.google.com with ESMTPS id y2si11033628edb.188.2019.07.15.04.02.22
+Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
+        by mx.google.com with ESMTPS id 49si6964571wra.232.2019.07.15.04.02.23
         for <linux-mm@kvack.org>
         (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
         Mon, 15 Jul 2019 04:02:23 -0700 (PDT)
-Received-SPF: pass (google.com: domain of joro@8bytes.org designates 2a01:238:4383:600:38bc:a715:4b6d:a889 as permitted sender) client-ip=2a01:238:4383:600:38bc:a715:4b6d:a889;
+Received-SPF: pass (google.com: domain of joro@8bytes.org designates 81.169.241.247 as permitted sender) client-ip=81.169.241.247;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of joro@8bytes.org designates 2a01:238:4383:600:38bc:a715:4b6d:a889 as permitted sender) smtp.mailfrom=joro@8bytes.org;
+       spf=pass (google.com: domain of joro@8bytes.org designates 81.169.241.247 as permitted sender) smtp.mailfrom=joro@8bytes.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=8bytes.org
 Received: by theia.8bytes.org (Postfix, from userid 1000)
-	id 48BD0133; Mon, 15 Jul 2019 13:02:22 +0200 (CEST)
+	id 6E377366; Mon, 15 Jul 2019 13:02:22 +0200 (CEST)
 From: Joerg Roedel <joro@8bytes.org>
 To: Dave Hansen <dave.hansen@linux.intel.com>,
 	Andy Lutomirski <luto@kernel.org>,
@@ -89,9 +89,9 @@ Cc: Andrew Morton <akpm@linux-foundation.org>,
 	linux-kernel@vger.kernel.org,
 	linux-mm@kvack.org,
 	Joerg Roedel <jroedel@suse.de>
-Subject: [PATCH 1/3] x86/mm: Check for pfn instead of page in vmalloc_sync_one()
-Date: Mon, 15 Jul 2019 13:02:10 +0200
-Message-Id: <20190715110212.18617-2-joro@8bytes.org>
+Subject: [PATCH 2/3] x86/mm: Sync also unmappings in vmalloc_sync_one()
+Date: Mon, 15 Jul 2019 13:02:11 +0200
+Message-Id: <20190715110212.18617-3-joro@8bytes.org>
 X-Mailer: git-send-email 2.17.1
 In-Reply-To: <20190715110212.18617-1-joro@8bytes.org>
 References: <20190715110212.18617-1-joro@8bytes.org>
@@ -103,28 +103,38 @@ List-ID: <linux-mm.kvack.org>
 
 From: Joerg Roedel <jroedel@suse.de>
 
-Do not require a struct page for the mapped memory location
-because it might not exist. This can happen when an
-ioremapped region is mapped with 2MB pages.
+With huge-page ioremap areas the unmappings also need to be
+synced between all page-tables. Otherwise it can cause data
+corruption when a region is unmapped and later re-used.
+
+Make the vmalloc_sync_one() function ready to sync
+unmappings.
 
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/mm/fault.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ arch/x86/mm/fault.c | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)
 
 diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
-index 794f364cb882..4a4049f6d458 100644
+index 4a4049f6d458..d71e167662c3 100644
 --- a/arch/x86/mm/fault.c
 +++ b/arch/x86/mm/fault.c
-@@ -200,7 +200,7 @@ static inline pmd_t *vmalloc_sync_one(pgd_t *pgd, unsigned long address)
- 	if (!pmd_present(*pmd))
- 		set_pmd(pmd, *pmd_k);
- 	else
--		BUG_ON(pmd_page(*pmd) != pmd_page(*pmd_k));
-+		BUG_ON(pmd_pfn(*pmd) != pmd_pfn(*pmd_k));
+@@ -194,11 +194,12 @@ static inline pmd_t *vmalloc_sync_one(pgd_t *pgd, unsigned long address)
  
- 	return pmd_k;
- }
+ 	pmd = pmd_offset(pud, address);
+ 	pmd_k = pmd_offset(pud_k, address);
+-	if (!pmd_present(*pmd_k))
+-		return NULL;
+ 
+-	if (!pmd_present(*pmd))
++	if (pmd_present(*pmd) ^ pmd_present(*pmd_k))
+ 		set_pmd(pmd, *pmd_k);
++
++	if (!pmd_present(*pmd_k))
++		return NULL;
+ 	else
+ 		BUG_ON(pmd_pfn(*pmd) != pmd_pfn(*pmd_k));
+ 
 -- 
 2.17.1
 
