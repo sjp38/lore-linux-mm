@@ -2,135 +2,165 @@ Return-Path: <SRS0=FHqE=VM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY,USER_AGENT_SANE_1
-	autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-14.4 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_IN_DEF_DKIM_WL
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E8C93C76195
-	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 17:00:44 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id EC91CC7618F
+	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 17:22:49 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BA66C20838
-	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 17:00:44 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BA66C20838
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
+	by mail.kernel.org (Postfix) with ESMTP id A7ABE206B8
+	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 17:22:49 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="dCelnzTW"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A7ABE206B8
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 463E36B0006; Mon, 15 Jul 2019 13:00:44 -0400 (EDT)
+	id 42C9A6B000A; Mon, 15 Jul 2019 13:22:49 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4151C6B000A; Mon, 15 Jul 2019 13:00:44 -0400 (EDT)
+	id 3DCE16B000C; Mon, 15 Jul 2019 13:22:49 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3039B6B000C; Mon, 15 Jul 2019 13:00:44 -0400 (EDT)
+	id 2CA856B000E; Mon, 15 Jul 2019 13:22:49 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id EBF4E6B0006
-	for <linux-mm@kvack.org>; Mon, 15 Jul 2019 13:00:43 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id u1so10822890pgr.13
-        for <linux-mm@kvack.org>; Mon, 15 Jul 2019 10:00:43 -0700 (PDT)
+Received: from mail-yw1-f69.google.com (mail-yw1-f69.google.com [209.85.161.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 077456B000A
+	for <linux-mm@kvack.org>; Mon, 15 Jul 2019 13:22:49 -0400 (EDT)
+Received: by mail-yw1-f69.google.com with SMTP id e12so13980929ywe.6
+        for <linux-mm@kvack.org>; Mon, 15 Jul 2019 10:22:49 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-transfer-encoding:content-language;
-        bh=fnmOM86QVifGTF/kFu3dVJQXgDGj1CuabsUs3lLdtXg=;
-        b=qIyebAYINOKdpwXjoFH1pehgvwABx70tcAPwvOYNLba6c6Mug5OnKB8rx0DpBrLh3M
-         +P1/J9U2oVvVN650FbS4IY1Cka0qjLve4b1t3K6BTKPF7D6JT2gqYQWfFS7ELxgWn65l
-         62ikF+as/x1Jz3ZnJMEhog+/mSkfkO5NP/nDxXFE5P2eLPPkC1LAD5fz+T7MtRdBFIlv
-         kxOb1r920eCMf7FwzCJLPJQJ3DN72o7TgBPcjw6Rsx5MbCXatnlPFjZXnkIyBogR+iC+
-         w7lI3h8ISBnCWh5ctn+MBQ59UP1WoHgHVn0+aSP4KmKwTHgrXON/Q/R2qqKC7hDS40HL
-         uw+w==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.42 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Gm-Message-State: APjAAAULpnkHA8IkTGuj1wEZYIcmHAO03QcVw/jpkPuRLpYpmhrKRpUY
-	ZbfBF8MsPCHdvtektPk/oofTuM3hemAQxg9e5Mg/BRlpbTMo42ZW0mpU/DXCVOqpWnC04+w4YH0
-	EIkbga6rs1oSWGYyNzxpDtZMiEslSRu6lQ6Fn9h0dXz+UyHlGB2QpM6a0BVZ+JDEPqg==
-X-Received: by 2002:a63:4d05:: with SMTP id a5mr26106085pgb.19.1563210043519;
-        Mon, 15 Jul 2019 10:00:43 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyyUQhUxEHMFeTSxtUE36sAVkJPOfxfSa1iJMZBRUfl9iaN/BH7cSh0Ndron7x+/SfgDE6F
-X-Received: by 2002:a63:4d05:: with SMTP id a5mr26106022pgb.19.1563210042840;
-        Mon, 15 Jul 2019 10:00:42 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563210042; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=UscG4WxjnjQLRRcfnLMqxRe1yzGwBuLWPpq8Fn0xt8Q=;
+        b=OVGId2YyBnW1d9DcKIYNj91K14C6Uost7uLsB/wEBNCcpZbCXzn9d7U8ChwS7FpFY2
+         jFQUIaiUwF8uI4wJg3PV22MX2KVOAHJ/UQgl2P2snKK48YVy8XxPNjaUXwl8+rsPqz5k
+         TYuCWYe/JMbM52TbO8RKUBrrJW25KDtEr0BOIXCzBmWKFI+GfTH4M2cFk6zEaU+w/Efi
+         TX9t8PVbGIkolqUaCt8PL68aWCPq2Pb7sFf1hHitNv25LxaeaK5zU9ekPgCVTuL8GVSS
+         z9CfzoicqX6+YcWDMSmzzeq8hIiCJfnnE4t71qA3LDdY/HGKQKFzH5ZYdHuBko/3lBh9
+         EedQ==
+X-Gm-Message-State: APjAAAUDSHuVmo3ikiPxCbXM7ewSVhuv0FRGspdIeXKvZ39xA7my1fY+
+	JWdoT9koYA37t2dIV5ytoaK7ToRbvSLFwbQz34m8sBPKuU5nPedz89znZRIblYvEPtZ8LnVCjLi
+	1OB1dQk3gUC4QeCQJppbgegOhe9iIu8jmwRy6Tmw5SS23UbpAiYe6FFex9/gpWcvzog==
+X-Received: by 2002:a25:7911:: with SMTP id u17mr8247586ybc.155.1563211368723;
+        Mon, 15 Jul 2019 10:22:48 -0700 (PDT)
+X-Received: by 2002:a25:7911:: with SMTP id u17mr8247555ybc.155.1563211368112;
+        Mon, 15 Jul 2019 10:22:48 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563211368; cv=none;
         d=google.com; s=arc-20160816;
-        b=FTd+8PFPZt5WvJpemdPK8ZeRYrle95QFjuFInDsQ8bJR3Uk+ZEwmeL2AVGcV5Xv9OD
-         Rl9iM0vywqejXIp8gc5Q5SZgr+UYo2BjRabvjgDr1BX58XOkKGro6t7GQUDOUnL4lmD+
-         N6J/TE8WYTYxoEvQ8pR5lB+L6Bnphpw+GaueOdZ8dtCM4/ioP6NxopbmPdmFGy90nUYG
-         GTyctfgQq5lHrjDde9oJwzJ2hys8O0K5H5mLxqAmLa3IkRU44gOl2Fn/gTbwttqvMzh4
-         RT/GnJ6Aleg1DEylOaBWPZatP9LVlxIV5+dDBOm+PnKJZzMGKJK0qncJdJow5OJT2tV3
-         TaFw==
+        b=sDFsqQjWQ5YBVlSHbdLbSoi1L0wC3q4fYBIoiekR9vJe11Q6W8NxEqv2rz2/zj1AF/
+         SkUOtWKuFewm/ktUDqhJlAD//weicilaul0JThe/GseFW/QRwfC1Kp7BmlYlZaBG4wDZ
+         OAos3UN5PJxbyLoBhaSSLnm8deiSmZfSSVtoZqfQOxm7VB1Cg8qadRayXciPitFuOQ0M
+         sgfda8uadeR3hhEUe6aV8RaTc6VTFv7GmAtghzpQU968dLyCLI7hnTXjw9xJHDbt9pen
+         2C+B2Y1qQiRgAWQeoasjw/5VuwvRdpr8VuzKNQVp+Wz0u/85kh3FYzbPJP+yITH5JV0g
+         YI2Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-language:content-transfer-encoding:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=fnmOM86QVifGTF/kFu3dVJQXgDGj1CuabsUs3lLdtXg=;
-        b=QyJi4xtb3mpQaGUelFTJOt885xNkgxxO8hYCIvL9CUo+iH8f8az8r+N9vUntrllOuj
-         D3FDI4Ip9rQopSwMkrW8L6r9Y/Q8c9fwlv/I10ZseUngJTGus8ZLLC3INm5vhxgabxxx
-         JJ8x7q56iIsfZj3D3/I+5kLn2ASLsp+1PliEcbjro8wPLJRf/dgxr8jCoF68lUsisIp3
-         we3wyBDtJadknsCJwNnQo4QbCb7h2HLUjHW9x76Jqfl+qjTUY/QwvgEyJ52ps/Ul+UGn
-         0eZmLWuFSM8WoI1Xp8AEDyUaaUn4MsY927n/gxnC1F6cGFN/g3QJJEkjhOynwRzNOTRu
-         nfBA==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=UscG4WxjnjQLRRcfnLMqxRe1yzGwBuLWPpq8Fn0xt8Q=;
+        b=GuxeLzGdcpIZdJO+youetkexIgLFyfwNbV2xPsEn0X1o1I3gZ46dRAyVyJmUNdH4Sm
+         dAeOJtRco1iZIra6zXFjheuWi5jKYwiA35O+fY+5OQAhEwL+7n/7WeYDW6O63bl15fNH
+         y4g3ZFeY2bWmeTyTKTg7qegPcn+lM8M5Q6WJBeYW+i528nhsSMxZNWx4dHaDhXwYtdS3
+         2BB88Wm56GMXGAxy293Iw0oNxjOds4kfnR8S7csdd7utlLQ7dhq+c3M3cR0UUwu6Df2Q
+         MoKQdeeNpuw1FLqZNDDxv+ZztziQ7XdU6mbqdFrjtvT1JAz8o66JLPzejxxrWXpFobq4
+         5IJA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.42 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-Received: from out30-42.freemail.mail.aliyun.com (out30-42.freemail.mail.aliyun.com. [115.124.30.42])
-        by mx.google.com with ESMTPS id l186si16923399pgd.455.2019.07.15.10.00.42
+       dkim=pass header.i=@google.com header.s=20161025 header.b=dCelnzTW;
+       spf=pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shakeelb@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id j15sor10445244ybg.91.2019.07.15.10.22.47
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 15 Jul 2019 10:00:42 -0700 (PDT)
-Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.42 as permitted sender) client-ip=115.124.30.42;
+        (Google Transport Security);
+        Mon, 15 Jul 2019 10:22:48 -0700 (PDT)
+Received-SPF: pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.42 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R171e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01f04446;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=7;SR=0;TI=SMTPD_---0TX.KuoP_1563210037;
-Received: from US-143344MP.local(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TX.KuoP_1563210037)
-          by smtp.aliyun-inc.com(127.0.0.1);
-          Tue, 16 Jul 2019 01:00:40 +0800
-Subject: Re: [PATCH] mm: page_alloc: document kmemleak's non-blockable
- __GFP_NOFAIL case
-To: Matthew Wilcox <willy@infradead.org>
-Cc: mhocko@suse.com, dvyukov@google.com, catalin.marinas@arm.com,
- akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-References: <1562964544-59519-1-git-send-email-yang.shi@linux.alibaba.com>
- <20190713212548.GZ32320@bombadil.infradead.org>
- <4b4eb1f9-440c-f4cd-942c-2c11b566c4c0@linux.alibaba.com>
- <20190715130648.GA32320@bombadil.infradead.org>
-From: Yang Shi <yang.shi@linux.alibaba.com>
-Message-ID: <a991ac12-3610-f993-e44c-b12adab17fe1@linux.alibaba.com>
-Date: Mon, 15 Jul 2019 10:00:34 -0700
-User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:52.0)
- Gecko/20100101 Thunderbird/52.7.0
+       dkim=pass header.i=@google.com header.s=20161025 header.b=dCelnzTW;
+       spf=pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shakeelb@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=UscG4WxjnjQLRRcfnLMqxRe1yzGwBuLWPpq8Fn0xt8Q=;
+        b=dCelnzTW9yVty3d0zlRTYG3AJUta/BwdSagZLphy7SUDCPw0lYhayrZl5azIY8Po6K
+         B6PcLuuOJVyIxwiflObjLQxgwM5LdzBm9j2APNC/1sPWiDeIVumlaaSR3cBownQl1gZ7
+         cmNM24365G9Kw33r/XyMye07LnJCa0G4XuKu3nH+stcJAD3HS2uHdNOlq2NHdW329Kw2
+         jEJCSCUJ5tFA21J/y5+gY4zuSpH9pE+SJy2MUjCxIUX/v4EZqtd+ycfE4D0VdA/uMj+1
+         lQiPTa3FPre/OAiF6DLgOrahbWMjYOGi4K0cps9eFLAe/W937jrg8dyOuSOGvbo+fxxf
+         TPWw==
+X-Google-Smtp-Source: APXvYqwD4/nxpkfvH9bQCh/AJuvk/pIr8m7HB8haGrUylB3B6/r9kLVpIkwVT3ZqE0R7QG11+C5RIC8Tuuc4Lid14w8=
+X-Received: by 2002:a25:7c05:: with SMTP id x5mr16996019ybc.358.1563211367257;
+ Mon, 15 Jul 2019 10:22:47 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20190715130648.GA32320@bombadil.infradead.org>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
+References: <20190715164705.220693-1-henryburns@google.com>
+In-Reply-To: <20190715164705.220693-1-henryburns@google.com>
+From: Shakeel Butt <shakeelb@google.com>
+Date: Mon, 15 Jul 2019 10:22:36 -0700
+Message-ID: <CALvZod73xAMUT0-zEHZO+J5xRa7HLhKobaDzchpT-CxiPtKTRg@mail.gmail.com>
+Subject: Re: [PATCH] mm/z3fold.c: Reinitialize zhdr structs after migration
+To: Henry Burns <henryburns@google.com>
+Cc: Vitaly Wool <vitalywool@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, 
+	Vitaly Vul <vitaly.vul@sony.com>, Jonathan Adams <jwadams@google.com>, Linux MM <linux-mm@kvack.org>, 
+	LKML <linux-kernel@vger.kernel.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Mon, Jul 15, 2019 at 9:47 AM Henry Burns <henryburns@google.com> wrote:
+>
+> z3fold_page_migration() calls memcpy(new_zhdr, zhdr, PAGE_SIZE).
+> However, zhdr contains fields that can't be directly coppied over (ex:
+> list_head, a circular linked list). We only need to initialize the
+> linked lists in new_zhdr, as z3fold_isolate_page() already ensures
+> that these lists are empty.
+>
+> Additionally it is possible that zhdr->work has been placed in a
+> workqueue. In this case we shouldn't migrate the page, as zhdr->work
+> references zhdr as opposed to new_zhdr.
+>
+> Fixes: bba4c5f96ce4 ("mm/z3fold.c: support page migration")
+> Signed-off-by: Henry Burns <henryburns@google.com>
 
+Reviewed-by: Shakeel Butt <shakeelb@google.com>
 
-On 7/15/19 6:06 AM, Matthew Wilcox wrote:
-> On Sun, Jul 14, 2019 at 08:47:07PM -0700, Yang Shi wrote:
->>
->> On 7/13/19 2:25 PM, Matthew Wilcox wrote:
->>> On Sat, Jul 13, 2019 at 04:49:04AM +0800, Yang Shi wrote:
->>>> When running ltp's oom test with kmemleak enabled, the below warning was
->>>> triggerred since kernel detects __GFP_NOFAIL & ~__GFP_DIRECT_RECLAIM is
->>>> passed in:
->>> There are lots of places where kmemleak will call kmalloc with
->>> __GFP_NOFAIL and ~__GFP_DIRECT_RECLAIM (including the XArray code, which
->>> is how I know about it).  It needs to be fixed to allow its internal
->>> allocations to fail and return failure of the original allocation as
->>> a consequence.
->> Do you mean kmemleak internal allocation? It would fail even though
->> __GFP_NOFAIL is passed in if GFP_NOWAIT is specified. Currently buddy
->> allocator will not retry if the allocation is non-blockable.
-> Actually it sets off a warning.  Which is the right response from the
-> core mm code because specifying __GFP_NOFAIL and __GFP_NOWAIT makes no
-> sense.
-
-Yes, this is what I meant. Kmemleak did a trick to fool fault-injection 
-by passing in __GFP_NOFAIL, but it doesn't make sense for non-blockable 
-allocation.
-
+> ---
+>  mm/z3fold.c | 10 ++++++++++
+>  1 file changed, 10 insertions(+)
+>
+> diff --git a/mm/z3fold.c b/mm/z3fold.c
+> index 42ef9955117c..9da471bcab93 100644
+> --- a/mm/z3fold.c
+> +++ b/mm/z3fold.c
+> @@ -1352,12 +1352,22 @@ static int z3fold_page_migrate(struct address_space *mapping, struct page *newpa
+>                 z3fold_page_unlock(zhdr);
+>                 return -EBUSY;
+>         }
+> +       if (work_pending(&zhdr->work)) {
+> +               z3fold_page_unlock(zhdr);
+> +               return -EAGAIN;
+> +       }
+>         new_zhdr = page_address(newpage);
+>         memcpy(new_zhdr, zhdr, PAGE_SIZE);
+>         newpage->private = page->private;
+>         page->private = 0;
+>         z3fold_page_unlock(zhdr);
+>         spin_lock_init(&new_zhdr->page_lock);
+> +       INIT_WORK(&new_zhdr->work, compact_page_work);
+> +       /*
+> +        * z3fold_page_isolate() ensures that this list is empty, so we only
+> +        * have to reinitialize it.
+> +        */
+> +       INIT_LIST_HEAD(&new_zhdr->buddy);
+>         new_mapping = page_mapping(page);
+>         __ClearPageMovable(page);
+>         ClearPagePrivate(page);
+> --
+> 2.22.0.510.g264f2c817a-goog
+>
 
