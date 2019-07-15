@@ -2,185 +2,221 @@ Return-Path: <SRS0=FHqE=VM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-5.4 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 276FEC76191
-	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 22:00:36 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D9927C7618F
+	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 22:01:46 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A7E4420665
-	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 22:00:35 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 83CBB20665
+	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 22:01:46 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="EC6fKVCh"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A7E4420665
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
+	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="Ou4gJH5x"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 83CBB20665
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 24B536B0003; Mon, 15 Jul 2019 18:00:35 -0400 (EDT)
+	id 24A4B6B0003; Mon, 15 Jul 2019 18:01:46 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1D4376B0006; Mon, 15 Jul 2019 18:00:35 -0400 (EDT)
+	id 1FA616B0006; Mon, 15 Jul 2019 18:01:46 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 09CF76B0007; Mon, 15 Jul 2019 18:00:35 -0400 (EDT)
+	id 0C2BD6B0007; Mon, 15 Jul 2019 18:01:46 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C3BBE6B0003
-	for <linux-mm@kvack.org>; Mon, 15 Jul 2019 18:00:34 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id k20so11266191pgg.15
-        for <linux-mm@kvack.org>; Mon, 15 Jul 2019 15:00:34 -0700 (PDT)
+Received: from mail-yw1-f72.google.com (mail-yw1-f72.google.com [209.85.161.72])
+	by kanga.kvack.org (Postfix) with ESMTP id DECC16B0003
+	for <linux-mm@kvack.org>; Mon, 15 Jul 2019 18:01:45 -0400 (EDT)
+Received: by mail-yw1-f72.google.com with SMTP id b75so14720042ywh.8
+        for <linux-mm@kvack.org>; Mon, 15 Jul 2019 15:01:45 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=X/oUKNxDTp84H2JqM60txAgcpY2XdRwedM+r2XD9v/4=;
-        b=c9ovxkuG80Bo9mn+nosiRQlfVRL5d+gnd0l/XQEPMXkHoQGRYz7dt+uA0Amg7A4xtY
-         tR6Uo853T3/p6zni8AGLkpBgleW/rUBLf3erEOmIPrLBihNbAn4hfHasrEcOL63gU5A2
-         XH5OJBOTV++iUd+8qgps7sMNqNRWCUdaccA6pvaB7uz/YW1yVWoVLzByDdaI43gXIdFp
-         9m2MXFm88qkiTiJG/GiOfWlb3tYCr/tQYgvSBQWbIgdhP274iC+haM3rcHvBOloJpmDA
-         OJ+yPcjojPQpzifllGBNO0jA3fDYw6Tmp1ZEglyoXa41r+ZBq3RmrKOPh2HLSOVaAcwu
-         CbKA==
-X-Gm-Message-State: APjAAAW37k6bLIUqDLDLkr7GGz2602pezgobjawAyEHcaZPR9/0ctAuV
-	p4mBHzHNTCbjM9KbkCubXXXxL0/mX2o+/Yl1NZiI5ariMYDgYlOPzVnpPcq03MzhBtC+7QTE2N5
-	0Rhb240M6DCi6L3AEQuC+CfugXCf2z1j8HgAFVsryz7rFzCQg3zg1GsV18DMlx1x0eA==
-X-Received: by 2002:a17:90b:f12:: with SMTP id br18mr30459890pjb.127.1563228034389;
-        Mon, 15 Jul 2019 15:00:34 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwhwkE1wv17jAx8UWtJMJXqhB+M1o2Nb4FVtrHAUPQfwWuIuC071uNMjEyB4dAYUK0ZzInY
-X-Received: by 2002:a17:90b:f12:: with SMTP id br18mr30459752pjb.127.1563228033005;
-        Mon, 15 Jul 2019 15:00:33 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563228033; cv=none;
+        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding:dkim-signature;
+        bh=pmH8AOUq8g8XbwlwsJrEBANIpIcymTdRjNl5DWvnpyg=;
+        b=a6G1mZEdgFl5beeLBGyUkWDAnve2fCa390ZG0n2ddvMgtTEX9Y8FnfBe0nRDXdbYho
+         tS5Z+WFPlztg8nVkeHpcC46anJPwS9SJKu/ggQQO1JM58YrJJecwxwgXeysTdAGytpHV
+         OtG7Minczljl4LHmPjkfTmtdHxm6CKIJ2O0e+EgkMYy6fmtpP0liQWL5ZxxBneBbPYIv
+         QpNN/a1cxhZ/oLMxgBC6d3IzthGkMQnO0vwbZ8YEUXzV0wu109UtAkv5Fk4bYbkmH7Pv
+         DZhGScM0vzlt8+6P72abJXnqZrGEYeL1CRtEaHlikDRY4nglR2LmhFFhz4WKB1TuAZmZ
+         PieA==
+X-Gm-Message-State: APjAAAWcW/h+xxjtkTIErR67vGdumsgZVAWgjf/7WhqlRxofKwcS2v+P
+	HxAOR4P6bZ/iGEB3mD35aNBQIPu5zJu5reZ29aSFTz0IlfXQ532S3CErzIbLvIWsmrrzTfU9JZn
+	XtRwO/b0+roE3FqbXpnK5SYEr1eSxidMJ0noIyvHy1F6IkwaAKSUg+KS1Y4Ie0R8CmQ==
+X-Received: by 2002:a25:d15:: with SMTP id 21mr9212392ybn.506.1563228105547;
+        Mon, 15 Jul 2019 15:01:45 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzUY0ew5AWE76x8zsIHBaMb3xrOiOO2Zgmpfwpg5CmtpxHqPcNPAb7Or4K/q0jEZtMMeWP+
+X-Received: by 2002:a25:d15:: with SMTP id 21mr9212345ybn.506.1563228104897;
+        Mon, 15 Jul 2019 15:01:44 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563228104; cv=none;
         d=google.com; s=arc-20160816;
-        b=c1FzsfT6VGL5tWcz7z3U/ZOMCUZDMTXKh6zxlDGt3gLKmXq1wgdDsGc8NyVohH/dzr
-         t6q5l0yoZ6M6JnJY5EIl8j+2eCvS1L1NtCDU5OYpTrikjqzM1TIFa9morZ38ZvN3D3q8
-         sBYGnrUL7lJKtQb8HtYL792L7EHGbRQvhk6monop0biZZjHq0jDXxYGAK2lA2qK/IHbI
-         d1DPIWi5kOizYBR2xBGLXv65qSdQ7xMHrKjFNRQkB+XtXKxtPm2uSS4PgcCtBju0lcRO
-         zvzr4CclaVpjdM2NSZ0y6mo3UlHA0z6hdyDE2mbhaTHKWLuKmKNGtBqKdMbx6LWwycOf
-         dGpQ==
+        b=yYU89LvMnYqxcn9Nsg5reW+FxINZeJYiQXOcLe4yldFhMOqmQBMv59NKPSN7YcLQwX
+         t5a31QZN88kjMV215ot1UpOQxNTw9WzFxKpKykhaNLyR23ldtNagOBPzxC2oDbxShM7o
+         2YEmCrgGYjD4el1z3VrER+XiQWg8wtFZb6JD0lVRYOwrAQ423MJ2YJmyE279+z/4huB6
+         d84mT5CPtl0HfIaH7IK+VBr+apRjIJBRaub0T4TsGZyOBKX1my4p4g3C8jxzAAO+EiVz
+         ZgRJuOcKIfM8VB/1vPjr75Rzo0Ubk+ewxpCAZrqh4AdR78hZjF4zdWaQHS9cM5Irsw7s
+         vbfw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=X/oUKNxDTp84H2JqM60txAgcpY2XdRwedM+r2XD9v/4=;
-        b=M2uM+ZY32Si3JrRZyYq+qPqR9ykCbEoCCw2vR/enIYWIcAwcSafji9fLwFqWtp9w31
-         HBm5Zdv9qgZ4KX9aAunkNDhpQX7pV8D3I/CP20cUMoPeevdit0Cp/a8ch/S00AXnwHpM
-         m29Vzo3ftMuX4O7RGAUIyNyjlJChgSLIhaYOc1TeoAjhEg7Fu72yxyyZvKIg6zaRL/NW
-         4xGwyWjjsdYUiDtxC7aJk51Wed8ru66NjEhVpYL5xJzlmzHnFfDS5hr7fEToHjQVZ2bL
-         JSONBnN3fI5X5CCi+sre68wN9DdVBoua6ZItIkLaJStnDk/Q3FNrew6SCXuec3pDMtwO
-         reyg==
+        h=dkim-signature:content-transfer-encoding:content-language
+         :in-reply-to:mime-version:user-agent:date:message-id:from:references
+         :cc:to:subject;
+        bh=pmH8AOUq8g8XbwlwsJrEBANIpIcymTdRjNl5DWvnpyg=;
+        b=R8eT6W8mzRqa1xJrQ/xjTzEtrFIZYKD3Y+nYs1OTyfxA5TdeosT7O1c//jI/DDpxoQ
+         NiEKrde4RfKCQlZqVL3VgN1jwNWPIrmdlosLFwpxz5T/O+ubwBNVJ7hhIyx3lRoi5egD
+         PhYG/bEvjidJ0y8u/F2pHtCxKz1n8mX0M5+Vx/SXgGG5PqCRwcLnkbW51cuSFpWrq8GE
+         e0fmvEY6oF22Ao1z2n4ArAp/VT8Hd18quPmFgzQPjIDFbtpQVTg90BnY8SsmSdhbQj0x
+         aU5leA0qAE2tNSL1KFnKi/xJWzL8bQxIs/TtCG+SIlDi1QciLreweGI6xYC5yxIQZosD
+         bGvw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=EC6fKVCh;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id i18si17945071pfa.23.2019.07.15.15.00.32
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=Ou4gJH5x;
+       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com. [216.228.121.143])
+        by mx.google.com with ESMTPS id m184si7608237ywb.381.2019.07.15.15.01.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 15 Jul 2019 15:00:32 -0700 (PDT)
-Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        Mon, 15 Jul 2019 15:01:44 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) client-ip=216.228.121.143;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=EC6fKVCh;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-Received: from localhost.localdomain (c-73-223-200-170.hsd1.ca.comcast.net [73.223.200.170])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 1DD472171F;
-	Mon, 15 Jul 2019 22:00:32 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1563228032;
-	bh=opj85GkhTsX799kvL6zjC53Z5Nb4q3yDICVYRU7YfS0=;
-	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
-	b=EC6fKVCh7fcp4L3S+xIIzlJ041+FzYRiPqD+o/00VyfrmwI78fMb8glbcLyVutXZN
-	 SjI9PDYmbGBy8XjyzzJKqlCvHtOzhWif4oCIPemh5CMm+eEiCheYoK9L12l/K117EG
-	 Lki6SkcXAH/ihaC/jxXzsC9IORAdtALY1dvq1V2M=
-Date: Mon, 15 Jul 2019 15:00:31 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-To: Ralph Campbell <rcampbell@nvidia.com>
-Cc: <linux-mm@kvack.org>, <linux-kernel@vger.kernel.org>, =?ISO-8859-1?Q?J?=
- =?ISO-8859-1?Q?=E9r=F4me?= Glisse <jglisse@redhat.com>,
- "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mike Kravetz
- <mike.kravetz@oracle.com>, Jason Gunthorpe <jgg@mellanox.com>
-Subject: Re: [PATCH] mm/hmm: Fix bad subpage pointer in try_to_unmap_one
-Message-Id: <20190715150031.49c2846f4617f30bca5f043f@linux-foundation.org>
-In-Reply-To: <05fffcad-cf5e-8f0c-f0c7-6ffbd2b10c2e@nvidia.com>
-References: <20190709223556.28908-1-rcampbell@nvidia.com>
-	<20190709172823.9413bb2333363f7e33a471a0@linux-foundation.org>
-	<05fffcad-cf5e-8f0c-f0c7-6ffbd2b10c2e@nvidia.com>
-X-Mailer: Sylpheed 3.5.1 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
-Mime-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=Ou4gJH5x;
+       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqpgpgate102.nvidia.com (Not Verified[216.228.121.13]) by hqemgate14.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
+	id <B5d2cf7c70001>; Mon, 15 Jul 2019 15:01:43 -0700
+Received: from hqmail.nvidia.com ([172.20.161.6])
+  by hqpgpgate102.nvidia.com (PGP Universal service);
+  Mon, 15 Jul 2019 15:01:43 -0700
+X-PGP-Universal: processed;
+	by hqpgpgate102.nvidia.com on Mon, 15 Jul 2019 15:01:43 -0700
+Received: from [10.110.48.28] (10.124.1.5) by HQMAIL107.nvidia.com
+ (172.20.187.13) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Mon, 15 Jul
+ 2019 22:01:43 +0000
+Subject: Re: [PATCH] staging: kpc2000: Convert put_page() to put_user_page*()
+To: Matt Sickler <Matt.Sickler@daktronics.com>, Bharath Vedartham
+	<linux.bhar@gmail.com>, "ira.weiny@intel.com" <ira.weiny@intel.com>,
+	"gregkh@linuxfoundation.org" <gregkh@linuxfoundation.org>,
+	"jglisse@redhat.com" <jglisse@redhat.com>
+CC: "devel@driverdev.osuosl.org" <devel@driverdev.osuosl.org>,
+	"linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org"
+	<linux-kernel@vger.kernel.org>
+References: <20190715195248.GA22495@bharath12345-Inspiron-5559>
+ <2604fcd1-4829-d77e-9f7c-d4b731782ff9@nvidia.com>
+ <SN6PR02MB4016687B605E3D97D699956EEECF0@SN6PR02MB4016.namprd02.prod.outlook.com>
+X-Nvconfidentiality: public
+From: John Hubbard <jhubbard@nvidia.com>
+Message-ID: <82441723-f30e-5811-ab1c-dd9a4993d7df@nvidia.com>
+Date: Mon, 15 Jul 2019 15:01:43 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.2
+MIME-Version: 1.0
+In-Reply-To: <SN6PR02MB4016687B605E3D97D699956EEECF0@SN6PR02MB4016.namprd02.prod.outlook.com>
+X-Originating-IP: [10.124.1.5]
+X-ClientProxiedBy: HQMAIL108.nvidia.com (172.18.146.13) To
+ HQMAIL107.nvidia.com (172.20.187.13)
+Content-Type: text/plain; charset="utf-8"
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
+	t=1563228104; bh=pmH8AOUq8g8XbwlwsJrEBANIpIcymTdRjNl5DWvnpyg=;
+	h=X-PGP-Universal:Subject:To:CC:References:X-Nvconfidentiality:From:
+	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
+	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
+	 Content-Transfer-Encoding;
+	b=Ou4gJH5x6FSY3NMqcJQf183vJDxwn7bEzDDasocDjOFBwy0aNrdr53eL2R8CW/9dL
+	 plCx/M0zxRdPOGuKWIYK8+Mk+vTd387oaFoPbs1kfbjbEugerJ/YR7VoM0OrQ6ApiF
+	 AtQrkmclnAt7heWlSDgasNxNbDBDFoZjoNNNhky+v8mnwxCXYFCh5qm2bnkUYN62KB
+	 GI4zsZ3QPdVPX5uwuPO/U4/c//c7BAGS6uNQy9VF/EDvkMmHQOONHfT/s86RYUoMEv
+	 a+AkY30uLQx3Y/5jA5CFNmO980oPxzh9grMS6V9Hk/wCk+ABXvwJ8kj1Gv/MWNOUez
+	 14/khGOG4+Ylg==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 9 Jul 2019 18:24:57 -0700 Ralph Campbell <rcampbell@nvidia.com> wro=
-te:
+On 7/15/19 2:47 PM, Matt Sickler wrote:
+> It looks like Outlook is going to absolutely trash this email.  Hopefully it comes through okay.
+> 
+...
+>>
+>> Because this is a common pattern, and because the code here doesn't likely
+>> need to set page dirty before the dma_unmap_sg call, I think the following
+>> would be better (it's untested), instead of the above diff hunk:
+>>
+>> diff --git a/drivers/staging/kpc2000/kpc_dma/fileops.c
+>> b/drivers/staging/kpc2000/kpc_dma/fileops.c
+>> index 48ca88bc6b0b..d486f9866449 100644
+>> --- a/drivers/staging/kpc2000/kpc_dma/fileops.c
+>> +++ b/drivers/staging/kpc2000/kpc_dma/fileops.c
+>> @@ -211,16 +211,13 @@ void  transfer_complete_cb(struct aio_cb_data
+>> *acd, size_t xfr_count, u32 flags)
+>>        BUG_ON(acd->ldev == NULL);
+>>        BUG_ON(acd->ldev->pldev == NULL);
+>>
+>> -       for (i = 0 ; i < acd->page_count ; i++) {
+>> -               if (!PageReserved(acd->user_pages[i])) {
+>> -                       set_page_dirty(acd->user_pages[i]);
+>> -               }
+>> -       }
+>> -
+>>        dma_unmap_sg(&acd->ldev->pldev->dev, acd->sgt.sgl, acd->sgt.nents, acd->ldev->dir);
+>>
+>>        for (i = 0 ; i < acd->page_count ; i++) {
+>> -               put_page(acd->user_pages[i]);
+>> +               if (!PageReserved(acd->user_pages[i])) {
+>> +                       put_user_pages_dirty(&acd->user_pages[i], 1);
+>> +               else
+>> +                       put_user_page(acd->user_pages[i]);
+>>        }
+>>
+>>        sg_free_table(&acd->sgt);
+> 
+> I don't think I ever really knew the right way to do this. 
+> 
+> The changes Bharath suggested look okay to me.  I'm not sure about the check for PageReserved(), though.  At first glance it appears to be equivalent to what was there before, but maybe I should learn what that Reserved page flag really means.
+> From [1], the only comment that seems applicable is
+> * - MMIO/DMA pages. Some architectures don't allow to ioremap pages that are
+>  *   not marked PG_reserved (as they might be in use by somebody else who does
+>  *   not respect the caching strategy).
+> 
+> These pages should be coming from anonymous (RAM, not file backed) memory in userspace.  Sometimes it comes from hugepage backed memory, though I don't think that makes a difference.  I should note that transfer_complete_cb handles both RAM to device and device to RAM DMAs, if that matters.
+> 
+> [1] https://elixir.bootlin.com/linux/v5.2/source/include/linux/page-flags.h#L17
+> 
 
->=20
-> On 7/9/19 5:28 PM, Andrew Morton wrote:
-> > On Tue, 9 Jul 2019 15:35:56 -0700 Ralph Campbell <rcampbell@nvidia.com>=
- wrote:
-> >=20
-> >> When migrating a ZONE device private page from device memory to system
-> >> memory, the subpage pointer is initialized from a swap pte which compu=
-tes
-> >> an invalid page pointer. A kernel panic results such as:
-> >>
-> >> BUG: unable to handle page fault for address: ffffea1fffffffc8
-> >>
-> >> Initialize subpage correctly before calling page_remove_rmap().
-> >=20
-> > I think this is
-> >=20
-> > Fixes:  a5430dda8a3a1c ("mm/migrate: support un-addressable ZONE_DEVICE=
- page in migration")
-> > Cc: stable
-> >=20
-> > yes?
-> >=20
->=20
-> Yes. Can you add this or should I send a v2?
+I agree: the PageReserved check looks unnecessary here, from my outside-the-kpc_2000-team
+perspective, anyway. Assuming that your analysis above is correct, you could collapse that
+whole think into just:
 
-I updated the patch.  Could we please have some review input?
+@@ -211,17 +209,8 @@ void  transfer_complete_cb(struct aio_cb_data *acd, size_t xfr_count, u32 flags)
+        BUG_ON(acd->ldev == NULL);
+        BUG_ON(acd->ldev->pldev == NULL);
+ 
+-       for (i = 0 ; i < acd->page_count ; i++) {
+-               if (!PageReserved(acd->user_pages[i])) {
+-                       set_page_dirty(acd->user_pages[i]);
+-               }
+-       }
+-
+        dma_unmap_sg(&acd->ldev->pldev->dev, acd->sgt.sgl, acd->sgt.nents, acd->ldev->dir);
+-
+-       for (i = 0 ; i < acd->page_count ; i++) {
+-               put_page(acd->user_pages[i]);
+-       }
++       put_user_pages_dirty(&acd->user_pages[i], acd->page_count);
+ 
+        sg_free_table(&acd->sgt);
+ 
+(Also, Matt, I failed to Cc: you on a semi-related cleanup that I just sent out for this
+driver, as long as I have your attention:
 
+   https://lore.kernel.org/r/20190715212123.432-1-jhubbard@nvidia.com
+)
 
-From: Ralph Campbell <rcampbell@nvidia.com>
-Subject: mm/hmm: fix bad subpage pointer in try_to_unmap_one
-
-When migrating a ZONE device private page from device memory to system
-memory, the subpage pointer is initialized from a swap pte which computes
-an invalid page pointer. A kernel panic results such as:
-
-BUG: unable to handle page fault for address: ffffea1fffffffc8
-
-Initialize subpage correctly before calling page_remove_rmap().
-
-Link: http://lkml.kernel.org/r/20190709223556.28908-1-rcampbell@nvidia.com
-Fixes: a5430dda8a3a1c ("mm/migrate: support un-addressable ZONE_DEVICE page=
- in migration")
-Signed-off-by: Ralph Campbell <rcampbell@nvidia.com>
-Cc: "J=E9r=F4me Glisse" <jglisse@redhat.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: Jason Gunthorpe <jgg@mellanox.com>
-Cc: <stable@vger.kernel.org>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
----
-
- mm/rmap.c |    1 +
- 1 file changed, 1 insertion(+)
-
---- a/mm/rmap.c~mm-hmm-fix-bad-subpage-pointer-in-try_to_unmap_one
-+++ a/mm/rmap.c
-@@ -1476,6 +1476,7 @@ static bool try_to_unmap_one(struct page
- 			 * No need to invalidate here it will synchronize on
- 			 * against the special swap migration pte.
- 			 */
-+			subpage =3D page;
- 			goto discard;
- 		}
-=20
-_
+thanks,
+-- 
+John Hubbard
+NVIDIA
 
