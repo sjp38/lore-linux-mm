@@ -2,228 +2,127 @@ Return-Path: <SRS0=FHqE=VM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-13.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	MENTIONS_GIT_HOSTING,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.4 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id F024FC76195
-	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 20:52:28 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D4CBFC7618F
+	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 21:22:01 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8E5FD2086C
-	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 20:52:28 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 9243A2086C
+	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 21:22:01 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="vRaErLWa"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8E5FD2086C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="eJokrS+q"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9243A2086C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id ED8A26B0003; Mon, 15 Jul 2019 16:52:27 -0400 (EDT)
+	id 3043F6B0003; Mon, 15 Jul 2019 17:22:01 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E8A8E6B0005; Mon, 15 Jul 2019 16:52:27 -0400 (EDT)
+	id 2B4C36B0006; Mon, 15 Jul 2019 17:22:01 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D79B76B0006; Mon, 15 Jul 2019 16:52:27 -0400 (EDT)
+	id 1A3256B0007; Mon, 15 Jul 2019 17:22:01 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A24016B0003
-	for <linux-mm@kvack.org>; Mon, 15 Jul 2019 16:52:27 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id i26so10897099pfo.22
-        for <linux-mm@kvack.org>; Mon, 15 Jul 2019 13:52:27 -0700 (PDT)
+Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
+	by kanga.kvack.org (Postfix) with ESMTP id F16376B0003
+	for <linux-mm@kvack.org>; Mon, 15 Jul 2019 17:22:00 -0400 (EDT)
+Received: by mail-io1-f72.google.com with SMTP id f22so21123670ioj.9
+        for <linux-mm@kvack.org>; Mon, 15 Jul 2019 14:22:00 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=kR4xbKeLkqzM5m4IkfGOvFM7+dvSxhNFEJ7oNVJrvqQ=;
-        b=ji0Q5FauCWJVtXpYc5Yxx3BSXt685WrkS9xbdbmSFyDbYZf9WpWbYGjWbDpZV5dWmL
-         vhnrkDItZjvaxDC2e/NPlwgCb2Ssdxz/QAYmSZktSI6gVaxMNt+Wz1Qb1+Hu8aai2euI
-         IdLcdjD45jCvuLfAzPni8PJy28oex0gls0J/3n63VKfew6gv1RQQCl8ygPrXJCcRgyQC
-         kFKOF5e1hmqEdQVXpCERMg2ViOGbTysUHlWO/t3Tfs0nTgAbmQmRwlPVcQNgFnSV5t80
-         q4OjXzWKgHbfcWOoC3WFEwwU32F/ebAauCPSRzNrA6d0ky6uSHo8pZ/rWxyvS3aDGV7k
-         9fIQ==
-X-Gm-Message-State: APjAAAXQRvTBopy/fDjkj6LZ1eq5pdPoWpZ7a8YGJiZS6V/aMIiHw9ga
-	hfGNF1GyOUVYhiGP7/eL8JKZCDnAlKbE6JKMbr/PL9cQuyKvtAeTS0T9tv8MAKeNZzEi1zkby//
-	X/tq6pN4zUGQBGXw3/kAmH4h81Gg9KP1Ta+IbBCjwmz0RSPjB1ttFKnhPqNHs8R0UQQ==
-X-Received: by 2002:a17:90a:37ac:: with SMTP id v41mr30072864pjb.6.1563223947188;
-        Mon, 15 Jul 2019 13:52:27 -0700 (PDT)
-X-Received: by 2002:a17:90a:37ac:: with SMTP id v41mr30072790pjb.6.1563223946217;
-        Mon, 15 Jul 2019 13:52:26 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563223946; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=mdOTdZc5CyeYXsr7PKqimgFx+Tc5tMirB8c0EaxZfps=;
+        b=PWFXW5mVjdO6SNErcBuly7iQ7YDlZSbIbmyJwaKGkMuhm005v3rdTX6qYI14koTcyH
+         gGDJ3KpqSY6fX2Dj7DsTy1l/nJUKv6HRbdN6H0BiYo2GBNHD4ig8Z53RDCLtLQnVrn5n
+         bTLktrH+t3mKOUg1/1gl6/pbhz/tJsesBoZ72ngZn3SfFvPq3JVAMSieynh1iC61J7K4
+         RiWDO90N/+L+DzkI2WN67PHOwEiBF4bv0ZZjCpw3arNLu+zo1B9rNxFFz2Svefc9D0fF
+         8iWdPg4HF5psCTtO9J4bJYrFMrdxb9kAEfNrHOMAhnqW+on8fFBsem7osoywlLavq2fu
+         xWEw==
+X-Gm-Message-State: APjAAAVdG0m2QMGQDuDLxAz0uTVGXSkEWYYcmxv5wkttomM0F9Pw8FVB
+	Kl/bQAiPq+UPfjwJNvAUTmDaLySZ2036KczqWJfiYoYgyeRGxDtpmEsCyJT5medOcLOomcAifrn
+	RCWjGXhH56EK6jHFzg1b7zaFsYgcMjaUYdkG+IRPfhIANKFLhRIfNF3i14U2yReexuQ==
+X-Received: by 2002:a02:c9d8:: with SMTP id c24mr31292597jap.38.1563225720325;
+        Mon, 15 Jul 2019 14:22:00 -0700 (PDT)
+X-Received: by 2002:a02:c9d8:: with SMTP id c24mr31292540jap.38.1563225719623;
+        Mon, 15 Jul 2019 14:21:59 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563225719; cv=none;
         d=google.com; s=arc-20160816;
-        b=bWAbX9ldFUGQ0h3cvTd1di8R80lbYoyfSuPZ1q6ZSDGcpFzcp0dVz+5Wx3YlmZaczc
-         Kjw6uWInPd2YeA9Ny/twYP1u5E1KEa8Iwuwpg30/Cjy99ty/Pavcd0+923jCqvjgcCTo
-         ksPTyv2awefUb/R1LegThiA/WPt/Soy8ZE7PUkhOV37M6VxUI98RxiFOaSNRI2g7Vn8v
-         P48TlMZ/IONiHrRO5ExrtvNzO0SHsroiBHsIaqMMidnn02woBF81YRmLdrodQ5AOT9Cy
-         quEVZTzpkTWz7rLApB0o8vXqRyxAj3qumIBq5BjvvX/HeC0PuRF/tj9+lat7I1bhNl8s
-         6K2g==
+        b=FKRSIroB9gH+RKgwD/FvyhQaxEb6WNe7sW+7CD6BITYtr4yAbrPNlJQJJrqL6e/wiL
+         RE8oeSj19WTj8stKXYrX9jsUMEQSvGfsjf2Yu2bcUMz0jijaafSLVzkgs2+vRWphbZTt
+         PS7gV7VISXybD1oBxYTHK/qE4C/zZfBv+rKAy77jzMT18Tp7ZIR4trBeVh0lZ28tjsvB
+         fhRapBrLNlySCG/VpxjruDFtAeZWBRgdxATn+6OhiUWxwZrwOG1Qp7hAx92Xr9kl2pIX
+         cE7f70Uc2dwqyM5ewc7YvUFDOMCUyvXnV2uhqCgzEiiPAy/vTBWUeRV651ov5nV4tkPc
+         CwKA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date:dkim-signature;
-        bh=kR4xbKeLkqzM5m4IkfGOvFM7+dvSxhNFEJ7oNVJrvqQ=;
-        b=znGitFOS1G0CiiDF+gr443dGZL7SsGu3sVEOpTfy2EiHDPOeY+bWueK5An/4Ra6ZyR
-         btYeot9sNUOLYLBIJuuy84yMzIKjSLnmO4LFMZIWMB4YejIAKS9BSSVFz7YPcrhl3/hy
-         EHDGoKd/Ma001iRqyjJKq79TlwUARud7cZyUIwontHuQAr/OEDKJYxwuO2P2eEE1ekCL
-         ATnlIX91HbquRD3YEL9kTPpmjqvd742e1uigDuoZIRMC545jktThUiAUvjwf8uCoTG8o
-         PFAsJMhIvboeheBmOSvQGVCFTDlu5qmAGM80AcC2ITsCx/z1m37sdIfpLVpMwhwx7m64
-         iqvA==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=mdOTdZc5CyeYXsr7PKqimgFx+Tc5tMirB8c0EaxZfps=;
+        b=fCQdQXCQ5fBHw+XkYb3ubEMUa9Br8ADZW2ktDrSwNrf0aDojeSpbsitPy9TGhvpDwO
+         NAdf7dQ69mW+/q4AUPdXib2c7uHB12mLzcKfEBWR+v0jw2rZP8/2OROrAOBH0T+7f02h
+         A2ki+DTi2dI3iS5tAlaNFtNx9Ep6FifmJfs6VpLsoUuyNUD0iCwk7JfvAvcEIrV08FTC
+         miL/kxXRq8WuiZHDZbqsO6rSuwYXX+eoVnrjmWAnzqF3oFkPrRlzpU/e/6fCO01hUP7h
+         GOHYEjNLvoNQHoZ7RwrJmYuyMP+gVhz79uNexsB+QvHa0nndGVihLbIQfhYI5jS8c19V
+         cYew==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=vRaErLWa;
-       spf=pass (google.com: domain of linux.bhar@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=linux.bhar@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+       dkim=pass header.i=@google.com header.s=20161025 header.b=eJokrS+q;
+       spf=pass (google.com: domain of henryburns@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=henryburns@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id e1sor22352783pls.29.2019.07.15.13.52.26
+        by mx.google.com with SMTPS id b24sor12869987ior.93.2019.07.15.14.21.59
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 15 Jul 2019 13:52:26 -0700 (PDT)
-Received-SPF: pass (google.com: domain of linux.bhar@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Mon, 15 Jul 2019 14:21:59 -0700 (PDT)
+Received-SPF: pass (google.com: domain of henryburns@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=vRaErLWa;
-       spf=pass (google.com: domain of linux.bhar@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=linux.bhar@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+       dkim=pass header.i=@google.com header.s=20161025 header.b=eJokrS+q;
+       spf=pass (google.com: domain of henryburns@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=henryburns@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:content-transfer-encoding:in-reply-to
-         :user-agent;
-        bh=kR4xbKeLkqzM5m4IkfGOvFM7+dvSxhNFEJ7oNVJrvqQ=;
-        b=vRaErLWauN0PK2S1rhodMt5sJ3WgJaXgnY2tZZxt8XarHR9jtlCcHgwbau1887Ce6V
-         wPwnxhzyeoa24uBZQy/lPcYwOxNYpnCjVZOAYrzllp8Jyldk5UMiNAkuK/5gILgpL7zT
-         I/+OhYEkG4eAPKGLBzTMxMuui60/CxzsYA7S+G0SNSSHgkuqThYPYFSErYnVpHXbHOzs
-         96nqyqsVFaFugyW+U8nFSigdHjuizyEtOxUb+POScUYS3z3JezDsjI6snDDWhsHxK8Bx
-         GtaT0Zy5clHx4yrkJBeaMpdOrIW6qz1NzJ+5xML90nBEkDt+FTMB1wts3Bf9xRU/tdHX
-         b0hw==
-X-Google-Smtp-Source: APXvYqxEa3WgGh3U0Jn4/Smo82YSRjT7yS9UoqfVPVb6FVIPqlesr9mgxDqSMQvxauH1zQPJ8wmqLA==
-X-Received: by 2002:a17:902:4c88:: with SMTP id b8mr31598648ple.29.1563223945760;
-        Mon, 15 Jul 2019 13:52:25 -0700 (PDT)
-Received: from bharath12345-Inspiron-5559 ([103.110.42.33])
-        by smtp.gmail.com with ESMTPSA id 185sm22172155pfa.170.2019.07.15.13.52.20
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 15 Jul 2019 13:52:25 -0700 (PDT)
-Date: Tue, 16 Jul 2019 02:22:16 +0530
-From: Bharath Vedartham <linux.bhar@gmail.com>
-To: John Hubbard <jhubbard@nvidia.com>
-Cc: ira.weiny@intel.com, gregkh@linuxfoundation.org,
-	Matt.Sickler@daktronics.com, jglisse@redhat.com,
-	devel@driverdev.osuosl.org, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
-Subject: Re: [PATCH] staging: kpc2000: Convert put_page() to put_user_page*()
-Message-ID: <20190715205216.GD21161@bharath12345-Inspiron-5559>
-References: <20190715195248.GA22495@bharath12345-Inspiron-5559>
- <2604fcd1-4829-d77e-9f7c-d4b731782ff9@nvidia.com>
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=mdOTdZc5CyeYXsr7PKqimgFx+Tc5tMirB8c0EaxZfps=;
+        b=eJokrS+qweBYwEYADF8KXz0DydkvuxL7otsgtyRyCanPQKsKOfn3u/uDhYyLSBfVwa
+         Q5MQRIquyye74WtDNDemfSmWLMYiTpUK1MhSsguWyGjTy8Pcgvoa9UUCOSFxzt1qDVQX
+         XZ9seouy0h2ch6g7KFchGKAjF7seWmOZBzX3DijQpcGtF2UdWlgoiMqDlawVCpGm8GVw
+         qcO7104wiEL4VfTuYGIjBmyZdY0xfTkyCO9mlQ9YWeRqBzFdRYpjJ0G1udbNEzzJnSw7
+         BAubZPVq3+P/tsVOum40eTx/KfqXNii6z5xFsNKLDrfnUU4gAP0OJ9LUtLq2mEJ6j+/h
+         YwBQ==
+X-Google-Smtp-Source: APXvYqyk5yE7MCphZkXr/9c9UskEoQtlnOLxlTpMfuJThBn/u/uKw55tSMEuGdBGOKm+L6zdGS9zT6NItKfbobLd6Uk=
+X-Received: by 2002:a5e:9e03:: with SMTP id i3mr26607453ioq.66.1563225719176;
+ Mon, 15 Jul 2019 14:21:59 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <2604fcd1-4829-d77e-9f7c-d4b731782ff9@nvidia.com>
-User-Agent: Mutt/1.5.24 (2015-08-30)
+References: <20190715164705.220693-1-henryburns@google.com>
+ <CAMJBoFMS2BiCdBFBEGE_p5fovDphGqjDjaBYnfGFWhNvCnAvdQ@mail.gmail.com> <CAGQXPTh-Z664T3Uxak-CiRn6Mc-s=esRzURLpwQaN+v0RgxFyg@mail.gmail.com>
+In-Reply-To: <CAGQXPTh-Z664T3Uxak-CiRn6Mc-s=esRzURLpwQaN+v0RgxFyg@mail.gmail.com>
+From: Henry Burns <henryburns@google.com>
+Date: Mon, 15 Jul 2019 14:21:23 -0700
+Message-ID: <CAGQXPTi9qMCujvkM67Y28KiTP7xyGiR01ci9Yb6fgq8pW_tcFg@mail.gmail.com>
+Subject: Re: [PATCH] mm/z3fold.c: Reinitialize zhdr structs after migration
+To: Vitaly Wool <vitalywool@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vitaly Vul <vitaly.vul@sony.com>, 
+	Shakeel Butt <shakeelb@google.com>, Jonathan Adams <jwadams@google.com>, Linux MM <linux-mm@kvack.org>, 
+	LKML <linux-kernel@vger.kernel.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jul 15, 2019 at 01:14:13PM -0700, John Hubbard wrote:
-> On 7/15/19 12:52 PM, Bharath Vedartham wrote:
-> > There have been issues with get_user_pages and filesystem writeback.
-> > The issues are better described in [1].
-> > 
-> > The solution being proposed wants to keep track of gup_pinned pages which will allow to take furthur steps to coordinate between subsystems using gup.
-> > 
-> > put_user_page() simply calls put_page inside for now. But the implementation will change once all call sites of put_page() are converted.
-> > 
-> > I currently do not have the driver to test. Could I have some suggestions to test this code? The solution is currently implemented in [2] and
-> > it would be great if we could apply the patch on top of [2] and run some tests to check if any regressions occur.
-> 
-> Hi Bharath,
-> 
-> Process point: the above paragraph, and other meta-questions (about the patch, rather than part of the patch) should be placed either after the "---", or in a cover letter (git-send-email --cover-letter). That way, the patch itself is in a commit-able state.
-> 
-> One more below:
-Will fix that in the next version. 
-> > 
-> > [1] https://lwn.net/Articles/753027/
-> > [2] https://github.com/johnhubbard/linux/tree/gup_dma_core
-> > 
-> > Cc: Matt Sickler <Matt.Sickler@daktronics.com>
-> > Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-> > Cc: Jérôme Glisse <jglisse@redhat.com>
-> > Cc: Ira Weiny <ira.weiny@intel.com>
-> > Cc: John Hubbard <jhubbard@nvidia.com>
-> > Cc: linux-mm@kvack.org
-> > Cc: devel@driverdev.osuosl.org
-> > 
-> > Signed-off-by: Bharath Vedartham <linux.bhar@gmail.com>
-> > ---
-> >  drivers/staging/kpc2000/kpc_dma/fileops.c | 8 ++------
-> >  1 file changed, 2 insertions(+), 6 deletions(-)
-> > 
-> > diff --git a/drivers/staging/kpc2000/kpc_dma/fileops.c b/drivers/staging/kpc2000/kpc_dma/fileops.c
-> > index 6166587..82c70e6 100644
-> > --- a/drivers/staging/kpc2000/kpc_dma/fileops.c
-> > +++ b/drivers/staging/kpc2000/kpc_dma/fileops.c
-> > @@ -198,9 +198,7 @@ int  kpc_dma_transfer(struct dev_private_data *priv, struct kiocb *kcb, unsigned
-> >  	sg_free_table(&acd->sgt);
-> >   err_dma_map_sg:
-> >   err_alloc_sg_table:
-> > -	for (i = 0 ; i < acd->page_count ; i++){
-> > -		put_page(acd->user_pages[i]);
-> > -	}
-> > +	put_user_pages(acd->user_pages, acd->page_count);
-> >   err_get_user_pages:
-> >  	kfree(acd->user_pages);
-> >   err_alloc_userpages:
-> > @@ -229,9 +227,7 @@ void  transfer_complete_cb(struct aio_cb_data *acd, size_t xfr_count, u32 flags)
-> >  	
-> >  	dma_unmap_sg(&acd->ldev->pldev->dev, acd->sgt.sgl, acd->sgt.nents, acd->ldev->dir);
-> >  	
-> > -	for (i = 0 ; i < acd->page_count ; i++){
-> > -		put_page(acd->user_pages[i]);
-> > -	}
-> > +	put_user_pages(acd->user_pages, acd->page_count);
-> >  	
-> >  	sg_free_table(&acd->sgt);
-> >  	
-> > 
-> 
-> Because this is a common pattern, and because the code here doesn't likely need to set page dirty before the dma_unmap_sg call, I think the following would be better (it's untested), instead of the above diff hunk:
->
-> diff --git a/drivers/staging/kpc2000/kpc_dma/fileops.c b/drivers/staging/kpc2000/kpc_dma/fileops.c
-> index 48ca88bc6b0b..d486f9866449 100644
-> --- a/drivers/staging/kpc2000/kpc_dma/fileops.c
-> +++ b/drivers/staging/kpc2000/kpc_dma/fileops.c
-> @@ -211,16 +211,13 @@ void  transfer_complete_cb(struct aio_cb_data *acd, size_t xfr_count, u32 flags)
->         BUG_ON(acd->ldev == NULL);
->         BUG_ON(acd->ldev->pldev == NULL);
->  
-> -       for (i = 0 ; i < acd->page_count ; i++) {
-> -               if (!PageReserved(acd->user_pages[i])) {
-> -                       set_page_dirty(acd->user_pages[i]);
-> -               }
-> -       }
-> -
->         dma_unmap_sg(&acd->ldev->pldev->dev, acd->sgt.sgl, acd->sgt.nents, acd->ldev->dir);
->  
->         for (i = 0 ; i < acd->page_count ; i++) {
-> -               put_page(acd->user_pages[i]);
-> +               if (!PageReserved(acd->user_pages[i])) {
-> +                       put_user_pages_dirty(&acd->user_pages[i], 1);
-> +               else
-> +                       put_user_page(acd->user_pages[i]);
->         }
->  
->         sg_free_table(&acd->sgt);
-I had my doubts on this. This definitley needs to be looked at by the
-driver author. 
-> Assuming that you make those two changes, you can add:
-> 
->     Reviewed-by: John Hubbard <jhubbard@nvidia.com>
-Great!
-> 
-> thanks,
-> -- 
-> John Hubbard
-> NVIDIA
+Sorry Vitaly, I had the wrong impression from your email that
+INIT_LIST_HEAD() was being ensured directly in migrate and got
+confused. (I thought you were saying it happened through the call to
+do_compact_page() queued).
+
+That being said, I don't see where in migrate new_zhdr->buddy is being
+checked. We do check for new_zhdr.work with
+ if (work_pending(&zhdr->work)) {
+...
+}
+
+Is that what you were referring to?
 
