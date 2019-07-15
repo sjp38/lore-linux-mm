@@ -2,194 +2,251 @@ Return-Path: <SRS0=FHqE=VM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.4 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,HTML_MESSAGE,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1A4BCC7618F
-	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 18:10:26 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1CFABC76191
+	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 18:43:31 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C5F4D21473
-	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 18:10:25 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id CF573206B8
+	for <linux-mm@archiver.kernel.org>; Mon, 15 Jul 2019 18:43:30 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="Ok4pi/aW"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C5F4D21473
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="a/bVu7m7"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CF573206B8
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5B8336B0003; Mon, 15 Jul 2019 14:10:25 -0400 (EDT)
+	id 48CD86B0006; Mon, 15 Jul 2019 14:43:30 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 566E06B0005; Mon, 15 Jul 2019 14:10:25 -0400 (EDT)
+	id 416856B0007; Mon, 15 Jul 2019 14:43:30 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 42EE26B0006; Mon, 15 Jul 2019 14:10:25 -0400 (EDT)
+	id 2DDB96B0008; Mon, 15 Jul 2019 14:43:30 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f69.google.com (mail-yw1-f69.google.com [209.85.161.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 228836B0003
-	for <linux-mm@kvack.org>; Mon, 15 Jul 2019 14:10:25 -0400 (EDT)
-Received: by mail-yw1-f69.google.com with SMTP id b75so14174049ywh.8
-        for <linux-mm@kvack.org>; Mon, 15 Jul 2019 11:10:25 -0700 (PDT)
+Received: from mail-lf1-f71.google.com (mail-lf1-f71.google.com [209.85.167.71])
+	by kanga.kvack.org (Postfix) with ESMTP id BD3B66B0006
+	for <linux-mm@kvack.org>; Mon, 15 Jul 2019 14:43:29 -0400 (EDT)
+Received: by mail-lf1-f71.google.com with SMTP id w17so1391018lff.15
+        for <linux-mm@kvack.org>; Mon, 15 Jul 2019 11:43:29 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding:dkim-signature;
-        bh=6wwgTZKS6jiJbEQByxUeIS9VuTtgekUJNWGw3cfIDgA=;
-        b=qkSxltzGtD4s1SbKtnYwFTfo7M5/bDzNeP3ttXEk7l9wFW1cr/YrjH7sU3ftWN66/a
-         9IuAlEdJFjU7H22W/DDyakAxT41/cD8Byd71osjdzxSeiJEJg4kdn0kbm8v11wByf1CD
-         0SaRQipg/R3S7LT9S8zDW4qBwpb7F5/RlTm+uToy/7v70kiNb+co8WSyOoK+NlDxgbPw
-         R5e9i4e+8wIh0Fb301mOSQI5N2kk1PSc4QuCHsSTUxvw1cKtLi/diErLeO7pIgolqHaI
-         jL0gGqvG+Mf8IvSvq4tIRRgrxme5C8eGkxP3OF2zDIIycsEr6CN73Qg9ENwQO3c7X2xp
-         RVFA==
-X-Gm-Message-State: APjAAAWNTCHgl26USyO3LFxmmTPaSU35kht1/CvdDq/o8QB+ahUQcMKM
-	VkWA37QKzwgc+bVilL6AcFaFH0CJWH4GdDTTiCONpB1HbZSFy+lh2ACAHHKhrYE7cH/eysrrn84
-	5EIUcx39w8SAO8evHr5YWf+Yio/LHwOBuIffMCq4e7U2DhI87DxAS6luNaeExwv/eqQ==
-X-Received: by 2002:a25:6402:: with SMTP id y2mr6109782ybb.14.1563214224810;
-        Mon, 15 Jul 2019 11:10:24 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwQsn8MOCBczFW7bDg0Ws/gegK5Tssho8Ud4MzRym2kqDnbt0Dhl6ysRExwE72/nYbBzxZ8
-X-Received: by 2002:a25:6402:: with SMTP id y2mr6109742ybb.14.1563214224106;
-        Mon, 15 Jul 2019 11:10:24 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563214224; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=f6Dq0pTLLk6Oz2CYrqTE6G1SQRdL9xa13WkscrhabFI=;
+        b=dvRfByHOJcu7nPImGKWjFsy3gz33SrBjXPMhsxmhgRs31mIRdk6TxR5iwbHNW8b/lg
+         kPE5klFS4f4i5ANN4cRMwMDPDFuKP+2/fYuufJhquKnb+WC7IeyatU/Ilz6ABaW6HYPy
+         ZC+6YyKEFwJavHn10bJlThh2Tm547uPFHGm1elXz4seLPOxgupKxkmcs1lHDO6ylUoSO
+         o2COE6VQMvTiL24jjewE9OqA5sQ5BwMo3Z+JPX6+mA/WQvMfyFN9PiCEhBEk4ZntqjD/
+         3NSpSb8Cj6Mv+qA/LFZor+lwyw7miFHvP6o6YJisWIkNX7KrsoPZmz0KLAQzzqC4DOor
+         SYFw==
+X-Gm-Message-State: APjAAAVio853pkGnpvnl/Yjegg0bBFIxuZ+PnBUhvhXcOKsxXuezhx7m
+	Bvgmo27T9TuH4dPbnvy4G+U48+5aagQfPvqcr8rtpgIEUPbRUNkA6M+B1hnZFsnedLKejZCeia3
+	MMz/oPzHIL4QdrGgLKbvobpCoWkuIg/4/lX/3mnb7L/RaXsBCGlzT9bmgVH0CaKFXXQ==
+X-Received: by 2002:ac2:4d02:: with SMTP id r2mr11863390lfi.138.1563216208705;
+        Mon, 15 Jul 2019 11:43:28 -0700 (PDT)
+X-Received: by 2002:ac2:4d02:: with SMTP id r2mr11863366lfi.138.1563216207829;
+        Mon, 15 Jul 2019 11:43:27 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563216207; cv=none;
         d=google.com; s=arc-20160816;
-        b=gyM5aS10uQOCEYj1iX+Y3CuFXe3XjD57+my8QFKvD2hEJYJOr5zeQbRCbCb9JCHbQD
-         ox1Cr2S9pZgnNeJTg8tno7BelXxgtZ5rSAzQFkyysEOMbOVlzrZsBEr9gA7C2iPbG5lw
-         bOYXzfi84vF3Omc+Y+KQkudhqTrUC2jJH+CStvNrUX2Jyub4SBTrWmPKxETjbbBkBAJB
-         8+MibPgSr1oDEkgxgbR30GeE7UJc02Sn9i9DUNFNL3ZmSfvUa6QyVqoZsnJrtEUCzyoU
-         wU19FdomdSfeJ++3oXJswWmKMDl0zkj+j/5UjKr75UUa4IbmT80gX+QoVBl1QukBxsOH
-         zg1w==
+        b=bjOsE+4BEqvxV7sOVVPWnw91nrXVJbgR4OpV4iRE0c2CpMSg+2/wEPaE6hLtTdXjQw
+         t4cx5xAK0Epx9bzjMyf0EHFtB5wrZgsb9gWE53+Bqwr5UU5EA6JMWEIAxUr8Hisk9R4e
+         Olzvu3tQYJet7eqBmXtVNjod94Pwsd4aMMBcq2C5fKMY5lNq7qWQhQWUUa+vN/Sg8+Mm
+         4PF4/49UMme/Q3KnTxlt0tsqmtPBU3dF+WQOc/Km3Y+umDfecgn5TDZZkyC5IouyWCIz
+         qrpj9lpL1yVWa3Lrh2A5TNzV0EYr3uoAjlPNnQ4C0dkpyodd1Jz+rNVFi+IoaKE3Oz5P
+         1Hlw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=dkim-signature:content-transfer-encoding:content-language
-         :in-reply-to:mime-version:user-agent:date:message-id:from:references
-         :cc:to:subject;
-        bh=6wwgTZKS6jiJbEQByxUeIS9VuTtgekUJNWGw3cfIDgA=;
-        b=aqTvFXI6WjhvUSe37dZcNrfebHkqiOGy4IUrBgF0riyzKyC04CaXfg4GaA3ZD9XZRV
-         TJpXolH+P6UY6l2/t0YkEUc7qiemRGT+rI5aKOf5dxJyNitYzKnf2A0DT0XdDce+kRuP
-         w61wciSS3LG+HnCiseKm7j60CzE/v3/NvrLhlosodHwsXME9GDWWfOMD/2sFGk7T5Ls/
-         B3omm1ERCedPzzlBkM/zJIxoiU2Lk0fADip+RUDljKwvt2wjpfbm5jif4PQSSUlMhsLT
-         /E7MejDTkjdyxPGGwiEuXicKUifasYLgehPW7LbnVBxbrrx6cgcW4TK/t8+oRD3t6L6M
-         MtOw==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=f6Dq0pTLLk6Oz2CYrqTE6G1SQRdL9xa13WkscrhabFI=;
+        b=t3EwFz+tD+a2MlBKmHl7qDRITJT3aZqKxL5/bQO1/4EcINXxMgs9YnVAAStkwtXDWe
+         xSRPSHJhUH7etU1o3KlykP6MCYOdjDNPFH9XAjQ04z7npv//kA3bTjfNDFpGPFewBfnl
+         xqJWurr6BK4KR2YXKml+tXKlHoQnNwb41JtdkXYc8+KJ/MzV1i6f7V7BBMxLlkeiwyBv
+         Py6NaEEkf8Zxb0lIMqmL6WqzQWCQX13Dt9vzRLCNUiTZ2q/IZEsOuxa0i3CczZPYTIV4
+         e7RdB4CvZBtDtchiYA/MXBnJfWMaSf7s2owsFSmO65XoR2yn4ZEl1pg/qWl2D+qtQtMy
+         YK2A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b="Ok4pi/aW";
-       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com. [216.228.121.143])
-        by mx.google.com with ESMTPS id u20si7818239ywh.290.2019.07.15.11.10.23
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b="a/bVu7m7";
+       spf=pass (google.com: domain of vitalywool@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=vitalywool@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id f28sor4450410lfh.62.2019.07.15.11.43.27
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 15 Jul 2019 11:10:24 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) client-ip=216.228.121.143;
+        (Google Transport Security);
+        Mon, 15 Jul 2019 11:43:27 -0700 (PDT)
+Received-SPF: pass (google.com: domain of vitalywool@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b="Ok4pi/aW";
-       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate14.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
-	id <B5d2cc18d0000>; Mon, 15 Jul 2019 11:10:22 -0700
-Received: from hqmail.nvidia.com ([172.20.161.6])
-  by hqpgpgate101.nvidia.com (PGP Universal service);
-  Mon, 15 Jul 2019 11:10:22 -0700
-X-PGP-Universal: processed;
-	by hqpgpgate101.nvidia.com on Mon, 15 Jul 2019 11:10:22 -0700
-Received: from [10.110.48.28] (10.124.1.5) by HQMAIL107.nvidia.com
- (172.20.187.13) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Mon, 15 Jul
- 2019 18:10:21 +0000
-Subject: Re: [PATCH] mm/gup: Use put_user_page*() instead of put_page*()
-To: Bharath Vedartham <linux.bhar@gmail.com>
-CC: <akpm@linux-foundation.org>, <ira.weiny@intel.com>, Mauro Carvalho Chehab
-	<mchehab@kernel.org>, Dimitri Sivanich <sivanich@sgi.com>, Arnd Bergmann
-	<arnd@arndb.de>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Alex
- Williamson <alex.williamson@redhat.com>, Cornelia Huck <cohuck@redhat.com>,
-	Jens Axboe <axboe@kernel.dk>, Alexander Viro <viro@zeniv.linux.org.uk>,
-	=?UTF-8?B?QmrDtnJuIFTDtnBlbA==?= <bjorn.topel@intel.com>, Magnus Karlsson
-	<magnus.karlsson@intel.com>, "David S. Miller" <davem@davemloft.net>, Alexei
- Starovoitov <ast@kernel.org>, Daniel Borkmann <daniel@iogearbox.net>, Jakub
- Kicinski <jakub.kicinski@netronome.com>, Jesper Dangaard Brouer
-	<hawk@kernel.org>, John Fastabend <john.fastabend@gmail.com>, Enrico Weigelt
-	<info@metux.net>, Thomas Gleixner <tglx@linutronix.de>, Alexios Zavras
-	<alexios.zavras@intel.com>, Dan Carpenter <dan.carpenter@oracle.com>, Max
- Filippov <jcmvbkbc@gmail.com>, Matt Sickler <Matt.Sickler@daktronics.com>,
-	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Keith Busch
-	<keith.busch@intel.com>, YueHaibing <yuehaibing@huawei.com>,
-	<linux-media@vger.kernel.org>, <linux-kernel@vger.kernel.org>,
-	<devel@driverdev.osuosl.org>, <kvm@vger.kernel.org>,
-	<linux-block@vger.kernel.org>, <linux-fsdevel@vger.kernel.org>,
-	<linux-mm@kvack.org>, <netdev@vger.kernel.org>, <bpf@vger.kernel.org>,
-	<xdp-newbies@vger.kernel.org>, Jason Gunthorpe <jgg@ziepe.ca>
-References: <1563131456-11488-1-git-send-email-linux.bhar@gmail.com>
- <deea584f-2da2-8e1f-5a07-e97bf32c63bb@nvidia.com>
- <20190715065654.GA3716@bharath12345-Inspiron-5559>
-X-Nvconfidentiality: public
-From: John Hubbard <jhubbard@nvidia.com>
-Message-ID: <1aeb21d9-6dc6-c7d2-58b6-279b1dfc523b@nvidia.com>
-Date: Mon, 15 Jul 2019 11:10:20 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.2
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b="a/bVu7m7";
+       spf=pass (google.com: domain of vitalywool@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=vitalywool@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=f6Dq0pTLLk6Oz2CYrqTE6G1SQRdL9xa13WkscrhabFI=;
+        b=a/bVu7m7UHAVj4cc+QtM3A6vTokk5U2CSBPJ33X6UhNJHf9vZZ5S4zAb5E87J8BMn8
+         nePLNS6y7GZxZqXIc6JKOpKdMj3MYBcyyFyi5/D7QdwAdPG7RxLcYMz/hShGcPzODCxk
+         ubX2Vpd8FNMjN9IR+cSLjJZaCN764URNo1NKTZTgOmo6qH6gSUiB6ISN97sj/Ne9fbKM
+         4OjllP4ic41kllorCPwz3IK9VDWRnFmMfrJ/Jc8AnK12YwK9m8bAjuGAenqfl9wLvXK5
+         IxhCKLzxe//wSkbdss/AhN8fqg8VBO9VU79P+MkeF3baGp+2/F8FU3/0SqG+xrV0fnd5
+         KUng==
+X-Google-Smtp-Source: APXvYqwnhUazbciJKuRQa/n8SKi2BPZXX12LT56mhDF4CJ4tLoMGtsgJIQ7+NrC/BFwBJiEcUrf+Tfr2+3DHbU8t8cg=
+X-Received: by 2002:ac2:5a01:: with SMTP id q1mr12462761lfn.46.1563216207468;
+ Mon, 15 Jul 2019 11:43:27 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20190715065654.GA3716@bharath12345-Inspiron-5559>
-X-Originating-IP: [10.124.1.5]
-X-ClientProxiedBy: HQMAIL104.nvidia.com (172.18.146.11) To
- HQMAIL107.nvidia.com (172.20.187.13)
-Content-Type: text/plain; charset="utf-8"
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
-	t=1563214222; bh=6wwgTZKS6jiJbEQByxUeIS9VuTtgekUJNWGw3cfIDgA=;
-	h=X-PGP-Universal:Subject:To:CC:References:X-Nvconfidentiality:From:
-	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
-	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
-	 Content-Transfer-Encoding;
-	b=Ok4pi/aW8U3yjBXqydhqyft24fqK5kLZb9vqN2v2ZscUA+LO0TUEntZeQFXwWM9mI
-	 LSrTQjPbgBURTVuTHsTSQsCgjCENvKuaFyzKLw2XoaWgUj+WvDafd8mw0VAnM6FcQ+
-	 +2MQLOvD9ImnAuT4gp9Ms08kG21euR6h30TCsuEWJ6lWOGD9RwjSXqHq846/IAB2oQ
-	 2xzmb3rUlMkYnUIwMFCjvBWCfVAdsKWykA4pdAEfJW4vFSKPaT2m4A9YAlaep+ltqs
-	 dnlEdJPni78MkMkdBjFMKskTkkSUDUGV5x/f03KwhrKwKXSc4NX56A3yXabbvoTqDL
-	 9Z2efhUFKhX1Q==
+References: <20190715164705.220693-1-henryburns@google.com>
+In-Reply-To: <20190715164705.220693-1-henryburns@google.com>
+From: Vitaly Wool <vitalywool@gmail.com>
+Date: Mon, 15 Jul 2019 20:43:15 +0200
+Message-ID: <CAMJBoFMS2BiCdBFBEGE_p5fovDphGqjDjaBYnfGFWhNvCnAvdQ@mail.gmail.com>
+Subject: Re: [PATCH] mm/z3fold.c: Reinitialize zhdr structs after migration
+To: Henry Burns <henryburns@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vitaly Vul <vitaly.vul@sony.com>, 
+	Shakeel Butt <shakeelb@google.com>, Jonathan Adams <jwadams@google.com>, linux-mm@kvack.org, 
+	linux-kernel@vger.kernel.org
+Content-Type: multipart/alternative; boundary="000000000000c0e091058dbca2f6"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 7/14/19 11:56 PM, Bharath Vedartham wrote:
-> On Sun, Jul 14, 2019 at 04:33:42PM -0700, John Hubbard wrote:
->> On 7/14/19 12:08 PM, Bharath Vedartham wrote:
-[...]
->> 1. Pull down https://github.com/johnhubbard/linux/commits/gup_dma_core
->> and find missing conversions: look for any additional missing 
->> get_user_pages/put_page conversions. You've already found a couple missing 
->> ones. I haven't re-run a search in a long time, so there's probably even more.
->> 	a) And find more, after I rebase to 5.3-rc1: people probably are adding
->> 	get_user_pages() calls as we speak. :)
-> Shouldn't this be documented then? I don't see any docs for using
-> put_user_page*() in v5.2.1 in the memory management API section?
+--000000000000c0e091058dbca2f6
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
-Yes, it needs documentation. My first try (which is still in the above git
-repo) was reviewed and found badly wanting, so I'm going to rewrite it. Meanwhile,
-I agree that an interim note would be helpful, let me put something together.
+Den m=C3=A5n 15 juli 2019 6:47 emHenry Burns <henryburns@google.com> skrev:
 
-[...]
->>     https://github.com/johnhubbard/linux/commits/gup_dma_core
->>
->>     a) gets rebased often, and
->>
->>     b) has a bunch of commits (iov_iter and related) that conflict
->>        with the latest linux.git,
->>
->>     c) has some bugs in the bio area, that I'm fixing, so I don't trust
->>        that's it's safely runnable, for a few more days.
-> I assume your repo contains only work related to fixing gup issues and
-> not the main repo for gup development? i.e where gup changes are merged?
+> z3fold_page_migration() calls memcpy(new_zhdr, zhdr, PAGE_SIZE).
+> However, zhdr contains fields that can't be directly coppied over (ex:
+> list_head, a circular linked list). We only need to initialize the
+> linked lists in new_zhdr, as z3fold_isolate_page() already ensures
+> that these lists are empty.
+>
+> Additionally it is possible that zhdr->work has been placed in a
+> workqueue. In this case we shouldn't migrate the page, as zhdr->work
+> references zhdr as opposed to new_zhdr.
+>
+> Fixes: bba4c5f96ce4 ("mm/z3fold.c: support page migration")
+> Signed-off-by: Henry Burns <henryburns@google.com>
+> ---
+>  mm/z3fold.c | 10 ++++++++++
+>  1 file changed, 10 insertions(+)
+>
+> diff --git a/mm/z3fold.c b/mm/z3fold.c
+> index 42ef9955117c..9da471bcab93 100644
+> --- a/mm/z3fold.c
+> +++ b/mm/z3fold.c
+> @@ -1352,12 +1352,22 @@ static int z3fold_page_migrate(struct
+> address_space *mapping, struct page *newpa
+>                 z3fold_page_unlock(zhdr);
+>                 return -EBUSY;
+>         }
+> +       if (work_pending(&zhdr->work)) {
+> +               z3fold_page_unlock(zhdr);
+> +               return -EAGAIN;
+> +       }
+>         new_zhdr =3D page_address(newpage);
+>         memcpy(new_zhdr, zhdr, PAGE_SIZE);
+>         newpage->private =3D page->private;
+>         page->private =3D 0;
+>         z3fold_page_unlock(zhdr);
+>         spin_lock_init(&new_zhdr->page_lock);
+> +       INIT_WORK(&new_zhdr->work, compact_page_work);
+> +       /*
+> +        * z3fold_page_isolate() ensures that this list is empty, so we
+> only
+> +        * have to reinitialize it.
+> +        */
+>
 
-Correct, this is just a private tree, not a maintainer tree. But I'll try to
-keep the gup_dma_core branch something that is usable by others, during the
-transition over to put_user_page(), because the page-tracking patches are the
-main way to test any put_user_page() conversions.
+On the nitpicking side, we seem to have ensured that directly in migrate :)
+Looks OK to me otherwise.
 
-As Ira said, we're using linux-mm as the real (maintainer) tree.
+~Vitaly
 
++       INIT_LIST_HEAD(&new_zhdr->buddy);
+>         new_mapping =3D page_mapping(page);
+>         __ClearPageMovable(page);
+>         ClearPagePrivate(page);
+> --
+> 2.22.0.510.g264f2c817a-goog
+>
+>
 
-thanks,
--- 
-John Hubbard
-NVIDIA
+--000000000000c0e091058dbca2f6
+Content-Type: text/html; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"auto"><div><br><br><div class=3D"gmail_quote"><div dir=3D"ltr" =
+class=3D"gmail_attr">Den m=C3=A5n 15 juli 2019 6:47 emHenry Burns &lt;<a hr=
+ef=3D"mailto:henryburns@google.com">henryburns@google.com</a>&gt; skrev:<br=
+></div><blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-=
+left:1px #ccc solid;padding-left:1ex">z3fold_page_migration() calls memcpy(=
+new_zhdr, zhdr, PAGE_SIZE).<br>
+However, zhdr contains fields that can&#39;t be directly coppied over (ex:<=
+br>
+list_head, a circular linked list). We only need to initialize the<br>
+linked lists in new_zhdr, as z3fold_isolate_page() already ensures<br>
+that these lists are empty.<br>
+<br>
+Additionally it is possible that zhdr-&gt;work has been placed in a<br>
+workqueue. In this case we shouldn&#39;t migrate the page, as zhdr-&gt;work=
+<br>
+references zhdr as opposed to new_zhdr.<br>
+<br>
+Fixes: bba4c5f96ce4 (&quot;mm/z3fold.c: support page migration&quot;)<br>
+Signed-off-by: Henry Burns &lt;<a href=3D"mailto:henryburns@google.com" tar=
+get=3D"_blank" rel=3D"noreferrer">henryburns@google.com</a>&gt;<br>
+---<br>
+=C2=A0mm/z3fold.c | 10 ++++++++++<br>
+=C2=A01 file changed, 10 insertions(+)<br>
+<br>
+diff --git a/mm/z3fold.c b/mm/z3fold.c<br>
+index 42ef9955117c..9da471bcab93 100644<br>
+--- a/mm/z3fold.c<br>
++++ b/mm/z3fold.c<br>
+@@ -1352,12 +1352,22 @@ static int z3fold_page_migrate(struct address_space=
+ *mapping, struct page *newpa<br>
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 z3fold_page_unlock(=
+zhdr);<br>
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return -EBUSY;<br>
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 }<br>
++=C2=A0 =C2=A0 =C2=A0 =C2=A0if (work_pending(&amp;zhdr-&gt;work)) {<br>
++=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0z3fold_page_unlock(=
+zhdr);<br>
++=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0return -EAGAIN;<br>
++=C2=A0 =C2=A0 =C2=A0 =C2=A0}<br>
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 new_zhdr =3D page_address(newpage);<br>
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 memcpy(new_zhdr, zhdr, PAGE_SIZE);<br>
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 newpage-&gt;private =3D page-&gt;private;<br>
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 page-&gt;private =3D 0;<br>
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 z3fold_page_unlock(zhdr);<br>
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 spin_lock_init(&amp;new_zhdr-&gt;page_lock);<br=
+>
++=C2=A0 =C2=A0 =C2=A0 =C2=A0INIT_WORK(&amp;new_zhdr-&gt;work, compact_page_=
+work);<br>
++=C2=A0 =C2=A0 =C2=A0 =C2=A0/*<br>
++=C2=A0 =C2=A0 =C2=A0 =C2=A0 * z3fold_page_isolate() ensures that this list=
+ is empty, so we only<br>
++=C2=A0 =C2=A0 =C2=A0 =C2=A0 * have to reinitialize it.<br>
++=C2=A0 =C2=A0 =C2=A0 =C2=A0 */<br></blockquote></div></div><div dir=3D"aut=
+o"><br></div><div dir=3D"auto">On the nitpicking side, we seem to have ensu=
+red that directly in migrate :) Looks OK to me otherwise.=C2=A0</div><div d=
+ir=3D"auto"><br></div><div dir=3D"auto">~Vitaly=C2=A0</div><div dir=3D"auto=
+"><br></div><div dir=3D"auto"><div class=3D"gmail_quote"><blockquote class=
+=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1px #ccc solid;padd=
+ing-left:1ex">
++=C2=A0 =C2=A0 =C2=A0 =C2=A0INIT_LIST_HEAD(&amp;new_zhdr-&gt;buddy);<br>
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 new_mapping =3D page_mapping(page);<br>
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 __ClearPageMovable(page);<br>
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 ClearPagePrivate(page);<br>
+-- <br>
+2.22.0.510.g264f2c817a-goog<br>
+<br>
+</blockquote></div></div></div>
+
+--000000000000c0e091058dbca2f6--
 
