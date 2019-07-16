@@ -2,400 +2,299 @@ Return-Path: <SRS0=rp0W=VN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+X-Spam-Status: No, score=-8.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
 	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C2A57C76196
-	for <linux-mm@archiver.kernel.org>; Tue, 16 Jul 2019 15:37:20 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 17E77C76192
+	for <linux-mm@archiver.kernel.org>; Tue, 16 Jul 2019 15:58:41 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 49A9A20693
-	for <linux-mm@archiver.kernel.org>; Tue, 16 Jul 2019 15:37:20 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id BF1D920880
+	for <linux-mm@archiver.kernel.org>; Tue, 16 Jul 2019 15:58:40 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="OhZ27q56"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 49A9A20693
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="bDj3lwrm"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BF1D920880
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B192F8E000E; Tue, 16 Jul 2019 11:37:19 -0400 (EDT)
+	id 47A078E0007; Tue, 16 Jul 2019 11:58:40 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AA3FF8E0006; Tue, 16 Jul 2019 11:37:19 -0400 (EDT)
+	id 402D78E0006; Tue, 16 Jul 2019 11:58:40 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 96A058E000E; Tue, 16 Jul 2019 11:37:19 -0400 (EDT)
+	id 2CAF28E0007; Tue, 16 Jul 2019 11:58:40 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 6FA288E0006
-	for <linux-mm@kvack.org>; Tue, 16 Jul 2019 11:37:19 -0400 (EDT)
-Received: by mail-qt1-f197.google.com with SMTP id q26so18433328qtr.3
-        for <linux-mm@kvack.org>; Tue, 16 Jul 2019 08:37:19 -0700 (PDT)
+Received: from mail-lf1-f69.google.com (mail-lf1-f69.google.com [209.85.167.69])
+	by kanga.kvack.org (Postfix) with ESMTP id BD0AC8E0006
+	for <linux-mm@kvack.org>; Tue, 16 Jul 2019 11:58:39 -0400 (EDT)
+Received: by mail-lf1-f69.google.com with SMTP id v13so1850416lfa.20
+        for <linux-mm@kvack.org>; Tue, 16 Jul 2019 08:58:39 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=C93X661VNMOR9DFx3hY8rNDYh7Sxy5r20/CPUz7fPoI=;
-        b=ggdcvBX5eaD0eN8NScALUxwKHIRUEAnH0Q8DELd3vVvGt1s76P0TWGSV0MNdWy9QP1
-         KqRsHoFe9SO3pMYt12F56RwJW92DOb+b+FE1m9KByqk6kacgSz3uu1sG531MBOBf6xkv
-         7v+7uYJUqIqYVy9ddNMOIjYENmkzx0RqBQKDnVyZhsRqPWm4WSVAeha+MRskjm7d5fK1
-         1nKJN0Bmf6GkPLIyEi77AhSYRNlI6aFNUMl369UZHcYeQQN9kdppBmVqDLGHvVSv0B5d
-         j6a/4G36YgBEalyPSg6DeoB06180yAc721E/y0kyzZipqlOBODhsGv+hyCb6uGAAHalA
-         k5aA==
-X-Gm-Message-State: APjAAAUawgvwrd+KBtepNe0Ei+SIQhUAqqr7WIsRuZ0+RPwQQ1ecx8Zk
-	rOJE9W+AhCP9dNzF3AnI+kqhn4V8Lq4jAwhBWIK0Mf1fUULY0RNwqLeRlyM+fymtBavkQdhDypV
-	4hw5aSx1cyoeb95ZD3zcrXKqT4Sa8mxhv9/GdexT3s1sSBPihPDg/eMdvSLkXt5qh6g==
-X-Received: by 2002:a0c:b755:: with SMTP id q21mr23956933qve.92.1563291439119;
-        Tue, 16 Jul 2019 08:37:19 -0700 (PDT)
-X-Received: by 2002:a0c:b755:: with SMTP id q21mr23956856qve.92.1563291438090;
-        Tue, 16 Jul 2019 08:37:18 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563291438; cv=none;
+        h=x-gm-message-state:dkim-signature:from:date:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=XQ410IUsZxin0lRODEmBFRGZWq/RPTQwE6XaaTIWCEA=;
+        b=DK17SPsduvL21Pe3SdRNkjx3mHc5jyI/DXNjiRs1cjAksF7etXxBy0qnIbNVRO1L79
+         V5aHfW3tUvnnLADaoVjMPlcaMUytJeMPlG2Kn6NgkMqZiy9dAHlcKvvWnJOJiWVlWOdv
+         IYkHMOUjbIZmmlR07IVgg2xgFPZCdo+6J34kevHri7if3VmIf7iTnoY6t9a16LA4uDCw
+         pvi0ixjYUpFoycGKdt3ClPhSSJGXFM7q4erRcZmB+GFZmw2CNmwSxyjekUotkxomeoSo
+         oVSRERW5+7tYKLgBEeH/xk/c8MQNGjvk0a/1rupurWtCQK9cE7cRNzuaeZ/DYBB10c3Y
+         TXOQ==
+X-Gm-Message-State: APjAAAV8Z72GrNuelJ4Q7xxBbxsD2lprOewpNpEWZDQKX1m+ym7l3zvB
+	eAtyLADNwcXyHGkXC+t90abEAmwr9yg5WWXQY/i1jrh3+rVBIopcqFFe8EaInchpVNg+taBl+e+
+	3Q7EB9AFWYAsSx/jfUkeN4t9JaPJt97nqcfOsnyuf9uyqV2sgDnKI+zNrqPF+UMK8YA==
+X-Received: by 2002:a2e:3013:: with SMTP id w19mr17998313ljw.73.1563292718794;
+        Tue, 16 Jul 2019 08:58:38 -0700 (PDT)
+X-Received: by 2002:a2e:3013:: with SMTP id w19mr17998273ljw.73.1563292717859;
+        Tue, 16 Jul 2019 08:58:37 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563292717; cv=none;
         d=google.com; s=arc-20160816;
-        b=RKRfbK3GGWA0kOaNMlHUP8XrHmMHnuieqhZun7iTZVdi/xJER2yeDgUjS5zdZuhD6t
-         a1aKd7pIOjV8msXilvfsDMcwgAhqnpjcstAW6fyD61euVV2meKLmWBLYgBA1eFMEMJfn
-         Y/GMgtQ9fmWM5qjtvyRZkaxDwkMzmOgUv96T3snYsIFQ9mcFrgm4zWNRfCv4pUIASGbz
-         NXWyuOIJkk0r0YkLpb8RhCbZTXiQVuPUVyWMKvEhStHGTLIbeRUjsH7NmrBUu1w9Am3m
-         mAuH+7NkHfSghefJZB1M5k0VkqnpF9CemWbO3TYlPIkOz50FrsKP04/NDPFiz3zY9vR6
-         wzAw==
+        b=o4GV6oyJPUIVgin5LpHtIbL8kOzqOHjGv6j0LBMImQXMFID8Xw0u+2eVa1DDE7H/X1
+         +KupzH2pRlEHazG5WbWjjeaAXo4EmXD5vn/sVKvutGKk7fm6gSJ3lPijYrdxzecAH7fE
+         LqABUtDd+Te5i0chsMh0y5W3a7g4USrA8H7lU8kIUPlXUt3umRbkXyGsiWlwa+0wYgC4
+         g7I0TAtV8FMyKGO89ChiNsbNWdZ+2oUWHT92uAtD5UnK0qRNW3Gez34qK6kN2fKP0RcF
+         AYVYClWnA73fCxFjaRVsoW9x08uiLZNF0z9IGCoQxS1MTd4h8T8c+dKOBfI6xq51heKQ
+         9ezQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=C93X661VNMOR9DFx3hY8rNDYh7Sxy5r20/CPUz7fPoI=;
-        b=wO48uEI9gbzl/rEne1FrVHjaAE+noGPUdqQzuMjgSQYCl4JyYOhBuumYHn0HxCtbmU
-         Ex1b4gkXjjR2UvqC7MBmw7hEGRg6Yt80RSUHqP0NnlVQpzPpM7vXXev+5jvLEbhw/ATm
-         dB0rbvrltopGERqdBcstbXcyxVrpa/HbtTWYygZAiV2XPOO8P1SwgcaJaECQA8axE9UK
-         +/3cT2OmxJEC7UNL3CrvO+EUPzcEXJGK92vuFW6BfBsd4+iBDQJSiAtjsk4QWMg9SDyO
-         4E+5QPY7k+fATeUSW/vc7Pg6TBu7EDm38qaN05cUZAxgbmOYMKF5gdqAnADO9taGlrj0
-         Zd7A==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:date:from:dkim-signature;
+        bh=XQ410IUsZxin0lRODEmBFRGZWq/RPTQwE6XaaTIWCEA=;
+        b=g7ux6Oy86sEQ2vFRx3RG7JaNhqVtkGCpweiULfB4jtfstbmJfGsmYGKjrzQMiVuhnz
+         AxQJIC0vXQOYDdfJ0Z4h+1xWBhpeGlqJEV+nXx87KNrsYh/VafvczBwoeb2DgdnoIq/3
+         vGLvLmbQFOufh3gKT8c2RTTkD3/SRCnajOjyUWHboqUpCFXHkIDpaiZdF2Q08rjQHk6x
+         EIzwlUKKjEuKUr+18S1F/4wiInWAA5+Q6Z9ne6AbeCoBk9VUyDmWGIBh5RHF6YRQP0On
+         OF85kJPga6Sr2eavoJShhsCsspYWCyhpEuy3hy9MhzooQdbuiIrx51xkK92tFlU/Henn
+         xjyA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=OhZ27q56;
-       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=bDj3lwrm;
+       spf=pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=urezki@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id o14sor28436736qtg.39.2019.07.16.08.37.18
+        by mx.google.com with SMTPS id k90sor11769153lje.4.2019.07.16.08.58.37
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 16 Jul 2019 08:37:18 -0700 (PDT)
-Received-SPF: pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Tue, 16 Jul 2019 08:58:37 -0700 (PDT)
+Received-SPF: pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=OhZ27q56;
-       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=bDj3lwrm;
+       spf=pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=urezki@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=C93X661VNMOR9DFx3hY8rNDYh7Sxy5r20/CPUz7fPoI=;
-        b=OhZ27q5680bO3unAKy/oIbRQ/kHunOzN6T3oKB4ku54b6OG12FYS6p/cAWrB12xeTw
-         Dq9rLUvss3pISdY4FOhlS3R69lfLwwFp0qFxo+/hgye4iji9hsVqP7qav+NhvvlfvVmC
-         k0eVvUMY2h5C/ErIkxEBtkrB5wzGn94RCjDNIXqGeuIaK4xcDGXQ0SuNW9huiZQOpeM9
-         NlMovhx4HIrrk/jTZLvkNF+a07kGkvuia+AIzzQ3470a3e5PhIoplJX3vUKNPVY4gvTB
-         RuN/DgAGzx5EOH0d58n7ZdEmV6WtnVPz4BI+sYEoZGCzFEcwtrv2+b/n7uh6cqhTfVxg
-         WZ1g==
-X-Google-Smtp-Source: APXvYqy5077FqnRt9dZKnpu3FoJaG6aAk6xbfNR4grwb2kuiH/6uuo0NehX4b2tBaddVUBwvXctFAZweZPx0M0mSfVE=
-X-Received: by 2002:ac8:32c8:: with SMTP id a8mr22704040qtb.47.1563291437641;
- Tue, 16 Jul 2019 08:37:17 -0700 (PDT)
+        h=from:date:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=XQ410IUsZxin0lRODEmBFRGZWq/RPTQwE6XaaTIWCEA=;
+        b=bDj3lwrmaFpxNyQK2qAgblH+qScOy6wvDRBKuQmIo9xXYIIRIKYe8yCti20qp+sBMQ
+         vR5gcelSC96/R8Nw9+lAF3K5OXHJHj/567AJx8Maoz9lw4K5kzwSNskmjRRxVoGeVjCA
+         Q5nIRbojMw5Xj4WrZzTvc+i9ujglezIdEHC42amyCVAWlV8jsCs/DeeSgklmmOm7QlyS
+         /n5dfkqhNjeyRRkGKjS+/amF7qdf6kPz85pY4J00exm0lSe7gDO6oNO/hprM6dPE2ZmS
+         QZjYWNoz5Kd8ztvkSpTgTcENkVCBWXejmoEPb0mExP25awBR7Y3bfpYtm3iqB+UpHHXw
+         hJPQ==
+X-Google-Smtp-Source: APXvYqx4O4YL/HwVrYmVuGlLH9FEYLvY42UH1KiM+psjSzG/ll6t382D5c9edjlsPR08mwxaUrWfBg==
+X-Received: by 2002:a05:651c:21c:: with SMTP id y28mr1031225ljn.187.1563292717243;
+        Tue, 16 Jul 2019 08:58:37 -0700 (PDT)
+Received: from pc636 ([37.139.158.167])
+        by smtp.gmail.com with ESMTPSA id z12sm2922304lfg.67.2019.07.16.08.58.36
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 16 Jul 2019 08:58:36 -0700 (PDT)
+From: Uladzislau Rezki <urezki@gmail.com>
+X-Google-Original-From: Uladzislau Rezki <urezki@pc636>
+Date: Tue, 16 Jul 2019 17:58:29 +0200
+To: Pengfei Li <lpf.vector@gmail.com>
+Cc: akpm@linux-foundation.org, willy@infradead.org, urezki@gmail.com,
+	rpenyaev@suse.de, peterz@infradead.org, guro@fb.com,
+	rick.p.edgecombe@intel.com, rppt@linux.ibm.com,
+	aryabinin@virtuozzo.com, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Subject: Re: [PATCH v6 2/2] mm/vmalloc: modify struct vmap_area to reduce its
+ size
+Message-ID: <20190716155829.zdrzadrmwxrkfkro@pc636>
+References: <20190716152656.12255-1-lpf.vector@gmail.com>
+ <20190716152656.12255-3-lpf.vector@gmail.com>
 MIME-Version: 1.0
-References: <20190619222922.1231.27432.stgit@localhost.localdomain>
- <20190619223338.1231.52537.stgit@localhost.localdomain> <20190716055017-mutt-send-email-mst@kernel.org>
-In-Reply-To: <20190716055017-mutt-send-email-mst@kernel.org>
-From: Alexander Duyck <alexander.duyck@gmail.com>
-Date: Tue, 16 Jul 2019 08:37:06 -0700
-Message-ID: <CAKgT0Uc-2k9o7pjtf-GFAgr83c7RM-RTJ8-OrEzFv92uz+MTDw@mail.gmail.com>
-Subject: Re: [PATCH v1 6/6] virtio-balloon: Add support for aerating memory
- via hinting
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: Nitesh Narayan Lal <nitesh@redhat.com>, kvm list <kvm@vger.kernel.org>, 
-	David Hildenbrand <david@redhat.com>, Dave Hansen <dave.hansen@intel.com>, 
-	LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, 
-	Andrew Morton <akpm@linux-foundation.org>, Yang Zhang <yang.zhang.wz@gmail.com>, pagupta@redhat.com, 
-	Rik van Riel <riel@surriel.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, lcapitulino@redhat.com, 
-	wei.w.wang@intel.com, Andrea Arcangeli <aarcange@redhat.com>, 
-	Paolo Bonzini <pbonzini@redhat.com>, dan.j.williams@intel.com, 
-	Alexander Duyck <alexander.h.duyck@linux.intel.com>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190716152656.12255-3-lpf.vector@gmail.com>
+User-Agent: NeoMutt/20170113 (1.7.2)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jul 16, 2019 at 2:55 AM Michael S. Tsirkin <mst@redhat.com> wrote:
->
-> On Wed, Jun 19, 2019 at 03:33:38PM -0700, Alexander Duyck wrote:
-> > From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
-> >
-> > Add support for aerating memory using the hinting feature provided by
-> > virtio-balloon. Hinting differs from the regular balloon functionality in
-> > that is is much less durable than a standard memory balloon. Instead of
-> > creating a list of pages that cannot be accessed the pages are only
-> > inaccessible while they are being indicated to the virtio interface. Once
-> > the interface has acknowledged them they are placed back into their
-> > respective free lists and are once again accessible by the guest system.
-> >
-> > Signed-off-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
-> > ---
-> >  drivers/virtio/Kconfig              |    1
-> >  drivers/virtio/virtio_balloon.c     |  110 ++++++++++++++++++++++++++++++++++-
-> >  include/uapi/linux/virtio_balloon.h |    1
-> >  3 files changed, 108 insertions(+), 4 deletions(-)
-> >
-> > diff --git a/drivers/virtio/Kconfig b/drivers/virtio/Kconfig
-> > index 023fc3bc01c6..9cdaccf92c3a 100644
-> > --- a/drivers/virtio/Kconfig
-> > +++ b/drivers/virtio/Kconfig
-> > @@ -47,6 +47,7 @@ config VIRTIO_BALLOON
-> >       tristate "Virtio balloon driver"
-> >       depends on VIRTIO
-> >       select MEMORY_BALLOON
-> > +     select AERATION
-> >       ---help---
-> >        This driver supports increasing and decreasing the amount
-> >        of memory within a KVM guest.
-> > diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
-> > index 44339fc87cc7..91f1e8c9017d 100644
-> > --- a/drivers/virtio/virtio_balloon.c
-> > +++ b/drivers/virtio/virtio_balloon.c
-> > @@ -18,6 +18,7 @@
-> >  #include <linux/mm.h>
-> >  #include <linux/mount.h>
-> >  #include <linux/magic.h>
-> > +#include <linux/memory_aeration.h>
-> >
-> >  /*
-> >   * Balloon device works in 4K page units.  So each page is pointed to by
-> > @@ -26,6 +27,7 @@
-> >   */
-> >  #define VIRTIO_BALLOON_PAGES_PER_PAGE (unsigned)(PAGE_SIZE >> VIRTIO_BALLOON_PFN_SHIFT)
-> >  #define VIRTIO_BALLOON_ARRAY_PFNS_MAX 256
-> > +#define VIRTIO_BALLOON_ARRAY_HINTS_MAX       32
-> >  #define VIRTBALLOON_OOM_NOTIFY_PRIORITY 80
-> >
-> >  #define VIRTIO_BALLOON_FREE_PAGE_ALLOC_FLAG (__GFP_NORETRY | __GFP_NOWARN | \
-> > @@ -45,6 +47,7 @@ enum virtio_balloon_vq {
-> >       VIRTIO_BALLOON_VQ_DEFLATE,
-> >       VIRTIO_BALLOON_VQ_STATS,
-> >       VIRTIO_BALLOON_VQ_FREE_PAGE,
-> > +     VIRTIO_BALLOON_VQ_HINTING,
-> >       VIRTIO_BALLOON_VQ_MAX
-> >  };
-> >
-> > @@ -54,7 +57,8 @@ enum virtio_balloon_config_read {
-> >
-> >  struct virtio_balloon {
-> >       struct virtio_device *vdev;
-> > -     struct virtqueue *inflate_vq, *deflate_vq, *stats_vq, *free_page_vq;
-> > +     struct virtqueue *inflate_vq, *deflate_vq, *stats_vq, *free_page_vq,
-> > +                                                             *hinting_vq;
-> >
-> >       /* Balloon's own wq for cpu-intensive work items */
-> >       struct workqueue_struct *balloon_wq;
-> > @@ -103,9 +107,21 @@ struct virtio_balloon {
-> >       /* Synchronize access/update to this struct virtio_balloon elements */
-> >       struct mutex balloon_lock;
-> >
-> > -     /* The array of pfns we tell the Host about. */
-> > -     unsigned int num_pfns;
-> > -     __virtio32 pfns[VIRTIO_BALLOON_ARRAY_PFNS_MAX];
-> > +
-> > +     union {
-> > +             /* The array of pfns we tell the Host about. */
-> > +             struct {
-> > +                     unsigned int num_pfns;
-> > +                     __virtio32 pfns[VIRTIO_BALLOON_ARRAY_PFNS_MAX];
-> > +             };
-> > +             /* The array of physical addresses we are hinting on */
-> > +             struct {
-> > +                     unsigned int num_hints;
-> > +                     __virtio64 hints[VIRTIO_BALLOON_ARRAY_HINTS_MAX];
-> > +             };
-> > +     };
-> > +
-> > +     struct aerator_dev_info a_dev_info;
-> >
-> >       /* Memory statistics */
-> >       struct virtio_balloon_stat stats[VIRTIO_BALLOON_S_NR];
-> > @@ -151,6 +167,68 @@ static void tell_host(struct virtio_balloon *vb, struct virtqueue *vq)
-> >
-> >  }
-> >
-> > +static u64 page_to_hints_pa_order(struct page *page)
-> > +{
-> > +     unsigned char order;
-> > +     dma_addr_t pa;
-> > +
-> > +     BUILD_BUG_ON((64 - VIRTIO_BALLOON_PFN_SHIFT) >=
-> > +                  (1 << VIRTIO_BALLOON_PFN_SHIFT));
-> > +
-> > +     /*
-> > +      * Record physical page address combined with page order.
-> > +      * Order will never exceed 64 - VIRTIO_BALLON_PFN_SHIFT
-> > +      * since the size has to fit into a 64b value. So as long
-> > +      * as VIRTIO_BALLOON_SHIFT is greater than this combining
-> > +      * the two values should be safe.
-> > +      */
-> > +     pa = page_to_phys(page);
-> > +     order = page_private(page) +
-> > +             PAGE_SHIFT - VIRTIO_BALLOON_PFN_SHIFT;
-> > +
-> > +     return (u64)(pa | order);
-> > +}
-> > +
-> > +void virtballoon_aerator_react(struct aerator_dev_info *a_dev_info)
-> > +{
-> > +     struct virtio_balloon *vb = container_of(a_dev_info,
-> > +                                             struct virtio_balloon,
-> > +                                             a_dev_info);
-> > +     struct virtqueue *vq = vb->hinting_vq;
-> > +     struct scatterlist sg;
-> > +     unsigned int unused;
-> > +     struct page *page;
-> > +
-> > +     mutex_lock(&vb->balloon_lock);
-> > +
-> > +     vb->num_hints = 0;
-> > +
-> > +     list_for_each_entry(page, &a_dev_info->batch, lru) {
-> > +             vb->hints[vb->num_hints++] =
-> > +                             cpu_to_virtio64(vb->vdev,
-> > +                                             page_to_hints_pa_order(page));
-> > +     }
-> > +
-> > +     /* We shouldn't have been called if there is nothing to process */
-> > +     if (WARN_ON(vb->num_hints == 0))
-> > +             goto out;
-> > +
-> > +     sg_init_one(&sg, vb->hints,
-> > +                 sizeof(vb->hints[0]) * vb->num_hints);
-> > +
-> > +     /*
-> > +      * We should always be able to add one buffer to an
-> > +      * empty queue.
-> > +      */
-> > +     virtqueue_add_outbuf(vq, &sg, 1, vb, GFP_KERNEL);
-> > +     virtqueue_kick(vq);
-> > +
-> > +     /* When host has read buffer, this completes via balloon_ack */
-> > +     wait_event(vb->acked, virtqueue_get_buf(vq, &unused));
-> > +out:
-> > +     mutex_unlock(&vb->balloon_lock);
-> > +}
-> > +
-> >  static void set_page_pfns(struct virtio_balloon *vb,
-> >                         __virtio32 pfns[], struct page *page)
-> >  {
-> > @@ -475,6 +553,7 @@ static int init_vqs(struct virtio_balloon *vb)
-> >       names[VIRTIO_BALLOON_VQ_DEFLATE] = "deflate";
-> >       names[VIRTIO_BALLOON_VQ_STATS] = NULL;
-> >       names[VIRTIO_BALLOON_VQ_FREE_PAGE] = NULL;
-> > +     names[VIRTIO_BALLOON_VQ_HINTING] = NULL;
-> >
-> >       if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_STATS_VQ)) {
-> >               names[VIRTIO_BALLOON_VQ_STATS] = "stats";
-> > @@ -486,11 +565,19 @@ static int init_vqs(struct virtio_balloon *vb)
-> >               callbacks[VIRTIO_BALLOON_VQ_FREE_PAGE] = NULL;
-> >       }
-> >
-> > +     if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_HINTING)) {
-> > +             names[VIRTIO_BALLOON_VQ_HINTING] = "hinting_vq";
-> > +             callbacks[VIRTIO_BALLOON_VQ_HINTING] = balloon_ack;
-> > +     }
-> > +
-> >       err = vb->vdev->config->find_vqs(vb->vdev, VIRTIO_BALLOON_VQ_MAX,
-> >                                        vqs, callbacks, names, NULL, NULL);
-> >       if (err)
-> >               return err;
-> >
-> > +     if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_HINTING))
-> > +             vb->hinting_vq = vqs[VIRTIO_BALLOON_VQ_HINTING];
-> > +
-> >       vb->inflate_vq = vqs[VIRTIO_BALLOON_VQ_INFLATE];
-> >       vb->deflate_vq = vqs[VIRTIO_BALLOON_VQ_DEFLATE];
-> >       if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_STATS_VQ)) {
-> > @@ -929,12 +1016,24 @@ static int virtballoon_probe(struct virtio_device *vdev)
-> >               if (err)
-> >                       goto out_del_balloon_wq;
-> >       }
-> > +
-> > +     vb->a_dev_info.react = virtballoon_aerator_react;
-> > +     vb->a_dev_info.capacity = VIRTIO_BALLOON_ARRAY_HINTS_MAX;
-> > +     if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_HINTING)) {
-> > +             err = aerator_startup(&vb->a_dev_info);
-> > +             if (err)
-> > +                     goto out_unregister_shrinker;
-> > +     }
-> > +
-> >       virtio_device_ready(vdev);
-> >
-> >       if (towards_target(vb))
-> >               virtballoon_changed(vdev);
-> >       return 0;
-> >
-> > +out_unregister_shrinker:
-> > +     if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_DEFLATE_ON_OOM))
-> > +             virtio_balloon_unregister_shrinker(vb);
-> >  out_del_balloon_wq:
-> >       if (virtio_has_feature(vdev, VIRTIO_BALLOON_F_FREE_PAGE_HINT))
-> >               destroy_workqueue(vb->balloon_wq);
-> > @@ -963,6 +1062,8 @@ static void virtballoon_remove(struct virtio_device *vdev)
-> >  {
-> >       struct virtio_balloon *vb = vdev->priv;
-> >
-> > +     if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_HINTING))
-> > +             aerator_shutdown();
-> >       if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_DEFLATE_ON_OOM))
-> >               virtio_balloon_unregister_shrinker(vb);
-> >       spin_lock_irq(&vb->stop_update_lock);
-> > @@ -1032,6 +1133,7 @@ static int virtballoon_validate(struct virtio_device *vdev)
-> >       VIRTIO_BALLOON_F_DEFLATE_ON_OOM,
-> >       VIRTIO_BALLOON_F_FREE_PAGE_HINT,
-> >       VIRTIO_BALLOON_F_PAGE_POISON,
-> > +     VIRTIO_BALLOON_F_HINTING,
-> >  };
-> >
-> >  static struct virtio_driver virtio_balloon_driver = {
-> > diff --git a/include/uapi/linux/virtio_balloon.h b/include/uapi/linux/virtio_balloon.h
-> > index a1966cd7b677..2b0f62814e22 100644
-> > --- a/include/uapi/linux/virtio_balloon.h
-> > +++ b/include/uapi/linux/virtio_balloon.h
-> > @@ -36,6 +36,7 @@
-> >  #define VIRTIO_BALLOON_F_DEFLATE_ON_OOM      2 /* Deflate balloon on OOM */
-> >  #define VIRTIO_BALLOON_F_FREE_PAGE_HINT      3 /* VQ to report free pages */
-> >  #define VIRTIO_BALLOON_F_PAGE_POISON 4 /* Guest is using page poisoning */
-> > +#define VIRTIO_BALLOON_F_HINTING     5 /* Page hinting virtqueue */
-> >
-> >  /* Size of a PFN in the balloon interface. */
-> >  #define VIRTIO_BALLOON_PFN_SHIFT 12
->
->
->
-> The approach here is very close to what on-demand hinting that is
-> already upstream does.
->
-> This should have resulted in a most of the code being shared
-> but this does not seem to happen here.
->
-> Can we unify the code in some way?
-> It can still use a separate feature flag, but there are things
-> I like very much about current hinting code, such as
-> using s/g instead of passing PFNs in a buffer.
->
-> If this doesn't work could you elaborate on why?
+On Tue, Jul 16, 2019 at 11:26:56PM +0800, Pengfei Li wrote:
+> Objective
+> ---------
+> The current implementation of struct vmap_area wasted space.
+> 
+> After applying this commit, sizeof(struct vmap_area) has been
+> reduced from 11 words to 8 words.
+> 
+> Description
+> -----------
+> 1) Pack "subtree_max_size", "vm" and "purge_list".
+> This is no problem because
+>     A) "subtree_max_size" is only used when vmap_area is in
+>        "free" tree
+>     B) "vm" is only used when vmap_area is in "busy" tree
+>     C) "purge_list" is only used when vmap_area is in
+>        vmap_purge_list
+> 
+> 2) Eliminate "flags".
+> Since only one flag VM_VM_AREA is being used, and the same
+> thing can be done by judging whether "vm" is NULL, then the
+> "flags" can be eliminated.
+> 
+> Signed-off-by: Pengfei Li <lpf.vector@gmail.com>
+> Suggested-by: Uladzislau Rezki (Sony) <urezki@gmail.com>
+> ---
+>  include/linux/vmalloc.h | 20 +++++++++++++-------
+>  mm/vmalloc.c            | 24 ++++++++++--------------
+>  2 files changed, 23 insertions(+), 21 deletions(-)
+> 
+> diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
+> index 9b21d0047710..a1334bd18ef1 100644
+> --- a/include/linux/vmalloc.h
+> +++ b/include/linux/vmalloc.h
+> @@ -51,15 +51,21 @@ struct vmap_area {
+>  	unsigned long va_start;
+>  	unsigned long va_end;
+>  
+> -	/*
+> -	 * Largest available free size in subtree.
+> -	 */
+> -	unsigned long subtree_max_size;
+> -	unsigned long flags;
+>  	struct rb_node rb_node;         /* address sorted rbtree */
+>  	struct list_head list;          /* address sorted list */
+> -	struct llist_node purge_list;    /* "lazy purge" list */
+> -	struct vm_struct *vm;
+> +
+> +	/*
+> +	 * The following three variables can be packed, because
+> +	 * a vmap_area object is always one of the three states:
+> +	 *    1) in "free" tree (root is vmap_area_root)
+> +	 *    2) in "busy" tree (root is free_vmap_area_root)
+> +	 *    3) in purge list  (head is vmap_purge_list)
+> +	 */
+> +	union {
+> +		unsigned long subtree_max_size; /* in "free" tree */
+> +		struct vm_struct *vm;           /* in "busy" tree */
+> +		struct llist_node purge_list;   /* in purge list */
+> +	};
+>  };
+>  
+>  /*
+> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+> index 71d8040a8a0b..2f7edc0466e7 100644
+> --- a/mm/vmalloc.c
+> +++ b/mm/vmalloc.c
+> @@ -329,7 +329,6 @@ EXPORT_SYMBOL(vmalloc_to_pfn);
+>  #define DEBUG_AUGMENT_PROPAGATE_CHECK 0
+>  #define DEBUG_AUGMENT_LOWEST_MATCH_CHECK 0
+>  
+> -#define VM_VM_AREA	0x04
+>  
+>  static DEFINE_SPINLOCK(vmap_area_lock);
+>  /* Export for kexec only */
+> @@ -1115,7 +1114,7 @@ static struct vmap_area *alloc_vmap_area(unsigned long size,
+>  
+>  	va->va_start = addr;
+>  	va->va_end = addr + size;
+> -	va->flags = 0;
+> +	va->vm = NULL;
+>  	insert_vmap_area(va, &vmap_area_root, &vmap_area_list);
+>  
+>  	spin_unlock(&vmap_area_lock);
+> @@ -1922,7 +1921,6 @@ void __init vmalloc_init(void)
+>  		if (WARN_ON_ONCE(!va))
+>  			continue;
+>  
+> -		va->flags = VM_VM_AREA;
+>  		va->va_start = (unsigned long)tmp->addr;
+>  		va->va_end = va->va_start + tmp->size;
+>  		va->vm = tmp;
+> @@ -2020,7 +2018,6 @@ static void setup_vmalloc_vm(struct vm_struct *vm, struct vmap_area *va,
+>  	vm->size = va->va_end - va->va_start;
+>  	vm->caller = caller;
+>  	va->vm = vm;
+> -	va->flags |= VM_VM_AREA;
+>  	spin_unlock(&vmap_area_lock);
+>  }
+>  
+> @@ -2125,10 +2122,10 @@ struct vm_struct *find_vm_area(const void *addr)
+>  	struct vmap_area *va;
+>  
+>  	va = find_vmap_area((unsigned long)addr);
+> -	if (va && va->flags & VM_VM_AREA)
+> -		return va->vm;
+> +	if (!va)
+> +		return NULL;
+>  
+> -	return NULL;
+> +	return va->vm;
+>  }
+>  
+>  /**
+> @@ -2149,11 +2146,10 @@ struct vm_struct *remove_vm_area(const void *addr)
+>  
+>  	spin_lock(&vmap_area_lock);
+>  	va = __find_vmap_area((unsigned long)addr);
+> -	if (va && va->flags & VM_VM_AREA) {
+> +	if (va && va->vm) {
+>  		struct vm_struct *vm = va->vm;
+>  
+>  		va->vm = NULL;
+> -		va->flags &= ~VM_VM_AREA;
+>  		spin_unlock(&vmap_area_lock);
+>  
+>  		kasan_free_shadow(vm);
+> @@ -2856,7 +2852,7 @@ long vread(char *buf, char *addr, unsigned long count)
+>  		if (!count)
+>  			break;
+>  
+> -		if (!(va->flags & VM_VM_AREA))
+> +		if (!va->vm)
+>  			continue;
+>  
+>  		vm = va->vm;
+> @@ -2936,7 +2932,7 @@ long vwrite(char *buf, char *addr, unsigned long count)
+>  		if (!count)
+>  			break;
+>  
+> -		if (!(va->flags & VM_VM_AREA))
+> +		if (!va->vm)
+>  			continue;
+>  
+>  		vm = va->vm;
+> @@ -3466,10 +3462,10 @@ static int s_show(struct seq_file *m, void *p)
+>  	va = list_entry(p, struct vmap_area, list);
+>  
+>  	/*
+> -	 * s_show can encounter race with remove_vm_area, !VM_VM_AREA on
+> -	 * behalf of vmap area is being tear down or vm_map_ram allocation.
+> +	 * s_show can encounter race with remove_vm_area, !vm on behalf
+> +	 * of vmap area is being tear down or vm_map_ram allocation.
+>  	 */
+> -	if (!(va->flags & VM_VM_AREA)) {
+> +	if (!va->vm) {
+>  		seq_printf(m, "0x%pK-0x%pK %7ld vm_map_ram\n",
+>  			(void *)va->va_start, (void *)va->va_end,
+>  			va->va_end - va->va_start);
+> -- 
+> 2.21.0
+> 
 
-As far as sending a scatter gather that shouldn't be too much of an
-issue, however I need to double check that I will still be able to
-keep the completions as a single block.
+This patch depends on https://lkml.org/lkml/2019/7/16/276 and looks ok
+to me, so
 
-One significant spot where the "VIRTIO_BALLOON_F_FREE_PAGE_HINT" code
-and my code differs. My code is processing a fixed discreet block of
-pages at a time, whereas the FREE_PAGE_HINT code is slurping up all
-available high-order memory and stuffing it into a giant balloon and
-has more of a streaming setup as it doesn't return things until either
-forced to by the shrinker or once it has processed all available
-memory.
+Reviewed-by: Uladzislau Rezki (Sony) <urezki@gmail.com>
 
-The basic idea with the bubble hinting was to essentially create mini
-balloons. As such I had based the code off of the balloon inflation
-code. The only spot where it really differs is that I needed the
-ability to pass higher order pages so I tweaked thinks and passed
-"hints" instead of "pfns".
+Thanks!
+
+--
+Vlad Rezki
 
