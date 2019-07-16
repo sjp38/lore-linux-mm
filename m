@@ -2,166 +2,171 @@ Return-Path: <SRS0=rp0W=VN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 05B3EC76195
-	for <linux-mm@archiver.kernel.org>; Tue, 16 Jul 2019 16:13:14 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 99AD6C7618F
+	for <linux-mm@archiver.kernel.org>; Tue, 16 Jul 2019 16:31:15 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C78ED205ED
-	for <linux-mm@archiver.kernel.org>; Tue, 16 Jul 2019 16:13:13 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C78ED205ED
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id E973F206C2
+	for <linux-mm@archiver.kernel.org>; Tue, 16 Jul 2019 16:31:14 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E973F206C2
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=daenzer.net
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 448BA8E0009; Tue, 16 Jul 2019 12:13:13 -0400 (EDT)
+	id 71F926B0005; Tue, 16 Jul 2019 12:31:14 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3F7DE8E0006; Tue, 16 Jul 2019 12:13:13 -0400 (EDT)
+	id 6D0F48E0005; Tue, 16 Jul 2019 12:31:14 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2E5728E0009; Tue, 16 Jul 2019 12:13:13 -0400 (EDT)
+	id 5BF028E0003; Tue, 16 Jul 2019 12:31:14 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 0AF2C8E0006
-	for <linux-mm@kvack.org>; Tue, 16 Jul 2019 12:13:13 -0400 (EDT)
-Received: by mail-qt1-f197.google.com with SMTP id o16so18468298qtj.6
-        for <linux-mm@kvack.org>; Tue, 16 Jul 2019 09:13:13 -0700 (PDT)
+Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 089296B0005
+	for <linux-mm@kvack.org>; Tue, 16 Jul 2019 12:31:14 -0400 (EDT)
+Received: by mail-wr1-f72.google.com with SMTP id t9so10813541wrx.9
+        for <linux-mm@kvack.org>; Tue, 16 Jul 2019 09:31:13 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to;
-        bh=FaRY9REk0dNOyBUpXX2UovVXh7myfxnWc78AJyJvbSM=;
-        b=Lkp7AmQAjkW/Ag6UK57czGsQlh/sCzznNlWSdmui5vdzRM91aD1QBKbGQTqwubuY4B
-         B04qgbq2ep3wzfYVjpVYCGv72sn2l3Gtcu8l5STZHk+37o8XwSZ03dlKjiYZU81YjaOT
-         y5DsGNiY1ImUkRSwhLn2IInfxVcizDCVZOBbH1qcaXEyitcmia1acANxG0mw3kD0Av1z
-         xBhmJKqY70HkpAUfaIloHrDr6pvBCF4fYhULURklt6ampwkL6TyPGqcYbPfphF/3n7nI
-         Wp8fCcnSDODrHw/AhzI22qjCUaoflYejjPGIiemNG6j8sS3WJ5vvFOaIxlF9szCDG/kZ
-         1y3g==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mst@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=mst@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAURHuBq8daVNeMjDOC1nXG5MCAweoG/X1SQuKtxkvG1f51mA6ko
-	NAu8b+/yzsElIB8N57DWpKrSUdl60FjtadhLxQ10wK6DSoJMgyepicH0F4fmsKqJr9/EpEgHGp+
-	NUrLUIGcLIjTAgRWwxwGKj28Ph0lK9RrlKeKXbZBwaONNMLRC3R8E9+G8s5bg6E7WSA==
-X-Received: by 2002:a37:97c5:: with SMTP id z188mr23571233qkd.5.1563293592827;
-        Tue, 16 Jul 2019 09:13:12 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqx9kz916DJwXwg8yoEKbbB6+jsgpmlXQc4mX63UnT9P6zrviTJdJ8ldRl6jkdb6L+jPsf/U
-X-Received: by 2002:a37:97c5:: with SMTP id z188mr23571189qkd.5.1563293592303;
-        Tue, 16 Jul 2019 09:13:12 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563293592; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=kn6KcW/zFcrpya+PYa7sOEVDbnX2D/hsH0Sa5ZCsJUo=;
+        b=Ay4E5Z1sD1fMXaddE2TPOOD0WAB7wOYYO02W43IRwPnc5IBazoznZbfzaBDoq5f1VR
+         5hEnUhR3geJktF8joND4f023Rg9SefHsNRnwx0KgOxKVVeyGQrP4Q53rT4uRZeRae/UB
+         DHm/zL4BWoYRe8GlMb2tnsFeukaz+2Db/j1ymCMH8Q+O0m7/cEPf2BLCx3ZUlDPVQxZB
+         d4e0QbWp7vbIxttGVEqtsG7UxiIDV3NH4qkHeKv1unTa1FCtGNWNVuluIBURjOdiMKWe
+         bHR0kr+i/M+LoEjxAX4DB49NRn6jR7jvG3qlM8RTXKTkuR0zc2ODzrj42gQNuOWM/Mas
+         qabw==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 148.251.143.178 is neither permitted nor denied by best guess record for domain of michel@daenzer.net) smtp.mailfrom=michel@daenzer.net
+X-Gm-Message-State: APjAAAUHeWzSJar1cthmXlmV2FsLQSZNjOQL8dktTFs/jhWwpEmSgoDf
+	uI82G3y98arsg2474awaGWjkOp4q4ljVHJvNjWAsJGS+6X8npwQ1Y3tswIENvzPhN+3XrttZ8Si
+	5NCWAPUizm5AFjidd0DfzYyoizbPNbjzQBy9AZnrcqJi4xa2M8uQWa5zotNZiMMs=
+X-Received: by 2002:adf:db50:: with SMTP id f16mr23081991wrj.214.1563294673536;
+        Tue, 16 Jul 2019 09:31:13 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzU4/wxpTkNTXhTfGmfLZ6l1mwflg6gpSitvBwGcZSHXA3qQR3wbFrx6Vxairv72lRDyhzb
+X-Received: by 2002:adf:db50:: with SMTP id f16mr23081943wrj.214.1563294672744;
+        Tue, 16 Jul 2019 09:31:12 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563294672; cv=none;
         d=google.com; s=arc-20160816;
-        b=Xvdc8jzu3cwg+jGs1kd03p/R/0HRbpsPrZ9I63UG6bNQ/UIWy+CIZ3vvcnURvbPDRP
-         Gv2vte10kUGZiHzXk5xmVPwP5IK6r/mGmIWH+c6H1SuIyOaCqz/dymhOgHnRcO9Qu8Jx
-         +nag+/gCZrDuVVi2p3CD9E5DcT8uArYOEx1rlBzg32hpicqCOJvxyTTQyfq31W076Zh3
-         xo2iupu4N0BMe8DUHTjhRM6fkweVjUJRqPk0CaW3chObJZVP3/ASPj8Gm3Z6VaNtOaKi
-         RvmZp5CPJKkwp2PJOgmcPAkZNJYwV8TVUBCgJC5t1UtJRjIxIOWIimPhZt0jXFJ/doUd
-         bX6g==
+        b=X/dno0Kz5+YUlpeG0y46uuuAN4C9/2Lw8s14c2WAiCxJwmG5Dys3f6KkJG/Xpfn4nR
+         /FX6r8cfSdta4k0l9FRxzRWF/y4EsJJHqxyawH8aGM6av0rJuBSCIwWYJv78QhVkNkMI
+         voJ6VyZy/NnhF0UsU2o4N9w7qFhH5ohEjfn/PEQkaMV55y6N03E+b6YoNu9uK0LtpB+p
+         7cDRX2zx2X0068hVijh3PBQEtj1tYBelfmYkbeMPzU37jfa+LVDDgHXmaysVaMMPO1O/
+         ZsUfZyzw8EL8UMZFiUaiuvsBUulWw8IYK34na2ah/OFLyGmvPEDEstOgTBUxwGfvtFRy
+         XfsA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=in-reply-to:content-disposition:mime-version:references:message-id
-         :subject:cc:to:from:date;
-        bh=FaRY9REk0dNOyBUpXX2UovVXh7myfxnWc78AJyJvbSM=;
-        b=wzDckHVcvzQijc2P+4PhrN3kDsm45kL28wGJFPMnz5pjCK2Ke+FtNsqUFtuICUfcbo
-         vVENy/YkeUkJvgD/WUJRfVC1R1L+ytAw2Zz/zkVtJ1c7+VtJ3H2ORpK3ubhH5qUa8hW9
-         oRH83j4zGhAt64Vj8WSQALO/cHcZxFwmYKCLbwrwd/N8o6YHP3L0apbt22uz/fzS6WGQ
-         dYWdxRIYicVBsXOg+rU57j8iOLo5Xh7F1Gx550RlZAzHrrqX3jFP1o2q0zaLy/ZpA9SS
-         UaLM2GXO16sRNh6oy5i/jAUsOFhr8AOmwhc8uSewPSxVXS3qT7j49J05IgqQ1V5E8wA4
-         NNtw==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
+         :subject;
+        bh=kn6KcW/zFcrpya+PYa7sOEVDbnX2D/hsH0Sa5ZCsJUo=;
+        b=hBllAxFIC57PAhItvO9eeaO+J54YiKdS9tpChB46RthtDX4LBceOOYa43czlUqM/Aw
+         x3Gs9K2kvEwNNXK+QWwS/al7tVodMu/A2kR+lzLy9/QK5PlGCyUjE69hwtBQfeM7A4sH
+         O7N3EDE7zSJBQMsabnSYAmlvZYY+9LEQDvpu7UNgeHZA29AGx83cN0iGXnbsTOtmA74m
+         l28OB2Wuhr1dY+sZGK1Q74SojyNDPS4LpiW6/rWZXZf/S8R/YndL9l6z4F5V5Hh/PL4t
+         yw2nklj7qyXEz99YZyVthd6iQGGR95f9gvo1Ez5k2xCHDkp5Y9IeZ0Ukdpisc+y6M5a2
+         W95Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of mst@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=mst@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id v35si13699450qtj.81.2019.07.16.09.13.12
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 Jul 2019 09:13:12 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mst@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+       spf=neutral (google.com: 148.251.143.178 is neither permitted nor denied by best guess record for domain of michel@daenzer.net) smtp.mailfrom=michel@daenzer.net
+Received: from netline-mail3.netline.ch (mail.netline.ch. [148.251.143.178])
+        by mx.google.com with ESMTP id x5si17921316wmk.191.2019.07.16.09.31.12
+        for <linux-mm@kvack.org>;
+        Tue, 16 Jul 2019 09:31:12 -0700 (PDT)
+Received-SPF: neutral (google.com: 148.251.143.178 is neither permitted nor denied by best guess record for domain of michel@daenzer.net) client-ip=148.251.143.178;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of mst@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=mst@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 98E3481F31;
-	Tue, 16 Jul 2019 16:13:10 +0000 (UTC)
-Received: from redhat.com (ovpn-122-108.rdu2.redhat.com [10.10.122.108])
-	by smtp.corp.redhat.com (Postfix) with SMTP id 8E7D86012C;
-	Tue, 16 Jul 2019 16:12:57 +0000 (UTC)
-Date: Tue, 16 Jul 2019 12:12:56 -0400
-From: "Michael S. Tsirkin" <mst@redhat.com>
-To: "Wang, Wei W" <wei.w.wang@intel.com>
-Cc: "Hansen, Dave" <dave.hansen@intel.com>,
-	David Hildenbrand <david@redhat.com>,
-	Alexander Duyck <alexander.duyck@gmail.com>,
-	"nitesh@redhat.com" <nitesh@redhat.com>,
-	"kvm@vger.kernel.org" <kvm@vger.kernel.org>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>,
-	"akpm@linux-foundation.org" <akpm@linux-foundation.org>,
-	"yang.zhang.wz@gmail.com" <yang.zhang.wz@gmail.com>,
-	"pagupta@redhat.com" <pagupta@redhat.com>,
-	"riel@surriel.com" <riel@surriel.com>,
-	"konrad.wilk@oracle.com" <konrad.wilk@oracle.com>,
-	"lcapitulino@redhat.com" <lcapitulino@redhat.com>,
-	"aarcange@redhat.com" <aarcange@redhat.com>,
-	"pbonzini@redhat.com" <pbonzini@redhat.com>,
-	"Williams, Dan J" <dan.j.williams@intel.com>,
-	"alexander.h.duyck@linux.intel.com" <alexander.h.duyck@linux.intel.com>
-Subject: Re: [PATCH v1 6/6] virtio-balloon: Add support for aerating memory
- via hinting
-Message-ID: <20190716120839-mutt-send-email-mst@kernel.org>
-References: <20190619222922.1231.27432.stgit@localhost.localdomain>
- <20190619223338.1231.52537.stgit@localhost.localdomain>
- <20190716055017-mutt-send-email-mst@kernel.org>
- <cad839c0-bbe6-b065-ac32-f32c117cf07e@intel.com>
- <3f8b2a76-b2ce-fb73-13d4-22a33fc1eb17@redhat.com>
- <bdb9564d-640d-138f-6695-3fa2c084fcc7@intel.com>
- <286AC319A985734F985F78AFA26841F73E16AB21@shsmsx102.ccr.corp.intel.com>
+       spf=neutral (google.com: 148.251.143.178 is neither permitted nor denied by best guess record for domain of michel@daenzer.net) smtp.mailfrom=michel@daenzer.net
+Received: from localhost (localhost [127.0.0.1])
+	by netline-mail3.netline.ch (Postfix) with ESMTP id 0BAD92AA12C;
+	Tue, 16 Jul 2019 18:31:12 +0200 (CEST)
+X-Virus-Scanned: Debian amavisd-new at netline-mail3.netline.ch
+Received: from netline-mail3.netline.ch ([127.0.0.1])
+	by localhost (netline-mail3.netline.ch [127.0.0.1]) (amavisd-new, port 10024)
+	with LMTP id 4LY9cStXNEwq; Tue, 16 Jul 2019 18:31:11 +0200 (CEST)
+Received: from thor (116.245.63.188.dynamic.wline.res.cust.swisscom.ch [188.63.245.116])
+	by netline-mail3.netline.ch (Postfix) with ESMTPSA id 46A712AA0E9;
+	Tue, 16 Jul 2019 18:31:11 +0200 (CEST)
+Received: from localhost ([::1])
+	by thor with esmtp (Exim 4.92)
+	(envelope-from <michel@daenzer.net>)
+	id 1hnQMA-0007Rn-1z; Tue, 16 Jul 2019 18:31:10 +0200
+Subject: Re: HMM related use-after-free with amdgpu
+To: Jason Gunthorpe <jgg@mellanox.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>,
+ =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>,
+ "amd-gfx@lists.freedesktop.org" <amd-gfx@lists.freedesktop.org>
+References: <9a38f48b-3974-a238-5987-5251c1343f6b@daenzer.net>
+ <20190715172515.GA5043@mellanox.com>
+From: =?UTF-8?Q?Michel_D=c3=a4nzer?= <michel@daenzer.net>
+Openpgp: preference=signencrypt
+Autocrypt: addr=michel@daenzer.net; prefer-encrypt=mutual; keydata=
+ mQGiBDsehS8RBACbsIQEX31aYSIuEKxEnEX82ezMR8z3LG8ktv1KjyNErUX9Pt7AUC7W3W0b
+ LUhu8Le8S2va6hi7GfSAifl0ih3k6Bv1Itzgnd+7ZmSrvCN8yGJaHNQfAevAuEboIb+MaVHo
+ 9EMJj4ikOcRZCmQWw7evu/D9uQdtkCnRY9iJiAGxbwCguBHtpoGMxDOINCr5UU6qt+m4O+UD
+ /355ohBBzzyh49lTj0kTFKr0Ozd20G2FbcqHgfFL1dc1MPyigej2gLga2osu2QY0ObvAGkOu
+ WBi3LTY8Zs8uqFGDC4ZAwMPoFy3yzu3ne6T7d/68rJil0QcdQjzzHi6ekqHuhst4a+/+D23h
+ Za8MJBEcdOhRhsaDVGAJSFEQB1qLBACOs0xN+XblejO35gsDSVVk8s+FUUw3TSWJBfZa3Imp
+ V2U2tBO4qck+wqbHNfdnU/crrsHahjzBjvk8Up7VoY8oT+z03sal2vXEonS279xN2B92Tttr
+ AgwosujguFO/7tvzymWC76rDEwue8TsADE11ErjwaBTs8ZXfnN/uAANgPLQjTWljaGVsIERh
+ ZW56ZXIgPG1pY2hlbEBkYWVuemVyLm5ldD6IXgQTEQIAHgUCQFXxJgIbAwYLCQgHAwIDFQID
+ AxYCAQIeAQIXgAAKCRBaga+OatuyAIrPAJ9ykonXI3oQcX83N2qzCEStLNW47gCeLWm/QiPY
+ jqtGUnnSbyuTQfIySkK5AQ0EOx6FRRAEAJZkcvklPwJCgNiw37p0GShKmFGGqf/a3xZZEpjI
+ qNxzshFRFneZze4f5LhzbX1/vIm5+ZXsEWympJfZzyCmYPw86QcFxyZflkAxHx9LeD+89Elx
+ bw6wT0CcLvSv8ROfU1m8YhGbV6g2zWyLD0/naQGVb8e4FhVKGNY2EEbHgFBrAAMGA/0VktFO
+ CxFBdzLQ17RCTwCJ3xpyP4qsLJH0yCoA26rH2zE2RzByhrTFTYZzbFEid3ddGiHOBEL+bO+2
+ GNtfiYKmbTkj1tMZJ8L6huKONaVrASFzLvZa2dlc2zja9ZSksKmge5BOTKWgbyepEc5qxSju
+ YsYrX5xfLgTZC5abhhztpYhGBBgRAgAGBQI7HoVFAAoJEFqBr45q27IAlscAn2Ufk2d6/3p4
+ Cuyz/NX7KpL2dQ8WAJ9UD5JEakhfofed8PSqOM7jOO3LCA==
+Message-ID: <823db68e-6601-bb3a-0c1f-bfc5169cb7c9@daenzer.net>
+Date: Tue, 16 Jul 2019 18:31:09 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <286AC319A985734F985F78AFA26841F73E16AB21@shsmsx102.ccr.corp.intel.com>
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.25]); Tue, 16 Jul 2019 16:13:11 +0000 (UTC)
+In-Reply-To: <20190715172515.GA5043@mellanox.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-CA
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jul 16, 2019 at 03:01:52PM +0000, Wang, Wei W wrote:
-> On Tuesday, July 16, 2019 10:41 PM, Hansen, Dave wrote:
-> > Where is the page allocator integration?  The set you linked to has 5 patches,
-> > but only 4 were merged.  This one is missing:
-> > 
-> > 	https://lore.kernel.org/patchwork/patch/961038/
+On 2019-07-15 7:25 p.m., Jason Gunthorpe wrote:
+> On Mon, Jul 15, 2019 at 06:51:06PM +0200, Michel Dänzer wrote:
+>>
+>> With a KASAN enabled kernel built from amd-staging-drm-next, the
+>> attached use-after-free is pretty reliably detected during a piglit gpu run.
 > 
-> For some reason, we used the regular page allocation to get pages
-> from the free list at that stage.
+> Does this branch you are testing have the hmm.git merged? I think from
+> the name it does not?
+
+Indeed, no.
 
 
-This is what Linus suggested, that is why:
-
-https://lkml.org/lkml/2018/6/27/461
-
-and
-
-https://lkml.org/lkml/2018/7/11/795
-
-
-See also
-
-https://lkml.org/lkml/2018/7/10/1157
-
-for some failed attempts to upstream mm core changes
-related to this.
-
-> This part could be improved by Alex
-> or Nitesh's approach.
+> Use after free's of this nature were something that was fixed in
+> hmm.git..
 > 
-> The page address transmission from the balloon driver to the host
-> device could reuse what's upstreamed there. I think you could add a
-> new VIRTIO_BALLOON_CMD_xx for your usages.
-> 
-> Best,
-> Wei
+> I don't see an obvious way you can hit something like this with the
+> new code arrangement..
+
+I tried merging the hmm-devmem-cleanup.4 changes[0] into my 5.2.y +
+drm-next for 5.3 kernel. While the result didn't hit the problem, all
+GL_AMD_pinned_memory piglit tests failed, so I suspect the problem was
+simply avoided by not actually hitting the HMM related functionality.
+
+It's possible that I made a mistake in merging the changes, or that I
+missed some other required changes. But it's also possible that the HMM
+changes broke the corresponding user-pointer functionality in amdgpu.
+
+
+[0] Specifically, the following (ranges of) commits:
+
+9ffbe8ac05dbb4ab4a4836a55a47fc6be945a38f (-> lockdep_assert_held_write)
+e1bfa87399e372446454ecbaeba2800f0a385733..5da04cc86d1215fd9fe0e5c88ead6e8428a75e56
+fec88ab0af9706b2201e5daf377c5031c62d11f7^..fec88ab0af9706b2201e5daf377c5031c62d11f7
+
+-- 
+Earthling Michel Dänzer               |              https://www.amd.com
+Libre software enthusiast             |             Mesa and X developer
 
