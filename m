@@ -6,76 +6,76 @@ X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8B70AC76195
-	for <linux-mm@archiver.kernel.org>; Tue, 16 Jul 2019 11:09:06 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 16C77C76188
+	for <linux-mm@archiver.kernel.org>; Tue, 16 Jul 2019 11:09:16 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1EE4E2145D
-	for <linux-mm@archiver.kernel.org>; Tue, 16 Jul 2019 11:09:05 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1EE4E2145D
+	by mail.kernel.org (Postfix) with ESMTP id C2FEF2145D
+	for <linux-mm@archiver.kernel.org>; Tue, 16 Jul 2019 11:09:15 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C2FEF2145D
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 813DC6B0003; Tue, 16 Jul 2019 07:09:05 -0400 (EDT)
+	id 52D996B0005; Tue, 16 Jul 2019 07:09:15 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7C2B66B0005; Tue, 16 Jul 2019 07:09:05 -0400 (EDT)
+	id 5033E6B0006; Tue, 16 Jul 2019 07:09:15 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6B3C48E0001; Tue, 16 Jul 2019 07:09:05 -0400 (EDT)
+	id 3CC0F8E0001; Tue, 16 Jul 2019 07:09:15 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 4968E6B0003
-	for <linux-mm@kvack.org>; Tue, 16 Jul 2019 07:09:05 -0400 (EDT)
-Received: by mail-qt1-f199.google.com with SMTP id o16so17651481qtj.6
-        for <linux-mm@kvack.org>; Tue, 16 Jul 2019 04:09:05 -0700 (PDT)
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1C4AB6B0005
+	for <linux-mm@kvack.org>; Tue, 16 Jul 2019 07:09:15 -0400 (EDT)
+Received: by mail-qk1-f199.google.com with SMTP id k13so16557713qkj.4
+        for <linux-mm@kvack.org>; Tue, 16 Jul 2019 04:09:15 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
          :references:from:openpgp:autocrypt:organization:message-id:date
          :user-agent:mime-version:in-reply-to:content-language
          :content-transfer-encoding;
-        bh=5ulmBwqKRk98PC3OULvv+W/Y9chKh2+BpUCtAv6wY/M=;
-        b=BJeK4X8xMXYZJO+sz+5qdGqorBUIE5TiIGGw5BaVrmmtpN1UtbZYd0jn+93uJLTGfo
-         TgL7zpVGR4WkR2bUxjteJ339O9Hixk6u4jPGoQkG1E7dmOt11Ljh33NL2sr0/nYq6hgd
-         TNEYo1O6x0qDYqo34DsqL+w01sBu2UnVpTJnhoire8dIFqpbAxcC4wGBar8rh436+wi3
-         eEAQuT6wawdV1nbs0NhB/TSyg72bUxnUE2No/TqOcqdvZ7Q506K0vFnfk0vdJUpsvs4W
-         jdXIP0ESeHhz6wFqOoK0mH1986nSB35e05OrebYLtIOtHvlyZzzcPpbajt3fLbtwYSes
-         Ip3w==
+        bh=/4lfnS4XTqSDOECN3JNw7gRL6dyqLEsf0JaSTFFtIAA=;
+        b=KVa/3uomUlBiG1T65jDAU7xH3F7n7AI1HLPRm6MdS3iQqn1u3Eee1Sr2zg5i4YVS8t
+         YnE7zdNjO+THsUsVQBFk3VtwkoaEIozyigGqEvvjDh69ceO8pEhoMARt+UgdtiAz3XvN
+         DVsEacg9A687R+tsOyIODMG5xWTYuoqFtwjpwSSJL2jbFir+/Fn2XUy7IlmOFKTamVvf
+         iGWC4v5NpRE+hGwNEOVcDxv0/go7yD7Pci1oO+ShwfA7yhyzD8modlWWSfD8tnHa91cX
+         awKtKevuDshGhDHJG1q+Y1koFn5qayLkvlOjEv7Rr8pgE+DJBDTGfrIlTLWQwdLAocE/
+         hufA==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAXcdjg3ejbXCFg5WgO5RTBvyojx8JUBADGl0zb+k0OQeByjIB7c
-	LQXt6vPIBtYurp3pCxFUgR8DCYV0NpHBJr/eMwn0kaavKdvZ9jO4GRQRZzq3EZ0kYgMGJZA1ZCA
-	WtTWarGfm1UF8yZaMVcaXYadyTwdzOZ32O89TyXq6AkSDLMQWyd1bZOvm8RjThOecfA==
-X-Received: by 2002:a05:6214:1c3:: with SMTP id c3mr17087647qvt.144.1563275345042;
-        Tue, 16 Jul 2019 04:09:05 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzRdPgCco/qxYHw2443xRYBSMU1m08q0FzpSwh6AZqByLk/7BFXJEIA8hrbga4a9QXcKeaG
-X-Received: by 2002:a05:6214:1c3:: with SMTP id c3mr17087606qvt.144.1563275344319;
-        Tue, 16 Jul 2019 04:09:04 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563275344; cv=none;
+X-Gm-Message-State: APjAAAWrJ3SE0B+3+8toqvITNq1ZCDaBtMGp0HtaSVZCIOq6nVKmIdB4
+	vL0LCTqQRqK8rCf/7CgQ+2+DMlemSHI+UbY68IXn5GTYbr1NsVkrwU0T3BEe27/oimnRMZuPsgq
+	1v+JNJ9RCIpTTxdFliPvmJ3OQy3roHqtH4j+X/5vTPSxEGTdl7rjoj8xnQbO/nvUT3Q==
+X-Received: by 2002:a0c:b90a:: with SMTP id u10mr23514589qvf.201.1563275354900;
+        Tue, 16 Jul 2019 04:09:14 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw+el3b1jGZ0ybf3lKOAah2vFZlIU+iX6Me5L+5Z/OMypoW/b8fz7R+gIIL7GfLVIw0fCJ5
+X-Received: by 2002:a0c:b90a:: with SMTP id u10mr23514556qvf.201.1563275354347;
+        Tue, 16 Jul 2019 04:09:14 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563275354; cv=none;
         d=google.com; s=arc-20160816;
-        b=qNGd/u5P0Sb+gsoCjPGLEzaqiAwRsDFqrudH55xvdJykLEqA5UM1kmIUjeLcAgjdmk
-         bxaQDcYA+zLY3WZwHmWf9OZOLFTvUnUKujoOYMyZ2v6SfmS4SEt+bPDrwmeyV5b/Doaj
-         ApUZigISeZo9r89VG2H1Nv5ZKBJwG7l1Dsa661gjnZSgkTWOiqcZAbqVRgK0AKZE3eaM
-         qPXvWGYLz1PEAGaxXZqYGDCI4NOOvAb3Yw1+DE4O9TfLzMcddYsoPGvOsix55pevq8jd
-         4fM8RS2ER3Or9bdqIeQuzmqm1sj8q9MdtsHOwsgrF9+6rzRHiink1HzWpRxBN0LGFcQt
-         Vq7w==
+        b=u9jKh2lr+O6Sm3ouSe9xWM6vtCictr4XnwaHiXcZh/XW/tE86OQAkbAJ9wxljdLkiD
+         5NOfYRDGq8swO19ywqWO85W3zQeoxcHstTueLc74pv5t9wBrbfydveZVfUJCAGQkMd1R
+         cna4p+9Vq2BibDcrSloy0BpGHdbZpM2b92ct+Xk8xfuZ8jcqzHP1+BPPycpvaiP14vHK
+         5XOs/KORJqdfSiuzBfMcFtRsY3M/mOLKYd2TOA/0WdpfPvacHIXlWZUUHo9Lu1MGrOP6
+         bidv3lKTfKo0JYlvYxhLAuY93Kww6gLjycrfjHVkQ3NN1J3BUuLroRGZt5qQbx7r0gYu
+         yKlA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
          :user-agent:date:message-id:organization:autocrypt:openpgp:from
          :references:cc:to:subject;
-        bh=5ulmBwqKRk98PC3OULvv+W/Y9chKh2+BpUCtAv6wY/M=;
-        b=yELcFUY7Po/u/yUTY8mBMz8IktQIJvRtSgZr3mLvPBWRQklz4LvqXIfhoaAMNIFbiH
-         O4efljOvEh6yqj3eckY0L/lHbd1RFPgSP1q+C2bw/AxZS7AZwMOeUyunXlxDXLLiWh3y
-         XxyXHb+phCsdYG2vSLSlQ9Nzz5lEJHctGTOnDyXUG9Zd9Qf2Lb535hBa3/HYGYKiX6fm
-         gM4mL8gAJe9vt9ofGPBmQU2Er/99fmrL8zHrolDVx3582fTMf1R25nijeAuCNKYREafg
-         bj/B4Vah5adgW5Cck82Qbvf3SIU1gVi1Ip/+ZIScijAS2lL8HGVhQITjq/bVKpQWPSZv
-         PG0g==
+        bh=/4lfnS4XTqSDOECN3JNw7gRL6dyqLEsf0JaSTFFtIAA=;
+        b=g05Cl8oudiRXq+tTkBwPdf2w6vAV9qlDEcOvYZC13GG4BPSpbh8Ov9ztzcUlw6aHgt
+         7pgDNEXtVkg3unvALLQRP1B81DqPVObJ9tYmWGRmsQZkGEZyISV7AaJadQTlNaUz6IOo
+         wbC+JYTdZyNwbOvuRMbiYbrZSECWxglK09L9J+zUUqwqruuKIkXG1vfUCj3N0HpKkYY0
+         JsgLh0EL5KRUEDBeKh6ZRK9uRkQtOlpeYTZyjx313u9r29/X7VS9zDFuhp53CMVi9YAx
+         ZjgRWKZ0cOf3Mq+LbXiBrcd0RdK3TSvJ1GilMgu49htM8864p+QSrJiqw4iK3j8cb63B
+         IGyw==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id z12si12062243qkf.212.2019.07.16.04.09.03
+        by mx.google.com with ESMTPS id f15si11873547qkg.57.2019.07.16.04.09.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 Jul 2019 04:09:04 -0700 (PDT)
+        Tue, 16 Jul 2019 04:09:14 -0700 (PDT)
 Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
@@ -83,11 +83,11 @@ Authentication-Results: mx.google.com;
 Received: from smtp.corp.redhat.com (int-mx08.intmail.prod.int.phx2.redhat.com [10.5.11.23])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id E40DD30832E9;
-	Tue, 16 Jul 2019 11:09:02 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id 623062BE9A;
+	Tue, 16 Jul 2019 11:09:13 +0000 (UTC)
 Received: from [10.36.116.218] (ovpn-116-218.ams2.redhat.com [10.36.116.218])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 8BC1419C59;
-	Tue, 16 Jul 2019 11:08:57 +0000 (UTC)
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 6DC9519C68;
+	Tue, 16 Jul 2019 11:09:07 +0000 (UTC)
 Subject: Re: [PATCH v3 10/11] mm/memory_hotplug: Make
  unregister_memory_block_under_nodes() never fail
 To: Oscar Salvador <osalvador@suse.de>
@@ -155,8 +155,8 @@ Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
  +8Umfre0Xt4713VxMygW0PnQt5aSQdMD58jHFxTk092mU+yIHj5LeYgvwSgZN4airXk5yRXl
  SE+xAvmumFBY
 Organization: Red Hat GmbH
-Message-ID: <d9e63646-f81d-c349-a54c-e17cdccb0760@redhat.com>
-Date: Tue, 16 Jul 2019 13:08:56 +0200
+Message-ID: <eb51f770-b0a3-f50c-daa4-babe6e8d3fc4@redhat.com>
+Date: Tue, 16 Jul 2019 13:09:06 +0200
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.7.2
 MIME-Version: 1.0
@@ -165,7 +165,7 @@ Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 X-Scanned-By: MIMEDefang 2.84 on 10.5.11.23
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.44]); Tue, 16 Jul 2019 11:09:03 +0000 (UTC)
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.39]); Tue, 16 Jul 2019 11:09:13 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
@@ -216,7 +216,7 @@ On 16.07.19 10:46, Oscar Salvador wrote:
 As far as I can tell we
 
 a) don't allow offlining of memory that belongs to multiple nodes
-already (as pointed out by Michael recently)
+already (as pointed out by Michal recently)
 
 b) users cannot add memory blocks that belong to multiple nodes via
 add_memory()
