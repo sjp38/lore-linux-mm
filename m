@@ -2,124 +2,158 @@ Return-Path: <SRS0=rp0W=VN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 30683C76192
-	for <linux-mm@archiver.kernel.org>; Tue, 16 Jul 2019 13:26:58 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 61737C76195
+	for <linux-mm@archiver.kernel.org>; Tue, 16 Jul 2019 14:00:24 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DE53D20693
-	for <linux-mm@archiver.kernel.org>; Tue, 16 Jul 2019 13:26:57 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="R46pC3b7"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DE53D20693
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 25D3020880
+	for <linux-mm@archiver.kernel.org>; Tue, 16 Jul 2019 14:00:24 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 25D3020880
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8E30A6B0006; Tue, 16 Jul 2019 09:26:57 -0400 (EDT)
+	id A9E116B0005; Tue, 16 Jul 2019 10:00:23 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 894778E0003; Tue, 16 Jul 2019 09:26:57 -0400 (EDT)
+	id A29528E0003; Tue, 16 Jul 2019 10:00:23 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7841E8E0001; Tue, 16 Jul 2019 09:26:57 -0400 (EDT)
+	id 87BEE8E0001; Tue, 16 Jul 2019 10:00:23 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 444516B0006
-	for <linux-mm@kvack.org>; Tue, 16 Jul 2019 09:26:57 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id u1so12611050pgr.13
-        for <linux-mm@kvack.org>; Tue, 16 Jul 2019 06:26:57 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 4D55F6B0005
+	for <linux-mm@kvack.org>; Tue, 16 Jul 2019 10:00:23 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id z14so5677330pgr.22
+        for <linux-mm@kvack.org>; Tue, 16 Jul 2019 07:00:23 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=2FLMt1biejUADnaZS+D7n9SrnPK40F0jXQ5om7TEM0E=;
-        b=CHZYnANPe+66BElbLaf10niGrYa+jqV7m86Tf1KiZVlJdXaFZ0NM8L0/LjkZ9nEWFw
-         QK4u/NvTeZWSaxlJd7VDToXIo6xCu4vGX6yWuBD1CpkINxNOeJk8AhEU3DHW4u4vnRNJ
-         RlYi6rbEkWoMzgq3pQXhOuOUmn++Vqz7kflxKREAOARIkyK4jfIiaNFJAt6HtwC30hdV
-         OHYFWQv3op33jEnTrE+NGUDQJtZkpblJCrzupRXnG1zaC6XduQljUG3TVxkufaHjZhGd
-         acs7nqzA+nj766IBishfQ+KS94IQjOILPxZb9bkKNegac7NjKiXwPe0dASOO8HVW/GAK
-         gJyg==
-X-Gm-Message-State: APjAAAXCk3l+WwPXL8RAiUJ1wE3llBR628GMqVzxzPGK2uZ/x3iXpK7D
-	aT0AoFAmDmBvD4w+C/HBHTDVrBiLHE2Gz97jWr/n0k4M/Vl6hlVr8KLBWaR6gEDv7dNEGVtV2CX
-	9Myq6hiGuYF+Qrh7puIvKxUIMyMvYxo7jvjqoOT2vNYOBcCz5lYBcNxEGGZlmz5qxNQ==
-X-Received: by 2002:a17:902:2be8:: with SMTP id l95mr32227775plb.231.1563283616872;
-        Tue, 16 Jul 2019 06:26:56 -0700 (PDT)
-X-Received: by 2002:a17:902:2be8:: with SMTP id l95mr32227692plb.231.1563283616106;
-        Tue, 16 Jul 2019 06:26:56 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563283616; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=ZZJU96bXmsJFLsBl6+xoBN6qJ0sKFCRkOnfFv2hlt44=;
+        b=FV8nLRF1peTb4RX8cfaGmFZJFH4TzcxKb13RhDSUzBT2c8vPfWyiVOXGHdstBRbNvz
+         xOQUH8HVAW0CC3GQJg5Hcz1//pbwTZGNtvXePYhU9QFTVPmT6irPHv5HQ5SokvK5uIDM
+         xIW2mOeWC9qLwZR2eJBUwTKLxiTRTIc1ArRlVYfZMxT8r1yeAk+8E3nplKxHkGlzIkWL
+         78RBWLS7TSKMdPIy/xqNXOPcjck7pbvEJcDJ11U4WLz2il2/4P0srwoU16CDOh/AwjY5
+         Pok/CFpLtUaETGjFmqCqbSWnChFiTDrijVQDob+O/7N5qPg60dXJ+CasrtCj+pWLSj+d
+         SOsg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAXRFX1Q/NMvz+2PVtTsMZZUeAG8KxE4gkPWcgAERH2+JRbXAic0
+	Jb6mZKVZaqr5lJ2RCLSjtxzksXN1YXyUQ2aPxmZUIF+s7gNXW/7Fz1w6jtrhbV9DvGoZwqk+wyZ
+	7e0oIctKqLt75U8xwt2Chr+FytdoAzfoY7y5hrCXEcB1FTbSUHUs8M/0PdFVyKWHzmQ==
+X-Received: by 2002:a17:902:684:: with SMTP id 4mr35904019plh.138.1563285622989;
+        Tue, 16 Jul 2019 07:00:22 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxM+EdVCo8er+Qvsv1LzuMVUo5fiDAQpuMdLSonk22Caws58e4MdxMyriwS+h2dkS0B3RG9
+X-Received: by 2002:a17:902:684:: with SMTP id 4mr35903882plh.138.1563285621983;
+        Tue, 16 Jul 2019 07:00:21 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563285621; cv=none;
         d=google.com; s=arc-20160816;
-        b=grWVVXGVrzf+ghdpjHfeODFpnL+m38BFExqrdksR6bV72VmvPyXUXQVb3siPTJ8hoS
-         UKYbparggwV9JCj17PdfoGrxTwuF70IlfAr/ADI+Xp+A9G3493iLmLBKJeGG39k0Pwg9
-         UBoiOuVzxMzBlNxxOSK/tLNRoVe+45P+tu5pZMCd2BBhgv/97XomSQu3NqjCXhdFR/YN
-         2+S0zhqudnhoGnGw9uo44iSFq+xi76rfVMlCzmRodQAEhLtY0amFVYZLeO8J1HjVD9Vh
-         lz9GQHxhYahe8CZfEtNjCa4JG+BairsIrbEqG61EkG6CuLi9C0xp7OKz2nLjhcYXvKvZ
-         H47w==
+        b=qH2p02MeVQXOB/y1eimmKMRDHeD5RjvRAzfFxA6UamxjXJLFuhX3SriZtosdYos1Mw
+         oPvgfFz7KmWduzeUVNYltu+m9SBLcU2GD4flJz1p1ZprOMCEwoYj1o7BtsRaWE6InJwB
+         STmnoZxdldcEv7caCi3YYWXq6AjKtx2kNKUM3vVYsPvY/QdswgLKL/e+t6eTloATvF42
+         mESm4z1GLSoKOOhOjp2Rc4R4mBKUg/5KTCCJCH0mhRQ/oDEEanR9iESLXw0lORUD5VTl
+         FcL7GZF1jZfOGDt/7vbuGOGiO5xw1uIKa5km264qMVz4mw3g9oriIxReT6K3FM8cXolZ
+         Zm+A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=2FLMt1biejUADnaZS+D7n9SrnPK40F0jXQ5om7TEM0E=;
-        b=La9YnIKV7T406ECozfVE8YbGW4ggcDgN9NEItUqvz8j916Uz1COTLtQAblOdExl1xL
-         AF29gjYxdHTHJe4f2ZSjxEEdwaL9wRA4kD8oEk6tUfl+6rFScmCFTi0RQ5gnfUScyuw8
-         6UlNZDVb9ox7SfdEHTo8v1TsDyTgtIYzFVTdEMaL22c5h0szQ7gdDILf9Wdyyw/x8I4y
-         ibGmcE62ogXEjhT+cIfKqOI2maYayXV633o/SQqp8yACoUx/sd+dGtdgfd/8w2Djx3pH
-         g8ZI8fRsmAxVLLqUCPql4aLpTLMrSxpbFOtn4TVGnHYiQKbwhJoAKO+fdgcW84xr0uK3
-         bNpw==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
+         :subject;
+        bh=ZZJU96bXmsJFLsBl6+xoBN6qJ0sKFCRkOnfFv2hlt44=;
+        b=X5NAJHrWoPzYt+WvzNAMryQxhHs5O4eki3svic/iBz+ICTd54EPBRky/j8U2Gfho3j
+         ivwEbm1mriT844aqNlOSUOTMVMBLRr8XO3ZbgT8hNrG5jWGrHah1Ld4HaAdmEevQuczC
+         AfRoUmpZNH5nlCn5jZw2o57X6sjp/cruwzN+ClYSB8QuMDfbQwIzQQKR23zS+5hzi19z
+         bV3tAADqL8kLPO2G/8vBKDUXG4T5Lv4Jhfmp99n6i1TNcbZwG9DowlO2ZBrgooNHUHB1
+         3/aywYDGNTidFxHSO1+R6U5EAiBqpnmnr+b+nDlqToySAy1je4LRrUTJ/LOsb6RtioBp
+         VssA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=R46pC3b7;
-       spf=pass (google.com: domain of lpf.vector@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=lpf.vector@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id bc5sor25078703plb.36.2019.07.16.06.26.56
+       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
+        by mx.google.com with ESMTPS id w1si18481431pjr.92.2019.07.16.07.00.21
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 16 Jul 2019 06:26:56 -0700 (PDT)
-Received-SPF: pass (google.com: domain of lpf.vector@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 16 Jul 2019 07:00:21 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.136 as permitted sender) client-ip=192.55.52.136;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=R46pC3b7;
-       spf=pass (google.com: domain of lpf.vector@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=lpf.vector@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=from:to:cc:subject:date:message-id:in-reply-to:references
-         :mime-version:content-transfer-encoding;
-        bh=2FLMt1biejUADnaZS+D7n9SrnPK40F0jXQ5om7TEM0E=;
-        b=R46pC3b7xctfYiDbpcjsza4HTmNx/760I2ZaF5EDledhg5vHet72yrOirw34e4/Hwj
-         a9XoTMetn8gr04TAIhE2LlWxSqPKgOVdS86OM+fcojB7GI2ad77E+i1jpeqKV1+2cEXe
-         2cnBZvd8RrCgjlzvvKJMItIGEgUzHUMwqJ08iwCMu+urNd/gsaxKdt4ji6oD/yqJ9OIH
-         iA7wIo+ojN1xpialB5aVNj6g/NfG5lUi4MGaFRthczcja3mE2vVQnE/lPC/wRJoliTKR
-         cdRyNH5A1gPD9fXBd/AjwTF+98c6JPOq0uOF0Ht1KinYxfj2YU02TOo6Oqg1Dy5trgYY
-         UGYg==
-X-Google-Smtp-Source: APXvYqwLdB8Cef6LQ3pqCCQ0P7hsVjjgWF54ZHRKloxBfozTuaD/IY5JZ7PR7zFLuVVRnsib5VBBgA==
-X-Received: by 2002:a17:902:7448:: with SMTP id e8mr35514887plt.85.1563283615828;
-        Tue, 16 Jul 2019 06:26:55 -0700 (PDT)
-Received: from localhost.localdomain.localdomain ([2408:823c:c11:bf0:b8c3:8577:bf2f:2])
-        by smtp.gmail.com with ESMTPSA id q1sm21472311pfg.84.2019.07.16.06.26.48
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Tue, 16 Jul 2019 06:26:55 -0700 (PDT)
-From: Pengfei Li <lpf.vector@gmail.com>
-To: akpm@linux-foundation.org,
-	willy@infradead.org
-Cc: urezki@gmail.com,
-	rpenyaev@suse.de,
-	peterz@infradead.org,
-	guro@fb.com,
-	rick.p.edgecombe@intel.com,
-	rppt@linux.ibm.com,
-	aryabinin@virtuozzo.com,
-	linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org,
-	Pengfei Li <lpf.vector@gmail.com>
-Subject: [PATCH v5 2/2] mm/vmalloc: modify struct vmap_area to reduce its size
-Date: Tue, 16 Jul 2019 21:26:04 +0800
-Message-Id: <20190716132604.28289-3-lpf.vector@gmail.com>
-X-Mailer: git-send-email 2.21.0
-In-Reply-To: <20190716132604.28289-1-lpf.vector@gmail.com>
-References: <20190716132604.28289-1-lpf.vector@gmail.com>
+       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from fmsmga004.fm.intel.com ([10.253.24.48])
+  by fmsmga106.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 16 Jul 2019 07:00:21 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.63,498,1557212400"; 
+   d="scan'208";a="190919934"
+Received: from smatond1-mobl1.amr.corp.intel.com (HELO [10.252.143.186]) ([10.252.143.186])
+  by fmsmga004.fm.intel.com with ESMTP; 16 Jul 2019 07:00:20 -0700
+Subject: Re: [PATCH v1 6/6] virtio-balloon: Add support for aerating memory
+ via hinting
+To: "Michael S. Tsirkin" <mst@redhat.com>,
+ Alexander Duyck <alexander.duyck@gmail.com>
+Cc: nitesh@redhat.com, kvm@vger.kernel.org, david@redhat.com,
+ linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org,
+ yang.zhang.wz@gmail.com, pagupta@redhat.com, riel@surriel.com,
+ konrad.wilk@oracle.com, lcapitulino@redhat.com, wei.w.wang@intel.com,
+ aarcange@redhat.com, pbonzini@redhat.com, dan.j.williams@intel.com,
+ alexander.h.duyck@linux.intel.com
+References: <20190619222922.1231.27432.stgit@localhost.localdomain>
+ <20190619223338.1231.52537.stgit@localhost.localdomain>
+ <20190716055017-mutt-send-email-mst@kernel.org>
+From: Dave Hansen <dave.hansen@intel.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=dave.hansen@intel.com; keydata=
+ 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
+Message-ID: <cad839c0-bbe6-b065-ac32-f32c117cf07e@intel.com>
+Date: Tue, 16 Jul 2019 07:00:21 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.2
 MIME-Version: 1.0
+In-Reply-To: <20190716055017-mutt-send-email-mst@kernel.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
 Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -127,164 +161,10 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Objective
----------
-The current implementation of struct vmap_area wasted space.
+On 7/16/19 2:55 AM, Michael S. Tsirkin wrote:
+> The approach here is very close to what on-demand hinting that is
+> already upstream does.
 
-After applying this commit, sizeof(struct vmap_area) has been
-reduced from 11 words to 8 words.
-
-Description
------------
-1) Pack "subtree_max_size", "vm" and "purge_list".
-This is no problem because
-    A) "subtree_max_size" is only used when vmap_area is in
-       "free" tree
-    B) "vm" is only used when vmap_area is in "busy" tree
-    C) "purge_list" is only used when vmap_area is in
-       vmap_purge_list
-
-2) Eliminate "flags".
-Since only one flag VM_VM_AREA is being used, and the same
-thing can be done by judging whether "vm" is NULL, then the
-"flags" can be eliminated.
-
-Signed-off-by: Pengfei Li <lpf.vector@gmail.com>
-Suggested-by: Uladzislau Rezki (Sony) <urezki@gmail.com>
----
- include/linux/vmalloc.h | 20 +++++++++++++-------
- mm/vmalloc.c            | 24 ++++++++++--------------
- 2 files changed, 23 insertions(+), 21 deletions(-)
-
-diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
-index 9b21d0047710..a1334bd18ef1 100644
---- a/include/linux/vmalloc.h
-+++ b/include/linux/vmalloc.h
-@@ -51,15 +51,21 @@ struct vmap_area {
- 	unsigned long va_start;
- 	unsigned long va_end;
- 
--	/*
--	 * Largest available free size in subtree.
--	 */
--	unsigned long subtree_max_size;
--	unsigned long flags;
- 	struct rb_node rb_node;         /* address sorted rbtree */
- 	struct list_head list;          /* address sorted list */
--	struct llist_node purge_list;    /* "lazy purge" list */
--	struct vm_struct *vm;
-+
-+	/*
-+	 * The following three variables can be packed, because
-+	 * a vmap_area object is always one of the three states:
-+	 *    1) in "free" tree (root is vmap_area_root)
-+	 *    2) in "busy" tree (root is free_vmap_area_root)
-+	 *    3) in purge list  (head is vmap_purge_list)
-+	 */
-+	union {
-+		unsigned long subtree_max_size; /* in "free" tree */
-+		struct vm_struct *vm;           /* in "busy" tree */
-+		struct llist_node purge_list;   /* in purge list */
-+	};
- };
- 
- /*
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index 71d8040a8a0b..39bf9cf4175a 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -329,7 +329,6 @@ EXPORT_SYMBOL(vmalloc_to_pfn);
- #define DEBUG_AUGMENT_PROPAGATE_CHECK 0
- #define DEBUG_AUGMENT_LOWEST_MATCH_CHECK 0
- 
--#define VM_VM_AREA	0x04
- 
- static DEFINE_SPINLOCK(vmap_area_lock);
- /* Export for kexec only */
-@@ -1115,7 +1114,7 @@ static struct vmap_area *alloc_vmap_area(unsigned long size,
- 
- 	va->va_start = addr;
- 	va->va_end = addr + size;
--	va->flags = 0;
-+	va->vm = NULL;
- 	insert_vmap_area(va, &vmap_area_root, &vmap_area_list);
- 
- 	spin_unlock(&vmap_area_lock);
-@@ -1922,7 +1921,6 @@ void __init vmalloc_init(void)
- 		if (WARN_ON_ONCE(!va))
- 			continue;
- 
--		va->flags = VM_VM_AREA;
- 		va->va_start = (unsigned long)tmp->addr;
- 		va->va_end = va->va_start + tmp->size;
- 		va->vm = tmp;
-@@ -2020,7 +2018,6 @@ static void setup_vmalloc_vm(struct vm_struct *vm, struct vmap_area *va,
- 	vm->size = va->va_end - va->va_start;
- 	vm->caller = caller;
- 	va->vm = vm;
--	va->flags |= VM_VM_AREA;
- 	spin_unlock(&vmap_area_lock);
- }
- 
-@@ -2125,10 +2122,10 @@ struct vm_struct *find_vm_area(const void *addr)
- 	struct vmap_area *va;
- 
- 	va = find_vmap_area((unsigned long)addr);
--	if (va && va->flags & VM_VM_AREA)
--		return va->vm;
-+	if (!va)
-+		return NULL;
- 
--	return NULL;
-+	return va->vm;
- }
- 
- /**
-@@ -2149,11 +2146,10 @@ struct vm_struct *remove_vm_area(const void *addr)
- 
- 	spin_lock(&vmap_area_lock);
- 	va = __find_vmap_area((unsigned long)addr);
--	if (va && va->flags & VM_VM_AREA) {
-+	if (va && va->vm) {
- 		struct vm_struct *vm = va->vm;
- 
- 		va->vm = NULL;
--		va->flags &= ~VM_VM_AREA;
- 		spin_unlock(&vmap_area_lock);
- 
- 		kasan_free_shadow(vm);
-@@ -2856,7 +2852,7 @@ long vread(char *buf, char *addr, unsigned long count)
- 		if (!count)
- 			break;
- 
--		if (!(va->flags & VM_VM_AREA))
-+		if (!va->vm)
- 			continue;
- 
- 		vm = va->vm;
-@@ -2936,7 +2932,7 @@ long vwrite(char *buf, char *addr, unsigned long count)
- 		if (!count)
- 			break;
- 
--		if (!(va->flags & VM_VM_AREA))
-+		if (!va->vm)
- 			continue;
- 
- 		vm = va->vm;
-@@ -3466,10 +3462,10 @@ static int s_show(struct seq_file *m, void *p)
- 	va = list_entry(p, struct vmap_area, list);
- 
- 	/*
--	 * s_show can encounter race with remove_vm_area, !VM_VM_AREA on
--	 * behalf of vmap area is being tear down or vm_map_ram allocation.
-+	 * If !va->vm then this vmap_area object is allocated
-+	 * by vm_map_ram.
- 	 */
--	if (!(va->flags & VM_VM_AREA)) {
-+	if (!va->vm) {
- 		seq_printf(m, "0x%pK-0x%pK %7ld vm_map_ram\n",
- 			(void *)va->va_start, (void *)va->va_end,
- 			va->va_end - va->va_start);
--- 
-2.21.0
+Are you referring to the s390 (and powerpc) stuff that is hidden behind
+arch_free_page()?
 
