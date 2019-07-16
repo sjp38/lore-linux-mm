@@ -2,131 +2,168 @@ Return-Path: <SRS0=rp0W=VN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-14.4 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_IN_DEF_DKIM_WL
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2681CC76192
-	for <linux-mm@archiver.kernel.org>; Tue, 16 Jul 2019 21:10:52 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id EDEDCC7618F
+	for <linux-mm@archiver.kernel.org>; Tue, 16 Jul 2019 21:20:42 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B80B721743
-	for <linux-mm@archiver.kernel.org>; Tue, 16 Jul 2019 21:10:51 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id B17862173E
+	for <linux-mm@archiver.kernel.org>; Tue, 16 Jul 2019 21:20:42 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="e0Yoeza2"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B80B721743
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="mzkioEkQ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B17862173E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3B5FC6B0003; Tue, 16 Jul 2019 17:10:51 -0400 (EDT)
+	id 2761D6B0003; Tue, 16 Jul 2019 17:20:42 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 367656B0005; Tue, 16 Jul 2019 17:10:51 -0400 (EDT)
+	id 228C86B0005; Tue, 16 Jul 2019 17:20:42 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 256F78E0001; Tue, 16 Jul 2019 17:10:51 -0400 (EDT)
+	id 116F58E0001; Tue, 16 Jul 2019 17:20:42 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id E02E36B0003
-	for <linux-mm@kvack.org>; Tue, 16 Jul 2019 17:10:50 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id 91so10797870pla.7
-        for <linux-mm@kvack.org>; Tue, 16 Jul 2019 14:10:50 -0700 (PDT)
+Received: from mail-yw1-f72.google.com (mail-yw1-f72.google.com [209.85.161.72])
+	by kanga.kvack.org (Postfix) with ESMTP id E57956B0003
+	for <linux-mm@kvack.org>; Tue, 16 Jul 2019 17:20:41 -0400 (EDT)
+Received: by mail-yw1-f72.google.com with SMTP id h203so17157727ywb.9
+        for <linux-mm@kvack.org>; Tue, 16 Jul 2019 14:20:41 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=mh9oJF2syVHb1Y2dxeqo0XnShiSGijbTMh9iTn7vFzo=;
-        b=ngpSYb3Wum/3EU53XXwdBykUswgBwGlqi6fAKl/bNnaqREBFLOl27s4W8NcIY2lFGG
-         h/r+5tJvOplkEl9s3KYkwPVnLOeAi0T7Ygm/KDN3k73SOiMXpqj3sc/oqieLIFc1BW0m
-         y+45Sv8fQ9/lliNQS7Ai6q/RPf+CmzUMPBgVwqPgSGX6PigqhzvslwYvclBbdiYQCvov
-         FLXrdckHfC668qmRGftzdsGZgji3M2OpxH+JiozUdxknitbv8PwDXq4COvLaONo5LClP
-         9zVNf7FcFDfDRuIqfSNWCPulDp+vPe/66yD6VI2imu2TcVcbV62hllqy/KO5WMYqV66A
-         TR8g==
-X-Gm-Message-State: APjAAAVicEedFZlPzzd4uCew62R308WaF8Cz0JLBAOtKYMSAKvTvx2CY
-	N3BBGIkyZH2qfYOT2XhFV8NefxIbu6UFedVasEkabQXGO7bAo9cUrQM8l8n20LBGVfCFppq+SpN
-	PKbbd4TnF3Ef1AXKOpmsDuwd1vWn6XYr2K+jUwTTMG+Ck7CH/sQJ0IDpLTaoL+c7NFw==
-X-Received: by 2002:a65:538d:: with SMTP id x13mr36560742pgq.190.1563311450427;
-        Tue, 16 Jul 2019 14:10:50 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwgqW/oVpdIXOawy5VRYoe4SabSF0hpUD6Sv1imwG2IvC8CnZvW2D4TQWeYs02UrFnzpQZ5
-X-Received: by 2002:a65:538d:: with SMTP id x13mr36560688pgq.190.1563311449787;
-        Tue, 16 Jul 2019 14:10:49 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563311449; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=JJ9YJBDa6TAoDZnqGKrJ33E8HHSw9cbft8xMZfhrH5o=;
+        b=AlfJwLnha0YHM4JJtggRisVXwPlcSS9xfxM7Dx90bZTsQH6FYrN5D/V7zTlj+wOxG1
+         Luja5y8S3HR5atEXydSU9hQu1siO5cYkbufAwntv4wHjHSSi+Zn2fyy/RM6kEUBYNQGF
+         rREnXpU9LtXPojH+r72DaQDQI9GAiNLUueUr72xJOPNymeU2iVv9BaOzQyJC1U74i9Oj
+         ba99ihwXJ3WjKlVc7i8kqV3O0+1jMx5fw88hT/PTtNfI8pE1ZqsQO3P8AciVva17MX/8
+         AQT9FjHeyct++77BzgRrxWsad94YnQb9SZkU8gSuYgjngyJ2t47DkoGSDFIvKvmcMZMe
+         KNFg==
+X-Gm-Message-State: APjAAAWDtowJeMNpuSjAQBIc6f/kXy0LbJ01ypGlQy0gSPq2AZr2mOEf
+	8lvU+mZmPW+0P+HJf6FTqPs20S0aQ108tewIO13BvdUOa/sOC4yF4m0XvXpNrN+of8FR+YuKqEr
+	ICjOCZmK+Ud0Z4Po0e84FB7++Mq7odfVqZhGBjo7d84WUPD8WKDgJRGC9e9vT3Xkhrg==
+X-Received: by 2002:a81:a155:: with SMTP id y82mr20924403ywg.80.1563312041522;
+        Tue, 16 Jul 2019 14:20:41 -0700 (PDT)
+X-Received: by 2002:a81:a155:: with SMTP id y82mr20924372ywg.80.1563312040935;
+        Tue, 16 Jul 2019 14:20:40 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563312040; cv=none;
         d=google.com; s=arc-20160816;
-        b=HU2CpGnhnL3o/zZGMRfUQ5k/m2y0v8TGDjby53aOiUerYaIKqvPny+9P+WS7kzC/TM
-         BMeKsYRBjY8QBXcxiX+ugxK47kbIdqCM8YjwOs5pvM4XEGThxqsCaO6KETO8KqwVr83a
-         Q006OApkqiZT8vSrh35gk+XoozTnQj/aBlsnaKOopeL+PvTPj2NJl+0xWQepTohiG7Yq
-         lt38E+aFVJaueOmz6+Czj2OPivG+qgVjjJh0jHvNu3AZbu0s9oDt3iNEFbW3HzKUvsre
-         sxzD/fWruPJSCcV7z5KECNsvepdnqeai+We230RozplHY8/0lay88VR5VCn2xluBJ7aN
-         9/pg==
+        b=oY9/w8IFain++iJBj7mpNuibTQZLAQgAXhvAT6HYfR4JB/nY87b2isaSqZHt/IzyWP
+         YjueAadqRFy0Q2qIir7TQZAHbFvsB884PKRbinc+x6TgGkXFJlCCpwRBuFuFDvWNacYQ
+         jzLFpG2BkwV0smc9teKT9uLYUjhvR9AThEKakIsU5dQdfdrfOu7z34xM7SoNeNFEvo6c
+         POfjr7B0EwcMeQcaexRGoLLZwwCAzHnGFwYpFgAswieWOylH5vP4sXtDygkh2seu2orI
+         AjKUfMZAGEe9qVHY1kNgUg7A2hqEsK2kvj8yBjRF3Xj3+4SZ3Zlru7aqQYrV/YdEy6Fm
+         37Tw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=mh9oJF2syVHb1Y2dxeqo0XnShiSGijbTMh9iTn7vFzo=;
-        b=OINs//rdHMl+p95XvatIdy4eOjAkk9QpqKM6NDYSCWf3WpnldVD+X2sBCv4m1HcKOe
-         l5b7IENsMIpD2aeZNxZC8kCLv32GJuI4WR4sfWmNh9S0lf+kCfGNy6tMezGcfOs5Srpc
-         LzJXO73JDQDRhXmbcNfaf4fpObY7X6nlBKg7X2PvpYWkQWRQ0aNQI8RBhTNbnDhA8qAO
-         SopScY0A+HLZIAxxYWlLJq2cWQe25XLAbFF78qJHtWimjHENVcHcKHe18tF2aIs50TB4
-         oX91/Gv5L5pH66dY2D8cNkueJLTJ7BD/oxKvG3TOlr2Cnj0y8tpOiI3FX8oqkhuc/j0d
-         5KcA==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=JJ9YJBDa6TAoDZnqGKrJ33E8HHSw9cbft8xMZfhrH5o=;
+        b=LVj/Ddk5v9Hf4bFLIo0tuHnAuX1Pfx6Kz/ZXM25K0vwSuikWpTPKHXz2M+hd+wx9cB
+         3ogpZmRip/tc/CuvGfWC4zDXJgCraPZ3tGFt52l4XX3Hwl4WXrLasBJYbvUH8kGtznve
+         7kzcJOuv9Z3FHtzm+MedJbLauCXCmk9WW5//7gHEkGSlcNHZUfK1lPWO32VM2L8edYw2
+         y0Es9FqBp1BpmdP67FrIQv31gWxQ5MpMecZKmT+mKYNQ+yLndlqrNV++X9moVK8JnxBE
+         220qyiz8bEeMStoEYs+zqlPrTTxXrB2iCIVM07F154xiTjp3VNPsTKxz5H7F3ZicETC/
+         Huug==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=e0Yoeza2;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id e19si19389556pjp.49.2019.07.16.14.10.49
+       dkim=pass header.i=@google.com header.s=20161025 header.b=mzkioEkQ;
+       spf=pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shakeelb@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id a8sor1007372ywh.64.2019.07.16.14.20.40
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 Jul 2019 14:10:49 -0700 (PDT)
-Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        (Google Transport Security);
+        Tue, 16 Jul 2019 14:20:40 -0700 (PDT)
+Received-SPF: pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=e0Yoeza2;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-Received: from akpm3.svl.corp.google.com (unknown [104.133.8.64])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 3B38E2173E;
-	Tue, 16 Jul 2019 21:10:49 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1563311449;
-	bh=n+Bn+l+cocbUUKE1hcmyc7LxYuNmdQZj8ye7iFFZ9dM=;
-	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
-	b=e0Yoeza2yPveXA+92jY/2RqFilkK5CRv5gg5ToLsnbx6plgyhXBOJ40QVvCgMCLbm
-	 lYqzvOyjpPLPYKWu9WnDxSmdsVrY9b+1SIob7lUgtImr2zBWWuaq5EKpNKHNLEUnYG
-	 9D9M+OxP48NSnLTK0ZjW1kxvyv520Q3Jjyii9AuQ=
-Date: Tue, 16 Jul 2019 14:10:48 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-To: Ralph Campbell <rcampbell@nvidia.com>
-Cc: John Hubbard <jhubbard@nvidia.com>, <linux-mm@kvack.org>,
- <linux-kernel@vger.kernel.org>, =?ISO-8859-1?Q?J=E9r=F4me?= Glisse
- <jglisse@redhat.com>, "Kirill A. Shutemov"
- <kirill.shutemov@linux.intel.com>, Mike Kravetz <mike.kravetz@oracle.com>,
- Jason Gunthorpe <jgg@mellanox.com>
-Subject: Re: [PATCH] mm/hmm: Fix bad subpage pointer in try_to_unmap_one
-Message-Id: <20190716141048.c94534a23e4c059dff34e3a1@linux-foundation.org>
-In-Reply-To: <8dd86951-f8b0-75c2-d738-5080343e5dc5@nvidia.com>
-References: <20190709223556.28908-1-rcampbell@nvidia.com>
-	<20190709172823.9413bb2333363f7e33a471a0@linux-foundation.org>
-	<05fffcad-cf5e-8f0c-f0c7-6ffbd2b10c2e@nvidia.com>
-	<20190715150031.49c2846f4617f30bca5f043f@linux-foundation.org>
-	<0ee5166a-26cd-a504-b9db-cffd082ecd38@nvidia.com>
-	<8dd86951-f8b0-75c2-d738-5080343e5dc5@nvidia.com>
-X-Mailer: Sylpheed 3.7.0 (GTK+ 2.24.32; x86_64-pc-linux-gnu)
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+       dkim=pass header.i=@google.com header.s=20161025 header.b=mzkioEkQ;
+       spf=pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shakeelb@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=JJ9YJBDa6TAoDZnqGKrJ33E8HHSw9cbft8xMZfhrH5o=;
+        b=mzkioEkQusJ5+fSK27pN+Vp0ac4Y/hSwdtz9EBb/CGG+fQfnQpfNVJ4Nrn//Qzq2Sm
+         ylEq8N1PhAUCbcJRX7iDYz/lqELXX2RiXjjyA9ljx3qmwq0sONvfWl06a0Mn5ntJGU6S
+         HM8qXNVmfSIdYce6w4BJPgEs8i9O3VairrVzwHC66pvik4T4SSVAO2jeohAOuANIq7P5
+         cOsnhIMLJ526MbaDy6UjqAUEBr5hfXPe3Pucn/DrRLtbgSOnYK2+TE+ycQrWwf/kwoyM
+         viQZLFx2ns8ebYgjZTz5eJCXtIgbh8+iMOJJfoPte0qOVJWIBE8ftoyCOtoXBRrl1p2k
+         qiPw==
+X-Google-Smtp-Source: APXvYqxIk0Kusbyfed606KNi4eGPzY+cdM8lYWMrMR8rMZ/4PdfezbgsydDu8UR4zXJIqhguZ5+jeBmCzF6RdAVtQ7s=
+X-Received: by 2002:a0d:cb42:: with SMTP id n63mr21966936ywd.205.1563312039498;
+ Tue, 16 Jul 2019 14:20:39 -0700 (PDT)
+MIME-Version: 1.0
+References: <20190716000520.230595-1-henryburns@google.com>
+In-Reply-To: <20190716000520.230595-1-henryburns@google.com>
+From: Shakeel Butt <shakeelb@google.com>
+Date: Tue, 16 Jul 2019 14:20:28 -0700
+Message-ID: <CALvZod46LCSyCJEuBr_0yLjAbg_fJc+qr9-NNU5mbio8mqM1ag@mail.gmail.com>
+Subject: Re: [PATCH v2] mm/z3fold.c: Reinitialize zhdr structs after migration
+To: Henry Burns <henryburns@google.com>
+Cc: Vitaly Vul <vitaly.vul@sony.com>, Andrew Morton <akpm@linux-foundation.org>, 
+	Jonathan Adams <jwadams@google.com>, Linux MM <linux-mm@kvack.org>, 
+	LKML <linux-kernel@vger.kernel.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 15 Jul 2019 17:38:04 -0700 Ralph Campbell <rcampbell@nvidia.com> wrote:
-
-> I'm not surprised at the confusion. It took me quite awhile to 
-> understand how migrate_vma() works with ZONE_DEVICE private memory.
+On Mon, Jul 15, 2019 at 5:05 PM Henry Burns <henryburns@google.com> wrote:
 >
-> ...
-> 
-> I see Christoph Hellwig got confused by this too [1].
+> z3fold_page_migration() calls memcpy(new_zhdr, zhdr, PAGE_SIZE).
+> However, zhdr contains fields that can't be directly coppied over (ex:
+> list_head, a circular linked list). We only need to initialize the
+> linked lists in new_zhdr, as z3fold_isolate_page() already ensures
+> that these lists are empty
+>
+> Additionally it is possible that zhdr->work has been placed in a
+> workqueue. In this case we shouldn't migrate the page, as zhdr->work
+> references zhdr as opposed to new_zhdr.
+>
+> Fixes: bba4c5f96ce4 ("mm/z3fold.c: support page migration")
+> Signed-off-by: Henry Burns <henryburns@google.com>
 
-While making such discoveries, please prepare a patch which adds
-comments which will help the next poor soul!
+Reviewed-by: Shakeel Butt <shakeelb@google.com>
+
+> ---
+>  Changelog since v1:
+>  - Made comments explicityly refer to new_zhdr->buddy.
+>
+>  mm/z3fold.c | 10 ++++++++++
+>  1 file changed, 10 insertions(+)
+>
+> diff --git a/mm/z3fold.c b/mm/z3fold.c
+> index 42ef9955117c..f4b2283b19a3 100644
+> --- a/mm/z3fold.c
+> +++ b/mm/z3fold.c
+> @@ -1352,12 +1352,22 @@ static int z3fold_page_migrate(struct address_space *mapping, struct page *newpa
+>                 z3fold_page_unlock(zhdr);
+>                 return -EBUSY;
+>         }
+> +       if (work_pending(&zhdr->work)) {
+> +               z3fold_page_unlock(zhdr);
+> +               return -EAGAIN;
+> +       }
+>         new_zhdr = page_address(newpage);
+>         memcpy(new_zhdr, zhdr, PAGE_SIZE);
+>         newpage->private = page->private;
+>         page->private = 0;
+>         z3fold_page_unlock(zhdr);
+>         spin_lock_init(&new_zhdr->page_lock);
+> +       INIT_WORK(&new_zhdr->work, compact_page_work);
+> +       /*
+> +        * z3fold_page_isolate() ensures that new_zhdr->buddy is empty,
+> +        * so we only have to reinitialize it.
+> +        */
+> +       INIT_LIST_HEAD(&new_zhdr->buddy);
+>         new_mapping = page_mapping(page);
+>         __ClearPageMovable(page);
+>         ClearPagePrivate(page);
+> --
+> 2.22.0.510.g264f2c817a-goog
+>
 
