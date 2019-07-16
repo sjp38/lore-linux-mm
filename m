@@ -6,90 +6,91 @@ X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A4027C7618F
-	for <linux-mm@archiver.kernel.org>; Tue, 16 Jul 2019 14:12:39 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6CE7AC7618F
+	for <linux-mm@archiver.kernel.org>; Tue, 16 Jul 2019 14:17:27 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 65EAB20693
-	for <linux-mm@archiver.kernel.org>; Tue, 16 Jul 2019 14:12:39 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 65EAB20693
+	by mail.kernel.org (Postfix) with ESMTP id 2B54D20693
+	for <linux-mm@archiver.kernel.org>; Tue, 16 Jul 2019 14:17:27 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2B54D20693
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 05D176B0006; Tue, 16 Jul 2019 10:12:39 -0400 (EDT)
+	id B2ECA6B000A; Tue, 16 Jul 2019 10:17:26 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 00DE88E0003; Tue, 16 Jul 2019 10:12:38 -0400 (EDT)
+	id AB8988E0003; Tue, 16 Jul 2019 10:17:26 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E18788E0001; Tue, 16 Jul 2019 10:12:38 -0400 (EDT)
+	id 930A58E0001; Tue, 16 Jul 2019 10:17:26 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C2D1B6B0006
-	for <linux-mm@kvack.org>; Tue, 16 Jul 2019 10:12:38 -0400 (EDT)
-Received: by mail-qt1-f198.google.com with SMTP id h47so18112424qtc.20
-        for <linux-mm@kvack.org>; Tue, 16 Jul 2019 07:12:38 -0700 (PDT)
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 6E6E56B000A
+	for <linux-mm@kvack.org>; Tue, 16 Jul 2019 10:17:26 -0400 (EDT)
+Received: by mail-qk1-f198.google.com with SMTP id k13so17027422qkj.4
+        for <linux-mm@kvack.org>; Tue, 16 Jul 2019 07:17:26 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:organization:message-id:date
+        h=x-original-authentication-results:x-gm-message-state:subject:from
+         :to:cc:references:openpgp:autocrypt:organization:message-id:date
          :user-agent:mime-version:in-reply-to:content-language
          :content-transfer-encoding;
-        bh=xSn7FXb+UIghN62BU+mBKcNCWdUsiJe/F3Fw/L65cOw=;
-        b=ll/sTPidXBFhfDb2TUglFZig43rhq8iga+VsZKBHpF+MM642jbL7IrQKbxF/EpKzVN
-         YmXKcBcQncYQMa38iaGiUfZ4MSplDKrdLtXOb99ZhLOItnYJqB0wlCxVPbEfbAdeIa3P
-         5mhY3mfPkxXhey8YamBdhl0fKRFW7lvdbCe6JuKyFsrkWfSvQU7TmVEEdr3sDDNLpS8h
-         +j0KCY8QMiZYCKdRCunM9IbA2w8wDXKFa1yjKLGzis/wYMqlQSYolw5MIv3YdShxHyNE
-         /xaQjlSSdCoS7HG55JjwygCTVRJYogcFYT0OV+ykNBzYzBRfX5skSpAYUarW/ezpDHhw
-         O3kg==
+        bh=6kccRFc4PeFOiUHBCyI6dRc2JO7B15Tf2KUoAPAYMEU=;
+        b=bAMR8LEAvo432BaQCe/AOYVJFTFrzMZ2zU5LOsLysELLEKts//EVuN0x+0jmVeSxC8
+         w/UzhYHtp8VIL0PEqhxpqSNe4VAa15SX4oJfboDEEEzT87bZyePst0ZilbdL5U4CJozp
+         y2xEX5N0TFyQThOl+0mZE0f+0YVjwLErIxUPquF8VIdCXesxLKm0Mmva3T0V99yuBuIr
+         iOzAlRJNVhRMbVjnLeaEtC+4g+096rG2x1v9u8SG1npdwwZgeHxlKix1WhGFRNhBVK86
+         h3IyG/TReXRLf9AK0XVPwsHvBHaGdVNRTXOQwUn286LS511y0FRhlScFjhCAKZWwpg/j
+         3ZYA==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAVVE20mLQKeg6JHVj6c/YpPxnhN4q/m91UBO5llHzE5YtnIlnzG
-	jv1FagvnzAd+wzVaknFvc1tKMd7p61qE5ZOZ2TfSGF/iKCWsOqanh0sufj9HR2fQt04PxONXPvU
-	MaSH9ICUAFCHB15LoJDhM0YHEAehB2TvwLIdmLviJeiAZBufhsxBGJ9KFgdQk19/xDA==
-X-Received: by 2002:a37:4d82:: with SMTP id a124mr20943125qkb.72.1563286358590;
-        Tue, 16 Jul 2019 07:12:38 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyaLfHStfMI7z6M6CEj5M9O3Gqqx4WImOuHOPRWvr4jIy2gJeye7sxTreV/EzExdXvsncB1
-X-Received: by 2002:a37:4d82:: with SMTP id a124mr20943073qkb.72.1563286358057;
-        Tue, 16 Jul 2019 07:12:38 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563286358; cv=none;
+X-Gm-Message-State: APjAAAXzDAnY2+47oL+CIBFtNAJpQ1zSVc0OMVK8g8CrLV99YQMGT3HH
+	IFoccFIqxxEYaKmM96rcIvi6lLcmM/91D3781kk8XVj/Vjv9hpZQzKdpy26BPoxw5rrZ6D5S/m3
+	b7HVcyJQ7L6mhxU45Y6hIhPWqsD2k8HNkkrsgtZztPSjbWILG6tW4i7hxOAK8mmDL+Q==
+X-Received: by 2002:a05:620a:1387:: with SMTP id k7mr21734976qki.129.1563286646235;
+        Tue, 16 Jul 2019 07:17:26 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqy1d3XoXaUED2ojoUzrn/eNZW49eCc7jPAU0GIsSjE/iG5W3D3S7fXmvf6yVSF0elSx49iW
+X-Received: by 2002:a05:620a:1387:: with SMTP id k7mr21734928qki.129.1563286645785;
+        Tue, 16 Jul 2019 07:17:25 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563286645; cv=none;
         d=google.com; s=arc-20160816;
-        b=tPVKa3o5gwC97Z5EWbsFyYalXpjVd0tyPbyGheGBytvYR4VGASDmdHZQz0sYS3wvCt
-         mekIQoij+YdZ0rsECR9JjlKra7cmKbKx+ApKayD1AUAaj33FEoeQhd4zxCzeZMywe3oQ
-         EN1C9k6Qk+UWFgaX5qozqEt23O6oOq6pF9Ckj98j6U7J5WjCGx6deoVRMNA43PbAVkVu
-         SNHzzimwN8e6UxN8vA3GLzuNmTtKYc31k8GQQH/gjGRWZ49Ed7/e4noZwhoKgbclhfOw
-         cSke16lNTvI5CteaSsKmoEc/AoEcMM4iS1pIjRKbzwCkJeDxDAyo4k7tKboEanLjzbnz
-         Tj0g==
+        b=CKPql0D+oGtjveb1i2Epo07jUH6nH4rb/4i2zr07Df9q05NC1+TJnElwWuenI/yS8q
+         dT5saQ6RAYdqccGyTEa3FDbW2ttMSeMe2fimThzZzzH5YKcxxHaUgMcF8orPvgQYBT6b
+         JbCJhgqyg1Bc6vwMUgZX88ddCR82r+emH94neGaatg8vjoF+L5z+V/vAm22/JNp5mvSf
+         9/l+rqy6VLgfXAU3uey2LoQ5a4SvwxOrDX1QH2viJC6oDpQ7c9ULYAnShDlSH4bnIWPZ
+         +396D5touXZIDQP1BV5twb2qI9LcdO/4baOzKb9bNdQdUAA+ZH21Fdi9eYbNAcASJf6d
+         nVWA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:organization:autocrypt:openpgp:from
-         :references:cc:to:subject;
-        bh=xSn7FXb+UIghN62BU+mBKcNCWdUsiJe/F3Fw/L65cOw=;
-        b=aCsLvD98PMfrx7g1ls7VgeS7vr5YSuiLK9cOAyGuhmxeE8oUzueHIJfAlDluTCER5Y
-         pX+QECwZtntx93a3PzGuaJCnuKbqpusOMe+TRjq3zb+O6LXi/9gt5IUBeLYFZUQkW7/5
-         dNKoD1h7SrkAU/2AGrDvmRfFMD6pRp/U0GSJYugg3Gl+eieevTUY+ohlMl8pLPdGz5Cc
-         y88NuYfSkhztFL6IJTO+Rp2dpHZxA/8J9zTxjSTKPTSkjJxc0ygB4wnRkIhsstYlnV41
-         9SC+E7KzpNA6YO0GOUZdZ/ESiGZ6hvjmdqEkbPeRxVgsa/I7HFd9Nd01DZWIjji5TDns
-         bGOA==
+         :user-agent:date:message-id:organization:autocrypt:openpgp
+         :references:cc:to:from:subject;
+        bh=6kccRFc4PeFOiUHBCyI6dRc2JO7B15Tf2KUoAPAYMEU=;
+        b=yuygIEF3RzdPkjrGB3NAzHVuErvp8dHtmWvXs/ZFcSFkbPnSPPAKtCdJqfW5ch3aIo
+         F5IR/VM398F+OY9O6iFVRMdUuKGBHapw1X0IIp08qm8YyWQkGrt3lsi15iwQC7Vr0dkM
+         a0ChjOfGd3MOpHV5HFSSSI46HCdxDsTCN4Bf03bLtyv7YiN6bLAS+DV2OnzssbCcRXND
+         bbcS8cS1K7l8bhgyFh3eKwWV4Log+r38ZmPUbbpRhgeN8ic4RDwARflTz/fY/Tet4j/i
+         bXKukDNEz/pZv1ZXytEeUabvw3TAuSucac90jKZRGCegLa0FwcT+V2hf2b8PJsxTooup
+         8Iow==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 18si14791462qvv.194.2019.07.16.07.12.37
+        by mx.google.com with ESMTPS id k53si14711943qta.47.2019.07.16.07.17.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 Jul 2019 07:12:38 -0700 (PDT)
+        Tue, 16 Jul 2019 07:17:25 -0700 (PDT)
 Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
+Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id ED22A3CA1B;
-	Tue, 16 Jul 2019 14:12:36 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id E9AE0882EA;
+	Tue, 16 Jul 2019 14:17:24 +0000 (UTC)
 Received: from [10.36.116.218] (ovpn-116-218.ams2.redhat.com [10.36.116.218])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id A126F60638;
-	Tue, 16 Jul 2019 14:12:31 +0000 (UTC)
+	by smtp.corp.redhat.com (Postfix) with ESMTP id A3DB6611DE;
+	Tue, 16 Jul 2019 14:17:14 +0000 (UTC)
 Subject: Re: [PATCH v1 6/6] virtio-balloon: Add support for aerating memory
  via hinting
+From: David Hildenbrand <david@redhat.com>
 To: Dave Hansen <dave.hansen@intel.com>, "Michael S. Tsirkin"
  <mst@redhat.com>, Alexander Duyck <alexander.duyck@gmail.com>
 Cc: nitesh@redhat.com, kvm@vger.kernel.org, linux-kernel@vger.kernel.org,
@@ -102,7 +103,7 @@ References: <20190619222922.1231.27432.stgit@localhost.localdomain>
  <20190619223338.1231.52537.stgit@localhost.localdomain>
  <20190716055017-mutt-send-email-mst@kernel.org>
  <cad839c0-bbe6-b065-ac32-f32c117cf07e@intel.com>
-From: David Hildenbrand <david@redhat.com>
+ <3f8b2a76-b2ce-fb73-13d4-22a33fc1eb17@redhat.com>
 Openpgp: preference=signencrypt
 Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
  xsFNBFXLn5EBEAC+zYvAFJxCBY9Tr1xZgcESmxVNI/0ffzE/ZQOiHJl6mGkmA1R7/uUpiCjJ
@@ -148,33 +149,37 @@ Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
  +8Umfre0Xt4713VxMygW0PnQt5aSQdMD58jHFxTk092mU+yIHj5LeYgvwSgZN4airXk5yRXl
  SE+xAvmumFBY
 Organization: Red Hat GmbH
-Message-ID: <3f8b2a76-b2ce-fb73-13d4-22a33fc1eb17@redhat.com>
-Date: Tue, 16 Jul 2019 16:12:30 +0200
+Message-ID: <e565859c-d41a-e3b8-fd50-4537b50b95fb@redhat.com>
+Date: Tue, 16 Jul 2019 16:17:13 +0200
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.7.2
 MIME-Version: 1.0
-In-Reply-To: <cad839c0-bbe6-b065-ac32-f32c117cf07e@intel.com>
+In-Reply-To: <3f8b2a76-b2ce-fb73-13d4-22a33fc1eb17@redhat.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.39]); Tue, 16 Jul 2019 14:12:37 +0000 (UTC)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.28]); Tue, 16 Jul 2019 14:17:25 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 16.07.19 16:00, Dave Hansen wrote:
-> On 7/16/19 2:55 AM, Michael S. Tsirkin wrote:
->> The approach here is very close to what on-demand hinting that is
->> already upstream does.
+On 16.07.19 16:12, David Hildenbrand wrote:
+> On 16.07.19 16:00, Dave Hansen wrote:
+>> On 7/16/19 2:55 AM, Michael S. Tsirkin wrote:
+>>> The approach here is very close to what on-demand hinting that is
+>>> already upstream does.
+>>
+>> Are you referring to the s390 (and powerpc) stuff that is hidden behind
+>> arch_free_page()?
+>>
 > 
-> Are you referring to the s390 (and powerpc) stuff that is hidden behind
-> arch_free_page()?
+> I assume Michael meant "free page reporting".
 > 
 
-I assume Michael meant "free page reporting".
+(https://lwn.net/Articles/759413/)
 
 -- 
 
