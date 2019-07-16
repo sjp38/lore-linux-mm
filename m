@@ -2,289 +2,212 @@ Return-Path: <SRS0=rp0W=VN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-16.8 required=3.0
+	tests=HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,INCLUDES_PULL_REQUEST,
+	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4D57AC76195
-	for <linux-mm@archiver.kernel.org>; Tue, 16 Jul 2019 15:27:37 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CC463C7618F
+	for <linux-mm@archiver.kernel.org>; Tue, 16 Jul 2019 15:32:06 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 04D42217D9
-	for <linux-mm@archiver.kernel.org>; Tue, 16 Jul 2019 15:27:36 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="nUXSP/Uj"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 04D42217D9
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 8D04E2054F
+	for <linux-mm@archiver.kernel.org>; Tue, 16 Jul 2019 15:32:06 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8D04E2054F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 94CF58E000B; Tue, 16 Jul 2019 11:27:36 -0400 (EDT)
+	id 158718E000C; Tue, 16 Jul 2019 11:32:06 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8D5738E0006; Tue, 16 Jul 2019 11:27:36 -0400 (EDT)
+	id 109F58E0006; Tue, 16 Jul 2019 11:32:06 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 750A98E000B; Tue, 16 Jul 2019 11:27:36 -0400 (EDT)
+	id 01FBD8E000C; Tue, 16 Jul 2019 11:32:05 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A4B58E0006
-	for <linux-mm@kvack.org>; Tue, 16 Jul 2019 11:27:36 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id j22so12538497pfe.11
-        for <linux-mm@kvack.org>; Tue, 16 Jul 2019 08:27:36 -0700 (PDT)
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id D6F748E0006
+	for <linux-mm@kvack.org>; Tue, 16 Jul 2019 11:32:05 -0400 (EDT)
+Received: by mail-qk1-f199.google.com with SMTP id m198so17171003qke.22
+        for <linux-mm@kvack.org>; Tue, 16 Jul 2019 08:32:05 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=bgQ4RhrQ8SIWyyg74Fp++hfL4YmAINorli25JMx+HLI=;
-        b=gQ4/vJ3aGkVtkK4e9qYHuMTbt4zMnP+EU4uWH5LKi3g8yVR3PvcyY+Eeo2uOlO0bVb
-         7nqPXp0UseknkLeaMxRntad94V+RUXb/fSrmIk+FsYPJ+GYJNUsiDkzy+S/ey0TPsoM7
-         WLbA5Tex7ULnUeJdH0+2YgkrHAjvl+71YhVGGuXYliMe8Xz/B0jeensm8J6TOouI8qzE
-         +BSbPpC1tebZ3OtIuPJS7d3GWf0z+rc3taUoTqCoXl+O36Qi37011c2C5QXm7dJDBQn9
-         hPcDu2jB6cxiWVDlyR3bRu4UFvZxNwRqr74RZ8rVYSYoO5yAyk060Y30xzH9aPRNaMve
-         w90Q==
-X-Gm-Message-State: APjAAAUXgoHG7lBMzIixdTWlApi4ZsqCatIDiT+2Ofl2qQHM9neYfG07
-	6SciEkVIRFiT83+28UbrXYzOzwOooLjympl4Kq3Po8FZvT5ZArY7LlYxp0aBsSM1F5QHZWiNpBH
-	4Y9BKSL7uhVd6bqKKuihcMQD5V1VWMA12BEBiHIZ5+GPTeTkQeitx9fwF4iCRqHXuAQ==
-X-Received: by 2002:a17:902:1129:: with SMTP id d38mr36823030pla.220.1563290855769;
-        Tue, 16 Jul 2019 08:27:35 -0700 (PDT)
-X-Received: by 2002:a17:902:1129:: with SMTP id d38mr36822918pla.220.1563290854943;
-        Tue, 16 Jul 2019 08:27:34 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563290854; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:mime-version:content-disposition;
+        bh=ZoA0pfJr1FAcKH3cLYv5OlOngtqNc0JJBS5xvxqs13M=;
+        b=DjQwLWVwxeO6ALsOhjRwShpXpLWdYLlF7d0j78RMoJKBl6t3uuUHV9/y8y7X9OXYd7
+         BlEWzoEVFQd7oPaM5GA5AYjFsE6lYmlzCTDDqf8OwMNi/6gjhlT4GGeefcX0f5f4mkkh
+         tL+MFnI1TK6d2eDnQUvjg08VSOnzqmALsHthobOwmroevy8x9AW7VQ5zQN/xaTR59A9C
+         RdJhWl4wgcbBaIUvLYXNNskF4AQjAnv5XcXdcmIJyzlfcV1x53vongCOcuEIBc5ooRgJ
+         Gcyild1bwKWYuChym13oaMVe8A+1yTJ8CRjzK7t/Txxx/eTofnWPLglsfzE4rjCuQW/L
+         mcUA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mst@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=mst@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAWhXc1GEsJJknMla9w/112G7JVRa+4FVs2IcKMbkkJG+vtuN2+t
+	8v6o885RQsNrJeVU4GsBAhBiZk6ktVRpmGoiQxUI935y4JN71VuRj6ji96DZTe8CJnn3cGucLm1
+	v7MuWHKI1aSO6LGRvccILm5LaJVoBSVJRTrldXWzL21taLqFrykgiQZUrHEj21k7qfg==
+X-Received: by 2002:ac8:152:: with SMTP id f18mr22895466qtg.84.1563291125621;
+        Tue, 16 Jul 2019 08:32:05 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzy4Ze5/nOu8p0pydgUaXBsnWhsvcMNsaOY8QXRIacksghcoHNAwxn3KfwuefjRxSrloxSr
+X-Received: by 2002:ac8:152:: with SMTP id f18mr22895361qtg.84.1563291124137;
+        Tue, 16 Jul 2019 08:32:04 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563291124; cv=none;
         d=google.com; s=arc-20160816;
-        b=jIP9DzinNnXmencvxdiP1O0RvRisQf39/PNt5/SYlLURz6/t86ld00pxOHGtk0S3fr
-         AL/BG/eujreClvudsBzlvhNnhQFEVwQfrPaXIaP9THkAoMGHg3NMSgaDfZvkCaXTXKgE
-         WGCze9nLff2HU3orNoOrv8YfwpfTgbcAtw6RIVutYyMSke52MCII5tRUETft8IaP1l+W
-         Rsa0TRcglA01G88DksqtGZtBC4j61/fNeqYP0+1SaeA2QnbeD8/6FT5/Yk1Wl5ajQA3Y
-         mYADGeiGzdQqyIiaTm2G7ApQwgK51jMCCoWdggLkm3eT5lPptv3p53VPPo3FmPSB/Xi/
-         /hkA==
+        b=aWyIIYcTeJgeZpOuosAPWgHcmDCH+ZpYX4KJRBsgC2qflr+OfeIs4wQ54ULLCpN3fR
+         OrwqNsSmVjMdOMqwHWeXrjk7N157/ZW2UX/DnAu0lTAypWshhiZ8x2ppU4TfyEjN5kOH
+         izBHUWIe5ncC0bN+pCDHXxzVoOFK+qh6ITfxnTwz0p4/UIdLTFNCU1ZSK5GMhR+r2v9Z
+         L4EVpw0rTrMvUznqbN4T6cD/uAjwIK19kpokaYUQnVxnQ9KpsFWeRz/kpwXw4D82dgpo
+         eDfzB6YN6Y4ff7lMo8HYcH+1oCqgyV0rMabPudOHR5uZAOEA3hE8M/rXhOVgBhf+5MT9
+         ZvVg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=bgQ4RhrQ8SIWyyg74Fp++hfL4YmAINorli25JMx+HLI=;
-        b=GQGomeTifCATWKQffeMxtpkoKiq8zS1DaIwWMvS4/+rsMD7xAwDN1fSDqMXRdYr3K9
-         UArZ0JUtqVSKSjrYSZrxworW5/foKUyFE+D+bwfGGHsvMuQeUO5OgrOZVS70ngvrowrW
-         AmhyX7J7Qjry8ebu+df954d29/V8b024Jp22s3GhmS/9NJeXDl5HeB00u48lvNFtdS3k
-         2zWJuDkzY6Rh8GKd8n5fIXLCWtEBfSdYEpPKRFvGogvIg29eW/seqomUj0vv8mvh+Edy
-         GJ2A9lPSgKgRmCKh5xO4QEbrfu49uRMV/ee3twfpHKaWP7zOKauQ19wU887Siao2UUBz
-         lXEg==
+        h=content-disposition:mime-version:message-id:subject:cc:to:from:date;
+        bh=ZoA0pfJr1FAcKH3cLYv5OlOngtqNc0JJBS5xvxqs13M=;
+        b=o1vApi6swpGH4IHZQiDgJ4zvoEVM7FZAyWWD/G2F6crnPZm+ErCNKwh8jSjHiLvhzo
+         vfw70ZcQWcwHZ1ShDxHLOJK0JWbDjvTFEbVUOCehPPjhOnnFgai8XjfbkW0jDrWweBDi
+         Mb3vJXC+PXlXyaJOd8k2uFzesz9dcqueL/FTNzqU37EsqK2Cc5dv+N+OxVVHZYFtPfUO
+         3BKBYfGT3qLxe3WHdcSTyYnFJOggkAAhCB5nX1+qd0G0ErfqsNvLHlUKbU4zDtaondZz
+         bFzfwwIx7LeuGemp2AF70UivUhKs7vt6qyDnj12gD0FdVH3DNfbCzwMJ/ISmvC0StsQu
+         pnVw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b="nUXSP/Uj";
-       spf=pass (google.com: domain of lpf.vector@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=lpf.vector@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h29sor11023530pgb.21.2019.07.16.08.27.34
+       spf=pass (google.com: domain of mst@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=mst@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id u40si14873559qvg.25.2019.07.16.08.32.03
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 16 Jul 2019 08:27:34 -0700 (PDT)
-Received-SPF: pass (google.com: domain of lpf.vector@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 16 Jul 2019 08:32:04 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mst@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b="nUXSP/Uj";
-       spf=pass (google.com: domain of lpf.vector@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=lpf.vector@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=from:to:cc:subject:date:message-id:in-reply-to:references
-         :mime-version:content-transfer-encoding;
-        bh=bgQ4RhrQ8SIWyyg74Fp++hfL4YmAINorli25JMx+HLI=;
-        b=nUXSP/UjVBYnWfyc4jlTs17JCc4taGD4zuIrEeMGCF2WE+YIc+d9FCDUzwatPo11yk
-         HqC2h0chM/jepzjVBnURfdXKh25VLjxtjN/1Tz5ItpxKTcc9RlV2PUirx3R4MZ9atRtb
-         jyoXVRhJYBvPOEsGIB+nAUr7ZtpzCFFjGenYYTgHkBxW9uDiT3Dlx7b4aRQe0wp41XBY
-         OuKAUTgog5do0B51QJf+rsa0Ov9x9yXWySU4JP0CceKvQ6e9ynLGij7c7rE5pru5YcFI
-         pSbKRZWDZtwkjTvmMa0g1ddOEPzMaYf4yutzX5TuXocttkvGc1syuWblapRkwporyYFy
-         6FqA==
-X-Google-Smtp-Source: APXvYqxqz7gSTFnrIhbMahLYP5IFtDrisUyyl7qIFt4erygqkCZSe869LC+F7nOwyncv1f9NyEyjzg==
-X-Received: by 2002:a63:490a:: with SMTP id w10mr34021506pga.6.1563290854559;
-        Tue, 16 Jul 2019 08:27:34 -0700 (PDT)
-Received: from localhost.localdomain.localdomain ([2408:823c:c11:bf0:b8c3:8577:bf2f:2])
-        by smtp.gmail.com with ESMTPSA id h9sm27453651pgk.10.2019.07.16.08.27.25
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Tue, 16 Jul 2019 08:27:34 -0700 (PDT)
-From: Pengfei Li <lpf.vector@gmail.com>
-To: akpm@linux-foundation.org,
-	willy@infradead.org
-Cc: urezki@gmail.com,
-	rpenyaev@suse.de,
-	peterz@infradead.org,
-	guro@fb.com,
-	rick.p.edgecombe@intel.com,
-	rppt@linux.ibm.com,
-	aryabinin@virtuozzo.com,
-	linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org,
-	Pengfei Li <lpf.vector@gmail.com>
-Subject: [PATCH v6 2/2] mm/vmalloc: modify struct vmap_area to reduce its size
-Date: Tue, 16 Jul 2019 23:26:56 +0800
-Message-Id: <20190716152656.12255-3-lpf.vector@gmail.com>
-X-Mailer: git-send-email 2.21.0
-In-Reply-To: <20190716152656.12255-1-lpf.vector@gmail.com>
-References: <20190716152656.12255-1-lpf.vector@gmail.com>
+       spf=pass (google.com: domain of mst@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=mst@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 020B52F8BCC;
+	Tue, 16 Jul 2019 15:32:03 +0000 (UTC)
+Received: from redhat.com (ovpn-122-108.rdu2.redhat.com [10.10.122.108])
+	by smtp.corp.redhat.com (Postfix) with SMTP id 96BE15B681;
+	Tue, 16 Jul 2019 15:31:52 +0000 (UTC)
+Date: Tue, 16 Jul 2019 11:31:51 -0400
+From: "Michael S. Tsirkin" <mst@redhat.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: kvm@vger.kernel.org, virtualization@lists.linux-foundation.org,
+	netdev@vger.kernel.org, linux-kernel@vger.kernel.org,
+	aarcange@redhat.com, bharat.bhushan@nxp.com, bhelgaas@google.com,
+	linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org,
+	linux-parisc@vger.kernel.org, davem@davemloft.net,
+	eric.auger@redhat.com, gustavo@embeddedor.com, hch@infradead.org,
+	ihor.matushchak@foobox.net, James.Bottomley@hansenpartnership.com,
+	jasowang@redhat.com, jean-philippe.brucker@arm.com,
+	jglisse@redhat.com, mst@redhat.com, natechancellor@gmail.com
+Subject: [PULL] virtio, vhost: fixes, features, performance
+Message-ID: <20190716113151-mutt-send-email-mst@kernel.org>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+X-Mutt-Fcc: =sent
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.38]); Tue, 16 Jul 2019 15:32:03 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Objective
----------
-The current implementation of struct vmap_area wasted space.
+The following changes since commit c1ea02f15ab5efb3e93fc3144d895410bf79fcf2:
 
-After applying this commit, sizeof(struct vmap_area) has been
-reduced from 11 words to 8 words.
+  vhost: scsi: add weight support (2019-05-27 11:08:23 -0400)
 
-Description
------------
-1) Pack "subtree_max_size", "vm" and "purge_list".
-This is no problem because
-    A) "subtree_max_size" is only used when vmap_area is in
-       "free" tree
-    B) "vm" is only used when vmap_area is in "busy" tree
-    C) "purge_list" is only used when vmap_area is in
-       vmap_purge_list
+are available in the Git repository at:
 
-2) Eliminate "flags".
-Since only one flag VM_VM_AREA is being used, and the same
-thing can be done by judging whether "vm" is NULL, then the
-"flags" can be eliminated.
+  git://git.kernel.org/pub/scm/linux/kernel/git/mst/vhost.git tags/for_linus
 
-Signed-off-by: Pengfei Li <lpf.vector@gmail.com>
-Suggested-by: Uladzislau Rezki (Sony) <urezki@gmail.com>
+for you to fetch changes up to 5e663f0410fa2f355042209154029842ba1abd43:
+
+  virtio-mmio: add error check for platform_get_irq (2019-07-11 16:22:29 -0400)
+
+----------------------------------------------------------------
+virtio, vhost: fixes, features, performance
+
+new iommu device
+vhost guest memory access using vmap (just meta-data for now)
+minor fixes
+
+Signed-off-by: Michael S. Tsirkin <mst@redhat.com>
+
+Note: due to code driver changes the driver-core tree, the following
+patch is needed when merging tree with commit 92ce7e83b4e5
+("driver_find_device: Unify the match function with
+class_find_device()") in the driver-core tree:
+
+From: Nathan Chancellor <natechancellor@gmail.com>
+Subject: [PATCH] iommu/virtio: Constify data parameter in viommu_match_node
+
+After commit 92ce7e83b4e5 ("driver_find_device: Unify the match
+function with class_find_device()") in the driver-core tree.
+
+Signed-off-by: Nathan Chancellor <natechancellor@gmail.com>
+Signed-off-by: Michael S. Tsirkin <mst@redhat.com>
+
 ---
- include/linux/vmalloc.h | 20 +++++++++++++-------
- mm/vmalloc.c            | 24 ++++++++++--------------
- 2 files changed, 23 insertions(+), 21 deletions(-)
+ drivers/iommu/virtio-iommu.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
-index 9b21d0047710..a1334bd18ef1 100644
---- a/include/linux/vmalloc.h
-+++ b/include/linux/vmalloc.h
-@@ -51,15 +51,21 @@ struct vmap_area {
- 	unsigned long va_start;
- 	unsigned long va_end;
- 
--	/*
--	 * Largest available free size in subtree.
--	 */
--	unsigned long subtree_max_size;
--	unsigned long flags;
- 	struct rb_node rb_node;         /* address sorted rbtree */
- 	struct list_head list;          /* address sorted list */
--	struct llist_node purge_list;    /* "lazy purge" list */
--	struct vm_struct *vm;
-+
-+	/*
-+	 * The following three variables can be packed, because
-+	 * a vmap_area object is always one of the three states:
-+	 *    1) in "free" tree (root is vmap_area_root)
-+	 *    2) in "busy" tree (root is free_vmap_area_root)
-+	 *    3) in purge list  (head is vmap_purge_list)
-+	 */
-+	union {
-+		unsigned long subtree_max_size; /* in "free" tree */
-+		struct vm_struct *vm;           /* in "busy" tree */
-+		struct llist_node purge_list;   /* in purge list */
-+	};
- };
- 
- /*
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index 71d8040a8a0b..2f7edc0466e7 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -329,7 +329,6 @@ EXPORT_SYMBOL(vmalloc_to_pfn);
- #define DEBUG_AUGMENT_PROPAGATE_CHECK 0
- #define DEBUG_AUGMENT_LOWEST_MATCH_CHECK 0
- 
--#define VM_VM_AREA	0x04
- 
- static DEFINE_SPINLOCK(vmap_area_lock);
- /* Export for kexec only */
-@@ -1115,7 +1114,7 @@ static struct vmap_area *alloc_vmap_area(unsigned long size,
- 
- 	va->va_start = addr;
- 	va->va_end = addr + size;
--	va->flags = 0;
-+	va->vm = NULL;
- 	insert_vmap_area(va, &vmap_area_root, &vmap_area_list);
- 
- 	spin_unlock(&vmap_area_lock);
-@@ -1922,7 +1921,6 @@ void __init vmalloc_init(void)
- 		if (WARN_ON_ONCE(!va))
- 			continue;
- 
--		va->flags = VM_VM_AREA;
- 		va->va_start = (unsigned long)tmp->addr;
- 		va->va_end = va->va_start + tmp->size;
- 		va->vm = tmp;
-@@ -2020,7 +2018,6 @@ static void setup_vmalloc_vm(struct vm_struct *vm, struct vmap_area *va,
- 	vm->size = va->va_end - va->va_start;
- 	vm->caller = caller;
- 	va->vm = vm;
--	va->flags |= VM_VM_AREA;
- 	spin_unlock(&vmap_area_lock);
+diff --git a/drivers/iommu/virtio-iommu.c b/drivers/iommu/virtio-iommu.c
+index 4620dd221ffd..433f4d2ee956 100644
+--- a/drivers/iommu/virtio-iommu.c
++++ b/drivers/iommu/virtio-iommu.c
+@@ -839,7 +839,7 @@ static void viommu_put_resv_regions(struct device *dev, struct list_head *head)
+ static struct iommu_ops viommu_ops;
+ static struct virtio_driver virtio_iommu_drv;
+
+-static int viommu_match_node(struct device *dev, void *data)
++static int viommu_match_node(struct device *dev, const void *data)
+ {
+ 	return dev->parent->fwnode == data;
  }
- 
-@@ -2125,10 +2122,10 @@ struct vm_struct *find_vm_area(const void *addr)
- 	struct vmap_area *va;
- 
- 	va = find_vmap_area((unsigned long)addr);
--	if (va && va->flags & VM_VM_AREA)
--		return va->vm;
-+	if (!va)
-+		return NULL;
- 
--	return NULL;
-+	return va->vm;
- }
- 
- /**
-@@ -2149,11 +2146,10 @@ struct vm_struct *remove_vm_area(const void *addr)
- 
- 	spin_lock(&vmap_area_lock);
- 	va = __find_vmap_area((unsigned long)addr);
--	if (va && va->flags & VM_VM_AREA) {
-+	if (va && va->vm) {
- 		struct vm_struct *vm = va->vm;
- 
- 		va->vm = NULL;
--		va->flags &= ~VM_VM_AREA;
- 		spin_unlock(&vmap_area_lock);
- 
- 		kasan_free_shadow(vm);
-@@ -2856,7 +2852,7 @@ long vread(char *buf, char *addr, unsigned long count)
- 		if (!count)
- 			break;
- 
--		if (!(va->flags & VM_VM_AREA))
-+		if (!va->vm)
- 			continue;
- 
- 		vm = va->vm;
-@@ -2936,7 +2932,7 @@ long vwrite(char *buf, char *addr, unsigned long count)
- 		if (!count)
- 			break;
- 
--		if (!(va->flags & VM_VM_AREA))
-+		if (!va->vm)
- 			continue;
- 
- 		vm = va->vm;
-@@ -3466,10 +3462,10 @@ static int s_show(struct seq_file *m, void *p)
- 	va = list_entry(p, struct vmap_area, list);
- 
- 	/*
--	 * s_show can encounter race with remove_vm_area, !VM_VM_AREA on
--	 * behalf of vmap area is being tear down or vm_map_ram allocation.
-+	 * s_show can encounter race with remove_vm_area, !vm on behalf
-+	 * of vmap area is being tear down or vm_map_ram allocation.
- 	 */
--	if (!(va->flags & VM_VM_AREA)) {
-+	if (!va->vm) {
- 		seq_printf(m, "0x%pK-0x%pK %7ld vm_map_ram\n",
- 			(void *)va->va_start, (void *)va->va_end,
- 			va->va_end - va->va_start);
--- 
-2.21.0
+
+----------------------------------------------------------------
+Gustavo A. R. Silva (1):
+      scsi: virtio_scsi: Use struct_size() helper
+
+Ihor Matushchak (1):
+      virtio-mmio: add error check for platform_get_irq
+
+Jason Wang (6):
+      vhost: generalize adding used elem
+      vhost: fine grain userspace memory accessors
+      vhost: rename vq_iotlb_prefetch() to vq_meta_prefetch()
+      vhost: introduce helpers to get the size of metadata area
+      vhost: factor out setting vring addr and num
+      vhost: access vq metadata through kernel virtual address
+
+Jean-Philippe Brucker (7):
+      dt-bindings: virtio-mmio: Add IOMMU description
+      dt-bindings: virtio: Add virtio-pci-iommu node
+      of: Allow the iommu-map property to omit untranslated devices
+      PCI: OF: Initialize dev->fwnode appropriately
+      iommu: Add virtio-iommu driver
+      iommu/virtio: Add probe request
+      iommu/virtio: Add event queue
+
+Michael S. Tsirkin (1):
+      vhost: fix clang build warning
+
+ Documentation/devicetree/bindings/virtio/iommu.txt |   66 ++
+ Documentation/devicetree/bindings/virtio/mmio.txt  |   30 +
+ MAINTAINERS                                        |    7 +
+ drivers/iommu/Kconfig                              |   11 +
+ drivers/iommu/Makefile                             |    1 +
+ drivers/iommu/virtio-iommu.c                       | 1158 ++++++++++++++++++++
+ drivers/of/base.c                                  |   10 +-
+ drivers/pci/of.c                                   |    8 +
+ drivers/scsi/virtio_scsi.c                         |    2 +-
+ drivers/vhost/net.c                                |    4 +-
+ drivers/vhost/vhost.c                              |  850 +++++++++++---
+ drivers/vhost/vhost.h                              |   43 +-
+ drivers/virtio/virtio_mmio.c                       |    7 +-
+ include/uapi/linux/virtio_ids.h                    |    1 +
+ include/uapi/linux/virtio_iommu.h                  |  161 +++
+ 15 files changed, 2228 insertions(+), 131 deletions(-)
+ create mode 100644 Documentation/devicetree/bindings/virtio/iommu.txt
+ create mode 100644 drivers/iommu/virtio-iommu.c
+ create mode 100644 include/uapi/linux/virtio_iommu.h
 
