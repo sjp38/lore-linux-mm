@@ -2,240 +2,150 @@ Return-Path: <SRS0=rp0W=VN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6C061C76195
-	for <linux-mm@archiver.kernel.org>; Tue, 16 Jul 2019 06:16:05 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9CBD8C76188
+	for <linux-mm@archiver.kernel.org>; Tue, 16 Jul 2019 07:17:56 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 034142145D
-	for <linux-mm@archiver.kernel.org>; Tue, 16 Jul 2019 06:16:04 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="a7kE9Glh"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 034142145D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
+	by mail.kernel.org (Postfix) with ESMTP id 30DA220880
+	for <linux-mm@archiver.kernel.org>; Tue, 16 Jul 2019 07:17:56 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 30DA220880
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=techsingularity.net
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6CBFF6B0003; Tue, 16 Jul 2019 02:16:03 -0400 (EDT)
+	id 8C0CC6B0003; Tue, 16 Jul 2019 03:17:55 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 67C726B0005; Tue, 16 Jul 2019 02:16:03 -0400 (EDT)
+	id 84A016B0005; Tue, 16 Jul 2019 03:17:55 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 56ABA6B0006; Tue, 16 Jul 2019 02:16:03 -0400 (EDT)
+	id 6C3C56B0006; Tue, 16 Jul 2019 03:17:55 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yb1-f199.google.com (mail-yb1-f199.google.com [209.85.219.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 36B016B0003
-	for <linux-mm@kvack.org>; Tue, 16 Jul 2019 02:16:03 -0400 (EDT)
-Received: by mail-yb1-f199.google.com with SMTP id b22so16135892yba.4
-        for <linux-mm@kvack.org>; Mon, 15 Jul 2019 23:16:03 -0700 (PDT)
+Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 149EB6B0003
+	for <linux-mm@kvack.org>; Tue, 16 Jul 2019 03:17:55 -0400 (EDT)
+Received: by mail-wr1-f71.google.com with SMTP id b6so10086850wrp.21
+        for <linux-mm@kvack.org>; Tue, 16 Jul 2019 00:17:55 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding:dkim-signature;
-        bh=8MZblR3/48+uz1YHKzCNtQlnLBqU554eXVq9V58XHgE=;
-        b=dvNlynmDRAxAgPg3Zm3yRO+4Vqf3W46ENmyY08vVwQXPUh9EtivskgonLixzcfmHRs
-         gJ3KFnd6BdUgTCdkCijhZnor0HSzmCvAoSS70ZhNbBo31VXipX3aYbn/TMrmRBfdRiue
-         EW5gONoxqSk2TyGwesSN6FW7EFOgyTKhCiRaFs4qTTfXEFK9piwfp+CBauVQLhSleDSS
-         H+yr5Spxw9aj+wG1+Hfg6J8Gosqp5iIwE9JSF7gSV87d8PyPkDz8kpSxafSl5lbzFnRd
-         vxxRRvJKJwVJR9MNC2alLndBW6GAahqBEUAtOc2zeLZDCn1RB0FvB9oH3ojT+/HIqG+3
-         4UBw==
-X-Gm-Message-State: APjAAAVsX/KBEJOoLoqt0T8PXrzKzZQr6rdLHuMp477Pncfwxre15Veq
-	7nvdfAJkBZagWDzSbUkCOD7rMNvoeZZ4X0He9tLsFpfH4E2Py1uvw1hKB/Zd60DuWUU1KgFK70x
-	D2vblFuOmL1ls45yD7qbS86sTZDf0K2IwjeFxgZgesJiCcVamlPkeeIyLLED9GyeB9Q==
-X-Received: by 2002:a25:a093:: with SMTP id y19mr17529617ybh.363.1563257762965;
-        Mon, 15 Jul 2019 23:16:02 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwHKMhFU/8edewvNytiCL0VIbTH2RmJcsfxqQY1mf11pdqLhV3Jm5+TdJj39g8WkB9NFI8j
-X-Received: by 2002:a25:a093:: with SMTP id y19mr17529586ybh.363.1563257762153;
-        Mon, 15 Jul 2019 23:16:02 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563257762; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=vHHwRSF3LnN+YkVovl1LAzvIiipSiXildikrjwGSyHg=;
+        b=reEaufFHilKfx4QKbwMVMv9beEFMXKSk0ks/53odVLo2BVY2ghsCK99tuJa8flGI9j
+         biCzckFCK/N6Bi+9z74M5DRUBKY/fQqFY8GPEUvtwu7g+lg5RPYw9udAu9uM1aFMDrlj
+         CjHH0tQ+l/FmmSJFP6TEUg6bL124G7DHixK42t1ghVoN1HC6aBLk0hQzbIsSjG7n8F6A
+         1FhFhz/VQUn9zl9MLVOGhOhJFGarDgo5zNnIZLMozbZZp4QQrH9m217j3yNu//15g7vm
+         sNOIGlRYpk85ENPp+HhXj7IuTnhOAnJxdDdKmXL5rqvcrE1WpQ5vmJdURgjbrgW4B1Yz
+         Q+Sg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.12 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+X-Gm-Message-State: APjAAAXrPHxewa1CS7/ucTYdtE+f4Qy/EydUJsCRPzco6X+Md2lFPzPH
+	qzNKd+0vBmtVyyjiSaIjHfiRm23sulYD/RNO87IBmh9aW97LqIM/QXJgLEUSiy1/zqMlurWtcQu
+	3GyGP4egjGpzHkPB4r+MkS9qOsjj1L2+0mH5oESJWvvn9HN/3GFhS8/rGgqyk14NsAQ==
+X-Received: by 2002:a5d:6182:: with SMTP id j2mr32010092wru.275.1563261474539;
+        Tue, 16 Jul 2019 00:17:54 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxZDDP8Xz7vUZ8BdPjT7Bq9ai5plyYg+HrlmeOSq/vrtOeO87EzKvNiEwt9o73RaQUE4DhX
+X-Received: by 2002:a5d:6182:: with SMTP id j2mr32009971wru.275.1563261473616;
+        Tue, 16 Jul 2019 00:17:53 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563261473; cv=none;
         d=google.com; s=arc-20160816;
-        b=N9lh0r7WFnVoRKUBYvO8SOLYJiD0rcoBzwZ5rfGpRH/zW+Rso0D6U1ohXQ7tXsElR1
-         1HJ3ZsbAxoSjiz7UNbyZLDdxofStPQHQikwG/xXZlr5i+7Roh+boyqGroY4V5Im7JWSR
-         wgBLv+pVXvEnWIQN88/I/Uy8gVncTM4HtM28vAa9Ch0DWnrE6a20IvL5QSfSHv6XNaEJ
-         N91QXUod39SCcJJB7A5t8QwcnIrH51qCSNt9pFqMn11sWdu8Yyjo/v7lAmd3NwyM5Jnk
-         3z564gNOCgENtkEUC2DWGIC667dCHzWLOqF/I8kaD7UBmTHz03UVpOWroCSTFbclBCiK
-         T1pg==
+        b=TP8Ceg5OK5bnn4F4bj2slGZF0DFZ2hEVLPPW3h1GZR8TXF+Fa1bds7X+1yJMtUtoSh
+         fEejwfPDWO6qeGPBzfZG/ZHK6DwqkyRNohPShzoGk0x9dvOHdfbuNGyAvbf+urrNS2Fu
+         CCO195/mU/rqM41/MTFhzgkYGDLXitKnv5cv5o+V2xTajqbySQhiacmgkwXBfwGLPJcH
+         SDEOtA5nngZo5UiV8t/TAmIqU0Qjguw28eFfpuuL3xRJqIFos5aYn3KNh/+PaoLJj5Le
+         7NNwveMsKSDW8P0zfSq0CaGtDXdJdCugrI2wjj+z4l6dECoygLqQ1NhdJWXnzNqCcceK
+         rntA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=dkim-signature:content-transfer-encoding:content-language
-         :in-reply-to:mime-version:user-agent:date:message-id:from:references
-         :cc:to:subject;
-        bh=8MZblR3/48+uz1YHKzCNtQlnLBqU554eXVq9V58XHgE=;
-        b=w+UjW+v8fl993aDkrVYM8Myhg9Z+F5mRfnhnPE4Jq2zNPJ9sYjbZAOCEjjCWDEnk1K
-         e3lsw/avwxwzt/Hu27SYc8Y2ssIfglZTcLxcsKePdTnhOwx/usfQ0awSEhj/MF7D3t3E
-         SUYyMrFxeluC86ljqaXEz6ac6S1LYlbTOqcfln0KG3q0yiXVm6pBrFsLSql0YTimTHFz
-         zN5PvcpuVH/s/pR9y5imMLzkZ+BnxufKQ8aXm1xDu+W++i/q44jTL9agboX71Qn861fm
-         lZ3nrI7k3ragh6n3zUAB3NcPozotUz2FI/BGBkslObVV/ApJJ3DjtRpcWMDBjXdh1lJo
-         iekQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=vHHwRSF3LnN+YkVovl1LAzvIiipSiXildikrjwGSyHg=;
+        b=pi3aN6L/cEfTHpaIS0tcxZQedHw/tDCp6tE6c/oaJcZ5+OZXJZOKb7kwQjeXbXY7En
+         qAULjYYho/P0FWJs7HLF1HWxC6nPxuwI12AqHDSXreocB7+oRLcQnd57pcNacZ4nc/Rr
+         zURmNwMJvBG2vRh+d5skynM3o4tbxQHliy21Wul4bBlvLzoq3V3/44ymhFsupvtQAZ9B
+         JW8KETgQaVoKKCbjRRckgTRNV1rPI005rbVAxP2PZ8PzMUmoGTWdfhO0DCmubXWA9akw
+         wkk2QE2BOK6Qvmk6FJWU+WDGcUgXvBnPHZjLOlZoz8yDSZTEw2HuOAPL/rCCmbXfljX3
+         I2QA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=a7kE9Glh;
-       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com. [216.228.121.143])
-        by mx.google.com with ESMTPS id z9si7835866ybp.189.2019.07.15.23.16.01
+       spf=pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.12 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+Received: from outbound-smtp07.blacknight.com (outbound-smtp07.blacknight.com. [46.22.139.12])
+        by mx.google.com with ESMTPS id l18si16233694wmi.47.2019.07.16.00.17.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 15 Jul 2019 23:16:02 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) client-ip=216.228.121.143;
+        Tue, 16 Jul 2019 00:17:53 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.12 as permitted sender) client-ip=46.22.139.12;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=a7kE9Glh;
-       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate14.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
-	id <B5d2d6b9f0000>; Mon, 15 Jul 2019 23:16:01 -0700
-Received: from hqmail.nvidia.com ([172.20.161.6])
-  by hqpgpgate101.nvidia.com (PGP Universal service);
-  Mon, 15 Jul 2019 23:16:01 -0700
-X-PGP-Universal: processed;
-	by hqpgpgate101.nvidia.com on Mon, 15 Jul 2019 23:16:01 -0700
-Received: from [10.2.169.122] (10.124.1.5) by HQMAIL107.nvidia.com
- (172.20.187.13) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Tue, 16 Jul
- 2019 06:15:58 +0000
-Subject: Re: [PATCH] mm/hmm: Fix bad subpage pointer in try_to_unmap_one
-To: Ralph Campbell <rcampbell@nvidia.com>, Andrew Morton
-	<akpm@linux-foundation.org>
-CC: <linux-mm@kvack.org>, <linux-kernel@vger.kernel.org>,
-	=?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, "Kirill A. Shutemov"
-	<kirill.shutemov@linux.intel.com>, Mike Kravetz <mike.kravetz@oracle.com>,
-	Jason Gunthorpe <jgg@mellanox.com>
-References: <20190709223556.28908-1-rcampbell@nvidia.com>
- <20190709172823.9413bb2333363f7e33a471a0@linux-foundation.org>
- <05fffcad-cf5e-8f0c-f0c7-6ffbd2b10c2e@nvidia.com>
- <20190715150031.49c2846f4617f30bca5f043f@linux-foundation.org>
- <0ee5166a-26cd-a504-b9db-cffd082ecd38@nvidia.com>
- <8dd86951-f8b0-75c2-d738-5080343e5dc5@nvidia.com>
-X-Nvconfidentiality: public
-From: John Hubbard <jhubbard@nvidia.com>
-Message-ID: <6a52c2a0-8d27-2ce4-e797-7cae653df21a@nvidia.com>
-Date: Mon, 15 Jul 2019 23:14:31 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.2
+       spf=pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.12 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+Received: from mail.blacknight.com (pemlinmail02.blacknight.ie [81.17.254.11])
+	by outbound-smtp07.blacknight.com (Postfix) with ESMTPS id 218BE1C1D96
+	for <linux-mm@kvack.org>; Tue, 16 Jul 2019 08:17:53 +0100 (IST)
+Received: (qmail 2237 invoked from network); 16 Jul 2019 07:17:53 -0000
+Received: from unknown (HELO techsingularity.net) (mgorman@techsingularity.net@[84.203.21.36])
+  by 81.17.254.9 with ESMTPSA (AES256-SHA encrypted, authenticated); 16 Jul 2019 07:17:52 -0000
+Date: Tue, 16 Jul 2019 08:11:21 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+To: howaboutsynergy@protonmail.com
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+	"bugzilla-daemon@bugzilla.kernel.org" <bugzilla-daemon@bugzilla.kernel.org>,
+	"linux-mm@kvack.org" <linux-mm@kvack.org>
+Subject: Re: [Bug 204165] New: 100% CPU usage in compact_zone_order
+Message-ID: <20190716071121.GA24383@techsingularity.net>
+References: <bug-204165-27@https.bugzilla.kernel.org/>
+ <20190715142524.e0df173a9d7f81a384abf28f@linux-foundation.org>
+ <pLm2kTLklcV9AmHLFjB1oi04nZf9UTLlvnvQZoq44_ouTn3LhqcDD8Vi7xjr9qaTbrHfY5rKdwD6yVr43YCycpzm7MDLcbTcrYmGA4O0weU=@protonmail.com>
+ <GX2mE2MIJ0H5o4mejfgRsT-Ng_bb19MXio4XzPWFjRzVb4cNpvDC1JXNqtX3k44MpbKg4IEg3amOh5V2Qt0AfMev1FZJoAWNh_CdfYIqxJ0=@protonmail.com>
+ <WGYVD8PH-EVhj8iJluAiR5TqOinKtx6BbqdNr2RjFO6kOM_FP2UaLy4-1mXhlpt50wEWAfLFyYTa4p6Ie1xBOuCdguPmrLOW1wJEzxDhcuU=@protonmail.com>
+ <EDGpMqBME0-wqL8JuVQeCbXEy1lZkvqS0XMvMj6Z_OFhzyK5J6qXWAgNUCxrcgVLmZVlqMH-eRJrqOCxb1pct39mDyFMcWhIw1ZUTAVXr2o=@protonmail.com>
 MIME-Version: 1.0
-In-Reply-To: <8dd86951-f8b0-75c2-d738-5080343e5dc5@nvidia.com>
-X-Originating-IP: [10.124.1.5]
-X-ClientProxiedBy: HQMAIL104.nvidia.com (172.18.146.11) To
- HQMAIL107.nvidia.com (172.20.187.13)
-Content-Type: text/plain; charset="utf-8"; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: quoted-printable
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
-	t=1563257761; bh=8MZblR3/48+uz1YHKzCNtQlnLBqU554eXVq9V58XHgE=;
-	h=X-PGP-Universal:Subject:To:CC:References:X-Nvconfidentiality:From:
-	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
-	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
-	 Content-Transfer-Encoding;
-	b=a7kE9Glh+Srd5gt7zNr5hvcBKcP8f8HM7VTd3Zm2N7JHOi4SRpFRhOLKiPpJ7Pj0F
-	 toRcVRYjMUGFw9B95uoF649yqD4D5ikilFcK/UIXrBFww3EtAWNYryNjylY7ksmXEX
-	 GmPz/AhcOD+e+ExtkQ9f9tLA5a5hGqYWRiZlYDDLs8yQ4f0XlsSkENRC6V2NtOg7PG
-	 flcxZ6nOnKzU8ibTfc3dS0VKJp9r8mBMGpqIcUo2XChgFsi+9Jdnl6His+t235Zu1E
-	 fxzOi8uUXsKWCewjujYNSTEdC4lbeIR6e2fmjNLnbJiwWHQvhUg291OgCkDkVnDe0k
-	 hFwTV9DVXBqjQ==
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <EDGpMqBME0-wqL8JuVQeCbXEy1lZkvqS0XMvMj6Z_OFhzyK5J6qXWAgNUCxrcgVLmZVlqMH-eRJrqOCxb1pct39mDyFMcWhIw1ZUTAVXr2o=@protonmail.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 7/15/19 5:38 PM, Ralph Campbell wrote:
-> On 7/15/19 4:34 PM, John Hubbard wrote:
->> On 7/15/19 3:00 PM, Andrew Morton wrote:
->>> On Tue, 9 Jul 2019 18:24:57 -0700 Ralph Campbell <rcampbell@nvidia.com>=
- wrote:
->>>
->>> =C2=A0 mm/rmap.c |=C2=A0=C2=A0=C2=A0 1 +
->>> =C2=A0 1 file changed, 1 insertion(+)
->>>
->>> --- a/mm/rmap.c~mm-hmm-fix-bad-subpage-pointer-in-try_to_unmap_one
->>> +++ a/mm/rmap.c
->>> @@ -1476,6 +1476,7 @@ static bool try_to_unmap_one(struct page
->>> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0=C2=A0=C2=A0 * No need to invalidate here it will synchronize on
->>> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0=C2=A0=C2=A0 * against the special swap migration pte.
->>> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0=C2=A0=C2=A0 */
->>> +=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 sub=
-page =3D page;
->>> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0=C2=A0 goto discard;
->>> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 }
->>
->> Hi Ralph and everyone,
->>
->> While the above prevents a crash, I'm concerned that it is still not
->> an accurate fix. This fix leads to repeatedly removing the rmap, against=
- the
->> same struct page, which is odd, and also doesn't directly address the
->> root cause, which I understand to be: this routine can't handle migratin=
-g
->> the zero page properly--over and back, anyway. (We should also mention m=
-ore
->> about how this is triggered, in the commit description.)
->>
->> I'll take a closer look at possible fixes (I have to step out for a bit)=
- soon,
->> but any more experienced help is also appreciated here.
->>
->> thanks,
->=20
-> I'm not surprised at the confusion. It took me quite awhile to understand=
- how=20
-> migrate_vma() works with ZONE_DEVICE private memory.
-> The big point to be aware of is that when migrating a page to
-> device private memory, the source page's page->mapping pointer
-> is copied to the ZONE_DEVICE struct page and the page_mapcount()
-> is increased. So, the kernel sees the page as being "mapped"
-> but the page table entry as being is_swap_pte() so the CPU will fault
-> if it tries to access the mapped address.
+On Tue, Jul 16, 2019 at 03:57:30AM +0000, howaboutsynergy@protonmail.com wrote:
+> > PID: 21120 TASK: ffff8fd7f10ddac0 CPU: 9 COMMAND: "stress"
+> > START: __schedule at ffffffff987f5a0c
+> > [ffff9cb9a9f57928] isolate_migratepages_block at ffffffff981b35c6
+> > [ffff9cb9a9f57950] isolate_migratepages_block at ffffffff981b37bd
+> > [ffff9cb9a9f57a10] compact_zone at ffffffff981b4c07
+> > [ffff9cb9a9f57ab8] compact_zone_order at ffffffff981b51de
+> > [ffff9cb9a9f57b78] try_to_compact_pages at ffffffff981b5a17
+> > [ffff9cb9a9f57bd8] __alloc_pages_direct_compact at ffffffff981d95a7
+> > [ffff9cb9a9f57c30] __alloc_pages_slowpath at ffffffff981d99ee
+> > [ffff9cb9a9f57cd0] release_pages at ffffffff9819aa08
+> > [ffff9cb9a9f57d00] __pagevec_lru_add_fn at ffffffff9819ada9
+> > [ffff9cb9a9f57d40] __alloc_pages_nodemask at ffffffff981da668
+> > [ffff9cb9a9f57da0] do_huge_pmd_anonymous_page at ffffffff98202c01
+> > [ffff9cb9a9f57df0] __handle_mm_fault at ffffffff981bfa4c
+> > [ffff9cb9a9f57ea0] handle_mm_fault at ffffffff981c01f9
+> > [ffff9cb9a9f57ec8] __do_page_fault at ffffffff9803d5c7
+> > [ffff9cb9a9f57f28] do_page_fault at ffffffff9803d85d
+> > [ffff9cb9a9f57f48] page_fault at ffffffff98800de8
+> > [ffff9cb9a9f57f50] page_fault at ffffffff98800dfe
+> > RIP: 00005879fc8c4c10 RSP: 00007ffd393aa0d0 RFLAGS: 00010206
+> > RAX: 0000000010b8a000 RBX: 0000714104876010 RCX: 0000714358a5a3db
+> > RDX: 0000000000000000 RSI: 00000002540bf000 RDI: 0000714104876000
+> > RBP: 00005879fc8c5a54 R8: 0000714104876010 R9: 0000000000000000
+> > R10: 0000000000000022 R11: 00000002540be400 R12: ffffffffffffffff
+> > R13: 0000000000000002 R14: 0000000000001000 R15: 00000002540be400
+> > ORIG_RAX: ffffffffffffffff CS: 0033 SS: 002b
+> > crash>
 
-Thanks for humoring me here...
+High CPU usage in this path is not something I've observed recently.
+When it happens and CPU usage is high, can you run the following commands
+please?
 
-The part about the source page's page->mapping pointer being *copied*
-to the ZONE_DEVICE struct page is particularly interesting, and belongs
-maybe even in a comment (if not already there). Definitely at least in
-the commit description, for now.
+trace-cmd record -e compaction:* sleep 10
+trace-cmd report > trace.log
 
-> So yes, the source anon page is unmapped, DMA'ed to the device,
-> and then mapped again. Then on a CPU fault, the zone device page
-> is unmapped, DMA'ed to system memory, and mapped again.
-> The rmap_walk() is used to clear the temporary migration pte so
-> that is another important detail of how migrate_vma() works.
-> At the moment, only single anon private pages can migrate to
-> device private memory so there are no subpages and setting it to "page"
-> should be correct for now. I'm looking at supporting migration of
-> transparent huge pages but that is a work in progress.
+and send me the resulting trace.log please?
 
-Well here, I worry, because subpage !=3D tail page, right? subpage is a
-strange variable name, and here it is used to record the page that
-corresponds to *each* mapping that is found during the reverse page
-mapping walk.
-
-And that makes me suspect that if there were more than one of these
-found (which is unlikely, given the light testing that we have available
-so far, I realize), then there could possibly be a problem with the fix,
-yes?
-
-> Let me know how much of all that you think should be in the change log.
-> Getting an Acked-by from Jerome would be nice too.
->=20
-> I see Christoph Hellwig got confused by this too [1].
-
-Yeah, him and me both. :)
-
-> I have a patch to clear page->mapping when freeing ZONE_DEVICE private
-> struct pages which I'll send out soon.
-> I'll probably also add some comments to struct page to include the
-> above info and maybe remove the _zd_pad_1 field.
->=20
-> [1] 740d6310ed4cd5c78e63 ("mm: don't clear ->mapping in hmm_devmem_free")
->=20
-
-That's  b7a523109fb5c9d2d6dd3ffc1fa38a4f48c6f842 in linux.git, now.
-
-thanks,
---=20
-John Hubbard
-NVIDIA
+-- 
+Mel Gorman
+SUSE Labs
 
