@@ -2,188 +2,295 @@ Return-Path: <SRS0=rp0W=VN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+X-Spam-Status: No, score=-8.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6CE7AC7618F
-	for <linux-mm@archiver.kernel.org>; Tue, 16 Jul 2019 14:17:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E50C6C76192
+	for <linux-mm@archiver.kernel.org>; Tue, 16 Jul 2019 14:35:37 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2B54D20693
-	for <linux-mm@archiver.kernel.org>; Tue, 16 Jul 2019 14:17:27 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2B54D20693
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 7A1C92173C
+	for <linux-mm@archiver.kernel.org>; Tue, 16 Jul 2019 14:35:37 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="DcDJmgjq"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7A1C92173C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B2ECA6B000A; Tue, 16 Jul 2019 10:17:26 -0400 (EDT)
+	id B968E8E0001; Tue, 16 Jul 2019 10:35:36 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AB8988E0003; Tue, 16 Jul 2019 10:17:26 -0400 (EDT)
+	id B1ED26B000D; Tue, 16 Jul 2019 10:35:36 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 930A58E0001; Tue, 16 Jul 2019 10:17:26 -0400 (EDT)
+	id 9989C8E0001; Tue, 16 Jul 2019 10:35:36 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 6E6E56B000A
-	for <linux-mm@kvack.org>; Tue, 16 Jul 2019 10:17:26 -0400 (EDT)
-Received: by mail-qk1-f198.google.com with SMTP id k13so17027422qkj.4
-        for <linux-mm@kvack.org>; Tue, 16 Jul 2019 07:17:26 -0700 (PDT)
+Received: from mail-lf1-f72.google.com (mail-lf1-f72.google.com [209.85.167.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 32F8E6B0007
+	for <linux-mm@kvack.org>; Tue, 16 Jul 2019 10:35:36 -0400 (EDT)
+Received: by mail-lf1-f72.google.com with SMTP id f24so1813834lfk.6
+        for <linux-mm@kvack.org>; Tue, 16 Jul 2019 07:35:36 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:from
-         :to:cc:references:openpgp:autocrypt:organization:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding;
-        bh=6kccRFc4PeFOiUHBCyI6dRc2JO7B15Tf2KUoAPAYMEU=;
-        b=bAMR8LEAvo432BaQCe/AOYVJFTFrzMZ2zU5LOsLysELLEKts//EVuN0x+0jmVeSxC8
-         w/UzhYHtp8VIL0PEqhxpqSNe4VAa15SX4oJfboDEEEzT87bZyePst0ZilbdL5U4CJozp
-         y2xEX5N0TFyQThOl+0mZE0f+0YVjwLErIxUPquF8VIdCXesxLKm0Mmva3T0V99yuBuIr
-         iOzAlRJNVhRMbVjnLeaEtC+4g+096rG2x1v9u8SG1npdwwZgeHxlKix1WhGFRNhBVK86
-         h3IyG/TReXRLf9AK0XVPwsHvBHaGdVNRTXOQwUn286LS511y0FRhlScFjhCAKZWwpg/j
-         3ZYA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAXzDAnY2+47oL+CIBFtNAJpQ1zSVc0OMVK8g8CrLV99YQMGT3HH
-	IFoccFIqxxEYaKmM96rcIvi6lLcmM/91D3781kk8XVj/Vjv9hpZQzKdpy26BPoxw5rrZ6D5S/m3
-	b7HVcyJQ7L6mhxU45Y6hIhPWqsD2k8HNkkrsgtZztPSjbWILG6tW4i7hxOAK8mmDL+Q==
-X-Received: by 2002:a05:620a:1387:: with SMTP id k7mr21734976qki.129.1563286646235;
-        Tue, 16 Jul 2019 07:17:26 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy1d3XoXaUED2ojoUzrn/eNZW49eCc7jPAU0GIsSjE/iG5W3D3S7fXmvf6yVSF0elSx49iW
-X-Received: by 2002:a05:620a:1387:: with SMTP id k7mr21734928qki.129.1563286645785;
-        Tue, 16 Jul 2019 07:17:25 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563286645; cv=none;
+        h=x-gm-message-state:dkim-signature:from:date:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=zUyofHCcnv9SWgv1ygBVjBzYVGWvD7z+3V3WVJoCxMM=;
+        b=A1rNBOC+H3rIYzT35C8M5H5S/F1dgNzMesD0q0N743930kaEBpdgPLkPGXdWzSM5Lo
+         P0I34icvncx1OTCXzXH8i8TPTY0tokPRdyhO9xZVgh9zELKnhA6184zz/7KYDIrl76af
+         U2ybEPXT+OVn4G3hSwRXcLO3AK+vg01AriKfIsPvmhZMYG62qIiuBafraJ1D8vuRgynM
+         aopivcpzu9vCx1CDJn46QQ+O199sgDaBLAFtl9RQNGkkRtzhESVUCKbk2vI6TkV/fA3z
+         IP4SWPA2YOwG7s0AUGIXisJGJ+rT2upbs52HhDW9B0sSyKGQDk4Kejj4jx9ie6hgAV7y
+         StGg==
+X-Gm-Message-State: APjAAAU3rJJOvtMoppNXveu1MxDNMXxHDgT6eMgz4zb7BkITij3AkwM8
+	8ItVRFd/tKyiI73L9806RJLPyL9Q+W/VYd3nBguuw/5Cpco8S32T/SwrJMvnnW7Gr+RILjlxTIt
+	u95joV4HKv+ehGEn5ijKJryOTfq8sVuMs4kT/eIkZ+ZWhHNaQHzI/UJmqx/rutf7XkA==
+X-Received: by 2002:a2e:870f:: with SMTP id m15mr17825157lji.223.1563287735333;
+        Tue, 16 Jul 2019 07:35:35 -0700 (PDT)
+X-Received: by 2002:a2e:870f:: with SMTP id m15mr17825092lji.223.1563287733769;
+        Tue, 16 Jul 2019 07:35:33 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563287733; cv=none;
         d=google.com; s=arc-20160816;
-        b=CKPql0D+oGtjveb1i2Epo07jUH6nH4rb/4i2zr07Df9q05NC1+TJnElwWuenI/yS8q
-         dT5saQ6RAYdqccGyTEa3FDbW2ttMSeMe2fimThzZzzH5YKcxxHaUgMcF8orPvgQYBT6b
-         JbCJhgqyg1Bc6vwMUgZX88ddCR82r+emH94neGaatg8vjoF+L5z+V/vAm22/JNp5mvSf
-         9/l+rqy6VLgfXAU3uey2LoQ5a4SvwxOrDX1QH2viJC6oDpQ7c9ULYAnShDlSH4bnIWPZ
-         +396D5touXZIDQP1BV5twb2qI9LcdO/4baOzKb9bNdQdUAA+ZH21Fdi9eYbNAcASJf6d
-         nVWA==
+        b=uefhx0X5yELyzj6pEntPpVbBtYKkTu4wfKQS/A5KWJxl8JwQlb4+LTAbvWvti1CyWU
+         Afi+mCBnk1J5DaMCDNuMCjRfZ1wgfB9s0q5BAabIKNUh8g0y+zU5AUXzGrLTunRccKLJ
+         +QGm2cOkkJ6Y/j2cC/dlxmxnN3Q57glMqylq2TICceFEWLTCLIx7YV5D5zCbXEC09dSO
+         Zdei1zWa6rWQryqVmPqsAF9CIVfTB796qnaD9YRcY4vL0Y7vh9LlGua/MKgxROm2Z9rq
+         /3GZ6BQHz7lgtiY9RjnsaXBvUz+3NhHJEpcEC1gVciL/L36XXaBs+YbFxRwu6Zps5DVv
+         F2CA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:organization:autocrypt:openpgp
-         :references:cc:to:from:subject;
-        bh=6kccRFc4PeFOiUHBCyI6dRc2JO7B15Tf2KUoAPAYMEU=;
-        b=yuygIEF3RzdPkjrGB3NAzHVuErvp8dHtmWvXs/ZFcSFkbPnSPPAKtCdJqfW5ch3aIo
-         F5IR/VM398F+OY9O6iFVRMdUuKGBHapw1X0IIp08qm8YyWQkGrt3lsi15iwQC7Vr0dkM
-         a0ChjOfGd3MOpHV5HFSSSI46HCdxDsTCN4Bf03bLtyv7YiN6bLAS+DV2OnzssbCcRXND
-         bbcS8cS1K7l8bhgyFh3eKwWV4Log+r38ZmPUbbpRhgeN8ic4RDwARflTz/fY/Tet4j/i
-         bXKukDNEz/pZv1ZXytEeUabvw3TAuSucac90jKZRGCegLa0FwcT+V2hf2b8PJsxTooup
-         8Iow==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:date:from:dkim-signature;
+        bh=zUyofHCcnv9SWgv1ygBVjBzYVGWvD7z+3V3WVJoCxMM=;
+        b=cKtcbO2NoKPocAxRHf6KY/X7vI505gysDuynHGr3kiND8lzhp8OzIu+aBUAIELHsfN
+         UYY7Xkv7NSjg7N1LLpMmUiFQVX7cJWUvlMEiy8SQ9uh6n8cZhPZIHqseVZ4MJ4QLUg+9
+         X4qdlGgEI6Ed/YsYQFr6Qdlr0daEPHPycw5+jnMwUUvJudi3n1OX0rJQlDG9sax7L4wM
+         z7yclAJn7LrptNNIqPZgpt00evyGZG8w7Wq+RwkjzJunpPcz8xXkanqnvNeYbqKg3x9j
+         Ix3PFZwNcvzTApBKT8nWoQhtH6g2knbL9zEoTUETpOxN5JVIqoEfokZVYuyBgRxxIh8l
+         1urQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id k53si14711943qta.47.2019.07.16.07.17.25
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=DcDJmgjq;
+       spf=pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=urezki@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id q21sor11520023lji.10.2019.07.16.07.35.33
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 Jul 2019 07:17:25 -0700 (PDT)
-Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (Google Transport Security);
+        Tue, 16 Jul 2019 07:35:33 -0700 (PDT)
+Received-SPF: pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id E9AE0882EA;
-	Tue, 16 Jul 2019 14:17:24 +0000 (UTC)
-Received: from [10.36.116.218] (ovpn-116-218.ams2.redhat.com [10.36.116.218])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id A3DB6611DE;
-	Tue, 16 Jul 2019 14:17:14 +0000 (UTC)
-Subject: Re: [PATCH v1 6/6] virtio-balloon: Add support for aerating memory
- via hinting
-From: David Hildenbrand <david@redhat.com>
-To: Dave Hansen <dave.hansen@intel.com>, "Michael S. Tsirkin"
- <mst@redhat.com>, Alexander Duyck <alexander.duyck@gmail.com>
-Cc: nitesh@redhat.com, kvm@vger.kernel.org, linux-kernel@vger.kernel.org,
- linux-mm@kvack.org, akpm@linux-foundation.org, yang.zhang.wz@gmail.com,
- pagupta@redhat.com, riel@surriel.com, konrad.wilk@oracle.com,
- lcapitulino@redhat.com, wei.w.wang@intel.com, aarcange@redhat.com,
- pbonzini@redhat.com, dan.j.williams@intel.com,
- alexander.h.duyck@linux.intel.com
-References: <20190619222922.1231.27432.stgit@localhost.localdomain>
- <20190619223338.1231.52537.stgit@localhost.localdomain>
- <20190716055017-mutt-send-email-mst@kernel.org>
- <cad839c0-bbe6-b065-ac32-f32c117cf07e@intel.com>
- <3f8b2a76-b2ce-fb73-13d4-22a33fc1eb17@redhat.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
- 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
- SE+xAvmumFBY
-Organization: Red Hat GmbH
-Message-ID: <e565859c-d41a-e3b8-fd50-4537b50b95fb@redhat.com>
-Date: Tue, 16 Jul 2019 16:17:13 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.2
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=DcDJmgjq;
+       spf=pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=urezki@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=from:date:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=zUyofHCcnv9SWgv1ygBVjBzYVGWvD7z+3V3WVJoCxMM=;
+        b=DcDJmgjq+LhEJK0s+RFNF/DA/N5+EOqi9zRvN9BORc4Lw/esmcC+A3tHuOReBdoJRM
+         N1LN4P1K44J0pnfppgXFwXgqToo3pE9R0C/KLoCYAn11OYplobx61DXEBoWvO2dfqnS9
+         964BsYbe7H4gtZz/3zPwH4yFvU1nFs9K9IXnNghNH89u4ByFhwJWGXCLV2794PCB8LwX
+         B8GWz3M1gpLKFe+l81fTQknxaEeB9YimEdYjrmT2EOm8GOP+107D29Tl4DKczylnU+k8
+         t0PVNvOsvxNgaOfeGEhwm7QGrU9/NcvCcpQIcBranXmsSaflI6ySBhwy/2pCm4rk+Q70
+         YRvQ==
+X-Google-Smtp-Source: APXvYqyE6DdgDbg1HtrLsQikpQiZMqInxy0KtHwAvqdhLElL2LJwNaC9N5ROuzojCJrXOEew677ihw==
+X-Received: by 2002:a2e:a0d6:: with SMTP id f22mr17300898ljm.182.1563287733222;
+        Tue, 16 Jul 2019 07:35:33 -0700 (PDT)
+Received: from pc636 ([37.139.158.167])
+        by smtp.gmail.com with ESMTPSA id z12sm2887572lfg.67.2019.07.16.07.35.31
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 16 Jul 2019 07:35:32 -0700 (PDT)
+From: Uladzislau Rezki <urezki@gmail.com>
+X-Google-Original-From: Uladzislau Rezki <urezki@pc636>
+Date: Tue, 16 Jul 2019 16:35:25 +0200
+To: Pengfei Li <lpf.vector@gmail.com>
+Cc: akpm@linux-foundation.org, willy@infradead.org, urezki@gmail.com,
+	rpenyaev@suse.de, peterz@infradead.org, guro@fb.com,
+	rick.p.edgecombe@intel.com, rppt@linux.ibm.com,
+	aryabinin@virtuozzo.com, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Subject: Re: [PATCH v5 2/2] mm/vmalloc: modify struct vmap_area to reduce its
+ size
+Message-ID: <20190716143525.5vnnwh4m637dcb2f@pc636>
+References: <20190716132604.28289-1-lpf.vector@gmail.com>
+ <20190716132604.28289-3-lpf.vector@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <3f8b2a76-b2ce-fb73-13d4-22a33fc1eb17@redhat.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.28]); Tue, 16 Jul 2019 14:17:25 +0000 (UTC)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190716132604.28289-3-lpf.vector@gmail.com>
+User-Agent: NeoMutt/20170113 (1.7.2)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 16.07.19 16:12, David Hildenbrand wrote:
-> On 16.07.19 16:00, Dave Hansen wrote:
->> On 7/16/19 2:55 AM, Michael S. Tsirkin wrote:
->>> The approach here is very close to what on-demand hinting that is
->>> already upstream does.
->>
->> Are you referring to the s390 (and powerpc) stuff that is hidden behind
->> arch_free_page()?
->>
+On Tue, Jul 16, 2019 at 09:26:04PM +0800, Pengfei Li wrote:
+> Objective
+> ---------
+> The current implementation of struct vmap_area wasted space.
 > 
-> I assume Michael meant "free page reporting".
+> After applying this commit, sizeof(struct vmap_area) has been
+> reduced from 11 words to 8 words.
+> 
+> Description
+> -----------
+> 1) Pack "subtree_max_size", "vm" and "purge_list".
+> This is no problem because
+>     A) "subtree_max_size" is only used when vmap_area is in
+>        "free" tree
+>     B) "vm" is only used when vmap_area is in "busy" tree
+>     C) "purge_list" is only used when vmap_area is in
+>        vmap_purge_list
+> 
+> 2) Eliminate "flags".
+> Since only one flag VM_VM_AREA is being used, and the same
+> thing can be done by judging whether "vm" is NULL, then the
+> "flags" can be eliminated.
+> 
+> Signed-off-by: Pengfei Li <lpf.vector@gmail.com>
+> Suggested-by: Uladzislau Rezki (Sony) <urezki@gmail.com>
+> ---
+>  include/linux/vmalloc.h | 20 +++++++++++++-------
+>  mm/vmalloc.c            | 24 ++++++++++--------------
+>  2 files changed, 23 insertions(+), 21 deletions(-)
+> 
+> diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
+> index 9b21d0047710..a1334bd18ef1 100644
+> --- a/include/linux/vmalloc.h
+> +++ b/include/linux/vmalloc.h
+> @@ -51,15 +51,21 @@ struct vmap_area {
+>  	unsigned long va_start;
+>  	unsigned long va_end;
+>  
+> -	/*
+> -	 * Largest available free size in subtree.
+> -	 */
+> -	unsigned long subtree_max_size;
+> -	unsigned long flags;
+>  	struct rb_node rb_node;         /* address sorted rbtree */
+>  	struct list_head list;          /* address sorted list */
+> -	struct llist_node purge_list;    /* "lazy purge" list */
+> -	struct vm_struct *vm;
+> +
+> +	/*
+> +	 * The following three variables can be packed, because
+> +	 * a vmap_area object is always one of the three states:
+> +	 *    1) in "free" tree (root is vmap_area_root)
+> +	 *    2) in "busy" tree (root is free_vmap_area_root)
+> +	 *    3) in purge list  (head is vmap_purge_list)
+> +	 */
+> +	union {
+> +		unsigned long subtree_max_size; /* in "free" tree */
+> +		struct vm_struct *vm;           /* in "busy" tree */
+> +		struct llist_node purge_list;   /* in purge list */
+> +	};
+>  };
+>  
+>  /*
+> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+> index 71d8040a8a0b..39bf9cf4175a 100644
+> --- a/mm/vmalloc.c
+> +++ b/mm/vmalloc.c
+> @@ -329,7 +329,6 @@ EXPORT_SYMBOL(vmalloc_to_pfn);
+>  #define DEBUG_AUGMENT_PROPAGATE_CHECK 0
+>  #define DEBUG_AUGMENT_LOWEST_MATCH_CHECK 0
+>  
+> -#define VM_VM_AREA	0x04
+>  
+>  static DEFINE_SPINLOCK(vmap_area_lock);
+>  /* Export for kexec only */
+> @@ -1115,7 +1114,7 @@ static struct vmap_area *alloc_vmap_area(unsigned long size,
+>  
+>  	va->va_start = addr;
+>  	va->va_end = addr + size;
+> -	va->flags = 0;
+> +	va->vm = NULL;
+>  	insert_vmap_area(va, &vmap_area_root, &vmap_area_list);
+>  
+>  	spin_unlock(&vmap_area_lock);
+> @@ -1922,7 +1921,6 @@ void __init vmalloc_init(void)
+>  		if (WARN_ON_ONCE(!va))
+>  			continue;
+>  
+> -		va->flags = VM_VM_AREA;
+>  		va->va_start = (unsigned long)tmp->addr;
+>  		va->va_end = va->va_start + tmp->size;
+>  		va->vm = tmp;
+> @@ -2020,7 +2018,6 @@ static void setup_vmalloc_vm(struct vm_struct *vm, struct vmap_area *va,
+>  	vm->size = va->va_end - va->va_start;
+>  	vm->caller = caller;
+>  	va->vm = vm;
+> -	va->flags |= VM_VM_AREA;
+>  	spin_unlock(&vmap_area_lock);
+>  }
+>  
+> @@ -2125,10 +2122,10 @@ struct vm_struct *find_vm_area(const void *addr)
+>  	struct vmap_area *va;
+>  
+>  	va = find_vmap_area((unsigned long)addr);
+> -	if (va && va->flags & VM_VM_AREA)
+> -		return va->vm;
+> +	if (!va)
+> +		return NULL;
+>  
+> -	return NULL;
+> +	return va->vm;
+>  }
+>  
+>  /**
+> @@ -2149,11 +2146,10 @@ struct vm_struct *remove_vm_area(const void *addr)
+>  
+>  	spin_lock(&vmap_area_lock);
+>  	va = __find_vmap_area((unsigned long)addr);
+> -	if (va && va->flags & VM_VM_AREA) {
+> +	if (va && va->vm) {
+>  		struct vm_struct *vm = va->vm;
+>  
+>  		va->vm = NULL;
+> -		va->flags &= ~VM_VM_AREA;
+>  		spin_unlock(&vmap_area_lock);
+>  
+>  		kasan_free_shadow(vm);
+> @@ -2856,7 +2852,7 @@ long vread(char *buf, char *addr, unsigned long count)
+>  		if (!count)
+>  			break;
+>  
+> -		if (!(va->flags & VM_VM_AREA))
+> +		if (!va->vm)
+>  			continue;
+>  
+>  		vm = va->vm;
+> @@ -2936,7 +2932,7 @@ long vwrite(char *buf, char *addr, unsigned long count)
+>  		if (!count)
+>  			break;
+>  
+> -		if (!(va->flags & VM_VM_AREA))
+> +		if (!va->vm)
+>  			continue;
+>  
+>  		vm = va->vm;
+> @@ -3466,10 +3462,10 @@ static int s_show(struct seq_file *m, void *p)
+>  	va = list_entry(p, struct vmap_area, list);
+>  
+>  	/*
+> -	 * s_show can encounter race with remove_vm_area, !VM_VM_AREA on
+> -	 * behalf of vmap area is being tear down or vm_map_ram allocation.
+> +	 * If !va->vm then this vmap_area object is allocated
+> +	 * by vm_map_ram.
+>  	 */
+This point is still valid. There is a race between remove_vm_area() vs
+s_show() and va->vm = NULL. So, please keep that comment.
+
+> -	if (!(va->flags & VM_VM_AREA)) {
+> +	if (!va->vm) {
+>  		seq_printf(m, "0x%pK-0x%pK %7ld vm_map_ram\n",
+>  			(void *)va->va_start, (void *)va->va_end,
+>  			va->va_end - va->va_start);
+> -- 
+> 2.21.0
 > 
 
-(https://lwn.net/Articles/759413/)
-
--- 
-
-Thanks,
-
-David / dhildenb
+--
+Vlad Rezki
 
