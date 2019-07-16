@@ -2,131 +2,549 @@ Return-Path: <SRS0=rp0W=VN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY,USER_AGENT_SANE_1
-	autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1F20FC76195
-	for <linux-mm@archiver.kernel.org>; Tue, 16 Jul 2019 17:38:37 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 22DE3C76192
+	for <linux-mm@archiver.kernel.org>; Tue, 16 Jul 2019 17:41:38 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E85FF2173E
-	for <linux-mm@archiver.kernel.org>; Tue, 16 Jul 2019 17:38:36 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E85FF2173E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
+	by mail.kernel.org (Postfix) with ESMTP id C34222145D
+	for <linux-mm@archiver.kernel.org>; Tue, 16 Jul 2019 17:41:37 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C34222145D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 715E18E0005; Tue, 16 Jul 2019 13:38:36 -0400 (EDT)
+	id 601948E0005; Tue, 16 Jul 2019 13:41:37 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 69D988E0003; Tue, 16 Jul 2019 13:38:36 -0400 (EDT)
+	id 5B1688E0003; Tue, 16 Jul 2019 13:41:37 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 53EAD8E0005; Tue, 16 Jul 2019 13:38:36 -0400 (EDT)
+	id 478E78E0005; Tue, 16 Jul 2019 13:41:37 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 1A6EF8E0003
-	for <linux-mm@kvack.org>; Tue, 16 Jul 2019 13:38:36 -0400 (EDT)
-Received: by mail-pl1-f199.google.com with SMTP id i3so10555999plb.8
-        for <linux-mm@kvack.org>; Tue, 16 Jul 2019 10:38:36 -0700 (PDT)
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D36F8E0003
+	for <linux-mm@kvack.org>; Tue, 16 Jul 2019 13:41:37 -0400 (EDT)
+Received: by mail-qk1-f198.google.com with SMTP id h198so17630722qke.1
+        for <linux-mm@kvack.org>; Tue, 16 Jul 2019 10:41:37 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-transfer-encoding:content-language;
-        bh=4r/NnixxherPzqVJN/qdLtBQZxn9/iqIyhYD0Xmrtn4=;
-        b=gkvE/oHpcMoBdOPEQi3Te59vrpVZyPBfC+qDX3oElbeP7UzYz09vmz8PIjQ1hffeYy
-         vEifb5CAZXGRkjMWCsJodypmvfP+lFzUpX3GPNTBsYXo9fwum3wsxLrZGVdOz56JkfG7
-         vvJtIrgKb0AbZqBJyNZz3axAT+jS2zhTf1v5gSi6bmiAI7CIgUq+H00TBRf5leBrEVaU
-         Kxd47ixcIrocLyNYIRjiLbSYPSbbtOpHaRKN0zTGfP8WA7hPzl0ZS1B/hkxRwee1iKb6
-         vvaKEIkzjdtyPdhYh0n9OY4Cyo/9t6bpyZ34JVO0j4K24rKYGeARDr2fteWxgcQdOpUu
-         +vow==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.44 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Gm-Message-State: APjAAAXb0cVh3KfCvq6n8sYQvEDHiu3A7gJ0jXPCC167qethd7CqM36f
-	jB9YgIouq5ChA1GoIDMWyvd8VtRjBidj3lN53NtpTS2OqlsivisR3Qf9m5TBRbb+jVqJ6DBQobU
-	008CbTs50u9Fw1n3xpY1N8L9fov6JUtbOcw29w0u3qgDX6ZDoqPzsXjhiH21Njj95LQ==
-X-Received: by 2002:a63:b10f:: with SMTP id r15mr35034091pgf.230.1563298715699;
-        Tue, 16 Jul 2019 10:38:35 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyk7L5mL2f5V1f9nTbit+9cCLhlcrE5Cxw2au57sdY2kgYjmfYZT9JtjIliioI2wvFDQh3O
-X-Received: by 2002:a63:b10f:: with SMTP id r15mr35034027pgf.230.1563298714934;
-        Tue, 16 Jul 2019 10:38:34 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563298714; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to;
+        bh=2a0H5cfHRsbinSU1uA9HXjAb1myKisYqIs0dfkq09dk=;
+        b=K2qmL22cMmJIXEH4/znFAl4W2NUu0uWWZRwD6qEX23GEDyJ8GkOOTtaKJKih3gBjq8
+         dsgedG/0Iw7o0qAuMXPR6MnkGXcGUpQA440RBx1T/JBMaqxqqOMj2FcJqPULRfHa9QeR
+         rnw/DpKPs66M3FNUn/kDRV5TXTvUWVGY8vzJckBl+cG9/O5hTGYzaGqgM/7xRrGk/X5G
+         cTBZaopRjWolT4nu2ZYhnzeHWJ03u8Ra0+XTpYpeZmrUeLurxE26tKPYFR6cAD1nzXHH
+         51xaGka6LYH/PDwNE6G4BHdIm97gX8HWQUHcc1Kv50cXvnkwIgsL8+4aC9dQZq5qPCsA
+         p2XQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mst@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=mst@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAXa5P/4HopYRlPT+HBQuG1JDtflMLhkdTeMp6KWovTV7wGjcdkM
+	aXwx0GcXbE9o3KHkF0wU78EPKG7vnXexV4lPdLYxfXHEVcCZxC++B8rsL0mHJWHYPMvSfalI/v8
+	zYFIG5m8KiEC3MoXT4DH/p20zWStAWWSMnQZRCIxfhIHE4iOdeouJhCa1KGISD1oUqg==
+X-Received: by 2002:ac8:5289:: with SMTP id s9mr23736307qtn.64.1563298896790;
+        Tue, 16 Jul 2019 10:41:36 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqz4zCb5bft0i4qOJM0sod+L7ooODKH2v/jFciryBzihKbNhx4yGwq9sOX5k+/WmkroozKnn
+X-Received: by 2002:ac8:5289:: with SMTP id s9mr23736227qtn.64.1563298895429;
+        Tue, 16 Jul 2019 10:41:35 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563298895; cv=none;
         d=google.com; s=arc-20160816;
-        b=mzIiiq85o8SoptLpPX7ExIWNrO6MCTPeOCFKqLjOLJtCJLmLSjOQOQsCOq2Dzd3f2J
-         YuhMr4DXtjyB4xPPAjRPxechrv4xbGPfEceyUU99ld7rdQzMXeXnczn+AEO7CLuuOA+D
-         4T0BD9Rc3eqQc2A4mnFM5MQSW7HiVhr+aOvhfYUg83Y8yEVn2mky1dv0B0mNfL1lp8ZK
-         33Gw21tsmU1WPp0hzImLU/SBSxtEOB9xrygeOCrLXuUDR9s8UGieGQJ+Jo2Vh5y8+COG
-         NzeKYpaYmQ9wXlUKr8gbV+/1FM1XCwG2oCUvo3NIHLvIeqrS9KPooWHplOjgO3UVsg5/
-         ME1Q==
+        b=XRF98x+TOBZXCoVW9caLFcI4oqCORc4G5cz0ptUVLsi99p+LJDLR5pBgoACv0IHn1u
+         VSfUaYFuilFtBi5PesmjqZkGpfrWKN87WMdQCrwRDs3Esh6rmXv8uegQBtuXXGZFbwrn
+         Nu7rbuv8NHsgjZyuJPNG4LpGkURYWoZ7LnyOM/cy7ASdGmZrmAk2bUUVm3rqLDJtHkJ6
+         jOfJ20Hi2y5/CPO8hKDbUFd9UrF12zKLbzIroOz18pxvslma+2/gJwJ0OmKhyiS7HH/u
+         3ySnEX0rieEKgJUD8lJLW4LDPOzCrp2SgXYizmZDFkbqGItyHTcA2zahGHapW2eVCU0I
+         ewsg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-language:content-transfer-encoding:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=4r/NnixxherPzqVJN/qdLtBQZxn9/iqIyhYD0Xmrtn4=;
-        b=k4xRutWL+GonfOqn/WKPWJmc7YN9qmPYnyuaNDs1vJr0Irj+D2RN3OwGez0BCp0hIN
-         bYzstfsccr/wv0z31ensFK2+PZD5u7hzD1xAoe4BycMyPFJxHn3fdcqgwyhAHEdfCbr7
-         3APr+VRK6HWBkUKCWTFNwuzGSEdedHGGvkqPM4tKoOY5dKwW1TBYsqX0y4cgwRTVnJPz
-         lnBkXU9DTe0CvG2eXxrQwi6PolHPEbGRH8loP5yZbkUK5ECTsBVz2n7SMMAJds3HCoBG
-         9I5KixU1ZCzK5YEiyLxJt6ZXEhF3NGG1QJ2UTXYCJeTxzShVd/zwlY5UGcpKqwjSoo4r
-         Ue6g==
+        h=in-reply-to:content-disposition:mime-version:references:message-id
+         :subject:cc:to:from:date;
+        bh=2a0H5cfHRsbinSU1uA9HXjAb1myKisYqIs0dfkq09dk=;
+        b=06XBIJ8eOAhZ1ffuJ+XXMZGMXxuYI2wVylWKZFGDdOKTqZmqEr97MM2surY8ZwHF6P
+         1JszB7z/IIbYdQeGJR6G0iLJc4vBjTgbQopH18k/ETYiIL4507R+kza/fFbgSVFK4CtQ
+         ML4PTDlkztdihkamSf6KlOQ1EmQQErH8bJSsFShL9wQeKrp2r5OoyGS1xqW5ALoFFNLx
+         cpqICJa0E/eiuz+/ucGxZf2KNauz0CY/8/JNU+J1dmYNCDqdNC0AcGi4V/ufWNDJNhKj
+         ScLaQt6vwHpk20DYO82Ywwod297naOPWd+rXNuxV+2siq2n3DNbKXq7K0pZZeKYZXXWv
+         BueQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.44 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-Received: from out30-44.freemail.mail.aliyun.com (out30-44.freemail.mail.aliyun.com. [115.124.30.44])
-        by mx.google.com with ESMTPS id 73si21365925pfu.148.2019.07.16.10.38.34
+       spf=pass (google.com: domain of mst@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=mst@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id 7si12198910qke.65.2019.07.16.10.41.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 Jul 2019 10:38:34 -0700 (PDT)
-Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.44 as permitted sender) client-ip=115.124.30.44;
+        Tue, 16 Jul 2019 10:41:35 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mst@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.44 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R131e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e07486;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=6;SR=0;TI=SMTPD_---0TX449w3_1563298709;
-Received: from US-143344MP.local(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TX449w3_1563298709)
-          by smtp.aliyun-inc.com(127.0.0.1);
-          Wed, 17 Jul 2019 01:38:32 +0800
-Subject: Re: [PATCH] mm: page_alloc: document kmemleak's non-blockable
- __GFP_NOFAIL case
-To: Catalin Marinas <catalin.marinas@gmail.com>,
- Michal Hocko <mhocko@kernel.org>
-Cc: "dvyukov@google.com" <dvyukov@google.com>,
- "akpm@linux-foundation.org" <akpm@linux-foundation.org>,
- "linux-mm@kvack.org" <linux-mm@kvack.org>,
- "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
-References: <1562964544-59519-1-git-send-email-yang.shi@linux.alibaba.com>
- <20190715131732.GX29483@dhcp22.suse.cz>
- <F89E7123-C21C-41AA-8084-1DB4C832D7BD@gmail.com>
-From: Yang Shi <yang.shi@linux.alibaba.com>
-Message-ID: <9e31ca96-eb92-4946-d0db-b4e7b6ede057@linux.alibaba.com>
-Date: Tue, 16 Jul 2019 10:38:28 -0700
-User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:52.0)
- Gecko/20100101 Thunderbird/52.7.0
+       spf=pass (google.com: domain of mst@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=mst@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 9A26E300CB07;
+	Tue, 16 Jul 2019 17:41:33 +0000 (UTC)
+Received: from redhat.com (ovpn-122-108.rdu2.redhat.com [10.10.122.108])
+	by smtp.corp.redhat.com (Postfix) with SMTP id 116BA600C4;
+	Tue, 16 Jul 2019 17:41:20 +0000 (UTC)
+Date: Tue, 16 Jul 2019 13:41:19 -0400
+From: "Michael S. Tsirkin" <mst@redhat.com>
+To: Alexander Duyck <alexander.duyck@gmail.com>
+Cc: Nitesh Narayan Lal <nitesh@redhat.com>, kvm list <kvm@vger.kernel.org>,
+	David Hildenbrand <david@redhat.com>,
+	Dave Hansen <dave.hansen@intel.com>,
+	LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Yang Zhang <yang.zhang.wz@gmail.com>, pagupta@redhat.com,
+	Rik van Riel <riel@surriel.com>,
+	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
+	lcapitulino@redhat.com, wei.w.wang@intel.com,
+	Andrea Arcangeli <aarcange@redhat.com>,
+	Paolo Bonzini <pbonzini@redhat.com>, dan.j.williams@intel.com,
+	Alexander Duyck <alexander.h.duyck@linux.intel.com>
+Subject: Re: [PATCH v1 6/6] virtio-balloon: Add support for aerating memory
+ via hinting
+Message-ID: <20190716125845-mutt-send-email-mst@kernel.org>
+References: <20190619222922.1231.27432.stgit@localhost.localdomain>
+ <20190619223338.1231.52537.stgit@localhost.localdomain>
+ <20190716055017-mutt-send-email-mst@kernel.org>
+ <CAKgT0Uc-2k9o7pjtf-GFAgr83c7RM-RTJ8-OrEzFv92uz+MTDw@mail.gmail.com>
+ <20190716115535-mutt-send-email-mst@kernel.org>
+ <CAKgT0Ud47-cWu9VnAAD_Q2Fjia5gaWCz_L9HUF6PBhbugv6tCQ@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <F89E7123-C21C-41AA-8084-1DB4C832D7BD@gmail.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 8bit
-Content-Language: en-US
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAKgT0Ud47-cWu9VnAAD_Q2Fjia5gaWCz_L9HUF6PBhbugv6tCQ@mail.gmail.com>
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.47]); Tue, 16 Jul 2019 17:41:34 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Tue, Jul 16, 2019 at 09:54:37AM -0700, Alexander Duyck wrote:
+> On Tue, Jul 16, 2019 at 9:08 AM Michael S. Tsirkin <mst@redhat.com> wrote:
+> >
+> > On Tue, Jul 16, 2019 at 08:37:06AM -0700, Alexander Duyck wrote:
+> > > On Tue, Jul 16, 2019 at 2:55 AM Michael S. Tsirkin <mst@redhat.com> wrote:
+> > > >
+> > > > On Wed, Jun 19, 2019 at 03:33:38PM -0700, Alexander Duyck wrote:
+> > > > > From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+> > > > >
+> > > > > Add support for aerating memory using the hinting feature provided by
+> > > > > virtio-balloon. Hinting differs from the regular balloon functionality in
+> > > > > that is is much less durable than a standard memory balloon. Instead of
+> > > > > creating a list of pages that cannot be accessed the pages are only
+> > > > > inaccessible while they are being indicated to the virtio interface. Once
+> > > > > the interface has acknowledged them they are placed back into their
+> > > > > respective free lists and are once again accessible by the guest system.
+> > > > >
+> > > > > Signed-off-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+> > > > > ---
+> > > > >  drivers/virtio/Kconfig              |    1
+> > > > >  drivers/virtio/virtio_balloon.c     |  110 ++++++++++++++++++++++++++++++++++-
+> > > > >  include/uapi/linux/virtio_balloon.h |    1
+> > > > >  3 files changed, 108 insertions(+), 4 deletions(-)
+> > > > >
+> > > > > diff --git a/drivers/virtio/Kconfig b/drivers/virtio/Kconfig
+> > > > > index 023fc3bc01c6..9cdaccf92c3a 100644
+> > > > > --- a/drivers/virtio/Kconfig
+> > > > > +++ b/drivers/virtio/Kconfig
+> > > > > @@ -47,6 +47,7 @@ config VIRTIO_BALLOON
+> > > > >       tristate "Virtio balloon driver"
+> > > > >       depends on VIRTIO
+> > > > >       select MEMORY_BALLOON
+> > > > > +     select AERATION
+> > > > >       ---help---
+> > > > >        This driver supports increasing and decreasing the amount
+> > > > >        of memory within a KVM guest.
+> > > > > diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
+> > > > > index 44339fc87cc7..91f1e8c9017d 100644
+> > > > > --- a/drivers/virtio/virtio_balloon.c
+> > > > > +++ b/drivers/virtio/virtio_balloon.c
+> > > > > @@ -18,6 +18,7 @@
+> > > > >  #include <linux/mm.h>
+> > > > >  #include <linux/mount.h>
+> > > > >  #include <linux/magic.h>
+> > > > > +#include <linux/memory_aeration.h>
+> > > > >
+> > > > >  /*
+> > > > >   * Balloon device works in 4K page units.  So each page is pointed to by
+> > > > > @@ -26,6 +27,7 @@
+> > > > >   */
+> > > > >  #define VIRTIO_BALLOON_PAGES_PER_PAGE (unsigned)(PAGE_SIZE >> VIRTIO_BALLOON_PFN_SHIFT)
+> > > > >  #define VIRTIO_BALLOON_ARRAY_PFNS_MAX 256
+> > > > > +#define VIRTIO_BALLOON_ARRAY_HINTS_MAX       32
+> > > > >  #define VIRTBALLOON_OOM_NOTIFY_PRIORITY 80
+> > > > >
+> > > > >  #define VIRTIO_BALLOON_FREE_PAGE_ALLOC_FLAG (__GFP_NORETRY | __GFP_NOWARN | \
+> > > > > @@ -45,6 +47,7 @@ enum virtio_balloon_vq {
+> > > > >       VIRTIO_BALLOON_VQ_DEFLATE,
+> > > > >       VIRTIO_BALLOON_VQ_STATS,
+> > > > >       VIRTIO_BALLOON_VQ_FREE_PAGE,
+> > > > > +     VIRTIO_BALLOON_VQ_HINTING,
+> > > > >       VIRTIO_BALLOON_VQ_MAX
+> > > > >  };
+> > > > >
+> > > > > @@ -54,7 +57,8 @@ enum virtio_balloon_config_read {
+> > > > >
+> > > > >  struct virtio_balloon {
+> > > > >       struct virtio_device *vdev;
+> > > > > -     struct virtqueue *inflate_vq, *deflate_vq, *stats_vq, *free_page_vq;
+> > > > > +     struct virtqueue *inflate_vq, *deflate_vq, *stats_vq, *free_page_vq,
+> > > > > +                                                             *hinting_vq;
+> > > > >
+> > > > >       /* Balloon's own wq for cpu-intensive work items */
+> > > > >       struct workqueue_struct *balloon_wq;
+> > > > > @@ -103,9 +107,21 @@ struct virtio_balloon {
+> > > > >       /* Synchronize access/update to this struct virtio_balloon elements */
+> > > > >       struct mutex balloon_lock;
+> > > > >
+> > > > > -     /* The array of pfns we tell the Host about. */
+> > > > > -     unsigned int num_pfns;
+> > > > > -     __virtio32 pfns[VIRTIO_BALLOON_ARRAY_PFNS_MAX];
+> > > > > +
+> > > > > +     union {
+> > > > > +             /* The array of pfns we tell the Host about. */
+> > > > > +             struct {
+> > > > > +                     unsigned int num_pfns;
+> > > > > +                     __virtio32 pfns[VIRTIO_BALLOON_ARRAY_PFNS_MAX];
+> > > > > +             };
+> > > > > +             /* The array of physical addresses we are hinting on */
+> > > > > +             struct {
+> > > > > +                     unsigned int num_hints;
+> > > > > +                     __virtio64 hints[VIRTIO_BALLOON_ARRAY_HINTS_MAX];
+> > > > > +             };
+> > > > > +     };
+> > > > > +
+> > > > > +     struct aerator_dev_info a_dev_info;
+> > > > >
+> > > > >       /* Memory statistics */
+> > > > >       struct virtio_balloon_stat stats[VIRTIO_BALLOON_S_NR];
+> > > > > @@ -151,6 +167,68 @@ static void tell_host(struct virtio_balloon *vb, struct virtqueue *vq)
+> > > > >
+> > > > >  }
+> > > > >
+> > > > > +static u64 page_to_hints_pa_order(struct page *page)
+> > > > > +{
+> > > > > +     unsigned char order;
+> > > > > +     dma_addr_t pa;
+> > > > > +
+> > > > > +     BUILD_BUG_ON((64 - VIRTIO_BALLOON_PFN_SHIFT) >=
+> > > > > +                  (1 << VIRTIO_BALLOON_PFN_SHIFT));
+> > > > > +
+> > > > > +     /*
+> > > > > +      * Record physical page address combined with page order.
+> > > > > +      * Order will never exceed 64 - VIRTIO_BALLON_PFN_SHIFT
+> > > > > +      * since the size has to fit into a 64b value. So as long
+> > > > > +      * as VIRTIO_BALLOON_SHIFT is greater than this combining
+> > > > > +      * the two values should be safe.
+> > > > > +      */
+> > > > > +     pa = page_to_phys(page);
+> > > > > +     order = page_private(page) +
+> > > > > +             PAGE_SHIFT - VIRTIO_BALLOON_PFN_SHIFT;
+> > > > > +
+> > > > > +     return (u64)(pa | order);
+> > > > > +}
+> > > > > +
+> > > > > +void virtballoon_aerator_react(struct aerator_dev_info *a_dev_info)
+> > > > > +{
+> > > > > +     struct virtio_balloon *vb = container_of(a_dev_info,
+> > > > > +                                             struct virtio_balloon,
+> > > > > +                                             a_dev_info);
+> > > > > +     struct virtqueue *vq = vb->hinting_vq;
+> > > > > +     struct scatterlist sg;
+> > > > > +     unsigned int unused;
+> > > > > +     struct page *page;
+> > > > > +
+> > > > > +     mutex_lock(&vb->balloon_lock);
+> > > > > +
+> > > > > +     vb->num_hints = 0;
+> > > > > +
+> > > > > +     list_for_each_entry(page, &a_dev_info->batch, lru) {
+> > > > > +             vb->hints[vb->num_hints++] =
+> > > > > +                             cpu_to_virtio64(vb->vdev,
+> > > > > +                                             page_to_hints_pa_order(page));
+> > > > > +     }
+> > > > > +
+> > > > > +     /* We shouldn't have been called if there is nothing to process */
+> > > > > +     if (WARN_ON(vb->num_hints == 0))
+> > > > > +             goto out;
+> > > > > +
+> > > > > +     sg_init_one(&sg, vb->hints,
+> > > > > +                 sizeof(vb->hints[0]) * vb->num_hints);
+> > > > > +
+> > > > > +     /*
+> > > > > +      * We should always be able to add one buffer to an
+> > > > > +      * empty queue.
+> > > > > +      */
+> > > > > +     virtqueue_add_outbuf(vq, &sg, 1, vb, GFP_KERNEL);
+> > > > > +     virtqueue_kick(vq);
+> > > > > +
+> > > > > +     /* When host has read buffer, this completes via balloon_ack */
+> > > > > +     wait_event(vb->acked, virtqueue_get_buf(vq, &unused));
+> > > > > +out:
+> > > > > +     mutex_unlock(&vb->balloon_lock);
+> > > > > +}
+> > > > > +
+> > > > >  static void set_page_pfns(struct virtio_balloon *vb,
+> > > > >                         __virtio32 pfns[], struct page *page)
+> > > > >  {
+> > > > > @@ -475,6 +553,7 @@ static int init_vqs(struct virtio_balloon *vb)
+> > > > >       names[VIRTIO_BALLOON_VQ_DEFLATE] = "deflate";
+> > > > >       names[VIRTIO_BALLOON_VQ_STATS] = NULL;
+> > > > >       names[VIRTIO_BALLOON_VQ_FREE_PAGE] = NULL;
+> > > > > +     names[VIRTIO_BALLOON_VQ_HINTING] = NULL;
+> > > > >
+> > > > >       if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_STATS_VQ)) {
+> > > > >               names[VIRTIO_BALLOON_VQ_STATS] = "stats";
+> > > > > @@ -486,11 +565,19 @@ static int init_vqs(struct virtio_balloon *vb)
+> > > > >               callbacks[VIRTIO_BALLOON_VQ_FREE_PAGE] = NULL;
+> > > > >       }
+> > > > >
+> > > > > +     if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_HINTING)) {
+> > > > > +             names[VIRTIO_BALLOON_VQ_HINTING] = "hinting_vq";
+> > > > > +             callbacks[VIRTIO_BALLOON_VQ_HINTING] = balloon_ack;
+> > > > > +     }
+> > > > > +
+> > > > >       err = vb->vdev->config->find_vqs(vb->vdev, VIRTIO_BALLOON_VQ_MAX,
+> > > > >                                        vqs, callbacks, names, NULL, NULL);
+> > > > >       if (err)
+> > > > >               return err;
+> > > > >
+> > > > > +     if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_HINTING))
+> > > > > +             vb->hinting_vq = vqs[VIRTIO_BALLOON_VQ_HINTING];
+> > > > > +
+> > > > >       vb->inflate_vq = vqs[VIRTIO_BALLOON_VQ_INFLATE];
+> > > > >       vb->deflate_vq = vqs[VIRTIO_BALLOON_VQ_DEFLATE];
+> > > > >       if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_STATS_VQ)) {
+> > > > > @@ -929,12 +1016,24 @@ static int virtballoon_probe(struct virtio_device *vdev)
+> > > > >               if (err)
+> > > > >                       goto out_del_balloon_wq;
+> > > > >       }
+> > > > > +
+> > > > > +     vb->a_dev_info.react = virtballoon_aerator_react;
+> > > > > +     vb->a_dev_info.capacity = VIRTIO_BALLOON_ARRAY_HINTS_MAX;
+> > > > > +     if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_HINTING)) {
+> > > > > +             err = aerator_startup(&vb->a_dev_info);
+> > > > > +             if (err)
+> > > > > +                     goto out_unregister_shrinker;
+> > > > > +     }
+> > > > > +
+> > > > >       virtio_device_ready(vdev);
+> > > > >
+> > > > >       if (towards_target(vb))
+> > > > >               virtballoon_changed(vdev);
+> > > > >       return 0;
+> > > > >
+> > > > > +out_unregister_shrinker:
+> > > > > +     if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_DEFLATE_ON_OOM))
+> > > > > +             virtio_balloon_unregister_shrinker(vb);
+> > > > >  out_del_balloon_wq:
+> > > > >       if (virtio_has_feature(vdev, VIRTIO_BALLOON_F_FREE_PAGE_HINT))
+> > > > >               destroy_workqueue(vb->balloon_wq);
+> > > > > @@ -963,6 +1062,8 @@ static void virtballoon_remove(struct virtio_device *vdev)
+> > > > >  {
+> > > > >       struct virtio_balloon *vb = vdev->priv;
+> > > > >
+> > > > > +     if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_HINTING))
+> > > > > +             aerator_shutdown();
+> > > > >       if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_DEFLATE_ON_OOM))
+> > > > >               virtio_balloon_unregister_shrinker(vb);
+> > > > >       spin_lock_irq(&vb->stop_update_lock);
+> > > > > @@ -1032,6 +1133,7 @@ static int virtballoon_validate(struct virtio_device *vdev)
+> > > > >       VIRTIO_BALLOON_F_DEFLATE_ON_OOM,
+> > > > >       VIRTIO_BALLOON_F_FREE_PAGE_HINT,
+> > > > >       VIRTIO_BALLOON_F_PAGE_POISON,
+> > > > > +     VIRTIO_BALLOON_F_HINTING,
+> > > > >  };
+> > > > >
+> > > > >  static struct virtio_driver virtio_balloon_driver = {
+> > > > > diff --git a/include/uapi/linux/virtio_balloon.h b/include/uapi/linux/virtio_balloon.h
+> > > > > index a1966cd7b677..2b0f62814e22 100644
+> > > > > --- a/include/uapi/linux/virtio_balloon.h
+> > > > > +++ b/include/uapi/linux/virtio_balloon.h
+> > > > > @@ -36,6 +36,7 @@
+> > > > >  #define VIRTIO_BALLOON_F_DEFLATE_ON_OOM      2 /* Deflate balloon on OOM */
+> > > > >  #define VIRTIO_BALLOON_F_FREE_PAGE_HINT      3 /* VQ to report free pages */
+> > > > >  #define VIRTIO_BALLOON_F_PAGE_POISON 4 /* Guest is using page poisoning */
+> > > > > +#define VIRTIO_BALLOON_F_HINTING     5 /* Page hinting virtqueue */
+> > > > >
+> > > > >  /* Size of a PFN in the balloon interface. */
+> > > > >  #define VIRTIO_BALLOON_PFN_SHIFT 12
+> > > >
+> > > >
+> > > >
+> > > > The approach here is very close to what on-demand hinting that is
+> > > > already upstream does.
+> > > >
+> > > > This should have resulted in a most of the code being shared
+> > > > but this does not seem to happen here.
+> > > >
+> > > > Can we unify the code in some way?
+> > > > It can still use a separate feature flag, but there are things
+> > > > I like very much about current hinting code, such as
+> > > > using s/g instead of passing PFNs in a buffer.
+> > > >
+> > > > If this doesn't work could you elaborate on why?
+> > >
+> > > As far as sending a scatter gather that shouldn't be too much of an
+> > > issue, however I need to double check that I will still be able to
+> > > keep the completions as a single block.
+> > >
+> > > One significant spot where the "VIRTIO_BALLOON_F_FREE_PAGE_HINT" code
+> > > and my code differs. My code is processing a fixed discreet block of
+> > > pages at a time, whereas the FREE_PAGE_HINT code is slurping up all
+> > > available high-order memory and stuffing it into a giant balloon and
+> > > has more of a streaming setup as it doesn't return things until either
+> > > forced to by the shrinker or once it has processed all available
+> > > memory.
+> >
+> > This is what I am saying. Having watched that patchset being developed,
+> > I think that's simply because processing blocks required mm core
+> > changes, which Wei was not up to pushing through.
+> >
+> >
+> > If we did
+> >
+> >         while (1) {
+> >                 alloc_pages
+> >                 add_buf
+> >                 get_buf
+> >                 free_pages
+> >         }
+> >
+> > We'd end up passing the same page to balloon again and again.
+> >
+> > So we end up reserving lots of memory with alloc_pages instead.
+> >
+> > What I am saying is that now that you are developing
+> > infrastructure to iterate over free pages,
+> > FREE_PAGE_HINT should be able to use it too.
+> > Whether that's possible might be a good indication of
+> > whether the new mm APIs make sense.
+> 
+> The problem is the infrastructure as implemented isn't designed to do
+> that. I am pretty certain this interface will have issues with being
+> given small blocks to process at a time.
+> 
+> Basically the design for the FREE_PAGE_HINT feature doesn't really
+> have the concept of doing things a bit at a time. It is either
+> filling, stopped, or done. From what I can tell it requires a
+> configuration change for the virtio balloon interface to toggle
+> between those states.
+
+Maybe I misunderstand what you are saying.
+
+Filling state can definitely report things
+a bit at a time. It does not assume that
+all of guest free memory can fit in a VQ.
 
 
-On 7/15/19 8:01 AM, Catalin Marinas wrote:
-> On 15 Jul 2019, at 08:17, Michal Hocko <mhocko@kernel.org> wrote:
->> On Sat 13-07-19 04:49:04, Yang Shi wrote:
->>> When running ltp's oom test with kmemleak enabled, the below warning was
->>> triggerred since kernel detects __GFP_NOFAIL & ~__GFP_DIRECT_RECLAIM is
->>> passed in:
->> kmemleak is broken and this is a long term issue. I thought that
->> Catalin had something to address this.
-> What needs to be done in the short term is revert commit d9570ee3bd1d4f20ce63485f5ef05663866fe6c0. Longer term the solution is to embed kmemleak metadata into the slab so that we don’t have the situation where the primary slab allocation success but the kmemleak metadata fails.
->
-> I’m on holiday for one more week with just a phone to reply from but feel free to revert the above commit. I’ll follow up with a better solution.
 
-Thanks, I'm going to submit a new patch to revert that commit.
+> > > The basic idea with the bubble hinting was to essentially create mini
+> > > balloons. As such I had based the code off of the balloon inflation
+> > > code. The only spot where it really differs is that I needed the
+> > > ability to pass higher order pages so I tweaked thinks and passed
+> > > "hints" instead of "pfns".
+> >
+> > And that is fine. But there isn't really such a big difference with
+> > FREE_PAGE_HINT except FREE_PAGE_HINT triggers upon host request and not
+> > in response to guest load.
+> 
+> I disagree, I believe there is a significant difference.
 
-Yang
+Yes there is, I just don't think it's in the iteration.
+The iteration seems to be useful to hinting.
 
->
-> Catalin
+> The
+> FREE_PAGE_HINT code was implemented to be more of a streaming
+> interface.
+
+It's implemented like this but it does not follow from
+the interface. The implementation is a combination of
+attempts to minimize # of exits and minimize mm core changes.
+
+> This is one of the things Linus kept complaining about in
+> his comments. This code attempts to pull in ALL of the higher order
+> pages, not just a smaller block of them.
+
+It wants to report all higher order pages eventually, yes.
+But it's absolutely fine to report a chunk and then wait
+for host to process the chunk before reporting more.
+
+However, interfaces we came up with for this would call
+into virtio with a bunch of locks taken.
+The solution was to take pages off the free list completely.
+That in turn means we can't return them until
+we have processed all free memory.
+
+
+> Honestly the difference is
+> mostly in the hypervisor interface than what is needed for the kernel
+> interface, however the design of the hypervisor interface would make
+> doing things more incrementally much more difficult.
+
+OK that's interesting. The hypervisor interface is not
+documented in the spec yet. Let me take a stub at a writeup now. So:
+
+
+
+- hypervisor requests reporting by modifying command ID
+  field in config space, and interrupting guest
+
+- in response, guest sends the command ID value on a special
+  free page hinting VQ,
+  followed by any number of buffers. Each buffer is assumed
+  to be the address and length of memory that was
+  unused *at some point after the time when command ID was sent*.
+
+  Note that hypervisor takes pains to handle the case
+  where memory is actually no longer free by the time
+  it gets the memory.
+  This allows guest driver to take more liberties
+  and free pages without waiting for guest to
+  use the buffers.
+
+  This is also one of the reason we call this a free page hint -
+  the guarantee that page is free is a weak one,
+  in that sense it's more of a hint than a promise.
+  That helps guarantee we don't create OOM out of blue.
+
+- guest eventually sends a special buffer signalling to
+  host that it's done sending free pages.
+  It then stops reporting until command id changes.
+
+- host can restart the process at any time by
+  updating command ID. That will make guest stop
+  and start from the beginning.
+
+- host can also stop the process by specifying a special
+  command ID value.
+
+
+=========
+
+
+Now let's compare to what you have here:
+
+- At any time after boot, guest walks over free memory and sends
+  addresses as buffers to the host
+
+- Memory reported is then guaranteed to be unused
+  until host has used the buffers
+
+
+Is above a fair summary?
+
+So yes there's a difference but the specific bit of chunking is same
+imho.
+
+> With that said I will take a look into at least using the scatter
+> gather interface directly rather than sending the list. I think I can
+> probably do that much. However it will actually reduce code reuse as I
+> have to check and verify the pages have been processed before I can
+> free them back to the host.
+> 
+> - Alex
 
