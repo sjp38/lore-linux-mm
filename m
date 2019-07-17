@@ -2,130 +2,262 @@ Return-Path: <SRS0=+T2N=VO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.7 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
-	SPF_PASS,URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 087E3C7618F
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Jul 2019 18:45:18 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6303EC7618F
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Jul 2019 18:50:10 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id AED0921743
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Jul 2019 18:45:17 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="pKGERV63"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AED0921743
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 19C7121743
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Jul 2019 18:50:10 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 19C7121743
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4CDD06B0007; Wed, 17 Jul 2019 14:45:17 -0400 (EDT)
+	id B0BA86B0007; Wed, 17 Jul 2019 14:50:09 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 47D9C8E0003; Wed, 17 Jul 2019 14:45:17 -0400 (EDT)
+	id ABBEE8E0003; Wed, 17 Jul 2019 14:50:09 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 31E9D8E0001; Wed, 17 Jul 2019 14:45:17 -0400 (EDT)
+	id 9AC788E0001; Wed, 17 Jul 2019 14:50:09 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-oi1-f199.google.com (mail-oi1-f199.google.com [209.85.167.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 098F96B0007
-	for <linux-mm@kvack.org>; Wed, 17 Jul 2019 14:45:17 -0400 (EDT)
-Received: by mail-oi1-f199.google.com with SMTP id 186so9842300oid.17
-        for <linux-mm@kvack.org>; Wed, 17 Jul 2019 11:45:17 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 4AF326B0007
+	for <linux-mm@kvack.org>; Wed, 17 Jul 2019 14:50:09 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id b33so18494364edc.17
+        for <linux-mm@kvack.org>; Wed, 17 Jul 2019 11:50:09 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=h7UHqDmF8opBtyW4k2R9DOYcnvPewTaVGrEEHVnBDOI=;
-        b=it86xx83CdzFv3DwmZFoH6fztcuvBJps3+96vcIYBueX8ygGQ2HOBXBR+uCKKbIBun
-         yPH1+FiYbng1Q9xKSU423DO/Ojy1jt7LVtuCF28TKxRLaKfpDCWQkVsad3wXgrqedseB
-         vgmWe2DIK8fVRHsnuoPeEw6rmI+qmWFGH2imN/0JNG60QeYe3CnP68Y+7fbor/kMjECA
-         4e/DpCczE7Spnnr35YW9bpXLY0KBW4zlhd+HD2+ZuKvvt/hXI873vgYMe0czAjRWAMmd
-         ESA8jRPtbzC0yQzMFuAAouT4VYKstLP59sxyFy6wJhbIKW27rtbKxlxZiEQNwjUnqqpX
-         ShuA==
-X-Gm-Message-State: APjAAAUM0Gqwq5LcwUaOPbys/UFL3+Ps3K2s7Xw8wPFL72KoVa/3oQw6
-	Wy7aI3bAYMZv2+KSDaXvITIrvj5WAV/iwd96XQad2t4//9tNHStf3J/6zLcxugovA1tED2tkPnZ
-	yMDgU/Dz34ztMlacOZ+g6X85tWVD16LzKAfTphz8/JMg3HtN3H5RbJYWq0f19YqBRHQ==
-X-Received: by 2002:a05:6830:12d6:: with SMTP id a22mr2749290otq.236.1563389116705;
-        Wed, 17 Jul 2019 11:45:16 -0700 (PDT)
-X-Received: by 2002:a05:6830:12d6:: with SMTP id a22mr2749262otq.236.1563389116113;
-        Wed, 17 Jul 2019 11:45:16 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563389116; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=Zf3gPC6Zsge/rDq2hcykxF/vQAc4ePhnbfwDxOhFRjU=;
+        b=mdW0ddALYLK7bVXLkPaP1EcMRI/4xW/6XzqurCXUoFQqVSo5qKTje8JSybGvig7yU6
+         3UqjBSn1VW8yS17sCwlamkiQhjF3a5hDyiSChQ6NoicuBGRigPLG/wq5WlnIVuOjawG4
+         pxHorccdXdXoE9UkRopRNf0LRWTQHGsUQE94FRdUQ7F0P/mae49sne4ERmlqF3MDYl1g
+         ESpV1/7daaptAGmvuTKIZkmu8M0TIhZciV6ZTRQWfSlZfw5/mpEAi6IME7ssM00lJ1nA
+         cQCeUUBWpAouEOhL5lUp5cz0vmd3NDnlIwMaz083wy2qKbwiABHDBzi9kYx+il8KbHA7
+         3T6g==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+X-Gm-Message-State: APjAAAVDYMnJ0j9Bc/peNdibFOf2D1dRYlOG7bwgAbCsEeWjWbKJuuqI
+	NrYfHzi4HxKj01HZLEy8pmm/90LOE4cNSlyLuNfDO8wcOK2Lc2vf6mJIV6S7VuMzmDV+YxH+Jj1
+	X3sObZMVwYdDbCF34EGiFLNDMdSsIZzgHWtxfx79QQN5fAU6OE/JzMvJxWOLzOHme3Q==
+X-Received: by 2002:a17:906:31c9:: with SMTP id f9mr32844266ejf.168.1563389408837;
+        Wed, 17 Jul 2019 11:50:08 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwHqwtLlyKBUomrk6XT39znYzZYxzALEDGZOK3S584xHme0qESmHxC9pVlKIwA1uaewy2vm
+X-Received: by 2002:a17:906:31c9:: with SMTP id f9mr32844209ejf.168.1563389408042;
+        Wed, 17 Jul 2019 11:50:08 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563389408; cv=none;
         d=google.com; s=arc-20160816;
-        b=k1AollhXk/ulwXTlLInQXeeERam6YhK0FETZpE8M+mc406RWxQWoxRFmN44S0UuYK/
-         M9D22fIr8heoRIAHCFDGzSXLohcAWLV50Y5ERyXha0NA9a11mjhhPiRTFPjhsFJsr0eS
-         d2NlfWtBeL0LTienUMsPbYP2GXjcr0igHQt+OOFH2wQPH19QJiylG1TcPVDS5x1NJQUF
-         GqHqs98yBlYgWYoRQeSZ15kNgo4sLP3wYiqKHUZTwW1Qx0jqLJVi6SWl38Ma3GvNxvUp
-         dcHWAXNWZ+/n24Lsb2EplCyLpzrNyPmzfQDMJegcTNKXUlIPDOyTx7Ni6LKufqvzwbZJ
-         hnvg==
+        b=KIJ/O4OKUwuOMfhl++6SaPbAjMBxIR1ql3Qc5zAOigL7Gs/s4LXgx3oDAkGCY6HO91
+         hnHX/A4cvYt3nj66T9n86QCohWlWQHgbUfIM7W3daCp73s+6PrT7KJ6TzfHnetRBSI/z
+         rcWWUjOZB919Z/J7gdDRbiNchuaFji7qKMrIgwjEZEyHl3/TOf2wIiU5gDZKmvWHWso6
+         uBBNTgHffPNTmgSduAw/3npoJ4HVjyYj7hsutQd2UpVVtNwC8/SbxPJOl/uK2vIOeXSO
+         KKZUmmipNPKfKcAo4c3BEd6VuEfTTziA2otZAOcM5kfIM1dNqcm0hEX4aNKaSRM+z0js
+         3peQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=h7UHqDmF8opBtyW4k2R9DOYcnvPewTaVGrEEHVnBDOI=;
-        b=rMfZCU34/E58trzmpS43xhNM7ZwUqLjj089N+xWdI0cC1a4SdeVIha7S0Qg+CZSYWR
-         z+/2etHojCcQVytDleeKj9LkFSISjJ8FsX40xZsssBb04MaHwHa2xj+G5Nd2wckXeO9N
-         o7DHE0UU7xUrDL7I2jxruttGwjIxcjGiN/w5d37PTB5TyRIiZzOXXTtg8E9cNsWKUSsF
-         Hb+J7a8Pn6OVPRtlbFog/BRtwh+xQtX8Q0K9Ld+9jwuJH67nCjlpRLRKeLtIofyWC/jQ
-         32oI7Y2k8ilf9lOZyDV/u9jGtfHKRqgqFvuIZJSCTiywr6u2keBuZ2aypPRhDAzi1yAd
-         LRcA==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
+         :subject;
+        bh=Zf3gPC6Zsge/rDq2hcykxF/vQAc4ePhnbfwDxOhFRjU=;
+        b=yeiOswW3yuE43967wkSBbd/6OuDrWHN695m5RssMOLr8MkJPdA4imQtA6OeWgDjNop
+         PzsHJR6TaTfRIBF0bj3ncIamafi/8+9R4lm518n7sEkBE3qVLhxMg4NtvnNL6aW7U3by
+         ZivbfuFiJBT4h1l03i/RpDjPI6ICXppZ3t96nvUwGNB9iTkvUQxaIQVs5XkvaD8cn3rD
+         5Ac9T+0CzupevwlgtRZocjNab9EYUBi1nf2bLa8F1eOlzYcLUF59rACYOI5XMnYkjtVT
+         FG9DcRALc1ZRkPZ2eFAUXYnr7dKNyR+FHcWyjn5W/gvDaoCIxAobje1rST45xjWD1Gf3
+         LWnA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=pKGERV63;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id l1sor12698583otk.47.2019.07.17.11.45.16
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id gq12si13668690ejb.170.2019.07.17.11.50.07
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 17 Jul 2019 11:45:16 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 17 Jul 2019 11:50:07 -0700 (PDT)
+Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=pKGERV63;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=intel-com.20150623.gappssmtp.com; s=20150623;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=h7UHqDmF8opBtyW4k2R9DOYcnvPewTaVGrEEHVnBDOI=;
-        b=pKGERV63xKtGcHMecfB9++5NqX4RRPqpXfwrB1LYaGmwWI9xErk2KUs8GsManNErl8
-         2jOG2qGjwODrwh7FuSERmM4mpEoUvixORQnIzHoMePnr3m/D4wT5J1mIjMRQPeU+X+71
-         Lohytrnp3+OSmeuVRRQ+kN+7ak4aVG3AjdRlgycS9P7xt0iwd/2YlI9d5zrkmsWf1UKQ
-         nMPE9pGf/0M23t+Q85VYLbgDD0gwxLFZ0Co0uOCY8oa9UiNZt19tT9Rwd78RkqLJwLyO
-         7ScyRAhWwcq05qEulSoQf3h2CkdJORFNZOzPll+QXm9V3QVrbIR6BseNhSGf6eEeOU/t
-         K7Vw==
-X-Google-Smtp-Source: APXvYqy4sNd+44vuqYPh3QAndY5bf6BMKciMXtUL7SOZKPc+qYGwBiIEPN03YW/ziTemzeRtyNF2cYyFBRtb3LrwNgY=
-X-Received: by 2002:a9d:7a8b:: with SMTP id l11mr22177888otn.247.1563389115753;
- Wed, 17 Jul 2019 11:45:15 -0700 (PDT)
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 6A023AC10;
+	Wed, 17 Jul 2019 18:50:07 +0000 (UTC)
+Subject: Re: [v2 PATCH 2/2] mm: mempolicy: handle vma with unmovable pages
+ mapped correctly in mbind
+To: Yang Shi <yang.shi@linux.alibaba.com>, mhocko@kernel.org,
+ mgorman@techsingularity.net, akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+ Linux API <linux-api@vger.kernel.org>
+References: <1561162809-59140-1-git-send-email-yang.shi@linux.alibaba.com>
+ <1561162809-59140-3-git-send-email-yang.shi@linux.alibaba.com>
+ <0cbc99f6-76a9-7357-efa7-a2d551b3cd12@suse.cz>
+ <9defdc16-c825-05b7-b394-abdf39000220@linux.alibaba.com>
+ <3197a7df-c7bc-2bac-3d40-dbfc97d4a909@linux.alibaba.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Openpgp: preference=signencrypt
+Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
+ mQINBFZdmxYBEADsw/SiUSjB0dM+vSh95UkgcHjzEVBlby/Fg+g42O7LAEkCYXi/vvq31JTB
+ KxRWDHX0R2tgpFDXHnzZcQywawu8eSq0LxzxFNYMvtB7sV1pxYwej2qx9B75qW2plBs+7+YB
+ 87tMFA+u+L4Z5xAzIimfLD5EKC56kJ1CsXlM8S/LHcmdD9Ctkn3trYDNnat0eoAcfPIP2OZ+
+ 9oe9IF/R28zmh0ifLXyJQQz5ofdj4bPf8ecEW0rhcqHfTD8k4yK0xxt3xW+6Exqp9n9bydiy
+ tcSAw/TahjW6yrA+6JhSBv1v2tIm+itQc073zjSX8OFL51qQVzRFr7H2UQG33lw2QrvHRXqD
+ Ot7ViKam7v0Ho9wEWiQOOZlHItOOXFphWb2yq3nzrKe45oWoSgkxKb97MVsQ+q2SYjJRBBH4
+ 8qKhphADYxkIP6yut/eaj9ImvRUZZRi0DTc8xfnvHGTjKbJzC2xpFcY0DQbZzuwsIZ8OPJCc
+ LM4S7mT25NE5kUTG/TKQCk922vRdGVMoLA7dIQrgXnRXtyT61sg8PG4wcfOnuWf8577aXP1x
+ 6mzw3/jh3F+oSBHb/GcLC7mvWreJifUL2gEdssGfXhGWBo6zLS3qhgtwjay0Jl+kza1lo+Cv
+ BB2T79D4WGdDuVa4eOrQ02TxqGN7G0Biz5ZLRSFzQSQwLn8fbwARAQABtCBWbGFzdGltaWwg
+ QmFia2EgPHZiYWJrYUBzdXNlLmN6PokCVAQTAQoAPgIbAwULCQgHAwUVCgkICwUWAgMBAAIe
+ AQIXgBYhBKlA1DSZLC6OmRA9UCJPp+fMgqZkBQJcbbyGBQkH8VTqAAoJECJPp+fMgqZkpGoP
+ /1jhVihakxw1d67kFhPgjWrbzaeAYOJu7Oi79D8BL8Vr5dmNPygbpGpJaCHACWp+10KXj9yz
+ fWABs01KMHnZsAIUytVsQv35DMMDzgwVmnoEIRBhisMYOQlH2bBn/dqBjtnhs7zTL4xtqEcF
+ 1hoUFEByMOey7gm79utTk09hQE/Zo2x0Ikk98sSIKBETDCl4mkRVRlxPFl4O/w8dSaE4eczH
+ LrKezaFiZOv6S1MUKVKzHInonrCqCNbXAHIeZa3JcXCYj1wWAjOt9R3NqcWsBGjFbkgoKMGD
+ usiGabetmQjXNlVzyOYdAdrbpVRNVnaL91sB2j8LRD74snKsV0Wzwt90YHxDQ5z3M75YoIdl
+ byTKu3BUuqZxkQ/emEuxZ7aRJ1Zw7cKo/IVqjWaQ1SSBDbZ8FAUPpHJxLdGxPRN8Pfw8blKY
+ 8mvLJKoF6i9T6+EmlyzxqzOFhcc4X5ig5uQoOjTIq6zhLO+nqVZvUDd2Kz9LMOCYb516cwS/
+ Enpi0TcZ5ZobtLqEaL4rupjcJG418HFQ1qxC95u5FfNki+YTmu6ZLXy+1/9BDsPuZBOKYpUm
+ 3HWSnCS8J5Ny4SSwfYPH/JrtberWTcCP/8BHmoSpS/3oL3RxrZRRVnPHFzQC6L1oKvIuyXYF
+ rkybPXYbmNHN+jTD3X8nRqo+4Qhmu6SHi3VquQENBFsZNQwBCACuowprHNSHhPBKxaBX7qOv
+ KAGCmAVhK0eleElKy0sCkFghTenu1sA9AV4okL84qZ9gzaEoVkgbIbDgRbKY2MGvgKxXm+kY
+ n8tmCejKoeyVcn9Xs0K5aUZiDz4Ll9VPTiXdf8YcjDgeP6/l4kHb4uSW4Aa9ds0xgt0gP1Xb
+ AMwBlK19YvTDZV5u3YVoGkZhspfQqLLtBKSt3FuxTCU7hxCInQd3FHGJT/IIrvm07oDO2Y8J
+ DXWHGJ9cK49bBGmK9B4ajsbe5GxtSKFccu8BciNluF+BqbrIiM0upJq5Xqj4y+Xjrpwqm4/M
+ ScBsV0Po7qdeqv0pEFIXKj7IgO/d4W2bABEBAAGJA3IEGAEKACYWIQSpQNQ0mSwujpkQPVAi
+ T6fnzIKmZAUCWxk1DAIbAgUJA8JnAAFACRAiT6fnzIKmZMB0IAQZAQoAHRYhBKZ2GgCcqNxn
+ k0Sx9r6Fd25170XjBQJbGTUMAAoJEL6Fd25170XjDBUH/2jQ7a8g+FC2qBYxU/aCAVAVY0NE
+ YuABL4LJ5+iWwmqUh0V9+lU88Cv4/G8fWwU+hBykSXhZXNQ5QJxyR7KWGy7LiPi7Cvovu+1c
+ 9Z9HIDNd4u7bxGKMpn19U12ATUBHAlvphzluVvXsJ23ES/F1c59d7IrgOnxqIcXxr9dcaJ2K
+ k9VP3TfrjP3g98OKtSsyH0xMu0MCeyewf1piXyukFRRMKIErfThhmNnLiDbaVy6biCLx408L
+ Mo4cCvEvqGKgRwyckVyo3JuhqreFeIKBOE1iHvf3x4LU8cIHdjhDP9Wf6ws1XNqIvve7oV+w
+ B56YWoalm1rq00yUbs2RoGcXmtX1JQ//aR/paSuLGLIb3ecPB88rvEXPsizrhYUzbe1TTkKc
+ 4a4XwW4wdc6pRPVFMdd5idQOKdeBk7NdCZXNzoieFntyPpAq+DveK01xcBoXQ2UktIFIsXey
+ uSNdLd5m5lf7/3f0BtaY//f9grm363NUb9KBsTSnv6Vx7Co0DWaxgC3MFSUhxzBzkJNty+2d
+ 10jvtwOWzUN+74uXGRYSq5WefQWqqQNnx+IDb4h81NmpIY/X0PqZrapNockj3WHvpbeVFAJ0
+ 9MRzYP3x8e5OuEuJfkNnAbwRGkDy98nXW6fKeemREjr8DWfXLKFWroJzkbAVmeIL0pjXATxr
+ +tj5JC0uvMrrXefUhXTo0SNoTsuO/OsAKOcVsV/RHHTwCDR2e3W8mOlA3QbYXsscgjghbuLh
+ J3oTRrOQa8tUXWqcd5A0+QPo5aaMHIK0UAthZsry5EmCY3BrbXUJlt+23E93hXQvfcsmfi0N
+ rNh81eknLLWRYvMOsrbIqEHdZBT4FHHiGjnck6EYx/8F5BAZSodRVEAgXyC8IQJ+UVa02QM5
+ D2VL8zRXZ6+wARKjgSrW+duohn535rG/ypd0ctLoXS6dDrFokwTQ2xrJiLbHp9G+noNTHSan
+ ExaRzyLbvmblh3AAznb68cWmM3WVkceWACUalsoTLKF1sGrrIBj5updkKkzbKOq5gcC5AQ0E
+ Wxk1NQEIAJ9B+lKxYlnKL5IehF1XJfknqsjuiRzj5vnvVrtFcPlSFL12VVFVUC2tT0A1Iuo9
+ NAoZXEeuoPf1dLDyHErrWnDyn3SmDgb83eK5YS/K363RLEMOQKWcawPJGGVTIRZgUSgGusKL
+ NuZqE5TCqQls0x/OPljufs4gk7E1GQEgE6M90Xbp0w/r0HB49BqjUzwByut7H2wAdiNAbJWZ
+ F5GNUS2/2IbgOhOychHdqYpWTqyLgRpf+atqkmpIJwFRVhQUfwztuybgJLGJ6vmh/LyNMRr8
+ J++SqkpOFMwJA81kpjuGR7moSrUIGTbDGFfjxmskQV/W/c25Xc6KaCwXah3OJ40AEQEAAYkC
+ PAQYAQoAJhYhBKlA1DSZLC6OmRA9UCJPp+fMgqZkBQJbGTU1AhsMBQkDwmcAAAoJECJPp+fM
+ gqZkPN4P/Ra4NbETHRj5/fM1fjtngt4dKeX/6McUPDIRuc58B6FuCQxtk7sX3ELs+1+w3eSV
+ rHI5cOFRSdgw/iKwwBix8D4Qq0cnympZ622KJL2wpTPRLlNaFLoe5PkoORAjVxLGplvQIlhg
+ miljQ3R63ty3+MZfkSVsYITlVkYlHaSwP2t8g7yTVa+q8ZAx0NT9uGWc/1Sg8j/uoPGrctml
+ hFNGBTYyPq6mGW9jqaQ8en3ZmmJyw3CHwxZ5FZQ5qc55xgshKiy8jEtxh+dgB9d8zE/S/UGI
+ E99N/q+kEKSgSMQMJ/CYPHQJVTi4YHh1yq/qTkHRX+ortrF5VEeDJDv+SljNStIxUdroPD29
+ 2ijoaMFTAU+uBtE14UP5F+LWdmRdEGS1Ah1NwooL27uAFllTDQxDhg/+LJ/TqB8ZuidOIy1B
+ xVKRSg3I2m+DUTVqBy7Lixo73hnW69kSjtqCeamY/NSu6LNP+b0wAOKhwz9hBEwEHLp05+mj
+ 5ZFJyfGsOiNUcMoO/17FO4EBxSDP3FDLllpuzlFD7SXkfJaMWYmXIlO0jLzdfwfcnDzBbPwO
+ hBM8hvtsyq8lq8vJOxv6XD6xcTtj5Az8t2JjdUX6SF9hxJpwhBU0wrCoGDkWp4Bbv6jnF7zP
+ Nzftr4l8RuJoywDIiJpdaNpSlXKpj/K6KrnyAI/joYc7
+Message-ID: <7be3d36a-19fe-2e3b-8840-27fb5fd60f15@suse.cz>
+Date: Wed, 17 Jul 2019 20:50:05 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.2
 MIME-Version: 1.0
-References: <20190717090725.23618-1-osalvador@suse.de> <20190717090725.23618-3-osalvador@suse.de>
-In-Reply-To: <20190717090725.23618-3-osalvador@suse.de>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Wed, 17 Jul 2019 11:45:05 -0700
-Message-ID: <CAPcyv4gxhjNmy=8e0MiB88LO5oWPmAPL-gnkG-jF5LpKn1E4vA@mail.gmail.com>
-Subject: Re: [PATCH v2 2/2] mm,memory_hotplug: Fix shrink_{zone,node}_span
-To: Oscar Salvador <osalvador@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, David Hildenbrand <david@redhat.com>, 
-	Pavel Tatashin <pasha.tatashin@soleen.com>, Michal Hocko <mhocko@suse.com>, 
-	"Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>, Linux MM <linux-mm@kvack.org>, 
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <3197a7df-c7bc-2bac-3d40-dbfc97d4a909@linux.alibaba.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jul 17, 2019 at 2:07 AM Oscar Salvador <osalvador@suse.de> wrote:
->
-> Since [1], shrink_{zone,node}_span work on PAGES_PER_SUBSECTION granularity.
-> We need to adapt the loop that checks whether a zone/node contains only holes,
-> and skip the whole range to be removed.
->
-> Otherwise, since sub-sections belonging to the range to be removed have not yet
-> been deactivated, pfn_valid() will return true on those and we will be left
-> with a wrong accounting of spanned_pages, both for the zone and the node.
->
-> Fixes: mmotm ("mm/hotplug: prepare shrink_{zone, pgdat}_span for sub-section removal")
-> Signed-off-by: Oscar Salvador <osalvador@suse.de>
+On 7/17/19 8:23 PM, Yang Shi wrote:
+> 
+> 
+> On 7/16/19 10:28 AM, Yang Shi wrote:
+>>
+>>
+>> On 7/16/19 5:07 AM, Vlastimil Babka wrote:
+>>> On 6/22/19 2:20 AM, Yang Shi wrote:
+>>>> @@ -969,10 +975,21 @@ static long do_get_mempolicy(int *policy, 
+>>>> nodemask_t *nmask,
+>>>>   /*
+>>>>    * page migration, thp tail pages can be passed.
+>>>>    */
+>>>> -static void migrate_page_add(struct page *page, struct list_head 
+>>>> *pagelist,
+>>>> +static int migrate_page_add(struct page *page, struct list_head 
+>>>> *pagelist,
+>>>>                   unsigned long flags)
+>>>>   {
+>>>>       struct page *head = compound_head(page);
+>>>> +
+>>>> +    /*
+>>>> +     * Non-movable page may reach here.  And, there may be
+>>>> +     * temporaty off LRU pages or non-LRU movable pages.
+>>>> +     * Treat them as unmovable pages since they can't be
+>>>> +     * isolated, so they can't be moved at the moment.  It
+>>>> +     * should return -EIO for this case too.
+>>>> +     */
+>>>> +    if (!PageLRU(head) && (flags & MPOL_MF_STRICT))
+>>>> +        return -EIO;
+>>>> +
+>>> Hm but !PageLRU() is not the only way why queueing for migration can
+>>> fail, as can be seen from the rest of the function. Shouldn't all cases
+>>> be reported?
+>>
+>> Do you mean the shared pages and isolation failed pages? I'm not sure 
+>> whether we should consider these cases break the semantics or not, so 
+>> I leave them as they are. But, strictly speaking they should be 
+>> reported too, at least for the isolation failed page.
 
-Looks good,
+CC'd linux-api, should be done on v3 posting also.
 
-Reviewed-by: Dan Williams <dan.j.williams@intel.com>
+> By reading mbind man page, it says:
+> 
+> If MPOL_MF_MOVE is specified in flags, then the kernel will attempt to 
+> move all the existing pages in the memory range so that they follow the 
+> policy.  Pages that are shared with other processes will not be moved.  
+> If MPOL_MF_STRICT is also specified, then the call fails with the error 
+> EIO if some pages could not be moved.
+
+I don't think this means that for shared pages, -EIO should not be
+reported. I can imagine both interpretations of the paragraph. I guess
+we can be conservative and keep not reporting them, if that was always
+the case - but then perhaps clarify the man page?
+
+> It looks the code already handles shared page correctly, we just need 
+> return -EIO for isolation failed page if MPOL_MF_STRICT is specified.
+> 
+>>
+>> Thanks,
+>> Yang
+>>
+>>>
+>>>>       /*
+>>>>        * Avoid migrating a page that is shared with others.
+>>>>        */
+>>>> @@ -984,6 +1001,8 @@ static void migrate_page_add(struct page *page, 
+>>>> struct list_head *pagelist,
+>>>>                   hpage_nr_pages(head));
+>>>>           }
+>>>>       }
+>>>> +
+>>>> +    return 0;
+>>>>   }
+>>>>     /* page allocation callback for NUMA node migration */
+>>>> @@ -1186,9 +1205,10 @@ static struct page *new_page(struct page 
+>>>> *page, unsigned long start)
+>>>>   }
+>>>>   #else
+>>>>   -static void migrate_page_add(struct page *page, struct list_head 
+>>>> *pagelist,
+>>>> +static int migrate_page_add(struct page *page, struct list_head 
+>>>> *pagelist,
+>>>>                   unsigned long flags)
+>>>>   {
+>>>> +    return -EIO;
+>>>>   }
+>>>>     int do_migrate_pages(struct mm_struct *mm, const nodemask_t *from,
+>>>>
+>>
+> 
 
