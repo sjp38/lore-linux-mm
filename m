@@ -2,189 +2,173 @@ Return-Path: <SRS0=+T2N=VO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-14.3 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
+	USER_IN_DEF_DKIM_WL autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9BE4CC76192
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Jul 2019 17:53:37 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 513EFC76195
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Jul 2019 18:02:38 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1C9DA21743
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Jul 2019 17:53:37 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1C9DA21743
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=techsingularity.net
+	by mail.kernel.org (Postfix) with ESMTP id 219BE2184E
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Jul 2019 18:02:38 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="KV6HAxQG"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 219BE2184E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BFA356B0010; Wed, 17 Jul 2019 13:53:36 -0400 (EDT)
+	id B7CA46B0269; Wed, 17 Jul 2019 14:02:37 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BA89C8E0005; Wed, 17 Jul 2019 13:53:36 -0400 (EDT)
+	id B2DB38E0005; Wed, 17 Jul 2019 14:02:37 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A72188E0003; Wed, 17 Jul 2019 13:53:36 -0400 (EDT)
+	id A436A8E0003; Wed, 17 Jul 2019 14:02:37 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wm1-f72.google.com (mail-wm1-f72.google.com [209.85.128.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 5B9C06B0010
-	for <linux-mm@kvack.org>; Wed, 17 Jul 2019 13:53:36 -0400 (EDT)
-Received: by mail-wm1-f72.google.com with SMTP id m25so6492258wml.6
-        for <linux-mm@kvack.org>; Wed, 17 Jul 2019 10:53:36 -0700 (PDT)
+Received: from mail-yw1-f72.google.com (mail-yw1-f72.google.com [209.85.161.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 8540F6B0269
+	for <linux-mm@kvack.org>; Wed, 17 Jul 2019 14:02:37 -0400 (EDT)
+Received: by mail-yw1-f72.google.com with SMTP id h203so19232858ywb.9
+        for <linux-mm@kvack.org>; Wed, 17 Jul 2019 11:02:37 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=WUCjLMoN5o2u3t2fcrnU61WAaQ6YGEYzfke7MP1QkZ0=;
-        b=DvJBOJobWaASGR7HhOdemmn2Jxs0qc2ArJ2yFFc+xwVCmTwBxtVfTVqvgZuV7eXI9d
-         giwi+WS2gCgAHyVuxxq1j46gUACPr9Kxmsg8TtgezyPv0Zr2y2TtWTtqvRT09dBt4GK4
-         NRONE/MyyErS9CtWcNJGJ4/KV5xwCaPkSlWIxCY0UKa0H91syGUyHzhsO0c7Awy/uDcV
-         NvYPqOYoAhjkLR9ROcatsQvNqTf1wyfu+UxMT8UsiftcbYxS+sU/tc+TCwSEZqzb6UfB
-         4rAZHqmT7w5R9jG9IxPYyuJK5q4sf6tK5wKoAoHMCGae9KmKTIkBeZaPJRAlVXn0TOyA
-         YcBg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.41 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
-X-Gm-Message-State: APjAAAVAtFeyiCY1CpECz8luGGyaVVHQERbmRUvho3zT8hbj3om4gmDi
-	Av19mECd9WfxiOu8xWsg4FA5EZG3eH9gMm7AV9WWmrfUbGfibx48iDj38W54YA5qjTxgYSKIT0W
-	8PTDit2QkajdH9X/WHHIzgcs3WcxPICQxFM5xJEQWGzhj4GyBC4Q07VuyfiGCNv7Asw==
-X-Received: by 2002:a5d:6583:: with SMTP id q3mr47199003wru.184.1563386015901;
-        Wed, 17 Jul 2019 10:53:35 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxmsdnHc9u0k9DLbW/bY3hS4xvnqD/7GXr9LNI7r0sQAsd1a1xom9+Dny0VD6cVeThm5Zh4
-X-Received: by 2002:a5d:6583:: with SMTP id q3mr47198947wru.184.1563386015017;
-        Wed, 17 Jul 2019 10:53:35 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563386015; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=yDzRsEyxIuuSai2DRMs+IGwIO+YipV0U+XFpyiaB7ek=;
+        b=sH2WoFpyjX8cX/4tohFk0H9fT5QdEpBsToHhSODoRX6JanM5TT8wOmVOdKrXZInNNh
+         dIFSCktNXqfPQlJxNcxhrSnaG7/WhagVsLnF7lNdbuQ6k+emUhptP+WSj4yfYLJLU/r1
+         QgO8XJFIs9ytol+jTQ03UvMXSP2A1JetM4Cu3TK9EKPkVDV0p9RqYQFxWbjvu0s4+bwb
+         voEkerh0J7g3Z79Hlc7Y95jfBPB0/DKnBkULMIuWL87QhGOQ0MnPqub8psSfAqEHVsgm
+         Cts6pkd+X4LrGy8PuYZ1PsSndbHmlkv3tsos+1DbpF75xVbgSIls18LvbEu9qdvQUYZz
+         e0Cg==
+X-Gm-Message-State: APjAAAWD8G1TGWIv3EK4xxHg48oD8n8bv4ttrGm2nW6Y1r27itBCYksc
+	dJc86vBRZd4VaRSwk89OL/zOMdqyBgcxs3pVkxpU23KU5HueG0mF8wy9eppJez4i+NkFE1qROIz
+	LTj/j8bmeJdQ6bOf9QeQusXJdoTzCdN2BcKVrKjMl+c9xOAnTbVoXExTFTqBro4rVEw==
+X-Received: by 2002:a5b:b41:: with SMTP id b1mr19498360ybr.277.1563386557268;
+        Wed, 17 Jul 2019 11:02:37 -0700 (PDT)
+X-Received: by 2002:a5b:b41:: with SMTP id b1mr19498304ybr.277.1563386556693;
+        Wed, 17 Jul 2019 11:02:36 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563386556; cv=none;
         d=google.com; s=arc-20160816;
-        b=xNaWliw8PJC/1/uPmfZXuEBA3H5HmWd93HJmMw009HAq/T3DwD7Dx2p0sIIL4A0Z5G
-         NkckobIlTfQouaFiGH2Cfb/t+8ALydghG/ZK8i+/R7K9fD2cekCQxZSVmWGjAZO/MVHv
-         YRR/PnCCz2m0wyLOLJChdL6aMkgQail7yBksiVIRXUIIotGuobrlrA2lX5XI+91WhWKm
-         M1VovjQxp1chsG76KyxPP8oj2kDjWm7VZercRGthHQSm50ocVO5UMMfwmD4IERpyTLgU
-         Du387sj4bRfNYS151LOxAQWD1vsMOGBVn8rABbFJOW0eNzay970OfqI38p+9+ALl0d09
-         zmIQ==
+        b=SUOvW+5r/BOE9gw7Z8ofm0EIzh6OXW3hTXshGAc1RbT7dm5hkeKWPBSqNq2MX6Pble
+         plOGtZe36Hccfv6luwu/WZ/jHAZWDefZQy8UfZdI7mYw/JA1gPoZY05tRTmVGsuQtTo6
+         QloRQ67WpBI5YyhnX7Up/bj2cHweULIm/TJ/9TTDJIxVIw9Tfq5VSxgeX3/mJJ7kqIQ9
+         pVOgYORtZhVxJGskygEPLNgq7Fh3tMFbxP2aVvvRr3m+Pe+GbF/ZzfzuZpy2n3Wd73zl
+         mo5oaPVTWq7sIVzgNt/Yr7jJT5h4Oq52Q39hAqdzIgl2i2JOrqDEhUkPzvVSYDxB7Pk5
+         T3Kg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=WUCjLMoN5o2u3t2fcrnU61WAaQ6YGEYzfke7MP1QkZ0=;
-        b=og+IOKF4mqxapDn/q/zjNMkLkywe6TVt4bEtpJXCSxvfRrq99J1vLaq2j1L8kKZwNL
-         H8hiApk1tGm90neF8hKeSPlKUw+aY+vXGdlrXPKSuB2oQw3jw6giYNopKyNccdrgXR0q
-         TIQZRFkvw15C2ZMCePu+HiFQfOdoABfv6ZCbklldqgAMSkhAtQmjvO+NljjWfqlS8UVd
-         hSTs8HVai7uocytgwB4zSxL8q1/NK4kfaL5RumGceeNMK89ce+YlGdfTfruJ86Txv07r
-         fysn9cdL12gt4VmteSQpEBFowKH1TBr5U0P8PwnSTKv6ZGYGM8cGA4cx66w82gd1UJw9
-         1eOQ==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=yDzRsEyxIuuSai2DRMs+IGwIO+YipV0U+XFpyiaB7ek=;
+        b=Es1V1hp6pkp/iIRgq0NU8EfKkoqHYTjYVIsjrUa0j13DO9ykOm2g5lWmLHq5OLOx6t
+         YKMFqWU7f1a1CJ5Jr2LwLQMceysLCekk6gFiPf43BXpOvPNG6RsOu56hLM/KzeZiyjba
+         0O4zPiZ2s52QisMayLNtM7CI7q4d29vXWndpqMfb6foVhUMsc6l5fUPq9GPPcKun/cBS
+         +pw4gTGShLfYK0tFBQVL+JJD/JwftfqRlIhdYG6nCIXgVyEHyonbRLBDhJL6YGxAt2WQ
+         O8xo7K98ZPJnL2RMHWOzH5Hp7/QHU9U82pBnYusg3G3HSyNVsd6kADoglmKEGknzEPKh
+         g7cg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.41 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
-Received: from outbound-smtp21.blacknight.com (outbound-smtp21.blacknight.com. [81.17.249.41])
-        by mx.google.com with ESMTPS id q17si21824256wrp.0.2019.07.17.10.53.34
+       dkim=pass header.i=@google.com header.s=20161025 header.b=KV6HAxQG;
+       spf=pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shakeelb@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id i66sor2555390ywb.134.2019.07.17.11.02.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Jul 2019 10:53:34 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.41 as permitted sender) client-ip=81.17.249.41;
+        (Google Transport Security);
+        Wed, 17 Jul 2019 11:02:36 -0700 (PDT)
+Received-SPF: pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.41 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
-Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
-	by outbound-smtp21.blacknight.com (Postfix) with ESMTPS id A7D60B871E
-	for <linux-mm@kvack.org>; Wed, 17 Jul 2019 18:53:34 +0100 (IST)
-Received: (qmail 2611 invoked from network); 17 Jul 2019 17:53:34 -0000
-Received: from unknown (HELO techsingularity.net) (mgorman@techsingularity.net@[84.203.21.36])
-  by 81.17.254.9 with ESMTPSA (AES256-SHA encrypted, authenticated); 17 Jul 2019 17:53:34 -0000
-Date: Wed, 17 Jul 2019 18:53:32 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-To: howaboutsynergy@protonmail.com
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-	"bugzilla-daemon@bugzilla.kernel.org" <bugzilla-daemon@bugzilla.kernel.org>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>
-Subject: Re: [Bug 204165] New: 100% CPU usage in compact_zone_order
-Message-ID: <20190717175332.GC24383@techsingularity.net>
-References: <bug-204165-27@https.bugzilla.kernel.org/>
- <20190715142524.e0df173a9d7f81a384abf28f@linux-foundation.org>
- <pLm2kTLklcV9AmHLFjB1oi04nZf9UTLlvnvQZoq44_ouTn3LhqcDD8Vi7xjr9qaTbrHfY5rKdwD6yVr43YCycpzm7MDLcbTcrYmGA4O0weU=@protonmail.com>
- <GX2mE2MIJ0H5o4mejfgRsT-Ng_bb19MXio4XzPWFjRzVb4cNpvDC1JXNqtX3k44MpbKg4IEg3amOh5V2Qt0AfMev1FZJoAWNh_CdfYIqxJ0=@protonmail.com>
- <WGYVD8PH-EVhj8iJluAiR5TqOinKtx6BbqdNr2RjFO6kOM_FP2UaLy4-1mXhlpt50wEWAfLFyYTa4p6Ie1xBOuCdguPmrLOW1wJEzxDhcuU=@protonmail.com>
- <EDGpMqBME0-wqL8JuVQeCbXEy1lZkvqS0XMvMj6Z_OFhzyK5J6qXWAgNUCxrcgVLmZVlqMH-eRJrqOCxb1pct39mDyFMcWhIw1ZUTAVXr2o=@protonmail.com>
- <20190716071121.GA24383@techsingularity.net>
- <xZGQeie9gbbIEm7ZciNh3PrdV8kTu-SE7KtUYV3cloMCUEdzB7taS5BcTzSUSaThu5_ftcRjr3sYcQB1c9dVPX3i1kQ2eP-xjKvFIpT7wZs=@protonmail.com>
+       dkim=pass header.i=@google.com header.s=20161025 header.b=KV6HAxQG;
+       spf=pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shakeelb@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=yDzRsEyxIuuSai2DRMs+IGwIO+YipV0U+XFpyiaB7ek=;
+        b=KV6HAxQGdn6bho66u6GdESZdwwdD5tjW0fDv1ZWRFWmhV9jQO5H7q5tBN4YlahuMN8
+         xHlxAttU7druDTETF9Oi1KMdYnaRSqBOoIn64k5cuiuYGQ4v+oGTISwXQraV6l5MxKnI
+         /pXA0Z9KuUVxOjF1INofKw1JWFWI5GKL38xdnoah2mPGzZqrDlZuiPgsshkxn9SkE9RD
+         4/C90o3L6ZPqIEBmWavIP7H2Mp3oautWncUe1weerJg8VfUv4DDUnoCeZp8rfQMjLfkU
+         gDyKAi9AdYmM2rxLhZ3O2qlqNqvnSp+ODNOPhS3edwqcT+5bAxOtHefqfQAih6cPsWOx
+         zMog==
+X-Google-Smtp-Source: APXvYqx8Dv3M/w0Y+tfgf5v5o8BgqNuNH2nvV6nFlb9tCRft8Hoq2fYaYtrbULzBbF+h70b2g7Pn/ZHWVRQWxxJXD1U=
+X-Received: by 2002:a0d:c345:: with SMTP id f66mr23890145ywd.10.1563386555880;
+ Wed, 17 Jul 2019 11:02:35 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <xZGQeie9gbbIEm7ZciNh3PrdV8kTu-SE7KtUYV3cloMCUEdzB7taS5BcTzSUSaThu5_ftcRjr3sYcQB1c9dVPX3i1kQ2eP-xjKvFIpT7wZs=@protonmail.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+References: <1563385526-20805-1-git-send-email-yang.shi@linux.alibaba.com>
+In-Reply-To: <1563385526-20805-1-git-send-email-yang.shi@linux.alibaba.com>
+From: Shakeel Butt <shakeelb@google.com>
+Date: Wed, 17 Jul 2019 11:02:24 -0700
+Message-ID: <CALvZod7CJ6W5RGRVzyc8J=dWgOHeHGFT+43NWGQjATvEqRjkMg@mail.gmail.com>
+Subject: Re: [PATCH] mm: vmscan: check if mem cgroup is disabled or not before
+ calling memcg slab shrinker
+To: Yang Shi <yang.shi@linux.alibaba.com>
+Cc: Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, 
+	Michal Hocko <mhocko@suse.com>, Kirill Tkhai <ktkhai@virtuozzo.com>, Roman Gushchin <guro@fb.com>, 
+	Hugh Dickins <hughd@google.com>, Qian Cai <cai@lca.pw>, 
+	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, 
+	stable@vger.kernel.org, Linux MM <linux-mm@kvack.org>, 
+	LKML <linux-kernel@vger.kernel.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jul 16, 2019 at 07:15:08PM +0000, howaboutsynergy@protonmail.com wrote:
-> On Tuesday, July 16, 2019 12:03 PM, Mel Gorman <mgorman@techsingularity.net> wrote:
-> > I tried reproducing this but after 300 attempts with various parameters
-> > and adding other workloads in the background, I was unable to reproduce
-> > the problem.
-> > 
-> 
-> 
-> The third time I ran this command `$ time stress -m 220 --vm-bytes 10000000000 --timeout 10`, got 10+ hung:
-> 
->   PID  %CPU COMMAND                                                                            PR  NI    VIRT    RES S USER     
->  3785  94.5 stress                                                                             20   0 9769416      4 R user     
->  3777  87.3 stress                                                                             20   0 9769416      4 R user     
->  3923  85.5 stress                                                                             20   0 9769416      4 R user     
->  3937  85.5 stress                                                                             20   0 9769416      4 R user     
->  3943  81.8 stress                                                                             20   0 9769416      4 R user     
->  3885  80.0 stress                                                                             20   0 9769416      4 R user     
->  3970  80.0 stress                                                                             20   0 9769416      4 R user     
+On Wed, Jul 17, 2019 at 10:45 AM Yang Shi <yang.shi@linux.alibaba.com> wrote:
 >
-> <SNIP>
+> Shakeel Butt reported premature oom on kernel with
+> "cgroup_disable=memory" since mem_cgroup_is_root() returns false even
+> though memcg is actually NULL.  The drop_caches is also broken.
 >
-> trace.dat is 1.3G
-> -rw-r--r--  1 root root 1326219264 16.07.2019 20:45 trace.dat
-> 
+> It is because commit aeed1d325d42 ("mm/vmscan.c: generalize shrink_slab()
+> calls in shrink_node()") removed the !memcg check before
+> !mem_cgroup_is_root().  And, surprisingly root memcg is allocated even
+> though memory cgroup is disabled by kernel boot parameter.
+>
+> Add mem_cgroup_disabled() check to make reclaimer work as expected.
+>
+> Fixes: aeed1d325d42 ("mm/vmscan.c: generalize shrink_slab() calls in shrink_node()")
+> Reported-by: Shakeel Butt <shakeelb@google.com>
+> Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: Kirill Tkhai <ktkhai@virtuozzo.com>
+> Cc: Roman Gushchin <guro@fb.com>
+> Cc: Hugh Dickins <hughd@google.com>
+> Cc: Qian Cai <cai@lca.pw>
+> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Cc: stable@vger.kernel.org  4.19+
+> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
 
-Ok, great. From the trace, it was obvious that the scanner is making no
-progress. I don't think zswap is involved as such but it *may* be making
-it easier to trigger due to altering timing. At least, I see no reason
-why zswap would materially affect the termination conditions.
+Reviewed-by: Shakeel Butt <shakeelb@google.com>
 
-From the path and your trace, I think what *might* be happening is that
-a fatal signal is pending which does not advance the scanner or look like
-a proper abort. I think it ends up looping in compaction instead of dying
-without either aborting or progressing the scanner.  It might explain why
-stress-ng is hitting is as it is probably sending fatal signals on timeout
-(I didn't check the source).
-
-Can you try this (compile tested only) patch please? Note that the stress
-test might still take time to exit normally if it's stuck in a swap
-storm of some sort but I'm hoping the 100% compaction CPU usage goes away
-at least.
-
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 9e1b9acb116b..952dc2fb24e5 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -842,13 +842,15 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
- 
- 		/*
- 		 * Periodically drop the lock (if held) regardless of its
--		 * contention, to give chance to IRQs. Abort async compaction
--		 * if contended.
-+		 * contention, to give chance to IRQs. Abort completely if
-+		 * a fatal signal is pending.
- 		 */
- 		if (!(low_pfn % SWAP_CLUSTER_MAX)
- 		    && compact_unlock_should_abort(&pgdat->lru_lock,
--					    flags, &locked, cc))
--			break;
-+					    flags, &locked, cc)) {
-+			low_pfn = 0;
-+			goto fatal_pending;
-+		}
- 
- 		if (!pfn_valid_within(low_pfn))
- 			goto isolate_fail;
-@@ -1060,6 +1062,7 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
- 	trace_mm_compaction_isolate_migratepages(start_pfn, low_pfn,
- 						nr_scanned, nr_isolated);
- 
-+fatal_pending:
- 	cc->total_migrate_scanned += nr_scanned;
- 	if (nr_isolated)
- 		count_compact_events(COMPACTISOLATED, nr_isolated);
-
--- 
-Mel Gorman
-SUSE Labs
+> ---
+>  mm/vmscan.c | 9 ++++++++-
+>  1 file changed, 8 insertions(+), 1 deletion(-)
+>
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index f8e3dcd..c10dc02 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -684,7 +684,14 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
+>         unsigned long ret, freed = 0;
+>         struct shrinker *shrinker;
+>
+> -       if (!mem_cgroup_is_root(memcg))
+> +       /*
+> +        * The root memcg might be allocated even though memcg is disabled
+> +        * via "cgroup_disable=memory" boot parameter.  This could make
+> +        * mem_cgroup_is_root() return false, then just run memcg slab
+> +        * shrink, but skip global shrink.  This may result in premature
+> +        * oom.
+> +        */
+> +       if (!mem_cgroup_disabled() && !mem_cgroup_is_root(memcg))
+>                 return shrink_slab_memcg(gfp_mask, nid, memcg, priority);
+>
+>         if (!down_read_trylock(&shrinker_rwsem))
+> --
+> 1.8.3.1
+>
 
