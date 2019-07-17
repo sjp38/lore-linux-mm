@@ -2,110 +2,109 @@ Return-Path: <SRS0=+T2N=VO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-11.3 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_IN_DEF_DKIM_WL
-	autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-14.3 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
+	USER_IN_DEF_DKIM_WL autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6FB14C76192
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Jul 2019 11:44:21 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 252BFC76196
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Jul 2019 11:47:06 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 292B6217F9
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Jul 2019 11:44:21 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id C77AB205ED
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Jul 2019 11:47:05 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="YNTzEvLo"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 292B6217F9
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="q9rg5oP+"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C77AB205ED
 Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C9A0D6B0008; Wed, 17 Jul 2019 07:44:20 -0400 (EDT)
+	id 657926B0008; Wed, 17 Jul 2019 07:47:05 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C49D28E0001; Wed, 17 Jul 2019 07:44:20 -0400 (EDT)
+	id 62E928E0001; Wed, 17 Jul 2019 07:47:05 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B125C6B000C; Wed, 17 Jul 2019 07:44:20 -0400 (EDT)
+	id 5445D6B000C; Wed, 17 Jul 2019 07:47:05 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 7C1136B0008
-	for <linux-mm@kvack.org>; Wed, 17 Jul 2019 07:44:20 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id g18so11914639plj.19
-        for <linux-mm@kvack.org>; Wed, 17 Jul 2019 04:44:20 -0700 (PDT)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D2D66B0008
+	for <linux-mm@kvack.org>; Wed, 17 Jul 2019 07:47:05 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id y9so11935518plp.12
+        for <linux-mm@kvack.org>; Wed, 17 Jul 2019 04:47:05 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=s96tbUHAJa/3W+S33QuecksVNxzPE4B+rwrtGBTPIRg=;
-        b=HmisIK8u453Op3q2hskdxfj5FNeC7g89OxSNshcYbjMITWx0iUT+1zMUu2nU3IdhUv
-         woLYRXZtmN7CHAhmwiQv0S1OVLNdlclVqB2LIvFI6d1Y0oqtR+0BNmk6/+SsneTz4XkD
-         Ptv7SYUgwbvky0tip6fgSn6EMAGEcQq04C8tL0NC5OUHMI8QQgpjWj5383kLp3ohkPy6
-         vN00xnNV/qTN801p7J62i6f4C7mE/+I4vAHRySFh7iMZkTnH1KVZrpi6IYLttDPni73F
-         yGi4NiB+vGb0agKIbuUewWDSH/yV8u80k5d21I3u6nbXWlNSm34EcRkIdDDoUbmIlOdK
-         0/oQ==
-X-Gm-Message-State: APjAAAVGTOO2AjiriJkKnu/KZ6Ota2ELjb2OY37I/m4tLu+DyuwK5ELc
-	Bp2R0uDDApwop3BdSXHD9cM9SpTj9xT8mVUIFT8bnJ9Uc0oL2X8MtTAcK92qad9pFoQWczOWgSp
-	DHyF46ZLFeNbRp+bzZCwSfbCA2Rb2UjAer3aPJ+22hXT94O9mr2KGZCRNUp/0tU4b8g==
-X-Received: by 2002:a17:90a:a404:: with SMTP id y4mr44918419pjp.58.1563363860060;
-        Wed, 17 Jul 2019 04:44:20 -0700 (PDT)
-X-Received: by 2002:a17:90a:a404:: with SMTP id y4mr44918359pjp.58.1563363859058;
-        Wed, 17 Jul 2019 04:44:19 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563363859; cv=none;
+        bh=XH7pgHFzkwihJR5psn/ZNzGH7d1Hcpwg4ypt2aGmLUk=;
+        b=NJkmcXH4u1ASzanW5/mcDlUNlJRL7A4DnPvbctS2eJk1QXQUYGVZuimuG2q1Z4Bb9B
+         mnjUVosuQc1w/cMdqIpmvvsH+AbnlQoJuODqbX384rOG2afhLgqpYmMyBgMvEIPcDCFW
+         hcqEkrl0xngSzv7EVWsJ5zpj5GcmPtBtjuE/AzvPqdMBH64r1e0aVJ2FsYFuGGiOr3vn
+         IEefE6C7KIIoJ2wHNXK76e9N57qg+OGAzCp0XswTGmJ0Aa3nXNYUyYR2UCPF2ULP03YA
+         T2vdwyo/YpJzdKOP1Mffn8Bvjl3+f1OCY155vbyuW9R3QYYvCR/ot1kvPw9/a9AhJxF6
+         VwRA==
+X-Gm-Message-State: APjAAAUNbxzfZqF895tEEp41AgoS+ECig3+uaW26s+0Nf7wc8ztuIQ8G
+	Tecb0k/zQGx1ZCiZabxR6cZvnET0opEFXbvlk+yT4kGPL3/bcdBozMJ3BSgkrfWbviwVnK7pyDP
+	CtNmKcOPJJx6yhNBeUuFoOZUyg3K67eBGN8BJASdqqemDCOxmdFlcgvOuAoL7pnblyQ==
+X-Received: by 2002:a65:534c:: with SMTP id w12mr40694829pgr.51.1563364024640;
+        Wed, 17 Jul 2019 04:47:04 -0700 (PDT)
+X-Received: by 2002:a65:534c:: with SMTP id w12mr40694780pgr.51.1563364023876;
+        Wed, 17 Jul 2019 04:47:03 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563364023; cv=none;
         d=google.com; s=arc-20160816;
-        b=SCiPxZvn3CJvBS4OjqkCfcHqjUM13HfkgYRCh8J8QsgN49XU+MdGp1P4JNIV1cEOvD
-         bad9S3KQc9RYQRQGPzoyH4rE7qmodrwGl77QCNvOUn2EYGdgnnFmnYhmhG/O4soGvc74
-         8el+fJ7TF4J1lhDfnPrSdEfeDsLLXtzHnCyFYOg8/Kj7LiOIF79R0LU1TOhUxzRq+o+H
-         o7tny0mrgX2WonRh6VD4Fpimc+aX+nTUXhWnvG8oS+y8qhkWelJaE+Qr9WQni7D/b9Or
-         SIYq8MzICxk7DOEHtEmuXAYZN0Pk69hMTqYIEriGQL8ODioHOtZZ4l7IdjbcMGJNR7Yl
-         u9mg==
+        b=LAViULZLzLEAnWDFa33uOjsNj1yUxHculh4F+/+54O0DDPPMqWY88/809i0eObasJH
+         LA8lYL9VwxNwGqoqeSV6NxMu8PBPJoNkmZC4L3fyYOvxs7zZ3MfhvjTd9VncEmtfCDzj
+         3fUR1hq/2bxCrBkd1ec+J5J4i5VhOQySrBdc6OMhoh8F2u2lvubpJ1ZOgF0SkVCEl0oj
+         r8gN+1o3kD77BicKluxSp0MTK0Ya49LDMkFy63IiJg92jG+9Y2lapdd8WB4wHv3uvPTo
+         rvN4VWIUW0adZSiPk0FnQroswfSvha5d4JDye3HgEJoCEBMWASfiT262mJBMZ1IvG/qg
+         yNPA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=s96tbUHAJa/3W+S33QuecksVNxzPE4B+rwrtGBTPIRg=;
-        b=bt1Cm7NGkvLANRvba+020Cu82g5vGb7EmH2wIjTTZqH2K6UXP+wWN79BZm1h0qu/ja
-         usV3wRYNO7RJjJwrEin184/0Tcb1nV07LuR1LxJnBYPz4H7fGj96+waFuHrpakuwtzno
-         kQh3HSxsFNLWRs2al4c9m4WrjbbLaVbB35alKjAlpwvbM2GOAUhkrU6mmMrF6f5tT4K0
-         M4BSk43TVa3Uwf7psdOpTvgxK7ASqsFSozaKJlXTrPd3HlxOi8ztv6rSmhyPW154rvtz
-         1/d5gyoqACKNUswjCBwcY3LijNkCkefKJ20CuPe9NKzpRDM954ehgNCgEe4J7NJLMif5
-         3ZgA==
+        bh=XH7pgHFzkwihJR5psn/ZNzGH7d1Hcpwg4ypt2aGmLUk=;
+        b=Qrr79P3ZTpwyrvyldSU4OdJSjUAOg4+Fqcd9pI+9cTRbcK9a3ZZABJt/m5a3FiDjbM
+         jhDExD3x+P6hJBCT2Gd5LETn9D4y4/RpSZb81hCtGzu/YE8B4lcK/W58yPjzTrHjNgN+
+         U9u4gb8pgmjk3QOcWISItFJLZWshMCD54ngpk54hKcI3FMeeJE8/OdQvaQXyHYk8N8/7
+         SGB/IS8R45wqFHekpGjZuc/VZyzfwhkcZ27aEZ5niD/LzBGtqwWSji8HNENRM1LuQC/W
+         t1RabYI4DYjUMyfj2lAHQvkWpyqiRIY9bChv3yciiMg0X5gy7rwmF0opAKSKaTikiITn
+         bpMg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=YNTzEvLo;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=q9rg5oP+;
        spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id w11sor12383937pfi.56.2019.07.17.04.44.18
+        by mx.google.com with SMTPS id r4sor28445118plo.57.2019.07.17.04.47.03
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 17 Jul 2019 04:44:19 -0700 (PDT)
+        Wed, 17 Jul 2019 04:47:03 -0700 (PDT)
 Received-SPF: pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=YNTzEvLo;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=q9rg5oP+;
        spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=google.com; s=20161025;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=s96tbUHAJa/3W+S33QuecksVNxzPE4B+rwrtGBTPIRg=;
-        b=YNTzEvLokDKfBiND0F2uTRtNbbscQoeYlRAIZ4D4gm+fPunaVpSxT9yFu1P0pJ6lio
-         xWTqHSLTx3ZiQsVVIdfvcsAEZX+UwZ3GwnRk6z/9j+jj49uvH9o3OWPLDccY+IbVHGze
-         VX/w7SlL3Vzx+t0xrwbctuweCHGIlBKbcd05Q0zBlUJIzL3VkiYxJwnzmtUL5R2SnxIl
-         RhMYnRo7T8e4Wl/4YHx7n44SfOzOXvvpPCN5gZKipQVyiczav3qSb50tsdB3ZZ0CfrCh
-         dofC27Pihb8FLt/R6YXAogt8ZfxAC6UrwAQzPlEU0+w5SGEaRflsRUqY/qTdnOsoVA2h
-         liiA==
-X-Google-Smtp-Source: APXvYqxCr99MNxoD8F3ipCKfGH5Ic+wArEB2kJiBZjN+Ft8BlSUogLYhlY5cWCf0y3NDyGKfQgFMQFiKtGoY4M7YZGQ=
-X-Received: by 2002:a63:c442:: with SMTP id m2mr41068862pgg.286.1563363858315;
- Wed, 17 Jul 2019 04:44:18 -0700 (PDT)
+        bh=XH7pgHFzkwihJR5psn/ZNzGH7d1Hcpwg4ypt2aGmLUk=;
+        b=q9rg5oP+7QfRryee4CQfI+zTuO8vcNkAU+Zb8S/XX5gbQKX1OYbsUUbB3B8KK9hFmU
+         UHgvh4Mz+Kyv0D5E5zvwH3nJNYoE2P1kzcK2Rg1yMoExsViP4+PURLjfYPF2WZhrd0MF
+         a+zGI8yxCxdvE8nZGITXCK8/RaYQDCnkR7z8XELwz+GgVBZndcqvcfCaF4ihTHl0HyVo
+         bFY7Esho++ViErb2avPSuS/M58xcsz7oUebcD6xLNGIpCphqGpuQ31GuhoMHpSqGmldC
+         ZKZZNvAff0cBNn4NnOvQXzgW64bJR2BOmy7dIGzstZ5vq+Xgsj3OiBdAV2LIo/WRsiLm
+         aMOQ==
+X-Google-Smtp-Source: APXvYqz8S3jyPxed+oPtsIDmi9g4NsD5ItlfcVysZ7+qze2pU/edo+3e3aBEztJRj4XnLTpHjY2eNg/431rKCehxHqk=
+X-Received: by 2002:a17:902:8689:: with SMTP id g9mr39736837plo.252.1563364023206;
+ Wed, 17 Jul 2019 04:47:03 -0700 (PDT)
 MIME-Version: 1.0
-References: <cover.1561386715.git.andreyknvl@google.com> <ea0ff94ef2b8af12ea6c222c5ebd970e0849b6dd.1561386715.git.andreyknvl@google.com>
- <20190624174015.GL29120@arrakis.emea.arm.com> <CAAeHK+y8vE=G_odK6KH=H064nSQcVgkQkNwb2zQD9swXxKSyUQ@mail.gmail.com>
- <20190715180510.GC4970@ziepe.ca> <CAAeHK+xPQqJP7p_JFxc4jrx9k7N0TpBWEuB8Px7XHvrfDU1_gw@mail.gmail.com>
- <20190716120624.GA29727@ziepe.ca>
-In-Reply-To: <20190716120624.GA29727@ziepe.ca>
+References: <cover.1561386715.git.andreyknvl@google.com> <d8e3b9a819e98d6527e506027b173b128a148d3c.1561386715.git.andreyknvl@google.com>
+ <20190624175120.GN29120@arrakis.emea.arm.com> <20190717110910.GA12017@rapoport-lnx>
+In-Reply-To: <20190717110910.GA12017@rapoport-lnx>
 From: Andrey Konovalov <andreyknvl@google.com>
-Date: Wed, 17 Jul 2019 13:44:07 +0200
-Message-ID: <CAAeHK+xPPQ9QjAksbfWG-Zmnawt-cdw9eO_6GVxjEYcaDGvaRA@mail.gmail.com>
-Subject: Re: [PATCH v18 11/15] IB/mlx4: untag user pointers in mlx4_get_umem_mr
-To: Jason Gunthorpe <jgg@ziepe.ca>
-Cc: Linux ARM <linux-arm-kernel@lists.infradead.org>, 
+Date: Wed, 17 Jul 2019 13:46:52 +0200
+Message-ID: <CAAeHK+yB=d_oXOVZ2TuVe2UkBAx-GM_f+mu88JeVWqPO95xVHQ@mail.gmail.com>
+Subject: Re: [PATCH v18 08/15] userfaultfd: untag user pointers
+To: Mike Rapoport <rppt@linux.ibm.com>
+Cc: Catalin Marinas <catalin.marinas@arm.com>, 
+	Linux ARM <linux-arm-kernel@lists.infradead.org>, 
 	Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, 
 	amd-gfx@lists.freedesktop.org, dri-devel@lists.freedesktop.org, 
 	linux-rdma@vger.kernel.org, linux-media@vger.kernel.org, kvm@vger.kernel.org, 
@@ -118,13 +117,13 @@ Cc: Linux ARM <linux-arm-kernel@lists.infradead.org>,
 	Mauro Carvalho Chehab <mchehab@kernel.org>, Jens Wiklander <jens.wiklander@linaro.org>, 
 	Alex Williamson <alex.williamson@redhat.com>, Leon Romanovsky <leon@kernel.org>, 
 	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>, Dave Martin <Dave.Martin@arm.com>, 
-	Khalid Aziz <khalid.aziz@oracle.com>, enh <enh@google.com>, 
+	Khalid Aziz <khalid.aziz@oracle.com>, enh <enh@google.com>, Jason Gunthorpe <jgg@ziepe.ca>, 
 	Christoph Hellwig <hch@infradead.org>, Dmitry Vyukov <dvyukov@google.com>, 
 	Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, 
 	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, 
 	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Robin Murphy <robin.murphy@arm.com>, 
 	Kevin Brodsky <kevin.brodsky@arm.com>, Szabolcs Nagy <Szabolcs.Nagy@arm.com>, 
-	Catalin Marinas <catalin.marinas@arm.com>
+	Al Viro <viro@zeniv.linux.org.uk>
 Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -132,53 +131,124 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jul 16, 2019 at 2:06 PM Jason Gunthorpe <jgg@ziepe.ca> wrote:
+On Wed, Jul 17, 2019 at 1:09 PM Mike Rapoport <rppt@linux.ibm.com> wrote:
 >
-> On Tue, Jul 16, 2019 at 12:42:07PM +0200, Andrey Konovalov wrote:
-> > On Mon, Jul 15, 2019 at 8:05 PM Jason Gunthorpe <jgg@ziepe.ca> wrote:
+> On Mon, Jun 24, 2019 at 06:51:21PM +0100, Catalin Marinas wrote:
+> > On Mon, Jun 24, 2019 at 04:32:53PM +0200, Andrey Konovalov wrote:
+> > > This patch is a part of a series that extends kernel ABI to allow to pass
+> > > tagged user pointers (with the top byte set to something else other than
+> > > 0x00) as syscall arguments.
 > > >
-> > > On Mon, Jul 15, 2019 at 06:01:29PM +0200, Andrey Konovalov wrote:
-> > > > On Mon, Jun 24, 2019 at 7:40 PM Catalin Marinas <catalin.marinas@arm.com> wrote:
-> > > > >
-> > > > > On Mon, Jun 24, 2019 at 04:32:56PM +0200, Andrey Konovalov wrote:
-> > > > > > This patch is a part of a series that extends kernel ABI to allow to pass
-> > > > > > tagged user pointers (with the top byte set to something else other than
-> > > > > > 0x00) as syscall arguments.
-> > > > > >
-> > > > > > mlx4_get_umem_mr() uses provided user pointers for vma lookups, which can
-> > > > > > only by done with untagged pointers.
-> > > > > >
-> > > > > > Untag user pointers in this function.
-> > > > > >
-> > > > > > Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
-> > > > > >  drivers/infiniband/hw/mlx4/mr.c | 7 ++++---
-> > > > > >  1 file changed, 4 insertions(+), 3 deletions(-)
-> > > > >
-> > > > > Acked-by: Catalin Marinas <catalin.marinas@arm.com>
-> > > > >
-> > > > > This patch also needs an ack from the infiniband maintainers (Jason).
-> > > >
-> > > > Hi Jason,
-> > > >
-> > > > Could you take a look and give your acked-by?
+> > > userfaultfd code use provided user pointers for vma lookups, which can
+> > > only by done with untagged pointers.
 > > >
-> > > Oh, I think I did this a long time ago. Still looks OK.
+> > > Untag user pointers in validate_range().
+> > >
+> > > Reviewed-by: Vincenzo Frascino <vincenzo.frascino@arm.com>
+> > > Reviewed-by: Catalin Marinas <catalin.marinas@arm.com>
+> > > Reviewed-by: Kees Cook <keescook@chromium.org>
+> > > Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
+> > > ---
+> > >  fs/userfaultfd.c | 22 ++++++++++++----------
+> > >  1 file changed, 12 insertions(+), 10 deletions(-)
 > >
-> > Hm, maybe that was we who lost it. Thanks!
-> >
-> > > You will send it?
-> >
-> > I will resend the patchset once the merge window is closed, if that's
-> > what you mean.
+> > Same here, it needs an ack from Al Viro.
 >
-> No.. I mean who send it to Linus's tree? ie do you want me to take
-> this patch into rdma?
+> The userfault patches usually go via -mm tree, not sure if Al looks at them :)
 
-I think the plan was to merge the whole series through the mm tree.
-But I don't mind if you want to take this patch into your tree. It's
-just that this patch doesn't make much sense without the rest of the
-series.
+Ah, OK, I guess than Andrew will take a look at them when merging.
 
 >
-> Jason
+> FWIW, you can add
+>
+> Reviewed-by: Mike Rapoport <rppt@linux.ibm.com>
+
+I will, thanks!
+
+>
+> > > diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
+> > > index ae0b8b5f69e6..c2be36a168ca 100644
+> > > --- a/fs/userfaultfd.c
+> > > +++ b/fs/userfaultfd.c
+> > > @@ -1261,21 +1261,23 @@ static __always_inline void wake_userfault(struct userfaultfd_ctx *ctx,
+> > >  }
+> > >
+> > >  static __always_inline int validate_range(struct mm_struct *mm,
+> > > -                                     __u64 start, __u64 len)
+> > > +                                     __u64 *start, __u64 len)
+> > >  {
+> > >     __u64 task_size = mm->task_size;
+> > >
+> > > -   if (start & ~PAGE_MASK)
+> > > +   *start = untagged_addr(*start);
+> > > +
+> > > +   if (*start & ~PAGE_MASK)
+> > >             return -EINVAL;
+> > >     if (len & ~PAGE_MASK)
+> > >             return -EINVAL;
+> > >     if (!len)
+> > >             return -EINVAL;
+> > > -   if (start < mmap_min_addr)
+> > > +   if (*start < mmap_min_addr)
+> > >             return -EINVAL;
+> > > -   if (start >= task_size)
+> > > +   if (*start >= task_size)
+> > >             return -EINVAL;
+> > > -   if (len > task_size - start)
+> > > +   if (len > task_size - *start)
+> > >             return -EINVAL;
+> > >     return 0;
+> > >  }
+> > > @@ -1325,7 +1327,7 @@ static int userfaultfd_register(struct userfaultfd_ctx *ctx,
+> > >             goto out;
+> > >     }
+> > >
+> > > -   ret = validate_range(mm, uffdio_register.range.start,
+> > > +   ret = validate_range(mm, &uffdio_register.range.start,
+> > >                          uffdio_register.range.len);
+> > >     if (ret)
+> > >             goto out;
+> > > @@ -1514,7 +1516,7 @@ static int userfaultfd_unregister(struct userfaultfd_ctx *ctx,
+> > >     if (copy_from_user(&uffdio_unregister, buf, sizeof(uffdio_unregister)))
+> > >             goto out;
+> > >
+> > > -   ret = validate_range(mm, uffdio_unregister.start,
+> > > +   ret = validate_range(mm, &uffdio_unregister.start,
+> > >                          uffdio_unregister.len);
+> > >     if (ret)
+> > >             goto out;
+> > > @@ -1665,7 +1667,7 @@ static int userfaultfd_wake(struct userfaultfd_ctx *ctx,
+> > >     if (copy_from_user(&uffdio_wake, buf, sizeof(uffdio_wake)))
+> > >             goto out;
+> > >
+> > > -   ret = validate_range(ctx->mm, uffdio_wake.start, uffdio_wake.len);
+> > > +   ret = validate_range(ctx->mm, &uffdio_wake.start, uffdio_wake.len);
+> > >     if (ret)
+> > >             goto out;
+> > >
+> > > @@ -1705,7 +1707,7 @@ static int userfaultfd_copy(struct userfaultfd_ctx *ctx,
+> > >                        sizeof(uffdio_copy)-sizeof(__s64)))
+> > >             goto out;
+> > >
+> > > -   ret = validate_range(ctx->mm, uffdio_copy.dst, uffdio_copy.len);
+> > > +   ret = validate_range(ctx->mm, &uffdio_copy.dst, uffdio_copy.len);
+> > >     if (ret)
+> > >             goto out;
+> > >     /*
+> > > @@ -1761,7 +1763,7 @@ static int userfaultfd_zeropage(struct userfaultfd_ctx *ctx,
+> > >                        sizeof(uffdio_zeropage)-sizeof(__s64)))
+> > >             goto out;
+> > >
+> > > -   ret = validate_range(ctx->mm, uffdio_zeropage.range.start,
+> > > +   ret = validate_range(ctx->mm, &uffdio_zeropage.range.start,
+> > >                          uffdio_zeropage.range.len);
+> > >     if (ret)
+> > >             goto out;
+> > > --
+> > > 2.22.0.410.gd8fdbe21b5-goog
+>
+> --
+> Sincerely yours,
+> Mike.
+>
 
