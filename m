@@ -2,139 +2,287 @@ Return-Path: <SRS0=+T2N=VO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-15.8 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_SANE_1,USER_IN_DEF_DKIM_WL autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 32203C7618F
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Jul 2019 22:05:18 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D1511C76195
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Jul 2019 22:14:53 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B1DC520880
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Jul 2019 22:05:17 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 88EA1217F4
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Jul 2019 22:14:53 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=linux-foundation.org header.i=@linux-foundation.org header.b="g84+xOg5"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B1DC520880
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="emeuTjc+"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 88EA1217F4
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0DB696B0005; Wed, 17 Jul 2019 18:05:17 -0400 (EDT)
+	id 0D3D56B0005; Wed, 17 Jul 2019 18:14:53 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 08C126B0006; Wed, 17 Jul 2019 18:05:17 -0400 (EDT)
+	id 087126B0006; Wed, 17 Jul 2019 18:14:53 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id EBD5F8E0001; Wed, 17 Jul 2019 18:05:16 -0400 (EDT)
+	id EB5768E0001; Wed, 17 Jul 2019 18:14:52 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lj1-f200.google.com (mail-lj1-f200.google.com [209.85.208.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 891346B0005
-	for <linux-mm@kvack.org>; Wed, 17 Jul 2019 18:05:16 -0400 (EDT)
-Received: by mail-lj1-f200.google.com with SMTP id r5so5622132ljn.1
-        for <linux-mm@kvack.org>; Wed, 17 Jul 2019 15:05:16 -0700 (PDT)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id B4F2D6B0005
+	for <linux-mm@kvack.org>; Wed, 17 Jul 2019 18:14:52 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id 65so12745145plf.16
+        for <linux-mm@kvack.org>; Wed, 17 Jul 2019 15:14:52 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=YSDBsvNUqnUp/t7kjQNVbtVYe15sAK39prvQBCJ8iQY=;
-        b=ceHF/cI+2UDXIT9H0KM7guTQNRoSmTsC3D7CdZj+mFpQx/zFW/mOsE8rJKWXfNVHC7
-         S2jilXtFblhlGBNRcpMZ9yI3uHBO8l155FhPZeOR8O8FR7k//LH101i4IxdHr7jixZse
-         fsQ0dSt2RMUx0v5m8bIBm+rgoLIczFi5K8m8yRsL3Neu7ggt8VN0J4HhtBnAslAowkxx
-         mrVykn5Mx4tH3hIIJMdPjMlJj81qKMqJsYP6lct8cNEeXKD5fVbOFlSQXLH0dZakORwW
-         2aI2NFkS7F/g10A4YWq2CAxaY2gEIJSlHNfFdrxL3nl4lTRvLKxr+jyGcB+m1DHoB/u8
-         g1mA==
-X-Gm-Message-State: APjAAAXbIIUt5DgiaglL5DUAX2djJcig7BlSQZoBIxj+h+3kXyrCRSis
-	ifNTLKisoi3BAICQ9X0CmzQsCoVaTRlWFy7iORl7dS1Pfh3q5ZOqVpbV9rk3FzNdFVBK1Ro21fF
-	Ce4cdeFPDVCiieF19hcXjORVOFlNLhZv/NZNj8cnUQ7J430Eskjpf51Si2p8sbrbWSQ==
-X-Received: by 2002:ac2:495e:: with SMTP id o30mr19051155lfi.140.1563401115871;
-        Wed, 17 Jul 2019 15:05:15 -0700 (PDT)
-X-Received: by 2002:ac2:495e:: with SMTP id o30mr19051129lfi.140.1563401115149;
-        Wed, 17 Jul 2019 15:05:15 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563401115; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :in-reply-to:message-id:references:user-agent:mime-version;
+        bh=bni+Z42fzJug5JhYQ5stiuRJiEWmfpZ/sFa5RIyPdd4=;
+        b=PwiNYZAeppcoSUuMNanQgXyQLL3XMdwD6SNxK8BrM1fhWHx0jfLLnoC81SAmFobbEC
+         UjdxgUE0dOSjLBVE2+HKByAo34tjgnYZTHF5so16Nas8mfvesIR0iYeAsLKYWuWw7KlW
+         PSTzOGDKCrMtWrZCi7HrsHm9crip/+jthRQLI5FWUhjjLhrdgi0Wspzq5vQNnQR8rxR6
+         bSNGBvqrHXl6uD92N1R92LvX8uLBVhECAxi7DUQlfCs285z/MN1SF+5oYRZwpji1OqDz
+         WdMLG9Niwp5J0e6mlJUm04UooqEphnX3soN7l3gYip7Jb0xZ7GGAlZzj0WaBKksN9F7L
+         IyqQ==
+X-Gm-Message-State: APjAAAU11zr4HWLE6e9h+wIRT8zW88+dH0Htwop413INaataF1UWA5Wf
+	H28bgHiDXcFjo/8K3GQU4Pr2jLYsZBXxCTjJdT0bESmfeVHjPUA4VDmrg7pRI/jcpNhhmdDqZkZ
+	OJUJiYLTcaMU+04m4zgYMzvmq30T8eFbr5wT9kH2HAg5f1eijf2cnCEiDwGz+pNWfoA==
+X-Received: by 2002:a17:902:28c9:: with SMTP id f67mr6161473plb.19.1563401692256;
+        Wed, 17 Jul 2019 15:14:52 -0700 (PDT)
+X-Received: by 2002:a17:902:28c9:: with SMTP id f67mr6161411plb.19.1563401691368;
+        Wed, 17 Jul 2019 15:14:51 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563401691; cv=none;
         d=google.com; s=arc-20160816;
-        b=nCfbV040M8dLiwc9xeaOOkTVGdhwleNSt//8JvC0qbPX5RdekBrkOLSjGT5iBbD3a8
-         zsoYHU+c77Z1xXXcLQaJf7ajdsPgGL5wVUAxf0jwDgnS81WLpnSD+WtJFJvci6BmbFU2
-         h5bmBG3XUrVQy53EJsgw0Wj9fhWjxk+OIo8KsgNiMs+/4vt91SDlsVmsL6Tdf9Kumqhz
-         EDL8W3bYRb7kK7HxoeB+f4/GJZtFV7c19OAhMGEA1p0jSu2Nc1yjWyig8WbHCHxos5nE
-         mcIDqVoSCghjOXgAufvaD5yjz3wA7BRExMGJTvwHHDfsXqXgeceIlIrqXjvtdysLH5iK
-         7WNQ==
+        b=fIKEytn4C+mUq5tP5QtyXRJOQO84p0b0ELJq4FiEwjVpjBJLTysoLjPan1pfrrK543
+         NH1i+09qYJTqWNCWe2mVO60q2ZcnOdadqsCLNJM8cuC31/xAqvBi/JEKMOoItSvEiInj
+         1V/4Bxixmd8lMpgoFA4cOoy+z0bkTGbM3TaGt9GI6/qnqTeb+rPu0EtzY4sBwkanWEpQ
+         JKxgPAFFdSAKjKdOjAXpThvzH4BwR+O46GkaGecXkNZziAn5tkAkkghHe0vocBa0mh+d
+         5OO+yYSZgMxkTZG1PW4b0cqypRZrLk/n8Ibur0kvGKCMOeIN0B4Sjy2ll8L2BfInO1XQ
+         fMTw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=YSDBsvNUqnUp/t7kjQNVbtVYe15sAK39prvQBCJ8iQY=;
-        b=N9vgu3g9taihvAVkuV0TqVVhRfkZeJigN9e4KR4DpoSZwnGaFR/klhg3urlV8OfScu
-         cZhB7AW7C9X2d/fltxwWNFmf/XIpym/clZ5cyAf/YMDLfJG0o0+zDOznFjr9SzrF9x1l
-         BK2sxTQBLr4o63Fvyit5AKt0ZYclguXAvyaVAQp9sFsF0URnLWD8u1GPq3mgK0pIpcCW
-         0ZWlaUS8MRKe0w1qYde0aBuRPGWi1XrM5Dl3SNRdL4D/0e/DPjWL2Cb6biq4aVsw6Sh6
-         KYq8pCRP1CUiHu7y80d7bHvsmTpJejEuX6SqHKGyJFrIo7sAK2PWX2qTX7ElaMetqcuf
-         I96Q==
+        h=mime-version:user-agent:references:message-id:in-reply-to:subject
+         :cc:to:from:date:dkim-signature;
+        bh=bni+Z42fzJug5JhYQ5stiuRJiEWmfpZ/sFa5RIyPdd4=;
+        b=CgtWFlKnQaIM7ku3PY6l6eQW3TdvleiTa+igYVAUXD9GVvvcgp7Vm1M97T3Nrqsvvl
+         jPti0dQgbsugfdnMOTTnTir2G8+Yb25+gIOXaGU6KyePNeneAWarCh9xaRBdX9rNjzjQ
+         mybIoWop7DK/jQZe9zrMpFdUUEDIx8PmmLVNsS26dYADcL4gWAtfI1Ty6DFllkUE7aki
+         PvoyQy61TRGRlYtWjlOiemvjY+HsxjIMdFJieyjJ4bGcQxUWyj478bwd3Q3gXnxrvcOv
+         ThalB70z6ZGevheZCYIc0ZOX7ozk4kJjASVdmwsdBNhu0vXmirOVLQQ0LwIQtKoUj2Wd
+         o+sQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@linux-foundation.org header.s=google header.b=g84+xOg5;
-       spf=pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=torvalds@linuxfoundation.org
+       dkim=pass header.i=@google.com header.s=20161025 header.b=emeuTjc+;
+       spf=pass (google.com: domain of hughd@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=hughd@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i26sor6896064lfo.57.2019.07.17.15.05.14
+        by mx.google.com with SMTPS id h90sor30660834plb.26.2019.07.17.15.14.51
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 17 Jul 2019 15:05:15 -0700 (PDT)
-Received-SPF: pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Wed, 17 Jul 2019 15:14:51 -0700 (PDT)
+Received-SPF: pass (google.com: domain of hughd@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@linux-foundation.org header.s=google header.b=g84+xOg5;
-       spf=pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=torvalds@linuxfoundation.org
+       dkim=pass header.i=@google.com header.s=20161025 header.b=emeuTjc+;
+       spf=pass (google.com: domain of hughd@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=hughd@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=linux-foundation.org; s=google;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=YSDBsvNUqnUp/t7kjQNVbtVYe15sAK39prvQBCJ8iQY=;
-        b=g84+xOg5RI1fWUeKUBJwojGU94tRjD8iZnr7jFeKgSFJWGDE5P+hiJZ/fByUC7X2Ud
-         Qp+qvIYxZtjYMQm2/OAIJKIyXJb/8NX7XJR0SU91SEDjU6fmhg1H4carPg11uTh9RG8E
-         J486BoqJAuMyOcptmKjQRPSZoDYh89CS+IIos=
-X-Google-Smtp-Source: APXvYqyjJSuV+12rAr3h6vjva9b6AsjqQ0DE9o7aE8kp1CPcIj4Tlw5YZ0xPSz161IkxzES2R4clQA==
-X-Received: by 2002:a19:f819:: with SMTP id a25mr19936331lff.183.1563401113750;
-        Wed, 17 Jul 2019 15:05:13 -0700 (PDT)
-Received: from mail-lj1-f170.google.com (mail-lj1-f170.google.com. [209.85.208.170])
-        by smtp.gmail.com with ESMTPSA id j3sm3681217lfp.34.2019.07.17.15.05.12
-        for <linux-mm@kvack.org>
-        (version=TLS1_3 cipher=AEAD-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Jul 2019 15:05:13 -0700 (PDT)
-Received: by mail-lj1-f170.google.com with SMTP id r9so25206091ljg.5
-        for <linux-mm@kvack.org>; Wed, 17 Jul 2019 15:05:12 -0700 (PDT)
-X-Received: by 2002:a2e:9192:: with SMTP id f18mr21972538ljg.52.1563401112629;
- Wed, 17 Jul 2019 15:05:12 -0700 (PDT)
+        d=google.com; s=20161025;
+        h=date:from:to:cc:subject:in-reply-to:message-id:references
+         :user-agent:mime-version;
+        bh=bni+Z42fzJug5JhYQ5stiuRJiEWmfpZ/sFa5RIyPdd4=;
+        b=emeuTjc+mXVOEbjKQSGjm9CTjjRmVL0k9KVsdgLViBbSz4c0MlMsZPuJoZ9nbSJw5L
+         OFXue6RA4LeGHn8VRW3VPXoRi6c+e+3VnffcqtVTDq4CdOv5dyfgJtIwK6KuzBfA9bpO
+         BkGdW7ZgeklhFzPd2RYS+RCz9i6Op8NbJhAJxNcBytHVVHBpmP1IuS0XdjNrNjEpiKYs
+         0oeCPZMBE9AwPF8P1AhEopgZqEvAdiQoDTKwtlZxWv/xsn/wLlVJY+ENcS1ZNx3J53D1
+         T1W0NS4jkJkOdBtTdDzS0fAKkplvc1e79V5oyKTtkgHmPAEWAvnKvt4l6K9xsxcnfkbA
+         7YjQ==
+X-Google-Smtp-Source: APXvYqxqTE3Ak4PslnTEdETq6mYvLmSYVFMaDKC39P/K6Xxy0gPBa0uji6xX9ZEZ1IcX9kCFU6w1WQ==
+X-Received: by 2002:a17:902:e282:: with SMTP id cf2mr46538329plb.301.1563401690083;
+        Wed, 17 Jul 2019 15:14:50 -0700 (PDT)
+Received: from [100.112.64.100] ([104.133.8.100])
+        by smtp.gmail.com with ESMTPSA id f64sm27346303pfa.115.2019.07.17.15.14.48
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 17 Jul 2019 15:14:49 -0700 (PDT)
+Date: Wed, 17 Jul 2019 15:14:04 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+X-X-Sender: hugh@eggly.anvils
+To: Yang Shi <yang.shi@linux.alibaba.com>
+cc: hughd@google.com, kirill.shutemov@linux.intel.com, mhocko@suse.com, 
+    vbabka@suse.cz, rientjes@google.com, akpm@linux-foundation.org, 
+    linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Subject: Re: [v4 PATCH 1/2] mm: thp: make transhuge_vma_suitable available
+ for anonymous THP
+In-Reply-To: <1563400758-124759-2-git-send-email-yang.shi@linux.alibaba.com>
+Message-ID: <alpine.LSU.2.11.1907171512030.6309@eggly.anvils>
+References: <1563400758-124759-1-git-send-email-yang.shi@linux.alibaba.com> <1563400758-124759-2-git-send-email-yang.shi@linux.alibaba.com>
+User-Agent: Alpine 2.11 (LSU 23 2013-08-11)
 MIME-Version: 1.0
-References: <20190625143715.1689-1-hch@lst.de> <20190625143715.1689-10-hch@lst.de>
- <20190717215956.GA30369@altlinux.org>
-In-Reply-To: <20190717215956.GA30369@altlinux.org>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Wed, 17 Jul 2019 15:04:56 -0700
-X-Gmail-Original-Message-ID: <CAHk-=whj_+tYSRcDsw7mDGrkmyU9tAk-a53XK271wYtDqYRzig@mail.gmail.com>
-Message-ID: <CAHk-=whj_+tYSRcDsw7mDGrkmyU9tAk-a53XK271wYtDqYRzig@mail.gmail.com>
-Subject: Re: [PATCH 09/16] sparc64: use the generic get_user_pages_fast code
-To: "Dmitry V. Levin" <ldv@altlinux.org>
-Cc: Christoph Hellwig <hch@lst.de>, Khalid Aziz <khalid.aziz@oracle.com>, 
-	Andrew Morton <akpm@linux-foundation.org>, "David S. Miller" <davem@davemloft.net>, 
-	Anatoly Pugachev <matorola@gmail.com>, sparclinux@vger.kernel.org, 
-	Linux-MM <linux-mm@kvack.org>, 
-	Linux List Kernel Mailing <linux-kernel@vger.kernel.org>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jul 17, 2019 at 2:59 PM Dmitry V. Levin <ldv@altlinux.org> wrote:
->
-> So this ended up as commit 7b9afb86b6328f10dc2cad9223d7def12d60e505
-> (thanks to Anatoly for bisecting) and introduced a regression:
-> futex.test from the strace test suite now causes an Oops on sparc64
-> in futex syscall.
+On Thu, 18 Jul 2019, Yang Shi wrote:
 
-Can you post the oops here in the same thread too? Maybe it's already
-posted somewhere else, but I can't seem to find anything likely on
-lkml at least..
+> The transhuge_vma_suitable() was only available for shmem THP, but
+> anonymous THP has the same check except pgoff check.  And, it will be
+> used for THP eligible check in the later patch, so make it available for
+> all kind of THPs.  This also helps reduce code duplication slightly.
+> 
+> Since anonymous THP doesn't have to check pgoff, so make pgoff check
+> shmem vma only.
+> 
+> And regroup some functions in include/linux/mm.h to solve compile issue since
+> transhuge_vma_suitable() needs call vma_is_anonymous() which was defined
+> after huge_mm.h is included.
+> 
+> Cc: Hugh Dickins <hughd@google.com>
 
-On x86-64, it obviously just causes the (expected) EFAULT error from
-the futex call.
+Thanks!
+Acked-by: Hugh Dickins <hughd@google.com>
 
-Somebody with access to sparc64 probably needs to debug this, but
-having the exact oops wouldn't hurt...
-
-             Linus
+> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: Vlastimil Babka <vbabka@suse.cz>
+> Cc: David Rientjes <rientjes@google.com>
+> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
+> ---
+>  include/linux/huge_mm.h | 23 +++++++++++++++++++++++
+>  include/linux/mm.h      | 34 +++++++++++++++++-----------------
+>  mm/huge_memory.c        |  2 +-
+>  mm/memory.c             | 13 -------------
+>  4 files changed, 41 insertions(+), 31 deletions(-)
+> 
+> diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+> index 7cd5c15..45ede62 100644
+> --- a/include/linux/huge_mm.h
+> +++ b/include/linux/huge_mm.h
+> @@ -121,6 +121,23 @@ static inline bool __transparent_hugepage_enabled(struct vm_area_struct *vma)
+>  
+>  bool transparent_hugepage_enabled(struct vm_area_struct *vma);
+>  
+> +#define HPAGE_CACHE_INDEX_MASK (HPAGE_PMD_NR - 1)
+> +
+> +static inline bool transhuge_vma_suitable(struct vm_area_struct *vma,
+> +		unsigned long haddr)
+> +{
+> +	/* Don't have to check pgoff for anonymous vma */
+> +	if (!vma_is_anonymous(vma)) {
+> +		if (((vma->vm_start >> PAGE_SHIFT) & HPAGE_CACHE_INDEX_MASK) !=
+> +			(vma->vm_pgoff & HPAGE_CACHE_INDEX_MASK))
+> +			return false;
+> +	}
+> +
+> +	if (haddr < vma->vm_start || haddr + HPAGE_PMD_SIZE > vma->vm_end)
+> +		return false;
+> +	return true;
+> +}
+> +
+>  #define transparent_hugepage_use_zero_page()				\
+>  	(transparent_hugepage_flags &					\
+>  	 (1<<TRANSPARENT_HUGEPAGE_USE_ZERO_PAGE_FLAG))
+> @@ -271,6 +288,12 @@ static inline bool transparent_hugepage_enabled(struct vm_area_struct *vma)
+>  	return false;
+>  }
+>  
+> +static inline bool transhuge_vma_suitable(struct vm_area_struct *vma,
+> +		unsigned long haddr)
+> +{
+> +	return false;
+> +}
+> +
+>  static inline void prep_transhuge_page(struct page *page) {}
+>  
+>  #define transparent_hugepage_flags 0UL
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index 0389c34..beae0ae 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -541,6 +541,23 @@ static inline void vma_set_anonymous(struct vm_area_struct *vma)
+>  	vma->vm_ops = NULL;
+>  }
+>  
+> +static inline bool vma_is_anonymous(struct vm_area_struct *vma)
+> +{
+> +	return !vma->vm_ops;
+> +}
+> +
+> +#ifdef CONFIG_SHMEM
+> +/*
+> + * The vma_is_shmem is not inline because it is used only by slow
+> + * paths in userfault.
+> + */
+> +bool vma_is_shmem(struct vm_area_struct *vma);
+> +#else
+> +static inline bool vma_is_shmem(struct vm_area_struct *vma) { return false; }
+> +#endif
+> +
+> +int vma_is_stack_for_current(struct vm_area_struct *vma);
+> +
+>  /* flush_tlb_range() takes a vma, not a mm, and can care about flags */
+>  #define TLB_FLUSH_VMA(mm,flags) { .vm_mm = (mm), .vm_flags = (flags) }
+>  
+> @@ -1629,23 +1646,6 @@ static inline void cancel_dirty_page(struct page *page)
+>  
+>  int get_cmdline(struct task_struct *task, char *buffer, int buflen);
+>  
+> -static inline bool vma_is_anonymous(struct vm_area_struct *vma)
+> -{
+> -	return !vma->vm_ops;
+> -}
+> -
+> -#ifdef CONFIG_SHMEM
+> -/*
+> - * The vma_is_shmem is not inline because it is used only by slow
+> - * paths in userfault.
+> - */
+> -bool vma_is_shmem(struct vm_area_struct *vma);
+> -#else
+> -static inline bool vma_is_shmem(struct vm_area_struct *vma) { return false; }
+> -#endif
+> -
+> -int vma_is_stack_for_current(struct vm_area_struct *vma);
+> -
+>  extern unsigned long move_page_tables(struct vm_area_struct *vma,
+>  		unsigned long old_addr, struct vm_area_struct *new_vma,
+>  		unsigned long new_addr, unsigned long len,
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> index 885642c..782dd14 100644
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -689,7 +689,7 @@ vm_fault_t do_huge_pmd_anonymous_page(struct vm_fault *vmf)
+>  	struct page *page;
+>  	unsigned long haddr = vmf->address & HPAGE_PMD_MASK;
+>  
+> -	if (haddr < vma->vm_start || haddr + HPAGE_PMD_SIZE > vma->vm_end)
+> +	if (!transhuge_vma_suitable(vma, haddr))
+>  		return VM_FAULT_FALLBACK;
+>  	if (unlikely(anon_vma_prepare(vma)))
+>  		return VM_FAULT_OOM;
+> diff --git a/mm/memory.c b/mm/memory.c
+> index 89325f9..e2bb51b 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -3162,19 +3162,6 @@ static vm_fault_t pte_alloc_one_map(struct vm_fault *vmf)
+>  }
+>  
+>  #ifdef CONFIG_TRANSPARENT_HUGE_PAGECACHE
+> -
+> -#define HPAGE_CACHE_INDEX_MASK (HPAGE_PMD_NR - 1)
+> -static inline bool transhuge_vma_suitable(struct vm_area_struct *vma,
+> -		unsigned long haddr)
+> -{
+> -	if (((vma->vm_start >> PAGE_SHIFT) & HPAGE_CACHE_INDEX_MASK) !=
+> -			(vma->vm_pgoff & HPAGE_CACHE_INDEX_MASK))
+> -		return false;
+> -	if (haddr < vma->vm_start || haddr + HPAGE_PMD_SIZE > vma->vm_end)
+> -		return false;
+> -	return true;
+> -}
+> -
+>  static void deposit_prealloc_pte(struct vm_fault *vmf)
+>  {
+>  	struct vm_area_struct *vma = vmf->vma;
+> -- 
+> 1.8.3.1
+> 
+> 
 
