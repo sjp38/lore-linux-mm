@@ -2,192 +2,219 @@ Return-Path: <SRS0=+T2N=VO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.3 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.7 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 55C44C76195
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Jul 2019 01:51:16 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 85BFDC76192
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Jul 2019 02:29:09 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1096620818
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Jul 2019 01:51:15 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id EED5420818
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Jul 2019 02:29:08 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="AIh90U/C"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1096620818
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
+	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="IlHYoGDp"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EED5420818
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9E7D66B0006; Tue, 16 Jul 2019 21:51:15 -0400 (EDT)
+	id 6972C6B0003; Tue, 16 Jul 2019 22:29:08 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9981C6B0008; Tue, 16 Jul 2019 21:51:15 -0400 (EDT)
+	id 6488E6B0005; Tue, 16 Jul 2019 22:29:08 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 887B68E0001; Tue, 16 Jul 2019 21:51:15 -0400 (EDT)
+	id 50FB58E0001; Tue, 16 Jul 2019 22:29:08 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yb1-f200.google.com (mail-yb1-f200.google.com [209.85.219.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 68AD46B0006
-	for <linux-mm@kvack.org>; Tue, 16 Jul 2019 21:51:15 -0400 (EDT)
-Received: by mail-yb1-f200.google.com with SMTP id t18so18315679ybp.13
-        for <linux-mm@kvack.org>; Tue, 16 Jul 2019 18:51:15 -0700 (PDT)
+Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 2784D6B0003
+	for <linux-mm@kvack.org>; Tue, 16 Jul 2019 22:29:08 -0400 (EDT)
+Received: by mail-ot1-f69.google.com with SMTP id a8so12764783oti.8
+        for <linux-mm@kvack.org>; Tue, 16 Jul 2019 19:29:08 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding:dkim-signature;
-        bh=1dmjq+OnPGvrHvEejwkg5+2298h2fZxzldWUuZPTtbI=;
-        b=VWBF3iMZixehGUahn4WTTuXFWFfbE1h6sKKjhrs/fQ89hmuncJvYUVJBMisGNAfAnT
-         2xi8s/C//O76d5hCJI96iXngZPOJZ0e2mjZA8M5kBla7b2ahGt5xSgRJbqXkfnchbkNa
-         wIYoUxb+/EuMGAFZxXNdbLldlkfNUWD9nhSaE04XLb90c7Q9IYrenvAI5pep334E7gr9
-         52gGBzrzmCgGYHqHdq9RtS3L/6uSizjlKjR02o6LblWyLBSEikk9Xr/eVOL7Tt44ngeI
-         5feiDdUUpLB+5/9VwVy68Z/pOB8N1rrxrFgVn43HPH2fjnSVFKlJZqDUiE8ikeLXX/s6
-         KN3g==
-X-Gm-Message-State: APjAAAVBNBl1o45gz21v1ahqX+EZi2GEpgXcpWvU2keBzMPz6PgDdCUo
-	dEsK6/P61eifwtr/4q3RT1P1GAXxTaLzlrnFIEav/eaXsXJdbedWpSYbJtVgOufUInergfoMrtr
-	aJ3dPwthi7til1o5QherkDJMJubwnWzEa1ZjXwbe7a+OlxIED7TrR18QZmAoiDIq60w==
-X-Received: by 2002:a81:1bcb:: with SMTP id b194mr22235855ywb.321.1563328275120;
-        Tue, 16 Jul 2019 18:51:15 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzIrTr2Yi+N5Zc5G+iBGnk57/0d8wdb9BISQ0c7YpCEaOLOGXZH+G+bf1BRI0yfEwVCcc+h
-X-Received: by 2002:a81:1bcb:: with SMTP id b194mr22235835ywb.321.1563328274518;
-        Tue, 16 Jul 2019 18:51:14 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563328274; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=Xha1gnu4k9Oy72ln0mL+F+SQtEp2dX0Dej1VFn9Byxc=;
+        b=PGqyJ7nVorAoTThMZ3ONExvjjOs+8BnDLtt8GpU6YuEJwXJt5hbDymGUDOSCEA9PMc
+         XJs1i3eefQbsIFrksAlau3K+t+i2Xne5tbL3gC47FMv1inNM85WZQuV4L6BJJscYzdw6
+         OCPmqMPgZN9AX55LWZH/d7H3XV3NYjdlEM9sk+0HwKNDqYDnLBHzvxAQEUMOtiLqKd1y
+         ttSE+G+lJuEqwTDtaVreBURd7O0DrXzZeGVffTTuqjo1QxnNufoSjuRDS1zZJsyRnZLp
+         +1pt6l7wVF6hK/U2vZ0rBQI+9JQfqIzaRNqFd2fNINZiX5zpP5N5yefhS4hGHC87r3E/
+         D5oA==
+X-Gm-Message-State: APjAAAW3om7BCITvTFK3RZqF0Eagf7c1YCJRIYYZ4QIy7aK+v8eEAT3u
+	WaIZV6QJauIZWyIgP5Nkk9/xfPNJ+RUmJWnGmUtsKQJ4nI8FHlGtVuNkxW1WAjeSkvuRBqeax/t
+	lkBSq5Dd5r2GDkh2bhOdg0OABQV3KJbgoi2QDvRmngME/D6QRs6NsghtvEEQMwus8yA==
+X-Received: by 2002:aca:518f:: with SMTP id f137mr16408045oib.123.1563330547700;
+        Tue, 16 Jul 2019 19:29:07 -0700 (PDT)
+X-Received: by 2002:aca:518f:: with SMTP id f137mr16408013oib.123.1563330546822;
+        Tue, 16 Jul 2019 19:29:06 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563330546; cv=none;
         d=google.com; s=arc-20160816;
-        b=ondDRwgp4xc/HglHJk2OtJJi2JrlbDGoAsOOPvxTRtnv/lZhQd+ViKHfl1cAgm4tfC
-         BX2j5vCKtSI7VT+UQHTxBRXUcbUGH0TrxDWc6wVNOufjKU3ok8DIZ85tNPazZnmfaV2t
-         DBUtHbDTY34jXnLGiB5xbnCHS5qN34OxN6jUqVyYngghkCNSqw4u4+Fv6g57ZtR8JYIZ
-         NduDssOLJl9ExDyORZzIZClwtpcUFUDRN0OMzto4h1ljdMVpUdHtp+rlQQu55iIVYqg1
-         9CdFgLuTcLQEUl0VWOH5i3HCyiVFPnshqpVyO2NH7m4eigsVT6Qn/EP1gHrdUm1y4zA3
-         fjng==
+        b=RD3QTZp1e4PPUsjthtMDQMe6N1Rte2oCGcGyv9mvfEoMXY3M3mxZLeNBZrle+0Pyjl
+         8X4LAgmFV8yJxE1hNC5yCw4fQIWht822/2eRuvW2j2KN40vyiydZ87/yNZv/kQWUFtys
+         xwK/Q/qW8f1l4haZB5UN67EP2M0lfpyzqQlnDnmT5UxtlfWHVcm8EY5t6g8uvsDUNM1f
+         CUx/sy8KqGhIfh4HbE1OIMOXBlWb2Hdsdai5JabQ2g5ut1eO8UySQN8tzC/ev1U02iz3
+         dsgORqMUdYDJLS9jmUhseWgHUCsYReJvvat8Sc2d8267ksCfoyeWqTyuESa73LOrHfva
+         MMJw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=dkim-signature:content-transfer-encoding:content-language
-         :in-reply-to:mime-version:user-agent:date:message-id:from:references
-         :cc:to:subject;
-        bh=1dmjq+OnPGvrHvEejwkg5+2298h2fZxzldWUuZPTtbI=;
-        b=NvNtEXJZwWilkFGAYA+VQH0eopiRZbR67PCeD5etxjSBUicnaWu8P4kdztqXvuq2/c
-         njILXbrF8VVEVX/nex5Y7Xdr3PGTBmm3tn6sXjSJvvZO9pyGNB66m6KsULBQzeQnmkOX
-         0gbETPmagtg4oxk0vqNcndDJoKL6lpTPmmpaHCeWT15XyZAOMXPh1I8jt3GoxI5wirdY
-         mlStHlIu+PoQtbFNz/9PKBOFeJOXlQke7ziTdQr4smmWkHXrBqnXTWqLN3vu/dVt24zF
-         C6NbzxPvLFruW9RKxQYXWV/JO6lpxPG/uN8fpXb5dNxE6jvYROIkCSEFAaPLCz8l3a9T
-         uanw==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=Xha1gnu4k9Oy72ln0mL+F+SQtEp2dX0Dej1VFn9Byxc=;
+        b=LKfqv3O71cbUCSa9qEtLjjxihJhge4XnQjzO6TJzZP/rIIYaMo54X+YULr55lYF9Z1
+         jk0mrFLg5DDQIf3fLF4OQZ74iXXJW/SdPoU1ioUW/8/TRXURmEWNLa3/sQVze6EAawgB
+         0xu5ONHdu0QB4vGNToB8A21Rh3u9NTms7SRYu6yIvjrz+YvAEmz9/Ba0kaRUhrL98E/M
+         uGH0mXUUrTOkju5JscRlaAgiFCIf42cvs+ldni0LxjILJYMkvmw2UxOC4PtokAT0BDwF
+         V/0jJSqfuj1eWoaUnglhITXa833czckdv8nlA//8h1/rq6ntUBSgOyHbyM5SDVmDRd9Z
+         FH4g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b="AIh90U/C";
-       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
-        by mx.google.com with ESMTPS id 80si8105044ywp.322.2019.07.16.18.51.14
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=IlHYoGDp;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id i14sor12110585otl.103.2019.07.16.19.29.06
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 Jul 2019 18:51:14 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.64 as permitted sender) client-ip=216.228.121.64;
+        (Google Transport Security);
+        Tue, 16 Jul 2019 19:29:06 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b="AIh90U/C";
-       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate15.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
-	id <B5d2e7f170000>; Tue, 16 Jul 2019 18:51:19 -0700
-Received: from hqmail.nvidia.com ([172.20.161.6])
-  by hqpgpgate101.nvidia.com (PGP Universal service);
-  Tue, 16 Jul 2019 18:51:13 -0700
-X-PGP-Universal: processed;
-	by hqpgpgate101.nvidia.com on Tue, 16 Jul 2019 18:51:13 -0700
-Received: from [10.110.48.28] (172.20.13.39) by HQMAIL107.nvidia.com
- (172.20.187.13) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Wed, 17 Jul
- 2019 01:51:11 +0000
-Subject: Re: [PATCH 3/3] mm/hmm: Fix bad subpage pointer in try_to_unmap_one
-To: Ralph Campbell <rcampbell@nvidia.com>, <linux-mm@kvack.org>
-CC: <linux-kernel@vger.kernel.org>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?=
-	<jglisse@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
-	Mike Kravetz <mike.kravetz@oracle.com>, Christoph Hellwig <hch@lst.de>, Jason
- Gunthorpe <jgg@mellanox.com>, <stable@vger.kernel.org>, Andrew Morton
-	<akpm@linux-foundation.org>
-References: <20190717001446.12351-1-rcampbell@nvidia.com>
- <20190717001446.12351-4-rcampbell@nvidia.com>
-From: John Hubbard <jhubbard@nvidia.com>
-X-Nvconfidentiality: public
-Message-ID: <67107cc6-cc8a-c072-a323-b5c417fb45c6@nvidia.com>
-Date: Tue, 16 Jul 2019 18:51:11 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.2
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=IlHYoGDp;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=intel-com.20150623.gappssmtp.com; s=20150623;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=Xha1gnu4k9Oy72ln0mL+F+SQtEp2dX0Dej1VFn9Byxc=;
+        b=IlHYoGDprQ1xOzWMqON3a05nzYhFYMAfYY+PzndVmhk+L5azjE63rLAzWHCaDuwu8R
+         Of4UQD6V2fJDBr9UCq/ZdnKPYgszELTUmF3dTGaKdC3LSbIfV2C/1F2jg8QUJMTvVQ2k
+         PgTpQkgwGckGmJQvv+25I++JVfaO/COZAuj6W2UV5YeHvst26QRmfYJ79mYf0NjZKieV
+         ovsu2HS+gICuc4kfGK5XDCcJI3pCe8z5+0QrXrt93xDSOIcUTlxxoCstyUToYXmtsDro
+         662tsiQbhTYvFUo4yuYzMaURJwgFGLUf3W4Hv2qzgg/iIGG1omBV0rG5wK2641XjyzjH
+         rWsw==
+X-Google-Smtp-Source: APXvYqxMaFQwJqNDONSbr/N/VaB8L20422JmTVZPiPqGIb8xJFeJh37HfCl+fOz5CxTOl3NTc8LlU1vZPBemm3j1mKI=
+X-Received: by 2002:a9d:470d:: with SMTP id a13mr26898798otf.126.1563330546010;
+ Tue, 16 Jul 2019 19:29:06 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20190717001446.12351-4-rcampbell@nvidia.com>
-X-Originating-IP: [172.20.13.39]
-X-ClientProxiedBy: HQMAIL106.nvidia.com (172.18.146.12) To
- HQMAIL107.nvidia.com (172.20.187.13)
-Content-Type: text/plain; charset="utf-8"
-Content-Language: en-US
-Content-Transfer-Encoding: quoted-printable
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
-	t=1563328279; bh=1dmjq+OnPGvrHvEejwkg5+2298h2fZxzldWUuZPTtbI=;
-	h=X-PGP-Universal:Subject:To:CC:References:From:X-Nvconfidentiality:
-	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
-	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
-	 Content-Transfer-Encoding;
-	b=AIh90U/Cm54D0y3Ou8lNAM1j8ozgoxqDzEIxoGg959X3ZDt/Gxbu0DLmQZjTpiPT3
-	 k0E4lrszsGcs4DXpbafUoCk0Tvr1JFCUh3CZ9+tmc1Pe9C7eW3+7L6m3TnM6zAoOOO
-	 uEW7HREvelwp9GSn7pMHEEYUvqSF5SL6ERgDBFqfOL5pI5l6ukeW8cmk2EOojUvVyW
-	 8HQDwvUHMa7xudjZMCkqEhRWCYTYCfWG1qPhlloRFCHHYVkNTRwrsQFxObgdrwQj01
-	 p9dtBgaPXQTk98EdNnY0m2+msq9M+krIEk6rKhqu9u/2MdjgnvwvxMKLi30pjZ3JBp
-	 kklI/IdXiI2ug==
+References: <20190715081549.32577-1-osalvador@suse.de> <20190715081549.32577-3-osalvador@suse.de>
+ <87tvbne0rd.fsf@linux.ibm.com> <1563225851.3143.24.camel@suse.de>
+In-Reply-To: <1563225851.3143.24.camel@suse.de>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Tue, 16 Jul 2019 19:28:54 -0700
+Message-ID: <CAPcyv4gp18-CRADqrqAbR0SnjKBoPaTyL_oaEyyNPJOeLybayg@mail.gmail.com>
+Subject: Re: [PATCH 2/2] mm,memory_hotplug: Fix shrink_{zone,node}_span
+To: Oscar Salvador <osalvador@suse.de>
+Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, 
+	David Hildenbrand <david@redhat.com>, Pavel Tatashin <pasha.tatashin@soleen.com>, 
+	Michal Hocko <mhocko@suse.com>, Linux MM <linux-mm@kvack.org>, 
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 7/16/19 5:14 PM, Ralph Campbell wrote:
-> When migrating an anonymous private page to a ZONE_DEVICE private page,
-> the source page->mapping and page->index fields are copied to the
-> destination ZONE_DEVICE struct page and the page_mapcount() is increased.
-> This is so rmap_walk() can be used to unmap and migrate the page back to
-> system memory. However, try_to_unmap_one() computes the subpage pointer
-> from a swap pte which computes an invalid page pointer and a kernel panic
-> results such as:
->=20
-> BUG: unable to handle page fault for address: ffffea1fffffffc8
->=20
-> Currently, only single pages can be migrated to device private memory so
-> no subpage computation is needed and it can be set to "page".
->=20
-> Fixes: a5430dda8a3a1c ("mm/migrate: support un-addressable ZONE_DEVICE pa=
-ge in migration")
-> Signed-off-by: Ralph Campbell <rcampbell@nvidia.com>
-> Cc: "J=C3=A9r=C3=B4me Glisse" <jglisse@redhat.com>
-> Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> Cc: Mike Kravetz <mike.kravetz@oracle.com>
-> Cc: Christoph Hellwig <hch@lst.de>
-> Cc: Jason Gunthorpe <jgg@mellanox.com>
-> Cc: <stable@vger.kernel.org>
-> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-> ---
->  mm/rmap.c | 1 +
->  1 file changed, 1 insertion(+)
->=20
-> diff --git a/mm/rmap.c b/mm/rmap.c
-> index e5dfe2ae6b0d..ec1af8b60423 100644
-> --- a/mm/rmap.c
-> +++ b/mm/rmap.c
-> @@ -1476,6 +1476,7 @@ static bool try_to_unmap_one(struct page *page, str=
-uct vm_area_struct *vma,
->  			 * No need to invalidate here it will synchronize on
->  			 * against the special swap migration pte.
->  			 */
-> +			subpage =3D page;
->  			goto discard;
->  		}
+On Mon, Jul 15, 2019 at 2:24 PM Oscar Salvador <osalvador@suse.de> wrote:
+>
+> On Mon, 2019-07-15 at 21:41 +0530, Aneesh Kumar K.V wrote:
+> > Oscar Salvador <osalvador@suse.de> writes:
+> >
+> > > Since [1], shrink_{zone,node}_span work on PAGES_PER_SUBSECTION
+> > > granularity.
+> > > The problem is that deactivation of the section occurs later on in
+> > > sparse_remove_section, so pfn_valid()->pfn_section_valid() will
+> > > always return
+> > > true before we deactivate the {sub}section.
+> >
+> > Can you explain this more? The patch doesn't update section_mem_map
+> > update sequence. So what changed? What is the problem in finding
+> > pfn_valid() return true there?
+>
+> I realized that the changelog was quite modest, so a better explanation
+>  will follow.
+>
+> Let us analize what shrink_{zone,node}_span does.
+> We have to remember that shrink_zone_span gets called every time a
+> section is to be removed.
+>
+> There can be three possibilites:
+>
+> 1) section to be removed is the first one of the zone
+> 2) section to be removed is the last one of the zone
+> 3) section to be removed falls in the middle
+>
+> For 1) and 2) cases, we will try to find the next section from
+> bottom/top, and in the third case we will check whether the section
+> contains only holes.
+>
+> Now, let us take the example where a ZONE contains only 1 section, and
+> we remove it.
+> The last loop of shrink_zone_span, will check for {start_pfn,end_pfn]
+> PAGES_PER_SECTION block the following:
+>
+> - section is valid
+> - pfn relates to the current zone/nid
+> - section is not the section to be removed
+>
+> Since we only got 1 section here, the check "start_pfn == pfn" will make us to continue the loop and then we are done.
+>
+> Now, what happens after the patch?
+>
+> We increment pfn on subsection basis, since "start_pfn == pfn", we jump
+> to the next sub-section (pfn+512), and call pfn_valid()-
+> >pfn_section_valid().
+> Since section has not been yet deactivded, pfn_section_valid() will
+> return true, and we will repeat this until the end of the loop.
+>
+> What should happen instead is:
+>
+> - we deactivate the {sub}-section before calling
+> shirnk_{zone,node}_span
+> - calls to pfn_valid() will now return false for the sections that have
+> been deactivated, and so we will get the pfn from the next activaded
+> sub-section, or nothing if the section is empty (section do not contain
+> active sub-sections).
+>
+> The example relates to the last loop in shrink_zone_span, but the same
+> applies to find_{smalles,biggest}_section.
+>
+> Please, note that we could probably do some hack like replacing:
+>
+> start_pfn == pfn
+>
+> with
+>
+> pfn < end_pfn
+>
+> But the way to fix this is to 1) deactivate {sub}-section and 2) let
+> shrink_{node,zone}_span find the next active {sub-section}.
+>
+> I hope this makes it more clear.
 
-The problem is clear, but the solution still leaves the code ever so slight=
-ly
-more confusing, and it was already pretty difficult to begin with.
+This makes it more clear that the problem is with the "start_pfn ==
+pfn" check relative to subsections, but it does not clarify why it
+needs to clear pfn_valid() before calling shrink_zone_span().
+Sections were not invalidated prior to shrink_zone_span() in the
+pre-subsection implementation and it seems all we need is to keep the
+same semantic. I.e. skip the range that is currently being removed:
 
-I still hold out hope for some comment documentation at least, and maybe
-even just removing the subpage variable (as Jerome mentioned, offline) as
-well.
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 37d49579ac15..b69832db442b 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -422,8 +422,8 @@ static void shrink_zone_span(struct zone *zone,
+unsigned long start_pfn,
+                if (page_zone(pfn_to_page(pfn)) != zone)
+                        continue;
 
-Jerome?
+-                /* If the section is current section, it continues the loop */
+-               if (start_pfn == pfn)
++                /* If the sub-section is current span being removed, skip */
++               if (pfn >= start_pfn && pfn < end_pfn)
+                        continue;
+
+                /* If we find valid section, we have nothing to do */
 
 
-thanks,
---=20
-John Hubbard
-NVIDIA
+I otherwise don't follow why we would need to deactivate prior to
+__remove_zone().
 
