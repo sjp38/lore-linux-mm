@@ -2,230 +2,163 @@ Return-Path: <SRS0=+T2N=VO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.0 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9D204C76192
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Jul 2019 05:39:09 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8EF36C76186
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Jul 2019 06:19:51 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5C05F21743
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Jul 2019 05:39:09 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5C05F21743
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id 2E8C621743
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Jul 2019 06:19:50 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="RZN+6hkY"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2E8C621743
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DAB616B0003; Wed, 17 Jul 2019 01:39:08 -0400 (EDT)
+	id 10A426B0006; Wed, 17 Jul 2019 02:19:47 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D5C9D8E0001; Wed, 17 Jul 2019 01:39:08 -0400 (EDT)
+	id 0BBC26B0008; Wed, 17 Jul 2019 02:19:47 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C23876B0006; Wed, 17 Jul 2019 01:39:08 -0400 (EDT)
+	id EEC678E0001; Wed, 17 Jul 2019 02:19:46 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 8C79C6B0003
-	for <linux-mm@kvack.org>; Wed, 17 Jul 2019 01:39:08 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id r7so11457037plo.6
-        for <linux-mm@kvack.org>; Tue, 16 Jul 2019 22:39:08 -0700 (PDT)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id B1ED46B0006
+	for <linux-mm@kvack.org>; Wed, 17 Jul 2019 02:19:46 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id z14so7094373pgr.22
+        for <linux-mm@kvack.org>; Tue, 16 Jul 2019 23:19:46 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:in-reply-to:references:date:mime-version:message-id;
-        bh=KTphljT76NaHnlTKlaaGDxJ2qjFJc1NysIEnorw109E=;
-        b=dHhKSXY0fzOugGo+zaMPMzhz3gHBaoenkNEb/3jy3yvdY61IFNvT/jts2gl9gNsI4D
-         GY7v87Wz27PuDggrt4KKmV7hJorYPZxrf9jiO4a+dm8Qtx9Tq+Di05+VQl5SABM3wAmq
-         Jzomhz3qHJPTeObJnU6srh9ASYxmIpzQNy2qpWGAVJKcnINAvPeFgY/zmJJGwu3611YN
-         phcttkGaQTj00rNPkQWxwoPLpuO7EaXhYZ4/ZtEWzUUhw9jdkI7hIjQtBO0OcXvMpLFX
-         PAFNTa6qSCgsIRqoM3NY4r4t1Z5LO1J3s8tRUtGBrLT7lmaA0XTI5sNGd4Wo3OlUTLdu
-         MQ7Q==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: APjAAAUZlraFFjzr9sAFvMstxL7LTsn69A0k19006q9XDvxhETbIkyP1
-	9legeSPuZFPRN39HEZAyKoeCMVDeqnZ/YLb0tEMntDi2C2ES3xCfzzlLwEAKCKPrrhQ/uwvjlqc
-	EHAqJqTnmw5tWhinIGFIc+5MIkmBwqJnrMf4BZCOMmL9Wu5y44/IF8aWkPn2UvGMrsw==
-X-Received: by 2002:a17:90a:9b08:: with SMTP id f8mr42054112pjp.103.1563341948231;
-        Tue, 16 Jul 2019 22:39:08 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwFHo5PAyxAJTKdMxZojX21LguSbyqfRS9097+9/kxyfAq6lWlwBgdhRzjI3CVGEDBayNVL
-X-Received: by 2002:a17:90a:9b08:: with SMTP id f8mr42054047pjp.103.1563341947477;
-        Tue, 16 Jul 2019 22:39:07 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563341947; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+         :message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=o9OnSlZJU5DUUCjEct8az2tBr1Fx/bIZ5665+npBK6E=;
+        b=Se1f1VLz4haxdgTgLFl+TLWRlRX3m8virQMDwVtaAoB6kWZdXNXo6peW/IMO+6SioF
+         0bMPWTExPqHL00ENlEa9Z8M7Zn3Evwx6znLAbMVSC+Nohjl83caGp4UNYpLJ+rdsKIhP
+         8m5evSSjC/QmMfXVo9/fGe19E+4324qtenU2D4jW+vGBBb91N1JktSFaKrifwoeZURHd
+         bIiI27yDmu36NyEecTAsF+sSKu8D2flOwpAQ31XK4CcqQIWcEAuVB+9d/XxyVknWIgpH
+         7/OE0M/CQViyRVU/NHvnkbMwVvQ3HnX2m9i8ZgrRzabP+g3+96/kIEa08lzoKlwmKZHB
+         eCFg==
+X-Gm-Message-State: APjAAAX2XjAsgme7G/rYgcJ9PMDrbnbIe6sn1kkAdvcdOI/83PQJ3QsE
+	E2JXjMZBAMWJ/psO1WYrmbXPLGepDM2IXheWDIqlsLpydIRhj6uoU3gY3xWFvRQfVmdoqntZYMt
+	I8eRJynnf1HSqQCicGEISG92itZsgxpz7cgxLFBTUSTPG1lB/7S0aMWGfgLg5a4D4uw==
+X-Received: by 2002:a17:902:6a87:: with SMTP id n7mr40452102plk.336.1563344386338;
+        Tue, 16 Jul 2019 23:19:46 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwnZvtwVu5otRN0wafV1puxwHeGqCvQcjyXiu8yR0Ow7S8wmFMOR9n+pbLmNE2yGqApkxTJ
+X-Received: by 2002:a17:902:6a87:: with SMTP id n7mr40452049plk.336.1563344385703;
+        Tue, 16 Jul 2019 23:19:45 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563344385; cv=none;
         d=google.com; s=arc-20160816;
-        b=ZGTijG1N+Gl8XLxzXgZTkANTJWlPmdsy+7IM7S2NgGBnjdRLS82IhyqFYeEAB2v4dV
-         p+dwZmPupD9qpsMIGgne4rehSFHGE1vf6wFWw4e+UxQVCiFC+21IavKGk5ym5I6DQlEL
-         n8vfgeTe0DXj2INOSNFeHl5ZXtav399aBwEeCIQKNEkuL+5UJThammgGJfBiuTuae+jW
-         gyn4WW4jt2pcPnMn0QwYdZxHNn/SlxAqiS1MsPfcmdfksAOFf9giWI9Vhjk7VFuETLED
-         bs7B+Vim72CA3cjWoSvawMOZ/dSMa/iX+XE1CjQz6TDXX7W1OetQ4QJi0krTdNQGONa/
-         G6lQ==
+        b=oegY8RJ1u426Gz1iCAOXsghnJBGFR/GsD5kPvqCHiMsiAnuatwzopcLSMfksr+l1hY
+         smQEzJaWxzVR8fsIxqUIZge0Kq7Tq1YDxAI1H08HH3gAKafXmY4Rii99elPuxde4TMCI
+         Gm+mWMRob/OfjGPZrU5zAFBZBwVaNVwU1EcEb93stWTqGkhFcALq/tq0Ns9r/w1+hOM6
+         BeD3ubSUcOBpMz4C7O8EViNUY428EYM+c3/+o/Cz4t3ZZ8q7e91OPI1Pwoeh9a2xuRM/
+         rlkhtsTzotbxnCyZGBpshzBRy5BSkndC6cJOT8HPOFPvdl/EKWENYG25u+d3NRhKgMOP
+         P/qg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:mime-version:date:references:in-reply-to:subject:cc:to
-         :from;
-        bh=KTphljT76NaHnlTKlaaGDxJ2qjFJc1NysIEnorw109E=;
-        b=0NL5xyo/9pieeyNs6iayMDiHLFc52YSRK29oPkkueimpC9dn+QDuxn4Yr0ydWR6DsK
-         OqUTuFiMpfSDH6mNuLElwgjZP0dMYw7yZhrtpdRWN3ZrVzc8J01K9QcbmmlrBFYp+hTr
-         BcEnn82wToYwA2UTop5G1Z7Tz/NkAI1U0vAxtPNxIJb+DGALTVyUIgOjokKmYsJ4muSr
-         UJDoqNdH9VYkX7zqGyiy+xwWNOZW1RZg2hj0vWrAvuEbeW+HQfK9CDV9GGOxGjnDX8gJ
-         6jk0ui3nkvWIUvHpZyM+7PN3qbFXxCjX6xjgoehcx+O3DivcxSB0rHSPDHk/KvvjDTEs
-         pX6w==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject
+         :dkim-signature;
+        bh=o9OnSlZJU5DUUCjEct8az2tBr1Fx/bIZ5665+npBK6E=;
+        b=StX9OWFGG+2aJ2ff4xCnXT1WDZ9yYPb3o3vGfFMQALAsVgqtl3yfZgdpmhsSYwFtiU
+         wjG6yUvI4uzdv9Xe8kI/DhDuouY00Wtq4dmYEm9Al0/qcW6OGX8vOb8BVDhv/F5GB1rk
+         3H9Pe7vNL66Qqzb+LO6HjzpfdIfgihgpMThwb3GOF80+YHyMl25Dq0ldUn+Us+um2iFW
+         HHS5yT37JrkMqbSI7pF7YCMDcE078lYHb/tgrGnane4gwU+j5pQtXOe+hwGFtN7UJKvG
+         OGliNvqFexmpN+R7aoFOU2saspBaVs+guIg3S6ovQimgcvN0wku3GXhzkCg9W3WtZymg
+         m3Uw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id t9si21233000pji.69.2019.07.16.22.39.07
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=RZN+6hkY;
+       spf=pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=rdunlap@infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id b20si20570905pls.24.2019.07.16.23.19.45
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 Jul 2019 22:39:07 -0700 (PDT)
-Received-SPF: pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Tue, 16 Jul 2019 23:19:45 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x6H5bYCH101721
-	for <linux-mm@kvack.org>; Wed, 17 Jul 2019 01:39:05 -0400
-Received: from e06smtp02.uk.ibm.com (e06smtp02.uk.ibm.com [195.75.94.98])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2tsurwv7h9-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 17 Jul 2019 01:39:05 -0400
-Received: from localhost
-	by e06smtp02.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
-	Wed, 17 Jul 2019 06:39:02 +0100
-Received: from b06cxnps4076.portsmouth.uk.ibm.com (9.149.109.198)
-	by e06smtp02.uk.ibm.com (192.168.101.132) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Wed, 17 Jul 2019 06:38:59 +0100
-Received: from d06av25.portsmouth.uk.ibm.com (d06av25.portsmouth.uk.ibm.com [9.149.105.61])
-	by b06cxnps4076.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x6H5cwd743843590
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Wed, 17 Jul 2019 05:38:58 GMT
-Received: from d06av25.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id F244F11C052;
-	Wed, 17 Jul 2019 05:38:57 +0000 (GMT)
-Received: from d06av25.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 7A03411C04A;
-	Wed, 17 Jul 2019 05:38:56 +0000 (GMT)
-Received: from skywalker.linux.ibm.com (unknown [9.124.35.18])
-	by d06av25.portsmouth.uk.ibm.com (Postfix) with ESMTP;
-	Wed, 17 Jul 2019 05:38:56 +0000 (GMT)
-X-Mailer: emacs 26.2 (via feedmail 11-beta-1 I)
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-To: Oscar Salvador <osalvador@suse.de>, akpm@linux-foundation.org
-Cc: dan.j.williams@intel.com, david@redhat.com, pasha.tatashin@soleen.com,
-        mhocko@suse.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Subject: Re: [PATCH 2/2] mm,memory_hotplug: Fix shrink_{zone,node}_span
-In-Reply-To: <1563225851.3143.24.camel@suse.de>
-References: <20190715081549.32577-1-osalvador@suse.de> <20190715081549.32577-3-osalvador@suse.de> <87tvbne0rd.fsf@linux.ibm.com> <1563225851.3143.24.camel@suse.de>
-Date: Wed, 17 Jul 2019 11:08:54 +0530
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=RZN+6hkY;
+       spf=pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=rdunlap@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=Content-Transfer-Encoding:
+	Content-Type:In-Reply-To:MIME-Version:Date:Message-ID:From:References:Cc:To:
+	Subject:Sender:Reply-To:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=o9OnSlZJU5DUUCjEct8az2tBr1Fx/bIZ5665+npBK6E=; b=RZN+6hkYNj53BCOuGJCII7CTy
+	4UP0nDFKHWBfBLP60hguy5Cccg/HS5uW+WBamn3keHex3uSblsfTqp/vgYdbxQgJygTaMedfhoYUI
+	+MfE8bpoa4voUC9FwnPrYXuSMFpTNjBGgvZChZaM29s312FbxnXBlBIU3L4ziP7x4fonUeTudxLbD
+	JFV8ZTPulU5KD102qXFqqeFMKpKGgxZ7zr65/CSgBCtWteOLA7g4OjTlLVZrqbDWNgc5W2yLDndTQ
+	O8QO1XeaqDETBPXDnLRo0JFqvNBz4PHvfzQkYgeTt8M2uTKxDLA3b4XCUzqqLmyglTrWXFS3mrpiu
+	TtiQN4IbA==;
+Received: from static-50-53-52-16.bvtn.or.frontiernet.net ([50.53.52.16] helo=dragon.dunlab)
+	by bombadil.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
+	id 1hndHz-0005Xd-OA; Wed, 17 Jul 2019 06:19:43 +0000
+Subject: Re: mmotm 2019-07-16-17-14 uploaded
+To: Stephen Rothwell <sfr@canb.auug.org.au>
+Cc: akpm@linux-foundation.org, broonie@kernel.org, mhocko@suse.cz,
+ linux-next@vger.kernel.org, linux-fsdevel@vger.kernel.org,
+ linux-mm@kvack.org, linux-kernel@vger.kernel.org, mm-commits@vger.kernel.org
+References: <20190717001534.83sL1%akpm@linux-foundation.org>
+ <8165e113-6da1-c4c0-69eb-37b2d63ceed9@infradead.org>
+ <20190717143830.7f7c3097@canb.auug.org.au>
+From: Randy Dunlap <rdunlap@infradead.org>
+Message-ID: <a9d0f937-ef61-1d25-f539-96a20b7f8037@infradead.org>
+Date: Tue, 16 Jul 2019 23:19:40 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.2
 MIME-Version: 1.0
-Content-Type: text/plain
-X-TM-AS-GCONF: 00
-x-cbid: 19071705-0008-0000-0000-000002FE32CD
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19071705-0009-0000-0000-0000226BAB32
-Message-Id: <87o91tcj9t.fsf@linux.ibm.com>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-07-17_02:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1907170069
+In-Reply-To: <20190717143830.7f7c3097@canb.auug.org.au>
+Content-Type: text/plain; charset=windows-1252
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Oscar Salvador <osalvador@suse.de> writes:
+On 7/16/19 9:38 PM, Stephen Rothwell wrote:
+> Hi Randy,
+> 
+> On Tue, 16 Jul 2019 20:50:11 -0700 Randy Dunlap <rdunlap@infradead.org> wrote:
+>>
+>> drivers/gpu/drm/amd/amdgpu/Kconfig contains this (from linux-next.patch):
+>>
+>> --- a/drivers/gpu/drm/amd/amdgpu/Kconfig~linux-next
+>> +++ a/drivers/gpu/drm/amd/amdgpu/Kconfig
+>> @@ -27,7 +27,12 @@ config DRM_AMDGPU_CIK
+>>  config DRM_AMDGPU_USERPTR
+>>  	bool "Always enable userptr write support"
+>>  	depends on DRM_AMDGPU
+>> +<<<<<<< HEAD
+>>  	depends on HMM_MIRROR
+>> +=======
+>> +	depends on ARCH_HAS_HMM
+>> +	select HMM_MIRROR
+>> +>>>>>>> linux-next/akpm-base  
+>>  	help
+>>  	  This option selects CONFIG_HMM and CONFIG_HMM_MIRROR if it
+>>  	  isn't already selected to enabled full userptr support.
+>>
+>> which causes a lot of problems.
+> 
+> Luckily, I don't apply that patch (I instead merge the actual
+> linux-next tree at that point) so this does not affect the linux-next
+> included version of mmotm.
+> 
 
-> On Mon, 2019-07-15 at 21:41 +0530, Aneesh Kumar K.V wrote:
->> Oscar Salvador <osalvador@suse.de> writes:
->> 
->> > Since [1], shrink_{zone,node}_span work on PAGES_PER_SUBSECTION
->> > granularity.
->> > The problem is that deactivation of the section occurs later on in
->> > sparse_remove_section, so pfn_valid()->pfn_section_valid() will
->> > always return
->> > true before we deactivate the {sub}section.
->> 
->> Can you explain this more? The patch doesn't update section_mem_map
->> update sequence. So what changed? What is the problem in finding
->> pfn_valid() return true there?
->
-> I realized that the changelog was quite modest, so a better explanation
->  will follow.
->
-> Let us analize what shrink_{zone,node}_span does.
-> We have to remember that shrink_zone_span gets called every time a
-> section is to be removed.
->
-> There can be three possibilites:
->
-> 1) section to be removed is the first one of the zone
-> 2) section to be removed is the last one of the zone
-> 3) section to be removed falls in the middle
->  
-> For 1) and 2) cases, we will try to find the next section from
-> bottom/top, and in the third case we will check whether the section
-> contains only holes.
->
-> Now, let us take the example where a ZONE contains only 1 section, and
-> we remove it.
-> The last loop of shrink_zone_span, will check for {start_pfn,end_pfn]
-> PAGES_PER_SECTION block the following:
->
-> - section is valid
-> - pfn relates to the current zone/nid
-> - section is not the section to be removed
->
-> Since we only got 1 section here, the check "start_pfn == pfn" will make us to continue the loop and then we are done.
->
-> Now, what happens after the patch?
->
-> We increment pfn on subsection basis, since "start_pfn == pfn", we jump
-> to the next sub-section (pfn+512), and call pfn_valid()-
->>pfn_section_valid().
-> Since section has not been yet deactivded, pfn_section_valid() will
-> return true, and we will repeat this until the end of the loop.
->
-> What should happen instead is:
->
-> - we deactivate the {sub}-section before calling
-> shirnk_{zone,node}_span
-> - calls to pfn_valid() will now return false for the sections that have
-> been deactivated, and so we will get the pfn from the next activaded
-> sub-section, or nothing if the section is empty (section do not contain
-> active sub-sections).
->
-> The example relates to the last loop in shrink_zone_span, but the same
-> applies to find_{smalles,biggest}_section.
->
-> Please, note that we could probably do some hack like replacing:
->
-> start_pfn == pfn 
->
-> with
->
-> pfn < end_pfn
+for the record:  drivers/gpio/Makefile:
 
-Why do you consider this a hack? 
-
- /* If the section is current section, it continues the loop */
-	if (start_pfn == pfn)
-		continue;
-
-The comment explains that check is there to handle the exact scenario
-that you are fixing in this patch. With subsection patch that check is
-not sufficient. Shouldn't we just fix the check to handle that?
-
-Not sure about your comment w.r.t find_{smalles,biggest}_section. We
-search with pfn range outside the subsection we are trying to remove.
-So this should not have an impact there?
+<<<<<<< HEAD
+obj-$(CONFIG_GPIO_BD70528)              += gpio-bd70528.o
+=======
+obj-$(CONFIG_GPIO_BD70528)              += gpio-bd70528.o
+>>>>>>> linux-next/akpm-base
 
 
->
-> But the way to fix this is to 1) deactivate {sub}-section and 2) let
-> shrink_{node,zone}_span find the next active {sub-section}.
->
-> I hope this makes it more clear.
 
--aneesh
+-- 
+~Randy
 
