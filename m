@@ -2,140 +2,183 @@ Return-Path: <SRS0=+T2N=VO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
-	autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3F9A4C7618F
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Jul 2019 15:14:08 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CC406C7618F
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Jul 2019 15:47:04 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EC0DD2184E
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Jul 2019 15:14:07 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="OC6gP2ow"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EC0DD2184E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 7550F2173B
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Jul 2019 15:47:04 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7550F2173B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8C7696B0003; Wed, 17 Jul 2019 11:14:07 -0400 (EDT)
+	id B46586B0006; Wed, 17 Jul 2019 11:47:03 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 878F06B000C; Wed, 17 Jul 2019 11:14:07 -0400 (EDT)
+	id AF7FD6B000A; Wed, 17 Jul 2019 11:47:03 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7670D8E0001; Wed, 17 Jul 2019 11:14:07 -0400 (EDT)
+	id 9E6306B000D; Wed, 17 Jul 2019 11:47:03 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 4DA266B0003
-	for <linux-mm@kvack.org>; Wed, 17 Jul 2019 11:14:07 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id g21so14622211pfb.13
-        for <linux-mm@kvack.org>; Wed, 17 Jul 2019 08:14:07 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 640356B0006
+	for <linux-mm@kvack.org>; Wed, 17 Jul 2019 11:47:03 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id t18so4949997pgu.20
+        for <linux-mm@kvack.org>; Wed, 17 Jul 2019 08:47:03 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:to:to:cc:cc:cc:cc:cc
-         :cc:cc:subject:in-reply-to:references:message-id;
-        bh=RuIfP/Kyd5QUstidhHOXhVTrHF1M8Ek8CzX8iyB4Wu4=;
-        b=Whrw8A8MwR9WnwR1wGpatpdFiUuw17CnWznj/omuRSiycZfmhlj4ZHZ533mHmeyS88
-         BHNhPrP+yP8YyvAkPaaD9VWuaElgI6WYBDVX06ZhGRG5BbDFBhfVX+YQEd6mpgY9eDqO
-         Ii/lgltuNLKRLo9z3pyxV8OnlZPaX0XobOdG2GPFBYY0LA6DvjG6EeqhMe1Y537U1+T2
-         vPlzCvwu9bmnqE6GX9XMVXbgH6epAuugmYreTLfybmafgKlKn6lyR6yMcOHYyZDUnzw6
-         XipdIVEw0rIofuwfISH6p5I0m1nL1HRm65WpL0ifnRx5q4pXA5mLyVZ9i+yT0mxD4Bos
-         lubg==
-X-Gm-Message-State: APjAAAXDtexpnz76OQP7LlIAnKnt7ApSxjLJKnwcK4o9gMiFqVFAEdZr
-	EuY74ul0HAp10I9PBL/W0n2CkHkC6EnRYdK8+Vj3FK+a2IQROJaXHkeugaG95P9EQkfmJD7LGBP
-	Ojt8tlWXS4wPsVOt9wRNTNkhHjxp64uvv4w4DHm4IDfyTmxvAS0BoS+adYc+nX2ymRQ==
-X-Received: by 2002:a17:902:42d:: with SMTP id 42mr41752954ple.228.1563376446940;
-        Wed, 17 Jul 2019 08:14:06 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxkQZkHTekGlR85TR75PNaoVsx84mKLBjrFduqdH9VfYQvQCTVHyBvvJKd8GGvrRPiGB5qE
-X-Received: by 2002:a17:902:42d:: with SMTP id 42mr41752859ple.228.1563376446003;
-        Wed, 17 Jul 2019 08:14:06 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563376445; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:thread-topic:thread-index:date:message-id:references
+         :in-reply-to:accept-language:content-language:dlp-product
+         :dlp-version:dlp-reaction:content-transfer-encoding:mime-version;
+        bh=Q3EncJAqfgHcWLzZnICoakAZpphC3++HC4cHk1Li5aM=;
+        b=c7zHBJe6NYVku4NK403KTXubXi2XbfYPC+Sutx/3R97+yFM7K1WE7zO16JQDXS+22X
+         OCDMBtU8aKzOiPxuNgviEpGIgdwEtuv5My9quv5PIDbtXIsfG+d69TcdlEakNxDyoi9m
+         5DpKliXXGOprhRP+44hJd/B098/3wzPSGwom65U8lmED7NzIVYviHiFbN/7yN1V2B8Ho
+         ztRYwoZTUN2iuPRToE5Wx2CVIv5C3wvLbiZsjI6i2iErWRv3N9QjljRf5o2kvtFIkb+3
+         L8E9OCHK1MxMBqMA368K3uEm4D0/+kbnZ3AiwCCXmyuCDvyk/4z8mOeFEl8c/++6HPNx
+         QCaw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of wei.w.wang@intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=wei.w.wang@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAULUhqc8G+cOEPl4MJhT0meC8htyEVdP2a6td0W//CDWcQGpB+/
+	TDelONCIMfXNlmxpOLZcrABP7D4VjxcXtJgoishYYmSlD7TRVU68QrFQOYvD0pLxBlGPrqeH0Ll
+	bsZYs5Rd9ho1Cla4mJUUngOHhg9QlaopbxYB7OL0UiU+yIJG26bPfUJH4zAtfAqW81g==
+X-Received: by 2002:a63:eb06:: with SMTP id t6mr37022739pgh.107.1563378422951;
+        Wed, 17 Jul 2019 08:47:02 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwb5H3y359qqigjcbfVzGG9Kzq0uykblpyhxmCfyD+bWD/U8Iwb9bOR240naAZIeb8BkYrQ
+X-Received: by 2002:a63:eb06:: with SMTP id t6mr37022601pgh.107.1563378421879;
+        Wed, 17 Jul 2019 08:47:01 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563378421; cv=none;
         d=google.com; s=arc-20160816;
-        b=vHkrdi68QBzc+vrH2qxi+RjXqFKR9cx2xUBwLekAnVlq/0mygoIyp32D8NEIVTHcVM
-         4Guj+m0Uu7eTHKP+23h97kY+9RJ60nSOkbrMzIVohrvZCSSCP0Vf4pYIeuX5M/TbVi+x
-         rRvwgN6RH5EzR3CNkPvAtnLkBp/QELVOmp6AnmHGtDKFQWUOSIIOMkqthD1xTx8P6tOv
-         LmSByO87roJfLM0S9ZlwpAAHLJQMqiEw/X7Po6qMq8zdp2M76lhLCQNfvDqNxrpT40yP
-         4rV7mPZYpHxyFpM7z5QKAlxn2yDGeLEt4p6tMw7PFtNj7ao8OEvti+UH1Usk+pCfya5V
-         XbiA==
+        b=XKwD0vgHBjUKu/o3clEChg18gkbQSNok9gsdyoS3L90Vko28uzSl85TMhkrOo5mecn
+         LKGX93p8llj16fEsYhUiLV09Mf+nVzvl7LbfTc/lG3pvWTgLKBSuJ+T83lrjbsSugAsJ
+         VAv0UyqeQX7XhQTv/kZ1AI+owBfm7twBgMuXMb21xRpGh4+NRfg9dxB5nhYMF20qB+Yf
+         JRKmvurBkNciK1VmyCMpUQHftwPL7HNT8K9TKznu8JwBUEEdXavqf1YU7i1l3x3qCI4S
+         /eoDJAPo4HDPUr2BJj++57tgYMvt0dqn99E42TPw5TKlgSJG1HQVcyuAf74IryZirZY+
+         qZaA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:references:in-reply-to:subject:cc:cc:cc:cc:cc:cc:cc:to
-         :to:to:from:date:dkim-signature;
-        bh=RuIfP/Kyd5QUstidhHOXhVTrHF1M8Ek8CzX8iyB4Wu4=;
-        b=Sci5PqvuQyr6Yb9mKFnP61gM0wBx/pqX6L9THXGIqUo5MC5pfI0VgFDRheXPMRTkYC
-         W8Nf0K33GvS1FUeSqvUB+gO5u9jBue09IcvaLCqvdxRMHW159zsJHgEuHc3ve43JQP9B
-         SRbLwAvT3aOqwAcEKIJYnFkqc8Iuba91Er61Yw47W/uOvBo5SxPtUbPS18NQwcKzOFCU
-         /PBz3/tc4w2BLhfuUdch8qAEPHn4rdfhcivDkPyQslWaErVufj4Yki2o1+aF/fcKCHEb
-         UOEJ1KkE8yMUdmUlloedZ5vVrRhK8McdKwUTciaXbsS5A4JIzPlNIqZF4oplsnW87rRD
-         Shvw==
+        h=mime-version:content-transfer-encoding:dlp-reaction:dlp-version
+         :dlp-product:content-language:accept-language:in-reply-to:references
+         :message-id:date:thread-index:thread-topic:subject:cc:to:from;
+        bh=Q3EncJAqfgHcWLzZnICoakAZpphC3++HC4cHk1Li5aM=;
+        b=uU1r3okI67WXibsOxugM2BpjKLpsvDp53BWPKusCRMidYa7IYNsQIA5GmkIkfv5P5G
+         +bDysmr8+U7tUgLHqQLQW5R1iqy0y4FIRoAfqEXBGoDeBts3q3+doEs3zLcRaiReBzMM
+         MORkmEbbkxDH4U+8ef7YodbWzWrEL0EGXqEI9IMwwfu2M/mH7N3sXmNTthdEIEeNR1kq
+         pK3nkKh2eT6Maf28sua8IP/UgwDBRe4nDvNkuBMNtnKe+Xc22Y2UwrDLYfVDmgKRl1Dz
+         feHmKaJUeZAT4KvzMA7yra7WfGf7rASxsiFyaN0ZK9Sf0kerLj0J5rjo1x6aCOospJVQ
+         /Axw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=OC6gP2ow;
-       spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id t191si24370075pgd.370.2019.07.17.08.14.05
+       spf=pass (google.com: domain of wei.w.wang@intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=wei.w.wang@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id x1si6995211plb.28.2019.07.17.08.47.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Jul 2019 08:14:05 -0700 (PDT)
-Received-SPF: pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        Wed, 17 Jul 2019 08:47:01 -0700 (PDT)
+Received-SPF: pass (google.com: domain of wei.w.wang@intel.com designates 134.134.136.31 as permitted sender) client-ip=134.134.136.31;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=OC6gP2ow;
-       spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from localhost (unknown [23.100.24.84])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 759AB21841;
-	Wed, 17 Jul 2019 15:14:05 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1563376445;
-	bh=aInrbX5qxpHP++gY/qZsLEvnaPPN4DnxOPIFesgSYyI=;
-	h=Date:From:To:To:To:CC:Cc:Cc:Cc:Cc:Cc:Cc:Subject:In-Reply-To:
-	 References:From;
-	b=OC6gP2owJZvIYhbaTB8FRWCUgKI2OQwAsL6Cbp4xPBOuM5ZDf/vT/lSjbD1LrJ/gi
-	 dJzqL2GbXntslQxJo6R0HH9aPgj7dRpvz1Mt9dgi4Cwc/VS0dadog1N9BdyS3IMSPK
-	 sxcNWczrchfA1khTRAFLv9bGOnxDEZdaVtGG661g=
-Date: Wed, 17 Jul 2019 15:14:04 +0000
-From: Sasha Levin <sashal@kernel.org>
-To: Sasha Levin <sashal@kernel.org>
-To: Ralph Campbell <rcampbell@nvidia.com>
-To: <linux-mm@kvack.org>
-CC: <linux-kernel@vger.kernel.org>, Ralph Campbell <rcampbell@nvidia.com>,
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: Christoph Hellwig <hch@lst.de>
-Cc: Jason Gunthorpe <jgg@mellanox.com>
-Cc: <stable@vger.kernel.org>
-Cc: stable@vger.kernel.org
-Subject: Re: [PATCH 3/3] mm/hmm: Fix bad subpage pointer in try_to_unmap_one
-In-Reply-To: <20190717001446.12351-4-rcampbell@nvidia.com>
-References: <20190717001446.12351-4-rcampbell@nvidia.com>
-Message-Id: <20190717151405.759AB21841@mail.kernel.org>
+       spf=pass (google.com: domain of wei.w.wang@intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=wei.w.wang@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from fmsmga007.fm.intel.com ([10.253.24.52])
+  by orsmga104.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 17 Jul 2019 08:46:59 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.64,274,1559545200"; 
+   d="scan'208";a="169592189"
+Received: from fmsmsx105.amr.corp.intel.com ([10.18.124.203])
+  by fmsmga007.fm.intel.com with ESMTP; 17 Jul 2019 08:46:59 -0700
+Received: from shsmsx154.ccr.corp.intel.com (10.239.6.54) by
+ FMSMSX105.amr.corp.intel.com (10.18.124.203) with Microsoft SMTP Server (TLS)
+ id 14.3.439.0; Wed, 17 Jul 2019 08:46:59 -0700
+Received: from shsmsx102.ccr.corp.intel.com ([169.254.2.3]) by
+ SHSMSX154.ccr.corp.intel.com ([169.254.7.240]) with mapi id 14.03.0439.000;
+ Wed, 17 Jul 2019 23:46:57 +0800
+From: "Wang, Wei W" <wei.w.wang@intel.com>
+To: "Michael S. Tsirkin" <mst@redhat.com>, Alexander Duyck
+	<alexander.duyck@gmail.com>
+CC: Nitesh Narayan Lal <nitesh@redhat.com>, kvm list <kvm@vger.kernel.org>,
+	David Hildenbrand <david@redhat.com>, "Hansen, Dave" <dave.hansen@intel.com>,
+	LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "Andrew
+ Morton" <akpm@linux-foundation.org>, Yang Zhang <yang.zhang.wz@gmail.com>,
+	"pagupta@redhat.com" <pagupta@redhat.com>, Rik van Riel <riel@surriel.com>,
+	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, "lcapitulino@redhat.com"
+	<lcapitulino@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Paolo
+ Bonzini" <pbonzini@redhat.com>, "Williams, Dan J" <dan.j.williams@intel.com>,
+	Alexander Duyck <alexander.h.duyck@linux.intel.com>
+Subject: RE: use of shrinker in virtio balloon free page hinting
+Thread-Topic: use of shrinker in virtio balloon free page hinting
+Thread-Index: AQHVPJG4M96i+fJ6kUytx6sFNaZpP6bO17og
+Date: Wed, 17 Jul 2019 15:46:57 +0000
+Message-ID: <286AC319A985734F985F78AFA26841F73E16D4B2@shsmsx102.ccr.corp.intel.com>
+References: <20190717071332-mutt-send-email-mst@kernel.org>
+In-Reply-To: <20190717071332-mutt-send-email-mst@kernel.org>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+x-titus-metadata-40: eyJDYXRlZ29yeUxhYmVscyI6IiIsIk1ldGFkYXRhIjp7Im5zIjoiaHR0cDpcL1wvd3d3LnRpdHVzLmNvbVwvbnNcL0ludGVsMyIsImlkIjoiZWQwOTNjZDctYzMyOC00Mzg1LTgwOWMtNjNkNjliYmY2Yjg3IiwicHJvcHMiOlt7Im4iOiJDVFBDbGFzc2lmaWNhdGlvbiIsInZhbHMiOlt7InZhbHVlIjoiQ1RQX05UIn1dfV19LCJTdWJqZWN0TGFiZWxzIjpbXSwiVE1DVmVyc2lvbiI6IjE3LjEwLjE4MDQuNDkiLCJUcnVzdGVkTGFiZWxIYXNoIjoiUzNSVGk4aHVLTE8xK2Q3XC9QXC9lVVhRTitQNEdsR3pPaWlqRlh4QWdFOGhJWDJFSGlLd3AxNWxZcnRXS082ZDgxIn0=
+x-ctpclassification: CTP_NT
+dlp-product: dlpe-windows
+dlp-version: 11.0.600.7
+dlp-reaction: no-action
+x-originating-ip: [10.239.127.40]
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Wednesday, July 17, 2019 7:21 PM, Michael S. Tsirkin wrote:
+>=20
+> Wei, others,
+>=20
+> ATM virtio_balloon_shrinker_scan will only get registered when deflate on
+> oom feature bit is set.
+>=20
+> Not sure whether that's intentional.=20
 
-[This is an automated email]
-
-This commit has been processed because it contains a "Fixes:" tag,
-fixing commit: a5430dda8a3a mm/migrate: support un-addressable ZONE_DEVICE page in migration.
-
-The bot has tested the following trees: v5.2.1, v5.1.18, v4.19.59, v4.14.133.
-
-v5.2.1: Build OK!
-v5.1.18: Build OK!
-v4.19.59: Build OK!
-v4.14.133: Failed to apply! Possible dependencies:
-    0f10851ea475 ("mm/mmu_notifier: avoid double notification when it is useless")
+Yes, we wanted to follow the old oom behavior, which allows the oom notifie=
+r
+to deflate pages only when this feature bit has been negotiated.
 
 
-NOTE: The patch will not be queued to stable trees until it is upstream.
+> Assuming it is:
+>=20
+> virtio_balloon_shrinker_scan will try to locate and free pages that are
+> processed by host.
+> The above seems broken in several ways:
+> - count ignores the free page list completely
 
-How should we proceed with this patch?
+Do you mean virtio_balloon_shrinker_count()? It just reports to
+do_shrink_slab the amount of freeable memory that balloon has.
+(vb->num_pages and vb->num_free_page_blocks are all included )
 
---
-Thanks,
-Sasha
+> - if free pages are being reported, pages freed
+>   by shrinker will just get re-allocated again
+
+fill_balloon will re-try the allocation after sleeping 200ms once allocatio=
+n fails.
+
+=20
+> I was unable to make this part of code behave in any reasonable way - was
+> shrinker usage tested? What's a good way to test that?
+
+Please see the example that I tested before : https://lkml.org/lkml/2018/8/=
+6/29
+(just the first one: *1. V3 patches)
+
+What problem did you see?
+
+I just tried the latest code, and find ballooning reports a #GP (seems caus=
+ed by
+418a3ab1e).=20
+I'll take a look at the details in the office tomorrow.
+
+Best,
+Wei
 
