@@ -2,165 +2,155 @@ Return-Path: <SRS0=+T2N=VO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=unavailable autolearn_force=no
+X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6795DC76195
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Jul 2019 21:24:26 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0EBADC76192
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Jul 2019 21:43:56 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2946E21849
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Jul 2019 21:24:26 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="zh9lxgNm"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2946E21849
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id D1C0E2173E
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Jul 2019 21:43:55 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D1C0E2173E
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linutronix.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B5B726B0005; Wed, 17 Jul 2019 17:24:25 -0400 (EDT)
+	id 4E4476B0005; Wed, 17 Jul 2019 17:43:55 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AE50B6B0006; Wed, 17 Jul 2019 17:24:25 -0400 (EDT)
+	id 494086B0006; Wed, 17 Jul 2019 17:43:55 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 95EBF8E0001; Wed, 17 Jul 2019 17:24:25 -0400 (EDT)
+	id 383F88E0001; Wed, 17 Jul 2019 17:43:55 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 5A8996B0005
-	for <linux-mm@kvack.org>; Wed, 17 Jul 2019 17:24:25 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id 6so15228047pfz.10
-        for <linux-mm@kvack.org>; Wed, 17 Jul 2019 14:24:25 -0700 (PDT)
+Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
+	by kanga.kvack.org (Postfix) with ESMTP id DE58C6B0005
+	for <linux-mm@kvack.org>; Wed, 17 Jul 2019 17:43:54 -0400 (EDT)
+Received: by mail-wr1-f70.google.com with SMTP id v7so12691440wrt.6
+        for <linux-mm@kvack.org>; Wed, 17 Jul 2019 14:43:54 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=BDYaDDEpZl5dhKjtHMXSxKfIqom9MNnmnk9wKfgulQA=;
-        b=fftrUj3TEHac1X9dDhrDY/3a9yQUgDt7diEC/9cGI1MWB5OFoulbQ/EdIa+8pIKxvD
-         rLMOLMf0j6GXCSO2W9f5+46AuOzL2JBBWSSu+mdvWWAeNbptbYy+orO82F/u5R0ieY6v
-         rvNG8kZ83EMcfJwdXFR3g6ly0hFljLU97rgzl9Wrbu/HOkAu7tfv+tyIJFTTB5qaDKlS
-         UI8cAM3VP+gZE7EuRTKXnJu97TnKIEDtAZcmLQKMCYjUYneH0LYlNsPMvegZ/FZMTr17
-         7aQKSTeIRovMiXVdMznyaRPtdgxdWuuLwDdEaD1ZZNY4XmWSMhojASc7bWf5RVeK6WGc
-         xnnA==
-X-Gm-Message-State: APjAAAXq8e4eEzpVbp8Oh7ocGiPrBQUZmPlQ3YdIL0GMtPpCxJ7f4YDx
-	m/mIPzUiopNtVEPq3nVW8VSdRzwjgrznpPQMnnS1LRvixWWwrE6kbM+0JT9JnUokFcCCBmwXjxl
-	uAiFHl5nXb28WM1H7vpVk18aCB8e4TcuL4pMFcNKnVOxqBbEE4qEOLftVjBK1UIQP7w==
-X-Received: by 2002:a63:7245:: with SMTP id c5mr29256812pgn.11.1563398664750;
-        Wed, 17 Jul 2019 14:24:24 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqybjq+EZaywTgmzqv5Fu9E/9M9VUH2UBX+HDv75Gzx5d9fxU6Bd0lrdfqFhzMBMDqWFh3wn
-X-Received: by 2002:a63:7245:: with SMTP id c5mr29256745pgn.11.1563398663822;
-        Wed, 17 Jul 2019 14:24:23 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563398663; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:in-reply-to:message-id:references:user-agent
+         :mime-version;
+        bh=R6yzRFKjLNutBbjBCce/hhZ9RyUPFUpEfUfseQ58zYg=;
+        b=t33a+vwm4qgAUGGBmsqz7ooQbE6lT9eiHxNE/rSp9nC3lZZrNLQioWaHOQEYh/8nZC
+         UZ1lXdQCFMpJaJhsUBS3fGgfDgiZw15lI6zg9yYOGmE/jilTJWFrydJil2X9bn3mJFvH
+         stecKv9EU6Blm6VK3T8r43ntbcGIY1sklLOJfe13bV2wmQ3Lj8XrlBqbt9rzuOrJ1oy1
+         kPG+drmf3x68TrSbVdlz0kKIlnfYkOk+F+SHOSVn2U6zC10d1h4H/zjyzUmtvdHiS29b
+         /CpqYZ7+HVkaYIZpyqWW+RsAt8VTJAOgjMftE/8G0vIppP9968NCDjNp77L9dOTHT0SH
+         EZtw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a0a:51c0:0:12e:550::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
+X-Gm-Message-State: APjAAAWhvuJyFUsWxYltdV0gvG0t26x1+oHoijV+/Feb8yfzEMh9F5Uf
+	XYCxI5h+CTeT3IU5JIT0m4dlmwW6LoYgBGaVDzykLSDf2KApPkU9KvYXOpROFFcf9bFK9y/tGUv
+	jslc1qzAmpM7/mC/8DzY9UEfs3H7vM9iQTJ42Hv1YByIkkzlInih7UZ5cMq1Qv21i1A==
+X-Received: by 2002:a05:6000:118a:: with SMTP id g10mr43900877wrx.175.1563399834491;
+        Wed, 17 Jul 2019 14:43:54 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxan89FAGvPsBgESSIGYi+kuZNgYSu6BoBFrReGw6YZSDdCBHJ1o/HRKXRgDpnJbwJj34mI
+X-Received: by 2002:a05:6000:118a:: with SMTP id g10mr43900851wrx.175.1563399833747;
+        Wed, 17 Jul 2019 14:43:53 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563399833; cv=none;
         d=google.com; s=arc-20160816;
-        b=PVL4yaz+GDtE1L5NmFUKVnDgiGsl3UjXvOuG5cwbevR+KAJsM4tb6lTQ/VJHb6MXmZ
-         ttPsdI7qwFiFNlOgICNPvQPqB9XzyZkoRWVWx77fwGzSFukx8P7z8L+/kgvG68QCd4Bl
-         Snm7Pur3GAThResY+f4Vn6EM+6VyD2OuJX7nMSLvtlF9PT8imKHINRyQtMtD5X4NFahR
-         Z2vEhdqviJGNlXx9o/VzkpVm65uGz5+1bzRf/7DWCofo2jYuqjcvfIB2Uj7n3TeEPHSL
-         GkoyFi1zFQ1mPQxJkA7W9pxGB54+S0sj5MtzU1Vr12pi3tJtePA06I6hjaqxcAE1MNny
-         eOHQ==
+        b=poQXXe04NbdEgGLxUHaeYYKuH52OLeKDfpcgDGQ7nJoxbVmbkA6AeIbzAGokeW5f5y
+         IthpqEKTVqlI+4aGvYBWHPmcNv3MH0LG7/AQpDxltqAyr+i52vc7ViAVYTUbf6kGEB5N
+         SdbYVyhgPNSK9JHniiElIqy4IXnHyUL9aMx7LtUoRXltgALe2bkEFbGW41Sdy9Mk7DHe
+         9DelQBLRl6/X+gybCbzH76terr3cJKNqilT6WFi3zzKtoa5XNcuZDiGQimM7CYZe10N7
+         5XUIqX4g9vXtNgV8OwSpnV8Zud79CKKng5oJms/xNZLMMt1Bozae4MSugspsH6bLS5VX
+         veGQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=BDYaDDEpZl5dhKjtHMXSxKfIqom9MNnmnk9wKfgulQA=;
-        b=fxIBxPE6hwKEyrZk2Xc0qZeDLYPkW/nzBf6GH+8w5Ko+GY5mGNqCqA1aSP+7JLirV0
-         V2764dGWB9yVT/xrazbwdCDeCOB4tPteqRDK3wcg54HCtqSuc2E6bqYI7ROItF3wkqEM
-         q70T1mMbLhPqeIZnH5NhC8/xWG1crdRa5/2x+XMKzyMo4BeCwpubfr6gh1XCZFT3ORVw
-         IasT1Z4f8lUQAB7nfmOedh8SrnPfiw58Kym46WnHsBK47Xo10bnM80Jf+1Y5axfs72sK
-         tK5P33E48tixksQmpkSn2YqlSqjurmy33/Y3DZ1C9KQEBjOk+7n6DzYde7nxcMn5yJC6
-         wTpQ==
+        h=mime-version:user-agent:references:message-id:in-reply-to:subject
+         :cc:to:from:date;
+        bh=R6yzRFKjLNutBbjBCce/hhZ9RyUPFUpEfUfseQ58zYg=;
+        b=Cl/l7RfAE19j9NUhYUrFud6ogyq4huDLJeL/PZKKv478Kyj2nU807/sjo0sZkRJO5I
+         hNC850Mxs1R3wrY7RopxbkaFCdwjfI9w1LEpFsDEy9+VKPzCfGqZ8SMeu6n2/YGnBTEn
+         BSBEwSdOwkjvmteahRScV+9cgEuY9lHHH9lj22kXCBkREZgrVkoNld1jfLfjO2TMYD7M
+         lIlY27sRR2EPLukoQ9a1ij0TotuJJyTaJoOy5kDv36wPCK6X4xViIl5zQsB1u0zAeuEn
+         w9nNuyjh2ZUHdwZB3tPqyVhe6G4v8L23zKBb4vUtGgd6xHCQhPAUtYtObp7fKM+p0OFA
+         UJGw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=zh9lxgNm;
-       spf=pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=luto@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id g32si418132pje.38.2019.07.17.14.24.23
+       spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a0a:51c0:0:12e:550::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a0a:51c0:0:12e:550::1])
+        by mx.google.com with ESMTPS id y16si20482234wmc.177.2019.07.17.14.43.53
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Jul 2019 14:24:23 -0700 (PDT)
-Received-SPF: pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Wed, 17 Jul 2019 14:43:53 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a0a:51c0:0:12e:550::1 as permitted sender) client-ip=2a0a:51c0:0:12e:550::1;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=zh9lxgNm;
-       spf=pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=luto@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail-wr1-f43.google.com (mail-wr1-f43.google.com [209.85.221.43])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 3DCBC2187F
-	for <linux-mm@kvack.org>; Wed, 17 Jul 2019 21:24:23 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1563398663;
-	bh=Ap5TwhmtuWKZyNppq7kyJPabjyvLMUE9Mf8WiDtOxmc=;
-	h=References:In-Reply-To:From:Date:Subject:To:Cc:From;
-	b=zh9lxgNm+6nlUVTZWtDHx+bxjyrLvGvPKR7+3Qj2ZiB7xCtjTgsfuX3LelkkwhWiE
-	 939QnXVowCyRxqHZvppFJ44+uvHEp72rB58KK16GnDyDwbc9VtGuMz/1hMzWlf286V
-	 14enB4y9gGoq8PGbGRiqsTA0FC7vu4gonvUFFEPo=
-Received: by mail-wr1-f43.google.com with SMTP id n9so26413319wru.0
-        for <linux-mm@kvack.org>; Wed, 17 Jul 2019 14:24:23 -0700 (PDT)
-X-Received: by 2002:adf:cc85:: with SMTP id p5mr42310193wrj.47.1563398661732;
- Wed, 17 Jul 2019 14:24:21 -0700 (PDT)
-MIME-Version: 1.0
-References: <20190717071439.14261-1-joro@8bytes.org> <20190717071439.14261-4-joro@8bytes.org>
-In-Reply-To: <20190717071439.14261-4-joro@8bytes.org>
-From: Andy Lutomirski <luto@kernel.org>
-Date: Wed, 17 Jul 2019 14:24:09 -0700
-X-Gmail-Original-Message-ID: <CALCETrXfCbajLhUixKNaMfFw91gzoQzt__faYLwyBqA3eAbQVA@mail.gmail.com>
-Message-ID: <CALCETrXfCbajLhUixKNaMfFw91gzoQzt__faYLwyBqA3eAbQVA@mail.gmail.com>
-Subject: Re: [PATCH 3/3] mm/vmalloc: Sync unmappings in vunmap_page_range()
+       spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a0a:51c0:0:12e:550::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
+Received: from pd9ef1cb8.dip0.t-ipconnect.de ([217.239.28.184] helo=nanos)
+	by Galois.linutronix.de with esmtpsa (TLS1.2:DHE_RSA_AES_256_CBC_SHA256:256)
+	(Exim 4.80)
+	(envelope-from <tglx@linutronix.de>)
+	id 1hnriC-0005hz-EP; Wed, 17 Jul 2019 23:43:44 +0200
+Date: Wed, 17 Jul 2019 23:43:43 +0200 (CEST)
+From: Thomas Gleixner <tglx@linutronix.de>
 To: Joerg Roedel <joro@8bytes.org>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>, Andy Lutomirski <luto@kernel.org>, 
-	Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, 
-	Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, 
-	Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, 
-	Linux-MM <linux-mm@kvack.org>, Joerg Roedel <jroedel@suse.de>
-Content-Type: text/plain; charset="UTF-8"
+cc: Dave Hansen <dave.hansen@linux.intel.com>, 
+    Andy Lutomirski <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>, 
+    Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, 
+    Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, 
+    linux-mm@kvack.org, Joerg Roedel <jroedel@suse.de>
+Subject: Re: [PATCH 2/3] x86/mm: Sync also unmappings in vmalloc_sync_one()
+In-Reply-To: <20190717071439.14261-3-joro@8bytes.org>
+Message-ID: <alpine.DEB.2.21.1907172337590.1778@nanos.tec.linutronix.de>
+References: <20190717071439.14261-1-joro@8bytes.org> <20190717071439.14261-3-joro@8bytes.org>
+User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+X-Linutronix-Spam-Score: -1.0
+X-Linutronix-Spam-Level: -
+X-Linutronix-Spam-Status: No , -1.0 points, 5.0 required,  ALL_TRUSTED=-1,SHORTCIRCUIT=-0.0001
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jul 17, 2019 at 12:14 AM Joerg Roedel <joro@8bytes.org> wrote:
->
+On Wed, 17 Jul 2019, Joerg Roedel wrote:
+
 > From: Joerg Roedel <jroedel@suse.de>
->
-> On x86-32 with PTI enabled, parts of the kernel page-tables
-> are not shared between processes. This can cause mappings in
-> the vmalloc/ioremap area to persist in some page-tables
-> after the regions is unmapped and released.
->
-> When the region is re-used the processes with the old
-> mappings do not fault in the new mappings but still access
-> the old ones.
->
-> This causes undefined behavior, in reality often data
-> corruption, kernel oopses and panics and even spontaneous
-> reboots.
->
-> Fix this problem by activly syncing unmaps in the
-> vmalloc/ioremap area to all page-tables in the system.
->
-> References: https://bugzilla.suse.com/show_bug.cgi?id=1118689
+> 
+> With huge-page ioremap areas the unmappings also need to be
+> synced between all page-tables. Otherwise it can cause data
+> corruption when a region is unmapped and later re-used.
+> 
+> Make the vmalloc_sync_one() function ready to sync
+> unmappings.
+> 
 > Fixes: 5d72b4fba40ef ('x86, mm: support huge I/O mapping capability I/F')
 > Signed-off-by: Joerg Roedel <jroedel@suse.de>
 > ---
->  mm/vmalloc.c | 2 ++
->  1 file changed, 2 insertions(+)
->
-> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-> index 4fa8d84599b0..322b11a374fd 100644
-> --- a/mm/vmalloc.c
-> +++ b/mm/vmalloc.c
-> @@ -132,6 +132,8 @@ static void vunmap_page_range(unsigned long addr, unsigned long end)
->                         continue;
->                 vunmap_p4d_range(pgd, addr, next);
->         } while (pgd++, addr = next, addr != end);
+>  arch/x86/mm/fault.c | 7 ++++---
+>  1 file changed, 4 insertions(+), 3 deletions(-)
+> 
+> diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
+> index 4a4049f6d458..d71e167662c3 100644
+> --- a/arch/x86/mm/fault.c
+> +++ b/arch/x86/mm/fault.c
+> @@ -194,11 +194,12 @@ static inline pmd_t *vmalloc_sync_one(pgd_t *pgd, unsigned long address)
+>  
+>  	pmd = pmd_offset(pud, address);
+>  	pmd_k = pmd_offset(pud_k, address);
+> -	if (!pmd_present(*pmd_k))
+> -		return NULL;
+>  
+> -	if (!pmd_present(*pmd))
+> +	if (pmd_present(*pmd) ^ pmd_present(*pmd_k))
+>  		set_pmd(pmd, *pmd_k);
 > +
-> +       vmalloc_sync_all();
->  }
+> +	if (!pmd_present(*pmd_k))
+> +		return NULL;
+>  	else
+>  		BUG_ON(pmd_pfn(*pmd) != pmd_pfn(*pmd_k));
 
-I'm confused.  Shouldn't the code in _vm_unmap_aliases handle this?
-As it stands, won't your patch hurt performance on x86_64?  If x86_32
-is a special snowflake here, maybe flush_tlb_kernel_range() should
-handle this?
+So in case of unmap, this updates only the first entry in the pgd_list
+because vmalloc_sync_all() will break out of the iteration over pgd_list
+when NULL is returned from vmalloc_sync_one().
 
-Even if your patch is correct, a comment would be nice
+I'm surely missing something, but how is that supposed to sync _all_ page
+tables on unmap as the changelog claims?
+
+Thanks,
+
+	tglx
 
