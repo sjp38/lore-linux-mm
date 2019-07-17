@@ -2,235 +2,186 @@ Return-Path: <SRS0=+T2N=VO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	UNPARSEABLE_RELAY,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7D87EC76192
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Jul 2019 21:04:04 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9D2C6C76192
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Jul 2019 21:06:04 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id F104A2173E
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Jul 2019 21:04:03 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F104A2173E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
+	by mail.kernel.org (Postfix) with ESMTP id 6C26E21743
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Jul 2019 21:06:04 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6C26E21743
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 577226B0005; Wed, 17 Jul 2019 17:04:03 -0400 (EDT)
+	id 01F0B6B0005; Wed, 17 Jul 2019 17:06:04 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5288F8E0003; Wed, 17 Jul 2019 17:04:03 -0400 (EDT)
+	id F39408E0003; Wed, 17 Jul 2019 17:06:03 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 43D988E0001; Wed, 17 Jul 2019 17:04:03 -0400 (EDT)
+	id DD92F8E0001; Wed, 17 Jul 2019 17:06:03 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 0B15D6B0005
-	for <linux-mm@kvack.org>; Wed, 17 Jul 2019 17:04:03 -0400 (EDT)
-Received: by mail-pl1-f199.google.com with SMTP id d6so12642360pls.17
-        for <linux-mm@kvack.org>; Wed, 17 Jul 2019 14:04:03 -0700 (PDT)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A79FF6B0005
+	for <linux-mm@kvack.org>; Wed, 17 Jul 2019 17:06:03 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id h3so15338186pgc.19
+        for <linux-mm@kvack.org>; Wed, 17 Jul 2019 14:06:03 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-transfer-encoding:content-language;
-        bh=dc5GGP81UqJM9IyBCyZsSUkvAKgyIoizxHsE9yMPEfk=;
-        b=QYoqAOUUk3ohvIyyO/9D2o0ZzEeOg+m/O5e+9XiP0ZHBKUtEsC7el3RBCZz83Yp/Wp
-         ljGTpx85Q9NNr4L1Pcto8+EYHx3lcKVsYXOfQCNKcFyGia5zZDvc//5lZQ4eKyKTZIj3
-         M4v+LsG4+tBOMeUl5eAUegwmaWDzmdkd0mTexTllrqTavebE+zdSiSmDCA+xgzOqB9Dp
-         90QA4VNh5gwRpoP48fZoZSSg8GVhXPdguHldxjLh7b8fMd8D0kph4l55lD3iRNfLAnDf
-         INl63D+UjP/qMy110uGQQ22/0OPqScg8I/ewGeUGm3TkgkUzjhFhK3Gs76IkIaVAiUBw
-         ggCA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.44 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Gm-Message-State: APjAAAVoa0H1P4LDvzveiS0I+2LuChSI6HuOUAHhBu8JEdPhJpJOXDeq
-	F36vPgto5P309N59XZPHD+UHtnR5cq5uMwq8EMUXqzsEDoonIO0sS4EzA87luwC9p7j+ASqmdov
-	pc1S3lJ6NHZa7+X+vIuBK72QjU6H3AiBdDez33gMQ1kWJDB8DFMHsiT/Wyv8yYRDzgg==
-X-Received: by 2002:a17:90a:2190:: with SMTP id q16mr45080236pjc.23.1563397442634;
-        Wed, 17 Jul 2019 14:04:02 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzJAWQVWpS56J+Wul295evK8UokuBMDxpUeFr58lnRXm6Vdd507QGS9tqrNvqHr+8FY+Qc/
-X-Received: by 2002:a17:90a:2190:: with SMTP id q16mr45080172pjc.23.1563397441791;
-        Wed, 17 Jul 2019 14:04:01 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563397441; cv=none;
+         :references:from:openpgp:autocrypt:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=K4XEFsFATw1pbOoLQ6soUpNaR34pv37vhpkI16sjb1w=;
+        b=JEKGzEOpe9w1kyzCFWN16svHXeZWneWW2c/YhnxoQUuuyBQTi9iU/12w0V5TOKR4Oo
+         b8y49nGnhX4LDo0yTwdmZNF9Rl6llC6znCEFc9CksbGs7TZk+i+KGOppbGPfBGHhrpNq
+         2+nkYCqlZ9zU+sketb6/CwotQimgVwS/Q8qZajokytpwCMJW3NSNDiafk2a69egcPxCO
+         pYl6j1hE9msVRY722zgAyO297ACagkv1cKyRW4MnpbzDePSUuyxZJXqUSkmu8l02lrbl
+         AoVS2anAL0VtnjM+5Oyy/hM2SAWOxjwvjwSpFHIYb0b9dmXEqyjCZT1k0//gEWntVWT5
+         YYNA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAUFwFcIhMbbQuuiJxEBQC6SMcYkDS+z6hEpJiSTLUNcZ5GCGqGS
+	RLq80M3FnYvFhir/rNBv4HLVkK/bl7UiA3Di0z5NKDUsOrgU7DA7oNujyO+YlOAPR38RSmYvUz9
+	8mj2vYxtsqaJKri1zEdVfEFfRknYe+Tz0DpQUzJoKgHe0XvNGE3i+PlGmY8/IxSTlSA==
+X-Received: by 2002:a17:902:a60d:: with SMTP id u13mr46043634plq.144.1563397563359;
+        Wed, 17 Jul 2019 14:06:03 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzYdYO4lHY5Br2mIg+BshlPN8uq3xqU5Z0W/4UiZmtMDywTa7+PHNn9x2EsUuvogbcuSkH3
+X-Received: by 2002:a17:902:a60d:: with SMTP id u13mr46043581plq.144.1563397562602;
+        Wed, 17 Jul 2019 14:06:02 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563397562; cv=none;
         d=google.com; s=arc-20160816;
-        b=cMOlyJuToaC2Slzj963oJL3Bs/o7D119tCV0vd7m6SUB69kQL9eG2x7Qy51A1WFvV7
-         NWPEUYSLgVHNNNYhcz61v2cqWLWZzOKmnIooLn4fs4BqqdSrjmveotV2dDuVtFQmgk+/
-         pmXiGVGqD5ifbna3YzsaXtmSuPpaUQ1lnrzsHZKAtCbIu2kB7qPR3MhVujwrn6B+EiP1
-         LMSTHieqOh38A/CCetI/xB9hxyd5HjD+4ka1aS5mQzoO6GhCdMXrB0nc4/VAwN2DB+ZG
-         tDH6i5TowZFtcBN58YfLeiuQXrsHhieSKsgH6BqVk+fNMm7rtZlSpcgrEwRKUKOIv5lV
-         vPqg==
+        b=yFQ4GWf/fdWMfwxSgLPUj3x9ZRCP1m+XEi0Y3APpMf6ttTDOwSqSg9Ojdn7yxXQIiE
+         cnEbZuZxVjqQMvMEckU0af3tF869NQaNPsWM9+cQTeJGqt+7rJr4/w+fm9W8a80XYn2A
+         b8vTxzzdXWsmZV225S44GC8E0Q3KI6wEjzqVm9bhg2UMkeZom7Otxcid+DwSv09YqAKx
+         02u7PUFG+A1sWtJSfP64KM6/RcL2k/irPdZIFGwSm7WRHFpQPR4+X/pjNGUWjVWCjw03
+         y7SomsxTDiJ1IpzWUbVCMULY7swKXMXupXdb5VbcWqjUG/7Or5wM38Ol+wQN3mRs9n+O
+         yVDA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-language:content-transfer-encoding:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=dc5GGP81UqJM9IyBCyZsSUkvAKgyIoizxHsE9yMPEfk=;
-        b=hmZa/ie+Dbs+WFP6UMZV91W6blFCkR+XXQ72T+ukIzOTclz7rphWCIPcH+MLmrqPDz
-         hurNYRLqcdm8T5IzEXt3HCG4pD7vRMIY6U+4rQGOksVTXdOxHFHS0csH2+w24Fqulr73
-         SiTh7SFh7aYIdx2MLDUBDGYySQjpFTslReam2vrLwozLTIQxMtMN5kIeZ8QtjI5TZ0XX
-         bfZH1nqmFDkFeVtYmR8fG6t0it3fBJ1JCIFEugTburH6+9+SVj5QIANETP9fNbd8b/cd
-         Ii/NJWvbrfjm1/DLVQGfb8flcM0tcvQ8bdt5ODdTPPW8PImKeIMtvPR1pRhTWcpZd9Nd
-         SB9A==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
+         :subject;
+        bh=K4XEFsFATw1pbOoLQ6soUpNaR34pv37vhpkI16sjb1w=;
+        b=rIALCqQpQnj4h8u2ORwNUcNdWsUsWB8+J2qVTwI5Owk8DjpXziFuGKdZRVagaEhFeH
+         9ln+t9sOUohuy9fINIrQWVdHehkzr00W1+pYIlFCJHX7FfkdCIe2KkfQa2kz4mRirCm6
+         9334XnLbiShNkGCgODlUqNAnATZwk/m0mcvJL7FFtBf9YScSzzn2TyCLNyv2LTAv9TQM
+         EIYZ2IDN0cCYct2TJv/zXyryAZWwVWkLV8riNVNvx9RIfcYzXaAhwrgpJAhmWHGyXlYR
+         Oq01D9sx3AZzi2WqyiO4zz/YDU5BxoPHZGYGxgH7j4+ttLZTNMhGQM8jghKn6cSB0JeG
+         vU6w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.44 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-Received: from out30-44.freemail.mail.aliyun.com (out30-44.freemail.mail.aliyun.com. [115.124.30.44])
-        by mx.google.com with ESMTPS id i6si9234270pfb.122.2019.07.17.14.04.00
+       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id v9si22541965plp.4.2019.07.17.14.06.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Jul 2019 14:04:01 -0700 (PDT)
-Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.44 as permitted sender) client-ip=115.124.30.44;
+        Wed, 17 Jul 2019 14:06:02 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.93 as permitted sender) client-ip=192.55.52.93;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.44 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R241e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e07486;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=8;SR=0;TI=SMTPD_---0TX91ZqP_1563397435;
-Received: from US-143344MP.local(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TX91ZqP_1563397435)
-          by smtp.aliyun-inc.com(127.0.0.1);
-          Thu, 18 Jul 2019 05:03:58 +0800
-Subject: Re: [v3 PATCH 1/2] mm: thp: make transhuge_vma_suitable available for
- anonymous THP
-To: Hugh Dickins <hughd@google.com>
-Cc: kirill.shutemov@linux.intel.com, mhocko@suse.com, vbabka@suse.cz,
- rientjes@google.com, akpm@linux-foundation.org, linux-mm@kvack.org,
- linux-kernel@vger.kernel.org
-References: <1560401041-32207-1-git-send-email-yang.shi@linux.alibaba.com>
- <1560401041-32207-2-git-send-email-yang.shi@linux.alibaba.com>
- <alpine.LSU.2.11.1907171207080.1177@eggly.anvils>
-From: Yang Shi <yang.shi@linux.alibaba.com>
-Message-ID: <85d8060b-76ab-76d8-1fc5-496e07378722@linux.alibaba.com>
-Date: Wed, 17 Jul 2019 14:03:55 -0700
-User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:52.0)
- Gecko/20100101 Thunderbird/52.7.0
+       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga003.jf.intel.com ([10.7.209.27])
+  by fmsmga102.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 17 Jul 2019 14:06:02 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.64,275,1559545200"; 
+   d="scan'208";a="170368619"
+Received: from ray.jf.intel.com (HELO [10.7.201.140]) ([10.7.201.140])
+  by orsmga003.jf.intel.com with ESMTP; 17 Jul 2019 14:06:01 -0700
+Subject: Re: [PATCH 2/3] x86/mm: Sync also unmappings in vmalloc_sync_one()
+To: Joerg Roedel <joro@8bytes.org>, Dave Hansen
+ <dave.hansen@linux.intel.com>, Andy Lutomirski <luto@kernel.org>,
+ Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>,
+ Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org,
+ linux-mm@kvack.org, Joerg Roedel <jroedel@suse.de>
+References: <20190717071439.14261-1-joro@8bytes.org>
+ <20190717071439.14261-3-joro@8bytes.org>
+From: Dave Hansen <dave.hansen@intel.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=dave.hansen@intel.com; keydata=
+ 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
+Message-ID: <28a4c10f-f895-e8ff-d07b-9e4c35aa6342@intel.com>
+Date: Wed, 17 Jul 2019 14:06:01 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.2
 MIME-Version: 1.0
-In-Reply-To: <alpine.LSU.2.11.1907171207080.1177@eggly.anvils>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20190717071439.14261-3-joro@8bytes.org>
+Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On 7/17/19 12:14 AM, Joerg Roedel wrote:
+> 
+> diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
+> index 4a4049f6d458..d71e167662c3 100644
+> --- a/arch/x86/mm/fault.c
+> +++ b/arch/x86/mm/fault.c
+> @@ -194,11 +194,12 @@ static inline pmd_t *vmalloc_sync_one(pgd_t *pgd, unsigned long address)
+>  
+>  	pmd = pmd_offset(pud, address);
+>  	pmd_k = pmd_offset(pud_k, address);
+> -	if (!pmd_present(*pmd_k))
+> -		return NULL;
+>  
+> -	if (!pmd_present(*pmd))
+> +	if (pmd_present(*pmd) ^ pmd_present(*pmd_k))
+>  		set_pmd(pmd, *pmd_k);
 
+Wouldn't:
 
-On 7/17/19 12:43 PM, Hugh Dickins wrote:
-> On Thu, 13 Jun 2019, Yang Shi wrote:
->
->> The transhuge_vma_suitable() was only available for shmem THP, but
->> anonymous THP has the same check except pgoff check.  And, it will be
->> used for THP eligible check in the later patch, so make it available for
->> all kind of THPs.  This also helps reduce code duplication slightly.
->>
->> Since anonymous THP doesn't have to check pgoff, so make pgoff check
->> shmem vma only.
-> Yes, I think you are right to avoid the pgoff check on anonymous.
-> I had originally thought that it would work out okay even with the
-> pgoff check on anonymous, and usually it would: but could give the
-> wrong answer on an mremap-moved anonymous area.
->
->> Cc: Hugh Dickins <hughd@google.com>
->> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
->> Cc: Michal Hocko <mhocko@suse.com>
->> Cc: Vlastimil Babka <vbabka@suse.cz>
->> Cc: David Rientjes <rientjes@google.com>
->> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
-> Almost Acked-by me, but there's one nit I'd much prefer to change:
-> sorry for being such a late nuisance...
->
->> ---
->>   mm/huge_memory.c |  2 +-
->>   mm/internal.h    | 25 +++++++++++++++++++++++++
->>   mm/memory.c      | 13 -------------
->>   3 files changed, 26 insertions(+), 14 deletions(-)
->>
->> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
->> index 9f8bce9..4bc2552 100644
->> --- a/mm/huge_memory.c
->> +++ b/mm/huge_memory.c
->> @@ -691,7 +691,7 @@ vm_fault_t do_huge_pmd_anonymous_page(struct vm_fault *vmf)
->>   	struct page *page;
->>   	unsigned long haddr = vmf->address & HPAGE_PMD_MASK;
->>   
->> -	if (haddr < vma->vm_start || haddr + HPAGE_PMD_SIZE > vma->vm_end)
->> +	if (!transhuge_vma_suitable(vma, haddr))
->>   		return VM_FAULT_FALLBACK;
->>   	if (unlikely(anon_vma_prepare(vma)))
->>   		return VM_FAULT_OOM;
->> diff --git a/mm/internal.h b/mm/internal.h
->> index 9eeaf2b..7f096ba 100644
->> --- a/mm/internal.h
->> +++ b/mm/internal.h
->> @@ -555,4 +555,29 @@ static inline bool is_migrate_highatomic_page(struct page *page)
->>   
->>   void setup_zone_pageset(struct zone *zone);
->>   extern struct page *alloc_new_node_page(struct page *page, unsigned long node);
->> +
->> +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
->> +#define HPAGE_CACHE_INDEX_MASK (HPAGE_PMD_NR - 1)
->> +static inline bool transhuge_vma_suitable(struct vm_area_struct *vma,
->> +		unsigned long haddr)
->> +{
->> +	/* Don't have to check pgoff for anonymous vma */
->> +	if (!vma_is_anonymous(vma)) {
->> +		if (((vma->vm_start >> PAGE_SHIFT) & HPAGE_CACHE_INDEX_MASK) !=
->> +			(vma->vm_pgoff & HPAGE_CACHE_INDEX_MASK))
->> +			return false;
->> +	}
->> +
->> +	if (haddr < vma->vm_start || haddr + HPAGE_PMD_SIZE > vma->vm_end)
->> +		return false;
->> +	return true;
->> +}
->> +#else
->> +static inline bool transhuge_vma_suitable(struct vma_area_struct *vma,
->> +		unsigned long haddr)
->> +{
->> +	return false;
->> +}
->> +#endif
->> +
->>   #endif	/* __MM_INTERNAL_H */
-> ... maybe I'm just not much of a fan of mm/internal.h (where at last you
-> find odd bits and pieces which you had expected to find elsewhere), and
-> maybe others will disagree: but I'd say transhuge_vma_suitable() surely
-> belongs in include/linux/huge_mm.h, near __transparent_hugepage_enabled().
->
-> But then your correct use of vma_is_anonymous() gets more complicated:
-> because that declaration is over in include/linux/mm.h; and although
-> linux/mm.h includes linux/huge_mm.h, vma_is_anonymous() comes lower down.
->
-> However... linux/mm.h's definition of vma_set_anonymous() comes higher
-> up, and it would make perfect sense to move vma_is_anonymous up to just
-> after vma_set_anonymous(), wouldn't it?  Should vma_is_shmem() and
-> vma_is_stack_for_current() declarations move with it? Probably yes:
-> they make more sense near vma_is_anonymous() than where they were.
+	if (pmd_present(*pmd) != pmd_present(*pmd_k))
+		set_pmd(pmd, *pmd_k);
 
-Thanks for the thorough instructions. Will fix this in v4.
+be a bit more intuitive?
 
->
-> Hugh
->
->> diff --git a/mm/memory.c b/mm/memory.c
->> index 96f1d47..2286424 100644
->> --- a/mm/memory.c
->> +++ b/mm/memory.c
->> @@ -3205,19 +3205,6 @@ static vm_fault_t pte_alloc_one_map(struct vm_fault *vmf)
->>   }
->>   
->>   #ifdef CONFIG_TRANSPARENT_HUGE_PAGECACHE
->> -
->> -#define HPAGE_CACHE_INDEX_MASK (HPAGE_PMD_NR - 1)
->> -static inline bool transhuge_vma_suitable(struct vm_area_struct *vma,
->> -		unsigned long haddr)
->> -{
->> -	if (((vma->vm_start >> PAGE_SHIFT) & HPAGE_CACHE_INDEX_MASK) !=
->> -			(vma->vm_pgoff & HPAGE_CACHE_INDEX_MASK))
->> -		return false;
->> -	if (haddr < vma->vm_start || haddr + HPAGE_PMD_SIZE > vma->vm_end)
->> -		return false;
->> -	return true;
->> -}
->> -
->>   static void deposit_prealloc_pte(struct vm_fault *vmf)
->>   {
->>   	struct vm_area_struct *vma = vmf->vma;
->> -- 
->> 1.8.3.1
+But, either way, these look fine.  For the series:
+
+Reviewed-by: Dave Hansen <dave.hansen@linux.intel.com>
 
