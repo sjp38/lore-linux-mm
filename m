@@ -2,171 +2,185 @@ Return-Path: <SRS0=+T2N=VO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 78FD1C76192
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Jul 2019 04:38:38 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 32850C76195
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Jul 2019 05:07:16 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3FBBB20818
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Jul 2019 04:38:38 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=canb.auug.org.au header.i=@canb.auug.org.au header.b="X5ODQmuV"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3FBBB20818
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=canb.auug.org.au
+	by mail.kernel.org (Postfix) with ESMTP id C574B208C0
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Jul 2019 05:07:15 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C574B208C0
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CC71E6B0008; Wed, 17 Jul 2019 00:38:37 -0400 (EDT)
+	id 278236B0003; Wed, 17 Jul 2019 01:07:15 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C77F68E0006; Wed, 17 Jul 2019 00:38:37 -0400 (EDT)
+	id 202106B0005; Wed, 17 Jul 2019 01:07:15 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B66A68E0005; Wed, 17 Jul 2019 00:38:37 -0400 (EDT)
+	id 0CA378E0001; Wed, 17 Jul 2019 01:07:15 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 8254B6B0008
-	for <linux-mm@kvack.org>; Wed, 17 Jul 2019 00:38:37 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id j12so11351695pll.14
-        for <linux-mm@kvack.org>; Tue, 16 Jul 2019 21:38:37 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id AF4EC6B0003
+	for <linux-mm@kvack.org>; Wed, 17 Jul 2019 01:07:14 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id d27so17270722eda.9
+        for <linux-mm@kvack.org>; Tue, 16 Jul 2019 22:07:14 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:in-reply-to:references:mime-version;
-        bh=alhZetwGpdh94EKu+GRyj6cJ7JxPyjrQX4Mk9dPT0C4=;
-        b=VPgtYgvQm0slsv0Sq2Cak9xOUnxCTPPYbG2N2VfSHxews+e5lK1BwgrOEMNtuBFR2o
-         cSck1tKbZLpvuEcoIqRfwysCHN6Od6nj4lCxlbYicvNONbnpC/61ymkzUVPKr7FLfXIh
-         R379SBxKIfEyl2ziynYItpaNKfyh3YCMfDHYViGHjbVhHh26mlfMUy9GNBjgRyLOQGwu
-         cN72mTzCNyxxBQi9rmtYe0+zoV0WCPhhGyIw1Yfe3UZbcYPU9VMg3ODvpyIK7c4ODaLR
-         yfB41uQZGsHtJ52704JRjOccHQtGFPGEgQDnBgPeIBl5NdPlFz0WLK/poJnOWwigqPhM
-         ajLw==
-X-Gm-Message-State: APjAAAV+ulN54jSAODV+MTVygS3TpnmuAZbguvRpFYO6zl80rsRZpfZg
-	UtlCF+UvDUjFRt6GTvDU1iaSQNpW8rtUAy29Cpe6hA6KGHEHsaXkXZB2Efhi9H9myyp1ds2MPrH
-	9HbjwkqjVL5W/iqFGqqISplFOJ5G+uCjnJqpQwj9svfl6ClBh6CGAyGQKX2YdvwBBsQ==
-X-Received: by 2002:a17:902:1e6:: with SMTP id b93mr40231694plb.295.1563338317096;
-        Tue, 16 Jul 2019 21:38:37 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxk1y2H3DF3UdSauAK+6WBVHo0O0VNas7+FBeuc/lquBW/+dLd9CkoyWc4K2VnpAQGZ7Nlr
-X-Received: by 2002:a17:902:1e6:: with SMTP id b93mr40231617plb.295.1563338316500;
-        Tue, 16 Jul 2019 21:38:36 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563338316; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=ampYWH5RSqTTctNXjay93hp+EsZNvTDA3i1RhxumKIc=;
+        b=rKNvYVTaaDV9PJQkuPKBIDoIhV5jv88esr+Dw7IA5T68ptoa0fjISd47Q5mO2049mY
+         Bih48SD6ZnaXCIdmqe1r4baO2j/j7vcxGJMXWF+GIBKAtV6UXzDNyF8uXX5ykmGCvn18
+         V8CVwapoh68RL9RcQZRCQtXrDDM06lKGpzOnGJd+7FIBpTwN8jLflO/RO46sEivCg2J3
+         EewuA+vnABkXT4AIR/kOwodbH7tzNzTAsDaMxQsgZvfFZTWLzRQU7CJMBeH2hUGTr/Vt
+         h7ZAhPoCoN29e50f1QBoPTTaFZSyRjMo+SEvslI6uiiSjxv24imAm5bS8/kiUYSqhkGH
+         UgfQ==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAWxx8CPtzM9dbhNT7IjoEWix4+xers8/xB7SWN3Pz8L75jrAhPx
+	rDz6IpHzqXSkzCas0lle5lNSaurYQOC4L0PentGjP5WzKBE0GUQkJsXiewLrKkLTzSr95lpU5jn
+	NwTffU2HpjqJx4aNIbIamaNNHRpEE2C3kgXKjUjBxavONoioVn1a+h74mLmtM0iE=
+X-Received: by 2002:a17:906:698e:: with SMTP id i14mr11000252ejr.122.1563340034260;
+        Tue, 16 Jul 2019 22:07:14 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwmCfO+XQyONThPFgRBPw+kfuy10tvKBCUaASSEUwTJYHkF2mvtO1D4Wf83phc1OuoBRJNt
+X-Received: by 2002:a17:906:698e:: with SMTP id i14mr11000194ejr.122.1563340033258;
+        Tue, 16 Jul 2019 22:07:13 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563340033; cv=none;
         d=google.com; s=arc-20160816;
-        b=qo8CqUVg6TxZzL2CihUdsMxZgyt6jSo1c+1wtsh8PaPPxLiKAun1BSqFmQ8o8B2Z9n
-         kEEoWFU9mjWKRFbgvjgtoEsjSl5xqdjVX3GOp7S93GY/Ojj60eIYFnLzcnAfDvRrCGtQ
-         wzqBtSWdHfLZ2yfW6r/iLyloohj3zC3wzoE9Hq4K/w3TL3hVlQiUXpIQ0Y9PHbS3rc+R
-         tbP3EOqbhEz2m/X0XGn8WoelYTZtxNpSPRCEt1pjrYPR9YzQfBru6UbuoGlkHWLlH0H/
-         5ntudSGEpzdlTz60eQWaZ0NUmrOAEssJx79vFaS2bJTY9/1I+TZYUeAxtxe+HvmVaEGW
-         BEkw==
+        b=Jb011meSEO2HoOVDQnvbcu4E69vZ81Xr8u1ky6txdpft7JCZ1R1m1Gts7136fznt3c
+         VYNuMq/Bnvbmjh50iXlO8AMJHBaTUoWZlXb6wOcRa6K/G1gKyB767hDkWjOnpbYKn5ZT
+         CeH3gGRx0ToxKpJ58mqTLZLUKWQ+Q4IWdT7rXo9KdMOOBiW+D3/1Z0ygi5NzjHAIqK4K
+         cpAmDxmin+n/dwgpmUUpt16NpP41VFFqRhKK0DH599lgndasHz4fw2/1DBXavma+DWdp
+         y7SCOyjQ/10ZNhs4sSOdqx4/xaInZ0Rjh91AbRWIEeHNde2Vj3SZ55lSODo2RSUVcK+8
+         VnOw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:references:in-reply-to:message-id:subject:cc:to:from
-         :date:dkim-signature;
-        bh=alhZetwGpdh94EKu+GRyj6cJ7JxPyjrQX4Mk9dPT0C4=;
-        b=ZlimsR+/3Tu1CJL/2M/WmLjA6g7R4/ZgSD1xqUXThLxKRzoGqjcyIdvcftjzF13uYs
-         KY2ONqWPBSj0awDc9W0S2+IJwk+ppRVrFkHMrr5XI5M5O4bmiFSbRPR7ly1lV6lhb4O8
-         Lls1EoBz4zi3XAEM9jfN9UjTBxp9ebKJ8hrIWVbifoffDqRupSCZY92VFHfogCos/Oxa
-         YDNHeBxin297oWvVelEk6kd+5eEN9FwHSbGEsXF0j/lMvu/xfMcsd+yvyU7KYXI7DIe9
-         HoBVMGf9KCyieSUk/3MYR0e1amIj5GZtfsfR4LvwKy6wqdJXuXVZgqxEiqiWsoqITgR0
-         7p/A==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=ampYWH5RSqTTctNXjay93hp+EsZNvTDA3i1RhxumKIc=;
+        b=yJx9D2dWCAJx8uomRNt74R2m5vXExj+tgGm+qIglhxKV8oY7wm7IoXSoto5LRyfoZu
+         eVCtTMclhYfcD5pIXwus2fIUC/giItqHGpKuev9lxD42g8J7IbkVj+HvwR2cdrNt3v/y
+         XN/nlhIpb63dEf+Xu6g00eWKX+Q9QEI3bFls23Q4wNojAOe+L/Z3sVN2PAZ80YqXUkXV
+         CCQoFQmtZZrS51axkxpEakk6/NzcwnTGR00GE5luw51q4r9+BGKZTqmQ8kjp6UvQv8rR
+         OLR5EisizMBhTGcmhg0iQoaHyJkED09q2wplHCr7PpbzmI1nNuODtq9GIvBnDnCBfwDC
+         c6Lg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@canb.auug.org.au header.s=201702 header.b=X5ODQmuV;
-       spf=pass (google.com: domain of sfr@canb.auug.org.au designates 2401:3900:2:1::2 as permitted sender) smtp.mailfrom=sfr@canb.auug.org.au
-Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
-        by mx.google.com with ESMTPS id l102si21648881pje.78.2019.07.16.21.38.36
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id r21si11962618ejz.133.2019.07.16.22.07.12
         for <linux-mm@kvack.org>
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Tue, 16 Jul 2019 21:38:36 -0700 (PDT)
-Received-SPF: pass (google.com: domain of sfr@canb.auug.org.au designates 2401:3900:2:1::2 as permitted sender) client-ip=2401:3900:2:1::2;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 16 Jul 2019 22:07:13 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@canb.auug.org.au header.s=201702 header.b=X5ODQmuV;
-       spf=pass (google.com: domain of sfr@canb.auug.org.au designates 2401:3900:2:1::2 as permitted sender) smtp.mailfrom=sfr@canb.auug.org.au
-Received: from authenticated.ozlabs.org (localhost [127.0.0.1])
-	(using TLSv1.3 with cipher TLS_AES_256_GCM_SHA384 (256/256 bits)
-	 key-exchange ECDHE (P-256) server-signature RSA-PSS (4096 bits) server-digest SHA256)
-	(No client certificate requested)
-	by mail.ozlabs.org (Postfix) with ESMTPSA id 45pPfG6TYLz9s3l;
-	Wed, 17 Jul 2019 14:38:30 +1000 (AEST)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=canb.auug.org.au;
-	s=201702; t=1563338311;
-	bh=7o9BO0ADmmnMeCw0wqmCaRTFN+ZKwypcAxGKZdpgnH8=;
-	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
-	b=X5ODQmuVyLfNoIKGCLu+tlRTXrGFI1NzAdzDXi+dNhzYhZ52JAHiH6ajzlN3GeRg+
-	 Oh3H2hbICg2tzXiMQQZdmIv42dQDjvuHTUyMtlqc69Vc8yesT0CUZ46RQyfzh4clUd
-	 XgeoS0OeA5BkcUogkbmMZGz57c/XmTDI/MBih8AHpPtK4DDNX4jvJqFtz/aZauPbs7
-	 VWfrGCAWtflRWAGnrNqLtRAEtDuahMn7MdXBWbus65jHa59P4brEIR5wKDgqSyX6NS
-	 Aw1LO7WJ7bWRN2F5kMB+cqyK0zmR6U+/ZTZGPOCdQGa0RZMH8XcEojfGZbuDf8rA3l
-	 Ac2SrTUUrLbYg==
-Date: Wed, 17 Jul 2019 14:38:30 +1000
-From: Stephen Rothwell <sfr@canb.auug.org.au>
-To: Randy Dunlap <rdunlap@infradead.org>
-Cc: akpm@linux-foundation.org, broonie@kernel.org, mhocko@suse.cz,
- linux-next@vger.kernel.org, linux-fsdevel@vger.kernel.org,
- linux-mm@kvack.org, linux-kernel@vger.kernel.org,
- mm-commits@vger.kernel.org
-Subject: Re: mmotm 2019-07-16-17-14 uploaded
-Message-ID: <20190717143830.7f7c3097@canb.auug.org.au>
-In-Reply-To: <8165e113-6da1-c4c0-69eb-37b2d63ceed9@infradead.org>
-References: <20190717001534.83sL1%akpm@linux-foundation.org>
-	<8165e113-6da1-c4c0-69eb-37b2d63ceed9@infradead.org>
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 31D91ABCD;
+	Wed, 17 Jul 2019 05:07:12 +0000 (UTC)
+Date: Wed, 17 Jul 2019 07:07:11 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: Yang Shi <yang.shi@linux.alibaba.com>
+Cc: catalin.marinas@arm.com, dvyukov@google.com, rientjes@google.com,
+	willy@infradead.org, cai@lca.pw, akpm@linux-foundation.org,
+	linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Subject: Re: [PATCH] Revert "kmemleak: allow to coexist with fault injection"
+Message-ID: <20190717050711.GA16284@dhcp22.suse.cz>
+References: <1563299431-111710-1-git-send-email-yang.shi@linux.alibaba.com>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha256;
- boundary="Sig_/dKk7_zXGQ.uoxSOd_E_Lg0m"; protocol="application/pgp-signature"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1563299431-111710-1-git-send-email-yang.shi@linux.alibaba.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---Sig_/dKk7_zXGQ.uoxSOd_E_Lg0m
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: quoted-printable
+On Wed 17-07-19 01:50:31, Yang Shi wrote:
+> When running ltp's oom test with kmemleak enabled, the below warning was
+> triggerred since kernel detects __GFP_NOFAIL & ~__GFP_DIRECT_RECLAIM is
+> passed in:
+> 
+> WARNING: CPU: 105 PID: 2138 at mm/page_alloc.c:4608 __alloc_pages_nodemask+0x1c31/0x1d50
+> Modules linked in: loop dax_pmem dax_pmem_core ip_tables x_tables xfs virtio_net net_failover virtio_blk failover ata_generic virtio_pci virtio_ring virtio libata
+> CPU: 105 PID: 2138 Comm: oom01 Not tainted 5.2.0-next-20190710+ #7
+> Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS rel-1.10.2-0-g5f4c7b1-prebuilt.qemu-project.org 04/01/2014
+> RIP: 0010:__alloc_pages_nodemask+0x1c31/0x1d50
+> ...
+>  kmemleak_alloc+0x4e/0xb0
+>  kmem_cache_alloc+0x2a7/0x3e0
+>  ? __kmalloc+0x1d6/0x470
+>  ? ___might_sleep+0x9c/0x170
+>  ? mempool_alloc+0x2b0/0x2b0
+>  mempool_alloc_slab+0x2d/0x40
+>  mempool_alloc+0x118/0x2b0
+>  ? __kasan_check_read+0x11/0x20
+>  ? mempool_resize+0x390/0x390
+>  ? lock_downgrade+0x3c0/0x3c0
+>  bio_alloc_bioset+0x19d/0x350
+>  ? __swap_duplicate+0x161/0x240
+>  ? bvec_alloc+0x1b0/0x1b0
+>  ? do_raw_spin_unlock+0xa8/0x140
+>  ? _raw_spin_unlock+0x27/0x40
+>  get_swap_bio+0x80/0x230
+>  ? __x64_sys_madvise+0x50/0x50
+>  ? end_swap_bio_read+0x310/0x310
+>  ? __kasan_check_read+0x11/0x20
+>  ? check_chain_key+0x24e/0x300
+>  ? bdev_write_page+0x55/0x130
+>  __swap_writepage+0x5ff/0xb20
+> 
+> The mempool_alloc_slab() clears __GFP_DIRECT_RECLAIM, however kmemleak has
+> __GFP_NOFAIL set all the time due to commit
+> d9570ee3bd1d4f20ce63485f5ef05663866fe6c0 ("kmemleak: allow to coexist
+> with fault injection").  But, it doesn't make any sense to have
+> __GFP_NOFAIL and ~__GFP_DIRECT_RECLAIM specified at the same time.
+> 
+> According to the discussion on the mailing list, the commit should be
+> reverted for short term solution.  Catalin Marinas would follow up with a better
+> solution for longer term.
+> 
+> The failure rate of kmemleak metadata allocation may increase in some
+> circumstances, but this should be expected side effect.
+> 
+> Suggested-by: Catalin Marinas <catalin.marinas@arm.com>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: Dmitry Vyukov <dvyukov@google.com>
+> Cc: David Rientjes <rientjes@google.com>
+> Cc: Matthew Wilcox <willy@infradead.org>
+> Cc: Qian Cai <cai@lca.pw>
+> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
 
-Hi Randy,
+I forgot
+Acked-by: Michal Hocko <mhocko@suse.com>
 
-On Tue, 16 Jul 2019 20:50:11 -0700 Randy Dunlap <rdunlap@infradead.org> wro=
-te:
->
-> drivers/gpu/drm/amd/amdgpu/Kconfig contains this (from linux-next.patch):
->=20
-> --- a/drivers/gpu/drm/amd/amdgpu/Kconfig~linux-next
-> +++ a/drivers/gpu/drm/amd/amdgpu/Kconfig
-> @@ -27,7 +27,12 @@ config DRM_AMDGPU_CIK
->  config DRM_AMDGPU_USERPTR
->  	bool "Always enable userptr write support"
->  	depends on DRM_AMDGPU
-> +<<<<<<< HEAD
->  	depends on HMM_MIRROR
-> +=3D=3D=3D=3D=3D=3D=3D
-> +	depends on ARCH_HAS_HMM
-> +	select HMM_MIRROR
-> +>>>>>>> linux-next/akpm-base =20
->  	help
->  	  This option selects CONFIG_HMM and CONFIG_HMM_MIRROR if it
->  	  isn't already selected to enabled full userptr support.
->=20
-> which causes a lot of problems.
+> ---
+>  mm/kmemleak.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/mm/kmemleak.c b/mm/kmemleak.c
+> index 9dd581d..884a5e3 100644
+> --- a/mm/kmemleak.c
+> +++ b/mm/kmemleak.c
+> @@ -114,7 +114,7 @@
+>  /* GFP bitmask for kmemleak internal allocations */
+>  #define gfp_kmemleak_mask(gfp)	(((gfp) & (GFP_KERNEL | GFP_ATOMIC)) | \
+>  				 __GFP_NORETRY | __GFP_NOMEMALLOC | \
+> -				 __GFP_NOWARN | __GFP_NOFAIL)
+> +				 __GFP_NOWARN)
+>  
+>  /* scanning area inside a memory block */
+>  struct kmemleak_scan_area {
+> -- 
+> 1.8.3.1
 
-Luckily, I don't apply that patch (I instead merge the actual
-linux-next tree at that point) so this does not affect the linux-next
-included version of mmotm.
-
---=20
-Cheers,
-Stephen Rothwell
-
---Sig_/dKk7_zXGQ.uoxSOd_E_Lg0m
-Content-Type: application/pgp-signature
-Content-Description: OpenPGP digital signature
-
------BEGIN PGP SIGNATURE-----
-
-iQEzBAEBCAAdFiEENIC96giZ81tWdLgKAVBC80lX0GwFAl0upkYACgkQAVBC80lX
-0GxY4Af+Oq4/F8H+zsaZlffvr9kWxLnnkP6seTpuCtjL3Lrao+6kmrHwvRxWXRmb
-DqfVHihQ1LhaVW8VoP1GycoXaKBcQn0goSb15YVCUh/GPRhYnatbaUFZwk+ktGmq
-k6ln30+yEY2kKT0FzWwX8dovVmwJ1UCQY1D0wCVMItQB58CerSX4mnmZWinA6lfO
-NEX3APGd2tviTSbBhvy3O8GsCtLGmyX4WWT+TRWJqOZnHeuPLTsIDjDUCAhab/y6
-SY6uOswYK1uKKBRJu7ATwmaJP2DMV2rm6Ueq+XH9Mx/sw19RG2Nji8/EoDhQ1WRh
-Yc0S0HXamFnMIevXgk9IgqtFYoCrvA==
-=eNFs
------END PGP SIGNATURE-----
-
---Sig_/dKk7_zXGQ.uoxSOd_E_Lg0m--
+-- 
+Michal Hocko
+SUSE Labs
 
