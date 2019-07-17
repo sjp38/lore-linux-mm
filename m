@@ -2,210 +2,135 @@ Return-Path: <SRS0=+T2N=VO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D1D4FC76192
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Jul 2019 08:58:14 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 225ABC76186
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Jul 2019 09:07:32 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 876F421743
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Jul 2019 08:58:14 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="SgpTCd0z"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 876F421743
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id E154920818
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Jul 2019 09:07:31 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E154920818
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1CCE36B0003; Wed, 17 Jul 2019 04:58:14 -0400 (EDT)
+	id 7E1D96B0006; Wed, 17 Jul 2019 05:07:31 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 17D548E0003; Wed, 17 Jul 2019 04:58:14 -0400 (EDT)
+	id 7C16A6B0008; Wed, 17 Jul 2019 05:07:31 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 06CBB8E0001; Wed, 17 Jul 2019 04:58:14 -0400 (EDT)
+	id 67F788E0001; Wed, 17 Jul 2019 05:07:31 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C5F116B0003
-	for <linux-mm@kvack.org>; Wed, 17 Jul 2019 04:58:13 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id k20so14320591pgg.15
-        for <linux-mm@kvack.org>; Wed, 17 Jul 2019 01:58:13 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E9746B0003
+	for <linux-mm@kvack.org>; Wed, 17 Jul 2019 05:07:31 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id b3so17576268edd.22
+        for <linux-mm@kvack.org>; Wed, 17 Jul 2019 02:07:31 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=TV4qxs2n08gZo7racpvsLudptxi6rnkrvduj7r235gE=;
-        b=fRIJHAvcGVkEoO2OzUNaMWIF9gSIkKhWAsNhibYh7MEAP0qPibYeFqFBPNT9H2cYZo
-         GXHXOqkFFiFLVfW0b2//yn5lKBpq/qryhxxC/dpRJtZ5KFi7ABEkXLQXhcO1s76NElLj
-         skzKYf+hRSrDb63BKbtH6te2WXaW3GFg3sy04wsAKtVYaCem3h8F5BDQu2LImvWNFbI0
-         Ojs+St8YxQoK2ZA2ALqyCJcaNsc0vOAF2pdNiN3aCZsbYOu45nHBNkEVv6ILZHZbKKeO
-         DAfsuZQFTTjqf18pvUGVY+IstEwkOuURzO2ZR84yYO8jAegBH0aij/PBQZFKzy1A5T5g
-         35IA==
-X-Gm-Message-State: APjAAAXNsL4uvrxDNNJleJwTllF+EImnHu8VUxQBFbEgJ9O25jWRLiRZ
-	19HUpKXHRwIQVu6T2XX+xFpvyd/VXWP2Ja0RJevYioL9JjQRFfHqMsj/CsLg8y7/L/tnNh7n10f
-	WBhcHa6iEb03dO4UvKalkSViyR/bTfRBJhW8yIJssYdQfVddcwy9rTPln7zYvxMTFQw==
-X-Received: by 2002:a65:6216:: with SMTP id d22mr36758424pgv.404.1563353893281;
-        Wed, 17 Jul 2019 01:58:13 -0700 (PDT)
-X-Received: by 2002:a65:6216:: with SMTP id d22mr36758377pgv.404.1563353892357;
-        Wed, 17 Jul 2019 01:58:12 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563353892; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id;
+        bh=dKbjvEEsZeKXu8dFwTk9UFax82MLa5C29eCKzaf2UJw=;
+        b=I3nXjwgksgabuhyx2rfRVwNPbiwcMWUTjr0nA+UuhE/YNTgUkfQG1axljlZVPLMBw9
+         oIE/efUe/s2FpNJawZkq90PSNAbKNyw0zzy0amW+vFWN8UgNaEj07FrXCR0xnty1l60A
+         Z4wp5g0eGvbjX2272lAjjTzpUY3yIwCxTW2d0Ck7SnTFXm0gQ6Eh3OKI7rsOsPEB4E1e
+         WvnKoTtZ3gKjag4oScviMT0V1rK1uH0nMpkLheU/blh0zlzLGIMEOdbUkLvuap16kQ6J
+         zL1+swsSwCnMGJlKvEYFZACxf4+iLKT4QW0HlEVHEdNS6IVrLcu+9Pk/sAxJgz6WJjwU
+         7Exw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
+X-Gm-Message-State: APjAAAV/dEIL9iHjIhmeq1alArx5jCHm444Hd8SCZDRKwm7RHiwLao3h
+	WImZm8RO0xef25KMNbDfLzvFeRBBY8NrV5EBmdzSMkLXTAmE45M4onV54p9x+Pa7JSalF2F13Z0
+	pkIf1fciRQO5mv/jwHBrhSDn1Z9JYz8DoUWgASFC9HY4TSsQewnHk32dvsdNIhYjzRg==
+X-Received: by 2002:a50:b561:: with SMTP id z30mr33765857edd.87.1563354450762;
+        Wed, 17 Jul 2019 02:07:30 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqycLE9/Yq851klX7aHo4W2VYmsb43/nEeilWmqT7y9WxiW9JQxDLxNh8wDMs9XA7L49vc8r
+X-Received: by 2002:a50:b561:: with SMTP id z30mr33765794edd.87.1563354449980;
+        Wed, 17 Jul 2019 02:07:29 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563354449; cv=none;
         d=google.com; s=arc-20160816;
-        b=gmfvunb5AHYv6d88xr43J4T2EkWL6KWmh9mxsV1m83HFFkzISMPmXOgeOGr/4GY5P/
-         c2xg/iheU8bOkrIEBB3osTzNiCk7bgvPPFhKSwdLoA7GCJRbOPNvMJIjKIYo9YBpKB2q
-         iHXn8s2djaUNEcn6jrht1zWmB5E+9wO5mHq+OZMZ3Xwynx5IxUOBoGaVnTPPasXJ1+A+
-         dO5CjhmC/2Jh8Ug0ISdY4J5Q0xWytdy9b5aX3Zm0C9OzX6pPPsb10XaP3mYA49CVe35R
-         WKZSI2gNI9Vr4XSvcQiE+re2/678TWFBlSicZUHo0Kk1+8+vKeJxFrF12faJj7uCI+Rz
-         wWBA==
+        b=Z2WMSC5aYV9mbeBDt7I6IaPJq3IDFX6bZy+zhKL9RCJBZloW4ua6wZi93cPLWUtycr
+         W0kwuyiZ1pm483NcHpbkD3UOuyzWKHxdbfuElHy2dK0IaGiMqkiy0dKeS8kgqbpfYOiB
+         GTXis7WlJW3m4nb4H8tYUb82BGRoX29ZoJuuYFk3NXMABQ1DZ3gPwkX9jTj0WALm1+w6
+         ZmEpnMccYmv5O/J2mU6Y/QtmZLM7edS5c6Vq5I9+FdsUioewYpOYX5v4NV0yGiqyHg47
+         rPuQwA+CI9knvizj1Zenhx8SZRC6aeKqKZCUj8/by2pTlrwQoWXBnnz7HkQYLgjnX3/H
+         esoQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=TV4qxs2n08gZo7racpvsLudptxi6rnkrvduj7r235gE=;
-        b=LVTEa7VT4anrz/0XGDEZUMh6uwBt6oRwj6MtF+TibhBrLzHYTScLEfM9oGQuxH8YwW
-         haGxuSeurjBc7Kytf2L1PUqs4ys2ZVtswyW8rgIH1lJrahtKmnOpMZHnZlWkxsSDJ70E
-         1KZVDMu4A/Nein/tlyI1eWOqzcp4LAAWwmDcUlC9cIIS6R064WeqBfQVWLu/gpyNh/Tv
-         x4sSvV2IvajpJupmXcBoLah8iRV5AGKA4yHMphqa9v4FNJVvAnEJvIPjEXxjemPShRFh
-         Z8p018BVj6Ghp2HucLI+DjUaPxSrbUu5BlPGTfbTwK0tie+fEhaJc+OIad/857WjRgF/
-         fQYA==
+        h=message-id:date:subject:cc:to:from;
+        bh=dKbjvEEsZeKXu8dFwTk9UFax82MLa5C29eCKzaf2UJw=;
+        b=0499FEkCCmUurE65FtnLtf4IjNN2KI1tnvDCWbdUqrzu7jp5/JkHbLOaDM2Hw1AAXF
+         IxF4rX/gzveFCDoafuGFouYTwl4lZmqK2BCHO550Ly8+q5EYkaoqrQDGEx6fR0r757AV
+         RZrXhvJ2M936exH91RPW+FLegBsKujVZwbajsPnblv73FySarrRv0bvPRcrwdxGg21zi
+         BakX963xJLBDj+52QdlgO6yTjInv/HjGpl5rR8L/Atq/Cp8iEGy2bOQ+O61IDKPZFisu
+         tSbKZWzno4bC5OtN3IA+Zws73Yl5x1TFdFb3faCUC9gNnX1eEYy8D4G0vLHKy7pIFiVX
+         vEhA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=SgpTCd0z;
-       spf=pass (google.com: domain of unixbhaskar@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=unixbhaskar@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id w34sor111582pgk.2.2019.07.17.01.58.12
+       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id e57si14193369edd.263.2019.07.17.02.07.29
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 17 Jul 2019 01:58:12 -0700 (PDT)
-Received-SPF: pass (google.com: domain of unixbhaskar@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 17 Jul 2019 02:07:29 -0700 (PDT)
+Received-SPF: pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=SgpTCd0z;
-       spf=pass (google.com: domain of unixbhaskar@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=unixbhaskar@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=TV4qxs2n08gZo7racpvsLudptxi6rnkrvduj7r235gE=;
-        b=SgpTCd0z62yKaM4dIK7cO/buQd33jmMoWt2boG/K0rBXZXRGsmx2ymLehL8QFzbUaQ
-         1KiotepetWU1ZEZxnHObR66lw1OH0COUh0PRyWD7S7x1gKzH7dA/QPPIem3+lkT47hSk
-         iNSf8H4plHWYt2BdAO254zOB4i+c4UNzw3+piAGExUNLXbaC0FVHIwaMgwdFZ27OeYuI
-         SdvWuu5/0XyCc3VX1ZhoKB2bKoc8veckZV1sKh3KVlnXv+4BEKC3tIgGplaMiwkS2fDc
-         Fx3p8pgoj9fijIe170TWpN8jWbagQeS92uRXe3ch2SSaWTZ4/Oeb7beszY5RQXF1yDR2
-         npAQ==
-X-Google-Smtp-Source: APXvYqwfa0H2woIcnsTn2ce+Ce0XftkvpQt+auITRXk2EX1rd4s0C7yaC5sXbEdDs8zHkQZ8uEMbbQ==
-X-Received: by 2002:a63:c203:: with SMTP id b3mr40335174pgd.450.1563353891884;
-        Wed, 17 Jul 2019 01:58:11 -0700 (PDT)
-Received: from ArchLinux ([103.231.91.34])
-        by smtp.gmail.com with ESMTPSA id o11sm43398998pfh.114.2019.07.17.01.58.06
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Wed, 17 Jul 2019 01:58:10 -0700 (PDT)
-Date: Wed, 17 Jul 2019 14:27:58 +0530
-From: Bhaskar Chowdhury <unixbhaskar@gmail.com>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-kernel@vger.kernel.org,
-	Linus Torvalds <torvalds@linux-foundation.org>,
-	linux-mm <linux-mm@kvack.org>, Jonathan Corbet <corbet@lwn.net>,
-	Thorsten Leemhuis <linux@leemhuis.info>
-Subject: Re: incoming
-Message-ID: <20190717085758.GA2025@ArchLinux>
-References: <20190716162536.bb52b8f34a8ecf5331a86a42@linux-foundation.org>
- <8056ff9c-1ff2-6b6d-67c0-f62e66064428@suse.cz>
-MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha256;
-	protocol="application/pgp-signature"; boundary="M9NhX3UHpAaciwkO"
-Content-Disposition: inline
-In-Reply-To: <8056ff9c-1ff2-6b6d-67c0-f62e66064428@suse.cz>
-User-Agent: Mutt/1.12.1 (2019-06-15)
+       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 394AAAF47;
+	Wed, 17 Jul 2019 09:07:29 +0000 (UTC)
+From: Oscar Salvador <osalvador@suse.de>
+To: akpm@linux-foundation.org
+Cc: dan.j.williams@intel.com,
+	david@redhat.com,
+	pasha.tatashin@soleen.com,
+	mhocko@suse.com,
+	aneesh.kumar@linux.ibm.com,
+	linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org,
+	Oscar Salvador <osalvador@suse.de>
+Subject: [PATCH v2 0/2] Fixes for sub-section hotplug
+Date: Wed, 17 Jul 2019 11:07:23 +0200
+Message-Id: <20190717090725.23618-1-osalvador@suse.de>
+X-Mailer: git-send-email 2.13.7
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+v2 -> v1: Go the easy way and just adapt the check (Dan/Aneesh)
 
---M9NhX3UHpAaciwkO
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+Hi all,
 
+these two patches address a couple of issues I found while working on my
+vmemmap-patchset.
+The issues are:
 
+        1) section_deactivate mistakenly zeroes ms->section_mem_map and then
+           tries to check whether the section is an early section, but since
+           section_mem_map might have been zeroed, we will return false
+           when it is really an early section.
+           In order to fix this, let us check whether the section is early
+           at function entry, so we do not neet check it again later.
 
-Cool !!=20
+        2) shrink_{node,zone}_span work on sub-section granularity now.
+           The problem is that since deactivation of the section occurs later
+           on in sparse_remove_section, so the pfn_valid()->pfn_section_valid()
+           check will always return true for every sub-section chunk.
+           In order to avoid that, let us adapt the check and skip the whole
+           range to be removed.
+           The user visible effect of this is that we are always left with,
+           at least, PAGES_PER_SECTION spanned, even if we got to remove all
+           memory linked to a zone/node
 
-On 10:47 Wed 17 Jul , Vlastimil Babka wrote:
->On 7/17/19 1:25 AM, Andrew Morton wrote:
->>
->> Most of the rest of MM and just about all of the rest of everything
->> else.
->
->Hi,
->
->as I've mentioned at LSF/MM [1], I think it would be nice if mm pull
->requests had summaries similar to other subsystems. I see they are now
->more structured (thanks!), but they are now probably hitting the limit
->of what scripting can do to produce a high-level summary for human
->readers (unless patch authors themselves provide a blurb that can be
->extracted later?).
->
->So I've tried now to provide an example what I had in mind, below. Maybe
->it's too concise - if there were "larger" features in this pull request,
->they would probably benefit from more details. I'm CCing the known (to
->me) consumers of these mails to judge :) Note I've only covered mm, and
->core stuff that I think will be interesting to wide audience (change in
->LIST_POISON2 value? I'm sure as hell glad to know about that one :)
->
->Feel free to include this in the merge commit, if you find it useful.
->
->Thanks,
->Vlastimil
->
->[1] https://lwn.net/Articles/787705/
->
->-----
->
->- z3fold fixes and enhancements by Henry Burns and Vitaly Wool
->- more accurate reclaimed slab caches calculations by Yafang Shao
->- fix MAP_UNINITIALIZED UAPI symbol to not depend on config, by
->Christoph Hellwig
->- !CONFIG_MMU fixes by Christoph Hellwig
->- new novmcoredd parameter to omit device dumps from vmcore, by Kairui Song
->- new test_meminit module for testing heap and pagealloc initialization,
->by Alexander Potapenko
->- ioremap improvements for huge mappings, by Anshuman Khandual
->- generalize kprobe page fault handling, by Anshuman Khandual
->- device-dax hotplug fixes and improvements, by Pavel Tatashin
->- enable synchronous DAX fault on powerpc, by Aneesh Kumar K.V
->- add pte_devmap() support for arm64, by Robin Murphy
->- unify locked_vm accounting with a helper, by Daniel Jordan
->- several misc fixes
->
->core/lib
->- new typeof_member() macro including some users, by Alexey Dobriyan
->- make BIT() and GENMASK() available in asm, by Masahiro Yamada
->- changed LIST_POISON2 on x86_64 to 0xdead000000000122 for better code
->generation, by Alexey Dobriyan
->- rbtree code size optimizations, by Michel Lespinasse
->- convert struct pid count to refcount_t, by Joel Fernandes
->
->get_maintainer.pl
->- add --no-moderated switch to skip moderated ML's, by Joe Perches
->
->
+Oscar Salvador (2):
+  mm,sparse: Fix deactivate_section for early sections
+  mm,memory_hotplug: Fix shrink_{zone,node}_span
 
---M9NhX3UHpAaciwkO
-Content-Type: application/pgp-signature; name="signature.asc"
+ mm/memory_hotplug.c | 8 ++++----
+ mm/sparse.c         | 5 +++--
+ 2 files changed, 7 insertions(+), 6 deletions(-)
 
------BEGIN PGP SIGNATURE-----
-
-iQEzBAABCAAdFiEEnwF+nWawchZUPOuwsjqdtxFLKRUFAl0u4xEACgkQsjqdtxFL
-KRWrWwf8Cy7nQCi6JgRKYAQ4L1ZAV38WQCEe/uU0nfsMpVCABe01JZuWwavKS6Z0
-WQddJZAQNzVXsAT4jmtj0KCABVIPoUMwaJ/H7wjN3uKIWgBfx+0d9pLWpVVa5DAK
-KwNbjBwSXe4G1CiAJ0w0ZQ6mUdiHe8wwGE1sZI8V/SldhjFeBtlfUqcwcN24GCr5
-dyjof/z8aa53uNPN5F+UVdwKU7GudPsVrohpnVgjmq3t2hn2epLbITFEwfNMUlBh
-mcF7HIE+Jhs2V59EVKv/k4OiGOJoEYe2HeOvHN5QgvQA5qqU99tYxROWokggcVPS
-9gKfzx3IdOoFLCvRq0YtgPfMZVBi2g==
-=zmHX
------END PGP SIGNATURE-----
-
---M9NhX3UHpAaciwkO--
+-- 
+2.12.3
 
