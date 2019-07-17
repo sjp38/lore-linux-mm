@@ -2,76 +2,76 @@ Return-Path: <SRS0=+T2N=VO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6C903C7618F
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Jul 2019 20:25:35 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1EA18C7618F
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Jul 2019 20:25:38 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3BCFA21851
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Jul 2019 20:25:35 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3BCFA21851
+	by mail.kernel.org (Postfix) with ESMTP id D207421851
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Jul 2019 20:25:37 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D207421851
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 102826B0006; Wed, 17 Jul 2019 16:25:34 -0400 (EDT)
+	id 0B4B06B0007; Wed, 17 Jul 2019 16:25:36 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 08AEE6B0007; Wed, 17 Jul 2019 16:25:34 -0400 (EDT)
+	id F341F6B000A; Wed, 17 Jul 2019 16:25:35 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DFA618E0001; Wed, 17 Jul 2019 16:25:33 -0400 (EDT)
+	id CE8CA8E0001; Wed, 17 Jul 2019 16:25:35 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-vk1-f200.google.com (mail-vk1-f200.google.com [209.85.221.200])
-	by kanga.kvack.org (Postfix) with ESMTP id BE5AB6B0006
-	for <linux-mm@kvack.org>; Wed, 17 Jul 2019 16:25:33 -0400 (EDT)
-Received: by mail-vk1-f200.google.com with SMTP id v126so11737952vkv.20
-        for <linux-mm@kvack.org>; Wed, 17 Jul 2019 13:25:33 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id AD5D96B0007
+	for <linux-mm@kvack.org>; Wed, 17 Jul 2019 16:25:35 -0400 (EDT)
+Received: by mail-vk1-f200.google.com with SMTP id j63so11682046vkc.13
+        for <linux-mm@kvack.org>; Wed, 17 Jul 2019 13:25:35 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references;
-        bh=BmEkLpst5kwPlKSI7S772IcYubMF0CrXoZA4uNUVPgY=;
-        b=szpRPwuJpLVvsbSRpomSnrutHcziYD7wFzupSQ+GDmH8G4CT7EeP3eGu0KvTCHmKcp
-         1VmoczWsW0OcvnYYPR8jC5jOok5MqbOxVFkAS9gj0vKbqNAIpeKdgl0ysDJzdL3YtGTV
-         M1EuJmHfxBqwsjA2zGVsPgw0GhkgaWAtkxpcKJamIIs/+rVPaEKgqNhpmmRZ3Bcvz/yK
-         KA1MTVPS2bL+JnwI+zbUh4pqlEZQbeCTAGTvzV65BUax7GG5JdRWTBSiM83pzKsAqsC8
-         LMG9dcnQr+SpSKq99CNxe56LsnDBRcK4FcZ9rMyNYDxHf8zrJTzasLue+eePsCuc2vQj
-         Akrw==
+        bh=8l1yD18FgMCNHAuwCMb8dBirbWqz0p44kpnGc3Oqgw8=;
+        b=P56gS56VgNqiz5pbkc/baUgZF4RJFo96vkSVTrqmr2fpix36O4y/VAHM7kY54vHhru
+         a8zTSV+MDzP8lPbnFk09KbDeiWyb6CwgNO8KzpsSLiLb7R52b6KtKZ9IOo4p4iJ5dhI+
+         qkvN7aYMQtXa1FpC+YFH2WZng4K9LHgWds4gb5misnrfAOqdRbW4axo16WVCTKg10IR6
+         sWhY65Wr0kCuMwidNI9dOkutu3tokqEcVoFFUZFDAUuqdH7W58rfy/o9VKxMiPvkXVkw
+         d4DzTMdMj3CvseCMBj5ud6O5vIWbcwtjjjYB+ps2Ncy97rDRQ+dHSzj2otwRTOSCnkEI
+         yyug==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAWSWhmQpubr8TRlcBV29/10gkGmA8qXGnjwofpKajiwixJi1q+I
-	G8VNoXFfuVjJCf8ZBxkr50xGWJ1gis7vkpm/KyZspep8JcDGXpdFDMTn303BvqAf2lv3ZdK+poF
-	moix4T71tVrmTFOP428E6JhhT4yZCewVYvWQNacAzLxKzHnhq1/YIGKsV6kECtD+VAw==
-X-Received: by 2002:ab0:1391:: with SMTP id m17mr22470816uae.90.1563395133507;
-        Wed, 17 Jul 2019 13:25:33 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyUvnqZXQIdjG1YYq2vl8iptbxTcpz/Qi8zPMDzlgHV1N2xj8bMCI8aAucjlKQY/zN51UTJ
-X-Received: by 2002:ab0:1391:: with SMTP id m17mr22470715uae.90.1563395132445;
-        Wed, 17 Jul 2019 13:25:32 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563395132; cv=none;
+X-Gm-Message-State: APjAAAXilkwQOmlmr4l7Ff/CwDhXOJPxGyvdOVC2aOzjaVolwQhvNwtj
+	6lc1FLsx2FSCJ0gHhM9T2rhjGz1jGGNDh8suFAOpIygIamnEtp5VJiHA6OrluvQjn4WAG6KR57I
+	o8b55fzYiT0saKKi5KCca3vKfaoz+FeVUXUex+xmfM2446hpRaobCaO7rD1NZyyWHCg==
+X-Received: by 2002:a67:f899:: with SMTP id h25mr25106217vso.159.1563395135494;
+        Wed, 17 Jul 2019 13:25:35 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwKmhnCmqePNOrp8lpxmH8Vz0MeVFy2LCdYCyPv9uNsNYwYxFLMv07qBWi9CAnnFBTqLpUc
+X-Received: by 2002:a67:f899:: with SMTP id h25mr25106141vso.159.1563395134872;
+        Wed, 17 Jul 2019 13:25:34 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563395134; cv=none;
         d=google.com; s=arc-20160816;
-        b=JHNbb/iwMtC2KP7DgKk8KUjkyDphFKDhuZ6XdBxml2HZULc5umarMn+Zdo72Hxsu6r
-         9Aoj2+qj1MygTFc7QJwhv4Tg+O2Da626q+eoPC6EUxXpLqqlKjdzYh9o1e0muSVlMe2e
-         B3snET/XhFos4gBzzmRN+3PifNE+2Kr5ehm6N0WHMRig/oQ0twtRE2XmSZvuuhC5U9Mk
-         fSJBkOFRWss6cqP4QGRPxMLjcNaUtko5AblvQtDGbLI/xOjKp0VHVAwsg9zdGd8zRB6f
-         O2Muy6YMhm3iUXaf2QuPY90r5CMzAmRPRkPRGMVOJYXraoGIzyPG3g59oDSB3a/jyS5L
-         egqA==
+        b=MId3xPdkM1CfYNh4acr6Eyn0n49H0gjic2BaOoVfnvkgsuIHiMpPPv1n1MA7+gdd84
+         UQMQSSdtxyvwwlHbcme01SjlCgTl0S11b4O0SPLhVS0SY0sxpX2lXNRlmm5gNdensaZ8
+         MEqx4sNCOFmI8EyRHmxOZkjSi1OqBRoWYsDDT1esDiJ6U53N4IUHtOAWm8cCEPmnlFvC
+         up2qgR4Mwg3usOut8+YYk0/HYXLm/h5vhXCYWeglUVifvIt40X62GkSio5VDLLd+KYJW
+         6R14jE8d7Nl2P9I1T8LryPtjUOeeQEi41pzAv6xiQ7aB6IN/hi936LjNAIyPm1BxRAIB
+         jtWw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=BmEkLpst5kwPlKSI7S772IcYubMF0CrXoZA4uNUVPgY=;
-        b=VP5yB6gQ4NTuQoE+7Kdk3d+vX6at5RA5C0np3EKfFMfDnQFbSvCmEHYzHHeQeZr6fK
-         kv8OcsjhwnC6Thhxjz44k5ZVl1BGSwwrmXMkseDPHNAVQGB9d8i9lqHGgKFJKUbpY5H5
-         KKdbKD3EZPKyt0l4ps58Y9G/uWjwcbYQiKDoJLcreG3RBHaeArAOKP21Z8uRfMDbrj59
-         CNTaqG4iaJshg5MRlszgKBhGEhmHkH4H9NFkmY26m0NrS6KWzq68Q5aAs4cg/63W1Z6B
-         XZvoGa88f1hYb4wa6WXumTTk2+iPhYATWggs1FOpgTRHAz5q6C/ZwusKv97CS9E9sEad
-         ltrg==
+        bh=8l1yD18FgMCNHAuwCMb8dBirbWqz0p44kpnGc3Oqgw8=;
+        b=pvReLOOCTYfCR2D/DhYloc3WDD2KniRe2CxWxR2caJYA2VXWKkNC+Ym0T0ikV8fEvm
+         K42y7zZjX+DUZIoNiHs+Xyo+A9UKaSKJU3KxO/Y+74ZgA4DqDU5w43USNut0bQ5pF2Kw
+         M04T1RtA9dTKGKkbGO+OBLMa2G+1CSz1AnlcprRs+cY+9m/T3RmSOPKjT+ACVICh60DK
+         oqxvkcHcwYJEVIGq+/5h7vO+0/XNzID/OJsUUsoO2Ug1eCeqe3HDyjoUscsMxB0/6vbo
+         KEXTVQejQnw+XpaH+XFdYPqiPSC/GGh9r9dTSuf9AqA0WME9q/kwfLrsKGJBTu8HYQU6
+         /cVA==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id u62si10059368vsu.198.2019.07.17.13.25.32
+        by mx.google.com with ESMTPS id g39si9159203uah.54.2019.07.17.13.25.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Jul 2019 13:25:32 -0700 (PDT)
+        Wed, 17 Jul 2019 13:25:34 -0700 (PDT)
 Received-SPF: pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;
@@ -79,11 +79,11 @@ Authentication-Results: mx.google.com;
 Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 88D4A308FBAC;
-	Wed, 17 Jul 2019 20:25:31 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id 0C66030842A0;
+	Wed, 17 Jul 2019 20:25:34 +0000 (UTC)
 Received: from llong.com (dhcp-17-160.bos.redhat.com [10.18.17.160])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 39D5D5C220;
-	Wed, 17 Jul 2019 20:25:30 +0000 (UTC)
+	by smtp.corp.redhat.com (Postfix) with ESMTP id AB95B5C260;
+	Wed, 17 Jul 2019 20:25:31 +0000 (UTC)
 From: Waiman Long <longman@redhat.com>
 To: Christoph Lameter <cl@linux.com>,
 	Pekka Enberg <penberg@kernel.org>,
@@ -98,163 +98,95 @@ Cc: linux-mm@kvack.org,
 	Shakeel Butt <shakeelb@google.com>,
 	Vladimir Davydov <vdavydov.dev@gmail.com>,
 	Waiman Long <longman@redhat.com>
-Subject: [PATCH v2 1/2] mm, slab: Extend slab/shrink to shrink all memcg caches
-Date: Wed, 17 Jul 2019 16:24:12 -0400
-Message-Id: <20190717202413.13237-2-longman@redhat.com>
+Subject: [PATCH v2 2/2] mm, slab: Show last shrink time in us when slab/shrink is read
+Date: Wed, 17 Jul 2019 16:24:13 -0400
+Message-Id: <20190717202413.13237-3-longman@redhat.com>
 In-Reply-To: <20190717202413.13237-1-longman@redhat.com>
 References: <20190717202413.13237-1-longman@redhat.com>
 X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.43]); Wed, 17 Jul 2019 20:25:31 +0000 (UTC)
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.40]); Wed, 17 Jul 2019 20:25:34 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Currently, a value of '1" is written to /sys/kernel/slab/<slab>/shrink
-file to shrink the slab by flushing out all the per-cpu slabs and free
-slabs in partial lists. This can be useful to squeeze out a bit more memory
-under extreme condition as well as making the active object counts in
-/proc/slabinfo more accurate.
+The show method of /sys/kernel/slab/<slab>/shrink sysfs file currently
+returns nothing. This is now modified to show the time of the last
+cache shrink operation in us.
 
-This usually applies only to the root caches, as the SLUB_MEMCG_SYSFS_ON
-option is usually not enabled and "slub_memcg_sysfs=1" not set. Even
-if memcg sysfs is turned on, it is too cumbersome and impractical to
-manage all those per-memcg sysfs files in a real production system.
-
-So there is no practical way to shrink memcg caches.  Fix this by
-enabling a proper write to the shrink sysfs file of the root cache
-to scan all the available memcg caches and shrink them as well. For a
-non-root memcg cache (when SLUB_MEMCG_SYSFS_ON or slub_memcg_sysfs is
-on), only that cache will be shrunk when written.
-
-On a 2-socket 64-core 256-thread arm64 system with 64k page after
-a parallel kernel build, the the amount of memory occupied by slabs
-before shrinking slabs were:
-
- # grep task_struct /proc/slabinfo
- task_struct        53137  53192   4288   61    4 : tunables    0    0
- 0 : slabdata    872    872      0
- # grep "^S[lRU]" /proc/meminfo
- Slab:            3936832 kB
- SReclaimable:     399104 kB
- SUnreclaim:      3537728 kB
-
-After shrinking slabs:
-
- # grep "^S[lRU]" /proc/meminfo
- Slab:            1356288 kB
- SReclaimable:     263296 kB
- SUnreclaim:      1092992 kB
- # grep task_struct /proc/slabinfo
- task_struct         2764   6832   4288   61    4 : tunables    0    0
- 0 : slabdata    112    112      0
+CONFIG_SLUB_DEBUG depends on CONFIG_SYSFS. So the new shrink_us field
+is always available to the shrink methods.
 
 Signed-off-by: Waiman Long <longman@redhat.com>
-Acked-by: Roman Gushchin <guro@fb.com>
 ---
- Documentation/ABI/testing/sysfs-kernel-slab | 12 ++++---
- mm/slab.h                                   |  1 +
- mm/slab_common.c                            | 37 +++++++++++++++++++++
- mm/slub.c                                   |  2 +-
- 4 files changed, 47 insertions(+), 5 deletions(-)
+ Documentation/ABI/testing/sysfs-kernel-slab |  2 ++
+ include/linux/slub_def.h                    |  1 +
+ mm/slub.c                                   | 12 +++++++++---
+ 3 files changed, 12 insertions(+), 3 deletions(-)
 
 diff --git a/Documentation/ABI/testing/sysfs-kernel-slab b/Documentation/ABI/testing/sysfs-kernel-slab
-index 29601d93a1c2..94ffd47fc8d7 100644
+index 94ffd47fc8d7..9869a3f57dc3 100644
 --- a/Documentation/ABI/testing/sysfs-kernel-slab
 +++ b/Documentation/ABI/testing/sysfs-kernel-slab
-@@ -429,10 +429,14 @@ KernelVersion:	2.6.22
- Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
- 		Christoph Lameter <cl@linux-foundation.org>
- Description:
--		The shrink file is written when memory should be reclaimed from
--		a cache.  Empty partial slabs are freed and the partial list is
--		sorted so the slabs with the fewest available objects are used
--		first.
-+		The shrink file is used to enable some unused slab cache
-+		memory to be reclaimed from a cache.  Empty per-cpu
-+		or partial slabs are freed and the partial list is
-+		sorted so the slabs with the fewest available objects
-+		are used first.  It only accepts a value of "1" on
-+		write for shrinking the cache. Other input values are
-+		considered invalid.  If it is a root cache, all the
-+		child memcg caches will also be shrunk, if available.
+@@ -437,6 +437,8 @@ Description:
+ 		write for shrinking the cache. Other input values are
+ 		considered invalid.  If it is a root cache, all the
+ 		child memcg caches will also be shrunk, if available.
++		When read, the time in us of the last cache shrink
++		operation is shown.
  
  What:		/sys/kernel/slab/cache/slab_size
  Date:		May 2007
-diff --git a/mm/slab.h b/mm/slab.h
-index 9057b8056b07..5bf615cb3f99 100644
---- a/mm/slab.h
-+++ b/mm/slab.h
-@@ -174,6 +174,7 @@ int __kmem_cache_shrink(struct kmem_cache *);
- void __kmemcg_cache_deactivate(struct kmem_cache *s);
- void __kmemcg_cache_deactivate_after_rcu(struct kmem_cache *s);
- void slab_kmem_cache_release(struct kmem_cache *);
-+void kmem_cache_shrink_all(struct kmem_cache *s);
- 
- struct seq_file;
- struct file;
-diff --git a/mm/slab_common.c b/mm/slab_common.c
-index 807490fe217a..6491c3a41805 100644
---- a/mm/slab_common.c
-+++ b/mm/slab_common.c
-@@ -981,6 +981,43 @@ int kmem_cache_shrink(struct kmem_cache *cachep)
- }
- EXPORT_SYMBOL(kmem_cache_shrink);
- 
-+/**
-+ * kmem_cache_shrink_all - shrink a cache and all memcg caches for root cache
-+ * @s: The cache pointer
-+ */
-+void kmem_cache_shrink_all(struct kmem_cache *s)
-+{
-+	struct kmem_cache *c;
-+
-+	if (!IS_ENABLED(CONFIG_MEMCG_KMEM) || !is_root_cache(s)) {
-+		kmem_cache_shrink(s);
-+		return;
-+	}
-+
-+	get_online_cpus();
-+	get_online_mems();
-+	kasan_cache_shrink(s);
-+	__kmem_cache_shrink(s);
-+
-+	/*
-+	 * We have to take the slab_mutex to protect from the memcg list
-+	 * modification.
-+	 */
-+	mutex_lock(&slab_mutex);
-+	for_each_memcg_cache(c, s) {
-+		/*
-+		 * Don't need to shrink deactivated memcg caches.
-+		 */
-+		if (s->flags & SLAB_DEACTIVATED)
-+			continue;
-+		kasan_cache_shrink(c);
-+		__kmem_cache_shrink(c);
-+	}
-+	mutex_unlock(&slab_mutex);
-+	put_online_mems();
-+	put_online_cpus();
-+}
-+
- bool slab_is_available(void)
- {
- 	return slab_state >= UP;
+diff --git a/include/linux/slub_def.h b/include/linux/slub_def.h
+index d2153789bd9f..055474197e83 100644
+--- a/include/linux/slub_def.h
++++ b/include/linux/slub_def.h
+@@ -113,6 +113,7 @@ struct kmem_cache {
+ 	/* For propagation, maximum size of a stored attr */
+ 	unsigned int max_attr_size;
+ #ifdef CONFIG_SYSFS
++	unsigned int shrink_us;	/* Cache shrink time in us */
+ 	struct kset *memcg_kset;
+ #endif
+ #endif
 diff --git a/mm/slub.c b/mm/slub.c
-index e6c030e47364..9736eb10dcb8 100644
+index 9736eb10dcb8..77d67a55ce43 100644
 --- a/mm/slub.c
 +++ b/mm/slub.c
-@@ -5294,7 +5294,7 @@ static ssize_t shrink_store(struct kmem_cache *s,
+@@ -34,6 +34,7 @@
+ #include <linux/prefetch.h>
+ #include <linux/memcontrol.h>
+ #include <linux/random.h>
++#include <linux/sched/clock.h>
+ 
+ #include <trace/events/kmem.h>
+ 
+@@ -5287,16 +5288,21 @@ SLAB_ATTR(failslab);
+ 
+ static ssize_t shrink_show(struct kmem_cache *s, char *buf)
+ {
+-	return 0;
++	return sprintf(buf, "%u\n", s->shrink_us);
+ }
+ 
+ static ssize_t shrink_store(struct kmem_cache *s,
  			const char *buf, size_t length)
  {
- 	if (buf[0] == '1')
--		kmem_cache_shrink(s);
-+		kmem_cache_shrink_all(s);
- 	else
+-	if (buf[0] == '1')
++	if (buf[0] == '1') {
++		u64 start = sched_clock();
++
+ 		kmem_cache_shrink_all(s);
+-	else
++		s->shrink_us = (unsigned int)div_u64(sched_clock() - start,
++						     NSEC_PER_USEC);
++	} else {
  		return -EINVAL;
++	}
  	return length;
+ }
+ SLAB_ATTR(shrink);
 -- 
 2.18.1
 
