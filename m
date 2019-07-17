@@ -2,130 +2,157 @@ Return-Path: <SRS0=+T2N=VO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.2 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
-	SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-9.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	UNPARSEABLE_RELAY,URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0E8DFC76195
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Jul 2019 17:36:30 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2925CC7618F
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Jul 2019 17:45:39 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D010621849
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Jul 2019 17:36:29 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=cmpxchg-org.20150623.gappssmtp.com header.i=@cmpxchg-org.20150623.gappssmtp.com header.b="s+ad5D3H"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D010621849
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=cmpxchg.org
+	by mail.kernel.org (Postfix) with ESMTP id D41B7217F4
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Jul 2019 17:45:38 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D41B7217F4
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 687106B0007; Wed, 17 Jul 2019 13:36:29 -0400 (EDT)
+	id 744BD6B0003; Wed, 17 Jul 2019 13:45:38 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 639188E0001; Wed, 17 Jul 2019 13:36:29 -0400 (EDT)
+	id 6F42F6B0007; Wed, 17 Jul 2019 13:45:38 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 54D6E6B0010; Wed, 17 Jul 2019 13:36:29 -0400 (EDT)
+	id 609718E0001; Wed, 17 Jul 2019 13:45:38 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 2383A6B0007
-	for <linux-mm@kvack.org>; Wed, 17 Jul 2019 13:36:29 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id q11so12363453pll.22
-        for <linux-mm@kvack.org>; Wed, 17 Jul 2019 10:36:29 -0700 (PDT)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E8066B0003
+	for <linux-mm@kvack.org>; Wed, 17 Jul 2019 13:45:38 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id i33so12408312pld.15
+        for <linux-mm@kvack.org>; Wed, 17 Jul 2019 10:45:38 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=kevqSiJxsbEDhmFvXT17QTCK6a0eC0i3z1ong8Uuwzo=;
-        b=Irs/4bT4i/POcYrWbNx/b4+Omnjw4+8bSyWqvrqXnDQWR430DeEVUvW5ZSuW7ly266
-         kBiXdlVWq4lz5ixjZx3Dx6pswxjoxAaCbo8Y7hrW2/5VsaAfGwD7+7arJNtDq4HqdcCK
-         OEHBWW9rd6ubxnyBEOpAxSN5/dLgpLmxyCWqapUXnbzaFcaWZ70fihrhk937+FShrMhN
-         j+cPPZRzGMWugTxGpIT/6G9SLOyrFJLpaitL10gLWbiMbqXVQ7HEBmxwQgpMpEFGHR2Y
-         d2dso99Tt4mF7wItp3LQZPbc2mUK30/ljuRI1/RCBaGSI6he6MbcgDeG1WG/JvCZ1cHd
-         Se9Q==
-X-Gm-Message-State: APjAAAUhlG+eh3wydDIefG+3nBlbsi+ZQ6xN8RQ8p2skP3Ju6CCaDpLI
-	zTMivmAQHmlPfq3AvTTvRuWseM9wf3i0oUBWL/umg2H4YWnKrDbcMTralFVWDeQS3PaMYGY1AIn
-	oeMpaBa971YuiNu8fylVfh7l94f/g9uo+LVvweUjj9PPgRpM9hB593JvtYrfadu60sg==
-X-Received: by 2002:a17:90b:28f:: with SMTP id az15mr44949016pjb.18.1563384988826;
-        Wed, 17 Jul 2019 10:36:28 -0700 (PDT)
-X-Received: by 2002:a17:90b:28f:: with SMTP id az15mr44948936pjb.18.1563384987770;
-        Wed, 17 Jul 2019 10:36:27 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563384987; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id;
+        bh=Jn1Fpw8LCDAidOyVuaihNufCQWVTMDDvASOIBvdl2fI=;
+        b=bl7HnpnfQ3amU7JNGRBo3tkGpNHUBl0AOuZCyMZY0Tzn2fNb+IlSadfRimwlcH7dIF
+         nSlnWFx7E9FkZefKiS+rI71IBX27ZFi6y8uAvMFWXqLs3GjgQjdo3Gj/I/wKk3ZXiE4H
+         H/a2ldiOB1g3l0H4OlPQAzrnTIf3f55s86zLzdThCO9QQqgjGyHf28+ne3R4IySyILGm
+         gS7/X+n9KHQsAk1RqCZqVucEe0MzCtFGKRg6vnnGp8lZ/4++WPzcVytQEQ7tFYtNDIUG
+         IZqC78TZ1Plng2Io/4/suUj/xA8TjcBut5rqxthebAz7LIFvZ4NpPKzt9Fnr3XqNvZbO
+         DkYg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.133 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Gm-Message-State: APjAAAUUdjfEtyN59xQNQIJ+bf3eevXe1Ia17yaddIQ0Yen+9G2GXK2W
+	aprZFJNBEu49MPWQO3Libg8sI/AoIDIpmnZwQI8MJB6Bew6b55H42pXZBBAiHUZm/fsq0WTdAoR
+	kFG24hb6jESTa8ZSFmGivTPxagwq9/WtV3NaZhiaQe5Z/znGLFZRc/7nlBh/i6754Wg==
+X-Received: by 2002:a63:1d0e:: with SMTP id d14mr42499950pgd.324.1563385537732;
+        Wed, 17 Jul 2019 10:45:37 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw3517HjQSBbFVoxLTIcIyX9wAEtLlekIC1hrTWEXlmy7W1nj1OeAAzO55U3XUBnwltsW+s
+X-Received: by 2002:a63:1d0e:: with SMTP id d14mr42499874pgd.324.1563385536828;
+        Wed, 17 Jul 2019 10:45:36 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563385536; cv=none;
         d=google.com; s=arc-20160816;
-        b=eEzYLAQxLtuSfZn2qHB0mpkf/jDjVb2D8AA5P01KJwNW3O+RDo21RlNIoVbzEBAfxh
-         clu8q68UKv87hZX+bQdsq9jQcv51ktxxZ61UusTA0bL9tpzZmDbZBXwmylW+OQzz6/AF
-         vi60eKHymkkETYuZgmB36A+Q4jrJYSeSkaoZoBWxD5nY1fAQPRRvjARx/3PcgNvtzUW6
-         rivTiepZVTDN+qxh39Z9+jPZjMv+xLXKxZesNbpfnVa9EvEJ49HhVkgr1ED/H5xQPOm5
-         b6TEDUz/vgedbSVo//Qp4rM0y358hWlJuTttxu1BCG7Y4ndRtHsdYF8hCStXsIWHHiLj
-         vpsg==
+        b=lmS5zLlndcg6z7aeiFaRvUGa5EQYWtUP0aQ7FLuZwVklP8/frmACt3soCTIpFIFyk1
+         7wY3ios7KbZ8nf8qZBNAFGwSJVZ77dABX7Tk4DvBmGTN+T7DODrHqhDho+ShtZXeQYNZ
+         HiDOLLA7LGG/e1BfBEcZs3scii9EToFh2nXFRNp3x5FWwn1CCMimE+E9UqBXh8tYRhmD
+         r4QtEXPkuofdqPQDilaYq5DpsNPRcumXH5wiYbfNlc1liDpv2HA77SWa0m4gfWrr+/Ys
+         qHOrkSP0/OrkTFIC1gSG8Oa1RdqMZjMKiIhsuSy2bJpxSOGneBsTIYnKS+0z0/qgL5hT
+         XUEg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=kevqSiJxsbEDhmFvXT17QTCK6a0eC0i3z1ong8Uuwzo=;
-        b=xAeWOOVCsd/B+KZ5V2bo4MKoQpzF5axB9FAyYhQ1QeoQHVQ8weoFKWj26sZFOGwBWm
-         l4Yxy7N6X0GrcYxfG8M+IMck9hVuZdYvO9rwWHKE9g2gnNvN+SZQWnH6/RnRuLPwR8e+
-         kp/ta3hf+8Vfb/i2crEj61oGlC8SoryAz6Ubamrv6bQTpqQz4pJTEjfJ0JBGOEMa0GRK
-         iUnvv0C+g6r2pf8Vxs8wDVp4rlNZ17RFVkkpFTg3a/Qy8GAnJ5tfqreKzfXj7EVmXmC2
-         r5yvTADIhZJAO4g1+DFM97DWfOxxfuCMpP75DcBOb+VXKTLUfprKqASB/+ayhW8RugzP
-         H6lA==
+        h=message-id:date:subject:cc:to:from;
+        bh=Jn1Fpw8LCDAidOyVuaihNufCQWVTMDDvASOIBvdl2fI=;
+        b=sOQbUaAx1pRXoiLo/dgFuMiyPKm0qt4Rf3hLiPiv6vzrUs1UpTfJBD3wHybQ+ZZUkg
+         LlI/V+kgZmTL7xqfRzfeD7WAaG0ISapWho18xm8qVcn2o9od28U3bcBOg/+SOprgZq4x
+         /+An8L5m/bi9NhDcR1ylC75Zm5g3CFWZiJb5GnIFSs+iUJ8k+QN+JbxNKYR49QknTS9J
+         Abrr8U7sPX5vRzHv1eyYrMk5ZZ4zUl+x0SicSUNz5HRQWITkfgybJxekqTJSdD8IXcIk
+         C2gjyKnWoB4GZBrynLNRKPlljtAxY44Lz34P9+nnArXNAkHxVAb+Z/uJEovh/1teZ5Fg
+         lReA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=s+ad5D3H;
-       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id j5sor30668010pjf.20.2019.07.17.10.36.27
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.133 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+Received: from out30-133.freemail.mail.aliyun.com (out30-133.freemail.mail.aliyun.com. [115.124.30.133])
+        by mx.google.com with ESMTPS id t2si22263880pgp.343.2019.07.17.10.45.36
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 17 Jul 2019 10:36:27 -0700 (PDT)
-Received-SPF: pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 17 Jul 2019 10:45:36 -0700 (PDT)
+Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.133 as permitted sender) client-ip=115.124.30.133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=s+ad5D3H;
-       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=cmpxchg-org.20150623.gappssmtp.com; s=20150623;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=kevqSiJxsbEDhmFvXT17QTCK6a0eC0i3z1ong8Uuwzo=;
-        b=s+ad5D3HLMkro+DDkazkpKnGSOtq0joJ9Dhea4g9PK8M83SoVUqNCj+XFLDhLVFCXN
-         LhSDJJlL9veZeJTb8HGu2EHXbdqc3MGn+X2TEylr3LuYoXWRGxc6OV9R31Lal6Ta7siR
-         SC4Daabecb3ER5mJq2B/zliFco6r8xtP4X4XixA9e9wg2lQQ0up5OlWsFAEsVcbhUBnj
-         sNGlA3yJuWKHnl/gK0iHUOIxG+SLTlurFGvUAQHqzNkSaw+w9MBJJuQY61aFmJwnd5JR
-         NCZ7kpch6dnxKmD1mdMCexQZQPR+nirg656XJ2DuCckrTqzD6TBwz0PsSmeP83mAoanB
-         yWCg==
-X-Google-Smtp-Source: APXvYqyD6WnsaJ0bItM20gy/k7ygrcTP83wuDov/ycTiAnYjvD2WHzA2+KiUtWbJ3BsDF7phWpmP3Q==
-X-Received: by 2002:a17:90a:2343:: with SMTP id f61mr46121179pje.130.1563384986821;
-        Wed, 17 Jul 2019 10:36:26 -0700 (PDT)
-Received: from localhost ([2620:10d:c091:500::3:4db])
-        by smtp.gmail.com with ESMTPSA id g4sm33697577pfo.93.2019.07.17.10.36.25
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Wed, 17 Jul 2019 10:36:26 -0700 (PDT)
-Date: Wed, 17 Jul 2019 13:36:24 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
-	Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 1/2] mm/memcontrol: fix flushing per-cpu counters in
- memcg_hotplug_cpu_dead
-Message-ID: <20190717173624.GA25882@cmpxchg.org>
-References: <156336655741.2828.4721531901883313745.stgit@buzz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <156336655741.2828.4721531901883313745.stgit@buzz>
-User-Agent: Mutt/1.12.0 (2019-05-25)
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.133 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R161e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e04407;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=14;SR=0;TI=SMTPD_---0TX8wp0U_1563385527;
+Received: from e19h19392.et15sqa.tbsite.net(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TX8wp0U_1563385527)
+          by smtp.aliyun-inc.com(127.0.0.1);
+          Thu, 18 Jul 2019 01:45:33 +0800
+From: Yang Shi <yang.shi@linux.alibaba.com>
+To: shakeelb@google.com,
+	vdavydov.dev@gmail.com,
+	hannes@cmpxchg.org,
+	mhocko@suse.com,
+	ktkhai@virtuozzo.com,
+	guro@fb.com,
+	hughd@google.com,
+	cai@lca.pw,
+	kirill.shutemov@linux.intel.com,
+	akpm@linux-foundation.org
+Cc: yang.shi@linux.alibaba.com,
+	stable@vger.kernel.org,
+	linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Subject: [PATCH] mm: vmscan: check if mem cgroup is disabled or not before calling memcg slab shrinker
+Date: Thu, 18 Jul 2019 01:45:26 +0800
+Message-Id: <1563385526-20805-1-git-send-email-yang.shi@linux.alibaba.com>
+X-Mailer: git-send-email 1.8.3.1
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jul 17, 2019 at 03:29:17PM +0300, Konstantin Khlebnikov wrote:
-> Use correct memcg pointer.
-> 
-> Fixes: 42a300353577 ("mm: memcontrol: fix recursive statistics correctness & scalabilty")
-> Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Shakeel Butt reported premature oom on kernel with
+"cgroup_disable=memory" since mem_cgroup_is_root() returns false even
+though memcg is actually NULL.  The drop_caches is also broken.
 
-Oops, nice catch.
+It is because commit aeed1d325d42 ("mm/vmscan.c: generalize shrink_slab()
+calls in shrink_node()") removed the !memcg check before
+!mem_cgroup_is_root().  And, surprisingly root memcg is allocated even
+though memory cgroup is disabled by kernel boot parameter.
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+Add mem_cgroup_disabled() check to make reclaimer work as expected.
+
+Fixes: aeed1d325d42 ("mm/vmscan.c: generalize shrink_slab() calls in shrink_node()")
+Reported-by: Shakeel Butt <shakeelb@google.com>
+Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Kirill Tkhai <ktkhai@virtuozzo.com>
+Cc: Roman Gushchin <guro@fb.com>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Qian Cai <cai@lca.pw>
+Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Cc: stable@vger.kernel.org  4.19+
+Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
+---
+ mm/vmscan.c | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index f8e3dcd..c10dc02 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -684,7 +684,14 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
+ 	unsigned long ret, freed = 0;
+ 	struct shrinker *shrinker;
+ 
+-	if (!mem_cgroup_is_root(memcg))
++	/*
++	 * The root memcg might be allocated even though memcg is disabled
++	 * via "cgroup_disable=memory" boot parameter.  This could make
++	 * mem_cgroup_is_root() return false, then just run memcg slab
++	 * shrink, but skip global shrink.  This may result in premature
++	 * oom.
++	 */
++	if (!mem_cgroup_disabled() && !mem_cgroup_is_root(memcg))
+ 		return shrink_slab_memcg(gfp_mask, nid, memcg, priority);
+ 
+ 	if (!down_read_trylock(&shrinker_rwsem))
+-- 
+1.8.3.1
 
