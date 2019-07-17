@@ -2,132 +2,145 @@ Return-Path: <SRS0=+T2N=VO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_2
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CE9EAC76192
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Jul 2019 16:13:50 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5AFA0C7618F
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Jul 2019 16:13:52 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 95B332182B
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Jul 2019 16:13:50 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=linux-foundation.org header.i=@linux-foundation.org header.b="OLl9lkjd"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 95B332182B
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
+	by mail.kernel.org (Postfix) with ESMTP id 2CDA22173E
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Jul 2019 16:13:52 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2CDA22173E
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2A7D16B0003; Wed, 17 Jul 2019 12:13:50 -0400 (EDT)
+	id AE8416B0006; Wed, 17 Jul 2019 12:13:50 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2320E6B0006; Wed, 17 Jul 2019 12:13:50 -0400 (EDT)
+	id A1FC36B000A; Wed, 17 Jul 2019 12:13:50 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1214C8E0001; Wed, 17 Jul 2019 12:13:50 -0400 (EDT)
+	id 90EC16B000C; Wed, 17 Jul 2019 12:13:50 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lf1-f70.google.com (mail-lf1-f70.google.com [209.85.167.70])
-	by kanga.kvack.org (Postfix) with ESMTP id A20766B0003
-	for <linux-mm@kvack.org>; Wed, 17 Jul 2019 12:13:49 -0400 (EDT)
-Received: by mail-lf1-f70.google.com with SMTP id g13so1478068lfb.2
-        for <linux-mm@kvack.org>; Wed, 17 Jul 2019 09:13:49 -0700 (PDT)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 5A4E76B0006
+	for <linux-mm@kvack.org>; Wed, 17 Jul 2019 12:13:50 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id q14so14755719pff.8
+        for <linux-mm@kvack.org>; Wed, 17 Jul 2019 09:13:50 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=EMkHfaU67BchYChypR6OGoPRtecIrRaXkSjINopMJ7E=;
-        b=AoOeB53/fDckrTgEPdUYUsuz/QaSWWRpHu+bRwoo0dqCs8DeMCenN5FsqdBJ41Kfwf
-         kt+qbNRufnLua1RUA0eCAqEfIkzn+WUEXEwRGmCZ5ceWDwASmo7Q9+8Hdylp2XIDyaID
-         fiM8b4VDQh2owTYeXQzbFvoPIK/TwDtdMCOUA7m1xsAdGG5q9tYkebhIBysFLX53ZBWc
-         MHCxS0KGIvyrFdjOZ4PAC46YLkK2X29yVNcQE7UWGEjilANg8iKF9yHpZlsOG8f+bULk
-         davyyqvQUhzLieAtLm9O/VUt101RLLl17/PTEE0JMP8+LkP2COWDHfep56VDXr4zGVc6
-         MC7Q==
-X-Gm-Message-State: APjAAAVKi/EHo1q0SAt4fWmwf8uiFeeSeGUbRFboMS83T9VdFPqRXg1h
-	A9ii76PCAPcXY+YYN7hVVwARmgEzwKR2JVyWhTOODVwlFRZLmWzeXsaZRzg8vYdHWDnJQTL9sDb
-	GadYTvknxQSMtYEDk8GGuiuJVmbfJSW5kNT8UaP7wmEyHdbve0yW4qjtjx+wwiwqjLA==
-X-Received: by 2002:a2e:988b:: with SMTP id b11mr21067013ljj.110.1563380028787;
-        Wed, 17 Jul 2019 09:13:48 -0700 (PDT)
-X-Received: by 2002:a2e:988b:: with SMTP id b11mr21066972ljj.110.1563380027891;
-        Wed, 17 Jul 2019 09:13:47 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563380027; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:in-reply-to:references:organization
+         :mime-version:content-transfer-encoding;
+        bh=1jtgDzrbJQby33P5NU1w3wG0WQ7Wn9R4y7L5vU/E5tQ=;
+        b=bQ5PKZk1k6ul56uOUnzAAoOW6G00mLNSgnPXUg7AEmBgQZeI7spN+V+OIcpvR72qkr
+         /lja972rrYMM5MAY0J7e0b75HhfAO0GkoFIvvF8z+rK4ToRU/j3ap3gHI/WGkLPb1M7A
+         KUhLHN5VjxnWndBGsF7kkInYJqUKuonZD7IhuXC1G95klJtRpqhe8dCUNVxNhDdMuBbE
+         QGsD3jgeMVjNAn9LNtxSmo256W03upcz9xE+uQZuVBR0Dz36kR+RQW1znpWCvgurKwcX
+         su95GxZuUm5ph3ApppltevjrTwc7/NsJJok8N5TTUkEFmJDm2DDfpaIngsaRzXqub8Gv
+         zvng==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.35 as permitted sender) smtp.mailfrom=jonathan.cameron@huawei.com
+X-Gm-Message-State: APjAAAUy244zGPbPjJTTlWP2YnIcY07rudG2k9eRa4bwnjTyI3kXoy2g
+	6iDEc0QXgbnvEfWyiLZbaYh1ovBdWXEhrACHVyZ4EZRYuQdDhvDV22RVOPms1XEaxbGoGg36rj4
+	kMok7njudJdCyJuh4I4bmGpS5iiDiT5ONAVoYliyZ2W7uvQmOGLQ3dIwL5aDHTsqTvw==
+X-Received: by 2002:a17:902:2d01:: with SMTP id o1mr45069251plb.105.1563380030035;
+        Wed, 17 Jul 2019 09:13:50 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzd0rGOQbM/Tx878TcDjQQNKKDEiDXICoVQnM6dAWxSLcdHtokKcuMHMKplJm3Mr2tKIal5
+X-Received: by 2002:a17:902:2d01:: with SMTP id o1mr45069163plb.105.1563380029395;
+        Wed, 17 Jul 2019 09:13:49 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563380029; cv=none;
         d=google.com; s=arc-20160816;
-        b=sdhYMIJvXWoNQReVv8k5gJTr3Oy0Rt12nRnnNOgWcp88lljjIV2k3YgkXVPNTPeBMp
-         2pbzZkGoU01F7AiH1pGesX/0r0/6Sf0DonCK9g7DouWad7Jl5vrc/1FQLUQ0jxB74iFp
-         XVnbBKlcW2AybMuzZwGfqhBDKc96DL9/+70upoxoP6eas2DRrCoI2zsawFkEelNXl5Pv
-         hOTUv9qgQYq7PnqF6WE5Kdzze+3pZZ2tZ8fl0A5l4xhcBLzmF4I7MS9oVSh4rR7rfVie
-         dAffrQIU+oEVqBWKEuoP5Nl6vGuYK6EO4VTR6+cZ1GsjnwOBpb0hDzA/UGApGGzkaNdi
-         0/rQ==
+        b=bPAEJTHUct5CXmUd/tAqWpwk1JZLAlxOeWQszYYWW0x52ISaQCBg6kn4CeAexZ0L/a
+         gCQP3MB6NagBWb/DanAV8DgNCl1ScvF5KjlGn3pHlkVxEakpvn3iPdtYI2rVa6X0hszA
+         qrvdDPi50mt9+LUnO200gw2cR4Gvn/yqVadCxY2ABg+m5czg1mRU0mmM9q2ML59NPpfs
+         P1U6ASeCLUF0pS5JwgaQcVpxShulKbvZXgj3I+3Snqg8k6S78Qva4jpGfg33exj26n03
+         sQBYgw1F7IYttyY1f2sWuJ7YhdxTWPet9opJYs0d6xWT5+4bAZhmr05+Hug0B4Hy2ulw
+         857g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=EMkHfaU67BchYChypR6OGoPRtecIrRaXkSjINopMJ7E=;
-        b=R/NW7g0w3rgItxMYXRMEBrjyB2IUfsXSt+sHYEwciufQLPXDG6QhHwmlB3lw0xr3R4
-         qufQpd4wdSOAj81aUcqTIGJm/IHTAXuVpn4qow9anwqDoyyD9AQEeMBTbKHiyc/sycWS
-         9cfo1CXkPbC+PDdw9EURsJGydnE7BT6BCcS3vMcs883WXf46m1u20NOpE0Dp7A4kBnMO
-         +NsUDYOHJlbaSmDNEAUIzE4Nk85YSkV09Im/zXi56mDI9uen+BgRlvHQnkTQC5KUD73J
-         A/MzK8XU//owu/bdWS1PEd1RXo9/EdrXqrzjld9rk7lNiVdgEFtLr1dhf5xRF6+lZnna
-         Rcug==
+        h=content-transfer-encoding:mime-version:organization:references
+         :in-reply-to:message-id:subject:cc:to:from:date;
+        bh=1jtgDzrbJQby33P5NU1w3wG0WQ7Wn9R4y7L5vU/E5tQ=;
+        b=zlGh4f8J+oXpsthwvAE+4UJAF5pHBxRXyWNiglmS3tgLuS0fBnl2a2JVx3I2vNDr4f
+         RE9R6o0HCSoXjs+NYVDXRZFLFvISR4SrF2/WNTsA/z0Prs0bsYxirEIeunGIpoR7itt4
+         SUyFSSaJYU8fWSSjl5dTR5AH9tu0QFSvr0nsOQ8ysDVrgtMcy1jds+VEYR86q4U03tqP
+         CHR4bjxEShfEiBHQWT6GRKrwSvFx2n5YPLJtmuv10SP4IzYLO/tZNcVh5h+u4yTQbv4k
+         0QFuqpFXa42/uhmP5+Q3xBBQNMJvFTf/3DC7mZ92B6aFzbKsdN0LiCQ5TjqUEJ1AbVSR
+         woxw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@linux-foundation.org header.s=google header.b=OLl9lkjd;
-       spf=pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.41 as permitted sender) smtp.mailfrom=torvalds@linuxfoundation.org
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id c19sor6457078lff.3.2019.07.17.09.13.47
+       spf=pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.35 as permitted sender) smtp.mailfrom=jonathan.cameron@huawei.com
+Received: from huawei.com (szxga07-in.huawei.com. [45.249.212.35])
+        by mx.google.com with ESMTPS id a25si24792602pfo.234.2019.07.17.09.13.49
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 17 Jul 2019 09:13:47 -0700 (PDT)
-Received-SPF: pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 17 Jul 2019 09:13:49 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.35 as permitted sender) client-ip=45.249.212.35;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@linux-foundation.org header.s=google header.b=OLl9lkjd;
-       spf=pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.41 as permitted sender) smtp.mailfrom=torvalds@linuxfoundation.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=linux-foundation.org; s=google;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=EMkHfaU67BchYChypR6OGoPRtecIrRaXkSjINopMJ7E=;
-        b=OLl9lkjdcYSnuxCTAJOQsNMwFOpw8ryeimFhE1ANkVONZVt21tze74/Y5gnh0UZvqA
-         dhREWrcTisRLQxADCiSzp92AqaDsndFz3EbTrI3SrJSW2GB+VRBEXQJckND8M1PEm/wd
-         WW+T2kuE/xXCQFTAUkUGPcsGrhkWVUdw2wFp8=
-X-Google-Smtp-Source: APXvYqxlBDGx68Y5JGmHAtIuWUKhZLugrxXRo1op5WGiKiNWVn5aNKuOJ0pS53MiBVm7iyUlOxj13w==
-X-Received: by 2002:a19:6904:: with SMTP id e4mr18707313lfc.156.1563380026355;
-        Wed, 17 Jul 2019 09:13:46 -0700 (PDT)
-Received: from mail-lf1-f47.google.com (mail-lf1-f47.google.com. [209.85.167.47])
-        by smtp.gmail.com with ESMTPSA id m17sm4548445lji.16.2019.07.17.09.13.45
-        for <linux-mm@kvack.org>
-        (version=TLS1_3 cipher=AEAD-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Jul 2019 09:13:45 -0700 (PDT)
-Received: by mail-lf1-f47.google.com with SMTP id u10so16914464lfm.12
-        for <linux-mm@kvack.org>; Wed, 17 Jul 2019 09:13:45 -0700 (PDT)
-X-Received: by 2002:ac2:4565:: with SMTP id k5mr18364164lfm.170.1563380024874;
- Wed, 17 Jul 2019 09:13:44 -0700 (PDT)
+       spf=pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.35 as permitted sender) smtp.mailfrom=jonathan.cameron@huawei.com
+Received: from DGGEMS414-HUB.china.huawei.com (unknown [172.30.72.60])
+	by Forcepoint Email with ESMTP id BBF80605C121F65CC65C;
+	Thu, 18 Jul 2019 00:13:46 +0800 (CST)
+Received: from localhost (10.202.226.61) by DGGEMS414-HUB.china.huawei.com
+ (10.3.19.214) with Microsoft SMTP Server id 14.3.439.0; Thu, 18 Jul 2019
+ 00:13:42 +0800
+Date: Wed, 17 Jul 2019 17:13:20 +0100
+From: Jonathan Cameron <jonathan.cameron@huawei.com>
+To: Mauro Carvalho Chehab <mchehab+samsung@kernel.org>
+CC: <gregkh@linuxfoundation.org>, "Rafael J. Wysocki" <rjw@rjwysocki.net>,
+	"Len Brown" <lenb@kernel.org>, Jonathan Cameron <jic23@kernel.org>, "Hartmut
+ Knaack" <knaack.h@gmx.de>, Lars-Peter Clausen <lars@metafoo.de>, "Peter
+ Meerwald-Stadler" <pmeerw@pmeerw.net>, Peter Rosin <peda@axentia.se>, Benson
+ Leung <bleung@chromium.org>, Enric Balletbo i Serra
+	<enric.balletbo@collabora.com>, Guenter Roeck <groeck@chromium.org>, "Maxime
+ Coquelin" <mcoquelin.stm32@gmail.com>, Alexandre Torgue
+	<alexandre.torgue@st.com>, Fabrice Gasnier <fabrice.gasnier@st.com>,
+	"Frederic Barrat" <fbarrat@linux.ibm.com>, Andrew Donnellan
+	<ajd@linux.ibm.com>, Sebastian Reichel <sre@kernel.org>, Heikki Krogerus
+	<heikki.krogerus@linux.intel.com>, Boris Ostrovsky
+	<boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, "Stefano
+ Stabellini" <sstabellini@kernel.org>, Mike Kravetz <mike.kravetz@oracle.com>,
+	Nicolas Ferre <nicolas.ferre@microchip.com>, Alexandre Belloni
+	<alexandre.belloni@bootlin.com>, Ludovic Desroches
+	<ludovic.desroches@microchip.com>, Richard Cochran
+	<richardcochran@gmail.com>, Jonathan Corbet <corbet@lwn.net>,
+	<linux-acpi@vger.kernel.org>, <linux-iio@vger.kernel.org>,
+	<linux-stm32@st-md-mailman.stormreply.com>,
+	<linux-arm-kernel@lists.infradead.org>, <linuxppc-dev@lists.ozlabs.org>,
+	<linux-pm@vger.kernel.org>, <linux-usb@vger.kernel.org>,
+	<xen-devel@lists.xenproject.org>, <linux-mm@kvack.org>,
+	<netdev@vger.kernel.org>, <linux-doc@vger.kernel.org>
+Subject: Re: [PATCH v4 13/15] docs: ABI: testing: make the files compatible
+ with ReST output
+Message-ID: <20190717171320.000035c2@huawei.com>
+In-Reply-To: <88d15fa38167e3f2e73e65e1c1a1f39bca0267b4.1563365880.git.mchehab+samsung@kernel.org>
+References: <cover.1563365880.git.mchehab+samsung@kernel.org>
+	<88d15fa38167e3f2e73e65e1c1a1f39bca0267b4.1563365880.git.mchehab+samsung@kernel.org>
+Organization: Huawei
+X-Mailer: Claws Mail 3.17.3 (GTK+ 2.24.32; i686-w64-mingw32)
 MIME-Version: 1.0
-References: <20190716162536.bb52b8f34a8ecf5331a86a42@linux-foundation.org> <8056ff9c-1ff2-6b6d-67c0-f62e66064428@suse.cz>
-In-Reply-To: <8056ff9c-1ff2-6b6d-67c0-f62e66064428@suse.cz>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Wed, 17 Jul 2019 09:13:26 -0700
-X-Gmail-Original-Message-ID: <CAHk-=wg1VK0sCzCf_=KXWufTF1PPLX-kfSbNN0pk+QHzw7=ajw@mail.gmail.com>
-Message-ID: <CAHk-=wg1VK0sCzCf_=KXWufTF1PPLX-kfSbNN0pk+QHzw7=ajw@mail.gmail.com>
-Subject: Re: incoming
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Linux List Kernel Mailing <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, 
-	Jonathan Corbet <corbet@lwn.net>, Thorsten Leemhuis <linux@leemhuis.info>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+X-Originating-IP: [10.202.226.61]
+X-CFilter-Loop: Reflected
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jul 17, 2019 at 1:47 AM Vlastimil Babka <vbabka@suse.cz> wrote:
->
-> So I've tried now to provide an example what I had in mind, below.
+On Wed, 17 Jul 2019 09:28:17 -0300
+Mauro Carvalho Chehab <mchehab+samsung@kernel.org> wrote:
 
-I'll take it as a trial. I added one-line notes about coda and the
-PTRACE_GET_SYSCALL_INFO interface too.
+> Some files over there won't parse well by Sphinx.
+> 
+> Fix them.
+> 
+> Signed-off-by: Mauro Carvalho Chehab <mchehab+samsung@kernel.org>
+Hi Mauro,
 
-I do hope that eventually I'll just get pull requests, and they'll
-have more of a "theme" than this all (*)
+Does feel like this one should perhaps have been broken up a touch!
 
-           Linus
+For the IIO ones I've eyeballed it rather than testing the results
 
-(*) Although in many ways, the theme for Andrew is "falls through the
-cracks otherwise" so I'm not really complaining. This has been working
-for years and years.
+Acked-by: Jonathan Cameron <Jonathan.Cameron@huawei.com>
+
 
