@@ -8,109 +8,109 @@ X-Spam-Status: No, score=-15.8 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
 	USER_AGENT_SANE_1,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 31493C76192
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Jul 2019 19:43:38 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8FE65C7618F
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Jul 2019 19:44:35 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BE04521849
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Jul 2019 19:43:37 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 4627421851
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Jul 2019 19:44:35 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="pTU141rS"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BE04521849
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="V+41nzxS"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4627421851
 Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3923F6B0005; Wed, 17 Jul 2019 15:43:37 -0400 (EDT)
+	id DC9886B0006; Wed, 17 Jul 2019 15:44:34 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 342396B0006; Wed, 17 Jul 2019 15:43:37 -0400 (EDT)
+	id D7A9A8E0001; Wed, 17 Jul 2019 15:44:34 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 231BD8E0001; Wed, 17 Jul 2019 15:43:37 -0400 (EDT)
+	id C938B6B000A; Wed, 17 Jul 2019 15:44:34 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id DF0C06B0005
-	for <linux-mm@kvack.org>; Wed, 17 Jul 2019 15:43:36 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id k20so15244368pgg.15
-        for <linux-mm@kvack.org>; Wed, 17 Jul 2019 12:43:36 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 93AA06B0006
+	for <linux-mm@kvack.org>; Wed, 17 Jul 2019 15:44:34 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id a21so8389938pgv.0
+        for <linux-mm@kvack.org>; Wed, 17 Jul 2019 12:44:34 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
          :in-reply-to:message-id:references:user-agent:mime-version;
-        bh=B4KkASSByiIr8GwQ9SOJWtTimb9yBfYMRGwI3wSnBvU=;
-        b=dhRt5pHB5jU+Dmsd8Hy30otk0Im6y2Oe9hyyj47HioPK160S7pDKZST7/WRkKK2njk
-         QIpP4oPa9dfzC/P1esySJFwDSJ4nuYlyh+Z0p48LA9j9J+IEST6vbrrtbOWuRX3c6dks
-         VUm83fJIwBV4QwTZnbpyfG1UwO08Lc51XnC8vtO/mOiGVlFjhS8IzUx6rBB+EA0AGVkF
-         EesOv2RmZOMmTbem4l2KfzYCY+Y3zyr/O/XshbXxW2wcjKgXx2ty20hHhCH6hQVQRtH9
-         GQ6c+2a5XSn5VAx+rLLB6DPFALFrw/vI43bfp9E/v7IdZEbrw9ykaiIvqWj5wGDJKql4
-         mg8g==
-X-Gm-Message-State: APjAAAV3NkmhUBD5Jbi1/2OW3mHrv+e5UWxj+K3/FJG3qgkms2KCFkNT
-	0gzP9R/NgoEV/0mpVGWwz6AtLBFA5O9UZBZNeGPrHDNUiLSalPFDGuEVA81b2G235tYMdPAXpfn
-	7xNuesESp9EL+WMiwquFZSp5TUKdvnq8nm3aNUMUPJ7xecl6CR4D3qrCfKTivF28kVg==
-X-Received: by 2002:a17:90a:1ae2:: with SMTP id p89mr43837306pjp.26.1563392616507;
-        Wed, 17 Jul 2019 12:43:36 -0700 (PDT)
-X-Received: by 2002:a17:90a:1ae2:: with SMTP id p89mr43837254pjp.26.1563392615770;
-        Wed, 17 Jul 2019 12:43:35 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563392615; cv=none;
+        bh=gvjPZWoufoHncj5iyWeqiWRKnFrwf8zGjNBYtpZ6tKQ=;
+        b=L9VU7/2usTypIIk3nV9ZO4VGpmDY+T9tJtDaD3ZNdzD6Qe4Xi/Z0R8zB0VSa7rt7wI
+         lRMx729JyoKRMhlfEa8n6lU7JowtnLUL+QkuZUu3BkF3pIuTLvp4kPofCJZ4lrSwN2vh
+         CgpQSydS56DapXJESMsu72Iwp2gafjBoZR3xD5eHOuVztS6VQDF1fCBEmBxEC8kykpdn
+         jon9QKGjKprEh4GMQWfyeYGRwXWPjiU6ADcT/VxZO9jH/mpcokquvAcAfAedXkPu/+Un
+         yNGDCGr6UbCJb3559c5k9lZWUZnP9B2q9eAXeIyPbwopgfji02GSCa1OYbRSlxGHANa1
+         S1Mw==
+X-Gm-Message-State: APjAAAX8kKBefrRLBBtWDCdIjjUR//okNzrkRvso8mrAMvyQWjmrbBMI
+	pQnz8iv5ZLe///Ustrx2AYTr9HF/9i8xFZck4QVMvp+2hj15otq2+8CpsZtD5qSyx66X5+canTP
+	cVmckE3VBBKknrcQR57tuDDpx083xNLy0NnoyKkFnyHfHFSPQuqoWDfxUtP//yR0tRw==
+X-Received: by 2002:a17:902:6b81:: with SMTP id p1mr42564214plk.91.1563392674271;
+        Wed, 17 Jul 2019 12:44:34 -0700 (PDT)
+X-Received: by 2002:a17:902:6b81:: with SMTP id p1mr42564173plk.91.1563392673500;
+        Wed, 17 Jul 2019 12:44:33 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563392673; cv=none;
         d=google.com; s=arc-20160816;
-        b=1F1YoVrXt6TWlsZ7zwc1qbOoy8Iy81fVC4RQ3v/fWo720u4LFz5sv6uK6HLEbBSGQL
-         9iDmNG9oBxVYyDf9ZxkCD4HQDbHW6n7+p69ooeP3wahsYx2PR7jCC+9DYXsZ7o3+HzIX
-         8udBQYOLVFvfLze38ZF9g9uHvmFMurI/4Zqw0orM+jZk44ovYvs9zokmo1nd/iAPDO8p
-         iJnibp4icbxq/aNsWaY7z3Px1SASsDc3zpP1wlnEASQVXB18u78FZuXiDcK3FWFMsVRs
-         Em8Ow9KNBlnSeuS8g0WRdWDvqWdKwLZd3lTOTo6GqWNspuVe6USqy1ZKeVave77sokMe
-         d7hw==
+        b=BrcMbCfCiLS9pRVvSawuEhXVjKon6KOHt3nge45XRoXpHvhy4Pi0smk+zt24b4hGEW
+         uxWclOwzt2gDmM68YSG9ZOxpOsJHRYUevSNCa0ZKaD8yGTgla9Be624XHk+e5fz5yXTU
+         HTniiHxYhy/poZp2VL8ryMncKEMhEYEcs45grT8yTUinEnjcbC5UDaD5hp/Y05fHfAGg
+         c2kppVNnAOx34jzh28TMUulF7pkYp6sBKln4w1ilMu4GDP/BqF8GWCJS9Xwo2OADLPGs
+         UOHrWnLMzkZsLXltlRy+kgICK3ZmCGXNvHFyeCsEBGa50Ru2ysyafByEawcBe/R5dYZL
+         Me4Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=mime-version:user-agent:references:message-id:in-reply-to:subject
          :cc:to:from:date:dkim-signature;
-        bh=B4KkASSByiIr8GwQ9SOJWtTimb9yBfYMRGwI3wSnBvU=;
-        b=gyfu8gKa3DdwIshOPQCFJ/xg3I9CHhg6CzBFr+dzqoOX1lQ8w8H0NgY0plQeLfJ2hx
-         sCIJCF/C/XCtJP1j+Qg21y2L+zw6OsVyiybo/hLQq/la6a1reONPwMF/h2Wg0Rh0bgNs
-         GM6jj1HqZh802LIz56azCXx7ARC5pEY+Sr/7J4vO6zKKr+PZSktI63AFpBB/Wa6qEoxm
-         6m/otlZNHCS6grQvO8QrQITdAQGzHhNodOnz0ukTEuJck0DlyALWtiwT9SEoyiHpyLhY
-         DJlfINmvvjDqJvlru+mzIC6yuHdpCMp0A2HrwvB6j3zoOiauOUy5qHCvv9eVj9JFPGQu
-         yFQQ==
+        bh=gvjPZWoufoHncj5iyWeqiWRKnFrwf8zGjNBYtpZ6tKQ=;
+        b=nEIllp+afVPVjkqI7E1xmJzQX5NXiWUJiFAVLbCsf3VCrR5n09LAVtY1ICqXGJDWIA
+         cka9dWx/leqN+HEijpthwksxllJHt6MdFJbUJ1alGmX/JV8H3AjRYXdL18U0tFj1RCSx
+         28PHor73NtiBFktTQXUC1qW1svkooDy+9fKIvlWdvp9sHkwReXKqiNl+VcVHIQMMim+b
+         HJYK+gh8jiSs7X2vk4XKNH9gXXElX7K48yeE7ues+JfKHEDTuXZAql6MZOz0Bp+j7UcE
+         3SWdcpm5jf4lctTJPISNJDMv+5SVr6aQ8elgm2ZmUMFSG2srQQV1wTpYGS4wwLkbXHBq
+         8rFA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=pTU141rS;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=V+41nzxS;
        spf=pass (google.com: domain of hughd@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=hughd@google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id n11sor13143852pgq.12.2019.07.17.12.43.35
+        by mx.google.com with SMTPS id m37sor30484630pla.6.2019.07.17.12.44.33
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 17 Jul 2019 12:43:35 -0700 (PDT)
+        Wed, 17 Jul 2019 12:44:33 -0700 (PDT)
 Received-SPF: pass (google.com: domain of hughd@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=pTU141rS;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=V+41nzxS;
        spf=pass (google.com: domain of hughd@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=hughd@google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=google.com; s=20161025;
         h=date:from:to:cc:subject:in-reply-to:message-id:references
          :user-agent:mime-version;
-        bh=B4KkASSByiIr8GwQ9SOJWtTimb9yBfYMRGwI3wSnBvU=;
-        b=pTU141rSxqpEpOL4UTml41bJC99Bbi08614VBV9iACXfdQBYQMGLsTxyZ5eWCJAsxp
-         PkmS856N30EwaXjbhF/ogszdHLt5Y16oU9gI/Webo0Vzi3aLl7HBczJU2vNPyd+qTCEu
-         Q3maXbuUy2yk1XlmTAlUbOmk1w6cqlSqw4Gt8BjP7ChFlly+n1AVNH7KVan6v6f2Elvx
-         g4XUKTtvMIwVBZ0eeC13hoMhs+oVB4chrRXX80ycgTxXu0xYpRCAz4p4g4Z2ttJIctMO
-         D5r4iEMm9pJU+QauaDTSBBFfvWV9kONhJqPiCSKskg6RibNRsS9fk61AKXSnuBtq18le
-         smkA==
-X-Google-Smtp-Source: APXvYqzKGlDmY51u8++gkpOHjmKk/bWpr+ftMMYT73CajTWO+QPVJd5fQMfIA9xY+GncnpV3QweYkw==
-X-Received: by 2002:a63:d944:: with SMTP id e4mr42815562pgj.261.1563392614248;
-        Wed, 17 Jul 2019 12:43:34 -0700 (PDT)
+        bh=gvjPZWoufoHncj5iyWeqiWRKnFrwf8zGjNBYtpZ6tKQ=;
+        b=V+41nzxSMtHHtuKjjlYe2GfJUL8OkwTW54lqpP4dzM4zgY3shyyLaX0K65MjCbgkMA
+         JbEoFVMktVLB3yjSnRHiCY/QGDeT/Ry1EtepMiiQZBtORT4LcsanPu+wmDHPU5A8ImJZ
+         ldVpzOO2iZ7YzyDbWT2fLzrjfofjjisJtzT8oJ+LheNWez/iuEh8rIrXccIbc6wOmENU
+         bymQc2QANDdpuvEugqEqUY33+9C5zNaq8aNQvWYnJfl2VIYp+NDrL1dmaf/yoMoe+wia
+         PQa0y1K4sc3F7Xf58nEjx6tNNBQQWv75mlgYI1ha4k6Jhx5wCMoMPtZyRCR9AsEli8l9
+         8+aw==
+X-Google-Smtp-Source: APXvYqxyIhVLV3+xZdZyruXl0Q+nykHdkO769WGjExr3291Arvp8ld8l1OClYHmZUBHqkGiwRJjaKw==
+X-Received: by 2002:a17:902:9041:: with SMTP id w1mr46275249plz.132.1563392672552;
+        Wed, 17 Jul 2019 12:44:32 -0700 (PDT)
 Received: from [100.112.64.100] ([104.133.8.100])
-        by smtp.gmail.com with ESMTPSA id r75sm27194536pfc.18.2019.07.17.12.43.33
+        by smtp.gmail.com with ESMTPSA id 14sm24016805pfy.40.2019.07.17.12.44.31
         (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 17 Jul 2019 12:43:33 -0700 (PDT)
-Date: Wed, 17 Jul 2019 12:43:16 -0700 (PDT)
+        Wed, 17 Jul 2019 12:44:31 -0700 (PDT)
+Date: Wed, 17 Jul 2019 12:44:30 -0700 (PDT)
 From: Hugh Dickins <hughd@google.com>
 X-X-Sender: hugh@eggly.anvils
 To: Yang Shi <yang.shi@linux.alibaba.com>
 cc: hughd@google.com, kirill.shutemov@linux.intel.com, mhocko@suse.com, 
     vbabka@suse.cz, rientjes@google.com, akpm@linux-foundation.org, 
     linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Subject: Re: [v3 PATCH 1/2] mm: thp: make transhuge_vma_suitable available
- for anonymous THP
-In-Reply-To: <1560401041-32207-2-git-send-email-yang.shi@linux.alibaba.com>
-Message-ID: <alpine.LSU.2.11.1907171207080.1177@eggly.anvils>
-References: <1560401041-32207-1-git-send-email-yang.shi@linux.alibaba.com> <1560401041-32207-2-git-send-email-yang.shi@linux.alibaba.com>
+Subject: Re: [v3 PATCH 2/2] mm: thp: fix false negative of shmem vma's THP
+ eligibility
+In-Reply-To: <1560401041-32207-3-git-send-email-yang.shi@linux.alibaba.com>
+Message-ID: <alpine.LSU.2.11.1907171243400.1177@eggly.anvils>
+References: <1560401041-32207-1-git-send-email-yang.shi@linux.alibaba.com> <1560401041-32207-3-git-send-email-yang.shi@linux.alibaba.com>
 User-Agent: Alpine 2.11 (LSU 23 2013-08-11)
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
@@ -122,125 +122,123 @@ List-ID: <linux-mm.kvack.org>
 
 On Thu, 13 Jun 2019, Yang Shi wrote:
 
-> The transhuge_vma_suitable() was only available for shmem THP, but
-> anonymous THP has the same check except pgoff check.  And, it will be
-> used for THP eligible check in the later patch, so make it available for
-> all kind of THPs.  This also helps reduce code duplication slightly.
+> The commit 7635d9cbe832 ("mm, thp, proc: report THP eligibility for each
+> vma") introduced THPeligible bit for processes' smaps. But, when checking
+> the eligibility for shmem vma, __transparent_hugepage_enabled() is
+> called to override the result from shmem_huge_enabled().  It may result
+> in the anonymous vma's THP flag override shmem's.  For example, running a
+> simple test which create THP for shmem, but with anonymous THP disabled,
+> when reading the process's smaps, it may show:
 > 
-> Since anonymous THP doesn't have to check pgoff, so make pgoff check
-> shmem vma only.
-
-Yes, I think you are right to avoid the pgoff check on anonymous.
-I had originally thought that it would work out okay even with the
-pgoff check on anonymous, and usually it would: but could give the
-wrong answer on an mremap-moved anonymous area.
-
+> 7fc92ec00000-7fc92f000000 rw-s 00000000 00:14 27764 /dev/shm/test
+> Size:               4096 kB
+> ...
+> [snip]
+> ...
+> ShmemPmdMapped:     4096 kB
+> ...
+> [snip]
+> ...
+> THPeligible:    0
 > 
+> And, /proc/meminfo does show THP allocated and PMD mapped too:
+> 
+> ShmemHugePages:     4096 kB
+> ShmemPmdMapped:     4096 kB
+> 
+> This doesn't make too much sense.  The shmem objects should be treated
+> separately from anonymous THP.  Calling shmem_huge_enabled() with checking
+> MMF_DISABLE_THP sounds good enough.  And, we could skip stack and
+> dax vma check since we already checked if the vma is shmem already.
+> 
+> Also check if vma is suitable for THP by calling
+> transhuge_vma_suitable().
+> 
+> And minor fix to smaps output format and documentation.
+> 
+> Fixes: 7635d9cbe832 ("mm, thp, proc: report THP eligibility for each vma")
 > Cc: Hugh Dickins <hughd@google.com>
+
+Thanks,
+Acked-by: Hugh Dickins <hughd@google.com>
+
 > Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 > Cc: Michal Hocko <mhocko@suse.com>
 > Cc: Vlastimil Babka <vbabka@suse.cz>
 > Cc: David Rientjes <rientjes@google.com>
 > Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
-
-Almost Acked-by me, but there's one nit I'd much prefer to change:
-sorry for being such a late nuisance...
-
 > ---
->  mm/huge_memory.c |  2 +-
->  mm/internal.h    | 25 +++++++++++++++++++++++++
->  mm/memory.c      | 13 -------------
->  3 files changed, 26 insertions(+), 14 deletions(-)
+>  Documentation/filesystems/proc.txt | 4 ++--
+>  fs/proc/task_mmu.c                 | 3 ++-
+>  mm/huge_memory.c                   | 9 +++++++--
+>  mm/shmem.c                         | 3 +++
+>  4 files changed, 14 insertions(+), 5 deletions(-)
 > 
+> diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
+> index 66cad5c..b0ded06 100644
+> --- a/Documentation/filesystems/proc.txt
+> +++ b/Documentation/filesystems/proc.txt
+> @@ -477,8 +477,8 @@ replaced by copy-on-write) part of the underlying shmem object out on swap.
+>  "SwapPss" shows proportional swap share of this mapping. Unlike "Swap", this
+>  does not take into account swapped out page of underlying shmem objects.
+>  "Locked" indicates whether the mapping is locked in memory or not.
+> -"THPeligible" indicates whether the mapping is eligible for THP pages - 1 if
+> -true, 0 otherwise.
+> +"THPeligible" indicates whether the mapping is eligible for allocating THP
+> +pages - 1 if true, 0 otherwise. It just shows the current status.
+>  
+>  "VmFlags" field deserves a separate description. This member represents the kernel
+>  flags associated with the particular virtual memory area in two letter encoded
+> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+> index 01d4eb0..6a13882 100644
+> --- a/fs/proc/task_mmu.c
+> +++ b/fs/proc/task_mmu.c
+> @@ -796,7 +796,8 @@ static int show_smap(struct seq_file *m, void *v)
+>  
+>  	__show_smap(m, &mss);
+>  
+> -	seq_printf(m, "THPeligible:    %d\n", transparent_hugepage_enabled(vma));
+> +	seq_printf(m, "THPeligible:		%d\n",
+> +		   transparent_hugepage_enabled(vma));
+>  
+>  	if (arch_pkeys_enabled())
+>  		seq_printf(m, "ProtectionKey:  %8u\n", vma_pkey(vma));
 > diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> index 9f8bce9..4bc2552 100644
+> index 4bc2552..36f0225 100644
 > --- a/mm/huge_memory.c
 > +++ b/mm/huge_memory.c
-> @@ -691,7 +691,7 @@ vm_fault_t do_huge_pmd_anonymous_page(struct vm_fault *vmf)
->  	struct page *page;
->  	unsigned long haddr = vmf->address & HPAGE_PMD_MASK;
+> @@ -65,10 +65,15 @@
 >  
-> -	if (haddr < vma->vm_start || haddr + HPAGE_PMD_SIZE > vma->vm_end)
-> +	if (!transhuge_vma_suitable(vma, haddr))
->  		return VM_FAULT_FALLBACK;
->  	if (unlikely(anon_vma_prepare(vma)))
->  		return VM_FAULT_OOM;
-> diff --git a/mm/internal.h b/mm/internal.h
-> index 9eeaf2b..7f096ba 100644
-> --- a/mm/internal.h
-> +++ b/mm/internal.h
-> @@ -555,4 +555,29 @@ static inline bool is_migrate_highatomic_page(struct page *page)
->  
->  void setup_zone_pageset(struct zone *zone);
->  extern struct page *alloc_new_node_page(struct page *page, unsigned long node);
-> +
-> +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-> +#define HPAGE_CACHE_INDEX_MASK (HPAGE_PMD_NR - 1)
-> +static inline bool transhuge_vma_suitable(struct vm_area_struct *vma,
-> +		unsigned long haddr)
-> +{
-> +	/* Don't have to check pgoff for anonymous vma */
-> +	if (!vma_is_anonymous(vma)) {
-> +		if (((vma->vm_start >> PAGE_SHIFT) & HPAGE_CACHE_INDEX_MASK) !=
-> +			(vma->vm_pgoff & HPAGE_CACHE_INDEX_MASK))
-> +			return false;
-> +	}
-> +
-> +	if (haddr < vma->vm_start || haddr + HPAGE_PMD_SIZE > vma->vm_end)
-> +		return false;
-> +	return true;
-> +}
-> +#else
-> +static inline bool transhuge_vma_suitable(struct vma_area_struct *vma,
-> +		unsigned long haddr)
-> +{
-> +	return false;
-> +}
-> +#endif
-> +
->  #endif	/* __MM_INTERNAL_H */
-
-... maybe I'm just not much of a fan of mm/internal.h (where at last you
-find odd bits and pieces which you had expected to find elsewhere), and
-maybe others will disagree: but I'd say transhuge_vma_suitable() surely
-belongs in include/linux/huge_mm.h, near __transparent_hugepage_enabled().
-
-But then your correct use of vma_is_anonymous() gets more complicated:
-because that declaration is over in include/linux/mm.h; and although
-linux/mm.h includes linux/huge_mm.h, vma_is_anonymous() comes lower down.
-
-However... linux/mm.h's definition of vma_set_anonymous() comes higher
-up, and it would make perfect sense to move vma_is_anonymous up to just
-after vma_set_anonymous(), wouldn't it?  Should vma_is_shmem() and
-vma_is_stack_for_current() declarations move with it? Probably yes:
-they make more sense near vma_is_anonymous() than where they were.
-
-Hugh
-
-> diff --git a/mm/memory.c b/mm/memory.c
-> index 96f1d47..2286424 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -3205,19 +3205,6 @@ static vm_fault_t pte_alloc_one_map(struct vm_fault *vmf)
->  }
->  
->  #ifdef CONFIG_TRANSPARENT_HUGE_PAGECACHE
-> -
-> -#define HPAGE_CACHE_INDEX_MASK (HPAGE_PMD_NR - 1)
-> -static inline bool transhuge_vma_suitable(struct vm_area_struct *vma,
-> -		unsigned long haddr)
-> -{
-> -	if (((vma->vm_start >> PAGE_SHIFT) & HPAGE_CACHE_INDEX_MASK) !=
-> -			(vma->vm_pgoff & HPAGE_CACHE_INDEX_MASK))
-> -		return false;
-> -	if (haddr < vma->vm_start || haddr + HPAGE_PMD_SIZE > vma->vm_end)
-> -		return false;
-> -	return true;
-> -}
-> -
->  static void deposit_prealloc_pte(struct vm_fault *vmf)
+>  bool transparent_hugepage_enabled(struct vm_area_struct *vma)
 >  {
->  	struct vm_area_struct *vma = vmf->vma;
+> +	/* The addr is used to check if the vma size fits */
+> +	unsigned long addr = (vma->vm_end & HPAGE_PMD_MASK) - HPAGE_PMD_SIZE;
+> +
+> +	if (!transhuge_vma_suitable(vma, addr))
+> +		return false;
+>  	if (vma_is_anonymous(vma))
+>  		return __transparent_hugepage_enabled(vma);
+> -	if (vma_is_shmem(vma) && shmem_huge_enabled(vma))
+> -		return __transparent_hugepage_enabled(vma);
+> +	if (vma_is_shmem(vma))
+> +		return shmem_huge_enabled(vma);
+>  
+>  	return false;
+>  }
+> diff --git a/mm/shmem.c b/mm/shmem.c
+> index 1bb3b8d..a807712 100644
+> --- a/mm/shmem.c
+> +++ b/mm/shmem.c
+> @@ -3872,6 +3872,9 @@ bool shmem_huge_enabled(struct vm_area_struct *vma)
+>  	loff_t i_size;
+>  	pgoff_t off;
+>  
+> +	if ((vma->vm_flags & VM_NOHUGEPAGE) ||
+> +	    test_bit(MMF_DISABLE_THP, &vma->vm_mm->flags))
+> +		return false;
+>  	if (shmem_huge == SHMEM_HUGE_FORCE)
+>  		return true;
+>  	if (shmem_huge == SHMEM_HUGE_DENY)
 > -- 
 > 1.8.3.1
 
