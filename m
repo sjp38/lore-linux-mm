@@ -2,147 +2,360 @@ Return-Path: <SRS0=+T2N=VO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.9 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-5.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 73D02C76195
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Jul 2019 00:15:32 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9D0D0C7618F
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Jul 2019 00:15:38 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 33FF321850
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Jul 2019 00:15:32 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 4A05421872
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Jul 2019 00:15:38 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="leC/Gb3q"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 33FF321850
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="ZfXxA78h"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4A05421872
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C53136B0003; Tue, 16 Jul 2019 20:15:31 -0400 (EDT)
+	id CC8F06B0005; Tue, 16 Jul 2019 20:15:37 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C04346B0005; Tue, 16 Jul 2019 20:15:31 -0400 (EDT)
+	id C79686B0006; Tue, 16 Jul 2019 20:15:37 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AF23C8E0001; Tue, 16 Jul 2019 20:15:31 -0400 (EDT)
+	id B68C08E0001; Tue, 16 Jul 2019 20:15:37 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yb1-f197.google.com (mail-yb1-f197.google.com [209.85.219.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 8EEB46B0003
-	for <linux-mm@kvack.org>; Tue, 16 Jul 2019 20:15:31 -0400 (EDT)
-Received: by mail-yb1-f197.google.com with SMTP id h67so18118152ybg.22
-        for <linux-mm@kvack.org>; Tue, 16 Jul 2019 17:15:31 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7B3DF6B0005
+	for <linux-mm@kvack.org>; Tue, 16 Jul 2019 20:15:37 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id n23so1750537pgf.18
+        for <linux-mm@kvack.org>; Tue, 16 Jul 2019 17:15:37 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:from:to:cc:subject:date:message-id:mime-version
-         :content-transfer-encoding:dkim-signature;
-        bh=QsS0ZqN4YggOSSwkzcpaGSaK/G4QRt1uJsrCicwV7Ig=;
-        b=ayTNAJjM7ZGGOQYT+K+R7HsI3NBKoiYec57TLAoJ+BriaWv/cevBBxXYTbrKfaByQv
-         ClL2itgTCM8lfDBni9/kicWECwUJRDpJgG4uBjmd8692hRMpRIJfakzTjHoVNr87+ibM
-         uEKEVSf7YlaAfsEiVODxFjmop/Nomo3q1yzznLqfT5OaZUHkwpNfaYyImuPBqOTUYpxQ
-         QK9EYJb6T+QkY9y4zlByoFxSCA+LZqDrIjY35UgZtn64kDuQuwSUjsYJSSs7VUiffcTg
-         hMLpNL6Vjl4Oa5KvVmWRj0Dm7Gx5YbiL+u9x+3fxD81tBNtFPmwoASZIaSyWs2WAciNT
-         QQwA==
-X-Gm-Message-State: APjAAAVl1JQGdBRDX8tBG5jsYeSgNzFEfYiUEnvsNXjzgwoqoBfdl4fm
-	BvF1RrqVBPFAvr6kGnUxEp5w0nyvwLtv49oOLIuV0cktLojKZF1ivEx6dx2a6UIguAge+ippCOW
-	XmPr5XqneTnD+yMziK7l1DhH21Db63Zrolt4vC5R523IoADfatBG7H352Co6txts/MQ==
-X-Received: by 2002:a0d:e1c1:: with SMTP id k184mr21827065ywe.153.1563322531249;
-        Tue, 16 Jul 2019 17:15:31 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwrSvZR36O1Lp/iTnMOj0ZdhzRBeg/WiDIZmLBm3vp8kVts/o3221mXdbyk4m/NktK8V+Vj
-X-Received: by 2002:a0d:e1c1:: with SMTP id k184mr21827040ywe.153.1563322530670;
-        Tue, 16 Jul 2019 17:15:30 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563322530; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:subject:message-id
+         :user-agent;
+        bh=xyCCfTyi0FSRiHraHZJpqcaBeeri729uMQp7q6yS3WM=;
+        b=Ehv9e5GxmKvhd20zMsiXP8QPi3I2CKIlSx4OCRWEmb2TGUSm+gvMNQBGcJ+GcbcYcj
+         NvnjQh1crv/djGN1KZUUwfeFrjiknKkeRSRaojFJNfCTIGSkfcBkNxLJEwShDBt65V/H
+         yA24MPUl8bmrKGQBWM7aAniU9gNL9IFa3XcyfEFaZOTd2uGQhdIQfERbWT4Z/FsCH3k4
+         4KHeBywVyi/vPjavHCsvlOtqWCK8+ofXVg0K/X/VigKPauJZTtC2qpsaOycXRY2/8AzN
+         kp3xvGUVJ+v+JExYl2tSKrPfSA1GkKkjtt1ld1sIJONw/dWtETc31AeUyWq5N6/2DGpG
+         WTsg==
+X-Gm-Message-State: APjAAAW2Jfu3/g2+turA++iavsRRlq5eTTpseSP2EcsP8ojRnGOmlE2+
+	LceeSooPKpJOOcyWzW93rfiOeH6FRKk6TPk+ucjQYsHO9NcR04qfX3Gh/SJSsmvnSvAW5g3w3Oz
+	7VcixExroSLNimR/4aeN3TxmtaODKXxEPGXew3N7ccQEFXBc2tvaHDbypBrbD8V0w0w==
+X-Received: by 2002:a17:90a:8d0d:: with SMTP id c13mr38680458pjo.137.1563322537072;
+        Tue, 16 Jul 2019 17:15:37 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwGcjkb29KPlsXJDFku5xHsIUUN+f+UOuXo6pCELOtMAKqz1YBC/WLm/xP6mV7Qp7P//MjP
+X-Received: by 2002:a17:90a:8d0d:: with SMTP id c13mr38680353pjo.137.1563322535734;
+        Tue, 16 Jul 2019 17:15:35 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563322535; cv=none;
         d=google.com; s=arc-20160816;
-        b=qwg87sWKwYT1uVNz8fcPyfqRM9mzn/nFNP730qZ8U1YrLXWeCgcXrwUfJE0mqspSIV
-         1FsAYlupwrCqrAxGO8eQKtUuyXp4M8Y5wZEMR3FKus/GGlHM1zHYYO2J9hHoeyYqcNrf
-         ge4flZ4ZYUtE+8zR1OPdjKx3k7+r/+bget3CSa2OZAJbfyR5zmvGl4xHRN+jOXc0o2dI
-         gksWQVJOGzAeCyUmGuRLw+7Ln0Y3KPjn1Usp0QFgySVUO48Q5lG5QTPUGEwF3vj7OR2m
-         EtGD7QYnRI/JFdVh/ZrODo7b60mLP+Dcv9t9jEoJMEFUManwrqIMQhqAqlVaV2QDGIZg
-         D/UA==
+        b=O8Jgt0ixey7w5YkvRp6UzR/bNcbqXTx9fRbhl0NUKsnJtd6lAZlu5JLMQVqioqhKvw
+         MPM3qEujiojdHS2+vVH9+0TGJMygOXhOywZ61wnvMILAaYeM109t+QEjnr4O2wNdtmXE
+         Tm8rglb2eRh1V3Bs+75Y85/IAPZz3vAJA/Jqkm44H1ADXtSSvlzGzFYh4T3aLRV4qvY7
+         iOK7FWBZXOguDnA+SKjNXRsvtvLT4UVEl7PxTZn36dsFtiI0NX8kLsIwN4Pbcew8noEJ
+         mTWXwJ/WpelsQ0zRSSCAnTtgYd/ZyBQMh3OpJL8ELFraUMkrL4z+q0bLy8OtU7crQbsP
+         C80A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=dkim-signature:content-transfer-encoding:mime-version:message-id
-         :date:subject:cc:to:from;
-        bh=QsS0ZqN4YggOSSwkzcpaGSaK/G4QRt1uJsrCicwV7Ig=;
-        b=B5s++vQrtKlbhvQ7lLDKNxQ2S+0c8FD/adEgp4w9YWwP04aOD87RfJ8Daqs9UhUcT+
-         0hrRMdnp6njSne5MwML7d3jUyUm8umsCxsH66bbKHr8fWQ3c03m8Kq+4thp3XdtUlR0t
-         YNSjsQtG8HaRdrcrt7/99AV6zPp40DNr2KdNITg+OV0o65vTnBetLTfUbip9/oiTUq1R
-         b7YFw42orUfmIaPlFqyn0MfsUDcsEU9h2hKibj5UB5n3fOgdHoAW2xQ/A8M88qIjFjcT
-         tuy+JLigGfgwTZq1OwlKyRtko/kiV3wzx0Jg0/HQFgwaWfVKAb85tZDKkPSvW51OCgNd
-         f1dw==
+        h=user-agent:message-id:subject:to:from:date:dkim-signature;
+        bh=xyCCfTyi0FSRiHraHZJpqcaBeeri729uMQp7q6yS3WM=;
+        b=giCUqezKhqS8nnTK3rqxxPjZEJfm0ezqyoWk2aZafcB0oEcWA0SkJIdAThH+ghPjUO
+         mlpy4xvcXW5cpYb52lYb0Em6XOfU2UHP/ekGYbqtaFJMkM+JYhLDk78xD+DsVI+ZRTK8
+         vkKLAi91/f4E4V4jn0OMELjzA5utwmx9WdSaOrYk6qRUtlNMHT7wLLXNexdzpWjGPdSs
+         aPfHj27WtBwAboXKlffD3S3B907pIljm2RkpaV88tYYbpB8KXnmeXMbglrsGY5m6XiMY
+         feb5qhqGEhQTPsOL3OTXJej0bUMJSA9ifVVtVZ2ug/Go5322aSpPF2I3TXc+pWB8T+ui
+         sTng==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b="leC/Gb3q";
-       spf=pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=rcampbell@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
-        by mx.google.com with ESMTPS id u194si8884178ywu.179.2019.07.16.17.15.30
+       dkim=pass header.i=@kernel.org header.s=default header.b=ZfXxA78h;
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id h63si20803243pje.79.2019.07.16.17.15.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 Jul 2019 17:15:30 -0700 (PDT)
-Received-SPF: pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.64 as permitted sender) client-ip=216.228.121.64;
+        Tue, 16 Jul 2019 17:15:35 -0700 (PDT)
+Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b="leC/Gb3q";
-       spf=pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=rcampbell@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate15.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
-	id <B5d2e68a80001>; Tue, 16 Jul 2019 17:15:36 -0700
-Received: from hqmail.nvidia.com ([172.20.161.6])
-  by hqpgpgate101.nvidia.com (PGP Universal service);
-  Tue, 16 Jul 2019 17:15:29 -0700
-X-PGP-Universal: processed;
-	by hqpgpgate101.nvidia.com on Tue, 16 Jul 2019 17:15:29 -0700
-Received: from HQMAIL101.nvidia.com (172.20.187.10) by HQMAIL101.nvidia.com
- (172.20.187.10) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Wed, 17 Jul
- 2019 00:15:29 +0000
-Received: from hqnvemgw01.nvidia.com (172.20.150.20) by HQMAIL101.nvidia.com
- (172.20.187.10) with Microsoft SMTP Server (TLS) id 15.0.1473.3 via Frontend
- Transport; Wed, 17 Jul 2019 00:15:29 +0000
-Received: from rcampbell-dev.nvidia.com (Not Verified[10.110.48.66]) by hqnvemgw01.nvidia.com with Trustwave SEG (v7,5,8,10121)
-	id <B5d2e68a10000>; Tue, 16 Jul 2019 17:15:29 -0700
-From: Ralph Campbell <rcampbell@nvidia.com>
-To: <linux-mm@kvack.org>
-CC: <linux-kernel@vger.kernel.org>, Ralph Campbell <rcampbell@nvidia.com>
-Subject: [PATCH 0/3] mm/hmm: fixes for device private page migration
-Date: Tue, 16 Jul 2019 17:14:43 -0700
-Message-ID: <20190717001446.12351-1-rcampbell@nvidia.com>
-X-Mailer: git-send-email 2.20.1
-MIME-Version: 1.0
-X-NVConfidentiality: public
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
-	t=1563322536; bh=QsS0ZqN4YggOSSwkzcpaGSaK/G4QRt1uJsrCicwV7Ig=;
-	h=X-PGP-Universal:From:To:CC:Subject:Date:Message-ID:X-Mailer:
-	 MIME-Version:X-NVConfidentiality:Content-Type:
-	 Content-Transfer-Encoding;
-	b=leC/Gb3qxcTdl7ZxhD/ykWwGw86krGQRaZO7OGchr2aUxHZbQW/aj6ghYjKJaB2sg
-	 LN6dtU9KfwqXAhpso+OWUQNKC6cFk18ZRuZIGgr/EGOvWAdmnylyUg58D3H5vjfvGn
-	 2FAgd6tdTzVwWKB/uTtaEY0+pfsdaMKKJLZgbSedqpka1JJb9zIfa7ooPuLPKnEYyK
-	 yzYjLrl4H8kwhU3Q3YBZ28rIzMsv3YfeAGBrRijqQu+amFWj7kLzlLhiSc1sgqNkfl
-	 8GW7bQfebpC8hnNsFLRBGLDCDPTkhXEoXjkMujCpSGkUy+27tEFrSY+YZQY6bLFB1I
-	 K51ZVi3Q3NZgg==
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.003731, version=1.2.4
+       dkim=pass header.i=@kernel.org header.s=default header.b=ZfXxA78h;
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from akpm3.svl.corp.google.com (unknown [104.133.8.64])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 33A712184E;
+	Wed, 17 Jul 2019 00:15:35 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1563322535;
+	bh=VWazqoqxzRcg9+xvQ08CTUhXDgkOfK9yOjMAWZaWwNc=;
+	h=Date:From:To:Subject:From;
+	b=ZfXxA78hwAdFsushpnuxaKVDTdmfXDS6J8xfa/uYtNrA3sqqb0MtVdKGZTYJshf4I
+	 NHl4D9KYNCoczL+XZfeGCpN8HmErEzHfOA99K3SXTzb12MAbP61Bo8NNg40jtYyrUf
+	 PcsS702PZwHntB66gXFmkD4Qj6NwmyQAjL8HrY9I=
+Date: Tue, 16 Jul 2019 17:15:34 -0700
+From: akpm@linux-foundation.org
+To: broonie@kernel.org, mhocko@suse.cz, sfr@canb.auug.org.au,
+ linux-next@vger.kernel.org, linux-fsdevel@vger.kernel.org,
+ linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+ mm-commits@vger.kernel.org
+Subject:  mmotm 2019-07-16-17-14 uploaded
+Message-ID: <20190717001534.83sL1%akpm@linux-foundation.org>
+User-Agent: s-nail v14.9.10
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Testing the latest linux git tree turned up a few bugs with page
-migration to and from ZONE_DEVICE private and anonymous pages.
-Hopefully it clarifies how ZONE_DEVICE private struct page uses
-the same mapping and index fields from the source anonymous page
-mapping.
+The mm-of-the-moment snapshot 2019-07-16-17-14 has been uploaded to
 
-Patch #3 was sent earlier and this is v2 with an updated change log.
-http://lkml.kernel.org/r/20190709223556.28908-1-rcampbell@nvidia.com
+   http://www.ozlabs.org/~akpm/mmotm/
 
-Ralph Campbell (3):
-  mm: document zone device struct page reserved fields
-  mm/hmm: fix ZONE_DEVICE anon page mapping reuse
-  mm/hmm: Fix bad subpage pointer in try_to_unmap_one
+mmotm-readme.txt says
 
- include/linux/mm_types.h | 9 ++++++++-
- kernel/memremap.c        | 4 ++++
- mm/rmap.c                | 1 +
- 3 files changed, 13 insertions(+), 1 deletion(-)
+README for mm-of-the-moment:
 
---=20
-2.20.1
+http://www.ozlabs.org/~akpm/mmotm/
+
+This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
+more than once a week.
+
+You will need quilt to apply these patches to the latest Linus release (5.x
+or 5.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
+http://ozlabs.org/~akpm/mmotm/series
+
+The file broken-out.tar.gz contains two datestamp files: .DATE and
+.DATE-yyyy-mm-dd-hh-mm-ss.  Both contain the string yyyy-mm-dd-hh-mm-ss,
+followed by the base kernel version against which this patch series is to
+be applied.
+
+This tree is partially included in linux-next.  To see which patches are
+included in linux-next, consult the `series' file.  Only the patches
+within the #NEXT_PATCHES_START/#NEXT_PATCHES_END markers are included in
+linux-next.
+
+
+A full copy of the full kernel tree with the linux-next and mmotm patches
+already applied is available through git within an hour of the mmotm
+release.  Individual mmotm releases are tagged.  The master branch always
+points to the latest release, so it's constantly rebasing.
+
+http://git.cmpxchg.org/cgit.cgi/linux-mmotm.git/
+
+
+
+The directory http://www.ozlabs.org/~akpm/mmots/ (mm-of-the-second)
+contains daily snapshots of the -mm tree.  It is updated more frequently
+than mmotm, and is untested.
+
+A git copy of this tree is available at
+
+	http://git.cmpxchg.org/cgit.cgi/linux-mmots.git/
+
+and use of this tree is similar to
+http://git.cmpxchg.org/cgit.cgi/linux-mmotm.git/, described above.
+
+
+This mmotm tree contains the following patches against 5.2:
+(patches marked "*" will be included in linux-next)
+
+  origin.patch
+* mm-z3foldc-dont-try-to-use-buddy-slots-after-free.patch
+* thp-fix-unused-shmem_parse_huge-function-warning.patch
+* lib-mpi-fix-building-with-32-bit-x86.patch
+* slab-work-around-clang-bug-42570.patch
+* mm-cma-fix-a-typo-alloc_cma-cma_alloc-in-cma_release-comments.patch
+* mm-z3foldc-allow-__gfp_highmem-in-z3fold_alloc.patch
+* mm-memcontrol-keep-local-vm-counters-in-sync-with-the-hierarchical-ones.patch
+* mm-vmscan-add-a-new-member-reclaim_state-in-struct-shrink_control.patch
+* mm-vmscan-calculate-reclaimed-slab-caches-in-all-reclaim-paths.patch
+* mm-vmscanc-add-checks-for-incorrect-handling-of-current-reclaim_state.patch
+* mm-z3foldc-remove-z3fold_migration-trylock.patch
+* mm-z3foldc-reinitialize-zhdr-structs-after-migration.patch
+* cma-fail-if-fixed-declaration-cant-be-honored.patch
+* mm-fix-the-map_uninitialized-flag.patch
+* mm-provide-a-print_vma_addr-stub-for-config_mmu.patch
+* mm-stub-out-all-of-swapopsh-for-config_mmu.patch
+* proc-hide-segfault-at-ffffffffff600000-dmesg-spam.patch
+* vmcore-add-a-kernel-parameter-novmcoredd.patch
+* add-typeof_member-macro.patch
+* proc-use-typeof_member-macro.patch
+* proc-test-proc-sysvipc-vs-setnsclone_newipc.patch
+* fs-fix-the-default-values-of-i_uid-i_gid-on-proc-sys-inodes.patch
+* kernel-fix-typos-and-some-coding-style-in-comments.patch
+* linux-bitsh-make-bit-genmask-and-friends-available-in-assembly.patch
+* arch-replace-_bitul-in-kernel-space-headers-with-bit.patch
+* drop-unused-isa_page_to_bus.patch
+* asm-generic-fix-a-compilation-warning.patch
+* get_maintainer-add-ability-to-skip-moderated-mailing-lists.patch
+* tweak-list_poison2-for-better-code-generation-on-x86_64.patch
+* lib-string-allow-searching-for-nul-with-strnchr.patch
+* lib-test_string-avoid-masking-memset16-32-64-failures.patch
+* lib-test_string-add-some-testcases-for-strchr-and-strnchr.patch
+* lib-test_overflow-avoid-tainting-the-kernel-and-fix-wrap-size.patch
+* lib-introduce-test_meminit-module.patch
+* mm-ioremap-check-virtual-address-alignment-while-creating-huge-mappings.patch
+* mm-ioremap-probe-platform-for-p4d-huge-map-support.patch
+* lib-string_helpers-fix-some-kerneldoc-warnings.patch
+* lib-test_meminit-fix-wmaybe-uninitialized-false-positive.patch
+* lib-test_meminitc-minor-test-fixes.patch
+* rbtree-avoid-generating-code-twice-for-the-cached-versions.patch
+* checkpatchpl-warn-on-duplicate-sysctl-local-variable.patch
+* binfmt_flat-remove-set-but-not-used-variable-inode.patch
+* elf-delete-stale-comment.patch
+* mm-kconfig-fix-neighboring-typos.patch
+* mm-generalize-and-rename-notify_page_fault-as-kprobe_page_fault.patch
+* coda-pass-the-host-file-in-vma-vm_file-on-mmap.patch
+* uapi-linux-codah-use-__kernel_pid_t-for-userspace.patch
+* uapi-linux-coda_psdevh-move-upc_req-definition-from-uapi-to-kernel-side-headers.patch
+* coda-add-error-handling-for-fget.patch
+* coda-potential-buffer-overflow-in-coda_psdev_write.patch
+* coda-fix-build-using-bare-metal-toolchain.patch
+* coda-dont-try-to-print-names-that-were-considered-too-long.patch
+* uapi-linux-coda_psdevh-move-coda_req_-from-uapi-to-kernel-side-headers.patch
+* coda-clean-up-indentation-replace-spaces-with-tab.patch
+* coda-stop-using-struct-timespec-in-user-api.patch
+* coda-change-codas-user-api-to-use-64-bit-time_t-in-timespec.patch
+* coda-get-rid-of-coda_alloc.patch
+* coda-get-rid-of-coda_free.patch
+* coda-bump-module-version.patch
+* coda-move-internal-defs-out-of-include-linux.patch
+* coda-remove-uapi-linux-coda_psdevh.patch
+* coda-destroy-mutex-in-put_super.patch
+* coda-use-size-for-stat.patch
+* coda-add-__init-to-init_coda_psdev.patch
+* coda-remove-sysctl-object-from-module-when-unused.patch
+* coda-remove-sb-test-in-coda_fid_to_inode.patch
+* coda-ftoc-validity-check-integration.patch
+* coda-add-hinting-support-for-partial-file-caching.patch
+* hfsplus-replace-strncpy-with-memcpy.patch
+* ufs-remove-set-but-not-used-variable-usb3.patch
+* fs-reiserfs-journal-change-return-type-of-dirty_one_transaction.patch
+* nds32-fix-asm-syscallh.patch
+* hexagon-define-syscall_get_error-and-syscall_get_return_value.patch
+* mips-define-syscall_get_error.patch
+* parisc-define-syscall_get_error.patch
+* powerpc-define-syscall_get_error.patch
+* ptrace-add-ptrace_get_syscall_info-request.patch
+* selftests-ptrace-add-a-test-case-for-ptrace_get_syscall_info.patch
+* signal-reorder-struct-sighand_struct.patch
+* signal-simplify-set_user_sigmask-restore_user_sigmask.patch
+* select-change-do_poll-to-return-erestartnohand-rather-than-eintr.patch
+* select-shift-restore_saved_sigmask_unless-into-poll_select_copy_remaining.patch
+* rapidio-mport_cdev-nul-terminate-some-strings.patch
+* convert-struct-pid-count-to-refcount_t.patch
+* pps-clear-offset-flags-in-pps_setparams-ioctl.patch
+* scripts-gdb-add-lx-genpd-summary-command.patch
+* scripts-gdb-add-helpers-to-find-and-list-devices.patch
+* bug-fix-cut-here-for-warn_on-for-__warn_taint-architectures.patch
+* ipc-mqueue-only-perform-resource-calculation-if-user-valid.patch
+* lz4-fix-spelling-and-copy-paste-errors-in-documentation.patch
+* device-dax-fix-memory-and-resource-leak-if-hotplug-fails.patch
+* mm-hotplug-make-remove_memory-interface-useable.patch
+* device-dax-hotremove-persistent-memory-that-is-used-like-normal-ram.patch
+* mm-move-map_sync-to-asm-generic-mman-commonh.patch
+* mm-mmap-move-common-defines-to-mman-commonh.patch
+* mm-clean-up-is_device__page-definitions.patch
+* mm-introduce-arch_has_pte_devmap.patch
+* arm64-mm-implement-pte_devmap-support.patch
+* mm-add-account_locked_vm-utility-function.patch
+* fs-select-use-struct_size-in-kmalloc.patch
+* mm-hmm-fix-bad-subpage-pointer-in-try_to_unmap_one.patch
+* revert-kmemleak-allow-to-coexist-with-fault-injection.patch
+* ocfs2-remove-set-but-not-used-variable-last_hash.patch
+* ocfs2-clear-zero-in-unaligned-direct-io.patch
+* ocfs2-clear-zero-in-unaligned-direct-io-checkpatch-fixes.patch
+* ocfs2-wait-for-recovering-done-after-direct-unlock-request.patch
+* ocfs2-checkpoint-appending-truncate-log-transaction-before-flushing.patch
+* ramfs-support-o_tmpfile.patch
+  mm.patch
+* mm-vmscan-expose-cgroup_ino-for-memcg-reclaim-tracepoints.patch
+* mm-mmap-fix-the-adjusted-length-error.patch
+* mm-memory_hotplug-simplify-and-fix-check_hotplug_memory_range.patch
+* s390x-mm-fail-when-an-altmap-is-used-for-arch_add_memory.patch
+* s390x-mm-implement-arch_remove_memory.patch
+* arm64-mm-add-temporary-arch_remove_memory-implementation.patch
+* drivers-base-memory-pass-a-block_id-to-init_memory_block.patch
+* drivers-base-memory-pass-a-block_id-to-init_memory_block-fix.patch
+* mm-memory_hotplug-allow-arch_remove_pages-without-config_memory_hotremove.patch
+* mm-memory_hotplug-create-memory-block-devices-after-arch_add_memory.patch
+* mm-memory_hotplug-drop-mhp_memblock_api.patch
+* mm-memory_hotplug-remove-memory-block-devices-before-arch_remove_memory.patch
+* mm-memory_hotplug-make-unregister_memory_block_under_nodes-never-fail.patch
+* mm-memory_hotplug-remove-zone-parameter-from-sparse_remove_one_section.patch
+* mm-sparse-set-section-nid-for-hot-add-memory.patch
+* mm-sparse-fix-memory-leak-of-sparsemap_buf-in-aliged-memory.patch
+* mm-sparse-fix-memory-leak-of-sparsemap_buf-in-aliged-memory-fix.patch
+* mm-sparse-fix-align-without-power-of-2-in-sparse_buffer_alloc.patch
+* mm-mempolicy-make-the-behavior-consistent-when-mpol_mf_move-and-mpol_mf_strict-were-specified.patch
+* mm-mempolicy-handle-vma-with-unmovable-pages-mapped-correctly-in-mbind.patch
+* mm-oom_killer-add-task-uid-to-info-message-on-an-oom-kill.patch
+* mm-oom_killer-add-task-uid-to-info-message-on-an-oom-kill-fix.patch
+* mm-thp-make-transhuge_vma_suitable-available-for-anonymous-thp.patch
+* mm-thp-make-transhuge_vma_suitable-available-for-anonymous-thp-fix.patch
+* mm-thp-fix-false-negative-of-shmem-vmas-thp-eligibility.patch
+* mm-proportional-memorylowmin-reclaim.patch
+* mm-make-memoryemin-the-baseline-for-utilisation-determination.patch
+* mm-make-memoryemin-the-baseline-for-utilisation-determination-fix.patch
+* mm-vmscan-remove-unused-lru_pages-argument.patch
+* mm-dont-expose-page-to-fast-gup-before-its-ready.patch
+* info-task-hung-in-generic_file_write_iter.patch
+* info-task-hung-in-generic_file_write-fix.patch
+* kernel-hung_taskc-monitor-killed-tasks.patch
+* lib-genallocc-export-symbol-addr_in_gen_pool.patch
+* lib-genallocc-rename-addr_in_gen_pool-to-gen_pool_has_addr.patch
+* lib-genallocc-rename-addr_in_gen_pool-to-gen_pool_has_addr-fix.patch
+* lib-fix-possible-incorrect-result-from-rational-fractions-helper.patch
+* checkpatch-added-warnings-in-favor-of-strscpy.patch
+* checkpatch-dont-interpret-stack-dumps-as-commit-ids.patch
+* checkpatch-fix-something.patch
+* fat-add-nobarrier-to-workaround-the-strange-behavior-of-device.patch
+* coredump-split-pipe-command-whitespace-before-expanding-template.patch
+* aio-simplify-read_events.patch
+* resource-fix-locking-in-find_next_iomem_res.patch
+* resource-fix-locking-in-find_next_iomem_res-fix.patch
+* resource-avoid-unnecessary-lookups-in-find_next_iomem_res.patch
+* ipc-consolidate-all-xxxctl_down-functions.patch
+  linux-next.patch
+  diff-sucks.patch
+* pinctrl-fix-pxa2xxc-build-warnings.patch
+* mm-section-numbers-use-the-type-unsigned-long.patch
+* mm-section-numbers-use-the-type-unsigned-long-fix.patch
+* mm-section-numbers-use-the-type-unsigned-long-v3.patch
+* drivers-base-memory-use-unsigned-long-for-block-ids.patch
+* mm-make-register_mem_sect_under_node-static.patch
+* mm-memory_hotplug-rename-walk_memory_range-and-pass-startsize-instead-of-pfns.patch
+* mm-memory_hotplug-move-and-simplify-walk_memory_blocks.patch
+* drivers-base-memoryc-get-rid-of-find_memory_block_hinted.patch
+* drivers-base-memoryc-get-rid-of-find_memory_block_hinted-v3.patch
+* drivers-base-memoryc-get-rid-of-find_memory_block_hinted-v3-fix.patch
+* mm-sparsemem-introduce-struct-mem_section_usage.patch
+* mm-sparsemem-introduce-a-section_is_early-flag.patch
+* mm-sparsemem-add-helpers-track-active-portions-of-a-section-at-boot.patch
+* mm-hotplug-prepare-shrink_zone-pgdat_span-for-sub-section-removal.patch
+* mm-sparsemem-convert-kmalloc_section_memmap-to-populate_section_memmap.patch
+* mm-hotplug-kill-is_dev_zone-usage-in-__remove_pages.patch
+* mm-kill-is_dev_zone-helper.patch
+* mm-sparsemem-prepare-for-sub-section-ranges.patch
+* mm-sparsemem-support-sub-section-hotplug.patch
+* mm-sparsemem-support-sub-section-hotplug-fix.patch
+* mm-sparsemem-support-sub-section-hotplug-fix-fix.patch
+* mm-document-zone_device-memory-model-implications.patch
+* mm-document-zone_device-memory-model-implications-fix.patch
+* mm-devm_memremap_pages-enable-sub-section-remap.patch
+* libnvdimm-pfn-fix-fsdax-mode-namespace-info-block-zero-fields.patch
+* libnvdimm-pfn-stop-padding-pmem-namespaces-to-section-alignment.patch
+* mm-sparsemem-cleanup-section-number-data-types.patch
+* mm-sparsemem-cleanup-section-number-data-types-fix.patch
+* mm-migrate-remove-unused-mode-argument.patch
+* proc-sysctl-add-shared-variables-for-range-check.patch
+* proc-sysctl-add-shared-variables-for-range-check-fix-2.patch
+* proc-sysctl-add-shared-variables-for-range-check-fix-2-fix.patch
+* proc-sysctl-add-shared-variables-for-range-check-fix-3.patch
+* proc-sysctl-add-shared-variables-for-range-check-fix-4.patch
+* drivers-tty-serial-sh-scic-suppress-warning.patch
+* fix-read-buffer-overflow-in-delta-ipc.patch
+  make-sure-nobodys-leaking-resources.patch
+  releasing-resources-with-children.patch
+  mutex-subsystem-synchro-test-module.patch
+  kernel-forkc-export-kernel_thread-to-modules.patch
+  workaround-for-a-pci-restoring-bug.patch
 
