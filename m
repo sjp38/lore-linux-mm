@@ -2,232 +2,146 @@ Return-Path: <SRS0=TqY8=VP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 69F70C76196
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Jul 2019 14:22:45 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 14264C76191
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Jul 2019 14:37:06 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2D6CF20873
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Jul 2019 14:22:45 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2D6CF20873
+	by mail.kernel.org (Postfix) with ESMTP id DA6FA20873
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Jul 2019 14:37:05 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DA6FA20873
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B93C46B0003; Thu, 18 Jul 2019 10:22:44 -0400 (EDT)
+	id 71C236B0007; Thu, 18 Jul 2019 10:37:05 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B44856B0006; Thu, 18 Jul 2019 10:22:44 -0400 (EDT)
+	id 6CD266B0008; Thu, 18 Jul 2019 10:37:05 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A0D428E0001; Thu, 18 Jul 2019 10:22:44 -0400 (EDT)
+	id 5BCBE8E0001; Thu, 18 Jul 2019 10:37:05 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 823626B0003
-	for <linux-mm@kvack.org>; Thu, 18 Jul 2019 10:22:44 -0400 (EDT)
-Received: by mail-qk1-f198.google.com with SMTP id x17so23326402qkf.14
-        for <linux-mm@kvack.org>; Thu, 18 Jul 2019 07:22:44 -0700 (PDT)
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 3AE2E6B0007
+	for <linux-mm@kvack.org>; Thu, 18 Jul 2019 10:37:05 -0400 (EDT)
+Received: by mail-qk1-f200.google.com with SMTP id h198so23400413qke.1
+        for <linux-mm@kvack.org>; Thu, 18 Jul 2019 07:37:05 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:mime-version:content-transfer-encoding;
-        bh=bIr+PxE3GSJJLtJyF3zA1LegdzS/Qt8pQ8suSxxeVAg=;
-        b=TG5LmJLq5+FRuDVNR5O1QqkpwNcnx1goPq4zKhhe5HMwFwlmkI7/y4Yk9Rskly7Rci
-         nnTGMSs0tfafoBomwIcMofaSds3HCkh2yAVIViKvNqkO2a2lzdpOQyZ4Dgg+8W5z7bog
-         gZBFrE8O5aJTY4A+kFTGnUaQurPtXbjzORppELd4LrqmgjIK6eyiclirHIsFztp9sNGX
-         xDiz4Xf20aL20+BUy/fg4ifND7jrwkRHAvNql33AqpzdWvY2M8yoVWP1BJ3MLzX/oThc
-         KE7kmM4d/bg44MhsWb6W/CoNzQkHM07OIcSPjhndjAWiikl+7E9fEciE8YxZpTL/mdLJ
-         kJJg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAXOzswuhJ4X6PlquccBfCFq1J8Qk+/mzes2MgRDIjedrfEeP2cP
-	NDdOqIakusMFVMrFRTrnaWkhxbFYPukM/lHbNB1zse2EYFqtMsAxiax9khcoYjVObXhZle3l9fM
-	X+7P5DgxYk5QetASXlfipbCzQkbCNh1mvCQAujo8CjaiFZkjjmUzLqHriIR72mKsTwQ==
-X-Received: by 2002:ac8:2f66:: with SMTP id k35mr32472475qta.174.1563459764259;
-        Thu, 18 Jul 2019 07:22:44 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwlhQppvpXKWV32w1oihR9dP173BulbaSYG1HRz6aOUmt9464yH9PMnB2zY7d3lpoWzsr3T
-X-Received: by 2002:ac8:2f66:: with SMTP id k35mr32472376qta.174.1563459763073;
-        Thu, 18 Jul 2019 07:22:43 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563459763; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:organization:message-id:date:user-agent
+         :mime-version:in-reply-to:content-transfer-encoding:content-language;
+        bh=KwTBvK6zXDUSlUosZQWtOpNlgy8yUy48FWLBaO4pbh8=;
+        b=DPolggLciVrP8tGqWSjV32YsvMFQbXCX1vEz4fJ7H+HNpsp2+9djlavQ+ho78hkf8+
+         k6dfM5BiY4tINECSC0bcn+ePGnC0qa1hoTkbKP+VtLShPXtF9Ud2X9NKxe6zLA0Vg0w9
+         5roDJkK2wyU+Z2u0txRt8kRM5Q3eoaltlREtM8aMFALnE+djkkirv1JSo8iahAtX/26K
+         THA+oD0fhSxMLLuyymck5wvy+P16KewpDlw7dC+MDgX6S7sSe7TZ8P6tdMUBGWUAw6h9
+         JkkCkstpa0gCAQUBzKzIT25FF5thfjs9fUupk4pz+hT1DAWoes6KyHA/RH7Zk3aVGqKt
+         dQZw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAX0HArKWi+u/kjRGzxJFK/W/+uh8lHnDbrqAH9XvWJkCdRxJ2l/
+	DRP76Zy1t3ticaxsQCjGk1BsSGupEUArxMQf8t7rLIY4tVhaesPkRlLs2kDxiAVRFw2Y57qAR2B
+	zV4DJHZdmoTSYZ/D7USCw3+6nQMjl3Z9IfmSR20xPUDjDROt5C9npK5P52swWFji8Eg==
+X-Received: by 2002:a37:9c94:: with SMTP id f142mr27959123qke.427.1563460625041;
+        Thu, 18 Jul 2019 07:37:05 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxShjtuXarWZHeDPhsp+Ei23MTKaq1ajiMgwhIcSvZO9ugkWgnZqHsJTPghyeqF5HMYilZ5
+X-Received: by 2002:a37:9c94:: with SMTP id f142mr27959080qke.427.1563460624456;
+        Thu, 18 Jul 2019 07:37:04 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563460624; cv=none;
         d=google.com; s=arc-20160816;
-        b=WmYhPxp2qhCm3JuOK5TIDBb7UEw68Cnxk4nNdbYk3c1jQKYKOVKrP6YBUHv4a1IiG5
-         Tf/6AHZRlhRkC7w7FoALJWooUJvAhGVxCEkEJiyPrP4hjJN1xDTwxfBLoOoNX/rWESM/
-         molYlDr0qrCqWlhrCPGEtkZm9IwVX/gSattJTuy59WaU8bVPbIPOSb7reONlhjCDlaiA
-         llqTNu8s92G6WDnbX5On3niZ14JIPz/7TuULSHmqUfY5ZAMCq1txRW7cVfKzWPKoT9mT
-         GZWlRnPSyx3CkqkawiCkp3DUFCi9DBo9tACVq72BxuiaePE6xULOftK6NSU1lGsIN3R0
-         x3sQ==
+        b=NI6ntG9X0Dqw1rxhTvtow24mS7c61X17HnKrVzye20RtNhIJJqTgYRToiw9IM9CDAO
+         8goUwLdCp9xSTR4J9srCJ629vi8USd2VJnIaDj5Sbdut2r8SDVnFv14fyG+SPpOZSVTp
+         dHL9o46vZMV97bGOwMG8orlnQugcpbAkcQcbA7MG142t62o74OEgHP/DdJ+fJIMhr05e
+         kO9UB7/1txt+tYnzUUES3xhTbdFpdR3oQaaqzeVdOKyxeIOTYbDFkwZ6KWqJKYm5Wyr8
+         xL6RCBPcmE9m5qGdsAcseG2G+yV9pZWOl9x1rU5uztyFg0ZtzeWmTioJN3Q7MXdTPHt3
+         KMwg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
-         :to:from;
-        bh=bIr+PxE3GSJJLtJyF3zA1LegdzS/Qt8pQ8suSxxeVAg=;
-        b=z1cpCVIZtkr8q+hdxcF0pvAUP3SqDIZnmWjkvYg+Si4UwyV+RIx+0Pe7yqnNgHMeIJ
-         SnTAnnNVlUKOue/tMxvCmUiOCB0nb0+6hT1xvRYNlukpsuDjpRuc90AvPxFDJlhaAtfn
-         2NRVWhBPf9w64t3I/IuE1F3Wi/8tqe3fDPJuOJoD5e04F0MI7rMPVzGjSipJEcuRgtgy
-         8EzcSsFY5W+6OvSV0yG+Jzp4vqi/vbOp/svJbXbib929OAxmqBNqbq73C8Ze5WCFCtiK
-         GxNr8yeudwQ4niphf/qtRYpHfQmPi15bsE9R2glwljy5DWxwkh9aIE541T/osdE3sYHQ
-         e+rA==
+        h=content-language:content-transfer-encoding:in-reply-to:mime-version
+         :user-agent:date:message-id:organization:from:references:cc:to
+         :subject;
+        bh=KwTBvK6zXDUSlUosZQWtOpNlgy8yUy48FWLBaO4pbh8=;
+        b=IP0OXtwl6dCzULiQiDe0OyePd4NRVPvbVypd6Kz0T7LCB13Pk3ERQXFu6ek/8I+noa
+         THf1FLMf4v9JdHWxzD1nRzV4Nx/127B4sZdJmYzXInjJYn2f3GjAmKVZvDj1VVlGFni0
+         JACXWbRxtxM2VeE6+uUOwwGWKfprpn/sRq13qIhiqWuR0mHqMzJ7Ew/gSdl6M/X4rdjM
+         oqHWDZOYa6o1wxSvbEaY0WiwcNpt38gIuzb6mVSbFNcGBfFEC1ovvD6HcxqB/awmz1hx
+         iaMGH1QKt2vKGhbFlJnh/HHRTWjivAt/47ZI6Ih7NEEs6mi2G5YgkaOLWoWkbbgOHx17
+         qtFQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id m54si18136696qtm.266.2019.07.18.07.22.42
+        by mx.google.com with ESMTPS id s129si16473731qke.252.2019.07.18.07.37.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 18 Jul 2019 07:22:43 -0700 (PDT)
-Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Thu, 18 Jul 2019 07:37:04 -0700 (PDT)
+Received-SPF: pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
+Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 07B1D6EB88;
-	Thu, 18 Jul 2019 14:22:42 +0000 (UTC)
-Received: from t460s.redhat.com (ovpn-117-157.ams2.redhat.com [10.36.117.157])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id D073A60A35;
-	Thu, 18 Jul 2019 14:22:39 +0000 (UTC)
-From: David Hildenbrand <david@redhat.com>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org,
-	David Hildenbrand <david@redhat.com>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	"Rafael J. Wysocki" <rafael@kernel.org>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Stephen Rothwell <sfr@canb.auug.org.au>,
-	Pavel Tatashin <pasha.tatashin@soleen.com>,
-	Michal Hocko <mhocko@suse.com>,
-	Oscar Salvador <osalvador@suse.de>
-Subject: [PATCH v1] drivers/base/node.c: Simplify unregister_memory_block_under_nodes()
-Date: Thu, 18 Jul 2019 16:22:39 +0200
-Message-Id: <20190718142239.7205-1-david@redhat.com>
+	by mx1.redhat.com (Postfix) with ESMTPS id 8C258C09AD0F;
+	Thu, 18 Jul 2019 14:37:02 +0000 (UTC)
+Received: from llong.remote.csb (dhcp-17-160.bos.redhat.com [10.18.17.160])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 14D3660576;
+	Thu, 18 Jul 2019 14:36:59 +0000 (UTC)
+Subject: Re: [PATCH v2 2/2] mm, slab: Show last shrink time in us when
+ slab/shrink is read
+To: Christopher Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>,
+ Joonsoo Kim <iamjoonsoo.kim@lge.com>,
+ Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
+ linux-kernel@vger.kernel.org, Michal Hocko <mhocko@kernel.org>,
+ Roman Gushchin <guro@fb.com>, Johannes Weiner <hannes@cmpxchg.org>,
+ Shakeel Butt <shakeelb@google.com>, Vladimir Davydov <vdavydov.dev@gmail.com>
+References: <20190717202413.13237-1-longman@redhat.com>
+ <20190717202413.13237-3-longman@redhat.com>
+ <0100016c04e1562a-e516c595-1d46-40df-ab29-da1709277e9a-000000@email.amazonses.com>
+From: Waiman Long <longman@redhat.com>
+Organization: Red Hat
+Message-ID: <6fb9f679-02d1-c33f-2d79-4c2eaa45d264@redhat.com>
+Date: Thu, 18 Jul 2019 10:36:59 -0400
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.0
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.25]); Thu, 18 Jul 2019 14:22:42 +0000 (UTC)
+In-Reply-To: <0100016c04e1562a-e516c595-1d46-40df-ab29-da1709277e9a-000000@email.amazonses.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
+Content-Language: en-US
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.32]); Thu, 18 Jul 2019 14:37:03 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-We don't allow to offline memory block devices that belong to multiple
-numa nodes. Therefore, such devices can never get removed. It is
-sufficient to process a single node when removing the memory block.
+On 7/18/19 7:39 AM, Christopher Lameter wrote:
+> On Wed, 17 Jul 2019, Waiman Long wrote:
+>
+>> The show method of /sys/kernel/slab/<slab>/shrink sysfs file currently
+>> returns nothing. This is now modified to show the time of the last
+>> cache shrink operation in us.
+> What is this useful for? Any use cases?
 
-Remember for each memory block if it belongs to no, a single, or mixed
-nodes, so we can use that information to skip unregistering or print a
-warning (essentially a safety net to catch BUGs).
+I got query about how much time will the slab_mutex be held when
+shrinking the cache. I don't have a solid answer as it depends on how
+many memcg caches are there. This patch is a partial answer to that as
+it give a rough upper bound of the lock hold time.
 
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: "Rafael J. Wysocki" <rafael@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: David Hildenbrand <david@redhat.com>
-Cc: Stephen Rothwell <sfr@canb.auug.org.au>
-Cc: Pavel Tatashin <pasha.tatashin@soleen.com>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Oscar Salvador <osalvador@suse.de>
-Signed-off-by: David Hildenbrand <david@redhat.com>
----
- drivers/base/memory.c  |  1 +
- drivers/base/node.c    | 40 ++++++++++++++++------------------------
- include/linux/memory.h |  4 +++-
- 3 files changed, 20 insertions(+), 25 deletions(-)
 
-diff --git a/drivers/base/memory.c b/drivers/base/memory.c
-index 20c39d1bcef8..154d5d4a0779 100644
---- a/drivers/base/memory.c
-+++ b/drivers/base/memory.c
-@@ -674,6 +674,7 @@ static int init_memory_block(struct memory_block **memory,
- 	mem->state = state;
- 	start_pfn = section_nr_to_pfn(mem->start_section_nr);
- 	mem->phys_device = arch_get_memory_phys_device(start_pfn);
-+	mem->nid = NUMA_NO_NODE;
- 
- 	ret = register_memory(mem);
- 
-diff --git a/drivers/base/node.c b/drivers/base/node.c
-index 75b7e6f6535b..29d27b8d5fda 100644
---- a/drivers/base/node.c
-+++ b/drivers/base/node.c
-@@ -759,8 +759,6 @@ static int register_mem_sect_under_node(struct memory_block *mem_blk,
- 	int ret, nid = *(int *)arg;
- 	unsigned long pfn, sect_start_pfn, sect_end_pfn;
- 
--	mem_blk->nid = nid;
--
- 	sect_start_pfn = section_nr_to_pfn(mem_blk->start_section_nr);
- 	sect_end_pfn = section_nr_to_pfn(mem_blk->end_section_nr);
- 	sect_end_pfn += PAGES_PER_SECTION - 1;
-@@ -789,6 +787,13 @@ static int register_mem_sect_under_node(struct memory_block *mem_blk,
- 			if (page_nid != nid)
- 				continue;
- 		}
-+
-+		/* this memory block spans this node */
-+		if (mem_blk->nid == NUMA_NO_NODE)
-+			mem_blk->nid = nid;
-+		else
-+			mem_blk->nid = NUMA_NO_NODE - 1;
-+
- 		ret = sysfs_create_link_nowarn(&node_devices[nid]->dev.kobj,
- 					&mem_blk->dev.kobj,
- 					kobject_name(&mem_blk->dev.kobj));
-@@ -804,32 +809,19 @@ static int register_mem_sect_under_node(struct memory_block *mem_blk,
- }
- 
- /*
-- * Unregister memory block device under all nodes that it spans.
-- * Has to be called with mem_sysfs_mutex held (due to unlinked_nodes).
-+ * Unregister a memory block device under the node it spans. Memory blocks
-+ * with multiple nodes cannot be offlined and therefore also never be removed.
-  */
- void unregister_memory_block_under_nodes(struct memory_block *mem_blk)
- {
--	unsigned long pfn, sect_start_pfn, sect_end_pfn;
--	static nodemask_t unlinked_nodes;
--
--	nodes_clear(unlinked_nodes);
--	sect_start_pfn = section_nr_to_pfn(mem_blk->start_section_nr);
--	sect_end_pfn = section_nr_to_pfn(mem_blk->end_section_nr);
--	for (pfn = sect_start_pfn; pfn <= sect_end_pfn; pfn++) {
--		int nid;
-+	if (mem_blk->nid == NUMA_NO_NODE ||
-+	    WARN_ON_ONCE(mem_blk->nid == NUMA_NO_NODE - 1))
-+		return;
- 
--		nid = get_nid_for_pfn(pfn);
--		if (nid < 0)
--			continue;
--		if (!node_online(nid))
--			continue;
--		if (node_test_and_set(nid, unlinked_nodes))
--			continue;
--		sysfs_remove_link(&node_devices[nid]->dev.kobj,
--			 kobject_name(&mem_blk->dev.kobj));
--		sysfs_remove_link(&mem_blk->dev.kobj,
--			 kobject_name(&node_devices[nid]->dev.kobj));
--	}
-+	sysfs_remove_link(&node_devices[mem_blk->nid]->dev.kobj,
-+		 kobject_name(&mem_blk->dev.kobj));
-+	sysfs_remove_link(&mem_blk->dev.kobj,
-+		 kobject_name(&node_devices[mem_blk->nid]->dev.kobj));
- }
- 
- int link_mem_sections(int nid, unsigned long start_pfn, unsigned long end_pfn)
-diff --git a/include/linux/memory.h b/include/linux/memory.h
-index 02e633f3ede0..c91af10d5fb4 100644
---- a/include/linux/memory.h
-+++ b/include/linux/memory.h
-@@ -33,7 +33,9 @@ struct memory_block {
- 	void *hw;			/* optional pointer to fw/hw data */
- 	int (*phys_callback)(struct memory_block *);
- 	struct device dev;
--	int nid;			/* NID for this memory block */
-+	int nid;			/* NID for this memory block.
-+					   - NUMA_NO_NODE: uninitialized
-+					   - NUMA_NO_NODE - 1: mixed nodes */
- };
- 
- int arch_get_memory_phys_device(unsigned long start_pfn);
--- 
-2.21.0
+>> CONFIG_SLUB_DEBUG depends on CONFIG_SYSFS. So the new shrink_us field
+>> is always available to the shrink methods.
+> Aside from minimal systems without CONFIG_SYSFS... Does this build without
+> CONFIG_SYSFS?
+
+The sysfs code in mm/slub.c is guarded by CONFIG_SLUB_DEBUG which, in
+turn, depends on CONFIG_SYSFS. So if CONFIG_SYSFS is off, the shrink
+sysfs methods will be off as well. I haven't tried doing a minimal
+build. I will certainly try that, but I don't expect any problem here.
+
+Cheers,
+Longman
 
