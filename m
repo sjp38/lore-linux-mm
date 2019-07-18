@@ -2,167 +2,190 @@ Return-Path: <SRS0=TqY8=VP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+X-Spam-Status: No, score=-9.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no
-	version=3.4.0
+	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 652FFC76196
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Jul 2019 09:31:09 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B79AAC76195
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Jul 2019 10:10:46 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E058420665
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Jul 2019 09:31:08 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E058420665
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=virtuozzo.com
+	by mail.kernel.org (Postfix) with ESMTP id 79F202173B
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Jul 2019 10:10:46 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 79F202173B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5B7506B0010; Thu, 18 Jul 2019 05:31:08 -0400 (EDT)
+	id 12D006B0005; Thu, 18 Jul 2019 06:10:46 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5678E6B0266; Thu, 18 Jul 2019 05:31:08 -0400 (EDT)
+	id 0DF548E0001; Thu, 18 Jul 2019 06:10:46 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 47E078E0001; Thu, 18 Jul 2019 05:31:08 -0400 (EDT)
+	id F0EEB6B000A; Thu, 18 Jul 2019 06:10:45 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lf1-f69.google.com (mail-lf1-f69.google.com [209.85.167.69])
-	by kanga.kvack.org (Postfix) with ESMTP id D75B26B0010
-	for <linux-mm@kvack.org>; Thu, 18 Jul 2019 05:31:07 -0400 (EDT)
-Received: by mail-lf1-f69.google.com with SMTP id t23so2603769lfb.8
-        for <linux-mm@kvack.org>; Thu, 18 Jul 2019 02:31:07 -0700 (PDT)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id BBDB96B0005
+	for <linux-mm@kvack.org>; Thu, 18 Jul 2019 06:10:45 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id d3so16420558pgc.9
+        for <linux-mm@kvack.org>; Thu, 18 Jul 2019 03:10:45 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=WuLiywGOIShYm0YDAjCBo505NckwLnW3jPpCRP8xNcY=;
-        b=aaXKe2vXqMaGrLEhTKnx0ZQDd7Me3HNNCupjGZDenw0zYSPhW+YniLQ8p7oxL9K1rt
-         gzU1XR21n242520mZH9y3YdhAmzZq/UqD41Im0RUXcthbMeUlQEKmwalxTbmjAVznai2
-         ijEclmbV22KR+vuHUI4uxqGSiiwk/gMeqtxaIWAfQZVeMwqrhG4Xkt0AnCQVy/ciSuBU
-         Z257Tyjx7sOmjfmPsAKvdC8DW+AHD117WUm7hY3mqsZVQOYTNTr7V97+aILwmVI+Infp
-         HYTfidEyqk7wimLXlZN7S6BAL84HKkGF946P1UaRqbOXYXgbYgotyPMX/7Z0OFHGKd4z
-         pjZA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-X-Gm-Message-State: APjAAAUmuXcbeRnXsScgKjnCNn+l4IBjFb5kEF829zFBoPVkRuRqcdNB
-	t8OvMgmv7O0vX3k2c9vCnj/n1ia4n0YAr2L8RzcYVBm9IttCVSEtYiRO6tr7QEp8AX5JcsEgiFl
-	RXg0epDE9wLDv4nPp0kxrGqt5Fmor043nBk4/TJs8ePzhWZ4vGNZ8JalO8jlc90bCzA==
-X-Received: by 2002:a2e:9ad1:: with SMTP id p17mr23862165ljj.34.1563442267137;
-        Thu, 18 Jul 2019 02:31:07 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxMlXzkJv32ZI/6ZY4OmMwYrwZATkeDyx/RjqNVAfhBIm5iHXxs69qNnMargHaI3jT6SQQB
-X-Received: by 2002:a2e:9ad1:: with SMTP id p17mr23862117ljj.34.1563442266084;
-        Thu, 18 Jul 2019 02:31:06 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563442266; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id;
+        bh=IPnm+I9Usx31xFunRgPUzQdL2I/DsOB7LdpHa8iXcZk=;
+        b=sevTGn8wYc1xVoPv8aaU+oKiRHfoWSdTfHz5Rk66KuQKwZ2fbBeRdzj4f4lSnibLIm
+         7NiaOykjyFE28I4upK1DZPMEoK9/PnWfz5DMYlVvcl53ZGHS3eaLPckCnoPSmw7YqAEC
+         rvUMojuDnfMoz9eTEduutUmH+krMlwP2/M/yNbLmR1pp6HSSurakh8byU949FzLFnMeJ
+         yXJpPzDSo5IuIFYdSwt1OR+Us09kiS6OJzeWNEFNsPET9VmBpy5PwRoexP4O1SYbfz3h
+         VQvT0yEi2wMofAFBh2Eo5Yvd9LzHGrP5m8xFiC0WE5283NLxepFO/IIwbB03fPqVutCw
+         vZ8w==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of wei.w.wang@intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=wei.w.wang@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAUQ5fSDfHNAo5hNe2WACCV9ZIzXPmLSH5F7HPf3Gao5/u47/Xfx
+	IPHaMH3Kdyp0Plrj4Om4nkPY5qBXLgTzWnn0Ut+be90emBrTFdddRPmFTQ3jXE3kvGDt8lztBvR
+	VIt3bJIiirnozqN2zn3ivdf6/4TRrNe4Xo0q+Oi8Z4GNFXCDmK3Ys/fRfJnulgQkF/A==
+X-Received: by 2002:a63:c751:: with SMTP id v17mr31175335pgg.264.1563444645310;
+        Thu, 18 Jul 2019 03:10:45 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxnJ0+SGe2GjsiEWPq+wNHK3FQn/JQQ+cKMtSdo20slj9uwNwDrHw0VOrwTSkFKdl+fMbTv
+X-Received: by 2002:a63:c751:: with SMTP id v17mr31175232pgg.264.1563444643907;
+        Thu, 18 Jul 2019 03:10:43 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563444643; cv=none;
         d=google.com; s=arc-20160816;
-        b=SHkwPu5DWSVb7m09kA04xiuTEm3DRMw2t9/ITAbow7xYKCNqfMn7pTPDXltAXWgzC8
-         gIlQOhfVwIbcbnJNo4Fz/IsQUs3gnjeUrvC9QUwbXqxLwIZXrHsH5++fd2He32NrsPpG
-         s7Qjy1rIm3T6CybI5a/ozriqlNWRjWvdkBOfjwXF/HhVqDmFqVQCUdSEJKHH9KzktR0s
-         hsGUFfSDb7R9Wtr/ye1ZLPC2rGW5cTJb5uutZGQ/+fNwY0leHWUjbnBvYJDuCXkjdp9o
-         j6hiHj2miwU0oxWpHFH8a40brHSVj4JzCPdYMARtMoyWRmIWipa27hn5KDcNGnxuR/nq
-         Jj3Q==
+        b=O3skjRo9TWKQW0h1AMX3igr6LH/3sAh6ovq3U84Pzk/eQFKHdg/jfkS5Iy+Er2j1/e
+         qEUYGKimsX2PaJPgzsRq3bCxO7/4nycErZMHTq3ruGWUjSI0DLW5QO8Y7lgpkn7pQa9B
+         Va08ObYwR+wTOpVOZBqpQbeBMoGdg55C9afoK2M7xWWKfUKDGaubqBSHNKoJUGQfHBcr
+         lh/YASmtQBhZviilnG44RthrslzLMsma88PwCFyD9FVZDVi2GiUckSO1/D4wsR+LMH/D
+         j+7M9t8KfnR6EwBDpYtyVqACxHHryeiF3muTCq+o5D307VouXWkuXy5ulbFwwwMvw2CU
+         zs8w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=WuLiywGOIShYm0YDAjCBo505NckwLnW3jPpCRP8xNcY=;
-        b=S3R8ow+i9HCVjqx1lJ6oZ3sQcZHsUPTdTd9zcMfttySpF+PkgQL2Cq784EVZJtD80G
-         DudzXNSmUxrW3Rb7UZqTke+H9aa8H+cYZHLDjQ71wpx7CcSJJh0A2p8AwXZOds9UnXtz
-         jPKC/U93vasEjtyiBQJDlCaB6qiO3DoiSvb2E73RXyL9cHyhIQ9VvBe/nwKIzZNkVk+u
-         ackpe0ZY7Peny2hbOCfb73mUCz0iUr4z9gNub0lSbsFz6Gi3ZytAEg5emCDy7UGCL4SL
-         /ZOV88j6Vhd5EcgNKqTUafBeDVDXbkTrBnpiQb6jqimJA0qukUb5Oo3ciedGfREqGFWl
-         dgbw==
+        h=message-id:date:subject:cc:to:from;
+        bh=IPnm+I9Usx31xFunRgPUzQdL2I/DsOB7LdpHa8iXcZk=;
+        b=1E7gN+7Dqb0e+/OLz0Cs8y8XhG0J+oggNTRdO8KF8T1K3wBvMksom9P7wpec6C1T/V
+         7LqGDT2sJVISw6ITafu4r19rPQgyVcfkyQ8cxOHBgPOo/VawFEAc08Z921DM5dxHf11k
+         AhaJmB1dmwTHsd4FpD2UiJAANFpXRwJD2Llc3+xHimjRi4bott3EMGwe9ycLlkvIe+Bn
+         D8CJPiqm9jlUuMQu8nUUzKR8HxlVrAKanGX/7YOPTvyFSRf4t9IvEtqJhVNhC0eD3XCR
+         76apEhQOPbNlbcmI5j3wpxILGvJAfDfwDO9CWBCbvbxLopGOleqoQbSm4TEy/Wpp3HNt
+         o3fg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
-        by mx.google.com with ESMTPS id l6si18886590lfh.21.2019.07.18.02.31.05
+       spf=pass (google.com: domain of wei.w.wang@intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=wei.w.wang@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id c1si750797pgw.444.2019.07.18.03.10.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 18 Jul 2019 02:31:05 -0700 (PDT)
-Received-SPF: pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) client-ip=185.231.240.75;
+        Thu, 18 Jul 2019 03:10:43 -0700 (PDT)
+Received-SPF: pass (google.com: domain of wei.w.wang@intel.com designates 192.55.52.93 as permitted sender) client-ip=192.55.52.93;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-Received: from [172.16.25.169]
-	by relay.sw.ru with esmtp (Exim 4.92)
-	(envelope-from <ktkhai@virtuozzo.com>)
-	id 1ho2ke-0005VV-9n; Thu, 18 Jul 2019 12:31:00 +0300
-Subject: Re: [PATCH] mm: vmscan: check if mem cgroup is disabled or not before
- calling memcg slab shrinker
-To: Yang Shi <yang.shi@linux.alibaba.com>, shakeelb@google.com,
- vdavydov.dev@gmail.com, hannes@cmpxchg.org, mhocko@suse.com, guro@fb.com,
- hughd@google.com, cai@lca.pw, kirill.shutemov@linux.intel.com,
- akpm@linux-foundation.org
-Cc: stable@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-References: <1563385526-20805-1-git-send-email-yang.shi@linux.alibaba.com>
-From: Kirill Tkhai <ktkhai@virtuozzo.com>
-Message-ID: <fca59732-cd98-7e44-8c92-49ebafc6f41c@virtuozzo.com>
-Date: Thu, 18 Jul 2019 12:30:49 +0300
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.2
-MIME-Version: 1.0
-In-Reply-To: <1563385526-20805-1-git-send-email-yang.shi@linux.alibaba.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+       spf=pass (google.com: domain of wei.w.wang@intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=wei.w.wang@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga008.jf.intel.com ([10.7.209.65])
+  by fmsmga102.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 18 Jul 2019 03:10:42 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.64,276,1559545200"; 
+   d="scan'208";a="162031470"
+Received: from devel-ww.sh.intel.com ([10.239.48.128])
+  by orsmga008.jf.intel.com with ESMTP; 18 Jul 2019 03:10:39 -0700
+From: Wei Wang <wei.w.wang@intel.com>
+To: linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org,
+	kvm@vger.kernel.org,
+	mst@redhat.com,
+	xdeguillard@vmware.com,
+	namit@vmware.com
+Cc: akpm@linux-foundation.org,
+	pagupta@redhat.com,
+	riel@surriel.com,
+	dave.hansen@intel.com,
+	david@redhat.com,
+	konrad.wilk@oracle.com,
+	yang.zhang.wz@gmail.com,
+	nitesh@redhat.com,
+	lcapitulino@redhat.com,
+	aarcange@redhat.com,
+	pbonzini@redhat.com,
+	alexander.h.duyck@linux.intel.com,
+	dan.j.williams@intel.com
+Subject: [PATCH v2] mm/balloon_compaction: avoid duplicate page removal
+Date: Thu, 18 Jul 2019 17:27:20 +0800
+Message-Id: <1563442040-13510-1-git-send-email-wei.w.wang@intel.com>
+X-Mailer: git-send-email 2.7.4
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 17.07.2019 20:45, Yang Shi wrote:
-> Shakeel Butt reported premature oom on kernel with
-> "cgroup_disable=memory" since mem_cgroup_is_root() returns false even
-> though memcg is actually NULL.  The drop_caches is also broken.
-> 
-> It is because commit aeed1d325d42 ("mm/vmscan.c: generalize shrink_slab()
-> calls in shrink_node()") removed the !memcg check before
-> !mem_cgroup_is_root().  And, surprisingly root memcg is allocated even
-> though memory cgroup is disabled by kernel boot parameter.
-> 
-> Add mem_cgroup_disabled() check to make reclaimer work as expected.
-> 
-> Fixes: aeed1d325d42 ("mm/vmscan.c: generalize shrink_slab() calls in shrink_node()")
-> Reported-by: Shakeel Butt <shakeelb@google.com>
-> Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: Kirill Tkhai <ktkhai@virtuozzo.com>
-> Cc: Roman Gushchin <guro@fb.com>
-> Cc: Hugh Dickins <hughd@google.com>
-> Cc: Qian Cai <cai@lca.pw>
-> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Cc: stable@vger.kernel.org  4.19+
-> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
+Fixes: 418a3ab1e778 (mm/balloon_compaction: List interfaces)
 
-Reviewed-by: Kirill Tkhai <ktkhai@virtuozzo.com>
+A #GP is reported in the guest when requesting balloon inflation via
+virtio-balloon. The reason is that the virtio-balloon driver has
+removed the page from its internal page list (via balloon_page_pop),
+but balloon_page_enqueue_one also calls "list_del"  to do the removal.
+This is necessary when it's used from balloon_page_enqueue_list, but
+not from balloon_page_enqueue_one.
 
-Surprise really.
+So remove the list_del balloon_page_enqueue_one, and update some
+comments as a reminder.
 
-We have mem_cgroup as not early inited, so all of these boundary
-cases and checks has to be supported. But it looks like it's not
-possible to avoid that in any way.
+Signed-off-by: Wei Wang <wei.w.wang@intel.com>
+---
+ChangeLong:
+v1->v2: updated some comments
 
-> ---
->  mm/vmscan.c | 9 ++++++++-
->  1 file changed, 8 insertions(+), 1 deletion(-)
-> 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index f8e3dcd..c10dc02 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -684,7 +684,14 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
->  	unsigned long ret, freed = 0;
->  	struct shrinker *shrinker;
->  
-> -	if (!mem_cgroup_is_root(memcg))
-> +	/*
-> +	 * The root memcg might be allocated even though memcg is disabled
-> +	 * via "cgroup_disable=memory" boot parameter.  This could make
-> +	 * mem_cgroup_is_root() return false, then just run memcg slab
-> +	 * shrink, but skip global shrink.  This may result in premature
-> +	 * oom.
-> +	 */
-> +	if (!mem_cgroup_disabled() && !mem_cgroup_is_root(memcg))
->  		return shrink_slab_memcg(gfp_mask, nid, memcg, priority);
->  
->  	if (!down_read_trylock(&shrinker_rwsem))
-> 
+ mm/balloon_compaction.c | 14 ++++++++++----
+ 1 file changed, 10 insertions(+), 4 deletions(-)
+
+diff --git a/mm/balloon_compaction.c b/mm/balloon_compaction.c
+index 83a7b61..8639bfc 100644
+--- a/mm/balloon_compaction.c
++++ b/mm/balloon_compaction.c
+@@ -21,7 +21,6 @@ static void balloon_page_enqueue_one(struct balloon_dev_info *b_dev_info,
+ 	 * memory corruption is possible and we should stop execution.
+ 	 */
+ 	BUG_ON(!trylock_page(page));
+-	list_del(&page->lru);
+ 	balloon_page_insert(b_dev_info, page);
+ 	unlock_page(page);
+ 	__count_vm_event(BALLOON_INFLATE);
+@@ -33,7 +32,7 @@ static void balloon_page_enqueue_one(struct balloon_dev_info *b_dev_info,
+  * @b_dev_info: balloon device descriptor where we will insert a new page to
+  * @pages: pages to enqueue - allocated using balloon_page_alloc.
+  *
+- * Driver must call it to properly enqueue a balloon pages before definitively
++ * Driver must call it to properly enqueue balloon pages before definitively
+  * removing it from the guest system.
+  *
+  * Return: number of pages that were enqueued.
+@@ -47,6 +46,7 @@ size_t balloon_page_list_enqueue(struct balloon_dev_info *b_dev_info,
+ 
+ 	spin_lock_irqsave(&b_dev_info->pages_lock, flags);
+ 	list_for_each_entry_safe(page, tmp, pages, lru) {
++		list_del(&page->lru);
+ 		balloon_page_enqueue_one(b_dev_info, page);
+ 		n_pages++;
+ 	}
+@@ -128,13 +128,19 @@ struct page *balloon_page_alloc(void)
+ EXPORT_SYMBOL_GPL(balloon_page_alloc);
+ 
+ /*
+- * balloon_page_enqueue - allocates a new page and inserts it into the balloon
+- *			  page list.
++ * balloon_page_enqueue - inserts a new page into the balloon page list.
++ *
+  * @b_dev_info: balloon device descriptor where we will insert a new page to
+  * @page: new page to enqueue - allocated using balloon_page_alloc.
+  *
+  * Driver must call it to properly enqueue a new allocated balloon page
+  * before definitively removing it from the guest system.
++ *
++ * Drivers must not call balloon_page_enqueue on pages that have been
++ * pushed to a list with balloon_page_push before removing them with
++ * balloon_page_pop. To all pages on a list, use balloon_page_list_enqueue
++ * instead.
++ *
+  * This function returns the page address for the recently enqueued page or
+  * NULL in the case we fail to allocate a new page this turn.
+  */
+-- 
+2.7.4
 
