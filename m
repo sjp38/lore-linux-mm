@@ -6,309 +6,212 @@ X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
 	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B7CAAC76191
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Jul 2019 12:05:53 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id EED74C76196
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Jul 2019 12:07:25 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 688F221019
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Jul 2019 12:05:53 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 688F221019
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
+	by mail.kernel.org (Postfix) with ESMTP id B3AE121841
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Jul 2019 12:07:25 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B3AE121841
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DCF2D6B0003; Thu, 18 Jul 2019 08:05:52 -0400 (EDT)
+	id 47F4D6B0003; Thu, 18 Jul 2019 08:07:25 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D5AAE6B0005; Thu, 18 Jul 2019 08:05:52 -0400 (EDT)
+	id 430076B0005; Thu, 18 Jul 2019 08:07:25 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C20C78E0001; Thu, 18 Jul 2019 08:05:52 -0400 (EDT)
+	id 2F7488E0001; Thu, 18 Jul 2019 08:07:25 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 6E05A6B0003
-	for <linux-mm@kvack.org>; Thu, 18 Jul 2019 08:05:52 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id b33so19831839edc.17
-        for <linux-mm@kvack.org>; Thu, 18 Jul 2019 05:05:52 -0700 (PDT)
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F1C66B0003
+	for <linux-mm@kvack.org>; Thu, 18 Jul 2019 08:07:25 -0400 (EDT)
+Received: by mail-qk1-f198.google.com with SMTP id s25so22911629qkj.18
+        for <linux-mm@kvack.org>; Thu, 18 Jul 2019 05:07:25 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=NY4cIsvYrKx5LHOdr6RzUggBbac0vqzPS1Du+3s3+LQ=;
-        b=CsCi8QsvHvMcAPNmvjmfJfkLvGsoXqjhH7RRSxjvYHS4lDZHdQy5tTxLBitw7oZMhj
-         a9ocHQAAC/C21oKgNKNMemyRGXwBEzQM8rRRb8rGxqESi+bsowV/Egp6urRxpZ9tkVfI
-         +/sMSmV2D/zsvpgR5ny0DaV1GOIWXTzLALrSCAzL+MuayrgBLbgTRA8vy0qcHXAJevpX
-         j8R0sUJXaBdyQ0zjyazxbT/IEpSLUDOVCRGkrr9KiTrYWyp9CqTS9P6/sF1S2FAznHjn
-         kt07zUvFjSOfn0Qh9e3J7fPF/rJEQllUhfKvNZ2TzfCK+ZWW5GAXG/TZHJOSMAVBs8Pz
-         HpJQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
-X-Gm-Message-State: APjAAAX/9KXe/TLspiJibsIO5Zs4htopo5WpLJMU1DqYECOUTmwbsYmn
-	wUMNlnz4n+I8I7f4frTKxdLje3DyaESvX5936ZT3DnVfVnNZAD4noaRiMZS+yxZwdBzhhtLqZmD
-	AA3vzlNS6jq4/JvMHVAc1UjAAdxBZt+O9CrO8ELSzRB7oiNs3bxeND/xplLLCsd9wBA==
-X-Received: by 2002:a50:a56b:: with SMTP id z40mr39220963edb.99.1563451552006;
-        Thu, 18 Jul 2019 05:05:52 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz/V6NOazwuGZpaKDhJWllTu7r62wZQv1Kfsv+1Fl3amPZ3WRk6WdIf2BBPdZK0apM8ZY60
-X-Received: by 2002:a50:a56b:: with SMTP id z40mr39220851edb.99.1563451551002;
-        Thu, 18 Jul 2019 05:05:51 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563451550; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:organization:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding;
+        bh=BVgkJyXhlcdhbI2hxfgihx4KRgyfo2PW6Tq9TKaQdW4=;
+        b=hVGPN+EnNUFpgBJY00O1gmD9h++uJo2wNjvIQZvSh1UC13VJBrutnwjEFSe3aZImhP
+         VSWUuDr1J8MOUuAeJHVV1BZCBRvNyS1e7O8ZIH3XVsZX31RuCLcs8GPk4KjjaqJW0QjN
+         wUkI50rG3ek5kJ+ezQZnSP+XIV6HAIlzF37vuD/itfyfRHybu0lVMqS6XP//tajI3Ngd
+         IVbZ8FE8gHUE2ynl9FXa2zhXh+/6lSovdSHF5FtRMAPCuWF33J3fRCXzvxQDaky22mGM
+         kWPZyVTJ7bsAQm78ykAihnE2L5zOzrjePa10VgTFgbuk3Eho67jM2cnp7rZdRf2E1b09
+         cqqA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAUMUxEMCuNxHOgwQdN2l6vYXR8jbUDeYsbwY1Q/TTHBa6A9/qab
+	zakd6uVRPKio7Gy++I9pAdNubfKxORS4wP/8YfvHnrTLVZFDVbvvdGVy4Dj3ljAfM9C6TBDyBFV
+	tFInJTDT+gCJiKgl27603beRBgylSQVgy3U7XQFix8epECJOZEXtwMIteOfvFbNxX7Q==
+X-Received: by 2002:aed:2068:: with SMTP id 95mr31621992qta.265.1563451644832;
+        Thu, 18 Jul 2019 05:07:24 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqymoOZTOv4gQz7Zrk4PRI0gIGiCI9ogm3IaXuhTSYw7pm1lAZRctxPNOqIAl5VzPtzxQWw/
+X-Received: by 2002:aed:2068:: with SMTP id 95mr31621952qta.265.1563451644306;
+        Thu, 18 Jul 2019 05:07:24 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563451644; cv=none;
         d=google.com; s=arc-20160816;
-        b=La4asg7NW2oJ6nU1bo3r1pkgybC2VbzIpG2MBfDScXNX1BXfz+X19WgXtA2DpjEae3
-         it3YRgS6tbUrQipxCQXxPtzUh+7Jxof8bU3VO3UbpWgZ77ymT6L3bBcNwIQ82hsQ7ipn
-         sd5z4PN0Z7ZxAJ8zwQk6bYvU3t0cOd1R4it3TrKGa6yLTylNtmzDygilel5NjRvPUkVJ
-         ZxX7F4cZvMtabYBn4M9trxSHSDFnfe0d8bvoRfVi3m36yhmhF/89ajljhot7Z21pVKbE
-         lSFaa4j0jedQ59l/keK6OeIBI+0NgmWaOixm/ToexKzuglakqijSw3M7JyuVRuejEyBt
-         npaA==
+        b=ZpIxWgydGdF3TxJ8IvK9IU32btzAMpGGG6mD4iLZE67nowHHPmx5/CgX51aAgZeZ+5
+         /mi0B6YQEDeNGvCrqmKgkywNfpFj8UEsg+7NtwhKPnaSPNDYiZf360Wt9+bDzKAIoHea
+         VoXC64qkLh7aKOc2Q415KFOczGI3/eojgLWCVH8S+g7ElGR3tf9N3Zxz7jo10ZCEDo25
+         9SPKZ36tuyJj0VTUI3ZdS2UCqICexx6qP6i87hiP6w9r4L2EHuLxPIpY3S/4H/tH7T+o
+         U5PgklLnoNRp+LU7VDiXJaCm8ZyN5Zw1XAaf5Cuqn3EYIhzlkBCu/RItZHztC2dRaaxD
+         vYmA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=NY4cIsvYrKx5LHOdr6RzUggBbac0vqzPS1Du+3s3+LQ=;
-        b=ZJG8GeMEN8i5pT7tEVrQS7Z7m7VZWFDowpFfcnVyHBkuxAbvZLcKNC0GZjrCaOeXO6
-         Vg/J76/yQLl2T/stRXrvpJHYzLvl4rxP5Uyzoaw8nlxVy3I28EFcLAW/t+xjD14IU4E8
-         8lO0skUibiusgFG5O+B7L6A4ArYaofdfRP5AverhOt7Evs8mmCklMbbelYeC+pmNJqdn
-         B3W23vmQC6Y8L0InHCT3rtMP4t70oFL7RNxZnsF/Cun/DTv2Uas8cZuj8a0Uge/bwMmE
-         8Mo7xGhDucdWIf7m4sXT7v7fvrBNtNCMdlQgO1n0Rs9AmpmB7R/VCsEwgLW7PDRa6hzO
-         5eyw==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:organization:autocrypt:openpgp:from
+         :references:cc:to:subject;
+        bh=BVgkJyXhlcdhbI2hxfgihx4KRgyfo2PW6Tq9TKaQdW4=;
+        b=pxyUGHk503P9qRVB/+npXAovm/p4g69PjXz/Zd1AObUcn/SXmoW2WqdabMKswkfqgu
+         XBWBLEmJZq1m+cyxT2GX0kPrntyrDaKV5hQuqzInXSAO5jlWjl18BlvofwCok6AEYGcU
+         Ye9gukpJiIV2Zy8TQSjwmjaEDXdqg2pbeGej3WNu0iRTX0tK4CUFzsDRvwdGWNRCOpqa
+         5xVgLetiYK/4lJQZ0gYD01Inig3JwGjO1AEb4bBH/lW05JqXueMOgtvfzKuR+iF0VM91
+         abBrNtjYdWOaeYOp6M7C0BESL2kraK1GHfXWUXKxC3l9qcivRnHBwAgmtpHaPaLYxIW8
+         A9zQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id h20si16905edb.132.2019.07.18.05.05.50
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id q43si17586303qte.336.2019.07.18.05.07.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 18 Jul 2019 05:05:50 -0700 (PDT)
-Received-SPF: pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Thu, 18 Jul 2019 05:07:24 -0700 (PDT)
+Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 1FAC3AD4D;
-	Thu, 18 Jul 2019 12:05:50 +0000 (UTC)
-Date: Thu, 18 Jul 2019 14:05:47 +0200
-From: Oscar Salvador <osalvador@suse.de>
-To: akpm@linux-foundation.org
-Cc: dan.j.williams@intel.com, david@redhat.com, pasha.tatashin@soleen.com,
-	mhocko@suse.com, aneesh.kumar@linux.ibm.com, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
-Subject: Re: [PATCH 2/2] mm,memory_hotplug: Fix shrink_{zone,node}_span
-Message-ID: <20190718120543.GA8500@linux>
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 71A4A307D970;
+	Thu, 18 Jul 2019 12:07:23 +0000 (UTC)
+Received: from [10.36.117.157] (ovpn-117-157.ams2.redhat.com [10.36.117.157])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 2EC5F61465;
+	Thu, 18 Jul 2019 12:07:20 +0000 (UTC)
+Subject: Re: [PATCH 1/2] mm,sparse: Fix deactivate_section for early sections
+To: Oscar Salvador <osalvador@suse.de>, akpm@linux-foundation.org
+Cc: dan.j.williams@intel.com, pasha.tatashin@soleen.com, mhocko@suse.com,
+ aneesh.kumar@linux.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 References: <20190715081549.32577-1-osalvador@suse.de>
- <20190715081549.32577-3-osalvador@suse.de>
+ <20190715081549.32577-2-osalvador@suse.de>
+From: David Hildenbrand <david@redhat.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
+ 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
+ SE+xAvmumFBY
+Organization: Red Hat GmbH
+Message-ID: <d2268f86-f20d-22ff-e54f-48a2e609385b@redhat.com>
+Date: Thu, 18 Jul 2019 14:07:13 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.2
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190715081549.32577-3-osalvador@suse.de>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190715081549.32577-2-osalvador@suse.de>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.48]); Thu, 18 Jul 2019 12:07:23 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jul 15, 2019 at 10:15:49AM +0200, Oscar Salvador wrote:
-> Since [1], shrink_{zone,node}_span work on PAGES_PER_SUBSECTION granularity.
-> The problem is that deactivation of the section occurs later on in
-> sparse_remove_section, so pfn_valid()->pfn_section_valid() will always return
-> true before we deactivate the {sub}section.
+On 15.07.19 10:15, Oscar Salvador wrote:
+> deactivate_section checks whether a section is early or not
+> in order to either call free_map_bootmem() or depopulate_section_memmap().
+> Being the former for sections added at boot time, and the latter for
+> sections hotplugged.
 > 
-> I spotted this during hotplug hotremove tests, there I always saw that
-> spanned_pages was, at least, left with PAGES_PER_SECTION, even if we
-> removed all memory linked to that zone.
+> The problem is that we zero section_mem_map, so the last early_section()
+> will always report false and the section will not be removed.
 > 
-> Fix this by decoupling section_deactivate from sparse_remove_section, and
-> re-order the function calls.
+> Fix this checking whether a section is early or not at function
+> entry.
 > 
-> Now, __remove_section will:
-> 
-> 1) deactivate section
-> 2) shrink {zone,node}'s pages
-> 3) remove section
-> 
-> [1] https://patchwork.kernel.org/patch/11003467/
-
-Hi Andrew,
-
-Please, drop this patch as patch [1] is the easiest way to fix this.
-
-thanks a lot
-
-[1] https://patchwork.kernel.org/patch/11047499/
-
-> 
-> Fixes: mmotm ("mm/hotplug: prepare shrink_{zone, pgdat}_span for sub-section removal")
+> Fixes: mmotm ("mm/sparsemem: Support sub-section hotplug")
 > Signed-off-by: Oscar Salvador <osalvador@suse.de>
 > ---
->  include/linux/memory_hotplug.h |  7 ++--
->  mm/memory_hotplug.c            |  6 +++-
->  mm/sparse.c                    | 77 +++++++++++++++++++++++++++++-------------
->  3 files changed, 62 insertions(+), 28 deletions(-)
+>  mm/sparse.c | 5 +++--
+>  1 file changed, 3 insertions(+), 2 deletions(-)
 > 
-> diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
-> index f46ea71b4ffd..d2eb917aad5f 100644
-> --- a/include/linux/memory_hotplug.h
-> +++ b/include/linux/memory_hotplug.h
-> @@ -348,9 +348,10 @@ extern void move_pfn_range_to_zone(struct zone *zone, unsigned long start_pfn,
->  extern bool is_memblock_offlined(struct memory_block *mem);
->  extern int sparse_add_section(int nid, unsigned long pfn,
->  		unsigned long nr_pages, struct vmem_altmap *altmap);
-> -extern void sparse_remove_section(struct mem_section *ms,
-> -		unsigned long pfn, unsigned long nr_pages,
-> -		unsigned long map_offset, struct vmem_altmap *altmap);
-> +int sparse_deactivate_section(unsigned long pfn, unsigned long nr_pages);
-> +void sparse_remove_section(unsigned long pfn, unsigned long nr_pages,
-> +                           unsigned long map_offset, struct vmem_altmap *altmap,
-> +                           int section_empty);
->  extern struct page *sparse_decode_mem_map(unsigned long coded_mem_map,
->  					  unsigned long pnum);
->  extern bool allow_online_pfn_range(int nid, unsigned long pfn, unsigned long nr_pages,
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index b9ba5b85f9f7..03d535eee60d 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -517,12 +517,16 @@ static void __remove_section(struct zone *zone, unsigned long pfn,
->  		struct vmem_altmap *altmap)
->  {
->  	struct mem_section *ms = __nr_to_section(pfn_to_section_nr(pfn));
-> +	int ret;
->  
->  	if (WARN_ON_ONCE(!valid_section(ms)))
->  		return;
->  
-> +	ret = sparse_deactivate_section(pfn, nr_pages);
->  	__remove_zone(zone, pfn, nr_pages);
-> -	sparse_remove_section(ms, pfn, nr_pages, map_offset, altmap);
-> +	if (ret >= 0)
-> +		sparse_remove_section(pfn, nr_pages, map_offset, altmap,
-> +				      ret);
->  }
->  
->  /**
 > diff --git a/mm/sparse.c b/mm/sparse.c
-> index 1e224149aab6..d4953ee1d087 100644
+> index 3267c4001c6d..1e224149aab6 100644
 > --- a/mm/sparse.c
 > +++ b/mm/sparse.c
-> @@ -732,16 +732,47 @@ static void free_map_bootmem(struct page *memmap)
->  }
->  #endif /* CONFIG_SPARSEMEM_VMEMMAP */
->  
-> -static void section_deactivate(unsigned long pfn, unsigned long nr_pages,
-> -		struct vmem_altmap *altmap)
-> +static void section_remove(unsigned long pfn, unsigned long nr_pages,
-> +			   struct vmem_altmap *altmap, int section_empty)
-> +{
-> +	struct mem_section *ms = __pfn_to_section(pfn);
-> +	bool section_early = early_section(ms);
-> +	struct page *memmap = NULL;
-> +
-> +	if (section_empty) {
-> +		unsigned long section_nr = pfn_to_section_nr(pfn);
-> +
-> +		if (!section_early) {
-> +			kfree(ms->usage);
-> +			ms->usage = NULL;
-> +		}
-> +		memmap = sparse_decode_mem_map(ms->section_mem_map, section_nr);
-> +		ms->section_mem_map = sparse_encode_mem_map(NULL, section_nr);
-> +	}
-> +
-> +        if (section_early && memmap)
-> +		free_map_bootmem(memmap);
-> +        else
-> +		depopulate_section_memmap(pfn, nr_pages, altmap);
-> +}
-> +
-> +/**
-> + * section_deactivate: Deactivate a {sub}section.
-> + *
-> + * Return:
-> + * * -1         - {sub}section has already been deactivated.
-> + * * 0          - Section is not empty
-> + * * 1          - Section is empty
-> + */
-> +
-> +static int section_deactivate(unsigned long pfn, unsigned long nr_pages)
->  {
+> @@ -738,6 +738,7 @@ static void section_deactivate(unsigned long pfn, unsigned long nr_pages,
 >  	DECLARE_BITMAP(map, SUBSECTIONS_PER_SECTION) = { 0 };
 >  	DECLARE_BITMAP(tmp, SUBSECTIONS_PER_SECTION) = { 0 };
 >  	struct mem_section *ms = __pfn_to_section(pfn);
-> -	bool section_is_early = early_section(ms);
-> -	struct page *memmap = NULL;
+> +	bool section_is_early = early_section(ms);
+>  	struct page *memmap = NULL;
 >  	unsigned long *subsection_map = ms->usage
 >  		? &ms->usage->subsection_map[0] : NULL;
-> +	int section_empty = 0;
+> @@ -772,7 +773,7 @@ static void section_deactivate(unsigned long pfn, unsigned long nr_pages,
+>  	if (bitmap_empty(subsection_map, SUBSECTIONS_PER_SECTION)) {
+>  		unsigned long section_nr = pfn_to_section_nr(pfn);
 >  
->  	subsection_mask_set(map, pfn, nr_pages);
->  	if (subsection_map)
-> @@ -750,7 +781,7 @@ static void section_deactivate(unsigned long pfn, unsigned long nr_pages,
->  	if (WARN(!subsection_map || !bitmap_equal(tmp, map, SUBSECTIONS_PER_SECTION),
->  				"section already deactivated (%#lx + %ld)\n",
->  				pfn, nr_pages))
-> -		return;
-> +		return -1;
->  
->  	/*
->  	 * There are 3 cases to handle across two configurations
-> @@ -770,21 +801,10 @@ static void section_deactivate(unsigned long pfn, unsigned long nr_pages,
->  	 * For 2/ and 3/ the SPARSEMEM_VMEMMAP={y,n} cases are unified
->  	 */
->  	bitmap_xor(subsection_map, map, subsection_map, SUBSECTIONS_PER_SECTION);
-> -	if (bitmap_empty(subsection_map, SUBSECTIONS_PER_SECTION)) {
-> -		unsigned long section_nr = pfn_to_section_nr(pfn);
-> -
-> -		if (!section_is_early) {
-> -			kfree(ms->usage);
-> -			ms->usage = NULL;
-> -		}
-> -		memmap = sparse_decode_mem_map(ms->section_mem_map, section_nr);
-> -		ms->section_mem_map = sparse_encode_mem_map(NULL, section_nr);
-> -	}
-> +	if (bitmap_empty(subsection_map, SUBSECTIONS_PER_SECTION))
-> +		section_empty = 1;
->  
-> -	if (section_is_early && memmap)
-> -		free_map_bootmem(memmap);
-> -	else
-> -		depopulate_section_memmap(pfn, nr_pages, altmap);
-> +	return section_empty;
->  }
->  
->  static struct page * __meminit section_activate(int nid, unsigned long pfn,
-> @@ -834,7 +854,11 @@ static struct page * __meminit section_activate(int nid, unsigned long pfn,
->  
->  	memmap = populate_section_memmap(pfn, nr_pages, nid, altmap);
->  	if (!memmap) {
-> -		section_deactivate(pfn, nr_pages, altmap);
-> +		int ret;
-> +
-> +		ret = section_deactivate(pfn, nr_pages);
-> +		if (ret >= 0)
-> +			section_remove(pfn, nr_pages, altmap, ret);
->  		return ERR_PTR(-ENOMEM);
+> -		if (!early_section(ms)) {
+> +		if (!section_is_early) {
+>  			kfree(ms->usage);
+>  			ms->usage = NULL;
+>  		}
+> @@ -780,7 +781,7 @@ static void section_deactivate(unsigned long pfn, unsigned long nr_pages,
+>  		ms->section_mem_map = sparse_encode_mem_map(NULL, section_nr);
 >  	}
 >  
-> @@ -919,12 +943,17 @@ static inline void clear_hwpoisoned_pages(struct page *memmap, int nr_pages)
->  }
->  #endif
->  
-> -void sparse_remove_section(struct mem_section *ms, unsigned long pfn,
-> -		unsigned long nr_pages, unsigned long map_offset,
-> -		struct vmem_altmap *altmap)
-> +int sparse_deactivate_section(unsigned long pfn, unsigned long nr_pages)
-> +{
-> +	return section_deactivate(pfn, nr_pages);
-> +}
-> +
-> +void sparse_remove_section(unsigned long pfn, unsigned long nr_pages,
-> +			   unsigned long map_offset, struct vmem_altmap *altmap,
-> +			   int section_empty)
->  {
->  	clear_hwpoisoned_pages(pfn_to_page(pfn) + map_offset,
->  			nr_pages - map_offset);
-> -	section_deactivate(pfn, nr_pages, altmap);
-> +	section_remove(pfn, nr_pages, altmap, section_empty);
->  }
->  #endif /* CONFIG_MEMORY_HOTPLUG */
-> -- 
-> 2.12.3
+> -	if (early_section(ms) && memmap)
+> +	if (section_is_early && memmap)
+>  		free_map_bootmem(memmap);
+>  	else
+>  		depopulate_section_memmap(pfn, nr_pages, altmap);
 > 
 
+Reviewed-by: David Hildenbrand <david@redhat.com>
+
 -- 
-Oscar Salvador
-SUSE L3
+
+Thanks,
+
+David / dhildenb
 
