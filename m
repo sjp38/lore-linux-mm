@@ -2,125 +2,136 @@ Return-Path: <SRS0=TqY8=VP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id EAA7EC76195
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Jul 2019 21:14:10 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id EFEB8C7618F
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Jul 2019 21:22:05 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B121521019
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Jul 2019 21:14:10 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B121521019
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=davemloft.net
+	by mail.kernel.org (Postfix) with ESMTP id AFA582184B
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Jul 2019 21:22:05 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="jVzhwBA9"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AFA582184B
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 619706B0003; Thu, 18 Jul 2019 17:14:10 -0400 (EDT)
+	id 4B3E46B0003; Thu, 18 Jul 2019 17:22:05 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5A2E76B0006; Thu, 18 Jul 2019 17:14:10 -0400 (EDT)
+	id 464FB6B0006; Thu, 18 Jul 2019 17:22:05 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4B8848E0001; Thu, 18 Jul 2019 17:14:10 -0400 (EDT)
+	id 32CE26B0007; Thu, 18 Jul 2019 17:22:05 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 19EEB6B0003
-	for <linux-mm@kvack.org>; Thu, 18 Jul 2019 17:14:10 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id y15so20759313edu.19
-        for <linux-mm@kvack.org>; Thu, 18 Jul 2019 14:14:10 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id F11346B0003
+	for <linux-mm@kvack.org>; Thu, 18 Jul 2019 17:22:04 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id 6so17362584pfi.6
+        for <linux-mm@kvack.org>; Thu, 18 Jul 2019 14:22:04 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date
-         :message-id:to:cc:subject:from:in-reply-to:references:mime-version
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=EyUZu0OR6xdNkd80tcmVCqPnME+hvjeHMGNo1OmaVsQ=;
-        b=OgqkkjFMDDUvgDbE7FGY7tFLK3V5eP3oOrNkZ7sOOuil8EU96Dp35IxW6topF9308U
-         q3Hxx5RvO7Yhwye34Dvi+B/2AIImEDWD2Jt35BWj9qctJF4HlMOK5vbYxrzzDRszkK3Z
-         4oU4P8uvVEhKhUg+mX4qBGOVFcDDhHh1JGgfPZeHVUy3trUTHB9TdrF2feCMhjY1Btl5
-         6N2TXwYOMU2zvGzV5YIrmjG/8518z73btsOMJPBR/TRjRExZoNusIbjsvIs1D+qzvUgO
-         MLyPTM2PzUYkWBGsI8Ze+K/liG8lxUXXEy+hMM2Ww/NDFA16KWi5dvCcnuEzOaVkXHgr
-         JdKg==
-X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 2620:137:e000::1:9 is neither permitted nor denied by best guess record for domain of davem@davemloft.net) smtp.mailfrom=davem@davemloft.net
-X-Gm-Message-State: APjAAAX4A2ahqtFobcn7cn7/kMnyLRYscFNPqG4xSgNzQ2kxBzNhPjuu
-	ZgZR/3c6sAKdTu+nTez7BpMWlecUHK4SCMt+EBt8IkjgwCZaIAhdSoS/sGuBTtfv4bP4WZiZs4y
-	b0ecViWx0fYj3RhKKhtvVZN1Cfv8h3wHc9G8R3jlhF686iuiQ6Wp2s7GSK8jK19Q=
-X-Received: by 2002:a50:ad2c:: with SMTP id y41mr42039466edc.300.1563484449635;
-        Thu, 18 Jul 2019 14:14:09 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqw7rgMUdVLD9C4my7lICWth700NIUZIljAAOwQTx6+U9hb8GD/nTTrJd1iYHjuk9X+BxpTe
-X-Received: by 2002:a50:ad2c:: with SMTP id y41mr42039435edc.300.1563484448866;
-        Thu, 18 Jul 2019 14:14:08 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563484448; cv=none;
+        bh=DW+lj/GCQy9mAaX3q/xvSH9Pj0ics0t1Yarw2u9QXwE=;
+        b=Bga9uGbP8IPHEpnFZj6beieEUMJkS3uhptAGHNGVCNyIbHc9qWGrErlXOvlT11V9jM
+         cwuTPjM9JdwgOnd+UgzX6BNfMHQxzexyb6xsMiMr8+7bBjppjZROPaxvZ1x/pNqYg6SI
+         JyubJiunaUAyOYA90xw20Z4p8SH7M7QRneu/RjrlZxIqRTKgo8mG21gGOs72aP5F1JXf
+         TTEDlpcSxYJvtBGgUQDN1i24f+Ywi1thfLA09PiPvquv3wwnFEqYQN6QSkeKMARkL0ol
+         rK518VsGz4p2NmeY1e9H+JIeiwjypd7uei28xOMtj59rQY2BZYM7DbnRQ5IykESFjUMW
+         lbvg==
+X-Gm-Message-State: APjAAAUYWso3EW1nr+YYkvONWGjvsA1eHddawJPTdWAehoqIH5uyKiuP
+	lhesk2m8kVp+A0f8q+oraQt578dWuKPuMtLcLigVHc11ukYYH5PuPX/lQ4ZW7gOe3Qs2K3l6/jl
+	mv45xe7gvR8CdXKHvHI7eOmv32lQ+DJ/LSO0HdMT8arrcu2phwXeKDuvv8nUMRgOtdg==
+X-Received: by 2002:a17:902:2f:: with SMTP id 44mr53419707pla.5.1563484924587;
+        Thu, 18 Jul 2019 14:22:04 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqx2PvPXkBLFq387xc8Bg1YLb4syl8Lys34ZJ4U2rxkaLSlpysgSxcLJ+RtvRWyilQTEdP+o
+X-Received: by 2002:a17:902:2f:: with SMTP id 44mr53419660pla.5.1563484923946;
+        Thu, 18 Jul 2019 14:22:03 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563484923; cv=none;
         d=google.com; s=arc-20160816;
-        b=lMHnG9GBabkotDMPWfGQ80xIOLyFa5TGpoIq3gZUNsKr88KW28Z63Z3mt6HPz5zOzU
-         H2QDuGkMF0i1753h2Iy2qcQXuBGgRZMlT7dFWqoETmVZB5UtZ4Xb4iw73hGvyl7isKXa
-         Zw6kr2jEnF/DSRB/OI6xdlMUOlWceu9zQ9sLYjNbkRQ2kvfz4njHZv153+4BitrHHYN2
-         4XaAn4x+n4jPXEg2dXKevCZkNh/4G15IxHOxOfzctV8R28N3Os/waD1voQEfPPnY39pR
-         /WsEZAnYB7YSuWQ8CqX4oYfqWZNa7C2CLu+nbJQil1rMRc+SDR12nek/k9gGcsue1VPx
-         ilRQ==
+        b=FySM7vj1cblmfNeB0DHKlRDjak/XpsSVGx0tf3ObTB5Rmib3UOJehHUVFo5Krq0p7B
+         bkcwqwbNrWxIPJ2s4OkAxMY6dgu5rfjV3XhlpUdX1yj5P3pBY/nT4xiuRytARdU8p6au
+         W2Wf09jBqqZJLZRd8pYaQT1+vJhwudVYDYDaDR2TxT+HN5ORpOqcjpqAvN+8aavoZDtM
+         LfA1L3A0qR18ywiBUzATBlIc5mz/he+bfv08OtWS3ZcLJ6d3bXD8UQ2kZ+MpMgR3DPzx
+         BGqTc0I2faXNb0tuzUZQ3SPFgudszin/dFWtuqw9ut1g9VqoafL9cn/V1JINLoGMY+ws
+         +tKg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to:from
-         :subject:cc:to:message-id:date;
-        bh=EyUZu0OR6xdNkd80tcmVCqPnME+hvjeHMGNo1OmaVsQ=;
-        b=wTnB/M9eYKH8k0Dl9Vb91a0ZDdeye7DoY+GPVVyo23B4z+Ba9pm6xPS5CImI1FoRwS
-         tB6m6gWhxaFD3RpnhtDikYzbRIBC4QvN8EsToVgMY1MVwq1CpuZc+e3celnWnZjTIKXb
-         zCXrUra6u5xoDyV16y86pg+/411L3bA0KRm4A9jXdpWtmaPqDHMTgcnae8zhyw2HILka
-         LDrU4BkJvMVKYMt8dD4eruVbercwPpkcE1+XWRYM2ugRAg8RuKr3PsOLg96Ra8k1DlxT
-         HuuE+W0Twjmc41ET6j/AC2m/IZZQkv3uf+IwuppP5r4rwCR7LadFuvDzEuK8S+FXs7MU
-         UDDQ==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=DW+lj/GCQy9mAaX3q/xvSH9Pj0ics0t1Yarw2u9QXwE=;
+        b=eTuGVl/YcF7GBx4apfpb+sG4qtb1QNjMnsGCcOHe7nKHW8h3vxdTv6UIKXl95FB2lP
+         1l6BgnVsRvvFJXH8H1AoyTPACOqr2PnTBwTRjcdPUSzLj922XTdqo8MGe4ZxGwQGpVqX
+         ICKtkanvgMpfeL8vsDRA3zjHL+wT1Y+aImrMyPhh0XqYASFpqA56kL6fF95ohj8Y55Fd
+         SP3EY/qv0f21Pnzlo2eX5VQ41c+VV2/vUl/K+g2Q3LLkU+QrMpB3AmGYZfQ8Aav892/i
+         WVjrRDNfNzzinBSuUbivJ/TbnOaavi45k4FpCzqilzDneylxjXYQVBeMVQYWyDVEzp8j
+         6vxg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=neutral (google.com: 2620:137:e000::1:9 is neither permitted nor denied by best guess record for domain of davem@davemloft.net) smtp.mailfrom=davem@davemloft.net
-Received: from shards.monkeyblade.net (shards.monkeyblade.net. [2620:137:e000::1:9])
-        by mx.google.com with ESMTPS id x34si11075edm.138.2019.07.18.14.14.08
+       dkim=pass header.i=@kernel.org header.s=default header.b=jVzhwBA9;
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id 33si742691plk.225.2019.07.18.14.22.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 18 Jul 2019 14:14:08 -0700 (PDT)
-Received-SPF: neutral (google.com: 2620:137:e000::1:9 is neither permitted nor denied by best guess record for domain of davem@davemloft.net) client-ip=2620:137:e000::1:9;
+        Thu, 18 Jul 2019 14:22:03 -0700 (PDT)
+Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       spf=neutral (google.com: 2620:137:e000::1:9 is neither permitted nor denied by best guess record for domain of davem@davemloft.net) smtp.mailfrom=davem@davemloft.net
-Received: from localhost (unknown [IPv6:2601:601:9f80:35cd::d71])
-	(using TLSv1 with cipher AES256-SHA (256/256 bits))
-	(Client did not present a certificate)
-	(Authenticated sender: davem-davemloft)
-	by shards.monkeyblade.net (Postfix) with ESMTPSA id 29B831528342B;
-	Thu, 18 Jul 2019 14:14:06 -0700 (PDT)
-Date: Thu, 18 Jul 2019 14:14:05 -0700 (PDT)
-Message-Id: <20190718.141405.1070121094691581998.davem@davemloft.net>
-To: ldv@altlinux.org
-Cc: hch@lst.de, khalid.aziz@oracle.com, torvalds@linux-foundation.org,
- akpm@linux-foundation.org, matorola@gmail.com, sparclinux@vger.kernel.org,
- linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Subject: Re: [PATCH 09/16] sparc64: use the generic get_user_pages_fast code
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <20190717215956.GA30369@altlinux.org>
-References: <20190625143715.1689-1-hch@lst.de>
-	<20190625143715.1689-10-hch@lst.de>
-	<20190717215956.GA30369@altlinux.org>
-X-Mailer: Mew version 6.8 on Emacs 26.1
+       dkim=pass header.i=@kernel.org header.s=default header.b=jVzhwBA9;
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from akpm3.svl.corp.google.com (unknown [104.133.8.64])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 6EDEC21019;
+	Thu, 18 Jul 2019 21:22:03 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1563484923;
+	bh=picct2x5G7z5eN/bZQA7JUic4g6eKx+sam1kr/kt1rI=;
+	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
+	b=jVzhwBA9+uq4iKWl+Y9YgA6z/5Wi0y+4pyKBZDxq7NUS86OWUpDBbqCQZU6nbYWVm
+	 0UQJD6Dd9Umf/pnGl+wuCdlbSRp99cNmK6SID9Ki+c2WBzRvTgKFK9m84Iehb3VkJf
+	 C3WBGg8pTTGn5Xf75DSlJV4zJA/sq4rbHpuxL84E=
+Date: Thu, 18 Jul 2019 14:22:03 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+To: howaboutsynergy@protonmail.com
+Cc: Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka
+ <vbabka@suse.cz>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML
+ <linux-kernel@vger.kernel.org>
+Subject: Re: [PATCH] mm: compaction: Avoid 100% CPU usage during compaction
+ when a task is killed
+Message-Id: <20190718142203.22f4672a520a5394afd54fd7@linux-foundation.org>
+In-Reply-To: <Wnnv8a76Tvw9MytP99VFfepO4X71QaFWTMyYNrCv1KvQrfDitFfdgbYvH8ibLZ9b1oe_dpPfDdQ1I2wwayzXkRJiYf1fnFOx6sC6udVFveE=@protonmail.com>
+References: <20190718085708.GE24383@techsingularity.net>
+	<Wnnv8a76Tvw9MytP99VFfepO4X71QaFWTMyYNrCv1KvQrfDitFfdgbYvH8ibLZ9b1oe_dpPfDdQ1I2wwayzXkRJiYf1fnFOx6sC6udVFveE=@protonmail.com>
+X-Mailer: Sylpheed 3.7.0 (GTK+ 2.24.32; x86_64-pc-linux-gnu)
 Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-X-Greylist: Sender succeeded SMTP AUTH, not delayed by milter-greylist-4.5.12 (shards.monkeyblade.net [149.20.54.216]); Thu, 18 Jul 2019 14:14:06 -0700 (PDT)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: "Dmitry V. Levin" <ldv@altlinux.org>
-Date: Thu, 18 Jul 2019 00:59:56 +0300
+On Thu, 18 Jul 2019 11:48:10 +0000 howaboutsynergy@protonmail.com wrote:
 
-> So this ended up as commit 7b9afb86b6328f10dc2cad9223d7def12d60e505
-> (thanks to Anatoly for bisecting) and introduced a regression: 
-> futex.test from the strace test suite now causes an Oops on sparc64
-> in futex syscall.
+> > "howaboutsynergy" reported via kernel buzilla number 204165 that
+> <SNIP>
 > 
-> Here is a heavily stripped down reproducer:
+> > I haven't included a Reported-and-tested-by as the reporters real name
+> > is unknown but this was caught and repaired due to their testing and
+> > tracing. If they want a tag added then hopefully they'll say so before
+> > this gets merged.
+> >
+> nope, don't want :)
 
-Does not reproduce for me on a T4-2 machine.
+I added them:
 
-So this problem might depend on the type of system you are on,
-I suspect it's one of those "pre-Niagara vs. Niagara and later"
-situations because that's the dividing line between two set of
-wildly different TLB and cache management methods.
+Reported-by: <howaboutsynergy@protonmail.com>
+Tested-by: <howaboutsynergy@protonmail.com>
 
-What kind of machine are you on?
+Having a contact email address is potentially useful.  I'd be more
+concerned about anonymity if it involved an actual code modification.
+
+And thanks for your persistence and assistance.
 
