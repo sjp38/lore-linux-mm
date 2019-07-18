@@ -4,161 +4,211 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no
-	version=3.4.0
+	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2BBD2C76196
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Jul 2019 06:25:45 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C743BC76196
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Jul 2019 06:26:22 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E415F217F4
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Jul 2019 06:25:44 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E415F217F4
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 83EDE204FD
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Jul 2019 06:26:22 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 83EDE204FD
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 900666B000A; Thu, 18 Jul 2019 02:25:44 -0400 (EDT)
+	id 297426B000C; Thu, 18 Jul 2019 02:26:22 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 889C68E0003; Thu, 18 Jul 2019 02:25:44 -0400 (EDT)
+	id 222418E0003; Thu, 18 Jul 2019 02:26:22 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 751518E0001; Thu, 18 Jul 2019 02:25:44 -0400 (EDT)
+	id 09A7C8E0001; Thu, 18 Jul 2019 02:26:22 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 3862E6B000A
-	for <linux-mm@kvack.org>; Thu, 18 Jul 2019 02:25:44 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id w5so16100655pgs.5
-        for <linux-mm@kvack.org>; Wed, 17 Jul 2019 23:25:44 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C5DE86B000C
+	for <linux-mm@kvack.org>; Thu, 18 Jul 2019 02:26:21 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id a21so9234868pgv.0
+        for <linux-mm@kvack.org>; Wed, 17 Jul 2019 23:26:21 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:message-id
-         :date:from:user-agent:mime-version:to:cc:subject:references
-         :in-reply-to:content-transfer-encoding;
-        bh=W7fGW4+0kAy8IByT1Si76j62yb2bJq44j2advhe1ySg=;
-        b=LIL41G3iANWWxHtim6XJquHjGxx9vVh+EGrB91l49o7BkL41kN7SgcGb6UOBg+b2h9
-         Y3FYrOOWN3xEi5qXi8xCVhZK00PVoPjZCiXLkhQCcSGvfdCmo6vw8e8nT9oXhoWn3SGk
-         TPRz52m6L57qtQ+aQNho919Dc9pcOW4XgWML0XC6mgz0oUNWexMLcIdaoUBIL2yx7V5n
-         eDkBeNTysnSvxVsXOkYF2t3Wd5kbhMpMRxdBdu3TVuhoc6Jioo39SvhmuHFQCU7v3JBz
-         0JLb85gmAi1xe1eG3Zj7Jvjwb3FNrwhZ5BcakCjJQxzNdlwb7v0JWC/1r67+fEGSV29B
-         Qhbw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of wei.w.wang@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=wei.w.wang@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAVj86PUjMPI1CsdQfv/CkTWduyHaoIexftonfxpQBCrurJP3kDi
-	M/Sx6I72a5OiEmhClmoLv8QfbD65K0tonsudEABA8k3JBVtFkXiIales0IOXW8ysMCvAPYRNwSI
-	Tz/UN5vc4A9GYKt2SJ4RogacEL8xYYzPuSz9ooX4EVP73zT3c6QYlAsdmeYrVaWovQQ==
-X-Received: by 2002:a65:64c4:: with SMTP id t4mr12104956pgv.298.1563431143808;
-        Wed, 17 Jul 2019 23:25:43 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzAsV9/QtIyk/bxpihi1uzPT1Dou6+Ri9aiBMR3ze8u+44bhZL0DN+FvJrOukqsa7rjRaxU
-X-Received: by 2002:a65:64c4:: with SMTP id t4mr12104916pgv.298.1563431143205;
-        Wed, 17 Jul 2019 23:25:43 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563431143; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:references:mime-version:content-disposition:in-reply-to
+         :user-agent:message-id;
+        bh=jPGhX+/Z0nbq38Tjjof8qt4T5daU7biLJaz7DkaR4d0=;
+        b=BCSt0lNfbydWLoPCb2fJDI/S/NM4BpwjalyXF+ns6iIQzpSrh2/foPITWxnolFt8kY
+         QCuKGNUdb4lB8uRumHZvOoI9Px9rxqJtK0/WV9o6kCvceeZQNT2Gn9i6dM82SrlYn2C/
+         nJhwc05u/nlpQSFf7lWgUG53PJLd9WtL7cDSzA3uBU6QngGt9ZBjOpB3SXeQVv9z6igW
+         4A6DHY+tsCENI8Q74DPItEgikFHaTykLQYogW5cqjj5hs844cwQZ9LYmhtjLvHWHKVMy
+         eWToxvSjr/PTOicBb/eSIVqKpEKQUij3M28LONsuJidk1F+fjhCP+SxhNa1Toz6bm8kG
+         1VNQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: APjAAAWwp19L7cHGBZZO3b7EtQ5CoDc7R+mrh6CsoHiyYj6ngfQVMT/q
+	uVN3PYENi42rUNENWp3zEVL6Rfci+MoiqauzWkm9jo82NhwOio7MsyOCaLYgLI+vFfPx+lDqUEw
+	kWrEV5U/Bpt66iIDQO0nmjsvJ5mGgnkf4oXJhIj9KLJEA2hB2Lgu1QDCAjWRBpe820w==
+X-Received: by 2002:a17:90a:b011:: with SMTP id x17mr49539201pjq.113.1563431181464;
+        Wed, 17 Jul 2019 23:26:21 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzjkTlzWLTf3QP1lvxwRfp+pbxIp4bl7gj2QtSxGYn+H2zJz4RIBCQwgKC3gaau75NbbWr8
+X-Received: by 2002:a17:90a:b011:: with SMTP id x17mr49539151pjq.113.1563431180717;
+        Wed, 17 Jul 2019 23:26:20 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563431180; cv=none;
         d=google.com; s=arc-20160816;
-        b=AbMkV3XIrtBtxSgVSTtJwEQUxIy369tIzt9XskOsIQtJVSHTww1vDE5tIEx24a0N/P
-         ZT7lyXcuOD1gUWG/vg2b8ttAtNDfILMUpqUJkT6WFEKAvNckoaqrZ1SXLHjc6HnglZUV
-         x9x7naDlnUM8Ld+J9rqJlN0iXGE0GS0NjvfuTkSllDHaiSWNA6UtpR5+oJqJN2HdBSq9
-         KmAS+wIp+/jdoLCWKiheNpND9BNTkYVJz1NI+E0z+GkcfA7H94D8MsFGUdQm/VsSAF3e
-         9tN/Rf4V8nvNJZvsjs51wR91pZsQ4xp3v6zxO7yX6eo5DUskOfWCnH8OEz+doeYKj//H
-         PTfg==
+        b=YntZ5sFcFQYs7LPbaqEa+LzXsoNLFQ+MfvBTEHtfc4RFEEBxaa2VrRd3nKpo43A28+
+         IcDv+xmOFytIobsOTPCXofNqvWTiB8T0APWhl5RG5DrPsJBCxp0VSorUurAitcyog5Zd
+         Xcm9UeivccASfqIFjAUiRTzNQl614gRoQWw5M2wI9xcS26zlo9UYrW4SNGW7vZJhfM9q
+         ISJzhH0zp96yxKeW3nZsnQxx7gbPN23aStclMSbsFCWGZIoRnSudaE0d2z8Dh29XaeuC
+         KwHVMd5TI7BG+H1h/j7gneREKxH7Rh6So110S+E1+CYuSoqWmSPLkKM0YQCoZACTCKlJ
+         7RKw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:in-reply-to:references:subject:cc:to
-         :mime-version:user-agent:from:date:message-id;
-        bh=W7fGW4+0kAy8IByT1Si76j62yb2bJq44j2advhe1ySg=;
-        b=u5BaXz5kY9CFH9NNRuOW3Nn9HscOb5C178j9MnasVn7ozBv1bGFNNjCRe19iQeV4EY
-         qtgfT9HhypV6fMkRR8dFOkgWhbIA21OB8HkqN3ZbvkfXRA/e+k9CXUXRoi8yhtjtoZSi
-         IYUcrA+ATV84wvTf087HyCnwMoFObHGW9avae2Akfb/zzz2vGCzRgOAH4+LUEHrRUa98
-         KFNjhz5pckPXAn8H21O7sWqD51AniiKSV2Ja6wR/xzF02w7o7tCtAT0sT1h1CQdmLgIo
-         hnnnYQZH3pfTujjdwXDk7KKyP6Rh8hQz15Dj8KWtazS55Rghe8Kk+mmE7ziYqr0Qu7V6
-         1VWQ==
+        h=message-id:user-agent:in-reply-to:content-disposition:mime-version
+         :references:subject:cc:to:from:date;
+        bh=jPGhX+/Z0nbq38Tjjof8qt4T5daU7biLJaz7DkaR4d0=;
+        b=TQ++keoq7RSJwxLm38JyZAcNu+lpwGaUUp0pxFfKXACtwbVERUoKOTb956fQ3Sx5ME
+         2tvzmcEDtU3mye/NKxGYVfKkkARjbnbfCWPRKaBojIzRlMPtonulsjMJjVlLVzgN8Jfp
+         KJAkzjqbNQMLSi3ZAKUcJgkIVD5H2XhPgE/nysWJjsUGZ7c9sm9SIQFenoUf0QLo1ugM
+         jvBtP+8JFzP34xS7qM41U04BjYap2zcp4pBCF39AmZgDlPftWsGNpqr0/19Udx2bk9MU
+         qejgg1LE7tP6OuEv7PRr7e7TkVtCJVFAetSuUBhCdTKOTxm8RGxOS9d+0N8ThlG4izFo
+         rL8Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of wei.w.wang@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=wei.w.wang@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id q24si27564841pff.62.2019.07.17.23.25.43
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id d10si888431pgo.359.2019.07.17.23.26.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Jul 2019 23:25:43 -0700 (PDT)
-Received-SPF: pass (google.com: domain of wei.w.wang@intel.com designates 134.134.136.100 as permitted sender) client-ip=134.134.136.100;
+        Wed, 17 Jul 2019 23:26:20 -0700 (PDT)
+Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of wei.w.wang@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=wei.w.wang@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from fmsmga004.fm.intel.com ([10.253.24.48])
-  by orsmga105.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 17 Jul 2019 23:25:42 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.64,276,1559545200"; 
-   d="scan'208";a="191506532"
-Received: from unknown (HELO [10.239.13.7]) ([10.239.13.7])
-  by fmsmga004.fm.intel.com with ESMTP; 17 Jul 2019 23:25:39 -0700
-Message-ID: <5D301232.7080808@intel.com>
-Date: Thu, 18 Jul 2019 14:31:14 +0800
-From: Wei Wang <wei.w.wang@intel.com>
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:31.0) Gecko/20100101 Thunderbird/31.7.0
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098393.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x6I6N3kU034176
+	for <linux-mm@kvack.org>; Thu, 18 Jul 2019 02:26:20 -0400
+Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2ttj82bekw-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 18 Jul 2019 02:26:19 -0400
+Received: from localhost
+	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
+	Thu, 18 Jul 2019 07:26:17 +0100
+Received: from b06cxnps4074.portsmouth.uk.ibm.com (9.149.109.196)
+	by e06smtp04.uk.ibm.com (192.168.101.134) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Thu, 18 Jul 2019 07:26:13 +0100
+Received: from d06av26.portsmouth.uk.ibm.com (d06av26.portsmouth.uk.ibm.com [9.149.105.62])
+	by b06cxnps4074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x6I6QCkb43516064
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Thu, 18 Jul 2019 06:26:12 GMT
+Received: from d06av26.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 20EC7AE045;
+	Thu, 18 Jul 2019 06:26:12 +0000 (GMT)
+Received: from d06av26.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 3192AAE053;
+	Thu, 18 Jul 2019 06:26:11 +0000 (GMT)
+Received: from rapoport-lnx (unknown [9.148.8.168])
+	by d06av26.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
+	Thu, 18 Jul 2019 06:26:11 +0000 (GMT)
+Date: Thu, 18 Jul 2019 09:26:09 +0300
+From: Mike Rapoport <rppt@linux.ibm.com>
+To: Leonardo Bras <leonardo@linux.ibm.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+        Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+        "Rafael J. Wysocki" <rafael@kernel.org>,
+        Andrew Morton <akpm@linux-foundation.org>,
+        Michal Hocko <mhocko@suse.com>,
+        Pavel Tatashin <pasha.tatashin@oracle.com>,
+        =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
+        Thomas Gleixner <tglx@linutronix.de>,
+        Pasha Tatashin <Pavel.Tatashin@microsoft.com>,
+        Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+Subject: Re: [PATCH 1/1] mm/memory_hotplug: Adds option to hot-add memory in
+ ZONE_MOVABLE
+References: <20190718024133.3873-1-leonardo@linux.ibm.com>
 MIME-Version: 1.0
-To: "Michael S. Tsirkin" <mst@redhat.com>
-CC: linux-mm@kvack.org, linux-kernel@vger.kernel.org, 
- kvm@vger.kernel.org, xdeguillard@vmware.com, namit@vmware.com, 
- akpm@linux-foundation.org, pagupta@redhat.com, riel@surriel.com, 
- dave.hansen@intel.com, david@redhat.com, konrad.wilk@oracle.com, 
- yang.zhang.wz@gmail.com, nitesh@redhat.com, lcapitulino@redhat.com, 
- aarcange@redhat.com, pbonzini@redhat.com, 
- alexander.h.duyck@linux.intel.com, dan.j.williams@intel.com
-Subject: Re: [PATCH v1] mm/balloon_compaction: avoid duplicate page removal
-References: <1563416610-11045-1-git-send-email-wei.w.wang@intel.com> <20190718001605-mutt-send-email-mst@kernel.org>
-In-Reply-To: <20190718001605-mutt-send-email-mst@kernel.org>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190718024133.3873-1-leonardo@linux.ibm.com>
+User-Agent: Mutt/1.5.24 (2015-08-30)
+X-TM-AS-GCONF: 00
+x-cbid: 19071806-0016-0000-0000-00000293E773
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19071806-0017-0000-0000-000032F1C1E3
+Message-Id: <20190718062608.GA20726@rapoport-lnx>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-07-18_02:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1907180072
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 07/18/2019 12:31 PM, Michael S. Tsirkin wrote:
-> On Thu, Jul 18, 2019 at 10:23:30AM +0800, Wei Wang wrote:
->> Fixes: 418a3ab1e778 (mm/balloon_compaction: List interfaces)
->>
->> A #GP is reported in the guest when requesting balloon inflation via
->> virtio-balloon. The reason is that the virtio-balloon driver has
->> removed the page from its internal page list (via balloon_page_pop),
->> but balloon_page_enqueue_one also calls "list_del"  to do the removal.
-> I would add here "this is necessary when it's used from
-> balloon_page_enqueue_list but not when it's called
-> from balloon_page_enqueue".
->
->> So remove the list_del in balloon_page_enqueue_one, and have the callers
->> do the page removal from their own page lists.
->>
->> Signed-off-by: Wei Wang <wei.w.wang@intel.com>
-> Patch is good but comments need some work.
->
->> ---
->>   mm/balloon_compaction.c | 3 ++-
->>   1 file changed, 2 insertions(+), 1 deletion(-)
->>
->> diff --git a/mm/balloon_compaction.c b/mm/balloon_compaction.c
->> index 83a7b61..1a5ddc4 100644
->> --- a/mm/balloon_compaction.c
->> +++ b/mm/balloon_compaction.c
->> @@ -11,6 +11,7 @@
->>   #include <linux/export.h>
->>   #include <linux/balloon_compaction.h>
->>   
->> +/* Callers ensure that @page has been removed from its original list. */
-> This comment does not make sense. E.g. balloon_page_enqueue
-> does nothing to ensure this. And drivers are not supposed
-> to care how the page lists are managed. Pls drop.
->
-> Instead please add the following to balloon_page_enqueue:
->
->
-> 	Note: drivers must not call balloon_page_list_enqueue on
+On Wed, Jul 17, 2019 at 11:41:34PM -0300, Leonardo Bras wrote:
+> Adds an option on kernel config to make hot-added memory online in
+> ZONE_MOVABLE by default.
+> 
+> This would be great in systems with MEMORY_HOTPLUG_DEFAULT_ONLINE=y by
+> allowing to choose which zone it will be auto-onlined
+ 
+Please add more elaborate description of the problem you are solving and
+the solution outline.
 
-Probably, you meant balloon_page_enqueue here.
 
-The description for balloon_page_enqueue also seems incorrect:
-"allocates a new page and inserts it into the balloon page list."
-This function doesn't do any allocation itself.
-Plan to reword it: inserts a new page into the balloon page list."
+> Signed-off-by: Leonardo Bras <leonardo@linux.ibm.com>
+> ---
+>  drivers/base/memory.c |  3 +++
+>  mm/Kconfig            | 14 ++++++++++++++
+>  2 files changed, 17 insertions(+)
+> 
+> diff --git a/drivers/base/memory.c b/drivers/base/memory.c
+> index f180427e48f4..378b585785c1 100644
+> --- a/drivers/base/memory.c
+> +++ b/drivers/base/memory.c
+> @@ -670,6 +670,9 @@ static int init_memory_block(struct memory_block **memory,
+>  	mem->state = state;
+>  	start_pfn = section_nr_to_pfn(mem->start_section_nr);
+>  	mem->phys_device = arch_get_memory_phys_device(start_pfn);
+> +#ifdef CONFIG_MEMORY_HOTPLUG_MOVABLE
+> +	mem->online_type = MMOP_ONLINE_MOVABLE;
+> +#endif
 
-Best,
-Wei
+Does it has to be a compile time option?
+Seems like this can be changed at run time or at least at boot.
+  
+>  	ret = register_memory(mem);
+>  
+> diff --git a/mm/Kconfig b/mm/Kconfig
+> index f0c76ba47695..74e793720f43 100644
+> --- a/mm/Kconfig
+> +++ b/mm/Kconfig
+> @@ -180,6 +180,20 @@ config MEMORY_HOTREMOVE
+>  	depends on MEMORY_HOTPLUG && ARCH_ENABLE_MEMORY_HOTREMOVE
+>  	depends on MIGRATION
+>  
+> +config MEMORY_HOTPLUG_MOVABLE
+> +	bool "Enhance the likelihood of hot-remove"
+> +	depends on MEMORY_HOTREMOVE
+> +	help
+> +	  This option sets the hot-added memory zone to MOVABLE which
+> +	  drastically reduces the chance of a hot-remove to fail due to
+> +	  unmovable memory segments. Kernel memory can't be allocated in
+> +	  this zone.
+> +
+> +	  Say Y here if you want to have better chance to hot-remove memory
+> +	  that have been previously hot-added.
+> +	  Say N here if you want to make all hot-added memory available to
+> +	  kernel space.
+> +
+>  # Heavily threaded applications may benefit from splitting the mm-wide
+>  # page_table_lock, so that faults on different parts of the user address
+>  # space can be handled with less contention: split it at this NR_CPUS.
+> -- 
+> 2.20.1
+> 
+
+-- 
+Sincerely yours,
+Mike.
 
