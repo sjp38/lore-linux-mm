@@ -2,186 +2,162 @@ Return-Path: <SRS0=TqY8=VP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D5766C76195
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Jul 2019 16:20:23 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 800DFC7618F
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Jul 2019 16:40:48 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 96FE621850
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Jul 2019 16:20:23 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 96FE621850
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=virtuozzo.com
+	by mail.kernel.org (Postfix) with ESMTP id 4646521849
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Jul 2019 16:40:48 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4646521849
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3248B6B0006; Thu, 18 Jul 2019 12:20:23 -0400 (EDT)
+	id BC76A8E0006; Thu, 18 Jul 2019 12:40:47 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2AF826B0008; Thu, 18 Jul 2019 12:20:23 -0400 (EDT)
+	id B77C08E0005; Thu, 18 Jul 2019 12:40:47 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 19E6D8E0005; Thu, 18 Jul 2019 12:20:23 -0400 (EDT)
+	id A3FC18E0006; Thu, 18 Jul 2019 12:40:47 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lj1-f199.google.com (mail-lj1-f199.google.com [209.85.208.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A61ED6B0006
-	for <linux-mm@kvack.org>; Thu, 18 Jul 2019 12:20:22 -0400 (EDT)
-Received: by mail-lj1-f199.google.com with SMTP id r5so6292700ljn.1
-        for <linux-mm@kvack.org>; Thu, 18 Jul 2019 09:20:22 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 57A7E8E0005
+	for <linux-mm@kvack.org>; Thu, 18 Jul 2019 12:40:47 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id c31so20336212ede.5
+        for <linux-mm@kvack.org>; Thu, 18 Jul 2019 09:40:47 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=rUEHhJXc7IUGp/9xpom9kdyD+1TduVj1LeXOHJgI0ms=;
-        b=TUGQoJMrV9BLVMeYcOIGG1D4M0FBRgLvIJkCWeg4iXwyRpUIdkrn05fxzp0HzU5ijK
-         eR7rcMkHFn9vqsLw53bp8t0faVFoZhJMe6+tnuDsktcjJmC1J24Fa1MCqbmgEt/HQgWD
-         HQcLztKGmED1/9d0nIGCQ2IiPATOv08zAywMNhLiNe316bCD5CEbLnVxom3me1shkG5g
-         zJ/ZNXVcn83g5acunhlG3OTTTIXL0yfvwo5UxZyB+kW5UK44Gr1yTU2KpQINJC8Y0+FJ
-         bGEsjwG+roQCHwtbPYI22z9lYtpiRoSRE17jG2qYncQmKv0FCMCJY2u2nyFhaP1ye+x6
-         JOfA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=aryabinin@virtuozzo.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-X-Gm-Message-State: APjAAAV4JRx2rZnWFDPNpjtoOKfwjFTGz4XPvRMD9Jz4XS3I1qvfF734
-	8cSsFQdvwo9bTqP0njksNGAZMl2n5qgk33kl97cjwUn9tUp/PUfzILLBccbRjHFf2jVostFDHtG
-	N7iRH33ZKhDAgfGRBS3DzGma/DTb1f7RDPq2YTpbFbAnh8NyM01UqQR1Frj/U0kMe2Q==
-X-Received: by 2002:a2e:8e90:: with SMTP id z16mr3018467ljk.4.1563466822128;
-        Thu, 18 Jul 2019 09:20:22 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyMZs52AHtnDth3Pil5W1qT6quM9WHEH+OpPmeEen/lDhUW9DByjcxYtr9fcQkIVhuNQQie
-X-Received: by 2002:a2e:8e90:: with SMTP id z16mr3018442ljk.4.1563466821286;
-        Thu, 18 Jul 2019 09:20:21 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563466821; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=Da3G7LpOehglJSLF7wForjwsDEQFbruvA+yCYqnq9VA=;
+        b=aLv1B5gA5Nn6VzMZ8oMJVSYRReAztczXQV3IU3IcvXF4/2Tkyl8+h+kc622j6zn4CC
+         uDo0z1QJmY6ic1CCK5gEPNM+PUblLfEAlBIX3aW8OTCOcAwsmcdmshyA4po6s+JCjMwg
+         KbfscHqjzyVaCz7Q1p/OKcoYn+zzuTt/FdhzwpepYdbHqQSMCpUxde0QNLyT1oX2U8Ff
+         zQhKvVkA5T4L7tE5QQQOUMYzBHvu/hFAV+NgxLVpcnVltIb+b1+QpfkB+Z5ffvUCSgNI
+         tNCO+OJJPKEdIk++WFHW9ian4w4YonWSyLx/ox9yMoWPVQDl67tKZYqZfjQZLZQTa26P
+         AERg==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAW0pqQY8HfImgwVHrYU3XvvWIPUFPw81jMmjy7FXvHWg0M8uAX4
+	b5T1sKUFTEgxahrERhwCdp6Y2Mfaq7WtPmnUyViPRemeKQZIQ3//z9jqGIARTSrGvxColqBgJL1
+	nFOnqhZitrqtlSb5moX9Jq9K5/JecUwY8fm2ui6yltJa7WkhB8mngNP31dgS9fT0=
+X-Received: by 2002:a50:9468:: with SMTP id q37mr41197911eda.163.1563468046911;
+        Thu, 18 Jul 2019 09:40:46 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxC0l9N9WI0hkOwzwPHfA/dDt8ZF+niUeEb+kcJxG+70lvNXXgmbRu/Mota2Ro95qoUtPGG
+X-Received: by 2002:a50:9468:: with SMTP id q37mr41197837eda.163.1563468046029;
+        Thu, 18 Jul 2019 09:40:46 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563468046; cv=none;
         d=google.com; s=arc-20160816;
-        b=nccdkduHr5AnV7BZH8o7douDnNZZyYIVeXLHqC0rWjpCG5hUvgviBEXIUQV6P6yO/1
-         38xdv52YMmUpRd2pbiD1rPTL9fsyJwbtAp/fzWNcpjiy+ySTsGmpn0x0J6VlrJp71eH8
-         6liSwviHF7SYDZBhTklEzMXMyddl38s8HyPsg7jZI5g4HhcFMaYO2CjZf7+D97fLD6vF
-         QcCqoKU6DMfPgBYbgxqAKZ7KgtCUn8fRGEp32N4lsyap8nLDLM/NeQ1MwQgqYPHwCFfT
-         jWoOCTT15sRdjE94r3iA90iYHddw9Qdwa36pulK1hgvnuP6gUTZFyTR3gqOfC17M4Ulv
-         cxzQ==
+        b=i59/lSleZCJ2U857Pt4POa1APAGy6tg0MtN6R0l8Np0IOU7hwzjR9R40vTkZnCaVeH
+         wtuupBtLzInRZ/bCJ/+GK/OdNRMwAI5fF/+itGPDWrlW7Jjz6tZouPpsAJKctsGVbtQd
+         GjnGnBfd46dmDpJ5IZVegCQA0C7tZzReJ++GoPX2Ayl3JV0g5KyHgMNGgFThhLyovO9U
+         LoeaA75MIsAR2lSjIb2oIep7mPOKhvCFTqoKjYgi4PNky1HTTB5sRkPCuFPoShqcLUi5
+         pCjbeLlnu7ycLf01ZAzdUhMrEySrQasXrV+fmmdV0YyqJPNhqWuSxM1Q2jxQwtLqtUzS
+         H1iA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=rUEHhJXc7IUGp/9xpom9kdyD+1TduVj1LeXOHJgI0ms=;
-        b=TrY7VB1ZBzo0vH1vB5FCE2mvci9YnWaT6UZxZDhINklXgCe+UpwnsoMiZzLd06N1Co
-         so/E6PzPu2UZhrc0HhHLXp92r3wuv9ZABV+UIKCoVII/GxyCbEdx4YEiWQ0MkDtPvhMD
-         42s/qaFvC0Q8k9zq7Tp1zpEyZ62IyPN1FMqy+qmFXEe2k1JugBOgC7ERdPZ9fiHR/VpS
-         xBQGQZNfrzshLuw6n6Uufd15D+vEUhamWOdAFCkg+tYbM74Ne6rKjrx4ZuF0aWP9YxdR
-         SfMwaHvxM4lPXfdASsgwXfAwuy64wXTiT9RGkxibrbRvEnpvoMMrXGrUTMUMgxj75K2s
-         4k5A==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=Da3G7LpOehglJSLF7wForjwsDEQFbruvA+yCYqnq9VA=;
+        b=UT5BEAm9q4Mm33xeQlbaXSr2bCW2m0uFRxRLR9HHIUjNllwmYA81nB/aapYp5+Qc7d
+         zIUu38tZsje7cmYbJqCs5XYuhcyN1kOyGA8focJEsqjZ++x4igDPjf1wzlpw2r/SxsHq
+         hoaWpDNqICTMPlMP8pAa2co9te0tFTnqrUp7yG/ByjjpnkjkvJBwVHJML/tHJ6O3iIh6
+         Mst0EbstUXtfOjmuXrI4v/EZUTMSvEPX1ednUe1sWjHO3bUT+iopwUp1x7CKvCymL26l
+         qychUs6+OmgOruBZepFoykhEK4jVH3Nkb/0CN/A4MC8HQJ2hXAIPUublXbQ1rYUrz09F
+         FZcw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=aryabinin@virtuozzo.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
-        by mx.google.com with ESMTPS id d6si21323462lfb.94.2019.07.18.09.20.21
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id e52si18212ede.345.2019.07.18.09.40.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 18 Jul 2019 09:20:21 -0700 (PDT)
-Received-SPF: pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) client-ip=185.231.240.75;
+        Thu, 18 Jul 2019 09:40:46 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=aryabinin@virtuozzo.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-Received: from [172.16.25.12]
-	by relay.sw.ru with esmtp (Exim 4.92)
-	(envelope-from <aryabinin@virtuozzo.com>)
-	id 1ho98k-00084V-Td; Thu, 18 Jul 2019 19:20:19 +0300
-Subject: Re: kasan: paging percpu + kasan causes a double fault
-To: Dmitry Vyukov <dvyukov@google.com>, Dennis Zhou <dennis@kernel.org>
-Cc: Alexander Potapenko <glider@google.com>, Tejun Heo <tj@kernel.org>,
- Kefeng Wang <wangkefeng.wang@huawei.com>,
- kasan-dev <kasan-dev@googlegroups.com>, Linux-MM <linux-mm@kvack.org>,
- LKML <linux-kernel@vger.kernel.org>
-References: <20190708150532.GB17098@dennisz-mbp>
- <CACT4Y+YevDd-y4Au33=mr-0-UQPy8NR0vmG8zSiCfmzx6gTB-w@mail.gmail.com>
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Message-ID: <912176db-f616-54cc-7665-94baa61ea11d@virtuozzo.com>
-Date: Thu, 18 Jul 2019 19:20:21 +0300
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id F0A6CAD07;
+	Thu, 18 Jul 2019 16:40:44 +0000 (UTC)
+Date: Thu, 18 Jul 2019 18:40:43 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: Pavel Tatashin <pasha.tatashin@soleen.com>
+Cc: Leonardo Bras <leonardo@linux.ibm.com>,
+	Oscar Salvador <osalvador@suse.de>,
+	LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	"Rafael J. Wysocki" <rafael@kernel.org>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Mike Rapoport <rppt@linux.ibm.com>,
+	Pavel Tatashin <pasha.tatashin@oracle.com>,
+	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
+	Thomas Gleixner <tglx@linutronix.de>,
+	Pasha Tatashin <Pavel.Tatashin@microsoft.com>,
+	Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+Subject: Re: [PATCH 1/1] mm/memory_hotplug: Adds option to hot-add memory in
+ ZONE_MOVABLE
+Message-ID: <20190718164043.GE30461@dhcp22.suse.cz>
+References: <20190718024133.3873-1-leonardo@linux.ibm.com>
+ <1563430353.3077.1.camel@suse.de>
+ <0e67afe465cbbdf6ec9b122f596910cae77bc734.camel@linux.ibm.com>
+ <20190718155704.GD30461@dhcp22.suse.cz>
+ <CA+CK2bBU72owYSXH10LTU8NttvCASPNTNOqFfzA3XweXR3gOTw@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <CACT4Y+YevDd-y4Au33=mr-0-UQPy8NR0vmG8zSiCfmzx6gTB-w@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CA+CK2bBU72owYSXH10LTU8NttvCASPNTNOqFfzA3XweXR3gOTw@mail.gmail.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Thu 18-07-19 12:11:25, Pavel Tatashin wrote:
+> On Thu, Jul 18, 2019 at 11:57 AM Michal Hocko <mhocko@kernel.org> wrote:
+> >
+> > On Thu 18-07-19 12:50:29, Leonardo Bras wrote:
+> > > On Thu, 2019-07-18 at 08:12 +0200, Oscar Salvador wrote:
+> > > > We do already have "movable_node" boot option, which exactly has that
+> > > > effect.
+> > > > Any hotplugged range will be placed in ZONE_MOVABLE.
+> > > Oh, I was not aware of it.
+> > >
+> > > > Why do we need yet another option to achieve the same? Was not that
+> > > > enough for your case?
+> > > Well, another use of this config could be doing this boot option a
+> > > default on any given kernel.
+> > > But in the above case I agree it would be wiser to add the code on
+> > > movable_node_is_enabled() directly, and not where I did put.
+> > >
+> > > What do you think about it?
+> >
+> > No further config options please. We do have means a more flexible way
+> > to achieve movable node onlining so let's use it. Or could you be more
+> > specific about cases which cannot use the command line option and really
+> > need a config option to workaround that?
+> 
+> Hi Michal,
+> 
+> Just trying to understand, if kernel parameters is the preferable
+> method, why do we even have
+> 
+> MEMORY_HOTPLUG_DEFAULT_ONLINE
 
+I have some opinion on this one TBH. I have even tried to remove it. The
+config option has been added to workaround hotplug issues for some
+memory balloning usecases where it was believed that the memory consumed
+for the memory hotadd (struct pages) could get machine to OOM before
+userspace manages to online it. So I would be more than happy to remove
+it but there were some objections in the past. Maybe the work by Oscar
+to allocate memmaps from the hotplugged memory can finally put an end to
+this gross hack.
 
-On 7/18/19 6:51 PM, Dmitry Vyukov wrote:
-> On Mon, Jul 8, 2019 at 5:05 PM Dennis Zhou <dennis@kernel.org> wrote:
->>
->> Hi Andrey, Alexander, and Dmitry,
->>
->> It was reported to me that when percpu is ran with param
->> percpu_alloc=page or the embed allocation scheme fails and falls back to
->> page that a double fault occurs.
->>
->> I don't know much about how kasan works, but a difference between the
->> two is that we manually reserve vm area via vm_area_register_early().
->> I guessed it had something to do with the stack canary or the irq_stack,
->> and manually mapped the shadow vm area with kasan_add_zero_shadow(), but
->> that didn't seem to do the trick.
->>
->> RIP resolves to the fixed_percpu_data declaration.
->>
->> Double fault below:
->> [    0.000000] PANIC: double fault, error_code: 0x0
->> [    0.000000] CPU: 0 PID: 0 Comm: swapper/0 Not tainted 5.2.0-rc7-00007-ge0afe6d4d12c-dirty #299
->> [    0.000000] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.11.0-2.el7 04/01/2014
->> [    0.000000] RIP: 0010:no_context+0x38/0x4b0
->> [    0.000000] Code: df 41 57 41 56 4c 8d bf 88 00 00 00 41 55 49 89 d5 41 54 49 89 f4 55 48 89 fd 4c8
->> [    0.000000] RSP: 0000:ffffc8ffffffff28 EFLAGS: 00010096
->> [    0.000000] RAX: dffffc0000000000 RBX: ffffc8ffffffff50 RCX: 000000000000000b
->> [    0.000000] RDX: fffff52000000030 RSI: 0000000000000003 RDI: ffffc90000000130
->> [    0.000000] RBP: ffffc900000000a8 R08: 0000000000000001 R09: 0000000000000000
->> [    0.000000] R10: 0000000000000000 R11: 0000000000000000 R12: 0000000000000003
->> [    0.000000] R13: fffff52000000030 R14: 0000000000000000 R15: ffffc90000000130
->> [    0.000000] FS:  0000000000000000(0000) GS:ffffc90000000000(0000) knlGS:0000000000000000
->> [    0.000000] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
->> [    0.000000] CR2: ffffc8ffffffff18 CR3: 0000000002e0d001 CR4: 00000000000606b0
->> [    0.000000] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
->> [    0.000000] DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
->> [    0.000000] Call Trace:
->> [    0.000000] Kernel panic - not syncing: Machine halted.
->> [    0.000000] CPU: 0 PID: 0 Comm: swapper/0 Not tainted 5.2.0-rc7-00007-ge0afe6d4d12c-dirty #299
->> [    0.000000] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.11.0-2.el7 04/01/2014
->> [    0.000000] Call Trace:
->> [    0.000000]  <#DF>
->> [    0.000000]  dump_stack+0x5b/0x90
->> [    0.000000]  panic+0x17e/0x36e
->> [    0.000000]  ? __warn_printk+0xdb/0xdb
->> [    0.000000]  ? spurious_kernel_fault_check+0x1a/0x60
->> [    0.000000]  df_debug+0x2e/0x39
->> [    0.000000]  do_double_fault+0x89/0xb0
->> [    0.000000]  double_fault+0x1e/0x30
->> [    0.000000] RIP: 0010:no_context+0x38/0x4b0
->> [    0.000000] Code: df 41 57 41 56 4c 8d bf 88 00 00 00 41 55 49 89 d5 41 54 49 89 f4 55 48 89 fd 4c8
->> [    0.000000] RSP: 0000:ffffc8ffffffff28 EFLAGS: 00010096
->> [    0.000000] RAX: dffffc0000000000 RBX: ffffc8ffffffff50 RCX: 000000000000000b
->> [    0.000000] RDX: fffff52000000030 RSI: 0000000000000003 RDI: ffffc90000000130
->> [    0.000000] RBP: ffffc900000000a8 R08: 0000000000000001 R09: 0000000000000000
->> [    0.000000] R10: 0000000000000000 R11: 0000000000000000 R12: 0000000000000003
->> [ 0.000000] R13: fffff52000000030 R14: 0000000000000000 R15: ffffc90000000130
-> 
-> 
-> Hi Dennis,
-> 
-> I don't have lots of useful info, but a naive question: could you stop
-> using percpu_alloc=page with KASAN? That should resolve the problem :)
-> We could even add a runtime check that will clearly say that this
-> combintation does not work.
-> 
-> I see that setup_per_cpu_areas is called after kasan_init which is
-> called from setup_arch. So KASAN should already map final shadow at
-> that point.
-> The only potential reason that I see is that setup_per_cpu_areas maps
-> the percpu region at address that is not covered/expected by
-> kasan_init. Where is page-based percpu is mapped? Is that covered by
-> kasan_init?
-> Otherwise, seeing the full stack trace of the fault may shed some light.
-> 
-
-percpu_alloc=page maps percpu areas into vmalloc, which don't have RW KASAN shadow mem.
-irq stack are percpu thus we have GPF on attempt to poison stack redzones in irq.
+In any case, I do not think we want to repeat that pattern again.
+-- 
+Michal Hocko
+SUSE Labs
 
