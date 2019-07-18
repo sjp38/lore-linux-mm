@@ -7,93 +7,93 @@ X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
 	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7E9FFC76195
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Jul 2019 20:29:28 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2EBABC7618F
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Jul 2019 20:34:17 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 338D021019
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Jul 2019 20:29:28 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id CBE3621019
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Jul 2019 20:34:16 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="Y/qJ3wC7"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 338D021019
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="QrW2+V7X"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CBE3621019
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BDF596B0007; Thu, 18 Jul 2019 16:29:27 -0400 (EDT)
+	id 7BD216B000A; Thu, 18 Jul 2019 16:34:16 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B903C8E0003; Thu, 18 Jul 2019 16:29:27 -0400 (EDT)
+	id 794A58E0003; Thu, 18 Jul 2019 16:34:16 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A593C8E0001; Thu, 18 Jul 2019 16:29:27 -0400 (EDT)
+	id 6AB4B8E0001; Thu, 18 Jul 2019 16:34:16 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 8686C6B0007
-	for <linux-mm@kvack.org>; Thu, 18 Jul 2019 16:29:27 -0400 (EDT)
-Received: by mail-qt1-f198.google.com with SMTP id x11so21104944qto.23
-        for <linux-mm@kvack.org>; Thu, 18 Jul 2019 13:29:27 -0700 (PDT)
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 4962B6B000A
+	for <linux-mm@kvack.org>; Thu, 18 Jul 2019 16:34:16 -0400 (EDT)
+Received: by mail-qk1-f198.google.com with SMTP id k13so24309484qkj.4
+        for <linux-mm@kvack.org>; Thu, 18 Jul 2019 13:34:16 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=JUUHjmg0ZJlEMX+5AtmRzyp8ZylGGNhXn5v6WzeqTo0=;
-        b=SmM9jHw39YJ77DjqwmcmEFmuGewRLCS1zSGPTXsQQRG+S7VNHiiV+1AdvSK95hgj1v
-         kMLy7p2V1Xy9PHvM1pSz0H82bC9za/kMvrLrHKj5V/+Zllfk5jjlJLEXBTFcX9j/gVU3
-         HC8Xm9pPbUUr6uEVmMuZbmtsFGim9z+0E4b6e8enab2dUUoZeDOthFz9ismn6PRdmg3S
-         OoAPHq4Jdyi4ZXayEzgjaR3vSyuaUedrPcQMM6LNaaWdSxfDOFTocZC4ctdrH7d+vz+C
-         wIs6pXLin1v2pg86kZ8XGBml2MK3gN7kA+aVPmsiXrvoP2nX2pqtjOTceSGkBbZcQMTX
-         5EsQ==
-X-Gm-Message-State: APjAAAUvrmCi5ByttMB/JYpyV6xsIJWTkCgFEubMI+4W0m2wGCA6V/Og
-	pp2c8TLzHo6w8vsA4dn6Pogdvb/5qESXEZu9FGEbOnmz8TteTFaYowanQByjP/tEa1EzPH6tlWn
-	Rz7EJfqOo3LPKFX1Qtif6T1Ss3fT+7g3BwNZ9iLCiWOqDXPEYFOPMa6t0WVNVH1E2NQ==
-X-Received: by 2002:ac8:32ec:: with SMTP id a41mr34560517qtb.375.1563481767267;
-        Thu, 18 Jul 2019 13:29:27 -0700 (PDT)
-X-Received: by 2002:ac8:32ec:: with SMTP id a41mr34560501qtb.375.1563481766654;
-        Thu, 18 Jul 2019 13:29:26 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563481766; cv=none;
+        bh=lUeG90JN23owse4hkCx6s3PvuPmRRtzpsafpqQdcTUA=;
+        b=jGW3r+/2PetZbLush4RoHyXtL1mVo7rtBqK0q5tIbINIapg4uZT/cHwkr44QbDEGX8
+         IgOkHHwRLLosUtwumzWrz8RqW8eftdaxo8+RDPbZHV5Q/e4KrkYLK9hiRTTV1+BkZBVj
+         3bCubo0+tt03aNilKDSYLbyk3yX+mfYxNfjy7TeuxrEkPYZlq0l4oTDQYI38jS1gevhD
+         ZiDw5/7cTghDQTwTdkIw1aMEL1TZ+jjZOdJvUJWaMFbxieqsFOfFGaehzzv08pnc/yUx
+         OagdwJXc5vMI1lE3bH9/sVyCSOfjtUaRvhqpWeJJwxjkkS3BHV2aPcQOMr7dqX9+1Ejz
+         Al6w==
+X-Gm-Message-State: APjAAAUiydLDb5AMOdjeSpFa9WoeOLmbo5zoQqSeW6DGO2GC26dDpM0/
+	MKAIuoTOFgBf31JBNG797ILsjn9IvU7TVe+yScT6vuoVQStqy54Wv90KLgrCm0sclAcZto+TfYW
+	21tSqt/bZhhhTQb2eMeBLXRlns09AUq8m+tQJfUD1rrhczHla2uJBuZ0E2hwl9DSEuA==
+X-Received: by 2002:a37:ad0f:: with SMTP id f15mr31587530qkm.68.1563482055999;
+        Thu, 18 Jul 2019 13:34:15 -0700 (PDT)
+X-Received: by 2002:a37:ad0f:: with SMTP id f15mr31587507qkm.68.1563482055497;
+        Thu, 18 Jul 2019 13:34:15 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563482055; cv=none;
         d=google.com; s=arc-20160816;
-        b=aFhqOtw3n2SPatkYE56HS86zshnv561FQDd5xBBOVvBRwKB9rMXcUb5orx68NKFtny
-         BpARqdgxm0xp5cHV/NgZ2QZwEg1xf9ZTyxmPV71rkWlOGZ9J62/kzaI1sIKw7cEtjL/i
-         evtcr9jm8Bm/6T3d27PZdfW+VcNMM4BLwf/qDr7uODh0FRgfkp3qV3CDDN06GP79e1Rf
-         WvK2IawDRS1Hn4LVXm7ZZThNOdpUTam4IoGW7TU2vBIH8QYUWH/u+23bWewNkMkVs5eT
-         vYquyTxHGqtrHRHbepqn+CeOYE/4YffG9awD5npenhSgmnb5r+S9LP+C0ONrx/CygEci
-         TzIw==
+        b=BWUn97nI4nv5N+3wU5uXGncmosFKU2RNHo60+sQkzrsZf7DIWh9jjmoqCzvvvKyql1
+         qTYIwrSve9tc4liB3N2CvWTdzuayzaf48QCY/6IHjgNomzdfrZZo0qr4Izu7H3UW9sxA
+         G5bekykFGIrQAdTPQLK0Wpm7v9OzcurKuDYDf1w+IlcCl11lQxfP9W6RsZj17PvG40Nm
+         21aleJIYVOeevcXN0nCpO8/C25+NHwGA10bq1njavOAbEeg9CD3l7n4rvhgQy9LG7hQu
+         pEZtzA/spYQHqbm/pVUXyOEtbaQD4/JIDrPcZGR7D8LwOWfgd2U1mDEB5JIqzjCaUoES
+         WDNA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=JUUHjmg0ZJlEMX+5AtmRzyp8ZylGGNhXn5v6WzeqTo0=;
-        b=QTajZ298AujrogYMM+fWUP3Kdo9qi/A6/EOgNoOsTwcS8QmVXRXwtgMJo0yRH1Dmyo
-         igCH+sYm4N3TEbfnxtT523ckZbsEMTjRvFLF/D3alxDv0MD5q5IP2BcYhxj7rsTUn/Qn
-         sYYyaA7Fgxd/74O6j0jjiHzunZX3KtZ3/quc40VyDm7xpNnbIv0z7EwG7D29BoBTf0zd
-         ZQ7ngqbCuYXxxoyS91PRzkbLiqQxOoyP7BtKOWgavYfTe9MJc09BkIKzHyWv42T+5KS9
-         zlr0XcgMmZvpyDs+FlHD6kOEoenHk3q8NVZdC6V+7E2ym3H9bWleQmgfZlMoEmt9FBQP
-         bhbQ==
+        bh=lUeG90JN23owse4hkCx6s3PvuPmRRtzpsafpqQdcTUA=;
+        b=Aw9a5zghpbs0McN3b+sFrGCqGPI8cqxfFTXv/HrBiqtCN7IcX7ex641iPPqhyk78wT
+         oolooUwi5DoA6daRjGsrPDP4Wgc/IF56vIfziI6Cs7bCKzpKs/dlFuqmWWNrRXRRJnsQ
+         V6k/fQJr10/KVrPUGyPa9jfAfjqbIDKVFgJTr3PuJuXgEpBZBjdUQnupnkfnzLGeqnun
+         7DEs0s7GIrlNwVIPc0TDg1Eq8ZGB8s0Dk4oC6KxZXWgLvW6qZxI4qw+kPvwNDKk71iu4
+         fib5uEoYiue0JoyumJSNj4sCTxSnh74Y5IR0DFnvbc7it+mELEHeFqVSagne1JtoQeF4
+         aA9g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b="Y/qJ3wC7";
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=QrW2+V7X;
        spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id e50sor39091540qte.22.2019.07.18.13.29.26
+        by mx.google.com with SMTPS id e8sor16536308qkg.92.2019.07.18.13.34.15
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 18 Jul 2019 13:29:26 -0700 (PDT)
+        Thu, 18 Jul 2019 13:34:15 -0700 (PDT)
 Received-SPF: pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b="Y/qJ3wC7";
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=QrW2+V7X;
        spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=JUUHjmg0ZJlEMX+5AtmRzyp8ZylGGNhXn5v6WzeqTo0=;
-        b=Y/qJ3wC7lCk9kEZssbkBI/gkQdhuwiy4ifGVRGGiJNvAFxFoCzoCRiVh2OqmkH3nj4
-         TjO+9Grh7N49eh/cS4HANTtHCHTBvPydFBIxFWF/UCXTmseqaCEPkadsRMS1lvMwpuKR
-         fKfL+c6zkn5Da3l8N/CT17I7zjp8C3+fHViFGjExp8txHDlaq8WaMh3Zw/RvLltA1DNy
-         TrfIsCYu/LMC9GO8tvwUbbbrwM1riNmyY0hrBPZYor2C6MBFCZeSb9OPRIe1OS+1zzmv
-         GCS80WZE8idvO30m5HjU+OFSnWdyMWVrfYjuCvhqSfSqRPS+HZwa3l6eFd1Ish2WBU5H
-         iscg==
-X-Google-Smtp-Source: APXvYqwl+bEO1h8j2u/h/gYaq6zlsr1eertU95oqDRxjqkM7ku54EZON6JrY0jQ1geCz48TkU7laYiYzVhvnq8OjPuQ=
-X-Received: by 2002:ac8:2f43:: with SMTP id k3mr34539909qta.179.1563481766276;
- Thu, 18 Jul 2019 13:29:26 -0700 (PDT)
+        bh=lUeG90JN23owse4hkCx6s3PvuPmRRtzpsafpqQdcTUA=;
+        b=QrW2+V7Xl/KTpbKakLlvwVZhX3mvxwY8oW2vB8V+YuPlRdScITuH23acCo57C3rm+/
+         h14/iR5ajTzevvTZgDQqOGErulK0PjguBwTAsH9Y3EKi7j2DqAkinW13yKCiWiMvwlhz
+         G337M9FxyP8xW3prNI+Y46tV6LKGfIKoJnpWP/StoXaJ8VaE6k8S6GraWUdl1DQ0jPVo
+         5Nzq45cBYGbC8mYGBvPk+lRY+CeB7ljQ0M/WcypXEL0YLyup+trYqw1VrHc7N+XihAnT
+         qSr15Qriyhre6ikVXcxStPhA9GKq5L81kUbOPa4ctMEOcvvh0wTxrAiF0q1LX9t8rDOw
+         pMUg==
+X-Google-Smtp-Source: APXvYqwjvJkRVs5rf6lR3JoHp630zNQ2CmcMU/UwjepgFtUoHLwCD2p9IdMuPtw8xc2XXrQdtk3z1AdJz1RZ4J6/Kh8=
+X-Received: by 2002:a37:9042:: with SMTP id s63mr31248155qkd.344.1563482055130;
+ Thu, 18 Jul 2019 13:34:15 -0700 (PDT)
 MIME-Version: 1.0
 References: <20190716055017-mutt-send-email-mst@kernel.org>
  <CAKgT0Uc-2k9o7pjtf-GFAgr83c7RM-RTJ8-OrEzFv92uz+MTDw@mail.gmail.com>
@@ -101,11 +101,11 @@ References: <20190716055017-mutt-send-email-mst@kernel.org>
  <20190716125845-mutt-send-email-mst@kernel.org> <CAKgT0UfgPdU1H5ZZ7GL7E=_oZNTzTwZN60Q-+2keBxDgQYODfg@mail.gmail.com>
  <20190717055804-mutt-send-email-mst@kernel.org> <CAKgT0Uf4iJxEx+3q_Vo9L1QPuv9PhZUv1=M9UCsn6_qs7rG4aw@mail.gmail.com>
  <20190718003211-mutt-send-email-mst@kernel.org> <CAKgT0UfQ3dtfjjm8wnNxX1+Azav6ws9zemH6KYc7RuyvyFo3fQ@mail.gmail.com>
- <20190718113548-mutt-send-email-mst@kernel.org>
-In-Reply-To: <20190718113548-mutt-send-email-mst@kernel.org>
+ <20190718162040-mutt-send-email-mst@kernel.org>
+In-Reply-To: <20190718162040-mutt-send-email-mst@kernel.org>
 From: Alexander Duyck <alexander.duyck@gmail.com>
-Date: Thu, 18 Jul 2019 13:29:14 -0700
-Message-ID: <CAKgT0UeRy2eHKnz4CorefBAG8ro+3h4oFX+z1JY2qRm17fcV8w@mail.gmail.com>
+Date: Thu, 18 Jul 2019 13:34:03 -0700
+Message-ID: <CAKgT0UcKTzSYZnYsMQoG6pXhpDS7uLbDd31dqfojCSXQWSsX_A@mail.gmail.com>
 Subject: Re: [PATCH v1 6/6] virtio-balloon: Add support for aerating memory
  via hinting
 To: "Michael S. Tsirkin" <mst@redhat.com>
@@ -124,107 +124,38 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jul 18, 2019 at 9:07 AM Michael S. Tsirkin <mst@redhat.com> wrote:
+On Thu, Jul 18, 2019 at 1:24 PM Michael S. Tsirkin <mst@redhat.com> wrote:
 >
 > On Thu, Jul 18, 2019 at 08:34:37AM -0700, Alexander Duyck wrote:
-> > On Wed, Jul 17, 2019 at 10:14 PM Michael S. Tsirkin <mst@redhat.com> wrote:
-> > >
-> > > On Wed, Jul 17, 2019 at 09:43:52AM -0700, Alexander Duyck wrote:
-> > > > On Wed, Jul 17, 2019 at 3:28 AM Michael S. Tsirkin <mst@redhat.com> wrote:
-> > > > >
-> > > > > On Tue, Jul 16, 2019 at 02:06:59PM -0700, Alexander Duyck wrote:
-> > > > > > On Tue, Jul 16, 2019 at 10:41 AM Michael S. Tsirkin <mst@redhat.com> wrote:
-> > > > > >
-> > > > > > <snip>
-> > > > > >
-> > > > > > > > > This is what I am saying. Having watched that patchset being developed,
-> > > > > > > > > I think that's simply because processing blocks required mm core
-> > > > > > > > > changes, which Wei was not up to pushing through.
-> > > > > > > > >
-> > > > > > > > >
-> > > > > > > > > If we did
-> > > > > > > > >
-> > > > > > > > >         while (1) {
-> > > > > > > > >                 alloc_pages
-> > > > > > > > >                 add_buf
-> > > > > > > > >                 get_buf
-> > > > > > > > >                 free_pages
-> > > > > > > > >         }
-> > > > > > > > >
-> > > > > > > > > We'd end up passing the same page to balloon again and again.
-> > > > > > > > >
-> > > > > > > > > So we end up reserving lots of memory with alloc_pages instead.
-> > > > > > > > >
-> > > > > > > > > What I am saying is that now that you are developing
-> > > > > > > > > infrastructure to iterate over free pages,
-> > > > > > > > > FREE_PAGE_HINT should be able to use it too.
-> > > > > > > > > Whether that's possible might be a good indication of
-> > > > > > > > > whether the new mm APIs make sense.
-> > > > > > > >
-> > > > > > > > The problem is the infrastructure as implemented isn't designed to do
-> > > > > > > > that. I am pretty certain this interface will have issues with being
-> > > > > > > > given small blocks to process at a time.
-> > > > > > > >
-> > > > > > > > Basically the design for the FREE_PAGE_HINT feature doesn't really
-> > > > > > > > have the concept of doing things a bit at a time. It is either
-> > > > > > > > filling, stopped, or done. From what I can tell it requires a
-> > > > > > > > configuration change for the virtio balloon interface to toggle
-> > > > > > > > between those states.
-> > > > > > >
-> > > > > > > Maybe I misunderstand what you are saying.
-> > > > > > >
-> > > > > > > Filling state can definitely report things
-> > > > > > > a bit at a time. It does not assume that
-> > > > > > > all of guest free memory can fit in a VQ.
-> > > > > >
-> > > > > > I think where you and I may differ is that you are okay with just
-> > > > > > pulling pages until you hit OOM, or allocation failures. Do I have
-> > > > > > that right?
-> > > > >
-> > > > > This is exactly what the current code does. But that's an implementation
-> > > > > detail which came about because we failed to find any other way to
-> > > > > iterate over free blocks.
+> > > > > For example we allocate pages until shrinker kicks in.
+> > > > > Fair enough but in fact many it would be better to
+> > > > > do the reverse: trigger shrinker and then send as many
+> > > > > free pages as we can to host.
 > > > >
-> > > > I get that. However my concern is that permeated other areas of the
-> > > > implementation that make taking another approach much more difficult
-> > > > than it needs to be.
+> > > > I'm not sure I understand this last part.
 > > >
-> > > Implementation would have to change to use an iterator obviously. But I don't see
-> > > that it leaked out to a hypervisor interface.
-> > >
-> > > In fact take a look at virtio_balloon_shrinker_scan
-> > > and you will see that it calls shrink_free_pages
-> > > without waiting for the device at all.
+> > > Oh basically what I am saying is this: one of the reasons to use page
+> > > hinting is when host is short on memory.  In that case, why don't we use
+> > > shrinker to ask kernel drivers to free up memory? Any memory freed could
+> > > then be reported to host.
 > >
-> > Yes, and in case you missed it earlier I am pretty sure that leads to
-> > possible memory corruption. I don't think it was tested enough to be
-> > able to say that is safe.
+> > Didn't the balloon driver already have a feature like that where it
+> > could start shrinking memory if the host was under memory pressure? If
+> > so how would adding another one add much value.
 >
-> More testing would be good, for sure.
+> Well fundamentally the basic balloon inflate kind of does this, yes :)
 >
-> > Specifically we cannot be clearing the dirty flag on pages that are in
-> > use. We should only be clearing that flag for pages that are
-> > guaranteed to not be in use.
->
-> I think that clearing the dirty flag is safe if the flag was originally
-> set and the page has been
-> write-protected before reporting was requested.
-> In that case we know that page has not been changed.
-> Right?
+> The difference with what I am suggesting is that balloon inflate tries
+> to aggressively achieve a specific goal of freed memory. We could have a
+> weaker "free as much as you can" that is still stronger than free page
+> hint which as you point out below does not try to free at all, just
+> hints what is already free.
 
-I am just going to drop the rest of this thread as I agree we have
-been running ourselves around in circles. The part I had missed was
-the part where there are 2 bitmaps and that you are are using
-migration_bitmap_sync_precopy() to align the two.
-
-This is just running at the same time as the precopy code and is only
-really meant to try and clear the bit before the precopy gets to it
-from what I can tell.
-
-So one thing that is still an issue then is that my approach would
-only work on the first migration. The problem is the logic I have
-implemented assumes that once we have hinted on a page we don't need
-to do it again. However in order to support migration you would need
-to reset the hinting entirely and start over again after doing a
-migration.
+Yes, but why wait until the host is low on memory? With my
+implementation we can perform the hints in the background for a low
+cost already. So why should we wait to free up memory when we could do
+it immediately. Why let things get to the state where the host is
+under memory pressure when the guests can be proactively freeing up
+the pages and improving performance as a result be reducing swap
+usage?
 
