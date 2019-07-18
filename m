@@ -7,77 +7,77 @@ X-Spam-Status: No, score=-9.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	UNPARSEABLE_RELAY,USER_AGENT_GIT autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 96E12C76197
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Jul 2019 17:18:16 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C8C0EC76195
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Jul 2019 17:18:19 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 51021208C0
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Jul 2019 17:18:16 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 51021208C0
+	by mail.kernel.org (Postfix) with ESMTP id 8275F208C0
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Jul 2019 17:18:19 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8275F208C0
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 235F76B000E; Thu, 18 Jul 2019 13:18:15 -0400 (EDT)
+	id 5B9896B000C; Thu, 18 Jul 2019 13:18:15 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1997D8E0003; Thu, 18 Jul 2019 13:18:15 -0400 (EDT)
+	id 4F30E8E0001; Thu, 18 Jul 2019 13:18:15 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 060158E0001; Thu, 18 Jul 2019 13:18:14 -0400 (EDT)
+	id 2329C6B000C; Thu, 18 Jul 2019 13:18:15 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id BCF966B000C
+	by kanga.kvack.org (Postfix) with ESMTP id CF4726B000D
 	for <linux-mm@kvack.org>; Thu, 18 Jul 2019 13:18:14 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id f2so14250846plr.0
+Received: by mail-pl1-f197.google.com with SMTP id i3so14266263plb.8
         for <linux-mm@kvack.org>; Thu, 18 Jul 2019 10:18:14 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references;
-        bh=i4dHwhuzs1szs6c0r0Zws48YkN8gRuFh5qdGvB20A/I=;
-        b=hRTrQIIjmG5hAYRLRwWSNs5wpwYYp6nbQm7BpM1japSO9bLPuQO9SZzlrvg+vHgBD0
-         Mxvq9Qh//NirxsJqzEnKXZ+dhkaribPBZPKXz8EDcp+iyO0o1g2R5LKyaaAP+2IRPICG
-         TQUCFDeY7Ys7InJkB0BCHu7m+jRdoVwYLRFU3pw3cUW+7f2v0NXjcCwhwbztqd05GzDe
-         BW/OKMm0U+ADMmRSR4sWSLBzBZTMtt2x6SXlSeroBSS2ziZJM8l5pbXdVMk9qE/YOUHr
-         0Vo1lw3NUKjD8bDpISI2vmLkbX7TaydCGVoZb+DoF8AUeFC0wIegbKjvbTTRmJZq7aS1
-         SKIg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.56 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Gm-Message-State: APjAAAVturRtfagiJEUJkTOzucXPFucOzzP8GMGemJiFMfUSRQmhtPTe
-	oJaQbP1w9aGhhOJQa6+coIJGMv5Gp6epbkOTc2gTlIi9QrK5bFnyyJIL/6zBtCEHADVLAk+DyiB
-	HLLcDA4J1iWxNWsWXdXxvncrm/RvwE2JjYdun9iwHz9lIoEh+AJ7xRHaWCiqNy/uOGA==
-X-Received: by 2002:a17:902:29a7:: with SMTP id h36mr52621976plb.158.1563470294398;
+        bh=NXCrhMTaO4zTo6OCihA1hML4myTYbGiHAhWdXmwT3Ck=;
+        b=GQKmV94SLIsIvZSN/vnk0cGY8fLf0HagUX3KU/ImoxFgtI916FjKLuW0k4DkYCHXCS
+         3mDTfY15kQJOOCS2oYkGnqV4SscjKZorpNMeDG2dbi1ZIn4YXwpouo/rc+1f6EsRAwzg
+         JoeUToV9h1NRvtmrvhUv8Gt+yrJEx2TGIHqQ6LrtE4FWILR7Sa82mFOgGDSKBeJfBMUL
+         lQnIc3FXL+rnoHyp8VRq/ovp2S5qoXDsjUliS5KreCUpQsQglgSDBdLZwFrytB58mP1K
+         7tkY2fCrXO20hEXqPyC99wUBApzyOYsZhMiYJq+wsAPCcqBU9M7ebC6I/JWCRS/WSm1Z
+         nwYQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.57 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Gm-Message-State: APjAAAWcSrXfN66oAX2aHFEhKqQfTZulztDH/beMAr52UBvb6F1J7Ft8
+	uqOkJn1ZE9lTNLgcFYEHzeVTkD+YZD1jxT8XoccBQSNez48RZEJia5pHYWQTWLgP5eBJ7xo0xGF
+	7gvjAFuDUgNPtPPSyMmcBY611RnClnZA4eDSGaI17ZHG9NrI1qFctKFpyF5QQWOaReQ==
+X-Received: by 2002:a17:90a:8a15:: with SMTP id w21mr52521982pjn.134.1563470294506;
         Thu, 18 Jul 2019 10:18:14 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyk+wV+AOE3GCzvWGW3SEw4ciCDhUmtAfQZ4CBAfzgKZRYaQon9JE7ILE8rSOFcUbbEEdLf
-X-Received: by 2002:a17:902:29a7:: with SMTP id h36mr52621843plb.158.1563470292675;
+X-Google-Smtp-Source: APXvYqxJ8DCjFCarwqYKzPzMoMyZI/WMZCyKT2d316lg0rExC40UX/g3XIee9pOYKiDHLCLNBMzD
+X-Received: by 2002:a17:90a:8a15:: with SMTP id w21mr52521846pjn.134.1563470292649;
         Thu, 18 Jul 2019 10:18:12 -0700 (PDT)
 ARC-Seal: i=1; a=rsa-sha256; t=1563470292; cv=none;
         d=google.com; s=arc-20160816;
-        b=HHKNdTyDrU3HuJB5yAeEZSBfRdj7i/h1AZNcuKzWN0bbY0watquUlelDJNQNQElYzF
-         WASveFLwgNfID11uFBWSmHb0YHW7XHaLDDnMUTPL+usX9XYx2X/eZI1Ec0MB4Q+qQChd
-         vf52YIcZzv7dqsnn5kc56KhzRgbA+3skWZGH5irkMRh9J5YC0oPV4iOxkPXaWcxjcruY
-         tG2rawGUrnNjIzKCFmAe0bxhpHBgn5q31H5DkG+yKnH08Ihyo9N4CGk/+YDI4N21u7nQ
-         XsdmlUtmo+tmrNWSR82DKHrheGiqAUo05kK+G+IswU0a8oPRNlVGP0G4PUhJWRnduCoa
-         ADfw==
+        b=ioOGQq7vDwlOt7RL10z19g7xHwmVJQlHWBzKEXS0e7edJOK2uGGxqDiGaj9dazPMfw
+         rKHHmUxvukjGmtxC7WFwZOel84OOMzwoB22Wyc4HyrwhZSb0Z1g2XtQ4NKdeP9g4AAYO
+         iXavZmfVdSMSUAB+y6RMTDkynI3eyKmeTeZ467PYBKfLGBZfJn5KHO8NdXVYMsa9+h/B
+         KynyZ4lsQQ3RuucmE3cDn3gTLl9hxer4JYN5mqNvlKUL8Tza6uVYLdUQjOO8GLeNYYMk
+         3vOJuHJmYFsCw8c320M3tkd4zw/tZ0eJ8vdnqqoIjTj1bpr6uOai3MGwSfZngl1I0WmT
+         F6bQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=i4dHwhuzs1szs6c0r0Zws48YkN8gRuFh5qdGvB20A/I=;
-        b=Cf2qZCM/ei70YlxYTj/ro7n2kSxXbk4FkkjgEWali5z7+y2fdOZI/E7oaPLV1b7Jyy
-         UF0lZCxGWMz/c4hJ8KURRuBW3FXSFR01/8+Rpfz07sPvumCzUVSMFhgWirskPcGlI7GZ
-         vEY+G7ZfHx8fI9LnHwy3fqtCYzIJ6p8CJLVRLCYWAYsua9gyDXlDIh9V5qkj/T14S2xj
-         GepIR2bMzy2sI18IWeUJBmYrXOl/oexlP8c2S9uQOCNS+YBn26cmKPowa5KCQZ1PYvYH
-         zgF8Sjj9lodbbIiQjqP0BHE+onPbRtTR/ZVThwsYlIfaOcnfmx3wqoaC3QNYHblqgDKa
-         K2Gw==
+        bh=NXCrhMTaO4zTo6OCihA1hML4myTYbGiHAhWdXmwT3Ck=;
+        b=buNWYqonA4WWbZaZxgKDohGV0HhsBc558TG51V8ArPbMmpk4NwTKAPj7naLDO09uSI
+         cSjjnF6+R3BpdKUdN+E5dV6WRBVtoRjSyBnDEbdfwh37Pwxv+DDvgu7xvc56SuVIMQK6
+         AT8Uci8fp1ikGqExvGzWOM5OxQA1hqKdqdHGtP9sN0Rm3VTCs1KNnO+5V1g9w+o4ox8J
+         F0BRmfQbAMi0Svf1kXc2DlaVZjldBmkxaf1IkF42qvUchJFujW80q4yQ7yj7wBkHjZH5
+         HOMtOpA5rmT2kRK95EYXesP7zajJeQFHzfTVU8xexZlRilUHzX+aYU2a7wSTEtKK85xs
+         NgAQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.56 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.57 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-Received: from out30-56.freemail.mail.aliyun.com (out30-56.freemail.mail.aliyun.com. [115.124.30.56])
-        by mx.google.com with ESMTPS id v20si776174pjn.27.2019.07.18.10.18.11
+Received: from out30-57.freemail.mail.aliyun.com (out30-57.freemail.mail.aliyun.com. [115.124.30.57])
+        by mx.google.com with ESMTPS id cf16si1503374plb.346.2019.07.18.10.18.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Thu, 18 Jul 2019 10:18:12 -0700 (PDT)
-Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.56 as permitted sender) client-ip=115.124.30.56;
+Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.57 as permitted sender) client-ip=115.124.30.57;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.56 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.57 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R191e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e04395;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=8;SR=0;TI=SMTPD_---0TXDOr4u_1563470282;
+X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R721e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e04394;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=8;SR=0;TI=SMTPD_---0TXDOr4u_1563470282;
 Received: from e19h19392.et15sqa.tbsite.net(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TXDOr4u_1563470282)
           by smtp.aliyun-inc.com(127.0.0.1);
           Fri, 19 Jul 2019 01:18:10 +0800
@@ -90,9 +90,9 @@ Cc: yang.shi@linux.alibaba.com,
 	linux-mm@kvack.org,
 	linux-kernel@vger.kernel.org,
 	linux-api@vger.kernel.org
-Subject: [v3 PATCH 2/2] mm: mempolicy: handle vma with unmovable pages mapped correctly in mbind
-Date: Fri, 19 Jul 2019 01:17:54 +0800
-Message-Id: <1563470274-52126-3-git-send-email-yang.shi@linux.alibaba.com>
+Subject: [v3 PATCH 1/2] mm: mempolicy: make the behavior consistent when MPOL_MF_MOVE* and MPOL_MF_STRICT were specified
+Date: Fri, 19 Jul 2019 01:17:53 +0800
+Message-Id: <1563470274-52126-2-git-send-email-yang.shi@linux.alibaba.com>
 X-Mailer: git-send-email 1.8.3.1
 In-Reply-To: <1563470274-52126-1-git-send-email-yang.shi@linux.alibaba.com>
 References: <1563470274-52126-1-git-send-email-yang.shi@linux.alibaba.com>
@@ -102,212 +102,204 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-When running syzkaller internally, we ran into the below bug on 4.9.x
-kernel:
+When both MPOL_MF_MOVE* and MPOL_MF_STRICT was specified, mbind() should
+try best to migrate misplaced pages, if some of the pages could not be
+migrated, then return -EIO.
 
-kernel BUG at mm/huge_memory.c:2124!
-invalid opcode: 0000 [#1] SMP KASAN
-Dumping ftrace buffer:
-   (ftrace buffer empty)
-Modules linked in:
-CPU: 0 PID: 1518 Comm: syz-executor107 Not tainted 4.9.168+ #2
-Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 0.5.1 01/01/2011
-task: ffff880067b34900 task.stack: ffff880068998000
-RIP: 0010:[<ffffffff81895d6b>]  [<ffffffff81895d6b>] split_huge_page_to_list+0x8fb/0x1030 mm/huge_memory.c:2124
-RSP: 0018:ffff88006899f980  EFLAGS: 00010286
-RAX: 0000000000000000 RBX: ffffea00018f1700 RCX: 0000000000000000
-RDX: 1ffffd400031e2e7 RSI: 0000000000000001 RDI: ffffea00018f1738
-RBP: ffff88006899f9e8 R08: 0000000000000001 R09: 0000000000000000
-R10: 0000000000000000 R11: fffffbfff0d8b13e R12: ffffea00018f1400
-R13: ffffea00018f1400 R14: ffffea00018f1720 R15: ffffea00018f1401
-FS:  00007fa333996740(0000) GS:ffff88006c600000(0000) knlGS:0000000000000000
-CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-CR2: 0000000020000040 CR3: 0000000066b9c000 CR4: 00000000000606f0
-Stack:
- 0000000000000246 ffff880067b34900 0000000000000000 ffff88007ffdc000
- 0000000000000000 ffff88006899f9e8 ffffffff812b4015 ffff880064c64e18
- ffffea00018f1401 dffffc0000000000 ffffea00018f1700 0000000020ffd000
-Call Trace:
- [<ffffffff818490f1>] split_huge_page include/linux/huge_mm.h:100 [inline]
- [<ffffffff818490f1>] queue_pages_pte_range+0x7e1/0x1480 mm/mempolicy.c:538
- [<ffffffff817ed0da>] walk_pmd_range mm/pagewalk.c:50 [inline]
- [<ffffffff817ed0da>] walk_pud_range mm/pagewalk.c:90 [inline]
- [<ffffffff817ed0da>] walk_pgd_range mm/pagewalk.c:116 [inline]
- [<ffffffff817ed0da>] __walk_page_range+0x44a/0xdb0 mm/pagewalk.c:208
- [<ffffffff817edb94>] walk_page_range+0x154/0x370 mm/pagewalk.c:285
- [<ffffffff81844515>] queue_pages_range+0x115/0x150 mm/mempolicy.c:694
- [<ffffffff8184f493>] do_mbind mm/mempolicy.c:1241 [inline]
- [<ffffffff8184f493>] SYSC_mbind+0x3c3/0x1030 mm/mempolicy.c:1370
- [<ffffffff81850146>] SyS_mbind+0x46/0x60 mm/mempolicy.c:1352
- [<ffffffff810097e2>] do_syscall_64+0x1d2/0x600 arch/x86/entry/common.c:282
- [<ffffffff82ff6f93>] entry_SYSCALL_64_after_swapgs+0x5d/0xdb
-Code: c7 80 1c 02 00 e8 26 0a 76 01 <0f> 0b 48 c7 c7 40 46 45 84 e8 4c
-RIP  [<ffffffff81895d6b>] split_huge_page_to_list+0x8fb/0x1030 mm/huge_memory.c:2124
- RSP <ffff88006899f980>
+There are three different sub-cases:
+1. vma is not migratable
+2. vma is migratable, but there are unmovable pages
+3. vma is migratable, pages are movable, but migrate_pages() fails
 
-with the below test:
+If #1 happens, kernel would just abort immediately, then return -EIO,
+after the commit a7f40cfe3b7ada57af9b62fd28430eeb4a7cfcb7 ("mm:
+mempolicy: make mbind() return -EIO when MPOL_MF_STRICT is specified").
 
----8<---
+If #3 happens, kernel would set policy and migrate pages with best-effort,
+but won't rollback the migrated pages and reset the policy back.
 
-uint64_t r[1] = {0xffffffffffffffff};
+Before that commit, they behaves in the same way.  It'd better to keep
+their behavior consistent.  But, rolling back the migrated pages and
+resetting the policy back sounds not feasible, so just make #1 behave as
+same as #3.
 
-int main(void)
-{
-        syscall(__NR_mmap, 0x20000000, 0x1000000, 3, 0x32, -1, 0);
-                                intptr_t res = 0;
-        res = syscall(__NR_socket, 0x11, 3, 0x300);
-        if (res != -1)
-                r[0] = res;
-*(uint32_t*)0x20000040 = 0x10000;
-*(uint32_t*)0x20000044 = 1;
-*(uint32_t*)0x20000048 = 0xc520;
-*(uint32_t*)0x2000004c = 1;
-        syscall(__NR_setsockopt, r[0], 0x107, 0xd, 0x20000040, 0x10);
-        syscall(__NR_mmap, 0x20fed000, 0x10000, 0, 0x8811, r[0], 0);
-*(uint64_t*)0x20000340 = 2;
-        syscall(__NR_mbind, 0x20ff9000, 0x4000, 0x4002, 0x20000340,
-0x45d4, 3);
-        return 0;
-}
+Userspace will know that not everything was successfully migrated (via
+-EIO), and can take whatever steps it deems necessary - attempt rollback,
+determine which exact page(s) are violating the policy, etc.
 
----8<---
+Make queue_pages_range() return 1 to indicate there are unmovable pages
+or vma is not migratable.
 
-Actually the test does:
-
-mmap(0x20000000, 16777216, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_ANONYMOUS, -1, 0) = 0x20000000
-socket(AF_PACKET, SOCK_RAW, 768)        = 3
-setsockopt(3, SOL_PACKET, PACKET_TX_RING, {block_size=65536, block_nr=1, frame_size=50464, frame_nr=1}, 16) = 0
-mmap(0x20fed000, 65536, PROT_NONE, MAP_SHARED|MAP_FIXED|MAP_POPULATE|MAP_DENYWRITE, 3, 0) = 0x20fed000
-mbind(..., MPOL_MF_STRICT|MPOL_MF_MOVE) = 0
-
-The setsockopt() would allocate compound pages (16 pages in this test)
-for packet tx ring, then the mmap() would call packet_mmap() to map the
-pages into the user address space specified by the mmap() call.
-
-When calling mbind(), it would scan the vma to queue the pages for
-migration to the new node.  It would split any huge page since 4.9
-doesn't support THP migration, however, the packet tx ring compound
-pages are not THP and even not movable.  So, the above bug is triggered.
-
-However, the later kernel is not hit by this issue due to the
-commit d44d363f65780f2ac2 ("mm: don't assume anonymous pages have
-SwapBacked flag"), which just removes the PageSwapBacked check for a
-different reason.
-
-But, there is a deeper issue.  According to the semantic of mbind(), it
-should return -EIO if MPOL_MF_MOVE or MPOL_MF_MOVE_ALL was specified and
-MPOL_MF_STRICT was also specified, but the kernel was unable to move
-all existing pages in the range.  The tx ring of the packet socket is
-definitely not movable, however, mbind() returns success for this case.
-
-Although the most socket file associates with non-movable pages, but XDP
-may have movable pages from gup.  So, it sounds not fine to just check
-the underlying file type of vma in vma_migratable().
-
-Change migrate_page_add() to check if the page is movable or not, if it
-is unmovable, just return -EIO.  But do not abort pte walk immediately,
-since there may be pages off LRU temporarily.  We should migrate other
-pages if MPOL_MF_MOVE* is specified.  Set has_unmovable flag if some
-paged could not be not moved, then return -EIO for mbind() eventually.
-
-With this change the above test would return -EIO as expected.
+The #2 is not handled correctly in the current kernel, the following
+patch will fix it.
 
 Cc: Vlastimil Babka <vbabka@suse.cz>
 Cc: Michal Hocko <mhocko@suse.com>
 Cc: Mel Gorman <mgorman@techsingularity.net>
 Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
 ---
- mm/mempolicy.c | 34 +++++++++++++++++++++++++++-------
- 1 file changed, 27 insertions(+), 7 deletions(-)
+ mm/mempolicy.c | 66 +++++++++++++++++++++++++++++++++++++++++-----------------
+ 1 file changed, 47 insertions(+), 19 deletions(-)
 
 diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index 0e73cc7..1d689fb 100644
+index f48693f..0e73cc7 100644
 --- a/mm/mempolicy.c
 +++ b/mm/mempolicy.c
-@@ -403,7 +403,7 @@ void mpol_rebind_mm(struct mm_struct *mm, nodemask_t *new)
- 	},
- };
+@@ -429,11 +429,14 @@ static inline bool queue_pages_required(struct page *page,
+ }
  
--static void migrate_page_add(struct page *page, struct list_head *pagelist,
-+static int migrate_page_add(struct page *page, struct list_head *pagelist,
- 				unsigned long flags);
+ /*
+- * queue_pages_pmd() has three possible return values:
+- * 1 - pages are placed on the right node or queued successfully.
+- * 0 - THP was split.
+- * -EIO - is migration entry or MPOL_MF_STRICT was specified and an existing
+- *        page was already on a node that does not follow the policy.
++ * queue_pages_pmd() has four possible return values:
++ * 0 - pages are placed on the right node or queued successfully.
++ * 1 - there is unmovable page, and MPOL_MF_MOVE* & MPOL_MF_STRICT were
++ *     specified.
++ * 2 - THP was split.
++ * -EIO - is migration entry or only MPOL_MF_STRICT was specified and an
++ *        existing page was already on a node that does not follow the
++ *        policy.
+  */
+ static int queue_pages_pmd(pmd_t *pmd, spinlock_t *ptl, unsigned long addr,
+ 				unsigned long end, struct mm_walk *walk)
+@@ -451,19 +454,17 @@ static int queue_pages_pmd(pmd_t *pmd, spinlock_t *ptl, unsigned long addr,
+ 	if (is_huge_zero_page(page)) {
+ 		spin_unlock(ptl);
+ 		__split_huge_pmd(walk->vma, pmd, addr, false, NULL);
++		ret = 2;
+ 		goto out;
+ 	}
+-	if (!queue_pages_required(page, qp)) {
+-		ret = 1;
++	if (!queue_pages_required(page, qp))
+ 		goto unlock;
+-	}
  
- struct queue_pages {
-@@ -463,12 +463,11 @@ static int queue_pages_pmd(pmd_t *pmd, spinlock_t *ptl, unsigned long addr,
+-	ret = 1;
  	flags = qp->flags;
  	/* go to thp migration */
  	if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL)) {
--		if (!vma_migratable(walk->vma)) {
-+		if (!vma_migratable(walk->vma) ||
-+		    migrate_page_add(page, qp->pagelist, flags)) {
- 			ret = 1;
+ 		if (!vma_migratable(walk->vma)) {
+-			ret = -EIO;
++			ret = 1;
  			goto unlock;
  		}
--
--		migrate_page_add(page, qp->pagelist, flags);
- 	} else
- 		ret = -EIO;
- unlock:
-@@ -532,7 +531,14 @@ static int queue_pages_pte_range(pmd_t *pmd, unsigned long addr,
- 				has_unmovable |= true;
- 				break;
- 			}
--			migrate_page_add(page, qp->pagelist, flags);
-+
-+			/*
-+			 * Do not abort immediately since there may be
-+			 * temporary off LRU pages in the range.  Still
-+			 * need migrate other LRU pages.
-+			 */
-+			if (migrate_page_add(page, qp->pagelist, flags))
+ 
+@@ -479,6 +480,13 @@ static int queue_pages_pmd(pmd_t *pmd, spinlock_t *ptl, unsigned long addr,
+ /*
+  * Scan through pages checking if pages follow certain conditions,
+  * and move them to the pagelist if they do.
++ *
++ * queue_pages_pte_range() has three possible return values:
++ * 0 - pages are placed on the right node or queued successfully.
++ * 1 - there is unmovable page, and MPOL_MF_MOVE* & MPOL_MF_STRICT were
++ *     specified.
++ * -EIO - only MPOL_MF_STRICT was specified and an existing page was already
++ *        on a node that does not follow the policy.
+  */
+ static int queue_pages_pte_range(pmd_t *pmd, unsigned long addr,
+ 			unsigned long end, struct mm_walk *walk)
+@@ -488,15 +496,15 @@ static int queue_pages_pte_range(pmd_t *pmd, unsigned long addr,
+ 	struct queue_pages *qp = walk->private;
+ 	unsigned long flags = qp->flags;
+ 	int ret;
++	bool has_unmovable = false;
+ 	pte_t *pte;
+ 	spinlock_t *ptl;
+ 
+ 	ptl = pmd_trans_huge_lock(pmd, vma);
+ 	if (ptl) {
+ 		ret = queue_pages_pmd(pmd, ptl, addr, end, walk);
+-		if (ret > 0)
+-			return 0;
+-		else if (ret < 0)
++		/* THP was split, fall through to pte walk */
++		if (ret != 2)
+ 			return ret;
+ 	}
+ 
+@@ -519,14 +527,21 @@ static int queue_pages_pte_range(pmd_t *pmd, unsigned long addr,
+ 		if (!queue_pages_required(page, qp))
+ 			continue;
+ 		if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL)) {
+-			if (!vma_migratable(vma))
++			/* MPOL_MF_STRICT must be specified if we get here */
++			if (!vma_migratable(vma)) {
 +				has_unmovable |= true;
+ 				break;
++			}
+ 			migrate_page_add(page, qp->pagelist, flags);
  		} else
  			break;
  	}
-@@ -961,10 +967,21 @@ static long do_get_mempolicy(int *policy, nodemask_t *nmask,
- /*
-  * page migration, thp tail pages can be passed.
+ 	pte_unmap_unlock(pte - 1, ptl);
+ 	cond_resched();
++
++	if (has_unmovable)
++		return 1;
++
+ 	return addr != end ? -EIO : 0;
+ }
+ 
+@@ -639,7 +654,13 @@ static int queue_pages_test_walk(unsigned long start, unsigned long end,
+  *
+  * If pages found in a given range are on a set of nodes (determined by
+  * @nodes and @flags,) it's isolated and queued to the pagelist which is
+- * passed via @private.)
++ * passed via @private.
++ *
++ * queue_pages_range() has three possible return values:
++ * 1 - there is unmovable page, but MPOL_MF_MOVE* & MPOL_MF_STRICT were
++ *     specified.
++ * 0 - queue pages successfully or no misplaced page.
++ * -EIO - there is misplaced page and only MPOL_MF_STRICT was specified.
   */
--static void migrate_page_add(struct page *page, struct list_head *pagelist,
-+static int migrate_page_add(struct page *page, struct list_head *pagelist,
- 				unsigned long flags)
- {
- 	struct page *head = compound_head(page);
+ static int
+ queue_pages_range(struct mm_struct *mm, unsigned long start, unsigned long end,
+@@ -1182,6 +1203,7 @@ static long do_mbind(unsigned long start, unsigned long len,
+ 	struct mempolicy *new;
+ 	unsigned long end;
+ 	int err;
++	int ret;
+ 	LIST_HEAD(pagelist);
+ 
+ 	if (flags & ~(unsigned long)MPOL_MF_VALID)
+@@ -1243,10 +1265,15 @@ static long do_mbind(unsigned long start, unsigned long len,
+ 	if (err)
+ 		goto mpol_out;
+ 
+-	err = queue_pages_range(mm, start, end, nmask,
++	ret = queue_pages_range(mm, start, end, nmask,
+ 			  flags | MPOL_MF_INVERT, &pagelist);
+-	if (!err)
+-		err = mbind_range(mm, start, end, new);
 +
-+	/*
-+	 * Non-movable page may reach here.  And, there may be
-+	 * temporary off LRU pages or non-LRU movable pages.
-+	 * Treat them as unmovable pages since they can't be
-+	 * isolated, so they can't be moved at the moment.  It
-+	 * should return -EIO for this case too.
-+	 */
-+	if (!PageLRU(head) && (flags & MPOL_MF_STRICT))
-+		return -EIO;
++	if (ret < 0) {
++		err = -EIO;
++		goto up_out;
++	}
 +
- 	/*
- 	 * Avoid migrating a page that is shared with others.
- 	 */
-@@ -976,6 +993,8 @@ static void migrate_page_add(struct page *page, struct list_head *pagelist,
- 				hpage_nr_pages(head));
++	err = mbind_range(mm, start, end, new);
+ 
+ 	if (!err) {
+ 		int nr_failed = 0;
+@@ -1259,11 +1286,12 @@ static long do_mbind(unsigned long start, unsigned long len,
+ 				putback_movable_pages(&pagelist);
  		}
- 	}
-+
-+	return 0;
- }
  
- /* page allocation callback for NUMA node migration */
-@@ -1178,9 +1197,10 @@ static struct page *new_page(struct page *page, unsigned long start)
- }
- #else
+-		if (nr_failed && (flags & MPOL_MF_STRICT))
++		if ((ret > 0) || (nr_failed && (flags & MPOL_MF_STRICT)))
+ 			err = -EIO;
+ 	} else
+ 		putback_movable_pages(&pagelist);
  
--static void migrate_page_add(struct page *page, struct list_head *pagelist,
-+static int migrate_page_add(struct page *page, struct list_head *pagelist,
- 				unsigned long flags)
- {
-+	return -EIO;
- }
- 
- int do_migrate_pages(struct mm_struct *mm, const nodemask_t *from,
++up_out:
+ 	up_write(&mm->mmap_sem);
+  mpol_out:
+ 	mpol_put(new);
 -- 
 1.8.3.1
 
