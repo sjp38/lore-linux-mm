@@ -2,152 +2,205 @@ Return-Path: <SRS0=TqY8=VP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.0 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4829BC76195
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Jul 2019 15:45:58 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 59851C76196
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Jul 2019 15:50:49 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 10329208C0
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Jul 2019 15:45:57 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="hNvZT9V5"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 10329208C0
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	by mail.kernel.org (Postfix) with ESMTP id 08F0B208C0
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Jul 2019 15:50:48 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 08F0B208C0
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8E51C6B0005; Thu, 18 Jul 2019 11:45:57 -0400 (EDT)
+	id 6BEBD8E0003; Thu, 18 Jul 2019 11:50:48 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 896728E0003; Thu, 18 Jul 2019 11:45:57 -0400 (EDT)
+	id 66FAF8E0001; Thu, 18 Jul 2019 11:50:48 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 761758E0001; Thu, 18 Jul 2019 11:45:57 -0400 (EDT)
+	id 537A68E0003; Thu, 18 Jul 2019 11:50:48 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 575976B0005
-	for <linux-mm@kvack.org>; Thu, 18 Jul 2019 11:45:57 -0400 (EDT)
-Received: by mail-io1-f69.google.com with SMTP id v3so31300873ios.4
-        for <linux-mm@kvack.org>; Thu, 18 Jul 2019 08:45:57 -0700 (PDT)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1E12B8E0001
+	for <linux-mm@kvack.org>; Thu, 18 Jul 2019 11:50:48 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id d3so16879278pgc.9
+        for <linux-mm@kvack.org>; Thu, 18 Jul 2019 08:50:48 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:references:from
-         :message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=beUSWoZXSEseo18OGM8fyy0fbR5wLVgyQ97N7VlKnlE=;
-        b=e9PFodJh7Ck6wwbwBzdrgbFxgTfe8xLrARHcbCbicyaGHgrtqSQpVJmE0p1znG0RQQ
-         VuqQBqu1FepiQJDnz5OJQm6IRr/4tAIYCmQ0mveYR6ID9ankkycQtIZ1lIoEpCTwSSl3
-         +t9fItzemscHfGxdOuk/jI4FDUxiDAz8z0qaKLxWh4XrdRoh6cb38lhXYxiN/6jSGNGO
-         wflJHFIoSfXABlP8aeqc61SZhGXc78CfpTuPu+EpprOCWd3kYyEQ6vQWhC8mclRqV4KK
-         QjUYvuKawQT0wKgI8GA99LiFJsyK8ymX+eFhmbqKmBz4emaUIVOFHiuUzwNPneoHVNNo
-         B0ZA==
-X-Gm-Message-State: APjAAAX3cxq8ZQulaq0ZguCCSsj3o0l6o1XSv2bgDRike+lr4IceyyKa
-	CYln8XA4XT8M8DqAyBd5iPRNvvKrLxIqSQhwt/9bKEDvTxcVNkcZcDxlhv/70twX5KP2Me794oq
-	h22cNA1lcehPn3xAsqateyeF7JypcSf8HTwMgfx1hJP9S0GeOto4Sw/+JIHl/ahyBtA==
-X-Received: by 2002:a6b:ed09:: with SMTP id n9mr41978826iog.153.1563464756688;
-        Thu, 18 Jul 2019 08:45:56 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqx3EcUHLjUEHnBDf0eNksA8ZuSPv0vk98PUABdVtjsJphUdUO3jZ6mXmn4qsTCZMuAH9Grf
-X-Received: by 2002:a6b:ed09:: with SMTP id n9mr41978774iog.153.1563464756066;
-        Thu, 18 Jul 2019 08:45:56 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563464756; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:from
+         :to:cc:date:in-reply-to:references:user-agent:mime-version
+         :message-id;
+        bh=j3WjNMUwByxrU9s6ZmYdWswyK6u9ATnu18+R2+ktpd0=;
+        b=caaPfqNsKmhZv8O+2EXIiMxBpk6IjHXnnHdMwnrt5ttKgKPGrG1rhqIG/6k+P3vSqs
+         OL2vEv/bhmnmHLEvEJL8gN8x1JrPZ3FUzEcyU0UTWSQbHJZy3FGkxMO1FZZTL2D7qN7j
+         PUGfNIGUmUMDlg7q5Mp1y+FqeVn/0SGT7GqiHWWjXE1ACM0Yb+d6jilZj4H035+XZlP7
+         FvUD0wf83ueI0zSmK9AYasD33iA+jaYTtSlA6Cp4VR5BU7j7MgQbMqEbL8Rh4NYNqXxl
+         cU2MyoAbnMOUA7Pdss9K7idcUhxeJOPxPiAe2MaO4KmjR3JS5WL0OBDlxAUP6GapxjJ9
+         FogQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of leonardo@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=leonardo@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: APjAAAUeZTuYjpDimLSjWO/ddifuW0koOoHrMkVMNUZ9FqyTGeICLbIu
+	HxbnhVpFC8bVl0kNbXBLBkCnbjLWT84D7eQlwUWDwxZ9br8k8/OhM4WXL/D3lMAZBN1QxLv6uTO
+	Buk10/JbPvHjkhpparbAQNRwCsM6zelRsY/IJcJz5jueLQ7GkWFOlKQcKgrkhCCby9A==
+X-Received: by 2002:a63:6f8f:: with SMTP id k137mr48283075pgc.90.1563465047615;
+        Thu, 18 Jul 2019 08:50:47 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqx1bk914minpovLOZlUKAp7hfrKdc7e1pCfPw/YB2cIuFAZ/Ds+u5jSFBlXpF6Hv+Lqo/FJ
+X-Received: by 2002:a63:6f8f:: with SMTP id k137mr48283023pgc.90.1563465046810;
+        Thu, 18 Jul 2019 08:50:46 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563465046; cv=none;
         d=google.com; s=arc-20160816;
-        b=B9U82yfHgHkmRzSYQe6SyWOHkuGr93ubfdjHxeCNrc9lF0ymsmWV7gMcV1fwU3epSY
-         8GJn3fEmHlDvirbArCabKKMkR4oG8YJ/RdLFIOJ8IJux/oo+Spj1xhaiNLkLQJX4+9St
-         P/IE1Vr+Qgq/AtVxZF18KIgZwN3WpNHYSdeK4W8AwfRiBZ6uD++OwPIKz7M8fgrh0Ocw
-         TpQaD7u8KJjTpyeOer7Ay196xNyHePdnFy7Ipfuyr2RpMnaNlAJcj8FKkQq/lPSVSqMV
-         Kavi1/ct4Obcngi/wQmPCikbGqrvyLipesSrirx3epRvxFclLv+mvceTdHSth5Y3Ky1G
-         gSMg==
+        b=JZ7SYZhrNElsuZMguTiRKRgm9uzskmo5pb4USzq8SEK1IC4cP7/H/ZO/YiepbfuHky
+         66wwZByYqPgLs5S8LM76ZOCVcyl43ZJtmuPmbNFpCKXkgJEs4ShYKxy70p8CN9qYsTm7
+         c/MY+Rbzzv71zVM2l4eqiCq6rPzyb6Ucjw4rPxKyF+OHcGUTVdyznxWqcgBvhRBZVM07
+         2WJ78/TCxBQq8em50CPLBaH+bSY84/fZL/IOkjjhbUbG2397PXmkNP+JIPdtlOYbVCjy
+         jYMJ4Vz4uNHl2oM83QQjCQ/CGG6EMn6HAjs08CU2Ae1wYkVgCrP8wMu9EKwwFWOGNZ7r
+         Cmpg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:to:subject
-         :dkim-signature;
-        bh=beUSWoZXSEseo18OGM8fyy0fbR5wLVgyQ97N7VlKnlE=;
-        b=o65EUS/k0YF+UCOm92LNlB3OBfuQQI5FUrB63PMBl879qdElrWChXYub+QxZOW/9ps
-         DTPQCIcbPMgZUVaO083KiC+DUwZO8aHIzVMh7P7kW4yst2kGEE8zM2LysWT3c89lDCCZ
-         p13G+4BgWt+Cr9P9/k6CamxxvZCXMRg73hJshq3ycWBASuwE2tflx1wFIyg6iRwadKDC
-         EypcCusSjRflZ2kYF7sKDoB2fYPnkuG0MPIGUjBBT3z0HtiMz8EeA+TCBnC0u3jVxHC/
-         fqf+0bpWfD7hr5BVTUl/K9XM5bdp14WTsULNh4N3QOP5OY/X8iHk5TxfOogmjcwlAcHq
-         TdFQ==
+        h=message-id:mime-version:user-agent:references:in-reply-to:date:cc
+         :to:from:subject;
+        bh=j3WjNMUwByxrU9s6ZmYdWswyK6u9ATnu18+R2+ktpd0=;
+        b=Z1dHyLlOUXsvHl94ImNGtSi/+137Q+nVhUbfOqNnZRD8h+Mnx3buA+zWZsZfzAtf2N
+         2cUi4ggG+o4kKIZLnex6h6MvKOZpeLpTMzosVb6kOp5g6fsZlhI+HnLu60eTBAjmMyWE
+         S9lJ94WlJiXSgq3KDRVH5sh3QF2HP8YXTFGwBX9ctzSkAxF+xOFHQ3zAC3JPoFoYJsH/
+         40WOkPBbZOC2CFeYXsjbaRIHNDchYFmepN1rWgxx1c2F50FLFN/1qunMVMg5WYWsV/l6
+         msSKLlcEC2XcjEsGmAOxyo2nSaz4PNTlF5XfIhqSDjHdzzCYDtDepq1BYcQTfofYudSr
+         y9cA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=hNvZT9V5;
-       spf=pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=rdunlap@infradead.org
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id 4si42543675jai.65.2019.07.18.08.45.55
+       spf=pass (google.com: domain of leonardo@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=leonardo@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id j190si779436pge.92.2019.07.18.08.50.46
         for <linux-mm@kvack.org>
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Thu, 18 Jul 2019 08:45:55 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) client-ip=2001:8b0:10b:1231::1;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 18 Jul 2019 08:50:46 -0700 (PDT)
+Received-SPF: pass (google.com: domain of leonardo@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=hNvZT9V5;
-       spf=pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=rdunlap@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=merlin.20170209; h=Content-Transfer-Encoding:Content-Type:
-	In-Reply-To:MIME-Version:Date:Message-ID:From:References:To:Subject:Sender:
-	Reply-To:Cc:Content-ID:Content-Description:Resent-Date:Resent-From:
-	Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:List-Help:
-	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	bh=beUSWoZXSEseo18OGM8fyy0fbR5wLVgyQ97N7VlKnlE=; b=hNvZT9V5N2E+RzxuWYwVvh+QeX
-	MlpOSJBgt5+S3mz8iayCbDY5ygRW3i4nxp+0VHq/k7pnAHpxzTs5OMbB96e6AACNwjKc21XMPzIMa
-	6Gi5u1n8z1M/TEcQi154M9NJ4N5XAgkbKSTxJPgyFrOCl9G6ayweHrp4mr2wJfUa6MNYWoPTTSYi4
-	XhBsHzAbyvYzDPt4Xfip+KrB3kHQb+ghbZuB7qsGHvu7yd1x8FBfAb5bfWnraTbSUP5xWvKjSX2iY
-	KGp3ReyEy0xtmA9aqgdK/FpIRExp4j5AizWZMWe/Tl2j8kfNCqalQqGGomtJLwRXbqrbJ5Tte9adr
-	3BaTgl6A==;
-Received: from static-50-53-52-16.bvtn.or.frontiernet.net ([50.53.52.16] helo=[192.168.1.17])
-	by merlin.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
-	id 1ho8b4-0004mG-6e; Thu, 18 Jul 2019 15:45:30 +0000
-Subject: Re: mmotm 2019-07-17-16-05 uploaded (MTD_HYPERBUS, HBMC_AM654)
-To: akpm@linux-foundation.org, broonie@kernel.org,
- linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org,
- linux-mm@kvack.org, linux-next@vger.kernel.org, mhocko@suse.cz,
- mm-commits@vger.kernel.org, sfr@canb.auug.org.au,
- Vignesh Raghavendra <vigneshr@ti.com>, linux-mtd@lists.infradead.org
-References: <20190717230610.zvRfipNL4%akpm@linux-foundation.org>
-From: Randy Dunlap <rdunlap@infradead.org>
-Message-ID: <4b510069-5f5d-d079-1a98-de190321a97a@infradead.org>
-Date: Thu, 18 Jul 2019 08:45:27 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.2
+       spf=pass (google.com: domain of leonardo@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=leonardo@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x6IFgwPF042423
+	for <linux-mm@kvack.org>; Thu, 18 Jul 2019 11:50:46 -0400
+Received: from e34.co.us.ibm.com (e34.co.us.ibm.com [32.97.110.152])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2tttb2m97h-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 18 Jul 2019 11:50:45 -0400
+Received: from localhost
+	by e34.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <leonardo@linux.ibm.com>;
+	Thu, 18 Jul 2019 16:50:43 +0100
+Received: from b03cxnp08027.gho.boulder.ibm.com (9.17.130.19)
+	by e34.co.us.ibm.com (192.168.1.134) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Thu, 18 Jul 2019 16:50:39 +0100
+Received: from b03ledav006.gho.boulder.ibm.com (b03ledav006.gho.boulder.ibm.com [9.17.130.237])
+	by b03cxnp08027.gho.boulder.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x6IFocVw60621270
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Thu, 18 Jul 2019 15:50:38 GMT
+Received: from b03ledav006.gho.boulder.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id BC60AC6057;
+	Thu, 18 Jul 2019 15:50:38 +0000 (GMT)
+Received: from b03ledav006.gho.boulder.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 02588C6055;
+	Thu, 18 Jul 2019 15:50:34 +0000 (GMT)
+Received: from LeoBras (unknown [9.85.162.151])
+	by b03ledav006.gho.boulder.ibm.com (Postfix) with ESMTP;
+	Thu, 18 Jul 2019 15:50:34 +0000 (GMT)
+Subject: Re: [PATCH 1/1] mm/memory_hotplug: Adds option to hot-add memory in
+ ZONE_MOVABLE
+From: Leonardo Bras <leonardo@linux.ibm.com>
+To: Oscar Salvador <osalvador@suse.de>, linux-kernel@vger.kernel.org,
+        linux-mm@kvack.org
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+        "Rafael J. Wysocki"
+ <rafael@kernel.org>,
+        Andrew Morton <akpm@linux-foundation.org>,
+        Mike
+ Rapoport <rppt@linux.ibm.com>, Michal Hocko <mhocko@suse.com>,
+        Pavel
+ Tatashin <pasha.tatashin@oracle.com>,
+        =?ISO-8859-1?Q?J=E9r=F4me?= Glisse
+ <jglisse@redhat.com>,
+        Thomas Gleixner <tglx@linutronix.de>,
+        Pasha Tatashin
+ <Pavel.Tatashin@microsoft.com>,
+        Bartlomiej Zolnierkiewicz
+ <b.zolnierkie@samsung.com>
+Date: Thu, 18 Jul 2019 12:50:29 -0300
+In-Reply-To: <1563430353.3077.1.camel@suse.de>
+References: <20190718024133.3873-1-leonardo@linux.ibm.com>
+	 <1563430353.3077.1.camel@suse.de>
+Content-Type: multipart/signed; micalg="pgp-sha256";
+	protocol="application/pgp-signature"; boundary="=-3qG8sm/tWDfxGznMgLRc"
+User-Agent: Evolution 3.30.5 (3.30.5-1.fc29) 
 MIME-Version: 1.0
-In-Reply-To: <20190717230610.zvRfipNL4%akpm@linux-foundation.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+X-TM-AS-GCONF: 00
+x-cbid: 19071815-0016-0000-0000-000009D1B406
+X-IBM-SpamModules-Scores: 
+X-IBM-SpamModules-Versions: BY=3.00011452; HX=3.00000242; KW=3.00000007;
+ PH=3.00000004; SC=3.00000287; SDB=6.01233984; UDB=6.00650254; IPR=6.01015312;
+ MB=3.00027780; MTD=3.00000008; XFM=3.00000015; UTC=2019-07-18 15:50:43
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19071815-0017-0000-0000-00004412BFFF
+Message-Id: <0e67afe465cbbdf6ec9b122f596910cae77bc734.camel@linux.ibm.com>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-07-18_07:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1907180163
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 7/17/19 4:06 PM, akpm@linux-foundation.org wrote:
-> The mm-of-the-moment snapshot 2019-07-17-16-05 has been uploaded to
-> 
->    http://www.ozlabs.org/~akpm/mmotm/
-> 
-> mmotm-readme.txt says
-> 
-> README for mm-of-the-moment:
-> 
-> http://www.ozlabs.org/~akpm/mmotm/
-> 
-> This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
-> more than once a week.
-> 
 
-on x86_64, when CONFIG_OF is not set/enabled:
+--=-3qG8sm/tWDfxGznMgLRc
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
-WARNING: unmet direct dependencies detected for MUX_MMIO
-  Depends on [n]: MULTIPLEXER [=y] && (OF [=n] || COMPILE_TEST [=n])
-  Selected by [y]:
-  - HBMC_AM654 [=y] && MTD [=y] && MTD_HYPERBUS [=y]
+On Thu, 2019-07-18 at 08:12 +0200, Oscar Salvador wrote:
+> We do already have "movable_node" boot option, which exactly has that
+> effect.
+> Any hotplugged range will be placed in ZONE_MOVABLE.
+Oh, I was not aware of it.
 
-due to
-config HBMC_AM654
-	tristate "HyperBus controller driver for AM65x SoC"
-	select MULTIPLEXER
-	select MUX_MMIO
+> Why do we need yet another option to achieve the same? Was not that
+> enough for your case?
+Well, another use of this config could be doing this boot option a
+default on any given kernel.=20
+But in the above case I agree it would be wiser to add the code on
+movable_node_is_enabled() directly, and not where I did put.
 
-Those unprotected selects are lacking something.
+What do you think about it?
 
--- 
-~Randy
+Thanks for the feedback,
+
+Leonardo Br=C3=A1s
+
+--=-3qG8sm/tWDfxGznMgLRc
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: This is a digitally signed message part
+Content-Transfer-Encoding: 7bit
+
+-----BEGIN PGP SIGNATURE-----
+
+iQIzBAABCAAdFiEEMdeUgIzgjf6YmUyOlQYWtz9SttQFAl0wlUUACgkQlQYWtz9S
+ttRBRRAAzXZyanM8TpDhxFNBGg0BldrMpkUJO/FKHGIUyK70KPr3a0bsWtNx2GLs
+nrCP5UQhcNmKdiofCOf2kpAqsAv13a57vUoo0iozKF771s3gpih92gC1CuGrwKUp
+lMRt9G3q6GqQx0fXPlrImutBHICAHTHOD5NUJkRF2FgGwKVxHXsPRF0h/yOxegMV
+I/ToF2NmuOBbtBbQD7aEDMW7XG3w5nM/yn9aNqbwrDcuG4F77jsbaLqfBFMLEI5C
+3hrvE98xy5W7XO3/yA3QcYC+WczN8dyzb1Y9F8nz9mWMiGKsBtGQxHyog2YMOMj3
+NB43X4xEVlJwPD2eMdd3loukeoudUhnlIvjD7yIxd4z3oPXsz5wSL+r6cd9q1B05
+v+Rw8QR6FQRlbv8idhMZ7Y5//g6Mwrxc8ecZfhpACmyIsWwSeMz7HXQmoFm7SM9k
+mx5ET3BNYtrB08mRMt/cA1XakfMAp1PFi8OwhjIQShZib8xpOzWqVVKE79oVPptG
+5H/71zXj2rgP/W5Zv0dGl2x7co+SbPwVwbMMBTiYf+8KXBhD+1K5AowNKZKMetR1
+Ag7Cs18NBFpawxIoMPNbLYIz/hf1CvH2//vA7O7hV39CnD7Vakz8NNPVQkc109RJ
+2OxDKtiVu+SCT6rjcTBkZfUJ7wTXKd2zKnvn1gKEpU2qKDC4tVw=
+=OHH1
+-----END PGP SIGNATURE-----
+
+--=-3qG8sm/tWDfxGznMgLRc--
 
