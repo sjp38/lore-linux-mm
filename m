@@ -2,216 +2,254 @@ Return-Path: <SRS0=TqY8=VP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id EED74C76196
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Jul 2019 12:07:25 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0ED15C76191
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Jul 2019 12:20:01 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B3AE121841
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Jul 2019 12:07:25 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B3AE121841
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 95A2221783
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Jul 2019 12:20:00 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=soleen.com header.i=@soleen.com header.b="TZjOKys0"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 95A2221783
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=soleen.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 47F4D6B0003; Thu, 18 Jul 2019 08:07:25 -0400 (EDT)
+	id 02FAB6B0003; Thu, 18 Jul 2019 08:20:00 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 430076B0005; Thu, 18 Jul 2019 08:07:25 -0400 (EDT)
+	id F24A26B0005; Thu, 18 Jul 2019 08:19:59 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2F7488E0001; Thu, 18 Jul 2019 08:07:25 -0400 (EDT)
+	id DEA618E0001; Thu, 18 Jul 2019 08:19:59 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 0F1C66B0003
-	for <linux-mm@kvack.org>; Thu, 18 Jul 2019 08:07:25 -0400 (EDT)
-Received: by mail-qk1-f198.google.com with SMTP id s25so22911629qkj.18
-        for <linux-mm@kvack.org>; Thu, 18 Jul 2019 05:07:25 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 92E3C6B0003
+	for <linux-mm@kvack.org>; Thu, 18 Jul 2019 08:19:59 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id l14so19863304edw.20
+        for <linux-mm@kvack.org>; Thu, 18 Jul 2019 05:19:59 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:organization:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding;
-        bh=BVgkJyXhlcdhbI2hxfgihx4KRgyfo2PW6Tq9TKaQdW4=;
-        b=hVGPN+EnNUFpgBJY00O1gmD9h++uJo2wNjvIQZvSh1UC13VJBrutnwjEFSe3aZImhP
-         VSWUuDr1J8MOUuAeJHVV1BZCBRvNyS1e7O8ZIH3XVsZX31RuCLcs8GPk4KjjaqJW0QjN
-         wUkI50rG3ek5kJ+ezQZnSP+XIV6HAIlzF37vuD/itfyfRHybu0lVMqS6XP//tajI3Ngd
-         IVbZ8FE8gHUE2ynl9FXa2zhXh+/6lSovdSHF5FtRMAPCuWF33J3fRCXzvxQDaky22mGM
-         kWPZyVTJ7bsAQm78ykAihnE2L5zOzrjePa10VgTFgbuk3Eho67jM2cnp7rZdRf2E1b09
-         cqqA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAUMUxEMCuNxHOgwQdN2l6vYXR8jbUDeYsbwY1Q/TTHBa6A9/qab
-	zakd6uVRPKio7Gy++I9pAdNubfKxORS4wP/8YfvHnrTLVZFDVbvvdGVy4Dj3ljAfM9C6TBDyBFV
-	tFInJTDT+gCJiKgl27603beRBgylSQVgy3U7XQFix8epECJOZEXtwMIteOfvFbNxX7Q==
-X-Received: by 2002:aed:2068:: with SMTP id 95mr31621992qta.265.1563451644832;
-        Thu, 18 Jul 2019 05:07:24 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqymoOZTOv4gQz7Zrk4PRI0gIGiCI9ogm3IaXuhTSYw7pm1lAZRctxPNOqIAl5VzPtzxQWw/
-X-Received: by 2002:aed:2068:: with SMTP id 95mr31621952qta.265.1563451644306;
-        Thu, 18 Jul 2019 05:07:24 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563451644; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=CCVHqVtcDr9kxRQz1YfpzaVckBtPbq59VjeQ1p3zOVc=;
+        b=QTPXqwo95coH3sYkxRjo8WVxb3EoqkKzwJ3cPlJmv0sJRhTmRx4RkRJ+rUMSojFkXe
+         sbuyKzLy/ItX3jyXvma61C6XshDvvxgGmLFLNCIsMwF3wvnV1b6JDAVpKx1dp4VCBDg9
+         PZzyUKkSRa/MIUViyinurEfd04rjOQ2/xIVeh/n/UdOAfM0OoQ7rutRQcMixvj1fDeKK
+         A1lYrGEIwjNg7c/7hRhwaG4/lsdcuq0IN4sdL5hHfNqUDq3flhWdavK2TQy3Eto8uFGe
+         w07c9anRAtMf1T+RXGdeAb18/7q1aquK93e8d7YSp69AXdTBRvBZZ+n6pYGUxvJ6OJLP
+         KCyg==
+X-Gm-Message-State: APjAAAUhpGA1YFXe/zIM7EcDpMzV494yqukHs606e+rCjvZ1fvJy+iGc
+	gv54db+DaIH24UQjUSBDQhLLRme+0aNkTvwQ4KsErXNxgXYcOQlk3is+ceLQ5TDT8PRS8o6WSQm
+	jCCAaelCGG/ver5xuIozn0E3KLhjY3pDLxIjbB6P/6Esqx4675BbtxNthLMpivhP5kA==
+X-Received: by 2002:a50:ac24:: with SMTP id v33mr40322772edc.30.1563452399154;
+        Thu, 18 Jul 2019 05:19:59 -0700 (PDT)
+X-Received: by 2002:a50:ac24:: with SMTP id v33mr40322685edc.30.1563452398095;
+        Thu, 18 Jul 2019 05:19:58 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563452398; cv=none;
         d=google.com; s=arc-20160816;
-        b=ZpIxWgydGdF3TxJ8IvK9IU32btzAMpGGG6mD4iLZE67nowHHPmx5/CgX51aAgZeZ+5
-         /mi0B6YQEDeNGvCrqmKgkywNfpFj8UEsg+7NtwhKPnaSPNDYiZf360Wt9+bDzKAIoHea
-         VoXC64qkLh7aKOc2Q415KFOczGI3/eojgLWCVH8S+g7ElGR3tf9N3Zxz7jo10ZCEDo25
-         9SPKZ36tuyJj0VTUI3ZdS2UCqICexx6qP6i87hiP6w9r4L2EHuLxPIpY3S/4H/tH7T+o
-         U5PgklLnoNRp+LU7VDiXJaCm8ZyN5Zw1XAaf5Cuqn3EYIhzlkBCu/RItZHztC2dRaaxD
-         vYmA==
+        b=XO0tfx3Mdi1Nf3Zm6lg/PJ35UPlTP2sg4oHj/fncnUGm079j6qns8IM+iIycmhvlHD
+         w07I1Xq8nARbAMzUgUhByg0ZwgL38Bi2bCH9pyalDQNhwmEq8RTpxfDdm5I3mS9GIvTb
+         jTX6h09wNh4717xnDjgDn/Sr5l+mUpWUoaEa9OzI1vFmYHLod+9Cl5vR9Ap4LJRBnb1H
+         m0U27kMJWuObQwnPdr05S7Vhrl8S294m4qzQ0LTUNJYmigyxJoFZBYIymDbwLrRHFQRb
+         6hJtwbdwlnm0H5dSVCZ2tX8y7ngi9vZ4mazVvEkBw6Lx202rjeeBG1XO+pJEJoPc9kjU
+         11MA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:organization:autocrypt:openpgp:from
-         :references:cc:to:subject;
-        bh=BVgkJyXhlcdhbI2hxfgihx4KRgyfo2PW6Tq9TKaQdW4=;
-        b=pxyUGHk503P9qRVB/+npXAovm/p4g69PjXz/Zd1AObUcn/SXmoW2WqdabMKswkfqgu
-         XBWBLEmJZq1m+cyxT2GX0kPrntyrDaKV5hQuqzInXSAO5jlWjl18BlvofwCok6AEYGcU
-         Ye9gukpJiIV2Zy8TQSjwmjaEDXdqg2pbeGej3WNu0iRTX0tK4CUFzsDRvwdGWNRCOpqa
-         5xVgLetiYK/4lJQZ0gYD01Inig3JwGjO1AEb4bBH/lW05JqXueMOgtvfzKuR+iF0VM91
-         abBrNtjYdWOaeYOp6M7C0BESL2kraK1GHfXWUXKxC3l9qcivRnHBwAgmtpHaPaLYxIW8
-         A9zQ==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=CCVHqVtcDr9kxRQz1YfpzaVckBtPbq59VjeQ1p3zOVc=;
+        b=mRXinqVizR7zqQ07/O/P/cYi9TegpoJ0pMV+RPl3m/hZ7ZLt+6JgnJpqvf4o+Z/Z2h
+         n7brXvEOHX3mXzAAdoe7yWfmwpYkdGxA7SOHQULa9o7FRDbaLlkfCBDxl5WWDUuERiV4
+         lMdX8p9IgQMh5K+jOFmslSIH/rPOmrS/hlD3kQpovU0+2pqACcq3ysliUr9JfmH6tPXP
+         jAlmuoWt/ZoNqVYf+q6ZzQlLLNTbQ1Hc/8aLCN7oFtn/C0QhUWEVHfnGYRFQoBfKzpaf
+         +mhu+aMBoQ76s90En9OXekjKdiy8xCuUUR1nZldqUOP2fKfB2d12OKHKCL3ZdoFjMKJY
+         J49Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id q43si17586303qte.336.2019.07.18.05.07.24
+       dkim=pass header.i=@soleen.com header.s=google header.b=TZjOKys0;
+       spf=pass (google.com: domain of pasha.tatashin@soleen.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=pasha.tatashin@soleen.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id x8sor9018398eju.28.2019.07.18.05.19.57
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 18 Jul 2019 05:07:24 -0700 (PDT)
-Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (Google Transport Security);
+        Thu, 18 Jul 2019 05:19:58 -0700 (PDT)
+Received-SPF: pass (google.com: domain of pasha.tatashin@soleen.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 71A4A307D970;
-	Thu, 18 Jul 2019 12:07:23 +0000 (UTC)
-Received: from [10.36.117.157] (ovpn-117-157.ams2.redhat.com [10.36.117.157])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 2EC5F61465;
-	Thu, 18 Jul 2019 12:07:20 +0000 (UTC)
-Subject: Re: [PATCH 1/2] mm,sparse: Fix deactivate_section for early sections
-To: Oscar Salvador <osalvador@suse.de>, akpm@linux-foundation.org
-Cc: dan.j.williams@intel.com, pasha.tatashin@soleen.com, mhocko@suse.com,
- aneesh.kumar@linux.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-References: <20190715081549.32577-1-osalvador@suse.de>
- <20190715081549.32577-2-osalvador@suse.de>
-From: David Hildenbrand <david@redhat.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
- 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
- SE+xAvmumFBY
-Organization: Red Hat GmbH
-Message-ID: <d2268f86-f20d-22ff-e54f-48a2e609385b@redhat.com>
-Date: Thu, 18 Jul 2019 14:07:13 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.2
+       dkim=pass header.i=@soleen.com header.s=google header.b=TZjOKys0;
+       spf=pass (google.com: domain of pasha.tatashin@soleen.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=pasha.tatashin@soleen.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=soleen.com; s=google;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=CCVHqVtcDr9kxRQz1YfpzaVckBtPbq59VjeQ1p3zOVc=;
+        b=TZjOKys03SMFxMLBoi3A5eP5IIETYuLZHVfNo9Sr5/oPvhYZ0sb9eu01Cww8CLUsEd
+         WPZF0Q9MGYDAvp2lkAO7a9++fepsHkgI/ajVgs70C0p5gEz5P7HanQfcIB6qVyuNqz9z
+         iJo5Z2/SVIU8BaIXJRS/33G0P3lByvJnZg1uWKv6z7eFCAEI6bXWkrmS0YjHAq6oDLCP
+         2E0AzCzK8vwAv6Y6HWbul7rfc//Qds6XVQOCwcWwrAQj7cQHoK0qXszAT1ErTmeHBDCo
+         C+vJpLIuTeehs4DMEMSuV/71VgxMyynAKxeEUBkszIZI3fPE53lLKtfq+U319K1kPf9I
+         JPbQ==
+X-Google-Smtp-Source: APXvYqzcA8/9pmEX4K9HZSZ6a8HBFZKEBUeGXpnUZGdqw3SL92Bxma0PiWv2EMFLoPf3cMiLE1hgkjSOYVvuQa/1ork=
+X-Received: by 2002:a17:906:5409:: with SMTP id q9mr36460845ejo.209.1563452397474;
+ Thu, 18 Jul 2019 05:19:57 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20190715081549.32577-2-osalvador@suse.de>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.48]); Thu, 18 Jul 2019 12:07:23 +0000 (UTC)
+References: <20190718024133.3873-1-leonardo@linux.ibm.com>
+In-Reply-To: <20190718024133.3873-1-leonardo@linux.ibm.com>
+From: Pavel Tatashin <pasha.tatashin@soleen.com>
+Date: Thu, 18 Jul 2019 08:19:46 -0400
+Message-ID: <CA+CK2bBu7DnG73SaBDwf9cBceNvKnZDEqA-gBJmKC9K_rqgO+A@mail.gmail.com>
+Subject: Re: [PATCH 1/1] mm/memory_hotplug: Adds option to hot-add memory in ZONE_MOVABLE
+To: Leonardo Bras <leonardo@linux.ibm.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, 
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Rafael J. Wysocki" <rafael@kernel.org>, 
+	Andrew Morton <akpm@linux-foundation.org>, Mike Rapoport <rppt@linux.ibm.com>, 
+	Michal Hocko <mhocko@suse.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, 
+	=?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, 
+	Thomas Gleixner <tglx@linutronix.de>, Pasha Tatashin <Pavel.Tatashin@microsoft.com>, 
+	Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 15.07.19 10:15, Oscar Salvador wrote:
-> deactivate_section checks whether a section is early or not
-> in order to either call free_map_bootmem() or depopulate_section_memmap().
-> Being the former for sections added at boot time, and the latter for
-> sections hotplugged.
-> 
-> The problem is that we zero section_mem_map, so the last early_section()
-> will always report false and the section will not be removed.
-> 
-> Fix this checking whether a section is early or not at function
-> entry.
-> 
-> Fixes: mmotm ("mm/sparsemem: Support sub-section hotplug")
-> Signed-off-by: Oscar Salvador <osalvador@suse.de>
+On Wed, Jul 17, 2019 at 10:42 PM Leonardo Bras <leonardo@linux.ibm.com> wrote:
+>
+> Adds an option on kernel config to make hot-added memory online in
+> ZONE_MOVABLE by default.
+>
+> This would be great in systems with MEMORY_HOTPLUG_DEFAULT_ONLINE=y by
+> allowing to choose which zone it will be auto-onlined
+
+This is a desired feature. From reading the code it looks to me that
+auto-selection of online method type should be done in
+memory_subsys_online().
+
+When it is called from device online, mem->online_type should be -1:
+
+if (mem->online_type < 0)
+     mem->online_type = MMOP_ONLINE_KEEP;
+
+Change it to:
+if (mem->online_type < 0)
+     mem->online_type = MMOP_DEFAULT_ONLINE_TYPE;
+
+And in "linux/memory_hotplug.h"
+#ifdef CONFIG_MEMORY_HOTPLUG_MOVABLE
+#define MMOP_DEFAULT_ONLINE_TYPE MMOP_ONLINE_MOVABLE
+#else
+#define MMOP_DEFAULT_ONLINE_TYPE MMOP_ONLINE_KEEP
+#endif
+
+Could be expanded to support MMOP_ONLINE_KERNEL as well.
+
+Pasha
+
+>
+> Signed-off-by: Leonardo Bras <leonardo@linux.ibm.com>
 > ---
->  mm/sparse.c | 5 +++--
->  1 file changed, 3 insertions(+), 2 deletions(-)
-> 
-> diff --git a/mm/sparse.c b/mm/sparse.c
-> index 3267c4001c6d..1e224149aab6 100644
-> --- a/mm/sparse.c
-> +++ b/mm/sparse.c
-> @@ -738,6 +738,7 @@ static void section_deactivate(unsigned long pfn, unsigned long nr_pages,
->  	DECLARE_BITMAP(map, SUBSECTIONS_PER_SECTION) = { 0 };
->  	DECLARE_BITMAP(tmp, SUBSECTIONS_PER_SECTION) = { 0 };
->  	struct mem_section *ms = __pfn_to_section(pfn);
-> +	bool section_is_early = early_section(ms);
->  	struct page *memmap = NULL;
->  	unsigned long *subsection_map = ms->usage
->  		? &ms->usage->subsection_map[0] : NULL;
-> @@ -772,7 +773,7 @@ static void section_deactivate(unsigned long pfn, unsigned long nr_pages,
->  	if (bitmap_empty(subsection_map, SUBSECTIONS_PER_SECTION)) {
->  		unsigned long section_nr = pfn_to_section_nr(pfn);
->  
-> -		if (!early_section(ms)) {
-> +		if (!section_is_early) {
->  			kfree(ms->usage);
->  			ms->usage = NULL;
->  		}
-> @@ -780,7 +781,7 @@ static void section_deactivate(unsigned long pfn, unsigned long nr_pages,
->  		ms->section_mem_map = sparse_encode_mem_map(NULL, section_nr);
->  	}
->  
-> -	if (early_section(ms) && memmap)
-> +	if (section_is_early && memmap)
->  		free_map_bootmem(memmap);
->  	else
->  		depopulate_section_memmap(pfn, nr_pages, altmap);
-> 
+>  drivers/base/memory.c |  3 +++
+>  mm/Kconfig            | 14 ++++++++++++++
+>  2 files changed, 17 insertions(+)
+>
+> diff --git a/drivers/base/memory.c b/drivers/base/memory.c
+> index f180427e48f4..378b585785c1 100644
+> --- a/drivers/base/memory.c
+> +++ b/drivers/base/memory.c
+> @@ -670,6 +670,9 @@ static int init_memory_block(struct memory_block **memory,
+>         mem->state = state;
+>         start_pfn = section_nr_to_pfn(mem->start_section_nr);
+>         mem->phys_device = arch_get_memory_phys_device(start_pfn);
+> +#ifdef CONFIG_MEMORY_HOTPLUG_MOVABLE
+> +       mem->online_type = MMOP_ONLINE_MOVABLE;
+> +#endif
+>
+>         ret = register_memory(mem);
+>
+> diff --git a/mm/Kconfig b/mm/Kconfig
+> index f0c76ba47695..74e793720f43 100644
+> --- a/mm/Kconfig
+> +++ b/mm/Kconfig
+> @@ -180,6 +180,20 @@ config MEMORY_HOTREMOVE
+>         depends on MEMORY_HOTPLUG && ARCH_ENABLE_MEMORY_HOTREMOVE
+>         depends on MIGRATION
+>
+> +config MEMORY_HOTPLUG_MOVABLE
+> +       bool "Enhance the likelihood of hot-remove"
+> +       depends on MEMORY_HOTREMOVE
+> +       help
+> +         This option sets the hot-added memory zone to MOVABLE which
+> +         drastically reduces the chance of a hot-remove to fail due to
+> +         unmovable memory segments. Kernel memory can't be allocated in
+> +         this zone.
+> +
+> +         Say Y here if you want to have better chance to hot-remove memory
+> +         that have been previously hot-added.
+> +         Say N here if you want to make all hot-added memory available to
+> +         kernel space.
+> +
+>  # Heavily threaded applications may benefit from splitting the mm-wide
+>  # page_table_lock, so that faults on different parts of the user address
+>  # space can be handled with less contention: split it at this NR_CPUS.
+> --
+> 2.20.1
+>
 
-Reviewed-by: David Hildenbrand <david@redhat.com>
-
--- 
-
-Thanks,
-
-David / dhildenb
+On Wed, Jul 17, 2019 at 10:42 PM Leonardo Bras <leonardo@linux.ibm.com> wrote:
+>
+> Adds an option on kernel config to make hot-added memory online in
+> ZONE_MOVABLE by default.
+>
+> This would be great in systems with MEMORY_HOTPLUG_DEFAULT_ONLINE=y by
+> allowing to choose which zone it will be auto-onlined
+>
+> Signed-off-by: Leonardo Bras <leonardo@linux.ibm.com>
+> ---
+>  drivers/base/memory.c |  3 +++
+>  mm/Kconfig            | 14 ++++++++++++++
+>  2 files changed, 17 insertions(+)
+>
+> diff --git a/drivers/base/memory.c b/drivers/base/memory.c
+> index f180427e48f4..378b585785c1 100644
+> --- a/drivers/base/memory.c
+> +++ b/drivers/base/memory.c
+> @@ -670,6 +670,9 @@ static int init_memory_block(struct memory_block **memory,
+>         mem->state = state;
+>         start_pfn = section_nr_to_pfn(mem->start_section_nr);
+>         mem->phys_device = arch_get_memory_phys_device(start_pfn);
+> +#ifdef CONFIG_MEMORY_HOTPLUG_MOVABLE
+> +       mem->online_type = MMOP_ONLINE_MOVABLE;
+> +#endif
+>
+>         ret = register_memory(mem);
+>
+> diff --git a/mm/Kconfig b/mm/Kconfig
+> index f0c76ba47695..74e793720f43 100644
+> --- a/mm/Kconfig
+> +++ b/mm/Kconfig
+> @@ -180,6 +180,20 @@ config MEMORY_HOTREMOVE
+>         depends on MEMORY_HOTPLUG && ARCH_ENABLE_MEMORY_HOTREMOVE
+>         depends on MIGRATION
+>
+> +config MEMORY_HOTPLUG_MOVABLE
+> +       bool "Enhance the likelihood of hot-remove"
+> +       depends on MEMORY_HOTREMOVE
+> +       help
+> +         This option sets the hot-added memory zone to MOVABLE which
+> +         drastically reduces the chance of a hot-remove to fail due to
+> +         unmovable memory segments. Kernel memory can't be allocated in
+> +         this zone.
+> +
+> +         Say Y here if you want to have better chance to hot-remove memory
+> +         that have been previously hot-added.
+> +         Say N here if you want to make all hot-added memory available to
+> +         kernel space.
+> +
+>  # Heavily threaded applications may benefit from splitting the mm-wide
+>  # page_table_lock, so that faults on different parts of the user address
+>  # space can be handled with less contention: split it at this NR_CPUS.
+> --
+> 2.20.1
+>
 
