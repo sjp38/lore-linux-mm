@@ -6,142 +6,132 @@ X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 14264C76191
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Jul 2019 14:37:06 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9EF89C7618F
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Jul 2019 14:47:48 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DA6FA20873
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Jul 2019 14:37:05 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DA6FA20873
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 1C54221849
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Jul 2019 14:47:47 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1C54221849
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=i-love.sakura.ne.jp
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 71C236B0007; Thu, 18 Jul 2019 10:37:05 -0400 (EDT)
+	id 7D8F46B000A; Thu, 18 Jul 2019 10:47:47 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6CD266B0008; Thu, 18 Jul 2019 10:37:05 -0400 (EDT)
+	id 713448E0003; Thu, 18 Jul 2019 10:47:47 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5BCBE8E0001; Thu, 18 Jul 2019 10:37:05 -0400 (EDT)
+	id 602288E0001; Thu, 18 Jul 2019 10:47:47 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 3AE2E6B0007
-	for <linux-mm@kvack.org>; Thu, 18 Jul 2019 10:37:05 -0400 (EDT)
-Received: by mail-qk1-f200.google.com with SMTP id h198so23400413qke.1
-        for <linux-mm@kvack.org>; Thu, 18 Jul 2019 07:37:05 -0700 (PDT)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id AB2F06B000A
+	for <linux-mm@kvack.org>; Thu, 18 Jul 2019 10:47:46 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id y22so14020321plr.20
+        for <linux-mm@kvack.org>; Thu, 18 Jul 2019 07:47:46 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:organization:message-id:date:user-agent
-         :mime-version:in-reply-to:content-transfer-encoding:content-language;
-        bh=KwTBvK6zXDUSlUosZQWtOpNlgy8yUy48FWLBaO4pbh8=;
-        b=DPolggLciVrP8tGqWSjV32YsvMFQbXCX1vEz4fJ7H+HNpsp2+9djlavQ+ho78hkf8+
-         k6dfM5BiY4tINECSC0bcn+ePGnC0qa1hoTkbKP+VtLShPXtF9Ud2X9NKxe6zLA0Vg0w9
-         5roDJkK2wyU+Z2u0txRt8kRM5Q3eoaltlREtM8aMFALnE+djkkirv1JSo8iahAtX/26K
-         THA+oD0fhSxMLLuyymck5wvy+P16KewpDlw7dC+MDgX6S7sSe7TZ8P6tdMUBGWUAw6h9
-         JkkCkstpa0gCAQUBzKzIT25FF5thfjs9fUupk4pz+hT1DAWoes6KyHA/RH7Zk3aVGqKt
-         dQZw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAX0HArKWi+u/kjRGzxJFK/W/+uh8lHnDbrqAH9XvWJkCdRxJ2l/
-	DRP76Zy1t3ticaxsQCjGk1BsSGupEUArxMQf8t7rLIY4tVhaesPkRlLs2kDxiAVRFw2Y57qAR2B
-	zV4DJHZdmoTSYZ/D7USCw3+6nQMjl3Z9IfmSR20xPUDjDROt5C9npK5P52swWFji8Eg==
-X-Received: by 2002:a37:9c94:: with SMTP id f142mr27959123qke.427.1563460625041;
-        Thu, 18 Jul 2019 07:37:05 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxShjtuXarWZHeDPhsp+Ei23MTKaq1ajiMgwhIcSvZO9ugkWgnZqHsJTPghyeqF5HMYilZ5
-X-Received: by 2002:a37:9c94:: with SMTP id f142mr27959080qke.427.1563460624456;
-        Thu, 18 Jul 2019 07:37:04 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563460624; cv=none;
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=KZsAY8nek+nSTjaeBYHbU6Z91grtiEsuPi63exZ2uLU=;
+        b=VdgFJwH6h3o19C3Yv5Cwnu5WxTYciK5L1QWROBvpkIAq+oWlJTz/Mc1ByWE98U0YfI
+         SUo8ncvr2pHWO2n5dLrBm+OOnj4eQiP8lwdKWFG5A7TbnsxqGd9yRflb6b9AT/Q848Op
+         BxDqwpLbZy5qfo+KC5NK0z+agZnioDdpUyL1xhPZcwA4ea/Y0yMyTXQIkEHyL/0zrnzR
+         2eCuGVVasILh0w105k3a8ANUVdIn2y5tyyJqDhT85LPP1QhLCrJBDnHo1XpM522QNFAR
+         6X3NB61/uvg0YQADYPapQMe1Zl0xdYd0AOEyjddTF+CVN2jl1POChYDMCtDSzyJehIh0
+         LgAw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
+X-Gm-Message-State: APjAAAWXhL9QovTp+h22KW4b3YX2u4y5Vd56s98i1fQm+RYI1owlKW0L
+	bZ+5MgzheWjKM/IyK5mzJaWSUVwg91VJ1g3jw6Xdv4vSnAalS0Rcm9wFBTdhsZP/JfdiWIXgipq
+	d+bWijnk/24p+r2gug1GzG+AOtHG2rvwWaCfaSWUjVjT85dGQZMD+vGi26sLGZvjuBg==
+X-Received: by 2002:a17:902:2869:: with SMTP id e96mr48731406plb.203.1563461266327;
+        Thu, 18 Jul 2019 07:47:46 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzEXG4GgMSdErnrOReYJ3WNX8m+aIZP4gFlGbM5jotC7HqgECu10OJe+g+SsB4n1C2AlZWj
+X-Received: by 2002:a17:902:2869:: with SMTP id e96mr48731343plb.203.1563461265367;
+        Thu, 18 Jul 2019 07:47:45 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563461265; cv=none;
         d=google.com; s=arc-20160816;
-        b=NI6ntG9X0Dqw1rxhTvtow24mS7c61X17HnKrVzye20RtNhIJJqTgYRToiw9IM9CDAO
-         8goUwLdCp9xSTR4J9srCJ629vi8USd2VJnIaDj5Sbdut2r8SDVnFv14fyG+SPpOZSVTp
-         dHL9o46vZMV97bGOwMG8orlnQugcpbAkcQcbA7MG142t62o74OEgHP/DdJ+fJIMhr05e
-         kO9UB7/1txt+tYnzUUES3xhTbdFpdR3oQaaqzeVdOKyxeIOTYbDFkwZ6KWqJKYm5Wyr8
-         xL6RCBPcmE9m5qGdsAcseG2G+yV9pZWOl9x1rU5uztyFg0ZtzeWmTioJN3Q7MXdTPHt3
-         KMwg==
+        b=XNeUKGD+/730UGLwkOzqXcQX6s1EMJvTQdr3bITpHlbnzVSFhEmTD33ywl53tANKSL
+         nWwBs9SkVzHcTNTxPAAXfLmOMpMzS+QllT06mamacaCBSCwDeEazgKJr2T/g1DlXoAmh
+         wyyg/74HdRyP888hyXqyinLQHGUowNUla7+XfLLz+cXmbMxtTAaNxm8KRThiQopK7FHW
+         /alTTiTTOL4hpSjYEtJgwoVfOWv2CLZgV/4cyfrhkCDNTkCgdisLJSM3DTUnvf1P+z9O
+         Qnm1Ic61NCLeDKOMHcgqK/cBzJKHKz9ne2j1ynoV9bssvlMFv7sTdAkqYTRgvj37vlSs
+         2zEQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-language:content-transfer-encoding:in-reply-to:mime-version
-         :user-agent:date:message-id:organization:from:references:cc:to
-         :subject;
-        bh=KwTBvK6zXDUSlUosZQWtOpNlgy8yUy48FWLBaO4pbh8=;
-        b=IP0OXtwl6dCzULiQiDe0OyePd4NRVPvbVypd6Kz0T7LCB13Pk3ERQXFu6ek/8I+noa
-         THf1FLMf4v9JdHWxzD1nRzV4Nx/127B4sZdJmYzXInjJYn2f3GjAmKVZvDj1VVlGFni0
-         JACXWbRxtxM2VeE6+uUOwwGWKfprpn/sRq13qIhiqWuR0mHqMzJ7Ew/gSdl6M/X4rdjM
-         oqHWDZOYa6o1wxSvbEaY0WiwcNpt38gIuzb6mVSbFNcGBfFEC1ovvD6HcxqB/awmz1hx
-         iaMGH1QKt2vKGhbFlJnh/HHRTWjivAt/47ZI6Ih7NEEs6mi2G5YgkaOLWoWkbbgOHx17
-         qtFQ==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=KZsAY8nek+nSTjaeBYHbU6Z91grtiEsuPi63exZ2uLU=;
+        b=frmy4FiQz/gySK97MXqSrmEQ1uZNNSLJt9U+3zeTG0dfZuBUsKnP8TRKf4fG5LN2KU
+         i4X8y+iKAHg3utJSKyeSY1k0JAH/TSir4i0dcaW31LuWlSUCFwE7SohpVGwRcem8OOZb
+         fSz0Op3gc7+3kxSCckHaBxp9PKTB9baNX2IXHiUdY5G+bXs5sTCU+Pq6pjFbGyR5R0OO
+         hE6vhDIZ1jQpVInju4YN8dmUHYKoyD1BP1r8tf1tRVcjLgx+TYaI6uEuI1urD0ywUUBE
+         /0C0PJ78jguRch/GYAn9k/Wa2qD0Ez9FU6nRAAQ+1quq6QrzejemctTx4JcvfQE+Sea+
+         AjJg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id s129si16473731qke.252.2019.07.18.07.37.04
+       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id z5si2077321plo.434.2019.07.18.07.47.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 18 Jul 2019 07:37:04 -0700 (PDT)
-Received-SPF: pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Thu, 18 Jul 2019 07:47:45 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) client-ip=202.181.97.72;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 8C258C09AD0F;
-	Thu, 18 Jul 2019 14:37:02 +0000 (UTC)
-Received: from llong.remote.csb (dhcp-17-160.bos.redhat.com [10.18.17.160])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 14D3660576;
-	Thu, 18 Jul 2019 14:36:59 +0000 (UTC)
-Subject: Re: [PATCH v2 2/2] mm, slab: Show last shrink time in us when
- slab/shrink is read
-To: Christopher Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>,
- Joonsoo Kim <iamjoonsoo.kim@lge.com>,
- Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
- linux-kernel@vger.kernel.org, Michal Hocko <mhocko@kernel.org>,
- Roman Gushchin <guro@fb.com>, Johannes Weiner <hannes@cmpxchg.org>,
- Shakeel Butt <shakeelb@google.com>, Vladimir Davydov <vdavydov.dev@gmail.com>
-References: <20190717202413.13237-1-longman@redhat.com>
- <20190717202413.13237-3-longman@redhat.com>
- <0100016c04e1562a-e516c595-1d46-40df-ab29-da1709277e9a-000000@email.amazonses.com>
-From: Waiman Long <longman@redhat.com>
-Organization: Red Hat
-Message-ID: <6fb9f679-02d1-c33f-2d79-4c2eaa45d264@redhat.com>
-Date: Thu, 18 Jul 2019 10:36:59 -0400
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.0
+       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
+Received: from fsav303.sakura.ne.jp (fsav303.sakura.ne.jp [153.120.85.134])
+	by www262.sakura.ne.jp (8.15.2/8.15.2) with ESMTP id x6IDoKAJ016195;
+	Thu, 18 Jul 2019 22:50:20 +0900 (JST)
+	(envelope-from penguin-kernel@i-love.sakura.ne.jp)
+Received: from www262.sakura.ne.jp (202.181.97.72)
+ by fsav303.sakura.ne.jp (F-Secure/fsigk_smtp/530/fsav303.sakura.ne.jp);
+ Thu, 18 Jul 2019 22:50:19 +0900 (JST)
+X-Virus-Status: clean(F-Secure/fsigk_smtp/530/fsav303.sakura.ne.jp)
+Received: from [192.168.1.8] (softbank126012062002.bbtec.net [126.12.62.2])
+	(authenticated bits=0)
+	by www262.sakura.ne.jp (8.15.2/8.15.2) with ESMTPSA id x6IDoJ60016190
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NO);
+	Thu, 18 Jul 2019 22:50:19 +0900 (JST)
+	(envelope-from penguin-kernel@i-love.sakura.ne.jp)
+Subject: Re: [PATCH] mm, oom: avoid printk() iteration under RCU
+To: Michal Hocko <mhocko@suse.com>
+Cc: linux-mm@kvack.org, Roman Gushchin <guro@fb.com>,
+        Shakeel Butt <shakeelb@google.com>,
+        Andrew Morton
+ <akpm@linux-foundation.org>,
+        Linus Torvalds <torvalds@linux-foundation.org>
+References: <1563360901-8277-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <20190718083014.GB30461@dhcp22.suse.cz>
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Message-ID: <7478e014-e5ce-504c-34b6-f2f9da952600@i-love.sakura.ne.jp>
+Date: Thu, 18 Jul 2019 22:50:14 +0900
+User-Agent: Mozilla/5.0 (Windows NT 6.3; WOW64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-In-Reply-To: <0100016c04e1562a-e516c595-1d46-40df-ab29-da1709277e9a-000000@email.amazonses.com>
+In-Reply-To: <20190718083014.GB30461@dhcp22.suse.cz>
 Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
 Content-Language: en-US
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.32]); Thu, 18 Jul 2019 14:37:03 +0000 (UTC)
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 7/18/19 7:39 AM, Christopher Lameter wrote:
-> On Wed, 17 Jul 2019, Waiman Long wrote:
->
->> The show method of /sys/kernel/slab/<slab>/shrink sysfs file currently
->> returns nothing. This is now modified to show the time of the last
->> cache shrink operation in us.
-> What is this useful for? Any use cases?
+On 2019/07/18 17:30, Michal Hocko wrote:
+> On Wed 17-07-19 19:55:01, Tetsuo Handa wrote:
+>> Currently dump_tasks() might call printk() for many thousands times under
+>> RCU, which might take many minutes for slow consoles.
+> 
+> Is is even wise to enable dumping tasks on systems with thousands of
+> tasks and slow consoles? I mean you still have to call printk that is
+> slow that many times. So why do we actually care? Because of RCU stall
+> warnings?
+> 
 
-I got query about how much time will the slab_mutex be held when
-shrinking the cache. I don't have a solid answer as it depends on how
-many memcg caches are there. This patch is a partial answer to that as
-it give a rough upper bound of the lock hold time.
+That's a stupid question. WE DO CARE.
+We are making efforts for avoid calling printk() on each thread group (e.g.
 
+  commit 0c1b2d783cf34324 ("mm/oom_kill: remove the wrong fatal_signal_pending() check in oom_kill_process()")
+  commit b2b469939e934587 ("proc, oom: do not report alien mms when setting oom_score_adj"))
 
->> CONFIG_SLUB_DEBUG depends on CONFIG_SYSFS. So the new shrink_us field
->> is always available to the shrink methods.
-> Aside from minimal systems without CONFIG_SYSFS... Does this build without
-> CONFIG_SYSFS?
-
-The sysfs code in mm/slub.c is guarded by CONFIG_SLUB_DEBUG which, in
-turn, depends on CONFIG_SYSFS. So if CONFIG_SYSFS is off, the shrink
-sysfs methods will be off as well. I haven't tried doing a minimal
-build. I will certainly try that, but I don't expect any problem here.
-
-Cheers,
-Longman
+) under RCU and this patch is one of them (except that we can't remove
+printk() for dump_tasks() case).
 
