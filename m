@@ -2,131 +2,167 @@ Return-Path: <SRS0=TqY8=VP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 21F61C76191
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Jul 2019 09:25:38 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 652FFC76196
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Jul 2019 09:31:09 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E470E2173B
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Jul 2019 09:25:37 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E470E2173B
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
+	by mail.kernel.org (Postfix) with ESMTP id E058420665
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Jul 2019 09:31:08 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E058420665
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=virtuozzo.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 82C0B8E0001; Thu, 18 Jul 2019 05:25:37 -0400 (EDT)
+	id 5B7506B0010; Thu, 18 Jul 2019 05:31:08 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7DC0B6B0266; Thu, 18 Jul 2019 05:25:37 -0400 (EDT)
+	id 5678E6B0266; Thu, 18 Jul 2019 05:31:08 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6A3AC8E0001; Thu, 18 Jul 2019 05:25:37 -0400 (EDT)
+	id 47E078E0001; Thu, 18 Jul 2019 05:31:08 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 310926B0010
-	for <linux-mm@kvack.org>; Thu, 18 Jul 2019 05:25:37 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id y24so19636595edb.1
-        for <linux-mm@kvack.org>; Thu, 18 Jul 2019 02:25:37 -0700 (PDT)
+Received: from mail-lf1-f69.google.com (mail-lf1-f69.google.com [209.85.167.69])
+	by kanga.kvack.org (Postfix) with ESMTP id D75B26B0010
+	for <linux-mm@kvack.org>; Thu, 18 Jul 2019 05:31:07 -0400 (EDT)
+Received: by mail-lf1-f69.google.com with SMTP id t23so2603769lfb.8
+        for <linux-mm@kvack.org>; Thu, 18 Jul 2019 02:31:07 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=t40jqx2LqSdoGaWyu7iqXzkcgxnRk+KZclQJ/WuNWN4=;
-        b=SYfPeif9fCi+Ytm005ZidtevKucMjLeRWOCuqtmYkCgvdOCoPiC2mpkx7jAwnLWfuu
-         ZX9iC+Zhau40dDw1rxjLseuE6BXUx1s4dJr1t8h0+RFlUcvxk8rjmnPo6f1vqbul5RPP
-         KCA/wf1I5CMNLX2CJWFhF+XlFGwgW3ef5erWjhm98oWETLK1wNQY7yBF4u5P9EUgFa4J
-         q/QPQIUTuke/GmS0WKI7uAk3Zo6h17GuGStvBAdx6kE1xOzLwI/aR4YPjaB6oxnk4nGe
-         sn9sL5cXBeLH39T1fAVbMY0ZuvSlC5dkANbZ+8qb6L0/h74RHSZWhReqXTFQ9hVS0fsE
-         Vdkg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jroedel@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=jroedel@suse.de
-X-Gm-Message-State: APjAAAUBQddihkaVafEqvuHMMESP4BeaRtQFduptphnSIphjalD+fKej
-	nssSA0FHGBnVEQIjXNIw4wVuZDdf22R2wy/k0Bv89ZOJ4TDqCoU4yDrjI+gDAo6ohTX6tuptyei
-	aa7NoEJvNvDjkhMpFlXSpd7jquVjf3GHLtzCxnypmDlFTSGzh40cpdA8H1xAUNzZAzA==
-X-Received: by 2002:a17:906:19cc:: with SMTP id h12mr35479959ejd.304.1563441936770;
-        Thu, 18 Jul 2019 02:25:36 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz5vMiXoNUc4Yt1F68jhUxXmMcipJH5e0DM6uN4ADsqtJrsBpTw3v5YkksqPHD1bCu5vW6/
-X-Received: by 2002:a17:906:19cc:: with SMTP id h12mr35479918ejd.304.1563441936031;
-        Thu, 18 Jul 2019 02:25:36 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563441936; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=WuLiywGOIShYm0YDAjCBo505NckwLnW3jPpCRP8xNcY=;
+        b=aaXKe2vXqMaGrLEhTKnx0ZQDd7Me3HNNCupjGZDenw0zYSPhW+YniLQ8p7oxL9K1rt
+         gzU1XR21n242520mZH9y3YdhAmzZq/UqD41Im0RUXcthbMeUlQEKmwalxTbmjAVznai2
+         ijEclmbV22KR+vuHUI4uxqGSiiwk/gMeqtxaIWAfQZVeMwqrhG4Xkt0AnCQVy/ciSuBU
+         Z257Tyjx7sOmjfmPsAKvdC8DW+AHD117WUm7hY3mqsZVQOYTNTr7V97+aILwmVI+Infp
+         HYTfidEyqk7wimLXlZN7S6BAL84HKkGF946P1UaRqbOXYXgbYgotyPMX/7Z0OFHGKd4z
+         pjZA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+X-Gm-Message-State: APjAAAUmuXcbeRnXsScgKjnCNn+l4IBjFb5kEF829zFBoPVkRuRqcdNB
+	t8OvMgmv7O0vX3k2c9vCnj/n1ia4n0YAr2L8RzcYVBm9IttCVSEtYiRO6tr7QEp8AX5JcsEgiFl
+	RXg0epDE9wLDv4nPp0kxrGqt5Fmor043nBk4/TJs8ePzhWZ4vGNZ8JalO8jlc90bCzA==
+X-Received: by 2002:a2e:9ad1:: with SMTP id p17mr23862165ljj.34.1563442267137;
+        Thu, 18 Jul 2019 02:31:07 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxMlXzkJv32ZI/6ZY4OmMwYrwZATkeDyx/RjqNVAfhBIm5iHXxs69qNnMargHaI3jT6SQQB
+X-Received: by 2002:a2e:9ad1:: with SMTP id p17mr23862117ljj.34.1563442266084;
+        Thu, 18 Jul 2019 02:31:06 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563442266; cv=none;
         d=google.com; s=arc-20160816;
-        b=BF17zPVLKTz/ktayqdwpDU1y1jpFSMcib2w/eZYMWLlsXZsqG4+aiqTlUD6b5pZlhn
-         QhgbQXIKYBWT17bjzWD7qtbjZjkPxMKiTjUVaDnx4W9SIj8lo6Rm9Gs/C8JIEI0Js8Be
-         zHk9JbitS/kBKEaWu6t2agHAM4vccgwSDhHuOoXq9WZoM0R4UUbC6NZpDz7tXtMC9a9e
-         neEI1uSO9G95/ERgfX1rKOR6BDNCkjvLupUgcf5q90W8O68AqvPUlug0XH86ewMK8SA7
-         FAaozcZY/0WZHMt8me3Sbu9UQyNHOXJwlNfqNqdD+Y9fmOMtkvCxlh307qo9iI4pHwkt
-         v9Og==
+        b=SHkwPu5DWSVb7m09kA04xiuTEm3DRMw2t9/ITAbow7xYKCNqfMn7pTPDXltAXWgzC8
+         gIlQOhfVwIbcbnJNo4Fz/IsQUs3gnjeUrvC9QUwbXqxLwIZXrHsH5++fd2He32NrsPpG
+         s7Qjy1rIm3T6CybI5a/ozriqlNWRjWvdkBOfjwXF/HhVqDmFqVQCUdSEJKHH9KzktR0s
+         hsGUFfSDb7R9Wtr/ye1ZLPC2rGW5cTJb5uutZGQ/+fNwY0leHWUjbnBvYJDuCXkjdp9o
+         j6hiHj2miwU0oxWpHFH8a40brHSVj4JzCPdYMARtMoyWRmIWipa27hn5KDcNGnxuR/nq
+         Jj3Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=t40jqx2LqSdoGaWyu7iqXzkcgxnRk+KZclQJ/WuNWN4=;
-        b=pO+7PiTuckt8fTjxx9kre1Y4HM11lroaS4ZWEWfU5H1d70G4etRss5cJXunbztFgOL
-         pKu9dfKybUq2N/gtpgg7z/YEsTdUy4I72K30nSp2yoncILBb2JDcCb5tgYlqChuTQpTN
-         2OdaBjnlpN2+LT2JQArlxTBZk0kAAlf+YHWNiVx3tFBHwzTH/xGivycyuSUMIX+G6ja6
-         68kAqxAP8EN6R5ROZ34JNMToowRpqqp16irAOBLNHfG4l0Zy6/YHlPVQpxsC+I3MMRFT
-         kUO8qpKt6MKO8IXfWV+WingTro7BwT9bjiUcGTMDrvb0/5PF1QfRkV4MFApwaIsZ5elc
-         rVKg==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=WuLiywGOIShYm0YDAjCBo505NckwLnW3jPpCRP8xNcY=;
+        b=S3R8ow+i9HCVjqx1lJ6oZ3sQcZHsUPTdTd9zcMfttySpF+PkgQL2Cq784EVZJtD80G
+         DudzXNSmUxrW3Rb7UZqTke+H9aa8H+cYZHLDjQ71wpx7CcSJJh0A2p8AwXZOds9UnXtz
+         jPKC/U93vasEjtyiBQJDlCaB6qiO3DoiSvb2E73RXyL9cHyhIQ9VvBe/nwKIzZNkVk+u
+         ackpe0ZY7Peny2hbOCfb73mUCz0iUr4z9gNub0lSbsFz6Gi3ZytAEg5emCDy7UGCL4SL
+         /ZOV88j6Vhd5EcgNKqTUafBeDVDXbkTrBnpiQb6jqimJA0qukUb5Oo3ciedGfREqGFWl
+         dgbw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jroedel@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=jroedel@suse.de
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id x51si725025edm.42.2019.07.18.02.25.35
+       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
+        by mx.google.com with ESMTPS id l6si18886590lfh.21.2019.07.18.02.31.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 18 Jul 2019 02:25:36 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jroedel@suse.de designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Thu, 18 Jul 2019 02:31:05 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) client-ip=185.231.240.75;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jroedel@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=jroedel@suse.de
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 8252CAD7B;
-	Thu, 18 Jul 2019 09:25:35 +0000 (UTC)
-Date: Thu, 18 Jul 2019 11:25:33 +0200
-From: Joerg Roedel <jroedel@suse.de>
-To: Thomas Gleixner <tglx@linutronix.de>
-Cc: Joerg Roedel <joro@8bytes.org>,
-	Dave Hansen <dave.hansen@linux.intel.com>,
-	Andy Lutomirski <luto@kernel.org>,
-	Peter Zijlstra <peterz@infradead.org>,
-	Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Subject: Re: [PATCH 2/3] x86/mm: Sync also unmappings in vmalloc_sync_one()
-Message-ID: <20190718092533.GH13091@suse.de>
-References: <20190717071439.14261-1-joro@8bytes.org>
- <20190717071439.14261-3-joro@8bytes.org>
- <alpine.DEB.2.21.1907172337590.1778@nanos.tec.linutronix.de>
- <20190718084654.GF13091@suse.de>
- <alpine.DEB.2.21.1907181103120.1984@nanos.tec.linutronix.de>
+       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+Received: from [172.16.25.169]
+	by relay.sw.ru with esmtp (Exim 4.92)
+	(envelope-from <ktkhai@virtuozzo.com>)
+	id 1ho2ke-0005VV-9n; Thu, 18 Jul 2019 12:31:00 +0300
+Subject: Re: [PATCH] mm: vmscan: check if mem cgroup is disabled or not before
+ calling memcg slab shrinker
+To: Yang Shi <yang.shi@linux.alibaba.com>, shakeelb@google.com,
+ vdavydov.dev@gmail.com, hannes@cmpxchg.org, mhocko@suse.com, guro@fb.com,
+ hughd@google.com, cai@lca.pw, kirill.shutemov@linux.intel.com,
+ akpm@linux-foundation.org
+Cc: stable@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+References: <1563385526-20805-1-git-send-email-yang.shi@linux.alibaba.com>
+From: Kirill Tkhai <ktkhai@virtuozzo.com>
+Message-ID: <fca59732-cd98-7e44-8c92-49ebafc6f41c@virtuozzo.com>
+Date: Thu, 18 Jul 2019 12:30:49 +0300
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.2
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.21.1907181103120.1984@nanos.tec.linutronix.de>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <1563385526-20805-1-git-send-email-yang.shi@linux.alibaba.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jul 18, 2019 at 11:04:57AM +0200, Thomas Gleixner wrote:
-> On Thu, 18 Jul 2019, Joerg Roedel wrote:
-> > No, you are right, I missed that. It is a bug in this patch, the code
-> > that breaks out of the loop in vmalloc_sync_all() needs to be removed as
-> > well. Will do that in the next version.
+On 17.07.2019 20:45, Yang Shi wrote:
+> Shakeel Butt reported premature oom on kernel with
+> "cgroup_disable=memory" since mem_cgroup_is_root() returns false even
+> though memcg is actually NULL.  The drop_caches is also broken.
 > 
-> I assume that p4d/pud do not need the pmd treatment, but a comment
-> explaining why would be appreciated.
+> It is because commit aeed1d325d42 ("mm/vmscan.c: generalize shrink_slab()
+> calls in shrink_node()") removed the !memcg check before
+> !mem_cgroup_is_root().  And, surprisingly root memcg is allocated even
+> though memory cgroup is disabled by kernel boot parameter.
+> 
+> Add mem_cgroup_disabled() check to make reclaimer work as expected.
+> 
+> Fixes: aeed1d325d42 ("mm/vmscan.c: generalize shrink_slab() calls in shrink_node()")
+> Reported-by: Shakeel Butt <shakeelb@google.com>
+> Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: Kirill Tkhai <ktkhai@virtuozzo.com>
+> Cc: Roman Gushchin <guro@fb.com>
+> Cc: Hugh Dickins <hughd@google.com>
+> Cc: Qian Cai <cai@lca.pw>
+> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Cc: stable@vger.kernel.org  4.19+
+> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
 
-Yes, p4d and pud don't need to be handled here, as the code is 32-bit
-only and there p4d is folded anyway. Pud is only relevant for PAE and
-will already be mapped when the page-table is created (for performance
-reasons, because pud is top-level at PAE and mapping it later requires a
-TLB flush).
-The pud with PAE also never changes during the life-time of the
-page-table because we can't map a huge-page there. I will put that into
-a comment.
+Reviewed-by: Kirill Tkhai <ktkhai@virtuozzo.com>
 
-Thanks,
+Surprise really.
 
-	Joerg
+We have mem_cgroup as not early inited, so all of these boundary
+cases and checks has to be supported. But it looks like it's not
+possible to avoid that in any way.
+
+> ---
+>  mm/vmscan.c | 9 ++++++++-
+>  1 file changed, 8 insertions(+), 1 deletion(-)
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index f8e3dcd..c10dc02 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -684,7 +684,14 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
+>  	unsigned long ret, freed = 0;
+>  	struct shrinker *shrinker;
+>  
+> -	if (!mem_cgroup_is_root(memcg))
+> +	/*
+> +	 * The root memcg might be allocated even though memcg is disabled
+> +	 * via "cgroup_disable=memory" boot parameter.  This could make
+> +	 * mem_cgroup_is_root() return false, then just run memcg slab
+> +	 * shrink, but skip global shrink.  This may result in premature
+> +	 * oom.
+> +	 */
+> +	if (!mem_cgroup_disabled() && !mem_cgroup_is_root(memcg))
+>  		return shrink_slab_memcg(gfp_mask, nid, memcg, priority);
+>  
+>  	if (!down_read_trylock(&shrinker_rwsem))
+> 
 
