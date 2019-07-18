@@ -2,165 +2,182 @@ Return-Path: <SRS0=TqY8=VP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B41A6C76186
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Jul 2019 03:21:32 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 08C2BC76195
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Jul 2019 04:13:33 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7B2222173E
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Jul 2019 03:21:32 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=canb.auug.org.au header.i=@canb.auug.org.au header.b="kA006oxQ"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7B2222173E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=canb.auug.org.au
+	by mail.kernel.org (Postfix) with ESMTP id AA37521019
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Jul 2019 04:13:32 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AA37521019
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 07B208E0001; Wed, 17 Jul 2019 23:21:32 -0400 (EDT)
+	id 11C546B0005; Thu, 18 Jul 2019 00:13:32 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 02C0A6B0007; Wed, 17 Jul 2019 23:21:31 -0400 (EDT)
+	id 0CDAE6B0007; Thu, 18 Jul 2019 00:13:32 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E34A68E0001; Wed, 17 Jul 2019 23:21:31 -0400 (EDT)
+	id ED7938E0001; Thu, 18 Jul 2019 00:13:31 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id ACC8A6B0005
-	for <linux-mm@kvack.org>; Wed, 17 Jul 2019 23:21:31 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id a21so15827924pgh.11
-        for <linux-mm@kvack.org>; Wed, 17 Jul 2019 20:21:31 -0700 (PDT)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D03FA6B0005
+	for <linux-mm@kvack.org>; Thu, 18 Jul 2019 00:13:31 -0400 (EDT)
+Received: by mail-qt1-f198.google.com with SMTP id x11so18832952qto.23
+        for <linux-mm@kvack.org>; Wed, 17 Jul 2019 21:13:31 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:in-reply-to:references:mime-version;
-        bh=BcO0HGR7e4UTl+jc1D97xviwaVY0fONvvUaL6z9KEIo=;
-        b=hxsyaDEpD2cC++MbAxBHIfHlRRYg5gY1uMd59t9VosUggqneohs3o3DRDIQfOgAIMC
-         Ycig+muqj6QLe0qbiMkz1UdR2Xoz8Hxxf6aQJ3/Yz5nIJu+B2TopTsNEsw4619Hd3tae
-         k+mI02WgijnwNHL9L7Tp4sMqWT1uedfMppyKmL6bWmwydFlL2JQFpYKXu0lFalTslo3y
-         Gpyzv4eFFSzw0JDHIldsJm6Lg4qFycPI7327PADWTi1Q7+5eZa+hZytn7RDIF0tlCpIG
-         blE8dj6cfvy/Ua8obBEvP3jByQbvw5lgM34s3y/G+dLVWjAyXDA2FIizCAnQUuLZ0RDg
-         g+kw==
-X-Gm-Message-State: APjAAAVDcj4FGHpKHpAqOKjLSeL4NMrwDvdcwKfLs4cWMkpk1pCImXbG
-	LvDQtPNEF3zLbBU0DE/ULu3r+lTSCAIsaN5Dvdpuv8dFi2z3RezUPpauvEp7XMBJUIkl5JJf43I
-	ODJKmc/LLVY6FF0sowpVfPjtvKnFduV6HGZ1Jz6nPA4LpGf11+Q2aTmyaaV/0yiOcbw==
-X-Received: by 2002:a63:5048:: with SMTP id q8mr44698045pgl.446.1563420091185;
-        Wed, 17 Jul 2019 20:21:31 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxAa1/fmCKd2OWBlwvwWRoTFEmuZUaUhqwbq8pheqNvJqLiaQrw6CDsbkrJ+CftiQO9/RVp
-X-Received: by 2002:a63:5048:: with SMTP id q8mr44697972pgl.446.1563420090227;
-        Wed, 17 Jul 2019 20:21:30 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563420090; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to;
+        bh=SV4rxSTVGz8T4IUkWIYI1+Xgg0JTmyIUsV7ZBNQwoIo=;
+        b=rqu6bTgAI4z9IOhfmYQxfS+euGDXdvsY9cjYT9CYXAW81pZzPUKYuD/Ym2jojbXSNY
+         vCOHaKpwi99brZ4+/8y7olyYb5ncLz4tKqCYqvFHhc1Kn26537WgE0IyZpt9MUBUnTSR
+         lSjQC/6G5VuGyzvOc0biXA3xRRUZLsg61VXLrd0hNwT52vPqiKnPrb4Y/9G4dpl5O6gN
+         R85V15FwAx49+hEiQ2vTl053NMRQPVoBP0r1yBddh/Yn3/J5++BJkJglBGKoXl0xl2tL
+         hIixUFG6mt3AmVdhqjlKz6FyDQWnxcPQF7RLJ3mB+EmoM4YJoX97Fsvh2BwEESRYq0bQ
+         ht8Q==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mst@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=mst@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAW4s44s9Vt+4fhgo/qj0rkgkGAlLqTddvZ/7q1fLB0Yqx64VJxp
+	OZlzSDg+iWblJ9R9oHnmImGNj17mxtZijquE2dj6VuYsTVcCapkxYyiVfLElB5VdDZaPoVOOuye
+	RU+G0vPCtab6Hv5MxkaA69Qmfhuv9Hz/qbMRbC9Jx+jDGEffZbXJ3m0eKFkRRaNlovg==
+X-Received: by 2002:ac8:24e3:: with SMTP id t32mr30543084qtt.104.1563423211565;
+        Wed, 17 Jul 2019 21:13:31 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqx5L7a91GqjiKB5LyNPmktRAINRFUKZKQ+iGhcTZPu1JpMBeVR+FBQJwlUswFEvRS4NIsMb
+X-Received: by 2002:ac8:24e3:: with SMTP id t32mr30543057qtt.104.1563423210803;
+        Wed, 17 Jul 2019 21:13:30 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563423210; cv=none;
         d=google.com; s=arc-20160816;
-        b=de9Ky6ilFO8U5gWxeCIu+aj38PvyFPqNhC8AxyW9VOFHMB0ylzk2bOpoSFz7ONZpOp
-         AJBU83n2oUOuzYyTj36Tszj6xzGxdt8uKAlrTUfwMIsCKizqrryP3wkUWcNHEf0kzAs/
-         NhhkNGYTTZx0yTWA1dGNSKnykQLpDT6J2ZzAGeCZC1LU3lFntmvJbZnpNOhwsZ9PIGZ+
-         wt5bj+iKHoreZvXfdyPvOr1IYZuLPMSGaHHDhQOzvQSBUzgHwSYFemOpxdaMVE8Yk2DE
-         +n1bpKX6Sdkc6V4y6yWjEMRaEh4TnpNsjEKCxIGtNBkeHNOYasCr4hMm1n4r/RPidW9M
-         joig==
+        b=cRzbztov7cpjkY2aq2NiDLT1uT/cVxY4QiSQ7LVBuIKcMwGAbZOZgXb5WHJa4ushdk
+         5gDmsFXgXvHNQN9CjGHZpkSMDARpf6KHU7SlqFo26RpwDDCYpNuhUmswAD0cz9e1URRI
+         lTKpYqfDlUT/fSxOtPCog1xHkHhzed+uiNdWYtiJGwSFnhYf6+retIalMR5tpDMnt80k
+         tNSSBBO5ltG6L0UoYNU1NG1K/gRM8CefVyFFmeZaoIW+SvGox2PLrro4UA4iFqDlAV3s
+         9aSHYJJkm0yOMyLix4VLx7u8ADN75zGWb+CYsLKCWh10MvFEXQiDodE4dVTGkAwr8pTZ
+         /g9g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:references:in-reply-to:message-id:subject:cc:to:from
-         :date:dkim-signature;
-        bh=BcO0HGR7e4UTl+jc1D97xviwaVY0fONvvUaL6z9KEIo=;
-        b=qlb0zPW0etHVOSV3rTmoHMpucKG072vsF1/TeBdEVVb5sgLT1ndXf9Gppf4mSR/R/j
-         c9itWFv0rK5epR/ftrlUnpkcZuYWJE51VFOB+JUtBtPyBdjamYrXFRjQha6UDPymG5O0
-         sX6xkQD6BB9WzUeJrcA8c4vc1rIb5dIzG16iTezh1/WnIFi00JGu/4izms994qUvH0ex
-         U9KfXtmJ8X7eMb+UBxIKyXjIg/1Bsd3z+07FPP4WsJE0wO1XK6i7+vhVU/TVAXxl6wyM
-         3xoRTL4Th4GRPqbeBPMy4/ikdD1uiMUye8z3hyBSKVUmmY1WlwTAwlbL2joX/7dfMtJX
-         Lw5Q==
+        h=in-reply-to:content-disposition:mime-version:references:message-id
+         :subject:cc:to:from:date;
+        bh=SV4rxSTVGz8T4IUkWIYI1+Xgg0JTmyIUsV7ZBNQwoIo=;
+        b=onMRzp8PNJgKHtLEOrLRjAmqpZMAkaxpI0YWeXuCSA4X2mKEo81bJm+CX5gErL04oZ
+         5m9rUFWakPMkYufIHaw7kpQqKiiMvR0GB9gJSBnYmJp7o20se6tar5aJanP/1DRHGk9l
+         WJyxrXrmU0e6xgQc6EtpybFvogMa6lkTXRID3ihtoupnR8znkyXkxCSE+7p03qT7eNYv
+         xuZnBKEWH/FRC2VpM0ATURX+H3nRDd+n+NRlbx86Dqye22+3MM0PkBUgCC1RseX5/MG0
+         t20KWaVwHGf5Y6QumnepbEP8rQ8D1/bfGMD6NCt3H4S0rHepVqQ+vrE7EFdDXlTNxzFw
+         Vibg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@canb.auug.org.au header.s=201702 header.b=kA006oxQ;
-       spf=pass (google.com: domain of sfr@canb.auug.org.au designates 2401:3900:2:1::2 as permitted sender) smtp.mailfrom=sfr@canb.auug.org.au
-Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
-        by mx.google.com with ESMTPS id z10si23917855pgv.233.2019.07.17.20.21.29
+       spf=pass (google.com: domain of mst@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=mst@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id v65si16421003qki.214.2019.07.17.21.13.30
         for <linux-mm@kvack.org>
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Wed, 17 Jul 2019 20:21:29 -0700 (PDT)
-Received-SPF: pass (google.com: domain of sfr@canb.auug.org.au designates 2401:3900:2:1::2 as permitted sender) client-ip=2401:3900:2:1::2;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 17 Jul 2019 21:13:30 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mst@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@canb.auug.org.au header.s=201702 header.b=kA006oxQ;
-       spf=pass (google.com: domain of sfr@canb.auug.org.au designates 2401:3900:2:1::2 as permitted sender) smtp.mailfrom=sfr@canb.auug.org.au
-Received: from authenticated.ozlabs.org (localhost [127.0.0.1])
-	(using TLSv1.3 with cipher TLS_AES_256_GCM_SHA384 (256/256 bits)
-	 key-exchange ECDHE (P-256) server-signature RSA-PSS (4096 bits) server-digest SHA256)
+       spf=pass (google.com: domain of mst@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=mst@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail.ozlabs.org (Postfix) with ESMTPSA id 45pztt4f7mz9sNr;
-	Thu, 18 Jul 2019 13:21:26 +1000 (AEST)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=canb.auug.org.au;
-	s=201702; t=1563420086;
-	bh=onp2VmPiELbvIvkg2tf00xZcG6KP/CQLzKyAEZzDib4=;
-	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
-	b=kA006oxQfewIgA9PWNvgcNJ9JvzlF26mMPNUPdKr70a7iDhrLEsAq/As3QzuSrgeZ
-	 +hLFNtgTLS9LvJCEVCMByH+InBq7/ul40/FzhhXCLvxeZEiheUDeK2Mn7I+XeVGtfA
-	 T7z7uhHkrsfr1sDu3ktsndOKtVhzYpT4lrQywk++uGd+KViY69ioJOZXB07KPePr+j
-	 8+3gB8VHfXkr5vX8cTsSoilu+hjP0X2D5YqNClpj8E5Uu/O7OlI3VIgw6iT0CAB4YQ
-	 PMPWCaytNPerKOgfI0c9JKbQMCoRqHPGb5cL1QOPdDDJq14hD03oc4RwHQAirU9u4f
-	 qzN3cyznabT6g==
-Date: Thu, 18 Jul 2019 13:21:11 +1000
-From: Stephen Rothwell <sfr@canb.auug.org.au>
-To: akpm@linux-foundation.org
-Cc: broonie@kernel.org, linux-fsdevel@vger.kernel.org,
- linux-kernel@vger.kernel.org, linux-mm@kvack.org,
- linux-next@vger.kernel.org, mhocko@suse.cz, mm-commits@vger.kernel.org,
- "Darrick J. Wong" <darrick.wong@oracle.com>
-Subject: Re: mmotm 2019-07-17-16-05 uploaded
-Message-ID: <20190718132111.1f55f46f@canb.auug.org.au>
-In-Reply-To: <20190717230610.zvRfipNL4%akpm@linux-foundation.org>
-References: <20190717230610.zvRfipNL4%akpm@linux-foundation.org>
+	by mx1.redhat.com (Postfix) with ESMTPS id 9E1FFC053B34;
+	Thu, 18 Jul 2019 04:13:29 +0000 (UTC)
+Received: from redhat.com (ovpn-120-147.rdu2.redhat.com [10.10.120.147])
+	by smtp.corp.redhat.com (Postfix) with SMTP id 1D7AC600D1;
+	Thu, 18 Jul 2019 04:13:16 +0000 (UTC)
+Date: Thu, 18 Jul 2019 00:13:15 -0400
+From: "Michael S. Tsirkin" <mst@redhat.com>
+To: "Wang, Wei W" <wei.w.wang@intel.com>
+Cc: Alexander Duyck <alexander.duyck@gmail.com>,
+	Nitesh Narayan Lal <nitesh@redhat.com>,
+	kvm list <kvm@vger.kernel.org>,
+	David Hildenbrand <david@redhat.com>,
+	"Hansen, Dave" <dave.hansen@intel.com>,
+	LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Yang Zhang <yang.zhang.wz@gmail.com>,
+	"pagupta@redhat.com" <pagupta@redhat.com>,
+	Rik van Riel <riel@surriel.com>,
+	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
+	"lcapitulino@redhat.com" <lcapitulino@redhat.com>,
+	Andrea Arcangeli <aarcange@redhat.com>,
+	Paolo Bonzini <pbonzini@redhat.com>,
+	"Williams, Dan J" <dan.j.williams@intel.com>,
+	Alexander Duyck <alexander.h.duyck@linux.intel.com>
+Subject: Re: use of shrinker in virtio balloon free page hinting
+Message-ID: <20190718000434-mutt-send-email-mst@kernel.org>
+References: <20190717071332-mutt-send-email-mst@kernel.org>
+ <286AC319A985734F985F78AFA26841F73E16D4B2@shsmsx102.ccr.corp.intel.com>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha256;
- boundary="Sig_/JOd2f8N3wfkBrruihbRJymm"; protocol="application/pgp-signature"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <286AC319A985734F985F78AFA26841F73E16D4B2@shsmsx102.ccr.corp.intel.com>
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.31]); Thu, 18 Jul 2019 04:13:30 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---Sig_/JOd2f8N3wfkBrruihbRJymm
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: quoted-printable
+On Wed, Jul 17, 2019 at 03:46:57PM +0000, Wang, Wei W wrote:
+> On Wednesday, July 17, 2019 7:21 PM, Michael S. Tsirkin wrote:
+> > 
+> > Wei, others,
+> > 
+> > ATM virtio_balloon_shrinker_scan will only get registered when deflate on
+> > oom feature bit is set.
+> > 
+> > Not sure whether that's intentional. 
+> 
+> Yes, we wanted to follow the old oom behavior, which allows the oom notifier
+> to deflate pages only when this feature bit has been negotiated.
 
-Hi Andrew,
+It makes sense for pages in the balloon (requested by hypervisor).
+However free page hinting can freeze up lots of memory for its own
+internal reasons. It does not make sense to ask hypervisor
+to set flags in order to fix internal guest issues.
 
-On Wed, 17 Jul 2019 16:06:10 -0700 akpm@linux-foundation.org wrote:
->
-> * mm-migrate-remove-unused-mode-argument.patch
+> > Assuming it is:
+> > 
+> > virtio_balloon_shrinker_scan will try to locate and free pages that are
+> > processed by host.
+> > The above seems broken in several ways:
+> > - count ignores the free page list completely
+> 
+> Do you mean virtio_balloon_shrinker_count()? It just reports to
+> do_shrink_slab the amount of freeable memory that balloon has.
+> (vb->num_pages and vb->num_free_page_blocks are all included )
 
-This patch needs updating due to changes in the iomap tree.
+Right. But that does not include the pages in the hint vq,
+which could be a significant amount of memory.
 
-The section that updated fs/iomap/migrate.c should be replaced by:
 
-diff --git a/fs/iomap/buffered-io.c b/fs/iomap/buffered-io.c
-index da4d958f9dc8..e25901ae3ff4 100644
---- a/fs/iomap/buffered-io.c
-+++ b/fs/iomap/buffered-io.c
-@@ -489,7 +489,7 @@ iomap_migrate_page(struct address_space *mapping, struc=
-t page *newpage,
- {
- 	int ret;
-=20
--	ret =3D migrate_page_move_mapping(mapping, newpage, page, mode, 0);
-+	ret =3D migrate_page_move_mapping(mapping, newpage, page, 0);
- 	if (ret !=3D MIGRATEPAGE_SUCCESS)
- 		return ret;
-=20
---=20
-Cheers,
-Stephen Rothwell
+> > - if free pages are being reported, pages freed
+> >   by shrinker will just get re-allocated again
+> 
+> fill_balloon will re-try the allocation after sleeping 200ms once allocation fails.
 
---Sig_/JOd2f8N3wfkBrruihbRJymm
-Content-Type: application/pgp-signature
-Content-Description: OpenPGP digital signature
+Even if ballon was never inflated, if shrinker frees some memory while
+we are hinting, hint vq will keep going and allocate it back without
+sleeping.
 
------BEGIN PGP SIGNATURE-----
+>  
+> > I was unable to make this part of code behave in any reasonable way - was
+> > shrinker usage tested? What's a good way to test that?
+> 
+> Please see the example that I tested before : https://lkml.org/lkml/2018/8/6/29
+> (just the first one: *1. V3 patches)
+> 
+> What problem did you see?
+> I just tried the latest code, and find ballooning reports a #GP (seems caused by
+> 418a3ab1e). 
+> I'll take a look at the details in the office tomorrow.
+> 
+> Best,
+> Wei
 
-iQEzBAEBCAAdFiEENIC96giZ81tWdLgKAVBC80lX0GwFAl0v5acACgkQAVBC80lX
-0Gy4Fgf/e9X65fZvCbB0Nhqw4PpeHOAdJvQRDvZA84FLdP/vsEKnLjFlFir0togF
-JgD4OAYOQvGeZqhbFOfSFETsraF4HOvu0CWObY7pHuDrizRDl4GX9ZKPGx/9+VkV
-dLoS2uFuV0tMC9fvyT/o+kLJE/r/zZNcXOJs/E5Fpzx8R7EN4nmS71quPkhezPeb
-/joItlo6DtsauVnTtUnrYqlDieWVOMCb0Xa+nHF3IzbQR/afTyoWxIYkCWhCS6/D
-muCE72/kFn5C5/9A637Xtffweis6aS4t47HVEesWFh5BZoFrOzYUN7AJGLoQ9tzm
-GPh337OUHu0D+XgyPiI4kazKcLXWRg==
-=HJt9
------END PGP SIGNATURE-----
-
---Sig_/JOd2f8N3wfkBrruihbRJymm--
+I saw that VM hangs. Could be the above problem, let me know how it
+goes.
 
