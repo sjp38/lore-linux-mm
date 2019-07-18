@@ -2,128 +2,181 @@ Return-Path: <SRS0=TqY8=VP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
-	autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_2 autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2FC86C76191
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Jul 2019 06:04:04 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0A6E7C76195
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Jul 2019 06:12:39 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D85562173E
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Jul 2019 06:04:03 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="Ygvn6fW/"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D85562173E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id C333E21019
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Jul 2019 06:12:38 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C333E21019
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 73AF96B0005; Thu, 18 Jul 2019 02:04:03 -0400 (EDT)
+	id 5FB676B0005; Thu, 18 Jul 2019 02:12:38 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6ECB76B0007; Thu, 18 Jul 2019 02:04:03 -0400 (EDT)
+	id 5ABAB6B0007; Thu, 18 Jul 2019 02:12:38 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 58BE98E0001; Thu, 18 Jul 2019 02:04:03 -0400 (EDT)
+	id 4747F8E0001; Thu, 18 Jul 2019 02:12:38 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 3960F6B0005
-	for <linux-mm@kvack.org>; Thu, 18 Jul 2019 02:04:03 -0400 (EDT)
-Received: by mail-ot1-f69.google.com with SMTP id j4so14773968otc.5
-        for <linux-mm@kvack.org>; Wed, 17 Jul 2019 23:04:03 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id ECD2C6B0005
+	for <linux-mm@kvack.org>; Thu, 18 Jul 2019 02:12:37 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id f19so19322478edv.16
+        for <linux-mm@kvack.org>; Wed, 17 Jul 2019 23:12:37 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=P1LQPeatmBO3Ls1tFC7heZrLlLB6kdfVOLBzlpUftSA=;
-        b=Cq6iKHXteGKNje6HZai5B4LNheYn0/5ZvhKzJKSupkwJyMC1bKDoBmdz7UdT5cdZ4H
-         KLiwBUhHR9jqmslVa2FXT1JqM2M/Xudupu6vLXYBVGZJIrhdRONRVuGS4SN/EWz0DNId
-         +smcTd60MMYFG/Lw4AsKJwwOAl/fTBMlaMeomSZuUnW19Uv4+oDCSe7254ZC+kWJAwir
-         coEwfU9PkT0BeViHhCM+G3Znz+Gni6XCpmdmCMd0hO8mkJ4QBCNWJ744gdJL32vNFI6u
-         g2RhA5YPt2dyKS6a2veQ2VYOYic4CsGqaeCbJOONMzoiWA62nzcPU2/Q+AbnwGeYUNK5
-         Xjrg==
-X-Gm-Message-State: APjAAAU8/9gJhMugyqkbsVJN8j5/24lyGkWRFiGZUqV8j5d0a/3d1lt9
-	cuqiv/X72e5068OLuWH3VM2ofdsfqg/2VZOj/g45VC1jKjYb2M7PVwoca9w/r8Oxr/9IqM/2SZE
-	ZDYfUC6tcL6vpbYxyxgJG9Ubksj/0byMFF1MQ99dGYabuL5I94wx9Wh1F5M20xE4AAQ==
-X-Received: by 2002:a05:6830:199:: with SMTP id q25mr32031777ota.79.1563429842803;
-        Wed, 17 Jul 2019 23:04:02 -0700 (PDT)
-X-Received: by 2002:a05:6830:199:: with SMTP id q25mr32031745ota.79.1563429842345;
-        Wed, 17 Jul 2019 23:04:02 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563429842; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:message-id
+         :subject:from:to:cc:date:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=ZtzqC59otavtaxw96gW5yTACLZk2RItC3OAm3JpIFEQ=;
+        b=rqTnL+T/PHo4segXklHM0z4Vx5LMIX7422sDsvLZ1TklvxGYZySKQqngninCmT0WIz
+         ajPZpUaSSkLjKaXix7alnsVYfqbPWIqxRCeKXNdybCmDDOEzebYCgvFIo2o/O2Xn94YA
+         RkntmXcQkLM4SdbobRkvx3hcNzXjLqDdhD8CDIpLty2h+DBCdrV+XJOELNe6LpQxOF4h
+         ELwzH3rCIPEWC0bGzkb3QpMIcMhk1TSPcXOC7izIgxCvNm57JgVLGEB2glflJdpOWW3r
+         cdSa4x6zVZUN+HIJNxt3t1KkwBn3BJlOehS1dyDnOtCG4nUgQSbTsZDBh4J+n/N1moL8
+         Yl0Q==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
+X-Gm-Message-State: APjAAAXdaps4lXjRVdpzCOSTBTxM+dtq8VC1wb2Yj1bK19sw3WaLhyvz
+	l8fJfh5WKYlRSWOnfOrmCngiR1TJHb3HKU03E09bfa1XOcMfyEwgxS4Qb/hLl3IUnzGH8yt0aMi
+	8U8xdbm0YliAElKO7Cmq/xAssHU2Aq5xutYAhJP0KjkYO1Wswl6KA5gVA+aBuaZJfvg==
+X-Received: by 2002:a50:b6c7:: with SMTP id f7mr37987374ede.275.1563430357543;
+        Wed, 17 Jul 2019 23:12:37 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyY6sutabsJAOElW50waPrJYxJMRgZhAS70KPp8YSp+InJ0iP6U1KfVSXeWJWJZU8o5uNGP
+X-Received: by 2002:a50:b6c7:: with SMTP id f7mr37987338ede.275.1563430356881;
+        Wed, 17 Jul 2019 23:12:36 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563430356; cv=none;
         d=google.com; s=arc-20160816;
-        b=t4CIO6ZGs6gx6dwKYkbJAoeNlx0S6f86LA3vbvvZHlfb4bIyqqYWRnlRp/3u+Q+TSE
-         UhbsxcH7/nQotZzGTKu2QRD4uKYa5Z+V5Sc+ylFbJh6NdYWeOjT0pRw2SXSl4i+Jy3Ew
-         Nmmxhtc5B09TvTD0IsOoilLewFax4G7SnyYUKIlTVbBx/FMxBz1jlsvWqqIrqmvZUirD
-         uNzv6Aa2CJSnEGJtnH7nhkoKe/3IAnz8jAc5NHHWOQ2VLfMWvjaY2ZcGfucigPwCe3jW
-         o93xJO4nlaTqXOu5qx8XL4NAgap9y23sHfoEvTGfefGBWtHNLEK4QeNJQT+/0ZKUQWgg
-         ZOCQ==
+        b=xVYot9P4jfh9ikWlt7xJVdVWwwD04eAMcEUoZlazR0eTjth3/IrCpeR0pZ0eYZoguq
+         EcHPMy0oR4DF7q585EuAd7yrYIEjtqlYHHsbPYSH/MbLRdPmHbOaKYm+MooWgv6Jszdx
+         AfGHtjgMx7xNhO9J+puAhmHxDlESNnXHtJneSFmmAqrWEzZcTH2twm+pEatSyP7kOr56
+         04TnAkhIgJwRFkvp0Yo3eX8UrCOE0XGwsr31IDQMmJkL06g44bJeoFa0MIzbg3k/et6K
+         nzp+kIqp4rsEWZlNynjH/vNhMGwaRRBPXQ3M1iinsoxLzcUYfmxAx+e6y200iudcUb2D
+         AU+g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=P1LQPeatmBO3Ls1tFC7heZrLlLB6kdfVOLBzlpUftSA=;
-        b=o3ZcPZk+B50+EXIbEIR/4zW0ZyOYZOh4XwICK8+nUuEV4guEYDDXhtM5jBWticqctu
-         F+8CFu7AmuzG02Q2gGn9YXwVcOi5MQRFavVSY2pyiZ9rC+pF/lZQd2KBXNTK8B/dsOlH
-         X0jMjT/K1LA3ujdzb6RxP5VR4Jv+bgqovj3K6phcU3eLRQS9x0mErxJoZErvFHAjJa29
-         wtAMK2/TpCJwJkx1XvZmAHTSPC2ZF5jnoYZFYvEJhtboLOACFPGvhVEYcVXshymlSkzj
-         Zox/HB2knyN+qLrv7wcazabWHA8i3e8DU6w69i+QSFkTvpYXnybzBLDuLr4n9c1U7JRZ
-         SSpw==
+        h=content-transfer-encoding:mime-version:references:in-reply-to:date
+         :cc:to:from:subject:message-id;
+        bh=ZtzqC59otavtaxw96gW5yTACLZk2RItC3OAm3JpIFEQ=;
+        b=MV0HeUsp5Mt8CXRIzzukzZm3xUNigQVsxfN+HLMcleesKtUFE0zHMiJyKo6QSztJq4
+         +oM8zNkx+vo9mhth8W6/wzANwV5RqeT6QH/qJ8iz7qZZ0wOB0RWsF5w3qOi/FU014nko
+         WFEenb+/oWzrcOa9hxgMNX4DJMCyTfsfnNuhE0MbPPAPeGj3AJaYgAD2ffiTdu1WIDhC
+         RkwE3UK8S1JD6IeU7h67pA2mbiwJwgSxcmNmgbeAp3w9FjDtDyviCBtWjIloD4vCcE9+
+         vWjc/ZHqEsyR7echW/ysL84xMzSjwh+3CQPGnE2cgK1BUSmYQiedswMbC+jE/rQXeq4G
+         aGPw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b="Ygvn6fW/";
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id p187sor12278580oia.145.2019.07.17.23.04.01
+       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id m26si222750eda.249.2019.07.17.23.12.36
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 17 Jul 2019 23:04:01 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 17 Jul 2019 23:12:36 -0700 (PDT)
+Received-SPF: pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b="Ygvn6fW/";
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=intel-com.20150623.gappssmtp.com; s=20150623;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=P1LQPeatmBO3Ls1tFC7heZrLlLB6kdfVOLBzlpUftSA=;
-        b=Ygvn6fW/L34ez5EdLPrPysK+5BumzlK1V4WQbT4fqFL6HEi7RQKEYbZBC8wHQtaKBK
-         ILhnlxGZACwRFgbtUZ/n8gwZLALJfAJNBlCNHqhWaEY03GYLxSdxkMdz6PrGX4WBbGqw
-         WQrCBvhNz3srQAm1AXJ/zVHhqriAYY0Uljeb8fGVrU7SICX1/6GYYlhzvga6ITHO7GAM
-         DvCTi0As46YqyAOTObm0EiWraNRaWWQrTyg9ai9ay/DtLkVl8OtsXDafDYRXVY3gzQYu
-         YEyo2QDnoCpU9DfLo1fYXW2R1Zd1HAskVJKkXMxgwS6k6Q7jz5S9oHYn2q13cWDG8K5j
-         IMSQ==
-X-Google-Smtp-Source: APXvYqxm9xDHx6ClBG2mF8PlRAsDH+bKVgC8qhkLQmyTe0e8hYV2WfgikTfBiTzNjyPyqgMGYXqJy4PfXQiD977bIfo=
-X-Received: by 2002:aca:ba02:: with SMTP id k2mr19915938oif.70.1563429841600;
- Wed, 17 Jul 2019 23:04:01 -0700 (PDT)
-MIME-Version: 1.0
-References: <20190718054851.GA18376@lst.de>
-In-Reply-To: <20190718054851.GA18376@lst.de>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Wed, 17 Jul 2019 23:03:49 -0700
-Message-ID: <CAPcyv4g=Hr4KOV1NbzPVRxSVL0TaaEPykG3GHwERjx1-SmUQog@mail.gmail.com>
-Subject: Re: RFC: move kernel/memremap.c to mm/
-To: Christoph Hellwig <hch@lst.de>
-Cc: Jason Gunthorpe <jgg@mellanox.com>, Linux MM <linux-mm@kvack.org>, 
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id DC940AFEC;
+	Thu, 18 Jul 2019 06:12:35 +0000 (UTC)
+Message-ID: <1563430353.3077.1.camel@suse.de>
+Subject: Re: [PATCH 1/1] mm/memory_hotplug: Adds option to hot-add memory in
+ ZONE_MOVABLE
+From: Oscar Salvador <osalvador@suse.de>
+To: Leonardo Bras <leonardo@linux.ibm.com>, linux-kernel@vger.kernel.org, 
+	linux-mm@kvack.org
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Rafael J. Wysocki"
+ <rafael@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Mike
+ Rapoport <rppt@linux.ibm.com>, Michal Hocko <mhocko@suse.com>, Pavel
+ Tatashin <pasha.tatashin@oracle.com>, =?ISO-8859-1?Q?J=E9r=F4me?= Glisse
+ <jglisse@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Pasha Tatashin
+ <Pavel.Tatashin@microsoft.com>, Bartlomiej Zolnierkiewicz
+ <b.zolnierkie@samsung.com>
+Date: Thu, 18 Jul 2019 08:12:33 +0200
+In-Reply-To: <20190718024133.3873-1-leonardo@linux.ibm.com>
+References: <20190718024133.3873-1-leonardo@linux.ibm.com>
 Content-Type: text/plain; charset="UTF-8"
+X-Mailer: Evolution 3.26.1 
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jul 17, 2019 at 10:49 PM Christoph Hellwig <hch@lst.de> wrote:
->
-> Hi Dan,
->
-> was there any really good reason to have memremap.c in kernel/ back
-> when you started it?  It seems to be pretty much tried into the mm
-> infrastructure, and I keep mistyping the path.  Would you mind a simple
-> git-mv patch after -rc1 to move it to mm/ ?
+On Wed, 2019-07-17 at 23:41 -0300, Leonardo Bras wrote:
+> Adds an option on kernel config to make hot-added memory online in
+> ZONE_MOVABLE by default.
+> 
+> This would be great in systems with MEMORY_HOTPLUG_DEFAULT_ONLINE=y
+> by
+> allowing to choose which zone it will be auto-onlined
 
-No complaints from me. It ended up there because it was originally
-just the common memremap implementation always built with
-CONFIG_HAS_IOMEM.
+We do already have "movable_node" boot option, which exactly has that
+effect.
+Any hotplugged range will be placed in ZONE_MOVABLE.
 
-Arguably we should have done this move right after commit 5981690ddb8f
-("memremap: split devm_memremap_pages() and memremap()
-infrastructure").
+Why do we need yet another option to achieve the same? Was not that
+enough for your case?
+
+> 
+> Signed-off-by: Leonardo Bras <leonardo@linux.ibm.com>
+> ---
+>  drivers/base/memory.c |  3 +++
+>  mm/Kconfig            | 14 ++++++++++++++
+>  2 files changed, 17 insertions(+)
+> 
+> diff --git a/drivers/base/memory.c b/drivers/base/memory.c
+> index f180427e48f4..378b585785c1 100644
+> --- a/drivers/base/memory.c
+> +++ b/drivers/base/memory.c
+> @@ -670,6 +670,9 @@ static int init_memory_block(struct memory_block
+> **memory,
+>  	mem->state = state;
+>  	start_pfn = section_nr_to_pfn(mem->start_section_nr);
+>  	mem->phys_device = arch_get_memory_phys_device(start_pfn);
+> +#ifdef CONFIG_MEMORY_HOTPLUG_MOVABLE
+> +	mem->online_type = MMOP_ONLINE_MOVABLE;
+> +#endif
+>  
+>  	ret = register_memory(mem);
+>  
+> diff --git a/mm/Kconfig b/mm/Kconfig
+> index f0c76ba47695..74e793720f43 100644
+> --- a/mm/Kconfig
+> +++ b/mm/Kconfig
+> @@ -180,6 +180,20 @@ config MEMORY_HOTREMOVE
+>  	depends on MEMORY_HOTPLUG && ARCH_ENABLE_MEMORY_HOTREMOVE
+>  	depends on MIGRATION
+>  
+> +config MEMORY_HOTPLUG_MOVABLE
+> +	bool "Enhance the likelihood of hot-remove"
+> +	depends on MEMORY_HOTREMOVE
+> +	help
+> +	  This option sets the hot-added memory zone to MOVABLE
+> which
+> +	  drastically reduces the chance of a hot-remove to fail due
+> to
+> +	  unmovable memory segments. Kernel memory can't be
+> allocated in
+> +	  this zone.
+> +
+> +	  Say Y here if you want to have better chance to hot-remove 
+> memory
+> +	  that have been previously hot-added.
+> +	  Say N here if you want to make all hot-added memory
+> available to
+> +	  kernel space.
+> +
+>  # Heavily threaded applications may benefit from splitting the mm-
+> wide
+>  # page_table_lock, so that faults on different parts of the user
+> address
+>  # space can be handled with less contention: split it at this
+> NR_CPUS.
+-- 
+Oscar Salvador
+SUSE L3
 
