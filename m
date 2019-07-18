@@ -2,160 +2,144 @@ Return-Path: <SRS0=TqY8=VP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
-	autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2EBABC7618F
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Jul 2019 20:34:17 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id AFA93C7618F
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Jul 2019 20:36:29 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CBE3621019
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Jul 2019 20:34:16 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 6D1EC21849
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Jul 2019 20:36:29 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="QrW2+V7X"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CBE3621019
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="lUOwsJeO"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6D1EC21849
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7BD216B000A; Thu, 18 Jul 2019 16:34:16 -0400 (EDT)
+	id 1A1E56B000A; Thu, 18 Jul 2019 16:36:29 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 794A58E0003; Thu, 18 Jul 2019 16:34:16 -0400 (EDT)
+	id 1525A8E0003; Thu, 18 Jul 2019 16:36:29 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6AB4B8E0001; Thu, 18 Jul 2019 16:34:16 -0400 (EDT)
+	id 040048E0001; Thu, 18 Jul 2019 16:36:28 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 4962B6B000A
-	for <linux-mm@kvack.org>; Thu, 18 Jul 2019 16:34:16 -0400 (EDT)
-Received: by mail-qk1-f198.google.com with SMTP id k13so24309484qkj.4
-        for <linux-mm@kvack.org>; Thu, 18 Jul 2019 13:34:16 -0700 (PDT)
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C29176B000A
+	for <linux-mm@kvack.org>; Thu, 18 Jul 2019 16:36:28 -0400 (EDT)
+Received: by mail-pl1-f200.google.com with SMTP id d6so14501702pls.17
+        for <linux-mm@kvack.org>; Thu, 18 Jul 2019 13:36:28 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=lUeG90JN23owse4hkCx6s3PvuPmRRtzpsafpqQdcTUA=;
-        b=jGW3r+/2PetZbLush4RoHyXtL1mVo7rtBqK0q5tIbINIapg4uZT/cHwkr44QbDEGX8
-         IgOkHHwRLLosUtwumzWrz8RqW8eftdaxo8+RDPbZHV5Q/e4KrkYLK9hiRTTV1+BkZBVj
-         3bCubo0+tt03aNilKDSYLbyk3yX+mfYxNfjy7TeuxrEkPYZlq0l4oTDQYI38jS1gevhD
-         ZiDw5/7cTghDQTwTdkIw1aMEL1TZ+jjZOdJvUJWaMFbxieqsFOfFGaehzzv08pnc/yUx
-         OagdwJXc5vMI1lE3bH9/sVyCSOfjtUaRvhqpWeJJwxjkkS3BHV2aPcQOMr7dqX9+1Ejz
-         Al6w==
-X-Gm-Message-State: APjAAAUiydLDb5AMOdjeSpFa9WoeOLmbo5zoQqSeW6DGO2GC26dDpM0/
-	MKAIuoTOFgBf31JBNG797ILsjn9IvU7TVe+yScT6vuoVQStqy54Wv90KLgrCm0sclAcZto+TfYW
-	21tSqt/bZhhhTQb2eMeBLXRlns09AUq8m+tQJfUD1rrhczHla2uJBuZ0E2hwl9DSEuA==
-X-Received: by 2002:a37:ad0f:: with SMTP id f15mr31587530qkm.68.1563482055999;
-        Thu, 18 Jul 2019 13:34:15 -0700 (PDT)
-X-Received: by 2002:a37:ad0f:: with SMTP id f15mr31587507qkm.68.1563482055497;
-        Thu, 18 Jul 2019 13:34:15 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563482055; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=0iWfPZiED2y0HXKCmRt4vCAoYhzxrMk2HvPK+JT9VQc=;
+        b=Al/r9fcdlhfMn/WuYdCsnRkrXtXk4QhtD3JkxxsWTquy1NyZqtAYhw2hHFkfpXwmNL
+         /ZPporAgPoAJELsiQJd8FG0jaFP5i4Psg96TjQ6CbtsU7cAzBKTGN2bBGZy/q+ktDqkj
+         LGYZqf8bjgGHGaMMtoPt24GOHB3ZqKU4AubZctuT/G9DLuuTXVfADlYeKCQ8PxRFmYqL
+         3+/PBQrNfHZp0uTNLvvoecTrSpDNTh+g4dK1hsSHhHCt3USnOk1PMnW5IMwzRGXWY/VD
+         uLLITIi8pEU4qtgeIJqLA4W8pQbuPseQ4IruLRd05mnpp2cGMuc3DunuTx4sdGZ+MX7m
+         fy2g==
+X-Gm-Message-State: APjAAAW/3Rfu8GahyPJ1tYmC91rPF8TPJME/zMI4ii9tkvfMx8vN/OYw
+	t1X2RK9zkb+Z6jx7fvAKD+U/7dD9/q/JtTN0LmRr8+r4LUrtCYUgt2s87ZijF+eSYKNtyqp/e80
+	8fwqjiMNQ8PMoQPOh+Q355Y3Cp+jlvBtJ4O/Ft52g0aSf1R+2TrvbN1vTBahHZufqPg==
+X-Received: by 2002:a17:90a:3544:: with SMTP id q62mr53727154pjb.53.1563482188357;
+        Thu, 18 Jul 2019 13:36:28 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqynIxnliM+0knIic7XBDs1rVIHBDUIH5frheKhUei5hCm57rn3rTcPKnN/MkMyrZ2i+O1Ve
+X-Received: by 2002:a17:90a:3544:: with SMTP id q62mr53727080pjb.53.1563482187697;
+        Thu, 18 Jul 2019 13:36:27 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563482187; cv=none;
         d=google.com; s=arc-20160816;
-        b=BWUn97nI4nv5N+3wU5uXGncmosFKU2RNHo60+sQkzrsZf7DIWh9jjmoqCzvvvKyql1
-         qTYIwrSve9tc4liB3N2CvWTdzuayzaf48QCY/6IHjgNomzdfrZZo0qr4Izu7H3UW9sxA
-         G5bekykFGIrQAdTPQLK0Wpm7v9OzcurKuDYDf1w+IlcCl11lQxfP9W6RsZj17PvG40Nm
-         21aleJIYVOeevcXN0nCpO8/C25+NHwGA10bq1njavOAbEeg9CD3l7n4rvhgQy9LG7hQu
-         pEZtzA/spYQHqbm/pVUXyOEtbaQD4/JIDrPcZGR7D8LwOWfgd2U1mDEB5JIqzjCaUoES
-         WDNA==
+        b=Dy1QffyBiD0CMwWVl6u1JPlI43my9uM3KLHIB4WuQ7qBnJj7GBWDE3WvRHdmxTVr8y
+         O4XxXSWql0KgiUQphLLpXjTYNnZJTr5Mj+q/TF4RTQQLYao1lYO58k9ZfkrxvW8d/K32
+         IkEFmSfMrMGabRylC3Yb5S0wcHOmtrRVkNPgbEO5MWNjhKjktK7IJq6BvSECG2xVIO8h
+         9wun5MTENYHnfUdNFufacV+MtLY+wPn0NJK7HhYmyfz+/z8oEVx+S4hZGZUkQAsksVVt
+         tQBtk9TyVHr99iJrTLiuZqbTFhDml10ABXZMp9Mgor5o8iDfZszF8YJUbkFNhGwZ+LXj
+         dCXQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=lUeG90JN23owse4hkCx6s3PvuPmRRtzpsafpqQdcTUA=;
-        b=Aw9a5zghpbs0McN3b+sFrGCqGPI8cqxfFTXv/HrBiqtCN7IcX7ex641iPPqhyk78wT
-         oolooUwi5DoA6daRjGsrPDP4Wgc/IF56vIfziI6Cs7bCKzpKs/dlFuqmWWNrRXRRJnsQ
-         V6k/fQJr10/KVrPUGyPa9jfAfjqbIDKVFgJTr3PuJuXgEpBZBjdUQnupnkfnzLGeqnun
-         7DEs0s7GIrlNwVIPc0TDg1Eq8ZGB8s0Dk4oC6KxZXWgLvW6qZxI4qw+kPvwNDKk71iu4
-         fib5uEoYiue0JoyumJSNj4sCTxSnh74Y5IR0DFnvbc7it+mELEHeFqVSagne1JtoQeF4
-         aA9g==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=0iWfPZiED2y0HXKCmRt4vCAoYhzxrMk2HvPK+JT9VQc=;
+        b=dNxB+XwUoXFki6cQrpwgBhISiYiOtpZjSvpYYdduCVqhV+3ZaPtLBTTwA4GVyu+09z
+         WKMnPCeE/FowCcXlI4PLsTsmMndtldV5bYW/Pxv3QhqJjSQWEPw68fiynU4Ztwo7EBaX
+         6J0sJNi7j9b+bdhav2/z8LGstbCluSVEe6/+YPi1ymtssfHtxBETRmTa6Y5DkAni83BC
+         OvynwLn2piGOZhRkUZuT/C2Ov5rYsBHuvNVW0kwBAlAKlzHzv3eeVtXn6xGitAImjXVn
+         Vto0jh5KC6E7FxMEiRamQUKeDrUKfcsY8RgP+p00umDJo+dw0MVdhVolZ2faj98C6WBt
+         0dFA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=QrW2+V7X;
-       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id e8sor16536308qkg.92.2019.07.18.13.34.15
+       dkim=pass header.i=@kernel.org header.s=default header.b=lUOwsJeO;
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id 145si303659pgh.320.2019.07.18.13.36.27
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 18 Jul 2019 13:34:15 -0700 (PDT)
-Received-SPF: pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 18 Jul 2019 13:36:27 -0700 (PDT)
+Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=QrW2+V7X;
-       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=lUeG90JN23owse4hkCx6s3PvuPmRRtzpsafpqQdcTUA=;
-        b=QrW2+V7Xl/KTpbKakLlvwVZhX3mvxwY8oW2vB8V+YuPlRdScITuH23acCo57C3rm+/
-         h14/iR5ajTzevvTZgDQqOGErulK0PjguBwTAsH9Y3EKi7j2DqAkinW13yKCiWiMvwlhz
-         G337M9FxyP8xW3prNI+Y46tV6LKGfIKoJnpWP/StoXaJ8VaE6k8S6GraWUdl1DQ0jPVo
-         5Nzq45cBYGbC8mYGBvPk+lRY+CeB7ljQ0M/WcypXEL0YLyup+trYqw1VrHc7N+XihAnT
-         qSr15Qriyhre6ikVXcxStPhA9GKq5L81kUbOPa4ctMEOcvvh0wTxrAiF0q1LX9t8rDOw
-         pMUg==
-X-Google-Smtp-Source: APXvYqwjvJkRVs5rf6lR3JoHp630zNQ2CmcMU/UwjepgFtUoHLwCD2p9IdMuPtw8xc2XXrQdtk3z1AdJz1RZ4J6/Kh8=
-X-Received: by 2002:a37:9042:: with SMTP id s63mr31248155qkd.344.1563482055130;
- Thu, 18 Jul 2019 13:34:15 -0700 (PDT)
-MIME-Version: 1.0
-References: <20190716055017-mutt-send-email-mst@kernel.org>
- <CAKgT0Uc-2k9o7pjtf-GFAgr83c7RM-RTJ8-OrEzFv92uz+MTDw@mail.gmail.com>
- <20190716115535-mutt-send-email-mst@kernel.org> <CAKgT0Ud47-cWu9VnAAD_Q2Fjia5gaWCz_L9HUF6PBhbugv6tCQ@mail.gmail.com>
- <20190716125845-mutt-send-email-mst@kernel.org> <CAKgT0UfgPdU1H5ZZ7GL7E=_oZNTzTwZN60Q-+2keBxDgQYODfg@mail.gmail.com>
- <20190717055804-mutt-send-email-mst@kernel.org> <CAKgT0Uf4iJxEx+3q_Vo9L1QPuv9PhZUv1=M9UCsn6_qs7rG4aw@mail.gmail.com>
- <20190718003211-mutt-send-email-mst@kernel.org> <CAKgT0UfQ3dtfjjm8wnNxX1+Azav6ws9zemH6KYc7RuyvyFo3fQ@mail.gmail.com>
- <20190718162040-mutt-send-email-mst@kernel.org>
-In-Reply-To: <20190718162040-mutt-send-email-mst@kernel.org>
-From: Alexander Duyck <alexander.duyck@gmail.com>
-Date: Thu, 18 Jul 2019 13:34:03 -0700
-Message-ID: <CAKgT0UcKTzSYZnYsMQoG6pXhpDS7uLbDd31dqfojCSXQWSsX_A@mail.gmail.com>
-Subject: Re: [PATCH v1 6/6] virtio-balloon: Add support for aerating memory
- via hinting
+       dkim=pass header.i=@kernel.org header.s=default header.b=lUOwsJeO;
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from akpm3.svl.corp.google.com (unknown [104.133.8.64])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 9D45A21019;
+	Thu, 18 Jul 2019 20:36:26 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1563482187;
+	bh=n33RnYgEWXmqJNz9rAt/hhFEfid9BuR/+DJfKxYaK0U=;
+	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
+	b=lUOwsJeO09VcivQzELIEb1xspaeMrv8igfqpVje7IjB8d0vzktO7JZSGLFIM+EfTr
+	 h/bHRCTZ3vQJKeX3CNOxKC0fE0T4geSoEIcdsi2HhD4Y4RNcoErz93W0ItzQFE/qdX
+	 vMDMu7ZP5PtAPbBp6eeXNJtHCfHbt5jrTeJLUhF0=
+Date: Thu, 18 Jul 2019 13:36:26 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
 To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: Nitesh Narayan Lal <nitesh@redhat.com>, kvm list <kvm@vger.kernel.org>, 
-	David Hildenbrand <david@redhat.com>, Dave Hansen <dave.hansen@intel.com>, 
-	LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, 
-	Andrew Morton <akpm@linux-foundation.org>, Yang Zhang <yang.zhang.wz@gmail.com>, pagupta@redhat.com, 
-	Rik van Riel <riel@surriel.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, lcapitulino@redhat.com, 
-	wei.w.wang@intel.com, Andrea Arcangeli <aarcange@redhat.com>, 
-	Paolo Bonzini <pbonzini@redhat.com>, dan.j.williams@intel.com, 
-	Alexander Duyck <alexander.h.duyck@linux.intel.com>
-Content-Type: text/plain; charset="UTF-8"
+Cc: Wei Wang <wei.w.wang@intel.com>, linux-mm@kvack.org,
+ linux-kernel@vger.kernel.org, kvm@vger.kernel.org, xdeguillard@vmware.com,
+ namit@vmware.com, pagupta@redhat.com, riel@surriel.com,
+ dave.hansen@intel.com, david@redhat.com, konrad.wilk@oracle.com,
+ yang.zhang.wz@gmail.com, nitesh@redhat.com, lcapitulino@redhat.com,
+ aarcange@redhat.com, pbonzini@redhat.com,
+ alexander.h.duyck@linux.intel.com, dan.j.williams@intel.com
+Subject: Re: [PATCH v2] mm/balloon_compaction: avoid duplicate page removal
+Message-Id: <20190718133626.e30bec8fc506689b3daf48ee@linux-foundation.org>
+In-Reply-To: <20190718082535-mutt-send-email-mst@kernel.org>
+References: <1563442040-13510-1-git-send-email-wei.w.wang@intel.com>
+	<20190718082535-mutt-send-email-mst@kernel.org>
+X-Mailer: Sylpheed 3.7.0 (GTK+ 2.24.32; x86_64-pc-linux-gnu)
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jul 18, 2019 at 1:24 PM Michael S. Tsirkin <mst@redhat.com> wrote:
->
-> On Thu, Jul 18, 2019 at 08:34:37AM -0700, Alexander Duyck wrote:
-> > > > > For example we allocate pages until shrinker kicks in.
-> > > > > Fair enough but in fact many it would be better to
-> > > > > do the reverse: trigger shrinker and then send as many
-> > > > > free pages as we can to host.
-> > > >
-> > > > I'm not sure I understand this last part.
-> > >
-> > > Oh basically what I am saying is this: one of the reasons to use page
-> > > hinting is when host is short on memory.  In that case, why don't we use
-> > > shrinker to ask kernel drivers to free up memory? Any memory freed could
-> > > then be reported to host.
-> >
-> > Didn't the balloon driver already have a feature like that where it
-> > could start shrinking memory if the host was under memory pressure? If
-> > so how would adding another one add much value.
->
-> Well fundamentally the basic balloon inflate kind of does this, yes :)
->
-> The difference with what I am suggesting is that balloon inflate tries
-> to aggressively achieve a specific goal of freed memory. We could have a
-> weaker "free as much as you can" that is still stronger than free page
-> hint which as you point out below does not try to free at all, just
-> hints what is already free.
+On Thu, 18 Jul 2019 08:26:11 -0400 "Michael S. Tsirkin" <mst@redhat.com> wrote:
 
-Yes, but why wait until the host is low on memory? With my
-implementation we can perform the hints in the background for a low
-cost already. So why should we wait to free up memory when we could do
-it immediately. Why let things get to the state where the host is
-under memory pressure when the guests can be proactively freeing up
-the pages and improving performance as a result be reducing swap
-usage?
+> On Thu, Jul 18, 2019 at 05:27:20PM +0800, Wei Wang wrote:
+> > Fixes: 418a3ab1e778 (mm/balloon_compaction: List interfaces)
+> > 
+> > A #GP is reported in the guest when requesting balloon inflation via
+> > virtio-balloon. The reason is that the virtio-balloon driver has
+> > removed the page from its internal page list (via balloon_page_pop),
+> > but balloon_page_enqueue_one also calls "list_del"  to do the removal.
+> > This is necessary when it's used from balloon_page_enqueue_list, but
+> > not from balloon_page_enqueue_one.
+> > 
+> > So remove the list_del balloon_page_enqueue_one, and update some
+> > comments as a reminder.
+> > 
+> > Signed-off-by: Wei Wang <wei.w.wang@intel.com>
+> 
+> 
+> ok I posted v3 with typo fixes. 1/2 is this patch with comment changes. Pls take a look.
+
+I really have no idea what you're talking about here :(.  Some other
+discussion and patch thread, I suppose.
+
+You're OK with this patch?
+
+Should this patch have cc:stable?
 
