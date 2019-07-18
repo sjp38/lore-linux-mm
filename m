@@ -2,175 +2,157 @@ Return-Path: <SRS0=TqY8=VP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E91B1C76195
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Jul 2019 19:05:06 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 926DBC76196
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Jul 2019 20:24:33 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8DF492184B
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Jul 2019 19:05:06 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="Bl2twEhm"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8DF492184B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 3D0E121019
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Jul 2019 20:24:33 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3D0E121019
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 146056B0006; Thu, 18 Jul 2019 15:05:05 -0400 (EDT)
+	id 8FCAB6B0005; Thu, 18 Jul 2019 16:24:32 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0D0368E0003; Thu, 18 Jul 2019 15:05:05 -0400 (EDT)
+	id 887936B0006; Thu, 18 Jul 2019 16:24:32 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id EB24A8E0001; Thu, 18 Jul 2019 15:05:04 -0400 (EDT)
+	id 74D388E0001; Thu, 18 Jul 2019 16:24:32 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B175C6B0006
-	for <linux-mm@kvack.org>; Thu, 18 Jul 2019 15:05:04 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id e95so14402883plb.9
-        for <linux-mm@kvack.org>; Thu, 18 Jul 2019 12:05:04 -0700 (PDT)
+Received: from mail-vs1-f70.google.com (mail-vs1-f70.google.com [209.85.217.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 4BB176B0005
+	for <linux-mm@kvack.org>; Thu, 18 Jul 2019 16:24:32 -0400 (EDT)
+Received: by mail-vs1-f70.google.com with SMTP id b188so7289392vsc.21
+        for <linux-mm@kvack.org>; Thu, 18 Jul 2019 13:24:32 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=hJCHgwWJegp9gmuco2S0E0jhothiJS3DFgir7R78j+Q=;
-        b=mKPPncQiW0ZVPoUregseJpEalD5viyzOAIDQNPBSCDmxBSw0U3MvcHhvAB440H4X5f
-         WtXVS/xU2fqo2oEE+JSiRc0+X04IZJsvmQdmIJb+AQ8Ljov9fjrlQyg0rGTtkL14x8Zz
-         D0PrWzATNfOXDfnxCJYwC77pbtZMB5d1gjFmrFW8rd2dveOVWL3fFWMoaih8EiazgZEo
-         ltlezGPylHLRkP+QAIjZG5gguYXBGd4ZPDixM4HYPpp5z6yJY5NONCNipRRbpWbmK2LC
-         o9VfUNaYDGa0qxiC18D4qA9UBm19gJtnfkS4OzObVTxscucw2hOj+CDEtuUze2x+BSlf
-         HQyg==
-X-Gm-Message-State: APjAAAUa6RgyDPV1wSWOL/sT2uQxCmarRDdcGIfR+oexL9BcCfN5tQA1
-	YhwJwvZkGoQ10lVh82NzpL6Jnu1nVLHOcl6FAgh8hvwc6oGbpRHEu1HyTAD0MUUFKxfVDxtVJZm
-	dIs6JsC65zcLvaGEidWw/sOMNERCHrLOzl6wUkT0A6v3q2kl09Ythnmw/NfJ6k4qf9w==
-X-Received: by 2002:a17:90a:3724:: with SMTP id u33mr52155108pjb.19.1563476704289;
-        Thu, 18 Jul 2019 12:05:04 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqx7wbwS+EfKzYQeol8VhJFD8VYVj0iKoss4sLRH+MbiWbxr6F8Zrq88299mLMxRu5Zoiy9S
-X-Received: by 2002:a17:90a:3724:: with SMTP id u33mr52155012pjb.19.1563476703117;
-        Thu, 18 Jul 2019 12:05:03 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563476703; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to;
+        bh=IdKHwD3+fzZHJzKH8iBAJ9Rql6fpvbcqu643id2COtQ=;
+        b=Gv713+y7OVNMZqcfscPMkm4tJrtp6/lMJfQOpPgv+36aF8lM8ta42BsemeDUG0cyHt
+         /uAxVvzXdztaXKXeT/THPyhjninpurw3STQ9WSx/Kw0wTXpjyTflB7F2muPbo/miVbof
+         issm2wqB9Jbf40B2V1juEMM1XAvZ8a+9cGRdKGy4TEpHhJ6Grd5A7O1LslCKvJH2qkMy
+         3o1rDlZ6/3a353YnAEjVZsFfVlqpAJwjYwsTyFaA/8L4jMvYGd0ATc+g9akk1lPPFWzQ
+         cGxhGM+tZYq8Y4qRtMfOZ1aD/51EbiuZvbMQkzo3rirrBzrpZnShoFNWPlvYRDd943hW
+         /2oQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mst@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=mst@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAXAlfQ++3XABhfM+VNs2D+YUlW0oBBYTaqx56QgNd7ueCiW9YhF
+	GSd9u35VyU1KiKVqSby3M+GpxLonB+3j7E6G08qVxkHvQ866ctXBVLmdgf5LynDFuWiRPCM0DCl
+	CfrmUAyer2erkDOWsesbfoHMKTE8vcZJOoR0/HM/f5wmCMq0M4X1bA3g6A/5+LsPSLw==
+X-Received: by 2002:a1f:be51:: with SMTP id o78mr19601596vkf.66.1563481471865;
+        Thu, 18 Jul 2019 13:24:31 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzuUHyEcMTzmALdMqx/SfNqGNlDzGBUwwoA+ig713dKziww9fNcDRKXIEFnA1ygRwok/IMd
+X-Received: by 2002:a1f:be51:: with SMTP id o78mr19601508vkf.66.1563481470935;
+        Thu, 18 Jul 2019 13:24:30 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563481470; cv=none;
         d=google.com; s=arc-20160816;
-        b=lVDYBkpONyvQ9/7FfxhrxnO/MZXzQr4nCDrvEaVCESrHSN98DThhFboJqS6f45pVTQ
-         +E6MrrW7188KyAfcJkGkcmBAWjnmHCq30E+/LSH+qaHqcoOcR0Rbafwys6ZL+2uVtI70
-         +/0mjSFO45QfJ+OJE1leF4pYMl0Y7A+mUxaGPmXO8NUKWIt7u99KbYKIntmRepX5+xaR
-         bxUUU9F/Vt+ckowNv7nhyh7gFVta+9AxYRXs5S8XWTcq7teg/XuY+vobtixWtUNwkLpy
-         R4LOUMUu12JDk9xSQsR1groHHNZTg/sAJ5hoxi1EoX9z5OO1HFnJdgjFj+Bslymzfwxr
-         21SQ==
+        b=SwhipdIaOSFw9GyKg+iz5X/+YU0f0K1izUDfGQI53wk6q3jtlqf+C/GRwwRIcUgZLY
+         ZNTpx3TcDVM7Y45vgqPHVtJ6O3Pydxw/QtJD885CI9ugebZxtcAEqNF4mQ/CtfqGW1iF
+         9FZjesoFWwgpF9zj/ORIp+VsyeLkFWEAYZXuybDCTJxfuYed/HGSdFd7l/MeUufkKKWY
+         KjSR8LJ531vJNsT8byeqYitDrQSlNX3qM8rcbVw8Bc6uK5EbvV4HncuDPiadHpz/4BAq
+         2RUAWek+o/e7OVGY33kahZzI1j5DjK8clvOyz52MYsDJ14EbrvvkL/bI39PTrntl4VjK
+         4Zdw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=hJCHgwWJegp9gmuco2S0E0jhothiJS3DFgir7R78j+Q=;
-        b=0UfkXuRJFpHfS4LTH8Fe/+1eNdxwUjSqOFP46doZthpoltoce9Z6natmq/lZCzydJD
-         lh4txBVh4hNuX64RxS8/F69w5To/50XDTSK1ZRP4OpXPVoYC2fCwrIXY+7ec6x0l2+9s
-         IyNCvdWQvDTCQkgb88ClvK6RHSXs1DKnIMp/3Om1rtNZ1hr2rXi8zNmSwxVu4KMk/2gR
-         sbqg6e0Jz6xHSOyc1c/EumKsvhmb6xYwbErixrkDeP8SSCSjSi/ajrjjIfwUHmCqxDPN
-         fR1RJlTog5Wo9ZYZBJmhIni9B6D4C0UdJ/+tH1TqAlLFnr7PWKWKkGVjkggRRkT2kT4N
-         L5pA==
+        h=in-reply-to:content-disposition:mime-version:references:message-id
+         :subject:cc:to:from:date;
+        bh=IdKHwD3+fzZHJzKH8iBAJ9Rql6fpvbcqu643id2COtQ=;
+        b=Tq67VGTzyRVlJEZU85HPDpPV4c+Gs0sQ+joV7Hn55skgyLHe7uN+eh24v6nYUvdptp
+         NitLmaqDbU//5SitHxj/SOouLxn/WlnswTXIXvRYLKi57N469lC0dO0WOujIEB5ylt1u
+         UowqGUXnAiTxWl3vEl83NIwng7+8x/rO52gF7w8+cMrMIzV2xTJzKqrsbVBJecNtCBT6
+         mqwgAwy0gKf2BVr0CFLg/ZmoxhAnx7L9SUtyOU5npPaNV/D198dvE4EegHU040eS93ud
+         GCHdCV43CjHvJl3N8FVMFBb4quUc2HvGqObGTiCcyKlw2p6kGhibCDufxZsMf8wS0pP9
+         cXKA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=Bl2twEhm;
-       spf=pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=luto@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id n9si206096pgq.240.2019.07.18.12.05.02
+       spf=pass (google.com: domain of mst@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=mst@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id e11si7123369vsj.313.2019.07.18.13.24.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 18 Jul 2019 12:05:03 -0700 (PDT)
-Received-SPF: pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        Thu, 18 Jul 2019 13:24:30 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mst@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=Bl2twEhm;
-       spf=pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=luto@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail-wr1-f41.google.com (mail-wr1-f41.google.com [209.85.221.41])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+       spf=pass (google.com: domain of mst@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=mst@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx08.intmail.prod.int.phx2.redhat.com [10.5.11.23])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 232112184B
-	for <linux-mm@kvack.org>; Thu, 18 Jul 2019 19:05:02 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1563476702;
-	bh=JLV3apyWx90y3S5LriUELmBnKu3l40uTLHsTfgrKxVg=;
-	h=References:In-Reply-To:From:Date:Subject:To:Cc:From;
-	b=Bl2twEhm2US7P69bVm3HXVdMmwuJjpJpKdezxRcPxJPh5Aa9brJgyZfbKrxU70Ijf
-	 qLmuD6/QjMGMU3y6dIpzimq1mxSiGSpCKiRxbrufLNl6ISnfP5buAod9rAQEW18Ikf
-	 8QABJimF8B2leofR35RQCBn7S3se+I+JumTZIFQo=
-Received: by mail-wr1-f41.google.com with SMTP id p17so29799703wrf.11
-        for <linux-mm@kvack.org>; Thu, 18 Jul 2019 12:05:02 -0700 (PDT)
-X-Received: by 2002:adf:f28a:: with SMTP id k10mr11064718wro.343.1563476700729;
- Thu, 18 Jul 2019 12:05:00 -0700 (PDT)
+	by mx1.redhat.com (Postfix) with ESMTPS id DEE297FDF5;
+	Thu, 18 Jul 2019 20:24:29 +0000 (UTC)
+Received: from redhat.com (ovpn-120-147.rdu2.redhat.com [10.10.120.147])
+	by smtp.corp.redhat.com (Postfix) with SMTP id A0D7919D70;
+	Thu, 18 Jul 2019 20:24:16 +0000 (UTC)
+Date: Thu, 18 Jul 2019 16:24:15 -0400
+From: "Michael S. Tsirkin" <mst@redhat.com>
+To: Alexander Duyck <alexander.duyck@gmail.com>
+Cc: Nitesh Narayan Lal <nitesh@redhat.com>, kvm list <kvm@vger.kernel.org>,
+	David Hildenbrand <david@redhat.com>,
+	Dave Hansen <dave.hansen@intel.com>,
+	LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Yang Zhang <yang.zhang.wz@gmail.com>, pagupta@redhat.com,
+	Rik van Riel <riel@surriel.com>,
+	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
+	lcapitulino@redhat.com, wei.w.wang@intel.com,
+	Andrea Arcangeli <aarcange@redhat.com>,
+	Paolo Bonzini <pbonzini@redhat.com>, dan.j.williams@intel.com,
+	Alexander Duyck <alexander.h.duyck@linux.intel.com>
+Subject: Re: [PATCH v1 6/6] virtio-balloon: Add support for aerating memory
+ via hinting
+Message-ID: <20190718162040-mutt-send-email-mst@kernel.org>
+References: <20190716055017-mutt-send-email-mst@kernel.org>
+ <CAKgT0Uc-2k9o7pjtf-GFAgr83c7RM-RTJ8-OrEzFv92uz+MTDw@mail.gmail.com>
+ <20190716115535-mutt-send-email-mst@kernel.org>
+ <CAKgT0Ud47-cWu9VnAAD_Q2Fjia5gaWCz_L9HUF6PBhbugv6tCQ@mail.gmail.com>
+ <20190716125845-mutt-send-email-mst@kernel.org>
+ <CAKgT0UfgPdU1H5ZZ7GL7E=_oZNTzTwZN60Q-+2keBxDgQYODfg@mail.gmail.com>
+ <20190717055804-mutt-send-email-mst@kernel.org>
+ <CAKgT0Uf4iJxEx+3q_Vo9L1QPuv9PhZUv1=M9UCsn6_qs7rG4aw@mail.gmail.com>
+ <20190718003211-mutt-send-email-mst@kernel.org>
+ <CAKgT0UfQ3dtfjjm8wnNxX1+Azav6ws9zemH6KYc7RuyvyFo3fQ@mail.gmail.com>
 MIME-Version: 1.0
-References: <20190717071439.14261-1-joro@8bytes.org> <20190717071439.14261-4-joro@8bytes.org>
- <CALCETrXfCbajLhUixKNaMfFw91gzoQzt__faYLwyBqA3eAbQVA@mail.gmail.com> <20190718091745.GG13091@suse.de>
-In-Reply-To: <20190718091745.GG13091@suse.de>
-From: Andy Lutomirski <luto@kernel.org>
-Date: Thu, 18 Jul 2019 12:04:49 -0700
-X-Gmail-Original-Message-ID: <CALCETrXJYuHN872F74kVTuw4dYOc5saKqoUFbgJ5X0EuGEhXcA@mail.gmail.com>
-Message-ID: <CALCETrXJYuHN872F74kVTuw4dYOc5saKqoUFbgJ5X0EuGEhXcA@mail.gmail.com>
-Subject: Re: [PATCH 3/3] mm/vmalloc: Sync unmappings in vunmap_page_range()
-To: Joerg Roedel <jroedel@suse.de>
-Cc: Andy Lutomirski <luto@kernel.org>, Joerg Roedel <joro@8bytes.org>, 
-	Dave Hansen <dave.hansen@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, 
-	Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, 
-	Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, 
-	Linux-MM <linux-mm@kvack.org>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAKgT0UfQ3dtfjjm8wnNxX1+Azav6ws9zemH6KYc7RuyvyFo3fQ@mail.gmail.com>
+X-Scanned-By: MIMEDefang 2.84 on 10.5.11.23
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.27]); Thu, 18 Jul 2019 20:24:30 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jul 18, 2019 at 2:17 AM Joerg Roedel <jroedel@suse.de> wrote:
->
-> Hi Andy,
->
-> On Wed, Jul 17, 2019 at 02:24:09PM -0700, Andy Lutomirski wrote:
-> > On Wed, Jul 17, 2019 at 12:14 AM Joerg Roedel <joro@8bytes.org> wrote:
-> > > diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-> > > index 4fa8d84599b0..322b11a374fd 100644
-> > > --- a/mm/vmalloc.c
-> > > +++ b/mm/vmalloc.c
-> > > @@ -132,6 +132,8 @@ static void vunmap_page_range(unsigned long addr, unsigned long end)
-> > >                         continue;
-> > >                 vunmap_p4d_range(pgd, addr, next);
-> > >         } while (pgd++, addr = next, addr != end);
-> > > +
-> > > +       vmalloc_sync_all();
-> > >  }
+On Thu, Jul 18, 2019 at 08:34:37AM -0700, Alexander Duyck wrote:
+> > > > For example we allocate pages until shrinker kicks in.
+> > > > Fair enough but in fact many it would be better to
+> > > > do the reverse: trigger shrinker and then send as many
+> > > > free pages as we can to host.
+> > >
+> > > I'm not sure I understand this last part.
 > >
-> > I'm confused.  Shouldn't the code in _vm_unmap_aliases handle this?
-> > As it stands, won't your patch hurt performance on x86_64?  If x86_32
-> > is a special snowflake here, maybe flush_tlb_kernel_range() should
-> > handle this?
->
-> Imo this is the logical place to handle this. The code first unmaps the
-> area from the init_mm page-table and then syncs that page-table to all
-> other page-tables in the system, so one place to update the page-tables.
+> > Oh basically what I am saying is this: one of the reasons to use page
+> > hinting is when host is short on memory.  In that case, why don't we use
+> > shrinker to ask kernel drivers to free up memory? Any memory freed could
+> > then be reported to host.
+> 
+> Didn't the balloon driver already have a feature like that where it
+> could start shrinking memory if the host was under memory pressure? If
+> so how would adding another one add much value.
+
+Well fundamentally the basic balloon inflate kind of does this, yes :)
+
+The difference with what I am suggesting is that balloon inflate tries
+to aggressively achieve a specific goal of freed memory. We could have a
+weaker "free as much as you can" that is still stronger than free page
+hint which as you point out below does not try to free at all, just
+hints what is already free.
 
 
-I find it problematic that there is no meaningful documentation as to
-what vmalloc_sync_all() is supposed to do.  The closest I can find is
-this comment by following the x86_64 code, which calls
-sync_global_pgds(), which says:
-
-/*
- * When memory was added make sure all the processes MM have
- * suitable PGD entries in the local PGD level page.
- */
-void sync_global_pgds(unsigned long start, unsigned long end)
-{
-
-Which is obviously entirely inapplicable.  If I'm understanding
-correctly, the underlying issue here is that the vmalloc fault
-mechanism can propagate PGD entry *addition*, but nothing (not even
-flush_tlb_kernel_range()) propagates PGD entry *removal*.
-
-I find it suspicious that only x86 has this.  How do other
-architectures handle this?
-
-At the very least, I think this series needs a comment in
-vmalloc_sync_all() explaining exactly what the function promises to
-do.  But maybe a better fix is to add code to flush_tlb_kernel_range()
-to sync the vmalloc area if the flushed range overlaps the vmalloc
-area.  Or, even better, improve x86_32 the way we did x86_64: adjust
-the memory mapping code such that top-level paging entries are never
-deleted in the first place.
+> The idea here is if the memory is free we just mark it as such. As
+> long as we can do so with no noticeable overhead on the guest or host
+> why not just do it?
 
