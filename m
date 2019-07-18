@@ -2,210 +2,152 @@ Return-Path: <SRS0=TqY8=VP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,TRACKER_ID autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6D178C7618F
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Jul 2019 16:11:35 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 673F4C7618F
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Jul 2019 16:11:39 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0B21421019
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Jul 2019 16:11:34 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0B21421019
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=virtuozzo.com
+	by mail.kernel.org (Postfix) with ESMTP id 2A6A721849
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Jul 2019 16:11:39 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=soleen.com header.i=@soleen.com header.b="nnb8r1VU"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2A6A721849
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=soleen.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 96DFB8E0009; Thu, 18 Jul 2019 12:11:34 -0400 (EDT)
+	id A31F08E000A; Thu, 18 Jul 2019 12:11:38 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8F79A8E0007; Thu, 18 Jul 2019 12:11:34 -0400 (EDT)
+	id 9BC7B8E0007; Thu, 18 Jul 2019 12:11:38 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7991F8E0009; Thu, 18 Jul 2019 12:11:34 -0400 (EDT)
+	id 8AA948E000A; Thu, 18 Jul 2019 12:11:38 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lj1-f199.google.com (mail-lj1-f199.google.com [209.85.208.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 0F0198E0007
-	for <linux-mm@kvack.org>; Thu, 18 Jul 2019 12:11:34 -0400 (EDT)
-Received: by mail-lj1-f199.google.com with SMTP id e14so6264611ljj.3
-        for <linux-mm@kvack.org>; Thu, 18 Jul 2019 09:11:33 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 384998E0007
+	for <linux-mm@kvack.org>; Thu, 18 Jul 2019 12:11:38 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id l14so20273481edw.20
+        for <linux-mm@kvack.org>; Thu, 18 Jul 2019 09:11:38 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=Ka7PIt6i9Q88JwccYuiYHqGAECqE20Y+n7xYlOq9DlY=;
-        b=saxvuBri8tTvW6Aar0yJnSMY7VVumHuyRSdoQn/jF3vOnwGDkqzgpv88d+MLyyv+bv
-         ehmZNPPXpOAa+XT2xQc+AX1Zk2FLkzqpyAHut4ZV+4/GUVBZejKg/X01vtlhd4eOQQ5T
-         vBbf5aiJC0wh3vQCY1Xaz8s6ol0tlZpofaqwg9knqjhYwi5cvdi6a9GID7/CN2xg9Qa3
-         ikHiZZ1YsYkgcfgT2U1MDCVfweHjz2XPOYJ7zpusv/x6PvnoZU+1rwtd6JF0flN1wWhT
-         7skOx646hiwgYUw/3d+F5ELIuQ2XHjGae92UStdm4KwjSA7zL8DOwKolCTomVHumkJrf
-         C2Iw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=aryabinin@virtuozzo.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-X-Gm-Message-State: APjAAAX6+WfOtpZqF5zHHnH2ExYxfhe9GicvYVZbhVCN6RYJwM6uxWV1
-	TqnFhPnXDJYzf5fjSdYcKFZBzHJ0Xo2GwxQF/oVb3+IDLmxVhuvnbHm/mBuKxIGoV3hv4wKVGtM
-	5QNaPvbgwXGa6abmbZz4Ex3VwNAmXgQZpq/V34BCT/Ph1frNZKTQqVCWwRT+n3k38bQ==
-X-Received: by 2002:a2e:7013:: with SMTP id l19mr25169609ljc.141.1563466293314;
-        Thu, 18 Jul 2019 09:11:33 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzUUjTkGTT6FUVR5mppasJSMO8bcPn2Ou11FW/vWVn7iNIBIYdqyh7adGti/V1CFLfyfb3r
-X-Received: by 2002:a2e:7013:: with SMTP id l19mr25169554ljc.141.1563466292267;
-        Thu, 18 Jul 2019 09:11:32 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563466292; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=3obEXF97WrsMpoUnrYdgG1Tyxfg+JoWnkuCsTAUEfHc=;
+        b=qIQTXPnQwfPuytHT9U3WdhVBSgeFVFK1CLz2moIJhc1gL8rF9gvtR8KwQKdJkSQ0gr
+         RWdmSYr1WoJEyY0vTNNvGB2eP6CpbGnFz3OR1PYWusfDND35IeIT551CYhQuJ9wg3r1m
+         B8d62+bBuOQKP5ATfsL12aHrxDfyHbLRH4colLT+oDuvKSAw4igVtI4OBtH0iDqKBXvD
+         j35PVj2vpfuBUVUv38jCsiw7I/xVAXjvgA6gwYyVDwyatCOgk1xVWyUebIG5yr8ko8+m
+         pt7p6qQAZ7A5b85Va5Ub0HyDMovB2XKnMvdgQZXUBFpF4WlYoez2ZsgagOphXPcALG64
+         Og7Q==
+X-Gm-Message-State: APjAAAXoMPlHiPiy2lOf/GIDTuFDtPv3Uv8Oi3NRCcQ/nInkGWVerm9P
+	qLIhGbCHD3jZzbsK+Z5jo2VVbwk8U0JebRZQ0N4WXE4XpidJSf6foDeIZ2pZZ8172d74ghcko3Y
+	Y9r4znPskudoOD54n+If56Cj/zm55Fc3jVXll5mMjNf5LlTEIrXDoaA176oXkg0D6vA==
+X-Received: by 2002:a50:fa83:: with SMTP id w3mr41588611edr.47.1563466297794;
+        Thu, 18 Jul 2019 09:11:37 -0700 (PDT)
+X-Received: by 2002:a50:fa83:: with SMTP id w3mr41588557edr.47.1563466297157;
+        Thu, 18 Jul 2019 09:11:37 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563466297; cv=none;
         d=google.com; s=arc-20160816;
-        b=b9LJDdTYcnlp00NPhMF/gpYQtmNFCAwbT+un50Ne6rQOCL7NHDiPtOPlmOQWO9ifab
-         I5dKk3c53y287WkCZ/4EoMyAXn94+zNAUNW+3WppqMTGZDIQWOak8bNhsNFb/N6vatfd
-         Dj57ecibaXb4uH5NGqU9Rq0twHz69TQQXTsTEGui5eJVjBQxl7IGz9vt5sQMAP0WIGZQ
-         pEojAxOnqn2r43sZL9YTUnXSKfwKIXLUU/H2YR8ujIv/FMp42lgKQYvfwpdS9+2lMp3h
-         JApwqzVUA8ToFqby8qCkdHH9+99lqjThtStotXiwK9q7kPssDhMM6gNIkevxs5s8Wr8N
-         RVtg==
+        b=rXPJusf4R5bOEybRg6rgRDtHoImBaPSy7zNa0lC19C2ufk5/Q3TEEsWW0qS480+f2J
+         r5YoRNfvtWu7fchoViIVpvV/d0nSVh6Ok0NkFYxq3VoiVS31t9IDQN6bYk+o461DINx0
+         +lPUepGspRwcooOU7VHSikjKNokhfeGYntObRnSO61s0uj5f32Zqa6y6BPITq/XMQS36
+         FGIKzo70RdswXXprFkM7M+vFG+Uo5QATnyNRr/K81TVwNNqAsQfM3PVjFU6KdL0vpcTA
+         XR3OPkP91eRjDBO/OQDGza/Lpm5lQKJrN1vMXnIQoL+GVfX7Jbxx7PeuiOSfR0uW/yAL
+         mlVg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=Ka7PIt6i9Q88JwccYuiYHqGAECqE20Y+n7xYlOq9DlY=;
-        b=HB/qPFRPXS1m4lE9T8yY521JKd1vWrNbpDc51QEvOOKw1lSmIW7OeAXWwcSTc5tbS0
-         qjeGjFaueJG2Thmc3s3c7xnK4+9P2jQkcEEChcV6AX+RFwc7cGNLQEPDvrPuuEQ2ZFbh
-         oEStk59KjasVAX0Wa22i27eIiL3YxKaw3gwktBPpZVPjA9F6+o8Ak5fDy14dElTDalla
-         pDKPbwWMFYCPwdnyJezKoQXRLRIEvGxGIO0fDbkbKmXnOmFxfRYEihMJILoro6BTTTtg
-         jv8kLoc+Klpr6FDX3AwwsksL8WSPMa5R7ImVNh0NnBqydLsWFAHp0l0uBQbsTOCvANWg
-         Uvtg==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=3obEXF97WrsMpoUnrYdgG1Tyxfg+JoWnkuCsTAUEfHc=;
+        b=LZpwSx4DVGVpIRSNwcIDhrjP27eE6h18ZvQp38+8NSKcOLw5qijZvdxN/EWGXkDcFA
+         D3sDP61Zp0OTvnENF5inXXwH4M1mnf4zRldoQhSNHOlvimuIt/B/PGXuDyKFBQXkxn19
+         MnFxlbpU9qzt/brzyRJQpVhE6ywJ/ncbjqs1+FgWkVOG6LgGbTyXJJRWtqXN3iUBbZ6j
+         Eus3Ov9SNOhH0VActra7fjBV05UWjPJ4Zb1xcd8kz9HgFE2KPSJndOmx/bfTbgUcMaDb
+         MHBVeZs6f0UPw+Z16jOflF/YZ8fvvuvFZbJjRRsT3bmMZS6e5Z3s4/JbrzDKrntZmS+U
+         MR1A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=aryabinin@virtuozzo.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
-        by mx.google.com with ESMTPS id 132si20850659lfi.55.2019.07.18.09.11.32
+       dkim=pass header.i=@soleen.com header.s=google header.b=nnb8r1VU;
+       spf=pass (google.com: domain of pasha.tatashin@soleen.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=pasha.tatashin@soleen.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id b21sor21818156edc.13.2019.07.18.09.11.37
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 18 Jul 2019 09:11:32 -0700 (PDT)
-Received-SPF: pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) client-ip=185.231.240.75;
+        (Google Transport Security);
+        Thu, 18 Jul 2019 09:11:37 -0700 (PDT)
+Received-SPF: pass (google.com: domain of pasha.tatashin@soleen.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=aryabinin@virtuozzo.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-Received: from [172.16.25.12]
-	by relay.sw.ru with esmtp (Exim 4.92)
-	(envelope-from <aryabinin@virtuozzo.com>)
-	id 1ho902-00080M-Ln; Thu, 18 Jul 2019 19:11:18 +0300
-Subject: Re: [PATCH v3] kasan: add memory corruption identification for
- software tag-based mode
-To: Walter Wu <walter-zh.wu@mediatek.com>
-Cc: Dmitry Vyukov <dvyukov@google.com>,
- Alexander Potapenko <glider@google.com>, Christoph Lameter <cl@linux.com>,
- Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>,
- Joonsoo Kim <iamjoonsoo.kim@lge.com>,
- Matthias Brugger <matthias.bgg@gmail.com>,
- Martin Schwidefsky <schwidefsky@de.ibm.com>, Arnd Bergmann <arnd@arndb.de>,
- Vasily Gorbik <gor@linux.ibm.com>, Andrey Konovalov <andreyknvl@google.com>,
- "Jason A . Donenfeld" <Jason@zx2c4.com>, Miles Chen
- <miles.chen@mediatek.com>, kasan-dev <kasan-dev@googlegroups.com>,
- LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>,
- Linux ARM <linux-arm-kernel@lists.infradead.org>,
- linux-mediatek@lists.infradead.org, wsd_upstream <wsd_upstream@mediatek.com>
-References: <20190613081357.1360-1-walter-zh.wu@mediatek.com>
- <da7591c9-660d-d380-d59e-6d70b39eaa6b@virtuozzo.com>
- <1560447999.15814.15.camel@mtksdccf07> <1560479520.15814.34.camel@mtksdccf07>
- <1560744017.15814.49.camel@mtksdccf07>
- <CACT4Y+Y3uS59rXf92ByQuFK_G4v0H8NNnCY1tCbr4V+PaZF3ag@mail.gmail.com>
- <1560774735.15814.54.camel@mtksdccf07> <1561974995.18866.1.camel@mtksdccf07>
- <CACT4Y+aMXTBE0uVkeZz+MuPx3X1nESSBncgkScWvAkciAxP1RA@mail.gmail.com>
- <ebc99ee1-716b-0b18-66ab-4e93de02ce50@virtuozzo.com>
- <1562640832.9077.32.camel@mtksdccf07>
- <d9fd1d5b-9516-b9b9-0670-a1885e79f278@virtuozzo.com>
- <1562839579.5846.12.camel@mtksdccf07>
- <37897fb7-88c1-859a-dfcc-0a5e89a642e0@virtuozzo.com>
- <1563160001.4793.4.camel@mtksdccf07>
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Message-ID: <9ab1871a-2605-ab34-3fd3-4b44a0e17ab7@virtuozzo.com>
-Date: Thu, 18 Jul 2019 19:11:21 +0300
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
+       dkim=pass header.i=@soleen.com header.s=google header.b=nnb8r1VU;
+       spf=pass (google.com: domain of pasha.tatashin@soleen.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=pasha.tatashin@soleen.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=soleen.com; s=google;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=3obEXF97WrsMpoUnrYdgG1Tyxfg+JoWnkuCsTAUEfHc=;
+        b=nnb8r1VUxoT6Rh7UeZIiyvzQQn0SURlNnsdRcOMXX44NSPsaHqRzm9+BeyWexTq/oK
+         98G5MVKnJIUPNWlSW8LoCOppPVI1fyXgjw5MSgUIrawtI1raTD5tKRhgZSMmE1UJromJ
+         JREvbh0Pub5P6qZwdP8UlTPAVo8NsB6Ycrw7u2aDcUEaNSRh0gTllpY7sBURLVHjg9+e
+         vLMXQz1To95LrzSRCyx7wgBwAb40UW1Sx+H/KUFdPi2alc6fxxUiXC1N2xS0o6KMM0MR
+         1J5XUiJ8pwJjJk5G10IHEWpfRfXIbnqd8BFcqGMOAHG+lTa4Xjr6sOR7Omu7U8OIPGry
+         jF2A==
+X-Google-Smtp-Source: APXvYqw2EEs0Sl3L+PvArw6obe2M4a4Esh+Ohl1Z2Anp/tQxrPnwrWF0NvTuCVtLVZYl71EJ+CdQj7ghlr5+XD6jjJ4=
+X-Received: by 2002:a50:922a:: with SMTP id i39mr41307612eda.219.1563466296738;
+ Thu, 18 Jul 2019 09:11:36 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <1563160001.4793.4.camel@mtksdccf07>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+References: <20190718024133.3873-1-leonardo@linux.ibm.com> <1563430353.3077.1.camel@suse.de>
+ <0e67afe465cbbdf6ec9b122f596910cae77bc734.camel@linux.ibm.com> <20190718155704.GD30461@dhcp22.suse.cz>
+In-Reply-To: <20190718155704.GD30461@dhcp22.suse.cz>
+From: Pavel Tatashin <pasha.tatashin@soleen.com>
+Date: Thu, 18 Jul 2019 12:11:25 -0400
+Message-ID: <CA+CK2bBU72owYSXH10LTU8NttvCASPNTNOqFfzA3XweXR3gOTw@mail.gmail.com>
+Subject: Re: [PATCH 1/1] mm/memory_hotplug: Adds option to hot-add memory in ZONE_MOVABLE
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Leonardo Bras <leonardo@linux.ibm.com>, Oscar Salvador <osalvador@suse.de>, 
+	LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, 
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Rafael J. Wysocki" <rafael@kernel.org>, 
+	Andrew Morton <akpm@linux-foundation.org>, Mike Rapoport <rppt@linux.ibm.com>, 
+	Pavel Tatashin <pasha.tatashin@oracle.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, 
+	Thomas Gleixner <tglx@linutronix.de>, Pasha Tatashin <Pavel.Tatashin@microsoft.com>, 
+	Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+Content-Type: text/plain; charset="UTF-8"
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000039, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Thu, Jul 18, 2019 at 11:57 AM Michal Hocko <mhocko@kernel.org> wrote:
+>
+> On Thu 18-07-19 12:50:29, Leonardo Bras wrote:
+> > On Thu, 2019-07-18 at 08:12 +0200, Oscar Salvador wrote:
+> > > We do already have "movable_node" boot option, which exactly has that
+> > > effect.
+> > > Any hotplugged range will be placed in ZONE_MOVABLE.
+> > Oh, I was not aware of it.
+> >
+> > > Why do we need yet another option to achieve the same? Was not that
+> > > enough for your case?
+> > Well, another use of this config could be doing this boot option a
+> > default on any given kernel.
+> > But in the above case I agree it would be wiser to add the code on
+> > movable_node_is_enabled() directly, and not where I did put.
+> >
+> > What do you think about it?
+>
+> No further config options please. We do have means a more flexible way
+> to achieve movable node onlining so let's use it. Or could you be more
+> specific about cases which cannot use the command line option and really
+> need a config option to workaround that?
 
+Hi Michal,
 
-On 7/15/19 6:06 AM, Walter Wu wrote:
-> On Fri, 2019-07-12 at 13:52 +0300, Andrey Ryabinin wrote:
->>
->> On 7/11/19 1:06 PM, Walter Wu wrote:
->>> On Wed, 2019-07-10 at 21:24 +0300, Andrey Ryabinin wrote:
->>>>
->>>> On 7/9/19 5:53 AM, Walter Wu wrote:
->>>>> On Mon, 2019-07-08 at 19:33 +0300, Andrey Ryabinin wrote:
->>>>>>
->>>>>> On 7/5/19 4:34 PM, Dmitry Vyukov wrote:
->>>>>>> On Mon, Jul 1, 2019 at 11:56 AM Walter Wu <walter-zh.wu@mediatek.com> wrote:
->>>>
->>>>>>>
->>>>>>> Sorry for delays. I am overwhelm by some urgent work. I afraid to
->>>>>>> promise any dates because the next week I am on a conference, then
->>>>>>> again a backlog and an intern starting...
->>>>>>>
->>>>>>> Andrey, do you still have concerns re this patch? This change allows
->>>>>>> to print the free stack.
->>>>>>
->>>>>> I 'm not sure that quarantine is a best way to do that. Quarantine is made to delay freeing, but we don't that here.
->>>>>> If we want to remember more free stacks wouldn't be easier simply to remember more stacks in object itself?
->>>>>> Same for previously used tags for better use-after-free identification.
->>>>>>
->>>>>
->>>>> Hi Andrey,
->>>>>
->>>>> We ever tried to use object itself to determine use-after-free
->>>>> identification, but tag-based KASAN immediately released the pointer
->>>>> after call kfree(), the original object will be used by another
->>>>> pointer, if we use object itself to determine use-after-free issue, then
->>>>> it has many false negative cases. so we create a lite quarantine(ring
->>>>> buffers) to record recent free stacks in order to avoid those false
->>>>> negative situations.
->>>>
->>>> I'm telling that *more* than one free stack and also tags per object can be stored.
->>>> If object reused we would still have information about n-last usages of the object.
->>>> It seems like much easier and more efficient solution than patch you proposing.
->>>>
->>> To make the object reused, we must ensure that no other pointers uses it
->>> after kfree() release the pointer.
->>> Scenario:
->>> 1). The object reused information is valid when no another pointer uses
->>> it.
->>> 2). The object reused information is invalid when another pointer uses
->>> it.
->>> Do you mean that the object reused is scenario 1) ?
->>> If yes, maybe we can change the calling quarantine_put() location. It
->>> will be fully use that quarantine, but at scenario 2) it looks like to
->>> need this patch.
->>> If no, maybe i miss your meaning, would you tell me how to use invalid
->>> object information? or?
->>>
->>
->>
->> KASAN keeps information about object with the object, right after payload in the kasan_alloc_meta struct.
->> This information is always valid as long as slab page allocated. Currently it keeps only one last free stacktrace.
->> It could be extended to record more free stacktraces and also record previously used tags which will allow you
->> to identify use-after-free and extract right free stacktrace.
-> 
-> Thanks for your explanation.
-> 
-> For extend slub object, if one record is 9B (sizeof(u8)+ sizeof(struct
-> kasan_track)) and add five records into slub object, every slub object
-> may add 45B usage after the system runs longer. 
-> Slub object number is easy more than 1,000,000(maybe it may be more
-> bigger), then the extending object memory usage should be 45MB, and
-> unfortunately it is no limit. The memory usage is more bigger than our
-> patch.
+Just trying to understand, if kernel parameters is the preferable
+method, why do we even have
 
-No, it's not necessarily more.
-And there are other aspects to consider such as performance, how simple reliable the code is.
+MEMORY_HOTPLUG_DEFAULT_ONLINE
 
-> 
-> We hope tag-based KASAN advantage is smaller memory usage. If it’s
-> possible, we should spend less memory in order to identify
-> use-after-free. Would you accept our patch after fine tune it?
+It is just strange that we have a config to online memory by default
+without kernel parameter, but no way to specify how to online it. It
+just looks as incomplete interface to me. Perhaps this config should
+be removed as well?
 
-Sure, if you manage to fix issues and demonstrate that performance penalty of your
-patch is close to zero.
+Pasha
 
