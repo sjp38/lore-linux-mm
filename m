@@ -2,161 +2,165 @@ Return-Path: <SRS0=TqY8=VP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E6D74C76196
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Jul 2019 03:06:54 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B41A6C76186
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Jul 2019 03:21:32 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B8955204EC
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Jul 2019 03:06:54 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B8955204EC
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 7B2222173E
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Jul 2019 03:21:32 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=canb.auug.org.au header.i=@canb.auug.org.au header.b="kA006oxQ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7B2222173E
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=canb.auug.org.au
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 455868E0001; Wed, 17 Jul 2019 23:06:54 -0400 (EDT)
+	id 07B208E0001; Wed, 17 Jul 2019 23:21:32 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4080F6B000C; Wed, 17 Jul 2019 23:06:54 -0400 (EDT)
+	id 02C0A6B0007; Wed, 17 Jul 2019 23:21:31 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2F6108E0001; Wed, 17 Jul 2019 23:06:54 -0400 (EDT)
+	id E34A68E0001; Wed, 17 Jul 2019 23:21:31 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id ECB1F6B000A
-	for <linux-mm@kvack.org>; Wed, 17 Jul 2019 23:06:53 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id d2so13149110pla.18
-        for <linux-mm@kvack.org>; Wed, 17 Jul 2019 20:06:53 -0700 (PDT)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id ACC8A6B0005
+	for <linux-mm@kvack.org>; Wed, 17 Jul 2019 23:21:31 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id a21so15827924pgh.11
+        for <linux-mm@kvack.org>; Wed, 17 Jul 2019 20:21:31 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id;
-        bh=Uz7KYsL+7jV0ZNh7sINRT1FSeHHySffyy9Z9T7LnA+Q=;
-        b=C9Ead9EFG/OEOkxfJFcJVlKtR3g+xiH+ytbxKjwtpWTGD8zSJDpPArWBKGRi6kVmUN
-         nvlFBgfXkRsgjU2OVbinsNczfk6ZuFW1twYIsDz4U1vh5EdHeQw2t3YdVmGTg7/cXT8V
-         151KZs0iGvyjZzSV6koNWdZ/gYE9hH+4wRJugtGYn6Sa3E0GnDwlGoUqbzi+lMsuG/DS
-         rikZ/maE9URNnvUeNcMQt4Cl1imuapEIEbvLmc4DSLVyGoxdNsTf9Pcz8EfPhGHUDWiC
-         LoEA+zozp4WdnGl83Sibdef6QvlCVWwVOoj5vn9QzN1VspPLr8DPk7aqhOkn0bUOkgO3
-         rWIA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of wei.w.wang@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=wei.w.wang@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAUP7z5GaBcKgdL0Zlxu2JX0MQ7ATKZu3bJTkeklSRyo6s+dT6Xm
-	nNfhs8ioHFr2Y1V5nGQyp2TD7sJ6Cu0cHcx3Hu1ce4e4knCY7CQ6EhtSoH+pkz/05/bC66hmzsL
-	bZPy8QuDM90bJriZv81dJbyWHnd6QaPmnhEybqAzzMFviBPwRyCXr/Jf8MIVR6YX9Pw==
-X-Received: by 2002:a17:90a:cb97:: with SMTP id a23mr47389647pju.67.1563419213604;
-        Wed, 17 Jul 2019 20:06:53 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwGi0gTMDydsMkBpKGMt5xobQgnhggG5zD5YGtyB4hB1r0NjZuEppEkkA1Y9JNF9fPlQt4y
-X-Received: by 2002:a17:90a:cb97:: with SMTP id a23mr47389581pju.67.1563419212767;
-        Wed, 17 Jul 2019 20:06:52 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563419212; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:in-reply-to:references:mime-version;
+        bh=BcO0HGR7e4UTl+jc1D97xviwaVY0fONvvUaL6z9KEIo=;
+        b=hxsyaDEpD2cC++MbAxBHIfHlRRYg5gY1uMd59t9VosUggqneohs3o3DRDIQfOgAIMC
+         Ycig+muqj6QLe0qbiMkz1UdR2Xoz8Hxxf6aQJ3/Yz5nIJu+B2TopTsNEsw4619Hd3tae
+         k+mI02WgijnwNHL9L7Tp4sMqWT1uedfMppyKmL6bWmwydFlL2JQFpYKXu0lFalTslo3y
+         Gpyzv4eFFSzw0JDHIldsJm6Lg4qFycPI7327PADWTi1Q7+5eZa+hZytn7RDIF0tlCpIG
+         blE8dj6cfvy/Ua8obBEvP3jByQbvw5lgM34s3y/G+dLVWjAyXDA2FIizCAnQUuLZ0RDg
+         g+kw==
+X-Gm-Message-State: APjAAAVDcj4FGHpKHpAqOKjLSeL4NMrwDvdcwKfLs4cWMkpk1pCImXbG
+	LvDQtPNEF3zLbBU0DE/ULu3r+lTSCAIsaN5Dvdpuv8dFi2z3RezUPpauvEp7XMBJUIkl5JJf43I
+	ODJKmc/LLVY6FF0sowpVfPjtvKnFduV6HGZ1Jz6nPA4LpGf11+Q2aTmyaaV/0yiOcbw==
+X-Received: by 2002:a63:5048:: with SMTP id q8mr44698045pgl.446.1563420091185;
+        Wed, 17 Jul 2019 20:21:31 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxAa1/fmCKd2OWBlwvwWRoTFEmuZUaUhqwbq8pheqNvJqLiaQrw6CDsbkrJ+CftiQO9/RVp
+X-Received: by 2002:a63:5048:: with SMTP id q8mr44697972pgl.446.1563420090227;
+        Wed, 17 Jul 2019 20:21:30 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563420090; cv=none;
         d=google.com; s=arc-20160816;
-        b=W72G1sziTFyXY/kRckpZyiuIbptl52VKqBVI64Izp95dxQk9X68MV3BlXYrTLf+QzZ
-         wg3VpNNuain2xDJQ1X7OxWaPrcu0gVlwYGHhBVsxO6dUcMHfO/SwG9o5bM2fdx9lZ31T
-         vfSBiq+bLbKRRN19Tx5PZKqCl/XBH3oWJs8ASKCCn2h9HR+KvhrGVizF+zVL61vEcObF
-         e75hGFTvOuNEHWGW/bkVAHdWsPbHYGU4SQiQWoI6sXYnPpIE1BXUDA9VojYicue8tKB/
-         v5zI2qKbUhX2BBW1PyeZO8SkBsnW0ck/0/ONW+r3dziOJkKWeetRQdvSdXccQhyowb9u
-         MISg==
+        b=de9Ky6ilFO8U5gWxeCIu+aj38PvyFPqNhC8AxyW9VOFHMB0ylzk2bOpoSFz7ONZpOp
+         AJBU83n2oUOuzYyTj36Tszj6xzGxdt8uKAlrTUfwMIsCKizqrryP3wkUWcNHEf0kzAs/
+         NhhkNGYTTZx0yTWA1dGNSKnykQLpDT6J2ZzAGeCZC1LU3lFntmvJbZnpNOhwsZ9PIGZ+
+         wt5bj+iKHoreZvXfdyPvOr1IYZuLPMSGaHHDhQOzvQSBUzgHwSYFemOpxdaMVE8Yk2DE
+         +n1bpKX6Sdkc6V4y6yWjEMRaEh4TnpNsjEKCxIGtNBkeHNOYasCr4hMm1n4r/RPidW9M
+         joig==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:date:subject:cc:to:from;
-        bh=Uz7KYsL+7jV0ZNh7sINRT1FSeHHySffyy9Z9T7LnA+Q=;
-        b=R2KmX2YQeOsaZPoG1fByRleQceBl89eR0BIYp4r1JW9WpCsGUGuIQteq3oGgqjCROg
-         eHKm4Xmtgr03bJudr82RrdX35LaERJYzGL4CN3+O37Yg49dL56RQ5GX+nyjXtTWWlLOa
-         +yvta/Pq45TRE57SncAbEwowz4WGdesCbMbhmGWUZNVNK+fwyrD8QVMtqvt+UyrpIRu1
-         4sWL+5bzlaWn67K9YWD8pRnSkC478nifmKG9neQVHq78p1UrY2K+PE/yBYzUCw5A5qI1
-         iYHWFBJ0hOEGcvdQ965Fo+VQ8JUfHiFbem1eQeu9vZQxm79YVAqedyL+oygaM4MyedJy
-         oNuw==
+        h=mime-version:references:in-reply-to:message-id:subject:cc:to:from
+         :date:dkim-signature;
+        bh=BcO0HGR7e4UTl+jc1D97xviwaVY0fONvvUaL6z9KEIo=;
+        b=qlb0zPW0etHVOSV3rTmoHMpucKG072vsF1/TeBdEVVb5sgLT1ndXf9Gppf4mSR/R/j
+         c9itWFv0rK5epR/ftrlUnpkcZuYWJE51VFOB+JUtBtPyBdjamYrXFRjQha6UDPymG5O0
+         sX6xkQD6BB9WzUeJrcA8c4vc1rIb5dIzG16iTezh1/WnIFi00JGu/4izms994qUvH0ex
+         U9KfXtmJ8X7eMb+UBxIKyXjIg/1Bsd3z+07FPP4WsJE0wO1XK6i7+vhVU/TVAXxl6wyM
+         3xoRTL4Th4GRPqbeBPMy4/ikdD1uiMUye8z3hyBSKVUmmY1WlwTAwlbL2joX/7dfMtJX
+         Lw5Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of wei.w.wang@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=wei.w.wang@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id y14si1233284pfr.82.2019.07.17.20.06.52
+       dkim=pass header.i=@canb.auug.org.au header.s=201702 header.b=kA006oxQ;
+       spf=pass (google.com: domain of sfr@canb.auug.org.au designates 2401:3900:2:1::2 as permitted sender) smtp.mailfrom=sfr@canb.auug.org.au
+Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
+        by mx.google.com with ESMTPS id z10si23917855pgv.233.2019.07.17.20.21.29
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Jul 2019 20:06:52 -0700 (PDT)
-Received-SPF: pass (google.com: domain of wei.w.wang@intel.com designates 134.134.136.20 as permitted sender) client-ip=134.134.136.20;
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Wed, 17 Jul 2019 20:21:29 -0700 (PDT)
+Received-SPF: pass (google.com: domain of sfr@canb.auug.org.au designates 2401:3900:2:1::2 as permitted sender) client-ip=2401:3900:2:1::2;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of wei.w.wang@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=wei.w.wang@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from fmsmga003.fm.intel.com ([10.253.24.29])
-  by orsmga101.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 17 Jul 2019 20:06:52 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.64,276,1559545200"; 
-   d="scan'208";a="175892069"
-Received: from devel-ww.sh.intel.com ([10.239.48.128])
-  by FMSMGA003.fm.intel.com with ESMTP; 17 Jul 2019 20:06:49 -0700
-From: Wei Wang <wei.w.wang@intel.com>
-To: linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org,
-	kvm@vger.kernel.org,
-	mst@redhat.com,
-	xdeguillard@vmware.com,
-	namit@vmware.com
-Cc: akpm@linux-foundation.org,
-	pagupta@redhat.com,
-	riel@surriel.com,
-	dave.hansen@intel.com,
-	david@redhat.com,
-	konrad.wilk@oracle.com,
-	yang.zhang.wz@gmail.com,
-	nitesh@redhat.com,
-	lcapitulino@redhat.com,
-	aarcange@redhat.com,
-	pbonzini@redhat.com,
-	alexander.h.duyck@linux.intel.com,
-	dan.j.williams@intel.com
-Subject: [PATCH v1] mm/balloon_compaction: avoid duplicate page removal
-Date: Thu, 18 Jul 2019 10:23:30 +0800
-Message-Id: <1563416610-11045-1-git-send-email-wei.w.wang@intel.com>
-X-Mailer: git-send-email 2.7.4
+       dkim=pass header.i=@canb.auug.org.au header.s=201702 header.b=kA006oxQ;
+       spf=pass (google.com: domain of sfr@canb.auug.org.au designates 2401:3900:2:1::2 as permitted sender) smtp.mailfrom=sfr@canb.auug.org.au
+Received: from authenticated.ozlabs.org (localhost [127.0.0.1])
+	(using TLSv1.3 with cipher TLS_AES_256_GCM_SHA384 (256/256 bits)
+	 key-exchange ECDHE (P-256) server-signature RSA-PSS (4096 bits) server-digest SHA256)
+	(No client certificate requested)
+	by mail.ozlabs.org (Postfix) with ESMTPSA id 45pztt4f7mz9sNr;
+	Thu, 18 Jul 2019 13:21:26 +1000 (AEST)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=canb.auug.org.au;
+	s=201702; t=1563420086;
+	bh=onp2VmPiELbvIvkg2tf00xZcG6KP/CQLzKyAEZzDib4=;
+	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
+	b=kA006oxQfewIgA9PWNvgcNJ9JvzlF26mMPNUPdKr70a7iDhrLEsAq/As3QzuSrgeZ
+	 +hLFNtgTLS9LvJCEVCMByH+InBq7/ul40/FzhhXCLvxeZEiheUDeK2Mn7I+XeVGtfA
+	 T7z7uhHkrsfr1sDu3ktsndOKtVhzYpT4lrQywk++uGd+KViY69ioJOZXB07KPePr+j
+	 8+3gB8VHfXkr5vX8cTsSoilu+hjP0X2D5YqNClpj8E5Uu/O7OlI3VIgw6iT0CAB4YQ
+	 PMPWCaytNPerKOgfI0c9JKbQMCoRqHPGb5cL1QOPdDDJq14hD03oc4RwHQAirU9u4f
+	 qzN3cyznabT6g==
+Date: Thu, 18 Jul 2019 13:21:11 +1000
+From: Stephen Rothwell <sfr@canb.auug.org.au>
+To: akpm@linux-foundation.org
+Cc: broonie@kernel.org, linux-fsdevel@vger.kernel.org,
+ linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+ linux-next@vger.kernel.org, mhocko@suse.cz, mm-commits@vger.kernel.org,
+ "Darrick J. Wong" <darrick.wong@oracle.com>
+Subject: Re: mmotm 2019-07-17-16-05 uploaded
+Message-ID: <20190718132111.1f55f46f@canb.auug.org.au>
+In-Reply-To: <20190717230610.zvRfipNL4%akpm@linux-foundation.org>
+References: <20190717230610.zvRfipNL4%akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: multipart/signed; micalg=pgp-sha256;
+ boundary="Sig_/JOd2f8N3wfkBrruihbRJymm"; protocol="application/pgp-signature"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Fixes: 418a3ab1e778 (mm/balloon_compaction: List interfaces)
+--Sig_/JOd2f8N3wfkBrruihbRJymm
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: quoted-printable
 
-A #GP is reported in the guest when requesting balloon inflation via
-virtio-balloon. The reason is that the virtio-balloon driver has
-removed the page from its internal page list (via balloon_page_pop),
-but balloon_page_enqueue_one also calls "list_del"  to do the removal.
-So remove the list_del in balloon_page_enqueue_one, and have the callers
-do the page removal from their own page lists.
+Hi Andrew,
 
-Signed-off-by: Wei Wang <wei.w.wang@intel.com>
----
- mm/balloon_compaction.c | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+On Wed, 17 Jul 2019 16:06:10 -0700 akpm@linux-foundation.org wrote:
+>
+> * mm-migrate-remove-unused-mode-argument.patch
 
-diff --git a/mm/balloon_compaction.c b/mm/balloon_compaction.c
-index 83a7b61..1a5ddc4 100644
---- a/mm/balloon_compaction.c
-+++ b/mm/balloon_compaction.c
-@@ -11,6 +11,7 @@
- #include <linux/export.h>
- #include <linux/balloon_compaction.h>
- 
-+/* Callers ensure that @page has been removed from its original list. */
- static void balloon_page_enqueue_one(struct balloon_dev_info *b_dev_info,
- 				     struct page *page)
+This patch needs updating due to changes in the iomap tree.
+
+The section that updated fs/iomap/migrate.c should be replaced by:
+
+diff --git a/fs/iomap/buffered-io.c b/fs/iomap/buffered-io.c
+index da4d958f9dc8..e25901ae3ff4 100644
+--- a/fs/iomap/buffered-io.c
++++ b/fs/iomap/buffered-io.c
+@@ -489,7 +489,7 @@ iomap_migrate_page(struct address_space *mapping, struc=
+t page *newpage,
  {
-@@ -21,7 +22,6 @@ static void balloon_page_enqueue_one(struct balloon_dev_info *b_dev_info,
- 	 * memory corruption is possible and we should stop execution.
- 	 */
- 	BUG_ON(!trylock_page(page));
--	list_del(&page->lru);
- 	balloon_page_insert(b_dev_info, page);
- 	unlock_page(page);
- 	__count_vm_event(BALLOON_INFLATE);
-@@ -47,6 +47,7 @@ size_t balloon_page_list_enqueue(struct balloon_dev_info *b_dev_info,
- 
- 	spin_lock_irqsave(&b_dev_info->pages_lock, flags);
- 	list_for_each_entry_safe(page, tmp, pages, lru) {
-+		list_del(&page->lru);
- 		balloon_page_enqueue_one(b_dev_info, page);
- 		n_pages++;
- 	}
--- 
-2.7.4
+ 	int ret;
+=20
+-	ret =3D migrate_page_move_mapping(mapping, newpage, page, mode, 0);
++	ret =3D migrate_page_move_mapping(mapping, newpage, page, 0);
+ 	if (ret !=3D MIGRATEPAGE_SUCCESS)
+ 		return ret;
+=20
+--=20
+Cheers,
+Stephen Rothwell
+
+--Sig_/JOd2f8N3wfkBrruihbRJymm
+Content-Type: application/pgp-signature
+Content-Description: OpenPGP digital signature
+
+-----BEGIN PGP SIGNATURE-----
+
+iQEzBAEBCAAdFiEENIC96giZ81tWdLgKAVBC80lX0GwFAl0v5acACgkQAVBC80lX
+0Gy4Fgf/e9X65fZvCbB0Nhqw4PpeHOAdJvQRDvZA84FLdP/vsEKnLjFlFir0togF
+JgD4OAYOQvGeZqhbFOfSFETsraF4HOvu0CWObY7pHuDrizRDl4GX9ZKPGx/9+VkV
+dLoS2uFuV0tMC9fvyT/o+kLJE/r/zZNcXOJs/E5Fpzx8R7EN4nmS71quPkhezPeb
+/joItlo6DtsauVnTtUnrYqlDieWVOMCb0Xa+nHF3IzbQR/afTyoWxIYkCWhCS6/D
+muCE72/kFn5C5/9A637Xtffweis6aS4t47HVEesWFh5BZoFrOzYUN7AJGLoQ9tzm
+GPh337OUHu0D+XgyPiI4kazKcLXWRg==
+=HJt9
+-----END PGP SIGNATURE-----
+
+--Sig_/JOd2f8N3wfkBrruihbRJymm--
 
