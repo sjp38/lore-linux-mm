@@ -2,208 +2,124 @@ Return-Path: <SRS0=qzwp=VQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-13.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	MENTIONS_GIT_HOSTING,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.4 required=3.0 tests=FROM_LOCAL_HEX,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 28F0AC76195
-	for <linux-mm@archiver.kernel.org>; Fri, 19 Jul 2019 20:02:48 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3B3FAC7618F
+	for <linux-mm@archiver.kernel.org>; Fri, 19 Jul 2019 20:04:02 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C41222189F
-	for <linux-mm@archiver.kernel.org>; Fri, 19 Jul 2019 20:02:47 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="UGjkJsZM"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C41222189F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id F14E82186A
+	for <linux-mm@archiver.kernel.org>; Fri, 19 Jul 2019 20:04:01 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F14E82186A
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=syzkaller.appspotmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 216AD6B0005; Fri, 19 Jul 2019 16:02:47 -0400 (EDT)
+	id 7E1C86B0007; Fri, 19 Jul 2019 16:04:01 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1C7D16B0006; Fri, 19 Jul 2019 16:02:47 -0400 (EDT)
+	id 7930B6B0008; Fri, 19 Jul 2019 16:04:01 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0B6DC8E0001; Fri, 19 Jul 2019 16:02:47 -0400 (EDT)
+	id 65B2A8E0001; Fri, 19 Jul 2019 16:04:01 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C96E46B0005
-	for <linux-mm@kvack.org>; Fri, 19 Jul 2019 16:02:46 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id x18so19304236pfj.4
-        for <linux-mm@kvack.org>; Fri, 19 Jul 2019 13:02:46 -0700 (PDT)
+Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 480056B0007
+	for <linux-mm@kvack.org>; Fri, 19 Jul 2019 16:04:01 -0400 (EDT)
+Received: by mail-io1-f71.google.com with SMTP id h4so35840459iol.5
+        for <linux-mm@kvack.org>; Fri, 19 Jul 2019 13:04:01 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:mime-version:content-disposition
-         :content-transfer-encoding:user-agent;
-        bh=5N6LdOFrJjCGue8cmzcmZMQF0A64ylNe67FM2v5UYwc=;
-        b=dQXEkhbITPTKRlscQ/f4eOq3U4PbhaGMs+KVobHaeEJ62eQ8LRj+WYPXt0ZQ1AWp66
-         pK79ZyjkGPy5iMT0EGmhbFh4Z7n78jJU94B5XGI4CuQpOaDejXDB3vTlwVUG59rcI9tW
-         SgdoRCp4dKO996oeuYRpTsR89MR12YQnw3XgyinJqcPI5ad2HJF0P3nO9/c/Oc8Nx74k
-         JIzbt0wnMTO8H/eZtklKIUl/Au5Q/YS/mNBGrQcFgpkVmAZ6NwxaxT/Nc5Q6jB7hMVbO
-         qO2TfkFEEvf0z954OE8G2ynkiyi+4GWWNv2COEq16gjPF/3O8TANXV+mhy5KAd9aPpZU
-         NiNg==
-X-Gm-Message-State: APjAAAVWG4CC/XjmWrYGmDY5XH95xTfqBXCXczrpPk5gu6X5F17khz4P
-	b6U3/yQ3Hf+VbsqVXsojwIMFqlD/2eeKxfJrNUqj4xfv6krnImP2Gy7vLdtnx6ouU9DuEt0BjVN
-	4ig1+KvnouahgaI5mocdBER1lOoiPh/fpYOPJsKG8tN09wPYWbAXX9sH1exeTQS47aQ==
-X-Received: by 2002:a63:ec48:: with SMTP id r8mr28401064pgj.387.1563566566146;
-        Fri, 19 Jul 2019 13:02:46 -0700 (PDT)
-X-Received: by 2002:a63:ec48:: with SMTP id r8mr28400952pgj.387.1563566564595;
-        Fri, 19 Jul 2019 13:02:44 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563566564; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:mime-version
+         :date:in-reply-to:message-id:subject:from:to;
+        bh=aPsM7izy0lsHgieRMKZNuSLjrGTa3/1dak1h6g1FuBU=;
+        b=ZJ36a9BF1Ce81aYqKmeWJlkfw+KhxTceP7KPmAdQqNUGux0jMmo5X7FtRttXsHmUzQ
+         2KReJdFvk9ksPpa/GZ/K67tVjmrMqosPJpV53xTQhez8tEcxmh8/tPr0Sd0+mRxjBgc0
+         AT18YKW6L5fgguVypRCSqAHrrFDPVL5fYCCDFTksLxXA8iwExXgIgRrMoIDG0DqUi16O
+         I5EzqAMke+z7Mp84G4GPdxGgm5b7QBQP5mXOvJS0eZ2JzPSv+Mb0LelW5Ke/uzFIUzzd
+         LegpeqsIRNgSOWyQBx8eVz1DexUP5TkGsKg76Rbe+LTgWYd5rd6dvTrz5KYNEds3vllB
+         UTRw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of 3mciyxqkbac0bhitjuunajyyrm.pxxpundbnalxwcnwc.lxv@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3MCIyXQkbAC0bhiTJUUNaJYYRM.PXXPUNdbNaLXWcNWc.LXV@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
+X-Gm-Message-State: APjAAAWhkLHdjKLZMaXq92uA/qwqnysp1vLMctiuToIloyZklLFmOcT1
+	eKOsHAWV3Bt96mBoc53lytUZtn/drxqdxjCfQwADua564PMZbRnztujzZ0omD6AZPwrD5uVDuth
+	9bENhFJPRFSJoGSRnk6XATMVBKhLtkQ8owvdDkfHodS/I1IavEK806yJa87eRnc4=
+X-Received: by 2002:a5e:9304:: with SMTP id k4mr52758945iom.206.1563566641089;
+        Fri, 19 Jul 2019 13:04:01 -0700 (PDT)
+X-Received: by 2002:a5e:9304:: with SMTP id k4mr52758897iom.206.1563566640478;
+        Fri, 19 Jul 2019 13:04:00 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563566640; cv=none;
         d=google.com; s=arc-20160816;
-        b=H1xTrBBVEMBJugza2yC86kQsiZX1ylJmJaikJEjnixrvh+wzUhxu+KK1ZNsNMb8fek
-         V/Rb+SzGmgrFERTCCYWNPaDSyJZlGBN/PFjF2eIMNVCSIQYY3LJCJOsAb0ABsuhYjPqG
-         jr6G2MbQt/OSjzrXJiRD7T2nplK0HOMYVfxDuTnsVqsQTWrB7ZwQtPJoUUjkn6rCZbNw
-         VSRcSgV2eD2MD5HS9S2/+D2Gqimn8Y61/uU2ScGMJ1WXKkzkvPOiEhl+Wxl88vYzECL1
-         mZeKt0xrjNRW3xVWyypKMqGMIMYrTfmuHB3scMz65Kz2IOjvfrPST1JSJxpjlpKd+lpl
-         EMqQ==
+        b=x4d7BQc9ep+4YGWIgoSH7djvZ31+QgtraWBAda5BjNkCgqWAe8a4Bk7fLIm1Cuv38Z
+         3EHCuqntcPTSxUGEq5gwxbKNsagu7F7cpajBat4QA52+dV+6IhBKXxM2q84tsk1gX69/
+         +O7kmYb6VoE4ehlJVyPpJTBJ5kzEyexo+ErRs9vLN36Ap6ioB5GrRnDquEkgxEtUVxbs
+         GW3/wiTVAeIgn28+8ius5Dc8Vna7LSw3FQ+CGwlayR4wdj+CQvg9I5I02An1hNj+pSQP
+         NfRHk0zmCb1aO45y3y243mgA8XVjY7eT3sp6TbWZ053GPY+61GOpFPWnIEv2e0BcVC67
+         QquA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:content-transfer-encoding:content-disposition
-         :mime-version:message-id:subject:cc:to:from:date:dkim-signature;
-        bh=5N6LdOFrJjCGue8cmzcmZMQF0A64ylNe67FM2v5UYwc=;
-        b=U5vIdf6GZFff72qO0Z1Ahn6h15W9Ij5uQ/wfJsxHSnD3h9cOgwR++5+VW0KPw/t7fR
-         SwxPXeumfzpRxpfvqYPR4qUIFM4HQO27n48oZwQm61tBHJbFUQM8YJWeR0iBKudqks2z
-         4AmeKSiLPHttn9KhjTSpS7YyASg544dvCyMDHZ+LydGIn5AfOwbAG1m/TI/kmL/0RbSU
-         7v+bnbnB1+tRPKyEcD6PVTNIIpHbacZ1kqvxx5/bCg1Es+uxYQ+mu8e71+znS9CBP/J7
-         n4PkaekzjJAblyYAbQdZ2PX1vbY/Nrcd7gZClI4fp9gPMBWi3BtfkCUUR6A5zXaXdyIZ
-         qQ8Q==
+        h=to:from:subject:message-id:in-reply-to:date:mime-version;
+        bh=aPsM7izy0lsHgieRMKZNuSLjrGTa3/1dak1h6g1FuBU=;
+        b=CJjowhrgMf1fXW8+k2Cu/ReTAUdKOE+rDCWTfep8UhjSqGnyorjot+A9C2tE7rilmC
+         /HatjeiD5rbuqN5naZl084Q7uaeZfhtOHLuNqpnNRHDIRwlh8681+CYhplpoJLf66S1d
+         qwq1FNJzO25b0C3mSFoMFT3wFgVxuhtF4V7m/UakezJ/lUa/ncYu6JP/Fij7DSCVN603
+         qUF9tb1AtxyW5DGICjtYTMv4cVjDs9b76XbzlEVen+KSRcqdfkv1coptjFRVNxex1FMd
+         ZQF7vgrxe7CBUaPSgATyg3dklkDo17dm+j3X2wuAIdLMzA9QC+QZOeY0OMlpOn/S8pC/
+         7nFA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=UGjkJsZM;
-       spf=pass (google.com: domain of linux.bhar@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=linux.bhar@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r202sor17134118pfr.51.2019.07.19.13.02.44
+       spf=pass (google.com: domain of 3mciyxqkbac0bhitjuunajyyrm.pxxpundbnalxwcnwc.lxv@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3MCIyXQkbAC0bhiTJUUNaJYYRM.PXXPUNdbNaLXWcNWc.LXV@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
+Received: from mail-sor-f69.google.com (mail-sor-f69.google.com. [209.85.220.69])
+        by mx.google.com with SMTPS id e1sor21942224ioc.49.2019.07.19.13.04.00
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 19 Jul 2019 13:02:44 -0700 (PDT)
-Received-SPF: pass (google.com: domain of linux.bhar@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Fri, 19 Jul 2019 13:04:00 -0700 (PDT)
+Received-SPF: pass (google.com: domain of 3mciyxqkbac0bhitjuunajyyrm.pxxpundbnalxwcnwc.lxv@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) client-ip=209.85.220.69;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=UGjkJsZM;
-       spf=pass (google.com: domain of linux.bhar@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=linux.bhar@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=date:from:to:cc:subject:message-id:mime-version:content-disposition
-         :content-transfer-encoding:user-agent;
-        bh=5N6LdOFrJjCGue8cmzcmZMQF0A64ylNe67FM2v5UYwc=;
-        b=UGjkJsZMA2fiZtIAfmbFGijLgKyG17B3eQ5YtmodVmWNxm4QJS+OfEyZ+Yx0rDQby2
-         gnj1ZAjcG7OI7VSuae91ptxx0prbKEh6VLzS2BftpTlOw7ct6KvfS89UEMgXf3CKrAUm
-         VaSB94oa9pL4apBBZkcMyNzGYnpzyBzTuQq30KTDOHMXp7Xb9c9oc9841+wEnQyr+ujd
-         Q2anwrvnoScMKEKCNV3+pPM0tIGmNLbdiVFoc3Mc4Omod3QzKFB5m7AZ+WgiGgw39cIs
-         N8SknDNp4z08kAzx0YLMPgaREHUUUqxXxTMX9u3ky5Xw4RULICCNa2aGIxbU5/gx3dQE
-         NTYw==
-X-Google-Smtp-Source: APXvYqyUkjtJ5/kr1NKh5evL+FbdXcRYyIgbQbmLhNrEiZG/igGdTIgx+LqU2x5WMPCYNej1LAZAWw==
-X-Received: by 2002:a63:f807:: with SMTP id n7mr57629925pgh.119.1563566564159;
-        Fri, 19 Jul 2019 13:02:44 -0700 (PDT)
-Received: from bharath12345-Inspiron-5559 ([103.110.42.33])
-        by smtp.gmail.com with ESMTPSA id c8sm37375979pjq.2.2019.07.19.13.02.39
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 19 Jul 2019 13:02:43 -0700 (PDT)
-Date: Sat, 20 Jul 2019 01:32:35 +0530
-From: Bharath Vedartham <linux.bhar@gmail.com>
-To: jhubbard@nvidia.com, ira.weiny@intel.com, jglisse@redhat.com,
-	gregkh@linuxfoundation.org, Matt.Sickler@daktronics.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
-	devel@driverdev.osuosl.org
-Subject: [PATCH v3] staging: kpc2000: Convert put_page to put_user_page*()
-Message-ID: <20190719200235.GA16122@bharath12345-Inspiron-5559>
+       spf=pass (google.com: domain of 3mciyxqkbac0bhitjuunajyyrm.pxxpundbnalxwcnwc.lxv@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3MCIyXQkbAC0bhiTJUUNaJYYRM.PXXPUNdbNaLXWcNWc.LXV@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
+X-Google-Smtp-Source: APXvYqxidYggLhCDlKDPPoGD3FSWeBWxwtOzAyrvnQyzo3ixpa+XRzwDjKZfxioOdAVAMIp4fTiorW0EVPKAU++mh06/cyXjSy0g
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-User-Agent: Mutt/1.5.24 (2015-08-30)
+X-Received: by 2002:a5d:87c6:: with SMTP id q6mr29436327ios.115.1563566640206;
+ Fri, 19 Jul 2019 13:04:00 -0700 (PDT)
+Date: Fri, 19 Jul 2019 13:04:00 -0700
+In-Reply-To: <00000000000045e7a1058e02458a@google.com>
+X-Google-Appengine-App-Id: s~syzkaller
+X-Google-Appengine-App-Id-Alias: syzkaller
+Message-ID: <0000000000002c183d058e0e3abd@google.com>
+Subject: Re: KASAN: use-after-free Write in tlb_finish_mmu
+From: syzbot <syzbot+8267e9af795434ffadad@syzkaller.appspotmail.com>
+To: aarcange@redhat.com, davem@davemloft.net, hch@infradead.org, 
+	james.bottomley@hansenpartnership.com, jasowang@redhat.com, 
+	jglisse@redhat.com, linux-arm-kernel@lists.infradead.org, 
+	linux-kernel@vger.kernel.org, linux-mm@kvack.org, 
+	linux-parisc@vger.kernel.org, mst@redhat.com, syzkaller-bugs@googlegroups.com
+Content-Type: text/plain; charset="UTF-8"; format=flowed; delsp=yes
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-There have been issues with coordination of various subsystems using
-get_user_pages. These issues are better described in [1].
+syzbot has bisected this bug to:
 
-An implementation of tracking get_user_pages is currently underway
-The implementation requires the use put_user_page*() variants to release
-a reference rather than put_page(). The commit that introduced
-put_user_pages, Commit fc1d8e7cca2daa18d2fe56b94874848adf89d7f5 ("mm: introduce
-put_user_page*(), placeholder version").
+commit 7f466032dc9e5a61217f22ea34b2df932786bbfc
+Author: Jason Wang <jasowang@redhat.com>
+Date:   Fri May 24 08:12:18 2019 +0000
 
-The implementation currently simply calls put_page() within
-put_user_page(). But in the future, it is to change to add a mechanism
-to keep track of get_user_pages. Once a tracking mechanism is
-implemented, we can make attempts to work on improving on coordination
-between various subsystems using get_user_pages.
+     vhost: access vq metadata through kernel virtual address
 
-[1] https://lwn.net/Articles/753027/
+bisection log:  https://syzkaller.appspot.com/x/bisect.txt?x=11642a58600000
+start commit:   22051d9c Merge tag 'platform-drivers-x86-v5.3-2' of git://..
+git tree:       upstream
+final crash:    https://syzkaller.appspot.com/x/report.txt?x=13642a58600000
+console output: https://syzkaller.appspot.com/x/log.txt?x=15642a58600000
+kernel config:  https://syzkaller.appspot.com/x/.config?x=d831b9cbe82e79e4
+dashboard link: https://syzkaller.appspot.com/bug?extid=8267e9af795434ffadad
+userspace arch: i386
+syz repro:      https://syzkaller.appspot.com/x/repro.syz?x=10d58784600000
 
-Cc: Ira Weiny <ira.weiny@intel.com>
-Cc: John Hubbard <jhubbard@nvidia.com>
-Cc: Jérôme Glisse <jglisse@redhat.com>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: Matt Sickler <Matt.Sickler@daktronics.com>
-Cc: devel@driverdev.osuosl.org 
-Cc: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org
-Signed-off-by: Bharath Vedartham <linux.bhar@gmail.com>
----
-Changes since v1
-	- Improved changelog by John's suggestion.
-	- Moved logic to dirty pages below sg_dma_unmap
-	and removed PageReserved check.
-Changes since v2
-	- Added back PageResevered check as suggested by John Hubbard.
-	
-The PageReserved check needs a closer look and is not worth messing
-around with for now.
+Reported-by: syzbot+8267e9af795434ffadad@syzkaller.appspotmail.com
+Fixes: 7f466032dc9e ("vhost: access vq metadata through kernel virtual  
+address")
 
-Matt, Could you give any suggestions for testing this patch?
-    
-If in-case, you are willing to pick this up to test. Could you
-apply this patch to this tree
-https://github.com/johnhubbard/linux/tree/gup_dma_core
-and test it with your devices?
-
----
- drivers/staging/kpc2000/kpc_dma/fileops.c | 17 ++++++-----------
- 1 file changed, 6 insertions(+), 11 deletions(-)
-
-diff --git a/drivers/staging/kpc2000/kpc_dma/fileops.c b/drivers/staging/kpc2000/kpc_dma/fileops.c
-index 6166587..75ad263 100644
---- a/drivers/staging/kpc2000/kpc_dma/fileops.c
-+++ b/drivers/staging/kpc2000/kpc_dma/fileops.c
-@@ -198,9 +198,7 @@ int  kpc_dma_transfer(struct dev_private_data *priv, struct kiocb *kcb, unsigned
- 	sg_free_table(&acd->sgt);
-  err_dma_map_sg:
-  err_alloc_sg_table:
--	for (i = 0 ; i < acd->page_count ; i++){
--		put_page(acd->user_pages[i]);
--	}
-+	put_user_pages(acd->user_pages, acd->page_count);
-  err_get_user_pages:
- 	kfree(acd->user_pages);
-  err_alloc_userpages:
-@@ -221,16 +219,13 @@ void  transfer_complete_cb(struct aio_cb_data *acd, size_t xfr_count, u32 flags)
- 	
- 	dev_dbg(&acd->ldev->pldev->dev, "transfer_complete_cb(acd = [%p])\n", acd);
- 	
--	for (i = 0 ; i < acd->page_count ; i++){
--		if (!PageReserved(acd->user_pages[i])){
--			set_page_dirty(acd->user_pages[i]);
--		}
--	}
--	
- 	dma_unmap_sg(&acd->ldev->pldev->dev, acd->sgt.sgl, acd->sgt.nents, acd->ldev->dir);
- 	
--	for (i = 0 ; i < acd->page_count ; i++){
--		put_page(acd->user_pages[i]);
-+	for (i = 0; i < acd->page_count; i++) {
-+		if (!PageReserved(acd->user_pages[i]))
-+			put_user_pages_dirty(&acd->user_pages[i], 1);
-+		else
-+			put_user_page(acd->user_pages[i]);
- 	}
- 	
- 	sg_free_table(&acd->sgt);
--- 
-2.7.4
+For information about bisection process see: https://goo.gl/tpsmEJ#bisection
 
