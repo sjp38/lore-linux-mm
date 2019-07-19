@@ -4,110 +4,110 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-10.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
 	DKIM_VALID,DKIM_VALID_AU,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no
-	version=3.4.0
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2BBEFC76188
-	for <linux-mm@archiver.kernel.org>; Fri, 19 Jul 2019 04:02:04 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id AE753C76196
+	for <linux-mm@archiver.kernel.org>; Fri, 19 Jul 2019 04:02:06 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DC6D4218A3
-	for <linux-mm@archiver.kernel.org>; Fri, 19 Jul 2019 04:02:03 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 762ED2189F
+	for <linux-mm@archiver.kernel.org>; Fri, 19 Jul 2019 04:02:06 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="aPtYU8Hx"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DC6D4218A3
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="1EtMe0iD"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 762ED2189F
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 92F6A6B000C; Fri, 19 Jul 2019 00:02:03 -0400 (EDT)
+	id 2ED108E0003; Fri, 19 Jul 2019 00:02:06 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 891F48E0003; Fri, 19 Jul 2019 00:02:03 -0400 (EDT)
+	id 2C4748E0001; Fri, 19 Jul 2019 00:02:06 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 70B1A8E0001; Fri, 19 Jul 2019 00:02:03 -0400 (EDT)
+	id 16B768E0003; Fri, 19 Jul 2019 00:02:06 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 36DAF6B000C
-	for <linux-mm@kvack.org>; Fri, 19 Jul 2019 00:02:03 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id a21so17906418pgh.11
-        for <linux-mm@kvack.org>; Thu, 18 Jul 2019 21:02:03 -0700 (PDT)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id CBC858E0001
+	for <linux-mm@kvack.org>; Fri, 19 Jul 2019 00:02:05 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id 65so15115753plf.16
+        for <linux-mm@kvack.org>; Thu, 18 Jul 2019 21:02:05 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=2SnQEihZXmbCxz7kEjeO3BZKTDlYsqkYF5GhuqOadJg=;
-        b=G2DaqllKLrfJs5b7XXcIB32/rU6/ilJWWI8R5OO6nujmUZju6qm5ddWGGJPCzWwSQa
-         ER+/Cc6IJykFpWTT+MAkSeK8+6xXMFY9NqdNIzeFaMYWB3/rkaj8FOLe/r988Jd8yF2R
-         eYqnJA+gRR1RsHb+MuC4fHoe7OHEs7hj1lbPCJHwadCNa7cH23ud+EGXjqoKXsxDlHh8
-         19/heQniEn/6L4X7bJoVDOrHjbpzHMqjsL/FnElSBBqP2NHrIt+zW7wQHBh7bI040tWG
-         /ral/KjxAaT/ejauJ+S9tZwGUJ4kjftv8yi0tjYK+QWVV71wB77+QQ68m3PCZzabWmV/
-         Nm2g==
-X-Gm-Message-State: APjAAAX9Eau1yVJ+KJ1EvJJuSTqRcoUFDTdA9jacrMNoVf8N3IaFOoGQ
-	26TkFGxFXr5qr1LnmFK8s10SzYKSwhQ0F2vkk4PXbUDDwfcQIn284hIuNUlRHHc/AWz5Nn41nnL
-	85Klfy1I2uIz0Cy5aTdj9Z/ZEap72wZeCsr6lAyPceQ6AptNxaqCqrIIG2Q3pqFHD2w==
-X-Received: by 2002:a17:902:e287:: with SMTP id cf7mr53700649plb.32.1563508922830;
-        Thu, 18 Jul 2019 21:02:02 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqx5vzujGc72DNT7dBwEyq0mvQzDRZeibjyQTXLnvU2VL8ASHPcLCzjUBCfcZLZiZmyZ8MSw
-X-Received: by 2002:a17:902:e287:: with SMTP id cf7mr53700588plb.32.1563508922195;
-        Thu, 18 Jul 2019 21:02:02 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563508922; cv=none;
+        bh=rLHZ2q6G+M0PNJ8XkTQl0L0QLO6MMei3QSLq64PJAmU=;
+        b=LYEn4zQXoS5wdK++IZUDOaOpzqwhOgutmOinlmluXEkG1j8cI6hUbDVraXflNRadeJ
+         7GD1O3szdA5DzmPEtcYWhPKOHa5i1+fNKObAudyy6Dghzh0T5N/vy/4XxxlkBCyBKNjf
+         fpnQY2g24Iw7KGSu0NSTnRxR7OyJaC+VkRycPje4AJNRJ0mI71Qijo0saMxfLRHOgfPY
+         RaSEZocm3IC4YVusUryMY8r3PAz0FFG5/5HN389wNW8Egq1WFqkF924lauPn/jt8neBo
+         5tRKaXrJ0KRxdFGHKWTd9gdqYHgX+TC5lu37xjUd+Ad/Jbkfi/kMY78TSCieM3vQrVb8
+         wxsQ==
+X-Gm-Message-State: APjAAAU3YKKykulOFyHRgw592i07ZEoRIJ8rdx5mAm89orIbhIUXsCXm
+	+a/8volntQTOgYu9drgtn5I8yQtSvlquKB+XHoTwl2ep1RDIpjWv+MUQoFtK2naD2wmSdLMnqa6
+	Y0o7n18T5CWabkFeQ+bNyYd9ZFSYrQpqLY1oZoR3J+HAajpBCgYmBhjntAXCZ98PjRA==
+X-Received: by 2002:a17:90a:ca0f:: with SMTP id x15mr10578983pjt.82.1563508925519;
+        Thu, 18 Jul 2019 21:02:05 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqztKf/Y4kXnDEEUlfdmxjrliFN2rVT4wJilgGyJMCrwVLxLCaIt3KKFkvFdVxqNzJ/aoBOY
+X-Received: by 2002:a17:90a:ca0f:: with SMTP id x15mr10578930pjt.82.1563508924833;
+        Thu, 18 Jul 2019 21:02:04 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563508924; cv=none;
         d=google.com; s=arc-20160816;
-        b=QAuSr/kEI0g/t99ay0x7Z2pQqhBGdAy72nzDkmdCWm/Q2tkUx4jzLkjLc8sFItwuhO
-         nAf1qRalU74Udywshzz2b8/zfL0XgOzJn0oun+pFUxpvTSf6SWyudlCwN9stj7kjRbXv
-         R0qDMm/tIGdYll0wYetrBY0gCtzYU9fQJSC5hTim4JO5+wU9LAIbYaHMRUIv0NJhC5Id
-         TChkKzm3iLcIhva9XngQNNN5huDU/8vyVNmxtnJmwnZT5aCt2dVKVE/fh6Zga7EB0CsA
-         VRfgQh/LZHj1roBVULGuE2VjLzWCXP49sTqg2Me0J/VgAu+Ohr3WkMLrBiZjys3lJ0Wn
-         pBxA==
+        b=DT6U9VTtdUEJflNqLdvYop29cu6JZylzOWfrm5gi5832QT83oJ60YoZJ6qWIE3sHsP
+         9bbLTNboqEJAGU2QrGs6CbLePTlgR0uWuT7PZC0I68dStJSV+K5T/xgmDqa8ztig9CRW
+         z6pS+MLwB7EltJUHxAQDcp5Y05DUhTEvlys9Y9Au8ehUQx+lgrtG7DvLTOy5hj5wCpxI
+         PjCMDVgHKGU0lXBYoldPwBiXir3huwIP+a+gMyHMFl+5Kh6WLjRBk0jAS8XVOsqfEbx8
+         tAw/tzo2XsJKeNjbdzoF2Rjico6LroEUdilmkPh5cwo/H19m+LGsGhB2wNolPGKVYA4Q
+         JGhg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=2SnQEihZXmbCxz7kEjeO3BZKTDlYsqkYF5GhuqOadJg=;
-        b=g5hePg9iqg7z0TfcAuep3As6d6u24AyxNfCIck7KRF967ivX7RMjtmPDy5WUntfFCM
-         lyu3QjpXJML4Z6QPDHab43DLotSBzF6U1yu84Mm0hth+YmxM6aMIdgEalU4gj1/1nRQe
-         ze8IbyWaZvcbNgC3G6ThL1/Mahb6DTkvAwy9MweUwI2szUwKccB6Bmg7K1g5E8pnT1sN
-         7wb/+xCtcswB5EOi3eM4kwF7XtqAZoK4X33999LBMmH7i+5SVYw5Qqwzp3t/h1GfGWWC
-         ZlEenVw6HxNu0xKptYFX0CFDQ8zsuAqaN3C268Ck/mJoU71azyj3Rs9jeVpfD1o87Roq
-         aQIA==
+        bh=rLHZ2q6G+M0PNJ8XkTQl0L0QLO6MMei3QSLq64PJAmU=;
+        b=e2dd3+vopSBp/fiPsOKpcOxtKYYUk6qnpfuOXnVMCDW0enqMM0hwcx8oAfM0DM9D2a
+         wrzQIR1hxvcYH+nRwJjc7QWvKzffUJlG+UnlRE3i30xLg2571UlJedOVJZhPVa8DAiv6
+         dpO7er4QJsZUCu7pciLaKGmvwxhJRFtMpxqtjTFemShf2S+mdCxrcZUrRX8UgHhSCqDW
+         KhFX+dENnRFGcwj92b4JyznJjORCqVt8XahjfOriqxFtl4tyNKDfR7VzYt2DyKrlOioy
+         QuV5PwigW6o1uEFQw/xzbVJX/8ZDyebti1+GpbR3EY2ZP+Dl23xUXvqs70NwzMZfGUAJ
+         mFbA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=aPtYU8Hx;
+       dkim=pass header.i=@kernel.org header.s=default header.b=1EtMe0iD;
        spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id w11si3627506pgk.384.2019.07.18.21.02.02
+        by mx.google.com with ESMTPS id u38si559354pgn.79.2019.07.18.21.02.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 18 Jul 2019 21:02:02 -0700 (PDT)
+        Thu, 18 Jul 2019 21:02:04 -0700 (PDT)
 Received-SPF: pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=aPtYU8Hx;
+       dkim=pass header.i=@kernel.org header.s=default header.b=1EtMe0iD;
        spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from sasha-vm.mshome.net (c-73-47-72-35.hsd1.nh.comcast.net [73.47.72.35])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id DAFF321873;
-	Fri, 19 Jul 2019 04:02:00 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTPSA id 83F8421851;
+	Fri, 19 Jul 2019 04:02:03 +0000 (UTC)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1563508921;
-	bh=WIX+4yTSGgjulMaBlod+LF0gOGyUWTgf6fht0yor7qc=;
+	s=default; t=1563508924;
+	bh=3tGUSyKZat/dmcqO896qO06Msf2f2s+baD14991fs+I=;
 	h=From:To:Cc:Subject:Date:In-Reply-To:References:From;
-	b=aPtYU8HxzHVezx+iHN7CBfdflr/ZwCO2zUtpUjWE4DcNwA7stwb7PMaSkNp4W07Dn
-	 W2Cocakhvrw3d3LLrVNDJSNS7WQGlYVQdNxZhNRMosGmexSkKUoyg1Fu3YMBIBnhzd
-	 dpcFeU+2e7aseK5gCTavbp3TDeVh8AXlAShLDh7o=
+	b=1EtMe0iDCnhov9z/InapjWhmveObQ7da/HREOfT9aH/YhHWUwEOkUr8Y+QRoMXlI9
+	 UP27kvLZxcMCpZNnDbqPn0Crz4AivOImyhxbzy+jnh7qohPaMx+A35fdP86GLO5jJ3
+	 8rTReANSCS7HlgGZE3l5WeseJpTLF7qZC8c8zVzk=
 From: Sasha Levin <sashal@kernel.org>
 To: linux-kernel@vger.kernel.org,
 	stable@vger.kernel.org
-Cc: Guenter Roeck <linux@roeck-us.net>,
+Cc: Andy Lutomirski <luto@kernel.org>,
+	Kees Cook <keescook@chromium.org>,
 	Andrew Morton <akpm@linux-foundation.org>,
-	Stephen Rothwell <sfr@canb.auug.org.au>,
-	Robin Murphy <robin.murphy@arm.com>,
-	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>,
+	Florian Weimer <fweimer@redhat.com>,
+	Jann Horn <jannh@google.com>,
 	Linus Torvalds <torvalds@linux-foundation.org>,
 	Sasha Levin <sashal@kernel.org>,
 	linux-mm@kvack.org
-Subject: [PATCH AUTOSEL 5.2 159/171] mm/gup.c: mark undo_dev_pagemap as __maybe_unused
-Date: Thu, 18 Jul 2019 23:56:30 -0400
-Message-Id: <20190719035643.14300-159-sashal@kernel.org>
+Subject: [PATCH AUTOSEL 5.2 160/171] mm/gup.c: remove some BUG_ONs from get_gate_page()
+Date: Thu, 18 Jul 2019 23:56:31 -0400
+Message-Id: <20190719035643.14300-160-sashal@kernel.org>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190719035643.14300-1-sashal@kernel.org>
 References: <20190719035643.14300-1-sashal@kernel.org>
@@ -121,44 +121,53 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Guenter Roeck <linux@roeck-us.net>
+From: Andy Lutomirski <luto@kernel.org>
 
-[ Upstream commit 790c73690c2bbecb3f6f8becbdb11ddc9bcff8cc ]
+[ Upstream commit b5d1c39f34d1c9bca0c4b9ae2e339fbbe264a9c7 ]
 
-Several mips builds generate the following build warning.
+If we end up without a PGD or PUD entry backing the gate area, don't BUG
+-- just fail gracefully.
 
-  mm/gup.c:1788:13: warning: 'undo_dev_pagemap' defined but not used
+It's not entirely implausible that this could happen some day on x86.  It
+doesn't right now even with an execute-only emulated vsyscall page because
+the fixmap shares the PUD, but the core mm code shouldn't rely on that
+particular detail to avoid OOPSing.
 
-The function is declared unconditionally but only called from behind
-various ifdefs. Mark it __maybe_unused.
-
-Link: http://lkml.kernel.org/r/1562072523-22311-1-git-send-email-linux@roeck-us.net
-Signed-off-by: Guenter Roeck <linux@roeck-us.net>
+Link: http://lkml.kernel.org/r/a1d9f4efb75b9d464e59fd6af00104b21c58f6f7.1561610798.git.luto@kernel.org
+Signed-off-by: Andy Lutomirski <luto@kernel.org>
+Reviewed-by: Kees Cook <keescook@chromium.org>
 Reviewed-by: Andrew Morton <akpm@linux-foundation.org>
-Cc: Stephen Rothwell <sfr@canb.auug.org.au>
-Cc: Robin Murphy <robin.murphy@arm.com>
-Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Cc: Florian Weimer <fweimer@redhat.com>
+Cc: Jann Horn <jannh@google.com>
 Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
 Signed-off-by: Sasha Levin <sashal@kernel.org>
 ---
- mm/gup.c | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ mm/gup.c | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)
 
 diff --git a/mm/gup.c b/mm/gup.c
-index ddde097cf9e4..22855ff0b448 100644
+index 22855ff0b448..d2c14fc4b5d4 100644
 --- a/mm/gup.c
 +++ b/mm/gup.c
-@@ -1696,7 +1696,8 @@ static inline pte_t gup_get_pte(pte_t *ptep)
- }
- #endif
- 
--static void undo_dev_pagemap(int *nr, int nr_start, struct page **pages)
-+static void __maybe_unused undo_dev_pagemap(int *nr, int nr_start,
-+					    struct page **pages)
- {
- 	while ((*nr) - nr_start) {
- 		struct page *page = pages[--(*nr)];
+@@ -585,11 +585,14 @@ static int get_gate_page(struct mm_struct *mm, unsigned long address,
+ 		pgd = pgd_offset_k(address);
+ 	else
+ 		pgd = pgd_offset_gate(mm, address);
+-	BUG_ON(pgd_none(*pgd));
++	if (pgd_none(*pgd))
++		return -EFAULT;
+ 	p4d = p4d_offset(pgd, address);
+-	BUG_ON(p4d_none(*p4d));
++	if (p4d_none(*p4d))
++		return -EFAULT;
+ 	pud = pud_offset(p4d, address);
+-	BUG_ON(pud_none(*pud));
++	if (pud_none(*pud))
++		return -EFAULT;
+ 	pmd = pmd_offset(pud, address);
+ 	if (!pmd_present(*pmd))
+ 		return -EFAULT;
 -- 
 2.20.1
 
