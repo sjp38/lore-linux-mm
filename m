@@ -2,219 +2,224 @@ Return-Path: <SRS0=qzwp=VQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id ED5E5C76188
-	for <linux-mm@archiver.kernel.org>; Fri, 19 Jul 2019 13:01:20 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0E4DBC76196
+	for <linux-mm@archiver.kernel.org>; Fri, 19 Jul 2019 13:52:53 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id AFB6B2173B
-	for <linux-mm@archiver.kernel.org>; Fri, 19 Jul 2019 13:01:20 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AFB6B2173B
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id B966E21851
+	for <linux-mm@archiver.kernel.org>; Fri, 19 Jul 2019 13:52:52 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B966E21851
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 43F786B0008; Fri, 19 Jul 2019 09:01:20 -0400 (EDT)
+	id 1A4CE6B0005; Fri, 19 Jul 2019 09:52:52 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3EDD38E0003; Fri, 19 Jul 2019 09:01:20 -0400 (EDT)
+	id 157CF8E0003; Fri, 19 Jul 2019 09:52:52 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2B7688E0001; Fri, 19 Jul 2019 09:01:20 -0400 (EDT)
+	id 043BF8E0001; Fri, 19 Jul 2019 09:52:51 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id D0F2E6B0008
-	for <linux-mm@kvack.org>; Fri, 19 Jul 2019 09:01:19 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id z20so22025053edr.15
-        for <linux-mm@kvack.org>; Fri, 19 Jul 2019 06:01:19 -0700 (PDT)
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D59C46B0005
+	for <linux-mm@kvack.org>; Fri, 19 Jul 2019 09:52:51 -0400 (EDT)
+Received: by mail-qk1-f200.google.com with SMTP id b139so26280772qkc.21
+        for <linux-mm@kvack.org>; Fri, 19 Jul 2019 06:52:51 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=gpRGflTbpMBYYocaH2hBQ/mkY2iaabyN2ehDaDPcGQY=;
-        b=MRPe5g5Lb5rIn1bbXRpwMIGP6Tndoa9EoGkBZmDTOKpy1vHOQjYSyEa9p3CZ0AKYx8
-         X/Chwq8V5wwG46Y5FyNYBGrGWkqXpPt8dzJcJeMHOt/HxAyJ5tGliEffIb5+tK+DLZ3S
-         t+1pHANt9l+AYa8gvCDRuLcS6huy/BwvJ9Pe0VgMUrRp0CeW26dcO4X9cOo0na86CiU9
-         N38Rweb9/916PD1aAecCUipbQmqYSG0Q4OWl1cfYEwqv6NAfUrvTm/wfQF4hcpU/zoYR
-         Nj/cVO1oHWRYZoJ2rhpRaG46URo2EwgXrk5m3tPqPIANWQGwbeQA4qaQuwjuH0zr75xe
-         lCxg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Gm-Message-State: APjAAAXewL1p/+XLBe7UxZTlPlQL8kTM6AqEtnhn/8WtYc5wCVDNgW/t
-	P0MHFTWqsMGqVFtExwf/8Y8E8drEcjZe1IM9/dPMn8PbShJudS30igsYyjSRgS0QfakTvvZu/F6
-	E0LeRrpwp/a2kSsBh6qwIvtgtv3U50WYYxUMStxrSWyWwNG3xyy902c7OBHvkn/K8Vw==
-X-Received: by 2002:a17:906:19c6:: with SMTP id h6mr40633652ejd.262.1563541279409;
-        Fri, 19 Jul 2019 06:01:19 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy0OXMu6rTVS+Oz3GMPfwcM4uZdQ5dvlSq7a0NQu5E2tKloN54CLazPq8LfMnwQhj3NlJ1v
-X-Received: by 2002:a17:906:19c6:: with SMTP id h6mr40633573ejd.262.1563541278639;
-        Fri, 19 Jul 2019 06:01:18 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563541278; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:mime-version:content-transfer-encoding;
+        bh=GpI15cvRuqjnFWa3JMsvR2mzFMyeGrq3ufNEnq471Jc=;
+        b=MIFsBPh8xcct1+yBBEcbqiCwmrulS7n6Ujxnp5sCxUMK33+0fEEg/DfTBg/J9e5wbP
+         6nVUDMEp9SZgY0OZjPMwm2JQesJHgKo8cGPhnQXqMBnGr6+dOr2OtaOUkJ+1vDGI/4QJ
+         WNh3YBNrEJBK3gn6eoDnt9rRpOguW4wpidUgpVk2OQHMvtCfeHbUO3JQLXW2gmKJ0gAd
+         c676Q0Udlwii35gFIt+yi9DbfP7maG12bF1TB6rYDVM4GV0nT8IyxWJcAXr+Dd2sM+7t
+         QBscKskyy8o7ugVrhrkiMqEz5/gOyFRiVwy2HV8TnyGto/QHNu6i9gxzizBOHGpl64Ak
+         OxWA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAUBaGaQmTb4G8D3DCJG1BIsRTrjrBQ5W17/iKMve+n2gqhAYJV3
+	cts7D5gsX1eEdxM30TIsecUDtngpsvef6VwWhqn4w1g9zthRQjx3UabgD6/eqQOw+frFrYwH8i7
+	Oy0khNSAY5FxQpDv/sjXUn1F2M0jeY7LmkNyPqDdtc6THAsO87jDUn5Nt2kLSWNAHhg==
+X-Received: by 2002:a0c:9687:: with SMTP id a7mr39247317qvd.163.1563544371593;
+        Fri, 19 Jul 2019 06:52:51 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyDWl3wTg2XR8kYVYudbMTV8TesAixh2ERVOiT+IUynWguopRTFpJuBOKMfayUAFHZVYn/7
+X-Received: by 2002:a0c:9687:: with SMTP id a7mr39247251qvd.163.1563544370775;
+        Fri, 19 Jul 2019 06:52:50 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563544370; cv=none;
         d=google.com; s=arc-20160816;
-        b=oaX7U10K6melSTYOgxJFuasfod9NgBSl//CORAxroZ4oG4zkIJqJsYtIYnEMfGqXUz
-         buMl7Ev9B1Az5xm6x70F5DplxL4zrHvTbzdZ2E0tXjo25oSNR/JkaDilBMHY8OXmGoeJ
-         DEZv/HRLj/JLP7CCngYEGekLX61M6jI/FYdSoKPsRZMQxMhN+Yl7Srr0vaSVh1Kw4rJd
-         kitEgTtI30Hgtb5k9kt9w8Kdw+LGMV3WOOrEoMp4LbWyce+J0pz2H47BLnD08Oc3aoHP
-         zjm3m/KEehFy9fZmf6oeJEggnueZW2FIPjvBuLcnjMZBZ6kWphaxtz+dSr4/Qk0JUifr
-         xnBQ==
+        b=TIHN5EAA2z8jxXY5eb2Y1Ix74utv+9/YCNQkl+qi1lFngtjjPgGpFIoQqbIModlkRR
+         NwBYejGIBwNe+9sjO40GpBEI2+o9AYWMwYWUDjR9lwmhkYO8WSYOlVdRO5s2ImK9taR3
+         ERO2KqTzIdeB+oLXmZHD8qZLVjvk+x7s8wvP595QqnPd/at2ImoGgJsZpAEyv+a/TZTP
+         9SpsXpPdtM/uZTPiDTXUGUerZnvkK4GNlFrU3h3lQ9Mu/9bLwPPj8LvpINJOJ9xDu2wG
+         Yyq7ciVUhjdY11mCjcHti3CwPPdkcBU1vjYI29HGTTak30awSC+yT+zV/KnJIEgQwk/n
+         cD8w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=gpRGflTbpMBYYocaH2hBQ/mkY2iaabyN2ehDaDPcGQY=;
-        b=xbLcWGsqmi54u24eYovkFPPQNfjuC0MEBc3JDLoPU8odDL6ZdI1BGeKf8P25NZtveb
-         9uTwlE6u0wWK5sNAJRBOCXsFY7SjPrNNy7hUkrS73ykBxFEilYIRdFNFYdxIJK2osuxD
-         sUEoAkPgFNQA6SQjgDuS6Qouoej4vvK1g4Ax7MkIftZx4JxfTPepimmyHnYYL7GUM9iN
-         Wg3L/ZkJDxKPAI6QQOkvx4B0nKoqcik8bLf8GDn5TkqZP14N7cYEt+puE0YtTRYpuqcE
-         VFt8gTEiJStCdQQOxjkz9K2JDp66IQzpqPFFL2CSG8fEB66/vNjuTi3+NksECIO/1Ds9
-         u1GA==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from;
+        bh=GpI15cvRuqjnFWa3JMsvR2mzFMyeGrq3ufNEnq471Jc=;
+        b=eD8PA+FEm/4FlZFgs47Lqq8qwVA6MdtTm37CtupjqnS24ah4k1YmaoXpkl4RATwDWJ
+         5qYCoo7BxYWfxn3QlAb4Ri0RSdaWQGADj/An6dc+3GeA2uo60uS9a6LZojF3ElI34fgN
+         6FqA3rFAqvSx5JFp10Me7pDzHn7b7LubLaLPOW1acNgTRzJ6WcHT48Z3GnlnUEGBwEto
+         Gux6GsEesa/TAtTt+icBp6SevulbPyId6hnUW7fMXwC0g+hYzrdJl4DjUkQMoFxFWMmu
+         AyxyWJMNPWJLONLSrAVWsrvoIbwUdA6TN6uLK2izKix2WGYe+8K8k3IkvgWyfnUQ0tiq
+         MtdA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id bq3si930606ejb.272.2019.07.19.06.01.18
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id u9si21209262qvg.28.2019.07.19.06.52.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 19 Jul 2019 06:01:18 -0700 (PDT)
-Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Fri, 19 Jul 2019 06:52:50 -0700 (PDT)
+Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 2A731AF8F;
-	Fri, 19 Jul 2019 13:01:18 +0000 (UTC)
-Subject: Re: [v3 PATCH 2/2] mm: mempolicy: handle vma with unmovable pages
- mapped correctly in mbind
-To: Yang Shi <yang.shi@linux.alibaba.com>, mhocko@kernel.org,
- mgorman@techsingularity.net, akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
- linux-api@vger.kernel.org
-References: <1563470274-52126-1-git-send-email-yang.shi@linux.alibaba.com>
- <1563470274-52126-3-git-send-email-yang.shi@linux.alibaba.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <6ba72e56-9f62-36bf-ded7-f337522715d5@suse.cz>
-Date: Fri, 19 Jul 2019 15:01:17 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id E00703084295;
+	Fri, 19 Jul 2019 13:52:49 +0000 (UTC)
+Received: from t460s.redhat.com (ovpn-116-220.ams2.redhat.com [10.36.116.220])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 5A8B81019615;
+	Fri, 19 Jul 2019 13:52:45 +0000 (UTC)
+From: David Hildenbrand <david@redhat.com>
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org,
+	David Hildenbrand <david@redhat.com>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	"Rafael J. Wysocki" <rafael@kernel.org>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Stephen Rothwell <sfr@canb.auug.org.au>,
+	Pavel Tatashin <pasha.tatashin@soleen.com>,
+	Michal Hocko <mhocko@suse.com>,
+	Oscar Salvador <osalvador@suse.de>
+Subject: [PATCH v2] drivers/base/node.c: Simplify unregister_memory_block_under_nodes()
+Date: Fri, 19 Jul 2019 15:52:44 +0200
+Message-Id: <20190719135244.15242-1-david@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <1563470274-52126-3-git-send-email-yang.shi@linux.alibaba.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
+X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.40]); Fri, 19 Jul 2019 13:52:50 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 7/18/19 7:17 PM, Yang Shi wrote:
-> When running syzkaller internally, we ran into the below bug on 4.9.x
-> kernel:
-> 
-> kernel BUG at mm/huge_memory.c:2124!
-> invalid opcode: 0000 [#1] SMP KASAN
-> Dumping ftrace buffer:
->    (ftrace buffer empty)
-> Modules linked in:
-> CPU: 0 PID: 1518 Comm: syz-executor107 Not tainted 4.9.168+ #2
-> Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 0.5.1 01/01/2011
-> task: ffff880067b34900 task.stack: ffff880068998000
-> RIP: 0010:[<ffffffff81895d6b>]  [<ffffffff81895d6b>] split_huge_page_to_list+0x8fb/0x1030 mm/huge_memory.c:2124
-> RSP: 0018:ffff88006899f980  EFLAGS: 00010286
-> RAX: 0000000000000000 RBX: ffffea00018f1700 RCX: 0000000000000000
-> RDX: 1ffffd400031e2e7 RSI: 0000000000000001 RDI: ffffea00018f1738
-> RBP: ffff88006899f9e8 R08: 0000000000000001 R09: 0000000000000000
-> R10: 0000000000000000 R11: fffffbfff0d8b13e R12: ffffea00018f1400
-> R13: ffffea00018f1400 R14: ffffea00018f1720 R15: ffffea00018f1401
-> FS:  00007fa333996740(0000) GS:ffff88006c600000(0000) knlGS:0000000000000000
-> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> CR2: 0000000020000040 CR3: 0000000066b9c000 CR4: 00000000000606f0
-> Stack:
->  0000000000000246 ffff880067b34900 0000000000000000 ffff88007ffdc000
->  0000000000000000 ffff88006899f9e8 ffffffff812b4015 ffff880064c64e18
->  ffffea00018f1401 dffffc0000000000 ffffea00018f1700 0000000020ffd000
-> Call Trace:
->  [<ffffffff818490f1>] split_huge_page include/linux/huge_mm.h:100 [inline]
->  [<ffffffff818490f1>] queue_pages_pte_range+0x7e1/0x1480 mm/mempolicy.c:538
->  [<ffffffff817ed0da>] walk_pmd_range mm/pagewalk.c:50 [inline]
->  [<ffffffff817ed0da>] walk_pud_range mm/pagewalk.c:90 [inline]
->  [<ffffffff817ed0da>] walk_pgd_range mm/pagewalk.c:116 [inline]
->  [<ffffffff817ed0da>] __walk_page_range+0x44a/0xdb0 mm/pagewalk.c:208
->  [<ffffffff817edb94>] walk_page_range+0x154/0x370 mm/pagewalk.c:285
->  [<ffffffff81844515>] queue_pages_range+0x115/0x150 mm/mempolicy.c:694
->  [<ffffffff8184f493>] do_mbind mm/mempolicy.c:1241 [inline]
->  [<ffffffff8184f493>] SYSC_mbind+0x3c3/0x1030 mm/mempolicy.c:1370
->  [<ffffffff81850146>] SyS_mbind+0x46/0x60 mm/mempolicy.c:1352
->  [<ffffffff810097e2>] do_syscall_64+0x1d2/0x600 arch/x86/entry/common.c:282
->  [<ffffffff82ff6f93>] entry_SYSCALL_64_after_swapgs+0x5d/0xdb
-> Code: c7 80 1c 02 00 e8 26 0a 76 01 <0f> 0b 48 c7 c7 40 46 45 84 e8 4c
-> RIP  [<ffffffff81895d6b>] split_huge_page_to_list+0x8fb/0x1030 mm/huge_memory.c:2124
->  RSP <ffff88006899f980>
+We don't allow to offline memory block devices that belong to multiple
+numa nodes. Therefore, such devices can never get removed. It is
+sufficient to process a single node when removing the memory block. No
+need to iterate over each and every PFN.
 
-...
+We already have the nid stored for each memory block. Make sure that
+the nid always has a sane value.
 
-> @@ -532,7 +531,14 @@ static int queue_pages_pte_range(pmd_t *pmd, unsigned long addr,
->  				has_unmovable |= true;
->  				break;
->  			}
-> -			migrate_page_add(page, qp->pagelist, flags);
-> +
-> +			/*
-> +			 * Do not abort immediately since there may be
-> +			 * temporary off LRU pages in the range.  Still
-> +			 * need migrate other LRU pages.
-> +			 */
-> +			if (migrate_page_add(page, qp->pagelist, flags))
-> +				has_unmovable |= true;
+Please note that checking for node_online(nid) is not required. If we
+would have a memory block belonging to a node that is no longer offline,
+then we would have a BUG in the node offlining code.
 
-Also = instead of |=
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: "Rafael J. Wysocki" <rafael@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: David Hildenbrand <david@redhat.com>
+Cc: Stephen Rothwell <sfr@canb.auug.org.au>
+Cc: Pavel Tatashin <pasha.tatashin@soleen.com>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Oscar Salvador <osalvador@suse.de>
+Signed-off-by: David Hildenbrand <david@redhat.com>
+---
 
->  		} else
->  			break;
->  	}
-> @@ -961,10 +967,21 @@ static long do_get_mempolicy(int *policy, nodemask_t *nmask,
->  /*
->   * page migration, thp tail pages can be passed.
->   */
-> -static void migrate_page_add(struct page *page, struct list_head *pagelist,
-> +static int migrate_page_add(struct page *page, struct list_head *pagelist,
->  				unsigned long flags)
->  {
->  	struct page *head = compound_head(page);
-> +
-> +	/*
-> +	 * Non-movable page may reach here.  And, there may be
-> +	 * temporary off LRU pages or non-LRU movable pages.
-> +	 * Treat them as unmovable pages since they can't be
-> +	 * isolated, so they can't be moved at the moment.  It
-> +	 * should return -EIO for this case too.
-> +	 */
-> +	if (!PageLRU(head) && (flags & MPOL_MF_STRICT))
-> +		return -EIO;
+v1 -> v2:
+- Remove the "mixed nid" part, add a comment instead. Drop the warning.
 
-As this test is racy, why not just use the result of isolate_lru_page().
+---
+ drivers/base/memory.c |  1 +
+ drivers/base/node.c   | 39 +++++++++++++++------------------------
+ 2 files changed, 16 insertions(+), 24 deletions(-)
 
-> +
->  	/*
->  	 * Avoid migrating a page that is shared with others.
->  	 */
-> @@ -976,6 +993,8 @@ static void migrate_page_add(struct page *page, struct list_head *pagelist,
->  				hpage_nr_pages(head));
->  		}
->  	}
-> +
-> +	return 0;
->  }
->  
->  /* page allocation callback for NUMA node migration */
-> @@ -1178,9 +1197,10 @@ static struct page *new_page(struct page *page, unsigned long start)
->  }
->  #else
->  
-> -static void migrate_page_add(struct page *page, struct list_head *pagelist,
-> +static int migrate_page_add(struct page *page, struct list_head *pagelist,
->  				unsigned long flags)
->  {
-> +	return -EIO;
->  }
->  
->  int do_migrate_pages(struct mm_struct *mm, const nodemask_t *from,
-> 
+diff --git a/drivers/base/memory.c b/drivers/base/memory.c
+index 20c39d1bcef8..154d5d4a0779 100644
+--- a/drivers/base/memory.c
++++ b/drivers/base/memory.c
+@@ -674,6 +674,7 @@ static int init_memory_block(struct memory_block **memory,
+ 	mem->state = state;
+ 	start_pfn = section_nr_to_pfn(mem->start_section_nr);
+ 	mem->phys_device = arch_get_memory_phys_device(start_pfn);
++	mem->nid = NUMA_NO_NODE;
+ 
+ 	ret = register_memory(mem);
+ 
+diff --git a/drivers/base/node.c b/drivers/base/node.c
+index 75b7e6f6535b..840c95baa1d8 100644
+--- a/drivers/base/node.c
++++ b/drivers/base/node.c
+@@ -759,8 +759,6 @@ static int register_mem_sect_under_node(struct memory_block *mem_blk,
+ 	int ret, nid = *(int *)arg;
+ 	unsigned long pfn, sect_start_pfn, sect_end_pfn;
+ 
+-	mem_blk->nid = nid;
+-
+ 	sect_start_pfn = section_nr_to_pfn(mem_blk->start_section_nr);
+ 	sect_end_pfn = section_nr_to_pfn(mem_blk->end_section_nr);
+ 	sect_end_pfn += PAGES_PER_SECTION - 1;
+@@ -789,6 +787,13 @@ static int register_mem_sect_under_node(struct memory_block *mem_blk,
+ 			if (page_nid != nid)
+ 				continue;
+ 		}
++
++		/*
++		 * If this memory block spans multiple nodes, we only indicate
++		 * the last processed node.
++		 */
++		mem_blk->nid = nid;
++
+ 		ret = sysfs_create_link_nowarn(&node_devices[nid]->dev.kobj,
+ 					&mem_blk->dev.kobj,
+ 					kobject_name(&mem_blk->dev.kobj));
+@@ -804,32 +809,18 @@ static int register_mem_sect_under_node(struct memory_block *mem_blk,
+ }
+ 
+ /*
+- * Unregister memory block device under all nodes that it spans.
+- * Has to be called with mem_sysfs_mutex held (due to unlinked_nodes).
++ * Unregister a memory block device under the node it spans. Memory blocks
++ * with multiple nodes cannot be offlined and therefore also never be removed.
+  */
+ void unregister_memory_block_under_nodes(struct memory_block *mem_blk)
+ {
+-	unsigned long pfn, sect_start_pfn, sect_end_pfn;
+-	static nodemask_t unlinked_nodes;
+-
+-	nodes_clear(unlinked_nodes);
+-	sect_start_pfn = section_nr_to_pfn(mem_blk->start_section_nr);
+-	sect_end_pfn = section_nr_to_pfn(mem_blk->end_section_nr);
+-	for (pfn = sect_start_pfn; pfn <= sect_end_pfn; pfn++) {
+-		int nid;
++	if (mem_blk->nid == NUMA_NO_NODE)
++		return;
+ 
+-		nid = get_nid_for_pfn(pfn);
+-		if (nid < 0)
+-			continue;
+-		if (!node_online(nid))
+-			continue;
+-		if (node_test_and_set(nid, unlinked_nodes))
+-			continue;
+-		sysfs_remove_link(&node_devices[nid]->dev.kobj,
+-			 kobject_name(&mem_blk->dev.kobj));
+-		sysfs_remove_link(&mem_blk->dev.kobj,
+-			 kobject_name(&node_devices[nid]->dev.kobj));
+-	}
++	sysfs_remove_link(&node_devices[mem_blk->nid]->dev.kobj,
++			  kobject_name(&mem_blk->dev.kobj));
++	sysfs_remove_link(&mem_blk->dev.kobj,
++			  kobject_name(&node_devices[mem_blk->nid]->dev.kobj));
+ }
+ 
+ int link_mem_sections(int nid, unsigned long start_pfn, unsigned long end_pfn)
+-- 
+2.21.0
 
