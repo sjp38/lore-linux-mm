@@ -7,111 +7,109 @@ X-Spam-Status: No, score=-10.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
 	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 84240C76195
-	for <linux-mm@archiver.kernel.org>; Fri, 19 Jul 2019 04:14:23 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 25482C76196
+	for <linux-mm@archiver.kernel.org>; Fri, 19 Jul 2019 04:15:30 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3F7E92189D
-	for <linux-mm@archiver.kernel.org>; Fri, 19 Jul 2019 04:14:23 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id D535A21851
+	for <linux-mm@archiver.kernel.org>; Fri, 19 Jul 2019 04:15:29 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="2FKTdMgn"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3F7E92189D
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="TBt89N1n"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D535A21851
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E06E48E0014; Fri, 19 Jul 2019 00:14:22 -0400 (EDT)
+	id 6B2808E000C; Fri, 19 Jul 2019 00:15:29 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D91878E0001; Fri, 19 Jul 2019 00:14:22 -0400 (EDT)
+	id 63BFC8E0001; Fri, 19 Jul 2019 00:15:29 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BE2BE8E0014; Fri, 19 Jul 2019 00:14:22 -0400 (EDT)
+	id 4DD738E000C; Fri, 19 Jul 2019 00:15:29 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 867F38E0001
-	for <linux-mm@kvack.org>; Fri, 19 Jul 2019 00:14:22 -0400 (EDT)
-Received: by mail-pl1-f199.google.com with SMTP id k9so15134266pls.13
-        for <linux-mm@kvack.org>; Thu, 18 Jul 2019 21:14:22 -0700 (PDT)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 1183B8E0001
+	for <linux-mm@kvack.org>; Fri, 19 Jul 2019 00:15:29 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id n4so14658278plp.4
+        for <linux-mm@kvack.org>; Thu, 18 Jul 2019 21:15:29 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=BXSW/IZltfT//HOzkneC5GzcWqvvFOv6FEHgICKzkfs=;
-        b=oeaq4WRxFY+1e5Spr3uzV85QJCHOsHXc++GgQARzt2fgyuAXnYI1hlapxgQd9nHHLg
-         9rwWSXPyHZ3Dg26OVxDZF7PrgkVwa2mzMLxXPb84GBfLn4HmZ7sPTSBrWLJGGToFdz9Y
-         BvsLhLE6e8tkj9RfiQKgbRogNo6Z2UYoBTggFWLyXjJgaFX/MzRiaMUL/omcuIdg5HsR
-         9NesymUKbF6M6gC+t8LbJXL8Qnymfswh9Tbm4kPcQJ+GmdyOH/VXXQtmLzhGu8OHRI3u
-         EqLfz+H2xx8/IbWDyzCof4tBoPQ3jvVy6m9kuSidFiIYfLfB335f/K9OMCSjKpgkp1tg
-         fJDQ==
-X-Gm-Message-State: APjAAAUrmKoS2tE2ZyJal5mL4FZgPLjoWwYozjN+Ug70zY433a8t3mO7
-	33KAEN743ragWSPAVAWGCKBCpvjZFNR9fOhqSLYnJM95ivOvFOe/aHsesrBnx625of/vYDYSagF
-	Hj1QZrBaIunMY+9yk7Jp9oS7uIkLRXDoYRuJArowmNXUa+QgN2gPSAEnwjcxgUZgpmg==
-X-Received: by 2002:a65:654f:: with SMTP id a15mr50281167pgw.73.1563509662074;
-        Thu, 18 Jul 2019 21:14:22 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy1Q3BM+If4wwms+o2AWkYxE/A2+qA6q7u0tYd9PcDRr08eV8CWN27t8SUolhOwG4iUvIrE
-X-Received: by 2002:a65:654f:: with SMTP id a15mr50281107pgw.73.1563509661279;
-        Thu, 18 Jul 2019 21:14:21 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563509661; cv=none;
+        bh=8u2eGZDOEDET2wWO93dGTnCo2NeAGARFPFFHPNWKebI=;
+        b=IfRJx1FjNlv6wDrwnmTEZgaAq5BLXykU7SK7spM97WFHfJ3BztpeV/Oo50fz5KWK0p
+         Mcw2TkEYmYn8ZdJt7fsjpCy1UsNsK3oyWZH3WyKIUBgwhgPL0KBN9RPk5drg00M+RJzf
+         HE2tN2qpUuUrjKxgCM/Qngk3A4Bg+lR0IRLOOXSPcxa+52lXSPH6W5S0GZUeKl4qVyrJ
+         n7oIzf+e9xnyvZSoMls6LoOv2Ep/ftG/wLAJjSfnOAfF0FRVVe+yGwXoM01vedRJd6mi
+         jLN3eOe7L56wC3nZJg7/KBVRgEfB1Ip5oayJI0+GjACg4clBRJ5tp76SL6wdJ4+ZUKxi
+         1Xjw==
+X-Gm-Message-State: APjAAAUCL3M9QQ0idprstestX7NQCu0OKR/I66GJBNI1/2gdvw3jk2Wv
+	Ql3mZB233QBvwNm/ml/nyY5ZPKWSBNp20iBXaWNQUIT4aryM4AmnfDt9W86/cbysMH+0SxOjuE8
+	ZEOclVzt7D03t+StnStkDe9SZbq93D3DtwBgFkRJDiXRBhj5lXbHbEZ/3okkbBdlazQ==
+X-Received: by 2002:a63:2b84:: with SMTP id r126mr6773357pgr.308.1563509728657;
+        Thu, 18 Jul 2019 21:15:28 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyQpWQZkRu7p62Tt5NZsbsoF3pF84Pbt6IUUbNJ4QteTOslLO/GPlxpvLoB11E9O/sHe+Me
+X-Received: by 2002:a63:2b84:: with SMTP id r126mr6773293pgr.308.1563509727793;
+        Thu, 18 Jul 2019 21:15:27 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563509727; cv=none;
         d=google.com; s=arc-20160816;
-        b=UF3kOxKKi3zvqTtaJwejdBl6wLJu3uStZPcTXoFrR7n5qo7KcayBwf+JlrQqjWLOOs
-         qIqe4TfjoVYSMofSL5JnLA+4i+rgPTpXUi3FXD5Xml7f/ID0jA4oJbtEFH+uJGpsZgSi
-         ROrk5ab8nSG/fySPHzVwkfMT2Q62AfRXh1HKWPeNhBs432I+f/eBrZOCX/sXcMkUgOgn
-         HW4a/QqkaJHGPN6ZJecXi2T3CF2s8lJE+E8eRXemEkAc8VKOwq6IMaq4mOtjLJaNbItf
-         xmxD2+2BuYY9AYP6yvHT4EhDLbNDPZCGQc8FOqtCqeKFe8rjffe6o0HHxBqK+6ujj9iq
-         dGew==
+        b=imcrLGCpjUxbWJ5FHVEE8SWhq0cbccrttu4hNY9oSiIB8+M9m5M9fEGsV8SMgtKxa+
+         AE3KKvWtkyn+7GX5Or/IRKndCuP8NT4qKoAxVGtC463be9n0pcNzD8O+ipGH9BsF0mT3
+         /JrjLLBJ9o6BJSxQZYSoCuHpO0nZxCtgjVAQpdE3+Z5HqGSOCBd2A7Ru8e1w5/I3cift
+         kaMK417o6/DtQCQ95OliciikJgO+XTUekclFx/3tucnMS4DMqld3T8PSKVS69wzS851L
+         QKU48zUc+Lsyhe5C36DtvfFLYqPDZNiq9gj8akNMIxI6WGjvGTzpLnjD1R0/SRcQZysB
+         5HkQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=BXSW/IZltfT//HOzkneC5GzcWqvvFOv6FEHgICKzkfs=;
-        b=poi3Px23QiP2rXqyBOaKvyvK15QUaKPG4C8PEWiUO29YRe7fzgri5nJEoNOZR40NQ8
-         6KOg8+hoCWWArZ5KxB8JtdkOlGi1fXnN4mUcrdjg/RP9lDxyTd5/wbc4JGUh90d66jwl
-         sLU3X6zxNJFOGvjzUsjpUBe7SOYzPxbI1dSGtVt4FcH9wxDQ4J+JWRsrA/LJTtB4Q8Qo
-         eI+iLs+3RPqra2sEDHOpLkqHH+wkJRuevTdNN8TTelGq//k7UYkMdPatSEXseABYbVL/
-         FA+rzq3YJC5ov6SVveK+UgZO7GoKEPqNi2nExY6lTv3xdQ80VBWchLFPI0CPQkryad6c
-         9xSA==
+        bh=8u2eGZDOEDET2wWO93dGTnCo2NeAGARFPFFHPNWKebI=;
+        b=yQaERaSv88T5pyye+DWdtLAPxkpTO6Iwm6ztgcr+spU+p3eZK2s6JxNsh4fyzQZllp
+         3jnxirx06c9ljAcAVCYJ/j2Jvuwd+4tgJ/7FMlGUO+2qNBWHXl4lOS+MzXPXFJodYa2i
+         sZ3EzVXhPQWvAlPg+/jeQYrkdliFQ4OwruQ2sUf+kkg68VA6Ad9FHWFjraBq292rv2iQ
+         P17RNNsoaXwQkVzBlJ6ULjQm+qWZ7uQF0RpP0ysysV2PeNB2f+cG6pZ8YUYPhRG4bE1l
+         rvebAjHr+R4E+H9n+nCJN10X03StX8fK42OaDWzJvtlR5H1ZIEoowIkYPfu0ujZpt+Bt
+         vuxg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=2FKTdMgn;
+       dkim=pass header.i=@kernel.org header.s=default header.b=TBt89N1n;
        spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id n13si62665pff.46.2019.07.18.21.14.21
+        by mx.google.com with ESMTPS id v32si860964plg.3.2019.07.18.21.15.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 18 Jul 2019 21:14:21 -0700 (PDT)
+        Thu, 18 Jul 2019 21:15:27 -0700 (PDT)
 Received-SPF: pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=2FKTdMgn;
+       dkim=pass header.i=@kernel.org header.s=default header.b=TBt89N1n;
        spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from sasha-vm.mshome.net (c-73-47-72-35.hsd1.nh.comcast.net [73.47.72.35])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 11FAC21873;
-	Fri, 19 Jul 2019 04:14:19 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTPSA id 99EF22189E;
+	Fri, 19 Jul 2019 04:15:26 +0000 (UTC)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1563509661;
-	bh=wkAGBGsIOz7ocQoR+xQeCTnxMLX7lj5Q/aPZDGMTImU=;
+	s=default; t=1563509727;
+	bh=AI3xRFnnUV5UPqRP4tNimsvoXXObJLv9QTyaf2yDCpM=;
 	h=From:To:Cc:Subject:Date:In-Reply-To:References:From;
-	b=2FKTdMgnKygiNhPdlK4RZBcGRMT6+62sRMSWPZxR2B5epCKRyWv9RlMylkc4eVwmZ
-	 jXfQEsW0iJNN6QOUMp7g3DrupxSEONuTY1/Ym08VXKejZHprVtMIUpBPFKCPjLwiDq
-	 foEcnhxVsFNFKKW++5LUj9vOjo/rA7xqt8FoEdY0=
+	b=TBt89N1nBUOjm0LoLxP9oIKFZ0zTewFZ4KsDAwwYHL9AEVq4YKuDxO3ce4V4MaEf1
+	 y8vL1IfJ3m/6F37NjqGWU3d4Mpsk8CXD96A6uCsXkEkKqYgZEqpdb1gJGk3rl4apm/
+	 l/mowcop7eFehaDFJEn4wrHCC0dfViQP7gWBXu+M=
 From: Sasha Levin <sashal@kernel.org>
 To: linux-kernel@vger.kernel.org,
 	stable@vger.kernel.org
-Cc: Jean-Philippe Brucker <jean-philippe.brucker@arm.com>,
-	=?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
-	Michal Hocko <mhocko@suse.com>,
+Cc: Dmitry Vyukov <dvyukov@google.com>,
+	Catalin Marinas <catalin.marinas@arm.com>,
 	Andrew Morton <akpm@linux-foundation.org>,
 	Linus Torvalds <torvalds@linux-foundation.org>,
 	Sasha Levin <sashal@kernel.org>,
 	linux-mm@kvack.org
-Subject: [PATCH AUTOSEL 4.9 44/45] mm/mmu_notifier: use hlist_add_head_rcu()
-Date: Fri, 19 Jul 2019 00:13:03 -0400
-Message-Id: <20190719041304.18849-44-sashal@kernel.org>
+Subject: [PATCH AUTOSEL 4.4 32/35] mm/kmemleak.c: fix check for softirq context
+Date: Fri, 19 Jul 2019 00:14:20 -0400
+Message-Id: <20190719041423.19322-32-sashal@kernel.org>
 X-Mailer: git-send-email 2.20.1
-In-Reply-To: <20190719041304.18849-1-sashal@kernel.org>
-References: <20190719041304.18849-1-sashal@kernel.org>
+In-Reply-To: <20190719041423.19322-1-sashal@kernel.org>
+References: <20190719041423.19322-1-sashal@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
 X-stable: review
 X-Patchwork-Hint: Ignore
 Content-Transfer-Encoding: 8bit
@@ -121,66 +119,96 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Jean-Philippe Brucker <jean-philippe.brucker@arm.com>
+From: Dmitry Vyukov <dvyukov@google.com>
 
-[ Upstream commit 543bdb2d825fe2400d6e951f1786d92139a16931 ]
+[ Upstream commit 6ef9056952532c3b746de46aa10d45b4d7797bd8 ]
 
-Make mmu_notifier_register() safer by issuing a memory barrier before
-registering a new notifier.  This fixes a theoretical bug on weakly
-ordered CPUs.  For example, take this simplified use of notifiers by a
-driver:
+in_softirq() is a wrong predicate to check if we are in a softirq
+context.  It also returns true if we have BH disabled, so objects are
+falsely stamped with "softirq" comm.  The correct predicate is
+in_serving_softirq().
 
-	my_struct->mn.ops = &my_ops; /* (1) */
-	mmu_notifier_register(&my_struct->mn, mm)
-		...
-		hlist_add_head(&mn->hlist, &mm->mmu_notifiers); /* (2) */
-		...
+If user does cat from /sys/kernel/debug/kmemleak previously they would
+see this, which is clearly wrong, this is system call context (see the
+comm):
 
-Once mmu_notifier_register() releases the mm locks, another thread can
-invalidate a range:
+unreferenced object 0xffff88805bd661c0 (size 64):
+  comm "softirq", pid 0, jiffies 4294942959 (age 12.400s)
+  hex dump (first 32 bytes):
+    00 00 00 00 00 00 00 00 ff ff ff ff 00 00 00 00  ................
+    00 00 00 00 00 00 00 00 01 00 00 00 00 00 00 00  ................
+  backtrace:
+    [<0000000007dcb30c>] kmemleak_alloc_recursive include/linux/kmemleak.h:55 [inline]
+    [<0000000007dcb30c>] slab_post_alloc_hook mm/slab.h:439 [inline]
+    [<0000000007dcb30c>] slab_alloc mm/slab.c:3326 [inline]
+    [<0000000007dcb30c>] kmem_cache_alloc_trace+0x13d/0x280 mm/slab.c:3553
+    [<00000000969722b7>] kmalloc include/linux/slab.h:547 [inline]
+    [<00000000969722b7>] kzalloc include/linux/slab.h:742 [inline]
+    [<00000000969722b7>] ip_mc_add1_src net/ipv4/igmp.c:1961 [inline]
+    [<00000000969722b7>] ip_mc_add_src+0x36b/0x400 net/ipv4/igmp.c:2085
+    [<00000000a4134b5f>] ip_mc_msfilter+0x22d/0x310 net/ipv4/igmp.c:2475
+    [<00000000d20248ad>] do_ip_setsockopt.isra.0+0x19fe/0x1c00 net/ipv4/ip_sockglue.c:957
+    [<000000003d367be7>] ip_setsockopt+0x3b/0xb0 net/ipv4/ip_sockglue.c:1246
+    [<000000003c7c76af>] udp_setsockopt+0x4e/0x90 net/ipv4/udp.c:2616
+    [<000000000c1aeb23>] sock_common_setsockopt+0x3e/0x50 net/core/sock.c:3130
+    [<000000000157b92b>] __sys_setsockopt+0x9e/0x120 net/socket.c:2078
+    [<00000000a9f3d058>] __do_sys_setsockopt net/socket.c:2089 [inline]
+    [<00000000a9f3d058>] __se_sys_setsockopt net/socket.c:2086 [inline]
+    [<00000000a9f3d058>] __x64_sys_setsockopt+0x26/0x30 net/socket.c:2086
+    [<000000001b8da885>] do_syscall_64+0x7c/0x1a0 arch/x86/entry/common.c:301
+    [<00000000ba770c62>] entry_SYSCALL_64_after_hwframe+0x44/0xa9
 
-	mmu_notifier_invalidate_range()
-		...
-		hlist_for_each_entry_rcu(mn, &mm->mmu_notifiers, hlist) {
-			if (mn->ops->invalidate_range)
+now they will see this:
 
-The read side relies on the data dependency between mn and ops to ensure
-that the pointer is properly initialized.  But the write side doesn't have
-any dependency between (1) and (2), so they could be reordered and the
-readers could dereference an invalid mn->ops.  mmu_notifier_register()
-does take all the mm locks before adding to the hlist, but those have
-acquire semantics which isn't sufficient.
+unreferenced object 0xffff88805413c800 (size 64):
+  comm "syz-executor.4", pid 8960, jiffies 4294994003 (age 14.350s)
+  hex dump (first 32 bytes):
+    00 7a 8a 57 80 88 ff ff e0 00 00 01 00 00 00 00  .z.W............
+    00 00 00 00 00 00 00 00 01 00 00 00 00 00 00 00  ................
+  backtrace:
+    [<00000000c5d3be64>] kmemleak_alloc_recursive include/linux/kmemleak.h:55 [inline]
+    [<00000000c5d3be64>] slab_post_alloc_hook mm/slab.h:439 [inline]
+    [<00000000c5d3be64>] slab_alloc mm/slab.c:3326 [inline]
+    [<00000000c5d3be64>] kmem_cache_alloc_trace+0x13d/0x280 mm/slab.c:3553
+    [<0000000023865be2>] kmalloc include/linux/slab.h:547 [inline]
+    [<0000000023865be2>] kzalloc include/linux/slab.h:742 [inline]
+    [<0000000023865be2>] ip_mc_add1_src net/ipv4/igmp.c:1961 [inline]
+    [<0000000023865be2>] ip_mc_add_src+0x36b/0x400 net/ipv4/igmp.c:2085
+    [<000000003029a9d4>] ip_mc_msfilter+0x22d/0x310 net/ipv4/igmp.c:2475
+    [<00000000ccd0a87c>] do_ip_setsockopt.isra.0+0x19fe/0x1c00 net/ipv4/ip_sockglue.c:957
+    [<00000000a85a3785>] ip_setsockopt+0x3b/0xb0 net/ipv4/ip_sockglue.c:1246
+    [<00000000ec13c18d>] udp_setsockopt+0x4e/0x90 net/ipv4/udp.c:2616
+    [<0000000052d748e3>] sock_common_setsockopt+0x3e/0x50 net/core/sock.c:3130
+    [<00000000512f1014>] __sys_setsockopt+0x9e/0x120 net/socket.c:2078
+    [<00000000181758bc>] __do_sys_setsockopt net/socket.c:2089 [inline]
+    [<00000000181758bc>] __se_sys_setsockopt net/socket.c:2086 [inline]
+    [<00000000181758bc>] __x64_sys_setsockopt+0x26/0x30 net/socket.c:2086
+    [<00000000d4b73623>] do_syscall_64+0x7c/0x1a0 arch/x86/entry/common.c:301
+    [<00000000c1098bec>] entry_SYSCALL_64_after_hwframe+0x44/0xa9
 
-By calling hlist_add_head_rcu() instead of hlist_add_head() we update the
-hlist using a store-release, ensuring that readers see prior
-initialization of my_struct.  This situation is better illustated by
-litmus test MP+onceassign+derefonce.
-
-Link: http://lkml.kernel.org/r/20190502133532.24981-1-jean-philippe.brucker@arm.com
-Fixes: cddb8a5c14aa ("mmu-notifiers: core")
-Signed-off-by: Jean-Philippe Brucker <jean-philippe.brucker@arm.com>
-Cc: Jérôme Glisse <jglisse@redhat.com>
-Cc: Michal Hocko <mhocko@suse.com>
+Link: http://lkml.kernel.org/r/20190517171507.96046-1-dvyukov@gmail.com
+Signed-off-by: Dmitry Vyukov <dvyukov@google.com>
+Acked-by: Catalin Marinas <catalin.marinas@arm.com>
 Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
 Signed-off-by: Sasha Levin <sashal@kernel.org>
 ---
- mm/mmu_notifier.c | 2 +-
+ mm/kmemleak.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/mm/mmu_notifier.c b/mm/mmu_notifier.c
-index f4259e496f83..7a66e37efb4d 100644
---- a/mm/mmu_notifier.c
-+++ b/mm/mmu_notifier.c
-@@ -286,7 +286,7 @@ static int do_mmu_notifier_register(struct mmu_notifier *mn,
- 	 * thanks to mm_take_all_locks().
- 	 */
- 	spin_lock(&mm->mmu_notifier_mm->lock);
--	hlist_add_head(&mn->hlist, &mm->mmu_notifier_mm->list);
-+	hlist_add_head_rcu(&mn->hlist, &mm->mmu_notifier_mm->list);
- 	spin_unlock(&mm->mmu_notifier_mm->lock);
- 
- 	mm_drop_all_locks(mm);
+diff --git a/mm/kmemleak.c b/mm/kmemleak.c
+index 84c93879aa5d..4d675318754e 100644
+--- a/mm/kmemleak.c
++++ b/mm/kmemleak.c
+@@ -566,7 +566,7 @@ static struct kmemleak_object *create_object(unsigned long ptr, size_t size,
+ 	if (in_irq()) {
+ 		object->pid = 0;
+ 		strncpy(object->comm, "hardirq", sizeof(object->comm));
+-	} else if (in_softirq()) {
++	} else if (in_serving_softirq()) {
+ 		object->pid = 0;
+ 		strncpy(object->comm, "softirq", sizeof(object->comm));
+ 	} else {
 -- 
 2.20.1
 
