@@ -7,111 +7,112 @@ X-Spam-Status: No, score=-10.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
 	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9C656C76188
-	for <linux-mm@archiver.kernel.org>; Fri, 19 Jul 2019 03:58:30 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E4CE7C76188
+	for <linux-mm@archiver.kernel.org>; Fri, 19 Jul 2019 04:00:11 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 330E6218A6
-	for <linux-mm@archiver.kernel.org>; Fri, 19 Jul 2019 03:58:30 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id ABB19218A6
+	for <linux-mm@archiver.kernel.org>; Fri, 19 Jul 2019 04:00:11 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="CVecVRKO"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 330E6218A6
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="wXKrDihp"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org ABB19218A6
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9A4EC6B0005; Thu, 18 Jul 2019 23:58:29 -0400 (EDT)
+	id 473D96B0005; Fri, 19 Jul 2019 00:00:11 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9574E8E0003; Thu, 18 Jul 2019 23:58:29 -0400 (EDT)
+	id 4251A8E0003; Fri, 19 Jul 2019 00:00:11 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7F8888E0001; Thu, 18 Jul 2019 23:58:29 -0400 (EDT)
+	id 314198E0001; Fri, 19 Jul 2019 00:00:11 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 45FBA6B0005
-	for <linux-mm@kvack.org>; Thu, 18 Jul 2019 23:58:29 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id 191so17899145pfy.20
-        for <linux-mm@kvack.org>; Thu, 18 Jul 2019 20:58:29 -0700 (PDT)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id EC83A6B0005
+	for <linux-mm@kvack.org>; Fri, 19 Jul 2019 00:00:10 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id 191so17901282pfy.20
+        for <linux-mm@kvack.org>; Thu, 18 Jul 2019 21:00:10 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=GkSloBiHfepZ/So3+4LopxRoeSBU3PfOUimBWkkUVHE=;
-        b=KfcC8v8hAA+qjARQxHFNVtnY0DSiWRBpzqNB6CCsoqeYhiAIgZWKwpwptQiBojvrXR
-         OEVMh0duItPEeyuGYtGM3ZqEPVmdZXIBQi1lJWdKPHF/nySkNlepMcHRKfGcIMOm+8jC
-         yCvLepnEp03ugsq2LTUXPJt2K3K7qs76vZV7hYf5uHrnQLup1NQeJQYjOZndJVcseXct
-         /klid+izofSVbPCwsZbSPffFxVmLKuYA8bW4u+xltXHgnMpnWH89aY+b++IYpKLFNkqA
-         04QK6YgxiCuFOiDn3YHq/zXFXm28htT5b23lZLe+Q8eKiydFLb66vsvvUfVeltZZOrmi
-         VK0Q==
-X-Gm-Message-State: APjAAAWQQerIcNIVHDdJLoKlMLf2cgZhOZVXqN/wvbHgyz7kJhKKYBEs
-	PzwgQevzCkZSTqUJxMUas14MQeEZAMIMbMxTZF7mSnneOuQvGzeHQCRwVhPCT2Ftd2iivZX/lW4
-	4lhLIhwx5fa/FgQHMGb/8dJcYQmlGRjTKaWfHE5YSJKDqAjb+AFr57RaJGS59AmDY2w==
-X-Received: by 2002:a17:902:9f81:: with SMTP id g1mr53291772plq.17.1563508708871;
-        Thu, 18 Jul 2019 20:58:28 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzecS6YEtuobd53bGc19aDJnFT15j4VDEEqy/osjGewKD6LqVAWJI0tTdbDXh+2jyHybn71
-X-Received: by 2002:a17:902:9f81:: with SMTP id g1mr53291722plq.17.1563508707991;
-        Thu, 18 Jul 2019 20:58:27 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563508707; cv=none;
+        bh=YvEHPnn/zpRhRupCuXxSJl3Y6LuNCXnr5gToKfaOAT8=;
+        b=tp3aZf+mxRRbJfNre6re3vB4fSF8yKkISzp/UuWodicN3raEkkDpZlrSQL4gAqDUpm
+         +UHw1LwM5tkU6LqcjzJWvYbmBFJZsDursSC9hr9ihn1tuGgwAtERt17DfSKAK9ByPnU5
+         Y2WLPiM8T33BNHjzPSFVKfvI2EYjXc/ghA8dneonYIUqDBrdFi1s/OSvoN+1Wqh8zzT/
+         WjoYsapL1Mkk9zxyQ+hMoGVgaepKdQVQlBWUTQSK/NvGjEtOcxuffpHHI+CfoRkWuSMt
+         9/pkL3QIRtmTrHZl7JDD3N9frxBkCkyGEbu7H5su9DDlmrmuqCofHfz8D9gUXudUkPRl
+         qYiw==
+X-Gm-Message-State: APjAAAXqjd01anLAZmnSP/K4byBGCEX82NDuTQHN+4tWw2mbGpap+G+K
+	sJfAa/aYAY6jqj34lQ5kflmIjjNnMSIq6VFLW314eTgCqaZuEl7hWiIt/UU/Z5diqwa6gZs07U8
+	F0HuQLDcY+97Ckn9TtwqEEfAGjoLIKXy4W28YiXvetW88THeaBLPNDc8dZnrpRn68fg==
+X-Received: by 2002:a17:902:8bc1:: with SMTP id r1mr5452404plo.42.1563508810604;
+        Thu, 18 Jul 2019 21:00:10 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqx5sHL0tfXYEOEbljhZSkx2C6X5/soQUcl6ZzdzuW3vy/wmyJWAlPCcFUEZPnk1jkN6p5wt
+X-Received: by 2002:a17:902:8bc1:: with SMTP id r1mr5452325plo.42.1563508809749;
+        Thu, 18 Jul 2019 21:00:09 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563508809; cv=none;
         d=google.com; s=arc-20160816;
-        b=wA7OAQqL1+8BTahMRXZ5bXGwPAnXbdcU251gv1QgJpsD6RDnhPXzmzmqz5mOziAhHe
-         iD86ueJy5DKGKy2qFZ9RPrKBsgFKmH1yjteipAu8ONOoQj0wamyWZ6Vg3J+fRzmc4Pf1
-         ncwNUy97KSf1aXAXxpG9jSjKCIBBTZryhijeZxJwjicAcHmPh6L8WrBfab2W8Q5cjaVv
-         EM3kC1iWNF8bZGl4gof+svv5IgUlWI5jJpfoY9rm29jp2JG9mkL8Q8LQhQANCLYMWvYL
-         qdYHQXVYOFgJS5mQ5xlChPSLYUh0JZaX7FjSklc/qDb3F9cRMKDP9Yu1DzSsHONeaRla
-         rvrw==
+        b=IEJ2IJHnHNnVFHWpqA5tV082BtNHaXBZdpsoiC8Jo18bxN0pgOI8wJylm8HHdpbho9
+         Rbq6UWGkYZ2WefRZPvV8YF6Xj8JZmt6TwFAZNE6qltw37uMCv0XLsz8SKP4VHGsUoWlv
+         0tidyOXgRYxQUHo4XZgCu8vDoYNjsiC26/sN15Wv7S2k3RHuAMprMaJLye65P/0fQhmN
+         fyMhudzwC5fjXqBBdDGjKJYghjjobP936A5XwpyDq5I58LR6tG3bUuVkrSQT4snTehMt
+         IDPmQUhad7wsNr3XPc/3YMwydhwRD/rLa9PoX3tI9XmgCVSlrFCeXujjzO2hLNGgrSHS
+         GfOQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=GkSloBiHfepZ/So3+4LopxRoeSBU3PfOUimBWkkUVHE=;
-        b=JvRckYOWYVebxMI1qGQ4icmkGqTZeV++YtRb+a77eJaZW1v7LBCVur7mXVc2JytDLW
-         VbcGXX+WO846kYA6UTJlvVQtlj0DqrwHu9exb5bUYmxaBehPLaNJxJdwzi/37OYHd9up
-         5g/VcFTii51d7JSf9XiajgWSS33rrx2Iz1W2wOaG3GzUXCkIqAkvMtDJ7Qj0NvowXfwJ
-         hNOS5KfSAXYGO8lTBDCz5Z7adUhQaZEktp+dyJ8hp3lf4f+Kr1P+DBNeD0lUso9XHErZ
-         OfHEcWMO/OBOkbXUdhqWXVr17b/6IGNNgBxnwzHIC4k8WwxUM+3yz1YofeEupefVnAU3
-         q+zQ==
+        bh=YvEHPnn/zpRhRupCuXxSJl3Y6LuNCXnr5gToKfaOAT8=;
+        b=Gkx6KUeFKoBcfJT0qpXlWfn7uyFA6u/ZUOxlXaeJWourFHURwKAk1oehAMR6+A4Dug
+         cvS0Cb6EW7+mXSpBhiCLWOcVoV4kK93JtdSygno8w0oIF7H8bWrdImc0bmQQr+b15sXn
+         FtUZh9zIE13GuZY2pN1nXWgXX1AdHkoKy+EZpSoA4Nz6r7asXhwjnQh1E6SYWDWU9vPa
+         0fnriFAf0lBi/QA/k+KJ+VB8OjazPMm6+vJPFjrbzkO7ZqmZov/2N/KoXpFUFtYRlGlI
+         cmMCyS00GVj+JTdH2glVbV1rBmnkhQAkj4P16URT3k5odF/2+hQNUSUiAW9kpVIN0myg
+         svgA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=CVecVRKO;
+       dkim=pass header.i=@kernel.org header.s=default header.b=wXKrDihp;
        spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id i32si111408pje.44.2019.07.18.20.58.27
+        by mx.google.com with ESMTPS id g10si431156pjp.74.2019.07.18.21.00.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 18 Jul 2019 20:58:27 -0700 (PDT)
+        Thu, 18 Jul 2019 21:00:09 -0700 (PDT)
 Received-SPF: pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=CVecVRKO;
+       dkim=pass header.i=@kernel.org header.s=default header.b=wXKrDihp;
        spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from sasha-vm.mshome.net (c-73-47-72-35.hsd1.nh.comcast.net [73.47.72.35])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 94ADB21874;
-	Fri, 19 Jul 2019 03:58:26 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTPSA id 65DD821852;
+	Fri, 19 Jul 2019 04:00:08 +0000 (UTC)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1563508707;
-	bh=3wayALKAbyaZVeZbjCrY015C06CrT6gtffI83ybrmsg=;
+	s=default; t=1563508809;
+	bh=NGAEa7nxCla6yeOxFjos63IrCBcidctWmzU3WpluPhM=;
 	h=From:To:Cc:Subject:Date:In-Reply-To:References:From;
-	b=CVecVRKOfUR7f0tq5XuS7ktArKsKrNh32YMPWgHFnXwgqWMwF5R5gdlYUn6mI9JJN
-	 3ICAZXsVxp1iCSvJ8I1vkoz0ai5bbJsxODOp97pe8foxzCww9rgy28kY8JK96WwKCq
-	 VtYrfI4pcJzUACTuCoVOigInBJhQOU6kcMQwtoAs=
+	b=wXKrDihp/S1cVan7L4zfjmAgAIzXlz6fMWnxvGRTLBM8R1Dk3lWkTAvYLkcXDUbvS
+	 llI5C0scOH1cTUGYr8VC+JvcJHNLtbVmDeq/2JOUHnx/UwhuPELJgHtDPXdKpzRPpa
+	 9cFOvOfWe+SrDKyVuEwpMHFmr7ukTzxcgb2ssKjs=
 From: Sasha Levin <sashal@kernel.org>
 To: linux-kernel@vger.kernel.org,
 	stable@vger.kernel.org
-Cc: Jason Gunthorpe <jgg@mellanox.com>,
-	Ira Weiny <ira.weiny@intel.com>,
+Cc: Ira Weiny <ira.weiny@intel.com>,
+	=?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
+	Michal Hocko <mhocko@suse.com>,
+	Dan Williams <dan.j.williams@intel.com>,
 	John Hubbard <jhubbard@nvidia.com>,
-	Ralph Campbell <rcampbell@nvidia.com>,
-	Christoph Hellwig <hch@lst.de>,
-	Philip Yang <Philip.Yang@amd.com>,
+	Jason Gunthorpe <jgg@mellanox.com>,
 	Sasha Levin <sashal@kernel.org>,
 	linux-mm@kvack.org
-Subject: [PATCH AUTOSEL 5.2 045/171] mm/hmm: fix use after free with struct hmm in the mmu notifiers
-Date: Thu, 18 Jul 2019 23:54:36 -0400
-Message-Id: <20190719035643.14300-45-sashal@kernel.org>
+Subject: [PATCH AUTOSEL 5.2 102/171] mm/swap: fix release_pages() when releasing devmap pages
+Date: Thu, 18 Jul 2019 23:55:33 -0400
+Message-Id: <20190719035643.14300-102-sashal@kernel.org>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190719035643.14300-1-sashal@kernel.org>
 References: <20190719035643.14300-1-sashal@kernel.org>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
 X-stable: review
 X-Patchwork-Hint: Ignore
 Content-Transfer-Encoding: 8bit
@@ -121,131 +122,74 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Jason Gunthorpe <jgg@mellanox.com>
+From: Ira Weiny <ira.weiny@intel.com>
 
-[ Upstream commit 6d7c3cde93c1d9ac0b37f78ec3f2ff052159a242 ]
+[ Upstream commit c5d6c45e90c49150670346967971e14576afd7f1 ]
 
-mmu_notifier_unregister_no_release() is not a fence and the mmu_notifier
-system will continue to reference hmm->mn until the srcu grace period
-expires.
+release_pages() is an optimized version of a loop around put_page().
+Unfortunately for devmap pages the logic is not entirely correct in
+release_pages().  This is because device pages can be more than type
+MEMORY_DEVICE_PUBLIC.  There are in fact 4 types, private, public, FS DAX,
+and PCI P2PDMA.  Some of these have specific needs to "put" the page while
+others do not.
 
-Resulting in use after free races like this:
+This logic to handle any special needs is contained in
+put_devmap_managed_page().  Therefore all devmap pages should be processed
+by this function where we can contain the correct logic for a page put.
 
-         CPU0                                     CPU1
-                                               __mmu_notifier_invalidate_range_start()
-                                                 srcu_read_lock
-                                                 hlist_for_each ()
-                                                   // mn == hmm->mn
-hmm_mirror_unregister()
-  hmm_put()
-    hmm_free()
-      mmu_notifier_unregister_no_release()
-         hlist_del_init_rcu(hmm-mn->list)
-			                           mn->ops->invalidate_range_start(mn, range);
-					             mm_get_hmm()
-      mm->hmm = NULL;
-      kfree(hmm)
-                                                     mutex_lock(&hmm->lock);
+Handle all device type pages within release_pages() by calling
+put_devmap_managed_page() on all devmap pages.  If
+put_devmap_managed_page() returns true the page has been put and we
+continue with the next page.  A false return of put_devmap_managed_page()
+means the page did not require special processing and should fall to
+"normal" processing.
 
-Use SRCU to kfree the hmm memory so that the notifiers can rely on hmm
-existing. Get the now-safe hmm struct through container_of and directly
-check kref_get_unless_zero to lock it against free.
+This was found via code inspection while determining if release_pages()
+and the new put_user_pages() could be interchangeable.[1]
 
-Signed-off-by: Jason Gunthorpe <jgg@mellanox.com>
-Reviewed-by: Ira Weiny <ira.weiny@intel.com>
+[1] https://lkml.kernel.org/r/20190523172852.GA27175@iweiny-DESK2.sc.intel.com
+
+Link: https://lkml.kernel.org/r/20190605214922.17684-1-ira.weiny@intel.com
+Cc: Jérôme Glisse <jglisse@redhat.com>
+Cc: Michal Hocko <mhocko@suse.com>
+Reviewed-by: Dan Williams <dan.j.williams@intel.com>
 Reviewed-by: John Hubbard <jhubbard@nvidia.com>
-Reviewed-by: Ralph Campbell <rcampbell@nvidia.com>
-Reviewed-by: Christoph Hellwig <hch@lst.de>
-Tested-by: Philip Yang <Philip.Yang@amd.com>
+Signed-off-by: Ira Weiny <ira.weiny@intel.com>
+Signed-off-by: Jason Gunthorpe <jgg@mellanox.com>
 Signed-off-by: Sasha Levin <sashal@kernel.org>
 ---
- include/linux/hmm.h |  1 +
- mm/hmm.c            | 23 +++++++++++++++++------
- 2 files changed, 18 insertions(+), 6 deletions(-)
+ mm/swap.c | 13 +++++++++----
+ 1 file changed, 9 insertions(+), 4 deletions(-)
 
-diff --git a/include/linux/hmm.h b/include/linux/hmm.h
-index 044a36d7c3f8..89508dc0795f 100644
---- a/include/linux/hmm.h
-+++ b/include/linux/hmm.h
-@@ -93,6 +93,7 @@ struct hmm {
- 	struct mmu_notifier	mmu_notifier;
- 	struct rw_semaphore	mirrors_sem;
- 	wait_queue_head_t	wq;
-+	struct rcu_head		rcu;
- 	long			notifiers;
- 	bool			dead;
- };
-diff --git a/mm/hmm.c b/mm/hmm.c
-index f702a3895d05..4c405dfbd2b3 100644
---- a/mm/hmm.c
-+++ b/mm/hmm.c
-@@ -104,6 +104,11 @@ static struct hmm *hmm_get_or_create(struct mm_struct *mm)
- 	return NULL;
- }
+diff --git a/mm/swap.c b/mm/swap.c
+index 7ede3eddc12a..607c48229a1d 100644
+--- a/mm/swap.c
++++ b/mm/swap.c
+@@ -740,15 +740,20 @@ void release_pages(struct page **pages, int nr)
+ 		if (is_huge_zero_page(page))
+ 			continue;
  
-+static void hmm_free_rcu(struct rcu_head *rcu)
-+{
-+	kfree(container_of(rcu, struct hmm, rcu));
-+}
-+
- static void hmm_free(struct kref *kref)
- {
- 	struct hmm *hmm = container_of(kref, struct hmm, kref);
-@@ -116,7 +121,7 @@ static void hmm_free(struct kref *kref)
- 		mm->hmm = NULL;
- 	spin_unlock(&mm->page_table_lock);
+-		/* Device public page can not be huge page */
+-		if (is_device_public_page(page)) {
++		if (is_zone_device_page(page)) {
+ 			if (locked_pgdat) {
+ 				spin_unlock_irqrestore(&locked_pgdat->lru_lock,
+ 						       flags);
+ 				locked_pgdat = NULL;
+ 			}
+-			put_devmap_managed_page(page);
+-			continue;
++			/*
++			 * ZONE_DEVICE pages that return 'false' from
++			 * put_devmap_managed_page() do not require special
++			 * processing, and instead, expect a call to
++			 * put_page_testzero().
++			 */
++			if (put_devmap_managed_page(page))
++				continue;
+ 		}
  
--	kfree(hmm);
-+	mmu_notifier_call_srcu(&hmm->rcu, hmm_free_rcu);
- }
- 
- static inline void hmm_put(struct hmm *hmm)
-@@ -144,10 +149,14 @@ void hmm_mm_destroy(struct mm_struct *mm)
- 
- static void hmm_release(struct mmu_notifier *mn, struct mm_struct *mm)
- {
--	struct hmm *hmm = mm_get_hmm(mm);
-+	struct hmm *hmm = container_of(mn, struct hmm, mmu_notifier);
- 	struct hmm_mirror *mirror;
- 	struct hmm_range *range;
- 
-+	/* Bail out if hmm is in the process of being freed */
-+	if (!kref_get_unless_zero(&hmm->kref))
-+		return;
-+
- 	/* Report this HMM as dying. */
- 	hmm->dead = true;
- 
-@@ -185,13 +194,14 @@ static void hmm_release(struct mmu_notifier *mn, struct mm_struct *mm)
- static int hmm_invalidate_range_start(struct mmu_notifier *mn,
- 			const struct mmu_notifier_range *nrange)
- {
--	struct hmm *hmm = mm_get_hmm(nrange->mm);
-+	struct hmm *hmm = container_of(mn, struct hmm, mmu_notifier);
- 	struct hmm_mirror *mirror;
- 	struct hmm_update update;
- 	struct hmm_range *range;
- 	int ret = 0;
- 
--	VM_BUG_ON(!hmm);
-+	if (!kref_get_unless_zero(&hmm->kref))
-+		return 0;
- 
- 	update.start = nrange->start;
- 	update.end = nrange->end;
-@@ -239,9 +249,10 @@ static int hmm_invalidate_range_start(struct mmu_notifier *mn,
- static void hmm_invalidate_range_end(struct mmu_notifier *mn,
- 			const struct mmu_notifier_range *nrange)
- {
--	struct hmm *hmm = mm_get_hmm(nrange->mm);
-+	struct hmm *hmm = container_of(mn, struct hmm, mmu_notifier);
- 
--	VM_BUG_ON(!hmm);
-+	if (!kref_get_unless_zero(&hmm->kref))
-+		return;
- 
- 	mutex_lock(&hmm->lock);
- 	hmm->notifiers--;
+ 		page = compound_head(page);
 -- 
 2.20.1
 
