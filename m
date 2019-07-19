@@ -4,112 +4,128 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-10.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
 	DKIM_VALID,DKIM_VALID_AU,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
-	autolearn_force=no version=3.4.0
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id ACF9BC76195
-	for <linux-mm@archiver.kernel.org>; Fri, 19 Jul 2019 04:01:56 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C3E9DC76195
+	for <linux-mm@archiver.kernel.org>; Fri, 19 Jul 2019 04:02:01 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 641B0218A5
-	for <linux-mm@archiver.kernel.org>; Fri, 19 Jul 2019 04:01:56 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 7C04621882
+	for <linux-mm@archiver.kernel.org>; Fri, 19 Jul 2019 04:02:01 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="P1bvtev9"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 641B0218A5
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="tG6QkiUH"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7C04621882
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 166346B0007; Fri, 19 Jul 2019 00:01:56 -0400 (EDT)
+	id 278D26B000A; Fri, 19 Jul 2019 00:02:01 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 117D68E0003; Fri, 19 Jul 2019 00:01:56 -0400 (EDT)
+	id 227EC8E0003; Fri, 19 Jul 2019 00:02:01 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 004C88E0001; Fri, 19 Jul 2019 00:01:55 -0400 (EDT)
+	id 0EEB18E0001; Fri, 19 Jul 2019 00:02:01 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id BB0196B0007
-	for <linux-mm@kvack.org>; Fri, 19 Jul 2019 00:01:55 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id d190so17899939pfa.0
-        for <linux-mm@kvack.org>; Thu, 18 Jul 2019 21:01:55 -0700 (PDT)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C97C06B000A
+	for <linux-mm@kvack.org>; Fri, 19 Jul 2019 00:02:00 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id s21so15117557plr.2
+        for <linux-mm@kvack.org>; Thu, 18 Jul 2019 21:02:00 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=1Uqd78ab5LVket8wSYu/7s4SLsPia0WFI4EU+s+WtHQ=;
-        b=TliQjZxiwziUInaOeeLxOcYJklmWGY2y2JWzeUGgn2E63qIy76OpRaBqeHWfq2JvjZ
-         vKRY58gbo+rGMCWyrrGSRv6ZE7k1kACyNAoHQ6WVzhlsJWLD37I7GKk+FZSwA5ZMq/Tb
-         ITJL1kEwqvB9MaEbItMAF2fmkaepbwKmvBaDO2D2UOiBOEz+Sz3dTYaiHWGgvLfSXEHq
-         Mbg+Sz2O2pq/NotnMW5yDCLTyRmujrC0xmyc/Jjzl8TMuQiLkYj+ZPIG+oa9sl0jyguS
-         0idGi2qxrPmTg+20tQw1YaU/i16BiOqMS5kMuwg6ek2n/mKUK4V2OJFJluKdK7S1Syt2
-         lw6g==
-X-Gm-Message-State: APjAAAU9ETqTntldWPOQ5iOjKk+nCdpp3JZIMiiz8Uk4jKBwCvCKMNh8
-	RPqVc6Eb87CAEJaozqQO2XQgcb5CTSI6wwkAZJyFOtGh+cFBuPa7e9AHHunVYIBElXbUc3Wm3oc
-	UGR6lzo+9ZFxYHp6mxZ0hCr8DkICg0rv5Shn/hOgPstMcprGjIyM6gM3a667qctMWaw==
-X-Received: by 2002:a17:90a:bd93:: with SMTP id z19mr55945696pjr.49.1563508915395;
-        Thu, 18 Jul 2019 21:01:55 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzyBjXTpXc0JfEcDvzS4883rZ5T1ywAVWr6zk/yRe8MDPxFDbzTga/OFxtAyGfdVNOw8ujj
-X-Received: by 2002:a17:90a:bd93:: with SMTP id z19mr55945620pjr.49.1563508914412;
-        Thu, 18 Jul 2019 21:01:54 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563508914; cv=none;
+        bh=wbxyyTpECoi0BxM7wh994IW5M0Tb/ffskGFKaTEeXkA=;
+        b=TWGt6WAphhTm98sWzUJfziBZjHUXamnrk3A/WYyC2lNyvAafF4zp6HN9jDCBdNrmbU
+         laKZzyKkphuTrO1UoPc0Z/br8F0nXLdzzk9Hpxn84ndQ8KxMHB7M4yUoMZ4eiub0oCy0
+         RIDg4Qtb8EPZOuoOJkNPtQ9OoRz5Xu/r9PiOr9b+n6Dj4AWsg+KfTnwvJCVJ7Y0i1WCJ
+         SDEFpeci4qlBgtf7rHxJXONdwF+NHGSHpvmbDOHYiYJ31PgtJmXPUlHQMFVPZ8P1Yluj
+         8XJk6tpyk7N7OWvspb+Zq5UdIpK6jPRZ9iEH3BSF7QCew+cOUHQGugxKjFYRoqQreNzw
+         SZbQ==
+X-Gm-Message-State: APjAAAURtzyu71cQ0mFaGQPhT9s0oKskv9vPK6iGS7Pn+Q5YlBY/DBiR
+	/VDP5BNeaql+osTRPtADAJ+fZz+TLXmr292h/YamkuEnhPGDX9iVR2OXgvUETdj+4oLkMrFtWTK
+	U81wic7Vof9xeMHdvuGC8TajyETGEzZlkxnLjewZ42ILvxfVIT/yUlUKj2WgD8IPmXw==
+X-Received: by 2002:a17:90a:bc42:: with SMTP id t2mr54962950pjv.121.1563508920282;
+        Thu, 18 Jul 2019 21:02:00 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxVhRgWhpVdMjee+U2/Qc8sRx5zcGg8beYos1Mwci8N5cSvZNBsKkImURAofJWsKuQIYj+W
+X-Received: by 2002:a17:90a:bc42:: with SMTP id t2mr54962870pjv.121.1563508919457;
+        Thu, 18 Jul 2019 21:01:59 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563508919; cv=none;
         d=google.com; s=arc-20160816;
-        b=i5wS6B/aIYBo7hGA3YJFxE9n3zJRM0dmZldY9xwJMH37v/jsmOGns8tc33NSpRsAoB
-         BnYgS7rllPXvXxFa1X07TEs20wqQGLRia4KhhEMYOHeZ+QuMA2MP2xswUGPfeM+L/53+
-         60OEzR5XUGgVOlT+RWzmgQg55rV1bgz9yIONoSNPnWFtk3BLkEVQ/bGIlDjBIWbb2E8W
-         0MaZqw5SdJotYgqgjKIh5l81d1Jx1jc1IQqX27aYXxKUdvAzJw+kJgPUaCfhAYHink+5
-         VVeXqgLtBvR7iyTI0toLM73pg0MakeEq74pA9r1il/xyuh8sryqIxFsoOtD7ZJtfB4B5
-         xWsA==
+        b=a45Tc5l7fE5k080LBeya7la3XfpNhAT7m+3QS2CalnDLa1q5s3lvO/CKErhsPlTVPZ
+         89mypo6oLUYjJrGHQnhDcDQiX/V/K7vZgG+93FbNLI8Uy944yB641aPRAV0WoH0ZdSId
+         40GR3Tm1EcyKG1Wx25mATSII2uJx3lpKWibtc3FJBoUrBU5BwQMZhYyTG7ar8uVjZB+J
+         u82i+umAOG4ceKnpGcEmfA6g+BJinEdqjhCa0V1i9cQ5ebnyrrmLv5/f2Agc62xPZ8du
+         5AayMXV4KoLDNCJvekv9N95ntiyZ5gOJiqqB6u5nuLgqb8Sn5DIiqWXOnPqWooM7aoK5
+         AbvQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=1Uqd78ab5LVket8wSYu/7s4SLsPia0WFI4EU+s+WtHQ=;
-        b=k7YOKvjYE/hO/MMxZPs+83eKWWgcpI8OBtaG3P7u9LsBr7ThYTsI2w+xITQ5s72cfy
-         kuhfCSTS1f9rjieU4QCF5PtR1Sa3tDGp3UMwS9xZbd10dzA7fjpKDUk/S9NneTjFrQyQ
-         ny3APqOOosS9kjNM08UKmPSVr9fWQz2EzQLqwfIViTuIrSRhycPhh1q7F2XWD8WAs81V
-         hfrlmG/eh/2COi+WXbBXu+adpymQEy3+W/MK9xCLDmlq2wx65y6XxCFlcqlhOFjepWPH
-         IB9BFcxjvwjxROXweTjpuqSNzjdY4FljuwH3cZSlUlkKlCy4wDBq2p/65xWNJrMzGTc/
-         MExQ==
+        bh=wbxyyTpECoi0BxM7wh994IW5M0Tb/ffskGFKaTEeXkA=;
+        b=OC1/5FY0vfP5Gie9l/PHgqx1hN1nazMfTlsdSEYpAahiIvcSK9qG//smpo+fQdABRd
+         yf4gBHxL85sV7g79nkNGzK+1fFQib+nk0Xkhto+tH1kfTR0tYUI0oF28vnGc90ynnIgi
+         inU6Vwqjb2fNCuwMHDN6Y+la2F6bms9Qq/hEYjqC5YusZ/4nlWADLxPVcgR5nXUU+yHw
+         4fVhTBkYN94iiJ1MTdZ7e0QuRY67b3RBRtGcm4CNl5nUzTx+W2MIW6chT/gkz77JEVOH
+         mC5YkaDO+1PupsrFA5sM28bI0v5SM+yBndsN1xATk3ofFUAG/MuoBBn+dTnwzM5nkQCF
+         V4lQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=P1bvtev9;
+       dkim=pass header.i=@kernel.org header.s=default header.b=tG6QkiUH;
        spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id a16si280903pgw.156.2019.07.18.21.01.54
+        by mx.google.com with ESMTPS id k11si134196pll.377.2019.07.18.21.01.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 18 Jul 2019 21:01:54 -0700 (PDT)
+        Thu, 18 Jul 2019 21:01:59 -0700 (PDT)
 Received-SPF: pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=P1bvtev9;
+       dkim=pass header.i=@kernel.org header.s=default header.b=tG6QkiUH;
        spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from sasha-vm.mshome.net (c-73-47-72-35.hsd1.nh.comcast.net [73.47.72.35])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 3F1A521873;
-	Fri, 19 Jul 2019 04:01:53 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTPSA id 014FA21851;
+	Fri, 19 Jul 2019 04:01:56 +0000 (UTC)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1563508914;
-	bh=9GAUxEDGrz6p+X4090gdjhdKhYDC2727M0VEUVEW7Zk=;
+	s=default; t=1563508919;
+	bh=hd3faQ3NjDa7987x5ieUJyMgS5PrMg+h5OFV8vUuDas=;
 	h=From:To:Cc:Subject:Date:In-Reply-To:References:From;
-	b=P1bvtev9IcCHwx/bTh9HILe944CP2yEbgTErDWs2hT5DpSX8ktcrcOtcxlBnU9qBv
-	 9ays0IlEp5o6wxMIUlgxL69Efwd76urRw+nt0Vqu8/PGLNBads84SX2vHyOdmjd5kf
-	 Nqgz3A4YggRPXpLlmgxo5HGKzdFx8D8+zeU3UQ+k=
+	b=tG6QkiUH0qtVSPFmuzV7qsEUFaGrl9xhD6GIffsJTLPEiJo/dKYvARlAqWE8J/su1
+	 puKv24BAxPl5r3ThTtsFUr01x4SqaCXGa9b06pjsC16JjQ4nMP+ErLVToAtM5UlG6Q
+	 4Sndwi6lUKKP7xxRd0qJ4ktgtqnzh5rVzpWzbep8=
 From: Sasha Levin <sashal@kernel.org>
 To: linux-kernel@vger.kernel.org,
 	stable@vger.kernel.org
-Cc: Dmitry Vyukov <dvyukov@google.com>,
-	Catalin Marinas <catalin.marinas@arm.com>,
+Cc: Huang Ying <ying.huang@intel.com>,
 	Andrew Morton <akpm@linux-foundation.org>,
+	Michal Hocko <mhocko@suse.com>,
+	Hugh Dickins <hughd@google.com>,
+	"Paul E . McKenney" <paulmck@linux.vnet.ibm.com>,
+	Minchan Kim <minchan@kernel.org>,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	Tim Chen <tim.c.chen@linux.intel.com>,
+	Mel Gorman <mgorman@techsingularity.net>,
+	=?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
+	Andrea Arcangeli <aarcange@redhat.com>,
+	Yang Shi <yang.shi@linux.alibaba.com>,
+	David Rientjes <rientjes@google.com>,
+	Rik van Riel <riel@redhat.com>,
+	Jan Kara <jack@suse.cz>,
+	Dave Jiang <dave.jiang@intel.com>,
+	Daniel Jordan <daniel.m.jordan@oracle.com>,
+	Andrea Parri <andrea.parri@amarulasolutions.com>,
 	Linus Torvalds <torvalds@linux-foundation.org>,
 	Sasha Levin <sashal@kernel.org>,
 	linux-mm@kvack.org
-Subject: [PATCH AUTOSEL 5.2 156/171] mm/kmemleak.c: fix check for softirq context
-Date: Thu, 18 Jul 2019 23:56:27 -0400
-Message-Id: <20190719035643.14300-156-sashal@kernel.org>
+Subject: [PATCH AUTOSEL 5.2 158/171] mm/mincore.c: fix race between swapoff and mincore
+Date: Thu, 18 Jul 2019 23:56:29 -0400
+Message-Id: <20190719035643.14300-158-sashal@kernel.org>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190719035643.14300-1-sashal@kernel.org>
 References: <20190719035643.14300-1-sashal@kernel.org>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
 X-stable: review
 X-Patchwork-Hint: Ignore
 Content-Transfer-Encoding: 8bit
@@ -119,96 +135,87 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Dmitry Vyukov <dvyukov@google.com>
+From: Huang Ying <ying.huang@intel.com>
 
-[ Upstream commit 6ef9056952532c3b746de46aa10d45b4d7797bd8 ]
+[ Upstream commit aeb309b81c6bada783c3695528a3e10748e97285 ]
 
-in_softirq() is a wrong predicate to check if we are in a softirq
-context.  It also returns true if we have BH disabled, so objects are
-falsely stamped with "softirq" comm.  The correct predicate is
-in_serving_softirq().
+Via commit 4b3ef9daa4fc ("mm/swap: split swap cache into 64MB trunks"),
+after swapoff, the address_space associated with the swap device will be
+freed.  So swap_address_space() users which touch the address_space need
+some kind of mechanism to prevent the address_space from being freed
+during accessing.
 
-If user does cat from /sys/kernel/debug/kmemleak previously they would
-see this, which is clearly wrong, this is system call context (see the
-comm):
+When mincore processes an unmapped range for swapped shmem pages, it
+doesn't hold the lock to prevent swap device from being swapped off.  So
+the following race is possible:
 
-unreferenced object 0xffff88805bd661c0 (size 64):
-  comm "softirq", pid 0, jiffies 4294942959 (age 12.400s)
-  hex dump (first 32 bytes):
-    00 00 00 00 00 00 00 00 ff ff ff ff 00 00 00 00  ................
-    00 00 00 00 00 00 00 00 01 00 00 00 00 00 00 00  ................
-  backtrace:
-    [<0000000007dcb30c>] kmemleak_alloc_recursive include/linux/kmemleak.h:55 [inline]
-    [<0000000007dcb30c>] slab_post_alloc_hook mm/slab.h:439 [inline]
-    [<0000000007dcb30c>] slab_alloc mm/slab.c:3326 [inline]
-    [<0000000007dcb30c>] kmem_cache_alloc_trace+0x13d/0x280 mm/slab.c:3553
-    [<00000000969722b7>] kmalloc include/linux/slab.h:547 [inline]
-    [<00000000969722b7>] kzalloc include/linux/slab.h:742 [inline]
-    [<00000000969722b7>] ip_mc_add1_src net/ipv4/igmp.c:1961 [inline]
-    [<00000000969722b7>] ip_mc_add_src+0x36b/0x400 net/ipv4/igmp.c:2085
-    [<00000000a4134b5f>] ip_mc_msfilter+0x22d/0x310 net/ipv4/igmp.c:2475
-    [<00000000d20248ad>] do_ip_setsockopt.isra.0+0x19fe/0x1c00 net/ipv4/ip_sockglue.c:957
-    [<000000003d367be7>] ip_setsockopt+0x3b/0xb0 net/ipv4/ip_sockglue.c:1246
-    [<000000003c7c76af>] udp_setsockopt+0x4e/0x90 net/ipv4/udp.c:2616
-    [<000000000c1aeb23>] sock_common_setsockopt+0x3e/0x50 net/core/sock.c:3130
-    [<000000000157b92b>] __sys_setsockopt+0x9e/0x120 net/socket.c:2078
-    [<00000000a9f3d058>] __do_sys_setsockopt net/socket.c:2089 [inline]
-    [<00000000a9f3d058>] __se_sys_setsockopt net/socket.c:2086 [inline]
-    [<00000000a9f3d058>] __x64_sys_setsockopt+0x26/0x30 net/socket.c:2086
-    [<000000001b8da885>] do_syscall_64+0x7c/0x1a0 arch/x86/entry/common.c:301
-    [<00000000ba770c62>] entry_SYSCALL_64_after_hwframe+0x44/0xa9
+CPU1					CPU2
+do_mincore()				swapoff()
+  walk_page_range()
+    mincore_unmapped_range()
+      __mincore_unmapped_range
+        mincore_page
+	  as = swap_address_space()
+          ...				  exit_swap_address_space()
+          ...				    kvfree(spaces)
+	  find_get_page(as)
 
-now they will see this:
+The address space may be accessed after being freed.
 
-unreferenced object 0xffff88805413c800 (size 64):
-  comm "syz-executor.4", pid 8960, jiffies 4294994003 (age 14.350s)
-  hex dump (first 32 bytes):
-    00 7a 8a 57 80 88 ff ff e0 00 00 01 00 00 00 00  .z.W............
-    00 00 00 00 00 00 00 00 01 00 00 00 00 00 00 00  ................
-  backtrace:
-    [<00000000c5d3be64>] kmemleak_alloc_recursive include/linux/kmemleak.h:55 [inline]
-    [<00000000c5d3be64>] slab_post_alloc_hook mm/slab.h:439 [inline]
-    [<00000000c5d3be64>] slab_alloc mm/slab.c:3326 [inline]
-    [<00000000c5d3be64>] kmem_cache_alloc_trace+0x13d/0x280 mm/slab.c:3553
-    [<0000000023865be2>] kmalloc include/linux/slab.h:547 [inline]
-    [<0000000023865be2>] kzalloc include/linux/slab.h:742 [inline]
-    [<0000000023865be2>] ip_mc_add1_src net/ipv4/igmp.c:1961 [inline]
-    [<0000000023865be2>] ip_mc_add_src+0x36b/0x400 net/ipv4/igmp.c:2085
-    [<000000003029a9d4>] ip_mc_msfilter+0x22d/0x310 net/ipv4/igmp.c:2475
-    [<00000000ccd0a87c>] do_ip_setsockopt.isra.0+0x19fe/0x1c00 net/ipv4/ip_sockglue.c:957
-    [<00000000a85a3785>] ip_setsockopt+0x3b/0xb0 net/ipv4/ip_sockglue.c:1246
-    [<00000000ec13c18d>] udp_setsockopt+0x4e/0x90 net/ipv4/udp.c:2616
-    [<0000000052d748e3>] sock_common_setsockopt+0x3e/0x50 net/core/sock.c:3130
-    [<00000000512f1014>] __sys_setsockopt+0x9e/0x120 net/socket.c:2078
-    [<00000000181758bc>] __do_sys_setsockopt net/socket.c:2089 [inline]
-    [<00000000181758bc>] __se_sys_setsockopt net/socket.c:2086 [inline]
-    [<00000000181758bc>] __x64_sys_setsockopt+0x26/0x30 net/socket.c:2086
-    [<00000000d4b73623>] do_syscall_64+0x7c/0x1a0 arch/x86/entry/common.c:301
-    [<00000000c1098bec>] entry_SYSCALL_64_after_hwframe+0x44/0xa9
+To fix the race, get_swap_device()/put_swap_device() is used to enclose
+find_get_page() to check whether the swap entry is valid and prevent the
+swap device from being swapoff during accessing.
 
-Link: http://lkml.kernel.org/r/20190517171507.96046-1-dvyukov@gmail.com
-Signed-off-by: Dmitry Vyukov <dvyukov@google.com>
-Acked-by: Catalin Marinas <catalin.marinas@arm.com>
+Link: http://lkml.kernel.org/r/20190611020510.28251-1-ying.huang@intel.com
+Fixes: 4b3ef9daa4fc ("mm/swap: split swap cache into 64MB trunks")
+Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
+Reviewed-by: Andrew Morton <akpm@linux-foundation.org>
+Acked-by: Michal Hocko <mhocko@suse.com>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
+Cc: Minchan Kim <minchan@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Tim Chen <tim.c.chen@linux.intel.com>
+Cc: Mel Gorman <mgorman@techsingularity.net>
+Cc: Jérôme Glisse <jglisse@redhat.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Yang Shi <yang.shi@linux.alibaba.com>
+Cc: David Rientjes <rientjes@google.com>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Jan Kara <jack@suse.cz>
+Cc: Dave Jiang <dave.jiang@intel.com>
+Cc: Daniel Jordan <daniel.m.jordan@oracle.com>
+Cc: Andrea Parri <andrea.parri@amarulasolutions.com>
 Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
 Signed-off-by: Sasha Levin <sashal@kernel.org>
 ---
- mm/kmemleak.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ mm/mincore.c | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)
 
-diff --git a/mm/kmemleak.c b/mm/kmemleak.c
-index 9dd581d11565..3e147ea83182 100644
---- a/mm/kmemleak.c
-+++ b/mm/kmemleak.c
-@@ -575,7 +575,7 @@ static struct kmemleak_object *create_object(unsigned long ptr, size_t size,
- 	if (in_irq()) {
- 		object->pid = 0;
- 		strncpy(object->comm, "hardirq", sizeof(object->comm));
--	} else if (in_softirq()) {
-+	} else if (in_serving_softirq()) {
- 		object->pid = 0;
- 		strncpy(object->comm, "softirq", sizeof(object->comm));
- 	} else {
+diff --git a/mm/mincore.c b/mm/mincore.c
+index c3f058bd0faf..4fe91d497436 100644
+--- a/mm/mincore.c
++++ b/mm/mincore.c
+@@ -68,8 +68,16 @@ static unsigned char mincore_page(struct address_space *mapping, pgoff_t pgoff)
+ 		 */
+ 		if (xa_is_value(page)) {
+ 			swp_entry_t swp = radix_to_swp_entry(page);
+-			page = find_get_page(swap_address_space(swp),
+-					     swp_offset(swp));
++			struct swap_info_struct *si;
++
++			/* Prevent swap device to being swapoff under us */
++			si = get_swap_device(swp);
++			if (si) {
++				page = find_get_page(swap_address_space(swp),
++						     swp_offset(swp));
++				put_swap_device(si);
++			} else
++				page = NULL;
+ 		}
+ 	} else
+ 		page = find_get_page(mapping, pgoff);
 -- 
 2.20.1
 
