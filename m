@@ -2,197 +2,177 @@ Return-Path: <SRS0=qzwp=VQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DA3D9C76196
-	for <linux-mm@archiver.kernel.org>; Fri, 19 Jul 2019 20:59:07 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 739A3C7618F
+	for <linux-mm@archiver.kernel.org>; Fri, 19 Jul 2019 21:05:28 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 921D221849
-	for <linux-mm@archiver.kernel.org>; Fri, 19 Jul 2019 20:59:07 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 28D142184E
+	for <linux-mm@archiver.kernel.org>; Fri, 19 Jul 2019 21:05:27 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=daktronics.com header.i=@daktronics.com header.b="m51Aatno"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 921D221849
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=daktronics.com
+	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="RBMHQkFT"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 28D142184E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 150546B0005; Fri, 19 Jul 2019 16:59:07 -0400 (EDT)
+	id 6F1C26B0007; Fri, 19 Jul 2019 17:05:27 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0DB4D6B0006; Fri, 19 Jul 2019 16:59:07 -0400 (EDT)
+	id 6C97A6B0008; Fri, 19 Jul 2019 17:05:27 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E95F08E0001; Fri, 19 Jul 2019 16:59:06 -0400 (EDT)
+	id 591C88E0001; Fri, 19 Jul 2019 17:05:27 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B269E6B0005
-	for <linux-mm@kvack.org>; Fri, 19 Jul 2019 16:59:06 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id t18so9409351pgu.20
-        for <linux-mm@kvack.org>; Fri, 19 Jul 2019 13:59:06 -0700 (PDT)
+Received: from mail-yb1-f199.google.com (mail-yb1-f199.google.com [209.85.219.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 3AAAE6B0007
+	for <linux-mm@kvack.org>; Fri, 19 Jul 2019 17:05:27 -0400 (EDT)
+Received: by mail-yb1-f199.google.com with SMTP id f126so25416256ybg.16
+        for <linux-mm@kvack.org>; Fri, 19 Jul 2019 14:05:27 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
-         :thread-index:date:message-id:references:in-reply-to:accept-language
-         :content-language:content-transfer-encoding:mime-version;
-        bh=EhHQ4CTsTsRyy1oZ0PfL6Sp5PESwl/7Ga9fqMoM6Kjg=;
-        b=iROxtlUDFeOC2SlrNybTyQU+NqJDqImCUduL+jbjUQlXqCjE6TwKujzexNBhbHH0zV
-         mFJBcr1q2lTzoABAeQxifTB87EOSd5+a61Jlhpol5PFaYYLphwY1l1c8bGYCKVrGKJJr
-         iNvf0JWcvkp5GgQynkAktQ3hx2Q54ioKArA+fmpnjbBxLk7UKpckjDQ28/xGAsu0TXIu
-         +NDUTO3asLj5Jxki+px9Ob72ib2uSVkb/DU0U31yIwTZNSW+E7dB1UZTZ4rvEs1qUnSR
-         HSTCVA7M1MCcfwdxDsGnVwCR4AMEC/g0hAIx6YWDBL3/pc7FDouQz57gxs3iUBlaAxpb
-         3bcQ==
-X-Gm-Message-State: APjAAAWiqAWpcGh2qp5babXZGOBQFiFK3BETk+vTCGIknVc+zDn6lLzB
-	OPTNj2Ght19gGKkGdZDDuGrckeg+ozpBVkw0pY24ZUepZSGEUT8iRtjBRjFiVV79Lpm/Z5JV/m9
-	cvzYL0IY1ZEQ6rMeF2xW/em8NEB71j2a4D3KBGyhgR10zFqXywZn/X+CEEYO0H/wfuw==
-X-Received: by 2002:a17:90a:9488:: with SMTP id s8mr61513414pjo.2.1563569946345;
-        Fri, 19 Jul 2019 13:59:06 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwhAXYsylOfU0X+22IFWkx9nIe9Wae00kzQIXFtyUMxN1Nu/vQo3uUNEmYv+UWQAYbN6Xl0
-X-Received: by 2002:a17:90a:9488:: with SMTP id s8mr61513353pjo.2.1563569945549;
-        Fri, 19 Jul 2019 13:59:05 -0700 (PDT)
-ARC-Seal: i=2; a=rsa-sha256; t=1563569945; cv=pass;
+        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding:dkim-signature;
+        bh=uXXZ8OaRelUTVBhhS709HcwBaF4jbMLR5EBDQ41vffw=;
+        b=VVONLQJ8KWnSQL3jbNTIkGnKjYkJmRBmdMwREbuKicYd9JnlySJaxAt65VOTm0MxGk
+         gi7QMOa6lPFHxvmQpWIvzpn8AO9EilU6uIrCv2D6dDP8Ndr1iYcXgFe4i07Bt0vgisjb
+         HlKIMRnDf3iGvEyIiPfTtDvGRpy59xbPpPiHyAH534Q/GbSEG3lhLv7AMsosy+ndWFlB
+         ftkX1jS/Xqc9CuXw2FNLRwRCCk7BFOsSV/y0fLQMDoczF9C2MR31E/f1mke1xdbdQ5ga
+         efMmHpFXN5r2uhE6xQK8y07AbnMUWlfUplHJGMWdGIUlKsl1BCsH9tuReYDti0EbDuIR
+         U83A==
+X-Gm-Message-State: APjAAAWZWkkYHtciNepIA8rLvAqt2fDM8XWwnh1eUFYAkVkO3K24Z3v4
+	IK6O5kNOhoHv5QxC6uTwIkiQWWMj8NlRXvPyIAlwkuEB1ZLESR0KFhvXdBqfYuaRjcdyPZ+ceTN
+	ZjON9X9+HCfMqx1KxaEtqnMBUgwm96SujOnL5kx3yhxhWr/Wfk67eMw31hLbpc0e/OA==
+X-Received: by 2002:a81:e11:: with SMTP id 17mr33991136ywo.231.1563570326962;
+        Fri, 19 Jul 2019 14:05:26 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxnoldD1Ad9yHSuuJRjGnpTwPCcbpacAzZTD7+nrDai9xTuiK3sxcGPK3MKpi8hQcruLmK4
+X-Received: by 2002:a81:e11:: with SMTP id 17mr33991075ywo.231.1563570325839;
+        Fri, 19 Jul 2019 14:05:25 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563570325; cv=none;
         d=google.com; s=arc-20160816;
-        b=bS+XlxmoZr7rjoZogBGm4KZhRFTE0fKlpeHr+R589+/Zda3jFZD4PqDVk/9LpbxaRH
-         2SLE1tZVEPT0Inn2IP6Y8lLOszeMt4kqlRzTyiW4gXctoTgGP0XTvMs4hgdfRVuypC5X
-         k8HDHBriuqu9nM1HWWuuWcqvNsbbU1nvaC4ate078UEtd8eaX1JTFlA9CQ9FK6N7KaGP
-         IPvbvq3WY6s9UqqU/tE5Lr9L3Fj0ZIxbbYmynGyFtTFyJi0AWRWTqJ9iSPY2UjbqEZzr
-         0G0cK074/6VSinNGefhrSZcvFiqfBp3vGEW84Vp9lzIP2G33CUbHb9sRcjSNDPxaFYPk
-         ugHQ==
-ARC-Message-Signature: i=2; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from:dkim-signature;
-        bh=EhHQ4CTsTsRyy1oZ0PfL6Sp5PESwl/7Ga9fqMoM6Kjg=;
-        b=xhQpGSL2PlWs73o7ptbwW5H+ntmYtKCSDrqLcNOTsrGFxC/iB5E9Wzttfx+1WdqdQ7
-         ivAS5O7UvOQ0lo1htplrTS3ecanR1nN/wj8aHSoAM9IL4/wA+GFl4dQV2EHRuKdmGONw
-         eUnD/JaZcRnKvPc05w2T4S4b6rpT8Jxt6VKOPPf37OgDo/XI/3prXWFx7WLC+KAj2O5/
-         64628Aw6UCLERPYewbAHBiBj9uF0Tj9xYb8Q8H/L8O5pDE4QtUeUsDoW143vyq2IM05X
-         UVuw5o7Vi0D+KAXqGDbCosrxMmCm9mfHpfe+cnmPQw7ko1QAd2loZvHZ46FdfMKSuJkr
-         UZGQ==
-ARC-Authentication-Results: i=2; mx.google.com;
-       dkim=pass header.i=@daktronics.com header.s=selector1 header.b=m51Aatno;
-       arc=pass (i=1 spf=pass spfdomain=daktronics.com dkim=pass dkdomain=daktronics.com dmarc=pass fromdomain=daktronics.com);
-       spf=pass (google.com: domain of matt.sickler@daktronics.com designates 40.107.72.44 as permitted sender) smtp.mailfrom=Matt.Sickler@daktronics.com
-Received: from NAM05-CO1-obe.outbound.protection.outlook.com (mail-eopbgr720044.outbound.protection.outlook.com. [40.107.72.44])
-        by mx.google.com with ESMTPS id w66si386698pfw.65.2019.07.19.13.59.05
+        b=E+KVp0CP6V5hBwbMzWVMaP7tsW/rF4dhms9gnKxwEMeHWHdwX1DDR0rMPqmN7d84S4
+         XRG8v3gx9t2k0BBjvtBMum2nXit1SrYgYHoVEbmPfr6y3a3/yjn9UAitda7Xgnxlku8w
+         V6COPAGiM8gDtlJvnQ4iluwrs65TsGTY7MUfWCa6zB3KzSS8/Gi3I+pexhJ9nkgM4524
+         4E2kuIRf918rnKc3p9uoud2SkD6wfxJIWWxoHLdZ1WduuntAJ9DuhryL3GS6CDaGVy3e
+         FHkiwPhxrJBfbObxaHaA88irWteynbvnT9frm6h0uIcviuTyXvJiogs4eGiSjDPPZe+1
+         Ka+w==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
+        h=dkim-signature:content-transfer-encoding:content-language
+         :in-reply-to:mime-version:user-agent:date:message-id:from:references
+         :cc:to:subject;
+        bh=uXXZ8OaRelUTVBhhS709HcwBaF4jbMLR5EBDQ41vffw=;
+        b=xAIXxDhYHakRfG2WOg7ow8v7npPnth1kLZIs2F12at2shMiKnDeYNk1u03bl/FOfxQ
+         kacfSEBVuUi8cB/YRwJUvDWLyg1/D/gZ2Ge17t3EXPHXcr29liiAqLmPKroUJmVrBaKI
+         K6UaeWJF1wBrRAKQdPjSSaOJjXQSSST3Piko9STGUefoluxNrjlCivjNOUMV/FCbcNqR
+         rt8Al4Y/jL9jFQPLLhex204ZGUmcMdmo71Pg6bQqayndjoVo2eBF55KMyd6t3jWFRs1j
+         pUY1FLxlic/ihxg59DD1cZf1ekOs31Wv+2jqjtw4CqYBMSqX91SSLY1rr86/5wTdWsEB
+         N5Aw==
+ARC-Authentication-Results: i=1; mx.google.com;
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=RBMHQkFT;
+       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com. [216.228.121.143])
+        by mx.google.com with ESMTPS id m2si12932919ybp.153.2019.07.19.14.05.25
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 19 Jul 2019 13:59:05 -0700 (PDT)
-Received-SPF: pass (google.com: domain of matt.sickler@daktronics.com designates 40.107.72.44 as permitted sender) client-ip=40.107.72.44;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 19 Jul 2019 14:05:25 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) client-ip=216.228.121.143;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@daktronics.com header.s=selector1 header.b=m51Aatno;
-       arc=pass (i=1 spf=pass spfdomain=daktronics.com dkim=pass dkdomain=daktronics.com dmarc=pass fromdomain=daktronics.com);
-       spf=pass (google.com: domain of matt.sickler@daktronics.com designates 40.107.72.44 as permitted sender) smtp.mailfrom=Matt.Sickler@daktronics.com
-ARC-Seal: i=1; a=rsa-sha256; s=arcselector9901; d=microsoft.com; cv=none;
- b=GUNyRFIn32TIDjOkny8pVt19Vlz5SCLlzmtqDnp8fWuBX9S4DcaUhNkcYs3lXy+aaa/qA3b7beqJqtXL+Mr/rv9t2RF5QTRj2lwRfWVR2DmcYtweXiEPaQjDUbUyUg8N4KF1IulDVUFn8LcPuD+Y276F9uITFf0iK1ZwzFJ1OQX9jxT7nHsKLYX8kYC87VryErZmdZQUYn2IJ5UBF8JwzeyAiE0ywJE40Oh2DVU1HVzrC+vaouDiGsMIWyeQeUR+oAzwk46gyOWIKztEnyyomu2e9gyUNpgidB4Y0NLolYrzzjdpM5EULPHj4KKPqMN7YAoeVowN/UWFepm4/5Z4Yg==
-ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=microsoft.com;
- s=arcselector9901;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=EhHQ4CTsTsRyy1oZ0PfL6Sp5PESwl/7Ga9fqMoM6Kjg=;
- b=A+sKLo08w3XTw60/YulFRqMjFFj2E/BQIHA0Jrxk/op5SF0+I1e2Q8Fa2v4Sb2BkN2AOU/cpyK3pMXq9CrgkQLKHyy3S0F30pXQUuf070uEZCDLY/yhoKrNhzFmHYR4/+ik1SdCzTy0wEckUKRSS7kH4c3Tz2baIpL6FFb7aqNKYGAKwpxd27+JCsS6i83wqeDUNGcYW05ugfJs7X3fnv3ytCmNF8ouTO1CWgLXnCWHnzY/JoQkc/Uo54cQ+3GMAd+f6Nsw/Vw1YdIecdXvN/w0QkGkll1BO466S/K1lskLt5s9qD7iiAhxNRq6Wk4sb1+RAl75oPdIFsr7srmM3Yg==
-ARC-Authentication-Results: i=1; mx.microsoft.com 1;spf=pass
- smtp.mailfrom=daktronics.com;dmarc=pass action=none
- header.from=daktronics.com;dkim=pass header.d=daktronics.com;arc=none
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=daktronics.com;
- s=selector1;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=EhHQ4CTsTsRyy1oZ0PfL6Sp5PESwl/7Ga9fqMoM6Kjg=;
- b=m51AatnoonPAaqF1b16ZxnNnhPvydbrDCKP5xTLFSgKLJbLzU96S4ANJuStAlIL5S7iBMY6bXqQnj4S2rvv1cWqEKxIyv7wvteNRMugqinEkl1JzAiJQtDhTq+yfhAdFiqrVXxSGglx3caX+TJPleR7mLoI64CkQCTHa87uy9jM=
-Received: from SN6PR02MB4016.namprd02.prod.outlook.com (52.135.69.145) by
- SN6PR02MB4191.namprd02.prod.outlook.com (52.135.70.151) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.2073.14; Fri, 19 Jul 2019 20:59:02 +0000
-Received: from SN6PR02MB4016.namprd02.prod.outlook.com
- ([fe80::3dba:454:9025:c1d0]) by SN6PR02MB4016.namprd02.prod.outlook.com
- ([fe80::3dba:454:9025:c1d0%7]) with mapi id 15.20.2073.012; Fri, 19 Jul 2019
- 20:59:02 +0000
-From: Matt Sickler <Matt.Sickler@daktronics.com>
-To: Bharath Vedartham <linux.bhar@gmail.com>, "jhubbard@nvidia.com"
-	<jhubbard@nvidia.com>, "ira.weiny@intel.com" <ira.weiny@intel.com>,
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=RBMHQkFT;
+       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate14.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
+	id <B5d3230950000>; Fri, 19 Jul 2019 14:05:25 -0700
+Received: from hqmail.nvidia.com ([172.20.161.6])
+  by hqpgpgate101.nvidia.com (PGP Universal service);
+  Fri, 19 Jul 2019 14:05:24 -0700
+X-PGP-Universal: processed;
+	by hqpgpgate101.nvidia.com on Fri, 19 Jul 2019 14:05:24 -0700
+Received: from [10.110.48.28] (172.20.13.39) by HQMAIL107.nvidia.com
+ (172.20.187.13) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Fri, 19 Jul
+ 2019 21:05:24 +0000
+Subject: Re: [PATCH v3] staging: kpc2000: Convert put_page to put_user_page*()
+To: Matt Sickler <Matt.Sickler@daktronics.com>, Bharath Vedartham
+	<linux.bhar@gmail.com>, "ira.weiny@intel.com" <ira.weiny@intel.com>,
 	"jglisse@redhat.com" <jglisse@redhat.com>, "gregkh@linuxfoundation.org"
 	<gregkh@linuxfoundation.org>
 CC: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org"
 	<linux-kernel@vger.kernel.org>, "devel@driverdev.osuosl.org"
 	<devel@driverdev.osuosl.org>
-Subject: RE: [PATCH v3] staging: kpc2000: Convert put_page to put_user_page*()
-Thread-Topic: [PATCH v3] staging: kpc2000: Convert put_page to
- put_user_page*()
-Thread-Index: AQHVPmzwE09u8sDYuEmu2VoulZlSaKbSax/w
-Date: Fri, 19 Jul 2019 20:59:02 +0000
-Message-ID:
- <SN6PR02MB4016754FE1BB6200746281A2EECB0@SN6PR02MB4016.namprd02.prod.outlook.com>
 References: <20190719200235.GA16122@bharath12345-Inspiron-5559>
-In-Reply-To: <20190719200235.GA16122@bharath12345-Inspiron-5559>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-authentication-results: spf=none (sender IP is )
- smtp.mailfrom=Matt.Sickler@daktronics.com; 
-x-originating-ip: [2620:9b:8000:6046:2d0d:49c4:33aa:6af4]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: b09fe611-239c-4c46-f80e-08d70c8bed98
-x-microsoft-antispam:
- BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(2017052603328)(7193020);SRVR:SN6PR02MB4191;
-x-ms-traffictypediagnostic: SN6PR02MB4191:
-x-microsoft-antispam-prvs:
- <SN6PR02MB4191BFF69A81601D2A153FF9EECB0@SN6PR02MB4191.namprd02.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:9508;
-x-forefront-prvs: 01039C93E4
-x-forefront-antispam-report:
- SFV:NSPM;SFS:(10009020)(4636009)(136003)(396003)(346002)(366004)(376002)(39860400002)(189003)(199004)(478600001)(110136005)(99286004)(54906003)(6506007)(2906002)(46003)(102836004)(476003)(11346002)(256004)(8676002)(446003)(7736002)(316002)(229853002)(74316002)(305945005)(76176011)(6116002)(7696005)(486006)(53936002)(14454004)(86362001)(6246003)(55016002)(8936002)(2201001)(68736007)(81156014)(81166006)(25786009)(33656002)(4326008)(2501003)(66946007)(66476007)(66556008)(64756008)(66446008)(71200400001)(76116006)(71190400001)(9686003)(6436002)(5660300002)(52536014)(186003);DIR:OUT;SFP:1101;SCL:1;SRVR:SN6PR02MB4191;H:SN6PR02MB4016.namprd02.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
-received-spf: None (protection.outlook.com: daktronics.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info:
- CEkRMd4RGN2q2Q9I2GACh75eW9sk/l7ej0w33Jq45Ld8A2OafT10oD4/QL93yZ+XLyyEQ/6/wCqsp+7KKgWR/OesWbI5ewItzLDdTTtGqJBCm6t1Fpm9zmjMh0Hc1VPDKl/YOQIQfBW96z2BAaxruhK4Tyu1TW/uJh92zE9dt2x69J67+GndbUj/BVfljXQ50e22TVUT06sZoAiP9Cjmdh8Zkd1VIUSBZF4ZrqSzME1ZS7JHvLqlVqmiiHxfRWC+5vkNPmmqri1UYj1+TOtvVCIJiTdcoM4Qzek9YsASbe2z00Xbud528lwj44aHMe82w+bYr7kz3wQojG4PsXNcpFldlG/BWPqv3eV03KxSeLai7ploZfMWuHxenCcMjReEhteWtOtxIuwonpL1qGAQ621EiMprHXzzydP/HKR2oH0=
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+ <SN6PR02MB4016754FE1BB6200746281A2EECB0@SN6PR02MB4016.namprd02.prod.outlook.com>
+From: John Hubbard <jhubbard@nvidia.com>
+X-Nvconfidentiality: public
+Message-ID: <3948879c-5764-4245-e950-eb4749aafe5b@nvidia.com>
+Date: Fri, 19 Jul 2019 14:05:23 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-X-OriginatorOrg: daktronics.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: b09fe611-239c-4c46-f80e-08d70c8bed98
-X-MS-Exchange-CrossTenant-originalarrivaltime: 19 Jul 2019 20:59:02.1607
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: be88af81-0945-42aa-a3d2-b122777351a2
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-userprincipalname: matt.sickler@daktronics.com
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: SN6PR02MB4191
+In-Reply-To: <SN6PR02MB4016754FE1BB6200746281A2EECB0@SN6PR02MB4016.namprd02.prod.outlook.com>
+X-Originating-IP: [172.20.13.39]
+X-ClientProxiedBy: HQMAIL107.nvidia.com (172.20.187.13) To
+ HQMAIL107.nvidia.com (172.20.187.13)
+Content-Type: text/plain; charset="utf-8"
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
+	t=1563570325; bh=uXXZ8OaRelUTVBhhS709HcwBaF4jbMLR5EBDQ41vffw=;
+	h=X-PGP-Universal:Subject:To:CC:References:From:X-Nvconfidentiality:
+	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
+	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
+	 Content-Transfer-Encoding;
+	b=RBMHQkFTRPQgCd7gP4P+7u6BJdhh2b31ep8178Yi5S3jKNIPqrnwL2KL1601Z+iuQ
+	 9V44LCZdjYVWOPr8mb/RBqFqi+lWyoa4VLjFHCODAHQmfqss6YPvwRWYQ24WU7q3lW
+	 JEhvpFzEci71ms+nbfMOZqVZJIL7B2u3yJJhe+lnLiFchga6FTAWxwHtKCj2i1af+G
+	 tWD9LYiUxhJnZ6l0hzXLh3TFsed9xgGzTVtHb8LdrvqemTRFs0fukUMZ0VogQapToK
+	 fOZyAxJ+lOP22NjLrdU81USY8v73UiGyZDvqTYlE+oi5v9TNpmoafHVddNgLIgfFML
+	 fmlLIcQLM3yuQ==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
->From: Bharath Vedartham <linux.bhar@gmail.com>
->Changes since v2
->        - Added back PageResevered check as suggested by John Hubbard.
->
->The PageReserved check needs a closer look and is not worth messing
->around with for now.
->
->Matt, Could you give any suggestions for testing this patch?
+On 7/19/19 1:59 PM, Matt Sickler wrote:
+>> From: Bharath Vedartham <linux.bhar@gmail.com>
+>> Changes since v2
+>>        - Added back PageResevered check as suggested by John Hubbard.
+>>
+>> The PageReserved check needs a closer look and is not worth messing
+>> around with for now.
+>>
+>> Matt, Could you give any suggestions for testing this patch?
+> 
+> Myself or someone else from Daktronics would have to do the testing since the
+> hardware isn't really commercially available.  I've been toying with the idea
+> of asking for a volunteer from the mailing list to help me out with this - I'd
+> send them some hardware and they'd do all the development and testing. :)
+> I still have to run that idea by Management though.
+> 
+>> If in-case, you are willing to pick this up to test. Could you
+>> apply this patch to this tree and test it with your devices?
+> 
+> I've been meaning to get to testing the changes to the drivers since upstreaming
+> them, but I've been swamped with other development.  I'm keeping an eye on the
+> mailing lists, so I'm at least aware of what is coming down the pipe.
+> I'm not too worried about this specific change, even though I don't really know
+> if the reserved check and the dirtying are even necessary.
+> It sounded like John's suggestion was to not do the PageReserved() check and just
+> use put_user_pges_dirty() all the time.  John, is that incorrect?
+> 
 
-Myself or someone else from Daktronics would have to do the testing since t=
-he
-hardware isn't really commercially available.  I've been toying with the id=
-ea
-of asking for a volunteer from the mailing list to help me out with this - =
-I'd
-send them some hardware and they'd do all the development and testing. :)
-I still have to run that idea by Management though.
+That's what I suggested at first. But then I saw at least one other place where 
+this pattern is being used, and it shook my confidence. I don't clearly see what
+the PageReserved check is protecting against here, but it's better to be
+safe, and do things in two steps: step 1 is *only* convert from put_page()
+to put_user_page(), and step 2 is to maybe remove the PageReserved() check,
+once fully understood. 
 
->If in-case, you are willing to pick this up to test. Could you
->apply this patch to this tree and test it with your devices?
 
-I've been meaning to get to testing the changes to the drivers since upstre=
-aming
-them, but I've been swamped with other development.  I'm keeping an eye on =
-the
-mailing lists, so I'm at least aware of what is coming down the pipe.
-I'm not too worried about this specific change, even though I don't really =
-know
-if the reserved check and the dirtying are even necessary.
-It sounded like John's suggestion was to not do the PageReserved() check an=
-d just
-use put_user_pges_dirty() all the time.  John, is that incorrect?
+thanks,
+-- 
+John Hubbard
+NVIDIA
 
