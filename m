@@ -7,106 +7,113 @@ X-Spam-Status: No, score=-10.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
 	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4443BC76197
-	for <linux-mm@archiver.kernel.org>; Fri, 19 Jul 2019 04:07:00 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 95436C76188
+	for <linux-mm@archiver.kernel.org>; Fri, 19 Jul 2019 04:07:24 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id F225F2189F
-	for <linux-mm@archiver.kernel.org>; Fri, 19 Jul 2019 04:06:59 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 4D21021849
+	for <linux-mm@archiver.kernel.org>; Fri, 19 Jul 2019 04:07:24 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="UWyKZESY"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F225F2189F
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="srvP4yGG"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4D21021849
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 929DB8E000D; Fri, 19 Jul 2019 00:06:59 -0400 (EDT)
+	id EF5808E000E; Fri, 19 Jul 2019 00:07:23 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8B3F98E0001; Fri, 19 Jul 2019 00:06:59 -0400 (EDT)
+	id EA6AB8E0001; Fri, 19 Jul 2019 00:07:23 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 77B848E000D; Fri, 19 Jul 2019 00:06:59 -0400 (EDT)
+	id D6E3E8E000E; Fri, 19 Jul 2019 00:07:23 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 40C808E0001
-	for <linux-mm@kvack.org>; Fri, 19 Jul 2019 00:06:59 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id b18so17955762pgg.8
-        for <linux-mm@kvack.org>; Thu, 18 Jul 2019 21:06:59 -0700 (PDT)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A0C2B8E0001
+	for <linux-mm@kvack.org>; Fri, 19 Jul 2019 00:07:23 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id b18so17956352pgg.8
+        for <linux-mm@kvack.org>; Thu, 18 Jul 2019 21:07:23 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=4gOJ72d8Z3asX005sWwEX+eZ0vU9BN9QWFdz0Lm3Vuw=;
-        b=DLOIhv8YmoaRox0q1ZmxPS6iXGomuXG6RDntl5gYExqy74LrWgIKckd4cPd42MHCVZ
-         d7jvxqcJ1fgC6letgsvhZcb96Us531PBuGSWL0KmPrjif1s8HAYwqta2xpkEhiGUo7Ce
-         4QL+yR3e57HuN5qIn2089Zagy3pPv/4ByLm44hhJ37u5YyhLDFjmqVgTFny/mBv8qRJw
-         2SM4fUPjrRsgAWSzJpU0xeHKgCgP73jbZtdpLTfPbjT93nh4z1UJoaERQNNBVEchA3pr
-         Qtu29oRmeDBznErzohrwr9TgzB6S9ECEtjIPGWvtmF+dmL3ooTFV84phbSi3YSAaRhgm
-         yN4A==
-X-Gm-Message-State: APjAAAVacnE6VGTY/cQ7wCuaieurKVz/G4ssFe38u862UDDzj5syA8Zq
-	XX/U7okgDb6/CMt8QCK2P3up0hViFTkc4AiCDBQTH6/tPDotd9MjvO2KA4JuHxKwxPAKE16wZRJ
-	IsqlLFsS0vT4BYiIQb9oalYTuLPpd1VWaGAJ5/yOBzsj7+plnujeIM1wvsHUrsu69Pg==
-X-Received: by 2002:a17:902:70c3:: with SMTP id l3mr53390883plt.92.1563509218929;
-        Thu, 18 Jul 2019 21:06:58 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqw1VIHl4oyf/HpWSccpuEbVemYDEaTW4X62g0v6bb4mEibtfR8HmCvMgWkkmvDHockoVzlV
-X-Received: by 2002:a17:902:70c3:: with SMTP id l3mr53390805plt.92.1563509218193;
-        Thu, 18 Jul 2019 21:06:58 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563509218; cv=none;
+        bh=AuML3ZqvUyPeL23iN1l5JzsEwZl5XQbbk20/GqsWZ2s=;
+        b=sioAgmXno1ELlDDaX1ibDQVw40uSd5qmnHDjfwdYi3bz7rUD9i+GNEM3N1gnBVhxFY
+         7MbwyIy0AaWeZ10iikwVDlhijywt8OL076fyehLi3p1JKD+QboBhI2ATjwi0vqXox08K
+         fcQUWHWlmb8lkm/NiRZFO0nJFc4cb/8RBpr8OenkDnWirvDpxf7X2I1DfcYR2Hjp/F36
+         db6d1nWFJJoKqkswiiPmrShkjcJDVwsrXhZUzYE7+Be0MRnLqnBw5hRep6wyjWG6s4np
+         7Z2L1O4j/Hj1ngF3/XmR5Vy9gRzjri7RkqXRke5IF4rJiFOCOU6GktkB7SYs5UbhaIBL
+         vTgQ==
+X-Gm-Message-State: APjAAAUQ6MKrUK3tb1IGWFAiP4r+vI1w/hJS9FIM+vFMxhr6t8zEi6jC
+	yTv5FfzbCr4duNGYcsIya+bpemvmBC518Wnv883UQGAFH0doHSxU1XiVykiY2HizbNYsyoHrG5+
+	ZozcFL2V+vwsKhMaL4fuBf1VfiKxk1vs3t3vVxvLXbV64mcdXifwdZzQShOAIYkA0mw==
+X-Received: by 2002:a17:902:2808:: with SMTP id e8mr52418509plb.317.1563509243335;
+        Thu, 18 Jul 2019 21:07:23 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwDg+h017g+LcJh2IWdDCUQ3UrCo3Zi/icpNw7D0Kov29BvF2Cy0BvDwGJilEyu+cg/fHSO
+X-Received: by 2002:a17:902:2808:: with SMTP id e8mr52418463plb.317.1563509242701;
+        Thu, 18 Jul 2019 21:07:22 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563509242; cv=none;
         d=google.com; s=arc-20160816;
-        b=XqoTnREGqypyMV1I1wQmLOqxhHlH2cQ/FFc+Xqf4uYM2C4eY7yTCVg4e1iyT6v04Yp
-         EsKVcXhCAgaCtY5QYLSmzElEJ2kSu9PiL3fXcwAgT7LGIWofUbwnaotq7Rt5/uchqsV4
-         hcxhR+M/P4ShMFZ4VHQEG8+W8Hm2lAKJKkkHvJvx2E0oU+yaDD5loxPzIIJy/Paf9r7V
-         tCjwfwRDAsUsBLJ4T9J6J+yl5suet1XImoRpZHh/9ju6XVyYo4UbU/ixD/0nG+RV/6EU
-         xqrvZHBOoIhlprrQ9ClwHHg5kE6sUG19aC3KsSrGjK7eW6E9liHa7XGlmaF7i6jxkAOA
-         Ipow==
+        b=ru1kBMrBSFF5l6HHXOc2Bk9jNloS26VK47a79FNCcwhVkskkKcMZYfcwlJkY5y+4+8
+         /7D5Se2rz3/X+LU81C2DTInA28uyY5TxcflCfn0kJVPatojB4AUmYuamcj9tk76+R4N1
+         jc28Hdqnxz+D3DBYXVcmoFVYufVkTP5zC1wJ7Aq1g/DGmfrkGpgb+ZFJLOysrO7ejPMu
+         7wIRukozk55SjOFj4P+iclk0P1nXmCGkuK0kTJABQwK10Pu3exU4+wkPXY2hWcqq5Dw8
+         WkD9QuPyz5W98RTFZ3Gjw2H0vr0enjNV8LWDvUTtd3rQLr8ESYfXV6ATz0zKDyhuxYuA
+         3ZfA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=4gOJ72d8Z3asX005sWwEX+eZ0vU9BN9QWFdz0Lm3Vuw=;
-        b=usYZS9ArWPhQR+qLe7dMyGN6AHiuHbY5S4A3AcJDD5sAz+bks/i8AVyaxWcf7JOV5a
-         AcBwAFq9VfpGtKBFI348FLs16Dfk6FdsUhemH6Lu2En5NS+O8tVIfQ2JCD+6QFmb1Hp6
-         NgPujsyyBHkvgJuIUffkm2f31pc6LlAj5vgevfcNhDpAzz67fZcGqe+K8lvbuO8+R4Pa
-         KYAlmcS63kpuFGYCzazbTey4pIeS6w1hQOlrtyucPSjFRsANjZvedDEU8w3bQ57PAbwa
-         HQAl1nPY9w6yqL8aQe0u6ZTTkA5xFjcBa1jAzGwth5b/0ODiOfR219qG31vQtOobQbHJ
-         lfww==
+        bh=AuML3ZqvUyPeL23iN1l5JzsEwZl5XQbbk20/GqsWZ2s=;
+        b=h1fMyxzzkTdImedkToBnxxw7wy/Z0B/co52QxRT6EJt3fA+GG2Kv9bTxRBOZkdKCBe
+         7weESt4OaRtoNoNr3g6OnupZKkK3AKFyUQG2Vd5dmBCbXMn8CIQmmsNnj4RO+gz6oTWl
+         nVsxNxV1Iv+wLGKRRWzTgsXFblXFtm5+ymOsAw97bQpqiaJU6V2wL9IflcJxMCPL6iN/
+         wQ5w6sdP8K4MDwwYJvDOKCEhrg2r5W83/u5vha7+Trroiin8alrR1oq6Aw5WN29Pv2qe
+         hSpMH5lt4IHD64XtgdDkI2ZRq7XY8gQsYTyqvu1ddYpctj4Ifr9dnWB3DL3LZggqrs6A
+         2SBg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=UWyKZESY;
+       dkim=pass header.i=@kernel.org header.s=default header.b=srvP4yGG;
        spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id l2si776002pff.221.2019.07.18.21.06.58
+        by mx.google.com with ESMTPS id f96si1971615plb.339.2019.07.18.21.07.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 18 Jul 2019 21:06:58 -0700 (PDT)
+        Thu, 18 Jul 2019 21:07:22 -0700 (PDT)
 Received-SPF: pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=UWyKZESY;
+       dkim=pass header.i=@kernel.org header.s=default header.b=srvP4yGG;
        spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from sasha-vm.mshome.net (c-73-47-72-35.hsd1.nh.comcast.net [73.47.72.35])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id EB88721873;
-	Fri, 19 Jul 2019 04:06:56 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTPSA id CD60C2189F;
+	Fri, 19 Jul 2019 04:07:20 +0000 (UTC)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1563509217;
-	bh=tyRPrOwKObReDHMdAgwbRdxfiTZLlY8WCnzQi9XBHBM=;
+	s=default; t=1563509242;
+	bh=XIhAftyDr0qptRv/5vX3XaMCpK9LB75kb4/6DTTtdHM=;
 	h=From:To:Cc:Subject:Date:In-Reply-To:References:From;
-	b=UWyKZESYBXt4RUSvIhxCwUmx1BCFI1c3ZGbDVd/+CWN0SdqPZSIp3SrNNN00bJQfa
-	 MpFb9laELaoX+hX2mEoyYuP0IxQd71oDoHoNTTCFi83J/64CuE5LgGNRyLrikZfOSZ
-	 96KqqjzHovzT6NheY2J/KVfQaYWW6sM6oNZfmzzU=
+	b=srvP4yGG1HspSOKxQxAH/ibdwhh3NmHFoStAa9cCpSRKShqFgROY52bG4ULtxxOIv
+	 FIm0Cqe4c5goDhP7TSJUer2VXpVyvi2DLFfAfCvcoTcIENUOZJfTXrC3evE9L8q55+
+	 mcZsdUywTuAWw8F9JQxodLZlDuySHu/EtJAU5xJ4=
 From: Sasha Levin <sashal@kernel.org>
 To: linux-kernel@vger.kernel.org,
 	stable@vger.kernel.org
-Cc: Jean-Philippe Brucker <jean-philippe.brucker@arm.com>,
-	=?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
+Cc: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>,
+	=?UTF-8?q?Michal=20Koutn=C3=BD?= <mkoutny@suse.com>,
+	Oleg Nesterov <oleg@redhat.com>,
 	Michal Hocko <mhocko@suse.com>,
+	Alexey Dobriyan <adobriyan@gmail.com>,
+	Matthew Wilcox <willy@infradead.org>,
+	Cyrill Gorcunov <gorcunov@gmail.com>,
+	Kirill Tkhai <ktkhai@virtuozzo.com>,
+	Al Viro <viro@zeniv.linux.org.uk>,
+	Roman Gushchin <guro@fb.com>,
 	Andrew Morton <akpm@linux-foundation.org>,
 	Linus Torvalds <torvalds@linux-foundation.org>,
 	Sasha Levin <sashal@kernel.org>,
 	linux-mm@kvack.org
-Subject: [PATCH AUTOSEL 5.1 132/141] mm/mmu_notifier: use hlist_add_head_rcu()
-Date: Fri, 19 Jul 2019 00:02:37 -0400
-Message-Id: <20190719040246.15945-132-sashal@kernel.org>
+Subject: [PATCH AUTOSEL 5.1 140/141] mm: use down_read_killable for locking mmap_sem in access_remote_vm
+Date: Fri, 19 Jul 2019 00:02:45 -0400
+Message-Id: <20190719040246.15945-140-sashal@kernel.org>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190719040246.15945-1-sashal@kernel.org>
 References: <20190719040246.15945-1-sashal@kernel.org>
@@ -121,66 +128,69 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Jean-Philippe Brucker <jean-philippe.brucker@arm.com>
+From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
 
-[ Upstream commit 543bdb2d825fe2400d6e951f1786d92139a16931 ]
+[ Upstream commit 1e426fe28261b03f297992e89da3320b42816f4e ]
 
-Make mmu_notifier_register() safer by issuing a memory barrier before
-registering a new notifier.  This fixes a theoretical bug on weakly
-ordered CPUs.  For example, take this simplified use of notifiers by a
-driver:
+This function is used by ptrace and proc files like /proc/pid/cmdline and
+/proc/pid/environ.
 
-	my_struct->mn.ops = &my_ops; /* (1) */
-	mmu_notifier_register(&my_struct->mn, mm)
-		...
-		hlist_add_head(&mn->hlist, &mm->mmu_notifiers); /* (2) */
-		...
+Access_remote_vm never returns error codes, all errors are ignored and
+only size of successfully read data is returned.  So, if current task was
+killed we'll simply return 0 (bytes read).
 
-Once mmu_notifier_register() releases the mm locks, another thread can
-invalidate a range:
+Mmap_sem could be locked for a long time or forever if something goes
+wrong.  Using a killable lock permits cleanup of stuck tasks and
+simplifies investigation.
 
-	mmu_notifier_invalidate_range()
-		...
-		hlist_for_each_entry_rcu(mn, &mm->mmu_notifiers, hlist) {
-			if (mn->ops->invalidate_range)
-
-The read side relies on the data dependency between mn and ops to ensure
-that the pointer is properly initialized.  But the write side doesn't have
-any dependency between (1) and (2), so they could be reordered and the
-readers could dereference an invalid mn->ops.  mmu_notifier_register()
-does take all the mm locks before adding to the hlist, but those have
-acquire semantics which isn't sufficient.
-
-By calling hlist_add_head_rcu() instead of hlist_add_head() we update the
-hlist using a store-release, ensuring that readers see prior
-initialization of my_struct.  This situation is better illustated by
-litmus test MP+onceassign+derefonce.
-
-Link: http://lkml.kernel.org/r/20190502133532.24981-1-jean-philippe.brucker@arm.com
-Fixes: cddb8a5c14aa ("mmu-notifiers: core")
-Signed-off-by: Jean-Philippe Brucker <jean-philippe.brucker@arm.com>
-Cc: Jérôme Glisse <jglisse@redhat.com>
-Cc: Michal Hocko <mhocko@suse.com>
+Link: http://lkml.kernel.org/r/156007494202.3335.16782303099589302087.stgit@buzz
+Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Reviewed-by: Michal Koutný <mkoutny@suse.com>
+Acked-by: Oleg Nesterov <oleg@redhat.com>
+Acked-by: Michal Hocko <mhocko@suse.com>
+Cc: Alexey Dobriyan <adobriyan@gmail.com>
+Cc: Matthew Wilcox <willy@infradead.org>
+Cc: Cyrill Gorcunov <gorcunov@gmail.com>
+Cc: Kirill Tkhai <ktkhai@virtuozzo.com>
+Cc: Al Viro <viro@zeniv.linux.org.uk>
+Cc: Roman Gushchin <guro@fb.com>
 Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
 Signed-off-by: Sasha Levin <sashal@kernel.org>
 ---
- mm/mmu_notifier.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ mm/memory.c | 4 +++-
+ mm/nommu.c  | 3 ++-
+ 2 files changed, 5 insertions(+), 2 deletions(-)
 
-diff --git a/mm/mmu_notifier.c b/mm/mmu_notifier.c
-index 9c884abc7850..9f246c960e65 100644
---- a/mm/mmu_notifier.c
-+++ b/mm/mmu_notifier.c
-@@ -276,7 +276,7 @@ static int do_mmu_notifier_register(struct mmu_notifier *mn,
- 	 * thanks to mm_take_all_locks().
- 	 */
- 	spin_lock(&mm->mmu_notifier_mm->lock);
--	hlist_add_head(&mn->hlist, &mm->mmu_notifier_mm->list);
-+	hlist_add_head_rcu(&mn->hlist, &mm->mmu_notifier_mm->list);
- 	spin_unlock(&mm->mmu_notifier_mm->lock);
+diff --git a/mm/memory.c b/mm/memory.c
+index ab650c21bccd..57402801ab09 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -4260,7 +4260,9 @@ int __access_remote_vm(struct task_struct *tsk, struct mm_struct *mm,
+ 	void *old_buf = buf;
+ 	int write = gup_flags & FOLL_WRITE;
  
- 	mm_drop_all_locks(mm);
+-	down_read(&mm->mmap_sem);
++	if (down_read_killable(&mm->mmap_sem))
++		return 0;
++
+ 	/* ignore errors, just check how much was successfully transferred */
+ 	while (len) {
+ 		int bytes, ret, offset;
+diff --git a/mm/nommu.c b/mm/nommu.c
+index 749276beb109..1bd91ceadc82 100644
+--- a/mm/nommu.c
++++ b/mm/nommu.c
+@@ -1777,7 +1777,8 @@ int __access_remote_vm(struct task_struct *tsk, struct mm_struct *mm,
+ 	struct vm_area_struct *vma;
+ 	int write = gup_flags & FOLL_WRITE;
+ 
+-	down_read(&mm->mmap_sem);
++	if (down_read_killable(&mm->mmap_sem))
++		return 0;
+ 
+ 	/* the access must start within one of the target process's mappings */
+ 	vma = find_vma(mm, addr);
 -- 
 2.20.1
 
