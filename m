@@ -2,131 +2,126 @@ Return-Path: <SRS0=qzwp=VQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY,USER_AGENT_GIT
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E0829C76196
-	for <linux-mm@archiver.kernel.org>; Fri, 19 Jul 2019 16:47:16 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5C17DC7618F
+	for <linux-mm@archiver.kernel.org>; Fri, 19 Jul 2019 17:21:34 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B0BB22186A
-	for <linux-mm@archiver.kernel.org>; Fri, 19 Jul 2019 16:47:16 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B0BB22186A
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.com
+	by mail.kernel.org (Postfix) with ESMTP id 1150421873
+	for <linux-mm@archiver.kernel.org>; Fri, 19 Jul 2019 17:21:33 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1150421873
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3BAA16B0005; Fri, 19 Jul 2019 12:47:16 -0400 (EDT)
+	id A08C96B0005; Fri, 19 Jul 2019 13:21:32 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 36AF98E0005; Fri, 19 Jul 2019 12:47:16 -0400 (EDT)
+	id 9BA456B0006; Fri, 19 Jul 2019 13:21:32 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 20C8E8E0003; Fri, 19 Jul 2019 12:47:16 -0400 (EDT)
+	id 8A8D38E0001; Fri, 19 Jul 2019 13:21:32 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C58406B0005
-	for <linux-mm@kvack.org>; Fri, 19 Jul 2019 12:47:15 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id r21so22429093edc.6
-        for <linux-mm@kvack.org>; Fri, 19 Jul 2019 09:47:15 -0700 (PDT)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 519866B0005
+	for <linux-mm@kvack.org>; Fri, 19 Jul 2019 13:21:32 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id n4so15685893plp.4
+        for <linux-mm@kvack.org>; Fri, 19 Jul 2019 10:21:32 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=tKTNBnQak8KTJlVWIntLltNu7nt/VmpCog4kX4RwnOM=;
-        b=NHW2g6FE5FKm4ZdqYXXvpVo9TVRJ7nCLl1qdFQQXEy0hZ6qqUmVOLSz5+dHuW5bfoP
-         SidBsd3xOqvfJSVlHVLnbNKleOJdUZLxoCMWeHs6YA3jkpafbOz4iqfCcY7GqaFBTfCJ
-         HsNUcCIg+UqqGmHsm19II3vhwxck3+qIqsdd2HEpWW9psLdodRoPM+hk2xam6txxJ77l
-         FHDpJd5EDPxpuHfpP0EfyaIhZ5c3xDq3bqS5JoAp4P3PvDWU3yWc/j5GtB6ebOfazb5J
-         m4ePRxFHosKs96DjL3OiL53KkJrqBuYpz5+BVZXrGwwRxRjnr4H+Q68BmoWIwW2vS9WJ
-         vO1Q==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mkoutny@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=mkoutny@suse.com
-X-Gm-Message-State: APjAAAXkTEiugL2W4CukBuztJAD5d8iSqRckiz7TAWn1p+D4DtyHEtzS
-	RwDH7F04Qh7tnfZvlvUZLu1KvHlLCAUQHPqc4UrE2rq1/PopMFNeQ3iqUBvhiiMwD7lU9vMBzmQ
-	IihqG4rMea+WPot3oUd5Z+VtnuPJm4cNvQor5lOc3XoJ1Xe5nEddPTPamF/iKZuUJqA==
-X-Received: by 2002:a17:907:384:: with SMTP id ss4mr41937669ejb.166.1563554835386;
-        Fri, 19 Jul 2019 09:47:15 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyQDGMOWr0ZKGUP2W8rAnnwA38Z+K+fVgX3DB9NDmNL/UVUr2Ss62bLQceI1BIiF/o5+s+X
-X-Received: by 2002:a17:907:384:: with SMTP id ss4mr41937613ejb.166.1563554834317;
-        Fri, 19 Jul 2019 09:47:14 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563554834; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id;
+        bh=yY7wVszP4LQpvcp04DDsW2dLXC6w205iMAAghbL05/M=;
+        b=XzNFiy480C5nTPmH6pchqPqUgZpEQiFKvS8+JYZMztcNuL3fMcHr1ZVoz/YuORM17X
+         KGinsK/6aBCuPsYJC16qdTzazstOPXtI6KtRF1Q8403UgOEO6pzvLIrBeTw5jsF06sGe
+         JQbd8zuF/GdFKDlgkXCpb0zZUgbmYmx/MEuiI4ZmBV3L5mP4QzBxVirXKSTX3968Ry90
+         cWL2B1WSzqKM4Zol/kNzDCkBBnowSIo3PRHU2wuH5dtkEdKrJKuiafQcqTQ3Z0K4ZU8Z
+         lf6caZzbBMy+o8aosBxV7n8+2qUZLMMfbL94vww/T2m3wunQJ9kazc0Ha5UxwtiMag7e
+         jXGA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.37 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Gm-Message-State: APjAAAVKVLeDgk3xtPyPymRt0m4jBhSA2hr+InuqA0gs6GhImFc6eGkr
+	M6QYB5IzBzZ1dOwthY7dLiz6RsyWEwdnd3zpoABEHaOkvqvBaObnrqbbV5LS7Y5E70ZZbI8cd6K
+	ic1eg/rimUVxacE+xnLOt/k1FLtCa7cvW1R5g1Ach30HMt40hbbgLrJJwV4h/RtZIow==
+X-Received: by 2002:a63:f443:: with SMTP id p3mr10501685pgk.345.1563556891833;
+        Fri, 19 Jul 2019 10:21:31 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqy0D1tbj050BVgZzEdiGtHHHOu2EkE9b0S/1Yd0Ze7cYnpltY5a+EEX49VqEbhVZ89vMiBX
+X-Received: by 2002:a63:f443:: with SMTP id p3mr10501588pgk.345.1563556890435;
+        Fri, 19 Jul 2019 10:21:30 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563556890; cv=none;
         d=google.com; s=arc-20160816;
-        b=LGQXy7IXepaknfI+LjP1GHMXfzktV77zbkf77b+o5avG0FmoJcYJn97Z1LLQpssaAM
-         A9UWbw5pNEmHPTPpv3DfXxixvCIJdCtGSN/gMAk7EZaiB3xfzwwaoKL4SKP/OoEKZKQF
-         piry3bauqEyGdIetqFj+ph6hGYO8PYg3rxj0UxwEDilA2RFXlfqbFOxyFmVYMEdu9FID
-         tUJsj5858Ge0kN7ttSEgTe1b7fr7zQ5ZD0ZCJjp9cTlMlocD8vA7xeRGrCZZFjby26rg
-         gX6SqeUcoun/6RrjqNqqjgrNZ1j/acRnVZWFTkI6CKund+9jGnXzWh6ffswbdaU03Dz0
-         lQgQ==
+        b=otO431At5+sJuk9PokAemlrfIYmSSVh5VmV8D5/9q8ZZzoZZuG2pnwzXIJm6IzHSsX
+         bR/mwR5U029oEvqGv9Jw4x+3Z2+lJqwASrosmttMbNFoJ5n82HaZLQ6F+0RcqL0yw0R9
+         aFqPUfXA2gygKVIUp02A7dBaPIsyHGzCrhQVehgnRNEyntFH95aGlTETxh8l2zt9lSS4
+         LPsenWGBweqyrpNCrLLC1rh4IVgDEZUSPhrZzpJzR6mly0Y45XxznggnSVrPxIk8w2fn
+         no5HgaktJ+M2b9wUR0wQI/yp4OQNlaj3d7FxDKGDm9Wfwvpki5EOWp/sXEPzJZWEFuoy
+         YtqA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date;
-        bh=tKTNBnQak8KTJlVWIntLltNu7nt/VmpCog4kX4RwnOM=;
-        b=ohyn0pTcT+J8uqPiy2imDu3cZHuxb7BLFuVf81fyJznqiPmrHykMmST/VDFj9lMbqG
-         fMeUWbUHxjW0FBqV2XDZUTLVzA4+ukahsey4Nl6LdEkFjRpo8b8/tJilW0tQzQSJN7DU
-         olnRnuKbzyHdUbcGWdjc9bz5MzG3LI0+IzUEYnIuIUEcQZHnSbOHNN0DDlxf9HnbwKWL
-         tXCKTnAKfe8iO6O6egQVDptq7qZL93JltPK5oMRerLA05JOlOpff3oB2ILdiNMMGodAi
-         /NM/kWy5iKj6cMNusWLke6oo4uTkT2as+jIIsxsMjcnFScBf2G/mU6Pd4vR6GA8ME6d3
-         1nug==
+        h=message-id:date:subject:cc:to:from;
+        bh=yY7wVszP4LQpvcp04DDsW2dLXC6w205iMAAghbL05/M=;
+        b=eXQk0s3AVi5Qx9IB5fpeaz/q9gdPJ1UnGRNvJjaIxHQJTJXuaOu2QVi4TW0XWDtnxd
+         AYSYc83JliWdA4ehwwQ6ZqpFfn3l0guyTrZmtYVTie8Q8RGsTcyyNjoCKDSu2Y6QTcva
+         kWXqhVUp3ZaEiL7Sk9ol35TsuKQXoPg2to61i9GJAeOdlLx7bM35cZ/EgYRLR402raUU
+         GqudMaKdnHyC295//b6Po5fuqnwp8jfAfB5nrW2d2jssMmRN9WKxOwVhULguy8K3Cqe7
+         r7rKCJh8W7jE+ffd5bM7VVBilItcoJDVPe40UXTvdQY1c4hvUKJor5T8WNESjVPbPMTF
+         EXAw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of mkoutny@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=mkoutny@suse.com
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y8si1352856edb.251.2019.07.19.09.47.14
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.37 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+Received: from out4437.biz.mail.alibaba.com (out4437.biz.mail.alibaba.com. [47.88.44.37])
+        by mx.google.com with ESMTPS id o2si16115698pgp.288.2019.07.19.10.21.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 19 Jul 2019 09:47:14 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mkoutny@suse.com designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Fri, 19 Jul 2019 10:21:30 -0700 (PDT)
+Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.37 as permitted sender) client-ip=47.88.44.37;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of mkoutny@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=mkoutny@suse.com
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 80171AF9C;
-	Fri, 19 Jul 2019 16:47:13 +0000 (UTC)
-Date: Fri, 19 Jul 2019 18:47:11 +0200
-From: Michal =?iso-8859-1?Q?Koutn=FD?= <mkoutny@suse.com>
-To: =?utf-8?B?546L6LSH?= <yun.wang@linux.alibaba.com>
-Cc: keescook@chromium.org, hannes@cmpxchg.org, vdavydov.dev@gmail.com,
-	Peter Zijlstra <peterz@infradead.org>, mcgrof@kernel.org,
-	mhocko@kernel.org, linux-mm@kvack.org,
-	Ingo Molnar <mingo@redhat.com>, riel@surriel.com,
-	Mel Gorman <mgorman@suse.de>, cgroups@vger.kernel.org,
-	linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
-Subject: Re: [PATCH 1/4] numa: introduce per-cgroup numa balancing locality,
- statistic
-Message-ID: <20190719164711.GB854@blackbody.suse.cz>
-References: <60b59306-5e36-e587-9145-e90657daec41@linux.alibaba.com>
- <3ac9b43a-cc80-01be-0079-df008a71ce4b@linux.alibaba.com>
- <20190711134754.GD3402@hirez.programming.kicks-ass.net>
- <b027f9cc-edd2-840c-3829-176a1e298446@linux.alibaba.com>
- <20190712075815.GN3402@hirez.programming.kicks-ass.net>
- <37474414-1a54-8e3a-60df-eb7e5e1cc1ed@linux.alibaba.com>
- <20190712094214.GR3402@hirez.programming.kicks-ass.net>
- <f8020f92-045e-d515-360b-faf9a149ab80@linux.alibaba.com>
- <20190715121025.GN9035@blackbody.suse.cz>
- <ecd21563-539c-06b1-92f2-26a111163174@linux.alibaba.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
-In-Reply-To: <ecd21563-539c-06b1-92f2-26a111163174@linux.alibaba.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.37 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R181e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e04426;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=8;SR=0;TI=SMTPD_---0TXIdl-p_1563556863;
+Received: from e19h19392.et15sqa.tbsite.net(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TXIdl-p_1563556863)
+          by smtp.aliyun-inc.com(127.0.0.1);
+          Sat, 20 Jul 2019 01:21:14 +0800
+From: Yang Shi <yang.shi@linux.alibaba.com>
+To: vbabka@suse.cz,
+	mhocko@kernel.org,
+	mgorman@techsingularity.net,
+	akpm@linux-foundation.org
+Cc: yang.shi@linux.alibaba.com,
+	linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org,
+	linux-api@vger.kernel.org
+Subject: [v4 PATCH 0/2] mm: mempolicy: fix mbind()'s inconsistent behavior for unmovable pages
+Date: Sat, 20 Jul 2019 01:21:00 +0800
+Message-Id: <1563556862-54056-1-git-send-email-yang.shi@linux.alibaba.com>
+X-Mailer: git-send-email 1.8.3.1
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jul 16, 2019 at 10:41:36AM +0800, =E7=8E=8B=E8=B4=87  <yun.wang@lin=
-ux.alibaba.com> wrote:
-> Actually whatever the memory node sets or cpu allow sets is, it will
-> take effect on task's behavior regarding memory location and cpu
-> location, while the locality only care about the results rather than
-> the sets.
-My previous response missed much of the context, so it was a bit off.
 
-I see what you mean by the locality now. Alas, I can't assess whether
-it's the right thing to do regarding NUMA behavior that you try to
-optimize (i.e. you need an answer from someone more familiar with NUMA
-balancing).
+Changelog
+v4: * Fixed the comments from Vlastimil.
+    * Collected Vlastimil's Reviewed-by.
+v3: * Adopted the suggestions from Vlastimil.  Saved another 20 lines.
+      Using flag in struct queue_pages looks not outperform renumbering retval
+      too much since we still have to return 1 to tell the caller there are
+      unmovable pages.  So just renumber the retval.
+    * Manpage is not very clear about shared pages when MPOL_MF_MOVE is
+      specified, just leave it as it is for now till it gets clarified.
+v2: * Fixed the inconsistent behavior by not aborting !vma_migratable()
+      immediately by a separate patch (patch 1/2), and this is also the
+      preparation for patch 2/2. For the details please see the commit
+      log.  Per Vlastimil.
+    * Not abort immediately if unmovable page is met. This should handle
+      non-LRU movable pages and temporary off-LRU pages more friendly.
+      Per Vlastimil and Michal Hocko.
 
-Michal
+
+Yang Shi (2):
+      mm: mempolicy: make the behavior consistent when MPOL_MF_MOVE* and MPOL_MF_STRICT were specified
+      mm: mempolicy: handle vma with unmovable pages mapped correctly in mbind
+
+ mm/mempolicy.c | 100 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++---------------------
+ 1 file changed, 73 insertions(+), 27 deletions(-)
 
