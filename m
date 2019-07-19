@@ -2,127 +2,127 @@ Return-Path: <SRS0=qzwp=VQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.4 required=3.0 tests=FROM_LOCAL_HEX,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A21ECC7618F
-	for <linux-mm@archiver.kernel.org>; Fri, 19 Jul 2019 16:34:02 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DF6BDC7618F
+	for <linux-mm@archiver.kernel.org>; Fri, 19 Jul 2019 16:39:40 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 57FFB21872
-	for <linux-mm@archiver.kernel.org>; Fri, 19 Jul 2019 16:34:02 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 57FFB21872
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=syzkaller.appspotmail.com
+	by mail.kernel.org (Postfix) with ESMTP id ACBC02186A
+	for <linux-mm@archiver.kernel.org>; Fri, 19 Jul 2019 16:39:40 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org ACBC02186A
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E4B7D8E0001; Fri, 19 Jul 2019 12:34:01 -0400 (EDT)
+	id 45D186B000C; Fri, 19 Jul 2019 12:39:40 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DFCD46B000C; Fri, 19 Jul 2019 12:34:01 -0400 (EDT)
+	id 40C986B000D; Fri, 19 Jul 2019 12:39:40 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D11298E0001; Fri, 19 Jul 2019 12:34:01 -0400 (EDT)
+	id 2FDE98E0003; Fri, 19 Jul 2019 12:39:40 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B1E0B6B000A
-	for <linux-mm@kvack.org>; Fri, 19 Jul 2019 12:34:01 -0400 (EDT)
-Received: by mail-io1-f70.google.com with SMTP id u25so34894938iol.23
-        for <linux-mm@kvack.org>; Fri, 19 Jul 2019 09:34:01 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id EA7006B000C
+	for <linux-mm@kvack.org>; Fri, 19 Jul 2019 12:39:39 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id b12so22400507eds.14
+        for <linux-mm@kvack.org>; Fri, 19 Jul 2019 09:39:39 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:mime-version
-         :date:in-reply-to:message-id:subject:from:to;
-        bh=K0tO5uO221nvtR7gnlqeSa9IqFZGmt58DDiOBmYEiu8=;
-        b=Vm89LKLW8EbhrHYUDSonmoJ81e47+zIi8omuZ4Krph+nkoaV6je13RP2jE2GVulMqK
-         IMZpN7RYvoiLq/h8iBkSqqLaOaLK4RXSHiznMQib969mx+a2IPao23fq7xGDzSLjQ61T
-         MO31GKgar4gdKvLxYntEfuIrWquWQGg4K6X72U7eSbpIwhK2Jn9Y/wa4wNF5uMXrapgI
-         qNaRCdL6TqJ6wnYdXGB0f6wIyG/dSYueFAbXrSDFGe0aLtGC7Tl/T/o98FjxAxei1OLB
-         aJvF6eBitkeXgwajXMcHCAgDJiv/6AP//N90cSBbRK7WV2cKHaXqfnEYPTM5CO5amVgl
-         GjCQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of 3-paxxqkbajedjk5v66zcvaa3y.19916zfdzcx98ez8e.x97@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3-PAxXQkbAJEDJK5v66zCvAA3y.19916zFDzCx98Ez8E.x97@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
-X-Gm-Message-State: APjAAAUXmKdYAv1Sg7/dXF9WbXM7H1GP8U5JjKT6hwpNyKPoglmoUHo7
-	6dMBtd3GUyZj8AI7DgKCad/y4rYSCDPDMgW858b/5podLqW5PpnvbdoUpnRNMNyS9iseHIGD7MI
-	XV2WskBrTuv36S4Ubr48vhixIDLIpcdg+CSzJS5rRRdsUqL/Qk2FxmEHemE8Y+dU=
-X-Received: by 2002:a5d:8ccc:: with SMTP id k12mr50163231iot.141.1563554041356;
-        Fri, 19 Jul 2019 09:34:01 -0700 (PDT)
-X-Received: by 2002:a5d:8ccc:: with SMTP id k12mr50163165iot.141.1563554040593;
-        Fri, 19 Jul 2019 09:34:00 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563554040; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=5EaHXGuJMjh+887xI3sY026uNAnaO8i0Ga0Wfac/FRc=;
+        b=IIUr5QxuLMgC4EkTmc8TvQdpX75YdWjefu6VPbaG+wOR6b02VTU9CwJHvJw27w4xsK
+         FiyY55x9EwIvaJkVjN29CNphVZltHvoVjNfuorRjxQR2iO38Ky92kmlGxbYXH9/husQO
+         qkuD87lqzAB+EtI5buO+9ibTLcNIfd2bfAIgRCe8xPK+PmAdwqOzShpujtY/7nIunORR
+         mBaS7B3fSmuKrpPYr/Jk+GOLUBj7BRzglfBP/L4dRCllBMcz4RikjG4khRzcDmEwMOAb
+         KCPv2aG+eHdO0Qxw/k3f+9p+iqyITd0MqrZU62SBqmRy0f3oN+2xsB61xvm7TZRTXPsI
+         9T2w==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mkoutny@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=mkoutny@suse.com
+X-Gm-Message-State: APjAAAUBF0/KAn9VpGL89E3sm4UIhmpLLVouR38EOEw5P3b3qfwzbNJg
+	7AeBF/n9zGCPhCw9EVrBO7dls7orL+vzseCl+ImknRvdm87ewak30IRDhc6ctbCpNie1ncKXCJf
+	2efj0Wv2XD5Lumts1EU10/4MUDWn9McD2XTqSzdm606f+r2BMF8fu8wMuUdwClVNiIQ==
+X-Received: by 2002:a50:922a:: with SMTP id i39mr47197986eda.219.1563554379535;
+        Fri, 19 Jul 2019 09:39:39 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwbt099fEupYAyV8OrM+rq0EkAhBzrLbQtW0/4vwY84A1GqphWAk/p1afyrT28rA9QqSW/0
+X-Received: by 2002:a50:922a:: with SMTP id i39mr47197934eda.219.1563554378889;
+        Fri, 19 Jul 2019 09:39:38 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563554378; cv=none;
         d=google.com; s=arc-20160816;
-        b=VUKZiTjX/3+VYOQ2FMxt47Fl8c0lDjCrHKSH7YMSj+lSLFpH9De+DJGXWGBc1qb7UC
-         SB4rCzoX65NTIKOqKNZYHUO6gp7jSH6jBHMh4d2Knu565uqvEXrdpzrKmuQJwqDHlAuh
-         G9nB7G4Qac0YqC+aZl53QE5gzZN449hWu0G4DXNPWxShbZJ5ifpg+/Uyfk+GNt9vjXqF
-         73G+0JigcO9P22zuMrmIUDMT2pluJUBZsv6JzOfgyyA9paOLL/TR6v1KShTfotDisSaS
-         mxrQ5F+WZChbgRsxNU+GJEPyt5Osco8WHUvjG6NXE2SjGgiUNySR0F+Kvxal3sJIkdhC
-         YPjg==
+        b=Ja6WQx+GUA/lk0SBh0xzPViGZRcNsFdjXauJKyVIMn8AE5DCmmWmJUky2R1zPRRm/b
+         VohrjKyaOgsZOqwqUXpmyo3I7lYfNJ4c4yBahEn8SBu1V7fAMwXXhGkz2LF8M9sVlpVr
+         d4GidCjMaD/WAy+WXw+vELPwsBSLxfJrHZ50XTxxgFuOop9OyV2liJGF13A89c0kaEGK
+         9VisgIRSbQN5p7gpYSFw7X9y+F5vEMioFFuodnIwYy2wvatoNTy4YGxZIxGPvE6YpZV9
+         NR2GVq/1gWCtOKIdkpwkJFLLzNzs3aMyRN0LjYQ361PhOxkhNBhhry2w5Y+fQUjT//UY
+         Cczg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=to:from:subject:message-id:in-reply-to:date:mime-version;
-        bh=K0tO5uO221nvtR7gnlqeSa9IqFZGmt58DDiOBmYEiu8=;
-        b=hLuOIWV3W/GSXISqesE2HFkpQRxZkOk2LFDLX8NmfT4quFSAIZD8y47qd00TSVzBqX
-         XMbo6jQzhnOkzs2R4SUDTQFXGbMvN6MMx2UOQ/rjNgnlLwoHlAVOAKScOozLbb8cnGeS
-         UX18VjZo9PdA0UZL71agBeZoXticThivgfCgtSJIeDXjPcKLk4GiJXAqrNnxsrOmBVpR
-         V6NHYnuMqnvCuNEfby5Fl3Vik0cFYhCKb9by2yRwwDykVFpw6lvqROB01+SBmC9VUwAW
-         UIxT4byMSgQ5neHIcD4bMkdoMD4Ywne8PjQhr7rIW7EalAECx4dBsMcbdNoN+dESYBTN
-         OmSQ==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date;
+        bh=5EaHXGuJMjh+887xI3sY026uNAnaO8i0Ga0Wfac/FRc=;
+        b=CvqwRAFUpb8rCKDv7POkJGYjwpA5JHrk76E/b6T6B7Y03rvGQ0F8H9s8RddRqauOY1
+         5wl/k0/oLatjL87irVfLuxU01fQ9LCfIEiEyGp2q1M5DrjLyy/3zPldd7ZLV1Ic6BweT
+         7gJ++Styq0AuZiuhziVyPlvC2zYKCEis11NnL4A5dOlbCmIuw5UcgCeQuT0uIOv7CL2e
+         ImXHPUBB+oJFH5xLuv/8bg9If37j1M8nb6+Z8qruPZCbbIqvh7R6gohXpWZ7WUIc6H6m
+         rPXIY5Noi8aFHcd1dd4xzGf4yfPr6Yfq6+0ZcOT0WEwObze0Vd7qNgAiN8O3+WGmiSPs
+         CixA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of 3-paxxqkbajedjk5v66zcvaa3y.19916zfdzcx98ez8e.x97@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3-PAxXQkbAJEDJK5v66zCvAA3y.19916zFDzCx98Ez8E.x97@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
-Received: from mail-sor-f69.google.com (mail-sor-f69.google.com. [209.85.220.69])
-        by mx.google.com with SMTPS id p14sor21653978ios.125.2019.07.19.09.34.00
+       spf=pass (google.com: domain of mkoutny@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=mkoutny@suse.com
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id f22si548603eda.203.2019.07.19.09.39.38
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 19 Jul 2019 09:34:00 -0700 (PDT)
-Received-SPF: pass (google.com: domain of 3-paxxqkbajedjk5v66zcvaa3y.19916zfdzcx98ez8e.x97@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) client-ip=209.85.220.69;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 19 Jul 2019 09:39:38 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mkoutny@suse.com designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of 3-paxxqkbajedjk5v66zcvaa3y.19916zfdzcx98ez8e.x97@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3-PAxXQkbAJEDJK5v66zCvAA3y.19916zFDzCx98Ez8E.x97@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
-X-Google-Smtp-Source: APXvYqzXnjpSQV9iFQbyh8yurehonYeDVnnn919X9PLqsJYbWXJy2VpoCVH3ZDalQ76trhEOtpL1aMd4nm27xBBAS+sOD1mk8YpL
+       spf=pass (google.com: domain of mkoutny@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=mkoutny@suse.com
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 8D338AF9C;
+	Fri, 19 Jul 2019 16:39:37 +0000 (UTC)
+Date: Fri, 19 Jul 2019 18:39:31 +0200
+From: Michal =?iso-8859-1?Q?Koutn=FD?= <mkoutny@suse.com>
+To: =?utf-8?B?546L6LSH?= <yun.wang@linux.alibaba.com>
+Cc: hannes@cmpxchg.org, vdavydov.dev@gmail.com,
+	Peter Zijlstra <peterz@infradead.org>, mhocko@kernel.org,
+	Ingo Molnar <mingo@redhat.com>, keescook@chromium.org,
+	mcgrof@kernel.org, linux-mm@kvack.org,
+	Hillf Danton <hdanton@sina.com>, cgroups@vger.kernel.org,
+	linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+Subject: Re: [PATCH v2 2/4] numa: append per-node execution time in
+ cpu.numa_stat
+Message-ID: <20190719163930.GA854@blackbody.suse.cz>
+References: <209d247e-c1b2-3235-2722-dd7c1f896483@linux.alibaba.com>
+ <60b59306-5e36-e587-9145-e90657daec41@linux.alibaba.com>
+ <65c1987f-bcce-2165-8c30-cf8cf3454591@linux.alibaba.com>
+ <6973a1bf-88f2-b54e-726d-8b7d95d80197@linux.alibaba.com>
 MIME-Version: 1.0
-X-Received: by 2002:a5d:8c87:: with SMTP id g7mr47222471ion.85.1563554040200;
- Fri, 19 Jul 2019 09:34:00 -0700 (PDT)
-Date: Fri, 19 Jul 2019 09:34:00 -0700
-In-Reply-To: <000000000000490679058e0245ee@google.com>
-X-Google-Appengine-App-Id: s~syzkaller
-X-Google-Appengine-App-Id-Alias: syzkaller
-Message-ID: <00000000000027494e058e0b4b3f@google.com>
-Subject: Re: KASAN: use-after-free Read in finish_task_switch (2)
-From: syzbot <syzbot+7f067c796eee2acbc57a@syzkaller.appspotmail.com>
-To: aarcange@redhat.com, akpm@linux-foundation.org, christian@brauner.io, 
-	davem@davemloft.net, ebiederm@xmission.com, elena.reshetova@intel.com, 
-	guro@fb.com, hch@infradead.org, james.bottomley@hansenpartnership.com, 
-	jasowang@redhat.com, jglisse@redhat.com, keescook@chromium.org, 
-	linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, 
-	linux-mm@kvack.org, linux-parisc@vger.kernel.org, luto@amacapital.net, 
-	mhocko@suse.com, mingo@kernel.org, mst@redhat.com, namit@vmware.com, 
-	peterz@infradead.org, syzkaller-bugs@googlegroups.com, wad@chromium.org, 
-	yuehaibing@huawei.com
-Content-Type: text/plain; charset="UTF-8"; format=flowed; delsp=yes
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <6973a1bf-88f2-b54e-726d-8b7d95d80197@linux.alibaba.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-syzbot has bisected this bug to:
+On Tue, Jul 16, 2019 at 11:40:35AM +0800, 王贇  <yun.wang@linux.alibaba.com> wrote:
+> By doing 'cat /sys/fs/cgroup/cpu/CGROUP_PATH/cpu.numa_stat', we see new
+> output line heading with 'exectime', like:
+> 
+>   exectime 311900 407166
+What you present are times aggregated over CPUs in the NUMA nodes, this
+seems a bit lossy interface. 
 
-commit 7f466032dc9e5a61217f22ea34b2df932786bbfc
-Author: Jason Wang <jasowang@redhat.com>
-Date:   Fri May 24 08:12:18 2019 +0000
+Despite you the aggregated information is sufficient for your
+monitoring, I think it's worth providing the information with the
+original granularity.
 
-     vhost: access vq metadata through kernel virtual address
+Note that cpuacct v1 controller used to report such percpu runtime
+stats. The v2 implementation would rather build upon the rstat API.
 
-bisection log:  https://syzkaller.appspot.com/x/bisect.txt?x=123faf70600000
-start commit:   22051d9c Merge tag 'platform-drivers-x86-v5.3-2' of git://..
-git tree:       upstream
-final crash:    https://syzkaller.appspot.com/x/report.txt?x=113faf70600000
-console output: https://syzkaller.appspot.com/x/log.txt?x=163faf70600000
-kernel config:  https://syzkaller.appspot.com/x/.config?x=135cb826ac59d7fc
-dashboard link: https://syzkaller.appspot.com/bug?extid=7f067c796eee2acbc57a
-syz repro:      https://syzkaller.appspot.com/x/repro.syz?x=12c1898fa00000
-
-Reported-by: syzbot+7f067c796eee2acbc57a@syzkaller.appspotmail.com
-Fixes: 7f466032dc9e ("vhost: access vq metadata through kernel virtual  
-address")
-
-For information about bisection process see: https://goo.gl/tpsmEJ#bisection
+Michal
 
