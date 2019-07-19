@@ -7,109 +7,125 @@ X-Spam-Status: No, score=-10.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
 	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 219CBC76195
-	for <linux-mm@archiver.kernel.org>; Fri, 19 Jul 2019 04:06:46 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id F1426C76188
+	for <linux-mm@archiver.kernel.org>; Fri, 19 Jul 2019 04:06:50 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DD32A218A3
-	for <linux-mm@archiver.kernel.org>; Fri, 19 Jul 2019 04:06:45 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id BA03F218BA
+	for <linux-mm@archiver.kernel.org>; Fri, 19 Jul 2019 04:06:50 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="v0c4jtxj"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DD32A218A3
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="oZAQptQd"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BA03F218BA
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8197B8E0009; Fri, 19 Jul 2019 00:06:45 -0400 (EDT)
+	id 5A88A8E000A; Fri, 19 Jul 2019 00:06:50 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7A2648E0001; Fri, 19 Jul 2019 00:06:45 -0400 (EDT)
+	id 530CF8E0001; Fri, 19 Jul 2019 00:06:50 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 66AC98E0009; Fri, 19 Jul 2019 00:06:45 -0400 (EDT)
+	id 383DE8E000A; Fri, 19 Jul 2019 00:06:50 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E5BE8E0001
-	for <linux-mm@kvack.org>; Fri, 19 Jul 2019 00:06:45 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id h27so17891223pfq.17
-        for <linux-mm@kvack.org>; Thu, 18 Jul 2019 21:06:45 -0700 (PDT)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 009A18E0001
+	for <linux-mm@kvack.org>; Fri, 19 Jul 2019 00:06:50 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id n9so14533288pgq.4
+        for <linux-mm@kvack.org>; Thu, 18 Jul 2019 21:06:49 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=Kx3qgha4ofJZpZgk8zklJXfSD9AM0sSJFMz4pmoEAhE=;
-        b=WP5Su3UZuLQlW+GGp/buDnNtcYupjfAGFDaaAe24xCPkn5cnnKEhEi9JYQ+B3VNoZn
-         96k5w508PX46xO9PKNIZir80Z3/ln97IuC9P7u9fbMPJ2/jbpOK6KIK9sXqEgB7YTYOa
-         WXBdSDlGKHN8iE2jAdg/zxOpBpQBCREV/mfvSSZWhUGJxVn5y92vugAtlrrsPQiSYlZx
-         FC3A5hAS41ZSP1F1ALhA7YMt9ZZ3+m87lRBKAsZMg2vYZXGzV7SLDP0PtQHiZ56dAdKi
-         FAIQC530nw4Pp6faH4XhN/OBtjsm3WKFcixjl6k+/Rt7SfOxeqAVOatiZm89iDQWl+H/
-         Pj2Q==
-X-Gm-Message-State: APjAAAUEDxnWFKziWrAAC7RiTy/ft00dLNekQcbZ4Vv6WdG7R2SzzF92
-	x53ceCxMwNFZp21YPa0jYUXh1QvPJq096cvvc0O4uVDDeklQmqoTH2FljgQEutJh4EV4EIAwZ+J
-	25kOOJ9ELLlTWkXyvsav7o3WRiDFzWPjpAw+PJWWUHwKltB91J5b540fSp+7dE9C0mA==
-X-Received: by 2002:a63:c118:: with SMTP id w24mr49121383pgf.347.1563509204789;
-        Thu, 18 Jul 2019 21:06:44 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy2Z9zNp53sRdQD77vLlPw6TsHG1EO916P8oY+nO17zzvpuzbfmqxKLHEPoKHSC2mG3kwGA
-X-Received: by 2002:a63:c118:: with SMTP id w24mr49121316pgf.347.1563509203969;
-        Thu, 18 Jul 2019 21:06:43 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563509203; cv=none;
+        bh=wbxyyTpECoi0BxM7wh994IW5M0Tb/ffskGFKaTEeXkA=;
+        b=KNEZCHxWYMf8riRwcwRD9Xk8aDbR9Rkmbp1lH280n+fv6V3FBiBfmtwCwNCUkcREcF
+         bYS4H/JiLzy3vkCprNqFcBPi0hRomHwqtNOvpK4h/qzFDi37gMfSxQ3TslHBbkmummxK
+         iARvF0iGDyB9vxZZUEpVJSMj/cAXWlUHN2aGh/0JSAIvRUMrTA8hR6iT6rU7ax09vHJL
+         H/hfIjQMU1zilz98tro1NYqnI/yqJwkvcs9EBHG8RKRc95LMW7axKKW1HHGAo/5bPhyB
+         4k59LK8rDV9iqurJFRs9I2MTrHgbzKWJen99U8Mn4ku+bYLlCENROMEFFcojuEyHygn7
+         qU7Q==
+X-Gm-Message-State: APjAAAVk3bnbiTzfZRgne+w39Zoc5EsyyA2I3ck553XBrblnIY7IXZtZ
+	Gkx0Mxl5Pbq5b3cfvPa4pXYP8Jmi5s6sS6iJaencqMIhTDvYqxusRgPqeiezIdX9P9SxFQf8WQu
+	aeQJP2Gu+OROA1PQszh4PR/revLTRqK2ZzgFtOwkphfeekueVMKs1VwJISpiDCbguzA==
+X-Received: by 2002:a17:902:112a:: with SMTP id d39mr54997872pla.254.1563509209666;
+        Thu, 18 Jul 2019 21:06:49 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwIP3lAYQVHi6y5f80bsuimCc+4dROftuiEmr11ZHn5r4kgQy217ZyGKKD/upaOepf8bOUf
+X-Received: by 2002:a17:902:112a:: with SMTP id d39mr54997813pla.254.1563509208975;
+        Thu, 18 Jul 2019 21:06:48 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563509208; cv=none;
         d=google.com; s=arc-20160816;
-        b=NDlX0WX7Yoe5RZxfe3NjmPHdysl1AyG5EmoLiKUWnka+pnnmzIBjnHhjOJwwr4EzO6
-         1NRzvwH7UUizIhgATEDUEboBb5V4kHoCX+grnPGAX1edLxq8D88wDjNevGZp6j3sHSTG
-         LzEqe6RgZJH1Zt23HlSzutcMTea+HVFiK4jd0Jjy+7RPi3cu5opsPxRwbQ3SLmBsjlEY
-         //SiCwnmCKev3rHw2bQAqWMrMvzshNHmsy8crnahf9d9FSbgrunFHfBoq8whrQ+Sj9cw
-         OWrnDX/4hMLm7CCPOPSHRNyoBMHuH2kJQjRtU0mNUN/NOo/lzbl6OPtEq2yj1PLADIV2
-         44bw==
+        b=hIyBMmMm7ATm4tKcCka4DOAozvPQvgu35RngVTPvHb8mayud/Hv0d2YW6qzBtN49qf
+         QTUvUH3JkNqwHkBacQy0kIMhvzMvVI7nXYZHDDiGrpsTlpXwmWAHgPDwS20otyvlFw3y
+         u21R/bWB3vEBkw/PMiOhgtrYQ/lAqO7oOTcEQSCZ6EmTscqWooNtVM5hiG2F+ZDWH2Ze
+         gNVt90hB9rv0L/e3My4ZeZZ3Y48/OWLSrftwgeoBIiMFW1DY6kPSaYu8UvYxPmICx+f4
+         oaACnx4O09Up0acQaesG3nc7IqFFkrjpAItgHDFn+KpHon/d8UMqwBDPRlhDCIUM4ZEb
+         8yrA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=Kx3qgha4ofJZpZgk8zklJXfSD9AM0sSJFMz4pmoEAhE=;
-        b=CbKVdN9hfMDqHafy6+Xy4VmAtbCj2L12FDlC7fgGI6CQEFy5N/KsP7Jzo38WWr9wca
-         EggcmzR3M0w+yCo2O6ZRDT3ilgaJvsKrQ4xD4EOdJ04b66wy/yz2Pvi6BkKIPJZk0V3/
-         GV1CGfrMTTi0valQdXfrltp0BV3RnErpRdgq0i/6Wnnr8AymrT+z44Yb8eAN/KrXdtSB
-         0/h6HweCaes83RLGWgt6ZTdrsT+4OQAcmXMWMI2TEP0qIOVAvVuzL1symwq56/1vqQiS
-         7dAxHXG8G9JJj5e8h4dccGv0P3G8k2U4rts0ff5esY9+5v1mhCmR13dMCe0qAbqA0tG2
-         /glA==
+        bh=wbxyyTpECoi0BxM7wh994IW5M0Tb/ffskGFKaTEeXkA=;
+        b=JqtHUwj8IKdi9VfcyNIvLQlqRDJT8aMid4srk2Jyq5oxnbEYWGk7bf+f4C75Va6VwW
+         91nkWrAV39wD22qbYVOGf6WbZJ0wX4rvaRx/x6NJSnf/uF7L4cKFQBQgbELZF8QHKGfC
+         QaAxscd8vt2XZTQ54UXdu/bQWnpF6ryHuXjw6ZJ2O4gL8yq+RLMGZREdLwxDruMNx+h9
+         yEvOvAD7jkfB1ebilM7270Fkwj+fQmZw1LW3JEkEtnHSjRGdCbX2stqPZOOB9alTWZWm
+         gyQMNQqMMoBm/TkvVV6xwfN1TM5kE12WxFoDMbNRK/hZEpeV7rA/0orqejhyq6xQNdLi
+         NHQw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=v0c4jtxj;
+       dkim=pass header.i=@kernel.org header.s=default header.b=oZAQptQd;
        spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id m184si204729pgm.580.2019.07.18.21.06.43
+        by mx.google.com with ESMTPS id t5si359405plr.124.2019.07.18.21.06.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 18 Jul 2019 21:06:43 -0700 (PDT)
+        Thu, 18 Jul 2019 21:06:48 -0700 (PDT)
 Received-SPF: pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=v0c4jtxj;
+       dkim=pass header.i=@kernel.org header.s=default header.b=oZAQptQd;
        spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from sasha-vm.mshome.net (c-73-47-72-35.hsd1.nh.comcast.net [73.47.72.35])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id C87B4218B8;
-	Fri, 19 Jul 2019 04:06:42 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTPSA id 82F4A2189F;
+	Fri, 19 Jul 2019 04:06:46 +0000 (UTC)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1563509203;
-	bh=8cpGC+iBiGLaSAVkSHn/d/SddZ2kdM1Tv1ZZls54Fzs=;
+	s=default; t=1563509208;
+	bh=hd3faQ3NjDa7987x5ieUJyMgS5PrMg+h5OFV8vUuDas=;
 	h=From:To:Cc:Subject:Date:In-Reply-To:References:From;
-	b=v0c4jtxjSywBLHa9nh0sGVeCJvYBl6JhaKs/rpwHUd+GIQZ0/R89hBWl5tFzx5cM+
-	 PPLdrsnnDOBeETtJMhv26gymkRI7jT65QUYgAnfKG+5KrfiTLlOfMBPIKBsnLTmMIh
-	 huxfxZehYnWzMCnBMJn7BxrE3T2ZZQ7ifTUi/nAY=
+	b=oZAQptQdF5QYsyKkEdqiasH2VX1m8RpNu77ZIGr92ZWmxyzvae0T6y8bOoBJtL7TT
+	 Zm5oa/65Vh5sUwDbhpRTs5dnxrJFpMcMBcRmp6xXW452X/niVv3l8R6uQseVGqX7va
+	 2KY0X2BRAwe855TTfg+1/gCx925+u88clMF3rwOg=
 From: Sasha Levin <sashal@kernel.org>
 To: linux-kernel@vger.kernel.org,
 	stable@vger.kernel.org
-Cc: Dmitry Vyukov <dvyukov@google.com>,
-	Catalin Marinas <catalin.marinas@arm.com>,
+Cc: Huang Ying <ying.huang@intel.com>,
 	Andrew Morton <akpm@linux-foundation.org>,
+	Michal Hocko <mhocko@suse.com>,
+	Hugh Dickins <hughd@google.com>,
+	"Paul E . McKenney" <paulmck@linux.vnet.ibm.com>,
+	Minchan Kim <minchan@kernel.org>,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	Tim Chen <tim.c.chen@linux.intel.com>,
+	Mel Gorman <mgorman@techsingularity.net>,
+	=?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
+	Andrea Arcangeli <aarcange@redhat.com>,
+	Yang Shi <yang.shi@linux.alibaba.com>,
+	David Rientjes <rientjes@google.com>,
+	Rik van Riel <riel@redhat.com>,
+	Jan Kara <jack@suse.cz>,
+	Dave Jiang <dave.jiang@intel.com>,
+	Daniel Jordan <daniel.m.jordan@oracle.com>,
+	Andrea Parri <andrea.parri@amarulasolutions.com>,
 	Linus Torvalds <torvalds@linux-foundation.org>,
 	Sasha Levin <sashal@kernel.org>,
 	linux-mm@kvack.org
-Subject: [PATCH AUTOSEL 5.1 126/141] mm/kmemleak.c: fix check for softirq context
-Date: Fri, 19 Jul 2019 00:02:31 -0400
-Message-Id: <20190719040246.15945-126-sashal@kernel.org>
+Subject: [PATCH AUTOSEL 5.1 128/141] mm/mincore.c: fix race between swapoff and mincore
+Date: Fri, 19 Jul 2019 00:02:33 -0400
+Message-Id: <20190719040246.15945-128-sashal@kernel.org>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190719040246.15945-1-sashal@kernel.org>
 References: <20190719040246.15945-1-sashal@kernel.org>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
 X-stable: review
 X-Patchwork-Hint: Ignore
 Content-Transfer-Encoding: 8bit
@@ -119,96 +135,87 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Dmitry Vyukov <dvyukov@google.com>
+From: Huang Ying <ying.huang@intel.com>
 
-[ Upstream commit 6ef9056952532c3b746de46aa10d45b4d7797bd8 ]
+[ Upstream commit aeb309b81c6bada783c3695528a3e10748e97285 ]
 
-in_softirq() is a wrong predicate to check if we are in a softirq
-context.  It also returns true if we have BH disabled, so objects are
-falsely stamped with "softirq" comm.  The correct predicate is
-in_serving_softirq().
+Via commit 4b3ef9daa4fc ("mm/swap: split swap cache into 64MB trunks"),
+after swapoff, the address_space associated with the swap device will be
+freed.  So swap_address_space() users which touch the address_space need
+some kind of mechanism to prevent the address_space from being freed
+during accessing.
 
-If user does cat from /sys/kernel/debug/kmemleak previously they would
-see this, which is clearly wrong, this is system call context (see the
-comm):
+When mincore processes an unmapped range for swapped shmem pages, it
+doesn't hold the lock to prevent swap device from being swapped off.  So
+the following race is possible:
 
-unreferenced object 0xffff88805bd661c0 (size 64):
-  comm "softirq", pid 0, jiffies 4294942959 (age 12.400s)
-  hex dump (first 32 bytes):
-    00 00 00 00 00 00 00 00 ff ff ff ff 00 00 00 00  ................
-    00 00 00 00 00 00 00 00 01 00 00 00 00 00 00 00  ................
-  backtrace:
-    [<0000000007dcb30c>] kmemleak_alloc_recursive include/linux/kmemleak.h:55 [inline]
-    [<0000000007dcb30c>] slab_post_alloc_hook mm/slab.h:439 [inline]
-    [<0000000007dcb30c>] slab_alloc mm/slab.c:3326 [inline]
-    [<0000000007dcb30c>] kmem_cache_alloc_trace+0x13d/0x280 mm/slab.c:3553
-    [<00000000969722b7>] kmalloc include/linux/slab.h:547 [inline]
-    [<00000000969722b7>] kzalloc include/linux/slab.h:742 [inline]
-    [<00000000969722b7>] ip_mc_add1_src net/ipv4/igmp.c:1961 [inline]
-    [<00000000969722b7>] ip_mc_add_src+0x36b/0x400 net/ipv4/igmp.c:2085
-    [<00000000a4134b5f>] ip_mc_msfilter+0x22d/0x310 net/ipv4/igmp.c:2475
-    [<00000000d20248ad>] do_ip_setsockopt.isra.0+0x19fe/0x1c00 net/ipv4/ip_sockglue.c:957
-    [<000000003d367be7>] ip_setsockopt+0x3b/0xb0 net/ipv4/ip_sockglue.c:1246
-    [<000000003c7c76af>] udp_setsockopt+0x4e/0x90 net/ipv4/udp.c:2616
-    [<000000000c1aeb23>] sock_common_setsockopt+0x3e/0x50 net/core/sock.c:3130
-    [<000000000157b92b>] __sys_setsockopt+0x9e/0x120 net/socket.c:2078
-    [<00000000a9f3d058>] __do_sys_setsockopt net/socket.c:2089 [inline]
-    [<00000000a9f3d058>] __se_sys_setsockopt net/socket.c:2086 [inline]
-    [<00000000a9f3d058>] __x64_sys_setsockopt+0x26/0x30 net/socket.c:2086
-    [<000000001b8da885>] do_syscall_64+0x7c/0x1a0 arch/x86/entry/common.c:301
-    [<00000000ba770c62>] entry_SYSCALL_64_after_hwframe+0x44/0xa9
+CPU1					CPU2
+do_mincore()				swapoff()
+  walk_page_range()
+    mincore_unmapped_range()
+      __mincore_unmapped_range
+        mincore_page
+	  as = swap_address_space()
+          ...				  exit_swap_address_space()
+          ...				    kvfree(spaces)
+	  find_get_page(as)
 
-now they will see this:
+The address space may be accessed after being freed.
 
-unreferenced object 0xffff88805413c800 (size 64):
-  comm "syz-executor.4", pid 8960, jiffies 4294994003 (age 14.350s)
-  hex dump (first 32 bytes):
-    00 7a 8a 57 80 88 ff ff e0 00 00 01 00 00 00 00  .z.W............
-    00 00 00 00 00 00 00 00 01 00 00 00 00 00 00 00  ................
-  backtrace:
-    [<00000000c5d3be64>] kmemleak_alloc_recursive include/linux/kmemleak.h:55 [inline]
-    [<00000000c5d3be64>] slab_post_alloc_hook mm/slab.h:439 [inline]
-    [<00000000c5d3be64>] slab_alloc mm/slab.c:3326 [inline]
-    [<00000000c5d3be64>] kmem_cache_alloc_trace+0x13d/0x280 mm/slab.c:3553
-    [<0000000023865be2>] kmalloc include/linux/slab.h:547 [inline]
-    [<0000000023865be2>] kzalloc include/linux/slab.h:742 [inline]
-    [<0000000023865be2>] ip_mc_add1_src net/ipv4/igmp.c:1961 [inline]
-    [<0000000023865be2>] ip_mc_add_src+0x36b/0x400 net/ipv4/igmp.c:2085
-    [<000000003029a9d4>] ip_mc_msfilter+0x22d/0x310 net/ipv4/igmp.c:2475
-    [<00000000ccd0a87c>] do_ip_setsockopt.isra.0+0x19fe/0x1c00 net/ipv4/ip_sockglue.c:957
-    [<00000000a85a3785>] ip_setsockopt+0x3b/0xb0 net/ipv4/ip_sockglue.c:1246
-    [<00000000ec13c18d>] udp_setsockopt+0x4e/0x90 net/ipv4/udp.c:2616
-    [<0000000052d748e3>] sock_common_setsockopt+0x3e/0x50 net/core/sock.c:3130
-    [<00000000512f1014>] __sys_setsockopt+0x9e/0x120 net/socket.c:2078
-    [<00000000181758bc>] __do_sys_setsockopt net/socket.c:2089 [inline]
-    [<00000000181758bc>] __se_sys_setsockopt net/socket.c:2086 [inline]
-    [<00000000181758bc>] __x64_sys_setsockopt+0x26/0x30 net/socket.c:2086
-    [<00000000d4b73623>] do_syscall_64+0x7c/0x1a0 arch/x86/entry/common.c:301
-    [<00000000c1098bec>] entry_SYSCALL_64_after_hwframe+0x44/0xa9
+To fix the race, get_swap_device()/put_swap_device() is used to enclose
+find_get_page() to check whether the swap entry is valid and prevent the
+swap device from being swapoff during accessing.
 
-Link: http://lkml.kernel.org/r/20190517171507.96046-1-dvyukov@gmail.com
-Signed-off-by: Dmitry Vyukov <dvyukov@google.com>
-Acked-by: Catalin Marinas <catalin.marinas@arm.com>
+Link: http://lkml.kernel.org/r/20190611020510.28251-1-ying.huang@intel.com
+Fixes: 4b3ef9daa4fc ("mm/swap: split swap cache into 64MB trunks")
+Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
+Reviewed-by: Andrew Morton <akpm@linux-foundation.org>
+Acked-by: Michal Hocko <mhocko@suse.com>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
+Cc: Minchan Kim <minchan@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Tim Chen <tim.c.chen@linux.intel.com>
+Cc: Mel Gorman <mgorman@techsingularity.net>
+Cc: Jérôme Glisse <jglisse@redhat.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Yang Shi <yang.shi@linux.alibaba.com>
+Cc: David Rientjes <rientjes@google.com>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Jan Kara <jack@suse.cz>
+Cc: Dave Jiang <dave.jiang@intel.com>
+Cc: Daniel Jordan <daniel.m.jordan@oracle.com>
+Cc: Andrea Parri <andrea.parri@amarulasolutions.com>
 Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
 Signed-off-by: Sasha Levin <sashal@kernel.org>
 ---
- mm/kmemleak.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ mm/mincore.c | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)
 
-diff --git a/mm/kmemleak.c b/mm/kmemleak.c
-index 2e435b8142e5..accd01cda97b 100644
---- a/mm/kmemleak.c
-+++ b/mm/kmemleak.c
-@@ -601,7 +601,7 @@ static struct kmemleak_object *create_object(unsigned long ptr, size_t size,
- 	if (in_irq()) {
- 		object->pid = 0;
- 		strncpy(object->comm, "hardirq", sizeof(object->comm));
--	} else if (in_softirq()) {
-+	} else if (in_serving_softirq()) {
- 		object->pid = 0;
- 		strncpy(object->comm, "softirq", sizeof(object->comm));
- 	} else {
+diff --git a/mm/mincore.c b/mm/mincore.c
+index c3f058bd0faf..4fe91d497436 100644
+--- a/mm/mincore.c
++++ b/mm/mincore.c
+@@ -68,8 +68,16 @@ static unsigned char mincore_page(struct address_space *mapping, pgoff_t pgoff)
+ 		 */
+ 		if (xa_is_value(page)) {
+ 			swp_entry_t swp = radix_to_swp_entry(page);
+-			page = find_get_page(swap_address_space(swp),
+-					     swp_offset(swp));
++			struct swap_info_struct *si;
++
++			/* Prevent swap device to being swapoff under us */
++			si = get_swap_device(swp);
++			if (si) {
++				page = find_get_page(swap_address_space(swp),
++						     swp_offset(swp));
++				put_swap_device(si);
++			} else
++				page = NULL;
+ 		}
+ 	} else
+ 		page = find_get_page(mapping, pgoff);
 -- 
 2.20.1
 
