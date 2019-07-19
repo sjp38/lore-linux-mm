@@ -6,112 +6,139 @@ X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
 	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D00FFC76188
-	for <linux-mm@archiver.kernel.org>; Fri, 19 Jul 2019 06:05:07 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 14D82C76188
+	for <linux-mm@archiver.kernel.org>; Fri, 19 Jul 2019 06:06:18 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 93BA72085A
-	for <linux-mm@archiver.kernel.org>; Fri, 19 Jul 2019 06:05:07 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 93BA72085A
+	by mail.kernel.org (Postfix) with ESMTP id BE9782085A
+	for <linux-mm@archiver.kernel.org>; Fri, 19 Jul 2019 06:06:17 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BE9782085A
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 415B66B0007; Fri, 19 Jul 2019 02:05:07 -0400 (EDT)
+	id 3A0546B0007; Fri, 19 Jul 2019 02:06:17 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3C7EA6B0008; Fri, 19 Jul 2019 02:05:07 -0400 (EDT)
+	id 351438E0003; Fri, 19 Jul 2019 02:06:17 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 28F338E0001; Fri, 19 Jul 2019 02:05:07 -0400 (EDT)
+	id 218988E0001; Fri, 19 Jul 2019 02:06:17 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id D1ED66B0007
-	for <linux-mm@kvack.org>; Fri, 19 Jul 2019 02:05:06 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id y15so21384014edu.19
-        for <linux-mm@kvack.org>; Thu, 18 Jul 2019 23:05:06 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C974E6B0007
+	for <linux-mm@kvack.org>; Fri, 19 Jul 2019 02:06:16 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id w25so21355784edu.11
+        for <linux-mm@kvack.org>; Thu, 18 Jul 2019 23:06:16 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=vOoTnd6F2XPLl0MoUhk4CrXXl+XK/ozXVTBnvlJq/0c=;
-        b=nABu3VW0FiYv2iBmwm7JwhZRLateLM6/VSVaRbnDc3lEvRe5Q67fjna2o4XcjddnXJ
-         QQ7cHEc7UjK+1NohECBQOrNvfI9aH/HXR8kn+u+gZGhPDUBbprjt3jjUpJ8thkCsmDiY
-         IJWGnwHPrqocSF7tz2UxEuFtrXJkfABZ8p/RDPwYwHND9CHXlYIZvpg5/dTk1yZuJszY
-         26BLhrfWkrkIUO5o3p80kHoyyzgAvsdFmrxls6WXAy0oV6ge6oAW4tFAON7qYydpLHhk
-         2P9QtbXUR8MmBvbC3kHoyq7JQW4Xu+5mGd4Z+m0+cx5vOpfkkAJLpxIqqTf0C12oiDzM
-         7Sqg==
+        bh=99U5Qb6MiFjuWuEj/PnyOPEz88ltPSXDcTybjUinW7w=;
+        b=U4vEsq2/ICOAQGmAoUylyPeZ1zz5TNgGYwDlcWOgyZ4VK86A9lBtSHdfbGQUzFteUB
+         EpwvMojfTn4aiXA2GEOC7Cq4QEX8k6k1JR6vN5P+y6rSWrVIO5fvId06nkEW8OGRMbg1
+         6zsXf3GZYi6H01XQPIKRBDH5nkIImpoCVf/zadXVjz2ryfp+/d2ojuH8YChoME1fTP5r
+         cjIwvlj1KvoT1w+lGnFpLpyLwgufhgiUzZxhbs/r+Syg9KU97rIoIJuLu6NwZq/g/1pY
+         8OhWLM2y0QYOyqMnuTkRP+H0sqPLTrCcAOXXcg7rU3sJLfi/hTbu7rr2sZML4+1TaXVu
+         l0Wg==
 X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAVqygHTEmj6AlFIrkUcwjB2WopMi5B20ThFgS9PUmgPk2w675Es
-	//6dsq5v5NLWGS9HcLj9cWzEy2XpHR7sNv51s/2d2Vlgq3xOy73+e6P9uIDLSoRHzu8oi7LbmFp
-	yXZwBPI8r6OkypOO5x98z7eFUreIf2LegrGoNpanhTbdcbn2Vb6hcahyvr4hNNuY=
-X-Received: by 2002:aa7:c559:: with SMTP id s25mr43844670edr.117.1563516306448;
-        Thu, 18 Jul 2019 23:05:06 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqx9vY3mfv5f0C0z6IEWo/aZ6NxQ+2bq818suyN+DSUYIAz/uYPc2wCyOHRI0lFx4+ecnd4q
-X-Received: by 2002:aa7:c559:: with SMTP id s25mr43844598edr.117.1563516305412;
-        Thu, 18 Jul 2019 23:05:05 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563516305; cv=none;
+X-Gm-Message-State: APjAAAWRjoBZKwc3C6cVjH8+oGQ63Xa3qdrqYjnRjknYLQvJVPRVBuzx
+	KM62jM/66zOSm2i+kN8nVkjKEruIY7iTWwLhLsiyc13ivGkGIzsOCQCRsaHLcZYuKgAFFUNA8Ll
+	c1bZySpMTSEfvNJZOYHGsE90Nmxfzzzu0FJ0Yuw3Hde/rG05L74KP5XcdbnFG4lA=
+X-Received: by 2002:a17:906:7013:: with SMTP id n19mr39204549ejj.65.1563516376385;
+        Thu, 18 Jul 2019 23:06:16 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwbb+FcwIOBWKY2Xbn+L+UzGo6owaFCapvAo7fGWyUe+mwgY+xLYogvlWGKv9D+SydmbvHz
+X-Received: by 2002:a17:906:7013:: with SMTP id n19mr39204523ejj.65.1563516375727;
+        Thu, 18 Jul 2019 23:06:15 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563516375; cv=none;
         d=google.com; s=arc-20160816;
-        b=GplJtEg/FMkHM8MGqClF8KuThJXPiL0Ue8FFJkaxyD42M0v4MXH9kQOG0euSJkvaAQ
-         TvCOmT/2/SGKbL5o36SLjfZ3qBbUfQGJX5dvU3mpbRaM68tmcrPMbE28yOZQ/LvVZCAx
-         3DHP/7um/Qgi5VXQ1EDjg66BPVJY+syBG/c8kaqidh2yOeh/WrQOF0i+ykTvcUNAGF8L
-         Cs24psr6qWkjrjPuXGRiL/ZaVOFTI4AAIQhonPojUlS7DlV6KylJBv0voZtg7Vp7RPYA
-         tTFLMNpN2jd5bluA4QBKbtilq3EoefzQ+4S5L4IC4VMHn1jLB+32w5N5jNBkIY6bP9GE
-         r1fA==
+        b=dOLB5DOQ8I4SwFWnHJP5hNJjGCByAAuZDum4719VmBbafVMlb24x1vjAHnaB11pg8Y
+         O28eh6PLs6bkxkNC8ajmJHk7sQPD3i1n2Qzvrf55n316iGhu36b+KEJhhaNZf7WKBSmY
+         NW+2BFI3swDadhtwS8wMCXUGu4clgcXsp5Xk1h5IS3CTLe3PFwqbmo715f3MLHpMtDza
+         qhUni9lzfOPR/hOcGyjkak24bgHrmq/KuODeMQYlEI9fOdw20m2BuYpDSG1EJAHodJZ1
+         aG42aOIfpMzPXBxAgw1C27FKHFfNtCI4JTWF0hlAIzkyJGq18Y/GIFpXHgV0MpxVvCGi
+         Y95g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=vOoTnd6F2XPLl0MoUhk4CrXXl+XK/ozXVTBnvlJq/0c=;
-        b=g3p6AGu/UHlUnIObdAS52+MXFxa9R+lOuW/qdHSKyJYvF5FxrHFUaLKOrez+wiV5Lq
-         WZ+7ifrx6AkwziK+OGZpE1ORFbaqdXnYkS3i+mp0RNmezOhnm2WY08QbW26DJMnXN11e
-         xldbDAKvXlNzKw6g1/qnjPrSLwL1M6ogHA5bWoMoXFJ4ZIncUsFjGxN6fR9hfNiJVwcq
-         DgeUYiUHwpix11BX+i/MUWHQoPPJtdN5ueZh1NnqCCqpiwBx/9uBuQyGtIm3VL8y8gyM
-         fpPj2ppeu9xiBrElt7jY0vLkIESen7jNbIOVNTYUULxpieRGLcjU6qVVq6maCM2Viscy
-         YcYA==
+        bh=99U5Qb6MiFjuWuEj/PnyOPEz88ltPSXDcTybjUinW7w=;
+        b=JeWLb0DmLB1o15jj91wVShccyA0mgqFFfe3PrFwL0waMAbxbsxhXKSZyT9BxRXtIkW
+         I6pgQqvV+U/GtDXKc8N4NqV4qDsu6ruPllie0F4BFoWqUFV/HEyMmguITOrCW5ENrMv/
+         9nqJYww5b1+I/qInrX4qjjU5WMTrWYZPUaiz8sbZFvR+LCKn2jDXGe/q/Zf/U2KwvSNa
+         zBblrvBWD80UIB61vSR5Aqe6WMiUO42MqwbQwc09tQh5fb7BnSjUyRCqfSF56m7JiCgY
+         G+AWgyDaoJndsnd40d0CgTE2t4AxWIqlo6nSLVMYc0fM+vGNjB+e7+PNZ9z9+3PRysf2
+         goCQ==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f20si487901edy.431.2019.07.18.23.05.05
+        by mx.google.com with ESMTPS id u8si111483edm.69.2019.07.18.23.06.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 18 Jul 2019 23:05:05 -0700 (PDT)
+        Thu, 18 Jul 2019 23:06:15 -0700 (PDT)
 Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
        spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 6FB6CB0B3;
-	Fri, 19 Jul 2019 06:05:04 +0000 (UTC)
-Date: Fri, 19 Jul 2019 08:05:02 +0200
+	by mx1.suse.de (Postfix) with ESMTP id A40D3B0A5;
+	Fri, 19 Jul 2019 06:06:14 +0000 (UTC)
+Date: Fri, 19 Jul 2019 08:06:10 +0200
 From: Michal Hocko <mhocko@kernel.org>
 To: David Hildenbrand <david@redhat.com>
-Cc: Oscar Salvador <osalvador@suse.de>, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org,
-	linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org,
-	linux-sh@vger.kernel.org, linux-arm-kernel@lists.infradead.org,
-	akpm@linux-foundation.org, Dan Williams <dan.j.williams@intel.com>,
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+	linux-ia64@vger.kernel.org, linuxppc-dev@lists.ozlabs.org,
+	linux-s390@vger.kernel.org, linux-sh@vger.kernel.org,
+	linux-arm-kernel@lists.infradead.org, akpm@linux-foundation.org,
+	Dan Williams <dan.j.williams@intel.com>,
 	Wei Yang <richard.weiyang@gmail.com>,
 	Igor Mammedov <imammedo@redhat.com>,
+	Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>,
+	Benjamin Herrenschmidt <benh@kernel.crashing.org>,
+	Paul Mackerras <paulus@samba.org>,
+	Michael Ellerman <mpe@ellerman.id.au>,
+	Martin Schwidefsky <schwidefsky@de.ibm.com>,
+	Heiko Carstens <heiko.carstens@de.ibm.com>,
+	Yoshinori Sato <ysato@users.sourceforge.jp>,
+	Rich Felker <dalias@libc.org>,
+	Dave Hansen <dave.hansen@linux.intel.com>,
+	Andy Lutomirski <luto@kernel.org>,
+	Peter Zijlstra <peterz@infradead.org>,
+	Thomas Gleixner <tglx@linutronix.de>,
+	Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>,
+	"H. Peter Anvin" <hpa@zytor.com>,
 	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
 	"Rafael J. Wysocki" <rafael@kernel.org>,
+	Mike Rapoport <rppt@linux.ibm.com>,
+	Oscar Salvador <osalvador@suse.com>,
+	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
 	Alex Deucher <alexander.deucher@amd.com>,
 	"David S. Miller" <davem@davemloft.net>,
 	Mark Brown <broonie@kernel.org>,
 	Chris Wilson <chris@chris-wilson.co.uk>,
-	Jonathan Cameron <Jonathan.Cameron@huawei.com>
-Subject: Re: [PATCH v3 10/11] mm/memory_hotplug: Make
- unregister_memory_block_under_nodes() never fail
-Message-ID: <20190719060502.GG30461@dhcp22.suse.cz>
+	Christophe Leroy <christophe.leroy@c-s.fr>,
+	Nicholas Piggin <npiggin@gmail.com>,
+	Vasily Gorbik <gor@linux.ibm.com>, Rob Herring <robh@kernel.org>,
+	Masahiro Yamada <yamada.masahiro@socionext.com>,
+	"mike.travis@hpe.com" <mike.travis@hpe.com>,
+	Andrew Banman <andrew.banman@hpe.com>,
+	Pavel Tatashin <pasha.tatashin@soleen.com>,
+	Wei Yang <richardw.yang@linux.intel.com>,
+	Arun KS <arunks@codeaurora.org>, Qian Cai <cai@lca.pw>,
+	Mathieu Malaterre <malat@debian.org>, Baoquan He <bhe@redhat.com>,
+	Logan Gunthorpe <logang@deltatee.com>,
+	Anshuman Khandual <anshuman.khandual@arm.com>
+Subject: Re: [PATCH v3 06/11] mm/memory_hotplug: Allow arch_remove_pages()
+ without CONFIG_MEMORY_HOTREMOVE
+Message-ID: <20190719060610.GH30461@dhcp22.suse.cz>
 References: <20190527111152.16324-1-david@redhat.com>
- <20190527111152.16324-11-david@redhat.com>
- <20190701085144.GJ6376@dhcp22.suse.cz>
- <20190701093640.GA17349@linux>
- <20190701102756.GO6376@dhcp22.suse.cz>
- <d450488d-7a82-f7a9-c8d3-b69a0bca48c6@redhat.com>
+ <20190527111152.16324-7-david@redhat.com>
+ <20190701080141.GF6376@dhcp22.suse.cz>
+ <20190701125112.GW6376@dhcp22.suse.cz>
+ <717d8b84-2233-97f9-56cb-0b9e22732d30@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <d450488d-7a82-f7a9-c8d3-b69a0bca48c6@redhat.com>
+In-Reply-To: <717d8b84-2233-97f9-56cb-0b9e22732d30@redhat.com>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -119,32 +146,17 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon 15-07-19 13:10:33, David Hildenbrand wrote:
-> On 01.07.19 12:27, Michal Hocko wrote:
-> > On Mon 01-07-19 11:36:44, Oscar Salvador wrote:
-> >> On Mon, Jul 01, 2019 at 10:51:44AM +0200, Michal Hocko wrote:
-> >>> Yeah, we do not allow to offline multi zone (node) ranges so the current
-> >>> code seems to be over engineered.
-> >>>
-> >>> Anyway, I am wondering why do we have to strictly check for already
-> >>> removed nodes links. Is the sysfs code going to complain we we try to
-> >>> remove again?
-> >>
-> >> No, sysfs will silently "fail" if the symlink has already been removed.
-> >> At least that is what I saw last time I played with it.
-> >>
-> >> I guess the question is what if sysfs handling changes in the future
-> >> and starts dropping warnings when trying to remove a symlink is not there.
-> >> Maybe that is unlikely to happen?
-> > 
-> > And maybe we handle it then rather than have a static allocation that
-> > everybody with hotremove configured has to pay for.
-> > 
-> 
-> So what's the suggestion? Dropping the nodemask_t completely and calling
-> sysfs_remove_link() on already potentially removed links?
+On Mon 15-07-19 12:54:20, David Hildenbrand wrote:
+[...]
+> So I'm leaving it like it is. arch_remove_memory() will be mandatory for
+> architectures implementing arch_add_memory().
 
-Yes. In a follow up patch.
+I do agree that removing CONFIG_MEMORY_HOTREMOVE makes some sense. But
+this patch being a mid step should be simpler rather than going half way
+to get there. I would have liked the above for the purpose of this patch
+more and then go with another one to remove the config altogether. But
+Andrew has already sent his patch bomb including this series to Linus so
+this is all moot.
 -- 
 Michal Hocko
 SUSE Labs
