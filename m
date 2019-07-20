@@ -2,160 +2,155 @@ Return-Path: <SRS0=pjJT=VR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BF330C76195
-	for <linux-mm@archiver.kernel.org>; Sat, 20 Jul 2019 17:36:24 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D8B70C76186
+	for <linux-mm@archiver.kernel.org>; Sat, 20 Jul 2019 22:54:47 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 89DC5217F5
-	for <linux-mm@archiver.kernel.org>; Sat, 20 Jul 2019 17:36:24 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="UPapH70G"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 89DC5217F5
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 8E13F20823
+	for <linux-mm@archiver.kernel.org>; Sat, 20 Jul 2019 22:54:47 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8E13F20823
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1A88C6B0007; Sat, 20 Jul 2019 13:36:24 -0400 (EDT)
+	id 0925C6B0005; Sat, 20 Jul 2019 18:54:46 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 158316B0008; Sat, 20 Jul 2019 13:36:24 -0400 (EDT)
+	id 0437D6B0006; Sat, 20 Jul 2019 18:54:46 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 06EA18E0001; Sat, 20 Jul 2019 13:36:24 -0400 (EDT)
+	id E73B48E0001; Sat, 20 Jul 2019 18:54:45 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C8F556B0007
-	for <linux-mm@kvack.org>; Sat, 20 Jul 2019 13:36:23 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id 6so20744484pfi.6
-        for <linux-mm@kvack.org>; Sat, 20 Jul 2019 10:36:23 -0700 (PDT)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id AF0866B0005
+	for <linux-mm@kvack.org>; Sat, 20 Jul 2019 18:54:45 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id j12so17689556pll.14
+        for <linux-mm@kvack.org>; Sat, 20 Jul 2019 15:54:45 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=/jFzEFbXL8zNeFrvM9gtQJVw7kMPeTM3qxkr4uBXj7g=;
-        b=YvxrePIL2ayxb22++M0gnlq+LSNiQz9RSsLQBpG8L42O0xBe0cRZDlZuHz75w3xiYe
-         N0NUOvHt2KMKclI2YQ+cwhyg0VN/Pe/ASjF4eBguMYpTyZKiYoaUyyWmoMAd89J/0Sjn
-         yHD3cb8/+d/MR6HQOw0mgs6Q739V2HfewRtGgJ1ScbEOO+a8txRDAgv83JDT8o8PhP8a
-         E0twWAIw3N9DF5SjS7KtvDEiBpNSosChkyX4qerulNCqCV7X+xzP8g/YWvITRShnaPuL
-         WHK22VqsQouhuDFfWnNPr0xBHXRhbZjK616L5vn6Z6lvjMS7Vv4YtKHQKP1dF6pAa67u
-         oogg==
-X-Gm-Message-State: APjAAAXrq9REwZ4cNUxHB5KUpiGEr1CJwP0JNauSnEBONCz7bfWyc7mj
-	dNY9PHQF8pOGIeqNuTmK3ceOVZIJL4BXMmLai9qMJ9gLVBzOSiVMvVWj2mtUha+NK4cgSnnTQgf
-	E7KxdlKM/v45/mEvpNiw2Ow5NnZUvBQ+7L8dLV0KZ00J86ppAx7PSCBoTjabAB35vyA==
-X-Received: by 2002:a17:90a:2163:: with SMTP id a90mr62149489pje.3.1563644183419;
-        Sat, 20 Jul 2019 10:36:23 -0700 (PDT)
-X-Received: by 2002:a17:90a:2163:: with SMTP id a90mr62149438pje.3.1563644182564;
-        Sat, 20 Jul 2019 10:36:22 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563644182; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:message-id
+         :subject:from:to:cc:date:user-agent:mime-version
+         :content-transfer-encoding;
+        bh=bmigF1P+hJsg7B0ufTfy/cz1G7pwoMZqVpczRqS9FZI=;
+        b=QCKUbmLEx1X5zDPG73qKxZPS4Nhd7LDp9Kn43dpmFBzNZgAou4vYX/JTqVoYwJ3tzd
+         wG9KG5nlJqNGU52jd9spVvPwGl+JScQ8TRVcBSQcLdW79eR3xex8+LajC7u/x0qUO/62
+         1rTSRhoW57Rb5i3nefF+AZJo3U9696cMgJ7EyBOhb6DKYCIVzxhFHptAp37iXYM5ITxM
+         JdvU9gI0BjYF/CbTvvZe3beYtzTT7itdQ33oK0sWcN+XxkdmD0DVoixml/DCHBZmZSuF
+         1mtifdFK9e66u0Vj3Nr+K2x1dGxMObBhKv/qhcpuxhTSvUPCDFLdwm6XI/D7nKBY9F69
+         iUSw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of sai.praneeth.prakhya@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=sai.praneeth.prakhya@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAXNbdpdSdxpnvJcuAaHAcLXQ1BIMYzYReWx4AUzWB1JKttr9xH4
+	LxI9bri5w1KwIVEIuNmYZAEA2o42q6bhcDmKlbG2Nzl+X6k1CG73s4oZL5+iiKnWFfG85mJ5KaB
+	jUu2Xke9G6irIan3afKh0H2c2BqRCygMa5sedKva8XBFsgLkCS5+JAJBUqHxxxpQk9w==
+X-Received: by 2002:a17:902:8c98:: with SMTP id t24mr67421887plo.320.1563663285333;
+        Sat, 20 Jul 2019 15:54:45 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyKFRB9l3ZaicTTsvZ5Gffvf3Rrjfs8A/UiuVGW5eIq90nI2FWqPUTYJkRPeUpU7Tl2B37f
+X-Received: by 2002:a17:902:8c98:: with SMTP id t24mr67421822plo.320.1563663284503;
+        Sat, 20 Jul 2019 15:54:44 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563663284; cv=none;
         d=google.com; s=arc-20160816;
-        b=u/4QYuMx5o5xHlQis0721odC2woxr+TR1O5JXNBMlfTKTAPZWLpuv04ilxBnGTeKCc
-         ixt0EfSa1hDZV++NoyzHY6gXB8BMrpn3+Kbp1QZgQdHt5ZjQvVCWy19T6JGsYu8d1X1Y
-         FRlmfmNYAb5VGvLP6aPim9lZtaXImJX1P3mdUqmNI7Q2WLrsaS0V7pZb+E7CgGhRWWXC
-         xmPuOWxvJab1zdgyHMEhq4zfVO1sPX0uU7n9U2/RI7my+nvZAUQJkgQBP6EQJ+G2z2wu
-         wQqYWoysAIOmqL8eAFxi7XRe22jAtocuFBaJnK0fcNrCW//EKLmEQTyCltnsV8p5JCTU
-         5b2A==
+        b=EGK3Cl9mT4Z9W8AU8FAZlbqvMh/gPFE1nEANyQqekQQiBl2vS3fZvaew0qcs9kN98N
+         FE3AfS1Wc3pjtIyPR9Pq7zHXsnxCump4VEobWnOVI0fIf73gSgfKfHGD1qjVaI8gKf0W
+         gw0EuRMB9dsRajIiHJaTsHAYQngA2YQkxPiUSYLMnG8BUV3F16Q3FXK9znTsIEKu5KQ9
+         vPdZSeAZ+xGcpeNDrMtwgLzsh27V3A9E5jOxjOJqoJYrmuxTKIsaSIc6Ak+/j5ZQEGqp
+         pgI0y7l2BicLOwDaKmq262Z19Me13na9/I2vc9wtt5Q7oi+Zg8dhUlU+5aldBU7pNFwI
+         nmWg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=/jFzEFbXL8zNeFrvM9gtQJVw7kMPeTM3qxkr4uBXj7g=;
-        b=z2O/ofEW+pstoUpPx5DafRUKjaCFFcwUsbVQFZuh+D+2e+RoK0KBvWZhhOvz4IqG5h
-         uFn/ghIrbKPuHYhC2Ay0BH8OD91XaLlyjutczioM8HLHkZyw3GqLuTchWuaaRKqE2Hrl
-         r3n/nBQFPYjQMhCanlY+2aS8xn77gnZ1RmRQgW7Fl1/BsThQvX8Mk+Xx/5pdu23tdSyn
-         geeKQaqdJGNr+XE6e1nMRAT5o+8P+m9Zbcarcjdv652RfZJ/Qxf06gm1mItReTxEptVW
-         GTq5u4GmoHDS2W2iLTDqxQ+8+r39ZcGzQcbgLHAZ4QflfitH6TtQ+eax2Xk6CnhtpuUi
-         WLeA==
+        h=content-transfer-encoding:mime-version:user-agent:date:cc:to:from
+         :subject:message-id;
+        bh=bmigF1P+hJsg7B0ufTfy/cz1G7pwoMZqVpczRqS9FZI=;
+        b=edy4RMzCA9IGzK9C1gYVhRYsNw6zwvmeSyhZh5ii78qwLWeMGxvnd0LalQDd2Yb98H
+         2HgJ1SqjOnAFNs1eJ7YCfyXJPzBchCaZfVGwou5sP+UMiqFMsMHedN4QZQIw+FexgRoT
+         btR6HqPCoQSPqzcInSiiyzffCt70tdb7AAh7NVKbwMQ+mj6+AvNXn/qCLD06lRTWie0H
+         NFhzccVLHkpnaJPjESxSvMOt+NCReh7ZtxgnzxKwgM/IpASHWKmDcyEOnvZulo75s9Zj
+         kqht5fchhZcKL+dmUNhXQvVVI8bWOsyRN3fxmqzc3c/WORsApCyCSF0dTzPzWnpy1Gc5
+         xrWQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=UPapH70G;
-       spf=pass (google.com: domain of linux.bhar@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=linux.bhar@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id f10sor18077443pgg.6.2019.07.20.10.36.22
+       spf=pass (google.com: domain of sai.praneeth.prakhya@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=sai.praneeth.prakhya@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id p1si5424496plq.286.2019.07.20.15.54.44
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sat, 20 Jul 2019 10:36:22 -0700 (PDT)
-Received-SPF: pass (google.com: domain of linux.bhar@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=UPapH70G;
-       spf=pass (google.com: domain of linux.bhar@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=linux.bhar@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=/jFzEFbXL8zNeFrvM9gtQJVw7kMPeTM3qxkr4uBXj7g=;
-        b=UPapH70G8Pzu1pg1x2Iha2h7FKvzz82Nv9TupdtGdQWcSvvtDW6XgGpOhzb6+WWvvO
-         UyfByHF80wwI3MBKlBxATaAcS70wQ/N/BvPtoBw6juTuTyuJklnyo6YO+oOVveKIzcTK
-         tQdXFARugh8oJMlOzbMXXFpzPXLBElc+7dUjTIB2RKUCS+Rkr/k0HEdNeFEbvAGuUUra
-         0gGFoYoIOnBF5r+ljjENAr3kJLaZWURQ28WEyUwNl6P5dnd8GjgifxRLfQNjGT4ki4G5
-         QCOIQlE+j15jXUoY3hw4bBKyO7hThGIdgKO4yOIaFXqV+h+G338QIjXtWmzL1ngNUWpn
-         X2/w==
-X-Google-Smtp-Source: APXvYqxNNZGDJ1Z3eY/IfJfUVpvisSu3W4uOc+tNJWgFyRdKEailjCJybjrD7z7wlYqd/BifdGEweQ==
-X-Received: by 2002:a63:d944:: with SMTP id e4mr60439916pgj.261.1563644182185;
-        Sat, 20 Jul 2019 10:36:22 -0700 (PDT)
-Received: from bharath12345-Inspiron-5559 ([103.110.42.33])
-        by smtp.gmail.com with ESMTPSA id f197sm34302222pfa.161.2019.07.20.10.36.18
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 20 Jul 2019 10:36:21 -0700 (PDT)
-Date: Sat, 20 Jul 2019 23:06:15 +0530
-From: Bharath Vedartham <linux.bhar@gmail.com>
-To: Matt Sickler <Matt.Sickler@daktronics.com>
-Cc: "jhubbard@nvidia.com" <jhubbard@nvidia.com>,
-	"ira.weiny@intel.com" <ira.weiny@intel.com>,
-	"jglisse@redhat.com" <jglisse@redhat.com>,
-	"gregkh@linuxfoundation.org" <gregkh@linuxfoundation.org>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-	"devel@driverdev.osuosl.org" <devel@driverdev.osuosl.org>
-Subject: Re: [PATCH v3] staging: kpc2000: Convert put_page to put_user_page*()
-Message-ID: <20190720173615.GA4323@bharath12345-Inspiron-5559>
-References: <20190719200235.GA16122@bharath12345-Inspiron-5559>
- <SN6PR02MB4016754FE1BB6200746281A2EECB0@SN6PR02MB4016.namprd02.prod.outlook.com>
+        Sat, 20 Jul 2019 15:54:44 -0700 (PDT)
+Received-SPF: pass (google.com: domain of sai.praneeth.prakhya@intel.com designates 134.134.136.100 as permitted sender) client-ip=134.134.136.100;
+Authentication-Results: mx.google.com;
+       spf=pass (google.com: domain of sai.praneeth.prakhya@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=sai.praneeth.prakhya@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from fmsmga005.fm.intel.com ([10.253.24.32])
+  by orsmga105.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 20 Jul 2019 15:54:43 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.64,288,1559545200"; 
+   d="scan'208";a="367626781"
+Received: from sai-dev-mach.sc.intel.com ([143.183.140.153])
+  by fmsmga005.fm.intel.com with ESMTP; 20 Jul 2019 15:54:43 -0700
+Message-ID: <cfee410c5dd4b359ee395ad075f31133387def70.camel@intel.com>
+Subject: Why does memblock only refer to E820 table and not EFI Memory Map?
+From: Sai Praneeth Prakhya <sai.praneeth.prakhya@intel.com>
+To: linux-mm@kvack.org, linux-efi@vger.kernel.org
+Cc: mingo@kernel.org, bp@alien8.de, peterz@infradead.org, 
+	ard.biesheuvel@linaro.org, rppt@linux.ibm.com, pj@sgi.com
+Date: Sat, 20 Jul 2019 15:52:04 -0700
+Content-Type: text/plain; charset="UTF-8"
+User-Agent: Evolution 3.30.5-0ubuntu0.18.10.1 
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <SN6PR02MB4016754FE1BB6200746281A2EECB0@SN6PR02MB4016.namprd02.prod.outlook.com>
-User-Agent: Mutt/1.5.24 (2015-08-30)
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jul 19, 2019 at 08:59:02PM +0000, Matt Sickler wrote:
-> >From: Bharath Vedartham <linux.bhar@gmail.com>
-> >Changes since v2
-> >        - Added back PageResevered check as suggested by John Hubbard.
-> >
-> >The PageReserved check needs a closer look and is not worth messing
-> >around with for now.
-> >
-> >Matt, Could you give any suggestions for testing this patch?
-> 
-> Myself or someone else from Daktronics would have to do the testing since the
-> hardware isn't really commercially available.  I've been toying with the idea
-> of asking for a volunteer from the mailing list to help me out with this - I'd
-> send them some hardware and they'd do all the development and testing. :)
-> I still have to run that idea by Management though.
-> 
-> >If in-case, you are willing to pick this up to test. Could you
-> >apply this patch to this tree and test it with your devices?
-> 
-> I've been meaning to get to testing the changes to the drivers since upstreaming
-> them, but I've been swamped with other development.  I'm keeping an eye on the
-> mailing lists, so I'm at least aware of what is coming down the pipe.
-> I'm not too worried about this specific change, even though I don't really know
-> if the reserved check and the dirtying are even necessary.
-> It sounded like John's suggestion was to not do the PageReserved() check and just
-> use put_user_pges_dirty() all the time.  John, is that incorrect?
-The change is fairly trivial in the upstream kernel. It requires no
-testing in the upstream kernel. It would be great if you could test it
-on John's git tree with the implemented gup tracking subsystem and check
-if gup tracking is working alright with your dma driver. I think this
-patch will easily apply to John's git tree.
+Hi All,
 
-Thanks!
-Bharath
+Disclaimer:
+1. Please note that this discussion is x86 specific
+2. Below stated things are my understanding about kernel and I could have
+missed somethings, so please let me know if I understood something wrong.
+3. I have focused only on memblock here because if I understand correctly,
+memblock is the base that feeds other memory management subsystems in kernel
+(like the buddy allocator).
+
+On x86 platforms, there are two sources through which kernel learns about
+physical memory in the system namely E820 table and EFI Memory Map. Each table
+describes which regions of system memory is usable by kernel and which regions
+should be preserved (i.e. reserved regions that typically have BIOS code/data)
+so that no other component in the system could read/write to these regions. I
+think they are duplicating the information and hence I have couple of
+questions regarding these
+
+1. I see that only E820 table is being consumed by kernel [1] (i.e. memblock
+subsystem in kernel) to distinguish between "usable" vs "reserved" regions.
+Assume someone has called memblock_alloc(), the memblock subsystem would
+service the caller by allocating memory from "usable" regions and it knows
+this *only* from E820 table [2] (it does not check if EFI Memory Map also says
+that this region is usable as well). So, why isn't the kernel taking EFI
+Memory Map into consideration? (I see that it does happen only when
+"add_efi_memmap" kernel command line arg is passed i.e. passing this argument
+updates E820 table based on EFI Memory Map) [3]. The problem I see with
+memblock not taking EFI Memory Map into consideration is that, we are ignoring
+the main purpose for which EFI Memory Map exists.
+
+2. Why doesn't the kernel have "add_efi_memmap" by default? From the commit
+"200001eb140e: x86 boot: only pick up additional EFI memmap if add_efi_memmap
+flag", I didn't understand why the decision was made so. Shouldn't we give
+more preference to EFI Memory map rather than E820 table as it's the latest
+and E820 is legacy?
+
+3. Why isn't kernel checking that both the tables E820 table and EFI Memory
+Map are in sync i.e. is there any *possibility* that a buggy BIOS could report
+a region as usable in E820 table and as reserved in EFI Memory Map?
+
+[1] 
+https://elixir.bootlin.com/linux/latest/source/arch/x86/kernel/setup.c#L1106
+[2] 
+https://elixir.bootlin.com/linux/latest/source/arch/x86/kernel/e820.c#L1265
+[3] 
+https://elixir.bootlin.com/linux/latest/source/arch/x86/platform/efi/efi.c#L129
+
+Regards,
+Sai
 
