@@ -2,189 +2,126 @@ Return-Path: <SRS0=pjJT=VR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.3 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.4 required=3.0 tests=FROM_LOCAL_HEX,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 29A89C7618F
-	for <linux-mm@archiver.kernel.org>; Sat, 20 Jul 2019 02:03:59 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A7797C76195
+	for <linux-mm@archiver.kernel.org>; Sat, 20 Jul 2019 10:08:03 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B41E920880
-	for <linux-mm@archiver.kernel.org>; Sat, 20 Jul 2019 02:03:58 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="FxK9AQGw"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B41E920880
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
+	by mail.kernel.org (Postfix) with ESMTP id 4FA2F206DD
+	for <linux-mm@archiver.kernel.org>; Sat, 20 Jul 2019 10:08:03 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4FA2F206DD
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=syzkaller.appspotmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1F2726B0005; Fri, 19 Jul 2019 22:03:58 -0400 (EDT)
+	id 78D826B0005; Sat, 20 Jul 2019 06:08:02 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 17ED06B0006; Fri, 19 Jul 2019 22:03:58 -0400 (EDT)
+	id 73D1A6B0006; Sat, 20 Jul 2019 06:08:02 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id F39608E0001; Fri, 19 Jul 2019 22:03:57 -0400 (EDT)
+	id 6536E8E0001; Sat, 20 Jul 2019 06:08:02 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f70.google.com (mail-yw1-f70.google.com [209.85.161.70])
-	by kanga.kvack.org (Postfix) with ESMTP id CE2A56B0005
-	for <linux-mm@kvack.org>; Fri, 19 Jul 2019 22:03:57 -0400 (EDT)
-Received: by mail-yw1-f70.google.com with SMTP id b63so25196855ywc.12
-        for <linux-mm@kvack.org>; Fri, 19 Jul 2019 19:03:57 -0700 (PDT)
+Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 4705A6B0005
+	for <linux-mm@kvack.org>; Sat, 20 Jul 2019 06:08:02 -0400 (EDT)
+Received: by mail-io1-f70.google.com with SMTP id f22so37447960ioj.9
+        for <linux-mm@kvack.org>; Sat, 20 Jul 2019 03:08:02 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding:dkim-signature;
-        bh=K89J2IEPJbk6VmuKgUrqZ1VHo+WQOc0Cte4m7yFZoOE=;
-        b=AjEr5eOYRv5M2Er1l1IY8wU3Cd/Z/9zn2l/gayxvvprXYkPR7BMxXf/gcjSwq/RLWV
-         tmsrS27BxlJymYv+V7Jb4yjo66Mt1CEHBlsiXVKB1OudFwJBC+H70Y+foFxWS+XL/yJZ
-         qCc2z8ghD851DBnMuaOE7dKioHFndBKxvOvRp4MCvI0w5G2ILD/6TGEUHn3CgVJrlaiR
-         NISNQtRMEu4B6au6aktIQkIV0VOu2n25hrF2cNEBheGiDvC4G/VDHzcreXPHQQlb9OWg
-         w0QV5bEgGIJaQD/Jt3hpL7niVVK5sMDf0YovAalkSECsBwsddwhzTlDgBWZX4k+zGqyi
-         QaRQ==
-X-Gm-Message-State: APjAAAVOiwGLj9dLjbsdifDNFwKTrHDfzZHWv7W22Gg7/CCd3CqSCLbr
-	jog+3zlQiPOoiKnffNPX621JT5/lgzRJaO40R1CTYeuuKXT0zwlUi5MacZO8RriDIAyawxT7I0K
-	CbbGFJK9ZnLps6Oh81ygeG7TsU3TYiuvuxWKAbTXTwaAsI6siq4tcMmK17g8JKXFtKg==
-X-Received: by 2002:a81:780e:: with SMTP id t14mr32403406ywc.98.1563588237514;
-        Fri, 19 Jul 2019 19:03:57 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwUxsyf8JqIKRxMw30mIjGAJ0omMlCREUAS5IFAmXyNxknV0g+6m14Sq/6KhgZks9THdCJ8
-X-Received: by 2002:a81:780e:: with SMTP id t14mr32403375ywc.98.1563588236723;
-        Fri, 19 Jul 2019 19:03:56 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563588236; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:mime-version
+         :date:in-reply-to:message-id:subject:from:to;
+        bh=aIptGodPgqjQ+OCeW9XKeJdzrs6DHyh1FKeEsnaxVbM=;
+        b=AzOrzT9vUTK6ltydCNdde6NcQ56J9jY47tfutX25Bn2MGnqXBivDFAyoaEbPthMbog
+         SSPog3N/MtuzGPHF6YeVf7cI8z8g22ViXzmqcslZkRRs+1v3+G1/ltRbqimpQwrvbCo1
+         6qyOg1TxD60DKjzU/OJAuDaV/vJEhWPD+bZsyjTGAlj8oDOLcaNh7H5UFLQ+uXUt8sMK
+         D4tyX67+I3pMnwz1YThgq8nGo0kBw41oXjCg2l4dTwZeHQn/7cSrifhHny1EAlelphL1
+         onJYmXMW5ixKNx04VERSICSkeDqPP5ooalc1AfJ4zIlZ4D4u0htLM30xWTx0gT+4xbbp
+         C33Q==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of 3aogyxqkbais7dezp00t6p44xs.v33v0t97t6r328t28.r31@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3AOgyXQkbAIs7DEzp00t6p44xs.v33v0t97t6r328t28.r31@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
+X-Gm-Message-State: APjAAAXyWudMvG0KUzUcaScU+aWK9aQEevzYFcSpwmik3FF4qtPYLwKr
+	LtOSyymL8up4wJEmV1MZDHy6Sv7CBsCVoOkYd8wmqzQ5WQYLonzZqHxI26vRe4heIh3Q+deY2G/
+	8DoyyUuv8zL2Fy0HVNS/oIVjWTW+lfKCEo52GeO5S5sjeqPbtiRzK3zpVI6DUh0Q=
+X-Received: by 2002:a5d:9942:: with SMTP id v2mr22291714ios.177.1563617281940;
+        Sat, 20 Jul 2019 03:08:01 -0700 (PDT)
+X-Received: by 2002:a5d:9942:: with SMTP id v2mr22291668ios.177.1563617281215;
+        Sat, 20 Jul 2019 03:08:01 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563617281; cv=none;
         d=google.com; s=arc-20160816;
-        b=j0PQiW52xDGwbQXAnUMkrWeVQwh4uXRluAhokfSpYYQLMIZdVpTXh55HTLkWpDR8ET
-         ZERkJRKz252wh6QWtyV6NuP9a5SmX420AG5ocxk5vANb5xIbwGybGYyuM1x0BdzU3Kpa
-         JtIRY+BgYfC6TFUJYv1HWEF7AfID2YjCUe3a4RUW+WSMFIdclkOwfE1d+T8Mi32RzyKD
-         ZU9UgvZXgjLp2IU9aClaB6HGbq6QEu8ALT8AJE6Nh/DOE73dn7PiwPan7cLPkOnGXrjc
-         UIBU3POBMYeIVeI7HqiXMwvootTNhsltPnLZGj5DbOl3ayIm8GEEQ/dN9J/mBHqVQ7KO
-         ICEA==
+        b=y81GSYZPAr9PlokKEA1YalwW4Aq2JE1ZWCFN6TAGWDhy3AD55F5M3QwlMIT8ZL2875
+         Iydu0IaOHaZ2nNLr++stDsubetD45OjtrGslSVRyi4mhtsuH6OI7zDi+ObeK+7Pt01TT
+         lfevBKjD9IGKJ/7zmUEaS/39u2q58iWT1a2alVqX6wDnMthQgOTjVdt2M72gSkJ5tM2v
+         4/QdAfBvNFtKhkaSd/Obxx4quF4pePKZDMpehYNMA4k3rsBJgBRS4uFUguzFUHdkSoxc
+         wjwtwyOXCsbUgVl3Xs1++qrtr9SAMnBbszcLoy0gNTnrVIK4XG+IP+Own4ndj0zEf/A9
+         NFUQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=dkim-signature:content-transfer-encoding:content-language
-         :in-reply-to:mime-version:user-agent:date:message-id:from:references
-         :cc:to:subject;
-        bh=K89J2IEPJbk6VmuKgUrqZ1VHo+WQOc0Cte4m7yFZoOE=;
-        b=g2HkgWmRaRNqjOYfNJCC738SPBjrW2pBYvyrHq5eUmCmJexAkjX3VCBTczybIq8T9E
-         1y/XwLm3sURKDbeSD4WBXBr0lG48P3mtyAGoe/vETNtSPV/V/sqtvDuEEgVHEREdjSnf
-         5SsQ+PlPjsLCRYvVfTAmrtQOVydzC257uveP4VfnB/y39Gu1BtWpzvVYJP/ZLANPUda3
-         JsvDyf6yod9MHW28Eg1zulg1RwkRvAsWZWTPqgDraTX7E2qM0iS9Z65WZTlUQD0+xS+D
-         TWRCWSLHOWkkwTCuKrLCVTnOJ4T2cf5Udi1L+Gew57cYfd3AULudDwg4Q1lHsHyYOuYZ
-         K+PA==
+        h=to:from:subject:message-id:in-reply-to:date:mime-version;
+        bh=aIptGodPgqjQ+OCeW9XKeJdzrs6DHyh1FKeEsnaxVbM=;
+        b=W3gPA2KGeULp4bv0m+orVNHLKJI5iucnYJY/88JnKR/9Od+Hk0bfdQrnk4t49eXCgi
+         C+Uc8RwJA9lyrvpbcG/rlj7seVbIxz5tcHJMN4zN4lgLXzWtTUd5jEM5hggCyLaFF4cm
+         YuRqLGjRx11qxnEeUR0kB5vME3DTD3+r3Ve6dfLG5r7hh3d9QmSdRWubMZ1hk8+25ill
+         6Uk0dNUxqTSH7unPqf3/JFqp/pOQNFSGVN6elaT4/c701vrbtVXGtKf2WnP4HlDHUVBh
+         17abp+tFF9y2meeBwIHB4Hqwg17s7GwZuUffa3uQyJGeL4gC9LgpjE946/julkvVb3+Y
+         hjPQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=FxK9AQGw;
-       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
-        by mx.google.com with ESMTPS id v141si11076203ybv.172.2019.07.19.19.03.56
+       spf=pass (google.com: domain of 3aogyxqkbais7dezp00t6p44xs.v33v0t97t6r328t28.r31@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3AOgyXQkbAIs7DEzp00t6p44xs.v33v0t97t6r328t28.r31@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
+Received: from mail-sor-f69.google.com (mail-sor-f69.google.com. [209.85.220.69])
+        by mx.google.com with SMTPS id v16sor23624377ioj.130.2019.07.20.03.08.01
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 19 Jul 2019 19:03:56 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.64 as permitted sender) client-ip=216.228.121.64;
+        (Google Transport Security);
+        Sat, 20 Jul 2019 03:08:01 -0700 (PDT)
+Received-SPF: pass (google.com: domain of 3aogyxqkbais7dezp00t6p44xs.v33v0t97t6r328t28.r31@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) client-ip=209.85.220.69;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=FxK9AQGw;
-       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate15.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
-	id <B5d3276920000>; Fri, 19 Jul 2019 19:04:02 -0700
-Received: from hqmail.nvidia.com ([172.20.161.6])
-  by hqpgpgate101.nvidia.com (PGP Universal service);
-  Fri, 19 Jul 2019 19:03:55 -0700
-X-PGP-Universal: processed;
-	by hqpgpgate101.nvidia.com on Fri, 19 Jul 2019 19:03:55 -0700
-Received: from [10.110.48.28] (10.124.1.5) by HQMAIL107.nvidia.com
- (172.20.187.13) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Sat, 20 Jul
- 2019 02:03:54 +0000
-Subject: Re: [PATCH] mm/migrate: initialize pud_entry in migrate_vma()
-To: Ralph Campbell <rcampbell@nvidia.com>, <linux-mm@kvack.org>
-CC: <linux-kernel@vger.kernel.org>, <stable@vger.kernel.org>,
-	=?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Andrew Morton
-	<akpm@linux-foundation.org>
-References: <20190719233225.12243-1-rcampbell@nvidia.com>
-X-Nvconfidentiality: public
-From: John Hubbard <jhubbard@nvidia.com>
-Message-ID: <de0f0abd-d521-9b68-80b2-92e06c6bb8ac@nvidia.com>
-Date: Fri, 19 Jul 2019 19:03:54 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
+       spf=pass (google.com: domain of 3aogyxqkbais7dezp00t6p44xs.v33v0t97t6r328t28.r31@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3AOgyXQkbAIs7DEzp00t6p44xs.v33v0t97t6r328t28.r31@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
+X-Google-Smtp-Source: APXvYqxejQK5TJXgPG7zDzFOcVKgb6JtNNiEgaZkAwUZNQxIY+uT88/YtfjAsG3qEv0NnxidVHOC8aWEo8R9Py88FYjmq9+IoaCH
 MIME-Version: 1.0
-In-Reply-To: <20190719233225.12243-1-rcampbell@nvidia.com>
-X-Originating-IP: [10.124.1.5]
-X-ClientProxiedBy: HQMAIL105.nvidia.com (172.20.187.12) To
- HQMAIL107.nvidia.com (172.20.187.13)
-Content-Type: text/plain; charset="utf-8"
-Content-Language: en-US
-Content-Transfer-Encoding: quoted-printable
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
-	t=1563588242; bh=K89J2IEPJbk6VmuKgUrqZ1VHo+WQOc0Cte4m7yFZoOE=;
-	h=X-PGP-Universal:Subject:To:CC:References:X-Nvconfidentiality:From:
-	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
-	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
-	 Content-Transfer-Encoding;
-	b=FxK9AQGwhecU2l9E5xWnRjCI47IQqIB1G9YP1qaTQccoxr6/fiLGGjY0YSYude6Ss
-	 ldx4YsThY7WOYGW4UCOdZSHrOrMLWRiaOTTqh477zVcFtymsttcJvuAtY4Kshpzop0
-	 05PJiu02FZmZ+NtH84hCL4TFh8r/ULQplJ+ck6f5iEkLuxOYPAGxEadkPzJhh3hB4q
-	 IUYfFsqgnuCrhIfSyTwbQMWR6k03sGAIe3VaTzUem3j/u0Ougpqao7phyGoi//a8jr
-	 hWzwc654tVQdZg+yMN4xCgTR00cQoYFuD3oWQHcYpWnpmuw23c/tdcZX3fkdD6w1+o
-	 8ynbqObsmbohw==
+X-Received: by 2002:a6b:f90f:: with SMTP id j15mr48006883iog.43.1563617280803;
+ Sat, 20 Jul 2019 03:08:00 -0700 (PDT)
+Date: Sat, 20 Jul 2019 03:08:00 -0700
+In-Reply-To: <0000000000008dd6bb058e006938@google.com>
+X-Google-Appengine-App-Id: s~syzkaller
+X-Google-Appengine-App-Id-Alias: syzkaller
+Message-ID: <000000000000964b0d058e1a0483@google.com>
+Subject: Re: WARNING in __mmdrop
+From: syzbot <syzbot+e58112d71f77113ddb7b@syzkaller.appspotmail.com>
+To: aarcange@redhat.com, akpm@linux-foundation.org, christian@brauner.io, 
+	davem@davemloft.net, ebiederm@xmission.com, elena.reshetova@intel.com, 
+	guro@fb.com, hch@infradead.org, james.bottomley@hansenpartnership.com, 
+	jasowang@redhat.com, jglisse@redhat.com, keescook@chromium.org, 
+	ldv@altlinux.org, linux-arm-kernel@lists.infradead.org, 
+	linux-kernel@vger.kernel.org, linux-mm@kvack.org, 
+	linux-parisc@vger.kernel.org, luto@amacapital.net, mhocko@suse.com, 
+	mingo@kernel.org, mst@redhat.com, namit@vmware.com, peterz@infradead.org, 
+	syzkaller-bugs@googlegroups.com, viro@zeniv.linux.org.uk, wad@chromium.org
+Content-Type: text/plain; charset="UTF-8"; format=flowed; delsp=yes
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 7/19/19 4:32 PM, Ralph Campbell wrote:
-> When CONFIG_MIGRATE_VMA_HELPER is enabled, migrate_vma() calls
-> migrate_vma_collect() which initializes a struct mm_walk but
-> didn't initialize mm_walk.pud_entry. (Found by code inspection)
-> Use a C structure initialization to make sure it is set to NULL.
->=20
-> Fixes: 8763cb45ab967 ("mm/migrate: new memory migration helper for use wi=
-th
-> device memory")
-> Cc: stable@vger.kernel.org
-> Signed-off-by: Ralph Campbell <rcampbell@nvidia.com>
-> Cc: "J=C3=A9r=C3=B4me Glisse" <jglisse@redhat.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> ---
->  mm/migrate.c | 17 +++++++----------
->  1 file changed, 7 insertions(+), 10 deletions(-)
->=20
-> diff --git a/mm/migrate.c b/mm/migrate.c
-> index 515718392b24..a42858d8e00b 100644
-> --- a/mm/migrate.c
-> +++ b/mm/migrate.c
-> @@ -2340,16 +2340,13 @@ static int migrate_vma_collect_pmd(pmd_t *pmdp,
->  static void migrate_vma_collect(struct migrate_vma *migrate)
->  {
->  	struct mmu_notifier_range range;
-> -	struct mm_walk mm_walk;
-> -
-> -	mm_walk.pmd_entry =3D migrate_vma_collect_pmd;
-> -	mm_walk.pte_entry =3D NULL;
-> -	mm_walk.pte_hole =3D migrate_vma_collect_hole;
-> -	mm_walk.hugetlb_entry =3D NULL;
-> -	mm_walk.test_walk =3D NULL;
-> -	mm_walk.vma =3D migrate->vma;
-> -	mm_walk.mm =3D migrate->vma->vm_mm;
-> -	mm_walk.private =3D migrate;
-> +	struct mm_walk mm_walk =3D {
-> +		.pmd_entry =3D migrate_vma_collect_pmd,
-> +		.pte_hole =3D migrate_vma_collect_hole,
-> +		.vma =3D migrate->vma,
-> +		.mm =3D migrate->vma->vm_mm,
-> +		.private =3D migrate,
-> +	};
+syzbot has bisected this bug to:
 
-Neatly done.
+commit 7f466032dc9e5a61217f22ea34b2df932786bbfc
+Author: Jason Wang <jasowang@redhat.com>
+Date:   Fri May 24 08:12:18 2019 +0000
 
-> =20
->  	mmu_notifier_range_init(&range, MMU_NOTIFY_CLEAR, 0, NULL, mm_walk.mm,
->  				migrate->start,
->=20
+     vhost: access vq metadata through kernel virtual address
 
-Reviewed-by: John Hubbard <jhubbard@nvidia.com>
+bisection log:  https://syzkaller.appspot.com/x/bisect.txt?x=149a8a20600000
+start commit:   6d21a41b Add linux-next specific files for 20190718
+git tree:       linux-next
+final crash:    https://syzkaller.appspot.com/x/report.txt?x=169a8a20600000
+console output: https://syzkaller.appspot.com/x/log.txt?x=129a8a20600000
+kernel config:  https://syzkaller.appspot.com/x/.config?x=3430a151e1452331
+dashboard link: https://syzkaller.appspot.com/bug?extid=e58112d71f77113ddb7b
+syz repro:      https://syzkaller.appspot.com/x/repro.syz?x=10139e68600000
 
-thanks,
---=20
-John Hubbard
-NVIDIA
+Reported-by: syzbot+e58112d71f77113ddb7b@syzkaller.appspotmail.com
+Fixes: 7f466032dc9e ("vhost: access vq metadata through kernel virtual  
+address")
+
+For information about bisection process see: https://goo.gl/tpsmEJ#bisection
 
