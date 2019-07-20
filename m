@@ -2,126 +2,169 @@ Return-Path: <SRS0=pjJT=VR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.4 required=3.0 tests=FROM_LOCAL_HEX,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A7797C76195
-	for <linux-mm@archiver.kernel.org>; Sat, 20 Jul 2019 10:08:03 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1D971C76188
+	for <linux-mm@archiver.kernel.org>; Sat, 20 Jul 2019 12:17:55 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4FA2F206DD
-	for <linux-mm@archiver.kernel.org>; Sat, 20 Jul 2019 10:08:03 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4FA2F206DD
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=syzkaller.appspotmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 71F7B2085A
+	for <linux-mm@archiver.kernel.org>; Sat, 20 Jul 2019 12:17:54 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 71F7B2085A
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=i-love.sakura.ne.jp
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 78D826B0005; Sat, 20 Jul 2019 06:08:02 -0400 (EDT)
+	id B98766B0005; Sat, 20 Jul 2019 08:17:53 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 73D1A6B0006; Sat, 20 Jul 2019 06:08:02 -0400 (EDT)
+	id B4B426B0006; Sat, 20 Jul 2019 08:17:53 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6536E8E0001; Sat, 20 Jul 2019 06:08:02 -0400 (EDT)
+	id A39798E0001; Sat, 20 Jul 2019 08:17:53 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 4705A6B0005
-	for <linux-mm@kvack.org>; Sat, 20 Jul 2019 06:08:02 -0400 (EDT)
-Received: by mail-io1-f70.google.com with SMTP id f22so37447960ioj.9
-        for <linux-mm@kvack.org>; Sat, 20 Jul 2019 03:08:02 -0700 (PDT)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 6A2D26B0005
+	for <linux-mm@kvack.org>; Sat, 20 Jul 2019 08:17:53 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id y22so17201115plr.20
+        for <linux-mm@kvack.org>; Sat, 20 Jul 2019 05:17:53 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:mime-version
-         :date:in-reply-to:message-id:subject:from:to;
-        bh=aIptGodPgqjQ+OCeW9XKeJdzrs6DHyh1FKeEsnaxVbM=;
-        b=AzOrzT9vUTK6ltydCNdde6NcQ56J9jY47tfutX25Bn2MGnqXBivDFAyoaEbPthMbog
-         SSPog3N/MtuzGPHF6YeVf7cI8z8g22ViXzmqcslZkRRs+1v3+G1/ltRbqimpQwrvbCo1
-         6qyOg1TxD60DKjzU/OJAuDaV/vJEhWPD+bZsyjTGAlj8oDOLcaNh7H5UFLQ+uXUt8sMK
-         D4tyX67+I3pMnwz1YThgq8nGo0kBw41oXjCg2l4dTwZeHQn/7cSrifhHny1EAlelphL1
-         onJYmXMW5ixKNx04VERSICSkeDqPP5ooalc1AfJ4zIlZ4D4u0htLM30xWTx0gT+4xbbp
-         C33Q==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of 3aogyxqkbais7dezp00t6p44xs.v33v0t97t6r328t28.r31@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3AOgyXQkbAIs7DEzp00t6p44xs.v33v0t97t6r328t28.r31@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
-X-Gm-Message-State: APjAAAXyWudMvG0KUzUcaScU+aWK9aQEevzYFcSpwmik3FF4qtPYLwKr
-	LtOSyymL8up4wJEmV1MZDHy6Sv7CBsCVoOkYd8wmqzQ5WQYLonzZqHxI26vRe4heIh3Q+deY2G/
-	8DoyyUuv8zL2Fy0HVNS/oIVjWTW+lfKCEo52GeO5S5sjeqPbtiRzK3zpVI6DUh0Q=
-X-Received: by 2002:a5d:9942:: with SMTP id v2mr22291714ios.177.1563617281940;
-        Sat, 20 Jul 2019 03:08:01 -0700 (PDT)
-X-Received: by 2002:a5d:9942:: with SMTP id v2mr22291668ios.177.1563617281215;
-        Sat, 20 Jul 2019 03:08:01 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563617281; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=5/KZFCpo5qsIwMxpKyOMepZVgZTt4aeAZ+y4FTo5pqU=;
+        b=IDGMuMx08Odc9CCU+E2oI8NUGi8STownzhJlHa2+t7NxlNxKFO1xtJ7C7WCUu/K2Og
+         fFSjQ7mOcIQO14oaq9RBXwFY8mLm4sYhhijAhPgUXAp7WGcvtRvGQXXw4V/DgIdpj2sK
+         iYqlRcH9nx5PnE07xiwJzcROPqXnHpEr3lTk3odQINnfMC0Hli8D+RCILSddPCJjhWMx
+         I4Xh5NsBYjnY+XUpBBHU+vgMvN5x6oxbNUWKtwqMekndIA0NL5CiGNk1N2c/kvqb3t8V
+         aFqK1Rz86ZKxEivKdU49t0ueU4d3U321LNyi2p+8Xdrfarg6HSa0u3uCcmCCOYmDJ4+J
+         r2kQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
+X-Gm-Message-State: APjAAAUcw8+W66OuBPXzapcjltchdgmTHBj0wJm9wblDXCdeNizf3v9s
+	7fK69UzeQW3VChq3INGhj1QpGimv5NUokxSKLLAFfI5qxgMtyCktBp3K6kFOH+S6dmfmMWbRdmP
+	0/6ll/hFMoo+NPCgJ5+Bv40lf0k75FSijdV5uagM0TM3GYpG+J6MgLKYzfOsQ+rHm6Q==
+X-Received: by 2002:a63:5a4b:: with SMTP id k11mr414733pgm.143.1563625072815;
+        Sat, 20 Jul 2019 05:17:52 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxd+mIJuDqasCr0FmBQWpsarVIfw6MDwkSV+DShoyqEwQrUExvrjDFid+RZnOIZMAfRV2Qu
+X-Received: by 2002:a63:5a4b:: with SMTP id k11mr414665pgm.143.1563625071836;
+        Sat, 20 Jul 2019 05:17:51 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563625071; cv=none;
         d=google.com; s=arc-20160816;
-        b=y81GSYZPAr9PlokKEA1YalwW4Aq2JE1ZWCFN6TAGWDhy3AD55F5M3QwlMIT8ZL2875
-         Iydu0IaOHaZ2nNLr++stDsubetD45OjtrGslSVRyi4mhtsuH6OI7zDi+ObeK+7Pt01TT
-         lfevBKjD9IGKJ/7zmUEaS/39u2q58iWT1a2alVqX6wDnMthQgOTjVdt2M72gSkJ5tM2v
-         4/QdAfBvNFtKhkaSd/Obxx4quF4pePKZDMpehYNMA4k3rsBJgBRS4uFUguzFUHdkSoxc
-         wjwtwyOXCsbUgVl3Xs1++qrtr9SAMnBbszcLoy0gNTnrVIK4XG+IP+Own4ndj0zEf/A9
-         NFUQ==
+        b=c95nkWHY1RpwFNEKx+gqzPDgRTOV3sviDtQ5nDlNC53QqKRmUPNLtWg5Y3x3y9NuJF
+         8KcPBK3/KZJg4SeRfCXjUdtT1DAEwXL24SHYq7MWPPHfUaqIOpvuvE5SZ3rjPldKoSHN
+         1NdvGFe+huvSsEM6Afw0+yVTAXkplizGrDhfThNUsaI6K8t60E6br1XdGCLawBfWs9c3
+         xkGgFqV+8buGvj4WCb/If/0hXSbCO9f7JZUyfhqDz1MTun/GUQhQB7xdWPLiGeBIK2Ue
+         upQk1rpAcR+lXvlPfEvrM+NzuYG46dxl3oEfCGhtgxkKgo3a4t1ckD28n+cBVrMBikB3
+         gW7w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=to:from:subject:message-id:in-reply-to:date:mime-version;
-        bh=aIptGodPgqjQ+OCeW9XKeJdzrs6DHyh1FKeEsnaxVbM=;
-        b=W3gPA2KGeULp4bv0m+orVNHLKJI5iucnYJY/88JnKR/9Od+Hk0bfdQrnk4t49eXCgi
-         C+Uc8RwJA9lyrvpbcG/rlj7seVbIxz5tcHJMN4zN4lgLXzWtTUd5jEM5hggCyLaFF4cm
-         YuRqLGjRx11qxnEeUR0kB5vME3DTD3+r3Ve6dfLG5r7hh3d9QmSdRWubMZ1hk8+25ill
-         6Uk0dNUxqTSH7unPqf3/JFqp/pOQNFSGVN6elaT4/c701vrbtVXGtKf2WnP4HlDHUVBh
-         17abp+tFF9y2meeBwIHB4Hqwg17s7GwZuUffa3uQyJGeL4gC9LgpjE946/julkvVb3+Y
-         hjPQ==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=5/KZFCpo5qsIwMxpKyOMepZVgZTt4aeAZ+y4FTo5pqU=;
+        b=hwQdNhlRVP4s31uvhjXjF8so0hmaK8xCI6l3+AkiE4gejLQKaDTHSuCX5cMYrXenqB
+         9CxCWEVFF2sfmxcMkPBvcyzJmRI/p/jL/aLp3qSFSSM8FBAt8bW9G+bxtZLccH+7B8xF
+         mxoeASjkOv8V+EtH5IzLLjiKexsrY32vG2Hm8mPbGZbuoZQ2JXMj74fHY8MjgAGlPyB5
+         70hvjKCO58FZqpsmH2Ypr6pbab6Zwjz1hg90FC81q74NUSZjeMoj9mDx486402CCyAex
+         LPPgP7pYuhDHEx5nRNbCmT0QKV/PM13XvRtFb6XOqu/8lTySUmYw+6cJFtyDKPRgsR7m
+         argg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of 3aogyxqkbais7dezp00t6p44xs.v33v0t97t6r328t28.r31@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3AOgyXQkbAIs7DEzp00t6p44xs.v33v0t97t6r328t28.r31@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
-Received: from mail-sor-f69.google.com (mail-sor-f69.google.com. [209.85.220.69])
-        by mx.google.com with SMTPS id v16sor23624377ioj.130.2019.07.20.03.08.01
+       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id a7si5610009pfc.54.2019.07.20.05.17.51
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sat, 20 Jul 2019 03:08:01 -0700 (PDT)
-Received-SPF: pass (google.com: domain of 3aogyxqkbais7dezp00t6p44xs.v33v0t97t6r328t28.r31@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) client-ip=209.85.220.69;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 20 Jul 2019 05:17:51 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) client-ip=202.181.97.72;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of 3aogyxqkbais7dezp00t6p44xs.v33v0t97t6r328t28.r31@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3AOgyXQkbAIs7DEzp00t6p44xs.v33v0t97t6r328t28.r31@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
-X-Google-Smtp-Source: APXvYqxejQK5TJXgPG7zDzFOcVKgb6JtNNiEgaZkAwUZNQxIY+uT88/YtfjAsG3qEv0NnxidVHOC8aWEo8R9Py88FYjmq9+IoaCH
+       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
+Received: from fsav303.sakura.ne.jp (fsav303.sakura.ne.jp [153.120.85.134])
+	by www262.sakura.ne.jp (8.15.2/8.15.2) with ESMTP id x6KBTR7g079218;
+	Sat, 20 Jul 2019 20:29:27 +0900 (JST)
+	(envelope-from penguin-kernel@i-love.sakura.ne.jp)
+Received: from www262.sakura.ne.jp (202.181.97.72)
+ by fsav303.sakura.ne.jp (F-Secure/fsigk_smtp/530/fsav303.sakura.ne.jp);
+ Sat, 20 Jul 2019 20:29:27 +0900 (JST)
+X-Virus-Status: clean(F-Secure/fsigk_smtp/530/fsav303.sakura.ne.jp)
+Received: from [192.168.1.8] (softbank126012062002.bbtec.net [126.12.62.2])
+	(authenticated bits=0)
+	by www262.sakura.ne.jp (8.15.2/8.15.2) with ESMTPSA id x6KBTNdY079107
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NO);
+	Sat, 20 Jul 2019 20:29:27 +0900 (JST)
+	(envelope-from penguin-kernel@i-love.sakura.ne.jp)
+Subject: Re: [PATCH] mm, oom: avoid printk() iteration under RCU
+To: Michal Hocko <mhocko@suse.com>
+Cc: Roman Gushchin <guro@fb.com>, Shakeel Butt <shakeelb@google.com>,
+        linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>,
+        Linus Torvalds <torvalds@linux-foundation.org>
+References: <1563360901-8277-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <20190718083014.GB30461@dhcp22.suse.cz>
+ <7478e014-e5ce-504c-34b6-f2f9da952600@i-love.sakura.ne.jp>
+ <20190718140224.GC30461@dhcp22.suse.cz>
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Message-ID: <4291b98c-a961-5648-34d1-6f9347e65782@i-love.sakura.ne.jp>
+Date: Sat, 20 Jul 2019 20:29:23 +0900
+User-Agent: Mozilla/5.0 (Windows NT 6.3; WOW64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-X-Received: by 2002:a6b:f90f:: with SMTP id j15mr48006883iog.43.1563617280803;
- Sat, 20 Jul 2019 03:08:00 -0700 (PDT)
-Date: Sat, 20 Jul 2019 03:08:00 -0700
-In-Reply-To: <0000000000008dd6bb058e006938@google.com>
-X-Google-Appengine-App-Id: s~syzkaller
-X-Google-Appengine-App-Id-Alias: syzkaller
-Message-ID: <000000000000964b0d058e1a0483@google.com>
-Subject: Re: WARNING in __mmdrop
-From: syzbot <syzbot+e58112d71f77113ddb7b@syzkaller.appspotmail.com>
-To: aarcange@redhat.com, akpm@linux-foundation.org, christian@brauner.io, 
-	davem@davemloft.net, ebiederm@xmission.com, elena.reshetova@intel.com, 
-	guro@fb.com, hch@infradead.org, james.bottomley@hansenpartnership.com, 
-	jasowang@redhat.com, jglisse@redhat.com, keescook@chromium.org, 
-	ldv@altlinux.org, linux-arm-kernel@lists.infradead.org, 
-	linux-kernel@vger.kernel.org, linux-mm@kvack.org, 
-	linux-parisc@vger.kernel.org, luto@amacapital.net, mhocko@suse.com, 
-	mingo@kernel.org, mst@redhat.com, namit@vmware.com, peterz@infradead.org, 
-	syzkaller-bugs@googlegroups.com, viro@zeniv.linux.org.uk, wad@chromium.org
-Content-Type: text/plain; charset="UTF-8"; format=flowed; delsp=yes
+In-Reply-To: <20190718140224.GC30461@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-syzbot has bisected this bug to:
+On 2019/07/18 23:02, Michal Hocko wrote:
+> On Thu 18-07-19 22:50:14, Tetsuo Handa wrote:
+>> On 2019/07/18 17:30, Michal Hocko wrote:
+>>> On Wed 17-07-19 19:55:01, Tetsuo Handa wrote:
+>>>> Currently dump_tasks() might call printk() for many thousands times under
+>>>> RCU, which might take many minutes for slow consoles.
+>>>
+>>> Is is even wise to enable dumping tasks on systems with thousands of
+>>> tasks and slow consoles? I mean you still have to call printk that is
+>>> slow that many times. So why do we actually care? Because of RCU stall
+>>> warnings?
+>>>
+>>
+>> That's a stupid question. WE DO CARE.
+> 
+> -ENOARGUMENT
+> 
+>> We are making efforts for avoid calling printk() on each thread group (e.g.
+>>
+>>   commit 0c1b2d783cf34324 ("mm/oom_kill: remove the wrong fatal_signal_pending() check in oom_kill_process()")
+> 
+> removes fatal_signal_pending rather than focusing on printk
 
-commit 7f466032dc9e5a61217f22ea34b2df932786bbfc
-Author: Jason Wang <jasowang@redhat.com>
-Date:   Fri May 24 08:12:18 2019 +0000
+No. Its focus is to suppress printk(), for it fixes fatal_signal_pending() test
+introduced by commit 840807a8f40bb25a ("mm/oom_kill.c: suppress unnecessary
+"sharing same memory" message").
 
-     vhost: access vq metadata through kernel virtual address
+> 
+>>   commit b2b469939e934587 ("proc, oom: do not report alien mms when setting oom_score_adj"))
+> 
+> removes a printk of a dubious value.
 
-bisection log:  https://syzkaller.appspot.com/x/bisect.txt?x=149a8a20600000
-start commit:   6d21a41b Add linux-next specific files for 20190718
-git tree:       linux-next
-final crash:    https://syzkaller.appspot.com/x/report.txt?x=169a8a20600000
-console output: https://syzkaller.appspot.com/x/log.txt?x=129a8a20600000
-kernel config:  https://syzkaller.appspot.com/x/.config?x=3430a151e1452331
-dashboard link: https://syzkaller.appspot.com/bug?extid=e58112d71f77113ddb7b
-syz repro:      https://syzkaller.appspot.com/x/repro.syz?x=10139e68600000
+No. Its focus is to remove printk(), for that printk() allows the system to
+TASK_UNINTERRUPTIBLE stall for 44 days (even without slow consoles) in addition
+to RCU stall for 2 minutes.
 
-Reported-by: syzbot+e58112d71f77113ddb7b@syzkaller.appspotmail.com
-Fixes: 7f466032dc9e ("vhost: access vq metadata through kernel virtual  
-address")
+> 
+>> ) under RCU and this patch is one of them (except that we can't remove
+>> printk() for dump_tasks() case).
+> 
+> No, this one adds a complexity for something that is not clearly a huge
+> win or the win is not explained properly.
+> 
 
-For information about bisection process see: https://goo.gl/tpsmEJ#bisection
+The win is already explained properly by the past commits. Avoiding RCU stalls
+(even without slow consoles) is a clear win. The duration of RCU stall avoided
+by this patch is roughly the same with commit b2b469939e934587.
+
+We haven't succeeded making printk() asynchronous (and potentially we won't
+succeed making printk() asynchronous because we need synchronous printk()
+when something critical is undergoing outside of out_of_memory()). Thus,
+bringing printk() to outside of RCU section is a clear win we can make for now.
 
