@@ -1,156 +1,142 @@
-Return-Path: <SRS0=pjJT=VR=kvack.org=owner-linux-mm@kernel.org>
+Return-Path: <SRS0=x6gJ=VS=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-12.9 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1,USER_IN_DEF_DKIM_WL
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D8B70C76186
-	for <linux-mm@archiver.kernel.org>; Sat, 20 Jul 2019 22:54:47 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 10E60C76188
+	for <linux-mm@archiver.kernel.org>; Sun, 21 Jul 2019 05:31:23 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8E13F20823
-	for <linux-mm@archiver.kernel.org>; Sat, 20 Jul 2019 22:54:47 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8E13F20823
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 9CD802084C
+	for <linux-mm@archiver.kernel.org>; Sun, 21 Jul 2019 05:31:22 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="I6f+R3oq"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9CD802084C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0925C6B0005; Sat, 20 Jul 2019 18:54:46 -0400 (EDT)
+	id 229586B0005; Sun, 21 Jul 2019 01:31:21 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0437D6B0006; Sat, 20 Jul 2019 18:54:46 -0400 (EDT)
+	id 200776B0006; Sun, 21 Jul 2019 01:31:21 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E73B48E0001; Sat, 20 Jul 2019 18:54:45 -0400 (EDT)
+	id 0F0998E0001; Sun, 21 Jul 2019 01:31:21 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id AF0866B0005
-	for <linux-mm@kvack.org>; Sat, 20 Jul 2019 18:54:45 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id j12so17689556pll.14
-        for <linux-mm@kvack.org>; Sat, 20 Jul 2019 15:54:45 -0700 (PDT)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D08D06B0005
+	for <linux-mm@kvack.org>; Sun, 21 Jul 2019 01:31:20 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id z1so21444363pfb.7
+        for <linux-mm@kvack.org>; Sat, 20 Jul 2019 22:31:20 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:message-id
-         :subject:from:to:cc:date:user-agent:mime-version
-         :content-transfer-encoding;
-        bh=bmigF1P+hJsg7B0ufTfy/cz1G7pwoMZqVpczRqS9FZI=;
-        b=QCKUbmLEx1X5zDPG73qKxZPS4Nhd7LDp9Kn43dpmFBzNZgAou4vYX/JTqVoYwJ3tzd
-         wG9KG5nlJqNGU52jd9spVvPwGl+JScQ8TRVcBSQcLdW79eR3xex8+LajC7u/x0qUO/62
-         1rTSRhoW57Rb5i3nefF+AZJo3U9696cMgJ7EyBOhb6DKYCIVzxhFHptAp37iXYM5ITxM
-         JdvU9gI0BjYF/CbTvvZe3beYtzTT7itdQ33oK0sWcN+XxkdmD0DVoixml/DCHBZmZSuF
-         1mtifdFK9e66u0Vj3Nr+K2x1dGxMObBhKv/qhcpuxhTSvUPCDFLdwm6XI/D7nKBY9F69
-         iUSw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of sai.praneeth.prakhya@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=sai.praneeth.prakhya@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAXNbdpdSdxpnvJcuAaHAcLXQ1BIMYzYReWx4AUzWB1JKttr9xH4
-	LxI9bri5w1KwIVEIuNmYZAEA2o42q6bhcDmKlbG2Nzl+X6k1CG73s4oZL5+iiKnWFfG85mJ5KaB
-	jUu2Xke9G6irIan3afKh0H2c2BqRCygMa5sedKva8XBFsgLkCS5+JAJBUqHxxxpQk9w==
-X-Received: by 2002:a17:902:8c98:: with SMTP id t24mr67421887plo.320.1563663285333;
-        Sat, 20 Jul 2019 15:54:45 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyKFRB9l3ZaicTTsvZ5Gffvf3Rrjfs8A/UiuVGW5eIq90nI2FWqPUTYJkRPeUpU7Tl2B37f
-X-Received: by 2002:a17:902:8c98:: with SMTP id t24mr67421822plo.320.1563663284503;
-        Sat, 20 Jul 2019 15:54:44 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563663284; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :in-reply-to:message-id:references:user-agent:mime-version;
+        bh=0Le7BqRT6Z0VrMYQMdMrccYxW568r9HQRKBhivo1yJg=;
+        b=OR+7hvBX0tqOkKJ/KpS4Ip0fCC1ZJ0h6PPOim0ANFiu/RmW5OwFukMbcvFplhdvOza
+         jl60rLWRgH4sWDCW8AqKB8nVJTr6UmAhfoA6aZCJ3pej23XWukImH26BeGSVfrAvEEox
+         y93ssAxduGtUu+yMUv8K5VviG0tSwMKSh66K98s4gSj4yaAI9GuOWF9c955BtvVHVaRa
+         KKC5seHuKrkGRFKw1+lZ1yGV3mLPhK/nYdWxrk53fHjy9tXImPdvoxXt0RkEuRJTIUTa
+         uU1DJrZXRSN52/4mp137OFzXeXw7pP7jhI2ZrnkU5eX6FKB/EBBJfrebPQ+dPEv4xAP2
+         W1dQ==
+X-Gm-Message-State: APjAAAX+/zGOEtwU5CiA/aezbeytrDf/UQK2DbOet37zkiZDjHtXyf2G
+	YBdEWmlg/RYJXk9Oh2jMVvCvsst76FYVge4192S5o+Io6lpgR9p0iEA2S5b+xESrqoj3udsV2Dl
+	LN9PtOCmBSD2TJ2Nr3p0CUMqGGLMsEWSGuX/ArtUvtyHjthJ9oyEWK1MpvPBsXxTuOA==
+X-Received: by 2002:a17:902:7791:: with SMTP id o17mr68724138pll.27.1563687080375;
+        Sat, 20 Jul 2019 22:31:20 -0700 (PDT)
+X-Received: by 2002:a17:902:7791:: with SMTP id o17mr68724070pll.27.1563687079514;
+        Sat, 20 Jul 2019 22:31:19 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563687079; cv=none;
         d=google.com; s=arc-20160816;
-        b=EGK3Cl9mT4Z9W8AU8FAZlbqvMh/gPFE1nEANyQqekQQiBl2vS3fZvaew0qcs9kN98N
-         FE3AfS1Wc3pjtIyPR9Pq7zHXsnxCump4VEobWnOVI0fIf73gSgfKfHGD1qjVaI8gKf0W
-         gw0EuRMB9dsRajIiHJaTsHAYQngA2YQkxPiUSYLMnG8BUV3F16Q3FXK9znTsIEKu5KQ9
-         vPdZSeAZ+xGcpeNDrMtwgLzsh27V3A9E5jOxjOJqoJYrmuxTKIsaSIc6Ak+/j5ZQEGqp
-         pgI0y7l2BicLOwDaKmq262Z19Me13na9/I2vc9wtt5Q7oi+Zg8dhUlU+5aldBU7pNFwI
-         nmWg==
+        b=HqjbQfzY/jzKjPdIJM/ZqXUp8FIK383L5GR8eMt52uTSNoBBx6HcQ/olPhh8rTIXOY
+         MdCV32vQhMokupWqdV7hqqoptV+gjXIjHYP4EgWXx4eA8/Y2MCIlzAu1TMx4LGcHWrVE
+         /GsdE8c9F5jiWjLkOba5OTddoc6bnmqGqiXtN3YYdirXaygiw00waQEJETJ5zWO1xtu3
+         qT9rVhT22c5m3oW/qoTll6FYdzNWBs2QQ80vkKmkzMeVbj61+Om/m68kM305emYBoPAc
+         rkwJWVz5fIWA3j108b0AlQCYEYLGJyoW0gll9nJt9WBysw0mlxsJuCmUMsuVR2iLeoFC
+         9r/Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:user-agent:date:cc:to:from
-         :subject:message-id;
-        bh=bmigF1P+hJsg7B0ufTfy/cz1G7pwoMZqVpczRqS9FZI=;
-        b=edy4RMzCA9IGzK9C1gYVhRYsNw6zwvmeSyhZh5ii78qwLWeMGxvnd0LalQDd2Yb98H
-         2HgJ1SqjOnAFNs1eJ7YCfyXJPzBchCaZfVGwou5sP+UMiqFMsMHedN4QZQIw+FexgRoT
-         btR6HqPCoQSPqzcInSiiyzffCt70tdb7AAh7NVKbwMQ+mj6+AvNXn/qCLD06lRTWie0H
-         NFhzccVLHkpnaJPjESxSvMOt+NCReh7ZtxgnzxKwgM/IpASHWKmDcyEOnvZulo75s9Zj
-         kqht5fchhZcKL+dmUNhXQvVVI8bWOsyRN3fxmqzc3c/WORsApCyCSF0dTzPzWnpy1Gc5
-         xrWQ==
+        h=mime-version:user-agent:references:message-id:in-reply-to:subject
+         :cc:to:from:date:dkim-signature;
+        bh=0Le7BqRT6Z0VrMYQMdMrccYxW568r9HQRKBhivo1yJg=;
+        b=NjgWi1HrPM/uxwTh+N10g+1wNgcHC90XeTVbc8rNwAgfX1GVe7aj0Ok6YVmXmgc4qG
+         ybx0IH18Bjgj4IXaa3gnG95O8uXKqXb+WrG5dhUj0ErqHSkTTGz0Oy5GYuyINGM/5HVY
+         IZMTQ6OmNtU65b+VBdXLnN0DVuUlcibv//tJaLFUfrXd4WZNm+F2T8hcvJsfUzzq//vu
+         tOkXGSOPWhoRqOupcEiUwYGcRxV2NAJPSa8MKyO8WcAKXt+aq7xHU2dJuodYThmMA2Pn
+         SnVjmu9q2TlWaD7MMx8RtEQPzyjDr4n2xkVTdGZEt+25nqrTGabkNpoVggEBf3yhlGwS
+         1yzA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of sai.praneeth.prakhya@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=sai.praneeth.prakhya@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id p1si5424496plq.286.2019.07.20.15.54.44
+       dkim=pass header.i=@google.com header.s=20161025 header.b=I6f+R3oq;
+       spf=pass (google.com: domain of rientjes@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=rientjes@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id d37sor43518798pla.2.2019.07.20.22.31.19
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 20 Jul 2019 15:54:44 -0700 (PDT)
-Received-SPF: pass (google.com: domain of sai.praneeth.prakhya@intel.com designates 134.134.136.100 as permitted sender) client-ip=134.134.136.100;
+        (Google Transport Security);
+        Sat, 20 Jul 2019 22:31:19 -0700 (PDT)
+Received-SPF: pass (google.com: domain of rientjes@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of sai.praneeth.prakhya@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=sai.praneeth.prakhya@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from fmsmga005.fm.intel.com ([10.253.24.32])
-  by orsmga105.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 20 Jul 2019 15:54:43 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.64,288,1559545200"; 
-   d="scan'208";a="367626781"
-Received: from sai-dev-mach.sc.intel.com ([143.183.140.153])
-  by fmsmga005.fm.intel.com with ESMTP; 20 Jul 2019 15:54:43 -0700
-Message-ID: <cfee410c5dd4b359ee395ad075f31133387def70.camel@intel.com>
-Subject: Why does memblock only refer to E820 table and not EFI Memory Map?
-From: Sai Praneeth Prakhya <sai.praneeth.prakhya@intel.com>
-To: linux-mm@kvack.org, linux-efi@vger.kernel.org
-Cc: mingo@kernel.org, bp@alien8.de, peterz@infradead.org, 
-	ard.biesheuvel@linaro.org, rppt@linux.ibm.com, pj@sgi.com
-Date: Sat, 20 Jul 2019 15:52:04 -0700
-Content-Type: text/plain; charset="UTF-8"
-User-Agent: Evolution 3.30.5-0ubuntu0.18.10.1 
+       dkim=pass header.i=@google.com header.s=20161025 header.b=I6f+R3oq;
+       spf=pass (google.com: domain of rientjes@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=rientjes@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=date:from:to:cc:subject:in-reply-to:message-id:references
+         :user-agent:mime-version;
+        bh=0Le7BqRT6Z0VrMYQMdMrccYxW568r9HQRKBhivo1yJg=;
+        b=I6f+R3oqknatK1iJ86QwGrYUdJOvkd9qoPj1qFPvpbX8CZ2XUkdpP/UOZ4yWz/n1c2
+         X8WbLycy1TPVvPobwvAkMEz8K/7u1qn6fFx3mAeF3onx8Yxksxk7f9R7QgDLRySrGTVg
+         R5gn8KyJiVzpAnt7xK9XSJMjCeTcgw1U2SCs1B4tOPp0X8V5eIHwNG0F9JpY8T7Ki4jz
+         Vb4V2DrH42zxoNQU35vboGuRkONu3RuVqanw1W6o80A6E4gxFRYtR20loYVkbRIC0AUu
+         NU5vC9vth9zv5iyUmy4AV+PbS6kRJZd76ElnUdD9BUM1OFNUVjjLOec2eUE3o+TZYm6G
+         rsDg==
+X-Google-Smtp-Source: APXvYqz7cWhPAArR1h2ZbpIlwLg5H+HTAbbJ3obPU9AqRwpJljq/4AhW/XlqOV7mF/jgf+1t7haPtQ==
+X-Received: by 2002:a17:902:aa95:: with SMTP id d21mr65141004plr.185.1563687078830;
+        Sat, 20 Jul 2019 22:31:18 -0700 (PDT)
+Received: from [2620:15c:17:3:3a5:23a7:5e32:4598] ([2620:15c:17:3:3a5:23a7:5e32:4598])
+        by smtp.gmail.com with ESMTPSA id l4sm35574896pff.50.2019.07.20.22.31.17
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Sat, 20 Jul 2019 22:31:18 -0700 (PDT)
+Date: Sat, 20 Jul 2019 22:31:17 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+X-X-Sender: rientjes@chino.kir.corp.google.com
+To: Waiman Long <longman@redhat.com>
+cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, 
+    Joonsoo Kim <iamjoonsoo.kim@lge.com>, 
+    Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, 
+    linux-kernel@vger.kernel.org, Michal Hocko <mhocko@kernel.org>, 
+    Roman Gushchin <guro@fb.com>, Johannes Weiner <hannes@cmpxchg.org>, 
+    Shakeel Butt <shakeelb@google.com>, 
+    Vladimir Davydov <vdavydov.dev@gmail.com>
+Subject: Re: [PATCH] mm, slab: Move memcg_cache_params structure to
+ mm/slab.h
+In-Reply-To: <20190718180827.18758-1-longman@redhat.com>
+Message-ID: <alpine.DEB.2.21.1907202231030.163893@chino.kir.corp.google.com>
+References: <20190718180827.18758-1-longman@redhat.com>
+User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=US-ASCII
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi All,
+On Thu, 18 Jul 2019, Waiman Long wrote:
 
-Disclaimer:
-1. Please note that this discussion is x86 specific
-2. Below stated things are my understanding about kernel and I could have
-missed somethings, so please let me know if I understood something wrong.
-3. I have focused only on memblock here because if I understand correctly,
-memblock is the base that feeds other memory management subsystems in kernel
-(like the buddy allocator).
+> The memcg_cache_params structure is only embedded into the kmem_cache
+> of slab and slub allocators as defined in slab_def.h and slub_def.h
+> and used internally by mm code. There is no needed to expose it in
+> a public header. So move it from include/linux/slab.h to mm/slab.h.
+> It is just a refactoring patch with no code change.
+> 
+> In fact both the slub_def.h and slab_def.h should be moved into the mm
+> directory as well, but that will probably cause many merge conflicts.
+> 
+> Signed-off-by: Waiman Long <longman@redhat.com>
 
-On x86 platforms, there are two sources through which kernel learns about
-physical memory in the system namely E820 table and EFI Memory Map. Each table
-describes which regions of system memory is usable by kernel and which regions
-should be preserved (i.e. reserved regions that typically have BIOS code/data)
-so that no other component in the system could read/write to these regions. I
-think they are duplicating the information and hence I have couple of
-questions regarding these
+Acked-by: David Rientjes <rientjes@google.com>
 
-1. I see that only E820 table is being consumed by kernel [1] (i.e. memblock
-subsystem in kernel) to distinguish between "usable" vs "reserved" regions.
-Assume someone has called memblock_alloc(), the memblock subsystem would
-service the caller by allocating memory from "usable" regions and it knows
-this *only* from E820 table [2] (it does not check if EFI Memory Map also says
-that this region is usable as well). So, why isn't the kernel taking EFI
-Memory Map into consideration? (I see that it does happen only when
-"add_efi_memmap" kernel command line arg is passed i.e. passing this argument
-updates E820 table based on EFI Memory Map) [3]. The problem I see with
-memblock not taking EFI Memory Map into consideration is that, we are ignoring
-the main purpose for which EFI Memory Map exists.
-
-2. Why doesn't the kernel have "add_efi_memmap" by default? From the commit
-"200001eb140e: x86 boot: only pick up additional EFI memmap if add_efi_memmap
-flag", I didn't understand why the decision was made so. Shouldn't we give
-more preference to EFI Memory map rather than E820 table as it's the latest
-and E820 is legacy?
-
-3. Why isn't kernel checking that both the tables E820 table and EFI Memory
-Map are in sync i.e. is there any *possibility* that a buggy BIOS could report
-a region as usable in E820 table and as reserved in EFI Memory Map?
-
-[1] 
-https://elixir.bootlin.com/linux/latest/source/arch/x86/kernel/setup.c#L1106
-[2] 
-https://elixir.bootlin.com/linux/latest/source/arch/x86/kernel/e820.c#L1265
-[3] 
-https://elixir.bootlin.com/linux/latest/source/arch/x86/platform/efi/efi.c#L129
-
-Regards,
-Sai
+Thanks Waiman!
 
