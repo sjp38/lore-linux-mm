@@ -5,101 +5,101 @@ X-Spam-Level:
 X-Spam-Status: No, score=-9.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
 	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no
-	version=3.4.0
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6BFF9C76191
-	for <linux-mm@archiver.kernel.org>; Sun, 21 Jul 2019 15:58:28 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9E3A6C76191
+	for <linux-mm@archiver.kernel.org>; Sun, 21 Jul 2019 15:58:32 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 26EFC2083B
-	for <linux-mm@archiver.kernel.org>; Sun, 21 Jul 2019 15:58:28 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 5BB012083B
+	for <linux-mm@archiver.kernel.org>; Sun, 21 Jul 2019 15:58:32 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="ifiOqyLu"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 26EFC2083B
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="ODLroZ/h"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5BB012083B
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CD7336B000D; Sun, 21 Jul 2019 11:58:27 -0400 (EDT)
+	id 0C85C8E0011; Sun, 21 Jul 2019 11:58:32 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C86B38E0010; Sun, 21 Jul 2019 11:58:27 -0400 (EDT)
+	id 0796A8E0010; Sun, 21 Jul 2019 11:58:32 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B9E506B0010; Sun, 21 Jul 2019 11:58:27 -0400 (EDT)
+	id ED2088E0011; Sun, 21 Jul 2019 11:58:31 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 866556B000D
-	for <linux-mm@kvack.org>; Sun, 21 Jul 2019 11:58:27 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id 191so22107500pfy.20
-        for <linux-mm@kvack.org>; Sun, 21 Jul 2019 08:58:27 -0700 (PDT)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id BA3E68E0010
+	for <linux-mm@kvack.org>; Sun, 21 Jul 2019 11:58:31 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id q11so18289472pll.22
+        for <linux-mm@kvack.org>; Sun, 21 Jul 2019 08:58:31 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=YPxj1xULAmyThBZtHUXs4RUTpVotq1m6ArGML4hnd9o=;
-        b=JE4haQ9x1U1ckaqtE9aO4Gjby/7B5D2bFrON8qtIXJu/eT6Q8IqCDaJ38G4vqfPPfd
-         wy15LMhYwJCRH4/5OJsEIbxJvJ41KOroIMBVqg7KGoBLTTf4Adem/68EEdJsOEswZTZQ
-         Z7pGK95hlX/sm2ug6GwzrOYJNLSmM5RQianDddqdLYuDWt584vxXR9t5jXPhD3eH5aUX
-         rybmX3l7U4OcpyBiekzojZ9rL2Nr1VkxgYHvXB1gokGYnA3iOsQvmgXlqU7gCsa/uuAX
-         blCpPzgU847pwUKq3gDr1SHdUbHdUjJmcMYrfUnhCid0nmdsXo3Lm2ad7d0S8AU36MNy
-         7nww==
-X-Gm-Message-State: APjAAAUDQy3+PaVgvD3PoLMqUwDihXUfwHafzGZERGRh4Yt2Esa57uC8
-	nIn5catxnPV+xTETuf3ILdPPz3k7205sD7eV1zpcqwX1QXl8O728E7+NTSRtNJ1PRr3mMVkUBCO
-	iECgz42ENhcXW46+vkhb7Tqgu4dXvv8uwVePfojHafwMKX1gcZb6PilwEJ7Rnp5Z4eQ==
-X-Received: by 2002:a17:90a:17ab:: with SMTP id q40mr73294990pja.106.1563724707155;
-        Sun, 21 Jul 2019 08:58:27 -0700 (PDT)
-X-Received: by 2002:a17:90a:17ab:: with SMTP id q40mr73294928pja.106.1563724706295;
-        Sun, 21 Jul 2019 08:58:26 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563724706; cv=none;
+        bh=mu8trQVZC3rHCOtMYrCUpgRKCETCP3JlFKLgFP5GMsg=;
+        b=qRAIHoyHfPv8n7p0l/ZhmZP8dbXr1UjQXdTlMZkdaIIZNtwrjF9R+82/adWFJME07i
+         V8zS2MQ0wuOcu+DbkZM4kilad2B4mkTb7YLg16KvDgnUb8MaFoCvWZgoaWtoWfxZaq9y
+         blt3zw/qt/8yfTLhjFOSzEBjP3+zMYUfE1PwgMNEWNBtNeraco9KsMQMbTFszFCEsi2k
+         iBJVS6V7Rm5+cfsipkjEq0ykVJGdWYwM7xvXuQsZqqWn1S/zdW2us09AOSpmZwNu7kID
+         /g/zgMbXg9L0v9hprqArk7k1DtFGG/pDwuPOkALpXi5vWitGC15uFKhdQGY7pcJwhe1q
+         POcQ==
+X-Gm-Message-State: APjAAAUxdxpJ3sl3VYPg2VhmGcjX8PowXnIMiw+MrPx23Y2Y7CKtvfKQ
+	5i0IsWDYyc9PEjNVeJmEHxbt03yLdXCovxlKlMyUHKwGq2bBgrHcJBXQhR4izUFxeWJRroK0Nnk
+	B7YeuN03zZgm3elB1TfqomQL6SuBH3jnmbrUZ+fm57KcskDj5qHQFoJMdtGhc3/d7dg==
+X-Received: by 2002:a17:902:2d01:: with SMTP id o1mr72098477plb.105.1563724711340;
+        Sun, 21 Jul 2019 08:58:31 -0700 (PDT)
+X-Received: by 2002:a17:902:2d01:: with SMTP id o1mr72098392plb.105.1563724710351;
+        Sun, 21 Jul 2019 08:58:30 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563724710; cv=none;
         d=google.com; s=arc-20160816;
-        b=Vawu4S6UTsfiY9sbi6/C6G3RkKLl2CkSbtZ8DjYBZpy9uuJ0sKo3Gr1umZVxgCMkYa
-         tnFsw/m//B7InR7On31HY3JZDdiqAaUq6ZrRV4KERJBv/ab+OYxHFlB1Hd5EsItJM/QD
-         ESu17qiDxciDHhhXRHe4WJ0qUKIqx4H7NnUYdvG1yF6RMiUQQZ72BzERutlgU77Nu5LH
-         wMUwK2jXJV0H1CrxJ88SYTLiaGOIL4YtKq7KZdasGTlHeXzj1fBS0d6t7J18Fsj05aoe
-         SdKPu+MmglYCw681jbzYFcK6gsbS5F8tbRJSCJAY0vxn4/TCbwv+aWEUyzwzOm/8umLc
-         iibw==
+        b=vZy+ydC+5K9omXjiH8ihSfG/OUHVbpNCIX/iKzHh4uJKxnVYcSW26xl8dUMGwxzEdO
+         QaDWaVSLNdMnQric/UwUt69hBCnbB/XWLK8piq4aLBK1sTpGUEyKj9I+JVdXnILBN4oS
+         dHOzqZOrT6NWimbqVga7lODbHF3m9Y1Xq/Z9AXFF3lHM9ok/V1tf4jw9y5xFXBM9+Ipa
+         k6yVdaT2HK41rQe9JmrQ4JsVY8wbGgU3sy1aw+36vt4Oozy7LbVMCyPrD+LBf4SqCmdq
+         eTa8Vuu+TW7e0UQe1Vp9P3AlX7YVCAmd0w0hHTigOrptXMOQglW1sJdSz2vCkmC5l7uB
+         F41Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=YPxj1xULAmyThBZtHUXs4RUTpVotq1m6ArGML4hnd9o=;
-        b=IlPEOmHX2ap0e6WsuL2AL2VfgRmWnBm7aUwARXuvzte0lzHpBLQoxL9ZxO8KjgEPUC
-         ablBu0ihV/8WJwzA0/uTv42KRmehlwuFhQkmcEd3e5jatwbE5RPk0dNXksDqB4110321
-         17DMsiWxujuotwcNbfrUQPVDUFw+6vtUtdIysdgc0guvXBo7UKBav1k3XbaLHiX+87co
-         m6zDoGltYT2KyYWr09FfZCEp8TNeAjQz+EASY8i2yHQEf87oMquQ7St/rhL+1xlaI7Te
-         tna/rZg69/D/EiHgWVLeJCHw5BNfUuoU0yy9ngvInpa4rgyaBg20UybTCv+H3psDCFcu
-         cG7A==
+        bh=mu8trQVZC3rHCOtMYrCUpgRKCETCP3JlFKLgFP5GMsg=;
+        b=OLgFBKM6Eflmlp5Yz8sYZhO+9o4cZNVzDNt+G3yPnWWEFqYJ+xURUdDzdp22b8UuFI
+         U6dXAXqqedSkO6JhDwS9+LOWIwhm/MKW8Dg+tz7xdLebBjlT+Rc2/HxtXUZOEAHxu3FC
+         NzYwRpS+ny31qZlgEtiJ7+uiUF8UjU3WSICC6S7AFjM72ASFceBuBPgoOitQEkxDEuSz
+         TX7vp8AbOLlwqb9pa1GA3Mzf8qi2hcoPVGUiRzX+cg1HTYLdDzMSjJtBzNZvcExTTZJA
+         OSlhO0C6RJmZtveqxN14VuHaFUtSBSMqSzH97b+EcMDh2kKiXY8HxuKezvbyG9pSecv6
+         yTiQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=ifiOqyLu;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b="ODLroZ/h";
        spf=pass (google.com: domain of linux.bhar@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=linux.bhar@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id t5sor5657219pgp.83.2019.07.21.08.58.26
+        by mx.google.com with SMTPS id cu6sor44426656pjb.22.2019.07.21.08.58.30
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sun, 21 Jul 2019 08:58:26 -0700 (PDT)
+        Sun, 21 Jul 2019 08:58:30 -0700 (PDT)
 Received-SPF: pass (google.com: domain of linux.bhar@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=ifiOqyLu;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b="ODLroZ/h";
        spf=pass (google.com: domain of linux.bhar@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=linux.bhar@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
         h=from:to:cc:subject:date:message-id:in-reply-to:references
          :mime-version:content-transfer-encoding;
-        bh=YPxj1xULAmyThBZtHUXs4RUTpVotq1m6ArGML4hnd9o=;
-        b=ifiOqyLuR2fVpSX7LgALyQR4fLm8I1fH/HPzFhDKareH7Mat4AeFK7FriOec5kkIK2
-         wrkY60M1g9T4xGKZPATWmMcmqyzUnhouyS8jLdWqlmaw7Uhyw/yfS0tLX1lp5rQKJaLB
-         fSm4JJfRR3RL77klHIt1fyvoW6veo0UFmmjnBE0gck+i8fxq2rd44U40PHlylpJTqIFg
-         +L6uKhgtV6nQN6+xT9aOPjVaCGAp/jC3uuTmzJ4x6M5L8PFe1TRJ2Dg9yYZ8tyYsO4mz
-         WffynzmJeO020XEI+EyeM/h1PfhhEpTI0MK5P2rjMCAKJbRMywzH8bFyVmkubOP7fvDa
-         Bwyw==
-X-Google-Smtp-Source: APXvYqzyvqZLIxg67pxkdxLJpTK/51NalCRn7KTGd70dRGh3NJlFIdRe+Ue6E9oqJ+ciSF87NclM4A==
-X-Received: by 2002:a63:b1d:: with SMTP id 29mr67183457pgl.103.1563724705973;
-        Sun, 21 Jul 2019 08:58:25 -0700 (PDT)
+        bh=mu8trQVZC3rHCOtMYrCUpgRKCETCP3JlFKLgFP5GMsg=;
+        b=ODLroZ/h+hP6Y33PcgSXD4q2Uc8RcP/LdSQozj6vnDx90z1Mq6K/foEe5nz7ZE2BPd
+         yYZAMSLyYG3vQ0iOmeXcDLNnWfNQH4g6AMONx5mDjWIdel6bpziU1NAHYdyK2pZ378Rr
+         FZ2ZeYBK/Uor03e7IT/JubBVBKBTHhPcV8cRRS95AnmkWrOA5HCwpl5IfUJ32bAZkYFy
+         kLT059ALWFeHtBbDtT1ZXSm/q583gn6n+Z++Kw7Pm61/vOy0/vDZ6m9Jy6b1Uk8C8yb2
+         wMujseQCu+jXWT0qW/n5t4vm67DuuywYUODpEzZ8ow7y4QxZPfogWyGgMHcWonCunkUn
+         phfg==
+X-Google-Smtp-Source: APXvYqwC3lbzN6ZeQmPUeK90Wp81J3UzSILb/l6kA0SmEh/tiLeanHZIQoe+bvHFOO1ZCx7hgtXRQg==
+X-Received: by 2002:a17:90a:bf08:: with SMTP id c8mr71922342pjs.75.1563724710070;
+        Sun, 21 Jul 2019 08:58:30 -0700 (PDT)
 Received: from bharath12345-Inspiron-5559 ([103.110.42.34])
-        by smtp.gmail.com with ESMTPSA id e17sm27335437pgm.21.2019.07.21.08.58.24
+        by smtp.gmail.com with ESMTPSA id w22sm38827754pfi.175.2019.07.21.08.58.28
         (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Sun, 21 Jul 2019 08:58:25 -0700 (PDT)
+        Sun, 21 Jul 2019 08:58:29 -0700 (PDT)
 From: Bharath Vedartham <linux.bhar@gmail.com>
 To: arnd@arndb.de,
 	sivanich@sgi.com,
@@ -110,9 +110,9 @@ Cc: ira.weiny@intel.com,
 	linux-kernel@vger.kernel.org,
 	linux-mm@kvack.org,
 	Bharath Vedartham <linux.bhar@gmail.com>
-Subject: [PATCH 2/3] sgi-gru: Remove CONFIG_HUGETLB_PAGE ifdef
-Date: Sun, 21 Jul 2019 21:28:04 +0530
-Message-Id: <1563724685-6540-3-git-send-email-linux.bhar@gmail.com>
+Subject: [PATCH 3/3] sgi-gru: Use __get_user_pages_fast in atomic_pte_lookup
+Date: Sun, 21 Jul 2019 21:28:05 +0530
+Message-Id: <1563724685-6540-4-git-send-email-linux.bhar@gmail.com>
 X-Mailer: git-send-email 2.7.4
 In-Reply-To: <1563724685-6540-1-git-send-email-linux.bhar@gmail.com>
 References: <1563724685-6540-1-git-send-email-linux.bhar@gmail.com>
@@ -125,10 +125,21 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-is_vm_hugetlb_page has checks for whether CONFIG_HUGETLB_PAGE is defined
-or not. If CONFIG_HUGETLB_PAGE is not defined is_vm_hugetlb_page will
-always return false. There is no need to have an uneccessary
-CONFIG_HUGETLB_PAGE check in the code.
+*pte_lookup functions get the physical address for a given virtual
+address by getting a physical page using gup and use page_to_phys to get
+the physical address.
+
+Currently, atomic_pte_lookup manually walks the page tables. If this
+function fails to get a physical page, it will fall back too
+non_atomic_pte_lookup to get a physical page which uses the slow gup
+path to get the physical page.
+
+Instead of manually walking the page tables use __get_user_pages_fast
+which does the same thing and it does not fall back to the slow gup
+path.
+
+This is largely inspired from kvm code. kvm uses __get_user_pages_fast
+in hva_to_pfn_fast function which can run in an atomic context.
 
 Cc: Ira Weiny <ira.weiny@intel.com>
 Cc: John Hubbard <jhubbard@nvidia.com>
@@ -140,40 +151,65 @@ Cc: linux-kernel@vger.kernel.org
 Cc: linux-mm@kvack.org
 Signed-off-by: Bharath Vedartham <linux.bhar@gmail.com>
 ---
- drivers/misc/sgi-gru/grufault.c | 11 +++--------
- 1 file changed, 3 insertions(+), 8 deletions(-)
+ drivers/misc/sgi-gru/grufault.c | 39 +++++----------------------------------
+ 1 file changed, 5 insertions(+), 34 deletions(-)
 
 diff --git a/drivers/misc/sgi-gru/grufault.c b/drivers/misc/sgi-gru/grufault.c
-index 61b3447..75108d2 100644
+index 75108d2..121c9a4 100644
 --- a/drivers/misc/sgi-gru/grufault.c
 +++ b/drivers/misc/sgi-gru/grufault.c
-@@ -180,11 +180,8 @@ static int non_atomic_pte_lookup(struct vm_area_struct *vma,
+@@ -202,46 +202,17 @@ static int non_atomic_pte_lookup(struct vm_area_struct *vma,
+ static int atomic_pte_lookup(struct vm_area_struct *vma, unsigned long vaddr,
+ 	int write, unsigned long *paddr, int *pageshift)
  {
- 	struct page *page;
+-	pgd_t *pgdp;
+-	p4d_t *p4dp;
+-	pud_t *pudp;
+-	pmd_t *pmdp;
+-	pte_t pte;
+-
+-	pgdp = pgd_offset(vma->vm_mm, vaddr);
+-	if (unlikely(pgd_none(*pgdp)))
+-		goto err;
+-
+-	p4dp = p4d_offset(pgdp, vaddr);
+-	if (unlikely(p4d_none(*p4dp)))
+-		goto err;
+-
+-	pudp = pud_offset(p4dp, vaddr);
+-	if (unlikely(pud_none(*pudp)))
+-		goto err;
++	struct page *page;
  
--#ifdef CONFIG_HUGETLB_PAGE
- 	*pageshift = is_vm_hugetlb_page(vma) ? HPAGE_SHIFT : PAGE_SHIFT;
--#else
--	*pageshift = PAGE_SHIFT;
+-	pmdp = pmd_offset(pudp, vaddr);
+-	if (unlikely(pmd_none(*pmdp)))
+-		goto err;
+-#ifdef CONFIG_X86_64
+-	if (unlikely(pmd_large(*pmdp)))
+-		pte = *(pte_t *) pmdp;
+-	else
 -#endif
-+
- 	if (get_user_pages(vaddr, 1, write ? FOLL_WRITE : 0, &page, NULL) <= 0)
- 		return -EFAULT;
- 	*paddr = page_to_phys(page);
-@@ -238,11 +235,9 @@ static int atomic_pte_lookup(struct vm_area_struct *vma, unsigned long vaddr,
+-		pte = *pte_offset_kernel(pmdp, vaddr);
++	*pageshift = is_vm_hugetlb_page(vma) ? HPAGE_SHIFT : PAGE_SHIFT;
+ 
+-	if (unlikely(!pte_present(pte) ||
+-		     (write && (!pte_write(pte) || !pte_dirty(pte)))))
++	if (!__get_user_pages_fast(vaddr, 1, write, &page))
  		return 1;
  
- 	*paddr = pte_pfn(pte) << PAGE_SHIFT;
--#ifdef CONFIG_HUGETLB_PAGE
-+
- 	*pageshift = is_vm_hugetlb_page(vma) ? HPAGE_SHIFT : PAGE_SHIFT;
--#else
--	*pageshift = PAGE_SHIFT;
--#endif
-+
- 	return 0;
+-	*paddr = pte_pfn(pte) << PAGE_SHIFT;
+-
+-	*pageshift = is_vm_hugetlb_page(vma) ? HPAGE_SHIFT : PAGE_SHIFT;
++	*paddr = page_to_phys(page);
++	put_user_page(page);
  
- err:
+ 	return 0;
+-
+-err:
+-	return 1;
+ }
+ 
+ static int gru_vtop(struct gru_thread_state *gts, unsigned long vaddr,
 -- 
 2.7.4
 
