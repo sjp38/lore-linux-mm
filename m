@@ -7,78 +7,78 @@ X-Spam-Status: No, score=-9.6 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
 	SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id AE0F6C76196
-	for <linux-mm@archiver.kernel.org>; Sun, 21 Jul 2019 10:46:20 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C60F1C76195
+	for <linux-mm@archiver.kernel.org>; Sun, 21 Jul 2019 10:46:23 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5AA762085A
-	for <linux-mm@archiver.kernel.org>; Sun, 21 Jul 2019 10:46:20 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 6C1D62085A
+	for <linux-mm@archiver.kernel.org>; Sun, 21 Jul 2019 10:46:23 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="ILI7Ai/q"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5AA762085A
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="uC9CEqf0"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6C1D62085A
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id F41108E0007; Sun, 21 Jul 2019 06:46:19 -0400 (EDT)
+	id D208C8E0008; Sun, 21 Jul 2019 06:46:20 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id ED0C78E0005; Sun, 21 Jul 2019 06:46:19 -0400 (EDT)
+	id C819F8E0005; Sun, 21 Jul 2019 06:46:20 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C0E158E0007; Sun, 21 Jul 2019 06:46:19 -0400 (EDT)
+	id A877D8E0008; Sun, 21 Jul 2019 06:46:20 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 81C2F8E0005
-	for <linux-mm@kvack.org>; Sun, 21 Jul 2019 06:46:19 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id m17so12731832pgh.21
-        for <linux-mm@kvack.org>; Sun, 21 Jul 2019 03:46:19 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 6AB888E0005
+	for <linux-mm@kvack.org>; Sun, 21 Jul 2019 06:46:20 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id g21so21764204pfb.13
+        for <linux-mm@kvack.org>; Sun, 21 Jul 2019 03:46:20 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=GN6prBEc9OxXBozwmtQx/sYg0ub34bNOmdwtjSsuhI4=;
-        b=czL7CHaPA1sTY/qyO5SgV/JYyYC+uqe4f3YC56PyEOsGQMOwAeEIJwhBwoFIzNuBcU
-         qpz3WOi6LJ67t6GwJRbI3wFDs4DgVBiBv+uSk6Zaq1Itc7UazPC2xkVfcD3+njZPVWjb
-         7XMuqKG+p77Co/JK62H+HTbb3lK9zF5HPLN5hjMAl0Mp1AJvsE5D6ZutaycwhRAkUfin
-         nd5wkwcX1JBOAgyNpmtJhILj8BPrujlausymBajf6RnyY9SDQhkCapYnHdLrR7KU0qyZ
-         I/4mZaAeIT/4xmCK8waDOH8c4/oGIrnISE+kqVHA62WtuyKpAKJ0F1YnwR/Up4D0xOAM
-         +wCw==
-X-Gm-Message-State: APjAAAX7HQ+e4yyDPHm7sDHR/IaEOSFwL1+IcyHqdTMf0xw2BV4kTPJH
-	SnRxLUhJrqps6lt1YfATpz1CsCgRBv16h1sryU8APXqhiu4/KyFL/HcfQ8yc9v8PoLWSSeNLhuw
-	nexrcc3ijEUDAMrdud8SeDHBwUIK18otnS6HBaQHiP3ysfd+mfqzLAEh99JHWV2zFAQ==
-X-Received: by 2002:a65:4b8b:: with SMTP id t11mr65573477pgq.130.1563705978074;
+        bh=/rC3AHKP+kpLuOHYtlvi7LwqIVwg10IJNDqouvsomuc=;
+        b=TMwwZSyY7q/kOMeHBSWoaXvtwnd+9gdMU8cAfpXCJWz5GwposYxaFkD4Aazc8l40bT
+         dTmQeUTwozgeT5n1ksn00FvPuEig0fVevxtBCHtXRcNRVzX1vKpXlSVMcjvYLhRkCuqF
+         p9A2SesHtF+ApSAlJgXVLuEj/FCtzVS6aN91vZoo8JxM4KhKT7HAlgZoJgp6FvXqx/QR
+         EfgB3MGa/2XKdQtT4nfZe9G6ODCOsI8kZb0RdTbtn9fO7uSlSc5cCkwXmjWGsasGMJHo
+         AED0HmNaepKe/GQt1rmR7XckS48lUewSgCSOAlVdQoHmFbiItXWKi+xEr1RscAh2WeW8
+         usbg==
+X-Gm-Message-State: APjAAAUZoSl1sg/m/5/iKocfkIeptxmJ+/3VTauBE3reBGHjbYIrFNwQ
+	ol1avyubf41pOoo5dDq/Q8UGzzG8yN3CI1Hd+Bg9RT3tCEE1KzAWJKFkw8iP22NC8XEtsVcuMYB
+	dawKSQJJv1Be6HqVBXbvuGi2X1DxTfInG59NNFiHg4C7y12pft8tCeWwONkCpYYxsZw==
+X-Received: by 2002:a65:60cd:: with SMTP id r13mr39035861pgv.315.1563705979885;
+        Sun, 21 Jul 2019 03:46:19 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxOJZqpg2Lo43akOLFZvd+QQqGTPqHLiHBDFmvk/La8VPKRmWNZ8/kw7AFY2ZxN7tSQWgG4
+X-Received: by 2002:a65:60cd:: with SMTP id r13mr39035798pgv.315.1563705978764;
         Sun, 21 Jul 2019 03:46:18 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxxkDQpvJZ4SvANBZ8IP/OPHubwRzMTKXM3D01Ep8Ac975G6vCOZ3o2nBa+5Kl02JaQVcku
-X-Received: by 2002:a65:4b8b:: with SMTP id t11mr65573406pgq.130.1563705976866;
-        Sun, 21 Jul 2019 03:46:16 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563705976; cv=none;
+ARC-Seal: i=1; a=rsa-sha256; t=1563705978; cv=none;
         d=google.com; s=arc-20160816;
-        b=j30vwuhLP6SjF8A15gte7RqhEEYuGQDHOcF8rXwVTAiIoL8VWSskA8NpZivgW2bnNr
-         GsEsWuEK+bDYgS3f800tlLWfth9npzP94QUTHsA076o33wHzS300HNIgDCbU89bvquZr
-         g/edhdQPgM2a3lUYUzcmBBthGJHGFH6bZ6wBq2GuB6YXvO7xWQphJO68Ds3bZb6jhse8
-         GhbXe44JrJBWoqLqgywdFMTE6iB+TzhdXkZR2qPBok3zFo/aoHk64W0MwfLfHFQKF4Vj
-         bFaKkDlI+7V4B8IIhtde8V2ixzaq+mbTIwQ23hMXI5xgeWvmwKdPsWrYwOuEqroE3/iR
-         dxJw==
+        b=VVQ2yAj8y0VemSHy9d4dP80PCWOXHpP2usQMN5L6XsvLMsJOMe63IBOX2P0Vo5uca0
+         bEu1zfqj6SLG/IjrLyTf4eyEu3QrqDFjpwarwX3KH8CG/d/v95KBffyP69ZhXI777qmz
+         emRZEltsJGs6TUmzH667Y7KEC7CU2MOOHhgFIoP/zlg+pPlvSfr2DLdTTFc1cXs1T53Q
+         1U6lH35ll9xGScVjNl4wDTwS6obk0Wjz+NchN3QouVbWZq4kiZz0IHNunin8K/xF+O57
+         gJVA/RuUktjoVgmnLI81Xe90i36LYrO39efu6hcFgw33tx1k9RuibvVyd9tMYDhw2jpN
+         2oVw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=GN6prBEc9OxXBozwmtQx/sYg0ub34bNOmdwtjSsuhI4=;
-        b=ANQgg8Q05Z3DC703hYuvbGm/5midbT2FA1LJI9B7JgBS+Q9GDteanwB6R+EOXPFg0J
-         egwYcJQzGXqYUlJvwsmJH+AvfqYcDhFv+Uq/rfsAPDMci09e26sQ8UWK1Ccld404gnf2
-         mM7zeW7+8gQlkdqxXLVBOhC/hJsNQoUpIGPsD9mOYHxQAV9/nGl8S4oJUtIv+XRTCVqN
-         eLBMkd6vlx22uEYLBkpZs3VzhZgqb+Lxp8K+aQOhGUVOrxOYiykbnvhwzhg3LIod6Evf
-         839Z58CUhAvxclyc3wzmhkCLSDOkLCbRzSu4ox38MDTv5I/rXy+6fT1e7Hj1yQ6RAJFw
-         /vAg==
+        bh=/rC3AHKP+kpLuOHYtlvi7LwqIVwg10IJNDqouvsomuc=;
+        b=LPsEJLwvhzJUIyGDeNFjgYy34Ao7al+9/2FWy5zusxZ7hW9ZEQtMDY/SevMkIHjsX6
+         akbzXbLT3hlZML+tZO+k8KzZ8hybJM2DOovG6/RoUwVJPT2g+wGwoV5AbZ2dCsNrvnus
+         P8IYWp9j68c0z9NLODjnF3dVFgrOfvdB++OvzDaRKpnExe/1U/AoWEQ097yvMrdeA1Pq
+         lwtCHs/fF7Y051KXXOSU5mjl5a9YiaheX539kYt7sqGnCXPggctDkFGyo9aq5w6p9heK
+         BUhzqqQdm3PhMmrFAOpTCALU0SJ0g/ayD48M2MCwB/kTmLvizKU9jYTwHFCnnBwGqBaE
+         AoBw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b="ILI7Ai/q";
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=uC9CEqf0;
        spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id c18si8293015plo.316.2019.07.21.03.46.15
+        by mx.google.com with ESMTPS id b23si5795244pjp.62.2019.07.21.03.46.18
         for <linux-mm@kvack.org>
         (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Sun, 21 Jul 2019 03:46:15 -0700 (PDT)
+        Sun, 21 Jul 2019 03:46:18 -0700 (PDT)
 Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b="ILI7Ai/q";
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=uC9CEqf0;
        spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
 DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	d=infradead.org; s=bombadil.20170209; h=Content-Transfer-Encoding:
@@ -86,22 +86,21 @@ DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	:Reply-To:Content-Type:Content-ID:Content-Description:Resent-Date:Resent-From
 	:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:List-Help:
 	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	bh=GN6prBEc9OxXBozwmtQx/sYg0ub34bNOmdwtjSsuhI4=; b=ILI7Ai/qVKkWPtUdzO9bTbn4/i
-	F3TPPZOUt9+oFU53lX3CqV/4DTd4gBxLNIXXxzVKeCP2He6eAOO5k2FhnIT9DgJUuu4ApnAVxyyUh
-	cNWRvhTzvE9loorPa2HwPuo5Mw2Z1o+wDKXab3Lo8jMO+LM5dFsHnpILAbFlHn25W6l6uLwrRaEgh
-	9t2iKC8MvqX0HKhGS+j+42Oyrn2daIoF4GY+GZYwKYamHOpZ8UMMzvIMEJeooiNQtFGK//ZyPIjlA
-	yQT2oZuEGxQ4rOlCaVMtRIkBZ28/CvlD8FJvv06G4bmj6zTNDR/Rddw+ASNAlBlakEmgfuwcK6KtI
-	rXerpmIA==;
+	bh=/rC3AHKP+kpLuOHYtlvi7LwqIVwg10IJNDqouvsomuc=; b=uC9CEqf0bb7fdm+q3CNHWlcfsJ
+	SurJ3hWOLPR94MtWUbm2L/0KOlkNR5sLLz9RjhCphlRjud5tuECKDLuWp3ZqAoQDn3FBjZYZKzA/Z
+	0AJpyjUAeKPFAedaLcSxqC5BJcrzHq9DeCD3sCEdPEbrSsiMmz1bs8C0dEzXRAeCcHsoNsWoaWQXR
+	YZ09Pr/d1rNn8CaUK57Wn6Uf2gccjfl8sagngkjnHoVg3+9KzZdv04uwIqbTAm05Lp1Ni7nt6SLtv
+	ogp/noxlhzCFfFIPEvLgeNtjGMgm1OZkMLdeL/rMsaw6dgrsIFN9qWz/wjN6EMVxiyq9ioTdOfyFj
+	Hs7t6Diw==;
 Received: from willy by bombadil.infradead.org with local (Exim 4.92 #3 (Red Hat Linux))
-	id 1hp9M6-000500-Lw; Sun, 21 Jul 2019 10:46:14 +0000
+	id 1hp9M6-000508-Qt; Sun, 21 Jul 2019 10:46:14 +0000
 From: Matthew Wilcox <willy@infradead.org>
 To: Andrew Morton <akpm@linux-foundation.org>,
 	linux-mm@kvack.org
-Cc: Matthew Wilcox <willy@infradead.org>,
-	Michal Hocko <mhocko@suse.com>
-Subject: [PATCH v2 1/3] mm: Introduce page_size()
-Date: Sun, 21 Jul 2019 03:46:10 -0700
-Message-Id: <20190721104612.19120-2-willy@infradead.org>
+Cc: Matthew Wilcox <willy@infradead.org>
+Subject: [PATCH v2 3/3] mm: Introduce compound_nr()
+Date: Sun, 21 Jul 2019 03:46:12 -0700
+Message-Id: <20190721104612.19120-4-willy@infradead.org>
 X-Mailer: git-send-email 2.21.0
 In-Reply-To: <20190721104612.19120-1-willy@infradead.org>
 References: <20190721104612.19120-1-willy@infradead.org>
@@ -115,373 +114,361 @@ List-ID: <linux-mm.kvack.org>
 
 From: Matthew Wilcox (Oracle) <willy@infradead.org>
 
-It's unnecessarily hard to find out the size of a potentially huge page.
-Replace 'PAGE_SIZE << compound_order(page)' with page_size(page).
+Replace 1 << compound_order(page) with compound_nr(page).  Minor
+improvements in readability.
 
 Signed-off-by: Matthew Wilcox (Oracle) <willy@infradead.org>
-Acked-by: Michal Hocko <mhocko@suse.com>
 ---
- arch/arm/mm/flush.c                           |  3 +--
- arch/arm64/mm/flush.c                         |  3 +--
- arch/ia64/mm/init.c                           |  2 +-
- drivers/crypto/chelsio/chtls/chtls_io.c       |  5 ++---
- drivers/staging/android/ion/ion_system_heap.c |  4 ++--
- drivers/target/tcm_fc/tfc_io.c                |  3 +--
- fs/io_uring.c                                 |  2 +-
- include/linux/hugetlb.h                       |  2 +-
- include/linux/mm.h                            |  6 ++++++
- lib/iov_iter.c                                |  2 +-
- mm/kasan/common.c                             |  8 +++-----
- mm/nommu.c                                    |  2 +-
- mm/page_vma_mapped.c                          |  3 +--
- mm/rmap.c                                     |  6 ++----
- mm/slob.c                                     |  2 +-
- mm/slub.c                                     | 18 +++++++++---------
- net/xdp/xsk.c                                 |  2 +-
- 17 files changed, 35 insertions(+), 38 deletions(-)
+ arch/arm/include/asm/xen/page-coherent.h   | 3 +--
+ arch/arm/mm/flush.c                        | 4 ++--
+ arch/arm64/include/asm/xen/page-coherent.h | 3 +--
+ arch/powerpc/mm/hugetlbpage.c              | 2 +-
+ fs/proc/task_mmu.c                         | 2 +-
+ include/linux/mm.h                         | 6 ++++++
+ mm/compaction.c                            | 2 +-
+ mm/filemap.c                               | 2 +-
+ mm/gup.c                                   | 2 +-
+ mm/hugetlb_cgroup.c                        | 2 +-
+ mm/kasan/common.c                          | 2 +-
+ mm/memcontrol.c                            | 4 ++--
+ mm/memory_hotplug.c                        | 4 ++--
+ mm/migrate.c                               | 2 +-
+ mm/page_alloc.c                            | 2 +-
+ mm/rmap.c                                  | 3 +--
+ mm/shmem.c                                 | 8 ++++----
+ mm/swap_state.c                            | 2 +-
+ mm/util.c                                  | 2 +-
+ mm/vmscan.c                                | 4 ++--
+ 20 files changed, 32 insertions(+), 29 deletions(-)
 
+diff --git a/arch/arm/include/asm/xen/page-coherent.h b/arch/arm/include/asm/xen/page-coherent.h
+index 2c403e7c782d..ea39cb724ffa 100644
+--- a/arch/arm/include/asm/xen/page-coherent.h
++++ b/arch/arm/include/asm/xen/page-coherent.h
+@@ -31,8 +31,7 @@ static inline void xen_dma_map_page(struct device *hwdev, struct page *page,
+ {
+ 	unsigned long page_pfn = page_to_xen_pfn(page);
+ 	unsigned long dev_pfn = XEN_PFN_DOWN(dev_addr);
+-	unsigned long compound_pages =
+-		(1<<compound_order(page)) * XEN_PFN_PER_PAGE;
++	unsigned long compound_pages = compound_nr(page) * XEN_PFN_PER_PAGE;
+ 	bool local = (page_pfn <= dev_pfn) &&
+ 		(dev_pfn - page_pfn < compound_pages);
+ 
 diff --git a/arch/arm/mm/flush.c b/arch/arm/mm/flush.c
-index 6ecbda87ee46..4c7ebe094a83 100644
+index 4c7ebe094a83..6d89db7895d1 100644
 --- a/arch/arm/mm/flush.c
 +++ b/arch/arm/mm/flush.c
-@@ -204,8 +204,7 @@ void __flush_dcache_page(struct address_space *mapping, struct page *page)
- 	 * coherent with the kernels mapping.
- 	 */
- 	if (!PageHighMem(page)) {
--		size_t page_size = PAGE_SIZE << compound_order(page);
--		__cpuc_flush_dcache_area(page_address(page), page_size);
-+		__cpuc_flush_dcache_area(page_address(page), page_size(page));
+@@ -208,13 +208,13 @@ void __flush_dcache_page(struct address_space *mapping, struct page *page)
  	} else {
  		unsigned long i;
  		if (cache_is_vipt_nonaliasing()) {
-diff --git a/arch/arm64/mm/flush.c b/arch/arm64/mm/flush.c
-index dc19300309d2..ac485163a4a7 100644
---- a/arch/arm64/mm/flush.c
-+++ b/arch/arm64/mm/flush.c
-@@ -56,8 +56,7 @@ void __sync_icache_dcache(pte_t pte)
- 	struct page *page = pte_page(pte);
- 
- 	if (!test_and_set_bit(PG_dcache_clean, &page->flags))
--		sync_icache_aliases(page_address(page),
--				    PAGE_SIZE << compound_order(page));
-+		sync_icache_aliases(page_address(page), page_size(page));
- }
- EXPORT_SYMBOL_GPL(__sync_icache_dcache);
- 
-diff --git a/arch/ia64/mm/init.c b/arch/ia64/mm/init.c
-index aae75fd7b810..e97e24816bd4 100644
---- a/arch/ia64/mm/init.c
-+++ b/arch/ia64/mm/init.c
-@@ -63,7 +63,7 @@ __ia64_sync_icache_dcache (pte_t pte)
- 	if (test_bit(PG_arch_1, &page->flags))
- 		return;				/* i-cache is already coherent with d-cache */
- 
--	flush_icache_range(addr, addr + (PAGE_SIZE << compound_order(page)));
-+	flush_icache_range(addr, addr + page_size(page));
- 	set_bit(PG_arch_1, &page->flags);	/* mark page as clean */
- }
- 
-diff --git a/drivers/crypto/chelsio/chtls/chtls_io.c b/drivers/crypto/chelsio/chtls/chtls_io.c
-index 551bca6fef24..925be5942895 100644
---- a/drivers/crypto/chelsio/chtls/chtls_io.c
-+++ b/drivers/crypto/chelsio/chtls/chtls_io.c
-@@ -1078,7 +1078,7 @@ int chtls_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
- 			bool merge;
- 
- 			if (page)
--				pg_size <<= compound_order(page);
-+				pg_size = page_size(page);
- 			if (off < pg_size &&
- 			    skb_can_coalesce(skb, i, page, off)) {
- 				merge = 1;
-@@ -1105,8 +1105,7 @@ int chtls_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
- 							   __GFP_NORETRY,
- 							   order);
- 					if (page)
--						pg_size <<=
--							compound_order(page);
-+						pg_size <<= order;
- 				}
- 				if (!page) {
- 					page = alloc_page(gfp);
-diff --git a/drivers/staging/android/ion/ion_system_heap.c b/drivers/staging/android/ion/ion_system_heap.c
-index aa8d8425be25..b83a1d16bd89 100644
---- a/drivers/staging/android/ion/ion_system_heap.c
-+++ b/drivers/staging/android/ion/ion_system_heap.c
-@@ -120,7 +120,7 @@ static int ion_system_heap_allocate(struct ion_heap *heap,
- 		if (!page)
- 			goto free_pages;
- 		list_add_tail(&page->lru, &pages);
--		size_remaining -= PAGE_SIZE << compound_order(page);
-+		size_remaining -= page_size(page);
- 		max_order = compound_order(page);
- 		i++;
- 	}
-@@ -133,7 +133,7 @@ static int ion_system_heap_allocate(struct ion_heap *heap,
- 
- 	sg = table->sgl;
- 	list_for_each_entry_safe(page, tmp_page, &pages, lru) {
--		sg_set_page(sg, page, PAGE_SIZE << compound_order(page), 0);
-+		sg_set_page(sg, page, page_size(page), 0);
- 		sg = sg_next(sg);
- 		list_del(&page->lru);
- 	}
-diff --git a/drivers/target/tcm_fc/tfc_io.c b/drivers/target/tcm_fc/tfc_io.c
-index a254792d882c..1354a157e9af 100644
---- a/drivers/target/tcm_fc/tfc_io.c
-+++ b/drivers/target/tcm_fc/tfc_io.c
-@@ -136,8 +136,7 @@ int ft_queue_data_in(struct se_cmd *se_cmd)
- 					   page, off_in_page, tlen);
- 			fr_len(fp) += tlen;
- 			fp_skb(fp)->data_len += tlen;
--			fp_skb(fp)->truesize +=
--					PAGE_SIZE << compound_order(page);
-+			fp_skb(fp)->truesize += page_size(page);
+-			for (i = 0; i < (1 << compound_order(page)); i++) {
++			for (i = 0; i < compound_nr(page); i++) {
+ 				void *addr = kmap_atomic(page + i);
+ 				__cpuc_flush_dcache_area(addr, PAGE_SIZE);
+ 				kunmap_atomic(addr);
+ 			}
  		} else {
- 			BUG_ON(!page);
- 			from = kmap_atomic(page + (mem_off >> PAGE_SHIFT));
-diff --git a/fs/io_uring.c b/fs/io_uring.c
-index e2a66e12fbc6..c55d8b411d2a 100644
---- a/fs/io_uring.c
-+++ b/fs/io_uring.c
-@@ -3084,7 +3084,7 @@ static int io_uring_mmap(struct file *file, struct vm_area_struct *vma)
- 	}
- 
- 	page = virt_to_head_page(ptr);
--	if (sz > (PAGE_SIZE << compound_order(page)))
-+	if (sz > page_size(page))
- 		return -EINVAL;
- 
- 	pfn = virt_to_phys(ptr) >> PAGE_SHIFT;
-diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-index edfca4278319..53fc34f930d0 100644
---- a/include/linux/hugetlb.h
-+++ b/include/linux/hugetlb.h
-@@ -454,7 +454,7 @@ static inline pte_t arch_make_huge_pte(pte_t entry, struct vm_area_struct *vma,
- static inline struct hstate *page_hstate(struct page *page)
+-			for (i = 0; i < (1 << compound_order(page)); i++) {
++			for (i = 0; i < compound_nr(page); i++) {
+ 				void *addr = kmap_high_get(page + i);
+ 				if (addr) {
+ 					__cpuc_flush_dcache_area(addr, PAGE_SIZE);
+diff --git a/arch/arm64/include/asm/xen/page-coherent.h b/arch/arm64/include/asm/xen/page-coherent.h
+index d88e56b90b93..b600a8ef3349 100644
+--- a/arch/arm64/include/asm/xen/page-coherent.h
++++ b/arch/arm64/include/asm/xen/page-coherent.h
+@@ -45,8 +45,7 @@ static inline void xen_dma_map_page(struct device *hwdev, struct page *page,
  {
- 	VM_BUG_ON_PAGE(!PageHuge(page), page);
--	return size_to_hstate(PAGE_SIZE << compound_order(page));
-+	return size_to_hstate(page_size(page));
- }
+ 	unsigned long page_pfn = page_to_xen_pfn(page);
+ 	unsigned long dev_pfn = XEN_PFN_DOWN(dev_addr);
+-	unsigned long compound_pages =
+-		(1<<compound_order(page)) * XEN_PFN_PER_PAGE;
++	unsigned long compound_pages = compound_nr(page) * XEN_PFN_PER_PAGE;
+ 	bool local = (page_pfn <= dev_pfn) &&
+ 		(dev_pfn - page_pfn < compound_pages);
  
- static inline unsigned hstate_index_to_shift(unsigned index)
+diff --git a/arch/powerpc/mm/hugetlbpage.c b/arch/powerpc/mm/hugetlbpage.c
+index a8953f108808..73d4873fc7f8 100644
+--- a/arch/powerpc/mm/hugetlbpage.c
++++ b/arch/powerpc/mm/hugetlbpage.c
+@@ -667,7 +667,7 @@ void flush_dcache_icache_hugepage(struct page *page)
+ 
+ 	BUG_ON(!PageCompound(page));
+ 
+-	for (i = 0; i < (1UL << compound_order(page)); i++) {
++	for (i = 0; i < compound_nr(page); i++) {
+ 		if (!PageHighMem(page)) {
+ 			__flush_dcache_icache(page_address(page+i));
+ 		} else {
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+index 731642e0f5a0..a9f2deb8ab79 100644
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -461,7 +461,7 @@ static void smaps_page_accumulate(struct mem_size_stats *mss,
+ static void smaps_account(struct mem_size_stats *mss, struct page *page,
+ 		bool compound, bool young, bool dirty, bool locked)
+ {
+-	int i, nr = compound ? 1 << compound_order(page) : 1;
++	int i, nr = compound ? compound_nr(page) : 1;
+ 	unsigned long size = nr * PAGE_SIZE;
+ 
+ 	/*
 diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 0334ca97c584..899dfcf7c23d 100644
+index 64762559885f..726d7f046b49 100644
 --- a/include/linux/mm.h
 +++ b/include/linux/mm.h
 @@ -805,6 +805,12 @@ static inline void set_compound_order(struct page *page, unsigned int order)
  	page[1].compound_order = order;
  }
  
-+/* Returns the number of bytes in this potentially compound page. */
-+static inline unsigned long page_size(struct page *page)
++/* Returns the number of pages in this potentially compound page. */
++static inline unsigned long compound_nr(struct page *page)
 +{
-+	return PAGE_SIZE << compound_order(page);
++	return 1UL << compound_order(page);
 +}
 +
- void free_compound_page(struct page *page);
+ /* Returns the number of bytes in this potentially compound page. */
+ static inline unsigned long page_size(struct page *page)
+ {
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 9e1b9acb116b..78d42e2dbc64 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -967,7 +967,7 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+ 			 * is safe to read and it's 0 for tail pages.
+ 			 */
+ 			if (unlikely(PageCompound(page))) {
+-				low_pfn += (1UL << compound_order(page)) - 1;
++				low_pfn += compound_nr(page) - 1;
+ 				goto isolate_fail;
+ 			}
+ 		}
+diff --git a/mm/filemap.c b/mm/filemap.c
+index d0cf700bf201..f00f53ad383f 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -126,7 +126,7 @@ static void page_cache_delete(struct address_space *mapping,
+ 	/* hugetlb pages are represented by a single entry in the xarray */
+ 	if (!PageHuge(page)) {
+ 		xas_set_order(&xas, page->index, compound_order(page));
+-		nr = 1U << compound_order(page);
++		nr = compound_nr(page);
+ 	}
  
- #ifdef CONFIG_MMU
-diff --git a/lib/iov_iter.c b/lib/iov_iter.c
-index f1e0569b4539..639d5e7014c1 100644
---- a/lib/iov_iter.c
-+++ b/lib/iov_iter.c
-@@ -878,7 +878,7 @@ static inline bool page_copy_sane(struct page *page, size_t offset, size_t n)
- 	head = compound_head(page);
- 	v += (page - head) << PAGE_SHIFT;
+ 	VM_BUG_ON_PAGE(!PageLocked(page), page);
+diff --git a/mm/gup.c b/mm/gup.c
+index 98f13ab37bac..84a36d80dd2e 100644
+--- a/mm/gup.c
++++ b/mm/gup.c
+@@ -1460,7 +1460,7 @@ static long check_and_migrate_cma_pages(struct task_struct *tsk,
+ 		 * gup may start from a tail page. Advance step by the left
+ 		 * part.
+ 		 */
+-		step = (1 << compound_order(head)) - (pages[i] - head);
++		step = compound_nr(head) - (pages[i] - head);
+ 		/*
+ 		 * If we get a page from the CMA zone, since we are going to
+ 		 * be pinning these entries, we might as well move them out
+diff --git a/mm/hugetlb_cgroup.c b/mm/hugetlb_cgroup.c
+index 68c2f2f3c05b..f1930fa0b445 100644
+--- a/mm/hugetlb_cgroup.c
++++ b/mm/hugetlb_cgroup.c
+@@ -139,7 +139,7 @@ static void hugetlb_cgroup_move_parent(int idx, struct hugetlb_cgroup *h_cg,
+ 	if (!page_hcg || page_hcg != h_cg)
+ 		goto out;
  
--	if (likely(n <= v && v <= (PAGE_SIZE << compound_order(head))))
-+	if (likely(n <= v && v <= (page_size(head))))
- 		return true;
- 	WARN_ON(1);
- 	return false;
+-	nr_pages = 1 << compound_order(page);
++	nr_pages = compound_nr(page);
+ 	if (!parent) {
+ 		parent = root_h_cgroup;
+ 		/* root has no limit */
 diff --git a/mm/kasan/common.c b/mm/kasan/common.c
-index 2277b82902d8..a929a3b9444d 100644
+index a929a3b9444d..895dc5e2b3d5 100644
 --- a/mm/kasan/common.c
 +++ b/mm/kasan/common.c
-@@ -321,8 +321,7 @@ void kasan_poison_slab(struct page *page)
+@@ -319,7 +319,7 @@ void kasan_poison_slab(struct page *page)
+ {
+ 	unsigned long i;
  
- 	for (i = 0; i < (1 << compound_order(page)); i++)
+-	for (i = 0; i < (1 << compound_order(page)); i++)
++	for (i = 0; i < compound_nr(page); i++)
  		page_kasan_tag_reset(page + i);
--	kasan_poison_shadow(page_address(page),
--			PAGE_SIZE << compound_order(page),
-+	kasan_poison_shadow(page_address(page), page_size(page),
+ 	kasan_poison_shadow(page_address(page), page_size(page),
  			KASAN_KMALLOC_REDZONE);
- }
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index cdbb7a84cb6e..b5c4c618d087 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -6257,7 +6257,7 @@ static void uncharge_page(struct page *page, struct uncharge_gather *ug)
+ 		unsigned int nr_pages = 1;
  
-@@ -518,7 +517,7 @@ void * __must_check kasan_kmalloc_large(const void *ptr, size_t size,
- 	page = virt_to_page(ptr);
- 	redzone_start = round_up((unsigned long)(ptr + size),
- 				KASAN_SHADOW_SCALE_SIZE);
--	redzone_end = (unsigned long)ptr + (PAGE_SIZE << compound_order(page));
-+	redzone_end = (unsigned long)ptr + page_size(page);
- 
- 	kasan_unpoison_shadow(ptr, size);
- 	kasan_poison_shadow((void *)redzone_start, redzone_end - redzone_start,
-@@ -554,8 +553,7 @@ void kasan_poison_kfree(void *ptr, unsigned long ip)
- 			kasan_report_invalid_free(ptr, ip);
- 			return;
+ 		if (PageTransHuge(page)) {
+-			nr_pages <<= compound_order(page);
++			nr_pages = compound_nr(page);
+ 			ug->nr_huge += nr_pages;
  		}
--		kasan_poison_shadow(ptr, PAGE_SIZE << compound_order(page),
--				KASAN_FREE_PAGE);
-+		kasan_poison_shadow(ptr, page_size(page), KASAN_FREE_PAGE);
+ 		if (PageAnon(page))
+@@ -6269,7 +6269,7 @@ static void uncharge_page(struct page *page, struct uncharge_gather *ug)
+ 		}
+ 		ug->pgpgout++;
  	} else {
- 		__kasan_slab_free(page->slab_cache, ptr, ip, false);
+-		ug->nr_kmem += 1 << compound_order(page);
++		ug->nr_kmem += compound_nr(page);
+ 		__ClearPageKmemcg(page);
  	}
-diff --git a/mm/nommu.c b/mm/nommu.c
-index fed1b6e9c89b..99b7ec318824 100644
---- a/mm/nommu.c
-+++ b/mm/nommu.c
-@@ -108,7 +108,7 @@ unsigned int kobjsize(const void *objp)
- 	 * The ksize() function is only guaranteed to work for pointers
- 	 * returned by kmalloc(). So handle arbitrary pointers here.
- 	 */
--	return PAGE_SIZE << compound_order(page);
-+	return page_size(page);
- }
  
- /**
-diff --git a/mm/page_vma_mapped.c b/mm/page_vma_mapped.c
-index 11df03e71288..eff4b4520c8d 100644
---- a/mm/page_vma_mapped.c
-+++ b/mm/page_vma_mapped.c
-@@ -153,8 +153,7 @@ bool page_vma_mapped_walk(struct page_vma_mapped_walk *pvmw)
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 2a9bbddb0e55..bb2ab9f58f8c 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -1311,7 +1311,7 @@ static unsigned long scan_movable_pages(unsigned long start, unsigned long end)
+ 		head = compound_head(page);
+ 		if (page_huge_active(head))
+ 			return pfn;
+-		skip = (1 << compound_order(head)) - (page - head);
++		skip = compound_nr(head) - (page - head);
+ 		pfn += skip - 1;
+ 	}
+ 	return 0;
+@@ -1349,7 +1349,7 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
  
- 	if (unlikely(PageHuge(pvmw->page))) {
- 		/* when pud is not present, pte will be NULL */
--		pvmw->pte = huge_pte_offset(mm, pvmw->address,
--					    PAGE_SIZE << compound_order(page));
-+		pvmw->pte = huge_pte_offset(mm, pvmw->address, page_size(page));
- 		if (!pvmw->pte)
- 			return false;
+ 		if (PageHuge(page)) {
+ 			struct page *head = compound_head(page);
+-			pfn = page_to_pfn(head) + (1<<compound_order(head)) - 1;
++			pfn = page_to_pfn(head) + compound_nr(head) - 1;
+ 			isolate_huge_page(head, &source);
+ 			continue;
+ 		} else if (PageTransHuge(page))
+diff --git a/mm/migrate.c b/mm/migrate.c
+index 8992741f10aa..702115a9cf11 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -1889,7 +1889,7 @@ static int numamigrate_isolate_page(pg_data_t *pgdat, struct page *page)
+ 	VM_BUG_ON_PAGE(compound_order(page) && !PageTransHuge(page), page);
  
+ 	/* Avoid migrating to a node that is nearly full */
+-	if (!migrate_balanced_pgdat(pgdat, 1UL << compound_order(page)))
++	if (!migrate_balanced_pgdat(pgdat, compound_nr(page)))
+ 		return 0;
+ 
+ 	if (isolate_lru_page(page))
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 272c6de1bf4e..d3bb601c461b 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -8207,7 +8207,7 @@ bool has_unmovable_pages(struct zone *zone, struct page *page, int count,
+ 			if (!hugepage_migration_supported(page_hstate(head)))
+ 				goto unmovable;
+ 
+-			skip_pages = (1 << compound_order(head)) - (page - head);
++			skip_pages = compound_nr(head) - (page - head);
+ 			iter += skip_pages - 1;
+ 			continue;
+ 		}
 diff --git a/mm/rmap.c b/mm/rmap.c
-index e5dfe2ae6b0d..09ce05c481fc 100644
+index 09ce05c481fc..05e41f097b1d 100644
 --- a/mm/rmap.c
 +++ b/mm/rmap.c
-@@ -898,8 +898,7 @@ static bool page_mkclean_one(struct page *page, struct vm_area_struct *vma,
- 	 */
- 	mmu_notifier_range_init(&range, MMU_NOTIFY_PROTECTION_PAGE,
- 				0, vma, vma->vm_mm, address,
--				min(vma->vm_end, address +
--				    (PAGE_SIZE << compound_order(page))));
-+				min(vma->vm_end, address + page_size(page)));
- 	mmu_notifier_invalidate_range_start(&range);
- 
- 	while (page_vma_mapped_walk(&pvmw)) {
-@@ -1374,8 +1373,7 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
- 	 */
- 	mmu_notifier_range_init(&range, MMU_NOTIFY_CLEAR, 0, vma, vma->vm_mm,
- 				address,
--				min(vma->vm_end, address +
--				    (PAGE_SIZE << compound_order(page))));
-+				min(vma->vm_end, address + page_size(page)));
- 	if (PageHuge(page)) {
- 		/*
- 		 * If sharing is possible, start and end will be adjusted
-diff --git a/mm/slob.c b/mm/slob.c
-index 7f421d0ca9ab..cf377beab962 100644
---- a/mm/slob.c
-+++ b/mm/slob.c
-@@ -539,7 +539,7 @@ size_t __ksize(const void *block)
- 
- 	sp = virt_to_page(block);
- 	if (unlikely(!PageSlab(sp)))
--		return PAGE_SIZE << compound_order(sp);
-+		return page_size(sp);
- 
- 	align = max_t(size_t, ARCH_KMALLOC_MINALIGN, ARCH_SLAB_MINALIGN);
- 	m = (unsigned int *)(block - align);
-diff --git a/mm/slub.c b/mm/slub.c
-index e6c030e47364..1e8e20a99660 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -829,7 +829,7 @@ static int slab_pad_check(struct kmem_cache *s, struct page *page)
- 		return 1;
- 
- 	start = page_address(page);
--	length = PAGE_SIZE << compound_order(page);
-+	length = page_size(page);
- 	end = start + length;
- 	remainder = length % s->size;
- 	if (!remainder)
-@@ -1074,13 +1074,14 @@ static void setup_object_debug(struct kmem_cache *s, struct page *page,
- 	init_tracking(s, object);
- }
- 
--static void setup_page_debug(struct kmem_cache *s, void *addr, int order)
-+static
-+void setup_page_debug(struct kmem_cache *s, struct page *page, void *addr)
+@@ -1514,8 +1514,7 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+ 		if (PageHWPoison(page) && !(flags & TTU_IGNORE_HWPOISON)) {
+ 			pteval = swp_entry_to_pte(make_hwpoison_entry(subpage));
+ 			if (PageHuge(page)) {
+-				int nr = 1 << compound_order(page);
+-				hugetlb_count_sub(nr, mm);
++				hugetlb_count_sub(compound_nr(page), mm);
+ 				set_huge_swap_pte_at(mm, address,
+ 						     pvmw.pte, pteval,
+ 						     vma_mmu_pagesize(vma));
+diff --git a/mm/shmem.c b/mm/shmem.c
+index 626d8c74b973..fccb34aca6ea 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -594,7 +594,7 @@ static int shmem_add_to_page_cache(struct page *page,
  {
- 	if (!(s->flags & SLAB_POISON))
- 		return;
+ 	XA_STATE_ORDER(xas, &mapping->i_pages, index, compound_order(page));
+ 	unsigned long i = 0;
+-	unsigned long nr = 1UL << compound_order(page);
++	unsigned long nr = compound_nr(page);
  
- 	metadata_access_enable();
--	memset(addr, POISON_INUSE, PAGE_SIZE << order);
-+	memset(addr, POISON_INUSE, page_size(page));
- 	metadata_access_disable();
- }
+ 	VM_BUG_ON_PAGE(PageTail(page), page);
+ 	VM_BUG_ON_PAGE(index != round_down(index, nr), page);
+@@ -1869,7 +1869,7 @@ static int shmem_getpage_gfp(struct inode *inode, pgoff_t index,
+ 	lru_cache_add_anon(page);
  
-@@ -1340,8 +1341,8 @@ slab_flags_t kmem_cache_flags(unsigned int object_size,
- #else /* !CONFIG_SLUB_DEBUG */
- static inline void setup_object_debug(struct kmem_cache *s,
- 			struct page *page, void *object) {}
--static inline void setup_page_debug(struct kmem_cache *s,
--			void *addr, int order) {}
-+static inline
-+void setup_page_debug(struct kmem_cache *s, struct page *page, void *addr) {}
+ 	spin_lock_irq(&info->lock);
+-	info->alloced += 1 << compound_order(page);
++	info->alloced += compound_nr(page);
+ 	inode->i_blocks += BLOCKS_PER_PAGE << compound_order(page);
+ 	shmem_recalc_inode(inode);
+ 	spin_unlock_irq(&info->lock);
+@@ -1910,7 +1910,7 @@ static int shmem_getpage_gfp(struct inode *inode, pgoff_t index,
+ 		struct page *head = compound_head(page);
+ 		int i;
  
- static inline int alloc_debug_processing(struct kmem_cache *s,
- 	struct page *page, void *object, unsigned long addr) { return 0; }
-@@ -1635,7 +1636,7 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
- 	struct kmem_cache_order_objects oo = s->oo;
- 	gfp_t alloc_gfp;
- 	void *start, *p, *next;
--	int idx, order;
-+	int idx;
- 	bool shuffle;
+-		for (i = 0; i < (1 << compound_order(head)); i++) {
++		for (i = 0; i < compound_nr(head); i++) {
+ 			clear_highpage(head + i);
+ 			flush_dcache_page(head + i);
+ 		}
+@@ -1937,7 +1937,7 @@ static int shmem_getpage_gfp(struct inode *inode, pgoff_t index,
+ 	 * Error recovery.
+ 	 */
+ unacct:
+-	shmem_inode_unacct_blocks(inode, 1 << compound_order(page));
++	shmem_inode_unacct_blocks(inode, compound_nr(page));
  
- 	flags &= gfp_allowed_mask;
-@@ -1669,7 +1670,6 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
+ 	if (PageTransHuge(page)) {
+ 		unlock_page(page);
+diff --git a/mm/swap_state.c b/mm/swap_state.c
+index 8368621a0fc7..f844af5f09ba 100644
+--- a/mm/swap_state.c
++++ b/mm/swap_state.c
+@@ -116,7 +116,7 @@ int add_to_swap_cache(struct page *page, swp_entry_t entry, gfp_t gfp)
+ 	struct address_space *address_space = swap_address_space(entry);
+ 	pgoff_t idx = swp_offset(entry);
+ 	XA_STATE_ORDER(xas, &address_space->i_pages, idx, compound_order(page));
+-	unsigned long i, nr = 1UL << compound_order(page);
++	unsigned long i, nr = compound_nr(page);
  
- 	page->objects = oo_objects(oo);
- 
--	order = compound_order(page);
- 	page->slab_cache = s;
- 	__SetPageSlab(page);
- 	if (page_is_pfmemalloc(page))
-@@ -1679,7 +1679,7 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
- 
- 	start = page_address(page);
- 
--	setup_page_debug(s, start, order);
-+	setup_page_debug(s, page, start);
- 
- 	shuffle = shuffle_freelist(s, page);
- 
-@@ -3926,7 +3926,7 @@ size_t __ksize(const void *object)
- 
- 	if (unlikely(!PageSlab(page))) {
- 		WARN_ON(!PageCompound(page));
--		return PAGE_SIZE << compound_order(page);
-+		return page_size(page);
+ 	VM_BUG_ON_PAGE(!PageLocked(page), page);
+ 	VM_BUG_ON_PAGE(PageSwapCache(page), page);
+diff --git a/mm/util.c b/mm/util.c
+index e6351a80f248..bab284d69c8c 100644
+--- a/mm/util.c
++++ b/mm/util.c
+@@ -521,7 +521,7 @@ bool page_mapped(struct page *page)
+ 		return true;
+ 	if (PageHuge(page))
+ 		return false;
+-	for (i = 0; i < (1 << compound_order(page)); i++) {
++	for (i = 0; i < compound_nr(page); i++) {
+ 		if (atomic_read(&page[i]._mapcount) >= 0)
+ 			return true;
  	}
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 44df66a98f2a..bb69bd2d9c78 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1145,7 +1145,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
  
- 	return slab_ksize(page->slab_cache);
-diff --git a/net/xdp/xsk.c b/net/xdp/xsk.c
-index 59b57d708697..44bfb76fbad9 100644
---- a/net/xdp/xsk.c
-+++ b/net/xdp/xsk.c
-@@ -739,7 +739,7 @@ static int xsk_mmap(struct file *file, struct socket *sock,
- 	/* Matches the smp_wmb() in xsk_init_queue */
- 	smp_rmb();
- 	qpg = virt_to_head_page(q->ring);
--	if (size > (PAGE_SIZE << compound_order(qpg)))
-+	if (size > page_size(qpg))
- 		return -EINVAL;
+ 		VM_BUG_ON_PAGE(PageActive(page), page);
  
- 	pfn = virt_to_phys(q->ring) >> PAGE_SHIFT;
+-		nr_pages = 1 << compound_order(page);
++		nr_pages = compound_nr(page);
+ 
+ 		/* Account the number of base pages even though THP */
+ 		sc->nr_scanned += nr_pages;
+@@ -1701,7 +1701,7 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
+ 
+ 		VM_BUG_ON_PAGE(!PageLRU(page), page);
+ 
+-		nr_pages = 1 << compound_order(page);
++		nr_pages = compound_nr(page);
+ 		total_scan += nr_pages;
+ 
+ 		if (page_zonenum(page) > sc->reclaim_idx) {
 -- 
 2.20.1
 
