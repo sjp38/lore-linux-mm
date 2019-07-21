@@ -2,182 +2,176 @@ Return-Path: <SRS0=x6gJ=VS=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no
+X-Spam-Status: No, score=-9.6 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3B390C76196
-	for <linux-mm@archiver.kernel.org>; Sun, 21 Jul 2019 10:03:06 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3F398C76188
+	for <linux-mm@archiver.kernel.org>; Sun, 21 Jul 2019 10:46:18 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id F3CE8204FD
-	for <linux-mm@archiver.kernel.org>; Sun, 21 Jul 2019 10:03:05 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F3CE8204FD
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id D3CBF2085A
+	for <linux-mm@archiver.kernel.org>; Sun, 21 Jul 2019 10:46:17 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="Dp5kZOZA"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D3CBF2085A
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 839088E0003; Sun, 21 Jul 2019 06:03:05 -0400 (EDT)
+	id 5CC0C8E0006; Sun, 21 Jul 2019 06:46:17 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7E8886B000A; Sun, 21 Jul 2019 06:03:05 -0400 (EDT)
+	id 556218E0005; Sun, 21 Jul 2019 06:46:17 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6D6AB8E0003; Sun, 21 Jul 2019 06:03:05 -0400 (EDT)
+	id 41CB38E0006; Sun, 21 Jul 2019 06:46:17 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 46B156B0008
-	for <linux-mm@kvack.org>; Sun, 21 Jul 2019 06:03:05 -0400 (EDT)
-Received: by mail-qt1-f197.google.com with SMTP id o11so23958538qtq.10
-        for <linux-mm@kvack.org>; Sun, 21 Jul 2019 03:03:05 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 0BA2B8E0005
+	for <linux-mm@kvack.org>; Sun, 21 Jul 2019 06:46:17 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id m17so12731807pgh.21
+        for <linux-mm@kvack.org>; Sun, 21 Jul 2019 03:46:17 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to;
-        bh=wjOKSVDiw+XcwusxZhkGrJyvZDcfcxwJuCojXRRMth8=;
-        b=S3I+2gIS9rhP4865l1oj9jm508xQEgpnTMPYV9Hg1XxK3jxecc2ar20Bju9vy/7AZw
-         vGUj4reSY3AcrKlXObe84xrT9dco5gbg38IaB8BPk2VdTa7y5nxB8jFg77vGXnFf06sU
-         MPQjAMkyFE7pxsZEhi2wYeH2ebWfsdCJHCDE8+/tXtoG8asxnb7xwJOTIBifvYxgYOAf
-         DJr1R5TtaHUQPlvtR7GsqrQNcuZTQkWZI4iJaAFQcXQ1rk5XRdxn5cHqGxMFvJZ3i952
-         Q3peRjtywwWNB9p3qEw1RiWXvNRhkmnn8EomrU7JIyr5S0CBP0ZLTMIbIgIlsoV1c/kZ
-         yh+w==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mst@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=mst@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAXpAqwjOJsm0cm7Bv01/4gwESYnPUDGNd9ZoV5foDvD4MzhDimJ
-	3hcBLMv+tIlZqVUJVtzVCqFSzhNPf6sjd38smixsCBX4uZhXgSryUdxo7LsLymNNDvuEzuyePNM
-	VbZW+jV+o5vgSVNhG4ZYlEYtMHpX5ILmvlGvCysvRDF6NshrbxzUAYlN5xodTtxJAog==
-X-Received: by 2002:ac8:2e14:: with SMTP id r20mr46054898qta.241.1563703385055;
-        Sun, 21 Jul 2019 03:03:05 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxUeXmHFozwS9wMAhhzhz/FmgrLYmkzvHw44cqICUj4deQfd4R9LsA6OIGj1dp/y9o5FC70
-X-Received: by 2002:ac8:2e14:: with SMTP id r20mr46054846qta.241.1563703384306;
-        Sun, 21 Jul 2019 03:03:04 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563703384; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=n/2VHsc+nvnGVRHIDyk7RkyeOeUNMmmMgaK72876yAU=;
+        b=rbY6B9bqQRKJgs7rNSv4zvxIy4pbpzWT1/GFYAC7FqzZInefJej9lfhUtYFC7983la
+         OTayqpr85EckZ6FWnd0j9JZOR9sOeU16LXvRQ7en5kxTv627clsevhaZYnPN+3/tXcMf
+         cyiMogjy4DP0wERLMsd5mZbX7DivlX3t8gQHKi5UCKSoVi3lNGCfTZ+ohUJ+tuaD6/TY
+         dCLlnhSPijdJZ4hQMaoerAmh/Dyo2yMNYx1kWulhz+d81rUxHoXSIHDZczsdOm9Nr7mm
+         yC1+xS8QRz8yxbpjv1DRCsRjK93ey2br2DoG+AoQ2o2p5xhDa3MLYEgWLWbEBOy8VK38
+         LnWw==
+X-Gm-Message-State: APjAAAV8UxVah91elbokBEH/+udVjvl5Uw0dp8XOVLoMFy9ntWvRp9IG
+	oMg73BVfJTTBQq5dH4f03Rc/lccPaKBoiwCPqJZIsbDQFVHCKOf4RTz669HKb9z1WZsgE5fg1P8
+	c7byRc5iYG7g4czGT8DMaXRfFQKfAL7w/Ib7bKFGdfRCViNAXuFbisXY5Rr+TfuJZ8Q==
+X-Received: by 2002:a17:902:8a94:: with SMTP id p20mr68951512plo.312.1563705976589;
+        Sun, 21 Jul 2019 03:46:16 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxQZPDCyxD48EAgwB+E4s91ivOMaVQVNWHtEa2Ov3DXHfi/JKrReEdaOE2wpv7CyseSuWwg
+X-Received: by 2002:a17:902:8a94:: with SMTP id p20mr68951467plo.312.1563705975829;
+        Sun, 21 Jul 2019 03:46:15 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563705975; cv=none;
         d=google.com; s=arc-20160816;
-        b=X+8+UVr7j46RanBRyALpFCpjwR1p6UxdVMY2BVai3Yw6ekuD56dknOhVuUsP3W9n4d
-         tgNLbzT5ie8sdYvoUJPC2eiZ4s9iQuByDtDfl+XO/18dVvrUmb0HCEmWqf0apTCVj0/a
-         zxQ5MYNtxAHRek1t1RBNNpOVvNHG0LX+4WLriCUWNgMiXekr+fVxXUWabEft+UwwMWL4
-         JjhW/1WyVXZXr6yKehSlhlHltsmyNBC3fMr2S/jg0yUWxk/k7GHczHLjO1ZbGwNf0cA5
-         a2uNxVh6o/MsX/OWrCb1uX0HUM+kRNcZkeJFZarqM9hpL7kjWUfNIkOW9Nk2g8mWOsxX
-         gWTQ==
+        b=T4SkMyCMJ41z7wA3346KF9JoZI2mQblXZnrKXOa7ZJdWmFUb0PDr+8LMPXJMHnD9iG
+         s7uQ1UPUI17UMEF965GD9IvSGtdKBYsaHhzOPY0MhBJHzX5vHdiCS46SJW9P0wpYTgWf
+         wgXwMrJ6zko5lTGc+fkSNxyF3G9YnvrbeaVkkTWMLd7iS+QBb85DTCgItlHIifXn3JSC
+         id7LkyRYTOL+m8+vwW2RpXNzTT2JEs9S8Zbv6jarSPmICoVpTdEKArULwV0kWcBbWH+l
+         L5mDssKuYJiwJqXiZBMgyqZRxmLIg4u7ERxzVsAawBYvfKL/EV9yBfh5WdecRr1hNJfC
+         oxEA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=in-reply-to:content-disposition:mime-version:references:message-id
-         :subject:cc:to:from:date;
-        bh=wjOKSVDiw+XcwusxZhkGrJyvZDcfcxwJuCojXRRMth8=;
-        b=e37/nEVIAbCUz0/A+6UDigd/5oxbPb7yv6H6FUEWO3N4/2Q8beVBGAQkvPfw1g0DSV
-         yWN2tOYwaCp0lIyheaH8dAa8NjxKz1pkl1gfc9DX9UhwtW5sUGaS3AnV8JjOy9fFjvA1
-         01NGp3itN2n/NpqB96mwvipnhs3xPy7qDnIW8tT2gkLu5Ciki9K1g9+Fcq7cELAHE6cQ
-         NEAKbNcx35C9lgQ2T5HkiBbdUz95hPiuvdEvEAwU8HoG6wF8h3/ANG/+1pEHQ8JqOvfq
-         ZGY3drZNJgoptoJdAznyw2OSwJK3zNw9xPQeTKGUFOww9XIbRk40nB9L/moViZ6y0TVo
-         Htdg==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:date:subject:cc:to:from:dkim-signature;
+        bh=n/2VHsc+nvnGVRHIDyk7RkyeOeUNMmmMgaK72876yAU=;
+        b=vkGLv0iN4I72LTFP5l1S5lOaUe/bErte9G9gWG5xXg5HDkw3ZduLcZ3wdmRLrmPjMR
+         joZR/R12nA9/6PRLDx/S8Jr3n0W1cSMobt3GgOg84ET88RktFE+jHHoFw9AiUtcA0yeh
+         EmWwWXXnZbIhCs0/ZzVcEHlghq3/hDW3tQxmmimZvIJnNSe2lnk0bowrmSG4zP9L/y+8
+         YN7MbREfxDzlI5eQQ+IJiD90S6P0W+iCyu2YfVqK5eskWRHRaN/rSJi7YJkZJvMe1zmH
+         lFeStInUc5nulipra7hmqVVXbEDPhej2Y08VagOSNj4dgVTy0ja3q4Npv/mNTB2uPNg8
+         nYRA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of mst@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=mst@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id o8si24976372qtm.263.2019.07.21.03.03.04
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=Dp5kZOZA;
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id j1si5371906pfr.52.2019.07.21.03.46.15
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 21 Jul 2019 03:03:04 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mst@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Sun, 21 Jul 2019 03:46:15 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of mst@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=mst@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 30E3F4E908;
-	Sun, 21 Jul 2019 10:03:03 +0000 (UTC)
-Received: from redhat.com (ovpn-120-23.rdu2.redhat.com [10.10.120.23])
-	by smtp.corp.redhat.com (Postfix) with SMTP id 69DA95F7C0;
-	Sun, 21 Jul 2019 10:02:54 +0000 (UTC)
-Date: Sun, 21 Jul 2019 06:02:52 -0400
-From: "Michael S. Tsirkin" <mst@redhat.com>
-To: syzbot <syzbot+e58112d71f77113ddb7b@syzkaller.appspotmail.com>
-Cc: aarcange@redhat.com, akpm@linux-foundation.org, christian@brauner.io,
-	davem@davemloft.net, ebiederm@xmission.com,
-	elena.reshetova@intel.com, guro@fb.com, hch@infradead.org,
-	james.bottomley@hansenpartnership.com, jasowang@redhat.com,
-	jglisse@redhat.com, keescook@chromium.org, ldv@altlinux.org,
-	linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org,
-	linux-mm@kvack.org, linux-parisc@vger.kernel.org,
-	luto@amacapital.net, mhocko@suse.com, mingo@kernel.org,
-	namit@vmware.com, peterz@infradead.org,
-	syzkaller-bugs@googlegroups.com, viro@zeniv.linux.org.uk,
-	wad@chromium.org
-Subject: Re: WARNING in __mmdrop
-Message-ID: <20190721044615-mutt-send-email-mst@kernel.org>
-References: <0000000000008dd6bb058e006938@google.com>
- <000000000000964b0d058e1a0483@google.com>
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=Dp5kZOZA;
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=Content-Transfer-Encoding:
+	MIME-Version:References:In-Reply-To:Message-Id:Date:Subject:Cc:To:From:Sender
+	:Reply-To:Content-Type:Content-ID:Content-Description:Resent-Date:Resent-From
+	:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:List-Help:
+	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	bh=n/2VHsc+nvnGVRHIDyk7RkyeOeUNMmmMgaK72876yAU=; b=Dp5kZOZA90ifh7qp+w2f6pHi++
+	xXHj9tUP4uJgKj+cY7zrZAXCNjqnPz6CQsKvTSIQYyWrMGbvLbDVWdSoxQ5eouhkWtGBtvr8KSE+k
+	guMlY5fXIMdjtG1LY64Cdx3FJPFXrdHDalivdzbEWYmJvzaIhtJpI0UvZbqTGCmO4jDulIK+h299Y
+	SpIU5xlgM8UW2+bzNIzJBGOsZdh1l3Yg8FIY8g6z3D0DudY3321qfukqabK0IYppygUJQI2hD5qF7
+	Q6qDN+pjs4T4mWd4IaxFOm9kvB+DouYVRpMXuUOVWj7YO0CvSavN+kxEBxEaecx7mvXfTF0va9I3V
+	HVPme7fA==;
+Received: from willy by bombadil.infradead.org with local (Exim 4.92 #3 (Red Hat Linux))
+	id 1hp9M6-000504-Pd; Sun, 21 Jul 2019 10:46:14 +0000
+From: Matthew Wilcox <willy@infradead.org>
+To: Andrew Morton <akpm@linux-foundation.org>,
+	linux-mm@kvack.org
+Cc: "Matthew Wilcox (Oracle)" <willy@infradead.org>
+Subject: [PATCH v2 2/3] mm: Introduce page_shift()
+Date: Sun, 21 Jul 2019 03:46:11 -0700
+Message-Id: <20190721104612.19120-3-willy@infradead.org>
+X-Mailer: git-send-email 2.21.0
+In-Reply-To: <20190721104612.19120-1-willy@infradead.org>
+References: <20190721104612.19120-1-willy@infradead.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <000000000000964b0d058e1a0483@google.com>
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.38]); Sun, 21 Jul 2019 10:03:03 +0000 (UTC)
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Jul 20, 2019 at 03:08:00AM -0700, syzbot wrote:
-> syzbot has bisected this bug to:
-> 
-> commit 7f466032dc9e5a61217f22ea34b2df932786bbfc
-> Author: Jason Wang <jasowang@redhat.com>
-> Date:   Fri May 24 08:12:18 2019 +0000
-> 
->     vhost: access vq metadata through kernel virtual address
-> 
-> bisection log:  https://syzkaller.appspot.com/x/bisect.txt?x=149a8a20600000
-> start commit:   6d21a41b Add linux-next specific files for 20190718
-> git tree:       linux-next
-> final crash:    https://syzkaller.appspot.com/x/report.txt?x=169a8a20600000
-> console output: https://syzkaller.appspot.com/x/log.txt?x=129a8a20600000
-> kernel config:  https://syzkaller.appspot.com/x/.config?x=3430a151e1452331
-> dashboard link: https://syzkaller.appspot.com/bug?extid=e58112d71f77113ddb7b
-> syz repro:      https://syzkaller.appspot.com/x/repro.syz?x=10139e68600000
-> 
-> Reported-by: syzbot+e58112d71f77113ddb7b@syzkaller.appspotmail.com
-> Fixes: 7f466032dc9e ("vhost: access vq metadata through kernel virtual
-> address")
-> 
-> For information about bisection process see: https://goo.gl/tpsmEJ#bisection
+From: "Matthew Wilcox (Oracle)" <willy@infradead.org>
 
+Replace PAGE_SHIFT + compound_order(page) with the new page_shift()
+function.  Minor improvements in readability.
 
-OK I poked at this for a bit, I see several things that
-we need to fix, though I'm not yet sure it's the reason for
-the failures:
+Signed-off-by: Matthew Wilcox (Oracle) <willy@infradead.org>
+---
+ arch/powerpc/mm/book3s64/iommu_api.c | 7 ++-----
+ drivers/vfio/vfio_iommu_spapr_tce.c  | 2 +-
+ include/linux/mm.h                   | 6 ++++++
+ 3 files changed, 9 insertions(+), 6 deletions(-)
 
-
-1. mmu_notifier_register shouldn't be called from vhost_vring_set_num_addr
-   That's just a bad hack, in particular I don't think device
-   mutex is taken and so poking at two VQs will corrupt
-   memory.
-   So what to do? How about a per vq notifier?
-   Of course we also have synchronize_rcu
-   in the notifier which is slow and is now going to be called twice.
-   I think call_rcu would be more appropriate here.
-   We then need rcu_barrier on module unload.
-   OTOH if we make pages linear with map then we are good
-   with kfree_rcu which is even nicer.
-
-2. Doesn't map leak after vhost_map_unprefetch?
-   And why does it poke at contents of the map?
-   No one should use it right?
-
-3. notifier unregister happens last in vhost_dev_cleanup,
-   but register happens first. This looks wrong to me.
-
-4. OK so we use the invalidate count to try and detect that
-   some invalidate is in progress.
-   I am not 100% sure why do we care.
-   Assuming we do, uaddr can change between start and end
-   and then the counter can get negative, or generally
-   out of sync.
-
-So what to do about all this?
-I am inclined to say let's just drop the uaddr optimization
-for now. E.g. kvm invalidates unconditionally.
-3 should be fixed independently.
-
-
+diff --git a/arch/powerpc/mm/book3s64/iommu_api.c b/arch/powerpc/mm/book3s64/iommu_api.c
+index b056cae3388b..56cc84520577 100644
+--- a/arch/powerpc/mm/book3s64/iommu_api.c
++++ b/arch/powerpc/mm/book3s64/iommu_api.c
+@@ -129,11 +129,8 @@ static long mm_iommu_do_alloc(struct mm_struct *mm, unsigned long ua,
+ 		 * Allow to use larger than 64k IOMMU pages. Only do that
+ 		 * if we are backed by hugetlb.
+ 		 */
+-		if ((mem->pageshift > PAGE_SHIFT) && PageHuge(page)) {
+-			struct page *head = compound_head(page);
+-
+-			pageshift = compound_order(head) + PAGE_SHIFT;
+-		}
++		if ((mem->pageshift > PAGE_SHIFT) && PageHuge(page))
++			pageshift = page_shift(compound_head(page));
+ 		mem->pageshift = min(mem->pageshift, pageshift);
+ 		/*
+ 		 * We don't need struct page reference any more, switch
+diff --git a/drivers/vfio/vfio_iommu_spapr_tce.c b/drivers/vfio/vfio_iommu_spapr_tce.c
+index 8ce9ad21129f..1883fd2901b2 100644
+--- a/drivers/vfio/vfio_iommu_spapr_tce.c
++++ b/drivers/vfio/vfio_iommu_spapr_tce.c
+@@ -190,7 +190,7 @@ static bool tce_page_is_contained(struct mm_struct *mm, unsigned long hpa,
+ 	 * a page we just found. Otherwise the hardware can get access to
+ 	 * a bigger memory chunk that it should.
+ 	 */
+-	return (PAGE_SHIFT + compound_order(compound_head(page))) >= page_shift;
++	return page_shift(compound_head(page)) >= page_shift;
+ }
+ 
+ static inline bool tce_groups_attached(struct tce_container *container)
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 899dfcf7c23d..64762559885f 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -811,6 +811,12 @@ static inline unsigned long page_size(struct page *page)
+ 	return PAGE_SIZE << compound_order(page);
+ }
+ 
++/* Returns the number of bits needed for the number of bytes in a page */
++static inline unsigned int page_shift(struct page *page)
++{
++	return PAGE_SHIFT + compound_order(page);
++}
++
+ void free_compound_page(struct page *page);
+ 
+ #ifdef CONFIG_MMU
 -- 
-MST
+2.20.1
 
