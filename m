@@ -2,121 +2,125 @@ Return-Path: <SRS0=x6gJ=VS=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-8.1 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1C2B3C76196
-	for <linux-mm@archiver.kernel.org>; Sun, 21 Jul 2019 14:29:37 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C1ECDC76188
+	for <linux-mm@archiver.kernel.org>; Sun, 21 Jul 2019 15:06:42 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D819C20823
-	for <linux-mm@archiver.kernel.org>; Sun, 21 Jul 2019 14:29:36 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 7C60B2085A
+	for <linux-mm@archiver.kernel.org>; Sun, 21 Jul 2019 15:06:42 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="A/dM8JvS"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D819C20823
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="ybO7AB+a"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7C60B2085A
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 74CDC8E000D; Sun, 21 Jul 2019 10:29:36 -0400 (EDT)
+	id 164578E000E; Sun, 21 Jul 2019 11:06:42 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6FE3C8E0005; Sun, 21 Jul 2019 10:29:36 -0400 (EDT)
+	id 115B88E0005; Sun, 21 Jul 2019 11:06:42 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 613458E000D; Sun, 21 Jul 2019 10:29:36 -0400 (EDT)
+	id F1F3C8E000E; Sun, 21 Jul 2019 11:06:41 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 2A2CE8E0005
-	for <linux-mm@kvack.org>; Sun, 21 Jul 2019 10:29:36 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id b18so21899249pgg.8
-        for <linux-mm@kvack.org>; Sun, 21 Jul 2019 07:29:36 -0700 (PDT)
+Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
+	by kanga.kvack.org (Postfix) with ESMTP id D3B528E0005
+	for <linux-mm@kvack.org>; Sun, 21 Jul 2019 11:06:41 -0400 (EDT)
+Received: by mail-io1-f70.google.com with SMTP id k21so40635576ioj.3
+        for <linux-mm@kvack.org>; Sun, 21 Jul 2019 08:06:41 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:mime-version:content-disposition:user-agent;
-        bh=yHWPM2A483B1PZNTU1st8pnTTNAs2xN+6BFUgiVJMFo=;
-        b=bZBQ6ABAkc6y1NtaBwTSyxlguIlv0aBkJGan2OAaO9VHYulvPpA5M++J+b6zIn4FfT
-         piKWYUdvfFwd7mNdg8OZ/bRAeQzOzUN8rTJc96rQD3m02fKSBRBF6LkYcIZ0XPbuT5Xq
-         9gewHISRpj8eugQHswoxvvygmQklADfDskwsRvfAJR8kRFQkSsblZOtNZSJZk1pCGOqs
-         OwtKTINxcv414d4AysbDvOO0sLd08uo9cYlmjjUn7M0i5Dualt8GhLej+NhYwjDP7D1r
-         Dwph1wNno+n5nB1oActKnNLu6vlEjoORQY6nFGbjnyEm0VfW3lIqEVvtIG8owE80S0LE
-         bqsQ==
-X-Gm-Message-State: APjAAAUYLujUFdePtaTrELnSus7hYVdET4Z2s7pVI/dMA5hHZu9czFpi
-	AV6OpBBcYlfRzc3LdxeUExn1lkuxQJAPaWTZapwCVE6WhV5BwjOp7ma//vIMKusV3xPG9WQdLK9
-	g+LNjCW8wLOol6oqzVTTAfL6GeXYjk/LvY5LOriox9v75PoMqiqinbztRGjRABu9g9A==
-X-Received: by 2002:a65:6552:: with SMTP id a18mr57038105pgw.208.1563719375558;
-        Sun, 21 Jul 2019 07:29:35 -0700 (PDT)
-X-Received: by 2002:a65:6552:: with SMTP id a18mr57038018pgw.208.1563719374317;
-        Sun, 21 Jul 2019 07:29:34 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563719374; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+         :message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=Xzf3C3a2m6td7Np6fZ3Mj/D4mc5h5cUfrrEHhJ1w5sk=;
+        b=A9ZYMV88oPGuob6lL0l67jeWA2GJj6QSLpBGFTyq+X7VungUVByX6PHC1E4Z3cQHic
+         T0WOHGDJgtk63wVt5jP3xUalqAGjsLfqRo9OuX699OridSTr9GdI3gk0mxv+FHvPExSN
+         UkLNr+tTW9Hahv+ClvoKOZuOYmL5d7HlO1T8IVZ62E1Phu2iwZDbzWQrpMmxUSlHbmyd
+         vbJ3WQYJrakhBM7a7IIQ6OXm+rgYRJxa8XCe16gyzaVs5BhFr4YFBbPTfK70KOwqI2mp
+         Efvki8OcPKqUctHAncaK+kuHHaciOuvBjNHc+3xdvrfOLPL6w/gXcbRIoriwYhYiwdQk
+         6syw==
+X-Gm-Message-State: APjAAAWgbrr/ggjZlGA0xc+LSGti3cj5oi2ik741tk0lqVG/GCldRhBj
+	eWYnPsFpcrQfW7dJkppkPvUCGtsyGtMiOr0SjlCyETJV/qfT++jSC50nvX2asfCt8KdrNzwDNpu
+	YpqykxfDZVBAHKoS0CFiOJ2DqeVF99APW7tcTQYt8kY0D/ZXMknS4RHuyk0re+fJ7fw==
+X-Received: by 2002:a6b:b602:: with SMTP id g2mr59630852iof.54.1563721601549;
+        Sun, 21 Jul 2019 08:06:41 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqysnRwxwPOBRxXSQ2nv1kptih2wwqo4VLnHRdtEwzLkrKDtHFavfWSkR/JB9JenoYkMUYM7
+X-Received: by 2002:a6b:b602:: with SMTP id g2mr59630802iof.54.1563721600754;
+        Sun, 21 Jul 2019 08:06:40 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563721600; cv=none;
         d=google.com; s=arc-20160816;
-        b=mlyQ+jQEGtT0OZzkUq1TuGjelynLJ6bqUXItYve/FKw28hDOZhPiQa58dDRx1Wj7M2
-         U7hjKXarJ5AqTsIG8dmySZ8rCr5pGM3twBMW8KsEdfC5QlVeA/LgvFyAXQinsyOMwKMi
-         SX7iK1daFiF55ihOdUdTh7lU6Mu5wf72pbz0vi2GhwWh7fUjM03hnMeLpszYtS8p9wiA
-         mvGN2LY0URjUF9xYTBqBRwos4m9K0uXVvIZiYvJDjMWIRJcZSrmtnMjfohyTKXo09g8E
-         uz500oOKOcX10LOeg1lHsjUo1vTOO2179WS8Oo0PndlXSkuN6pZbthm00/B97pVbkhei
-         inbw==
+        b=jsgtiUT2W1oPbkknYVAbilF+/GCmakeA4QPjH2QbymTxvOLIdckYEY6jwmTR+FbsJD
+         15XzD+T32ctqXMpZoG94x3aMjySV8c+cnjKJpR7YsR09DMFeLpEktFKHvQJEj9f4zUt9
+         75tV1Chpwt5dqt4Hh//fuA1mEoS9/yFW4knkcotqoT0fyvYnAiRoKN+j8aYRCOIxPLzR
+         uaTjCkwRqjZAfMPCj8JTTCrDZ/YPWBNrWVStNU+mkp6zVfZpm9l5BDGvEVFBnM7K/cxC
+         DDE3QGAbdql01jOeu5dSInHX0DGfvRcbV4ja+06Bc0opPqcamWddmxjXlpioXdhsrZbo
+         Oqxg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:content-disposition:mime-version:message-id:subject:cc
-         :to:from:date:dkim-signature;
-        bh=yHWPM2A483B1PZNTU1st8pnTTNAs2xN+6BFUgiVJMFo=;
-        b=K+MeYHBHrjobhdq6wE7sUePuoCGe7M/nWaLbrB4wsoBAsfsGmFdnLkkhT0MJK9ZJ6g
-         EBP6N1Qu2SjtxGqtj8+6vFR68V+mhJJDVbJdZWJ9EjtKC6koZuEuvFf0gXlJv8aKCu9A
-         BZZFy7qQESyQmoiSB2f5PVBhwhn7kyb0QONgB86JaJeY9fl3gawFohUaUlZRaB5XDHen
-         bkLLYJWni28THndSlNBn6pdGYM/+0KU0emP6zosUyWSc2la78cS3OJT6xNlGGoVkZSGm
-         F67628irO/AHGehztvOzd/ka+WX5yEX6ywsROSGrCqK7IKup28RBd0268NyY6j7O9BH3
-         C3OA==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject
+         :dkim-signature;
+        bh=Xzf3C3a2m6td7Np6fZ3Mj/D4mc5h5cUfrrEHhJ1w5sk=;
+        b=CjiP5oQeG75ZPlyziW0ysMHX4rrBbipCGmXvYSOk5IT1ULTEksZqKWZ1zoWOfO4YVZ
+         E3iif/T8QEzI/SdnIkQRKAftf2lSlCwuWJUkjQCR7YLoV0uY9JLmbc5Ca104+ahPIJDZ
+         zD8aWv1ps9b5vQ1xVJq24zWFYbmmANr8zu+VoYVGjw3w+MRXMIyU4WnKxxWM6rgLGtAI
+         cQ6+q/UjJ65HFb5ihHXPzoHU1MkYSZxrbT+O+qzGeovzM69OA15DcHBCupBNpdJBOcGM
+         Rm5V7yiaAiymTIP4kemYyVLA+9ttB3BSXGzYX0+7Mt+nBqbkVsmufLvWXCPRemDxFSIL
+         lCUQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b="A/dM8JvS";
-       spf=pass (google.com: domain of sergey.senozhatsky@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=sergey.senozhatsky@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v138sor19699092pfc.40.2019.07.21.07.29.34
+       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=ybO7AB+a;
+       spf=pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=rdunlap@infradead.org
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
+        by mx.google.com with ESMTPS id o4si58509734jao.68.2019.07.21.08.06.38
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sun, 21 Jul 2019 07:29:34 -0700 (PDT)
-Received-SPF: pass (google.com: domain of sergey.senozhatsky@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b="A/dM8JvS";
-       spf=pass (google.com: domain of sergey.senozhatsky@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=sergey.senozhatsky@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=date:from:to:cc:subject:message-id:mime-version:content-disposition
-         :user-agent;
-        bh=yHWPM2A483B1PZNTU1st8pnTTNAs2xN+6BFUgiVJMFo=;
-        b=A/dM8JvSApyy0k2jvqWLMGfriCPKzB08cruBW99KLNKiKTAghXcZHNG33tD6/5fIrL
-         TJx99kczxZfm2Y3Bd9eRykoMlCkxEKTyw4S9nAsQoSEgYGy47zlWzVa/8mtROXUXYNld
-         fK/1iVE2Qqbb9db8cHw/9GiBg9JHAhXlrH4DU9IsjTcepZgAr47Z1Qk4GohtQAbbwTI6
-         WLjxPNKrfU9E9RNUYuhk9/j343Ur1Q36lnrtwEtj5Je17F6AXTACPBPHjT9kcrXcz4IG
-         dtnxEWfOZeVlYwtj/Kbc7LAAgAvfw38MkDGFF26gBGbyPyt/BPwlUeh7TYhi+tlCx226
-         ZstA==
-X-Google-Smtp-Source: APXvYqzJ70me8/YjG3iag5xCr5rToFb+3rKTVc2TFFdtKiTWAwKoD3L82P9u1aIVc3eW5aPZcOgdXg==
-X-Received: by 2002:a63:e20a:: with SMTP id q10mr65587674pgh.24.1563719373649;
-        Sun, 21 Jul 2019 07:29:33 -0700 (PDT)
-Received: from localhost ([121.137.63.184])
-        by smtp.gmail.com with ESMTPSA id t9sm3493825pgj.89.2019.07.21.07.29.32
         (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Sun, 21 Jul 2019 07:29:32 -0700 (PDT)
-Date: Sun, 21 Jul 2019 23:29:30 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-To: Jani Nikula <jani.nikula@linux.intel.com>,
-	Joonas Lahtinen <joonas.lahtinen@linux.intel.com>,
-	Rodrigo Vivi <rodrigo.vivi@intel.com>,
-	David Airlie <airlied@linux.ie>, Daniel Vetter <daniel@ffwll.ch>,
-	Hugh Dickins <hughd@google.com>,
-	David Howells <dhowells@redhat.com>,
-	Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
-	intel-gfx@lists.freedesktop.org, dri-devel@lists.freedesktop.org,
-	Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Subject: [linux-next] mm/i915: i915_gemfs_init() NULL dereference
-Message-ID: <20190721142930.GA480@tigerII.localdomain>
+        Sun, 21 Jul 2019 08:06:38 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) client-ip=2001:8b0:10b:1231::1;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=ybO7AB+a;
+       spf=pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=rdunlap@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=merlin.20170209; h=Content-Transfer-Encoding:Content-Type:
+	In-Reply-To:MIME-Version:Date:Message-ID:From:References:Cc:To:Subject:Sender
+	:Reply-To:Content-ID:Content-Description:Resent-Date:Resent-From:
+	Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:List-Help:
+	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	bh=Xzf3C3a2m6td7Np6fZ3Mj/D4mc5h5cUfrrEHhJ1w5sk=; b=ybO7AB+aHQJpYmgqpoN0bIIAj9
+	u8x82O73QHbfDJ1wvx1bEdwvAqOO6ExiffXJBAwE4i7HLHGHFywDY6OUZbRayXrjc1ZvKoyb0zc+y
+	CtqS4oR3WH+7l9qty9Tj5mca5yoX+3zuegc466ZVbYItE16/I9HpmBfHGvMnioVARdSC/WWZ8r2ZF
+	oHuJiUf6/LTP0LbQhOE1fcFtbT+LvHtV1qGHwv6gYaWzCn/WfcpM0AQ6kI+BOftxCgPsUacwAGcHC
+	UAhPHtmWxiFT4v6hy24Hkq+se1RU63eV4Wl7wwQcJF5cFgRBimLrIAZtcTnHHM/UgVKXiamx5gADN
+	jfvqxzSg==;
+Received: from static-50-53-52-16.bvtn.or.frontiernet.net ([50.53.52.16] helo=[192.168.1.17])
+	by merlin.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
+	id 1hpDPT-0001P0-07; Sun, 21 Jul 2019 15:05:59 +0000
+Subject: Re: [PATCH v2 1/3] mm: document zone device struct page field usage
+To: Ralph Campbell <rcampbell@nvidia.com>, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, John Hubbard <jhubbard@nvidia.com>,
+ Matthew Wilcox <willy@infradead.org>, Vlastimil Babka <vbabka@suse.cz>,
+ Christoph Lameter <cl@linux.com>, Dave Hansen <dave.hansen@linux.intel.com>,
+ =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>,
+ "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>,
+ Lai Jiangshan <jiangshanlai@gmail.com>,
+ Martin Schwidefsky <schwidefsky@de.ibm.com>,
+ Pekka Enberg <penberg@kernel.org>, Andrey Ryabinin
+ <aryabinin@virtuozzo.com>, Christoph Hellwig <hch@lst.de>,
+ Jason Gunthorpe <jgg@mellanox.com>, Andrew Morton
+ <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
+References: <20190719192955.30462-1-rcampbell@nvidia.com>
+ <20190719192955.30462-2-rcampbell@nvidia.com>
+From: Randy Dunlap <rdunlap@infradead.org>
+Message-ID: <7002a29c-6fd0-5938-ad0e-807442e6c3cd@infradead.org>
+Date: Sun, 21 Jul 2019 08:05:55 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.2
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-User-Agent: Mutt/1.12.1 (2019-06-15)
+In-Reply-To: <20190719192955.30462-2-rcampbell@nvidia.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
@@ -125,82 +129,107 @@ List-ID: <linux-mm.kvack.org>
 
 Hi,
 
-My laptop oopses early on with nothing on the screen;
-after some debugging I managed to obtain a backtrace:
+On 7/19/19 12:29 PM, Ralph Campbell wrote:
+> Struct page for ZONE_DEVICE private pages uses the page->mapping and
+> and page->index fields while the source anonymous pages are migrated to
+> device private memory. This is so rmap_walk() can find the page when
+> migrating the ZONE_DEVICE private page back to system memory.
+> ZONE_DEVICE pmem backed fsdax pages also use the page->mapping and
+> page->index fields when files are mapped into a process address space.
+> 
+> Restructure struct page and add comments to make this more clear.
+> 
+> Signed-off-by: Ralph Campbell <rcampbell@nvidia.com>
+> Reviewed-by: John Hubbard <jhubbard@nvidia.com>
+> Cc: Matthew Wilcox <willy@infradead.org>
+> Cc: Vlastimil Babka <vbabka@suse.cz>
+> Cc: Christoph Lameter <cl@linux.com>
+> Cc: Dave Hansen <dave.hansen@linux.intel.com>
+> Cc: Jérôme Glisse <jglisse@redhat.com>
+> Cc: "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+> Cc: Lai Jiangshan <jiangshanlai@gmail.com>
+> Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
+> Cc: Pekka Enberg <penberg@kernel.org>
+> Cc: Randy Dunlap <rdunlap@infradead.org>
+> Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>
+> Cc: Christoph Hellwig <hch@lst.de>
+> Cc: Jason Gunthorpe <jgg@mellanox.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Linus Torvalds <torvalds@linux-foundation.org>
+> ---
+>  include/linux/mm_types.h | 42 +++++++++++++++++++++++++++-------------
+>  1 file changed, 29 insertions(+), 13 deletions(-)
+> 
+> diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+> index 3a37a89eb7a7..f6c52e44d40c 100644
+> --- a/include/linux/mm_types.h
+> +++ b/include/linux/mm_types.h
+> @@ -76,13 +76,35 @@ struct page {
+>  	 * avoid collision and false-positive PageTail().
+>  	 */
+>  	union {
+> -		struct {	/* Page cache and anonymous pages */
+> -			/**
+> -			 * @lru: Pageout list, eg. active_list protected by
+> -			 * pgdat->lru_lock.  Sometimes used as a generic list
+> -			 * by the page owner.
+> -			 */
+> -			struct list_head lru;
+> +		struct {	/* Page cache, anonymous, ZONE_DEVICE pages */
+> +			union {
+> +				/**
+> +				 * @lru: Pageout list, e.g., active_list
+> +				 * protected by pgdat->lru_lock. Sometimes
+> +				 * used as a generic list by the page owner.
+> +				 */
+> +				struct list_head lru;
 
- BUG: kernel NULL pointer dereference, address: 0000000000000000
- #PF: supervisor instruction fetch in kernel mode
- #PF: error_code(0x0010) - not-present page
- PGD 0 P4D 0 
- Oops: 0010 [#1] PREEMPT SMP PTI
- RIP: 0010:0x0
- Code: Bad RIP value.
- [..]
- Call Trace:
-  i915_gemfs_init+0x6e/0xa0 [i915]
-  i915_gem_init_early+0x76/0x90 [i915]
-  i915_driver_probe+0x30a/0x1640 [i915]
-  ? kernfs_activate+0x5a/0x80
-  ? kernfs_add_one+0xdd/0x130
-  pci_device_probe+0x9e/0x110
-  really_probe+0xce/0x230
-  driver_probe_device+0x4b/0xc0
-  device_driver_attach+0x4e/0x60
-  __driver_attach+0x47/0xb0
-  ? device_driver_attach+0x60/0x60
-  bus_for_each_dev+0x61/0x90
-  bus_add_driver+0x167/0x1b0
-  driver_register+0x67/0xaa
-  ? 0xffffffffc0522000
-  do_one_initcall+0x37/0x13f
-  ? kmem_cache_alloc+0x11a/0x150
-  do_init_module+0x51/0x200
-  __se_sys_init_module+0xef/0x100
-  do_syscall_64+0x49/0x250
-  entry_SYSCALL_64_after_hwframe+0x44/0xa9
+Did you run this through 'make htmldocs' or anything similar?
+The reason I ask is that the "/**" comment below is not in kernel-doc format AFAICT.
+I would expect an error or warning, but I haven't tested it.
 
-RIP is at 0x00, which is never good
+Thanks.
 
-It sort of boils down to commit 144df3b288c4 (vfs: Convert ramfs,
-shmem, tmpfs, devtmpfs, rootfs to use the new mount API), which
-removed ->remount_fs from tmpfs' ops:
+> +				/**
+> +				 * ZONE_DEVICE pages are never on the lru
+> +				 * list so they reuse the list space.
+> +				 * ZONE_DEVICE private pages are counted as
+> +				 * being mapped so the @mapping and @index
+> +				 * fields are used while the page is migrated
+> +				 * to device private memory.
+> +				 * ZONE_DEVICE MEMORY_DEVICE_FS_DAX pages also
+> +				 * use the @mapping and @index fields when pmem
+> +				 * backed DAX files are mapped.
+> +				 */
+> +				struct {
+> +					/**
+> +					 * @pgmap: Points to the hosting
+> +					 * device page map.
+> +					 */
+> +					struct dev_pagemap *pgmap;
+> +					/** @zone_device_data: opaque data. */
+> +					void *zone_device_data;
+> +				};
+> +			};
+>  			/* See page-flags.h for PAGE_MAPPING_FLAGS */
+>  			struct address_space *mapping;
+>  			pgoff_t index;		/* Our offset within mapping. */
+> @@ -155,12 +177,6 @@ struct page {
+>  			spinlock_t ptl;
+>  #endif
+>  		};
+> -		struct {	/* ZONE_DEVICE pages */
+> -			/** @pgmap: Points to the hosting device page map. */
+> -			struct dev_pagemap *pgmap;
+> -			void *zone_device_data;
+> -			unsigned long _zd_pad_1;	/* uses mapping */
+> -		};
+>  
+>  		/** @rcu_head: You can use this to free a page by RCU. */
+>  		struct rcu_head rcu_head;
+> 
 
-===
-@@ -3736,7 +3849,6 @@ static const struct super_operations shmem_ops = {
-        .destroy_inode  = shmem_destroy_inode,
- #ifdef CONFIG_TMPFS
-        .statfs         = shmem_statfs,
--       .remount_fs     = shmem_remount_fs,
-        .show_options   = shmem_show_options,
- #endif
-        .evict_inode    = shmem_evict_inode,
-===
 
-So i915 init executes NULL
-
-	get_fs_type("tmpfs");
-	sb->s_op->remount_fs(sb, &flags, options);
-
-For the time being the following (obvious and wrong) patch
-at least boots -next:
-
----
-
-diff --git a/drivers/gpu/drm/i915/gem/i915_gemfs.c b/drivers/gpu/drm/i915/gem/i915_gemfs.c
-index 099f3397aada..1f95d9ea319a 100644
---- a/drivers/gpu/drm/i915/gem/i915_gemfs.c
-+++ b/drivers/gpu/drm/i915/gem/i915_gemfs.c
-@@ -39,6 +39,9 @@ int i915_gemfs_init(struct drm_i915_private *i915)
- 		int flags = 0;
- 		int err;
- 
-+		if (!sb->s_op->remount_fs)
-+			return -ENODEV;
-+
- 		err = sb->s_op->remount_fs(sb, &flags, options);
- 		if (err) {
- 			kern_unmount(gemfs);
----
-
-	-ss
+-- 
+~Randy
 
