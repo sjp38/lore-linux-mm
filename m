@@ -2,141 +2,126 @@ Return-Path: <SRS0=x6gJ=VS=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-12.9 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1,USER_IN_DEF_DKIM_WL
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 10E60C76188
-	for <linux-mm@archiver.kernel.org>; Sun, 21 Jul 2019 05:31:23 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E1CA5C76188
+	for <linux-mm@archiver.kernel.org>; Sun, 21 Jul 2019 09:56:56 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9CD802084C
-	for <linux-mm@archiver.kernel.org>; Sun, 21 Jul 2019 05:31:22 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="I6f+R3oq"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9CD802084C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	by mail.kernel.org (Postfix) with ESMTP id 6DED92084C
+	for <linux-mm@archiver.kernel.org>; Sun, 21 Jul 2019 09:56:56 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6DED92084C
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=wanadoo.fr
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 229586B0005; Sun, 21 Jul 2019 01:31:21 -0400 (EDT)
+	id D44FD8E0001; Sun, 21 Jul 2019 05:56:55 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 200776B0006; Sun, 21 Jul 2019 01:31:21 -0400 (EDT)
+	id CF6B86B0008; Sun, 21 Jul 2019 05:56:55 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0F0998E0001; Sun, 21 Jul 2019 01:31:21 -0400 (EDT)
+	id BE4308E0001; Sun, 21 Jul 2019 05:56:55 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D08D06B0005
-	for <linux-mm@kvack.org>; Sun, 21 Jul 2019 01:31:20 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id z1so21444363pfb.7
-        for <linux-mm@kvack.org>; Sat, 20 Jul 2019 22:31:20 -0700 (PDT)
+Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 84C486B0007
+	for <linux-mm@kvack.org>; Sun, 21 Jul 2019 05:56:55 -0400 (EDT)
+Received: by mail-wr1-f72.google.com with SMTP id p13so17626030wru.17
+        for <linux-mm@kvack.org>; Sun, 21 Jul 2019 02:56:55 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :in-reply-to:message-id:references:user-agent:mime-version;
-        bh=0Le7BqRT6Z0VrMYQMdMrccYxW568r9HQRKBhivo1yJg=;
-        b=OR+7hvBX0tqOkKJ/KpS4Ip0fCC1ZJ0h6PPOim0ANFiu/RmW5OwFukMbcvFplhdvOza
-         jl60rLWRgH4sWDCW8AqKB8nVJTr6UmAhfoA6aZCJ3pej23XWukImH26BeGSVfrAvEEox
-         y93ssAxduGtUu+yMUv8K5VviG0tSwMKSh66K98s4gSj4yaAI9GuOWF9c955BtvVHVaRa
-         KKC5seHuKrkGRFKw1+lZ1yGV3mLPhK/nYdWxrk53fHjy9tXImPdvoxXt0RkEuRJTIUTa
-         uU1DJrZXRSN52/4mp137OFzXeXw7pP7jhI2ZrnkU5eX6FKB/EBBJfrebPQ+dPEv4xAP2
-         W1dQ==
-X-Gm-Message-State: APjAAAX+/zGOEtwU5CiA/aezbeytrDf/UQK2DbOet37zkiZDjHtXyf2G
-	YBdEWmlg/RYJXk9Oh2jMVvCvsst76FYVge4192S5o+Io6lpgR9p0iEA2S5b+xESrqoj3udsV2Dl
-	LN9PtOCmBSD2TJ2Nr3p0CUMqGGLMsEWSGuX/ArtUvtyHjthJ9oyEWK1MpvPBsXxTuOA==
-X-Received: by 2002:a17:902:7791:: with SMTP id o17mr68724138pll.27.1563687080375;
-        Sat, 20 Jul 2019 22:31:20 -0700 (PDT)
-X-Received: by 2002:a17:902:7791:: with SMTP id o17mr68724070pll.27.1563687079514;
-        Sat, 20 Jul 2019 22:31:19 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563687079; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:mime-version:content-transfer-encoding;
+        bh=x1og2ZNy3c497vm0LOnwUcH+1uTWURlAy/0lJrYTV7g=;
+        b=JAeFbO2BWqIRtXQ+OmkQ2dNuNiFaYn5Gk5+jqaaNUGXyqVYf/1ro2WWjBh29huH/Xw
+         rlhGxuDPVSQQoR/I7PCrqBfaBNVIBpqg+VWZJ+ju3iHD8GGLxEh97eEMeu9UKWPdPuAe
+         eVFCz74vo9tMziF1MILcAX8S67USxAmaKP2hWmJJ6Aod4siQME+O53TM6uVrBOJcoqHp
+         cL8b0Q4QeBe0ERRF9vJHnU0rlt6j+G6LhG2YTN6RXIEZf4gjOa8EIEhnvpzyDKaX6Lht
+         ziCMDP9arGwxJ879UF1qo23N9N4/Gc518Cddwzeh8pEqFxjtp9/A6mHhie6Pqa1O/2Yg
+         0H3g==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 80.12.242.132 is neither permitted nor denied by best guess record for domain of christophe.jaillet@wanadoo.fr) smtp.mailfrom=christophe.jaillet@wanadoo.fr
+X-Gm-Message-State: APjAAAWw9HA7KtbpWBj3wla5FEi2EF5GNobyLIWFazidthUNBEg2Gbtx
+	ZL2VLupbbq75JQyDo2ZA7gVjEtpObwL+vrQMKZbVCfHD31uVZSpxmbyoljDj2dRP9GohueCM/XI
+	DsVCi6WV5jTp+Djx/to+No9oYJDfp0bYKlCIVBAl/T1rsSpjg3+6fiPoFqtk9q3w=
+X-Received: by 2002:a1c:18d:: with SMTP id 135mr58183441wmb.171.1563703015008;
+        Sun, 21 Jul 2019 02:56:55 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzgHJDrTGfJpAsxJXTE9YFELDkm5VAaPvDV5DksiZm6FMoLzid8pvvY8qRui7OYtOlm0GYi
+X-Received: by 2002:a1c:18d:: with SMTP id 135mr58183401wmb.171.1563703013981;
+        Sun, 21 Jul 2019 02:56:53 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563703013; cv=none;
         d=google.com; s=arc-20160816;
-        b=HqjbQfzY/jzKjPdIJM/ZqXUp8FIK383L5GR8eMt52uTSNoBBx6HcQ/olPhh8rTIXOY
-         MdCV32vQhMokupWqdV7hqqoptV+gjXIjHYP4EgWXx4eA8/Y2MCIlzAu1TMx4LGcHWrVE
-         /GsdE8c9F5jiWjLkOba5OTddoc6bnmqGqiXtN3YYdirXaygiw00waQEJETJ5zWO1xtu3
-         qT9rVhT22c5m3oW/qoTll6FYdzNWBs2QQ80vkKmkzMeVbj61+Om/m68kM305emYBoPAc
-         rkwJWVz5fIWA3j108b0AlQCYEYLGJyoW0gll9nJt9WBysw0mlxsJuCmUMsuVR2iLeoFC
-         9r/Q==
+        b=GaC8zsl8M/gHFE861ZfN14Blp176I32q60QSlm/VhcUnkB4lTMs6H0XjRLNPNnT/+5
+         Qo/hHl93v9WFpAOFEPzkCC7WrlJ82YbAZIIZKAikiOND2dmMl9elDu9E1/vQ3C/YinOe
+         033OR28Ks5OOi5TxaMzBQ8WZwTb2pw/mtE8C1gQLajD+Yhdfih+h5VjETRp9cjt4iKD/
+         HLqIYtoT9mJHSdidhVCSwgJsdZDKSgsI4siqnPJkamuqjMwUanAM7t5GnuLajgQKMrBz
+         DWiyORIRtn2A3QvK2jUeMSGQcOdLbTcz6xvJRi/uOG6EPdDeGiofSdf5EpVYjbE8ew1G
+         a1Zg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:user-agent:references:message-id:in-reply-to:subject
-         :cc:to:from:date:dkim-signature;
-        bh=0Le7BqRT6Z0VrMYQMdMrccYxW568r9HQRKBhivo1yJg=;
-        b=NjgWi1HrPM/uxwTh+N10g+1wNgcHC90XeTVbc8rNwAgfX1GVe7aj0Ok6YVmXmgc4qG
-         ybx0IH18Bjgj4IXaa3gnG95O8uXKqXb+WrG5dhUj0ErqHSkTTGz0Oy5GYuyINGM/5HVY
-         IZMTQ6OmNtU65b+VBdXLnN0DVuUlcibv//tJaLFUfrXd4WZNm+F2T8hcvJsfUzzq//vu
-         tOkXGSOPWhoRqOupcEiUwYGcRxV2NAJPSa8MKyO8WcAKXt+aq7xHU2dJuodYThmMA2Pn
-         SnVjmu9q2TlWaD7MMx8RtEQPzyjDr4n2xkVTdGZEt+25nqrTGabkNpoVggEBf3yhlGwS
-         1yzA==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from;
+        bh=x1og2ZNy3c497vm0LOnwUcH+1uTWURlAy/0lJrYTV7g=;
+        b=vH9iYJD1Ga0s/NEgRHo68/dW0k64KmSuEjOE+h2GV0zFmwy3USr2RB/DvQGbv9Knvl
+         02Czu2LzlTY3heFWySwM5MeX0YO39NhACOG5zxKc5sBXnO5tYJ+mVkKzWZAIKbpa6FbU
+         iPuYxJJbf0CZHx3mRfobER5m/6M+svW2JdWp7cTtlXbMH4+QpSELxGT+IbKZMvSaH2V9
+         ga64idR+UbtfCqu15mcaBbmBE5x0u2wqSbaH48wWUhuy/BJBHIgwKIktrfW57rB4gktU
+         bFRsualX4Lkuk7FmJUlxCbP0WR6H8Yb4oiQqoSXS+naxGy/YkE0V9YoxuVF3vFt/ocEr
+         C9hg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=I6f+R3oq;
-       spf=pass (google.com: domain of rientjes@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=rientjes@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d37sor43518798pla.2.2019.07.20.22.31.19
+       spf=neutral (google.com: 80.12.242.132 is neither permitted nor denied by best guess record for domain of christophe.jaillet@wanadoo.fr) smtp.mailfrom=christophe.jaillet@wanadoo.fr
+Received: from smtp.smtpout.orange.fr (smtp10.smtpout.orange.fr. [80.12.242.132])
+        by mx.google.com with ESMTPS id t131si23659060wmg.59.2019.07.21.02.56.53
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sat, 20 Jul 2019 22:31:19 -0700 (PDT)
-Received-SPF: pass (google.com: domain of rientjes@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sun, 21 Jul 2019 02:56:53 -0700 (PDT)
+Received-SPF: neutral (google.com: 80.12.242.132 is neither permitted nor denied by best guess record for domain of christophe.jaillet@wanadoo.fr) client-ip=80.12.242.132;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=I6f+R3oq;
-       spf=pass (google.com: domain of rientjes@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=rientjes@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=date:from:to:cc:subject:in-reply-to:message-id:references
-         :user-agent:mime-version;
-        bh=0Le7BqRT6Z0VrMYQMdMrccYxW568r9HQRKBhivo1yJg=;
-        b=I6f+R3oqknatK1iJ86QwGrYUdJOvkd9qoPj1qFPvpbX8CZ2XUkdpP/UOZ4yWz/n1c2
-         X8WbLycy1TPVvPobwvAkMEz8K/7u1qn6fFx3mAeF3onx8Yxksxk7f9R7QgDLRySrGTVg
-         R5gn8KyJiVzpAnt7xK9XSJMjCeTcgw1U2SCs1B4tOPp0X8V5eIHwNG0F9JpY8T7Ki4jz
-         Vb4V2DrH42zxoNQU35vboGuRkONu3RuVqanw1W6o80A6E4gxFRYtR20loYVkbRIC0AUu
-         NU5vC9vth9zv5iyUmy4AV+PbS6kRJZd76ElnUdD9BUM1OFNUVjjLOec2eUE3o+TZYm6G
-         rsDg==
-X-Google-Smtp-Source: APXvYqz7cWhPAArR1h2ZbpIlwLg5H+HTAbbJ3obPU9AqRwpJljq/4AhW/XlqOV7mF/jgf+1t7haPtQ==
-X-Received: by 2002:a17:902:aa95:: with SMTP id d21mr65141004plr.185.1563687078830;
-        Sat, 20 Jul 2019 22:31:18 -0700 (PDT)
-Received: from [2620:15c:17:3:3a5:23a7:5e32:4598] ([2620:15c:17:3:3a5:23a7:5e32:4598])
-        by smtp.gmail.com with ESMTPSA id l4sm35574896pff.50.2019.07.20.22.31.17
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Sat, 20 Jul 2019 22:31:18 -0700 (PDT)
-Date: Sat, 20 Jul 2019 22:31:17 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-X-X-Sender: rientjes@chino.kir.corp.google.com
-To: Waiman Long <longman@redhat.com>
-cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, 
-    Joonsoo Kim <iamjoonsoo.kim@lge.com>, 
-    Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, 
-    linux-kernel@vger.kernel.org, Michal Hocko <mhocko@kernel.org>, 
-    Roman Gushchin <guro@fb.com>, Johannes Weiner <hannes@cmpxchg.org>, 
-    Shakeel Butt <shakeelb@google.com>, 
-    Vladimir Davydov <vdavydov.dev@gmail.com>
-Subject: Re: [PATCH] mm, slab: Move memcg_cache_params structure to
- mm/slab.h
-In-Reply-To: <20190718180827.18758-1-longman@redhat.com>
-Message-ID: <alpine.DEB.2.21.1907202231030.163893@chino.kir.corp.google.com>
-References: <20190718180827.18758-1-longman@redhat.com>
-User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
+       spf=neutral (google.com: 80.12.242.132 is neither permitted nor denied by best guess record for domain of christophe.jaillet@wanadoo.fr) smtp.mailfrom=christophe.jaillet@wanadoo.fr
+Received: from localhost.localdomain ([92.140.204.221])
+	by mwinf5d33 with ME
+	id fMwr2000B4n7eLC03MwrcU; Sun, 21 Jul 2019 11:56:53 +0200
+X-ME-Helo: localhost.localdomain
+X-ME-Auth: Y2hyaXN0b3BoZS5qYWlsbGV0QHdhbmFkb28uZnI=
+X-ME-Date: Sun, 21 Jul 2019 11:56:53 +0200
+X-ME-IP: 92.140.204.221
+From: Christophe JAILLET <christophe.jaillet@wanadoo.fr>
+To: dennis@kernel.org,
+	tj@kernel.org,
+	cl@linux.com
+Cc: linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org,
+	kernel-janitors@vger.kernel.org,
+	Christophe JAILLET <christophe.jaillet@wanadoo.fr>
+Subject: [PATCH] percpu: Fix a typo
+Date: Sun, 21 Jul 2019 11:56:33 +0200
+Message-Id: <20190721095633.10979-1-christophe.jaillet@wanadoo.fr>
+X-Mailer: git-send-email 2.20.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+Content-Transfer-Encoding: 8bit
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000015, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 18 Jul 2019, Waiman Long wrote:
+s/perpcu/percpu/
 
-> The memcg_cache_params structure is only embedded into the kmem_cache
-> of slab and slub allocators as defined in slab_def.h and slub_def.h
-> and used internally by mm code. There is no needed to expose it in
-> a public header. So move it from include/linux/slab.h to mm/slab.h.
-> It is just a refactoring patch with no code change.
-> 
-> In fact both the slub_def.h and slab_def.h should be moved into the mm
-> directory as well, but that will probably cause many merge conflicts.
-> 
-> Signed-off-by: Waiman Long <longman@redhat.com>
+Signed-off-by: Christophe JAILLET <christophe.jaillet@wanadoo.fr>
+---
+ mm/percpu.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-Acked-by: David Rientjes <rientjes@google.com>
-
-Thanks Waiman!
+diff --git a/mm/percpu.c b/mm/percpu.c
+index 9821241fdede..febf7c7c888e 100644
+--- a/mm/percpu.c
++++ b/mm/percpu.c
+@@ -2220,7 +2220,7 @@ static void pcpu_dump_alloc_info(const char *lvl,
+  * @base_addr: mapped address
+  *
+  * Initialize the first percpu chunk which contains the kernel static
+- * perpcu area.  This function is to be called from arch percpu area
++ * percpu area.  This function is to be called from arch percpu area
+  * setup path.
+  *
+  * @ai contains all information necessary to initialize the first
+-- 
+2.20.1
 
