@@ -2,235 +2,187 @@ Return-Path: <SRS0=80m6=VT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E37F3C7618F
-	for <linux-mm@archiver.kernel.org>; Mon, 22 Jul 2019 17:53:19 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E67F7C76190
+	for <linux-mm@archiver.kernel.org>; Mon, 22 Jul 2019 18:54:00 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9E326218B0
-	for <linux-mm@archiver.kernel.org>; Mon, 22 Jul 2019 17:53:19 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 8269E2190D
+	for <linux-mm@archiver.kernel.org>; Mon, 22 Jul 2019 18:54:00 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="O5IXMDx+"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9E326218B0
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="HArRmCgk"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8269E2190D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4EB6F6B000A; Mon, 22 Jul 2019 13:53:19 -0400 (EDT)
+	id 9C8106B0003; Mon, 22 Jul 2019 14:53:59 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 49C2E8E0003; Mon, 22 Jul 2019 13:53:19 -0400 (EDT)
+	id 99FAE6B0005; Mon, 22 Jul 2019 14:53:59 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 38B8C8E0001; Mon, 22 Jul 2019 13:53:19 -0400 (EDT)
+	id 8B5248E0001; Mon, 22 Jul 2019 14:53:59 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 019686B000A
-	for <linux-mm@kvack.org>; Mon, 22 Jul 2019 13:53:19 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id e95so20266096plb.9
-        for <linux-mm@kvack.org>; Mon, 22 Jul 2019 10:53:18 -0700 (PDT)
+Received: from mail-yb1-f198.google.com (mail-yb1-f198.google.com [209.85.219.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 6B5F56B0003
+	for <linux-mm@kvack.org>; Mon, 22 Jul 2019 14:53:59 -0400 (EDT)
+Received: by mail-yb1-f198.google.com with SMTP id l2so19820760ybl.18
+        for <linux-mm@kvack.org>; Mon, 22 Jul 2019 11:53:59 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=H7q9PajozpPfkURyyrCsIMllw+YfN7PAIvmTYKCRDl4=;
-        b=ZppfDOIumwNJVv6LGvoK+/g8iBFPH4CkOdSl1KhB1hiGv9hwXAyanf6J7ThI6jrnuZ
-         ZJouvd7Ebq3x8bhXHwVBLoSaNP1VQBuOoyiKpg7YnduygNUCapzflBFLbYPx+nSvSHRx
-         WTLiFpW2rHBT6HjfYK9Mh3M2XydELvCZ20F+Lg/NVZnUK/EBIg7bF3JEnVlN9/faPd3t
-         suCx4JxClyoPTjdBC5REkyeClSbu82Q93JgcICZnTZlktPcEK+d86JgL2AJt13BJHfqq
-         4mNbo6r/k2DheGYxSeK+ZSW/WD5bZQYOeoLB6yQOTB87ksIZvfaAGIdFmtXIaiBg/pBd
-         2WHA==
-X-Gm-Message-State: APjAAAU6LOLddz2Nah7VHAFNECpqMr5BqFlacaYsdI8WqTdYJP40QSFl
-	t3+y+JPf/ymW68o/x98HhPXcEw6dbzomwcLQzfa98KHBod4wDnze8Uu/7XaLnw1yqGKswM9efV5
-	58NWZWqcn/MzbU3zm/aIZMyJbZl34CMUHsnkJx3RtjlUbWiw8kRuAlEMBOH9BojdlAA==
-X-Received: by 2002:aa7:81d9:: with SMTP id c25mr1450177pfn.255.1563817998653;
-        Mon, 22 Jul 2019 10:53:18 -0700 (PDT)
-X-Received: by 2002:aa7:81d9:: with SMTP id c25mr1450137pfn.255.1563817998052;
-        Mon, 22 Jul 2019 10:53:18 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563817998; cv=none;
+        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding:dkim-signature;
+        bh=dVEAb2CGI+Rcq3kPxf1ySX9mPnHE1aqM1bmhIjbORUc=;
+        b=H1bcFrwHUgJJE4gy4mlY4dm3Lr44CDdMIJ5dj0mBfvfQesF/x9EuaTCf0F4oWsmHj5
+         G8Ei3GxgTkiCyRWaCietldPFSIS4TV2bFeNcpU8VeXZzJXhuEvPgvuUbr37wCYbtDZPE
+         a2I5hjn7qwvSj0zN0C+sSFj6MUYFcWgsPP/ejeUH4gBI0McVlP5EZqZ2eXa9qwPvqjP7
+         lc/ocwJ5Nc6yXCQENrj97Z2/ZzKmOg9I6pdoEcauE58dvIIKCaLt0TxJrzNHLaTfBAs1
+         nUgY1dSzelJgxGbArAKhYTqAQnt6WkUzfRdS7SmpcpEtGoG3xWTQwdhfJuCs+OGa62xk
+         +G7w==
+X-Gm-Message-State: APjAAAWTf+Wsz8jG0wX2NiQynQ2akgDDL6VxyAZJszK1LZnnSTbRKDtu
+	TvkMMyZ90OWnz+qn/SKyHK07wIroa6D3qawxgoFnk8RKzFFdghH6dXBgao0YutQ5s6m5OR9zmhv
+	VrIxngVbED5N9Yp+Lx1CXjsdrJ4tjvnXogFRmO/wGHWQj08V0CsUdkrdNH7HvGt+eKQ==
+X-Received: by 2002:a81:a682:: with SMTP id d124mr45202968ywh.302.1563821639142;
+        Mon, 22 Jul 2019 11:53:59 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqy7Hx12bg701kZ/cnvnk387EzvvhvHMLEJjH5DzuWUNcJ2kF6Qcz2SAIwfKp7cwR7Vll8hn
+X-Received: by 2002:a81:a682:: with SMTP id d124mr45202934ywh.302.1563821638315;
+        Mon, 22 Jul 2019 11:53:58 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563821638; cv=none;
         d=google.com; s=arc-20160816;
-        b=u2Jl4me1IONWAEJYi19M7tTOYJ8WhJQzsIE+uQqRuFoGh42FvVYh3xqmVb5EBNaYm7
-         wiEDNiaoU6DDyQJHJ++p7B2chNh3zKMZ1HN4zegcVY9rhjNxG8W6FtYTGOg2v+BZ22BN
-         ea9/Mkk6NKg5G8LfAw+1itk9kB3W6zfe1yxVAXw+ke7GULT9CFPL0tmEpQfcxJZsx7s+
-         2FHf+r+WfdX6v4OCMs/637VUBLxxtjvfzm28x7KAwKjcvl69cGgo5clHlBs40KrR/Hn7
-         nIAdFdMav+us4AMyTH60QguOkb6hO3KU/6Cl+yEidUA4BMYCSQuJOd6evAHEUhuDQU83
-         fNFQ==
+        b=bGi4Vnv4ora33srS2FicT+l8DgwRPZJNn99Pamp3NxOayvObw4U0uqhnf+NbT84omj
+         FnATsWpQZNmSkwqifNygBvQe22xObD9Z51Ao61YSns93D+QQQ/SFJ+wTMTEEu69zPbUW
+         oopsY4CBFYJuzeWsA537GAb/DkmkVtPTipZwlm/V60Kb5rjByErJKcHa8dn0xrX/0lqw
+         350ugUkX2GeszZGlHuVsAVhOmJfs1TaiksoSn7p5fR9lpsYCSOi0d2wCQ9raO6PtghnG
+         OBMM+d2CDgMaZrQRzNK+F8adBBsnGlIg3w+ZLmtaDiYQZFVxr8uwhaIEASZ7kERJKnnU
+         +osQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date:dkim-signature;
-        bh=H7q9PajozpPfkURyyrCsIMllw+YfN7PAIvmTYKCRDl4=;
-        b=LAWf4uOClkDEcnFYBDVd2X1oxPImt4TmA997qVQCEzI7NrFuM4kcja6Mu9bhqMTOJP
-         Hr63XUdtxXJ8/lXz7votBkVVbooyjSij/li24xS7ovrZAV1OnJAmB7WXyxbH8dJ4hyPY
-         x0HaDDFCN2IfX2vDHb+aZRpWm6JPKZ2Rd1bSmwYf7nfTbEkzZIH1NDAZ3uOsnqbLB/kO
-         TKbWjIXQkkvI2CK0TBSpfOLw5cl4mC+KHJRVJNNdxiINdFUsLKKHtsUhhbeO9iNG2z/t
-         1EaIWWX7hNS/XFlzq6RL7nNFuLlfkA+Bpc8YkQbKgJUf5reWuDrb+W1p4IPF45oPRq0j
-         8SPQ==
+        h=dkim-signature:content-transfer-encoding:content-language
+         :in-reply-to:mime-version:user-agent:date:message-id:from:references
+         :cc:to:subject;
+        bh=dVEAb2CGI+Rcq3kPxf1ySX9mPnHE1aqM1bmhIjbORUc=;
+        b=ezKYupflaa9ijk0aLNbpZBTszVEXN54Zot0hr1drkP2gqkBYaeiYJmRO8oMGNUZq1M
+         iGNjJNuBdyHnpDKM6FK7qlzgVUH2I33IwXfElI3XBQtlTjbOmAv2e7xcmUdgRN7L8rWR
+         Ein2m1AN3yK3RX9kFK1rJUjQrlNJ8nThm3qfTPqFvqcDH5vHVzVETYdZGFdA32k1afDT
+         HF/KhpfZPXM5YnChyT/EUZPv5Wk0E4xaWftXJ4JHQBS78uF047RCDDJZJzGIhi6AHJdg
+         wj1rHNci5nEjMD0vzhEI5l6HB8TfAMw9CNMG2PGFu9jcHplnXuDxCZeNGs7m2y4x962e
+         62Lg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=O5IXMDx+;
-       spf=pass (google.com: domain of linux.bhar@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=linux.bhar@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b28sor20816864pgb.4.2019.07.22.10.53.17
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=HArRmCgk;
+       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.65 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
+        by mx.google.com with ESMTPS id e9si2849537ybp.399.2019.07.22.11.53.58
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 22 Jul 2019 10:53:18 -0700 (PDT)
-Received-SPF: pass (google.com: domain of linux.bhar@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=O5IXMDx+;
-       spf=pass (google.com: domain of linux.bhar@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=linux.bhar@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:content-transfer-encoding:in-reply-to
-         :user-agent;
-        bh=H7q9PajozpPfkURyyrCsIMllw+YfN7PAIvmTYKCRDl4=;
-        b=O5IXMDx+fn5jEyxDTI2ZTQIepWM+5O99gQOJBV67iOa2Z6dMIo0zZ5+UuKXsmhlRa+
-         ULSFQxQ5bIai8gmpxq0U+srcKiwWISbz1BGbisQqP703jECx36HB8Eju2SO8EAJIr3Qc
-         JgZPfdvGZLrupJZ9uhyc615Hv0tA8tPlpu4tuk6Ls9zrFrniJ7ctktuI5y3qfNisEoFK
-         qcWln97M/Ch+fjtfkNH8yCIBRqHF0hqY9geXTvNdjsr/dhfhBDfeJSWF97mF+M2eI051
-         F6laRFUzgnsMU/WUtHJqgDlkDjOxVq5Yg3SFPULHYiMa56P99awl35VVu4t9xarXe/2N
-         S98Q==
-X-Google-Smtp-Source: APXvYqy1h6sKN8GMy2YI7tvRjVqEjhAErZfvMhFOYWhVeaRXEXS1uTWl63XmXqpem4Y0jL2fnQ7mZg==
-X-Received: by 2002:a65:6546:: with SMTP id a6mr18008344pgw.220.1563817997653;
-        Mon, 22 Jul 2019 10:53:17 -0700 (PDT)
-Received: from bharath12345-Inspiron-5559 ([103.110.42.34])
-        by smtp.gmail.com with ESMTPSA id z4sm60980856pfg.166.2019.07.22.10.53.14
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 22 Jul 2019 10:53:17 -0700 (PDT)
-Date: Mon, 22 Jul 2019 23:23:11 +0530
-From: Bharath Vedartham <linux.bhar@gmail.com>
-To: John Hubbard <jhubbard@nvidia.com>
-Cc: arnd@arndb.de, sivanich@sgi.com, gregkh@linuxfoundation.org,
-	ira.weiny@intel.com, jglisse@redhat.com,
-	linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Subject: Re: [PATCH 3/3] sgi-gru: Use __get_user_pages_fast in
- atomic_pte_lookup
-Message-ID: <20190722175310.GC12278@bharath12345-Inspiron-5559>
-References: <1563724685-6540-1-git-send-email-linux.bhar@gmail.com>
- <1563724685-6540-4-git-send-email-linux.bhar@gmail.com>
- <c508330d-a5d0-fba3-9dd0-eb820a96ee09@nvidia.com>
+        Mon, 22 Jul 2019 11:53:58 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.65 as permitted sender) client-ip=216.228.121.65;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=HArRmCgk;
+       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.65 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate16.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
+	id <B5d3606400002>; Mon, 22 Jul 2019 11:53:52 -0700
+Received: from hqmail.nvidia.com ([172.20.161.6])
+  by hqpgpgate101.nvidia.com (PGP Universal service);
+  Mon, 22 Jul 2019 11:53:55 -0700
+X-PGP-Universal: processed;
+	by hqpgpgate101.nvidia.com on Mon, 22 Jul 2019 11:53:55 -0700
+Received: from [10.110.48.28] (10.124.1.5) by HQMAIL107.nvidia.com
+ (172.20.187.13) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Mon, 22 Jul
+ 2019 18:53:54 +0000
+Subject: Re: [PATCH 1/3] drivers/gpu/drm/via: convert put_page() to
+ put_user_page*()
+To: Christoph Hellwig <hch@lst.de>, <john.hubbard@gmail.com>
+CC: Andrew Morton <akpm@linux-foundation.org>, Alexander Viro
+	<viro@zeniv.linux.org.uk>, =?UTF-8?B?QmrDtnJuIFTDtnBlbA==?=
+	<bjorn.topel@intel.com>, Boaz Harrosh <boaz@plexistor.com>, Daniel Vetter
+	<daniel@ffwll.ch>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner
+	<david@fromorbit.com>, David Airlie <airlied@linux.ie>, "David S . Miller"
+	<davem@davemloft.net>, Ilya Dryomov <idryomov@gmail.com>, Jan Kara
+	<jack@suse.cz>, Jason Gunthorpe <jgg@ziepe.ca>, Jens Axboe <axboe@kernel.dk>,
+	=?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Johannes Thumshirn
+	<jthumshirn@suse.de>, Magnus Karlsson <magnus.karlsson@intel.com>, Matthew
+ Wilcox <willy@infradead.org>, Miklos Szeredi <miklos@szeredi.hu>, Ming Lei
+	<ming.lei@redhat.com>, Sage Weil <sage@redhat.com>, Santosh Shilimkar
+	<santosh.shilimkar@oracle.com>, Yan Zheng <zyan@redhat.com>,
+	<netdev@vger.kernel.org>, <dri-devel@lists.freedesktop.org>,
+	<linux-mm@kvack.org>, <linux-rdma@vger.kernel.org>, <bpf@vger.kernel.org>,
+	LKML <linux-kernel@vger.kernel.org>
+References: <20190722043012.22945-1-jhubbard@nvidia.com>
+ <20190722043012.22945-2-jhubbard@nvidia.com> <20190722093355.GB29538@lst.de>
+X-Nvconfidentiality: public
+From: John Hubbard <jhubbard@nvidia.com>
+Message-ID: <397ff3e4-e857-037a-1aee-ff6242e024b2@nvidia.com>
+Date: Mon, 22 Jul 2019 11:53:54 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <c508330d-a5d0-fba3-9dd0-eb820a96ee09@nvidia.com>
-User-Agent: Mutt/1.5.24 (2015-08-30)
+In-Reply-To: <20190722093355.GB29538@lst.de>
+X-Originating-IP: [10.124.1.5]
+X-ClientProxiedBy: HQMAIL101.nvidia.com (172.20.187.10) To
+ HQMAIL107.nvidia.com (172.20.187.13)
+Content-Type: text/plain; charset="utf-8"
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
+	t=1563821632; bh=dVEAb2CGI+Rcq3kPxf1ySX9mPnHE1aqM1bmhIjbORUc=;
+	h=X-PGP-Universal:Subject:To:CC:References:X-Nvconfidentiality:From:
+	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
+	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
+	 Content-Transfer-Encoding;
+	b=HArRmCgkrni3Mv1zhHNTOrkORst1xu/RkKpSHN9NJ6eHvsCKnyilmR14o7Vu/72+2
+	 KzGoGeJ5LPaTaA997Z1lTeEX5TN0QxgL9zU0E1stVph1kaJP/CjI3G/fZC7Su8uSDP
+	 zQdMp40Hd3vz1tqkE44dAhr5RuD9olYTaUe61D28D1sEpt/q0j8DDbdv6B2ii7KaIW
+	 3XKa/T3Q4mkn6zgOvtasGsucgAaQQ3F4SWgLkmtCnVrJI8UW8FhQBhBRF+eCjxAZDo
+	 DjdQKgIytgBgEr6BmAqoJ/KeCGoQ826d60sYBB87S4A1fHrwdDnuUDjUmWCd/fqdhR
+	 fU5s088Wpq8BA==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Jul 21, 2019 at 07:32:36PM -0700, John Hubbard wrote:
-> On 7/21/19 8:58 AM, Bharath Vedartham wrote:
-> > *pte_lookup functions get the physical address for a given virtual
-> > address by getting a physical page using gup and use page_to_phys to get
-> > the physical address.
-> > 
-> > Currently, atomic_pte_lookup manually walks the page tables. If this
-> > function fails to get a physical page, it will fall back too
-> > non_atomic_pte_lookup to get a physical page which uses the slow gup
-> > path to get the physical page.
-> > 
-> > Instead of manually walking the page tables use __get_user_pages_fast
-> > which does the same thing and it does not fall back to the slow gup
-> > path.
-> > 
-> > This is largely inspired from kvm code. kvm uses __get_user_pages_fast
-> > in hva_to_pfn_fast function which can run in an atomic context.
-> > 
-> > Cc: Ira Weiny <ira.weiny@intel.com>
-> > Cc: John Hubbard <jhubbard@nvidia.com>
-> > Cc: Jérôme Glisse <jglisse@redhat.com>
-> > Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-> > Cc: Dimitri Sivanich <sivanich@sgi.com>
-> > Cc: Arnd Bergmann <arnd@arndb.de>
-> > Cc: linux-kernel@vger.kernel.org
-> > Cc: linux-mm@kvack.org
-> > Signed-off-by: Bharath Vedartham <linux.bhar@gmail.com>
-> > ---
-> >  drivers/misc/sgi-gru/grufault.c | 39 +++++----------------------------------
-> >  1 file changed, 5 insertions(+), 34 deletions(-)
-> > 
-> > diff --git a/drivers/misc/sgi-gru/grufault.c b/drivers/misc/sgi-gru/grufault.c
-> > index 75108d2..121c9a4 100644
-> > --- a/drivers/misc/sgi-gru/grufault.c
-> > +++ b/drivers/misc/sgi-gru/grufault.c
-> > @@ -202,46 +202,17 @@ static int non_atomic_pte_lookup(struct vm_area_struct *vma,
-> >  static int atomic_pte_lookup(struct vm_area_struct *vma, unsigned long vaddr,
-> >  	int write, unsigned long *paddr, int *pageshift)
-> >  {
-> > -	pgd_t *pgdp;
-> > -	p4d_t *p4dp;
-> > -	pud_t *pudp;
-> > -	pmd_t *pmdp;
-> > -	pte_t pte;
-> > -
-> > -	pgdp = pgd_offset(vma->vm_mm, vaddr);
-> > -	if (unlikely(pgd_none(*pgdp)))
-> > -		goto err;
-> > -
-> > -	p4dp = p4d_offset(pgdp, vaddr);
-> > -	if (unlikely(p4d_none(*p4dp)))
-> > -		goto err;
-> > -
-> > -	pudp = pud_offset(p4dp, vaddr);
-> > -	if (unlikely(pud_none(*pudp)))
-> > -		goto err;
-> > +	struct page *page;
-> >  
-> > -	pmdp = pmd_offset(pudp, vaddr);
-> > -	if (unlikely(pmd_none(*pmdp)))
-> > -		goto err;
-> > -#ifdef CONFIG_X86_64
-> > -	if (unlikely(pmd_large(*pmdp)))
-> > -		pte = *(pte_t *) pmdp;
-> > -	else
-> > -#endif
-> > -		pte = *pte_offset_kernel(pmdp, vaddr);
-> > +	*pageshift = is_vm_hugetlb_page(vma) ? HPAGE_SHIFT : PAGE_SHIFT;
-> >  
-> > -	if (unlikely(!pte_present(pte) ||
-> > -		     (write && (!pte_write(pte) || !pte_dirty(pte)))))
-> > +	if (!__get_user_pages_fast(vaddr, 1, write, &page))
-> >  		return 1;
+On 7/22/19 2:33 AM, Christoph Hellwig wrote:
+> On Sun, Jul 21, 2019 at 09:30:10PM -0700, john.hubbard@gmail.com wrote:
+>>  		for (i = 0; i < vsg->num_pages; ++i) {
+>>  			if (NULL != (page = vsg->pages[i])) {
+>>  				if (!PageReserved(page) && (DMA_FROM_DEVICE == vsg->direction))
+>> -					SetPageDirty(page);
+>> -				put_page(page);
+>> +					put_user_pages_dirty(&page, 1);
+>> +				else
+>> +					put_user_page(page);
+>>  			}
 > 
-> Let's please use numeric, not boolean comparison, for the return value of 
-> gup.
-Alright then! I ll resubmit it!
-> Also, optional: as long as you're there, atomic_pte_lookup() ought to
-> either return a bool (true == success) or an errno, rather than a
-> numeric zero or one.
-That makes sense. But the code which uses atomic_pte_lookup uses the
-return value of 1 for success and failure value of 0 in gru_vtop. That's
-why I did not mess with the return values in this code. It would require
-some change in the driver functionality which I am not ready to do :(
-> Other than that, this looks like a good cleanup, I wonder how many
-> open-coded gup implementations are floating around like this. 
-I ll be on the lookout!
-> thanks,
-> -- 
-> John Hubbard
-> NVIDIA
+> Can't just pass a dirty argument to put_user_pages?  Also do we really
+
+Yes, and in fact that would help a lot more than the single page case,
+which is really just cosmetic after all.
+
+> need a separate put_user_page for the single page case?
+> put_user_pages_dirty?
+
+Not really. I'm still zeroing in on the ideal API for all these call sites,
+and I agree that the approach below is cleaner.
+
 > 
-> >  
-> > -	*paddr = pte_pfn(pte) << PAGE_SHIFT;
-> > -
-> > -	*pageshift = is_vm_hugetlb_page(vma) ? HPAGE_SHIFT : PAGE_SHIFT;
-> > +	*paddr = page_to_phys(page);
-> > +	put_user_page(page);
-> >  
-> >  	return 0;
-> > -
-> > -err:
-> > -	return 1;
-> >  }
-> >  
-> >  static int gru_vtop(struct gru_thread_state *gts, unsigned long vaddr,
-> > 
+> Also the PageReserved check looks bogus, as I can't see how a reserved
+> page can end up here.  So IMHO the above snippled should really look
+> something like this:
+> 
+> 	put_user_pages(vsg->pages[i], vsg->num_pages,
+> 			vsg->direction == DMA_FROM_DEVICE);
+> 
+> in the end.
+> 
+
+Agreed.
+
+thanks,
+-- 
+John Hubbard
+NVIDIA
 
