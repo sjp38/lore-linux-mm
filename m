@@ -2,214 +2,226 @@ Return-Path: <SRS0=80m6=VT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.4 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.2 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
+	SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 29365C76194
-	for <linux-mm@archiver.kernel.org>; Mon, 22 Jul 2019 23:06:14 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 64BEFC76190
+	for <linux-mm@archiver.kernel.org>; Mon, 22 Jul 2019 23:35:35 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E379021955
-	for <linux-mm@archiver.kernel.org>; Mon, 22 Jul 2019 23:06:13 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 100F521951
+	for <linux-mm@archiver.kernel.org>; Mon, 22 Jul 2019 23:35:34 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="ic76KIn3"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E379021955
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
+	dkim=pass (2048-bit key) header.d=cmpxchg-org.20150623.gappssmtp.com header.i=@cmpxchg-org.20150623.gappssmtp.com header.b="U09JlmRF"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 100F521951
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=cmpxchg.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7D07B6B0003; Mon, 22 Jul 2019 19:06:13 -0400 (EDT)
+	id 6CFE26B000A; Mon, 22 Jul 2019 19:35:34 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 781926B0008; Mon, 22 Jul 2019 19:06:13 -0400 (EDT)
+	id 65AF88E0003; Mon, 22 Jul 2019 19:35:34 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6712A8E0001; Mon, 22 Jul 2019 19:06:13 -0400 (EDT)
+	id 5225D8E0001; Mon, 22 Jul 2019 19:35:34 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yb1-f199.google.com (mail-yb1-f199.google.com [209.85.219.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 4707A6B0003
-	for <linux-mm@kvack.org>; Mon, 22 Jul 2019 19:06:13 -0400 (EDT)
-Received: by mail-yb1-f199.google.com with SMTP id a2so19183584ybb.14
-        for <linux-mm@kvack.org>; Mon, 22 Jul 2019 16:06:13 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 199576B000A
+	for <linux-mm@kvack.org>; Mon, 22 Jul 2019 19:35:34 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id j22so24824761pfe.11
+        for <linux-mm@kvack.org>; Mon, 22 Jul 2019 16:35:34 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding:dkim-signature;
-        bh=8L2t5eNHtNZSBlKOQ4UF/BYJB/qKm9Cii8LsBa8jE4c=;
-        b=QYuZwa8A2IhHATfN/6ed66PEjKxQZtDT6MD3m8SdKAEeSSSwyrSi4tokQN8qGVxG+l
-         KlqdGvFypAZNMDym1ZNZnxR5nxLkhKtqyMbRPGm8G9DHBF1t+WgkglvuSv7iO6x3+Eee
-         8goaHrqgsgKyUHgO+QviWRkNlfYEg7S2LQVOpFXhwxXTMAsmtc0KUr/RJEyX+dDTBBGm
-         E76G5VU81C3CdXpaTbb84t5lnVJgoI/F883VZ/SRH0LCHUmVVBGaRUpJbVOYWduYuyZo
-         8vwIRbpRD38hIneFqpdLCtnN4pv6Ka0aj3KwMKa+hjLTLHnari9f6ouCJziXnU3LsLAj
-         YtSA==
-X-Gm-Message-State: APjAAAXESCVaV2fsEzeBWOdRzGqKFfVyk2/k1XOlv7g/gc5oL5D4G5de
-	ZtRMuR3d0Er+VrJYsOKvSp3H8xRnwgb7Er7lFk32O7tLXJFi2dl9utPUE6ayZyj2yfM5oiIl8IH
-	CPlS9Ocgf5TafN2bWcVSRiU/CS1X8UkrLC6+A60gk07agYPvPaZXUqjCLqnYGZPrxVQ==
-X-Received: by 2002:a05:6902:524:: with SMTP id y4mr44489775ybs.438.1563836772967;
-        Mon, 22 Jul 2019 16:06:12 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwWgpcdjB6oBWMurOO423fhouI/eFrqrb9cpBtyTBZbSpR5XbkJed03VMdt3xTqTlTGAWZS
-X-Received: by 2002:a05:6902:524:: with SMTP id y4mr44489734ybs.438.1563836772204;
-        Mon, 22 Jul 2019 16:06:12 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563836772; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=85QgoVCMoUBXEV57x4G0PDzl0QhwTAJz3PR0yob8+QQ=;
+        b=M3+XYFE5+KGsKQCMl6+KdnwFiCpItb/yeWkpbgkRNhtJx9GAFJ+rTFuqqkalGrahsp
+         fDqFv41qx8UZbEBNlY1aeXb1TBfS9//nthh4ZCd4/7Gt7qnPHj5qPpBTyNcN2chskAp3
+         c2YKQBDTvtSctMh4okRxp5NcwnpOfwnGaVgIJTz8wy2OK693eWH/TaQRFPG2wk8ogSmH
+         +Io/bahwpl5H9HHuDgGfGEbzezzGq8f6+r8MlXV3enD4yDDsQlQW9DNLd/kg7Z8UT0fK
+         GEvatVrxSg7q93XO+pKf5po37lepOuCbehiJjbTi1hG7J59ohztqtvlxIntGKLNj3hyO
+         Wvcg==
+X-Gm-Message-State: APjAAAXORYzE9bpmwTriPGmItNJh00iZi/PnQ4C1KoKVefbJ9z0v81O/
+	Ji19gH9kDwwdtKUd4O877ZAhVHyij+S/DPGyRsk3zoPV439lvCqub/ZCza7+sbVGQjw548AYTnP
+	KtEff5MtmQT55RP1hMxPPEtfLbmRotbwymFx2yTET10Yb0rXxpuw2+ABU+BPKlYWA4g==
+X-Received: by 2002:a17:902:b70e:: with SMTP id d14mr77012534pls.309.1563838533616;
+        Mon, 22 Jul 2019 16:35:33 -0700 (PDT)
+X-Received: by 2002:a17:902:b70e:: with SMTP id d14mr77012484pls.309.1563838532721;
+        Mon, 22 Jul 2019 16:35:32 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563838532; cv=none;
         d=google.com; s=arc-20160816;
-        b=rrJT5/0tA5nBBn1HIMFVlQkv3oM2d+t+/NazxC17ozBJ0uvwKdX5PBaIc8Bcs4xVVr
-         P/ClUJbC6JIcg7kt2/DFodkPfjAbpRBwDosIhdOi1/dZifCXqFrbusV6AoYkGfFwo2P9
-         CyxNJHIZeaPtu4ERg84ykIteurYNnvERQ5PAe3RqiN2Y4yx2Cx3ZWK2MQ0gkYJgWkJzG
-         W3sZBgirjDKjf7Pihi77HqmjXHeiqh5tmJdXYRnpM9+Bm3KxAJQ0UJhNBPONDhOHK3Y0
-         ekr3pIaxqyMppB7qMoEUJrF3QGUfahgERfqinzRU/zmS6a76GRHyIIYUwwe7fVD0uGIb
-         Aw7w==
+        b=Lw6ANp4Y+YJdAHXjvhIAIVu0WckJ4N8Sjw1NzDK/e8gjp/74+u1BmRSIAVGi5c1CA8
+         EPl8YOcT0rjVK6xQxbt2WqR4x0oJYhJzbKf8GIGEq+s8yKhax3on2z+xyExgmrn+OTGb
+         jVisPreeAvviVgqB5H2R16hIwMtOPP9GA81PC8l7ykHxRT5iTVUx6cwUagjlr9XBfOOs
+         ZdNh8U7n/CrMQuDfQxr3F6t8ptZbfRKkgQDcWDnRHt+bE8hAlfMpn+RuDw/OhivRMA6d
+         98Ns+eBXGcYxUqnyqTIXdD3aRIRq9OK4N5HLSOruTkBsrw+QwUprGnNmu9xOECNHgPbe
+         QpLQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=dkim-signature:content-transfer-encoding:content-language
-         :in-reply-to:mime-version:user-agent:date:message-id:from:references
-         :cc:to:subject;
-        bh=8L2t5eNHtNZSBlKOQ4UF/BYJB/qKm9Cii8LsBa8jE4c=;
-        b=eDIQvnuusVpaNi4a+aEXhahDuqSHbFm8PP6nBFHSOAuUJJVfpZu9yhPSJ8woTaaykD
-         WLaAHwp3jldi+YdtqQApsHbaXWIe+l0Fb52iBFFALYuONEzdJxAJJFrJINeDQgHyWSqx
-         7TBKl4EAO/tuejTGQe4GhdhkPE4CYV6DwhpJSAN0Vz3v+w/pUPskJUMU3anRAf94xV89
-         X9nsR1ehm+GjKe/1FWae+Dqi8GdoymibsvrxP865H3dqAXdwv8JKPc77gN9iCk6sigA5
-         cY/sNw3p36/1GGZP9ot/5XlRzNpufKudrOIADXmvO7X/EAvtLJ4cPzlfJy9JaL+BYdj4
-         mF4Q==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=85QgoVCMoUBXEV57x4G0PDzl0QhwTAJz3PR0yob8+QQ=;
+        b=zoCcyPGaIozT/Zo3bptzvNHJWk6N4rNC3gqQNQZLU/hx0LbzfRBssjswARMnjl1JZ0
+         N28q0F3AKsqB4MSnbN0OjQkGk12/u5tpTTljAy00/E2zRw6MHoPIVt+Z8f7P+zb7hDoP
+         mooAV34zAXxMa/PCinmwoOVuaG5cO+mwSM/Y/UXANgG10+KH7NtJZPPAL6eBWVBKNX+Q
+         vcGE63GTIHizuFSg/Fbu2i1zjuLImcnjvfjR2Las32ZK+lyVY0pytbMh9XUA/hDirqbT
+         qD//SIwmf+d0ybFWpWqrURQ1dh4baqdNH8cqUuu7X7kTDJp4AMuAwEihDhsF2EKDqDsk
+         kCwA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=ic76KIn3;
-       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.65 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
-        by mx.google.com with ESMTPS id e131si16149633ybb.149.2019.07.22.16.06.11
+       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=U09JlmRF;
+       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 11sor18723616pgh.67.2019.07.22.16.35.30
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 22 Jul 2019 16:06:12 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.65 as permitted sender) client-ip=216.228.121.65;
+        (Google Transport Security);
+        Mon, 22 Jul 2019 16:35:30 -0700 (PDT)
+Received-SPF: pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=ic76KIn3;
-       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.65 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate16.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
-	id <B5d3641600000>; Mon, 22 Jul 2019 16:06:08 -0700
-Received: from hqmail.nvidia.com ([172.20.161.6])
-  by hqpgpgate101.nvidia.com (PGP Universal service);
-  Mon, 22 Jul 2019 16:06:11 -0700
-X-PGP-Universal: processed;
-	by hqpgpgate101.nvidia.com on Mon, 22 Jul 2019 16:06:11 -0700
-Received: from [10.110.48.28] (10.124.1.5) by HQMAIL107.nvidia.com
- (172.20.187.13) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Mon, 22 Jul
- 2019 23:06:10 +0000
-Subject: Re: [PATCH 3/3] sgi-gru: Use __get_user_pages_fast in
- atomic_pte_lookup
-To: Bharath Vedartham <linux.bhar@gmail.com>
-CC: <arnd@arndb.de>, <sivanich@sgi.com>, <gregkh@linuxfoundation.org>,
-	<ira.weiny@intel.com>, <jglisse@redhat.com>, <linux-kernel@vger.kernel.org>,
-	<linux-mm@kvack.org>
-References: <1563724685-6540-1-git-send-email-linux.bhar@gmail.com>
- <1563724685-6540-4-git-send-email-linux.bhar@gmail.com>
- <c508330d-a5d0-fba3-9dd0-eb820a96ee09@nvidia.com>
- <20190722175310.GC12278@bharath12345-Inspiron-5559>
-From: John Hubbard <jhubbard@nvidia.com>
-X-Nvconfidentiality: public
-Message-ID: <15223dd3-8018-65f0-dc0b-aef43945e54e@nvidia.com>
-Date: Mon, 22 Jul 2019 16:06:09 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
+       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=U09JlmRF;
+       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=cmpxchg-org.20150623.gappssmtp.com; s=20150623;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=85QgoVCMoUBXEV57x4G0PDzl0QhwTAJz3PR0yob8+QQ=;
+        b=U09JlmRF+1e0SXt1nVtPE+wsgbeVT+ODWkwh5EDZK/HI2W80i+GnSjYreZoZXSI25X
+         H/SgYIii0FLjAEyz5fr1WEYrj2sBL7nya8427TlnXTltUbOXOAlyW3PNZsaBZvxVlt9p
+         RgLWM5tK8Sx6N9INgAByIFLu9Ox5yaiWxUh//d2f8VulJfzD/2OGyTqkfx1tsYqpi2aZ
+         9pTGAYQZrPIxM09wjYq9BG2H+3Xk4U/1Xw1EXLWHs6+EyDzpF9FgQvWLD1cdX6f1bApk
+         +PT94ubpctMbcTGgGWiIX4I+Bn5Ly+Usy4Fm5gUH2puNJ6ZQxnG4w0K/QY7JYtZ7JJqP
+         eD4w==
+X-Google-Smtp-Source: APXvYqxd+2dzeBJuFB5qvEgV0O6zCpRw01LkZ+IA8kHWZ1vLbAH4HIeBFqUtXGy3QN5SDNyoAA0HPw==
+X-Received: by 2002:a63:188:: with SMTP id 130mr72665111pgb.231.1563838529829;
+        Mon, 22 Jul 2019 16:35:29 -0700 (PDT)
+Received: from localhost ([2620:10d:c091:500::d1c7])
+        by smtp.gmail.com with ESMTPSA id l6sm40554336pga.72.2019.07.22.16.35.28
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Mon, 22 Jul 2019 16:35:29 -0700 (PDT)
+Date: Mon, 22 Jul 2019 19:35:27 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-btrfs@vger.kernel.org,
+	linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org,
+	linux-block@vger.kernel.org, linux-kernel@vger.kernel.org
+Subject: Re: [PATCH] psi: annotate refault stalls from IO submission
+Message-ID: <20190722233527.GA21594@cmpxchg.org>
+References: <20190722201337.19180-1-hannes@cmpxchg.org>
+ <20190722152607.dd175a9d517a5f6af06a8bdc@linux-foundation.org>
 MIME-Version: 1.0
-In-Reply-To: <20190722175310.GC12278@bharath12345-Inspiron-5559>
-X-Originating-IP: [10.124.1.5]
-X-ClientProxiedBy: HQMAIL105.nvidia.com (172.20.187.12) To
- HQMAIL107.nvidia.com (172.20.187.13)
-Content-Type: text/plain; charset="utf-8"
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
-	t=1563836768; bh=8L2t5eNHtNZSBlKOQ4UF/BYJB/qKm9Cii8LsBa8jE4c=;
-	h=X-PGP-Universal:Subject:To:CC:References:From:X-Nvconfidentiality:
-	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
-	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
-	 Content-Transfer-Encoding;
-	b=ic76KIn3tVio6vzVxE2FnWPCYuR7SXKbShoLnDet+7TPVb2NHLdtlV/kDMJCRRg5I
-	 t95iAmFuphbDWTfhJWQVcutfK4K3SSC7t0F07t/GUpbG5ve7mqdnCpz9zM5WVTZl+o
-	 HGCA5yP0OGGXa76TuqLlfEc+S1OholGwzkmaROv5W2B7rQgMJbNC/NEkcDdp4TjjyS
-	 4k83+HfBmE41XSDRriG7l+FvX8LSKEaI56L7iHXvhZ1cFPSFVCko1yx/ukVBFs4KaH
-	 LwwauagCcI6DjUxHcUesRH9e43/t9Wl7Iz+snHAqXnxusLedgIJXzOB3cZRf98KVyL
-	 7I7k+ccEnSXyQ==
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190722152607.dd175a9d517a5f6af06a8bdc@linux-foundation.org>
+User-Agent: Mutt/1.12.0 (2019-05-25)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 7/22/19 10:53 AM, Bharath Vedartham wrote:
-> On Sun, Jul 21, 2019 at 07:32:36PM -0700, John Hubbard wrote:
->> On 7/21/19 8:58 AM, Bharath Vedartham wrote:
-...
+On Mon, Jul 22, 2019 at 03:26:07PM -0700, Andrew Morton wrote:
+> On Mon, 22 Jul 2019 16:13:37 -0400 Johannes Weiner <hannes@cmpxchg.org> wrote:
+> 
+> > psi tracks the time tasks wait for refaulting pages to become
+> > uptodate, but it does not track the time spent submitting the IO. The
+> > submission part can be significant if backing storage is contended or
+> > when cgroup throttling (io.latency) is in effect - a lot of time is
+> > spent in submit_bio(). In that case, we underreport memory pressure.
+> 
+> It's a somewhat broad patch.  How significant is this problem in the
+> real world?  Can we be confident that the end-user benefit is worth the
+> code changes?
 
->> Also, optional: as long as you're there, atomic_pte_lookup() ought to
->> either return a bool (true == success) or an errno, rather than a
->> numeric zero or one.
-> That makes sense. But the code which uses atomic_pte_lookup uses the
-> return value of 1 for success and failure value of 0 in gru_vtop. That's
-> why I did not mess with the return values in this code. It would require
-> some change in the driver functionality which I am not ready to do :(
+The error scales with how aggressively IO is throttled compared to the
+device's capability.
 
-It's a static function with only one caller. You could just merge in
-something like this, on top of what you have:
+For example, we have system maintenance software throttled down pretty
+hard on IO compared to the workload. When memory is contended, the
+system software starts thrashing cache, but since the backing device
+is actually pretty fast, the majority of "io time" is from injected
+throttling delays during submit_bio().
 
-diff --git a/drivers/misc/sgi-gru/grufault.c b/drivers/misc/sgi-gru/grufault.c
-index 121c9a4ccb94..2f768fc06432 100644
---- a/drivers/misc/sgi-gru/grufault.c
-+++ b/drivers/misc/sgi-gru/grufault.c
-@@ -189,10 +189,11 @@ static int non_atomic_pte_lookup(struct vm_area_struct *vma,
-        return 0;
- }
- 
--/*
-- * atomic_pte_lookup
-+/**
-+ * atomic_pte_lookup() - Convert a user virtual address to a physical address
-+ * @Return: true for success, false for failure. Failure means that the page
-+ *         could not be pinned via gup fast.
-  *
-- * Convert a user virtual address to a physical address
-  * Only supports Intel large pages (2MB only) on x86_64.
-  *     ZZZ - hugepage support is incomplete
-  *
-@@ -207,12 +208,12 @@ static int atomic_pte_lookup(struct vm_area_struct *vma, unsigned long vaddr,
-        *pageshift = is_vm_hugetlb_page(vma) ? HPAGE_SHIFT : PAGE_SHIFT;
- 
-        if (!__get_user_pages_fast(vaddr, 1, write, &page))
--               return 1;
-+               return false;
- 
-        *paddr = page_to_phys(page);
-        put_user_page(page);
- 
--       return 0;
-+       return true;
- }
- 
- static int gru_vtop(struct gru_thread_state *gts, unsigned long vaddr,
-@@ -221,7 +222,8 @@ static int gru_vtop(struct gru_thread_state *gts, unsigned long vaddr,
-        struct mm_struct *mm = gts->ts_mm;
-        struct vm_area_struct *vma;
-        unsigned long paddr;
--       int ret, ps;
-+       int ps;
-+       bool success;
- 
-        vma = find_vma(mm, vaddr);
-        if (!vma)
-@@ -232,8 +234,8 @@ static int gru_vtop(struct gru_thread_state *gts, unsigned long vaddr,
-         * context.
-         */
-        rmb();  /* Must/check ms_range_active before loading PTEs */
--       ret = atomic_pte_lookup(vma, vaddr, write, &paddr, &ps);
--       if (ret) {
-+       success = atomic_pte_lookup(vma, vaddr, write, &paddr, &ps);
-+       if (!success) {
-                if (atomic)
-                        goto upm;
-                if (non_atomic_pte_lookup(vma, vaddr, write, &paddr, &ps))
+As a result we barely see memory pressure, when the reality is that
+there is almost no progress due to the thrashing and we should be
+killing misbehaving stuff.
 
+> > Annotate the submit_bio() paths (or the indirection through readpage)
+> > for refaults and swapin to get proper psi coverage of delays there.
+> > 
+> > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> > ---
+> >  fs/btrfs/extent_io.c | 14 ++++++++++++--
+> >  fs/ext4/readpage.c   |  9 +++++++++
+> >  fs/f2fs/data.c       |  8 ++++++++
+> >  fs/mpage.c           |  9 +++++++++
+> >  mm/filemap.c         | 20 ++++++++++++++++++++
+> >  mm/page_io.c         | 11 ++++++++---
+> >  mm/readahead.c       | 24 +++++++++++++++++++++++-
+> 
+> We touch three filesystems.  Why these three?  Are all other
+> filesystems OK or will they need work as well?
 
-thanks,
--- 
-John Hubbard
-NVIDIA
+These are the ones that I found open-coding add_to_page_cache_lru()
+followed by submit_bio() instead of going through generic code like
+mpage, use read_cache_pages(), implement ->readpage only.
+
+> > @@ -2753,11 +2763,14 @@ static struct page *do_read_cache_page(struct address_space *mapping,
+> >  				void *data,
+> >  				gfp_t gfp)
+> >  {
+> > +	bool refault = false;
+> >  	struct page *page;
+> >  	int err;
+> >  repeat:
+> >  	page = find_get_page(mapping, index);
+> >  	if (!page) {
+> > +		unsigned long pflags;
+> > +
+> 
+> That was a bit odd.  This?
+> 
+> --- a/mm/filemap.c~psi-annotate-refault-stalls-from-io-submission-fix
+> +++ a/mm/filemap.c
+> @@ -2815,12 +2815,12 @@ static struct page *do_read_cache_page(s
+>  				void *data,
+>  				gfp_t gfp)
+>  {
+> -	bool refault = false;
+>  	struct page *page;
+>  	int err;
+>  repeat:
+>  	page = find_get_page(mapping, index);
+>  	if (!page) {
+> +		bool refault = false;
+>  		unsigned long pflags;
+>  
+>  		page = __page_cache_alloc(gfp);
+> _
+> 
+
+It's so that when we jump to 'filler:' from outside the branch, the
+'refault' variable is initialized from the first time through:
+
+	bool refault = false;
+	struct page *page;
+
+	page = find_get_page(mapping, index);
+	if (!page) {
+	   	__page_cache_alloc()
+		add_to_page_cache_lru()
+		refault = PageWorkingset(page);
+filler:
+		if (refault)
+			psi_memstall_enter(&pflags);
+
+		readpage()
+
+		if (refault)
+			psi_memstall_leave(&pflags);
+	}
+	lock_page()
+	if (PageUptodate())
+		goto out;
+	goto filler;
 
