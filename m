@@ -2,253 +2,165 @@ Return-Path: <SRS0=80m6=VT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B79E7C76194
-	for <linux-mm@archiver.kernel.org>; Mon, 22 Jul 2019 12:46:54 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 627AFC76188
+	for <linux-mm@archiver.kernel.org>; Mon, 22 Jul 2019 13:41:56 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5BF34218A0
-	for <linux-mm@archiver.kernel.org>; Mon, 22 Jul 2019 12:46:54 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5BF34218A0
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=sony.com
+	by mail.kernel.org (Postfix) with ESMTP id 29E8A216C8
+	for <linux-mm@archiver.kernel.org>; Mon, 22 Jul 2019 13:41:56 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="ctSiEsOE"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 29E8A216C8
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A3E976B0005; Mon, 22 Jul 2019 08:46:53 -0400 (EDT)
+	id B00788E0001; Mon, 22 Jul 2019 09:41:55 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9F03D8E0003; Mon, 22 Jul 2019 08:46:53 -0400 (EDT)
+	id A89406B0008; Mon, 22 Jul 2019 09:41:55 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 905EF8E0001; Mon, 22 Jul 2019 08:46:53 -0400 (EDT)
+	id 9295E8E0001; Mon, 22 Jul 2019 09:41:55 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lj1-f199.google.com (mail-lj1-f199.google.com [209.85.208.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 2CC3E6B0005
-	for <linux-mm@kvack.org>; Mon, 22 Jul 2019 08:46:53 -0400 (EDT)
-Received: by mail-lj1-f199.google.com with SMTP id e16so8469522lja.23
-        for <linux-mm@kvack.org>; Mon, 22 Jul 2019 05:46:53 -0700 (PDT)
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D6446B0006
+	for <linux-mm@kvack.org>; Mon, 22 Jul 2019 09:41:55 -0400 (EDT)
+Received: by mail-qk1-f197.google.com with SMTP id t196so33674559qke.0
+        for <linux-mm@kvack.org>; Mon, 22 Jul 2019 06:41:55 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-transfer-encoding:content-language;
-        bh=F7WB7XMO/ExQslkEd8g5bMu9vu8U2QUmZyKXqVdfCZc=;
-        b=rn2Wr98u/dk5sFyHqxQIA5iKzf3NMH1FXqptynmOI9UNYAYiOznK3VItyHvocoDxpO
-         asFvNdF0E7hVTjY8A+vv+pSMb0wSX99JOtFnzwjMo8YqrG+0cR63O2gB5YI4yFJm/O9o
-         U5JdsdXwOFUpOkLtfnLcYugdpS/al48xV/kB1XYnWfH1oE2I+dA50E0SqRPSuJa7/KP0
-         5E14yxdTGFBt45F5l4fB+emoMrpHyD3FpHm+GzBJyE/ZZBfaFUuG57zVWw2C9ihP5tT+
-         xd2KUvNJ1lWegkCr6O8c3nKHSNAW7l+mg8it3ZdP+gNFSbydr3hZN8EnFBFV18whi9lc
-         n3Ng==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of peter.enderborg@sony.com designates 37.139.156.29 as permitted sender) smtp.mailfrom=Peter.Enderborg@sony.com
-X-Gm-Message-State: APjAAAXqXDKCIg1Vyb6XbEToY28+ssOcsrqrvMd55an1q8+Pxx3GFjLt
-	gR22b1BWAl+mYlOx4770bvwNUUTNTzsEPlYh/RrzBIdcjvLibg1pYK1g0BYIsYrYe2HEbrNRiYH
-	cprKmXYg9THQyQm0MSlgZ4KvLYO2znNzdnPtpGQgFAzU+QJDb93INlo+0BJZ7r/SAvw==
-X-Received: by 2002:a2e:b0d0:: with SMTP id g16mr35767255ljl.161.1563799612501;
-        Mon, 22 Jul 2019 05:46:52 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxt1YAVor/4IyM/rhdOKVmEFMagjFQDsJJjXZRgBYyWo+ClQQgjjN3m8aVHXkaEkK6FuOyy
-X-Received: by 2002:a2e:b0d0:: with SMTP id g16mr35767203ljl.161.1563799611325;
-        Mon, 22 Jul 2019 05:46:51 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563799611; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=r7jurWEbcB87wkHM6FBIF/d6ZCsIeD3qrag1BaWvzr0=;
+        b=QR2B0i5mhMJ8Kp3QmIH+N0SbAhSErxaI4+W4PWT6z1e8ruSHOCP0ig8I4bbra+LUbM
+         q9Ge85gsA0NWmX7V43GXDC0TV6wS8tnmsXMv6Vc/UHCR3y69LUcLifboAKdTMUU+JqqH
+         g/SPPIsAoL5LZWkVqDLC1BPuF4HE6okZcs5O1s04GE5PxeVkC7dV/u6r7H14VeVEH+LX
+         i1efEDGXV1tYTqCY2RGyKIcTuFpHZURsk8pRh0tQZrCDg8oofmOraeGleBmrZKK55XxM
+         6Qg0+n5S+tAi3fmdi3tLbi6qTdPkTYIWNO2t5SDC4ZFDRW64MVI/pFpIXIyANct7PBF7
+         FDew==
+X-Gm-Message-State: APjAAAXllJJLcJIIdw01PsX6tOY48/YcaUUcuAAYHGBotXInEqaC7dxS
+	q3eD9+A+jzI6G51M9VQ06wfxyZnR9+qEP1GcYYeQN+chn/z8xCYSTxGP//scjaKnoxTYh9vA+kF
+	Ig36KEWhfm2L8lg7AGBdYkr1S34iGGyzUbhCGstrmo4eG3IwF7UZmryv9znB+xc8+fQ==
+X-Received: by 2002:a0c:86e8:: with SMTP id 37mr52211932qvg.77.1563802915168;
+        Mon, 22 Jul 2019 06:41:55 -0700 (PDT)
+X-Received: by 2002:a0c:86e8:: with SMTP id 37mr52211884qvg.77.1563802914377;
+        Mon, 22 Jul 2019 06:41:54 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563802914; cv=none;
         d=google.com; s=arc-20160816;
-        b=IwXMio+qQn8iYRPKH1hXZT9mlVIcOqSKzuVKUVeMMhZnezLiGxUEHWmLu7Jc3IgRFd
-         UiNZIiDqU3wgL4Z7VQ/Z0WEkpR+Zd3kmIKE4Nep+LB/oFo9gdI+LQNWU6A7NVvKy5k4G
-         FXui4xyf0vbWS6hQV9UatiJSK/cekAi1ozN4X2EPAaMAD96ceLRA2koQ8bs6u2nR2Q/0
-         URH3bZSbpysuvSKfBEjYK3HKdtLBW0LFU0rllaTtaGBfe1vOg2ZLgyz7ZCmRBmGJCbjj
-         gdYzMUxEJ3ZTdg0uqSUzGFV9lttGXpd9fQq/ZrSCC6731JUQkwTmv1feH2ET3ZNNqOU0
-         aPBg==
+        b=kPkaYIHxci3xWYPI4ZFR2ox5jKvNJw605EQAMEPVuWJciWOhTZu44mdoBiO1cnWeVi
+         JS9FDzuW4Jh3eKJOst/UbLcrd5sYD8s6SmNNPc6IWLIDmLVFMFLBdJ7ChsZqdxdtYhEx
+         d4NTxrNRnDU8sDT13e86N8baLdYBhNZxRysJzt/WyietRiyFHh6HdOtlpQxjBs0NkNnS
+         DwCJUmTspBw4A7dlV6O2J74jpKWABh6sTL0c0s0T34ZMRgDveMkP1mAmJa+aiejwJhBu
+         8FoO9Le9dWGLXl/z8gBYHyoQi0N2We6b2HdA6UHHeQqegioMMJRJ+U+jnlRxgv4Jbr5q
+         jVdQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-language:content-transfer-encoding:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=F7WB7XMO/ExQslkEd8g5bMu9vu8U2QUmZyKXqVdfCZc=;
-        b=jyLYJgsO9+jsFtyYF7lkOHl0jUQ7ctRIRduHjTdkrwnkiPDGMw+WqkHwH9o0ziKoB5
-         JGwFp48mioeyjhZTb/R10HdGUqEfIkMIYo75zSJ5Bx2j+A2lrmHoSMiwL+7vXCZ07I4E
-         uHBh6a9cQZG+ueoJpVqYD7omPC7+/gyJLF9+KL8HFO2zIF9+Fmn+2UyCbkWNjhMPMg1i
-         0uaIbLhrETC0GPGXdR8Ana2T9B8N6vOe4Ux3PoewFsquKK+TbQRJwk12bEG6VUVJ/az6
-         91iz/RWBJF8Ybm3RUAFVdzTvt6x01UlPwaYYXGYQ5y38gedsUVr5c35KWPezqc3MxNuF
-         bQFA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=r7jurWEbcB87wkHM6FBIF/d6ZCsIeD3qrag1BaWvzr0=;
+        b=lcTJ/I0DjA63qTW7oXMLWN8mwnryFxCJF1QuoZ14vCxNt5l8az6fbeDDO0L9E6QU6x
+         MNmAuMNPpcWyj18doCchwUaaYhLzMXGypmya6p2MYZLom//G4vn/cKAy7DLeAOGD0WnK
+         l3hnmP1uERYrsmVz/TOMNe9lPdp2V4s7NuImFiljSBLVyeANrwhDrH79gdU/21qrr3bm
+         /6eM0sye8BwzgzQke2oDON3XSvgQcFE3fMwJ73HU2oTYw46wB0yOFv5sYXEyE+Ox8TyZ
+         llUTPlaMVY4yQWZGZuo0g0r7wWWQauRE6Wj6Lao/sYxJggqZ6nGCmgPIhPOJ/gIjcmfI
+         ovVA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of peter.enderborg@sony.com designates 37.139.156.29 as permitted sender) smtp.mailfrom=Peter.Enderborg@sony.com
-Received: from SELDSEGREL01.sonyericsson.com (seldsegrel01.sonyericsson.com. [37.139.156.29])
-        by mx.google.com with ESMTPS id y19si30637196ljh.176.2019.07.22.05.46.50
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=ctSiEsOE;
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.41 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id r125sor22764679qkd.29.2019.07.22.06.41.54
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 22 Jul 2019 05:46:51 -0700 (PDT)
-Received-SPF: pass (google.com: domain of peter.enderborg@sony.com designates 37.139.156.29 as permitted sender) client-ip=37.139.156.29;
+        (Google Transport Security);
+        Mon, 22 Jul 2019 06:41:54 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of peter.enderborg@sony.com designates 37.139.156.29 as permitted sender) smtp.mailfrom=Peter.Enderborg@sony.com
-Subject: Re: [PATCH] mm, slab: Extend slab/shrink to shrink all the memcg
- caches
-To: Waiman Long <longman@redhat.com>, Christoph Lameter <cl@linux.com>, Pekka
- Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo
- Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>,
-	Alexander Viro <viro@zeniv.linux.org.uk>, Jonathan Corbet <corbet@lwn.net>,
-	Luis Chamberlain <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>,
-	Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>,
-	Vladimir Davydov <vdavydov.dev@gmail.com>
-CC: <linux-mm@kvack.org>, <linux-doc@vger.kernel.org>,
-	<linux-fsdevel@vger.kernel.org>, <cgroups@vger.kernel.org>,
-	<linux-kernel@vger.kernel.org>, Roman Gushchin <guro@fb.com>, Shakeel Butt
-	<shakeelb@google.com>, Andrea Arcangeli <aarcange@redhat.com>
-References: <20190702183730.14461-1-longman@redhat.com>
-From: peter enderborg <peter.enderborg@sony.com>
-Message-ID: <71ab6307-9484-fdd3-fe6d-d261acf7c4a5@sony.com>
-Date: Mon, 22 Jul 2019 14:46:47 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=ctSiEsOE;
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.41 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=ziepe.ca; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=r7jurWEbcB87wkHM6FBIF/d6ZCsIeD3qrag1BaWvzr0=;
+        b=ctSiEsOEiyiwu0n3CEQABL3/Tosruh5w/+6uzF92xLW34JmyfhThCGBMfVUaYt9dcx
+         eW2R16GiG0XcoxTfHQmNNe2NbtDmD4V4zDlbn3sIafmR+axGp5w7q8jG/t+N5A5vd1+2
+         T8limk/5bxxJguypRZGjOMgCVjJ3UuJ440SlT4VBiuew99yPu+wjBAGDyiX6h7A0CwOA
+         dwL0M70N/ZKBJ7e/9dDovVWnU15MNgA7ZpwwgLu6rerH2A7rFP/VNIWBW0CDFkWJkGIk
+         02tVH4RCMUcpMeH+V7LrZ4lwFpUMFWob0uRUx2w20StfeAVPWAbvrasBs/AM3w8QAsz1
+         Qvkg==
+X-Google-Smtp-Source: APXvYqxGgJ5n0Ggl2+5KtjzE7HLyY29aRN+3J2KTmJj1bDyPcTuyXmhCmMkJ3yMp7O1QI/DGhNTc3w==
+X-Received: by 2002:a37:a6d8:: with SMTP id p207mr42748278qke.387.1563802913858;
+        Mon, 22 Jul 2019 06:41:53 -0700 (PDT)
+Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
+        by smtp.gmail.com with ESMTPSA id x8sm17451291qkl.27.2019.07.22.06.41.52
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 22 Jul 2019 06:41:52 -0700 (PDT)
+Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
+	(envelope-from <jgg@ziepe.ca>)
+	id 1hpYZc-0003Vr-7E; Mon, 22 Jul 2019 10:41:52 -0300
+Date: Mon, 22 Jul 2019 10:41:52 -0300
+From: Jason Gunthorpe <jgg@ziepe.ca>
+To: "Paul E. McKenney" <paulmck@linux.ibm.com>
+Cc: "Michael S. Tsirkin" <mst@redhat.com>,
+	Matthew Wilcox <willy@infradead.org>, aarcange@redhat.com,
+	akpm@linux-foundation.org, christian@brauner.io,
+	davem@davemloft.net, ebiederm@xmission.com,
+	elena.reshetova@intel.com, guro@fb.com, hch@infradead.org,
+	james.bottomley@hansenpartnership.com, jasowang@redhat.com,
+	jglisse@redhat.com, keescook@chromium.org, ldv@altlinux.org,
+	linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org,
+	linux-mm@kvack.org, linux-parisc@vger.kernel.org,
+	luto@amacapital.net, mhocko@suse.com, mingo@kernel.org,
+	namit@vmware.com, peterz@infradead.org,
+	syzkaller-bugs@googlegroups.com, viro@zeniv.linux.org.uk,
+	wad@chromium.org
+Subject: Re: RFC: call_rcu_outstanding (was Re: WARNING in __mmdrop)
+Message-ID: <20190722134152.GA13013@ziepe.ca>
+References: <0000000000008dd6bb058e006938@google.com>
+ <000000000000964b0d058e1a0483@google.com>
+ <20190721044615-mutt-send-email-mst@kernel.org>
+ <20190721081933-mutt-send-email-mst@kernel.org>
+ <20190721131725.GR14271@linux.ibm.com>
+ <20190721210837.GC363@bombadil.infradead.org>
+ <20190721233113.GV14271@linux.ibm.com>
+ <20190722035042-mutt-send-email-mst@kernel.org>
+ <20190722115149.GY14271@linux.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <20190702183730.14461-1-longman@redhat.com>
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
-Content-Language: en-GB
-X-SEG-SpamProfiler-Analysis: v=2.3 cv=L6RjvNb8 c=1 sm=1 tr=0 a=T5MYTZSj1jWyQccoVcawfw==:117 a=jpOVt7BSZ2e4Z31A5e1TngXxSK0=:19 a=IkcTkHD0fZMA:10 a=0o9FgrsRnhwA:10 a=20KFwNOVAAAA:8 a=Z4Rwk6OoAAAA:8 a=hTz6g4Jj1mwQyzJQMEoA:9 a=QEXdDO2ut3YA:10 a=aA9c7OsbRBYA:10 a=HkZW87K1Qel5hWWM3VKY:22
-X-SEG-SpamProfiler-Score: 0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190722115149.GY14271@linux.ibm.com>
+User-Agent: Mutt/1.9.4 (2018-02-28)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 7/2/19 8:37 PM, Waiman Long wrote:
-> Currently, a value of '1" is written to /sys/kernel/slab/<slab>/shrink
-> file to shrink the slab by flushing all the per-cpu slabs and free
-> slabs in partial lists. This applies only to the root caches, though.
->
-> Extends this capability by shrinking all the child memcg caches and
-> the root cache when a value of '2' is written to the shrink sysfs file.
->
-> On a 4-socket 112-core 224-thread x86-64 system after a parallel kernel
-> build, the the amount of memory occupied by slabs before shrinking
-> slabs were:
->
->  # grep task_struct /proc/slabinfo
->  task_struct         7114   7296   7744    4    8 : tunables    0    0
->  0 : slabdata   1824   1824      0
->  # grep "^S[lRU]" /proc/meminfo
->  Slab:            1310444 kB
->  SReclaimable:     377604 kB
->  SUnreclaim:       932840 kB
->
-> After shrinking slabs:
->
->  # grep "^S[lRU]" /proc/meminfo
->  Slab:             695652 kB
->  SReclaimable:     322796 kB
->  SUnreclaim:       372856 kB
->  # grep task_struct /proc/slabinfo
->  task_struct         2262   2572   7744    4    8 : tunables    0    0
->  0 : slabdata    643    643      0
+On Mon, Jul 22, 2019 at 04:51:49AM -0700, Paul E. McKenney wrote:
 
+> > > > Would it make sense to have call_rcu() check to see if there are many
+> > > > outstanding requests on this CPU and if so process them before returning?
+> > > > That would ensure that frequent callers usually ended up doing their
+> > > > own processing.
+> > > 
+> > > Unfortunately, no.  Here is a code fragment illustrating why:
 
-What is the time between this measurement points? Should not the shrinked memory show up as reclaimable?
+That is only true in the general case though, kfree_rcu() doesn't have
+this problem since we know what the callback is doing. In general a
+caller of kfree_rcu() should not need to hold any locks while calling
+it.
 
+We could apply the same idea more generally and have some
+'call_immediate_or_rcu()' which has restrictions on the caller's
+context.
 
-> Signed-off-by: Waiman Long <longman@redhat.com>
-> ---
->  Documentation/ABI/testing/sysfs-kernel-slab | 10 +++--
->  mm/slab.h                                   |  1 +
->  mm/slab_common.c                            | 43 +++++++++++++++++++++
->  mm/slub.c                                   |  2 +
->  4 files changed, 52 insertions(+), 4 deletions(-)
->
-> diff --git a/Documentation/ABI/testing/sysfs-kernel-slab b/Documentation/ABI/testing/sysfs-kernel-slab
-> index 29601d93a1c2..2a3d0fc4b4ac 100644
-> --- a/Documentation/ABI/testing/sysfs-kernel-slab
-> +++ b/Documentation/ABI/testing/sysfs-kernel-slab
-> @@ -429,10 +429,12 @@ KernelVersion:	2.6.22
->  Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
->  		Christoph Lameter <cl@linux-foundation.org>
->  Description:
-> -		The shrink file is written when memory should be reclaimed from
-> -		a cache.  Empty partial slabs are freed and the partial list is
-> -		sorted so the slabs with the fewest available objects are used
-> -		first.
-> +		A value of '1' is written to the shrink file when memory should
-> +		be reclaimed from a cache.  Empty partial slabs are freed and
-> +		the partial list is sorted so the slabs with the fewest
-> +		available objects are used first.  When a value of '2' is
-> +		written, all the corresponding child memory cgroup caches
-> +		should be shrunk as well.  All other values are invalid.
->  
->  What:		/sys/kernel/slab/cache/slab_size
->  Date:		May 2007
-> diff --git a/mm/slab.h b/mm/slab.h
-> index 3b22931bb557..a16b2c7ff4dd 100644
-> --- a/mm/slab.h
-> +++ b/mm/slab.h
-> @@ -174,6 +174,7 @@ int __kmem_cache_shrink(struct kmem_cache *);
->  void __kmemcg_cache_deactivate(struct kmem_cache *s);
->  void __kmemcg_cache_deactivate_after_rcu(struct kmem_cache *s);
->  void slab_kmem_cache_release(struct kmem_cache *);
-> +int kmem_cache_shrink_all(struct kmem_cache *s);
->  
->  struct seq_file;
->  struct file;
-> diff --git a/mm/slab_common.c b/mm/slab_common.c
-> index 464faaa9fd81..493697ba1da5 100644
-> --- a/mm/slab_common.c
-> +++ b/mm/slab_common.c
-> @@ -981,6 +981,49 @@ int kmem_cache_shrink(struct kmem_cache *cachep)
->  }
->  EXPORT_SYMBOL(kmem_cache_shrink);
->  
-> +/**
-> + * kmem_cache_shrink_all - shrink a cache and all its memcg children
-> + * @s: The root cache to shrink.
-> + *
-> + * Return: 0 if successful, -EINVAL if not a root cache
-> + */
-> +int kmem_cache_shrink_all(struct kmem_cache *s)
-> +{
-> +	struct kmem_cache *c;
-> +
-> +	if (!IS_ENABLED(CONFIG_MEMCG_KMEM)) {
-> +		kmem_cache_shrink(s);
-> +		return 0;
-> +	}
-> +	if (!is_root_cache(s))
-> +		return -EINVAL;
-> +
-> +	/*
-> +	 * The caller should have a reference to the root cache and so
-> +	 * we don't need to take the slab_mutex. We have to take the
-> +	 * slab_mutex, however, to iterate the memcg caches.
-> +	 */
-> +	get_online_cpus();
-> +	get_online_mems();
-> +	kasan_cache_shrink(s);
-> +	__kmem_cache_shrink(s);
-> +
-> +	mutex_lock(&slab_mutex);
-> +	for_each_memcg_cache(c, s) {
-> +		/*
-> +		 * Don't need to shrink deactivated memcg caches.
-> +		 */
-> +		if (s->flags & SLAB_DEACTIVATED)
-> +			continue;
-> +		kasan_cache_shrink(c);
-> +		__kmem_cache_shrink(c);
-> +	}
-> +	mutex_unlock(&slab_mutex);
-> +	put_online_mems();
-> +	put_online_cpus();
-> +	return 0;
-> +}
-> +
->  bool slab_is_available(void)
->  {
->  	return slab_state >= UP;
-> diff --git a/mm/slub.c b/mm/slub.c
-> index a384228ff6d3..5d7b0004c51f 100644
-> --- a/mm/slub.c
-> +++ b/mm/slub.c
-> @@ -5298,6 +5298,8 @@ static ssize_t shrink_store(struct kmem_cache *s,
->  {
->  	if (buf[0] == '1')
->  		kmem_cache_shrink(s);
-> +	else if (buf[0] == '2')
-> +		kmem_cache_shrink_all(s);
->  	else
->  		return -EINVAL;
->  	return length;
+I think if we have some kind of problem here it would be better to
+handle it inside the core code and only require that callers use the
+correct RCU API.
 
+I can think of many places where kfree_rcu() is being used under user
+control..
+
+Jason
 
