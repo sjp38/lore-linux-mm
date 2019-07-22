@@ -2,432 +2,153 @@ Return-Path: <SRS0=80m6=VT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BFF14C76188
-	for <linux-mm@archiver.kernel.org>; Mon, 22 Jul 2019 15:43:40 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 27E6AC76190
+	for <linux-mm@archiver.kernel.org>; Mon, 22 Jul 2019 15:47:38 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7602321993
-	for <linux-mm@archiver.kernel.org>; Mon, 22 Jul 2019 15:43:40 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7602321993
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id E3E882171F
+	for <linux-mm@archiver.kernel.org>; Mon, 22 Jul 2019 15:47:37 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E3E882171F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 639B78E0017; Mon, 22 Jul 2019 11:43:27 -0400 (EDT)
+	id 830B06B0003; Mon, 22 Jul 2019 11:47:37 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5C26E8E000E; Mon, 22 Jul 2019 11:43:27 -0400 (EDT)
+	id 7E2078E0018; Mon, 22 Jul 2019 11:47:37 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3EDD38E0017; Mon, 22 Jul 2019 11:43:27 -0400 (EDT)
+	id 683578E000E; Mon, 22 Jul 2019 11:47:37 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id DDC218E000E
-	for <linux-mm@kvack.org>; Mon, 22 Jul 2019 11:43:26 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id r21so26551659edc.6
-        for <linux-mm@kvack.org>; Mon, 22 Jul 2019 08:43:26 -0700 (PDT)
+Received: from mail-ua1-f72.google.com (mail-ua1-f72.google.com [209.85.222.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 4636E6B0003
+	for <linux-mm@kvack.org>; Mon, 22 Jul 2019 11:47:37 -0400 (EDT)
+Received: by mail-ua1-f72.google.com with SMTP id t24so3745301uar.18
+        for <linux-mm@kvack.org>; Mon, 22 Jul 2019 08:47:37 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=hsQ5xACHz4gvfMypwn8U7h8z4myf9B6T//y0v9bfxX4=;
-        b=NvhYJL0Hov6qlJoxWvKzcHQin+UYVZBCeRBMK03UfA/YtaktyAojSbXkJUMfBlQilr
-         2QVO41LwGrqvOjKBq0+jCarm+AbjpfxVP9VUAaFuyu3Sc/x9XI7T2qE3/9+GT4GLYp7e
-         yKe79U/+45L6W6KDHe+YYj/PL6fdQMXfvTGAKUA7v810lSSohRsrbR39VOfmCQIvDSEm
-         exWHQ3fqd8JKZoy1ddnyweznFuyMyGYxRgbJGSw9eFeCR1dlssWKVkUtp0DhhWXWU839
-         y7hMcxbazagf8+v3Ai9ppt3wuC5LYAFTrQMFh7+IKGNFiR6rOiknx08kmjtDQGgZBJp2
-         3N8g==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of steven.price@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=steven.price@arm.com
-X-Gm-Message-State: APjAAAXknP7r3QnTXmBa39Cpn4+rEPZM1ZvVHZhrswDq7OdlxMxJr2pU
-	Jue02qs2NAwkD9wyvsiZAWfD1aqgjhwooqIgSRPnCVkgK8pnrqHOAEY3SiGRjR3x2SLTjv00Mpy
-	NDSiMYUZnm3uriG+tOVExH+HP5NsRQMP7igP3ggNfc9mc2mr435qDK3vnTg0IYOI2FQ==
-X-Received: by 2002:aa7:c559:: with SMTP id s25mr60126508edr.117.1563810206462;
-        Mon, 22 Jul 2019 08:43:26 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz9BCilG7vRsgZDu502qf0Dn4nnGyxaxMSbOcIZBwZCTFShVWkzD2JDCU4/OQl0l8Jh9Fdh
-X-Received: by 2002:aa7:c559:: with SMTP id s25mr60126436edr.117.1563810205415;
-        Mon, 22 Jul 2019 08:43:25 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563810205; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to;
+        bh=LmHNB/mpVTqIwDQayKoNtK91EYT50XXRmgPJE4A3zfc=;
+        b=t4+yEU4BntkNSO4NMcs4+QDn+alzW17LQwQb43JnDfsMana1ZHNHTilulwjPeBfpaA
+         iPkFP2cRuSq6wQ53ZyFSIVmmIvinbsLdpzT3IOW5fuwfpQIkJBb2iU0p/lYXOD08146g
+         P5Twxb2Bv52i0DJOjtw8eAx3XolS4iXpXfi8CwYChNSj0IuBHbJkMeuEchE4lixbsnXw
+         iiAjTrpU+YtlBv7O/zZzfPtVZtwWzRRng9n3o7rAx0Rsc81GD6b92ChON0xXLNTQBiNx
+         0kSXvc4+kjgUohVSbWwkEYlH6t4TMbHWc0XsGYSkkrRDQt2yjcqww3BkhZNCs19bvS0y
+         Nrxg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mst@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=mst@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAWwOMHfxIhuAqhFipmQHrtRO/T0tCixzfpZvrJP10g5MYimYJK3
+	GRWGZmlFVePG5CAbOldY6zZzpVvm/P26PWKBcPsSPEGM9Pj+Ygr8Yanzx6NEXBK9kW2gH6yhauL
+	XTJUSXaURhjIa0d6mwjnbWJbKRvysgTgktaHXYF4TZvR/rr8zXTxx4eFivf4nMSGB3w==
+X-Received: by 2002:ab0:2746:: with SMTP id c6mr1616183uap.76.1563810456947;
+        Mon, 22 Jul 2019 08:47:36 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqztTk+IamiBfVkYB3jVP/zjMjwRdU11pur9aY+PowzkzG4KBY3yTiapmrZfqcRNHTJAFaNz
+X-Received: by 2002:ab0:2746:: with SMTP id c6mr1616134uap.76.1563810456346;
+        Mon, 22 Jul 2019 08:47:36 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563810456; cv=none;
         d=google.com; s=arc-20160816;
-        b=IM7NP83L4Mh9VndSsR2SqBX9NCUQnPAwSf0CrUFUcVb7xRxyoBHItfxLZwCiDyEeRm
-         vdq/QMS9AEBe/VhQQAJ+hJSJi4IMmJ2ekBglWlUCJROzlBwNsrceEmfILIEJj6xTs8g+
-         0fP6weGuzbQyM7+3PV9p9FxaDjc1Erz3ViW+AkjLbOiwmfZRugoOFxsB6hnmEvX4/1Iv
-         KCQKRsLe0YsM87sW9hiS0GBEDu68TSSbEAPqyJfNjg8pq9wsG/HCArFn3BHY02BBknYL
-         K3qNxC99jIAeuAB4Ty2WMYFZuy37sIEN2O3//Po0LtXaC8FL+/EfHfZUONiGA4C0lpxg
-         2+BQ==
+        b=NmWXFGcucAod5s/BXu7sNhEp2HQbHOkp6LmbjCn5BkjAm0RtGznpbkg+0P/ZLayujX
+         ZE3omkGhFjuPB1p1YIiHKH7oxnBvQ3kUsr6RIm1NLA8b0h34xTG7Ai8crggvdjDXopHR
+         h3Oxge/6p9t4OWzi3JovAW6sziGl1V2Zxmdo3tJsf6uJbLp6gUUkmzxamoGgNE7ICBXK
+         65CN1ewUrHI+3mT7hv4wlb9MsJwKxQaCkYMWxHYIp9mI76t55t0RHOMkLyg7XwR3qYtY
+         e+GjbbzofMC6f8PTL9lQwBMpHFzM+ktuhipFsiiHilPVAWq3DclsnHGUcDvQkPoMFsCq
+         2jhQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from;
-        bh=hsQ5xACHz4gvfMypwn8U7h8z4myf9B6T//y0v9bfxX4=;
-        b=1FwPJDerf2GGJ2VeIHCfqz5zABPNOj9+Cxs3Q7QSAKir+56Z0KGGsxn3BFVFlmzylC
-         BfGJ6rNQp532uKoJ2l1C5s3fFi4X3S9jF1hWHGdWZUI9cii2WfbCUbRQqiUsTBxmhOD7
-         qdMisg1i3wac6JcHUaXS5dIjFMXmwATUbwe70BhBid7kVl32Ce2Ynvsj0IaQlAPG5tid
-         PjKML5jxeklgcX/svtdbwLujINgKMtIpe7nE+0YpN0GU3HGnVxORPRLg/j37opKZwTu2
-         p1LuSSxFI2iu9UFroHYFLKcu2I5xfl/wgt+wv5DKp7AxGs08SxZ/tl1Fq0B8j3zZ5Dyl
-         ycDg==
+        h=in-reply-to:content-disposition:mime-version:references:message-id
+         :subject:cc:to:from:date;
+        bh=LmHNB/mpVTqIwDQayKoNtK91EYT50XXRmgPJE4A3zfc=;
+        b=Fx/fa3t4Pufrm9G9R7X/PvWhYPGue7c4EpcdV0fZx95IYfALiEJUFHoZs8L/ND143Q
+         MGhhWBB1YRK7gQexEquOZYon1Ra2u01aHOJvDIeZLlSXIZgiUwqq7sS28le5JfhUS64V
+         MWbr+6XQif8T94oLsLmI5GK3yPdcPBEwU3eZONmWlnzKrF0WKCrVv/sZwEhMt/o2r0gW
+         Vu4JX5AU9lTT+5A74gAC5BgchaRjoO82Rtm9CsOBxGHYgyxom5WOq/oeM7vbypOubbl2
+         hkbyNHF1I/6ylYnsbuIyhzlylXTgRNUTsX9I+JITQMk9qy7DVuBH+jNKVfqhc+O41FWu
+         sq8g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of steven.price@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=steven.price@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
-        by mx.google.com with ESMTP id i9si4650954ejf.152.2019.07.22.08.43.25
-        for <linux-mm@kvack.org>;
-        Mon, 22 Jul 2019 08:43:25 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of steven.price@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
+       spf=pass (google.com: domain of mst@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=mst@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id w29si7981878uae.204.2019.07.22.08.47.36
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 22 Jul 2019 08:47:36 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mst@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of steven.price@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=steven.price@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 880E715A2;
-	Mon, 22 Jul 2019 08:43:24 -0700 (PDT)
-Received: from e112269-lin.arm.com (e112269-lin.cambridge.arm.com [10.1.196.133])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id F34383F694;
-	Mon, 22 Jul 2019 08:43:21 -0700 (PDT)
-From: Steven Price <steven.price@arm.com>
-To: linux-mm@kvack.org
-Cc: Steven Price <steven.price@arm.com>,
-	Andy Lutomirski <luto@kernel.org>,
-	Ard Biesheuvel <ard.biesheuvel@linaro.org>,
-	Arnd Bergmann <arnd@arndb.de>,
-	Borislav Petkov <bp@alien8.de>,
-	Catalin Marinas <catalin.marinas@arm.com>,
-	Dave Hansen <dave.hansen@linux.intel.com>,
-	Ingo Molnar <mingo@redhat.com>,
-	James Morse <james.morse@arm.com>,
-	=?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
-	Peter Zijlstra <peterz@infradead.org>,
-	Thomas Gleixner <tglx@linutronix.de>,
-	Will Deacon <will@kernel.org>,
-	x86@kernel.org,
-	"H. Peter Anvin" <hpa@zytor.com>,
-	linux-arm-kernel@lists.infradead.org,
-	linux-kernel@vger.kernel.org,
-	Mark Rutland <Mark.Rutland@arm.com>,
-	"Liang, Kan" <kan.liang@linux.intel.com>,
-	Andrew Morton <akpm@linux-foundation.org>
-Subject: [PATCH v9 21/21] arm64: mm: Convert mm/dump.c to use walk_page_range()
-Date: Mon, 22 Jul 2019 16:42:10 +0100
-Message-Id: <20190722154210.42799-22-steven.price@arm.com>
-X-Mailer: git-send-email 2.20.1
-In-Reply-To: <20190722154210.42799-1-steven.price@arm.com>
-References: <20190722154210.42799-1-steven.price@arm.com>
+       spf=pass (google.com: domain of mst@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=mst@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 0CE75C058CBD;
+	Mon, 22 Jul 2019 15:47:35 +0000 (UTC)
+Received: from redhat.com (ovpn-124-54.rdu2.redhat.com [10.10.124.54])
+	by smtp.corp.redhat.com (Postfix) with SMTP id C428460603;
+	Mon, 22 Jul 2019 15:47:25 +0000 (UTC)
+Date: Mon, 22 Jul 2019 11:47:24 -0400
+From: "Michael S. Tsirkin" <mst@redhat.com>
+To: Joel Fernandes <joel@joelfernandes.org>
+Cc: "Paul E. McKenney" <paulmck@linux.ibm.com>,
+	Matthew Wilcox <willy@infradead.org>, aarcange@redhat.com,
+	akpm@linux-foundation.org, christian@brauner.io,
+	davem@davemloft.net, ebiederm@xmission.com,
+	elena.reshetova@intel.com, guro@fb.com, hch@infradead.org,
+	james.bottomley@hansenpartnership.com, jasowang@redhat.com,
+	jglisse@redhat.com, keescook@chromium.org, ldv@altlinux.org,
+	linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org,
+	linux-mm@kvack.org, linux-parisc@vger.kernel.org,
+	luto@amacapital.net, mhocko@suse.com, mingo@kernel.org,
+	namit@vmware.com, peterz@infradead.org,
+	syzkaller-bugs@googlegroups.com, viro@zeniv.linux.org.uk,
+	wad@chromium.org
+Subject: Re: RFC: call_rcu_outstanding (was Re: WARNING in __mmdrop)
+Message-ID: <20190722114612-mutt-send-email-mst@kernel.org>
+References: <0000000000008dd6bb058e006938@google.com>
+ <000000000000964b0d058e1a0483@google.com>
+ <20190721044615-mutt-send-email-mst@kernel.org>
+ <20190721081933-mutt-send-email-mst@kernel.org>
+ <20190721131725.GR14271@linux.ibm.com>
+ <20190721210837.GC363@bombadil.infradead.org>
+ <20190721233113.GV14271@linux.ibm.com>
+ <20190722151439.GA247639@google.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190722151439.GA247639@google.com>
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.32]); Mon, 22 Jul 2019 15:47:35 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Now walk_page_range() can walk kernel page tables, we can switch the
-arm64 ptdump code over to using it, simplifying the code.
+On Mon, Jul 22, 2019 at 11:14:39AM -0400, Joel Fernandes wrote:
+> [snip]
+> > > Would it make sense to have call_rcu() check to see if there are many
+> > > outstanding requests on this CPU and if so process them before returning?
+> > > That would ensure that frequent callers usually ended up doing their
+> > > own processing.
+> 
+> Other than what Paul already mentioned about deadlocks, I am not sure if this
+> would even work for all cases since call_rcu() has to wait for a grace
+> period.
+> 
+> So, if the number of outstanding requests are higher than a certain amount,
+> then you *still* have to wait for some RCU configurations for the grace
+> period duration and cannot just execute the callback in-line. Did I miss
+> something?
+> 
+> Can waiting in-line for a grace period duration be tolerated in the vhost case?
+> 
+> thanks,
+> 
+>  - Joel
 
-Signed-off-by: Steven Price <steven.price@arm.com>
----
- arch/arm64/Kconfig                 |   1 +
- arch/arm64/Kconfig.debug           |  19 +----
- arch/arm64/include/asm/ptdump.h    |   8 +-
- arch/arm64/mm/Makefile             |   4 +-
- arch/arm64/mm/dump.c               | 117 ++++++++++-------------------
- arch/arm64/mm/ptdump_debugfs.c     |   2 +-
- drivers/firmware/efi/arm-runtime.c |   2 +-
- 7 files changed, 48 insertions(+), 105 deletions(-)
+No, but it has many other ways to recover (try again later, drop a
+packet, use a slower copy to/from user).
 
-diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-index 3adcec05b1f6..5a32c87f37c6 100644
---- a/arch/arm64/Kconfig
-+++ b/arch/arm64/Kconfig
-@@ -105,6 +105,7 @@ config ARM64
- 	select GENERIC_IRQ_SHOW
- 	select GENERIC_IRQ_SHOW_LEVEL
- 	select GENERIC_PCI_IOMAP
-+	select GENERIC_PTDUMP
- 	select GENERIC_SCHED_CLOCK
- 	select GENERIC_SMP_IDLE_THREAD
- 	select GENERIC_STRNCPY_FROM_USER
-diff --git a/arch/arm64/Kconfig.debug b/arch/arm64/Kconfig.debug
-index cf09010d825f..1c906d932d6b 100644
---- a/arch/arm64/Kconfig.debug
-+++ b/arch/arm64/Kconfig.debug
-@@ -1,22 +1,5 @@
- # SPDX-License-Identifier: GPL-2.0-only
- 
--config ARM64_PTDUMP_CORE
--	def_bool n
--
--config ARM64_PTDUMP_DEBUGFS
--	bool "Export kernel pagetable layout to userspace via debugfs"
--	depends on DEBUG_KERNEL
--	select ARM64_PTDUMP_CORE
--	select DEBUG_FS
--        help
--	  Say Y here if you want to show the kernel pagetable layout in a
--	  debugfs file. This information is only useful for kernel developers
--	  who are working in architecture specific areas of the kernel.
--	  It is probably not a good idea to enable this feature in a production
--	  kernel.
--
--	  If in doubt, say N.
--
- config PID_IN_CONTEXTIDR
- 	bool "Write the current PID to the CONTEXTIDR register"
- 	help
-@@ -42,7 +25,7 @@ config ARM64_RANDOMIZE_TEXT_OFFSET
- 
- config DEBUG_WX
- 	bool "Warn on W+X mappings at boot"
--	select ARM64_PTDUMP_CORE
-+	select PTDUMP_CORE
- 	---help---
- 	  Generate a warning if any W+X mappings are found at boot.
- 
-diff --git a/arch/arm64/include/asm/ptdump.h b/arch/arm64/include/asm/ptdump.h
-index 0b8e7269ec82..38187f74e089 100644
---- a/arch/arm64/include/asm/ptdump.h
-+++ b/arch/arm64/include/asm/ptdump.h
-@@ -5,7 +5,7 @@
- #ifndef __ASM_PTDUMP_H
- #define __ASM_PTDUMP_H
- 
--#ifdef CONFIG_ARM64_PTDUMP_CORE
-+#ifdef CONFIG_PTDUMP_CORE
- 
- #include <linux/mm_types.h>
- #include <linux/seq_file.h>
-@@ -21,15 +21,15 @@ struct ptdump_info {
- 	unsigned long			base_addr;
- };
- 
--void ptdump_walk_pgd(struct seq_file *s, struct ptdump_info *info);
--#ifdef CONFIG_ARM64_PTDUMP_DEBUGFS
-+void ptdump_walk(struct seq_file *s, struct ptdump_info *info);
-+#ifdef CONFIG_PTDUMP_DEBUGFS
- void ptdump_debugfs_register(struct ptdump_info *info, const char *name);
- #else
- static inline void ptdump_debugfs_register(struct ptdump_info *info,
- 					   const char *name) { }
- #endif
- void ptdump_check_wx(void);
--#endif /* CONFIG_ARM64_PTDUMP_CORE */
-+#endif /* CONFIG_PTDUMP_CORE */
- 
- #ifdef CONFIG_DEBUG_WX
- #define debug_checkwx()	ptdump_check_wx()
-diff --git a/arch/arm64/mm/Makefile b/arch/arm64/mm/Makefile
-index 849c1df3d214..d91030f0ffee 100644
---- a/arch/arm64/mm/Makefile
-+++ b/arch/arm64/mm/Makefile
-@@ -4,8 +4,8 @@ obj-y				:= dma-mapping.o extable.o fault.o init.o \
- 				   ioremap.o mmap.o pgd.o mmu.o \
- 				   context.o proc.o pageattr.o
- obj-$(CONFIG_HUGETLB_PAGE)	+= hugetlbpage.o
--obj-$(CONFIG_ARM64_PTDUMP_CORE)	+= dump.o
--obj-$(CONFIG_ARM64_PTDUMP_DEBUGFS)	+= ptdump_debugfs.o
-+obj-$(CONFIG_PTDUMP_CORE)	+= dump.o
-+obj-$(CONFIG_PTDUMP_DEBUGFS)	+= ptdump_debugfs.o
- obj-$(CONFIG_NUMA)		+= numa.o
- obj-$(CONFIG_DEBUG_VIRTUAL)	+= physaddr.o
- KASAN_SANITIZE_physaddr.o	+= n
-diff --git a/arch/arm64/mm/dump.c b/arch/arm64/mm/dump.c
-index 82b3a7fdb4a6..5cc71ad567b4 100644
---- a/arch/arm64/mm/dump.c
-+++ b/arch/arm64/mm/dump.c
-@@ -15,6 +15,7 @@
- #include <linux/io.h>
- #include <linux/init.h>
- #include <linux/mm.h>
-+#include <linux/ptdump.h>
- #include <linux/sched.h>
- #include <linux/seq_file.h>
- 
-@@ -65,10 +66,11 @@ static const struct addr_marker address_markers[] = {
-  * dumps out a description of the range.
-  */
- struct pg_state {
-+	struct ptdump_state ptdump;
- 	struct seq_file *seq;
- 	const struct addr_marker *marker;
- 	unsigned long start_address;
--	unsigned level;
-+	int level;
- 	u64 current_prot;
- 	bool check_wx;
- 	unsigned long wx_pages;
-@@ -168,6 +170,10 @@ static struct pg_level pg_level[] = {
- 		.name	= "PGD",
- 		.bits	= pte_bits,
- 		.num	= ARRAY_SIZE(pte_bits),
-+	}, { /* p4d */
-+		.name	= "P4D",
-+		.bits	= pte_bits,
-+		.num	= ARRAY_SIZE(pte_bits),
- 	}, { /* pud */
- 		.name	= (CONFIG_PGTABLE_LEVELS > 3) ? "PUD" : "PGD",
- 		.bits	= pte_bits,
-@@ -230,11 +236,15 @@ static void note_prot_wx(struct pg_state *st, unsigned long addr)
- 	st->wx_pages += (addr - st->start_address) / PAGE_SIZE;
- }
- 
--static void note_page(struct pg_state *st, unsigned long addr, unsigned level,
--				u64 val)
-+static void note_page(struct ptdump_state *pt_st, unsigned long addr, int level,
-+				unsigned long val)
- {
-+	struct pg_state *st = container_of(pt_st, struct pg_state, ptdump);
- 	static const char units[] = "KMGTPE";
--	u64 prot = val & pg_level[level].mask;
-+	u64 prot = 0;
-+
-+	if (level >= 0)
-+		prot = val & pg_level[level].mask;
- 
- 	if (!st->level) {
- 		st->level = level;
-@@ -282,85 +292,27 @@ static void note_page(struct pg_state *st, unsigned long addr, unsigned level,
- 
- }
- 
--static void walk_pte(struct pg_state *st, pmd_t *pmdp, unsigned long start,
--		     unsigned long end)
--{
--	unsigned long addr = start;
--	pte_t *ptep = pte_offset_kernel(pmdp, start);
--
--	do {
--		note_page(st, addr, 4, READ_ONCE(pte_val(*ptep)));
--	} while (ptep++, addr += PAGE_SIZE, addr != end);
--}
--
--static void walk_pmd(struct pg_state *st, pud_t *pudp, unsigned long start,
--		     unsigned long end)
--{
--	unsigned long next, addr = start;
--	pmd_t *pmdp = pmd_offset(pudp, start);
--
--	do {
--		pmd_t pmd = READ_ONCE(*pmdp);
--		next = pmd_addr_end(addr, end);
--
--		if (pmd_none(pmd) || pmd_sect(pmd)) {
--			note_page(st, addr, 3, pmd_val(pmd));
--		} else {
--			BUG_ON(pmd_bad(pmd));
--			walk_pte(st, pmdp, addr, next);
--		}
--	} while (pmdp++, addr = next, addr != end);
--}
--
--static void walk_pud(struct pg_state *st, pgd_t *pgdp, unsigned long start,
--		     unsigned long end)
-+void ptdump_walk(struct seq_file *s, struct ptdump_info *info)
- {
--	unsigned long next, addr = start;
--	pud_t *pudp = pud_offset(pgdp, start);
--
--	do {
--		pud_t pud = READ_ONCE(*pudp);
--		next = pud_addr_end(addr, end);
--
--		if (pud_none(pud) || pud_sect(pud)) {
--			note_page(st, addr, 2, pud_val(pud));
--		} else {
--			BUG_ON(pud_bad(pud));
--			walk_pmd(st, pudp, addr, next);
--		}
--	} while (pudp++, addr = next, addr != end);
--}
-+	unsigned long end = ~0UL;
-+	struct pg_state st;
- 
--static void walk_pgd(struct pg_state *st, struct mm_struct *mm,
--		     unsigned long start)
--{
--	unsigned long end = (start < TASK_SIZE_64) ? TASK_SIZE_64 : 0;
--	unsigned long next, addr = start;
--	pgd_t *pgdp = pgd_offset(mm, start);
--
--	do {
--		pgd_t pgd = READ_ONCE(*pgdp);
--		next = pgd_addr_end(addr, end);
--
--		if (pgd_none(pgd)) {
--			note_page(st, addr, 1, pgd_val(pgd));
--		} else {
--			BUG_ON(pgd_bad(pgd));
--			walk_pud(st, pgdp, addr, next);
--		}
--	} while (pgdp++, addr = next, addr != end);
--}
-+	if (info->base_addr < TASK_SIZE_64)
-+		end = TASK_SIZE_64;
- 
--void ptdump_walk_pgd(struct seq_file *m, struct ptdump_info *info)
--{
--	struct pg_state st = {
--		.seq = m,
-+	st = (struct pg_state){
-+		.seq = s,
- 		.marker = info->markers,
-+		.ptdump = {
-+			.note_page = note_page,
-+			.range = (struct ptdump_range[]){
-+				{info->base_addr, end},
-+				{0, 0}
-+			}
-+		}
- 	};
- 
--	walk_pgd(&st, info->mm, info->base_addr);
--
--	note_page(&st, 0, 0, 0);
-+	ptdump_walk_pgd(&st.ptdump, info->mm);
- }
- 
- static void ptdump_initialize(void)
-@@ -388,10 +340,17 @@ void ptdump_check_wx(void)
- 			{ -1, NULL},
- 		},
- 		.check_wx = true,
-+		.ptdump = {
-+			.note_page = note_page,
-+			.range = (struct ptdump_range[]) {
-+				{VA_START, ~0UL},
-+				{0, 0}
-+			}
-+		}
- 	};
- 
--	walk_pgd(&st, &init_mm, VA_START);
--	note_page(&st, 0, 0, 0);
-+	ptdump_walk_pgd(&st.ptdump, &init_mm);
-+
- 	if (st.wx_pages || st.uxn_pages)
- 		pr_warn("Checked W+X mappings: FAILED, %lu W+X pages found, %lu non-UXN pages found\n",
- 			st.wx_pages, st.uxn_pages);
-diff --git a/arch/arm64/mm/ptdump_debugfs.c b/arch/arm64/mm/ptdump_debugfs.c
-index 064163f25592..1f2eae3e988b 100644
---- a/arch/arm64/mm/ptdump_debugfs.c
-+++ b/arch/arm64/mm/ptdump_debugfs.c
-@@ -7,7 +7,7 @@
- static int ptdump_show(struct seq_file *m, void *v)
- {
- 	struct ptdump_info *info = m->private;
--	ptdump_walk_pgd(m, info);
-+	ptdump_walk(m, info);
- 	return 0;
- }
- DEFINE_SHOW_ATTRIBUTE(ptdump);
-diff --git a/drivers/firmware/efi/arm-runtime.c b/drivers/firmware/efi/arm-runtime.c
-index e2ac5fa5531b..1283685f9c20 100644
---- a/drivers/firmware/efi/arm-runtime.c
-+++ b/drivers/firmware/efi/arm-runtime.c
-@@ -27,7 +27,7 @@
- 
- extern u64 efi_system_table;
- 
--#ifdef CONFIG_ARM64_PTDUMP_DEBUGFS
-+#if defined(CONFIG_PTDUMP_DEBUGFS) && defined(CONFIG_ARM64)
- #include <asm/ptdump.h>
- 
- static struct ptdump_info efi_ptdump_info = {
 -- 
-2.20.1
+MST
 
