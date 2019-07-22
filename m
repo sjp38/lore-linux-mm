@@ -2,148 +2,233 @@ Return-Path: <SRS0=80m6=VT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.1 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A3D5FC76190
-	for <linux-mm@archiver.kernel.org>; Mon, 22 Jul 2019 11:08:30 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 27AA8C76194
+	for <linux-mm@archiver.kernel.org>; Mon, 22 Jul 2019 11:51:59 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4B29820821
-	for <linux-mm@archiver.kernel.org>; Mon, 22 Jul 2019 11:08:30 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="E54nSq8Q"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4B29820821
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	by mail.kernel.org (Postfix) with ESMTP id D364D2184E
+	for <linux-mm@archiver.kernel.org>; Mon, 22 Jul 2019 11:51:58 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D364D2184E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9C50B8E0001; Mon, 22 Jul 2019 07:08:29 -0400 (EDT)
+	id 696DD6B0005; Mon, 22 Jul 2019 07:51:58 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 975746B0008; Mon, 22 Jul 2019 07:08:29 -0400 (EDT)
+	id 648FB6B0006; Mon, 22 Jul 2019 07:51:58 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 864288E0001; Mon, 22 Jul 2019 07:08:29 -0400 (EDT)
+	id 510738E0001; Mon, 22 Jul 2019 07:51:58 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 50DCE6B0007
-	for <linux-mm@kvack.org>; Mon, 22 Jul 2019 07:08:29 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id 6so23647553pfi.6
-        for <linux-mm@kvack.org>; Mon, 22 Jul 2019 04:08:29 -0700 (PDT)
+Received: from mail-yw1-f69.google.com (mail-yw1-f69.google.com [209.85.161.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 309876B0005
+	for <linux-mm@kvack.org>; Mon, 22 Jul 2019 07:51:58 -0400 (EDT)
+Received: by mail-yw1-f69.google.com with SMTP id i73so29522029ywa.18
+        for <linux-mm@kvack.org>; Mon, 22 Jul 2019 04:51:58 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=yI6oJAOD8RitgYpGXV7mavr3OofMjIjiw6wkaelvwj4=;
-        b=br6Jiv4EX2oU8jZNUZZUxP6mnPNKb7sACnUT8HPCEfb4UsSok2tux4VmEFz4zozFdb
-         NpT7oe/RQOnF2cVeHRzbz5YG9TTQOPqo24ZuPBZnyw3DyJnJBRmcQs6DtVTIMsfArY6e
-         f5LsGdmdSSuSaUGxcxtFGvIgZVaEFizUnS2rMe8NJNhZv/OtiusPcPXqhBewvJB9I0LN
-         zUj6CoSgZIF4vGQuvOYuqEzrQoiEY7YRv9tgSY+gGWrm66iN13ALWlsDIVaMn5y6XHCJ
-         jXvtqMJbO1cVI0t5+HrBb7i1fFj/iVtF1DCJ3UY2H66Aj0SJ2uraY1EzhDWmze75slCd
-         MaRA==
-X-Gm-Message-State: APjAAAUvpwGOrd2r7Ilm/f+jqWn+/d6NXLISSRGdpyC7p7TRgjvS9LOl
-	JHfq6e6N9+VXdu1n9NretG3pRiO9LuiVLekYXi5bUVxgPDUk2cODUFWB/24tpa9u4bJ0Jt506TP
-	VVomQ7snZ5oBCsqxLO86BX6aT0SJbVuoyze21ke7sSkE2HkX89JJWoldBM2xmoGlACg==
-X-Received: by 2002:a63:3112:: with SMTP id x18mr70974000pgx.385.1563793708878;
-        Mon, 22 Jul 2019 04:08:28 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwBmwzc4OXzuwe6PO7G98tKt6vtRyTSQYZVO9aam0KAp3VIiNGCOvtKQg3PBQbMLZ72BLzM
-X-Received: by 2002:a63:3112:: with SMTP id x18mr70973931pgx.385.1563793708011;
-        Mon, 22 Jul 2019 04:08:28 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563793708; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:reply-to:references:mime-version:content-disposition
+         :in-reply-to:user-agent:message-id;
+        bh=Y5YhRENCsAuv7KQ1ejes6bqF9KsDFuISWTCi48JD5Y8=;
+        b=jCwGVd66jlIgAjPJ32DZADy5ho99IAO2oVdaeuk+61DZFeLMQYS0NSf6EjEw7/mqs9
+         E+c/PKbYtbpKRn1j2+a2769pM+ByAsk7uRGpVJi7eEgntSZpwISc4icIOgsZ5KZNkZOt
+         QbRhcKQvovLr4JzNMyOpIaEPdjMuj8XCNGiYndYsmRHDUCWN/bljHTryOjaCF4F8vXTR
+         boG3CFF3z3tdnK/V7G3do9wuHPkCNR7J+hqN0UrT5IewAOM4Xm9cG0EiZYHfRf5rUlET
+         HHdYUoJxS4A91yKj/98kdm2B0ERtg4hMkqG2woP2SQ0xvvrydC8rxxYg3oC5F1yOn0Pf
+         Zf9g==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 148.163.158.5 is neither permitted nor denied by best guess record for domain of paulmck@linux.vnet.ibm.com) smtp.mailfrom=paulmck@linux.vnet.ibm.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: APjAAAXRetkrOlJefy+tTcNO4UXvCt1+ay9qeffUAC2t+RvyyOfZ15Ct
+	4KrIRFYpUjEqD8SapU6pTzBK1VgwD8BjtY9ihfwzuP7Hd+yC7dCJbGej/gSBgVu4HjDXILCCtDI
+	5EwvxB1SXHO2JGvpgeAnRLCfQkdoDsPkv3Q3qciHHGdsOqQKwJ6Ekm1THyzIkOr8=
+X-Received: by 2002:a25:a28e:: with SMTP id c14mr36124039ybi.141.1563796317948;
+        Mon, 22 Jul 2019 04:51:57 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzKhLd/gidliYPGkgH5KtEzBgjvlg0IinWZaX70/ll4sB8o8sCqtoGv4pLAKoa63a+9WLEs
+X-Received: by 2002:a25:a28e:: with SMTP id c14mr36124008ybi.141.1563796317025;
+        Mon, 22 Jul 2019 04:51:57 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563796317; cv=none;
         d=google.com; s=arc-20160816;
-        b=0qhOpGCfRjuLdFKd/kQ1AP5xTFOPZ99lJdzZ80jA/b/xqzWRCVPXDvvDaK9E5eKaXZ
-         VepS8BIUKBjo4v6XqFuqGt7Q8nB3oJ9WoK5Quwc4r3HsvDn9yXcspEXvtia5Lnylq+kT
-         CfiBkv43BBn+kSiuoqvwTJjdwpgiZHt4AQVoc7PzN/kwzMiBzObMKeTt/W6gQkDbB3ja
-         p35UfI7e2SiIRwfcNdO+gWFmmpdyLFAGOHUurY23YNGOEoje/hQ1gndPPC52vI5NTqGT
-         MtuQqppUKISQlYsncpl1JcR46zU4SPCbGigvGtZ6AsR0OpfouF65cVQKcHiroiHViwdR
-         takw==
+        b=Yu15qxyGhKzFHsKIuaqHC7CsiBXUn4aON9Ywu7eYXQa/FYxFG+XnbJKo9UzfpDsS2c
+         DS/6h3PVV1RZn0zuzkFikmI3IqodkPeyy8JdkZuIwETLBxJslnb/LWK9RHATbhVE9M0R
+         2MVBJ1QHf4pQXj+b8HYbEWlkldRvEDNaXrdZA4AP1HTcFqFTfcLdHk2X27fiipLNntQu
+         J8JwuB+seqYOY2J9SZj/Hc/P95MERGERy0FZI9ayvBm8EUSHunW++8QDSkiSwgZAsyX7
+         m94IulHyd2Xm4woFXIQSAJV+q+3Wy7+Ckr68EzH1PRpa1HvgG2J5dyCcc4V9cSsx9sPW
+         uZKg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=yI6oJAOD8RitgYpGXV7mavr3OofMjIjiw6wkaelvwj4=;
-        b=leo1BTQmSVSsOV7JltVqK76ie1xC8nxXbICcJGfQrUpUHFbPAofiwJZba7C/udRKPe
-         osOot5t7RDtWqj5PaixLsgT8mCtWL2cC05toF4r0wyY6Cy1QRWZEFTu/hC5c0MuP102J
-         +w+grvpVyQ9ODTt4RD/9fTYBXYUgoKJGbkx03nYsfO1TVJjXQH5IzOKKs6QFx8qie6Dd
-         IhcSyhOyKlkc8JbHlskCfDqCo2uJ+lLgQocv+N+60fpBEC07+LKFxnu2VKssVv0F5EoE
-         SEtqAT8LF09q/UfFRn4jptyZU8NEMCdgOEePfuSTmkPQzCE3ysVzSLDtOe68cees9xCE
-         RCSA==
+        h=message-id:user-agent:in-reply-to:content-disposition:mime-version
+         :references:reply-to:subject:cc:to:from:date;
+        bh=Y5YhRENCsAuv7KQ1ejes6bqF9KsDFuISWTCi48JD5Y8=;
+        b=uKDnjeEy7fevLPqETEvZ/LdqX2FlOh9u+B1s2ZQ4kGTZf6Lv/C9a0KGLsMMgFzBRH3
+         TtLFuRJeL+Cm5ymwz66RhQMkybiX/EcgXqH5c9VsvVhBWGq25p8yPTzrT/JQ7PyBHluo
+         Itovpk6qJ9MCPt/0uAn71Y8pUyHDm+guKdboQm5lJNciy0PlKbg2I9n/DXdGW5DViHrr
+         a5w20+Q1vL6KhQGlt2GA6ALor8w4fmF/mHlc1UOksilXZn7JBUV9B0kbhrDx7aJKjMio
+         ngKXzYa/JbRJF9NIlMnKq213hA1LIshzaP4i4sEpGKbMOFn97jwJx21GTSdsd7TAwSq1
+         fxBA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=E54nSq8Q;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id h9si10168332pju.77.2019.07.22.04.08.27
+       spf=neutral (google.com: 148.163.158.5 is neither permitted nor denied by best guess record for domain of paulmck@linux.vnet.ibm.com) smtp.mailfrom=paulmck@linux.vnet.ibm.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id b137si15730261ywh.153.2019.07.22.04.51.56
         for <linux-mm@kvack.org>
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Mon, 22 Jul 2019 04:08:27 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 22 Jul 2019 04:51:56 -0700 (PDT)
+Received-SPF: neutral (google.com: 148.163.158.5 is neither permitted nor denied by best guess record for domain of paulmck@linux.vnet.ibm.com) client-ip=148.163.158.5;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=E54nSq8Q;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=yI6oJAOD8RitgYpGXV7mavr3OofMjIjiw6wkaelvwj4=; b=E54nSq8QjpaTk0rNt3VrHCO3G
-	6kAbY17R0sFpqIBTjoU+pieKC/cHS4iMnbKh8gX3+6PGXNEtD32bKcxKbDVjDeGtIRJLxUcsyn1NN
-	3GyiIL+bgEf3zPDOl5k5dcOBYibUyF1CspeuBVydmylD8cU8ReuFqydxCS9WcVgKrGAONFHqfRk3P
-	3xKD3XQpielWtJY3iWAQHp8SPP086TCjGdfvdG64iqF/3g5gTd2JtJEO4Xq1DIXdHMHv9HoFO1LyB
-	u/WSNkyznbiMOroeS+PsuvJ/+iYGhHxXZC4RdMUKrwj6QdG4S8hrisMyAv6rOmyJ2kVjY7TQY+G1M
-	MkPPuOq3Q==;
-Received: from willy by bombadil.infradead.org with local (Exim 4.92 #3 (Red Hat Linux))
-	id 1hpWB7-0002Eh-PH; Mon, 22 Jul 2019 11:08:25 +0000
-Date: Mon, 22 Jul 2019 04:08:25 -0700
-From: Matthew Wilcox <willy@infradead.org>
-To: Ira Weiny <ira.weiny@intel.com>
-Cc: Ralph Campbell <rcampbell@nvidia.com>, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org, John Hubbard <jhubbard@nvidia.com>,
-	Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@linux.com>,
-	Dave Hansen <dave.hansen@linux.intel.com>,
-	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
-	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>,
-	Lai Jiangshan <jiangshanlai@gmail.com>,
-	Martin Schwidefsky <schwidefsky@de.ibm.com>,
-	Pekka Enberg <penberg@kernel.org>,
-	Randy Dunlap <rdunlap@infradead.org>,
-	Andrey Ryabinin <aryabinin@virtuozzo.com>,
-	Christoph Hellwig <hch@lst.de>, Jason Gunthorpe <jgg@mellanox.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: [PATCH v2 1/3] mm: document zone device struct page field usage
-Message-ID: <20190722110825.GD363@bombadil.infradead.org>
-References: <20190719192955.30462-1-rcampbell@nvidia.com>
- <20190719192955.30462-2-rcampbell@nvidia.com>
- <20190721160204.GB363@bombadil.infradead.org>
- <20190722051345.GB6157@iweiny-DESK2.sc.intel.com>
+       spf=neutral (google.com: 148.163.158.5 is neither permitted nor denied by best guess record for domain of paulmck@linux.vnet.ibm.com) smtp.mailfrom=paulmck@linux.vnet.ibm.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x6MBmKoQ103565
+	for <linux-mm@kvack.org>; Mon, 22 Jul 2019 07:51:56 -0400
+Received: from e14.ny.us.ibm.com (e14.ny.us.ibm.com [129.33.205.204])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2twc9d93yg-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 22 Jul 2019 07:51:56 -0400
+Received: from localhost
+	by e14.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
+	Mon, 22 Jul 2019 12:51:55 +0100
+Received: from b01cxnp22034.gho.pok.ibm.com (9.57.198.24)
+	by e14.ny.us.ibm.com (146.89.104.201) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Mon, 22 Jul 2019 12:51:49 +0100
+Received: from b01ledav003.gho.pok.ibm.com (b01ledav003.gho.pok.ibm.com [9.57.199.108])
+	by b01cxnp22034.gho.pok.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x6MBpmq544761478
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Mon, 22 Jul 2019 11:51:48 GMT
+Received: from b01ledav003.gho.pok.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 3D4A8B206A;
+	Mon, 22 Jul 2019 11:51:48 +0000 (GMT)
+Received: from b01ledav003.gho.pok.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id DFD7EB2066;
+	Mon, 22 Jul 2019 11:51:47 +0000 (GMT)
+Received: from paulmck-ThinkPad-W541 (unknown [9.85.189.166])
+	by b01ledav003.gho.pok.ibm.com (Postfix) with ESMTP;
+	Mon, 22 Jul 2019 11:51:47 +0000 (GMT)
+Received: by paulmck-ThinkPad-W541 (Postfix, from userid 1000)
+	id 2B8E916C2E45; Mon, 22 Jul 2019 04:51:49 -0700 (PDT)
+Date: Mon, 22 Jul 2019 04:51:49 -0700
+From: "Paul E. McKenney" <paulmck@linux.ibm.com>
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: Matthew Wilcox <willy@infradead.org>, aarcange@redhat.com,
+        akpm@linux-foundation.org, christian@brauner.io, davem@davemloft.net,
+        ebiederm@xmission.com, elena.reshetova@intel.com, guro@fb.com,
+        hch@infradead.org, james.bottomley@hansenpartnership.com,
+        jasowang@redhat.com, jglisse@redhat.com, keescook@chromium.org,
+        ldv@altlinux.org, linux-arm-kernel@lists.infradead.org,
+        linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+        linux-parisc@vger.kernel.org, luto@amacapital.net, mhocko@suse.com,
+        mingo@kernel.org, namit@vmware.com, peterz@infradead.org,
+        syzkaller-bugs@googlegroups.com, viro@zeniv.linux.org.uk,
+        wad@chromium.org
+Subject: Re: RFC: call_rcu_outstanding (was Re: WARNING in __mmdrop)
+Reply-To: paulmck@linux.ibm.com
+References: <0000000000008dd6bb058e006938@google.com>
+ <000000000000964b0d058e1a0483@google.com>
+ <20190721044615-mutt-send-email-mst@kernel.org>
+ <20190721081933-mutt-send-email-mst@kernel.org>
+ <20190721131725.GR14271@linux.ibm.com>
+ <20190721210837.GC363@bombadil.infradead.org>
+ <20190721233113.GV14271@linux.ibm.com>
+ <20190722035042-mutt-send-email-mst@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190722051345.GB6157@iweiny-DESK2.sc.intel.com>
-User-Agent: Mutt/1.11.4 (2019-03-13)
+In-Reply-To: <20190722035042-mutt-send-email-mst@kernel.org>
+User-Agent: Mutt/1.5.21 (2010-09-15)
+X-TM-AS-GCONF: 00
+x-cbid: 19072211-0052-0000-0000-000003E3F8C7
+X-IBM-SpamModules-Scores: 
+X-IBM-SpamModules-Versions: BY=3.00011474; HX=3.00000242; KW=3.00000007;
+ PH=3.00000004; SC=3.00000287; SDB=6.01235799; UDB=6.00651288; IPR=6.01017148;
+ MB=3.00027836; MTD=3.00000008; XFM=3.00000015; UTC=2019-07-22 11:51:55
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19072211-0053-0000-0000-000061CB4F70
+Message-Id: <20190722115149.GY14271@linux.ibm.com>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-07-22_09:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=669 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1907220141
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Jul 21, 2019 at 10:13:45PM -0700, Ira Weiny wrote:
-> On Sun, Jul 21, 2019 at 09:02:04AM -0700, Matthew Wilcox wrote:
-> > On Fri, Jul 19, 2019 at 12:29:53PM -0700, Ralph Campbell wrote:
-> > > Struct page for ZONE_DEVICE private pages uses the page->mapping and
-> > > and page->index fields while the source anonymous pages are migrated to
-> > > device private memory. This is so rmap_walk() can find the page when
-> > > migrating the ZONE_DEVICE private page back to system memory.
-> > > ZONE_DEVICE pmem backed fsdax pages also use the page->mapping and
-> > > page->index fields when files are mapped into a process address space.
+On Mon, Jul 22, 2019 at 03:52:05AM -0400, Michael S. Tsirkin wrote:
+> On Sun, Jul 21, 2019 at 04:31:13PM -0700, Paul E. McKenney wrote:
+> > On Sun, Jul 21, 2019 at 02:08:37PM -0700, Matthew Wilcox wrote:
+> > > On Sun, Jul 21, 2019 at 06:17:25AM -0700, Paul E. McKenney wrote:
+> > > > Also, the overhead is important.  For example, as far as I know,
+> > > > current RCU gracefully handles close(open(...)) in a tight userspace
+> > > > loop.  But there might be trouble due to tight userspace loops around
+> > > > lighter-weight operations.
 > > > 
-> > > Restructure struct page and add comments to make this more clear.
+> > > I thought you believed that RCU was antifragile, in that it would scale
+> > > better as it was used more heavily?
 > > 
-> > NAK.  I just got rid of this kind of foolishness from struct page,
-> > and you're making it harder to understand, not easier.  The comments
-> > could be improved, but don't lay it out like this again.
+> > You are referring to this?  https://paulmck.livejournal.com/47933.html
+> > 
+> > If so, the last few paragraphs might be worth re-reading.   ;-)
+> > 
+> > And in this case, the heuristics RCU uses to decide when to schedule
+> > invocation of the callbacks needs some help.  One component of that help
+> > is a time-based limit to the number of consecutive callback invocations
+> > (see my crude prototype and Eric Dumazet's more polished patch).  Another
+> > component is an overload warning.
+> > 
+> > Why would an overload warning be needed if RCU's callback-invocation
+> > scheduling heurisitics were upgraded?  Because someone could boot a
+> > 100-CPU system with the rcu_nocbs=0-99, bind all of the resulting
+> > rcuo kthreads to (say) CPU 0, and then run a callback-heavy workload
+> > on all of the CPUs.  Given the constraints, CPU 0 cannot keep up.
+> > 
+> > So warnings are required as well.
+> > 
+> > > Would it make sense to have call_rcu() check to see if there are many
+> > > outstanding requests on this CPU and if so process them before returning?
+> > > That would ensure that frequent callers usually ended up doing their
+> > > own processing.
+> > 
+> > Unfortunately, no.  Here is a code fragment illustrating why:
+> > 
+> > 	void my_cb(struct rcu_head *rhp)
+> > 	{
+> > 		unsigned long flags;
+> > 
+> > 		spin_lock_irqsave(&my_lock, flags);
+> > 		handle_cb(rhp);
+> > 		spin_unlock_irqrestore(&my_lock, flags);
+> > 	}
+> > 
+> > 	. . .
+> > 
+> > 	spin_lock_irqsave(&my_lock, flags);
+> > 	p = look_something_up();
+> > 	remove_that_something(p);
+> > 	call_rcu(p, my_cb);
+> > 	spin_unlock_irqrestore(&my_lock, flags);
+> > 
+> > Invoking the extra callbacks directly from call_rcu() would thus result
+> > in self-deadlock.  Documentation/RCU/UP.txt contains a few more examples
+> > along these lines.
 > 
-> Was V1 of Ralphs patch ok?  It seemed ok to me.
+> We could add an option that simply fails if overloaded, right?
+> Have caller recover...
 
-Yes, v1 was fine.  This seems like a regression.
+For example, return EBUSY from your ioctl?  That should work.  You could
+also sleep for a jiffy or two to let things catch up in this BUSY (or
+similar) case.  Or try three times, waiting a jiffy between each try,
+and return EBUSY if all three tries failed.
+
+Or just keep it simple and return EBUSY on the first try.  ;-)
+
+All of this assumes that this ioctl is the cause of the overload, which
+during early boot seems to me to be a safe assumption.
+
+							Thanx, Paul
 
