@@ -2,150 +2,129 @@ Return-Path: <SRS0=80m6=VT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D7D0EC76195
-	for <linux-mm@archiver.kernel.org>; Mon, 22 Jul 2019 09:36:14 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9B57EC76188
+	for <linux-mm@archiver.kernel.org>; Mon, 22 Jul 2019 09:37:01 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A12B52229B
-	for <linux-mm@archiver.kernel.org>; Mon, 22 Jul 2019 09:36:14 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=yandex-team.ru header.i=@yandex-team.ru header.b="DIJf1MDR"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A12B52229B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=yandex-team.ru
+	by mail.kernel.org (Postfix) with ESMTP id 6AE552229B
+	for <linux-mm@archiver.kernel.org>; Mon, 22 Jul 2019 09:37:01 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6AE552229B
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 268AE6B000C; Mon, 22 Jul 2019 05:36:14 -0400 (EDT)
+	id 01DF86B000E; Mon, 22 Jul 2019 05:37:01 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1F1886B000D; Mon, 22 Jul 2019 05:36:14 -0400 (EDT)
+	id EE9FF6B0010; Mon, 22 Jul 2019 05:37:00 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 045636B000E; Mon, 22 Jul 2019 05:36:14 -0400 (EDT)
+	id DD9458E0001; Mon, 22 Jul 2019 05:37:00 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lf1-f69.google.com (mail-lf1-f69.google.com [209.85.167.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 980816B000C
-	for <linux-mm@kvack.org>; Mon, 22 Jul 2019 05:36:13 -0400 (EDT)
-Received: by mail-lf1-f69.google.com with SMTP id s10so3527034lfp.14
-        for <linux-mm@kvack.org>; Mon, 22 Jul 2019 02:36:13 -0700 (PDT)
+Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 8FC8A6B000E
+	for <linux-mm@kvack.org>; Mon, 22 Jul 2019 05:37:00 -0400 (EDT)
+Received: by mail-wr1-f71.google.com with SMTP id r4so19016874wrt.13
+        for <linux-mm@kvack.org>; Mon, 22 Jul 2019 02:37:00 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:from:to:cc:date
-         :message-id:in-reply-to:references:user-agent:mime-version
-         :content-transfer-encoding;
-        bh=lwrou0ge1fASn3VFBYr42gXUSv9B+Mk8b6WwMg4i5lM=;
-        b=GUEzpuRZHMSuhB0POhuqYp7dop5StDCdOeGE6alj/ofX6sUJDYtImSlzk1XMpXDnc+
-         5kDITM4mgJsckJd3cDxZs4g6H1QI7OOQL8NxGzn4A2CV41mq4eOPu1yDy3PZocMblSWS
-         PwltJZA8/J7dHaHCooLwG1iI08SYtj9EbTX1HEoAQnWrz1LUNCIFJ+pDOOzRT3OjCDvz
-         FZBQbH7qD6w6smbt7duHzgf0f3z6ceRThANwTI4t9RwsFXbhho1GtFB7cRKWrrjuRRmF
-         mnyQtr4xKR1p3fBrJ6gqRkW5uoXkKu0Y/oZ4rRJ8xplgQ08QZseRZXQVzjjAg/vQD7rl
-         KtAQ==
-X-Gm-Message-State: APjAAAWGt6UtdfWdAExOs7Fuoets1C91Nh4f0bjqG5XY5BzvvgRf34Nt
-	QOFHxLFhx90B5eJNE+PASiIrgAR5aJtNEUmTnW45/aX9CiVCdo+uBnaoE3EThDrIR6kmf3zzc6H
-	f++8XCmvBR93RhBfYECBFSDbN2Rxw7uByjCxQ7lwFju/PpeDhc0rjzIqGbFsbb2SBvQ==
-X-Received: by 2002:a2e:8396:: with SMTP id x22mr36733468ljg.135.1563788172975;
-        Mon, 22 Jul 2019 02:36:12 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzUN90Fwi1p18cFrHcECK2A4/RECtC7ylWZ8168L2570DTeKnunz4lGk1WTFQxlilKJEfxu
-X-Received: by 2002:a2e:8396:: with SMTP id x22mr36733430ljg.135.1563788172189;
-        Mon, 22 Jul 2019 02:36:12 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563788172; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=mmZRiqitlzPnFP6lL8KXsx5adnNkpZSEncnm9dPbhN4=;
+        b=J+Al96/gUNwl1lwy4+PoTCmWQmbCwdhIXnpBJw6FLziDICV1/C5p7XCZ1ijJMBZX0g
+         i6hrrFnhwfwb2clvAIcYeQj6hSVS7vNcO7mi6CPHTnt3oZsjCjGTfF3EeyO6k3RPAShh
+         f+Eb4k74NQ2uuxtzSoCJby20nboU6oWN07RVqWyw4kn2VdHhd/dxG7zrXZaO/oXhWe4q
+         sVHsgXwE7MQz+MfspyPsspGGMgVNX9D/AeqaDGFhgqPSPh15mAQStcrLBk8Z76G/lDYD
+         9sfTXt/d44wM19llEUrSFHiIrK7ItImocDVJHe18/7536Y8AXzqK5NE53qoTFK2RcmjO
+         HS8g==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
+X-Gm-Message-State: APjAAAXNA/qTDxeLT60XaTQEQ1xikxNtWHhkQzd9nH49n+M5vP1uz6lS
+	2tjJ2btdokJStHB1h6aulfHxEwef2Zran+LQPFE2UpDnnpFUDkFsLIGXBhEz3nnbgMZreYacA+R
+	EtUUxfB2dlzWzLOH2WNVqD7lKuHuFQE7lhtYgAGNzd/M056yoqDcl1Ya29SiuiPN5hQ==
+X-Received: by 2002:a5d:4602:: with SMTP id t2mr60975050wrq.340.1563788220192;
+        Mon, 22 Jul 2019 02:37:00 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxaXFmr2mjiUcsgaKtORsDIPgAutUhbkgNorFV+Getbp/kpLzZUdnQrAt5c+noJQKiSi135
+X-Received: by 2002:a5d:4602:: with SMTP id t2mr60974986wrq.340.1563788219348;
+        Mon, 22 Jul 2019 02:36:59 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563788219; cv=none;
         d=google.com; s=arc-20160816;
-        b=sV040IiAhlyvGqySwW2slRvMU9qHLXT/j5ESrszZpa3qKIa+l50+XtcA/9lKMQMmJh
-         iCEThq29vjbYSHhM14isRGlndi6DFVd3feaRUKavNqt+oZVEgsp6jR5vUHJRN3cSVsp/
-         K0sRKQYzBI2TQEHfCFH3sunv/hCCnz6Zdsg3Llc+UwHueMTsrAwLUf6kVqRrkYvTdT2r
-         mGhCxrwKnqUmYdAyCTJ/+3D4WHs2+rmyXPpXJw3lTg8P5FtdiBARvZ5Zw12lYFijTS0k
-         9V+tAW0hUWJ2b9HY3XYVjCgyDerAyD5ksBfOCEpYogLDxAn+vlYLBKv/DlDr7u1XFr8k
-         8dPw==
+        b=EP3dV0q21blO6neTc/lcfqYo4tiV8fMsEeqejTNvsI/Qcj7/+S1935KV2W3PXSeh/P
+         OwTSmvd3deSXCPyWxfK67LPfBpB3PjYHW6ka2MjsIVS4ey3YmAx8+TmpQy/poxO1XJZY
+         D+kZaKjonI0HI6Q9BY8ouBUrYF67wRLUnQQVGcBn5KtOp7AbdHriaK6FWAD+BdQ//ait
+         43D6hcLt22y7s44Kljoy5pEg26/udmZUYqUCuua85n8BxenheELjLOM62EvpKsNkkrS4
+         YbWlgJhi88IDKwwmW5/dSALSQ9mwOIYa01KPgrg8NydfLKhO7Msh4Vmub31DMZq9Efc9
+         z6KQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:user-agent:references
-         :in-reply-to:message-id:date:cc:to:from:subject:dkim-signature;
-        bh=lwrou0ge1fASn3VFBYr42gXUSv9B+Mk8b6WwMg4i5lM=;
-        b=cAtAAFRphYYo3BwItVmVOlw0YNvr/1/aG/YAMnDEG0WnW5HDMJ5bLs0W6gi/aHG2wk
-         yyiEiy1o7rHXfRkueoppOb93t4G7a85baMIfbPgttgCkEI66OEwIaqkmwtzU3fqwNhCw
-         3UbFrEp9kZ1Zvw2RI8yhp3uCv7wK2iGgP3ygADeRhQerqq4fXku+sYCYolxXsYP/6LuB
-         aXnhxMaVpPmjrFgVKpINlYUlS0LoTeMF16OegO05Ny7noMSs/OpiSr4itCXf+vwxL5jD
-         IhwwrGHdZIODdIQ/MJbtBg85OwSiBUlvBgR6pNncni7AB3p5to6BGG7jBvfvmFSE47Mg
-         MSNg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=mmZRiqitlzPnFP6lL8KXsx5adnNkpZSEncnm9dPbhN4=;
+        b=OaRNToaoI1IldllyinQBBlrOjreJfuPrebSF+9JnlsSCChDi1TYd+yGdMD0FsCCiFx
+         6uF+klA1PcFhRQW7cq9fcLsOseJso6sEuL7iSpM5n2d+0TqzeIsTifodT60mihut1AoA
+         R8lewMU3wWdOmGSumZcoVolVi48ElF6gCLR4sETQoRByjeFvxAgB6aLY+hBBLMyjlBA+
+         xJtqTai5xPGVeM9a8OhRm4pTyMkmXiaHi0WYcuPXaSw4/TOudYMSlqTuBrnx2JpDwLA7
+         dtvoNDWG7+CKEOxCoboRuhd9j7kOSd9B/27Y0jPsxKAIsOqP3KeLBprrXpIDP4/sTVUQ
+         E4EQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@yandex-team.ru header.s=default header.b=DIJf1MDR;
-       spf=pass (google.com: domain of khlebnikov@yandex-team.ru designates 77.88.29.217 as permitted sender) smtp.mailfrom=khlebnikov@yandex-team.ru;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=yandex-team.ru
-Received: from forwardcorp1p.mail.yandex.net (forwardcorp1p.mail.yandex.net. [77.88.29.217])
-        by mx.google.com with ESMTPS id u1si32893739ljk.164.2019.07.22.02.36.12
+       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
+Received: from verein.lst.de (verein.lst.de. [213.95.11.211])
+        by mx.google.com with ESMTPS id g133si29883049wmf.83.2019.07.22.02.36.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 22 Jul 2019 02:36:12 -0700 (PDT)
-Received-SPF: pass (google.com: domain of khlebnikov@yandex-team.ru designates 77.88.29.217 as permitted sender) client-ip=77.88.29.217;
+        Mon, 22 Jul 2019 02:36:59 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) client-ip=213.95.11.211;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@yandex-team.ru header.s=default header.b=DIJf1MDR;
-       spf=pass (google.com: domain of khlebnikov@yandex-team.ru designates 77.88.29.217 as permitted sender) smtp.mailfrom=khlebnikov@yandex-team.ru;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=yandex-team.ru
-Received: from mxbackcorp1j.mail.yandex.net (mxbackcorp1j.mail.yandex.net [IPv6:2a02:6b8:0:1619::162])
-	by forwardcorp1p.mail.yandex.net (Yandex) with ESMTP id 9F3E62E0DE0;
-	Mon, 22 Jul 2019 12:36:11 +0300 (MSK)
-Received: from smtpcorp1j.mail.yandex.net (smtpcorp1j.mail.yandex.net [2a02:6b8:0:1619::137])
-	by mxbackcorp1j.mail.yandex.net (nwsmtp/Yandex) with ESMTP id j01G7HEpSm-aB5ajCCf;
-	Mon, 22 Jul 2019 12:36:11 +0300
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=yandex-team.ru; s=default;
-	t=1563788171; bh=lwrou0ge1fASn3VFBYr42gXUSv9B+Mk8b6WwMg4i5lM=;
-	h=In-Reply-To:Message-ID:References:Date:To:From:Subject:Cc;
-	b=DIJf1MDRS9k2nQaZ1DgVQQtOdHcWYktPONyBemWBggu9EEvRAg6Ds8yKgaBx5Dv6W
-	 sGFFBF2U1e2JvDzUAUEP/9sFGmg5kQO55TsEkZv26H6df3OseRxvm+jBfIpXKmXZ3k
-	 kC14yyhFJf0AahFHsm9tMubKphNZg5HHcbYzOwtU=
-Authentication-Results: mxbackcorp1j.mail.yandex.net; dkim=pass header.i=@yandex-team.ru
-Received: from dynamic-red.dhcp.yndx.net (dynamic-red.dhcp.yndx.net [2a02:6b8:0:40c:38b3:1cdf:ad1a:1fe1])
-	by smtpcorp1j.mail.yandex.net (nwsmtp/Yandex) with ESMTPSA id AdNDBXcM8x-aBAq2o3D;
-	Mon, 22 Jul 2019 12:36:11 +0300
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(Client certificate not present)
-Subject: [PATCH 2/2] mm/filemap: rewrite mapping_needs_writeback in less
- fancy manner
-From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>,
- linux-kernel@vger.kernel.org
-Cc: Tejun Heo <tj@kernel.org>, Jens Axboe <axboe@kernel.dk>,
- Johannes Weiner <hannes@cmpxchg.org>
-Date: Mon, 22 Jul 2019 12:36:10 +0300
-Message-ID: <156378817069.1087.1302816672037672488.stgit@buzz>
-In-Reply-To: <156378816804.1087.8607636317907921438.stgit@buzz>
-References: <156378816804.1087.8607636317907921438.stgit@buzz>
-User-Agent: StGit/0.17.1-dirty
+       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
+Received: by verein.lst.de (Postfix, from userid 2407)
+	id F1AF268B20; Mon, 22 Jul 2019 11:36:56 +0200 (CEST)
+Date: Mon, 22 Jul 2019 11:36:56 +0200
+From: Christoph Hellwig <hch@lst.de>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Ralph Campbell <rcampbell@nvidia.com>, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org, John Hubbard <jhubbard@nvidia.com>,
+	Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@linux.com>,
+	Dave Hansen <dave.hansen@linux.intel.com>,
+	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
+	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>,
+	Lai Jiangshan <jiangshanlai@gmail.com>,
+	Martin Schwidefsky <schwidefsky@de.ibm.com>,
+	Pekka Enberg <penberg@kernel.org>,
+	Randy Dunlap <rdunlap@infradead.org>,
+	Andrey Ryabinin <aryabinin@virtuozzo.com>,
+	Christoph Hellwig <hch@lst.de>, Jason Gunthorpe <jgg@mellanox.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Linus Torvalds <torvalds@linux-foundation.org>
+Subject: Re: [PATCH v2 1/3] mm: document zone device struct page field usage
+Message-ID: <20190722093656.GD29538@lst.de>
+References: <20190719192955.30462-1-rcampbell@nvidia.com> <20190719192955.30462-2-rcampbell@nvidia.com> <20190721160204.GB363@bombadil.infradead.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190721160204.GB363@bombadil.infradead.org>
+User-Agent: Mutt/1.5.17 (2007-11-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This actually checks that writeback is needed or in progress.
+On Sun, Jul 21, 2019 at 09:02:04AM -0700, Matthew Wilcox wrote:
+> On Fri, Jul 19, 2019 at 12:29:53PM -0700, Ralph Campbell wrote:
+> > Struct page for ZONE_DEVICE private pages uses the page->mapping and
+> > and page->index fields while the source anonymous pages are migrated to
+> > device private memory. This is so rmap_walk() can find the page when
+> > migrating the ZONE_DEVICE private page back to system memory.
+> > ZONE_DEVICE pmem backed fsdax pages also use the page->mapping and
+> > page->index fields when files are mapped into a process address space.
+> > 
+> > Restructure struct page and add comments to make this more clear.
+> 
+> NAK.  I just got rid of this kind of foolishness from struct page,
+> and you're making it harder to understand, not easier.  The comments
+> could be improved, but don't lay it out like this again.
 
-Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
----
- mm/filemap.c |    7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
-
-diff --git a/mm/filemap.c b/mm/filemap.c
-index d9572593e5c7..29f503ffd70b 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -618,10 +618,13 @@ int filemap_fdatawait_keep_errors(struct address_space *mapping)
- }
- EXPORT_SYMBOL(filemap_fdatawait_keep_errors);
- 
-+/* Returns true if writeback might be needed or already in progress. */
- static bool mapping_needs_writeback(struct address_space *mapping)
- {
--	return (!dax_mapping(mapping) && mapping->nrpages) ||
--	    (dax_mapping(mapping) && mapping->nrexceptional);
-+	if (dax_mapping(mapping))
-+		return mapping->nrexceptional;
-+
-+	return mapping->nrpages;
- }
- 
- int filemap_write_and_wait(struct address_space *mapping)
+This comes over pretty agressive.  Please explain how making the
+layout match how the code actually is used vs the previous separation
+that is actively misleading and confused multiple people is "foolishness".
 
