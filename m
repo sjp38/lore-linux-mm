@@ -4,84 +4,83 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-9.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable autolearn_force=no
-	version=3.4.0
+	URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 77A3FC76190
-	for <linux-mm@archiver.kernel.org>; Mon, 22 Jul 2019 15:42:33 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 47A03C76194
+	for <linux-mm@archiver.kernel.org>; Mon, 22 Jul 2019 15:42:35 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 483FB2190F
-	for <linux-mm@archiver.kernel.org>; Mon, 22 Jul 2019 15:42:33 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 483FB2190F
+	by mail.kernel.org (Postfix) with ESMTP id 0F1C021985
+	for <linux-mm@archiver.kernel.org>; Mon, 22 Jul 2019 15:42:35 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0F1C021985
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D8C368E0003; Mon, 22 Jul 2019 11:42:32 -0400 (EDT)
+	id 9958E8E0005; Mon, 22 Jul 2019 11:42:34 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D3D758E0001; Mon, 22 Jul 2019 11:42:32 -0400 (EDT)
+	id 9465F8E0001; Mon, 22 Jul 2019 11:42:34 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C2D158E0003; Mon, 22 Jul 2019 11:42:32 -0400 (EDT)
+	id 7E87A8E0005; Mon, 22 Jul 2019 11:42:34 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 715608E0001
-	for <linux-mm@kvack.org>; Mon, 22 Jul 2019 11:42:32 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id c31so26564550ede.5
-        for <linux-mm@kvack.org>; Mon, 22 Jul 2019 08:42:32 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 2EB788E0001
+	for <linux-mm@kvack.org>; Mon, 22 Jul 2019 11:42:34 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id k22so26566797ede.0
+        for <linux-mm@kvack.org>; Mon, 22 Jul 2019 08:42:34 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=eKl9NY7OTKmyYuPsGrRoNPFWZw8MxP6jB3gNXjnh+E8=;
-        b=TOlh0hG0tBxU3zVorXHJts22EvQVNYFBl64hjueooFr6rY8XBz7s5GnZMsSxR6wYhv
-         0BXn/d9ZSKIWshVQY7q+hSPCTIQhFfOdWU7PveTJs7nlHDpMxvqGy/FyzjmgjUQJ7iSs
-         BvjXNSdesASPWn/I8CHewDJck1dQSuJOWDvWniqSunJH0zylJVCUc5pMhLuefNoyq0Eg
-         gJ76EnrKPvl+Lueo5pfPWn9PUZXnUa97DWPR8XPQTk9ozUZGiA21eW9fs7sIu0RjeFjQ
-         kkMrPmSlEBOWugIbnkS/LGu3Z1Huq5K/eYx13iYnm1Xvp7ATZQIi69oXmQn86RB7Og63
-         S1cQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=steven.price@arm.com
-X-Gm-Message-State: APjAAAVKGNYBriW23dNcz+kr9g2iwKV2ctu91d0uf7sqgrwY8REu87BR
-	gAz7gUh143g3h24qpnFwN4cbzfTiJGvfwbKmQi1zGU9yJ+602lI5Xm13anWISmvwHtqjICQhEIH
-	lM4ZBTuwgnDll07d5Q8VLjzrP/wl8d0Ow9ceFPTd3oKnMzZiDZlBAY3w3kT6BMvhiPg==
-X-Received: by 2002:a17:906:8409:: with SMTP id n9mr52844686ejx.128.1563810151937;
-        Mon, 22 Jul 2019 08:42:31 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyLCY+EucFZEk9/V7y4rQ1tMKDNy0wMXHR5vhwZ81pHvZ3Se3XePfF0OXLQdQ15iQCtJZCD
-X-Received: by 2002:a17:906:8409:: with SMTP id n9mr52844638ejx.128.1563810151194;
-        Mon, 22 Jul 2019 08:42:31 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563810151; cv=none;
+        bh=dw5qvPvLE7W70oX+QwfsL5BaF0k/anytr4XJVfIwlRs=;
+        b=Dx5bpA5a/L5ouyj4BBuGevGG3qjVvHkjS7WiNqEQok08T4ToS/ST7UNwW5LZ8OBaEg
+         Vu8iMQ8sCwhvfwoTF4pXWZHcH/su7kdQN23Fi0XlKpsY72qX1q8UXbK9txBF1SKOElv9
+         En37fijxB5gQGhj1dd59AgCAMNL4A82cyLZ4THEh2PSEPB96Zl2vJkXRSrujoGi+FYAe
+         GGk2bmxPqFIZ3LiXypy4KkPZl3ADiJdkG4SURCTRsKugXCnTQE+yP9lZMbL33dLnvLdb
+         wKVm9OMRzbsTaGT6sRlcwuHY2HdSAFsVTyDdow+MKz2TPFjH3gCvIBq3VHI38IJZafnl
+         I25w==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of steven.price@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=steven.price@arm.com
+X-Gm-Message-State: APjAAAW8j2g6Du84Y+NJT4kgrAJrB1DxJ8vgMlyU18ao5F2RQl6yZCG6
+	Di5XUoNnMiLnhPiw4s3FMtLNDUwZ66qkeQI/pfb/uhhj6zwvUS+jryuli7g78qIaFgujU8XvaEZ
+	B0Cojz66OZuBKwm90dQ+RdaGYM9A09ug4BGF+YMlBE0NVG7zHmYXRiLNqvQ3s5YbdtA==
+X-Received: by 2002:a50:b122:: with SMTP id k31mr61765815edd.204.1563810153773;
+        Mon, 22 Jul 2019 08:42:33 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzDEJNdX4RKJS8kfarPekfxYkF1MvI3AUcqsoE/8JcjtpY4nYBKMqnkw6LxUYWgiqGoDH2l
+X-Received: by 2002:a50:b122:: with SMTP id k31mr61765758edd.204.1563810153046;
+        Mon, 22 Jul 2019 08:42:33 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563810153; cv=none;
         d=google.com; s=arc-20160816;
-        b=GLCtykaiE0ZKkTpeMA7umHbuDKu3HdeON+UaTJs+crEsyNKOAnkQBrBWHqbnIdfj9k
-         1VRLTl6YoBd0iZWK1krbj5Zxgo3HupuwoAjhQT65v6IkCNzUIaHUq+h3I6WAivKvYnSo
-         rTsB0/s9Q8IV3Go3ovUWF8Fo3NuY0V5SscZmwoh54jGU1rBye9NHBV8JGMgP4dudbCTN
-         h6lrvf7kaqY31PaY/d2MF+EHG/F6OrMNye/FRC5dd65f53AkIh47kQR0aE3ozhWekcmL
-         GUO+w3L7q8SgGEweWEvFf11JL7uCVB1+QOVT425PHcJWDUyBpIlVOEd2W05Uf3d9F60Z
-         a2ow==
+        b=zH5wd8x+zwJaLUc3R6NorAtz0bU70eN5P9Iv78b2Qkd6R5Y1DopFnts3roLxyBOrWO
+         4+0iKk1q0mnQdlfYQDR6PLfbH8GsklR4Q0psbtCmGYzfj4C39VpYvV5eoOO6n08wqdmD
+         yoNwJPFkItsWFayFpF6/APCtCtuOWxKdmRTgADNs1/NnTwxsirq5gmGWPrq0L0vlQYZE
+         1kqcoOz76X924eC3oGJgI+QdzEEmkFIeVZ5anPSNEqsWy5ZCiSYrhY2jjS4V3XxJ4FJp
+         GeUM96UDgfW/BMVDhZ91nDI3516y6egqA/UPXQqKhZU6cwWNPJLulvJ8HSAinyyGTy3c
+         eITQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=eKl9NY7OTKmyYuPsGrRoNPFWZw8MxP6jB3gNXjnh+E8=;
-        b=NmOM5PO//VrJM/ay+aEsBleudx7OQ1IOBdq/Kzx5S7mBLjPMOJOzPBHOu2sBoiHr8b
-         3D/27pyJ8AGFfRshOPEWv6f4W7yw1NOlv4DLLJ5d3J87TUH9NrUqTIkasaybs43uO7w7
-         nMsBra69YWPj3+wcRyShmwjDYyWBAm0Sn7SWlOKC4otFCRdxYXUbBX+lBUs/8jK+ROPK
-         EPyRsVSY5jhzJre6BrmyfEjhiJpz8tZgZoxyGk0hsyXUrZ6ykofupRyE6On3eP9efalU
-         WdxaDQZlcbocO0xcI+3DcBR2Xmz5reTcgqhFKPI/RijPdseGHCkbPjH2VIcxuSk2bgY+
-         3lUA==
+        bh=dw5qvPvLE7W70oX+QwfsL5BaF0k/anytr4XJVfIwlRs=;
+        b=aWgyt6Bohk/WQJnZGdv/dwPQxaGFDuOU5uvSRc+TnbiUUXPLKeLmj7m+sE+etJPTel
+         GHs47uzHZhl/EJbUCtdTPFncFfUrXr87kw4tE03vJofJvHU06nrMJhEnTB2a6wuEJmOE
+         KYT9syqp8yAuEGPOpu8JMuheY0Oo+DXLWbe0fOZdMgADxG1RtIYYSQeRjJ9cOwBBb8L1
+         nZQSmfh3DRaYU5fu+w4jQVURE+VpP29xuB8Dn2URwQs0RM4thXKQVvIs41ngBVld5OSy
+         hy8FK5hPyNjA9TPYd8I0nn9pi9Ug0eug6vLFKzUgQdIfp1oUyXjiONQBosQARPHGZwon
+         kU7w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=steven.price@arm.com
+       spf=pass (google.com: best guess record for domain of steven.price@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=steven.price@arm.com
 Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
-        by mx.google.com with ESMTP id 39si5131235edq.151.2019.07.22.08.42.30
+        by mx.google.com with ESMTP id 9si4929231ejv.195.2019.07.22.08.42.32
         for <linux-mm@kvack.org>;
-        Mon, 22 Jul 2019 08:42:30 -0700 (PDT)
-Received-SPF: pass (google.com: domain of steven.price@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
+        Mon, 22 Jul 2019 08:42:33 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of steven.price@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=steven.price@arm.com
+       spf=pass (google.com: best guess record for domain of steven.price@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=steven.price@arm.com
 Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 6DB1B1596;
-	Mon, 22 Jul 2019 08:42:29 -0700 (PDT)
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 3C5BD15A2;
+	Mon, 22 Jul 2019 08:42:32 -0700 (PDT)
 Received: from e112269-lin.arm.com (e112269-lin.cambridge.arm.com [10.1.196.133])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id BCA9A3F694;
-	Mon, 22 Jul 2019 08:42:26 -0700 (PDT)
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id A3AD73F694;
+	Mon, 22 Jul 2019 08:42:29 -0700 (PDT)
 From: Steven Price <steven.price@arm.com>
 To: linux-mm@kvack.org
 Cc: Steven Price <steven.price@arm.com>,
@@ -103,11 +102,10 @@ Cc: Steven Price <steven.price@arm.com>,
 	linux-kernel@vger.kernel.org,
 	Mark Rutland <Mark.Rutland@arm.com>,
 	"Liang, Kan" <kan.liang@linux.intel.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Russell King <linux@armlinux.org.uk>
-Subject: [PATCH v9 02/21] arm: mm: Add p?d_leaf() definitions
-Date: Mon, 22 Jul 2019 16:41:51 +0100
-Message-Id: <20190722154210.42799-3-steven.price@arm.com>
+	Andrew Morton <akpm@linux-foundation.org>
+Subject: [PATCH v9 03/21] arm64: mm: Add p?d_leaf() definitions
+Date: Mon, 22 Jul 2019 16:41:52 +0100
+Message-Id: <20190722154210.42799-4-steven.price@arm.com>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190722154210.42799-1-steven.price@arm.com>
 References: <20190722154210.42799-1-steven.price@arm.com>
@@ -121,44 +119,47 @@ List-ID: <linux-mm.kvack.org>
 
 walk_page_range() is going to be allowed to walk page tables other than
 those of user space. For this it needs to know when it has reached a
-'leaf' entry in the page tables. This information is provided by the
+'leaf' entry in the page tables. This information will be provided by the
 p?d_leaf() functions/macros.
 
-For arm pmd_large() already exists and does what we want. So simply
-provide the generic pmd_leaf() name.
+For arm64, we already have p?d_sect() macros which we can reuse for
+p?d_leaf().
 
-CC: Russell King <linux@armlinux.org.uk>
-CC: linux-arm-kernel@lists.infradead.org
+pud_sect() is defined as a dummy function when CONFIG_PGTABLE_LEVELS < 3
+or CONFIG_ARM64_64K_PAGES is defined. However when the kernel is
+configured this way then architecturally it isn't allowed to have a
+large page that this level, and any code using these page walking macros
+is implicitly relying on the page size/number of levels being the same as
+the kernel. So it is safe to reuse this for p?d_leaf() as it is an
+architectural restriction.
+
+CC: Catalin Marinas <catalin.marinas@arm.com>
+CC: Will Deacon <will@kernel.org>
 Signed-off-by: Steven Price <steven.price@arm.com>
 ---
- arch/arm/include/asm/pgtable-2level.h | 1 +
- arch/arm/include/asm/pgtable-3level.h | 1 +
- 2 files changed, 2 insertions(+)
+ arch/arm64/include/asm/pgtable.h | 2 ++
+ 1 file changed, 2 insertions(+)
 
-diff --git a/arch/arm/include/asm/pgtable-2level.h b/arch/arm/include/asm/pgtable-2level.h
-index 51beec41d48c..0d3ea35c97fe 100644
---- a/arch/arm/include/asm/pgtable-2level.h
-+++ b/arch/arm/include/asm/pgtable-2level.h
-@@ -189,6 +189,7 @@ static inline pmd_t *pmd_offset(pud_t *pud, unsigned long addr)
- }
- 
- #define pmd_large(pmd)		(pmd_val(pmd) & 2)
-+#define pmd_leaf(pmd)		(pmd_val(pmd) & 2)
- #define pmd_bad(pmd)		(pmd_val(pmd) & 2)
- #define pmd_present(pmd)	(pmd_val(pmd))
- 
-diff --git a/arch/arm/include/asm/pgtable-3level.h b/arch/arm/include/asm/pgtable-3level.h
-index 5b18295021a0..ad55ab068dbf 100644
---- a/arch/arm/include/asm/pgtable-3level.h
-+++ b/arch/arm/include/asm/pgtable-3level.h
-@@ -134,6 +134,7 @@
+diff --git a/arch/arm64/include/asm/pgtable.h b/arch/arm64/include/asm/pgtable.h
+index 87a4b2ddc1a1..2c123d59dbff 100644
+--- a/arch/arm64/include/asm/pgtable.h
++++ b/arch/arm64/include/asm/pgtable.h
+@@ -446,6 +446,7 @@ extern pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
+ 				 PMD_TYPE_TABLE)
  #define pmd_sect(pmd)		((pmd_val(pmd) & PMD_TYPE_MASK) == \
- 						 PMD_TYPE_SECT)
- #define pmd_large(pmd)		pmd_sect(pmd)
+ 				 PMD_TYPE_SECT)
 +#define pmd_leaf(pmd)		pmd_sect(pmd)
  
- #define pud_clear(pudp)			\
- 	do {				\
+ #if defined(CONFIG_ARM64_64K_PAGES) || CONFIG_PGTABLE_LEVELS < 3
+ #define pud_sect(pud)		(0)
+@@ -528,6 +529,7 @@ static inline void pte_unmap(pte_t *pte) { }
+ #define pud_none(pud)		(!pud_val(pud))
+ #define pud_bad(pud)		(!(pud_val(pud) & PUD_TABLE_BIT))
+ #define pud_present(pud)	pte_present(pud_pte(pud))
++#define pud_leaf(pud)		pud_sect(pud)
+ #define pud_valid(pud)		pte_valid(pud_pte(pud))
+ 
+ static inline void set_pud(pud_t *pudp, pud_t pud)
 -- 
 2.20.1
 
