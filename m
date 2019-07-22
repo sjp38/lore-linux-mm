@@ -2,164 +2,253 @@ Return-Path: <SRS0=80m6=VT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D6609C76194
-	for <linux-mm@archiver.kernel.org>; Mon, 22 Jul 2019 12:00:23 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B79E7C76194
+	for <linux-mm@archiver.kernel.org>; Mon, 22 Jul 2019 12:46:54 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A8F242184E
-	for <linux-mm@archiver.kernel.org>; Mon, 22 Jul 2019 12:00:23 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A8F242184E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 5BF34218A0
+	for <linux-mm@archiver.kernel.org>; Mon, 22 Jul 2019 12:46:54 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5BF34218A0
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=sony.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 30EFC6B0007; Mon, 22 Jul 2019 08:00:23 -0400 (EDT)
+	id A3E976B0005; Mon, 22 Jul 2019 08:46:53 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2BFD38E0003; Mon, 22 Jul 2019 08:00:23 -0400 (EDT)
+	id 9F03D8E0003; Mon, 22 Jul 2019 08:46:53 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1B0198E0001; Mon, 22 Jul 2019 08:00:23 -0400 (EDT)
+	id 905EF8E0001; Mon, 22 Jul 2019 08:46:53 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id BF2056B0007
-	for <linux-mm@kvack.org>; Mon, 22 Jul 2019 08:00:22 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id r21so26174951edc.6
-        for <linux-mm@kvack.org>; Mon, 22 Jul 2019 05:00:22 -0700 (PDT)
+Received: from mail-lj1-f199.google.com (mail-lj1-f199.google.com [209.85.208.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 2CC3E6B0005
+	for <linux-mm@kvack.org>; Mon, 22 Jul 2019 08:46:53 -0400 (EDT)
+Received: by mail-lj1-f199.google.com with SMTP id e16so8469522lja.23
+        for <linux-mm@kvack.org>; Mon, 22 Jul 2019 05:46:53 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=a2cbxEoHUsQfp8fK0M5/s35Nvpsx8ZujEmvfSebKNaA=;
-        b=jEc1peMs+VyaV4Q6qZ9bsmslQ0edQnW0ZU1wut5XCcd5KoPQE4KPda1upkDdy9RmOv
-         3bpyRBauOwm0NkzcSKN/TRGQnJENObqgsI7HwMRBQ3udW0WA63+75oU0jHDjBMcyv8K2
-         pATFxOHPfb8HyNsoOBrIlitrIjB9HmZzZCQN3XCCkFifjd8zVkUwwRDEksQ350A5ox7v
-         QuYNofFZ+AXzT1ngAK08ya3mJ4wf5KDk2o2A2YNLMNtkVyo5GsSyBN4FHGX0r3tE0Oje
-         +jwu/UZbxxyxTBCanPtDhhwVY3il8iW36w4xUR5cgSIDQcNtb3DFQGgvAixzAwlrdnxK
-         evyw==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAWA0lK9+B6BbrU1MwN1QxIp5eEG34w+vg0jWOGSNeequVsRTcWT
-	m/cAz1A3/z64aQ0fQDnYklJg9nvl33RqDvPXIt/GoHxOFsec3Ge4zxEmm4sVvklzoMObMXVmHUg
-	bvb1nqcdkhSAMG7+OcdpFRHQkxMBExMSV7o92kqyvX/Y2mv3ZNJxqmSnbE+5ok5s=
-X-Received: by 2002:a17:906:244c:: with SMTP id a12mr51452867ejb.288.1563796822353;
-        Mon, 22 Jul 2019 05:00:22 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqw+Ky46WSSOauYHqJrVML9u4E1ncWMDTjT+sqDArdqZ6QhoYLBgcnt16xa9hU2f29UEaUPz
-X-Received: by 2002:a17:906:244c:: with SMTP id a12mr51452697ejb.288.1563796820588;
-        Mon, 22 Jul 2019 05:00:20 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563796820; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-transfer-encoding:content-language;
+        bh=F7WB7XMO/ExQslkEd8g5bMu9vu8U2QUmZyKXqVdfCZc=;
+        b=rn2Wr98u/dk5sFyHqxQIA5iKzf3NMH1FXqptynmOI9UNYAYiOznK3VItyHvocoDxpO
+         asFvNdF0E7hVTjY8A+vv+pSMb0wSX99JOtFnzwjMo8YqrG+0cR63O2gB5YI4yFJm/O9o
+         U5JdsdXwOFUpOkLtfnLcYugdpS/al48xV/kB1XYnWfH1oE2I+dA50E0SqRPSuJa7/KP0
+         5E14yxdTGFBt45F5l4fB+emoMrpHyD3FpHm+GzBJyE/ZZBfaFUuG57zVWw2C9ihP5tT+
+         xd2KUvNJ1lWegkCr6O8c3nKHSNAW7l+mg8it3ZdP+gNFSbydr3hZN8EnFBFV18whi9lc
+         n3Ng==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of peter.enderborg@sony.com designates 37.139.156.29 as permitted sender) smtp.mailfrom=Peter.Enderborg@sony.com
+X-Gm-Message-State: APjAAAXqXDKCIg1Vyb6XbEToY28+ssOcsrqrvMd55an1q8+Pxx3GFjLt
+	gR22b1BWAl+mYlOx4770bvwNUUTNTzsEPlYh/RrzBIdcjvLibg1pYK1g0BYIsYrYe2HEbrNRiYH
+	cprKmXYg9THQyQm0MSlgZ4KvLYO2znNzdnPtpGQgFAzU+QJDb93INlo+0BJZ7r/SAvw==
+X-Received: by 2002:a2e:b0d0:: with SMTP id g16mr35767255ljl.161.1563799612501;
+        Mon, 22 Jul 2019 05:46:52 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxt1YAVor/4IyM/rhdOKVmEFMagjFQDsJJjXZRgBYyWo+ClQQgjjN3m8aVHXkaEkK6FuOyy
+X-Received: by 2002:a2e:b0d0:: with SMTP id g16mr35767203ljl.161.1563799611325;
+        Mon, 22 Jul 2019 05:46:51 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563799611; cv=none;
         d=google.com; s=arc-20160816;
-        b=yC3Ca80ZevnWW/uQB+8s3MKYU3p+KhAKTyw/qUncp1aeX0/o+u9SLruVB/oEYlWyJB
-         d+W/pSmyAFcUSCdXgvQJ22gAD5mrQmW1kLTNY6irFgcE7r9LN86clgIw3ObGEyOa9uqC
-         2a0dxr47Ton5Q+QuVDD01wKTcgg9qj8w023gzn4hHP0UeoETw5csqtVkoBLrrDil7nNU
-         yK1aaPloFo1VY6LfTtAibq6CLX0JHLNxqmuRNZqvOsSw4H820QyHdvNaRYQagU9PHwWZ
-         chM2YSv62OWkbsRYQdvOYqwi6+LbvY4xEPDeowSohPjv8WIZVDQS7OrnBPEzwqQhbB2H
-         VZYQ==
+        b=IwXMio+qQn8iYRPKH1hXZT9mlVIcOqSKzuVKUVeMMhZnezLiGxUEHWmLu7Jc3IgRFd
+         UiNZIiDqU3wgL4Z7VQ/Z0WEkpR+Zd3kmIKE4Nep+LB/oFo9gdI+LQNWU6A7NVvKy5k4G
+         FXui4xyf0vbWS6hQV9UatiJSK/cekAi1ozN4X2EPAaMAD96ceLRA2koQ8bs6u2nR2Q/0
+         URH3bZSbpysuvSKfBEjYK3HKdtLBW0LFU0rllaTtaGBfe1vOg2ZLgyz7ZCmRBmGJCbjj
+         gdYzMUxEJ3ZTdg0uqSUzGFV9lttGXpd9fQq/ZrSCC6731JUQkwTmv1feH2ET3ZNNqOU0
+         aPBg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=a2cbxEoHUsQfp8fK0M5/s35Nvpsx8ZujEmvfSebKNaA=;
-        b=nULgWwWhj6uxLVLYtBK/E2hC3cNJjCN9gGmzYuqqMbOwiSeXdJoMIo79MDsBLs+dEc
-         qMZ72Fkujui5SsCB27brkOLg444s4e0OgPrOFJWEmJ3or4NGN15AXjN8/EH7J3jj6jbJ
-         atQZcH6TMklPioAWJl4tBERw1XpasN9KvHtqA5XB0q1a3q75Cu92luVO+DLpHE5XcP4q
-         WhIVjzLP4Txs2fRFqrtNBLML9C/iWgommNqiC6bik2TzjvDQmW5xjuuAeoMQie9wWJO7
-         iPJ2ugzam0WDm/2OcDdWUlmluNlmy599TgF7Uxa0mWveefHC+2J7PHQue9M7C1YcWWNt
-         20FA==
+        h=content-language:content-transfer-encoding:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=F7WB7XMO/ExQslkEd8g5bMu9vu8U2QUmZyKXqVdfCZc=;
+        b=jyLYJgsO9+jsFtyYF7lkOHl0jUQ7ctRIRduHjTdkrwnkiPDGMw+WqkHwH9o0ziKoB5
+         JGwFp48mioeyjhZTb/R10HdGUqEfIkMIYo75zSJ5Bx2j+A2lrmHoSMiwL+7vXCZ07I4E
+         uHBh6a9cQZG+ueoJpVqYD7omPC7+/gyJLF9+KL8HFO2zIF9+Fmn+2UyCbkWNjhMPMg1i
+         0uaIbLhrETC0GPGXdR8Ana2T9B8N6vOe4Ux3PoewFsquKK+TbQRJwk12bEG6VUVJ/az6
+         91iz/RWBJF8Ybm3RUAFVdzTvt6x01UlPwaYYXGYQ5y38gedsUVr5c35KWPezqc3MxNuF
+         bQFA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i3si4573801eda.107.2019.07.22.05.00.20
+       spf=pass (google.com: domain of peter.enderborg@sony.com designates 37.139.156.29 as permitted sender) smtp.mailfrom=Peter.Enderborg@sony.com
+Received: from SELDSEGREL01.sonyericsson.com (seldsegrel01.sonyericsson.com. [37.139.156.29])
+        by mx.google.com with ESMTPS id y19si30637196ljh.176.2019.07.22.05.46.50
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 22 Jul 2019 05:00:20 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 22 Jul 2019 05:46:51 -0700 (PDT)
+Received-SPF: pass (google.com: domain of peter.enderborg@sony.com designates 37.139.156.29 as permitted sender) client-ip=37.139.156.29;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 905F2B048;
-	Mon, 22 Jul 2019 12:00:19 +0000 (UTC)
-Date: Mon, 22 Jul 2019 14:00:18 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Yang Shi <yang.shi@linux.alibaba.com>
-Cc: shakeelb@google.com, vdavydov.dev@gmail.com, hannes@cmpxchg.org,
-	ktkhai@virtuozzo.com, guro@fb.com, hughd@google.com, cai@lca.pw,
-	kirill.shutemov@linux.intel.com, akpm@linux-foundation.org,
-	stable@vger.kernel.org, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
-Subject: Re: [PATCH] mm: vmscan: check if mem cgroup is disabled or not
- before calling memcg slab shrinker
-Message-ID: <20190722120018.GZ30461@dhcp22.suse.cz>
-References: <1563385526-20805-1-git-send-email-yang.shi@linux.alibaba.com>
+       spf=pass (google.com: domain of peter.enderborg@sony.com designates 37.139.156.29 as permitted sender) smtp.mailfrom=Peter.Enderborg@sony.com
+Subject: Re: [PATCH] mm, slab: Extend slab/shrink to shrink all the memcg
+ caches
+To: Waiman Long <longman@redhat.com>, Christoph Lameter <cl@linux.com>, Pekka
+ Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo
+ Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>,
+	Alexander Viro <viro@zeniv.linux.org.uk>, Jonathan Corbet <corbet@lwn.net>,
+	Luis Chamberlain <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>,
+	Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>,
+	Vladimir Davydov <vdavydov.dev@gmail.com>
+CC: <linux-mm@kvack.org>, <linux-doc@vger.kernel.org>,
+	<linux-fsdevel@vger.kernel.org>, <cgroups@vger.kernel.org>,
+	<linux-kernel@vger.kernel.org>, Roman Gushchin <guro@fb.com>, Shakeel Butt
+	<shakeelb@google.com>, Andrea Arcangeli <aarcange@redhat.com>
+References: <20190702183730.14461-1-longman@redhat.com>
+From: peter enderborg <peter.enderborg@sony.com>
+Message-ID: <71ab6307-9484-fdd3-fe6d-d261acf7c4a5@sony.com>
+Date: Mon, 22 Jul 2019 14:46:47 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1563385526-20805-1-git-send-email-yang.shi@linux.alibaba.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190702183730.14461-1-longman@redhat.com>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+Content-Language: en-GB
+X-SEG-SpamProfiler-Analysis: v=2.3 cv=L6RjvNb8 c=1 sm=1 tr=0 a=T5MYTZSj1jWyQccoVcawfw==:117 a=jpOVt7BSZ2e4Z31A5e1TngXxSK0=:19 a=IkcTkHD0fZMA:10 a=0o9FgrsRnhwA:10 a=20KFwNOVAAAA:8 a=Z4Rwk6OoAAAA:8 a=hTz6g4Jj1mwQyzJQMEoA:9 a=QEXdDO2ut3YA:10 a=aA9c7OsbRBYA:10 a=HkZW87K1Qel5hWWM3VKY:22
+X-SEG-SpamProfiler-Score: 0
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu 18-07-19 01:45:26, Yang Shi wrote:
-> Shakeel Butt reported premature oom on kernel with
-> "cgroup_disable=memory" since mem_cgroup_is_root() returns false even
-> though memcg is actually NULL.  The drop_caches is also broken.
-> 
-> It is because commit aeed1d325d42 ("mm/vmscan.c: generalize shrink_slab()
-> calls in shrink_node()") removed the !memcg check before
-> !mem_cgroup_is_root().  And, surprisingly root memcg is allocated even
-> though memory cgroup is disabled by kernel boot parameter.
-> 
-> Add mem_cgroup_disabled() check to make reclaimer work as expected.
-> 
-> Fixes: aeed1d325d42 ("mm/vmscan.c: generalize shrink_slab() calls in shrink_node()")
-> Reported-by: Shakeel Butt <shakeelb@google.com>
-> Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: Kirill Tkhai <ktkhai@virtuozzo.com>
-> Cc: Roman Gushchin <guro@fb.com>
-> Cc: Hugh Dickins <hughd@google.com>
-> Cc: Qian Cai <cai@lca.pw>
-> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Cc: stable@vger.kernel.org  4.19+
-> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
+On 7/2/19 8:37 PM, Waiman Long wrote:
+> Currently, a value of '1" is written to /sys/kernel/slab/<slab>/shrink
+> file to shrink the slab by flushing all the per-cpu slabs and free
+> slabs in partial lists. This applies only to the root caches, though.
+>
+> Extends this capability by shrinking all the child memcg caches and
+> the root cache when a value of '2' is written to the shrink sysfs file.
+>
+> On a 4-socket 112-core 224-thread x86-64 system after a parallel kernel
+> build, the the amount of memory occupied by slabs before shrinking
+> slabs were:
+>
+>  # grep task_struct /proc/slabinfo
+>  task_struct         7114   7296   7744    4    8 : tunables    0    0
+>  0 : slabdata   1824   1824      0
+>  # grep "^S[lRU]" /proc/meminfo
+>  Slab:            1310444 kB
+>  SReclaimable:     377604 kB
+>  SUnreclaim:       932840 kB
+>
+> After shrinking slabs:
+>
+>  # grep "^S[lRU]" /proc/meminfo
+>  Slab:             695652 kB
+>  SReclaimable:     322796 kB
+>  SUnreclaim:       372856 kB
+>  # grep task_struct /proc/slabinfo
+>  task_struct         2262   2572   7744    4    8 : tunables    0    0
+>  0 : slabdata    643    643      0
 
-Acked-by: Michal Hocko <mhocko@suse.com>
 
+What is the time between this measurement points? Should not the shrinked memory show up as reclaimable?
+
+
+> Signed-off-by: Waiman Long <longman@redhat.com>
 > ---
->  mm/vmscan.c | 9 ++++++++-
->  1 file changed, 8 insertions(+), 1 deletion(-)
-> 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index f8e3dcd..c10dc02 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -684,7 +684,14 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
->  	unsigned long ret, freed = 0;
->  	struct shrinker *shrinker;
+>  Documentation/ABI/testing/sysfs-kernel-slab | 10 +++--
+>  mm/slab.h                                   |  1 +
+>  mm/slab_common.c                            | 43 +++++++++++++++++++++
+>  mm/slub.c                                   |  2 +
+>  4 files changed, 52 insertions(+), 4 deletions(-)
+>
+> diff --git a/Documentation/ABI/testing/sysfs-kernel-slab b/Documentation/ABI/testing/sysfs-kernel-slab
+> index 29601d93a1c2..2a3d0fc4b4ac 100644
+> --- a/Documentation/ABI/testing/sysfs-kernel-slab
+> +++ b/Documentation/ABI/testing/sysfs-kernel-slab
+> @@ -429,10 +429,12 @@ KernelVersion:	2.6.22
+>  Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
+>  		Christoph Lameter <cl@linux-foundation.org>
+>  Description:
+> -		The shrink file is written when memory should be reclaimed from
+> -		a cache.  Empty partial slabs are freed and the partial list is
+> -		sorted so the slabs with the fewest available objects are used
+> -		first.
+> +		A value of '1' is written to the shrink file when memory should
+> +		be reclaimed from a cache.  Empty partial slabs are freed and
+> +		the partial list is sorted so the slabs with the fewest
+> +		available objects are used first.  When a value of '2' is
+> +		written, all the corresponding child memory cgroup caches
+> +		should be shrunk as well.  All other values are invalid.
 >  
-> -	if (!mem_cgroup_is_root(memcg))
+>  What:		/sys/kernel/slab/cache/slab_size
+>  Date:		May 2007
+> diff --git a/mm/slab.h b/mm/slab.h
+> index 3b22931bb557..a16b2c7ff4dd 100644
+> --- a/mm/slab.h
+> +++ b/mm/slab.h
+> @@ -174,6 +174,7 @@ int __kmem_cache_shrink(struct kmem_cache *);
+>  void __kmemcg_cache_deactivate(struct kmem_cache *s);
+>  void __kmemcg_cache_deactivate_after_rcu(struct kmem_cache *s);
+>  void slab_kmem_cache_release(struct kmem_cache *);
+> +int kmem_cache_shrink_all(struct kmem_cache *s);
+>  
+>  struct seq_file;
+>  struct file;
+> diff --git a/mm/slab_common.c b/mm/slab_common.c
+> index 464faaa9fd81..493697ba1da5 100644
+> --- a/mm/slab_common.c
+> +++ b/mm/slab_common.c
+> @@ -981,6 +981,49 @@ int kmem_cache_shrink(struct kmem_cache *cachep)
+>  }
+>  EXPORT_SYMBOL(kmem_cache_shrink);
+>  
+> +/**
+> + * kmem_cache_shrink_all - shrink a cache and all its memcg children
+> + * @s: The root cache to shrink.
+> + *
+> + * Return: 0 if successful, -EINVAL if not a root cache
+> + */
+> +int kmem_cache_shrink_all(struct kmem_cache *s)
+> +{
+> +	struct kmem_cache *c;
+> +
+> +	if (!IS_ENABLED(CONFIG_MEMCG_KMEM)) {
+> +		kmem_cache_shrink(s);
+> +		return 0;
+> +	}
+> +	if (!is_root_cache(s))
+> +		return -EINVAL;
+> +
 > +	/*
-> +	 * The root memcg might be allocated even though memcg is disabled
-> +	 * via "cgroup_disable=memory" boot parameter.  This could make
-> +	 * mem_cgroup_is_root() return false, then just run memcg slab
-> +	 * shrink, but skip global shrink.  This may result in premature
-> +	 * oom.
+> +	 * The caller should have a reference to the root cache and so
+> +	 * we don't need to take the slab_mutex. We have to take the
+> +	 * slab_mutex, however, to iterate the memcg caches.
 > +	 */
-> +	if (!mem_cgroup_disabled() && !mem_cgroup_is_root(memcg))
->  		return shrink_slab_memcg(gfp_mask, nid, memcg, priority);
->  
->  	if (!down_read_trylock(&shrinker_rwsem))
-> -- 
-> 1.8.3.1
+> +	get_online_cpus();
+> +	get_online_mems();
+> +	kasan_cache_shrink(s);
+> +	__kmem_cache_shrink(s);
+> +
+> +	mutex_lock(&slab_mutex);
+> +	for_each_memcg_cache(c, s) {
+> +		/*
+> +		 * Don't need to shrink deactivated memcg caches.
+> +		 */
+> +		if (s->flags & SLAB_DEACTIVATED)
+> +			continue;
+> +		kasan_cache_shrink(c);
+> +		__kmem_cache_shrink(c);
+> +	}
+> +	mutex_unlock(&slab_mutex);
+> +	put_online_mems();
+> +	put_online_cpus();
+> +	return 0;
+> +}
+> +
+>  bool slab_is_available(void)
+>  {
+>  	return slab_state >= UP;
+> diff --git a/mm/slub.c b/mm/slub.c
+> index a384228ff6d3..5d7b0004c51f 100644
+> --- a/mm/slub.c
+> +++ b/mm/slub.c
+> @@ -5298,6 +5298,8 @@ static ssize_t shrink_store(struct kmem_cache *s,
+>  {
+>  	if (buf[0] == '1')
+>  		kmem_cache_shrink(s);
+> +	else if (buf[0] == '2')
+> +		kmem_cache_shrink_all(s);
+>  	else
+>  		return -EINVAL;
+>  	return length;
 
--- 
-Michal Hocko
-SUSE Labs
 
