@@ -2,164 +2,131 @@ Return-Path: <SRS0=80m6=VT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id AF854C76196
-	for <linux-mm@archiver.kernel.org>; Mon, 22 Jul 2019 07:53:06 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2FD47C76188
+	for <linux-mm@archiver.kernel.org>; Mon, 22 Jul 2019 07:56:32 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8361E21911
-	for <linux-mm@archiver.kernel.org>; Mon, 22 Jul 2019 07:53:06 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8361E21911
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id E6E6021BE6
+	for <linux-mm@archiver.kernel.org>; Mon, 22 Jul 2019 07:56:31 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="N1XbgAzT"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E6E6021BE6
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0E0946B0006; Mon, 22 Jul 2019 03:53:06 -0400 (EDT)
+	id 60E356B0006; Mon, 22 Jul 2019 03:56:31 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 06B746B0008; Mon, 22 Jul 2019 03:53:06 -0400 (EDT)
+	id 5BFAC6B0008; Mon, 22 Jul 2019 03:56:31 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E9D536B000A; Mon, 22 Jul 2019 03:53:05 -0400 (EDT)
+	id 4AC908E0003; Mon, 22 Jul 2019 03:56:31 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id AF7D76B0006
-	for <linux-mm@kvack.org>; Mon, 22 Jul 2019 03:53:05 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id 145so23335847pfw.16
-        for <linux-mm@kvack.org>; Mon, 22 Jul 2019 00:53:05 -0700 (PDT)
+Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 31F516B0006
+	for <linux-mm@kvack.org>; Mon, 22 Jul 2019 03:56:31 -0400 (EDT)
+Received: by mail-io1-f69.google.com with SMTP id h3so42685175iob.20
+        for <linux-mm@kvack.org>; Mon, 22 Jul 2019 00:56:31 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:references:date:in-reply-to:message-id:user-agent
-         :mime-version;
-        bh=qYEjQIUXKnmIer9RQ7tvy8ZB3LufG5iVl43w8nguQ9A=;
-        b=rkRRwv2C7gOewOiK52XYT0bcTymrf6BO6qH6LoEP4r4VQtvpJbD86UIs99S0AHxwc/
-         OwK7fbQNQYvxAx8awwpqQw9nIMTLqlxBlSrp9jL6m6c17tNhs5FOEilraseC4/4P6iF7
-         MrxPknlxkKWtQNzLwD4TAJZfQ3rCPdYeHfn9COmrMvYNzls8GjCM8HSbxPfS6f32Q07L
-         oVkL78KkazkFPC/u417wVwHLeUt6IlH9YqUH1uaHdMkCNUm4SMpNxhYokftwV1gjtFI7
-         nYEnE13U8vQyxwelgY3Jm0kF3FMtitjwaWp2C2ZQz+ZdLzzDNLxEjTIbTLwGE3zyxs/Q
-         jIbw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ying.huang@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=ying.huang@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAV1EZHMXUqsxJBIGk/xKr1O8wmp46Bg/4NX20zDFk5wWXQhHhhv
-	TGlrZyNKKTPOAlQu7ARFhK9fotAFxOPXsQ4Uol8RdPWoTMvmH1lZb8xrb77bXuuV6NC7H7hJAfs
-	guxq1oDwg76C6cacN/tsrAmUjKcDyvpDW5+2nYVn1YswJAHbTAfOcPOirXdzWrl/jAg==
-X-Received: by 2002:a63:e14d:: with SMTP id h13mr70355870pgk.431.1563781985307;
-        Mon, 22 Jul 2019 00:53:05 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyLK5qAh+/krjOwPMgm+RPLFP0zL4z/hLf7aGYgCCgc4/U2YWvkSt4o39bBHIsF8h36wX3X
-X-Received: by 2002:a63:e14d:: with SMTP id h13mr70355824pgk.431.1563781984541;
-        Mon, 22 Jul 2019 00:53:04 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563781984; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=8geFXXVXfHhAz5hAbzZmIPKSSa6hTGBtefRp2yOmwvY=;
+        b=T7qcqiw2yEOmISgGQIj9pbH8bBPEv2TDpF1BBMUuZUXFn44JBvU2mq475kxVMvL4+K
+         KuFihK6fRqREnFHlRNcU1gehIEmJzOKZmbNfsjsEoti3kpWjNC12+wqKrBJ1DQddW1PW
+         Fdc3c+yQRJxwtR9H2gxjzABi1iRLa3Tyg2w2YEDHZouM2/vAl7zlD7HdSXzh3SbTboei
+         Uhf7EhWJVSmpzEmEvV+deYGAGHTbrsVMN9sMwtHdCQ+qpVC13CSuaf4Jd/2v6EfqPyzy
+         UcI2rO+qwPXQAwamh4T6yCrgELsRQU62bECfmmOS/g7UdNZcWOJ6GqaUPdByCA6IPu16
+         FoRw==
+X-Gm-Message-State: APjAAAUjTa0qv5ttrvwXG7HY3aNwXoEKelSSDsDjmhgP59DmX58N2XNx
+	nMkESXW09JGmD1JhnhUzhs4lXlh5ubeYcch+YFmPBwpzdexi+eiq/mOLK/M2woMhDtusi9Ut7ga
+	Bnwld+Tey8+f9ZyTTvI0f1CBnkR6x64eX0/K3ZBQSzMap6PNaySrPjH/1WfiDnpxOoQ==
+X-Received: by 2002:a6b:7109:: with SMTP id q9mr58258018iog.30.1563782190848;
+        Mon, 22 Jul 2019 00:56:30 -0700 (PDT)
+X-Received: by 2002:a6b:7109:: with SMTP id q9mr58257991iog.30.1563782190379;
+        Mon, 22 Jul 2019 00:56:30 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563782190; cv=none;
         d=google.com; s=arc-20160816;
-        b=YX3sO54qe5iIwy06EW0uenjtEvI053iy45U4MQ5/3tQJUfdm0bwr1Y2ns9cEKlUGFA
-         y+Mv/BFngV1epNFLDiB+GAzGOqiclCLzvJj9GHgedR/6bwRLAanfpzgTVzJIv9tg8jC8
-         g0Z3hBr0tymm+F9bEdLSsMcCaQyQS/f6gq4+lI39czyJfbCnd4YQDdZproteFSqAPFtF
-         znVX0AS0+qyPyoJ18Bf9vOpWl3zWpQBFiaDMXnf15JSeuulBd2yNnnYqjZmsTIIRDPmV
-         6GQwow0kxS9gcQpHQwUpdYTSIuv18+B1EVI+RiSrFj9HZrWOFMUlI2bbOfvShl4t+MZt
-         DViQ==
+        b=PCKsjaHB8tMZjzqSwG9WR26YiD2ZXject/W2Hnpbdlruh7ZeQGdnUKaAXpITd/0mA/
+         gANuFxq9hU1xKE4x2k9qikZifBipkE4SkVmiX0cdnOQb9t+A3s20vuS1NhaVlWiGbEvb
+         ofQLV5WgygkTLz+EY31p1lSrWGx8Z9F0DLgmNHr2FDmFtOq4HlmaOfr8Pttxo1XgZIrU
+         T5D2HpzRxLNY6xWUltDpeG2OxrI8q9OUTuLD+GpSPZ+SX/wOxTBeazhbeVOsuhKLhQBN
+         yvIczJntegFxIKtK2ZtP4/YCzOG/DW3FW5lY1lEZZ2005OuCnl2TbAkMKwqOHoq2IIaU
+         Pvsw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:user-agent:message-id:in-reply-to:date:references
-         :subject:cc:to:from;
-        bh=qYEjQIUXKnmIer9RQ7tvy8ZB3LufG5iVl43w8nguQ9A=;
-        b=zZc2M/bOrBB09z0msyP17DUe6yEqx/nm1A3FA0CHwRxWuft1aRCRERi5jHVU0Zf4f4
-         do8KCymR95ZcMcIVy7lOdrxWYsfk+71lPeyXmA+ZHkWFDIOWQ4v0eyoOmNUnMTS/zrZ0
-         nW0STxH9pKQwzIWtfswGE1HIaYJCsb1h4JRRXpuXRnnZzkcOqvA0CeoxS7oijl5W76Nd
-         XnYyY8vx3SSInmS7OSQ0a5PTBiPXhV/4DB2zeFdo5HzYSKWnOXpyQn+WwNZ7pxKAkDEu
-         6gkNj8iUdl8BrLSkoa2Y0kcu1hTOQVTBA5YDGIRJrHnkp6Sa/OY+ghOaGvNXgGYlTiq7
-         KbNA==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=8geFXXVXfHhAz5hAbzZmIPKSSa6hTGBtefRp2yOmwvY=;
+        b=gUSttMRX5IeqPygUmNrMVnW07jpkVWASQjPlJu8I9Gb/eAaVBUTbW9HzQLbWjK6dar
+         aHJpoZ+IWxSCC+tVKu3VYG7akbU/uJ3Q6ttPrasEyJ1b0eKPLYrWvbLMuihjr2TsRbmW
+         DD331+6lOfCmvNiz84693xDbOawE6O79O431TG+pqP0Wx7kkpACPCHLB544BVhYl9Rgq
+         I6Skygb9ZXczCT9mxS81nNLcQaWBwzNWqhRACH3HLgsiMdq/SyfzNHcBnSkOxToxCm/7
+         fZ1w48eFaK0X1O0/UWKn3jhxkZPzwkL7NjbnEF6Sc0uflqLcAbLDysZHyt9Kuw5NDJGW
+         XhNQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ying.huang@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=ying.huang@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id e96si7820885plb.123.2019.07.22.00.53.04
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=N1XbgAzT;
+       spf=pass (google.com: domain of mikhail.v.gavrilov@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=mikhail.v.gavrilov@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id r16sor26306686ioa.128.2019.07.22.00.56.30
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 22 Jul 2019 00:53:04 -0700 (PDT)
-Received-SPF: pass (google.com: domain of ying.huang@intel.com designates 192.55.52.120 as permitted sender) client-ip=192.55.52.120;
+        (Google Transport Security);
+        Mon, 22 Jul 2019 00:56:30 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mikhail.v.gavrilov@gmail.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ying.huang@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=ying.huang@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from orsmga002.jf.intel.com ([10.7.209.21])
-  by fmsmga104.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 22 Jul 2019 00:53:03 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.64,294,1559545200"; 
-   d="scan'208";a="180323256"
-Received: from unknown (HELO yhuang-dev) ([10.239.159.29])
-  by orsmga002.jf.intel.com with ESMTP; 22 Jul 2019 00:53:02 -0700
-From: "Huang\, Ying" <ying.huang@intel.com>
-To: Mikhail Gavrilov <mikhail.v.gavrilov@gmail.com>
-Cc: huang ying <huang.ying.caritas@gmail.com>,  Linux List Kernel Mailing <linux-kernel@vger.kernel.org>,  <linux-mm@kvack.org>
-Subject: Re: kernel BUG at mm/swap_state.c:170!
-References: <CABXGCsN9mYmBD-4GaaeW_NrDu+FDXLzr_6x+XNxfmFV6QkYCDg@mail.gmail.com>
-	<CAC=cRTMz5S636Wfqdn3UGbzwzJ+v_M46_juSfoouRLS1H62orQ@mail.gmail.com>
-	<CABXGCsOo-4CJicvTQm4jF4iDSqM8ic+0+HEEqP+632KfCntU+w@mail.gmail.com>
-Date: Mon, 22 Jul 2019 15:52:53 +0800
-In-Reply-To: <CABXGCsOo-4CJicvTQm4jF4iDSqM8ic+0+HEEqP+632KfCntU+w@mail.gmail.com>
-	(Mikhail Gavrilov's message of "Mon, 22 Jul 2019 12:31:36 +0500")
-Message-ID: <878ssqbj56.fsf@yhuang-dev.intel.com>
-User-Agent: Gnus/5.13 (Gnus v5.13) Emacs/26.1 (gnu/linux)
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=N1XbgAzT;
+       spf=pass (google.com: domain of mikhail.v.gavrilov@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=mikhail.v.gavrilov@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=8geFXXVXfHhAz5hAbzZmIPKSSa6hTGBtefRp2yOmwvY=;
+        b=N1XbgAzTqgPrawTL/w45g/LfC7QGk+9xu7IbhImK8mVLIaECEWGm98ZGbCvqNQ0yDd
+         uJuf2axzPpkPbODs60OBo8E2jExxxKOogG08w2axhkT4y9nw/XyHFxm+nmHlm5KHFTNu
+         p0RgTeiPhjM0t3YG8u7zbAa8Q1brUWrA76/GRVQAmCKTcp4Ys/oSjeHLpjYzFYAztXn+
+         BFS7fRUiv5HSPB2tOP1rknpXv/4Kf8b2F4URckc/2su4p+7FjM097GxEoWipIq9j/SEh
+         d4rfKc/MiK4inVoOM+jJiHdAqoBMEDvg1TOk3EymBoEd4NE9aj1fw52QMwMi7tAyVspY
+         Qwvw==
+X-Google-Smtp-Source: APXvYqwOhVMWNrMDgv5wpZzi3eBfgLTMQr2cjl8B1jjsVSMdjdXxE2YI1CpJ4If4ifppm0SH8qms0q0UzPEnGxYgBJk=
+X-Received: by 2002:a6b:6611:: with SMTP id a17mr40200646ioc.179.1563782189924;
+ Mon, 22 Jul 2019 00:56:29 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ascii
+References: <CABXGCsN9mYmBD-4GaaeW_NrDu+FDXLzr_6x+XNxfmFV6QkYCDg@mail.gmail.com>
+ <CAC=cRTMz5S636Wfqdn3UGbzwzJ+v_M46_juSfoouRLS1H62orQ@mail.gmail.com>
+ <CABXGCsOo-4CJicvTQm4jF4iDSqM8ic+0+HEEqP+632KfCntU+w@mail.gmail.com> <878ssqbj56.fsf@yhuang-dev.intel.com>
+In-Reply-To: <878ssqbj56.fsf@yhuang-dev.intel.com>
+From: Mikhail Gavrilov <mikhail.v.gavrilov@gmail.com>
+Date: Mon, 22 Jul 2019 12:56:18 +0500
+Message-ID: <CABXGCsOhimxC17j=jApoty-o1roRhKYoe+oiqDZ3c1s2r3QxFw@mail.gmail.com>
+Subject: Re: kernel BUG at mm/swap_state.c:170!
+To: "Huang, Ying" <ying.huang@intel.com>
+Cc: huang ying <huang.ying.caritas@gmail.com>, 
+	Linux List Kernel Mailing <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Mikhail Gavrilov <mikhail.v.gavrilov@gmail.com> writes:
+On Mon, 22 Jul 2019 at 12:53, Huang, Ying <ying.huang@intel.com> wrote:
+>
+> Yes.  This is quite complex.  Is the transparent huge page enabled in
+> your system?  You can check the output of
+>
+> $ cat /sys/kernel/mm/transparent_hugepage/enabled
 
-> On Mon, 22 Jul 2019 at 06:37, huang ying <huang.ying.caritas@gmail.com> wrote:
->>
->> I am trying to reproduce this bug.  Can you give me some information
->> about your test case?
->
-> It not easy, but I try to explain:
->
-> 1. I have the system with 32Gb RAM, 64GB swap and after boot, I always
-> launch follow applications:
->     a. Google Chrome dev channel
->         Note: here you should have 3 windows full of tabs on my
-> monitor 118 tabs in each window.
->         Don't worry modern Chrome browser is wise and load tabs only on demand.
->         We will use this feature later (on the last step).
->     b. Firefox Nightly ASAN this build with enabled address sanitizer.
->     c. Virtual Machine Manager (virt-manager) and start a virtual
-> machine with Windows 10 (2048 MiB RAM allocated)
->     d. Evolution
->     e. Steam client
->     f. Telegram client
->     g. DeadBeef music player
->
-> After all launched applications 15GB RAM should be allocated.
->
-> 2. This step the most difficult, because we should by using Firefox
-> allocated 27-28GB RAM.
->     I use the infinite scroll on sites Facebook, VK, Pinterest, Tumblr
-> and open many tabs in Firefox as I could.
->     Note: our goal is 27-28GB allocated RAM in the system.
->
-> 3. When we hit our goal in the second step now go to Google Chrome and
-> click as fast as you can on all unloaded tabs.
->     As usual, after 60 tabs this issue usually happens. 100%
-> reproducible for me.
->
-> Of course, I tried to simplify my workflow case by using stress-ng but
-> without success.
->
-> I hope it will help to make autotests.
+always [madvise] never
 
-Yes.  This is quite complex.  Is the transparent huge page enabled in
-your system?  You can check the output of
+> And, whether is the swap device you use a SSD or NVMe disk (not HDD)?
 
-$ cat /sys/kernel/mm/transparent_hugepage/enabled
+NVMe INTEL Optane 905P SSDPE21D480GAM3
 
-And, whether is the swap device you use a SSD or NVMe disk (not HDD)?
-
+--
 Best Regards,
-Huang, Ying
-
-> --
-> Best Regards,
-> Mike Gavrilov.
+Mike Gavrilov.
 
