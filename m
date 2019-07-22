@@ -6,113 +6,139 @@ X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 08287C76196
-	for <linux-mm@archiver.kernel.org>; Mon, 22 Jul 2019 08:29:18 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 999F8C76196
+	for <linux-mm@archiver.kernel.org>; Mon, 22 Jul 2019 09:34:00 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id AADB82199C
-	for <linux-mm@archiver.kernel.org>; Mon, 22 Jul 2019 08:29:17 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AADB82199C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=8bytes.org
+	by mail.kernel.org (Postfix) with ESMTP id 5115721993
+	for <linux-mm@archiver.kernel.org>; Mon, 22 Jul 2019 09:34:00 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5115721993
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 164596B0003; Mon, 22 Jul 2019 04:29:17 -0400 (EDT)
+	id 91FB16B0003; Mon, 22 Jul 2019 05:33:59 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 138EA6B0006; Mon, 22 Jul 2019 04:29:17 -0400 (EDT)
+	id 8D0656B0006; Mon, 22 Jul 2019 05:33:59 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0286E8E0001; Mon, 22 Jul 2019 04:29:16 -0400 (EDT)
+	id 799426B0007; Mon, 22 Jul 2019 05:33:59 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id BCE656B0003
-	for <linux-mm@kvack.org>; Mon, 22 Jul 2019 04:29:16 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id i44so25870640eda.3
-        for <linux-mm@kvack.org>; Mon, 22 Jul 2019 01:29:16 -0700 (PDT)
+Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 2FB2D6B0003
+	for <linux-mm@kvack.org>; Mon, 22 Jul 2019 05:33:59 -0400 (EDT)
+Received: by mail-wr1-f70.google.com with SMTP id e8so18829439wrw.15
+        for <linux-mm@kvack.org>; Mon, 22 Jul 2019 02:33:59 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=zZz6TeDXPa+u9HvDVyHuWp6VuS0vZz3kGeur43JMqYU=;
-        b=SVaLrhNkjMwbou+82KxiiSe8KFnGKZF3ymnJGjwZiegEwRrHLr10FbOaa9tHdqi33b
-         A3xXiZPDKujPFPI9dDH30gx1KzdKvg2q8w0UWADLd4TTQBLXYToOGsTOOjCeKHlG/O9R
-         NF20a7AB/cE3uiiimorNpkvYM7W5z6bWckT2ROOX/6T87Yy2g15knAxuPaLjSG4A+hFX
-         R1O0ePRlrR/dTU+tPTMdYaLie+IfxN7e99Cqlq4NS1uWbvGeBj7J/IWUIQoX1HZGe+N9
-         iqeFzN6cVpus9T+RXtCV+n34QwA7sWdrgeksuzgbwDZ0FZx9QPJxByKmimbDgc18F51d
-         9G6g==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of joro@8bytes.org designates 81.169.241.247 as permitted sender) smtp.mailfrom=joro@8bytes.org;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=8bytes.org
-X-Gm-Message-State: APjAAAUjwrKwpZqgLwgxFn/CtwGqv1XWq+In1ZP4YgTucWCIdKP65qes
-	5Gdue3/L5xa/gFt4hII9Il15X9DvBzcaQDeXNeBggZ04ww4K+NHqL/jb5qh/RNHuB+1csT9px7r
-	F3eHKWmtjuDsOroayHgFenRNQylc/eL3p2WY7+h6q6bp5cuDWMlanCqrfoVGijW0N7w==
-X-Received: by 2002:a50:97c8:: with SMTP id f8mr58944410edb.176.1563784156369;
-        Mon, 22 Jul 2019 01:29:16 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzTR+NNAuE48tViQU5J0rh+GUvaa/Foyac7L3b5FS9lsgBTE04UmjT+JLb0BAnFuNrR364E
-X-Received: by 2002:a50:97c8:: with SMTP id f8mr58944390edb.176.1563784155813;
-        Mon, 22 Jul 2019 01:29:15 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563784155; cv=none;
+        bh=tZL2n2beGumqr+yMsFXdlrRKSCmj/zGpw6HllCfucfI=;
+        b=OLorTHuML0m2bQVQpL2zMsTXI8Gs7n59p1bvKsJY8wiyMmCaJ9gnY/YwZAVjiPuUgw
+         EyfVeZPRZJX0RJHsaTbamA3PPvqoyQkP5FULHFa+gPe2Lc0cHr9IAxZ92K4FFNXgOyYN
+         jvUN30S2h6zgUJPznj2E+iB1tvoAezYY6HcnCVqCHfzzexZ4Fe6JrBEeqXiIxwoOo7C+
+         0M9QLQXoHLUGOmiK5Ke/p80V+3sAS9SrwveWPsENtYO8Gl5XaAc3o3d1qPaK4ca9AhQJ
+         S9qV/CMy/b/BNIwGZhAQ/su4LjTus/+TrZWt5oxhGktr8DsrO5PZf65iopXeYfgSaMHs
+         RJPw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
+X-Gm-Message-State: APjAAAWIIv3bDkcR0XPW/YMBgXOWfzAifOOW53pk93bsFJXag93h/YOg
+	aNY9JdiaYRcIZXm+9uAO2akJajbbmQU/NXWOocLp+TyLB70JpC4lebhLDYwqBS02JD2ttUjVVGk
+	xxXC1QDZMFPDe7uZRFRJ3FVauIZwxnmmeW9Tjg0ReM48K7yyEYAlTuOu97nMcsYirqg==
+X-Received: by 2002:a5d:4ac3:: with SMTP id y3mr45827576wrs.187.1563788038660;
+        Mon, 22 Jul 2019 02:33:58 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwQP1VPYsncESnsgn8CX2lLMftOjgYAPKnnd2e2V4h6VWnrZvaqZGHLr124g+pX4fMawZY8
+X-Received: by 2002:a5d:4ac3:: with SMTP id y3mr45827498wrs.187.1563788037717;
+        Mon, 22 Jul 2019 02:33:57 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563788037; cv=none;
         d=google.com; s=arc-20160816;
-        b=lpHdg9UJmFG1yUNWKvqi8l/00Wy+J4mrMQE8LfPImGN0qRpgomEjf6VGOGqaifzDH7
-         eAc0FjmiuvkcJu1SzhNUfrYm1L0ja5jpBPE6rj8kMDgPgva3kGxy4Vsa3GPFjkyyFENV
-         clqjynGcG+xm8cpIMtywBPRBfAVxrZGNBSMr3xZJrL5gnNTcc+5uGLPrutHNuNN0Holf
-         tGfuxEthT5ncNkHlt3qDjDYE/laxVtntWRxz4es4P5EDUexkOAUeCAUUNBxcfKqfJg5R
-         x46GzzUcEP4JB/ZdSi9pUQi+9eVRLHSKDsmapchnRnDgVx22ntnDGMS8x1si7cz1n3dz
-         qr5A==
+        b=vgJVK4nCacE5B3BG83P7DT1uRlJmpF2XMB2p34s4be4E+zyTV14VnCFXl+inRlnTQX
+         onZDScqu2hNUSLOsMmyi7s/Et6a2i7hnZmd5MBmoM63u74sIIkqgQaIqoZnTCKOJ/cg4
+         l3VYATOQcCdXNzryMqXPFleJ4NFyMPAgw+SvgLyPdZjMF7/PyJvCXuz3M3iSDFkcuzNa
+         FCIObV6mvWCozwgcYVY3I1Bo46Gp6KMP2e7z6UgmwWsj381sP2+dZ+WyX3hTlSZBrXBq
+         X28D8NenwpsHsdO7jR/2VHKcd35BY0VarPQ8z0I8e5MTCfqO43AScPq9GQmMaVN5tZZg
+         q5Bw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=zZz6TeDXPa+u9HvDVyHuWp6VuS0vZz3kGeur43JMqYU=;
-        b=qW4sSap+gdsRneX0sI9IZm791fEQb72EjlbSwqr8yYFrmzDhYJBkL00DzAv1K2tf64
-         riWDIGC6iBZZ0JCZvUydjy8bxHMNCYPS7YKQGVBngvdtSvyvb0+YyCZahHLITHQ06K9z
-         tRzTO6R84D6HpsdfGszpp8jiVrF7FbtxQgBEZo0G3ji9GZXdD/HlSbsl7hTkwgLsMp23
-         M89kJ6olEbe7ORVi85Ei/dShNQSBqr93JpYD9HLCbow4seGKUvaYnoPyYC3e0V4WgLk6
-         sOaQt3FEJe5D3Fmy2cToCnv7gNABt40mzNowI7Ff72sxEDqr+MP9zFrdkTda2HptGB3w
-         +ssg==
+        bh=tZL2n2beGumqr+yMsFXdlrRKSCmj/zGpw6HllCfucfI=;
+        b=tDDa3D9kXnVTb7CLp+qumQ/Ed1spvVg7ZnhGwFO4XZ/+4+abxThnp3TA1Gy38ZWy9R
+         rWR8vODV0cr6e98wAuggfrmDJdKBcmYoOBG6anoApRWLnlu0XOhvuLtPfcJmt0GT/aQc
+         jFrKO05ovPu3bElYoK8DaqxtHpKeSocJmoMwIjhCxmYivpaEZiEKvr1UlLNBnC3Pwrpx
+         QiJQWKBFfphpvWYNuLMsBbDcsvF0IRevVoo044jiRwz8Jc91OTmTfEtJp9lm7XV5TpQ1
+         qSGKCn7/3tXrZGcJWQrUbAl3SIoIC5b4dvGvyMi+MhLBXEXA9cyACzR45XD2M92HIlB1
+         1pkg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of joro@8bytes.org designates 81.169.241.247 as permitted sender) smtp.mailfrom=joro@8bytes.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=8bytes.org
-Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
-        by mx.google.com with ESMTPS id c5si3614264ejz.322.2019.07.22.01.29.15
+       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
+Received: from verein.lst.de (verein.lst.de. [213.95.11.211])
+        by mx.google.com with ESMTPS id h5si37950578wrx.238.2019.07.22.02.33.57
         for <linux-mm@kvack.org>
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Mon, 22 Jul 2019 01:29:15 -0700 (PDT)
-Received-SPF: pass (google.com: domain of joro@8bytes.org designates 81.169.241.247 as permitted sender) client-ip=81.169.241.247;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 22 Jul 2019 02:33:57 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) client-ip=213.95.11.211;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of joro@8bytes.org designates 81.169.241.247 as permitted sender) smtp.mailfrom=joro@8bytes.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=8bytes.org
-Received: by theia.8bytes.org (Postfix, from userid 1000)
-	id DA7572A9; Mon, 22 Jul 2019 10:29:14 +0200 (CEST)
-Date: Mon, 22 Jul 2019 10:29:14 +0200
-From: Joerg Roedel <joro@8bytes.org>
-To: Thomas Gleixner <tglx@linutronix.de>
-Cc: Joerg Roedel <jroedel@suse.de>,
-	Dave Hansen <dave.hansen@linux.intel.com>,
-	Andy Lutomirski <luto@kernel.org>,
-	Peter Zijlstra <peterz@infradead.org>,
-	Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Subject: Re: [PATCH 3/3] mm/vmalloc: Sync unmappings in vunmap_page_range()
-Message-ID: <20190722082914.GA1524@8bytes.org>
-References: <20190719184652.11391-1-joro@8bytes.org>
- <20190719184652.11391-4-joro@8bytes.org>
- <20190722081115.GH19068@suse.de>
- <alpine.DEB.2.21.1907221018460.1782@nanos.tec.linutronix.de>
+       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
+Received: by verein.lst.de (Postfix, from userid 2407)
+	id CBA3F68B20; Mon, 22 Jul 2019 11:33:55 +0200 (CEST)
+Date: Mon, 22 Jul 2019 11:33:55 +0200
+From: Christoph Hellwig <hch@lst.de>
+To: john.hubbard@gmail.com
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+	Alexander Viro <viro@zeniv.linux.org.uk>,
+	=?iso-8859-1?Q?Bj=F6rn_T=F6pel?= <bjorn.topel@intel.com>,
+	Boaz Harrosh <boaz@plexistor.com>, Christoph Hellwig <hch@lst.de>,
+	Daniel Vetter <daniel@ffwll.ch>,
+	Dan Williams <dan.j.williams@intel.com>,
+	Dave Chinner <david@fromorbit.com>, David Airlie <airlied@linux.ie>,
+	"David S . Miller" <davem@davemloft.net>,
+	Ilya Dryomov <idryomov@gmail.com>, Jan Kara <jack@suse.cz>,
+	Jason Gunthorpe <jgg@ziepe.ca>, Jens Axboe <axboe@kernel.dk>,
+	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
+	Johannes Thumshirn <jthumshirn@suse.de>,
+	Magnus Karlsson <magnus.karlsson@intel.com>,
+	Matthew Wilcox <willy@infradead.org>,
+	Miklos Szeredi <miklos@szeredi.hu>, Ming Lei <ming.lei@redhat.com>,
+	Sage Weil <sage@redhat.com>,
+	Santosh Shilimkar <santosh.shilimkar@oracle.com>,
+	Yan Zheng <zyan@redhat.com>, netdev@vger.kernel.org,
+	dri-devel@lists.freedesktop.org, linux-mm@kvack.org,
+	linux-rdma@vger.kernel.org, bpf@vger.kernel.org,
+	LKML <linux-kernel@vger.kernel.org>,
+	John Hubbard <jhubbard@nvidia.com>
+Subject: Re: [PATCH 1/3] drivers/gpu/drm/via: convert put_page() to
+ put_user_page*()
+Message-ID: <20190722093355.GB29538@lst.de>
+References: <20190722043012.22945-1-jhubbard@nvidia.com> <20190722043012.22945-2-jhubbard@nvidia.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.21.1907221018460.1782@nanos.tec.linutronix.de>
-User-Agent: Mutt/1.9.4 (2018-02-28)
+In-Reply-To: <20190722043012.22945-2-jhubbard@nvidia.com>
+User-Agent: Mutt/1.5.17 (2007-11-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jul 22, 2019 at 10:19:32AM +0200, Thomas Gleixner wrote:
-> On Mon, 22 Jul 2019, Joerg Roedel wrote:
-> 
-> > Srewed up the subject :(, it needs to be
-> 
-> Un-Srewed it :)
+On Sun, Jul 21, 2019 at 09:30:10PM -0700, john.hubbard@gmail.com wrote:
+>  		for (i = 0; i < vsg->num_pages; ++i) {
+>  			if (NULL != (page = vsg->pages[i])) {
+>  				if (!PageReserved(page) && (DMA_FROM_DEVICE == vsg->direction))
+> -					SetPageDirty(page);
+> -				put_page(page);
+> +					put_user_pages_dirty(&page, 1);
+> +				else
+> +					put_user_page(page);
+>  			}
 
-Thanks a lot :)
+Can't just pass a dirty argument to put_user_pages?  Also do we really
+need a separate put_user_page for the single page case?
+put_user_pages_dirty?
+
+Also the PageReserved check looks bogus, as I can't see how a reserved
+page can end up here.  So IMHO the above snippled should really look
+something like this:
+
+	put_user_pages(vsg->pages[i], vsg->num_pages,
+			vsg->direction == DMA_FROM_DEVICE);
+
+in the end.
 
