@@ -2,198 +2,207 @@ Return-Path: <SRS0=80m6=VT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-6.9 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 02178C7618F
-	for <linux-mm@archiver.kernel.org>; Mon, 22 Jul 2019 16:32:32 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8C9C3C76194
+	for <linux-mm@archiver.kernel.org>; Mon, 22 Jul 2019 16:46:14 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C2F0E21911
-	for <linux-mm@archiver.kernel.org>; Mon, 22 Jul 2019 16:32:31 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C2F0E21911
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 49A8521911
+	for <linux-mm@archiver.kernel.org>; Mon, 22 Jul 2019 16:46:14 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=chromium.org header.i=@chromium.org header.b="VX6SSuVo"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 49A8521911
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chromium.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5C5A28E000C; Mon, 22 Jul 2019 12:32:31 -0400 (EDT)
+	id C4A378E0001; Mon, 22 Jul 2019 12:46:10 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 576938E0001; Mon, 22 Jul 2019 12:32:31 -0400 (EDT)
+	id BD35F6B000C; Mon, 22 Jul 2019 12:46:10 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 463DD8E000C; Mon, 22 Jul 2019 12:32:31 -0400 (EDT)
+	id A73B78E0001; Mon, 22 Jul 2019 12:46:10 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 24CE68E0001
-	for <linux-mm@kvack.org>; Mon, 22 Jul 2019 12:32:31 -0400 (EDT)
-Received: by mail-qt1-f197.google.com with SMTP id k31so36127135qte.13
-        for <linux-mm@kvack.org>; Mon, 22 Jul 2019 09:32:31 -0700 (PDT)
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 6F4206B0007
+	for <linux-mm@kvack.org>; Mon, 22 Jul 2019 12:46:10 -0400 (EDT)
+Received: by mail-pl1-f200.google.com with SMTP id o6so20167489plk.23
+        for <linux-mm@kvack.org>; Mon, 22 Jul 2019 09:46:10 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to;
-        bh=XQ/wBxECw9eEizSYQBtcI2n0mCD6tQZBTKPGxe1wcwA=;
-        b=m86XwN9G9jDbuM5jaOE3zR1ZUgGx0yESdcElcnYdCXzkKksaWbQT3FxFUo9okMUvQ9
-         exqP636LOG2ZxOO7KjvUzE+SmAHPOxJk2uB7YU9zszLIf55Pn8BnJ49wCaYayDwXPRY1
-         AzbRLEjpJMMg00J7NW1Yd7UxhT+/5dd1lZlnNnfymPofwYYhJfWDwujE/9jiwFaalY8f
-         +/8hDlr5rZyUbrzKhiP0zdNmBG6QX4MrxxsZ7mFV/ANPxEkSlp0uOhv/lgWKZwDlhA9a
-         dFpGTcUySfQRm1BB9y4kV4T1jSy6Qh8UEHqdB/fOjcocTbJYgwwTMQppNEF5PA4EMfhQ
-         I7Rw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mst@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=mst@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAX5bdnogXOh2FKPFIc2ui0YKIvI//2QBrwGapUNRT4yA8QkH8QF
-	YgblC8QFbN6ZMRSjZ01Ou2jv/F8Kb7lXMHW+Dy7Icr1zlMjgL0NRlgRqQI5qFC1fusMewBDjLQi
-	Se46lAw76ZOOJ4LPBTHE/cjTDAS1KzgeLWwVNBCQiydN10LN8We8jLKuANiBA6mH9vQ==
-X-Received: by 2002:a05:620a:15cd:: with SMTP id o13mr46617013qkm.273.1563813150935;
-        Mon, 22 Jul 2019 09:32:30 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyMcQUoIvWC2TWaeob5KyFGyc0ITGWpvhBMrQXKhKpNt3AXpg1++SCYMJQ5fezJJTVOuY18
-X-Received: by 2002:a05:620a:15cd:: with SMTP id o13mr46616993qkm.273.1563813150402;
-        Mon, 22 Jul 2019 09:32:30 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563813150; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to;
+        bh=F8BugWPvgcU2u1kFFZKMyP/IOkg4/qodeykECt+PCWA=;
+        b=WgsRyFiLCa7OJqxHLY/QIlgKUSFa9WW70G6TIkuzMJW3j2lR5h5kpVBJ4x5Hljuy+w
+         XxzqI+DE7+Tce3ltphJJVT4Ttu+wnuTyd604VVX+sDwfcBg21olaO0q8h9jvOVdiSy2P
+         j6GcqWNuci+SC/6miEyov3y1HEvFMtPyw8E/P5swfNj3q5xeFH3ehcjg1nvKDQECzYCX
+         aODZIuLWKkh2cr1BdtLEdXTCJfVlzyxbIST4VxOw6GZrPFDP6Z4KbU+teCXGh1cQUBwa
+         CKIyxOlHx2n6sB7XwTpecQSm/IFZdjI81jL4IYEWDepyxMCGV9fCU+NJF5ITabgucHpp
+         x4Mg==
+X-Gm-Message-State: APjAAAUHjAE7vzYhp7lgL5hxlGaN4ywcvjuJBtGh17TUQk/mQJCzp0Km
+	C8A4wKfNhWfjiK8q93CoeYVVFdchmFRF+8030ADVBxYADH+HjXrYShLtJKLx9CqRJvr5AI3EYJ8
+	qiHuU3jn1DbPPfaW6wvc0O2NXlVc2hmLwR0E8MpRFaliTQxBwCNEvoIHGFHwh7FFXDA==
+X-Received: by 2002:a62:e815:: with SMTP id c21mr1198430pfi.244.1563813969997;
+        Mon, 22 Jul 2019 09:46:09 -0700 (PDT)
+X-Received: by 2002:a62:e815:: with SMTP id c21mr1198376pfi.244.1563813969194;
+        Mon, 22 Jul 2019 09:46:09 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563813969; cv=none;
         d=google.com; s=arc-20160816;
-        b=OdyuUtEsQC/izTBnLry9rNNmg4N4wPmBMEEOI74c80QhHoU6t3kWLL0iTJJmMscYuL
-         mu0Ds3eZHzU4/JHIE+IkNUa8mF4G1Ko4mSS6aQbcJqQP37RmsKDMDPHi8M0WvPJSUhqf
-         4R6GUXF47gRn2P4/C/AV6gqYj+DfsSSdF65g3HwVRykB0rGf7ZB9zRTYcZREFRtG6A+b
-         LUPldnvlqwfQSMvZCLbHy8J0BNObS00b4jWceh9EHncceRlVYtpamDE1LPLoNWi7Mmjx
-         wl2u3m/AStbYCrQFIsoBlJy1pOCIT/4kwUXI2a+Qq6J4Vjn72u5KYo62zwro1Fu1qAAP
-         O4SQ==
+        b=C7a22hdgv36YLsyqEZqQyxaK5udxCDqpI6/MXq9ns2TXcdluwYplvQcrGgIsNiQGGE
+         5QI2wKkLcJmnOZez4iUEAsj0KMom9YuiFlAB/bMG0xBoPwLD+dHKbIjbu0Ry10BsysL7
+         A+z+EqFEmQDtd05/u4RPAdcOPTnjBeeh0lmOAQzRoG1VVG5iJwf+77s+0Zsn/cZAQgDM
+         sFikUD1rGOjkgcpqfmYZxN95FIBjE1tRLNhT7zWo7bufDbknGYOiRdBcmhmkpFZaByE8
+         2U/t1OOVG6uXPhIEIe/deZ38xPpo8+gMnpxycPdZkJlrJ3qSmNppEzRKy+LhQcaE8kzc
+         aokA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=in-reply-to:content-disposition:mime-version:references:message-id
-         :subject:cc:to:from:date;
-        bh=XQ/wBxECw9eEizSYQBtcI2n0mCD6tQZBTKPGxe1wcwA=;
-        b=dH6pvVWFBFHRKqn0/fxH03NS0Oa+rllBgOz/LzkRZwrNg+Flrifzx9zoRCqyCrf4YT
-         w6zZesAhXngUWc/9ruCIslP+47ETGQ84MEOVK9JSXUd4QLDx5FZ5fDnbqrz+jgj/BnPU
-         3NiU7B0f4jWEav+NKHiuU9lXs3QQlG06H29sZEUmNwYa9Fily2+pByizrsdTpTGSVkSt
-         7/kJLTqMO54bX2d68ZILSTRj6+zvquckgISOLUUugdgkw46OURlixmXqnmlSU92j3Nab
-         jpFYX6QHCPGzRvpbmT0/ZIyBQHRshk0eHE4LrkI5Nz0qAAAcz164rHzT2t3D91mpj+ev
-         z45w==
+         :subject:cc:to:from:date:dkim-signature;
+        bh=F8BugWPvgcU2u1kFFZKMyP/IOkg4/qodeykECt+PCWA=;
+        b=v7awzW5JlrmItFjrFqYaNuqALVlDxx4EpRQ3Rs0e0qO2Oqrxjq74YbZw5UeBSzq0so
+         ZwqjMIXUutGPdpk4OHJew+elhyq1AdYepqEPn0h1QaE6pzWl+7cCfEtxfk4tNB7hMOmu
+         zU1GD039fHVlP5QEgz6hcrAmpV4LLi5xb+ofjfy+UPZVJpZZ0DzbnzrXCqP2Mnc4ekaE
+         hTGu+AZgffc1GHg8wslQ68QXQZbwmvPKN2H3JWIzDTMVk2r1bkAmcCFV612LADrrqJUi
+         AXqXBwc+RPKh+bY8zCXmFfUCyGKTUsBCIrnEy82j8xesY2G/LtMxXsbD1CMx80Vx4N+k
+         6dvg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of mst@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=mst@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id e67si9814777vsc.31.2019.07.22.09.32.30
+       dkim=pass header.i=@chromium.org header.s=google header.b=VX6SSuVo;
+       spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id o39sor48643373pjb.10.2019.07.22.09.46.08
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 22 Jul 2019 09:32:30 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mst@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (Google Transport Security);
+        Mon, 22 Jul 2019 09:46:09 -0700 (PDT)
+Received-SPF: pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of mst@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=mst@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 474C430821A0;
-	Mon, 22 Jul 2019 16:32:29 +0000 (UTC)
-Received: from redhat.com (ovpn-124-54.rdu2.redhat.com [10.10.124.54])
-	by smtp.corp.redhat.com (Postfix) with SMTP id DE2DB5D9D3;
-	Mon, 22 Jul 2019 16:32:18 +0000 (UTC)
-Date: Mon, 22 Jul 2019 12:32:17 -0400
-From: "Michael S. Tsirkin" <mst@redhat.com>
-To: "Paul E. McKenney" <paulmck@linux.ibm.com>
-Cc: Joel Fernandes <joel@joelfernandes.org>,
-	Matthew Wilcox <willy@infradead.org>, aarcange@redhat.com,
-	akpm@linux-foundation.org, christian@brauner.io,
-	davem@davemloft.net, ebiederm@xmission.com,
-	elena.reshetova@intel.com, guro@fb.com, hch@infradead.org,
-	james.bottomley@hansenpartnership.com, jasowang@redhat.com,
-	jglisse@redhat.com, keescook@chromium.org, ldv@altlinux.org,
-	linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org,
-	linux-mm@kvack.org, linux-parisc@vger.kernel.org,
-	luto@amacapital.net, mhocko@suse.com, mingo@kernel.org,
-	namit@vmware.com, peterz@infradead.org,
-	syzkaller-bugs@googlegroups.com, viro@zeniv.linux.org.uk,
-	wad@chromium.org
-Subject: Re: RFC: call_rcu_outstanding (was Re: WARNING in __mmdrop)
-Message-ID: <20190722123016-mutt-send-email-mst@kernel.org>
-References: <20190721044615-mutt-send-email-mst@kernel.org>
- <20190721081933-mutt-send-email-mst@kernel.org>
- <20190721131725.GR14271@linux.ibm.com>
- <20190721210837.GC363@bombadil.infradead.org>
- <20190721233113.GV14271@linux.ibm.com>
- <20190722151439.GA247639@google.com>
- <20190722114612-mutt-send-email-mst@kernel.org>
- <20190722155534.GG14271@linux.ibm.com>
- <20190722120011-mutt-send-email-mst@kernel.org>
- <20190722162551.GK14271@linux.ibm.com>
+       dkim=pass header.i=@chromium.org header.s=google header.b=VX6SSuVo;
+       spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=chromium.org; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to;
+        bh=F8BugWPvgcU2u1kFFZKMyP/IOkg4/qodeykECt+PCWA=;
+        b=VX6SSuVoSHuo5NAioif+DJtSSs1RJl179j5hlo4DTfAYF66Jgcx0vpiJB8eR+9HEL8
+         +f/45Mc4lQN3jKnZezfzKg+yOPAVpcviTazcgmREFQYvaP41eWd/rYtiTmOP5jut4IGW
+         UsbCxeU7Nx57xcR3YkKPrTzMk7AWS/2VcXYuY=
+X-Google-Smtp-Source: APXvYqzl1okfrN5zPZDspTEQta/i5+YABh20qrSg3GL1AN5406TswuRoR6v+V+I5B+11TbFoYh/o0Q==
+X-Received: by 2002:a17:90a:ff17:: with SMTP id ce23mr77676431pjb.47.1563813968675;
+        Mon, 22 Jul 2019 09:46:08 -0700 (PDT)
+Received: from www.outflux.net (smtp.outflux.net. [198.145.64.163])
+        by smtp.gmail.com with ESMTPSA id 4sm48411440pfc.92.2019.07.22.09.46.07
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 22 Jul 2019 09:46:07 -0700 (PDT)
+Date: Mon, 22 Jul 2019 09:46:06 -0700
+From: Kees Cook <keescook@chromium.org>
+To: Andrey Konovalov <andreyknvl@google.com>
+Cc: Al Viro <viro@zeniv.linux.org.uk>,
+	Eric Biederman <ebiederm@xmission.com>,
+	Linux ARM <linux-arm-kernel@lists.infradead.org>,
+	Linux Memory Management List <linux-mm@kvack.org>,
+	LKML <linux-kernel@vger.kernel.org>, amd-gfx@lists.freedesktop.org,
+	dri-devel@lists.freedesktop.org, linux-rdma@vger.kernel.org,
+	linux-media@vger.kernel.org, kvm@vger.kernel.org,
+	"open list:KERNEL SELFTEST FRAMEWORK" <linux-kselftest@vger.kernel.org>,
+	Vincenzo Frascino <vincenzo.frascino@arm.com>,
+	Will Deacon <will.deacon@arm.com>,
+	Mark Rutland <mark.rutland@arm.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	Yishai Hadas <yishaih@mellanox.com>,
+	Felix Kuehling <Felix.Kuehling@amd.com>,
+	Alexander Deucher <Alexander.Deucher@amd.com>,
+	Christian Koenig <Christian.Koenig@amd.com>,
+	Mauro Carvalho Chehab <mchehab@kernel.org>,
+	Jens Wiklander <jens.wiklander@linaro.org>,
+	Alex Williamson <alex.williamson@redhat.com>,
+	Leon Romanovsky <leon@kernel.org>,
+	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>,
+	Dave Martin <Dave.Martin@arm.com>,
+	Khalid Aziz <khalid.aziz@oracle.com>, enh <enh@google.com>,
+	Jason Gunthorpe <jgg@ziepe.ca>,
+	Christoph Hellwig <hch@infradead.org>,
+	Dmitry Vyukov <dvyukov@google.com>,
+	Kostya Serebryany <kcc@google.com>,
+	Evgeniy Stepanov <eugenis@google.com>,
+	Lee Smith <Lee.Smith@arm.com>,
+	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
+	Jacob Bramley <Jacob.Bramley@arm.com>,
+	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
+	Robin Murphy <robin.murphy@arm.com>,
+	Kevin Brodsky <kevin.brodsky@arm.com>,
+	Szabolcs Nagy <Szabolcs.Nagy@arm.com>,
+	Catalin Marinas <catalin.marinas@arm.com>
+Subject: Re: [PATCH v18 07/15] fs/namespace: untag user pointers in
+ copy_mount_options
+Message-ID: <201907220944.5821C92518@keescook>
+References: <cover.1561386715.git.andreyknvl@google.com>
+ <41e0a911e4e4d533486a1468114e6878e21f9f84.1561386715.git.andreyknvl@google.com>
+ <20190624175009.GM29120@arrakis.emea.arm.com>
+ <CAAeHK+x2TL057Fr0K7FZBTYgeEPVU3cC6scEeiSYk-Jkb3xgfg@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190722162551.GK14271@linux.ibm.com>
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.47]); Mon, 22 Jul 2019 16:32:29 +0000 (UTC)
+In-Reply-To: <CAAeHK+x2TL057Fr0K7FZBTYgeEPVU3cC6scEeiSYk-Jkb3xgfg@mail.gmail.com>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jul 22, 2019 at 09:25:51AM -0700, Paul E. McKenney wrote:
-> On Mon, Jul 22, 2019 at 12:13:40PM -0400, Michael S. Tsirkin wrote:
-> > On Mon, Jul 22, 2019 at 08:55:34AM -0700, Paul E. McKenney wrote:
-> > > On Mon, Jul 22, 2019 at 11:47:24AM -0400, Michael S. Tsirkin wrote:
-> > > > On Mon, Jul 22, 2019 at 11:14:39AM -0400, Joel Fernandes wrote:
-> > > > > [snip]
-> > > > > > > Would it make sense to have call_rcu() check to see if there are many
-> > > > > > > outstanding requests on this CPU and if so process them before returning?
-> > > > > > > That would ensure that frequent callers usually ended up doing their
-> > > > > > > own processing.
-> > > > > 
-> > > > > Other than what Paul already mentioned about deadlocks, I am not sure if this
-> > > > > would even work for all cases since call_rcu() has to wait for a grace
-> > > > > period.
-> > > > > 
-> > > > > So, if the number of outstanding requests are higher than a certain amount,
-> > > > > then you *still* have to wait for some RCU configurations for the grace
-> > > > > period duration and cannot just execute the callback in-line. Did I miss
-> > > > > something?
-> > > > > 
-> > > > > Can waiting in-line for a grace period duration be tolerated in the vhost case?
-> > > > > 
-> > > > > thanks,
-> > > > > 
-> > > > >  - Joel
-> > > > 
-> > > > No, but it has many other ways to recover (try again later, drop a
-> > > > packet, use a slower copy to/from user).
-> > > 
-> > > True enough!  And your idea of taking recovery action based on the number
-> > > of callbacks seems like a good one while we are getting RCU's callback
-> > > scheduling improved.
-> > > 
-> > > By the way, was this a real problem that you could make happen on real
-> > > hardware?
-> > 
-> > >  If not, I would suggest just letting RCU get improved over
-> > > the next couple of releases.
-> > 
-> > So basically use kfree_rcu but add a comment saying e.g. "WARNING:
-> > in the future callers of kfree_rcu might need to check that
-> > not too many callbacks get queued. In that case, we can
-> > disable the optimization, or recover in some other way.
-> > Watch this space."
-> 
-> That sounds fair.
-> 
-> > > If it is something that you actually made happen, please let me know
-> > > what (if anything) you need from me for your callback-counting EBUSY
-> > > scheme.
-> > > 
-> > > 							Thanx, Paul
-> > 
-> > If you mean kfree_rcu causing OOM then no, it's all theoretical.
-> > If you mean synchronize_rcu stalling to the point where guest will OOPs,
-> > then yes, that's not too hard to trigger.
-> 
-> Is synchronize_rcu() being stalled by the userspace loop that is invoking
-> your ioctl that does kfree_rcu()?  Or instead by the resulting callback
-> invocation?
-> 
-> 							Thanx, Paul
++Eric Biederman too, who might be able to Ack this...
 
-Sorry, let me clarify.  We currently have synchronize_rcu in a userspace
-loop. I have a patch replacing that with kfree_rcu.  This isn't the
-first time synchronize_rcu is stalling a VM for a long while so I didn't
-investigate further.
+On Mon, Jul 15, 2019 at 06:00:04PM +0200, Andrey Konovalov wrote:
+> On Mon, Jun 24, 2019 at 7:50 PM Catalin Marinas <catalin.marinas@arm.com> wrote:
+> >
+> > On Mon, Jun 24, 2019 at 04:32:52PM +0200, Andrey Konovalov wrote:
+> > > This patch is a part of a series that extends kernel ABI to allow to pass
+> > > tagged user pointers (with the top byte set to something else other than
+> > > 0x00) as syscall arguments.
+> > >
+> > > In copy_mount_options a user address is being subtracted from TASK_SIZE.
+> > > If the address is lower than TASK_SIZE, the size is calculated to not
+> > > allow the exact_copy_from_user() call to cross TASK_SIZE boundary.
+> > > However if the address is tagged, then the size will be calculated
+> > > incorrectly.
+> > >
+> > > Untag the address before subtracting.
+> > >
+> > > Reviewed-by: Khalid Aziz <khalid.aziz@oracle.com>
+> > > Reviewed-by: Vincenzo Frascino <vincenzo.frascino@arm.com>
+> > > Reviewed-by: Kees Cook <keescook@chromium.org>
+> > > Reviewed-by: Catalin Marinas <catalin.marinas@arm.com>
+> > > Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
+> > > ---
+> > >  fs/namespace.c | 2 +-
+> > >  1 file changed, 1 insertion(+), 1 deletion(-)
+> > >
+> > > diff --git a/fs/namespace.c b/fs/namespace.c
+> > > index 7660c2749c96..ec78f7223917 100644
+> > > --- a/fs/namespace.c
+> > > +++ b/fs/namespace.c
+> > > @@ -2994,7 +2994,7 @@ void *copy_mount_options(const void __user * data)
+> > >        * the remainder of the page.
+> > >        */
+> > >       /* copy_from_user cannot cross TASK_SIZE ! */
+> > > -     size = TASK_SIZE - (unsigned long)data;
+> > > +     size = TASK_SIZE - (unsigned long)untagged_addr(data);
+> > >       if (size > PAGE_SIZE)
+> > >               size = PAGE_SIZE;
+> >
+> > I think this patch needs an ack from Al Viro (cc'ed).
+> >
+> > --
+> > Catalin
+> 
+> Hi Al,
+> 
+> Could you take a look and give your acked-by?
+> 
+> Thanks!
 
 -- 
-MST
+Kees Cook
 
