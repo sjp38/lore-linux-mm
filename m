@@ -2,207 +2,170 @@ Return-Path: <SRS0=80m6=VT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.9 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8C9C3C76194
-	for <linux-mm@archiver.kernel.org>; Mon, 22 Jul 2019 16:46:14 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2FE04C7618F
+	for <linux-mm@archiver.kernel.org>; Mon, 22 Jul 2019 17:47:35 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 49A8521911
-	for <linux-mm@archiver.kernel.org>; Mon, 22 Jul 2019 16:46:14 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id B600121901
+	for <linux-mm@archiver.kernel.org>; Mon, 22 Jul 2019 17:47:34 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=chromium.org header.i=@chromium.org header.b="VX6SSuVo"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 49A8521911
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chromium.org
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="C5w+mGxc"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B600121901
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C4A378E0001; Mon, 22 Jul 2019 12:46:10 -0400 (EDT)
+	id 209816B0003; Mon, 22 Jul 2019 13:47:34 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BD35F6B000C; Mon, 22 Jul 2019 12:46:10 -0400 (EDT)
+	id 1BA326B0005; Mon, 22 Jul 2019 13:47:34 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A73B78E0001; Mon, 22 Jul 2019 12:46:10 -0400 (EDT)
+	id 0A9948E0001; Mon, 22 Jul 2019 13:47:34 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F4206B0007
-	for <linux-mm@kvack.org>; Mon, 22 Jul 2019 12:46:10 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id o6so20167489plk.23
-        for <linux-mm@kvack.org>; Mon, 22 Jul 2019 09:46:10 -0700 (PDT)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C38816B0003
+	for <linux-mm@kvack.org>; Mon, 22 Jul 2019 13:47:33 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id i33so20256558pld.15
+        for <linux-mm@kvack.org>; Mon, 22 Jul 2019 10:47:33 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to;
-        bh=F8BugWPvgcU2u1kFFZKMyP/IOkg4/qodeykECt+PCWA=;
-        b=WgsRyFiLCa7OJqxHLY/QIlgKUSFa9WW70G6TIkuzMJW3j2lR5h5kpVBJ4x5Hljuy+w
-         XxzqI+DE7+Tce3ltphJJVT4Ttu+wnuTyd604VVX+sDwfcBg21olaO0q8h9jvOVdiSy2P
-         j6GcqWNuci+SC/6miEyov3y1HEvFMtPyw8E/P5swfNj3q5xeFH3ehcjg1nvKDQECzYCX
-         aODZIuLWKkh2cr1BdtLEdXTCJfVlzyxbIST4VxOw6GZrPFDP6Z4KbU+teCXGh1cQUBwa
-         CKIyxOlHx2n6sB7XwTpecQSm/IFZdjI81jL4IYEWDepyxMCGV9fCU+NJF5ITabgucHpp
-         x4Mg==
-X-Gm-Message-State: APjAAAUHjAE7vzYhp7lgL5hxlGaN4ywcvjuJBtGh17TUQk/mQJCzp0Km
-	C8A4wKfNhWfjiK8q93CoeYVVFdchmFRF+8030ADVBxYADH+HjXrYShLtJKLx9CqRJvr5AI3EYJ8
-	qiHuU3jn1DbPPfaW6wvc0O2NXlVc2hmLwR0E8MpRFaliTQxBwCNEvoIHGFHwh7FFXDA==
-X-Received: by 2002:a62:e815:: with SMTP id c21mr1198430pfi.244.1563813969997;
-        Mon, 22 Jul 2019 09:46:09 -0700 (PDT)
-X-Received: by 2002:a62:e815:: with SMTP id c21mr1198376pfi.244.1563813969194;
-        Mon, 22 Jul 2019 09:46:09 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563813969; cv=none;
+         :message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=ssliLyV8U+mhRbl4ipf9bRa3EL22Ezd5Zc9rGXszSvs=;
+        b=mk0kGLEqNGlNYiICVXEqnG65+YNq+53KiJNauFZaN4EB9fp2yW/aZkFR9VuMGhDlBL
+         3Nr6H+cUbPhga55p+hQOC5D6qzLBNtNQAYWX0KKAqmN2oRZrOcCEIZvdOALeoz9Hmqe2
+         oAO1WPdwDsIDUK+kRbG1oFAttx/LzCUJs9b7gD4ETFDUFBwpDxst/iADjH6dQT5itAEG
+         XoLFzexN8H7D4hiK8ArbzoRQg/DNTSf91fd/2MXq1nWVG7biKOSvpYwWxrXw6bgam1eQ
+         SpEEGdIaUDSpsDuO+/TUn4xf0+M36BUmdcn8hrczXo3qiu/OZy9a2L0tbP13blfMfvY6
+         1vEg==
+X-Gm-Message-State: APjAAAW/vIHCJop7KG5oYgq1tlQL8rwN3Vbf9w+8MJvONpGHQcHJOxjJ
+	oisvOQiFYd28kkhs6xEHt8/xWie4FSENaC5EqtXyapEUf0rSgOgz8xK6yBsxU4h2SL5GdcELYg0
+	TO/0b3K0vXYTKX0crF/KuuPNIOBe0nubgUNBvkXmW03sGdg9TuQbyo4X2vQ2EpuA75w==
+X-Received: by 2002:a62:e515:: with SMTP id n21mr1420731pff.186.1563817653381;
+        Mon, 22 Jul 2019 10:47:33 -0700 (PDT)
+X-Received: by 2002:a62:e515:: with SMTP id n21mr1420679pff.186.1563817652628;
+        Mon, 22 Jul 2019 10:47:32 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563817652; cv=none;
         d=google.com; s=arc-20160816;
-        b=C7a22hdgv36YLsyqEZqQyxaK5udxCDqpI6/MXq9ns2TXcdluwYplvQcrGgIsNiQGGE
-         5QI2wKkLcJmnOZez4iUEAsj0KMom9YuiFlAB/bMG0xBoPwLD+dHKbIjbu0Ry10BsysL7
-         A+z+EqFEmQDtd05/u4RPAdcOPTnjBeeh0lmOAQzRoG1VVG5iJwf+77s+0Zsn/cZAQgDM
-         sFikUD1rGOjkgcpqfmYZxN95FIBjE1tRLNhT7zWo7bufDbknGYOiRdBcmhmkpFZaByE8
-         2U/t1OOVG6uXPhIEIe/deZ38xPpo8+gMnpxycPdZkJlrJ3qSmNppEzRKy+LhQcaE8kzc
-         aokA==
+        b=doM7b+WhWVXa8NLwoV7gSphFYXNGwF4ki9gg3WLg0eRtDLny4aCdUGsLy5899LF8rg
+         3feRn7Q1jEjb5Mrv5S+aoK7QF5MzjNLL5q8J031V805HeW7s19cNHep1Lu4AnxDVG/nh
+         5oZTyOfu7vi/TvlN6VFes7NvQqWgHpcT4KGeCW66QgaOhq64xD3odhVE18MDN6sqJMOu
+         /pv+mF/WD1MVPiumF/bp/kQUdj60yaoTLaEG3nTcsVcJAzO5uHV/5e1e+ZwJ6rT5RmpB
+         N1KdRfG+IlF3mL1oyj5zQqhLIfVoC3elZpugD4ZN6YPxMCKHJXeOgkO3Yqhhf5YCFsch
+         eWIw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=in-reply-to:content-disposition:mime-version:references:message-id
-         :subject:cc:to:from:date:dkim-signature;
-        bh=F8BugWPvgcU2u1kFFZKMyP/IOkg4/qodeykECt+PCWA=;
-        b=v7awzW5JlrmItFjrFqYaNuqALVlDxx4EpRQ3Rs0e0qO2Oqrxjq74YbZw5UeBSzq0so
-         ZwqjMIXUutGPdpk4OHJew+elhyq1AdYepqEPn0h1QaE6pzWl+7cCfEtxfk4tNB7hMOmu
-         zU1GD039fHVlP5QEgz6hcrAmpV4LLi5xb+ofjfy+UPZVJpZZ0DzbnzrXCqP2Mnc4ekaE
-         hTGu+AZgffc1GHg8wslQ68QXQZbwmvPKN2H3JWIzDTMVk2r1bkAmcCFV612LADrrqJUi
-         AXqXBwc+RPKh+bY8zCXmFfUCyGKTUsBCIrnEy82j8xesY2G/LtMxXsbD1CMx80Vx4N+k
-         6dvg==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date:dkim-signature;
+        bh=ssliLyV8U+mhRbl4ipf9bRa3EL22Ezd5Zc9rGXszSvs=;
+        b=tHC/9XbNPSxgsVcuIZ1BkeOeae1VPSn+OaEGAfS5+4flgIuUQHs7zipLyMQ507PMb4
+         0yYFYdo7CkHSVAyEGqoPGJd82h22Fd4EPsmZMB37MyVs0UOY5JWYYoUIpBOzJCU0VKGW
+         Vas6ig56L2Fx2Z/Z8AAZCqHLFIDrIATstiTgTOlTmnq9NDl1e+vWby31h3f7NLMR5Tbc
+         l+yrlCaZ7BnwyA6blywwRD3J+EGrmVMQdEDuHrSx8202tOuSsT8QzdOefuIQB8ZuUAcO
+         mpcA2gtBaZ6sgs0aDDNj/OU0ZhYzr90a8H4lv/e8m2I0BcBdAEJAvUNdLuQvGT+hSCwH
+         WiDg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@chromium.org header.s=google header.b=VX6SSuVo;
-       spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=C5w+mGxc;
+       spf=pass (google.com: domain of linux.bhar@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=linux.bhar@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id o39sor48643373pjb.10.2019.07.22.09.46.08
+        by mx.google.com with SMTPS id a4sor1007819pfn.24.2019.07.22.10.47.32
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 22 Jul 2019 09:46:09 -0700 (PDT)
-Received-SPF: pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Mon, 22 Jul 2019 10:47:32 -0700 (PDT)
+Received-SPF: pass (google.com: domain of linux.bhar@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@chromium.org header.s=google header.b=VX6SSuVo;
-       spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=C5w+mGxc;
+       spf=pass (google.com: domain of linux.bhar@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=linux.bhar@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=chromium.org; s=google;
+        d=gmail.com; s=20161025;
         h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to;
-        bh=F8BugWPvgcU2u1kFFZKMyP/IOkg4/qodeykECt+PCWA=;
-        b=VX6SSuVoSHuo5NAioif+DJtSSs1RJl179j5hlo4DTfAYF66Jgcx0vpiJB8eR+9HEL8
-         +f/45Mc4lQN3jKnZezfzKg+yOPAVpcviTazcgmREFQYvaP41eWd/rYtiTmOP5jut4IGW
-         UsbCxeU7Nx57xcR3YkKPrTzMk7AWS/2VcXYuY=
-X-Google-Smtp-Source: APXvYqzl1okfrN5zPZDspTEQta/i5+YABh20qrSg3GL1AN5406TswuRoR6v+V+I5B+11TbFoYh/o0Q==
-X-Received: by 2002:a17:90a:ff17:: with SMTP id ce23mr77676431pjb.47.1563813968675;
-        Mon, 22 Jul 2019 09:46:08 -0700 (PDT)
-Received: from www.outflux.net (smtp.outflux.net. [198.145.64.163])
-        by smtp.gmail.com with ESMTPSA id 4sm48411440pfc.92.2019.07.22.09.46.07
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 22 Jul 2019 09:46:07 -0700 (PDT)
-Date: Mon, 22 Jul 2019 09:46:06 -0700
-From: Kees Cook <keescook@chromium.org>
-To: Andrey Konovalov <andreyknvl@google.com>
-Cc: Al Viro <viro@zeniv.linux.org.uk>,
-	Eric Biederman <ebiederm@xmission.com>,
-	Linux ARM <linux-arm-kernel@lists.infradead.org>,
-	Linux Memory Management List <linux-mm@kvack.org>,
-	LKML <linux-kernel@vger.kernel.org>, amd-gfx@lists.freedesktop.org,
-	dri-devel@lists.freedesktop.org, linux-rdma@vger.kernel.org,
-	linux-media@vger.kernel.org, kvm@vger.kernel.org,
-	"open list:KERNEL SELFTEST FRAMEWORK" <linux-kselftest@vger.kernel.org>,
-	Vincenzo Frascino <vincenzo.frascino@arm.com>,
-	Will Deacon <will.deacon@arm.com>,
-	Mark Rutland <mark.rutland@arm.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	Yishai Hadas <yishaih@mellanox.com>,
-	Felix Kuehling <Felix.Kuehling@amd.com>,
-	Alexander Deucher <Alexander.Deucher@amd.com>,
-	Christian Koenig <Christian.Koenig@amd.com>,
-	Mauro Carvalho Chehab <mchehab@kernel.org>,
-	Jens Wiklander <jens.wiklander@linaro.org>,
-	Alex Williamson <alex.williamson@redhat.com>,
-	Leon Romanovsky <leon@kernel.org>,
-	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>,
-	Dave Martin <Dave.Martin@arm.com>,
-	Khalid Aziz <khalid.aziz@oracle.com>, enh <enh@google.com>,
-	Jason Gunthorpe <jgg@ziepe.ca>,
-	Christoph Hellwig <hch@infradead.org>,
-	Dmitry Vyukov <dvyukov@google.com>,
-	Kostya Serebryany <kcc@google.com>,
-	Evgeniy Stepanov <eugenis@google.com>,
-	Lee Smith <Lee.Smith@arm.com>,
-	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
-	Jacob Bramley <Jacob.Bramley@arm.com>,
-	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
-	Robin Murphy <robin.murphy@arm.com>,
-	Kevin Brodsky <kevin.brodsky@arm.com>,
-	Szabolcs Nagy <Szabolcs.Nagy@arm.com>,
-	Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: [PATCH v18 07/15] fs/namespace: untag user pointers in
- copy_mount_options
-Message-ID: <201907220944.5821C92518@keescook>
-References: <cover.1561386715.git.andreyknvl@google.com>
- <41e0a911e4e4d533486a1468114e6878e21f9f84.1561386715.git.andreyknvl@google.com>
- <20190624175009.GM29120@arrakis.emea.arm.com>
- <CAAeHK+x2TL057Fr0K7FZBTYgeEPVU3cC6scEeiSYk-Jkb3xgfg@mail.gmail.com>
+         :content-disposition:content-transfer-encoding:in-reply-to
+         :user-agent;
+        bh=ssliLyV8U+mhRbl4ipf9bRa3EL22Ezd5Zc9rGXszSvs=;
+        b=C5w+mGxcCfYenODdQNw1QcoLPL+bTkqpAf1/84e6VjiF/EoUBRTpVAR+fNjCytOAWp
+         odi5USyMM1CmgRscWbz7evmXa7roPGotsByCf0dCTZYoBvFSPOM8gPIGhpelZJSVH4kB
+         hmL7ht19DHj9QHK7nirEINAtPWdthi1fyy909XKPUyZ0sF2ocOcpxFB7WTDRSZe0K810
+         cFeY4feogogD3qQW80cDHyCXQa084E3fdKJZBNveSLtwkmItkyXKczLr82vjNBMn8GOC
+         D8FspNPt0fikrMjAzRzXpw3qh+0sRFbGrB73QY18Lv1wx61yQFRX5ooBCKklMPAlbkQs
+         BRdg==
+X-Google-Smtp-Source: APXvYqytaXVkl+pZJk2sr2G9EcYG8eurkZ6Bh7OAgDsV2SsE5u3Auq7jbF2z3AZSzMtO7hgrslDQ9w==
+X-Received: by 2002:a62:fc0a:: with SMTP id e10mr1400314pfh.114.1563817652196;
+        Mon, 22 Jul 2019 10:47:32 -0700 (PDT)
+Received: from bharath12345-Inspiron-5559 ([103.110.42.34])
+        by smtp.gmail.com with ESMTPSA id w3sm35130886pgl.31.2019.07.22.10.47.28
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 22 Jul 2019 10:47:31 -0700 (PDT)
+Date: Mon, 22 Jul 2019 23:17:25 +0530
+From: Bharath Vedartham <linux.bhar@gmail.com>
+To: John Hubbard <jhubbard@nvidia.com>
+Cc: arnd@arndb.de, sivanich@sgi.com, gregkh@linuxfoundation.org,
+	ira.weiny@intel.com, jglisse@redhat.com,
+	linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Subject: Re: [PATCH 1/3] sgi-gru: Convert put_page() to get_user_page*()
+Message-ID: <20190722174725.GA12278@bharath12345-Inspiron-5559>
+References: <1563724685-6540-1-git-send-email-linux.bhar@gmail.com>
+ <1563724685-6540-2-git-send-email-linux.bhar@gmail.com>
+ <dae42533-7e71-0e41-54a2-58c459761b3e@nvidia.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <CAAeHK+x2TL057Fr0K7FZBTYgeEPVU3cC6scEeiSYk-Jkb3xgfg@mail.gmail.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <dae42533-7e71-0e41-54a2-58c459761b3e@nvidia.com>
+User-Agent: Mutt/1.5.24 (2015-08-30)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-+Eric Biederman too, who might be able to Ack this...
-
-On Mon, Jul 15, 2019 at 06:00:04PM +0200, Andrey Konovalov wrote:
-> On Mon, Jun 24, 2019 at 7:50 PM Catalin Marinas <catalin.marinas@arm.com> wrote:
-> >
-> > On Mon, Jun 24, 2019 at 04:32:52PM +0200, Andrey Konovalov wrote:
-> > > This patch is a part of a series that extends kernel ABI to allow to pass
-> > > tagged user pointers (with the top byte set to something else other than
-> > > 0x00) as syscall arguments.
-> > >
-> > > In copy_mount_options a user address is being subtracted from TASK_SIZE.
-> > > If the address is lower than TASK_SIZE, the size is calculated to not
-> > > allow the exact_copy_from_user() call to cross TASK_SIZE boundary.
-> > > However if the address is tagged, then the size will be calculated
-> > > incorrectly.
-> > >
-> > > Untag the address before subtracting.
-> > >
-> > > Reviewed-by: Khalid Aziz <khalid.aziz@oracle.com>
-> > > Reviewed-by: Vincenzo Frascino <vincenzo.frascino@arm.com>
-> > > Reviewed-by: Kees Cook <keescook@chromium.org>
-> > > Reviewed-by: Catalin Marinas <catalin.marinas@arm.com>
-> > > Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
-> > > ---
-> > >  fs/namespace.c | 2 +-
-> > >  1 file changed, 1 insertion(+), 1 deletion(-)
-> > >
-> > > diff --git a/fs/namespace.c b/fs/namespace.c
-> > > index 7660c2749c96..ec78f7223917 100644
-> > > --- a/fs/namespace.c
-> > > +++ b/fs/namespace.c
-> > > @@ -2994,7 +2994,7 @@ void *copy_mount_options(const void __user * data)
-> > >        * the remainder of the page.
-> > >        */
-> > >       /* copy_from_user cannot cross TASK_SIZE ! */
-> > > -     size = TASK_SIZE - (unsigned long)data;
-> > > +     size = TASK_SIZE - (unsigned long)untagged_addr(data);
-> > >       if (size > PAGE_SIZE)
-> > >               size = PAGE_SIZE;
-> >
-> > I think this patch needs an ack from Al Viro (cc'ed).
-> >
-> > --
-> > Catalin
+On Sun, Jul 21, 2019 at 07:25:31PM -0700, John Hubbard wrote:
+> On 7/21/19 8:58 AM, Bharath Vedartham wrote:
+> > For pages that were retained via get_user_pages*(), release those pages
+> > via the new put_user_page*() routines, instead of via put_page().
+> > 
+> > This is part a tree-wide conversion, as described in commit fc1d8e7cca2d
+> > ("mm: introduce put_user_page*(), placeholder versions").
+> > 
+> > Cc: Ira Weiny <ira.weiny@intel.com>
+> > Cc: John Hubbard <jhubbard@nvidia.com>
+> > Cc: Jérôme Glisse <jglisse@redhat.com>
+> > Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+> > Cc: Dimitri Sivanich <sivanich@sgi.com>
+> > Cc: Arnd Bergmann <arnd@arndb.de>
+> > Cc: linux-kernel@vger.kernel.org
+> > Cc: linux-mm@kvack.org
+> > Signed-off-by: Bharath Vedartham <linux.bhar@gmail.com>
+> > ---
+> >  drivers/misc/sgi-gru/grufault.c | 2 +-
+> >  1 file changed, 1 insertion(+), 1 deletion(-)
+> > 
 > 
-> Hi Al,
+> Reviewed-by: John Hubbard <jhubbard@nvidia.com>
+Thanks! 
+> thanks,
+> -- 
+> John Hubbard
+> NVIDIA
 > 
-> Could you take a look and give your acked-by?
-> 
-> Thanks!
-
--- 
-Kees Cook
+> > diff --git a/drivers/misc/sgi-gru/grufault.c b/drivers/misc/sgi-gru/grufault.c
+> > index 4b713a8..61b3447 100644
+> > --- a/drivers/misc/sgi-gru/grufault.c
+> > +++ b/drivers/misc/sgi-gru/grufault.c
+> > @@ -188,7 +188,7 @@ static int non_atomic_pte_lookup(struct vm_area_struct *vma,
+> >  	if (get_user_pages(vaddr, 1, write ? FOLL_WRITE : 0, &page, NULL) <= 0)
+> >  		return -EFAULT;
+> >  	*paddr = page_to_phys(page);
+> > -	put_page(page);
+> > +	put_user_page(page);
+> >  	return 0;
+> >  }
+> >  
+> > 
 
